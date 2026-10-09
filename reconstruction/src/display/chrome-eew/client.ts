@@ -5,7 +5,7 @@ import type { DisplaySnapshot, DisplayWorkerView } from "../../../contracts/p2-s
 import type { ChromeClockProbeResponse, ChromeEewMarkerDetail } from "../../../contracts/p2-eew-e01.types";
 import {
   buildChannelLines, buildConfirmationLine, buildConnectionLine, buildEewCard, buildNoticeLine, buildSummaryLine,
-  buildCapacityExceededLine, operationVisible, parseDisplaySnapshot, staleBanner, summaryRowVisible,
+  buildCapacityExceededLine, buildTsunamiPaint, operationVisible, parseDisplaySnapshot, staleBanner, summaryRowVisible, tsunamiCandidates,
 } from "./pure.js";
 
 // AC01: 境界で検証した完全snapshotだけを呼び出し元へ渡す。独自wire schemaは持たない。
@@ -44,6 +44,14 @@ function markEewPaintCandidate(snapshot: DisplaySnapshot, chromeMonotonicMs: num
     };
     performance.mark("fleq:p2:eew:T6-candidate", { startTime: chromeMonotonicMs, detail });
   }
+}
+
+// P3-C6-AC04: 津波の T6 候補。カードと海岸線の DOM 更新を終えた後の同じ更新の中で、full 配送の subject ごとに 1 つ、
+// 直前に描いていてこの更新で描かなくなった subject に present false の 1 つ（解除の「旧表示の除去」を測るため）。戻り値は今描いた subject。
+function markTsunamiPaintCandidate(snapshot: DisplaySnapshot, previousSubjects: ReadonlySet<string>, chromeMonotonicMs: number): ReadonlySet<string> {
+  const { details, drawn } = tsunamiCandidates(snapshot, previousSubjects);
+  for (const detail of details) performance.mark(detail.name, { startTime: chromeMonotonicMs, detail });
+  return drawn;
 }
 
 // CDP経由でrunnerが呼ぶ。Chrome受信時刻と返信直前時刻を同じprobeIdで返す。Node側の時刻結合はA10が行う。
@@ -94,6 +102,37 @@ function renderEew(cards: HTMLElement, map: HTMLElement, snapshot: DisplaySnapsh
   map.replaceChildren(...mapNodes);
 }
 
+// P3-C6-AC03: 津波のカードと海岸線を作り直す。呼び出し元は津波の配送か contentRevision が変わった回だけ呼ぶ。
+// summary 配送では旧カード・旧海岸線を除き、operation 別の要約行を出す（無発令に見せない）。
+function renderTsunami(cards: HTMLElement, coast: HTMLElement, snapshot: DisplaySnapshot): void {
+  const tsunami = snapshot.current.tsunami;
+  const cardNodes: HTMLElement[] = [];
+  const coastNodes: HTMLElement[] = [];
+  if (tsunami.delivery === "full") {
+    const paint = buildTsunamiPaint(tsunami.view.forecasts);
+    for (const card of paint.cards) {
+      const wrap = el("div", `tsu-card ${card.className}`);
+      wrap.append(el("div", "tsu-card-head", card.head), el("div", "tsu-card-time", card.reportTimeDisplay));
+      for (const area of card.areas) wrap.append(el("div", area.className, area.text));
+      cardNodes.push(wrap);
+    }
+    if (paint.missingCoastCount > 0) cardNodes.push(el("div", "tsu-missing", `海岸線の資材なし ${paint.missingCoastCount} 区域`));
+    for (const segment of paint.segments) {
+      const [x, y, w, h] = segment.rect;
+      const rect = el("div", `coast-area ${segment.className}${segment.blink ? " tsu-blink" : ""}`);
+      rect.style.left = `${x}px`;
+      rect.style.top = `${y}px`;
+      rect.style.width = `${w}px`;
+      rect.style.height = `${h}px`;
+      coastNodes.push(rect);
+    }
+  } else {
+    for (const item of tsunami.items) if (summaryRowVisible(item)) cardNodes.push(el("div", "tsu-summary", buildSummaryLine(item)));
+  }
+  cards.replaceChildren(...cardNodes);
+  coast.replaceChildren(...coastNodes);
+}
+
 export type StatusElements = Readonly<{
   capacity: HTMLElement; notices: HTMLElement; channels: HTMLElement; confirmation: HTMLElement;
   connection: HTMLElement; banner: HTMLElement;
@@ -118,4 +157,7 @@ function renderStatus(
   elements.banner.textContent = staleBanner(browserStale, worker);
 }
 
-export { connectDisplaySnapshot, markEewPaintCandidate, markEewSnapshotReceived, renderEew, renderStatus, respondClockProbe };
+export {
+  connectDisplaySnapshot, markEewPaintCandidate, markEewSnapshotReceived, markTsunamiPaintCandidate, renderEew, renderStatus, renderTsunami,
+  respondClockProbe,
+};

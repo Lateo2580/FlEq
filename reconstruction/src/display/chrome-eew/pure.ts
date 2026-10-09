@@ -7,6 +7,9 @@ import type {
   DisplaySummaryItem, DisplayWorkerView, VisibleNotice,
 } from "../../../contracts/p2-snapshot-sse.types";
 import type { EewCurrent, EewPredictionIntensity } from "../../../contracts/p2-eew-unit.types";
+import type { TsunamiAreaClass, TsunamiForecastArea, TsunamiForecastSubject } from "../../../contracts/p3-tsunami-unit.types";
+import type { ChromeTsunamiMarkerDetail } from "../../../contracts/p3-tsunami-e01.types";
+import { COAST_RECT_BY_CODE, type CoastRect } from "./coast.js";
 import { GEOMETRY_RECT_BY_CODE, type GeometryRect } from "./geometry.js";
 
 // AC01: streamId/sequenceだけで完全snapshot置換を決める。旧版・差分は保持しない。
@@ -20,6 +23,12 @@ function replaceDisplaySnapshot(current: DisplaySnapshot | null, incoming: Displ
 // (A8もfull view本体をcontentRevisionで同一視する)。受信経路で本体を直列化・走査しない。
 function eewContentChanged(before: DisplaySnapshot, after: DisplaySnapshot): boolean {
   const a = before.current.eew, b = after.current.eew;
+  return before.streamId !== after.streamId || a.delivery !== b.delivery || a.contentRevision !== b.contentRevision;
+}
+
+// P3-C6-AC03(6): 津波も U-T の contentRevision だけで描き直しを決める（EEW の更新で津波を描き直さない、その逆も同じ）。
+function tsunamiContentChanged(before: DisplaySnapshot, after: DisplaySnapshot): boolean {
+  const a = before.current.tsunami, b = after.current.tsunami;
   return before.streamId !== after.streamId || a.delivery !== b.delivery || a.contentRevision !== b.contentRevision;
 }
 
@@ -193,6 +202,112 @@ function buildSummaryLine(item: DisplaySummaryItem): string {
   return `[${OPERATION_LABEL[item.operation]}] ${item.activeCount}件 / ${severity} / 更新: ${formatJst(item.updatedAt)} / 詳細省略中`;
 }
 
+// ── P3-C6-AC03: 津波の大カード・警報区分・最小海岸線。塗りの規則は manifest の expectedPaint もこれで作る（P3-C6-SERIES-SOURCE=A）。──
+type TsunamiPaintClass = "majorWarning" | "warning" | "unknown" | "advisory";
+// 海岸線に塗る区分だけ。unknown は P3-C5-KIND-ENUM=B で警報と同じ順位・同じ色。
+function tsunamiPaintClass(value: TsunamiAreaClass): TsunamiPaintClass | null {
+  switch (value) {
+    case "majorWarning": case "warning": case "unknown": case "advisory": return value;
+    case "forecast": case "released": case "none": return null;
+  }
+}
+// AC08: class 名は固定表の値だけ。点滅は majorWarning の海岸線だけ（spec:1598）。
+const TSUNAMI_PAINT: Readonly<Record<TsunamiPaintClass, Readonly<{ rank: number; className: string; label: string }>>> = {
+  majorWarning: { rank: 3, className: "tsu-major", label: "大津波警報" },
+  warning: { rank: 2, className: "tsu-warning", label: "津波警報" },
+  unknown: { rank: 2, className: "tsu-warning", label: "津波警報（区分コード表外）" },
+  advisory: { rank: 1, className: "tsu-advisory", label: "津波注意報" },
+};
+
+export type TsunamiPaintedArea = Readonly<{ code: string; areaClass: TsunamiAreaClass }>;
+type TsunamiCoastSegment = Readonly<{ code: string; rect: CoastRect; className: string; blink: boolean }>;
+type TsunamiCardView = Readonly<{
+  subject: string; head: string; className: string; reportTimeDisplay: string;
+  areas: readonly Readonly<{ text: string; className: string }>[];
+}>;
+type TsunamiPaintView = Readonly<{
+  cards: readonly TsunamiCardView[];
+  segments: readonly TsunamiCoastSegment[];
+  // 塗る区分の区域のうち資材に無い code の数（spec§8.10 の 7 と同じく「対象なし」にしない）。
+  missingCoastCount: number;
+  // T6 候補の areas（subject をまたいで code ごとに最高区分へまとめた後の、その subject の code の塗った結果、code 順）。
+  areasBySubject: ReadonlyMap<string, readonly TsunamiPaintedArea[]>;
+}>;
+
+const heightText = (area: TsunamiForecastArea): string => {
+  const parts: string[] = [];
+  const max = area.maxHeight;
+  if (max != null) {
+    const raw = max.value.kind === "missing" ? null : max.value.raw;
+    const extra = [max.condition, max.description].filter((text): text is string => text != null);
+    if (raw != null || extra.length > 0) parts.push(`高さ ${[raw, ...extra].filter((text) => text != null).join(" ")}`);
+  }
+  const first = [area.firstHeight.arrivalTimeRaw, area.firstHeight.condition].filter((text): text is string => text != null);
+  if (first.length > 0) parts.push(`到達予想 ${first.join(" ")}`);
+  return parts.length === 0 ? "" : ` / ${parts.join(" / ")}`;
+};
+
+// U-T の full view の forecasts から描画指示を作る。資材は code→矩形の Map を引くだけ（AC12）。
+function buildTsunamiPaint(forecasts: readonly TsunamiForecastSubject[]): TsunamiPaintView {
+  const merged = new Map<string, TsunamiPaintClass>();
+  const missing = new Set<string>();
+  for (const subject of forecasts) for (const area of subject.areas) {
+    const paint = tsunamiPaintClass(area.areaClass);
+    if (paint == null) continue;
+    if (!COAST_RECT_BY_CODE.has(area.code)) { missing.add(area.code); continue; }
+    const before = merged.get(area.code);
+    // 同順位（warning と unknown）は先に塗った方を保つ。色は同じ。
+    if (before == null || TSUNAMI_PAINT[paint].rank > TSUNAMI_PAINT[before].rank) merged.set(area.code, paint);
+  }
+  const segments = [...merged].map(([code, paint]) => ({ code, rect: COAST_RECT_BY_CODE.get(code)!,
+    className: TSUNAMI_PAINT[paint].className, blink: paint === "majorWarning" }));
+  const areasBySubject = new Map<string, readonly TsunamiPaintedArea[]>();
+  const cards = forecasts.map((subject): TsunamiCardView => {
+    const painted = new Map<string, TsunamiPaintedArea>();
+    let highest: TsunamiPaintClass | null = null;
+    for (const area of subject.areas) {
+      const paint = tsunamiPaintClass(area.areaClass);
+      if (paint != null && (highest == null || TSUNAMI_PAINT[paint].rank > TSUNAMI_PAINT[highest].rank)) highest = paint;
+      const shown = merged.get(area.code);
+      if (paint != null && shown != null) painted.set(area.code, { code: area.code, areaClass: shown });
+    }
+    areasBySubject.set(subject.subject, [...painted.values()].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)));
+    const label = highest == null ? "警報・注意報の区域なし" : TSUNAMI_PAINT[highest].label;
+    const rowClass = (value: TsunamiAreaClass) => { const paint = tsunamiPaintClass(value); return paint == null ? "tsu-row" : `tsu-row ${TSUNAMI_PAINT[paint].className}`; };
+    return {
+      subject: subject.subject,
+      head: `[${OPERATION_LABEL[subject.operation]}] 津波 ${subject.eventId} ${label}`,
+      className: highest == null ? "tsu-none" : TSUNAMI_PAINT[highest].className,
+      reportTimeDisplay: formatJst(parseReportDateTime(subject.source.reportDateTimeRaw)),
+      areas: [...subject.areas.map((area) => ({ text: `${area.code} ${area.name}: ${area.kindName}${heightText(area)}`, className: rowClass(area.areaClass) })),
+        ...subject.unkeyedAreas.map((area) => ({ text: `${area.name}: ${area.kindName}（区域コードなし）`, className: "tsu-row" }))],
+    };
+  });
+  return { cards, segments, missingCoastCount: missing.size, areasBySubject };
+}
+
+// P3-C6-AC04: 1 回の津波の描き直しで出す T6 候補の detail と、今描いた subject。full 配送の subject ごとに present true を 1 つ、
+// 直前に描いていて今回描かない subject に present false・areas 空を 1 つ。version は snapshot の版。
+function tsunamiCandidates(snapshot: DisplaySnapshot, previousSubjects: ReadonlySet<string>): Readonly<{
+  details: readonly ChromeTsunamiMarkerDetail[]; drawn: ReadonlySet<string>;
+}> {
+  const tsunami = snapshot.current.tsunami;
+  const forecasts = tsunami.delivery === "full" ? tsunami.view.forecasts : [];
+  const areas = buildTsunamiPaint(forecasts).areasBySubject;
+  const displayVersion = { streamId: snapshot.streamId, semanticRevision: snapshot.semanticRevision, sequence: snapshot.sequence };
+  const detail = (operation: Operation, subject: string, present: boolean): ChromeTsunamiMarkerDetail => ({ name: "fleq:p3:tsunami:T6-candidate",
+    displayVersion, operation, subject, present, cardMarkerId: `tsunami-card:${subject}`, coastMarkerId: `coast:${subject}`,
+    areas: present ? areas.get(subject) ?? [] : [] });
+  const drawn = new Set(forecasts.map((subject) => subject.subject));
+  const details = forecasts.map((subject) => detail(subject.operation, subject.subject, true));
+  // subject は `${operation}/VTSE41/${eventId}`（I-U-T）なので、消えた subject の operation は先頭から読む。
+  for (const subject of previousSubjects) if (!drawn.has(subject)) {
+    const operation = OPERATIONS.find((value) => subject.startsWith(`${value}/`));
+    if (operation != null) details.push(detail(operation, subject, false));
+  }
+  return { details, drawn };
+}
+
 // ── AC01: snapshotの境界検証。A9が描画・判定で読む部分と判別値だけを確かめる (A8の型全体は複製しない)。──
 type Fields = Readonly<Record<string, unknown>>;
 const isRecord = (value: unknown): value is Fields => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -227,9 +342,32 @@ const isItem = (value: unknown, operation: Operation) => isRecord(value) && valu
   && (value.admission.capacityExceeded === undefined || Number.isSafeInteger(value.admission.capacityExceeded))
   && isRecord(value.confirmation) && oneOf(CONFIRMATION_LABEL, value.confirmation.state)
   && isTimeOrNull(value.confirmation.confirmedAt);
+// P3-C6-AC03(7): 津波の描画に使う項目だけ。
+const TSUNAMI_CLASSES: Readonly<Record<TsunamiAreaClass, true>> = {
+  majorWarning: true, warning: true, advisory: true, forecast: true, released: true, none: true, unknown: true,
+};
+const isTsunamiArea = (value: unknown) => isRecord(value) && typeof value.code === "string" && typeof value.name === "string"
+  && oneOf(TSUNAMI_CLASSES, value.areaClass) && typeof value.kindName === "string"
+  && isRecord(value.firstHeight) && isTextOrNull(value.firstHeight.arrivalTimeRaw) && isTextOrNull(value.firstHeight.condition)
+  && (value.maxHeight === null || isRecord(value.maxHeight) && isMaterialValue(value.maxHeight.value)
+    && isTextOrNull(value.maxHeight.condition) && isTextOrNull(value.maxHeight.description));
+const isTsunamiForecast = (value: unknown) => isRecord(value) && oneOf(OPERATION_LABEL, value.operation)
+  && typeof value.subject === "string" && typeof value.eventId === "string"
+  && isRecord(value.source) && typeof value.source.reportDateTimeRaw === "string"
+  && Array.isArray(value.areas) && value.areas.every(isTsunamiArea)
+  && Array.isArray(value.unkeyedAreas) && value.unkeyedAreas.every((area) => isRecord(area) && typeof area.name === "string"
+    && typeof area.kindName === "string");
 const isNotice = (value: unknown) => isRecord(value) && oneOf(OPERATION_LABEL, value.operation) && typeof value.text === "string"
   && (value.source === null || isRecord(value.source) && isTextOrNull(value.source.office)
     && typeof value.source.officeTruncated === "boolean");
+
+// 配送の外形（unit・内容版・3 行の items・full/summary）。view の中身は呼び出し側が unit ごとに確かめる。
+function isDomain(domain: unknown, unit: string): domain is Fields {
+  if (!isRecord(domain) || domain.unit !== unit || typeof domain.contentRevision !== "string") return false;
+  const items = domain.items;
+  return Array.isArray(items) && items.length === 3 && OPERATIONS.every((operation, index) => isItem(items[index], operation))
+    && (domain.delivery === "summary" || domain.delivery === "full" && isRecord(domain.view));
+}
 
 function isDisplaySnapshot(value: unknown): value is DisplaySnapshot {
   if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.streamId !== "string"
@@ -239,13 +377,11 @@ function isDisplaySnapshot(value: unknown): value is DisplaySnapshot {
     || !isRecord(worker) || !oneOf(WORKER_LABEL, worker.state)
     || !isRecord(channels) || !oneOf(CHANNEL_LABEL, channels.desktop) || !oneOf(CHANNEL_LABEL, channels.sound)
     || !Array.isArray(notices) || !notices.every(isNotice) || !isRecord(current)) return false;
-  const eew = current.eew;
-  if (!isRecord(eew) || eew.unit !== "U-E" || typeof eew.contentRevision !== "string") return false;
-  const items = eew.items;
-  if (!Array.isArray(items) || items.length !== 3
-    || !OPERATIONS.every((operation, index) => isItem(items[index], operation))) return false;
-  return eew.delivery === "summary"
-    || eew.delivery === "full" && isRecord(eew.view) && Array.isArray(eew.view.current) && eew.view.current.every(isCurrent);
+  const eew = current.eew, tsunami = current.tsunami;
+  if (!isDomain(eew, "U-E") || !isDomain(tsunami, "U-T")) return false;
+  return (eew.delivery === "summary" || isRecord(eew.view) && Array.isArray(eew.view.current) && eew.view.current.every(isCurrent))
+    && (tsunami.delivery === "summary" || isRecord(tsunami.view) && Array.isArray(tsunami.view.forecasts)
+      && tsunami.view.forecasts.every(isTsunamiForecast));
 }
 
 // 受信した文字列をsnapshotへ。不正なら null を返し、呼び出し元は受信時刻・stale・marker・表示を更新しない。
@@ -257,7 +393,7 @@ function parseDisplaySnapshot(data: string): DisplaySnapshot | null {
 
 export {
   buildChannelLines, buildConfirmationLine, buildConnectionLine, buildEewCard, buildNoticeLine, buildSummaryLine,
-  buildCapacityExceededLine, eewContentChanged, operationVisible, parseDisplaySnapshot, parseHeartbeatWorker,
+  buildCapacityExceededLine, buildTsunamiPaint, eewContentChanged, operationVisible, parseDisplaySnapshot, parseHeartbeatWorker,
   replaceDisplaySnapshot, staleBanner,
-  summaryRowVisible,
+  summaryRowVisible, tsunamiCandidates, tsunamiContentChanged,
 };

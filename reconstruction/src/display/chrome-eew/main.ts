@@ -3,9 +3,10 @@
 
 import type { DisplaySnapshot, DisplayWorkerView } from "../../../contracts/p2-snapshot-sse.types";
 import {
-  connectDisplaySnapshot, markEewPaintCandidate, markEewSnapshotReceived, renderEew, renderStatus, respondClockProbe,
+  connectDisplaySnapshot, markEewPaintCandidate, markEewSnapshotReceived, markTsunamiPaintCandidate, renderEew, renderStatus, renderTsunami,
+  respondClockProbe,
 } from "./client.js";
-import { eewContentChanged, parseHeartbeatWorker, replaceDisplaySnapshot } from "./pure.js";
+import { eewContentChanged, parseHeartbeatWorker, replaceDisplaySnapshot, tsunamiContentChanged } from "./pure.js";
 
 // AC09: 最終有効snapshot/heartbeatの受信から45秒無受信でstale。検査周期は最大15秒。
 const STALE_THRESHOLD_MS = 45_000;
@@ -19,6 +20,8 @@ function requireElement(id: string): HTMLElement {
 
 const cards = requireElement("cards");
 const map = requireElement("map");
+const tsunamiCards = requireElement("tsunami-cards");
+const coast = requireElement("coast");
 const status = {
   capacity: requireElement("capacity"), notices: requireElement("notices"), channels: requireElement("channels"),
   confirmation: requireElement("confirmation"), connection: requireElement("connection"), banner: requireElement("banner"),
@@ -28,6 +31,8 @@ const status = {
 let latest: DisplaySnapshot | null = null;
 // heartbeatが運ぶ明示的なworker状態。受理したsnapshotのworkerで上書きされる。
 let worker: DisplayWorkerView["state"] | null = null;
+// P3-C6-AC04: 直前の描き直しで描いた津波の subject（view 外になった subject に present false の候補を出すため）。
+let tsunamiDrawn: ReadonlySet<string> = new Set();
 // 初回未受信の起点は接続開始時刻。
 let lastEventAt = performance.now();
 let stale = false;
@@ -47,6 +52,10 @@ function onSnapshot(snapshot: DisplaySnapshot, receivedAt: number): void {
     renderEew(cards, map, next);
     // T6候補はcardとmapのDOM更新を終えた後、同じ更新の中で打つ。
     markEewPaintCandidate(next, performance.now());
+  }
+  if (latest == null || tsunamiContentChanged(latest, next)) {
+    renderTsunami(tsunamiCards, coast, next);
+    tsunamiDrawn = markTsunamiPaintCandidate(next, tsunamiDrawn, performance.now());
   }
   renderStatus(status, next, next.worker.state, stale);
   // 描画に失敗したsnapshotは保持しない (次の受信で描き直せるように、代入は描画の後)。

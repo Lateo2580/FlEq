@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "27a4d43b8c12ca6d1167bcc238669d13df5ff505",
-    "sha256": "2e348817dfba4040a480fad44d4207dba6a9d52aa12cec06cb2ff3ce72dabb17",
+    "sha256": "6c6bcf74e5d63160a99c42d9ec48bdb41261f1098ccb9ab938067bf3e894976d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
     "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
@@ -325,7 +325,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
           "docs/specs/reconstruction-p0-contracts.md:1830 «964d8b6f65321973»",
-          "reconstruction/test/eew-e01/windows.mjs:363 «f7fbb6c1b5db376d»",
+          "reconstruction/test/eew-e01/windows.mjs:364 «f7fbb6c1b5db376d»",
           "reconstruction/contracts/p3-e01-reaccept.json:289 «eec648e3f6f0d1a1»",
           "reconstruction/contracts/p3-e01-reaccept.json:254 «5d3295d2ecb43798»"
         ]
@@ -478,7 +478,7 @@
           "C4の凍結manifest（p3-c4-formal-20261007・p3-c4-formal-deadline-20261008）と、その結果のfileは書き換えない。結果は新しいmanifestIdのwindowsの下に置く",
           "manifestのcontractSha256に本契約のmeta.sha256を入れ、機械の実値（CPU・メモリ・OS・Node・Chrome）を記録する",
           "Failなら、原因の分類（--expose-gc後のRSSなど）は条件を決めた別の窓をさらに新しいmanifestIdで行う（C4のAC06の規則）。本契約のコードの不合格とは扱わない（AC07は報告）",
-          "根拠の行: reconstruction/src/measurement/eew-e01/frozen.ts:356 «b9d1e26a987dad43»、reconstruction/contracts/p3-e01-reaccept.json:690 «232610e7b2f48904»"
+          "根拠の行: reconstruction/src/measurement/eew-e01/frozen.ts:369 «b9d1e26a987dad43»、reconstruction/contracts/p3-e01-reaccept.json:690 «232610e7b2f48904»"
         ]
       },
       {

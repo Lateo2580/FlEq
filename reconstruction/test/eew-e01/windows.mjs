@@ -15,6 +15,7 @@ import {
 } from "./aux-measures.mjs";
 import { hrMs, sleep } from "./chrome.mjs";
 import { E12_CLASSES, FIX, ac15Frame, cycleCFrames, dataFrame, e03Frame, fixtureText, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
+import { tsunamiReport } from "./tsunami.mjs";
 
 import { summarizeHealthE02 } from "../../dist/src/measurement/eew-e01/judge.js";
 import { ZERO_HASH, sealSelfHash } from "../../dist/src/measurement/eew-e01/frozen.js";
@@ -676,6 +677,12 @@ export function e14BundleFrames(k, atWallMs) {
   return [{ unit: "U-E", headType: "VXSE45", xml: eew }, { unit: "U-W", headType: "VPWS50", xml: shiftTimestamps(national, atWallMs - reportAt(national)) },
     { unit: "U-F", headType: "VPWP50", xml: shiftTimestamps(forecast, atWallMs - reportAt(forecast)) }];
 }
+// P3-C6-AC08 ④（C5 から引き継いだ U-E と U-T の同時 dirty の確かめ）: 予備の --e14-tsunami で、束ごとに VTSE41（template の版を進めた報。
+// 大津波警報と津波警報を交互に、同じ EventID・報告時刻＝束の時刻の秒）を足す。新しい subject は最初の束の 1 つだけ。
+export function e14TsunamiFrame(k, atWallMs) {
+  return { unit: "U-T", headType: "VTSE41", xml: tsunamiReport(k % 2 === 0 ? "synthetic_VTSE41_e01_311major" : "synthetic_VTSE41_e01_311warning",
+    { eventId: "20261009069999", reportAtMs: Math.floor(atWallMs / 1000) * 1000 }) };
+}
 // ③ 束は予定時刻に送り、前の束の保存を待たない（起点は束の入力の generationRaised なので、前の束の残りは束の起点にならない）。最後の束は
 // intervalMs まで成功を待ってから止める。通知の backend は silent に固定する（訂正で束ごとに通知が出るが、この窓は保存の dirty→ack を測り、
 // 通知を判定しない、AC13(3)）。
@@ -697,7 +704,8 @@ function e14Window(ctx, run) {
       const bundles = [];
       for (let k = 0; k < count; k++) {
         const due = startHr + k * a.intervalMs;
-        const frames = e14BundleFrames(k, host.wallMs(due)).map((f) => ({ unit: f.unit, frame: dataFrame(f.headType, f.xml) }));
+        const frames = [...e14BundleFrames(k, host.wallMs(due)), ...(ctx.counts.e14Tsunami === true ? [e14TsunamiFrame(k, host.wallMs(due))] : [])]
+          .map((f) => ({ unit: f.unit, frame: dataFrame(f.headType, f.xml) }));
         await waitUntil(host, due);
         const inputIds = {};
         for (const f of frames) inputIds[f.unit] = `input-${host.send(f.frame).seq}`;

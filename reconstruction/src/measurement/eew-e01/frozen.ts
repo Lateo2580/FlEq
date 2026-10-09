@@ -10,6 +10,11 @@ import type {
   EewTrialSetup,
 } from "../../../contracts/p2-eew-e01.types";
 import type { P3E01Manifest, P3EewEstablishment, P3EewPopulation, P3EewPopulationCondition } from "../../../contracts/p3-e01-reaccept.types";
+import type {
+  ChromeTsunamiMarkerDetail, P3TsunamiCondition, P3TsunamiE01Manifest, P3TsunamiEstablishment, P3TsunamiPopulation, P3TsunamiPopulationCondition,
+  P3TsunamiSeries, P3TsunamiSmokeConditions, P3TsunamiTransitionTemplate,
+} from "../../../contracts/p3-tsunami-e01.types";
+import type { TsunamiAreaClass, TsunamiAreaTransition } from "../../../contracts/p3-tsunami-unit.types";
 
 // P2-A10-AC01/AC14 の凍結境界。無いと、結果を見た後に manifest を書き換えても検出できず、
 // smoke 条件との差異や使用契約の hash 不一致が黙って通る。
@@ -314,26 +319,18 @@ const MANIFEST_KEYS = ["schemaVersion", "manifestId", "manifestSha256", "contrac
   "smokeConditionDifferences", "measuredSseClients", "notificationProbe", "loads", "warmupPerRun", "samplesPerRun", "runCount", "missingAfterMs",
   "callbackDeadlineAfterInjectionMs", "quantile", "clockProbeEveryMs", "maxClockIntervalWidthMs", "health", "chrome", "nodeVersion", "osVersion", "device",
   "geometrySha256", "fixtureSha256", "inheritsManifestId", "populations", "liveness", "auxiliary", "machines", "judgmentPlaces", "o09Subset"] as const;
-function readP3Manifest(v: unknown): P3E01Manifest {
-  const m = exactKeys(v, MANIFEST_KEYS, "manifest");
+// C4 と C6 の manifest が共有する項目（A10 から継ぐ固定値・負荷・機械）。key の集合は呼び出し側の exactKeys が確かめる。
+function readSharedP3(m: Json) {
   const health = exactKeys(m["health"], ["loads", "requestEveryMs", "requestTimeoutMs", "minSamplesPerRun", "runCount"], "manifest.health");
   const chrome = exactKeys(m["chrome"], ["version", "foregroundTab", "viewportCssPx", "dpr", "motion"], "manifest.chrome");
   const viewport = list(chrome["viewportCssPx"], count, "manifest.chrome.viewportCssPx", 2);
   const probe = exactKeys(m["notificationProbe"], ["desktop", "sound"], "manifest.notificationProbe");
   const loads = exactKeys(m["loads"], LOADS, "manifest.loads");
-  const populations = exactKeys(m["populations"], P3_POPULATIONS, "manifest.populations");
   const liveness = exactKeys(m["liveness"], ["pingEveryMs", "maxFrameGapMs"], "liveness");
-  const auxiliary = exactKeys(m["auxiliary"], ["E03", "E05", "E06", "E07", "E12", "E14", "E15", "ownerHeap"], "manifest.auxiliary");
   const machines = exactKeys(m["machines"], ["formal", "gate", "piBackend"], "manifest.machines");
-  const places = exactKeys(m["judgmentPlaces"], ["E01", "E02", "E03", "E05", "E06", "E07", "E14", "E15"], "manifest.judgmentPlaces");
-  const o09 = exactKeys(m["o09Subset"], ["sequenceId", "sequencesSha256", "positions"], "o09Subset");
-  const population = (key: P3EewPopulation) => readCondition(populations[key], `population ${key}`);
-  const aux = (key: keyof P3E01Manifest["auxiliary"]) => readAuxiliary(auxiliary[key], `auxiliary ${key}`);
-  const place = (key: keyof P3E01Manifest["judgmentPlaces"]) => text(places[key], `judgmentPlaces.${key}`);
   const probed = (key: "desktop" | "sound") => oneOf(probe[key], ["idle", "unavailable"], `notificationProbe.${key}`);
   const healthLoads = list(health["loads"], text, "health conditions: loads", 2);
   return {
-    schemaVersion: exactly(m["schemaVersion"], "p3-e01-manifest-v1", "manifest schemaVersion"),
     manifestId: text(m["manifestId"], "manifestId"), manifestSha256: text(m["manifestSha256"], "manifestSha256"),
     contractSha256: textRecord(m["contractSha256"], "contractSha256"), trialSetupRef: text(m["trialSetupRef"], "trialSetupRef"),
     trialSetupSha256: text(m["trialSetupSha256"], "trialSetupSha256"), smokeConditionsSha256: text(m["smokeConditionsSha256"], "smokeConditionsSha256"),
@@ -346,20 +343,34 @@ function readP3Manifest(v: unknown): P3E01Manifest {
     callbackDeadlineAfterInjectionMs: exactly(m["callbackDeadlineAfterInjectionMs"], 10000, "manifest deadlines"),
     quantile: exactly(m["quantile"], "nearestRank", "manifest clock/quantile"), clockProbeEveryMs: exactly(m["clockProbeEveryMs"], 30000, "manifest deadlines"),
     maxClockIntervalWidthMs: exactly(m["maxClockIntervalWidthMs"], 5, "manifest clock/quantile"),
-    health: { loads: [exactly(healthLoads[0], "N", "health conditions"), exactly(healthLoads[1], "P", "health conditions")],
+    health: { loads: [exactly(healthLoads[0], "N", "health conditions"), exactly(healthLoads[1], "P", "health conditions")] as const,
       requestEveryMs: exactly(health["requestEveryMs"], 1000, "health conditions"), requestTimeoutMs: count(health["requestTimeoutMs"], "health.requestTimeoutMs"),
       minSamplesPerRun: exactly(health["minSamplesPerRun"], 1000, "health conditions"), runCount: exactly(health["runCount"], 3, "health conditions") },
     chrome: { version: text(chrome["version"], "chrome.version"), foregroundTab: exactly(chrome["foregroundTab"], true, "chrome.foregroundTab must be true"),
-      viewportCssPx: [viewport[0], viewport[1]], dpr: count(chrome["dpr"], "chrome.dpr"), motion: oneOf(chrome["motion"], ["reduced", "full"], "chrome.motion") },
+      viewportCssPx: [viewport[0], viewport[1]] as const, dpr: count(chrome["dpr"], "chrome.dpr"), motion: oneOf(chrome["motion"], ["reduced", "full"], "chrome.motion") },
     nodeVersion: text(m["nodeVersion"], "nodeVersion"), osVersion: text(m["osVersion"], "osVersion"), device: text(m["device"], "device"),
     geometrySha256: text(m["geometrySha256"], "geometrySha256"), fixtureSha256: textRecord(m["fixtureSha256"], "fixtureSha256"),
+    liveness: { pingEveryMs: exactly(liveness["pingEveryMs"], 20000, "liveness"), maxFrameGapMs: exactly(liveness["maxFrameGapMs"], 90000, "liveness") },
+    machines: { formal: text(machines["formal"], "machines.formal"), gate: text(machines["gate"], "machines.gate"), piBackend: text(machines["piBackend"], "machines.piBackend") },
+  };
+}
+function readP3Manifest(v: unknown): P3E01Manifest {
+  const m = exactKeys(v, MANIFEST_KEYS, "manifest");
+  const populations = exactKeys(m["populations"], P3_POPULATIONS, "manifest.populations");
+  const auxiliary = exactKeys(m["auxiliary"], ["E03", "E05", "E06", "E07", "E12", "E14", "E15", "ownerHeap"], "manifest.auxiliary");
+  const places = exactKeys(m["judgmentPlaces"], ["E01", "E02", "E03", "E05", "E06", "E07", "E14", "E15"], "manifest.judgmentPlaces");
+  const o09 = exactKeys(m["o09Subset"], ["sequenceId", "sequencesSha256", "positions"], "o09Subset");
+  const population = (key: P3EewPopulation) => readCondition(populations[key], `population ${key}`);
+  const aux = (key: keyof P3E01Manifest["auxiliary"]) => readAuxiliary(auxiliary[key], `auxiliary ${key}`);
+  const place = (key: keyof P3E01Manifest["judgmentPlaces"]) => text(places[key], `judgmentPlaces.${key}`);
+  return {
+    ...readSharedP3(m),
+    schemaVersion: exactly(m["schemaVersion"], "p3-e01-manifest-v1", "manifest schemaVersion"),
     inheritsManifestId: exactly(m["inheritsManifestId"], "a10-p2-20260930b", "inheritsManifestId does not name the inherited manifest"),
     populations: { fixedBacklog: population("fixedBacklog"), maxVpws50ParseStarted: population("maxVpws50ParseStarted"),
       maxWeatherCheckpointEncodeStarted: population("maxWeatherCheckpointEncodeStarted"), maxForecastCheckpointSave: population("maxForecastCheckpointSave"),
       forecastDeadlineOverlap: population("forecastDeadlineOverlap"), maxVpws50ReceivedThenEew: population("maxVpws50ReceivedThenEew") },
-    liveness: { pingEveryMs: exactly(liveness["pingEveryMs"], 20000, "liveness"), maxFrameGapMs: exactly(liveness["maxFrameGapMs"], 90000, "liveness") },
     auxiliary: { E03: aux("E03"), E05: aux("E05"), E06: aux("E06"), E07: aux("E07"), E12: aux("E12"), E14: aux("E14"), E15: aux("E15"), ownerHeap: aux("ownerHeap") },
-    machines: { formal: text(machines["formal"], "machines.formal"), gate: text(machines["gate"], "machines.gate"), piBackend: text(machines["piBackend"], "machines.piBackend") },
     judgmentPlaces: { E01: place("E01"), E02: place("E02"), E03: place("E03"), E05: place("E05"), E06: place("E06"), E07: place("E07"), E14: place("E14"), E15: place("E15") },
     o09Subset: { sequenceId: exactly(o09["sequenceId"], "O09", "o09Subset positions must be steps of O09"),
       sequencesSha256: text(o09["sequencesSha256"], "o09Subset.sequencesSha256"), positions: list(o09["positions"], count, "o09Subset.positions") },
@@ -437,6 +448,216 @@ function verifyFrozenP3Manifest(input: Readonly<{
   return { manifest: m, trialSetup: t };
 }
 
+// ── P3-TSUNAMI-E01-001（C6）: 津波の manifest の凍結境界（AC10）。C4 の凍結 manifest を継ぎ、5 つの template と 8 母集団の条件を足す ──
+const P3_TSUNAMI_SERIES: readonly P3TsunamiSeries[] = ["escalation", "deescalation"];
+const P3_TSUNAMI_CONDITIONS: readonly P3TsunamiCondition[] = ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"];
+const P3_TSUNAMI_POPULATIONS: readonly P3TsunamiPopulation[] = P3_TSUNAMI_SERIES.flatMap((series) =>
+  P3_TSUNAMI_CONDITIONS.map((condition): P3TsunamiPopulation => `${series}:${condition}`));
+// P3-C5-E01-SERIES の系列の中の遷移（試行ごとにこの順で回す）。
+const SERIES_TRANSITIONS: Readonly<Record<P3TsunamiSeries, readonly TsunamiAreaTransition[]>> = {
+  escalation: ["issued", "upgraded", "expanded"], deescalation: ["released", "downgraded"],
+};
+const TRANSITIONS: readonly TsunamiAreaTransition[] = ["issued", "expanded", "upgraded", "downgraded", "released"];
+const AREA_CLASSES: readonly TsunamiAreaClass[] = ["majorWarning", "warning", "advisory", "forecast", "released", "none", "unknown"];
+// P3-C6-CONDITIONS=A: 条件ごとの成立の種類と、継ぐ C4 の母集団（EEW 同時は通常 backlog の負荷）。
+const TSUNAMI_ESTABLISHMENT: Readonly<Record<P3TsunamiCondition, P3TsunamiEstablishment["kind"]>> = {
+  fixedBacklog: "primeSettled", maxVpws50ParseStarted: "primeSettledStartOffset", maxWeatherCheckpointEncodeStarted: "primeSettledStartOffset",
+  eewTogether: "primeSettledEewOrder",
+};
+const TSUNAMI_INHERITS: Readonly<Record<P3TsunamiCondition, P3TsunamiPopulationCondition["inheritsC4Population"]>> = {
+  fixedBacklog: "fixedBacklog", maxVpws50ParseStarted: "maxVpws50ParseStarted", maxWeatherCheckpointEncodeStarted: "maxWeatherCheckpointEncodeStarted",
+  eewTogether: "fixedBacklog",
+};
+const EVENT_ID = /^\d{14}$/;
+
+function bool(v: unknown, what: string): boolean {
+  need(typeof v === "boolean", `${what} must be a boolean`);
+  return v;
+}
+function readPaint(v: unknown, what: string): P3TsunamiTransitionTemplate["expectedPaint"] {
+  const o = exactKeys(v, ["present", "areas"], what);
+  return { present: bool(o["present"], `${what}.present`),
+    areas: list(o["areas"], (x, w) => { const a = exactKeys(x, ["code", "areaClass"], w); return { code: text(a["code"], `${w}.code`), areaClass: oneOf(a["areaClass"], AREA_CLASSES, `${w}.areaClass`) }; }, `${what}.areas`) };
+}
+function readTemplate(v: unknown, what: string): P3TsunamiTransitionTemplate {
+  const o = exactKeys(v, ["transition", "expectedSeries", "expectedTransitions", "expectedPrimePaint", "expectedPaint", "bodySha256"], what);
+  const body = exactKeys(o["bodySha256"], ["prime", "target"], `${what}.bodySha256`);
+  return {
+    transition: oneOf(o["transition"], TRANSITIONS, `${what}.transition`), expectedSeries: oneOf(o["expectedSeries"], P3_TSUNAMI_SERIES, `${what}.expectedSeries`),
+    expectedTransitions: list(o["expectedTransitions"], (x, w) => {
+      const t = exactKeys(x, ["areaCode", "from", "to", "transition"], w);
+      return { areaCode: text(t["areaCode"], `${w}.areaCode`), from: oneOf(t["from"], AREA_CLASSES, `${w}.from`), to: oneOf(t["to"], AREA_CLASSES, `${w}.to`),
+        transition: oneOf(t["transition"], TRANSITIONS, `${w}.transition`) };
+    }, `${what}.expectedTransitions`),
+    expectedPrimePaint: readPaint(o["expectedPrimePaint"], `${what}.expectedPrimePaint`), expectedPaint: readPaint(o["expectedPaint"], `${what}.expectedPaint`),
+    bodySha256: { prime: text(body["prime"], `${what}.bodySha256.prime`), target: text(body["target"], `${what}.bodySha256.target`) },
+  };
+}
+function readEventIds(v: unknown, what: string): P3TsunamiPopulationCondition["tsunamiEventIds"] {
+  const o = exactKeys(v, ["warmup", "formalByRun"], what);
+  const formal = list(o["formalByRun"], text, `${what}.formalByRun`, 3);
+  return { warmup: text(o["warmup"], `${what}.warmup`), formalByRun: [formal[0]!, formal[1]!, formal[2]!] };
+}
+function readTsunamiEstablishment(v: unknown, what: string): P3TsunamiEstablishment {
+  const kind = oneOf(obj(v, `${what}.establishment`)["kind"], ["primeSettled", "primeSettledStartOffset", "primeSettledEewOrder"], `${what}.establishment.kind`);
+  const o = exactKeys(v, kind === "primeSettledStartOffset" ? ["kind", "startOffset"] : ["kind"], `${what} establishment`);
+  if (kind !== "primeSettledStartOffset") return { kind };
+  const startOffset = readEstablishment(o["startOffset"], what);
+  need(startOffset.kind === "startOffset", `${what} establishment`);
+  return { kind, startOffset };
+}
+function readTsunamiCondition(v: unknown, what: string): P3TsunamiPopulationCondition {
+  const o = exactKeys(v, ["scope", "load", "periodMs", "trigger", "stateRef", "stateSha256", "stopCondition", "triggerLeadMs", "series", "condition",
+    "inheritsC4Population", "transitions", "establishment", "primeLeadMs", "tsunamiEventIds", "eewEventIds"], what);
+  const stop = exactKeys(o["stopCondition"], ["maxAttempts", "maxDurationMs"], `${what}.stopCondition`);
+  return {
+    scope: oneOf(o["scope"], ["formal", "reference"], `${what}.scope`), load: load(o["load"], `${what}.load`), periodMs: count(o["periodMs"], `${what}.periodMs`),
+    trigger: text(o["trigger"], `${what}.trigger`), stateRef: text(o["stateRef"], `${what}.stateRef`), stateSha256: text(o["stateSha256"], `${what}.stateSha256`),
+    stopCondition: { maxAttempts: count(stop["maxAttempts"], `${what}.stopCondition.maxAttempts`), maxDurationMs: count(stop["maxDurationMs"], `${what}.stopCondition.maxDurationMs`) },
+    triggerLeadMs: countOrNull(o["triggerLeadMs"], `${what}.triggerLeadMs`), series: oneOf(o["series"], P3_TSUNAMI_SERIES, `${what}.series`),
+    condition: oneOf(o["condition"], P3_TSUNAMI_CONDITIONS, `${what}.condition`),
+    inheritsC4Population: oneOf(o["inheritsC4Population"], ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted"], `${what}.inheritsC4Population`),
+    transitions: list(o["transitions"], (x, w) => oneOf(x, TRANSITIONS, w), `${what}.transitions`), establishment: readTsunamiEstablishment(o["establishment"], what),
+    primeLeadMs: count(o["primeLeadMs"], `${what}.primeLeadMs`), tsunamiEventIds: readEventIds(o["tsunamiEventIds"], `${what}.tsunamiEventIds`),
+    eewEventIds: o["eewEventIds"] === null ? null : readEventIds(o["eewEventIds"], `${what}.eewEventIds`),
+  };
+}
+const TSUNAMI_MANIFEST_KEYS = [...MANIFEST_KEYS.filter((k) => k !== "auxiliary"), "templates", "coastSha256", "smokeConditionsRef", "differencesFromC4",
+  "capacityExpectation"];
+function readP3TsunamiManifest(v: unknown): P3TsunamiE01Manifest {
+  const m = exactKeys(v, TSUNAMI_MANIFEST_KEYS, "manifest");
+  const populations = exactKeys(m["populations"], P3_TSUNAMI_POPULATIONS, "manifest.populations");
+  const places = exactKeys(m["judgmentPlaces"], ["E01"], "manifest.judgmentPlaces");
+  const o09 = exactKeys(m["o09Subset"], ["sequenceId", "sequencesSha256", "positions"], "o09Subset");
+  const capacity = exactKeys(m["capacityExpectation"], ["status", "inheritor", "text"], "capacityExpectation");
+  const population = (key: P3TsunamiPopulation) => readTsunamiCondition(populations[key], `population ${key}`);
+  return {
+    ...readSharedP3(m),
+    schemaVersion: exactly(m["schemaVersion"], "p3-tsunami-e01-manifest-v1", "manifest schemaVersion"),
+    inheritsManifestId: exactly(m["inheritsManifestId"], "p3-c4-formal-20261007", "inheritsManifestId does not name the inherited manifest"),
+    templates: list(m["templates"], readTemplate, "templates", 5),
+    populations: { "escalation:fixedBacklog": population("escalation:fixedBacklog"), "escalation:maxVpws50ParseStarted": population("escalation:maxVpws50ParseStarted"),
+      "escalation:maxWeatherCheckpointEncodeStarted": population("escalation:maxWeatherCheckpointEncodeStarted"), "escalation:eewTogether": population("escalation:eewTogether"),
+      "deescalation:fixedBacklog": population("deescalation:fixedBacklog"), "deescalation:maxVpws50ParseStarted": population("deescalation:maxVpws50ParseStarted"),
+      "deescalation:maxWeatherCheckpointEncodeStarted": population("deescalation:maxWeatherCheckpointEncodeStarted"), "deescalation:eewTogether": population("deescalation:eewTogether") },
+    coastSha256: text(m["coastSha256"], "coastSha256"), smokeConditionsRef: text(m["smokeConditionsRef"], "smokeConditionsRef"),
+    differencesFromC4: list(m["differencesFromC4"], (x, w) => {
+      const d = exactKeys(x, ["path", "c4", "c6", "reason"], w);
+      return { path: text(d["path"], `${w}.path`), c4: text(d["c4"], `${w}.c4`), c6: text(d["c6"], `${w}.c6`), reason: text(d["reason"], `${w}.reason`) };
+    }, "differencesFromC4"),
+    capacityExpectation: { status: exactly(capacity["status"], "expectationOnly", "capacityExpectation"), inheritor: exactly(capacity["inheritor"], "P4 capacity contract", "capacityExpectation"),
+      text: text(capacity["text"], "capacityExpectation.text") },
+    o09Subset: { sequenceId: exactly(o09["sequenceId"], "O09", "o09Subset positions must be steps of O09"),
+      sequencesSha256: text(o09["sequencesSha256"], "o09Subset.sequencesSha256"), positions: list(o09["positions"], count, "o09Subset.positions") },
+    judgmentPlaces: { E01: text(places["E01"], "judgmentPlaces.E01") },
+  };
+}
+
+// C6 の smoke 条件（P3TsunamiSmokeConditions）。A9 の条件ファイルとは別の file で、C6 の manifest だけが参照する。
+function verifyTsunamiSmokeConditions(textValue: string): P3TsunamiSmokeConditions {
+  const c = exactKeys(readSelfHashed(textValue, "conditionsSha256"), ["schemaVersion", "conditionsSha256", "chrome", "geometrySha256", "coastSha256", "fixtureSha256",
+    "templateBodySha256"], "smoke");
+  const chrome = exactKeys(c["chrome"], ["version", "foregroundTab", "viewportCssPx", "dpr", "motion"], "smoke.chrome");
+  const viewport = list(chrome["viewportCssPx"], count, "smoke.chrome.viewportCssPx", 2);
+  const smoke: P3TsunamiSmokeConditions = {
+    schemaVersion: exactly(c["schemaVersion"], "p3-tsunami-chrome-smoke-conditions-v1", "smoke schemaVersion"), conditionsSha256: text(c["conditionsSha256"], "smoke.conditionsSha256"),
+    chrome: { version: text(chrome["version"], "smoke.chrome.version"), foregroundTab: exactly(chrome["foregroundTab"], true, "smoke.chrome.foregroundTab"),
+      viewportCssPx: [viewport[0]!, viewport[1]!], dpr: count(chrome["dpr"], "smoke.chrome.dpr"), motion: exactly(chrome["motion"], "full", "smoke.chrome.motion") },
+    geometrySha256: text(c["geometrySha256"], "smoke.geometrySha256"), coastSha256: text(c["coastSha256"], "smoke.coastSha256"),
+    fixtureSha256: textRecord(c["fixtureSha256"], "smoke.fixtureSha256"), templateBodySha256: textRecord(c["templateBodySha256"], "smoke.templateBodySha256"),
+  };
+  need([smoke.geometrySha256, smoke.coastSha256, ...Object.values(smoke.fixtureSha256), ...Object.values(smoke.templateBodySha256)].every(isHex), "smoke hash fields");
+  return smoke;
+}
+
+// P3-C6-AC10: 自己 hash・使用契約・継承する C4 の凍結 manifest（負荷・初期状態・trialSetup・fixture・geometry・条件）・template の body hash・
+// coastSha256・C6 の smoke 条件・o09Subset を照らし、8 母集団の形（系列と遷移・成立の種類・EventID）を確かめる。A10・C4 の検査は変えない。
+// fixtureTexts は template の body（corpus の synthetic fixture）の保存 text（fixture id → text）。
+function verifyFrozenP3TsunamiManifest(input: Readonly<{
+  manifestText: string;
+  smokeConditionsText: string;
+  sequencesText: string;
+  coastJsonText: string;
+  fixtureTexts: Readonly<Record<string, string>>;
+  contractTexts: Readonly<Record<string, string>>;
+  inherited: Readonly<{ manifestText: string }>;
+}>): Readonly<{ manifest: P3TsunamiE01Manifest; smoke: P3TsunamiSmokeConditions }> {
+  const raw = readSelfHashed(input.manifestText, "manifestSha256");
+  const m = readP3TsunamiManifest(raw);
+  verifyCommon(m);
+  // 継承元（C4 の凍結 manifest）は照合に使う項目だけを保存の形のまま読む。
+  const c4 = obj(readSelfHashed(input.inherited.manifestText, "manifestSha256"), "inherited manifest");
+  const c4Id = text(c4["manifestId"], "inherited manifestId");
+  need(c4Id === m.inheritsManifestId, "inheritsManifestId does not name the inherited manifest");
+  const rawLoads = obj(obj(raw, "manifest")["loads"], "manifest.loads");
+  const c4Loads = obj(c4["loads"], "inherited loads");
+  for (const id of LOADS) need(JSON.stringify(rawLoads[id]) === JSON.stringify(c4Loads[id]), `load ${id} differs from ${c4Id}`);
+  need(m.trialSetupRef === c4["trialSetupRef"] && m.trialSetupSha256 === c4["trialSetupSha256"], `trialSetup differs from ${c4Id}`);
+  need(m.geometrySha256 === c4["geometrySha256"], `geometrySha256 differs from ${c4Id}`);
+  need(Object.entries(textRecord(c4["fixtureSha256"], "inherited fixtureSha256")).every(([id, h]) => m.fixtureSha256[id] === h), `fixtureSha256 differs from ${c4Id}`);
+  const c4Populations = obj(c4["populations"], "inherited populations");
+
+  const smoke = verifyTsunamiSmokeConditions(input.smokeConditionsText);
+  need(m.smokeConditionsSha256 === smoke.conditionsSha256, "smokeConditionsSha256 mismatch");
+  need(smoke.coastSha256 === m.coastSha256 && smoke.geometrySha256 === m.geometrySha256, "smoke coast/geometry hash differs from the manifest");
+  const smokeDiffers = JSON.stringify([m.chrome.version, m.chrome.viewportCssPx, m.chrome.dpr, m.chrome.motion])
+    !== JSON.stringify([smoke.chrome.version, smoke.chrome.viewportCssPx, smoke.chrome.dpr, smoke.chrome.motion]);
+  need(!smokeDiffers || m.smokeConditionDifferences.length > 0, "smoke differences must be recorded");
+  need(Object.hasOwn(m.contractSha256, "P3-TSUNAMI-E01-001"), "contractSha256 lacks P3-TSUNAMI-E01-001");
+  verifyContractHashes(m.contractSha256, input.contractTexts);
+
+  // 海岸線資材（P3-C6-AC05）: canonical JSON の sha256 と、期待コード数 51。
+  need(sha256Hex(input.coastJsonText) === m.coastSha256, "coastSha256 mismatch");
+  const coast = obj(JSON.parse(input.coastJsonText), "coast");
+  need(coast["schemaVersion"] === "p3-tsunami-minimal-coast-v1" && obj(coast["provenance"], "coast.provenance")["expectedCodeCount"] === 51
+    && Array.isArray(coast["segments"]) && coast["segments"].length === 51, "coast asset");
+
+  // template: 5 つの遷移が 1 つずつ、系列が遷移と合い、body は manifest の fixture の bytes（smoke 条件の body hash とも同じ）。
+  need(new Set(m.templates.map((t) => t.transition)).size === TRANSITIONS.length, "templates must be the five transitions once each");
+  const fixtureByHash = new Map(Object.entries(m.fixtureSha256).map(([id, h]) => [h, id]));
+  for (const t of m.templates) {
+    need(SERIES_TRANSITIONS[t.expectedSeries].includes(t.transition), `template ${t.transition} expectedSeries`);
+    for (const part of ["prime", "target"] as const) {
+      const id = fixtureByHash.get(t.bodySha256[part]);
+      const body = id == null ? undefined : input.fixtureTexts[id];
+      need(id != null && body != null && sha256Hex(body) === t.bodySha256[part], `template ${t.transition} ${part} body`);
+      need(Object.values(smoke.templateBodySha256).includes(t.bodySha256[part]), `template ${t.transition} ${part} body is not in the smoke conditions`);
+    }
+  }
+
+  const eventIds: string[] = [];
+  const differs = new Set(m.differencesFromC4.map((d) => d.path));
+  for (const key of P3_TSUNAMI_POPULATIONS) {
+    const p = m.populations[key];
+    need(`${p.series}:${p.condition}` === key && p.scope === "formal", `population ${key}`);
+    need(JSON.stringify(p.transitions) === JSON.stringify(SERIES_TRANSITIONS[p.series]), `population ${key} transitions`);
+    need(p.inheritsC4Population === TSUNAMI_INHERITS[p.condition], `population ${key} inheritsC4Population`);
+    const c4p = obj(c4Populations[p.inheritsC4Population], `inherited population ${p.inheritsC4Population}`);
+    need(p.load === c4p["load"] && p.stateRef === c4p["stateRef"] && p.stateSha256 === c4p["stateSha256"], `population ${key} load/state differ from ${c4Id}`);
+    const e = p.establishment;
+    need(e.kind === TSUNAMI_ESTABLISHMENT[p.condition] && (e.kind !== "primeSettledStartOffset"
+      || (e.startOffset.kind === "startOffset" && e.startOffset.span === "population" && JSON.stringify(e.startOffset) === JSON.stringify(c4p["establishment"]))),
+    `population ${key} establishment`);
+    // 周期と lead は C4 から変えてよいが、差は differencesFromC4 に書く。
+    for (const field of ["periodMs", "triggerLeadMs"] as const) {
+      need(p[field] === c4p[field] || differs.has(`populations.${key}.${field}`), `population ${key} ${field} differs from ${c4Id} without differencesFromC4`);
+    }
+    need(p.condition === "maxWeatherCheckpointEncodeStarted" ? typeof p.triggerLeadMs === "number" && p.triggerLeadMs > 0 : p.triggerLeadMs === null,
+      `population ${key} triggerLeadMs`);
+    need(p.periodMs > 0 && p.primeLeadMs > 0 && p.primeLeadMs < p.periodMs, `population ${key} periodMs/primeLeadMs`);
+    need((p.eewEventIds != null) === (p.condition === "eewTogether"), `population ${key} eewEventIds`);
+    eventIds.push(p.tsunamiEventIds.warmup, ...p.tsunamiEventIds.formalByRun, ...(p.eewEventIds == null ? [] : [p.eewEventIds.warmup, ...p.eewEventIds.formalByRun]));
+    const s = p.stopCondition;
+    need(Number.isInteger(s.maxAttempts) && s.maxAttempts >= m.warmupPerRun + m.samplesPerRun && Number.isFinite(s.maxDurationMs) && s.maxDurationMs > 0,
+      `population ${key} stopCondition`);
+  }
+  need(eventIds.every((id) => EVENT_ID.test(id)) && new Set(eventIds).size === eventIds.length, "window EventIDs must be 14 digits and distinct");
+  verifyO09Subset(m.o09Subset, input.sequencesText);
+  need((["formal", "gate", "piBackend"] as const).every((k) => nonEmpty(m.machines[k])) && nonEmpty(m.judgmentPlaces.E01) && nonEmpty(m.capacityExpectation.text)
+    && nonEmpty(m.smokeConditionsRef), "machines/judgmentPlaces/capacityExpectation/smokeConditionsRef");
+  return { manifest: m, smoke };
+}
+
 // U-F の件数・byte が許容範囲を外れた試行は正式標本から除かず別条件として記録し、その run の正式 Pass を主張しない（AC01）。
 // 試行ごとの観測は型に入力が無いので、run の Pass を落とす処理は runner が持つ。
 function forecastWithinAllowance(
@@ -457,11 +678,12 @@ function displayVersionOf(v: unknown): DisplayVersion | null {
     : null;
 }
 
-function parseChromeMarkerDetail(detail: unknown): ChromeEewMarkerDetail | null {
+function parseChromeMarkerDetail(detail: unknown): ChromeEewMarkerDetail | ChromeTsunamiMarkerDetail | null {
   if (!isRecord(detail)) return null;
   const displayVersion = displayVersionOf(detail["displayVersion"]);
   if (displayVersion == null) return null;
   if (detail["name"] === "fleq:p2:eew:T5") return { name: "fleq:p2:eew:T5", displayVersion };
+  if (detail["name"] === "fleq:p3:tsunami:T6-candidate") return tsunamiMarkerDetail(detail, displayVersion);
   if (detail["name"] !== "fleq:p2:eew:T6-candidate") return null;
   const { subject, cardMarkerId, mapMarkerId, mapAreaCodes } = detail;
   const operation = OPERATIONS.find((o) => o === detail["operation"]);
@@ -470,4 +692,22 @@ function parseChromeMarkerDetail(detail: unknown): ChromeEewMarkerDetail | null 
   return { name: "fleq:p2:eew:T6-candidate", displayVersion, operation, subject, cardMarkerId, mapMarkerId, mapAreaCodes: mapAreaCodes.filter((c): c is string => typeof c === "string") };
 }
 
-export { ZERO_HASH, nonEmpty, REFERENCE_POPULATIONS, P3_POPULATIONS, verifyFrozenP3Manifest, sha256Hex, readSelfHashed, sealSelfHash, verifyChromeSmokeConditions, verifyFrozenManifest, forecastWithinAllowance, parseChromeMarkerDetail };
+// P3-C6-AC04: 津波の T6 候補。present false の候補は areas が空。areas の要素は code と区分だけ（A9 の detail の検証は変えない）。
+function tsunamiMarkerDetail(detail: Record<string, unknown>, displayVersion: DisplayVersion): ChromeTsunamiMarkerDetail | null {
+  const { subject, present, cardMarkerId, coastMarkerId, areas } = detail;
+  const operation = OPERATIONS.find((o) => o === detail["operation"]);
+  if (operation == null || typeof subject !== "string" || !nonEmpty(subject) || typeof present !== "boolean" || typeof cardMarkerId !== "string"
+    || !nonEmpty(cardMarkerId) || typeof coastMarkerId !== "string" || !nonEmpty(coastMarkerId) || !Array.isArray(areas) || (!present && areas.length > 0)) return null;
+  const painted: { code: string; areaClass: TsunamiAreaClass }[] = [];
+  for (const area of areas) {
+    if (!isRecord(area) || Object.keys(area).length !== 2) return null;
+    const areaClass = AREA_CLASSES.find((c) => c === area["areaClass"]);
+    const code = area["code"];
+    if (typeof code !== "string" || areaClass == null) return null;
+    painted.push({ code, areaClass });
+  }
+  return { name: "fleq:p3:tsunami:T6-candidate", displayVersion, operation, subject, present, cardMarkerId, coastMarkerId, areas: painted };
+}
+
+export { ZERO_HASH, nonEmpty, REFERENCE_POPULATIONS, P3_POPULATIONS, P3_TSUNAMI_POPULATIONS, SERIES_TRANSITIONS, verifyFrozenP3Manifest,
+  verifyFrozenP3TsunamiManifest, verifyTsunamiSmokeConditions, sha256Hex, readSelfHashed, sealSelfHash, verifyChromeSmokeConditions, verifyFrozenManifest, forecastWithinAllowance, parseChromeMarkerDetail };

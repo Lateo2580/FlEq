@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>FlEq P2 EEW (計測専用)</title>
+<title>FlEq P2 EEW・P3 津波 (計測専用)</title>
 <style>
   /* 表示規範の先読み: display/frontend/src/lib/theme.css の token を実値まで解決して写す (import しない)。 */
   :root {
@@ -35,6 +35,19 @@
   .int-8 { --sev: var(--int-8-bg); --sev-on: var(--int-8-on); }
   .int-9 { --sev: var(--int-9-bg); --sev-on: var(--int-9-on); }
   .int-unknown { --sev: #566069; } /* theme.css:33 --fg-faint */
+  :root {
+    /* P3-C6-AC03(3): 津波は JMA の法定 3 色（display-design-system.md:69）。面・文字・見出しを別の token で写す。 */
+    --fg-faint: #566069;                           /* theme.css:33 */
+    --tsu-major-face: #b23ab2;                     /* theme.css:53 --c-tsunami-purple-bar */
+    --tsu-warning-face: #e60012;                   /* theme.css:55 --c-jma-red-bar */
+    --tsu-advisory-face: #f0e442;                  /* theme.css:43 --c-yellow */
+    --tsu-major-text: #c46bde;                     /* theme.css:65 --role-tsunamiMajor → theme.css:52 */
+    --tsu-warning-text: #ff453a;                   /* theme.css:66 --role-tsunamiWarning → theme.css:54 */
+    --tsu-advisory-text: #f0e442;                  /* theme.css:67 --role-tsunamiAdvisory → theme.css:43 */
+    --header-tsunamiMajor-container: #301238;    --header-tsunamiMajor-on: #eabdf0;    /* theme.css:105 */
+    --header-tsunamiWarning-container: #3a0a08;  --header-tsunamiWarning-on: #ffb0a8;  /* theme.css:106 */
+    --header-tsunamiAdvisory-container: #2e2c05; --header-tsunamiAdvisory-on: #f2ea94; /* theme.css:107 */
+  }
   /* P2-A9-GEOMETRY: 300×300 CSS pxの固定3×3。区域は塗りだけで文字を描かない。 */
   #map { position: relative; width: 300px; height: 300px; border: 1px solid var(--int-1); margin: 8px 0; }
   .map-area { position: absolute; box-sizing: border-box; border: 1px solid var(--bg); background: var(--sev); }
@@ -43,7 +56,32 @@
   .eew-card-area { color: var(--sev); }
   .eew-card-area.int-8, .eew-card-area.int-9 { background: var(--sev); color: var(--sev-on); }
   /* 改行を含むwire文字列も字面どおりに見せる。 */
-  .notice, .eew-card-head, .eew-card-area { white-space: pre-wrap; }
+  .notice, .eew-card-head, .eew-card-area, .tsu-card-head, .tsu-row { white-space: pre-wrap; }
+  /* P3-C6-AC03: 津波の列と海岸線は EEW の card・地図の位置を動かさないよう固定位置に置く。 */
+  #cards { max-width: 400px; }
+  #tsunami { position: absolute; top: 12px; left: 520px; width: 560px; }
+  #coast-box { position: absolute; top: 12px; left: 1100px; width: 300px; }
+  /* 区分ごとの色は class で 1 回だけ決め、海岸線の面・card 枠は --tsu-face、区域の文字は --tsu-text、見出しは --tsu-head-* を読む
+     （区分→role の対応は TsunamiPanel.svelte:98〜100 に倣う）。unknown は警報と同じ（P3-C5-KIND-ENUM=B）。 */
+  .tsu-major { --tsu-face: var(--tsu-major-face); --tsu-text: var(--tsu-major-text);
+    --tsu-head-bg: var(--header-tsunamiMajor-container); --tsu-head-fg: var(--header-tsunamiMajor-on); }
+  .tsu-warning { --tsu-face: var(--tsu-warning-face); --tsu-text: var(--tsu-warning-text);
+    --tsu-head-bg: var(--header-tsunamiWarning-container); --tsu-head-fg: var(--header-tsunamiWarning-on); }
+  .tsu-advisory { --tsu-face: var(--tsu-advisory-face); --tsu-text: var(--tsu-advisory-text);
+    --tsu-head-bg: var(--header-tsunamiAdvisory-container); --tsu-head-fg: var(--header-tsunamiAdvisory-on); }
+  .tsu-none { --tsu-face: var(--fg-faint); --tsu-text: var(--fg); --tsu-head-bg: var(--bg); --tsu-head-fg: var(--fg); }
+  .tsu-card { border: 4px solid var(--tsu-face); margin: 4px 0; padding: 4px; }
+  .tsu-card-head { background: var(--tsu-head-bg); color: var(--tsu-head-fg); font-weight: bold; }
+  .tsu-row { color: var(--fg); }
+  .tsu-row.tsu-major, .tsu-row.tsu-warning, .tsu-row.tsu-advisory { color: var(--tsu-text); }
+  .tsu-missing { color: var(--fg-faint); }
+  /* 最小海岸線（P3 専用の模式図、300×272 CSS px）。区域は塗りだけで文字を描かない。 */
+  #coast { position: relative; width: 300px; height: 272px; border: 1px solid var(--int-1); }
+  .coast-area { position: absolute; box-sizing: border-box; border: 1px solid var(--bg); background: var(--tsu-face); }
+  #coast-note { color: var(--fg-faint); font-size: 11px; }
+  /* spec:1598 の T2: 大津波警報の海岸線だけ 1 秒周期で opacity 1↔0.4 を段で切り替える。 */
+  .tsu-blink { animation: tsu-blink 1s step-end infinite; }
+  @keyframes tsu-blink { 50% { opacity: 0.4; } }
 </style>
 </head>
 <body>
@@ -54,6 +92,8 @@
   <div id="capacity"></div>
   <div id="cards"></div>
   <div id="map"></div>
+  <div id="tsunami"><div id="tsunami-cards"></div></div>
+  <div id="coast-box"><div id="coast"></div><div id="coast-note">海岸線: P3の測定専用の模式図。正規の津波予報区GIS（N18、P4）ではない</div></div>
   <div id="notices"></div>
   <div id="channels"></div>
   <script type="module" src="./chrome-eew/main.js"></script>

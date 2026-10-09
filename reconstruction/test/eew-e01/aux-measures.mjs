@@ -381,13 +381,15 @@ export function notificationAdoptionReport(records) {
 // ⑥ 成立して成功に結べた束で unit ごとの dirty→ack（起点→ack の doneReceived）の p50・p99・max と 3 秒超えの数。各保存の p99 の和を全体の
 //    p99 と呼ばない。束が 0 なら未確認。
 export const E14_UNITS = ["U-E", "U-W", "U-F"];
+// 束の unit は束の inputIds の key（C4 は E14_UNITS の 3 つ。C6 の予備は U-T を足す、P3-C6-AC08 ④）。
+const unitsOf = (bundle) => Object.keys(bundle.inputIds);
 // 索引は追記の分だけ更新する（窓は待ちの判定ごとに同じ index を渡す）。acknowledged の保存は unit ごとに世代の昇順に確定するので、束の世代
 // 以上の最初の ack は二分探索で引く。前提: unit ごとの acknowledged の世代は受信順で単調（崩れても後の ack を拾い、dirty→ack は長めに出る）。
 export function e14Index(records, index = { raised: new Map(), acked: Object.fromEntries(E14_UNITS.map((u) => [u, []])), scanned: 0 }) {
   for (; index.scanned < records.length; index.scanned++) {
     const o = records[index.scanned].t === "obs" ? records[index.scanned].o : null;
     if (o?.kind === "generationRaised") index.raised.set(`${o.inputId}|${o.unit}`, o);
-    else if (o?.kind === "checkpointGrant" && o.result?.kind === "acknowledged") index.acked[o.unit]?.push(o);
+    else if (o?.kind === "checkpointGrant" && o.result?.kind === "acknowledged") (index.acked[o.unit] ??= []).push(o);
   }
   return index;
 }
@@ -397,23 +399,25 @@ const firstAckedFrom = (list, generation) => {
   while (lo < hi) { const mid = (lo + hi) >> 1; if (list[mid].result.generation < generation) lo = mid + 1; else hi = mid; }
   return list[lo] ?? null;
 };
-const e14Starts = (index, bundle) => E14_UNITS.map((u) => index.raised.get(`${bundle.inputIds[u]}|${u}`) ?? null);
+const e14Starts = (index, bundle) => unitsOf(bundle).map((u) => index.raised.get(`${bundle.inputIds[u]}|${u}`) ?? null);
 // ⑤ unit ごとの ack の行（起点の行か ack が無ければ null）。窓の最後の束の保存の待ちもこれで確かめる。
 export function e14Acks(index, bundle) {
-  return e14Starts(index, bundle).map((start, i) => (start == null ? null : firstAckedFrom(index.acked[E14_UNITS[i]], start.generation)));
+  const units = unitsOf(bundle);
+  return e14Starts(index, bundle).map((start, i) => (start == null ? null : firstAckedFrom(index.acked[units[i]] ?? [], start.generation)));
 }
 // 起点は owner が射影の前に読んだ時刻（ownerMonotonicMs、P3-UWR-AC08）。欠けているか null の行（C4 の凍結記録の形）は publisher の
 // 反映の時刻（monotonicMs）で、今と同じ値になる。新しい起点は旧より早いので、新旧を同じ指標として並べない。
 const e14Origin = (start) => start.ownerMonotonicMs ?? start.monotonicMs;
 export function e14Bundle(index, bundle) {
+  const units = unitsOf(bundle);
   const starts = e14Starts(index, bundle);
-  const notAdopted = E14_UNITS.filter((_, i) => starts[i] == null);
+  const notAdopted = units.filter((_, i) => starts[i] == null);
   if (notAdopted.length > 0) return { k: bundle.k, status: "未確認", reason: "inputNotAdopted" };
   const acks = e14Acks(index, bundle);
-  const missing = E14_UNITS.filter((_, i) => acks[i] == null);
+  const missing = units.filter((_, i) => acks[i] == null);
   if (missing.length > 0) return { k: bundle.k, status: "未確認", reason: `notAcknowledged:${missing.join(",")}` };
   if (!(Math.max(...starts.map(e14Origin)) < Math.min(...acks.map((a) => a.doneReceivedMonotonicMs)))) return { k: bundle.k, status: "未確認", reason: "notSimultaneous" };
-  return { k: bundle.k, status: "linked", dirtyToAckMs: Object.fromEntries(E14_UNITS.map((u, i) => [u, acks[i].doneReceivedMonotonicMs - e14Origin(starts[i])])) };
+  return { k: bundle.k, status: "linked", dirtyToAckMs: Object.fromEntries(units.map((u, i) => [u, acks[i].doneReceivedMonotonicMs - e14Origin(starts[i])])) };
 }
 export function summarizeE14(records, { bundles, limitMs = 3000 }) {
   const index = e14Index(records);
@@ -421,7 +425,7 @@ export function summarizeE14(records, { bundles, limitMs = 3000 }) {
   const linked = results.filter((r) => r.status === "linked");
   const reasons = {};
   for (const r of results.filter((x) => x.status !== "linked")) reasons[r.reason] = (reasons[r.reason] ?? 0) + 1;
-  const units = Object.fromEntries(E14_UNITS.map((u) => {
+  const units = Object.fromEntries((bundles.length === 0 ? E14_UNITS : unitsOf(bundles[0])).map((u) => {
     const values = linked.map((r) => r.dirtyToAckMs[u]);
     return [u, { ...(quantiles(values) ?? {}), overLimit: values.filter((v) => v > limitMs).length }];
   }));

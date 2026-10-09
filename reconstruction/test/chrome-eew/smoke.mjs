@@ -1,11 +1,14 @@
 // P2-CHROME-EEW-001 requiredCommands: A8 startDisplayServerの固定URL配信から前景実Chromeで単発EventSource・
 // card/map paint・固定名marker・CDP clock probe・stale再接続の証拠を取る。
 // 実paintはPage.captureScreenshotの画素で判定し、DOM存在・rAF・unit testだけでPassにしない。
+// P3-C6-AC07: --conditions <C6 の条件ファイル> を渡すと、A9 の全項目に津波の単発 smoke を足して走らせる（--out <dir> に書く）。
+// 引数なしは A9 の条件ファイル・出力先のまま（A9 の挙動と commit 済みの証拠を変えない）。AC07 の証拠は前景の実 Chrome だけで取る。
 // snapshotはA1/A8の実経路 (fixture→publisherと3 owner (同一プロセス)→projectSnapshot) で作り、射影で作れない状態だけを型どおりに組む。
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
 import WebSocket from "ws";
 
 import { startDisplayServer } from "../../dist/src/http-sse/http-sse.js";
@@ -15,9 +18,21 @@ import {
 } from "../../dist/src/runtime/composition-root.js";
 import { OwnerHost } from "../../dist/src/runtime/owner-host.js";
 import { projectSnapshot } from "../../dist/src/view-projector/view-projector.js";
+import { verifyTsunamiSmokeConditions } from "../../dist/src/measurement/eew-e01/frozen.js";
+import { buildTemplates, TEMPLATE_FIXTURES, tsunamiReport } from "../eew-e01/tsunami.mjs";
 
 const repo = join(import.meta.dirname, "../../..");
-const evidenceDir = join(import.meta.dirname, "evidence");
+const argv = process.argv.slice(2);
+const option = (name) => { const at = argv.indexOf(`--${name}`); return at < 0 ? null : argv[at + 1] ?? null; };
+const A9_CONDITIONS = "reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json";
+// C6 の条件ファイルのときだけ津波の項目を足す。A9 の項目は常に A9 の条件ファイルで照らす（A10・C4 の凍結 manifest が固定している）。
+const conditionsFile = option("conditions") == null ? A9_CONDITIONS : relative(repo, resolve(option("conditions")));
+const tsunamiConditions = conditionsFile === A9_CONDITIONS ? null : verifyTsunamiSmokeConditions(readFileSync(join(repo, conditionsFile), "utf8"));
+// C6 の条件では既定の出力先を C6 専用にし、A9 の出力先（commit 済みの A9 の証拠）を指定されたら拒否する。
+const A9_EVIDENCE = join(import.meta.dirname, "evidence");
+const evidenceDir = option("out") != null ? resolve(option("out"))
+  : tsunamiConditions == null ? A9_EVIDENCE : join(repo, "reconstruction/test/eew-e01/evidence/p3-tsunami/smoke");
+if (tsunamiConditions != null && evidenceDir === A9_EVIDENCE) throw new Error("--conditions <C6> must not write to the A9 evidence directory");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 // 前景tabのまま45秒の実時間待ちを保つためのthrottling停止と、画素を解決済みtokenの実値と比べるためのsRGB固定。
 const CHROME_FLAGS = ["--no-first-run", "--no-default-browser-check", "--window-size=1440,900",
@@ -26,9 +41,10 @@ const CHROME_FLAGS = ["--no-first-run", "--no-default-browser-check", "--window-
 const STALE_BANNER = "更新未確認の最終情報";
 const T5 = "fleq:p2:eew:T5";
 const T6 = "fleq:p2:eew:T6-candidate";
+const T6T = "fleq:p3:tsunami:T6-candidate";
 
 const contract = JSON.parse(readFileSync(join(repo, "reconstruction/contracts/p2-chrome-eew.json"), "utf8"));
-const conditions = JSON.parse(readFileSync(join(repo, "reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json"), "utf8"));
+const conditions = JSON.parse(readFileSync(join(repo, A9_CONDITIONS), "utf8"));
 const paint = Object.fromEntries(contract.meta.questionResolutions.find((q) => q.id === "P2-A9-GEOMETRY")
   .paintExpectations.map((item) => [item.fixtureId.endsWith("VXSE43") ? "VXSE43" : "VXSE45", item]));
 const contractGeometrySha = /sha256=([0-9a-f]{64})/.exec(
@@ -116,7 +132,7 @@ async function runtime(streamId, materials) {
   const snapshots = [];
   for (const [index, item] of materials.entries()) {
     const queued = root.mailbox.enqueue({ messageId: item.inputId, runId: streamId, t0MonotonicMs: NOW, enqueuedMonotonicMs: NOW,
-      priorityReason: "eewCandidate", payload: { kind: "parser", item: { ...item, inputSequence: index + 1 } } });
+      priorityReason: item.headType === "VTSE41" ? "tsunamiCandidate" : "eewCandidate", payload: { kind: "parser", item: { ...item, inputSequence: index + 1 } } });
     if (queued.kind !== "accepted") throw new Error(`mailbox rejected ${item.inputId}`);
     root.pump();
     await turns();
@@ -308,8 +324,10 @@ async function r38(state) {
 
 // ── 各検査 ──
 async function checkEnvironment(chromeVersion) {
-  check("P2-A9-env:chromeVersion", chromeVersion === conditions.chrome.version, "CDP応答",
-    { expected: conditions.chrome.version, actual: chromeVersion });
+  // C6 の条件では C6 の条件の版で照らし、A9 の条件（A10・C4 の凍結 manifest が固定する版）との差は記録だけにする（Q-C6-IMPL-AMEND）。
+  const expected = tsunamiConditions?.chrome.version ?? conditions.chrome.version;
+  check("P2-A9-env:chromeVersion", chromeVersion === expected, "CDP応答",
+    { expected, actual: chromeVersion, ...(tsunamiConditions == null ? {} : { a9Conditions: conditions.chrome.version, differsFromA9: chromeVersion !== conditions.chrome.version }) });
   const env = await evaluate(`({ innerWidth, innerHeight, dpr: devicePixelRatio, visibility: document.visibilityState,
     focus: document.hasFocus(), reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches })`);
   check("P2-A9-env:viewport", env.innerWidth === 1440 && env.innerHeight === 900 && env.dpr === 2, "DOM", env);
@@ -769,7 +787,8 @@ async function checkForegroundImmediate(tickPhase) {
 
 async function checkMarkNamesOnly() {
   const names = await evaluate(`[...new Set(performance.getEntriesByType("mark").map((e) => e.name))]`);
-  check("P2-A9-T04:markNamesOnly", names.every((name) => name === T5 || name === T6), "performance entry", { names });
+  const allowed = tsunamiConditions == null ? [T5, T6] : [T5, T6, T6T];
+  check(tsunamiConditions == null ? "P2-A9-T04:markNamesOnly" : "P3-C6-T04:markNamesOnly", names.every((name) => allowed.includes(name)), "performance entry", { names, allowed });
 }
 
 // 初回snapshot前も接続・stale・heartbeat由来のworkerを状態行に出す。
@@ -813,6 +832,203 @@ const PRECEDING = [
     notYet: "全active EventID集合のbounds・P4 GIS・交差取消の系列" },
   { id: "D-AC24", smokeRecords: ["P2-A9-T04:markers:VXSE43", "P2-A9-T04:markers:VXSE45emptyMap"],
     notYet: "1000×3正式E01 (A10)・E04/E25/E26。T6候補は正式T6ではない" },
+];
+
+// ── P3-C6-AC07: 津波の単発 smoke（C6 の条件ファイルを渡したときだけ）。snapshot は A9 と同じ実経路（fixture → publisher と 3 owner → 射影）で作る ──
+// 期待色は theme.css の token を実値まで解決して作る（index.html の写しがずれたら画素で落ちる）。点滅は CDP で止めて currentTime 0（opacity 1）で採る。
+const TSUNAMI_FACE = { majorWarning: "--c-tsunami-purple-bar", warning: "--c-jma-red-bar", unknown: "--c-jma-red-bar", advisory: "--c-yellow" };
+const TSUNAMI_RANK = { majorWarning: 3, warning: 2, unknown: 2, advisory: 1 };
+const TSUNAMI_EVENT = "20261009090001";
+const { COAST_RECT_BY_CODE } = await import("../../dist/chrome-eew/src/display/chrome-eew/coast.js");
+const fixtureXml = (name) => readFileSync(join(repo, `test/fixtures/${name}.xml`), "utf8");
+function tsunamiMaterial(xml, inputId) {
+  const entered = ingestXmlData({ inputId, inputSequence: 1, receivedAt: 0, origin: "replay", kind: "replay", headType: "VTSE41", body: Buffer.from(xml) });
+  if (entered.kind !== "accepted") throw new Error(`ingest failed: ${entered.diagnostic.reason}`);
+  return entered.item;
+}
+// template の報。報告時刻は NOW より前に 1 秒ずつ進める（VTSE41 の新旧は ReportDateTime で決まる）。
+const templateReport = (name, k, eventId = TSUNAMI_EVENT) => tsunamiReport(name, { eventId, reportAtMs: NOW - 600_000 + k * 1000 });
+const samePaintDetail = (detail, expected) => detail != null && detail.present === expected.present && JSON.stringify(detail.areas) === JSON.stringify(expected.areas);
+const TSUNAMI_DOM = `(() => {
+  const coast = document.getElementById("coast");
+  const box = coast.getBoundingClientRect();
+  return {
+    origin: [box.left + coast.clientLeft, box.top + coast.clientTop],
+    cards: [...document.querySelectorAll("#tsunami-cards .tsu-card")].map((c) => { const r = c.getBoundingClientRect();
+      return { head: c.querySelector(".tsu-card-head").textContent, rows: [...c.querySelectorAll(".tsu-row")].map((n) => n.textContent), frame: [r.left + 2, r.top + 30] }; }),
+    rects: [...coast.querySelectorAll(".coast-area")].map((n) => ({ className: n.className, animationName: getComputedStyle(n).animationName,
+      rect: [n.offsetLeft, n.offsetTop, n.offsetWidth, n.offsetHeight] })),
+    missing: [...document.querySelectorAll("#tsunami-cards .tsu-missing")].map((n) => n.textContent),
+    summary: [...document.querySelectorAll("#tsunami-cards .tsu-summary")].map((n) => n.textContent),
+  };
+})()`;
+async function freezeAnimations() {
+  await page.send("Animation.setPlaybackRate", { playbackRate: 0 });
+  await evaluate("(() => { document.getAnimations().forEach((a) => { a.currentTime = 0; }); return true; })()");
+}
+const coastCenter = (origin, code) => { const [x, y, w, h] = COAST_RECT_BY_CODE.get(code); return [origin[0] + x + w / 2, origin[1] + y + h / 2]; };
+const tsunamiMarks = async (published, subject = null) => (await marks(T6T)).filter((m) => m.detail.displayVersion.streamId === published.streamId
+  && m.detail.displayVersion.sequence === published.sequence && (subject == null || m.detail.subject === subject));
+// 期待の塗り（code → 区分）と、DOM の矩形・中心画素・点滅の class を照らす。
+async function coastMatches(label, dom, painted) {
+  const codes = [...painted.keys()];
+  const shot = await screenshotPixels(label, [...codes.map((code) => coastCenter(dom.origin, code)), ...dom.cards.map((c) => c.frame)]);
+  const pixels = codes.map((code, i) => ({ code, areaClass: painted.get(code), expected: token(TSUNAMI_FACE[painted.get(code)]), actual: shot.pixels[i] }));
+  const rectsOk = dom.rects.length === codes.length && dom.rects.every((r) => r.className.includes("tsu-major") === (r.animationName === "tsu-blink"));
+  return { ok: pixels.every((p) => sameRgb(p.actual, p.expected)) && rectsOk && shot.width === 2880, pixels, rects: dom.rects.length, framePixels: shot.pixels.slice(codes.length) };
+}
+
+// (1) 5 つの遷移の template を prime → target の順に流す（runner の試行と同じ並び）。
+async function checkTsunamiTemplates() {
+  const templates = new Map(buildTemplates().map((t) => [t.transition, t]));
+  const order = ["issued", "upgraded", "expanded", "released", "downgraded"];
+  const names = order.flatMap((transition) => [TEMPLATE_FIXTURES[transition].prime, TEMPLATE_FIXTURES[transition].target]);
+  const snapshots = await runtime("smoke-tsunami-templates", names.map((name, k) => tsunamiMaterial(templateReport(name, k), `tsunami-template-${k}`)));
+  const subject = `normal/VTSE41/${TSUNAMI_EVENT}`;
+  for (const [i, transition] of order.entries()) {
+    const template = templates.get(transition);
+    await publish(snapshots[2 * i]);
+    const published = await publish(snapshots[2 * i + 1]);
+    await freezeAnimations();
+    const dom = await evaluate(TSUNAMI_DOM);
+    const candidates = await tsunamiMarks(published, subject);
+    const expected = template.expectedPaint;
+    // 解除は旧カード・旧矩形が消え、prime で塗っていた区域の中心が地の色に戻る。
+    const painted = new Map(expected.areas.map((a) => [a.code, a.areaClass]));
+    const coast = await coastMatches(`tsunami-${transition}`, dom, painted);
+    const formerCodes = expected.present ? [] : template.expectedPrimePaint.areas.map((a) => a.code);
+    const former = formerCodes.length === 0 ? [] : (await screenshotPixels(`tsunami-${transition}-cleared`, formerCodes.map((code) => coastCenter(dom.origin, code)))).pixels;
+    const highest = expected.areas.reduce((best, a) => (best == null || TSUNAMI_RANK[a.areaClass] > TSUNAMI_RANK[best] ? a.areaClass : best), null);
+    const frameOk = expected.present ? dom.cards.length === 1 && highest != null && sameRgb(coast.framePixels[0], token(TSUNAMI_FACE[highest])) : dom.cards.length === 0;
+    check(`P3-C6-T04:AC07(1):${transition}`, candidates.length === 1 && samePaintDetail(candidates[0].detail, expected) && coast.ok && frameOk
+      && former.every((p) => sameRgb(p, BG)), "performance entry・DOM・screenshot画素",
+    { expected, candidates: candidates.map((m) => m.detail), coast, frameOk, cards: dom.cards.map((c) => ({ head: c.head, rows: c.rows })), former, screenshot: `tsunami-${transition}.png` });
+  }
+}
+
+// (2) 公開 fixture（O09:14〜16）と資材に無い code（32-39_12_02）、同じ code を 2 つの subject が塗る場合。
+async function checkTsunamiPublic() {
+  const names = ["32-39_11_02_250206_VTSE41", "32-39_11_09_250206_VTSE41", "32-39_11_11_250206_VTSE41"];
+  const snapshots = await runtime("smoke-tsunami-o09", names.map((name, k) => tsunamiMaterial(fixtureXml(name), `tsunami-o09-${k}`)));
+  for (const [i, name] of names.entries()) {
+    await publish(snapshots[i]);
+    await freezeAnimations();
+    const dom = await evaluate(TSUNAMI_DOM);
+    const view = snapshots[i].current.tsunami.view.forecasts;
+    const areas = view.flatMap((subject) => subject.areas);
+    const painted = new Map(areas.filter((a) => Object.hasOwn(TSUNAMI_FACE, a.areaClass) && COAST_RECT_BY_CODE.has(a.code)).map((a) => [a.code, a.areaClass]));
+    const coast = await coastMatches(`tsunami-o09-${i + 14}`, dom, painted);
+    const rows = dom.cards.flatMap((c) => c.rows);
+    const rowsOk = view.length === 1 && view[0].eventId === "20110311144640" && rows.length === areas.length
+      && areas.every((a, k) => rows[k].startsWith(`${a.code} ${a.name}: ${a.kindName}`));
+    check(`P3-C6-T04:AC07(2):O09:${i + 14}:${name}`, rowsOk && coast.ok && dom.missing.length === 0, "DOM・screenshot画素",
+      { rows: rows.length, areas: areas.length, coast, missing: dom.missing });
+  }
+  const [missingSnapshot] = await runtime("smoke-tsunami-missing", [tsunamiMaterial(fixtureXml("32-39_12_02_250206_VTSE41"), "tsunami-missing")]);
+  await publish(missingSnapshot);
+  await freezeAnimations();
+  const dom = await evaluate(TSUNAMI_DOM);
+  const areas = missingSnapshot.current.tsunami.view.forecasts.flatMap((subject) => subject.areas);
+  const outside = areas.filter((a) => Object.hasOwn(TSUNAMI_FACE, a.areaClass) && !COAST_RECT_BY_CODE.has(a.code)).map((a) => a.code);
+  const painted = new Map(areas.filter((a) => Object.hasOwn(TSUNAMI_FACE, a.areaClass) && COAST_RECT_BY_CODE.has(a.code)).map((a) => [a.code, a.areaClass]));
+  const coast = await coastMatches("tsunami-missing-coast", dom, painted);
+  check("P3-C6-T04:AC07(2):missingCoast:32-39_12_02", outside.length === 15 && JSON.stringify(dom.missing) === JSON.stringify(["海岸線の資材なし 15 区域"]) && coast.ok,
+    "DOM・screenshot画素", { outside, missing: dom.missing, coast });
+
+  const [, both] = await runtime("smoke-tsunami-two-subjects", [
+    tsunamiMaterial(templateReport("synthetic_VTSE41_e01_311major", 0, "20261009090002"), "tsunami-two-a"),
+    tsunamiMaterial(templateReport("synthetic_VTSE41_e01_311warning", 1, "20261009090003"), "tsunami-two-b")]);
+  const published = await publish(both);
+  await freezeAnimations();
+  const twoDom = await evaluate(TSUNAMI_DOM);
+  // 直前に描いていた 32-39_12_02（訓練）の subject には present false の候補が別に出る。
+  const candidates = (await tsunamiMarks(published)).filter((m) => m.detail.subject.endsWith("/20261009090002") || m.detail.subject.endsWith("/20261009090003"));
+  const twoCoast = await coastMatches("tsunami-two-subjects", twoDom, new Map([["311", "majorWarning"]]));
+  check("P3-C6-T04:AC07(2):sameCodeTwoSubjects", candidates.length === 2 && candidates.every((m) => samePaintDetail(m.detail, { present: true, areas: [{ code: "311", areaClass: "majorWarning" }] }))
+    && twoCoast.ok && twoDom.cards.length === 2, "performance entry・DOM・screenshot画素", { candidates: candidates.map((m) => m.detail), coast: twoCoast });
+}
+
+// (3) EEW（VXSE43）と津波を同時に描き、片方の contentRevision だけが変わったときもう片方を描き直さない。(4) summary 配送で旧表示が消える。
+// (T04) wire 由来の区域名が HTML として解釈されない（A9 の T05 の津波版）。
+async function checkTsunamiWithEew() {
+  const [, s2, s3] = await runtime("smoke-tsunami-eew", [material("VXSE43"),
+    tsunamiMaterial(templateReport("synthetic_VTSE41_e01_311warning", 0, "20261009090004"), "tsunami-eew-a"),
+    tsunamiMaterial(templateReport("synthetic_VTSE41_e01_311major", 1, "20261009090004"), "tsunami-eew-b")]);
+  const subject = "normal/VTSE41/20261009090004";
+  await publish(s2);
+  const keep = (selector) => evaluate(`(() => { document.querySelectorAll(${JSON.stringify(selector)}).forEach((n) => { n.__smokeKeep = true; }); return true; })()`);
+  const kept = (selector) => evaluate(`(() => { const nodes = [...document.querySelectorAll(${JSON.stringify(selector)})];
+    return { count: nodes.length, kept: nodes.filter((n) => n.__smokeKeep === true).length }; })()`);
+  const EEW_NODES = "#cards .eew-card, #map .map-area";
+  const TSUNAMI_NODES = "#tsunami-cards .tsu-card, #coast .coast-area";
+  await keep(EEW_NODES);
+  const tsunamiOnly = await publish(s3);
+  const eewAfter = await kept(EEW_NODES);
+  const eewMarks = (await marks(T6)).filter((m) => m.detail.displayVersion.sequence === tsunamiOnly.sequence);
+  const tsunamiCandidates = await tsunamiMarks(tsunamiOnly, subject);
+  check("P3-C6-T04:AC07(3):tsunamiOnlyKeepsEew", s2.current.eew.contentRevision === s3.current.eew.contentRevision && eewAfter.count > 0
+    && eewAfter.kept === eewAfter.count && eewMarks.length === 0 && tsunamiCandidates.length === 1, "DOM (node同一性)・performance entry",
+  { eewAfter, eewMarks: eewMarks.length, tsunamiCandidates: tsunamiCandidates.length });
+  await keep(TSUNAMI_NODES);
+  const eewOnly = await publish(withCurrent(s3, s3.current.eew.view.current, "smoke:tsunami:eewOnly"));
+  const tsunamiAfter = await kept(TSUNAMI_NODES);
+  const eewOnlyTsunami = await tsunamiMarks(eewOnly);
+  check("P3-C6-T04:AC07(3):eewOnlyKeepsTsunami", tsunamiAfter.count > 0 && tsunamiAfter.kept === tsunamiAfter.count && eewOnlyTsunami.length === 0
+    && (await marks(T6)).some((m) => m.detail.displayVersion.sequence === eewOnly.sequence), "DOM (node同一性)・performance entry",
+  { tsunamiAfter, tsunamiMarks: eewOnlyTsunami.length });
+
+  const summary = { ...s3, current: { ...s3.current, tsunami: { unit: "U-T", contentRevision: "smoke:tsunami:summary", items: s3.current.tsunami.items,
+    delivery: "summary", reason: "snapshotBudget", originalBytes: 70_000, budgetBytes: 65_536 } } };
+  const summarized = await publish(summary);
+  await freezeAnimations();
+  const dom = await evaluate(TSUNAMI_DOM);
+  const removal = await tsunamiMarks(summarized, subject);
+  const cleared = (await screenshotPixels("tsunami-summary", [coastCenter(dom.origin, "311")])).pixels;
+  check("P3-C6-T04:AC07(4):summary", dom.cards.length === 0 && dom.rects.length === 0 && dom.summary.length >= 1 && dom.summary[0].startsWith("[通常] ")
+    && removal.length === 1 && removal[0].detail.present === false && cleared.every((p) => sameRgb(p, BG)), "DOM・performance entry・screenshot画素",
+  { summary: dom.summary, removal: removal.map((m) => m.detail), cleared });
+
+  const forecast = s3.current.tsunami.view.forecasts[0];
+  const build = (name, revision) => ({ ...s3, current: { ...s3.current, tsunami: { ...s3.current.tsunami, contentRevision: revision,
+    view: { ...s3.current.tsunami.view, contentRevision: revision, forecasts: [{ ...forecast, areas: forecast.areas.map((a, k) => (k === 0 ? { ...a, name } : a)) }] } } } });
+  const evilName = `<img src=x onerror="window.__fleqXss=(window.__fleqXss||0)+1">&lt;b&gt;\n行2`;
+  const shape = `(() => ({ elements: document.getElementsByTagName("*").length,
+    executable: document.querySelectorAll("script, img, iframe, object, embed, svg, link").length,
+    row: document.querySelector("#tsunami-cards .tsu-row")?.textContent ?? null, fired: window.__fleqXss ?? 0 }))()`;
+  await publish(build("benign", "smoke:tsunami:benign"));
+  const benign = await evaluate(shape);
+  await publish(build(evilName, "smoke:tsunami:evil"));
+  await sleep(1000);
+  const evil = await evaluate(shape);
+  check("P3-C6-T04:AC03(8):htmlNotInterpreted", benign.elements === evil.elements && benign.executable === evil.executable && evil.fired === 0
+    && evil.row?.startsWith(`311 ${evilName}: `), "DOM", { benign, evil, evilName });
+}
+
+// C6 の条件ファイルの hash（coast は配信 module を Chrome 内で、fixture・template body は Node で照らす）と Chrome の版。
+async function checkTsunamiConditions() {
+  const served = await evaluate(`(async () => {
+    const coast = await import("/chrome-eew/coast.js");
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(coast.canonicalCoastJson()));
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  })()`);
+  const sha = (name) => createHash("sha256").update(readFileSync(join(repo, `test/fixtures/${name.replace("test__fixtures__", "")}.xml`))).digest("hex");
+  const files = Object.entries({ ...tsunamiConditions.fixtureSha256, ...tsunamiConditions.templateBodySha256 }).map(([id, recorded]) => ({ id, recorded, actual: sha(id) }));
+  check("P3-C6-T05:coastAndFixtureHashes", served === tsunamiConditions.coastSha256 && files.every((f) => f.actual === f.recorded), "Chrome内のsha256・Node の sha256",
+    { served, recorded: tsunamiConditions.coastSha256, files });
+}
+
+async function checkTsunami() {
+  await page.send("Animation.enable");
+  await checkTsunamiConditions();
+  await checkTsunamiTemplates();
+  await checkTsunamiPublic();
+  await checkTsunamiWithEew();
+}
+
+const TSUNAMI_PRECEDING = [
+  { id: "D-AC15", smokeRecords: ["P3-C6-T04:AC07(2):O09:14:32-39_11_02_250206_VTSE41", "P3-C6-T04:AC07(2):missingCoast:32-39_12_02"],
+    notYet: "正規の津波予報区 GIS（N18、P4）・LOD・hit test。この海岸線は P3 の測定専用の模式図" },
+  { id: "D-AC24", smokeRecords: ["P3-C6-T04:AC07(1):issued", "P3-C6-T04:AC07(1):released"], notYet: "1000×3 の正式 E01（C6 の AC11）。T6 候補は正式 T6 ではない" },
 ];
 
 // ── 実行 ──
@@ -882,6 +1098,7 @@ async function main() {
   const tickPhase = await checkStaleReconnect();
   if (tickPhase == null) record("P2-A9-T06:c:foregroundImmediate", "未確認", "-", { reason: "(b)で周期検査の位相を得られなかった" });
   else await checkForegroundImmediate(tickPhase);
+  if (tsunamiConditions != null) await checkTsunami();
   await checkMarkNamesOnly();
 }
 
@@ -919,12 +1136,15 @@ try {
   await teardown();
   const failed = results.filter((r) => r.status !== "Pass");
   writeFileSync(join(evidenceDir, "smoke-result.json"), `${JSON.stringify({
-    schemaVersion: "p2-a9-chrome-smoke-evidence-v1", ranAt: new Date().toISOString(),
-    conditions: { file: "reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json", conditionsSha256: conditions.conditionsSha256 },
+    schemaVersion: tsunamiConditions == null ? "p2-a9-chrome-smoke-evidence-v1" : "p3-c6-chrome-smoke-evidence-v1", ranAt: new Date().toISOString(),
+    conditions: { file: A9_CONDITIONS, conditionsSha256: conditions.conditionsSha256 },
+    ...(tsunamiConditions == null ? {} : { tsunamiConditions: { file: conditionsFile, conditionsSha256: tsunamiConditions.conditionsSha256 },
+      note: "P3 の測定専用の模式図（最小海岸線）。正規の津波予報区 GIS（N18、P4）ではない。D-AC15・D-AC24 の先行証拠で、Pass と報告しない",
+      a9Judgement: "AC07(5) の A9 の全項目は env:chromeVersion を除く 42 項目で判定する（Q-C6-IMPL-AMEND）" }),
     chrome: { executable: CHROME, flags: CHROME_FLAGS, headless: false,
       observer: "smoke側でnative EventSourceを透過subclassで包み、生成・close・受信時刻を記録 (製品コードは無変更)" },
     results,
-    precedingEvidenceOnly: PRECEDING.map((item) => ({ ...item, status: "先行証拠のみ（Passと報告しない）" })),
+    precedingEvidenceOnly: [...PRECEDING, ...(tsunamiConditions == null ? [] : TSUNAMI_PRECEDING)].map((item) => ({ ...item, status: "先行証拠のみ（Passと報告しない）" })),
   }, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify({ total: results.length, notPass: failed.map((r) => `${r.id}=${r.status}`) })}\n`);
   exitCode = failed.length === 0 ? 0 : 1;

@@ -1,0 +1,848 @@
+{
+  "schemaVersion": "p3-tsunami-e01-manifest-v1",
+  "manifestId": "p3-c6-draft-20261009",
+  "manifestSha256": "4fe7f0936324e1f96a617fb3a6f2279f1d62999d8b86ccc763d7221fad79ecfb",
+  "trialSetupRef": "reconstruction/test/eew-e01/evidence/trial-setup.json",
+  "trialSetupSha256": "cd1ee3dd642cf070f6a0f010a2d3c7075d7a0fb9873feea254375f53a564f578",
+  "measuredSseClients": 1,
+  "notificationProbe": {
+    "desktop": "idle",
+    "sound": "idle"
+  },
+  "loads": {
+    "N": {
+      "id": "N",
+      "fixtureRefs": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__81_01_04_251222_VPWP50",
+        "test__fixtures__10_05_05_200826_VPTW61"
+      ],
+      "ordering": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__81_01_04_251222_VPWP50",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__10_05_05_200826_VPTW61",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_18_01_250630_VPWS50"
+      ],
+      "offsetsMs": [
+        89002,
+        320884,
+        564324,
+        578526,
+        656908,
+        1254877,
+        1595335,
+        1865301,
+        1936127,
+        1936136,
+        1991695,
+        2056120,
+        2089093,
+        2141040,
+        2227748,
+        2237382,
+        2248770,
+        2457518,
+        2681649,
+        2773497,
+        3056118
+      ],
+      "durationMs": 3600000,
+      "sha256": "b80855334399c2daa2ad25f8d12eb6d5f91aa07fe3a55c418c69802624fa96b6"
+    },
+    "P": {
+      "id": "P",
+      "fixtureRefs": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__81_01_04_251222_VPWP50",
+        "test__fixtures__10_05_05_200826_VPTW61"
+      ],
+      "ordering": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__81_01_04_251222_VPWP50",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__10_05_05_200826_VPTW61",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_18_01_250630_VPWS50"
+      ],
+      "offsetsMs": [
+        8900,
+        32088,
+        56432,
+        57853,
+        65691,
+        125488,
+        159534,
+        186530,
+        193613,
+        193614,
+        199170,
+        205612,
+        208909,
+        214104,
+        222775,
+        223738,
+        224877,
+        245752,
+        268165,
+        277350,
+        305612
+      ],
+      "durationMs": 360000,
+      "sha256": "3c03e5e3af2b8869f1bced7032fb94ac9fa5bdfa120fa6a289ad34aa173714a0"
+    },
+    "C": {
+      "id": "C",
+      "fixtureRefs": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+        "test__fixtures__15_16_02_251222_VPWW57",
+        "test__fixtures__37_01_01_240613_VXSE43",
+        "test__fixtures__37_01_03_240613_VXSE43"
+      ],
+      "ordering": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+        "test__fixtures__15_16_02_251222_VPWW57",
+        "test__fixtures__37_01_01_240613_VXSE43",
+        "test__fixtures__37_01_01_240613_VXSE43",
+        "test__fixtures__37_01_03_240613_VXSE43",
+        "test__fixtures__81_02_01_260605_VPWP50_high_severity"
+      ],
+      "offsetsMs": [
+        0,
+        5000,
+        10000,
+        20000,
+        25000,
+        30000,
+        40000
+      ],
+      "durationMs": 60000,
+      "sha256": "9838917551a5c61789186c7b3e755328c4cd74bc27fab2994c4f5f3a2bd74812"
+    }
+  },
+  "warmupPerRun": 100,
+  "samplesPerRun": 1000,
+  "runCount": 3,
+  "missingAfterMs": 10000,
+  "callbackDeadlineAfterInjectionMs": 10000,
+  "quantile": "nearestRank",
+  "clockProbeEveryMs": 30000,
+  "maxClockIntervalWidthMs": 5,
+  "health": {
+    "loads": [
+      "N",
+      "P"
+    ],
+    "requestEveryMs": 1000,
+    "requestTimeoutMs": 5000,
+    "minSamplesPerRun": 1000,
+    "runCount": 3
+  },
+  "chrome": {
+    "version": "154.0.8037.98",
+    "foregroundTab": true,
+    "viewportCssPx": [
+      1440,
+      900
+    ],
+    "dpr": 2,
+    "motion": "full"
+  },
+  "nodeVersion": "v22.23.2",
+  "osVersion": "27.0.0 arm64",
+  "device": "Apple M5 x10, 32GiB",
+  "geometrySha256": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f",
+  "fixtureSha256": {
+    "test__fixtures__10_05_05_200826_VPTW61": "a94348c1256487a09734456300eb2d21a0e80376ed237015f73f8fcbd808951a",
+    "test__fixtures__15_16_01_241031_VPWW56": "65f7d65759f8aa51e4ce68ec782db60a9ed8ee3fa642355eb5f78645d4cc14f6",
+    "test__fixtures__15_16_02_251222_VPWW57": "1da9236f048e72354f03a6cacecf59a10e0375ce3a589cfd2bc8c87681766cef",
+    "test__fixtures__15_16_07_250825_VPWW61": "30e9c8ac1c7c6e53f646d57b7897361ec88bcbf469e6bc0847e8a65f2626baa5",
+    "test__fixtures__15_17_01_251222_VPWW55": "3200ae7ba06dd194c3731a6bf3fc9a594a4dcc122890a8c011180c65ed645c30",
+    "test__fixtures__15_18_01_250630_VPWS50": "4730b26b18e285be6b6141b1140aa5c2f81ce32907571bdd17e80525e3746981",
+    "test__fixtures__37_01_01_240613_VXSE43": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0",
+    "test__fixtures__37_01_03_240613_VXSE43": "b075dab492ed0369c8dca5203bb9b273a71dd8cdeed4be37a84de00e557fcafc",
+    "test__fixtures__77_01_01_240613_VXSE45": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575",
+    "test__fixtures__81_01_04_251222_VPWP50": "937dbaa1c74e1e182527ea52690ca75a60f1bd674e6ac6dbe97436e55af7bc1a",
+    "test__fixtures__81_02_01_260605_VPWP50_high_severity": "eb4e312044555db07c3e215a93fcda4961845cdb7b2b85f3c7e0461d0f160ccd",
+    "test__fixtures__81_09_01_260605_VPWP50": "f4614dc206b143ef3a9997fecf1ebffaef2f4f9b3000ddd2df0de522bc8cad4b",
+    "test__fixtures__85_01_01_250630_VPFJ51": "76016d81ec4c69dcfc10001c38e428f4da9028b3c4bc970527f44bb265b7ed2f",
+    "test__fixtures__synthetic_VTSE41_e01_released": "83f05f2c6a17e87e00d0a62f276c9c3ea93b5e14437af15f01fa317a69b1befd",
+    "test__fixtures__synthetic_VTSE41_e01_311warning": "f3f91c498f75cff1259f993195b80c16fdd372df9254ca64dd9b40d47908465a",
+    "test__fixtures__synthetic_VTSE41_e01_311major": "75b8a3d94b4d420d98951f9ed22d7802b031acfe349e558f2b46f188e95886f2",
+    "test__fixtures__synthetic_VTSE41_e01_311major_312major": "24e4266a5ddbe6ec340cdcaa61f57c9413379989fdf4559131ca6456a100a1a5",
+    "test__fixtures__synthetic_VTSE41_e01_311major_312warning": "813615ba01c365c305ff6178182327edc0873502c4d0415b03221813b889710f",
+    "test__fixtures__synthetic_VTSE41_e01_311warning_312advisory": "00a4234c58dbd905a8df581ea7dceaded994cdeba595b24f8a0ccd58749d2c4e"
+  },
+  "liveness": {
+    "pingEveryMs": 20000,
+    "maxFrameGapMs": 90000
+  },
+  "machines": {
+    "formal": "Mac mini（Apple M2 8 コア〔P4＋E4〕・8GiB・Mac14,3、macOS 27.0.1〔26A434〕。独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d。凍結から正式測定まで Chrome の自動更新を止める）。E01 ほか正式の窓の通知は real backend で、窓の前に出力をミュートする（osascript -e 'set volume with output muted'。backend の spawn・close は製品のまま）",
+    "gate": "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）",
+    "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）"
+  },
+  "contractSha256": {
+    "P3-TSUNAMI-E01-001": "bdbc4193587be429dcd2761776057f6924dfdc47fbc729da5f242433194ec93b",
+    "P3-TSUNAMI-UNIT-001": "abc840c49e0209cb1b18e425a56c3224d2791c3fd42212a358e98918d9c16082",
+    "P3-E01-REACCEPT-001": "1ad4786a16d78eb902fa35703e51b8ce411327807f8e8fc8f957d64c450e66f0",
+    "P3-UNIT-WRITE-RIGHT-001": "29eb6df0760fdd927b9f5879d5a3d048341e1f04525a2ab71a179ef74781502d",
+    "P3-EXECUTION-LIFECYCLE-001": "af463a6183512250e4daca56d07a671be29c886aedc8774f34d829f8dffb3563",
+    "P3-EXECUTION-SPLIT-001": "81e2dec0162f359ad859d672d1bb8c418e8bd08b58dc51c3612ae2805621d1c9",
+    "P2-CHROME-EEW-001": "4a99e6ea6cb2b661896464ee74ec3313644638384d351ea23054545c52572d0b",
+    "P2-EEW-E01-001": "230c97b51724fbae7ac37d695c6949e6a37e45ff7ed3429318e619ab01cdc8b8",
+    "P2-SNAPSHOT-SSE-001": "c371f403c2ae0f1ca3263663cc799af1817fcd07e806e019e88eceeaf160c307"
+  },
+  "smokeConditionsSha256": "f867cdbd934f4421a47f1d37a08063bf4d0d74018f46f27d0446e5d754427a65",
+  "smokeConditionDifferences": [],
+  "inheritsManifestId": "p3-c4-formal-20261007",
+  "templates": [
+    {
+      "transition": "issued",
+      "expectedSeries": "escalation",
+      "expectedTransitions": [
+        {
+          "areaCode": "311",
+          "from": "released",
+          "to": "warning",
+          "transition": "issued"
+        }
+      ],
+      "expectedPrimePaint": {
+        "present": false,
+        "areas": []
+      },
+      "expectedPaint": {
+        "present": true,
+        "areas": [
+          {
+            "code": "311",
+            "areaClass": "warning"
+          }
+        ]
+      },
+      "bodySha256": {
+        "prime": "83f05f2c6a17e87e00d0a62f276c9c3ea93b5e14437af15f01fa317a69b1befd",
+        "target": "f3f91c498f75cff1259f993195b80c16fdd372df9254ca64dd9b40d47908465a"
+      }
+    },
+    {
+      "transition": "upgraded",
+      "expectedSeries": "escalation",
+      "expectedTransitions": [
+        {
+          "areaCode": "311",
+          "from": "warning",
+          "to": "majorWarning",
+          "transition": "upgraded"
+        }
+      ],
+      "expectedPrimePaint": {
+        "present": true,
+        "areas": [
+          {
+            "code": "311",
+            "areaClass": "warning"
+          }
+        ]
+      },
+      "expectedPaint": {
+        "present": true,
+        "areas": [
+          {
+            "code": "311",
+            "areaClass": "majorWarning"
+          }
+        ]
+      },
+      "bodySha256": {
+        "prime": "f3f91c498f75cff1259f993195b80c16fdd372df9254ca64dd9b40d47908465a",
+        "target": "75b8a3d94b4d420d98951f9ed22d7802b031acfe349e558f2b46f188e95886f2"
+      }
+    },
+    {
+      "transition": "expanded",
+      "expectedSeries": "escalation",
+      "expectedTransitions": [
+        {
+          "areaCode": "312",
+          "from": "none",
+          "to": "majorWarning",
+          "transition": "expanded"
+        }
+      ],
+      "expectedPrimePaint": {
+        "present": true,
+        "areas": [
+          {
+            "code": "311",
+            "areaClass": "majorWarning"
+          }
+        ]
+      },
+      "expectedPaint": {
+        "present": true,
+        "areas": [
+          {
+            "code": "311",
+            "areaClass": "majorWarning"
+          },
+          {
+            "code": "312",
+            "areaClass": "majorWarning"
+          }
+        ]
+      },
+      "bodySha256": {
+        "prime": "75b8a3d94b4d420d98951f9ed22d7802b031acfe349e558f2b46f188e95886f2",
+        "target": "24e4266a5ddbe6ec340cdcaa61f57c9413379989fdf4559131ca6456a100a1a5"
+      }
+    },
+    {
+      "transition": "released",
+      "expectedSeries": "deescalation",
+      "expectedTransitions": [
+        {
+          "areaCode": "311",
+          "from": "majorWarning",
+          "to": "released",
+          "transition": "released"
+        },
+        {
+          "areaCode": "312",
+          "from": "warning",
+          "to": "released",
+          "transition": "released"
+        }
+      ],
+      "expectedPrimePaint": {
+        "present": true,
+        "areas": [
+          {
+            "code": "311",
+            "areaClass": "majorWarning"
+          },
+          {
+            "code": "312",
+            "areaClass": "warning"
+          }
+        ]
+      },
+      "expectedPaint": {
+        "present": false,
+        "areas": []
+      },
+      "bodySha256": {
+        "prime": "813615ba01c365c305ff6178182327edc0873502c4d0415b03221813b889710f",
+        "target": "83f05f2c6a17e87e00d0a62f276c9c3ea93b5e14437af15f01fa317a69b1befd"
+      }
+    },
+    {
+      "transition": "downgraded",
+      "expectedSeries": "deescalation",
+      "expectedTransitions": [
+        {
+          "areaCode": "311",
+          "from": "majorWarning",
+          "to": "warning",
+          "transition": "downgraded"
+        },
+        {
+          "areaCode": "312",
+          "from": "warning",
+          "to": "advisory",
+          "transition": "downgraded"
+        }
+      ],
+      "expectedPrimePaint": {
+        "present": true,
+        "areas": [
+          {
+            "code": "311",
+            "areaClass": "majorWarning"
+          },
+          {
+            "code": "312",
+            "areaClass": "warning"
+          }
+        ]
+      },
+      "expectedPaint": {
+        "present": true,
+        "areas": [
+          {
+            "code": "311",
+            "areaClass": "warning"
+          },
+          {
+            "code": "312",
+            "areaClass": "advisory"
+          }
+        ]
+      },
+      "bodySha256": {
+        "prime": "813615ba01c365c305ff6178182327edc0873502c4d0415b03221813b889710f",
+        "target": "00a4234c58dbd905a8df581ea7dceaded994cdeba595b24f8a0ccd58749d2c4e"
+      }
+    }
+  ],
+  "populations": {
+    "escalation:fixedBacklog": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=escalation:fixedBacklog; spec=§7.5 発令系×fixedBacklog; c4=fixedBacklog（p3-c4-formal-20261007）; o09=23・32・41; plan=p3-order-plan.md:203; transitions=issued→upgraded→expanded（試行ごとに順に回す）; prime を周期の頭に送り、primeLeadMs 後に target を送る（通常負荷 N の再生と同時）",
+      "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.fixedBacklog",
+      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stopCondition": {
+        "maxAttempts": 1200,
+        "maxDurationMs": 4575000
+      },
+      "triggerLeadMs": null,
+      "series": "escalation",
+      "condition": "fixedBacklog",
+      "inheritsC4Population": "fixedBacklog",
+      "transitions": [
+        "issued",
+        "upgraded",
+        "expanded"
+      ],
+      "establishment": {
+        "kind": "primeSettled"
+      },
+      "primeLeadMs": 1500,
+      "tsunamiEventIds": {
+        "warmup": "20261009061000",
+        "formalByRun": [
+          "20261009061011",
+          "20261009061012",
+          "20261009061013"
+        ]
+      },
+      "eewEventIds": null
+    },
+    "escalation:maxVpws50ParseStarted": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=escalation:maxVpws50ParseStarted; spec=§7.5 発令系×maxVpws50ParseStarted; c4=maxVpws50ParseStarted（p3-c4-formal-20261007）; o09=24・33・42; plan=p3-order-plan.md:203; transitions=issued→upgraded→expanded（試行ごとに順に回す）; prime の primeLeadMs 後に最大 VPWS50 15_18_01（引き金）を送り、C4 と同じ自己較正（P3-C4-AC13(7)）で full parse 開始の 1ms 後に target を送る（prime は target の予測時刻ではなく引き金の送信の primeLeadMs 前。差は parse 開始までの数 ms で、differencesFromC4 の primeTiming）",
+      "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxVpws50DecodeStarted",
+      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stopCondition": {
+        "maxAttempts": 2081,
+        "maxDurationMs": 7878750
+      },
+      "triggerLeadMs": null,
+      "series": "escalation",
+      "condition": "maxVpws50ParseStarted",
+      "inheritsC4Population": "maxVpws50ParseStarted",
+      "transitions": [
+        "issued",
+        "upgraded",
+        "expanded"
+      ],
+      "establishment": {
+        "kind": "primeSettledStartOffset",
+        "startOffset": {
+          "kind": "startOffset",
+          "targetOffsetMs": 1,
+          "acceptedOffsetRangeMs": [
+            0,
+            5
+          ],
+          "span": "population"
+        }
+      },
+      "primeLeadMs": 1500,
+      "tsunamiEventIds": {
+        "warmup": "20261009061100",
+        "formalByRun": [
+          "20261009061111",
+          "20261009061112",
+          "20261009061113"
+        ]
+      },
+      "eewEventIds": null
+    },
+    "escalation:maxWeatherCheckpointEncodeStarted": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=escalation:maxWeatherCheckpointEncodeStarted; spec=§7.5 発令系×maxWeatherCheckpointEncodeStarted; c4=maxWeatherCheckpointEncodeStarted（p3-c4-formal-20261007）; o09=25・34・43; plan=p3-order-plan.md:203; transitions=issued→upgraded→expanded（試行ごとに順に回す）; 予測した tick の U-W encode 開始の 1ms 後に target、その triggerLeadMs 前に VPWW55、primeLeadMs 前に prime を送る",
+      "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxWeatherCheckpointEncodeStarted",
+      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stopCondition": {
+        "maxAttempts": 1348,
+        "maxDurationMs": 5130000
+      },
+      "triggerLeadMs": 600,
+      "series": "escalation",
+      "condition": "maxWeatherCheckpointEncodeStarted",
+      "inheritsC4Population": "maxWeatherCheckpointEncodeStarted",
+      "transitions": [
+        "issued",
+        "upgraded",
+        "expanded"
+      ],
+      "establishment": {
+        "kind": "primeSettledStartOffset",
+        "startOffset": {
+          "kind": "startOffset",
+          "targetOffsetMs": 1,
+          "acceptedOffsetRangeMs": [
+            0,
+            5
+          ],
+          "span": "population"
+        }
+      },
+      "primeLeadMs": 1500,
+      "tsunamiEventIds": {
+        "warmup": "20261009061200",
+        "formalByRun": [
+          "20261009061211",
+          "20261009061212",
+          "20261009061213"
+        ]
+      },
+      "eewEventIds": null
+    },
+    "escalation:eewTogether": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=escalation:eewTogether; spec=§7.5 発令系×eewTogether; c4=fixedBacklog（p3-c4-formal-20261007）; o09=26・35・44; plan=p3-order-plan.md:203; transitions=issued→upgraded→expanded（試行ごとに順に回す）; prime の primeLeadMs 後に VXSE45（窓ごとに 1 つの EventID、Serial+1・予想 A/B 交互）を送り、間を空けずに同じ WS で target を送る",
+      "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.fixedBacklog",
+      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stopCondition": {
+        "maxAttempts": 1200,
+        "maxDurationMs": 4575000
+      },
+      "triggerLeadMs": null,
+      "series": "escalation",
+      "condition": "eewTogether",
+      "inheritsC4Population": "fixedBacklog",
+      "transitions": [
+        "issued",
+        "upgraded",
+        "expanded"
+      ],
+      "establishment": {
+        "kind": "primeSettledEewOrder"
+      },
+      "primeLeadMs": 1500,
+      "tsunamiEventIds": {
+        "warmup": "20261009061300",
+        "formalByRun": [
+          "20261009061311",
+          "20261009061312",
+          "20261009061313"
+        ]
+      },
+      "eewEventIds": {
+        "warmup": "20261009062300",
+        "formalByRun": [
+          "20261009062311",
+          "20261009062312",
+          "20261009062313"
+        ]
+      }
+    },
+    "deescalation:fixedBacklog": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=deescalation:fixedBacklog; spec=§7.5 解除系×fixedBacklog; c4=fixedBacklog（p3-c4-formal-20261007）; o09=50・59; plan=p3-order-plan.md:203; transitions=released→downgraded（試行ごとに順に回す）; prime を周期の頭に送り、primeLeadMs 後に target を送る（通常負荷 N の再生と同時）",
+      "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.fixedBacklog",
+      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stopCondition": {
+        "maxAttempts": 1200,
+        "maxDurationMs": 4575000
+      },
+      "triggerLeadMs": null,
+      "series": "deescalation",
+      "condition": "fixedBacklog",
+      "inheritsC4Population": "fixedBacklog",
+      "transitions": [
+        "released",
+        "downgraded"
+      ],
+      "establishment": {
+        "kind": "primeSettled"
+      },
+      "primeLeadMs": 1500,
+      "tsunamiEventIds": {
+        "warmup": "20261009061400",
+        "formalByRun": [
+          "20261009061411",
+          "20261009061412",
+          "20261009061413"
+        ]
+      },
+      "eewEventIds": null
+    },
+    "deescalation:maxVpws50ParseStarted": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=deescalation:maxVpws50ParseStarted; spec=§7.5 解除系×maxVpws50ParseStarted; c4=maxVpws50ParseStarted（p3-c4-formal-20261007）; o09=51・60; plan=p3-order-plan.md:203; transitions=released→downgraded（試行ごとに順に回す）; prime の primeLeadMs 後に最大 VPWS50 15_18_01（引き金）を送り、C4 と同じ自己較正（P3-C4-AC13(7)）で full parse 開始の 1ms 後に target を送る（prime は target の予測時刻ではなく引き金の送信の primeLeadMs 前。差は parse 開始までの数 ms で、differencesFromC4 の primeTiming）",
+      "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxVpws50DecodeStarted",
+      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stopCondition": {
+        "maxAttempts": 2081,
+        "maxDurationMs": 7878750
+      },
+      "triggerLeadMs": null,
+      "series": "deescalation",
+      "condition": "maxVpws50ParseStarted",
+      "inheritsC4Population": "maxVpws50ParseStarted",
+      "transitions": [
+        "released",
+        "downgraded"
+      ],
+      "establishment": {
+        "kind": "primeSettledStartOffset",
+        "startOffset": {
+          "kind": "startOffset",
+          "targetOffsetMs": 1,
+          "acceptedOffsetRangeMs": [
+            0,
+            5
+          ],
+          "span": "population"
+        }
+      },
+      "primeLeadMs": 1500,
+      "tsunamiEventIds": {
+        "warmup": "20261009061500",
+        "formalByRun": [
+          "20261009061511",
+          "20261009061512",
+          "20261009061513"
+        ]
+      },
+      "eewEventIds": null
+    },
+    "deescalation:maxWeatherCheckpointEncodeStarted": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=deescalation:maxWeatherCheckpointEncodeStarted; spec=§7.5 解除系×maxWeatherCheckpointEncodeStarted; c4=maxWeatherCheckpointEncodeStarted（p3-c4-formal-20261007）; o09=52・61; plan=p3-order-plan.md:203; transitions=released→downgraded（試行ごとに順に回す）; 予測した tick の U-W encode 開始の 1ms 後に target、その triggerLeadMs 前に VPWW55、primeLeadMs 前に prime を送る",
+      "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxWeatherCheckpointEncodeStarted",
+      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stopCondition": {
+        "maxAttempts": 1348,
+        "maxDurationMs": 5130000
+      },
+      "triggerLeadMs": 600,
+      "series": "deescalation",
+      "condition": "maxWeatherCheckpointEncodeStarted",
+      "inheritsC4Population": "maxWeatherCheckpointEncodeStarted",
+      "transitions": [
+        "released",
+        "downgraded"
+      ],
+      "establishment": {
+        "kind": "primeSettledStartOffset",
+        "startOffset": {
+          "kind": "startOffset",
+          "targetOffsetMs": 1,
+          "acceptedOffsetRangeMs": [
+            0,
+            5
+          ],
+          "span": "population"
+        }
+      },
+      "primeLeadMs": 1500,
+      "tsunamiEventIds": {
+        "warmup": "20261009061600",
+        "formalByRun": [
+          "20261009061611",
+          "20261009061612",
+          "20261009061613"
+        ]
+      },
+      "eewEventIds": null
+    },
+    "deescalation:eewTogether": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=deescalation:eewTogether; spec=§7.5 解除系×eewTogether; c4=fixedBacklog（p3-c4-formal-20261007）; o09=53・62; plan=p3-order-plan.md:203; transitions=released→downgraded（試行ごとに順に回す）; prime の primeLeadMs 後に VXSE45（窓ごとに 1 つの EventID、Serial+1・予想 A/B 交互）を送り、間を空けずに同じ WS で target を送る",
+      "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.fixedBacklog",
+      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stopCondition": {
+        "maxAttempts": 1200,
+        "maxDurationMs": 4575000
+      },
+      "triggerLeadMs": null,
+      "series": "deescalation",
+      "condition": "eewTogether",
+      "inheritsC4Population": "fixedBacklog",
+      "transitions": [
+        "released",
+        "downgraded"
+      ],
+      "establishment": {
+        "kind": "primeSettledEewOrder"
+      },
+      "primeLeadMs": 1500,
+      "tsunamiEventIds": {
+        "warmup": "20261009061700",
+        "formalByRun": [
+          "20261009061711",
+          "20261009061712",
+          "20261009061713"
+        ]
+      },
+      "eewEventIds": {
+        "warmup": "20261009062700",
+        "formalByRun": [
+          "20261009062711",
+          "20261009062712",
+          "20261009062713"
+        ]
+      }
+    }
+  },
+  "coastSha256": "f435a0e9bdf08400e451d26311834647776ef395d2163945158864a7cac9992f",
+  "smokeConditionsRef": "reconstruction/test/eew-e01/evidence/p3-tsunami/chrome-smoke-conditions.json",
+  "differencesFromC4": [
+    {
+      "path": "trial",
+      "c4": "1 試行 = EEW の続報 1 報",
+      "c6": "1 試行 = prime（初期状態へ置き換える報）→ target（標本）の 2 報",
+      "reason": "P3-C6-TRIAL-RESET=A。各試行を既知の初期状態から始める"
+    },
+    {
+      "path": "populations.escalation:fixedBacklog.periodMs",
+      "c4": "1370",
+      "c6": "3000",
+      "reason": "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
+    },
+    {
+      "path": "populations.escalation:maxVpws50ParseStarted.primeTiming",
+      "c4": "prime なし",
+      "c6": "prime を引き金（VPWS50）の送信の primeLeadMs 前に送る",
+      "reason": "AC06(4) の「target の予測時刻の primeLeadMs 前」との差。target は引き金の送信から自己較正の parse 遅延＋1ms 後なので、prime から target までは primeLeadMs＋数 ms になる（予測を待たずに prime を送れる）"
+    },
+    {
+      "path": "populations.escalation:eewTogether.periodMs",
+      "c4": "1370",
+      "c6": "3000",
+      "reason": "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
+    },
+    {
+      "path": "populations.deescalation:fixedBacklog.periodMs",
+      "c4": "1370",
+      "c6": "3000",
+      "reason": "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
+    },
+    {
+      "path": "populations.deescalation:maxVpws50ParseStarted.primeTiming",
+      "c4": "prime なし",
+      "c6": "prime を引き金（VPWS50）の送信の primeLeadMs 前に送る",
+      "reason": "AC06(4) の「target の予測時刻の primeLeadMs 前」との差。target は引き金の送信から自己較正の parse 遅延＋1ms 後なので、prime から target までは primeLeadMs＋数 ms になる（予測を待たずに prime を送れる）"
+    },
+    {
+      "path": "populations.deescalation:eewTogether.periodMs",
+      "c4": "1370",
+      "c6": "3000",
+      "reason": "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
+    },
+    {
+      "path": "nodeVersion",
+      "c4": "v22.23.3",
+      "c6": "v22.23.2",
+      "reason": "機械の実値（凍結時に Mac mini の値で置き直す）"
+    },
+    {
+      "path": "device",
+      "c4": "Apple M2 x8, 8GiB",
+      "c6": "Apple M5 x10, 32GiB",
+      "reason": "機械の実値（凍結時に Mac mini の値で置き直す）"
+    }
+  ],
+  "capacityExpectation": {
+    "status": "expectationOnly",
+    "inheritor": "P4 capacity contract",
+    "text": "P3-C5-E01-SERIES の capacityExpectation（期待値だけ、測定は P4 の容量契約、D-P3-6）: 他分野の縮退中（U-W が summary）は U-T を通常の full で配送し、T6 は通常と同じ。U-T 自身の意図的な予算超過では §8.1 の最小事実（運用区分・最高区分・大津波警報の有無と区域数）、緊急配置、省略表示、旧表示の除去を T6 の期待値とする（spec:1332）。通常合法最大での予報区別警報区分の配送欠落 0（E13a）は P4"
+  },
+  "o09Subset": {
+    "sequenceId": "O09",
+    "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
+    "positions": [
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      23,
+      24,
+      25,
+      26,
+      32,
+      33,
+      34,
+      35,
+      41,
+      42,
+      43,
+      44,
+      50,
+      51,
+      52,
+      53,
+      59,
+      60,
+      61,
+      62
+    ]
+  },
+  "judgmentPlaces": {
+    "E01": "Pi backend＋実接続経路＋表示端末の Chrome（P5）。C6 の Mac mini の結果は P3 の津波 E01 の検収、Pi の予備確認は正式 Pass にしない"
+  }
+}

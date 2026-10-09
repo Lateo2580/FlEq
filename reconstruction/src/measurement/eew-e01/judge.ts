@@ -24,7 +24,17 @@ import type {
   P3EewRunResult,
   P3EewTraceSample,
 } from "../../../contracts/p3-e01-reaccept.types";
-import { nonEmpty, P3_POPULATIONS, REFERENCE_POPULATIONS, ZERO_HASH } from "./frozen";
+import type {
+  P3TsunamiE01Manifest,
+  P3TsunamiE01Verdict,
+  P3TsunamiEstablishment,
+  P3TsunamiInjectionRecord,
+  P3TsunamiPopulation,
+  P3TsunamiRunResult,
+  P3TsunamiTraceSample,
+} from "../../../contracts/p3-tsunami-e01.types";
+import type { TsunamiAreaTransition } from "../../../contracts/p3-tsunami-unit.types";
+import { nonEmpty, P3_POPULATIONS, P3_TSUNAMI_POPULATIONS, REFERENCE_POPULATIONS, ZERO_HASH } from "./frozen";
 
 // P2-A10 の判定（AC02/03/04/06/10/11/16）。I/O も時計も持たない純粋関数。
 // 無いと、runner が結果ごとに別の分位点・欠落規則を持ち、Pass/Fail が測定のたびに揺れる。
@@ -332,6 +342,122 @@ function summarizeP3E01(
   return { runs, verdict: { label: "P3 E01", status, populations, evidenceRefs: [] } };
 }
 
+// P3-C6-AC06(3): 津波の試行の成立。どの種類も primeSettled を含む: prime の T6（Chrome 時計を host 時計へ直した区間）の上界と U-T の ack
+// （prime の世代以上の acknowledged）がどちらも target の T0 より前。区間が T0 を跨げば不成立。prime の U-T の display changes が 0 の
+// ときだけ（subject が prime の前後とも view 外）T6 を求めず、返信の行（processing の終わり）で代える。続けて parse 直後・encode 直後は C4 の
+// startOffset（establishTrial をそのまま使う）、EEW 同時は target の T0 が VXSE45 の inputDone（processing の行）以前。T0 に届かない投入は
+// C4 と同じく成立とし、callbackNotReached の欠落として数える。
+type TsunamiEstablishmentResult =
+  | Readonly<{ established: true }>
+  | Readonly<{ established: false; reason: "primeNotSettled" | "startOffset" | "eewOrder" }>;
+
+function establishTsunamiTrial(input: Readonly<{
+  establishment: P3TsunamiEstablishment;
+  t0Ms: number | null;
+  prime: Readonly<{
+    paintRequired: boolean;
+    paintHostMs: Readonly<{ lowerMs: number; upperMs: number }> | null;
+    replyMs: number | null;
+    ackMs: number | null;
+  }>;
+  target: Readonly<{ startMs: number; endMs: number }> | null;
+  eewInputDoneMs: number | null;
+}>): TsunamiEstablishmentResult {
+  const { establishment: e, t0Ms, prime } = input;
+  if (t0Ms == null) return { established: true };
+  const before = (ms: number | null): boolean => ms != null && ms < t0Ms;
+  const settled = before(prime.ackMs) && (prime.paintRequired ? before(prime.paintHostMs?.upperMs ?? null) : before(prime.replyMs));
+  if (!settled) return { established: false, reason: "primeNotSettled" };
+  switch (e.kind) {
+    case "primeSettled": return { established: true };
+    case "primeSettledStartOffset":
+      return establishTrial({ establishment: e.startOffset, target: input.target, t0Ms, injectorSendHostMs: null }).established
+        ? { established: true } : { established: false, reason: "startOffset" };
+    case "primeSettledEewOrder":
+      return input.eewInputDoneMs != null && t0Ms <= input.eewInputDoneMs ? { established: true } : { established: false, reason: "eewOrder" };
+    default: { const unknown: never = e; throw new Error(`unknown establishment ${String(unknown)}`); }
+  }
+}
+
+const TSUNAMI_STATE_BREAKS = ["tsunamiCapacityEvicted", "tsunamiCapacityExceeded", "eewCapacityExceeded", "tsunamiRevisionConflict", "staleTarget"] as const;
+type StateBreaks = P3TsunamiRunResult["stateBreaks"];
+
+// P3-C6-AC02: 8 母集団 × run の E01。C4 と同じ tally（分位点・時計区間・欠落）を当て、不成立は理由ごとに数えて Pass を妨げない。
+// 窓の stateBreaks が 1 件でもあれば（既知の初期状態が崩れた）その窓は未確認。遷移ごとの値は報告だけで、系列の判定を変えない。
+// windows は runner が窓ごとに数えた stateBreaks で必須（Q-C6-IMPL-AMEND）: 窓の異常は標本から復元できないので、試行のある窓の記録が
+// 無ければその窓は未確認にする（0 とみなさない）。
+function summarizeP3TsunamiE01(
+  manifest: P3TsunamiE01Manifest,
+  samples: readonly P3TsunamiTraceSample[],
+  injections: readonly P3TsunamiInjectionRecord[],
+  windows: readonly Readonly<{ population: P3TsunamiPopulation; run: number; stateBreaks: StateBreaks }>[],
+): Readonly<{ runs: readonly P3TsunamiRunResult[]; verdict: P3TsunamiE01Verdict }> {
+  const indexed = injections.flatMap((i) => (i.sampleIndex != null && i.outcome !== "overlapNotEstablished" ? [{ ...i, sampleIndex: i.sampleIndex }] : []));
+  const tally = tallies(samples, indexed, manifest.missingAfterMs);
+  type Attempts = { attempts: number; overlap: number; byReason: { -readonly [K in keyof P3TsunamiRunResult["overlapNotEstablishedByReason"]]: number } };
+  const noReasons = () => ({ primeNotSettled: 0, startOffset: 0, eewOrder: 0, conditionDeviation: 0 });
+  const attempts = new Map<string, Attempts>();
+  for (const i of injections) {
+    const key = runKey(i.population, i.run);
+    const a = attempts.get(key) ?? { attempts: 0, overlap: 0, byReason: noReasons() };
+    a.attempts++;
+    if (i.outcome === "overlapNotEstablished") { a.overlap++; if (i.notEstablishedReason != null) a.byReason[i.notEstablishedReason]++; }
+    attempts.set(key, a);
+  }
+  const breaks = new Map(windows.map((w) => [runKey(w.population, w.run), w.stateBreaks]));
+  // 遷移ごとの報告の入力: 正式の index の標本を (母集団, run) と遷移で分ける。
+  const byWindowTransition = new Map<string, Map<TsunamiAreaTransition, P3TsunamiTraceSample[]>>();
+  for (const s of samples) {
+    if (s.sampleIndex < manifest.warmupPerRun || s.sampleIndex >= manifest.warmupPerRun + manifest.samplesPerRun) continue;
+    const key = runKey(s.population, s.run);
+    const group = byWindowTransition.get(key) ?? new Map<TsunamiAreaTransition, P3TsunamiTraceSample[]>();
+    const list = group.get(s.transition);
+    if (list == null) group.set(s.transition, [s]); else list.push(s);
+    byWindowTransition.set(key, group);
+  }
+  const all = (values: readonly number[], t: Tally) => (values.length === t.total ? quantiles(values) : null);
+
+  const runs: P3TsunamiRunResult[] = [];
+  const populations = {} as Record<P3TsunamiPopulation, VerificationStatus>;
+  for (const population of P3_TSUNAMI_POPULATIONS) {
+    const statuses: VerificationStatus[] = [];
+    for (let run = 1; run <= manifest.runCount; run++) {
+      const key = runKey(population, run);
+      const t = tally(population, run, true, manifest.warmupPerRun, manifest.samplesPerRun);
+      const a = attempts.get(key) ?? { attempts: 0, overlap: 0, byReason: noReasons() };
+      const recorded = breaks.get(key);
+      const stateBreaks: StateBreaks | null = recorded ?? null;
+      const broken = stateBreaks == null || TSUNAMI_STATE_BREAKS.some((k) => stateBreaks[k] > 0);
+      const judged = formalStatus(t, t.lows, t.ups, t.wide);
+      const status: VerificationStatus = a.attempts === 0 ? "Blocked" : broken ? "未確認" : judged;
+      statuses.push(status);
+      const byTransition: Partial<Record<TsunamiAreaTransition, P3TsunamiRunResult["byTransition"][TsunamiAreaTransition]>> = {};
+      for (const [transition, list] of byWindowTransition.get(key) ?? []) {
+        const late = (s: P3TsunamiTraceSample) => s.missing || (s.latencyLowerMs != null && s.latencyLowerMs > manifest.missingAfterMs);
+        const q = quantiles(list.flatMap((s) => (late(s) || s.latencyUpperMs == null ? [] : [s.latencyUpperMs])));
+        byTransition[transition] = { samples: list.length, missing: list.filter(late).length, p50UpperMs: q?.p50 ?? null, p95UpperMs: q?.p95 ?? null,
+          p99UpperMs: q?.p99 ?? null, maxUpperMs: q?.max ?? null };
+      }
+      const [lo, up] = [all(t.lows, t), all(t.ups, t)];
+      const wait = t.waitsOk ? quantiles(t.waits) : null;
+      runs.push({
+        schemaVersion: "p3-tsunami-e01-result-v1", manifestId: manifest.manifestId, manifestSha256: manifest.manifestSha256, resultSha256: ZERO_HASH,
+        population, scope: "formal", run: run as 1 | 2 | 3, status, samples: t.total, missing: t.missing, traceMissing: t.traceMissing,
+        injectionFailures: t.injectionFailures, attempts: a.attempts, overlapNotEstablished: a.overlap, overlapNotEstablishedByReason: a.byReason,
+        stateBreaks, byTransition,
+        injectedToT0P50Ms: wait?.p50 ?? null, injectedToT0P99Ms: wait?.p99 ?? null, injectedToT0MaxMs: wait?.max ?? null,
+        p50LowerMs: lo?.p50 ?? null, p50UpperMs: up?.p50 ?? null, p95LowerMs: lo?.p95 ?? null, p95UpperMs: up?.p95 ?? null,
+        p99LowerMs: lo?.p99 ?? null, p99UpperMs: up?.p99 ?? null, maxLowerMs: lo?.max ?? null, maxUpperMs: up?.max ?? null,
+        evidenceRefs: [],
+      });
+    }
+    populations[population] = statuses.includes("Fail") ? "Fail" : statuses.every((s) => s === "Pass") ? "Pass" : "未確認";
+  }
+  const values = Object.values(populations);
+  const status: VerificationStatus = values.includes("Fail") ? "Fail" : values.every((s) => s === "Pass") ? "Pass" : "未確認";
+  return { runs, verdict: { label: "P3 tsunami E01", status, populations, evidenceRefs: [] } };
+}
+
 // 失敗は分母から除かず +∞ として分位点に含める。+∞ になる値は JSON にできないので null で報告する。
 function summarizeHealthE02(manifest: EewMeasurementManifest, samples: readonly HealthLatencySample[]): readonly HealthLatencyRunResult[] {
   const results: HealthLatencyRunResult[] = [];
@@ -473,5 +599,8 @@ function classifyEewCause(
   return { cause, decision: cause === "xmlParse" ? "requireParseWorkerB" : "fixNonParseCause", evidenceRefs: refs, attemptedFixes: [] };
 }
 
-export { quantiles, summarizeEewE01, summarizeHealthE02, classifyEewCause, checkpointJoinProblem, establishTrial, summarizeP3E01 };
-export type { EstablishmentResult };
+export {
+  quantiles, summarizeEewE01, summarizeHealthE02, classifyEewCause, checkpointJoinProblem, establishTrial, establishTsunamiTrial, summarizeP3E01,
+  summarizeP3TsunamiE01, TSUNAMI_STATE_BREAKS,
+};
+export type { EstablishmentResult, TsunamiEstablishmentResult };

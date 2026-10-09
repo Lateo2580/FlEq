@@ -1,7 +1,7 @@
 import type { Operation } from "./p1-parser-boundary.types";
 import type { DisplayVersion } from "./p2-snapshot-sse.types";
-import type { EewMeasurementRunResult, VerificationStatus } from "./p2-eew-e01.types";
-import type { P3E01Manifest, P3EewEstablishment, P3EewPopulationCondition } from "./p3-e01-reaccept.types";
+import type { EewMeasurementRunResult, EewTraceSample, VerificationStatus } from "./p2-eew-e01.types";
+import type { P3E01Manifest, P3EewEstablishment, P3EewInjectionRecord, P3EewPopulationCondition } from "./p3-e01-reaccept.types";
 import type { TsunamiAreaClass, TsunamiAreaTransition } from "./p3-tsunami-unit.types";
 
 // P3-TSUNAMI-E01-001 (C6, IR05). spec §7.5: the two series never mix (P3-C5-E01-SERIES).
@@ -15,12 +15,12 @@ export type P3TsunamiPopulation = `${P3TsunamiSeries}:${P3TsunamiCondition}`;
 
 // One trial = the prime report (resets the subject to the transition's known initial state, never sampled)
 // followed by the target report (the sample). Both come from the frozen template; the runner only advances
-// ReportDateTime (by 1 s or more per report of the subject; VTSE41 ordering ignores Serial) and never edits areas
-// (P3-C6-TRIAL-RESET=A). EventIDs belong to the population × run, not to the template.
+// ReportDateTime (by 1 s or more per report of the subject) with the head date-times consistent with it, and sets the window's
+// EventID; it never edits areas, classes or Serial (VTSE41 ordering ignores Serial) (P3-C6-TRIAL-RESET=A, Q-C6-IMPL-AMEND).
+// EventIDs belong to the population × run, not to the template.
 export type P3TsunamiTransitionTemplate = Readonly<{
   transition: TsunamiAreaTransition;
-  primeAreas: readonly Readonly<{ code: string; kindCode: string }>[];
-  targetAreas: readonly Readonly<{ code: string; kindCode: string }>[];
+  // The areas and classes are those of the bodies fixed by bodySha256 (corpus fixtures); the manifest does not copy them (Q-C6-IMPL-AMEND).
   // Frozen at draft from the C5 reducer in reconstruction/dist (P3-C6-SERIES-SOURCE=A); the runner never infers them.
   expectedSeries: P3TsunamiSeries;
   expectedTransitions: readonly Readonly<{ areaCode: string; from: TsunamiAreaClass; to: TsunamiAreaClass; transition: TsunamiAreaTransition }>[];
@@ -126,17 +126,36 @@ export type P3TsunamiSmokeConditions = Readonly<{
   templateBodySha256: Readonly<Record<string, string>>;
 }>;
 
+// The samples and injection records of a tsunami window (the C4 shapes with the transition of the trial's template).
+// The T6 marker's mapMarkerId carries the coast marker id (ChromeTsunamiMarkerDetail.coastMarkerId).
+export type P3TsunamiTraceSample = Readonly<
+  Omit<EewTraceSample, "schemaVersion" | "population"> & {
+    schemaVersion: "p3-tsunami-trace-v1";
+    population: P3TsunamiPopulation;
+    transition: TsunamiAreaTransition;
+  }
+>;
+export type P3TsunamiInjectionRecord = Readonly<
+  Omit<P3EewInjectionRecord, "population"> & {
+    population: P3TsunamiPopulation;
+    transition: TsunamiAreaTransition;
+    // Set only for overlapNotEstablished (P3-C6-AC06(3)); conditionDeviation is C4's foreground deviation (Q-C6-IMPL-AMEND).
+    notEstablishedReason: "primeNotSettled" | "startOffset" | "eewOrder" | "conditionDeviation" | null;
+  }
+>;
+
 export type P3TsunamiRunResult = Readonly<
   Omit<EewMeasurementRunResult, "schemaVersion" | "population"> & {
     schemaVersion: "p3-tsunami-e01-result-v1";
     population: P3TsunamiPopulation;
     attempts: number;
-    // C4's meaning: every formal trial that did not establish its condition. Split by reason, never mixed with injectionFailures.
+    // C4's meaning: every formal trial that did not establish its condition. Split by reason (the reasons sum to the total),
+    // never mixed with injectionFailures.
     overlapNotEstablished: number;
-    overlapNotEstablishedByReason: Readonly<Record<"primeNotSettled" | "startOffset" | "eewOrder", number>>;
+    overlapNotEstablishedByReason: Readonly<Record<"primeNotSettled" | "startOffset" | "eewOrder" | "conditionDeviation", number>>;
     // Any of these makes the window 未確認 (the known initial state broke): U-T eviction, U-T/U-E capacityExceeded,
-    // tsunamiRevisionConflict and stale target reports.
-    stateBreaks: Readonly<Record<"tsunamiCapacityEvicted" | "tsunamiCapacityExceeded" | "eewCapacityExceeded" | "tsunamiRevisionConflict" | "staleTarget", number>>;
+    // tsunamiRevisionConflict and stale target reports. null: the runner left no record of the window (also 未確認, Q-C6-IMPL-AMEND).
+    stateBreaks: Readonly<Record<"tsunamiCapacityEvicted" | "tsunamiCapacityExceeded" | "eewCapacityExceeded" | "tsunamiRevisionConflict" | "staleTarget", number>> | null;
     // Reported, never judged alone and never used to rescue the series result.
     byTransition: Readonly<Partial<Record<TsunamiAreaTransition, Readonly<{
       samples: number; missing: number; p50UpperMs: number | null; p95UpperMs: number | null; p99UpperMs: number | null; maxUpperMs: number | null;

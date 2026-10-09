@@ -21,6 +21,10 @@
 //       node reconstruction/test/eew-e01/run.mjs --preliminary --backend-only --node "$(command -v node)" --runs-root ~/p3-bench/runs \
 //         --only maxVpws50ParseStarted,maxWeatherCheckpointEncodeStarted,maxForecastCheckpointSave,maxVpws50ReceivedThenEew --warmup 10 --samples 30
 //     （30 件程度 × 3 回は --runs-root を変えずに 3 回。100 件未満の p99 は観測最大と書く、RES-07）
+// 津波（P3-TSUNAMI-E01-001、C6）: --manifest に津波の凍結 manifest（schemaVersion p3-tsunami-e01-manifest-v1）を渡すと、同じ窓のループで 8 母集団 × 3 run の
+//   E01 の窓だけを回す（周辺の窓は C4 の manifest の側）。予備は --preliminary --tsunami [--prime-lead-ms <n>]（tsunami.mjs の草案、各母集団 1 run）。
+//   U-E と U-T の同時 dirty（AC08 ④）は C4 の草案の --preliminary --aux E14 --e14-tsunami（E14 の束に VTSE41 を足す）。
+//   試行は prime → target の 2 報（P3-C6-TRIAL-RESET=A）、成立は establishTsunamiTrial、標本の組み立ては analysis.mjs の assembleTsunamiTrials。
 // 注意: 正式の再開は、最初の窓の記録と commit（gitHead）・dist・runner の hash・機械を照合する。測定用の checkout で途中に commit すると
 // gitHead が変わって再開が拒否される（evidence の下の記録は commit せずに置いておく）。
 import { execFileSync, spawn } from "node:child_process";
@@ -31,20 +35,23 @@ import { arch, cpus, homedir, release, totalmem } from "node:os";
 import { basename, join, relative } from "node:path";
 import { WebSocketServer } from "ws";
 
-import { analyzeTrace, assembleP3Trials, buildHostIndex, rejectionReasons, versionKey } from "./analysis.mjs";
+import { analyzeTrace, assembleP3Trials, assembleTsunamiTrials, buildHostIndex, correspondences, rejectionReasons, versionKey } from "./analysis.mjs";
 import { chromeVersion, hrMs, openPage, probeClock, sleep, startTracing, stopTracing } from "./chrome.mjs";
 import { A10_MANIFEST, DEFAULT_LEAD_MS, SEQUENCES_FILE, SMOKE_FILE, buildP3Manifest, contractTextsFor } from "./draft.mjs";
 import { REPO, dataFrame, eewVariant, eventIdOf, fixtureId, fixtureText, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
+import { RELEASE_FIXTURE, T6_TSUNAMI, C4_MANIFEST, buildP3TsunamiManifest, templateFixtureTexts, tsunamiReport, vxse45Variant } from "./tsunami.mjs";
 import { auxWindows, e02Verdict, hostReportsOf, replayPump, seal, sealAux } from "./windows.mjs";
 
-import { classifyEewCause, establishTrial, quantiles, summarizeP3E01 } from "../../dist/src/measurement/eew-e01/judge.js";
-import { ZERO_HASH, forecastWithinAllowance, sealSelfHash, verifyFrozenP3Manifest } from "../../dist/src/measurement/eew-e01/frozen.js";
+import { canonicalCoastJson } from "../../dist/chrome-eew/src/display/chrome-eew/coast.js";
+import { classifyEewCause, establishTrial, establishTsunamiTrial, quantiles, summarizeP3E01, summarizeP3TsunamiE01 } from "../../dist/src/measurement/eew-e01/judge.js";
+import { ZERO_HASH, forecastWithinAllowance, sealSelfHash, verifyFrozenP3Manifest, verifyFrozenP3TsunamiManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
 import { placeOfHeadType } from "../../dist/src/runtime/unit-coverage.js";
 
 const NODE22 = "/opt/homebrew/opt/node@22/bin/node";
 const RUNS_ROOT = join(homedir(), "dev/fleq-a10-runs");
 const EVIDENCE_DIR = join(REPO, "reconstruction/test/eew-e01/evidence");
 const T6C = "fleq:p2:eew:T6-candidate";
+const TSUNAMI_SCHEMA = "p3-tsunami-e01-manifest-v1";
 const POP_CODE = { fixedBacklog: 0, maxVpws50ParseStarted: 1, maxWeatherCheckpointEncodeStarted: 2, maxForecastCheckpointSave: 3, forecastDeadlineOverlap: 4, maxVpws50ReceivedThenEew: 5 };
 const BLOCK = 100; // trace は 100 試行ごとに区切る
 const UF_SMALL_VALID_AFTER_REPORT_MS = 49 * 3_600_000; // 81_01_04 系の validUntil は報告時刻の 49 時間後（Phase 0 で実測）
@@ -429,7 +436,8 @@ async function measureRun(spec, ctx, label, dir, status) {
   await sleep(1500);
   host.refresh();
   const ufSubjectsBefore = savedForecastSubjects(join(dir, "state"));
-  const channels = await (await fetch(`http://127.0.0.1:${hostProcess.displayPort}/snapshot`)).json().then((s) => s.channels, () => null);
+  const firstSnapshot = await fetch(`http://127.0.0.1:${hostProcess.displayPort}/snapshot`).then((r) => r.json(), () => null);
+  const channels = firstSnapshot?.channels ?? null;
 
   // 通常負荷 N（決めた offset で繰り返す）
   const loopStart = hrMs();
@@ -437,6 +445,200 @@ async function measureRun(spec, ctx, label, dir, status) {
   const idleUntil = async (targetHrMs) => {
     while (targetHrMs - hrMs() > 4) { pumpBackground(); await sleep(Math.min(20, targetHrMs - hrMs() - 3)); }
     await spinUntil(targetHrMs);
+  };
+
+  // ── P3-C6-AC06: 津波の試行（prime → target）。周期・trace の区切り・probe・stopCondition は EEW と同じループで回す ──
+  const tsu = spec.tsunami;
+  if (tsu != null && page == null) throw new Error("the tsunami windows need Chrome (the T6 of the prime and the target); --backend-only is not supported");
+  const tsunamiMarkCount = () => page.evaluate(`performance.getEntriesByName(${JSON.stringify(T6_TSUNAMI)}).length`);
+  // before 件目以降の津波の候補で、subject・present・areas が expected と一致し、versions（無ければ任意の版）の版のものを waitMs まで待つ。
+  // 見つけたら、それを含む frame の Commit を過ぎた（rAF 2 回目）時点の Chrome の時刻を返す（試行の直後の判定に使う paint の代わり。正式の T6 は
+  // trace の実 paint で解析が取り直し、prime が target の T0 より後に描かれていれば標本を traceIncomplete にする）。
+  const tsunamiPainted = (before, subject, expected, versions, waitMs) => page.evaluate(`(async () => {
+    const versions = ${JSON.stringify(versions == null ? null : versions.map((v) => [v.streamId, v.sequence]))};
+    const areas = ${JSON.stringify(JSON.stringify(expected.areas))};
+    const deadline = performance.now() + ${waitMs};
+    for (;;) {
+      const mark = performance.getEntriesByName(${JSON.stringify(T6_TSUNAMI)}).slice(${before}).find((e) => e.detail?.subject === ${JSON.stringify(subject)}
+        && e.detail.present === ${expected.present} && JSON.stringify(e.detail.areas) === areas
+        && (versions == null || versions.some(([s, q]) => e.detail.displayVersion.streamId === s && e.detail.displayVersion.sequence === q)));
+      if (mark != null) {
+        const framed = await Promise.race([new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))), new Promise((r) => setTimeout(() => r(false), 1000))]);
+        return framed ? { version: mark.detail.displayVersion, paintedMs: performance.now() } : null;
+      }
+      if (performance.now() >= deadline) return null;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+  })()`);
+  // VTSE41 の ReportDateTime は報ごとに 1 秒以上単調に進める（同じ秒・同じ InfoType の別内容は tsunamiRevisionConflict で stale になる）。
+  let lastReportMs = 0;
+  const nextReportAt = () => (lastReportMs = Math.max(lastReportMs + 1000, wallNow()));
+  // 窓の subject（warm-up と正式で別の EventID）が今 view にあるか。prime の T6 を求めるかは、これと prime の期待で決まる（AC06(3)）。
+  let shownEventId = null;
+  let shown = false;
+  let eewSerial = 0;
+  const latestCorrespondence = () => (oh.lo == null ? null : correspondences(probes, { ohLo: oh.lo, ohHi: oh.hi }).at(-1) ?? null);
+  // AC06(2): warm-up の後に warm-up の EventID の解除の報を送り、片付けを確かめてから正式に入る。表示中なら present false の候補、既に表示外なら
+  // その報の世代の U-T の ack で確かめる。どちらも 10 秒で観測できなければ窓は Blocked（例外）。
+  let warmupRelease = null;
+  const releaseWarmup = async () => {
+    const subject = `normal/VTSE41/${tsu.eventIds.warmup}`;
+    host.refresh();
+    const linesBefore = host.lines.length;
+    const before = await tsunamiMarkCount();
+    const r = dataSend(dataFrame("VTSE41", Buffer.from(tsunamiReport(RELEASE_FIXTURE, { eventId: tsu.eventIds.warmup, reportAtMs: nextReportAt() }))), "VTSE41", "warmupRelease");
+    const inputId = `input-${r.seq}`;
+    const deadline = hrMs() + 10_000;
+    for (;;) {
+      host.refresh();
+      if (shown) {
+        const versions = publishedBy(host.lines, linesBefore, inputId, injector.placeOf);
+        if (versions.length > 0 && await tsunamiPainted(before, subject, { present: false, areas: [] }, versions, 0) != null) return { inputId, confirmedBy: "presentFalse" };
+      } else {
+        const recent = buildHostIndex(host.lines.slice(linesBefore));
+        const generation = recent.raised.get(`${inputId}|U-T`);
+        if (generation != null && recent.grants.some((g) => g.unit === "U-T" && g.result?.kind === "acknowledged" && g.result.generation >= generation)) return { inputId, confirmedBy: "ack" };
+      }
+      if (hrMs() > deadline) throw new Error(`warm-up release of ${subject} was not observed within 10 s (P3-C6-AC06(2))`);
+      pumpBackground();
+      await sleep(40);
+    }
+  };
+  const tsunamiTrial = async (k, warm, due) => {
+    const phase = warm ? "warmup" : "formal";
+    const eventId = warm ? tsu.eventIds.warmup : tsu.eventIds.formalByRun[run - 1];
+    if (shownEventId !== eventId) { shownEventId = eventId; shown = false; eewSerial = 0; }
+    const transition = tsu.transitions[(warm ? k : k - spec.warmup) % tsu.transitions.length];
+    const template = ctx.templates.get(transition);
+    const subject = `normal/VTSE41/${eventId}`;
+    // 投入の瞬間に組み立てで遅れないよう、待つ前に作る。
+    const primeFrame = dataFrame("VTSE41", Buffer.from(tsunamiReport(template.primeFixture, { eventId, reportAtMs: nextReportAt() })));
+    const targetFrame = dataFrame("VTSE41", Buffer.from(tsunamiReport(template.targetFixture, { eventId, reportAtMs: nextReportAt() })));
+    const eewEventId = tsu.eewEventIds == null ? null : warm ? tsu.eewEventIds.warmup : tsu.eewEventIds.formalByRun[run - 1];
+    const eewFrame = eewEventId == null ? null : dataFrame("VXSE45", Buffer.from(vxse45Variant({ eventId: eewEventId, serial: ++eewSerial,
+      variant: eewSerial % 2 === 1 ? "A" : "B", reportAtMs: wallNow() })));
+    const vpwsFrame = tsu.inherits === "maxVpws50ParseStarted" ? weatherFrame("15_18_01_250630_VPWS50", "VPWS50", wallNow()) : null;
+    await idleUntil(due);
+    host.refresh();
+    const marksBefore = await tsunamiMarkCount();
+    const linesBefore = host.lines.length;
+    const paintRequired = shown || template.expectedPrimePaint.present;
+    const base = { attemptIndex: k, index: warm ? k : null, phase, eventId, subject, transition, scheduledHrMs: due, block: Math.floor(k / BLOCK),
+      expectedPaint: template.expectedPaint, eew: null };
+    let prime = null;
+    let primePainted = null;
+    let trigger = null;
+    let sent;
+    let stateAtSend = null;
+    let sentWallMs = null;
+    let sentSkewMs = null;
+    const sendPrime = () => {
+      const r = dataSend(primeFrame, "VTSE41", "prime", { trial: k });
+      prime = { inputId: r.seq == null ? null : `input-${r.seq}`, injectedHrMs: r.injectedHrMs, paintRequired, expectedPaint: template.expectedPrimePaint };
+      // prime の描画は target の送出まで待つ（それより後なら成立しない）。待つ間も runner は target の時刻へ進む。
+      primePainted = paintRequired ? tsunamiPainted(marksBefore, subject, template.expectedPrimePaint, null, tsu.primeLeadMs).catch(() => null) : null;
+    };
+    const sendTarget = () => {
+      if (eewFrame != null) {
+        const e = dataSend(eewFrame, "VXSE45", "eew", { trial: k });
+        base.eew = { inputId: e.seq == null ? null : `input-${e.seq}`, injectedHrMs: e.injectedHrMs, subject: `normal/VXSE45/${eewEventId}` };
+      }
+      sentWallMs = Date.now();
+      sentSkewMs = sentWallMs - performance.now();
+      const result = injector.send(targetFrame, "VTSE41");
+      stateAtSend = page.evaluate(STATE_AT_SEND).catch(() => null);
+      return result;
+    };
+    if (tsu.inherits === "maxWeatherCheckpointEncodeStarted") {
+      // 狙う tick の U-W encode 開始の targetOffsetMs 後に target、その lead 前に VPWW55、primeLeadMs 前に prime（早い順に送る）。
+      const lead = spec.leadMs;
+      const tick = predictTick(host, hrMs(), Math.max(lead, tsu.primeLeadMs) + 900);
+      if (tick == null) { sendPrime(); await idleUntil(prime.injectedHrMs + tsu.primeLeadMs); sent = sendTarget(); base.noTickModel = true; }
+      else {
+        const sendTrigger = () => {
+          const t = dataSend(weatherFrame("15_17_01_251222_VPWW55", "VPWW55", wallNow() + (k + 1) * 1000), "VPWW55", "trigger", { trial: k });
+          trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs, predictedTickHostMs: tick.hostMs };
+        };
+        const steps = [[tick.hrMs + spec.targetOffsetMs - tsu.primeLeadMs, sendPrime], [tick.hrMs - lead, sendTrigger]].sort((a, b) => a[0] - b[0]);
+        for (const [at, step] of steps) { await spinUntil(at); step(); }
+        await spinUntil(tick.hrMs + spec.targetOffsetMs);
+        sent = sendTarget();
+      }
+    } else {
+      sendPrime();
+      await idleUntil(prime.injectedHrMs + tsu.primeLeadMs);
+      if (vpwsFrame != null) {
+        // 母集団 2 と同じ自己較正（P3-C4-AC13(7)）: 引き金の実送信から直近 10 試行の「parse 開始 − 実送信」の中央値＋targetOffsetMs に送る。
+        scanParseStarts();
+        updateOh();
+        const predicted = predictParseDelay(trials, parseStarts, oh.lo);
+        const t = dataSend(vpwsFrame, "VPWS50", "trigger", { trial: k });
+        trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs };
+        await spinUntil(calibratedSendAt(trigger, predicted, spec.targetOffsetMs));
+      }
+      sent = sendTarget();
+    }
+    const trial = { ...base, inputId: sent.seq == null ? `notInjected-${k}` : `input-${sent.seq}`, injectedHrMs: sent.injectedHrMs, prime, trigger };
+    trials.push(trial);
+    // 後続置換の防止（C4 と同じ）: target の版の窓に公開された版で、期待と一致する津波の候補が描かれた frame の Commit を過ぎるか、10 秒まで待つ。
+    if (sent.injectedHrMs != null) {
+      const deadline = sent.injectedHrMs + 10_000;
+      await sleep(120);
+      let done = null;
+      while (done == null && hrMs() < deadline) {
+        pumpBackground();
+        host.refresh();
+        const versions = publishedBy(host.lines, linesBefore, trial.inputId, injector.placeOf);
+        if (versions.length > 0) done = await tsunamiPainted(marksBefore, subject, template.expectedPaint, versions, 0);
+        if (done == null) await sleep(40);
+      }
+      trial.completedBy = done != null ? "paint" : "timeout";
+      trial.paintedVersion = done?.version ?? null;
+      if (done == null) {
+        let last = await tsunamiMarkCount();
+        let quietSince = hrMs();
+        while (hrMs() - quietSince < 1000) {
+          pumpBackground();
+          await sleep(40);
+          const count = await tsunamiMarkCount();
+          if (count !== last) { last = count; quietSince = hrMs(); }
+        }
+      }
+    }
+    shown = template.expectedPaint.present;
+    const atSend = await stateAtSend;
+    trial.focusAtSend = atSend?.focus ?? null;
+    const end = await trialWatchAtEnd(page.evaluate, sentSkewMs);
+    trial.conditionDeviation = trialConditionDeviation(atSend, ctx.manifest.chrome.motion, end.events, sentWallMs, end.clockStepMs);
+    const painted = await primePainted;
+    trial.primePaintedChromeMs = painted?.paintedMs ?? null;
+    if (warm) return;
+    if (trial.conditionDeviation != null) { trial.establishment = { established: false, reason: "conditionDeviation" }; return; }
+    // 成立の判定（AC06(3)）。prime の ack・返信・target の対象区間・VXSE45 の inputDone の観測を、実投入から 11 秒まで待つ。
+    const settleBy = (sent.injectedHrMs ?? hrMs()) + 11_000;
+    for (;;) {
+      host.refresh();
+      updateOh();
+      const recent = buildHostIndex(host.lines.slice(linesBefore));
+      const t0Ms = recent.t0.get(trial.inputId) ?? null;
+      const generation = prime?.inputId == null ? undefined : recent.raised.get(`${prime.inputId}|U-T`);
+      const acks = generation == null ? [] : recent.grants.filter((g) => g.unit === "U-T" && g.result?.kind === "acknowledged" && g.result.generation >= generation);
+      const ackMs = acks.length === 0 ? null : Math.min(...acks.map((g) => g.doneReceivedMonotonicMs));
+      const replyMs = recent.processing.find((p) => p.inputId === prime?.inputId)?.endedMonotonicMs ?? null;
+      const corr = latestCorrespondence();
+      const paintHostMs = painted == null || corr == null ? null : { lowerMs: painted.paintedMs - corr.offsetUpperMs, upperMs: painted.paintedMs - corr.offsetLowerMs };
+      const offset = tsu.establishment.kind === "primeSettledStartOffset";
+      trial.target = offset ? trialTarget(tsu.inherits, trial, recent, oh.lo, "population") : null;
+      const eewInputDoneMs = trial.eew == null ? null : recent.processing.find((p) => p.inputId === trial.eew.inputId)?.endedMonotonicMs ?? null;
+      trial.establishment = establishTsunamiTrial({ establishment: tsu.establishment, t0Ms, prime: { paintRequired, paintHostMs, replyMs, ackMs }, target: trial.target, eewInputDoneMs });
+      trial.primeObserved = { generation: generation ?? null, ackMs, replyMs, paintHostMs };
+      const complete = t0Ms != null && ackMs != null && (paintRequired ? true : replyMs != null) && (!offset || trial.target != null)
+        && (trial.eew == null || eewInputDoneMs != null);
+      if (trial.establishment.established || complete || hrMs() > settleBy) break;
+      pumpBackground();
+      await sleep(50);
+    }
+    if (trial.establishment.established) trial.index = spec.warmup + established++;
   };
 
   // 試行
@@ -484,6 +686,11 @@ async function measureRun(spec, ctx, label, dir, status) {
     let due = anchor + k * spec.periodMs;
     const readyHr = hrMs();
     if (due < readyHr) { due = readyHr + spec.periodMs; anchor = due - k * spec.periodMs; }
+    if (tsu != null) {
+      if (k === spec.warmup && spec.warmup > 0) warmupRelease = await releaseWarmup();
+      await tsunamiTrial(k, warm, due);
+      continue;
+    }
     const eventId = eventIdOf(POP_CODE[population], phase, run);
     const variant = serial % 2 === 1 ? "A" : "B";
     // 投入の瞬間に frame の組み立てで遅れないよう、待つ前に作る（報告時刻は host 時計の今の秒）。
@@ -626,14 +833,17 @@ async function measureRun(spec, ctx, label, dir, status) {
   let assembled = { samples: [], injections: [], details: [], correspondences: [] };
   if (page != null) {
     const chromeByVersion = new Map();
+    const chromeByCandidate = new Map();
     for (const block of blocks) {
       const analyzed = analyzeTrace(JSON.parse(readFileSync(block.file, "utf8")).traceEvents);
       for (const [key, entry] of analyzed.byVersion) chromeByVersion.set(key, entry);
+      for (const [key, entry] of analyzed.byCandidate) chromeByCandidate.set(key, entry);
       block.marks = analyzed.markCount;
       block.rejectedMarks = analyzed.rejectedMarks;
     }
-    assembled = assembleP3Trials({ population, run, trials, host: hostIndex, chromeByVersion, probes, blocks, callbackDeadlineMs: 10_000, missingAfterMs: 10_000,
-      placeOf: injector.placeOf, rejections });
+    const input = { population, run, trials, host: hostIndex, chromeByVersion, chromeByCandidate, probes, blocks, callbackDeadlineMs: 10_000, missingAfterMs: 10_000,
+      placeOf: injector.placeOf, rejections };
+    assembled = tsu == null ? assembleP3Trials(input) : assembleTsunamiTrials(input);
   }
   // U-F の許容範囲（AC01）: 試行ごとに、T0 以前の最新の U-F encode の byte と、保存済み U-F checkpoint から数えた件数（run 開始時と終了後の多い方）を
   // manifest の forecast.allowed で見る。件数か byte のどちらかが範囲外、または未観測の試行は別条件として残す。
@@ -657,11 +867,78 @@ async function measureRun(spec, ctx, label, dir, status) {
     blocks: blocks.map(({ startedHrMs, endedHrMs, ...b }) => ({ ...b, durationMs: endedHrMs - startedHrMs })), probes: probes.map((p) => ({ probeId: p.probeId, atHrMs: p.atHrMs, attempts: p.attempts })),
     correspondences: assembled.correspondences, details: assembled.details,
     backendTrials: backend ? backendIntervals(trials, hostIndex) : null,
+    ...(tsu == null ? {} : { ...tsunamiStateBreaks({ diagnostics: readDiagnosticsStrict(join(dir, "diagnostics")), trials, warmupRelease, host: hostIndex,
+      eewReference: assembled.eewReference ?? [], blocks }),
+      warmupRelease, eewReference: assembled.eewReference ?? [],
+      // AC08 ③: C4 の初期状態（U-T の保存が無い）から起動したとき、最初の snapshot の U-T の回復状態。
+      recoveryUT: firstSnapshot?.recovery?.["U-T"] ?? null }),
     hostClockOffsetSpreadMs: hostIndex.ohHi - hostIndex.ohLo, hostMemMax: hostIndex.mem.reduce((m, l) => Math.max(m, l.rss ?? 0), 0),
     publishSerialization: hostIndex.publishes.length,
     checkpoints: hostIndex.checkpoints.map((c) => ({ unit: c.unit, stage: c.stage, attemptId: c.attemptId, startMs: c.startedMonotonicMs, endMs: c.endedMonotonicMs, bytes: c.bytes, outcome: c.outcome })) };
   writeFileSync(join(dir, "run-record.json"), JSON.stringify(record));
   return { spec, label, dir, record, samples: assembled.samples, injections: assembled.injections, host: hostIndex, stopped, placeOf: injector.placeOf };
+}
+
+// P3-C6-AC06(7)・Q-C6-IMPL-AMEND: 窓の stateBreaks を host 側の記録だけから数える（ページで snapshot を見る数え方は、SSE の backpressure で
+// 待機中の snapshot が最新 1 件に置き換わる（http-sse.ts）ので、超過の版が Chrome に届かず取りこぼしうる）。
+// - 退去（tsunamiCapacityEvicted）・同じ秒の別内容（tsunamiRevisionConflict）: 診断の記録（persistent-diagnostic-sink の JSONL）の行。
+// - U-T の容量超過・stale: 容量超過の判定は診断に行を出さず観測にも無いので、採用されなかった VTSE41（返信の processing の行はあるが、その入力の
+//   U-T の generationRaised が無い）で数える。U-T の採用は必ず dirty になり世代が上がる（tsunami-unit.ts の adopt）。正式の target は staleTarget、
+//   それ以外（prime・warm-up・片付け）は tsunamiCapacityExceeded（どちらも既知の初期状態が崩れた印）。
+// - U-E の容量超過: U-E は Serial を進めた続報で世代を上げない（E14 の注記）ので、採用の印は同じ試行の VXSE45 の版の窓の EEW の T6 候補
+//   （予想 A/B 交互なので採用されれば必ず表示が変わる）。候補が無ければ数える。runner が EEW を送らない窓は U-E の入力が無いので 0（負荷は EEW を
+//   含まない凍結済みの負荷 N を継ぎ、verifyFrozenP3TsunamiManifest が同一性を照らす）。
+// 完全性（どれかが欠ければ stateBreaks は null で窓は未確認。「読めて 0 件」と「読めない」を分ける）: 診断の行が parse できない・オブジェクトで
+// level と reason を持たない、終了要約（shutdown-summary.json）が無い・読めない・droppedDiagnostics が 4 段階すべて非負の安全な整数でないか 0 でない
+// （sink の失敗と溢れは drop の件数に入る）、送った VTSE41 か VXSE45 の返信の行が無い、EEW の候補を探す trace のブロックに dataLoss がある。
+const DROPPED_LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
+export function readDiagnosticsStrict(dir) {
+  if (!existsSync(dir)) return { records: [], problems: ["diagnostics directory missing"] };
+  const problems = [];
+  const records = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".jsonl"))) {
+    for (const line of readFileSync(join(dir, file), "utf8").split("\n").filter((l) => l.trim() !== "")) {
+      let row;
+      try { row = JSON.parse(line); } catch { problems.push(`${file}: a line does not parse`); continue; }
+      // 数える判定に使う項目だけを確かめ、その値で行を組み立てる（形の合わない行を 0 件に化けさせない）。
+      if (row === null || typeof row !== "object" || Array.isArray(row) || typeof row.level !== "string" || typeof row.reason !== "string") {
+        problems.push(`${file}: a line is not a diagnostic record`);
+        continue;
+      }
+      records.push({ level: row.level, reason: row.reason });
+    }
+  }
+  let summary;
+  try { summary = { value: JSON.parse(readFileSync(join(dir, "shutdown-summary.json"), "utf8")) }; } catch { problems.push("shutdown-summary.json missing or unreadable"); }
+  if (summary != null) {
+    const dropped = summary.value?.droppedDiagnostics;
+    const counted = dropped !== null && typeof dropped === "object" && !Array.isArray(dropped)
+      && DROPPED_LEVELS.every((level) => Number.isSafeInteger(dropped[level]) && dropped[level] >= 0);
+    if (!counted) problems.push("shutdown summary droppedDiagnostics is not four non-negative integers");
+    else if (DROPPED_LEVELS.some((level) => dropped[level] > 0)) problems.push(`shutdown summary dropped diagnostics ${JSON.stringify(dropped)}`);
+  }
+  return { records, problems };
+}
+export function tsunamiStateBreaks({ diagnostics, trials, warmupRelease = null, host, eewReference = [], blocks = [] }) {
+  const problems = [...diagnostics.problems];
+  const processed = new Set(host.processing.map((p) => p.inputId));
+  const notAdopted = (inputId) => !host.raised.has(`${inputId}|U-T`);
+  const vtse41 = [...trials.flatMap((t) => [...(t.prime?.inputId == null ? [] : [{ inputId: t.prime.inputId, target: false }]),
+    { inputId: t.inputId, target: t.phase === "formal" }]), ...(warmupRelease?.inputId == null ? [] : [{ inputId: warmupRelease.inputId, target: false }])];
+  const unprocessed = vtse41.filter((r) => !processed.has(r.inputId)).length;
+  if (unprocessed > 0) problems.push(`${unprocessed} VTSE41 without a processing row`);
+  const eew = trials.filter((t) => t.eew != null);
+  const eewRows = new Map(eewReference.map((e) => [e.inputId, e]));
+  const lostEew = eew.filter((t) => eewRows.get(t.eew.inputId)?.missingReason === "callbackNotReached" || !processed.has(t.eew.inputId) || blocks[t.block]?.dataLoss === true).length;
+  if (lostEew > 0) problems.push(`${lostEew} VXSE45 whose adoption cannot be observed`);
+  const reasons = (reason) => diagnostics.records.filter((d) => d.reason === reason).length;
+  const stateBreaks = problems.length > 0 ? null : {
+    tsunamiCapacityEvicted: reasons("tsunamiCapacityEvicted"), tsunamiRevisionConflict: reasons("tsunamiRevisionConflict"),
+    tsunamiCapacityExceeded: vtse41.filter((r) => !r.target && notAdopted(r.inputId)).length,
+    staleTarget: vtse41.filter((r) => r.target && notAdopted(r.inputId)).length,
+    eewCapacityExceeded: eew.filter((t) => eewRows.get(t.eew.inputId)?.missingReason === "paintNotObserved").length,
+  };
+  return { stateBreaks, stateBreaksIncomplete: problems };
 }
 
 // AC13(7): 末尾の 2×count 試行（既定 20）のうち、parse 開始の分かった新しい方から count 試行（既定 10）の「parse 開始 − 引き金の実送信
@@ -730,9 +1007,13 @@ export function trialConditionDeviation(state, motion, events = [], sentWallMs =
 // 予備の案の manifest に入る）。
 export function populationSpec(manifest, population, run, warmup, count, stop) {
   const c = manifest.populations[population];
-  return { population, run, warmup, count, periodMs: c.periodMs, targetOffsetMs: c.establishment.kind === "startOffset" ? c.establishment.targetOffsetMs : 0,
-    establishment: c.establishment, forecast: c.forecast, stop, load: c.load, stateKey: /#populations\.(.+)$/.exec(c.stateRef)[1],
-    leadMs: c.triggerLeadMs, span: c.establishment.kind === "startOffset" ? c.establishment.span : "population" };
+  // 津波の parse 直後・encode 直後は C4 の startOffset を入れ子に持つ（P3TsunamiEstablishment）。
+  const offset = c.establishment.kind === "startOffset" ? c.establishment : c.establishment.kind === "primeSettledStartOffset" ? c.establishment.startOffset : null;
+  return { population, run, warmup, count, periodMs: c.periodMs, targetOffsetMs: offset?.targetOffsetMs ?? 0,
+    establishment: c.establishment, forecast: c.forecast ?? null, stop, load: c.load, stateKey: /#populations\.(.+)$/.exec(c.stateRef)[1],
+    leadMs: c.triggerLeadMs, span: offset?.span ?? "population",
+    tsunami: c.series == null ? null : { series: c.series, inherits: c.inheritsC4Population, transitions: c.transitions, establishment: c.establishment,
+      primeLeadMs: c.primeLeadMs, eventIds: c.tsunamiEventIds, eewEventIds: c.eewEventIds } };
 }
 
 // 対象の区間（host の時計）。成立の判定（establishTrial）に渡す。host は試行の投入以後の行だけの索引でよい。
@@ -829,10 +1110,16 @@ function preliminaryRun(result, manifest) {
     return { ...base, intervalsMs: { injectedToT0Upper: of("injectedToT0UpperMs"), t0ToT2: of("t0ToT2Ms"), t2ToT3: of("t2ToT3Ms"), t3ToT4: of("t3ToT4Ms"), t0ToT4: of("t0ToT4Ms") },
       note: "backend 単独（Chrome なし）: T6・実送信→T6 は無い。100 件未満の p99 は観測最大として読む（RES-07）" };
   }
-  const judged = summarizeP3E01({ ...manifest, warmupPerRun: spec.warmup, samplesPerRun: spec.count }, result.samples, result.injections).runs
+  const scaled = { ...manifest, warmupPerRun: spec.warmup, samplesPerRun: spec.count };
+  const judged = (spec.tsunami == null ? summarizeP3E01(scaled, result.samples, result.injections)
+    : summarizeP3TsunamiE01({ ...scaled, runCount: 1 }, result.samples, result.injections,
+      record.stateBreaks == null ? [] : [{ population: spec.population, run: spec.run, stateBreaks: record.stateBreaks }])).runs
     .find((r) => r.population === spec.population && r.run === spec.run);
   const widths = record.correspondences.map((c) => c.intervalWidthMs);
-  return { ...base, judgedStatus: judged?.status ?? null, judged, paintWithoutScreenshot: withoutScreenshot(record, spec.warmup),
+  const tsunami = spec.tsunami == null ? {} : { stateBreaks: record.stateBreaks, warmupRelease: record.warmupRelease,
+    eewReference: eewReferenceSummary(record.eewReference), stateBreaksIncomplete: record.stateBreaksIncomplete, recoveryUT: record.recoveryUT,
+    primeSettledNotConfirmed: record.details.filter((d) => d.sample === "primeSettledNotConfirmedByTrace").length };
+  return { ...base, ...tsunami, judgedStatus: judged?.status ?? null, judged, paintWithoutScreenshot: withoutScreenshot(record, spec.warmup),
     ufAllowance: record.ufAllowance == null ? null : countBy(record.ufAllowance, (t) => t.condition),
     clockIntervalWidthMs: dist(widths), clockProbeCount: widths.length,
     rejected: record.details.filter((d) => d.rejectedReason != null).map((d) => ({ index: d.index, reason: d.rejectedReason })) };
@@ -847,8 +1134,28 @@ const UF_NOTE = "ufNotWithinAllowance(別条件。試行単位は run-record の
 
 // E01 の判定（summarizeP3E01 に渡した run を一度に判定する）。U-F が許容範囲を外れた正式 run は Pass を主張しない（AC01）。
 // assembled は e01-assembled.json の中身（rawDir・recordRef 付き）。無い run（Blocked・未実施）は summarizeP3E01 が Blocked（投入記録なし）として扱う。
+// EEW 同時の EEW の参考値（P3-C6-EEW-ORDER=A）: 正式の試行の全体（warm-up を外す）の分布と欠落の理由。試行別の値は run-record の eewReference。
+function eewReferenceSummary(list) {
+  const formal = list.filter((e) => e.phase === "formal");
+  return { formalTrials: formal.length, upperMs: dist(formal.flatMap((e) => (e.latencyUpperMs == null ? [] : [e.latencyUpperMs]))),
+    missing: countBy(formal.filter((e) => e.missingReason != null), (e) => e.missingReason) };
+}
+
 function judgeE01(manifest, assembled) {
   const samples = assembled.flatMap((a) => a.samples);
+  if (manifest.schemaVersion === TSUNAMI_SCHEMA) {
+    // P3-C6-AC02。原因の帰属（spec§7.6）は未達の窓の生データから統合担当が分類する（P3-C6-FAIL-PATH=A）。EEW 同時の EEW の値は参考で判定に入れない。
+    const judged = summarizeP3TsunamiE01(manifest, samples, assembled.flatMap((a) => a.injections),
+      assembled.flatMap((a) => (a.stateBreaks == null ? [] : [{ population: a.spec.population, run: a.spec.run, stateBreaks: a.stateBreaks }])));
+    const runs = judged.runs.map((run) => {
+      const a = assembled.find((x) => x.spec.population === run.population && x.spec.run === run.run);
+      return { ...run, evidenceRefs: a == null ? [] : [a.recordRef, `${a.rawDir}/run-record.json`, `${a.rawDir}/e01-assembled.json`] };
+    });
+    const eewReference = assembled.filter((a) => a.eewReference?.length > 0).map((a) => ({ population: a.spec.population, run: a.spec.run, scope: "reference（判定に使わない）",
+      ...eewReferenceSummary(a.eewReference) }));
+    return { runs, verdict: judged.verdict, cause: null, eewReference,
+      unmeasured: ["容量縮退の母集団: 未検収（期待値だけを固定、測定は P4 の容量契約、D-P3-6）", "burst・詳細射影中: 未検収（引受先 P4、P3-C6-O09-REST=A、計画§5.2）"] };
+  }
   const judged = summarizeP3E01(manifest, samples, assembled.flatMap((a) => a.injections));
   const runs = judged.runs.map((run) => {
     const a = assembled.find((x) => x.spec.population === run.population && x.spec.run === run.run);
@@ -884,7 +1191,8 @@ function e01Window(spec, ctx) {
       const result = await executeRun(spec, { ...ctx, scope: w.scope, commands: w.commands }, w.dir, w.progress);
       const assembled = { spec, rawDir: pathRef(w.dir), recordRef: w.recordRef, samples: result.samples, injections: result.injections, processing: result.host.processing,
         checkpoints: result.host.checkpoints, ufNotWithin: ufNotWithin(result.record), durationMs: result.record.durationMs, paintWithoutScreenshot: withoutScreenshot(result.record, spec.warmup),
-        attempts: result.record.attempts, established: result.record.established, stopped: result.stopped };
+        attempts: result.record.attempts, established: result.record.established, stopped: result.stopped,
+        ...(spec.tsunami == null ? {} : { stateBreaks: result.record.stateBreaks, eewReference: result.record.eewReference }) };
       writeFileSync(join(w.dir, "e01-assembled.json"), JSON.stringify(assembled));
       if (result.stopped != null) {
         return { status: "Blocked", reason: `stopCondition reached: ${result.stopped.reason} (attempts ${result.stopped.attempts}, established ${result.stopped.established})`, resultFiles: [] };
@@ -893,6 +1201,7 @@ function e01Window(spec, ctx) {
       const file = join(w.dir, `result-${run.scope}-${run.population}-run${run.run}.json`);
       writeSealed(file, run, "resultSha256");
       // AC15: publish の回数・配送 JSON byte・直列化時間を E01 の各窓でも PublishCostReport として報告する（E15 も同梱）。
+      if (spec.tsunami != null) return { status: run.status, resultFiles: [file] };
       const reports = hostReportsOf(join(w.dir, "host-obs.jsonl"), id, result.placeOf);
       return { status: run.status, byteViolations: reports.byteViolations, byteViolationsNote: reports.byteViolationsNote,
         resultFiles: [file, sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: run.status, ...reports })] };
@@ -909,13 +1218,14 @@ function e01Verdict(manifest, records) {
   for (const w of windows.filter((x) => x.status !== "Blocked")) {
     try { assembled.push(readRawJson(w, "e01-assembled.json")); } catch (error) { unusable.set(w.id, String(error?.message ?? error)); }
   }
-  const { verdict, cause } = judgeE01(manifest, assembled);
+  // 判定器の runs は窓の一覧（下の runs）と別の field に置く（同じ名前で上書きすると、raw の hash の不一致で付けた未確認と窓の id・attempt が消える）。
+  const { verdict, cause, runs: judgedRuns, ...extra } = judgeE01(manifest, assembled);
   const runs = windows.map((w) => {
     const a = assembled.find((x) => `e01-${x.spec.population}-run${x.spec.run}` === w.id);
     return { id: w.id, attempt: w.attempt, status: unusable.has(w.id) ? "未確認" : w.status, ...(unusable.has(w.id) ? { reason: unusable.get(w.id) } : {}),
       durationMs: a?.durationMs ?? null, paintWithoutScreenshot: a?.paintWithoutScreenshot ?? null };
   });
-  return { verdict, cause, runs };
+  return { verdict, cause, runs, ...(manifest.schemaVersion === TSUNAMI_SCHEMA ? { judgedRuns, ...extra } : {}) };
 }
 
 // 窓 dir の生データ 1 file を、窓記録の raw の sha256 と照らしてから読む（違えば throw）。
@@ -1033,7 +1343,7 @@ async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
     // 充填・C・E03・AC15・E12 の入力規則（frames.mjs）が凍結時と同じ bytes か（ReplayLoad は書き換え規則を持てないので recipe の hash で固定する）。
     sha256Hex(readFileSync(join(REPO, initialState.rulesSource.file))) === initialState.rulesSource.sha256 ? null
       : `${initialState.rulesSource.file} sha256 differs from initial-state rulesSource (${initialState.rulesSource.sha256})`,
-    deadlineTriggerOverlap(manifest),
+    manifest.populations.forecastDeadlineOverlap == null ? null : deadlineTriggerOverlap(manifest),
   ].filter((p) => p != null);
   if (problems.length > 0) throw new Error(`preflight failed:\n  ${problems.join("\n  ")}`);
   const git = (...args) => execFileSync("git", args, { cwd: REPO, encoding: "utf8" });
@@ -1114,7 +1424,7 @@ function frozenInputs(manifest, trialSetup, initialStateText) {
 }
 
 // 予備測定だけのオプション。--manifest と併用すると記録先（evidence-scratch）や条件が変わり、正式窓の再実行制限を迂回できるので拒否する。
-const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|node|runs-root|collision-verdict|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms)$/;
+const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|node|runs-root|collision-verdict|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms|tsunami|prime-lead-ms|e14-tsunami)$/;
 
 // 引数を読み、組み合わせの誤りをここで拒否する（子を起動する前）。
 export function parseArgs(argv) {
@@ -1179,7 +1489,19 @@ async function main(argv) {
   let initialStateText;
   let draft = null;
   const only = args.has("only") ? String(args.get("only")).split(",") : null;
-  if (preliminary) {
+  if (preliminary && args.has("tsunami")) {
+    // 津波の予備（AC08）: C4 の凍結 manifest を継ぐ草案（tsunami.mjs）。primeLeadMs だけを引数で変えられる（予備で固定する値）。
+    const lead = args.has("prime-lead-ms") ? Number(args.get("prime-lead-ms")) : null;
+    const keys = ["escalation", "deescalation"].flatMap((s) => ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"].map((c) => `${s}:${c}`));
+    draft = buildP3TsunamiManifest({ id: `p3-c6-prelim-${stamp}`, chromeVersion: await chromeVersion(), nodeVersion, osVersion: `${release()} ${arch()}`, device: deviceOf(),
+      primeLeadMs: lead == null ? {} : Object.fromEntries(keys.map((k) => [k, lead])) });
+    manifest = draft.manifest;
+    const c4 = JSON.parse(draft.c4Text);
+    const trialSetupText = readFileSync(join(REPO, c4.trialSetupRef), "utf8");
+    if (sha256Hex(trialSetupText) !== manifest.trialSetupSha256) throw new Error("trialSetup bytes differ from the inherited C4 manifest");
+    trialSetup = JSON.parse(trialSetupText);
+    initialStateText = readFileSync(join(REPO, trialSetup.initialStateRef), "utf8");
+  } else if (preliminary) {
     // 予備の案は A10 の凍結物（負荷・初期状態・fixture）を継承して組む（draft.mjs の buildP3Manifest）。backend 単独は Chrome を測らない。
     draft = buildP3Manifest({ id: `p3-prelim-${stamp}`, chromeVersion: backendOnly ? "none (backend-only)" : await chromeVersion(), nodeVersion,
       osVersion: `${release()} ${arch()}`, device: deviceOf(),
@@ -1196,12 +1518,22 @@ async function main(argv) {
     const m0 = JSON.parse(manifestText);
     const a10Text = readFileSync(join(REPO, A10_MANIFEST), "utf8");
     const trialSetupText = readFileSync(join(REPO, m0.trialSetupRef), "utf8");
-    const verified = verifyFrozenP3Manifest({ manifestText, trialSetupText, smokeConditionsText: readFileSync(join(REPO, SMOKE_FILE), "utf8"),
-      sequencesText: readFileSync(join(REPO, SEQUENCES_FILE), "utf8"),
-      contractTexts: contractTextsFor("P3-E01-REACCEPT-001"),
-      inherited: { manifestText: a10Text, initialStateText: readFileSync(join(REPO, JSON.parse(trialSetupText).initialStateRef), "utf8") } });
-    manifest = verified.manifest;
-    trialSetup = verified.trialSetup;
+    if (m0.schemaVersion === TSUNAMI_SCHEMA) {
+      // P3-C6-AC10: 津波の凍結 manifest。trialSetup は継承した C4 の凍結 manifest と同じ（verifyFrozenP3TsunamiManifest が ref と hash を照合する）。
+      const verified = verifyFrozenP3TsunamiManifest({ manifestText, smokeConditionsText: readFileSync(join(REPO, m0.smokeConditionsRef), "utf8"),
+        sequencesText: readFileSync(join(REPO, SEQUENCES_FILE), "utf8"), coastJsonText: canonicalCoastJson(), fixtureTexts: templateFixtureTexts(),
+        contractTexts: contractTextsFor("P3-TSUNAMI-E01-001"), inherited: { manifestText: readFileSync(join(REPO, C4_MANIFEST), "utf8") } });
+      if (sha256Hex(trialSetupText) !== verified.manifest.trialSetupSha256) throw new Error("trialSetup bytes differ from trialSetupSha256");
+      manifest = verified.manifest;
+      trialSetup = JSON.parse(trialSetupText);
+    } else {
+      const verified = verifyFrozenP3Manifest({ manifestText, trialSetupText, smokeConditionsText: readFileSync(join(REPO, SMOKE_FILE), "utf8"),
+        sequencesText: readFileSync(join(REPO, SEQUENCES_FILE), "utf8"),
+        contractTexts: contractTextsFor("P3-E01-REACCEPT-001"),
+        inherited: { manifestText: a10Text, initialStateText: readFileSync(join(REPO, JSON.parse(trialSetupText).initialStateRef), "utf8") } });
+      manifest = verified.manifest;
+      trialSetup = verified.trialSetup;
+    }
     initialStateText = readFileSync(join(REPO, trialSetup.initialStateRef), "utf8");
   }
   const initialState = JSON.parse(initialStateText);
@@ -1236,20 +1568,27 @@ async function main(argv) {
   const aux = args.has("aux") ? String(args.get("aux")) : null;
   // --manifest の記録先は常に repo の evidence（予備専用オプションは parseArgs が拒否する）。正式窓の再実行判定は保存先に左右されない。
   const smoke = only != null || aux != null || backendOnly || ["warmup", "samples", "max-attempts", "max-minutes"].some((k) => args.has(k));
-  const evidence = !preliminary ? EVIDENCE_DIR : smoke ? join(outDir, "evidence-scratch") : join(EVIDENCE_DIR, "p3", "preliminary");
+  const evidence = !preliminary ? EVIDENCE_DIR : smoke ? join(outDir, "evidence-scratch")
+    : join(EVIDENCE_DIR, manifest.schemaVersion === TSUNAMI_SCHEMA ? "p3-tsunami" : "p3", "preliminary");
   mkdirSync(evidence, { recursive: true });
   const commands = [`node ${["reconstruction/test/eew-e01/run.mjs", ...argv].join(" ")}`, `caffeinate -dims -w ${process.pid}`];
   const startedAt = new Date().toISOString();
   if (draft != null) writeFileSync(join(evidence, "manifest.draft.json"), draft.manifestText);
 
+  // 津波の template の body は manifest の fixtureSha256 から fixture 名を引く（P3-C6-SERIES-SOURCE=A。runner は区域を推測しない）。
+  const fixtureByHash = new Map(Object.entries(manifest.fixtureSha256).map(([id, h]) => [h, id.replace("test__fixtures__", "")]));
+  const templates = new Map((manifest.templates ?? []).map((t) => [t.transition, { ...t, primeFixture: fixtureByHash.get(t.bodySha256.prime),
+    targetFixture: fixtureByHash.get(t.bodySha256.target) }]));
   const ctxFor = (spec) => ({ outDir, nodePath, notification, manifest, backendOnly, wallOriginMs: frozen.wallOriginMs, initial: frozen.initial[spec.stateKey],
-    load: manifest.loads[spec.load] });
+    load: manifest.loads[spec.load], templates });
   const planned = specs.filter((s) => only == null || only.includes(s.population));
   // 周辺の窓（windows.mjs）。予備の --aux は件数を絞り、各 1 run。
   const counts = aux == null ? {} : { e02: num("e02-count", 60), e03: num("e03-count", 20), ac15: num("ac15-count", 5), e12: num("e12-count", 5), e06Cycles: num("e06-cycles", 2),
     e07Minutes: num("e07-minutes", 3), e14: args.has("e14-count") ? num("e14-count", 0) : undefined,
-    ownerHeap: args.has("owner-heap-count") ? num("owner-heap-count", 0) : undefined };
-  const auxList = auxWindows({ manifest, initialState, nodePath, notification, preliminary, wallOriginMs: frozen.wallOriginMs, startHost, tailer, counts, runs: aux == null ? null : 1 });
+    ownerHeap: args.has("owner-heap-count") ? num("owner-heap-count", 0) : undefined, e14Tsunami: args.has("e14-tsunami") };
+  // 津波の manifest は E01 の窓だけ（周辺の窓は C4 の manifest の側）。
+  const auxList = manifest.schemaVersion === TSUNAMI_SCHEMA ? []
+    : auxWindows({ manifest, initialState, nodePath, notification, preliminary, wallOriginMs: frozen.wallOriginMs, startHost, tailer, counts, runs: aux == null ? null : 1 });
   if (!preliminary || aux != null) {
     // 本番: 窓を順に回す 1 本のループ。窓の並びは配列 1 つ（E01 の後に周辺の窓）。予備の --aux は周辺の窓だけ。
     const windows = aux != null ? auxList.filter((w) => aux === "all" || aux.split(",").includes(w.id))
@@ -1280,6 +1619,10 @@ async function main(argv) {
     let e01;
     try { e01 = e01Verdict(manifest, records); } catch (error) { e01 = { verdict: { label: "P3 E01", status: "未確認" }, error: String(error?.stack ?? error) }; }
     writeFileSync(join(resultsDir, "e01-verdict.json"), `${JSON.stringify({ ...e01, finishedAt: new Date().toISOString(), commands, notification }, null, 2)}\n`);
+    if (manifest.schemaVersion === TSUNAMI_SCHEMA) {
+      writeFileSync(join(resultsDir, "p3-tsunami-result.json"), buildA10Result({ manifest, windows: records, e01, schemaVersion: "p3-c6-result-v1" }));
+      return;
+    }
     // E02 は 6 run をまとめて WP2 の summarizeHealthE02 に 1 回渡す（run ごとに呼ぶと他の run が標本不足の未確認で返る）。
     const e02File = seal(join(resultsDir, "e02-verdict.json"), { ...e02Verdict(manifest, latestById(records)), finishedAt: new Date().toISOString() }, "resultSha256");
     writeFileSync(join(resultsDir, "p3-result.json"), buildA10Result({ manifest, windows: records, e01, e02Verdict: { path: pathRef(e02File), sha256: sha256Hex(readFileSync(e02File)) },

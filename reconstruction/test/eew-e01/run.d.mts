@@ -53,7 +53,18 @@ export function predictParseDelay(trials: readonly { trigger?: { inputId: string
 // P3-C4-AC13(1): 窓 1 本の条件（lead と span は manifest から）。
 export function populationSpec(manifest: { populations: Record<string, unknown> }, population: string, run: number, warmup: number, count: number,
   stop: { maxAttempts: number; maxDurationMs: number }): { population: string; leadMs: number | null; span: "population" | "encodeThroughWrite"; targetOffsetMs: number;
-  periodMs: number; stateKey: string };
+  periodMs: number; stateKey: string; tsunami: { inherits: string; transitions: readonly string[]; primeLeadMs: number } | null };
+// P3-C6-AC06(7)・Q-C6-IMPL-AMEND: host 側の記録（診断の JSONL・終了要約・観測の行・EEW の候補）から数える窓の stateBreaks。欠けがあれば null。
+export function readDiagnosticsStrict(dir: string): { records: unknown[]; problems: string[] };
+export function tsunamiStateBreaks(input: {
+  diagnostics: { records: readonly unknown[]; problems: readonly string[] };
+  trials: readonly { phase: string; inputId: string; block?: number; prime?: { inputId: string | null } | null; eew?: { inputId: string } | null }[];
+  warmupRelease?: { inputId: string } | null;
+  host: { processing: readonly { inputId: string }[]; raised: Map<string, number> };
+  eewReference?: readonly { inputId: string; missingReason: string | null }[];
+  blocks?: readonly { dataLoss: boolean }[];
+}): { stateBreaks: Record<"tsunamiCapacityEvicted" | "tsunamiCapacityExceeded" | "eewCapacityExceeded" | "tsunamiRevisionConflict" | "staleTarget", number> | null;
+  stateBreaksIncomplete: string[] };
 // 試行の対象の区間（host の時計）。span "encodeThroughWrite" は保存の試行全体（encode 開始〜write 完了）。
 export function trialTarget(population: string, trial: { trigger?: { inputId: string | null; injectedHrMs: number | null; predictedTickHostMs?: number } | null },
   host: { decode: Map<string, unknown>; t1: Map<string, number>; t2: Map<string, number>; processing: readonly { inputId: string }[]; raised: Map<string, number>;
