@@ -112,7 +112,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
       expect(placeOfHeadType(headType)).toBe("urgent");
     }
     // 一入力は U-T だけへ届き、U-E の state は同じ参照のまま。
-    const owner = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" }, "U-Q": { kind: "empty" } } },
+    const owner = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" }, "U-Q": { kind: "empty" },
+      "U-N": { kind: "empty" } } },
       linkedUnitTable, linkedUnitCodecs).state;
     const material = decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41");
     const routed = receiveOwner(owner, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },

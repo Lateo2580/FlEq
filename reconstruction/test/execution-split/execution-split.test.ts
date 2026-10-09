@@ -552,12 +552,12 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
         const step = base[unit].reduce(state, input);
         return { ...step, nextDeadline: next(unit, input.kind) ?? step.nextDeadline };
       } });
-      // U-T (P3-C5) and U-Q (P3-C7) keep the driver's row unrecorded: these cases describe the three earlier units.
+      // U-T (P3-C5), U-Q (P3-C7) and U-N (P3-C8) keep the driver's row unrecorded: these cases describe the three earlier units.
       return { driver, applied, units: { "U-E": wrap("U-E"), "U-W": wrap("U-W"), "U-F": wrap("U-F"), "U-T": base["U-T"],
-        "U-Q": base["U-Q"] } };
+        "U-Q": base["U-Q"], "U-N": base["U-N"] } };
     };
     const codecs = { "U-E": stringCodec("U-E"), "U-W": stringCodec("U-W"), "U-F": stringCodec("U-F"), "U-T": stringCodec("U-T"),
-      "U-Q": stringCodec("U-Q") };
+      "U-Q": stringCodec("U-Q"), "U-N": stringCodec("U-N") };
     const dirty = (runId: string) => {
       const status = (dirtySince: number) => ({ kind: "pending" as const, currentGeneration: 1, savedGeneration: null,
         savedCapturedAt: null, savedAckAt: null, dirtySince });
@@ -649,7 +649,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       expect(stageResults.sideEffectFinalization?.result.kind).toBe("deadlineExceeded");
       expect(h.sent.some(({ request }) => request.kind === "finalize")).toBe(false);
       expect(grantsOf(h)).toHaveLength(granting);
-      expect(stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(5);
+      expect(stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(6);
       expect(summary.code).toBe(2);
       expect(stageResults.workerClose?.result.kind).toBe("completed");
       expect(h.root.checkpoint.grantOf("U-F")).not.toBeNull();

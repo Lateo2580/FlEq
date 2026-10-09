@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "fdbadf3832d17cc7503e7d40a23cd8b3bcdfb00593b401a7e8c032c8c24f48fd",
+    "sha256": "e57635a2ac902e563c676b0998fd7486bee481d4893dad90bee77ec435ab2407",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "bfff9e7f6cc7010fff2a6c385ec7018fe5b70c48c943b02c1be52681fcd8d6e1",
     "sequencesSha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
@@ -485,13 +485,13 @@
         "id": "P2-A9-AC09",
         "requirement": "R40〜R42のsnapshot項目を意匠なしの最小テキストで描く（2026-09-24作者裁定Q1=A）。(1) notices: 各VisibleNoticeのoperation・A8が生成したtext・官署名を一覧にし、training/testは明示する。textはtextContentで表示し、A9にkind→文言表を重複定義しない。sourceがnull、またはsource.officeがnullなら官署名を出さない。source.officeTruncated=trueなら切詰め済みと分かる印を添える。notice生成・期限計算・並べ替えはA8に任せA9で作らない。(2) channels: desktop/soundの2行でchecking=確認中、available=使える、unavailable=使えない、isolated=隔離中。availableを可聴の保証と書かない。(3) 接続/確認の1行: connection.state（connected/reconnecting/stopped）とdisconnectedAt（AC10の書式、null=未切断）、worker.state（stalled/unresponsive/stoppedは停止系として明示）、ブラウザ側SSE到達のstale、U-Eの確認状態snapshot.current.eew.items[i].confirmation.state（full/summaryの両配送にある）を出す。stale: 最終有効snapshot／名前付きheartbeatの受信から45秒無受信なら最大15秒周期の検査でstaleとし、旧EventSourceを閉じて再接続し、最新完全snapshotで置換する。背景から前景へ戻った時はtimerを待たず直ちに確認する。初回未受信の起点は接続開始時刻とする。heartbeatが運ぶ明示的なworker状態は反映するが、heartbeatや再接続が届いた事実だけでhealthy・確認済みに変えない。normal行は常に、training/test行はそのoperationのcardまたはnoticeを表示している間だけ出す。unconfirmed/partialを確認済みと書かない。stale中とworker停止中は現在の表示を「更新未確認の最終情報」と明示する。U-W/U-FはQ-NOTICE-UX=AどおりA8のunavailable noticeだけを描き、危険度上昇のnoticeを作らない。理由: A8が運ぶ未確認・通知不能・お知らせと、specの再同期を画面と接続で閉じる担当がないとP2の間これらが分からない",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:91 «b14beebdc83475d2»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:50 «fd2ac8da3d1741d1»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:92 «b14beebdc83475d2»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «fd2ac8da3d1741d1»",
           "reconstruction/contracts/p2-snapshot-sse.json:41 «fe443b0075eaa651»",
           "reconstruction/contracts/p2-snapshot-sse.json:468 «f3eed5ecb07ec110»",
           "reconstruction/contracts/p2-snapshot-sse.json:475 «cb25a21169eb89db»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:73 «b731944200fafc30»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:28 «24c063ef29bb6cf5»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:74 «b731944200fafc30»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:29 «24c063ef29bb6cf5»",
           "docs/specs/reconstruction-p0-contracts.md:1189 «0bd907f4258206f3»",
           "docs/specs/reconstruction-p0-contracts.md:1198 «45d7a5dc731dd19b»",
           "docs/specs/reconstruction-p0-contracts.md:1202 «40765ac3f9f7889e»"
@@ -501,7 +501,7 @@
         "id": "P2-A9-AC10",
         "requirement": "画面に出す日時はすべて日本時間のYYYY/MM/DD HH:mm:ss（ゼロ埋め24時間制、タイムゾーン表記なし）に整形する（2026-09-28ご主人裁定Q-SUMMARY-TIME=A）。変換はepoch msへ+32400000を足しDateのgetUTC*で各fieldを読む固定計算とし、Intl・端末のタイムゾーンに依存しない（Asia/Tokyo固定、日本に夏時間はない）。EEW cardの時刻は、eew配送がfullのときA4 EewCurrent.source.reportDateTimeRaw（報の発表時刻、A1検証済みのoffset付き日時）をepoch msへ解釈して整形し、summaryのときは該当operation行のitems[].updatedAt（A8がreportDateTimeRawから作るepoch ms）を整形する。updatedAt=nullや解釈できない値は「時刻不明」と出し、別の時刻で補わない。snapshot.generatedAtは出さない（2026-09-24作者裁定Q3=A）。summaryで個別cardが描けない場合もAC04どおり無発令に変換しない。理由: 受信遅延や端末設定があっても情報の時点を取り違えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:67 «6be242758d3f3934»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:68 «6be242758d3f3934»",
           "reconstruction/contracts/p2-eew-unit.types.ts:37 «f77a40e79ba21087»",
           "reconstruction/contracts/p2-snapshot-sse.json:72 «b271248a738b3b9c»"
         ]

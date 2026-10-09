@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "309dbf8e77d951b507aca64a84dfae70b3957943c5991b8ae8992c8c6df5fc14",
+    "sha256": "05d9c9fc6d456c26fa5b1be63fd9280f6f7e17b336197ce655eab614998b1b18",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "bfff9e7f6cc7010fff2a6c385ec7018fe5b70c48c943b02c1be52681fcd8d6e1",
     "sequencesSha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
@@ -225,7 +225,7 @@
         "id": "Q-ENUM",
         "status": "frozen",
         "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性→Serial妥当性（存在するときだけ）→ReportDateTime・InfoTypeのrawの長さ→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはcurrents・information・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す",
-        "identity": "EventIDは前後の空白を除いて空ならidentityMissing。印字可能なASCII（0x21〜0x7E）以外か「/」「\"」「\\」を含む、または64 byteを超えるならidentityInvalid（subjectの区切りを壊さず、保存する現況のbyteの上限を件数から決めるため。「\"」「\\」はJSONのエスケープでbyteが増え、I-U-N.boundsの4,718 byteを破るので除く。文字の集合はC7のQ-ENUM.identity（Q-C7-IMPL-AMEND(4)）と同じで、上限はC7の40 byteでなく64 byte。U-Nの上界258,489 byteはEventID 64 byteで数えて予算の内側にある）。Serialは空を合法とし（旧築allowMissingSerial、revision-family-registry.ts:460）、あれば10桁以下の正整数でなければidentityInvalid。ReportDateTimeのrawが40文字を超えるか、InfoTypeのrawが8文字を超える報はidentityInvalid（保存するReportRefのbyteの上限のため。corpusは25文字と2文字）",
+        "identity": "EventIDは前後の空白を除いて空ならidentityMissing。印字可能なASCII（0x21〜0x7E）以外か「/」「\"」「\\」を含む、または64 byteを超えるならidentityInvalid（subjectの区切りを壊さず、保存する現況のbyteの上限を件数から決めるため。「\"」「\\」はJSONのエスケープでbyteが増え、I-U-N.boundsの4,718 byteを破るので除く。文字の集合はC7のQ-ENUM.identity（Q-C7-IMPL-AMEND(4)）と同じで、上限はC7の40 byteでなく64 byte。U-Nの上界258,489 byteはEventID 64 byteで数えて予算の内側にある）。Serialは空を合法とし（旧築allowMissingSerial、revision-family-registry.ts:460）、あれば10桁以下の正整数でなければidentityInvalid。ReportDateTimeのrawが40文字を超えるか、InfoTypeのrawが8文字を超える報はidentityInvalid（保存するReportRefのbyteの上限のため。corpusは25文字と2文字）。受信のinputIdが64文字を超える報もidentityInvalid（保存するReportRefのinputIdの上限を受理とdecodeで揃える、Q-C8-IMPL-AMEND(a)）",
         "familyTable": [
           {
             "family": "VYSE50・VYSE51・VYSE52",
@@ -253,13 +253,13 @@
         "bounds": "文字列の上限（UTF-16の長さ）: title 128、headline 512、text 4,096、nextAdvisory 512、infoKind 64、infoSerial.code 8、infoSerial.name 32。超えたら切り詰めてtruncated=true（corpusの最大はtitle 19、headline 176、text 1,431、nextAdvisory 102文字で、切り詰めは起きない）。現況の1件のencodeの上限は4,718 byte（全ての文字列が上限で、JSONで6 byteになる文字のとき。EventID 64 byte、inputId 64文字、ReportDateTime 40文字、Serial 10桁）",
         "deadlines": "nextDeadlineは、activeの現況のvalidUntil、現況のretainUntil、情報subjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（現況6・情報64の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
         "persisted": "PersistedNankaiUnitはschemaVersion p3-nankai-unit-v1、currents、intents（pendingと終端記録）。information・contentRevision・persistenceは保存しない（spec:512の情報系列N）",
-        "decode": "codecは一つ（nankaiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、現況≤6件で運用区分・系統の重複なし、subjectが`${operation}/${line}/current`の形で運用区分・系統と一致、EventIDがQ-ENUM.identityの文字（印字可能なASCIIで「/」「\"」「\\」を除く）で64 byte以下、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）、active以外の現況は事実のfield（status・infoSerial・title・headline・truncated・validUntil）を持たない（types.tsの判別共用体）、activeの現況はstatusが系統の表にありvalidUntil=sourceのReportDateTime+7日、retainUntil=sourceのReportDateTime+30日、I-U-N.boundsの文字列の上限、pending≤128件かつ≤131072 byte、終端記録の合計≤98,304 byte、encode後の世代≤262,144 byte、intentのunitがU-NでsubjectがU-Nの現況か情報subjectの形であること（stateに残っているsubjectとの一致は求めない。情報系列は復元で空になるため）",
-        "view": "NankaiUnitViewはactiveの現況と、activeの情報subjectの見出し（NankaiInformationView。本文のtext・nextAdvisoryを外す、P3-C8-SNAPSHOT）だけを載せる。SubjectOutcomeは現況と情報subjectごとに作り、factsに公開事実（情報は見出しだけ）と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Nの行（current: NankaiCurrent | NankaiInformationView | null）を足す。unavailable・未保存・再起動の空を「現況なし」に読み替えない",
+        "decode": "codecは一つ（nankaiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、現況≤6件で運用区分・系統の重複なし、subjectが`${operation}/${line}/current`の形で運用区分・系統と一致、EventIDがQ-ENUM.identityの文字（印字可能なASCIIで「/」「\"」「\\」を除く）で64 byte以下、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）、active以外の現況は事実のfield（status・infoSerial・title・headline・truncated・validUntil）を持たない（types.tsの判別共用体）、activeの現況はstatusが系統の表にありvalidUntil=sourceのReportDateTime+7日、retainUntil=sourceのReportDateTime+30日、I-U-N.boundsの文字列の上限、pending≤128件かつ≤131072 byte、終端記録の合計≤98,304 byte、encode後の世代≤262,144 byte、intentのunitがU-NでsubjectがU-Nの現況か情報subjectの形であること（stateに残っているsubjectとの一致は求めない。情報系列は復元で空になるため）。終端記録は単独の98,304 byteでなく、pendingとの合計（≤229,376 byte）で確かめる（配送の更新で終端にした記録は回収しない、Q-C8-IMPL-AMEND(1)）",
+        "view": "NankaiUnitViewはactiveの現況と、activeの情報subjectの見出し（NankaiInformationView。本文のtext・nextAdvisoryを外す、P3-C8-SNAPSHOT）だけを載せる。SubjectOutcomeは現況と情報subjectごとに作り、factsに公開事実（情報は見出しだけ）と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Nの行（current: NankaiCurrent | NankaiInformationView | null）を足す。unavailable・未保存・再起動の空を「現況なし」に読み替えない。viewとdisplay subjectのSubjectOutcomeのfactsは識別のfield（eventId・effective・lineかfamily）だけで、公開事実と変わったfieldは採用のoutcome（PublishedOutcome）に載せる（U-QのI-U-Q.viewと同じ、Q-C8-IMPL-AMEND(d)）",
         "confirmationScope": "U-Nは確認scopeを作らない（P3-C8-N2）。shared-runtime.tsのaddedScopesにU-Nで空を返す分岐を足す",
         "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-N、executionPlacesにU-N=urgent（P3-C8-PLACE）、coverage表のVYSE50/51/52/60をready＋U-N。UnitModule<「U-N」>はpersistence durable、terminalIntents kind intents、reclaimDeadlineBeforeReceive true",
         "computation": "容量は現況・情報・intentごとのencode byteをWeakMapでその値に結び付けて加算する（tsunami-unit.ts・seismic-unitの先例）。情報subjectの検索は配列に結び付けたMapのcacheで引き、素朴なfindを入れ子にしない。nextDeadlineの最小値も配列に結び付けたcacheで持つ。受信1回でstate全体・intent全体を直列化しない（AGENTS.md「受信経路の計算量」、台帳47）",
         "capacityReserve": "台帳41の読み替え: U-Nは拒否・診断をstateに保存しない（診断はstepの出力、admissionの記録はruntime）ので予約の対象が無い。保存の世代の予約は、現況6×4,718＝28,308 byte、pending 131,072 byte（spec:981）、終端記録98,304 byte、区切り512 byte以下（前提: intent 1件が259 byte以上。終端記録は98,304÷259＝379件以下で、区切りは5＋128＋379−1＝511。実例の最小は800 byte）、envelope 293 byte（generation・capturedAtの伸び62 byteを含む）で、合計258,489 byte以下＝256 KiB（262,144）の内側。超えることは件数・文字列の上限と回収の規則から起きず、decodeで超えた保存物はunavailable",
-        "capacityMeasurement": "測り方（2026-10-09、Mac、起草時の測定スクリプトはrepo外）: aaa3b2d3をtscでbuildしたdistのingestXmlData→decodeMaterialでcorpusのVYSE 13本を読み、types.tsのNankaiCurrent・NankaiInformation・NankaiIntentの形に組み（文字列はI-U-N.boundsで切る）、JSON.stringifyのUTF-8 byteを数えた。結果: 現況1件の最大の実例は1,057 byte（74_01_04・74_01_05、巨大地震警戒・巨大地震注意）、VYSE60の現況は1,044、情報1件の最大は5,037（75_01_04_200512_VYSE52の定例解説、本文1,431文字）、intent 1件の最大は1,188（VYSE60）。同時最大状態（spec:470、実電文の最大で）: 現況6×1,057＝6,342＋pending 110×1,188＝130,680（byteの上限で110件）＋終端記録82×1,188＝97,416＋区切り196＋envelope 293＝234,927 byte（262,144まで27,217）。上限の文字列での上界は258,489 byte（I-U-N.capacityReserve）。view・snapshotの見積り（P3-C8-SNAPSHOT）: 本文を含む情報1件の合法最大は32,849 byte（上限の文字列）で、64件のviewは約2.1 MBになり、snapshotの1 MiB・分野ごとの65,536 byte（view-projector.ts:35・:36・:755〜:757）を超えてsummaryに落ちる。見出しだけ（NankaiInformationView）の1件は合法最大5,173・実例の最大1,065 byte（74_01_04）で、viewは合法最大で64×5,173＋6×4,718＝359,380 byte、実例の最大で64×1,065＋6×1,057＝74,502 byte。どちらも1 MiBの内側だが65,536 byteを超えるので、snapshot全体が1 MiBを超えた時だけU-Nはsummaryに落ちうる。64は数えた値でなく選んだ値（P3-C8-CAPACITY）。実装後に同じfixtureで実際のencode byteを測り直し、この値と10%以上違えば数を直して報告する"
+        "capacityMeasurement": "測り方（2026-10-09、Mac、起草時の測定スクリプトはrepo外）: aaa3b2d3をtscでbuildしたdistのingestXmlData→decodeMaterialでcorpusのVYSE 13本を読み、types.tsのNankaiCurrent・NankaiInformation・NankaiIntentの形に組み（文字列はI-U-N.boundsで切る）、JSON.stringifyのUTF-8 byteを数えた。結果: 現況1件の最大の実例は1,057 byte（74_01_04・74_01_05、巨大地震警戒・巨大地震注意）、VYSE60の現況は1,044、情報1件の最大は5,037（75_01_04_200512_VYSE52の定例解説、本文1,431文字）、intent 1件の最大は1,188（VYSE60）。同時最大状態（spec:470、実電文の最大で）: 現況6×1,057＝6,342＋pending 110×1,188＝130,680（byteの上限で110件）＋終端記録82×1,188＝97,416＋区切り196＋envelope 293＝234,927 byte（262,144まで27,217）。上限の文字列での上界は258,489 byte（I-U-N.capacityReserve）。view・snapshotの見積り（P3-C8-SNAPSHOT）: 本文を含む情報1件の合法最大は32,849 byte（上限の文字列）で、64件のviewは約2.1 MBになり、snapshotの1 MiB・分野ごとの65,536 byte（view-projector.ts:35・:36・:755〜:757）を超えてsummaryに落ちる。見出しだけ（NankaiInformationView）の1件は合法最大5,173・実例の最大1,065 byte（74_01_04）で、viewは合法最大で64×5,173＋6×4,718＝359,380 byte、実例の最大で64×1,065＋6×1,057＝74,502 byte。どちらも1 MiBの内側だが65,536 byteを超えるので、snapshot全体が1 MiBを超えた時だけU-Nはsummaryに落ちうる。64は数えた値でなく選んだ値（P3-C8-CAPACITY）。実装後に同じfixtureで実際のencode byteを測り直し、この値と10%以上違えば数を直して報告する。実装後の測り直し（2026-10-09、C8実装、3 byteの文字の合法最大で）: 現況1件の実例1,060（74_01_04）・VYSE60の現況1,048・intent 1,191・情報5,056・見出し1,085、同時最大状態のpayload 232,194（配送の更新の予約込みでpending 107＋終端記録82、Q-C8-IMPL-AMEND(8)）、上限の文字列の保存物の上界240,459（6 byteで数えた258,489は上界として残す）、合法最大のview 252,694・snapshot 261,037（full）。view 359,380は6 byteで数えた上界として残す"
       },
       {
         "id": "P3-C8-INTERFERENCE",
@@ -288,6 +288,14 @@
         "source": "統合担当の発注前点検（2026-10-09、HEAD 4af07bb1）",
         "closed": "Q-C8-AUTHOR-RULINGS: 作者裁定（2026-10-09）INVESTIGATING=A・VYSE60=A・NOTICE-LEVELS=B・CURRENT-EXPIRY=Aを各分岐のrulingに書き、NOTICE-LEVELS=BをQ-NOTICE.level・generationTable・P3-C8-LEGACY-DIFF・T06・T07に通した。Q-C8-S4-PLACE: P3-C8-PLACEのruling（A、統合担当の確定）。Q-C8-CORPUS: sequences.jsonにU-N（VYSE）のstepが0件であることを確かめ（2026-10-09）、O01:68〜79・O02:49〜54・O07:35〜44を足した。74_01_xx・75_01_xxは気象庁のサンプル電文で、各stepのchecksで「時刻順に並べた試験用の列で実際の系列ではない」と書く。同じEventIDの訂正・取消・表に無いcode・EarthquakeInfoの欠落はsynthetic 4本（synthetic_VYSE51_correction・synthetic_VYSE50_cancel・synthetic_VYSE50_unknown_code・synthetic_VYSE50_no_earthquake_info）にし、manifest・P1契約・P1-T01の件数へ波及させた（分類の差分0）。起草の候補からの変更: O07の復元直後の取消は74_01_05（巨大地震注意）に対して行い、O01の取消と同じsyntheticを使う（syntheticを1本減らす）。期限の非延長は74_01_04で、復元の時計を2020-05-19 16:27:59.999、期限の時計を16:28:00.000にした。訓練の交差はfixtureを足さずT02の試験内で作る（起草どおり）。Q-C8-BASE: anchorはHEAD（4af07bb1）で全部一致（check-contract PASS）。本文の行番号のずれ（composition-root.tsのreevaluate、view-projector.tsの予算の行）とC7・C6の配送の後の記述（P3-C8-NOTICE-GROUP・P3-C8-INTERFERENCE・P3-C8-DEPS）を直した。共有の行は起草どおり直書きのまま（allowedPaths・outOfScopeは不変）。写した読み取り関数の集約の計画§9と構造的欠陥台帳の行: 済",
         "reason": "発注前点検の項目を閉じ、unresolvedQuestionsを空にする"
+      },
+      {
+        "id": "Q-C8-IMPL-AMEND",
+        "status": "closed",
+        "source": "統合担当の決定（2026-10-09、C8実装のレビュー1巡目: Codex 品質 NO-GO・P1 3・P2 2、Opus 契約適合 条件付きGO・記録4）",
+        "closed": "(a) 64文字を超える受信のinputIdはidentityInvalid（Q-ENUM.identityの行に追記）。(b) 現況がexpired（事実を捨てた記録）のとき、同じrevision・同じInfoTypeの再受信は事実を比べずduplicate（Q-ENUM.revisionOrderの補足。sequences.jsonがその行をanchorで引くので、本文はこの項で改める）。(c) 取消が先着した後に届いた同じ報（headType・EventID）の古い元報は、情報subjectの側の新しい取消・訂正のrevisionで先にstale・duplicateとし、現況にも当てない。除外（I-U-N.currentSemanticsの(2)(3)(4)）を系統のwatermarkより先に判定する順は保つ（I-U-N.currentSemanticsの補足。本文はsequences.jsonが引くので、この項で改める）。(d) viewのsubjectsのfactsは識別のfieldだけ（I-U-N.viewに追記）。(1) 配送の更新（intentUpdate）で終端にした記録は終端記録の回収の対象から外し、次に古い終端記録から回収する（ownerは更新した記録が残ることで照合し、消えるとurgentのownerが止まっていた）。そのため終端記録は単独の98,304 byteでなく、pendingとの合計229,376 byte以下をdecodeで確かめる（更新で終端にした記録は元のpendingのbyteの内側なので合計を越えない。I-U-N.decodeに追記）。(2) 配送の更新でpendingの1件のJSONが伸びうるbyte（attemptsは安全な整数の最長16桁、nextAttemptAtは有限の数のJSONの最長24文字）を受理のときに件ごとに予約し、pendingの予算131,072 byteは予約込みで数える（更新の後のpendingも131,072 byte以下で、受理とdecodeの境界がそろう）。(3) Q-NOTICE.restartの補足: 復元の後に現況のsourceと同じ報（headType・EventID）の続報が来て情報subjectが無いときは、復元した現況との差（公開事実）で通知を決める（訂正は事実が同じでも通知する規則は残す）。(4) Q-NOTICE.transitionの順: 取消→cancelled、訂正→updated（効かないcodeへの訂正でendedになっても）、調査終了→released、既存のactive→updated、ほかはactivated。(5) 保存しない情報系列だけの変化（情報だけのrevisionOnly・情報の期限の回収）では保存世代を進めない（I-U-N.persisted）。(6) AC11の測り方: 観測の状態（返信・期限の返信・callback）はworkerの停止の後に試験ごとに空へ戻す。合法最大のU-Nのencodeは、配送を遅らせたmockのadapterでpendingを満たして測る（encode 235,005 byte、上界243,068の97%）。(7) 2巡目（Codex 再確認 NO-GO の直し）: 配送の更新の予約を受理とdecodeの両方で同じ式で数える。decodeも「pendingの実byte＋予約」が131,072 byte以下、「pendingの実byte＋予約＋終端記録」が229,376 byte以下であることを確かめる（受理だけが予約を数えると、予約なしで収まる保存物を復元した後の更新で次の復元が拒否された）。3巡目で値域で縛る案（attempts 0〜999・nextAttemptAtは0以上の整数）を取り下げた（workerの時計はowner-host.tsでDate.now()にperformanceの小数を足すのでnextAttemptAtは普段から小数、上位の通知で予約が無効になってもattemptsは戻らないので試行の回数の上限が証明できない）。(8) 作者裁定（2026-10-09、ご主人）: 値域で縛らず、decodeが受ける値の最長に合わせて大きく予約する。decodeが受けるのはattemptsが0以上の安全な整数、nextAttemptAtが有限の数（小数・負も可）。予約はpendingごとに(16−attemptsのJSONの長さ)＋(25−nextAttemptAtのJSONの長さ)＋3、各項は0で止める（16はNumber.MAX_SAFE_INTEGERの桁数、25は有限の数のJSONの最長でNodeで確かめた値、例 -0.0000018927186924017318、3はdispositionの最長supersededとpendingの差）。受理とdecodeで同じ式。既知の限界: attemptsが安全な整数を超えるには約9京回の更新が要り実際には起きないが、超えた保存物はdecodeが拒否する。予約で減る容量: 実例の最大のintent（VYSE60、1,191 byte、attempts 0・nextAttemptAt 13桁）は1件30 byteを予約し、pendingに入るのは109件から107件になる",
+        "remaining": "U-T・U-Qにも配送の更新でpendingのbyteが伸びる同じ形がある（統合担当の横断の確認）。C8の後の小さな横断の契約で、U-NのdeliveryGrowthと同じ式（(8)、値域で縛らない最長の予約）を当てる（台帳73）",
+        "reason": "レビュー1巡目の直しと、実装で測った値を契約に戻す"
       }
     ],
     "operationContract": {
@@ -682,7 +690,7 @@
           "docs/specs/reconstruction-p0-contracts.md:511 «2c565ef25a043ddf»",
           "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
           "docs/specs/reconstruction-p0-contracts.md:597 «49edf29fa8fae5d5»",
-          "reconstruction/src/runtime/unit-coverage.ts:65 «82bf569e59bf8875»",
+          "reconstruction/src/runtime/unit-coverage.ts:65 «1129f6348d54c04c»",
           "src/engine/messages/route-catalog.ts:186 «1c88819e79efa0d8»",
           "reconstruction/src/host/host.ts:37 «5bd01bfcb4ff01bb»"
         ]
@@ -743,7 +751,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1472 «5bbe65daadf9a2ed»",
           "reconstruction/contracts/p3-seismic-unit.json:148 «52525ff82a60caa3»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:757 «c42a191089542248»",
+          "reconstruction/src/view-projector/view-projector.ts:779 «c42a191089542248»",
           "src/engine/display/standby-state-store.ts:3203 «7af6c560b641723c»"
         ]
       },
@@ -797,7 +805,7 @@
           "reconstruction/contracts/p3-order-plan.md:79 «975ab2facd6ca2d6»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
-          "reconstruction/src/runtime/composition-root.ts:1289 «4b3e06f0acf52345»",
+          "reconstruction/src/runtime/composition-root.ts:1292 «4b3e06f0acf52345»",
           "reconstruction/contracts/p3-execution-boundary.md:12 «664a6f4b27d9fc87»",
           "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -810,7 +818,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:194 «75cf2512443da992»"
+          "reconstruction/src/runtime/composition-root.ts:196 «75cf2512443da992»"
         ]
       },
       {

@@ -10,6 +10,7 @@ export type StubCalls = Readonly<{
   reduceWeatherTimeseriesUnit?: UnitModule<"U-F">["reduce"];
   reduceTsunamiUnit?: UnitModule<"U-T">["reduce"];
   reduceSeismicUnit?: UnitModule<"U-Q">["reduce"];
+  reduceNankaiUnit?: UnitModule<"U-N">["reduce"];
   toEewView?: UnitModule<"U-E">["toView"];
   toWeatherCurrentView?: UnitModule<"U-W">["toView"];
   toWeatherTimeseriesView?: UnitModule<"U-F">["toView"];
@@ -19,9 +20,9 @@ export type StubCalls = Readonly<{
 }>;
 
 function callsWith(stubs: StubCalls = {}): Readonly<{ units: UnitTable } & NotificationCalls> {
-  const { reduceEewUnit, reduceWeatherCurrentUnit, reduceWeatherTimeseriesUnit, reduceTsunamiUnit, reduceSeismicUnit,
+  const { reduceEewUnit, reduceWeatherCurrentUnit, reduceWeatherTimeseriesUnit, reduceTsunamiUnit, reduceSeismicUnit, reduceNankaiUnit,
     toEewView, toWeatherCurrentView, toWeatherTimeseriesView, toTsunamiView, ...notification } = stubs;
-  const { "U-E": eew, "U-W": weather, "U-F": series, "U-T": tsunami, "U-Q": seismic } = linkedUnitTable;
+  const { "U-E": eew, "U-W": weather, "U-F": series, "U-T": tsunami, "U-Q": seismic, "U-N": nankai } = linkedUnitTable;
   return {
     units: {
       "U-E": { ...eew, reduce: reduceEewUnit ?? eew.reduce, toView: toEewView ?? eew.toView },
@@ -29,6 +30,7 @@ function callsWith(stubs: StubCalls = {}): Readonly<{ units: UnitTable } & Notif
       "U-F": { ...series, reduce: reduceWeatherTimeseriesUnit ?? series.reduce, toView: toWeatherTimeseriesView ?? series.toView },
       "U-T": { ...tsunami, reduce: reduceTsunamiUnit ?? tsunami.reduce, toView: toTsunamiView ?? tsunami.toView },
       "U-Q": { ...seismic, reduce: reduceSeismicUnit ?? seismic.reduce },
+      "U-N": { ...nankai, reduce: reduceNankaiUnit ?? nankai.reduce },
     },
     ...notification,
   };
