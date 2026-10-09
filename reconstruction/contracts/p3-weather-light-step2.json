@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "27a4d43b8c12ca6d1167bcc238669d13df5ff505",
-    "sha256": "f8b57e6ed68e5c79d6047945173517111e3987963797b3a6e0155f00618c9e04",
+    "sha256": "2e348817dfba4040a480fad44d4207dba6a9d52aa12cec06cb2ff3ce72dabb17",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
     "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
@@ -142,7 +142,7 @@
     "contractId": "P3-WEATHER-LIGHT-002",
     "mode": "implementation",
     "objective": "気象の電文の処理を軽くする段2（台帳66・E05-P・E03、D-WL1-E05P、P3-C4-PI-E03=A）。速さの契約で、意味を変えない。decodeMaterialのlimits（withinXmlLimits）とXMLValidator.validateを今のまま残し、普通の入力はFXPのXMLParserによる中間の木とxmlNodeの変換をやめてXmlNodeの木を1本だけ直接作り（D-WL2-METHOD=A3、D-WL2-DEP=B）、前処理と組立てで読み方がずれうる変な形はその入力だけ今の経路で処理し直す（作者裁定 2026-10-09 の2本目）。limitsとvalidatorを通った全ての入力で旧と完全に同じ結果（木・拒否の理由・parseTimes・marks・運用区分の診断）を返し、実電文（corpus）は旧の経路に入らないことを、corpus全件・境界の表・変異の差分の確かめ・U-Wとencodeの旧新の比較で示し、Macの前後比較を報告する。E05-Pの再検収とPiの段の内訳・E03は配送の後に統合担当が行う。全文の走査の回数を減らす変更（D-WL2-SCANSのB・C）とU-Wの保存の側（D-WL2-STEP3-ITEMS）は扱わない。",
-    "baseOid": "unassigned",
+    "baseOid": "b05f4a5d02ea72b9bb1b7af0f0db567737361795",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
