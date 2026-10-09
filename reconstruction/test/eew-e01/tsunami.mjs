@@ -1,7 +1,9 @@
 // P3-TSUNAMI-E01-001（C6）の津波の入力と manifest の草案。runner（run.mjs）と解析が使う津波だけの規則をここに置く。
 // frames.mjs は C4 の initial-state（rulesSource）が bytes の hash で固定しているので触らない。
 //   草案（凍結しない）: node reconstruction/test/eew-e01/tsunami.mjs --draft --id <manifestId> [--out <path>] [--values <json>]
-//     --values は予備測定（AC08）で固定した値の JSON（{ primeLeadMs, periodMs, triggerLeadMs, stop }、どれも母集団 → 値）。
+//     --values は予備測定（AC08）で固定した値の JSON（{ primeLeadMs, periodMs, triggerLeadMs, stop, preliminary }、どれも母集団 → 値。preliminary は
+//     { successes, trials, msPerAttempt, source } で stopCondition をそこから計算する。machine は { chromeVersion, nodeVersion, osVersion, device } で、
+//     凍結する機械〔Mac mini〕の実値を、草案を作る機械の値の代わりに入れる）。
 //   C6 の smoke 条件の書き出し: node reconstruction/test/eew-e01/tsunami.mjs --smoke-conditions [--chrome-version <v>]（既存は上書きしない）
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { arch, cpus, release, totalmem } from "node:os";
@@ -127,12 +129,25 @@ export const O09_POSITIONS = [13, 14, 15, 16, 17, 18, 23, 24, 25, 26, 32, 33, 34
 export const windowEventId = (kind, populationIndex, phase, run) => `2026100906${kind}${populationIndex}${phase === "warmup" ? 0 : 1}${phase === "warmup" ? 0 : run}`;
 const DEFAULT_PERIOD_MS = 3000;
 export const DEFAULT_PRIME_LEAD_MS = 1500;
-// Q-C6-IMPL-AMEND (10): 2 回目の予備（Mac mini、ae343ce6）の「引き金の送信 → U-W の encode 開始」の中央値（約 30ms、19〜45ms）。
-const ENCODE_DELAY_FALLBACK_MS = 30;
+// Q-C6-IMPL-AMEND (10)・(11): 予備（Mac mini）の「引き金の送信 → U-W の encode 開始」の p50（25〜26ms）。較正の前の最初の 10 試行だけが使う。
+const ENCODE_DELAY_FALLBACK_MS = 26;
 
-// 草案の stopCondition は C4 の凍結値の試行数を仮に置く（予備測定の成立率で AC08 が固定する: maxAttempts＝100＋ceil(1,000÷Wilson 下限×1.1)、
-// maxDurationMs＝（初期化＋試行の所要×maxAttempts）×1.25）。
-export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersion, device, primeLeadMs = {}, periodMs = {}, triggerLeadMs = {}, stop = {},
+// AC08・Q-C6-IMPL-AMEND (11): 予備の成立数・試行数・1 試行の所要から窓の stopCondition を決める（C4 の P3-C4-FREEZE-DECISIONS の (2) と同じ式）。
+// maxAttempts＝100＋ceil(1,000÷Wilson 下限〔z＝1.96〕×1.1)、maxDurationMs＝ceil((60 秒＋1 試行の所要×maxAttempts)×1.25)。見込みの所要は
+// 点推定の成立率で 60 秒＋1 試行の所要×(100＋1,000÷成立率)。
+export function wilsonLower(successes, trials, z = 1.96) {
+  const p = successes / trials;
+  return (p + z * z / (2 * trials) - z * Math.sqrt((p * (1 - p)) / trials + z * z / (4 * trials * trials))) / (1 + z * z / trials);
+}
+export function stopFromPreliminary({ successes, trials, msPerAttempt }) {
+  const lower = wilsonLower(successes, trials);
+  const maxAttempts = 100 + Math.ceil((1000 / lower) * 1.1);
+  return { maxAttempts, maxDurationMs: Math.ceil((60_000 + msPerAttempt * maxAttempts) * 1.25), wilsonLower: lower,
+    expectedMs: Math.round(60_000 + msPerAttempt * (100 + 1000 / (successes / trials))) };
+}
+
+// stop か preliminary の無い母集団の stopCondition は C4 の凍結値の試行数を仮に置く（凍結の前に preliminary で決める）。
+export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersion, device, primeLeadMs = {}, periodMs = {}, triggerLeadMs = {}, stop = {}, preliminary = {},
   smokeText = readFileSync(join(REPO, TSUNAMI_SMOKE_FILE), "utf8") }) {
   const c4Text = readFileSync(join(REPO, C4_MANIFEST), "utf8");
   const c4 = JSON.parse(c4Text);
@@ -157,14 +172,22 @@ export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersi
         reason: field === "periodMs" ? "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
           : "C4 は 1 秒の tick の何 ms 前に引き金を送るか。C6 は UWR の後の版で、較正の予測が無い間の「引き金の送信 → encode 開始」の代わり（Q-C6-IMPL-AMEND (10)）" });
     }
-    const maxAttempts = stop[key]?.maxAttempts ?? inherited.stopCondition.maxAttempts;
+    const measured = preliminary[key] == null ? null : stopFromPreliminary(preliminary[key]);
+    if (measured != null) {
+      const { successes, trials, msPerAttempt, source } = preliminary[key];
+      differencesFromC4.push({ path: `populations.${key}.stopCondition`, c4: JSON.stringify(inherited.stopCondition),
+        c6: JSON.stringify({ maxAttempts: measured.maxAttempts, maxDurationMs: measured.maxDurationMs }),
+        reason: `この母集団の予備（${source}）: 成立 ${successes}/${trials}、Wilson 下限 ${measured.wilsonLower.toFixed(3)}、1 試行 ${msPerAttempt}ms。`
+          + `maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 ${Math.round(measured.expectedMs / 60_000)} 分（Q-C6-IMPL-AMEND (11)）` });
+    }
+    const maxAttempts = stop[key]?.maxAttempts ?? measured?.maxAttempts ?? inherited.stopCondition.maxAttempts;
     const ids = (kind) => ({ warmup: windowEventId(kind, index, "warmup", 0), formalByRun: [1, 2, 3].map((run) => windowEventId(kind, index, "formal", run)) });
     populations[key] = {
       scope: "formal", load: inherited.load, periodMs: period,
       trigger: `population=${key}; spec=§7.5 ${series === "escalation" ? "発令系" : "解除系"}×${condition}; c4=${INHERITS[condition]}（p3-c4-formal-20261007）; `
         + `o09=${O09_ROWS[series][condition]}; plan=p3-order-plan.md:203; transitions=${SERIES_TRANSITIONS[series].join("→")}（試行ごとに順に回す）; ${HOW[condition]}`,
       stateRef: inherited.stateRef, stateSha256: inherited.stateSha256,
-      stopCondition: { maxAttempts, maxDurationMs: stop[key]?.maxDurationMs ?? Math.ceil((60_000 + period * maxAttempts) * 1.25) },
+      stopCondition: { maxAttempts, maxDurationMs: stop[key]?.maxDurationMs ?? measured?.maxDurationMs ?? Math.ceil((60_000 + period * maxAttempts) * 1.25) },
       triggerLeadMs: lead, series, condition, inheritsC4Population: INHERITS[condition], transitions: SERIES_TRANSITIONS[series],
       establishment: condition === "fixedBacklog" ? { kind: "primeSettled" } : condition === "eewTogether" ? { kind: "primeSettledEewOrder" }
         : { kind: "primeSettledStartOffset", startOffset: inherited.establishment },
@@ -219,9 +242,10 @@ if (process.argv[1] != null && import.meta.filename === realpathSync(process.arg
   } else if (args.has("draft") && typeof args.get("id") === "string") {
     const { execFileSync } = await import("node:child_process");
     const values = args.has("values") ? JSON.parse(readFileSync(String(args.get("values")), "utf8")) : {};
-    const built = buildP3TsunamiManifest({ ...values, id: String(args.get("id")), chromeVersion: await chromeVersion(),
-      nodeVersion: execFileSync("/opt/homebrew/opt/node@22/bin/node", ["-p", "process.version"], { encoding: "utf8" }).trim(),
-      osVersion: `${release()} ${arch()}`, device: `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB` });
+    const { machine = {}, ...rest } = values;
+    const built = buildP3TsunamiManifest({ ...rest, id: String(args.get("id")), chromeVersion: machine.chromeVersion ?? await chromeVersion(),
+      nodeVersion: machine.nodeVersion ?? execFileSync("/opt/homebrew/opt/node@22/bin/node", ["-p", "process.version"], { encoding: "utf8" }).trim(),
+      osVersion: machine.osVersion ?? `${release()} ${arch()}`, device: machine.device ?? `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB` });
     const out = args.has("out") ? String(args.get("out")) : join(REPO, TSUNAMI_EVIDENCE, "manifest.draft.json");
     writeFileSync(out, built.manifestText);
     console.log(JSON.stringify({ written: out, manifestId: built.manifest.manifestId, manifestSha256: built.manifest.manifestSha256 }));

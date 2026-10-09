@@ -15,7 +15,7 @@ import { injection, sample } from "./fixtures";
 import { TARGET_WAIT_MS, predictParseDelay, readDiagnosticsStrict, selectAuxWindows, settleDone, trialTarget, tsunamiStateBreaks } from "./run.mjs";
 import * as auxMeasures from "./aux-measures.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
-import { RELEASE_FIXTURE, TEMPLATE_FIXTURES, buildP3TsunamiManifest, buildTemplates, emptyTsunamiState, receiveTsunami, tsunamiReport } from "./tsunami.mjs";
+import { RELEASE_FIXTURE, TEMPLATE_FIXTURES, buildP3TsunamiManifest, buildTemplates, emptyTsunamiState, receiveTsunami, stopFromPreliminary, tsunamiReport } from "./tsunami.mjs";
 
 const repo = join(__dirname, "../../..");
 const machine = { chromeVersion: "154.0.8037.97", nodeVersion: "v22.23.2", osVersion: "27.0.0 arm64", device: "test" };
@@ -386,5 +386,14 @@ describe("P3-C6 encode-started calibration after the write-right change", () => 
     const startOffset = { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5], span: "population" } as const;
     expect(establishTsunamiTrial({ establishment: { kind: "primeSettledStartOffset", startOffset }, t0Ms: 1001, target: null,
       prime: { paintRequired: false, paintHostMs: null, replyMs: 1, ackMs: 2 }, eewInputDoneMs: null })).toEqual({ established: false, reason: "startOffset" });
+  });
+});
+
+// AC08・Q-C6-IMPL-AMEND (11): 凍結の候補の stopCondition は母集団ごとの予備から C4 と同じ式で決まる。
+describe("P3-C6 stopCondition from each population's preliminary run", () => {
+  it("10/10, 10/12, 20/29 and 20/24 give 1,623, 2,093, 2,267 and 1,815 attempts, and maxDurationMs is (60 s + one trial × attempts) × 1.25", () => {
+    expect([[10, 10], [10, 12], [20, 29], [20, 24]].map(([successes, trials]) => stopFromPreliminary({ successes: successes!, trials: trials!, msPerAttempt: 3000 }).maxAttempts))
+      .toEqual([1623, 2093, 2267, 1815]);
+    expect(stopFromPreliminary({ successes: 10, trials: 10, msPerAttempt: 3465.673 })).toMatchObject({ maxDurationMs: 7105985, wilsonLower: expect.closeTo(0.722, 3) });
   });
 });

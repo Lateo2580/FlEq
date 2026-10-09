@@ -1,8 +1,8 @@
 {
   "schemaVersion": "p3-tsunami-chrome-smoke-conditions-v1",
-  "conditionsSha256": "f867cdbd934f4421a47f1d37a08063bf4d0d74018f46f27d0446e5d754427a65",
+  "conditionsSha256": "1868ce57c716888aed2b65a50a9cdfafcef34e274b2378bed87da2e5f12cb847",
   "chrome": {
-    "version": "154.0.8037.98",
+    "version": "155.0.8059.39",
     "foregroundTab": true,
     "viewportCssPx": [
       1440,

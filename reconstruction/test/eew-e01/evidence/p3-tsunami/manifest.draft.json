@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p3-tsunami-e01-manifest-v1",
   "manifestId": "p3-c6-draft-20261009",
-  "manifestSha256": "671b0256c0cd892e1da7ce31b40d25978c51b9912851809858bb623a521a0019",
+  "manifestSha256": "89ae8bf9be19451489f2464f1ffbafebd512166e6f692b6ab0f77c0aa2963238",
   "trialSetupRef": "reconstruction/test/eew-e01/evidence/trial-setup.json",
   "trialSetupSha256": "cd1ee3dd642cf070f6a0f010a2d3c7075d7a0fb9873feea254375f53a564f578",
   "measuredSseClients": 1,
@@ -180,7 +180,7 @@
     "runCount": 3
   },
   "chrome": {
-    "version": "154.0.8037.98",
+    "version": "155.0.8059.39",
     "foregroundTab": true,
     "viewportCssPx": [
       1440,
@@ -189,9 +189,9 @@
     "dpr": 2,
     "motion": "full"
   },
-  "nodeVersion": "v22.23.2",
+  "nodeVersion": "v22.23.3",
   "osVersion": "27.0.0 arm64",
-  "device": "Apple M5 x10, 32GiB",
+  "device": "Apple M2 x8, 8GiB",
   "geometrySha256": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f",
   "fixtureSha256": {
     "test__fixtures__10_05_05_200826_VPTW61": "a94348c1256487a09734456300eb2d21a0e80376ed237015f73f8fcbd808951a",
@@ -224,17 +224,17 @@
     "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）"
   },
   "contractSha256": {
-    "P3-TSUNAMI-E01-001": "83a1b2add36f602ce5a708cfd9e1cf83df44f629f90c26bdf82a7889155f048d",
-    "P3-TSUNAMI-UNIT-001": "a65d4b443cc7429f2b45cfdd8a9d5bc76699b3f7ea3609cdbf9233182ea20345",
-    "P3-E01-REACCEPT-001": "1ad4786a16d78eb902fa35703e51b8ce411327807f8e8fc8f957d64c450e66f0",
-    "P3-UNIT-WRITE-RIGHT-001": "29eb6df0760fdd927b9f5879d5a3d048341e1f04525a2ab71a179ef74781502d",
-    "P3-EXECUTION-LIFECYCLE-001": "af463a6183512250e4daca56d07a671be29c886aedc8774f34d829f8dffb3563",
-    "P3-EXECUTION-SPLIT-001": "81e2dec0162f359ad859d672d1bb8c418e8bd08b58dc51c3612ae2805621d1c9",
-    "P2-CHROME-EEW-001": "3748e8f6fed2e70b40cec371057d7af5480830d05aa7f5790bc3de171ea51b32",
-    "P2-EEW-E01-001": "230c97b51724fbae7ac37d695c6949e6a37e45ff7ed3429318e619ab01cdc8b8",
-    "P2-SNAPSHOT-SSE-001": "c371f403c2ae0f1ca3263663cc799af1817fcd07e806e019e88eceeaf160c307"
+    "P3-TSUNAMI-E01-001": "5cca6b1dc5833352b58c37a3ce8194ce89e50bc38e73fdf4d6393af8dabb199a",
+    "P3-TSUNAMI-UNIT-001": "d21a55fefa40c10af49b9f1b5ee18b21273a721f40c032c86479fe0c6a0ceb42",
+    "P3-E01-REACCEPT-001": "700b567863d718fb83be58a83e66be51a00a011ea2753935ac21aaf820d5ade2",
+    "P3-UNIT-WRITE-RIGHT-001": "92a662b0180d3c7bd7ebd88772e96a453be16d6f4926757269c556188542c68d",
+    "P3-EXECUTION-LIFECYCLE-001": "1fedc94ded6c3176e7484bfc1ea47b345e11b8253fa0299a579ba89e5545dc5f",
+    "P3-EXECUTION-SPLIT-001": "ed73bda4f70ac807179d3aec8e0b1eb30315866038a5158095011c0306732f02",
+    "P2-CHROME-EEW-001": "fdbadf3832d17cc7503e7d40a23cd8b3bcdfb00593b401a7e8c032c8c24f48fd",
+    "P2-EEW-E01-001": "a983c2afd9966d6776055880965f3ecc61d77407940fc2c97e5e34d904630427",
+    "P2-SNAPSHOT-SSE-001": "1aea21ea2f701b8fe1224d103a6082ccc6c640108e94b3c56a987413662a5936"
   },
-  "smokeConditionsSha256": "f867cdbd934f4421a47f1d37a08063bf4d0d74018f46f27d0446e5d754427a65",
+  "smokeConditionsSha256": "1868ce57c716888aed2b65a50a9cdfafcef34e274b2378bed87da2e5f12cb847",
   "smokeConditionDifferences": [],
   "inheritsManifestId": "p3-c4-formal-20261007",
   "templates": [
@@ -436,8 +436,8 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.fixedBacklog",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 1200,
-        "maxDurationMs": 4575000
+        "maxAttempts": 1623,
+        "maxDurationMs": 7105985
       },
       "triggerLeadMs": null,
       "series": "escalation",
@@ -470,8 +470,8 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxVpws50DecodeStarted",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 2081,
-        "maxDurationMs": 7878750
+        "maxAttempts": 2093,
+        "maxDurationMs": 8640833
       },
       "triggerLeadMs": null,
       "series": "escalation",
@@ -513,10 +513,10 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxWeatherCheckpointEncodeStarted",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 1348,
-        "maxDurationMs": 5130000
+        "maxAttempts": 2267,
+        "maxDurationMs": 8981089
       },
-      "triggerLeadMs": 30,
+      "triggerLeadMs": 26,
       "series": "escalation",
       "condition": "maxWeatherCheckpointEncodeStarted",
       "inheritsC4Population": "maxWeatherCheckpointEncodeStarted",
@@ -556,8 +556,8 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.fixedBacklog",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 1200,
-        "maxDurationMs": 4575000
+        "maxAttempts": 1623,
+        "maxDurationMs": 7040050
       },
       "triggerLeadMs": null,
       "series": "escalation",
@@ -597,8 +597,8 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.fixedBacklog",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 1200,
-        "maxDurationMs": 4575000
+        "maxAttempts": 1623,
+        "maxDurationMs": 7003754
       },
       "triggerLeadMs": null,
       "series": "deescalation",
@@ -630,8 +630,8 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxVpws50DecodeStarted",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 2081,
-        "maxDurationMs": 7878750
+        "maxAttempts": 1623,
+        "maxDurationMs": 6791867
       },
       "triggerLeadMs": null,
       "series": "deescalation",
@@ -672,10 +672,10 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxWeatherCheckpointEncodeStarted",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 1348,
-        "maxDurationMs": 5130000
+        "maxAttempts": 1815,
+        "maxDurationMs": 7243588
       },
-      "triggerLeadMs": 30,
+      "triggerLeadMs": 26,
       "series": "deescalation",
       "condition": "maxWeatherCheckpointEncodeStarted",
       "inheritsC4Population": "maxWeatherCheckpointEncodeStarted",
@@ -714,8 +714,8 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.fixedBacklog",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 1200,
-        "maxDurationMs": 4575000
+        "maxAttempts": 1623,
+        "maxDurationMs": 7038587
       },
       "triggerLeadMs": null,
       "series": "deescalation",
@@ -763,16 +763,34 @@
       "reason": "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
     },
     {
+      "path": "populations.escalation:fixedBacklog.stopCondition",
+      "c4": "{\"maxAttempts\":1200,\"maxDurationMs\":2061024}",
+      "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":7105985}",
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6）: 成立 10/10、Wilson 下限 0.722、1 試行 3465.673ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 65 分（Q-C6-IMPL-AMEND (11)）"
+    },
+    {
       "path": "populations.escalation:maxVpws50ParseStarted.primeTiming",
       "c4": "prime なし",
       "c6": "prime を引き金（VPWS50）の送信の primeLeadMs 前に送る",
       "reason": "AC06(4) の「target の予測時刻の primeLeadMs 前」との差。target は引き金の送信から自己較正の parse 遅延＋1ms 後なので、prime から target までは primeLeadMs＋数 ms になる（予測を待たずに prime を送れる）"
     },
     {
+      "path": "populations.escalation:maxVpws50ParseStarted.stopCondition",
+      "c4": "{\"maxAttempts\":2081,\"maxDurationMs\":7810605}",
+      "c6": "{\"maxAttempts\":2093,\"maxDurationMs\":8640833}",
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6、較正の後の正式の試行）: 成立 10/12、Wilson 下限 0.552、1 試行 3274.088ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 72 分（Q-C6-IMPL-AMEND (11)）"
+    },
+    {
       "path": "populations.escalation:maxWeatherCheckpointEncodeStarted.triggerLeadMs",
       "c4": "600",
-      "c6": "30",
+      "c6": "26",
       "reason": "C4 は 1 秒の tick の何 ms 前に引き金を送るか。C6 は UWR の後の版で、較正の予測が無い間の「引き金の送信 → encode 開始」の代わり（Q-C6-IMPL-AMEND (10)）"
+    },
+    {
+      "path": "populations.escalation:maxWeatherCheckpointEncodeStarted.stopCondition",
+      "c4": "{\"maxAttempts\":1348,\"maxDurationMs\":5118719}",
+      "c6": "{\"maxAttempts\":2267,\"maxDurationMs\":8981089}",
+      "reason": "この母集団の予備（3 回目の予備 511378f2）: 成立 20/29、Wilson 下限 0.508、1 試行 3142.863ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 82 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.escalation:eewTogether.periodMs",
@@ -781,10 +799,22 @@
       "reason": "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
     },
     {
+      "path": "populations.escalation:eewTogether.stopCondition",
+      "c4": "{\"maxAttempts\":1200,\"maxDurationMs\":2061024}",
+      "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":7040050}",
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6）: 成立 10/10、Wilson 下限 0.722、1 試行 3433.173ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
+    },
+    {
       "path": "populations.deescalation:fixedBacklog.periodMs",
       "c4": "1370",
       "c6": "3000",
       "reason": "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
+    },
+    {
+      "path": "populations.deescalation:fixedBacklog.stopCondition",
+      "c4": "{\"maxAttempts\":1200,\"maxDurationMs\":2061024}",
+      "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":7003754}",
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6）: 成立 10/10、Wilson 下限 0.722、1 試行 3415.282ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.deescalation:maxVpws50ParseStarted.primeTiming",
@@ -793,10 +823,22 @@
       "reason": "AC06(4) の「target の予測時刻の primeLeadMs 前」との差。target は引き金の送信から自己較正の parse 遅延＋1ms 後なので、prime から target までは primeLeadMs＋数 ms になる（予測を待たずに prime を送れる）"
     },
     {
+      "path": "populations.deescalation:maxVpws50ParseStarted.stopCondition",
+      "c4": "{\"maxAttempts\":2081,\"maxDurationMs\":7810605}",
+      "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":6791867}",
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6、較正の後の正式の試行）: 成立 10/10、Wilson 下限 0.722、1 試行 3310.84ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 62 分（Q-C6-IMPL-AMEND (11)）"
+    },
+    {
       "path": "populations.deescalation:maxWeatherCheckpointEncodeStarted.triggerLeadMs",
       "c4": "600",
-      "c6": "30",
+      "c6": "26",
       "reason": "C4 は 1 秒の tick の何 ms 前に引き金を送るか。C6 は UWR の後の版で、較正の予測が無い間の「引き金の送信 → encode 開始」の代わり（Q-C6-IMPL-AMEND (10)）"
+    },
+    {
+      "path": "populations.deescalation:maxWeatherCheckpointEncodeStarted.stopCondition",
+      "c4": "{\"maxAttempts\":1348,\"maxDurationMs\":5118719}",
+      "c6": "{\"maxAttempts\":1815,\"maxDurationMs\":7243588}",
+      "reason": "この母集団の予備（3 回目の予備 511378f2）: 成立 20/24、Wilson 下限 0.641、1 試行 3159.708ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 69 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.deescalation:eewTogether.periodMs",
@@ -805,15 +847,15 @@
       "reason": "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
     },
     {
-      "path": "nodeVersion",
-      "c4": "v22.23.3",
-      "c6": "v22.23.2",
-      "reason": "機械の実値（凍結時に Mac mini の値で置き直す）"
+      "path": "populations.deescalation:eewTogether.stopCondition",
+      "c4": "{\"maxAttempts\":1200,\"maxDurationMs\":2061024}",
+      "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":7038587}",
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6）: 成立 10/10、Wilson 下限 0.722、1 試行 3432.452ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
-      "path": "device",
-      "c4": "Apple M2 x8, 8GiB",
-      "c6": "Apple M5 x10, 32GiB",
+      "path": "chrome.version",
+      "c4": "154.0.8037.98",
+      "c6": "155.0.8059.39",
       "reason": "機械の実値（凍結時に Mac mini の値で置き直す）"
     }
   ],
@@ -824,7 +866,7 @@
   },
   "o09Subset": {
     "sequenceId": "O09",
-    "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
+    "sequencesSha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
     "positions": [
       13,
       14,

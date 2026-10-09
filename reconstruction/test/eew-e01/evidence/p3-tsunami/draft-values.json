@@ -1,0 +1,63 @@
+{
+  "machine": {
+    "chromeVersion": "155.0.8059.39",
+    "nodeVersion": "v22.23.3",
+    "osVersion": "27.0.0 arm64",
+    "device": "Apple M2 x8, 8GiB"
+  },
+  "primeLeadMs": {},
+  "triggerLeadMs": {
+    "escalation:maxWeatherCheckpointEncodeStarted": 26,
+    "deescalation:maxWeatherCheckpointEncodeStarted": 26
+  },
+  "preliminary": {
+    "escalation:fixedBacklog": {
+      "successes": 10,
+      "trials": 10,
+      "msPerAttempt": 3465.673,
+      "source": "2 回目の予備 ae343ce6"
+    },
+    "deescalation:fixedBacklog": {
+      "successes": 10,
+      "trials": 10,
+      "msPerAttempt": 3415.282,
+      "source": "2 回目の予備 ae343ce6"
+    },
+    "escalation:eewTogether": {
+      "successes": 10,
+      "trials": 10,
+      "msPerAttempt": 3433.173,
+      "source": "2 回目の予備 ae343ce6"
+    },
+    "deescalation:eewTogether": {
+      "successes": 10,
+      "trials": 10,
+      "msPerAttempt": 3432.452,
+      "source": "2 回目の予備 ae343ce6"
+    },
+    "escalation:maxVpws50ParseStarted": {
+      "successes": 10,
+      "trials": 12,
+      "msPerAttempt": 3274.088,
+      "source": "2 回目の予備 ae343ce6、較正の後の正式の試行"
+    },
+    "deescalation:maxVpws50ParseStarted": {
+      "successes": 10,
+      "trials": 10,
+      "msPerAttempt": 3310.84,
+      "source": "2 回目の予備 ae343ce6、較正の後の正式の試行"
+    },
+    "escalation:maxWeatherCheckpointEncodeStarted": {
+      "successes": 20,
+      "trials": 29,
+      "msPerAttempt": 3142.863,
+      "source": "3 回目の予備 511378f2"
+    },
+    "deescalation:maxWeatherCheckpointEncodeStarted": {
+      "successes": 20,
+      "trials": 24,
+      "msPerAttempt": 3159.708,
+      "source": "3 回目の予備 511378f2"
+    }
+  }
+}

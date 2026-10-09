@@ -19,3 +19,6 @@ export function buildP3TsunamiManifest(input: { id: string; chromeVersion: strin
   stop?: Partial<Record<string, { maxAttempts: number; maxDurationMs: number }>>; smokeText?: string }): {
   manifest: P3TsunamiE01Manifest; manifestText: string; c4Text: string; smokeText: string; contractTexts: Record<string, string>; coastJsonText: string;
   sequencesText: string; fixtureTexts: Record<string, string> };
+// AC08・Q-C6-IMPL-AMEND (11): 予備の成立数・試行数・1 試行の所要から窓の stopCondition。
+export function stopFromPreliminary(input: { successes: number; trials: number; msPerAttempt: number }): { maxAttempts: number; maxDurationMs: number; wilsonLower: number;
+  expectedMs: number };
