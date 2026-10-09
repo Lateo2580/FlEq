@@ -1,0 +1,498 @@
+{
+  "meta": {
+    "draftedFromOid": "27a4d43b8c12ca6d1167bcc238669d13df5ff505",
+    "sha256": "2da0057461ce9fcb5b38768a3ab5262d776cf75af9a6316a89c9e31afd68b7ec",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
+    "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "D-WL2-METHOD",
+        "A": "A3: limits（withinXmlLimits）とXMLValidator.validateを今のまま残し、普通の入力はFXPのXMLParser（中間の木）とxmlNodeの変換を使わずにXmlNodeの木を1本だけ直接作る（速い経路）。前処理と組立てで読み方がずれうる変な形（D-WL2-TREE-COMPATの検出の規則）を見つけたら、その入力だけ今の経路（XMLParser.parse＋今のxmlNode）で処理し直す（fallback、作者裁定 2026-10-09 の2本目）。基準: limitsとvalidatorを通った全ての入力で、旧と完全に同じ結果（木・拒否の理由・parseTimes・marks・運用区分の診断）。DecodedMaterial・XmlNodeの型と、それを読む全domainは変えない",
+        "B": "A4: 木を作らず、domainが要る項目を走査の中で直接集める",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "確定A（統合担当、2026-10-09。段2は速さの契約で意味を変えない。fallbackは作者裁定 2026-10-09 の2本目）",
+        "reason": "A4はA3より5.6%速いだけ（dotのx64・Node 22.22.0、全decode→共通項目の中央値A3 444.81ms・A4 419.81ms）で、DecodedMaterial.xmlを消すので全domainとclassifyMaterialの書き直しとP1の型の改訂が要る。A3は型を変えずに台帳66の木2本を1本にし、PiのFXP parse 696.39ms＋xmlNode 352.94ms（全体p50 1,496.7msの7割、Q-WL2-PI-STEP1）を置き換える"
+      },
+      {
+        "id": "D-WL2-DEP",
+        "A": "sax 1.6.1を版を固定して足し、strictのイベントからXmlNodeを作る。旧と同じ結果にするため、saxの前か周りにFXPと同じ切り方（PIの引用符、閉じタグの名前を見ない1段戻り、コメントの終わり、\\sでの名前の切り方、属性の正規表現と改名）を別に持つ",
+        "B": "依存を足さず、decode-material.tsの中に、FXP 5.5.8のparseXml（今のoptions）とxmlNodeを合わせた結果を中間の木なしで返す速い経路と、変な形の検出、旧の経路へのfallbackを書く（起草時の試作 compat.cjs は159行、うちコメントを除く本体約125行。fallbackは今のparseTreeをそのまま残す）",
+        "C": "依存を足さず、FXPのままoptionや変換だけを替える",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "確定",
+        "ruling": "作者裁定B（2026-10-09、ご主人: 自前）",
+        "reason": "改訂3巡目で、fallbackを入れた形を取り直した（Q-WL2-TREE-PROBE・Q-WL2-COST-MAC）。B: corpus 247件で差0・fallback 0件、境界39入力で差0、変異 seed 20261009・1・2の各100,000件で差0。速い経路の組立て p50 47.5ms（同じ回の旧parseTree 172.5msの約0.28倍、MacBook M5・Node 26、最大VPWS50はfallbackに入らない）。依存・license・lockの変更なし。保守は自前で、FXPの切り方を写した約125行と、旧の経路（今のコード）を持つ。A: saxをそのまま使う版は変異2,000件で差258（旧が受理する a<!--x<!--y-->b・<A\\uFEFFB/>・</A/>の過剰な閉じ・PIの引用符の中の?>などを、拒否するか別の木にする）。旧と同じにするにはBと同じ切り方を別に持つ必要があり、互換の責任はFlEq側に残る。Aの互換版は実装も測定もしていない。sax単体の組立ては p50 93.4ms（Bの約2倍）で、互換の切り方を足すとBより遅く得るものが無い、というのは推定。ほかにlicense BlueOak-1.0.0、型の宣言が同梱されない、P1のallowedDependenciesの改訂、Piのarm64は未確認。C: FXP 5.5.8に中間の木を作らないAPIは無く（preserveOrderが要る）、木2本（台帳66）が残るので目的を満たさない。初版の「Bは約50行・26ms」は互換の処理を入れる前の値（own.cjs）で、使わない。見え方: Piの処理のp50の見込み（推定、Q-WL2-PI-STEP1）は約740ms"
+      },
+      {
+        "id": "D-WL2-TREE-COMPAT",
+        "A": "旧と完全に同じ: 速い経路は旧の木と拒否をFXPの癖まで写し（Reportの中のPIは名前 \"?name\" の要素で擬似属性と空のtextの子を持つ、危険な名前7つは \"__\" を付けて改名し改名先と1つにまとまる、閉じタグは名前を見ずに1段戻る、名前は\\sで切る）、写しきれない形は旧の経路へ戻す。変な形の検出（見つけたらその入力だけ旧の経路＝XMLParser.parse＋今のxmlNodeで処理し直す）: (D1) PIで、引用符を見て探した?>の位置が、limitsの読み方（<?の2文字後から探す最初の?>）と違うもの（引用符の中の?>、<?>のような開始位置のずれ）。(D2) 組立てに届いた<!DOCTYPE（limitsは拒否するので、届くのは前処理と区切りのずれた入力だけ）。(D3) 旧の木でkeyとして特別に扱われる要素名 #text・#cdata・:@・!xml。(D4) 速い経路の中で旧が例外になる条件に当たったとき（critical名、棚が空になった後の要素・PI・CDATA・textの保存、閉じない引用符・タグ・コメント・CDATA、入れ子100超、#text・#cdataの開きタグ、Reportの部分木の値の不正な実体など）。速い経路は例外の理由を写さず、拒否するかどうかと理由は旧の経路が決める。誤って普通の入力を変な形と判定しても遅くなるだけで結果は旧と同じ。差になるのは変な形の見落としだけ",
+        "B": "拒否は旧と同じにし、Reportの中のPIを木に入れない・危険な名前を元のまま残す",
+        "C": "変な形をxmlInvalidで拒否する（作者裁定 2026-10-09 の1本目「安全側への差だけ許す」の形。2本目で上書き）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "確定A（統合担当、2026-10-09）。経緯: 作者裁定 2026-10-09 の1本目（ご主人「安全側への差だけ許す」、変な形をxmlInvalidで拒否）を、同じ日の2本目（ご主人「変な形は旧へ戻す」、その入力だけ旧の経路で処理し直す）が上書きした",
+        "reason": "Bには下流の判定が変わる反例がある（Codexの品質レビューが再現: 実fixture 37_01_01_240613_VXSE43の小改変で、EventIDの末尾の<?p?>は旧identityInvalid→B受理・intent 2、Fromの末尾で旧requiredStructureInvalid→B受理、<NextAdvisory><?p?>次回</NextAdvisory>で旧terminal=false→B terminal=true）。1本目のCは、判定の開始位置のずれ（<?><?p?>）で範囲外の拒否が出て、比較器が範囲を実装の例外名で認めて見逃し、両方拒否で理由が変わる入力も残った（Codexの3巡目）。2本目では、変な形も旧の経路が決めるので全入力で旧と同じになり、許可する差の範囲と、その判定の誤りが無くなる。見つけ方の誤りは、普通の入力を変な形と判定すれば遅くなるだけで、変な形の見落としだけが差になるので、差分の確かめはそこを狙う。実電文はfallbackに入らない（corpus 247件で0件）"
+      },
+      {
+        "id": "D-WL2-SCANS",
+        "A": "段2は全文の走査をlimits→XMLValidator.validate→木の組立ての3段のまま保つ（順序・拒否の理由・事前拒否で木を作らないことを変えない）。改行の正規化（\\r\\nと\\rをLF）は木の組立ての段の中（parsedAtの後、fullXmlParseMsの中、旧のFXPと同じ位置）で、includes(\"\\r\")で\\rを含む文書だけ行う。includesの走査は写しを作らず組立ての段に数える（P3-WL2-RES-02の3段に含め、段を増やさない）",
+        "B": "limitsの数えを木の組立ての走査に畳み、validate→組立て＋limitsの2段にする",
+        "C": "XMLValidatorを外し、木の組立て（またはsaxのstrict）と自前の確かめで整形式を検査する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐、段2の範囲）",
+        "ruling": "段2はAで確定（統合担当、2026-10-09）。B・Cは後続の契約で、Cは整形式の検査の範囲を変えるので、入るときは作者に訊く",
+        "reason": "Bは上限超過の入力でも組立てを途中まで走らせるので、P1-AC04（事前拒否は0回のfull parse）とP1-T05の改訂が要り、「上限超過かつ不正」の入力の理由がxmlLimitExceededからxmlInvalidへ変わりうる。CはFXPのvalidatorが拒否する集合（重複属性、閉じタグの名前違いなど）を自前で写す必要があり、Aの互換の約束（validatorが受理した入力だけを旧と同じに組み立てる）の前提が変わる。Piのlimits 100.16ms＋validate 211.92ms（p50、全体の21%）は大きいが、木の置き換えの効果をPiで測ってから決める（Q-WL2-PI-STAGES）"
+      },
+      {
+        "id": "D-WL2-XMLVALUE",
+        "A": "実体の展開は木の組立ての中で1回（Reportの部分木のXmlTextとXmlAttributeの値、CDATAは展開しない）とし、limitsの数えのxmlValueはそのまま残す",
+        "B": "limitsに、文字列を作らずに展開後の文字数を数える関数を足し、xmlValueの適用を組立ての1回だけにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（技術の分岐）",
+        "reason": "limitsと組立てでxmlValueを2回かける重複は残るが、段1の近道で&の無いtextは置換0回で費用はほぼ0（最大VPWS50 15_18_01の3,823,750文字に&は0個、起草時に数えた）。Bは利益の無い関数を1つ増やす"
+      },
+      {
+        "id": "D-WL2-EQUIVALENCE",
+        "A": "旧と同じことを、(1) 使い捨ての比較の道具（repoの外）をbaseOidのdistと変更後のdistに当てる比較（段1と同じ形、decode・U-W・encode）、(2) corpusを種にした変異を決まったseedで大量に作り、旧と新の両方に必ず当てて結果そのものを比べる差分の確かめ（P3-WL2-AC08、判定は同じ／失敗の2つだけ、生成器は測定用のscriptとしてrepoに置く）、(3) 常設の境界の表（T02）で示す",
+        "B": "全corpusの木のdigestを常設の試験に焼き込む",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "確定A（統合担当、2026-10-09。列挙だけに頼らず変異の差分の確かめを足す）",
+        "reason": "起草初版の列挙のprobeは、旧が拒否すると新を走らせずに旧の結果を写し、段の判定もvalidatorの成否だけで決めていたので、組立ての段の拒否の差（PIの不正な実体・critical名・過剰な閉じタグ）を見落とした。変異は列挙の外の組み合わせ（引用符・閉じタグ・名前の文字の重なり）を拾う。Bは最小テストが禁じるfixtureの焼き直し"
+      },
+      {
+        "id": "D-WL2-E05P",
+        "A": "E05-Pの再検収（P3-C4-CLOSE-E05P）は、本契約の配送の後に統合担当がMac miniで、新しいmanifestIdで行う（C4の凍結manifestは書き換えない）。実装者は自分の機械のheapの参考値（AC07）だけを出す",
+        "B": "実装者がE05-Pの窓まで測る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（P3-C4-MACHINES=Bと、新しいmanifestIdで測り直す前例 p3-c4-formal-deadline-20261008 に倣う）",
+        "reason": "E05-Pの判定は同じ機械（Mac mini）・同じP負荷・同じ窓（e01:93）で行う約束で、実装者の機械では合否を読めない"
+      },
+      {
+        "id": "D-WL2-STEP3-ITEMS",
+        "A": "段1の品質レビューで次へ送った2点（U-Wのencode用の確かめとpersistedValueの確かめの重複、partialの件数の確かめのO(histories×reports)）は段2で扱わず、段3（台帳70）か別の小契約へ送る",
+        "B": "段2で一緒に直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当の指示: 段2はparseに絞る）",
+        "reason": "2点ともU-Wの保存の側（weather-current-unit.ts）で、段2が触るdecode-material.tsと重ならない。段3は同じ保存の側を変えるので、比較の道具を1回で済ませられる"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-WL2-CODE-READ",
+        "status": "closed",
+        "source": "起草時の版（27a4d43b、段1配送0bf810b1の後）のreconstruction/src/decode-material/decode-material.ts、node_modules/fast-xml-parser 5.5.8のsrc（OrderedObjParser.js・xmlNode.js・util.js・OptionsBuilder.js）、node_modules/path-expression-matcherのMatcher.js、domainのXmlNodeの読み方、reconstruction/test/parser-boundary/の読み合わせ（2026-10-09）",
+        "closed": "(1) decodeMaterialの順: 入力byte→base64→展開→TextDecoder（fatal、BOM除去）→parseTimes.startedMs→withinXmlLimits→XMLValidator.validate→parsedAt→parseTree→fullXmlParseMs→parseTimes.endedMs→rootがReportか→Control.Status→Head。parseTreeの例外は全てxmlInvalidで、parseTimes.endedMsはnullのまま (2) FXP parseXmlの今のoptionsでの挙動: 全文を/\\r\\n?/gでLFにしてからparseする。閉じタグは>までをtrimした名前をsanitizeするだけで名前を照合せず、親の棚から1段戻す（空の棚からはundefinedが戻り、その後の要素・PI・CDATAの追加と、textを持つ保存で例外）。開きタグとPIの終わりは引用符の中を飛ばして探す（PIは?>）。コメントは最初の-->まで、textを区切らない。CDATAとPIの前ではtextを区切る。空のtextは保存しない。要素名はタグの中身を/\\s/（\\uFEFF・\\u3000なども含む）で切った前半、属性は残りに/([^\\s=]+)\\s*(=\\s*(['\"])([\\s\\S]*?)\\3)?/gmをかけ、値の無いものは捨てる。名前（要素・属性・PIの擬似属性。閉じタグの名前も）はsanitizeName: __proto__・constructor・prototypeは例外、危険な名前7つは前に\"__\"。属性はobjectのkeyなので改名の衝突は1つにまとまる。#text・#cdataの要素名は例外（strictReservedNames）。入れ子の棚が100を超えると例外。PIは名前 \"?name\" の要素で、擬似属性と値 \"\" のtextを子に持ち、XML宣言もPIとして扱う（ignoreDeclaration:false） (3) parseTreeは最上位で最初の \"Report\" をkeyに持つnodeを選び、xmlNodeはその部分木のtextと属性の値だけにxmlValueをかける（Reportの外の値の不正な実体は拒否にならない） (4) XmlNodeの読み手: classifyMaterial（全葉のMaterialValue、tsunami・eew・weather-timeseriesが葉の順で使う）、weather-current・tsunami・eewのchildren・scalar・attribute。FXPを直接使うdomainは無い (5) 試験の中のFXPへの依存: p1-parser-boundary.test.tsでvi.spyOn(XMLParser.prototype, \"parse\")が5か所（P1-T02・P1-T05・試験A・試験B・P3-WL1-T02）、report.mjsの:13・:20・:44〜:46がFXPのparseとoptionsを書く (6) reconstructionは公開パッケージ（package.jsonのfilesはdist・display/dist・assets・README.md・CHANGELOG.md・LICENSE）に入らず、fast-xml-parserはlockの5.5.8で入る（package.jsonの範囲は^5.2.1） (7) 本契約が変えるファイルの行をanchorで引く契約は起草時に0件",
+        "remaining": "なし（srcの行はanchorで引かない。実装者が書き換えるため）",
+        "reason": "段2で置き換える旧の振る舞いを、写す範囲まで確かめる"
+      },
+      {
+        "id": "Q-WL2-TREE-PROBE",
+        "status": "closed",
+        "source": "起草時の使い捨てのprobe（2026-10-09、MacBook Apple M5・Node v26.8.1、27a4d43bのreconstruction/dist）。scriptと出力はrepoの外（作業のscratchpadのwl2draft/probe/）。改訂3巡目でcompat.cjsの変な形の拒否を旧の経路へのfallbackの印に替え、variants.cjsにhybrid（速い経路＋fallback）と負の対照のfastonly（fallbackなし）・nodetect（検出D1・D3を外した写し＋fallback）を足し、diff.cjsを同じ／失敗の2つの判定（結果そのものを比べ、corpusでfallbackに入ったら失敗、失敗1件でexit 1）に直した。Codexの3巡目の入力（<?><?p?>をReportの中と外に、運用区分の拒否になる文書の中の引用符の?>）を境界に足した。1巡目のdiff.cjsは段をparseTimesだけで数え、2巡目は範囲を実装の例外名で認めていたので、その結論は使わない。初版のedge.cjs・edge-lib.cjsの結論も使わない",
+        "closed": "(1) hybrid: manifestのXML 247件で差0・fallback 0件（最大VPWS50を含む）。境界39入力で差0（fallbackは20入力: 引用符の中の?>を持つPI、隠したDOCTYPE・内部DTD・特殊名・捨てられる部分木、<?><?p?>の2入力、旧が組立ての段で拒否する入力。速い経路は19入力）。変異（seed 20261009・1・2で各100,000件、種はcorpusの40,000文字以下の233件）: 3 seedとも差0、exit 0。fallbackの件数は 9,090・9,005・9,083件（seed 20261009の内訳: 旧が受理 6,726・旧が組立ての段で拒否 2,250・旧が組立ての後で拒否 134）。旧と新の段（seed 20261009）はどちらも 受理 19,933・組立て後 284・組立て 2,250・事前 77,819。(2) 負の対照（変異3,000件）: fastonlyは失敗213・exit 1、nodetectは失敗59・exit 1、hybridは失敗0・exit 0。互換処理の無いown.cjsは失敗258・exit 1",
+        "remaining": "なし（実装者はAC02・AC03・AC06・AC08で、配送する実装について改めて示す）",
+        "reason": "新しい組立てが旧と同じであることの起草時の裏付けと、D-WL2-DEPの比較の根拠"
+      },
+      {
+        "id": "Q-WL2-PARSER-CANDIDATES",
+        "status": "closed",
+        "source": "外部の試作と測定（dot、Codex Cloud x64・Node 22.22.0・e02a413f＝段1の前、scratchpadのwl2draft/Dot_FlEq_measurement.md、2026-10-08）",
+        "closed": "parserの候補: sax 1.6.1（BlueOak-1.0.0、engines node>=11、pure JS・runtime依存0、strictでも完全なvalidatorでない）・saxes 6.0.0（2025-12-31にarchive、除外）・sax-wasm 3.1.4（non-validating、空白だけの要素間textを出さない）・@tuananh/sax-parser 1.7.0（native、不採用）。全decodeの中央値: B0 824.85ms、B1（jPath:false、段1で配送）637.97ms、A3 hybrid（sax、limits・validator残し）417.70ms。JSの割り当ての推定（decode 1回）B0 878.84→A3 373.16MiB、境界のheapの下限 B0 149.04→A3 89.41MiB。A4はdecodeExtractでA3より5.6%速いだけ。dotのA3はcorpusの木だけを比べた値で、旧互換の処理を含まない（Q-WL2-TREE-PROBEのsax版の差258件）",
+        "remaining": "なし",
+        "reason": "D-WL2-DEPの候補の根拠"
+      },
+      {
+        "id": "Q-WL2-COST-MAC",
+        "status": "closed",
+        "source": "起草時の使い捨ての計測（2026-10-09、MacBook Apple M5・Node v26.8.1・load average 3〜8の共有機、27a4d43bのdist、最大VPWS50 15_18_01をutf-8で、各関数を同じ回の中で交互に、warm-up 5回を捨て続く20回のp50、強制GCなし。bench3.cjs）",
+        "closed": "改訂3巡目の値（load average 2.6）: withinXmlLimits 26.2ms、XMLValidator.validate 41.9ms、旧のparseTree（FXP parse＋xmlNode）172.5ms、速い経路の組立て 47.5ms（約0.28倍、fallbackに入らない）、互換処理の無い自前の版 30.6ms、saxの版 93.4ms。交互に回すと旧のparseTreeはGCの重なりで単独の測定（FXP parse約111ms＋xmlNode約53ms）より重く出る。Node 26の値で、Mac mini（v22.23.3）とPi（v22.23.2）の比が同じかは未確認",
+        "remaining": "なし（Node 22の機械の値はQ-WL2-PI-STAGESとAC07で取る）",
+        "reason": "D-WL2-DEPの速さの比較の参考値"
+      },
+      {
+        "id": "Q-WL2-PI-STEP1",
+        "status": "closed",
+        "source": "段1の配送後のPiの段ごとの内訳（Q-WL1-PI-STAGES、統合担当、2026-10-09朝）。Raspberry Pi 500、Node v22.23.2（既定のoption、heap_size_limit 2,096MiB）、本番の旧築FlEqが同じ機械で稼働中（load 1.4→2.9）、温度38〜43℃、arm 2.4GHz、throttled=0x0、swap 118MiBで増えず。入力はe03Frame（15_18_01 VPWS50）、warm-up 5を捨て20件×3回、旧（a6ee3172）と新（0bf810b1）を交互に別processで。scriptは作業ノート（repo外）FlEq-archive/FlEq-P3-vpws50-profile-2026-10-08/vpws50-prof.mjs（stagesのFXPのoptionにjPath:falseを足した写し）",
+        "closed": "OwnerHost.handle 1件（n=60）: 旧 p50 2,197.9・p95 2,361.5・p99 2,383.6・max 2,386.7ms → 新 p50 1,542.8・p95 1,717.0・p99 1,751.4・max 1,755.8ms。段（新、n=60、p50／max ms、全体p50 1,496.7に対する割合）: base64 0.70／0.96、gunzip 5.38／7.06、utf8 20.93／23.01、withinXmlLimits 100.16／148.16（6.7%）、XMLValidator.validate 211.92／221.39（14.2%）、FXP parse 696.39／1,048.04（46.5%）、xmlNode 352.94／572.70（23.6%）、metadata 0.11、meaning 83.19／124.65（5.6%）、deepEqual 10.73、unitRest 13.07、projection 0.06。1件の中のGC p50 222.6・max 540.1。段（旧、n=20、p50）: limits 179.52、validate 206.71、FXP parse 1,112.15、xmlNode 435.25、meaning 160.25、unitRest 30.25、GC 253.6。読み（推定で実測ではない）: 段2が置き換えるFXP parse＋xmlNodeは1,049.33ms。速い経路の比0.28を当てるとp50約740ms（最大VPWS50はfallbackに入らない）",
+        "remaining": "なし（processing〔T2→dispatch、summarizeE03〕の参考値は未取得で、Q-WL2-PI-STAGESで取る）",
+        "reason": "段2の範囲と見込みを数字で決める"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "段2はoperationの扱いを変えない。運用区分の判定（Control.Statusの読み・resolveOperation）、拒否時のParserDiagnostic.operation（P1-AC15）、operationの伝播は今のまま保つ（AC06・AC08の比較でnormal・training・testと運用区分の拒否を含めて確かめる）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-WEATHER-LIGHT-002",
+    "mode": "implementation",
+    "objective": "気象の電文の処理を軽くする段2（台帳66・E05-P・E03、D-WL1-E05P、P3-C4-PI-E03=A）。速さの契約で、意味を変えない。decodeMaterialのlimits（withinXmlLimits）とXMLValidator.validateを今のまま残し、普通の入力はFXPのXMLParserによる中間の木とxmlNodeの変換をやめてXmlNodeの木を1本だけ直接作り（D-WL2-METHOD=A3、D-WL2-DEP=B）、前処理と組立てで読み方がずれうる変な形はその入力だけ今の経路で処理し直す（作者裁定 2026-10-09 の2本目）。limitsとvalidatorを通った全ての入力で旧と完全に同じ結果（木・拒否の理由・parseTimes・marks・運用区分の診断）を返し、実電文（corpus）は旧の経路に入らないことを、corpus全件・境界の表・変異の差分の確かめ・U-Wとencodeの旧新の比較で示し、Macの前後比較を報告する。E05-Pの再検収とPiの段の内訳・E03は配送の後に統合担当が行う。全文の走査の回数を減らす変更（D-WL2-SCANSのB・C）とU-Wの保存の側（D-WL2-STEP3-ITEMS）は扱わない。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-weather-light-step2.json",
+      "reconstruction/contracts/p3-weather-light-step1.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "test/fixtures/**",
+      "node_modules/fast-xml-parser/src/**",
+      "node_modules/fast-xml-parser/package.json",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/decode-material/decode-material.ts",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+      "reconstruction/test/parser-boundary/report.mjs",
+      "reconstruction/tools/parse-diff/tree-diff.mjs"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-weather-light-step2.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P3-WEATHER-LIGHT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p1-parser-boundary.types.ts#DecodedMaterial",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlNode",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlElement",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlText",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlAttribute",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#ParserMailboxResult",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#ParserDiagnostic"
+    ],
+    "publicFunctions": [
+      "decodeMaterial(item, parseTimes?): ParserMailboxResult（signature・結果・marksのkey・parseTimesの開始と終了の位置を変えない）",
+      "classifyMaterial(material)（変えない）",
+      "parserLimits（値を変えない）",
+      "旧の経路へのfallbackの回数を読む関数を1つだけexportしてよい（例 xmlTreeFallbackCount(): number、processの起動からの累計）。試験とtree-diff・測定だけが読み、製品の他のmoduleは使わない。P1の公開の型は変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存（fast-xml-parser 5.5.8のXMLValidatorを含む。受理の集合の前提はlockで解決された版に結ぶ）。新しいnpm依存は足さず、package.json・package-lock.jsonを変えない（D-WL2-DEP=B、作者裁定 2026-10-09）"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__telegram-foundation__weathercw-10_03_01_171016_VPTW60-wind-range",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__synthetic_phase4a_VXSE53_special",
+      "test__fixtures__81_09_01_260605_VPWP50",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__18_00_01_260830_VPNO50_switch",
+      "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-after"
+    ],
+    "sequenceIds": [
+      "O04",
+      "O06",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-WL2-RES-01",
+        "target": "decodeMaterial 1回で作る木",
+        "limit": 1,
+        "unit": "木（XmlNodeの木。FXPの中間の木は0）",
+        "scope": "Bodyを読む普通のXML入力（実電文、corpus全件）。事前拒否（limits・validate）では0（P1-AC04のまま）。変な形でfallbackに入った入力だけは、旧と同じFXPの木＋XmlNodeの木（と途中で捨てた速い経路の木）を作る",
+        "source": "台帳66（木2本でheapが山になる）、P1-AC04"
+      },
+      {
+        "id": "P3-WL2-RES-02",
+        "target": "decodeMaterial 1回の全文の走査",
+        "limit": "limits・validate・木の組立ての3段（D-WL2-SCANS=A）",
+        "unit": "段",
+        "scope": "改行の正規化のためのincludes(\"\\r\")は写しを作らない走査で、組立ての段に数える。全文のreplace（写し）は\\rを含む文書だけ。変な形でfallbackに入った入力だけは、旧の経路の走査（FXPのreplaceとparse）が足される",
+        "source": "D-WL2-SCANS=A、AGENTS.mdの受信経路の計算量"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存物の形式とbyteは変えない。U-Wの保存の結果が旧と同じことはAC06(3)で比べる）"
+    ],
+    "nonPersistedFields": [
+      "XmlNodeの木（P1-RET-01のまま、1入力の処理の間だけ）"
+    ],
+    "outOfScope": [
+      "D-WL2-SCANSのB（limitsを組立ての走査に畳む）・C（XMLValidatorを外す。整形式の検査の範囲を変えるので作者に訊く）。段2の後のPiの段の内訳（Q-WL2-PI-STAGES）で後続の契約として決める",
+      "A4（木を作らず項目を直接集める、D-WL2-METHOD）と、DecodedMaterial・XmlNode・ParserMailboxResult・ParserDiagnostic・MaterialValueの型の変更",
+      "旧と違う結果。変な形は旧の経路へ戻し、全入力で旧と同じにする（D-WL2-TREE-COMPAT=A、作者裁定 2026-10-09 の2本目）。旧の癖を直すなら、別の契約で作者に訊く",
+      "domain（weather-current・weather-timeseries・eew・tsunami・seismic）、classifyMaterial、owner-runtime・owner-host・unitのコードの変更",
+      "拒否の理由の語彙と優先、Q-LIMIT・入力byte・展開byteの値、limits（withinXmlLimits）とXMLValidatorの呼び方・順序の変更",
+      "U-Wの保存の側（D-WL2-STEP3-ITEMS）と段3（台帳70）",
+      "E05-Pの再検収（Q-WL2-E05P）・Piの段の内訳（Q-WL2-PI-STAGES）・PiのE03（Q-WL2-PI-E03）の測定（統合担当）。C4の凍結manifestの編集",
+      "E03の上限1秒・E05の400MiB・E01・E14の値の変更、worker・resourceLimits・処理の小分けのyield",
+      "spec本文・計画・他の契約のファイルの改訂（統合担当）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-WL2-AC01",
+        "requirement": "方式（D-WL2-METHOD=A3、D-WL2-DEP=B）: decodeMaterialは withinXmlLimits → XMLValidator.validate → 木の組立て の順を保ち、普通の入力では、木の組立てはXmlNodeの木を1本だけ直接作り、FXPのXMLParserを使わない（XMLValidatorは残す）。今のparseTree・xmlNode・attributesは旧の経路（fallback）としてだけ残す。速い経路は、FXP 5.5.8のparseXml（今のoptions）とxmlNodeを合わせた結果を写し、D-WL2-TREE-COMPATの検出の規則（D1〜D4）に当たったら、その入力を今のparseTree（XMLParser.parse＋今のxmlNode、旧の経路としてdecode-material.tsに残す）で処理し直す。結果は、limitsとvalidatorを通った全ての入力で旧と完全に同じ（木・拒否の理由・parseTimes・marks・運用区分の診断）。速い経路は例外の理由を写さず、拒否するかどうかと理由は旧の経路が決める。fallbackは組立ての段の中（parsedAtの後、fullXmlParseMsとparseTimesの区間の中）で行い、marksのkeyとnullの別、parseTimesの開始と終了の位置は旧と同じ。fallbackに入った回数を内部で数え、publicFunctionsの読む関数で試験と測定から読めるようにする。速い経路の関数は、写したFXPの版、limitsとvalidatorを通った文字列を受ける前提、検出の各規則の理由（作者裁定 2026-10-09 の2本目）を、なぜのコメントで書く（順序に頼る処理、AGENTS.mdのコメント）。変えないもの: rootの選び方（最上位で最初の名前 \"Report\" の要素）、BOM（TextDecoderで除く）、marksのkey、fullXmlParseMsが組立ての時間であること（parsedAtの位置、改行の正規化を含む）、parseTimesの開始（limitsの直前）と終了（木の完成）、Control.Status・Headの読み方。新しいmodule・class・型・公開APIは足さない（decode-material.ts の中の関数と、その中だけで使う小さな関数）。無いと: Piで、FXP parse 696.39ms＋xmlNode 352.94ms（全体p50 1,496.7msの7割、Q-WL2-PI-STEP1）と、木2本が同時に生きるheapの山（台帳66、E05-P）が残る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:510 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p3-weather-light-step1.json:224 «a2783f9a110fdf02»",
+          "reconstruction/contracts/p3-order-plan.md:340 «b346cfb5b0623a0a»",
+          "AGENTS.md:24 «c1288cfa5b0d16dc»",
+          "AGENTS.md:27 «60c4c2ce4500aaca»"
+        ]
+      },
+      {
+        "id": "P3-WL2-AC02",
+        "requirement": "corpusの同値: manifestのXML 247件すべてで、decodeMaterialの結果（kind・拒否の理由・ParserDiagnostic・materialのxml以外の項目。marksは所要時間を除きkeyとnullの別を比べる）とparseTimesのstartedMs・endedMsの有無が旧と同じで、materialのxml（XmlNodeの木）が旧と再帰一致する。一致の定義はkind・name・value、attributesの順序と名前と値、childrenの順序、textの分割で、sort・trim・繋ぎ直しで差を消さない。corpusは実電文と既存のfixtureなので、全件が速い経路で済む（fallback 0件）ことも検収にする。起草時のprobeでは decoded 246・rejected 1（weathercw-10_03_01_171016_VPTW60-wind-range、xmlInvalid）で差0（Q-WL2-TREE-PROBE）。無いと: 実電文の形で木が変わっても、P1-T01の分類（葉の値）に出ない差（textの分割・属性の順）が素通りする",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:512 «0ad9ce09d06f5848»",
+          "reconstruction/contracts/p1-parser-boundary.json:513 «1a0cd68b93edab6b»",
+          "reconstruction/contracts/p1-parser-boundary.json:510 «4cae89a4f5209c86»"
+        ]
+      },
+      {
+        "id": "P3-WL2-AC03",
+        "requirement": "corpusに無い構文の境界。全ての行で旧と同じ結果（受理なら同じ木、拒否なら同じ理由と段）で、行ごとにどちらの経路を通るか（速い経路／fallback）と、拒否の段（事前＝組立てに入らない、組立て＝組立ての例外でendedMsなし、組立て後＝rootの判定・運用区分でendedMsあり）を期待に書く。速い経路で受理: CDATA（中に&・]]・<!--、CRとCRLFを含むもの）、空のCDATA（値 \"\" のtext 1つ）、隣り合うCDATA、text-コメント-text（text 1つ）、a<!--x<!--y-->b（ab）、text-コメント-CDATA-text-コメント-text、CRとCRLFとCRだけ（textと属性値でLF）、&#13;（CRのまま）、タブと改行を含む属性値、タグの中のタブ、閉じタグの名前の後の空白、多バイト文字の要素名・属性名・text、実体参照と文字参照（先頭ゼロ・非BMP、属性とtext）、= の前後の空白・単引用符と中の\"・属性値の中の>と<、大文字小文字だけ違う属性、接頭辞付きの名前とxmlns（展開しない）、<A/>・<A />・<A></A>、空白だけのtext、200,000文字のコメントと64KiBを超えるPI、上限ちょうどのtext、Reportの後の<Report/>（最初を使う）、<X/>tailに続くReport、]]>を含むtext、rootの外のXML宣言・PI・コメント、Reportの外のPIの不正な実体、Reportの中のXML宣言、Reportの中の普通のPI（\"?name\" 要素、擬似属性の有無、Headの中）、<A\\uFEFFB/>（名前はA）、危険な名前7つの要素・属性（\"__\" 付き）と改名先との併存（toString=\"1\" __toString=\"2\" とその逆順で属性1つ）、</A/>で1段だけ過剰に閉じる文書。速い経路で拒否: 事前のxmlInvalid — 重複属性・値の無い属性・引用符の無い属性・閉じタグ違い・途中で切れた文書・rootの外のtext・DOCTYPE（limitsが見るもの）・Reportの後の<Report></Report>。組立て後のxmlInvalid（endedMsあり）— <Foo/>、<jmx:Report/>。fallbackで受理（旧と同じ木）: D1 — <Status>通<?p a=\"?>\"?>常</Status>（二重と単引用符）、Bodyの<?p a=\"?> <A/> \"?>、<Report>…<Body><?><?p?></Body></Report>と<?><?p?>に続くReport（開始位置のずれ）、<?p a=\"?> <!--\"?>に続けてコメントの中に隠したDOCTYPE・内部DTD・<#text/>・<#cdata/>・<:@/>・<!xml>…</!xml>・<:@><A a=\"&bogus;\"/></:@>。fallbackで組立て後の拒否: 運用区分が不正なStatusの文書の中の<?p a=\"?>\"?>（operationInvalid、endedMsあり）。fallbackで組立てのxmlInvalid（D4、endedMsなし）: PIの不正な実体・閉じない引用符・critical名の擬似属性（Reportの中と外）、critical名の要素・属性（Reportの中、外、採用しない後続の要素、<A\\uFEFFconstructor/>）、</A/></B/>で棚が空になった後の要素。D2・D3は、D1を外した写し（使い捨て）で、隠したDOCTYPEと特殊名がD2・D3で旧の経路へ戻り旧と同じになることを確かめる。無いと: corpusに無い構文（CDATA・内部PI・CRは0件）で、速い経路の写し方の違いや変な形の見落としが、黙って木・拒否・運用区分を変える",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:512 «0ad9ce09d06f5848»",
+          "reconstruction/contracts/p1-parser-boundary.json:513 «1a0cd68b93edab6b»",
+          "reconstruction/contracts/p1-parser-boundary.json:46 «75d66f66d664fec3»"
+        ]
+      },
+      {
+        "id": "P3-WL2-AC04",
+        "requirement": "拒否の理由・優先・上限を変えない: withinXmlLimitsとXMLValidator.validateのコードと呼ぶ順は変えず、拒否の理由の集合（inputTooLarge・bodyDecodeFailed・expandedBodyInvalid・expandedBodyTooLarge・xmlLimitExceeded・xmlInvalid・運用区分の4種）と、1つの入力が複数に当たるときの理由（limitsがvalidateより先、上限超過の判定の位置は直前・一致・+1）、ParserDiagnosticのoperation（P1-AC15）、Q-LIMITの値は旧と同じ。事前拒否（limits・validate）では木を作らない（P1-AC04）。組立ての段の拒否は旧と同じ入力の集合で、理由はxmlInvalid（旧の経路が決める。AC03・AC08）。段1のAC06(1)の優先の入力（16,385文字を超えるtextの末尾の裸の&・不正な文字参照、257文字以上で不正な参照を含む属性値）も旧と同じ理由。P1の契約の改訂は要らない（P1-AC04の「full parse 1回」は木の組立て1回と読む）。無いと: 組立ての置き換えで、壊れた入力・上限を超える入力の扱い（診断の理由と運用区分の証拠）が変わっても気づけない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:510 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p1-parser-boundary.json:521 «229a70c4a87b4736»",
+          "reconstruction/contracts/p1-parser-boundary.json:46 «75d66f66d664fec3»",
+          "reconstruction/contracts/p3-weather-light-step1.json:282 «f008634089375993»"
+        ]
+      },
+      {
+        "id": "P3-WL2-AC05",
+        "requirement": "走査の回数と重複（D-WL2-SCANS=A、D-WL2-XMLVALUE=A）: 全文の走査はlimits・validate・木の組立ての3段のまま（P3-WL2-RES-02）。改行の正規化（\\r\\nと\\rをLF）は組立ての段の中（parsedAtの後）で、includes(\"\\r\")で\\rを含む文書だけ全文をreplaceする。実体の展開は組立ての中で1回だけ（Reportの部分木のXmlTextとXmlAttributeの値にxmlValue、CDATAは展開しない、Reportの外の値は展開しない）。limitsの数えのxmlValueはそのまま。text（コメントをまたいで繋がる）は区間のsliceでまとめ、1文字ずつ足さない。子と属性は文書順の配列へ直接入れ、FXPの中間の木・Object.entries・flatMapを作らない（改名の衝突をまとめるための属性のkeyの表は、属性のある要素だけでよい）。Reportの外の要素は木に作らず、旧と同じ例外の判定（名前・擬似属性のsanitize、棚の深さと空）と変な形の検出だけ行う。PIの区切りのずれの検出（D1）は、引用符を見た終わりと最初の?>の位置を比べるだけで、全文をもう一度走査しない。無いと: 中間の木の割り当て（dotの推定でdecode 1回 B0 879→A3 373MiB、境界のheapの下限149→89MiB）と、CRを含まない文書（最大VPWS50を含むcorpus全件）にかかる全文のreplace（写し1回）が残る",
+        "evidenceRefs": [
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "reconstruction/contracts/p3-weather-light-step1.json:224 «a2783f9a110fdf02»"
+        ]
+      },
+      {
+        "id": "P3-WL2-AC06",
+        "requirement": "旧と新の比較（D-WL2-EQUIVALENCE=Aの(1)）: 使い捨ての比較の道具を、baseOidで作ったreconstruction/distと変更後のreconstruction/distに同じ入力で当て、差が0件であることを示す。(1) decodeMaterial: AC02のcorpus全件、AC03の境界の入力の全部、段1のAC06(1)の入力の組で、結果のkind・拒否の理由・ParserDiagnostic・materialの全項目（marksの所要時間を除く）・parseTimesの有無 (2) U-W: 段1のAC06(2)の入力と状態の組で、各受理のdecisions・diagnostics・intents・outcomes・displayChanges・confirmationEvidenceとstate（persistenceを含む） (3) encode: 段1のAC06(3)の各状態のencodeの出力のJSON（文字列として一致）と投げる・投げないの別、decode(encode)の状態。あわせてclassifyMaterialの結果（materialValues・fields）をcorpus全件とAC03の受理の側で比べる（tsunami・eew・weather-timeseriesは葉の順で値を引くため）。比べるときは旧も新も必ず両方を走らせ、片方の結果を他方へ写さない。snapshotのrestoredAtのsymbolはdescriptionで揃える（段1と同じ）。無いと: 木の差がdomainの判定・保存に届くかを、domainの試験の当たっていない所で確かめられない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-weather-light-step1.json:282 «f008634089375993»"
+        ]
+      },
+      {
+        "id": "P3-WL2-AC07",
+        "requirement": "性能の報告（合否の閾値にしない）: 実装者の機械で、baseOidのdistと変更後のdistを同じ手順で測り前後を並べる。入力は段1のAC07と同じe03Frame（reconstruction/test/eew-e01/frames.mjs、15_18_01_250630_VPWS50）で、OwnerHost.handleを同じthreadで続けて呼ぶ（強制GCなし）。warm-up 5件を捨て、続く20件の1件の時間のp50・p95・最大・四分位の幅。段の時間（p50）: limits・validate・木の組立て（旧はFXP parseとxmlNodeを別に）・decodeMaterial全体・reduce。heapは採取点での値で、処理途中のピークではない: 1件の処理の直後（ownerHeapの補助窓と同じ、inputDoneの返信の前）のheapUsedの最大。機械・Node・CPUの名前・load averageと、encoded・展開後のbyte・node数・深さ・属性・text量を併記する。Node 22の機械の値が取れれば併記する（起草時のMacはNode 26、Mac miniとPiはNode 22）。無いと: 段2で何がどれだけ減ったかと、D-WL2-SCANSのB・Cに入るべきかを数字で決められない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
+          "docs/specs/reconstruction-p0-contracts.md:1830 «964d8b6f65321973»",
+          "reconstruction/test/eew-e01/windows.mjs:363 «f7fbb6c1b5db376d»",
+          "reconstruction/contracts/p3-e01-reaccept.json:289 «eec648e3f6f0d1a1»",
+          "reconstruction/contracts/p3-e01-reaccept.json:254 «5d3295d2ecb43798»"
+        ]
+      },
+      {
+        "id": "P3-WL2-AC08",
+        "requirement": "変異による差分の確かめ（D-WL2-EQUIVALENCE=Aの(2)）: reconstruction/tools/parse-diff/tree-diff.mjs（測定用のscript。製品コードからimportしない）を足す。manifestのXMLを種に、決まったseedの擬似乱数で、PI（引用符の中の?>・単引用符・不正な実体・critical名と危険な名前の擬似属性・XML宣言）・コメント（入れ子の開き・空・>を含む）・CDATA（空・CR・&と<）・閉じタグ（</A/>・名前違い）・空要素・危険な名前とcritical名の要素と属性・改名の衝突・重複属性・名前の中の\\uFEFFと\\u3000・実体（正しい・先頭ゼロ・不正・裸の&）・BOM・CR・CRLF・タブ・引用符・<・>・]]>・非BMP文字を、タグの境目と任意の位置へ差し込み・削除・写しで1件に1〜3回入れる。前処理と組立てで読み方がずれる複合の型をテンプレートとして持つ: <?p a=\"?> <!--\"?>（と単引用符）に続けてコメントの中に隠したDOCTYPE・内部DTD・#text・#cdata・:@・!xml・不正な実体・critical名・危険な名前・開きと閉じのタグ・CDATA・PI、コメントの中のPI、PIの引用符の中のコメント・CDATAの開き・]]>、<??>・<?>。2つのreconstruction/distのdecodeMaterialに同じ入力を必ず両方当て、result.kind・拒否の理由・ParserDiagnostic・木・materialの他の項目・marksのkeyとnullの別・parseTimesのstartedMsとendedMsの有無を全部比べる。段は組立ての入口の回数で分ける（読み込んだsourceの組立ての関数を包み、回数を取る。fallbackの回数はpublicFunctionsの読む関数で取る。製品に注入の口は足さない）: 事前（0回）・組立ての例外・組立ての後の拒否・受理。1入力で組立てが2回以上なら失敗。判定は同じ／失敗の2つだけで、結果そのものを比べる（実装の例外名やfallbackの有無で差を認めない）。corpus全件はfallbackに入ったら失敗（実電文で遅い経路に入らない）。失敗が1件でもあれば非0のexit codeで終わる。出力は件数・seed・種のfile数・解決されたfast-xml-parserの版・同じ／失敗の件数・fallbackの件数（corpus・境界・変異ごと、旧の段ごと）・旧と新の段ごとの件数と、失敗の一覧（入力の短縮と両方の結果）。比べる相手は2通り: (a) baseOidのdist（変更の前に別の場所へ写したもの）と変更後のdist (b) 変更後のdistの組立てを、同じscriptの中に持つ旧の組立て（FXPのXMLParserとbaseOidのxmlNodeの写し）へ差し替えたもの（fast-xml-parserの版を上げるときのゲート）。ゲートが効くことの確かめ（負の対照、使い捨ての写し）: 検出（D1・D3）を外した版と、fallbackの無い速い経路だけの版に当てて、どちらも失敗を表示しexit 1で終わることを示す。検収は(a)と(b)の両方で、seed 20261009・1・2の各100,000件以上と、corpus全件・AC03の入力の全部で失敗0、corpusのfallback 0件。seedごとのfallbackの件数を記録する。fast-xml-parserの版を上げる変更は、(b)とAC03を必須のゲートにする。無いと: 変な形の見落とし（差になる唯一の向き）が列挙に無い組み合わせで残り、実電文が遅い経路に入っても、validatorの更新で受理の集合が変わっても気づけない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:510 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p1-parser-boundary.json:148 «29ee69fce610d025»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-WL2-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-WL2-AC02",
+          "P3-WL2-AC04"
+        ],
+        "behavior": "既存のP1-T01〜T07・P1の試験A〜D・P3-WL1-T01〜T08と、reconstruction/test/の全試験が緑のまま通る。期待値は変えない（T03の計数の置き換えだけを本契約が認め、統合担当の承認をQ-WL2-BASEで取る）。木の同値はAC06・AC08で示し、corpusの木のdigestは焼き込まない"
+      },
+      {
+        "testId": "P3-WL2-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-WL2-AC03",
+          "P3-WL2-AC04"
+        ],
+        "behavior": "p1-parser-boundary.test.tsに表の形のitを1つ足す: AC03の入力ごとに、期待する木（Bodyなどの子の配列のliteral。baseOidのdistで取った値）か、期待する拒否の理由とparseTimes.endedMsの有無と、通る経路（fallbackの回数が増えるか）を書き、decodeMaterialの結果と比べる。FXPの癖を写した行（PIの要素・改名と衝突・過剰な閉じ・\\uFEFFでの名前の切り方）には旧の挙動を写していることを、fallbackの行には検出の規則（D1〜D4）と作者裁定（2026-10-09 の2本目）を、コメントで書く"
+      },
+      {
+        "testId": "P3-WL2-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-WL2-AC01",
+          "P3-WL2-AC04"
+        ],
+        "behavior": "既存の vi.spyOn(XMLParser.prototype, \"parse\") の5か所（P1-T02・P1-T05・試験A・試験B・P3-WL1-T02）を、木を作ったか否かの確かめに置き換える: decodeMaterialにparseTimesを渡し、endedMsがnullでないこと（受理）・nullであること（事前拒否）を、旧の期待と同じ入力で確かめる。P1-T02に、普通の入力でXMLParser.prototype.parseが1回も呼ばれずfallbackの回数が増えないこと（FXPの木が0本、P3-WL2-RES-01）と、XMLValidator.validateが受理で1回・limitsの拒否で0回であることを足す。endedMsは「作ったか」しか示さないので、組立ての回数（受理で1、事前拒否で0、classifyMaterialを2回呼んでも増えない）は、使い捨ての計測用の写し（読み込んだsourceの組立ての入口に数えを足したもの、repoに入れない）で取り、成果物に載せる。公開APIは足さない。report.mjsの:13・:20・:44〜:46を、木の組立てが唯一のfull tree parseであることと、組立てがFXP 5.5.8の結果を写すことに合わせて改める"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O04・O06・O09の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。本契約が変えるファイル（decode-material.ts・p1-parser-boundary.test.ts・report.mjs）の行をanchorで引く契約は起草時に0件なので、想定内のFAILは無い。FAILが出たら想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "preparation",
+        "purpose": "変更の前に、baseOidのreconstruction/distを作り、別の場所へ写す（AC06・AC08(a)の旧の側、AC07の測定、T02の期待値。git worktree・stashは使わない）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成（vitestとtree-diffより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（T02・T03と既存試験）"
+      },
+      {
+        "command": "node reconstruction/tools/parse-diff/tree-diff.mjs",
+        "cwd": ".",
+        "target": "reconstruction/dist と baseOid の dist の写し",
+        "stage": "implementation",
+        "purpose": "AC08の(a)(b)を、seed 20261009・1・2の各100,000件以上とcorpus全件・AC03の入力で回し、失敗0・corpusのfallback 0件を示す。負の対照（検出を外した版・速い経路だけの版）で失敗を表示しexit 1になることも示す（引数の形は実装者が決め、成果物に書く）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch（新規のtree-diff.mjsを含む）、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加・変更した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: 木の組立ての関数（AC01）、FXPの癖を写す各処理（PIの引用符・閉じタグの1段戻りと空の棚・名前の\\sでの切り方・sanitizeと改名の衝突・strictReservedNames・入れ子100・Reportの外の扱い）、変な形の検出の各規則（D1〜D4）と旧の経路へのfallback、fallbackの回数を読む関数、改行の正規化の条件（AC05）、tree-diff.mjs（AC08）。新しいmodule・class・型・設定・公開APIは足さない",
+      "AC06の比較の道具（repoの外に置く使い捨てのscript）と、旧と新の結果のファイル、差の一覧（0件）。入力の組の一覧と件数（(1)(2)(3)とclassifyMaterialの組ごと）、比較から除いた項目（marksの所要時間）とrestoredAtの揃え方を書く",
+      "AC08の実行の記録: (a)(b)それぞれのseed・件数・種のfile数・同じ／失敗の件数・fallbackの件数（corpus・境界・変異、旧の段ごと）・旧と新の段ごとの件数・exit code、解決されたfast-xml-parserの版、負の対照（検出を外した版・速い経路だけの版）でexit 1になった記録",
+      "T03の組立ての回数の記録（使い捨ての写しの作り方と、受理1・事前拒否0・classifyMaterial 2回で増えないことの結果）",
+      "AC07の前後の測定の表（機械・Node・CPU・load average、p50・p95・最大・四分位の幅、段の時間、処理直後のheapUsedの最大）と測定のscript。閾値の合否は書かない",
+      "既存試験の期待値は変えない（T03の置き換えとreport.mjsの行は本契約が認める）。ほかに変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める（同値の約束が破れているかもしれないため）",
+      "残存リスクとして書く: (1) 木の組立ての正しさは、limitsとXMLValidatorが先に通ることと、写したFXPの版（lockで5.5.8）に頼る。reconstructionは公開パッケージに入らずlockの版で動くので、受理の集合の前提はlockの版に結ぶ。fast-xml-parserの版を上げるときはAC03とAC08(b)を必須のゲートにし、解決された版を記録する (2) Piで同じだけ減るかは未確認（Q-WL2-PI-STAGES、起草時の見込みはMacのNode 26の比） (3) E05-Pが通るかは本契約では示さない（Q-WL2-E05P） (4) PiのE03 p99≤1秒が段2で届かなければ、D-WL2-SCANSのB・C（Cは作者）が後続になる (5) 変異の確かめは決まった生成規則の範囲で、全入力の証明ではない (6) 差になるのは変な形の見落としだけで、変異の確かめはその向きを狙うが証明ではない。fallbackに入った入力は旧の経路の時間に速い経路の途中までの時間が足されて旧より遅い（corpusでは0件）。旧の経路（FXPのparse＋xmlNode）はfallbackとして残り、FXPの版を上げるとfallbackの結果も変わる"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-WL2-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "本契約の発注前点検",
+        "requiredEvidence": [
+          "baseOidの割当（起草は27a4d43b）。割当の時点で本契約のanchorと、Q-WL2-CODE-READの事実を読み替える。D-WL2-DEPは作者裁定B（2026-10-09）で確定し、作者に訊く分岐は残っていない",
+          "T03の計数の置き換え（vi.spyOn(XMLParser.prototype, \"parse\")の5か所をparseTimesの確かめへ）とreport.mjsの:13・:20・:44〜:46の改訂を、AGENTS.mdの「期待値を変える前の報告」として統合担当が承認する（試験名・旧の期待・理由は本契約のT03に書いた）",
+          "計画§9の段2の行を本契約のIDと状態へ改める（統合担当）"
+        ]
+      },
+      {
+        "id": "Q-WL2-PI-STAGES",
+        "owner": "integrator",
+        "blocks": [
+          "D-WL2-SCANSのB・C（後続の契約）に入るかの決定"
+        ],
+        "resolveBy": "本契約の配送の後",
+        "requiredEvidence": [
+          "Piで、Q-WL2-PI-STEP1と同じ条件と手順（Raspberry Pi 500、同じNodeと起動option、e03Frame、warm-up 5を捨て20件×3回、旧（0bf810b1）と新（本契約の配送）を交互に別processで、vpws50-prof.mjsのhost・stagesのmode）で、OwnerHost.handle 1件のp50・p95・p99・最大と、段ごとの内訳（base64〜utf8・withinXmlLimits・XMLValidator.validate・木の組立て・metadata・meaning・unitRest・projection、各p50・最大、1件の中のGC）。stagesのmodeは新の版では木の組立てを1段として測る（scriptの写しにFXP parse・xmlNodeの代わりの段を足す）",
+          "Node・起動option・heap_size_limit・温度・動作周波数・throttle・swap・旧築の稼働とload averageを記録する",
+          "Piのprocessing（T2→dispatch完了、summarizeE03と同じ定義）の参考値",
+          "Mac mini（Node v22.23.3）で同じ手順の前後の表（Macの比とPiの比の違いを読むため）"
+        ]
+      },
+      {
+        "id": "Q-WL2-E05P",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C4-CLOSE-E05Pの再検収（台帳66の契約の配送後のE05-P）"
+        ],
+        "resolveBy": "本契約の配送の後",
+        "requiredEvidence": [
+          "Mac mini（P3-C4-MACHINES=B、独立checkout）で、新しいmanifestId（例 p3-wl2-e05p-<日付>）を凍結してから、C4と同じP負荷・同じ窓（e01:93、E02-Pとmem行を共有する窓）・3 run・上限400MiB（.e05.limitBytes 419,430,400）でE05-Pを測る。ownerHeapの補助窓（weatherCurrentのheapUsed最大、採取点は処理直後）も同じmanifestで測る",
+          "manifestのinheritsManifestIdは a10-p2-20260930b（frozen.tsが他の値を拒否する。前例 p3/manifest-deadline.json と同じ）。p3-c4-formal-20261007 との差は smokeConditionDifferences に書く",
+          "C4の凍結manifest（p3-c4-formal-20261007・p3-c4-formal-deadline-20261008）と、その結果のfileは書き換えない。結果は新しいmanifestIdのwindowsの下に置く",
+          "manifestのcontractSha256に本契約のmeta.sha256を入れ、機械の実値（CPU・メモリ・OS・Node・Chrome）を記録する",
+          "Failなら、原因の分類（--expose-gc後のRSSなど）は条件を決めた別の窓をさらに新しいmanifestIdで行う（C4のAC06の規則）。本契約のコードの不合格とは扱わない（AC07は報告）",
+          "根拠の行: reconstruction/src/measurement/eew-e01/frozen.ts:356 «b9d1e26a987dad43»、reconstruction/contracts/p3-e01-reaccept.json:690 «232610e7b2f48904»"
+        ]
+      },
+      {
+        "id": "Q-WL2-PI-E03",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C4-PI-E03（PiのE03の上限1秒を変えずに処理を削る）の閉鎖、D-WL2-SCANSのB・Cの要否"
+        ],
+        "resolveBy": "本契約の配送の後（Q-WL2-PI-STAGESの後）",
+        "requiredEvidence": [
+          "Piで、C4のmanifestのE03の条件（負荷N、VPWS50 15_18_01を1200ms周期、warm-up 20＋1000件×3 run、T2→dispatch完了、nearestRankのp99≤1秒、queue待ちT1→T2は別計数）を新しいmanifestIdで測った値。正式の本番判定はP5のまま",
+          "p99が1秒を超えたら、段の内訳（Q-WL2-PI-STAGES）でlimits・validate・meaning・GCのどれが残るかを示し、D-WL2-SCANSのB（limitsを組立てに畳む）・C（validateを外す、作者裁定が要る）の後続の契約を起こすかを作者に諮る"
+        ]
+      }
+    ]
+  }
+}
