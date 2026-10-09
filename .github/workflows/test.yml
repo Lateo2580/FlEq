@@ -75,6 +75,8 @@ jobs:
               node reconstruction/contracts/check-contract.mjs
               ./node_modules/.bin/tsc --project reconstruction/tsconfig.json
               ./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json
+              # C6 の runner（test/eew-e01/tsunami.mjs）が chrome-eew の dist を import するので、vitest より先に作る
+              ./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json
               ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts
               ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle ;;
           esac
