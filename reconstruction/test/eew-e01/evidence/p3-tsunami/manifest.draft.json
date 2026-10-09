@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p3-tsunami-e01-manifest-v1",
   "manifestId": "p3-c6-draft-20261009",
-  "manifestSha256": "998c33b3b7f0eb4ddfa19bd50a0fdbdc14f55d6b59bb7cddbeb22c42372b96d3",
+  "manifestSha256": "671b0256c0cd892e1da7ce31b40d25978c51b9912851809858bb623a521a0019",
   "trialSetupRef": "reconstruction/test/eew-e01/evidence/trial-setup.json",
   "trialSetupSha256": "cd1ee3dd642cf070f6a0f010a2d3c7075d7a0fb9873feea254375f53a564f578",
   "measuredSseClients": 1,
@@ -224,13 +224,13 @@
     "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）"
   },
   "contractSha256": {
-    "P3-TSUNAMI-E01-001": "6ae4fb3077c627e93a071ba24505b16762d8f2f2c597aa971e78d976f70f928c",
-    "P3-TSUNAMI-UNIT-001": "abc840c49e0209cb1b18e425a56c3224d2791c3fd42212a358e98918d9c16082",
+    "P3-TSUNAMI-E01-001": "83a1b2add36f602ce5a708cfd9e1cf83df44f629f90c26bdf82a7889155f048d",
+    "P3-TSUNAMI-UNIT-001": "a65d4b443cc7429f2b45cfdd8a9d5bc76699b3f7ea3609cdbf9233182ea20345",
     "P3-E01-REACCEPT-001": "1ad4786a16d78eb902fa35703e51b8ce411327807f8e8fc8f957d64c450e66f0",
     "P3-UNIT-WRITE-RIGHT-001": "29eb6df0760fdd927b9f5879d5a3d048341e1f04525a2ab71a179ef74781502d",
     "P3-EXECUTION-LIFECYCLE-001": "af463a6183512250e4daca56d07a671be29c886aedc8774f34d829f8dffb3563",
     "P3-EXECUTION-SPLIT-001": "81e2dec0162f359ad859d672d1bb8c418e8bd08b58dc51c3612ae2805621d1c9",
-    "P2-CHROME-EEW-001": "4a99e6ea6cb2b661896464ee74ec3313644638384d351ea23054545c52572d0b",
+    "P2-CHROME-EEW-001": "3748e8f6fed2e70b40cec371057d7af5480830d05aa7f5790bc3de171ea51b32",
     "P2-EEW-E01-001": "230c97b51724fbae7ac37d695c6949e6a37e45ff7ed3429318e619ab01cdc8b8",
     "P2-SNAPSHOT-SSE-001": "c371f403c2ae0f1ca3263663cc799af1817fcd07e806e019e88eceeaf160c307"
   },
@@ -509,14 +509,14 @@
       "scope": "formal",
       "load": "N",
       "periodMs": 3000,
-      "trigger": "population=escalation:maxWeatherCheckpointEncodeStarted; spec=§7.5 発令系×maxWeatherCheckpointEncodeStarted; c4=maxWeatherCheckpointEncodeStarted（p3-c4-formal-20261007）; o09=25・34・43; plan=p3-order-plan.md:203; transitions=issued→upgraded→expanded（試行ごとに順に回す）; 予測した tick の U-W encode 開始の 1ms 後に target、その triggerLeadMs 前に VPWW55、primeLeadMs 前に prime を送る",
+      "trigger": "population=escalation:maxWeatherCheckpointEncodeStarted; spec=§7.5 発令系×maxWeatherCheckpointEncodeStarted; c4=maxWeatherCheckpointEncodeStarted（p3-c4-formal-20261007）; o09=25・34・43; plan=p3-order-plan.md:203; transitions=issued→upgraded→expanded（試行ごとに順に回す）; prime の primeLeadMs 後に VPWW55（引き金）を送り、直近 10 試行の「引き金を含む U-W の encode 開始 − 実送信」の中央値（無い間は triggerLeadMs）の 1ms 後に target を送る（UWR の後の版の較正、Q-C6-IMPL-AMEND (10)。C4 は 1 秒の tick の予測）",
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxWeatherCheckpointEncodeStarted",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
         "maxAttempts": 1348,
         "maxDurationMs": 5130000
       },
-      "triggerLeadMs": 600,
+      "triggerLeadMs": 30,
       "series": "escalation",
       "condition": "maxWeatherCheckpointEncodeStarted",
       "inheritsC4Population": "maxWeatherCheckpointEncodeStarted",
@@ -668,14 +668,14 @@
       "scope": "formal",
       "load": "N",
       "periodMs": 3000,
-      "trigger": "population=deescalation:maxWeatherCheckpointEncodeStarted; spec=§7.5 解除系×maxWeatherCheckpointEncodeStarted; c4=maxWeatherCheckpointEncodeStarted（p3-c4-formal-20261007）; o09=52・61; plan=p3-order-plan.md:203; transitions=released→downgraded（試行ごとに順に回す）; 予測した tick の U-W encode 開始の 1ms 後に target、その triggerLeadMs 前に VPWW55、primeLeadMs 前に prime を送る",
+      "trigger": "population=deescalation:maxWeatherCheckpointEncodeStarted; spec=§7.5 解除系×maxWeatherCheckpointEncodeStarted; c4=maxWeatherCheckpointEncodeStarted（p3-c4-formal-20261007）; o09=52・61; plan=p3-order-plan.md:203; transitions=released→downgraded（試行ごとに順に回す）; prime の primeLeadMs 後に VPWW55（引き金）を送り、直近 10 試行の「引き金を含む U-W の encode 開始 − 実送信」の中央値（無い間は triggerLeadMs）の 1ms 後に target を送る（UWR の後の版の較正、Q-C6-IMPL-AMEND (10)。C4 は 1 秒の tick の予測）",
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxWeatherCheckpointEncodeStarted",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
         "maxAttempts": 1348,
         "maxDurationMs": 5130000
       },
-      "triggerLeadMs": 600,
+      "triggerLeadMs": 30,
       "series": "deescalation",
       "condition": "maxWeatherCheckpointEncodeStarted",
       "inheritsC4Population": "maxWeatherCheckpointEncodeStarted",
@@ -769,6 +769,12 @@
       "reason": "AC06(4) の「target の予測時刻の primeLeadMs 前」との差。target は引き金の送信から自己較正の parse 遅延＋1ms 後なので、prime から target までは primeLeadMs＋数 ms になる（予測を待たずに prime を送れる）"
     },
     {
+      "path": "populations.escalation:maxWeatherCheckpointEncodeStarted.triggerLeadMs",
+      "c4": "600",
+      "c6": "30",
+      "reason": "C4 は 1 秒の tick の何 ms 前に引き金を送るか。C6 は UWR の後の版で、較正の予測が無い間の「引き金の送信 → encode 開始」の代わり（Q-C6-IMPL-AMEND (10)）"
+    },
+    {
       "path": "populations.escalation:eewTogether.periodMs",
       "c4": "1370",
       "c6": "3000",
@@ -785,6 +791,12 @@
       "c4": "prime なし",
       "c6": "prime を引き金（VPWS50）の送信の primeLeadMs 前に送る",
       "reason": "AC06(4) の「target の予測時刻の primeLeadMs 前」との差。target は引き金の送信から自己較正の parse 遅延＋1ms 後なので、prime から target までは primeLeadMs＋数 ms になる（予測を待たずに prime を送れる）"
+    },
+    {
+      "path": "populations.deescalation:maxWeatherCheckpointEncodeStarted.triggerLeadMs",
+      "c4": "600",
+      "c6": "30",
+      "reason": "C4 は 1 秒の tick の何 ms 前に引き金を送るか。C6 は UWR の後の版で、較正の予測が無い間の「引き金の送信 → encode 開始」の代わり（Q-C6-IMPL-AMEND (10)）"
     },
     {
       "path": "populations.deescalation:eewTogether.periodMs",

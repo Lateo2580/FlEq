@@ -12,7 +12,7 @@ import { toTsunamiView } from "../../src/units/tsunami/tsunami-unit";
 import { analyzeTrace, assembleTsunamiTrials, buildHostIndex, candidateKey } from "./analysis.mjs";
 import type { ChromeCandidateEntry, HostLine, Probe, TsunamiTrial } from "./analysis.mjs";
 import { injection, sample } from "./fixtures";
-import { readDiagnosticsStrict, selectAuxWindows, tsunamiStateBreaks } from "./run.mjs";
+import { TARGET_WAIT_MS, predictParseDelay, readDiagnosticsStrict, selectAuxWindows, settleDone, trialTarget, tsunamiStateBreaks } from "./run.mjs";
 import * as auxMeasures from "./aux-measures.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
 import { RELEASE_FIXTURE, TEMPLATE_FIXTURES, buildP3TsunamiManifest, buildTemplates, emptyTsunamiState, receiveTsunami, tsunamiReport } from "./tsunami.mjs";
@@ -355,5 +355,36 @@ describe("P3-C6 AC08④ preparation: the E14 bundle with VTSE41 and the --aux wi
     const list = [{ id: "e14-run1" }, { id: "e03-run1" }];
     expect(selectAuxWindows(list, "e14-run1")).toEqual([{ id: "e14-run1" }]);
     expect(() => selectAuxWindows(list, "E14,e14-run1")).toThrow(/unknown --aux window id: E14/);
+  });
+});
+
+// ── encode 直後の較正（Q-C6-IMPL-AMEND (10)）: UWR の後の版では U-W の保存が引き金の送信の数十 ms 後に始まる ──
+describe("P3-C6 encode-started calibration after the write-right change", () => {
+  it("the median of the last ten 'encode start of the trigger's save − trigger send' predicts about 30 ms and the target is the save that contains the trigger, not a nearer background save; T0 1 ms after it is established", () => {
+    const trials = Array.from({ length: 10 }, (_, i) => ({ trigger: { inputId: `trig-${i}`, injectedHrMs: i * 3000 } }));
+    const encodeStarts = new Map(trials.map((t, i) => [t.trigger.inputId, t.trigger.injectedHrMs + 5 + 25 + (i % 3) * 2]));
+    const predicted = predictParseDelay(trials, encodeStarts, 5);
+    expect(predicted).toBeCloseTo(27, 0);
+    const encode = (attemptId: string, inputIds: string[], start: number) => ({ unit: "U-W", stage: "encode", attemptId, generation: 1, startedMonotonicMs: start,
+      endedMonotonicMs: start + 40, inputIds });
+    const host = { decode: new Map(), t1: new Map(), t2: new Map(), processing: [], raised: new Map(),
+      checkpoints: [encode("bg", ["background-1"], 30_029), encode("own", ["trig-x"], 30_036)] };
+    const trial = { trigger: { inputId: "trig-x", injectedHrMs: 30_000, calibrated: true, predictedTickHostMs: 30_005 + predicted! } };
+    const target = trialTarget("maxWeatherCheckpointEncodeStarted", trial, host, 5);
+    expect(target).toEqual({ startMs: 30_036, endMs: 30_076 });
+    const startOffset = { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5], span: "population" } as const;
+    expect(establishTsunamiTrial({ establishment: { kind: "primeSettledStartOffset", startOffset }, t0Ms: 30_037, target,
+      prime: { paintRequired: false, paintHostMs: null, replyMs: 1, ackMs: 2 }, eewInputDoneMs: null }).established).toBe(true);
+    expect(trialTarget("maxWeatherCheckpointEncodeStarted", { trigger: { ...trial.trigger, inputId: "trig-missing" } }, host, 5)).toBeNull();
+  });
+
+  it("a trial whose target interval did not come stops waiting after TARGET_WAIT_MS instead of the 11 s settle limit, and counts as not established", () => {
+    const base = { established: false, complete: false, offset: true, target: null, sentHrMs: 1000, settleBy: 12_000 };
+    expect(settleDone({ ...base, nowHrMs: 1000 + TARGET_WAIT_MS - 1 })).toBe(false);
+    expect(settleDone({ ...base, nowHrMs: 1000 + TARGET_WAIT_MS + 1 })).toBe(true);
+    expect(settleDone({ ...base, target: { startMs: 0, endMs: 1 }, nowHrMs: 1000 + TARGET_WAIT_MS + 1 })).toBe(false);
+    const startOffset = { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5], span: "population" } as const;
+    expect(establishTsunamiTrial({ establishment: { kind: "primeSettledStartOffset", startOffset }, t0Ms: 1001, target: null,
+      prime: { paintRequired: false, paintHostMs: null, replyMs: 1, ackMs: 2 }, eewInputDoneMs: null })).toEqual({ established: false, reason: "startOffset" });
   });
 });

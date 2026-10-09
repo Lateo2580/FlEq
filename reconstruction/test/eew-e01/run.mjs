@@ -412,12 +412,17 @@ async function measureRun(spec, ctx, label, dir, status) {
   };
   // AC13(7): 入力 ID → parse 開始（host の時計）。行は追記の分だけ走査する（試行ごとに全行を索引し直さない）。
   const parseStarts = new Map();
+  // Q-C6-IMPL-AMEND (10): 入力 ID → その入力を含む U-W の保存の encode 開始（host の時計）。津波の encode 直後の較正に使う。
+  const encodeStarts = new Map();
   let parseScan = 0;
   const scanParseStarts = () => {
     host.refresh();
     for (; parseScan < host.lines.length; parseScan++) {
       const o = host.lines[parseScan].t === "obs" ? host.lines[parseScan].o : null;
       if (o?.kind === "decode" && o.xmlParseStartedMonotonicMs != null) parseStarts.set(o.inputId, o.xmlParseStartedMonotonicMs);
+      else if (o?.kind === "checkpoint" && o.measurement.unit === "U-W" && o.measurement.stage === "encode") {
+        for (const inputId of o.measurement.inputIds) if (!encodeStarts.has(inputId)) encodeStarts.set(inputId, o.measurement.startedMonotonicMs);
+      }
     }
   };
   // 初期化入力（製品の WS 入力として流す）。処理と保存が済むまで待つ。
@@ -550,20 +555,22 @@ async function measureRun(spec, ctx, label, dir, status) {
       return result;
     };
     if (tsu.inherits === "maxWeatherCheckpointEncodeStarted") {
-      // 狙う tick の U-W encode 開始の targetOffsetMs 後に target、その lead 前に VPWW55、primeLeadMs 前に prime（早い順に送る）。
-      const lead = spec.leadMs;
-      const tick = predictTick(host, hrMs(), Math.max(lead, tsu.primeLeadMs) + 900);
-      if (tick == null) { sendPrime(); await idleUntil(prime.injectedHrMs + tsu.primeLeadMs); sent = sendTarget(); base.noTickModel = true; }
-      else {
-        const sendTrigger = () => {
-          const t = dataSend(weatherFrame("15_17_01_251222_VPWW55", "VPWW55", wallNow() + (k + 1) * 1000), "VPWW55", "trigger", { trial: k });
-          trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs, predictedTickHostMs: tick.hostMs };
-        };
-        const steps = [[tick.hrMs + spec.targetOffsetMs - tsu.primeLeadMs, sendPrime], [tick.hrMs - lead, sendTrigger]].sort((a, b) => a[0] - b[0]);
-        for (const [at, step] of steps) { await spinUntil(at); step(); }
-        await spinUntil(tick.hrMs + spec.targetOffsetMs);
-        sent = sendTarget();
-      }
+      // Q-C6-IMPL-AMEND (10): UWR（P3-UNIT-WRITE-RIGHT-001）の後の版では、U-W の保存は 1 秒の tick に乗らず、引き金の返信の反映の後にすぐ始まる
+      // （予備で引き金の送信から約 19〜45ms）。parse 直後と同じく、引き金の送信から直近 10 試行の「その引き金を含む U-W の encode 開始 − 実送信」
+      // の中央値＋targetOffsetMs に target を送る。予測が無い間（最初の 10 試行）は triggerLeadMs を予測の代わりにする。prime は引き金の
+      // primeLeadMs 前。tick の予測（predictTick）は C4 の EEW の母集団だけが使う（UWR の前の版の前提）。
+      sendPrime();
+      await idleUntil(prime.injectedHrMs + tsu.primeLeadMs);
+      scanParseStarts();
+      updateOh();
+      const predicted = predictParseDelay(trials, encodeStarts, oh.lo);
+      const t = dataSend(weatherFrame("15_17_01_251222_VPWW55", "VPWW55", wallNow() + (k + 1) * 1000), "VPWW55", "trigger", { trial: k });
+      trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs, calibrated: true };
+      const delay = predicted ?? spec.leadMs;
+      trigger.predictedEncodeDelayMs = predicted;
+      trigger.predictedTickHostMs = t.injectedHrMs == null || oh.lo == null ? null : t.injectedHrMs + oh.lo + delay;
+      await spinUntil(t.injectedHrMs + delay + spec.targetOffsetMs);
+      sent = sendTarget();
     } else {
       sendPrime();
       await idleUntil(prime.injectedHrMs + tsu.primeLeadMs);
@@ -634,7 +641,9 @@ async function measureRun(spec, ctx, label, dir, status) {
       trial.primeObserved = { generation: generation ?? null, ackMs, replyMs, paintHostMs };
       const complete = t0Ms != null && ackMs != null && (paintRequired ? true : replyMs != null) && (!offset || trial.target != null)
         && (trial.eew == null || eewInputDoneMs != null);
-      if (trial.establishment.established || complete || hrMs() > settleBy) break;
+      // 予測が外れて対象の区間が来ない試行は 11 秒を待ち切らず、TARGET_WAIT_MS で不成立（startOffset）として次へ進む
+      // （待ち切ると frame の間隔が延び、正式では liveness に掛かる。2 回目の予備で 1 試行 15.5 秒）。
+      if (settleDone({ established: trial.establishment.established, complete, offset, target: trial.target, sentHrMs: sent.injectedHrMs, nowHrMs: hrMs(), settleBy })) break;
       pumpBackground();
       await sleep(50);
     }
@@ -941,6 +950,14 @@ export function tsunamiStateBreaks({ diagnostics, trials, warmupRelease = null, 
   return { stateBreaks, stateBreaksIncomplete: problems };
 }
 
+// 津波の parse 直後・encode 直後で、対象の区間（parse・引き金の保存の encode）の行を待つ上限。encode の行は保存の全体と launcher の 250ms の
+// flush の後に出る（予備で引き金から 1 秒以内）ので、3 秒で来なければ予測が外れたとみなす。
+export const TARGET_WAIT_MS = 3000;
+export function settleDone({ established, complete, offset, target, sentHrMs, nowHrMs, settleBy }) {
+  const targetMissed = offset && target == null && sentHrMs != null && nowHrMs > sentHrMs + TARGET_WAIT_MS;
+  return established || complete || targetMissed || nowHrMs > settleBy;
+}
+
 // AC13(7): 末尾の 2×count 試行（既定 20）のうち、parse 開始の分かった新しい方から count 試行（既定 10）の「parse 開始 − 引き金の実送信
 // （host の時計へ直した値）」の中央値。直前の試行の parse 開始は観測の書出しを待つ間まだ分からないことがあり、その分を 1 つ前の試行で補う。
 // 分かった試行が count に満たなければ null（その間は引き金の実送信＋targetOffsetMs で送り、warm-up の後の件数は parsePredictionMissing に残す）。
@@ -1055,6 +1072,11 @@ export function trialTarget(population, trial, host, ohLo, span = "population") 
     if ([...host.t2.keys()].some((inputId) => !processed.has(inputId))) return null;
     const byInput = new Set([...host.raised].flatMap(([key, generation]) => (key.endsWith("|U-F") ? [generation] : [])));
     reclaimed = (c) => { for (let g = adopted + 1; g <= c.generation; g++) if (!byInput.has(g)) return true; return false; };
+  }
+  // 較正した津波の encode 直後（Q-C6-IMPL-AMEND (10)）は、引き金を含む U-W の保存の encode を対象にする（近い時刻の背景の保存と取り違えない）。
+  if (trial.trigger.calibrated === true) {
+    const own = host.checkpoints.find((c) => c.unit === unit && c.stage === "encode" && (c.inputIds ?? []).includes(id));
+    return own == null ? null : { startMs: own.startedMonotonicMs, endMs: own.endedMonotonicMs };
   }
   const encodes = host.checkpoints.filter((c) => c.unit === unit && c.stage === "encode" && c.startedMonotonicMs >= triggerHost && reclaimed(c));
   const predicted = trial.trigger.predictedTickHostMs;

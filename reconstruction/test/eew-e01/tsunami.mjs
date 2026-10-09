@@ -119,7 +119,7 @@ const O09_ROWS = { escalation: { fixedBacklog: "23・32・41", maxVpws50ParseSta
 const HOW = {
   fixedBacklog: "prime を周期の頭に送り、primeLeadMs 後に target を送る（通常負荷 N の再生と同時）",
   maxVpws50ParseStarted: "prime の primeLeadMs 後に最大 VPWS50 15_18_01（引き金）を送り、C4 と同じ自己較正（P3-C4-AC13(7)）で full parse 開始の 1ms 後に target を送る（prime は target の予測時刻ではなく引き金の送信の primeLeadMs 前。差は parse 開始までの数 ms で、differencesFromC4 の primeTiming）",
-  maxWeatherCheckpointEncodeStarted: "予測した tick の U-W encode 開始の 1ms 後に target、その triggerLeadMs 前に VPWW55、primeLeadMs 前に prime を送る",
+  maxWeatherCheckpointEncodeStarted: "prime の primeLeadMs 後に VPWW55（引き金）を送り、直近 10 試行の「引き金を含む U-W の encode 開始 − 実送信」の中央値（無い間は triggerLeadMs）の 1ms 後に target を送る（UWR の後の版の較正、Q-C6-IMPL-AMEND (10)。C4 は 1 秒の tick の予測）",
   eewTogether: "prime の primeLeadMs 後に VXSE45（窓ごとに 1 つの EventID、Serial+1・予想 A/B 交互）を送り、間を空けずに同じ WS で target を送る",
 };
 export const O09_POSITIONS = [13, 14, 15, 16, 17, 18, 23, 24, 25, 26, 32, 33, 34, 35, 41, 42, 43, 44, 50, 51, 52, 53, 59, 60, 61, 62];
@@ -127,6 +127,8 @@ export const O09_POSITIONS = [13, 14, 15, 16, 17, 18, 23, 24, 25, 26, 32, 33, 34
 export const windowEventId = (kind, populationIndex, phase, run) => `2026100906${kind}${populationIndex}${phase === "warmup" ? 0 : 1}${phase === "warmup" ? 0 : run}`;
 const DEFAULT_PERIOD_MS = 3000;
 export const DEFAULT_PRIME_LEAD_MS = 1500;
+// Q-C6-IMPL-AMEND (10): 2 回目の予備（Mac mini、ae343ce6）の「引き金の送信 → U-W の encode 開始」の中央値（約 30ms、19〜45ms）。
+const ENCODE_DELAY_FALLBACK_MS = 30;
 
 // 草案の stopCondition は C4 の凍結値の試行数を仮に置く（予備測定の成立率で AC08 が固定する: maxAttempts＝100＋ceil(1,000÷Wilson 下限×1.1)、
 // maxDurationMs＝（初期化＋試行の所要×maxAttempts）×1.25）。
@@ -147,12 +149,13 @@ export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersi
     const index = s * CONDITIONS.length + c;
     const inherited = c4Populations[INHERITS[condition]];
     const period = periodMs[key] ?? DEFAULT_PERIOD_MS;
-    const lead = condition === "maxWeatherCheckpointEncodeStarted" ? triggerLeadMs[key] ?? inherited.triggerLeadMs : null;
+    const lead = condition === "maxWeatherCheckpointEncodeStarted" ? triggerLeadMs[key] ?? ENCODE_DELAY_FALLBACK_MS : null;
     if (condition === "maxVpws50ParseStarted") differencesFromC4.push({ path: `populations.${key}.primeTiming`, c4: "prime なし",
       c6: "prime を引き金（VPWS50）の送信の primeLeadMs 前に送る", reason: "AC06(4) の「target の予測時刻の primeLeadMs 前」との差。target は引き金の送信から自己較正の parse 遅延＋1ms 後なので、prime から target までは primeLeadMs＋数 ms になる（予測を待たずに prime を送れる）" });
     for (const [field, c4Value, c6Value] of [["periodMs", inherited.periodMs, period], ["triggerLeadMs", inherited.triggerLeadMs, lead]]) {
       if (c4Value !== c6Value) differencesFromC4.push({ path: `populations.${key}.${field}`, c4: String(c4Value), c6: String(c6Value),
-        reason: field === "periodMs" ? "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）" : "予備測定で固定した値（AC08）" });
+        reason: field === "periodMs" ? "prime が入るので試行の周期は 3,000ms を既定とする（P3-C6-CONDITIONS=A）"
+          : "C4 は 1 秒の tick の何 ms 前に引き金を送るか。C6 は UWR の後の版で、較正の予測が無い間の「引き金の送信 → encode 開始」の代わり（Q-C6-IMPL-AMEND (10)）" });
     }
     const maxAttempts = stop[key]?.maxAttempts ?? inherited.stopCondition.maxAttempts;
     const ids = (kind) => ({ warmup: windowEventId(kind, index, "warmup", 0), formalByRun: [1, 2, 3].map((run) => windowEventId(kind, index, "formal", run)) });

@@ -66,9 +66,9 @@ export function tsunamiStateBreaks(input: {
 }): { stateBreaks: Record<"tsunamiCapacityEvicted" | "tsunamiCapacityExceeded" | "eewCapacityExceeded" | "tsunamiRevisionConflict" | "staleTarget", number> | null;
   stateBreaksIncomplete: string[] };
 // 試行の対象の区間（host の時計）。span "encodeThroughWrite" は保存の試行全体（encode 開始〜write 完了）。
-export function trialTarget(population: string, trial: { trigger?: { inputId: string | null; injectedHrMs: number | null; predictedTickHostMs?: number } | null },
+export function trialTarget(population: string, trial: { trigger?: { inputId: string | null; injectedHrMs: number | null; predictedTickHostMs?: number | null; calibrated?: boolean } | null },
   host: { decode: Map<string, unknown>; t1: Map<string, number>; t2: Map<string, number>; processing: readonly { inputId: string }[]; raised: Map<string, number>;
-    checkpoints: readonly { unit: string; stage: string; attemptId: string; generation: number; startedMonotonicMs: number; endedMonotonicMs: number }[] },
+    checkpoints: readonly { unit: string; stage: string; attemptId: string; generation: number; startedMonotonicMs: number; endedMonotonicMs: number; inputIds?: readonly string[] }[] },
   ohLo: number | null, span?: "population" | "encodeThroughWrite"): { startMs: number; endMs: number } | null;
 // AC13(7): 母集団 2 の EEW を送る時刻。予測値を trigger に残す。
 export function calibratedSendAt(trigger: { injectedHrMs: number; predictedParseDelayMs?: number | null }, predicted: number | null, targetOffsetMs: number): number;
@@ -86,3 +86,6 @@ export function deadlineTriggerOverlap(manifest: { loads: Record<string, { fixtu
   office?: string): string | null;
 // --aux の窓の選択（知らない id は throw、run.mjs は exit 1）。
 export function selectAuxWindows<T extends { id: string }>(auxList: readonly T[], aux: string): readonly T[];
+// Q-C6-IMPL-AMEND (10): 試行の後の成立の待ちを終えるか。対象の区間が TARGET_WAIT_MS で来なければ予測の外れとして終える。
+export const TARGET_WAIT_MS: number;
+export function settleDone(input: { established: boolean; complete: boolean; offset: boolean; target: unknown; sentHrMs: number | null; nowHrMs: number; settleBy: number }): boolean;
