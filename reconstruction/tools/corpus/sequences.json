@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "94b17f09c956f19c2e8264fc5c6138251835aa9cbaa1713697311968abf49106",
+    "sha256": "7da7868d070e3a31cac738153aba6114f3a4014ac7cd89e958f9e66609445552",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "4b3364d69693a7e642db4c709f923e51ce22a8f3532c722eb2cb5705cf69576f",
+    "manifestSha256": "41089d0d4e4381a3f054f342313aad359e252fcbf4ba51e10ed64324ac15d560",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",

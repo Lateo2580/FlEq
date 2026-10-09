@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "cedaf1c95c8734450fbaad6453f13cb29fdc751d2dd05686bb2e31d79d2d4ade",
+    "sha256": "c1d2f47db284d8233d753929a58b863d03229d89fb88ab077cc06249a2497e92",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "4b3364d69693a7e642db4c709f923e51ce22a8f3532c722eb2cb5705cf69576f",
-    "sequencesSha256": "94b17f09c956f19c2e8264fc5c6138251835aa9cbaa1713697311968abf49106",
+    "manifestSha256": "41089d0d4e4381a3f054f342313aad359e252fcbf4ba51e10ed64324ac15d560",
+    "sequencesSha256": "7da7868d070e3a31cac738153aba6114f3a4014ac7cd89e958f9e66609445552",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -237,7 +237,7 @@
             "fixtureSha256": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575",
             "expectedRef": "expected:O09:12",
             "sourceStrength": "confirmedOriginal",
-            "distribution": "unconfirmed",
+            "distribution": "publicApproved",
             "cardSeverityToken": "3",
             "cardDisplayToken": "3",
             "areas": []
