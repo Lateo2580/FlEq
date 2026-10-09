@@ -1,0 +1,957 @@
+{
+  "meta": {
+    "draftedFromOid": "0d271ae071a22e14a0a192b9f17320e9b44e3cbb",
+    "sha256": "74442569b53016ac32814c240acfdd0f6f2598b8701655a6225571614e3b1124",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "41089d0d4e4381a3f054f342313aad359e252fcbf4ba51e10ed64324ac15d560",
+    "sequencesSha256": "7da7868d070e3a31cac738153aba6114f3a4014ac7cd89e958f9e66609445552",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-C10-ACTIVE-EXPIRY",
+        "A": "activeの官署の記録は時刻で消さない（解除・取消の報まで残る）。ended・cancelledの記録はsourceのReportDateTime+6時間（21,600,000 ms）で除く（spec:573の「6時間 retention」を取消・解除の記憶の保持と読む）。記録の無い官署に、受理の時点（ClockReading.wallTimeMs）でReportDateTime+6時間を過ぎたactive相当の報（activeの区域を持つ報）が届いたら、activeにせずwatermarkだけのendedの記録にし、同じreduceで回収する（viewに載らず鳴らない、changed/revisionOnly）。解除・取消の記憶が6時間で消えた後に遅れて届いた古い発表で、次の報まで警報を作らないため",
+        "B": "旧築どおり、activeの記録もsourceのReportDateTime+6時間で黙って除く（旧築はgateのactiveRetentionMs 6時間、revision-family-registry.ts:817。数える起点は旧築の受信時刻でなく元報の時刻、spec:2213）。通知は作らない",
+        "C": "Aに長い安全上限を足す: activeの記録はsourceのReportDateTime+48時間（172,800,000 ms）で黙って除く（通知しない）。遅れて届いた報の扱いはAと同じ（6時間）",
+        "recommended": "C",
+        "provisional": "C",
+        "ruling": "作者裁定待ち（起草案）",
+        "reason": "材料（実配信、~/dev/fleq-corpus-p0の3日分の採取のVPWW56 425本、44官署。官署ごとに同じ日の続報の間隔を数えた）: 報の前の状態がレベル4の間隔138のうち6時間を超えたのは5（最長14.6時間）、レベル2は178のうち32（最長17.8時間）、レベル3は15のうち0、レベル5は12のうち0。定時の出し直しは見られない（全部が区域の変わる報で、事実の変わらない続報は347間隔で0）。日をまたぐ間隔は1日ずつの採取では測れず、日の終わりにactiveのまま次の報が無かった官署・日が48件、最長は最後の報（レベル2）から日の終わりまで20.4時間（本当の間隔はそれ以上）。見え方の違い: 雨が続いて区域と区分が変わらないまま6時間続報が無いと、Bでは土砂の表示が音もなく消える（実配信でレベル4のまま14.6時間続いた例がある）。Aは解除の報まで残す。Aの代償: 切断中に解除の報を取り逃すと、その官署の次の報（数週間後もありうる）まで古い警報が残る。VPWW56はREST回復の対象に無い（spec:2205、P3-C10-N2）。Cはその残りを2日で打ち切る。Cの代償: 区域も区分も変わらない報が48時間来ない警報・注意報は黙って消える（3日分の採取では、日をまたいで48時間変わらない例があるかを測れない）。旧築のBの挙動はgateのactive記録の期限（telegram-revision-gate.ts:1583、受信時刻から6時間）にholderが追従する（standby-persistence-admission.ts:1306）ことから起きる。spec:565は「activeの有効期限とtombstone retentionは別欄で扱う」とするが、spec:573のVPWW56の行は値が1つだけで、どちらの欄かを書いていない。推奨はC: 48時間は測った値でなく、取り逃した解除の残りを有限にするための仮の上限（日をまたぐ無報は下限で20.4時間以上の例がある）。黙って消えて困りうるのは主にレベル2（レベル4の日の中の最長は14.6時間）。どの案でも型は変わらず、retainUntilの値（Cはactiveが+48時間、inactiveが+6時間）と回収の条件だけを差し替える"
+      },
+      {
+        "id": "P3-C10-NOTICE-LEVELS",
+        "A": "旧築の段階を移す（weather-warning-level.tsのDISPLAY_SEVERITY_TO_SOUND_LEVEL、level-helpers.tsのweatherSoundLevel）: 採用した報の全てのactiveの区域の最大で決める。レベル5（39）critical、レベル4（49）とレベル3（09）warning、レベル2（29）normal、表に無いcodeはwarning（fail-bright。旧築はinfo）、activeの区域が無い（解除）ならinfo、取消はcancel",
+        "B": "Aの表を、採用前の記録より上がった区域（新しい区域か、レベルが上がった区域。表に無いcodeはレベル3と同じ順位に置く）の最大に当てる。上がった区域が無い報（引下げ・区域の縮小・事実の同じ訂正）、解除（ended）、記録の無い官署への解除の報はnormal、取消はcancel",
+        "C": "Bのうち、レベル4（49）をcriticalにする（表示の器はcritical、spec §8）",
+        "D": "Bのうち、上がった区域の無い報（引下げ・区域の縮小・事実の同じ訂正・解除）はsoundを作らずdesktopだけにする。取消はB・Cと同じくcancel",
+        "recommended": "B",
+        "provisional": "B",
+        "ruling": "作者裁定待ち（起草案）",
+        "reason": "旧築の鳴り方: 受理した報ごとに鳴らし（message-router.ts:537〜:552）、段階は報の全区域の最大（level-helpers.ts:343のmaxSoundLevel）、解除だけの報はinfo、取消はcancel。レベル4は表示critical・音warning（weather-warning-level.ts:225〜:227の2026-06-12の作者のレビューの決定、.claude/rules/message-pipeline.md:143）。材料（実配信、~/dev/fleq-corpus-p0の3日分のVPWW56 425本、官署ごとの同じ日の続報347間隔）: 事実の変わらない続報は0、上がった区域がある報228、下がっただけの報116、両方3。1官署1日の最多は32報（銚子地方気象台、2026-09-21）。鳴り方の違い（corpusの15_16_01: 稚内市がレベル3→4、猿払村がレベル3のまま、8町村がレベル2のまま）: この報はA・B・Dともwarning（短三和音2回、気象の根音C4）で、Cはcritical（1オクターブ上の3打）。違いは続報で出る: 稚内市のレベル4が続く間に豊富町がレベル2へ入るだけの報はAでwarning（レベル4の区域が報に残るので）、B・Dではnormal（単音）。猿払村がレベル3から2へ下がるだけの報はAでwarning、Bでnormal、Dでは音なし（desktopだけ）。全区域の解除はAでinfo、Bでnormal、Dで音なし。実配信の347間隔でAとBの音の段階は286が同じ、Aが大きく鳴るのは31（warning→normal 20、critical→warningかnormal 11。後者はレベル5が続いているだけの報で、Bは下がる）、Bが大きく鳴るのは30（全区域の解除で、Aはinfo、Bはnormal）。下がっただけの116報はAでwarning以上19（critical 3を含む）・normal 67・info 30、Dでは鳴らない。どの案もA7の群はotherで、EEW・津波緊急を追い越さない（P3-C10-NOTICE-GROUP）。どの案も鳴る機会はQ-NOTICE.generationTableで同じ。推奨はB: Aでは悪くなっていない報でもレベル4・5の区域が残る限りwarning以上が鳴る（1官署・1日の最多は32報で、30報を超えたのはその1官署・1日だけ）。Bの代償: レベル5が続いているだけの報（区域が増えず上がらない）をnormalで鳴らす。引下げ・解除も状況の変化として単音で一度知らせる（旧築も鳴らしていた）ので、Dのように音を消す根拠は材料からは出ない（音を減らしたいならD）。レベル4をwarningに置くのは2026-06-12の決定を保つため。Cはその決定を開け直す案。表に無いcodeをwarningにするのは、気象庁のcodeの追加で警報級を軽く鳴らさないため（旧築の時系列の「未知Code含む＝最低warningへ昇格」、message-pipeline.md:165。バックログ〔新築:P3〕の「未知severityのfail-bright」、C9のP3-C9-NOTICE-LEVELSと同じ向き。実配信のcodeは29・09・49・39の4つだけ）。どの案でも型は変わらず、Q-NOTICE.levelの表だけを差し替える"
+      },
+      {
+        "id": "P3-C10-PLACE",
+        "A": "U-Lの実行場所をdeferred（U-Fと同じowner）にする",
+        "B": "U-LをweatherCurrent（U-Wと同じowner）にする（spec:1027はweatherCurrentをU-Wだけとするので、specの改訂が要る）",
+        "C": "U-Lをurgent（U-E・U-T・U-Q・U-N・U-Vと同じowner）にする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（発注前点検で統合担当が確定する、Q-C10-PLACE）。根拠: spec:1027はdeferredを「U-Fなど急がないunit」、urgentを「U-E系の急ぐunit」、weatherCurrentをU-Wだけとする。spec:479の表でU-Lは気象の電文（VPWW56）だけを持つ。D-P3-5（計画:202）は急ぐunitから並べてU-LをU-Vの次に置き、C9の発注前点検のP3-C9-PLACEの確定（37a58922）は「U-Lより後のunitは気象の電文だけを持ち、spec:1027のdeferredの側にあたる」と読んだ。D-P3-1（計画:198）は急ぐunitと急がないunitを同居させない。S4の本文（作業ノート、checkoutの外）は読んでいない（C7〜C9と同じ）",
+        "reason": "Aの代償: deferredの実行場所は通常dataのin-flightが1件（p3-execution-boundary.md §4）なので、最大のVPWP50の処理（Piで1秒を超えうる、計画:239の速度差、E03）の最中に届いたVPWW56はその後に並ぶ。レベル4・5の土砂の報の表示と通知が秒の単位で遅れうる（測っていない。AC11で測る）。Cではurgentに気象を入れ、EEWの待ちに土砂の最大の報（corpusは13,586 byte）とU-Lの合法最大の世代（1,327,328 byte、I-U-L.capacityReserve）のencodeが加わる。BはspecのweatherCurrentの定義を変え、U-Wの最大VPWS50の処理（Pi 2.4秒）の後に並ぶのでAより遅れうる"
+      },
+      {
+        "id": "P3-C10-SUBJECTS",
+        "A": "subjectは`${operation}/VPWW56/${office}`、officeはControl/EditorialOfficeの非空scalarのtrim（U-WのidentityRuleと同じ）。一入力が変えるのはその官署のsubjectだけで、ほかの官署の記録を変えない",
+        "B": "旧築どおりControl/PublishingOfficeで官署を決める（weather-parser.ts:449、weather-stream-key.ts:28の`weather:VPWW56:${publishingOffice}`）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（P2-WEATHER-CURRENT-UNIT-001のidentityRule「PublishingOfficeにはVPWW57の共同発表官署があるため代用しない」、spec:599「他官署を消さない」、spec:534の非対象「名前・受信時刻で擬似subjectを作らない」）",
+        "reason": "実配信（~/dev/fleq-corpus-p0の3日分のVPWW56 425本）では共同発表の形のPublishingOfficeは0本。EditorialOfficeとPublishingOfficeが違ったのは28本で、全部がEditorialOffice「気象庁本庁」・PublishingOffice「気象庁」の言い方の差。どちらで鍵を作っても官署の区別は同じで、EditorialOfficeならU-Wと同じ値で並ぶ（U-WのidentityRuleはVPWW57の共同発表官署を理由にPublishingOfficeを避けた）。旧築の保存の鍵は「気象庁」、新築は「気象庁本庁」になるので、移行で読み替える（P3-C10-MIGRATION）"
+      },
+      {
+        "id": "P3-C10-AREAS",
+        "A": "事実はBody/Warning（type「気象警報・注意報（市町村等）」）の各Item（Kindは1個、Q-ENUM.familyTable）から取り、Kind/Codeごとのgroupに市町村等のArea/Codeだけを持つ（名前を持たない。U-Wと同じく区域はcodeだけ）。groupのnameは、そのcodeのKindのうち電文順で最初のItemのKind/Name（実配信の425本では1つのcodeに名前は1つだけ）。府県予報区等・一次細分区域等・市町村等をまとめた地域等のWarningは読まない（市町村等から作れる集約）",
+        "B": "旧築どおりHead/Headline/Informationの市町村等の層（無ければ粗い層）から、区域の名前とKindの名前を区域ごとに持つ（vpww56-state.ts:332のselectPreferredWeatherLayer）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（P2-WEATHER-CURRENT-UNIT-001はBody/Warningの区域をcodeで持ち名前を持たない、C9のI-U-V.boundsも対象市町村をcodeだけで持つ。区域の名前の表示はP4のGIS）",
+        "reason": "Bの名前は容量で収まらない: 128官署×256区域×（code 19＋名前32文字の合法最大192＋鍵20 byte）で約7.6 MBになり、U-Lの1世代2 MiB（spec:479）を超える。Aは1件の合法最大8,566 byteで、128官署で1,327,328 byte（I-U-L.capacityReserve）。Bodyを読むのはU-Wと同じで、解除の区域はBodyのStatus「解除」で分かる（実配信のVPWW55 18_00_01_260830_VPWW55_fukui_releaseでは、解除の区域のKind/Codeは解除された種別のcodeのまま、Statusが解除）。Aの代償: P3のsnapshotの土砂の区域は市町村等のcodeだけで、名前はP4のGISがcodeから引くまで出ない。採用時のoutcomeのfactsには区域の名前を載せる（保存しない）"
+      },
+      {
+        "id": "P3-C10-ACTIVE-STATUS",
+        "A": "区域のKindがactiveなのは、Kind/StatusがQ-ENUM.statusesのうち「解除」「発表警報・注意報はなし」以外で、Kind/Codeが「00」でないときだけ。レベルはKind/Codeで引き（R39: Codeが正本、Status文言・Nameから格上げしない）、表に無い2桁のcodeはlevel nullのactiveとして残す（fail-bright）",
+        "B": "旧築どおりKind/Nameに「解除」を含むかcode 00ならinactive、ほかはactive（weather-warning-level.tsのresolveDisplaySeverity）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（p2-snapshot-sse.jsonのR39とview-projector.tsのNOT_CURRENT「解除・発表警報・注意報はなし」は現行階級の候補外、U-WのSTATUSESの語彙）",
+        "reason": "R06のBodyでは解除の区域のKind/Nameは解除された種別名（例: レベル２大雨注意報）のままでStatusが解除になる（実配信のVPWW55 fukui_release）。Bの名前の判定はBodyでは解除を見落とし、解除した区域をactiveに残す。旧築はHeadlineを読む（Headlineの解除はName「解除」・Code 00）のでこの差は出なかった"
+      },
+      {
+        "id": "P3-C10-CANCEL-SCOPE",
+        "A": "取消はその官署のsubjectだけに効く（旧築のclearCurrent、revision-family-registry.ts:794のVPWW56の方針）。採用前の記録がactiveならcancelled（事実を捨てる）、記録が無いかinactiveなら取消の記憶（cancelled、viewに載らない、通知しない）を作る。前の報の事実を復元しない。取消以前の版の報はstaleで、取消より新しい版の発表・訂正は新しい報として採用しactiveに戻す",
+        "B": "取消で前に採用した報の事実を戻す（VPWS50のrestorePreviousと同じ）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:515「type×官署だけをclear」、spec:1777のO01「対象だけ取消・取消後の古い報は復活しない」、旧築process-weather.ts:331）",
+        "reason": "Bは官署ごとの履歴を持つ必要があり、spec:479の保存するもの（current・gate・取消・期限・intent）に履歴が無い。U-Wのpartial履歴8はVPWS50の系列のもので、U-Lには無い"
+      },
+      {
+        "id": "P3-C10-RETENTION",
+        "A": "期限はsourceのReportDateTimeから絶対の長さで数える（ended・cancelledは+21,600,000 ms）。再起動・再受信で延ばさない。到着の時点で期限を過ぎた報は採用してwatermarkを進め、同じreduceで回収する（viewに載らず鳴らない）。記録の無い官署に受理の時点でReportDateTime+6時間を過ぎたactive相当の報が届いたら、activeにせずwatermarkだけのendedの記録にして同じreduceで回収する（P3-C10-ACTIVE-EXPIRYのA・C。Bではactiveの期限そのもの）",
+        "B": "旧築どおり受信時刻から数える（telegram-revision-gate.ts:1583のacceptedAtMs）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:2213「業務上の期限は元報の絶対時刻から」、C8・C9のRETENTIONと同じ基準。値はspec:573・旧築vpww56-state.ts:20の6時間）",
+        "reason": "受信時刻では再起動・遅着で期限が延び、O07の「期限非延長」を満たせない"
+      },
+      {
+        "id": "P3-C10-CAPACITY",
+        "A": "subjectは三区分合算で128（spec:573）。129件目は (1) retainUntilを過ぎた記録（P3-C10-ACTIVE-EXPIRY=Aではinactiveだけ） (2) inactiveの記録（sourceのReportDateTimeの古い順） (3) training/testの古い順 (4) 受ける報がnormalのときだけnormalの古い順、から1件退去して受け、診断landslideCapacityEvicted（count）を返す。受ける報がtraining/testで(1)〜(3)が無ければ受けた記録自身を退去する（changed/semantic、通知なし、training/testの受理でnormalを退去させない）。そのときcurrentsの参照は変えず、保存世代を進めない（C9のQ-C9-IMPL-AMEND(9)(i)）。到着の時点で期限を過ぎた報（P3-C10-RETENTION）は退去を起こさない（満杯で本物の記録を消さない）。capacityExceededを返さない。一報の市町村等のItemは256以下、activeのKind/Codeの種類は8以下で、超えればrequiredStructureInvalid",
+        "B": "新しいsubjectをcapacityExceededで拒否する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:573「最大128 subject」、台帳60: 深さの上限と容量の上限を同じdecisionに束ねない、C9のP3-C9-CAPACITYと同じ順）",
+        "reason": "(4)は実際には起きない見込み: 全国の府県予報区等は64（15_18_01_250630_VPWS50のBody）で、normalの官署は128を超えない。1報の上限256は官署あたりの市町村等の実例の最大（実配信の425本で81 Item、長野地方気象台）の3倍以上。実配信の16,924 Itemは全部Kindが1個"
+      },
+      {
+        "id": "P3-C10-NOTICE-OWNER",
+        "A": "U-Lの通知intentをC10で作る（Q-NOTICEの土砂分）",
+        "B": "U-W・U-Fと一緒にC20（P3-WEATHER-NOTICE-001）で作る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（計画:79「Q-NOTICEの該当family」をC7〜C14の各契約に置き、計画:85のC20の範囲はU-W・U-Fだけ。終端の記録はC8・C9と同じくintentsに置き、保存世代のbyte予算に入れる。台帳48の問いはU-W・U-Fの型の話）",
+        "reason": "Bでは、C20の配送までU-Lの報が鳴らない。C20への申し送り（P3-C10-HANDOFF）: VPWS50の全国の報も土砂の区域（code 29・49）を持つ（15_18_01_250630_VPWS50）ので、C20がU-Wの通知を作るとき、VPWW56とVPWS50が同じ土砂の変化で2回鳴らないかを決める"
+      },
+      {
+        "id": "P3-C10-NOTICE-GROUP",
+        "A": "U-Lのintentはdomain=weatherで、A7のgroup()はotherに入れる。C10はgroup()を変えず、試験で確かめるだけ",
+        "B": "レベル5の土砂を緊急の群に入れる",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:951の固定優先群は通常運用のEEW→津波緊急→その他）",
+        "reason": "Bはspec:951の改訂を要する"
+      },
+      {
+        "id": "P3-C10-REPLACEMENT",
+        "A": "新しいintentは同じsubject・channelの古いpendingをsupersededにする。取消のintentは取り消した官署のsubjectの全pending（両channel）をsupersededにする。delivered・expiredは変えない",
+        "B": "置き換えずに全部残す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（P2-A4 Q-NOTICEの最新一件の置換、C8・C9のREPLACEMENTと同じ）",
+        "reason": "Bでは引上げの通知が未配送のうちに次の報が来ると、古い段階の音も後から鳴る"
+      },
+      {
+        "id": "P3-C10-TRAINING",
+        "A": "training/testは段階付きのdesktopだけを作り、soundを作らない",
+        "B": "通常と同じchannelを作る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "R28=A・D7=Aの先例を適用（統合担当）。sound-design-system.mdの「training／testは鳴らさない」",
+        "reason": "新築の購読はtest:「no」固定なので本番では訓練報が届かない。届くのは試験とreplayだけ"
+      },
+      {
+        "id": "P3-C10-SNAPSHOT",
+        "A": "snapshotにdomain landslide（DisplayDomainView<LandslideUnitView>）を足し、DisplayInformationTypeに「landslide」を足す。highestSeverityはU-Wと同じWEATHER_SEVERITYの表でKind/Codeから引き（29 advisory・09 warning・49 danger・39 specialWarning）、表に無いcodeはunknownCodeのunknownに数える（U-Wと同じ）。区域の数え方はmunicipalityだけ（AREA_SYSTEMSのU-Lの行）。view-projectorのunit鍵の表（TTL 60秒、UNAVAILABLE_TEXT null、INFORMATION_TYPE、COUNTS_BY_WARNING_CLASS false、AREA_SYSTEMS）にU-Lの行を足す",
+        "B": "U-Lのviewをsnapshotへ載せずP4で足す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（view-projectorの表はRecord<RuntimeUnitId, …>なのでU-Lの行が無いと型で止まる。U-Wの土砂の区域との合成・器・色はP4。C8・C9のSNAPSHOTと同じ）",
+        "reason": "実例の同時最大（64官署・1,772区域）の記録のJSONの和は63,480 byte（I-U-L.capacityMeasurement）で、viewのbyteは測っていないが分野ごとの65,536 byte（view-projector.ts:36）の境目に近い見込み。超えればsummaryに落ちる（P2-A8-SUMMARY）。実装後に同時最大のdomain landslideのbyteとfull/summaryを測り、summaryに落ちたら作者へ報告する（AC06）。通常の雨の日の数官署なら数KBでfullで載る"
+      },
+      {
+        "id": "P3-C10-N2",
+        "A": "VPWW56はREST回復の対象に無い（spec:2205は津波のVTSE41と火山のVFVO50/54/55だけを挙げる）。C10はorigin=recoveryの入力を適用せず、確認scopeを作らない（addedScopesはU-Lで空）",
+        "B": "C10で確認scopeを作る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（C5・C7・C9のN2と同じ分担。計画:22のE22はC16がunitごとのsubsetで集める）",
+        "reason": "Bでは回復の経路が無いまま、再起動のたびに土砂の記録が長く「未確認」に残る"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-NOTICE",
+        "status": "起草（P3-C10-NOTICE-LEVELSは作者裁定待ち、起草案B。ほかの項は統合担当が起草で確定）",
+        "source": "spec §6.3・§6.4・§6.5（spec:951・:973・:974・:981・:997）、P3-UNIT-V-001 Q-NOTICE、P3-UNIT-N-001 Q-NOTICE、旧築notifier.ts:573〜:601・message-router.ts:537〜:552・level-helpers.ts:337〜:344・weather-warning-level.ts:227〜:238",
+        "generationTable": [
+          {
+            "opportunity": "semanticAdoption",
+            "condition": "新しい官署のactiveの採用、取消・解除の後のactiveへの再採用、activeの記録への公開事実（title・kinds）の変わった新しいrevisionの採用。duplicate・stale・revisionOnly・noChangeでは作らない",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ]
+          },
+          {
+            "opportunity": "release",
+            "condition": "activeの記録がended（全ての区域がinactive）になった",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ]
+          },
+          {
+            "opportunity": "inactiveAdoption",
+            "condition": "記録の無い官署か、記憶だけの取消（cancelled）の記録に、Status「解除」の区域を1つ以上持ちactiveの区域の無い報を採用した（changeがrevisionOnlyでも作る。起動の前の発表を取り逃した官署の解除を無音にしない。旧築も受理ごとに通知した、message-router.ts:552）。endedの記録への解除の報では作らない（解除はreleaseで一度知らせ済み）。遅れて届いた報（P3-C10-ACTIVE-EXPIRY・P3-C10-RETENTION）では作らない",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ]
+          },
+          {
+            "opportunity": "correction",
+            "condition": "訂正を採用した（事実が同じでも作る。spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ]
+          },
+          {
+            "opportunity": "cancellation",
+            "condition": "取消を採用し、取消の前に記録がactiveだった。記憶だけの取消（P3-C10-CANCEL-SCOPE）は通知しない",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ]
+          },
+          {
+            "opportunity": "expiry",
+            "condition": "作らない。記録の回収（P3-C10-ACTIVE-EXPIRY=Bではactiveの回収も）では通知しない",
+            "normalChannels": [],
+            "trainingTestChannels": []
+          }
+        ],
+        "level": "P3-C10-NOTICE-LEVELS（作者裁定待ち、起草案B）: 取消はcancel。区域のレベルの段階はレベル5（39）critical、レベル4（49）warning、レベル3（09）warning、レベル2（29）normal、表に無いcode（level null）はwarning。Bでは、採用前の記録より上がった区域（新しい区域か、levelの順位が上がった区域。nullは3と同じ順位）の段階の最大。上がった区域が無い報・release・inactiveAdoptionはnormal。訂正も同じ規則で、採用前の記録と比べる。Aを選ぶなら採用した報の全てのactiveの区域の段階の最大（activeの区域が無ければinfo）、Cを選ぶならBのレベル4をcritical、Dを選ぶならBで上がった区域の無い報（取消を除く）はsoundを作らずdesktopだけ",
+        "overlap": "一つの採用報は各channel最大1 intent。intentのsubjectは官署のsubject",
+        "transition": "新しい官署のactiveへの採用と、取消・解除の後のactiveへの再採用はactivated、activeの記録の新しいrevisionと訂正はupdated、release・inactiveAdoptionはreleased、取消はcancelled",
+        "emergencyGroup": "U-Lのintentは全部A7の群other（P3-C10-NOTICE-GROUP=A）。レベル5でもEEW・津波緊急を追い越さない",
+        "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない",
+        "replacement": "P3-C10-REPLACEMENT=A",
+        "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（C5・C7〜C9の先例）。更新で増えるbyteはQ-NOTICE.capacityの予約の内側に収まる（台帳73）。更新で終端にした記録は期限前の回収の対象から外す（Q-NOTICE.capacity）",
+        "payload": "typeRef reconstruction/contracts/p3-landslide-unit.types.ts#LandslideNotificationPayload。domain=weather（分野別根音表の気象C4）。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（旧築notifier.ts:573〜:601と同じ組み方、I-U-L.boundsで切った値）。bodyは取消なら「この情報は取り消されました」。ほかは採用後の記録のgroupの順に「{Kindの名前} {区域の数}地域」を「 / 」でつなぎ、Head/Headline/Textがあれば「 / 」で続ける（旧築の「警報 N地域 / 注意報 M地域 / headline」を区分ごとにしたもの）。activeの区域が無ければHeadline、それも無ければtitle。訂正はbodyの冒頭に「訂正: 」。titleは160文字・bodyは512文字で切り、空にしない",
+        "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件、かつ「pendingごとのJSON UTF-8 byte＋予約」の和を131,072 byte以内にする（spec:981）。予約はreconstruction/src/notification-delivery/delivery-growth.tsのdeliveryGrowthで数え、受理とdecodeで同じ関数を使う。式の真実源は横断の契約（P3-INTENT-UPDATE-RESERVE-001）で、本契約は式を写さない。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順（期限→生成時刻→ID）の後ろのものを外す。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。新しいintentが容量で外れただけのときは元の配列を返し、保存世代を進めない（C9のQ-C9-IMPL-AMEND(9)(e)）。終端記録はexpiresAtで回収し、保存世代のbyte予算に含める。終端記録の合計が98,304 byteを超える分は最古の終端記録からexpiresAtの前に回収する。ただし配送の更新（intentUpdate）で終端にした記録は回収の対象から外し、次に古い終端記録から回収する（C8のQ-C8-IMPL-AMEND(1)）。そのため終端記録は単独の98,304でなく、「pendingの実byte＋予約＋終端記録」≤229,376 byteで確かめる",
+        "recovery": "origin=recoveryの入力は適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P3-C10-N2）",
+        "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る（spec:997）。復元直後の続報の事実の差と、上がった区域（P3-C10-NOTICE-LEVELS）は、復元した記録との差で決める",
+        "legacyDifference": "旧築との差の一覧は questionResolutions[P3-C10-LEGACY-DIFF]"
+      },
+      {
+        "id": "P3-C10-LEGACY-DIFF",
+        "status": "起草（旧築の実コードから。作者へ出す見え方の根拠。挙動はコードを読んだ範囲で、旧築を実走して確かめてはいない）",
+        "items": [
+          "官署: 旧築はPublishingOfficeでsubjectを作る（weather-parser.ts:449、weather-stream-key.ts:28）。新築はU-Wと同じEditorialOffice（P3-C10-SUBJECTS）。実配信で違うのは本庁だけ（旧築「気象庁」、新築「気象庁本庁」）",
+          "事実の読み方: 旧築はHead/Headline/Informationの市町村等の層（無ければ粗い層）から区域の名前とKindを持ち、Bodyは不足の区域を足すだけ（vpww56-state.ts:332、weather-parser.tsのmergeBodyWarningStatuses）。新築はU-Wと同じくBody/Warningの市町村等だけを読み、区域はcodeだけを持つ（P3-C10-AREAS・P3-C10-ACTIVE-STATUS）",
+          "activeの期限: 旧築はactiveの記録も受信から6時間で黙って消す（revision-family-registry.ts:817、telegram-revision-gate.ts:1583、standby-persistence-admission.ts:1306）。新築はP3-C10-ACTIVE-EXPIRY（作者裁定待ち、起草案Aは解除・取消まで残す）。期限の起点は受信時刻でなく元報の時刻（P3-C10-RETENTION）",
+          "通知の機会: 旧築は受理した報ごとに鳴らす（message-router.ts:537〜:552。VPWW56にはweatherDiffが無いので変化なしの抑止も効かない）。新築は事実の変わった採用・解除・訂正・取消の前にactiveだった記録の取消・記録の無い官署への解除だけ（Q-NOTICE.generationTable）",
+          "段階: 旧築は報の全区域の最大で、レベル4は表示critical・音warning（weather-warning-level.ts:225〜:231、.claude/rules/message-pipeline.md:143の2026-06-12の決定）、解除だけの報はinfo（level-helpers.ts:343）、取消はcancel、表に無いcodeは名前の推測かinfo。新築はP3-C10-NOTICE-LEVELS（作者裁定待ち、起草案Bは上がった区域で決め、表に無いcodeはwarning）。音源は旧築の5段階でなく分野別根音表の気象（C4）",
+          "通知の文面: 旧築はbodyを「警報 N地域 / 注意報 M地域 / headline」（notifier.ts:585）。新築はKindの名前ごとの区域の数（Q-NOTICE.payload）",
+          "容量: 旧築は128件で非activeを退去し、全部activeならgateが不変条件の違反で受理を拒む（telegram-revision-gate.tsのmakeRoomForNewSubject）。新築は退去の順で受け、capacityExceededを返さない（P3-C10-CAPACITY）",
+          "取消: 旧築も新築も官署のsubjectだけを消す（clearCurrent）。新築は記録の無い官署への取消を記憶だけにして鳴らさない（P3-C10-CANCEL-SCOPE）",
+          "優先: 旧築には優先群が無く受理の順に鳴らす。新築のU-Lはotherの群で、EEWと津波緊急の後になる（P3-C10-NOTICE-GROUP）",
+          "訓練: 旧築は既定で訓練報が届かず、届けば通常と同じdesktop＋sound。新築も本番では届かず、届けばdesktopだけ（P3-C10-TRAINING）",
+          "名前: 旧築のCLIの見出しはVPWW56を「土砂災害警戒情報」と呼ぶ（weather-formatter.ts:68）が、VPWW56はR06の気象警報・注意報（土砂）で、旧来の土砂災害警戒情報はVXWW50（spec:498でU-Mのlegacy counterpart、旧築legacy-counterpart-registry.ts:149でunconfirmed）。端末出力の名前はC19"
+        ]
+      },
+      {
+        "id": "Q-ENUM",
+        "status": "起草（統合担当が起草で確定）",
+        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、官署の存在→官署の妥当性→Serial妥当性（存在するときだけ）→ReportDateTime・InfoTypeのrawの長さと受信のinputIdの長さ→必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはcurrents・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す。拒否のsubjectは官署を読めた後なら`${operation}/VPWW56/${office}`、読めなければ空文字（C9のQ-C9-IMPL-AMEND(7)）",
+        "identity": "Controlが1つでEditorialOfficeが無いか空ならidentityMissing、Controlかその子のEditorialOfficeが2個以上・子要素を持つ・trimした長さが64 UTF-16単位を超える・制御文字（U+0000〜U+001F、U+007F）を含むならidentityInvalid。EventIDは読まない（VPWW56は空、バックログの調査「VPWW56はEventID全件空」）。Serialは空を合法とし（旧築allowMissingSerial）、あれば10桁以下の数字列でなければidentityInvalid（比較は数として）。ReportDateTimeのrawが40文字・InfoTypeのrawが8文字を超える報と、受信のinputIdが64文字を超える報はidentityInvalid（C8のQ-C8-IMPL-AMEND(a)）",
+        "familyTable": [
+          {
+            "family": "VPWW56",
+            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個（ほかはrequiredStructureInvalid）。非取消ではBodyが1個、Body/Warning（type「気象警報・注意報（市町村等）」）が1個でItemが1〜256個。各ItemはArea 1個とそのCode 1個（数字だけ、16 byte以下、同じWarningで重複なし）と、Kind 1個（統合担当の決定。実配信の425本の16,924 Itemは全部Kindが1個）。KindはStatus 1個（Q-ENUM.statuses）で、「発表警報・注意報はなし」以外はCode 1個（2桁の数字）とName 1個（非空scalar）",
+            "legalMissing": "取消はBody/Warningが無いか空でよい（読まない）。Head/Headline/Textは欠落してよい（通知のbodyだけに使う）。市町村等以外のWarning（府県予報区等・一次細分区域等・市町村等をまとめた地域等）は読まず、形も確かめない。Kind/LastKind・Property・ChangeStatusは読まない",
+            "invalid": "非取消のItemのKindが1個でない（0個も2個以上もrequiredStructureInvalid。受理の区域の延べとdecode・容量の延べ256を同じにする）、Statusの語彙の外、Codeが2桁の数字でない、Area/Codeの重複、Itemが256を超える、activeのKind/Codeの種類が8を超える、子要素を持つscalar（requiredStructureInvalid）"
+          }
+        ],
+        "statuses": "Kind/Statusの語彙はU-Wと同じ（weather-current.ts:35のSTATUSES）: 発表・継続・解除・発表警報・注意報はなし・警報から注意報・危険警報から注意報・危険警報から警報・特別警報から警報・特別警報から注意報・特別警報から危険警報。activeかどうかはP3-C10-ACTIVE-STATUS",
+        "codeTable": "Kind/CodeはXMLの文字列（子要素の無い要素の直下textのtrim）で引く: 29はレベル2（土砂災害注意報）、09はレベル3（土砂災害警報）、49はレベル4（土砂災害危険警報）、39はレベル5（土砂災害特別警報）、00はinactive（旧築weather-warning-level.ts:107の土砂の表、R39）。表に無い2桁のcodeはlevel nullのactive",
+        "revisionOrder": "subject（官署）ごとにReportDateTimeで比べ、同時刻で両方にSerialがあればSerialで比べる。それでも同じなら同じrevisionで、InfoTypeの優先（取消>訂正>発表）で後着の上位だけ採用する。同じrevision・同じInfoTypeで公開事実（effective・title・kinds）が同じならduplicate、違えば先着を保ってstale＋WARN診断landslideRevisionConflict。取消以前のrevisionはstaleで、取消したsubjectを戻さない。取消より新しいrevisionの発表・訂正は新しい報として採用しactiveに戻す。初報を受けていない官署の訂正は新しい報として採用する",
+        "diagnosticReasons": "既存のDiagnosticReason（p2-shared-runtime.types.ts）に土砂の同じrevisionの食い違いと件数の上限の退去に当たるものが無いので、landslideRevisionConflictとlandslideCapacityEvictedの2つだけを足す（persistent-diagnostic-sink.tsの一覧にも足す）"
+      },
+      {
+        "id": "I-U-L",
+        "status": "起草（P3-C10-ACTIVE-EXPIRY・P3-C10-NOTICE-LEVELSは作者裁定待ち、起草案C・B）",
+        "subjects": "P3-C10-SUBJECTS=A。一入力は官署のsubjectを1つだけ変える。一入力の変更は一回の参照交換で原子的に適用する（spec:616）",
+        "currentSemantics": "(1) 発表・訂正の採用: Body/Warning（市町村等）のItem（Kindは1個）から、P3-C10-ACTIVE-STATUSのactiveのKind/Codeごとにgroupを作り、区域のcodeを電文順に入れる。groupのnameはそのcodeの電文順で最初のKind/Name（P3-C10-AREAS）。記録の無い官署に受理の時点でReportDateTime+6時間を過ぎた報はactiveにしない（P3-C10-ACTIVE-EXPIRY・P3-C10-RETENTION）。activeの区域が1つ以上ならeffective=activeで事実（title・kinds）を全部置き換える（報は官署の全区域を載せるので、前の報の区域を残さない）。activeの区域が無ければ、記録がactiveならendedにして事実を捨て、記録がinactiveならsourceを進め（revisionOnly）、記録が無ければendedの記録を作る（watermarkだけ。changed/revisionOnly、通知はQ-NOTICE.generationTableのinactiveAdoption） (2) ほかの官署の記録は変えない（spec:599） (3) 取消はP3-C10-CANCEL-SCOPE (4) changeは公開事実（effective・title・kinds）が変わればsemantic、watermarkだけが進めばrevisionOnly (5) inactiveの記録はretainUntil（+6時間）の到来で除く。activeの記録はP3-C10-ACTIVE-EXPIRY（起草案C: retainUntil=+48時間の到来で黙って除く）",
+        "bounds": "文字列の上限（UTF-16の長さ。超えたら切り詰めてtruncated=true）: title 128、Kindの名前32。ASCIIに限る値（超えたらrequiredStructureInvalid）: 区域のcode 16 byte（数字だけ）、Kind/Code 2桁。官署は64 UTF-16単位で制御文字なし（超えたらidentityInvalid、Q-ENUM.identity）。件数: 一報の市町村等のItemは256以下でItemのKindは1個なので、区域の延べは受理でもdecodeでも256以下。activeのKind/Codeの種類は8以下（requiredStructureInvalid）。通知のtitle 160・body 512・Headline 256（切る）。採用時のoutcomeのfactsに載せる区域の名前（Area/Name）は32文字で切る（保存しない）。corpusの最大はtitle 14文字、Kindの名前12文字、区域10、全国の市町村等の名前の最長13文字（15_18_01_250630_VPWS50）。実配信の425本の最大はtitle 23文字、Item 81（長野地方気象台）、Kind/Codeは29・09・49・39の4種類。切り詰めは起きない",
+        "deadlines": "nextDeadlineのwallTimeMsは、記録のretainUntil（P3-C10-ACTIVE-EXPIRY=Aならinactiveだけ）とintentのexpiresAtの最小。到来で期限処理を行い、到来分だけを回収する。到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（128官署の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
+        "persisted": "PersistedLandslideUnitはschemaVersion p3-landslide-unit-v1、currents、intents（pendingと終端記録）。contentRevision・persistenceは保存しない。保存しない系列は無い。unchanged・rejectedと、新しいintentが容量で外れただけの受理と、training/testの報が自分自身を退去しただけの受理（P3-C10-CAPACITY）と、到着の時点で期限を過ぎた報（遅着の発表・解除だけの遅着とも。P3-C10-RETENTION、同じreduceで回収して正味のstateが変わらない）では、currentsの参照を変えず保存世代を進めない",
+        "decode": "codecは一つ（landslideUnitCodec）。decodeは受理と同じ上限で次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない（受理が通した値をdecodeが拒否するとunit全体の復元が落ちる。C9のQ-C9-IMPL-AMEND(9)(b)）: schemaVersion、currentsは128件以下でsubjectの重複なし、subjectがI-U-L.subjectsの形で運用区分・官署と一致、官署がQ-ENUM.identityの文字と長さ、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）とsource.familyがVPWW56・source.subjectが記録のsubject、retainUntil=sourceのReportDateTime＋（activeは172,800,000、inactiveは21,600,000。P3-C10-ACTIVE-EXPIRYの起草案C）、active以外は事実のfieldを持たない（types.tsの判別共用体）、activeのkindsが1〜8 groupでcodeの重複なし・各groupのareasが1件以上・区域の延べが256以下・区域のcodeが数字で16 byte以下・levelがQ-ENUM.codeTableとcodeで一致・groupの順がtypes.tsの順・titleとKindの名前がI-U-L.boundsの内側、pending≤128件かつ「pendingの実byte＋予約」≤131,072、「pendingの実byte＋予約＋終端記録」≤229,376（Q-NOTICE.capacity。予約はdeliveryGrowth、attemptsは0以上の安全な整数、nextAttemptAtは有限の数）、encode後の世代≤2,097,152 byte、intentのunitがU-LでsubjectがI-U-L.subjectsの形であること（stateに残っているsubjectとの一致は求めない。記録の回収の後もpendingは期限まで残るため）",
+        "view": "LandslideUnitViewはactiveの記録だけを載せる。SubjectOutcomeはsubjectごとに作り、factsに公開事実と変わったfield（採用時は区域の名前も、I-U-L.bounds）を載せる。RuntimeDisplaySubjectにunit U-Lの行（current: Extract<LandslideCurrent, { effective: \"active\" }> | null）を足す。unavailable・未保存・再起動の空を「警報なし」に読み替えない。U-Wの全国の土砂の区域との合成はしない（spec:479の保存しないもの「全国一括の権威あるunion」、P3-C10-HANDOFF）",
+        "confirmationScope": "U-Lは確認scopeを作らない（P3-C10-N2）。shared-runtime.tsのaddedScopesにU-Lで空を返す分岐を足す",
+        "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-L、executionPlacesにU-L＝deferred（P3-C10-PLACEの起草案A）、coverage表のVPWW56をready＋U-L（いまはnotPorted）。UnitModule<「U-L」>はpersistence durable、terminalIntents kind intents、reclaimDeadlineBeforeReceive true",
+        "computation": "容量は記録・intentごとのencode byteをWeakMapでその値に結び付けて加算する（C5・C7〜C9の先例）。subjectの検索は配列に結び付けたMapのcacheで引く。受信1回の処理は報のItemの数に比例し、currentsの配列は1回だけ作り直す。上限のある近道として、満杯（128件）での退去の候補を探すのは素朴な線形の走査でよい（台帳47の例外、上限は件数の上限で保持と復元の両方で効く）。nextDeadlineの最小値も配列に結び付けたcacheで持つ。受信1回でstate全体・intent全体を直列化しない（AGENTS.md「受信経路の計算量」、台帳47）",
+        "capacityReserve": "台帳41の読み替え: U-Lは拒否・診断をstateに保存しない（診断はstepの出力、admissionの記録はruntime）ので予約の対象が無く、退去できない記録が無い（P3-C10-CAPACITYで全subjectを退去で受ける）。保存の世代の上界は、記録1件の合法最大（自由文のtitle 128・Kindの名前32はJSONで1単位6 byteになる文字で埋め、官署は制御文字を除くので1単位3 byteで64、区域のcodeは16桁で延べ256、groupは8でlevelはnull、時刻はDateの範囲の端の-8640000000000000、operation=training、inputId 64文字、ReportDateTime 40文字、Serial 10桁、InfoType 訂正）が8,566 byteで、128×8,566＝1,096,448、区切り127、「pendingの実byte＋予約＋終端記録」229,376（Q-NOTICE.capacity）、intentの配列の区切り884（229,376÷259−1。intentは1件259 byte以上でC8と同じ数え方）、envelope 293（C8の値）、配列の鍵と括弧200で、合計1,327,328 byte以下＝2 MiB（2,097,152）の内側（769,824 byteの余り）。超えることは件数・文字列の上限と回収の規則から起きず、decodeで超えた保存物はunavailable",
+        "capacityMeasurement": "測り方（2026-10-09、Mac、起草時の測定スクリプトはrepo外）: 1c5da0ddをtscでbuildしたreconstruction/distのingestXmlData→decodeMaterialでcorpusの15_16_01_241031_VPWW56（13,586 byte、headType VPWW56）を読み（検査に通った）、types.tsのLandslideCurrent・LandslideIntentの形に組み（inputIdは36文字）、JSON.stringifyのUTF-8 byteを数えた。結果: activeの記録815 byte（市町村等10区域、group 49×1・09×1・29×8）、endedの記録402 byte、intent 1件882 byte（予約30を足して912）。実例の同時最大（spec:470）: 全国の市町村等1,772（15_18_01_250630_VPWS50の市町村等のItemの数）を64官署（同じ報の府県予報区等の数）に15_16_01の記録の形（3 group、各groupに1区域以上）で配った記録の和63,480＋記録の区切り63＋pending 128件の実byte 112,896＋予約3,840＋終端記録127件112,014（配送の更新で終端にした記録を含めて「pendingの実byte＋予約＋終端記録」228,750≤229,376）＋intentの区切り254＋envelope 293＋鍵と括弧200＝293,040 byte（2,097,152まで1,804,112）。上限の文字列での上界は1,327,328 byte（I-U-L.capacityReserve）。実配信の425本（~/dev/fleq-corpus-p0の3日分）は全部この形の内側（Item最大81、title最大23文字、Kind/Code 4種類）。実装後の測り直し: 同じfixtureで実際のencode byteを測り、この値と10%以上違えば数を直して報告する。あわせて、この同時最大状態のsnapshotのdomain landslideのUTF-8 byteとfull/summaryの判定（分野ごとの65,536 byte、view-projector.ts:36）を測り、summaryに落ちたら配送の前に作者へ報告する（AC06、C8と同じ形）"
+      },
+      {
+        "id": "P3-C10-INTERFERENCE",
+        "status": "起草（台帳63、計画:79の共通条文。P3-C10-PLACEの起草案A=deferred）",
+        "longestUninterrupted": "deferredでU-Lが足す非中断処理: 最大の土砂の報（corpusは15_16_01の13,586 byte。合法最大はItem 256の報で、試験内で作る）の解凍・XML parse・reduce、合法最大（I-U-L.capacityReserve、1,327,328 byte）のU-Lのcheckpoint encode、128官署の同時の期限回収、合法最大でのtoView",
+        "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。EEWは別のworker（urgent）なので待ちは増えない見込みで、増えたら原因（publisherの処理・書込み権の配分）を分けて報告する。あわせて、同居するU-Fとの待ち合い（最大VPWP50の処理の最中に投入したVPWW56の投入→T2と、U-Lの合法最大のencodeの最中に投入したVPWP50の待ち）を報告する。正式E01ではない。EEWの待ちの最大が約40ms（E01の250msをMac・Piの速度差の約6.3倍で割った値、計画:239）を超えたら、配送の前に作者へ報告しP3-C10-PLACEを見直す。U-L自身がU-Fの後ろで待つ時間（最大VPWP50の処理の最中に投入したVPWW56の投入→T2）の最大が約160ms（Piの大型通常入力の目安1秒、E03を速度差6.3倍で割った値）を超えたら、同じく作者へ報告する。U-L同居後の正式な再測定はC22のPiでの短い確認（計画:87）に送る"
+      },
+      {
+        "id": "P3-C10-WRITE-RIGHT",
+        "status": "起草（P3-UNIT-WRITE-RIGHT-001配送 54a63c25 とC7〜C9の合流の後の形）",
+        "rule": "U-LをP3-C9-WRITE-RIGHTと同じ読み替えで入れる: 書込み権はunitごとに1件で、同じ実行場所のunitは別々の権を持つ。その実行場所が入力を処理している間はどのunitにも権を出さない。P3-C10-PLACE=Aでdeferredのunit数は2（U-F・U-L）、deferredのcheckpointGrantは2件まで。U-Lの保存中も同じ実行場所の入力を送る"
+      },
+      {
+        "id": "P3-C10-MIGRATION",
+        "status": "起草",
+        "rule": "PersistedLandslideUnit（p3-landslide-unit-v1）は新設のschemaなので、C10の中で旧データの移行は要らない。旧築の待機画面の保存（standby-persistence.tsのvpww56State、PersistedVpww56StateV2）からU-L候補を作るのはC15（P3-MIGRATION-001）。codecのdecodeはp3-landslide-unit-v1以外をunavailableで返す。C15への申し送り: 旧築の保存は区域の名前とKindを持つviewで、官署はPublishingOffice（P3-C10-SUBJECTS）、Headline由来の層（P3-C10-AREAS）なので、移行器は官署の鍵を読み替え（実配信で違うのは本庁だけ: 旧築の鍵`weather:VPWW56:気象庁`→新築の`${operation}/VPWW56/気象庁本庁`）、移した記録の数を入力と出力で突き合わせる"
+      },
+      {
+        "id": "P3-C10-HANDOFF",
+        "status": "起草（他の契約・段への申し送り。C10の範囲には入れない）",
+        "items": [
+          "P4（表示）: VPWS50の全国の報も土砂の区域（code 29・49）を持つ（15_18_01_250630_VPWS50のBodyの全層でKind/Code 29が514件・49が512件）。U-Wの全国の土砂の区域とU-Lの官署の区域を一枚に合成するか、新しい方を採るかはP4の表示の契約で決める（U-Lはunionを保存しない、spec:479）。旧築も待機画面でvpws50とvpww56を別のsourceとして合わせた（process-weather.tsのapplyWeatherAlerts）。バックログ〔P5観察〕「VPWS50＋VPWW56併発時に重複行が1本になるか」",
+          "C20（P3-WEATHER-NOTICE-001）: U-Wの通知を作るとき、VPWS50の土砂の区域の変化とVPWW56（U-L）が同じ変化で2回鳴らないかを決める（P3-C10-NOTICE-OWNER）",
+          "C13（U-M）: 旧来の土砂災害警戒情報VXWW50はspec:498でU-Mのlegacy counterpart。VPWW56との対応付けは旧築でunconfirmed（legacy-counterpart-registry.ts:149）で、バックログの調査でKind 3↔49の単一の正規化が成り立たない（1↔29も実在）。U-LはVXWW50を読まず、U-Lの記録を推測で変えない",
+          "C15（移行）: P3-C10-MIGRATION",
+          "C4・C22（測定）: P3のE01の負荷N（reconstruction/test/eew-e01/evidence/p3/manifest.jsonのloads.N）は15_16_01_241031_VPWW56を何度も流す。C10の配送の後はnotPortedの経路でなくU-Lの受理（2回目以降はduplicate）になり、deferredの負荷が変わる。凍結した版付きの結果は書き換えず、C22の確認でこの差を記録する"
+        ]
+      },
+      {
+        "id": "P3-C10-DEPS",
+        "status": "起草",
+        "rule": "着手条件: C9（P3-UNIT-V-001）の配送（main 0d271ae0、済み。RuntimeUnitIdの実行時の一覧と実行場所にU-Vが入った共有fileの基底。0d271ae0のunit-table/type-contract.tsの負の型検査n5b・n6a・n6bと、unit-table.test.tsのnotPortedの代表は、まだruntimeに無いunitとしてU-L・VPWW56を使っている）、作者裁定（P3-C10-ACTIVE-EXPIRY・P3-C10-NOTICE-LEVELS）と発注前点検（Q-C10-PLACE・Q-C10-CORPUS・Q-C10-BASE）の済み。baseOidは0d271ae0かその後のcommitに割り当てる。起草のanchorは0d271ae0で読み直した（C9で中身が変わったのはunit-coverage.ts:8のruntimeUnitsの行、行がずれたのはcomposition-root.ts:194→:195とview-projector.ts:56→:58・:76→:80・:88→:92。ほかの引用行は同じ行で一致）。allowedPathsはC9とvolcano-unitの試験3本で重なる（本契約はunitの数・一覧の機械的な追加だけ）。U-Lはdelivery-growth.tsをimportするだけで編集しない"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal/training/testをsubject、watermark、current、取消、intent、outcome、viewへ必須伝播し、同一官署でも区分間の意味上の更新・取消・置換・重複抑制をしない。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する。退去はP3-C10-CAPACITYの規則に限り、training/test受理でnormalを先に退去させない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UNIT-L-001",
+    "mode": "implementation",
+    "objective": "M07をI-U-Lとして閉じる。VPWW56（気象警報・注意報（Ｒ０６）（土砂））を、官署ごとのcurrent（D）としてU-Lの一つのreducer・唯一のcodec・viewで扱い、Q-NOTICEの土砂分を生成し、unit表・coverage・実行場所・snapshotを結線し、U-Lの通知がEEW・津波緊急を追い越さないことを製品経路で確かめる。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "docs/specs/sound-design-system.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-execution-boundary.md",
+      "reconstruction/contracts/p3-landslide-unit.json",
+      "reconstruction/contracts/p3-landslide-unit.types.ts",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-volcano-unit.types.ts",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p3-unit-table.json",
+      "reconstruction/contracts/p3-unit-table.types.ts",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p3-execution-lifecycle.json",
+      "reconstruction/contracts/p3-unit-write-right.json",
+      "reconstruction/contracts/p3-owner-ledger-bound.json",
+      "reconstruction/contracts/p3-intent-update-reserve.json",
+      "reconstruction/src/notification-delivery/delivery-growth.ts",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p2-mailbox.json",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "test/fixtures/**",
+      "src/engine/messages/vpww56-state.ts",
+      "src/engine/messages/weather-stream-key.ts",
+      "src/engine/messages/revision-family-registry.ts",
+      "src/engine/messages/telegram-revision-gate.ts",
+      "src/engine/messages/message-router.ts",
+      "src/engine/messages/legacy-counterpart-registry.ts",
+      "src/engine/messages/route-catalog.ts",
+      "src/engine/presentation/processors/process-weather.ts",
+      "src/engine/presentation/level-helpers.ts",
+      "src/engine/notification/notifier.ts",
+      "src/engine/display/standby-persistence-admission.ts",
+      "src/dmdata/weather-parser.ts",
+      "src/dmdata/weather-warning-level.ts",
+      "src/ui/weather-formatter.ts",
+      "src/types.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/landslide/**",
+      "reconstruction/src/units/landslide/**",
+      "reconstruction/test/landslide-unit/**",
+      "reconstruction/src/runtime/unit-coverage.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/shared-runtime.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p2-notification-delivery.types.ts",
+      "reconstruction/test/notification-delivery/**",
+      "reconstruction/test/unit-table/**",
+      "reconstruction/test/mailbox/**",
+      "reconstruction/test/shared-runtime/**",
+      "reconstruction/test/snapshot-sse/**",
+      "reconstruction/test/integration/**",
+      "reconstruction/test/checkpoint-shutdown/runtime-fixture.ts",
+      "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts",
+      "reconstruction/test/execution-split/owner-harness.ts",
+      "reconstruction/test/execution-split/execution-split.test.ts",
+      "reconstruction/test/execution-split/unit-write-right.test.ts",
+      "reconstruction/test/execution-lifecycle/lifecycle.test.ts",
+      "reconstruction/test/chrome-eew/pure.test.ts",
+      "reconstruction/test/chrome-eew/tsunami.test.ts",
+      "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "reconstruction/test/weather-timeseries-unit/weather-timeseries-unit.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-host.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-runtime.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-unit.test.ts",
+      "reconstruction/test/seismic-unit/seismic-host.test.ts",
+      "reconstruction/test/seismic-unit/seismic-runtime.test.ts",
+      "reconstruction/test/seismic-unit/seismic-unit.test.ts",
+      "reconstruction/test/nankai-unit/nankai-host.test.ts",
+      "reconstruction/test/nankai-unit/nankai-runtime.test.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/test/volcano-unit/volcano-host.test.ts",
+      "reconstruction/test/volcano-unit/volcano-runtime.test.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M07"
+    ],
+    "integrationContractIds": [
+      "I-U-L"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-TABLE-001",
+      "P3-CHECKPOINT-STEP1-001",
+      "P3-DMDATA-CONNECT-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P3-E01-REACCEPT-001",
+      "P3-UNIT-WRITE-RIGHT-001",
+      "P3-OWNER-LEDGER-BOUND-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-Q-001",
+      "P3-UNIT-N-001",
+      "P3-UNIT-V-001",
+      "P3-TSUNAMI-E01-001",
+      "P3-INTENT-UPDATE-RESERVE-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-MAILBOX-001",
+      "P2-NOTIFICATION-DELIVERY-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P1-PARSER-BOUNDARY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideKindGroup",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideCurrent",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideNotificationPayload",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideIntent",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideUnitState",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#PersistedLandslideUnit",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideUnitView",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideInput",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideUnitStep",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideUnitCodec"
+    ],
+    "publicFunctions": [
+      "reduceLandslideUnit(state: LandslideUnitState, input: LandslideInput): LandslideUnitStep",
+      "toLandslideView(state: LandslideUnitState): LandslideUnitView",
+      "landslideUnitCodec: LandslideUnitCodec",
+      "landslideUnit: UnitModule<\"U-L\">（reconstruction/src/units/landslide/。unit表の1行）"
+    ],
+    "allowedDependencies": [],
+    "fixtureIds": [
+      "test__fixtures__15_16_01_241031_VPWW56"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O03",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [
+      {
+        "id": "P3-C10-SEM-01",
+        "target": "inactive current record (ended, cancelled)",
+        "limit": 6,
+        "unit": "hours from the source ReportDateTime",
+        "rule": "P3-C10-RETENTION=A。到来で記録を除く",
+        "source": "spec:573、旧築vpww56-state.ts:20"
+      },
+      {
+        "id": "P3-C10-SEM-02",
+        "target": "active current record",
+        "limit": "48 (P3-C10-ACTIVE-EXPIRY draft C; none if A; 6 if B)",
+        "unit": "hours from the source ReportDateTime",
+        "rule": "P3-C10-ACTIVE-EXPIRY（作者裁定待ち）。Cでは到来で記録を黙って除く（通知しない）。Aでは解除・取消まで残る。A・Cでは、記録の無い官署に受理の時点でReportDateTime+6時間を過ぎて届いたactive相当の報をactiveにしない（watermarkだけのendedの記録を作り同じreduceで回収）",
+        "source": "spec:565・:573、旧築revision-family-registry.ts:817、実配信の無報の間隔（P3-C10-ACTIVE-EXPIRYの材料）"
+      },
+      {
+        "id": "P3-C10-SEM-03",
+        "target": "U-L sound intent",
+        "limit": 60,
+        "unit": "seconds from original createdAt",
+        "rule": "再起動・再試行で延ばさない",
+        "source": "spec:973"
+      },
+      {
+        "id": "P3-C10-SEM-04",
+        "target": "U-L desktop intent",
+        "limit": 180,
+        "unit": "seconds from original createdAt",
+        "rule": "再起動・再試行で延ばさない",
+        "source": "spec:974"
+      }
+    ],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P3-C10-RET-01",
+        "target": "office subjects",
+        "limit": 128,
+        "unit": "subjects, normal/training/test combined",
+        "source": "spec:573、P3-C10-CAPACITY（深さの上限。capacityExceededにしない）"
+      },
+      {
+        "id": "P3-C10-RET-02",
+        "target": "areas and kind groups of one report",
+        "limit": "256 municipality items with exactly one Kind each, and 8 active Kind/Code values",
+        "unit": "per report (requiredStructureInvalid above)",
+        "source": "P3-C10-CAPACITY・I-U-L.bounds"
+      },
+      {
+        "id": "P3-C10-RET-03",
+        "target": "pending intents",
+        "limit": "128 items and 128 KiB per persistence unit (bytes plus the per-pending reserve of deliveryGrowth)",
+        "source": "spec:981、台帳73、P3-INTENT-UPDATE-RESERVE-001"
+      },
+      {
+        "id": "P3-C10-RET-04",
+        "target": "terminal intent records",
+        "limit": "each until its expiresAt (at most 180 seconds); early reclaim above 98,304 bytes skips records terminated by intentUpdate, and pending bytes plus reserve plus terminal records stay within 229,376 bytes",
+        "source": "Q-NOTICE.capacity・I-U-L.capacityReserve・C8 Q-C8-IMPL-AMEND(1)(7)"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P3-C10-RES-01",
+        "target": "U-L encoded generation",
+        "limit": 2097152,
+        "unit": "UTF-8 bytes",
+        "scope": "currents and intents; counted as a sum of per-record and per-intent encodings. The upper bound from count and string limits is 1,327,328 bytes (I-U-L.capacityReserve)",
+        "source": "spec:479"
+      },
+      {
+        "id": "P3-C10-RES-02",
+        "target": "notification deadlines across both channels",
+        "limit": "runtimeUnits.length × 128（U-Lを足して1,024）",
+        "scope": "composition-root.tsの式のまま（C5で可変にした）。p2-notification-delivery.types.tsの注記の値を1,024にする",
+        "source": "P2-A7-TIME、P3-C5-AC14"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-L"
+    ],
+    "persistedFields": [
+      "官署のcurrent: subject・operation・office・source・retainUntil・effective・title・kinds（code・name・level・areas）・truncated（active以外は事実を持たない）",
+      "intent: pendingの全fieldと元のcreatedAt/expiresAt、終端記録（expiresAtまで、「pendingの実byte＋予約＋終端記録」229,376 byteまで）"
+    ],
+    "nonPersistedFields": [
+      "contentRevision、persistence（RuntimeState側のmetadata）",
+      "記録・intentごとのencode byteの加算値、検索用のMap（容量判定と検索用。復元時に作り直す）",
+      "DecodedMaterial/XML tree、区域の名前（Area/Name、採用時のoutcomeのfactsだけ）、Kind/LastKind・Property（危険度・CriteriaPeriod）・ChangeStatus、市町村等以外のWarningの層、Head/Headline/Text（通知のbodyだけ）、Body/Comment、UnitView、PublishedOutcome"
+    ],
+    "outOfScope": [
+      "U-W（VPWS50の全国の土砂の区域）との表示の合成・重複の解消（P4、P3-C10-HANDOFF）",
+      "VPWS50とVPWW56の通知の重なりの解消（C20、P3-C10-HANDOFF）",
+      "旧来の土砂災害警戒情報VXWW50との対応付け（C13のU-M、spec:498）",
+      "REST回復・確認scope（P3-C10-N2）",
+      "旧築の待機画面の保存の移行（C15、P3-C10-MIGRATION）",
+      "土砂の器・色・区域の名前の表示・地図（P4）。端末出力（C19、旧築weather-formatter.ts）",
+      "A7の選択・試行・停止の実装の変更（group()は触らない）。配送の更新の予約の式とdelivery-growth.ts（P3-INTENT-UPDATE-RESERVE-001）",
+      "共有の直書きを表へ寄せる改修（写した読み取り関数の集約は計画§9の小さな契約で、C14の後・C22の前）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-C10-AC01",
+        "requirement": "単位入力とcoverage: RuntimeUnitIdの実行時の一覧にU-L、unit表にUnitModule<「U-L」>の行、coverage表のVPWW56をready＋U-L、executionPlacesにU-L（P3-C10-PLACE、I-U-L.runtimeRows）。VPWW56の入力はU-Lだけへ届き、一入力の変更は一回の参照交換で原子的に適用する。questionResolutions[Q-ENUM]の順で最初の一RejectionReasonだけを返し、rejectedはstate全体を不変にする。取消のBody/Warningの欠落・空は合法",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»",
+          "docs/specs/reconstruction-p0-contracts.md:515 «b2d19a49aa46190a»",
+          "docs/specs/reconstruction-p0-contracts.md:599 «f0c2a2fedd6f32c0»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «bfd4ea7b51bf407d»",
+          "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
+          "reconstruction/src/runtime/unit-coverage.ts:93 «e734142b4cf8bd81»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:151 «6bd033e915fa9e90»",
+          "reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC02",
+        "requirement": "官署のcurrent（I-U-L.currentSemantics、P3-C10-SUBJECTS・P3-C10-AREAS・P3-C10-ACTIVE-STATUS）: subjectはEditorialOfficeの官署で、事実はBody/Warning（市町村等）からKind/Codeのgroupと区域のcodeで作る。Status「解除」の区域はKind/Codeが解除された種別のままでもinactive、表に無い2桁のcodeはlevel nullのactive。新しい報は官署の事実を全部置き換え、ほかの官署の記録を変えない。activeの区域の無い報はactiveの記録をended、記録の無い官署にはendedの記録（watermark）。semanticとrevisionOnlyの区別、normal/training/testの区分交差0",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:396 «7c72311f890e6563»",
+          "docs/specs/reconstruction-p0-contracts.md:515 «b2d19a49aa46190a»",
+          "docs/specs/reconstruction-p0-contracts.md:599 «f0c2a2fedd6f32c0»",
+          "docs/specs/reconstruction-p0-contracts.md:534 «92491768609ba6ce»",
+          "reconstruction/contracts/p2-snapshot-sse.json:67 «a3f1c965a1d09c56»",
+          "reconstruction/src/view-projector/view-projector.ts:92 «850f0318c98a7301»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:35 «3a1f6e3168d4afc3»",
+          "test/fixtures/15_16_01_241031_VPWW56.xml:308 «2567a3af87a62e16»",
+          "src/dmdata/weather-warning-level.ts:107 «ee52073a9225e6a0»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC03",
+        "requirement": "版・取消・期限（Q-ENUM.revisionOrder・P3-C10-CANCEL-SCOPE・P3-C10-RETENTION・P3-C10-ACTIVE-EXPIRY）: ReportDateTime→Serial→InfoTypeの優先の順、同じ版の重複はduplicate・食い違いはstale＋landslideRevisionConflict、取消はその官署だけをcancelledにし前の事実を戻さない、記録の無い官署への取消は記憶だけで鳴らない、取消以前の報はstaleで復活しない、取消より新しい報はactiveに戻す。inactiveの記録はsourceのReportDateTime+6時間で除き、activeの記録はP3-C10-ACTIVE-EXPIRYの裁定どおり（起草案C: +48時間）。記録の無い官署に受理の時点で+6時間を過ぎて届いたactive相当の報はactiveにならず、viewに載らず鳴らない。期限は元報の時刻から数え、再起動・再受信で延ばさない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:573 «3c6e6724ffa08dbe»",
+          "docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»",
+          "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
+          "docs/specs/reconstruction-p0-contracts.md:2213 «9b0efc412a902593»",
+          "src/engine/messages/revision-family-registry.ts:794 «efbd87b81d0f6bdb»",
+          "src/engine/messages/revision-family-registry.ts:817 «4bbeeddf92d66a41»",
+          "src/engine/messages/vpww56-state.ts:20 «7c785986cff0c8cd»",
+          "src/engine/messages/telegram-revision-gate.ts:1583 «9668517b4329cbcb»",
+          "src/engine/display/standby-persistence-admission.ts:1306 «91a07ed16d5904f3»",
+          "src/engine/presentation/processors/process-weather.ts:331 «ba5a938025537a68»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC04",
+        "requirement": "容量と受信1回の費用: P3-C10-CAPACITY=A（128 subjectと退去の順・landslideCapacityEvicted、一報のItem 256・Kind/Codeの種類8、pending 128件・「実byte＋予約」131,072・「実byte＋予約＋終端記録」229,376、1世代2,097,152 byte）とI-U-L.capacityMeasurementの同時最大状態（293,040 byte、上界1,327,328 byte）を通す（spec:470）。capacityExceededを返さない。最大正常と+1の境界入力（Q-LIMIT）で確かめる。intentUpdateでattempts・nextAttemptAtの桁が増えてもpendingの和が上限を超えず、受理とdecodeが同じ式で数える（台帳73）。容量は記録単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
+          "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»",
+          "docs/specs/reconstruction-p0-contracts.md:573 «3c6e6724ffa08dbe»",
+          "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
+          "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»",
+          "reconstruction/contracts/p3-order-plan.md:344 «cab21d450b7db8ea»",
+          "src/engine/messages/vpww56-state.ts:17 «10d452f00207656f»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC05",
+        "requirement": "保存と復元: PersistedLandslideUnitと唯一のcodec（schemaVersion p3-landslide-unit-v1）、I-U-L.persisted・I-U-L.decodeの検査（受理と同じ上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC10に旧データ移行は無い（P3-C10-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報（訂正・取消・旧報）は復元した記録との差で決め、官署を名前・受信時刻から推測しない（O07）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»",
+          "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
+          "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
+          "docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",
+          "docs/specs/reconstruction-p0-contracts.md:534 «92491768609ba6ce»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC06",
+        "requirement": "view・outcome・snapshot: LandslideUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-L行、addedScopesのU-Lの空（P3-C10-N2）、snapshotのdomain landslide（P3-C10-SNAPSHOT=A、highestSeverityはWEATHER_SEVERITY、区域はmunicipality）を同じ採用結果から作る。active以外の記録を載せず、unavailable・未保存・再起動の空を「警報なし」に読み替えない。U-Lだけが変わった入力でもsnapshotが出し直される（view-projectorの比較・domainの列・byteの合計にU-Lが入る）。実装後に、I-U-L.capacityMeasurementの同時最大状態（64官署・1,772区域）でdomain landslideのUTF-8 byteとfull/summaryの判定を測って報告し、summaryに落ちたら配送の前に作者へ報告する",
+        "evidenceRefs": [
+          "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
+          "reconstruction/src/view-projector/view-projector.ts:58 «e28c24c638ff52fe»",
+          "reconstruction/src/view-projector/view-projector.ts:80 «ee0a6e3cbb07eb66»",
+          "reconstruction/contracts/p2-snapshot-sse.json:67 «a3f1c965a1d09c56»",
+          "reconstruction/src/runtime/composition-root.ts:195 «9ed0037a4a82959a»",
+          "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC07",
+        "requirement": "Q-NOTICE土砂分: generationTable・level（P3-C10-NOTICE-LEVELSの裁定）・overlap・transition・payload・timing・replacement（P3-C10-REPLACEMENT=A）・intentUpdate・capacity・recovery・restartを実装する。training/testはdesktopだけ（P3-C10-TRAINING=A）。revisionOnly・duplicate・stale・noChange・期限・記憶だけの取消では作らない。訂正は事実が同じでも作る。記録の無い官署への解除の報（inactiveAdoption）は作る",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:944 «a9a0d7b09bdc982b»",
+          "docs/specs/reconstruction-p0-contracts.md:973 «0f9853c505322060»",
+          "docs/specs/reconstruction-p0-contracts.md:974 «5e4b6abaa9ac7542»",
+          "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
+          "docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",
+          "docs/specs/sound-design-system.md:44 «a365a81cf291faec»",
+          "docs/specs/sound-design-system.md:60 «d9d3f284b8c6d37e»",
+          "src/dmdata/weather-warning-level.ts:231 «61aa653cd24038bc»",
+          "src/engine/presentation/level-helpers.ts:343 «4dc99f16df865f9f»",
+          "src/engine/notification/notifier.ts:573 «36c29d500c61717e»",
+          "src/engine/notification/notifier.ts:585 «ef8da4d6aae75b04»",
+          "src/engine/messages/message-router.ts:540 «4ef2c8db816fb9a3»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC08",
+        "requirement": "優先群（P3-C10-NOTICE-GROUP=A）: U-Lのintent（レベル5を含む）はotherで、試行中の津波緊急・EEWを中断せず、同時にpendingのEEW・津波緊急より後に選ばれる。A7のgroup()は変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:20 «39a435399fa14346»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC09",
+        "requirement": "corpus: fixtureIdsの全正常の土砂fixtureで、各fixtureの時刻に合わせた時計の期限処理後も残る恒常的unavailable 0（E13）。expectedDecisionsはQ-C10-CORPUSの充足の後に足すstepを履歴oracleで通す（起草の時点でsequences.jsonにU-Lのstepは0）。Q-LIMITの境界入力は試験内で作る（fixtureなし）。unmetを免除しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
+          "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
+          "docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f»",
+          "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
+          "docs/specs/reconstruction-p0-contracts.md:396 «7c72311f890e6563»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC10",
+        "requirement": "§13.3の9段をcomposition rootの一経路で: 保存失敗中の取消（ENOSPCの間も取消をcurrentへ反映し前の世代へ巻き戻さない）、古いack、通常終了、復元直後の続報。current巻戻し0・最新dirty世代維持。checkpointの書込み権と同時dirtyはP3-UNIT-WRITE-RIGHT-001の規則のまま（P3-C10-WRITE-RIGHT、deferredのU-F・U-L）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC11",
+        "requirement": "deferredでの干渉の報告（台帳63、P3-C10-INTERFERENCE）: U-Lが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ち、同居するU-Fとの待ち合いをMacで報告する。正式E01ではない。EEWの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C10-PLACEを見直す",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»",
+          "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
+          "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
+          "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
+          "reconstruction/contracts/p3-order-plan.md:87 «77d166f46b4ef4e7»",
+          "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC12",
+        "requirement": "R45（1 unit追加の型）の確認: 触ったfileと行を、adapter・意味・codec・射影・fixture期待値・coverage行・試験helperの区分で一覧にし、unit・domain・testのdirectoryの外で足した行・caseの数を書く（C5・C7〜C9の一覧と比べられる形）。型で漏れを止められない箇所（view-projectorの比較・domainの列・byteの合計・shellの件数、composition-rootのsnapshotInputのunitの照合）を別に挙げる",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
+          "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
+          "reconstruction/src/runtime/composition-root.ts:195 «9ed0037a4a82959a»"
+        ]
+      },
+      {
+        "id": "P3-C10-AC13",
+        "requirement": "E22のU-L範囲を「REST回復の対象外」として固定し（P3-C10-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照、intents/outcomes空）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
+          "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",
+          "docs/specs/reconstruction-p0-contracts.md:2925 «77444df5657359a8»",
+          "reconstruction/contracts/p3-order-plan.md:22 «7b800a876110a618»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C10-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C10-AC01"
+        ],
+        "behavior": "Q-ENUMの各不備（EditorialOfficeの欠落・空・2個・65単位・制御文字、Serialが数字列でない・11桁、ReportDateTime・InfoTypeのrawの長さ、inputIdの65文字、Head/Titleの欠落、InfoTypeの語彙外、非取消の市町村等のWarningの欠落、Area/Codeの欠落・非数字・17 byte・重複、非取消のItemのKind 0個・2個（requiredStructureInvalid）、Statusの語彙外、Codeが2桁でない、Item 257、activeのKind/Codeの種類9）で最初の一reasonを返しstate参照が不変。拒否のsubjectは官署を読めた後だけ官署のsubject。Body/Warningの無い取消は採用。coverage表と実行場所の行（VPWW56→U-L）"
+      },
+      {
+        "testId": "P3-C10-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C10-AC02"
+        ],
+        "behavior": "15_16_01でactiveの記録（group 49×1・09×1・29×8、区域のcode 10、titleは宗谷地方土砂災害警報・注意報）。試験内で作る続報: 猿払村の引下げ（semantic）、事実の同じ新しい報（revisionOnly）、全区域の解除（Statusを解除にしKind/Codeを残す→ended）、記録の無い官署への解除（endedの記録）、表に無いcode（level nullのactive）、別のEditorialOfficeの報が稚内地方気象台の記録を変えない、Statusを訓練に替えた報との区分交差0"
+      },
+      {
+        "testId": "P3-C10-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C10-AC03"
+        ],
+        "behavior": "同じ版の重複・食い違い（landslideRevisionConflict）・訂正の採用、取消（同じReportDateTime）でcancelled・前の事実を戻さない、記録の無い官署への取消で記憶だけ・通知0、取消以前の報のstale、取消より新しい報で再activeとactivated。期限: inactiveの5時間59分と6時間、activeはP3-C10-ACTIVE-EXPIRYの裁定（C: 47時間59分と48時間で黙って除く）、解除の記憶が6時間で消えた後に遅れて届いた古い発表（受理の時点でReportDateTime+6時間1分）がactiveにならず通知0、到着の時点で期限を過ぎた報の採用と回収、期限の来ていないdeadline入力で同じstate参照と空の結果"
+      },
+      {
+        "testId": "P3-C10-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C10-AC04"
+        ],
+        "behavior": "128/129官署（129件目の退去の順: 期限切れ→inactive→training/test→normalの最古、landslideCapacityEvicted。normalのactiveだけの満杯にtraining/testの報を受けたら、その記録自身を退去し、currentsの参照と保存世代を変えない）、Item 256/257・Kind/Codeの種類8/9、titleの128/129文字とKindの名前の32/33文字の切り詰め（truncated）、pendingの128/129件と「byte＋予約」の131,072/131,073、intentUpdateでattemptsが1桁から5桁・nextAttemptAtの桁が増えても和が上限の内側、終端記録の98,304 byteを超えた分の期限前の回収（更新で終端にした記録を除く）、I-U-L.capacityMeasurementの同時最大状態と上限の文字列の上界の世代がencodeでき2,097,152 byte以下。保持上限付近で受信1回のencodeが記録単位の加算だけであること（全体の直列化0）。境界入力は試験内で作る"
+      },
+      {
+        "testId": "P3-C10-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C10-AC05"
+        ],
+        "behavior": "codecの往復で保存fieldだけが残る。I-U-L.decodeの各検査に外れる保存物（levelとcodeの不一致、groupの順の乱れ、区域の延べ257、予約を超えたpending、「実byte＋予約＋終端記録」が229,377の保存物、負のattempts、有限でないnextAttemptAtを含む）はunavailable。受理が通す上限ちょうどの記録はdecodeも通す。復元でintentを作らず、pendingの期限を延ばさない"
+      },
+      {
+        "testId": "P3-C10-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C10-AC07"
+        ],
+        "behavior": "Q-NOTICEの各機会とlevelの表（P3-C10-NOTICE-LEVELSの裁定の表。15_16_01のwarning、引下げだけの報、新しい区域だけの報、全解除、記録の無い官署・記憶だけの取消の官署への解除、endedの官署への解除の報では作らない、表に無いcode）、revisionOnly・noChangeで作らない、訂正は事実が同じでも作る、記憶だけの取消で作らない、一入力1 intent/channel、置換（同じsubject・channel、取消の全channel）、title・bodyの組み方、満杯での扱い、intentUpdate（更新で終端にした記録を期限前の回収で消さない）、training/testのdesktopだけ、recovery未適用、復元直後の続報"
+      },
+      {
+        "testId": "P3-C10-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C10-AC08"
+        ],
+        "behavior": "A7の群の境界: U-Lのintent（domain=weather、level=criticalのレベル5）がotherに入り、試行中の津波緊急を中断せず、同時にpendingのEEW・津波緊急より後に選ばれる"
+      },
+      {
+        "testId": "P3-C10-T08",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-C10-AC09"
+        ],
+        "behavior": "fixtureIdsの全正常fixtureのE13集計と、Q-C10-CORPUSで足したstep（足した後のexpectedDecisions）"
+      },
+      {
+        "testId": "P3-C10-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C10-AC10",
+          "P3-C10-AC06"
+        ],
+        "behavior": "composition root経由で、保存失敗中の取消・古いack・通常終了・復元直後の続報（current巻戻し0、最新dirty世代、同じ報を再び鳴らさない）。U-Lだけが変わった入力でsnapshotが出し直され、domain landslideのhighestSeverityと区域の数（municipality）が記録と一致する。同時最大状態（64官署・1,772区域）のdomain landslideのbyteとfull/summaryの判定を記録する。view・snapshotにinactiveの記録が載らない。deferredのU-FとU-Lの同時dirtyでunitごとの書込み権"
+      },
+      {
+        "testId": "P3-C10-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C10-AC13"
+        ],
+        "behavior": "origin=recoveryの土砂の入力でunchanged/noChange、state同一参照、intents/outcomes空"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01/O03/O07の参照と未充足数"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src and contracts types",
+        "stage": "implementation",
+        "purpose": "型検査とreconstruction/dist/の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "試験の型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "永続化・共有状態の順序依存検査"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths限定のpatch、変更file一覧、build/test/shuffleの結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかの1行（どれにも当たらない試験は削る）。仕組みを一つ足すときは、要求する契約IDと無いと壊れる振る舞いを1行で添える。1実装のinterface・factory・registry・将来用の拡張点を足さない",
+      "既存試験・試験helperを変える箇所は、変える前に理由を報告する。少なくとも: unit-table/type-contract.tsの負の型検査n5b・n6a・n6b（0d271ae0でU-Lを「まだruntimeに無いunit」の代表に使っているので、U-Rへ替える）、unit-table/unit-table.test.ts（VPWW56をnotPortedの代表に使うので、U-Rの型へ替える）、owner-harness.ts（unitごとの代表入力にU-Lの行）、runtime-fixture.ts（RuntimeUnitIdの網羅にU-L）、weather-timeseries-unit.test.tsのdeferredのrestoreOwner（restoredにU-Lの行、P3-C10-PLACE=Aのとき）、tsunami・seismic・nankai・volcanoのunitの試験（unitの数・一覧の機械的な追加だけ）",
+      "AC12のR45一覧（file:lineと区分）。unit・domain・testのdirectoryの外で足した行・caseの数と、型で漏れを止められない箇所",
+      "AC11の干渉の数値（Mac、試行数・最大・中央値）。正式E01と呼ばない",
+      "LandslideUnitCodec一つだけを実装する。無いと保存と復元のschema選択が曖昧になる",
+      "受信経路の計算量: 受信・選択・結果照合1回でunit全体の直列化と全件×全件の走査をしない。容量は記録単位の加算で数える（AGENTS.md）。無いと上限付近の受信1回が保持量に比例して遅くなり、同じ実行場所のU-Fの入力を待たせる",
+      "予約の式を写さない: pendingの予約はdelivery-growth.tsのdeliveryGrowthをimportして受理とdecodeの両方で呼び、試験も式を写さずimportする（C9のQ-C9-IMPL-AMEND(9)(g)）。無いと受理とdecodeの式がずれ、台帳73に戻る",
+      "残存リスク: +6時間の規則（P3-C10-ACTIVE-EXPIRYのA・C、P3-C10-RETENTION）は受理の時点の壁時計で判定するので、手元の時計が6時間以上進むと記録の無い官署の報がactiveにならず鳴らない。実配信の受信遅れは425本で最大61秒なので、配信の遅れでは起きない（旧築も壁時計を使っていた）",
+      "受理とdecodeの上限をそろえる: 受理で確かめる件数・文字列・codeの形の上限を、decodeも同じ値で確かめる（C9のQ-C9-IMPL-AMEND(9)(b)）。無いと受理が通した報をdecodeが拒否し、U-L全体の復元が落ちる",
+      "既存のhelper: Body/WarningのItem・Kind・Areaの読み取りと官署の読み取りは、domains/weather-current（weather-current.tsのelements・scalar・attribute・STATUSES・inspectIdentityのEditorialOffice）とview-projector.tsのWEATHER_SEVERITY・NOT_CURRENTに同じ形がある。他unitのdirectoryは触らないので、U-Lの写しを作るかexportされた値をimportするかを一覧（AC12）に書く（共有化は統合担当が決める）",
+      "永続schemaの変更: p3-landslide-unit-v1は新設で旧データの移行は無い（P3-C10-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
+      "純粋な意味関数とreduceはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付ける。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。DiagnosticReasonへの追加はQ-ENUM.diagnosticReasonsの2つ（landslideRevisionConflict・landslideCapacityEvicted）だけ（persistent-diagnostic-sink.tsの一覧にも足す）",
+      "check-contractで、本契約が行を足すファイル（composition-root.ts・owner-runtime.ts・shared-runtime.ts・view-projector.ts・unit-coverage.ts・persistent-diagnostic-sink.ts・p2-shared-runtime.types.ts・p2-snapshot-sse.types.ts・p2-notification-delivery.types.ts）を引く他の契約（C5・C7〜C9など）と本契約のanchorだけがFAILするのは想定内として報告する。統合担当が、合流と同じcommitで、そのanchorとmeta.sha256を直す。それ以外のFAILは想定外として扱う",
+      "容量の実測: 実装後に、I-U-L.capacityMeasurementのfixtureで実際の記録・intentのencode byteを測り、契約の値と並べて報告する（10%以上違えば統合担当がP3-C10-CAPACITYの数を直す）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-C10-AUTHOR-RULINGS",
+        "owner": "user",
+        "blocks": [
+          "baseOidの割当",
+          "P3-C10-AC03",
+          "P3-C10-AC07"
+        ],
+        "resolveBy": "C10の発注前点検",
+        "requiredEvidence": [
+          "P3-C10-ACTIVE-EXPIRYの裁定（A/B/C）",
+          "P3-C10-NOTICE-LEVELSの裁定（A/B/C/D）"
+        ]
+      },
+      {
+        "id": "Q-C10-CORPUS",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C10-AC09の受入",
+          "baseOidの割当"
+        ],
+        "resolveBy": "C10の発注前点検",
+        "requiredEvidence": [
+          "sequences.jsonにU-L（VPWW56）のstepが0であることの確認（spec:396はM07の系列をO01/O03/O07とする）と、足すstepの決定",
+          "実配信の確認（改訂1、2026-10-09、~/dev/fleq-corpus-p0/20260923-capacity/x-2026-{06-03,06-26,09-21}の425本、44官署。dmdataの採取なので中身は契約に貼らず件数と形だけを書いた）: 全部がInfoType発表・Serial空・EventID空・Control/Status通常。共同発表の形のPublishingOfficeは0本で、EditorialOfficeと違うのは28本（気象庁本庁と気象庁）。市町村等のItemは16,924で全部Kind 1個、1報の最大81（長野地方気象台）。Statusは継続9,104・なし5,340・発表1,187・解除1,074・危険警報から注意報163・警報から注意報55・特別警報から危険警報1。Kind/Codeは29・09・49・39だけで、1つのcodeに名前は1つ。取消と訂正は0本",
+          "取消と訂正はsyntheticで作る（15_16_01から、C9のsynthetic 6本と同じ手順）: 同じ版の訂正・取消・取消の後の重複と遅着の旧報（O01）、保存→復元→直後の訂正・取消（O07）。続報（引下げ・全解除・事実の同じ報）と別の官署（O03）は試験内で作る入力（T02）と二重にしない: sequencesに足すのは試験内の入力で置き換えられない取消・訂正の系列だけにする。実配信の続報の組（引上げ・引下げ・解除）をfixtureにするかは、publicApprovedの判断（dmdata規約の非EEWの二次利用）と合わせて統合担当が決める。足すならmanifest・P1契約・P1-T01・check-manifestの件数へ機械的に波及させる",
+          "足したstepをexpectedDecisions・expectationEvidenceへ戻す改訂。15_16_01は気象庁のサンプル電文（Control/DateTimeは2020年、R06の形）で実際の系列ではないことを、期待を入れたstepのchecksに書く"
+        ]
+      },
+      {
+        "id": "Q-C10-PLACE",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C10-PLACEの確定",
+          "baseOidの割当"
+        ],
+        "resolveBy": "C10の発注前点検",
+        "requiredEvidence": [
+          "作者裁定S4の本文（進捗ノート§3、checkoutの外）とspec:1027のdeferred「U-Fなど急がないunit」にU-Lが入るかの確認。入らなければP3-C10-PLACEを作者の分岐として出し直す",
+          "C9の配送後のdeferredの干渉の見込み（最大VPWP50の処理の最中のVPWW56の待ち。測るのはAC11）"
+        ]
+      },
+      {
+        "id": "Q-C10-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "C10の発注前点検（C9はmain 0d271ae0で配送済み）",
+        "requiredEvidence": [
+          "baseOidの割当（起草の基底は0d271ae0。改訂0〜2は1c5da0ddで起草し、0d271ae0でanchorを読み直した）",
+          "割当の時点で本契約のanchor（unit-coverage.ts・composition-root.ts・view-projector.ts・notification-delivery.ts・p2-notification-delivery.types.tsの行を含む）が0d271ae0の後の合流でずれていないかを確かめ、ずれたanchorを直す",
+          "RES-02の通知期限の数（0d271ae0のp2-notification-delivery.types.ts:46は7×128＝896、U-Lを足して1,024）を確かめる",
+          "unit-table/type-contract.ts:62・:66・:68とunit-table.test.ts:46のU-L・VPWW56の使い方（0d271ae0で確認済み、artifactRequirements）が割当の時点でも同じかを確かめる"
+        ]
+      }
+    ]
+  }
+}
