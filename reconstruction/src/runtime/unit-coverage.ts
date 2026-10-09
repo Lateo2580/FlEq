@@ -5,7 +5,7 @@ import type { ExecutionPlace } from "../../contracts/p3-execution-split.types";
 // P3-UNIT-TABLE-001 (C0). The one list of implemented runtime units (ledger 52 ③): without it each
 // loop re-spells the units and a new unit is silently skipped by the loops that were not updated.
 // An element outside RuntimeUnitId fails `satisfies`; a missing RuntimeUnitId fails CoversAllUnits.
-const runtimeUnits = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N"] as const satisfies readonly RuntimeUnitId[];
+const runtimeUnits = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V"] as const satisfies readonly RuntimeUnitId[];
 type CoversAllUnits<L extends readonly RuntimeUnitId[]> = [Exclude<RuntimeUnitId, L[number]>] extends [never] ? L : never;
 const coveredUnits: CoversAllUnits<typeof runtimeUnits> = runtimeUnits;
 
@@ -13,7 +13,7 @@ const coveredUnits: CoversAllUnits<typeof runtimeUnits> = runtimeUnits;
 // tell which in-flight slot an input uses and urgent and non-urgent units would share an owner. Keyed: a new
 // unit without its row fails to compile.
 const executionPlaces: Readonly<Record<RuntimeUnitId, ExecutionPlace>> = {
-  "U-E": "urgent", "U-W": "weatherCurrent", "U-F": "deferred", "U-T": "urgent", "U-Q": "urgent", "U-N": "urgent",
+  "U-E": "urgent", "U-W": "weatherCurrent", "U-F": "deferred", "U-T": "urgent", "U-Q": "urgent", "U-N": "urgent", "U-V": "urgent",
 };
 
 // Coverage: the subscribed XML headTypes (ranges expanded to single codes). A headType not listed here is
@@ -69,27 +69,27 @@ const coverageTable = {
   VTSE41: { status: "ready", unit: "U-T" },
   VTSE51: { status: "ready", unit: "U-T" },
   VTSE52: { status: "ready", unit: "U-T" },
-  VFVO50: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFVO51: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFVO52: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFVO53: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFVO54: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFVO55: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFVO56: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFVO60: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV50: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV51: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV52: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV53: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV54: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV55: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV56: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV57: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV58: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV59: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV60: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VFSV61: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
-  VZVO40: { status: "notPorted", candidate: "U-V", reason: "U-Vの移植待ち" },
+  VFVO50: { status: "ready", unit: "U-V" },
+  VFVO51: { status: "ready", unit: "U-V" },
+  VFVO52: { status: "ready", unit: "U-V" },
+  VFVO53: { status: "ready", unit: "U-V" },
+  VFVO54: { status: "ready", unit: "U-V" },
+  VFVO55: { status: "ready", unit: "U-V" },
+  VFVO56: { status: "ready", unit: "U-V" },
+  VFVO60: { status: "ready", unit: "U-V" },
+  VFSV50: { status: "ready", unit: "U-V" },
+  VFSV51: { status: "ready", unit: "U-V" },
+  VFSV52: { status: "ready", unit: "U-V" },
+  VFSV53: { status: "ready", unit: "U-V" },
+  VFSV54: { status: "ready", unit: "U-V" },
+  VFSV55: { status: "ready", unit: "U-V" },
+  VFSV56: { status: "ready", unit: "U-V" },
+  VFSV57: { status: "ready", unit: "U-V" },
+  VFSV58: { status: "ready", unit: "U-V" },
+  VFSV59: { status: "ready", unit: "U-V" },
+  VFSV60: { status: "ready", unit: "U-V" },
+  VFSV61: { status: "ready", unit: "U-V" },
+  VZVO40: { status: "ready", unit: "U-V" },
   VPWW56: { status: "notPorted", candidate: "U-L", reason: "U-Lの移植待ち" },
   VPOA50: { status: "notPorted", candidate: "U-B", reason: "U-Bの移植待ち" },
   VPBS50: { status: "notPorted", candidate: "U-B", reason: "U-Bの移植待ち" },

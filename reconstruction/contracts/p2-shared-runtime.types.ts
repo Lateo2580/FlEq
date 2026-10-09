@@ -15,6 +15,7 @@ import type { WeatherTimeseriesUnitView } from "./p2-weather-timeseries-unit.typ
 import type { TsunamiForecastSubject, TsunamiInput, TsunamiObservationSubject, TsunamiUnitState, TsunamiUnitStep, TsunamiUnitView } from "./p3-tsunami-unit.types";
 import type { EarthquakeEventView, LongPeriodSubject, SeismicInput, SeismicUnitState, SeismicUnitStep, SeismicUnitView } from "./p3-seismic-unit.types";
 import type { NankaiCurrent, NankaiInformationView, NankaiInput, NankaiUnitState, NankaiUnitStep, NankaiUnitView } from "./p3-nankai-unit.types";
+import type { VolcanoAlert, VolcanoAshfall, VolcanoBulletinView, VolcanoEruption, VolcanoInput, VolcanoUnitState, VolcanoUnitStep, VolcanoUnitView } from "./p3-volcano-unit.types";
 
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | Readonly<{ [key: string]: JsonValue }>;
 
@@ -22,13 +23,13 @@ export type UnitId =
   | "U-E" | "U-Q" | "U-T" | "U-N" | "U-W" | "U-L"
   | "U-F" | "U-B" | "U-M" | "U-Y" | "U-V" | "U-R";
 
-export type RuntimeUnitId = "U-E" | "U-W" | "U-F" | "U-T" | "U-Q" | "U-N";
+export type RuntimeUnitId = "U-E" | "U-W" | "U-F" | "U-T" | "U-Q" | "U-N" | "U-V";
 
 // Per-unit type rows (one line per map). P3-UNIT-TABLE-001 keeps them adjacent and line-neutral:
 // a unit lane adds its key to each of the three maps below.
-export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState; "U-T": TsunamiUnitState; "U-Q": SeismicUnitState; "U-N": NankaiUnitState }>;
-export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput; "U-T": TsunamiInput; "U-Q": SeismicInput; "U-N": NankaiInput }>;
-export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep; "U-T": TsunamiUnitStep; "U-Q": SeismicUnitStep; "U-N": NankaiUnitStep }>;
+export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState; "U-T": TsunamiUnitState; "U-Q": SeismicUnitState; "U-N": NankaiUnitState; "U-V": VolcanoUnitState }>;
+export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput; "U-T": TsunamiInput; "U-Q": SeismicInput; "U-N": NankaiInput; "U-V": VolcanoInput }>;
+export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep; "U-T": TsunamiUnitStep; "U-Q": SeismicUnitStep; "U-N": NankaiUnitStep; "U-V": VolcanoUnitStep }>;
 
 export type ClockReading = Readonly<{
   wallTimeMs: number;
@@ -175,7 +176,7 @@ export type UnitView = Readonly<{
   subjects: readonly SubjectOutcome[];
 }>;
 
-export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView | TsunamiUnitView | SeismicUnitView | NankaiUnitView;
+export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView | TsunamiUnitView | SeismicUnitView | NankaiUnitView | VolcanoUnitView;
 
 // P2-A1-DISPLAY-CHANGES: direct subject references avoid searching a whole view for a delta.
 export type RuntimeDisplaySubject = Readonly<{
@@ -193,6 +194,8 @@ export type RuntimeDisplaySubject = Readonly<{
   | Readonly<{ unit: "U-Q"; current: EarthquakeEventView | LongPeriodSubject | null }>
   // I-U-N.view: subject は系統の現況か情報 subject（情報は見出しだけ）。
   | Readonly<{ unit: "U-N"; current: NankaiCurrent | NankaiInformationView | null }>
+  // I-U-V.view: subject は三 slice の記録か解説 subject（解説は見出しだけ）。
+  | Readonly<{ unit: "U-V"; current: VolcanoAlert | VolcanoEruption | VolcanoAshfall | VolcanoBulletinView | null }>
 );
 
 export type RuntimeDisplayChange = Readonly<{
@@ -210,6 +213,7 @@ export type RuntimeViews = Readonly<{
   "U-T": TsunamiUnitView;
   "U-Q": SeismicUnitView;
   "U-N": NankaiUnitView;
+  "U-V": VolcanoUnitView;
 }>;
 
 export type FreshnessRecord = Readonly<{
@@ -262,6 +266,8 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "seismicRevisionConflict" | "seismicCapacityEvicted"
   // P3-UNIT-N-001 Q-ENUM.diagnosticReasons: a same-revision conflict and an information-series eviction.
   | "nankaiRevisionConflict" | "nankaiCapacityEvicted"
+  // P3-UNIT-V-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-V capacity eviction.
+  | "volcanoRevisionConflict" | "volcanoCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate";

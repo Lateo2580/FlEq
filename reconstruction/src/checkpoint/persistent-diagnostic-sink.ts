@@ -49,6 +49,7 @@ const diagnosticReasons = [
   "diagnosticQueueOverflow", "snapshotNoticeCapacityExceeded", "snapshotCommonBudgetExceeded",
   "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted", "eewCapacityEvicted", "tsunamiRevisionConflict", "tsunamiCapacityEvicted",
   "seismicRevisionConflict", "seismicCapacityEvicted", "nankaiRevisionConflict", "nankaiCapacityEvicted",
+  "volcanoRevisionConflict", "volcanoCapacityEvicted",
   "notificationAttemptFailed", "notificationExpired", "notificationCapacityEvicted", "notificationAdapterIsolated",
   "routeIgnored", "routeNotPorted", "routeUnlisted", "ownerReplyLate",
   "dmdataSocketStarted", "dmdataSubscriptionNarrowed", "dmdataSocketListFailed", "dmdataConnectionCapacityExceeded",

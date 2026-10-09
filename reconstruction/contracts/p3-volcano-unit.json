@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "0972416e7a6958b07fcfb54e0371a69fbce2ffd85bd177e19d7cbd9846a5da54",
+    "sha256": "08334850eaee9b7b960aba4260f63e21f94f38146c92a0f671b83857ccd28f04",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "41089d0d4e4381a3f054f342313aad359e252fcbf4ba51e10ed64324ac15d560",
     "sequencesSha256": "7da7868d070e3a31cac738153aba6114f3a4014ac7cd89e958f9e66609445552",
@@ -61,8 +61,8 @@
         "B": "U-Vをdeferred（U-Fと同じowner）にする",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が発注前点検（2026-10-09）で確定（D-P3-1=Aの適用、Q-C9-S4-PLACE）: 作者裁定D-P3-5（2026-10-01、計画:202）は「急ぐunitから（S4）」の一つの原則でU-Q→U-N→U-V→U-L→U-R→U-B→U-M→U-Yと並べ、U-VをU-N（urgent、P3-C8-PLACE）の次、U-L（土砂災害VPWW56）・U-R（洪水）・U-B・U-M・U-Y（気象）の前に置く。U-Lより後のunitはspec:479・:481〜:483・:485の表で気象の電文だけを持ち、spec:1027のdeferred（「U-Fなど急がないunit」）の側にあたる。D-P3-5が退けた案は「表示価値・バックログからの別順」だけで、ほかに順の原則が無いので、気象のunitより前に置かれたU-Vは急ぐunitの側に数えた並びと読む。spec:1027はurgentを「U-E系の急ぐunit」とし、U-Vの噴火速報（VFVO56）は通知のlevelがcritical（Q-NOTICE.level）。計画:6はS4=Aを覆さない前提に置き、実行境界メモ（p3-execution-boundary.md §1）は急ぐunitの置き場を各unit契約で決め、急がないunitと同居させない（D-P3-1、計画:198）。計画・spec・境界メモのどれにもU-Vを急がないunitとする記述は無い（spec:403〜:405・:484・:500〜:504・:550・:604）。S4の本文（作業ノート、checkoutの外）は読んでいない（C7・C8と同じ）。U-VがS4の急ぐunitに入ることはS4の字面でなくD-P3-5の並びからの読みなので、作者がS4の本文で違うと判断すればBとして出し直す。干渉の見込み: urgentにU-Q・U-Nが載った後の測定は、C7のAC12（段2の後の測り直し、P3-UNIT-Q-001 Q-C7-IMPL-AMEND(6)）が最大VXSE53の最中のEEWの投入→T2で中央値19.88・最大29.64 ms、U-Qのencodeの最中で最大8.82 ms、C8のAC11（統合担当の配送の報告）が最大8.74 ms。U-Vが足す非中断処理のうち、合法最大の世代（3,829,597 byte、I-U-V.capacityReserve）のencodeはU-Qの4 MiBの世代と同じ程度、最大の入力（45,368 byteの全国のVFVO51、112火山）の処理はU-Qの最大（200,380 byteのVXSE53）より小さい見込みで（見込みで、測ってはいない）、どちらも約40 ms（計画:239）の内側に収まる見込み。29.64 msからの余裕は約10 msなので、AC13で約40 msを超えたら配送の前に作者へ報告してこの分岐を見直す",
-        "reason": "D-P3-5（計画:202）は「急ぐunitから（S4）」の順でU-VをU-Nの次、U-L以降の前に置く。噴火速報（VFVO56）はcriticalで、Bでは気象のVPWP50の処理（Piで1秒を超えうる、計画§4.5のE03）の後に並ぶ。Aの代償: corpusの最大の火山電文は45,368 byte（44_01_01の全国のVFVO51、112火山のentry）で、U-Qの最大（200,380 byteのVXSE53）より小さいが、U-Vの1世代は合法最大で3,829,597 byte（I-U-V.capacityReserve）とU-Qの4 MiBに近い。C7の段2の後の測定（P3-UNIT-Q-001 Q-C7-IMPL-AMEND(6)）はU-Qのencodeの最中のEEWの待ちが最大8.82 msで、U-Vの合法最大のencodeも同じ程度の見込み（見込みで、測ってはいない）。AC13でMacの待ちの最大が約40 msを超えたら配送の前に作者へ報告してこの分岐を見直す"
+        "ruling": "統合担当が発注前点検（2026-10-09）で確定（D-P3-1=Aの適用、Q-C9-S4-PLACE）: 作者裁定D-P3-5（2026-10-01、計画:202）は「急ぐunitから（S4）」の一つの原則でU-Q→U-N→U-V→U-L→U-R→U-B→U-M→U-Yと並べ、U-VをU-N（urgent、P3-C8-PLACE）の次、U-L（土砂災害VPWW56）・U-R（洪水）・U-B・U-M・U-Y（気象）の前に置く。U-Lより後のunitはspec:479・:481〜:483・:485の表で気象の電文だけを持ち、spec:1027のdeferred（「U-Fなど急がないunit」）の側にあたる。D-P3-5が退けた案は「表示価値・バックログからの別順」だけで、ほかに順の原則が無いので、気象のunitより前に置かれたU-Vは急ぐunitの側に数えた並びと読む。spec:1027はurgentを「U-E系の急ぐunit」とし、U-Vの噴火速報（VFVO56）は通知のlevelがcritical（Q-NOTICE.level）。計画:6はS4=Aを覆さない前提に置き、実行境界メモ（p3-execution-boundary.md §1）は急ぐunitの置き場を各unit契約で決め、急がないunitと同居させない（D-P3-1、計画:198）。計画・spec・境界メモのどれにもU-Vを急がないunitとする記述は無い（spec:403〜:405・:484・:500〜:504・:550・:604）。S4の本文（作業ノート、checkoutの外）は読んでいない（C7・C8と同じ）。U-VがS4の急ぐunitに入ることはS4の字面でなくD-P3-5の並びからの読みなので、作者がS4の本文で違うと判断すればBとして出し直す。干渉の見込み: urgentにU-Q・U-Nが載った後の測定は、C7のAC12（段2の後の測り直し、P3-UNIT-Q-001 Q-C7-IMPL-AMEND(6)）が最大VXSE53の最中のEEWの投入→T2で中央値19.88・最大29.64 ms、U-Qのencodeの最中で最大8.82 ms、C8のAC11（統合担当の配送の報告）が最大8.74 ms。U-Vが足す非中断処理のうち、合法最大の世代（3,867,485 byte、I-U-V.capacityReserve）のencodeはU-Qの4 MiBの世代と同じ程度、最大の入力（45,368 byteの全国のVFVO51、112火山）の処理はU-Qの最大（200,380 byteのVXSE53）より小さい見込みで（見込みで、測ってはいない）、どちらも約40 ms（計画:239）の内側に収まる見込み。29.64 msからの余裕は約10 msなので、AC13で約40 msを超えたら配送の前に作者へ報告してこの分岐を見直す",
+        "reason": "D-P3-5（計画:202）は「急ぐunitから（S4）」の順でU-VをU-Nの次、U-L以降の前に置く。噴火速報（VFVO56）はcriticalで、Bでは気象のVPWP50の処理（Piで1秒を超えうる、計画§4.5のE03）の後に並ぶ。Aの代償: corpusの最大の火山電文は45,368 byte（44_01_01の全国のVFVO51、112火山のentry）で、U-Qの最大（200,380 byteのVXSE53）より小さいが、U-Vの1世代は合法最大で3,867,485 byte（I-U-V.capacityReserve）とU-Qの4 MiBに近い。C7の段2の後の測定（P3-UNIT-Q-001 Q-C7-IMPL-AMEND(6)）はU-Qのencodeの最中のEEWの待ちが最大8.82 msで、U-Vの合法最大のencodeも同じ程度の見込み（見込みで、測ってはいない）。AC13でMacの待ちの最大が約40 msを超えたら配送の前に作者へ報告してこの分岐を見直す"
       },
       {
         "id": "P3-C9-SUBJECTS",
@@ -111,7 +111,7 @@
       },
       {
         "id": "P3-C9-BATCH",
-        "A": "VFVO53の待機batch（N）: 鍵は運用区分とReportDateTime。採用した定時の報をbatchに入れ（同じ火山は置き換え）、単調時計で最後の追加から8秒（quiet）か最初の追加から90秒（maxWait）の早い方でflushして通知を1件作る。20件でただちにflushして通知する。鍵の違う報が来たら先のbatchを通知付きでflushしてから新しいbatchを始める。VFVO54/55の受理の前に、待機中のbatchを通知無しでflushする（batchCompleted reason=interrupted）。取消はbatchから対象を外す。通常終了（shutdown入力）は通知無しでflushする（reason=shutdown）。ほかの火山の報（警報・噴火・解説）はbatchを止めない",
+        "A": "VFVO53の待機batch（N）: 鍵は運用区分とReportDateTime。採用した定時の報をbatchに入れ（同じ火山は置き換え）、単調時計で最後の追加から8秒（quiet）か最初の追加から90秒（maxWait）の早い方でflushして通知を1件作る。20件でただちにflushして通知する。鍵の違う報が来たら先のbatchを通知付きでflushしてから新しいbatchを始める。採用したVFVO54/55（版の判定でchanged）の前に、同じ運用区分の待機中のbatchを通知無しでflushする（batchCompleted reason=interrupted。stale・duplicateの再送ではflushしない、Q-C9-IMPL-AMEND(6)）。取消はbatchから対象を外す。通常終了（shutdown入力）は通知無しでflushする（reason=shutdown）。ほかの火山の報（警報・噴火・解説）はbatchを止めない",
         "B": "旧築どおり、VFVO53以外の全ての火山の報でbatchを通知無しでflushする（volcano-vfvo53-aggregator.ts:97）。終了時は通知付きでflushする（:107）",
         "recommended": "A",
         "provisional": "A",
@@ -129,7 +129,7 @@
       },
       {
         "id": "P3-C9-CAPACITY",
-        "A": "件数はslice×3区分合算で: 警報・噴火・降灰の速報詳細・定時の降灰は各128 subject、解説は64 subject、復旧不足は128件（decodeで超えた保存物はunavailable）。129件目（解説は65件目）は (1) retainUntilを過ぎた記録 (2) inactiveの記録（ReportDateTimeの古い順） (3) training/testの古い順 (4) 受ける報がnormalのときだけnormalの古い順、から1件退去して受ける。受ける報がtraining/testで(1)〜(3)が無ければ、受けた記録自身を退去する（training/testの受理でnormalを退去させない、operationContract）。そのときのdecisionはchanged/semantic（採用して同じreduceで退去）でvolcanoCapacityEvicted（count 1）を返し、通知は作らない。記録もwatermarkも残らないので、同じ報が届くたびに同じく採用・退去し、毎回鳴らない。確定した退去を診断volcanoCapacityEvicted（count）で返す。U-VはcapacityExceededを返さない。保存の1世代は4 MiB（4,194,304 byte、spec:484）で、件数と文字列の上限から合法最大3,829,597 byte（I-U-V.capacityReserve）",
+        "A": "件数はslice×3区分合算で: 警報・噴火・降灰の速報詳細・定時の降灰は各128 subject、解説は64 subject、復旧不足は128件（decodeで超えた保存物はunavailable）。129件目（解説は65件目）は (1) retainUntilを過ぎた記録 (2) inactiveの記録（ReportDateTimeの古い順） (3) training/testの古い順 (4) 受ける報がnormalのときだけnormalの古い順、から1件退去して受ける。受ける報がtraining/testで(1)〜(3)が無ければ、受けた記録自身を退去する（training/testの受理でnormalを退去させない、operationContract）。そのときのdecisionはchanged/semantic（採用して同じreduceで退去）でvolcanoCapacityEvicted（count 1）を返し、通知は作らない。記録もwatermarkも残らないので、同じ報が届くたびに同じく採用・退去し、毎回鳴らない。確定した退去を診断volcanoCapacityEvicted（count）で返す。U-VはcapacityExceededを返さない。保存の1世代は4 MiB（4,194,304 byte、spec:484）で、件数と文字列の上限から合法最大3,867,485 byte（I-U-V.capacityReserve）",
         "B": "新しいsubjectをcapacityExceededで拒否する（旧築のfamilyCapacityMode rejectNewSubject、revision-family-registry.ts:667）",
         "recommended": "A",
         "provisional": "A",
@@ -340,7 +340,7 @@
         "subjects": "P3-C9-SUBJECTS=A。一入力は、その報のsliceのsubjectだけを変える",
         "alertSemantics": "(1) VFVO50・VFSV（対象火山のItemの先頭1件）: activeの区分なら、P3-C9-MARINE=Aのとおりその報のfamilyが持つfieldだけを置き換え、他を保ち、自分のfamilyのwatermark（sourceかmarineSource）を進める（記録が無ければ持たないfieldはnullか空、VFSVのvolcanoName・coordinateは記録が無いときだけ埋める）。municipalitiesはBody/VolcanoInfo（typeに「対象市町村等」を含む）のItemのKindの名前ごとのArea/Code、marineAreasは「対象海上予報区」の同じ形 (2) VFVO51の火山entry: activeの区分で、採用前の記録がactiveで区分のcodeとlevelが同じなら、unchanged/noChange（記録とwatermarkを変えない。VFVO50の事実を保つ）。区分が違えばkind・levelを置き換え、前の区分の説明であるheadline・lastKind・municipalitiesを消し、volcanoName・coordinate・marineAreasは保つ (3) inactiveの区分・解除: 記録がactiveならeffective=endedにして事実を捨て、sourceを進める。記録がinactiveならwatermarkの比較で新しければrevisionOnly。記録が無ければ、単独のVFVO50・VFSVはendedの記録を作り（watermarkだけでviewは変わらないのでchanged/revisionOnly、通知はQ-NOTICE.generationTableのinactiveAdoption）、VFVO51のentryは解除・引下げのときだけendedの記録を作り、ほかは記録を作らずunchanged/noChange（P3-C9-ALERT-ACTIVE=A） (4) 取消はP3-C9-CANCEL-SCOPE (5) inactiveの記録はretainUntil（sourceとmarineSourceの新しい方のReportDateTime+30日）の到来で除く。activeの記録は期限で消えない。changeは公開事実（effectiveとactiveの事実）が変わればsemantic、watermarkだけが進めばrevisionOnly",
         "eruptionSemantics": "発表・訂正はsubject（EventID）の事実を置き換える（flash=VFVO56、phenomenon、eventDateTimeRaw、craterName、噴煙の高さ2つ、plumeDirection、headline、対象市町村のcode）。validUntil=ReportDateTime+1日の到来でexpired（事実を捨てる、通知しない）、retainUntil=+2日で除く。取消はcancelled。VFVO52とVFVO56は同じsubjectの名前空間を使い、版の比較だけで並ぶ",
-        "ashfallSemantics": "VFVO54/55の受理の前に待機中のbatchを無音でflushする（P3-C9-BATCH）。発表・訂正はP3-C9-ASHFALL-PROJECTIONの投影で事実を置き換える（variant・headline・forecastStartsAt・forecastEndsAt・groups・omittedGroupCount）。forecastEndsAtの到来でexpired、retainUntil=ReportDateTime+7日で除く。取消はcancelled",
+        "ashfallSemantics": "採用したVFVO54/55の前に同じ運用区分の待機中のbatchを無音でflushする（P3-C9-BATCH、stale・duplicateではflushしない）。発表・訂正はP3-C9-ASHFALL-PROJECTIONの投影で事実を置き換える（variant・headline・forecastStartsAt・forecastEndsAt・groups・omittedGroupCount）。forecastEndsAtの到来でexpired、retainUntil=ReportDateTime+7日で除く。取消はcancelled",
         "scheduledSemantics": "VFVO53の発表・訂正で新しい報はsubjectの記録（N）をactiveにし（volcanoName・topAshName）、batchに入れる（P3-C9-BATCH）。decisionはchanged/semanticで、受信時のintentは無い（expected:O08:8）。取消は記録をcancelledにしてbatchから外す。retainUntil=ReportDateTime+36時間で除く",
         "bulletinSemantics": "VFVO51・VFVO60・VZVO40の発表・訂正で新しい報は解説subjectの事実（title・headline・対象火山のcode・extraordinary・text・nextAdvisory）を置き換える。extraordinaryはHead/TitleかInfoKindに「臨時」を含むとき（旧築volcano-parser.tsのisExtraordinary）。retainUntil=ReportDateTime+36時間で除く（通知しない）。取消はP3-C9-CANCEL-SCOPE。VFVO51の解説subjectは火山entryと一緒にP3-C9-VFVO51-ATOMICで判定する",
         "shortfallSemantics": "P3-C9-SHORTFALL=A: 不足は復元（C15が作った保存物）でだけ入る。liveで採用した報が、同じoperation・slice・火山コードのvolcano scopeの不足のlastKnownより新しい（lastKnownがnullなら無条件）とき、その不足を除く（domain scopeはliveで除かない）。shortfallResolution: acceptCurrentはvolcano scopeの不足を除き記録は変えない。clearCurrentはvolcano scopeの不足を除き、そのoperation・火山コードのそのsliceのactiveの記録を、警報はended、噴火・降灰はexpiredにする（通知しない）。acknowledgeDomainLossはdomain scopeの不足を除く。idが無いかscopeとactionが合わなければunchanged/noChange（subject `${operation}/shortfall/${id}`、operationは不足のもの、無ければnormal）。不足の増減はviewを変えるのでsemantic",
@@ -352,13 +352,13 @@
         "confirmationScope": "U-Vは確認scopeを作らない（P3-C9-N2）。shared-runtime.tsのaddedScopesにU-Vで空を返す分岐を足す",
         "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-V、executionPlacesにU-V＝urgent（P3-C9-PLACE=A）、coverage表のVFVO50〜56・VFVO60・VFSV50〜61・VZVO40をready＋U-V（21行、いまはnotPorted）。UnitModule<「U-V」>はpersistence durable、terminalIntents kind intents、reclaimDeadlineBeforeReceive true",
         "computation": "容量は記録・intentごとのencode byteをWeakMapでその値に結び付けて加算する（C5・C7・C8の先例）。subjectの検索は配列に結び付けたMapのcacheで引き、取消のeventIdの照合（P3-C9-CANCEL-SCOPEの(2)）もsliceごとのeventIdのMapで引く。素朴なfindを入れ子にしない。全国のVFVO51（entry 112）はentryごとにO(1)で引く。上限のある近道として、満杯（128件）のsliceで退去の候補を探すのは素朴な線形の走査でよい: 1入力の上限はVFVO51のentry 128×記録128＝16,384回の比較（台帳47の例外、上限は件数の上限で保持と復元の両方で効く）。起草時の見積り計測（Mac、repo外の素朴な実装、配列の作り直しを含む）は112entry×128件で中央値0.050ms・最大0.109ms（1,000回）。実装後に同じ条件で測り直して報告する。nextDeadlineの最小値も配列に結び付けたcacheで持つ。受信1回でstate全体・intent全体を直列化しない（AGENTS.md「受信経路の計算量」、台帳47）",
-        "capacityReserve": "台帳41の読み替え: U-Vは拒否・診断をstateに保存しない（診断はstepの出力、admissionの記録はruntime）ので予約の対象が無く、退去できない記録が無い（P3-C9-CAPACITYで全sliceを退去で受ける）。保存の世代の上界は、記録1件の合法最大（文字列は上限まで、JSONで1単位6 byteになる文字で埋め、ASCIIに限る値（code類8 byte、shortfallのid 64 byte、source.family 8 byte）は上限の長さ、時刻はDateの範囲の端の-8640000000000000（17文字）、列挙はいちばん長い値（hazardClassのballistic、truncatedのfalse）、operation=training、inputId 64文字、ReportDateTime 40文字、Serial 10桁）が警報9,416（sourceとmarineSourceの2つ、P3-C9-MARINE=A。1つなら8,854）・噴火6,575（噴煙高度がtextのMaterialValueでvalueとrawが上限）・降灰11,623・復旧不足498 byteで、128×(9,416＋6,575＋11,623＋498)＝3,598,336、「pendingの実byte＋予約＋終端記録」229,376（Q-NOTICE.capacity）、区切り1,392（記録4配列の127×4と、intentの配列の229,376÷259−1＝884。intentは1件259 byte以上でC8と同じ数え方）、envelope 293（C8の値）、配列の鍵と括弧200で、合計3,829,597 byte以下＝4 MiB（4,194,304）の内側（364,707 byteの余り）。超えることは件数・文字列の上限と回収の規則から起きず、decodeで超えた保存物はunavailable",
-        "capacityMeasurement": "測り方（2026-10-09、Mac、起草時の測定スクリプトはrepo外）: b7c59998をtscでbuildしたreconstruction/distのingestXmlData→decodeMaterialでcorpusの火山電文21本とsynthetic_phase5c_plume_3000m_or_moreを読み（21本とも検査に通った。VFSViiはheadType VFSV50で投入）、types.tsのVolcanoAlert・VolcanoEruption・VolcanoAshfall・VolcanoIntentの形に組み（inputIdは36文字、文字列はI-U-V.boundsで切る）、JSON.stringifyのUTF-8 byteを数えた。結果: 警報の最大の実例は1,230 byte（45_03_01_200731_VFVO50、marineSourceはnull）、海上警報は780（46_01_01、VFSV50として）、噴火は935（synthetic_phase5c_plume）・926（43_04_02）・833（67_01_01の噴火速報）、降灰は1,471（66_01_02のVFVO54）・1,288（66_01_03のVFVO55）、intent 1件の最大は1,100 byte（予約を含む、45_03_01）。同時最大状態（spec:470、実例の最大で）: 警報・噴火・降灰各128×(1,230＋935＋1,471)＝465,408＋pending 119×1,100（予約込みのbyteの上限で119件）＋終端記録89×1,100＋区切り・envelope・鍵＝696,093 byte（4,194,304まで3,498,211）。上限の文字列での上界は3,829,597 byte（I-U-V.capacityReserve）。最大の入力は44_01_01（全国のVFVO51、45,368 byte、火山entry 112）と66_01_01（VFVO53、42,428 byte）。実装後に同じfixtureで実際のencode byteを測り直し、この値と10%以上違えば数を直して報告する"
+        "capacityReserve": "台帳41の読み替え: U-Vは拒否・診断をstateに保存しない（診断はstepの出力、admissionの記録はruntime）ので予約の対象が無く、退去できない記録が無い（P3-C9-CAPACITYで全sliceを退去で受ける）。保存の世代の上界は、記録1件の合法最大（文字列は上限まで、JSONで1単位6 byteになる文字で埋め、ASCIIに限る値（code類8 byte、shortfallのid 64 byte、source.family 8 byte）は上限の長さ、時刻はDateの範囲の端の-8640000000000000（17文字）、列挙はいちばん長い値（hazardClassのballistic、truncatedのfalse）、operation=training、inputId 64文字、ReportDateTime 40文字、Serial 10桁）が警報9,712（sourceとmarineSourceの2つとlandKind、P3-C9-MARINE=A・Q-C9-IMPL-AMEND(9)(a)。sourceが1つなら8,854＋296）・噴火6,575（噴煙高度がtextのMaterialValueでvalueとrawが上限）・降灰11,623・復旧不足498 byteで、128×(9,712＋6,575＋11,623＋498)＝3,636,224、「pendingの実byte＋予約＋終端記録」229,376（Q-NOTICE.capacity）、区切り1,392（記録4配列の127×4と、intentの配列の229,376÷259−1＝884。intentは1件259 byte以上でC8と同じ数え方）、envelope 293（C8の値）、配列の鍵と括弧200で、合計3,867,485 byte以下＝4 MiB（4,194,304）の内側（326,819 byteの余り）。超えることは件数・文字列の上限と回収の規則から起きず、decodeで超えた保存物はunavailable",
+        "capacityMeasurement": "測り方（2026-10-09、Mac、起草時の測定スクリプトはrepo外）: b7c59998をtscでbuildしたreconstruction/distのingestXmlData→decodeMaterialでcorpusの火山電文21本とsynthetic_phase5c_plume_3000m_or_moreを読み（21本とも検査に通った。VFSViiはheadType VFSV50で投入）、types.tsのVolcanoAlert・VolcanoEruption・VolcanoAshfall・VolcanoIntentの形に組み（inputIdは36文字、文字列はI-U-V.boundsで切る）、JSON.stringifyのUTF-8 byteを数えた。結果: 警報の最大の実例は1,230 byte（45_03_01_200731_VFVO50、marineSourceはnull）、海上警報は780（46_01_01、VFSV50として）、噴火は935（synthetic_phase5c_plume）・926（43_04_02）・833（67_01_01の噴火速報）、降灰は1,260（66_01_02のVFVO54。起草時の試算は1,471、実装は既知の降灰の区分の地域を最も重い区分にだけ数える）・1,288（66_01_03のVFVO55）、intent 1件の最大は1,100 byte（予約を含む、45_03_01）。同時最大状態（spec:470、実例の最大で）: 警報・噴火・降灰各128件と、予約込みのbyteの上限まで詰めたpendingと終端記録で、実装後の実測636,096 byte（4,194,304まで3,558,208。起草時の試算は696,093）。上限の文字列での上界は3,867,485 byte（I-U-V.capacityReserve）。最大の入力は44_01_01（全国のVFVO51、45,368 byte、火山entry 112）と66_01_01（VFVO53、42,428 byte）。実装後の測り直し（C9実装、2026-10-09、P3-C9-T05）: 警報1,330・海上警報777・噴火940・噴火速報823・降灰の速報1,260・降灰の詳細1,287・intent 698（試験のinputIdは36文字より短い）、上限の文字列の上界の実測3,656,527 byte（試算3,867,485の内側）。この値を正とする（Q-C9-IMPL-AMEND(8)）"
       },
       {
         "id": "P3-C9-INTERFERENCE",
         "status": "frozen（台帳63、計画:79の共通条文。P3-C9-PLACE=A、統合担当が発注前点検で確定）",
-        "longestUninterrupted": "urgentでU-Vが足す非中断処理: 最大の火山電文（44_01_01の全国のVFVO51、45,368 byte、火山entry 112）の解凍・XML parse・reduce、合法最大（I-U-V.capacityReserve、3,829,597 byte）のU-Vのcheckpoint encode、三slice各128・定時128・解説64の同時の期限回収、合法最大でのtoView",
+        "longestUninterrupted": "urgentでU-Vが足す非中断処理: 最大の火山電文（44_01_01の全国のVFVO51、45,368 byte、火山entry 112）の解凍・XML parse・reduce、合法最大（I-U-V.capacityReserve、3,867,485 byte）のU-Vのcheckpoint encode、三slice各128・定時128・解説64の同時の期限回収、合法最大でのtoView",
         "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。正式E01ではない。Macの待ちの最大が約40ms（E01の250msをMac・Piの速度差の約6.3倍で割った値、計画:239）を超えたら、配送の前に作者へ報告し、P3-C9-PLACEを見直す。U-V同居後のEEWの正式な再測定は、spec:1129の後半「P5は最終構成で1〜4を再測定する」とC22のPiでの短い確認（計画:87）に送る。あわせて、urgentが入力を処理している間にurgentのunitの書込み権が出ない時間と、受信前回収（P3-C3B-INTENT-RECLAIM）でU-Vの保留中のintent更新がEEW入力の送出を遅らせた回数と遅れを報告する。同時dirtyの権のまとめ出し: composition-root.tsのreevaluateはurgentのownerに各unitのcheckpointGrantをまとめてpostするので、U-Qの合法最大のencodeとU-Vの合法最大のencodeを続けた最中に投入したEEWの待ちの最大を報告する。C7のAC12（段2の後の測り直し、最大VXSE53の最中のEEWの投入→T2の最大29.64 ms）とC8のAC11（最大8.74 ms）と並べて報告に書く"
       },
       {
@@ -382,6 +382,13 @@
         "source": "統合担当の発注前点検（2026-10-09、HEAD c4fafb8e）",
         "closed": "Q-C9-AUTHOR-RULINGS: 作者裁定（2026-10-09夜、ご主人、全部推奨どおり）ERUPTION-SUBJECT=A・ALERT-ACTIVE=A・BULLETIN=A・NOTICE-LEVELS=C・SHORTFALL=A・MARINE=Aを各分岐のrulingに書いた。起草は推奨（provisional）で書かれていたので、選ばなかった案の条文（Q-NOTICE.levelの「Aを選ぶなら・Bを選ぶなら」）を除き、Q-NOTICE・P3-C9-LEGACY-DIFF・Q-ENUM・I-U-V・persistedFields・AC16・T07のprovisionalの表記を裁定に置き換えた。generationTable・types.tsは選んだ案のままで変えない。Q-C9-S4-PLACE: P3-C9-PLACEのruling（A、統合担当の確定。S4の本文は読んでいない）。P3-C9-INTERFERENCE・P3-C9-WRITE-RIGHT・AC13からB案の文を除いた。Q-C9-CORPUS: (1) 決定がnullのO01:17・:27・:28に本契約の規則の期待を入れた（:17はunchanged/stale＋volcanoRevisionConflict、:27は新しいsubjectのchanged/semantic・active、:28は143900_306だけのchanged/semantic・cancelled） (2) synthetic 6本（synthetic_VFVO56_correction・synthetic_VFVO50_continuation・synthetic_VFVO50_correction・synthetic_VFVO50_cancel・synthetic_VFVO55_correction・synthetic_VFVO55_cancel）でunmetのO01:18・:29〜32・:37〜39を充足し、manifest・P1契約・P1-T01・check-manifestの件数（288件、XML 267、合成93）へ波及させた（P1-T01の分類の差分0）。O01:33・:40はこの充足の後の旧報の期待のまま (3) O08:11〜13（VFVO53の7秒おきの追加でmaxWait・54/55割込み・時計逆行）はsyntheticで充足しない: 7秒おきに新しい版の定時報を十数本要し、fixtureの追加が過大。sequencesではunmetのまま合格に数えず、同じ振る舞いはT04が試験内で66_01_01・66_01_02の時刻を書き換えた入力で確かめる（AC04の受入、AC11の範囲外） (4) O02のU-Vのstepはexpected:O02:37（synthetic_phase5c_plume、VFVO52）だけで、計画:250のVFVO52→C9の振り分けで残るunmetは無い。警報・定時・解説の正常系はT02・T04・T07とE13（fixtureIdsの全正常fixture）で確かめるので、O02にstepを足さない (5) O10:2〜10はC9の範囲に入れる（expectedDecisionsのO10:2・:5・:9、AC12）。O10:7の「取消g2を失った可能性の明示」とO10:8の回復の候補への適用はC16の領分で、C9のharnessはO10:7でg1を読み直し、O10:8では何もしない（O10:9の再投入で取消を再確立する） (6) O11:12・:14はP4（計画§5.2のO11）でC9に入れない (7) 43_01〜43_03・45_01〜45_02・66_01_02〜03・67_01_xxは気象庁のサンプル電文で実際の系列ではないことを、期待を入れたstepのchecksに書いた。Q-C9-BASE: P3-INTENT-UPDATE-RESERVE-001は2a8f80bc（c4fafb8eの上の1 commit、srcと試験だけ）で配送され、着手条件を満たした。(1) anchor: 2a8f80bcで変わった13 fileを行anchorで引く契約・sequencesは無く、本契約のanchorはc4fafb8eで全部一致（check-contract PASS）なので、2a8f80bcの上でもずれない (2) delivery-growth.tsのexportはdeliveryGrowth(item: NotificationIntent): numberだけで、U-Vのcodecが受理とdecodeの両方でimportして呼べる（式は写さない、Q-NOTICE.capacity・I-U-V.decode） (3) RES-02: p2-notification-delivery.types.ts:46の注記は2a8f80bcでも768（U-N）で、U-Vを足して896にするのは本契約の実装（RES-02）。計画は§9のP3-INTENT-UPDATE-RESERVE-001の行の状態を「配送 2a8f80bc」に改め、その行を引くanchor（本契約のAC06、P3-INTENT-UPDATE-RESERVE-001）を付け直した。baseOidは2a8f80bcを含むcommitに割り当てる（P3-C9-DEPS）",
         "reason": "発注前点検の項目を閉じ、unresolvedQuestionsを空にする"
+      },
+      {
+        "id": "Q-C9-IMPL-AMEND",
+        "status": "closed",
+        "source": "C9実装（2026-10-09、d0e8e16fの上）と統合担当の許可",
+        "closed": "(1) allowedPathsの追加（統合担当の許可）: reconstruction/test/eew-unit/eew-unit.test.tsのrestoreOwner(urgent)のrestoredにU-Vの行を1つ足す。P3-IUR-T03は本契約の起草の後に2a8f80bcで足された試験で、tsunami・seismic・nankaiと同じ共有の行の機械的な追加（無いとinvalid startup inputで落ちる）。(2) allowedPathsの追加（統合担当の許可）: reconstruction/test/chrome-eew/tsunami.test.tsのrecoveryとcurrentにU-Vの行を2行。C8も0ed0c626で同じ2行を触った共有の行で、DisplaySnapshotの型で止まる。(3) Q-ENUM.revisionOrderのMARINEの例外の「stale＋volcanoRevisionConflict（kind以外の自分のfieldは当てる）」を、changed（変わったfieldでsemantic）にWARN診断volcanoRevisionConflictを付け、kindは先着を保つ形に改める（fieldを当てるとstateが変わりunchanged/staleと両立しない）。本文はsequences.jsonが行anchorで引くので、この項で改める。(4) P3-C9-CANCEL-SCOPE=Aの(3)の「定時の降灰は取消の記憶」を、火山コードのある定時の取消は記憶、火山コードが無くeventIdの一致する記録も無い定時の取消はrejected/identityMissing（subjectは空文字）に改める（定時のsubjectは火山コードを要する）。本文はsequences.jsonが引くので、この項で改める（AC05は改めた）。(5) I-U-V.eruptionSemanticsの噴煙高度は「P1のMaterialValueのまま」と読んだ。P1はcondition属性の「以上」だけ（数字を含まない）ではrangeにしないので、synthetic_phase5c_plumeはnumber 3000で、通知のbodyは「噴煙3000m」（段階normalは変わらない）。rangeにするかはP1の領分。(6) 統合担当の決定: P3-C9-BATCH=Aの無音flushは、そのVFVO54/55が採用された（版の判定でchanged）ときだけ行う。stale・duplicateの再送ではflushしない（古い再送で新しい定時のbatchの通知を消さない）。BATCH=A・I-U-V.ashfallSemanticsを改めた。(7) 統合担当の決定: 拒否のsubjectは、識別できた単一のsubjectがあればそれを返す（噴火・解説はEventIDの妥当性の後、警報・降灰・定時は火山コードを読めた後。VFVO51は解説subject）。識別できないときだけ空文字。(8) I-U-V.capacityMeasurementの測り直し（同じfixture、実装の記録の形、P3-C9-T05）: 降灰の速報（66_01_02のVFVO54）1,260 byte（起草1,471、−14%。既知の降灰の区分は地域を最も重い区分にだけ数えるので71のgroupが空で落ちる）、実例の同時最大636,096 byte（起草696,093、−8.6%）、上限の文字列の上界の実測3,656,527 byte（試算3,867,485の内側）。ほかは警報1,330（1,230、landKindの分）、海上警報777（780）、噴火940（935）、噴火速報823（833）、降灰の詳細1,287（1,288）、intent 698（1,100、試験のinputIdの長さの違い）。capacityMeasurement・AC06の数を改めた。(9) 実装のレビュー（品質: Codex NO-GO・P1 2・P2 2・P3 1、契約適合: Opus 条件付きGO）の直し: (a) VFVO50のsourceがある記録へのVFSVの取消は海上の部分だけを取り消す（P3-C9-MARINE=Aの帰結、統合担当の決定）。VFVO50(Lv1)→VFSV(36)→VFSVの取消でactiveが残り続けた。取消の後のactiveは、残るVFVO50・VFVO51が自分の最後の区分（警報の記録のlandKind、VFVO50の取消でnull）でactiveを支えるかで決め、支えるならその区分に戻す（統合担当の決定。VFVO50とVFSVが同じ区分36でVFSVが新しくてもactiveが残る。types.tsのVolcanoAlertにlandKindを足し、decodeは値域と上限をkindと同じに、sourceがnullならnull）。通知は同じsubjectのVFSVのpendingだけを置き換え、題「[取消] 火山現象に関する海上警報」・本文「火山現象に関する海上警報・海上予報が取り消されました」（段階cancel）。(b) 降灰の予報の期間を合成した長さ（終わり−始まり）も48時間以内を受理で確かめる（各期間の検査だけでは[T−6h,T]・[T,T+48h]で54時間になり、decodeが拒否してU-V全体の復元が落ちた）。(c) VFVO53の鍵の切替は、新しい報で定時の記録を上書きする前に旧batchを通知付きでflushする（旧batchの通知・outcomeが新しい報を引いた）。(d) snapshotのupdatedAtは警報のsourceとmarineSourceの新しい方（unitのlatestSourceと同じ）。(e) 新しいintentが容量で外れただけのとき、admitは元の配列を返し保存世代を進めない。(f) VFVO51のentryは採用する記録をMapに集め、警報の配列を1回だけ作り直す（退去は同じ報が採用する記録を候補にしない）。(g) 試験の予約の式の写しをやめ、delivery-growth.tsのdeliveryGrowthをimportする。(h) 再確認（Codex NO-GO・P1 1・P3 2）の直し: VFVO50(11)→VFSV(36)→VFVO51(36)→VFSVの取消でVFVO51が伝えたactiveを失っていた（直しは(k)で置き換えた）。VFVO50自身の継続報は表示と同じでも常にlandKindとsourceを更新する経路で、同じ穴は無い（試験で確かめた）。(i) VFVO51のentryの採用も退去も無いときは警報の配列を作り直さない（参照の比較で保存世代が進んでいた）。(j) 期限のbatchのflushで、新しい通知が容量で外れただけ（admitが元の配列を返した）なら保存世代を進めない。(k) 3巡目（Codex NO-GO・P1 1）の直し、統合担当の決定: I-U-V.alertSemantics(2)を「land側（VFVO50・VFVO51の警報entry）の新しい版は、表示が同じでも常にlandKind（CodeとConditionを含む報の値）とsourceを進める（changed/revisionOnly）。通知は表示の変化だけ。land側のnoChangeの近道は同じ版の重複（duplicate）だけ」に改める（VFVO50(36、解除)→VFSV(36)→VFVO51(36継続)→VFSVの取消で、codeだけの比較が解除のlandKindを残しendedにしていた）。(h)のlandKindが違うときだけ進める比較は消した。本文はsequences.jsonが行anchorで引くので、この項で改める。新しい版の全国のVFVO51では既存の警報の記録のsourceが進み、保存世代が進む（同じ版の再送では進まない）。(l) 配送前の削減の監査（Astra xhigh）で、受理と decode で再利用されない集計のcache（listBytes・terminalBytes）、未使用の定数（KNOWN_KINDS、試験のSERIAL）、codeの一致の後のlevelの重ねた比較、試験の重複（終端記録の回収の試験はownerを通す試験へ寄せ、全国のVFVO51の通知件数の再確認）と同じ値の条件式を削った。(10) AC13の報告: 合法最大でのtoViewは単独では測らず、最大の入力（全国のVFVO51）の行のviewAndPostMs（owner側のtoViewと返信の送出、最大2.78 ms、(k)の後の測り直し）に含まれる。測り直しの最大の待ち（EEWの投入→T2）は全国のVFVO51で8.16 ms、encode 2.20 ms、まとめ出し9.91 ms、一括の期限回収4.06 ms。",
+        "reason": "実装で読んだ契約の解釈と許可した範囲の追加、測った値を契約に戻す"
       }
     ],
     "operationContract": {
@@ -929,7 +936,7 @@
         "target": "U-V encoded generation",
         "limit": 4194304,
         "unit": "UTF-8 bytes",
-        "scope": "alerts, eruptions, ashfalls, shortfalls and intents; counted as a sum of per-record and per-intent encodings. The upper bound from count and string limits is 3,829,597 bytes (I-U-V.capacityReserve)",
+        "scope": "alerts, eruptions, ashfalls, shortfalls and intents; counted as a sum of per-record and per-intent encodings. The upper bound from count and string limits is 3,867,485 bytes (I-U-V.capacityReserve)",
         "source": "spec:484"
       },
       {
@@ -945,7 +952,7 @@
       "U-V"
     ],
     "persistedFields": [
-      "警報: subject・operation・volcanoCode・eventId・source・marineSource・retainUntil・effective・volcanoName・kind・lastKind・level・headline・municipalities・marineAreas・coordinate・truncated（active以外は事実を持たない）",
+      "警報: subject・operation・volcanoCode・eventId・source・marineSource・landKind・retainUntil・effective・volcanoName・kind・lastKind・level・headline・municipalities・marineAreas・coordinate・truncated（active以外は事実を持たない）",
       "噴火: subject・operation・eventId・volcanoCode・source・retainUntil・effective・volcanoName・flash・phenomenon・eventDateTimeRaw・craterName・plumeAboveCrater・plumeAboveSeaLevel・plumeDirection・headline・municipalities・truncated・validUntil",
       "降灰（VFVO54/55）: subject・operation・volcanoCode・eventId・source・retainUntil・effective・volcanoName・variant・headline・forecastStartsAt・forecastEndsAt・groups・omittedGroupCount・truncated",
       "復旧不足: id・operation・slice・scope・volcanoCode・lastKnown・reason（P3-C9-SHORTFALL=A）",
@@ -977,8 +984,8 @@
           "docs/specs/reconstruction-p0-contracts.md:404 «79720de938791920»",
           "docs/specs/reconstruction-p0-contracts.md:405 «2368a0fd83ba82be»",
           "docs/specs/reconstruction-p0-contracts.md:604 «383c5348501f2221»",
-          "reconstruction/src/runtime/unit-coverage.ts:72 «023369ad640b2a43»",
-          "reconstruction/src/runtime/unit-coverage.ts:80 «7aecacb0b343c35e»",
+          "reconstruction/src/runtime/unit-coverage.ts:72 «04e8c6744f3465d9»",
+          "reconstruction/src/runtime/unit-coverage.ts:80 «94657d67f2bc9b87»",
           "src/engine/messages/route-catalog.ts:148 «25afcfd3a063b918»",
           "reconstruction/contracts/p3-unit-table.json:94 «6377f6f7a31d5324»"
         ]
@@ -1029,7 +1036,7 @@
       },
       {
         "id": "P3-C9-AC05",
-        "requirement": "取消と期限（P3-C9-CANCEL-SCOPE・P3-C9-RETENTION）: 取消はその報のsliceの対象だけを取り消し、火山コードの無い取消は記録のeventIdとの一意な一致でだけ結び付く。対象の無い取消は噴火・解説・定時では記憶だけで鳴らず、警報・降灰ではrejected/identityMissing。VFVO51の取消は解説subjectだけを取り消す。取消以前の報はstaleで復活しない。警報のinactiveの記録は+30日、噴火はactive+1日・記録+2日、降灰はactiveが予報の終わり・記録+7日、定時・解説は+36時間。期限は元報の時刻から数え、再起動・再受信で延ばさない",
+        "requirement": "取消と期限（P3-C9-CANCEL-SCOPE・P3-C9-RETENTION）: 取消はその報のsliceの対象だけを取り消し、火山コードの無い取消は記録のeventIdとの一意な一致でだけ結び付く。対象の無い取消は噴火・解説と火山コードのある定時では記憶だけで鳴らず、警報・降灰と火山コードの無い定時ではrejected/identityMissing（Q-C9-IMPL-AMEND(4)）。VFVO51の取消は解説subjectだけを取り消す。取消以前の報はstaleで復活しない。警報のinactiveの記録は+30日、噴火はactive+1日・記録+2日、降灰はactiveが予報の終わり・記録+7日、定時・解説は+36時間。期限は元報の時刻から数え、再起動・再受信で延ばさない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:580 «c0b11a524dbe0ac6»",
           "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
@@ -1042,7 +1049,7 @@
       },
       {
         "id": "P3-C9-AC06",
-        "requirement": "容量と受信1回の費用: P3-C9-CAPACITY=A（各slice 128件・解説64件と退去の順・volcanoCapacityEvicted、pending 128件・「実byte＋予約」131,072・「実byte＋予約＋終端記録」229,376、1世代4,194,304 byte）とI-U-V.capacityMeasurementの同時最大状態（696,093 byte、上界3,829,597 byte）を通す（spec:470）。capacityExceededを返さない。最大正常と+1の境界入力（Q-LIMIT）で確かめる。intentUpdateでattempts・nextAttemptAtの桁が増えてもpendingの和が上限を超えず、受理とdecodeが同じ式で数える（台帳73）。容量はI-U-V.computationどおり記録単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（全国のVFVO51 112entryを含む。AGENTS.md「受信経路の計算量」、台帳47）",
+        "requirement": "容量と受信1回の費用: P3-C9-CAPACITY=A（各slice 128件・解説64件と退去の順・volcanoCapacityEvicted、pending 128件・「実byte＋予約」131,072・「実byte＋予約＋終端記録」229,376、1世代4,194,304 byte）とI-U-V.capacityMeasurementの同時最大状態（実測636,096 byte、上界3,867,485 byte、Q-C9-IMPL-AMEND(8)）を通す（spec:470）。capacityExceededを返さない。最大正常と+1の境界入力（Q-LIMIT）で確かめる。intentUpdateでattempts・nextAttemptAtの桁が増えてもpendingの和が上限を超えず、受理とdecodeが同じ式で数える（台帳73）。容量はI-U-V.computationどおり記録単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（全国のVFVO51 112entryを含む。AGENTS.md「受信経路の計算量」、台帳47）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
           "docs/specs/reconstruction-p0-contracts.md:484 «6f5cfb311e8dcc7b»",
@@ -1070,7 +1077,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1467 «c0ab83657bf0eeef»",
           "docs/specs/reconstruction-p0-contracts.md:1722 «8a5776d2b41de8d7»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:56 «e28c24c638ff52fe»",
+          "reconstruction/src/view-projector/view-projector.ts:58 «e28c24c638ff52fe»",
           "reconstruction/contracts/p3-seismic-unit.json:148 «52525ff82a60caa3»"
         ]
       },
@@ -1143,7 +1150,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:194 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:195 «9ed0037a4a82959a»"
         ]
       },
       {

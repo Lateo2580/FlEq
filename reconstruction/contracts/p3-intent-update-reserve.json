@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "d854aa1488543f01a42fa7568b2c248f6c687b90411d3e22734e8a5403b62562",
+    "sha256": "9318b528727fa562a6ea25b8c9334ede646ea61d983190664bb31bd322862e41",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "41089d0d4e4381a3f054f342313aad359e252fcbf4ba51e10ed64324ac15d560",
     "sequencesSha256": "7da7868d070e3a31cac738153aba6114f3a4014ac7cd89e958f9e66609445552",
@@ -255,7 +255,7 @@
         "id": "P3-IUR-AC03",
         "requirement": "更新は予約込みの量を増やさない（intentUpdateに検査を足さない理由）: decodeが受けるattempts（0以上の安全な整数、JSONで16文字以下）とnextAttemptAt（有限の数、JSONで25文字以下）の範囲では、pendingのまま伸びる分は予約の減りと同じ長さで、終端になる分は元のpendingの実byte＋予約の内側（ownerは更新がpendingでないintentを指せば採用しない）。U-T・U-Q・U-E・U-Wのdecodeの値域（attempts・nextAttemptAtの確かめ）は今のまま変えず、U-Fは同じ値域を確かめるようにする（AC06）（作者裁定 2026-10-09、値域で縛らない）。既知の限界はC8と同じ: attemptsが安全な整数を超えた保存物はdecodeが拒否する（約9京回の更新が要る）。無いと: 受理とdecodeの式がそろっていても、式が値域の最長に届かなければ更新の後のdecodeが拒否する",
         "evidenceRefs": [
-          "reconstruction/src/runtime/owner-runtime.ts:462 «6af0a32f7c614e1c»",
+          "reconstruction/src/runtime/owner-runtime.ts:466 «6af0a32f7c614e1c»",
           "reconstruction/contracts/p3-nankai-unit.json:296 «11d1b802043a2d33»"
         ]
       },

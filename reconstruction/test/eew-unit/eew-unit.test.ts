@@ -957,7 +957,7 @@ describe("P2 EEW unit", () => {
     if (restored.kind !== "restored") throw new Error("the admitted state does not decode");
     const now = clock(BASE_TIME);
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-E": restored.state } };
     const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-E", from.units["U-E"]!.intents.map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
       nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);

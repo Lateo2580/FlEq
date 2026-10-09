@@ -43,16 +43,18 @@ const OFFICE_BYTES = 256;
 const TRUNCATED_MARKER = "[truncated:fieldLimit]";
 const DATE_LIMIT = 8_640_000_000_000_000;
 const OPERATIONS = ["normal", "training", "test"] as const;
-const TTL: Readonly<Record<RuntimeUnitId, number>> = { "U-E": 15_000, "U-W": 60_000, "U-F": 60_000, "U-T": 60_000, "U-Q": 60_000, "U-N": 60_000 };
+const TTL: Readonly<Record<RuntimeUnitId, number>> = { "U-E": 15_000, "U-W": 60_000, "U-F": 60_000, "U-T": 60_000, "U-Q": 60_000, "U-N": 60_000,
+  "U-V": 60_000 };
 const NOTICE_TEXT = { eewNew: "緊急地震速報を確認", eewWarning: "緊急地震速報が警報に変わりました" } as const;
 // null: the unit never makes an unavailable notice (U-E has no unavailable state).
 const UNAVAILABLE_TEXT: Readonly<Record<RuntimeUnitId, string | null>> = {
-  "U-E": null, "U-W": "気象警報の現況を確認できません", "U-F": "気象時系列情報を確認できません", "U-T": null, "U-Q": null, "U-N": null,
+  "U-E": null, "U-W": "気象警報の現況を確認できません", "U-F": "気象時系列情報を確認できません", "U-T": null, "U-Q": null, "U-N": null, "U-V": null,
 };
 // true: the unit counts events per warning class (A4); the others count from the view's own rows.
-const COUNTS_BY_WARNING_CLASS: Readonly<Record<RuntimeUnitId, boolean>> = { "U-E": true, "U-W": false, "U-F": false, "U-T": false, "U-Q": false, "U-N": false };
+const COUNTS_BY_WARNING_CLASS: Readonly<Record<RuntimeUnitId, boolean>> = { "U-E": true, "U-W": false, "U-F": false, "U-T": false, "U-Q": false, "U-N": false,
+  "U-V": false };
 const INFORMATION_TYPE = { "U-E": "eew", "U-W": "weather-warning", "U-F": "weather-warning-timeseries", "U-T": "tsunami", "U-Q": "earthquake",
-  "U-N": "nankai" } as const;
+  "U-N": "nankai", "U-V": "volcano" } as const;
 const AREA_SYSTEMS: Readonly<Record<RuntimeUnitId, readonly DisplayAreaSystem[]>> = {
   "U-E": ["eewArea"],
   "U-W": ["prefecture", "primary", "municipalityGroup", "municipality", "stormSurge"],
@@ -62,6 +64,8 @@ const AREA_SYSTEMS: Readonly<Record<RuntimeUnitId, readonly DisplayAreaSystem[]>
   "U-Q": ["prefecture", "seismicArea", "municipality"],
   // P3-C8-SNAPSHOT=A: 南海トラフは区域を持たない。
   "U-N": [],
+  // P3-C9-SNAPSHOT=A: 火山は区域の数え方を持たない。
+  "U-V": [],
 };
 // Fixed key order keeps full and summary items byte-identical whatever order counts arrive in.
 const UNAVAILABLE_KEYS = ["capacityExceeded", "historyUnavailable", "coverageIncomplete"] as const;
@@ -340,6 +344,21 @@ function nankaiTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tall
   return tally;
 }
 
+// P3-C9-SNAPSHOT=A: highestSeverity は null。件数は active の警報・噴火・降灰の記録で数え、解説は数えない。
+function volcanoTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+  if (value == null || value.unit !== "U-V" || value.current == null) return null;
+  const current = value.current;
+  const tally = emptyTally(value.operation);
+  if (hidden) return tally;
+  tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
+  if (!("family" in current)) tally.active = 1;
+  // 警報は source と marineSource の新しい方（P3-C9-MARINE=A、unit の latestSource と同じ）。
+  const sources = "marineSource" in current ? [current.source, current.marineSource] : [current.source];
+  addTime(tally, sources.reduce((latest, item) => item != null && (latest == null
+    || Date.parse(item.reportDateTimeRaw) > Date.parse(latest.reportDateTimeRaw)) ? item : latest, null));
+  return tally;
+}
+
 // View bytes excluding subject elements: scalar fields, keys, brackets and element separators.
 function fixedBytes(view: AnyView): number {
   const commas = (length: number) => Math.max(length - 1, 0);
@@ -357,6 +376,10 @@ function fixedBytes(view: AnyView): number {
   if (view.unit === "U-N")
     return utf8({ ...view, subjects: [], currents: [], information: [] }) + commas(view.subjects.length)
       + commas(view.currents.length) + commas(view.information.length);
+  // 復旧不足は subject の要素でなく固定の部分に数える（view の差し替えで毎回測り直す）。
+  if (view.unit === "U-V")
+    return utf8({ ...view, subjects: [], alerts: [], eruptions: [], ashfalls: [], bulletins: [] }) + commas(view.subjects.length)
+      + commas(view.alerts.length) + commas(view.eruptions.length) + commas(view.ashfalls.length) + commas(view.bulletins.length);
   return utf8({ ...view, series: [], subjects: [] }) + commas(view.series.length) + commas(view.subjects.length);
 }
 
@@ -645,7 +668,8 @@ function comparable(snapshot: DisplaySnapshot): string {
   return JSON.stringify([snapshot.streamId, snapshot.semanticRevision, snapshot.connection, snapshot.worker,
     snapshot.persistence, snapshot.recovery, snapshot.channels, domain(snapshot.current.eew),
     domain(snapshot.current.weatherCurrent), domain(snapshot.current.weatherTimeseries), domain(snapshot.current.tsunami),
-    domain(snapshot.current.earthquake), domain(snapshot.current.nankai), snapshot.notices]);
+    domain(snapshot.current.earthquake), domain(snapshot.current.nankai),
+    domain(snapshot.current.volcano), snapshot.notices]);
 }
 
 function summary<View>(projection: DisplayDomainProjection<View>): DisplayDomainView<View> {
@@ -690,6 +714,8 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     noEvents, gates, seismicTally);
   const nankai = projectDomain("U-N", previous?.domains.nankai ?? null, input.nankai, byUnit("U-N"), meta("U-N"),
     noEvents, gates, nankaiTally);
+  const volcano = projectDomain("U-V", previous?.domains.volcano ?? null, input.volcano, byUnit("U-V"), meta("U-V"),
+    noEvents, gates, volcanoTally);
 
   // P2-A8-NOTICE: semantic invalidation, then TTL, then generation, then capacity.
   const clockValid = dateValue(input.nowMs);
@@ -746,7 +772,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     streamId: input.streamId, snapshot, notices: selected.notices,
     domains: { eew: { ...eew.projection, eventRefs: eew.eventRefs },
       weatherCurrent: weatherCurrent.projection, weatherTimeseries: weatherTimeseries.projection, tsunami: tsunami.projection,
-      earthquake: earthquake.projection, nankai: nankai.projection },
+      earthquake: earthquake.projection, nankai: nankai.projection, volcano: volcano.projection },
   });
   const published = previous?.snapshot ?? null;
   if (!clockValid || expiryInvalid)
@@ -755,7 +781,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     diagnostics: [...diagnostics, { level: "WARN", component: "view-projector", reason: "snapshotStringLimitExceeded" }] };
 
   const domains = [eew.projection, weatherCurrent.projection, weatherTimeseries.projection, tsunami.projection,
-    earthquake.projection, nankai.projection] as const;
+    earthquake.projection, nankai.projection, volcano.projection] as const;
   const shell: DisplaySnapshot = {
     schemaVersion: 1, streamId: input.streamId, sequence: (published?.sequence ?? 0) + 1,
     generatedAt: input.generatedAt,
@@ -765,11 +791,11 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
       sound: channel(input.notificationChannels.sound, input.channelProbeComplete) },
     current: { eew: eew.projection.full, weatherCurrent: weatherCurrent.projection.full,
       weatherTimeseries: weatherTimeseries.projection.full, tsunami: tsunami.projection.full, earthquake: earthquake.projection.full,
-      nankai: nankai.projection.full },
+      nankai: nankai.projection.full, volcano: volcano.projection.full },
     notices: selected.notices,
   };
-  const shellBytes = utf8({ ...shell, current: { eew: 0, weatherCurrent: 0, weatherTimeseries: 0, tsunami: 0, earthquake: 0, nankai: 0 } })
-    - 6;
+  const shellBytes = utf8({ ...shell, current: { eew: 0, weatherCurrent: 0, weatherTimeseries: 0, tsunami: 0, earthquake: 0, nankai: 0,
+    volcano: 0 } }) - 7;
   const commonBytes = shellBytes - utf8(selected.notices);
   if (commonBytes > COMMON_BUDGET) return { kind: "rejected", state: state(published), reason: "snapshotCommonBudgetExceeded",
     diagnostics: [...diagnostics, { level: "WARN", component: "view-projector", reason: "snapshotCommonBudgetExceeded", count: commonBytes }] };
@@ -779,7 +805,8 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     overflow && projection.utf8Bytes > DOMAIN_BUDGET ? summary(projection) : projection.full;
   const snapshot: DisplaySnapshot = { ...shell, current: { eew: deliver(eew.projection),
     weatherCurrent: deliver(weatherCurrent.projection), weatherTimeseries: deliver(weatherTimeseries.projection),
-    tsunami: deliver(tsunami.projection), earthquake: deliver(earthquake.projection), nankai: deliver(nankai.projection) } };
+    tsunami: deliver(tsunami.projection), earthquake: deliver(earthquake.projection), nankai: deliver(nankai.projection),
+    volcano: deliver(volcano.projection) } };
   const domainBytes = (value: DisplayDomainView<AnyView>, projection: DisplayDomainProjection<AnyView>) =>
     value.delivery === "full" ? projection.utf8Bytes : utf8(value);
   const utf8Bytes = shellBytes + domainBytes(snapshot.current.eew, eew.projection)
@@ -787,7 +814,8 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     + domainBytes(snapshot.current.weatherTimeseries, weatherTimeseries.projection)
     + domainBytes(snapshot.current.tsunami, tsunami.projection)
     + domainBytes(snapshot.current.earthquake, earthquake.projection)
-    + domainBytes(snapshot.current.nankai, nankai.projection);
+    + domainBytes(snapshot.current.nankai, nankai.projection)
+    + domainBytes(snapshot.current.volcano, volcano.projection);
   if (published != null && comparable(published) === comparable(snapshot))
     return { kind: "unchanged", state: state(published), diagnostics };
   return { kind: "projected", state: state(snapshot), snapshot, utf8Bytes, diagnostics };

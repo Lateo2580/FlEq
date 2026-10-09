@@ -17,11 +17,11 @@ function snapshot(streamId: string, sequence: number): DisplaySnapshot {
     connection: { state: "connected", disconnectedAt: null, lastInputAt: null },
     worker: { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null },
     persistence: {}, recovery: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } },
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } },
     channels: { desktop: "available", sound: "available" },
     current: { eew: { unit: "U-E", ...summary }, weatherCurrent: { unit: "U-W", ...summary },
       weatherTimeseries: { unit: "U-F", ...summary }, tsunami: { unit: "U-T", ...summary }, earthquake: { unit: "U-Q", ...summary },
-      nankai: { unit: "U-N", ...summary } },
+      nankai: { unit: "U-N", ...summary }, volcano: { unit: "U-V", ...summary } },
     notices: [],
   };
 }

@@ -83,7 +83,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     }
     // 一入力は U-N だけへ届き、U-E・U-T・U-Q の state は同じ参照のまま。
     const owner = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const material = decodeFixture(F.warning);
     const routed = receiveOwner(owner, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } }, now, linkedUnitTable);
     expect(routed.changedUnits).toEqual(["U-N"]);
@@ -434,7 +434,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const unitState: NankaiUnitState = { ...emptyState(), intents: [old, ...Array.from({ length: count }, (_, index) => done(index))] };
     const now = clock(reported + 1_000);
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-N": unitState } };
     const updated = intentUpdateOwner(owner, "U-N", [{ id: old.id, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered" }],
       now, linkedUnitTable);
@@ -458,7 +458,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     if (first.kind !== "restored") throw new Error("the admitted state does not decode");
     const now = clock(at("2020-05-12T16:38:00+09:00"));
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-N": first.state } };
     const grown = intentUpdateOwner(owner, "U-N", pending(first.state).map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
       nextAttemptAt: -0.0000018927186924017318, disposition: index % 3 === 0 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);

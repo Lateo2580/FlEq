@@ -128,7 +128,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(classifyHeadType("VXSE47")).toMatchObject({ status: "notPorted", candidate: "U-Q", reason: expect.stringMatching(/^C7で確認/) });
     // 一入力は U-Q だけへ届き、U-E・U-T の state は同じ参照のまま。
     const owner = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const material = decodeFixture(F.s53a);
     const routed = receiveOwner(owner, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },
       clock(Date.parse(material.reportDateTimeRaw)), linkedUnitTable);
@@ -622,7 +622,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const first = roundTrip(admitted!);
     if (first.kind !== "restored") throw new Error("the admitted state does not decode");
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-Q": first.state } };
     const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-Q", pending(from.units["U-Q"]!).map((item, index) => ({
       id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,

@@ -125,7 +125,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     }
     // 一入力は U-T だけへ届き、U-E の state は同じ参照のまま。
     const owner = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" }, "U-Q": { kind: "empty" },
-      "U-N": { kind: "empty" } } },
+      "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } },
       linkedUnitTable, linkedUnitCodecs).state;
     const material = decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41");
     const routed = receiveOwner(owner, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },
@@ -422,7 +422,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const first = roundTrip(admitted!);
     if (first.kind !== "restored") throw new Error("the admitted state does not decode");
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-T": first.state } };
     const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-T", from.units["U-T"]!.intents.filter((item) => item.disposition === "pending").map((item, index) => ({
       id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,

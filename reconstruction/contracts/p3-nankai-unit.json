@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "be462afd0035e0f99667e9138b53c0f7b5039b65e0892dad367e75929af6cf5d",
+    "sha256": "e0c895bcdccc848830fd20768def6652186e31ac987b1aa235262aac8ea4ac08",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "41089d0d4e4381a3f054f342313aad359e252fcbf4ba51e10ed64324ac15d560",
     "sequencesSha256": "7da7868d070e3a31cac738153aba6114f3a4014ac7cd89e958f9e66609445552",
@@ -751,7 +751,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1472 «5bbe65daadf9a2ed»",
           "reconstruction/contracts/p3-seismic-unit.json:148 «52525ff82a60caa3»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:779 «c42a191089542248»",
+          "reconstruction/src/view-projector/view-projector.ts:805 «c42a191089542248»",
           "src/engine/display/standby-state-store.ts:3203 «7af6c560b641723c»"
         ]
       },
@@ -805,7 +805,7 @@
           "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
-          "reconstruction/src/runtime/composition-root.ts:1292 «4b3e06f0acf52345»",
+          "reconstruction/src/runtime/composition-root.ts:1296 «4b3e06f0acf52345»",
           "reconstruction/contracts/p3-execution-boundary.md:12 «664a6f4b27d9fc87»",
           "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -818,7 +818,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:196 «75cf2512443da992»"
+          "reconstruction/src/runtime/composition-root.ts:198 «75cf2512443da992»"
         ]
       },
       {

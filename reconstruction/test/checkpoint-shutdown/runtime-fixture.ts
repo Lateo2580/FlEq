@@ -29,11 +29,13 @@ const baseline: RuntimeState = {
   runId: "review", units: initialUnits,
   views: { "U-E": linkedUnitTable["U-E"].toView(initialUnits["U-E"]), "U-W": linkedUnitTable["U-W"].toView(initialUnits["U-W"]),
     "U-F": linkedUnitTable["U-F"].toView(initialUnits["U-F"]), "U-T": linkedUnitTable["U-T"].toView(initialUnits["U-T"]),
-    "U-Q": linkedUnitTable["U-Q"].toView(initialUnits["U-Q"]), "U-N": linkedUnitTable["U-N"].toView(initialUnits["U-N"]) },
+    "U-Q": linkedUnitTable["U-Q"].toView(initialUnits["U-Q"]), "U-N": linkedUnitTable["U-N"].toView(initialUnits["U-N"]),
+    "U-V": linkedUnitTable["U-V"].toView(initialUnits["U-V"]) },
   confirmation: initialConfirmation(),
   restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
-    "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } },
-  admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null },
+    "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } },
+  admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null,
+    "U-V": null },
   notificationChannels: testNotificationChannels, notificationProbeComplete: false, notificationDeadlines: { desktop: {}, sound: {} },
   shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null, stageResults: {},
     deadlines: { overallMonotonicMs: null, mailboxDrainMonotonicMs: null, sideEffectFinalizationMonotonicMs: null,
@@ -50,7 +52,7 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
     ...baseline,
     runId,
     restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } },
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } },
     admission: {},
     notificationProbeComplete: true,
     units: {
@@ -64,11 +66,12 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
         intents: [], persistence: progress("U-T") },
       "U-Q": { ...payload("U-Q"), ...initialUnits["U-Q"], persistence: progress("U-Q") },
       "U-N": { ...payload("U-N"), ...initialUnits["U-N"], persistence: progress("U-N") },
+      "U-V": { ...payload("U-V"), ...initialUnits["U-V"], persistence: progress("U-V") },
     },
     checkpointAttempts: {}, deadlines: { "U-E": { monotonicMs: 0, wallTimeMs: null },
       "U-W": { monotonicMs: 0, wallTimeMs: null }, "U-F": { monotonicMs: 0, wallTimeMs: null },
       "U-T": { monotonicMs: 0, wallTimeMs: null }, "U-Q": { monotonicMs: 0, wallTimeMs: null },
-      "U-N": { monotonicMs: 0, wallTimeMs: null } },
+      "U-N": { monotonicMs: 0, wallTimeMs: null }, "U-V": { monotonicMs: 0, wallTimeMs: null } },
     notificationDeadlines: { desktop: {}, sound: {} },
     notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
     shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null, stageResults: {},
@@ -119,6 +122,7 @@ function fixtureDriver() {
     reduceTsunamiUnit: (state) => step("U-T", state),
     reduceSeismicUnit: (state) => step("U-Q", state),
     reduceNankaiUnit: (state) => step("U-N", state),
+    reduceVolcanoUnit: (state) => step("U-V", state),
   };
   let sequence = 0;
   return { calls: callsWith(stubs), stubs, async update(h: Harness, desired: RuntimeState, clock: ClockReading = h.clock(),
@@ -127,7 +131,7 @@ function fixtureDriver() {
     try { void root.state; } catch {
       await startHarness(h, desired.runId, clock);
     }
-    for (const unit of ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N"] as const) {
+    for (const unit of ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V"] as const) {
       const wanted = desired.units[unit];
       if (fixtureValue(wanted) === "" && wanted.persistence.kind === "saved") continue;
       // One input reaches the wanted generation: with immediate saves (P3-UWR-AC03) one input per generation would save
@@ -153,7 +157,7 @@ function fixtureDriver() {
   queue(h: Harness, desired: RuntimeState, clock: ClockReading = h.clock(),
     inputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>> = {}) {
     update = { ...desired.units };
-    for (const unit of ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N"] as const) {
+    for (const unit of ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V"] as const) {
       const wanted = desired.units[unit];
       if (fixtureValue(wanted) === "" && wanted.persistence.kind === "saved") continue;
       const queued = h.root.mailbox.enqueue(envelope(desired.runId, unitBodies[unit].headType,
@@ -166,10 +170,12 @@ function fixtureDriver() {
 // TEST-PATH (1): the state of one owner, cut from a whole-runtime fixture, for calling the owner core directly.
 function ownerFixture(place: ExecutionPlace, whole: RuntimeState = fixtureState()): OwnerState {
   const unit = place === "urgent" ? "U-E" as const : place === "weatherCurrent" ? "U-W" as const : "U-F" as const;
-  // urgent owns U-E, U-T, U-Q and U-N (P3-C5-PLACE=A, P3-C7-PLACE=A, P3-C8-PLACE=A); each keeps its own admission, deadline and attempt slots.
-  const units = unit === "U-E" ? { "U-E": whole.units["U-E"], "U-T": whole.units["U-T"], "U-Q": whole.units["U-Q"], "U-N": whole.units["U-N"] }
+  // urgent owns U-E, U-T, U-Q, U-N and U-V (P3-C5-PLACE=A, P3-C7-PLACE=A, P3-C8-PLACE=A, P3-C9-PLACE=A); each keeps its own admission,
+  // deadline and attempt slots.
+  const units = unit === "U-E" ? { "U-E": whole.units["U-E"], "U-T": whole.units["U-T"], "U-Q": whole.units["U-Q"], "U-N": whole.units["U-N"],
+    "U-V": whole.units["U-V"] }
     : unit === "U-W" ? { "U-W": whole.units["U-W"] } : { "U-F": whole.units["U-F"] };
-  const own = unit === "U-E" ? ["U-E", "U-T", "U-Q", "U-N"] as const : [unit];
+  const own = unit === "U-E" ? ["U-E", "U-T", "U-Q", "U-N", "U-V"] as const : [unit];
   const pick = <T>(value: (unit: RuntimeUnitId) => T | undefined) => Object.fromEntries(own.flatMap((item) => {
     const found = value(item);
     return found == null ? [] : [[item, found]];

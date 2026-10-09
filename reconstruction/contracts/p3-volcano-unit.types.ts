@@ -58,6 +58,8 @@ type VolcanoAlertFacts = Readonly<{
 }>;
 // 警報だけは watermark を family ごとに持つ（P3-C9-MARINE=A）: source は VFVO50・VFVO51、marineSource は VFSV。
 // 少なくとも一方は非 null で、retainUntil は新しい方の ReportDateTime から数える。
+// landKind は source の family（VFVO50・VFVO51）が最後に伝えた区分（source が null か、VFVO50 の取消の後は null）。VFSV の取消の後に
+// active が残るかを、残る family が自分の区分で支えるかで決める（Q-C9-IMPL-AMEND(9)(a)）。
 export type VolcanoAlert = Readonly<{
   subject: string;
   operation: Operation;
@@ -65,6 +67,7 @@ export type VolcanoAlert = Readonly<{
   eventId: string;
   source: ReportRef | null;
   marineSource: ReportRef | null;
+  landKind: VolcanoKind | null;
   retainUntil: number;
 }> & (
   | VolcanoAlertFacts
