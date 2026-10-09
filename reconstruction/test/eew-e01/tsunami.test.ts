@@ -12,7 +12,9 @@ import { toTsunamiView } from "../../src/units/tsunami/tsunami-unit";
 import { analyzeTrace, assembleTsunamiTrials, buildHostIndex, candidateKey } from "./analysis.mjs";
 import type { ChromeCandidateEntry, HostLine, Probe, TsunamiTrial } from "./analysis.mjs";
 import { injection, sample } from "./fixtures";
-import { readDiagnosticsStrict, tsunamiStateBreaks } from "./run.mjs";
+import { readDiagnosticsStrict, selectAuxWindows, tsunamiStateBreaks } from "./run.mjs";
+import * as auxMeasures from "./aux-measures.mjs";
+import type { HostRecord } from "./aux-measures.mjs";
 import { RELEASE_FIXTURE, TEMPLATE_FIXTURES, buildP3TsunamiManifest, buildTemplates, emptyTsunamiState, receiveTsunami, tsunamiReport } from "./tsunami.mjs";
 
 const repo = join(__dirname, "../../..");
@@ -331,5 +333,27 @@ describe("P3-C6-T07 stateBreaks come from the host's records and are null when a
       for (const summary of [{ droppedDiagnostics: {} }, { droppedDiagnostics: 0 }, { droppedDiagnostics: { DEBUG: 0, INFO: 0, WARN: -1, ERROR: 0 } }, null]) expect(read([row], summary)).toBeNull();
       for (const line of ["null", "{}", JSON.stringify({ level: "WARN" }), "[]"]) expect(read([row, line], zero)).toBeNull();
     } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+// ── AC08④（C5 から引き継いだ U-E と U-T の同時 dirty）の準備（Q-C6-IMPL-AMEND (9)） ──
+describe("P3-C6 AC08④ preparation: the E14 bundle with VTSE41 and the --aux window ids", () => {
+  it("a bundle whose U-E and U-T intervals overlap while U-F and U-W finish later is linked with overlapUnits U-E・U-T, and notSimultaneous under C4's all-unit rule", () => {
+    const obs = (o: Record<string, unknown>) => ({ t: "obs", o } as HostRecord);
+    const units = { "U-E": [100, 160], "U-T": [105, 150], "U-F": [300, 500], "U-W": [320, 700] } as const;
+    const records = Object.entries(units).flatMap(([unit, [start, done]]) => [
+      obs({ kind: "generationRaised", runId: "r", inputId: `in-${unit}`, unit, generation: 2, monotonicMs: start }),
+      obs({ kind: "checkpointGrant", runId: "r", grantId: `g-${unit}`, unit, attemptIds: [], dirtyObservedMonotonicMs: null, grantSentMonotonicMs: start,
+        ownerStartedMonotonicMs: start, doneReceivedMonotonicMs: done, result: { kind: "acknowledged", generation: 2 } })]);
+    const bundle = { k: 0, inputIds: Object.fromEntries(Object.keys(units).map((u) => [u, `in-${u}`])) };
+    expect(auxMeasures.summarizeE14(records, { bundles: [{ ...bundle, overlapUnits: ["U-E", "U-T"] }] })).toMatchObject({ linked: 1,
+      units: { "U-E": { max: 60 }, "U-T": { max: 45 } } });
+    expect(auxMeasures.summarizeE14(records, { bundles: [bundle] })).toMatchObject({ linked: 0, unconfirmed: { notSimultaneous: 1 } });
+  });
+
+  it("an --aux id that is not a window stops the run instead of measuring nothing", () => {
+    const list = [{ id: "e14-run1" }, { id: "e03-run1" }];
+    expect(selectAuxWindows(list, "e14-run1")).toEqual([{ id: "e14-run1" }]);
+    expect(() => selectAuxWindows(list, "E14,e14-run1")).toThrow(/unknown --aux window id: E14/);
   });
 });

@@ -416,7 +416,9 @@ export function e14Bundle(index, bundle) {
   const acks = e14Acks(index, bundle);
   const missing = units.filter((_, i) => acks[i] == null);
   if (missing.length > 0) return { k: bundle.k, status: "未確認", reason: `notAcknowledged:${missing.join(",")}` };
-  if (!(Math.max(...starts.map(e14Origin)) < Math.min(...acks.map((a) => a.doneReceivedMonotonicMs)))) return { k: bundle.k, status: "未確認", reason: "notSimultaneous" };
+  // 重なりを見る unit は束の overlapUnits（C6 の --e14-tsunami は U-E と U-T の組、AC08④・Q-C6-IMPL-AMEND (9)）。無ければ束の全 unit（C4 の規則）。
+  const overlap = units.flatMap((u, i) => ((bundle.overlapUnits ?? units).includes(u) ? [i] : []));
+  if (!(Math.max(...overlap.map((i) => e14Origin(starts[i]))) < Math.min(...overlap.map((i) => acks[i].doneReceivedMonotonicMs)))) return { k: bundle.k, status: "未確認", reason: "notSimultaneous" };
   return { k: bundle.k, status: "linked", dirtyToAckMs: Object.fromEntries(units.map((u, i) => [u, acks[i].doneReceivedMonotonicMs - e14Origin(starts[i])])) };
 }
 export function summarizeE14(records, { bundles, limitMs = 3000 }) {

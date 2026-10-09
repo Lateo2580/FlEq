@@ -57,7 +57,8 @@ export function summarizeReplayWindow(input: { probe: { gc: readonly { startMs: 
 };
 
 // P3-C4-AC13(3): E14 の束の集計。
-type E14Bundle = { k: number; inputIds: Record<"U-E" | "U-W" | "U-F", string> };
+// C6 の --e14-tsunami の束は U-T を足し、重なりを U-E と U-T の組で見る（overlapUnits、Q-C6-IMPL-AMEND (9)）。
+type E14Bundle = { k: number; inputIds: Partial<Record<"U-E" | "U-W" | "U-F" | "U-T", string>>; overlapUnits?: readonly string[] };
 export function summarizeE14(records: readonly HostRecord[], options: { bundles: readonly E14Bundle[]; limitMs?: number }): {
   status: Status | null; bundles: number; linked: number; unconfirmed: Record<string, number>; limitMs: number; note: string;
   units: Record<string, { p50?: number; p95?: number; p99?: number; max?: number; overLimit: number }>;

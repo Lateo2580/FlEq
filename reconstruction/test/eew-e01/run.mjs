@@ -23,7 +23,7 @@
 //     （30 件程度 × 3 回は --runs-root を変えずに 3 回。100 件未満の p99 は観測最大と書く、RES-07）
 // 津波（P3-TSUNAMI-E01-001、C6）: --manifest に津波の凍結 manifest（schemaVersion p3-tsunami-e01-manifest-v1）を渡すと、同じ窓のループで 8 母集団 × 3 run の
 //   E01 の窓だけを回す（周辺の窓は C4 の manifest の側）。予備は --preliminary --tsunami [--prime-lead-ms <n>]（tsunami.mjs の草案、各母集団 1 run）。
-//   U-E と U-T の同時 dirty（AC08 ④）は C4 の草案の --preliminary --aux E14 --e14-tsunami（E14 の束に VTSE41 を足す）。
+//   U-E と U-T の同時 dirty（AC08 ④）は C4 の草案の --preliminary --aux e14-run1 --e14-tsunami（E14 の束に VTSE41 を足し、U-E と U-T の組の重なりで見る）。
 //   試行は prime → target の 2 報（P3-C6-TRIAL-RESET=A）、成立は establishTsunamiTrial、標本の組み立ては analysis.mjs の assembleTsunamiTrials。
 // 注意: 正式の再開は、最初の窓の記録と commit（gitHead）・dist・runner の hash・機械を照合する。測定用の checkout で途中に commit すると
 // gitHead が変わって再開が拒否される（evidence の下の記録は commit せずに置いておく）。
@@ -1255,6 +1255,15 @@ let interruptWindow = null;
 // 窓記録の lastProgress（投入側の meter は数値だけを写す）。
 const progressOf = ({ liveness, ...rest }) => ({ ...rest, liveness: (liveness ?? []).map((m) => ({ pings: m.pings, maxFrameGapMs: m.maxFrameGapMs })) }); // SIGINT/SIGTERM のとき、今の窓の記録を "interrupted" に書き換える
 
+// --aux の窓の選択。知らない id があれば測らずに止める（黙って 0 窓で終わると、測っていないのに成功に見える）。
+export function selectAuxWindows(auxList, aux) {
+  if (aux === "all") return auxList;
+  const ids = aux.split(",");
+  const unknown = ids.filter((id) => !auxList.some((w) => w.id === id));
+  if (unknown.length > 0) throw new Error(`unknown --aux window id: ${unknown.join(",")} (known: ${auxList.map((w) => w.id).join(",")})`);
+  return auxList.filter((w) => ids.includes(w.id));
+}
+
 // 1 窓を回す。例外・子の異常終了・期限（見込み × 2）超過のどれでも、その窓を Blocked と記録して後始末を済ませ、呼び出し側は次の窓へ進む。
 // 開始時にも Blocked の記録を書く（runner ごと落ちたときも、その窓を --windows で再実行できる）。
 async function runWindow(win, { manifest, outDir, resultsDir, recordsDir, commands, preflight }) {
@@ -1591,7 +1600,7 @@ async function main(argv) {
     : auxWindows({ manifest, initialState, nodePath, notification, preliminary, wallOriginMs: frozen.wallOriginMs, startHost, tailer, counts, runs: aux == null ? null : 1 });
   if (!preliminary || aux != null) {
     // 本番: 窓を順に回す 1 本のループ。窓の並びは配列 1 つ（E01 の後に周辺の窓）。予備の --aux は周辺の窓だけ。
-    const windows = aux != null ? auxList.filter((w) => aux === "all" || aux.split(",").includes(w.id))
+    const windows = aux != null ? selectAuxWindows(auxList, aux)
       : [...planned.map((spec) => e01Window(spec, ctxFor(spec))), ...(only == null ? auxList : [])];
     const chosen = selected == null ? windows : selected.map((id) => windows.find((w) => w.id === id) ?? (() => { throw new Error(`unknown window: ${id}`); })());
     // 窓の記録と結果は manifest ごとに分ける（results/ は記録と混ざらないよう下の dir）。

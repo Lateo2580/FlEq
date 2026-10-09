@@ -709,7 +709,7 @@ function e14Window(ctx, run) {
         await waitUntil(host, due);
         const inputIds = {};
         for (const f of frames) inputIds[f.unit] = `input-${host.send(f.frame).seq}`;
-        bundles.push({ k, inputIds });
+        bundles.push({ k, inputIds, ...(ctx.counts.e14Tsunami === true ? { overlapUnits: ["U-E", "U-T"] } : {}) });
         w.progress.trialsStarted = k + 1;
       }
       const until = hrMs() + a.intervalMs;

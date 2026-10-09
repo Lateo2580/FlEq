@@ -84,3 +84,5 @@ export function machineProblems(manifest: { nodeVersion: string; osVersion: stri
 // 母集団 5 の引き金の官署が、その母集団の負荷（manifest の load）の VPWP50 と重なるか（重なれば理由の文、無ければ null）。office の既定は引き金の官署。
 export function deadlineTriggerOverlap(manifest: { loads: Record<string, { fixtureRefs: readonly string[] }>; populations: { forecastDeadlineOverlap: { load: string } } },
   office?: string): string | null;
+// --aux の窓の選択（知らない id は throw、run.mjs は exit 1）。
+export function selectAuxWindows<T extends { id: string }>(auxList: readonly T[], aux: string): readonly T[];
