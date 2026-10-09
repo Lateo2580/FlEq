@@ -177,6 +177,7 @@ function xmlNode(value: PreservedNode): XmlNode | null {
   return { kind: "element", name, attributes: attributes(value[":@"]), children };
 }
 
+// 旧の経路。速い経路が変な形を見つけたときだけ通る（P3-WL2-AC01、作者裁定 2026-10-09 の 2 本目）。
 function parseTree(xml: string): XmlElement | null {
   // jPath:false は callback へ渡す path を文字列にしないだけで、木は同じ（P3-WL1-AC01）。path を読む callback を足すときは見直す。
   const parsed = new XMLParser({ jPath: false, preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: "", textNodeName: "#text", cdataPropName: "#cdata", processEntities: false, trimValues: false, parseTagValue: false, parseAttributeValue: false }).parse(xml);
@@ -184,6 +185,141 @@ function parseTree(xml: string): XmlElement | null {
   if (source == null) return null;
   const root = xmlNode(source as PreservedNode);
   return root != null && root.kind === "element" ? root : null;
+}
+
+// 速い経路が扱うのは実電文に出る形だけ（要素・属性・text・コメント・実体参照・最上位の XML 宣言）。ほかの形は写さずに旧の経路へ戻す
+// （作者裁定 2026-10-09 の 2 本目、統合担当の決定 Q-WL2-IMPL-AMEND）。
+// D4・D6: critical 名 3 つ（旧は例外）と危険な名前 7 つ（旧は "__" を付けて改名し、改名先と衝突すると 1 つにまとめる）。FXP 5.5.8 の
+// util.js の criticalProperties と DANGEROUS_PROPERTY_NAMES。D3: 旧の木で key として特別に扱われる名前（strictReservedNames の #text・#cdata を含む）。
+const OLD_PATH_NAMES = new Set(["__proto__", "constructor", "prototype", "hasOwnProperty", "toString", "valueOf", "__defineGetter__", "__defineSetter__",
+  "__lookupGetter__", "__lookupSetter__", "#text", "#cdata", ":@"]);
+// FXP 5.5.8 の attrsRegx と同じ（m は ^$ を使わないので落とした）。
+const ATTRIBUTE = /([^\s=]+)\s*(=\s*(['"])([\s\S]*?)\3)?/g;
+const WHITESPACE = /\s/;
+// D5 の例外: 実電文の XML 宣言の形（<?xml と最初の ?> の間）。タブ・単引用符・ほかの擬似属性は旧の経路へ戻す。
+const XML_DECLARATION = /^xml(?: +(?:version|encoding|standalone)="[^"]*")* *$/;
+
+function fallback(): never {
+  throw new Error("xmlTreeFallback");
+}
+
+function checkedName(name: string): string {
+  if (OLD_PATH_NAMES.has(name)) fallback();
+  return name;
+}
+
+// validator が通した属性の文字列は「空白・名前・=・引用符の値」の並びで、名前は XML の名前で重複しない。そのため FXP の
+// buildAttributesMap（object の key）と同じ順と値を、表を作らずに配列で得られる。値は Report の部分木でだけ展開する（旧の xmlNode）。
+function attributeList(source: string, expand: boolean): XmlAttribute[] {
+  const list: XmlAttribute[] = [];
+  ATTRIBUTE.lastIndex = 0;
+  for (let match = ATTRIBUTE.exec(source); match != null; match = ATTRIBUTE.exec(source)) {
+    const name = checkedName(match[1]);
+    const value: string | undefined = match[4];
+    if (expand && value !== undefined) list.push({ name, value: xmlValue(value) });
+  }
+  return list;
+}
+
+// FXP の tagExpWithClosingIndex と同じく、引用符の中を飛ばして > を探す。
+function quotedEnd(xml: string, from: number): number {
+  let quote = 0;
+  for (let index = from; index < xml.length; index++) {
+    const code = xml.charCodeAt(index);
+    if (quote !== 0) { if (code === quote) quote = 0; }
+    else if (code === 34 || code === 39) quote = code;
+    else if (code === 62) return index;
+  }
+  return -1;
+}
+
+// 速い経路（P3-WL2-AC01、D-WL2-DEP=B）: FXP 5.5.8 の OrderedObjParser.parseXml（parseTree の options）と xmlNode を合わせた結果を、
+// 中間の木を作らずに XmlNode で直接返す。limits と XMLValidator を通った文字列だけを受ける前提で、検出の規則（D2〜D6）に当たったら
+// fallback() で投げ、呼び手がその入力を旧の経路で処理し直す。旧が例外にする条件では必ず投げる（理由は写さない。拒否と理由は旧の経路が
+// 決める）。普通の入力で投げても遅くなるだけで結果は旧と同じ。
+function fastTree(input: string): XmlElement | null {
+  // 旧の FXP と同じく組立ての段の中で改行を正規化する。\r の無い文書は写しを作らない（P3-WL2-AC05）。
+  const xml = input.includes("\r") ? input.replace(/\r\n?/g, "\n") : input;
+  // 旧の棚を写す: "top" は FXP の最上位の node、"outside" は Report の部分木の外の要素（木に作らない）、配列は Report の部分木の要素の子。
+  // 閉じタグは名前を見ずに 1 段戻るので、過剰な閉じで棚が空になると current は undefined になる（旧の currentNode と同じ）。
+  const parents: Array<XmlNode[] | "top" | "outside"> = [];
+  let current: XmlNode[] | "top" | "outside" | undefined = "top";
+  let root: XmlElement | null = null;
+  // text はコメントをまたいで繋がり、タグで区切られる（旧の textData）。空の text は保存しない。
+  let text = "";
+  const saveText = (): void => {
+    if (text === "") return;
+    if (current === undefined) fallback();
+    if (Array.isArray(current)) current.push({ kind: "text", value: xmlValue(text) });
+    text = "";
+  };
+  // 旧の parseTree は最上位で最初の "Report" を root にする。ほかの最上位の要素とその中は木に作らない。
+  const open = (name: string, attributes: string): XmlNode[] | "outside" => {
+    if (current === undefined) fallback();
+    const inside = Array.isArray(current) || (current === "top" && root == null && name === "Report");
+    const list = attributeList(attributes, inside);
+    if (!inside) return "outside";
+    const children: XmlNode[] = [];
+    const node: XmlElement = { kind: "element", name, attributes: list, children };
+    if (Array.isArray(current)) current.push(node); else root = node;
+    return children;
+  };
+  let index = 0;
+  while (index < xml.length) {
+    const lt = xml.indexOf("<", index);
+    if (lt < 0) break;
+    if (lt > index) text += xml.slice(index, lt);
+    const next = xml.charCodeAt(lt + 1);
+    if (next === 47 /* / */) {
+      const end = xml.indexOf(">", lt);
+      if (end < 0) fallback();
+      checkedName(xml.slice(lt + 2, end).trim());
+      if (current !== undefined) saveText();
+      text = "";
+      current = parents.pop();
+      index = end + 1;
+    } else if (next === 63 /* ? */) {
+      // D5: PI は最上位の XML 宣言だけを扱う（木に入らない）。ほかの PI は Report の中でも外でも旧の経路へ戻す（旧は "?name" の要素にし、
+      // 引用符を見て ?> を探して、引用符の外のタブを空白にしてから擬似属性を読む。limits・validator とは区切りがずれうる）。
+      const end = xml.indexOf("?>", lt + 2);
+      if (end < 0 || current !== "top" || !XML_DECLARATION.test(xml.slice(lt + 2, end))) fallback();
+      text = "";
+      index = end + 2;
+    } else if (xml.startsWith("!--", lt + 1)) {
+      const end = xml.indexOf("-->", lt + 4);
+      if (end < 0) fallback();
+      index = end + 3;
+    } else if (next === 33 /* ! */) {
+      // D5: CDATA は実電文に無いので旧の経路へ戻す。D2: limits はコメントと CDATA 以外の <! を拒否するので、ここへ届くのは
+      // 前処理と区切りがずれた入力だけ（旧の DocTypeReader は写さない）。
+      fallback();
+    } else {
+      const end = quotedEnd(xml, lt + 1);
+      if (end < 0) fallback();
+      // validator が通した開きタグでは、FXP の切り方（名前は \s の前、末尾の / で空要素、引用符の外のタブは空白）と同じになる。
+      const selfClosing = xml.charCodeAt(end - 1) === 47;
+      const body = xml.slice(lt + 1, selfClosing ? end - 1 : end);
+      const separator = body.search(WHITESPACE);
+      const name = checkedName(separator < 0 ? body : body.slice(0, separator));
+      if (current !== "top") saveText();
+      text = "";
+      if (selfClosing) open(name, separator < 0 ? "" : body.slice(separator + 1));
+      else {
+        // 旧の maxNestedTags（既定 100）。
+        if (current === undefined || parents.length > 100) fallback();
+        const children = open(name, separator < 0 ? "" : body.slice(separator + 1));
+        parents.push(current);
+        current = children;
+      }
+      index = end + 1;
+    }
+  }
+  return root;
+}
+
+// 普通の入力は速い経路の木 1 本だけを作り、変な形はその入力だけ旧の経路で処理し直す（P3-WL2-AC01、P3-WL2-RES-01）。
+function buildTree(xml: string): XmlElement | null {
+  try { return fastTree(xml); } catch { return parseTree(xml); }
 }
 
 function child(element: XmlElement, name: string): XmlElement | null {
@@ -282,7 +418,7 @@ export function decodeMaterial(item: ParserMailboxItem,
   } catch (error) { return rejected(item, error instanceof Error && error.message === "xmlLimitExceeded" ? "xmlLimitExceeded" : "xmlInvalid", raw.byteLength); }
   const parsedAt = now();
   let xml: XmlElement | null;
-  try { xml = parseTree(xmlText); } catch { return rejected(item, "xmlInvalid", raw.byteLength); }
+  try { xml = buildTree(xmlText); } catch { return rejected(item, "xmlInvalid", raw.byteLength); }
   current.fullXmlParseMs = finiteDuration(parsedAt);
   if (parseTimes != null) parseTimes.endedMs = now();
   if (xml == null || xml.name !== "Report") return rejected(item, "xmlInvalid", raw.byteLength);
