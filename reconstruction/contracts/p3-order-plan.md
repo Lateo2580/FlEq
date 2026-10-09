@@ -337,6 +337,6 @@ coverage 下書きの「未確認」12 項目のうち、項目 9（priorityReas
 | C3B-CLOSE（`P3-EXECUTION-LIFECYCLE-001` の改訂） | 台帳 65: 終了要約の 2 回目の保存が期限切れのとき、stop() を例外で終わらせず reason `workerClose:summaryNotPersisted`・code 4 で返す | C3b | 配送 `eb62d423` |
 | `P3-UNIT-WRITE-RIGHT-001` | D-P3-2=B（作者裁定 2026-10-08）: checkpoint の書込み権を unit ごとの in-flight 1 件にし、返信の反映の後にすぐ再評価する。非緊急の owner の留保は自分の保存中だけ（台帳 64・68） | C3a・C3b・C4 の閉鎖 | 配送 `54a63c25` |
 | `P3-WEATHER-LIGHT-001`（段 1） | E03・台帳 66 の前段: 気象の処理の重複を削る（jPath、xmlValue、値の使い回し、history と encode の計量） | UWR | 配送 `0bf810b1`。Pi の段ごとの内訳（Q-WL1-PI-STAGES）は未測定 |
-| 段 2（未起草） | 台帳 66・E05-P: 木を作らない parse（A3／A4 と parser の選定） | 段 1 | 材料を集めている |
+| `P3-WEATHER-LIGHT-002`（段 2） | 台帳 66・E05-P: 自前の速い組立てで XmlNode を 1 本、変な形は旧の FXP の経路へ戻す（全入力で旧と同じ）。D-WL2-DEP=B・同値の基準（作者裁定 2026-10-09） | 段 1 | 起草 `e5a86bae`、発注前点検 2026-10-09 |
 | 段 3（未起草） | 台帳 70: 保存の書込量（圧縮・地域本文の重複除去） | 段 1 | 段 2 の後 |
 | `P3-OWNER-LEDGER-BOUND-001`（台帳 67） | owner の未保存の世代ごとの入力 ID の記録（OwnerHost.ledger）を unit ごとに 4,096 世代までにする。LEDGER67=A（作者裁定 2026-10-08）、OVERFLOW=A（2026-10-09）。上限の外では P2-A3-AC10 の和集合の固定・P3-UWR-AC05 と T01・UWR の残存リスク (3)・E15 の相関を本契約の AC05 が上書きする（他の契約の条文は編集しない） | UWR。C7 と試験 2 本が重なり、本契約が先 | 起草 `d41394a9`、発注前点検 2026-10-09 |
