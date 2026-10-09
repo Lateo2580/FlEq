@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p3-tsunami-e01-manifest-v1",
   "manifestId": "p3-c6-draft-20261009",
-  "manifestSha256": "89ae8bf9be19451489f2464f1ffbafebd512166e6f692b6ab0f77c0aa2963238",
+  "manifestSha256": "50e56340a62dd68934d9ed27cb02d27facf74b207dbfe24419b825f944e267ce",
   "trialSetupRef": "reconstruction/test/eew-e01/evidence/trial-setup.json",
   "trialSetupSha256": "cd1ee3dd642cf070f6a0f010a2d3c7075d7a0fb9873feea254375f53a564f578",
   "measuredSseClients": 1,
@@ -224,7 +224,7 @@
     "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）"
   },
   "contractSha256": {
-    "P3-TSUNAMI-E01-001": "5cca6b1dc5833352b58c37a3ce8194ce89e50bc38e73fdf4d6393af8dabb199a",
+    "P3-TSUNAMI-E01-001": "a8004b3ef2871dd74437db37711b92939d52bacd0dfc85b0687b14e43757d18a",
     "P3-TSUNAMI-UNIT-001": "d21a55fefa40c10af49b9f1b5ee18b21273a721f40c032c86479fe0c6a0ceb42",
     "P3-E01-REACCEPT-001": "700b567863d718fb83be58a83e66be51a00a011ea2753935ac21aaf820d5ade2",
     "P3-UNIT-WRITE-RIGHT-001": "92a662b0180d3c7bd7ebd88772e96a453be16d6f4926757269c556188542c68d",
@@ -470,8 +470,8 @@
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxVpws50DecodeStarted",
       "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
       "stopCondition": {
-        "maxAttempts": 2093,
-        "maxDurationMs": 8640833
+        "maxAttempts": 2526,
+        "maxDurationMs": 10412933
       },
       "triggerLeadMs": null,
       "series": "escalation",
@@ -766,7 +766,7 @@
       "path": "populations.escalation:fixedBacklog.stopCondition",
       "c4": "{\"maxAttempts\":1200,\"maxDurationMs\":2061024}",
       "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":7105985}",
-      "reason": "この母集団の予備（2 回目の予備 ae343ce6）: 成立 10/10、Wilson 下限 0.722、1 試行 3465.673ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 65 分（Q-C6-IMPL-AMEND (11)）"
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後））: 成立 10/10、Wilson 下限 0.722、1 試行 3465.673ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 65 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.escalation:maxVpws50ParseStarted.primeTiming",
@@ -777,8 +777,8 @@
     {
       "path": "populations.escalation:maxVpws50ParseStarted.stopCondition",
       "c4": "{\"maxAttempts\":2081,\"maxDurationMs\":7810605}",
-      "c6": "{\"maxAttempts\":2093,\"maxDurationMs\":8640833}",
-      "reason": "この母集団の予備（2 回目の予備 ae343ce6、較正の後の正式の試行）: 成立 10/12、Wilson 下限 0.552、1 試行 3274.088ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 72 分（Q-C6-IMPL-AMEND (11)）"
+      "c6": "{\"maxAttempts\":2526,\"maxDurationMs\":10412933}",
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後））: 成立 10/14、Wilson 下限 0.454、1 試行 3274.088ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 83 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.escalation:maxWeatherCheckpointEncodeStarted.triggerLeadMs",
@@ -790,7 +790,7 @@
       "path": "populations.escalation:maxWeatherCheckpointEncodeStarted.stopCondition",
       "c4": "{\"maxAttempts\":1348,\"maxDurationMs\":5118719}",
       "c6": "{\"maxAttempts\":2267,\"maxDurationMs\":8981089}",
-      "reason": "この母集団の予備（3 回目の予備 511378f2）: 成立 20/29、Wilson 下限 0.508、1 試行 3142.863ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 82 分（Q-C6-IMPL-AMEND (11)）"
+      "reason": "この母集団の予備（3 回目の予備 511378f2（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後））: 成立 20/29、Wilson 下限 0.508、1 試行 3142.863ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 82 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.escalation:eewTogether.periodMs",
@@ -802,7 +802,7 @@
       "path": "populations.escalation:eewTogether.stopCondition",
       "c4": "{\"maxAttempts\":1200,\"maxDurationMs\":2061024}",
       "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":7040050}",
-      "reason": "この母集団の予備（2 回目の予備 ae343ce6）: 成立 10/10、Wilson 下限 0.722、1 試行 3433.173ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後））: 成立 10/10、Wilson 下限 0.722、1 試行 3433.173ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.deescalation:fixedBacklog.periodMs",
@@ -814,7 +814,7 @@
       "path": "populations.deescalation:fixedBacklog.stopCondition",
       "c4": "{\"maxAttempts\":1200,\"maxDurationMs\":2061024}",
       "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":7003754}",
-      "reason": "この母集団の予備（2 回目の予備 ae343ce6）: 成立 10/10、Wilson 下限 0.722、1 試行 3415.282ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後））: 成立 10/10、Wilson 下限 0.722、1 試行 3415.282ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.deescalation:maxVpws50ParseStarted.primeTiming",
@@ -826,7 +826,7 @@
       "path": "populations.deescalation:maxVpws50ParseStarted.stopCondition",
       "c4": "{\"maxAttempts\":2081,\"maxDurationMs\":7810605}",
       "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":6791867}",
-      "reason": "この母集団の予備（2 回目の予備 ae343ce6、較正の後の正式の試行）: 成立 10/10、Wilson 下限 0.722、1 試行 3310.84ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 62 分（Q-C6-IMPL-AMEND (11)）"
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後））: 成立 10/10、Wilson 下限 0.722、1 試行 3310.84ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 62 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.deescalation:maxWeatherCheckpointEncodeStarted.triggerLeadMs",
@@ -838,7 +838,7 @@
       "path": "populations.deescalation:maxWeatherCheckpointEncodeStarted.stopCondition",
       "c4": "{\"maxAttempts\":1348,\"maxDurationMs\":5118719}",
       "c6": "{\"maxAttempts\":1815,\"maxDurationMs\":7243588}",
-      "reason": "この母集団の予備（3 回目の予備 511378f2）: 成立 20/24、Wilson 下限 0.641、1 試行 3159.708ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 69 分（Q-C6-IMPL-AMEND (11)）"
+      "reason": "この母集団の予備（3 回目の予備 511378f2（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後））: 成立 20/24、Wilson 下限 0.641、1 試行 3159.708ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 69 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "populations.deescalation:eewTogether.periodMs",
@@ -850,7 +850,7 @@
       "path": "populations.deescalation:eewTogether.stopCondition",
       "c4": "{\"maxAttempts\":1200,\"maxDurationMs\":2061024}",
       "c6": "{\"maxAttempts\":1623,\"maxDurationMs\":7038587}",
-      "reason": "この母集団の予備（2 回目の予備 ae343ce6）: 成立 10/10、Wilson 下限 0.722、1 試行 3432.452ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
+      "reason": "この母集団の予備（2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後））: 成立 10/10、Wilson 下限 0.722、1 試行 3432.452ms。maxAttempts＝100＋ceil(1,000÷下限×1.1)、maxDurationMs＝ceil((60 秒＋1 試行×maxAttempts)×1.25)。見込みの所要（点推定）は 1 窓 64 分（Q-C6-IMPL-AMEND (11)）"
     },
     {
       "path": "chrome.version",

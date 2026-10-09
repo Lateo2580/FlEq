@@ -156,9 +156,10 @@ export type P3TsunamiRunResult = Readonly<
     // Any of these makes the window 未確認 (the known initial state broke): U-T eviction, U-T/U-E capacityExceeded,
     // tsunamiRevisionConflict and stale target reports. null: the runner left no record of the window (also 未確認, Q-C6-IMPL-AMEND).
     stateBreaks: Readonly<Record<"tsunamiCapacityEvicted" | "tsunamiCapacityExceeded" | "eewCapacityExceeded" | "tsunamiRevisionConflict" | "staleTarget", number>> | null;
-    // Reported, never judged alone and never used to rescue the series result.
+    // Reported, never judged alone and never used to rescue the series result. expected is the frozen quota (P3-C6-POP-SHAPE=A);
+    // a run whose counts differ from the quotas is not Pass (Q-C6-IMPL-AMEND (12)).
     byTransition: Readonly<Partial<Record<TsunamiAreaTransition, Readonly<{
-      samples: number; missing: number; p50UpperMs: number | null; p95UpperMs: number | null; p99UpperMs: number | null; maxUpperMs: number | null;
+      expected: number; samples: number; missing: number; p50UpperMs: number | null; p95UpperMs: number | null; p99UpperMs: number | null; maxUpperMs: number | null;
     }>>>>;
   }
 >;

@@ -15,49 +15,49 @@
       "successes": 10,
       "trials": 10,
       "msPerAttempt": 3465.673,
-      "source": "2 回目の予備 ae343ce6"
+      "source": "2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後）"
     },
     "deescalation:fixedBacklog": {
       "successes": 10,
       "trials": 10,
       "msPerAttempt": 3415.282,
-      "source": "2 回目の予備 ae343ce6"
+      "source": "2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後）"
     },
     "escalation:eewTogether": {
       "successes": 10,
       "trials": 10,
       "msPerAttempt": 3433.173,
-      "source": "2 回目の予備 ae343ce6"
+      "source": "2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後）"
     },
     "deescalation:eewTogether": {
       "successes": 10,
       "trials": 10,
       "msPerAttempt": 3432.452,
-      "source": "2 回目の予備 ae343ce6"
+      "source": "2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後）"
     },
     "escalation:maxVpws50ParseStarted": {
       "successes": 10,
-      "trials": 12,
+      "trials": 14,
       "msPerAttempt": 3274.088,
-      "source": "2 回目の予備 ae343ce6、較正の後の正式の試行"
+      "source": "2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後）"
     },
     "deescalation:maxVpws50ParseStarted": {
       "successes": 10,
       "trials": 10,
       "msPerAttempt": 3310.84,
-      "source": "2 回目の予備 ae343ce6、較正の後の正式の試行"
+      "source": "2 回目の予備 ae343ce6（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後）"
     },
     "escalation:maxWeatherCheckpointEncodeStarted": {
       "successes": 20,
       "trials": 29,
       "msPerAttempt": 3142.863,
-      "source": "3 回目の予備 511378f2"
+      "source": "3 回目の予備 511378f2（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後）"
     },
     "deescalation:maxWeatherCheckpointEncodeStarted": {
       "successes": 20,
       "trials": 24,
       "msPerAttempt": 3159.708,
-      "source": "3 回目の予備 511378f2"
+      "source": "3 回目の予備 511378f2（preliminary-recount.json、正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後）"
     }
   }
 }

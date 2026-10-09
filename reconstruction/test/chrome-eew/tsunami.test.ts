@@ -52,6 +52,15 @@ describe("P3-C6-T03 tsunami paint instructions, candidates and the snapshot boun
     expect(paint.cards.map((c) => c.className)).toEqual(["tsu-major", "tsu-warning"]);
   });
 
+  it("an area without Area/Code (C5's unkeyedAreas) counts for the highest class and the row colour, and is not painted on the coast", () => {
+    const unkeyed = { ...forecast("3", []), unkeyedAreas: [{ name: "コードなしの区域", kindCode: "52", kindName: "大津波警報" }] };
+    const mixed = { ...forecast("4", [area("311", "advisory")]), unkeyedAreas: [{ name: "コードなしの区域", kindCode: "52", kindName: "大津波警報" }] };
+    const paint = buildTsunamiPaint([unkeyed, mixed]);
+    expect(paint.cards.map((c) => [c.head.endsWith("大津波警報"), c.className])).toEqual([[true, "tsu-major"], [true, "tsu-major"]]);
+    expect(paint.cards[1]!.areas.map((a) => a.className)).toEqual(["tsu-row tsu-advisory", "tsu-row tsu-major"]);
+    expect(paint.segments.map((s) => [s.code, s.className])).toEqual([["311", "tsu-advisory"]]);
+  });
+
   it("a subject drawn before and out of view now gets one present false candidate with empty areas; the drawn subjects get present true", () => {
     const a = forecast("1", [area("311", "warning")]);
     const { details, drawn } = tsunamiCandidates(snapshot([a]), new Set([a.subject, "normal/VTSE41/9"]));

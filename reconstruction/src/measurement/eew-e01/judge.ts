@@ -379,6 +379,13 @@ function establishTsunamiTrial(input: Readonly<{
   }
 }
 
+// P3-C6-POP-SHAPE=A: 系列の中の遷移ごとの標本の割り当て。count を遷移の数で割り、余りは後ろの遷移に 1 つずつ（1,000 なら発令系
+// 333/333/334、解除系 500/500）。
+function transitionQuotas(transitions: readonly TsunamiAreaTransition[], count: number): Readonly<Partial<Record<TsunamiAreaTransition, number>>> {
+  const base = Math.floor(count / transitions.length), extra = count % transitions.length;
+  return Object.fromEntries(transitions.map((t, i) => [t, base + (i >= transitions.length - extra ? 1 : 0)]));
+}
+
 const TSUNAMI_STATE_BREAKS = ["tsunamiCapacityEvicted", "tsunamiCapacityExceeded", "eewCapacityExceeded", "tsunamiRevisionConflict", "staleTarget"] as const;
 type StateBreaks = P3TsunamiRunResult["stateBreaks"];
 
@@ -428,14 +435,19 @@ function summarizeP3TsunamiE01(
       const recorded = breaks.get(key);
       const stateBreaks: StateBreaks | null = recorded ?? null;
       const broken = stateBreaks == null || TSUNAMI_STATE_BREAKS.some((k) => stateBreaks[k] > 0);
+      // 遷移ごとの標本の数が割り当てにそろわない run は Pass にしない（Q-C6-IMPL-AMEND (12)）。遅い遷移を成立しない試行として捨て続けると、
+      // その遷移の値が無いまま系列が Pass になるため。数がそろわないことは遅延の証拠ではないので Fail にはせず、未確認にする。
+      const quotas = transitionQuotas(manifest.populations[population].transitions, manifest.samplesPerRun);
+      const groups = byWindowTransition.get(key);
+      const unmet = manifest.populations[population].transitions.filter((tr) => (groups?.get(tr)?.length ?? 0) !== quotas[tr]);
       const judged = formalStatus(t, t.lows, t.ups, t.wide);
-      const status: VerificationStatus = a.attempts === 0 ? "Blocked" : broken ? "未確認" : judged;
+      const status: VerificationStatus = a.attempts === 0 ? "Blocked" : broken ? "未確認" : judged === "Pass" && unmet.length > 0 ? "未確認" : judged;
       statuses.push(status);
       const byTransition: Partial<Record<TsunamiAreaTransition, P3TsunamiRunResult["byTransition"][TsunamiAreaTransition]>> = {};
       for (const [transition, list] of byWindowTransition.get(key) ?? []) {
         const late = (s: P3TsunamiTraceSample) => s.missing || (s.latencyLowerMs != null && s.latencyLowerMs > manifest.missingAfterMs);
         const q = quantiles(list.flatMap((s) => (late(s) || s.latencyUpperMs == null ? [] : [s.latencyUpperMs])));
-        byTransition[transition] = { samples: list.length, missing: list.filter(late).length, p50UpperMs: q?.p50 ?? null, p95UpperMs: q?.p95 ?? null,
+        byTransition[transition] = { expected: quotas[transition] ?? 0, samples: list.length, missing: list.filter(late).length, p50UpperMs: q?.p50 ?? null, p95UpperMs: q?.p95 ?? null,
           p99UpperMs: q?.p99 ?? null, maxUpperMs: q?.max ?? null };
       }
       const [lo, up] = [all(t.lows, t), all(t.ups, t)];
@@ -448,7 +460,7 @@ function summarizeP3TsunamiE01(
         injectedToT0P50Ms: wait?.p50 ?? null, injectedToT0P99Ms: wait?.p99 ?? null, injectedToT0MaxMs: wait?.max ?? null,
         p50LowerMs: lo?.p50 ?? null, p50UpperMs: up?.p50 ?? null, p95LowerMs: lo?.p95 ?? null, p95UpperMs: up?.p95 ?? null,
         p99LowerMs: lo?.p99 ?? null, p99UpperMs: up?.p99 ?? null, maxLowerMs: lo?.max ?? null, maxUpperMs: up?.max ?? null,
-        evidenceRefs: [],
+        evidenceRefs: unmet.map((tr) => `transitionQuotaUnmet:${tr}=${groups?.get(tr)?.length ?? 0}/${quotas[tr]}`),
       });
     }
     populations[population] = statuses.includes("Fail") ? "Fail" : statuses.every((s) => s === "Pass") ? "Pass" : "未確認";
@@ -601,6 +613,6 @@ function classifyEewCause(
 
 export {
   quantiles, summarizeEewE01, summarizeHealthE02, classifyEewCause, checkpointJoinProblem, establishTrial, establishTsunamiTrial, summarizeP3E01,
-  summarizeP3TsunamiE01, TSUNAMI_STATE_BREAKS,
+  summarizeP3TsunamiE01, transitionQuotas, TSUNAMI_STATE_BREAKS,
 };
 export type { EstablishmentResult, TsunamiEstablishmentResult };

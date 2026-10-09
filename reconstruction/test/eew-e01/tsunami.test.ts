@@ -7,12 +7,12 @@ import type { P3TsunamiE01Manifest, P3TsunamiInjectionRecord, P3TsunamiPopulatio
 import type { TsunamiAreaTransition, TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import { buildTsunamiPaint } from "../../src/display/chrome-eew/pure";
 import { P3_TSUNAMI_POPULATIONS, sealSelfHash, verifyFrozenP3TsunamiManifest } from "../../src/measurement/eew-e01/frozen";
-import { establishTsunamiTrial, summarizeP3TsunamiE01 } from "../../src/measurement/eew-e01/judge";
+import { establishTsunamiTrial, summarizeP3TsunamiE01, transitionQuotas } from "../../src/measurement/eew-e01/judge";
 import { toTsunamiView } from "../../src/units/tsunami/tsunami-unit";
 import { analyzeTrace, assembleTsunamiTrials, buildHostIndex, candidateKey } from "./analysis.mjs";
 import type { ChromeCandidateEntry, HostLine, Probe, TsunamiTrial } from "./analysis.mjs";
 import { injection, sample } from "./fixtures";
-import { TARGET_WAIT_MS, predictParseDelay, readDiagnosticsStrict, selectAuxWindows, settleDone, trialTarget, tsunamiStateBreaks } from "./run.mjs";
+import { TARGET_WAIT_MS, nextTransition, predictParseDelay, readDiagnosticsStrict, selectAuxWindows, settleDone, trialTarget, tsunamiStateBreaks } from "./run.mjs";
 import * as auxMeasures from "./aux-measures.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
 import { RELEASE_FIXTURE, TEMPLATE_FIXTURES, buildP3TsunamiManifest, buildTemplates, emptyTsunamiState, receiveTsunami, stopFromPreliminary, tsunamiReport } from "./tsunami.mjs";
@@ -30,7 +30,8 @@ function tsunamiRun(manifest: P3TsunamiE01Manifest, pop: P3TsunamiPopulation, ru
   const samples: P3TsunamiTraceSample[] = [];
   const injections: P3TsunamiInjectionRecord[] = [];
   for (let index = 0; index < 1100; index++) {
-    const transition = transitions[(index < 100 ? index : index - 100) % transitions.length]!;
+    // 正式は凍結した割り当て（余りは後ろの遷移、発令系 333/333/334）どおりに遷移を配る。
+    const transition = index < 100 ? transitions[index % transitions.length]! : transitions[transitions.length - 1 - ((index - 100) % transitions.length)]!;
     const [lo, up] = index < 100 ? [9999, 9999] : latency(index - 100, transition);
     const inputId = `${pop}-${run}-${index}`;
     const s = sample("fixedBacklog", run, index, lo, up);
@@ -72,15 +73,15 @@ describe("P3-C6-T01 the tsunami E01 verdict (AC01・AC02)", () => {
   });
 
   it("reports each transition; a transition whose p99 upper bound exceeds 250 ms leaves the series Pass when the series p99 is within 250 ms", () => {
-    // 発令の 5 標本だけ 260〜262ms: 系列（1,000）の p99 は 990 番目で 250 以内、発令（334）の p99 は 331 番目で 262。
+    // 発令の 5 標本だけ 260〜262ms: 系列（1,000）の p99 は 990 番目で 250 以内、発令（333）の p99 は 330 番目で 262。
     let late = 0;
     const runs = allRuns(manifest, (pop, run) => (pop === "escalation:fixedBacklog" && run === 1
       ? (_k, t) => (t === "issued" && late++ < 5 ? [260, 262] : [100, 103]) : () => [100, 103]));
     const run1 = summarizeP3TsunamiE01(manifest, runs.flatMap((r) => r.samples), runs.flatMap((r) => r.injections), windows()).runs
       .find((r) => r.population === "escalation:fixedBacklog" && r.run === 1)!;
     expect(run1).toMatchObject({ status: "Pass", p99UpperMs: 103 });
-    expect(run1.byTransition.issued).toMatchObject({ samples: 334, missing: 0, p99UpperMs: 262, maxUpperMs: 262 });
-    expect(run1.byTransition.upgraded).toMatchObject({ samples: 333, p99UpperMs: 103 });
+    expect(run1.byTransition.issued).toMatchObject({ expected: 333, samples: 333, missing: 0, p99UpperMs: 262, maxUpperMs: 262 });
+    expect(run1.byTransition.expanded).toMatchObject({ expected: 334, samples: 334, p99UpperMs: 103 });
   });
 });
 
@@ -395,5 +396,36 @@ describe("P3-C6 stopCondition from each population's preliminary run", () => {
     expect([[10, 10], [10, 12], [20, 29], [20, 24]].map(([successes, trials]) => stopFromPreliminary({ successes: successes!, trials: trials!, msPerAttempt: 3000 }).maxAttempts))
       .toEqual([1623, 2093, 2267, 1815]);
     expect(stopFromPreliminary({ successes: 10, trials: 10, msPerAttempt: 3465.673 })).toMatchObject({ maxDurationMs: 7105985, wilsonLower: expect.closeTo(0.722, 3) });
+  });
+});
+
+// P3-C6-POP-SHAPE=A・Q-C6-IMPL-AMEND (12): 遷移ごとの標本の数は凍結した割り当てにそろえる。
+describe("P3-C6 transition quotas (POP-SHAPE=A)", () => {
+  const manifest = built().manifest;
+  it("a transition that never establishes is tried again until its quota is met, and a run whose counts miss the quotas is not Pass", () => {
+    const transitions = manifest.populations["escalation:fixedBacklog"].transitions;
+    const quotas = transitionQuotas(transitions, 1000);
+    expect(quotas).toEqual({ issued: 333, upgraded: 333, expanded: 334 });
+    // 発令だけが成立しない筋書き: 成立数のいちばん少ない遷移を選ぶので、1,600 試行のあいだ発令を試し続け、他の遷移の標本も増えない。
+    const established = new Map<TsunamiAreaTransition, number>();
+    const tried: TsunamiAreaTransition[] = [];
+    for (let k = 0; k < 1600; k++) {
+      const transition = nextTransition(transitions, quotas, established);
+      tried.push(transition);
+      if (transition !== "issued") established.set(transition, (established.get(transition) ?? 0) + 1);
+    }
+    expect(new Set(tried)).toEqual(new Set(["issued"]));
+    // 成立は全部そろったが割り当てに届かない run（旧来の巡回で発令が 0 件、引上げ・区域拡大で 1,000 件）は、遅延がすべて基準内でも未確認。
+    const runs = P3_TSUNAMI_POPULATIONS.flatMap((pop) => ([1, 2, 3] as const).map((run) => tsunamiRun(manifest, pop, run)));
+    const skewed = runs.map((r) => ({ samples: r.samples.map((sample) => (sample.population === "escalation:fixedBacklog" && sample.run === 1 && sample.transition === "issued"
+      ? { ...sample, transition: "upgraded" as const } : sample)), injections: r.injections }));
+    const result = summarizeP3TsunamiE01(manifest, skewed.flatMap((r) => r.samples), skewed.flatMap((r) => r.injections), windows());
+    expect(result.runs.find((r) => r.population === "escalation:fixedBacklog" && r.run === 1)).toMatchObject({ status: "未確認",
+      evidenceRefs: ["transitionQuotaUnmet:issued=0/333", "transitionQuotaUnmet:upgraded=666/333"] });
+    expect(result.verdict.status).toBe("未確認");
+    // 割り当てどおりに成立した試行が積み上がる筋書きでは、どの遷移も割り当てちょうどで止まる。
+    const fair = new Map<TsunamiAreaTransition, number>();
+    for (let k = 0; k < 1000; k++) { const t = nextTransition(transitions, quotas, fair); fair.set(t, (fair.get(t) ?? 0) + 1); }
+    expect(Object.fromEntries(fair)).toEqual(quotas);
   });
 });

@@ -1,0 +1,77 @@
+{
+  "definition": "正式の試行のうち、parse 直後・encode 直後は較正の予測が初めて入った試行（attemptIndex）以後",
+  "inputs": [
+    {
+      "population": "escalation:fixedBacklog",
+      "source": "2 回目の予備 ae343ce6",
+      "window": "escalation:fixedBacklog-run1",
+      "firstPredictedAttempt": null,
+      "trials": 10,
+      "successes": 10,
+      "msPerAttempt": 3465.673
+    },
+    {
+      "population": "deescalation:fixedBacklog",
+      "source": "2 回目の予備 ae343ce6",
+      "window": "deescalation:fixedBacklog-run1",
+      "firstPredictedAttempt": null,
+      "trials": 10,
+      "successes": 10,
+      "msPerAttempt": 3415.282
+    },
+    {
+      "population": "escalation:eewTogether",
+      "source": "2 回目の予備 ae343ce6",
+      "window": "escalation:eewTogether-run1",
+      "firstPredictedAttempt": null,
+      "trials": 10,
+      "successes": 10,
+      "msPerAttempt": 3433.173
+    },
+    {
+      "population": "deescalation:eewTogether",
+      "source": "2 回目の予備 ae343ce6",
+      "window": "deescalation:eewTogether-run1",
+      "firstPredictedAttempt": null,
+      "trials": 10,
+      "successes": 10,
+      "msPerAttempt": 3432.452
+    },
+    {
+      "population": "escalation:maxVpws50ParseStarted",
+      "source": "2 回目の予備 ae343ce6",
+      "window": "escalation:maxVpws50ParseStarted-run1",
+      "firstPredictedAttempt": 10,
+      "trials": 14,
+      "successes": 10,
+      "msPerAttempt": 3274.088
+    },
+    {
+      "population": "deescalation:maxVpws50ParseStarted",
+      "source": "2 回目の予備 ae343ce6",
+      "window": "deescalation:maxVpws50ParseStarted-run1",
+      "firstPredictedAttempt": 10,
+      "trials": 10,
+      "successes": 10,
+      "msPerAttempt": 3310.84
+    },
+    {
+      "population": "escalation:maxWeatherCheckpointEncodeStarted",
+      "source": "3 回目の予備 511378f2",
+      "window": "escalation:maxWeatherCheckpointEncodeStarted-run1",
+      "firstPredictedAttempt": 10,
+      "trials": 29,
+      "successes": 20,
+      "msPerAttempt": 3142.863
+    },
+    {
+      "population": "deescalation:maxWeatherCheckpointEncodeStarted",
+      "source": "3 回目の予備 511378f2",
+      "window": "deescalation:maxWeatherCheckpointEncodeStarted-run1",
+      "firstPredictedAttempt": 10,
+      "trials": 24,
+      "successes": 20,
+      "msPerAttempt": 3159.708
+    }
+  ]
+}

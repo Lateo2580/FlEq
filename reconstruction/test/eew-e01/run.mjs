@@ -43,7 +43,7 @@ import { RELEASE_FIXTURE, T6_TSUNAMI, C4_MANIFEST, buildP3TsunamiManifest, templ
 import { auxWindows, e02Verdict, hostReportsOf, replayPump, seal, sealAux } from "./windows.mjs";
 
 import { canonicalCoastJson } from "../../dist/chrome-eew/src/display/chrome-eew/coast.js";
-import { classifyEewCause, establishTrial, establishTsunamiTrial, quantiles, summarizeP3E01, summarizeP3TsunamiE01 } from "../../dist/src/measurement/eew-e01/judge.js";
+import { classifyEewCause, establishTrial, establishTsunamiTrial, quantiles, summarizeP3E01, summarizeP3TsunamiE01, transitionQuotas } from "../../dist/src/measurement/eew-e01/judge.js";
 import { ZERO_HASH, forecastWithinAllowance, sealSelfHash, verifyFrozenP3Manifest, verifyFrozenP3TsunamiManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
 import { placeOfHeadType } from "../../dist/src/runtime/unit-coverage.js";
 
@@ -513,7 +513,9 @@ async function measureRun(spec, ctx, label, dir, status) {
     const phase = warm ? "warmup" : "formal";
     const eventId = warm ? tsu.eventIds.warmup : tsu.eventIds.formalByRun[run - 1];
     if (shownEventId !== eventId) { shownEventId = eventId; shown = false; eewSerial = 0; }
-    const transition = tsu.transitions[(warm ? k : k - spec.warmup) % tsu.transitions.length];
+    // warm-up は試行番号で回し、正式は成立した件数がいちばん少ない遷移を選ぶ（不成立なら同じ遷移を次も試す）。遷移ごとの件数を
+    // P3-C6-POP-SHAPE=A の凍結した割り当て（発令系 333/333/334、解除系 500/500）にそろえる（Q-C6-IMPL-AMEND (12)）。
+    const transition = warm ? tsu.transitions[k % tsu.transitions.length] : nextTransition(tsu.transitions, quotas, establishedByTransition);
     const template = ctx.templates.get(transition);
     const subject = `normal/VTSE41/${eventId}`;
     // 投入の瞬間に組み立てで遅れないよう、待つ前に作る。
@@ -647,8 +649,13 @@ async function measureRun(spec, ctx, label, dir, status) {
       pumpBackground();
       await sleep(50);
     }
-    if (trial.establishment.established) trial.index = spec.warmup + established++;
+    if (trial.establishment.established) {
+      trial.index = spec.warmup + established++;
+      establishedByTransition.set(transition, (establishedByTransition.get(transition) ?? 0) + 1);
+    }
   };
+  const quotas = tsu == null ? null : transitionQuotas(tsu.transitions, spec.count);
+  const establishedByTransition = new Map();
 
   // 試行
   const trials = [];
@@ -948,6 +955,12 @@ export function tsunamiStateBreaks({ diagnostics, trials, warmupRelease = null, 
     eewCapacityExceeded: eew.filter((t) => eewRows.get(t.eew.inputId)?.missingReason === "paintNotObserved").length,
   };
   return { stateBreaks, stateBreaksIncomplete: problems };
+}
+
+// P3-C6-POP-SHAPE=A・Q-C6-IMPL-AMEND (12): 正式の試行の遷移。割り当てに届いていない遷移のうち、成立した件数がいちばん少ないもの（同数なら系列の順）。
+export function nextTransition(transitions, quotas, established) {
+  const open = transitions.filter((t) => (established.get(t) ?? 0) < quotas[t]);
+  return (open.length === 0 ? transitions : open).reduce((best, t) => ((established.get(t) ?? 0) < (established.get(best) ?? 0) ? t : best));
 }
 
 // 津波の parse 直後・encode 直後で、対象の区間（parse・引き金の保存の encode）の行を待つ上限。encode の行は保存の全体と launcher の 250ms の

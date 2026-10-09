@@ -211,6 +211,15 @@ function tsunamiPaintClass(value: TsunamiAreaClass): TsunamiPaintClass | null {
     case "forecast": case "released": case "none": return null;
   }
 }
+// Q-ENUM の kindTable（domains/tsunami/tsunami.ts の KIND_CLASS と同じ表。ブラウザの module は domain を読めないので写す）。表外は unknown
+// （P3-C5-KIND-ENUM=B、警報と同じ順位）。区域コードの無い区域の区分だけをこれで決める（区域コードのある区域は view の areaClass）。
+const KIND_CLASS: Readonly<Record<string, TsunamiAreaClass>> = {
+  "52": "majorWarning", "53": "majorWarning", "51": "warning", "62": "advisory", "71": "forecast", "72": "forecast", "73": "forecast",
+  "50": "released", "60": "released", "00": "none",
+};
+const higherPaint = (a: TsunamiPaintClass | null, b: TsunamiPaintClass | null): TsunamiPaintClass | null =>
+  b == null || (a != null && TSUNAMI_PAINT[a].rank >= TSUNAMI_PAINT[b].rank) ? a : b;
+const kindClass = (kindCode: string): TsunamiAreaClass => (Object.hasOwn(KIND_CLASS, kindCode) ? KIND_CLASS[kindCode]! : "unknown");
 // AC08: class 名は固定表の値だけ。点滅は majorWarning の海岸線だけ（spec:1598）。
 const TSUNAMI_PAINT: Readonly<Record<TsunamiPaintClass, Readonly<{ rank: number; className: string; label: string }>>> = {
   majorWarning: { rank: 3, className: "tsu-major", label: "大津波警報" },
@@ -267,10 +276,13 @@ function buildTsunamiPaint(forecasts: readonly TsunamiForecastSubject[]): Tsunam
     let highest: TsunamiPaintClass | null = null;
     for (const area of subject.areas) {
       const paint = tsunamiPaintClass(area.areaClass);
-      if (paint != null && (highest == null || TSUNAMI_PAINT[paint].rank > TSUNAMI_PAINT[highest].rank)) highest = paint;
+      highest = higherPaint(highest, paint);
       const shown = merged.get(area.code);
       if (paint != null && shown != null) painted.set(area.code, { code: area.code, areaClass: shown });
     }
+    // 区域コードの無い区域（C5 の unkeyedAreas）も最高区分と行の色に数える（C5 は active と残る区分の段階に数える、P3-C5-KIND-ENUM=B）。
+    // 海岸線の位置は推測せず塗らない（Q-C6-IMPL-AMEND (12)）。
+    for (const area of subject.unkeyedAreas) highest = higherPaint(highest, tsunamiPaintClass(kindClass(area.kindCode)));
     areasBySubject.set(subject.subject, [...painted.values()].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)));
     const label = highest == null ? "警報・注意報の区域なし" : TSUNAMI_PAINT[highest].label;
     const rowClass = (value: TsunamiAreaClass) => { const paint = tsunamiPaintClass(value); return paint == null ? "tsu-row" : `tsu-row ${TSUNAMI_PAINT[paint].className}`; };
@@ -280,7 +292,7 @@ function buildTsunamiPaint(forecasts: readonly TsunamiForecastSubject[]): Tsunam
       className: highest == null ? "tsu-none" : TSUNAMI_PAINT[highest].className,
       reportTimeDisplay: formatJst(parseReportDateTime(subject.source.reportDateTimeRaw)),
       areas: [...subject.areas.map((area) => ({ text: `${area.code} ${area.name}: ${area.kindName}${heightText(area)}`, className: rowClass(area.areaClass) })),
-        ...subject.unkeyedAreas.map((area) => ({ text: `${area.name}: ${area.kindName}（区域コードなし）`, className: "tsu-row" }))],
+        ...subject.unkeyedAreas.map((area) => ({ text: `${area.name}: ${area.kindName}（区域コードなし）`, className: rowClass(kindClass(area.kindCode)) }))],
     };
   });
   return { cards, segments, missingCoastCount: missing.size, areasBySubject };

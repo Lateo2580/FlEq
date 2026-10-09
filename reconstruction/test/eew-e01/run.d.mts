@@ -89,3 +89,5 @@ export function selectAuxWindows<T extends { id: string }>(auxList: readonly T[]
 // Q-C6-IMPL-AMEND (10): 試行の後の成立の待ちを終えるか。対象の区間が TARGET_WAIT_MS で来なければ予測の外れとして終える。
 export const TARGET_WAIT_MS: number;
 export function settleDone(input: { established: boolean; complete: boolean; offset: boolean; target: unknown; sentHrMs: number | null; nowHrMs: number; settleBy: number }): boolean;
+// P3-C6-POP-SHAPE=A・Q-C6-IMPL-AMEND (12): 正式の試行の遷移（割り当てに届いていない遷移のうち成立数のいちばん少ないもの）。
+export function nextTransition<T extends string>(transitions: readonly T[], quotas: Readonly<Partial<Record<T, number>>>, established: ReadonlyMap<T, number>): T;
