@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>噴火警報・予報</Title>
+<DateTime>2020-05-22T05:55:25Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>火山名  浅間山  噴火警報（火口周辺）</Title>
+<ReportDateTime>2020-05-22T14:55:00+09:00</ReportDateTime>
+<TargetDateTime>2020-05-22T14:54:00+09:00</TargetDateTime>
+<EventID>306</EventID>
+<InfoType>取消</InfoType>
+<Serial />
+<InfoKind>噴火警報・予報</InfoKind>
+<InfoKindVersion>1.0_0</InfoKindVersion>
+<Headline>
+<Text>噴火警報（火口周辺）を取り消します。</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/volcanology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<Text>２２日１４時５４分に発表した浅間山の噴火警報（火口周辺）を取り消します。</Text>
+</Body>
+</Report>

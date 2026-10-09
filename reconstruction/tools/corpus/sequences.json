@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
+    "sha256": "f8b5d03b1325ccdb8b7469a66c99ee240c27e2669dce3dafa0cd12840548f002",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "bfff9e7f6cc7010fff2a6c385ec7018fe5b70c48c943b02c1be52681fcd8d6e1",
+    "manifestSha256": "98c9607b6ddf1a3e2fc8fc1668ab07b22f9e3a4e6bf61e5a06a034d02390b4d9",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -447,6 +447,7 @@
           "expectedRef": "expected:O01:17",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
             "L2: test/fixtures/67_01_02_140927_VFVO56.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -454,15 +455,19 @@
           "sequenceId": "O01",
           "position": 18,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VFVO56_correction",
           "receivedAt": 1411786800002,
           "evaluatedAt": 1411786800002,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:18",
+          "expectedRef": "expected:O01:18",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-            "L2: test/fixtures/67_01_01_140927_VFVO56.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:215 «b30345c3f5e298d2» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VFVO56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -597,6 +602,10 @@
           "expectedRef": "expected:O01:27",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:12 «e0978cd010ea1cd2» P3-C9-ERUPTION-SUBJECT=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:215 «b30345c3f5e298d2» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
             "L2: test/fixtures/43_02_01_200522_VFVO52.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -612,6 +621,10 @@
           "expectedRef": "expected:O01:28",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
             "L2: test/fixtures/43_03_01_200522_VFVO52.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -619,56 +632,74 @@
           "sequenceId": "O01",
           "position": 29,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VFVO50_continuation",
           "receivedAt": 1590126840000,
           "evaluatedAt": 1590126840000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:29",
+          "expectedRef": "expected:O01:29",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:341 «6fb47491ac41a9d0» I-U-V alertSemantics",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:193 «cc60f7acce13a3b1» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
+            "L2: test/fixtures/synthetic_VFVO50_continuation.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O01",
           "position": 30,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VFVO50_correction",
           "receivedAt": 1590126840000,
           "evaluatedAt": 1590126840000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:30",
+          "expectedRef": "expected:O01:30",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:215 «b30345c3f5e298d2» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VFVO50_correction.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O01",
           "position": 31,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VFVO50_cancel",
           "receivedAt": 1590126900000,
           "evaluatedAt": 1590126900000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:31",
+          "expectedRef": "expected:O01:31",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6» P3-C9-MARINE=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VFVO50_cancel.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O01",
           "position": 32,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VFVO50_cancel",
           "receivedAt": 1590126900001,
           "evaluatedAt": 1590126900001,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:32",
+          "expectedRef": "expected:O01:32",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L2: test/fixtures/synthetic_VFVO50_cancel.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -735,42 +766,54 @@
           "sequenceId": "O01",
           "position": 37,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VFVO55_correction",
           "receivedAt": 1620964260000,
           "evaluatedAt": 1620964260000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:37",
+          "expectedRef": "expected:O01:37",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:215 «b30345c3f5e298d2» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VFVO55_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O01",
           "position": 38,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VFVO55_cancel",
           "receivedAt": 1620964320000,
           "evaluatedAt": 1620964320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:38",
+          "expectedRef": "expected:O01:38",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VFVO55_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O01",
           "position": 39,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VFVO55_cancel",
           "receivedAt": 1620964320001,
           "evaluatedAt": 1620964320001,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:39",
+          "expectedRef": "expected:O01:39",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+            "L2: test/fixtures/synthetic_VFVO55_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -10068,8 +10111,13 @@
       "expectedId": "expected:O01:17",
       "sequenceId": "O01",
       "position": 17,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
           "subject": "normal/volcano:eruption/20140927120000_312",
@@ -10080,26 +10128,28 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
         "L2: test/fixtures/67_01_02_140927_VFVO56.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "同 ReportDateTime/空Serial だが InfoType=発表で code62 へ内容相違。これを同revision訂正とは数えない。採否は Q-REV。",
+        "同じReportDateTime（12:00）・Serial空・InfoType発表で、現象がcode 62（噴火したもよう）と食い違う。同じrevisionで事実が違うので先着（:16のcode 52）を保ってunchanged/stale、WARN診断volcanoRevisionConflict（Q-ENUM.revisionOrder）。訂正とは数えない。",
+        "67_01_xxは気象庁のサンプル電文で、時刻順に並べた試験用の列（実際の系列ではない）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:18",
+      "expectedId": "expected:O01:18",
       "sequenceId": "O01",
       "position": 18,
       "decision": {
         "kind": "changed",
-        "change": null
+        "change": "semantic"
       },
       "effective": {
         "kind": "active"
@@ -10114,19 +10164,22 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-        "L2: test/fixtures/67_01_01_140927_VFVO56.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:215 «b30345c3f5e298d2» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VFVO56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VFVO56 通常、EventID20140927120000_312、火山312、ReportDateTime=2014-09-27T12:00:00+09:00、Serial空、InfoType訂正。元12:00発表の発生時刻だけ11:53→11:52へ訂正。12:10の続報/取消より先に投入。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "同一revision訂正を受理し他slice不変、通知判定を行う。具体changeはQ-REV。"
+        "同じrevision（12:00・Serial空）の訂正はInfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。:16の事実のうち噴火の時刻（eventDateTimeRaw）だけが11:53→11:52に変わるのでsemantic。12:10の訂正（:19）・取消（:20）より先に投入する。警報・降灰は不変。",
+        "通知: correction（事実が同じでも作る）、normalなのでdesktop＋sound、level=critical（噴火速報VFVO56、P3-C9-NOTICE-LEVELS=C）。題は「[訂正] 噴火速報」。同じsubject・channelの未配送のintent（:16）はsupersededにする（P3-C9-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -10402,8 +10455,13 @@
       "expectedId": "expected:O01:27",
       "sequenceId": "O01",
       "position": 27,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
           "subject": "normal/volcano:eruption/20200522143900_306",
@@ -10414,16 +10472,22 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:12 «e0978cd010ea1cd2» P3-C9-ERUPTION-SUBJECT=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:215 «b30345c3f5e298d2» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
         "L2: test/fixtures/43_02_01_200522_VFVO52.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "訂正のEventID=20200522143900_306は直前と異なる。初報未到着訂正の採否は Q-REV、144900の訂正と捏造しない。",
+        "訂正のEventID=20200522143900_306は直前（144900_306）と異なる。初報を受けていないEventIDの訂正は新しいsubjectとして採用する（Q-ENUM.revisionOrder、P3-C9-ERUPTION-SUBJECT=A）。144900_306の訂正とは数えず、:26の記録は変えない（浅間山の噴火の記録は2件）。",
+        "通知: correction、desktop＋sound、level=normal（噴火観測報で現象がcode 56の噴火多発、P3-C9-NOTICE-LEVELS=C）。",
+        "43_01_01〜43_03_01は気象庁のサンプル電文で、時刻順に並べた試験用の列（実際の系列ではない）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -10431,8 +10495,16 @@
       "expectedId": "expected:O01:28",
       "sequenceId": "O01",
       "position": 28,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
       "subjects": [
         {
           "subject": "normal/volcano:eruption/20200522143900_306",
@@ -10443,21 +10515,27 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
         "L2: test/fixtures/43_03_01_200522_VFVO52.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "取消対象は143900_306だけ。144900_306との火山current競合解決は Q-REV。",
+        "取消はEventIDの噴火subjectだけを取り消す（P3-C9-CANCEL-SCOPE=Aの(1)）。143900_306はcancelled、144900_306（:26）はactiveのまま、警報306・315は不変。",
+        "通知: cancellation（取消の前に対象がactive）、desktop＋sound、level=cancel。同じsubjectの未配送のintentは両channelともsupersededにする（P3-C9-REPLACEMENT=A）。",
+        "43_01_01〜43_03_01は気象庁のサンプル電文で、時刻順に並べた試験用の列（実際の系列ではない）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:29",
+      "expectedId": "expected:O01:29",
       "sequenceId": "O01",
       "position": 29,
       "decision": {
@@ -10469,65 +10547,74 @@
       },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/volcano:alert/306",
           "revision": {
             "reportDateTimeRaw": "2020-05-22T14:54:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:341 «6fb47491ac41a9d0» I-U-V alertSemantics",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:193 «cc60f7acce13a3b1» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
+        "L2: test/fixtures/synthetic_VFVO50_continuation.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VFVO50 火山306、同EventID。続報。ReportDateTimeは2020-05-22T13:03より新しく14:54以降、訂正は直前と同時刻・取消はその後。 採用するReportDateTime=2020-05-22T14:54:00+09:00、Serial空。",
-        "acquisition": "REST見込み、同revision訂正はsynthetic候補"
-      },
+      "input": null,
       "checks": [
-        "alert対象のみ更新/取消、別火山315とeruptionを維持。Q-REV/Q-NOTICE。"
+        "浅間山306の続報（レベル3の継続、14:54）。:24（13:03の引上げ）より新しいrevisionで、Kind/Condition・LastKind・Headlineが変わるのでsemantic（I-U-V.alertSemantics(1)）。対象市町村は同じ4市町村。315の警報と噴火の記録は不変。",
+        "通知: semanticAdoption、desktop＋sound、level=info（継続で、採用前のactiveの記録と区分のcode 13が同じ、P3-C9-NOTICE-LEVELS=C）。",
+        "45_01_01・45_02_01は気象庁のサンプル電文で、306の続報・訂正・取消は試験用のsynthetic（実際の系列ではない）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:30",
+      "expectedId": "expected:O01:30",
       "sequenceId": "O01",
       "position": 30,
       "decision": {
         "kind": "changed",
-        "change": null
+        "change": "semantic"
       },
       "effective": {
         "kind": "active"
       },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/volcano:alert/306",
           "revision": {
             "reportDateTimeRaw": "2020-05-22T14:54:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:215 «b30345c3f5e298d2» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VFVO50_correction.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VFVO50 火山306、同EventID。同revision訂正。ReportDateTimeは2020-05-22T13:03より新しく14:54以降、訂正は直前と同時刻・取消はその後。 採用するReportDateTime=2020-05-22T14:54:00+09:00、Serial空。",
-        "acquisition": "REST見込み、同revision訂正はsynthetic候補"
-      },
+      "input": null,
       "checks": [
-        "alert対象のみ更新/取消、別火山315とeruptionを維持。Q-REV/Q-NOTICE。"
+        "同じrevision（14:54・Serial空）の訂正はInfoTypeの優先で採用し、Headlineの警戒の範囲（概ね４ｋｍ→３ｋｍ）が変わるのでsemantic（Q-ENUM.revisionOrder）。315の警報と噴火の記録は不変。",
+        "通知: correction、desktop＋sound、level=info（継続で区分のcode 13が同じ）。同じsubject・channelの未配送のintent（:29）はsupersededにする（P3-C9-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:31",
+      "expectedId": "expected:O01:31",
       "sequenceId": "O01",
       "position": 31,
       "decision": {
@@ -10542,30 +10629,35 @@
       },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/volcano:alert/306",
           "revision": {
             "reportDateTimeRaw": "2020-05-22T14:55:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "取消"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6» P3-C9-MARINE=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VFVO50_cancel.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VFVO50 火山306、同EventID。取消。ReportDateTimeは2020-05-22T13:03より新しく14:54以降、訂正は直前と同時刻・取消はその後。 採用するReportDateTime=2020-05-22T14:55:00+09:00、Serial空。",
-        "acquisition": "REST見込み、同revision訂正はsynthetic候補"
-      },
+      "input": null,
       "checks": [
-        "alert対象のみ更新/取消、別火山315とeruptionを維持。Q-REV/Q-NOTICE。"
+        "火山コードの無いVFVO50の取消は、警報の記録のうちeventIdが取消のEventID（306）と一致する記録が一つだけなので、その記録（浅間山306）を取り消す（P3-C9-CANCEL-SCOPE=Aの(2)）。VFVO50の取消は警報全体をcancelledにする（P3-C9-MARINE=A）。315の警報と噴火の記録は不変。",
+        "通知: cancellation（取消の前に306の警報がactive）、desktop＋sound、level=cancel。同じsubjectの未配送のintentは両channelともsupersededにする（P3-C9-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:32",
+      "expectedId": "expected:O01:32",
       "sequenceId": "O01",
       "position": 32,
       "decision": {
@@ -10580,11 +10672,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/volcano:alert/306",
           "revision": {
             "reportDateTimeRaw": "2020-05-22T14:55:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "取消"
           }
         }
       ],
@@ -10592,14 +10684,14 @@
       "intents": false,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L2: test/fixtures/synthetic_VFVO50_cancel.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "直前取消と同一bytesを1ms後に再受信。VFVO50 火山306、同EventID。取消。ReportDateTimeは2020-05-22T13:03より新しく14:54以降、訂正は直前と同時刻・取消はその後。 採用するReportDateTime=2020-05-22T14:55:00+09:00、Serial空。",
-        "acquisition": "REST見込み、同revision訂正はsynthetic候補"
-      },
+      "input": null,
       "checks": [
-        "前段の未充足取消が充足した後の重複。取消記憶維持、新規通知0。"
+        "前段の取消と同一bytesの1 ms後の再受信。同じrevision・同じInfoTypeでduplicate（Q-ENUM.revisionOrder）。取消記憶維持、新規通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -10729,40 +10821,47 @@
       ]
     },
     {
-      "expectedId": "unmet:O01:37",
+      "expectedId": "expected:O01:37",
       "sequenceId": "O01",
       "position": 37,
       "decision": {
         "kind": "changed",
-        "change": null
+        "change": "semantic"
       },
-      "effective": null,
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/volcano:ashfall/506",
           "revision": {
-            "reportDateTimeRaw": "2021-05-14T12:51",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2021-05-14T12:51:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:215 «b30345c3f5e298d2» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:253 «8810bb2a0d1db6e7» Q-NOTICE level（作者裁定 NOTICE-LEVELS=C）",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VFVO55_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VFVO55 火山506、ReportDateTime=2021-05-14T12:51、Serial=1、InfoType=訂正。直前と同revisionで値訂正。",
-        "acquisition": "REST見込み/無ければsynthetic"
-      },
+      "input": null,
       "checks": [
-        "54/55共通系列で訂正を採用。alert/eruption は不変。"
+        "同じrevision（12:51・Serial 1・VFVO55）の訂正はInfoTypeの優先で採用し、Headlineが変わるのでsemantic（Q-ENUM.revisionOrder）。予報の期間・groupは:36と同じで、期限（予報の終わり19:00）は変わらない。警報・噴火は不変。",
+        "通知: correction、desktop＋sound、level=normal（降灰予報（詳細）VFVO55、P3-C9-NOTICE-LEVELS=C）。同じsubject・channelの未配送のintent（:36）はsupersededにする（P3-C9-REPLACEMENT=A）。",
+        "66_01_02・66_01_03は気象庁のサンプル電文で、506の訂正・取消は試験用のsynthetic（実際の系列ではない）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:38",
+      "expectedId": "expected:O01:38",
       "sequenceId": "O01",
       "position": 38,
       "decision": {
@@ -10777,30 +10876,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/volcano:ashfall/506",
           "revision": {
-            "reportDateTimeRaw": "2021-05-14T12:52",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2021-05-14T12:52:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "取消"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VFVO55_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VFVO55 火山506、Serial=1、ReportDateTime=2021-05-14T12:52、InfoType=取消。",
-        "acquisition": "REST見込み"
-      },
+      "input": null,
       "checks": [
-        "ashfallのみinactive/cancelled、取消記憶を残す。"
+        "火山コードの無い降灰の取消は、降灰の記録のうちeventIdが506と一致する記録が一つだけなので、桜島506の降灰を取り消す（P3-C9-CANCEL-SCOPE=Aの(2)）。取消記憶（ReportDateTime+7日）を残し、54/55の共通系列で以後の速報・詳細の旧報を止める。警報・噴火は不変。",
+        "通知: cancellation（取消の前に降灰がactive）、desktop＋sound、level=cancel。同じsubjectの未配送のintentは両channelともsupersededにする（P3-C9-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:39",
+      "expectedId": "expected:O01:39",
       "sequenceId": "O01",
       "position": 39,
       "decision": {
@@ -10815,11 +10918,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/volcano:ashfall/506",
           "revision": {
-            "reportDateTimeRaw": "2021-05-14T12:52",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2021-05-14T12:52:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "取消"
           }
         }
       ],
@@ -10827,14 +10930,14 @@
       "intents": false,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:334 «81f3e373e5152cb9» Q-ENUM revisionOrder",
+        "L2: test/fixtures/synthetic_VFVO55_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "直前取消と同一bytesを1ms後に再受信。VFVO55 火山506、Serial=1、ReportDateTime=2021-05-14T12:52、InfoType=取消。",
-        "acquisition": "REST見込み"
-      },
+      "input": null,
       "checks": [
-        "前段の未充足取消が充足した後の重複。取消記憶維持、新規通知0。"
+        "前段の取消と同一bytesの1 ms後の再受信。同じrevision・同じInfoTypeでduplicate（Q-ENUM.revisionOrder）。取消記憶維持、新規通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
