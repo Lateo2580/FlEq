@@ -1574,7 +1574,8 @@ async function main(argv) {
     } else {
       const verified = verifyFrozenP3Manifest({ manifestText, trialSetupText, smokeConditionsText: readFileSync(join(REPO, SMOKE_FILE), "utf8"),
         sequencesText: readFileSync(join(REPO, SEQUENCES_FILE), "utf8"),
-        contractTexts: contractTextsFor("P3-E01-REACCEPT-001"),
+        // Q-WL2-E05P: E05-P の再検収の manifest は段 2 の契約の hash も固める。照合するのは manifest に書いた契約だけなので C4 の manifest は変わらず通る。
+        contractTexts: { ...contractTextsFor("P3-E01-REACCEPT-001"), ...contractTextsFor("P3-WEATHER-LIGHT-002") },
         inherited: { manifestText: a10Text, initialStateText: readFileSync(join(REPO, JSON.parse(trialSetupText).initialStateRef), "utf8") } });
       manifest = verified.manifest;
       trialSetup = verified.trialSetup;
