@@ -497,6 +497,32 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect([gone.state.information, gone.state.persistence]).toEqual([[], c1.state.persistence]);
   });
 
+  // 実不具合の再発防止（F15、P3-CODEC-AC04）: Headline の無い報で Text から切り出す本文がサロゲートの対を割らない（body 全体には 80 単位の上限を置かない）。
+  it("P3-CODEC-T03 regression / AC04: the body cut from Text keeps a surrogate pair whole", () => {
+    const step = send(emptyState(), F.warning, (xml) => xml.replace(/<Headline>[\s\S]*?<\/Headline>/, "")
+      .replace(/(<EarthquakeInfo[^>]*>[\s\S]*?)<Text>[\s\S]*?<\/Text>/, `$1<Text>${"あ".repeat(79)}😀</Text>`));
+    expect(step.intents.map((item) => item.payload.body)).toEqual(["あ".repeat(79), "あ".repeat(79)]);
+    expect(roundTrip(step.state).kind).toBe("restored");
+  });
+
+  // contractBoundary（P3-CODEC-AC03・RES-05）: 現況 6 件の上限の形（inputId・title・headline・infoSerial を制御文字で上限まで）に
+  // 通知の予算（pending の実 byte＋予約と終端記録で 229,376）を足しても 261,214 byte の内側。
+  it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents with the whole notice budget stay within 261,214 bytes", () => {
+    const wide = (length: number) => "\u0001".repeat(length);
+    const currents = budgetState(true).currents.map((item): NankaiCurrent => {
+      const source = { ...item.source, inputId: wide(64) };
+      return "title" in item ? { ...item, source, title: wide(128), headline: wide(512), infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) } }
+        : { ...item, source };
+    });
+    const state: NankaiUnitState = { ...emptyState(), currents };
+    expect(roundTrip(state).kind).toBe("restored");
+    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v1", unit: "U-N", generation: 0, capturedAt: 0,
+      payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) }));
+    console.info("P3-CODEC U-N bound", JSON.stringify({ currents: currents.length, envelope, bound: envelope + 62 - 2 + 229_376 }));
+    // 空の intents 配列（2 byte）を通知の予算 229,376 で置き換え、generation と capturedAt の 62 byte を予約する。
+    expect(envelope + 62 - 2 + 229_376).toBeLessThanOrEqual(261_214);
+  });
+
   // contractBoundary: E22 の U-N は対象外（P3-C8-N2、AC13）。
   it("P3-C8-T10 contractBoundary / AC13: origin=recovery is not applied", () => {
     const state = send(emptyState(), F.advisory).state;

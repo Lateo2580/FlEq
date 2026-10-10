@@ -21,8 +21,8 @@ import type { AlertFacts, VolcanoCandidate, VolcanoEntry } from "../../domains/v
 // P3-UNIT-V-001（C9、I-U-V）: U-V の三 slice・定時・batch・解説・復旧不足・通知・容量・codec・射影。
 
 const SCHEMA = "p3-volcano-unit-v1" as const;
-// P3-C9-CAPACITY=A・P3-C9-RES-01・RET-01〜06。
-const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20, GENERATION_LIMIT = 4_194_304;
+// P3-C9-CAPACITY=A・P3-C9-RES-01・RET-01〜06。世代の上限は P3-CODEC-D-LIMIT=A（K5、当初 4 MiB）。
+const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20, GENERATION_LIMIT = 5_242_880;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
 // P3-C9-SEM-01〜07（元報の ReportDateTime からの絶対の長さ、P3-C9-RETENTION=A。batch は単調時計）。
 const DAY_MS = 86_400_000;
@@ -75,6 +75,9 @@ function generationBytes(value: PersistedVolcanoUnit): number {
   return emptyEnvelopeBytes + 62 - 10 + listBytes(value.alerts) + listBytes(value.eruptions) + listBytes(value.ashfalls)
     + listBytes(value.shortfalls) + listBytes(value.intents);
 }
+// 配送の更新で伸びうる分（pending の deliveryGrowth）を 1 回だけ足した世代の byte（P3-CODEC-RES-01）。
+const reservedGenerationBytes = (value: PersistedVolcanoUnit): number => generationBytes(value)
+  + value.intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
 
 // ---- 期限（I-U-V.deadlines） ----
 
@@ -482,9 +485,11 @@ function conflictDiagnostic(candidate: VolcanoCandidate, count?: number): Diagno
     ...count == null ? {} : { count } };
 }
 // P3-C9-SHORTFALL=A: live の採用報が同じ運用区分・slice・火山コードの volcano scope の不足より新しければ除く。
+// VFVO51 は採用した entry の火山コードを集めて 1 回で照合する（entry ごとに全件を走査しない、Q-CODEC-IMPL-AMEND(1)）。
 function liveShortfalls(list: readonly VolcanoShortfall[], candidate: VolcanoCandidate, slice: VolcanoShortfall["slice"],
-  code: string | null): readonly VolcanoShortfall[] {
+  code: string | ReadonlySet<string> | null): readonly VolcanoShortfall[] {
   if (list.length === 0 || code == null) return list;
+  const codes = typeof code === "string" ? new Set([code]) : code;
   const newer = (known: VolcanoShortfall["lastKnown"]) => {
     if (known == null) return true;
     const time = candidate.reportDateTimeMs - Date.parse(known.reportDateTimeRaw);
@@ -492,7 +497,7 @@ function liveShortfalls(list: readonly VolcanoShortfall[], candidate: VolcanoCan
       && Number(candidate.source.serialRaw) > Number(known.serialRaw);
   };
   const next = list.filter((item) => !(item.scope === "volcano" && item.operation === candidate.operation && item.slice === slice
-    && item.volcanoCode === code && newer(item.lastKnown)));
+    && item.volcanoCode != null && codes.has(item.volcanoCode) && newer(item.lastKnown)));
   return next.length === list.length ? list : next;
 }
 
@@ -801,6 +806,7 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     kept.add(verdict.next.subject);
     applied.changes.push([victim, null]);
   }
+  const adoptedCodes = new Set<string>();
   for (const { entry, subject, existing, verdict } of verdicts) {
     if (verdict.kind === "unchanged") { decide(applied, candidate, subject, verdict); continue; }
     const next = verdict.next;
@@ -810,9 +816,9 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     applied.subjects.push(outcomeOf(next, fields));
     applied.semantic ||= fields.length !== 0 || self;
     decide(applied, candidate, subject, { kind: "adopt" }, fields.length !== 0 || self);
-    applied.state = { ...applied.state, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "alert", entry.volcanoCode) };
+    adoptedCodes.add(entry.volcanoCode);
   }
-  applied.state = { ...applied.state, alerts: values };
+  applied.state = { ...applied.state, alerts: values, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "alert", adoptedCodes) };
   applied.evicted += evicted;
   applied.semantic ||= evicted !== 0;
 }
@@ -1006,6 +1012,12 @@ function reduceCore(state: VolcanoUnitState, input: VolcanoInput): Result {
 
 function reduceVolcanoUnit(state: VolcanoUnitState, input: VolcanoInput): VolcanoUnitStep {
   const { step, changes } = reduceCore(state, input);
+  // P3-CODEC-AC02: 配送予約込みの静的上界（RES-04）は 5 MiB の内側なので、超えるのは上界の破れ（実装の誤り）だけ。保存できない候補を
+  // 採らず、入力前の state のまま unit 全体の不整合として拒否する（byte で退去しない）。
+  if (persistedChanged(state, step.state) && reservedGenerationBytes(step.state) > GENERATION_LIMIT) return { ...idle(state),
+    decisions: [{ subject: "", operation: "normal", decision: "rejected", reason: "requiredStructureInvalid" }],
+    diagnostics: [{ level: "ERROR", component: "volcanoGenerationLimit", unit: "U-V", reason: "requiredStructureInvalid", count: 1 }],
+    displayChanges: [], confirmationEvidence: [] };
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
   const merged = new Map<string, { before: Shown | null; after: Shown | null }>();
   for (const [before, after] of changes) {

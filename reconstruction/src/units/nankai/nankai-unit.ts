@@ -13,7 +13,7 @@ import type {
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
-import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
+import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
 
 // P3-UNIT-N-001（C8、I-U-N）: U-N の現況・情報系列・通知・容量・codec・射影。
@@ -219,7 +219,8 @@ function levelOf(candidate: NankaiCandidate): Level {
 function payloadOf(candidate: NankaiCandidate): NankaiNotificationPayload {
   const prefix = PREFIX[candidate.operation], { title, headline, text } = candidate.facts;
   if (candidate.cancelled) return { domain: "earthquake-eew", level: "cancel", title: `${prefix}[取消] ${title}`, body: "この情報は取り消されました" };
-  const body = headline ?? (text == null ? null : text.slice(0, 80)) ?? title;
+  // Text の先頭 80 単位はサロゲートの対を割らずに切る（P3-CODEC-AC04、F15）。
+  const body = headline ?? (text == null ? null : cut(text, 80)) ?? title;
   const correction = candidate.infoRank === 2;
   return { domain: "earthquake-eew", level: levelOf(candidate), title: prefix + (correction ? `[訂正] ${title}` : title),
     body: correction ? `訂正: ${body}` : body };

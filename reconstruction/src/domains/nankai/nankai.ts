@@ -151,5 +151,5 @@ function parseNankai(material: DecodedMaterial): ParseResult {
   }
 }
 
-export { BOUNDS, FAMILIES, INFO_RANK, LIMITS, parseNankai, validEventId, validSerial };
+export { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial };
 export type { NankaiCandidate, NankaiFacts };

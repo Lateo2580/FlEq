@@ -1,12 +1,19 @@
+import { mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
 import type {
-  VolcanoAlert, VolcanoBulletin, VolcanoEruption, VolcanoIntent, VolcanoShortfall, VolcanoUnitState, VolcanoUnitStep,
+  VolcanoAlert, VolcanoAreaGroup, VolcanoBulletin, VolcanoEruption, VolcanoInput, VolcanoIntent, VolcanoShortfall, VolcanoUnitState, VolcanoUnitStep,
 } from "../../contracts/p3-volcano-unit.types";
+import { CheckpointCoordinator } from "../../src/checkpoint/checkpoint";
+import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
-import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
+import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { reduceVolcanoUnit, toVolcanoView, volcanoUnitCodec } from "../../src/units/volcano/volcano-unit";
@@ -35,6 +42,12 @@ const effective = (value: { effective: string } | undefined) => value?.effective
 const roundTrip = (state: VolcanoUnitState) => volcanoUnitCodec.decode(JSON.parse(JSON.stringify(volcanoUnitCodec.encode(state))) as JsonValue);
 const tick = (state: VolcanoUnitState, wallTimeMs: number, monotonicMs = 0) =>
   reduceVolcanoUnit(state, { kind: "deadline", clock: clock(wallTimeMs, monotonicMs) });
+// 保存 1 世代の byte（checkpoint envelope の JSON＋generation/capturedAt の 62 byte の予約）と、pending の配送予約を足した値（P3-CODEC-RES-01）。
+const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v1", unit: "U-V",
+  generation: 0, capturedAt: 0, payload: volcanoUnitCodec.encode(state), sha256: "0".repeat(64) })) + 62;
+const reserved = (state: VolcanoUnitState) => generation(state) + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
+const emptyOwner = (now: ReturnType<typeof clock>) => restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" },
+  "U-T": { kind: "empty" }, "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
 // 66_01_01 の火山コードと名前を替える（同じ ReportDateTime の定時の報を火山ごとに作る）。
 const volcano = (code: string, name: string) => (xml: string) => xml.replaceAll("<Code>506</Code>", `<Code>${code}</Code>`)
   .replaceAll("<Name>桜島</Name>", `<Name>${name}</Name>`);
@@ -695,6 +708,135 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect(grown.adopted).toBe(true);
     expect(roundTrip(grown.state.units["U-V"]!).kind).toBe("restored");
   });
+
+  // 実不具合の再発防止（F08、P3-CODEC-AC01）: 旧 4 MiB の内側で保存した state が移行なしで復元し、VFVO50 1 報で 4 MiB を超えても 5 MiB の内側で保存・復元できる。
+  it("P3-CODEC-T01 regression / AC01,AC02: F08 — a state saved under 4 MiB restores, takes one VFVO50 and saves and restores within 5 MiB", () => {
+    const start = f08State(109, true);
+    const now = clock(at(F08_AT));
+    const restored = reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(start), clock: now });
+    expect(restored.outcomes).toMatchObject([{ kind: "recoveryApplied", scope: ["U-V"] }]);
+    const step = receive(restored.state, f08Report(), now);
+    expect(shape(step)).toEqual([[start.alerts[0].subject, "changed", "semantic"]]);
+    const sizes = [generation(restored.state), generation(step.state)];
+    console.info("P3-CODEC F08 generation bytes", JSON.stringify({ start: sizes[0], afterVfvo50: sizes[1], reserved: reserved(step.state) }));
+    // 開始は旧 4 MiB の decode が受ける大きさ、1 報の後は旧 4 MiB を超える（旧実装の自己 decode が invalid になった形）。
+    expect(sizes[0] <= 4_194_304 && sizes[1] > 4_194_304 && reserved(step.state) <= 5_242_880, String(sizes)).toBe(true);
+    const decoded = roundTrip(step.state);
+    expect(decoded.kind === "restored" ? volcanoUnitCodec.encode(decoded.state) : decoded).toEqual(volcanoUnitCodec.encode(step.state));
+  });
+
+  // contractBoundary（P3-CODEC-AC02・AC03）: decoder の形の最大は合法の受信・期限の flush・配送の更新の後も RES-04 の上界の内側で復元できる。
+  // 5 MiB の境界は合法の最大からは届かないので、上限ちょうど／超過は codec を通らない合成の state（巨大な headline の警報）で確かめる。
+  it("P3-CODEC-T02 contractBoundary / AC02,AC03: the decoder-shaped maximum stays within RES-04; over 5 MiB a step is rejected without effects", () => {
+    const now = clock(at(F08_AT));
+    const sizes: number[] = [];
+    const kept = (state: VolcanoUnitState) => {
+      sizes.push(reserved(state));
+      expect(roundTrip(state).kind).toBe("restored");
+      return state;
+    };
+    let state = kept(f08State(128, false, true));
+    state = kept(receive(state, f08Report(), now).state);
+    state = kept(send(state, F.scheduled, retime("2020-05-22T15:00:00+09:00"), now.wallTimeMs, 0).state);
+    const flushed = tick(state, now.wallTimeMs, 8_000);
+    expect([state.batch?.subjects, flushed.state.batch, flushed.outcomes]).toMatchObject([["normal/VFVO53/506"], null,
+      [{ kind: "batchCompleted", reason: "deadline" }]]);
+    state = kept(flushed.state);
+    const owner = emptyOwner(now);
+    const updates = pending(state).map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
+      disposition: index % 2 === 0 ? "superseded" as const : "pending" as const }));
+    const updated = intentUpdateOwner({ ...owner, units: { ...owner.units, "U-V": state } }, "U-V", updates, now, linkedUnitTable);
+    expect(updated.adopted).toBe(true);
+    state = kept(updated.state.units["U-V"]!);
+    // 更新した intent は全部残る（owner は更新した記録で照合する）。
+    expect(updates.every((update) => state.intents.some((item) => item.id === update.id && item.disposition === update.disposition))).toBe(true);
+    console.info("P3-CODEC RES-04 maximum (reserved bytes)", JSON.stringify(sizes));
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(4_753_484);
+
+    // 上限ちょうどは採り、1 byte 超えると入力前の state のまま rejected/requiredStructureInvalid と ERROR の診断 1 件だけを返す。
+    const LIMIT = 5_242_880, DAY_MS = 86_400_000;
+    const sample = send(emptyState(), F.a306).state.alerts[0];
+    if (sample.effective !== "active") throw new Error("inactive sample");
+    const withHeavy = (base: VolcanoUnitState, headline: number): VolcanoUnitState => ({ ...base, alerts: [...base.alerts, { ...sample,
+      subject: "test/volcano:alert/999", operation: "test", volcanoCode: "999", headline: "x".repeat(headline) }] });
+    const reported = at("2020-05-22T14:49:00+09:00"), t0 = at("2021-05-17T14:00:00+09:00");
+    const material = decodeFixture(F.o1);
+    const eruption = send(emptyState(), F.o1).state, batch = send(emptyState(), F.scheduled, undefined, t0, 0).state;
+    // restore 後の collect も同じ共通の守りを通るが、decode を通る payload からは超過を合成できない（到達不能）ので表に入れない。
+    const rows: [string, VolcanoUnitState, VolcanoInput][] = [
+      ["receive", emptyState(), { kind: "receive", material, clock: clock(reported) }],
+      ["deadline batch flush", batch, { kind: "deadline", clock: clock(t0 + 8_000, 8_000) }],
+      ["shutdown", eruption, { kind: "shutdown", clock: clock(reported + DAY_MS) }],
+      ["shortfallResolution", { ...emptyState(), shortfalls: [shortfall("s1", "volcano", "306")] }, { kind: "shortfallResolution", id: "s1",
+        action: "acceptCurrent", clock: clock(reported) }],
+      ["intentUpdate", eruption, { kind: "intentUpdate", clock: clock(reported), intentUpdate: { id: eruption.intents[0].id, attempts: 1,
+        nextAttemptAt: reported + 1_000, disposition: "pending" } }],
+    ];
+    for (const [name, base, input] of rows) {
+      const probe = reserved(reduceVolcanoUnit(withHeavy(base, 1_000), input).state);
+      const fit = withHeavy(base, 1_000 + LIMIT - probe), over = withHeavy(base, 1_001 + LIMIT - probe);
+      const accepted = reduceVolcanoUnit(fit, input);
+      expect([reserved(accepted.state), accepted.decisions.some((item) => item.decision === "rejected"), accepted.state === fit], name)
+        .toEqual([LIMIT, false, false]);
+      const rejected = reduceVolcanoUnit(over, input);
+      expect(rejected.state, name).toBe(over);
+      expect(rejected, name).toEqual({ state: over, nextDeadline: reduceVolcanoUnit(over, { kind: "intentUpdate", clock: clock(reported), intentUpdate: [] })
+        .nextDeadline, decisions: [{ subject: "", operation: "normal", decision: "rejected", reason: "requiredStructureInvalid" }], intents: [], outcomes: [],
+        diagnostics: [{ level: "ERROR", component: "volcanoGenerationLimit", unit: "U-V", reason: "requiredStructureInvalid", count: 1 }], displayChanges: [],
+        confirmationEvidence: [] });
+    }
+  });
+
+  // P3-CODEC-AC07 の Mac 実測（K5_MEASURE=1 のときだけ走る。合否は持たず、値を契約の Q-CODEC-MEASUREMENT へ転記する。Pi の実測は C22）。
+  it.runIf(process.env.K5_MEASURE === "1")("P3-CODEC-AC07 measurement: F08 n=128 through the product checkpoint path", async () => {
+    const trials = Number(process.env.K5_TRIALS ?? 20), warmup = 3;
+    const state = f08State(128, false, true);
+    expect(roundTrip(state).kind).toBe("restored");
+    const directory = mkdtempSync(join(process.env.K5_MEASURE_DIR ?? tmpdir(), "k5-measure-"));
+    const files = () => readdirSync(directory).map((name) => { const info = statSync(join(directory, name)); return { name, bytes: info.size, disk: info.blocks * 512 }; });
+    const node = nodeCheckpointFileSystem();
+    let beforeRename: ReturnType<typeof files> = [];
+    const fileSystem: CheckpointFileSystem = { ...node, rename: async (from, to) => { beforeRename = files(); await node.rename(from, to); } };
+    const coordinator = new CheckpointCoordinator(directory, { "U-V": linkedUnitCodecs["U-V"] }, fileSystem,
+      () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() }), () => {});
+    const rssBefore = process.memoryUsage().rss;
+    const encode: number[] = [], captureTotal: number[] = [], durable: number[] = [];
+    let encodedBytes = 0;
+    try {
+      for (let run = 0; run < warmup + trials; run++) {
+        const started = performance.now();
+        const captured = coordinator.capture("U-V", state, run + 1, "k5", { inputIds: [], retryReason: "notRetry" });
+        const captureMs = performance.now() - started;
+        if (captured.request == null) throw new Error("encode failed");
+        encodedBytes = captured.request.encodedByteLength;
+        const executed = await coordinator.executeCheckpoint(captured.request, "k5", [], "notRetry");
+        if (executed.result.kind !== "acknowledged") throw new Error(`save failed: ${JSON.stringify(executed.result)}`);
+        const stages = executed.measurements;
+        if (run < warmup) continue;
+        encode.push(captured.measurements[0].endedMonotonicMs - captured.measurements[0].startedMonotonicMs);
+        captureTotal.push(captureMs);
+        durable.push(stages.at(-1)!.endedMonotonicMs - stages[0].startedMonotonicMs);
+      }
+      const afterRename = files();
+      // VFVO50 1 報の reduce（AC01 の開始 state を復元した直後の 1 回目と、記録の byte が cache にある 2 回目以降）。
+      const restored = reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(f08State(109, true)), clock: clock(at(F08_AT)) }).state;
+      const material = f08Report();
+      const reduceMs: number[] = [];
+      for (let run = 0; run < warmup + trials; run++) {
+        const base = run === 0 ? restored : { ...restored };
+        const started = performance.now();
+        receive(base, material, clock(at(F08_AT)));
+        reduceMs.push(performance.now() - started);
+      }
+      const stats = (values: readonly number[]) => { const sorted = [...values].sort((left, right) => left - right);
+        return { median: Number(sorted[Math.floor(sorted.length / 2)].toFixed(3)), max: Number(sorted.at(-1)!.toFixed(3)) }; };
+      console.info("P3-CODEC AC07", JSON.stringify({ node: process.version, platform: `${process.platform} ${process.arch}`, trials, warmup,
+        serializedEnvelope: encodedBytes, generationBytes: generation(state), reserved: reserved(state), staticBound: 4_753_484,
+        boundMinusReserved: 4_753_484 - reserved(state), encodeMs: stats(encode), captureMs: stats(captureTotal), writeToDirectorySyncMs: stats(durable),
+        reduceVfvo50FirstMs: Number(reduceMs[0].toFixed(3)), reduceVfvo50WarmMs: stats(reduceMs.slice(warmup)),
+        beforeRename, afterRename, rssBefore, rssAfter: process.memoryUsage().rss, maxRssKiB: process.resourceUsage().maxRSS }));
+    } finally { rmSync(directory, { recursive: true, force: true }); }
+  });
 });
 
 function shortfall(id: string, scope: "volcano" | "domain", volcanoCode: string | null, lastKnownAt: string | null = null,
@@ -753,8 +895,13 @@ function budgetState(bounded: boolean): VolcanoUnitState {
   const shortfalls = bounded ? Array.from({ length: 128 }, (_, index): VolcanoShortfall => ({ id: `${"S".repeat(60)}${String(index).padStart(4, "0")}`,
     operation: "training", slice: "eruption", scope: "volcano", volcanoCode: code(index), lastKnown: { reportDateTimeRaw: "2020-05-22T15:00:00.00000000000000+09:00",
       serialRaw: "1234567890" }, reason: "terminalQuarantine" })) : [];
-  const intentBase = send(emptyState(), F.a306).intents[0];
-  const sized = (index: number, disposition: VolcanoIntent["disposition"]): VolcanoIntent => ({ ...intentBase, id: `${intentBase.id}:${index}`,
+  return { ...emptyState(), alerts, eruptions, ashfalls, shortfalls, intents: fillIntents(send(emptyState(), F.a306).intents[0]) };
+}
+// pending（実 byte＋配送予約で 131,072 まで、128 件）と終端記録（98,304 まで）を seed の複製で詰める。
+// exact は先頭の pending と先頭の終端記録の body を ASCII で伸ばし、両方の予算をちょうど使い切る（AC07 の decoder の最大）。
+function fillIntents(seed: VolcanoIntent, exact = false): VolcanoIntent[] {
+  const reported = at("2020-05-22T15:00:00+09:00");
+  const sized = (index: number, disposition: VolcanoIntent["disposition"]): VolcanoIntent => ({ ...seed, id: `${seed.id}:${index}`,
     disposition, createdAt: reported, expiresAt: reported + 180_000 });
   const bytes = (item: VolcanoIntent) => Buffer.byteLength(JSON.stringify(item));
   const pendingIntents: VolcanoIntent[] = [];
@@ -772,7 +919,66 @@ function budgetState(bounded: boolean): VolcanoUnitState {
     terminal.push(item);
     size += bytes(item) + 1;
   }
-  return { ...emptyState(), alerts, eruptions, ashfalls, shortfalls, intents: [...pendingIntents, ...terminal] };
+  if (exact) {
+    const pad = (item: VolcanoIntent, length: number): VolcanoIntent => ({ ...item, payload: { ...item.payload, body: item.payload.body + "x".repeat(length) } });
+    const pendingSize = Buffer.byteLength(JSON.stringify(pendingIntents)) + pendingIntents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    const terminalSize = terminal.reduce((sum, item) => sum + bytes(item) + 1, 0);
+    pendingIntents[0] = pad(pendingIntents[0], 131_072 - pendingSize);
+    terminal[0] = pad(terminal[0], 98_304 - terminalSize);
+  }
+  return [...pendingIntents, ...terminal];
+}
+
+// P3-CODEC-AC01 の F08 構成: budgetState(true) の上限の記録で、先頭 escaped 件の記録の地域コードをバックスラッシュ 16 字（JSON で 32 byte）にする。
+// intent の seed と報の inputId は fixture 名（実行順で inputId の桁が変わらない）。sparse は先頭の警報を seed の疎な active の記録に戻す。
+// 噴火の seed は budgetState の synthetic_phase5c_plume（契約 AC01 は 43_01_01_200522_VFVO52）。上限の値で上書きしないのは flash・truncated
+// だけで両方とも false なので byte は同じ（F08 の観測値と一致）。
+// max は AC07 の decoder の最大: asciiCode の項目をバックスラッシュ・引用符で、bounded の項目（ReportRef.inputId を含む）を U+0001 で
+// 上限まで埋め、pending と終端記録を予算ちょうどまで詰める（origin・数値・ReportDateTime は AC01 のまま）。
+const F08_AT = "2020-05-22T15:00:01+09:00";
+function f08State(escaped: number, sparse: boolean, max = false): VolcanoUnitState {
+  const bound = max ? decoderMax(budgetState(true)) : budgetState(true);
+  const slash = "\\".repeat(16);
+  const groups = (values: readonly VolcanoAreaGroup[]) => values.map((group) => ({ ...group, codes: group.codes.map(() => slash) }));
+  const alerts = bound.alerts.map((item, index): VolcanoAlert => item.effective !== "active" || index >= escaped ? item
+    : { ...item, municipalities: groups(item.municipalities), marineAreas: groups(item.marineAreas) });
+  const eruptions = bound.eruptions.map((item, index): VolcanoEruption => item.effective !== "active" || index >= escaped ? item
+    : { ...item, municipalities: item.municipalities.map(() => slash) });
+  const ashfalls = bound.ashfalls.map((item, index) => item.effective !== "active" || index >= escaped ? item
+    : { ...item, groups: item.groups.map((group) => ({ ...group, topAreas: group.topAreas.map((area) => ({ ...area, code: slash })) })) });
+  if (sparse) {
+    const seed = alertOf(send(emptyState(), F.a350, (xml) => xml.replaceAll("<Code>11</Code>", "<Code>13</Code>")).state, "350")!;
+    const [first] = alerts;
+    alerts[0] = { ...seed, subject: first.subject, operation: first.operation, volcanoCode: first.volcanoCode, eventId: first.eventId,
+      source: first.source, retainUntil: first.retainUntil, marineSource: null };
+  }
+  const intent = send(emptyState(), F.a306).intents[0];
+  return { ...bound, alerts, eruptions, ashfalls,
+    intents: fillIntents({ ...intent, source: { ...intent.source, inputId: max ? "\u0001".repeat(64) : F.a306 } }, max) };
+}
+function decoderMax(state: VolcanoUnitState): VolcanoUnitState {
+  const code = "\\".repeat(8), text = "\\".repeat(40), id = "\u0001".repeat(64);
+  const ref = <T extends { inputId: string }>(value: T): T => ({ ...value, inputId: id });
+  const alerts = state.alerts.map((item): VolcanoAlert => item.effective !== "active" ? item : { ...item, source: item.source && ref(item.source),
+    marineSource: item.marineSource && ref(item.marineSource), kind: { ...item.kind, code }, lastKind: item.lastKind && { ...item.lastKind, code },
+    landKind: item.landKind && { ...item.landKind, code }, coordinate: text });
+  const eruptions = state.eruptions.map((item): VolcanoEruption => item.effective !== "active" ? item : { ...item, source: ref(item.source),
+    phenomenon: { ...item.phenomenon, code }, eventDateTimeRaw: text });
+  const ashfalls = state.ashfalls.map((item) => item.effective !== "active" ? item : { ...item, source: ref(item.source),
+    groups: item.groups.map((group) => ({ ...group, ashCode: code })) });
+  // shortfall.id は 64 字を全部エスケープの 2 byte にし、末尾 7 字の引用符とバックスラッシュの並びで 128 件を区別する。
+  const shortfalls = state.shortfalls.map((item, index) => ({ ...item, id: "\\".repeat(57)
+    + Array.from({ length: 7 }, (_, bit) => (index >> bit) & 1 ? '"' : "\\").join("") }));
+  return { ...state, alerts, eruptions, ashfalls, shortfalls };
+}
+// AC01 の VFVO50 1 報: 45_01_01 を先頭の警報（火山コード・EventID）の訓練の報にし、Headline「山」256 字と市町村 128 件で上限まで埋める。
+function f08Report(): DecodedMaterial {
+  const code = `${"9".repeat(12)}0000`, eventId = `${"E".repeat(60)}0000`;
+  const areas = Array.from({ length: 128 }, (_, index) => `<Area><Name>${"山".repeat(32)}</Name><Code>${"\\".repeat(12)}${String(index).padStart(4, "0")}</Code></Area>`).join("");
+  return decodeFixture(F.a306, (xml) => status("訓練")(retime(F08_AT)(replaceTag("EventID", eventId)(xml)))
+    .replaceAll("<Code>306</Code>", `<Code>${code}</Code>`)
+    .replace(/<Headline>\s*<Text>[\s\S]*?<\/Text>/, `<Headline><Text>${"山".repeat(256)}</Text>`)
+    .replace(/(<VolcanoInfo type="噴火警報・予報（対象市町村等）">[\s\S]*?<Areas[^>]*>)[\s\S]*?(<\/Areas>)/, `$1${areas}$2`), F.a306);
 }
 
 // 実 byte が 131,072 ちょうどで、予約を足すと超える pending（受理と同じ式）。
