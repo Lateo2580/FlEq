@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "27153df0d84e0c470a4949b0e7768377304324a74645414b7e0bdbef75af80d1",
+    "sha256": "2d4ee4199f2a1d9cb7da9dc324d815d094a71c752f2017e9f308e8de31308d4a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
@@ -217,7 +217,7 @@
         "id": "P3-CODEC-AC01",
         "requirement": "F08の開始stateをclean cloneで再現する: 45_03_01_200731_VFVO50（Code 11→13）の警報、43_01_01_200522_VFVO52の噴火、66_01_02_210514_VFVO54の降灰、45_01_01_200522_VFVO50のintentをseedにする。idx(i)=4桁ゼロ埋め、identity火山コード=「9」12字＋idx(i)、EventID=「E」60字＋idx(i)。各sliceとshortfallsを128件、operation=training、ReportRefはinputId「i」64字、ReportDateTime「2020-05-22T15:00:00.00000000000000+09:00」、Serial「1234567890」、origin=live。bounded fieldはU+0001で上限まで埋め、警報のmunicipalitiesは8群・計128 code、marineAreasは4群・計32 code、噴火municipalitiesは128 code、降灰は8群×topAreas 3件。area codeは最初のn件のみバックスラッシュ16字、残りは数字12字＋idx(j)（短いkind/ash codeは8字）。pendingは実byte＋deliveryGrowthで131,072、終端は98,304の範囲までseed intentを複製して埋める。警報の先頭1件をseedの疎なactive recordに戻し（subject・operation・volcanoCode・eventId・source・retainUntilは充填後の値、marineSourceはnull）、n=109にすると実envelope 4,190,183 byte・decode=restored。同じ45_01_01_200522_VFVO50のCode 306→先頭火山コード、EventID 306→先頭EventID、ReportDateTime→15:00:01、Status 通常→訓練、Headline→「山」256字、市町村128件のName→「山」32字・Code→バックスラッシュ12字＋idx(j)にした1報では従来4,194,365 byte・自己decode invalid。5 MiBへ改訂後はこの1報を通常どおりchangedで受け、encode→JSON→decodeがrestoredかつ保存fieldが同値であることを検収する。旧4 MiB以下の開始stateは移行なしで復元できる。固有byte値は旧挙動の再現観測値であり、追加の切捨て・byte退去は行わない。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:356 «b317eb0856322bf1»",
+          "reconstruction/contracts/p3-order-plan.md:356 «65a518be48a17c28»",
           "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
           "reconstruction/contracts/p3-volcano-unit.json:1052 «ad57318196433981»"
         ]

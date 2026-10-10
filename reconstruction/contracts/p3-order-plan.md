@@ -349,11 +349,11 @@ coverage 下書きの「未確認」12 項目のうち、項目 9（priorityReas
 
 | 契約 | 対象 | 依存 | 状態 |
 |---|---|---|---|
-| K1 `P3-REVISION-ORDER-001` | F02、循環しない版比較（Q/N/V/L） | C11配送、K5後。K2より先 | 未起草・未発注 |
+| K1 `P3-REVISION-ORDER-001` | F02、循環しない版比較（Q/N/V/L） | C11配送、K5後。K2より先 | 起草（`p3-revision-order.json`、baseOid未割当。分岐はすべて裁定済み（2026-10-10、D-ORDER=A・D-MISSING=A・D-SCOPE=B））・未発注 |
 | K2 `P3-AUTHORITY-EVIDENCE-001` | F03/F07/F09、復元をまたぐ受理証拠（N/V/W） | K1後。新保存形の上界はK5で再検証 | 未起草・未発注 |
 | K3 `P3-FINAL-ADOPTION-001` | F05/F06/F12/F16、期限・撤回を反映した最終採用（Q/N/V、Lの試験） | K2後、K4より先 | 未起草・未発注 |
 | K4 `P3-OPERATION-CAPACITY-001` | F04/F10、操作別の退去適格性とnormal終了（T/V/L/R/W） | K3後、C11配送後 | 未起草・未発注 |
-| K5 `P3-CODEC-CLOSURE-001` | F08/F15、保存byteと派生通知の文字境界（V/N） | C11配送後の先頭。K1〜K4と同時編集しない | D-LIMIT=A（5 MiB）確定・未発注。Macの容量・時間計測を受入に追加、baseOidは発注前点検で割当 |
+| K5 `P3-CODEC-CLOSURE-001` | F08/F15、保存byteと派生通知の文字境界（V/N） | C11配送後の先頭。K1〜K4と同時編集しない | 配送 `22e6b875`（2026-10-10） |
 | K6 `P3-LIFETIME-AND-EEW-GATE-001` | F01/F11/F17＋F14裁定、寿命・再受理・同版訂正（E/F） | EEWの実データによる数値確定後。K5と並走可 | 起草（`p3-lifetime-and-eew-gate.json`、baseOid未割当、分岐はすべて裁定済み（2026-10-10、A））・未発注 |
 
 ### 横断不変条件 P3-X-C1〜C6
