@@ -318,8 +318,11 @@ describe("P3-C4-T10 regression / AC13(3)②: when and whether generationRaised i
   async function runtime(publish: () => void) {
     const directory = await disk.mkdtemp(join(tmpdir(), "fleq-c4-raised-at-"));
     const observed: Measured[] = [];
+    // K6（P3-LIFE-AC10）: 凍結した eewEnvelope（2024-04-17 の報）は変えず、壁時計をその報時刻から進める（Date.now() のままだと horizon 外で stale）。
+    const origin = performance.now();
+    const clock = () => ({ wallTimeMs: 1_713_363_299_001 + Math.floor(performance.now() - origin), monotonicMs: performance.now() });
     const h = harnessedRoot({ appName: "p2", legacyAppName: "v2", stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "legacy"),
-      diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, { notificationAdapter: manualAdapter().adapter, owners: { measured: true, inputHeap: false },
+      diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, { clock, notificationAdapter: manualAdapter().adapter, owners: { measured: true, inputHeap: false },
       measure: (observation: Measured) => { observed.push(observation); }, display: { publish } });
     return { h, observed, cleanup: async () => { await h.root.diagnostics.flush(); await disk.rm(directory, { recursive: true, force: true }); } };
   }

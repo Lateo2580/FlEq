@@ -251,7 +251,9 @@ describe("P2 EEW unit", () => {
     const afterRestart = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 16_001);
     expect(afterRestart.state.notificationLatches[0].deliveryEvidence).toBe("unknown");
     expect(receive(afterRestart.state, cancelled, BASE_TIME + 16_002).intents).toHaveLength(2);
-    const atBoundary = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 616_000);
+    // K6（P3-LIFE-AC10）: 報時刻を時計へ寄せる（23:15:10 のままだと horizon 外の新規 subject で stale になる）。取消（23:17:00）より前に置く。
+    const atBoundary = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) => xml
+      .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>2024-04-17T23:16:00+09:00</ReportDateTime>")), BASE_TIME + 616_000);
     expect(atBoundary.state.notificationLatches[0].deliveryEvidence).toBe("unattempted");
     expect(receive(atBoundary.state, cancelled, BASE_TIME + 616_001).intents).toEqual([]);
 
@@ -672,6 +674,9 @@ describe("P2 EEW unit", () => {
       decodeFixture("37_01_01_240613_VXSE43", family, (xml) => withOperation(xml, operation)
         .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(id).padStart(14, "0")}</EventID>`)
         .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${time}</ReportDateTime>`), `${operation}-${id}-${time}`);
+    // K6（P3-LIFE-AC10）: 報時刻が horizon（10 分）より古い報は時計を報時刻へ寄せて受ける（入力だけの変更）。
+    const receiveAtReport = (state: EewUnitState, input: DecodedMaterial) =>
+      receive(state, input, Math.min(BASE_TIME, Date.parse(input.reportDateTimeRaw)));
     const operations = ["normal", "training", "test"] as const;
     const mixed = Array.from({ length: 512 }, (_, index) => material(index + 1, operations[index % 3]));
     let matrix = 0;
@@ -750,7 +755,7 @@ describe("P2 EEW unit", () => {
       material(9104, "test", "2024-04-17T14:10:00Z"),
       material(9105, "test", "2024-04-17T14:10:00Z"),
     ];
-    let ordered = fixtures.reduce<EewUnitState>((state, input) => receive(state, input).state,
+    let ordered = fixtures.reduce<EewUnitState>((state, input) => receiveAtReport(state, input).state,
       { ...full, current: full.current.slice(0, 507), gates: full.gates.slice(0, 507) });
     const unknown = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => withOperation(xml, "training")
       .replace(/<EventID>[^<]*<\/EventID>/, "<EventID>00000000009101</EventID>")
@@ -758,7 +763,7 @@ describe("P2 EEW unit", () => {
       .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>2024-04-17T23:20:00+09:00</ReportDateTime>")
       .replace(/<(From|To)>[^<]*<\/(From|To)>/g, "<$1>不明</$1>"), "latest-z");
     ordered = receive(ordered, unknown).state;
-    const current9101 = receive(emptyState(), fixtures[0]).state.current[0];
+    const current9101 = receiveAtReport(emptyState(), fixtures[0]).state.current[0];
     ordered = { ...ordered,
       current: ordered.current.filter((item) => !item.subject.endsWith("09104")),
       gates: ordered.gates.filter((item) => !item.subject.endsWith("09102")),
@@ -766,7 +771,7 @@ describe("P2 EEW unit", () => {
     // Keep retained source ancient; independently make current source older than gate to prove gate precedence.
     ordered = { ...ordered, current: ordered.current.map((item) => item.subject === current9101.subject
       ? { ...item, source: current9101.source } : item) };
-    const otherFamily = receive(emptyState(), material(9200, "test", "2024-04-17T00:00:00Z", "VXSE45")).state;
+    const otherFamily = receiveAtReport(emptyState(), material(9200, "test", "2024-04-17T00:00:00Z", "VXSE45")).state;
     ordered = { ...ordered, current: [...ordered.current, ...otherFamily.current], gates: [...ordered.gates, ...otherFamily.gates] };
     const expected = [9102, 9104, 9105, 9103, 9101];
     for (const reverse of [false, true]) {
@@ -787,7 +792,7 @@ describe("P2 EEW unit", () => {
     expect(receive(ordered, invalid).state).toBe(ordered);
     expect(receive(ordered, invalid).diagnostics.every((item) => item.reason !== "eewCapacityEvicted")).toBe(true);
     // Inject an over-limit union: enough candidates must be established before any removal can commit.
-    const extra = fixtures.slice(0, 2).reduce((state, input) => receive(state, input).state, emptyState());
+    const extra = fixtures.slice(0, 2).reduce((state, input) => receiveAtReport(state, input).state, emptyState());
     const overfull = { ...normalState, current: [...normalState.current, ...extra.current], gates: [...normalState.gates, ...extra.gates] };
     const refused = receive(overfull, material(9400, "normal"));
     expect(refused.state).toBe(overfull);
@@ -799,9 +804,9 @@ describe("P2 EEW unit", () => {
     expect(repaired.diagnostics).toEqual([{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 2 }]);
 
     // Same operation/event has two family owners; only eviction of the last owner ends its latch.
-    let lifetime = receive({ ...full, current: full.current.slice(1), gates: full.gates.slice(1) },
+    let lifetime = receiveAtReport({ ...full, current: full.current.slice(1), gates: full.gates.slice(1) },
       material(9500, "training", "2024-04-17T00:00:00Z")).state;
-    lifetime = receive(lifetime, material(9500, "training", "2024-04-17T00:00:00Z", "VXSE45")).state;
+    lifetime = receiveAtReport(lifetime, material(9500, "training", "2024-04-17T00:00:00Z", "VXSE45")).state;
     const latch = lifetime.notificationLatches.find((item) => item.operation === "training" && item.eventId === "00000000009500");
     expect(latch).toMatchObject({ vxse45Accepted: true });
     lifetime = receive(lifetime, material(9501, "normal")).state;
@@ -809,8 +814,8 @@ describe("P2 EEW unit", () => {
     expect(lifetime.gates.some((item) => item.operation === "training" && item.subject === "training/VXSE45/00000000009500")).toBe(true);
     expect(lifetime.notificationLatches.find((item) => item.operation === "training" && item.eventId === "00000000009500")).toEqual(latch);
     for (let index = 1; index <= 511; index++)
-      lifetime = receive(lifetime, material(index, "normal", "2024-04-17T14:00:00Z", "VXSE45")).state;
-    const lastOwner = receive(lifetime, material(9501, "normal", "2024-04-17T14:00:00Z", "VXSE45"));
+      lifetime = receiveAtReport(lifetime, material(index, "normal", "2024-04-17T14:00:00Z", "VXSE45")).state;
+    const lastOwner = receiveAtReport(lifetime, material(9501, "normal", "2024-04-17T14:00:00Z", "VXSE45"));
     expect(lastOwner.diagnostics).toContainEqual({ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 });
     expect(lastOwner.state.gates.some((item) => item.operation === "training" && item.subject.endsWith("/00000000009500"))).toBe(false);
     expect(lastOwner.state.notificationLatches.some((item) => item.operation === "training" && item.eventId === "00000000009500")).toBe(false);
@@ -1351,6 +1356,8 @@ describe("P2 EEW unit", () => {
     const pending = pendingIntent();
     const state = { ...receive(emptyState(), first).state, intents: [pending] };
     const expected = { wallTimeMs: pending.expiresAt, monotonicMs: null };
+    // K6（P3-LIFE-AC01・AC10）: current と gate が残る state の nextDeadline は null でなく current の期限（報の起点＋10 分）。
+    const currentDeadline = { wallTimeMs: Date.parse(first.reportDateTimeRaw) + 600_000, monotonicMs: null };
     expect(receive(state, first).nextDeadline).toEqual(expected);
     expect(receive(state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml.replace("<Serial>1</Serial>", "<Serial/>"))).nextDeadline).toEqual(expected);
     const newer = { ...receive(state, second).state, intents: [pending] };
@@ -1377,12 +1384,12 @@ describe("P2 EEW unit", () => {
     expect(delivered.nextDeadline).toEqual(expected);
     const reclaimed = reduceEewUnit(delivered.state, { kind: "deadline", clock: clock(pending.expiresAt, 125) });
     expect(reclaimed.state.deliveryRecords).toEqual([]);
-    expect(reclaimed.nextDeadline).toBeNull();
+    expect(reclaimed.nextDeadline).toEqual(currentDeadline);
     expect(reclaimed.state.persistence.currentGeneration).toBe(4);
     for (const age of [14_999, 15_000, 15_001]) {
       for (const monotonic of [0, Number.MAX_SAFE_INTEGER]) {
         const tick = reduceEewUnit(state, { kind: "deadline", clock: clock(BASE_TIME + age, monotonic) });
-        expect(tick.nextDeadline).toEqual(age < 15_000 ? expected : null);
+        expect(tick.nextDeadline).toEqual(age < 15_000 ? expected : currentDeadline);
         expect(tick.state.intents).toHaveLength(age < 15_000 ? 1 : 0);
         if (age >= 15_000) expect(tick.diagnostics).toContainEqual({ level: "INFO", component: "eew",
           reason: "notificationExpired", unit: "U-E", count: 1 });
@@ -1396,16 +1403,151 @@ describe("P2 EEW unit", () => {
           ? xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>") : xml);
         expect(receive(state, end, BASE_TIME + age).nextDeadline)
           .toEqual(age < 15_000 ? expected : terminal
-            ? { wallTimeMs: BASE_TIME + age + 15_000, monotonicMs: null } : null);
+            ? { wallTimeMs: BASE_TIME + age + 15_000, monotonicMs: null } : { wallTimeMs: BASE_TIME + age + 86_400_000, monotonicMs: null });
       }
       const result = reduceEewUnit(state, { kind: "intentUpdate", intentUpdate: selection, clock: clock(BASE_TIME + age) });
-      expect(result.nextDeadline).toEqual(age < 15_000 ? expected : null);
+      expect(result.nextDeadline).toEqual(age < 15_000 ? expected : currentDeadline);
       expect(reduceEewUnit(state, { kind: "shutdown", clock: clock(BASE_TIME + age) }).nextDeadline)
-        .toEqual(age < 15_000 ? expected : null);
+        .toEqual(age < 15_000 ? expected : currentDeadline);
     }
     const later = pendingIntent("normal/VXSE43/20240417231455", BASE_TIME + 1_000);
     expect(reduceEewUnit({ ...state, intents: [later, pending] }, { kind: "deadline", clock: clock(pending.expiresAt) }).nextDeadline)
       .toEqual({ wallTimeMs: later.expiresAt, monotonicMs: null });
     expect(receive(emptyState(), first).nextDeadline).toEqual(expected);
+  });
+});
+
+describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version correction", () => {
+  const FINAL = "77_01_30_260101_VXSE45_FINAL";
+  const at = (iso: string) => Date.parse(iso);
+  const withReport = (eventId: string, reportDateTime: string) => (xml: string) => xml
+    .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`)
+    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${reportDateTime}</ReportDateTime>`);
+  const deadline = (state: EewUnitState, wallTimeMs: number) => reduceEewUnit(state, { kind: "deadline", clock: clock(wallTimeMs) });
+
+  it("P3-LIFE-T01 regression / AC01,AC02 (F01): 512 final reports reclaim their gates at retainUntil instead of blocking the family forever", () => {
+    const start = at("2026-01-01T10:00:00+09:00");
+    let filled = receive(emptyState(), decodeFixture(FINAL, "VXSE45", withReport("20260101000000", new Date(start).toISOString()), "f01-0"), start);
+    for (let i = 1; i < 512; i++) filled = receive(filled.state, decodeFixture(FINAL, "VXSE45",
+      withReport(String(20260101000000 + i), new Date(start + i * 30_000).toISOString()), `f01-${i}`), start + i * 30_000);
+    const lastTtl = at("2026-01-01T14:15:45+09:00");
+    expect([filled.state.gates.length, filled.state.current.length, filled.state.intents.map((item) => item.channel)])
+      .toEqual([512, 0, ["desktop", "sound"]]);
+    expect(filled.nextDeadline?.wallTimeMs).toBe(lastTtl);
+    const quiet = deadline(filled.state, lastTtl);
+    const firstRetain = at("2026-01-02T10:00:00+09:00");
+    expect([quiet.state.intents.length, quiet.nextDeadline?.wallTimeMs]).toEqual([0, firstRetain]);
+    const state = quiet.state;
+    const fresh = (wallTimeMs: number) => decodeFixture(FINAL, "VXSE45",
+      withReport("20260102000000", new Date(wallTimeMs).toISOString()), `f01-new-${wallTimeMs}`);
+    // horizon の判定は容量より先なので、報時刻を時計へ寄せて容量に届かせる。
+    expect(receive(state, fresh(firstRetain - 1), firstRetain - 1).decisions[0].decision).toBe("capacityExceeded");
+    const reclaimed = deadline(state, firstRetain);
+    expect(reclaimed.state.gates).toHaveLength(511);
+    expect([reclaimed.decisions, reclaimed.outcomes]).toEqual([[], []]);
+    const admitted = receive(reclaimed.state, fresh(firstRetain), firstRetain);
+    expect(admitted.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
+    const later = deadline(admitted.state, start + 90 * 86_400_000);
+    expect([later.state.gates.length, later.state.current.length, later.nextDeadline]).toEqual([0, 0, null]);
+  });
+
+  it("P3-LIFE-T02 contractBoundary / AC01,AC03,AC08: expiry, horizon, late cancellation, no extension, future skew and gate reclaim", () => {
+    const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
+    const report = Date.parse(first.reportDateTimeRaw);
+    // (1) current は起点＋600,000 ちょうどで失効する。取消ではないので intent・保存世代を作らない。
+    const adopted = deadline(receive(emptyState(), first, report).state, report + 15_000).state;
+    const kept = deadline(adopted, report + 599_999);
+    expect([kept.state, kept.decisions, kept.outcomes]).toEqual([adopted, [], []]);
+    const expired = deadline(adopted, report + 600_000);
+    expect(expired.state.current).toEqual([]);
+    expect(expired.state.gates[0]).toMatchObject({ currentUntil: null, retainUntil: report + 86_400_000 });
+    expect(expired.displayChanges).toMatchObject([{ unit: "U-E", after: null, before: { current: adopted.current[0] } }]);
+    expect(expired.decisions).toEqual([{ subject: adopted.current[0].subject, operation: "normal", decision: "changed",
+      reason: null, change: "semantic", currentEstablished: null }]);
+    expect(expired.outcomes).toMatchObject([{ kind: "deadlineApplied", subjects: [{ transition: "expired" }] }]);
+    expect([expired.intents, expired.state.intents, expired.state.persistence]).toEqual([[], [], adopted.persistence]);
+    expect(expired.nextDeadline).toEqual({ wallTimeMs: report + 86_400_000, monotonicMs: null });
+
+    // (2) 新規 subject の horizon: 599,999 ms は採用、600,000 ms は stale と診断 1 件。
+    for (const [age, decision] of [[599_999, "changed"], [600_000, "unchanged"]] as const) {
+      const step = receive(emptyState(), first, report + age);
+      expect(step.decisions[0].decision).toBe(decision);
+      expect(step.diagnostics).toEqual(decision === "changed" ? []
+        : [{ level: "WARN", component: "eew", reason: "eewHorizonStale", inputId: first.inputId, unit: "U-E" }]);
+      if (decision === "unchanged") expect([step.decisions[0], step.intents, step.outcomes]).toEqual([
+        { subject: "normal/VXSE43/20240417231454", operation: "normal", decision: "unchanged", reason: "stale" }, [], []]);
+    }
+
+    // (3) 既知 subject: horizon 外の取消は採用（旧 pending の superseded・取消通知・診断なし）、horizon 外の続報は stale（診断なし）。
+    const live = receive(emptyState(), first, report + 595_000);
+    const attempted = reduceEewUnit(live.state, { kind: "intentUpdate", clock: clock(report + 595_000),
+      intentUpdate: { id: live.intents[0].id, attempts: 1, nextAttemptAt: report + 595_000, disposition: "pending" } }).state;
+    const lateCancel = decodeFixture("37_01_03_240613_VXSE43", "VXSE43", (xml) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/,
+      `<ReportDateTime>${new Date(report + 1_000).toISOString()}</ReportDateTime>`), "late-cancel");
+    const cancelled = receive(attempted, lateCancel, report + 601_000);
+    expect(cancelled.decisions[0]).toMatchObject({ decision: "changed" });
+    expect([cancelled.state.current, cancelled.diagnostics]).toEqual([[], []]);
+    expect(cancelled.intents.map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
+    expect(cancelled.state.deliveryRecords.filter((item) => item.disposition === "superseded").map((item) => item.intentId))
+      .toEqual(live.intents.map((item) => item.id));
+    const lateFollowup = receive(live.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), Date.parse("2024-04-17T23:15:10+09:00") + 600_000);
+    expect([lateFollowup.state, lateFollowup.decisions[0], lateFollowup.diagnostics]).toEqual([live.state,
+      { subject: "normal/VXSE43/20240417231454", operation: "normal", decision: "unchanged", reason: "stale" }, []]);
+
+    // (4) duplicate は期限を延ばさない。1 時間未来の報は受信時刻起点の期限になる。
+    expect(receive(adopted, first, report + 300_000).state).toBe(adopted);
+    const future = receive(emptyState(), first, report - 3_600_000);
+    expect(future.state.gates[0]).toMatchObject({ currentUntil: report - 3_000_000, retainUntil: report - 3_600_000 + 86_400_000 });
+
+    // (5) gate の期限回収は decision・outcome を出さず、delivered 証拠の latch を解き evidenceUnknownUntil を延ばす。
+    const sent = receive(emptyState(), first, report);
+    const delivered = reduceEewUnit(sent.state, { kind: "intentUpdate", clock: clock(report), intentUpdate: sent.intents.map((item) => ({
+      id: item.id, attempts: 1, nextAttemptAt: report, disposition: "delivered" as const })) });
+    const withoutCurrent = deadline(delivered.state, report + 600_000).state;
+    const gone = deadline(withoutCurrent, report + 86_400_000);
+    expect([gone.state.gates, gone.state.notificationLatches, gone.decisions, gone.outcomes]).toEqual([[], [], [], []]);
+    expect(gone.state.evidenceUnknownUntil).toBe(report + 86_400_000 + 600_000);
+    // restore 由来の preexisting latch は、gate の期限回収で配送の証拠だけを残した初期値へ戻る（落とさず、延長もしない）。
+    const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(delivered.state), clock: clock(report + 1_000) });
+    const reowned = receive(restored.state, first, report + 2_000);
+    expect(reowned.state.notificationLatches[0]).toMatchObject({ preexisting: true, firstReportNotified: true, deliveryEvidence: "possible" });
+    const reset = deadline(reowned.state, report + 86_400_000);
+    expect(reset.state.gates).toEqual([]);
+    expect(reset.state.notificationLatches).toEqual([{ operation: "normal", eventId: "20240417231454", firstReportNotified: false,
+      warningNotified: false, vxse45Accepted: false, deliveryEvidence: "possible", preexisting: true, notifiedMaximumRank: -1, notifiedWarningAreas: 0n }]);
+    expect(reset.state.evidenceUnknownUntil).toBe(report + 601_000);
+  });
+
+  it("P3-LIFE-T03 regression / AC04 (F17): a same-version correction after the final report replaces the pending notice without reviving current", () => {
+    const report = Date.parse("2026-01-01T12:00:30+09:00");
+    // 1 つ目の ForecastInt は最大予測震度、2 つ目は区域の値。
+    const correction = (intensity: string, warning = false, area = intensity) => decodeFixture(FINAL, "VXSE45", (xml) => {
+      let position = 0;
+      const corrected = xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")
+        .replace(/<From>4<\/From><To>4<\/To>/g, () => {
+          const value = position++ === 0 ? intensity : area;
+          return `<From>${value}</From><To>${value}</To>`;
+        });
+      return warning ? corrected.replace("<Headline><Text>テスト地域で地震</Text></Headline>",
+        "<Headline><Text>テスト地域で地震</Text><Information type=\"緊急地震速報（府県予報区）\"><Item><Kind><Name>緊急地震速報（警報）</Name>"
+        + "<Code>31</Code></Kind><Areas codeType=\"緊急地震速報／府県予報区\"><Area><Name>テスト県</Name><Code>9999</Code></Area></Areas></Item></Information></Headline>")
+        : corrected;
+    }, `f17-${intensity}-${warning}-${area}`);
+    const three = receive(emptyState(), correction("3"), report);
+    const seven = receive(three.state, correction("7"), report);
+    expect(seven.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
+    expect([seven.state.current, seven.state.gates.length]).toEqual([[], 1]);
+    expect(seven.state.intents.map((item) => [item.channel, item.payload.body])).toEqual([
+      ["desktop", "訂正: テスト震源 / M5.0 / 最大予測震度7"], ["sound", "訂正: テスト震源 / M5.0 / 最大予測震度7"]]);
+    expect(seven.state.deliveryRecords).toEqual(three.intents.map((item) => ({ intentId: item.id, disposition: "superseded", expiresAt: item.expiresAt })));
+    expect(receive(seven.state, correction("7"), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+    expect(receive(seven.state, correction("7", true), report).decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
+    // 最大予測震度と warningClass を変えず区域の値だけを訂正した版も差として採用し、旧 pending を差し替える（P3-LIFE-D-F17KEY=A）。
+    const regional = receive(seven.state, correction("7", false, "6+"), report);
+    expect(regional.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
+    expect(regional.state.current).toEqual([]);
+    expect(regional.state.intents.map((item) => item.payload.body)).toEqual(["訂正: テスト震源 / M5.0 / 最大予測震度7", "訂正: テスト震源 / M5.0 / 最大予測震度7"]);
+    expect(regional.state.deliveryRecords.slice(2)).toEqual(seven.intents.map((item) => ({ intentId: item.id, disposition: "superseded", expiresAt: item.expiresAt })));
+    expect(receive(regional.state, correction("7", false, "6+"), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
   });
 });

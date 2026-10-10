@@ -44,6 +44,10 @@ function dirty(persistence: PersistenceStatus, monotonicMs: number): Persistence
     dirtySince: persistence.dirtySince ?? monotonicMs };
   return persistence.kind === "saved" ? { ...progress, kind: "pending" } : progress;
 }
+// P3-LIFE-RET-02: receive・容量の unavailable・decode が使う唯一の式。有効期間の後に 7 日を足さない（P3-LIFE-D-FORECAST=A）。
+function retainUntil(reportDateTimeMs: number, validUntil: number | null): number {
+  return Math.max(reportDateTimeMs + RETAIN, validUntil ?? -Infinity);
+}
 function subjectDeadline(subjects: WeatherTimeseriesUnitState["subjects"]): number {
   let at = subjectDeadlineCache.get(subjects);
   if (at == null) {
@@ -83,12 +87,17 @@ function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotoni
   const retained: WeatherTimeseriesSubject[] = [];
   let removed = false;
   // A8-COST: a cached subject deadline still ahead means no subject expires; skip the subject scan.
+  // P3-LIFE-AC05: validUntil と retainUntil が一致するときは validUntil の失効を回収より先に出す。
+  // retainUntil が先に過ぎた回収は従来どおり結果を出さない（P2-A8-T06）。
   if (subjectDeadline(state.subjects) <= wallTimeMs) for (const item of state.subjects) {
-    if (item.retainUntil <= wallTimeMs) { removed = true; change(item, null); continue; }
-    if (item.validUntil != null && item.validUntil <= wallTimeMs) {
-      const next = { ...item, ...EMPTY, effective: "noActiveItems" as const, validUntil: null };
-      change(item, next); expired.push(next); retained.push(next);
-    } else retained.push(item);
+    let kept = item;
+    if (item.validUntil != null && item.validUntil <= wallTimeMs
+      && (item.retainUntil > wallTimeMs || item.validUntil === item.retainUntil)) {
+      kept = { ...item, ...EMPTY, effective: "noActiveItems" as const, validUntil: null };
+      change(item, kept); expired.push(kept);
+    }
+    if (item.retainUntil <= wallTimeMs) { removed = true; change(kept, null); continue; }
+    retained.push(kept);
   }
   const expiredIntents = state.intents.filter((item) => item.expiresAt <= wallTimeMs);
   if (!removed && expired.length === 0 && expiredIntents.length === 0)
@@ -178,7 +187,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     effective: candidate.cancelled ? "cancelled" : snapshot.periods.length === 0 ? "noActiveItems" : "active",
     unavailableReason: null, lastKnown: null, affectedScope: "subject",
     validUntil: snapshot.periods.length === 0 ? null : candidate.validUntil,
-    retainUntil: candidate.reportDateTimeMs + RETAIN };
+    retainUntil: retainUntil(candidate.reportDateTimeMs, snapshot.periods.length === 0 ? null : candidate.validUntil) };
   const evidence = { family: "VPWP50", reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
   const change = previous != null && previous.effective === normal.effective && previous.validUntil === normal.validUntil
     && previous.periods.length === normal.periods.length && previous.periods.every((row, index) =>
@@ -207,8 +216,9 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
         : { strings: previous.strings, attributes: previous.attributes, values: previous.values,
           series: previous.series, areas: previous.areas, locals: previous.locals, kinds: previous.kinds,
           periods: previous.periods };
+    // 無いと normal の retainUntil（長い validUntil）を引き継ぎ、decode が拒否する保存物ができる（P3-LIFE-T04）。
     adopted = { ...normal, ...EMPTY, effective: "unavailable", unavailableReason: "capacityExceeded",
-      validUntil: null, lastKnown };
+      validUntil: null, retainUntil: retainUntil(candidate.reportDateTimeMs, null), lastKnown };
     proposed = replace(proposed, adopted, changed);
     established = null;
     if (!fits(proposed, generation, input.clock.wallTimeMs)) {
@@ -331,7 +341,9 @@ function subjectRow(value: unknown): value is WeatherTimeseriesSubject {
     && (reportRef(item.source) && source?.subject === item.subject && source.operation === item.operation
       || item.source === null && item.effective === "unavailable" && item.unavailableReason === "coverageIncomplete")
     && item.subject.startsWith(`${item.operation}/VPWP50/`) && item.subject.length > `${item.operation}/VPWP50/`.length
-    && (source === null || item.retainUntil === Date.parse(String(source.reportDateTimeRaw)) + RETAIN)
+    // P3-LIFE-AC06: 旧式（報時刻＋7 日）の保存物もそのまま読み、新式へ引き上げない。
+    && (source === null || item.retainUntil === Date.parse(String(source.reportDateTimeRaw)) + RETAIN
+      || item.retainUntil === retainUntil(Date.parse(String(source.reportDateTimeRaw)), item.validUntil))
     && (item.effective !== "unavailable" || item.unavailableReason != null
       && Array.isArray(item.periods) && item.periods.length === 0);
 }

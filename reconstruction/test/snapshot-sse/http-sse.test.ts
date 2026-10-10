@@ -12,7 +12,7 @@ import type { WeatherTimeseriesSubject } from "../../contracts/p2-weather-timese
 import { startDisplayServer } from "../../src/http-sse/http-sse";
 import { toWeatherTimeseriesView } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
-import { allSubjects, decode, eewReport, projected, projectionInput, received, startup, step } from "./projection-fixture";
+import { allSubjects, atTime, decode, eewReport, projected, projectionInput, received, startup, step } from "./projection-fixture";
 import type { Step } from "./projection-fixture";
 
 const at = 1780650000000;
@@ -234,7 +234,9 @@ describe("P2-A8-T05 / AC07 and P2-A8-T06 / AC13 on the HTTP side", () => {
       onMarker: (marker, version) => markers.push({ ...marker, version }) });
     servers.push(server);
     const first = projected(projectSnapshot(projectionInput(started, at), null));
-    const adopted = await step(started.state, received("run", eewReport("20240417231454"), clock));
+    // K6（P3-LIFE-AC10）: 報時刻を試験の時計（at）へ寄せる。2024 年の報のままだと horizon 外で stale になる。
+    const adopted = await step(started.state, received("run", eewReport("20240417231454", "normal", "37_01_01_240613_VXSE43",
+      (xml) => atTime(xml, "2026-06-05T18:00:00+09:00")), clock));
     const result = projected(projectSnapshot(projectionInput(adopted, at), first.state));
     server.publish(result.snapshot);
     const client = await open(server.port);

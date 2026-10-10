@@ -423,7 +423,10 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
         });
         const received = { wallTimeMs: Date.now(), monotonicMs: performance.now() };
         // T0 at receive, T1 at enqueue (the host's measured clock).
-        const input = { ...envelope("t12", "VXSE43", "offset", fixture("37_01_01_240613_VXSE43"), received, 1),
+        // K6（P3-LIFE-AC10）: 報時刻を注入した時計へ寄せる。2024 年の報のままだと horizon 外で stale になり U-E が変わらない。
+        const current = Buffer.from(fixture("37_01_01_240613_VXSE43").toString("utf8").replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/,
+          `<ReportDateTime>${new Date(injected().wallTimeMs).toISOString()}</ReportDateTime>`));
+        const input = { ...envelope("t12", "VXSE43", "offset", current, received, 1),
           enqueuedMonotonicMs: performance.now() };
         // The input saves at once (P3-UWR-AC03); its reply waits so the dirty time below is read first (AC10(7)).
         const saving = h.hold((_place, reply) => reply.kind === "checkpointDone");

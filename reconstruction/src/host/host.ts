@@ -48,7 +48,7 @@ type P2HostConfig = Readonly<({ wsUrl: string; dmdata?: never } | { dmdata: Dmda
 
 // How one connection attempt ended; the retry interval follows from it (P3-C2-RETRY).
 type Attempt = "opened" | "retrySoon" | "retryLater" | "authRejected" | "stopped";
-type ControlHead = { type?: unknown; pingId?: unknown; socketId?: unknown; classifications?: unknown; close?: unknown };
+type ControlHead = { type?: unknown; pingId?: unknown; socketId?: unknown; classifications?: unknown; close?: unknown; time?: unknown };
 
 function toBuffer(raw: RawData): Buffer {
   return Buffer.isBuffer(raw) ? raw : Array.isArray(raw) ? Buffer.concat(raw) : Buffer.from(raw);
@@ -264,7 +264,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
         if (typeof head.pingId === "string") ws.send(JSON.stringify({ type: "pong", pingId: head.pingId }), () => {});
         return;
       }
-      if (head?.type === "start" && acceptStart(head, t0)) return;
+      if (head?.type === "start" && acceptStart(head, t0)) { checkClock(head.time, entry.wallTimeMs); return; }
       if (head?.type === "pong") return;
       if (head?.type === "error") {
         note("WARN", "dmdataErrorFrame");
@@ -305,6 +305,16 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     if (config.observe != null) ingressJsonMs.set(inputId, ingressed.ingressJsonMs);
     emit({ kind: "marker", point: "T1", runId, inputId, monotonicMs: t1 });
     if (stopping == null) root.pump();
+  }
+
+  // P3-LIFE-AC13: start ごとに host の時計と dmdata start.time（ISO 8601）のずれを診断に出すだけ。受信・判定・接続は止めず、時刻も補正しない。
+  // 60 秒は D-SKEW の起点の詰めが効き始める目安、300 秒は horizon（600 秒）の半分。
+  function checkClock(time: unknown, wallTimeMs: number): void {
+    const shaped = typeof time === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(time);
+    const serverMs = shaped ? Date.parse(time) : NaN;
+    if (!Number.isFinite(serverMs)) { note("WARN", "hostClockUnverified"); return; }
+    const skew = wallTimeMs - serverMs;
+    if (Math.abs(skew) >= 60_000) note(Math.abs(skew) >= 300_000 ? "ERROR" : "WARN", skew > 0 ? "hostClockAhead" : "hostClockBehind");
   }
 
   // spec §10.1 / P3-C2-AC02: list, release the own previous socket, check capacity, start. A failure leaves the WS closed.

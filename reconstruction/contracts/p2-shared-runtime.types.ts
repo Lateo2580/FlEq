@@ -267,7 +267,7 @@ export type InfrastructureDiagnosticReason =
   | "ownerStopped";
 
 export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
-  | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted"
+  | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted" | "eewHorizonStale" | "hostClockAhead" | "hostClockBehind" | "hostClockUnverified"
   // P3-TSUNAMI-UNIT-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-T capacity eviction.
   | "tsunamiRevisionConflict" | "tsunamiCapacityEvicted"
   // P3-UNIT-Q-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-Q capacity eviction.

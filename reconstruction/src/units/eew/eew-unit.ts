@@ -10,7 +10,8 @@ import type {
   EewUnitView,
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
-import { deliveryRecordEvent, dirty, emptyNotificationLatch, nextEewDeadline, notificationArrayBytes, reduceEew as reduceEewCore } from "../../domains/eew/eew";
+import { deliveryRecordEvent, dirty, emptyNotificationLatch, expiredOutcome, nextEewDeadline, notificationArrayBytes,
+  reclaimEewLifetime, reduceEew as reduceEewCore } from "../../domains/eew/eew";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
@@ -209,15 +210,21 @@ function reduceCore(state: EewUnitState, input: EewInput,
   else if (input.kind === "intentUpdate") step = intentUpdate(state, input);
   else {
     const applied = expire(state, input.clock);
-    const subjects = applied.expired.map((item) => subject(item, "expired"));
+    // P3-LIFE-AC01: current・gate の期限は deadline 入力でだけ回収する（shutdown では延長も回収もしない）。
+    const lifetime = input.kind === "deadline" ? reclaimEewLifetime(applied.state, input.clock.wallTimeMs, changed)
+      : { state: applied.state, expired: [] };
+    const subjects = [...applied.expired.map((item) => subject(item, "expired")), ...lifetime.expired.map(expiredOutcome)];
     step = {
-      state: applied.state, nextDeadline: nextEewDeadline(applied.state), decisions: applied.expired.map((item) => ({
+      state: lifetime.state, nextDeadline: nextEewDeadline(lifetime.state), decisions: [...applied.expired.map((item) => ({
         subject: item.subject, operation: item.operation, decision: "changed" as const,
         reason: null, change: "deliveryOnly" as const, currentEstablished: null,
-      })),
+      })), ...lifetime.expired.map((item) => ({
+        subject: item.subject, operation: item.operation, decision: "changed" as const,
+        reason: null, change: "semantic" as const, currentEstablished: null,
+      }))],
       intents: [],
       outcomes: input.kind === "deadline"
-        ? applied.expired.length === 0 ? [] : [{ kind: "deadlineApplied", subjects }]
+        ? subjects.length === 0 ? [] : [{ kind: "deadlineApplied", subjects }]
         : [{ kind: "batchCompleted", reason: "shutdown", subjects }],
       diagnostics: applied.expired.length === 0 ? [] : [{ level: "INFO", component: "eew",
         reason: "notificationExpired", unit: "U-E", count: applied.expired.length }],

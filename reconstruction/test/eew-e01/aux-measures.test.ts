@@ -272,7 +272,8 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
       if (decoded.kind !== "decoded") throw new Error("decode failed");
       return decoded.material;
     };
-    const at = Date.parse("2024-06-13T12:00:00Z");
+    // K6（P3-LIFE-AC10・D-HARNESS=A）: 時計を充填の報時刻（23:14:57・23:14:59）へ寄せる。2024-06-13 の時計では充填が horizon 外で stale になる。
+    const at = Date.parse("2024-04-17T23:15:00+09:00");
     let monotonicMs = 0;
     let state = initialUnits["U-E"];
     const receive = (xml: string, headType: string, wallTimeMs: number) => {

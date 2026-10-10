@@ -86,6 +86,9 @@ const clock = () => {
   return { wallTimeMs: EEW_AT + Math.trunc(monotonicMs - base), monotonicMs };
 };
 
+// K6（P3-LIFE-AC13）: 既存の start の mock は host の時計と同じ time を持つ（無いと接続ごとに hostClockUnverified が出る）。
+const startTime = () => new Date(clock().wallTimeMs).toISOString();
+
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
   hook.probeGate = null;
@@ -206,7 +209,7 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
     releaseProbe();
     await until(() => stream.snapshots.some((item) => item.channels.sound !== "checking" && item.channels.desktop !== "checking"));
     const [ws] = server.sockets;
-    ws.send(JSON.stringify({ type: "start", socketId: 1, classifications: ["eew.forecast"] }));
+    ws.send(JSON.stringify({ type: "start", socketId: 1, classifications: ["eew.forecast"], time: startTime() }));
     ws.send(JSON.stringify({ type: "ping", pingId: "ping-7" }));
     ws.send(JSON.stringify({ type: "surprise" }));
     await until(() => server.received.length === 1);
@@ -427,7 +430,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     await until(() => server.sockets.length === 1);
     expect(server.sockets[0].protocol).toBe("dmdata.v2");
     // dmdata granted eew.forecast only: eew.warning is narrowed away.
-    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.forecast"] }));
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.forecast"], time: startTime() }));
     expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataSubscriptionNarrowed"), "WARN");
     expect((await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason === "dmdataSocketStarted"))
       .toEqual([expect.objectContaining({ level: "INFO", count: 41 })]);
@@ -652,7 +655,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     const host = await startP2Host({ dmdata, ...dirs, displayPort: 0, clock, observe: (o) => { observations.push(o); } });
     cleanups.push(() => host.stop().then(() => {}, () => {}));
     await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
-    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 71, classifications: ["eew.forecast", "eew.warning"] }));
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 71, classifications: ["eew.forecast", "eew.warning"], time: startTime() }));
     server.sockets[0].send(dataFrame("VXSE43", vxse43));
     await until(async () => (await snapshot(host.displayPort)).current.eew.items.length > 0);
     // An error frame (close flag recorded), a failed DELETE of the listed own socket, then an uncertain start.
@@ -808,11 +811,11 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     await pause(1_300);
     const lost = await snapshot(host.displayPort);
     expect(lost.connection.state).toBe("reconnecting");
-    server.sockets[1].send(JSON.stringify({ type: "start", socketId: "41", classifications: ["eew.forecast"] }));
+    server.sockets[1].send(JSON.stringify({ type: "start", socketId: "41", classifications: ["eew.forecast"], time: startTime() }));
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("unknown-control"));
     await pause(1_300);
     expect((await snapshot(host.displayPort)).connection.state).toBe("reconnecting");
-    server.sockets[1].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.forecast"] }));
+    server.sockets[1].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.forecast"], time: startTime() }));
     await until(async () => (await snapshot(host.displayPort)).connection.state === "connected", 2_000);
     const back = await snapshot(host.displayPort);
     expect(back.recovery).toEqual(lost.recovery);
@@ -1001,5 +1004,40 @@ describe("P3-C4-T11 contractBoundary / AC13(4): the ownerHeap rows (P3-C4-OWNER-
     expect(owners.workerData.map((data) => JSON.stringify(data).includes('"inputHeap":true'))).toEqual([false, false, false]);
     expect(owners.workerData.map((data) => JSON.stringify(data).includes('"measured":false'))).toEqual([true, true, true]);
     await host.stop();
+  });
+});
+
+describe("P3-LIFETIME-AND-EEW-GATE-001 start clock check (AC13)", () => {
+  it("P3-LIFE-T05 contractBoundary / AC13: 59/60/299/300 s each way grade the skew once per start; a start without time is WARN hostClockUnverified and still connects", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    // wall は固定値にする（performance.now で進むと遅れ側の skew が送ってから受けるまでの分だけ縮み、60 秒・300 秒ちょうどが下の段に落ちる）。
+    const fixed = () => ({ wallTimeMs: EEW_AT, monotonicMs: performance.now() });
+    const host = await startP2Host({ wsUrl: server.url, ...dirs, displayPort: 0, clock: fixed, observe: null });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    await until(() => server.sockets.length === 1);
+    const [ws] = server.sockets;
+    const lines = async (prefix: string) => (await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason.startsWith(prefix));
+    const expected: { level: string; reason: string }[] = [];
+    let socketId = 0;
+    // 各段の行が書き出されるのを待ってから次を送る（待たないと同じ診断が sink の count にまとまる）。
+    const send = async (time: string | undefined) => {
+      ws.send(JSON.stringify({ type: "start", socketId: ++socketId, classifications: ["eew.forecast"], ...(time == null ? {} : { time }) }));
+      await until(async () => (await lines("dmdataSocketStarted")).length === socketId && (await lines("hostClock")).length === expected.length);
+    };
+    for (const [offsetMs, level] of [[59_000, null], [60_000, "WARN"], [299_000, "WARN"], [300_000, "ERROR"]] as const)
+      for (const direction of [1, -1]) {
+        if (level != null) expected.push({ level, reason: direction > 0 ? "hostClockAhead" : "hostClockBehind" });
+        await send(new Date(EEW_AT - direction * offsetMs).toISOString());
+      }
+    expected.push({ level: "WARN", reason: "hostClockUnverified" });
+    await send(undefined);
+    expect((await snapshot(host.displayPort)).connection.state).toBe("connected");
+    ws.send(dataFrame("VXSE43", vxse43));
+    await until(async () => (await snapshot(host.displayPort)).current.eew.items.length > 0);
+    await host.stop();
+    const clockLines = await lines("hostClock");
+    expect(clockLines.map(({ level, reason }) => ({ level, reason }))).toEqual(expected);
+    for (const line of clockLines) expectBare(line, line.level === "ERROR" ? "ERROR" : "WARN");
   });
 });

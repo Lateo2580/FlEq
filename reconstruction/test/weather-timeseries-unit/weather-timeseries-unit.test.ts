@@ -782,3 +782,48 @@ describe("P2-A6 weather timeseries", () => {
     expect(headless.diagnostics).toMatchObject([{ reason: "headMissing", unit: "U-F" }]);
   });
 });
+
+describe("P3-LIFETIME-AND-EEW-GATE-001 U-F retention", () => {
+  it("P3-LIFE-T04 regression / AC05,AC06 (F11): a P10D active outlives ReportDateTime + 7 days and is reclaimed with its expiry", () => {
+    const tenDays = (xml: string) => xml.replace(/<Duration>[^<]*<\/Duration>/g, "<Duration>P10D</Duration>");
+    const material = fixture("81_09_01_260605_VPWP50", tenDays);
+    const report = Date.parse(material.reportDateTimeRaw);
+    const week = 7 * 86_400_000;
+    const deadline = (state: WeatherTimeseriesUnitState, wallTimeMs: number) =>
+      reduceWeatherTimeseriesUnit(state, { kind: "deadline", clock: clock(wallTimeMs) });
+    const roundTrip = (state: WeatherTimeseriesUnitState) =>
+      weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify(weatherTimeseriesUnitCodec.encode(state))));
+    const adopted = receive(empty(), material, report).state;
+    const validUntil = first(adopted).validUntil!;
+    expect(validUntil).toBeGreaterThan(report + week);
+    expect(first(adopted)).toMatchObject({ effective: "active", retainUntil: validUntil });
+    const afterWeek = deadline(adopted, report + week).state;
+    const beforeEnd = deadline(afterWeek, validUntil - 1).state;
+    for (const state of [adopted, afterWeek, beforeEnd]) {
+      expect([state.subjects.map((item) => item.effective), state.gates.length]).toEqual([["active"], 1]);
+      expect(roundTrip(state).kind).toBe("restored");
+    }
+    const ended = deadline(beforeEnd, validUntil);
+    expect(ended.decisions).toEqual([{ subject: first(adopted).subject, operation: "normal", decision: "changed",
+      reason: null, change: "semantic", currentEstablished: null }]);
+    expect(ended.outcomes).toMatchObject([{ kind: "deadlineApplied", subjects: [{ transition: "noActiveItems" }] }]);
+    expect([ended.state.subjects, ended.state.gates, roundTrip(ended.state).kind]).toEqual([[], [], "restored"]);
+
+    // 旧式（報時刻＋7 日）で保存した subject は新式へ引き上げずに読む。
+    const legacy = { ...weatherTimeseriesUnitCodec.encode(adopted) };
+    const restored = weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify({ ...legacy,
+      subjects: legacy.subjects.map((item) => ({ ...item, retainUntil: report + week })) })));
+    expect(restored.kind === "restored" ? restored.state.subjects[0].retainUntil : null).toBe(report + week);
+
+    // 容量で unavailable として採用した P10D の報は報時刻＋7 日に置き直す（normal の retainUntil を引き継ぐと decode が拒否する）。
+    const seed = receive(empty(), fixture(unknown)).state;
+    const blockerItem = { ...first(seed), subject: "normal/VPWP50/blocker", source: { ...first(seed).source!, subject: "normal/VPWP50/blocker" } };
+    const blocker = inflated({ ...seed, subjects: [blockerItem],
+      gates: [{ subject: blockerItem.subject, operation: "normal", source: blockerItem.source! }] }, 33_554_432 - 1_000);
+    // 時計は blocker の validUntil より前（DATE）。報時刻より後の時計だと blocker が先に失効して容量が空く。
+    const pressed = receive(blocker, material).state;
+    const unavailable = pressed.subjects.find((item) => item.subject === first(adopted).subject);
+    expect(unavailable).toMatchObject({ effective: "unavailable", validUntil: null, retainUntil: report + week });
+    expect(roundTrip(pressed).kind).toBe("restored");
+  });
+});

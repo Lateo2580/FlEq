@@ -57,6 +57,13 @@ export type EewGate = Readonly<{
   terminal: boolean;
   source: ReportRef;
   noticeSource: Readonly<{ hypocenter: string | null; magnitude: string | null; isAssumedHypocenter: boolean }>;
+  // P3-LIFETIME-AND-EEW-GATE-001: 非保存。無いと current/gate の期限を nextDeadline に出せず F01 が残る。
+  // この版の current の期限（current を作らなかった版・失効後は null、P3-LIFE-SEM-01）。
+  currentUntil: number | null;
+  // gate の期限（最後に採用した版の起点＋24 時間、P3-LIFE-RET-01）。
+  retainUntil: number;
+  // [予測全体, warningClass] の JSON の sha256（取消は null）。current の無い同版訂正を見分ける（P3-LIFE-D-F17KEY）。
+  predictionKey: string | null;
 }>;
 
 export type EewDeliveryRecord = Readonly<{

@@ -165,9 +165,11 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     const run = (state: RuntimeState, input: Input): Promise<Step> => step(state, input);
     let state = begin.state;
     // RES-07: U-E 512 per family, U-W 3 national + 128 partial, U-F 512 subjects (built by the real reducers).
+    // K6（P3-LIFE-AC10）: EEW の報時刻を試験の時計（at）へ寄せる。2024 年の報のままだと horizon 外で stale になる。
+    const now = (xml: string) => atTime(xml, "2026-06-05T18:00:00+09:00");
     for (let index = 0; index < 512; index++) {
-      state = (await run(state, received("run", eewReport(String(20240417000000 + index)), clock))).state;
-      state = (await run(state, received("run", eewReport(String(20240417000000 + index), "normal", "77_01_01_240613_VXSE45"), clock))).state;
+      state = (await run(state, received("run", eewReport(String(20240417000000 + index), "normal", "37_01_01_240613_VXSE43", now), clock))).state;
+      state = (await run(state, received("run", eewReport(String(20240417000000 + index), "normal", "77_01_01_240613_VXSE45", now), clock))).state;
     }
     for (const operation of ["通常", "訓練", "試験"])
       state = (await run(state, received("run", decode("15_18_01_250630_VPWS50", "VPWS50",
@@ -193,7 +195,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
 
     const scenarios: Readonly<Record<string, (index: number) => Input>> = {
       eew: (index) => received("run", eewReport("20240417000000", "normal", "37_01_01_240613_VXSE43", (xml) =>
-        atTime(xml, new Date(Date.parse("2024-04-17T23:14:59+09:00") + (index + 1) * 1000).toISOString())
+        atTime(xml, new Date(Date.parse("2026-06-05T18:00:00+09:00") + (index + 1) * 1000).toISOString())
           .replace("<Serial>1</Serial>", `<Serial>${index + 2}</Serial>`)), clock),
       metadata: (index) => ({ kind: "connectionLost", acceptedThroughSequence: index, clock }),
       weather: (index) => received("run", decode("15_16_02_251222_VPWW57", "VPWW57", (xml) => atTime(office(xml, "官署0"),

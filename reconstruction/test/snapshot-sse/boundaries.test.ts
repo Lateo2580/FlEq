@@ -18,6 +18,10 @@ import type { Step } from "./projection-fixture";
 
 const at = 1780650000000;
 const clock = { wallTimeMs: at, monotonicMs: 1 };
+// K6（P3-LIFE-AC10）: EEW の報時刻を試験の時計（at）へ寄せる。2024 年の報のままだと horizon 外で stale になる。
+const eewNow = (eventId: string, operation: Operation = "normal", file = "37_01_01_240613_VXSE43",
+  transform: (xml: string) => string = (xml) => xml) =>
+  eewReport(eventId, operation, file, (xml) => transform(atTime(xml, "2026-06-05T18:00:00+09:00")));
 const LIMIT = 8_640_000_000_000_000;
 const MAX = Number.MAX_SAFE_INTEGER;
 let started: Step, base: RuntimeState, wakkanai: WeatherTimeseriesSubject;
@@ -137,7 +141,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
   it.each([63, 64, 65])("P2-A8-T07: %i new normal EEW notices keep at most 64 and report the excess", async (count) => {
     const previous = first();
     const value = await combine(started.state, Array.from({ length: count }, (_, index) =>
-      received("run", eewReport(String(20240417000000 + index)), clock)));
+      received("run", eewNow(String(20240417000000 + index)), clock)));
     const result = projected(projectSnapshot(projectionInput(value, at), previous));
     expect(result.snapshot.notices).toHaveLength(Math.min(count, 64));
     expect(result.diagnostics).toEqual(count > 64 ? [{ level: "WARN", component: "view-projector",
@@ -148,8 +152,8 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     const adopted = await step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
     const previous = projected(projectSnapshot(projectionInput(adopted, at), first())).state;
     const value = await combine(adopted.state, [
-      ...Array.from({ length: 3 }, (_, index) => received("run", eewReport(String(20240418000000 + index), "training"), clock)),
-      ...Array.from({ length: 64 }, (_, index) => received("run", eewReport(String(20240417000000 + index)), clock))]);
+      ...Array.from({ length: 3 }, (_, index) => received("run", eewNow(String(20240418000000 + index), "training"), clock)),
+      ...Array.from({ length: 64 }, (_, index) => received("run", eewNow(String(20240417000000 + index)), clock))]);
     const { change, outcome } = unavailableChange(adopted.state, "京都地方気象台");
     const result = projected(projectSnapshot(projectionInput({ ...value, outcomes: [...value.outcomes, outcome],
       displayChanges: [...value.displayChanges, change] }, at), previous));
@@ -170,9 +174,9 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
 
   it("P2-A8-T07 / PUBLICATION (b): rejected steps keep internal deltas and notices; recovery publishes N+1 without double counting", async () => {
     const published = projected(projectSnapshot(projectionInput(started, at), null));
-    const one = await combine(started.state, [received("run", eewReport("20240417000001"), clock)]);
+    const one = await combine(started.state, [received("run", eewNow("20240417000001"), clock)]);
     const counts = { ...one.admissionCounts, "U-W": { normal: 2, training: 0, test: 0 } };
-    const two = await combine(one.state, [received("run", eewReport("20240417000002"), clock)]);
+    const two = await combine(one.state, [received("run", eewNow("20240417000002"), clock)]);
     let state = published.state;
     for (const value of [one, two]) {
       const rejected = projectSnapshot(projectionInput({ ...value, admissionCounts: counts }, at, { generatedAt: "x".repeat(257) }), state);
@@ -183,9 +187,9 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     const pending = state.notices;
     expect(pending.map((item) => [item.kind, item.expiresAt])).toEqual([["eewNew", at + 15_000], ["eewNew", at + 15_000]]);
     // The recovery delta also updates an existing subject (before != null), not only additions.
-    const three = await combine(two.state, [received("run", eewReport("20240417000003", "test"), clock),
-      received("run", eewReport("20240417000001", "normal", "37_01_01_240613_VXSE43", (xml) =>
-        atTime(xml, "2024-04-17T23:15:09+09:00").replace("<Serial>1</Serial>", "<Serial>2</Serial>")), clock)]);
+    const three = await combine(two.state, [received("run", eewNow("20240417000003", "test"), clock),
+      received("run", eewNow("20240417000001", "normal", "37_01_01_240613_VXSE43", (xml) =>
+        atTime(xml, "2026-06-05T18:00:10+09:00").replace("<Serial>1</Serial>", "<Serial>2</Serial>")), clock)]);
     expect(three.displayChanges.filter((item) => item.before != null && item.after != null)).toHaveLength(1);
     const recovered = projected(projectSnapshot(projectionInput({ ...three, admissionCounts: counts }, at + 1000), state));
     expect(recovered.snapshot.sequence).toBe(published.snapshot.sequence + 1);
@@ -212,7 +216,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
   it.each([["U-E", 15_000], ["U-F", 60_000]] as const)("P2-A8-T07: %s TTL %i accepts both Date-range edges and rejects one past", async (unit, ttl) => {
     const generate = async (nowMs: number, previous: SnapshotProjectionState) => {
       if (unit === "U-E") {
-        const value = await combine(base, [received("run", eewReport("20240417000009"), clock)]);
+        const value = await combine(base, [received("run", eewNow("20240417000009"), clock)]);
         return projectSnapshot(projectionInput(value, nowMs), previous);
       }
       const { change, outcome } = timeseriesUnavailable();
@@ -237,9 +241,9 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
 
   it.each([LIMIT + 1, -LIMIT - 1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])("P2-A8-T07: nowMs %s is snapshotClockInvalid", async (nowMs) => {
     const published = projected(projectSnapshot(projectionInput(started, at), null));
-    const one = await combine(started.state, [received("run", eewReport("20240417000001"), clock)]);
+    const one = await combine(started.state, [received("run", eewNow("20240417000001"), clock)]);
     const withNotice = projected(projectSnapshot(projectionInput(one, at), published.state));
-    const value = await combine(one.state, [received("run", eewReport("20240417000002"), clock)]);
+    const value = await combine(one.state, [received("run", eewNow("20240417000002"), clock)]);
     const rejected = projectSnapshot(projectionInput(value, nowMs), withNotice.state);
     expect(rejected).toMatchObject({ kind: "rejected", reason: "snapshotClockInvalid", diagnostics: [] });
     expect(rejected.state.snapshot).toBe(withNotice.snapshot);

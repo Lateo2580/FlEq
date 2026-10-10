@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import type {
@@ -92,7 +93,7 @@ function first(parent: XmlElement, name: string): XmlElement | null {
   return elements(parent, name)[0] ?? null;
 }
 
-function diagnostic(material: DecodedMaterial, reason: RejectionReason): DiagnosticDetails {
+function diagnostic(material: DecodedMaterial, reason: DiagnosticDetails["reason"]): DiagnosticDetails {
   return { level: "WARN", component: "eew", reason, inputId: material.inputId, unit: "U-E" };
 }
 
@@ -267,10 +268,82 @@ function isAssumedHypocenter(earthquake: XmlElement | null, forecast: XmlElement
     && depthKm === 10 && (Number.parseInt(reason ?? "", 10) === 9 || plum);
 }
 
+// P3-LIFE-SEM-01・RET-01・SEM-02: 起点 base＝min(ReportDateTime, 受信時刻) からの current・gate の期限と新規 subject の horizon。
+const CURRENT_MS = 600_000;
+const GATE_MS = 86_400_000;
+const HORIZON_MS = 600_000;
+
+// gates 配列（不変）ごとの期限の最小。無いと記録の整理の後や期限回収の後に nextDeadline を出し直すたびに全 gate を読み直し、
+// 受信・期限処理 1 回で gates の線形 1 回を超える（P3-LIFE-RES-01）。
+const gateDeadlineCache = new WeakMap<EewUnitState["gates"], number>();
+function gateDeadline(gates: EewUnitState["gates"]): number {
+  let at = gateDeadlineCache.get(gates);
+  if (at == null) {
+    at = Infinity;
+    for (const gate of gates) at = Math.min(at, gate.currentUntil ?? Infinity, gate.retainUntil);
+    gateDeadlineCache.set(gates, at);
+  }
+  return at;
+}
+
 function nextEewDeadline(state: EewUnitState): RuntimeUnitDeadline | null {
-  const pending = [...state.intents.filter((item) => item.disposition === "pending"), ...state.deliveryRecords];
-  return pending.length === 0 ? null
-    : { wallTimeMs: Math.min(...pending.map((item) => item.expiresAt)), monotonicMs: null };
+  let wallTimeMs = Infinity;
+  for (const item of state.intents) if (item.disposition === "pending") wallTimeMs = Math.min(wallTimeMs, item.expiresAt);
+  for (const item of state.deliveryRecords) wallTimeMs = Math.min(wallTimeMs, item.expiresAt);
+  // current/gate が残る限り null にしない（P3-LIFE-AC01）。currentUntil は retainUntil より前なので両方を見る。
+  wallTimeMs = Math.min(wallTimeMs, gateDeadline(state.gates));
+  return wallTimeMs === Infinity ? null : { wallTimeMs, monotonicMs: null };
+}
+
+// 最後の owner（current/gate）を失った latch の解除。容量退去と gate の期限回収で共有する（Q-NOTICE.latchRules.lifetime、P3-LIFE-AC01）。
+function releaseOrphanLatches(latches: readonly EewNotificationLatch[], owners: ReadonlySet<string>,
+  wallTimeMs: number, evidenceUnknownUntil: number): Readonly<{ latches: EewNotificationLatch[]; evidenceUnknownUntil: number }> {
+  let until = evidenceUnknownUntil;
+  const kept = latches.flatMap((item) => {
+    if (owners.has(`${item.operation}/VXSE43/${item.eventId}`) || owners.has(`${item.operation}/VXSE45/${item.eventId}`)) return [item];
+    if (!item.preexisting && item.deliveryEvidence !== "unattempted") until = Math.max(until, wallTimeMs + 600_000);
+    return item.preexisting ? [{ ...emptyNotificationLatch, operation: item.operation,
+      eventId: item.eventId, deliveryEvidence: item.deliveryEvidence }] : [];
+  });
+  return { latches: kept, evidenceUnknownUntil: until };
+}
+
+// P3-LIFE-AC01: deadline 入力での current・gate の期限回収（期限ちょうどで失効）。失効は取消ではないので取消の表示・通知を作らない。
+// current・gate は非保存なので、ここでは保存世代を進めない。
+function reclaimEewLifetime(state: EewUnitState, wallTimeMs: number,
+  changed: (before: EewCurrent | null, after: EewCurrent | null) => void): Readonly<{ state: EewUnitState; expired: readonly EewCurrent[] }> {
+  // 既知の最小がまだ先なら走査しない。走査するときは判定と残る gate の最小を同じ 1 回で求める。
+  if ((gateDeadlineCache.get(state.gates) ?? -Infinity) > wallTimeMs) return { state, expired: [] };
+  const ending = new Set<string>();
+  let gateRemoved = false;
+  let next = Infinity;
+  const gates = state.gates.flatMap((gate) => {
+    const { currentUntil, retainUntil } = gate;
+    const currentEnds = currentUntil != null && currentUntil <= wallTimeMs;
+    if (currentEnds) ending.add(gate.subject);
+    if (retainUntil <= wallTimeMs) { gateRemoved = true; return []; }
+    next = Math.min(next, currentEnds ? Infinity : currentUntil ?? Infinity, retainUntil);
+    return currentEnds ? [{ ...gate, currentUntil: null }] : [gate];
+  });
+  if (ending.size === 0 && !gateRemoved) { gateDeadlineCache.set(state.gates, next); return { state, expired: [] }; }
+  gateDeadlineCache.set(gates, next);
+  const expired = state.current.filter((item) => ending.has(item.subject));
+  expired.forEach((item) => changed(item, null));
+  const current = expired.length === 0 ? state.current : state.current.filter((item) => !ending.has(item.subject));
+  if (!gateRemoved) return { state: { ...state, current, gates }, expired };
+  const released = releaseOrphanLatches(state.notificationLatches, new Set([...current, ...gates].map((item) => item.subject)),
+    wallTimeMs, state.evidenceUnknownUntil ?? 0);
+  return { state: { ...state, current, gates, notificationLatches: released.latches,
+    evidenceUnknownUntil: released.evidenceUnknownUntil }, expired };
+}
+
+function expiredOutcome(current: EewCurrent): SubjectOutcome {
+  return {
+    subject: current.subject, operation: current.operation, informationType: current.source.infoTypeRaw,
+    transition: "expired", severity: null, source: current.source,
+    facts: { family: current.family, serial: current.serial, eventId: current.eventId, warningClass: current.warningClass },
+    changedFields: ["current"],
+  };
 }
 
 function dirty(persistence: PersistenceStatus, nowMs: number): PersistenceStatus {
@@ -327,6 +400,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       return Number.parseInt(code == null ? "" : scalar(code) ?? "", 10) === 31;
     });
   const warning = candidate.family === "VXSE43" || warningAreas.length > 0 || headlineWarning;
+  const warningClass = warning ? "warning" as const : "forecast" as const;
   const gate = state.gates.find((item) => item.subject === candidate.subject);
   const previous = state.current.find((item) => item.subject === candidate.subject);
   if (gate != null && candidate.serial < gate.serial) return {
@@ -338,11 +412,14 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     ? hasKnownPrediction(previous.prediction)
       ? { prediction: previous.prediction, source: previous.source } : previous.retainedPrediction
     : null;
-  const predictionChanged = previous == null ? !candidate.terminal
-    : !isDeepStrictEqual(previous.prediction, candidate.prediction);
+  // P3-LIFE-D-F17KEY: 今回報の予測の JSON 化はこの 1 回だけ。current の無い同版では gate の比較材料で予測と warningClass の差を見る。
+  const predictionKey = candidate.cancelled ? null
+    : createHash("sha256").update(JSON.stringify([candidate.prediction, warningClass])).digest("hex");
+  const predictionChanged = previous != null ? !isDeepStrictEqual(previous.prediction, candidate.prediction)
+    : gate != null && candidate.serial === gate.serial ? gate.predictionKey !== predictionKey : !candidate.terminal;
   const projected: EewCurrent | null = candidate.cancelled || candidate.terminal ? null : {
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
-    eventId, warningClass: warning ? "warning" : "forecast",
+    eventId, warningClass,
     source: candidate.source, serial: candidate.serial, terminal: false, prediction: candidate.prediction!, retainedPrediction,
     isAssumedHypocenter: assumed,
   };
@@ -356,13 +433,21 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     if (gate.terminal === candidate.terminal && gate.source.reportDateTimeRaw === candidate.source.reportDateTimeRaw
       && (gate.source.infoTypeRaw === candidate.source.infoTypeRaw
         || candidate.source.infoTypeRaw === "訂正" && assumed && gate.noticeSource.isAssumedHypocenter)
-      && !predictionChanged && (candidate.cancelled || candidate.terminal
-        || previous?.warningClass === (warning ? "warning" : "forecast"))
+      && !predictionChanged && (previous == null || candidate.cancelled || candidate.terminal
+        || previous.warningClass === warningClass)
       && isDeepStrictEqual(gate.noticeSource, noticeSource)) return {
       state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
         decision: "unchanged", reason: "duplicate" }], intents: [], outcomes: [], diagnostics: [],
     };
   }
+  // P3-LIFE-D-LATE=A・D-SKEW=A: horizon は duplicate・Serial の stale の後、容量の前。既知 subject の取消だけは horizon 外でも採用する。
+  const base = Math.min(Date.parse(candidate.source.reportDateTimeRaw), input.clock.wallTimeMs);
+  if (base + HORIZON_MS <= input.clock.wallTimeMs && (gate == null || !candidate.cancelled)) return {
+    state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
+      decision: "unchanged", reason: "stale" }], intents: [], outcomes: [],
+    // 無いと host の時計の進みで全 EEW が黙って捨てられる。既知 subject の遅れた版は時刻の逆転した異常データなので出さない。
+    diagnostics: gate == null ? [diagnostic(input.material, "eewHorizonStale")] : [],
+  };
 
   // Gate source wins; current-only subjects still consume the same family budget.
   const subjects = new Map<string, EewCurrent | EewGate>();
@@ -395,22 +480,17 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const nextGate: EewGate = {
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
     serial: candidate.serial, terminal: candidate.terminal, source: candidate.source, noticeSource,
+    currentUntil: projected == null ? null : base + CURRENT_MS, retainUntil: base + GATE_MS, predictionKey,
   };
   gates = [...gates, nextGate];
 
   const previousLatch = state.notificationLatches.find((item) => item.operation === candidate.operation && item.eventId === eventId);
   // A receive always retains its gate; only capacity eviction can remove a latch's last owner.
-  const owners = evicted.size === 0 ? null : new Set([...currents, ...gates].map((owner) => owner.subject));
-  let evidenceUnknownUntil = state.evidenceUnknownUntil ?? 0;
-  const retainedLatches = state.notificationLatches.flatMap((item) => {
-    if (item.operation === candidate.operation && item.eventId === eventId) return [];
-    if (owners == null || owners.has(`${item.operation}/VXSE43/${item.eventId}`)
-      || owners.has(`${item.operation}/VXSE45/${item.eventId}`)) return [item];
-    if (!item.preexisting && item.deliveryEvidence !== "unattempted")
-      evidenceUnknownUntil = Math.max(evidenceUnknownUntil, input.clock.wallTimeMs + 600_000);
-    return item.preexisting ? [{ ...emptyNotificationLatch, operation: item.operation,
-      eventId: item.eventId, deliveryEvidence: item.deliveryEvidence }] : [];
-  });
+  const otherLatches = state.notificationLatches.filter((item) => item.operation !== candidate.operation || item.eventId !== eventId);
+  const { latches: retainedLatches, evidenceUnknownUntil } = evicted.size === 0
+    ? { latches: otherLatches, evidenceUnknownUntil: state.evidenceUnknownUntil ?? 0 }
+    : releaseOrphanLatches(otherLatches, new Set([...currents, ...gates].map((owner) => owner.subject)),
+      input.clock.wallTimeMs, state.evidenceUnknownUntil ?? 0);
   let deliveryEvidence = previousLatch?.deliveryEvidence;
   const preexisting = previousLatch?.preexisting ?? false;
   if (deliveryEvidence == null) {
@@ -586,4 +666,4 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   };
 }
 
-export { reduceEew, nextEewDeadline, dirty, notificationArrayBytes, emptyNotificationLatch, deliveryRecordEvent };
+export { reduceEew, nextEewDeadline, reclaimEewLifetime, expiredOutcome, dirty, notificationArrayBytes, emptyNotificationLatch, deliveryRecordEvent };
