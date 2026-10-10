@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "47d30c3b484abfd98315946b237933f77fd40b27156a1a3958bb5090c482b341",
+    "sha256": "981da3fbb8e504451a93828a5e7f6481afd883d38c54ab772d6f6e9864d6ea0f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -51,6 +51,13 @@
         "status": "closed",
         "resolution": "起草時の試作（eew.tsの複製に退去の条件(a)〜(c)と区分の並びだけを入れ、vitestのaliasで差し替えた。作業ディレクトリの未追跡の場所で、成果物にしない）で、reconstructionのvitestは1件だけ落ちた（P3-LIFE-T01、eew-unit.test.ts:1444、capacityExceeded→changed）。AC02のB1・B4〜B7・B10とAC01の境界（599,999/600,000 ms、training/test先、training/testの受理、pendingの保護、未来時刻）を試作の試験8本で確かめた。",
         "source": "起草（2026-10-11）"
+      },
+      {
+        "id": "Q-EVICT-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-11、HEAD 1871540b）",
+        "closed": "(1) 分岐: D-AGE・D-DIAGは作者裁定A。起草案・仮置きのまま実装に効くものは0件。裁定前の条件の文言（「=Aの場合」、D-DIAG=Bのときの改訂、SEM-01の「裁定待ち」、objective・AC03の「承認を待つ」）を裁定後の形に直した (2) anchor: evidenceRefsの42件（異なる行は37）とcontractTypeRef、本文のfile:line（eew.ts:374・:509-510、owner-runtime.ts:439、eew-unit.test.ts:1444）を1871540bの行で読み、条文の主張と合うことを確かめた。起草の後のcommit（e7440188..1871540b）が変えたのは本契約・p3-measure-harness.json・計画の末尾の行だけで、anchorの行はずれていない (3) 実装の形: AC01(3)の2点（normalから2件以上が要るstateはcapacityExceeded、training/testの既存のsortは変えない）はAC01(4)・RES-02と一貫する。(b)は受信の前の期限の回収（owner-runtime.ts:439）でcurrentUntilがnullになり、(a)が成り立てばcurrentUntil≦報時刻＋600,000≦wallなので実行時は(a)(c)で決まる。AC07のT01の期待値（最古のEventID 20260101000000の退去、gate 512のまま）と、R14・eew-unit.test.ts:799の注入の試験が変わらないこと（normalのgateは時計との差が1 msで若く非終端）を試験の入力で読んで確かめた（vitestの実走は点検ではしていない） (4) 計画§9: P3-X-C5の「normal同士の既存順位」をU-Eで本契約が定める。パラメータ表のPersistence・Adoption / Outcome・Identity / Revision・Fidelityの行の扱いをAC08に足した。K4・K4Nのoperationの退去の規則（training/testの受理はnormalを退去しない）はAC05(4)・operationContractどおり保たれる (5) 横の衝突: P3-MEASURE-HARNESS-001のP3-MH-T01の最後の句と予備(a)は、付け直した充填（報時刻＝充填の開始の秒、frames.mjsのnearCapacityFrames）に対し、充填の開始＋600,000msの新しい通常のEventIDがcapacityExceededのままと書くが、本契約の後はchanged（最古のgateを退去）になる。cycleC（訓練の受理だけが退去）・E14の束（既存subjectの更新）・AC15（新しいEventIDを足さない）・E01の試行（充填を使わない）は変わらない。順はQ-EVICT-BASEで統合担当が決める",
+        "reason": "発注前点検の項目を閉じる。Q-EVICT-BASEはbaseOidの割当とMHとの順の決定を残す"
       }
     ],
     "operationContract": {
@@ -61,7 +68,7 @@
   "contract": {
     "contractId": "P3-EEW-GATE-EVICT-001",
     "mode": "implementation",
-    "objective": "K6の残存リスク(2)（24時間内に1 familyで512件を超えるnormalのEventIDで新しいEEWを受けない）を閉じる。U-Eのfamilyがnormalで満杯のとき、報時刻＋10分を過ぎcurrentもpendingも無いnormalのgateを最古順に退去して新しいnormalの報を受ける（作者裁定2026-10-11）。退去したEventIDの報が後から届く全経路で、古いEEWの復活・同じ報の二重通知を作らないことを条文で固定し、残る差（10分以上遅れた取消の通知、10分以上後の新しい版の通知）と、満杯の拒否が残る条件（10分に512件）を残存リスクとして承認を待つ。",
+    "objective": "K6の残存リスク(2)（24時間内に1 familyで512件を超えるnormalのEventIDで新しいEEWを受けない）を閉じる。U-Eのfamilyがnormalで満杯のとき、報時刻＋10分を過ぎcurrentもpendingも無いnormalのgateを最古順に退去して新しいnormalの報を受ける（作者裁定2026-10-11）。退去したEventIDの報が後から届く全経路で、古いEEWの復活・同じ報の二重通知を作らないことを条文で固定し、残る差（10分以上遅れた取消の通知、10分以上後の新しい版の通知）と、満杯の拒否が残る条件（10分に512件）を残存リスクとする（作者承認済み、Q-EVICT-DECIDE）。",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -112,7 +119,7 @@
       "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitState"
     ],
     "publicFunctions": [
-      "reduceEew・reduceEewUnit・toEewView・eewUnitCodecの公開形、EewGate・EewCurrent・EewUnitState・PersistedEewUnit・DiagnosticReasonの型は変えない（P3-EVICT-D-DIAG=Aの場合）。変わるのはreduceEewの容量の候補の条件と並びだけ"
+      "reduceEew・reduceEewUnit・toEewView・eewUnitCodecの公開形、EewGate・EewCurrent・EewUnitState・PersistedEewUnit・DiagnosticReasonの型は変えない（P3-EVICT-D-DIAG=A）。変わるのはreduceEewの容量の候補の条件と並びだけ"
     ],
     "allowedDependencies": [
       "既存の依存だけを使う。新しいnpm依存は足さない"
@@ -133,7 +140,7 @@
         "limit": 600000,
         "unit": "ms（最後に採用した版のReportDateTimeの生値起点。起点baseではない）",
         "rule": "Date.parse(gate.source.reportDateTimeRaw)＋600,000≦clock.wallTimeMsで適格（ちょうどで適格、1 ms前は不適格）。currentUntil＝nullと同じsubjectのintentが無いことも要る（AC01(2)）。retainUntil（24時間）とcurrentUntilの値は変えない",
-        "source": "P3-EVICT-D-AGE（推奨A、裁定待ち）"
+        "source": "P3-EVICT-D-AGE=A（作者裁定2026-10-11）"
       }
     ],
     "deliveryDeadlines": [],
@@ -176,7 +183,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-EVICT-AC01",
-        "requirement": "退去の規則（P3-EVICT-D-AGE=Aの場合）: (1) 対象はnormalの新規subjectの報で、P3-LIFE-AC03(1)の判定順（validateCandidate→recoveryの未適用→Serialのstale→同版のstale/duplicate→horizon→容量→採用）を通り、同じfamilyのsubjectが満杯（needed＞0）のとき。判定順は変えない。(2) 候補はまず従来どおり同じfamilyのtraining/testのsubject全部（P2-A4-RES-02）。その数がneededに足りないときに限り、normalのgateを候補に足す。候補はstate.gatesからfamily＝候補のfamily・operation＝normal・subject≠候補のsubjectで絞って取る（subjectsのMapはcurrentとgateが混ざるので使わない）。そのうち次の3つを全部満たすものだけ: (a) Date.parse(gate.source.reportDateTimeRaw)＋600,000≦clock.wallTimeMs（最後に採用した版の報時刻の生値。起点baseは使わない）、(b) gate.currentUntil＝null、(c) state.intentsにsubjectがgate.subjectと等しいintentが無い。取消・終端・非終端の版を(a)〜(c)だけで決めて区別しない。gateの無いcurrentだけのsubjectは候補にしない。(3) 並び: training/testを先、normalを後とし、それぞれの中は既存のRES-02の順（検証済みReportDateTimeの昇順、同時刻はoperation/subject/source.inputIdの文字列tuple）。neededは不変条件（familyのsubjectは512以下）で1以下なので、normalから採るのは1件以下。normalの候補はsortせず、RES-02の順の先頭1件を線形1回で選び、報時刻は(a)でparseした値を使う。normalから2件以上が要るstate（上限を超えて注入したもの）ではnormalを候補にせず従来どおりcapacityExceeded。training/testの候補の既存のsortは変えない。(4) 候補がneededに足りなければ従来どおりcapacityExceeded（同じstate参照、退去の診断なし、P2-A4-AC06）。(5) 退去と採用は既存の1回のstate交換で確定する（gateの除去、releaseOrphanLatchesのlatchの解除とevidenceUnknownUntilの延長、候補の採用）。退去するnormalのgateにはcurrentもintentも無いので、退去によるdisplayChanges・supersededの記録・保存世代の前進は0（候補の採用の分だけ出る）。decisionは候補のchanged/semantic（evicted.size≠0）で、currentEstablishedは候補の根拠。(6) 境界: 最古のgateの報時刻＋599,999 msの時計ではcapacityExceeded、＋600,000 msではchangedでそのgateだけを退去する。",
+        "requirement": "退去の規則（P3-EVICT-D-AGE=A）:(1) 対象はnormalの新規subjectの報で、P3-LIFE-AC03(1)の判定順（validateCandidate→recoveryの未適用→Serialのstale→同版のstale/duplicate→horizon→容量→採用）を通り、同じfamilyのsubjectが満杯（needed＞0）のとき。判定順は変えない。(2) 候補はまず従来どおり同じfamilyのtraining/testのsubject全部（P2-A4-RES-02）。その数がneededに足りないときに限り、normalのgateを候補に足す。候補はstate.gatesからfamily＝候補のfamily・operation＝normal・subject≠候補のsubjectで絞って取る（subjectsのMapはcurrentとgateが混ざるので使わない）。そのうち次の3つを全部満たすものだけ: (a) Date.parse(gate.source.reportDateTimeRaw)＋600,000≦clock.wallTimeMs（最後に採用した版の報時刻の生値。起点baseは使わない）、(b) gate.currentUntil＝null、(c) state.intentsにsubjectがgate.subjectと等しいintentが無い。取消・終端・非終端の版を(a)〜(c)だけで決めて区別しない。gateの無いcurrentだけのsubjectは候補にしない。(3) 並び: training/testを先、normalを後とし、それぞれの中は既存のRES-02の順（検証済みReportDateTimeの昇順、同時刻はoperation/subject/source.inputIdの文字列tuple）。neededは不変条件（familyのsubjectは512以下）で1以下なので、normalから採るのは1件以下。normalの候補はsortせず、RES-02の順の先頭1件を線形1回で選び、報時刻は(a)でparseした値を使う。normalから2件以上が要るstate（上限を超えて注入したもの）ではnormalを候補にせず従来どおりcapacityExceeded。training/testの候補の既存のsortは変えない。(4) 候補がneededに足りなければ従来どおりcapacityExceeded（同じstate参照、退去の診断なし、P2-A4-AC06）。(5) 退去と採用は既存の1回のstate交換で確定する（gateの除去、releaseOrphanLatchesのlatchの解除とevidenceUnknownUntilの延長、候補の採用）。退去するnormalのgateにはcurrentもintentも無いので、退去によるdisplayChanges・supersededの記録・保存世代の前進は0（候補の採用の分だけ出る）。decisionは候補のchanged/semantic（evicted.size≠0）で、currentEstablishedは候補の根拠。(6) 境界: 最古のgateの報時刻＋599,999 msの時計ではcapacityExceeded、＋600,000 msではchangedでそのgateだけを退去する。",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:456 «66224699b9d11746»",
           "reconstruction/src/domains/eew/eew.ts:457 «46d540529b5eb462»",
@@ -207,7 +214,7 @@
       },
       {
         "id": "P3-EVICT-AC03",
-        "requirement": "満杯の拒否が残る条件と数字: normalの新規EventIDがcapacityExceededになるのは、同じfamilyの512 subjectが全部normalで、どのgateも(a)〜(c)のどれかを欠くとき。currentは報時刻＋10分以内にしか無く（currentUntil＝base＋600,000≦報時刻＋600,000）、pendingは受理から15秒なので、実際には「同じfamilyで、最後に採用した版の報時刻が直近10分に入るnormalのEventIDが512件」で、毎分51.2件を10分続ける速さ。familyはVXSE43（警報）とVXSE45（地震動予報、予報の段階を含めて毎回出る）で別に数え、VXSE45が先に満ちる。巨大地震の1日のEEWの件数（2026-10-11、気象庁の資料と震源カタログからの推定）: 気象庁は予報を出した地震の数を日ごとには公表していない。月の公式値は2011年3月 1,191・2016年4月 228・2024年1月 376（気象庁 https://www.jma.go.jp/jma/press/2402/08a/2401eew.pdf の月別の表）。震源カタログから推定した最大の24時間は、東北2011で約230〜360（3/11 14:46から）、能登2024で約200。1つの揺れにEventIDが2つ付いた例がある（2023-05-05 21:58 能登半島沖 M5.9、2026-01-06 10:37 島根県東部。小さな地震のEventIDが大きな揺れを取り込んで警報が2本並んだ）。24時間の最大の推定（約230〜360）を全部10分に詰めても512に届かない（余裕は1.4倍以上）が、10分の窓の最大の件数は材料に無く、承認の基準α（実配信の10倍以上、10分に51件以下）を確かめていない。EventIDが2つ付く例は1つの揺れで2件を占めるが、観測は単発。この条件の拒否は残存リスク(1)として承認を待つ。K6の残存リスク(2)（24時間内に512件で拒否）は本契約で置き換える。",
+        "requirement": "満杯の拒否が残る条件と数字: normalの新規EventIDがcapacityExceededになるのは、同じfamilyの512 subjectが全部normalで、どのgateも(a)〜(c)のどれかを欠くとき。currentは報時刻＋10分以内にしか無く（currentUntil＝base＋600,000≦報時刻＋600,000）、pendingは受理から15秒なので、実際には「同じfamilyで、最後に採用した版の報時刻が直近10分に入るnormalのEventIDが512件」で、毎分51.2件を10分続ける速さ（hostの時計が遅れて報時刻が未来のgateは報時刻＋10分まで退去しないので、窓は遅れの分だけ長い。B10）。familyはVXSE43（警報）とVXSE45（地震動予報、予報の段階を含めて毎回出る）で別に数え、VXSE45が先に満ちる。巨大地震の1日のEEWの件数（2026-10-11、気象庁の資料と震源カタログからの推定）: 気象庁は予報を出した地震の数を日ごとには公表していない。月の公式値は2011年3月 1,191・2016年4月 228・2024年1月 376（気象庁 https://www.jma.go.jp/jma/press/2402/08a/2401eew.pdf の月別の表）。震源カタログから推定した最大の24時間は、東北2011で約230〜360（3/11 14:46から）、能登2024で約200。1つの揺れにEventIDが2つ付いた例がある（2023-05-05 21:58 能登半島沖 M5.9、2026-01-06 10:37 島根県東部。小さな地震のEventIDが大きな揺れを取り込んで警報が2本並んだ）。24時間の最大の推定（約230〜360）を全部10分に詰めても512に届かない（余裕は1.4倍以上）が、10分の窓の最大の件数は材料に無く、承認の基準α（実配信の10倍以上、10分に51件以下）を確かめていない。EventIDが2つ付く例は1つの揺れで2件を占めるが、観測は単発。この条件の拒否は残存リスク(1)（作者承認済み、Q-EVICT-DECIDE）。K6の残存リスク(2)（24時間内に512件で拒否）は本契約で置き換える。",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:483 «cb7d034da431db0a»",
           "reconstruction/src/domains/eew/eew.ts:456 «66224699b9d11746»",
@@ -217,7 +224,7 @@
       },
       {
         "id": "P3-EVICT-AC04",
-        "requirement": "診断・保存・型（P3-EVICT-D-DIAG=Aの場合）: 退去の診断は既存のINFO eewCapacityEvicted（unit \"U-E\"、count＝その受理で退去した件数）で、normalの退去も同じ1件に数える。新しいreason・field・型を足さない。capacityExceededの形（P2-A4-AC06の専用decision、reason/changeなし）とeewHorizonStaleの出し方（P3-LIFE-AC03(2)）は変えない。PersistedEewUnit・schemaVersion p2-eew-unit-v1・codecは変えず、保存の形が変わらないので旧データの移行と復元の試験の組は要らない（AC02 B8）。D-DIAG=Bと裁定された場合は、発注前にallowedPathsへp2-shared-runtime.types.tsとpersistent-diagnostic-sink.tsを足す改訂を行う。",
+        "requirement": "診断・保存・型（P3-EVICT-D-DIAG=A）:退去の診断は既存のINFO eewCapacityEvicted（unit \"U-E\"、count＝その受理で退去した件数）で、normalの退去も同じ1件に数える。新しいreason・field・型を足さない。capacityExceededの形（P2-A4-AC06の専用decision、reason/changeなし）とeewHorizonStaleの出し方（P3-LIFE-AC03(2)）は変えない。PersistedEewUnit・schemaVersion p2-eew-unit-v1・codecは変えず、保存の形が変わらないので旧データの移行と復元の試験の組は要らない（AC02 B8）。",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:661 «6e3a13e6daba7887»",
           "reconstruction/contracts/p2-eew-unit.json:434 «e855e595879c158a»",
@@ -247,7 +254,7 @@
       },
       {
         "id": "P3-EVICT-AC07",
-        "requirement": "既存試験の変更（変える前に差と理由を統合担当へ報告する）: 起草の試作でreconstructionのvitestは1件だけ落ちた。P3-LIFE-T01の最初のretainUntilの1 ms前の新しいEventIDは、512 gateが全部最終報で報時刻＋10分を過ぎ、currentもpendingも無いので、capacityExceededからchanged（最古のgate、EventID 20260101000000を退去、eewCapacityEvicted count 1、gate 512のまま）へ変わる。その行の期待値だけをこれに変え、T01の残り（retainUntilちょうどの回収、90日後の0件）は変えずに同じstateから続ける。P2-A4-T06-R14のnormalだけ512件への新規normalのcapacityExceededは、gateの報時刻と時計の差が1 msで若いので変わらない（試作で緑）。ここに挙げていない期待値の変更が要る試験が出たら、変えずに止めて差と理由を報告する（AGENTS.md）。vitestの外のchrome-eewのsmokeのS_CAPACITY（smoke.mjs）は報時刻から31秒の時計で513件を入れるので変わらない（読んで確かめた。実走はしていない）。",
+        "requirement": "既存試験の変更（変える前に差と理由を統合担当へ報告する）: 起草の試作でreconstructionのvitestは1件だけ落ちた。P3-LIFE-T01の最初のretainUntilの1 ms前の新しいEventIDは、512 gateが全部最終報で報時刻＋10分を過ぎ、currentもpendingも無いので、capacityExceededからchanged（最古のgate、EventID 20260101000000を退去、eewCapacityEvicted count 1、gate 512のまま）へ変わる。その行の期待値だけをこれに変え、T01の残り（retainUntilちょうどの回収、90日後の0件）は変えずに同じstateから続ける。P2-A4-T06-R14のnormalだけ512件への新規normalのcapacityExceededは、gateの報時刻と時計の差が1 msで若いので変わらない（試作で緑）。ここに挙げていない期待値の変更が要る試験が出たら、変えずに止めて差と理由を報告する（AGENTS.md）。vitestの外のchrome-eewのsmokeのS_CAPACITY（smoke.mjs）は報時刻から31秒の時計で513件を入れるので変わらない（読んで確かめた。実走はしていない）。P3-MEASURE-HARNESS-001（MH、1871540bでは未配送）のP3-MH-T01の最後の句「充填の開始＋600,000msのdeadlineの後、同じ時計の新しい通常のEventIDはcapacityExceeded」は本契約の後は成り立たない（付け直した充填のEEWの報時刻は全部充填の開始の秒で(a)を満たし、currentはそのdeadlineで回収され、intentは15秒で掃けるので、最古のgateを退去してchangedになる）。baseOidの時点でMHが配送済みならその1行も本契約の期待値の変更に含める（allowedPathsへMH-T01の試験ファイルを足す改訂はQ-EVICT-BASEで統合担当が行う）。未配送ならMH側の改訂として統合担当が送る（Q-EVICT-BASE）。",
         "evidenceRefs": [
           "reconstruction/test/eew-unit/eew-unit.test.ts:1444 «a74ce495d3c48095»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:672 «9c8d75df1c63772a»",
@@ -256,7 +263,7 @@
       },
       {
         "id": "P3-EVICT-AC08",
-        "requirement": "横断不変条件とパラメータ表: 本契約が満たすのはP3-X-C5のうちU-Eの「normal同士の超過」（K6・RES-02は「normalだけで満杯なら拒否」だった）。適格性: training/testの受理→training/testだけ、normalの受理→training/test全部の後にAC01(2)のnormalのgate。順位: 区分の後にRES-02の順。自己退去なし。消えるnewcomerのための退去は無い（候補の採用は退去の後に必ず成功する、既存の原子性）。パラメータ表のCapacity行（U-E）: 件数familyごと三区分合算512（変えない）、normal同士の超過はAC01の退去、拒否はAC03の条件。Lifetime行（U-E）の「容量忘却後の保証」: normalの退去は報時刻＋10分を過ぎたgateに限るので、報時刻がgateの版以下の旧報は退去の後もhorizonで捨てる。保証外はB3・B4・B6。Notification行: 退去は通知を作らず撤回もしない（pendingのあるgateは退去しない）。Acceptance行: P3-EVICT-T01・T02。P3-X-C1〜C4・C6は変えない。",
+        "requirement": "横断不変条件とパラメータ表: 本契約が満たすのはP3-X-C5のうちU-Eの「normal同士の超過」（K6・RES-02は「normalだけで満杯なら拒否」だった）。適格性: training/testの受理→training/testだけ、normalの受理→training/test全部の後にAC01(2)のnormalのgate。順位: 区分の後にRES-02の順。自己退去なし。消えるnewcomerのための退去は無い（候補の採用は退去の後に必ず成功する、既存の原子性）。パラメータ表のCapacity行（U-E）: 件数familyごと三区分合算512（変えない）、normal同士の超過はAC01の退去、拒否はAC03の条件。Lifetime行（U-E）の「容量忘却後の保証」: normalの退去は報時刻＋10分を過ぎたgateに限るので、報時刻がgateの版以下の旧報は退去の後もhorizonで捨てる。保証外はB3・B4・B6。Notification行: 退去は通知を作らず撤回もしない（pendingのあるgateは退去しない）。Acceptance行: P3-EVICT-T01・T02。Persistence行はAC04（保存の形・世代は変えない）、Adoption / Outcome行はAC01(5)（判定順は変えず、decisionは候補のchanged/semantic）。Identity / Revision行とFidelity行はK6のまま。P3-X-C1〜C4・C6は変えない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
           "reconstruction/contracts/p3-order-plan.md:379 «d7ffea3ecccbb72d»",
@@ -363,7 +370,7 @@
       "AC07の既存試験の期待値の変更（P3-LIFE-T01の1行）を、変える前の値・後の値・理由の表で報告する。",
       "AC02のB1〜B11の各経路について、正式試験で確かめたもの（T01・T02の行）と条文だけのもの（B2・B3・B8・B9・B11）を分けて報告する。",
       "本契約ファイルの実装時の編集権はevidenceRefのanchorと自己digestの同期だけに限り、受入条件・裁定値を実装後に変えない。",
-      "申し送り（K6のP3-LIFE-D-HARNESS=Aの後続に足す）: E01/C4の計測harnessの組み直しでは、本契約の後、報時刻が10分より古いnormalのEventIDで埋めたU-Eは新しいnormalのEventIDに対して満杯にならない（最古のgateを退去して受ける）。満杯の窓を測るなら充填の報時刻を窓の間ずっと10分以内に保つか、退去を期待する経路として数える。",
+      "申し送り（K6のP3-LIFE-D-HARNESS=Aの後続＝P3-MEASURE-HARNESS-001に足す。そのP3-MH-T01の最後の句と予備(a)の「新しい通常のEventIDがcapacityExceededのまま」は本契約の後は成り立たない、AC07・Q-EVICT-BASE）:E01/C4の計測harnessの組み直しでは、本契約の後、報時刻が10分より古いnormalのEventIDで埋めたU-Eは新しいnormalのEventIDに対して満杯にならない（最古のgateを退去して受ける）。満杯の窓を測るなら充填の報時刻を窓の間ずっと10分以内に保つか、退去を期待する経路として数える。",
       "残存リスク（作者承認 2026-10-11朝、ご主人、(1)〜(6)の全部。Q-EVICT-DECIDE）: (1) 同じfamilyで最後の版の報時刻が直近10分に入るnormalのEventIDが512件あると、新しいEEW（取消を含む）はcapacityExceeded（AC03。毎分51.2件を10分。24時間の推定の最大約230〜360を10分に詰めても届かないが、10分の窓の最大は材料に無く、基準αを確かめていない）。K6の残存リスク(2)を置き換える。(2) 退去したEventIDの取消が、取消の報時刻から10分以上遅れて届くと捨てられ、取消の通知が出ない（B4。表示は既に消えている。gateが残れば採用・通知していた）。(3) 退去したEventIDに最後の版から10分以上後の新しい報時刻の版が届くと、新規として採用し通知が1回増える（B6）。(4) 退去したEventIDに報時刻がhorizon内の取消が届くと、元の通知が一度も試されなかったeventでも取消の通知を出す（B5。gateが残ればdeliveryEvidence unattemptedで出さなかった。通知が多い向きで(3)と同類）。(5) Serialが小さく報時刻が新しい異常データは、退去の後に新規として採用されうる（B3）。(6) hostの時計が10分未満進んでいると、(2)(3)(4)の「10分」が実時間で短くなる（B11。P3-LIFE-AC13の診断で60秒以上は観測できる）。"
     ],
     "unresolvedQuestions": [
@@ -373,10 +380,12 @@
         "blocks": [
           "implementation"
         ],
-        "resolveBy": "裁定の後の発注前点検でbaseOidを割り当てる。D-DIAG=BならallowedPathsとpublicFunctionsを改訂してから割り当てる",
+        "resolveBy": "baseOidの割当（統合担当、発注前点検の後。点検は1871540bで行った、Q-EVICT-PRECHECK）",
         "requiredEvidence": [
           "git rev-parse HEADとgit status --porcelain",
-          "check-contract FAIL 0"
+          "check-contract FAIL 0",
+          "P3-MEASURE-HARNESS-001との順の決定（AC07）: MHが配送済みならP3-MH-T01の試験ファイルをallowedPathsへ足し、AC07にその1行の変更（capacityExceeded→changed、最古のgateを退去、eewCapacityEvicted count 1）を書く。未配送ならMHの契約のT01と予備(a)の改訂を統合担当が先に送る",
+          "割当の時点でanchor（eew.ts・eew-unit.ts・eew-unit.test.tsと、P2-EEW-UNIT・K6・K4N・計画の行）がずれていないかを確かめ、ずれたanchorを直す"
         ]
       }
     ]

@@ -398,4 +398,4 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 
 | 契約 | 対象 | 依存 | 状態 |
 |---|---|---|---|
-| K6R `P3-EEW-GATE-EVICT-001`（`p3-eew-gate-evict.json`） | K6 の残存リスク (2)（残存リスク一覧の型 C1）: U-E の family が normal で満杯のとき、報時刻＋10 分を過ぎ current と pending の無い normal の gate を最古順に退去して新しい normal の報を受ける（作者裁定 2026-10-11）。満杯の拒否は 10 分に 512 件を超えるときだけ残る | K6 | 起草（2026-10-11）。作者裁定 D-AGE=A・D-DIAG=A、残存リスク (1)〜(6) 承認（2026-10-11朝）。次は発注前点検 |
+| K6R `P3-EEW-GATE-EVICT-001`（`p3-eew-gate-evict.json`） | K6 の残存リスク (2)（残存リスク一覧の型 C1）: U-E の family が normal で満杯のとき、報時刻＋10 分を過ぎ current と pending の無い normal の gate を最古順に退去して新しい normal の報を受ける（作者裁定 2026-10-11）。満杯の拒否は 10 分に 512 件を超えるときだけ残る | K6 | 起草（2026-10-11）。作者裁定 D-AGE=A・D-DIAG=A、残存リスク (1)〜(6) 承認（2026-10-11朝）。発注前点検 2026-10-11（1871540b、Q-EVICT-PRECHECK）。P3-MH-T01 の最後の句（充填の開始＋600,000ms の新しい通常の EventID が capacityExceeded）と本契約がぶつかるので、MH との順を決めてから baseOid を割り当てる（Q-EVICT-BASE） |
