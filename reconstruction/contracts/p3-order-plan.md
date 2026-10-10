@@ -393,3 +393,9 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 | 契約 | 対象 | 依存 | 状態 |
 |---|---|---|---|
 | `P3-MEASURE-HARNESS-001` | 台帳76: K6・UWRの後にE01/C4の測定harnessが成り立たない（充填のEEWが受信の時点でhorizon外のstale、3つの保存母集団の引き金が1秒のtickを前提、E14のowner側の区間が無い、凍結の照合の集合と機械の値）。K6のP3-LIFE-D-HARNESS=Aの申し送りを引き受け、UWR AC08の別報告の未実装とtriggerLeadMsの読み替えを本契約に記録する。測り直しはE05-P・Q-UWR-REMEASUREのMac mini・PiのE03。P3-C6-AC09のPi予備とQ-UWR-REMEASUREのPi第1・2段は別機械のharnessが要り本契約の後も残る | K6・UWR・C6・WL2の配送 | 起草（e7440188から）。作者裁定P3-MH-FULL-STATE=D・残存リスク10件承認（2026-10-11朝）。発注前点検 2026-10-11（RETIME-SCOPE=A・SETUP-PATH=Aを統合担当が確定、Q-MH-PRECHECK）。baseOidは点検のcommitに割り当てる（Q-MH-BASE） |
+
+### K6 の改訂（2026-10-11）
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| K6R `P3-EEW-GATE-EVICT-001`（`p3-eew-gate-evict.json`） | K6 の残存リスク (2)（残存リスク一覧の型 C1）: U-E の family が normal で満杯のとき、報時刻＋10 分を過ぎ current と pending の無い normal の gate を最古順に退去して新しい normal の報を受ける（作者裁定 2026-10-11）。満杯の拒否は 10 分に 512 件を超えるときだけ残る | K6 | 起草（2026-10-11）。作者裁定 D-AGE=A・D-DIAG=A、残存リスク (1)〜(6) 承認（2026-10-11朝）。次は発注前点検 |
