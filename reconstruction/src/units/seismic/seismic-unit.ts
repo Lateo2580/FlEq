@@ -386,6 +386,9 @@ function admit(current: readonly SeismicIntent[], fresh: readonly SeismicIntent[
     if (item.subject === cancelSubject || fresh.some((intent) => intent.subject !== cancelSubject
       && lineOf(intent.subject) === lineOf(item.subject) && intent.channel === item.channel)) superseded.add(item);
   }
+  // 置換も新しい intent も無ければ元の配列を返す（保存世代を進めない。終端記録の上限は次に intents を変える admit か期限で揃う、
+  // P3-FINAL-AC01(5)）。
+  if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
   const pool = [...current.filter((item) => item.disposition === "pending" && !superseded.has(item)), ...fresh];
   const out = new Set<SeismicIntent>();
   // 同じ群の中で A7 の選択順の後ろのものから外す。新しい intent が外れることもある（channel ごとに全採用か未採用）。
@@ -608,27 +611,39 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
   semantic: boolean; changes: readonly Change[]; target: Shown; outcome: SubjectOutcome;
 }>): Result {
   const notices = admit(state.intents, proposal.fresh, candidate.cancelled ? candidate.subject : null);
-  const fitted = fit(proposal.earthquakes, proposal.longPeriods, proposal.daily, notices.intents, proposal.target, clock.wallTimeMs);
+  // 到着の時点で期限を過ぎた記録の無い subject の報は配列へ入れない。同じ reduce で回収される記録のために他の記録を退去しない
+  // （P3-FINAL-AC01）。before は受信で引いた索引の結果で、記録の有無を引き直さない（P3-FINAL-RES-01）。
+  const due = proposal.target.retainUntil <= clock.wallTimeMs;
+  const [before] = proposal.changes[0];
+  const fresh = due && before == null;
+  const fitted = fit(fresh ? state.earthquakes : proposal.earthquakes, fresh ? state.longPeriods : proposal.longPeriods, proposal.daily,
+    notices.intents, proposal.target, clock.wallTimeMs);
   const evidence = { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
   if (fitted == null) return { changes: [], step: { ...idle(state), decisions: [{ subject: candidate.subject,
     operation: candidate.operation, decision: "capacityExceeded", rejection: evidence }] } };
+  // 保存の射影が変わらなければ保存世代を進めない（P3-X-C3、P3-FINAL-AC01(5)）。
+  const stored = fitted.earthquakes !== state.earthquakes || fitted.longPeriods !== state.longPeriods || proposal.daily !== state.daily
+    || notices.intents !== state.intents;
   const adopted: SeismicUnitState = { ...state, earthquakes: fitted.earthquakes, longPeriods: fitted.longPeriods, daily: proposal.daily,
-    intents: notices.intents, persistence: dirty(state.persistence, clock.monotonicMs) };
-  const collected = proposal.target.retainUntil <= clock.wallTimeMs ? collect(adopted, clock) : null;
+    intents: notices.intents, persistence: stored ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
+  const collected = due ? collect(adopted, clock) : null;
   const next = collected?.state ?? adopted;
-  const change = proposal.semantic || fitted.evicted.length !== 0 ? "semantic" as const : "revisionOnly" as const;
+  // 結果は回収の後の state で決める（D-OUTCOME=A・D-VANISHED=A、P3-FINAL-AC02）。期限を過ぎた報の記録は最終の state に残らないので
+  // accepted に載せず currentEstablished も null、change は前の表示が消えたかで決める。
+  const semantic = due ? visible(before) : proposal.semantic;
+  const change = semantic || fitted.evicted.length !== 0 ? "semantic" as const : "revisionOnly" as const;
   const diagnostics: DiagnosticDetails[] = [];
   if (fitted.evicted.length !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "seismicCapacityEvicted",
     unit: "U-Q", count: fitted.evicted.length });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "notificationCapacityEvicted",
     unit: "U-Q", count: notices.dropped });
   return {
-    changes: [...proposal.changes, ...fitted.evicted.map((item): Change => [item, null]), ...collected?.changes ?? []],
+    changes: [...fresh ? [] : proposal.changes, ...fitted.evicted.map((item): Change => [item, null]), ...collected?.changes ?? []],
     step: { state: next, nextDeadline: nextDeadline(next),
       decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "changed", reason: null, change,
-        currentEstablished: evidence }],
+        currentEstablished: due ? null : evidence }],
       intents: notices.admitted,
-      outcomes: [{ kind: "accepted", change, subjects: [proposal.outcome] }],
+      outcomes: [{ kind: "accepted", change, subjects: due ? [] : [proposal.outcome] }],
       diagnostics },
   };
 }

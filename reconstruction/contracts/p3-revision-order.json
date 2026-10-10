@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2a7c78b7029dfe83d4eeb4c0d5f6f1b314eb8536",
-    "sha256": "b7efbe9eb765aed0c8015f30ef9035d740b7cc36af68a135e82dca4eb83a4f45",
+    "sha256": "2bd501e186bffe5a28e84c335ea27d7a38cb73d08ea612ea743ea09c7bea5bfa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -215,15 +215,15 @@
         "id": "P3-ORDER-AC01",
         "requirement": "版の比較の規則（作者裁定2026-10-10: P3-ORDER-D-ORDER=A・D-MISSING=A・D-SCOPE=B）: U-Q・U-N・U-V・U-Lの版の比較（compare）を、(1) ReportDateTime（数値の時刻）、(2) InfoTypeの順位（発表1＜訂正2＜取消3）、(3) Serial（D-SCOPEの範囲の報の間だけ。範囲の外は等しいとみなす。欠落はどの数値よりも小、欠落同士は等しい、数値は数として比べる）、(4) U-Vだけ降灰のVFVO55＞VFVO54、の辞書順にする。返り値は符号だけを使い（いまQ・Nの*2は誰も読まない）、呼び手（Q:549・:588、N:310、V:234・:242・:338・:571、L:264）のstale・同じ版・採用の分岐と、同じ版でのduplicate・食い違い（先着を保ってstale＋WARNのseismicRevisionConflict・nankaiRevisionConflict・volcanoRevisionConflict・landslideRevisionConflict）・MARINEの例外・VFVO51のentryの一括の規則は変えない。同じ版＝(1)〜(4)が全部等しい。D-SCOPE=Bの範囲: U-Nは同じEventID（headTypeは問わない、既存）、U-Vは同じfamily、U-Q（familyごとのwatermark）とU-L（VPWW56だけ）は全部。unitごとに直し、共有の比較関数・moduleは作らない（無くても壊れない。比較の残りがunitごとに違い（NのEventID、Vのfamilyと55＞54）、共有先の既存moduleも無い。同じ欠落の位置は4 unitのT02で同じ表で縛る。集約は計画§9の「写した読み取り関数の集約」へ送る）。各関数の上のコメントを新しい順に直す。",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:513 «9fc4909db52f28c4»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:520 «e0300823a2018e79»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:517 «49c477cfd634e382»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:516 «9fc4909db52f28c4»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:523 «e0300823a2018e79»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:520 «49c477cfd634e382»",
           "reconstruction/src/units/nankai/nankai-unit.ts:126 «fefde496931d4d0c»",
           "reconstruction/src/units/nankai/nankai-unit.ts:132 «747b443edb02ab50»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:178 «2441c73a08918f69»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:185 «11352c0f5256c61e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:182 «9d7deb807a978415»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:187 «d1158287a934566f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:181 «2441c73a08918f69»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:188 «11352c0f5256c61e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:185 «9d7deb807a978415»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:190 «d1158287a934566f»",
           "reconstruction/src/units/landslide/landslide-unit.ts:114 «ecc2cb63cfb46560»",
           "reconstruction/src/units/landslide/landslide-unit.ts:121 «e0300823a2018e79»",
           "reconstruction/contracts/p3-order-plan.md:348 «2aa034878016ecd6»"
@@ -233,9 +233,9 @@
         "id": "P3-ORDER-AC02",
         "requirement": "F02の閉鎖（監査の三報をそのまま回帰試験にする）: unitごとにaudit-verify/core.cjsのF02と同じ入力で、Q＝32-35_08_03_100915_VXSE51、N＝74_01_04_200512_VYSE50、V＝43_01_01_200522_VFVO52（噴火subject）、L＝15_16_01_241031_VPWW56のReportDateTime（N・LはTargetDateTimeも）をt−60秒にした初報を受け、A＝Serial 2・発表、B＝Serial空・訂正、C＝Serial 1・取消をどれもReportDateTime＝t・時計tで受ける。6順列（ABC・ACB・BAC・BCA・CAB・CBA）のすべてで、最終のrecord（Qは地震eventのVXSE51の寄与、Nは系統の現況、Vは噴火、Lは官署）はeffective=cancelled、sourceのserialRaw「1」・infoTypeRaw「取消」、pendingの通知は取消のdesktopとsoundの2件（transition cancelled、同じsubjectの旧pendingはsuperseded）で、6順列の最終が一致する。各手順の前に、その時点の保存物（encode→JSON）をrestore入力で戻す（restoreの前のstateのpersistenceは保存世代を引き継ぐ。owner-runtimeの復元と同じ）6順列でも同じ最終になる。各最終のencode→JSON→decodeはrestored。途中のdecisionは到着順で違ってよい（先着した版が後で上書き・取消される）。修正前の観測（cancelled 2通り・active 4通り）の反転を正式試験で示し、未追跡の監査scriptに依存しない。",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:549 «5e1d5fdfe7aa824e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:552 «5e1d5fdfe7aa824e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:316 «e194a8fa9c7c2bbf»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:352 «4a609cba95f01662»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:355 «4a609cba95f01662»",
           "reconstruction/src/units/landslide/landslide-unit.ts:264 «7bad47e8e65484aa»",
           "reconstruction/src/decode-material/decode-material.ts:441 «e7ff21641a768c49»"
         ]
@@ -244,11 +244,11 @@
         "id": "P3-ORDER-AC03",
         "requirement": "境界（同じ時刻tで、unitごとに上のfixtureを使う。比較できる2報は両方の到着順で同じ勝者、同じ版は既存の規則で先着）: (a) InfoTypeが違えばSerialを見ない: 発表 Serial 9と訂正 Serial 1は訂正が勝つ（旧は発表が勝つ）。訂正 Serial空と取消 Serial 1は取消。(b) InfoTypeが同じで数値のSerialだけ違う: 大きいSerialが勝ち、小さい方の後着はunchanged/stale（診断なし）。(c) InfoTypeが同じで欠落と数値（D-MISSING=A）: 数値の報が勝つ（後着なら採用、先着なら欠落の後着がstale）。旧は同じ版で先着のduplicate・食い違い。(d) 欠落同士・InfoTypeが同じ: 同じ版で、事実が同じならduplicate、違えば先着を保ってstale＋unitのRevisionConflict。これは既存の振る舞いで、既存試験（LのP3-C10-T03、Qのseismic-unit.test.tsの同じrevisionの食い違い、Nのnankai-unit.test.tsの同じrevisionの食い違い、Vのexpected:O01:17の67_01_01と67_01_02）が受け入れているので、T02には足さない。V・Lでは「01」と「1」も同じ版（Q・NのvalidSerialは先頭0をidentityInvalidで拒否するので、この行はV・Lだけ）。(e) U-Nの系統の現況でEventIDの違う2報（Serial 2と1、事実が違う）: Serialを比べず同じ版で、両方の順で先着を保ちnankaiRevisionConflict（既存）。(f) U-V（D-SCOPE=B）: 45_01_01（VFVO50、Serial空）と44_01_01（VFVO51、Serial 13）を同じReportDateTimeにして火山306に当てると、50→51ではVFVO50を保ちVFVO51の火山entryはP3-C9-VFVO51-ATOMIC=Aで全部stale＋volcanoRevisionConflict、51→50ではVFVO51を保ちVFVO50がstale＋volcanoRevisionConflict（今と同じ）。降灰のVFVO54とVFVO55は同時刻・同InfoTypeならSerialによらずVFVO55（66_01_02のReportDateTimeを66_01_03の2021-05-14T12:51:00+09:00に合わせ、Serialを5に、66_01_03をSerial 1にして、時計もその時刻: 両順ともVFVO55。旧はVFVO54。66_01_02を任意の時刻へ動かすと予報の期間の検査でrequiredStructureInvalidになるので、時刻は66_01_03に合わせる）。(g) 時刻が違えば時刻だけで決まる（既存）。",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:551 «9b3d429efeb433f4»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:554 «9b3d429efeb433f4»",
           "reconstruction/src/units/nankai/nankai-unit.ts:319 «9cbf8194c661724e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:144 «b9f35ee8a39ce41d»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:297 «5cb00a0b26f7ead5»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:793 «1fd46a035987500a»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:300 «5cb00a0b26f7ead5»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:806 «1fd46a035987500a»",
           "reconstruction/src/units/landslide/landslide-unit.ts:266 «3722c817913a7005»",
           "reconstruction/test/landslide-unit/landslide-unit.test.ts:155 «a8764394861ff66e»",
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:817 «113f3a256d6f8d3b»",
@@ -265,7 +265,7 @@
         "id": "P3-ORDER-AC04",
         "requirement": "同じ範囲の別の比較の扱い（放置しないための明示）: (1) U-Vの復旧不足のliveでの除去（liveShortfalls、volcano-unit.ts:493〜498）は保存したlastKnown（ReportDateTimeとSerialだけ、InfoTypeとfamilyを持たない）との閾値の比較で、報どうしの版の順ではなく循環しない。K1では変えない: 時刻が新しい、または同時刻で両方にSerialがあり候補が大きいときだけ不足を除く。外れても不足（viewの「失ったかもしれない」表示）が残るだけで記録は変えない。不足を作るのはC15の移行だけなので、C15の起草でlastKnownの形を決めるときにこの比較を見直す。(2) U-Qの公開事実の導出（seismic-unit.ts:170、時刻→familyの優先）とU-Vの最新source（volcano-unit.ts:54、時刻だけ）は別familyの寄与から表示の値を選ぶ規則で、Serialを使わず版の比較ではない。変えない。(3) 退去の順位（各unitのevictOne、時刻・subject）はK4の範囲。(4) U-Nの「訂正・取消は現況のsourceと同じheadType・EventIDのときだけ現況に効く」（nankai-unit.ts:137）と、情報subjectの判定を現況より先に行う順（Q-C8-IMPL-AMEND(3)）は変えない。(5) Serialが必須のU-E・U-R・U-B、Serialを持たない比較のU-T（VTSE41）・U-W・U-Fは変えない（R・Bは時刻→Serial→InfoTypeで欠落が無く全順序）。",
         "evidenceRefs": [
-          "reconstruction/src/units/volcano/volcano-unit.ts:510 «163dc99df829d55c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:513 «163dc99df829d55c»",
           "reconstruction/contracts/p3-volcano-unit.json:346 «3daecd7c92af885e»",
           "reconstruction/src/units/seismic/seismic-unit.ts:170 «8d7cc9a0cd44d1a4»",
           "reconstruction/src/units/volcano/volcano-unit.ts:54 «60917f2273da25b8»",
@@ -300,7 +300,7 @@
         "id": "P3-ORDER-AC07",
         "requirement": "既存試験: 起草時の試作でreconstructionのvitestは期待値の変更0件で通った（Q-ORDER-PROTOTYPE）。既存試験の期待値・入力を変える必要が出たら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。新しい試験はT01・T02だけ。",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:549 «5e1d5fdfe7aa824e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:552 «5e1d5fdfe7aa824e»",
           "reconstruction/src/units/landslide/landslide-unit.ts:264 «7bad47e8e65484aa»"
         ]
       },

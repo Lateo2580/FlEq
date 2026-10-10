@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4e8e3ab8b58b7cbf8fe7c653767d6633cb51fe2",
-    "sha256": "897dffc0c0721bfc697f9bfe8b07f648738dd59510b0770361479935dc544a46",
+    "sha256": "9b080cd3e06fd434c80c353e55c68ef3bb40973c7a342dd53e8d8431480bd63a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -254,15 +254,15 @@
         "id": "P3-AUTH-AC01",
         "requirement": "U-Nの受理の証拠（作者裁定D-EVIDENCE=A）: (1) encodeは情報系列の各記録から証拠 {subject, reportDateTimeMs, serialRaw, infoTypeRaw}（版の比較に要るものだけ。subjectからoperation・family・EventIDが決まる）を作ってpayload.evidenceに書く。記録ごとのcacheを使い、受信のたびに作らない。(2) decodeは証拠を確かめて（64件以下・subjectの重複なし・subjectが`${operation}/${family}/${eventId}`の形でfamilyとEventIDがQ-ENUM.identity・reportDateTimeMsが安全な整数・validSerial・InfoTypeの語彙）、事実を持たない「証拠だけ」の情報subject（view・outcome・表示の変化に出ない。retainUntil＝reportDateTimeMs＋7日）としてinformationへ戻す。型はNankaiInformationに変種を足し、事実を持つ記録と型で区別する（sourceを持たないので、ReportRefを作り話で埋めない）。(3) 版の比較（P3-ORDER-AC01の順）は証拠の版でも同じ規則で、証拠より古い報はstale。同じ版はexpiredと同じく事実を比べずduplicate（WARNなし）。Q-C8-IMPL-AMEND(3)の「同じ報の情報subjectに新しい取消・訂正があれば現況へ当てない」は証拠でも効く（F03の閉鎖）。(4) Q-NOTICE.restartの「情報subjectが無いとき」は「無いか証拠だけのとき」と読む（復元した現況のsourceと同じ報の続報は、証拠があっても復元した現況との差で通知を決める）。(5) 情報系列の変化（採用・期限の回収・退去）は証拠が変わるので保存世代を進める（Q-C8-IMPL-AMEND(5)とI-U-N.persistedの「保存しない情報系列だけの変化では進めない」を上書き。P3-X-C3: 証拠の射影が同じなら進めない）。退去・期限の順と件数（64、P3-C8-CAPACITY=A）は変えず、証拠だけの記録も同じ順で退去・回収する（表示の変化・診断は事実を持つ記録と同じに数え、証拠だけの記録の退去は表示を変えない）。(6) 死んだfieldの除去: judgeのVerdict.order（:306の型・:309・:315）は書くだけで読まれない（K1の品質レビュー）ので消す。",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:694 «e96937f8a2394003»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:698 «2af127c6233ef534»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:497 «c3268d58bf908eb7»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:715 «e96937f8a2394003»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:719 «2af127c6233ef534»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:518 «c3268d58bf908eb7»",
           "reconstruction/src/units/nankai/nankai-unit.ts:343 «df2f67d5a94d5fc7»",
           "reconstruction/src/units/nankai/nankai-unit.ts:344 «afd203a8cdd6e784»",
           "reconstruction/src/units/nankai/nankai-unit.ts:316 «e194a8fa9c7c2bbf»",
           "reconstruction/src/units/nankai/nankai-unit.ts:366 «1d4cf4f16f3e3b33»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:392 «f900d98d03913508»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:449 «b02c4f99ed1b499d»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:397 «f900d98d03913508»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:470 «b02c4f99ed1b499d»",
           "reconstruction/src/units/nankai/nankai-unit.ts:205 «08fc4464ec0fd60f»",
           "reconstruction/src/units/nankai/nankai-unit.ts:313 «85fd28b88d1bd72d»",
           "reconstruction/src/units/nankai/nankai-unit.ts:315 «78a65569238cfac0»",
@@ -276,9 +276,9 @@
         "id": "P3-AUTH-AC02",
         "requirement": "F03の閉鎖（監査の入力をそのまま回帰試験にする）: 74_01_04_200512_VYSE50のInfoTypeを取消・ReportDateTimeを2020-05-12T16:38:00+09:00にした報を空のU-Nに時計tで受け、同じfixtureのReportDateTimeをt−60秒にした元報を時計t＋1秒で受ける。復元なしでも、取消の後のstateをencode→JSON→decode→restore（owner-runtimeと同じく保存世代を引き継ぐ）で戻した後でも、元報はunchanged/stale×2（現況と情報subject）で、currentsは空、pendingは0、stateは同じ参照。取消の受理で保存世代が1つ進む（修正前は0で保存されなかった）。版の証拠も同じ形で確かめる: 現況に効かない報で組む: selected_xmlの75_01_04_200512_VYSE52（定例の解説、Code 200、現況に効かない）のSerialを2にした報を2020-05-12T16:44:00+09:00の時計で受け、encode→JSON→decode→restoreで戻した後に、Serialを1にした同じ時刻の報がunchanged/stale・intent 0、Serial 2の再送がunchanged/duplicate・intent 0。直す前のコードでは復元で情報subjectが消え現況のwatermarkも無いので、どちらもchanged/semantic・intent 2になって落ちる（起草時に両方のdistで確かめた。74_01_04はCode 120で現況に効き、直す前から復元した現況のwatermarkでstale・duplicateになるので、この確かめには使えない）。修正前の観測（information 1→0、after changed/semantic×2・current active・pending 2）の反転を正式試験で示し、未追跡の監査scriptに依存しない。owner経路（nankai-runtime.test.ts）でも、取消の後のcheckpointから復元したownerに元報を入れてU-Nが変わらないことを1つ確かめる。",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:497 «c3268d58bf908eb7»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:698 «2af127c6233ef534»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:392 «f900d98d03913508»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:518 «c3268d58bf908eb7»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:719 «2af127c6233ef534»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:397 «f900d98d03913508»",
           "reconstruction/contracts/p3-revision-order.json:291 «8dab76e5cf56554c»"
         ]
       },
@@ -288,12 +288,12 @@
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:132 «563fc06041606774»",
           "reconstruction/src/units/volcano/volcano-unit.ts:136 «33dfada096768ace»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:236 «d7cb8a9d170d69ce»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:258 «027881b3274601ad»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:546 «71d1e5d6acccf04c»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:553 «709a512117afd511»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:268 «44d45d65bf78673b»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:988 «a5cd6f76762c505f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:239 «d7cb8a9d170d69ce»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:261 «027881b3274601ad»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:555 «71d1e5d6acccf04c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:562 «709a512117afd511»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:271 «44d45d65bf78673b»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1040 «a5cd6f76762c505f»",
           "reconstruction/contracts/p3-volcano-unit.types.ts:65 «0939fb8dbfe1e419»",
           "reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2»",
           "reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6»",
@@ -304,9 +304,9 @@
         "id": "P3-AUTH-AC04",
         "requirement": "F07の閉鎖: 45_01_01_200522_VFVO50のReportDateTimeを2026-01-01T10:00:00+09:00・EventIDをAにした報（land A）、46_01_01_170103_VFSViiのCode 506を306・ReportDateTimeを10:00:01・EventIDをBにした報（VFSV50として投入、marine B）、synthetic_VFVO50_cancelのReportDateTimeを10:00:02・EventIDをAにした火山コードの無い取消を、各報の時刻の時計で順に受ける（audit-verify/core.cjsのF07と同じ入力）。取消はrejected/identityMissingでなく火山306の警報に結び付き、D-LAND-CANCEL=Aによりchanged/semantic・effective cancelled、landEventId A・marineEventId B・marineSource（10:00:01）が残り、取消のdesktop・soundのpendingが出る。逆の順（marine B→land A→EventID Bの火山コードの無いVFSVの取消）も結び付く。取消の前に復元を挟んでも同じ。取消の後に届くmarine Bより古いVFSVはstale。修正前の観測（cancel rejected/identityMissing・after active）の反転を正式試験で示す。",
         "evidenceRefs": [
-          "reconstruction/src/units/volcano/volcano-unit.ts:546 «71d1e5d6acccf04c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:555 «71d1e5d6acccf04c»",
           "reconstruction/src/units/volcano/volcano-unit.ts:132 «563fc06041606774»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:236 «d7cb8a9d170d69ce»"
+          "reconstruction/src/units/volcano/volcano-unit.ts:239 «d7cb8a9d170d69ce»"
         ]
       },
       {
@@ -330,12 +330,12 @@
         "id": "P3-AUTH-AC06",
         "requirement": "保存の形・上界・移行（永続schemaの変更は旧データの移行と復元試験の1セット、P3-X-C4）: (1) P3-AUTH-D-SCHEMA=Aにより、schemaVersionをp3-nankai-unit-v1・p3-volcano-unit-v1のまま新しい鍵を足し、decodeは鍵の無い保存物を旧保存として読む（checkpoint.ts:450とowner-runtime.ts:379のschemaVersionの一致の検査はそのまま通る）。encodeは常に新しい鍵を書く。(2) 移行A1（既知の証拠だけ移す）: U-Nの旧保存はevidence無し→証拠0件（旧保存に無い取消・版の証拠は復元できない。旧保存からの最初の復元ではF03は閉じない）。U-Vの旧保存の警報は、sourceだけの記録はlandEventId＝eventId、marineSourceだけの記録はmarineEventId＝eventId、両方ある記録は最後の書き手がどちらか分からないので両方null（火山名・時刻から推測しない。その記録への火山コードの無い取消は、そのfamilyの新しい報が来るまでidentityMissingのまま）。旧保存かどうかはpayload単位で見分ける: 警報が全部landEventId・marineEventIdの両方の鍵を持つか、全部どちらも持たないかのどちらかで、鍵のある警報と無い警報が混ざったpayload・片方の鍵だけの警報はunavailable。nullでないのに組のsourceがnull・EventIDの文字が不正なものもunavailable。(3) 上界: U-NはRES-01（証拠64件の上界12,045 byteを足して273,259、上限294,912）、U-VはRES-02（4,774,476、上限5 MiBのまま）。K5の方式（decoderの許す範囲をJSONエスケープ後のUTF-8 byteで数え、envelope・配送の予約を足す）で、試験は新しいfieldをdecoderの許す最長（EventID 64字）で埋めた状態でencode→decodeがrestoredかつ上界以内であることを確かめる。U-Wは形を変えないので上界と移行は無い。(4) codec・stateの外へ新しいcache・帳簿を足さない（記録ごとのbyte cacheと証拠の射影のcacheだけ）。",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:672 «00a726d0e7e3b6c3»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:693 «00a726d0e7e3b6c3»",
           "reconstruction/src/units/nankai/nankai-unit.ts:83 «4b94a5fea3609b02»",
           "reconstruction/src/units/nankai/nankai-unit.ts:25 «f376055a27fbf976»",
           "reconstruction/src/units/nankai/nankai-unit.ts:21 «9e3e831c3998c650»",
           "reconstruction/contracts/p3-nankai-unit.types.ts:119 «6354aa850ef74bba»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1167 «5f59bc69aea62f5e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1219 «5f59bc69aea62f5e»",
           "reconstruction/src/units/volcano/volcano-unit.ts:23 «7ddfd6e70a9e1435»",
           "reconstruction/src/checkpoint/checkpoint.ts:450 «ddf5c81fd41da4ad»",
           "reconstruction/src/runtime/owner-runtime.ts:379 «890b0a8cddc63328»",
@@ -385,8 +385,8 @@
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:507 «4d5bf7dbb6476783»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:574 «b1fa314f194e7411»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:540 «82b27538becf7839»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:715 «f7ed5e4ac00a3b95»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:756 «04d267f06974daa0»"
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:717 «f7ed5e4ac00a3b95»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:758 «04d267f06974daa0»"
         ]
       },
       {

@@ -227,7 +227,7 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     // 到着の時点で期限を過ぎた報は採用して watermark を進め、同じ reduce で回収する（view に載らず鳴らない）。
     const overdue = send(emptyState(), F.o1, undefined, reported + DAY + 1);
     expect([shape(overdue)[0].slice(1), effective(overdue.state.eruptions[0]), overdue.intents, overdue.displayChanges])
-      .toEqual([["changed", "semantic"], "expired", [], []]);
+      .toEqual([["changed", "revisionOnly"], "expired", [], []]);
     expect(shape(send(overdue.state, F.o1, undefined, reported + DAY + 2))[0].slice(1)).toEqual(["unchanged", "duplicate"]);
   });
 
@@ -391,10 +391,12 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     const over = send({ ...emptyState(), intents: seeded(127) }, F.o1);
     expect([over.intents.map((item) => item.channel), over.diagnostics]).toMatchObject([["sound"], [{ reason: "notificationCapacityEvicted", count: 1 }]]);
     const bytesOf = (values: readonly VolcanoIntent[]) => Buffer.byteLength(JSON.stringify(values));
-    const fresh = send(emptyState(), F.o1).intents;
+    // inputId は intent の byte に入るので固定する（module 共有の連番の桁で境界がずれない、P3-FINAL-AC07）。
+    const probe = (state: VolcanoUnitState) => receive(state, decodeFixture(F.o1, undefined, "P3-C9-T05-pad"), clock(reported));
+    const fresh = probe(emptyState()).intents;
     const pad = 131_072 - bytesOf([...seeded(10), ...fresh]) - [...seeded(10), ...fresh].reduce((sum, item) => sum + deliveryGrowth(item), 0);
-    expect(pending(send({ ...emptyState(), intents: seeded(10, pad) }, F.o1).state)).toHaveLength(12);
-    expect(send({ ...emptyState(), intents: seeded(10, pad + 1) }, F.o1).intents.map((item) => item.channel)).toEqual(["sound"]);
+    expect(pending(probe({ ...emptyState(), intents: seeded(10, pad) }).state)).toHaveLength(12);
+    expect(probe({ ...emptyState(), intents: seeded(10, pad + 1) }).intents.map((item) => item.channel)).toEqual(["sound"]);
     // 新しい intent が容量で外れただけなら intent の配列も保存世代も変えない（保存しない解説だけの変化、品質レビュー P3）。
     const crowded: VolcanoUnitState = { ...emptyState(), intents: seeded(128) };
     const dropped = send(crowded, F.notice, (xml) => status("訓練")(retime(iso(reported))(xml)), reported);
@@ -962,6 +964,48 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       ["keyed and legacy alerts mixed", { ...payload, alerts: [first, legacy.alerts[1]] }],
     ];
     for (const [name, candidate] of invalid) expect(volcanoUnitCodec.decode(candidate as JsonValue).kind, name).toBe("invalid");
+  });
+
+  // regression（監査 F05・F16）: 満杯の噴火 128 に到着の時点で期限を過ぎた別の EventID を受けても有効な記録を退去しない。記録の期限まで
+  // 過ぎた報（3 日）も、active の期限だけを過ぎた報（36 時間）も足さず、空きがあれば後者は expired の記録になる（P3-FINAL-AC01・AC02）。
+  it("P3-FINAL-T03 regression / F05・F16: an expired eruption newcomer evicts nothing and is reported by its final record", () => {
+    const t = at("2026-01-01T10:00:00+09:00");
+    const report = (id: number, time: number) => decodeFixture(F.o1, (xml) => retime(iso(time))(replaceTag("EventID", String(id).padStart(14, "0"))(xml)));
+    let state = emptyState();
+    for (let id = 1; id <= 128; id++) state = receive(state, report(id, t), clock(t)).state;
+    for (const late of [3 * DAY, 36 * 3_600_000]) {
+      const step = receive(state, report(129, t - late), clock(t));
+      expect([step.state.eruptions, step.state.persistence]).toEqual([state.eruptions, state.persistence]);
+      expect(step.decisions).toEqual([expect.objectContaining({ decision: "changed", change: "revisionOnly", currentEstablished: null })]);
+      expect([step.outcomes, step.intents, step.displayChanges, step.diagnostics]).toEqual([[{ kind: "accepted", change: "revisionOnly", subjects: [] }], [], [], []]);
+    }
+    const roomy = receive(emptyState(), report(129, t - 36 * 3_600_000), clock(t));
+    expect([effective(roomy.state.eruptions[0]), roomy.outcomes.map((item) => item.subjects.map((subject) => subject.transition))]).toEqual(["expired", [["expired"]]]);
+    expect(roomy.decisions).toEqual([expect.objectContaining({ change: "revisionOnly", currentEstablished: expect.objectContaining({ family: "VFVO52" }) })]);
+    // 記録の無い火山への期限を過ぎた VFVO51 の解除 entry は足さず、警報の配列も保存世代も変えない（AC01(5)、品質レビュー P2-2）。
+    const entries = send(emptyState(), F.b350, (xml) => retime(iso(t - 31 * DAY))(xml).replaceAll("<Code>12</Code>", "<Code>11</Code>")
+      .replaceAll("<Condition>継続</Condition>", "<Condition>引下げ</Condition>"), t);
+    expect([entries.state.alerts, entries.state.persistence]).toEqual([[], emptyState().persistence]);
+  });
+
+  // regression（監査 F06）: 報の時刻が 32 日前の有効な警報の後に 31 日前の取消が届くと、記録は同じ reduce で回収され新しい通知は無いが、
+  // 前の active を述べる pending は撤回する（P3-FINAL-AC04）。
+  it("P3-FINAL-T04 regression / F06: an expired cancel withdraws the pending of the active it ends", () => {
+    const now = at("2026-01-01T10:00:00+09:00");
+    const first = send(emptyState(), "45_01_01_200522_VFVO50", retime(iso(now - 32 * DAY)), now);
+    expect(pending(first.state).map((item) => item.channel)).toEqual(["desktop", "sound"]);
+    const second = send(first.state, "synthetic_VFVO50_cancel", retime(iso(now - 31 * DAY)), now + 1_000);
+    expect([second.state.alerts, pending(second.state), second.intents]).toEqual([[], [], []]);
+    expect(second.outcomes).toEqual([{ kind: "accepted", change: "semantic", subjects: [] }]);
+    expect(second.decisions).toEqual([expect.objectContaining({ decision: "changed", change: "semantic", currentEstablished: null })]);
+    // VFVO51 の解除 entry が期限を過ぎて前の active を置き換えるときも撤回する（品質レビュー P2-1）。
+    const entry = send(first.state, F.b350, (xml) => retime(iso(now - 31 * DAY))(xml).replaceAll(">350<", ">306<")
+      .replaceAll("<Code>12</Code>", "<Code>11</Code>").replaceAll("<Condition>継続</Condition>", "<Condition>引下げ</Condition>"), now + 1_000);
+    expect([entry.state.alerts, pending(entry.state)]).toEqual([[], []]);
+    // 期限の有る active（噴火）は境界の窓だけ: validUntil の 60 秒前に受けた噴火の desktop が残るうちに、期限を過ぎた新しい続報が届く。
+    const eruption = send(emptyState(), F.o1, retime(iso(now - DAY + 60_000)), now);
+    const late = send(eruption.state, F.o1, retime(iso(now - DAY + 90_000)), now + 150_000);
+    expect([pending(eruption.state).length, pending(late.state), late.intents]).toEqual([2, [], []]);
   });
 });
 

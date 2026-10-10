@@ -163,14 +163,17 @@ function evictOne<T extends Shown>(values: readonly T[], now: number, incoming: 
   }
   return worst;
 }
-// 記録を置き換えるか足す。足すときに上限なら 1 件退去する（self は受けた記録自身の退去）。
+// 記録を置き換えるか足す。足すときに上限なら 1 件退去する（self は受けた記録自身の退去）。到着の時点で期限を過ぎた記録の無い subject の
+// 記録は、同じ reduce で回収されるか slice が満杯なら足さない（dropped。期限を過ぎた記録のために他の記録を退去しない、P3-FINAL-AC01）。
 function upsert<T extends Shown>(values: readonly T[], value: T, limit: number, now: number):
-  Readonly<{ values: readonly T[]; evicted: T | null; self: boolean }> {
+  Readonly<{ values: readonly T[]; evicted: T | null; self: boolean; dropped: boolean }> {
   const index = indexOf(values, value.subject);
-  if (index != null || values.length < limit) return { values: replaceAt(values, index, value), evicted: null, self: false };
+  if (index == null && shownDeadline(value) <= now && (value.retainUntil <= now || values.length >= limit))
+    return { values, evicted: null, self: false, dropped: true };
+  if (index != null || values.length < limit) return { values: replaceAt(values, index, value), evicted: null, self: false, dropped: false };
   const victim = evictOne(values, now, value.operation);
-  return victim == null ? { values, evicted: null, self: true }
-    : { values: [...values.filter((item) => item !== victim), value], evicted: victim, self: false };
+  return victim == null ? { values, evicted: null, self: true, dropped: false }
+    : { values: [...values.filter((item) => item !== victim), value], evicted: victim, self: false, dropped: false };
 }
 
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
@@ -519,6 +522,12 @@ function liveShortfalls(list: readonly VolcanoShortfall[], candidate: VolcanoCan
 function place<T extends Shown>(applied: Applied, values: readonly T[], store: (values: readonly T[]) => VolcanoUnitState, before: T | null,
   after: T, candidate: VolcanoCandidate, now: number, extra: Readonly<Record<string, JsonValue>> = {}): Readonly<{ fields: string[]; kept: boolean }> {
   const placed = upsert(values, after, isBulletin(after) ? BULLETIN_LIMIT : SLICE_LIMIT, now);
+  if (placed.dropped) {
+    // 足さなかった記録は accepted に載せず currentEstablished も null（D-VANISHED=A）。復旧不足の照合は呼び出し側で今どおり行う。
+    applied.decisions.push({ subject: after.subject, operation: candidate.operation, decision: "changed", reason: null, change: "revisionOnly",
+      currentEstablished: null });
+    return { fields: [], kept: false };
+  }
   const fields = changed(before, after, fieldsOf(after));
   const semantic = fields.length !== 0 || candidate.cancelled && before?.effective === "active";
   if (placed.evicted != null || placed.self) applied.evicted++;
@@ -568,7 +577,9 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
     : { volcanoActivity: facts.activity, volcanoPrevention: facts.prevention });
   applied.state = { ...applied.state, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "alert", code) };
   const before = existing?.effective === "active" ? existing : null;
-  if (!kept || dueAt(next, now)) return applied;
+  if (!kept) return applied;
+  // 到着の時点で期限を過ぎた報は通知しないが、取消でなくても前の active を述べる pending を全部撤回する（D-WITHDRAW=A、P3-FINAL-AC04）。
+  if (dueAt(next, now)) { if (before != null) applied.cancelled.add(subject); return applied; }
   if (candidate.cancelled && isMarine(candidate.family) && existing?.source != null) {
     // 海上の部分だけの取消: VFSV の pending だけを置き換え、海上警報の取消と分かる通知にする（VFVO50 の通知は残す）。
     applied.cancelled.add(`${subject}\n${MARINE_PART}`);
@@ -620,7 +631,8 @@ function receiveEruption(state: VolcanoUnitState, candidate: Candidate<"eruption
   const { fields, kept } = place(applied, applied.state.eruptions, (eruptions) => ({ ...applied.state, eruptions }), existing, next, candidate, now);
   applied.state = { ...applied.state, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "eruption", next.volcanoCode) };
   const before = existing?.effective === "active" ? existing : null;
-  if (!kept || dueAt(next, now)) return applied;
+  if (!kept) return applied;
+  if (dueAt(next, now)) { if (before != null) applied.cancelled.add(subject); return applied; }
   if (candidate.cancelled) {
     applied.cancelled.add(subject);
     if (before != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "");
@@ -662,7 +674,8 @@ function receiveAshfall(state: VolcanoUnitState, candidate: Candidate<"ashfall">
   const { fields, kept } = place(applied, applied.state.ashfalls, (ashfalls) => ({ ...applied.state, ashfalls }), existing, next, candidate, now);
   applied.state = { ...applied.state, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "ashfall", code) };
   const before = existing?.effective === "active" ? existing : null;
-  if (!kept || dueAt(next, now)) return applied;
+  if (!kept) return applied;
+  if (dueAt(next, now)) { if (before != null) applied.cancelled.add(subject); return applied; }
   if (candidate.cancelled) {
     applied.cancelled.add(subject);
     if (before != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "");
@@ -775,7 +788,7 @@ function receiveBulletin(state: VolcanoUnitState, candidate: Candidate<"bulletin
         const summary = candidate.family === "VFVO60" ? `${facts.volcanoName ?? ""} 推定噴煙流向報`.trim() : facts.headline ?? candidate.title;
         notice = noticeOf(candidate, subject, candidate.infoRank === 2 || before != null ? "updated" : "activated", level, summary);
       }
-    }
+    } else if (kept && before != null) applied.cancelled.add(subject);
   }
   applied.notice = notice;
   if (candidate.family === "VFVO51" && candidate.entries.length !== 0) applyEntries(applied, candidate, now);
@@ -806,8 +819,11 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
   const kept = new Set<string>();
   // ponytail: 足す entry ごとに満杯の警報を線形に走査して 1 件退去する（上限は entry 128 × 記録 128、I-U-V.computation）。
   let evicted = 0;
+  const dropped = new Set<string>();
   for (const { existing, verdict } of verdicts) {
     if (verdict.kind !== "adopt") continue;
+    // 到着の時点で期限を過ぎた記録の無い entry は足さない（警報の inactive は期限と保持が同じなので回収される側だけ、P3-FINAL-AC01）。
+    if (existing == null && shownDeadline(verdict.next) <= now) { dropped.add(verdict.next.subject); continue; }
     if (existing != null || values.length < SLICE_LIMIT) {
       if (existing == null) values.push(verdict.next);
       kept.add(verdict.next.subject);
@@ -825,16 +841,26 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
   const adoptedCodes = new Set<string>();
   for (const { entry, subject, existing, verdict } of verdicts) {
     if (verdict.kind === "unchanged") { decide(applied, candidate, subject, verdict); continue; }
+    if (dropped.has(subject)) {
+      applied.decisions.push({ subject, operation: candidate.operation, decision: "changed", reason: null, change: "revisionOnly",
+        currentEstablished: null });
+      adoptedCodes.add(entry.volcanoCode);
+      continue;
+    }
     const next = verdict.next;
     const fields = changed(existing, next, ALERT_FIELDS);
     const self = !kept.has(subject);
     if (!self) applied.changes.push([existing, next]);
+    // 到着の時点で期限を過ぎた採用が前の active を置き換えるなら、単独の警報と同じく pending を撤回する（D-WITHDRAW=A、P3-FINAL-AC04）。
+    if (!self && existing?.effective === "active" && dueAt(next, now)) applied.cancelled.add(subject);
     applied.subjects.push(outcomeOf(next, fields));
     applied.semantic ||= fields.length !== 0 || self;
     decide(applied, candidate, subject, { kind: "adopt" }, fields.length !== 0 || self);
     adoptedCodes.add(entry.volcanoCode);
   }
-  applied.state = { ...applied.state, alerts: values, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "alert", adoptedCodes) };
+  // 警報を一つも変えなければ元の配列を保つ（全 entry を足さなかったとき保存世代を進めない、P3-FINAL-AC01(5)）。
+  applied.state = { ...applied.state, alerts: kept.size === 0 ? alerts : values,
+    shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "alert", adoptedCodes) };
   applied.evicted += evicted;
   applied.semantic ||= evicted !== 0;
 }
@@ -850,16 +876,42 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading):
   const stamped = { ...adopted, persistence: persistedChanged(state, adopted) ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
   const collected = deadlineAt(stamped) <= now ? collect(stamped, clock) : null;
   const next = collected?.state ?? stamped;
+  if (collected != null) settle(applied, next);
   const diagnostics = [...applied.diagnostics];
   if (applied.evicted !== 0) diagnostics.push({ level: "INFO", component: "volcano", reason: "volcanoCapacityEvicted", unit: "U-V",
     count: applied.evicted });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "volcano", reason: "notificationCapacityEvicted", unit: "U-V",
     count: notices.dropped });
   const outcomes: PublishedOutcome[] = [...applied.outcomes];
-  if (applied.subjects.length !== 0)
+  if (applied.decisions.some((item) => item.decision === "changed"))
     outcomes.push({ kind: "accepted", change: applied.semantic ? "semantic" : "revisionOnly", subjects: applied.subjects });
   return { changes: [...applied.changes, ...collected?.changes ?? []],
     step: { state: next, nextDeadline: nextDeadline(next), decisions: applied.decisions, intents: notices.admitted, outcomes, diagnostics } };
+}
+
+// 受理の結果を回収の後の記録に揃える（D-OUTCOME=A・D-VANISHED=A、P3-FINAL-AC02）。記録が消えた subject は accepted に載せず
+// currentEstablished も null、expired になった subject はその記録で載せ、change は前と最終の表示の差で決める。
+// ponytail: 回収のある受理だけで、触れた subject ごとに slice の索引を引く（1 入力の subject は VFVO51 の entry 128 まで、P3-FINAL-RES-01）。
+function settle(applied: Applied, state: VolcanoUnitState): void {
+  const slice = (value: Shown): readonly Shown[] => isAlert(value) ? state.alerts : isBulletin(value) ? state.bulletins
+    : "topAshName" in value ? state.scheduledAshfalls : value.subject.includes("/volcano:eruption/") ? state.eruptions : state.ashfalls;
+  const finals = new Map<string, Readonly<{ before: Shown | null; after: Shown; last: Shown | null }>>();
+  for (const [before, after] of applied.changes) if (after != null) {
+    const values = slice(after);
+    finals.set(after.subject, { before, after, last: values[indexOf(values, after.subject) ?? -1] ?? null });
+  }
+  applied.subjects = applied.subjects.flatMap((item) => {
+    const found = finals.get(item.subject);
+    if (found == null || found.last === found.after) return [item];
+    return found.last == null ? [] : [outcomeOf(found.last, changed(found.before, found.last, fieldsOf(found.last)))];
+  });
+  applied.decisions = applied.decisions.map((item) => {
+    const found = finals.get(item.subject);
+    if (item.decision !== "changed" || found == null || found.last === found.after) return item;
+    const semantic = changed(found.before, found.last, fieldsOf(found.after)).length !== 0;
+    return { ...item, change: semantic ? "semantic" : "revisionOnly", currentEstablished: found.last == null ? null : item.currentEstablished };
+  });
+  applied.semantic = applied.evicted !== 0 || applied.decisions.some((item) => item.decision === "changed" && item.change === "semantic");
 }
 
 function receive(state: VolcanoUnitState, input: Extract<VolcanoInput, { kind: "receive" }>): Result {

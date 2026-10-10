@@ -694,6 +694,24 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(nankaiUnitCodec.decode({ ...payload, evidence: many.slice(0, 64) } as JsonValue).kind).toBe("restored");
     for (const [name, candidate] of invalid) expect(nankaiUnitCodec.decode(candidate as JsonValue).kind, name).toBe("invalid");
   });
+
+  // regression（監査 F05・F16）: 満杯の情報系列 64 に到着の時点で期限を過ぎた別の EventID を受けても退去せず、最終の state に無い
+  // subject を accepted・currentEstablished に出さず、保存世代も進めない（P3-FINAL-AC01・AC02）。
+  it("P3-FINAL-T02 regression / F05・F16: an expired information newcomer evicts nothing and is not reported as current", () => {
+    const t = at("2026-01-01T10:00:00+09:00");
+    const iso = (ms: number) => new Date(ms + 32_400_000).toISOString().replace(".000Z", "+09:00");
+    const report = (id: number, time: number) => decodeFixture("75_01_01_200512_VYSE51", (xml) => replaceTag("ReportDateTime", iso(time))(
+      replaceTag("EventID", String(id).padStart(14, "0"))(xml)));
+    let state = emptyState();
+    for (let id = 1; id <= 64; id++) state = receive(state, report(id, t), clock(t)).state;
+    const step = receive(state, report(65, t - 8 * DAY), clock(t));
+    expect([step.state.information, step.state.currents, step.state.persistence]).toEqual([state.information, state.currents, state.persistence]);
+    expect(step.decisions).toEqual([expect.objectContaining({ decision: "changed", change: "revisionOnly", currentEstablished: null })]);
+    expect([step.outcomes, step.intents, step.displayChanges, step.diagnostics]).toEqual([[{ kind: "accepted", change: "revisionOnly", subjects: [] }], [], [], []]);
+    // 記録の無い現況への 31 日前の VYSE50 も足さず、保存世代を進めない（AC01(5)、品質レビュー P2-3）。
+    const lone = receive(emptyState(), decodeFixture(F.inv1, replaceTag("ReportDateTime", iso(t - 31 * DAY))), clock(t));
+    expect([lone.state.currents, lone.state.information, lone.state.persistence]).toEqual([[], [], emptyState().persistence]);
+  });
 });
 
 // sequences.json の履歴 oracle（expected:<seq>:<position>）を step ごとに照合する。save と restart は codec を通す。

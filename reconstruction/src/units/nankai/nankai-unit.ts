@@ -377,16 +377,21 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
     ...nextInfo == null ? [] : [candidate.subject]] : []);
   const notices = admit(state.intents, fresh, cancelledSubjects);
 
-  let information = nextInfo == null ? state.information : replaceAt(state.information, infoIndex, nextInfo);
+  // 到着の時点で期限を過ぎた記録の無い情報 subject は配列へ入れない。同じ reduce で回収される記録のために他の記録を退去しない
+  // （P3-FINAL-AC01）。
+  const freshDue = due && infoIndex == null;
+  let information = nextInfo == null || freshDue ? state.information : replaceAt(state.information, infoIndex, nextInfo);
   let evicted: NankaiInformation | null = null;
   if (information.length > INFORMATION_LIMIT) {
     evicted = evictOne(state.information, now);
     const gone = evicted;
     information = information.filter((item) => item !== gone);
   }
-  const currents = nextCurrent == null ? state.currents : replaceAt(state.currents, currentIndex, nextCurrent);
+  // 記録の無い現況も、到着の時点で保持の期限を過ぎていれば入れない（情報 subject と同じ、P3-FINAL-AC01(1)(5)）。
+  const currentDue = nextCurrent != null && currentIndex == null && nextCurrent.retainUntil <= now;
+  const currents = nextCurrent == null || currentDue ? state.currents : replaceAt(state.currents, currentIndex, nextCurrent);
   const draft: NankaiUnitState = { ...state, currents, information, intents: notices.intents };
-  // 到着の時点で期限を過ぎた報は採用して watermark を進め、同じ reduce で回収する（P3-C8-RETENTION=A）。
+  // 到着の時点で期限を過ぎた報は、記録のある subject なら採用して watermark を進め、同じ reduce で回収する（P3-C8-RETENTION=A）。
   const collecting = deadlineAt(draft) <= now;
   // 情報系列の変化は証拠が変わるので保存世代を進める。回収する reduce では回収の後の証拠で比べる（P3-AUTH-AC01(5)・P3-X-C3）。
   const persisted = currents !== state.currents || notices.intents !== state.intents || !collecting && information !== state.information;
@@ -394,23 +399,39 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   const collected = collecting ? collect(adopted, clock, state.information) : null;
   const next = collected?.state ?? adopted;
   const changes: Change[] = [];
-  if (nextCurrent != null) changes.push([current, nextCurrent]);
-  if (nextInfo != null) changes.push([info, nextInfo]);
+  if (nextCurrent != null && !currentDue) changes.push([current, nextCurrent]);
+  if (nextInfo != null && !freshDue) changes.push([info, nextInfo]);
   if (evicted != null) changes.push([evicted, null]);
+  // 結果は回収の後の記録で決める（D-OUTCOME=A・D-VANISHED=A、P3-FINAL-AC02）。最終の記録が無いか証拠だけなら accepted に載せず
+  // currentEstablished も null。索引は回収のある reduce だけで引く（P3-FINAL-RES-01）。
+  const settled = (before: Shown | null, proposed: Fact | null, added: boolean, values: readonly Shown[], fields: readonly string[]) => {
+    if (proposed == null) return null;
+    const found = !added ? null : collected == null ? proposed : values[indexOf(values, proposed.subject) ?? -1] ?? null;
+    const last = found == null || found.effective === "evidence" ? null : found;
+    const diff = last == null ? visible(before) ? ["effective"] : []
+      : visible(before) || visible(last) ? changed<Shown>(visible(before) ? before : null, last, fields) : [];
+    return { last, diff, semantic: diff.length !== 0 || candidate.cancelled && visible(before) };
+  };
+  const finalCurrent = settled(current, nextCurrent, !currentDue, next.currents, CURRENT_FIELDS);
+  const finalInfo = settled(info, nextInfo, !freshDue, next.information, INFORMATION_FIELDS);
   const diagnostics: DiagnosticDetails[] = [];
   if (evicted != null) diagnostics.push({ level: "INFO", component: "nankai", reason: "nankaiCapacityEvicted", unit: "U-N", count: 1 });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "nankai", reason: "notificationCapacityEvicted",
     unit: "U-N", count: notices.dropped });
   if (infoVerdict.kind === "unchanged" && infoVerdict.conflict) diagnostics.push(conflictDiagnostic(candidate));
   const decisions: Decision[] = [];
-  if (currentVerdict != null) decisions.push(decision(candidate.currentSubject, currentVerdict, currentSemantic ? "semantic" : "revisionOnly"));
-  decisions.push(decision(candidate.subject, infoVerdict, infoSemantic ? "semantic" : "revisionOnly"));
-  const change = currentSemantic || infoSemantic || evicted != null ? "semantic" as const : "revisionOnly" as const;
+  const final = (subject: string, value: Verdict<Fact>, settledValue: ReturnType<typeof settled>): Decision => {
+    const made = decision(subject, value, settledValue?.semantic ? "semantic" : "revisionOnly");
+    return made.decision === "changed" && settledValue != null && settledValue.last == null ? { ...made, currentEstablished: null } : made;
+  };
+  if (currentVerdict != null) decisions.push(final(candidate.currentSubject, currentVerdict, finalCurrent));
+  decisions.push(final(candidate.subject, infoVerdict, finalInfo));
+  const change = finalCurrent?.semantic || finalInfo?.semantic || evicted != null ? "semantic" as const : "revisionOnly" as const;
   return {
     changes: [...changes, ...collected?.changes ?? []],
     step: { state: next, nextDeadline: nextDeadline(next), decisions, intents: notices.admitted,
-      outcomes: [{ kind: "accepted", change, subjects: [...nextCurrent == null ? [] : [outcomeOf(nextCurrent, currentFields)],
-        ...nextInfo == null ? [] : [outcomeOf(nextInfo, infoFields)]] }],
+      outcomes: [{ kind: "accepted", change, subjects: [finalCurrent, finalInfo].flatMap((item) => item?.last == null ? []
+        : [outcomeOf(item.last, item.diff)]) }],
       diagnostics },
   };
 }

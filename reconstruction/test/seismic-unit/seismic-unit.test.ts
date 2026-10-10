@@ -821,6 +821,25 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
         `${early}→${late}`).toEqual([[winner == null ? "duplicate" : lateWins ? "changed" : "stale"], [], lateWins ? late : early]);
     }
   });
+
+  // regression（監査 F05・F16）: 満杯の event 512・長周期 256 に到着の時点で期限を過ぎた別の EventID を受けても有効な記録を退去せず、
+  // 最終の state に無い subject を accepted・currentEstablished・表示に出さない（P3-FINAL-AC01・AC02）。当日履歴だけが変われば保存する。
+  it("P3-FINAL-T01 regression / F05・F16: an expired newcomer evicts nothing and is not reported as current", () => {
+    const t = Date.parse("2026-01-01T10:00:00+09:00");
+    const at = (ms: number) => new Date(ms + 9 * HOUR).toISOString().replace(".000Z", "+09:00");
+    for (const [file, count, late, list, saved] of [["32-35_08_03_100915_VXSE51", 512, 25 * HOUR, "earthquakes", 1],
+      ["selected_xml/78_01_01_240613_VXSE62", 256, 37 * HOUR, "longPeriods", 0]] as const) {
+      const report = (id: number, time: number) => decodeFixture(file, (xml) => replaceTag("ReportDateTime", at(time))(
+        replaceTag("EventID", String(id).padStart(14, "0"))(xml)));
+      let state = emptyState();
+      for (let id = 1; id <= count; id++) state = receive(state, report(id, t), clock(t)).state;
+      const step = receive(state, report(count + 1, t - late), clock(t));
+      expect(step.state[list]).toEqual(state[list]);
+      expect(step.decisions).toEqual([expect.objectContaining({ decision: "changed", change: "revisionOnly", currentEstablished: null })]);
+      expect([step.outcomes, step.intents, step.displayChanges, step.diagnostics]).toEqual([[{ kind: "accepted", change: "revisionOnly", subjects: [] }], [], [], []]);
+      expect(step.state.persistence.currentGeneration - state.persistence.currentGeneration).toBe(saved);
+    }
+  });
 });
 
 // P3-C7-CAPACITY-BUDGET=A の同時最大状態（I-U-Q.capacityReserve の文字列長の上限で組む）。

@@ -194,6 +194,9 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     const due = send(first.state, F.soya, (xml) => retime("2020-06-23T00:00:00+09:00")(areas(released())(xml)), T0 + 7 * HOUR + 60_000);
     expect(overdue.intents.length).toBe(2);
     expect([due.state.currents, due.intents, due.displayChanges.map((item) => [item.subject, item.after])]).toEqual([[], [], [[SUBJECT, null]]]);
+    // 監査 F12（P3-FINAL-AC05）: 新しいが失効済みの解除で、まだ有効な旧 active を消す今の意味を保ち、保存の対象として世代を進める（+1 に限らない）。
+    expect(due.state.persistence.currentGeneration).toBeGreaterThan(first.state.persistence.currentGeneration);
+    expect(due.outcomes.flatMap((item) => item.subjects.map((subject) => subject.transition))).toEqual(["ended"]);
   });
 
   // contractBoundary: 容量と受信 1 回の費用（AC04）。境界入力は試験内で作る。
