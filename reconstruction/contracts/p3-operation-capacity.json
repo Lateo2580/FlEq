@@ -1,0 +1,528 @@
+{
+  "meta": {
+    "draftedFromOid": "b117d77a234640203a68f72e9d090249ce6d14bb",
+    "sha256": "cd4aaf85ab8aaa73737449301022621fc8d67f3f458823ef3c6964c3ca7643cf",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
+    "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-OPCAP-D-OPERATION",
+        "A": "V/L/Rも、training/testのためにnormalの取消・版・所有証拠を退去しない。退去適格性を先に絞り、その中で順位を付ける。満杯なら新規trainingの不採用/自己退去を許す。normal同士の退去規則は別に残す。",
+        "B": "V/L/Rは現行どおり、normalの非active記憶をtrainingより先に退去できる。失われた後の旧報復活は、明示した保証外とする。Tの既存normal保護違反はBでも修正する。",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定A（2026-10-10、ご主人。計画§9の横断修正の裁定D-OPERATION）。この契約では開き直さない。",
+        "reason": "A・Bの文は計画§2（audit-verify/PLAN.md、K4 / D-OPERATION）の原文。実災害の受理判断を訓練の流量から独立させる。代償は容量逼迫時に訓練結果が見えない/記録されないこと（残存リスク(2)）。F10のWはnormalの終了にも既存のnormal保護fitを適用する修正で、別の新方針は不要（同）。"
+      },
+      {
+        "id": "P3-OPCAP-D-PAST-RETENTION",
+        "A": "training/testの受理では、normalの記録を保持の期限（retainUntil）を過ぎていても退去の候補にしない。規則は「training/testの受理はnormalの記録をactive・非activeとも退去しない」の一文で、各unitの退去の順の(1)（retainUntilを過ぎた記録）もnormalならtraining/testの候補から外す。期限を過ぎたnormalは期限の回収に任せる",
+        "B": "retainUntilを過ぎたnormalの記録（各unitの退去の順の(1)）は、training/testの受理でも退去できる（D-HORIZON=Aで保持の期限の後は保証の外）。normalの非active（(2)）とactiveは外す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定（2026-10-10）: A",
+        "reason": "製品の経路ではA・Bの差は出ない: ownerはU-T・U-V・U-L・U-Rの受信の前にそのunitの期限を回収する（owner-runtime.ts:436、各unitのreclaimDeadlineBeforeReceive: true）ので、retainUntilを過ぎたnormalの記録は受信の容量の判定の時点で残っていない。差が出るのはreducerを直に呼ぶとき（試験・監査）だけで、そのときBはU-Tで同じEventIDの古い報を期限の処理の前に戻しうる（U-RはACTIVE-EXPIRY.lateRule、flood-unit.ts:283で戻らない）。Aを採る理由は、D-OPERATION=Aの「training/testの受理はnormalを退去しない」の一文の規則のまま例外を足さないこと。Aの代償は残存リスク(1)。"
+      },
+      {
+        "id": "P3-OPCAP-D-SELF-OUTCOME",
+        "A": "training/testの報が自身を退去した受理（U-V・U-L・U-R。記録を残さない）は、decisionをchanged/revisionOnly・currentEstablished null、outcomeを{accepted, revisionOnly, subjects: []}にする。診断（volcano・landslide・floodCapacityEvicted、count 1）・state・保存世代・通知なしは今のまま",
+        "B": "今のまま（changed/semantic、acceptedに受けた記録、currentEstablishedに今回の報）",
+        "recommended": "A",
+        "ruling": "D-OUTCOME=A・D-VANISHED=A（作者裁定 2026-10-10）から一意に決まる（起草）",
+        "reason": "D-VANISHED=Aは「最終の状態に記録の無いsubjectは、accepted.subjectsに載せず、decisionはchangedのままcurrentEstablishedをnullにする」「changeは最終の表示の変化で決める（K3のAC02(3)）」。自身の退去は記録の無いsubjectへの受理（index無し）だけで起きるので、前も最終も表示が無くrevisionOnly。K3のAC02(3)の「退去があれば今どおりsemantic」は他の記録の退去の文で、自身の退去は表示を変えない（Q-FINAL-K4-BOUNDARYが自身の退去の時制をK4へ送った）。Bは裁定に合わない。"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-OPCAP-SOURCE",
+        "status": "closed",
+        "resolution": "原因（b117d77aのコード読解とaudit-verify/core.cjsの再実行。試作のcheckoutでreconstructionのdistを作って実行、Node v26.8.1）。F04-T: U-Tの退去の段（tier）は非activeをoperationによらず候補にし（tsunami-unit.ts:193〜:195、受ける報のoperationを見ない）、512件のnormal（取消の記憶1件を含む）にtrainingの513件目を受けると取消の記憶を退去し、同じEventIDの古い報がactiveに戻る（観測: training changed/semantic、cancelPresent false、旧報changed/semantic・revived active・pending 128）。F04-V: U-VのevictOneは受ける報がtraining/testのときnormalのactive（tier 3）だけを外し、normalの非activeを候補にする（volcano-unit.ts:159）。警報の取消の記憶1件＋training 127件の満杯にtrainingを受けると取消の記憶を退去し（cancelPresent false）、古い警報がactiveに戻る。F04-L・F04-R: evictOneが同じ形（landslide-unit.ts:104、flood-unit.ts:104）。監査は同型からの対象追加で実測が無かったので、試作のprobe（audit-verify/probe-f04lr.cjs）で取消の記憶1件＋normal active 127件（R 511件）にtrainingを受け、b117d77aでは取消の記憶が退去する（keptMemory false、changed/semantic）ことを確かめた。F10: U-Wの容量の段は、meaningの採用（national・partialsに今回のinputIdがある）だけにnormal保護の退去（fitNormalByByte）を当てる（weather-current-unit.ts:455〜:458）。VPNO50の終了は記録をtombstoneに移すので採用と見なされず、16 MiB−32のtraining全国baseのstateでcapacityUnavailable→lastKnownの切り捨て→capacityExceededに落ち、終了を拒否してactiveを残す（観測: capacityExceeded、sameReference true。trainingが無ければchanged/semantic）。core.cjsの他の行（F01〜F03・F05〜F09・F11・F12・F15〜F17）は試作の前後で同じ出力。",
+        "source": "起草時のコード読解・再実行（b117d77a、2026-10-10）"
+      },
+      {
+        "id": "Q-OPCAP-K3-OBLIGATIONS",
+        "status": "closed",
+        "resolution": "K3から引き継いだ義務（p3-order-plan.mdのK4の行、P3-FINAL-D-L-OUTCOME=C）。(1) K3のP3-FINAL-AC01とT01〜T03（U-Q・U-N・U-Vの到着の時点で期限を過ぎた新しい記録の扱い）を保つ: K4はU-Q・U-Nを触らず、U-Vのupsertのdropped（到着の時点で期限を過ぎた記録を足さない）を変えない。試作でT01〜T03は通る。(2) 自身の退去の結果の時制はD-SELF-OUTCOME（AC02）。(3) U-Lの遅着の結果: 記録の無い官署への遅着（landslide-unit.ts:289、K3の残存リスク(4)）と記録のある官署への遅着の解除（F12、:317で同じreduceに回収）は、最終の状態に記録が無いのでaccepted.subjectsに載せずcurrentEstablishedをnullにする（D-VANISHED=A）。changeは今の式（fields）のままで、前がactiveならsemantic、そうでなければrevisionOnly（D-VANISHED=AのchangeはAC02(3)、最終の表示の変化と一致）。K3のAC05とT05が足した「acceptedのtransitionがended」はAC06で読み替える。(4) U-Lの遅着の解除が消した前のactiveのpending: D-WITHDRAW=A（到着の時点で期限を過ぎた採用が前のactiveの記録を置き換えるとき、取消でなくてもそのsubjectのpendingを全部撤回する）をU-Lへ当てる（AC03）。K3がU-Lを外した理由はD-L-OUTCOME=Cで、規則そのものは閉じている。",
+        "source": "p3-final-adoption.jsonのD-L-OUTCOME・D-WITHDRAW・Q-FINAL-K4-BOUNDARY・残存リスク(3)(4)(5)"
+      },
+      {
+        "id": "Q-OPCAP-T-FORM",
+        "status": "closed",
+        "resolution": "U-Tの不採用の形はcapacityExceeded（state不変）のまま。U-TはP3-C5-CAPACITY=Aでnormalのactiveだけで超えるときcapacityExceededを返し、既存試験（tsunami-unit.test.ts:276）もtrainingの受理でcapacityExceededを期待している。D-OPERATION=Aは「新規trainingの不採用/自己退去を許す」でどちらの形も許すので、U-Tに自身の退去（U-V・U-L・U-Rの形）を新しく足さない（無くても壊れるものが無い）。U-TのcapacityExceededはruntimeでtrainingのsubjectの容量拒否の記録（admission）になる（今もnormalのactiveの満杯で同じ）。",
+        "source": "起草時の判断（P3-C5-CAPACITY=A・D-OPERATION=A）"
+      },
+      {
+        "id": "Q-OPCAP-W-SCOPE",
+        "status": "closed",
+        "resolution": "U-Wでnormal保護の退去（fitNormalByByte）を当てる範囲は、normalの候補の受理のうち、meaningがその入力に件数の拒否（reasonがcapacityExceededのunavailable、partial 128件がnormalだけの満杯、weather-current.ts:629）を作らなかったもの。採用・VPNO50の終了・取消（履歴の復元と、履歴の無い取消のhistoryUnavailable、weather-current.ts:599〜:600。初報へのnormalの取消は必ずhistoryUnavailable）が入る。P2-A5-AC11の「normalの受理はtraining/testの占有で失敗しない」と計画のK4の行の「容量のために終了を拒否してactiveを残す挙動を標準にしない」の一意な読み。件数で拒否した入力はbyteのためにtrainingを退去しない（P2-A5-T09のThird review R1、weather-current-unit.test.ts:744）。capacityUnavailableへ進む分岐（meaningがその入力のunavailableを作ったならそのstepを使う）は今のまま（そこも絞るとhistoryUnavailableがcapacityExceededに書き換わる）。試作は今のadoptedの判定（national・partialsのinputId）をこの条件に置き換え、unavailableの検索を1つにまとめた（製品の差分 +6/−6）。起草のレビューの観測（b117d77aと前の試作）: AC04と同じstateにnormalのVPWW55の取消を当てると、16 MiB−32・−200でcapacityExceeded・stateの参照が同じ・警報5のactiveが残り、−600ではtrainingを退去せずnormalのlastKnownを落とした。直した試作では−32でtrainingを退去してhistoryUnavailable（lastKnownあり）を受ける。履歴のある取消の復元は普通は保存の量を減らし、正式試験は無い（残存リスク(5)）。",
+        "source": "p2-weather-current-unit.jsonのP2-A5-AC11・R11=A、起草の独立レビューP1-1、起草時の試作"
+      },
+      {
+        "id": "Q-OPCAP-C12",
+        "status": "closed",
+        "resolution": "U-B（C12、未配送）のP3-C12-CAPACITY=A（p3-briefing-unit.json:139）は、受ける報がtraining/testでも(1)retainUntilを過ぎた記録 (2)記憶（replaced・aliased・cancelled）をnormalでも退去する、K4の前のV/L/Rと同じ形。K4はU-Bのコードと契約を触らず、C12の再開条件（p3-order-plan.md:389）に送る: C12の改訂で、training/testの受理はnormalの記録（記憶を含む）を退去しない（D-OPERATION=A、AC01と同じ）・候補が尽きれば自身の退去・自身の退去の結果はAC02（D-SELF-OUTCOME）・D-PAST-RETENTIONの裁定に揃える。operationContractの「training/test受理でnormalを先に退去させない」（:386）も記憶を含むと読む。aliasedのnormalは取消時の復帰材料も持つ（計画§4のC5の行）ので、Aの保護の対象に入る。",
+        "source": "計画§4（C5 / 256件の退去）・p3-order-plan.mdのC12の再開条件"
+      },
+      {
+        "id": "Q-OPCAP-PROTOTYPE",
+        "status": "closed",
+        "resolution": "起草時の試作（~/dev/fleq-k4-proto、b117d77a、D-PAST-RETENTION=Aで入れた版、独立レビューの直しの後）。製品の差分は5 file +64/−51（T +8/−5、V +24/−20、L +16/−12、R +10/−8、W +6/−6。触った関数の上のコメントの書き直しを含む。型・codec・保存の形の変更0）、試験は5 file +86/−4（既存のit 4つにassertを足し、新しいitはWの1つ）。(1) audit-verify/core.cjsでF04-TはtrainingがcapacityExceeded・取消の記憶が残り旧報unchanged/stale、F04-Vは取消の記憶が残り旧報unchanged/stale、F10はchanged/semantic・training全国baseを退去・tombstone 1。他の行は試作の前と同じ出力。probe-f04lr.cjsでF04-L・F04-Rは取消の記憶が残り、受けた報はchanged/revisionOnly・currentEstablished null・acceptedのsubjects空。(2) 新しいassertと期待値の変更はb117d77aの製品で落ち（T01〜T07が載る6つのitが落ちる）、試作の製品で通る。先のassertに隠れる行は個別に確かめた: U-Lの遅着の撤回は使い捨ての試験でb117d77aではpendingが2件残る、T02のVFVO51の警報entryの行は自身の退去の分岐（applyEntries）だけを戻した製品で落ちる、T06の取消の行は前の試作の条件（unavailableを作った入力を全部外す）で落ちる。(3) reconstructionの3つのtsc・vitest（62 file・616件、5 fileはhost計測で既定skip）・--sequence.shuffle（seed 1791618956347と1791610033643）が通った。既存試験の期待値の変更はAC06の4件だけ。(4) 実行したNodeはv26.8.1（この環境に20/22/24が無い）。",
+        "source": "起草時の試作（2026-10-10）"
+      },
+      {
+        "id": "Q-OPCAP-BRANCHES",
+        "status": "closed",
+        "resolution": "作者裁定（2026-10-10）: P3-OPCAP-D-PAST-RETENTION=A。残存リスク(1)〜(9)を承認。独立レビュー（Opus、NO-GO・P1 1・P2 1・P3 3）の指摘は起草に入れ、P1・P2の直しは同じレビューの再確認でGO: P1-1 U-Wのfitの除外をunavailableのreasonがcapacityExceededの入力だけに絞る（historyUnavailableのnormalの取消もtrainingを退去して採用する）、P2-1 D-PAST-RETENTIONの理由をownerの受信前の期限の回収（AとBの差はreducerを直に呼ぶときだけ）に直す、P3 触った関数の上のコメントの更新・VFVO51のentryの自身の退去の試験・Bの書き方の明確化。",
+        "source": "作者裁定2026-10-10・独立レビュー"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "容量の退去は退去の順位より前にoperationで適格性を決め、training/testの受理はnormalの記録をactive・非activeとも退去しない（D-OPERATION=A）。normalの受理の退去の順、normal同士の超過、区分ごとのsubject・watermark・intent・outcomeの分離は変えない。"
+    }
+  },
+  "contract": {
+    "contractId": "P3-OPERATION-CAPACITY-001",
+    "mode": "implementation",
+    "objective": "作者裁定D-OPERATION=Aにより、容量の退去の適格性を順位より前にoperationで絞る。U-T・U-V・U-L・U-Rでtraining/testの受理はnormalの記録（取消・解除の記憶を含む）を退去せず、候補が尽きれば今の不採用の形（U-TはcapacityExceeded、U-V・U-L・U-Rは自身の退去）を使う（監査F04）。U-Wはnormalの終了（VPNO50）にも採用と同じnormal保護の退去を当て、容量のために終了を拒みactiveを残さない（F10）。K3から引き継いだ義務として、自身の退去とU-Lの遅着の結果をD-OUTCOME=A・D-VANISHED=Aの時制に揃え、U-Lの遅着の解除が消した前のactiveのpendingを撤回する（D-WITHDRAW=A、P3-FINAL-D-L-OUTCOME=C）。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-operation-capacity.json",
+      "reconstruction/contracts/p3-final-adoption.json",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-landslide-unit.json",
+      "reconstruction/contracts/p3-flood-unit.json",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p3-briefing-unit.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/contracts/p3-volcano-unit.types.ts",
+      "reconstruction/contracts/p3-landslide-unit.types.ts",
+      "reconstruction/contracts/p3-flood-unit.types.ts",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/landslide/landslide-unit.ts",
+      "reconstruction/src/units/flood/flood-unit.ts",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts",
+      "reconstruction/src/domains/weather-current/weather-current.ts",
+      "reconstruction/test/tsunami-unit/tsunami-unit.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-fixture.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "reconstruction/test/volcano-unit/volcano-fixture.ts",
+      "reconstruction/test/landslide-unit/landslide-unit.test.ts",
+      "reconstruction/test/landslide-unit/landslide-fixture.ts",
+      "reconstruction/test/flood-unit/flood-unit.test.ts",
+      "reconstruction/test/flood-unit/flood-fixture.ts",
+      "reconstruction/test/weather-current-unit/weather-current-unit.test.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/landslide/landslide-unit.ts",
+      "reconstruction/src/units/flood/flood-unit.ts",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts",
+      "reconstruction/test/tsunami-unit/tsunami-unit.test.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "reconstruction/test/landslide-unit/landslide-unit.test.ts",
+      "reconstruction/test/flood-unit/flood-unit.test.ts",
+      "reconstruction/test/weather-current-unit/weather-current-unit.test.ts",
+      "reconstruction/contracts/p3-operation-capacity.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check",
+      "git show <必要最小限の対象>",
+      "git ls-files <必要最小限の対象>"
+    ],
+    "moduleIds": [
+      "M04",
+      "M06",
+      "M07",
+      "M13",
+      "M14",
+      "M15",
+      "M16"
+    ],
+    "integrationContractIds": [
+      "I-U-T",
+      "I-U-V",
+      "I-U-L",
+      "I-U-R",
+      "I-U-W"
+    ],
+    "dependsOnContractIds": [
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-V-001",
+      "P3-UNIT-L-001",
+      "P3-UNIT-R-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P3-FINAL-ADOPTION-001",
+      "P3-AUTHORITY-EVIDENCE-001",
+      "P3-REVISION-ORDER-001",
+      "P3-CODEC-CLOSURE-001",
+      "P2-SHARED-RUNTIME-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#PublishedOutcome",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiUnitStep",
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoUnitStep",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideUnitStep",
+      "reconstruction/contracts/p3-flood-unit.types.ts#FloodUnitStep",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentUnitStep"
+    ],
+    "publicFunctions": [
+      "reduceTsunamiUnit・reduceVolcanoUnit・reduceLandslideUnit・reduceFloodUnit・reduceWeatherCurrentUnitと各codecの公開の関数名・入力・型は変えない（currentEstablishedのnullは型が今も許す）。変わるのは容量の退去の候補、自身の退去とU-Lの遅着の結果の値（decision.change・currentEstablished・acceptedのsubjects）、U-Lの遅着のpendingの撤回、U-Wのnormalの終了の容量の段だけ"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけを使う。新しいnpm依存・新しい共有moduleは足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__synthetic_VTSE41_e01_311warning",
+      "test__fixtures__synthetic_VTSE41_cancel",
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__synthetic_VFVO50_cancel",
+      "test__fixtures__43_01_01_200522_VFVO52",
+      "test__fixtures__44_02_01_200522_VFVO51",
+      "test__fixtures__15_16_01_241031_VPWW56",
+      "test__fixtures__synthetic_VPWW56_cancel",
+      "test__fixtures__16_02_01_220728_VXKO50",
+      "test__fixtures__synthetic_VXKO50_cancel",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__18_00_01_260830_VPNO50_switch"
+    ],
+    "sequenceIds": [
+      "O01"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-OPCAP-RES-01",
+        "target": "U-T・U-V・U-L・U-R・U-Wの受信hot path",
+        "limit": "退去の候補の判定は記録ごとにO(1)の条件を1つ足すだけ（U-V・U-L・U-RのevictOne、U-Tのtier）。全件×全件0、state全体の直列化0。U-Wのnormal保護の退去（fitNormalByByte）は16 MiBの予約込み計量を超えた受理だけで走る稀な一括処理のまま（AGENTS.md）で、当てる受理に終了・取消が増えるだけ",
+        "unit": "1受信・選択・結果照合",
+        "scope": "U-V・U-L・U-Rの退去は満杯のsliceの線形の走査1回（上限128・128・512、VFVO51はentry 128×記録128で今のまま）。U-Tのfitは超過の種類ごとに候補を1回並べる（上限512・1024、今のまま）。U-Wのfitの各回は変更recordの差分計量（P2-A5-AC13・R46）で、退去の回数はtraining/testのrecordの数まで。U-Lの撤回はadmitの今の置換（subjectのpendingの走査1回）を使う",
+        "source": "AGENTS.md 受信経路の計算量・I-U-T/V/L/R.computation・P2-A5-AC13"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-T",
+      "U-V",
+      "U-L",
+      "U-R",
+      "U-W"
+    ],
+    "persistedFields": [
+      "保存schema・field・decodeの検査は変えない。移行は無い"
+    ],
+    "nonPersistedFields": [
+      "新しい非保存のfield・cacheを足さない（U-Vの自身の退去の数はreduceの中の一時の値）"
+    ],
+    "outOfScope": [
+      "U-B（C12、未配送）のコードと契約（Q-OPCAP-C12、C12の再開条件へ送る）",
+      "U-Q・U-N・U-E・U-Fの容量（normal/trainingの退去の同型の検査をしていない。残存リスク(6)）",
+      "normalの受理の退去の順・normal同士の超過・D-HORIZONの忘却後の保証（変えない）",
+      "通知のpendingの容量（admitのA7の順の外し方）。取消・版・所有の証拠ではない",
+      "U-Vで自身を退去したtraining/testの取消がそのsubjectのpendingを置き換えないこと（今のまま。残存リスク(4)）",
+      "寿命・保持の値、版の比較、保存の形・上界・移行（K1・K2・K5・K6の範囲）",
+      "実装担当によるspec本文・計画本文・旧契約本文の変更（計画§9のK4の行の状態の更新は統合担当）",
+      "監査用の未追跡audit-verify/*.cjsと結果、起草時の試作を製品・契約の成果物としてcommitすること"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-OPCAP-AC01",
+        "requirement": "退去の適格性をoperationで先に絞る（D-OPERATION=A、P3-X-C5のoperationの軸、監査F04）。U-T・U-V・U-L・U-Rの容量の退去で、受ける報がtraining/testなら、normalの記録はactive・非activeとも（取消・解除・終了の記憶、retainUntilを過ぎた記録もD-PAST-RETENTIONの裁定案Aでは含む）退去の候補にしない。候補は受ける報と同じ区分に限らず、training/testの記録だけ。候補の中の順位（期限切れ→非active→active、ReportDateTimeの古い順）と、受ける報がnormalのときの順（normal同士を含む）は今のまま。候補が尽きたとき: U-Tは今どおりcapacityExceeded（state・nextDeadline不変、Q-OPCAP-T-FORM）、U-V・U-L・U-Rは今どおり受けた記録自身を退去する（AC02）。U-Tの件数（VTSE41・観測family）・station・4 MiBの4つの上限と、VTSE41の退去に連れて消えるforecastEndedの観測（P3-C5-OBS-LIFETIME=A、同じoperation）にも同じ規則を当てる。U-VはVFVO51の全国の解説の警報entryの退去（evictOneの同じ関数）も同じ。受入（反例をそのまま回帰試験にする）: (a) U-T: VTSE41のnormal 512件（EventIDの1件は取消の記憶でretainUntilは時計より後、ReportDateTimeは古い報より新しい）にtrainingの513件目を受けるとcapacityExceededで取消の記憶が残り、その後の同じEventIDの古い報はunchanged/stale。training 1件を含む512件ならtrainingを退去して受け、取消の記憶は残る。(b) U-V・U-L・U-R: 満杯（128・128・512）のうち1件がnormalの非active（取消・ended）、ほかがnormalのactiveのとき、trainingの報を受けても非activeの記録は残り（配列の参照も同じ）、受けた記録が自身を退去する。training 1件を含む満杯ならtrainingを退去して受け、normalの非activeは残る。触った関数（U-Tのfit・tier、U-V・U-L・U-RのevictOne）の上のコメントは新しい規則（受ける報がtraining/testならnormalを(1)〜(4)とも候補にしない）に合わせる（AGENTS.md、触った関数の中のコメント）。",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:193 «3ccf4b93bb0670a0»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:195 «9f38751af6226203»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:205 «27ee60c18155c859»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:232 «2da005f3a958d05d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:490 «908a6df573f3a709»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:150 «902a95e89517147b»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:97 «bab357c3b6557817»",
+          "reconstruction/src/units/flood/flood-unit.ts:97 «341a72f3ab3d900b»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:159 «288e5860bf39f470»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:175 «899e44a57ae48411»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:835 «eca0b43a6b64e41b»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:104 «b3da53c8ae57435a»",
+          "reconstruction/src/units/flood/flood-unit.ts:104 «b3da53c8ae57435a»",
+          "reconstruction/contracts/p3-tsunami-unit.json:94 «934d7b48c0b68a8d»",
+          "reconstruction/contracts/p3-tsunami-unit.json:380 «fafb75ce989bb59a»",
+          "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
+          "reconstruction/contracts/p3-volcano-unit.json:396 «b4eb64d556c1a550»",
+          "reconstruction/contracts/p3-landslide-unit.json:88 «ff75c945bfaf4bbf»",
+          "reconstruction/contracts/p3-landslide-unit.json:333 «ac2287e8d615c460»",
+          "reconstruction/contracts/p3-flood-unit.json:122 «454554eecfd0de8e»",
+          "reconstruction/contracts/p3-flood-unit.json:384 «85bb90d02582a4f6»",
+          "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-AC02",
+        "requirement": "自身の退去と遅着の結果の時制（D-OUTCOME=A・D-VANISHED=A・D-SELF-OUTCOMEの裁定案A、K3から引き継いだ義務）。(1) U-V・U-L・U-Rでtraining/testの報が自身を退去した受理（記録を残さない）は、decisionがchanged/revisionOnly・currentEstablished null、outcomeが[{accepted, revisionOnly, subjects: []}]。診断（volcano・landslide・floodCapacityEvicted、count 1）、stateの参照・保存世代を変えないこと、通知を作らないこと、U-L・U-Rで採用した取消がそのsubjectのpendingを置き換えること（C10のQ-C10-IMPL-AMEND(5)）は今のまま。U-Vの自身の退去はaccepted.changeを決める退去（applied.evicted）に数えず、診断のcountには数える（同じ入力の他の記録の退去はK3のAC02(3)どおりsemantic）。U-VのVFVO51の警報entryの自身の退去（applyEntries）も同じ（そのentryのdecisionはchanged/revisionOnly・currentEstablished null、acceptedのsubjectsに警報のsubjectを載せず、解説のsubjectは今どおり載せる）。(2) U-Lの到着の時点で期限を過ぎた報: 記録の無い官署への報（同じreduceで足さない）と、記録のある官署への報（採用して同じreduceで回収する、F12）は、最終の状態に記録が無いのでaccepted.subjectsに載せずcurrentEstablishedをnullにする。changeは今の式のまま（前がactiveならsemantic、そうでなければrevisionOnly）。保存世代はK3のAC05のまま（記録のある官署なら進め、無い官署なら進めない）。(3) 最終の状態に記録が残る受理、unchanged・rejected、deadline・restore・intentUpdate・shutdownの結果は変えない。",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:533 «d9befedb7c8aa9c8»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:539 «b1de691cede9976c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:798 «15ba9cf67c2cb520»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:852 «e3e0da892df6f93a»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:914 «3b54901203444d8f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:289 «0f43b4526bc1f68f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:297 «ec6e74bbb825a7e3»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:317 «0a252c057ef91ea5»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:326 «fef2edbec1a0c2a0»",
+          "reconstruction/src/units/flood/flood-unit.ts:310 «a59630a2516c8f9e»",
+          "reconstruction/contracts/p3-final-adoption.json:41 «4a88e87a68db3280»",
+          "reconstruction/contracts/p3-final-adoption.json:44 «f8fbec304d91cf5b»",
+          "reconstruction/contracts/p3-final-adoption.json:58 «e5bdfce24f1ce39c»",
+          "reconstruction/contracts/p3-final-adoption.json:268 «1f764a4407ab71be»",
+          "reconstruction/contracts/p3-final-adoption.json:324 «7922790fe40b6814»",
+          "reconstruction/contracts/p2-shared-runtime.json:189 «837f02f3e547f030»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-AC03",
+        "requirement": "U-Lの遅着の解除で前のactiveのpendingを撤回する（D-WITHDRAW=A、P3-X-C6、K3の残存リスク(3)）。U-Lで到着の時点で期限を過ぎた採用（記録のretainUntilが受理の時計以下）が前のactiveの記録を置き換えるとき、取消でなくても新しい通知を作らず、そのsubjectのpendingを全部（両channel）supersededにする（取消の置換と同じ、P3-C10-REPLACEMENT=A）。前の記録がactiveでなければ今のまま。受入: 15_16_01_241031_VPWW56をT0（2020-06-22T23:00:00+09:00）で受け、ReportDateTimeをT0＋7時間−6時間−2分にした続報（区分を変える）をT0＋7時間−30秒で受け（pending desktop・sound）、ReportDateTimeをT0＋7時間−6時間−1分にした全区域の解除をT0＋7時間で受けると、currentsは空、pendingは0、新しいintentは0。修正前の観測（pending 2件が残る）の反転を正式試験で示す。U-RはACTIVE-EXPIRY.lateRuleで遅着をstaleにする（flood-unit.ts:283）ので当たらない。",
+        "evidenceRefs": [
+          "reconstruction/src/units/landslide/landslide-unit.ts:27 «679d97cc7e4432f5»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:314 «7e2c3787f60bcf99»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:317 «0a252c057ef91ea5»",
+          "reconstruction/src/units/flood/flood-unit.ts:283 «b6870a370007c3eb»",
+          "reconstruction/contracts/p3-final-adoption.json:512 «7e91018d311e9d28»",
+          "reconstruction/contracts/p3-order-plan.md:355 «2b1c861196e5d78f»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-AC04",
+        "requirement": "U-Wのnormalの終了・取消にもnormal保護の退去を当てる（監査F10、Q-OPCAP-W-SCOPE）。U-Wの受信の容量の段で、normalの候補のうちmeaningのstepがchangedを返し、その入力に件数の拒否（reasonがcapacityExceededのunavailable）を作らなかった受理（採用・VPNO50の終了・取消。履歴の無い取消のhistoryUnavailableを含む）は、16 MiBの予約込み計量を超えるときP2-A5-AC11の順（training/testの履歴→partial→全国base）でtraining/testを退去して再判定する。収まればその受理を採用し、診断weatherCurrentCapacityEvicted（count）を返す。収まらなければ今どおり、meaningがその入力のunavailableを作っていればそのstep、作っていなければcapacityUnavailable→lastKnownの切り捨て→capacityExceeded（state不変）。件数の拒否は今どおり退去しない（Third review R1）。容量のために終了・取消を拒否してactiveを残す挙動を標準にしない。受入: 18_00_01_260830_VPWW55_fukui_L5を受けたstateのpartialをCode 33の現象1つにし、ownershipを空にして、training全国base（padding）で予約込みのenvelopeを16 MiB−32 byteにする（codecのdecodeはrestored）。(a) 18_00_01_260830_VPNO50_switchを受けると、decisionはnormalのchanged/semantic、training全国baseは無く、tombstone 1、unavailableは空、診断にweatherCurrentCapacityEvicted count 1、受理後のstateはencode→decodeでrestored。(b) 同じstateに同じVPWW55のReportDateTimeを2026-08-30T07:00:00+09:00にした取消（Bodyなし）を受けると、training全国baseは無く、partialsは空、unavailableは[historyUnavailable、lastKnownあり]。修正前の観測（(a)(b)ともcapacityExceeded・stateの参照が同じ・警報5のactiveが残る）の反転を正式試験で示す。",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:455 «8928ae0c3f50d919»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:458 «4de0e3160e4bc148»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:466 «1d41b133f4622e00»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:578 «81ed2949a526f740»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:599 «ab25e7bdf167d89b»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:600 «1cfa7af3edd33400»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:629 «107712d22a266c72»",
+          "reconstruction/contracts/p2-weather-current-unit.json:39 «7f2ae36e32f02124»",
+          "reconstruction/contracts/p2-weather-current-unit.json:188 «9346f13f46100255»",
+          "reconstruction/contracts/p2-weather-current-unit.json:443 «a91d1d385759e031»",
+          "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:744 «e0bf06ac27ea774d»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-AC05",
+        "requirement": "既存条文の読み替え（旧契約の本文は変えない）。(1) U-T: P3-C5-CAPACITY=A（p3-tsunami-unit.json:94）の退去の候補 (1)(2)(3) は、受ける報がtraining/testならtraining/testの記録だけと読む（AC01）。operationContractの「training/test受理でnormalを退去させない」（:380）はAC01で満たす。(2) U-V・U-L・U-R: P3-C9-CAPACITY=A（p3-volcano-unit.json:132）・P3-C10-CAPACITY=A（p3-landslide-unit.json:88）・P3-C11-CAPACITY=A（p3-flood-unit.json:122）の (1)(2) は受ける報がtraining/testならtraining/testの記録だけ、「(1)〜(3)が無ければ受けた記録自身を退去する」は「training/testの記録が無ければ」と読む。自身の退去の「changed/semantic」はAC02(1)のchanged/revisionOnly（currentEstablished null・acceptedのsubjects空）に読み替える。testMappingの同じ文（p3-volcano-unit.json:1219・p3-landslide-unit.json:862・p3-flood-unit.json:996）も同じ。operationContractの「training/test受理でnormalを先に退去させない」（:396・:333・:384）は「先に」を外して読む。U-Lのpersistedの「training/testの報が自分自身を退去しただけの受理…保存世代を進めない」（p3-landslide-unit.json:273）・U-Rの同じ文（p3-flood-unit.json:319）は変えない。(3) U-L: K3のP3-FINAL-AC05とT05（p3-final-adoption.json:324・:430）の「acceptedのsubjectのtransitionはended」は、AC02(2)の「accepted.subjectsは空・currentEstablished null」に置き換える（保存世代を進める・旧activeを消すは残す）。K3のAC02(7)とD-L-OUTCOME=C（:41・:44）はこの契約で満たし、K3の残存リスク(3)のU-L・(4)・(5)は解消する。(4) U-W: P2-A5-AC11（p2-weather-current-unit.json:443）とR11=A（:39）の「normalの受理」はAC04の範囲（採用・終了・取消。件数の拒否を除く）と読む。(5) K3のP3-FINAL-AC01とT01〜T03（p3-final-adoption.json:241）は変えずに保つ（Q-OPCAP-K3-OBLIGATIONS(1)）。(6) U-B（C12）: P3-C12-CAPACITY=A（p3-briefing-unit.json:139）とoperationContract（:386）はK4で変えず、C12の再開条件（p3-order-plan.md:389）で本契約のAC01・AC02とD-PAST-RETENTIONの裁定に揃える（Q-OPCAP-C12）。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-tsunami-unit.json:94 «934d7b48c0b68a8d»",
+          "reconstruction/contracts/p3-tsunami-unit.json:380 «fafb75ce989bb59a»",
+          "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
+          "reconstruction/contracts/p3-volcano-unit.json:396 «b4eb64d556c1a550»",
+          "reconstruction/contracts/p3-volcano-unit.json:1219 «0fe76a1bc6d69f22»",
+          "reconstruction/contracts/p3-landslide-unit.json:88 «ff75c945bfaf4bbf»",
+          "reconstruction/contracts/p3-landslide-unit.json:273 «0eca0a521a5810b0»",
+          "reconstruction/contracts/p3-landslide-unit.json:333 «ac2287e8d615c460»",
+          "reconstruction/contracts/p3-landslide-unit.json:862 «99d234a4a8e6a7b5»",
+          "reconstruction/contracts/p3-flood-unit.json:122 «454554eecfd0de8e»",
+          "reconstruction/contracts/p3-flood-unit.json:319 «f7db5886932381d0»",
+          "reconstruction/contracts/p3-flood-unit.json:384 «85bb90d02582a4f6»",
+          "reconstruction/contracts/p3-flood-unit.json:996 «eb9b809d69d4b949»",
+          "reconstruction/contracts/p3-final-adoption.json:241 «743912693175cd64»",
+          "reconstruction/contracts/p3-final-adoption.json:324 «7922790fe40b6814»",
+          "reconstruction/contracts/p3-final-adoption.json:430 «dbb957933255793a»",
+          "reconstruction/contracts/p2-weather-current-unit.json:39 «7f2ae36e32f02124»",
+          "reconstruction/contracts/p2-weather-current-unit.json:443 «a91d1d385759e031»",
+          "reconstruction/contracts/p3-briefing-unit.json:139 «6a3a11386166aa56»",
+          "reconstruction/contracts/p3-briefing-unit.json:386 «bace62d132b78abe»",
+          "reconstruction/contracts/p3-order-plan.md:389 «ff5af93e056480f5»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-AC06",
+        "requirement": "既存試験の期待値の変更（起草時の試作で確かめた全部、4件）: (1) volcano-unit.test.tsのP3-C9-T05の自身の退去（:366）、(2) landslide-unit.test.tsのP3-C10-T04の自身の退去（:237）、(3) flood-unit.test.tsのP3-C11-T04の自身の退去（:290）のdecisionを[\"changed\", \"semantic\"]から[\"changed\", \"revisionOnly\"]へ。理由: AC02(1)（D-SELF-OUTCOME）。記録は残らず表示も変わらない。stateの参照・診断・intentsの期待値は変えない。(4) landslide-unit.test.tsのP3-C10-T03の遅着の解除（:199、K3のT05が足したassert）の「acceptedのsubjectのtransitionが[\"ended\"]」を「acceptedのsubjectsが空」へ。理由: AC02(2)。最終の状態に記録が無い。入力の変更は無い。これ以外の期待値・入力の変更が要ると分かったら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。",
+        "evidenceRefs": [
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:366 «9e3984480cbedaf7»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:237 «7d67b299a57fdb66»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:199 «15a38880951d971f»",
+          "reconstruction/test/flood-unit/flood-unit.test.ts:290 «c32ea41832b9af2c»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-AC07",
+        "requirement": "横断不変条件とパラメータ表。この契約が満たすのはP3-X-C5のoperationの軸（退去順位より前にoperationで適格性を決め、training/testはnormalの取消・版・所有の証拠を退去しない。trainingの自己退去は可。normal同士の順位は別に残す）、P3-X-C3の時制（自身の退去・U-Lの遅着の結果、AC02）、P3-X-C6のU-L（新通知0でも前のactiveのpendingを撤回、AC03）。P3-X-C1・C2・C4は変えない。パラメータ表（p3-order-plan.md:382）のCapacity — operation×作用の退去適格性: training/testの受理→training/testの記録だけ（U-T・U-V・U-L・U-R・U-W。U-Wは今もnormalを退去しない）、normalの受理→今の順（U-Wは採用・終了・取消に同じfit、件数の拒否は除く）。自己退去: U-V・U-L・U-Rは自身の退去、U-TはcapacityExceeded、U-WはcapacityUnavailable→capacityExceeded。normal同士の超過: 今のまま（U-T・U-WはcapacityExceeded、U-V・U-L・U-Rはnormalの古い順の退去）。Adoption / Outcome — 自身の退去・U-Lの遅着はaccepted.subjects空・currentEstablished null。Notification — U-Lの遅着の採用は生成0・前のactiveのpendingを撤回。Acceptance — T01〜T07。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
+          "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
+          "reconstruction/contracts/p3-order-plan.md:382 «c415a9aa8f38abdb»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-OPCAP-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-OPCAP-AC01"
+        ],
+        "behavior": "tsunami-unit.test.tsの既存のP3-C5-T04（:276の「training の受理は normal を退去させない」の後）にassertを足す（新しいitは作らない）: AC01(a)の取消の記憶（retainUntilは時計より後）を含むnormal 512件にtrainingを受けてcapacityExceeded・stateの参照が同じ、その後の同じEventIDの古い報がunchanged/stale、training 1件を含む512件ではtrainingだけが退去し取消の記憶が残る。"
+      },
+      {
+        "testId": "P3-OPCAP-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-OPCAP-AC01",
+          "P3-OPCAP-AC02"
+        ],
+        "behavior": "volcano-unit.test.tsの既存のP3-C9-T05の自身の退去（:366）の後にassertを足す: 自身の退去のdecisionのcurrentEstablishedがnull・outcomesが[{accepted, revisionOnly, subjects: []}]・保存世代が変わらない、AC01(b)の噴火のnormalの取消の記憶を含む満杯にtrainingを受けて配列の参照が同じ、training 1件を含む満杯ではtrainingだけが退去し取消の記憶が残る、警報128件（normalのactive）の満杯にtrainingの解説（44_02_01_200522_VFVO51）を受けて警報の配列の参照が同じ・警報entryのdecisionがchanged/revisionOnly・currentEstablished null・acceptedのsubjectsが解説のsubjectだけ（AC02(1)のVFVO51）。"
+      },
+      {
+        "testId": "P3-OPCAP-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-OPCAP-AC01",
+          "P3-OPCAP-AC02"
+        ],
+        "behavior": "landslide-unit.test.tsの既存のP3-C10-T04の自身の退去（:237）の後にT02と同じassertを足す（normalのendedの記録、128件）。"
+      },
+      {
+        "testId": "P3-OPCAP-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-OPCAP-AC01",
+          "P3-OPCAP-AC02"
+        ],
+        "behavior": "flood-unit.test.tsの既存のP3-C11-T04の自身の退去（:290）の後にT02と同じassertを足す（normalのendedの記録、512件）。"
+      },
+      {
+        "testId": "P3-OPCAP-T05",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-OPCAP-AC02",
+          "P3-OPCAP-AC03"
+        ],
+        "behavior": "landslide-unit.test.tsの既存のP3-C10-T03の遅着の解除（:199）にassertを足す: decisionがchanged/semantic・currentEstablished null、続けてAC03の続報→遅着の解除でcurrents・pending・新しいintentが空。"
+      },
+      {
+        "testId": "P3-OPCAP-T06",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-OPCAP-AC04"
+        ],
+        "behavior": "weather-current-unit.test.tsに新しいitを1つ: AC04の16 MiB−32 byteのstate（decodeはrestored）にVPNO50_switchを受け、normalのchanged/semantic・training全国baseの退去・tombstone 1・unavailable空・weatherCurrentCapacityEvicted count 1・受理後のencode→decodeがrestored、続けてAC04(b)の取消の行（training全国baseの退去・partials空・historyUnavailable）。"
+      },
+      {
+        "testId": "P3-OPCAP-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-OPCAP-AC02",
+          "P3-OPCAP-AC06"
+        ],
+        "behavior": "既存試験の期待値をAC06の4件だけ書き換える（新しいitは作らない）。"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約とanchor"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "srcと契約の型検査、dist生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "testの型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "C6のrunnerが使うdistの生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "正式回帰と既存試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "WeakMapの索引cache・共有状態の順序依存を検出"
+      },
+      {
+        "command": "git diff --check",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowedPathsだけのgit diff --binary --no-ext-diff patch、変更ファイル、正式ゲートと未実行の検証、残存リスクを返す。各試験はregressionまたはcontractBoundaryの根拠を1行で示す。",
+      "F04（T・V・L・R）とF10の監査の再現、U-Lの遅着のpendingの撤回が正式試験で反転したことを報告する。",
+      "規模の見積もり（起草時の試作から）: 製品のTSは5 file・約115行の変更（+64/−51。T約13、V約44、L約28、R約18、W約12。コメントの書き直しを含む）、試験は5 file・約90行（T01〜T07、既存試験の期待値の変更4件）。計画の見積もり100〜220行・1〜2人日に対し、合計約205行・0.5〜1人日。実績と差があれば理由を書く。",
+      "本契約ファイルの実装時の編集権はevidenceRefのanchorと自己digestの同期だけに限り、受入条件・裁定値を実装後に変えない。",
+      "残存リスク（作者承認済み（2026-10-10））: (1) D-PAST-RETENTION=A: reducerを直に呼ぶとき（試験・監査）だけ、retainUntilを過ぎたnormalの記録が回収されていない満杯にtraining/testが来ると不採用（U-TはcapacityExceeded、U-V・U-L・U-Rは自身の退去）になる。製品の経路はownerが受信の前に期限を回収する（owner-runtime.ts:436）ので差は出ない。(2) D-OPERATION=Aの代償: normalで満杯のとき、training/testの報は記録されず表示されない（U-TはcapacityExceededでruntimeにtrainingの容量拒否の記録が残る）。訓練や試験・replayをまとまって投入すると境界に達しうる。(3) 自身の退去は記録もwatermarkも残さないので、同じtraining/testの報は届くたびにchanged/revisionOnly（duplicateにならない、今と同じ）。(4) U-Vで自身を退去したtraining/testの取消は、そのsubjectのpendingを置き換えない（U-L・U-Rは置き換える）。自身の退去はindexの無いsubjectだけなので、pendingが残るのは同じsubjectの記録が先に退去されていた場合だけ。(5) U-Wの履歴のある取消（履歴の復元）は終了・historyUnavailableの取消と同じ条件で退去を受けるが、正式試験は無い（復元は普通は保存の量を減らす）。(6) U-Q・U-N・U-E・U-F・U-B（未配送）はoperationの適格性の同型の検査をしていない（U-Qは計画でK4の対象外、U-BはC12で揃える）。(7) normal同士の退去で取消の記憶が消えた後の古い報の復活はD-HORIZON=Aの保証外のまま。(8) 起草時の試作のゲートはNode v26.8.1で走らせた。対応のNode 20/22/24での実行はこの環境では未実施（blocked）。(9) 容量の境界・遅着の実配信の頻度は未集計。"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-OPCAP-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "implementation"
+        ],
+        "resolveBy": "発注前点検でK4のbaseOidを割り当てる。K3（配送b117d77a）の後のbaseで、U-T・U-V・U-L・U-R・U-Wの製品と試験のfileが他の契約と同時に編集されないことを確かめる（計画の順K5→K1→K2→K3→K4）。",
+        "requiredEvidence": [
+          "git rev-parse HEADとgit status --porcelain",
+          "check-contract FAIL 0",
+          "Q-OPCAP-BRANCHESの解決"
+        ]
+      }
+    ]
+  }
+}
