@@ -711,7 +711,8 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
 
   // 実不具合の再発防止（F08、P3-CODEC-AC01）: 旧 4 MiB の内側で保存した state が移行なしで復元し、VFVO50 1 報で 4 MiB を超えても 5 MiB の内側で保存・復元できる。
   it("P3-CODEC-T01 regression / AC01,AC02: F08 — a state saved under 4 MiB restores, takes one VFVO50 and saves and restores within 5 MiB", () => {
-    const start = f08State(109, true);
+    // 開始の件数は K2 の identity の鍵で 109 から 108 へ（開始 ≤ 4 MiB・1 報後 > 4 MiB の意味は同じ、P3-AUTH-AC08(5)）。
+    const start = f08State(108, true);
     const now = clock(at(F08_AT));
     const restored = reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(start), clock: now });
     expect(restored.outcomes).toMatchObject([{ kind: "recoveryApplied", scope: ["U-V"] }]);
@@ -751,7 +752,8 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     // 更新した intent は全部残る（owner は更新した記録で照合する）。
     expect(updates.every((update) => state.intents.some((item) => item.id === update.id && item.disposition === update.disposition))).toBe(true);
     console.info("P3-CODEC RES-04 maximum (reserved bytes)", JSON.stringify(sizes));
-    expect(Math.max(...sizes)).toBeLessThanOrEqual(4_753_484);
+    // K2 の family ごとの identity（64 字×2）を足した上界（P3-AUTH-RES-02）。
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(4_774_476);
 
     // 上限ちょうどは採り、1 byte 超えると入力前の state のまま rejected/requiredStructureInvalid と ERROR の診断 1 件だけを返す。
     const LIMIT = 5_242_880, DAY_MS = 86_400_000;
@@ -831,8 +833,8 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       const stats = (values: readonly number[]) => { const sorted = [...values].sort((left, right) => left - right);
         return { median: Number(sorted[Math.floor(sorted.length / 2)].toFixed(3)), max: Number(sorted.at(-1)!.toFixed(3)) }; };
       console.info("P3-CODEC AC07", JSON.stringify({ node: process.version, platform: `${process.platform} ${process.arch}`, trials, warmup,
-        serializedEnvelope: encodedBytes, generationBytes: generation(state), reserved: reserved(state), staticBound: 4_753_484,
-        boundMinusReserved: 4_753_484 - reserved(state), encodeMs: stats(encode), captureMs: stats(captureTotal), writeToDirectorySyncMs: stats(durable),
+        serializedEnvelope: encodedBytes, generationBytes: generation(state), reserved: reserved(state), staticBound: 4_774_476,
+        boundMinusReserved: 4_774_476 - reserved(state), encodeMs: stats(encode), captureMs: stats(captureTotal), writeToDirectorySyncMs: stats(durable),
         reduceVfvo50FirstMs: Number(reduceMs[0].toFixed(3)), reduceVfvo50WarmMs: stats(reduceMs.slice(warmup)),
         beforeRename, afterRename, rssBefore, rssAfter: process.memoryUsage().rss, maxRssKiB: process.resourceUsage().maxRSS }));
     } finally { rmSync(directory, { recursive: true, force: true }); }
@@ -897,6 +899,69 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       expect([verdict(step), step.state.ashfalls.map((item) => item.source.family)], late.headType)
         .toEqual([[late.headType === "VFVO55" ? "changed" : "stale"], ["VFVO55"]]);
     }
+  });
+
+  // 監査 F07 の三報（land A → marine B → 火山コードの無い land A の取消）。各報の時刻の時計で受ける。
+  const landA = (iso: string, eventId = "A") => decodeFixture(F.a306, (xml) => replaceTag("EventID", eventId)(retime(iso)(xml)));
+  const marineB = (iso: string, eventId = "B") => decodeFixture(F.marine, (xml) => replaceTag("EventID", eventId)(retime(iso)(xml))
+    .replaceAll("<Code>506</Code>", "<Code>306</Code>"));
+  const codeless = (iso: string, eventId: string, headType = "VFVO50") =>
+    decodeXml(replaceTag("EventID", eventId)(retime(iso)(fixtureXml(F.alertCancel))), headType);
+  const restarted = (state: VolcanoUnitState, now: number) => {
+    const decoded = roundTrip(state);
+    if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+    return reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(decoded.state), clock: clock(now) }).state;
+  };
+
+  // regression（監査 F07、P3-AUTH-AC03・AC04）: 修正前は取消が rejected/identityMissing で警報が active のまま残った。
+  it("P3-AUTH-T03 regression / AC03,AC04: a codeless land cancel after land A and marine B binds to the land identity", () => {
+    const t = (seconds: number) => `2026-01-01T10:00:0${seconds}+09:00`;
+    const feed = (state: VolcanoUnitState, material: DecodedMaterial) => receive(state, material, clock(at(material.reportDateTimeRaw)));
+    const both = feed(feed(emptyState(), landA(t(0))).state, marineB(t(1))).state;
+    for (const [label, state] of [["direct", both], ["restored", restarted(both, at(t(1)))]] as const) {
+      const cancel = feed(state, codeless(t(2), "A"));
+      expect([shape(cancel), levels(cancel)], label).toEqual([[["normal/volcano:alert/306", "changed", "semantic"]], ["desktop:cancel", "sound:cancel"]]);
+      expect(alertOf(cancel.state, "306"), label).toMatchObject({ effective: "cancelled", landEventId: "A", marineEventId: "B",
+        marineSource: { reportDateTimeRaw: t(1) } });
+      // 取消の後に届く marine B より古い VFSV は stale。
+      expect(shape(feed(cancel.state, marineB(t(0)))), label).toEqual([["normal/volcano:alert/306", "unchanged", "stale"]]);
+    }
+    // 逆の順: marine B → land A → 火山コードの無い VFSV の取消（EventID B）も結び付く。
+    const reverse = feed(feed(emptyState(), marineB(t(0))).state, landA(t(1))).state;
+    expect(shape(feed(reverse, codeless(t(2), "B", "VFSV50")))[0].slice(0, 2)).toEqual(["normal/volcano:alert/306", "changed"]);
+  });
+
+  // contractBoundary（P3-AUTH-AC06）: 旧保存の移行 A1 と、identity の decode の拒否。
+  it("P3-AUTH-T05 contractBoundary / AC06: legacy alerts migrate per side and malformed identities are invalid", () => {
+    const iso13 = (minute: string) => `2020-05-22T13:${minute}:00+09:00`;
+    const feed = (state: VolcanoUnitState, material: DecodedMaterial) => receive(state, material, clock(at(material.reportDateTimeRaw)));
+    // 315 は land だけ、506 は marine だけ、306 は land L306 の後に marine M306（記録の eventId は M306）。
+    let state = feed(emptyState(), decodeFixture(F.a315)).state;
+    state = feed(state, decodeFixture(F.marine, retime(iso13("00")))).state;
+    state = feed(feed(state, landA(iso13("03"), "L306")).state, marineB(iso13("04"), "M306")).state;
+    const payload = JSON.parse(JSON.stringify(volcanoUnitCodec.encode(state))) as { alerts: Record<string, unknown>[] };
+    const legacy = { ...payload, alerts: payload.alerts.map(({ landEventId: _land, marineEventId: _marine, ...rest }) => rest) };
+    const decoded = volcanoUnitCodec.decode(legacy as JsonValue);
+    if (decoded.kind !== "restored") throw new Error("the legacy payload does not decode");
+    expect(["315", "506", "306"].map((code) => { const alert = alertOf(decoded.state, code)!;
+      return [alert.eventId, alert.landEventId, alert.marineEventId]; })).toEqual([["315", "315", null], ["506", null, "506"], ["M306", null, null]]);
+    // 両側の記録の family ごとの identity は分からないので、火山コードの無い取消は結び付かない（推測しない）。
+    expect(shape(feed(decoded.state, codeless(iso13("05"), "M306")))).toEqual([["", "rejected", "identityMissing"]]);
+    // 両側の記録へ最後の書き手と同じ版の再送は、identity が埋まっても duplicate（食い違いの WARN にしない）。
+    expect(shape(feed(decoded.state, marineB(iso13("04"), "M306"))).map(([, ...rest]) => rest)).toEqual([["unchanged", "duplicate"]]);
+    // 分かっている identity どうしの違いは、記録の eventId が反対側の書き手のものでも食い違い。
+    const known = feed(feed(emptyState(), landA(iso13("10"), "A")).state, marineB(iso13("11"), "B")).state;
+    expect(shape(feed(known, landA(iso13("10"), "B"))).map(([, ...rest]) => rest)).toEqual([["unchanged", "stale"]]);
+    const [first, second] = payload.alerts;
+    const { marineEventId: _drop, ...oneKey } = first;
+    const invalid: [string, unknown][] = [
+      ["identity without its source", { ...payload, alerts: [{ ...second, landEventId: "X" }] }],
+      ["EventID with a slash", { ...payload, alerts: [{ ...first, landEventId: "a/b" }] }],
+      ["EventID over 64", { ...payload, alerts: [{ ...first, landEventId: "a".repeat(65) }] }],
+      ["one key only", { ...payload, alerts: [oneKey] }],
+      ["keyed and legacy alerts mixed", { ...payload, alerts: [first, legacy.alerts[1]] }],
+    ];
+    for (const [name, candidate] of invalid) expect(volcanoUnitCodec.decode(candidate as JsonValue).kind, name).toBe("invalid");
   });
 });
 
@@ -1020,9 +1085,14 @@ function f08State(escaped: number, sparse: boolean, max = false): VolcanoUnitSta
 function decoderMax(state: VolcanoUnitState): VolcanoUnitState {
   const code = "\\".repeat(8), text = "\\".repeat(40), id = "\u0001".repeat(64);
   const ref = <T extends { inputId: string }>(value: T): T => ({ ...value, inputId: id });
-  const alerts = state.alerts.map((item): VolcanoAlert => item.effective !== "active" ? item : { ...item, source: item.source && ref(item.source),
-    marineSource: item.marineSource && ref(item.marineSource), kind: { ...item.kind, code }, lastKind: item.lastKind && { ...item.lastKind, code },
-    landKind: item.landKind && { ...item.landKind, code }, coordinate: text });
+  // family ごとの identity は組の版がある側だけ EventID の上限 64 字（P3-AUTH-AC06(3)）。
+  const eventId = "E".repeat(64);
+  const alerts = state.alerts.map((value): VolcanoAlert => {
+    const item = { ...value, landEventId: value.source && eventId, marineEventId: value.marineSource && eventId };
+    return item.effective !== "active" ? item : { ...item, source: item.source && ref(item.source),
+      marineSource: item.marineSource && ref(item.marineSource), kind: { ...item.kind, code }, lastKind: item.lastKind && { ...item.lastKind, code },
+      landKind: item.landKind && { ...item.landKind, code }, coordinate: text };
+  });
   const eruptions = state.eruptions.map((item): VolcanoEruption => item.effective !== "active" ? item : { ...item, source: ref(item.source),
     phenomenon: { ...item.phenomenon, code }, eventDateTimeRaw: text });
   const ashfalls = state.ashfalls.map((item) => item.effective !== "active" ? item : { ...item, source: ref(item.source),

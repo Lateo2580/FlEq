@@ -124,17 +124,24 @@ function indexOf(values: readonly Shown[], subject: string): number | undefined 
   if (index == null) { index = new Map(values.map((item, at) => [item.subject, at])); indexCache.set(values, index); }
   return index.get(subject);
 }
-// 火山コードの無い取消の照合（P3-C9-CANCEL-SCOPE=A の (2)）。運用区分と eventId ごとの記録の位置。
+// 火山コードの無い取消の照合（P3-C9-CANCEL-SCOPE=A の (2)）。運用区分と eventId ごとの記録の位置。警報は family の側ごとの
+// identity（land・marine）を鍵にする（1 記録に鍵 2 つまで、P3-AUTH-AC03(3)）。
+const eventKeys = (item: Shown): readonly string[] => !isAlert(item) ? [item.eventId]
+  : [...item.landEventId == null ? [] : [`land\n${item.landEventId}`], ...item.marineEventId == null ? [] : [`marine\n${item.marineEventId}`]];
 const eventCache = new WeakMap<readonly Shown[], ReadonlyMap<string, readonly number[]>>();
-function eventMatches(values: readonly Shown[], operation: Operation, eventId: string): readonly number[] {
+function eventMatches(values: readonly Shown[], operation: Operation, key: string): readonly number[] {
   let index = eventCache.get(values);
   if (index == null) {
     const built = new Map<string, number[]>();
-    values.forEach((item, at) => { const key = `${item.operation}\n${item.eventId}`; built.set(key, [...built.get(key) ?? [], at]); });
+    values.forEach((item, at) => { for (const part of eventKeys(item)) {
+      const found = `${item.operation}\n${part}`;
+      const list = built.get(found);
+      if (list == null) built.set(found, [at]); else list.push(at);
+    } });
     index = built;
     eventCache.set(values, index);
   }
-  return index.get(`${operation}\n${eventId}`) ?? [];
+  return index.get(`${operation}\n${key}`) ?? [];
 }
 function replaceAt<T>(values: readonly T[], index: number | undefined, value: T): readonly T[] {
   return index == null ? [...values, value] : values.map((item, at) => at === index ? value : item);
@@ -220,9 +227,14 @@ function alertBase(candidate: VolcanoCandidate, subject: string, code: string, e
   // landKind は VFVO50・VFVO51 の報だけが書く（VFVO50 の取消で null）。
   const landKind = marine ? existing?.landKind ?? null : candidate.cancelled ? null : kind;
   const source = marine ? existing?.source ?? null : ref, marineSource = marine ? ref : existing?.marineSource ?? null;
+  // 取消の identity は版と組で family の側ごとに書く。VFVO51 の entry は既存の land 側を保つ（P3-AUTH-AC03(2)）。
+  const landEventId = marine ? existing?.landEventId ?? null : candidate.family === "VFVO51" ? existing?.landEventId ?? candidate.eventId
+    : candidate.eventId;
+  const marineEventId = marine ? candidate.eventId : existing?.marineEventId ?? null;
   const retainUntil = Math.max(source == null ? -Infinity : reportMs(source), marineSource == null ? -Infinity : reportMs(marineSource))
     + ALERT_RETAIN_MS;
-  return { subject, operation: candidate.operation, volcanoCode: code, eventId, source, marineSource, landKind, retainUntil };
+  return { subject, operation: candidate.operation, volcanoCode: code, eventId, source, marineSource, landKind, landEventId, marineEventId,
+    retainUntil };
 }
 // 一つの警報の報（VFVO50・VFSV・VFVO51 の火山 entry）を記録に当てる。版は自分の family の watermark とだけ比べ、kind は
 // 別の family と比べて新しいときだけ取る（同じ版で kind が違えば先着を保って食い違い、P3-C9-MARINE=A）。
@@ -281,7 +293,9 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
       headline: facts!.headline, municipalities: facts!.municipalities, marineAreas: before?.marineAreas ?? [],
       coordinate: facts!.coordinate, truncated: candidate.truncated };
   }
-  if (order === 0) return existing != null && isDeepStrictEqual(withoutSource(existing), withoutSource(next))
+  // 旧保存で分からない identity（null）は同じ版の再送で埋まっても食い違いにしない。分かっている identity どうしの違いは食い違い（P3-AUTH-AC06(2)）。
+  if (order === 0) return existing != null && isDeepStrictEqual(withoutSource(existing), withoutSource({ ...next,
+    landEventId: existing.landEventId == null ? null : next.landEventId, marineEventId: existing.marineEventId == null ? null : next.marineEventId }))
     ? { kind: "unchanged", reason: "duplicate", conflict: false } : { kind: "unchanged", reason: "stale", conflict: true };
   return { kind: "adopt", next, conflict: crossConflict };
 }
@@ -525,9 +539,11 @@ function noTarget(applied: Applied, candidate: VolcanoCandidate): Applied {
   return applied;
 }
 // 火山コードの無い取消は、その slice の記録のうち eventId が一致する記録が一つだけのとき結び付く（P3-C9-CANCEL-SCOPE=A の (2)）。
+// 警報は VFVO50 の取消を landEventId、VFSV の取消を marineEventId と照らす（P3-AUTH-AC03(3)）。
 function codeOf(values: readonly (VolcanoAlert | VolcanoAshfall | VolcanoScheduledAshfall)[], candidate: VolcanoCandidate): string | null {
   if (candidate.volcanoCode != null) return candidate.volcanoCode;
-  const found = eventMatches(values, candidate.operation, candidate.eventId);
+  const key = candidate.slice !== "alert" ? candidate.eventId : `${isMarine(candidate.family) ? "marine" : "land"}\n${candidate.eventId}`;
+  const found = eventMatches(values, candidate.operation, key);
   return found.length === 1 ? values[found[0]].volcanoCode : null;
 }
 const dueAt = (value: Shown, now: number) => shownDeadline(value) <= now;
@@ -969,7 +985,7 @@ function resolveShortfall(state: VolcanoUnitState, input: Extract<VolcanoInput, 
     });
     if (found.slice === "alert") next = { ...next, alerts: end<VolcanoAlert>(state.alerts, (item) => ({ subject: item.subject,
       operation: item.operation, volcanoCode: item.volcanoCode, eventId: item.eventId, source: item.source, marineSource: item.marineSource,
-      landKind: item.landKind,
+      landKind: item.landKind, landEventId: item.landEventId, marineEventId: item.marineEventId,
       retainUntil: item.retainUntil, effective: "ended" })) };
     if (found.slice === "eruption") next = { ...next, eruptions: end<VolcanoEruption>(state.eruptions, (item) => ({ subject: item.subject,
       operation: item.operation, eventId: item.eventId, source: item.source, retainUntil: item.retainUntil, volcanoCode: item.volcanoCode,
@@ -1125,7 +1141,8 @@ const ERUPTION_FACT_KEYS = ["volcanoName", "flash", "phenomenon", "eventDateTime
   "plumeDirection", "headline", "municipalities", "truncated", "validUntil"];
 const ASHFALL_FACT_KEYS = ["volcanoName", "variant", "headline", "forecastStartsAt", "forecastEndsAt", "groups", "omittedGroupCount", "truncated"];
 const alertFamily = (family: string): family is VolcanoAlertFamily => family === "VFVO50" || family === "VFVO51";
-function alertRecord(value: unknown): VolcanoAlert | null {
+// legacy は K2 前の旧保存（警報が identity の鍵を持たない payload、P3-AUTH-AC06(2)）。
+function alertRecord(value: unknown, legacy: boolean): VolcanoAlert | null {
   const row = record(value);
   const operation = operationOf(row?.operation);
   if (row == null || operation == null || !isText(row.volcanoCode) || !validVolcanoCode(row.volcanoCode) || !isText(row.eventId)
@@ -1140,8 +1157,15 @@ function alertRecord(value: unknown): VolcanoAlert | null {
   // landKind は source の family の区分で、source が null なら null（値域と上限は kind と同じ）。
   const landKind = row.landKind === null ? null : kindRecord(row.landKind);
   if (landKind == null && row.landKind !== null || source == null && landKind != null) return null;
-  const base = { subject, operation, volcanoCode: row.volcanoCode, eventId: row.eventId, source, marineSource, landKind,
-    retainUntil: row.retainUntil };
+  // 移行 A1: 片側だけの記録は eventId がその側の identity。両側の記録は最後の書き手が分からないので両方 null（推測しない）。
+  const land = row.landEventId, marine = row.marineEventId;
+  const landEventId = legacy ? marineSource == null ? row.eventId : null
+    : land === null ? null : source != null && isText(land) && validEventId(land) ? land : undefined;
+  const marineEventId = legacy ? source == null ? row.eventId : null
+    : marine === null ? null : marineSource != null && isText(marine) && validEventId(marine) ? marine : undefined;
+  if (landEventId === undefined || marineEventId === undefined) return null;
+  const base = { subject, operation, volcanoCode: row.volcanoCode, eventId: row.eventId, source, marineSource, landKind, landEventId,
+    marineEventId, retainUntil: row.retainUntil };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
     if (ALERT_FACT_KEYS.some((key) => key in row)) return null;
@@ -1267,7 +1291,12 @@ const unique = (values: readonly { subject: string }[]) => new Set(values.map((i
 function persisted(value: unknown): PersistedVolcanoUnit | null {
   const row = record(value);
   if (row == null || row.schemaVersion !== SCHEMA) return null;
-  const alerts = list(row.alerts, alertRecord, SLICE_LIMIT), eruptions = list(row.eruptions, eruptionRecord, SLICE_LIMIT);
+  // 旧保存かどうかは payload 単位で見る: 警報が全部 identity の鍵を両方持つか、全部どちらも持たないか（混在は不正、P3-AUTH-AC06(2)）。
+  const keyed = Array.isArray(row.alerts) ? row.alerts.map((entry) => { const alert = record(entry);
+    return alert == null ? 0 : Number("landEventId" in alert) + Number("marineEventId" in alert); }) : [];
+  if (keyed.some((keys) => keys !== keyed[0]) || keyed[0] === 1) return null;
+  const legacy = keyed[0] === 0;
+  const alerts = list(row.alerts, (entry) => alertRecord(entry, legacy), SLICE_LIMIT), eruptions = list(row.eruptions, eruptionRecord, SLICE_LIMIT);
   const ashfalls = list(row.ashfalls, ashfallRecord, SLICE_LIMIT), shortfalls = list(row.shortfalls, shortfallRecord, SHORTFALL_LIMIT);
   const intents = list(row.intents, intentRecord);
   if (alerts == null || eruptions == null || ashfalls == null || shortfalls == null || intents == null || !unique(alerts)

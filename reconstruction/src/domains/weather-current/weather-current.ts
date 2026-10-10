@@ -387,7 +387,10 @@ function monitor(state: WeatherCurrentUnitState, candidate: Candidate, decision:
     currentSemanticRevision: current == null ? null : `${current.source.reportDateTimeRaw}/${current.source.serialRaw}`,
     decision, reason, revisionOrder,
     freshnessSuspect: revisionOrder === "newer" || previous?.freshnessSuspect === true,
-    suspectedSource: revisionOrder === "newer" ? candidate.source : previous?.suspectedSource ?? null,
+    // 疑義の上限は同じ target で後退させない（P3-AUTH-AC05(1)）。
+    suspectedSource: revisionOrder === "newer" && (previous?.suspectedSource == null
+      || Date.parse(candidate.source.reportDateTimeRaw) > Date.parse(previous.suspectedSource.reportDateTimeRaw))
+      ? candidate.source : previous?.suspectedSource ?? null,
     confirmedScope: previous?.confirmedScope ?? [],
     clearCondition: "sameTargetScopeAcceptedOrCoverageConfirmed",
   };
@@ -397,10 +400,13 @@ function monitor(state: WeatherCurrentUnitState, candidate: Candidate, decision:
   return { ...state, freshness, persistence: dirty(state.persistence, clockMs) };
 }
 
+// 疑義は上限以上の版の採用だけで解く（上限より古い採用では残す、P3-AUTH-AC05(2)）。
 function clearMonitoring(state: WeatherCurrentUnitState, candidate: Candidate): WeatherCurrentUnitState {
+  const at = Date.parse(candidate.source.reportDateTimeRaw);
   const freshness = state.freshness.filter((record) => !(record.target.operation === candidate.operation
     && record.target.family === candidate.family && record.target.subject === candidate.subject
-    && scopeContains(candidate.affectedScope, record.target.affectedScope)));
+    && scopeContains(candidate.affectedScope, record.target.affectedScope)
+    && (record.suspectedSource == null || Date.parse(record.suspectedSource.reportDateTimeRaw) <= at)));
   const unavailable = state.unavailable.filter((record) => !(record.operation === candidate.operation
     && record.subject === candidate.subject && scopeContains(candidate.affectedScope, record.affectedScope)));
   return freshness.length === state.freshness.length && unavailable.length === state.unavailable.length

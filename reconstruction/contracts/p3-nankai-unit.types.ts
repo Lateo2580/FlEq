@@ -57,18 +57,18 @@ export type NankaiCurrent = Readonly<{
 
 export type NankaiCurrentLine = NankaiCurrent["line"];
 
-// 情報系列（N、保存しない）。subject = `${operation}/${family}/${eventId}`。採用した全ての報が入る
+// 情報系列（N、事実は保存しない）。subject = `${operation}/${family}/${eventId}`。採用した全ての報が入る
 // （現況を変える報は、現況が採用したときだけ）。cancelled は事実を捨てて source だけ残し、view に載らない。
 // 文字列の上限（I-U-N.bounds）: title 128、headline 512、text 4,096、nextAdvisory 512、infoKind 64 文字。
 // retainUntil は ReportDateTime + 7×86,400,000 ms（P3-C8-RETENTION）。
-type NankaiInformationBase = Readonly<{
+type NankaiInformationIdentity = Readonly<{
   subject: string;
   family: NankaiReportFamily;
   eventId: string;
   operation: Operation;
-  source: ReportRef;
   retainUntil: number;
 }>;
+type NankaiInformationBase = NankaiInformationIdentity & Readonly<{ source: ReportRef }>;
 type NankaiInformationHeading = Readonly<{
   effective: "active";
   infoKind: string | null;
@@ -77,10 +77,20 @@ type NankaiInformationHeading = Readonly<{
   headline: string | null;
   truncated: boolean;
 }>;
-export type NankaiInformation = NankaiInformationBase & (
-  | (NankaiInformationHeading & Readonly<{ text: string | null; nextAdvisory: string | null }>)
-  | Readonly<{ effective: "cancelled" }>
-);
+// 受理の証拠（P3-AUTH-AC01）: 情報 subject の版の比較に要るものだけ。保存し、復元で証拠だけの情報 subject に戻る。
+export type NankaiEvidence = Readonly<{
+  subject: string;
+  reportDateTimeMs: number;
+  serialRaw: string;
+  infoTypeRaw: string;
+}>;
+// evidence は復元した証拠だけの記録で、事実も source も持たず view・outcome・表示の変化に出ない。
+export type NankaiInformation =
+  | (NankaiInformationBase & (
+    | (NankaiInformationHeading & Readonly<{ text: string | null; nextAdvisory: string | null }>)
+    | Readonly<{ effective: "cancelled" }>
+  ))
+  | (NankaiInformationIdentity & Readonly<{ effective: "evidence"; evidence: NankaiEvidence }>);
 
 // view・snapshot に載せる情報は見出しだけ（本文の text・nextAdvisory を外す。snapshot の予算、P3-C8-SNAPSHOT）。
 export type NankaiInformationView = NankaiInformationBase & NankaiInformationHeading;
@@ -99,7 +109,7 @@ export type NankaiUnitState = Readonly<{
   schemaVersion: "p3-nankai-unit-v1";
   contentRevision: number;
   currents: readonly NankaiCurrent[];
-  // N: 保存しない。復元の後は空から始まる（spec:512）。
+  // N: 事実は保存しない。復元の後は証拠だけの記録から始まる（spec:512、P3-AUTH-AC01）。
   information: readonly NankaiInformation[];
   // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
   intents: readonly NankaiIntent[];
@@ -110,6 +120,8 @@ export type PersistedNankaiUnit = Readonly<{
   schemaVersion: "p3-nankai-unit-v1";
   currents: readonly NankaiCurrent[];
   intents: readonly NankaiIntent[];
+  // 64 件以下・subject の重複なし。鍵の無い保存物は K2 前の旧保存で、証拠 0 件として読む（P3-AUTH-D-SCHEMA=A・AC06）。
+  evidence: readonly NankaiEvidence[];
 }>;
 
 // active の現況と active の情報の見出しだけを載せる。VYSE60（北海道・三陸沖後発地震注意情報）は南海トラフの現況を

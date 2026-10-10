@@ -260,4 +260,26 @@ describe("P3-UNIT-N-001 U-N through the composition root", () => {
     expect((["U-E", "U-T", "U-Q", "U-N"] as const).map((unit) => four.unit(unit).persistence.kind)).toEqual(["saved", "saved", "saved", "saved"]);
     expect(four.failures).toEqual([]);
   });
+
+  // regression（監査 F03 の owner 経路、P3-AUTH-AC02）: 取消が先着した run の checkpoint から復元した owner に元報を入れても U-N は変わらない。
+  it("P3-AUTH-T02 regression / AC02: an original after its cancel leaves U-N unchanged in an owner restored from the checkpoint", async () => {
+    let now: ClockReading = { wallTimeMs: Date.parse("2020-05-12T16:38:00+09:00"), monotonicMs: 1 };
+    const files = new MemoryFiles();
+    const wired = () => harnessedRoot(config, linkedUnitCodecs, { clock: () => now, checkpointFileSystem: files,
+      diagnosticFileSystem: new MemoryDiagnostics(), notificationAdapter: recordingNotificationAdapter() });
+    const tick = (ms: number) => { now = { wallTimeMs: now.wallTimeMs + ms, monotonicMs: now.monotonicMs + ms }; return now; };
+    const warning = (h: Harness, transform: (xml: string) => string, at: ClockReading) => submit(h, envelope(h.root.state.runId, "VYSE50",
+      `f03#${++inputSequence}`, Buffer.from(transform(fixtureXml(WARNING.split("/")[1]))), at, inputSequence));
+    const first = wired();
+    await startHarness(first, "k2-run1", now, false);
+    await warning(first, (xml) => replaceTag("InfoType", "取消")(retime("2020-05-12T16:38:00+09:00")(xml)), now);
+    expect((await first.root.shutdownRuntime(inputSequence, tick(1))).persistence["U-N"]).toMatchObject({ kind: "saved", savedGeneration: 1 });
+    const second = wired();
+    await startHarness(second, "k2-run2", tick(1), false);
+    expect(second.root.state.restoration["U-N"]).toEqual({ kind: "restored" });
+    const before = second.unit("U-N");
+    await warning(second, retime("2020-05-12T16:37:00+09:00"), tick(1_000));
+    expect(second.unit("U-N")).toBe(before);
+    expect(second.failures).toEqual([]);
+  });
 });

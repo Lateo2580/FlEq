@@ -60,6 +60,8 @@ type VolcanoAlertFacts = Readonly<{
 // 少なくとも一方は非 null で、retainUntil は新しい方の ReportDateTime から数える。
 // landKind は source の family（VFVO50・VFVO51）が最後に伝えた区分（source が null か、VFVO50 の取消の後は null）。VFSV の取消の後に
 // active が残るかを、残る family が自分の区分で支えるかで決める（Q-C9-IMPL-AMEND(9)(a)）。
+// eventId は記録の最新の書き手の EventID（表示・outcome）。landEventId（source と組）・marineEventId（marineSource と組）は
+// family ごとの取消の identity で、火山コードの無い取消はこれで結び付く。null はその側が無いか、旧保存で分からない（P3-AUTH-AC03・AC06）。
 export type VolcanoAlert = Readonly<{
   subject: string;
   operation: Operation;
@@ -67,6 +69,8 @@ export type VolcanoAlert = Readonly<{
   eventId: string;
   source: ReportRef | null;
   marineSource: ReportRef | null;
+  landEventId: string | null;
+  marineEventId: string | null;
   landKind: VolcanoKind | null;
   retainUntil: number;
 }> & (

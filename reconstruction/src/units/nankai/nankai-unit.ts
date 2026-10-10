@@ -6,7 +6,7 @@ import type {
   SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
-  NankaiCurrent, NankaiCurrentLine, NankaiCurrentStatus, NankaiInfoSerial, NankaiInformation, NankaiInformationView, NankaiInput,
+  NankaiCurrent, NankaiCurrentLine, NankaiCurrentStatus, NankaiEvidence, NankaiInfoSerial, NankaiInformation, NankaiInformationView, NankaiInput,
   NankaiIntent, NankaiNotificationPayload, NankaiReportFamily, NankaiUnitCodec, NankaiUnitState, NankaiUnitStep, NankaiUnitView,
   PersistedNankaiUnit,
 } from "../../../contracts/p3-nankai-unit.types";
@@ -21,8 +21,8 @@ import type { NankaiCandidate } from "../../domains/nankai/nankai";
 const SCHEMA = "p3-nankai-unit-v1" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const LINES = ["nankai", "VYSE60"] as const;
-// P3-C8-CAPACITY=A・P3-C8-RES-01・RET-01〜04。
-const CURRENT_LIMIT = 6, INFORMATION_LIMIT = 64, GENERATION_LIMIT = 262_144;
+// P3-C8-CAPACITY=A・P3-C8-RES-01・RET-01〜04。世代の上限は P3-AUTH-D-N-BUDGET=A（K2、当初 256 KiB）。
+const CURRENT_LIMIT = 6, INFORMATION_LIMIT = 64, GENERATION_LIMIT = 294_912;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
 // P3-C8-SEM-01〜05（元報の ReportDateTime からの絶対の長さ、P3-C8-RETENTION=A）。
 const DAY_MS = 86_400_000;
@@ -33,7 +33,10 @@ const STATUSES: Readonly<Record<NankaiCurrentLine, readonly string[]>> = {
 
 type ActiveCurrent = Extract<NankaiCurrent, Readonly<{ effective: "active" }>>;
 type ActiveInformation = Extract<NankaiInformation, Readonly<{ effective: "active" }>>;
+type EvidenceInformation = Extract<NankaiInformation, Readonly<{ effective: "evidence" }>>;
+type FactInformation = Exclude<NankaiInformation, EvidenceInformation>;
 type Shown = NankaiCurrent | NankaiInformation;
+type Fact = NankaiCurrent | FactInformation;
 type Level = NankaiNotificationPayload["level"];
 type InternalStep = Omit<NankaiUnitStep, "displayChanges" | "confirmationEvidence">;
 type Decision = NankaiUnitStep["decisions"][number];
@@ -42,7 +45,10 @@ type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 
 const isCurrent = (value: Shown): value is NankaiCurrent => "line" in value;
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
-const visible = (value: Shown | null): boolean => value?.effective === "active";
+// 版は事実を持つ記録なら source、証拠だけの記録なら証拠（P3-AUTH-AC01(3)）。
+const versionOf = (value: Shown) => value.effective === "evidence" ? value.evidence : value.source;
+const msOf = (value: Shown): number => value.effective === "evidence" ? value.evidence.reportDateTimeMs : reportMs(value.source);
+const visible = (value: Shown | null): value is ActiveCurrent | ActiveInformation => value?.effective === "active";
 
 // ---- byte の加算（I-U-N.computation。受信 1 回で state 全体を直列化しない） ----
 
@@ -71,10 +77,10 @@ function terminalBytes(intents: readonly NankaiIntent[]): number {
   return total;
 }
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-N", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
-// 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q と同じ予約）。4: 空の配列 2 つ。
-function generationBytes(currents: readonly NankaiCurrent[], intents: readonly NankaiIntent[]): number {
-  return emptyEnvelopeBytes + 62 - 4 + listBytes(currents) + listBytes(intents);
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [], evidence: [] }, sha256: "0".repeat(64) }).byteLength;
+// 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q と同じ予約）。6: 空の配列 3 つ。
+function generationBytes(currents: readonly NankaiCurrent[], intents: readonly NankaiIntent[], evidence: readonly NankaiEvidence[]): number {
+  return emptyEnvelopeBytes + 62 - 6 + listBytes(currents) + listBytes(intents) + listBytes(evidence);
 }
 
 // ---- 期限（I-U-N.deadlines） ----
@@ -118,12 +124,13 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
 // P3-ORDER-AC01: ReportDateTime → InfoType の優先 → 同じ EventID なら Serial（欠落はどの数値よりも小）の辞書順。
-function compare(candidate: NankaiCandidate, source: ReportRef, eventId: string): number {
-  const time = candidate.reportDateTimeMs - reportMs(source);
+function compare(candidate: NankaiCandidate, existing: Shown): number {
+  const time = candidate.reportDateTimeMs - msOf(existing);
   if (time !== 0) return Math.sign(time);
-  const rank = candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw) ?? 0);
-  if (rank !== 0 || candidate.eventId !== eventId) return Math.sign(rank);
-  const left = candidate.source.serialRaw, right = source.serialRaw;
+  const version = versionOf(existing);
+  const rank = candidate.infoRank - (INFO_RANK.get(version.infoTypeRaw) ?? 0);
+  if (rank !== 0 || candidate.eventId !== existing.eventId) return Math.sign(rank);
+  const left = candidate.source.serialRaw, right = version.serialRaw;
   return left === right ? 0 : left === "" ? -1 : right === "" ? 1 : Math.sign(Number(left) - Number(right));
 }
 const withoutSource = (value: Shown) => ({ ...value, source: null });
@@ -169,7 +176,7 @@ function changed<T extends Shown>(before: T | null, after: T, fields: readonly s
 
 // ---- 情報系列（I-U-N.informationSemantics） ----
 
-function informationOf(candidate: NankaiCandidate): NankaiInformation {
+function informationOf(candidate: NankaiCandidate): FactInformation {
   const base = { subject: candidate.subject, family: candidate.family, eventId: candidate.eventId, operation: candidate.operation,
     source: candidate.source, retainUntil: candidate.reportDateTimeMs + INFORMATION_RETAIN_MS };
   if (candidate.cancelled) return { ...base, effective: "cancelled" };
@@ -187,7 +194,7 @@ function headingOf(value: ActiveInformation): NankaiInformationView {
   }
   return found;
 }
-function informationFacts(value: NankaiInformation | null): Readonly<Record<string, JsonValue>> {
+function informationFacts(value: FactInformation | null): Readonly<Record<string, JsonValue>> {
   if (value == null) return {};
   return value.effective === "active" ? headingOf(value) : { family: value.family, eventId: value.eventId, effective: value.effective };
 }
@@ -198,7 +205,7 @@ function evictOne(information: readonly NankaiInformation[], now: number): Nanka
   const tier = (item: NankaiInformation) => item.retainUntil <= now ? 0 : item.operation !== "normal" ? 1 : 2;
   let worst = information[0];
   for (const item of information) {
-    const order = tier(item) - tier(worst) || reportMs(item.source) - reportMs(worst.source)
+    const order = tier(item) - tier(worst) || msOf(item) - msOf(worst)
       || (item.subject < worst.subject ? -1 : item.subject > worst.subject ? 1 : 0);
     if (order < 0) worst = item;
   }
@@ -281,13 +288,13 @@ function admit(current: readonly NankaiIntent[], fresh: readonly NankaiIntent[],
 
 // ---- outcome と view ----
 
-function outcomeOf(value: Shown, changedFields: readonly string[] = []): SubjectOutcome {
+function outcomeOf(value: Fact, changedFields: readonly string[] = []): SubjectOutcome {
   return { subject: value.subject, operation: value.operation, informationType: value.source.infoTypeRaw, transition: value.effective,
     severity: null, source: value.source, facts: isCurrent(value) ? currentFacts(value) : informationFacts(value), changedFields };
 }
 // view の subject は識別だけを持つ（見出しは currents・information にあり、二重に載せると snapshot の予算を食う。U-Q の先例）。
 const outcomeCache = new WeakMap<Shown, SubjectOutcome>();
-function shownOutcome(value: Shown): SubjectOutcome {
+function shownOutcome(value: Fact): SubjectOutcome {
   let found = outcomeCache.get(value);
   if (found == null) {
     found = { ...outcomeOf(value), facts: { eventId: value.eventId, effective: value.effective,
@@ -296,23 +303,23 @@ function shownOutcome(value: Shown): SubjectOutcome {
   }
   return found;
 }
-function displaySubject(value: Shown): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-N" }>> {
+function displaySubject(value: Fact): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-N" }>> {
   const current = isCurrent(value) ? value.effective === "active" ? value : null : value.effective === "active" ? headingOf(value) : null;
   return { unit: "U-N", operation: value.operation, subject: value.subject, office: null, current, subjects: [shownOutcome(value)] };
 }
 
 // ---- 採用（P3-C8-SUBJECTS=A。一入力の変更は一回の参照交換で確定する） ----
 
-type Verdict<T> = Readonly<{ kind: "adopt"; next: T; order: number }> | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale";
-  conflict: boolean }>;
-function judge<T extends Shown>(candidate: NankaiCandidate, existing: T | null, next: T): Verdict<T> {
-  if (existing == null) return { kind: "adopt", next, order: 1 };
-  const order = compare(candidate, existing.source, existing.eventId);
+type Verdict<T> = Readonly<{ kind: "adopt"; next: T }> | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale"; conflict: boolean }>;
+function judge<T extends Fact>(candidate: NankaiCandidate, existing: Shown | null, next: T): Verdict<T> {
+  if (existing == null) return { kind: "adopt", next };
+  const order = compare(candidate, existing);
   if (order < 0) return { kind: "unchanged", reason: "stale", conflict: false };
-  // expired は事実を捨てた記録なので、同じ revision の再受信は事実を比べずに duplicate（食い違いの WARN を出さない）。
-  if (order === 0) return existing.effective === "expired" || isDeepStrictEqual(withoutSource(existing), withoutSource(next))
+  // expired と証拠だけの記録は事実を持たないので、同じ revision の再受信は事実を比べずに duplicate（食い違いの WARN を出さない）。
+  if (order === 0) return existing.effective === "expired" || existing.effective === "evidence"
+    || isDeepStrictEqual(withoutSource(existing), withoutSource(next))
     ? { kind: "unchanged", reason: "duplicate", conflict: false } : { kind: "unchanged", reason: "stale", conflict: true };
-  return { kind: "adopt", next, order };
+  return { kind: "adopt", next };
 }
 function conflictDiagnostic(candidate: NankaiCandidate): DiagnosticDetails {
   return { level: "WARN", component: "nankai", reason: "nankaiRevisionConflict", inputId: candidate.source.inputId, unit: "U-N" };
@@ -324,7 +331,7 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   const current = currentIndex == null ? null : state.currents[currentIndex];
   const infoIndex = indexOf(state.information, candidate.subject);
   const info = infoIndex == null ? null : state.information[infoIndex];
-  const decision = (subject: string, value: Verdict<Shown>, change: "semantic" | "revisionOnly"): Decision => value.kind === "unchanged"
+  const decision = (subject: string, value: Verdict<Fact>, change: "semantic" | "revisionOnly"): Decision => value.kind === "unchanged"
     ? { subject, operation: candidate.operation, decision: "unchanged", reason: value.reason }
     : { subject, operation: candidate.operation, decision: "changed", reason: null, change,
       currentEstablished: { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } };
@@ -333,9 +340,9 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   // 除外の判定（affectsCurrent）は系統の watermark より先。現況に効く報でも、同じ報（headType・EventID）の情報 subject に新しい
   // 取消・訂正があれば現況へ当てない（取消が先着した古い元報で現況だけが戻らない、Q-C8-IMPL-AMEND(3)）。
   const affects = affectsCurrent(candidate, current);
-  const infoVerdict = judge<NankaiInformation>(candidate, info, informationOf(candidate));
+  const infoVerdict = judge(candidate, info, informationOf(candidate));
   const currentVerdict = !affects ? null : infoVerdict.kind === "unchanged" ? infoVerdict
-    : judge<NankaiCurrent>(candidate, current, currentOf(candidate));
+    : judge(candidate, current, currentOf(candidate));
   if (currentVerdict?.kind === "unchanged") return { changes: [], step: { ...idle(state),
     decisions: [decision(candidate.currentSubject, currentVerdict, "revisionOnly"), decision(candidate.subject, currentVerdict, "revisionOnly")],
     diagnostics: currentVerdict.conflict ? [conflictDiagnostic(candidate)] : [] } };
@@ -354,10 +361,10 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
 
   // Q-NOTICE.generationTable: 事実の変わった採用・訂正・取消の前に active だった対象の取消。期限で回収される報では作らない。
   const due = candidate.reportDateTimeMs + INFORMATION_RETAIN_MS <= now;
-  // 復元の後は情報系列が空で、現況の source と同じ報の続報でも情報 subject が新規になる。そのときは復元した現況との差で決める
-  // （Q-NOTICE.restart、Q-C8-IMPL-AMEND(4)）。
-  const restoredSource = nextCurrent != null && info == null && visible(current) && current?.source.family === candidate.family
-    && current.eventId === candidate.eventId;
+  // 復元の後は情報 subject が無いか証拠だけで、現況の source と同じ報の続報は復元した現況との差で決める
+  // （Q-NOTICE.restart、Q-C8-IMPL-AMEND(4)、P3-AUTH-AC01(4)）。
+  const restoredSource = nextCurrent != null && (info == null || info.effective === "evidence") && visible(current)
+    && current?.source.family === candidate.family && current.eventId === candidate.eventId;
   const notify = !due && (candidate.cancelled ? nextCurrent != null && visible(current) || nextInfo != null && visible(info)
     : candidate.infoRank === 2 || (restoredSource ? currentFields.length !== 0 : nextInfo != null && infoFields.length !== 0));
   const subject = nextCurrent != null ? candidate.currentSubject : candidate.subject;
@@ -378,12 +385,13 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
     information = information.filter((item) => item !== gone);
   }
   const currents = nextCurrent == null ? state.currents : replaceAt(state.currents, currentIndex, nextCurrent);
-  // 保存しない情報系列だけの変化では保存世代を進めない（I-U-N.persisted）。
-  const persisted = currents !== state.currents || notices.intents !== state.intents;
-  const adopted: NankaiUnitState = { ...state, currents, information, intents: notices.intents,
-    persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
+  const draft: NankaiUnitState = { ...state, currents, information, intents: notices.intents };
   // 到着の時点で期限を過ぎた報は採用して watermark を進め、同じ reduce で回収する（P3-C8-RETENTION=A）。
-  const collected = deadlineAt(adopted) <= now ? collect(adopted, clock) : null;
+  const collecting = deadlineAt(draft) <= now;
+  // 情報系列の変化は証拠が変わるので保存世代を進める。回収する reduce では回収の後の証拠で比べる（P3-AUTH-AC01(5)・P3-X-C3）。
+  const persisted = currents !== state.currents || notices.intents !== state.intents || !collecting && information !== state.information;
+  const adopted: NankaiUnitState = { ...draft, persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
+  const collected = collecting ? collect(adopted, clock, state.information) : null;
   const next = collected?.state ?? adopted;
   const changes: Change[] = [];
   if (nextCurrent != null) changes.push([current, nextCurrent]);
@@ -409,9 +417,13 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
 
 // ---- 期限（I-U-N.deadlines。到来分だけを回収する） ----
 
+// 記録は不変で、変化は差し替えなので、同じ記録の並びなら証拠の射影も同じ（64 件の参照の比較）。
+const sameItems = (left: readonly object[], right: readonly object[]) => left === right
+  || left.length === right.length && left.every((item, at) => item === right[at]);
+// base は情報系列の変化を比べる前の並び（受信と同じ reduce の回収では受信の前の並び）。
 // ponytail: 現況 6・情報 64 の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
-function collect(state: NankaiUnitState, clock: ClockReading): Readonly<{ state: NankaiUnitState; changes: readonly Change[];
-  expiredIntents: number }> {
+function collect(state: NankaiUnitState, clock: ClockReading, base = state.information): Readonly<{ state: NankaiUnitState;
+  changes: readonly Change[]; expiredIntents: number }> {
   const now = clock.wallTimeMs;
   if (deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0 };
   const changes: Change[] = [];
@@ -434,14 +446,15 @@ function collect(state: NankaiUnitState, clock: ClockReading): Readonly<{ state:
   const intents = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
   const expiredIntents = intents === state.intents ? 0
     : state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= now).length;
-  const persisted = currents !== state.currents || intents !== state.intents;
+  const persisted = currents !== state.currents || intents !== state.intents || !sameItems(information, base);
   return { state: { ...state, currents, information, intents,
     persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence }, changes, expiredIntents };
 }
 
 function deadlineStep(state: NankaiUnitState, clock: ClockReading, shutdown: boolean): Result {
   const applied = collect(state, clock);
-  const subjects = applied.changes.flatMap(([before, after]) => after == null || !visible(before) ? [] : [outcomeOf(after, ["effective"])]);
+  const subjects = applied.changes.flatMap(([before, after]) => after == null || !visible(before) || after.effective === "evidence" ? []
+    : [outcomeOf(after, ["effective"])]);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "nankai",
     reason: "notificationExpired", unit: "U-N", count: applied.expiredIntents }];
   return { changes: applied.changes, step: { ...idle(applied.state),
@@ -481,7 +494,7 @@ function restore(state: NankaiUnitState, persisted: PersistedNankaiUnit, clock: 
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "nankai",
     reason: "requiredStructureInvalid", unit: "U-N" }] } };
-  // Q-NOTICE.restart: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。情報系列は空から始まる。
+  // Q-NOTICE.restart: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。情報系列は証拠だけの記録から始まる。
   const applied = collect({ ...decoded.state, persistence: state.persistence }, clock);
   const shown = applied.state.currents.filter(visible);
   return { changes: shown.map((item): Change => [null, item]), step: { ...idle(applied.state),
@@ -618,7 +631,7 @@ function intentRecord(value: unknown): NankaiIntent | null {
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
   const disposition = (["pending", "delivered", "expired", "superseded"] as const).find((entry) => entry === row?.disposition);
-  // state に残る subject との一致は求めない（情報系列は復元で空になる、I-U-N.decode）。
+  // state に残る subject との一致は求めない（情報の事実は復元されない、I-U-N.decode）。
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
     || disposition == null || !isText(row.id) || row.unit !== "U-N" || !isText(row.subject) || source.subject !== row.subject
     || source.operation !== operation || payload.domain !== "earthquake-eew" || !isText(payload.title) || payload.title === ""
@@ -629,32 +642,60 @@ function intentRecord(value: unknown): NankaiIntent | null {
     expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
     disposition };
 }
-function persisted(value: unknown): PersistedNankaiUnit | null {
+// 証拠を証拠だけの情報 subject として戻す（P3-AUTH-AC01(2)）。
+function evidenceRecord(value: unknown): EvidenceInformation | null {
+  const row = record(value);
+  if (row == null || !isText(row.subject) || typeof row.reportDateTimeMs !== "number" || !Number.isSafeInteger(row.reportDateTimeMs)
+    || !isText(row.serialRaw) || !validSerial(row.serialRaw) || !isText(row.infoTypeRaw) || !INFO_RANK.has(row.infoTypeRaw)) return null;
+  const [, middle, eventId] = row.subject.split("/");
+  const family = familyOf(middle), operation = family == null ? null : subjectOperation(row.subject, family);
+  if (family == null || operation == null || eventId == null) return null;
+  const evidence = { subject: row.subject, reportDateTimeMs: row.reportDateTimeMs, serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw };
+  return { subject: row.subject, family, eventId, operation, retainUntil: row.reportDateTimeMs + INFORMATION_RETAIN_MS, effective: "evidence",
+    evidence };
+}
+// encode の証拠の射影は記録ごとに一度だけ作る（P3-AUTH-RES-03）。
+const evidenceCache = new WeakMap<FactInformation, NankaiEvidence>();
+function evidenceOf(value: NankaiInformation): NankaiEvidence {
+  if (value.effective === "evidence") return value.evidence;
+  let found = evidenceCache.get(value);
+  if (found == null) {
+    found = { subject: value.subject, reportDateTimeMs: reportMs(value.source), serialRaw: value.source.serialRaw,
+      infoTypeRaw: value.source.infoTypeRaw };
+    evidenceCache.set(value, found);
+  }
+  return found;
+}
+type Decoded = Readonly<{ currents: readonly NankaiCurrent[]; intents: readonly NankaiIntent[]; information: readonly EvidenceInformation[] }>;
+function persisted(value: unknown): Decoded | null {
   const row = record(value);
   if (row == null || row.schemaVersion !== SCHEMA) return null;
   const currents = list(row.currents, currentRecord), intents = list(row.intents, intentRecord);
-  if (currents == null || intents == null || currents.length > CURRENT_LIMIT
+  // 鍵の無い保存物は K2 前の旧保存で、証拠は 0 件（移行 A1、P3-AUTH-D-SCHEMA=A・AC06(2)）。
+  const information = "evidence" in row ? list(row.evidence, evidenceRecord) : [];
+  if (currents == null || intents == null || information == null || currents.length > CURRENT_LIMIT || information.length > INFORMATION_LIMIT
     || new Set(currents.map((entry) => entry.subject)).size !== currents.length
+    || new Set(information.map((entry) => entry.subject)).size !== information.length
     || new Set(intents.map((entry) => entry.id)).size !== intents.length) return null;
   const pending = intents.filter((entry) => entry.disposition === "pending");
   // 終端記録は単独でなく pending との合計で見る（配送の更新で終端にした記録は回収しない、Q-C8-IMPL-AMEND(1)）。
   // 受理と同じ式（実 byte＋配送の更新の予約）で数える（Q-C8-IMPL-AMEND(7)(8)）。
   const pendingBytes = listBytes(pending) + pending.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   if (pending.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || pendingBytes + terminalBytes(intents) > PENDING_BYTES + TERMINAL_BYTES
-    || generationBytes(currents, intents) > GENERATION_LIMIT) return null;
-  return { schemaVersion: SCHEMA, currents, intents };
+    || generationBytes(currents, intents, information.map(evidenceOf)) > GENERATION_LIMIT) return null;
+  return { currents, intents, information };
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const nankaiUnitCodec: NankaiUnitCodec = {
   schemaVersion: SCHEMA,
-  // 情報系列・contentRevision・persistence は保存しない（I-U-N.persisted、spec:512 の N）。
-  encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
+  // 情報の事実・contentRevision・persistence は保存しない（I-U-N.persisted、spec:512 の N）。証拠は保存する（P3-AUTH-AC01）。
+  encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents, evidence: state.information.map(evidenceOf) }),
   decode(payload) {
     const value = persisted(payload);
     return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v1 payload" }
-      : { kind: "restored", state: { ...value, contentRevision: 0, information: [], persistence: cleanPersistence } };
+      : { kind: "restored", state: { schemaVersion: SCHEMA, ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };
 
@@ -668,8 +709,8 @@ const nankaiUnit = {
   withoutNormal: (state) => ({ ...state, currents: state.currents.filter((item) => item.operation !== "normal"),
     information: state.information.filter((item) => item.operation !== "normal") }),
   keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => [...state.currents, ...state.information]
-    .filter((item) => item.operation === "normal" && visible(item)).map(displaySubject),
+  normalDisplaySubjects: (state) => [...state.currents, ...state.information].filter(visible)
+    .filter((item) => item.operation === "normal").map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-N">;

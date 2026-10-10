@@ -33,6 +33,11 @@ const status = (state: NankaiUnitState, subject = NANKAI) => {
   return value == null ? null : value.effective === "active" ? value.status : value.effective;
 };
 const roundTrip = (state: NankaiUnitState) => nankaiUnitCodec.decode(JSON.parse(JSON.stringify(nankaiUnitCodec.encode(state))) as JsonValue);
+// 復元で戻る証拠だけの情報 subject（P3-AUTH-AC01(2)）。
+const evidenceOnly = (item: NankaiInformation): NankaiInformation => item.effective === "evidence" ? item : { subject: item.subject,
+  family: item.family, eventId: item.eventId, operation: item.operation, retainUntil: item.retainUntil, effective: "evidence",
+  evidence: { subject: item.subject, reportDateTimeMs: Date.parse(item.source.reportDateTimeRaw), serialRaw: item.source.serialRaw,
+    infoTypeRaw: item.source.infoTypeRaw } };
 
 describe("P3-UNIT-N-001 U-N reducer", () => {
   // contractBoundary: Q-ENUM の順と原子性、合法の縮退、coverage と実行場所（AC01）。
@@ -105,7 +110,10 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       source: expect.objectContaining({ family: "VYSE50", subject: NANKAI }), retainUntil: at("2020-05-12T16:36:00+09:00") + 30 * DAY });
     expect(ended.intents.map((item) => [item.transition, item.payload.level])).toEqual([["released", "info"], ["released", "info"]]);
     // VYSE51 の第 1〜3 号は同じ EventID の情報 subject の revision で並び、現況と系統の watermark を変えない。
-    expect(series.slice(7, 10).map((step) => infoOf(step.state, "normal/VYSE51/20200512163800")?.source.serialRaw)).toEqual(["1", "2", "3"]);
+    expect(series.slice(7, 10).map((step) => {
+      const info = infoOf(step.state, "normal/VYSE51/20200512163800");
+      return info?.effective === "evidence" ? null : info?.source.serialRaw;
+    })).toEqual(["1", "2", "3"]);
     expect(currentOf(series[10].state)).toBe(currentOf(series[5].state));
     // 巨大地震注意の最中の調査中は情報だけで、系統の watermark を進めない（16:35 の調査中の後も 16:34 の注意を採用する）。
     const advisory = send(emptyState(), F.advisory).state;
@@ -182,7 +190,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
   // contractBoundary: P3-C8-CAPACITY=A と受信 1 回の費用（AC04）。境界入力は試験内で作る。
   it("P3-C8-T04 contractBoundary / AC04: 63/64/65 information, eviction order, pending and terminal budgets, the budget states and no whole encode", () => {
     const now = at("2020-05-12T17:00:00+09:00");
-    const seed = infoOf(send(emptyState(), F.c1).state, "normal/VYSE51/20200512163800")!;
+    const seed = infoOf(send(emptyState(), F.c1).state, "normal/VYSE51/20200512163800");
+    if (seed?.effective !== "active") throw new Error("the seed information is not active");
     const info = (index: number, patch: Partial<{ operation: Operation; minutes: number; retainUntil: number }> = {}): NankaiInformation => {
       const operation = patch.operation ?? "normal", eventId = `I${String(index).padStart(13, "0")}`, subject = `${operation}/VYSE51/${eventId}`;
       const reported = now - (patch.minutes ?? 100 - index) * 60_000;
@@ -285,8 +294,9 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const state = chain([F.inv1, F.warning, F.c1]).at(-1)!.state;
     const withVyse60 = send(state, F.vyse60, undefined, at("2020-05-12T16:40:00+09:00")).state;
     const payload = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(withVyse60))) as JsonValue;
-    expect(Object.keys(payload as object).sort()).toEqual(["currents", "intents", "schemaVersion"]);
-    expect(nankaiUnitCodec.decode(payload)).toEqual({ kind: "restored", state: { ...withVyse60, contentRevision: 0, information: [],
+    expect(Object.keys(payload as object).sort()).toEqual(["currents", "evidence", "intents", "schemaVersion"]);
+    expect(nankaiUnitCodec.decode(payload)).toEqual({ kind: "restored", state: { ...withVyse60, contentRevision: 0,
+      information: withVyse60.information.map(evidenceOnly),
       persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } });
     type Row = Record<string, unknown>;
     const value = payload as { currents: Row[]; intents: Row[] };
@@ -362,7 +372,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(restored.intents).toEqual([]);
     expect(restored.state.intents).toEqual(state.intents.filter((item) => item.expiresAt > restoredAt));
     expect(restored.state.intents.length).toBeGreaterThan(0);
-    expect(restored.state.information).toEqual([]);
+    expect(restored.state.information).toEqual(state.information.map(evidenceOnly));
     expect(restored.outcomes).toMatchObject([{ kind: "recoveryApplied", scope: ["U-N"], coverage: [NANKAI] }]);
   });
 
@@ -489,12 +499,12 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const advisory = send(emptyState(), F.advisory).state;
     const toUnknown = send(advisory, F.advisory, (xml) => replaceTag("InfoType", "訂正")(xml).replace("<Code>130</Code>", "<Code>999</Code>"));
     expect([status(toUnknown.state), toUnknown.intents.map((item) => item.transition)]).toEqual(["ended", ["updated", "updated"]]);
-    // P3: 保存しない情報系列だけの変化（revisionOnly・期限の回収）では保存世代を進めない。
+    // 情報系列だけの変化（revisionOnly・期限の回収）でも証拠が変わるので保存世代を進める（P3-AUTH-AC01(5)、K2 前は進めなかった）。
     const c1 = send(emptyState(), F.c1);
     const revisionOnly = send({ ...c1.state, intents: [] }, F.c1, (xml) => retime("2020-05-12T16:39:00+09:00")(replaceTag("Serial", "2")(xml)));
-    expect(revisionOnly.state.persistence).toBe(c1.state.persistence);
+    expect(revisionOnly.state.persistence.currentGeneration).toBe(c1.state.persistence.currentGeneration + 1);
     const gone = reduceNankaiUnit({ ...c1.state, intents: [] }, { kind: "deadline", clock: clock(at("2020-05-12T16:38:00+09:00") + 7 * DAY) });
-    expect([gone.state.information, gone.state.persistence]).toEqual([[], c1.state.persistence]);
+    expect([gone.state.information, gone.state.persistence.currentGeneration]).toEqual([[], c1.state.persistence.currentGeneration + 1]);
   });
 
   // 実不具合の再発防止（F15、P3-CODEC-AC04）: Headline の無い報で Text から切り出す本文がサロゲートの対を割らない（body 全体には 80 単位の上限を置かない）。
@@ -505,22 +515,29 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(roundTrip(step.state).kind).toBe("restored");
   });
 
-  // contractBoundary（P3-CODEC-AC03・RES-05）: 現況 6 件の上限の形（inputId・title・headline・infoSerial を制御文字で上限まで）に
-  // 通知の予算（pending の実 byte＋予約と終端記録で 229,376）を足しても 261,214 byte の内側。
-  it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents with the whole notice budget stay within 261,214 bytes", () => {
+  // contractBoundary（P3-CODEC-AC03・RES-05、P3-AUTH-RES-01）: 現況 6 件の上限の形（inputId・title・headline・infoSerial を制御文字で上限まで）に
+  // 証拠 64 件（subject 80 字・最長の安全な整数の時刻・Serial 10 桁・取消）と通知の予算（pending の実 byte＋予約と終端記録で 229,376）を
+  // 足しても 273,259 byte の内側。
+  it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents, 64 evidence records and the whole notice budget stay within 273,259 bytes", () => {
     const wide = (length: number) => "\u0001".repeat(length);
     const currents = budgetState(true).currents.map((item): NankaiCurrent => {
       const source = { ...item.source, inputId: wide(64) };
       return "title" in item ? { ...item, source, title: wide(128), headline: wide(512), infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) } }
         : { ...item, source };
     });
-    const state: NankaiUnitState = { ...emptyState(), currents };
+    const evidence = Array.from({ length: 64 }, (_, index): NankaiInformation => {
+      const eventId = String(index).padStart(64, "E"), subject = `training/VYSE51/${eventId}`, reportDateTimeMs = -9_007_199_254_740_991;
+      return { subject, family: "VYSE51", eventId, operation: "training", retainUntil: reportDateTimeMs + 7 * DAY, effective: "evidence",
+        evidence: { subject, reportDateTimeMs, serialRaw: "1234567890", infoTypeRaw: "取消" } };
+    });
+    const state: NankaiUnitState = { ...emptyState(), currents, information: evidence };
     expect(roundTrip(state).kind).toBe("restored");
     const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v1", unit: "U-N", generation: 0, capturedAt: 0,
       payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) }));
-    console.info("P3-CODEC U-N bound", JSON.stringify({ currents: currents.length, envelope, bound: envelope + 62 - 2 + 229_376 }));
+    console.info("P3-CODEC U-N bound", JSON.stringify({ currents: currents.length, evidence: evidence.length, envelope,
+      bound: envelope + 62 - 2 + 229_376 }));
     // 空の intents 配列（2 byte）を通知の予算 229,376 で置き換え、generation と capturedAt の 62 byte を予約する。
-    expect(envelope + 62 - 2 + 229_376).toBeLessThanOrEqual(261_214);
+    expect(envelope + 62 - 2 + 229_376).toBeLessThanOrEqual(273_259);
   });
 
   // contractBoundary: E22 の U-N は対象外（P3-C8-N2、AC13）。
@@ -554,7 +571,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const o07 = replay("O07", 35, 44);
     // :38 の復元は intent を作らず、:36 の pending を元の期限で戻す。:39 の取消は復元した現況を取り消し、その pending を置き換える。
     expect(o07[3].state.intents.map((item) => [item.channel, item.expiresAt])).toEqual(o07[1].state.intents.map((item) => [item.channel, item.expiresAt]));
-    expect(o07[3].state.information).toEqual([]);
+    expect(o07[3].state.information).toEqual(o07[2].state.information.map(evidenceOnly));
     expect(o07[4].state.intents.filter((item) => item.subject === NANKAI && item.transition === "activated").map((item) => item.disposition))
       .toEqual(["superseded", "superseded"]);
     expect(infoOf(o07[4].state, "normal/VYSE50/20200512163200")).toMatchObject({ effective: "cancelled" });
@@ -623,6 +640,60 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
         [{ level: "WARN", reason: "nankaiRevisionConflict", unit: "U-N" }]]);
     }
   });
+
+  // 監査 F03: 取消が先着した後の元報。復元は owner と同じく保存物（encode→JSON）を保存世代を引き継いだ state へ戻す。
+  const restartAt = (state: NankaiUnitState, now: number) => {
+    const decoded = roundTrip(state);
+    if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+    const generation = state.persistence.currentGeneration;
+    return reduceNankaiUnit({ ...emptyState(), persistence: { kind: "saved", currentGeneration: generation, savedGeneration: generation,
+      savedCapturedAt: null, savedAckAt: null, dirtySince: null } }, { kind: "restore", persisted: nankaiUnitCodec.encode(decoded.state),
+      clock: clock(now) }).state;
+  };
+
+  // regression（監査 F03、P3-AUTH-AC01・AC02）: 修正前は復元で情報 subject が消え、元報が changed/semantic×2・現況 active・pending 2 で復活した。
+  it("P3-AUTH-T01 regression / AC01,AC02: an original after its cancel stays stale with and without a restore, and version evidence survives", () => {
+    const t = at("2020-05-12T16:38:00+09:00");
+    const cancel = receive(emptyState(), decodeFixture(F.warning, (xml) => replaceTag("InfoType", "取消")(retime("2020-05-12T16:38:00+09:00")(xml))),
+      clock(t));
+    expect(cancel.state.persistence.currentGeneration).toBe(1);
+    const original = decodeFixture(F.warning, retime("2020-05-12T16:37:00+09:00"));
+    for (const [label, state] of [["direct", cancel.state], ["restored", restartAt(cancel.state, t + 1_000)]] as const) {
+      const late = receive(state, original, clock(t + 1_000));
+      expect([shape(late), late.state.currents, pending(late.state)], label).toEqual([[[NANKAI, "unchanged", "stale"],
+        ["normal/VYSE50/20200512162800", "unchanged", "stale"]], [], []]);
+      expect(late.state, label).toBe(state);
+    }
+    // 版の証拠: 現況に効かない VYSE52（Code 200）の Serial 2 を復元した後、Serial 1 は stale、Serial 2 の再送は duplicate（どちらも intent 0）。
+    const at44 = clock(at("2020-05-12T16:44:00+09:00"));
+    const serial = (value: string) => decodeFixture(F.regular, replaceTag("Serial", value));
+    const restored = restartAt(receive(emptyState(), serial("2"), at44).state, at44.wallTimeMs);
+    expect([serial("1"), serial("2")].map((material) => { const step = receive(restored, material, at44);
+      return [verdict(step), step.intents.length]; })).toEqual([[["stale"], 0], [["duplicate"], 0]]);
+  });
+
+  // contractBoundary（P3-AUTH-AC06）: 旧保存（evidence の鍵が無い）は証拠 0 件で復元し、証拠の decode の不正は invalid。
+  it("P3-AUTH-T05 contractBoundary / AC06: a legacy payload restores with no evidence and malformed evidence is invalid", () => {
+    const state = chain([F.warning, F.c1, F.regular]).at(-1)!.state;
+    const payload = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(state))) as { evidence: Record<string, unknown>[] };
+    const { evidence: _evidence, ...legacy } = payload;
+    const decoded = nankaiUnitCodec.decode(legacy as JsonValue);
+    expect([decoded.kind, decoded.kind === "restored" && decoded.state.information]).toEqual(["restored", []]);
+    const [first] = payload.evidence;
+    const many = Array.from({ length: 65 }, (_, index) => ({ ...first, subject: `normal/VYSE51/K${index}` }));
+    const invalid: [string, unknown][] = [
+      ["65 records", { ...payload, evidence: many }],
+      ["duplicate subject", { ...payload, evidence: [first, first] }],
+      ["subject form", { ...payload, evidence: [{ ...first, subject: "normal/VXSE53/K1" }] }],
+      ["subject without an EventID", { ...payload, evidence: [{ ...first, subject: "normal/VYSE51" }] }],
+      ["Serial", { ...payload, evidence: [{ ...first, serialRaw: "0" }] }],
+      ["InfoType", { ...payload, evidence: [{ ...first, infoTypeRaw: "不明" }] }],
+      ["time not an integer", { ...payload, evidence: [{ ...first, reportDateTimeMs: 1.5 }] }],
+      ["evidence not a list", { ...payload, evidence: null }],
+    ];
+    expect(nankaiUnitCodec.decode({ ...payload, evidence: many.slice(0, 64) } as JsonValue).kind).toBe("restored");
+    for (const [name, candidate] of invalid) expect(nankaiUnitCodec.decode(candidate as JsonValue).kind, name).toBe("invalid");
+  });
 });
 
 // sequences.json の履歴 oracle（expected:<seq>:<position>）を step ごとに照合する。save と restart は codec を通す。
@@ -673,8 +744,8 @@ function replay(sequenceId: string, from: number, to: number): NankaiUnitStep[] 
       // stale の報の revision は報自身のもので、保存した記録には入らない。
       if (made.decision === "rejected" || made.decision === "unchanged" && made.reason === "stale") break;
       const record = subject.subject.endsWith("/current") ? currentOf(result.state, subject.subject) : infoOf(result.state, subject.subject);
-      expect(record, `${label} ${subject.subject}`).toBeDefined();
-      const source = record!.source;
+      if (record == null || record.effective === "evidence") throw new Error(`${label} ${subject.subject} has no source`);
+      const source = record.source;
       expect({ reportDateTimeRaw: source.reportDateTimeRaw, serialRaw: source.serialRaw, infoTypeRaw: source.infoTypeRaw },
         `${label} ${subject.subject}`).toEqual(subject.revision);
     }

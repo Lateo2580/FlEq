@@ -437,6 +437,23 @@ describe("P2 weather-current unit", () => {
     expect(cleared.state.freshness).toEqual([]);
   });
 
+  // regression（監査 F09、P3-AUTH-AC05）: 修正前は T1 の不正報で疑義の上限が T1 へ後退し、正常な T1 の採用で T2 の疑義が消えた。
+  it("P3-AUTH-T04 regression / AC05: the suspect bound stays at T2 through an invalid or valid T1 and a restore", () => {
+    const report = (time: string, valid: boolean) => decodeFixture("15_16_02_251222_VPWW57", "VPWW57",
+      (xml) => valid ? atTime(xml, time) : replaceBodyStatus(atTime(xml, time), "未知"), `${time}-${valid}`);
+    const [t0, t1, t2] = ["2026-01-01T10:00:00+09:00", "2026-01-01T10:01:00+09:00", "2026-01-01T10:02:00+09:00"];
+    const suspected = receive(receive(receive(emptyState(), report(t0, true)).state, report(t2, false), 1).state, report(t1, false), 2).state;
+    expect(suspected.freshness.map((item) => item.suspectedSource?.reportDateTimeRaw)).toEqual([t2]);
+    const decoded = weatherCurrentUnitCodec.decode(JSON.parse(JSON.stringify(weatherCurrentUnitCodec.encode(suspected))));
+    if (decoded.kind !== "restored") throw new Error("the suspected state does not decode");
+    for (const [label, state] of [["direct", suspected], ["restored", decoded.state]] as const) {
+      const older = receive(state, report(t1, true), 3);
+      expect([older.decisions[0].decision, older.state.freshness.map((item) => item.suspectedSource?.reportDateTimeRaw)], label)
+        .toEqual(["changed", [t2]]);
+      expect(receive(older.state, report(t2, true), 4).state.freshness, label).toEqual([]);
+    }
+  });
+
   it("P2-A5-T05 corpusHistory / AC07-09: history plus A3 save failure, shutdown and E10", async () => {
     const first = decodeFixture("15_16_02_251222_VPWW57", "VPWW57");
     const second = decodeFixture("15_16_02_251222_VPWW57", "VPWW57",

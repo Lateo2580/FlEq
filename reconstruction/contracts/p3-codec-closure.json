@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "097ec2ec048bade0b856216c9aa4546bde1ef193078754946cef37df7a09cd9a",
+    "sha256": "1064f22d575623cb2708b09ebafb8afedba15bb40fe476fbc0896feb7d1a70d0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -248,7 +248,7 @@
         "requirement": "F15: Headlineなし・TextがBMP「あ」79字＋😀のVYSE50をU-Nへ投入する。従来のtext.slice(0,80)は末尾D83Dを作る。Textから切り出す部分を80 UTF-16単位以内でサロゲート対を割らずwell-formedにし、通知全bodyには80単位の上限を置かない。Headlineは既存bound→cutで対を割らない。codecがrestoredでも文字境界の合格とはしない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-nankai-unit.json:199 «00c7d58a8d7d1de3»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:223 «3b04b00a449c0acf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:230 «3b04b00a449c0acf»",
           "reconstruction/src/domains/nankai/nankai.ts:57 «d8c08b2391f4edd9»"
         ]
       },
