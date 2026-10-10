@@ -1,0 +1,530 @@
+{
+  "meta": {
+    "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
+    "sha256": "ae87c37b70238d7ca3dc0c894750d310fad0636d606610ee6b977b3c1ce87e0d",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
+    "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-FINAL-D-OUTCOME",
+        "A": "accepted.subjectsのtransition/facts、view、currentEstablishedを最終期限正規化後の意味に揃える。受理した事実はaccepted自体やreportRefで表せる。対象が消えたならactiveとは返さず、必要に応じsubjects空または最終expiredを返す。currentEstablishedに消えた対象の成立を載せない。（遅着の裁定）Aに合わせ「新通知を出すほど新鮮でない」と「既存activeを取り消さない」を分ける。F12のLは08:00activeを20:00に届いた13:00解除で消す現実装を維持し、契約の『全遅着は正味無変更』を読み替える。F06のVは新通知0でも旧activeを述べるpendingを撤回する。",
+        "B": "acceptedは「その報を読んだ時点の歴史的遷移」と定義し、現在状態とは別の名前・型/明示時点を持たせる。currentEstablishedは最終状態から出す。利用側の表示・coverage・owner照合を含む確認範囲が増える。",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定A（2026-10-10、ご主人。計画§9の横断修正の裁定）。この契約では開き直さない。",
+        "reason": "A・Bの文は計画§2（audit-verify/PLAN.md、D-OUTCOME）の原文。g+2を二重保存やowner停止の証拠としない（同）。新しい共通のイベント型を足さずに現在の結果と揃う。p2-shared-runtime.jsonのQ-R20-CLEARのevidence（「changed.currentEstablishedは正常な現在状態を今回の採用報で確立した場合だけ…その他は必ずnull」）とも一致する。代償は、acceptedのactiveを受理の履歴として読んでいた利用側の期待値の変更（AC07の1件）。"
+      },
+      {
+        "id": "P3-FINAL-D-VANISHED",
+        "A": "最終の状態に記録の無いsubject（同じreduceで回収された、または足さなかった）は、accepted.subjectsに載せず（subjectsは空もある）、decisionはchangedのままcurrentEstablishedをnullにする。acceptedは採用のあった入力では出す（U-Vは「subjectsが空ならacceptedを出さない」を「changedのdecisionがあれば出す」に替える）。changeは最終の表示の変化で決める（AC02(3)）。最終の状態に記録が残る（expired・cancelled・ended）subjectは、その最終の記録で載せ、currentEstablishedも今どおり載せる",
+        "B": "最終の状態に記録の無いsubjectも、transitionを\"expired\"にしてaccepted.subjectsに載せる（factsはsubjectの識別だけ）。currentEstablishedはnull。U-Qの結果にexpiredの語が新しく入る",
+        "C": "最終の保存の射影（D）とviewが受理の前と同じなら、decisionをunchanged/noChangeにしてacceptedを出さない",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定（2026-10-10）: A",
+        "reason": "AはD-OUTCOME=Aの「必要に応じsubjects空」と「currentEstablishedに消えた対象の成立を載せない」をそのまま採り、新しい語彙を足さない。U-Lの既存の形（記録の無い官署へ到着の時点で期限を過ぎた報、landslide-unit.ts:287〜:289）とは、stateの参照が同じこととdecisionのchanged/revisionOnlyだけが揃う（U-Lはacceptedにendedのsubjectを載せcurrentEstablishedも載せる。D-L-OUTCOME）。Bはどのsubjectが消えたかを結果に残せるが、U-Qにexpiredの状態が無く（eventは回収か保持だけ）語彙が増える。CはnoChangeがorigin=recoveryの意味で使われており、「受理した事実はaccepted自体で表す」（D-OUTCOME=A）と食い違う。Aの代償は残存リスク(1)（消えたsubjectのcurrentEstablishedがnullになり、同じsubjectの容量拒否の記録（admission）が遅れて届いた失効済みの報では解除されない）。"
+      },
+      {
+        "id": "P3-FINAL-D-WITHDRAW",
+        "A": "U-Vで、到着の時点で期限を過ぎた採用（dueAt）が前のactiveの記録を置き換えるとき、取消でなくても（解除・引下げ・失効へ落ちる続報も）新しい通知を作らず、そのsubjectのpendingを全部（両channel）撤回する（取消と同じ置換、P3-C9-REPLACEMENT=A）。警報・噴火・降灰・解説の4つのsliceで同じ規則。定時の降灰（VFVO53）は外す: 取消は今も期限によらず撤回し（volcano-unit.tsのreceiveScheduledの取消の分岐）、取消でない通知はbatchのsubject（`${operation}/VFVO53/batch`）に出るのでsubjectごとのpendingが無い",
+        "B": "撤回は取消だけにする（F06の入力そのもの）。取消でない遅着の採用は今どおり通知も撤回もしない",
+        "recommended": "A",
+        "ruling": "D-OUTCOME=A（作者裁定 2026-10-10）から一意に決まる（統合担当）",
+        "reason": "D-OUTCOME=Aの遅着の裁定「F06のVは新通知0でも旧activeを述べるpendingを撤回する」は取消に限らない文言なので、Bは裁定に合わない。U-Vの警報はactiveに期限が無い（alertDeadline=Infinity）ので、遅着の取消・解除で警報が消えても前の発表のpendingが残るのは時刻の境界の条件なしに起きる（F06）。噴火・降灰・解説はactiveに期限が有り、前の報をpendingの寿命（desktop 180秒）の中でactiveのまま受けた直後に期限の境界をまたぐ180秒の窓に限られるが、同じ1行の規則をsliceで揃える。U-Q・U-Nの取消は今も到着の時点の期限によらず撤回している（seismic-unit.tsのadmitのcancelSubject、nankai-unit.tsのcancelledSubjects）。U-Lは境界の条件なしに起きるが、本体を変えるかはD-L-OUTCOMEで決める。"
+      },
+      {
+        "id": "P3-FINAL-D-L-OUTCOME",
+        "A": "U-Lの本体は変えず、D-OUTCOME=AとD-VANISHED・D-WITHDRAWのU-Lの例外として契約に書く。同じreduceで回収される記録（記録の無い官署への遅着、F12の遅着の解除）のacceptedは採用した記録（ended・cancelled）で載せ、currentEstablishedも今どおり載せ、遅着の解除が消した前のactiveのpendingは撤回しない（残存リスク(3)(4)）",
+        "B": "K3でU-Lも揃える: landslide-unit.tsの到着の時点で期限を過ぎた報の2つの経路（記録の無い官署・記録のある官署）でaccepted.subjectsを空・currentEstablishedをnullにし、前の記録がactiveならそのsubjectのpendingを撤回する（製品約6〜8行と試験1つ）。K3のallowedPathsにlandslide-unit.tsを足す",
+        "C": "U-Lの遅着の結果（accepted・currentEstablished）と前のactiveのpendingの撤回を、K4でtrainingの自己退去の結果と一緒にD-VANISHED・D-WITHDRAWへ揃える（K4は計画でU(L)を触る）。K3の間はAと同じ",
+        "recommended": "C",
+        "provisional": "C",
+        "ruling": "作者裁定（2026-10-10）: C（U-Lの遅着の結果とpendingの撤回はK4で揃える。K3の間はAと同じ）",
+        "reason": "AはD-OUTCOME=Aの裁定文（「currentEstablishedに消えた対象の成立を載せない」）とQ-R20-CLEAR（p2-shared-runtime.json:189「その他は必ずnull」）の例外になる（U-LはcapacityExceededを出さないのでadmissionの記録が作られず、currentEstablishedの実害は0）。ただしpendingの撤回は実害がある: U-Lはactiveを48時間・ended/cancelledを6時間保持する（landslide-unit.ts:27）ので、記録のある官署へactiveの続報を受けて（pending desktop 180秒）その180秒の内に6時間を過ぎた新しい解除が届くと、記録は消えるが前のpendingが残り後から鳴る（:308〜:311の通知の判定は期限で回収する報を除くだけ）。時刻の境界の条件は要らない。Bは今すぐ揃うが、K3が配送済みのU-Lの本体を触り（計画のK3の行「L本体はF12の意味修正を予定しない。必要ならLのoutcome整合のみ追加裁定」）、K4がすぐ後に同じ関数（receiveCandidateの自己退去・遅着の経路）を触る。CはK4の同じ変更でtrainingの自己退去（受けた記録を残さないのにacceptedに載せる）と遅着を一度に揃え、K3の範囲を計画どおりに保つ。代償はK4の配送までAの状態が続くこと（K3→K4は計画で連続）。Cを推す。"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-FINAL-SOURCE",
+        "status": "closed",
+        "resolution": "原因（e0d3f0f1のコード読解とaudit-verify/core.cjsの再実行、試作のcheckoutでreconstructionのdistを作って実行）。F05: U-Qのadoptは採用した記録を配列に入れてから容量のfitを呼び（seismic-unit.ts:611）、fitは受ける記録自身を退去の候補から外す（:457）ので、満杯（event 512・長周期256）なら有効なeventを1件退去し、その後に到着の時点で期限を過ぎた受けた記録を回収する（:617）。U-Nは情報subjectを足して65件なら受信の前の並びから1件退去し（nankai-unit.ts:380・:382・:383）、その後に回収する（:390・:394）。U-Vはupsertで満杯なら退去し（volcano-unit.ts:171）、finishで回収する（:851）。観測: Q 512→511・Q62 256→255・N 64→63・V 128→127で、受けた記録は残らない。F16: 同じ入力でdecisionはchanged/semantic・currentEstablishedに今回の報（seismic-unit.ts:612・:629、nankai-unit.ts:337、volcano-unit.ts:495）、acceptedのsubjectは採用前の記録（active、seismic-unit.ts:631、nankai-unit.ts:412・:413、volcano-unit.ts:528・:860）で、最終の状態と食い違う。F06: U-Vの警報のactiveは期限で消えない（:91）。32日前の有効な警報を受けてpending（desktop・sound）が出た直後に31日前の取消が届くと、取消の記録は到着の時点で期限を過ぎているので、受信は通知もapplied.cancelledへの登録もせずに戻り（:571の「!kept || dueAt」）、回収で警報は消えるがpending 2件が残る。F12: U-Lは記録のある官署への遅着の解除を採用して同じreduceで回収し（landslide-unit.ts:317）、08:00のactiveが消えて世代は1→3（採用とcollectで2回）。これは計画の判定どおり正しい意味で、矛盾は契約の「到着の時点で期限を過ぎた報…正味のstateが変わらない…保存世代を進めない」（p3-landslide-unit.json:273）の方。e0d3f0f1でも4件とも以前の結果（audit-verify/core-results.jsonl）と同じ値で再現した。",
+        "source": "起草時のコード読解・再実行（e0d3f0f1、2026-10-10）"
+      },
+      {
+        "id": "Q-FINAL-K4-BOUNDARY",
+        "status": "closed",
+        "resolution": "K3とK4の境界（計画P3-X-C5「消えるnewcomerのための他subject退去」）。K3は時間の軸: 受ける記録自身が到着の時点で期限を過ぎて同じreduceで消える・失効するとき、退去を起こさない（AC01）、と、その入力の結果を最終の状態で返すこと（AC02）。K4はoperationと作用の軸: training/testの受理がnormalの取消・版・所有の証拠を退去しない（D-OPERATION=A）、trainingの自己退去、Wのnormalの終了のfit。K4は退去の適格性を組み直すときK3のAC01とT01〜T03を保つ。trainingの自己退去（U-V・U-L・U-R、受けた記録を残さない）の結果の時制（accepted・currentEstablished）はK4がD-OUTCOME=A・D-VANISHEDで揃える（K3の範囲外）。",
+        "source": "計画§1.2・§3.2、起草時の判断"
+      },
+      {
+        "id": "Q-FINAL-EVIDENCE",
+        "status": "closed",
+        "resolution": "K2の証拠だけの記録（U-N、effective \"evidence\"）の扱い: (1) 証拠だけの記録は表示に出ない記憶で、AC01の「有効な記録」に当たらない。退去・回収の順（P3-C8-CAPACITY=A、K2のAC01(5)）は変えない。(2) 到着の時点で期限を過ぎた新しい情報subjectは足さないので、証拠だけの記録も含めて何も退去しない。(3) 受信で記録が証拠だけのまま残ることは無い（採用は事実を持つ記録を作り、stale・duplicateは記録を変えない）が、AC02は最終の記録が証拠だけなら「記録が無い」と同じに扱う（acceptedに載せずcurrentEstablishedはnull）。(4) 回収で証拠が変われば保存世代を進め、変わらなければ進めない（K2のAC01(5)のまま。到着の時点で期限を過ぎた新しいsubjectは証拠を変えない）。",
+        "source": "p3-authority-evidence.jsonのAC01・RET-01、起草時の試作"
+      },
+      {
+        "id": "Q-FINAL-CHANGE",
+        "status": "closed",
+        "resolution": "decision.changeとaccepted.changeも最終の状態で決める（AC02(3)）。D-OUTCOME=Aは「acceptedの時制」の裁定で、accepted.changeはacceptedの一部。semanticは公開の意味が変わったこと（contentRevisionとdisplayChangesが動く）を言うので、到着の時点で期限を過ぎ表示に出ないまま終わった採用をsemanticと返すとviewと食い違う。既存の期待値の変更は1件（AC07）。退去があれば今どおりsemantic、U-Qの当日履歴の変化はchangeを変えない（今どおり）。",
+        "source": "D-OUTCOME=A・p2-shared-runtime.jsonのQ-R20-CLEARからの帰結（起草時）"
+      },
+      {
+        "id": "Q-FINAL-PROTOTYPE",
+        "status": "closed",
+        "resolution": "起草時の試作（~/dev/fleq-k3-proto、e0d3f0f1、推奨案D-VANISHED=A・D-WITHDRAW=A・D-L-OUTCOME=Aで入れた版。製品の差分はQ 26行・N 31行・V 64行（diffstatの変更行、型・codecの変更0）、試験は4 file +81行（独立レビューの直しの後））: (1) audit-verify/core.cjsでF05-Q・Q62・N・Vは件数が512・256・64・128のまま・受けた記録は無し・decision changed/revisionOnly・acceptedのsubjectsは空・currentEstablished null、F06はpending 0（alertsは空のまま）、F12は変わらず（L本体は無変更）、ほかの監査の行（F01〜F04・F07〜F11・F15・F17）は試作の前と同じ出力。(2) 新しい試験T01〜T04はe0d3f0f1の製品では5件落ち（P3-C9-T03の期待値の変更を含む）、試作の製品では通る。T05（U-L）は両方で通る（今の意味を固定する試験）。(3) reconstructionの3つのtsc・vitest（62 file・615件、5 fileはhost計測で既定skip）・--sequence.shuffle（seed 1791610033643と無指定）が通った。既存試験の期待値の変更はAC07の1件、入力の変更はP3-C9-T05の固定のinputIdだけ。T04の噴火の行は、噴火の撤回の1行を戻した製品で落ちることを確かめた。(4) 実行したNodeはv26.8.1（この環境に20/22/24が無い）。",
+        "source": "起草時の試作（2026-10-10）"
+      },
+      {
+        "id": "Q-FINAL-BRANCHES",
+        "status": "closed",
+        "resolution": "作者裁定（2026-10-10）: P3-FINAL-D-VANISHED=A、P3-FINAL-D-L-OUTCOME=C（U-Lの遅着の結果とpendingの撤回はK4でtrainingの自己退去と一緒に揃える）。残存リスク(1)〜(10)を承認。P3-FINAL-D-WITHDRAWはD-OUTCOME=Aから一意に決まり閉じた（統合担当）。独立レビュー（Opus、条件付きGO・P1 0・P2 4・P3 4）の指摘は起草に入れた: P2-1 P3-C9-T05の固定のinputId（shuffleの順序依存）、P2-2 D-OUTCOMEのAを計画の原文へ戻しD-L-OUTCOMEにCを足す、P2-3 D-VANISHEDのreasonの訂正、P2-4 残存リスク(3)のU-Lの書き分け。P3はD-WITHDRAWを閉じる・AC06の読み替えの追加・残存リスク(10)・T04の噴火の行。",
+        "source": "作者裁定2026-10-10・独立レビュー"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "期限の正規化・結果の時制・pendingの撤回はoperationを含むsubjectの中だけで行い、normal/training/testで同じ規則を使う。区分をまたぐ退去の適格性とtrainingの自己退去の結果はK4。"
+    }
+  },
+  "contract": {
+    "contractId": "P3-FINAL-ADOPTION-001",
+    "mode": "implementation",
+    "objective": "作者裁定D-OUTCOME=Aにより、期限・撤回を反映した最終の候補を採り、結果をその時制に揃える。U-Q・U-N・U-Vは到着の時点で期限を過ぎた新しい記録のために有効な記録を退去せず（監査F05）、accepted・currentEstablished・changeを同じreduceの期限の正規化の後の状態で返す（F16）。U-Vは到着の時点で期限を過ぎた採用でも、前のactiveを述べるpendingを撤回する（F06）。U-Lは本体を変えず、遅着の解除で旧activeを消す今の意味を試験と契約の読み替えで固定する（F12）。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-final-adoption.json",
+      "reconstruction/contracts/p3-seismic-unit.json",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-landslide-unit.json",
+      "reconstruction/contracts/p3-authority-evidence.json",
+      "reconstruction/contracts/p3-revision-order.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-seismic-unit.types.ts",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p3-volcano-unit.types.ts",
+      "reconstruction/contracts/p3-landslide-unit.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/landslide/landslide-unit.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/test/seismic-unit/seismic-unit.test.ts",
+      "reconstruction/test/seismic-unit/seismic-fixture.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/test/nankai-unit/nankai-fixture.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "reconstruction/test/volcano-unit/volcano-fixture.ts",
+      "reconstruction/test/landslide-unit/landslide-unit.test.ts",
+      "reconstruction/test/landslide-unit/landslide-fixture.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/test/seismic-unit/seismic-unit.test.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "reconstruction/test/landslide-unit/landslide-unit.test.ts",
+      "reconstruction/contracts/p3-final-adoption.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check",
+      "git show <必要最小限の対象>",
+      "git ls-files <必要最小限の対象>"
+    ],
+    "moduleIds": [
+      "M02",
+      "M03",
+      "M05",
+      "M07",
+      "M14",
+      "M15",
+      "M16"
+    ],
+    "integrationContractIds": [
+      "I-U-Q",
+      "I-U-N",
+      "I-U-V",
+      "I-U-L"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-Q-001",
+      "P3-UNIT-N-001",
+      "P3-UNIT-V-001",
+      "P3-UNIT-L-001",
+      "P3-AUTHORITY-EVIDENCE-001",
+      "P3-REVISION-ORDER-001",
+      "P3-CODEC-CLOSURE-001",
+      "P2-SHARED-RUNTIME-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#PublishedOutcome",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#SubjectOutcome",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#SeismicUnitStep",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitStep",
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoUnitStep",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideUnitStep"
+    ],
+    "publicFunctions": [
+      "reduceSeismicUnit・reduceNankaiUnit・reduceVolcanoUnit・reduceLandslideUnitと各codecの公開の関数名・入力・型は変えない（currentEstablishedのnullは型が今も許す）。変わるのはU-Q・U-N・U-Vの受信の結果の値（decision.change・currentEstablished・acceptedのsubjects）と、到着の時点で期限を過ぎた新しい記録の扱いだけ"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけを使う。新しいnpm依存・新しい共有moduleは足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-35_08_03_100915_VXSE51",
+      "test__fixtures__selected_xml__78_01_01_240613_VXSE62",
+      "test__fixtures__selected_xml__75_01_01_200512_VYSE51",
+      "test__fixtures__43_01_01_200522_VFVO52",
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__synthetic_VFVO50_cancel",
+      "test__fixtures__15_16_01_241031_VPWW56"
+    ],
+    "sequenceIds": [
+      "O01"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-FINAL-RES-01",
+        "target": "U-Q・U-N・U-Vの受信hot path",
+        "limit": "到着の時点の期限の判定はO(1)、最終の記録の照合は回収のあるreduceだけで触れたsubjectごとにO(1)（配列に結び付けた索引Mapは各配列で1回だけ作る）。全件×全件0、state全体の直列化0",
+        "unit": "1受信・選択・結果照合",
+        "scope": "U-Qは既存のindexOf（受信で作り済みの索引）で記録の有無を引く。U-Nの最終の照合は回収のあるreduceだけで、現況6件・情報64件の索引を1回作る。U-Vの最終の照合（受けた変化ごと）は回収のあるreduceだけで、触れたsliceの索引を1回作る（VFVO51のentry 128まで）。退去の順（evictOne）・byteの計量は変えない",
+        "source": "AGENTS.md 受信経路の計算量・I-U-Q/N/V.computation"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-Q",
+      "U-N",
+      "U-V",
+      "U-L"
+    ],
+    "persistedFields": [
+      "保存schema・field・decodeの検査は変えない。移行は無い"
+    ],
+    "nonPersistedFields": [
+      "新しい非保存のfield・cacheを足さない（U-Vの最終の照合はreduceの中の一時のMapだけ）"
+    ],
+    "outOfScope": [
+      "U-Lの本体（D-L-OUTCOMEの裁定案C: U-Lの遅着の結果とpendingの撤回はK4。Bが選ばれたら統合担当がlandslide-unit.tsを範囲に足す）",
+      "trainingの自己退去・training/testによるnormalの記憶の退去の適格性・Wのnormalの終了のfit（K4、P3-X-C5のoperationの軸）",
+      "寿命・保持の値、版の比較、保存の形・上界・移行（K1・K2・K5・K6の範囲。変えない）",
+      "U-T・U-E・U-W・U-F・U-R・U-Bの同型の検査と修正（残存リスク(6)）",
+      "U-Q・U-N・U-Lの取消でない遅着の採用のpendingの撤回（残存リスク(3)）",
+      "実装担当によるspec本文・計画本文・旧契約本文の変更（計画§9のK3の行の状態の更新は統合担当）",
+      "監査用の未追跡audit-verify/*.cjsと結果、起草時の試作を製品・契約の成果物としてcommitすること"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-FINAL-AC01",
+        "requirement": "最終採用の順（P3-X-C3・P3-X-C5の時間の軸）。U-Q・U-N・U-Vの受信で、記録の無いsubjectへ採用する記録が到着の時点で期限を過ぎている（受理の時計で、U-Qはevent・長周期のretainUntil、U-Nは情報subjectのretainUntil、U-Vは記録のactiveの期限（警報のactiveは無期限、噴火のvalidUntil・降灰のforecastEndsAt、inactiveはretainUntil）が時計以下）とき: (1) その記録が同じreduceの回収で消える（retainUntilが時計以下）なら配列へ入れない。件数・byteの超過の判定と退去は入れない配列で行い、ほかの記録を退去しない（U-LのP3-C10-CAPACITYの「到着の時点で期限を過ぎた報は退去を起こさない」と同じ規則）。(2) U-Vで記録の期限は来ていない（expiredとして残る）がsliceが満杯なら足さない（退去を起こさない）。空きがあれば今どおりexpiredの記録として残す（同じ版の再送はduplicate）。U-VのVFVO51の火山entry（警報）も同じ（警報のinactiveの記録は期限と保持が同じなので(1)だけが当たる）。(3) 記録のあるsubjectへの採用、到着の時点で期限の来ていない記録、退去の順・件数・byteの予算は今のまま。(4) (1)(2)で足さない報はwatermarkを残さない（足しても同じreduceで消えるので最終の状態は今と同じ）。同じ版・古い版の再送も到着の時点で期限を過ぎているので、activeにならず鳴らない。(5) 保存の世代はP3-X-C3: 保存の射影（U-Q: earthquakes・longPeriods・daily・intents、U-N: currents・intents・証拠、U-V: persistedChanged）が変わらなければ進めない。U-Qのadmitは置換も新しいintentも無いとき元の配列を返す（U-N・U-L・U-Vのadmitと同じ形。終端記録の上限は次にintentsを変えるadmitか期限で揃う）。U-Qの当日履歴が変われば保存する（F05のVXSE51は件数が増えるので+1）。回収のあるreduceで世代が2つ進むことはある（+1に揃えない）。",
+        "evidenceRefs": [
+          "reconstruction/src/units/seismic/seismic-unit.ts:611 «b8f87bc30bffb1eb»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:457 «a07bf5c5c6288191»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:617 «9f8ffebb470b900f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:389 «daa1fb7273be1a7e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:380 «1138a6fd451871f7»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:382 «78f971ce5e2b3841»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:383 «3f4368ff70e89f5c»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:390 «27f3068a678f6da5»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:392 «f900d98d03913508»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:171 «cb8afba84213b5fd»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:155 «55fb8417b4dafa06»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:521 «e5f09dfc13030f92»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:817 «8b4f910515306c8f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:851 «3163253ec0f873fa»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:287 «e8afc5291a8206af»",
+          "reconstruction/contracts/p3-landslide-unit.json:88 «ff75c945bfaf4bbf»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «7c26b4f5f84b12c4»",
+          "reconstruction/contracts/p3-nankai-unit.json:93 «ac56198078904181»",
+          "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
+          "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
+          "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»"
+        ]
+      },
+      {
+        "id": "P3-FINAL-AC02",
+        "requirement": "結果の時制（D-OUTCOME=A、D-VANISHEDの裁定案A）。U-Q・U-N・U-Vの受信のdecisions・accepted・displayChangesは、同じreduceの期限の正規化（collect）の後の状態で決める: (1) accepted.subjectsには、その入力が触れたsubjectのうち最終の状態に記録が残るものを、その最終の記録で載せる（例: U-Vの噴火・降灰がexpiredになればtransition expired、U-Nの現況がexpiredになればexpired）。最終の状態に記録の無いsubject（AC01で足さなかった、または回収された）は載せない。acceptedは採用のあった入力では出す（subjectsは空もある）。U-Vは今の「subjectsが空ならacceptedを出さない」を「changedのdecisionがあれば出す」に替える。(2) changed.currentEstablishedは、最終の状態にそのsubjectの記録が無ければnull（p2-shared-runtime.jsonのQ-R20-CLEARのevidence）。expired・cancelled・endedの記録が残るなら今どおり今回の報の根拠を載せる。(3) decision.changeとaccepted.changeは最終の表示の変化で決める: 前の記録がactiveで最終にactiveが無い（消えた・expired）か、最終のactiveの事実が変わればsemantic、前も最終もactiveでなければrevisionOnly。退去があれば今どおりsemantic。U-Qの当日履歴の変化はchangeを変えない（今どおり）。(4) 回収で消えた新しい記録はdisplayChangesに出さない（今もまとめで出ない）。(5) U-Nの証拠だけの記録（K2）は表示・結果に出ない記録で、最終の記録が証拠だけなら「記録が無い」と同じ（Q-FINAL-EVIDENCE）。(6) 回収の無い受信、unchanged・rejected・capacityExceeded、deadline・restore・intentUpdate・shutdownの結果は変えない。(7) U-Lは本体を変えない（D-L-OUTCOMEの裁定案C、K3の間はAと同じ）。trainingの自己退去（受けた記録を残さない）の結果はK4。",
+        "evidenceRefs": [
+          "reconstruction/src/units/seismic/seismic-unit.ts:612 «74cbc9399b0c6925»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:619 «e51db5b671c9dcc8»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:629 «7953ec7c550024e1»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:631 «aab1837a19873eec»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:337 «f6b2a70cafbf10da»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:412 «b61196d01c09ce46»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:413 «f6b6aaeed4c0b50e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:488 «d4e9cbf94562cdfa»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:495 «e15dbf781382eb37»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:528 «5018fadb9c916b68»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:530 «b1de691cede9976c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:859 «72a0fbb4435d93b5»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:860 «8afd096e772f7b47»",
+          "reconstruction/contracts/p2-shared-runtime.json:189 «837f02f3e547f030»",
+          "reconstruction/contracts/p2-shared-runtime.json:191 «7f111c4d983bcd3c»",
+          "reconstruction/src/runtime/owner-runtime.ts:178 «1f8ec2dac7bfee86»",
+          "reconstruction/src/runtime/owner-runtime.ts:204 «c4d633ca32eb9069»",
+          "reconstruction/contracts/p3-order-plan.md:370 «231992515371a332»",
+          "reconstruction/contracts/p3-order-plan.md:381 «63af1164399c448a»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:275 «309fee2059b8f524»"
+        ]
+      },
+      {
+        "id": "P3-FINAL-AC03",
+        "requirement": "F05・F16の閉鎖（監査の入力をそのまま回帰試験にする）。時計t=2026-01-01T10:00:00+09:00で、(a) U-Q: 32-35_08_03_100915_VXSE51のEventIDを1〜512・ReportDateTimeをtにした報で512件の満杯にし、EventID 513・ReportDateTimeをt−25時間にした報をtで受ける。(b) U-Q: selected_xmlの78_01_01_240613_VXSE62で256件にし、257件目をt−37時間で受ける。(c) U-N: selected_xmlの75_01_01_200512_VYSE51で64件にし、65件目をt−8日で受ける。(d) U-V: 43_01_01_200522_VFVO52で128件にし、129件目をt−3日（記録の期限も過ぎる）とt−36時間（activeの期限だけ過ぎる）で受ける。どれも、受けた後の配列は受ける前と同じ（件数512・256・64・128、受けた記録は無い）、decisionはchanged/revisionOnly・currentEstablished null、outcomesは[{accepted, revisionOnly, subjects: []}]、intents・displayChanges・diagnosticsは空。保存の世代は(a)だけ+1（当日履歴の件数）で(b)(c)(d)は変わらない。(e) U-Vの空のsliceにt−36時間の報を受けると、記録はexpiredで残り、acceptedのsubjectはtransition expired、currentEstablishedは今回の報（VFVO52）、changeはrevisionOnly。修正前の観測（件数−1・accepted active・currentEstablishedあり）の反転を正式試験で示し、未追跡の監査scriptに依存しない。",
+        "evidenceRefs": [
+          "reconstruction/src/units/seismic/seismic-unit.ts:611 «b8f87bc30bffb1eb»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:383 «3f4368ff70e89f5c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:171 «cb8afba84213b5fd»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:629 «7953ec7c550024e1»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:337 «f6b2a70cafbf10da»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:495 «e15dbf781382eb37»"
+        ]
+      },
+      {
+        "id": "P3-FINAL-AC04",
+        "requirement": "F06の閉鎖（P3-X-C6、D-WITHDRAW=A。D-OUTCOME=Aから一意）。U-Vで到着の時点で期限を過ぎた採用（dueAt）が前のactiveの記録を置き換えるとき、新しい通知を作らず、そのsubjectのpendingを全部（両channel）supersededにする（取消の置換と同じ、P3-C9-REPLACEMENT=A）。警報・噴火・降灰・解説で同じ（定時の降灰を外す理由はD-WITHDRAWのA）。原因は受信の「!kept || dueAt(next, now)」の早い戻り（volcano-unit.ts:571、噴火・降灰にも同じ行）がapplied.cancelledへの登録より前にあること（同じ文の行が4つあるのでanchorは直前の:569で引く）。海上の部分だけの取消は警報がactiveのまま残るので当たらない。入力: 45_01_01_200522_VFVO50のReportDateTimeをnow−32日にした報を時計now（2026-01-01T10:00:00+09:00）で受け（pending desktop・sound）、synthetic_VFVO50_cancelのReportDateTimeをnow−31日にした取消をnow＋1秒で受ける。警報の記録は回収されて無く、pendingは0、intentsは空、acceptedは[{accepted, semantic, subjects: []}]、decisionはchanged/semantic・currentEstablished null。修正前の観測（alertsは空・pending desktop 179,000 ms・sound 59,000 msが残る）の反転を正式試験で示す。噴火（期限の有るactive）は境界の窓の1行で確かめる: F.o1のReportDateTimeをnow−1日＋60秒にした報をnowで受け（validUntilはnow＋60秒、pending 2）、now−1日＋90秒にした続報をnow＋150秒で受けると、pendingとintentsが空。U-Q・U-Nの取消は今も到着の時点の期限によらず撤回している（変えない）。",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:91 «ee67c3c47e745e7e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:569 «4875690aef7ec765»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:572 «fa298f72575b1598»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:768 «2636c80e8ecb6cdc»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:415 «5785211574bb7d26»",
+          "reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573»",
+          "reconstruction/contracts/p3-volcano-unit.json:248 «782a63e4c50a5c02»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:610 «c050c5f77e6e1ce5»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:376 «9bfdcabc21e21ff9»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:368 «d12543f2384360bd»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:569 «7ba11fade1b774fd»",
+          "reconstruction/contracts/p3-order-plan.md:368 «125e18c065822856»"
+        ]
+      },
+      {
+        "id": "P3-FINAL-AC05",
+        "requirement": "F12（U-L）は本体を変えず試験と契約の読み替えで閉じる（D-OUTCOME=A）。記録のある官署に、到着の時点で期限を過ぎた新しい解除が届くと、今どおり採用して同じreduceで回収し、まだ有効だった前のactiveを消す（通知しない）。保存の対象（currents）が変わるので保存の世代を進める（+1に限らない。F12の観測は1→3）。acceptedのsubjectのtransitionはended（activeと返さない）。P3-C10-RETENTIONとpersistedの「到着の時点で期限を過ぎた報（遅着の発表・解除だけの遅着とも…正味のstateが変わらない）では、currentsの参照を変えず保存世代を進めない」（p3-landslide-unit.json:273）は、最終の状態が変わらない受理（記録の無い官署への遅着、P3-C10-ACTIVE-EXPIRY）だけに当たると読み替える。既存のP3-C10-T03の遅着の解除（landslide-unit.test.ts:192〜:196、T0のactiveにReportDateTime 2020-06-23T00:00の解除をT0＋7時間1分で受ける。F12と同じ形）に、保存の世代が進むこととacceptedのtransitionがendedであることを足す。",
+        "evidenceRefs": [
+          "reconstruction/src/units/landslide/landslide-unit.ts:278 «12767c397d3a7354»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:308 «1f07c849306e8bdb»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:317 «0a252c057ef91ea5»",
+          "reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f»",
+          "reconstruction/contracts/p3-landslide-unit.json:273 «0eca0a521a5810b0»",
+          "reconstruction/contracts/p3-landslide-unit.json:12 «c73b1961f3ef092e»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:192 «f08931c457090c2d»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:196 «4b2698ca2b3fa0ef»",
+          "reconstruction/contracts/p3-order-plan.md:348 «2aa034878016ecd6»"
+        ]
+      },
+      {
+        "id": "P3-FINAL-AC06",
+        "requirement": "既存条文の読み替え（旧契約の本文は変えない）。(1) U-Q: P3-C7-RETENTIONのreasonと期限の試験の振る舞い（p3-seismic-unit.json:72・:1007）の「到着の時点で期限を過ぎた報は、採用してwatermarkを進め、同じreduceで回収する」は、記録の無いsubjectなら配列へ入れない（最終の状態は同じ、AC01(1)(4)）と読む。P3-C7-CAPACITY=A（:76）に「到着の時点で期限を過ぎた新しい記録は件数・byteの超過の判定に入れず、退去を起こさない」を足す。Q-NOTICE.capacity（:228）の「終端記録の合計が131,072 byteを超える分は…expiresAtの前に回収する」とI-U-Q.capacityReserve（:310）の終端記録の上限は、AC01(5)によりadmitが置換も新しいintentも無いとき元の配列を返すので、超過分の回収が次にintentsを変えるadmitかexpiresAtまで遅れると読む（U-Qのdecodeは終端記録の合計を検査しない。超過分も世代のbyte予算の計量に入る）。(2) U-N: P3-C8-RETENTION=A（p3-nankai-unit.json:84）・AC（:716）・T（:858）を(1)と同じに読む。P3-C8-CAPACITY=Aの情報系列の65件目の規則（:93）に同じ一文を足す。(3) U-V: P3-C9-RETENTION=A（p3-volcano-unit.json:105）を(1)と同じに読み、P3-C9-CAPACITY=A（:132）にAC01(1)(2)を足す。P3-C9-REPLACEMENT=A（:150）に「到着の時点で期限を過ぎた採用が前のactiveの記録を置き換えるとき、新しいintentを作らずそのsubjectの全pendingをsupersededにする」を足し、generationTableのexpiry（:248）の「通知しない」は新しい通知についての文と読む。(4) U-L: AC05。(5) 計画§9のP3-X-C3/C6の境界例（p3-order-plan.md:370）はAC02・AC04で満たす。(6) K2のAC01(5)（証拠だけの記録の退去・回収の順）は変えない。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-seismic-unit.json:72 «dad13f72955b6839»",
+          "reconstruction/contracts/p3-seismic-unit.json:1007 «f79a11a900f40259»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «7c26b4f5f84b12c4»",
+          "reconstruction/contracts/p3-seismic-unit.json:228 «cfefc5612e87623b»",
+          "reconstruction/contracts/p3-seismic-unit.json:310 «fb1b7563d2547693»",
+          "reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284»",
+          "reconstruction/contracts/p3-nankai-unit.json:716 «a146d716e540ab58»",
+          "reconstruction/contracts/p3-nankai-unit.json:858 «33e3d8a5efa9e433»",
+          "reconstruction/contracts/p3-nankai-unit.json:93 «ac56198078904181»",
+          "reconstruction/contracts/p3-volcano-unit.json:105 «7fd8511d9b3e625b»",
+          "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
+          "reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573»",
+          "reconstruction/contracts/p3-volcano-unit.json:248 «782a63e4c50a5c02»",
+          "reconstruction/contracts/p3-volcano-unit.json:1203 «8c95c93b84af0dce»",
+          "reconstruction/contracts/p3-authority-evidence.json:255 «22ec592c44f8b40b»",
+          "reconstruction/contracts/p3-authority-evidence.json:186 «18d18356ea70c20e»"
+        ]
+      },
+      {
+        "id": "P3-FINAL-AC07",
+        "requirement": "既存試験の期待値の変更（起草時の試作で確かめた全部）: volcano-unit.test.tsのP3-C9-T03の到着の時点で期限を過ぎた噴火の報（:227〜:230、空のstateにF.o1を報の時刻＋1日＋1 msで受ける）のdecisionを[\"changed\", \"semantic\"]から[\"changed\", \"revisionOnly\"]へ。理由: AC02(3)。記録はexpiredで残り表示に出ない（displayChangesは今も空）ので、公開の意味は変わっていない。expired・intents・displayChanges・同じ版の再送のduplicateの期待値は変えない。入力の変更（期待値は変えない）: volcano-unit.test.tsのP3-C9-T05のpendingのbyteの境界（:394〜:396）は、probeのsendと測るsendに固定のinputIdを渡す。inputIdはintentのsourceに入りbyteを決めるが、今はvolcano-fixture.ts:23のmodule共有の連番で決まり、T03・T04のsendが足されると--sequence.shuffleの順（seed 1791610033643で再現）で桁が繰り上がり境界がずれて落ちる。これ以外の期待値・入力の変更が要ると分かったら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。",
+        "evidenceRefs": [
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:227 «e31f61135a3984de»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:230 «f0dda35fd0bcc8aa»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:394 «4bcba308e812659a»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:395 «0b7dd40e4e5f885e»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:396 «7ef8dcd1bc8413ae»",
+          "reconstruction/test/volcano-unit/volcano-fixture.ts:23 «43c3ae04f996b725»"
+        ]
+      },
+      {
+        "id": "P3-FINAL-AC08",
+        "requirement": "横断不変条件とパラメータ表。この契約が満たすのはP3-X-C3（期限・撤回・容量を反映した最終候補を採り、保存の射影が同じなら世代を進めない。accepted・view・currentEstablishedの時制をAC03・AC05で固定）、P3-X-C5の時間の軸（消えるnewcomerのための他subjectの退去を防ぐ。operationの軸はK4）、P3-X-C6のU-V（新通知0でも前のactiveを述べるpendingを撤回）。P3-X-C1・C2・C4は変えない（寿命・保存の形・上界は今のまま）。パラメータ表のAdoption / Outcome — 最終正規化の順: 意味の採用→期限の正規化（到着の時点で期限を過ぎた新しい記録は足さない）→容量（AC01）、reject時rollback: capacityExceededは今どおりstate不変、独立deadline: 変えない、時制: AC02（U-Lは例外D-L-OUTCOME）。Notification — U-Vのlate（到着の時点で期限を過ぎた）採用は生成0・前のactiveのpendingを撤回、U-Q・U-Nの取消は今どおり撤回。Acceptance — T01〜T06。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
+          "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
+          "reconstruction/contracts/p3-order-plan.md:368 «125e18c065822856»",
+          "reconstruction/contracts/p3-order-plan.md:381 «63af1164399c448a»",
+          "reconstruction/contracts/p3-order-plan.md:384 «f2de81dab2bb4f24»",
+          "reconstruction/contracts/p3-order-plan.md:354 «7317aa1fbb21708f»",
+          "reconstruction/contracts/p3-order-plan.md:355 «3b5a9905bfd57e41»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-FINAL-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-FINAL-AC01",
+          "P3-FINAL-AC02",
+          "P3-FINAL-AC03"
+        ],
+        "behavior": "seismic-unit.test.tsに1つ: AC03(a)(b)のVXSE51 512件とVXSE62 256件の満杯に到着の時点で期限を過ぎた別のEventIDを受け、配列が変わらない・changed/revisionOnly・currentEstablished null・acceptedのsubjectsが空・intents/displayChanges/diagnosticsが空・保存の世代が(a)+1・(b)0であることを表で確かめる。"
+      },
+      {
+        "testId": "P3-FINAL-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-FINAL-AC01",
+          "P3-FINAL-AC02",
+          "P3-FINAL-AC03"
+        ],
+        "behavior": "nankai-unit.test.tsに1つ: AC03(c)のVYSE51 64件の満杯にt−8日の65件目を受け、information・currents・persistenceが変わらず、changed/revisionOnly・currentEstablished null・acceptedのsubjectsが空であることを確かめる。"
+      },
+      {
+        "testId": "P3-FINAL-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-FINAL-AC01",
+          "P3-FINAL-AC02",
+          "P3-FINAL-AC03"
+        ],
+        "behavior": "volcano-unit.test.tsに1つ: AC03(d)のVFVO52 128件の満杯にt−3日とt−36時間の129件目を受けて配列・persistenceが変わらずacceptedのsubjectsが空、AC03(e)の空のsliceでexpiredの記録・transition expired・currentEstablishedありを確かめる。"
+      },
+      {
+        "testId": "P3-FINAL-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-FINAL-AC04"
+        ],
+        "behavior": "volcano-unit.test.tsに1つ: AC04のF06の入力で、取消の後の警報が無く、pendingとintentsが空、acceptedがsemanticでsubjectsが空、currentEstablished nullであること、と噴火の境界の窓の1行（pendingが空）を確かめる。降灰・解説は噴火と同じ1行の規則で、試験の行を持たない（1つの振る舞いに1テスト）。"
+      },
+      {
+        "testId": "P3-FINAL-T05",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-FINAL-AC05"
+        ],
+        "behavior": "landslide-unit.test.tsの既存のP3-C10-T03の遅着の解除（:192〜:196）に2つのassertを足す（新しいitは作らない）: 保存の世代が受ける前より進むこと、acceptedのtransitionがendedであること。U-Lの本体を変えないので、修正の前後で通る（F12の今の意味の固定）。"
+      },
+      {
+        "testId": "P3-FINAL-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-FINAL-AC02",
+          "P3-FINAL-AC07"
+        ],
+        "behavior": "既存のP3-C9-T03の到着の時点で期限を過ぎた噴火の報のdecisionの期待値をrevisionOnlyへ書き換える（AC07）。新しいitは作らない。"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約とanchor"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "srcと契約の型検査、dist生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "testの型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "C6のrunnerが使うdistの生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "正式回帰と既存試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "WeakMapの索引cache・共有状態の順序依存を検出"
+      },
+      {
+        "command": "git diff --check",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowedPathsだけのgit diff --binary --no-ext-diff patch、変更ファイル、正式ゲートと未実行の検証、残存リスクを返す。各試験はregressionまたはcontractBoundaryの根拠を1行で示す。",
+      "F05・F06・F16の監査の再現が正式試験で反転したこと、F12（U-L）の今の意味が試験で固定されたことを報告する。",
+      "規模の見積もり（起草時の試作から）: 製品のTSは3 file・約100〜130行の変更（Q約25、N約30、V約65）、試験は4 file・約80〜100行（T01〜T05、既存試験の期待値の変更1件・入力の変更1件）。計画の見積もり140〜280行・1.5〜2.5人日に対し、合計170〜220行・1〜1.5人日。実績と差があれば理由を書く。",
+      "本契約ファイルの実装時の編集権はevidenceRefのanchorと自己digestの同期だけに限り、受入条件・裁定値を実装後に変えない。",
+      "残存リスク（作者承認済み（2026-10-10））: (1) D-VANISHED=Aでは、最終の状態に記録の無いsubjectのcurrentEstablishedがnullなので、同じsubjectの古い報の容量拒否の記録（admission、U-Qなど）は、遅れて届いた失効済みの報では解除されず、そのrunの間、新しい有効な報が来るまで未充足の表示が残る（今は偶然に解除していた。安全側の残り方）。(2) AC01で足さない報はwatermarkを残さないので、同じ報の再送は毎回changed/revisionOnly（state・通知は変わらない）になり、duplicateにならない。U-Vの満杯のsliceへのactiveの期限だけを過ぎた報も同じ。(3) 前のactiveのpendingを撤回しない遅着: U-Lは、記録のある官署へactiveの続報を受けてから180秒の内に6時間を過ぎた新しい解除が届くと、記録は消えpendingが残る（時刻の境界の条件なし。D-L-OUTCOME=CならK4の配送まで、Aなら続く）。U-Q・U-Nの取消でない遅着は、前の報をactiveのまま受けた直後に期限の境界をまたぐ180秒の窓だけ。(4) D-L-OUTCOME=A・Cでは（CはK4の配送まで）、U-Lは同じreduceで回収した記録をaccepted（ended・cancelled）とcurrentEstablishedで返し続ける（U-Lはadmissionを作らないので解除の材料にはならない）。(5) trainingの自己退去（U-V・U-L・U-R）の結果（acceptedに残らない記録・currentEstablished）はK4で揃うまで今のまま。(6) U-T・U-E・U-W・U-F・U-B（未配送）は同型の検査をしていない（U-Rは36時間を過ぎた報をstaleで返し、到着の時点で期限を過ぎた採用が無い）。(7) 回収のある受信では保存の世代が2つ進むことがある（F12の1→3。+1に揃えない、計画）。(8) 起草時の試作のゲートはNode v26.8.1で走らせた。対応のNode 20/22/24での実行はこの環境では未実施（blocked）。(9) 遅着・到着の時点で期限を過ぎた報の実配信の頻度は未集計。(10) U-VでAC01により足さなかった報でも、復旧不足の照合（liveShortfalls、volcano-unit.ts:569など）は今どおり走り、新しい報なら不足を消して保存世代を進めうる。(1)のadmissionの「解除しない」とは向きが逆（不足の表示は失効済みの報で消える）。"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-FINAL-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "implementation"
+        ],
+        "resolveBy": "発注前点検でK3のbaseOidを割り当てる。K2（配送e0d3f0f1）の後のbaseで、U-Q・U-N・U-Vの製品と試験のfileがK4と同時に編集されないことを確かめる（計画の順K5→K1→K2→K3→K4）。",
+        "requiredEvidence": [
+          "git rev-parse HEADとgit status --porcelain",
+          "check-contract FAIL 0",
+          "Q-FINAL-BRANCHESのclosed"
+        ]
+      }
+    ]
+  }
+}
