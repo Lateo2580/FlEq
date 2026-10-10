@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "ae87c37b70238d7ca3dc0c894750d310fad0636d606610ee6b977b3c1ce87e0d",
+    "sha256": "fc0e08c4f1561b09e10af3ae7cd101d06be44630b224f953c8c0c1396d7e86c3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -92,7 +92,7 @@
     "contractId": "P3-FINAL-ADOPTION-001",
     "mode": "implementation",
     "objective": "作者裁定D-OUTCOME=Aにより、期限・撤回を反映した最終の候補を採り、結果をその時制に揃える。U-Q・U-N・U-Vは到着の時点で期限を過ぎた新しい記録のために有効な記録を退去せず（監査F05）、accepted・currentEstablished・changeを同じreduceの期限の正規化の後の状態で返す（F16）。U-Vは到着の時点で期限を過ぎた採用でも、前のactiveを述べるpendingを撤回する（F06）。U-Lは本体を変えず、遅着の解除で旧activeを消す今の意味を試験と契約の読み替えで固定する（F12）。",
-    "baseOid": "unassigned",
+    "baseOid": "a1d747d9a2c88af7b5085e1c72afa37396cfd415",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
