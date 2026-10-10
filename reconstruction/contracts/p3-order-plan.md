@@ -345,7 +345,7 @@ coverage 下書きの「未確認」12 項目のうち、項目 9（priorityReas
 
 ### 横断修正の発注順と裁定（2026-10-10）
 
-作者裁定: D-ORDER=A、D-EVIDENCE=A（移行A1）、D-OUTCOME=A、D-OPERATION=A、D-CODEC=A、D-EEW=A（current/gateは有限期限。10分/24時間/10分は仮置きで、実データから期限・再確立horizon・未来skewの数値を確定する。再起動後は非永続A1）、D-HORIZON=A、D-FORECAST=A。各Aの内容はK1〜K6で条文化する。K6のEEW数値は実データで確定するまで発注しない。
+作者裁定: D-ORDER=A、D-EVIDENCE=A（移行A1）、D-OUTCOME=A、D-OPERATION=A、D-CODEC=A、D-EEW=A（current/gateは有限期限。current＝版の起点＋10分、gate＝最後に採用した版の起点＋24時間、新規subjectの再確立horizon＝10分で確定。根拠は気象庁の公開の発表状況の警報83イベント（2023-02〜2026-08）。未来skewは起点をmin(報の時刻, 受信時刻)にして拒否しない（P3-LIFE-D-SKEW=A）。再起動後は非永続A1）、D-HORIZON=A、D-FORECAST=A。各Aの内容はK1〜K6で条文化する。K6の数値は確定済みで、発注は発注前点検のbaseOid割当による。
 
 | 契約 | 対象 | 依存 | 状態 |
 |---|---|---|---|
@@ -354,7 +354,7 @@ coverage 下書きの「未確認」12 項目のうち、項目 9（priorityReas
 | K3 `P3-FINAL-ADOPTION-001` | F05/F06/F12/F16、期限・撤回を反映した最終採用（Q/N/V、Lの試験） | K2後、K4より先 | 未起草・未発注 |
 | K4 `P3-OPERATION-CAPACITY-001` | F04/F10、操作別の退去適格性とnormal終了（T/V/L/R/W） | K3後、C11配送後 | 未起草・未発注 |
 | K5 `P3-CODEC-CLOSURE-001` | F08/F15、保存byteと派生通知の文字境界（V/N） | C11配送後の先頭。K1〜K4と同時編集しない | D-LIMIT=A（5 MiB）確定・未発注。Macの容量・時間計測を受入に追加、baseOidは発注前点検で割当 |
-| K6 `P3-LIFETIME-AND-EEW-GATE-001` | F01/F11/F17＋F14裁定、寿命・再受理・同版訂正（E/F） | EEWの実データによる数値確定後。K5と並走可 | 未起草・未発注 |
+| K6 `P3-LIFETIME-AND-EEW-GATE-001` | F01/F11/F17＋F14裁定、寿命・再受理・同版訂正（E/F） | EEWの実データによる数値確定後。K5と並走可 | 起草（`p3-lifetime-and-eew-gate.json`、baseOid未割当、分岐はすべて裁定済み（2026-10-10、A））・未発注 |
 
 ### 横断不変条件 P3-X-C1〜C6
 
