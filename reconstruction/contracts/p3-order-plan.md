@@ -387,3 +387,9 @@ C12以降の新規unitと既配送unitの修正契約は、正本の条文IDを�
 ### C12の再開条件
 
 C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、P3-X-C1〜C6の例外と各unitのパラメータ・境界受入例を確定する。C12の2h/3h遅着、退去保護、置換時pendingの追加裁定を準備して発注前点検を再開する。横断修正後の保存量・処理量を反映したC12改訂を承認してから実装を発注する。C13以降も共通条文を満たしてから発注する。P3-C12-CAPACITY=Aの退去の候補(1)(2)と自身の退去の結果をK4のP3-OPCAP-AC01・AC02とK4NのAC01・AC02に揃え、operationによる退去の禁止と退去の後の保証外を別に確定する。
+
+### 測定harnessの追随（2026-10-11）
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| `P3-MEASURE-HARNESS-001` | 台帳76: K6・UWRの後にE01/C4の測定harnessが成り立たない（充填のEEWが受信の時点でhorizon外のstale、3つの保存母集団の引き金が1秒のtickを前提、E14のowner側の区間が無い、凍結の照合の集合と機械の値）。K6のP3-LIFE-D-HARNESS=Aの申し送りを引き受け、UWR AC08の別報告の未実装とtriggerLeadMsの読み替えを本契約に記録する。測り直しはE05-P・Q-UWR-REMEASUREのMac mini・PiのE03。P3-C6-AC09のPi予備とQ-UWR-REMEASUREのPi第1・2段は別機械のharnessが要り本契約の後も残る | K6・UWR・C6・WL2の配送 | 起草（e7440188から）。作者裁定P3-MH-FULL-STATE待ち（推奨D） |

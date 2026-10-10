@@ -1,0 +1,547 @@
+{
+  "meta": {
+    "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
+    "sha256": "0cb5cda4a0be616fb666af0321132fe6cab6c30e276ac2ac03dc89b5ed458ecb",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
+    "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-MH-FULL-STATE",
+        "A": "窓のあいだ送り直して満杯を保つ: 充填した通常のEventID（VXSE43・VXSE45の各family 512、計1,024 subject）を、それぞれのcurrentUntil（起点＋600,000ms）より前に同じEventIDの続報（Serial＋1、予測は同じ、報時刻＝送る時点のhostの壁時計）で送り直し、窓の終わりまでcurrent 512×2とgate 512×2を保つ。送り直しの規則は新しいinitial-stateのrecipeに書き、負荷N・P・Cの再生とは別の入力として窓の結果で数える",
+        "B": "寿命切れも込みで測る（全部の窓）: 充填のEEWの報時刻を充填の開始のhostの壁時計（秒）にそろえ、C4と同じく充填・静まりの直後から測る。充填の起点＋600,000msで1,024件のcurrentが1回の期限入力でまとめて失効し、窓の残りはgate 512×2・current 0で測る",
+        "C": "失効を待ってから測る（全部の窓）: 充填の後、充填のcurrentが全部失効する（hostの壁時計≧充填の起点＋600,000msで、/snapshotのeewが0/0/0）まで待ち、充填のgate 512×2・充填のcurrent 0（K6の後に10分を超えて保てる最大）から測る。窓の入力が作るcurrent（cycleCのSerial 2の続報、E14の訂正）は各10分生きる",
+        "D": "窓の種類で分ける: P窓（E02-P・E05-P）はB（失効の前後を同じ窓で測り、E05の最大RSSとE02の分位点を失効の前と後に分けて報告に並べる。判定は今どおり窓全体）、C窓（E06・E07-C）とE14はC（失効を待ってから周期・束を始める）",
+        "recommended": "D",
+        "provisional": "D（起草の仮置き。作者裁定の前に実装を発注しない）",
+        "ruling": "作者裁定D（2026-10-11朝、ご主人）、推奨どおり。採らなかったA・B・Cは分岐の記録として残すだけで、実装はDの形（P窓は失効の前後を同じ窓で測って分けて報告、C窓とE14は失効を待ってから）だけを読む",
+        "reason": "C4との違い: E01の6母集団は充填を使わない（初期状態はU-W・U-Fの初期化の報だけ、initial-state.jsonのpopulations）ので、どの案でもE01の初期状態は変わらない（E01の差は3つの保存母集団の引き金だけ、P3-MH-AC03）。A: E05-P・E02-Pの状態はC4と同じ大きさを窓の終わりまで保つが、窓の中のEEWの入力がC4の0件から約1,900件（E02-Pの約17分の窓、9分周期の送り直し）に増え、各件が採用のたびにcurrentを作り直してdisplay changeとsnapshotの公開を起こす（eew.ts:483）。通知はfirstReportNotified・vxse45Acceptedの後なので出ない見込み（eew.ts:512〜513、予備で確かめる）。負荷N・P・Cの文字列の同一性（frozen.ts:402）は保てるが、E05-P・E02-PはC4のPより重い別の条件になる。B: 最初の約9分（充填・静まり約1分の後）はC4と同じ状態とP負荷で、失効の時点で1,024件の失効を1回の期限入力で処理する山が1つ入り、その後はcurrentの分だけ状態が小さい。E06・E07-Cでは定常の区間（warm-up 5周期の後）にこの減少が入り、RSSの傾きが負に偏って漏れを隠す（frames.mjsのcycleCの注記が避けている形）。C: 状態がC4よりcurrentの分だけ小さいまま測るので、E05-PのC4の値（max RSS 453.61・455.19・458.57MiB、上限400MiB）との差にWL2（段2）の効果と状態の縮みが混ざり、Q-WL2-E05Pの比べ方が崩れる。E02-Pも軽くなる。窓ごとに約9分の待ちが増える。D: E05-P・E02-Pは失効の前の区間でC4と同じ状態を測ってWL2の効果を比べられ、失効の山も記録に残る。E06・E07-C・E14は定常の状態（gate満杯、currentはCの周期で更新した分だけ）で測り、傾きと束の値に失効の山が混ざらない。代償は状態の定義が窓の種類で2つになることと、C窓・E14の待ち（約9分×窓数）。推奨はD（Aは測定のための入力を製品経路に足して条件そのものを変え、BはC窓の判定の前提を壊し、CはE05-Pの比較を崩す）。ほかの案: 窓を10分未満に縮める案は、E02の1,000標本×1秒（manifestのhealth）で約17分が要るので取らない。採らない案: A'（P窓だけ、失効の直前に充填の1,024件をまとめて1回送り直す）は、1,024件の入力の山がEEWの予約枠（未処理8件、frames.mjsのsendPaced）のペースで数十秒続き、E02の標本に数十件重なるので、Bの失効の山（1回の期限入力）より窓を汚す。C窓のwarm-upを11周期に延ばして周期の続報のcurrentの増加（0〜9周期）を定常の前に収める案は、継いだwarmupCycles（5、initial-stateのcycleC）を変えるので採らない（増加は残存リスク(3)）"
+      },
+      {
+        "id": "P3-MH-RETIME-SCOPE",
+        "A": "時刻で消える・拒まれる規則に掛かる入力だけを付け直す: U-Eの全部の入力（充填・Cの周期・AC15・E12）と、投入側がhostに送るstartのtime。U-W・U-Fの充填はwallOrigin（2026-06-05T18:00+09:00、trial-setupのclock）に対して今のままで期限に掛からない（U-Wのactiveは期限で消えず、U-Fの充填はvalidUntilが翌03:00）のでそのまま",
+        "B": "全部の入力の報時刻を送る時点のhostの壁時計へ付け直す（U-W・U-Fの充填も）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者がAに確定（2026-10-11）。発注前点検で見直す",
+        "reason": "Aは変える関数が少なく、U-W・U-Fの充填の件数（weatherCurrent 127/1/1・weatherTimeseries 511/0/0・checkpoint）は再検収（e7440188の窓）でも合っていた。Bはwallを変えても壊れない形になるが、U-Wの履歴の＋k秒の順序とU-Fの有効期間の相対を全部の規則で作り直す。Aの代償は残存リスク(2)"
+      },
+      {
+        "id": "P3-MH-SETUP-PATH",
+        "A": "付け直した規則のinitial-stateとtrial-setupを新しいfile（reconstruction/test/eew-e01/evidence/p3-harness/）に作り、verifyFrozenP3ManifestはtrialSetupが継承元A10のもの、またはこの1組（refとsha256をfrozen.tsの定数1つに置く）のときだけ通す。P3E01Manifestの型は変えない",
+        "B": "P3E01Manifestにharnessの版の欄を足し、型と検査を広げる",
+        "C": "A10のinitial-state・trial-setupを書き換える",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者がAに確定（2026-10-11）。発注前点検で見直す",
+        "reason": "frozen.tsのverifyFrozenP3ManifestはtrialSetupをA10と同一に縛り、run.mjsのpreflightはframes.mjsのsha256をinitial-stateのrulesSourceと照らす。frames.mjsを変えるとA10のinitial-stateのままでは全窓がpreflightで止まる。Bは契約の型（contracts/p3-e01-reaccept.types.ts）の改訂が要り本契約の範囲を越える。CはA10・C4・C6の凍結物の参照先を壊す"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-MH-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-11朝、ご主人）",
+        "closed": "P3-MH-FULL-STATE=D（推奨どおり）。残存リスク(1)〜(10)は全部承認。P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段を本契約の後に残すことを了承し、別機械のharnessは有線の配線の段取りを決めるときに別の契約で起こす（C6の閉鎖はそれまで待つ）",
+        "reason": "独立レビュー（Opus）の条件付きGO→直し→再レビューGOの後、作者の分岐1つと残存リスクを確定した"
+      },
+      {
+        "id": "P3-MH-DEPS",
+        "status": "frozen",
+        "rule": "着手条件: K6（P3-LIFETIME-AND-EEW-GATE-001、配送7a4c70a8）、UWR（P3-UNIT-WRITE-RIGHT-001、配送54a63c25）、C6（P3-TSUNAMI-E01-001）の配送と、WL2（P3-WEATHER-LIGHT-002、Q-WL2-E05Pの前提）の配送。作者裁定P3-MH-FULL-STATEと残存リスクの承認（Q-MH-AUTHOR）、発注前点検のbaseOidの割当（Q-MH-BASE）。K6のP3-LIFE-D-HARNESS=Aの申し送り（E01/C4の計測harnessの充填規則の組み直し、start frameのtime）を本契約が引き受ける。この契約の配送までE01/C4の正式計測を始めない（K6の申し送りのとおり）",
+        "reason": "K6のartifactRequirementsの申し送り、計画§9、構造的欠陥台帳76と作者裁定（2026-10-11朝、測定のharnessを今の製品に合わせる小さな契約1本）"
+      },
+      {
+        "id": "P3-MH-TIME-RULES",
+        "status": "frozen",
+        "rule": "起草時（e7440188）に実コードで確かめた、時刻で消える・拒まれる製品の規則と、harnessの入力への効き。hostの壁時計は実の日付ではなく、host-launcher.mjsのclock（trial-setupのwallTimeOriginMs＝2026-06-05T18:00+09:00＋hostの単調時計。e12-run.mjsだけはDate.now()）。【1 U-E（K6）】起点base＝min(ReportDateTime, 受信時のwall)。current＝base＋600,000、gate＝base＋86,400,000（最後に採用した版）、gateの無いsubjectはbase＋600,000≦wallでunchanged/stale＋診断eewHorizonStale、既知subjectの非取消もhorizon外はstale（診断なし）、容量は各family 512でnormalは退去しない（eew.ts:272〜274・:444〜445・:483）。harnessの入力: 充填のVXSE43・VXSE45（frames.mjs:157〜158、報時刻2024-04-17のまま→全件stale）、cycleCのVXSE43の通常の続報・訓練・取消（:195〜197、2024＋周期→stale）、AC15のU-E（:219、2024→stale）、E12の小型VXSE45（:252、時刻を動かさず、e12-runのwallはDate.now()→stale）。付け直す。既にwall基準: E01の試行（run.mjs:713）、E14の束（windows.mjs:673）、C6のEEW同時。【2 U-Eの通知】intentのTTL 15秒、evidenceUnknownUntil＝wall＋600,000（eew-unit.ts:143）。harnessへの効きは充填の通知の静まり待ち（windows.mjsのquietWait）だけ。変えない。【3 U-F（K6）】新しいactiveはvalidUntil＞wallのperiodを持つ報だけ（weather-timeseries-unit.ts:184）、retainUntil＝max(ReportDateTime＋7日, validUntil)（:49）。harness: 充填の81_02_01_260605_VPWP50_high_severityはReportDateTime 17:00・validUntil翌03:00でwallOriginから9時間有効（P3-MH-RETIME-SCOPE=Aで変えない）。N・Pの再生（frames.mjs:111）、cycleCの入れ直しと期限回収、maxForecastCheckpointSave・forecastDeadlineOverlapの引き金はwall基準。変えない。【4 U-W】activeは期限で消えない。版の新旧はReportDateTime（stale・duplicate）、時計は通知intentのTTLだけ（weather-current-unit.ts:503）。充填（2025年の報時刻のまま）と再生はそのまま。【5 U-L】active ReportDateTime＋48時間・inactive＋6時間（landslide-unit.ts:27）。入力はN・PのVPWW56（再生でwall基準）。変えない。【6 U-T】予報のactiveは期限で消えず再受理horizonは無制限（K6のAC07(3)）、観測は＋24時間（tsunami-unit.ts:27）、同じ秒・同じInfoTypeの別内容はtsunamiRevisionConflictでstale。C6の試行はwall基準で報ごとに1秒以上進める。変えない。【7 U-Q・U-N・U-V・U-R・U-B】期限・遅着の規則はある（例 U-Rの36時間のlateRule、flood-unit.ts:283）が、harnessの負荷N・P・C・試行にこれらのheadTypeは無い。対象外。【8 host（K6 AC13）】startのtimeとclock().wallTimeMsの差が60秒以上でWARN、300秒以上でERROR（hostClockAhead・hostClockBehind）、timeが無いとWARN hostClockUnverified。harnessのstart（run.mjs:171、windows.mjs:90）はtimeを持たない→接続ごとにWARN。付け直す（hostの壁時計のtime）。【9 書込み権（UWR AC03、時計ではないが引き金の時刻に効く）】保存は返信（inputDone・deadlineDone）の反映の直後に再評価して始まる（composition-root.ts:609〜611）。期限の要求は1秒のtick（composition-root.ts:903、host.ts:417）と、snapshotのnoticeの満了でroot.tickが追加で走る時。harness: 3つの保存母集団の引き金（run.mjs:746〜751・:764〜767）。直す（P3-MH-AC03）",
+        "reason": "AC01・AC02・AC03の前提。表の各行のfile:lineはe7440188の版"
+      },
+      {
+        "id": "P3-MH-CODE-READ",
+        "status": "frozen",
+        "rule": "起草の見立てを実コードで確かめた結果（統合担当の依頼文との差を含む）: (1) E05-Pの再検収のeew 0/0/0は「寿命切れ」ではなく、受信の時点でhorizon外としてstaleになったもの（base＝min(2024-04-17の報時刻, wall)、eew.ts:444〜445）。gateもcurrentも作られず、診断eewHorizonStaleが充填の1,024件ぶん出る。容量の512も埋まらない (2) 同じ充填を使う窓は全部同じ理由で止まる: P（E02-P・E05-P・E14はleaveRoomForP）、C（E06・E07-CはcycleC）、AC15（full・half）。cycleCの周期の訓練EventIDもstaleなので、E06の期待（eewCapacityEvicted 1件/周期）も外れる。E12の小型VXSE45の新側は全件staleの経路を測る (3) E01の6母集団は充填を使わないので、充填の付け直しの影響を受けない。E01の試行のEEW（run.mjs:713）と引き金はwall基準 (4) forecastDeadlineOverlapの前提「保存は次のtick」（run.mjs:764〜766）は、UWRの後はdeadlineDoneの反映の直後に権が出る（composition-root.ts:605〜611）ので成り立たない。maxWeatherCheckpointEncodeStarted・maxForecastCheckpointSaveもinputDoneの直後に保存が始まる。predictTickはcheckpointのencode開始を1秒のtickの代わりに使う（run.mjs:314）ので、UWRの後は位相の推定にも使えない。tickの時刻は製品の観測mailbox（trigger tick、host.ts:396）で取れる (5) 凍結manifestの照合: C4（p3-c4-formal-20261007・-deadline-20261008）は契約11本全部、C6（p3-c6-formal-20261009）は9本の契約のhashとO09のsequencesSha256が今のtreeと違い、照合を通らない（依頼文はC4だけ）。e7440188のE05-Pのmanifestは今は全部一致するが、frames.mjsを変えるとpreflightのrulesSourceの照合（run.mjs:1389）で止まる (6) verifyFrozenP3ManifestはtrialSetupをA10と同一に縛り（frozen.ts:403）、津波の照合もC4と同一に縛る（frozen.ts:595）。規則を変えると新しいtrial-setupを照合が通す口が要る（P3-MH-SETUP-PATH） (7) PiではpreflightのchromeVersion()がmacOSのChromeのpath（chrome.mjs:9）を起動して止まり、Nodeの既定もhomebrewのpath（run.mjs:50）。PiのE03の正式manifestにはbackend単独の扱いが要る (8) E14の起点のownerMonotonicMsは入っている（aux-measures.mjs:410）がowner側の区間の別報告は無い（summarizeE14、:424〜436）。依頼文のとおり (9) runnerの照合の集合は固定（run.mjs:1578・:1570）で、新しい契約を載せたmanifestは照合に渡らず止まる。依頼文のとおり",
+        "reason": "起草の前提を推測で埋めない（feedback: spec の根因仮説はコード読了後）。実機の裏付けはAC08の予備"
+      },
+      {
+        "id": "P3-MH-INHERITED",
+        "status": "frozen",
+        "rule": "変えないもの: 負荷N・P・Cの再生の順序・offset・periodMs（frozen.tsがA10と文字列で比べる）、wallOriginMs、E01の判定の規則（judge.tsのsummarizeP3E01・establishTrial・分位点・時計区間・欠落）、fixedBacklog・maxVpws50ParseStarted・maxVpws50ReceivedThenEewの条件、ping・livenessの値、--windowsの再実行の規則と未確認の窓を同じmanifestで取り直さない規則（P3-C4-AC11）、通知はreal backendで出力をミュート（Q-C4-SOUND）、E14の窓はsilent、C4専用のadoption.mjs、C6の津波の試行と判定（P3-TSUNAMI-E01-001）",
+        "reason": "測定のharnessを今の製品に合わせる最小の変更に限る（作者裁定 2026-10-11朝）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "全標本はrun/input/operation/subjectを相関し、版は実際に到達した場合だけ記録する（P2-EEW-E01-001と同じ）。normalの正式母集団へtraining/testを混ぜない。cycleCの訓練のEventIDは負荷の入力で標本にしない。観測点・注入口はoperationで分岐しない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-MEASURE-HARNESS-001",
+    "mode": "implementation",
+    "objective": "K1〜K6とUWRの後の製品に、E01/C4の測定harness（reconstruction/test/eew-e01/の投入・充填・引き金・集計と、frozen.tsの凍結の照合）を合わせる。時刻で消える・拒まれる製品の規則を表にし（P3-MH-TIME-RULES）、U-Eの入力とstartのtimeをhostの壁時計に付け直し、K6の後の満杯の状態を作者裁定（P3-MH-FULL-STATE）の形で作る。保存と重なるEEWの3つの保存母集団の引き金をUWRの後の保存の始まりで較正し、E14にowner側の区間を足す。測り直しのmanifest（E05-P、Q-UWR-REMEASUREのMac miniの分、PiのE03）の作り方と凍結の手順を条文にする。P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段は、別機械のharnessが要るので本契約の後も走らせられない（AC06(3)、残存リスク(9)）。製品のコードと、C4・C6・A10の凍結manifest・結果は変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-e01-reaccept.json",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts",
+      "reconstruction/contracts/p2-eew-e01.json",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/contracts/p3-unit-write-right.json",
+      "reconstruction/contracts/p3-lifetime-and-eew-gate.json",
+      "reconstruction/contracts/p3-tsunami-e01.json",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts",
+      "reconstruction/contracts/p3-weather-light-step2.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "test/fixtures/37_01_03_240613_VXSE43.xml",
+      "test/fixtures/77_01_01_240613_VXSE45.xml",
+      "test/fixtures/15_18_01_250630_VPWS50.xml",
+      "test/fixtures/15_16_02_251222_VPWW57.xml",
+      "test/fixtures/15_17_01_251222_VPWW55.xml",
+      "test/fixtures/81_02_01_260605_VPWP50_high_severity.xml",
+      "test/fixtures/81_09_01_260605_VPWP50.xml",
+      "test/fixtures/81_01_04_251222_VPWP50.xml",
+      "package.json"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/eew-e01/**",
+      "reconstruction/src/measurement/eew-e01/frozen.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-measure-harness.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B03",
+      "B06",
+      "B07",
+      "B15"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P3-E01-REACCEPT-001",
+      "P3-UNIT-WRITE-RIGHT-001",
+      "P3-LIFETIME-AND-EEW-GATE-001",
+      "P3-TSUNAMI-E01-001",
+      "P3-WEATHER-LIGHT-002",
+      "P2-EEW-E01-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3E01Manifest",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3EewPopulationCondition",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewTrialSetup"
+    ],
+    "publicFunctions": [
+      "nearCapacityFrames({ mode, room, ... })・cycleCFrames(c, cycleStartWallMs)・ac15Frame・e12Frames（frames.mjs。U-Eの報時刻をhostの壁時計に置く引数を足す。AC01）",
+      "summarizeE14(records, { bundles, limitMs })（aux-measures.mjs。unitごとのowner側の区間を足す。既存のfieldは変えない。AC04）",
+      "較正の予測（run.mjs。predictParseDelayの形を3つの保存母集団に使い回す）とtickの位相の推定（mailboxのtickの行から）。AC03",
+      "buildP3Manifest({ ..., trialSetup })（draft.mjs。予備のdraftがharnessの1組のtrial-setup・initial-stateを使う引数を足す。既定はA10の1組のまま。AC05(6)）",
+      "verifyFrozenP3Manifest（frozen.ts。trialSetupのharnessの1組と、その1組ならP3-MEASURE-HARNESS-001の鍵を求める1行を足す。AC05）"
+    ],
+    "allowedDependencies": [
+      "node:child_process",
+      "node:crypto",
+      "node:fs",
+      "node:http",
+      "node:os",
+      "node:path",
+      "node:perf_hooks",
+      "node:readline",
+      "node:zlib",
+      "ws（既存）。新しいnpm依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__15_17_01_251222_VPWW55",
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+      "test__fixtures__81_09_01_260605_VPWP50",
+      "test__fixtures__81_01_04_251222_VPWP50"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-MH-RES-01",
+        "target": "measurement implementation",
+        "limit": 1,
+        "unit": "product-path runner (the existing reconstruction/test/eew-e01 runner, extended)",
+        "scope": "新しいrunner・汎用benchmark framework・worker poolを作らない",
+        "source": "P3-C4-RES-03、P3-C6-RES-02"
+      },
+      {
+        "id": "P3-MH-RES-02",
+        "target": "P窓の充填のEEWの起点から、測定の開始とobservedBeforeMeasureの確かめまで",
+        "limit": 600000,
+        "unit": "milliseconds（hostの壁時計）",
+        "scope": "P3-MH-FULL-STATEがB・Dのとき。超えたらその窓はBlocked（currentsExpiredBeforeMeasure）",
+        "source": "P3-LIFE-SEM-01（current＝base＋600,000）"
+      },
+      {
+        "id": "P3-MH-RES-03",
+        "target": "3つの保存母集団の較正に使う直近の試行",
+        "limit": 10,
+        "unit": "trials（中央値）",
+        "scope": "10試行に満たない間はtriggerLeadMsを遅れの代わりにする",
+        "source": "P3-C4-AC13(7)、Q-C6-IMPL-AMEND (10)"
+      },
+      {
+        "id": "P3-MH-RES-04",
+        "target": "投入側のstartのtimeとhostの壁時計の差",
+        "limit": 60000,
+        "unit": "milliseconds（絶対値）",
+        "scope": "窓の中のhostClockUnverified・hostClockAhead・hostClockBehindは0件",
+        "source": "P3-LIFE-AC13"
+      },
+      {
+        "id": "P3-MH-RES-05",
+        "target": "C窓・E14の失効の待ち",
+        "limit": 660000,
+        "unit": "milliseconds（充填のEEWの起点から）",
+        "scope": "P3-MH-FULL-STATEがC・Dのとき。超えてもeewが0/0/0にならなければstateNotReproducible",
+        "source": "P3-LIFE-SEM-01と期限の要求の1秒のtick"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "較正の予測値・tickの位相の推定（試行の記録にだけ残す）",
+      "runnerの投入記録・成立の判定、版付き証拠へ抽出する前のraw"
+    ],
+    "outOfScope": [
+      "製品のsrc（domains・units・runtime・host・checkpoint・view-projector）の変更と、K6の寿命・horizonの数値",
+      "C4・C6・A10の凍結manifest・trial-setup・initial-stateと版付き結果の書換え（evidence/manifest.json・initial-state.json・trial-setup.json・frozen/**・p3/manifest*.json・p3-tsunami/manifest.json・windows/**の既存file）",
+      "契約の型（reconstruction/contracts/*.types.ts）・spec・計画本文・他の契約の改訂（統合担当。triggerLeadMsの型のコメントの読み替えは本契約に記録するだけ）",
+      "正式測定・予備の実走（統合担当）とPiの本番判定（P5）",
+      "AC15・E06・E12の測り直しとAC15のΔNの定義の見直し（入力の付け直しは本契約で入れる）",
+      "津波の試行・判定（P3-TSUNAMI-E01-001）とC4専用のadoption.mjsの拡張",
+      "新しいrunner・benchmark framework・npm依存、旧築src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-MH-AC01",
+        "requirement": "時刻の付け直し（P3-MH-RETIME-SCOPE=A、表はP3-MH-TIME-RULES）: hostの壁時計（host-launcher.mjsのclock＝trial-setupのwallTimeOriginMs＋hostの単調時計。e12-runはその起点のDate.now()）を基準に、U-Eの入力とstartのtimeを付け直す。(1) nearCapacityFrames: U-EのVXSE43・VXSE45（cycleCの訓練の種を含む）の全時刻を、充填の開始のhostの壁時計（秒）が報時刻になる量だけ平行移動する（frames.mjsのshiftTimestampsを使う。EventID・運用の替え方は今のまま）。U-W・U-Fの充填は変えない (2) cycleCFrames: VXSE43の通常の続報（Serial 2）・訓練の新EventID・取消の報時刻を、周期の開始のhostの壁時計＋そのframeのoffsetMs（秒）に置く。同じsubjectの報は今と同じく(Serial, ReportDateTime)で厳密に進む (3) ac15FrameのU-E: 報時刻を送る時点のhostの壁時計（秒）に置く（indexの間隔はそのまま）。e12FramesのVXSE45: 報時刻を「基準時刻＋atMs」に置く。基準時刻はe12-runがframes.jsonlを作ってhashを取る時のDate.now()（旧側の実行の前）なので、新側のhostの壁時計に対して旧側の所要の分だけ前になる。旧側の所要はhorizonの600秒の内であることを予備で確かめる（超えると新側の報がstaleに戻る） (4) 投入側のstart frame（run.mjsのinjectorのsendStartと、windows.mjsのopenHostが使う同じ口）にtime（hostの壁時計、ISO 8601）を入れ、K6 AC13の診断（hostClockUnverified・hostClockAhead・hostClockBehind）が窓で0件になること（|skew|＜60,000ms。hostのclockの行を読んでから送るか、同じ精度の推定で足りる） (5) 充填の確かめ（windows.mjsのfill）に、充填の間の診断eewHorizonStaleが0件であることを足し、1件でもあればstateNotReproducible（診断のJSONLは確かめの時に1回読む） (6) 既にwall基準の入力（E01の試行と引き金、N・Pの再生、E03、E14の束、C6のVTSE41とEEW同時、maxForecastCheckpointSave・forecastDeadlineOverlapの引き金）は変えない。N・P・Cの再生時刻・periodMs・wallOriginMsは変えない。無いと: 充填のEEW 1,024件がhorizon外のstaleで採られず、P・C・E14・AC15の窓が全部stateNotReproducibleになる（台帳76、e7440188のe02-P-run1〜3）。startにtimeが無いと接続ごとにWARNが診断の記録に増える",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/frames.mjs:137 «b08290cce723e63e»",
+          "reconstruction/test/eew-e01/frames.mjs:157 «430cc78c8702f538»",
+          "reconstruction/test/eew-e01/frames.mjs:158 «97db6684351085e4»",
+          "reconstruction/test/eew-e01/frames.mjs:195 «d1133577e05cd4b2»",
+          "reconstruction/test/eew-e01/frames.mjs:196 «1c7ed23c9e94a447»",
+          "reconstruction/test/eew-e01/frames.mjs:197 «2a5ab3e6dd260e0d»",
+          "reconstruction/test/eew-e01/frames.mjs:219 «ee4a99c7fa0a593a»",
+          "reconstruction/test/eew-e01/frames.mjs:252 «e8ca777e625a90a9»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:41 «4113ec73f724a47d»",
+          "reconstruction/test/eew-e01/e12-run.mjs:71 «da49481d2fee81d3»",
+          "reconstruction/test/eew-e01/run.mjs:171 «1a52876cec6d0217»",
+          "reconstruction/test/eew-e01/windows.mjs:90 «9d9be920312917b2»",
+          "reconstruction/test/eew-e01/windows.mjs:193 «ceeb57ed26a79770»",
+          "reconstruction/src/domains/eew/eew.ts:444 «911c2be8b1d9a1a7»",
+          "reconstruction/src/domains/eew/eew.ts:445 «69e60b83428b3466»",
+          "reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «65a63aa39653d995»",
+          "reconstruction/contracts/p3-lifetime-and-eew-gate.json:558 «5381e7ef5b71152e»",
+          "reconstruction/test/eew-e01/e12-run.mjs:99 «4237bba2f4a5f589»"
+        ]
+      },
+      {
+        "id": "P3-MH-AC02",
+        "requirement": "K6の後の満杯の状態（RES-07の合法最大）は作者裁定P3-MH-FULL-STATEの案で作る（裁定の前に実装を発注しない）。どの案でも: 充填の確かめでsnapshotActiveのeewは512/0/0（cycleCは512/1/0）とAC01(5)のeewHorizonStale 0件。gateの数はsnapshotにも保存にも出ないので、AC01(5)と、充填のcurrentの失効の後にeewのactiveCountが下がることで間接に確かめる。新しいinitial-state（P3-MH-SETUP-PATH=A）のrecipeに、採った案の規則と期待値を書く。案ごと: B・D（P窓）＝測定の開始とobservedBeforeMeasureの確かめ（windows.mjsのverify(0)）を、充填のEEWの起点＋600,000msより前に終える（超えたらBlocked、理由currentsExpiredBeforeMeasure）。結果に失効の時刻（hostの単調時計）と、E05のmax RSSとE02の分位点（p50・p99・max）をそれぞれ失効の前・後に分けた値を報告として並べる（判定は今どおり窓全体で、E05は上限400MiB、E02は今の規則）。C・D（C窓とE14）＝充填の確かめの後、hostの壁時計が充填の起点＋600,000ms＋2 tickを過ぎ、/snapshotのeewが0/0/0になるまで待ち（上限は起点＋660,000ms、超えたらstateNotReproducible）、weatherの件数をもう一度確かめてから周期・束を始める。その後のcurrentは0のままではない: cycleCの通常の続報（Serial 2、1周期に1件）は採用ごとにcurrentを作り直し各10分生きるので、周期0〜9で増えて約10件で一定になる（warm-upは継いだ5周期のまま）。訓練のEventIDは同じ周期のうちに取消すので残らない。E14の束の訂正もcurrentを作り直し、20秒間隔なら約30件で一定になる。recipeの期待値はこの数で書く（周期の終わりのeewのactiveCount、cycleCの周期10以後は約10）。E06のexpectedPerCycle（eewCapacityEvicted 1件/周期）は変えない。A＝充填した1,024 subjectを各々currentUntilより前に送り直す規則（Serial＋1・予測同じ・報時刻は送る時点）をrecipeに書き、送り直しの入力は負荷と別に窓の結果で数える。どの案でも負荷N・P・Cは変えない。無いと: K6の後は充填のcurrentが10分で消えるので、窓（E02-Pは約17分、E07-C・E06は60分超）の状態が窓の途中で変わり、何を測ったかが窓ごとに定まらない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:272 «a777a5aa32eb2368»",
+          "reconstruction/src/domains/eew/eew.ts:273 «1ced5f9ee11c0061»",
+          "reconstruction/src/domains/eew/eew.ts:483 «cb7d034da431db0a»",
+          "reconstruction/test/eew-e01/windows.mjs:197 «978570199a3ae1ef»",
+          "reconstruction/test/eew-e01/windows.mjs:203 «ff427cfde8eccbac»",
+          "reconstruction/test/eew-e01/windows.mjs:257 «53257a4e786fc086»",
+          "reconstruction/test/eew-e01/windows.mjs:544 «7c9e582457cf3e2e»",
+          "reconstruction/test/eew-e01/windows.mjs:602 «52fe27559ee72151»",
+          "reconstruction/test/eew-e01/windows.mjs:697 «215d969732118225»",
+          "reconstruction/test/eew-e01/windows.mjs:568 «2132c250851542af»",
+          "reconstruction/contracts/p3-lifetime-and-eew-gate.json:72 «c03f231a18df7bb9»"
+        ]
+      },
+      {
+        "id": "P3-MH-AC03",
+        "requirement": "3つの保存母集団（maxWeatherCheckpointEncodeStarted・maxForecastCheckpointSave・forecastDeadlineOverlap。番号はrun.mjsのPOP_CODEの0始まりと紛れるので使わない）の引き金を、UWRの後の保存の始まりに合わせる（C6の511378f2の型、P3-TSUNAMI-E01-001のQ-C6-IMPL-AMEND (10)）。UWRの後はpublisherがinputDone・deadlineDoneの反映の直後に権を再評価して保存を始め（P3-UWR-AC03）、保存は1秒のtickに乗らない。(1) maxWeatherCheckpointEncodeStarted（引き金はVPWW55でU-W）とmaxForecastCheckpointSave（引き金は81_09_01のVPWP50でU-F）: 引き金を送り、直近10試行の「その引き金の入力IDを含む自unitの保存のencode開始−引き金の実送信」の中央値（predictParseDelayの形を再利用）＋targetOffsetMsにEEWを送る。予測の無い間（最初の10試行）はtriggerLeadMsを遅れの代わりにする。対象の区間は引き金を含む自unitの保存（maxForecastCheckpointSaveは今どおり保存全体、maxWeatherCheckpointEncodeStartedは今どおりencode）。対象が引き金の送信から3秒で観測されない試行は11秒を待ち切らずにstartOffsetの不成立として次へ進む（C6と同じ） (2) forecastDeadlineOverlap: 期限の回収はvalidUntilを過ぎた後の最初のdeadline要求の返信の直後に保存される（C4の「保存は次のtick」〔run.mjs:764〜766〕は成り立たない）。tickの位相は製品の観測mailbox（trigger tick）の直近の行から当て（checkpointのencode開始を代わりにしない）、狙うtick nの1つ前のtickとnの間の秒境界にvalidUntilを置き、tick n＋直近10試行の「回収を含むU-Fの保存のencode開始−そのtickの時刻」の中央値＋targetOffsetMsにEEWを送る（予測の無い間はtriggerLeadMs）。対象の保存は今の規則（引き金の採用の世代より後で、どの入力の行も無い世代を含むU-Fの保存）のままで、予測したtickの±500msの絞り込みを使わない (3) 新しい試行はtrigger.calibratedを付け、trialTargetは較正した試行だけ新しい選び方を使う（C4の凍結の記録とp3.test.tsの既存の期待は今の選び方のまま）。runnerがpredictTickをmaxWeatherCheckpointEncodeStarted・maxForecastCheckpointSaveに使うのをやめる（forecastDeadlineOverlapの位相の推定はmailboxのtickの行に替える） (4) triggerLeadMsの意味は、本契約で凍結するmanifestでは「較正の予測が無い間に使う、引き金（forecastDeadlineOverlapはtick n）から対象のencode開始までの遅れ」と読み替える（frozen.tsの検査〔正の有限数〕は変えない。型のコメントの改訂は統合担当）。値と成立率は予備で取り、stopConditionはC6と同じ式（tsunami.mjsのstopFromPreliminary: maxAttempts＝100＋ceil(1,000÷Wilson下限〔z＝1.96〕×1.1)、maxDurationMs＝ceil((60秒＋1試行の所要×maxAttempts)×1.25)）で母集団ごとに決める (5) fixedBacklog・maxVpws50ParseStarted・maxVpws50ReceivedThenEewは変えない。受け入れるoffsetの範囲[0,5]ms・targetOffsetMs 1msはC4のまま。無いと: 3つの保存母集団の試行の大半がtargetNotObservedかstartOffsetで不成立になり、窓がstopConditionでBlockedになる（C6の2回目の予備でencode直後が0/40）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/run.mjs:313 «1f03cbff74d63443»",
+          "reconstruction/test/eew-e01/run.mjs:314 «ebfc6375124da227»",
+          "reconstruction/test/eew-e01/run.mjs:746 «5758066707d5ce53»",
+          "reconstruction/test/eew-e01/run.mjs:751 «ada991fb84508a0e»",
+          "reconstruction/test/eew-e01/run.mjs:764 «71708c8e0084bda8»",
+          "reconstruction/test/eew-e01/run.mjs:765 «766bda503a47bd45»",
+          "reconstruction/test/eew-e01/run.mjs:767 «38dd143c9ca83326»",
+          "reconstruction/test/eew-e01/run.mjs:1090 «1aec02a595ddb5a6»",
+          "reconstruction/test/eew-e01/run.mjs:1096 «d352fe1e5ded9f89»",
+          "reconstruction/test/eew-e01/run.mjs:562 «3eba927fa6f59653»",
+          "reconstruction/test/eew-e01/run.mjs:563 «2bfeca300c6bc1e0»",
+          "reconstruction/test/eew-e01/run.mjs:983 «85806ed5c1d24587»",
+          "reconstruction/test/eew-e01/tsunami.mjs:142 «628c89efb787f40c»",
+          "reconstruction/src/runtime/composition-root.ts:609 «11c6541c5cd2944f»",
+          "reconstruction/src/runtime/composition-root.ts:903 «8ae52d9d693e7af3»",
+          "reconstruction/src/host/host.ts:396 «8edb03cbaac4d5d9»",
+          "reconstruction/src/host/host.ts:417 «ad819a23ad1211bf»",
+          "reconstruction/contracts/p3-tsunami-e01.json:140 «5ba34e07c2110ba7»",
+          "reconstruction/contracts/p3-unit-write-right.json:310 «1435b3b874c0acbe»",
+          "reconstruction/test/eew-e01/run.mjs:55 «ccad6400a55dc35f»"
+        ]
+      },
+      {
+        "id": "P3-MH-AC04",
+        "requirement": "E14のowner側の区間の別報告（P3-UWR-AC08の「owner側の区間はmonotonicMs−ownerMonotonicMsとして別に報告する」）: 束ごと・unitごとに、その束の入力のgenerationRaisedの行のmonotonicMs−ownerMonotonicMsを求め、summarizeE14の結果にunitごとの分位点（p50・p99・max）と、ownerMonotonicMsが無いかnullの行の数（C4の凍結記録の形）を足す。owner側の区間はe14Bundleが既に引いた起点の行から取り、新しい索引を作らない。ownerMonotonicMsの無い行は0と数えない。dirty→ack・成立の判定（区間の重なり）・既存のfieldの値は変えない。UWRのallowedPathsはaux-measures.mjsとその試験を含み（outOfScopeもeew-e01/**のうちこの2つを除外から外している）、AC08の起点の付け替えは入ったが別報告の部分が実装されなかったので、本契約で足す。無いと: 測り直しのE14で、起点を早めた分（射影・返信の複製・配送）の大きさが見えず、C4のdirty→ackと新しいdirty→ackの差を読めない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-unit-write-right.json:380 «329401348c542c21»",
+          "reconstruction/contracts/p3-unit-write-right.json:312 «02a53fcf7bc48948»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:410 «812a5ad664b7c4c5»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:421 «d7ce74bc04a03c59»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:424 «52c240b3911f64ad»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:432 «9cb78adaba14f5c7»",
+          "reconstruction/contracts/p3-unit-write-right.json:159 «2ccb331424ae8c21»"
+        ]
+      },
+      {
+        "id": "P3-MH-AC05",
+        "requirement": "凍結の照合と機械の値（つまずき(i)(ii)の条文化）: (1) 付け直した規則のinitial-stateとtrial-setupをreconstruction/test/eew-e01/evidence/p3-harness/に作る（draft.mjsのrecipeの生成を使い、規則文は付け直した後の文にする。「時刻は動かさない」の文を残さない）。rulesSourceは変えた後のframes.mjsのsha256。A10のevidence/initial-state.json・trial-setup.jsonとfrozen/の下は書き換えない (2) verifyFrozenP3ManifestはtrialSetupがA10のもの（今の検査）か、(1)の1組（refとsha256をfrozen.tsの定数1つ）のときだけ通す。(1)の1組のmanifestは、contractSha256にP3-MEASURE-HARNESS-001が無ければ拒む（frozen.tsに1行）。populationsのstateRef・stateSha256は自分のtrial-setupが指すinitial-stateに結ぶ（今の検査のまま）。津波の照合（verifyFrozenP3TsunamiManifest）は変えない (3) 照合の集合（つまずき(i)、623f92e7）: runnerは凍結manifestのcontractSha256の鍵の全部を、reconstruction/contractsの契約からcontractIdで引いて照合に渡す（run.mjsのcontractTextsForの固定の集合をやめる。津波のmanifestも同じ）。鍵に当たる契約が無い・hashが違えば走らせない。凍結のときに入れる鍵の最低限: P3-E01-REACCEPT-001（frozen.tsが求める）とその依存、P3-MEASURE-HARNESS-001（(2)が求める）、P3-LIFETIME-AND-EEW-GATE-001、P3-UNIT-WRITE-RIGHT-001、それぞれの測り直しが確かめる契約（E05-PはP3-WEATHER-LIGHT-002） (4) 機械の値（つまずき(ii)、e7440188）: osVersionはpreflightと同じ式「os.release()とos.arch()を空白でつないだ値」（run.mjsのpreflightCheck。macOS 27.0.1のMac miniでは27.0.0 arm64）、deviceはdeviceOf()、nodeVersionは--nodeのNodeのprocess.version、chrome.versionはchromeVersion()の値を、測る機械の予備で同じrunnerが書いたdraftから写す。sw_versの製品版・uname・手書きの値を使わない (5) 正式の経路のCLI: --nodeを--manifestでも許す（run.mjsのPRELIMINARY_ONLYからnodeを外す。preflightが渡したNodeの版をmanifestのnodeVersionと照らすので、条件は変わらない）。窓の選び方は今の--windows <id,...>（--onlyは予備だけのまま）。backend単独の窓（PiのE03）: manifestのchrome.versionが「none (backend-only)」（予備のdraftが使う文字列）のとき、preflightはChromeを起動して版を訊かず、そのmanifestではChromeを使う窓（E01・C6）を--windowsで選んでも走らせずに止める (6) 予備のdraft: draft.mjsのbuildP3Manifestに(1)の1組を使う引数を足し（既定はA10の1組のまま）、予備のrunnerがその引数でdraftを作り、窓が充填のrecipeと期待値を読むctx.initialStateも(1)のinitial-stateになるようにする。無いと: (1)(2)が無いとframes.mjsを変えた時点でpreflightのrulesSourceの照合で全窓が止まり、(2)の1行が無いと規則の版を固めずに凍結できる、(3)が無いと新しい契約を載せたmanifestが照合で止まる（623f92e7の前の形）、(4)が無いと起動前の照合で止まる（e7440188の前の形）、(5)が無いと正式の経路でPiのNodeを渡せず（parseArgsが--nodeを拒む）、PiではpreflightがmacOSのChromeのpathを起動して止まる、(6)が無いと予備がA10の「時刻を動かさない」の充填と期待値で走り、AC08が凍結する条件を確かめない",
+        "evidenceRefs": [
+          "reconstruction/src/measurement/eew-e01/frozen.ts:403 «46cfeabc3cfad41a»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:409 «1cc079d466052d41»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:417 «8da628a22e41b209»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:595 «32aa3d6045a6de3f»",
+          "reconstruction/test/eew-e01/run.mjs:1389 «a2841edb4b327383»",
+          "reconstruction/test/eew-e01/run.mjs:1578 «ea567563292ee246»",
+          "reconstruction/test/eew-e01/run.mjs:1570 «5001a38f56e8f5ce»",
+          "reconstruction/test/eew-e01/draft.mjs:61 «7410598606e49d12»",
+          "reconstruction/test/eew-e01/run.mjs:1381 «d8d21e6fcea75dd1»",
+          "reconstruction/test/eew-e01/run.mjs:1382 «b7f9f4a05757734c»",
+          "reconstruction/test/eew-e01/run.mjs:1408 «20973621ac72b898»",
+          "reconstruction/test/eew-e01/chrome.mjs:9 «dfb9c8b3d812a4fb»",
+          "reconstruction/test/eew-e01/run.mjs:50 «cab6c91895dbfeb0»",
+          "reconstruction/test/eew-e01/run.mjs:1520 «5a191d36fab5dd3b»",
+          "reconstruction/contracts/p3-weather-light-step2.json:487 «b4e1875e865b225c»",
+          "reconstruction/test/eew-e01/run.mjs:1472 «8241dffaa14fee33»",
+          "reconstruction/test/eew-e01/draft.mjs:280 «0db26f9b4e4e459f»",
+          "reconstruction/test/eew-e01/draft.mjs:282 «93464ea583f3067c»",
+          "reconstruction/test/eew-e01/windows.mjs:173 «46f4804d298fec4d»"
+        ]
+      },
+      {
+        "id": "P3-MH-AC06",
+        "requirement": "測り直しのmanifestの作り方と凍結の手順（統合担当）。共通: 新しいmanifestIdで、inheritsManifestIdはa10-p2-20260930b、負荷N・P・CはA10のまま、trialSetupはAC05(1)の1組、o09Subset.sequencesSha256は今のsequences.jsonのmeta.sha256、contractSha256はAC05(3)、機械の値はAC05(4)。凍結の前に同じ機械で短い予備（--preliminary、件数を絞る。draftはAC05(6)の引数でAC05(1)の1組から作る）を走らせ、AC08の確かめを通してから凍結する。正式の窓は--manifestと--windows <id,...>で選ぶ。凍結の後に条件を変えるときは新しいmanifestId（P3-C4-AC10・AC11の規則）。凍結から正式の窓の終わりまで、測るcheckoutのcommitを変えない（載せた契約のfileのanchorの同期も含む。日を跨ぐ再開はresumeの照合gitHeadが止める）。C4（p3-c4-formal-20261007・p3-c4-formal-deadline-20261008）・C6（p3-c6-formal-20261009）・A10の凍結manifestと結果、e7440188のE05-Pのmanifest（p3-wl2-e05p-20261011b）は書き換えず、結果は新しいmanifestIdのwindowsの下に置く。(1) E05-P（Q-WL2-E05P）: 母集団の値はC4の凍結の値を写し、窓はe02-P-run1〜3とownerHeap-run1、上限400MiB。P3-MH-FULL-STATEがB・Dなら失効の前後の値を結果に並べる (2) Q-UWR-REMEASUREのMac miniの分: 窓はe14-run1（runCountはC4の凍結の値1のまま、束の数・間隔もC4のまま。C4のE14と同じ形で並べて書込み権の待ちの減り方を読むため。runを増やすと所要が束の数×20秒ずつ増え、C4と比べる値が増えない）、e07-N・e07-C、E01のmaxWeatherCheckpointEncodeStarted・maxForecastCheckpointSave・forecastDeadlineOverlap×3 run。3つの保存母集団のtriggerLeadMs・stopConditionはAC03(4)の予備の値で決め、C4の値との差（較正の引き金・tickの観測）を結果の報告に書く。ほかの3母集団の窓は--windowsに入れない。E14はAC04の別報告を出す (3) P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段は、本契約の後も走らせられないので測り直しに含めない: runnerはhostをいつも手元で起動して127.0.0.1につなぎ（run.mjsのWebSocketServerとopenPage）、津波の窓はChromeが要り--backend-onlyを拒み、chromeVersion()はmacOSのpathを起動する。別機械のharness（hostをPiで起動、ChromeはMac mini、別機械の時計の往復対応、spec:1141〜1143）が先に要り、P3-C6-AC09の順序はUWRのPiの窓が先。作者裁定（2026-10-11朝、残りは全部この後）は、Piの第2段とP3-C6-AC09については本契約で閉じない（残存リスク(9)、Q-MH-AUTHOR） (4) PiのE03（Q-WL2-PI-E03）: AC05(5)の形でchrome.versionは「none (backend-only)」、窓は--windows e03-run1,e03-run2,e03-run3、Nodeは--node、機械の値はPiの予備のdraftの値。通知は正式どおりreal backend（runnerは正式でsilentを拒む）で、notificationProbeはPiで--notification realの予備（E01 fixedBacklogの--backend-onlyの短いrun。runnerがrunの記録のchannelsからidleかunavailableを書く）の値を写し、Mac miniのidle/idleを写さない。音の出力はPiの機械の側でミュートし、方法を記録する。本番の判定はP5のまま（judgmentPlaces）。無いと: 測り直しが、照合の集合・機械の値・CLI・継承の照合のどれかで起動前に止まるか、凍結した条件の出所が記録に残らない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-weather-light-step2.json:484 «599ff705b3c93a0e»",
+          "reconstruction/contracts/p3-weather-light-step2.json:500 «2147993e6823d492»",
+          "reconstruction/contracts/p3-unit-write-right.json:541 «6639f170960948c3»",
+          "reconstruction/contracts/p3-tsunami-e01.json:563 «8e9e495871ec85b9»",
+          "reconstruction/contracts/p3-tsunami-e01.json:578 «26ee32a5311d9a06»",
+          "reconstruction/contracts/p3-e01-reaccept.json:745 «838359525367ddf8»",
+          "reconstruction/contracts/p3-e01-reaccept.json:757 «de3ea7ee502cd62f»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:228 «ee57ddbb85e54f08»",
+          "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
+          "reconstruction/test/eew-e01/run.mjs:121 «54e15e304f5de7b0»",
+          "reconstruction/test/eew-e01/run.mjs:372 «5b4d02e1944afb18»",
+          "reconstruction/test/eew-e01/run.mjs:374 «c27ba2a8c00039fb»",
+          "reconstruction/test/eew-e01/run.mjs:457 «7376a84ca521275a»",
+          "reconstruction/test/eew-e01/run.mjs:1701 «d0055db5a7e2d5a1»"
+        ]
+      },
+      {
+        "id": "P3-MH-AC07",
+        "requirement": "試験・最小実装・計算量: reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す。既存試験の期待値は変えない。入力の変更として許すのは、付け直しで引数が変わる関数を呼ぶ試験の入力だけ: frames.test.tsのP2-A10-T04（nearCapacityFramesとcycleCFramesの時刻）、aux-measures.test.tsのP3-C4-T10 E14の2件（K6が時計を2024-04-17に寄せた入力を、付け直した充填の時刻に寄せる）。ほかに期待値か入力を変える必要が出たら変えずに止め、試験名・旧の期待・理由を統合担当へ報告する（AGENTS.md）。足した仕組みごとに「無いと何が壊れるか」を1行で書く（各ACの「無いと」を最低限とする）。新しいrunner・benchmark framework・npm依存を作らない。最小テスト: 追加する試験はtestMappingのT01〜T05に限り、1つの振る舞いに1つ。計算量: 充填の確かめ・失効の待ち・tickの位相・較正は、追記された行だけを走査する（run.mjsのscanParseStartsと同じ形）。試行ごとに全行を索引し直さない。E14のowner側の区間はe14Indexの既存のMapから束ごとに引く。eewHorizonStaleの数え方は診断のJSONLを確かめの時に1回読み、試行ごとに読まない。製品のsrc（host・runtime・unit・domain・checkpoint）に触れない",
+        "evidenceRefs": [
+          "AGENTS.md",
+          "reconstruction/test/eew-e01/windows.mjs:216 «3d5565c3f01e6621»",
+          "reconstruction/contracts/p3-lifetime-and-eew-gate.json:76 «bec5ee5fa27c2d45»"
+        ]
+      },
+      {
+        "id": "P3-MH-AC08",
+        "requirement": "凍結の前の短い予備（統合担当、Mac mini。予備は未確認で合否に使わない。draftはAC05(6)の引数でAC05(1)の1組から作る）で、起草の前提を実機で確かめる: (a) 付け直した充填: leaveRoomForPとcycleCでeewが512/0/0（cycleCは512/1/0）、eewHorizonStale 0件、充填＋静まりの所要（C4では約60秒）。充填の起点＋600,000ms＋2 tickでeewが0/0/0に下がり、そのとき新しい通常のEventIDの報がcapacityExceededのまま（gateが残る） (b) cycleC: 失効の後の周期でeewCapacityEvictedが周期ごとに1件（initial-stateのexpectedPerCycle）、eewHorizonStale 0件 (c) 3つの保存母集団の較正: warm-up 20＋標本20程度で、成立率と「引き金（forecastDeadlineOverlapはtick）→対象のencode開始」の分布。forecastDeadlineOverlapの保存がvalidUntilの後の最初のtickのdeadlineDoneの直後に始まり、次のtickではないこと（mailboxのtickの行とcheckpointのencode開始を並べる）。noticeの満了による追加のtickの回数 (d) E14: owner側の区間が全部の束で出て正 (e) E12の旧側の所要が600秒の内であること（AC01(3)）。startのtime: 窓ごとにhostClockUnverified・hostClockAhead・hostClockBehindが0件 (f) 凍結manifestの照合: osVersionが27.0.0 arm64でpreflightを通り、contractSha256の鍵の契約を1つ欠いた版と1文字変えた版で走らずに止まる (g) P3-MH-FULL-STATEがAなら送り直しで通知intentが出ないこと、B・DならP窓のE05の最大RSSが失効の前か後か。結果は作者へ報告し、前提が外れたら凍結しない（計画§4.3のNO-GOの扱い）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:159 «d81307e8b66b9886»",
+          "reconstruction/src/domains/eew/eew.ts:512 «2782abadd16a835c»",
+          "reconstruction/src/domains/eew/eew.ts:513 «ca785e9071c4cf01»",
+          "reconstruction/contracts/p3-tsunami-e01.json:140 «5ba34e07c2110ba7»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-MH-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-MH-AC01",
+          "P3-MH-AC02"
+        ],
+        "behavior": "付け直したnearCapacityFrames（leaveRoomForP）のEEWを、充填の開始の時計でreconstruction/distのU-Eのreducerに通すと、stale 0・eewHorizonStale 0で各family 512のsubjectを採り、充填の開始＋600,000msのdeadlineでcurrentが0になりgateは残り、同じ時計の新しい通常のEventIDの報はcapacityExceededになる。報時刻を元の2024-04-17のまま渡した同じ報は全件eewHorizonStale（台帳76のe02-P-run1〜3のBlockedの再現）"
+      },
+      {
+        "testId": "P3-MH-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-MH-AC01",
+          "P3-MH-AC02"
+        ],
+        "behavior": "付け直したcycleCの充填と、失効を過ぎた後のcycleCFramesの3周期をU-Eのreducerに通すと、eewHorizonStale 0、周期ごとにeewCapacityEvictedが1件（訓練の前の周期のEventIDの退去）、周期の終わりのgateの数は一定"
+      },
+      {
+        "testId": "P3-MH-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-MH-AC03"
+        ],
+        "behavior": "(1) maxWeatherCheckpointEncodeStarted・maxForecastCheckpointSaveの較正: 直近10試行の「引き金を含む自unitの保存のencode開始−引き金の実送信」の中央値を返し、10試行に満たない間はnull（runnerはtriggerLeadMsを使う） (2) forecastDeadlineOverlapのtickの位相はmailboxのtickの行だけから求め、checkpointのencode開始の行を混ぜても結果が変わらない (3) trialTargetの較正した試行: maxWeatherCheckpointEncodeStarted・maxForecastCheckpointSaveは引き金の入力IDを含む自unitの保存（maxForecastCheckpointSaveは保存全体の区間）、forecastDeadlineOverlapは回収を含むU-Fの保存を、予測のtickから500ms以上離れていても選ぶ。predictedTickHostMsを持つ試行（C4の記録）はp3.test.tsの既存の期待のまま"
+      },
+      {
+        "testId": "P3-MH-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-MH-AC04"
+        ],
+        "behavior": "summarizeE14がunitごとのowner側の区間（monotonicMs−ownerMonotonicMs）の分位点と、ownerMonotonicMsの無い行の数を返す。ownerMonotonicMsの無い行（C4の凍結記録の形）は区間に数えず、dirty→ack・linked・unconfirmedは既存のaux-measures.test.tsとtsunami.test.tsの期待のまま"
+      },
+      {
+        "testId": "P3-MH-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-MH-AC05"
+        ],
+        "behavior": "verifyFrozenP3ManifestがtrialSetupのA10の1組とharnessの1組を通し、ほかのrefかsha256を拒む。harnessの1組でcontractSha256にP3-MEASURE-HARNESS-001が無いmanifestを拒む。runnerが照合に渡す契約はmanifestのcontractSha256の鍵と同じ集合で、鍵の契約が無ければ照合で止まる。parseArgsが--manifestと--nodeの組を受け、--onlyは--manifestと組めないまま。chrome.versionが「none (backend-only)」のmanifestではpreflightがChromeを起動せず、E01の窓を--windowsで選ぶと走らずに止まる。buildP3Manifestはharnessの1組の引数でそのtrial-setup・initial-stateを使い、引数なしはA10の1組のまま。既存のfrozen.test.tsのA10・C4・C6の凍結manifestの検査は期待のまま"
+      },
+      {
+        "testId": "P3-MH-T06",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-MH-AC07"
+        ],
+        "behavior": "reconstructionの全試験とchrome-eewの試験を、期待値を変えずに通す（入力の変更はAC07の3件だけ）。shuffle実行でも緑"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約の検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src and contracts types",
+        "stage": "implementation",
+        "purpose": "型検査とreconstruction/dist/の生成（T01・T02とrunnerがdistを使う）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "試験の型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/dist/chrome-eew/",
+        "stage": "implementation",
+        "purpose": "chrome-eewの生成（runnerのDIST_REQUIRED）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "順序依存の検出（module スコープの較正の状態を足すため）"
+      },
+      {
+        "command": "node reconstruction/test/eew-e01/run.mjs --preliminary <options>",
+        "cwd": ".",
+        "target": "Mac miniの短い予備（統合担当が実走）",
+        "stage": "preparation",
+        "purpose": "AC08の前提の確かめ。結果の状態は必ず未確認"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加・変更した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: U-Eの報時刻の付け直し（AC01）、startのtime（AC01(4)）、充填のeewHorizonStaleの確かめ（AC01(5)）、満杯の状態の作り方（AC02、裁定の案）、3つの保存母集団の較正とtickの位相（AC03）、E14のowner側の区間（AC04）、harnessのtrial-setupの1組と照合の集合とbackend単独のpreflight（AC05）",
+      "入力を変えた既存試験（AC07の3件）の試験名・変えた入力・理由の表。期待値は変えない",
+      "工程の成果物（統合担当が実走して記録する）: AC08の予備の記録、3つの測り直しの凍結manifest（AC06(1)(2)(4)）、版付き結果、作者への報告",
+      "残存リスク（作者承認 2026-10-11朝、ご主人、(1)〜(10)の全部。Q-MH-AUTHOR）: (1) 充填のEEW 1,024件は報時刻が同じなので、失効は1回の期限入力でまとめて起きる（実際の発表では起きない最悪の形）。P3-MH-FULL-STATEがB・DならこのことがE02-P・E05-Pの窓に入る (2) U-W・U-Fの充填はwallOrigin（2026-06-05T18:00+09:00）に依存したまま（P3-MH-RETIME-SCOPE=A）。wallOriginを変える版ではU-Fの充填の付け直しが要る (3) Dでは、P窓の失効の後とC窓・E14はC4より小さい状態（充填のcurrent 0）で測る。E02-P・E05-Pの失効の後の値と、E06・E07-C・E14の値は、C4とは状態の定義が違い1対1に比べない（P窓は失効の前の値を比べる）。C窓では周期の続報が作るcurrentが周期0〜9で約10件まで増え、warm-up（継いだ5周期）の後の定常の区間の最初の5周期にこの増加が入る（E06・E07-Cの傾きと周期末の保持に小さく正に効く） (4) 3つの保存母集団の値はUWRの後の保存の始まりに合わせた条件で、C4（UWRの前、tickの予測）の値と同じ指標と呼ばない。forecastDeadlineOverlapではsnapshotのnoticeの満了で1秒の格子の外のdeadline要求が出うるので、その試行は不成立として数える（標本にならない） (5) AC15・E06・E12は入力を付け直すが本契約では測り直さない。AC15のΔNはU-Eのcurrentの数（activeCount）を使い、AC15の窓（1充填あたり約21分）の途中でK6の失効が起きるので、AC15の判定の前提はK6の後に崩れている（後続の契約で見直す） (6) PiのE03の窓はChromeを確かめない（backend単独） (7) 凍結manifestは契約のself digestを固定するので、凍結から測定の終わりまでに載せた契約のfileを変えると照合で止まる。C4・C6の凍結manifestは今すでに通らない（C4は11本、C6は9本の契約のhashとO09のsequencesSha256） (8) P3-MH-FULL-STATEをAにした場合、窓の中のEEWの入力がC4の0件から約1,900件（E02-P）に増える (9) P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段（第2段はPi backend＋Mac miniのChrome）は、本契約の後も走らせられない。別機械のharness（hostをPiで起動、ChromeはMac、別機械の時計の往復対応）は別の契約が要り、作者裁定（残りは全部この後）はこの2つについて閉じない (10) E12の新側の報時刻は基準時刻＋atMsで、旧側の所要の分だけhostの壁時計より前になる（600秒の内なら採用は変わらない）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-MH-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "本契約の発注前点検",
+        "requiredEvidence": [
+          "baseOidの割当とcheck-contract FAIL 0",
+          "P3-MH-RETIME-SCOPE・P3-MH-SETUP-PATH（起草者の確定）の見直し",
+          "triggerLeadMsの型のコメント（p3-e01-reaccept.types.ts）の読み替えと、UWR AC08の別報告の未実装を本契約が引き受けたことの記録（計画§9の本契約の行）"
+        ]
+      },
+      {
+        "id": "Q-MH-PRELIM",
+        "owner": "integrator",
+        "blocks": [
+          "AC06の各manifestの凍結"
+        ],
+        "resolveBy": "本契約の配送の後、凍結の前",
+        "requiredEvidence": [
+          "AC08の(a)〜(g)の記録（Mac mini）",
+          "前提が外れた項目の原因の分類と作者への報告"
+        ]
+      }
+    ]
+  }
+}
