@@ -52,6 +52,7 @@ export type BriefingObservation = Readonly<{
 // subject = `${operation}/${headType}/${series}`（P3-C12-SUBJECTS）。source は subject の watermark と出典を兼ねる。
 // retainUntil は source の ReportDateTime に P3-C12-TTL の長さを足した時刻（P3-C12-TTL=B: items が 1 件以上で全部予測の active は 3 時間、
 // ほかの active・held・released は 2 時間、記憶（replaced・aliased・cancelled）は 3 時間）。再起動・再受信で延ばさない。
+// 受理の時点で retainUntil を過ぎる報（遅着）は P3-C12-TTL.lateRule で、前の見える記録より新しい版の遅着は採用して同じ reduce で回収する（P3-C12-LATE-INVERSION=A）。
 type BriefingCommon = Readonly<{
   subject: string;
   operation: Operation;
@@ -80,7 +81,8 @@ export type BriefingReportCurrent = BriefingCommon & Readonly<{ headType: "VPBS5
 // VPOA50 の系列（P3-C12-VPOA=A）。held は対応する VPBS50 を待つ間（holdUntil は受理の時刻 + 60,000 ms、
 // 業務の期限ではなく相関の窓）で、view に載せず通知しない。released は待っても対応報が無かった記録で、view に
 // 「対応電文未確認」として載せる。aliased は対応する VPBS50 の系列が active になった記録で、view に載せない。事実を保つのは
-// P3-C12-COUNTERPART-CANCEL=B（対応報の取消で無音で released に戻すため）。restore 入力は held を全部無音で released にする。
+// P3-C12-COUNTERPART-CANCEL=B（対応報の取消で無音で released に戻すため）。restore・終了入力は retainUntil を過ぎた記録を
+// 除いてから held を全部無音で released にし、変化があれば保存世代を進める（P3-C12-AC16）。
 export type BriefingRecordRainCurrent = BriefingCommon & Readonly<{ headType: "VPOA50" }> & (
   | (BriefingText & Readonly<{ effective: "held"; holdUntil: number; areas: readonly BriefingArea[] }>)
   | (BriefingText & Readonly<{ effective: "released"; areas: readonly BriefingArea[] }>)
@@ -139,7 +141,8 @@ export type BriefingUnitStep = Readonly<{
   confirmationEvidence: readonly CurrentConfirmationEvidence[];
   nextDeadline: RuntimeUnitDeadline | null;
   // 一入力は自分の系列の subject に加えて、alias（VPOA50）と予測の置換（VPBS50）で他の subject を変えうる（spec:616 の原子的な適用）。
-  // 識別できない拒否だけ subject は空文字。
+  // 識別できない拒否だけ subject は空文字。changed の currentEstablished は最終の状態にその subject の記録が残り source が今回の報のときだけ
+  // 根拠を載せ、ほか（自身の退去・同じ reduce の回収）は null（D-VANISHED=A）。change は最終の表示の変化で決める（I-U-B.currentSemantics(6)）。
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>
     | Readonly<{ decision: "rejected"; reason: RejectionReason }>

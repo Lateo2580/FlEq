@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1d307989560e298199af040831df538ec9d75e24",
-    "sha256": "0cf46964746cc31be3a8c13cb3583499e0fa40816c5064d6096b60aa11bfa83b",
+    "sha256": "fce863062a9c87ab1fad73953308fca00e5ed84d2662b2316c3d5fe345659862",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -202,7 +202,7 @@
           "reconstruction/contracts/p3-operation-capacity.json:510 «385daacb4de4d695»",
           "reconstruction/contracts/p3-final-adoption.json:241 «743912693175cd64»",
           "reconstruction/contracts/p3-authority-evidence.json:255 «22ec592c44f8b40b»",
-          "reconstruction/contracts/p3-briefing-unit.json:139 «6a3a11386166aa56»",
+          "reconstruction/contracts/p3-briefing-unit.json:139 «ae03fec729655ed0»",
           "reconstruction/contracts/p3-order-plan.md:389 «7939e6ac68fba854»"
         ]
       },
