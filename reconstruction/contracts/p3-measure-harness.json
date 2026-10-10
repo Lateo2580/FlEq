@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "23c3f68b1277f2738825ebd7c87bc6ddfaf04c4ac7322dbbf3a9b3d408558e17",
+    "sha256": "6f9656d1043691b5c62862cfe1a97c8732839ec9c84f8a450044abba77e284ab",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -87,7 +87,7 @@
     "contractId": "P3-MEASURE-HARNESS-001",
     "mode": "implementation",
     "objective": "K1〜K6とUWRの後の製品に、E01/C4の測定harness（reconstruction/test/eew-e01/の投入・充填・引き金・集計と、frozen.tsの凍結の照合）を合わせる。時刻で消える・拒まれる製品の規則を表にし（P3-MH-TIME-RULES）、U-Eの入力とstartのtimeをhostの壁時計に付け直し、K6の後の満杯の状態を作者裁定（P3-MH-FULL-STATE）の形で作る。保存と重なるEEWの3つの保存母集団の引き金をUWRの後の保存の始まりで較正し、E14にowner側の区間を足す。測り直しのmanifest（E05-P、Q-UWR-REMEASUREのMac miniの分、PiのE03）の作り方と凍結の手順を条文にする。P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段は、別機械のharnessが要るので本契約の後も走らせられない（AC06(3)、残存リスク(9)）。製品のコードと、C4・C6・A10の凍結manifest・結果は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "476d74208175debc662e5f6ea03d992c23304950",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
