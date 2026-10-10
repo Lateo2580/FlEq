@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e02a413fc240931f1830e966ac94dde1e27aa5f5",
-    "sha256": "07e86d0d593b631bbb4aca7674ab7772a69efd144c771d5158414dde205ff49e",
+    "sha256": "9b949be06a1f125a64f3b815215ad251a68cab62961fa84e36b7b55d28b04b10",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
-    "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
+    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
+    "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -238,7 +238,7 @@
         "id": "P3-WL1-AC01",
         "requirement": "A1: parseTreeのXMLParserのoptionsに jPath: false を1つ足す。ほかのoptionとparseの回数（Bodyを読むXMLでfull parse 1回、P1-AC04）は変えない。出力の木（DecodedMaterial.xml）は全corpusと境界の入力で旧と同じ（AC06）。将来pathを使うcallbackを足すときは、jPathを見直すと1行のコメントで残す。無いと: 既定のjPath:trueで、text・開きタグ・属性ごとにMatcherのpathを文字列にする費用（MacのprofileでMatcher.toString 1件83ms、約15%）がそのまま残る",
         "evidenceRefs": [
-          "reconstruction/contracts/p1-parser-boundary.json:527 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p1-parser-boundary.json:530 «4cae89a4f5209c86»",
           "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
           "reconstruction/contracts/p3-order-plan.md:190 «edc8ef9af837dfd5»"
         ]
@@ -248,8 +248,8 @@
         "requirement": "A2（decode-material）: (1) xmlValueは&を含まないtextをそのまま返す近道を持ち、実体の表は呼出しごとに作らない (2) withinXmlLimitsの文字数え（textLength・CDATA・属性値）を、配列を作らずにcode pointを数える形にする。数は全ての文字列でArray.from(s).lengthと同じ（サロゲートペアは1、孤立サロゲートは1）。(3) 受理と拒否の集合・拒否の理由（xmlInvalid・xmlLimitExceeded）・上限の判定の位置（直前・一致・+1）・ParserDiagnosticのoperation（P1-AC15）・XmlTextとXmlAttributeの値（空白・CDATA・参照の展開、P1-AC06）は旧と同じ。無いと: limitsの段52msと、&の無い大半のtextにかかるxmlValueの置換（2回で約31ms）とArray.fromの配列（約7ms）が残る",
         "evidenceRefs": [
           "reconstruction/contracts/p1-parser-boundary.json:46 «75d66f66d664fec3»",
-          "reconstruction/contracts/p1-parser-boundary.json:529 «0ad9ce09d06f5848»",
-          "reconstruction/contracts/p1-parser-boundary.json:538 «229a70c4a87b4736»"
+          "reconstruction/contracts/p1-parser-boundary.json:532 «0ad9ce09d06f5848»",
+          "reconstruction/contracts/p1-parser-boundary.json:541 «229a70c4a87b4736»"
         ]
       },
       {
@@ -281,7 +281,7 @@
         "id": "P3-WL1-AC06",
         "requirement": "同値性（D-WL1-EQUIVALENCE=A）: 使い捨ての比較の道具を、baseOidで作ったreconstruction/distと、変更後のreconstruction/distに同じ入力で当て、次がすべて一致することを示す（差0件）。(1) decodeMaterial: manifestのXML全件と境界の入力の組（先頭ゼロ、未知の正しいコード、CDATA（中に&と]]の手前の文字）、実体参照と文字参照、非BMP文字（そのものと参照）、CRLFとCR、空のtextと空要素、重複要素、子要素を含むscalar、属性の重複と大文字小文字、namespaceの接頭辞、途中で切れた文書、rootの外のtext、構造上限の直前・一致・+1）と、拒否の理由の順番を確かめる入力（16,385文字を超えるtextの末尾に裸の&または不正な文字参照があるもの、257文字以上で不正な参照を含む属性値）で、結果のkind・拒否の理由・ParserDiagnostic・materialのxml（XmlNodeの木）とmarks以外の項目 (2) U-W: P2-A5-T01とP2-A5-T03の全行の入力と状態、VPNO50のKind・Areasの欠落と不正、拒否のときのfreshnessの対象（target）、manifestの気象の電文（VPWS50・VPWW55〜61・VPNO50）の全件を空の状態と同じ官署のcurrentを持つ状態の両方に当てたもの、O04・O06の系列、最大VPWS50の続報（本文同じで時刻だけ新しい・一部の地域が変わる・全地域が変わる）・取消・VPNO50の終了・training／testを含む交差・容量の境界の付近（16MiBの手前）で、各受理のdecisions・diagnostics・intents・outcomes・displayChanges・confirmationEvidenceとstate（persistenceを含む） (3) 各状態のencodeの出力のJSON（文字列として一致）と投げる・投げないの別。今encodeが投げる件数・一意性の行（partial 129件・全国履歴3件・partial履歴9件・subject・history・inputId・intent idの重複・pendingの129件と131073 byte・型に合わないrecord）を含める。decode(encode)の状態と、その状態からさらに続報・取消を入れた結果。比較はmarksの所要時間だけを除き、snapshotのrestoredAtのsymbolは2つのdistで別のsymbolなので、descriptionで揃えて比べる。無いと: 速くするための直しが、受理・拒否の条件や保存の形を黙って変えても、既存の試験の当たっていない所では止まらない",
         "evidenceRefs": [
-          "reconstruction/contracts/p1-parser-boundary.json:527 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p1-parser-boundary.json:530 «4cae89a4f5209c86»",
           "reconstruction/contracts/p2-weather-current-unit.json:356 «86eb55276d25bba1»",
           "reconstruction/contracts/p2-weather-current-unit.json:381 «9da02d2083ff866f»",
           "reconstruction/contracts/p2-weather-current-unit.json:461 «d222ffecf873259b»",

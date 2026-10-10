@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "80aecad76b73a280009cc7e2df1a80b0dba2d8ab8b962586ddaab40203a34c55",
+    "sha256": "191b8eec4f13dfd436f206e073ed478501e4f70de1d0c4df7d9b4d6ccefa8f81",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
-    "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
+    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
+    "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -66,7 +66,7 @@
         "C": "U-BをweatherCurrent（U-Wと同じowner）にする（spec:1027はweatherCurrentをU-Wだけとするので、specの改訂が要る）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草案（発注前点検で統合担当が確定する、Q-C12-PRECHECK）。根拠: spec:1027はdeferredを「U-Fなど急がないunitと、readyでないheadTypeの入力」、urgentを「U-E系の急ぐunit」、weatherCurrentをU-Wだけとする。spec:481の表でU-Bは府県気象防災速報と記録的短時間大雨情報（配信の分類はtelegram.weather）だけを持ち、U-E系に入らない。D-P3-5（計画:202）は急ぐunitから並べてU-BをU-Rの次に置き、C9〜C11の発注前点検はU-Lより後の気象のunitをdeferredと読んだ（C11のP3-C11-PLACEの確定）。D-P3-1（計画:198）は急ぐunitと急がないunitを同居させない。S4の本文（作業ノート、checkoutの外）は読んでいない（C7〜C11と同じ）",
+        "ruling": "統合担当が発注前点検で確定（2026-10-10夜、Q-C12-PRECHECK）: A（deferred）。spec:1027・C11の確定（P3-C11-PLACE）と同じ読みで、改訂1でも受信1回の処理（P3-C12-RES-03）は変わらず、記録1件の上界は5,550→5,534 byteで、保存量・処理量の材料は変わらない。根拠: spec:1027はdeferredを「U-Fなど急がないunitと、readyでないheadTypeの入力」、urgentを「U-E系の急ぐunit」、weatherCurrentをU-Wだけとする。spec:481の表でU-Bは府県気象防災速報と記録的短時間大雨情報（配信の分類はtelegram.weather）だけを持ち、U-E系に入らない。D-P3-5（計画:202）は急ぐunitから並べてU-BをU-Rの次に置き、C9〜C11の発注前点検はU-Lより後の気象のunitをdeferredと読んだ（C11のP3-C11-PLACEの確定）。D-P3-1（計画:198）は急ぐunitと急がないunitを同居させない。S4の本文（作業ノート、checkoutの外）は読んでいない（C7〜C11と同じ）",
         "reason": "Aの代償: 最大のVPWP50の処理（Piで1秒を超えうる、計画:239、E03）の最中に届いた線状降水帯発生の報はその後に並び、表示と通知が秒の単位で遅れうる（測っていない。AC11で測る）。U-Bの入力は小さい（実配信の最大2,552 byte）。Bはurgentに気象を入れ、Cはspecの改訂が要りU-Wの最大VPWS50の後に並ぶ"
       },
       {
@@ -212,7 +212,7 @@
         "B": "VPBS50と同じ形と見なしてready＋U-Bにする",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が起草で確定（計画:79「S3のnot-ported行（VPBS51→C12）は移植時に中身を確かめてからready」、p3-unit-table.json:79。実物のXMLが手元に無い）",
+        "ruling": "統合担当が発注前点検で確定（2026-10-10夜、Q-C12-PRECHECK）: A（notPortedのまま）。dmdataの電文一覧の生HTML（2026-10-10、curl -s https://dmdata.jp/docs/telegrams/。WebFetchの要約は使っていない）でVPBS51の行は配信状況の欄が空で「配信開始時期未定」（VPBS50の行は「配信中」）、個別ページ（/docs/telegrams/we02342/、更新2026/10/8）は「配信開始時期未定」「当面の間は配信が見送られます」、範囲表記（〜・ii=）による別名の行は無い。起草の根拠（計画:79「S3のnot-ported行（VPBS51→C12）は移植時に中身を確かめてからready」、p3-unit-table.json:79。実物のXMLが手元に無い）を変える材料は無い",
         "reason": "Bは確かめていない形を受理する。バックログ（2026-09-25の調査）でVPBS51は配信開始時期未定"
       },
       {
@@ -375,7 +375,7 @@
       },
       {
         "id": "I-U-B",
-        "status": "frozen（P3-C12-SUBJECTS=A・TTL=B・VPOA=A・NOTICE-LEVELS=A・BOUNDS=A・REPLACE=B・COUNTERPART-CANCEL=Bは作者裁定2026-10-10昼前。P3-C12-PLACEは発注前点検で統合担当が確定する）。改訂1（2026-10-10）でK1〜K6・K4Nに揃えた。P3-C12-LATE-INVERSION・P3-C12-EVICT-PROTECT・P3-C12-REPLACE-PENDINGは作者裁定A（2026-10-10夜）",
+        "status": "frozen（P3-C12-SUBJECTS=A・TTL=B・VPOA=A・NOTICE-LEVELS=A・BOUNDS=A・REPLACE=B・COUNTERPART-CANCEL=Bは作者裁定2026-10-10昼前。P3-C12-PLACE=Aは統合担当が発注前点検で確定）。改訂1（2026-10-10）でK1〜K6・K4Nに揃えた。P3-C12-LATE-INVERSION・P3-C12-EVICT-PROTECT・P3-C12-REPLACE-PENDINGは作者裁定A（2026-10-10夜）",
         "subjects": "P3-C12-SUBJECTS=A（作者裁定）。一入力は自分の系列のsubjectのほか、P3-C12-ALIAS（VPOA50の記録）とP3-C12-REPLACE（予測の記録）で他のsubjectを変えうる。一入力の変更は一回の参照交換で原子的に適用する（spec:616）",
         "currentSemantics": "(1) VPBS50の発表・訂正の採用: P3-C12-FACTSとP3-C12-KINDSで事実を作り（I-U-B.boundsで切る）、P3-C12-REPLACE=B（作者裁定）で発生の記録のある区域を予測から除き、事実を全部置き換える（前の報のitem・観測を残さない）。itemsが全部除かれた予測はreplaced (2) 発生の採用はP3-C12-REPLACEで他のsubjectの予測を減らす。VPBS50のactiveの採用はP3-C12-ALIASで対応するVPOA50をaliasedにする (3) VPOA50の発表・訂正の採用: 対応するVPBS50の系列がactiveならaliased（aliasedの続報はaliasedのまま事実・source・retainUntilを進めるrevisionOnly）、そうでなく記録がreleasedならreleasedのまま事実を置き換え、それ以外（aliasedだが対応報がactiveでなくなった記録を含む）はheld（holdUntilはP3-C12-VPOA.holdRules）。対応するVPBS50が取消でcancelledになったら、aliasedのVPOA50を無音でreleasedにする（P3-C12-COUNTERPART-CANCEL=B。aliasedからreleasedへ移すとき（対応報の取消）、retainUntilを記憶の3時間からreleasedの2時間（sourceのReportDateTime＋7,200,000、decodeの等式と同じ）へ付け替え、付け替えたretainUntilが受理の時刻以前ならreleasedにせず記録を除く（無音）） (4) 取消はP3-C12-CANCEL-SCOPE (5) 受理の時点でretainUntilを過ぎる報はstateを変えない（P3-C12-TTL.lateRule。版の比較の後に判定する。ただし前の見える記録より新しい版の遅着は採用して同じreduceで回収し、前の記録を消してそのpendingを撤回する。同じreduceで消える記録は他のsubjectへ作用しない。P3-C12-LATE-INVERSION=A） (6) changeは最終の表示の変化で決める（K3のD-OUTCOME=A・Q-FINAL-CHANGE、改訂1）: 見える記録（VPBS50のactive・VPOA50のreleased）の出入りか、見える記録の公開事実（title・headline・editorialOffice・items・observations・areas）の変化か、退去があればsemantic、ほかはrevisionOnly（heldへの採用、heldの続報、heldからaliasedへの移行、記憶だけの取消、前が見えない記録のときにreplacedとして採った予測を含む。前の版がactiveの続報をreplacedとして採ると見える記録が消えるのでsemantic、K3のAC02(3)）。重複の判定（Q-ENUM.revisionOrder）は今どおりeffectiveを含む公開事実で比べる (7) 記録はretainUntilの到来で除き、heldはholdUntilの到来でreleasedにする（P3-C12-VPOA） (8) 終了入力とrestore入力はheldを無音でreleasedにする",
         "bounds": "文字列の上限（UTF-16の長さ。超えたらコードポイントの境界で切り詰めてtruncated=true。切る位置がサロゲートの組の間に当たれば1単位短く切り、孤立したサロゲートを作らない。C9のQ-C9-IMPL-AMEND(9)(b)と同じ型）: title 64、headline 192、editorialOffice 16、condition 16、区域名・観測の地点名・label 16、unit 8。制御文字と孤立したサロゲートは拒む（headlineは改行だけを許す、Q-ENUM）。ReportDateTime・InfoTypeのrawはtrimせずに持つ（A1の長さの上限だけ）。ASCIIに限る値（超えたらrequiredStructureInvalid）: 区域と観測の地点のcode 8 byte（数字だけ）、timeは25文字の時刻、値は11文字以下の数。EventIDは40文字の印字可能なASCII（identityInvalid、Q-ENUM.identity）。件数の上限はP3-C12-BOUNDS=A（作者裁定）: item 4・区域の延べ16（itemをまたいで数える。VPOA50も16）・観測8。超えた分は電文順の後ろから捨ててtruncated=true。通知のtitle 160・body 512（切る）。実配信と全fixture 55本の最大はtitle 26文字、headline 94文字、EditorialOffice 7文字、condition 8文字、区域名6文字、観測の地点名9文字、label 8文字、EventID 30文字、item 2（合成、実配信は1）、区域の延べ3、観測3。切り詰めは起きない",
@@ -384,7 +384,7 @@
         "decode": "codecは一つ（briefingUnitCodec）。decodeは受理と同じ上限で次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない（受理が通した値をdecodeが拒否するとunit全体の復元が落ちる。C9のQ-C9-IMPL-AMEND(9)(b)）: schemaVersion、currentsはP3-C12-BOUNDSの件数以下でsubjectの重複なし、subjectがI-U-B.subjectsの形で運用区分・headType・seriesと一致、headTypeがVPBS50かVPOA50でeffectiveの枝がheadTypeに合う（types.tsの判別共用体）、seriesがQ-ENUM.identityの文字と長さで空でない、ReportRefの文字列（inputIdは「\"」と「\\」を除く印字可能なASCIIの64文字以下、ReportDateTimeはA1の時刻の形の40文字以下、Serialは10桁以下の数字列、InfoTypeは8文字以下でtrimした値が語彙にある。Q-ENUM.identity、改訂1）とsource.familyがheadType・source.subjectが記録のsubject、retainUntil＝sourceのReportDateTime＋P3-C12-TTLの長さ（effectiveとitemsの種別で決まる等式）、heldのholdUntilが有限の数、aliasedが事実（title・headline・editorialOffice・areas・truncated）を持つ（P3-C12-COUNTERPART-CANCEL=B）、観測のareaCodeとareaNameが必須、事実を持たない枝は事実のfieldを持たない、itemsが4以下でkindが表の値・conditionがnullか名前の形・kindとconditionが表で一致（unknownは表に無いかnull）、区域の延べが16以下でcodeが数字8 byte以下、observationsが8以下でpart・approximationが表の値・valueが11文字以下の有限の数かnull・timeがnullか時刻の形・unitがnullか8文字以下、名前と文字列がI-U-B.boundsの内側（制御文字と孤立したサロゲートなし、headlineは改行だけを許す）、予測のitemの区域が0でない（P3-C12-REPLACEで0になったitemは除く）、pending≤128件かつ「pendingの実byte＋予約」≤131,072、「pendingの実byte＋予約＋終端記録」≤229,376（Q-NOTICE.capacity。予約はdeliveryGrowth、attemptsは0以上の安全な整数、nextAttemptAtは有限の数）、encode後の世代≤2,097,152 byte（P3-C12-BOUNDS=A）、intentのunitがU-BでsubjectがI-U-B.subjectsの形であること（stateに残っているsubjectとの一致は求めない）",
         "view": "BriefingUnitViewはactiveのVPBS50とreleasedのVPOA50の記録だけを載せる。SubjectOutcomeはsubjectごとに作り（置換・aliasで変わったsubjectも）、factsに公開事実と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Bの行（currentはviewに載る枝かnull）を足す。unavailable・未保存・再起動の空を「速報なし」に読み替えない。カードの並べ方・種別ごとの束ね方・県名の付け方は作らない（P4）",
         "confirmationScope": "U-Bは確認scopeを作らない（P3-C12-N2）。shared-runtime.tsのaddedScopesにU-Bで空を返す分岐を足す",
-        "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-B、executionPlacesにU-B＝deferred（P3-C12-PLACE、発注前点検で確定）、coverage表のVPOA50とVPBS50をready＋U-B（いまはnotPorted）、VPBS51はnotPortedのまま（P3-C12-VPBS51）。UnitModule<「U-B」>はpersistence durable、terminalIntents kind intents、reclaimDeadlineBeforeReceive true",
+        "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-B、executionPlacesにU-B＝deferred（P3-C12-PLACE=A、統合担当が発注前点検で確定）、coverage表のVPOA50とVPBS50をready＋U-B（いまはnotPorted）、VPBS51はnotPortedのまま（P3-C12-VPBS51）。UnitModule<「U-B」>はpersistence durable、terminalIntents kind intents、reclaimDeadlineBeforeReceive true",
         "computation": "容量は記録・intentごとのencode byteをWeakMapでその値に結び付けて加算する（C5・C7〜C11の先例）。subjectの検索、対応報の検索（VPOA50の系列↔「K」＋系列）、区域のcodeから予測の記録と「その区域を持つactiveな発生の記録があるか」を引く索引（P3-C12-REPLACE=Bは時刻を比べない。同じcodeを複数の発生の記録が持ちうるので、codeごとに発生の記録の件数かsubjectの集合で持ち、1件が消えても他の発生の記録が残れば「ある」とする）は、配列に結び付けたMapのcacheで引く。受信1回の処理は報の要素の数と置き換える記録の数に比例し、currentsの配列は1回だけ作り直す。上限のある近道として、満杯での退去の候補を探すのは素朴な線形の走査でよい（台帳47の例外、上限は件数の上限で保持と復元の両方で効く）。nextDeadlineの最小値も配列に結び付けたcacheで持つ。受信1回でstate全体・intent全体を直列化しない（AGENTS.md「受信経路の計算量」、台帳47）",
         "capacityReserve": "台帳41の読み替え: U-Bは拒否・診断をstateに保存しないので予約の対象が無く、受ける報は退去か自身の退去でかならず受ける（P3-C12-CAPACITY、capacityExceededを返さない）。保存の世代の上界（P3-C12-BOUNDS=A、作者裁定。改訂1でK5・K2の方式、decoderの許す範囲をJSONのエスケープ後のUTF-8 byteで数え直した、reconstruction/contracts/p3-codec-closure.json:238 «40cf45e065c4c5a0»・reconstruction/contracts/p3-authority-evidence.json:248 «aeec5b63ba5df525»）: 記録1件の合法最大は5,534 byte（VPBS50のactive。title 64・headline 192・EditorialOffice 16・condition 16・区域名・地点名・label 16・unit 8は制御文字と孤立したサロゲートを拒むので1単位3 byte（headlineの改行と「\"」「\\」はJSONで2 byte）、系列は40文字の「\\」（JSONで2 byte）でsubject・series・source.subjectの3か所、item 4（kindは最長のlinearRainPredicted）・区域の延べ16（code 8桁）・観測8（値は-123456.789の11文字、timeは25文字、partは最長のprecipitation、approximationは最長の7文字）、ReportDateTimeのrawはA1の時刻の形の40文字（ASCIIで1文字1 byte）、InfoTypeのrawはtrimで消えJSONで6 byteになるU+000B 6文字＋2文字の42 byte（C11と同じ最悪、reconstruction/contracts/p3-flood-unit.json:325 «88b5b4fd37a342fc»）、inputIdは「\"」と「\\」を除く印字可能なASCIIの64文字、Serial 10桁、retainUntilはA1の4桁の年の端の15桁、operation=training、originは採る入力で最長のreplay（recoveryは適用しない、P3-C12-N2）。VPOA50のheldの合法最大は2,872 byte（holdUntilは有限の数のJSONの最長24 byte））で、256×5,534＝1,416,704、区切り255、「pendingの実byte＋予約＋終端記録」229,376（Q-NOTICE.capacity）、intentの配列の区切り884（C8と同じ数え方）、envelope 293（C8の値）、配列の鍵と括弧200で、合計1,647,712 byte以下＝2 MiB（2,097,152）の内側（449,440 byteの余り）。起草の1,651,808はReportRefの文字を長さだけで確かめ、ReportDateTimeのrawを改行（JSONで2 byte）・InfoTypeのrawをタブ（2 byte）で数えていた（改訂1でC11の形に揃え、ReportDateTimeは1 byte・InfoTypeはU+000Bの6 byteが最悪になった）。超えることは件数・文字列の上限と回収の規則から起きず、decodeで超えた保存物はunavailable",
         "capacityMeasurement": "測り方（2026-10-10、Mac、起草時の測定スクリプトはrepo外）: 5aa354d7をtscでbuildしたreconstruction/distのingestXmlData（kind replay）→decodeMaterialで、実配信の27本（~/dev/fleq-corpus-p0の4日分のVPOA50 21本・VPBS50 6本、dmdataの採取なので本文は契約に貼らない）とVPBS50・VPOA50のfixture 28本を読み（全部decodeに通った）、P3-C12-FACTS・P3-C12-KINDSの規則でtypes.tsのBriefingCurrentの形に組み（inputIdは36文字、ReportRefのoriginはlive）、JSON.stringifyのUTF-8 byteを数えた。結果: P3-C12-BOUNDSの切り捨ては0本。VPBS50のactiveの最大1,507 byte（JMAのサンプル82_01_01、区域3・観測3）、実配信のVPBS50の最大1,380 byte（線状降水帯直前予測、区域2・観測2）、VPOA50のreleasedの最大823 byte、cancelledの最大416 byte。実配信の日ごとの同時の最大（各時点のsubjectごとの最新の記録のうちReportDateTime+2時間の内側の和）: 2025-08-10の4 subjectで2,645 byte、2026-06-26の2 subjectで2,506 byte、2026-09-21の2 subjectで2,288 byte、2025-09-05の1 subjectで762 byte。同時最大状態（spec:470）は、256 subjectが全部最大の記録の形と置いて256×1,507＋区切り255＋229,376＋884＋293＋200＝616,800 byte（2,097,152まで1,480,352。改訂1でReportRefのorigin・operationの数え落としを直した（各記録+37 byte、合法最大は+41 byte））。上限の文字列での上界は1,647,712 byte（I-U-B.capacityReserve、改訂1）。実装後の測り直し: 同じfixtureと実配信の形で実際のencode byteを測り、この値と10%以上違えば数を直して報告する。あわせて、実配信の最大の日の状態と256 subjectの状態で、(a) domain briefingのUTF-8 byteと分野の65,536 byte（view-projector.ts:36）の比較、(b) その時点のsnapshot全体のbyteと1,048,576 byteの比較を分けて測る。summaryに落ちるのは(a)と(b)の両方を超えたときだけ（view-projector.ts:831・:833）。実配信の最大の日の状態がsummaryに落ちたら配送の前に作者へ報告する（AC06）"
@@ -456,7 +456,7 @@
       },
       {
         "id": "P3-C12-INTERFERENCE",
-        "status": "frozen（台帳63、計画:79の共通条文。P3-C12-PLACEは発注前点検で確定）",
+        "status": "frozen（台帳63、計画:79の共通条文。P3-C12-PLACE=A=deferred、統合担当が発注前点検で確定）",
         "longestUninterrupted": "deferredでU-Bが足す非中断処理: 最大の速報の報（実配信2,552 byte。合法の範囲で大きい報はitem・区域・観測を上限の外まで並べた報で、試験内で作る）の解凍・XML parse・reduce、合法最大（I-U-B.capacityReserve、1,647,712 byte）のU-Bのcheckpoint encode、全subjectの同時の期限回収、合法最大でのtoView",
         "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。EEWは別のworker（urgent）なので待ちは増えない見込みで、増えたら原因（publisherの処理・書込み権の配分）を分けて報告する。あわせて、同居するU-F・U-L・U-Rとの待ち合い（最大VPWP50の処理の最中に投入したVPBS50の投入→T2）を報告する。正式E01ではない。EEWの待ちの最大が約40ms（E01の250msを計画:239の速度差約6.3倍で割った値）を超えたら、配送の前に作者へ報告しP3-C12-PLACEを見直す。U-B自身がU-Fの後ろで待つ時間の最大が約160ms（Piの大型通常入力の目安1秒を同じ速度差で割った値）を超えたら、同じく作者へ報告する。U-B同居後の正式な再測定はC22のPiでの短い確認（計画:87）に送る",
         "measurementInputs": "改訂1（K6の後の計測入力、台帳74の(d)）: EEW（VXSE45）のReportDateTimeは投入の時のhostの壁時計に寄せる（K6のhorizon 10分の外の報はeewHorizonStaleでstaleになりT0→T2が無い、reconstruction/contracts/p3-lifetime-and-eew-gate.json:318 «81bb6f82d45d58a1»）。U-B・U-F・U-L・U-Rの入力も各unitの寿命の内側の時刻に寄せ（U-Bは受理の時点でsource＋2時間の内側）、測った各入力のdecisionがchangedであることを結果に含める（staleの経路で測った値は捨てる）。WSのstart frameにはhostの時計と同じtimeを付ける（K6のAC13）。旧E01/C4の充填harness（frames.mjsのnearCapacityFrames「時刻は動かさない」）はK6の後に成り立たないので使わず、その組み直し（K6の申し送り、reconstruction/contracts/p3-lifetime-and-eew-gate.json:558 «5381e7ef5b71152e»、P3-LIFE-D-HARNESS=A reconstruction/contracts/p3-lifetime-and-eew-gate.json:71 «58db32ca2f469b92»）の前に正式計測（E01・C22）を再開しない。本契約の計測は正式E01ではない"
@@ -485,7 +485,14 @@
       {
         "id": "P3-C12-DEPS",
         "status": "frozen",
-        "rule": "着手条件: C11（P3-UNIT-R-001）の配送（1be76f18、済み）、K1〜K6とK4Nの配送（main f219134a、済み）、作者裁定（2026-10-10昼前の7件、Q-C12-AUTHOR-RULINGS）と改訂1の追加の作者裁定3件（P3-C12-LATE-INVERSION・P3-C12-EVICT-PROTECT・P3-C12-REPLACE-PENDING、2026-10-10夜に全部A、Q-C12-AUTHOR-RULINGS-2）、発注前点検（Q-C12-PRECHECK）の済み。baseOidはf219134aかその後に割り当てる（Q-C12-BASE）。起草のanchorは5aa354d7で読み、ac70572cで共有fileを読み直し、改訂1でf219134aに対してcheck-contractを通した。allowedPathsはunitの数・一覧の機械的な追加でC10・C11の試験と重なる。U-Bはdelivery-growth.tsをimportするだけで編集しない"
+        "rule": "着手条件: C11（P3-UNIT-R-001）の配送（1be76f18、済み）、K1〜K6とK4Nの配送（main f219134a、済み）、作者裁定（2026-10-10昼前の7件、Q-C12-AUTHOR-RULINGS）と改訂1の追加の作者裁定3件（P3-C12-LATE-INVERSION・P3-C12-EVICT-PROTECT・P3-C12-REPLACE-PENDING、2026-10-10夜に全部A、Q-C12-AUTHOR-RULINGS-2）、発注前点検（Q-C12-PRECHECK、2026-10-10夜に閉じた）の済み。baseOidはf219134aかその後に割り当てる（Q-C12-BASE）。起草のanchorは5aa354d7で読み、ac70572cで共有fileを読み直し、改訂1でf219134aに対してcheck-contractを通した。allowedPathsはunitの数・一覧の機械的な追加でC10・C11の試験と重なる。U-Bはdelivery-growth.tsをimportするだけで編集しない"
+      },
+      {
+        "id": "Q-C12-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-10夜、HEAD 45b05061）",
+        "closed": "Q-C12-PLACE: P3-C12-PLACEのruling（A＝deferred、統合担当の確定。spec:1027・C11の確定と同じ読みで、改訂1でも受信1回の処理と記録1件の上界5,534 byteは保存量・処理量の材料を変えない。S4の本文は読んでいない）。I-U-B.status・I-U-B.runtimeRows・P3-C12-INTERFERENCE.statusの表記を確定に直した。Q-C12-VPBS51: P3-C12-VPBS51のruling（A、notPortedのまま）。材料は改訂1の生HTML（一覧のVPBS51の行は配信状況の欄が空で「配信開始時期未定」、個別ページwe02342（更新2026/10/8）は「当面の間は配信が見送られます」、範囲表記の別名の行は無い）。Q-C12-CORPUS: (1) U-Bの既存のstep（O02:44、O03:16〜21・23・24、O08:15）のsubjectをP3-C12-SUBJECTS=Aの`${operation}/${headType}/${series}`に直し（fixtureのEventIDで確かめた。O03:24はfixture名がHJPNB202608270458でEventIDはHJPNB202608270308_202608270308）、decision・notices・intentsをQ-NOTICEと条文で埋めた。checksの「原文の対象区域/現象を照合して対応報へ置換」はP3-C12-ALIAS（VPOA50の系列sとVPBS50の系列「K」＋s）に、「対応報置換の前後で既存の取消記憶を保持」は「cancelledのVPOA50はaliasにしない」に直した。O03:24は発生（加賀・能登）で予測YJPNB202608270448の能登が除かれ、itemsが0でreplacedになる（P3-C12-REPLACE=B・P3-C12-REPLACE-PENDING=A） (2) unmet:O03:17はsynthetic_VPOA50_JPTK_cancel（phase6bのVPOA50 JPTK202608221709_202608221709のSerial 1から、InfoType取消・Serial 2・Control/DateTimeを17:09に）で埋めた: heldのVPOA50を取り消してcancelled（changed/revisionOnly、通知なし）、続くKJPTKの採用でaliasにしない。unmet:O08:16は相関の窓の時計の系列として:16〜:21に具体の時刻で埋めた（逆行→holdUntilの到来でrelease（desktop＋sound）→逆行でheldへ戻らず鳴り直さない→2本目のheldを約1時間の補正でholdUntil＋60秒以後に無音でreleased→retainUntilの到来で2件とも無音で回収。fixtureは既存のVPOA50 2本） (3) O01:89〜96（記録雨のKJPTK202608221709の系列のSerial 1→2→3、重複、合成の訂正（事実が同じでもcorrectionで通知、changeはrevisionOnly）、合成の取消、取消の記憶の期限の後の遅着）とO07:64〜70（保存→復元でheldを無音でreleased・pendingは元の時刻で戻る→直後の続報→直後のVPOA50の取消は対応するVPBS50へ波及しない）を足した。合成の訂正・取消はphase6bのKJPTKのSerial 3から作った2本（synthetic_VPBS50_KJPTK_correction・synthetic_VPBS50_KJPTK_cancel） (4) sequences.jsonのQ-VALUESからVPBS50の行をP3-C12-EMPTYで閉じ、Q-ALIASをP3-C12-ALIAS・P3-C12-REPLACE・P3-C12-VPOAで閉じて一覧から削った (5) expectedDecisionsとexpectationEvidenceは1→22（O01:90〜96、O02:44、O03:16〜21・23・24、O07:65・66・69・70、O08:15・19）、unmet 92→90。fixtureIdsに合成3本を足し（28→31本、正常26→27本）、AC09・T09の件数を直した。manifest 298件（XML 277、合成102）、P1契約・P1-T01・check-manifest・READMEの件数を直し、全契約のhashを付け直した。sequencesのeffectiveはVPBS50のactive→active、cancelled→inactive/cancelled、記録が無い→inactive/expiredで書き、VPOA50のheld・released・aliasedとVPBS50のreplacedはchecksに書いてeffectiveはnullにした（射影の語彙に当たる値が無い）。anchor: 本契約の行の根拠は45b05061でcheck-contract PASS（改訂1のf219134aから変わらない）。Q-C12-AUTHOR-RULINGS-2（AC17・T15）とP3-C12-RESIDUAL-RISKS（作者承認17件）が条文に入っていることを確かめた",
+        "reason": "発注前点検の項目を閉じる。baseOidの割当を止める未決は残さない（Q-C12-BASEは実装の着手だけを止める）"
       }
     ],
     "operationContract": {
@@ -693,11 +700,14 @@
       "test__fixtures__phase6b_VPOA50_JPTK202608221709_202608221727",
       "test__fixtures__replay__VPBS50_HJPNB202608270458",
       "test__fixtures__replay__VPBS50_YJPNB202608270448",
+      "test__fixtures__synthetic_VPBS50_KJPTK_cancel",
+      "test__fixtures__synthetic_VPBS50_KJPTK_correction",
       "test__fixtures__synthetic_VPBS50_cancel",
       "test__fixtures__synthetic_VPBS50_empty",
       "test__fixtures__synthetic_VPBS50_fallback-tag",
       "test__fixtures__synthetic_VPBS50_multi",
       "test__fixtures__synthetic_VPBS50_unknown-tag",
+      "test__fixtures__synthetic_VPOA50_JPTK_cancel",
       "test__fixtures__synthetic_VPOA50_cancel"
     ],
     "sequenceIds": [
@@ -709,12 +719,138 @@
     ],
     "expectedDecisions": [
       {
+        "expectedRef": "expected:O01:90"
+      },
+      {
+        "expectedRef": "expected:O01:91"
+      },
+      {
+        "expectedRef": "expected:O01:92"
+      },
+      {
+        "expectedRef": "expected:O01:93"
+      },
+      {
+        "expectedRef": "expected:O01:94"
+      },
+      {
+        "expectedRef": "expected:O01:95"
+      },
+      {
+        "expectedRef": "expected:O01:96"
+      },
+      {
+        "expectedRef": "expected:O02:44"
+      },
+      {
+        "expectedRef": "expected:O03:16"
+      },
+      {
+        "expectedRef": "expected:O03:17"
+      },
+      {
+        "expectedRef": "expected:O03:18"
+      },
+      {
+        "expectedRef": "expected:O03:19"
+      },
+      {
+        "expectedRef": "expected:O03:20"
+      },
+      {
+        "expectedRef": "expected:O03:21"
+      },
+      {
         "expectedRef": "expected:O03:23"
+      },
+      {
+        "expectedRef": "expected:O03:24"
+      },
+      {
+        "expectedRef": "expected:O07:65"
+      },
+      {
+        "expectedRef": "expected:O07:66"
+      },
+      {
+        "expectedRef": "expected:O07:69"
+      },
+      {
+        "expectedRef": "expected:O07:70"
+      },
+      {
+        "expectedRef": "expected:O08:15"
+      },
+      {
+        "expectedRef": "expected:O08:19"
       }
     ],
     "expectationEvidence": [
       {
+        "expectedRef": "expected:O01:90"
+      },
+      {
+        "expectedRef": "expected:O01:91"
+      },
+      {
+        "expectedRef": "expected:O01:92"
+      },
+      {
+        "expectedRef": "expected:O01:93"
+      },
+      {
+        "expectedRef": "expected:O01:94"
+      },
+      {
+        "expectedRef": "expected:O01:95"
+      },
+      {
+        "expectedRef": "expected:O01:96"
+      },
+      {
+        "expectedRef": "expected:O02:44"
+      },
+      {
+        "expectedRef": "expected:O03:16"
+      },
+      {
+        "expectedRef": "expected:O03:17"
+      },
+      {
+        "expectedRef": "expected:O03:18"
+      },
+      {
+        "expectedRef": "expected:O03:19"
+      },
+      {
+        "expectedRef": "expected:O03:20"
+      },
+      {
+        "expectedRef": "expected:O03:21"
+      },
+      {
         "expectedRef": "expected:O03:23"
+      },
+      {
+        "expectedRef": "expected:O03:24"
+      },
+      {
+        "expectedRef": "expected:O07:65"
+      },
+      {
+        "expectedRef": "expected:O07:66"
+      },
+      {
+        "expectedRef": "expected:O07:69"
+      },
+      {
+        "expectedRef": "expected:O07:70"
+      },
+      {
+        "expectedRef": "expected:O08:15"
+      },
+      {
+        "expectedRef": "expected:O08:19"
       }
     ],
     "semanticDeadlines": [
@@ -968,7 +1104,7 @@
       },
       {
         "id": "P3-C12-AC09",
-        "requirement": "corpus: expectedDecisionsのstepを履歴oracleで通す（起草の時点はexpected:O03:23だけ。発注前点検でO01・O02・O03・O07・O08のU-Bのstepを埋め、subjectの書き方をP3-C12-SUBJECTSの裁定に直す、Q-C12-PRECHECK）。O03:15〜24はVPOA50→対応するVPBS50の組（取消の記憶をalias・置換の前後で保つ、未確認の相関を確定扱いしない）と予測→発生（金沢の組で予測が0になる）、O08:15〜16は相関の窓の時計（時計逆行・期限横断・大幅補正・入力停止で有限に終わり、終了済みの通知を復活させない）。E13: fixtureIdsの全正常fixture（28本のうち取消を除く26本）で、各fixtureの時刻に合わせた時計の期限処理後も残る恒常的unavailable 0。Q-LIMITの境界入力は試験内で作る（fixtureなし）。unmetを免除しない",
+        "requirement": "corpus: expectedDecisionsの22 step（expected:O01:90〜96、O02:44、O03:16〜21・23・24、O07:65・66・69・70、O08:15・19）を履歴oracleで通す（発注前点検 2026-10-10夜、Q-C12-PRECHECK）。subjectはP3-C12-SUBJECTS=Aの系列。O01:89〜96は記録雨の系列（KJPTK202608221709）のSerial 1→2→3→重複→合成の訂正（事実が同じでもcorrectionで通知、changeはrevisionOnly）→合成の取消→取消の記憶の期限の後の遅着（P3-C12-TTL.lateRule）。O02:44はConditionの無い情報タグの報（P3-C12-EMPTY、unknownのitemのactive）。O03:15〜24はVPOA50→対応するVPBS50の組（heldのVPOA50の取消、cancelledのVPOA50はaliasにしない、VPOA50の取消は他のsubjectへ波及しない、未確認の相関を確定扱いしない）と予測→発生（金沢の組で予測がreplaced、P3-C12-REPLACE=B）。O07:64〜70は保存→復元（heldを無音でreleased、pendingは元のcreatedAt/expiresAt、retainUntilを延ばさない）→直後の続報・VPOA50の取消。O08:14〜21は相関の窓の時計（逆行・holdUntilの到来でrelease・逆行でheldへ戻らず鳴り直さない・大幅補正でholdUntil＋60秒以後は無音のreleased・入力停止のままretainUntilの到来で回収して有限に終わる）。save・restart・advanceClockの制御stepも同じ系列で確かめる。sequencesのeffectiveはVPBS50のactive→active、cancelled→inactive/cancelled、記録が無い→inactive/expiredで照らし、VPOA50のheld・released・aliasedとVPBS50のreplacedはchecksで照らす（effectiveはnull）。E13: fixtureIdsの全正常fixture（31本のうち取消を除く27本）で、各fixtureの時刻に合わせた時計の期限処理後も残る恒常的unavailable 0。Q-LIMITの境界入力は試験内で作る（fixtureなし）。unmetを免除しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
           "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
@@ -979,7 +1115,10 @@
           "reconstruction/tools/corpus/sequences.json#expected:O03:23",
           "reconstruction/tools/corpus/sequences.json#expected:O03:18",
           "reconstruction/tools/corpus/sequences.json#expected:O03:21",
-          "reconstruction/tools/corpus/sequences.json#expected:O02:44"
+          "reconstruction/tools/corpus/sequences.json#expected:O02:44",
+          "reconstruction/tools/corpus/sequences.json#expected:O01:94",
+          "reconstruction/tools/corpus/sequences.json#expected:O07:68",
+          "reconstruction/tools/corpus/sequences.json#expected:O08:20"
         ]
       },
       {
@@ -1162,7 +1301,7 @@
         "referenceIds": [
           "P3-C12-AC09"
         ],
-        "behavior": "expectedDecisionsのstep（発注前点検で増やす分を含む）と、O03:15・22のrestartの制御step、fixtureIdsの全正常fixture（26本）のE13集計"
+        "behavior": "expectedDecisionsの22 stepと、O01:89・O03:15・22・O07:64・68・O08:14のrestart、O07:67のsave、O08:16〜18・20・21のadvanceClockの制御step、fixtureIdsの全正常fixture（27本）のE13集計"
       },
       {
         "testId": "P3-C12-T10",
@@ -1286,23 +1425,6 @@
     ],
     "unresolvedQuestions": [
       {
-        "id": "Q-C12-PRECHECK",
-        "owner": "integrator",
-        "blocks": [
-          "baseOidの割当"
-        ],
-        "resolveBy": "発注前点検（統合担当）",
-        "requiredEvidence": [
-          "Q-C12-PLACE: P3-C12-PLACEの確定（A、C11の確定と同じ読み）",
-          "Q-C12-VPBS51: dmdataの電文一覧（https://dmdata.jp/docs/telegrams/ の生HTML）でVPBS51の配信状況を確かめ、P3-C12-VPBS51を確定する。材料（改訂1、2026-10-10にcurl -s https://dmdata.jp/docs/telegrams/ の生HTMLで確認、WebFetchの要約は使っていない）: 一覧の行は「気象防災速報（潮位）|府県気象防災速報（潮位）|VPBS51|XML|（配信状況の欄は空）|配信開始時期未定」、VPBS50の行は「…|VPBS50|XML|配信中|」。個別ページ（/docs/telegrams/we02342/、更新2026/10/8）は「配信開始時期未定」「体系整理を踏まえた気象警報等の改善に伴う運用変更時に配信開始（2026年）とお知らせしていましたが、当面の間は配信が見送られます」。範囲表記（〜・ii=）による別名の行は無い。起草の推奨A（notPortedのまま）を変える材料は無い",
-          "Q-C12-CORPUS: (1) sequences.jsonのU-Bの期待（O02:44、O03:16〜21・23・24、O08:15）のsubjectをP3-C12-SUBJECTS=Aの系列の書き方（`${operation}/${headType}/${series}`）に直し、decision・notices・intentsをQ-NOTICEで埋める (2) unmet:O03:17（対応報の前のVPOA50の取消、EventID JPTK202608221709_202608221709・Serial 2の合成fixtureが要る）とunmet:O08:16（相関の窓の時計の系列）を埋める (3) O01とO07にU-Bのstepが無いので足す（O01: 記録雨の系列のSerial 1→2→3と合成の訂正・取消・重複・遅着、O07: 保存→復元→直後の続報・取消、heldの復元と無音の移行） (4) sequences.jsonのQ-VALUES（VPBS50 Body空）とQ-ALIAS（VPOA50/VPBS50の対応規則、予測から発生の置換と保留解除）をP3-C12-EMPTY・P3-C12-ALIAS・P3-C12-REPLACE・P3-C12-VPOAで閉じる (5) expectedDecisionsとexpectationEvidenceを増やし、AC09・T09の件数を直す。(1)の書き直し案（改訂1、`${operation}/${headType}/${series}`、fixtureのEventIDで確認）: O02:44 normal/VPBS50/JPOD240001_202401240613→normal/VPBS50/JPOD240001、O03:16 normal/VPOA50/JPTK202608221709_202608221709→normal/VPOA50/JPTK202608221709、unmet:O03:17も同じsubject（Serial 2の取消）、O03:18〜20 normal/VPBS50/KJPTK202608221709_2026082217{09,17,27}→3つともnormal/VPBS50/KJPTK202608221709（系列の続報で同じ記録を置き換える）、O03:21 normal/VPOA50/JPTEST202608221709は「_」が無いので変わらない、O03:23 normal/VPBS50/YJPNB202608270448_202608270448→normal/VPBS50/YJPNB202608270448、O03:24 normal/VPBS50/HJPNB202608270308_202608270308→normal/VPBS50/HJPNB202608270308（fixture名はHJPNB202608270458だがEventIDは0308）、O08:15はO03:16と同じ。checksの「対応報置換の前後で既存の取消記憶を保持」はP3-C12-ALIASの「cancelledのVPOA50はaliasにしない」で満たす",
-          "起草の時点（5aa354d7、C10の配送の後にac70572cで共有fileのanchorを読み直した）のanchorは、改訂1でf219134aに対してcheck-contractをPASSした（2026-10-10）。発注前点検の時点でも一致するかをcheck-contractで確かめる",
-          "Q-C12-AUTHOR-RULINGS-2（追加の作者裁定3件）は2026-10-10夜に全部A（closed）。条文と受入（AC17・T15）へ反映済み",
-          "P3-C12-PLACE: 改訂1で受信1回の処理は変わらず（P3-C12-RES-03、退去の条件はO(1)の1つ）、記録1件の上界は5,550→5,534 byteで、保存量・処理量はPLACE=Aの起草の材料を変えない",
-          "P3-C12-RESIDUAL-RISKSの作者承認（2026-10-10夜、17件とも承認済み）"
-        ]
-      },
-      {
         "id": "Q-C12-BASE",
         "owner": "integrator",
         "blocks": [
@@ -1310,7 +1432,7 @@
         ],
         "resolveBy": "baseOidの割当（統合担当、C11の配送の後）",
         "requiredEvidence": [
-          "baseOidの割当（C11の配送1be76f18・K1〜K6とK4Nの配送の後、f219134aかその後。改訂1はf219134aでanchorを確かめた）",
+          "baseOidの割当（C11の配送1be76f18・K1〜K6とK4Nの配送の後、f219134aかその後。改訂1はf219134aでanchorを確かめ、発注前点検の45b05061でも全部一致、Q-C12-PRECHECK）",
           "割当の時点で本契約のanchor（unit-coverage.ts・composition-root.ts・view-projector.ts・p2-snapshot-sse.types.ts・notification-delivery.ts・p2-notification-delivery.types.ts・K1〜K6の契約の行を含む）がずれていないかを確かめ、ずれたanchorを直す",
           "RES-02の通知期限の数（f219134aのp2-notification-delivery.types.ts:46は9×128＝1,152、C12でU-Bを足して1,280）を確かめる",
           "unit-table/type-contract.tsの負の型検査（f219134aでU-B、:67・:71・:73）とunit-table.test.tsのnotPortedの代表（VPBS50→U-B、:48）をC12でU-Mへ替える前提を確かめる（artifactRequirements）"

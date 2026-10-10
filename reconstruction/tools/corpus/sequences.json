@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
+    "sha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
+    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -1658,6 +1658,150 @@
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/16_00_02_260603_VXKO70_kozagawa_overflow.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
           ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 89,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1787386140000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:89",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 90,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221709",
+          "receivedAt": 1787386140001,
+          "evaluatedAt": 1787386140001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:90",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 91,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221717",
+          "receivedAt": 1787386620000,
+          "evaluatedAt": 1787386620000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:91",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 92,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221727",
+          "receivedAt": 1787387220000,
+          "evaluatedAt": 1787387220000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:92",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221727.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 93,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221727",
+          "receivedAt": 1787387220001,
+          "evaluatedAt": 1787387220001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:93",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221727.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 94,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPBS50_KJPTK_correction",
+          "receivedAt": 1787387326000,
+          "evaluatedAt": 1787387326000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:94",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:297 «bf769cf910f712a7» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VPBS50_KJPTK_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 95,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPBS50_KJPTK_cancel",
+          "receivedAt": 1787387386000,
+          "evaluatedAt": 1787387386000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:95",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VPBS50_KJPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 96,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221709",
+          "receivedAt": 1787398020001,
+          "evaluatedAt": 1787398020001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:96",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:25 «c0bc99ba64b23b81» P3-C12-TTL lateRule（P3-C12-LATE-INVERSION=Aで改めた形）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A",
+            "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
         }
       ]
     },
@@ -2335,6 +2479,10 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
             "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094» 運用区分隔離",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:148 «7bdc4fcc59ee3fb6» P3-C12-EMPTY=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:74 «55e049a697f7c83b» P3-C12-KINDS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPBS50_empty.xml:1 «12c29731e40adc0c» Control/Head/Body"
           ]
         },
@@ -2737,6 +2885,10 @@
           "expectedRef": "expected:O03:16",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
             "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -2744,15 +2896,19 @@
           "sequenceId": "O03",
           "position": 17,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VPOA50_JPTK_cancel",
           "receivedAt": 1787386140002,
           "evaluatedAt": 1787386140002,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O03:17",
+          "expectedRef": "expected:O03:17",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03 対応報置換で取消記憶を失わない",
-            "L1: docs/specs/reconstruction-p0-contracts.md:549 «1332373a2affb4e1» U-Bのalias・取消記憶"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+            "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -2767,6 +2923,11 @@
           "expectedRef": "expected:O03:18",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -2782,6 +2943,9 @@
           "expectedRef": "expected:O03:19",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -2797,6 +2961,9 @@
           "expectedRef": "expected:O03:20",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221727.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -2812,6 +2979,8 @@
           "expectedRef": "expected:O03:21",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
             "L2: test/fixtures/synthetic_VPOA50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -2842,6 +3011,11 @@
           "expectedRef": "expected:O03:23",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:93 «5b37b5ac0820b06e» P3-C12-REPLACE=B（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/replay/VPBS50_YJPNB202608270448.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -2857,6 +3031,12 @@
           "expectedRef": "expected:O03:24",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:93 «5b37b5ac0820b06e» P3-C12-REPLACE=B（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:238 «08377eedb8d2d26a» P3-C12-REPLACE-PENDING=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/replay/VPBS50_HJPNB202608270458.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -4851,6 +5031,127 @@
             "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A",
             "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
           ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 64,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1787386140000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:64",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 65,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221709",
+          "receivedAt": 1787386140001,
+          "evaluatedAt": 1787386140001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:65",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 66,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPOA50_JPTC202608221709_202608221709",
+          "receivedAt": 1787386140002,
+          "evaluatedAt": 1787386140002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:66",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L2: test/fixtures/phase6b_VPOA50_JPTC202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 67,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1787386140003,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:67",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73» U-Bの保存するもの",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:383 «57cd56539ac16694» I-U-B persisted"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 68,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1787386140004,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:68",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:329 «346831de2d3f6434» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 69,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221717",
+          "receivedAt": 1787386620000,
+          "evaluatedAt": 1787386620000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:69",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:329 «346831de2d3f6434» Q-NOTICE restart",
+            "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 70,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPOA50_JPTK_cancel",
+          "receivedAt": 1787386620001,
+          "evaluatedAt": 1787386620001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:70",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+            "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
         }
       ]
     },
@@ -5077,6 +5378,11 @@
           "expectedRef": "expected:O08:15",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
             "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -5086,13 +5392,97 @@
           "action": "advanceClock",
           "fixtureId": null,
           "receivedAt": null,
-          "evaluatedAt": 1787386140002,
+          "evaluatedAt": 1787386080001,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O08:16",
+          "expectedRef": "expected:O08:16",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 17,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1787386200001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:17",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:286 «56244a4b2cca033c» Q-NOTICE release",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 18,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1787386140001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:18",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:319 «76a0a7eb5d1611af» Q-NOTICE silent"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 19,
+          "action": "receive",
+          "fixtureId": "test__fixtures__phase6b_VPOA50_JPTC202608221709_202608221709",
+          "receivedAt": 1787386140002,
+          "evaluatedAt": 1787386140002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O08:19",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+            "L2: test/fixtures/phase6b_VPOA50_JPTC202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 20,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1787389740000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:20",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:286 «56244a4b2cca033c» Q-NOTICE release"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 21,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1787393340000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:21",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:319 «76a0a7eb5d1611af» Q-NOTICE silent"
           ]
         }
       ]
@@ -13375,11 +13765,16 @@
       "expectedId": "expected:O02:44",
       "sequenceId": "O02",
       "position": 44,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/VPBS50/JPOD240001_202401240613",
+          "subject": "normal/VPBS50/JPOD240001",
           "revision": {
             "reportDateTimeRaw": "2024-01-24T06:13:13+09:00",
             "serialRaw": "6",
@@ -13387,17 +13782,22 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
         "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094» 運用区分隔離",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:148 «7bdc4fcc59ee3fb6» P3-C12-EMPTY=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:74 «55e049a697f7c83b» P3-C12-KINDS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPBS50_empty.xml:1 «12c29731e40adc0c» Control/Head/Body"
       ],
       "input": null,
       "checks": [
-        "Body空の個片。合法emptyか抽出不能かの採用意味はQ-VALUES、構造不正と即断しない。",
+        "彦根地方気象台の系列JPOD240001（EventID JPOD240001_202401240613、Serial 6）の記録の無い状態への発表。情報タグのItemのKindにConditionが無いので、itemはunknown（condition null、区域 北部 250020）で合法（P3-C12-EMPTY=A・P3-C12-KINDS=A）。構造不正にしない。Bodyの観測は長浜市余呉町柳ケ瀬の降雪深さ37（6時間の降雪深さ、cm）の1件。",
+        "activeで採る。retainUntil=ReportDateTime+2時間（予測だけでない、P3-C12-TTL=B）。通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning（unknownもwarning、P3-C12-NOTICE-LEVELS=A）、transition activated。",
         "Control.Status=通常; head.test/envelope Status=notProvided。replayとoperationを分離。"
       ]
     },
@@ -13986,11 +14386,14 @@
       "expectedId": "expected:O03:16",
       "sequenceId": "O03",
       "position": 16,
-      "decision": null,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -13998,27 +14401,31 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
         "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "JPTKの同発生時刻17:09。原文の対象区域/現象を照合して対応報へ置換。EventIDは文字列一致ではない。未確認相関を確定扱いしない。正確なalias規則はQ-ALIAS。",
-        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。",
-        "対応報置換の前後で既存の取消記憶（対象・operation・取消revision・出典・保持期限）を保持する。aliasの成立規則はQ-ALIASだが、成立した置換で取消記憶を消すことは許さない。取消済み対象を旧報で復活させない。"
+        "VPOA50の系列JPTK202608221709（EventID JPTK202608221709_202608221709、Serial 1）の記録の無い状態への発表。対応するVPBS50の系列KJPTK202608221709（「K」＋s、P3-C12-ALIAS=A）はまだactiveでないのでheld（holdUntil=受理の時刻+60,000=1787386200001、P3-C12-VPOA=A）。viewに載せず通知しない。heldへの採用はrevisionOnly（I-U-B.currentSemantics(6)）。retainUntil=ReportDateTime+2時間。",
+        "aliasは系列の文字（VPOA50の系列sとVPBS50の系列「K」＋s）だけで結び、区域・現象・時刻の窓で相関を作らない（P3-C12-ALIAS=A、旧築のcode fallbackは採らない）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O03:17",
+      "expectedId": "expected:O03:17",
       "sequenceId": "O03",
       "position": 17,
       "decision": {
         "kind": "changed",
-        "change": "semantic"
+        "change": "revisionOnly"
       },
       "effective": {
         "kind": "inactive",
@@ -14028,7 +14435,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "2",
@@ -14036,31 +14443,37 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03 対応報置換で取消記憶を失わない",
-        "L1: docs/specs/reconstruction-p0-contracts.md:549 «1332373a2affb4e1» U-Bのalias・取消記憶"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+        "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VPOA50、Control.Status通常、EventID=JPTK202608221709_202608221709（直前発表と完全一致）、ReportDateTime=2026-08-22T17:09:00+09:00、TargetDateTime同時刻、Serial=2、InfoType取消。気象庁、東京都130000、直前Serial1の発表を取り消す合法なHead/Body。Control.DateTimeも同時刻に固定。17:09発表受信後かつ最初のVPBS50対応報受信前に投入。",
-        "acquisition": "synthetic。既存synthetic_VPOA50_cancelはEventID=JPTEST202608221709で対象が異なるため使用不可。fixture追加は別作業。"
-      },
+      "input": null,
       "checks": [
-        "対応報置換の直前にnormal/VPOA50/JPTK202608221709_202608221709の取消記憶が1件以上存在することを必須前提として検査する。空なら後続の保持検査を成功扱いしない。",
-        "取消revision=(2026-08-22T17:09:00+09:00,2,取消)と入力出典を記憶し、対象・operation・保持期限を置換前の比較値として採取する。具体保持期限/alias規則はQ-ALIASだが、直後の置換まで回収しない。"
+        "対応報（KJPTK）の前に、同じEventIDのSerial 2の取消（17:09）。Serial 1より新しい版で、heldの記録をcancelledにして事実を捨てる（P3-C12-CANCEL-SCOPE=A）。heldは見えない記録なのでchangeはrevisionOnly。heldの取消は通知しない（Q-NOTICE cancellation）。",
+        "取消の記憶（subject normal/VPOA50/JPTK202608221709、operation normal、取消revision=(2026-08-22T17:09:00+09:00,2,取消)、出典=この入力、retainUntil=17:09+3時間）を採取し、後続の:18〜:21の後にも同じ値で残ることを照合する。空なら後続の保持検査を成功扱いしない。"
       ]
     },
     {
       "expectedId": "expected:O03:18",
       "sequenceId": "O03",
       "position": 18,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709_202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -14068,30 +14481,41 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "JPTKの同発生時刻17:09。原文の対象区域/現象を照合して対応報へ置換。EventIDは文字列一致ではない。未確認相関を確定扱いしない。正確なalias規則はQ-ALIAS。",
-        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。",
-        "対応報置換の前後で既存の取消記憶（対象・operation・取消revision・出典・保持期限）を保持する。aliasの成立規則はQ-ALIASだが、成立した置換で取消記憶を消すことは許さない。取消済み対象を旧報で復活させない。",
-        "先行する同EventIDの未充足取消で作ったnormal/VPOA50/JPTK202608221709_202608221709の非空取消記憶を、このstep後にも照合する。取消revision=(2026-08-22T17:09:00+09:00,2,取消)・出典・operation・保持期限が置換前と等しく、件数が0にならない。Q-ALIASの表現変更があっても同じ取消対象を追跡可能とし、未確認相関による復活は認めない。"
+        "記録雨の系列KJPTK202608221709（気象庁本庁、EventID KJPTK202608221709_202608221709）の記録の無い状態へのSerial 1の発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。subjectは系列（P3-C12-SUBJECTS=A）。retainUntil=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
+        "対応するVPOA50の系列JPTK202608221709はcancelledなのでaliasにしない（P3-C12-ALIAS=A）。accepted.subjectsはKJPTKだけ。",
+        "先行の:17で作ったnormal/VPOA50/JPTK202608221709の取消の記憶（取消revision=(2026-08-22T17:09:00+09:00,2,取消)・出典・operation・retainUntil=17:09+3時間）が、このstepの後も同じ値で残る。cancelledのVPOA50はaliasにしない（P3-C12-ALIAS=A）ので、対応報の採用で記憶は消えず、取消済みのVPOA50は戻らない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
       "expectedId": "expected:O03:19",
       "sequenceId": "O03",
       "position": 19,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709_202608221717",
+          "subject": "normal/VPBS50/KJPTK202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:17:00+09:00",
             "serialRaw": "2",
@@ -14099,30 +14523,38 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "JPTKの同発生時刻17:09。原文の対象区域/現象を照合して対応報へ置換。EventIDは文字列一致ではない。未確認相関を確定扱いしない。正確なalias規則はQ-ALIAS。",
-        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。",
-        "対応報置換の前後で既存の取消記憶（対象・operation・取消revision・出典・保持期限）を保持する。aliasの成立規則はQ-ALIASだが、成立した置換で取消記憶を消すことは許さない。取消済み対象を旧報で復活させない。",
-        "先行する同EventIDの未充足取消で作ったnormal/VPOA50/JPTK202608221709_202608221709の非空取消記憶を、このstep後にも照合する。取消revision=(2026-08-22T17:09:00+09:00,2,取消)・出典・operation・保持期限が置換前と等しく、件数が0にならない。Q-ALIASの表現変更があっても同じ取消対象を追跡可能とし、未確認相関による復活は認めない。"
+        "Serial 2（17:17、EventIDの「_」より前が同じ）は同じ記録を置き換える。観測は板橋区の120（以上、atLeast）だけになり、headlineも変わる（公開事実の変化、change semantic）。retainUntil=17:17+2時間。",
+        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "先行の:17で作ったnormal/VPOA50/JPTK202608221709の取消の記憶（取消revision=(2026-08-22T17:09:00+09:00,2,取消)・出典・operation・retainUntil=17:09+3時間）が、このstepの後も同じ値で残る。cancelledのVPOA50はaliasにしない（P3-C12-ALIAS=A）ので、対応報の採用で記憶は消えず、取消済みのVPOA50は戻らない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
       "expectedId": "expected:O03:20",
       "sequenceId": "O03",
       "position": 20,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709_202608221727",
+          "subject": "normal/VPBS50/KJPTK202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
             "serialRaw": "3",
@@ -14130,27 +14562,38 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221727.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "JPTKの同発生時刻17:09。原文の対象区域/現象を照合して対応報へ置換。EventIDは文字列一致ではない。未確認相関を確定扱いしない。正確なalias規則はQ-ALIAS。",
-        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。",
-        "対応報置換の前後で既存の取消記憶（対象・operation・取消revision・出典・保持期限）を保持する。aliasの成立規則はQ-ALIASだが、成立した置換で取消記憶を消すことは許さない。取消済み対象を旧報で復活させない。",
-        "先行する同EventIDの未充足取消で作ったnormal/VPOA50/JPTK202608221709_202608221709の非空取消記憶を、このstep後にも照合する。取消revision=(2026-08-22T17:09:00+09:00,2,取消)・出典・operation・保持期限が置換前と等しく、件数が0にならない。Q-ALIASの表現変更があっても同じ取消対象を追跡可能とし、未確認相関による復活は認めない。"
+        "Serial 3（17:27）は同じ記録を置き換える。観測は豊島区の100（約）だけになる（公開事実の変化）。retainUntil=17:27+2時間。",
+        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "先行の:17で作ったnormal/VPOA50/JPTK202608221709の取消の記憶（取消revision=(2026-08-22T17:09:00+09:00,2,取消)・出典・operation・retainUntil=17:09+3時間）が、このstepの後も同じ値で残る。cancelledのVPOA50はaliasにしない（P3-C12-ALIAS=A）ので、対応報の採用で記憶は消えず、取消済みのVPOA50は戻らない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
       "expectedId": "expected:O03:21",
       "sequenceId": "O03",
       "position": 21,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
       "subjects": [
         {
           "subject": "normal/VPOA50/JPTEST202608221709",
@@ -14161,19 +14604,21 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
         "L2: test/fixtures/synthetic_VPOA50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "旧VPOA50取消から対応VPBS50への波及を勝手に確定しない。alias取消記憶の規則はQ-ALIAS。",
-        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。",
-        "対応報置換の前後で既存の取消記憶（対象・operation・取消revision・出典・保持期限）を保持する。aliasの成立規則はQ-ALIASだが、成立した置換で取消記憶を消すことは許さない。取消済み対象を旧報で復活させない。",
-        "先行する同EventIDの未充足取消で作ったnormal/VPOA50/JPTK202608221709_202608221709の非空取消記憶を、このstep後にも照合する。取消revision=(2026-08-22T17:09:00+09:00,2,取消)・出典・operation・保持期限が置換前と等しく、件数が0にならない。Q-ALIASの表現変更があっても同じ取消対象を追跡可能とし、未確認相関による復活は認めない。"
+        "EventID JPTEST202608221709（「_」が無いので系列は全体）の記録の無いsubjectへの取消。取消の記憶だけを作り（P3-C12-CANCEL-SCOPE=A、changeはrevisionOnly）、通知しない（記憶だけの取消）。retainUntil=17:09+3時間。",
+        "VPOA50の取消は対応するVPBS50へ波及しない（P3-C12-CANCEL-SCOPE=A）。KJPTKのactiveの記録とJPTKの取消の記憶は変わらない。",
+        "先行の:17で作ったnormal/VPOA50/JPTK202608221709の取消の記憶（取消revision=(2026-08-22T17:09:00+09:00,2,取消)・出典・operation・retainUntil=17:09+3時間）が、このstepの後も同じ値で残る。cancelledのVPOA50はaliasにしない（P3-C12-ALIAS=A）ので、対応報の採用で記憶は消えず、取消済みのVPOA50は戻らない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -14211,7 +14656,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/YJPNB202608270448_202608270448",
+          "subject": "normal/VPBS50/YJPNB202608270448",
           "revision": {
             "reportDateTimeRaw": "2026-08-27T04:48:00+09:00",
             "serialRaw": "1",
@@ -14219,16 +14664,22 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:93 «5b37b5ac0820b06e» P3-C12-REPLACE=B（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/replay/VPBS50_YJPNB202608270448.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "予測報。入力時刻だけで通常/試験区分を変えない。",
+        "金沢地方気象台の線状降水帯直前予測の系列YJPNB202608270448の記録の無い状態への発表。itemsは予測（linearRainPredicted）1つで区域は能登（170020）。同じ区域の発生の記録は無いので区域を除かない（P3-C12-REPLACE=B）。itemsが全部予測なのでretainUntil=ReportDateTime+3時間（P3-C12-TTL=B）。入力時刻だけで通常/試験区分を変えない。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -14236,11 +14687,16 @@
       "expectedId": "expected:O03:24",
       "sequenceId": "O03",
       "position": 24,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/VPBS50/HJPNB202608270308_202608270308",
+          "subject": "normal/VPBS50/HJPNB202608270308",
           "revision": {
             "reportDateTimeRaw": "2026-08-27T04:58:00+09:00",
             "serialRaw": "1",
@@ -14248,16 +14704,24 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:93 «5b37b5ac0820b06e» P3-C12-REPLACE=B（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:238 «08377eedb8d2d26a» P3-C12-REPLACE-PENDING=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/replay/VPBS50_HJPNB202608270458.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "発生報。改変済み時刻を原本と扱わず、予測対応/置換はQ-ALIAS。",
+        "線状降水帯発生の系列HJPNB202608270308（fixture名はHJPNB202608270458だがEventIDはHJPNB202608270308_202608270308、replayで時刻を04:58へずらした派生）の記録の無い状態への発表。itemsは発生（linearRainObserved）1つで区域は加賀（170010）・能登（170020）。retainUntil=ReportDateTime+2時間。改変済み時刻を原本と扱わない。",
+        "発生の採用で、同じ運用区分のactiveの予測から同じcodeの区域を時刻の前後によらず除く（P3-C12-REPLACE=B）。YJPNB202608270448の予測の能登が除かれてitemの区域が0になりitemを除き、itemsが0になった記録はreplaced（事実を捨て、viewに載せず、通知しない。retainUntilは記憶の長さで04:48+3時間）。replacedになった予測の残っているpendingは全部supersededにする（P3-C12-REPLACE-PENDING=A）。accepted.subjectsはHJPNBとYJPNBの2つ。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -17211,11 +17675,14 @@
       "expectedId": "expected:O08:15",
       "sequenceId": "O08",
       "position": 15,
-      "decision": null,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -17223,40 +17690,22 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
         "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "単独legacyから相関待ち。根拠のない対応相手を生成しない。",
-        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。",
-        "具体採否はQ-VALUES/Q-REVの未決。nullを一致/Passと扱わない。"
-      ]
-    },
-    {
-      "expectedId": "unmet:O08:16",
-      "sequenceId": "O08",
-      "position": 16,
-      "decision": null,
-      "effective": null,
-      "subjects": [],
-      "notices": null,
-      "intents": null,
-      "basisLevel": 1,
-      "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»"
-      ],
-      "input": {
-        "required": "VPOA50/VPBS50 JPTK同発生17:09の相関holdback。時計逆行→期限横断→大幅補正を具体絶対時刻で凍結。holdback期限はQ-TTL/Q-ALIAS。",
-        "acquisition": "synthetic"
-      },
-      "checks": [
-        "入力停止でも有限終了。未確認相関を確定にしない、終了済み通知を復活させない。"
+        "単独のVPOA50（系列JPTK202608221709）。対応するVPBS50の系列KJPTK202608221709が無いのでheld（holdUntil=受理の時刻+60,000=1787386200001。業務の期限でない相関の窓で、受理の時計から数える、P3-C12-VPOA.holdRules (1)）。根拠のない対応相手を生成しない。viewに載せず通知しない（revisionOnly）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -23225,6 +23674,681 @@
         "取消の記憶が36時間で消えた後に、元の発表（ReportDateTime 2019-05-27T09:00+09:00）が受理の時点で+39時間1分に遅着。受理の時点でReportDateTime+36時間を過ぎた報は記録の有無によらずstateを変えない（unchanged/stale、P3-C11-ACTIVE-EXPIRY.lateRule）。記録を作らず、view・通知・退去なし、保存世代を進めない。この規則が無ければ記録の無いsubjectへの発表としてactiveに戻る（O08「失効・取消を復活させない」と同じ確かめ）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
+    },
+    {
+      "expectedId": "expected:O01:89",
+      "sequenceId": "O01",
+      "position": 89,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 速報（U-B）の記録雨の系列KJPTK202608221709（phase6bの3本と、Serial 3から作った合成の訂正・取消）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:90",
+      "sequenceId": "O01",
+      "position": 90,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "記録雨の系列KJPTK202608221709（気象庁本庁、EventID KJPTK202608221709_202608221709）の記録の無い状態へのSerial 1の発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。subjectは系列（P3-C12-SUBJECTS=A）。retainUntil=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:91",
+      "sequenceId": "O01",
+      "position": 91,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:17:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "Serial 2（17:17、EventIDの「_」より前が同じ）は同じ記録を置き換える。観測は板橋区の120（以上、atLeast）だけになり、headlineも変わる（公開事実の変化、change semantic）。retainUntil=17:17+2時間。",
+        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:92",
+      "sequenceId": "O01",
+      "position": 92,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221727.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "Serial 3（17:27）は同じ記録を置き換える。観測は豊島区の100（約）だけになる（公開事実の変化）。retainUntil=17:27+2時間。",
+        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:93",
+      "sequenceId": "O01",
+      "position": 93,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "duplicate"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221727.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じSerial 3の発表をもう一度受ける。同じrevision・同じInfoType・同じ公開事実なのでduplicate（Q-ENUM.revisionOrder）。記録・pending・保存世代を変えず、通知しない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:94",
+      "sequenceId": "O01",
+      "position": 94,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:297 «bf769cf910f712a7» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VPBS50_KJPTK_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "Serial 3と同じrevision（17:27、Serial 3）の訂正。InfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。公開事実はSerial 3と同じで、見える記録の事実が変わらないのでchangeはrevisionOnly（I-U-B.currentSemantics(6)）。sourceは訂正の報に進む。",
+        "通知: correction（activeの記録への訂正は事実が同じでも作る、spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）、desktop＋sound、level=warning、transition updated、titleは「[訂正] 東京都気象防災速報（記録的短時間大雨）」、bodyは「訂正: 」で始まる。同じsubject・channelの古いpendingはsupersededにする。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:95",
+      "sequenceId": "O01",
+      "position": 95,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VPBS50_KJPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じrevision（17:27、Serial 3）の取消。取消>訂正で採用し、activeの記録をcancelledにして事実を捨てる（P3-C12-CANCEL-SCOPE=A、見える記録が消えるのでsemantic）。取消の記憶のretainUntil=17:27+3時間（2026-08-22T20:27:00+09:00、P3-C12-TTL=B）。BodyとHeadlineは読まない（Q-ENUM.familyTable）。",
+        "通知: cancellation（取消の前にactive）、desktop＋sound、level=cancel、transition cancelled、titleは「[取消] 東京都気象防災速報（記録的短時間大雨）」、bodyは「この情報は取り消されました」。採用した取消はこのsubjectの全pendingをsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:96",
+      "sequenceId": "O01",
+      "position": 96,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:25 «c0bc99ba64b23b81» P3-C12-TTL lateRule（P3-C12-LATE-INVERSION=Aで改めた形）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A",
+        "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消の記憶の期限（20:27:00.000）の1ms後に、Serial 1の発表（ReportDateTime 17:09）が遅着。ownerは受信の前に到来した期限を回収するので（reclaimDeadlineBeforeReceive）、受理の時点で記録は無い。この報が作る記録のretainUntil（17:09+2時間）を過ぎているので、記録が無ければstateを変えない（unchanged/stale、P3-C12-TTL.lateRule）。記録を作らず、view・通知・退去なし、保存世代を進めない。この規則が無ければ取消した系列が古い報で戻る（spec:1777のO01「取消後の古い報は復活しない」）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:64",
+      "sequenceId": "O07",
+      "position": 64,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 速報（U-B）の保存→再起動→直後の続報・取消（KJPTKの記録雨とVPOA50のJPTCのheld、phase6bの実配信由来とJPTKの合成の取消）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:65",
+      "sequenceId": "O07",
+      "position": 65,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "記録雨の系列KJPTK202608221709（気象庁本庁、EventID KJPTK202608221709_202608221709）の記録の無い状態へのSerial 1の発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。subjectは系列（P3-C12-SUBJECTS=A）。retainUntil=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:66",
+      "sequenceId": "O07",
+      "position": 66,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": null,
+      "subjects": [
+        {
+          "subject": "normal/VPOA50/JPTC202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L2: test/fixtures/phase6b_VPOA50_JPTC202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "熊谷地方気象台のVPOA50の系列JPTC202608221709の記録の無い状態への発表。対応するVPBS50の系列KJPTC202608221709は無いのでheld（holdUntil=1787386200002）。viewに載せず通知しない（revisionOnly）。KJPTKはJPTKの対応報でJPTCとは結ばない（P3-C12-ALIAS=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:67",
+      "sequenceId": "O07",
+      "position": 67,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73» U-Bの保存するもの",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:383 «57cd56539ac16694» I-U-B persisted"
+      ],
+      "input": {
+        "required": "U-Bの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "KJPTKのactiveの記録（retainUntil=17:09+2時間）、JPTCのheldの記録（holdUntil=1787386200002をそのまま）、:65のintent（pending）が同じ世代に入る（I-U-B.persisted、decodeはheldを受ける）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:68",
+      "sequenceId": "O07",
+      "position": 68,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:329 «346831de2d3f6434» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Bだけから復元、時計+1ms。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "restore入力でheldのJPTCを無音でreleasedにする（P3-C12-VPOA.holdRules (5)、相関待ちを再開しない）。releaseの通知は作らない。releasedのJPTCはviewに載る。変化があったので保存世代を進める（P3-C12-AC16）。",
+        "復元でintentを新しく作らない。:65のpendingは元のcreatedAt/expiresAtで戻る（spec:997）。retainUntilを延ばさない（P3-C12-RETENTION=A）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:69",
+      "sequenceId": "O07",
+      "position": 69,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPBS50/KJPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:17:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:372 «82308b4f1bc62009» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:329 «346831de2d3f6434» Q-NOTICE restart",
+        "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "Serial 2（17:17、EventIDの「_」より前が同じ）は同じ記録を置き換える。観測は板橋区の120（以上、atLeast）だけになり、headlineも変わる（公開事実の変化、change semantic）。retainUntil=17:17+2時間。 差は復元した記録（Serial 1）との差で決める（Q-NOTICE.restart）。",
+        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "releasedのJPTCは変わらない（対応報ではない）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:70",
+      "sequenceId": "O07",
+      "position": 70,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPOA50/JPTK202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+        "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "VPOA50の系列JPTK202608221709の記録の無いsubjectへの取消（Serial 2、17:09）。取消の記憶だけを作り（changeはrevisionOnly）、通知しない。retainUntil=17:09+3時間。",
+        "復元したKJPTK（JPTKの対応報）のactiveの記録は変わらない（VPOA50の取消はVPBS50へ波及しない、P3-C12-CANCEL-SCOPE=A）。releasedのJPTCも変わらない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:16",
+      "sequenceId": "O08",
+      "position": 16,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules"
+      ],
+      "input": {
+        "required": "入力停止のまま、時計を受理の60秒前（2026-08-22T17:08:00.001+09:00）へ逆行させて期限処理を走らせる。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "到来した期限は無い。同じstate参照と空の結果を返す（I-U-B.deadlines）。JPTKのheldはholdUntil=1787386200001のまま（逆行・補正で窓を延ばさない・縮めない、P3-C12-VPOA.holdRules (4)）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:17",
+      "sequenceId": "O08",
+      "position": 17,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:286 «56244a4b2cca033c» Q-NOTICE release",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）"
+      ],
+      "input": {
+        "required": "時計をholdUntil（2026-08-22T17:10:00.001+09:00）へ進めて期限処理を走らせる（期限横断）。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "holdUntilの到来でheldのJPTKをreleasedにし（P3-C12-VPOA=A、wall＝期限で到来）、viewに「対応電文未確認」として載せる。期限処理の時刻がholdUntil+60,000より前なので通知を作る: release、desktop＋sound、level=warning、transition activated、titleは「東京都記録的短時間大雨情報（対応電文未確認）」。保存世代を進める。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:18",
+      "sequenceId": "O08",
+      "position": 18,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:319 «76a0a7eb5d1611af» Q-NOTICE silent"
+      ],
+      "input": {
+        "required": "入力停止のまま、時計をholdUntilより前（2026-08-22T17:09:00.001+09:00、受理の時刻）へ逆行させて期限処理を走らせる。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "releasedのJPTKはheldへ戻らず、相関の窓を開き直さず、releaseの通知を作り直さない（終了済みの通知を復活させない）。到来した期限は無く、同じstate参照と空の結果を返す。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:19",
+      "sequenceId": "O08",
+      "position": 19,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": null,
+      "subjects": [
+        {
+          "subject": "normal/VPOA50/JPTC202608221709",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+        "L2: test/fixtures/phase6b_VPOA50_JPTC202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "逆行した時計で、VPOA50の系列JPTC202608221709の記録の無い状態への発表を受ける。対応するKJPTC202608221709は無いのでheld（holdUntil=受理の時刻+60,000=1787386200002）。viewに載せず通知しない。releasedのJPTKは変わらない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:20",
+      "sequenceId": "O08",
+      "position": 20,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:286 «56244a4b2cca033c» Q-NOTICE release"
+      ],
+      "input": {
+        "required": "入力停止のまま、時計を約1時間進める大幅補正（2026-08-22T18:09:00.000+09:00）で期限処理を走らせる。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "JPTCのholdUntilは到来済みで、期限処理の時刻がholdUntil+60,000以後なので、releasedにするが通知を作らない（P3-C12-VPOA.holdRules (2)、大きく遅れて閉じた窓で後から鳴らさない）。JPTKのreleasedは変わらず、通知を作り直さない。両方ともretainUntil（17:09+2時間）の内側で残る。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:21",
+      "sequenceId": "O08",
+      "position": 21,
+      "decision": null,
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:319 «76a0a7eb5d1611af» Q-NOTICE silent"
+      ],
+      "input": {
+        "required": "入力停止のまま、時計を2件のretainUntil（2026-08-22T19:09:00.000+09:00、ReportDateTime 17:09+2時間）へ進めて期限処理を走らせる。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "JPTK・JPTCのreleasedの記録を期限で回収し（wall＝期限で到来）、通知しない（期限での回収は無音、取消と区別する）。記録は0件になり、retainUntil・holdUntilの期限は残らない。入力停止でも有限に終わり、未確認の相関を確定にしない（aliasedにしない）。"
+      ]
     }
   ],
   "unresolvedQuestions": [
@@ -23262,9 +24386,9 @@
       "blocks": [
         "VPTA50連続ゼロ/gate-onlyの具体遷移",
         "洪水all-unknownの保持scope",
-        "VPBS50 Body空・VPFT50 Body欠落の合法性/意味判定"
+        "VPFT50 Body欠落の合法性/意味判定"
       ],
-      "resolveBy": "VPTA50（U-Y）、洪水（U-R）、VPBS50（U-B）、VPFT50（U-M）はそれぞれ対象のP3実装契約開始前に値/構造期待を固定"
+      "resolveBy": "VPTA50（U-Y）、洪水（U-R）、VPFT50（U-M）はそれぞれ対象のP3実装契約開始前に値/構造期待を固定"
     },
     {
       "id": "Q-OP",
@@ -23273,15 +24397,6 @@
         "operationAmbiguousを検証する合法入力形式の必須field表"
       ],
       "resolveBy": "P1 B03/B04運用区分境界契約前"
-    },
-    {
-      "id": "Q-ALIAS",
-      "owner": "integrator",
-      "blocks": [
-        "VPOA50/VPBS50対応規則とalias取消",
-        "予測から発生の置換と保留解除"
-      ],
-      "resolveBy": "U-B実装契約前"
     },
     {
       "id": "Q-MIGRATION",

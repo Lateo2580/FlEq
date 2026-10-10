@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "b117d77a234640203a68f72e9d090249ce6d14bb",
-    "sha256": "209859cf6c2031e703c3d941b130c78053d6e42e740f5e3df75b2a3eecec57e9",
+    "sha256": "15dbcad39d22f7e1c32d8d854fdbb7115a8c204b29f732dad139dd23e6165d6a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
-    "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
+    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
+    "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -350,7 +350,7 @@
           "reconstruction/contracts/p2-weather-current-unit.json:39 «7f2ae36e32f02124»",
           "reconstruction/contracts/p2-weather-current-unit.json:443 «a91d1d385759e031»",
           "reconstruction/contracts/p3-briefing-unit.json:139 «ae03fec729655ed0»",
-          "reconstruction/contracts/p3-briefing-unit.json:493 «05f747539ae9baa7»",
+          "reconstruction/contracts/p3-briefing-unit.json:500 «05f747539ae9baa7»",
           "reconstruction/contracts/p3-order-plan.md:389 «7939e6ac68fba854»"
         ]
       },

@@ -30,8 +30,8 @@ const files = readdirSync(new URL('test/fixtures/', root), { recursive: true, wi
   .sort();
 
 try {
-  assert.equal(files.length, 295, 'fixture count');
-  assert.equal(files.filter((path) => path.endsWith('.xml')).length, 274, 'XML count');
+  assert.equal(files.length, 298, 'fixture count');
+  assert.equal(files.filter((path) => path.endsWith('.xml')).length, 277, 'XML count');
   assert.equal(files.filter((path) => path.endsWith('.json')).length, 21, 'JSON count');
   assert.ok(process.argv.length === 2 || (process.argv.length === 3 && process.argv[2] === '--emit-skeleton'), 'usage: node check-manifest.mjs [--emit-skeleton]');
   if (process.argv[2] === '--emit-skeleton') {
@@ -59,7 +59,7 @@ try {
     const prefix = /^(\{\s*"meta"\s*:\s*\{\s*"baseOid"\s*:\s*"[^"]+"\s*,\s*"sha256"\s*:\s*")([a-f0-9]{64})(")/;
     assert.ok(prefix.test(raw), 'meta must lead with baseOid and sha256');
     assert.equal(sha256(raw.replace(prefix, (_, before, hash, after) => before + zeroHash + after)), meta.sha256, 'manifest self digest');
-    assert.equal(fixtures.length, 295, 'manifest count');
+    assert.equal(fixtures.length, 298, 'manifest count');
     assert.deepEqual(fixtures.map((row) => row.path).sort(), files, 'fixture path set (including duplicates)');
     const counts = {};
     for (const row of fixtures) {
@@ -94,7 +94,7 @@ try {
 
     // Modification invariants: validate all rows before resolving their parent chains.
     const byId = new Map(fixtures.map((row) => [row.fixtureId, row]));
-    assert.equal(byId.size, 295, 'unique fixtureId');
+    assert.equal(byId.size, 298, 'unique fixtureId');
     for (const row of fixtures) {
       if (['confirmedOriginal', 'confirmedDerived'].includes(row.sourceStrength)) {
         assert.ok(row.acquisition.evidenceRefs.some((ref) => ref.trim()), `${row.path}: confirmed source evidence required`);
@@ -146,7 +146,7 @@ try {
       }
       if (row.sourceStrength === 'synthetic') assert.equal(row.modification.kind, 'synthetic', `${row.path}: synthetic modification`);
     }
-    console.log(`PASS: ${fixtures.length} fixtures (274 XML + 21 JSON); ${JSON.stringify(counts)}; manifest=${meta.sha256}; file=${sha256(bytes)}; base=${meta.baseOid}`);
+    console.log(`PASS: ${fixtures.length} fixtures (277 XML + 21 JSON); ${JSON.stringify(counts)}; manifest=${meta.sha256}; file=${sha256(bytes)}; base=${meta.baseOid}`);
   }
 } catch (error) {
   console.error(`FAIL: ${error.message}`);
