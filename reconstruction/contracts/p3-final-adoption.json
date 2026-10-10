@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "88f2004e3c9327b4c63ba9300f82f33dfc148b24579791d5bce46b255065d806",
+    "sha256": "7a2080d0bf6a5c7f503796fe2280ebb53e88785aaa6e3ef59b00bec39913095c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -244,11 +244,11 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:460 «a07bf5c5c6288191»",
           "reconstruction/src/units/seismic/seismic-unit.ts:629 «eb7317c355e0bd16»",
           "reconstruction/src/units/seismic/seismic-unit.ts:392 «daa1fb7273be1a7e»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:383 «df213ae392390cd9»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:385 «78f971ce5e2b3841»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:386 «3f4368ff70e89f5c»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:395 «27f3068a678f6da5»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:397 «f900d98d03913508»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:371 «df213ae392390cd9»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:374 «78f971ce5e2b3841»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:375 «1eec17a012aa58aa»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:402 «27f3068a678f6da5»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:404 «f900d98d03913508»",
           "reconstruction/src/units/volcano/volcano-unit.ts:175 «cb8afba84213b5fd»",
           "reconstruction/src/units/volcano/volcano-unit.ts:156 «55fb8417b4dafa06»",
           "reconstruction/src/units/volcano/volcano-unit.ts:527 «e5f09dfc13030f92»",
@@ -271,9 +271,9 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:634 «ba94236780a0c93a»",
           "reconstruction/src/units/seismic/seismic-unit.ts:644 «a215031c287565b6»",
           "reconstruction/src/units/seismic/seismic-unit.ts:646 «a0e35eb00c585a48»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:337 «f6b2a70cafbf10da»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:433 «597e438042e5ca47»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:434 «7a828c7612ad7005»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:340 «f6b2a70cafbf10da»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:440 «597e438042e5ca47»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:441 «7a828c7612ad7005»",
           "reconstruction/src/units/volcano/volcano-unit.ts:494 «d4e9cbf94562cdfa»",
           "reconstruction/src/units/volcano/volcano-unit.ts:501 «e15dbf781382eb37»",
           "reconstruction/src/units/volcano/volcano-unit.ts:542 «5018fadb9c916b68»",
@@ -294,10 +294,10 @@
         "requirement": "F05・F16の閉鎖（監査の入力をそのまま回帰試験にする）。時計t=2026-01-01T10:00:00+09:00で、(a) U-Q: 32-35_08_03_100915_VXSE51のEventIDを1〜512・ReportDateTimeをtにした報で512件の満杯にし、EventID 513・ReportDateTimeをt−25時間にした報をtで受ける。(b) U-Q: selected_xmlの78_01_01_240613_VXSE62で256件にし、257件目をt−37時間で受ける。(c) U-N: selected_xmlの75_01_01_200512_VYSE51で64件にし、65件目をt−8日で受ける。(d) U-V: 43_01_01_200522_VFVO52で128件にし、129件目をt−3日（記録の期限も過ぎる）とt−36時間（activeの期限だけ過ぎる）で受ける。どれも、受けた後の配列は受ける前と同じ（件数512・256・64・128、受けた記録は無い）、decisionはchanged/revisionOnly・currentEstablished null、outcomesは[{accepted, revisionOnly, subjects: []}]、intents・displayChanges・diagnosticsは空。保存の世代は(a)だけ+1（当日履歴の件数）で(b)(c)(d)は変わらない。(e) U-Vの空のsliceにt−36時間の報を受けると、記録はexpiredで残り、acceptedのsubjectはtransition expired、currentEstablishedは今回の報（VFVO52）、changeはrevisionOnly。修正前の観測（件数−1・accepted active・currentEstablishedあり）の反転を正式試験で示し、未追跡の監査scriptに依存しない。",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:619 «4c9634c2f0afba12»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:386 «3f4368ff70e89f5c»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:375 «1eec17a012aa58aa»",
           "reconstruction/src/units/volcano/volcano-unit.ts:175 «cb8afba84213b5fd»",
           "reconstruction/src/units/seismic/seismic-unit.ts:644 «a215031c287565b6»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:337 «f6b2a70cafbf10da»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:340 «f6b2a70cafbf10da»",
           "reconstruction/src/units/volcano/volcano-unit.ts:501 «e15dbf781382eb37»"
         ]
       },
@@ -313,8 +313,8 @@
           "reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573»",
           "reconstruction/contracts/p3-volcano-unit.json:248 «782a63e4c50a5c02»",
           "reconstruction/src/units/seismic/seismic-unit.ts:613 «c050c5f77e6e1ce5»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:376 «9bfdcabc21e21ff9»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:368 «d12543f2384360bd»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:393 «9bfdcabc21e21ff9»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:384 «63d3284dc34c9486»",
           "reconstruction/src/units/seismic/seismic-unit.ts:572 «7ba11fade1b774fd»",
           "reconstruction/contracts/p3-order-plan.md:368 «125e18c065822856»"
         ]
@@ -378,7 +378,7 @@
           "reconstruction/contracts/p3-order-plan.md:381 «63af1164399c448a»",
           "reconstruction/contracts/p3-order-plan.md:384 «f2de81dab2bb4f24»",
           "reconstruction/contracts/p3-order-plan.md:354 «7317aa1fbb21708f»",
-          "reconstruction/contracts/p3-order-plan.md:355 «bc31974d98841e15»"
+          "reconstruction/contracts/p3-order-plan.md:355 «790390a653f0f301»"
         ]
       }
     ],

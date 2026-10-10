@@ -199,13 +199,16 @@ function informationFacts(value: FactInformation | null): Readonly<Record<string
   return value.effective === "active" ? headingOf(value) : { family: value.family, eventId: value.eventId, effective: value.effective };
 }
 
-// P3-C8-CAPACITY=A: 65 件目は (1) retainUntil を過ぎたもの (2) training/test (3) normal の最古（ReportDateTime 順）から 1 件退去する。
+// P3-C8-CAPACITY=A と P3-OPCAP-N-AC01: 65 件目は (1) retainUntil を過ぎたもの (2) training/test (3) normal の最古（ReportDateTime 順）から
+// 1 件退去する。受ける報が training/test なら normal の記録（証拠だけの記録を含む）は (1)〜(3) とも候補にせず、候補が無ければ null
+// （受けた記録自身を残さない）。
 // ponytail: 64 件の一回の走査（上限は INFORMATION_LIMIT と復元の空で効く）。
-function evictOne(information: readonly NankaiInformation[], now: number): NankaiInformation {
+function evictOne(information: readonly NankaiInformation[], now: number, incoming: Operation): NankaiInformation | null {
   const tier = (item: NankaiInformation) => item.retainUntil <= now ? 0 : item.operation !== "normal" ? 1 : 2;
-  let worst = information[0];
+  let worst: NankaiInformation | null = null;
   for (const item of information) {
-    const order = tier(item) - tier(worst) || msOf(item) - msOf(worst)
+    if (item.operation === "normal" && incoming !== "normal") continue;
+    const order = worst == null ? -1 : tier(item) - tier(worst) || msOf(item) - msOf(worst)
       || (item.subject < worst.subject ? -1 : item.subject > worst.subject ? 1 : 0);
     if (order < 0) worst = item;
   }
@@ -361,12 +364,26 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
 
   // Q-NOTICE.generationTable: 事実の変わった採用・訂正・取消の前に active だった対象の取消。期限で回収される報では作らない。
   const due = candidate.reportDateTimeMs + INFORMATION_RETAIN_MS <= now;
+  // 到着の時点で期限を過ぎた記録の無い情報 subject は配列へ入れない。同じ reduce で回収される記録のために他の記録を退去しない
+  // （P3-FINAL-AC01）。training/test の報で退去できる記録が無ければ、受けた情報 subject を残さない（自身の退去、P3-OPCAP-N-AC02）。
+  // 通知の判定が自身の退去を見るので、置き場はその前に決める。
+  const freshDue = due && infoIndex == null;
+  let information = nextInfo == null || freshDue ? state.information : replaceAt(state.information, infoIndex, nextInfo);
+  let evicted: NankaiInformation | null = null;
+  let self = false;
+  if (information.length > INFORMATION_LIMIT) {
+    evicted = evictOne(state.information, now, candidate.operation);
+    const gone = evicted;
+    if (gone == null) { self = true; information = state.information; } else information = information.filter((item) => item !== gone);
+  }
   // 復元の後は情報 subject が無いか証拠だけで、現況の source と同じ報の続報は復元した現況との差で決める
   // （Q-NOTICE.restart、Q-C8-IMPL-AMEND(4)、P3-AUTH-AC01(4)）。
   const restoredSource = nextCurrent != null && (info == null || info.effective === "evidence") && visible(current)
     && current?.source.family === candidate.family && current.eventId === candidate.eventId;
-  const notify = !due && (candidate.cancelled ? nextCurrent != null && visible(current) || nextInfo != null && visible(info)
-    : candidate.infoRank === 2 || (restoredSource ? currentFields.length !== 0 : nextInfo != null && infoFields.length !== 0));
+  // 自身を退去した情報 subject には通知を作らない。現況を採用したなら現況の通知は今どおり（P3-OPCAP-N-AC02）。
+  const notify = !due && !(self && nextCurrent == null)
+    && (candidate.cancelled ? nextCurrent != null && visible(current) || nextInfo != null && visible(info)
+      : candidate.infoRank === 2 || (restoredSource ? currentFields.length !== 0 : nextInfo != null && infoFields.length !== 0));
   const subject = nextCurrent != null ? candidate.currentSubject : candidate.subject;
   const before = nextCurrent != null ? current : info;
   // 訂正は ended になっても updated（Q-NOTICE.transition の訂正の規則が先）。
@@ -377,16 +394,6 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
     ...nextInfo == null ? [] : [candidate.subject]] : []);
   const notices = admit(state.intents, fresh, cancelledSubjects);
 
-  // 到着の時点で期限を過ぎた記録の無い情報 subject は配列へ入れない。同じ reduce で回収される記録のために他の記録を退去しない
-  // （P3-FINAL-AC01）。
-  const freshDue = due && infoIndex == null;
-  let information = nextInfo == null || freshDue ? state.information : replaceAt(state.information, infoIndex, nextInfo);
-  let evicted: NankaiInformation | null = null;
-  if (information.length > INFORMATION_LIMIT) {
-    evicted = evictOne(state.information, now);
-    const gone = evicted;
-    information = information.filter((item) => item !== gone);
-  }
   // 記録の無い現況も、到着の時点で保持の期限を過ぎていれば入れない（情報 subject と同じ、P3-FINAL-AC01(1)(5)）。
   const currentDue = nextCurrent != null && currentIndex == null && nextCurrent.retainUntil <= now;
   const currents = nextCurrent == null || currentDue ? state.currents : replaceAt(state.currents, currentIndex, nextCurrent);
@@ -400,7 +407,7 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   const next = collected?.state ?? adopted;
   const changes: Change[] = [];
   if (nextCurrent != null && !currentDue) changes.push([current, nextCurrent]);
-  if (nextInfo != null && !freshDue) changes.push([info, nextInfo]);
+  if (nextInfo != null && !freshDue && !self) changes.push([info, nextInfo]);
   if (evicted != null) changes.push([evicted, null]);
   // 結果は回収の後の記録で決める（D-OUTCOME=A・D-VANISHED=A、P3-FINAL-AC02）。最終の記録が無いか証拠だけなら accepted に載せず
   // currentEstablished も null。索引は回収のある reduce だけで引く（P3-FINAL-RES-01）。
@@ -413,9 +420,9 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
     return { last, diff, semantic: diff.length !== 0 || candidate.cancelled && visible(before) };
   };
   const finalCurrent = settled(current, nextCurrent, !currentDue, next.currents, CURRENT_FIELDS);
-  const finalInfo = settled(info, nextInfo, !freshDue, next.information, INFORMATION_FIELDS);
+  const finalInfo = settled(info, nextInfo, !freshDue && !self, next.information, INFORMATION_FIELDS);
   const diagnostics: DiagnosticDetails[] = [];
-  if (evicted != null) diagnostics.push({ level: "INFO", component: "nankai", reason: "nankaiCapacityEvicted", unit: "U-N", count: 1 });
+  if (evicted != null || self) diagnostics.push({ level: "INFO", component: "nankai", reason: "nankaiCapacityEvicted", unit: "U-N", count: 1 });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "nankai", reason: "notificationCapacityEvicted",
     unit: "U-N", count: notices.dropped });
   if (infoVerdict.kind === "unchanged" && infoVerdict.conflict) diagnostics.push(conflictDiagnostic(candidate));

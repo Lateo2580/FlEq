@@ -187,6 +187,31 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect([status(overdue.state), overdue.state.information, overdue.intents, overdue.displayChanges]).toEqual(["expired", [], [], []]);
     expect(shape(send(overdue.state, F.advisory, undefined, reported + 8 * DAY))[0]).toEqual([NANKAI, "unchanged", "duplicate"]);
   });
+  // 監査 F04 の U-N（P3-OPCAP-N-AC01・AC02）: 復元の後でも training の報は normal の取消の証拠を退去せず、取消より古い報は stale のまま。
+  it("P3-OPCAP-N-T01 regression / P3-OPCAP-N-AC01,AC02: a training report never evicts a normal cancel's evidence", () => {
+    const now = at("2020-05-12T17:00:00+09:00");
+    let state = send(emptyState(), F.cancel, undefined, now).state;
+    for (let index = 0; index < 63; index++)
+      state = send(state, F.regular, replaceTag("EventID", `N${String(index).padStart(13, "0")}`), now).state;
+    const restored = reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(state), clock: clock(now) }).state;
+    expect([restored.information.length, restored.information.every((item) => item.effective === "evidence")]).toEqual([64, true]);
+    const training = send(restored, F.regular, (xml) => xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"), now);
+    expect(training.state.information).toBe(restored.information);
+    expect([shape(training).at(-1), training.decisions.at(-1), training.outcomes, training.intents, training.diagnostics]).toEqual([
+      ["training/VYSE52/20200512164400", "changed", "revisionOnly"], expect.objectContaining({ currentEstablished: null }),
+      [{ kind: "accepted", change: "revisionOnly", subjects: [] }], [],
+      [{ level: "INFO", component: "nankai", reason: "nankaiCapacityEvicted", unit: "U-N", count: 1 }]]);
+    const old = send(training.state, F.advisory, undefined, now);
+    expect([shape(old), old.intents, old.state.currents]).toEqual([[[NANKAI, "unchanged", "stale"], ["normal/VYSE50/20200512163200", "unchanged", "stale"]],
+      [], restored.currents]);
+    // 情報 subject を自身の退去で残さなくても、同じ報の現況の採用と通知は今のまま（P3-OPCAP-N-AC02）。
+    const drill = send(restored, F.advisory, (xml) => xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"), now);
+    expect(drill.state.information).toBe(restored.information);
+    expect([shape(drill), drill.decisions.at(-1), drill.intents.map((item) => [item.channel, item.payload.title.slice(0, 4)])]).toEqual([
+      [["training/nankai/current", "changed", "semantic"], ["training/VYSE50/20200512163200", "changed", "revisionOnly"]],
+      expect.objectContaining({ currentEstablished: null }), [["desktop", "【訓練】"]]]);
+  });
+
   // contractBoundary: P3-C8-CAPACITY=A と受信 1 回の費用（AC04）。境界入力は試験内で作る。
   it("P3-C8-T04 contractBoundary / AC04: 63/64/65 information, eviction order, pending and terminal budgets, the budget states and no whole encode", () => {
     const now = at("2020-05-12T17:00:00+09:00");
@@ -219,6 +244,11 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       evicted.push(...before.filter((subject) => !state.information.some((item) => item.subject === subject)));
     }
     expect(evicted).toEqual([info(2).subject, info(1, { operation: "training" }).subject, info(0).subject]);
+    // training の報は training の記録だけを退去する（P3-OPCAP-N-AC01）。
+    const drill = info(63, { operation: "training" });
+    const trainingIn = receive(withInformation([...full.slice(0, 63), drill]), decodeFixture(F.regular, (xml) => retime("2020-05-12T17:00:00+09:00")(
+      replaceTag("EventID", "T0001")(xml)).replace("<Status>通常</Status>", "<Status>訓練</Status>")), clock(now)).state.information;
+    expect([trainingIn.includes(drill), trainingIn.filter((item) => item.operation === "normal").length, trainingIn.length]).toEqual([false, 63, 64]);
     // 上限 +1 の文字列は切り詰めて truncated（I-U-N.bounds）。
     const long = send(emptyState(), F.advisory, (xml) => xml.replace("<Title>南海トラフ地震臨時情報（巨大地震注意）</Title>", `<Title>${"題".repeat(129)}</Title>`));
     expect(currentOf(long.state)).toMatchObject({ title: "題".repeat(128), truncated: true });

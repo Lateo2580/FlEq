@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1d307989560e298199af040831df538ec9d75e24",
-    "sha256": "d918fdfae9b4ca6964f28c10fb5a88022332e100999cb6d35e2bdedc8d8b64ba",
+    "sha256": "0cf46964746cc31be3a8c13cb3583499e0fa40816c5064d6096b60aa11bfa83b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -162,10 +162,10 @@
         "id": "P3-OPCAP-N-AC01",
         "requirement": "U-Nの情報系列の退去の適格性をoperationで先に絞る（D-OPERATION=A、P3-X-C5のoperationの軸、ヘルツのP1）。65件目の退去で、受ける報がtraining/testなら、normalの情報subjectは事実を持つ記録・K2の証拠だけの記録（effective \"evidence\"）とも、retainUntilを過ぎた記録も（D-PAST-RETENTION=A）退去の候補にしない。候補はtraining/testの記録だけで、その中の順（期限切れ→training/testの最古、ReportDateTime順）と、受ける報がnormalのときの順（期限切れ→training/test→normalの最古）は今のまま。evictOneの上のコメントは新しい規則に合わせる（AGENTS.md、触った関数の中のコメント）。受入: (a) ヘルツの入力（Q-OPCAP-N-SOURCE）で、復元の後のtrainingのVYSE52は情報系列の配列を変えず（参照が同じ）、取消より古い74_01_05のVYSE50は現況・情報ともunchanged/stale、通知のintentは0、現況は復元の後のまま。(b) normal 63件＋training 1件の満杯にtrainingのVYSE52を受けると、trainingの記録だけが退去し、normalの63件は残る。",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:202 «06e9659a1b6e902b»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:204 «a5780ec336096559»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:205 «08fc4464ec0fd60f»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:386 «3f4368ff70e89f5c»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:202 «116d1c9f308f60cd»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:206 «3d2640399ff76103»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:207 «08fc4464ec0fd60f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:375 «1eec17a012aa58aa»",
           "reconstruction/contracts/p3-nankai-unit.json:93 «ac56198078904181»",
           "reconstruction/contracts/p3-nankai-unit.json:303 «82084a1038a1d028»",
           "reconstruction/contracts/p3-operation-capacity.json:11 «9529fe855a1ac0b3»",
@@ -174,19 +174,19 @@
           "reconstruction/contracts/p3-authority-evidence.json:255 «22ec592c44f8b40b»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
           "reconstruction/src/runtime/owner-runtime.ts:436 «63380813ee47301c»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:736 «973323028dc564f5»"
+          "reconstruction/src/units/nankai/nankai-unit.ts:743 «973323028dc564f5»"
         ]
       },
       {
         "id": "P3-OPCAP-N-AC02",
         "requirement": "自身の退去（D-SELF-OUTCOME、K4と同じ）。AC01で候補が無いとき、受けた情報subjectを配列へ足さない（情報系列の参照を変えない）。その情報subjectのdecisionはchanged/revisionOnly・currentEstablished null、acceptedのsubjectsに載せない、その情報subjectの通知を作らない、診断nankaiCapacityEvicted（count 1）を返す。退去した記録は無いのでaccepted.changeを決める退去に数えない（他の変化が無ければrevisionOnly）。同じ入力が現況を採用するなら、現況のdecision・通知・accepted・保存世代は今のまま。採用した取消は今どおりそのsubjectのpendingを置き換える。情報系列だけの変化が無いので、通知も現況も変わらなければ保存世代を進めない。受入: (a) AC01(a)のtrainingのVYSE52の受理で、そのsubjectのdecisionがchanged/revisionOnly・currentEstablished null、outcomesが[{accepted, revisionOnly, subjects: []}]、intentsが空、diagnosticsが[nankaiCapacityEvicted count 1]。(b) 同じ復元の後のstateにStatusを訓練にした74_01_05（現況に効く）を受けると、training/nankai/currentがchanged/semantic、desktopの【訓練】のintentが1件、情報subject（training/VYSE50/20200512163200）はchanged/revisionOnly・currentEstablished null、情報系列の参照が同じ。",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:368 «d12543f2384360bd»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:382 «cf6911c45c3ec679»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:403 «000940b5428ed7e3»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:416 «1e17464f57d37f2c»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:418 «e36392109d04efb5»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:429 «0160ee6e470fbb4b»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:384 «63d3284dc34c9486»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:370 «cf6911c45c3ec679»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:410 «e74dabc84ea4adbb»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:423 «1aa64741388cfa81»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:425 «90a4457472e09cb1»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:436 «0160ee6e470fbb4b»",
           "reconstruction/contracts/p3-operation-capacity.json:29 «9f23362f9f19feb9»",
           "reconstruction/contracts/p3-operation-capacity.json:281 «c926958897f0ddc0»"
         ]
@@ -210,7 +210,7 @@
         "id": "P3-OPCAP-N-AC04",
         "requirement": "横断不変条件とパラメータ表。本契約はK4のP3-X-C5のoperationの軸をU-Nへ広げる。パラメータ表（p3-order-plan.md:382）のCapacity — U-N: training/testの受理→training/testの情報subjectだけ、normalの受理→今の順。自己退去: U-Nは情報subjectの自身の退去（現況は退去が無い）。normal同士の超過: 今のまま（normalの最古の退去）。Adoption / Outcome — 自身の退去はaccepted.subjectsに載せずcurrentEstablished null。Acceptance — T01・T02。P3-X-C1〜C4・C6は変えない。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:355 «bc31974d98841e15»",
+          "reconstruction/contracts/p3-order-plan.md:355 «790390a653f0f301»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
           "reconstruction/contracts/p3-order-plan.md:382 «c415a9aa8f38abdb»"
         ]

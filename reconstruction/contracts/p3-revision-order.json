@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2a7c78b7029dfe83d4eeb4c0d5f6f1b314eb8536",
-    "sha256": "e6ac729c1a4459c0a662b244b7e1c5409eb0e5bc85904dd10e7835e2dcdff52e",
+    "sha256": "6c0ad863d2578180627b081c4a8c70a28d4971bbf040c299a6bcddef0e2355c0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -234,7 +234,7 @@
         "requirement": "F02の閉鎖（監査の三報をそのまま回帰試験にする）: unitごとにaudit-verify/core.cjsのF02と同じ入力で、Q＝32-35_08_03_100915_VXSE51、N＝74_01_04_200512_VYSE50、V＝43_01_01_200522_VFVO52（噴火subject）、L＝15_16_01_241031_VPWW56のReportDateTime（N・LはTargetDateTimeも）をt−60秒にした初報を受け、A＝Serial 2・発表、B＝Serial空・訂正、C＝Serial 1・取消をどれもReportDateTime＝t・時計tで受ける。6順列（ABC・ACB・BAC・BCA・CAB・CBA）のすべてで、最終のrecord（Qは地震eventのVXSE51の寄与、Nは系統の現況、Vは噴火、Lは官署）はeffective=cancelled、sourceのserialRaw「1」・infoTypeRaw「取消」、pendingの通知は取消のdesktopとsoundの2件（transition cancelled、同じsubjectの旧pendingはsuperseded）で、6順列の最終が一致する。各手順の前に、その時点の保存物（encode→JSON）をrestore入力で戻す（restoreの前のstateのpersistenceは保存世代を引き継ぐ。owner-runtimeの復元と同じ）6順列でも同じ最終になる。各最終のencode→JSON→decodeはrestored。途中のdecisionは到着順で違ってよい（先着した版が後で上書き・取消される）。修正前の観測（cancelled 2通り・active 4通り）の反転を正式試験で示し、未追跡の監査scriptに依存しない。",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:552 «5e1d5fdfe7aa824e»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:316 «e194a8fa9c7c2bbf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:319 «e194a8fa9c7c2bbf»",
           "reconstruction/src/units/volcano/volcano-unit.ts:356 «4a609cba95f01662»",
           "reconstruction/src/units/landslide/landslide-unit.ts:265 «7bad47e8e65484aa»",
           "reconstruction/src/decode-material/decode-material.ts:441 «e7ff21641a768c49»"
@@ -245,7 +245,7 @@
         "requirement": "境界（同じ時刻tで、unitごとに上のfixtureを使う。比較できる2報は両方の到着順で同じ勝者、同じ版は既存の規則で先着）: (a) InfoTypeが違えばSerialを見ない: 発表 Serial 9と訂正 Serial 1は訂正が勝つ（旧は発表が勝つ）。訂正 Serial空と取消 Serial 1は取消。(b) InfoTypeが同じで数値のSerialだけ違う: 大きいSerialが勝ち、小さい方の後着はunchanged/stale（診断なし）。(c) InfoTypeが同じで欠落と数値（D-MISSING=A）: 数値の報が勝つ（後着なら採用、先着なら欠落の後着がstale）。旧は同じ版で先着のduplicate・食い違い。(d) 欠落同士・InfoTypeが同じ: 同じ版で、事実が同じならduplicate、違えば先着を保ってstale＋unitのRevisionConflict。これは既存の振る舞いで、既存試験（LのP3-C10-T03、Qのseismic-unit.test.tsの同じrevisionの食い違い、Nのnankai-unit.test.tsの同じrevisionの食い違い、Vのexpected:O01:17の67_01_01と67_01_02）が受け入れているので、T02には足さない。V・Lでは「01」と「1」も同じ版（Q・NのvalidSerialは先頭0をidentityInvalidで拒否するので、この行はV・Lだけ）。(e) U-Nの系統の現況でEventIDの違う2報（Serial 2と1、事実が違う）: Serialを比べず同じ版で、両方の順で先着を保ちnankaiRevisionConflict（既存）。(f) U-V（D-SCOPE=B）: 45_01_01（VFVO50、Serial空）と44_01_01（VFVO51、Serial 13）を同じReportDateTimeにして火山306に当てると、50→51ではVFVO50を保ちVFVO51の火山entryはP3-C9-VFVO51-ATOMIC=Aで全部stale＋volcanoRevisionConflict、51→50ではVFVO51を保ちVFVO50がstale＋volcanoRevisionConflict（今と同じ）。降灰のVFVO54とVFVO55は同時刻・同InfoTypeならSerialによらずVFVO55（66_01_02のReportDateTimeを66_01_03の2021-05-14T12:51:00+09:00に合わせ、Serialを5に、66_01_03をSerial 1にして、時計もその時刻: 両順ともVFVO55。旧はVFVO54。66_01_02を任意の時刻へ動かすと予報の期間の検査でrequiredStructureInvalidになるので、時刻は66_01_03に合わせる）。(g) 時刻が違えば時刻だけで決まる（既存）。",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:554 «9b3d429efeb433f4»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:319 «9cbf8194c661724e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:322 «9cbf8194c661724e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:144 «b9f35ee8a39ce41d»",
           "reconstruction/src/units/volcano/volcano-unit.ts:301 «5cb00a0b26f7ead5»",
           "reconstruction/src/units/volcano/volcano-unit.ts:811 «1fd46a035987500a»",
@@ -293,7 +293,7 @@
           "reconstruction/src/decode-material/decode-material.ts:441 «e7ff21641a768c49»",
           "reconstruction/src/domains/volcano/volcano.ts:44 «4abe9007fd270be8»",
           "reconstruction/src/domains/seismic/seismic.ts:62 «5464c1dcd556c2ae»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:316 «e194a8fa9c7c2bbf»"
+          "reconstruction/src/units/nankai/nankai-unit.ts:319 «e194a8fa9c7c2bbf»"
         ]
       },
       {
