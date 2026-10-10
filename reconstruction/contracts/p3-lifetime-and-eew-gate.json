@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "a6a1c169afdb36a9a75f07717c8f4ebd543a186b255069ca6a585f7eddce3efc",
+    "sha256": "d0a9bdee22e4d4980c58940bd53aabcaccd2181a50d32bbf4a28a559ff9a1565",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
@@ -111,7 +111,7 @@
     "contractId": "P3-LIFETIME-AND-EEW-GATE-001",
     "mode": "implementation",
     "objective": "U-Eのcurrentとgateに有限の寿命と新規subjectの再確立horizonを与えてF01の512 gateの詰まりを閉じ、終端後の同版訂正F17を識別する。U-Fの保持期限をmax(ReportDateTime＋7日, validUntil)にしてF11を閉じる。F14はD-HORIZON=Aの保証範囲を条文で固定する。horizonがhostの時計の進みでEEWを捨てる危険は、dmdataのstart frameのtimeと比べる時計チェックの診断で観測できるようにする。",
-    "baseOid": "unassigned",
+    "baseOid": "cc2370a1b1824ef7ea268bd3522b5d535847cb6f",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
