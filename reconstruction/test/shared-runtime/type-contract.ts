@@ -54,7 +54,7 @@ const heartbeat: FreshnessRecord = { ...freshness, clearCondition: "heartbeat" }
 const incomplete: FreshnessRecord = { target: freshness.target };
 
 // R13: control metadata and concrete unit ownership stay in the shared contract.
-expectTypeOf<keyof RuntimeUnitStates>().toEqualTypeOf<"U-E" | "U-W" | "U-F" | "U-T" | "U-Q" | "U-N" | "U-V" | "U-L" | "U-R">();
+expectTypeOf<keyof RuntimeUnitStates>().toEqualTypeOf<"U-E" | "U-W" | "U-F" | "U-T" | "U-Q" | "U-N" | "U-V" | "U-L" | "U-R" | "U-B">();
 expectTypeOf<RuntimeUnitDeadline>().toEqualTypeOf<Readonly<{ wallTimeMs: number | null; monotonicMs: number | null }>>();
 expectTypeOf<NotificationIntentUpdate>().toEqualTypeOf<Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition">>();
 expectTypeOf<RuntimeInput["kind"]>().toEqualTypeOf<"startup" | "notificationProbeCompleted" | "connectionLost"

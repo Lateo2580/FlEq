@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "03c6c0da9d38e44671c18449697d234be9a3c756e7f3bdb27cadcf77cd7e1c8d",
+    "sha256": "70fb3230b07a76a61333554183d125eefb501f750239d5bcc2325d1428ca717c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -393,7 +393,7 @@
         "id": "P3-C12-EVICT-OPERATION",
         "status": "frozen（D-OPERATION=A・D-PAST-RETENTION=A・D-SELF-OUTCOMEの帰結。K4のQ-OPCAP-C12とK4NのQ-OPCAP-N-OTHERSがC12の再開条件へ送った分）",
         "source": "reconstruction/contracts/p3-operation-capacity.json:252 «cf785260c7cec6af»（P3-OPCAP-AC01）・reconstruction/contracts/p3-operation-capacity.json:280 «d7c72753c45da2f2»（AC02）・reconstruction/contracts/p3-operation-capacity.json:63 «14d7db45ca6d6887»（Q-OPCAP-C12）、reconstruction/contracts/p3-operation-capacity-n.json:162 «163af11f4c23d44e»（K4NのAC01）・reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»（AC02）",
-        "rule": "(1) 退去の適格性は順位より前にoperationで決める。受ける報がtraining/testなら、normalの記録はactive・held・released・記憶（replaced・aliased・cancelled）のどれも、retainUntilを過ぎた記録も退去の候補にしない（D-PAST-RETENTION=A。製品の経路はownerが受信の前に期限を回収する、reconstruction/src/runtime/owner-runtime.ts:436 «63380813ee47301c»）。候補はtraining/testの記録だけで、その中の順は(1)retainUntilを過ぎた記録 (2)記憶 (3)生きた記録、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がnormalのときの順とnormalどうしの退去はP3-C12-CAPACITYのまま (2) 候補が無ければ受けた記録自身を退去する（自身の退去）: decisionはchanged/revisionOnly・currentEstablished null、outcomeは[{accepted, revisionOnly, subjects: []}]、診断briefingCapacityEvicted（count 1）、currentsの参照と保存世代を変えず、通知を作らない (3) 自身の退去はtraining/testの記録が0件のときだけ起き（候補はtraining/testの全記録）、置換・alias・対応報の取消は同じoperationの記録にしか効かないので、他のsubjectへの作用は起きえない (4) 自身を退去した取消は、そのsubjectのpendingを全部supersededにし（P3-C12-REPLACEMENT）、intentsが変わったときだけ保存世代を進める（U-L・U-Rと同じ、reconstruction/src/units/flood/flood-unit.ts:308 «1b80cb1e17fb6e55»） (5) 退去は記録の無いsubjectの報だけで起き、入力の前の配列から1件を決め、作用（置換・alias・対応報の取消）は残った記録に当てる。遅着の報（P3-C12-TTL.lateRule）は退去を起こさない（K3のP3-FINAL-AC01の時間の軸）",
+        "rule": "(1) 退去の適格性は順位より前にoperationで決める。受ける報がtraining/testなら、normalの記録はactive・held・released・記憶（replaced・aliased・cancelled）のどれも、retainUntilを過ぎた記録も退去の候補にしない（D-PAST-RETENTION=A。製品の経路はownerが受信の前に期限を回収する、reconstruction/src/runtime/owner-runtime.ts:439 «63380813ee47301c»）。候補はtraining/testの記録だけで、その中の順は(1)retainUntilを過ぎた記録 (2)記憶 (3)生きた記録、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がnormalのときの順とnormalどうしの退去はP3-C12-CAPACITYのまま (2) 候補が無ければ受けた記録自身を退去する（自身の退去）: decisionはchanged/revisionOnly・currentEstablished null、outcomeは[{accepted, revisionOnly, subjects: []}]、診断briefingCapacityEvicted（count 1）、currentsの参照と保存世代を変えず、通知を作らない (3) 自身の退去はtraining/testの記録が0件のときだけ起き（候補はtraining/testの全記録）、置換・alias・対応報の取消は同じoperationの記録にしか効かないので、他のsubjectへの作用は起きえない (4) 自身を退去した取消は、そのsubjectのpendingを全部supersededにし（P3-C12-REPLACEMENT）、intentsが変わったときだけ保存世代を進める（U-L・U-Rと同じ、reconstruction/src/units/flood/flood-unit.ts:308 «1b80cb1e17fb6e55»） (5) 退去は記録の無いsubjectの報だけで起き、入力の前の配列から1件を決め、作用（置換・alias・対応報の取消）は残った記録に当てる。遅着の報（P3-C12-TTL.lateRule）は退去を起こさない（K3のP3-FINAL-AC01の時間の軸）",
         "reason": "training/testの流量で実災害の受理の判断を変えない（D-OPERATION=A）。起草の(1)(2)は受ける報によらずnormalの期限切れ・記憶を退去し、K4前のV/L/Rと同じ形だった（監査F04の型: 訓練の報がnormalの取消の記憶を追い出し、取消より古い報が戻る）。U-Rの形（reconstruction/src/units/flood/flood-unit.ts:101 «8f4563d2c0e98bdc»・reconstruction/src/units/flood/flood-unit.ts:105 «cafff1643f57f709»）を写す"
       },
       {
@@ -433,7 +433,7 @@
       },
       {
         "id": "P3-C12-RESIDUAL-RISKS",
-        "status": "作者承認（2026-10-10夜、ご主人）: 17件とも承認。(8)〜(12)は基準α（件数の上限が実配信の同時の最大の10倍以上なら満杯の時の欠けを保証外とする。256は実最大4の64倍、材料は実配信4日分とfixture）、(1)(13)は基準β（分単位以上の時計のずれでだけ起き、そのずれがK6のP3-LIFE-AC13の時計チェックで必ず診断に残る）で基準ごとに承認。(2)〜(7)・(14)〜(17)は1件ずつ承認（(14)の窓は60秒の待ちと再起動の重なりだけ）。改訂1で「保証外」「代償」と書いたものと起草の残存リスクを重複なくまとめた",
+        "status": "(1)〜(17)は作者承認（2026-10-10夜、ご主人）、(18)〜(20)は実装で追加し作者承認（2026-10-11朝、ご主人）。(1)〜(17)の内訳: 17件とも承認。(8)〜(12)は基準α（件数の上限が実配信の同時の最大の10倍以上なら満杯の時の欠けを保証外とする。256は実最大4の64倍、材料は実配信4日分とfixture）、(1)(13)は基準β（分単位以上の時計のずれでだけ起き、そのずれがK6のP3-LIFE-AC13の時計チェックで必ず診断に残る）で基準ごとに承認。(2)〜(7)・(14)〜(17)は1件ずつ承認（(14)の窓は60秒の待ちと再起動の重なりだけ）。改訂1で「保証外」「代償」と書いたものと起草の残存リスクを重複なくまとめた",
         "items": [
           "(1) 手元の時計が2〜3時間以上進むと、新しい速報が全部「遅れて届いた報」扱いになり、表示も通知もされない。時計のずれはK6の接続ごとの時計チェックの診断で見える（P3-C12-TTL.lateRule）",
           "(2) 記録的短時間大雨情報（VPOA50）の60秒の待ちは受信した時計で数えるので、時計を大きく直すと待ちが伸び縮みする。遅れて閉じた待ちでは鳴らさない（P3-C12-VPOA.holdRules）",
@@ -451,8 +451,17 @@
           "(14) 再起動の前に対応報を待っていたVPOA50は、再起動の後は待たずに無音で「対応電文未確認」として表示する。対応報が来なくても鳴らない（P3-C12-VPOA.holdRules (5)）",
           "(15) 通知の本文は電文の見出し文を使うので、置換で消した区域や切り捨てた区域の名前が残りうる。一部の区域だけ発生した予測の通知は残す（P3-C12-REPLACE-PENDING=A、P3-C12-PARAMETERS.fidelity）",
           "(16) 府県気象防災速報（潮位）VPBS51は配信が見送られていて実物が無く、未対応のまま。配信が始まったら中身を確かめる小さな契約で足す（P3-C12-VPBS51）",
-          "(17) 遅れて届く報・件数の上限の退去・取消の実配信の頻度は数えていない（材料は4日分の実配信とfixtureだけ）"
+          "(17) 遅れて届く報・件数の上限の退去・取消の実配信の頻度は数えていない（材料は4日分の実配信とfixtureだけ）",
+          "(18) 【実装で追加、2026-10-11朝に作者承認】deferredのworkerで、最大のVPWP50の後ろに並んだU-Bの報の待ちはMacで最大149.46 ms・中央値136.67 ms（20回）、2回の試行では161.61 msがあり、約160 msの線に近い。EEW（urgent）の待ちは最大2.04 msで40 msの線から遠い。Piでの確認はC22へ申し送る（Q-C12-IMPL-AMEND(11)）",
+          "(19) 【実装で追加、2026-10-11朝に作者承認】snapshotの分野briefingのdomainは1 subjectあたり約1,981 byteで、契約の見積もり（約1.1 KB）より大きい。分野の予算65,536 byteを超えるのは約34 subjectから（見積もりは約60）。snapshot全体は256 subjectでも1 MiBの内側なのでfullのまま（Q-C12-IMPL-AMEND(12)、P4へ申し送る）",
+          "(20) 【実装で追加、2026-10-11朝に作者承認】ラベル（EventName・type属性・Property/Type）が全部無い観測は、その観測だけを捨ててtruncated=trueにする（報は採る）。捨てた観測はtruncatedでしか分からない。実配信には無い形（Q-C12-IMPL-AMEND(3)）"
         ]
+      },
+      {
+        "id": "Q-C12-IMPL-AMEND",
+        "status": "closed（統合担当が2026-10-10夜に(1)〜(13)を確定。(3)(6)は契約適合レビューの判断の指摘への統合担当の決定、(9)(10)は品質レビュー（ヘルツ、thread 01a125f6）のP2の直し）",
+        "source": "C12実装（2026-10-10夜、bb5c9a17の上）",
+        "closed": "(1) 既存試験の期待値の変更（統合担当の許可）。理由は全部、U-Bがdeferredの4つ目のunitになった（P3-C12-PLACE=A）機械的な帰結でC10・C11の先例と同じ: review-regressions・execution-split・unit-write-rightのunsavedUnits 9→10、execution-splitのdeferredの数3→4、unit-table.test.tsのnotPortedの代表をVPBS50（U-B）→VPFT50（U-M）、unit-table/type-contract.tsのn5b・n6a・n6bをU-B→U-M（artifactRequirementsどおり）、flood・landslide・weather-timeseries・unit-tableのrestoreOwner(deferred)の一覧にU-B。 (2) 通知の本文512・題160の切り詰めは、受理の上限の内側では起きない（本文は最大349単位、題は最大約82）。T07は「上限の内側の最大でも切られず、接頭辞・接尾辞が残る」を確かめる形に読み替えた。 (3) 統合担当の決定（C9〜C11のfail-brightの先例、type属性はlegalMissing）: 観測のラベルはEventName・type属性、無ければProperty/Typeから取る。全部無い観測は報を拒まず、その観測だけを捨ててtruncated=true（残存リスク(20)）。 (4) 統合担当の読み方: 「読むPartは各Propertyに0か1個」はPartの種類ごと。 (5) 統合担当の読み方: Areasが空の予測のitemは受信で落とす（decodeは区域0の予測のitemを拒むので保存できない）。全部落ちた報はitemsが空のactive（P3-C12-EMPTY、P3-C12-TTL=Bの2時間）。 (6) 統合担当の決定（Q-ENUM.familyTableどおり）: 取消でもControl/EditorialOfficeの有無と形を確かめ、無ければrequiredStructureMissing。保存はしない。 (7) kindは切り詰めた後のconditionから引く（受信とdecodeの「kindとconditionが表で一致」を閉じるため）。 (8) 検査の関数（cut・validNameなど）はdomains/floodからimportし、XMLの読み取り関数は写した（artifactRequirementsが許す。AC12の一覧に記載）。 (9) 品質レビューP2-1の直し: 記録の無いsubjectの報で退去が要るとき、退去する記録を選んだ後に残る記録で候補を作り直し、遅着を判定し直す。遅着なら退去も確定せずunchanged/stale（stateは同じ参照）。対応報の退去で候補がaliased（3時間）からheld（2時間）に変わる場合（T12）。 (10) 品質レビューP2-2の直し: 予測の区域の索引を、構築中の配列へのpushにした（要素ごとの複写のO(k²)を除く、P3-C12-RES-03）。T05は同じ区域の予測64件・256件で、索引の構築で反復した要素の数が記録の数以下であることを数えて確かめる（時間を測らない。旧コードは64件で2,018）。 (11) AC11の実測（2026-10-10夜、Mac、20回、一括は10回、測った入力は全部generationRaisedで採用を確かめた）: 最大のVPBS50の後ろのEEWの投入→T2は最大0.55 ms・中央値0.26 ms（処理24.66 ms）。U-Bのencode（1,535,000 byte）の後ろのEEWは最大0.65 ms。U-Bのencodeの後ろのVPWP50・VPWW56・VXKO50は最大11.55・11.61・11.12 ms。256 subjectの一括の期限処理（6.19 ms）の後ろのEEWは最大2.04 ms。最大のVPWP50の後ろのU-Bは最大149.46 ms・中央値136.67 ms（2回の試行で161.61 ms、残存リスク(18)）。 (12) AC06の実測: 実配信の1日の代用（fixtureの4系列）でdomain 7,846 byte・snapshot 20,041 byteでfull。256 subjectでdomain 507,187 byte（分野の予算65,536を超える）、snapshot 519,384 byte（1 MiBの内側）でfull。1 subjectあたりのdomainは約1,981 byteで、分野の予算を超えるのは約34 subjectから（残存リスク(19)）。 (13) encodeの実測と契約の値: active 1,509（1,507）、上界のactive 5,473（5,534）、上界のheld 2,859（2,872）、released 851（823）、cancelled 412（416）、実配信の全state 611,834（616,800）、上界のstate 1,626,618（1,647,712）。T13で最大の保存状態からの全部の遷移が1,647,712 byteの内側。"
       },
       {
         "id": "P3-C12-INTERFERENCE",
@@ -982,10 +991,10 @@
           "docs/specs/reconstruction-p0-contracts.md:517 «231a7a68715a07ff»",
           "docs/specs/reconstruction-p0-contracts.md:601 «e15cb9401eef5a41»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «b80f70a2a90c3be2»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «f02f452751bee11d»",
           "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
-          "reconstruction/src/runtime/unit-coverage.ts:95 «eac0741ea1f849f0»",
-          "reconstruction/src/runtime/unit-coverage.ts:96 «076139a18a4cd0f9»",
+          "reconstruction/src/runtime/unit-coverage.ts:95 «5eed6a6ea0b164f3»",
+          "reconstruction/src/runtime/unit-coverage.ts:96 «5437cd7e08d4da42»",
           "reconstruction/src/runtime/unit-coverage.ts:97 «716b75f53603c153»",
           "reconstruction/contracts/p3-unit-table.json:79 «bd2af9d197078efa»"
         ]
@@ -1062,13 +1071,13 @@
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
           "docs/specs/reconstruction-p0-contracts.md:2187 «3f547b2b3e583635»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:47 «3993a49a41f716c6»",
+          "reconstruction/src/view-projector/view-projector.ts:47 «d8de1bde9950e4c8»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:49 «74cc3fbc108aad55»",
-          "reconstruction/src/runtime/composition-root.ts:198 «9ed0037a4a82959a»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:50 «db940562fc8ebadb»",
+          "reconstruction/src/runtime/composition-root.ts:200 «9ed0037a4a82959a»",
           "src/engine/display/standby-persistence.ts:315 «ef0460f67661ea53»",
-          "reconstruction/src/view-projector/view-projector.ts:858 «0f29de6d3afeedc3»",
-          "reconstruction/src/view-projector/view-projector.ts:860 «c42a191089542248»"
+          "reconstruction/src/view-projector/view-projector.ts:887 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:889 «c42a191089542248»"
         ]
       },
       {
@@ -1152,7 +1161,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:198 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:200 «9ed0037a4a82959a»"
         ]
       },
       {
@@ -1180,7 +1189,7 @@
           "reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»",
           "reconstruction/contracts/p3-operation-capacity-n.json:34 «4c3aaf00a47d87b1»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
-          "reconstruction/src/runtime/owner-runtime.ts:436 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:439 «63380813ee47301c»",
           "reconstruction/src/units/flood/flood-unit.ts:101 «8f4563d2c0e98bdc»",
           "reconstruction/src/units/flood/flood-unit.ts:105 «cafff1643f57f709»",
           "reconstruction/src/units/flood/flood-unit.ts:308 «1b80cb1e17fb6e55»"
@@ -1208,7 +1217,7 @@
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
           "reconstruction/src/units/landslide/landslide-unit.ts:401 «f207523dece06190»",
           "reconstruction/src/units/landslide/landslide-unit.ts:407 «787c97948197f5ad»",
-          "reconstruction/src/runtime/owner-runtime.ts:396 «c5f6ebb80f2776ef»",
+          "reconstruction/src/runtime/owner-runtime.ts:399 «c5f6ebb80f2776ef»",
           "docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73»",
           "docs/specs/reconstruction-p0-contracts.md:496 «f52fc5b960899f90»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»"

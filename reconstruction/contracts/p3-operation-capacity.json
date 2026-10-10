@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b117d77a234640203a68f72e9d090249ce6d14bb",
-    "sha256": "15dbcad39d22f7e1c32d8d854fdbb7115a8c204b29f732dad139dd23e6165d6a",
+    "sha256": "0bdfe4f01f5426bf28dbf23ee5238251333504ce26694a7a0408e626a796049d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -350,7 +350,7 @@
           "reconstruction/contracts/p2-weather-current-unit.json:39 «7f2ae36e32f02124»",
           "reconstruction/contracts/p2-weather-current-unit.json:443 «a91d1d385759e031»",
           "reconstruction/contracts/p3-briefing-unit.json:139 «ae03fec729655ed0»",
-          "reconstruction/contracts/p3-briefing-unit.json:500 «05f747539ae9baa7»",
+          "reconstruction/contracts/p3-briefing-unit.json:509 «05f747539ae9baa7»",
           "reconstruction/contracts/p3-order-plan.md:389 «7939e6ac68fba854»"
         ]
       },

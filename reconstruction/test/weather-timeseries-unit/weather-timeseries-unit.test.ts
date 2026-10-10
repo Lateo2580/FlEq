@@ -250,7 +250,7 @@ describe("P2-A6 weather timeseries", () => {
     if (first.kind !== "restored") throw new Error("the synthetic payload does not decode");
     const now = clock();
     const owner0 = restoreOwner({ runId: "run", place: "deferred", clock: now, restored: { "U-F": { kind: "empty" }, "U-L": { kind: "empty" },
-      "U-R": { kind: "empty" } } },
+      "U-R": { kind: "empty" }, "U-B": { kind: "empty" } } },
       linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...owner0, units: { ...owner0.units, "U-F": first.state } };
     const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-F", from.units["U-F"]!.intents.map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,

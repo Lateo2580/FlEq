@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "3de87a91de66cac373d32766672d8c85993f924b0090e72da289fe7551aabd90",
+    "sha256": "7f48466c1fd61e4a5b0c198edee9c2ea1a9d232700231876180bcfc21c3589a8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -230,8 +230,8 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:74 «369b997230539d12»",
           "reconstruction/src/notification-delivery/delivery-growth.ts:8 «d0b7db8c1f4b8e3d»",
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:54 «5c81f7bf815c513f»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:287 «de991f366dd4a01c»"
+          "reconstruction/contracts/p2-shared-runtime.types.ts:55 «5c81f7bf815c513f»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:293 «de991f366dd4a01c»"
         ]
       },
       {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "693d2c87b4522859b0e5bdde1d455aeebd54c623f5a63d9ef36ddfea23a5c992",
+    "sha256": "f3806080892a4efbc0290e97b4f856eda83cb3b9921ac55828fe0350bafacf9c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -803,7 +803,7 @@
           "docs/specs/reconstruction-p0-contracts.md:526 «2a6bdc1eecc7f89f»",
           "docs/specs/reconstruction-p0-contracts.md:605 «94c9c00b2938587b»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «b80f70a2a90c3be2»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «f02f452751bee11d»",
           "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
           "reconstruction/src/runtime/unit-coverage.ts:110 «3063c67e8d38a23c»",
           "reconstruction/src/runtime/unit-coverage.ts:150 «4195e149678dbbf4»"
@@ -869,10 +869,10 @@
         "requirement": "view・outcome・snapshot: FloodUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-R行、addedScopesのU-Rの空（P3-C11-N2）、snapshotのdomain flood（P3-C11-SNAPSHOT=A、highestSeverityは河川のlevel、nullとkinds空はunknown）を同じ採用結果から作る。active以外の記録を載せず、unavailable・未保存・再起動の空を「洪水予報なし」に読み替えない。U-Rだけが変わった入力でもsnapshotが出し直される（view-projectorの比較・domainの列・byteの合計にU-Rが入る）。実装後に、実配信の最大の日の状態（I-U-R.capacityMeasurement、10 EventID・19,964 byte）と512 subjectの状態でdomain floodのUTF-8 byteとfull/summaryの判定を測って報告し、実配信の最大の日の状態がsummaryに落ちたら配送の前に作者へ報告する。あわせて、domain floodがfullからsummaryへ落ちるEventIDの数の閾値（概算約33: 65,536 byteを実配信の最大の日の記録の平均約2.0 KBで割った値。実装のviewのbyteで測り直す）を報告し、作者とP4へ渡す",
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:47 «3993a49a41f716c6»",
+          "reconstruction/src/view-projector/view-projector.ts:47 «d8de1bde9950e4c8»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:49 «74cc3fbc108aad55»",
-          "reconstruction/src/runtime/composition-root.ts:198 «9ed0037a4a82959a»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:50 «db940562fc8ebadb»",
+          "reconstruction/src/runtime/composition-root.ts:200 «9ed0037a4a82959a»",
           "docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4»",
           "docs/specs/reconstruction-p0-contracts.md:1468 «35085757904baccf»"
         ]
@@ -948,7 +948,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:198 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:200 «9ed0037a4a82959a»"
         ]
       },
       {

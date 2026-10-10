@@ -36,12 +36,13 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
     const source = await adopt([["15_16_02_251222_VPWW57", "VPWW57"], ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"]]);
     restorations = {
       empty: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" }, "U-Q": { kind: "empty" },
-        "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-L": { kind: "empty" }, "U-R": { kind: "empty" } },
+        "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-L": { kind: "empty" }, "U-R": { kind: "empty" },
+        "U-B": { kind: "empty" } },
       unavailable: { "U-E": { kind: "unavailable", reason: "noValidSlot" }, "U-W": { kind: "unavailable", reason: "unknownSchema" },
         "U-F": { kind: "unavailable", reason: "conflictingGeneration" }, "U-T": { kind: "unavailable", reason: "noValidSlot" },
         "U-Q": { kind: "unavailable", reason: "noValidSlot" }, "U-N": { kind: "unavailable", reason: "noValidSlot" },
         "U-V": { kind: "unavailable", reason: "noValidSlot" }, "U-L": { kind: "unavailable", reason: "noValidSlot" },
-        "U-R": { kind: "unavailable", reason: "noValidSlot" } },
+        "U-R": { kind: "unavailable", reason: "noValidSlot" }, "U-B": { kind: "unavailable", reason: "noValidSlot" } },
       // U-E persists only intents, so its restored current is always empty.
       restored: { "U-E": { kind: "restored", slot: "A", envelope: envelope("U-E", source.units["U-E"]) },
         "U-W": { kind: "restored", slot: "B", envelope: envelope("U-W", source.units["U-W"]) },
@@ -51,7 +52,8 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
         "U-N": { kind: "restored", slot: "A", envelope: envelope("U-N", source.units["U-N"]) },
         "U-V": { kind: "restored", slot: "A", envelope: envelope("U-V", source.units["U-V"]) },
         "U-L": { kind: "restored", slot: "A", envelope: envelope("U-L", source.units["U-L"]) },
-        "U-R": { kind: "restored", slot: "A", envelope: envelope("U-R", source.units["U-R"]) } },
+        "U-R": { kind: "restored", slot: "A", envelope: envelope("U-R", source.units["U-R"]) },
+        "U-B": { kind: "restored", slot: "A", envelope: envelope("U-B", source.units["U-B"]) } },
     };
   });
 
@@ -107,7 +109,7 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
         admission: mask, contentRevision: "1:1" } } };
     const none = { normal: 0, training: 0, test: 0 }, one = { normal: 1, training: 0, test: 0 };
     const result = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state),
-      admissionCounts: { "U-E": none, "U-W": one, "U-F": one, "U-T": none, "U-Q": none, "U-N": none, "U-V": none, "U-L": none, "U-R": none } }, at), null));
+      admissionCounts: { "U-E": none, "U-W": one, "U-F": one, "U-T": none, "U-Q": none, "U-N": none, "U-V": none, "U-L": none, "U-R": none, "U-B": none } }, at), null));
     for (const [key, time] of [["weatherCurrent", "2020-06-22T23:00:00+09:00"], ["weatherTimeseries", "2026-06-05T17:00:00+09:00"]] as const)
       expect(result.snapshot.current[key].items[0]).toMatchObject({ activeCount: 0, highestSeverity: null,
         unknownCode: { unknown: expect.any(Number) }, updatedAt: Date.parse(time) });
@@ -140,7 +142,7 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
         "U-F": { normal: 0, training: 0, test: 0 }, "U-T": { normal: 0, training: 0, test: 0 },
         "U-Q": { normal: 0, training: 0, test: 0 }, "U-N": { normal: 0, training: 0, test: 0 },
         "U-V": { normal: 0, training: 0, test: 0 }, "U-L": { normal: 0, training: 0, test: 0 },
-        "U-R": { normal: 0, training: 0, test: 0 } } }, at), null));
+        "U-R": { normal: 0, training: 0, test: 0 }, "U-B": { normal: 0, training: 0, test: 0 } } }, at), null));
     expectConsistent(result.state, result.snapshot, result.utf8Bytes);
     const weatherRow = result.snapshot.current.weatherCurrent.items[0];
     expect(weatherRow).toMatchObject({ activeCount: 1, highestSeverity: "danger", admission: { capacityExceeded: 2 },

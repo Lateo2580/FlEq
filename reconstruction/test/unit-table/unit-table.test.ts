@@ -31,7 +31,7 @@ function decode(file: string, headType: string, transform: (xml: string) => stri
 // arrived: any change in the steps below would be the route's doing.
 function idleOwner() {
   const started = restoreOwner({ runId: "run", place: "deferred", clock, restored: { "U-F": { kind: "empty" }, "U-L": { kind: "empty" },
-    "U-R": { kind: "empty" } } },
+    "U-R": { kind: "empty" }, "U-B": { kind: "empty" } } },
     linkedRuntimeCalls.units, linkedUnitCodecs).state;
   return { ...started, deadlines: { ...started.deadlines, "U-F": { wallTimeMs: clock.wallTimeMs + 60_000, monotonicMs: null } } };
 }
@@ -43,12 +43,12 @@ describe("P3-UNIT-TABLE-001 route classes", () => {
     const blank = (xml: string) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime></ReportDateTime>");
     const cases = [
       { material: decode("37_01_01_240613_VXSE43", "VZZZ99"), expected: { reason: "routeUnlisted", level: "WARN" } },
-      // P3-C5: VTSE41 is ready (U-T); VTSE41 bytes under VPBS50 keep a notPorted route on the deferred owner (VFVO50 is ready, P3-C9;
-      // VPWW56 is ready, P3-C10; VXKO50 is ready, P3-C11).
-      { material: decode("32-39_11_02_250206_VTSE41", "VPBS50"), expected: { reason: "routeNotPorted", level: "INFO", unit: "U-B" } },
+      // P3-C5: VTSE41 is ready (U-T); VTSE41 bytes under VPFT50 keep a notPorted route on the deferred owner (VFVO50 is ready, P3-C9;
+      // VPWW56 is ready, P3-C10; VXKO50 is ready, P3-C11; VPBS50 is ready, P3-C12).
+      { material: decode("32-39_11_02_250206_VTSE41", "VPFT50"), expected: { reason: "routeNotPorted", level: "INFO", unit: "U-M" } },
       { material: decode("36_01_10_240613_VXSE44", "VXSE44"), expected: { reason: "routeIgnored", level: "INFO" } },
       // The envelope check comes first: a rejected notPorted input gets its existing rejection only.
-      { material: decode("32-39_11_02_250206_VTSE41", "VPBS50", blank), expected: { reason: "reportDateTimeMissing", level: "WARN" } },
+      { material: decode("32-39_11_02_250206_VTSE41", "VPFT50", blank), expected: { reason: "reportDateTimeMissing", level: "WARN" } },
     ];
     for (const { material, expected } of cases) {
       const step = receiveOwner(state, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "64bb7b7289862485c643415a1acb9e7fdccc3aeb77e0db6729cfdfa65c44a764",
+    "sha256": "fff3bc73fc55fc8cf0349b7d4fc9d12710868bbf832a022505fcbb1813ffbaa3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -319,8 +319,8 @@
         "requirement": "horizonと時刻の扱い（P3-LIFE-D-LATE=A・P3-LIFE-D-SKEW=A）: (1) 判定順はvalidateCandidate→recoveryの未適用→Serialのstale→同版のstale/duplicate→horizon→容量→採用とし、duplicateとSerialのstaleのreasonを変えない。(2) gateの無いsubjectの報はbase＋600,000≦wallでunchanged/stale（stateは同一参照、intents/outcomes空）とし、診断を1件だけ出す: {level:\"WARN\", component:\"eew\", reason:\"eewHorizonStale\", inputId, unit:\"U-E\"}（既存の入力拒否の診断と同じ形で入力ごとに1件。続いた件数の集計は既存のdiagnostic sinkの出現回数に任せ、unitに計数・stateを足さない）。base＋600,000＞wall（＝599,999 ms前の報）は従来どおり採用し、この診断を出さない。(3) 既知subjectの取消はhorizon外でも採用し、currentの除去・同operation＋eventIdの旧pendingのsuperseded・R35の取消通知を従来どおり行う。既知subjectのhorizon外の取消は採用なので診断を出さない。既知subjectのhorizon外の非取消の版はunchanged/staleで、診断を出さない（hostの時計の進みでは最初の報から新規subjectとなり上の診断が出る）。(4) base＝min(ReportDateTime, wall)。ReportDateTimeがwallより1時間未来の報も受理し、currentUntil＝wall＋600,000、retainUntil＝wall＋86,400,000とする。版の順序と同版の比較はReportDateTimeの生値のまま。",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:433 «2e2a0bf50fac7377»",
-          "reconstruction/src/runtime/owner-runtime.ts:111 «4b4c6774cb5a4b56»",
-          "reconstruction/src/runtime/owner-runtime.ts:436 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:112 «4b4c6774cb5a4b56»",
+          "reconstruction/src/runtime/owner-runtime.ts:439 «63380813ee47301c»",
           "reconstruction/src/units/eew/eew-unit.ts:366 «973323028dc564f5»",
           "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»"
         ]

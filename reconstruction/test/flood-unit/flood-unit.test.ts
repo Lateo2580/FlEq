@@ -111,7 +111,7 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
       expect([classifyHeadType(headType), placeOfHeadType(headType)]).toEqual([{ status: "ready", unit: "U-R" }, "deferred"]);
     // 一入力は U-R だけへ届き、同じ deferred の U-F・U-L の state は同じ参照のまま。
     const owner = restoreOwner({ runId: "run", place: "deferred", clock: now, restored: { "U-F": { kind: "empty" }, "U-L": { kind: "empty" },
-      "U-R": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-R": { kind: "empty" }, "U-B": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const material = decodeFixture(F.sample);
     const routed = receiveOwner(owner, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } }, now, linkedUnitTable);
     expect(routed.changedUnits).toEqual(["U-R"]);
@@ -584,7 +584,7 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     while (terminalBytes(Array.from({ length: count + 1 }, (_, index) => done(index))) <= 98_304) count++;
     const now = clock(T0 + 1_000);
     const empty = restoreOwner({ runId: "run", place: "deferred", clock: now, restored: { "U-F": { kind: "empty" }, "U-L": { kind: "empty" },
-      "U-R": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-R": { kind: "empty" }, "U-B": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-R": { ...emptyState(), intents: [old, ...Array.from({ length: count }, (_, index) => done(index))] } } };
     const updated = intentUpdateOwner(owner, "U-R", [{ id: old.id, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered" }], now,
       linkedUnitTable);

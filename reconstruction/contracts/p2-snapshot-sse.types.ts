@@ -22,6 +22,7 @@ import type { NankaiUnitView } from "./p3-nankai-unit.types";
 import type { VolcanoUnitView } from "./p3-volcano-unit.types";
 import type { LandslideUnitView } from "./p3-landslide-unit.types";
 import type { FloodUnitView } from "./p3-flood-unit.types";
+import type { BriefingUnitView } from "./p3-briefing-unit.types";
 
 export type DisplayVersion = Readonly<{
   streamId: string;
@@ -46,7 +47,7 @@ export type DisplayWorkerView = Readonly<{
 // P2-A8-AC11: durable restoration is independent of current confirmation.
 export type DisplayRecoveryView = RuntimeRestoration;
 
-export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide" | "flood";
+export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide" | "flood" | "briefing";
 export type DisplaySeverity = "none" | "below" | "forecast" | "advisory" | "warning" | "danger" | "specialWarning";
 export type DisplayAreaSystem = "eewArea" | "prefecture" | "primary" | "municipalityGroup" | "municipality" | "stormSurge" | "forecastArea"
   // P3-C5-SNAPSHOT=A: VTSE41 の津波予報区と VTSE51/52 の観測点。
@@ -125,6 +126,7 @@ export type DisplaySnapshot = Readonly<{
     volcano: DisplayDomainView<VolcanoUnitView>;
     landslide: DisplayDomainView<LandslideUnitView>;
     flood: DisplayDomainView<FloodUnitView>;
+    briefing: DisplayDomainView<BriefingUnitView>;
   }>;
   notices: readonly VisibleNotice[];
 }>;
@@ -152,6 +154,7 @@ export type SnapshotProjectionInput = Readonly<{
   volcano: VolcanoUnitView;
   landslide: LandslideUnitView;
   flood: FloodUnitView;
+  briefing: BriefingUnitView;
   // A1 accepted outcomes only; A8 derives short-lived screen notices, never A7 intents.
   outcomes: readonly RuntimePublishedOutcome[];
   // P2-A1-DISPLAY-CHANGES: includes deletions/evictions with no PublishedOutcome.
@@ -187,6 +190,7 @@ export type SnapshotProjectionState = Readonly<{
     volcano: DisplayDomainProjection<VolcanoUnitView>;
     landslide: DisplayDomainProjection<LandslideUnitView>;
     flood: DisplayDomainProjection<FloodUnitView>;
+    briefing: DisplayDomainProjection<BriefingUnitView>;
   }>;
 }>;
 export type SnapshotProjectionResult =
