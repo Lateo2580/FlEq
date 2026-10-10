@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "929abcf103f3ca65d9fd790950423c758195b47af7e6844c2e571176dbd58839",
+    "sha256": "2416f14253c552bdcc70224c90fe390ee707d4720e540d8c9be11b3df1bce7a5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
-    "sequencesSha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
+    "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -700,7 +700,7 @@
         "requirement": "現況と情報系列の分離（I-U-N.currentSemantics・informationSemantics、P3-C8-SUBJECTS・P3-C8-CODE-TABLE）: codeをXMLの文字列で表に引き、現況に効く報は系統の現況を最新の報で置き換え（巨大地震警戒・巨大地震注意、P3-C8-INVESTIGATING=Aの調査中。調査中はactiveの警戒・注意を置き換えない）、190はactiveのinvestigatingだけをended、表に無いcode・解説・定例は情報だけ。訂正はsourceと同じheadType・EventIDのときだけ現況に効き、古い報の訂正で現況を巻き戻さない。現況を変える報は現況が採用したときだけ情報系列に入り、現況がunchangedならその情報subjectも同じreasonのunchangedになる。VYSE60はP3-C8-VYSE60=Aで別の系統の現況（subsequentAdvisory）になり、南海トラフの現況を変えない。semanticとrevisionOnlyの区別、同じrevisionの訂正の採用、食い違いのstale＋nankaiRevisionConflict、normal/training/testの区分交差0",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:394 «2a6fc73451d7ced4»",
-          "docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe»",
+          "docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4»",
           "docs/specs/reconstruction-p0-contracts.md:1448 «96e1f728d55f4329»",
           "docs/specs/reconstruction-p0-contracts.md:1472 «5bbe65daadf9a2ed»",
           "src/engine/display/nankai-status.ts:7 «8f38f9582ff7d158»",
@@ -729,7 +729,7 @@
         "requirement": "容量と受信1回の費用: P3-C8-CAPACITY=A（現況6件、情報64件と65件目の退去の順・nankaiCapacityEvicted、pending 128件・131,072 byte、終端記録98,304 byte、1世代262,144 byte）とI-U-N.capacityMeasurementの同時最大状態（234,927 byte、上界258,489 byte）を通す（spec:470）。capacityExceededを返さない。最大正常と+1の境界入力（Q-LIMIT）で確かめる。容量はI-U-N.computationどおり記録単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
-          "docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe»",
+          "docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4»",
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»"
         ]
@@ -738,7 +738,7 @@
         "id": "P3-C8-AC05",
         "requirement": "保存と復元: PersistedNankaiUnitと唯一のcodec（schemaVersion p3-nankai-unit-v1）、I-U-N.persisted・I-U-N.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。情報系列は保存せず、復元の後は空。新設schemaなのでC8に旧データ移行は無い（P3-C8-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報は復元した現況との差で決める（O07）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe»",
+          "docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4»",
           "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»"

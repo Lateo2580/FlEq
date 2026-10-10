@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
+    "sha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -4406,7 +4406,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:37",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe» §4.2 U-N",
+            "L1: docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4» §4.2 U-N",
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
           ]
         },
@@ -4490,7 +4490,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:42",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe» §4.2 U-N",
+            "L1: docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4» §4.2 U-N",
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
           ]
         },
@@ -22009,7 +22009,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe» §4.2 U-N",
+        "L1: docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4» §4.2 U-N",
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
       ],
       "input": {
@@ -22164,7 +22164,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe» §4.2 U-N",
+        "L1: docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4» §4.2 U-N",
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
       ],
       "input": {

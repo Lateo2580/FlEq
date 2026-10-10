@@ -474,7 +474,7 @@ byte 予算は**開始値**だ。P1〜P3 で最大正常入力・同時最大状
 | U-E `eew` | EEW | 期限付き intent、配送済み／失効の必要最小記録 | active EEW、予測保持 latch、実行中 gate | 256 KiB |
 | U-Q `seismic` | 地震・長周期 | 有効観測、出典、取消記憶、強震保持の根拠、必要な当日履歴、intent | 描画 path、カード配置、別地図 snapshot | 4 MiB |
 | U-T `tsunami` | 津波警報・観測 | EventID 別警報、区域状態、VTSE51/52 の独立観測系列、station記憶、取消、intent | 表示用複製、復旧用 REST queue | 4 MiB |
-| U-N `nankai` | 南海トラフ | 現況、現況更新の出典・取消記憶、intent | 説明だけの報の永続 current | 256 KiB |
+| U-N `nankai` | 南海トラフ | 現況、現況更新の出典・取消記憶、intent | 説明だけの報の永続 current | 288 KiB（2026-10-10 作者裁定 P3-AUTH-D-N-BUDGET=A、K2。当初 256 KiB） |
 | U-W `weather-current` | VPWS50、VPWW55/57–61、VPNO50終了 | 全国 base、partial、現象所有情報、履歴、watermark、区域終了 tombstone、intent | 別 standby／promotion current | 16 MiB |
 | U-L `landslide` | VPWW56 | 官署×type の current・gate・取消・期限・intent | 全国一括の権威ある union | 2 MiB |
 | U-F `weather-timeseries` | VPWP50 | period、subject revision、正常 empty、unavailable根拠、取消、期限、intent | カード幅に合わせた切捨て state | 32 MiB |
