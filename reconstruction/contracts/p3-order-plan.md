@@ -76,7 +76,7 @@ P3-2（津波）:
 
 | 契約 | 対象 | 先に要るもの | 検収の要点 |
 |---|---|---|---|
-| C7〜C14 `P3-UNIT-{Q,N,V,L,R,B,M,Y}-001`（D-P3-5 の順に C7=U-Q、C8=U-N、C9=U-V、C10=U-L、C11=U-R、C12=U-B、C13=U-M、C14=U-Y） | I-U-Q・N・V・L・R・B・M・Y（spec:595〜605） | 各 `I-U-*`、Q-LIMIT（最大正常と +1）、Q-NOTICE の該当 family | §1.2 の「各 unit」行。共通条文: 拒否・診断の記録容量を上限の内側に予約（台帳 41）、受信 1 回の費用（台帳 47）、履歴の深さ上限と容量上限を同じ decision に束ねない（台帳 60）、受理と decode と世代の計量は配送の更新の予約を `reconstruction/src/notification-delivery/delivery-growth.ts` の式で数える（P3-INTENT-UPDATE-RESERVE-001）、実行場所は急ぐ unit と急がない unit を同居させない（D-P3-1）。配置先 worker で最も長い非中断処理（最大入力・期限回収・view 生成・checkpoint encode）と、その処理中に急ぐ入力を受けたときの待ちを報告する（台帳 63。正式 E01 の全実施は求めない）。S3 の not-ported 行（VXSE47→C7、VPBS51→C12、新指定河川→C11）は移植時に中身を確かめてから ready にする。C11 は R51 の意味要件（水位の観測・予測 series と基準水位）。C14 は R50 の意味要件（台風の数値緯度経度、予報円の中心と半径）、R53（VPTA50-55・VPTW60-65 を coverage に全部）、coverage 下書きの未確認 2（spec の M11/M12 の範囲表記、§4.4） |
+| C7〜C14 `P3-UNIT-{Q,N,V,L,R,B,M,Y}-001`（D-P3-5 の順に C7=U-Q、C8=U-N、C9=U-V、C10=U-L、C11=U-R、C12=U-B、C13=U-M、C14=U-Y） | I-U-Q・N・V・L・R・B・M・Y（spec:595〜605） | 各 `I-U-*`、Q-LIMIT（最大正常と +1）、Q-NOTICE の該当 family | §1.2 の「各 unit」行。共通条文: 拒否・診断の記録容量を上限の内側に予約（台帳 41）、受信 1 回の費用（台帳 47）、履歴の深さ上限と容量上限を同じ decision に束ねない（台帳 60）、受理と decode と世代の計量は配送の更新の予約を `reconstruction/src/notification-delivery/delivery-growth.ts` の式で数える（P3-INTENT-UPDATE-RESERVE-001）。横断不変条件は §9 の P3-X-C1〜C6 による。既配送 unit への適用は同節の6修正契約の上書き条文に従い、期限・再受理・normal 非active記憶の保護・outcome の時制は各 unit の裁定値を用いる。C12 以降はパラメータ表と境界受入例を発注前に埋める。実行場所は急ぐ unit と急がない unit を同居させない（D-P3-1）。配置先 worker で最も長い非中断処理（最大入力・期限回収・view 生成・checkpoint encode）と、その処理中に急ぐ入力を受けたときの待ちを報告する（台帳 63。正式 E01 の全実施は求めない）。S3 の not-ported 行（VXSE47→C7、VPBS51→C12、新指定河川→C11）は移植時に中身を確かめてから ready にする。C11 は R51 の意味要件（水位の観測・予測 series と基準水位）。C14 は R50 の意味要件（台風の数値緯度経度、予報円の中心と半径）、R53（VPTA50-55・VPTW60-65 を coverage に全部）、coverage 下書きの未確認 2（spec の M11/M12 の範囲表記、§4.4） |
 | C15 `P3-MIGRATION-001` | §10.4 の移行器、Q-MIGRATION、O04:2・O06:29-30、N8 | 着手: persisted 型が凍結した unit から（spec:2161 で移行器は製品 runtime の外）。完了: 対象の全 unit の配送・結線後（復元後に取消・訂正を投入する検収、spec:2176） | 旧形式変換・operation 証明・捨てた履歴範囲の報告（p2plan:215・:243）、旧 checkpoint の operation 不明を未確認とする期待（`p2-checkpoint-shutdown.json:720`）、復元直後の続報 |
 | C16 `P3-RECOVERY-001` | §10.5 の REST 回復、N2、E22、`origin=recovery`（`p2-eew-unit.json:189`） | 着手: 回復範囲（N2、spec:2224）、C3a の mailbox credit（spec:2211）と runtime の候補採用（spec:2216）の境界、C2 の REST 接続。完了: 対象 unit の配送・結線後（共通の reducer を使う、spec:2207。live との競合の受入、spec:2224） | unit ごとの E22 subset。途中公開 0・新規履歴通知 0・live 上書き 0・期限延長 0（spec:2224） |
 | C17 `P3-REPLAY-CLI-001` | R10②: `fleq replay <fixture...>`、spec:650 | C3b（host の入口）、C4 の runner | 固定時計・隔離保存先・通知無効化。runner を C4 と共有するのは、検収用 replay と公開口を同じ製品経路に通すため（spec:650）。Q7 表への追記は §4.4 |
@@ -342,3 +342,48 @@ coverage 下書きの「未確認」12 項目のうち、項目 9（priorityReas
 | `P3-OWNER-LEDGER-BOUND-001`（台帳 67） | owner の未保存の世代ごとの入力 ID の記録（OwnerHost.ledger）を unit ごとに 4,096 世代までにする。LEDGER67=A（作者裁定 2026-10-08）、OVERFLOW=A（2026-10-09）。上限の外では P2-A3-AC10 の和集合の固定・P3-UWR-AC05 と T01・UWR の残存リスク (3)・E15 の相関を本契約の AC05 が上書きする（他の契約の条文は編集しない） | UWR。C7 と試験 2 本が重なり、本契約が先 | 起草 `d41394a9`、発注前点検 2026-10-09 |
 | 写した読み取り関数の集約（未起草） | domains・units で写した XML の読み取り関数（localName・children・scalar・leafValues など）と unit の codec の基本形を 1 か所へ寄せる。共有の行（Record<RuntimeUnitId,…>・網羅 switch）は unit ごとの直書きのまま（P3-C7-SHARED-ROWS、C8 の Q-C8-BASE） | C14 の後・C22 の前 | 未着手 |
 | 配送の更新の容量の横断 `P3-INTENT-UPDATE-RESERVE-001` | 台帳 73: 通知の配送の更新（intentUpdate）で pending の byte が増えても上限を確かめない。U-T・U-Q は保存できない状態を保存し復元で拒否（P1）、U-E・U-W・U-F は保存の失敗（P2）。C8 の直しの形を使い回す。AC05 の読み替え: 既存試験の期待値の変更 3 本（P2-A4-T11・P2-A4-T03・P3-WL1-T06 の境界を「実 byte＋予約」に置き直す）。U-E の世代の条件（P3-IUR-GENERATION）: 更新の束ね方を変える契約（伸びと終端を 1 つの intentUpdate に混ぜる）は、世代の計量に予約を足すか後段の退去から更新した記録を外す | C8 | 配送 `2a8f80bc` |
+
+### 横断修正の発注順と裁定（2026-10-10）
+
+作者裁定: D-ORDER=A、D-EVIDENCE=A（移行A1）、D-OUTCOME=A、D-OPERATION=A、D-CODEC=A、D-EEW=A（current/gateは有限期限。10分/24時間/10分は仮置きで、実データから期限・再確立horizon・未来skewの数値を確定する。再起動後は非永続A1）、D-HORIZON=A、D-FORECAST=A。各Aの内容はK1〜K6で条文化する。K6のEEW数値は実データで確定するまで発注しない。
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| K1 `P3-REVISION-ORDER-001` | F02、循環しない版比較（Q/N/V/L） | C11配送、K5後。K2より先 | 未起草・未発注 |
+| K2 `P3-AUTHORITY-EVIDENCE-001` | F03/F07/F09、復元をまたぐ受理証拠（N/V/W） | K1後。新保存形の上界はK5で再検証 | 未起草・未発注 |
+| K3 `P3-FINAL-ADOPTION-001` | F05/F06/F12/F16、期限・撤回を反映した最終採用（Q/N/V、Lの試験） | K2後、K4より先 | 未起草・未発注 |
+| K4 `P3-OPERATION-CAPACITY-001` | F04/F10、操作別の退去適格性とnormal終了（T/V/L/R/W） | K3後、C11配送後 | 未起草・未発注 |
+| K5 `P3-CODEC-CLOSURE-001` | F08/F15、保存byteと派生通知の文字境界（V/N） | C11配送後の先頭。K1〜K4と同時編集しない | D-LIMIT=A（5 MiB）確定・未発注。Macの容量・時間計測を受入に追加、baseOidは発注前点検で割当 |
+| K6 `P3-LIFETIME-AND-EEW-GATE-001` | F01/F11/F17＋F14裁定、寿命・再受理・同版訂正（E/F） | EEWの実データによる数値確定後。K5と並走可 | 未起草・未発注 |
+
+### 横断不変条件 P3-X-C1〜C6
+
+| ID | 共通規則 | unitごとの裁定・境界 |
+|---|---|---|
+| P3-X-C1 | identity・family・版・取消対応・将来の受理証拠を表示から分ける。比較可能な範囲で版順を循環させず、未解決の新報の証拠を後退させない | Serial欠落、同版競合、branch、D/N、保証範囲を各unitで定める。共通identity・総順序・表示全文の永続化は要求しない |
+| P3-X-C2 | active・記憶・再受理・配送の寿命を分け、起点と期限境界を固定する。有効なactiveを保持GCで先に消さず、再送・復元だけで延命しない | 無期限active、受理時起点の例外、未来skew、忘却後の保証を各unitで定める |
+| P3-X-C3 | 意味更新・期限・撤回・容量を反映した最終候補を採る。D射影が同値なら不要なdirtyを作らず、変化すれば保存対象にする | 独立deadline、日次履歴、rollbackを保ち、g+1や共通トランザクション層を強制しない。accepted/view/currentEstablishedの時制を受入例で固定する |
+| P3-X-C4 | codecが受け入れるstateから、受信・期限・復元・配送更新・退去後も保存して再decodeできる。byte・envelope・配送予約を一致させる | schema・上界・移行を各unitで定める。hot pathの全state JSON化を避け、record単位計量と差分集計を使う |
+| P3-X-C5 | 退去順位より前にoperationと作用別の適格性を決める。消えるnewcomerのための他subject退去、owner照合対象の自己GCを防ぐ | D-OPERATION=Aによりtraining/testはnormalの取消・版・所有証拠を退去しない。trainingの自己退去は可。normal同士の既存順位、承認済みの表示集約・切断は別に定める |
+| P3-X-C6 | 通知の生成・撤回/維持・配送証拠を別々に定義する。新通知0でも必要な旧pendingを撤回し、派生文字列の文字境界を守る | 現在成立と過去の重要遷移を区別する。Tの上位pending維持、Rの復元後expiry例外を残し、acceptedの時制をC3と照合する |
+
+C3/C6の境界例: 失効済報の受理後にactiveが残らなければactiveの`currentEstablished`を返さない。newer解除で旧activeが消え、新通知が0でも、旧pendingはそのunitの撤回規則で処理する。
+
+### unitごとのパラメータ表
+
+C12以降の新規unitと既配送unitの修正契約は、正本の条文IDを指して次の8行を埋める。数値を二重管理せず、境界受入例のIDも示す。
+
+| 行 | 最低限埋める内容 |
+|---|---|
+| Identity / Revision | operation、subject、family/branch、取消key、比較tuple、Serial欠落・同版訂正・競合/比較不能 |
+| Lifetime | active/記憶/配送の起点・式・境界、再受理horizon、容量忘却/再起動後の保証、未来skew |
+| Persistence | D/Nと最小受理証拠、schema移行、期限の復元、dirty/世代の規則 |
+| Adoption / Outcome | 最終正規化の順、reject時rollback、独立deadline、accepted/view/currentEstablishedの時制 |
+| Capacity | 件数/byte/envelope/配送予約の正本、operation×作用の退去適格性と順位、自己退去、normal同士の超過 |
+| Fidelity | identity非切断、表示集約/履歴深さ/短縮を許すfield、truncated、失う情報と下流の判断への影響 |
+| Notification | 遷移ごとの生成・撤回・維持、channel/TTL、late/recovery/restore/expiry例外、配送更新の照合 |
+| Acceptance | 各行を覆う既存/追加ACのID。順列・取消先着・復元・期限境界・容量を必要な組合せで指定 |
+
+### C12の再開条件
+
+C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、P3-X-C1〜C6の例外と各unitのパラメータ・境界受入例を確定する。C12の2h/3h遅着、退去保護、置換時pendingの追加裁定を準備して発注前点検を再開する。横断修正後の保存量・処理量を反映したC12改訂を承認してから実装を発注する。C13以降も共通条文を満たしてから発注する。

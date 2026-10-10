@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "7159a57b04dc6823065cd9aa80860f3930068adacd0ecfa23bf81b656c282285",
+    "sha256": "de052e791db1de4e8c60f0cec91c313d513728bc349b5f1ed9dceed3a74c5ed5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
-    "sequencesSha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
+    "sequencesSha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -952,7 +952,7 @@
         "id": "P3-C5-AC13",
         "requirement": "urgentでの干渉の報告（台帳63、計画:79の共通条文）: urgentで最も長い非中断処理（最大VTSE41・最大VTSE51のdecode＋reduce、最大U-Tのcheckpoint encode）の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではなく、Piの確認はC6。U-T同居後のEEWの正式E01はC4の結果を流用せず、spec:1129の母集団4（P4/P5）まで無いことを報告に明記する。あわせて、P3-C5-WRITE-RIGHTの(2)（urgentが入力を処理している間にU-E・U-Tの権が出ない時間）と(6)（受信前回収で、U-Tの保留中のintent更新がurgentのEEW入力の送出を遅らせた回数と遅れ）もMacで報告する",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»",
+          "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
           "docs/specs/reconstruction-p0-contracts.md:1129 «bd2f411aa451df51»"
         ]

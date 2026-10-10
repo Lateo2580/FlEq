@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "d95b4aa58490b17903984bb0ba1f44acd1cae8685f8db954b1d7a22cb90cb116",
+    "sha256": "4910bbae44438bd0cbd7c5927ec0c61c23684e036b7223badf0928d702326397",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
-    "sequencesSha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
+    "sequencesSha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -1052,10 +1052,10 @@
         "requirement": "容量と受信1回の費用: P3-C9-CAPACITY=A（各slice 128件・解説64件と退去の順・volcanoCapacityEvicted、pending 128件・「実byte＋予約」131,072・「実byte＋予約＋終端記録」229,376、1世代4,194,304 byte）とI-U-V.capacityMeasurementの同時最大状態（実測636,096 byte、上界3,867,485 byte、Q-C9-IMPL-AMEND(8)）を通す（spec:470）。capacityExceededを返さない。最大正常と+1の境界入力（Q-LIMIT）で確かめる。intentUpdateでattempts・nextAttemptAtの桁が増えてもpendingの和が上限を超えず、受理とdecodeが同じ式で数える（台帳73）。容量はI-U-V.computationどおり記録単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（全国のVFVO51 112entryを含む。AGENTS.md「受信経路の計算量」、台帳47）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
-          "docs/specs/reconstruction-p0-contracts.md:484 «6f5cfb311e8dcc7b»",
+          "docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»",
           "docs/specs/reconstruction-p0-contracts.md:580 «c0b11a524dbe0ac6»",
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
-          "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»",
+          "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p3-order-plan.md:344 «cab21d450b7db8ea»"
         ]
       },
@@ -1063,7 +1063,7 @@
         "id": "P3-C9-AC07",
         "requirement": "保存と復元: PersistedVolcanoUnitと唯一のcodec（schemaVersion p3-volcano-unit-v1）、I-U-V.persisted・I-U-V.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。定時・batch・解説は保存せず、復元の後は空。新設schemaなのでC9に旧データ移行は無い（P3-C9-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報（訂正・取消・旧報）は復元した三sliceとの差で決め、火山のidentityを名前から推測しない（O07）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:484 «6f5cfb311e8dcc7b»",
+          "docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
           "docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",
@@ -1135,7 +1135,7 @@
         "id": "P3-C9-AC13",
         "requirement": "urgentでの干渉の報告（台帳63、P3-C9-INTERFERENCE）: urgentでU-Vが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではない。Macの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C9-PLACEを見直す。U-V同居後のEEWの正式な再測定はspec:1129の後半とC22（計画:87）であることを報告に明記する。書込み権の出ない時間・受信前回収の遅れ・同時dirtyの権のまとめ出しの最中のEEWの待ちも報告し、C7のAC12（最大29.64 ms）・C8のAC11（最大8.74 ms）の値と並べる",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»",
+          "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -1167,7 +1167,7 @@
         "id": "P3-C9-AC16",
         "requirement": "復旧不足（P3-C9-SHORTFALL=A）: 不足は復元でだけ入り、viewに載る。liveの採用報がvolcano scopeの不足より新しければ除く（domain scopeは除かない）。shortfallResolutionのacceptCurrent・clearCurrent・acknowledgeDomainLossがI-U-V.shortfallSemanticsどおりに働き、合わないidとactionはnoChange。通知を作らない",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:484 «6f5cfb311e8dcc7b»",
+          "docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»",
           "docs/specs/reconstruction-p0-contracts.md:2186 «6cf95839ea15c6af»",
           "docs/specs/reconstruction-p0-contracts.md:2347 «59362f92de1fecfe»",
           "docs/specs/reconstruction-p0-contracts.md:2351 «0c213c9c36031317»",

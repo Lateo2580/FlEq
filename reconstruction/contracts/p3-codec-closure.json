@@ -1,0 +1,392 @@
+{
+  "meta": {
+    "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
+    "sha256": "c6281019828c176fad71e3f6fadaee641949444cac3978bcdfdb2d7d9523a97b",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
+    "sequencesSha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-CODEC-D-CODEC",
+        "A": "作者裁定D-CODEC=Aを維持する。U-Vの既存decoderの件数・文字範囲・保存schemaを保ち、世代上限だけP3-CODEC-D-LIMIT=Aの5 MiBへ上げる。generationBytesの既存計量を用い、受信・期限・配送更新の各結果を保存・再decode可能にする。",
+        "B": "decoderの許容範囲を狭める。これは既裁定D-CODEC=Aの変更を要するため、この枝だけで実施しない。",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定A（2026-10-10朝、ご主人）を維持。容量は同日09時台のP3-CODEC-D-LIMIT=Aで5,242,880 byteに確定。",
+        "reason": "F08ではdecode可能な4,190,183 byteからVFVO50の1報で4,194,365 byteとなり自己decodeがinvalid。旧3,867,485 byteはasciiCodeが許す引用符・バックスラッシュとinputIdのescapeを過小評価した。受信後の拒否方法を決める前に静的上界を再計算した。"
+      },
+      {
+        "id": "P3-CODEC-D-LIMIT",
+        "A": "U-Vの世代上限を5 MiB（5,242,880 byte）に上げ、decoderの件数・文字範囲・保存schemaは保つ。配送予約・envelope込みの上界4,753,484 byteに対する余りは489,396 byte。Macでのencode・書込み・保存量・受信時間はAC07の実装受入で実測する。",
+        "B": "4,194,304 byteを保ち、slice件数または文字長を縮めてdeliveryGrowth込みの上界を予算内へ収める。現上界との差は559,180 byte。例えば各128件の警報・噴火・降灰の最大合計から1件当たり4,369 byte以上を削る必要がある（ほかの項目を固定した場合）。旧保存物の移行・拒否範囲と通常入力への影響を数える。",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定A（2026-10-10 09時台、ご主人）。上限は5,242,880 byteに確定し、D-CODEC=Aを維持する。Bは不採用の分岐記録であり実装しない。旧4 MiB以下で復元可能だった保存物はそのまま読め、移行は不要。",
+        "reason": "U-Vの配送予約・envelope込み静的上界4,753,484 byteは5 MiBより489,396 byte小さい。decoderを通るstateから既存の件数・文字・通知容量の条件を保つ受信・期限・配送更新を行っても世代超過は起きない。守りの検査は上界の破れ（実装の誤り）だけを拒否する。U-Nの上界261,214 byteと256 KiBの余り930 byteは維持する。"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-CODEC-BASE",
+        "status": "C11配送確認済み・発注前点検は未完",
+        "resolveBy": "統合担当が発注前点検でcommitされたK5のbaseOidと許可範囲を割り当てる。baseOidはunassignedのまま。",
+        "reason": "HEAD=1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc。C11のinputIdなどの復元境界は現行U-V/U-N decoderのboundedの実装から再確認した。K1〜K4と同時編集しない。"
+      },
+      {
+        "id": "Q-CODEC-LIMIT",
+        "status": "closed",
+        "resolution": "P3-CODEC-D-LIMIT=Aで5 MiBに確定。P1-1の予約余裕不足、P2-3のbyte不足による通常受信の拒否、P3-10のbyte退去によるnormal記憶の喪失は、RES-04の上界と489,396 byteの余裕により起きない。守りのdecision・reason・診断はAC02に固定し、byteを理由とする複数退去は導入しない。",
+        "source": "作者裁定2026-10-10 09時台・P3-CODEC-D-LIMIT=A"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal/training/testを合算した既存件数上限と、P3-C9-CAPACITY=Aの件数の退去で受ける通常経路を保つ。5 MiBには配送予約込み上界から489,396 byteの余裕があり、byte不足による複数退去やtraining/testによるnormalの退去は起きない。上界を破った候補だけAC02の守りでstateを変えずに拒否する。既存の件数退去におけるoperation別適格性の見直しはK4が扱う。"
+    }
+  },
+  "contract": {
+    "contractId": "P3-CODEC-CLOSURE-001",
+    "mode": "implementation",
+    "objective": "U-Vの世代上限を5 MiBに揃えてF08の保存・再decodeを閉じ、U-NのText由来通知の文字境界F15を直す。配送予約込み上界を守る拒否とMacでの容量・時間計測を受入条件にする。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-intent-update-reserve.json",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-flood-unit.json",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-unit-table.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/src/domains/nankai/nankai.ts",
+      "reconstruction/src/notification-delivery/delivery-growth.ts",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "reconstruction/contracts/p3-codec-closure.json",
+      "docs/specs/reconstruction-p0-contracts.md"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/src/domains/nankai/nankai.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/contracts/p3-codec-closure.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check",
+      "git show <必要最小限の対象>",
+      "git ls-files <必要最小限の対象>"
+    ],
+    "moduleIds": [
+      "M01",
+      "M02",
+      "M03",
+      "M04",
+      "M05",
+      "M06",
+      "M08"
+    ],
+    "integrationContractIds": [
+      "I-U-V",
+      "I-U-N"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-R-001",
+      "P3-UNIT-V-001",
+      "P3-UNIT-N-001",
+      "P3-INTENT-UPDATE-RESERVE-001",
+      "P2-SHARED-RUNTIME-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoUnitState",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitState"
+    ],
+    "publicFunctions": [
+      "volcanoUnitCodec、reduceVolcanoUnit、nankaiUnitCodec、reduceNankaiUnitの公開形は変えない",
+      "deliveryGrowth(item: NotificationIntent): numberは既存の式を使い、式・値域を変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけを使う。新しいnpm依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__43_01_01_200522_VFVO52",
+      "test__fixtures__45_03_01_200731_VFVO50",
+      "test__fixtures__66_01_02_210514_VFVO54",
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__selected_xml__74_01_04_200512_VYSE50"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-CODEC-RES-01",
+        "target": "U-Vの保存1世代",
+        "limit": 5242880,
+        "unit": "bytes（checkpoint envelopeを含むJSON UTF-8のbyte）",
+        "scope": "volcano-unit.tsのGENERATION_LIMITとdecodeの世代検査を5,242,880 byteに揃える。decodeの計量は既存generationBytes（record単位の和・envelope・generation/capturedAt予約62 byte）を維持し、serializedEnvelopeへの置換で許容範囲を変えない。通知容量は既存どおりdeliveryGrowthを含めて検査する。受信・期限・配送更新等の最終候補はgenerationBytes＋pendingのdeliveryGrowthの和（予約は1回だけ加算）で守る。この値もRES-04の4,753,484 byte以内であり、超過時だけAC02の拒否となる。",
+        "source": "P3-CODEC-D-LIMIT=A・P3-CODEC-AC08（spec §4.2 U-V予算の改訂）"
+      },
+      {
+        "id": "P3-CODEC-RES-02",
+        "target": "U-Vの受信hot path",
+        "limit": "既存record数に線形。全stateの再直列化0、全件×全件0",
+        "unit": "1受信・選択・結果照合",
+        "scope": "既存のrecord byte cacheを使ってgenerationBytesを線形に合計してよい。合計差分の帳簿や新しいcacheは必須ではない。boundedな一括失効の既存例外は拡張しない。",
+        "source": "AGENTS.md 受信経路の計算量・I-U-V.computation"
+      },
+      {
+        "id": "P3-CODEC-RES-03",
+        "target": "U-Nの派生通知でTextから切り出す部分",
+        "limit": 80,
+        "unit": "UTF-16 code unit以下（Text由来部分のみ）",
+        "scope": "nankai-unit.tsのtext.slice(0, 80)だけを対を割らない切り出しにする。body全体にはHeadline（最大512単位）・Title（最大128単位）・訂正接頭辞（4単位）が入り得るため80単位上限を課さない。",
+        "source": "I-U-N.bounds・Q-NOTICE.payload"
+      },
+      {
+        "id": "P3-CODEC-RES-04",
+        "target": "U-Vのdecoder形状の静的上界（世代の5 MiB検査より前）",
+        "limit": 4753484,
+        "unit": "JSON UTF-8 byte、envelopeと配送予約込み",
+        "scope": "1件上界: 警報12,909・噴火8,963・降灰12,904・復旧不足562。各128件で4,523,264。通知はpending実byte＋deliveryGrowth＋終端≤229,376であり、全intents配列の括弧・区切りを含む実byteはこの値以下。空envelope276＋generation/capturedAt予約62−空配列10＋4記録配列の括弧8と区切り508を足し、4,523,264＋229,376＋844＝4,753,484。旧4 MiB超過559,180、新5 MiBまで489,396の余裕。個別recordの上界は最大fieldをJSON.stringifyしたtemplateに、有限numberを1値25 byteまで拡張した保守的上界。reportDateTimeRawはDate.parseが通る40単位以内をさらに6 byte/単位で包むため達成可能最大を上回るが、decoder全体には安全な上界。 実測の突合: F08のn=128はserializedEnvelope 4,295,317 byte（改訂前4 MiBのdecoderではinvalid、5 MiBへの改訂後はrestoredを検収）、n=109の先頭警報をseedの疎なactive recordに戻した開始stateは4,190,183 byte（restored）。",
+        "source": "I-U-V.capacityReserve/capacityMeasurement・P3-C9-RES-01・P3-CODEC-D-LIMIT"
+      },
+      {
+        "id": "P3-CODEC-RES-05",
+        "target": "U-Nのdecoder形状の静的上界（256 KiB検査より前）",
+        "limit": 261214,
+        "unit": "JSON UTF-8 byte、envelopeと配送予約込み",
+        "scope": "現況1件の上界5,257 byte×6＝31,542。通知のpending実byte＋deliveryGrowth＋終端≤229,376で全intents配列の実byteもこれ以下。空envelope231＋generation/capturedAt予約62−空配列4＋現況配列の括弧2・区切り5＝296。総計31,542＋229,376＋296＝261,214、262,144との差930。現況はVYSE60の最長status、64単位EventID、inputIdと各bounded fieldの6 byte/単位、時刻数値25 byteを用いた保守的上界。保存しないinformationは含めない。 実測の突合: 3 operation×2 lineの合成active現況6件（inputIdは制御文字64単位、title/headline/infoSerialは各上限）のdecodeはrestored、intents空のserializedEnvelopeは30,395 byte。",
+        "source": "I-U-N.capacityReserve/capacityMeasurement・P3-C8-RES-01"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-V",
+      "U-N"
+    ],
+    "persistedFields": [
+      "保存schemaとfield・件数・文字の許容範囲は維持し、U-Vの世代上限だけ5 MiBへ上げる。旧4 MiB以下でdecodeが通る保存物の移行は不要。U-NはText由来の通知payload.bodyの切り出しを修正する。"
+    ],
+    "nonPersistedFields": [
+      "新しいbyte帳簿・cacheを保存物へ足さない。既存のrecord byte cacheを利用する。"
+    ],
+    "outOfScope": [
+      "既存decoderの許容範囲・schema・件数・文字種の縮小",
+      "K1〜K4・K6の版順、受理証拠、退去順位、寿命の修正",
+      "U-V/U-N以外のunit、製品の通知配送の式、specのU-V予算行以外、計画、旧契約本文の変更（spec参照anchorとdigestの機械同期は統合担当）",
+      "監査用の未追跡audit-verify/*.cjsと結果を製品・契約の成果物としてcommitすること"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-CODEC-AC01",
+        "requirement": "F08の開始stateをclean cloneで再現する: 45_03_01_200731_VFVO50（Code 11→13）の警報、43_01_01_200522_VFVO52の噴火、66_01_02_210514_VFVO54の降灰、45_01_01_200522_VFVO50のintentをseedにする。idx(i)=4桁ゼロ埋め、identity火山コード=「9」12字＋idx(i)、EventID=「E」60字＋idx(i)。各sliceとshortfallsを128件、operation=training、ReportRefはinputId「i」64字、ReportDateTime「2020-05-22T15:00:00.00000000000000+09:00」、Serial「1234567890」、origin=live。bounded fieldはU+0001で上限まで埋め、警報のmunicipalitiesは8群・計128 code、marineAreasは4群・計32 code、噴火municipalitiesは128 code、降灰は8群×topAreas 3件。area codeは最初のn件のみバックスラッシュ16字、残りは数字12字＋idx(j)（短いkind/ash codeは8字）。pendingは実byte＋deliveryGrowthで131,072、終端は98,304の範囲までseed intentを複製して埋める。警報の先頭1件をseedの疎なactive recordに戻し（subject・operation・volcanoCode・eventId・source・retainUntilは充填後の値、marineSourceはnull）、n=109にすると実envelope 4,190,183 byte・decode=restored。同じ45_01_01_200522_VFVO50のCode 306→先頭火山コード、EventID 306→先頭EventID、ReportDateTime→15:00:01、Status 通常→訓練、Headline→「山」256字、市町村128件のName→「山」32字・Code→バックスラッシュ12字＋idx(j)にした1報では従来4,194,365 byte・自己decode invalid。5 MiBへ改訂後はこの1報を通常どおりchangedで受け、encode→JSON→decodeがrestoredかつ保存fieldが同値であることを検収する。旧4 MiB以下の開始stateは移行なしで復元できる。固有byte値は旧挙動の再現観測値であり、追加の切捨て・byte退去は行わない。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:356 «b317eb0856322bf1»",
+          "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
+          "reconstruction/contracts/p3-volcano-unit.json:1052 «ad57318196433981»"
+        ]
+      },
+      {
+        "id": "P3-CODEC-AC02",
+        "requirement": "U-VのGENERATION_LIMITとdecodeの世代検査を5,242,880 byteへ揃え、既存generationBytesと62 byteの予約を維持する。受信、deadlineStepのbatch flush、shutdown、shortfallResolution、restore後のcollect、intentUpdateの最終候補についてgenerationBytes＋pendingのdeliveryGrowthの和を上限と比較する。配送予約込み静的上界4,753,484 byteによりdecoderを通るstateから合法な受信・期限・配送更新で超過は起きず、更新intentのowner照合も保持できる。検査は実装の誤りによる上界の破れに対する守りである。超過時は入力前のstateそのもの（persistence・contentRevision・batchを含む）と元のnextDeadlineを返し、候補の変更・intent・outcome・displayChanges・confirmationEvidenceを一切出さない。decisionは1件だけ {subject:\"\", operation:\"normal\", decision:\"rejected\", reason:\"requiredStructureInvalid\"}（unit全体の不整合を示す既存の復元拒否と同じ形）。診断も1件だけ {level:\"ERROR\", component:\"volcanoGenerationLimit\", unit:\"U-V\", reason:\"requiredStructureInvalid\", count:1} とし、componentで通常の入力不正と識別する。capacityExceededは返さず、byteを理由とする退去を行わない。record byte cacheと線形の和を使い、全state再直列化・合計差分の帳簿は足さない。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:74 «369b997230539d12»",
+          "reconstruction/src/notification-delivery/delivery-growth.ts:8 «d0b7db8c1f4b8e3d»",
+          "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:54 «5c81f7bf815c513f»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:287 «de991f366dd4a01c»"
+        ]
+      },
+      {
+        "id": "P3-CODEC-AC03",
+        "requirement": "静的上界の再計算: identityTextのEventID/火山コードは1 byte/単位（64/16）、asciiCodeのkind/area/ash code・shortfall.idは引用符またはバックスラッシュで2 byte/単位（8/16/64）、boundedのvolcanoName/Kind名/condition/headline/areaKind/phenomenon/crater/direction/MaterialValue.rawとtext.value/ashName/areaName/inputIdは制御文字または孤立サロゲートで6 byte/単位。coordinateとeventDateTimeRawはasciiCodeで2 byte/単位（40）。ReportDateTimeRawはDate.parse条件つき40単位だが安全側で6 byte/単位、Serialは数字10字、InfoTypeは固定語、originはrecovery、operationはtraining、有限numberはJSON最長25 byte。nullより値ありの形、警報の両source・landKind・128+32 area code、噴火の128 code、降灰の8群×3 top codeを採る。これらでRES-04/05の各record・envelope・予約を足す。U-Vは4,753,484（5 MiBまで489,396余裕）、U-Nは261,214（256 KiBまで930余裕）。この上界は世代のbyte検査自体に依存せず、件数・fieldの値域・通知容量から得るので、5 MiBのdecodeを通るstateから受信・期限・配送更新がこれらを保つ限り、配送予約を使い切っても世代上限の内側に収まる。旧3,867,485を上界として再利用しない。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
+          "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:398 «401ece40cbfc8ff4»"
+        ]
+      },
+      {
+        "id": "P3-CODEC-AC04",
+        "requirement": "F15: Headlineなし・TextがBMP「あ」79字＋😀のVYSE50をU-Nへ投入する。従来のtext.slice(0,80)は末尾D83Dを作る。Textから切り出す部分を80 UTF-16単位以内でサロゲート対を割らずwell-formedにし、通知全bodyには80単位の上限を置かない。Headlineは既存bound→cutで対を割らない。codecがrestoredでも文字境界の合格とはしない。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-nankai-unit.json:199 «00c7d58a8d7d1de3»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:222 «2eb77f4731fe3677»",
+          "reconstruction/src/domains/nankai/nankai.ts:57 «d8c08b2391f4edd9»"
+        ]
+      },
+      {
+        "id": "P3-CODEC-AC05",
+        "requirement": "既存条文の読み替え: (1) I-U-V.capacityReserve/capacityMeasurement、P3-C9-RES-01/AC06/T05の旧上界3,867,485 byteはRES-04の4,753,484へ、P3-C9-CAPACITY=A・I-U-V.decode・P3-C9-RES-01/AC06/T05の4 MiBは5 MiB（5,242,880）へ改める。旧契約の本文は変更せず、spec本体のU-V予算行はAC08で実装担当が改訂する。(2) P3-C9-CAPACITY=Aの件数の退去で受ける通常経路とcapacityExceededを返さない規則を維持する。byte超過は上界の破れ（実装の誤り）だけで起き、その場合はAC02のrejected/requiredStructureInvalidと診断でstateを保つ。byte不足の複数退去・training/testによるnormal退去を新設しない。(3) Q-NOTICE.capacityの131,072/229,376とdeliveryGrowth、I-U-Nの256 KiBとRES-05の上界は維持する。(4) Q-NOTICE.payloadのText先頭80単位だけをAC04の対を割らない意味で読む。既存試験の期待を変える前に差と理由を報告する。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-volcano-unit.json:350 «20d6e2e27276e4ff»",
+          "reconstruction/contracts/p3-volcano-unit.json:355 «63831889f88854e8»",
+          "reconstruction/contracts/p3-volcano-unit.json:356 «4d05feb1846e13f3»",
+          "reconstruction/contracts/p3-volcano-unit.json:1052 «ad57318196433981»",
+          "reconstruction/contracts/p3-volcano-unit.json:1219 «0fe76a1bc6d69f22»",
+          "reconstruction/contracts/p3-nankai-unit.json:199 «00c7d58a8d7d1de3»",
+          "reconstruction/contracts/p3-nankai-unit.json:261 «594dd25e009975f7»"
+        ]
+      },
+      {
+        "id": "P3-CODEC-AC06",
+        "requirement": "新たな型・helper・cacheごとに「無いと何が壊れるか」を1行で示す。既存bytes()のrecord byte cacheとgenerationBytesの線形和を使う。合計差分の帳簿、将来用の抽象、受信1回の全件×全件、全stateのJSON化を足さない。既存試験の期待変更は事前に理由を報告する。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-volcano-unit.json:1052 «ad57318196433981»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:61 «c1abbbb4993dfe08»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P3-CODEC-AC07",
+        "requirement": "Macで容量と処理時間を実測する。AC01のF08構成をn=128・警報を疎にしない各slice/shortfalls 128件とし、decoderが許すbounded fieldをU+0001または孤立サロゲートで上限まで、asciiCodeを引用符/バックスラッシュで上限まで、ReportRef.inputIdを64単位まで、通知を配送予約込みの予算まで充填する。identityText・Date.parseが通るReportDateTime・時刻の関係・重複禁止は守る。5 MiB近傍の計測用stateはdecode=restoredを必須とし、到達不能な保守的上界4,753,484と実際のserializedEnvelope byte、generationBytes、配送予約、上界との差を区別して記録する。余白を埋めるため許容範囲外のfieldを足さない。このstateで実製品checkpoint経路のencode（JSON化・hashを含む）、実ファイル書込み・file sync・rename・directory sync・全体時間、およびAC01のVFVO50 1報のreduce時間をMacで測る。2スロットA/Bを先に作った後に次の世代を書き、rename前のA/B＋一時ファイルとrename後の保存量を実byteで測る（A/B同時上界9,506,968 byte、A/B＋一時ファイルの上界14,260,452 byte。5 MiBを各ファイルの硬い上限とした値は10,485,760/15,728,640 byte）。機種・OS・Node 20/22/24の版、試行数・warmup、中央値・最大、受信前後のbyte、RSSとピーク、ファイルサイズとディスク占有量を記録し、codec.encodeの参照構築だけをencode時間として報告しない。Node 20/22/24が手元に無い場合は手元の版で測り、版を記録する（計測は目安。試験の合否はCIの対応版で取る）。Macでencodeの中央値が100 ms、書込みからdirectory syncまでの全体が1,000 ms、VFVO50 1報の投入→T2が160 ms（台帳63の報告の線）のどれかを超えたら、配送の前に統合担当経由で作者へ報告する。結果と再現手順を本契約meta.questionResolutionsのQ-CODEC-MEASUREMENTへ追記する。起草時は未測定であり成功扱いしない。Piの同条件実測はC22へ申し送り、Macの値を代用しない。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-volcano-unit.json:355 «63831889f88854e8»",
+          "reconstruction/contracts/p3-volcano-unit.json:356 «4d05feb1846e13f3»",
+          "reconstruction/src/checkpoint/checkpoint.ts:91 «83d91d970c9228d8»"
+        ]
+      },
+      {
+        "id": "P3-CODEC-AC08",
+        "requirement": "spec §4.2のU-V行（484行）の予算は、統合担当が起草のcommitで「5 MiB（2026-10-10 作者裁定 P3-CODEC-D-LIMIT=A、K5。当初 4 MiB）」へ改訂した（P3-C11-BOUNDS=BがU-R行を起草のcommitで改訂した先例と同じ。実装担当はspecを変えない）。同じcommitで、spec:484を引くp3-volcano-unit.jsonの3参照・sequences.jsonの4参照・本契約の参照を新anchorへ、sequences.jsonの自己digestとそれを引く全契約のsequencesSha256・自己digestを機械同期した（期待値・旧契約の本文は変えていない）。旧4 MiB以下で復元可能だった保存物は同じschema・件数・文字範囲でそのまま読め、移行は不要。実装担当は定数（GENERATION_LIMIT）とdecodeの検査を5,242,880に揃える。",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
+          "docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»",
+          "docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4»",
+          "reconstruction/contracts/p3-flood-unit.json:81 «86c4061204f9810e»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-CODEC-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-CODEC-AC01",
+          "P3-CODEC-AC02"
+        ],
+        "behavior": "AC01のF08構成を正式volcano-unit試験内で再現し、旧4 MiB以下の開始stateを移行なしで復元し、VFVO50 1報をchangedで受け、5 MiB内でencode/JSON/decodeがrestoredかつ保存fieldが同値となることを1つの回帰試験で確認する。未追跡監査scriptには依存しない。"
+      },
+      {
+        "testId": "P3-CODEC-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CODEC-AC02",
+          "P3-CODEC-AC03"
+        ],
+        "behavior": "RES-04/05の最大形を用い、合法な受信・deadline batch flush・intentUpdate後の配送予約込み世代が5 MiB内で復元でき、配送更新intentがowner照合に残ることを確認する。守りの検査にはcodecを通る最大形と区別した上限ちょうど/超過の合成stateを使う（5 MiB境界は合法最大形からは到達不能）。超過時はAC02で固定したdecision/診断、入力前state同一・副作用なし・byte退去なしを表形式の境界試験で見る。U-Nの上界261,214 byteも照合する。"
+      },
+      {
+        "testId": "P3-CODEC-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-CODEC-AC04"
+        ],
+        "behavior": "Headlineなし・Textが79 BMP＋emojiのF15をnankai-unit.test.tsで再現し、Text由来部分が80 UTF-16単位以内でwell-formed、末尾に孤立D83Dを作らず、codecもrestoredであることを1つのitで確かめる。body全体を80単位以下とはしない。"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01/O07の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約とanchor"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "srcと契約の型検査、dist生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "testの型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "正式回帰と既存試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "byte cache・共有状態の順序依存を検出"
+      },
+      {
+        "command": "git diff --check",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowedPathsだけのgit diff --binary --no-ext-diff patch、変更ファイル、正式ゲートと未実行検証、残存リスクを返す。各試験はregressionまたはcontractBoundaryの根拠を1行で示す。",
+      "RES-04/05のfield別上界と式、F08回帰、U-Vの5 MiBまで489,396 byte・U-Nの256 KiBまで930 byteの余裕を報告する。既存の4 MiB以下の保存物に移行が不要であることを確認する。",
+      "AC07のMac計測結果・再現手順を本契約meta.questionResolutionsのQ-CODEC-MEASUREMENTに記録する。本契約ファイルの実装時編集権はその追記、evidenceRefのanchor、manifest/sequences参照digestと自己digestの同期だけに限定し、受入条件や裁定値を測定後に変えない。Pi実測はC22の確認事項として同じ記録に残す。",
+      "specの実装時編集権はAC08のU-V予算セルだけ。関連する旧契約とcorpusのanchor/digestの機械同期は統合担当が検収前に行い、同期未了のchecker失敗を成功扱いしない。",
+      "K2で新しい保存fieldを足す場合は同じfield別手順で上界を再計算する。"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-CODEC-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "implementation"
+        ],
+        "resolveBy": "発注前点検でK5のbaseOid・許可範囲・C11との重なりを割り当てる。D-LIMITの数値裁定はAで解決済み。",
+        "requiredEvidence": [
+          "git rev-parse HEADとgit status --porcelain",
+          "check-contract FAIL 0",
+          "C11配送済みのcodecとK5の受理・復元境界の照合"
+        ]
+      }
+    ]
+  }
+}

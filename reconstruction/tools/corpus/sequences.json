@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
+    "sha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -3953,7 +3953,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:8",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:484 «6f5cfb311e8dcc7b»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»"
           ]
         },
         {
@@ -4011,7 +4011,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:12",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:484 «6f5cfb311e8dcc7b»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»"
           ]
         },
         {
@@ -16392,7 +16392,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:484 «6f5cfb311e8dcc7b»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»"
       ],
       "input": {
         "required": "U-V保存ackを確定。",
@@ -16505,7 +16505,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:484 «6f5cfb311e8dcc7b»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»"
       ],
       "input": {
         "required": "取消後のU-V世代ack。",
