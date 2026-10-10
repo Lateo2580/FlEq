@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2a7c78b7029dfe83d4eeb4c0d5f6f1b314eb8536",
-    "sha256": "5c668122f7da09555081793d76774a6e23b385aea59f3fcb4f453653608d9621",
+    "sha256": "94adf20da3e1620e1e1c551897a955064a59513504cb2cc1b47ca541307c911a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
@@ -69,7 +69,7 @@
     "contractId": "P3-REVISION-ORDER-001",
     "mode": "implementation",
     "objective": "optional SerialのU-Q・U-N・U-V・U-Lで、版の比較を作者裁定D-ORDER=Aの辞書順（ReportDateTime→InfoTypeの順位→Serial、欠落は固定の位置）に直し、Serialが片方だけ無い報の比較の循環（監査F02、同時刻の三報の6順列で最終がcancelled 2・active 4に分かれる）を閉じる。復元を挟んでも同じ最終になることを試験で固定し、同じ版の競合と比較不能の組を明示した規則で受け入れる。",
-    "baseOid": "unassigned",
+    "baseOid": "1d1cf4c5f46ee3646d4f4fb7c754ca03f2a536c9",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
