@@ -392,4 +392,4 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 
 | 契約 | 対象 | 依存 | 状態 |
 |---|---|---|---|
-| `P3-MEASURE-HARNESS-001` | 台帳76: K6・UWRの後にE01/C4の測定harnessが成り立たない（充填のEEWが受信の時点でhorizon外のstale、3つの保存母集団の引き金が1秒のtickを前提、E14のowner側の区間が無い、凍結の照合の集合と機械の値）。K6のP3-LIFE-D-HARNESS=Aの申し送りを引き受け、UWR AC08の別報告の未実装とtriggerLeadMsの読み替えを本契約に記録する。測り直しはE05-P・Q-UWR-REMEASUREのMac mini・PiのE03。P3-C6-AC09のPi予備とQ-UWR-REMEASUREのPi第1・2段は別機械のharnessが要り本契約の後も残る | K6・UWR・C6・WL2の配送 | 起草（e7440188から）。作者裁定P3-MH-FULL-STATE待ち（推奨D） |
+| `P3-MEASURE-HARNESS-001` | 台帳76: K6・UWRの後にE01/C4の測定harnessが成り立たない（充填のEEWが受信の時点でhorizon外のstale、3つの保存母集団の引き金が1秒のtickを前提、E14のowner側の区間が無い、凍結の照合の集合と機械の値）。K6のP3-LIFE-D-HARNESS=Aの申し送りを引き受け、UWR AC08の別報告の未実装とtriggerLeadMsの読み替えを本契約に記録する。測り直しはE05-P・Q-UWR-REMEASUREのMac mini・PiのE03。P3-C6-AC09のPi予備とQ-UWR-REMEASUREのPi第1・2段は別機械のharnessが要り本契約の後も残る | K6・UWR・C6・WL2の配送 | 起草（e7440188から）。作者裁定P3-MH-FULL-STATE=D・残存リスク10件承認（2026-10-11朝）。発注前点検 2026-10-11（RETIME-SCOPE=A・SETUP-PATH=Aを統合担当が確定、Q-MH-PRECHECK）。baseOidは点検のcommitに割り当てる（Q-MH-BASE） |

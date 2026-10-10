@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "0cb5cda4a0be616fb666af0321132fe6cab6c30e276ac2ac03dc89b5ed458ecb",
+    "sha256": "23c3f68b1277f2738825ebd7c87bc6ddfaf04c4ac7322dbbf3a9b3d408558e17",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -24,7 +24,7 @@
         "B": "全部の入力の報時刻を送る時点のhostの壁時計へ付け直す（U-W・U-Fの充填も）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者がAに確定（2026-10-11）。発注前点検で見直す",
+        "ruling": "統合担当が発注前点検で確定（2026-10-11、Q-MH-PRECHECK）: A。e51b06e9で実コードを読み直した。U-Wは受信の時点で報時刻の古さを拒む規則が無く、壁時計を使うのは通知intentのTTLと世代の予約の計量だけ（weather-current-unit.ts:503、P3-MH-TIME-RULES【4】）。U-Fの新しいactiveの条件はvalidUntil＞受信時のwallだけで、報時刻の古さのhorizonは無い（weather-timeseries-unit.ts:184、retainUntil＝max(報時刻＋7日, validUntil)）。hostの壁時計は窓ごとのhostの起動でwallOriginから始まる（host-launcher.mjs:41）ので、U-Fの充填（validUntil翌03:00）は各窓の始まりから9時間有効で、いちばん長い窓（cycleCの65周期×60秒にDの失効待ちの上限660秒を足して約76分。AC15は1充填あたり約21分）でも窓の間に失効しない。AC15のU-Fの報（ac15Frameの官署0、validUntilは充填と同じ）とcycleCのU-Fの入れ直し（cycleStartWallMs基準）も同じ。E12（e12-runの壁時計はDate.now()）は充填を使わず、weatherの報は既に基準時刻へ平行移動している（e12Frames）。Bにしても測る条件は変わらず、変える関数が増えるだけ。前提が崩れるのはwallOriginを変える版だけで、残存リスク(2)のとおり",
         "reason": "Aは変える関数が少なく、U-W・U-Fの充填の件数（weatherCurrent 127/1/1・weatherTimeseries 511/0/0・checkpoint）は再検収（e7440188の窓）でも合っていた。Bはwallを変えても壊れない形になるが、U-Wの履歴の＋k秒の順序とU-Fの有効期間の相対を全部の規則で作り直す。Aの代償は残存リスク(2)"
       },
       {
@@ -34,7 +34,7 @@
         "C": "A10のinitial-state・trial-setupを書き換える",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者がAに確定（2026-10-11）。発注前点検で見直す",
+        "ruling": "統合担当が発注前点検で確定（2026-10-11、Q-MH-PRECHECK）: A。e51b06e9で実コードを読み直した。(1) P3のmanifestの照合はtrialSetupをA10の凍結manifestの値と文字列で比べ（frozen.ts:403）、津波のmanifestはC4の値と比べる（frozen.ts:595）。C4・C6・e7440188のE05-Pの凍結manifestはA10のtrialSetupSha256を持つので、C（A10の1組の書換え）はそれらの照合を全部壊す (2) BはP3E01Manifestの型（p3-e01-reaccept.types.ts）を変えるのでoutOfScopeの「契約の型」に当たる (3) Aは型を変えずに入る: harnessの1組はtrialSetupRef・trialSetupSha256の欄に書け、verifyTrialSetup（frozen.ts）はschemaVersion・clock.monotonicOrigin・手順の非空・checkpointの欄だけを見るので同じ検査を通る。populationsのstateRef・stateSha256は自分のtrial-setupが指すinitial-stateに結ぶ今の検査（frozen.ts:417）のままで、呼び出し側（run.mjs・p3.test.ts）はinheritedのinitialStateTextにそのinitial-stateを渡す。依存の向きはframes.mjs→initial-state（rulesSource）→trial-setup（initialStateSha256）→frozen.tsの定数で循環しない (4) frames.mjsを変えるとA10の1組はpreflightのrulesSourceの照合（run.mjs:1389）を通らなくなる。P3の測り直しはharnessの1組で走るので困らないが、津波の照合（frozen.ts:595、本契約で変えない）はC4の1組＝A10の1組に縛られたままなので、新しい津波のmanifest（P3-C6-AC09のPi予備を含む）は本契約の後はpreflightで止まる。別機械のharnessの契約が津波の照合もharnessの1組へ開く（残存リスク(9)の後続、Q-MH-PRECHECK）",
         "reason": "frozen.tsのverifyFrozenP3ManifestはtrialSetupをA10と同一に縛り、run.mjsのpreflightはframes.mjsのsha256をinitial-stateのrulesSourceと照らす。frames.mjsを変えるとA10のinitial-stateのままでは全窓がpreflightで止まる。Bは契約の型（contracts/p3-e01-reaccept.types.ts）の改訂が要り本契約の範囲を越える。CはA10・C4・C6の凍結物の参照先を壊す"
       }
     ],
@@ -45,6 +45,13 @@
         "source": "作者裁定（2026-10-11朝、ご主人）",
         "closed": "P3-MH-FULL-STATE=D（推奨どおり）。残存リスク(1)〜(10)は全部承認。P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段を本契約の後に残すことを了承し、別機械のharnessは有線の配線の段取りを決めるときに別の契約で起こす（C6の閉鎖はそれまで待つ）",
         "reason": "独立レビュー（Opus）の条件付きGO→直し→再レビューGOの後、作者の分岐1つと残存リスクを確定した"
+      },
+      {
+        "id": "Q-MH-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-11、HEAD e51b06e9）",
+        "closed": "(1) 分岐: P3-MH-RETIME-SCOPE・P3-MH-SETUP-PATHを統合担当がAで確定（各ruling）。decisionBranchesに起草案・仮置きのまま実装に効くものは0件 (2) triggerLeadMsの型のコメント（p3-e01-reaccept.types.tsのP3EewPopulationCondition、「引き金を予測したtickの何ms前に送るか」）は、本契約で凍結するmanifestではAC03(4)の読み替え（較正の予測が無い間の、引き金〔forecastDeadlineOverlapはtick n〕から対象のencode開始までの遅れ）で読む。型と他の契約は変えない（コメントの改訂は統合担当）。UWR AC08の「owner側の区間を別に報告する」の未実装はAC04が引き受ける。どちらも計画§9の本契約の行に記録済み (3) anchor: evidenceRefsの95件（重複1件を除く）とrule・requirementの本文のfile:lineを全部e51b06e9の行で読み、条文の主張と合うことを確かめた (4) 文面の直し: AC03(2)に引き金を送る時刻（tick n−1の100ms以上前、validUntilより前に受信させる）を足した（triggerLeadMsの読み替えの後、今のrunnerの「狙うtickのlead前に送る」をそのまま使うと引き金がvalidUntilの後に届いて全試行が回収なしになる）。AC04に数える束（linked）を明記。AC07の入力を変える試験2件の内訳を名指した (5) 計画§9の横断の条文P3-X-C1〜C6とパラメータ表: 本契約は製品の規則を変えないので、unitのパラメータ表（C12以降の新規unitと既配送unitの修正契約）は対象外。X-C2（寿命の起点と境界）はK6の規則をharnessが写す形でP3-MH-TIME-RULES・AC01・AC02が、X-C4のhot pathの計量はAC07の計算量が受ける。X-C1・C3・C5・C6の製品の条文に触れる入力の変更は無い (6) 申し送り: frames.mjsを変えるとC4の1組（＝A10の1組）のinitial-stateはpreflightのrulesSourceの照合を通らないので、津波の照合（frozen.ts:595、本契約で変えない）に縛られた新しい津波のmanifestは本契約の後に走らない。別機械のharnessの契約で津波の照合もharnessの1組へ開く（P3-MH-SETUP-PATHのruling (4)、残存リスク(9)の後続。P3-C6-AC09は元々本契約の後も走らない）",
+        "reason": "発注前点検の項目を閉じる。Q-MH-BASEはbaseOidの割当だけを残す"
       },
       {
         "id": "P3-MH-DEPS",
@@ -290,7 +297,7 @@
       },
       {
         "id": "P3-MH-AC03",
-        "requirement": "3つの保存母集団（maxWeatherCheckpointEncodeStarted・maxForecastCheckpointSave・forecastDeadlineOverlap。番号はrun.mjsのPOP_CODEの0始まりと紛れるので使わない）の引き金を、UWRの後の保存の始まりに合わせる（C6の511378f2の型、P3-TSUNAMI-E01-001のQ-C6-IMPL-AMEND (10)）。UWRの後はpublisherがinputDone・deadlineDoneの反映の直後に権を再評価して保存を始め（P3-UWR-AC03）、保存は1秒のtickに乗らない。(1) maxWeatherCheckpointEncodeStarted（引き金はVPWW55でU-W）とmaxForecastCheckpointSave（引き金は81_09_01のVPWP50でU-F）: 引き金を送り、直近10試行の「その引き金の入力IDを含む自unitの保存のencode開始−引き金の実送信」の中央値（predictParseDelayの形を再利用）＋targetOffsetMsにEEWを送る。予測の無い間（最初の10試行）はtriggerLeadMsを遅れの代わりにする。対象の区間は引き金を含む自unitの保存（maxForecastCheckpointSaveは今どおり保存全体、maxWeatherCheckpointEncodeStartedは今どおりencode）。対象が引き金の送信から3秒で観測されない試行は11秒を待ち切らずにstartOffsetの不成立として次へ進む（C6と同じ） (2) forecastDeadlineOverlap: 期限の回収はvalidUntilを過ぎた後の最初のdeadline要求の返信の直後に保存される（C4の「保存は次のtick」〔run.mjs:764〜766〕は成り立たない）。tickの位相は製品の観測mailbox（trigger tick）の直近の行から当て（checkpointのencode開始を代わりにしない）、狙うtick nの1つ前のtickとnの間の秒境界にvalidUntilを置き、tick n＋直近10試行の「回収を含むU-Fの保存のencode開始−そのtickの時刻」の中央値＋targetOffsetMsにEEWを送る（予測の無い間はtriggerLeadMs）。対象の保存は今の規則（引き金の採用の世代より後で、どの入力の行も無い世代を含むU-Fの保存）のままで、予測したtickの±500msの絞り込みを使わない (3) 新しい試行はtrigger.calibratedを付け、trialTargetは較正した試行だけ新しい選び方を使う（C4の凍結の記録とp3.test.tsの既存の期待は今の選び方のまま）。runnerがpredictTickをmaxWeatherCheckpointEncodeStarted・maxForecastCheckpointSaveに使うのをやめる（forecastDeadlineOverlapの位相の推定はmailboxのtickの行に替える） (4) triggerLeadMsの意味は、本契約で凍結するmanifestでは「較正の予測が無い間に使う、引き金（forecastDeadlineOverlapはtick n）から対象のencode開始までの遅れ」と読み替える（frozen.tsの検査〔正の有限数〕は変えない。型のコメントの改訂は統合担当）。値と成立率は予備で取り、stopConditionはC6と同じ式（tsunami.mjsのstopFromPreliminary: maxAttempts＝100＋ceil(1,000÷Wilson下限〔z＝1.96〕×1.1)、maxDurationMs＝ceil((60秒＋1試行の所要×maxAttempts)×1.25)）で母集団ごとに決める (5) fixedBacklog・maxVpws50ParseStarted・maxVpws50ReceivedThenEewは変えない。受け入れるoffsetの範囲[0,5]ms・targetOffsetMs 1msはC4のまま。無いと: 3つの保存母集団の試行の大半がtargetNotObservedかstartOffsetで不成立になり、窓がstopConditionでBlockedになる（C6の2回目の予備でencode直後が0/40）",
+        "requirement": "3つの保存母集団（maxWeatherCheckpointEncodeStarted・maxForecastCheckpointSave・forecastDeadlineOverlap。番号はrun.mjsのPOP_CODEの0始まりと紛れるので使わない）の引き金を、UWRの後の保存の始まりに合わせる（C6の511378f2の型、P3-TSUNAMI-E01-001のQ-C6-IMPL-AMEND (10)）。UWRの後はpublisherがinputDone・deadlineDoneの反映の直後に権を再評価して保存を始め（P3-UWR-AC03）、保存は1秒のtickに乗らない。(1) maxWeatherCheckpointEncodeStarted（引き金はVPWW55でU-W）とmaxForecastCheckpointSave（引き金は81_09_01のVPWP50でU-F）: 引き金を送り、直近10試行の「その引き金の入力IDを含む自unitの保存のencode開始−引き金の実送信」の中央値（predictParseDelayの形を再利用）＋targetOffsetMsにEEWを送る。予測の無い間（最初の10試行）はtriggerLeadMsを遅れの代わりにする。対象の区間は引き金を含む自unitの保存（maxForecastCheckpointSaveは今どおり保存全体、maxWeatherCheckpointEncodeStartedは今どおりencode）。対象が引き金の送信から3秒で観測されない試行は11秒を待ち切らずにstartOffsetの不成立として次へ進む（C6と同じ） (2) forecastDeadlineOverlap: 期限の回収はvalidUntilを過ぎた後の最初のdeadline要求の返信の直後に保存される（C4の「保存は次のtick」〔run.mjs:764〜766〕は成り立たない）。tickの位相は製品の観測mailbox（trigger tick）の直近の行から当て（checkpointのencode開始を代わりにしない）、狙うtick nの1つ前のtickとnの間の秒境界にvalidUntilを置き、引き金はtick n−1の100ms以上前に送る（受信の時点でvalidUntil＞hostの壁時計でないとU-Fのactiveにならず回収が起きない、weather-timeseries-unit.ts:184。triggerLeadMsは(4)の読み替えで引き金を送る時刻の決め方に使わない）。tick n＋直近10試行の「回収を含むU-Fの保存のencode開始−そのtickの時刻」の中央値＋targetOffsetMsにEEWを送る（予測の無い間はtriggerLeadMs）。対象の保存は今の規則（引き金の採用の世代より後で、どの入力の行も無い世代を含むU-Fの保存）のままで、予測したtickの±500msの絞り込みを使わない (3) 新しい試行はtrigger.calibratedを付け、trialTargetは較正した試行だけ新しい選び方を使う（C4の凍結の記録とp3.test.tsの既存の期待は今の選び方のまま）。runnerがpredictTickをmaxWeatherCheckpointEncodeStarted・maxForecastCheckpointSaveに使うのをやめる（forecastDeadlineOverlapの位相の推定はmailboxのtickの行に替える） (4) triggerLeadMsの意味は、本契約で凍結するmanifestでは「較正の予測が無い間に使う、引き金（forecastDeadlineOverlapはtick n）から対象のencode開始までの遅れ」と読み替える（frozen.tsの検査〔正の有限数〕は変えない。型のコメントの改訂は統合担当）。値と成立率は予備で取り、stopConditionはC6と同じ式（tsunami.mjsのstopFromPreliminary: maxAttempts＝100＋ceil(1,000÷Wilson下限〔z＝1.96〕×1.1)、maxDurationMs＝ceil((60秒＋1試行の所要×maxAttempts)×1.25)）で母集団ごとに決める (5) fixedBacklog・maxVpws50ParseStarted・maxVpws50ReceivedThenEewは変えない。受け入れるoffsetの範囲[0,5]ms・targetOffsetMs 1msはC4のまま。無いと: 3つの保存母集団の試行の大半がtargetNotObservedかstartOffsetで不成立になり、窓がstopConditionでBlockedになる（C6の2回目の予備でencode直後が0/40）",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/run.mjs:313 «1f03cbff74d63443»",
           "reconstruction/test/eew-e01/run.mjs:314 «ebfc6375124da227»",
@@ -316,7 +323,7 @@
       },
       {
         "id": "P3-MH-AC04",
-        "requirement": "E14のowner側の区間の別報告（P3-UWR-AC08の「owner側の区間はmonotonicMs−ownerMonotonicMsとして別に報告する」）: 束ごと・unitごとに、その束の入力のgenerationRaisedの行のmonotonicMs−ownerMonotonicMsを求め、summarizeE14の結果にunitごとの分位点（p50・p99・max）と、ownerMonotonicMsが無いかnullの行の数（C4の凍結記録の形）を足す。owner側の区間はe14Bundleが既に引いた起点の行から取り、新しい索引を作らない。ownerMonotonicMsの無い行は0と数えない。dirty→ack・成立の判定（区間の重なり）・既存のfieldの値は変えない。UWRのallowedPathsはaux-measures.mjsとその試験を含み（outOfScopeもeew-e01/**のうちこの2つを除外から外している）、AC08の起点の付け替えは入ったが別報告の部分が実装されなかったので、本契約で足す。無いと: 測り直しのE14で、起点を早めた分（射影・返信の複製・配送）の大きさが見えず、C4のdirty→ackと新しいdirty→ackの差を読めない",
+        "requirement": "E14のowner側の区間の別報告（P3-UWR-AC08の「owner側の区間はmonotonicMs−ownerMonotonicMsとして別に報告する」）: 束ごと・unitごとに、その束の入力のgenerationRaisedの行のmonotonicMs−ownerMonotonicMsを求め、summarizeE14の結果にunitごとの分位点（p50・p99・max）と、ownerMonotonicMsが無いかnullの行の数（C4の凍結記録の形）を足す。数える束はdirty→ackと同じ成立（linked）した束（発注前点検で明記、Q-MH-PRECHECK）。owner側の区間はe14Bundleが既に引いた起点の行から取り、新しい索引を作らない。ownerMonotonicMsの無い行は0と数えない。dirty→ack・成立の判定（区間の重なり）・既存のfieldの値は変えない。UWRのallowedPathsはaux-measures.mjsとその試験を含み（outOfScopeもeew-e01/**のうちこの2つを除外から外している）、AC08の起点の付け替えは入ったが別報告の部分が実装されなかったので、本契約で足す。無いと: 測り直しのE14で、起点を早めた分（射影・返信の複製・配送）の大きさが見えず、C4のdirty→ackと新しいdirty→ackの差を読めない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-unit-write-right.json:380 «329401348c542c21»",
           "reconstruction/contracts/p3-unit-write-right.json:312 «02a53fcf7bc48948»",
@@ -374,7 +381,7 @@
       },
       {
         "id": "P3-MH-AC07",
-        "requirement": "試験・最小実装・計算量: reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す。既存試験の期待値は変えない。入力の変更として許すのは、付け直しで引数が変わる関数を呼ぶ試験の入力だけ: frames.test.tsのP2-A10-T04（nearCapacityFramesとcycleCFramesの時刻）、aux-measures.test.tsのP3-C4-T10 E14の2件（K6が時計を2024-04-17に寄せた入力を、付け直した充填の時刻に寄せる）。ほかに期待値か入力を変える必要が出たら変えずに止め、試験名・旧の期待・理由を統合担当へ報告する（AGENTS.md）。足した仕組みごとに「無いと何が壊れるか」を1行で書く（各ACの「無いと」を最低限とする）。新しいrunner・benchmark framework・npm依存を作らない。最小テスト: 追加する試験はtestMappingのT01〜T05に限り、1つの振る舞いに1つ。計算量: 充填の確かめ・失効の待ち・tickの位相・較正は、追記された行だけを走査する（run.mjsのscanParseStartsと同じ形）。試行ごとに全行を索引し直さない。E14のowner側の区間はe14Indexの既存のMapから束ごとに引く。eewHorizonStaleの数え方は診断のJSONLを確かめの時に1回読み、試行ごとに読まない。製品のsrc（host・runtime・unit・domain・checkpoint）に触れない",
+        "requirement": "試験・最小実装・計算量: reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す。既存試験の期待値は変えない。入力の変更として許すのは、付け直しで引数が変わる関数を呼ぶ試験の入力だけ: frames.test.tsのP2-A10-T04（nearCapacityFramesとcycleCFramesの時刻）、aux-measures.test.tsのP3-C4-T10 E14の2件（「after the fill, bundle k's VXSE45 correction …」はK6が時計を2024-04-17に寄せた入力を付け直した充填の時刻に寄せる。「bundle k updates a filled EEW EventID …」はnearCapacityFramesに足す引数だけを渡す）。ほかに期待値か入力を変える必要が出たら変えずに止め、試験名・旧の期待・理由を統合担当へ報告する（AGENTS.md）。足した仕組みごとに「無いと何が壊れるか」を1行で書く（各ACの「無いと」を最低限とする）。新しいrunner・benchmark framework・npm依存を作らない。最小テスト: 追加する試験はtestMappingのT01〜T05に限り、1つの振る舞いに1つ。計算量: 充填の確かめ・失効の待ち・tickの位相・較正は、追記された行だけを走査する（run.mjsのscanParseStartsと同じ形）。試行ごとに全行を索引し直さない。E14のowner側の区間はe14Indexの既存のMapから束ごとに引く。eewHorizonStaleの数え方は診断のJSONLを確かめの時に1回読み、試行ごとに読まない。製品のsrc（host・runtime・unit・domain・checkpoint）に触れない",
         "evidenceRefs": [
           "AGENTS.md",
           "reconstruction/test/eew-e01/windows.mjs:216 «3d5565c3f01e6621»",
@@ -523,11 +530,10 @@
         "blocks": [
           "実装の着手"
         ],
-        "resolveBy": "本契約の発注前点検",
+        "resolveBy": "baseOidの割当（統合担当、発注前点検の後）",
         "requiredEvidence": [
-          "baseOidの割当とcheck-contract FAIL 0",
-          "P3-MH-RETIME-SCOPE・P3-MH-SETUP-PATH（起草者の確定）の見直し",
-          "triggerLeadMsの型のコメント（p3-e01-reaccept.types.ts）の読み替えと、UWR AC08の別報告の未実装を本契約が引き受けたことの記録（計画§9の本契約の行）"
+          "baseOidの割当（発注前点検の直しのcommit。点検はe51b06e9で行った、Q-MH-PRECHECK）とcheck-contract FAIL 0",
+          "割当の時点で本契約のanchor（frames.mjs・windows.mjs・run.mjs・draft.mjs・aux-measures.mjs・frozen.ts・eew.ts・composition-root.ts・host.tsと、K6・UWR・C6・WL2・P3-E01-REACCEPT-001の契約の行）がずれていないかを確かめ、ずれたanchorを直す"
         ]
       },
       {
