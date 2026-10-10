@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2a7c78b7029dfe83d4eeb4c0d5f6f1b314eb8536",
-    "sha256": "2bd501e186bffe5a28e84c335ea27d7a38cb73d08ea612ea743ea09c7bea5bfa",
+    "sha256": "e6ac729c1a4459c0a662b244b7e1c5409eb0e5bc85904dd10e7835e2dcdff52e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -220,12 +220,12 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:520 «49c477cfd634e382»",
           "reconstruction/src/units/nankai/nankai-unit.ts:126 «fefde496931d4d0c»",
           "reconstruction/src/units/nankai/nankai-unit.ts:132 «747b443edb02ab50»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:181 «2441c73a08918f69»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:188 «11352c0f5256c61e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:185 «9d7deb807a978415»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:190 «d1158287a934566f»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:114 «ecc2cb63cfb46560»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:121 «e0300823a2018e79»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:182 «2441c73a08918f69»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:189 «11352c0f5256c61e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:186 «9d7deb807a978415»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:191 «d1158287a934566f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:115 «ecc2cb63cfb46560»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:122 «e0300823a2018e79»",
           "reconstruction/contracts/p3-order-plan.md:348 «2aa034878016ecd6»"
         ]
       },
@@ -235,8 +235,8 @@
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:552 «5e1d5fdfe7aa824e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:316 «e194a8fa9c7c2bbf»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:355 «4a609cba95f01662»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:264 «7bad47e8e65484aa»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:356 «4a609cba95f01662»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:265 «7bad47e8e65484aa»",
           "reconstruction/src/decode-material/decode-material.ts:441 «e7ff21641a768c49»"
         ]
       },
@@ -247,9 +247,9 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:554 «9b3d429efeb433f4»",
           "reconstruction/src/units/nankai/nankai-unit.ts:319 «9cbf8194c661724e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:144 «b9f35ee8a39ce41d»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:300 «5cb00a0b26f7ead5»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:806 «1fd46a035987500a»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:266 «3722c817913a7005»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:301 «5cb00a0b26f7ead5»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:811 «1fd46a035987500a»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:267 «3722c817913a7005»",
           "reconstruction/test/landslide-unit/landslide-unit.test.ts:155 «a8764394861ff66e»",
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:817 «113f3a256d6f8d3b»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:144 «c4d8df60945ee861»",
@@ -265,7 +265,7 @@
         "id": "P3-ORDER-AC04",
         "requirement": "同じ範囲の別の比較の扱い（放置しないための明示）: (1) U-Vの復旧不足のliveでの除去（liveShortfalls、volcano-unit.ts:493〜498）は保存したlastKnown（ReportDateTimeとSerialだけ、InfoTypeとfamilyを持たない）との閾値の比較で、報どうしの版の順ではなく循環しない。K1では変えない: 時刻が新しい、または同時刻で両方にSerialがあり候補が大きいときだけ不足を除く。外れても不足（viewの「失ったかもしれない」表示）が残るだけで記録は変えない。不足を作るのはC15の移行だけなので、C15の起草でlastKnownの形を決めるときにこの比較を見直す。(2) U-Qの公開事実の導出（seismic-unit.ts:170、時刻→familyの優先）とU-Vの最新source（volcano-unit.ts:54、時刻だけ）は別familyの寄与から表示の値を選ぶ規則で、Serialを使わず版の比較ではない。変えない。(3) 退去の順位（各unitのevictOne、時刻・subject）はK4の範囲。(4) U-Nの「訂正・取消は現況のsourceと同じheadType・EventIDのときだけ現況に効く」（nankai-unit.ts:137）と、情報subjectの判定を現況より先に行う順（Q-C8-IMPL-AMEND(3)）は変えない。(5) Serialが必須のU-E・U-R・U-B、Serialを持たない比較のU-T（VTSE41）・U-W・U-Fは変えない（R・Bは時刻→Serial→InfoTypeで欠落が無く全順序）。",
         "evidenceRefs": [
-          "reconstruction/src/units/volcano/volcano-unit.ts:513 «163dc99df829d55c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:516 «163dc99df829d55c»",
           "reconstruction/contracts/p3-volcano-unit.json:346 «3daecd7c92af885e»",
           "reconstruction/src/units/seismic/seismic-unit.ts:170 «8d7cc9a0cd44d1a4»",
           "reconstruction/src/units/volcano/volcano-unit.ts:54 «60917f2273da25b8»",
@@ -301,7 +301,7 @@
         "requirement": "既存試験: 起草時の試作でreconstructionのvitestは期待値の変更0件で通った（Q-ORDER-PROTOTYPE）。既存試験の期待値・入力を変える必要が出たら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。新しい試験はT01・T02だけ。",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:552 «5e1d5fdfe7aa824e»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:264 «7bad47e8e65484aa»"
+          "reconstruction/src/units/landslide/landslide-unit.ts:265 «7bad47e8e65484aa»"
         ]
       },
       {

@@ -190,7 +190,9 @@ function admit(current: readonly TsunamiIntent[], fresh: readonly TsunamiIntent[
 
 // ---- 容量（P3-C5-CAPACITY=A） ----
 
-function tier(value: Subject, now: number): number | null {
+// training/test の受理は normal の記録を active・非 active とも退去しない（D-OPERATION=A、P3-OPCAP-AC01）。
+function tier(value: Subject, now: number, incoming: Operation): number | null {
+  if (value.operation === "normal" && incoming !== "normal") return null;
   if (value.effective !== "active") return value.retainUntil != null && value.retainUntil <= now ? 0 : 1;
   return value.operation === "normal" ? null : 2;
 }
@@ -203,10 +205,11 @@ function oldest(left: Subject, right: Subject): number {
 }
 
 // 超過した上限ごとに、その超過を実際に減らす subject だけを (1) 期限切れの非 active (2) 最古の非 active (3) training/test の
-// active の順に退去する。normal の active だけで超えるなら null（capacityExceeded）。
+// active の順に退去する。受ける報が training/test なら normal の subject は (1)(2) とも候補にしない（P3-OPCAP-AC01）。候補で収まらなければ
+// null（capacityExceeded）。
 // ponytail: 退去の順は超過の種類ごとに 1 回並べる。退去は稀で上限 512・1024 に限られる（AGENTS.md の稀な一括処理）。
 function fit(forecasts: readonly TsunamiForecastSubject[], observations: readonly TsunamiObservationSubject[],
-  intents: readonly TsunamiIntent[], target: string, now: number):
+  intents: readonly TsunamiIntent[], target: string, now: number, incoming: Operation):
   Readonly<{ forecasts: readonly TsunamiForecastSubject[]; observations: readonly TsunamiObservationSubject[];
     evicted: readonly Subject[] }> | null {
   const obsCount = { VTSE51: 0, VTSE52: 0 }, stationCount = { VTSE51: 0, VTSE52: 0 };
@@ -229,7 +232,7 @@ function fit(forecasts: readonly TsunamiForecastSubject[], observations: readonl
   const run = (pool: readonly Subject[], over: () => boolean): boolean => {
     if (!over()) return true;
     const ranked = pool.flatMap((item) => {
-      const rank = item.subject === target || evicted.has(item) ? null : tier(item, now);
+      const rank = item.subject === target || evicted.has(item) ? null : tier(item, now, incoming);
       return rank == null ? [] : [{ item, rank }];
     }).sort((left, right) => left.rank - right.rank || oldest(left.item, right.item));
     for (const { item } of ranked) { if (!over()) break; remove(item); }
@@ -487,7 +490,7 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
   cancelSubject: string | null; semantic: boolean; changes: readonly Change[]; target: Subject; facts: Readonly<Record<string, JsonValue>>;
 }>): Result {
   const notices = admit(state.intents, proposal.fresh, proposal.cancelSubject);
-  const fitted = fit(proposal.forecasts, proposal.observations, notices.intents, candidate.subject, clock.wallTimeMs);
+  const fitted = fit(proposal.forecasts, proposal.observations, notices.intents, candidate.subject, clock.wallTimeMs, candidate.operation);
   const evidence = { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
   if (fitted == null) return { changes: [], step: { ...idle(state), decisions: [{ subject: candidate.subject,
     operation: candidate.operation, decision: "capacityExceeded", rejection: evidence }] } };

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4e8e3ab8b58b7cbf8fe7c653767d6633cb51fe2",
-    "sha256": "9b080cd3e06fd434c80c353e55c68ef3bb40973c7a342dd53e8d8431480bd63a",
+    "sha256": "a761151ec33f6d8abe3733eab55f3eb631d083010edfcd78b8138af6b2ce9300",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
@@ -288,12 +288,12 @@
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:132 «563fc06041606774»",
           "reconstruction/src/units/volcano/volcano-unit.ts:136 «33dfada096768ace»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:239 «d7cb8a9d170d69ce»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:261 «027881b3274601ad»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:555 «71d1e5d6acccf04c»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:562 «709a512117afd511»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:271 «44d45d65bf78673b»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1040 «a5cd6f76762c505f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:240 «d7cb8a9d170d69ce»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:262 «027881b3274601ad»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:560 «71d1e5d6acccf04c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:567 «709a512117afd511»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:272 «44d45d65bf78673b»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1044 «a5cd6f76762c505f»",
           "reconstruction/contracts/p3-volcano-unit.types.ts:65 «0939fb8dbfe1e419»",
           "reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2»",
           "reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6»",
@@ -304,9 +304,9 @@
         "id": "P3-AUTH-AC04",
         "requirement": "F07の閉鎖: 45_01_01_200522_VFVO50のReportDateTimeを2026-01-01T10:00:00+09:00・EventIDをAにした報（land A）、46_01_01_170103_VFSViiのCode 506を306・ReportDateTimeを10:00:01・EventIDをBにした報（VFSV50として投入、marine B）、synthetic_VFVO50_cancelのReportDateTimeを10:00:02・EventIDをAにした火山コードの無い取消を、各報の時刻の時計で順に受ける（audit-verify/core.cjsのF07と同じ入力）。取消はrejected/identityMissingでなく火山306の警報に結び付き、D-LAND-CANCEL=Aによりchanged/semantic・effective cancelled、landEventId A・marineEventId B・marineSource（10:00:01）が残り、取消のdesktop・soundのpendingが出る。逆の順（marine B→land A→EventID Bの火山コードの無いVFSVの取消）も結び付く。取消の前に復元を挟んでも同じ。取消の後に届くmarine Bより古いVFSVはstale。修正前の観測（cancel rejected/identityMissing・after active）の反転を正式試験で示す。",
         "evidenceRefs": [
-          "reconstruction/src/units/volcano/volcano-unit.ts:555 «71d1e5d6acccf04c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:560 «71d1e5d6acccf04c»",
           "reconstruction/src/units/volcano/volcano-unit.ts:132 «563fc06041606774»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:239 «d7cb8a9d170d69ce»"
+          "reconstruction/src/units/volcano/volcano-unit.ts:240 «d7cb8a9d170d69ce»"
         ]
       },
       {
@@ -335,7 +335,7 @@
           "reconstruction/src/units/nankai/nankai-unit.ts:25 «f376055a27fbf976»",
           "reconstruction/src/units/nankai/nankai-unit.ts:21 «9e3e831c3998c650»",
           "reconstruction/contracts/p3-nankai-unit.types.ts:119 «6354aa850ef74bba»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1219 «5f59bc69aea62f5e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1223 «5f59bc69aea62f5e»",
           "reconstruction/src/units/volcano/volcano-unit.ts:23 «7ddfd6e70a9e1435»",
           "reconstruction/src/checkpoint/checkpoint.ts:450 «ddf5c81fd41da4ad»",
           "reconstruction/src/runtime/owner-runtime.ts:379 «890b0a8cddc63328»",
@@ -385,8 +385,8 @@
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:507 «4d5bf7dbb6476783»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:574 «b1fa314f194e7411»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:540 «82b27538becf7839»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:717 «f7ed5e4ac00a3b95»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:758 «04d267f06974daa0»"
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:733 «f7ed5e4ac00a3b95»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:774 «04d267f06974daa0»"
         ]
       },
       {

@@ -363,8 +363,24 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect(evicted).toEqual([eruption(3).subject, eruption(2).subject, eruption(1, { operation: "training" }).subject, eruption(0).subject]);
     // normal の active だけの満杯に training の報を受けたら、その記録自身を退去する（normal を退去させない）。
     const self = receive(filled(full), report("T1", "訓練"), clock(now));
-    expect([shape(self), self.state.eruptions, self.intents, self.diagnostics]).toEqual([[["training/volcano:eruption/T1", "changed", "semantic"]],
+    expect([shape(self), self.state.eruptions, self.intents, self.diagnostics]).toEqual([[["training/volcano:eruption/T1", "changed", "revisionOnly"]],
       full, [], [{ level: "INFO", component: "volcano", reason: "volcanoCapacityEvicted", unit: "U-V", count: 1 }]]);
+    // 自身の退去の結果は最終の状態の時制（P3-OPCAP-AC02）: accepted に載せず currentEstablished は null、保存世代は進めない。
+    expect([self.decisions[0], self.outcomes, self.state.persistence]).toEqual([expect.objectContaining({ currentEstablished: null }),
+      [{ kind: "accepted", change: "revisionOnly", subjects: [] }], emptyState().persistence]);
+    // 監査 F04-V（P3-OPCAP-AC01）: normal の取消の記憶は training の受理で退去しない。training があればそれを退去する。
+    const memory = eruption(900, { cancelled: true, minutes: 300 }), drill = eruption(901, { operation: "training", minutes: 250 });
+    const withMemory = [memory, ...full.slice(1)];
+    expect(receive(filled(withMemory), report("T2", "訓練"), clock(now)).state.eruptions).toBe(withMemory);
+    const trainingIn = receive(filled([memory, drill, ...full.slice(2)]), report("T3", "訓練"), clock(now)).state.eruptions;
+    expect([trainingIn.includes(memory), trainingIn.includes(drill), trainingIn.length]).toEqual([true, false, 128]);
+    // 解説（VFVO51）の警報 entry が自身を退去しても同じ時制（P3-OPCAP-AC02(1)）。解説の subject は今どおり載せる。
+    const alertSeed = send(emptyState(), F.a306).state.alerts[0];
+    const alerts = Array.from({ length: 128 }, (_, index) => ({ ...alertSeed, subject: `normal/volcano:alert/9${index}`, volcanoCode: `9${index}` }));
+    const entry = send({ ...emptyState(), alerts }, F.b350, status("訓練"));
+    expect([entry.state.alerts === alerts, entry.decisions.find((item) => item.subject === "training/volcano:alert/350"),
+      entry.outcomes.flatMap((item) => item.kind === "accepted" ? item.subjects.map((subject) => subject.subject) : [])]).toEqual([true,
+      expect.objectContaining({ decision: "changed", change: "revisionOnly", currentEstablished: null }), ["training/VFVO51/350"]]);
     // 解説は 64/65 件（保存しない系列）。
     const heading = send(emptyState(), F.b350).state.bulletins[0];
     const bulletins = Array.from({ length: 64 }, (_, index): VolcanoBulletin => ({ ...heading, subject: `normal/VFVO51/B${index}`, eventId: `B${index}`,

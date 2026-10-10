@@ -274,6 +274,17 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     expect([refused.intents, refused.outcomes, refused.diagnostics, refused.displayChanges]).toEqual([[], [], [], []]);
     // training の受理は normal を退去させない。
     expect(changed(receive(full, report("20990101000002", "training"), at)).decision).toBe("capacityExceeded");
+    // 監査 F04-T（P3-OPCAP-AC01）: normal の取消の記憶は training の受理で退去せず、取消より古い報は stale のまま。training は退去できる。
+    const cancelled = clone(1, { effective: "cancelled", areas: [], unkeyedAreas: [], retainUntil: at.wallTimeMs + 1 });
+    const memory = { ...cancelled, source: { ...cancelled.source, reportDateTimeRaw: "2099-01-01T09:00:01+09:00" } };
+    const normals = Array.from({ length: 510 }, (_, index) => clone(index + 10));
+    const kept = withForecasts([memory, clone(9), ...normals]);
+    const trainingRefused = receive(kept, report("20990101000002", "training"), at);
+    expect([changed(trainingRefused).decision, trainingRefused.state === kept]).toEqual(["capacityExceeded", true]);
+    expect(changed(receive(kept, report(memory.eventId), at))).toMatchObject({ decision: "unchanged", reason: "stale" });
+    const drill = clone(2, { operation: "training" });
+    const trainingIn = receive(withForecasts([memory, drill, ...normals]), report("20990101000002", "training"), at).state.forecasts;
+    expect([trainingIn.includes(memory), trainingIn.some((item) => item.subject === drill.subject)]).toEqual([true, false]);
     // 退去の順: (1) 期限切れの非 active → (2) 最古の非 active → (3) training/test の active。候補は同じ種類だけ。
     let state = withForecasts([...Array.from({ length: 509 }, (_, index) => clone(index + 10)),
       clone(900, { effective: "released", retainUntil: at.wallTimeMs - 1 }), clone(1, { effective: "released", retainUntil: at.wallTimeMs + 1 }),

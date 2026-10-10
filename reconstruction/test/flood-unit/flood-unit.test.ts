@@ -287,7 +287,16 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     // normal の active だけの満杯に training の報を受けたら、その記録自身を退去する（currents の参照と保存世代を変えない、通知しない）。
     const crowded = filled(full);
     const self = receive(crowded, report("T1", "訓練"), clock(now));
-    expect([shape(self), self.intents, self.diagnostics]).toEqual([[["training/VXKO50/T1", "changed", "semantic"]], [], [evictedDiagnostic]]);
+    expect([shape(self), self.intents, self.diagnostics]).toEqual([[["training/VXKO50/T1", "changed", "revisionOnly"]], [], [evictedDiagnostic]]);
+    // 自身の退去の結果は最終の状態の時制（P3-OPCAP-AC02）。
+    expect([self.decisions[0], self.outcomes]).toEqual([expect.objectContaining({ currentEstablished: null }),
+      [{ kind: "accepted", change: "revisionOnly", subjects: [] }]]);
+    // 監査 F04-R（P3-OPCAP-AC01）: normal の ended の記録は training の受理で退去しない。training があればそれを退去する。
+    const ended = subjectRecord(900, { inactive: true }), drill = subjectRecord(901, { operation: "training" });
+    const withMemory = [ended, ...full.slice(1)];
+    expect(receive(filled(withMemory), report("T3", "訓練"), clock(now)).state.currents).toBe(withMemory);
+    const trainingIn = receive(filled([ended, drill, ...full.slice(2)]), report("T4", "訓練"), clock(now)).state.currents;
+    expect([trainingIn.includes(ended), trainingIn.includes(drill), trainingIn.length]).toEqual([true, false, 512]);
     expect([self.state.currents, self.state.persistence]).toEqual([crowded.currents, crowded.persistence]);
     expect(self.state.currents).toBe(crowded.currents);
     // 退去を伴う受理は、記録の無い subject への解除（revisionOnly の形）でも decision と outcome が semantic。

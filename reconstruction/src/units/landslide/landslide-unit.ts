@@ -94,14 +94,15 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
   return index == null ? [...values, value] : values.map((item, at) => at === index ? value : item);
 }
 
-// P3-C10-CAPACITY=A: 129 件目は (1) retainUntil を過ぎた記録 (2) inactive (3) training/test (4) 受ける報が normal のときだけ normal、
-// それぞれ ReportDateTime の古い順で退去する。受ける報が training/test で (1)〜(3) が無ければ null（受けた記録自身を退去する）。
+// P3-C10-CAPACITY=A と P3-OPCAP-AC01: 129 件目は (1) retainUntil を過ぎた記録 (2) inactive (3) training/test (4) normal の active、それぞれ
+// ReportDateTime の古い順で退去する。受ける報が training/test なら normal の記録は (1)〜(4) とも候補にせず、候補が無ければ null
+// （受けた記録自身を退去する）。
 // ponytail: 満杯の 128 件の素朴な線形の走査（上限は CURRENT_LIMIT で、保持と decode の両方で効く。台帳 47 の例外）。
 function evictOne(values: readonly LandslideCurrent[], now: number, incoming: Operation): LandslideCurrent | null {
   const tier = (item: LandslideCurrent) => item.retainUntil <= now ? 0 : item.effective !== "active" ? 1 : item.operation !== "normal" ? 2 : 3;
   let worst: LandslideCurrent | null = null;
   for (const item of values) {
-    if (tier(item) === 3 && incoming !== "normal") continue;
+    if (item.operation === "normal" && incoming !== "normal") continue;
     const order = worst == null ? -1 : tier(item) - tier(worst) || reportMs(item.source) - reportMs(worst.source)
       || (item.subject < worst.subject ? -1 : item.subject > worst.subject ? 1 : 0);
     if (order < 0) worst = item;
@@ -271,10 +272,11 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
     }
   }
   const fields = visible(existing) || visible(next) ? changed(existing, next) : [];
-  const decided = (change: "semantic" | "revisionOnly"): Decision => ({ subject, operation, decision: "changed", reason: null, change,
-    currentEstablished: { family: FAMILY, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } });
-  const accepted = (change: "semantic" | "revisionOnly") => ({ kind: "accepted" as const, change,
-    subjects: [outcomeOf(next, fields, visible(next) ? { areaNames: candidate.areaNames } : {})] });
+  // 最終の状態に記録が残らない受理（遅着・自身の退去）は accepted に載せず currentEstablished も null（D-VANISHED=A、P3-OPCAP-AC02）。
+  const decided = (change: "semantic" | "revisionOnly", kept = true): Decision => ({ subject, operation, decision: "changed", reason: null, change,
+    currentEstablished: kept ? { family: FAMILY, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } : null });
+  const accepted = (change: "semantic" | "revisionOnly", kept = true) => ({ kind: "accepted" as const, change,
+    subjects: kept ? [outcomeOf(next, fields, visible(next) ? { areaNames: candidate.areaNames } : {})] : [] });
   const due = next.retainUntil <= now;
   // current を残さない受理でも、採用した取消はその subject の pending を置き換える（Q-C10-IMPL-AMEND(5)）。currents の参照は保ち、
   // intents が変わったときだけ保存世代を進める。
@@ -286,7 +288,7 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   // 到着の時点で期限を過ぎた報は、記録が無ければ同じ reduce で回収して正味の current が変わらない（退去しない、P3-C10-RETENTION=A）。
   if (due && existing == null) {
     const change = fields.length !== 0 ? "semantic" as const : "revisionOnly" as const;
-    return { changes: [], step: { ...idle(unkept()), decisions: [decided(change)], outcomes: [accepted(change)] } };
+    return { changes: [], step: { ...idle(unkept()), decisions: [decided(change, false)], outcomes: [accepted(change, false)] } };
   }
 
   let currents: readonly LandslideCurrent[];
@@ -294,7 +296,8 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   if (index == null && state.currents.length >= CURRENT_LIMIT) {
     evicted = evictOne(state.currents, now, operation);
     // training/test の報で退去できる記録が無ければ、受けた記録自身を退去する（currents の参照を変えない、通知しない）。
-    if (evicted == null) return { changes: [], step: { ...idle(unkept()), decisions: [decided("semantic")], outcomes: [accepted("semantic")],
+    if (evicted == null) return { changes: [], step: { ...idle(unkept()), decisions: [decided("revisionOnly", false)],
+      outcomes: [accepted("revisionOnly", false)],
       diagnostics: [{ level: "INFO", component: "landslide", reason: "landslideCapacityEvicted", unit: "U-L", count: 1 }] } };
     const gone = evicted;
     currents = [...state.currents.filter((item) => item !== gone), next];
@@ -311,7 +314,8 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
     : visible(next) ? visible(existing) ? "updated" as const : "activated" as const : "released" as const;
   const level = candidate.cancelled ? "cancel" : visible(next) ? levelFor(existing, next) : "normal";
   const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level), state.persistence.currentGeneration + 1, now) : [];
-  const notices = admit(state.intents, fresh, candidate.cancelled ? subject : null);
+  // 到着の時点で期限を過ぎた採用が前の active を置き換えるなら、取消でなくてもその pending を全部撤回する（D-WITHDRAW=A、P3-OPCAP-AC03）。
+  const notices = admit(state.intents, fresh, candidate.cancelled || due && visible(existing) ? subject : null);
   const adopted: LandslideUnitState = { ...state, currents, intents: notices.intents, persistence: dirty(state.persistence, clock.monotonicMs) };
   // 到着の時点で期限を過ぎた記録は採用して watermark を進め、同じ reduce で回収する（P3-C10-RETENTION=A）。
   const collected = deadlineAt(adopted) <= now ? collect(adopted, clock) : null;
@@ -322,8 +326,8 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
     count: notices.dropped });
   return {
     changes: [...evicted == null ? [] : [[evicted, null] as const], [existing, next], ...collected?.changes ?? []],
-    step: { state: result, nextDeadline: nextDeadline(result), decisions: [decided(change)], intents: notices.admitted,
-      outcomes: [accepted(change)], diagnostics },
+    step: { state: result, nextDeadline: nextDeadline(result), decisions: [decided(change, !due)], intents: notices.admitted,
+      outcomes: [accepted(change, !due)], diagnostics },
   };
 }
 

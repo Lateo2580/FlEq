@@ -196,7 +196,16 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     expect([due.state.currents, due.intents, due.displayChanges.map((item) => [item.subject, item.after])]).toEqual([[], [], [[SUBJECT, null]]]);
     // 監査 F12（P3-FINAL-AC05）: 新しいが失効済みの解除で、まだ有効な旧 active を消す今の意味を保ち、保存の対象として世代を進める（+1 に限らない）。
     expect(due.state.persistence.currentGeneration).toBeGreaterThan(first.state.persistence.currentGeneration);
-    expect(due.outcomes.flatMap((item) => item.subjects.map((subject) => subject.transition))).toEqual(["ended"]);
+    // 最終の状態に記録が無いので accepted に載せず currentEstablished は null（D-VANISHED=A、P3-OPCAP-AC02）。
+    expect([due.outcomes.flatMap((item) => item.subjects), due.decisions[0]]).toEqual([[],
+      expect.objectContaining({ decision: "changed", change: "semantic", currentEstablished: null })]);
+    // K3 の残存リスク (3)（P3-OPCAP-AC03）: 続報の pending が生きている間に届いた期限切れの新しい解除は、その pending を全部撤回する。
+    const lateAt = T0 + 7 * HOUR;
+    const update = send(first.state, F.soya, (xml) => retime(iso(lateAt - 6 * HOUR - 120_000))(areas(soya(["49", ...Array(9).fill("29")]))(xml)),
+      lateAt - 30_000);
+    expect(pending(update.state).map((item) => item.channel)).toEqual(["desktop", "sound"]);
+    const withdrawn = send(update.state, F.soya, (xml) => retime(iso(lateAt - 6 * HOUR - 60_000))(areas(released())(xml)), lateAt);
+    expect([withdrawn.state.currents, pending(withdrawn.state), withdrawn.intents]).toEqual([[], [], []]);
   });
 
   // contractBoundary: 容量と受信 1 回の費用（AC04）。境界入力は試験内で作る。
@@ -234,8 +243,17 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     // normal の active だけの満杯に training の報を受けたら、その記録自身を退去する（currents の参照と保存世代を変えない、通知しない）。
     const crowded = filled(full);
     const self = receive(crowded, report("T1", "訓練"), clock(now));
-    expect([shape(self), self.intents, self.diagnostics]).toEqual([[["training/VPWW56/T1", "changed", "semantic"]], [],
+    expect([shape(self), self.intents, self.diagnostics]).toEqual([[["training/VPWW56/T1", "changed", "revisionOnly"]], [],
       [{ level: "INFO", component: "landslide", reason: "landslideCapacityEvicted", unit: "U-L", count: 1 }]]);
+    // 自身の退去の結果は最終の状態の時制（P3-OPCAP-AC02）。
+    expect([self.decisions[0], self.outcomes]).toEqual([expect.objectContaining({ currentEstablished: null }),
+      [{ kind: "accepted", change: "revisionOnly", subjects: [] }]]);
+    // 監査 F04-L（P3-OPCAP-AC01）: normal の ended の記録は training の受理で退去しない。training があればそれを退去する。
+    const ended = officeRecord(900, { inactive: true }), drill = officeRecord(901, { operation: "training" });
+    const withMemory = [ended, ...full.slice(1)];
+    expect(receive(filled(withMemory), report("T3", "訓練"), clock(now)).state.currents).toBe(withMemory);
+    const trainingIn = receive(filled([ended, drill, ...full.slice(2)]), report("T4", "訓練"), clock(now)).state.currents;
+    expect([trainingIn.includes(ended), trainingIn.includes(drill), trainingIn.length]).toEqual([true, false, 128]);
     expect([self.state.currents, self.state.persistence]).toEqual([crowded.currents, crowded.persistence]);
     expect(self.state.currents).toBe(crowded.currents);
     // 退去を伴う受理は、記録の無い官署への解除（revisionOnly の形）でも decision と outcome が semantic。

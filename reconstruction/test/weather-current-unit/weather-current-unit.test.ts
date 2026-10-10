@@ -804,6 +804,33 @@ describe("P2 weather-current unit", () => {
     expect(envelopeSize(admittedShared.state)).toBeLessThanOrEqual(16 * 1024 * 1024);
   });
 
+  // 監査 F10（P3-OPCAP-AC04）: 16 MiB 近くを training が占める復元可能な state でも、normal の終了（VPNO50）と取消は training を退去して採用する。
+  it("P3-OPCAP-T06 regression / P3-OPCAP-AC04: a normal ending or cancel evicts training instead of refusing at the byte budget", () => {
+    const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({
+      schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
+      capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
+    }).byteLength;
+    const first = receive(emptyState(), decodeFixture("18_00_01_260830_VPWW55_fukui_L5", "VPWW55")).state;
+    const partial = first.partials[0];
+    const level5 = Object.entries(partial.phenomena).find(([, value]) => JSON.stringify(value).includes('"code":"33"'));
+    if (level5 == null) throw new Error("Code 33 absent");
+    const training = { ...snapshot("training", "VPWS50", "気象庁", "2026-09-06T09:00:00+09:00", "F10-training"), phenomena: { padding: "" } };
+    const base: WeatherCurrentUnitState = { ...first, partials: [{ ...partial, phenomena: { [level5[0]]: level5[1] } }], ownership: {},
+      national: { training } };
+    const full = { ...base, national: { training: { ...training, phenomena: { padding: "x".repeat(16 * 1024 * 1024 - 32 - envelopeSize(base)) } } } };
+    expect([envelopeSize(full), weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(full)).kind]).toEqual([16 * 1024 * 1024 - 32, "restored"]);
+    const ended = receive(full, decodeFixture("18_00_01_260830_VPNO50_switch", "VPNO50"));
+    expect(ended.decisions).toEqual([expect.objectContaining({ decision: "changed", change: "semantic", operation: "normal" })]);
+    expect([ended.state.national.training, ended.state.tombstones.length, ended.state.unavailable]).toEqual([undefined, 1, []]);
+    expect(ended.diagnostics).toContainEqual({ level: "INFO", component: "weather-current", reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(ended.state)).kind).toBe("restored");
+    // 履歴の無い normal の取消（historyUnavailable）も同じ: training を退去し、警報 5 の active を残さない。
+    const cancelled = receive(full, decodeFixture("18_00_01_260830_VPWW55_fukui_L5", "VPWW55",
+      (xml) => cancellation(xml, "2026-08-30T07:00:00+09:00"), "F10-cancel"));
+    expect([cancelled.state.national.training, cancelled.state.partials, cancelled.state.unavailable.map((item) => [item.reason, item.lastKnown != null])])
+      .toEqual([undefined, [], [["historyUnavailable", true]]]);
+  });
+
   it("P2-A5-AC09 regression / E13: consecutive VPWS50 normal reports never fall into capacityExceeded", () => {
     let state = emptyState();
     for (let index = 0; index < 10; index++) {

@@ -147,8 +147,9 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
   return index == null ? [...values, value] : values.map((item, at) => at === index ? value : item);
 }
 
-// P3-C9-CAPACITY=A: 上限を超える 1 件は (1) retainUntil を過ぎた記録 (2) inactive (3) training/test (4) 受ける報が normal のときだけ normal、
-// それぞれ ReportDateTime の古い順で退去する。受ける報が training/test で (1)〜(3) が無ければ、受けた記録自身を退去する（null）。
+// P3-C9-CAPACITY=A と P3-OPCAP-AC01: 上限を超える 1 件は (1) retainUntil を過ぎた記録 (2) inactive (3) training/test (4) normal の active、
+// それぞれ ReportDateTime の古い順で退去する。受ける報が training/test なら normal の記録は (1)〜(4) とも候補にせず、候補が無ければ
+// 受けた記録自身を退去する（null）。
 // ponytail: 満杯の slice の素朴な線形の走査（1 入力の上限は VFVO51 の entry 128 × 記録 128、上限は保持と decode で効く）。
 function evictOne<T extends Shown>(values: readonly T[], now: number, incoming: Operation,
   skip: ReadonlyMap<string, unknown> = new Map()): T | null {
@@ -156,7 +157,7 @@ function evictOne<T extends Shown>(values: readonly T[], now: number, incoming: 
     : item.effective !== "active" ? 1 : item.operation !== "normal" ? 2 : 3;
   let worst: T | null = null;
   for (const item of values) {
-    if (tier(item) === 3 && incoming !== "normal" || skip.has(item.subject)) continue;
+    if (item.operation === "normal" && incoming !== "normal" || skip.has(item.subject)) continue;
     const order = worst == null ? -1 : tier(item) - tier(worst) || recordMs(item) - recordMs(worst)
       || (item.subject < worst.subject ? -1 : item.subject > worst.subject ? 1 : 0);
     if (order < 0) worst = item;
@@ -484,9 +485,11 @@ type Applied = {
   diagnostics: DiagnosticDetails[];
   outcomes: PublishedOutcome[];
   evicted: number;
+  selfEvicted: number;
 };
 function emptyApplied(state: VolcanoUnitState): Applied {
-  return { state, decisions: [], changes: [], subjects: [], semantic: false, notice: null, cancelled: new Set(), diagnostics: [], outcomes: [], evicted: 0 };
+  return { state, decisions: [], changes: [], subjects: [], semantic: false, notice: null, cancelled: new Set(), diagnostics: [], outcomes: [], evicted: 0,
+    selfEvicted: 0 };
 }
 const established = (candidate: VolcanoCandidate) => ({ family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs,
   affectedScope: "subject" as const });
@@ -522,22 +525,24 @@ function liveShortfalls(list: readonly VolcanoShortfall[], candidate: VolcanoCan
 function place<T extends Shown>(applied: Applied, values: readonly T[], store: (values: readonly T[]) => VolcanoUnitState, before: T | null,
   after: T, candidate: VolcanoCandidate, now: number, extra: Readonly<Record<string, JsonValue>> = {}): Readonly<{ fields: string[]; kept: boolean }> {
   const placed = upsert(values, after, isBulletin(after) ? BULLETIN_LIMIT : SLICE_LIMIT, now);
-  if (placed.dropped) {
-    // 足さなかった記録は accepted に載せず currentEstablished も null（D-VANISHED=A）。復旧不足の照合は呼び出し側で今どおり行う。
+  if (placed.dropped || placed.self) {
+    // 足さなかった記録・自身を退去した記録は accepted に載せず currentEstablished も null（D-VANISHED=A、P3-OPCAP-AC02）。
+    // 自身の退去は accepted の change を決める退去に数えず、診断にだけ数える。復旧不足の照合は呼び出し側で今どおり行う。
+    if (placed.self) applied.selfEvicted++;
     applied.decisions.push({ subject: after.subject, operation: candidate.operation, decision: "changed", reason: null, change: "revisionOnly",
       currentEstablished: null });
     return { fields: [], kept: false };
   }
   const fields = changed(before, after, fieldsOf(after));
   const semantic = fields.length !== 0 || candidate.cancelled && before?.effective === "active";
-  if (placed.evicted != null || placed.self) applied.evicted++;
+  if (placed.evicted != null) applied.evicted++;
   applied.state = store(placed.values);
   if (placed.evicted != null) applied.changes.push([placed.evicted, null]);
-  if (!placed.self) applied.changes.push([before, after]);
+  applied.changes.push([before, after]);
   applied.subjects.push(outcomeOf(after, fields, extra));
-  applied.semantic ||= semantic || placed.evicted != null || placed.self;
-  decide(applied, candidate, after.subject, { kind: "adopt" }, semantic || placed.self);
-  return { fields, kept: !placed.self };
+  applied.semantic ||= semantic || placed.evicted != null;
+  decide(applied, candidate, after.subject, { kind: "adopt" }, semantic);
+  return { fields, kept: true };
 }
 
 // ---- 受信（P3-C9-SUBJECTS=A。一入力の変更は一回の参照交換で確定する） ----
@@ -819,11 +824,10 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
   const kept = new Set<string>();
   // ponytail: 足す entry ごとに満杯の警報を線形に走査して 1 件退去する（上限は entry 128 × 記録 128、I-U-V.computation）。
   let evicted = 0;
-  const dropped = new Set<string>();
   for (const { existing, verdict } of verdicts) {
     if (verdict.kind !== "adopt") continue;
     // 到着の時点で期限を過ぎた記録の無い entry は足さない（警報の inactive は期限と保持が同じなので回収される側だけ、P3-FINAL-AC01）。
-    if (existing == null && shownDeadline(verdict.next) <= now) { dropped.add(verdict.next.subject); continue; }
+    if (existing == null && shownDeadline(verdict.next) <= now) continue;
     if (existing != null || values.length < SLICE_LIMIT) {
       if (existing == null) values.push(verdict.next);
       kept.add(verdict.next.subject);
@@ -831,8 +835,8 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     }
     // 同じ報が採用する記録は退去の候補にしない。
     const victim = evictOne(values, now, verdict.next.operation, nexts);
+    if (victim == null) { applied.selfEvicted++; continue; }
     evicted++;
-    if (victim == null) continue;
     values.splice(values.indexOf(victim), 1);
     values.push(verdict.next);
     kept.add(verdict.next.subject);
@@ -841,7 +845,8 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
   const adoptedCodes = new Set<string>();
   for (const { entry, subject, existing, verdict } of verdicts) {
     if (verdict.kind === "unchanged") { decide(applied, candidate, subject, verdict); continue; }
-    if (dropped.has(subject)) {
+    // 足さなかった entry・自身を退去した entry は accepted に載せない（D-VANISHED=A、P3-OPCAP-AC02）。
+    if (!kept.has(subject)) {
       applied.decisions.push({ subject, operation: candidate.operation, decision: "changed", reason: null, change: "revisionOnly",
         currentEstablished: null });
       adoptedCodes.add(entry.volcanoCode);
@@ -849,13 +854,12 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     }
     const next = verdict.next;
     const fields = changed(existing, next, ALERT_FIELDS);
-    const self = !kept.has(subject);
-    if (!self) applied.changes.push([existing, next]);
+    applied.changes.push([existing, next]);
     // 到着の時点で期限を過ぎた採用が前の active を置き換えるなら、単独の警報と同じく pending を撤回する（D-WITHDRAW=A、P3-FINAL-AC04）。
-    if (!self && existing?.effective === "active" && dueAt(next, now)) applied.cancelled.add(subject);
+    if (existing?.effective === "active" && dueAt(next, now)) applied.cancelled.add(subject);
     applied.subjects.push(outcomeOf(next, fields));
-    applied.semantic ||= fields.length !== 0 || self;
-    decide(applied, candidate, subject, { kind: "adopt" }, fields.length !== 0 || self);
+    applied.semantic ||= fields.length !== 0;
+    decide(applied, candidate, subject, { kind: "adopt" }, fields.length !== 0);
     adoptedCodes.add(entry.volcanoCode);
   }
   // 警報を一つも変えなければ元の配列を保つ（全 entry を足さなかったとき保存世代を進めない、P3-FINAL-AC01(5)）。
@@ -878,8 +882,8 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading):
   const next = collected?.state ?? stamped;
   if (collected != null) settle(applied, next);
   const diagnostics = [...applied.diagnostics];
-  if (applied.evicted !== 0) diagnostics.push({ level: "INFO", component: "volcano", reason: "volcanoCapacityEvicted", unit: "U-V",
-    count: applied.evicted });
+  if (applied.evicted + applied.selfEvicted !== 0) diagnostics.push({ level: "INFO", component: "volcano", reason: "volcanoCapacityEvicted",
+    unit: "U-V", count: applied.evicted + applied.selfEvicted });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "volcano", reason: "notificationCapacityEvicted", unit: "U-V",
     count: notices.dropped });
   const outcomes: PublishedOutcome[] = [...applied.outcomes];

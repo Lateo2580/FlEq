@@ -452,10 +452,11 @@ function reduceWeatherCurrentCore(state: WeatherCurrentUnitState,
   };
   const validated = validateWeatherCandidate(input.material, state);
   if (validated.kind === "rejected" || validated.candidate.ignored) return step;
-  const adopted = [...Object.values(step.state.national), ...step.state.partials].some((item) =>
-    item?.subject === validated.candidate.subject && item.operation === validated.candidate.operation
-    && item.source.inputId === input.material.inputId);
-  if (adopted && validated.candidate.operation === "normal") {
+  const produced = step.state.unavailable.find((item) => item.subject === validated.candidate.subject
+    && item.source?.inputId === input.material.inputId);
+  // normal の受理（採用・終了・取消。履歴の無い取消の historyUnavailable を含む）は同じ normal 保護の退去で収め、容量のために終了・取消を
+  // 拒んで active を残さない（P3-OPCAP-AC04）。件数で拒否した入力（capacityExceeded）は byte のために退去しない（P2-A5-T09 R1）。
+  if (produced?.reason !== "capacityExceeded" && validated.candidate.operation === "normal") {
     const fitted = fitNormalByByte(step.state, input.clock.wallTimeMs, collect);
     if (fits(fitted.state)) return adopt(fitted.count === 0 ? step : {
       ...step, state: fitted.state,
@@ -463,8 +464,7 @@ function reduceWeatherCurrentCore(state: WeatherCurrentUnitState,
         reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: fitted.count }],
     });
   }
-  const unavailable = step.state.unavailable.some((item) => item.subject === validated.candidate.subject
-    && item.source?.inputId === input.material.inputId) ? step
+  const unavailable = produced != null ? step
     : capacityUnavailable(state, validated.candidate, "capacityExceeded",
     validated.candidate.scope === "national" ? state.national[validated.candidate.operation]?.subject === validated.candidate.subject
       ? state.national[validated.candidate.operation]! : null

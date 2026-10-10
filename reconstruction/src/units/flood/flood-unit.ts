@@ -94,14 +94,15 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
   return index == null ? [...values, value] : values.map((item, at) => at === index ? value : item);
 }
 
-// P3-C11-CAPACITY=A: 513 件目は (1) retainUntil を過ぎた記録 (2) inactive (3) training/test (4) 受ける報が normal のときだけ normal、
-// それぞれ ReportDateTime の古い順で退去する。受ける報が training/test で (1)〜(3) が無ければ null（受けた記録自身を退去する）。
+// P3-C11-CAPACITY=A と P3-OPCAP-AC01: 513 件目は (1) retainUntil を過ぎた記録 (2) inactive (3) training/test (4) normal の active、それぞれ
+// ReportDateTime の古い順で退去する。受ける報が training/test なら normal の記録は (1)〜(4) とも候補にせず、候補が無ければ null
+// （受けた記録自身を退去する）。
 // ponytail: 満杯の 512 件の素朴な線形の走査（上限は CURRENT_LIMIT で、保持と decode の両方で効く。台帳 47 の例外）。
 function evictOne(values: readonly FloodCurrent[], now: number, incoming: Operation): FloodCurrent | null {
   const tier = (item: FloodCurrent) => item.retainUntil <= now ? 0 : item.effective !== "active" ? 1 : item.operation !== "normal" ? 2 : 3;
   let worst: FloodCurrent | null = null;
   for (const item of values) {
-    if (tier(item) === 3 && incoming !== "normal") continue;
+    if (item.operation === "normal" && incoming !== "normal") continue;
     const order = worst == null ? -1 : tier(item) - tier(worst) || reportMs(item.source) - reportMs(worst.source)
       || (item.subject < worst.subject ? -1 : item.subject > worst.subject ? 1 : 0);
     if (order < 0) worst = item;
@@ -302,12 +303,14 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
   if (index == null && state.currents.length >= CURRENT_LIMIT) {
     evicted = evictOne(state.currents, now, operation);
     // training/test の報で退去できる記録が無ければ、受けた記録自身を退去する（currents の参照を変えない、通知しない）。採用した取消は
-    // その subject の pending を置き換え、intents が変わったときだけ保存世代を進める（C10 の Q-C10-IMPL-AMEND(5)）。
+    // その subject の pending を置き換え、intents が変わったときだけ保存世代を進める（C10 の Q-C10-IMPL-AMEND(5)）。記録を残さないので
+    // accepted に載せず currentEstablished も null（D-VANISHED=A、P3-OPCAP-AC02）。
     if (evicted == null) {
       const notices = candidate.cancelled ? admit(state.intents, [], subject) : null;
       const kept = notices == null || notices.intents === state.intents ? state
         : { ...state, intents: notices.intents, persistence: dirty(state.persistence, clock.monotonicMs) };
-      return { changes: [], step: { ...idle(kept), decisions: [decided("semantic")], outcomes: [accepted("semantic")],
+      return { changes: [], step: { ...idle(kept), decisions: [{ subject, operation, decision: "changed", reason: null, change: "revisionOnly",
+        currentEstablished: null }], outcomes: [{ kind: "accepted", change: "revisionOnly", subjects: [] }],
         diagnostics: [{ level: "INFO", component: "flood", reason: "floodCapacityEvicted", unit: "U-R", count: 1 }] } };
     }
     const gone = evicted;
