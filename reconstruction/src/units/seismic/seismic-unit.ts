@@ -510,14 +510,14 @@ function displaySubject(value: Shown): Extract<RuntimeDisplaySubject, Readonly<{
 
 // ---- 採用 ----
 
-// Q-ENUM.revisionOrder: family ごとに ReportDateTime、同時刻で両方に Serial があれば Serial、なお同じなら InfoType の優先。
+// Q-ENUM.revisionOrder（P3-ORDER-AC01）: family ごとに ReportDateTime → InfoType の優先 → Serial（欠落はどの数値よりも小）の辞書順。
 function compare(candidate: SeismicCandidate, source: ReportRef): number {
   const time = candidate.reportDateTimeMs - reportMs(source);
   if (time !== 0) return Math.sign(time);
+  const rank = candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw.trim()) ?? 0);
+  if (rank !== 0) return Math.sign(rank);
   const left = candidate.source.serialRaw.trim(), right = source.serialRaw.trim();
-  const serial = left !== "" && right !== "" ? Number(left) - Number(right) : 0;
-  if (serial !== 0) return Math.sign(serial);
-  return Math.sign(candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw.trim()) ?? 0)) * 2;
+  return left === right ? 0 : left === "" ? -1 : right === "" ? 1 : Math.sign(Number(left) - Number(right));
 }
 const withoutSource = (value: EarthquakeContribution | LongPeriodSubject) => ({ ...value, source: null });
 

@@ -489,6 +489,46 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     expect(grown.adopted).toBe(true);
     expect(roundTrip(grown.state.units["U-L"]!).kind).toBe("restored");
   });
+
+  // 版の比較（P3-REVISION-ORDER-001）: 15_16_01 を t−60 秒の初報にし、同じ時刻 t（=T0）の Serial と InfoType だけを替えた報を当てる。
+  const ordered = () => send(emptyState(), F.soya, (xml) => replaceTag("TargetDateTime", iso(T0 - 60_000))(retime(iso(T0 - 60_000))(xml))).state;
+  const version = ([serial, infoType]: readonly [string, string]) =>
+    decodeFixture(F.soya, (xml) => replaceTag("InfoType", infoType)(replaceTag("Serial", serial)(xml)));
+  const verdict = (step: LandslideUnitStep) => step.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision);
+
+  // regression（監査 F02）: 同時刻の Serial 2 の発表・Serial 空の訂正・Serial 1 の取消は、6 順列とも、各手順の前に復元を挟んでも取消で終わる。
+  it("P3-ORDER-T01 regression / AC02: the F02 triple ends in the Serial 1 cancel in all 6 orders, with and without a restore before each step", () => {
+    const first = ordered();
+    const reports = { A: version(["2", "発表"]), B: version(["", "訂正"]), C: version(["1", "取消"]) };
+    // owner の復元と同じく、保存物（encode→JSON）を保存世代を引き継いだ state へ restore で戻す。
+    const restart = (state: LandslideUnitState) => {
+      const decoded = roundTrip(state);
+      if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+      const generation = state.persistence.currentGeneration;
+      return reduceLandslideUnit({ ...emptyState(), persistence: { kind: "saved", currentGeneration: generation, savedGeneration: generation,
+        savedCapturedAt: null, savedAckAt: null, dirtySince: null } }, { kind: "restore", persisted: landslideUnitCodec.encode(decoded.state),
+        clock: clock(T0) }).state;
+    };
+    const finals = [false, true].flatMap((restarting) => ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"].map((order) => [...order].reduce(
+      (state, key) => receive(restarting ? restart(state) : state, reports[key as keyof typeof reports], clock(T0)).state, first)));
+    expect(finals.map((state) => [recordOf(state)?.effective, recordOf(state)?.source.serialRaw, recordOf(state)?.source.infoTypeRaw,
+      pending(state).map((item) => [item.channel, item.transition]), roundTrip(state).kind]))
+      .toEqual(Array(12).fill(["cancelled", "1", "取消", [["desktop", "cancelled"], ["sound", "cancelled"]], "restored"]));
+  });
+
+  // contractBoundary: 同時刻の 2 報は InfoType の優先 → Serial（欠落はどの数値よりも小、数として）で決まり、到着順によらない（AC01・AC03(a)〜(c)）。
+  it("P3-ORDER-T02 contractBoundary / AC01,AC03: InfoType before Serial, a missing Serial below any number and \"01\" = \"1\", in both orders", () => {
+    const first = ordered();
+    // [一方, 他方, 勝つ方（null は同じ版）]
+    const rows: [readonly [string, string], readonly [string, string], 0 | 1 | null][] = [
+      [["9", "発表"], ["1", "訂正"], 1], [["", "訂正"], ["1", "取消"], 1], [["2", "発表"], ["1", "発表"], 0], [["", "発表"], ["1", "発表"], 1],
+      [["01", "発表"], ["1", "発表"], null]];
+    for (const [one, other, winner] of rows) for (const [early, late, lateWins] of [[one, other, winner === 1], [other, one, winner === 0]] as const) {
+      const step = receive(receive(first, version(early), clock(T0)).state, version(late), clock(T0));
+      expect([verdict(step), step.diagnostics, [recordOf(step.state)?.source.serialRaw, recordOf(step.state)?.source.infoTypeRaw]], `${early}→${late}`)
+        .toEqual([[winner == null ? "duplicate" : lateWins ? "changed" : "stale"], [], lateWins ? late : early]);
+    }
+  });
 });
 
 // I-U-L.capacityMeasurement の同時最大状態: 実例は全国の市町村等 1,772 区域を 64 官署に 15_16_01 の形（3 group）で配り、

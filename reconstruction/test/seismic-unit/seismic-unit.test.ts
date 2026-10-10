@@ -777,6 +777,50 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(notDue.state).toBe(quiet);
     expect([notDue.decisions, notDue.outcomes, notDue.displayChanges, notDue.intents, notDue.diagnostics]).toEqual([[], [], [], [], []]);
   });
+
+  // 版の比較（P3-REVISION-ORDER-001）: 32-35_08_03 の VXSE51 を t−60 秒の初報にし、同じ時刻 t の Serial と InfoType だけを替えた報を当てる。
+  const ORDER_FILE = "32-35_08_03_100915_VXSE51", ORDER_AT = Date.parse("2010-07-05T06:58:00+09:00");
+  const ordered = () => send(emptyState(), ORDER_FILE, replaceTag("ReportDateTime", "2010-07-05T06:57:00+09:00")).state;
+  const version = ([serial, infoType]: readonly [string, string]) =>
+    decodeFixture(ORDER_FILE, (xml) => replaceTag("InfoType", infoType)(replaceTag("Serial", serial)(xml)));
+  const verdict = (step: SeismicUnitStep) => step.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision);
+  const contributionOf = (state: SeismicUnitState) => eventOf(state, "20100705065511")?.contributions.find((item) => item.family === "VXSE51");
+  const encodeDecode = (state: SeismicUnitState) => seismicUnitCodec.decode(JSON.parse(JSON.stringify(seismicUnitCodec.encode(state))) as JsonValue);
+
+  // regression（監査 F02）: 同時刻の Serial 2 の発表・Serial 空の訂正・Serial 1 の取消は、6 順列とも、各手順の前に復元を挟んでも取消で終わる。
+  it("P3-ORDER-T01 regression / AC02: the F02 triple ends in the Serial 1 cancel in all 6 orders, with and without a restore before each step", () => {
+    const first = ordered();
+    const reports = { A: version(["2", "発表"]), B: version(["", "訂正"]), C: version(["1", "取消"]) };
+    // owner の復元と同じく、保存物（encode→JSON）を保存世代を引き継いだ state へ restore で戻す。
+    const restart = (state: SeismicUnitState) => {
+      const decoded = encodeDecode(state);
+      if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+      const generation = state.persistence.currentGeneration;
+      return reduceSeismicUnit({ ...emptyState(), persistence: { kind: "saved", currentGeneration: generation, savedGeneration: generation,
+        savedCapturedAt: null, savedAckAt: null, dirtySince: null } }, { kind: "restore", persisted: seismicUnitCodec.encode(decoded.state),
+        clock: clock(ORDER_AT) }).state;
+    };
+    const finals = [false, true].flatMap((restarting) => ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"].map((order) => [...order].reduce(
+      (state, key) => receive(restarting ? restart(state) : state, reports[key as keyof typeof reports], clock(ORDER_AT)).state, first)));
+    expect(finals.map((state) => [contributionOf(state)?.effective, contributionOf(state)?.source.serialRaw, contributionOf(state)?.source.infoTypeRaw,
+      pending(state).map((item) => [item.channel, item.transition]), encodeDecode(state).kind]))
+      .toEqual(Array(12).fill(["cancelled", "1", "取消", [["desktop", "cancelled"], ["sound", "cancelled"]], "restored"]));
+  });
+
+  // contractBoundary: 同時刻の 2 報は InfoType の優先 → Serial（欠落はどの数値よりも小）で決まり、到着順によらない（AC01・AC03(a)〜(c)）。
+  it("P3-ORDER-T02 contractBoundary / AC01,AC03: InfoType before Serial, a missing Serial below any number and two missing equal, in both orders", () => {
+    const first = ordered();
+    // [一方, 他方, 勝つ方（null は同じ版）]
+    const rows: [readonly [string, string], readonly [string, string], 0 | 1 | null][] = [
+      [["9", "発表"], ["1", "訂正"], 1], [["", "訂正"], ["1", "取消"], 1], [["2", "発表"], ["1", "発表"], 0], [["", "発表"], ["1", "発表"], 1],
+      // AC03(d): 欠落同士・同じ InfoType・同じ事実は同じ版の duplicate。
+      [["", "発表"], ["", "発表"], null]];
+    for (const [one, other, winner] of rows) for (const [early, late, lateWins] of [[one, other, winner === 1], [other, one, winner === 0]] as const) {
+      const step = receive(receive(first, version(early), clock(ORDER_AT)).state, version(late), clock(ORDER_AT));
+      expect([verdict(step), step.diagnostics, [contributionOf(step.state)?.source.serialRaw, contributionOf(step.state)?.source.infoTypeRaw]],
+        `${early}→${late}`).toEqual([[winner == null ? "duplicate" : lateWins ? "changed" : "stale"], [], lateWins ? late : early]);
+    }
+  });
 });
 
 // P3-C7-CAPACITY-BUDGET=A の同時最大状態（I-U-Q.capacityReserve の文字列長の上限で組む）。

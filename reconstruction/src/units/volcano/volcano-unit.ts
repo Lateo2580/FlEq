@@ -168,15 +168,15 @@ function upsert<T extends Shown>(values: readonly T[], value: T, limit: number, 
 
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
-// ReportDateTime、同時刻で両方に Serial があれば Serial、なお同じなら InfoType の優先、降灰の速報・詳細は VFVO55 > VFVO54。
+// P3-ORDER-AC01: ReportDateTime → InfoType の優先 → 同じ family なら Serial（欠落はどの数値よりも小）→ 降灰の速報・詳細は VFVO55 > VFVO54 の辞書順。
 function compare(candidate: VolcanoCandidate, source: ReportRef): number {
   const time = candidate.reportDateTimeMs - reportMs(source);
   if (time !== 0) return Math.sign(time);
-  const left = candidate.source.serialRaw, right = source.serialRaw;
-  const serial = left !== "" && right !== "" ? Number(left) - Number(right) : 0;
-  if (serial !== 0) return Math.sign(serial);
   const rank = candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw) ?? 0);
   if (rank !== 0) return Math.sign(rank);
+  const left = candidate.source.serialRaw, right = source.serialRaw;
+  const serial = candidate.family !== source.family || left === right ? 0 : left === "" ? -1 : right === "" ? 1 : Number(left) - Number(right);
+  if (serial !== 0) return Math.sign(serial);
   return (candidate.family === "VFVO55" ? 1 : 0) - (source.family === "VFVO55" ? 1 : 0);
 }
 const withoutSource = (value: Shown) => ({ ...value, source: null, marineSource: null, retainUntil: 0 });

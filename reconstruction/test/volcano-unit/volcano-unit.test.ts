@@ -837,6 +837,67 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
         beforeRename, afterRename, rssBefore, rssAfter: process.memoryUsage().rss, maxRssKiB: process.resourceUsage().maxRSS }));
     } finally { rmSync(directory, { recursive: true, force: true }); }
   });
+
+  // 版の比較（P3-REVISION-ORDER-001）: 43_01_01 の噴火を t−60 秒の初報にし、同じ時刻 t の Serial と InfoType だけを替えた報を当てる。
+  const ORDER_AT = at("2020-05-22T14:49:00+09:00");
+  const ordered = () => send(emptyState(), F.o1, retime("2020-05-22T14:48:00+09:00")).state;
+  const version = ([serial, infoType]: readonly [string, string]) =>
+    decodeFixture(F.o1, (xml) => replaceTag("InfoType", infoType)(replaceTag("Serial", serial)(xml)));
+  const verdict = (step: VolcanoUnitStep) => step.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision);
+  const orderedOf = (state: VolcanoUnitState) => eruptionOf(state, "20200522144900_306");
+
+  // regression（監査 F02）: 同時刻の Serial 2 の発表・Serial 空の訂正・Serial 1 の取消は、6 順列とも、各手順の前に復元を挟んでも取消で終わる。
+  it("P3-ORDER-T01 regression / AC02: the F02 triple ends in the Serial 1 cancel in all 6 orders, with and without a restore before each step", () => {
+    const first = ordered();
+    const reports = { A: version(["2", "発表"]), B: version(["", "訂正"]), C: version(["1", "取消"]) };
+    // owner の復元と同じく、保存物（encode→JSON）を保存世代を引き継いだ state へ restore で戻す。
+    const restart = (state: VolcanoUnitState) => {
+      const decoded = roundTrip(state);
+      if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+      const generation = state.persistence.currentGeneration;
+      return reduceVolcanoUnit({ ...emptyState(), persistence: { kind: "saved", currentGeneration: generation, savedGeneration: generation,
+        savedCapturedAt: null, savedAckAt: null, dirtySince: null } }, { kind: "restore", persisted: volcanoUnitCodec.encode(decoded.state),
+        clock: clock(ORDER_AT) }).state;
+    };
+    const finals = [false, true].flatMap((restarting) => ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"].map((order) => [...order].reduce(
+      (state, key) => receive(restarting ? restart(state) : state, reports[key as keyof typeof reports], clock(ORDER_AT)).state, first)));
+    expect(finals.map((state) => [orderedOf(state)?.effective, orderedOf(state)?.source.serialRaw, orderedOf(state)?.source.infoTypeRaw,
+      pending(state).map((item) => [item.channel, item.transition]), roundTrip(state).kind]))
+      .toEqual(Array(12).fill(["cancelled", "1", "取消", [["desktop", "cancelled"], ["sound", "cancelled"]], "restored"]));
+  });
+
+  // contractBoundary: 同時刻の 2 報は InfoType の優先 → 同じ family なら Serial（欠落はどの数値よりも小、数として）→ VFVO55 > VFVO54 で決まり、
+  // 到着順によらない（AC01・AC03(a)〜(c)）。family の違う VFVO50 と VFVO51 は同じ版で、先着を保って食い違い（AC03(f)）。
+  it("P3-ORDER-T02 contractBoundary / AC01,AC03: InfoType before Serial, a missing Serial below any number, \"01\" = \"1\", families apart", () => {
+    const first = ordered();
+    // [一方, 他方, 勝つ方（null は同じ版）]
+    const rows: [readonly [string, string], readonly [string, string], 0 | 1 | null][] = [
+      [["9", "発表"], ["1", "訂正"], 1], [["", "訂正"], ["1", "取消"], 1], [["2", "発表"], ["1", "発表"], 0], [["", "発表"], ["1", "発表"], 1],
+      [["01", "発表"], ["1", "発表"], null]];
+    for (const [one, other, winner] of rows) for (const [early, late, lateWins] of [[one, other, winner === 1], [other, one, winner === 0]] as const) {
+      const step = receive(receive(first, version(early), clock(ORDER_AT)).state, version(late), clock(ORDER_AT));
+      expect([verdict(step), step.diagnostics, [orderedOf(step.state)?.source.serialRaw, orderedOf(step.state)?.source.infoTypeRaw]], `${early}→${late}`)
+        .toEqual([[winner == null ? "duplicate" : lateWins ? "changed" : "stale"], [], lateWins ? late : early]);
+    }
+    // 同じ時刻の VFVO50（Serial 空）と VFVO51（Serial 13）を火山 306 に当てると、両順とも先着を保つ（VFVO51 の警報の entry は一括で stale）。
+    const alertAt = at("2020-05-22T13:03:00+09:00");
+    const pair = [decodeFixture(F.a306), decodeFixture(F.national, retime("2020-05-22T13:03:00+09:00"))];
+    for (const [early, late] of [pair, [...pair].reverse()]) {
+      const step = receive(receive(emptyState(), early, clock(alertAt)).state, late, clock(alertAt));
+      expect(alertOf(step.state, "306")?.source?.family, late.headType).toBe(early.headType);
+      expect(step.decisions.filter((item) => item.subject.startsWith("normal/volcano:alert/")).every((item) =>
+        item.decision === "unchanged" && item.reason === "stale"), late.headType).toBe(true);
+      expect(step.diagnostics, late.headType).toMatchObject([{ level: "WARN", reason: "volcanoRevisionConflict" }]);
+    }
+    // 降灰: 同じ時刻・同じ InfoType の VFVO54（Serial 5）と VFVO55（Serial 1）は、Serial によらず両順とも VFVO55。
+    const ashAt = at("2021-05-14T12:51:00+09:00");
+    const ash = [decodeFixture(F.rapid, (xml) => replaceTag("Serial", "5")(retime("2021-05-14T12:51:00+09:00")(xml))), decodeFixture(F.detail)];
+    for (const [early, late] of [ash, [...ash].reverse()]) {
+      const step = receive(receive(emptyState(), early, clock(ashAt)).state, late, clock(ashAt));
+      expect([verdict(step), step.state.ashfalls.map((item) => item.source.family)], late.headType)
+        .toEqual([[late.headType === "VFVO55" ? "changed" : "stale"], ["VFVO55"]]);
+    }
+  });
 });
 
 function shortfall(id: string, scope: "volcano" | "domain", volcanoCode: string | null, lastKnownAt: string | null = null,

@@ -117,14 +117,14 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
 
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
-// ReportDateTime、同時刻で同じ EventID の両方に Serial があれば Serial、なお同じなら InfoType の優先。
+// P3-ORDER-AC01: ReportDateTime → InfoType の優先 → 同じ EventID なら Serial（欠落はどの数値よりも小）の辞書順。
 function compare(candidate: NankaiCandidate, source: ReportRef, eventId: string): number {
   const time = candidate.reportDateTimeMs - reportMs(source);
   if (time !== 0) return Math.sign(time);
+  const rank = candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw) ?? 0);
+  if (rank !== 0 || candidate.eventId !== eventId) return Math.sign(rank);
   const left = candidate.source.serialRaw, right = source.serialRaw;
-  const serial = candidate.eventId === eventId && left !== "" && right !== "" ? Number(left) - Number(right) : 0;
-  if (serial !== 0) return Math.sign(serial);
-  return Math.sign(candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw) ?? 0)) * 2;
+  return left === right ? 0 : left === "" ? -1 : right === "" ? 1 : Math.sign(Number(left) - Number(right));
 }
 const withoutSource = (value: Shown) => ({ ...value, source: null });
 

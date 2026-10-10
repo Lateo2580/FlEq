@@ -576,6 +576,53 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(groups.rejected).toEqual(["test__fixtures__synthetic_VYSE50_no_earthquake_info"]);
     expect(groups.changed).toHaveLength(16);
   });
+
+  // 版の比較（P3-REVISION-ORDER-001）: 74_01_04 を t−60 秒の初報にし、同じ時刻 t の Serial と InfoType（と EventID）だけを替えた報を当てる。
+  const ORDER_AT = at("2020-05-12T16:28:00+09:00");
+  const ordered = () => send(emptyState(), F.warning, retime("2020-05-12T16:27:00+09:00")).state;
+  const version = ([serial, infoType]: readonly [string, string], eventId = "20200512162800") => decodeFixture(F.warning,
+    (xml) => replaceTag("EventID", eventId)(replaceTag("InfoType", infoType)(replaceTag("Serial", serial)(xml))));
+  const verdict = (step: NankaiUnitStep) => step.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision);
+
+  // regression（監査 F02）: 同時刻の Serial 2 の発表・Serial 空の訂正・Serial 1 の取消は、6 順列とも、各手順の前に復元を挟んでも取消で終わる。
+  it("P3-ORDER-T01 regression / AC02: the F02 triple ends in the Serial 1 cancel in all 6 orders, with and without a restore before each step", () => {
+    const first = ordered();
+    const reports = { A: version(["2", "発表"]), B: version(["", "訂正"]), C: version(["1", "取消"]) };
+    // owner の復元と同じく、保存物（encode→JSON）を保存世代を引き継いだ state へ restore で戻す。
+    const restart = (state: NankaiUnitState) => {
+      const decoded = roundTrip(state);
+      if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+      const generation = state.persistence.currentGeneration;
+      return reduceNankaiUnit({ ...emptyState(), persistence: { kind: "saved", currentGeneration: generation, savedGeneration: generation,
+        savedCapturedAt: null, savedAckAt: null, dirtySince: null } }, { kind: "restore", persisted: nankaiUnitCodec.encode(decoded.state),
+        clock: clock(ORDER_AT) }).state;
+    };
+    const finals = [false, true].flatMap((restarting) => ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"].map((order) => [...order].reduce(
+      (state, key) => receive(restarting ? restart(state) : state, reports[key as keyof typeof reports], clock(ORDER_AT)).state, first)));
+    expect(finals.map((state) => [currentOf(state)?.effective, currentOf(state)?.source.serialRaw, currentOf(state)?.source.infoTypeRaw,
+      pending(state).map((item) => [item.channel, item.transition]), roundTrip(state).kind]))
+      .toEqual(Array(12).fill(["cancelled", "1", "取消", [["desktop", "cancelled"], ["sound", "cancelled"]], "restored"]));
+  });
+
+  // contractBoundary: 同時刻の 2 報は InfoType の優先 → 同じ EventID なら Serial（欠落はどの数値よりも小）で決まり、到着順によらない
+  // （AC01・AC03(a)〜(c)）。EventID の違う 2 報は Serial を比べず同じ版で、先着を保って食い違い（AC03(e)）。
+  it("P3-ORDER-T02 contractBoundary / AC01,AC03: InfoType before Serial, a missing Serial below any number, EventIDs apart, in both orders", () => {
+    const first = ordered();
+    // [一方, 他方, 勝つ方]
+    const rows: [readonly [string, string], readonly [string, string], 0 | 1][] = [
+      [["9", "発表"], ["1", "訂正"], 1], [["", "訂正"], ["1", "取消"], 1], [["2", "発表"], ["1", "発表"], 0], [["", "発表"], ["1", "発表"], 1]];
+    for (const [one, other, winner] of rows) for (const [early, late, lateWins] of [[one, other, winner === 1], [other, one, winner === 0]] as const) {
+      const step = receive(receive(first, version(early), clock(ORDER_AT)).state, version(late), clock(ORDER_AT));
+      expect([verdict(step), step.diagnostics, [currentOf(step.state)?.source.serialRaw, currentOf(step.state)?.source.infoTypeRaw]],
+        `${early}→${late}`).toEqual([Array(2).fill(lateWins ? "changed" : "stale"), [], lateWins ? late : early]);
+    }
+    const apart = [version(["2", "発表"], "20200512162900"), version(["1", "発表"])];
+    for (const [early, late] of [apart, [...apart].reverse()]) {
+      const step = receive(receive(first, early, clock(ORDER_AT)).state, late, clock(ORDER_AT));
+      expect([verdict(step)[0], currentOf(step.state)?.eventId, step.diagnostics]).toMatchObject(["stale", early.eventIdRaw,
+        [{ level: "WARN", reason: "nankaiRevisionConflict", unit: "U-N" }]]);
+    }
+  });
 });
 
 // sequences.json の履歴 oracle（expected:<seq>:<position>）を step ごとに照合する。save と restart は codec を通す。
