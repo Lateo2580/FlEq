@@ -204,7 +204,7 @@ function initialConfirmation(): RuntimeConfirmation {
   const three = () => ({ normal: slot(), training: slot(), test: slot() });
   return { epoch: 0, afterInputSequence: -1,
     units: { "U-E": three(), "U-W": three(), "U-F": three(), "U-T": three(), "U-Q": three(), "U-N": three(), "U-V": three(),
-      "U-L": three() } };
+      "U-L": three(), "U-R": three() } };
 }
 
 type ConfirmationSlot = RuntimeConfirmation["units"][RuntimeUnitId][Operation];
@@ -344,6 +344,8 @@ function addedScopes(changes: readonly RuntimeDisplayChange[]): ConfirmationScop
     if (value.unit === "U-V") return [];
     // I-U-L.confirmationScope（P3-C10-N2）: U-L も確認 scope を作らない。
     if (value.unit === "U-L") return [];
+    // I-U-R.confirmationScope（P3-C11-N2）: U-R も確認 scope を作らない。
+    if (value.unit === "U-R") return [];
     return normalizeScopes([...(value.current == null ? [] : Object.keys(value.current.phenomena)),
       ...value.unavailable.flatMap((item) => item.affectedScope),
       // Only shown (suspect) freshness enters confirmation; older/same/unknown non-adoption raises no doubt (A5).

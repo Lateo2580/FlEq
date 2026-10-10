@@ -552,13 +552,14 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
         const step = base[unit].reduce(state, input);
         return { ...step, nextDeadline: next(unit, input.kind) ?? step.nextDeadline };
       } });
-      // U-T (P3-C5), U-Q (P3-C7), U-N (P3-C8), U-V (P3-C9) and U-L (P3-C10) keep the driver's row unrecorded: these cases describe the
-      // three earlier units.
+      // U-T (P3-C5), U-Q (P3-C7), U-N (P3-C8), U-V (P3-C9), U-L (P3-C10) and U-R (P3-C11) keep the driver's row unrecorded: these cases
+      // describe the three earlier units.
       return { driver, applied, units: { "U-E": wrap("U-E"), "U-W": wrap("U-W"), "U-F": wrap("U-F"), "U-T": base["U-T"],
-        "U-Q": base["U-Q"], "U-N": base["U-N"], "U-V": base["U-V"], "U-L": base["U-L"] } };
+        "U-Q": base["U-Q"], "U-N": base["U-N"], "U-V": base["U-V"], "U-L": base["U-L"], "U-R": base["U-R"] } };
     };
     const codecs = { "U-E": stringCodec("U-E"), "U-W": stringCodec("U-W"), "U-F": stringCodec("U-F"), "U-T": stringCodec("U-T"),
-      "U-Q": stringCodec("U-Q"), "U-N": stringCodec("U-N"), "U-V": stringCodec("U-V"), "U-L": stringCodec("U-L") };
+      "U-Q": stringCodec("U-Q"), "U-N": stringCodec("U-N"), "U-V": stringCodec("U-V"), "U-L": stringCodec("U-L"),
+      "U-R": stringCodec("U-R") };
     const dirty = (runId: string) => {
       const status = (dirtySince: number) => ({ kind: "pending" as const, currentGeneration: 1, savedGeneration: null,
         savedCapturedAt: null, savedAckAt: null, dirtySince });
@@ -650,7 +651,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       expect(stageResults.sideEffectFinalization?.result.kind).toBe("deadlineExceeded");
       expect(h.sent.some(({ request }) => request.kind === "finalize")).toBe(false);
       expect(grantsOf(h)).toHaveLength(granting);
-      expect(stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(8);
+      expect(stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(9);
       expect(summary.code).toBe(2);
       expect(stageResults.workerClose?.result.kind).toBe("completed");
       expect(h.root.checkpoint.grantOf("U-F")).not.toBeNull();
@@ -692,8 +693,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       expect(grantsOf(h).slice(granting).map((grant) => grant.unit)).toEqual(["U-E"]);
       expect(summary.persistence["U-E"]).toMatchObject({ kind: "saved" });
       expect(summary.persistence["U-F"]?.kind).not.toBe("saved");
-      // B (deferred) owns U-F and U-L (P3-C10-PLACE=A); both count unsaved when B is not fixed.
-      expect(h.root.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(2);
+      // B (deferred) owns U-F, U-L and U-R (P3-C10-PLACE=A, P3-C11-PLACE=A); all count unsaved when B is not fixed.
+      expect(h.root.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(3);
       const mirror = h.root.state.mirror["U-F"];
       release();
       h.release();

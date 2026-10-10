@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ac70572cfdc286ad9b7e3a097d982448f7d745aa",
-    "sha256": "afd829eeadd98dd6d7ea3b270b4740ad0dc0f593d13986126eef084d8deda56c",
+    "sha256": "2b6d4e96b790d19a50068fecc9c5305426f605fe374ae6a5fba3f0c2bd4a5218",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
@@ -717,7 +717,7 @@
           "docs/specs/reconstruction-p0-contracts.md:517 «231a7a68715a07ff»",
           "docs/specs/reconstruction-p0-contracts.md:601 «e15cb9401eef5a41»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «366b1de59feade43»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «b80f70a2a90c3be2»",
           "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
           "reconstruction/src/runtime/unit-coverage.ts:95 «eac0741ea1f849f0»",
           "reconstruction/src/runtime/unit-coverage.ts:96 «076139a18a4cd0f9»",
@@ -794,13 +794,13 @@
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
           "docs/specs/reconstruction-p0-contracts.md:2187 «3f547b2b3e583635»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:47 «0d0f022cec6bf5bd»",
+          "reconstruction/src/view-projector/view-projector.ts:47 «3993a49a41f716c6»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:48 «5f568710cc71f36f»",
-          "reconstruction/src/runtime/composition-root.ts:197 «9ed0037a4a82959a»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:49 «74cc3fbc108aad55»",
+          "reconstruction/src/runtime/composition-root.ts:198 «9ed0037a4a82959a»",
           "src/engine/display/standby-persistence.ts:315 «ef0460f67661ea53»",
-          "reconstruction/src/view-projector/view-projector.ts:831 «0f29de6d3afeedc3»",
-          "reconstruction/src/view-projector/view-projector.ts:833 «c42a191089542248»"
+          "reconstruction/src/view-projector/view-projector.ts:858 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:860 «c42a191089542248»"
         ]
       },
       {
@@ -876,7 +876,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:197 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:198 «9ed0037a4a82959a»"
         ]
       },
       {

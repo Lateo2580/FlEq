@@ -11,17 +11,18 @@ import { seismicUnit } from "../../src/units/seismic/seismic-unit";
 import { nankaiUnit } from "../../src/units/nankai/nankai-unit";
 import { volcanoUnit } from "../../src/units/volcano/volcano-unit";
 import { landslideUnit } from "../../src/units/landslide/landslide-unit";
+import { floodUnit } from "../../src/units/flood/flood-unit";
 
 declare const eewInput: RuntimeUnitInputs["U-E"];
 declare const weatherState: RuntimeUnitStates["U-W"];
 
-// Positive: the eight linked modules satisfy their row type and make a complete table.
+// Positive: the nine linked modules satisfy their row type and make a complete table.
 export const positiveTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit,
-  "U-Q": seismicUnit, "U-N": nankaiUnit, "U-V": volcanoUnit, "U-L": landslideUnit } satisfies UnitTable;
+  "U-Q": seismicUnit, "U-N": nankaiUnit, "U-V": volcanoUnit, "U-L": landslideUnit, "U-R": floodUnit } satisfies UnitTable;
 export const positiveRows = [eewUnit satisfies UnitModule<"U-E">, weatherCurrentUnit satisfies UnitModule<"U-W">,
   weatherTimeseriesUnit satisfies UnitModule<"U-F">, tsunamiUnit satisfies UnitModule<"U-T">, seismicUnit satisfies UnitModule<"U-Q">,
   nankaiUnit satisfies UnitModule<"U-N">, volcanoUnit satisfies UnitModule<"U-V">,
-  landslideUnit satisfies UnitModule<"U-L">];
+  landslideUnit satisfies UnitModule<"U-L">, floodUnit satisfies UnitModule<"U-R">];
 
 // Positive: one switch on job.unit narrows state and input together; a missing case fails at `never`.
 export function describeJob(job: UnitJob): RuntimeUnitId {
@@ -34,6 +35,7 @@ export function describeJob(job: UnitJob): RuntimeUnitId {
     case "U-N": { const state: RuntimeUnitStates["U-N"] = job.state; const input: RuntimeUnitInputs["U-N"] = job.input; void state; void input; return job.unit; }
     case "U-V": { const state: RuntimeUnitStates["U-V"] = job.state; const input: RuntimeUnitInputs["U-V"] = job.input; void state; void input; return job.unit; }
     case "U-L": { const state: RuntimeUnitStates["U-L"] = job.state; const input: RuntimeUnitInputs["U-L"] = job.input; void state; void input; return job.unit; }
+    case "U-R": { const state: RuntimeUnitStates["U-R"] = job.state; const input: RuntimeUnitInputs["U-R"] = job.input; void state; void input; return job.unit; }
     default: { const missing: never = job; return missing; }
   }
 }
@@ -44,7 +46,7 @@ export const n1: UnitTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit };
 
 // N2: a module under another unit's key.
 // @ts-expect-error N2
-export const n2: UnitTable = { "U-E": weatherCurrentUnit, "U-W": eewUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit, "U-Q": seismicUnit, "U-N": nankaiUnit, "U-V": volcanoUnit, "U-L": landslideUnit };
+export const n2: UnitTable = { "U-E": weatherCurrentUnit, "U-W": eewUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit, "U-Q": seismicUnit, "U-N": nankaiUnit, "U-V": volcanoUnit, "U-L": landslideUnit, "U-R": floodUnit };
 
 // N3: persistence omitted, or durable without a codec.
 const { persistence: omitted, ...withoutPersistence } = eewUnit;
@@ -62,12 +64,12 @@ export const n4: UnitJob = { unit: "U-E", state: weatherState, input: eewInput }
 // @ts-expect-error N5a
 export const n5a: CoversAllUnits<readonly ["U-E", "U-W"]> = ["U-E", "U-W"] as const;
 // @ts-expect-error N5b
-export const n5b = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R"] as const satisfies readonly RuntimeUnitId[];
+export const n5b = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B"] as const satisfies readonly RuntimeUnitId[];
 
 // N6: ready names a unit outside RuntimeUnitId; notPorted and ignored need a reason.
 // @ts-expect-error N6a
-export const n6a = { status: "ready", unit: "U-R" } satisfies CoverageRow;
+export const n6a = { status: "ready", unit: "U-B" } satisfies CoverageRow;
 // @ts-expect-error N6b
-export const n6b = { status: "notPorted", candidate: "U-R" } satisfies CoverageRow;
+export const n6b = { status: "notPorted", candidate: "U-B" } satisfies CoverageRow;
 // @ts-expect-error N6c
 export const n6c = { status: "ignored" } satisfies CoverageRow;
