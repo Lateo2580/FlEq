@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p3-e01-manifest-v1",
-  "manifestId": "p3-wl2-e05p-20261011",
-  "manifestSha256": "5db76f5707df0849534c74affbd08e7de1244b6b4d69101f0fa6160424940222",
+  "manifestId": "p3-wl2-e05p-20261011b",
+  "manifestSha256": "88f6afa71e45f45d6f52c856ad7fb9166ec3090cc3de65c3285c05498d4b4cfc",
   "contractSha256": {
     "P3-E01-REACCEPT-001": "ba6d52dbd6145dd7fdce58bc40153957d67d2ad4a75f7b587e44a963dd02eac2",
     "P3-EXECUTION-LIFECYCLE-001": "7c767e5d28f18eeecd3fe8f1372bdc7d530abece8ba1832fdb9555cdc6683c43",
@@ -25,7 +25,6 @@
     "a10-p2-20260930b からの差 device: Apple M5 x10, 32GiB / Apple M2 x8, 8GiB",
     "a10-p2-20260930b からの差 chrome.version: 154.0.8037.92 / 155.0.8059.39",
     "p3-c4-formal-20261007 からの差 chrome.version: 154.0.8037.98 / 155.0.8059.39",
-    "p3-c4-formal-20261007 からの差 osVersion: 27.0.0 arm64 / 27.0.1 arm64",
     "p3-c4-formal-20261007 からの差 契約: P3-WEATHER-LIGHT-002（台帳 66 の段 2、木を 1 本に）の配送の後の製品。contractSha256 の値は配送の後の各契約"
   ],
   "measuredSseClients": 1,
@@ -214,7 +213,7 @@
     "motion": "full"
   },
   "nodeVersion": "v22.23.3",
-  "osVersion": "27.0.1 arm64",
+  "osVersion": "27.0.0 arm64",
   "device": "Apple M2 x8, 8GiB",
   "geometrySha256": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f",
   "fixtureSha256": {
