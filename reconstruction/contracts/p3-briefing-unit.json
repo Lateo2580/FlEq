@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "191b8eec4f13dfd436f206e073ed478501e4f70de1d0c4df7d9b4d6ccefa8f81",
+    "sha256": "03c6c0da9d38e44671c18449697d234be9a3c756e7f3bdb27cadcf77cd7e1c8d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -504,7 +504,7 @@
     "contractId": "P3-UNIT-B-001",
     "mode": "implementation",
     "objective": "M17をI-U-Bとして閉じる。府県気象防災速報（VPBS50）と記録的短時間大雨情報（VPOA50）を、系列ごとのcurrent（D）としてU-Bの一つのreducer・唯一のcodec・viewで扱い、線状降水帯の予測を発生で区域ごとに置き換え、VPOA50を対応するVPBS50へaliasで結び（相関を待つ間は見せず鳴らさない）、取消・aliasの記憶を保存し、Q-NOTICEの速報分を生成し、unit表・coverage・実行場所・snapshotを結線し、U-Bの通知がEEW・津波緊急を追い越さないことを製品経路で確かめる。 横断の直し（K1〜K6・K4N）の後の共通条文P3-X-C1〜C6とパラメータ表（P3-C12-PARAMETERS・P3-C12-CROSS-UNIT）を満たす。",
-    "baseOid": "unassigned",
+    "baseOid": "2e2aed8db1a2c5ea63b889b4eddc747e34ecb706",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
