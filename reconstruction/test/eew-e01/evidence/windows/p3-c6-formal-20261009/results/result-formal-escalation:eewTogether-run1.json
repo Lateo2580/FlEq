@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "p3-tsunami-e01-result-v1",
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "resultSha256": "f7e78933e5214b5fc984e8507b5e9ebb8c335684f590aa43673816da5c9075a7",
+  "population": "escalation:eewTogether",
+  "scope": "formal",
+  "run": 1,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "attempts": 1100,
+  "overlapNotEstablished": 0,
+  "overlapNotEstablishedByReason": {
+    "primeNotSettled": 0,
+    "startOffset": 0,
+    "eewOrder": 0,
+    "conditionDeviation": 0
+  },
+  "stateBreaks": {
+    "tsunamiCapacityEvicted": 0,
+    "tsunamiRevisionConflict": 0,
+    "tsunamiCapacityExceeded": 0,
+    "staleTarget": 0,
+    "eewCapacityExceeded": 0
+  },
+  "byTransition": {
+    "issued": {
+      "expected": 333,
+      "samples": 333,
+      "missing": 0,
+      "p50UpperMs": 44.62508293860592,
+      "p95UpperMs": 63.1162089727819,
+      "p99UpperMs": 65.50904195979237,
+      "maxUpperMs": 68.31920794824836
+    },
+    "upgraded": {
+      "expected": 333,
+      "samples": 333,
+      "missing": 0,
+      "p50UpperMs": 38.76791697056033,
+      "p95UpperMs": 51.242167001497,
+      "p99UpperMs": 63.246207940066235,
+      "maxUpperMs": 65.11587596163153
+    },
+    "expanded": {
+      "expected": 334,
+      "samples": 334,
+      "missing": 0,
+      "p50UpperMs": 44.786999985016884,
+      "p95UpperMs": 48.929416966065766,
+      "p99UpperMs": 51.741834001929966,
+      "maxUpperMs": 55.91195796339307
+    }
+  },
+  "injectedToT0P50Ms": 0.6896669864654541,
+  "injectedToT0P99Ms": 1.8164590001106262,
+  "injectedToT0MaxMs": 3.9391679763793945,
+  "p50LowerMs": 38.966415991983375,
+  "p50UpperMs": 39.51916693397798,
+  "p95LowerMs": 50.83083296762779,
+  "p95UpperMs": 51.4911669109948,
+  "p99LowerMs": 63.837291040085255,
+  "p99UpperMs": 64.44295894764363,
+  "maxLowerMs": 67.71462401727914,
+  "maxUpperMs": 68.31920794824836,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:eewTogether-run1.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run1/run-record.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run1/e01-assembled.json"
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "p3-tsunami-e01-result-v1",
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "resultSha256": "4dbfa4c125ac260c9a8483644f421bcca2f1fe9c9b210582f44262e56e158dcd",
+  "population": "deescalation:maxWeatherCheckpointEncodeStarted",
+  "scope": "formal",
+  "run": 2,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "attempts": 1249,
+  "overlapNotEstablished": 149,
+  "overlapNotEstablishedByReason": {
+    "primeNotSettled": 0,
+    "startOffset": 149,
+    "eewOrder": 0,
+    "conditionDeviation": 0
+  },
+  "stateBreaks": {
+    "tsunamiCapacityEvicted": 0,
+    "tsunamiRevisionConflict": 0,
+    "tsunamiCapacityExceeded": 0,
+    "staleTarget": 0,
+    "eewCapacityExceeded": 0
+  },
+  "byTransition": {
+    "released": {
+      "expected": 500,
+      "samples": 500,
+      "missing": 0,
+      "p50UpperMs": 34.76691697062925,
+      "p95UpperMs": 41.79366706116125,
+      "p99UpperMs": 43.17795801246539,
+      "maxUpperMs": 43.36433297619224
+    },
+    "downgraded": {
+      "expected": 500,
+      "samples": 500,
+      "missing": 0,
+      "p50UpperMs": 35.14491608031094,
+      "p95UpperMs": 42.22587502668612,
+      "p99UpperMs": 43.16645796750672,
+      "maxUpperMs": 43.71687505920418
+    }
+  },
+  "injectedToT0P50Ms": 0.2814580202102661,
+  "injectedToT0P99Ms": 7.207000017166138,
+  "injectedToT0MaxMs": 9.923666000366211,
+  "p50LowerMs": 34.310084065049885,
+  "p50UpperMs": 34.93845897996798,
+  "p95LowerMs": 41.39208301398903,
+  "p95UpperMs": 42.07662501875311,
+  "p99LowerMs": 42.61533397887833,
+  "p99UpperMs": 43.17795801246539,
+  "maxLowerMs": 43.18879208047874,
+  "maxUpperMs": 43.71687505920418,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2/run-record.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2/e01-assembled.json"
+  ]
+}

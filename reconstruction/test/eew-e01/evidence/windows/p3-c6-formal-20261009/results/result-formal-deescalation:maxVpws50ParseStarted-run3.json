@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "p3-tsunami-e01-result-v1",
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "resultSha256": "d0920533c6992e66512be0b5ff9528d8995200371fd23678294d5585eb6e33ad",
+  "population": "deescalation:maxVpws50ParseStarted",
+  "scope": "formal",
+  "run": 3,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "attempts": 1505,
+  "overlapNotEstablished": 405,
+  "overlapNotEstablishedByReason": {
+    "primeNotSettled": 0,
+    "startOffset": 405,
+    "eewOrder": 0,
+    "conditionDeviation": 0
+  },
+  "stateBreaks": {
+    "tsunamiCapacityEvicted": 0,
+    "tsunamiRevisionConflict": 0,
+    "tsunamiCapacityExceeded": 0,
+    "staleTarget": 0,
+    "eewCapacityExceeded": 0
+  },
+  "byTransition": {
+    "released": {
+      "expected": 500,
+      "samples": 500,
+      "missing": 0,
+      "p50UpperMs": 34.421415919810535,
+      "p95UpperMs": 43.22770798336715,
+      "p99UpperMs": 43.542582902964206,
+      "maxUpperMs": 43.90624987813644
+    },
+    "downgraded": {
+      "expected": 500,
+      "samples": 500,
+      "missing": 0,
+      "p50UpperMs": 34.26820800211281,
+      "p95UpperMs": 43.3987910262309,
+      "p99UpperMs": 43.70666596610099,
+      "maxUpperMs": 44.740457953326406
+    }
+  },
+  "injectedToT0P50Ms": 0.2922919988632202,
+  "injectedToT0P99Ms": 0.4619159698486328,
+  "injectedToT0MaxMs": 2.108415961265564,
+  "p50LowerMs": 33.54625106891617,
+  "p50UpperMs": 34.32262390330434,
+  "p95LowerMs": 42.537916981475426,
+  "p95UpperMs": 43.344790988974275,
+  "p99LowerMs": 42.88425106680952,
+  "p99UpperMs": 43.67508300221525,
+  "maxLowerMs": 43.94491701256484,
+  "maxUpperMs": 44.740457953326406,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3/run-record.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3/e01-assembled.json"
+  ]
+}

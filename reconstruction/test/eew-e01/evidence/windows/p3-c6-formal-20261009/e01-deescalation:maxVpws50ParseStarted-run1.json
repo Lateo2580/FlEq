@@ -1,0 +1,165 @@
+{
+  "id": "e01-deescalation:maxVpws50ParseStarted-run1",
+  "attempt": 1,
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-tsunami/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-tsunami/manifest.json",
+    "caffeinate -dims -w 83137",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c6-formal/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run1/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-0YeWjz --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-10-10T05:01:50.760Z",
+  "preflight": {
+    "checkedAt": "2026-10-09T10:26:46.256Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.39",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "61f05ddeae08e23e86d41c9dc1f48b573f30b59e",
+    "gitStatusPorcelain": "",
+    "distSha256": "58629355796b70f0827c32bf667d3e91e30ce17c1737d077d4fc5ee66c124c01",
+    "runnerSha256": "87d953543d906469c884001c6baa6a74e8cb6f4ca27c2aae8d4988c2fe17b90a",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Pass",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:maxVpws50ParseStarted-run1.json",
+      "sha256": "fdd8b9ba9d337e1d3517f365956a28ab8b190c129fcbe625df0a59f3801c6682"
+    }
+  ],
+  "liveness": {
+    "pings": 232,
+    "maxFrameGapMs": 5129.899541974068
+  },
+  "finishedAt": "2026-10-10T06:28:11.192Z",
+  "raw": [
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 1591,
+      "sha256": "3d8fc7c426e1cde6e8f3c2ca9f98f5cd71dd0485b7e512cb0a3810687eafaf7b"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1097,
+      "sha256": "7e2270918de0e8fc7dc78638bc1efb93182940869792ba3370fc6c86a804c334"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 28915717,
+      "sha256": "90d866fbe74e638b5e8f2a77cb8720193e809a91e1fd24ab23772bf3182277f8"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 549,
+      "sha256": "dcc6658e0192f9c3cc9109f689c07eeef0b581d6dd50477f3e87a11c08554d7f"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 75385324,
+      "sha256": "da1307c7626ae1460ef474d88abf0f7fe8b58353d1459d5844fb711aa3cc98cd"
+    },
+    {
+      "file": "result-formal-deescalation:maxVpws50ParseStarted-run1.json",
+      "bytes": 2147,
+      "sha256": "fdd8b9ba9d337e1d3517f365956a28ab8b190c129fcbe625df0a59f3801c6682"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 17220283,
+      "sha256": "d85ea075f48d45a78dd0ed49a21a3948bdafd0fdedd0d022df3504ed8dd06920"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 43189775,
+      "sha256": "9f3060d2a0eb4c40089d0c5b8b7e6fc84969421d092c08401cbef269ec9c803f"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 44274516,
+      "sha256": "24c714ea968a09299d5b53c10abb90b1f81897ae8f2c2bd9dbfc559fe0d1f952"
+    },
+    {
+      "file": "trace-02.json",
+      "bytes": 44848451,
+      "sha256": "ddee47137e3877aa37a180c696fc6ba3525eda26f49d88e4d8c5e37819e4c03a"
+    },
+    {
+      "file": "trace-03.json",
+      "bytes": 45928716,
+      "sha256": "f648e0fdd9f4444f6a8eb1c057addabcd02ec69cf694f64a58d7de3e9172677f"
+    },
+    {
+      "file": "trace-04.json",
+      "bytes": 45090897,
+      "sha256": "89ec5d23a39f0dcea03395db08d1cd1f08a19baa71880199696f45440b2644db"
+    },
+    {
+      "file": "trace-05.json",
+      "bytes": 45652043,
+      "sha256": "98abce03fee7b486e935ea0775aecebcfa262d7288da53c7abbef542d35478fa"
+    },
+    {
+      "file": "trace-06.json",
+      "bytes": 45968399,
+      "sha256": "3e3edbff75b4ae48ea47734a83d834c796db76049438eec542d6872aeeda9c20"
+    },
+    {
+      "file": "trace-07.json",
+      "bytes": 45087125,
+      "sha256": "4c9468720c3570ae50d3057a2ae70930220a6d127f7f7cc5f9a50483041773f2"
+    },
+    {
+      "file": "trace-08.json",
+      "bytes": 45220343,
+      "sha256": "f2a0ddd3f542eae6ec89e1db1927ec98fc5ac6ad92a9530df5a589a5ed8f4fd1"
+    },
+    {
+      "file": "trace-09.json",
+      "bytes": 45722706,
+      "sha256": "694cdf00a8ff9c6d1a5a2da9db4e6249a4a251a4f0457a68b493c4ea61f051b7"
+    },
+    {
+      "file": "trace-10.json",
+      "bytes": 45783665,
+      "sha256": "d36e24d4a3e27712e573640f9c2d006e3d8213aca89dfe1a163ce06fa96648b7"
+    },
+    {
+      "file": "trace-11.json",
+      "bytes": 45579330,
+      "sha256": "bc63bbac4f02807c514df5bd7db93fbd17ef52196fc5231a596b0f7f44fa4b0f"
+    },
+    {
+      "file": "trace-12.json",
+      "bytes": 46324910,
+      "sha256": "0d7d95c5a94f58ce1b958f06995c9b827169f9bb6885f60bad2140ba009eedbf"
+    },
+    {
+      "file": "trace-13.json",
+      "bytes": 45356470,
+      "sha256": "673c38be5d1123fbb5f687e6c9c65b7b921d2f179b0a244e29a83077616d5a82"
+    },
+    {
+      "file": "trace-14.json",
+      "bytes": 45685806,
+      "sha256": "e584d92083792789f91f5e70b82f232bc910b9575923a6dc491f69785333530e"
+    },
+    {
+      "file": "trace-15.json",
+      "bytes": 15446528,
+      "sha256": "61d8beb44d75a609df0de19491142dc325bdea5721b289a89ef61d0ba9ca6e0d"
+    }
+  ],
+  "orphans": []
+}

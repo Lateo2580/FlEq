@@ -1,0 +1,140 @@
+{
+  "id": "e01-escalation:fixedBacklog-run2",
+  "attempt": 1,
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run2",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-tsunami/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-tsunami/manifest.json",
+    "caffeinate -dims -w 83137",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c6-formal/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run2/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-cwOtGU --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-10-09T11:26:39.179Z",
+  "preflight": {
+    "checkedAt": "2026-10-09T10:26:46.256Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.39",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "61f05ddeae08e23e86d41c9dc1f48b573f30b59e",
+    "gitStatusPorcelain": "",
+    "distSha256": "58629355796b70f0827c32bf667d3e91e30ce17c1737d077d4fc5ee66c124c01",
+    "runnerSha256": "87d953543d906469c884001c6baa6a74e8cb6f4ca27c2aae8d4988c2fe17b90a",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Pass",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:fixedBacklog-run2.json",
+      "sha256": "a3ff1a800d2b690e4659992e69475f9745d4fb257c781660569c29767ea0f036"
+    }
+  ],
+  "liveness": {
+    "pings": 167,
+    "maxFrameGapMs": 4971.131249964237
+  },
+  "finishedAt": "2026-10-09T12:26:35.142Z",
+  "raw": [
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 1405,
+      "sha256": "6ce82d4d111f974a8427d26cafe4124a4133a4b7a474325c79c4b24b9ae3a955"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1090,
+      "sha256": "93bc7219a09e1bac89bee96beb25b586b3e6adb3ccca73541db2ca311b139f81"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 17897882,
+      "sha256": "6b6443fa5674f0f62c140c0e9e202fdc1b412a70ddd77380f9f56e89b50f2727"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 516,
+      "sha256": "cc5fe141f39669df224c540810018aafd58335ebe07a330d3c17f37ae4628024"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 46279198,
+      "sha256": "ba1c717cd5d8cee2a1bf04bb2772490080adbf942f3a776f7af7194c557cd29e"
+    },
+    {
+      "file": "result-formal-escalation:fixedBacklog-run2.json",
+      "bytes": 2337,
+      "sha256": "a3ff1a800d2b690e4659992e69475f9745d4fb257c781660569c29767ea0f036"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 10474722,
+      "sha256": "dd0a001c323aa5a5c231e7c823f8334289f204d0ae6316640a391e3c4a0caaab"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 38514755,
+      "sha256": "1bb389fcf19197a399b3ee7d0eb5a4e83c38c590a8dfd7c3cf09c12fd310a4db"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 39833408,
+      "sha256": "2116d0756952178ed34a4e61d80fe5eaaa1d3820eee7d75b01337ea1ec8e262f"
+    },
+    {
+      "file": "trace-02.json",
+      "bytes": 40233218,
+      "sha256": "e327369c64cc2d6f9b4c14375d57506f6ffc5c8b4f325bf90b629d8fd0059ee2"
+    },
+    {
+      "file": "trace-03.json",
+      "bytes": 40573922,
+      "sha256": "87883eb403f509c689ed113392f37d54b564b7dd0296e1d9cfad7656aa67fb65"
+    },
+    {
+      "file": "trace-04.json",
+      "bytes": 41108550,
+      "sha256": "4ba6ad1661854bbc1e1f12389e118951bdd77d5b377b4569acfd919dffe1e108"
+    },
+    {
+      "file": "trace-05.json",
+      "bytes": 39585970,
+      "sha256": "b13e468260a461f9590cf520835895fa5e09b1f97b5532387b6d88b3b48483db"
+    },
+    {
+      "file": "trace-06.json",
+      "bytes": 40017748,
+      "sha256": "948410991ddb36d4b27ed115c43f8fe7e212c9782c62d17681f17d32bf72c1a1"
+    },
+    {
+      "file": "trace-07.json",
+      "bytes": 40817844,
+      "sha256": "17e9be09caaa9b5deb6484d782e52572a42d404867151dd120804f08f6167138"
+    },
+    {
+      "file": "trace-08.json",
+      "bytes": 39735649,
+      "sha256": "ca249cc451037c03bf49d2915d63fc07c759989944a354bb1bc884c56ba9e889"
+    },
+    {
+      "file": "trace-09.json",
+      "bytes": 41219328,
+      "sha256": "0110650555e144f80aef432b52270bdb4f043c215aa41cf117a42cbf47c56e16"
+    },
+    {
+      "file": "trace-10.json",
+      "bytes": 41260916,
+      "sha256": "03684e1989b1dfe6c0c8c2a00e7afb60478d23230040f7295788e914a3e3ef40"
+    }
+  ],
+  "orphans": []
+}

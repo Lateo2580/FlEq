@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "p3-tsunami-e01-result-v1",
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "resultSha256": "295b5037ed3f52fcaffedb0ce85db17bf0ade42af24c8ff2c90044bc0cd1f3f5",
+  "population": "escalation:fixedBacklog",
+  "scope": "formal",
+  "run": 3,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "attempts": 1100,
+  "overlapNotEstablished": 0,
+  "overlapNotEstablishedByReason": {
+    "primeNotSettled": 0,
+    "startOffset": 0,
+    "eewOrder": 0,
+    "conditionDeviation": 0
+  },
+  "stateBreaks": {
+    "tsunamiCapacityEvicted": 0,
+    "tsunamiRevisionConflict": 0,
+    "tsunamiCapacityExceeded": 0,
+    "staleTarget": 0,
+    "eewCapacityExceeded": 0
+  },
+  "byTransition": {
+    "issued": {
+      "expected": 333,
+      "samples": 333,
+      "missing": 0,
+      "p50UpperMs": 36.86879199733958,
+      "p95UpperMs": 47.05691707218066,
+      "p99UpperMs": 47.90612498288974,
+      "maxUpperMs": 49.47558395974338
+    },
+    "upgraded": {
+      "expected": 333,
+      "samples": 333,
+      "missing": 0,
+      "p50UpperMs": 35.96045900313184,
+      "p95UpperMs": 46.12212495496497,
+      "p99UpperMs": 49.433334046415986,
+      "maxUpperMs": 56.18737598673906
+    },
+    "expanded": {
+      "expected": 334,
+      "samples": 334,
+      "missing": 0,
+      "p50UpperMs": 39.61370801241137,
+      "p95UpperMs": 47.626124994270505,
+      "p99UpperMs": 48.28991702189669,
+      "maxUpperMs": 49.173459098115565
+    }
+  },
+  "injectedToT0P50Ms": 0.5308329463005066,
+  "injectedToT0P99Ms": 1.8739999532699585,
+  "injectedToT0MaxMs": 39.16179198026657,
+  "p50LowerMs": 36.465958083607255,
+  "p50UpperMs": 36.95479200817645,
+  "p95LowerMs": 46.68387510078028,
+  "p95UpperMs": 47.20075007204432,
+  "p99LowerMs": 47.606167079973964,
+  "p99UpperMs": 48.11654195925221,
+  "maxLowerMs": 55.567625057860276,
+  "maxUpperMs": 56.18737598673906,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3/run-record.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3/e01-assembled.json"
+  ]
+}

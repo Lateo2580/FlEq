@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "p3-tsunami-e01-result-v1",
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "resultSha256": "c259dd16bf874953740cc873305a4449aa94ec36ae8793bfd84b140e23f83d03",
+  "population": "escalation:maxVpws50ParseStarted",
+  "scope": "formal",
+  "run": 3,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "attempts": 2003,
+  "overlapNotEstablished": 903,
+  "overlapNotEstablishedByReason": {
+    "primeNotSettled": 0,
+    "startOffset": 903,
+    "eewOrder": 0,
+    "conditionDeviation": 0
+  },
+  "stateBreaks": {
+    "tsunamiCapacityEvicted": 0,
+    "tsunamiRevisionConflict": 0,
+    "tsunamiCapacityExceeded": 0,
+    "staleTarget": 0,
+    "eewCapacityExceeded": 0
+  },
+  "byTransition": {
+    "issued": {
+      "expected": 333,
+      "samples": 333,
+      "missing": 0,
+      "p50UpperMs": 30.723957972973587,
+      "p95UpperMs": 39.9468749797903,
+      "p99UpperMs": 43.948750004544856,
+      "maxUpperMs": 46.088374932669105
+    },
+    "upgraded": {
+      "expected": 333,
+      "samples": 333,
+      "missing": 0,
+      "p50UpperMs": 30.887166953086854,
+      "p95UpperMs": 40.17795790885575,
+      "p99UpperMs": 43.7025839233771,
+      "maxUpperMs": 46.08100000154227
+    },
+    "expanded": {
+      "expected": 334,
+      "samples": 334,
+      "missing": 0,
+      "p50UpperMs": 33.53641592655331,
+      "p95UpperMs": 42.7033329712227,
+      "p99UpperMs": 43.558542038686575,
+      "maxUpperMs": 44.510458008758725
+    }
+  },
+  "injectedToT0P50Ms": 0.22920793294906616,
+  "injectedToT0P99Ms": 0.43358296155929565,
+  "injectedToT0MaxMs": 2.006166994571686,
+  "p50LowerMs": 30.25862499848008,
+  "p50UpperMs": 31.182707958761604,
+  "p95LowerMs": 40.43400006331503,
+  "p95UpperMs": 41.533541919454,
+  "p99LowerMs": 42.87970899939537,
+  "p99UpperMs": 43.674749962892385,
+  "maxLowerMs": 45.06645799484104,
+  "maxUpperMs": 46.088374932669105,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3/run-record.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3/e01-assembled.json"
+  ]
+}

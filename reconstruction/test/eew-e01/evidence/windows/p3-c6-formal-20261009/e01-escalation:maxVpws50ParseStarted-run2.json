@@ -1,0 +1,185 @@
+{
+  "id": "e01-escalation:maxVpws50ParseStarted-run2",
+  "attempt": 1,
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run2",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-tsunami/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-tsunami/manifest.json",
+    "caffeinate -dims -w 83137",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c6-formal/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run2/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-fiGmCB --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-10-09T15:13:40.397Z",
+  "preflight": {
+    "checkedAt": "2026-10-09T10:26:46.256Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.39",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "61f05ddeae08e23e86d41c9dc1f48b573f30b59e",
+    "gitStatusPorcelain": "",
+    "distSha256": "58629355796b70f0827c32bf667d3e91e30ce17c1737d077d4fc5ee66c124c01",
+    "runnerSha256": "87d953543d906469c884001c6baa6a74e8cb6f4ca27c2aae8d4988c2fe17b90a",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Pass",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:maxVpws50ParseStarted-run2.json",
+      "sha256": "74402efa294be01525e578f3c9ce3380b07043c59af094d4bf6824b717b17aa3"
+    }
+  ],
+  "liveness": {
+    "pings": 291,
+    "maxFrameGapMs": 5164.244041025639
+  },
+  "finishedAt": "2026-10-09T17:00:43.377Z",
+  "raw": [
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 2334,
+      "sha256": "94cb958c00671b696d4a2a1d07bd55d6cf47aa982c081f66bc72eed9093994d1"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1094,
+      "sha256": "7e4a9b541584112e66b69b3473585d40ffaab291573431e690f2ac0c56c0a110"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 35749294,
+      "sha256": "ffca8d92ad8d90b614de725116709f389cd41e2171eadcebd688e6e9423a69a4"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 543,
+      "sha256": "754c23fbbc0825f87778abe105dc5a0c921c295a4fc55c9575a9c8f59c0d9195"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 94181464,
+      "sha256": "9bdb9f26340bbe320d1a64e764c4091fa889fa5fd0ffa698c4aaaddc4305a0c0"
+    },
+    {
+      "file": "result-formal-escalation:maxVpws50ParseStarted-run2.json",
+      "bytes": 2377,
+      "sha256": "74402efa294be01525e578f3c9ce3380b07043c59af094d4bf6824b717b17aa3"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 21387882,
+      "sha256": "c086c5f0bdaf975c194cb27b27130240068a681b1755f52148f140399b3486d4"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 41096281,
+      "sha256": "bd3960e84f779654a554d758f02a39f7dcc5f7a3327a43df1a5098745eaf8bbc"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 42630718,
+      "sha256": "dc035e793f6878426df1adb4d3a932ff050071df07159265eb9b7ef310da89f4"
+    },
+    {
+      "file": "trace-02.json",
+      "bytes": 45149152,
+      "sha256": "c368bd06f75837947c597da4032bc20a1e649d408b4f6d97ef2baa8327d19f4a"
+    },
+    {
+      "file": "trace-03.json",
+      "bytes": 44094779,
+      "sha256": "8e10186b912ebbf1e215e2815766e6efb51a6e84e45d9e960c46fff2d6d6ea05"
+    },
+    {
+      "file": "trace-04.json",
+      "bytes": 43885126,
+      "sha256": "34e077891eb9d66d48abeda6084ff2e0286c3b0c717d2aeed2068518b2d86863"
+    },
+    {
+      "file": "trace-05.json",
+      "bytes": 44339539,
+      "sha256": "188aac5b7a04cb10b0973966ba2e3bf70791d14d9c57bfdac8a893611b24e881"
+    },
+    {
+      "file": "trace-06.json",
+      "bytes": 44676188,
+      "sha256": "7ef1ef8c01da8665a96ec8f811dc595d3299ca82defcf366f95aeac4842ecb4e"
+    },
+    {
+      "file": "trace-07.json",
+      "bytes": 44456710,
+      "sha256": "e73513d5ac2552ccf16d3e0825efddf75950bea36a4780c61b0dd630500a656a"
+    },
+    {
+      "file": "trace-08.json",
+      "bytes": 43839881,
+      "sha256": "61d874efd3854929afd5f76cc7af56949032d262b22364f27bb879a26c316e6c"
+    },
+    {
+      "file": "trace-09.json",
+      "bytes": 44680865,
+      "sha256": "2ee56c0717a9b827d0e2b7d0bb5d2bfc9fa9790b5cc6ef8be68b1e01b58ca8dc"
+    },
+    {
+      "file": "trace-10.json",
+      "bytes": 43740420,
+      "sha256": "c3f17afded2edb313bd6d4f657f1b765e45cbfde8d21b372c4bf3dcd43ba224a"
+    },
+    {
+      "file": "trace-11.json",
+      "bytes": 44570232,
+      "sha256": "1d986eb20a7b83c46164de1e20447308f288f5676c67095a01e1108ec41a8b57"
+    },
+    {
+      "file": "trace-12.json",
+      "bytes": 43794987,
+      "sha256": "fccc372d4a582acc7c41cf54ee1464891d5400e9a0ac1a49ebe91bd4809b329b"
+    },
+    {
+      "file": "trace-13.json",
+      "bytes": 44233000,
+      "sha256": "7f2636caffaada059f26f6cad61b867e77afb2f0d4680ebb967d0dc8675c387b"
+    },
+    {
+      "file": "trace-14.json",
+      "bytes": 44522915,
+      "sha256": "2b425f13c0a4ff356b6b5c752ebf274d8392ebb23f2b9e8c96f313b950681561"
+    },
+    {
+      "file": "trace-15.json",
+      "bytes": 45085126,
+      "sha256": "8904eae9979f2ff7ff2935b904ef51bf5f7e6ff97971a2f16a4790b608b846aa"
+    },
+    {
+      "file": "trace-16.json",
+      "bytes": 44858732,
+      "sha256": "49e4df0f4bb0ebe82f65753cb8a1199e6cba88eea4488be2ba4e11e3ae4b1a73"
+    },
+    {
+      "file": "trace-17.json",
+      "bytes": 45082811,
+      "sha256": "497508871cc62f83ab8049ecce84cf905b2ed5524cb4575ff506deb386e490df"
+    },
+    {
+      "file": "trace-18.json",
+      "bytes": 44426799,
+      "sha256": "ce09c276810153efffa511930abb77b0a51f77fb2ddaf1aa36c836cc5f91f3cb"
+    },
+    {
+      "file": "trace-19.json",
+      "bytes": 10554129,
+      "sha256": "eb758fc38bf39f2bf84cadcfb544fe25edb16815f6224dd1e51ed9a8780d5287"
+    }
+  ],
+  "orphans": []
+}

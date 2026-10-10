@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "p3-tsunami-e01-result-v1",
+  "manifestId": "p3-c6-formal-20261009",
+  "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
+  "resultSha256": "dc9615dddc01b9212bca492040f5182351b1f9824dadb7b052ec87dd201fd6ef",
+  "population": "deescalation:fixedBacklog",
+  "scope": "formal",
+  "run": 1,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "attempts": 1100,
+  "overlapNotEstablished": 0,
+  "overlapNotEstablishedByReason": {
+    "primeNotSettled": 0,
+    "startOffset": 0,
+    "eewOrder": 0,
+    "conditionDeviation": 0
+  },
+  "stateBreaks": {
+    "tsunamiCapacityEvicted": 0,
+    "tsunamiRevisionConflict": 0,
+    "tsunamiCapacityExceeded": 0,
+    "staleTarget": 0,
+    "eewCapacityExceeded": 0
+  },
+  "byTransition": {
+    "released": {
+      "expected": 500,
+      "samples": 500,
+      "missing": 0,
+      "p50UpperMs": 38.7990839780774,
+      "p95UpperMs": 43.606458919029684,
+      "p99UpperMs": 47.48920899038203,
+      "maxUpperMs": 47.96729195772205
+    },
+    "downgraded": {
+      "expected": 500,
+      "samples": 500,
+      "missing": 0,
+      "p50UpperMs": 39.0943339175079,
+      "p95UpperMs": 44.117166963312776,
+      "p99UpperMs": 47.77129191977438,
+      "maxUpperMs": 48.23045893900562
+    }
+  },
+  "injectedToT0P50Ms": 0.5985000133514404,
+  "injectedToT0P99Ms": 1.206708014011383,
+  "injectedToT0MaxMs": 3.1733750104904175,
+  "p50LowerMs": 38.38749998351559,
+  "p50UpperMs": 38.93279187278822,
+  "p95LowerMs": 43.3715829603374,
+  "p95UpperMs": 43.882749902457,
+  "p99LowerMs": 47.09158297847025,
+  "p99UpperMs": 47.62858392673079,
+  "maxLowerMs": 47.75120801918674,
+  "maxUpperMs": 48.23045893900562,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1/run-record.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1/e01-assembled.json"
+  ]
+}
