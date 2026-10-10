@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "c6281019828c176fad71e3f6fadaee641949444cac3978bcdfdb2d7d9523a97b",
+    "sha256": "ff30a740fb04d3831045fe76949d37b8c5e99f77db1a706f697b8818ae49146b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "94ae3e268896d99cd383fb02b8fd8828ff397e966309d416f1dbabcee2db2e10",
@@ -49,7 +49,7 @@
     "contractId": "P3-CODEC-CLOSURE-001",
     "mode": "implementation",
     "objective": "U-Vの世代上限を5 MiBに揃えてF08の保存・再decodeを閉じ、U-NのText由来通知の文字境界F15を直す。配送予約込み上界を守る拒否とMacでの容量・時間計測を受入条件にする。",
-    "baseOid": "unassigned",
+    "baseOid": "06f810ffdc1ccb28d2db30ee464902fa05d50225",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
