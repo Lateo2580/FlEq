@@ -1,0 +1,326 @@
+{
+  "meta": {
+    "draftedFromOid": "1d307989560e298199af040831df538ec9d75e24",
+    "sha256": "6fe831fc06286e8741149d3c32f1c5261c42c367da9eef4dd7fdfc5c982f1762",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
+    "sequencesSha256": "5421126fb4e88a439a954b2658c4fe71e159362585f1db548cbdb70e856fdcfa",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-OPCAP-N-D-OPERATION",
+        "A": "U-Nの情報系列にもD-OPERATION=A（P3-OPCAP-D-OPERATION）を当てる。training/testの受理はnormalの記録（K2の証拠だけの記録を含む）を退去しない。候補が無ければ受けた情報subjectを残さない（K4のU-V・U-L・U-Rと同じ自身の退去）。D-PAST-RETENTION=A・D-SELF-OUTCOMEもK4と同じ",
+        "B": "U-NはK4の残存リスク(6)（U-N未検査）のまま、今の退去の順（期限切れ→training/test→normal）を残す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定A（2026-10-10、ご主人。K4の改訂としてU-NにもD-OPERATION=Aを当てる）。この契約では開き直さない。",
+        "reason": "ヘルツの節目の総合レビュー（P1）: U-NのevictOneは受ける報のoperationを受け取らず（nankai-unit.ts:204・:386）、期限切れもtrainingも無い満杯にtrainingの報が来るとnormalの取消の証拠を退去し、取消より古い報が戻る。P3-X-C5（p3-order-plan.md:367）とD-OPERATION=Aの横断の約束に反する。K4の残存リスク(6)は「U-N未検査」で承認されていたが、約束そのものは成り立っていなかった。"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-OPCAP-N-SOURCE",
+        "status": "closed",
+        "resolution": "原因（1d307989のコード読解と試作のcheckoutでの再現）。U-Nの情報系列の退去（evictOne、nankai-unit.ts:204）は段を期限切れ0→training/test 1→normal 2で並べ、受ける報のoperationを見ない（呼び出し:386も渡さない）。再現（ヘルツの入力、試作のP3-OPCAP-N-T01）: 2020-05-12T17:00:00+09:00の時計で、synthetic_VYSE50_cancel（EventID 20200512163200、取消先着）とEventIDを替えたnormalのVYSE52（75_01_04）63件で情報64件にし、encode→restore（全部が証拠だけの記録になる）の後、Statusを訓練にしたVYSE52（EventID 20200512164400）を受けると、normalの取消の証拠が退去し（1d307989では配列の先頭が消えtrainingの記録が入る）、続く取消より古い74_01_05のVYSE50が現況・情報ともchanged/semantic、現況がactive、新しい通知のintentが出る。現況（currents、最大6件）は系統×運用区分の固定の枠で退去が無いので当たらない。",
+        "source": "ヘルツの節目の総合レビュー（2026-10-10）・起草時の試作"
+      },
+      {
+        "id": "Q-OPCAP-N-SHAPE",
+        "status": "closed",
+        "resolution": "直し方はD-OPERATION=AとK4の裁定から一意: (1) 退去の候補（AC01）はK4のU-V・U-L・U-RのevictOneと同じ一行の条件（受ける報がtraining/testならnormalを飛ばす）で、K2の証拠だけの記録もoperationがnormalなら保護される（証拠はnormalの取消・版の証拠、K2のAC01）。retainUntilを過ぎたnormalも外す（D-PAST-RETENTION=A。ownerは受信の前に期限を回収する、owner-runtime.ts:436・nankai-unit.ts:736）。(2) 候補が無いときは受けた情報subjectを足さない（自身の退去）。U-NはcapacityExceededを返さない（P3-C8-CAPACITY=A）ので、K4のU-V・U-L・U-Rの形を採る。結果はD-SELF-OUTCOME（K4、D-VANISHED=Aから一意）と同じ。(3) 同じ入力が現況（別のsubject）を採用するときは、現況の採用・通知・結果は今のまま（現況の枠は退去が無く、D-OPERATIONの対象外）。情報subjectの通知だけを作らない。現況の採用を残すのは、情報系列がnormalで満杯でも訓練の現況を見せ続けるための選択（別案: 情報subjectを残さないとき現況も採らない＝本番で満杯の間は訓練の現況が出ない）。推奨は今の形で、代償は残存リスク(7)。(4) 自身を退去した取消は、今どおりそのsubjectのpendingを置き換える（admitの入力は変えない。U-L・U-RのQ-C10-IMPL-AMEND(5)と同じ）。(5) K3のP3-FINAL-AC01（到着の時点で期限を過ぎた記録の無い情報subjectを足さない、freshDue）とK2の64件・7日の保持・normalの受理の退去の順（AC01(5)）は変えない。(3)の現況の扱いのほかに新しく作者に聞く分岐は無い。",
+        "source": "p3-operation-capacity.jsonのD-OPERATION・D-PAST-RETENTION・D-SELF-OUTCOME、p3-authority-evidence.json、p3-final-adoption.jsonのAC01"
+      },
+      {
+        "id": "Q-OPCAP-N-OTHERS",
+        "status": "closed",
+        "resolution": "K4の残存リスク(6)の他のunit（統合担当の確認、起草で行を読み直した）: U-Qはseismic-unit.ts:460のtierが受ける報がtraining/testならnormalをnullにする（候補にしない）。U-Fはweather-timeseries-unit.ts:154・:202の候補がnormalを含まない（受ける報によらずtraining/testだけ）。U-Eはeew.ts:457のeligibleがnormalを含まない（足りなければcapacityExceeded）。どれもD-OPERATION=Aを満たし、直しは要らない。U-B（C12、未配送）のP3-C12-CAPACITY=A（p3-briefing-unit.json:139）はK4のQ-OPCAP-C12どおりC12の再開条件（p3-order-plan.md:389）へ送る（K4N・K4のAC01・AC02と、U-Nの証拠だけの記録の保護に揃える）。",
+        "source": "統合担当の確認（2026-10-10）・起草時のコード読解"
+      },
+      {
+        "id": "Q-OPCAP-N-PROTOTYPE",
+        "status": "closed",
+        "resolution": "起草時の試作（~/dev/fleq-k4n-proto、1d307989）。製品の差分はnankai-unit.ts +23/−18（evictOneの引数と条件・戻り値null、受信の情報系列の置き場の計算を通知の判定の前へ移し、自身の退去のflag、関数の上のコメント。型・codec・保存の形の変更0）、試験はnankai-unit.test.ts +30（新しいitが1つ、既存のP3-C8-T04にassertを足す）。(1) P3-OPCAP-N-T01は1d307989の製品で落ち（情報系列の参照が変わり取消の証拠が退去）、取消より古い報の行だけを残した使い捨ての試験でも1d307989では現況・情報ともchanged/semantic・intentsあり・現況activeで落ちる。試作の製品で通る。T01の現況の行（trainingの74_01_05）は、通知の判定を「!self &&」で抑える誤った直しで落ちることを確かめた（現況のdesktopの【訓練】が出ない）。(2) reconstructionの3つのtsc・vitest（62 file・617件、5 fileはhost計測で既定skip）・--sequence.shuffle（seed 1791621574746・1791621887081と1791610033643）が通った。既存試験の期待値の変更は0件。(3) 実行したNodeはv26.8.1（この環境に20/22/24が無い）。",
+        "source": "起草時の試作（2026-10-10）"
+      },
+      {
+        "id": "Q-OPCAP-N-RISKS",
+        "status": "closed",
+        "resolution": "作者承認（2026-10-10）: 残存リスク(1)〜(7)とQ-OPCAP-N-SHAPE(3)の現況の扱い（今の形: 情報subjectを自身の退去で捨てても現況の採用と通知は残す）。独立レビュー（Opus、条件付きGO・P2 2・P3 1）の指摘は起草に入れた: P2-1 training/testの取消先着の後の古い元報が現況に採用される代償を残存リスク(7)に、(3)の書き分け、P2-2 現況の採用と通知が残ることのassertをT01に、P3-1 通知の配列をoutOfScopeに。",
+        "source": "作者承認2026-10-10・独立レビュー"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "U-Nの情報系列の退去は順位より前にoperationで適格性を決め、training/testの受理はnormalの記録（証拠だけの記録を含む）を退去しない（D-OPERATION=A）。normalの受理の退去の順、区分ごとのsubject・watermark・intent・outcomeの分離は変えない。"
+    }
+  },
+  "contract": {
+    "contractId": "P3-OPERATION-CAPACITY-N-001",
+    "mode": "implementation",
+    "objective": "K4（P3-OPERATION-CAPACITY-001）の改訂として、作者裁定D-OPERATION=AをU-Nの情報系列へ当てる。training/testの受理はnormalの情報subject（K2の証拠だけの記録を含む）を退去せず、候補が無ければ受けた情報subjectを残さない（K4のD-SELF-OUTCOMEと同じ結果）。ヘルツの総合レビューのP1（復元の後のtrainingがnormalの取消の証拠を退去し、取消より古い報が戻る）を閉じる。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-operation-capacity-n.json",
+      "reconstruction/contracts/p3-operation-capacity.json",
+      "reconstruction/contracts/p3-final-adoption.json",
+      "reconstruction/contracts/p3-authority-evidence.json",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/test/nankai-unit/nankai-fixture.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/contracts/p3-operation-capacity-n.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check",
+      "git show <必要最小限の対象>",
+      "git ls-files <必要最小限の対象>"
+    ],
+    "moduleIds": [
+      "M05"
+    ],
+    "integrationContractIds": [
+      "I-U-N"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-N-001",
+      "P3-OPERATION-CAPACITY-001",
+      "P3-FINAL-ADOPTION-001",
+      "P3-AUTHORITY-EVIDENCE-001",
+      "P2-SHARED-RUNTIME-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#PublishedOutcome",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitStep"
+    ],
+    "publicFunctions": [
+      "reduceNankaiUnitとnankaiUnitCodecの公開の関数名・入力・型は変えない（currentEstablishedのnullは型が今も許す）。変わるのは情報系列の退去の候補と、自身を退去した情報subjectの結果・通知だけ"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけを使う。新しいnpm依存・新しい共有moduleは足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__synthetic_VYSE50_cancel",
+      "test__fixtures__selected_xml__75_01_04_200512_VYSE52",
+      "test__fixtures__selected_xml__74_01_05_200512_VYSE50"
+    ],
+    "sequenceIds": [
+      "O01"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-OPCAP-N-RES-01",
+        "target": "U-Nの受信hot path",
+        "limit": "退去の候補の判定は記録ごとにO(1)の条件を1つ足すだけ。全件×全件0、state全体の直列化0",
+        "unit": "1受信・選択・結果照合",
+        "scope": "情報系列の退去は満杯（64件）のときの線形の走査1回で今のまま。置き場の計算を通知の判定の前へ移すだけで回数は変えない",
+        "source": "AGENTS.md 受信経路の計算量・I-U-N.computation"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-N"
+    ],
+    "persistedFields": [
+      "保存schema・field・decodeの検査は変えない。移行は無い"
+    ],
+    "nonPersistedFields": [
+      "新しい非保存のfield・cacheを足さない（自身の退去のflagはreduceの中の一時の値）"
+    ],
+    "outOfScope": [
+      "U-Nの現況（系統×運用区分の固定の枠で退去が無い）",
+      "U-Q・U-E・U-F（Q-OPCAP-N-OTHERSでD-OPERATION=Aを満たすと確かめた）とK4のunit",
+      "U-B（C12、未配送）のコードと契約（C12の再開条件へ送る）",
+      "通知のpendingの容量（admitのA7の順の外し方）と終端記録の回収（trimTerminal）。取消・版・所有の証拠ではない",
+      "normalの受理の退去の順・normal同士の超過・D-HORIZONの忘却後の保証（変えない）",
+      "実装担当によるspec本文・計画本文・旧契約本文の変更（計画§9の行の追加と状態の更新は統合担当）",
+      "監査用の未追跡audit-verify/*と起草時の試作を製品・契約の成果物としてcommitすること"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-OPCAP-N-AC01",
+        "requirement": "U-Nの情報系列の退去の適格性をoperationで先に絞る（D-OPERATION=A、P3-X-C5のoperationの軸、ヘルツのP1）。65件目の退去で、受ける報がtraining/testなら、normalの情報subjectは事実を持つ記録・K2の証拠だけの記録（effective \"evidence\"）とも、retainUntilを過ぎた記録も（D-PAST-RETENTION=A）退去の候補にしない。候補はtraining/testの記録だけで、その中の順（期限切れ→training/testの最古、ReportDateTime順）と、受ける報がnormalのときの順（期限切れ→training/test→normalの最古）は今のまま。evictOneの上のコメントは新しい規則に合わせる（AGENTS.md、触った関数の中のコメント）。受入: (a) ヘルツの入力（Q-OPCAP-N-SOURCE）で、復元の後のtrainingのVYSE52は情報系列の配列を変えず（参照が同じ）、取消より古い74_01_05のVYSE50は現況・情報ともunchanged/stale、通知のintentは0、現況は復元の後のまま。(b) normal 63件＋training 1件の満杯にtrainingのVYSE52を受けると、trainingの記録だけが退去し、normalの63件は残る。",
+        "evidenceRefs": [
+          "reconstruction/src/units/nankai/nankai-unit.ts:202 «06e9659a1b6e902b»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:204 «a5780ec336096559»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:205 «08fc4464ec0fd60f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:386 «3f4368ff70e89f5c»",
+          "reconstruction/contracts/p3-nankai-unit.json:93 «ac56198078904181»",
+          "reconstruction/contracts/p3-nankai-unit.json:303 «82084a1038a1d028»",
+          "reconstruction/contracts/p3-operation-capacity.json:11 «9529fe855a1ac0b3»",
+          "reconstruction/contracts/p3-operation-capacity.json:20 «66a9063c86071706»",
+          "reconstruction/contracts/p3-operation-capacity.json:253 «fb1985ac7345a14e»",
+          "reconstruction/contracts/p3-authority-evidence.json:255 «22ec592c44f8b40b»",
+          "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
+          "reconstruction/src/runtime/owner-runtime.ts:436 «63380813ee47301c»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:736 «973323028dc564f5»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-N-AC02",
+        "requirement": "自身の退去（D-SELF-OUTCOME、K4と同じ）。AC01で候補が無いとき、受けた情報subjectを配列へ足さない（情報系列の参照を変えない）。その情報subjectのdecisionはchanged/revisionOnly・currentEstablished null、acceptedのsubjectsに載せない、その情報subjectの通知を作らない、診断nankaiCapacityEvicted（count 1）を返す。退去した記録は無いのでaccepted.changeを決める退去に数えない（他の変化が無ければrevisionOnly）。同じ入力が現況を採用するなら、現況のdecision・通知・accepted・保存世代は今のまま。採用した取消は今どおりそのsubjectのpendingを置き換える。情報系列だけの変化が無いので、通知も現況も変わらなければ保存世代を進めない。受入: (a) AC01(a)のtrainingのVYSE52の受理で、そのsubjectのdecisionがchanged/revisionOnly・currentEstablished null、outcomesが[{accepted, revisionOnly, subjects: []}]、intentsが空、diagnosticsが[nankaiCapacityEvicted count 1]。(b) 同じ復元の後のstateにStatusを訓練にした74_01_05（現況に効く）を受けると、training/nankai/currentがchanged/semantic、desktopの【訓練】のintentが1件、情報subject（training/VYSE50/20200512163200）はchanged/revisionOnly・currentEstablished null、情報系列の参照が同じ。",
+        "evidenceRefs": [
+          "reconstruction/src/units/nankai/nankai-unit.ts:368 «d12543f2384360bd»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:382 «cf6911c45c3ec679»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:403 «000940b5428ed7e3»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:416 «1e17464f57d37f2c»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:418 «e36392109d04efb5»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:429 «0160ee6e470fbb4b»",
+          "reconstruction/contracts/p3-operation-capacity.json:29 «9f23362f9f19feb9»",
+          "reconstruction/contracts/p3-operation-capacity.json:281 «c926958897f0ddc0»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-N-AC03",
+        "requirement": "既存条文の読み替え（旧契約の本文は変えない）と保つもの。(1) P3-C8-CAPACITY=A（p3-nankai-unit.json:93）の65件目の退去の候補 (1)(2)(3) は、受ける報がtraining/testならtraining/testの記録だけと読み、候補が無ければ受けた情報subjectを残さない（AC02）。operationContractの「training/test受理でnormalを…」（:303）はAC01で満たす。testMappingのP3-C8-T04（:866）の退去の順はnormalの受理の順として読む。(2) K4のoutOfScopeと残存リスク(6)（p3-operation-capacity.json:242・:510）の「U-N未検査」は本契約で解消し、U-Q・U-E・U-FはQ-OPCAP-N-OTHERSで閉じる。(3) K3のP3-FINAL-AC01（p3-final-adoption.json:241、到着の時点で期限を過ぎた記録の無い情報subjectを足さない）とK2の64件・7日の保持・退去の順（p3-authority-evidence.json:255のAC01(5)）は変えない。(4) 既存試験の期待値の変更は0件（起草時の試作で確かめた）。期待値・入力の変更が要ると分かったら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。(5) U-B（C12）はQ-OPCAP-N-OTHERSどおりC12の再開条件（p3-order-plan.md:389）へ送る。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-nankai-unit.json:93 «ac56198078904181»",
+          "reconstruction/contracts/p3-nankai-unit.json:303 «82084a1038a1d028»",
+          "reconstruction/contracts/p3-nankai-unit.json:866 «643e12163c777b03»",
+          "reconstruction/contracts/p3-operation-capacity.json:242 «07909997f5c665d3»",
+          "reconstruction/contracts/p3-operation-capacity.json:510 «385daacb4de4d695»",
+          "reconstruction/contracts/p3-final-adoption.json:241 «743912693175cd64»",
+          "reconstruction/contracts/p3-authority-evidence.json:255 «22ec592c44f8b40b»",
+          "reconstruction/contracts/p3-briefing-unit.json:139 «6a3a11386166aa56»",
+          "reconstruction/contracts/p3-order-plan.md:389 «7939e6ac68fba854»"
+        ]
+      },
+      {
+        "id": "P3-OPCAP-N-AC04",
+        "requirement": "横断不変条件とパラメータ表。本契約はK4のP3-X-C5のoperationの軸をU-Nへ広げる。パラメータ表（p3-order-plan.md:382）のCapacity — U-N: training/testの受理→training/testの情報subjectだけ、normalの受理→今の順。自己退去: U-Nは情報subjectの自身の退去（現況は退去が無い）。normal同士の超過: 今のまま（normalの最古の退去）。Adoption / Outcome — 自身の退去はaccepted.subjectsに載せずcurrentEstablished null。Acceptance — T01・T02。P3-X-C1〜C4・C6は変えない。",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:355 «bc31974d98841e15»",
+          "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
+          "reconstruction/contracts/p3-order-plan.md:382 «c415a9aa8f38abdb»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-OPCAP-N-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-OPCAP-N-AC01",
+          "P3-OPCAP-N-AC02"
+        ],
+        "behavior": "nankai-unit.test.tsに新しいitを1つ: AC01(a)のヘルツの入力（取消先着＋normal VYSE52 63件→encode→restore→trainingのVYSE52→取消より古いVYSE50）で、情報系列の参照が同じ、trainingの受理の結果がAC02のとおり、古い報が現況・情報ともunchanged/stale・intentsが空・現況が復元の後のまま、続けてAC02(b)のtrainingの74_01_05で現況の採用と【訓練】のdesktopの通知が残り情報subjectだけを残さない。"
+      },
+      {
+        "testId": "P3-OPCAP-N-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-OPCAP-N-AC01"
+        ],
+        "behavior": "nankai-unit.test.tsの既存のP3-C8-T04の退去の順（:221）の後にassertを足す（新しいitは作らない）: AC01(b)のnormal 63件＋training 1件の満杯にtrainingのVYSE52を受けて、trainingの記録だけが退去しnormalの63件が残る。"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約とanchor"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "srcと契約の型検査、dist生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "testの型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "C6のrunnerが使うdistの生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "正式回帰と既存試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "WeakMapの索引cache・共有状態の順序依存を検出"
+      },
+      {
+        "command": "git diff --check",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowedPathsだけのgit diff --binary --no-ext-diff patch、変更ファイル、正式ゲートと未実行の検証、残存リスクを返す。各試験はregressionまたはcontractBoundaryの根拠を1行で示す。",
+      "ヘルツのP1の再現が正式試験で反転したことを報告する。",
+      "規模の見積もり（起草時の試作から）: 製品のTSは1 file・約40行の変更（+23/−18）、試験は1 file・約30行（T01・T02、既存試験の期待値の変更0）。0.25〜0.5人日。実績と差があれば理由を書く。",
+      "本契約ファイルの実装時の編集権はevidenceRefのanchorと自己digestの同期だけに限り、受入条件・裁定値を実装後に変えない。",
+      "残存リスク（作者承認済み（2026-10-10））: (1) D-PAST-RETENTION=A: reducerを直に呼ぶとき（試験・監査）だけ、retainUntilを過ぎたnormalの記録が回収されていない満杯にtraining/testが来ると、その情報subjectを残さない。製品の経路はownerが受信の前に期限を回収する（owner-runtime.ts:436）ので差は出ない。(2) D-OPERATION=Aの代償: 情報系列がnormalで満杯のとき、training/testの情報subjectは記録されない（同じ入力の現況の採用と通知は今のまま）。(3) 自身の退去は情報subjectの記録もwatermarkも残さないので、現況に効かない同じtraining/testの報は届くたびにchanged/revisionOnly（duplicateにならない、K4と同じ）。現況に効く報は、2回目は現況のwatermarkでunchanged/duplicate。(4) normal同士の退去で取消の証拠が消えた後の古い報の復活はD-HORIZON=Aの保証外のまま。(5) 起草時の試作のゲートはNode v26.8.1で走らせた。対応のNode 20/22/24での実行はこの環境では未実施（blocked）。(6) 情報系列の満杯の実配信の頻度は未集計。(7) 情報系列がnormalで満杯のとき、training/testの取消・訂正が先着すると（現況が無ければ現況に当たらず、情報subjectも残らない）、それより古いtraining/testの元報が現況に採用され【訓練】の通知が出る。区分の中だけでnormalには及ばない。Q-C8-IMPL-AMEND(3)（取消が先着した古い元報で現況だけが戻らない）は、training/testでは情報系列が満杯の間は効かない。1d307989では起きず、本契約で新しく生まれる（Q-OPCAP-N-SHAPE(3)の選択の代償）。"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-OPCAP-N-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "implementation"
+        ],
+        "resolveBy": "発注前点検でK4NのbaseOidを割り当てる。K4（配送1d307989）の後のbaseで、nankai-unit.tsと試験が他の契約と同時に編集されないことを確かめる。",
+        "requiredEvidence": [
+          "git rev-parse HEADとgit status --porcelain",
+          "check-contract FAIL 0",
+          "Q-OPCAP-N-RISKSの解決"
+        ]
+      }
+    ]
+  }
+}

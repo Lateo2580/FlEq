@@ -352,7 +352,7 @@ coverage 下書きの「未確認」12 項目のうち、項目 9（priorityReas
 | K1 `P3-REVISION-ORDER-001` | F02、循環しない版比較（Q/N/V/L） | C11配送、K5後。K2より先 | 配送 `e4e8e3ab`（2026-10-10） |
 | K2 `P3-AUTHORITY-EVIDENCE-001` | F03/F07/F09、復元をまたぐ受理証拠（N/V/W） | K1後。新保存形の上界はK5で再検証 | 配送 `e0d3f0f1`（2026-10-10） |
 | K3 `P3-FINAL-ADOPTION-001` | F05/F06/F12/F16、期限・撤回を反映した最終採用（Q/N/V、Lの試験） | K2後、K4より先 | 起草（`p3-final-adoption.json`、baseOid未割当。D-OUTCOME=Aに加えD-VANISHED=A・D-L-OUTCOME=Cを裁定済み）・未発注 |
-| K4 `P3-OPERATION-CAPACITY-001` | F04/F10、操作別の退去適格性とnormal終了（T/V/L/R/W）。K3のP3-FINAL-AC01・T01〜T03を保ち、trainingの自己退去の結果の時制をD-OUTCOME=Aに揃え、U-Lの遅着の結果とpendingの撤回もD-VANISHED・D-WITHDRAWへ揃える（P3-FINAL-D-L-OUTCOME=C） | K3後、C11配送後 | 起草（`p3-operation-capacity.json`、baseOid未割当。D-OPERATION=A・D-PAST-RETENTION=Aを裁定済み）・未発注 |
+| K4 `P3-OPERATION-CAPACITY-001` | F04/F10、操作別の退去適格性とnormal終了（T/V/L/R/W）。K3のP3-FINAL-AC01・T01〜T03を保ち、trainingの自己退去の結果の時制をD-OUTCOME=Aに揃え、U-Lの遅着の結果とpendingの撤回もD-VANISHED・D-WITHDRAWへ揃える（P3-FINAL-D-L-OUTCOME=C） | K3後、C11配送後 | 配送 `1d307989`（2026-10-10）。改訂 K4N `P3-OPERATION-CAPACITY-N-001`（節目の総合レビューのP1: U-Nの情報系列の退去にもD-OPERATION=A、`p3-operation-capacity-n.json`）は起草・未発注 |
 | K5 `P3-CODEC-CLOSURE-001` | F08/F15、保存byteと派生通知の文字境界（V/N） | C11配送後の先頭。K1〜K4と同時編集しない | 配送 `22e6b875`（2026-10-10） |
 | K6 `P3-LIFETIME-AND-EEW-GATE-001` | F01/F11/F17＋F14裁定、寿命・再受理・同版訂正（E/F） | EEWの実データによる数値確定後。K5と並走可 | 配送 `7a4c70a8`（2026-10-10） |
 
@@ -386,4 +386,4 @@ C12以降の新規unitと既配送unitの修正契約は、正本の条文IDを�
 
 ### C12の再開条件
 
-C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、P3-X-C1〜C6の例外と各unitのパラメータ・境界受入例を確定する。C12の2h/3h遅着、退去保護、置換時pendingの追加裁定を準備して発注前点検を再開する。横断修正後の保存量・処理量を反映したC12改訂を承認してから実装を発注する。C13以降も共通条文を満たしてから発注する。P3-C12-CAPACITY=Aの退去の候補(1)(2)と自身の退去の結果をK4のP3-OPCAP-AC01・AC02に揃える。
+C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、P3-X-C1〜C6の例外と各unitのパラメータ・境界受入例を確定する。C12の2h/3h遅着、退去保護、置換時pendingの追加裁定を準備して発注前点検を再開する。横断修正後の保存量・処理量を反映したC12改訂を承認してから実装を発注する。C13以降も共通条文を満たしてから発注する。P3-C12-CAPACITY=Aの退去の候補(1)(2)と自身の退去の結果をK4のP3-OPCAP-AC01・AC02とK4NのAC01・AC02に揃え、operationによる退去の禁止と退去の後の保証外を別に確定する。
