@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "f1520effbefb7af2e596405aed74e3fb27f599136f1d1d96c4722e4a2a87ca70",
+    "sha256": "0a183053efb2ed6a4829c87187f29fcb034b5f7c092fd2ba32fd81e2865b08be",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -76,7 +76,7 @@
     "contractId": "P3-EEW-GATE-EVICT-001",
     "mode": "implementation",
     "objective": "K6の残存リスク(2)（24時間内に1 familyで512件を超えるnormalのEventIDで新しいEEWを受けない）を閉じる。U-Eのfamilyがnormalで満杯のとき、報時刻＋10分を過ぎcurrentもpendingも無いnormalのgateを最古順に退去して新しいnormalの報を受ける（作者裁定2026-10-11）。退去したEventIDの報が後から届く全経路で、古いEEWの復活・同じ報の二重通知を作らないことを条文で固定し、残る差（10分以上遅れた取消の通知、10分以上後の新しい版の通知）と、満杯の拒否が残る条件（10分に512件）を残存リスクとする（作者承認済み、Q-EVICT-DECIDE）。",
-    "baseOid": "unassigned",
+    "baseOid": "bf7e11987077033727295a80e7368a7cb7d41b43",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
