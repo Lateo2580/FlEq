@@ -492,10 +492,10 @@ RC には21 route がある。以下は全21 route を網羅し、意味の異�
 
 | route / 対象 | 意味モジュール | 保存単位 | D / N | 取消・復元で一緒に変える状態 | 現行根拠 |
 |---|---|---|---|---|---|
-| `ignore` / VPWW53/54、VPZJ50、VPCJ50、VPFJ50、VMCJ50/51/52 | ingress の明示 ignore | なし | N | current、通知、業務統計を作らない | RC:91–120 |
+| `ignore` / VPWW53/54、VPZJ50、VPCJ50、VPFJ50、VMCJ50/51/52、VXWW50 | ingress の明示 ignore | なし | N | current、通知、業務統計を作らない（VXWW50 は VPWW56 と内容重複、P3-C13-VXWW50=A） | RC:91–120 |
 | `legacyCounterpart` / VPOA50 | M17 | U-B | lifecycle D、相関待ち N | raw由来速報、VPBS50へのalias、取消・置換記憶、intent | RC:123、PM:1067、`standby-state-store.ts:3337` |
 | `legacyCounterpart` / VPNO50 の区域解除 | M06 | U-W | 終了記憶 D | 対象区域の特別警報終了、官署watermark、base/partial合成、intent | PM:378–453、PM:1062–1076 |
-| `legacyCounterpart` / その他VPNO50、VXWW50 | M18 | U-M | 意味表示 N、対象intentのみD | 同じ legacy subject の短命表示・取消。気象 current を推測で変更しない | RF:271–289、PM:1074 |
+| `legacyCounterpart` / その他VPNO50 | M18 | U-W | N | U-W が受けて状態・通知を作らない（区域解除以外の VPNO50、P3-C13-VPNO50=A）。気象 current を推測で変更しない | RF:271–289、PM:1074 |
 | `eew` / VXSE43/45 | M01 | U-E | current/gate N、intent D | EventID と family の報番号、終端、取消、実行中予測保持、該当intent | RC:133、RF:122–143 |
 | `volcano` / VFVO50/51/VFSVii | M14 | U-V | D | 対象火山の alert、非数値警報、出典、取消、intent | RC:139、RF:651–670 |
 | `volcano` / VFVO52/56 | M15 | U-V | D | eruption、EventID逆引き、空コード取消、provenance、intent | RF:672–693 |
