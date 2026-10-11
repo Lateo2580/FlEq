@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "fff3bc73fc55fc8cf0349b7d4fc9d12710868bbf832a022505fcbb1813ffbaa3",
+    "sha256": "7188867581dccc6f92a892d0b59136a1b0286aee92a092cc7bfbab91d9041475",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -400,8 +400,8 @@
           "reconstruction/test/eew-unit/eew-unit.test.ts:255 «1b826d79e0291953»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:1387 «c8bac082a5cae62d»",
           "reconstruction/test/snapshot-sse/cost.test.ts:17 «64414e21afe6bcb9»",
-          "reconstruction/test/eew-e01/aux-measures.test.ts:276 «8666386b4e1dbc81»",
-          "reconstruction/test/eew-e01/frames.mjs:137 «b08290cce723e63e»"
+          "reconstruction/test/eew-e01/aux-measures.test.ts:290 «4eca9a2dc8e471f2»",
+          "reconstruction/test/eew-e01/frames.mjs:138 «093a41fe5ebc308b»"
         ]
       },
       {

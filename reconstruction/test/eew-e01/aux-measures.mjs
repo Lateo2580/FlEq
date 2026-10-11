@@ -419,7 +419,9 @@ export function e14Bundle(index, bundle) {
   // 重なりを見る unit は束の overlapUnits（C6 の --e14-tsunami は U-E と U-T の組、AC08④・Q-C6-IMPL-AMEND (9)）。無ければ束の全 unit（C4 の規則）。
   const overlap = units.flatMap((u, i) => ((bundle.overlapUnits ?? units).includes(u) ? [i] : []));
   if (!(Math.max(...overlap.map((i) => e14Origin(starts[i]))) < Math.min(...overlap.map((i) => acks[i].doneReceivedMonotonicMs)))) return { k: bundle.k, status: "未確認", reason: "notSimultaneous" };
-  return { k: bundle.k, status: "linked", dirtyToAckMs: Object.fromEntries(units.map((u, i) => [u, acks[i].doneReceivedMonotonicMs - e14Origin(starts[i])])) };
+  // P3-MH-AC04: owner 側の区間（起点の行の monotonicMs − ownerMonotonicMs、P3-UWR-AC08）。ownerMonotonicMs の無い行は null（0 と数えない）。
+  return { k: bundle.k, status: "linked", dirtyToAckMs: Object.fromEntries(units.map((u, i) => [u, acks[i].doneReceivedMonotonicMs - e14Origin(starts[i])])),
+    ownerSideMs: Object.fromEntries(units.map((u, i) => [u, starts[i].ownerMonotonicMs == null ? null : starts[i].monotonicMs - starts[i].ownerMonotonicMs])) };
 }
 export function summarizeE14(records, { bundles, limitMs = 3000 }) {
   const index = e14Index(records);
@@ -427,12 +429,18 @@ export function summarizeE14(records, { bundles, limitMs = 3000 }) {
   const linked = results.filter((r) => r.status === "linked");
   const reasons = {};
   for (const r of results.filter((x) => x.status !== "linked")) reasons[r.reason] = (reasons[r.reason] ?? 0) + 1;
-  const units = Object.fromEntries((bundles.length === 0 ? E14_UNITS : unitsOf(bundles[0])).map((u) => {
+  const unitList = bundles.length === 0 ? E14_UNITS : unitsOf(bundles[0]);
+  const units = Object.fromEntries(unitList.map((u) => {
     const values = linked.map((r) => r.dirtyToAckMs[u]);
     return [u, { ...(quantiles(values) ?? {}), overLimit: values.filter((v) => v > limitMs).length }];
   }));
-  return { status: linked.length === 0 ? "未確認" : null, bundles: bundles.length, linked: linked.length, unconfirmed: reasons, units, limitMs,
-    note: "unit ごとの dirty→ack。各保存の p99 の和を全体の p99 と呼ばない（P3-C4-AC13(3)⑥）。Mac の値は報告で、判定場所は Pi（P5）" };
+  // 成立した束の unit ごとの owner 側の区間の分位点と、ownerMonotonicMs の無い行の数（C4 の凍結記録は全部この形）。
+  const ownerSide = Object.fromEntries(unitList.map((u) => {
+    const values = linked.flatMap((r) => (r.ownerSideMs[u] == null ? [] : [r.ownerSideMs[u]]));
+    return [u, { ...(quantiles(values) ?? {}), rows: values.length, ownerMonotonicMsMissing: linked.length - values.length }];
+  }));
+  return { status: linked.length === 0 ? "未確認" : null, bundles: bundles.length, linked: linked.length, unconfirmed: reasons, units, ownerSide, limitMs,
+    note: "unit ごとの dirty→ack。各保存の p99 の和を全体の p99 と呼ばない（P3-C4-AC13(3)⑥）。ownerSide は起点を owner の時刻へ早めた分（monotonicMs − ownerMonotonicMs、P3-UWR-AC08）を別に報告する。Mac の値は報告で、判定場所は Pi（P5）" };
 }
 
 // PublishCostReport（AC15/R62）: onSerialize 由来の publishSerialization 観測から。窓 = 1 つの JSONL（E01/E02 の 1 run）。上限は置かない。

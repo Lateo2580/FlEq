@@ -17,7 +17,7 @@ import { hrMs, sleep } from "./chrome.mjs";
 import { E12_CLASSES, FIX, ac15Frame, cycleCFrames, dataFrame, e03Frame, fixtureText, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
 import { tsunamiReport } from "./tsunami.mjs";
 
-import { summarizeHealthE02 } from "../../dist/src/measurement/eew-e01/judge.js";
+import { quantiles, summarizeHealthE02 } from "../../dist/src/measurement/eew-e01/judge.js";
 import { ZERO_HASH, sealSelfHash } from "../../dist/src/measurement/eew-e01/frozen.js";
 
 const HERE = import.meta.dirname;
@@ -168,11 +168,21 @@ async function observedCounts(host, stateDir, expected) {
   return { snapshotActive: Object.fromEntries(Object.keys(expected.snapshotActive).map((k) => [k, domain(k)])),
     checkpoint: Object.fromEntries(Object.keys(expected.checkpoint).map((k) => [k, checkpoint[k]])) };
 }
+// 充填の EEW の current の寿命（P3-LIFE-SEM-01: 起点＋600,000ms）と、C 窓・E14 の失効の待ちの上限（P3-MH-RES-05）。
+const EEW_CURRENT_MS = 600_000;
+const EXPIRY_WAIT_LIMIT_MS = 660_000;
+const TICK_MS = 1000;
+// 診断の JSONL から reason の件数（count 付きの行は count）を数える。確かめの時に 1 回だけ読む（P3-MH-AC07）。
+const diagnosticCount = (hostDir, reason) => diagnosticFiles(hostDir).flatMap((f) => readJsonl(f))
+  .reduce((n, d) => n + (d.reason === reason ? d.count ?? 1 : 0), 0);
 // snapshotsAt は送った frame の列から /snapshot を取る位置の配列を返す関数（充填の件数が mode で変わるため）。
-async function fill(host, w, ctx, mode, { snapshotsAt = () => [] } = {}) {
+// blockAtExpiry（P 窓、P3-MH-FULL-STATE=D）: 測定の開始の前の確かめを充填の EEW の起点＋600,000ms より前に終えられなければ Blocked。
+async function fill(host, w, ctx, mode, { snapshotsAt = () => [], blockAtExpiry = false } = {}) {
   const recipe = ctx.initialState.nearCapacity.modes[mode];
   if (recipe?.expected == null) throw new Error(`stateNotReproducible: initial-state nearCapacity.modes.${mode}.expected is null (room not frozen)`);
-  const frames = nearCapacityFrames(mode === "leaveRoomForP" ? { mode, room: recipe.room } : { mode });
+  // P3-MH-AC01(1): 充填の U-E の報告時刻は充填の開始の host 壁時計の秒。これが充填の current の起点（失効は起点＋600,000ms）。
+  const eewOriginWallMs = host.wallSec();
+  const frames = nearCapacityFrames(mode === "leaveRoomForP" ? { mode, room: recipe.room, eewReportAtMs: eewOriginWallMs } : { mode, eewReportAtMs: eewOriginWallMs });
   const started = hrMs();
   const sentBefore = host.sent();
   const snapshots = [];
@@ -195,14 +205,78 @@ async function fill(host, w, ctx, mode, { snapshotsAt = () => [] } = {}) {
     }
   };
   const observed = await verify(120_000);
-  const record = { mode, frames: frames.length, firstSeq: sentBefore + 1, sentMs: Math.round(sentMs), verifiedMs: Math.round(hrMs() - started), observed };
+  // P3-MH-AC01(5): 充填の間に horizon 外で捨てた EEW が 1 件でもあれば、件数が合っても状態は作れていない。
+  const horizonStale = diagnosticCount(w.dir, "eewHorizonStale");
+  if (horizonStale > 0) throw new Error(`stateNotReproducible: ${mode} fill has ${horizonStale} eewHorizonStale diagnostics`);
+  const record = { mode, frames: frames.length, firstSeq: sentBefore + 1, sentMs: Math.round(sentMs), verifiedMs: Math.round(hrMs() - started), observed,
+    eewOriginWallMs, eewHorizonStale: horizonStale };
   w.progress.fill = record;
   w.progress.phase = "quiet";
   record.quiet = await quietWait(host.pid, w);
+  const expired = () => blockAtExpiry && host.wallMs() >= eewOriginWallMs + EEW_CURRENT_MS;
+  const currentsExpired = () => new Error(`currentsExpiredBeforeMeasure: the fill's EEW currents expire at ${new Date(eewOriginWallMs + EEW_CURRENT_MS).toISOString()} (host wall clock) before the measurement starts (P3-MH-RES-02)`);
+  if (expired()) throw currentsExpired();
   // 静まりの間に状態が変わっていないこと（測定開始の直前にもう一度）。
   record.observedBeforeMeasure = await verify(0);
+  if (expired()) throw currentsExpired();
   // record は窓の記録へ、snapshots（AC15 の指紋表）と headTypes（AC15 の unitOfInput）は付帯物として分けて返す。
-  return { record, snapshots, headTypes: frames.map((f) => f.headType) };
+  return { record, snapshots, headTypes: frames.map((f) => f.headType), expected: recipe.expected };
+}
+
+// P3-MH-FULL-STATE=D（C 窓・E14）: 充填の current が全部失効するのを待ってから周期・束を始める。host の壁時計が起点＋600,000ms＋2 tick を
+// 過ぎ、/snapshot の eew が 0/0/0 で weather の件数が recipe のままになるまで待つ（起点＋660,000ms を過ぎたら stateNotReproducible）。
+// 無いと、窓の途中で 1,024 件の current が一度に失効し、定常の区間（傾き・束の値）に失効の山が混ざる。
+// observe・pause は試験が host の代わりに渡す口（既定は /snapshot と保存済み checkpoint、1 tick の待ち）。
+export async function waitFillExpiry(host, w, filled, { observe = (expected) => observedCounts(host, join(w.dir, "state"), expected), pause = sleep } = {}) {
+  const origin = filled.record.eewOriginWallMs;
+  const expected = { ...filled.expected, snapshotActive: { ...filled.expected.snapshotActive, eew: "0/0/0" } };
+  w.progress.phase = "expiry";
+  const started = hrMs();
+  for (;;) {
+    host.check();
+    const ready = host.wallMs() >= origin + EEW_CURRENT_MS + 2 * TICK_MS;
+    const observed = ready ? await observe(expected) : null;
+    // 上限は観測から戻った後、一致の判定より先に見る（上限の前に要求し、上限の後に一致を返した観測で窓を始めない）。
+    if (host.wallMs() > origin + EXPIRY_WAIT_LIMIT_MS) {
+      throw new Error(`stateNotReproducible: the fill's EEW currents did not expire by origin + ${EXPIRY_WAIT_LIMIT_MS}ms; expected ${JSON.stringify(expected)}, observed ${JSON.stringify(observed)}`);
+    }
+    if (observed != null && JSON.stringify(observed) === JSON.stringify(expected)) {
+      filled.record.expiry = { waitedMs: Math.round(hrMs() - started), observedAfterExpiry: observed };
+      return;
+    }
+    await pause(TICK_MS);
+  }
+}
+
+// P3-MH-FULL-STATE=D（P 窓）: 失効の時刻（期限＝起点＋600,000ms の host 単調時計）と、E05 の最大 RSS・E02 の分位点を失効の前・後に分けた値。
+// 報告のみ（判定は窓全体）。E02 の標本は client の時計の要求開始を、start 行の hrtime と performance.now の組で host 時計へ写す。
+// measureStartHostMs は E02 の最初の標本の要求開始（host 時計）。P 窓はこれが期限より前でなければ失効の前を測っていない（currentsExpiredAtMeasure）。
+export function expirySplit(records, rows, client, ctx, fill) {
+  const expiryHostMs = fill.eewOriginWallMs + EEW_CURRENT_MS - ctx.wallOriginMs;
+  const fromMs = hostMsOf(records, client.start.hrtimeNs);
+  const toMs = hostMsOf(records, client.end.hrtimeNs);
+  if (fromMs == null || toMs == null) return { expiryHostMs, measureStartHostMs: null, status: "未確認", reason: "clockUnavailable" };
+  const rss = (a, b) => { const e = summarizeE05(records, "P", { fromMs: a, toMs: b }); return { samples: e.samples, maxRssBytes: e.maxRssBytes }; };
+  const clientToHost = (ms) => (client.start.perfNowMs == null ? null : fromMs + ms - client.start.perfNowMs);
+  const latency = (s) => (s.failure != null || s.bodyCompleteMonotonicMs == null || s.httpStatus !== 200 ? Infinity : s.bodyCompleteMonotonicMs - s.requestStartMonotonicMs);
+  const part = (keep) => {
+    const values = rows.filter((s) => { const at = clientToHost(s.requestStartMonotonicMs); return at != null && keep(at); }).map(latency);
+    const q = quantiles(values);
+    const finite = (v) => (v == null || !Number.isFinite(v) ? null : v);
+    return { samples: values.length, p50Ms: finite(q?.p50), p99Ms: finite(q?.p99), maxMs: finite(q?.max) };
+  };
+  const firstRequest = rows.reduce((m, r) => Math.min(m, r.requestStartMonotonicMs), Infinity);
+  return { expiryHostMs, measureStartHostMs: Number.isFinite(firstRequest) ? clientToHost(firstRequest) : null,
+    note: "期限（起点＋600,000ms）の host 単調時計。回収はその後の最初の deadline 要求。報告のみで判定は窓全体",
+    e05: { before: rss(fromMs, Math.min(expiryHostMs, toMs)), after: rss(Math.max(expiryHostMs, fromMs), toMs) },
+    e02: { before: part((at) => at < expiryHostMs), after: part((at) => at >= expiryHostMs) } };
+}
+
+// P3-MH-RES-02: P 窓の測定（E02 の最初の標本）が充填の current の期限より前に始まったか。違えば・確かめられなければ理由の文（窓は Blocked）。
+// fill の確かめの後に子を起動するので、fill の中の確かめだけでは子の起動中に期限を越えた窓を通す。
+export function currentsExpiredAtMeasure(split) {
+  return split.measureStartHostMs != null && split.measureStartHostMs < split.expiryHostMs ? null
+    : `currentsExpiredBeforeMeasure: the E02 measurement started at host ${split.measureStartHostMs ?? "unknown"}ms, not before the fill's EEW currents expire at host ${split.expiryHostMs}ms (P3-MH-RES-02)`;
 }
 
 // 通知の静まり待ち（統合担当の決定 2026-09-30）: 充填の通知 backend（osascript・afplay など host launcher の子）が 15 秒続けて 0 になるまで待つ
@@ -254,7 +328,7 @@ function e02Window(ctx, load, run) {
     id, expectedMin: Math.ceil((count * requestEveryMs) / 60_000) + (load === "P" ? 6 : 2),
     run: async (w) => {
       const host = await openHost(w, ctx, { memEveryMs: E05_MEM_EVERY_MS });
-      const filled = load === "P" ? await fill(host, w, ctx, "leaveRoomForP") : null;
+      const filled = load === "P" ? await fill(host, w, ctx, "leaveRoomForP", { blockAtExpiry: true }) : null;
       const out = join(w.dir, "e02.jsonl");
       const client = startChild(w, ctx, [E02_CLIENT, "--url", `http://127.0.0.1:${host.displayPort}/healthz`, "--count", String(count), "--every-ms", String(requestEveryMs),
         "--timeout-ms", String(requestTimeoutMs), "--load", load, "--run", String(run), "--out", out], "e02-client");
@@ -277,14 +351,18 @@ function e02Window(ctx, load, run) {
       const health = summarizeHealthE02(ctx.manifest, samples).find((r) => r.load === load && r.run === run);
       const e05 = summarizeE05(records, load, { fromHrtimeNs: start.hrtimeNs, toHrtimeNs: end.hrtimeNs }, { memEveryMs: E05_MEM_EVERY_MS });
       const reports = hostReports(records, id, w.dir, host.injector.placeOf);
+      const expiry = filled == null ? null : expirySplit(records, samples, { start, end }, ctx, filled.record);
+      const late = expiry == null ? null : currentsExpiredAtMeasure(expiry);
+      if (late != null) throw new Error(late);
       // 窓の status は E02（この窓の主の判定）。E05 は statuses に別に持つ（まとめて潰さない）。予備は status と同じく未確認に倒し、判定は judgedStatuses へ。
       const statuses = { E02: health.status, E05: e05.status };
-      const o = outcome(ctx, health.status, reports, { fill: filled?.record ?? null,
+      const o = outcome(ctx, health.status, reports, { fill: filled?.record ?? null, expirySplit: expiry,
         ...(ctx.preliminary ? { statuses: { E02: "未確認", E05: "未確認" }, judgedStatuses: statuses } : { statuses }) });
       o.resultFiles = [
         seal(join(w.dir, `result-e02-${load}-run${run}.json`), { ...health, ...(ctx.preliminary ? { status: o.status, judgedStatus: health.status } : {}),
           evidenceRefs: [`${w.dir}/e02.jsonl`, `${w.dir}/host-obs.jsonl`] }, "resultSha256"),
-        sealAux(w.dir, `aux-e05-${load}-run${run}.json`, ctx.manifest, { window: id, status: ctx.preliminary ? o.status : e05.status, e05, ...reports, fill: o.fill }),
+        sealAux(w.dir, `aux-e05-${load}-run${run}.json`, ctx.manifest, { window: id, status: ctx.preliminary ? o.status : e05.status, e05, ...reports, fill: o.fill,
+          expirySplit: expiry }),
       ];
       return o;
     },
@@ -435,7 +513,7 @@ async function ac15Measure(w, ctx, mode, { s, warmup, samples }) {
   let due = hrMs() + 1000;
   for (const name of s.order) {
     for (let i = 0; i < warmup + samples; i++) {
-      const item = name === "metadata" ? null : ac15Frame(name, i);
+      const item = name === "metadata" ? null : ac15Frame(name, i, host.wallMs(due));
       const frame = item == null ? null : dataFrame(item.headType, item.xml);
       await waitUntil(host, due);
       if (frame == null) {
@@ -538,10 +616,11 @@ function e06Window(ctx) {
   const c = ctx.initialState.cycleC;
   const cycles = ctx.counts.e06Cycles ?? c.cycles;
   return {
-    id: "e06", expectedMin: Math.ceil((cycles * c.periodMs) / 60_000) + 6,
+    id: "e06", expectedMin: Math.ceil((cycles * c.periodMs + EXPIRY_WAIT_LIMIT_MS) / 60_000) + 6,
     run: async (w) => {
       const host = await openHost(w, ctx);
       const filled = await fill(host, w, ctx, "cycleC");
+      await waitFillExpiry(host, w, filled);
       w.progress.phase = "measure";
       const fd = startFdSampler(host.pid, 60_000);
       w.scope.add(() => fd.stop());
@@ -596,10 +675,11 @@ function e07Window(ctx, load) {
   const c = ctx.initialState.cycleC;
   const id = `e07-${load}`;
   return {
-    id, expectedMin: minutes + (load === "C" ? 8 : 2),
+    id, expectedMin: minutes + (load === "C" ? 8 + EXPIRY_WAIT_LIMIT_MS / 60_000 : 2),
     run: async (w) => {
       const host = await openHost(w, ctx);
       const filled = load === "C" ? await fill(host, w, ctx, "cycleC") : null;
+      if (filled != null) await waitFillExpiry(host, w, filled);
       w.progress.phase = "measure";
       const startHr = hrMs() + 1000;
       const [fromMs, fromWallMs] = [host.hostMs(startHr), host.wallMs(startHr)];
@@ -658,7 +738,8 @@ function e07Window(ctx, load) {
 }
 
 // ── E14（P3-C4-AC13(3)、P3-C4-E14-WINDOW=A）: P の充填の後、背景の負荷なしで 3 unit の更新を 1 束で intervalMs ごとに送る ──
-// 束 k の 3 入力（①）。frames.mjs の規則は initial-state の rulesSource で hash を固定しているので変えず、ここで組む。どれも充填済みの
+// 束は充填の current の失効を待ってから始める（P3-MH-FULL-STATE=D）。
+// 束 k の 3 入力（①）。E14 の窓だけが使う規則なのでここで組む。どれも充填済みの
 // subject の更新で、新しい subject を足さない: VXSE45 は充填の通常の EventID（frames.mjs の 20240417000000＋i）の k 番目を Serial＋1・
 // 訂正・報告時刻＝束の時刻で（新しい EventID は U-E の 512 件で capacityExceeded になる。U-E の保存対象は通知の記録だけなので、通知済みの
 // EventID の Serial だけを進めた続報は世代を上げず、訂正なら通知の機会ができて毎回世代が上がる、工程2c）、VPWS50 は national（通常）を、
@@ -691,10 +772,11 @@ function e14Window(ctx, run) {
   const count = ctx.counts.e14 ?? a.minSamplesPerRun;
   const id = `e14-run${run}`;
   return {
-    id, expectedMin: Math.ceil((count * a.intervalMs) / 60_000) + 6,
+    id, expectedMin: Math.ceil((count * a.intervalMs + EXPIRY_WAIT_LIMIT_MS) / 60_000) + 6,
     run: async (w) => {
       const host = await openHost(w, { ...ctx, notification: "silent" });
       const filled = await fill(host, w, ctx, "leaveRoomForP");
+      await waitFillExpiry(host, w, filled);
       w.progress.phase = "measure";
       w.progress.total = count;
       // 索引は追記の分だけ更新する（待ちの判定ごとに全行を作り直さない）。

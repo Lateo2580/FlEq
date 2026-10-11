@@ -74,7 +74,8 @@ if (process.argv[1] != null && import.meta.filename === process.argv[1]) {
   writeFileSync(values.out, "");
   // 親（run.mjs）が ipc 付きで起動したとき、親の異常終了で IPC が切れたら止まる（孤児にしない）。標本は確定順に追記済み。
   if (process.channel != null) process.once("disconnect", () => process.exit(1));
-  line({ t: "start", hrtimeNs: process.hrtime.bigint().toString() });
+  // perfNowMs は標本の時計（performance.now）を hrtime へ写す組（P3-MH-FULL-STATE=D の失効の前後の分け）。
+  line({ t: "start", hrtimeNs: process.hrtime.bigint().toString(), perfNowMs: performance.now() });
   await runHealthClient({ ...args, onSample: line });
   line({ t: "end", hrtimeNs: process.hrtime.bigint().toString() });
   // disconnect の listener が IPC を event loop に留めるので、終わりで外す（自然終了させる）。

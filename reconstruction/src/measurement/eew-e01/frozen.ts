@@ -377,6 +377,13 @@ function readP3Manifest(v: unknown): P3E01Manifest {
   };
 }
 
+// P3-MH-SETUP-PATH=A: 測定の harness を今の製品に合わせた trial-setup・initial-state の 1 組（frames.mjs の規則の版）。A10 の 1 組の代わりに
+// 通すのはこれだけで、その manifest は P3-MEASURE-HARNESS-001 の hash を載せる（規則の版を固めずに凍結させない）。
+const HARNESS_TRIAL_SETUP = {
+  ref: "reconstruction/test/eew-e01/evidence/p3-harness/trial-setup.json",
+  sha256: "b035448a8ce70b930f55b74ff28581d3a9f0b3d324db36f1ca7368ebded51e2a",
+} as const;
+
 // P3-C4-AC10: P3 manifest の凍結境界。A10 と同じ照合（自己 hash・trialSetup・smoke・使用契約）に、継承する A10 の負荷・初期状態・fixture の
 // hash の一致と、6 母集団の条件の形を足す。無いと、P2 の型（正式は fixedBacklog だけ）で 6 母集団を表せず、型の無い manifest で凍結する。
 // 衝突母集団の scope・origin は P3-C4-COLLISION-VERDICT の 2 つの形（参考・T0 か、正式・injectorSend）だけを通す。
@@ -400,7 +407,9 @@ function verifyFrozenP3Manifest(input: Readonly<{
   // 負荷は保存された形のまま（組み立て直す前の値で）継承元と比べる。
   const rawLoads = obj(obj(raw, "manifest")["loads"], "manifest.loads");
   for (const id of ["N", "P", "C"] as const) need(JSON.stringify(rawLoads[id]) === JSON.stringify(a10Loads[id]), `load ${id} differs from ${a10Id}`);
-  need(m.trialSetupRef === a10["trialSetupRef"] && m.trialSetupSha256 === a10["trialSetupSha256"], `trialSetup differs from ${a10Id}`);
+  const harness = m.trialSetupRef === HARNESS_TRIAL_SETUP.ref && m.trialSetupSha256 === HARNESS_TRIAL_SETUP.sha256;
+  need(harness || (m.trialSetupRef === a10["trialSetupRef"] && m.trialSetupSha256 === a10["trialSetupSha256"]), `trialSetup differs from ${a10Id} and the harness pair`);
+  need(!harness || Object.hasOwn(m.contractSha256, "P3-MEASURE-HARNESS-001"), "contractSha256 lacks P3-MEASURE-HARNESS-001 (the harness trial setup)");
   need(Object.entries(textRecord(a10["fixtureSha256"], "inherited fixtureSha256")).every(([id, h]) => m.fixtureSha256[id] === h), `fixtureSha256 differs from ${a10Id}`);
   const t = verifyTrialSetup(m, input.trialSetupText);
   need(sha256Hex(input.inherited.initialStateText) === t.initialStateSha256, "initial-state sha256 differs from trialSetup.initialStateSha256");
@@ -709,5 +718,5 @@ function tsunamiMarkerDetail(detail: Record<string, unknown>, displayVersion: Di
   return { name: "fleq:p3:tsunami:T6-candidate", displayVersion, operation, subject, present, cardMarkerId, coastMarkerId, areas: painted };
 }
 
-export { ZERO_HASH, nonEmpty, REFERENCE_POPULATIONS, P3_POPULATIONS, P3_TSUNAMI_POPULATIONS, SERIES_TRANSITIONS, verifyFrozenP3Manifest,
+export { ZERO_HASH, HARNESS_TRIAL_SETUP, nonEmpty, REFERENCE_POPULATIONS, P3_POPULATIONS, P3_TSUNAMI_POPULATIONS, SERIES_TRANSITIONS, verifyFrozenP3Manifest,
   verifyFrozenP3TsunamiManifest, verifyTsunamiSmokeConditions, sha256Hex, readSelfHashed, sealSelfHash, verifyChromeSmokeConditions, verifyFrozenManifest, forecastWithinAllowance, parseChromeMarkerDetail };

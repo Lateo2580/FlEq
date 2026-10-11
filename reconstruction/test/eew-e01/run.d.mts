@@ -31,7 +31,7 @@ export function buildA10Result(input: { manifest: { manifestId: string; manifest
 export type FrameGapMeter = { pings: number; frames: number; maxFrameGapMs: number; sent(kind: "data" | "ping" | "start"): void; close(): void };
 export function frameGapMeter(now?: () => number): FrameGapMeter;
 export function livenessBlocked(meters: readonly { maxFrameGapMs: number }[] | undefined, maxFrameGapMs: number): string | null;
-export function startInjector(scope: { add(fn: () => unknown): void }, options?: { pingEveryMs?: number; now?: () => number }): Promise<{
+export function startInjector(scope: { add(fn: () => unknown): void }, options?: { pingEveryMs?: number; now?: () => number; wallNow?: (() => number) | null }): Promise<{
   url: string; meter: FrameGapMeter; broken: string | null; placeOf(inputId: string): string | null;
   pingKinds: string[]; ping(kind: "periodic" | "boundary" | "drain"): boolean; stopPings(): void;
   connected(): Promise<void>; sendStart(): void; send(frame: string, headType?: string | null): { seq: number | null; injectedHrMs: number | null };
@@ -49,6 +49,17 @@ export function hashRaw(dir: string): { file: string; bytes: number; sha256: str
 // P3-C4-AC13(7): 直近 count 試行の「parse 開始 − 引き金の実送信（host の時計）」の中央値。足りなければ null。
 export function predictParseDelay(trials: readonly { trigger?: { inputId: string | null; injectedHrMs: number | null } | null }[],
   parseStarts: ReadonlyMap<string, number>, ohLo: number | null, count?: number): number | null;
+
+// P3-MH-AC03: 追記された行だけの走査（parse 開始・保存の encode 開始・tick の行）、tick の位相の予測、直近の中央値。
+export type HostLineScan = { parseStarts: Map<string, number>; saveStarts: Record<"U-W" | "U-F", Map<string, number>>; ticks: number[]; scanned: number };
+export function scanHostLines(lines: readonly unknown[], scan?: HostLineScan): HostLineScan;
+export function predictTick(ticks: readonly number[], nowHostMs: number, leadMs: number): number | null;
+export function reclaimTickToEncodeMs(ticks: readonly number[], trigger: { predictedTickHostMs: number; validUntilWallMs: number }, encodeStartMs: number, wallOriginMs: number): number | null;
+export function recentMedian<T>(trials: readonly T[], valueOf: (trial: T) => number | null | undefined, count?: number): number | null;
+// P3-MH-AC05(5): backend 単独の manifest の preflight と窓の選び方。
+export const BACKEND_ONLY_CHROME: string;
+export function manifestChromeVersion(manifest: { chrome: { version: string } }, probe?: () => Promise<string>): string | Promise<string>;
+export function chromeWindowsRefused(manifest: { chrome: { version: string } }, ids: readonly string[]): string | null;
 
 // P3-C4-AC13(1): 窓 1 本の条件（lead と span は manifest から）。
 export function populationSpec(manifest: { populations: Record<string, unknown> }, population: string, run: number, warmup: number, count: number,

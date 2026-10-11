@@ -8,9 +8,10 @@
 // --preliminary: A10 の凍結物を継承した案（draft.mjs の buildP3Manifest）で各母集団 1 run を走らせ、結果の status は必ず「未確認」。
 //   --warmup <n>（20）・--samples <n>（100）・--max-attempts <n>・--max-minutes <n>・--only <母集団,...>・--collision-verdict A|B・--runs-root <dir>
 //   --deadline-alternative: 母集団 5 の対象を Q-C4-ALT-CONDITION の候補（期限回収で起きた U-F 保存の encode 開始〜write 完了）にして成立率を見る
-//   --save-lead-ms <n>（600）・--deadline-lead-ms <n>（2400）: 保存・期限回収の母集団で引き金を予測 tick より何 ms 前に送るか（AC09。Pi で成立する値を
-//     予備で求めて渡す。負荷と periodMs は変えない）。この 3 つは予備の案の manifest（triggerLeadMs・span）に入り、runner はいつも manifest から
-//     読む。正式（--manifest）では凍結した値だけを使う（P3-C4-AC13(1)）
+//   --save-lead-ms <n>（600）・--deadline-lead-ms <n>（2400）: 3 つの保存母集団の較正の予測が無い最初の 10 試行で、引き金（期限回収は狙う tick）から
+//     EEW までの遅れの代わりに使う値（P3-MH-AC03(4)。予備で求めて渡す。負荷と periodMs は変えない）。この 3 つは予備の案の manifest（triggerLeadMs・
+//     span）に入り、runner はいつも manifest から読む。正式（--manifest）では凍結した値だけを使う（P3-C4-AC13(1)）
+//   予備の案は測定の harness の 1 組（evidence/p3-harness/ の trial-setup・initial-state、P3-MH-AC05(6)）で組む
 //   --aux <id,...|all>: E01 の代わりに周辺の窓を件数を絞って回す（--e02-count/--e03-count/--ac15-count/--e12-count/--e06-cycles/--e07-minutes/
 //     --e14-count/--owner-heap-count、各 1 run。E14 と ownerHeap は指定が無ければ manifest の件数）。
 //   記録と結果は evidence-scratch（repo の外）に書く。
@@ -37,14 +38,14 @@ import { WebSocketServer } from "ws";
 
 import { analyzeTrace, assembleP3Trials, assembleTsunamiTrials, buildHostIndex, correspondences, rejectionReasons, versionKey } from "./analysis.mjs";
 import { chromeVersion, hrMs, openPage, probeClock, sleep, startTracing, stopTracing } from "./chrome.mjs";
-import { A10_MANIFEST, DEFAULT_LEAD_MS, SEQUENCES_FILE, SMOKE_FILE, buildP3Manifest, contractTextsFor } from "./draft.mjs";
+import { A10_MANIFEST, DEFAULT_LEAD_MS, SEQUENCES_FILE, SMOKE_FILE, buildP3Manifest, contractTextsOf } from "./draft.mjs";
 import { REPO, dataFrame, eewVariant, eventIdOf, fixtureId, fixtureText, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
 import { RELEASE_FIXTURE, T6_TSUNAMI, C4_MANIFEST, buildP3TsunamiManifest, templateFixtureTexts, tsunamiReport, vxse45Variant } from "./tsunami.mjs";
 import { auxWindows, e02Verdict, hostReportsOf, replayPump, seal, sealAux } from "./windows.mjs";
 
 import { canonicalCoastJson } from "../../dist/chrome-eew/src/display/chrome-eew/coast.js";
 import { classifyEewCause, establishTrial, establishTsunamiTrial, quantiles, summarizeP3E01, summarizeP3TsunamiE01, transitionQuotas } from "../../dist/src/measurement/eew-e01/judge.js";
-import { ZERO_HASH, forecastWithinAllowance, sealSelfHash, verifyFrozenP3Manifest, verifyFrozenP3TsunamiManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
+import { HARNESS_TRIAL_SETUP, ZERO_HASH, forecastWithinAllowance, sealSelfHash, verifyFrozenP3Manifest, verifyFrozenP3TsunamiManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
 import { placeOfHeadType } from "../../dist/src/runtime/unit-coverage.js";
 
 const NODE22 = "/opt/homebrew/opt/node@22/bin/node";
@@ -117,7 +118,8 @@ export function livenessBlocked(meters, maxFrameGapMs) {
 // pingEveryMs ごとに dmdata 形式の ping frame を送る（host は既存の pong 返送のまま。ping は host の input-<n> を消費しない、host.ts の onFrame）。
 // send(frame, headType) の headType は版の窓の実行場所（placeOfHeadType）を引くために投入記録へ残す。
 // now は frame 間隔の時計（既定は hrtime。試験は偽の時計を渡して実時間に頼らずに間隔を確かめる）。
-export async function startInjector(scope, { pingEveryMs = 20_000, now = hrMs } = {}) {
+// wallNow は host の壁時計の推定（ms）。start frame の time に入れる（P3-MH-AC01(4)。無いと host が接続ごとに hostClockUnverified を出す）。
+export async function startInjector(scope, { pingEveryMs = 20_000, now = hrMs, wallNow = null } = {}) {
   const server = new WebSocketServer({ port: 0, host: "127.0.0.1" });
   await new Promise((done) => server.once("listening", done));
   let socket = null;
@@ -168,7 +170,11 @@ export async function startInjector(scope, { pingEveryMs = 20_000, now = hrMs } 
     stopPings: () => clearInterval(ping),
     placeOf: (inputId) => places.get(inputId) ?? null,
     connected: () => socket != null && socket.readyState === 1 ? Promise.resolve() : new Promise((f) => waiters.push(f)),
-    sendStart: () => { if (socket == null) return; socket.send(JSON.stringify({ type: "start", socketId: 1, classifications: ["eew.forecast"] })); meter.sent("start"); },
+    sendStart: () => {
+      if (socket == null) return;
+      socket.send(JSON.stringify({ type: "start", socketId: 1, classifications: ["eew.forecast"], ...(wallNow == null ? {} : { time: new Date(wallNow()).toISOString() }) }));
+      meter.sent("start");
+    },
     // 実投入時刻は送る直前の hrtime。同一スレッドの timer の予定時刻は使わない。通し番号は host の input-<n> と一致する。
     send: (frame, headType = null) => {
       if (socket == null || socket.readyState !== 1) return { seq: null, injectedHrMs: null };
@@ -196,7 +202,10 @@ export async function startInjector(scope, { pingEveryMs = 20_000, now = hrMs } 
 async function startHost(dir, ctx, { memEveryMs = 10_000, nodeArgs = [], env = null, status = {}, measureInputHeap = false } = {}) {
   status.hostExit = null;
   status.hostError = null;
-  const injector = await startInjector(ctx.scope, { pingEveryMs: ctx.manifest.liveness?.pingEveryMs });
+  // host の壁時計は wallOriginMs＋host の performance.now（host-launcher.mjs の clock）。host の起動の直前からの経過で推定する（ずれは起動の所要、
+  // K6 AC13 の 60 秒よりずっと小さい）。
+  const launchedHr = hrMs();
+  const injector = await startInjector(ctx.scope, { pingEveryMs: ctx.manifest.liveness?.pingEveryMs, wallNow: () => ctx.wallOriginMs + (hrMs() - launchedHr) });
   status.liveness = [...(status.liveness ?? []), injector.meter];
   const obsPath = join(dir, "host-obs.jsonl");
   const configPath = join(dir, "host-config.json");
@@ -309,12 +318,25 @@ async function spinUntil(targetHrMs) {
   }
 }
 
-// 直近の checkpoint encode 開始から host の tick（1 秒周期）の位相を最小二乗で当てて、leadMs 先以降の最初の tick を返す。
-function predictTick(host, hr, leadMs) {
-  const starts = host.lines.flatMap((l) => l.t === "obs" && l.o.kind === "checkpoint" && l.o.measurement.stage === "encode" ? [l.o.measurement.startedMonotonicMs] : []).slice(-12);
-  const first = host.lines.find((l) => l.t === "clock");
-  if (starts.length === 0 || first == null) return null;
-  const oh = first.perfNowMs - Number(BigInt(first.hrtimeNs)) / 1e6;
+// 追記された行だけを走査して（試行ごとに全行を索引し直さない、P3-MH-AC07）、入力 ID → parse 開始（AC13(7)）、unit ごとに入力 ID → その入力を
+// 含む保存の encode 開始（Q-C6-IMPL-AMEND (10)・P3-MH-AC03(1)）、mailbox の tick の行の時刻（P3-MH-AC03(2)）を集める。
+export function scanHostLines(lines, scan = { parseStarts: new Map(), saveStarts: { "U-W": new Map(), "U-F": new Map() }, ticks: [], scanned: 0 }) {
+  for (; scan.scanned < lines.length; scan.scanned++) {
+    const o = lines[scan.scanned].t === "obs" ? lines[scan.scanned].o : null;
+    if (o?.kind === "decode" && o.xmlParseStartedMonotonicMs != null) scan.parseStarts.set(o.inputId, o.xmlParseStartedMonotonicMs);
+    else if (o?.kind === "checkpoint" && o.measurement.stage === "encode" && Object.hasOwn(scan.saveStarts, o.measurement.unit)) {
+      const starts = scan.saveStarts[o.measurement.unit];
+      for (const inputId of o.measurement.inputIds) if (!starts.has(inputId)) starts.set(inputId, o.measurement.startedMonotonicMs);
+    } else if (o?.kind === "mailbox" && o.trigger === "tick") scan.ticks.push(o.monotonicMs);
+  }
+  return scan;
+}
+
+// host の tick（1 秒周期）の位相を mailbox の tick の行（直近 12 行）から最小二乗で当て、nowHostMs＋leadMs 以降の最初の tick の host 時刻を返す
+// （P3-MH-AC03(2)。UWR の後は保存が tick に乗らないので checkpoint の encode 開始を代わりにしない）。
+export function predictTick(ticks, nowHostMs, leadMs) {
+  const starts = ticks.slice(-12);
+  if (starts.length === 0) return null;
   const e0 = starts[starts.length - 1];
   const points = starts.map((s) => [Math.round((s - e0) / 1000), s]);
   const n = points.length;
@@ -325,8 +347,21 @@ function predictTick(host, hr, leadMs) {
   const det = n * sjj - sj * sj;
   const b = n >= 3 && det !== 0 ? (n * sjs - sj * ss) / det : 1000;
   const a = (ss - b * sj) / n;
-  const j = Math.ceil((hr + oh + leadMs - a) / b);
-  return { hostMs: a + b * j, hrMs: a + b * j - oh, oh };
+  return a + b * Math.ceil((nowHostMs + leadMs - a) / b);
+}
+// 期限回収の較正の 1 標本（P3-MH-AC03(2)）: 回収の保存の encode 開始 − 回収を起こした tick。回収を起こした tick は、狙った tick（予測の ±500ms）の
+// 実観測の行で、その壁時計（wallOriginMs＋trunc(単調時計)、host-launcher の clock）が validUntil 以上、1 つ前の行が validUntil より前のもの。
+// owner の応答待ちの間も tick の行は出るので、encode 開始の直前の tick を代わりにしない（1 秒をまたぐ保存の遅れを 1 秒少なく学ぶ）。対応が
+// 決まらない試行（狙った tick の行が無い、その tick ではまだ期限前だった）は null で、較正に使わない。ticks は昇順。
+export function reclaimTickToEncodeMs(ticks, { predictedTickHostMs, validUntilWallMs }, encodeStartMs, wallOriginMs) {
+  let lo = 0;
+  let hi = ticks.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (ticks[mid] < predictedTickHostMs) lo = mid + 1; else hi = mid; }
+  const i = [lo - 1, lo].filter((j) => j >= 0 && j < ticks.length && Math.abs(ticks[j] - predictedTickHostMs) < 500)
+    .sort((a, b) => Math.abs(ticks[a] - predictedTickHostMs) - Math.abs(ticks[b] - predictedTickHostMs))[0];
+  const wall = (j) => wallOriginMs + Math.trunc(ticks[j]);
+  if (i == null || wall(i) < validUntilWallMs || (i > 0 && wall(i - 1) >= validUntilWallMs) || ticks[i] > encodeStartMs) return null;
+  return encodeStartMs - ticks[i];
 }
 
 // 保存済みの U-F checkpoint（A/B の 2 slot のうち世代が新しい方）の payload.subjects の件数。読めなければ null。
@@ -410,21 +445,9 @@ async function measureRun(spec, ctx, label, dir, status) {
       oh.hi = Math.max(oh.hi ?? -Infinity, v + 0.01);
     }
   };
-  // AC13(7): 入力 ID → parse 開始（host の時計）。行は追記の分だけ走査する（試行ごとに全行を索引し直さない）。
-  const parseStarts = new Map();
-  // Q-C6-IMPL-AMEND (10): 入力 ID → その入力を含む U-W の保存の encode 開始（host の時計）。津波の encode 直後の較正に使う。
-  const encodeStarts = new Map();
-  let parseScan = 0;
-  const scanParseStarts = () => {
-    host.refresh();
-    for (; parseScan < host.lines.length; parseScan++) {
-      const o = host.lines[parseScan].t === "obs" ? host.lines[parseScan].o : null;
-      if (o?.kind === "decode" && o.xmlParseStartedMonotonicMs != null) parseStarts.set(o.inputId, o.xmlParseStartedMonotonicMs);
-      else if (o?.kind === "checkpoint" && o.measurement.unit === "U-W" && o.measurement.stage === "encode") {
-        for (const inputId of o.measurement.inputIds) if (!encodeStarts.has(inputId)) encodeStarts.set(inputId, o.measurement.startedMonotonicMs);
-      }
-    }
-  };
+  // parse 開始・保存の encode 開始・tick の行（host の時計）。行は追記の分だけ走査する（scanHostLines）。
+  const scan = scanHostLines([]);
+  const scanParseStarts = () => { host.refresh(); scanHostLines(host.lines, scan); };
   // 初期化入力（製品の WS 入力として流す）。処理と保存が済むまで待つ。
   const others = [];
   const dataSend = (frame, headType, kind, extra = {}) => { const r = injector.send(frame, headType); others.push({ kind, seq: r.seq, inputId: r.seq == null ? null : `input-${r.seq}`, injectedHrMs: r.injectedHrMs, headType, ...extra }); return r; };
@@ -565,7 +588,7 @@ async function measureRun(spec, ctx, label, dir, status) {
       await idleUntil(prime.injectedHrMs + tsu.primeLeadMs);
       scanParseStarts();
       updateOh();
-      const predicted = predictParseDelay(trials, encodeStarts, oh.lo);
+      const predicted = predictParseDelay(trials, scan.saveStarts["U-W"], oh.lo);
       const t = dataSend(weatherFrame("15_17_01_251222_VPWW55", "VPWW55", wallNow() + (k + 1) * 1000), "VPWW55", "trigger", { trial: k });
       trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs, calibrated: true };
       const delay = predicted ?? spec.leadMs;
@@ -580,7 +603,7 @@ async function measureRun(spec, ctx, label, dir, status) {
         // 母集団 2 と同じ自己較正（P3-C4-AC13(7)）: 引き金の実送信から直近 10 試行の「parse 開始 − 実送信」の中央値＋targetOffsetMs に送る。
         scanParseStarts();
         updateOh();
-        const predicted = predictParseDelay(trials, parseStarts, oh.lo);
+        const predicted = predictParseDelay(trials, scan.parseStarts, oh.lo);
         const t = dataSend(vpwsFrame, "VPWS50", "trigger", { trial: k });
         trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs };
         await spinUntil(calibratedSendAt(trigger, predicted, spec.targetOffsetMs));
@@ -735,41 +758,44 @@ async function measureRun(spec, ctx, label, dir, status) {
     } else if (vpwsFrame != null) {
       // 衝突は同じ WS で間を空けずに続ける。母集団 2 の予測値は引き金を送る前に作る（送った後に作ると spin の精度を食う）。
       let predicted = null;
-      if (population === "maxVpws50ParseStarted") { scanParseStarts(); updateOh(); predicted = predictParseDelay(trials, parseStarts, oh.lo); }
+      if (population === "maxVpws50ParseStarted") { scanParseStarts(); updateOh(); predicted = predictParseDelay(trials, scan.parseStarts, oh.lo); }
       const t = dataSend(vpwsFrame, "VPWS50", "trigger", { trial: k });
       trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs };
       // 母集団 2 の「開始」は parse 開始（P3-C4-PARSE-MARK）で、worker の展開（TextDecoder まで）の後なので、引き金の実送信から直近 10 試行の
       // 「parse 開始 − 引き金の実送信」の中央値＋targetOffsetMs の時刻に送る（AC13(7)）。予測値が無い間（最初の 10 試行）は実送信＋targetOffsetMs。
       if (population === "maxVpws50ParseStarted") await spinUntil(calibratedSendAt(trigger, predicted, spec.targetOffsetMs));
       sent = sendEew();
+    } else if (population !== "forecastDeadlineOverlap") {
+      // P3-MH-AC03(1): UWR の後は保存が引き金の inputDone の反映の直後に始まり 1 秒の tick に乗らない。引き金を送り、直近 10 試行の
+      // 「引き金を含む自 unit の保存の encode 開始 − 引き金の実送信」の中央値（無い間は triggerLeadMs）＋targetOffsetMs に EEW を送る。
+      const [unit, headType, fixture] = population === "maxWeatherCheckpointEncodeStarted" ? ["U-W", "VPWW55", "15_17_01_251222_VPWW55"]
+        : ["U-F", "VPWP50", "81_09_01_260605_VPWP50"];
+      scanParseStarts();
+      updateOh();
+      const predicted = predictParseDelay(trials, scan.saveStarts[unit], oh.lo);
+      const t = dataSend(weatherFrame(fixture, headType, wallNow() + (k + 1) * 1000), headType, "trigger", { trial: k });
+      trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs, calibrated: true, predictedEncodeDelayMs: predicted };
+      await spinUntil(t.injectedHrMs + (predicted ?? spec.leadMs) + spec.targetOffsetMs);
+      sent = sendEew();
     } else {
-      // 次の tick の checkpoint encode 開始を予測し、その 1ms 後に EEW を投入する。引き金は狙う tick の lead（manifest の triggerLeadMs）前に送る。
-      // 期限回収は狙う tick の 1 つ前の tick で起きる（下の validUntil）。狙う tick は lead より保存で 900ms・期限回収で 100ms 以上先
-      // （既定で 1.5 秒・2.5 秒先）にし、引き金を過去に送らない。
-      const deadlineTrigger = population === "forecastDeadlineOverlap";
-      const lead = spec.leadMs;
-      const tick = predictTick(host, hrMs(), lead + (deadlineTrigger ? 100 : 900));
-      if (tick == null) { sent = sendEew(); base.noTickModel = true; }
+      // P3-MH-AC03(2): 期限の回収は validUntil を過ぎた後の最初の deadline 要求（1 秒の tick）の返信の直後に保存される。tick の位相は mailbox の
+      // tick の行から当て、狙う tick n の 1 つ前の tick との間の秒境界に validUntil を置き、引き金は tick n−1 の 100ms 以上前に送る（受信の時点で
+      // validUntil＞host の壁時計でないと U-F の active にならない）。EEW は tick n＋直近 10 試行の「回収の保存の encode 開始 − その tick」の
+      // 中央値（無い間は triggerLeadMs）＋targetOffsetMs。
+      scanParseStarts();
+      updateOh();
+      const tickHostMs = predictTick(scan.ticks, hrMs() + ohStart, DEADLINE_TICK_AHEAD_MS);
+      if (tickHostMs == null) { sent = sendEew(); base.noTickModel = true; }
       else {
-        await spinUntil(tick.hrMs - lead);
-        let frameText;
-        let headType;
-        if (population === "maxWeatherCheckpointEncodeStarted") { headType = "VPWW55"; frameText = weatherFrame("15_17_01_251222_VPWW55", headType, wallNow() + (k + 1) * 1000); }
-        else if (population === "maxForecastCheckpointSave") { headType = "VPWP50"; frameText = weatherFrame("81_09_01_260605_VPWP50", headType, wallNow() + (k + 1) * 1000); }
-        else {
-          headType = "VPWP50";
-          const text = fixtureText("81_01_04_251222_VPWP50").toString("utf8")
-            .replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, `<EditorialOffice>${DEADLINE_TRIGGER_OFFICE}</EditorialOffice>`);
-          const report = Date.parse(/<ReportDateTime>([^<]+)</.exec(text)[1]);
-          // validUntil を、狙う tick の 1 つ前の tick の壁時計以下で、その前の tick との間にただ 1 つある秒境界に置く。C3a 後の host では
-          // owner がその tick の deadline 要求で期限回収し、保存（encode）は次の tick（狙う tick）で起きる（品質レビュー Q1: A10 の置き方では
-          // 回収の encode が狙う tick の 1 つ後に出て、成立 0/38 だった）。
-          const target = Math.floor((ctx.wallOriginMs + tick.hostMs - 1000 - 5) / 1000) * 1000;
-          frameText = dataFrame("VPWP50", Buffer.from(shiftTimestamps(text, target - (report + UF_SMALL_VALID_AFTER_REPORT_MS))));
-        }
-        const t = dataSend(frameText, headType, "trigger", { trial: k });
-        trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs, predictedTickHostMs: tick.hostMs };
-        await spinUntil(tick.hrMs + spec.targetOffsetMs);
+        const text = fixtureText("81_01_04_251222_VPWP50").toString("utf8")
+          .replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, `<EditorialOffice>${DEADLINE_TRIGGER_OFFICE}</EditorialOffice>`);
+        const report = Date.parse(/<ReportDateTime>([^<]+)</.exec(text)[1]);
+        const validUntil = Math.floor((ctx.wallOriginMs + tickHostMs) / 1000) * 1000;
+        const predicted = recentMedian(trials, (tr) => tr.trigger?.tickToEncodeMs);
+        const t = dataSend(dataFrame("VPWP50", Buffer.from(shiftTimestamps(text, validUntil - (report + UF_SMALL_VALID_AFTER_REPORT_MS)))), "VPWP50", "trigger", { trial: k });
+        trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs, calibrated: true, predictedTickHostMs: tickHostMs,
+          validUntilWallMs: validUntil, predictedEncodeDelayMs: predicted };
+        await spinUntil(tickHostMs - ohStart + (predicted ?? spec.leadMs) + spec.targetOffsetMs);
         sent = sendEew();
       }
     }
@@ -814,20 +840,30 @@ async function measureRun(spec, ctx, label, dir, status) {
       const end = await trialWatchAtEnd(page.evaluate, sentSkewMs);
       trial.conditionDeviation = trialConditionDeviation(atSend, ctx.manifest.chrome.motion, end.events, sentWallMs, end.clockStepMs);
     } else trial.conditionDeviation = null;
+    // 期限回収の較正（P3-MH-AC03(2)）は warm-up の試行でも回収の保存を待って tick→encode を取る（無いと最初の 10 試行の後も予測が無い）。
+    const deadlineCalibration = population === "forecastDeadlineOverlap" && trial.trigger?.calibrated === true;
     if (!warm && trial.conditionDeviation != null) trial.establishment = { established: false, reason: "conditionDeviation" };
-    else if (!warm) {
+    else if (!warm || deadlineCalibration) {
       // 成立の判定（establishTrial）。対象の観測（parse・encode・保存の記録は対象の処理が終わってから出る）を、実投入から 11 秒まで待つ。
+      // 引き金を含む保存の母集団（P3-MH-AC03(1)）は、対象が引き金の送信から TARGET_WAIT_MS で来なければ待ち切らずに不成立で進む（C6 と同じ）。
       const settleBy = (sent.injectedHrMs ?? hrMs()) + 11_000;
+      const ownSave = trial.trigger?.calibrated === true && !deadlineCalibration;
       for (;;) {
         host.refresh();
         updateOh();
         const recent = buildHostIndex(host.lines.slice(linesBefore));
         trial.target = trialTarget(population, trial, recent, oh.lo, spec.span);
-        trial.establishment = establishTrial({ establishment: spec.establishment, target: trial.target, t0Ms: recent.t0.get(trial.inputId) ?? null,
+        const establishment = establishTrial({ establishment: spec.establishment, target: trial.target, t0Ms: recent.t0.get(trial.inputId) ?? null,
           injectorSendHostMs: sent.injectedHrMs == null || oh.lo == null ? null : { lowerMs: sent.injectedHrMs + oh.lo, upperMs: sent.injectedHrMs + oh.hi } });
-        if (trial.establishment.established || trial.establishment.reason !== "targetNotObserved" || hrMs() > settleBy) break;
+        if (!warm) trial.establishment = establishment;
+        const targetMissed = ownSave && trial.target == null && trial.trigger.injectedHrMs != null && hrMs() > trial.trigger.injectedHrMs + TARGET_WAIT_MS;
+        if (establishment.established || establishment.reason !== "targetNotObserved" || targetMissed || hrMs() > settleBy) break;
         pumpBackground();
         await sleep(50);
+      }
+      if (deadlineCalibration && trial.target != null) {
+        scanParseStarts();
+        trial.trigger.tickToEncodeMs = reclaimTickToEncodeMs(scan.ticks, trial.trigger, trial.target.startMs, ctx.wallOriginMs);
       }
     }
     if (!warm && trial.establishment.established) trial.index = spec.warmup + established++;
@@ -966,6 +1002,8 @@ export function nextTransition(transitions, quotas, established) {
 // 津波の parse 直後・encode 直後で、対象の区間（parse・引き金の保存の encode）の行を待つ上限。encode の行は保存の全体と launcher の 250ms の
 // flush の後に出る（予備で引き金から 1 秒以内）ので、3 秒で来なければ予測が外れたとみなす。
 export const TARGET_WAIT_MS = 3000;
+// 期限回収の狙う tick n は今から 1,200ms 以上先（tick n−1 が引き金の組み立てと送信の後 100ms 以上先に来る、P3-MH-AC03(2)）。
+const DEADLINE_TICK_AHEAD_MS = 1200;
 export function settleDone({ established, complete, offset, target, sentHrMs, nowHrMs, settleBy }) {
   const targetMissed = offset && target == null && sentHrMs != null && nowHrMs > sentHrMs + TARGET_WAIT_MS;
   return established || complete || targetMissed || nowHrMs > settleBy;
@@ -980,17 +1018,25 @@ export function calibratedSendAt(trigger, predicted, targetOffsetMs) {
   return trigger.injectedHrMs + (predicted ?? 0) + targetOffsetMs;
 }
 
+// P3-MH-AC03(1) は parseStarts の代わりに saveStarts（引き金を含む自 unit の保存の encode 開始）を渡す。
 export function predictParseDelay(trials, parseStarts, ohLo, count = 10) {
   if (ohLo == null) return null;
-  const delays = [];
-  for (let i = trials.length - 1; i >= Math.max(0, trials.length - 2 * count) && delays.length < count; i--) {
-    const trigger = trials[i].trigger;
+  return recentMedian(trials, (trial) => {
+    const trigger = trial.trigger;
     const start = trigger?.inputId == null ? undefined : parseStarts.get(trigger.inputId);
-    if (start != null && trigger.injectedHrMs != null) delays.push(start - (trigger.injectedHrMs + ohLo));
+    return start != null && trigger.injectedHrMs != null ? start - (trigger.injectedHrMs + ohLo) : null;
+  }, count);
+}
+// 末尾の 2×count 試行のうち値の分かった新しい方から count 試行の中央値（足りなければ null）。
+export function recentMedian(trials, valueOf, count = 10) {
+  const values = [];
+  for (let i = trials.length - 1; i >= Math.max(0, trials.length - 2 * count) && values.length < count; i--) {
+    const v = valueOf(trials[i]);
+    if (v != null) values.push(v);
   }
-  if (delays.length < count) return null;
-  delays.sort((a, b) => a - b);
-  return (delays[Math.floor((count - 1) / 2)] + delays[Math.ceil((count - 1) / 2)]) / 2;
+  if (values.length < count) return null;
+  values.sort((a, b) => a - b);
+  return (values[Math.floor((count - 1) / 2)] + values[Math.ceil((count - 1) / 2)]) / 2;
 }
 
 const VPWS50_TRIGGERED = new Set(["maxVpws50ParseStarted", "maxVpws50ReceivedThenEew"]);
@@ -1086,13 +1132,17 @@ export function trialTarget(population, trial, host, ohLo, span = "population") 
     const byInput = new Set([...host.raised].flatMap(([key, generation]) => (key.endsWith("|U-F") ? [generation] : [])));
     reclaimed = (c) => { for (let g = adopted + 1; g <= c.generation; g++) if (!byInput.has(g)) return true; return false; };
   }
-  // 較正した津波の encode 直後（Q-C6-IMPL-AMEND (10)）は、引き金を含む U-W の保存の encode を対象にする（近い時刻の背景の保存と取り違えない）。
-  if (trial.trigger.calibrated === true) {
+  // 較正した試行（津波の encode 直後 Q-C6-IMPL-AMEND (10)、P3-MH-AC03(1)）は、引き金を含む自 unit の保存を対象にする（近い時刻の背景の保存と
+  // 取り違えない）。maxForecastCheckpointSave は保存全体（encode 開始〜最後の段の終わり）。
+  if (trial.trigger.calibrated === true && population !== "forecastDeadlineOverlap") {
     const own = host.checkpoints.find((c) => c.unit === unit && c.stage === "encode" && (c.inputIds ?? []).includes(id));
-    return own == null ? null : { startMs: own.startedMonotonicMs, endMs: own.endedMonotonicMs };
+    if (own == null) return null;
+    if (population !== "maxForecastCheckpointSave") return { startMs: own.startedMonotonicMs, endMs: own.endedMonotonicMs };
+    return { startMs: own.startedMonotonicMs, endMs: Math.max(...host.checkpoints.filter((c) => c.attemptId === own.attemptId).map((c) => c.endedMonotonicMs)) };
   }
   const encodes = host.checkpoints.filter((c) => c.unit === unit && c.stage === "encode" && c.startedMonotonicMs >= triggerHost && reclaimed(c));
-  const predicted = trial.trigger.predictedTickHostMs;
+  // 較正した期限回収（P3-MH-AC03(2)）は予測の tick の ±500ms で絞らない（保存は tick に乗らない）。C4 の記録は今の選び方のまま。
+  const predicted = trial.trigger.calibrated === true ? null : trial.trigger.predictedTickHostMs;
   const near = predicted == null ? encodes : encodes.filter((c) => Math.abs(c.startedMonotonicMs - predicted) < 500);
   const encode = near.reduce((best, c) => (best == null || (predicted == null ? c.startedMonotonicMs < best.startedMonotonicMs
     : Math.abs(c.startedMonotonicMs - predicted) < Math.abs(best.startedMonotonicMs - predicted)) ? c : best), null);
@@ -1287,6 +1337,20 @@ export const hashRaw = (dir) => readdirSync(dir, { recursive: true }).map(String
     const bytes = readFileSync(join(dir, f));
     return { file: f, bytes: bytes.length, sha256: sha256Hex(bytes) };
   });
+// P3-MH-AC01(4)・AC08(e): 窓の dir の下の全 diagnostics/*.jsonl（AC15 は full・half の下）の K6 AC13 の時計の診断の件数。窓の記録に残し、
+// start の time が効いて 0 件であることを統合担当が手で数えずに確かめる。
+const HOST_CLOCK_REASONS = ["hostClockUnverified", "hostClockAhead", "hostClockBehind"];
+export function hostClockCounts(dir) {
+  const counts = Object.fromEntries(HOST_CLOCK_REASONS.map((reason) => [reason, 0]));
+  for (const file of readdirSync(dir, { recursive: true }).map(String).filter((f) => f.split("/").includes("diagnostics") && f.endsWith(".jsonl"))) {
+    for (const line of readFileSync(join(dir, file), "utf8").split("\n")) {
+      let row = null;
+      try { row = line.trim() === "" ? null : JSON.parse(line); } catch { /* 読めない行は readDiagnosticsStrict の側の問題として数えない */ }
+      if (row != null && Object.hasOwn(counts, row.reason)) counts[row.reason] += row.count ?? 1;
+    }
+  }
+  return counts;
+}
 let interruptWindow = null;
 // 窓記録の lastProgress（投入側の meter は数値だけを写す）。
 const progressOf = ({ liveness, ...rest }) => ({ ...rest, liveness: (liveness ?? []).map((m) => ({ pings: m.pings, maxFrameGapMs: m.maxFrameGapMs })) }); // SIGINT/SIGTERM のとき、今の窓の記録を "interrupted" に書き換える
@@ -1354,7 +1418,7 @@ async function runWindow(win, { manifest, outDir, resultsDir, recordsDir, comman
       copyFileSync(from, to);
       return { path: pathRef(to), sha256: sha256Hex(readFileSync(to)) };
     });
-    writeRecord({ ...base, ...outcome, resultFiles, liveness, finishedAt: new Date().toISOString(), raw: hashRaw(dir), orphans });
+    writeRecord({ ...base, ...outcome, resultFiles, liveness, hostClock: hostClockCounts(dir), finishedAt: new Date().toISOString(), raw: hashRaw(dir), orphans });
   } catch (error) {
     outcome = { status: "Blocked", reason: `window record could not be written: ${String(error?.message ?? error)}` };
     writeRecord({ ...base, ...outcome, finishedAt: new Date().toISOString(), orphans });
@@ -1377,8 +1441,17 @@ export function buildA10Result({ manifest, windows, e01, e02Verdict = null, sche
 
 // 起動時の確認（WP3c §1.1）: host の Node・Chrome・OS の版を manifest と照合し、生成物の存在を確かめ、repo の状態を記録する。
 // 1 つでも外れたら全窓を走らせずに止める（どの窓も同じ理由で落ちるため）。
+// backend 単独の manifest（PiのE03、P3-MH-AC05(5)）の chrome.version。予備の draft が --backend-only で書く文字列と同じ。
+export const BACKEND_ONLY_CHROME = "none (backend-only)";
+// preflight の Chrome の版: backend 単独の manifest では Chrome を起動して訊かない（Pi には macOS の Chrome の path が無い）。
+export const manifestChromeVersion = (manifest, probe = chromeVersion) => (manifest.chrome.version === BACKEND_ONLY_CHROME ? BACKEND_ONLY_CHROME : probe());
+// backend 単独の manifest では Chrome を使う窓（E01・C6 はどれも e01- の窓）を選んでも走らせない。
+export function chromeWindowsRefused(manifest, ids) {
+  const chrome = manifest.chrome.version === BACKEND_ONLY_CHROME ? ids.filter((id) => id.startsWith("e01-")) : [];
+  return chrome.length === 0 ? null : `the backend-only manifest cannot run windows that need Chrome: ${chrome.join(",")}`;
+}
 async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
-  const chrome = await chromeVersion();
+  const chrome = await manifestChromeVersion(manifest);
   const os = `${release()} ${arch()}`;
   const distSha256 = treeSha256(DIST_TREES);
   const problems = [
@@ -1469,7 +1542,8 @@ function frozenInputs(manifest, trialSetup, initialStateText) {
 }
 
 // 予備測定だけのオプション。--manifest と併用すると記録先（evidence-scratch）や条件が変わり、正式窓の再実行制限を迂回できるので拒否する。
-const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|node|runs-root|collision-verdict|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms|tsunami|prime-lead-ms|e14-tsunami)$/;
+// --node は正式でも許す（P3-MH-AC05(5)。preflight が渡した Node の版を manifest の nodeVersion と照らすので条件は変わらない）。
+const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|runs-root|collision-verdict|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms|tsunami|prime-lead-ms|e14-tsunami)$/;
 
 // 引数を読み、組み合わせの誤りをここで拒否する（子を起動する前）。
 export function parseArgs(argv) {
@@ -1547,8 +1621,9 @@ async function main(argv) {
     trialSetup = JSON.parse(trialSetupText);
     initialStateText = readFileSync(join(REPO, trialSetup.initialStateRef), "utf8");
   } else if (preliminary) {
-    // 予備の案は A10 の凍結物（負荷・初期状態・fixture）を継承して組む（draft.mjs の buildP3Manifest）。backend 単独は Chrome を測らない。
-    draft = buildP3Manifest({ id: `p3-prelim-${stamp}`, chromeVersion: backendOnly ? "none (backend-only)" : await chromeVersion(), nodeVersion,
+    // 予備の案は A10 の凍結物（負荷・fixture）を継承し、trial-setup・initial-state は測定の harness の 1 組で組む（draft.mjs の buildP3Manifest、
+    // P3-MH-AC05(6)。窓が読む ctx.initialState もその initial-state）。backend 単独は Chrome を測らない。
+    draft = buildP3Manifest({ id: `p3-prelim-${stamp}`, chromeVersion: backendOnly ? BACKEND_ONLY_CHROME : await chromeVersion(), nodeVersion, trialSetup: HARNESS_TRIAL_SETUP.ref,
       osVersion: `${release()} ${arch()}`, device: deviceOf(),
       collisionVerdict: String(args.get("collision-verdict") ?? "A"), establishmentRate: num("establishment-rate", 0.5),
       lead: { maxWeatherCheckpointEncodeStarted: num("save-lead-ms", DEFAULT_LEAD_MS.maxWeatherCheckpointEncodeStarted),
@@ -1567,15 +1642,15 @@ async function main(argv) {
       // P3-C6-AC10: 津波の凍結 manifest。trialSetup は継承した C4 の凍結 manifest と同じ（verifyFrozenP3TsunamiManifest が ref と hash を照合する）。
       const verified = verifyFrozenP3TsunamiManifest({ manifestText, smokeConditionsText: readFileSync(join(REPO, m0.smokeConditionsRef), "utf8"),
         sequencesText: readFileSync(join(REPO, SEQUENCES_FILE), "utf8"), coastJsonText: canonicalCoastJson(), fixtureTexts: templateFixtureTexts(),
-        contractTexts: contractTextsFor("P3-TSUNAMI-E01-001"), inherited: { manifestText: readFileSync(join(REPO, C4_MANIFEST), "utf8") } });
+        contractTexts: contractTextsOf(Object.keys(m0.contractSha256 ?? {})), inherited: { manifestText: readFileSync(join(REPO, C4_MANIFEST), "utf8") } });
       if (sha256Hex(trialSetupText) !== verified.manifest.trialSetupSha256) throw new Error("trialSetup bytes differ from trialSetupSha256");
       manifest = verified.manifest;
       trialSetup = JSON.parse(trialSetupText);
     } else {
       const verified = verifyFrozenP3Manifest({ manifestText, trialSetupText, smokeConditionsText: readFileSync(join(REPO, SMOKE_FILE), "utf8"),
         sequencesText: readFileSync(join(REPO, SEQUENCES_FILE), "utf8"),
-        // Q-WL2-E05P: E05-P の再検収の manifest は段 2 の契約の hash も固める。照合するのは manifest に書いた契約だけなので C4 の manifest は変わらず通る。
-        contractTexts: { ...contractTextsFor("P3-E01-REACCEPT-001"), ...contractTextsFor("P3-WEATHER-LIGHT-002") },
+        // P3-MH-AC05(3): manifest の contractSha256 の鍵の全部を契約から引いて照合に渡す（固定の集合にしない。鍵の契約が無ければ照合で止まる）。
+        contractTexts: contractTextsOf(Object.keys(m0.contractSha256 ?? {})),
         inherited: { manifestText: a10Text, initialStateText: readFileSync(join(REPO, JSON.parse(trialSetupText).initialStateRef), "utf8") } });
       manifest = verified.manifest;
       trialSetup = verified.trialSetup;
@@ -1640,6 +1715,8 @@ async function main(argv) {
     const windows = aux != null ? selectAuxWindows(auxList, aux)
       : [...planned.map((spec) => e01Window(spec, ctxFor(spec))), ...(only == null ? auxList : [])];
     const chosen = selected == null ? windows : selected.map((id) => windows.find((w) => w.id === id) ?? (() => { throw new Error(`unknown window: ${id}`); })());
+    const refused = chromeWindowsRefused(manifest, chosen.map((w) => w.id));
+    if (refused != null) throw new Error(refused);
     // 窓の記録と結果は manifest ごとに分ける（results/ は記録と混ざらないよう下の dir）。
     const recordsDir = join(evidence, "windows", manifest.manifestId);
     const resultsDir = join(recordsDir, "results");

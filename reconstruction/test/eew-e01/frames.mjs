@@ -134,8 +134,11 @@ export const FIX = {
 };
 const EVENT_BASE = 20240417000000;
 
-// 同時最大状態（A8 RES-07 の合法最大）。作り方は cost.test.ts:155-165 と同じ（EventID・運用・官署名だけを替え、時刻は動かさない）。
-// host の壁時計起点（WALL_ORIGIN_MS）は A8 試験の at と同じ時刻で、U-F（validUntil 翌 03:00）も U-W（時刻で消えない）も充填中・窓の間に消えない。
+// 同時最大状態（A8 RES-07 の合法最大）。作り方は cost.test.ts:155-165 と同じ（EventID・運用・官署名を替える）。
+// U-E（訓練の種を含む）は全時刻を、報告時刻が eewReportAtMs（充填の開始の host 壁時計の秒）になるよう平行移動する（P3-MH-AC01(1)。
+// K6 の horizon は起点＝min(報告時刻, 受信時刻) から 600 秒で、元の 2024-04-17 のままだと全件が eewHorizonStale で採られない）。
+// U-W・U-F は時刻を動かさない（P3-MH-RETIME-SCOPE=A）。host の壁時計起点（WALL_ORIGIN_MS）は A8 試験の at と同じ時刻で、U-F（validUntil 翌 03:00）も
+// U-W（時刻で消えない）も充填中・窓の間に消えない。
 // leaveRoomForP は P の再生が新しく足す U-W partial と U-F subject の数（room、統合担当が予備で数えて凍結する）だけ上限から空ける。
 // cycleC は full と同じ件数で、VXSE43 の最後の 1 件（EventID +511）だけを訓練の種 TRAINING_EVENT(0) に替える（C の U-E を一定に保つため。cycleCFrames）。
 // half は AC15 の保持量の対照（走査対象が保持量に比例しないことを full と比べて確かめる）。U-E の EventID・U-W partial・U-F subject が full の半分、
@@ -144,18 +147,20 @@ const EVENT_BASE = 20240417000000;
 // 無いと、指紋表を作る時点の U-W に履歴が無く、履歴 entry の形（subject,operation,reports）が指紋表に載らない。
 export const RES07 = { eventIdsPerFamily: 512, national: ["通常", "訓練", "試験"], partials: 128, forecastSubjects: 512 };
 export const PARTIAL_HISTORY_UPDATES = 2;
-export function nearCapacityFrames({ mode, room = null }) {
+export function nearCapacityFrames({ mode, room = null, eewReportAtMs }) {
   const counted = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
   if (mode === "leaveRoomForP" ? !(counted(room?.partials, RES07.partials) && counted(room?.forecastSubjects, RES07.forecastSubjects))
     : !["full", "half", "cycleC"].includes(mode) || room != null)
     throw new Error(`nearCapacityFrames: full/half/cycleC take no room; leaveRoomForP needs room {partials ≤ ${RES07.partials}, forecastSubjects ≤ ${RES07.forecastSubjects}}`);
+  if (!Number.isFinite(eewReportAtMs)) throw new Error("nearCapacityFrames: eewReportAtMs (the host wall clock second at the start of the fill) is required");
   const scale = mode === "half" ? 2 : 1;
   const updates = mode === "full" || mode === "half" ? PARTIAL_HISTORY_UPDATES : 0;
+  const eew = (xml) => shiftTimestamps(xml, eewReportAtMs - reportMs(xml));
   const out = [];
   for (let i = 0; i < RES07.eventIdsPerFamily / scale; i++) {
     const seed = mode === "cycleC" && i === RES07.eventIdsPerFamily - 1;
-    out.push({ headType: "VXSE43", xml: seed ? trainingEew(0) : withEventId(xmlOf(FIX.vxse43), String(EVENT_BASE + i)) });
-    out.push({ headType: "VXSE45", xml: withEventId(xmlOf(FIX.vxse45), String(EVENT_BASE + i)) });
+    out.push({ headType: "VXSE43", xml: eew(seed ? trainingEew(0) : withEventId(xmlOf(FIX.vxse43), String(EVENT_BASE + i))) });
+    out.push({ headType: "VXSE45", xml: eew(withEventId(xmlOf(FIX.vxse45), String(EVENT_BASE + i))) });
   }
   for (const operation of RES07.national) out.push({ headType: "VPWS50", xml: xmlOf(FIX.vpws50).replace("<Status>通常</Status>", `<Status>${operation}</Status>`) });
   for (let i = 0; i < RES07.partials / scale - (room?.partials ?? 0); i++) {
@@ -175,7 +180,8 @@ export function nearCapacityFrames({ mode, room = null }) {
 // - U-F: 官署0 を周期の開始 + 1 時間まで有効な報告で入れ直し、周期の 40 秒に validUntil が周期の開始 + 50 秒の報告で更新して期限回収させる
 // - U-W: national（通常）と partial 官署{c} の更新
 // どの subject も EEW は (Serial, ReportDateTime)、weather は ReportDateTime が前の報告より新しい（stale・duplicate で捨てられない、
-// spec §9.9「重複拒否だけの反復で代用しない」）。cycleStartWallMs は周期の開始の host 壁時計。
+// spec §9.9「重複拒否だけの反復で代用しない」）。cycleStartWallMs は周期の開始の host 壁時計。U-E の 3 入力は報告時刻を周期の開始＋その
+// offsetMs（秒）に置く（P3-MH-AC01(2)。K6 の horizon で stale にしない）。
 export const C_CYCLE = { periodMs: 60_000, offsetsMs: [0, 5_000, 10_000, 20_000, 25_000, 30_000, 40_000], validUntilAfterStartMs: 50_000,
   restoreValidForMs: 3_600_000, forecastOffice: "官署0", warmupCycles: 5 };
 const TRAINING_EVENT_BASE = 20260930000000; // 充填の通常 EventID（20240417000000+i）と重ならない訓練の EventID
@@ -188,13 +194,15 @@ export function cycleCFrames(c, cycleStartWallMs) {
   // 期限を合わせるため全時刻を動かすと報告が充填時（17:00）より古くなるので、ReportDateTime だけは充填時 + 周期ぶん進めた値に置き直す。
   const forecastUntil = (untilMs, reportAtMs) => atReport(shiftTimestamps(forecast, untilMs - validUntilMs(forecast)), reportAtMs);
   const cancel = withEventId(xmlOf(FIX.vxse43Cancel), String(TRAINING_EVENT_BASE + c + 1)).replace("<Status>通常</Status>", "<Status>訓練</Status>");
+  const eewAt = (offsetMs) => Math.floor((cycleStartWallMs + offsetMs) / 1000) * 1000;
+  const training = trainingEew(c + 1);
   return [
     { offsetMs: o0, headType: "VPWS50", xml: shiftTimestamps(xmlOf(FIX.vpws50), step) },
     { offsetMs: o1, headType: "VPWP50", xml: forecastUntil(cycleStartWallMs + C_CYCLE.restoreValidForMs, reportMs(forecast) + step - 30_000) },
     { offsetMs: o2, headType: "VPWW57", xml: atReport(office(xmlOf(FIX.vpww57), `官署${c}`), reportMs(xmlOf(FIX.vpww57)) + step) },
-    { offsetMs: o3, headType: "VXSE43", xml: eewVariant({ eventId: String(EVENT_BASE + c), serial: 2, reportAtMs: EEW_REPORT_MS + step, variant: c % 2 === 0 ? "A" : "B" }) },
-    { offsetMs: o4, headType: "VXSE43", xml: trainingEew(c + 1) },
-    { offsetMs: o5, headType: "VXSE43", xml: cancel },
+    { offsetMs: o3, headType: "VXSE43", xml: eewVariant({ eventId: String(EVENT_BASE + c), serial: 2, reportAtMs: eewAt(o3), variant: c % 2 === 0 ? "A" : "B" }) },
+    { offsetMs: o4, headType: "VXSE43", xml: shiftTimestamps(training, eewAt(o4) - reportMs(training)) },
+    { offsetMs: o5, headType: "VXSE43", xml: shiftTimestamps(cancel, eewAt(o5) - reportMs(cancel)) },
     { offsetMs: o6, headType: "VPWP50", xml: forecastUntil(cycleStartWallMs + C_CYCLE.validUntilAfterStartMs, reportMs(forecast) + step) },
   ];
 }
@@ -215,9 +223,12 @@ export function e03Frame(k, startWallMs) {
 // 差を保持件数の差で割った傾きが maxSlopePerRetained（回／保持 1 件）を超えたら Fail（走査対象が保持量に比例＝当該 subject だけでない）。
 export const AC15_SCENARIOS = { warmup: 10, samples: 100, intervalMs: 1500, metadataIntervalMs: 7000, scenarios: ["U-E", "metadata", "U-W", "U-F"],
   retention: { modes: ["full", "half"], maxSlopePerRetained: 0.5 } };
-export function ac15Frame(unit, index) {
-  if (unit === "U-E") return { headType: "VXSE43", xml: atReport(withEventId(xmlOf(FIX.vxse43), String(EVENT_BASE)), EEW_REPORT_MS + (index + 1) * 1000)
-    .replace(/<Serial>\d+<\/Serial>/, `<Serial>${index + 2}</Serial>`) };
+// U-E は全時刻を、報告時刻が送る時点の host 壁時計（atWallMs の秒）になるよう平行移動する（P3-MH-AC01(3)。K6 の horizon で stale にしない）。
+export function ac15Frame(unit, index, atWallMs) {
+  if (unit === "U-E") {
+    if (!Number.isFinite(atWallMs)) throw new Error("ac15Frame: U-E needs atWallMs (the host wall clock at the send)");
+    return { headType: "VXSE43", xml: eewVariant({ eventId: String(EVENT_BASE), serial: index + 2, reportAtMs: Math.floor(atWallMs / 1000) * 1000, variant: "A" }) };
+  }
   if (unit === "U-W") return { headType: "VPWW57", xml: atReport(office(xmlOf(FIX.vpww57), "官署0"), reportMs(xmlOf(FIX.vpww57)) + (index + 1) * 60_000) };
   if (unit === "U-F") return { headType: "VPWP50", xml: atReport(office(xmlOf(FIX.vpwp50), "官署0"), reportMs(xmlOf(FIX.vpwp50)) + (index + 1) * 1000) };
   throw new Error(unit === "metadata" ? "AC15 metadata は frame ではなく投入側の WS 切断で起こす（AC15_SCENARIOS の注記）" : `unknown AC15 unit ${unit}`);
@@ -225,7 +236,8 @@ export function ac15Frame(unit, index) {
 
 // E12: class 別の frame 列（e12-run.mjs の frames.jsonl の 1 行 = { atMs, frame }）。frame の形は e12-run.mjs の frame() と同じ
 // （旧 handler が読む xmlReport と新 ingress が読む head/encoding の両方、utf-8・無圧縮）。weather は k 番目の全時刻を baseWallMs + k × 周期へ
-// 平行移動する（同じ報告の繰り返しは新側で duplicate として捨てられ、処理の費用を測れない）。EEW は Serial を 1 ずつ進める（今の e12-run と同じ）。
+// 平行移動する（同じ報告の繰り返しは新側で duplicate として捨てられ、処理の費用を測れない）。EEW は Serial を 1 ずつ進め、全時刻を
+// 報告時刻が baseWallMs＋atMs になるよう平行移動する（P3-MH-AC01(3)。新側の壁時計より旧側の所要の分だけ前になるが、600 秒の horizon の内）。
 export const E12_CLASSES = {
   small: { fixture: FIX.vxse45, headType: "VXSE45", count: 200, intervalMs: 200 },
   large: { fixture: FIX.vpwp50Large, headType: "VPWP50", count: 30, intervalMs: 2000 },
@@ -249,7 +261,7 @@ export function e12Frames(cls, baseWallMs) {
   const infoKind = /<InfoKind>([^<]+)<\/InfoKind>/.exec(source)[1];
   return Array.from({ length: spec.count }, (_, k) => {
     const atMs = (k + 1) * spec.intervalMs;
-    if (spec.headType === "VXSE45") return { atMs, frame: e12Frame(source.replace("<Serial>1</Serial>", `<Serial>${k + 1}</Serial>`), "VXSE45", "eew.forecast",
+    if (spec.headType === "VXSE45") return { atMs, frame: e12Frame(shiftTimestamps(source, base + atMs - reportMs(source)).replace("<Serial>1</Serial>", `<Serial>${k + 1}</Serial>`), "VXSE45", "eew.forecast",
       { title, eventId: "20240417231454", serial: String(k + 1), infoKind }) };
     return { atMs, frame: e12Frame(shiftTimestamps(source, base + k * spec.intervalMs - reportMs(source)), spec.headType, "telegram.weather", { title, eventId: null, serial: null, infoKind }) };
   });

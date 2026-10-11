@@ -253,6 +253,20 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(aux.summarizeE14(withOwner(400), { bundles: [e14Bundle(0)] })).toMatchObject({ linked: 0, unconfirmed: { notSimultaneous: 1 } });
   });
 
+  // P3-MH-T04: owner 側の区間（monotonicMs − ownerMonotonicMs）を成立した束だけから unit ごとに別報告。ownerMonotonicMs の無い行は数えない。
+  it("P3-MH-T04 E14: the owner side (monotonicMs − ownerMonotonicMs) of linked bundles is reported per unit; rows without ownerMonotonicMs are counted apart, not as 0", () => {
+    const grants = (k: number, at: number) => (["U-E", "U-W", "U-F"] as const).map((unit, i) => grant(`g${k}${unit}`, unit, at + 10, at + 300 + i, { kind: "acknowledged", generation: k + 1 }));
+    const start = (k: number, at: number, owner: (unit: string) => number | null | undefined) => (["U-E", "U-W", "U-F"] as const).map((unit) => obs({ kind: "generationRaised",
+      runId: "r", inputId: e14Bundle(k).inputIds[unit], unit, generation: k + 1, monotonicMs: at, ...(owner(unit) === undefined ? {} : { ownerMonotonicMs: owner(unit) }) }));
+    const records = [...start(0, 100, (u) => (u === "U-W" ? null : 100 - (u === "U-E" ? 4 : 6))), ...grants(0, 100),
+      ...start(1, 1000, (u) => (u === "U-F" ? undefined : 1000 - 2)), ...grants(1, 1000),
+      // 束 2 は U-F の ack が無い（成立しない束は数えない）。
+      ...start(2, 2000, () => 1990), ...grants(2, 2000).slice(0, 2)];
+    const e14 = aux.summarizeE14(records, { bundles: [0, 1, 2].map(e14Bundle) });
+    expect([e14.linked, e14.ownerSide["U-E"], e14.ownerSide["U-W"], e14.ownerSide["U-F"]]).toMatchObject([2,
+      { rows: 2, ownerMonotonicMsMissing: 0, p50: 2, p99: 4, max: 4 }, { rows: 1, ownerMonotonicMsMissing: 1, max: 2 }, { rows: 1, ownerMonotonicMsMissing: 1, max: 6 }]);
+  });
+
   // R4: 初回の採用の待ちに再試行（backoff を含む）を混ぜない。
   it("P3-C4-AC13(5) adoption: first attempts and retries are reported apart", () => {
     const row = (attempts: number, waitMs: number) => obs({ kind: "notificationAdoption", runId: "r", channel: "desktop", intentId: `i${attempts}`, unit: "U-E", attempts,
@@ -272,8 +286,8 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
       if (decoded.kind !== "decoded") throw new Error("decode failed");
       return decoded.material;
     };
-    // K6（P3-LIFE-AC10・D-HARNESS=A）: 時計を充填の報時刻（23:14:57・23:14:59）へ寄せる。2024-06-13 の時計では充填が horizon 外で stale になる。
-    const at = Date.parse("2024-04-17T23:15:00+09:00");
+    // P3-MH-AC01(1): 充填の U-E の報時刻を充填の開始の時計へ寄せる（K6 の horizon で stale にしない）。
+    const at = Date.parse("2026-06-05T18:00:00+09:00");
     let monotonicMs = 0;
     let state = initialUnits["U-E"];
     const receive = (xml: string, headType: string, wallTimeMs: number) => {
@@ -281,7 +295,7 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
       state = step.state;
       return step;
     };
-    for (const f of nearCapacityFrames({ mode: "leaveRoomForP", room: { partials: 0, forecastSubjects: 0 } })) if (f.headType.startsWith("VXSE")) receive(f.xml, f.headType, at);
+    for (const f of nearCapacityFrames({ mode: "leaveRoomForP", room: { partials: 0, forecastSubjects: 0 }, eewReportAtMs: at })) if (f.headType.startsWith("VXSE")) receive(f.xml, f.headType, at);
     // 充填の通知の記録を期限で回収した後（窓の時点の U-E）。
     state = reduceEewUnit(state, { kind: "deadline", clock: { wallTimeMs: at + 60_000, monotonicMs: ++monotonicMs } }).state;
     const filledCurrent = state.current.length;
@@ -297,7 +311,7 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
   });
 
   it("P3-C4-T10 E14: bundle k updates a filled EEW EventID with the next Serial (no new EventID, so no capacityExceeded)", () => {
-    const filled = new Set(nearCapacityFrames({ mode: "leaveRoomForP", room: { partials: 0, forecastSubjects: 0 } })
+    const filled = new Set(nearCapacityFrames({ mode: "leaveRoomForP", room: { partials: 0, forecastSubjects: 0 }, eewReportAtMs: Date.parse("2026-06-05T18:00:00+09:00") })
       .filter((f) => f.headType === "VXSE45").map((f) => /<EventID>([^<]+)</.exec(f.xml)?.[1]));
     for (const k of [0, 511]) {
       const eew = e14BundleFrames(k, Date.parse("2026-06-05T18:00:00+09:00")).find((f) => f.unit === "U-E")!;

@@ -1,18 +1,20 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import type { CheckpointMeasurement, EewTraceSample } from "../../contracts/p2-eew-e01.types";
 import type { P3E01Manifest, P3EewInjectionRecord, P3EewPopulation, P3EewTraceSample } from "../../contracts/p3-e01-reaccept.types";
-import { sealSelfHash, verifyFrozenP3Manifest } from "../../src/measurement/eew-e01/frozen";
+import { HARNESS_TRIAL_SETUP, sealSelfHash, verifyFrozenP3Manifest } from "../../src/measurement/eew-e01/frozen";
 import { establishTrial, summarizeP3E01 } from "../../src/measurement/eew-e01/judge";
 import { checkpointWindows } from "./ac15.mjs";
 import { assembleP3Trials, assembleTrials, buildHostIndex, rejectionReasons } from "./analysis.mjs";
 import type { ChromeVersionEntry, HostLine, Probe } from "./analysis.mjs";
 import { summarizeE15 } from "./aux-measures.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
-import { buildP3Manifest } from "./draft.mjs";
+import { buildP3Manifest, contractTextsOf } from "./draft.mjs";
 import { injection, sample } from "./fixtures";
-import { calibratedSendAt, frameGapMeter, livenessBlocked, populationSpec, predictParseDelay, publishedBy, startInjector, trialTarget } from "./run.mjs";
-import { auxWindows } from "./windows.mjs";
+import { BACKEND_ONLY_CHROME, calibratedSendAt, chromeWindowsRefused, frameGapMeter, livenessBlocked, manifestChromeVersion, parseArgs, populationSpec, predictParseDelay,
+  predictTick, publishedBy, reclaimTickToEncodeMs, scanHostLines, startInjector, trialTarget } from "./run.mjs";
+import { auxWindows, currentsExpiredAtMeasure, expirySplit, waitFillExpiry } from "./windows.mjs";
 
 const machine = { chromeVersion: "154.0.8037.92", nodeVersion: "v22.23.2", osVersion: "27.0.0 arm64", device: "test" };
 // O09 の位置は凍結で空を拒否するので、契約の expectedDecisions（O09:2・O09:12）を置く。
@@ -303,5 +305,126 @@ describe("P3-C4-T09 / R1〜R3 boundaries of the frozen manifest and the runner's
     const trigger: { injectedHrMs: number; predictedParseDelayMs?: number | null } = { injectedHrMs: 1000 };
     expect([calibratedSendAt(trigger, 24.5, 1), trigger.predictedParseDelayMs]).toEqual([1025.5, 24.5]);
     expect([calibratedSendAt(trigger, null, 1), trigger.predictedParseDelayMs]).toEqual([1001, null]);
+  });
+});
+
+// P3-MH-T03: 3 つの保存母集団の較正（UWR の後の保存の始まり、P3-MH-AC03）。
+describe("P3-MH-T03 calibrated triggers of the three save populations (AC03)", () => {
+  const cp = (unit: string, attemptId: string, stage: string, inputIds: string[], from: number, to: number, generation = 1) => obs({ kind: "checkpoint", measurement: {
+    runId: "r", inputIds, unit, generation, attemptId, stage, startedMonotonicMs: from, endedMonotonicMs: to, bytes: 0, outcome: "succeeded", retryReason: "notRetry" } });
+  const tick = (monotonicMs: number) => obs({ kind: "mailbox", runId: "r", monotonicMs, trigger: "tick" });
+
+  it("(1) the delay is the median of the latest ten 'own save encode start − trigger send', null before ten trials", () => {
+    // host の時計 = 投入側 + 5。引き金を含む U-F の保存の encode 開始 − 実送信は 30 + i。
+    const trials = Array.from({ length: 12 }, (_, i) => ({ trigger: { inputId: `t${i}`, injectedHrMs: i * 3000 } }));
+    const scan = scanHostLines(trials.map((t, i) => cp("U-F", `a${i}`, "encode", [t.trigger.inputId], t.trigger.injectedHrMs + 5 + 30 + i, t.trigger.injectedHrMs + 60)));
+    expect([predictParseDelay(trials.slice(0, 9), scan.saveStarts["U-F"], 5), predictParseDelay(trials.slice(0, 10), scan.saveStarts["U-F"], 5),
+      predictParseDelay(trials, scan.saveStarts["U-F"], 5)]).toEqual([null, 34.5, 36.5]);
+  });
+
+  it("(2) the tick phase comes from the mailbox tick rows only; checkpoint encode rows mixed in do not change it", () => {
+    const ticks = Array.from({ length: 15 }, (_, i) => tick(437 + i * 1000));
+    const mixed = ticks.flatMap((t, i) => [t, cp("U-F", `a${i}`, "encode", [], 437 + i * 1000 + 180, 437 + i * 1000 + 181)]);
+    const [only, both] = [scanHostLines(ticks), scanHostLines(mixed)].map((s) => predictTick(s.ticks, 15_000, 1200));
+    expect([only, both]).toEqual([16_437, 16_437]);
+  });
+
+  it("(2) regression: the deadline delay is measured from the tick that reclaimed (the targeted tick at or after validUntil), not the tick just before a save that started more than a second later", () => {
+    // 回収の要求は 1000ms の tick、owner の応答待ちの間に 2000ms の tick の行が出て、encode 開始は 2300ms。遅れは 1300ms（300ms ではない）。
+    const ticks = [0, 1000, 2000, 3000];
+    const origin = 1_780_650_000_000;
+    expect(reclaimTickToEncodeMs(ticks, { predictedTickHostMs: 1000, validUntilWallMs: origin + 1000 }, 2300, origin)).toBe(1300);
+    // 狙った tick ではまだ期限前（validUntil が tick の後）、狙った tick の行が ±500ms に無い試行は較正に使わない。
+    expect([reclaimTickToEncodeMs(ticks, { predictedTickHostMs: 1000, validUntilWallMs: origin + 1200 }, 2300, origin),
+      reclaimTickToEncodeMs([0, 2000], { predictedTickHostMs: 1000, validUntilWallMs: origin + 1000 }, 2300, origin)]).toEqual([null, null]);
+  });
+
+  it("(3) a calibrated trial targets the save holding its trigger (the whole save for maxForecastCheckpointSave) and, for the deadline, the reclaim save even 500 ms or more from the predicted tick", () => {
+    const host = { decode: new Map(), t1: new Map(), t2: new Map([["input-1", 0]]), processing: [{ inputId: "input-1" }], raised: new Map([["input-1|U-F", 7]]),
+      checkpoints: [{ unit: "U-W", stage: "encode", attemptId: "w", generation: 3, startedMonotonicMs: 900, endedMonotonicMs: 903, inputIds: ["input-9"] },
+        { unit: "U-W", stage: "encode", attemptId: "w1", generation: 4, startedMonotonicMs: 950, endedMonotonicMs: 952, inputIds: ["input-1"] },
+        { unit: "U-F", stage: "encode", attemptId: "f", generation: 7, startedMonotonicMs: 960, endedMonotonicMs: 965, inputIds: ["input-1"] },
+        { unit: "U-F", stage: "write", attemptId: "f", generation: 7, startedMonotonicMs: 966, endedMonotonicMs: 990, inputIds: ["input-1"] },
+        { unit: "U-F", stage: "encode", attemptId: "g", generation: 8, startedMonotonicMs: 2700, endedMonotonicMs: 2701, inputIds: [] },
+        { unit: "U-F", stage: "write", attemptId: "g", generation: 8, startedMonotonicMs: 2702, endedMonotonicMs: 2720, inputIds: [] }] };
+    const calibrated = { trigger: { inputId: "input-1", injectedHrMs: 0, calibrated: true, predictedTickHostMs: 2000 } };
+    expect([trialTarget("maxWeatherCheckpointEncodeStarted", calibrated, host, 0), trialTarget("maxForecastCheckpointSave", calibrated, host, 0),
+      trialTarget("forecastDeadlineOverlap", calibrated, host, 0, "encodeThroughWrite")])
+      .toEqual([{ startMs: 950, endMs: 952 }, { startMs: 960, endMs: 990 }, { startMs: 2700, endMs: 2720 }]);
+    // C4 の記録（較正の印が無く predictedTickHostMs を持つ）は ±500ms の絞り込みのまま。
+    expect(trialTarget("forecastDeadlineOverlap", { trigger: { inputId: "input-1", injectedHrMs: 0, predictedTickHostMs: 2000 } }, host, 0, "encodeThroughWrite")).toBeNull();
+  });
+});
+
+// P3-MH-T05: harness の 1 組の照合・照合の集合・正式の CLI・backend 単独の manifest。
+describe("P3-MH-T05 the harness pair, the contract set, the formal CLI and the backend-only manifest (AC05)", () => {
+  const harness = () => buildP3Manifest({ id: "p3-harness-test", ...machine, o09Positions: [2, 12], trialSetup: HARNESS_TRIAL_SETUP.ref });
+  const verify = (manifestText: string, b: ReturnType<typeof harness>, contractTexts = b.contractTexts) => verifyFrozenP3Manifest({ manifestText, trialSetupText: b.trialSetupText,
+    smokeConditionsText: b.smokeText, sequencesText: b.sequencesText, contractTexts, inherited: { manifestText: b.a10Text, initialStateText: b.initialStateText } });
+  type Editable = { trialSetupRef: string; trialSetupSha256: string; contractSha256: Record<string, string> };
+  const reseal = (text: string, patch: (m: Editable) => void) => {
+    const m = JSON.parse(text) as Editable;
+    patch(m);
+    return sealSelfHash(`${JSON.stringify(m, null, 2)}\n`, "manifestSha256");
+  };
+
+  it("the harness pair verifies with the harness contract key; another ref or hash, or a harness manifest without P3-MEASURE-HARNESS-001, is refused; the default is still the A10 pair", () => {
+    const b = harness();
+    const a10 = built();
+    expect([b.manifest.trialSetupRef, a10.manifest.trialSetupRef]).toEqual([HARNESS_TRIAL_SETUP.ref, JSON.parse(a10.a10Text).trialSetupRef]);
+    expect(b.initialStateText).toBe(readFileSync(JSON.parse(b.trialSetupText).initialStateRef, "utf8"));
+    expect(verify(b.manifestText, b).manifest.populations.fixedBacklog.stateRef).toBe(`${JSON.parse(b.trialSetupText).initialStateRef}#populations.fixedBacklog`);
+    expect(() => verify(reseal(b.manifestText, (m) => { m.trialSetupRef = "reconstruction/test/eew-e01/evidence/p3-harness/other.json"; }), b)).toThrow("trialSetup differs");
+    expect(() => verify(reseal(b.manifestText, (m) => { m.trialSetupSha256 = "e".repeat(64); }), b)).toThrow("trialSetup differs");
+    expect(() => verify(reseal(b.manifestText, (m) => { delete m.contractSha256["P3-MEASURE-HARNESS-001"]; }), b)).toThrow("lacks P3-MEASURE-HARNESS-001");
+  });
+
+  it("the runner passes exactly the manifest's contract keys; a key whose contract is missing stops the check", () => {
+    const b = harness();
+    const keys = Object.keys(b.manifest.contractSha256);
+    expect(Object.keys(contractTextsOf(keys)).sort()).toEqual([...keys].sort());
+    const withUnknown = reseal(b.manifestText, (m) => { m.contractSha256["P3-NOT-A-CONTRACT-001"] = "f".repeat(64); });
+    expect(() => verify(withUnknown, b, contractTextsOf(Object.keys(JSON.parse(withUnknown).contractSha256)))).toThrow("contract text missing: P3-NOT-A-CONTRACT-001");
+  });
+
+  it("--node goes with --manifest and --only does not; a backend-only manifest never launches Chrome and refuses the E01 windows", async () => {
+    expect(parseArgs(["--manifest", "m.json", "--node", "/usr/bin/node", "--windows", "e03-run1"]).selected).toEqual(["e03-run1"]);
+    expect(() => parseArgs(["--manifest", "m.json", "--only", "fixedBacklog"])).toThrow("--only is allowed only with --preliminary");
+    const backend = { chrome: { version: BACKEND_ONLY_CHROME } };
+    expect(await manifestChromeVersion(backend, () => { throw new Error("Chrome launched"); })).toBe(BACKEND_ONLY_CHROME);
+    expect([chromeWindowsRefused(backend, ["e03-run1", "e03-run2"]), chromeWindowsRefused(backend, ["e03-run1", "e01-fixedBacklog-run1"])])
+      .toEqual([null, "the backend-only manifest cannot run windows that need Chrome: e01-fixedBacklog-run1"]);
+    expect(chromeWindowsRefused({ chrome: { version: "154.0.8037.92" } }, ["e01-fixedBacklog-run1"])).toBeNull();
+  });
+});
+
+// P3-MH-FULL-STATE=D の境界（品質レビュー P2-2・P2-3）: 失効の待ちの上限と、P 窓の測定の開始の期限。
+describe("P3-MH-T02/AC02 regressions: the expiry-wait limit and the P-window measurement start", () => {
+  const expected = { snapshotActive: { eew: "512/0/0", weatherCurrent: "127/1/1" }, checkpoint: { "U-F.subjects": 511 } };
+  const after = { ...expected, snapshotActive: { ...expected.snapshotActive, eew: "0/0/0" } };
+  const run = (answerAtMs: number) => {
+    let now = 1_000_000 + 659_500;
+    const filled = { record: { eewOriginWallMs: 1_000_000 } as { eewOriginWallMs: number; expiry?: unknown }, expected };
+    const done = waitFillExpiry({ check: () => {}, wallMs: () => now }, { dir: "unused", progress: {} }, filled,
+      { observe: async () => { now = answerAtMs; return after; }, pause: async () => { throw new Error("no second poll expected"); } });
+    return { done, filled };
+  };
+
+  it("a matching /snapshot requested before origin + 660 s but answered after it is refused, not started", async () => {
+    await expect(run(1_000_000 + 661_000).done).rejects.toThrow("stateNotReproducible");
+    const inTime = run(1_000_000 + 659_900);
+    await inTime.done;
+    expect(inTime.filled.record.expiry).toMatchObject({ observedAfterExpiry: after });
+  });
+
+  it("a P window whose E02 client started its first request only after the fill's currents expired is Blocked (currentsExpiredBeforeMeasure)", () => {
+    // host の時計 = runner の hrtime（clock 行が 0/0）。充填の起点 1,000,000、host の壁時計の起点 400,000 なので期限は host 1,200,000ms。
+    const records = [{ t: "clock", hrtimeNs: "0", perfNowMs: 0 }];
+    const client = { start: { hrtimeNs: String(1_199_000n * 1_000_000n), perfNowMs: 50 }, end: { hrtimeNs: String(1_300_000n * 1_000_000n) } };
+    const row = (requestStartMonotonicMs: number) => ({ requestStartMonotonicMs, bodyCompleteMonotonicMs: requestStartMonotonicMs + 3, httpStatus: 200, failure: null });
+    const split = (first: number) => expirySplit(records, [row(first), row(first + 1000)], client, { wallOriginMs: 400_000 }, { eewOriginWallMs: 1_000_000 });
+    // client の起動は期限の前（host 1,199,000）でも、最初の要求が期限の後（50＋1,100 → host 1,200,100）なら Blocked。
+    expect([split(1_150).measureStartHostMs, currentsExpiredAtMeasure(split(1_150))]).toEqual([1_200_100, expect.stringContaining("currentsExpiredBeforeMeasure")]);
+    expect(currentsExpiredAtMeasure(split(950))).toBeNull();
   });
 });

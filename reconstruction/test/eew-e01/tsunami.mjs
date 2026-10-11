@@ -1,5 +1,5 @@
 // P3-TSUNAMI-E01-001（C6）の津波の入力と manifest の草案。runner（run.mjs）と解析が使う津波だけの規則をここに置く。
-// frames.mjs は C4 の initial-state（rulesSource）が bytes の hash で固定しているので触らない。
+// 津波だけの規則は frames.mjs に置かない（frames.mjs の bytes は initial-state の rulesSource が固定し、変えると全窓の preflight が止まる）。
 //   草案（凍結しない）: node reconstruction/test/eew-e01/tsunami.mjs --draft --id <manifestId> [--out <path>] [--values <json>]
 //     --values は予備測定（AC08）で固定した値の JSON（{ primeLeadMs, periodMs, triggerLeadMs, stop, preliminary }、どれも母集団 → 値。preliminary は
 //     { successes, trials, msPerAttempt, source } で stopCondition をそこから計算する。machine は { chromeVersion, nodeVersion, osVersion, device } で、

@@ -8,14 +8,14 @@
 //   Chrome・Node（/opt/homebrew/opt/node@22）・OS・端末は実機から取る。--out の既定は evidence/。既存のファイルは上書きしない。
 //   書く前に verifyFrozenManifest を通す（通らなければ何も書かない）。
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { arch, cpus, release, totalmem } from "node:os";
 import { join } from "node:path";
 
 import { E12_CONFIG_NOTE } from "./aux-measures.mjs";
 import { AC15_SCENARIOS, C_CYCLE, E03_SERIES, E12_CLASSES, FIX, PARTIAL_HISTORY_UPDATES, REPO, RES07, WALL_ORIGIN_MS, fixtureId, fixtureText, loadN, replayLoad, sha256Hex } from "./frames.mjs";
 
-import { sealSelfHash, verifyFrozenManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
+import { HARNESS_TRIAL_SETUP, sealSelfHash, verifyFrozenManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
 
 const N_WINDOW_FILE = join(process.env.HOME, "dev/fleq-corpus-p0/20260929-n-window/page1.json");
 const EVIDENCE = "reconstruction/test/eew-e01/evidence";
@@ -63,6 +63,12 @@ export function contractTextsFor(root = "P2-EEW-E01-001", all = contractTexts())
   return Object.fromEntries([root, ...own].map((id) => [id, all[id]]));
 }
 
+// P3-MH-AC05(3): 凍結 manifest の contractSha256 の鍵の全部を contractId で引く（固定の集合にしない）。無い鍵は undefined のまま渡し、
+// 照合（verifyContractHashes の contract text missing）で止める。
+export function contractTextsOf(ids, all = contractTexts()) {
+  return Object.fromEntries(ids.map((id) => [id, all[id]]));
+}
+
 const ref = (name) => ({ fixture: fixtureId(name), sha256: sha256Hex(fixtureText(name)) });
 
 // initial-state の recipe（fixture・sha256・書き換え規則・件数）。規則の実装は frames.mjs で、その sha256 も recipe に固定する。
@@ -79,15 +85,25 @@ function recipes(room) {
       source: "A8 RES-07（p2-snapshot-sse.json）の合法最大を cost.test.ts:155-165 と同じ作り方で製品入力から作る",
       fixtures: [FIX.vxse43, FIX.vxse45, FIX.vpws50, FIX.vpww57, FIX.vpwp50].map(ref),
       rules: [
-        `U-E: VXSE43 ${FIX.vxse43} と VXSE45 ${FIX.vxse45} の EventID を ${20240417000000}+i（i=0..${RES07.eventIdsPerFamily - 1}）に替えて交互に送る（2 family × ${RES07.eventIdsPerFamily}）。時刻は動かさない`,
+        `U-E: VXSE43 ${FIX.vxse43} と VXSE45 ${FIX.vxse45} の EventID を ${20240417000000}+i（i=0..${RES07.eventIdsPerFamily - 1}）に替えて交互に送る（2 family × ${RES07.eventIdsPerFamily}）。全時刻を、報告時刻が充填の開始の host 壁時計（秒）になるよう平行移動する（P3-MH-AC01(1)、K6 の horizon で stale にしない）`,
         `U-W national: VPWS50 ${FIX.vpws50} の最初の <Status>通常</Status> を ${RES07.national.join("・")} に替えて 3 件（frame の外側の運用も本文に揃える）`,
         `U-W partial: VPWW57 ${FIX.vpww57} の EditorialOffice を 官署i（i=0..partials-1）に替える`,
         `U-F: VPWP50 ${FIX.vpwp50} の EditorialOffice を 官署i（i=0..subjects-1）に替える。ReportDateTime は 17:00 のまま、validUntil は翌 03:00`,
-        "cycleC: full と同じで、VXSE43 の EventID 20240417000511 だけを訓練の種（VXSE43 の EventID 20260930000000、Status 訓練）に替える",
+        "cycleC: full と同じで、VXSE43 の EventID 20240417000511 だけを訓練の種（VXSE43 の EventID 20260930000000、Status 訓練、時刻は U-E と同じ平行移動）に替える",
         `half: U-E の EventID（i=0..${RES07.eventIdsPerFamily / 2 - 1}）・U-W partial（官署0..${RES07.partials / 2 - 1}）・U-F（官署0..${RES07.forecastSubjects / 2 - 1}）を full の半分、national は同じ 3 件（AC15 の保持量の対照）`,
         `full・half: U-W partial の官署ごとに、同じ報告の ReportDateTime を +k 秒（k=1..${PARTIAL_HISTORY_UPDATES}）に置いた更新を続けて送り、履歴を ${PARTIAL_HISTORY_UPDATES} 件作る（AC15 の指紋表に履歴 entry の形を載せる）`,
-        "全て報告時刻を動かさない（host の壁時計起点 2026-06-05T18:00+09:00 は A8 試験の at と同じ）",
+        "U-W・U-F は報告時刻を動かさない（P3-MH-RETIME-SCOPE=A。host の壁時計起点 2026-06-05T18:00+09:00 は A8 試験の at と同じで、U-F の validUntil 翌 03:00 は窓の間に来ない）",
       ],
+      // P3-MH-FULL-STATE=D（作者裁定 2026-10-11）。窓の種類で満杯の状態の定義を分ける。
+      fullState: {
+        ruling: "P3-MH-FULL-STATE=D",
+        eewOrigin: "充填の U-E の起点は充填の開始の host 壁時計の秒（報告時刻）。1,024 件の current は起点＋600,000ms の後の最初の deadline 要求でまとめて失効し、gate（起点＋86,400,000ms）は残る",
+        horizonStale: "充填の確かめで、充填の間の診断 eewHorizonStale が 0 件（1 件でもあれば stateNotReproducible）",
+        pWindows: { usedBy: ["E02-P", "E05-P"], rule: "失効の前後を同じ窓で測る。充填・静まりの後の確かめ（observedBeforeMeasure）を起点＋600,000ms より前に終えられなければ Blocked（currentsExpiredBeforeMeasure）。結果に失効の時刻（期限の host 単調時計）と、E05 の最大 RSS・E02 の p50・p99・max を失効の前・後に分けて並べる（判定は今どおり窓全体）" },
+        cWindows: { usedBy: ["E06", "E07-C", "E14"], rule: "充填の確かめの後、host 壁時計が起点＋600,000ms＋2 tick を過ぎ、/snapshot の eew が 0/0/0 で weather の件数が expected のままになるまで待ってから周期・束を始める。起点＋660,000ms を過ぎたら stateNotReproducible",
+          expectedAfterExpiry: { eew: "0/0/0" },
+          steadyCurrents: "cycleC: 通常の続報（Serial 2、1 周期に 1 件）が採用ごとに current を作り直し各 10 分生きるので、周期の終わりの eew の通常の activeCount は周期 0〜9 で増え、周期 10 以後は約 10。訓練の EventID は同じ周期のうちに取消すので残らない。E14: 束の訂正が current を作り直し、20 秒間隔なら約 30 件で一定" },
+      },
       pacing: "sendPaced: 未処理（送った数 − host の decode 観測数）を通常 32 件以下・EEW 8 件以下（予約枠）・VPWS50 は 0 件のときだけ送る（mailbox RES-03/04 で拒否させない）。送った後に expected の値を /snapshot と保存済み checkpoint で確かめ、違えば窓を Blocked（stateNotReproducible）",
       modes: {
         full: { room: null, expected: expect("512/0/0", null), usedBy: ["AC15"] },
@@ -105,12 +121,12 @@ function recipes(room) {
         { offsetMs: C_CYCLE.offsetsMs[0], rule: `VPWS50 ${FIX.vpws50}（通常）の全時刻を充填時より (c+1)×60 秒後へ`, effect: "U-W national の更新（履歴は深さ 2 で最古の normal を押し出す。f65961cc）" },
         { offsetMs: C_CYCLE.offsetsMs[1], rule: `VPWP50 ${FIX.vpwp50} の EditorialOffice を ${C_CYCLE.forecastOffice}、全時刻を validUntil が周期の開始 + ${C_CYCLE.restoreValidForMs / 60_000} 分になるよう動かし、ReportDateTime を充填時 + (c+1)×60 秒 − 30 秒に置き直す`, effect: "前の周期で期限回収した U-F subject の入れ直し（周期 0 は更新）" },
         { offsetMs: C_CYCLE.offsetsMs[2], rule: `VPWW57 ${FIX.vpww57} の EditorialOffice を 官署{c}、ReportDateTime を充填時 + (c+1)×60 秒`, effect: "U-W partial の更新" },
-        { offsetMs: C_CYCLE.offsetsMs[3], rule: `VXSE43 ${FIX.vxse43} の EventID を 20240417000000+c、Serial 2、全時刻を (c+1)×60 秒後へ、予測を c の偶奇で A/B（愛媛県東予 4→5-）`, effect: "U-E の更新" },
-        { offsetMs: C_CYCLE.offsetsMs[4], rule: `VXSE43 ${FIX.vxse43}（Status 訓練）の EventID を 20260930000000+c+1`, effect: "U-E の追加。family 512 を超えるので製品が最古の非通常（前の周期の訓練 EventID の gate）を追い出す（eew.ts:366-381）" },
-        { offsetMs: C_CYCLE.offsetsMs[5], rule: `VXSE43 取消 ${FIX.vxse43Cancel}（Status 訓練）の EventID を 20260930000000+c+1`, effect: "U-E の取消（同じ周期に足した訓練 EventID が current から消える）" },
+        { offsetMs: C_CYCLE.offsetsMs[3], rule: `VXSE43 ${FIX.vxse43} の EventID を 20240417000000+c、Serial 2、全時刻を報告時刻が周期の開始の host 壁時計＋${C_CYCLE.offsetsMs[3] / 1000} 秒（秒）になるよう平行移動、予測を c の偶奇で A/B（愛媛県東予 4→5-）`, effect: "U-E の更新" },
+        { offsetMs: C_CYCLE.offsetsMs[4], rule: `VXSE43 ${FIX.vxse43}（Status 訓練）の EventID を 20260930000000+c+1、全時刻を報告時刻が周期の開始の host 壁時計＋${C_CYCLE.offsetsMs[4] / 1000} 秒（秒）になるよう平行移動`, effect: "U-E の追加。family 512 を超えるので製品が最古の非通常（前の周期の訓練 EventID の gate）を追い出す（eew.ts:366-381）" },
+        { offsetMs: C_CYCLE.offsetsMs[5], rule: `VXSE43 取消 ${FIX.vxse43Cancel}（Status 訓練）の EventID を 20260930000000+c+1、全時刻を報告時刻が周期の開始の host 壁時計＋${C_CYCLE.offsetsMs[5] / 1000} 秒（秒）になるよう平行移動`, effect: "U-E の取消（同じ周期に足した訓練 EventID が current から消える）" },
         { offsetMs: C_CYCLE.offsetsMs[6], rule: `VPWP50 ${FIX.vpwp50} の EditorialOffice を ${C_CYCLE.forecastOffice}、全時刻を validUntil が周期の開始（host 壁時計）+ ${C_CYCLE.validUntilAfterStartMs / 1000} 秒になるよう動かし、ReportDateTime を充填時 + (c+1)×60 秒に置き直す`, effect: "U-F の更新と、周期の中の tick での期限回収" },
       ],
-      constantRetention: "周期の終わり（58 秒）で、U-E は current・gate・family 予算、U-F は subjects 512・active 511、U-W は partials 128 が周期をまたいで同じ（E06 の傾きを保持量の目減りで偏らせない）",
+      constantRetention: "周期の終わり（58 秒）で、U-E は gate・family 予算、U-F は subjects 512・active 511、U-W は partials 128 が周期をまたいで同じ（E06 の傾きを保持量の目減りで偏らせない）。U-E の current は充填の失効を待ってから始め、周期の続報の分だけ周期 10 まで増えて一定（nearCapacity.fullState.cWindows.steadyCurrents）",
       bound: `c < ${RES07.partials}（官署{c} が充填済みの範囲にある）`,
       expectedPerCycle: "診断 eewCapacityEvicted が 1 件（訓練 EventID の追加による容量退去。U-E の保持量が一定であることの観測値。eew の activeCount は event 単位で VXSE45 が残るため減らない）",
       cancelScope: "取消は訓練の区分でだけ起きる。通常の取消は C では走らない",
@@ -131,7 +147,7 @@ function recipes(room) {
       fixtures: [FIX.vxse43, FIX.vpww57, FIX.vpwp50].map(ref),
       warmup: AC15_SCENARIOS.warmup, samples: AC15_SCENARIOS.samples, intervalMs: AC15_SCENARIOS.intervalMs, metadataIntervalMs: AC15_SCENARIOS.metadataIntervalMs, order: AC15_SCENARIOS.scenarios,
       rules: {
-        "U-E": `VXSE43 ${FIX.vxse43} の EventID 20240417000000、Serial を index+2、ReportDateTime を 23:14:59 + (index+1) 秒`,
+        "U-E": `VXSE43 ${FIX.vxse43} の EventID 20240417000000、Serial を index+2、全時刻を報告時刻が送る時点の host 壁時計（秒）になるよう平行移動（P3-MH-AC01(3)）`,
         metadata: `frame ではなく投入側の WS 切断（server 側で socket を terminate）。host が connectionLost を流し RECONNECT_MS 5 秒後に再接続する（host.ts:228-231）。間隔 ${AC15_SCENARIOS.metadataIntervalMs}ms（予備の再接続所要より長い）。区間は切断の時刻（投入側 hrtime を host 時計へ写したもの）から次の区間の起点まで`,
         "U-W": `VPWW57 ${FIX.vpww57} の EditorialOffice を 官署0、ReportDateTime を 2020-06-22T23:00+09:00 + (index+1) 分`,
         "U-F": `VPWP50 ${FIX.vpwp50} の EditorialOffice を 官署0、ReportDateTime を 17:00 + (index+1) 秒`,
@@ -255,34 +271,58 @@ const P3_TABLE = {
   maxVpws50ParseStarted: { spec: "§7.5-2", a10: "maxVpws50DecodeStarted(reference、起点を full parse 開始に替える)", r61: "除外4条件の1", state: "maxVpws50DecodeStarted", periodMs: Q.refPeriodMs,
     how: "最大 VPWS50 15_18_01 を送った 1ms 後に EEW を送り、T0 が full parse 開始（P3-C4-PARSE-MARK）の 0〜5ms 後かつ parse 中なら成立" },
   maxWeatherCheckpointEncodeStarted: { spec: "§7.5-3", a10: "maxWeatherCheckpointEncodeStarted(reference)", r61: "除外4条件の2", state: "maxWeatherCheckpointEncodeStarted", periodMs: Q.refPeriodMs,
-    how: "VPWW55 を引き金に予測した tick の U-W encode 開始の 1ms 後に EEW を送り、T0 が encode 開始の 0〜5ms 後かつ encode 中なら成立" },
+    how: "VPWW55 を引き金に、引き金を含む U-W の保存の encode 開始の 1ms 後に EEW を送り（送る時刻は直近 10 試行の「encode 開始 − 引き金の実送信」の中央値で較正、P3-MH-AC03）、T0 が encode 開始の 0〜5ms 後かつ encode 中なら成立" },
   maxForecastCheckpointSave: { spec: "§7.5-3(保存)", a10: "maxForecastCheckpointSave(reference)", r61: "除外4条件の3", state: "maxForecastCheckpointSave", periodMs: Q.refPeriodMs,
-    how: "VPWP50 81_09_01 を引き金に予測した tick の U-F 保存（encode 開始〜最後の段の終わり）の開始 1ms 後に EEW を送る" },
+    how: "VPWP50 81_09_01 を引き金に、引き金を含む U-F の保存（encode 開始〜最後の段の終わり）の開始 1ms 後に EEW を送る（送る時刻は直近 10 試行の中央値で較正、P3-MH-AC03）" },
   forecastDeadlineOverlap: { spec: "§7.5-3(期限処理)", a10: "forecastDeadlineOverlap(reference)", r61: "除外4条件の4", state: "forecastDeadlineOverlap", periodMs: Q.refPeriodMs,
-    how: "validUntil を狙う tick の 1 つ前の tick に VPWP50 81_01_04 を置き、狙う tick の期限回収で起きた U-F の保存の試行全体（encode 開始〜write 完了、span encodeThroughWrite）の開始 1ms 後に EEW を送り、T0 が開始の 0〜5ms 後かつ保存の試行中なら成立。代わりの条件として Q-C4-ALT-CONDITION で 2026-10-07 に固定（元の条件の U-F encode の開始は、期限処理の encode が約 0.3ms で T0 が encode 中に入らず、Mac mini の予備で成立 8.6%）。引き金の EditorialOffice は 期限回収官署 に替え、負荷 N・P の 81_01_04 と subject を分ける（Q-C4-DEADLINE-SUBJECT）" },
+    how: "validUntil を狙う tick（mailbox の tick の行から位相を当てる）とその 1 つ前の tick の間の秒境界に置いた VPWP50 81_01_04 を 1 つ前の tick の 100ms 以上前に送り、狙う tick の期限回収で起きた U-F の保存の試行全体（encode 開始〜write 完了、span encodeThroughWrite）の開始 1ms 後に EEW を送り、T0 が開始の 0〜5ms 後かつ保存の試行中なら成立。代わりの条件として Q-C4-ALT-CONDITION で 2026-10-07 に固定（元の条件の U-F encode の開始は、期限処理の encode が約 0.3ms で T0 が encode 中に入らず、Mac mini の予備で成立 8.6%）。引き金の EditorialOffice は 期限回収官署 に替え、負荷 N・P の 81_01_04 と subject を分ける（Q-C4-DEADLINE-SUBJECT）" },
   maxVpws50ReceivedThenEew: { spec: "なし(R57 の作者裁定から来た衝突試験)", a10: "なし(初期状態は maxVpws50DecodeStarted を継承)", r61: "なし", state: "maxVpws50DecodeStarted", periodMs: Q.refPeriodMs,
     how: "同じ WS で最大 VPWS50 の frame を送った直後に間を空けず EEW を送り、EEW の実送信の上界（host 時計）が VPWS50 の T1 より前なら成立" },
 };
 
+// P3-MH-SETUP-PATH=A: 測定の harness の 1 組（evidence/p3-harness/）。A10 の initial-state の populations・nWindow と leaveRoomForP の room を
+// 写し（N の窓の private corpus を読まない）、recipe は今の frames.mjs の規則（rulesSource）で作り直す。trial-setup は A10 のものに ref・hash と
+// 時刻の付け直し・満杯の状態の手順を足す。書き出しは CLI の --harness-setup（既存は上書きしない）。
+export const HARNESS_DIR = `${EVIDENCE}/p3-harness`;
+export function buildHarnessSetup() {
+  const a10 = JSON.parse(readFileSync(join(REPO, A10_MANIFEST), "utf8"));
+  const a10Trial = JSON.parse(readFileSync(join(REPO, a10.trialSetupRef), "utf8"));
+  const a10State = JSON.parse(readFileSync(join(REPO, a10Trial.initialStateRef), "utf8"));
+  const initialStateText = `${JSON.stringify({ schemaVersion: a10State.schemaVersion, populations: a10State.populations, nWindow: a10State.nWindow,
+    ...recipes(a10State.nearCapacity.modes.leaveRoomForP.room) }, null, 2)}\n`;
+  const trialSetup = { ...a10Trial, initialStateRef: `${HARNESS_DIR}/initial-state.json`, initialStateSha256: sha256Hex(initialStateText),
+    prepareDirtyGeneration: [...a10Trial.prepareDirtyGeneration,
+      "U-E の入力（充填・C・AC15・E12）は報告時刻を host の壁時計へ寄せて流す（K6 の horizon で stale にしない。initial-state の nearCapacity.rules・cycleC・ac15Scenarios、P3-MH-AC01）。投入側の start frame には host の壁時計の time（ISO 8601）を入れる",
+      "満杯の状態は initial-state の nearCapacity.fullState（P3-MH-FULL-STATE=D）: P 窓は失効の前後を同じ窓で測って分けて報告し、E06・E07-C・E14 は充填の current の失効を待ってから始める"] };
+  return { initialStateText, trialSetupText: `${JSON.stringify(trialSetup, null, 2)}\n` };
+}
+
 // collisionVerdict は P3-C4-COLLISION-VERDICT（A: 参考・T0、B: 正式・injectorSend）。stop は母集団ごとの stopCondition（予備測定の後に統合担当が固定する）。
 // 指定の無い母集団は establishmentRate（成立率の仮置き）から maxAttempts = 100 + ceil(1000 ÷ 成立率)、maxDurationMs = maxAttempts × 周期 × 2 の仮値。
-// lead・deadlineSpan・o09Positions・e14・ownerHeapSamples は凍結の時に決める値（P3-C4-AC13(1)〜(4)）。既定は予備の値（lead は Mac の所要に
-// 合わせた保存 600ms・期限回収 2,400ms、span は母集団の対象、E14 は 30 束・20 秒）。
+// lead・deadlineSpan・o09Positions・e14・ownerHeapSamples は凍結の時に決める値（P3-C4-AC13(1)〜(4)）。既定は予備の値（span は母集団の対象、
+// E14 は 30 束・20 秒）。lead（triggerLeadMs）は P3-MH-AC03(4) の読み替えで、較正の予測が無い最初の 10 試行が使う「引き金（期限回収は狙う tick）
+// から対象の encode 開始までの遅れ」。既定の値は C4 の lead のままで、凍結の値は予備で決める。
 export const DEFAULT_LEAD_MS = { maxWeatherCheckpointEncodeStarted: 600, maxForecastCheckpointSave: 600, forecastDeadlineOverlap: 2400 };
 export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, device, collisionVerdict = "A", stop = {}, establishmentRate = 0.5,
   lead = {}, deadlineSpan = "population", o09Positions = [], e14 = { bundles: 30, intervalMs: 20_000 }, ownerHeapSamples = 100,
+  // P3-MH-AC05(6): trial-setup の ref。既定は A10 の 1 組、HARNESS_TRIAL_SETUP.ref で harness の 1 組（その trial-setup が指す initial-state を使う）。
+  trialSetup: trialSetupRef = null,
   // P3-C4-MACHINES=B（作者裁定 2026-10-06 朝）: 正式測定は Mac mini。A10（MacBook M5）との比較は機械が違う参考値で、合否に使わない。
   machines = { formal: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d）", gate: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）",
     piBackend: "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）" } }) {
   if (!["A", "B"].includes(collisionVerdict)) throw new Error("collisionVerdict must be A or B (P3-C4-COLLISION-VERDICT)");
   const a10Text = readFileSync(join(REPO, A10_MANIFEST), "utf8");
   const a10 = JSON.parse(a10Text);
-  const trialSetupText = readFileSync(join(REPO, a10.trialSetupRef), "utf8");
+  const ref = trialSetupRef ?? a10.trialSetupRef;
+  const harness = ref === HARNESS_TRIAL_SETUP.ref;
+  if (!harness && ref !== a10.trialSetupRef) throw new Error(`buildP3Manifest: trialSetup must be the A10 pair or ${HARNESS_TRIAL_SETUP.ref}`);
+  const trialSetupText = readFileSync(join(REPO, ref), "utf8");
   const trialSetup = JSON.parse(trialSetupText);
   const initialStateText = readFileSync(join(REPO, trialSetup.initialStateRef), "utf8");
   const smokeText = readFileSync(join(REPO, SMOKE_FILE), "utf8");
   const smoke = JSON.parse(smokeText);
-  const contracts = contractTextsFor("P3-E01-REACCEPT-001");
+  // harness の 1 組は P3-MEASURE-HARNESS-001 とその依存（K6・UWR・WL2 など、P3-MH-AC05(3) の最低限）も載せる（frozen.ts が求める）。
+  const contracts = { ...contractTextsFor("P3-E01-REACCEPT-001"), ...(harness ? contractTextsFor("P3-MEASURE-HARNESS-001") : {}) };
   const { schemaVersion: _schema, manifestId: _id, manifestSha256: _hash, formal, reference: _reference, auxiliary, ...common } = a10;
   const populations = Object.fromEntries(Object.entries(P3_TABLE).map(([key, row]) => {
     const collision = key === "maxVpws50ReceivedThenEew";
@@ -306,6 +346,7 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
   const manifest = {
     schemaVersion: "p3-e01-manifest-v1", manifestId: id, manifestSha256: "0".repeat(64), ...common,
     contractSha256: Object.fromEntries(Object.entries(contracts).map(([cid, text]) => [cid, JSON.parse(text).meta.sha256])),
+    trialSetupRef: ref, trialSetupSha256: sha256Hex(trialSetupText),
     smokeConditionDifferences: differences, chrome: { ...a10.chrome, version: chromeVersion }, nodeVersion, osVersion, device,
     inheritsManifestId: a10.manifestId, populations,
     liveness: { pingEveryMs: 20000, maxFrameGapMs: 90000 },
@@ -347,6 +388,15 @@ if (process.argv[1] != null && import.meta.filename === realpathSync(process.arg
   const argv = process.argv.slice(2);
   const args = new Map();
   for (let i = 0; i < argv.length; i++) if (argv[i].startsWith("--")) args.set(argv[i].slice(2), argv[i + 1]?.startsWith("--") || argv[i + 1] == null ? true : argv[++i]);
+  if (args.has("harness-setup")) {
+    // P3-MH-AC05(1): harness の 1 組を evidence/p3-harness/ に書く（既存は上書きしない）。書いた trial-setup の sha256 を frozen.ts の定数へ写す。
+    const built = buildHarnessSetup();
+    mkdirSync(join(REPO, HARNESS_DIR), { recursive: true });
+    writeFileSync(join(REPO, HARNESS_DIR, "initial-state.json"), built.initialStateText, { flag: "wx" });
+    writeFileSync(join(REPO, HARNESS_DIR, "trial-setup.json"), built.trialSetupText, { flag: "wx" });
+    console.log(JSON.stringify({ trialSetupSha256: sha256Hex(built.trialSetupText), initialStateSha256: sha256Hex(built.initialStateText) }));
+    process.exit(0);
+  }
   if (args.has("p3-draft") && typeof args.get("id") === "string") {
     // P3 manifest の草案（凍結しない）。母集団の対応表は各母集団の trigger。stopCondition は予備測定の前の仮値。
     const { chromeVersion } = await import("./chrome.mjs");
