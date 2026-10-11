@@ -20,7 +20,10 @@ function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
 }
 
 let sequence = 0;
-function decodeXml(xml: string, headType: string, inputId = `input-${++sequence}`, origin: "replay" | "recovery" = "replay"): DecodedMaterial {
+// 連番は桁を固定する。inputId は intent の source に入って保存の byte を決めるので、桁が繰り上がると 1 byte 伸び、
+// 予算を測った送信と本番の送信の間で境界を越えて、実行の順で落ちる（P3-C8-T04 contractBoundary）。
+const next = () => String(++sequence).padStart(6, "0");
+function decodeXml(xml: string, headType: string, inputId = `input-${next()}`, origin: "replay" | "recovery" = "replay"): DecodedMaterial {
   const entered = ingestXmlData({ inputId, inputSequence: 1, receivedAt: 0, origin, kind: "replay", headType, body: Buffer.from(xml) });
   if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
   const decoded = decodeMaterial(entered.item);
@@ -35,7 +38,7 @@ function fixtureXml(name: string): string {
 function decodeFixture(name: string, transform: (xml: string) => string = (xml) => xml, inputId?: string): DecodedMaterial {
   const headType = manifest.fixtures.find((item) => item.path === pathOf(name))?.transport.headType;
   if (headType == null) throw new Error(`${name} has no headType in the manifest`);
-  return decodeXml(transform(fixtureXml(name)), headType, inputId ?? `${name.split("/").at(-1)!.slice(0, 40)}#${++sequence}`);
+  return decodeXml(transform(fixtureXml(name)), headType, inputId ?? `${name.split("/").at(-1)!.slice(0, 40)}#${next()}`);
 }
 const replaceTag = (tag: string, value: string) => (xml: string) =>
   xml.replace(new RegExp(`<${tag}>[^<]*</${tag}>`), `<${tag}>${value}</${tag}>`);
