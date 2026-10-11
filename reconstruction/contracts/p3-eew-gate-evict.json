@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "981da3fbb8e504451a93828a5e7f6481afd883d38c54ab772d6f6e9864d6ea0f",
+    "sha256": "f1520effbefb7af2e596405aed74e3fb27f599136f1d1d96c4722e4a2a87ca70",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -27,6 +27,13 @@
       }
     ],
     "questionResolutions": [
+      {
+        "id": "Q-EVICT-BASE",
+        "status": "closed",
+        "source": "統合担当（2026-10-11、baseOidの割当）",
+        "closed": "P3-MEASURE-HARNESS-001は40d040c0で配送済み。allowedPathsにreconstruction/test/eew-e01/frames.test.tsを足し、AC07にP3-MH-T01の最後の期待の変更（capacityExceeded→changed）とMHのAC08(a)の読み替えを書いた。check-contract FAIL 0（anchorのずれ無し）。baseOidはこの改訂のcommit",
+        "reason": "発注前点検（bea89096）の申し送りどおり、MHを先に配送した"
+      },
       {
         "id": "Q-EVICT-DECIDE",
         "status": "closed",
@@ -91,6 +98,7 @@
     "allowedPaths": [
       "reconstruction/src/domains/eew/eew.ts",
       "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "reconstruction/test/eew-e01/frames.test.ts",
       "reconstruction/contracts/p3-eew-gate-evict.json"
     ],
     "allowedGitCommands": [
@@ -254,7 +262,7 @@
       },
       {
         "id": "P3-EVICT-AC07",
-        "requirement": "既存試験の変更（変える前に差と理由を統合担当へ報告する）: 起草の試作でreconstructionのvitestは1件だけ落ちた。P3-LIFE-T01の最初のretainUntilの1 ms前の新しいEventIDは、512 gateが全部最終報で報時刻＋10分を過ぎ、currentもpendingも無いので、capacityExceededからchanged（最古のgate、EventID 20260101000000を退去、eewCapacityEvicted count 1、gate 512のまま）へ変わる。その行の期待値だけをこれに変え、T01の残り（retainUntilちょうどの回収、90日後の0件）は変えずに同じstateから続ける。P2-A4-T06-R14のnormalだけ512件への新規normalのcapacityExceededは、gateの報時刻と時計の差が1 msで若いので変わらない（試作で緑）。ここに挙げていない期待値の変更が要る試験が出たら、変えずに止めて差と理由を報告する（AGENTS.md）。vitestの外のchrome-eewのsmokeのS_CAPACITY（smoke.mjs）は報時刻から31秒の時計で513件を入れるので変わらない（読んで確かめた。実走はしていない）。P3-MEASURE-HARNESS-001（MH、1871540bでは未配送）のP3-MH-T01の最後の句「充填の開始＋600,000msのdeadlineの後、同じ時計の新しい通常のEventIDはcapacityExceeded」は本契約の後は成り立たない（付け直した充填のEEWの報時刻は全部充填の開始の秒で(a)を満たし、currentはそのdeadlineで回収され、intentは15秒で掃けるので、最古のgateを退去してchangedになる）。baseOidの時点でMHが配送済みならその1行も本契約の期待値の変更に含める（allowedPathsへMH-T01の試験ファイルを足す改訂はQ-EVICT-BASEで統合担当が行う）。未配送ならMH側の改訂として統合担当が送る（Q-EVICT-BASE）。",
+        "requirement": "既存試験の変更（変える前に差と理由を統合担当へ報告する）: 起草の試作でreconstructionのvitestは1件だけ落ちた。P3-LIFE-T01の最初のretainUntilの1 ms前の新しいEventIDは、512 gateが全部最終報で報時刻＋10分を過ぎ、currentもpendingも無いので、capacityExceededからchanged（最古のgate、EventID 20260101000000を退去、eewCapacityEvicted count 1、gate 512のまま）へ変わる。その行の期待値だけをこれに変え、T01の残り（retainUntilちょうどの回収、90日後の0件）は変えずに同じstateから続ける。P2-A4-T06-R14のnormalだけ512件への新規normalのcapacityExceededは、gateの報時刻と時計の差が1 msで若いので変わらない（試作で緑）。ここに挙げていない期待値の変更が要る試験が出たら、変えずに止めて差と理由を報告する（AGENTS.md）。vitestの外のchrome-eewのsmokeのS_CAPACITY（smoke.mjs）は報時刻から31秒の時計で513件を入れるので変わらない（読んで確かめた。実走はしていない）。P3-MEASURE-HARNESS-001（MH、1871540bでは未配送）のP3-MH-T01の最後の句「充填の開始＋600,000msのdeadlineの後、同じ時計の新しい通常のEventIDはcapacityExceeded」は本契約の後は成り立たない（付け直した充填のEEWの報時刻は全部充填の開始の秒で(a)を満たし、currentはそのdeadlineで回収され、intentは15秒で掃けるので、最古のgateを退去してchangedになる）。baseOidの時点でMHが配送済みならその1行も本契約の期待値の変更に含める（allowedPathsへMH-T01の試験ファイルを足す改訂はQ-EVICT-BASEで統合担当が行う）。未配送ならMH側の改訂として統合担当が送る（Q-EVICT-BASE）。統合担当の決定（2026-10-11）: MHは40d040c0で配送済みなので、reconstruction/test/eew-e01/frames.test.tsのP3-MH-T01の最後の期待（付け直した充填の失効の後の新しい通常のEventIDのdecision）をcapacityExceededからchanged（最古のgateを退去、eewCapacityEvicted count 1、gate 512のまま）へ変える。その試験のほかの期待（充填の512・stale 0、失効でcurrent 0・gate 512、2024年の時刻はeewHorizonStale）は変えない。MHのAC08(a)（凍結の前のMac miniの予備の「失効の後も新しい通常のEventIDはcapacityExceeded」）は、本契約の配送の後に走らせる予備ではchangedと読み替える（統合担当が予備の記録に書く）。",
         "evidenceRefs": [
           "reconstruction/test/eew-unit/eew-unit.test.ts:1444 «a74ce495d3c48095»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:672 «9c8d75df1c63772a»",
@@ -374,20 +382,6 @@
       "残存リスク（作者承認 2026-10-11朝、ご主人、(1)〜(6)の全部。Q-EVICT-DECIDE）: (1) 同じfamilyで最後の版の報時刻が直近10分に入るnormalのEventIDが512件あると、新しいEEW（取消を含む）はcapacityExceeded（AC03。毎分51.2件を10分。24時間の推定の最大約230〜360を10分に詰めても届かないが、10分の窓の最大は材料に無く、基準αを確かめていない）。K6の残存リスク(2)を置き換える。(2) 退去したEventIDの取消が、取消の報時刻から10分以上遅れて届くと捨てられ、取消の通知が出ない（B4。表示は既に消えている。gateが残れば採用・通知していた）。(3) 退去したEventIDに最後の版から10分以上後の新しい報時刻の版が届くと、新規として採用し通知が1回増える（B6）。(4) 退去したEventIDに報時刻がhorizon内の取消が届くと、元の通知が一度も試されなかったeventでも取消の通知を出す（B5。gateが残ればdeliveryEvidence unattemptedで出さなかった。通知が多い向きで(3)と同類）。(5) Serialが小さく報時刻が新しい異常データは、退去の後に新規として採用されうる（B3）。(6) hostの時計が10分未満進んでいると、(2)(3)(4)の「10分」が実時間で短くなる（B11。P3-LIFE-AC13の診断で60秒以上は観測できる）。"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-EVICT-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "implementation"
-        ],
-        "resolveBy": "baseOidの割当（統合担当、発注前点検の後。点検は1871540bで行った、Q-EVICT-PRECHECK）",
-        "requiredEvidence": [
-          "git rev-parse HEADとgit status --porcelain",
-          "check-contract FAIL 0",
-          "P3-MEASURE-HARNESS-001との順の決定（AC07）: MHが配送済みならP3-MH-T01の試験ファイルをallowedPathsへ足し、AC07にその1行の変更（capacityExceeded→changed、最古のgateを退去、eewCapacityEvicted count 1）を書く。未配送ならMHの契約のT01と予備(a)の改訂を統合担当が先に送る",
-          "割当の時点でanchor（eew.ts・eew-unit.ts・eew-unit.test.tsと、P2-EEW-UNIT・K6・K4N・計画の行）がずれていないかを確かめ、ずれたanchorを直す"
-        ]
-      }
     ]
   }
 }
