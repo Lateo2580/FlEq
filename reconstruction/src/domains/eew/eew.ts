@@ -441,8 +441,11 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     };
   }
   // P3-LIFE-D-LATE=A・D-SKEW=A: horizon は duplicate・Serial の stale の後、容量の前。既知 subject の取消だけは horizon 外でも採用する。
-  const base = Math.min(Date.parse(candidate.source.reportDateTimeRaw), input.clock.wallTimeMs);
-  if (base + HORIZON_MS <= input.clock.wallTimeMs && (gate == null || !candidate.cancelled)) return {
+  // P3-EVICT-AC01(7): 退去した normal の gate の報時刻以下の新規 subject は時計によらず horizon 外と同じに捨てる（時計の後退での採り直し、B12）。
+  const reportMs = Date.parse(candidate.source.reportDateTimeRaw);
+  const base = Math.min(reportMs, input.clock.wallTimeMs);
+  if ((base + HORIZON_MS <= input.clock.wallTimeMs || gate == null && candidate.operation === "normal"
+    && reportMs <= (state.evictedNormalReportMs?.[candidate.family] ?? -Infinity)) && (gate == null || !candidate.cancelled)) return {
     state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
       decision: "unchanged", reason: "stale" }], intents: [], outcomes: [],
     // 無いと host の時計の進みで全 EEW が黙って捨てられる。既知 subject の遅れた版は時刻の逆転した異常データなので出さない。
@@ -455,13 +458,8 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     if (item.family === candidate.family && item.subject !== candidate.subject) subjects.set(item.subject, item);
   const needed = Math.max(0, subjects.size + 1 - 512);
   const eligible = [...subjects.values()].filter((item) => item.operation !== "normal");
-  if (eligible.length < needed) return {
-    state, nextDeadline: nextEewDeadline(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "capacityExceeded",
-      rejection: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
-    intents: [], outcomes: [], diagnostics: [],
-  };
-  const evicted = new Set(needed === 0 ? [] : eligible.sort((left, right) => {
+  // P2-A4-RES-02 の順（報時刻の昇順、同時刻は operation/subject/inputId の文字列 tuple）。
+  const res02 = (left: EewCurrent | EewGate, right: EewCurrent | EewGate) => {
     const time = Date.parse(left.source.reportDateTimeRaw) - Date.parse(right.source.reportDateTimeRaw);
     if (time !== 0) return time;
     const a = [left.operation, left.subject, left.source.inputId];
@@ -469,7 +467,34 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     for (let index = 0; index < a.length; index++)
       if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
     return 0;
-  }).slice(0, needed).map((item) => item.subject));
+  };
+  // P3-EVICT-AC01(2)(3): normal の受理で、報時刻＋10 分を過ぎ current も intent も無い normal の gate のうち RES-02 の順の先頭を探す。
+  // 報時刻は起点 base でなく生値で数える（未来時刻の報の再送を復活させない、B10）。採るか拒むかは下の件数の比較が決め、
+  // ここの「1 件だけ足りない」は、使われない走査を省くだけ（2 件以上が要るのは上限を超えて注入した state で、normal は 1 件しか足さない）。
+  // sort せず gates の線形 1 回（P3-EVICT-RES-02）。
+  let aged: EewGate | null = null;
+  if (candidate.operation === "normal" && needed - eligible.length === 1) {
+    const owned = new Set(state.intents.map((intent) => intent.subject));
+    let agedTime = Infinity;
+    for (const item of state.gates) {
+      if (item.family !== candidate.family || item.operation !== "normal" || item.subject === candidate.subject
+        || item.currentUntil != null || owned.has(item.subject)) continue;
+      const time = Date.parse(item.source.reportDateTimeRaw);
+      if (time + HORIZON_MS <= input.clock.wallTimeMs
+        && (aged == null || time < agedTime || time === agedTime && res02(item, aged) < 0)) {
+        aged = item;
+        agedTime = time;
+      }
+    }
+  }
+  if (eligible.length + (aged == null ? 0 : 1) < needed) return {
+    state, nextDeadline: nextEewDeadline(state),
+    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "capacityExceeded",
+      rejection: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
+    intents: [], outcomes: [], diagnostics: [],
+  };
+  const evicted = new Set(needed === 0 ? []
+    : [...eligible.sort(res02).slice(0, needed), ...(aged == null ? [] : [aged])].map((item) => item.subject));
   let currents = state.current.filter((item) => {
     if (evicted.has(item.subject)) changed(item, null);
     return item.subject !== candidate.subject && !evicted.has(item.subject);
@@ -632,6 +657,9 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const change = semanticChanged ? "semantic" : "revisionOnly";
   const next: EewUnitState = {
     ...state, current: currents, gates, evidenceUnknownUntil,
+    // P3-EVICT-AC01(7): normal を退去したときだけ覚える（training/test の退去では覚えない）。
+    ...(aged == null ? {} : { evictedNormalReportMs: { ...state.evictedNormalReportMs, [candidate.family]:
+      Math.max(state.evictedNormalReportMs?.[candidate.family] ?? -Infinity, Date.parse(aged.source.reportDateTimeRaw)) } }),
     intents: proposed,
     deliveryRecords: records,
     notificationLatches: [...retainedLatches,

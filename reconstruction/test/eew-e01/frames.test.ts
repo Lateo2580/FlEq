@@ -63,7 +63,7 @@ describe("P3-MH-T01/T02 retimed U-E fill and cycle C against the K6 reducer (AC0
   const eew = <T extends XmlInput>(frames: T[]) => frames.filter((f) => f.headType.startsWith("VXSE"));
   const perFamily = (items: readonly { family: string }[]) => [items.filter((i) => i.family === "VXSE43").length, items.filter((i) => i.family === "VXSE45").length];
 
-  it("T01: the retimed leaveRoomForP fill is adopted (512 per family, no stale); its currents expire at origin + 600 s while the gates stay and keep a new normal EventID out; the 2024 times are all eewHorizonStale", () => {
+  it("T01: the retimed leaveRoomForP fill is adopted (512 per family, no stale); its currents expire at origin + 600 s while the gates stay, and a new normal EventID then evicts the oldest aged gate (P3-EVICT-AC07); the 2024 times are all eewHorizonStale", () => {
     const u = make();
     const fill = eew(nearCapacityFrames({ mode: "leaveRoomForP", room: { partials: 2, forecastSubjects: 1 }, eewReportAtMs: at }));
     const steps = fill.map((f) => u.receive(f, at + 1000));
@@ -72,7 +72,9 @@ describe("P3-MH-T01/T02 retimed U-E fill and cycle C against the K6 reducer (AC0
     u.deadline(at + 600_000);
     expect([u.state().current.length, ...perFamily(u.state().gates)]).toEqual([0, 512, 512]);
     const late = u.receive({ headType: "VXSE43", xml: nearCapacityFrames({ mode: "full", eewReportAtMs: at + 600_000 })[0]!.xml.replace(/<EventID>[^<]*</, "<EventID>20261011000000<") }, at + 600_000);
-    expect(late.decisions.map((d) => d.decision)).toEqual(["capacityExceeded"]);
+    // P3-EVICT-AC07: 失効の後の gate は報時刻＋10 分を過ぎ current も intent も無いので、拒まず最古の gate を退去して受ける。
+    expect([late.decisions.map((d) => d.decision), ...perFamily(u.state().gates)]).toEqual([["changed"], 512, 512]);
+    expect(late.diagnostics).toContainEqual({ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 });
 
     // 元の報時刻（VXSE43 23:14:59・VXSE45 23:14:57）のままなら全件 horizon 外（台帳76 の e02-P-run1〜3）。
     const original = { VXSE43: Date.parse("2024-04-17T23:14:59+09:00"), VXSE45: Date.parse("2024-04-17T23:14:57+09:00") } as Record<string, number>;

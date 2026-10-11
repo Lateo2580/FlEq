@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "7188867581dccc6f92a892d0b59136a1b0286aee92a092cc7bfbab91d9041475",
+    "sha256": "592ff26ac1962836d3cd75c14868a8ef684216b06b15c178d39675e040da6e6e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -297,9 +297,9 @@
         "requirement": "F01（U-Eの寿命）: 受理でgateを置くたびにretainUntil＝base＋86,400,000、currentを作る版はcurrentUntil＝base＋600,000、作らない版（取消・終端）はnullとする。nextEewDeadlineは既存のpending intent・deliveryRecordsのexpiresAtに加え、各gateのcurrentUntil（nullでない）とretainUntilの最小を返し、current/gateが残る限りnullにしない。deadline入力でclock.wallTimeMs≧currentUntilのcurrentを除き（gateは残しcurrentUntilをnull）、≧retainUntilのgateを除く。currentの除去はdisplayChangesのbefore→null、decisionはchanged/semantic・currentEstablished=null、outcomeはdeadlineAppliedでtransition=\"expired\"とし、取消の表示・transition=\"cancelled\"・通知intentを作らない。gateの除去はdecision・outcomeを出さない。current・gateは非保存なので、これらの除去だけでは保存世代を進めない（intentの失効・記録の回収は従来どおり）。gateを除去した手順では、容量退去（eew.ts:403-413）と同じ規則でownerの無いlatchを全件処理する（除去したgateのeventだけを見ない。restore由来でownerの無いlatchも対象）: 非preexistingのlatchは落とし、preexistingのlatchは配送証拠だけを残した初期値に戻す。unattempted以外の配送証拠を持つ非preexistingのlatchを落とすときはevidenceUnknownUntilをmax(旧値, clock.wallTimeMs＋600,000)へ延ばす。容量退去と共有のhelperで1か所にする。期限ちょうど（wall＝期限）で失効し、wall＝期限−1では残る。",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:294 «59c85e923a361b62»",
-          "reconstruction/src/domains/eew/eew.ts:456 «66224699b9d11746»",
-          "reconstruction/src/domains/eew/eew.ts:458 «e745de29262d351c»",
-          "reconstruction/src/domains/eew/eew.ts:492 «819d17b850535438»",
+          "reconstruction/src/domains/eew/eew.ts:459 «66224699b9d11746»",
+          "reconstruction/src/domains/eew/eew.ts:490 «4cf8acc86bfa0649»",
+          "reconstruction/src/domains/eew/eew.ts:517 «819d17b850535438»",
           "reconstruction/src/units/eew/eew-unit.ts:212 «7ae59fc1e10c624b»",
           "reconstruction/contracts/p2-eew-unit.json:210 «b6da23058a7bf3f2»",
           "reconstruction/contracts/p2-eew-unit.json:216 «1d34ada5b5030cf2»"
@@ -310,7 +310,7 @@
         "requirement": "F01の閉鎖: 77_01_30_260101_VXSE45_FINALのEventIDを20260101000000＋i、ReportDateTimeを2026-01-01T10:00:00+09:00＋i×30秒（i=0..511）に替えた通常の最終報512件を各報時刻の時計で受理すると、gate 512・current 0・pending intent 2（最後の報のdesktopとsound）で、nextDeadlineはそのintentの15秒TTL（2026-01-01T14:15:45+09:00）。そのdeadlineでintentが失効した後のnextDeadlineは最初のgateのretainUntil（2026-01-02T10:00:00+09:00）。その1 ms前の時計で、ReportDateTime＝その時計（horizon内）にした新しいEventIDの通常報は従来どおりcapacityExceeded（horizonの判定が容量より先なので、報時刻を寄せないとeewHorizonStaleになり容量に届かない）。最初のretainUntilちょうどのdeadlineでgateが1件減り、同じ時計の新しいEventIDの報（ReportDateTime＝その時計）がchanged/semanticで受理される。90日後のdeadlineではgate 0・current 0・nextDeadline null（監査F01の観測gate 512・nextDeadline null・capacityExceededの反転）。",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:294 «59c85e923a361b62»",
-          "reconstruction/src/domains/eew/eew.ts:458 «e745de29262d351c»",
+          "reconstruction/src/domains/eew/eew.ts:490 «4cf8acc86bfa0649»",
           "reconstruction/contracts/p2-eew-unit.json:360 «85c850dde0d58f7e»"
         ]
       },
@@ -332,7 +332,7 @@
           "reconstruction/src/domains/eew/eew.ts:418 «4fc2403a3608a88f»",
           "reconstruction/src/domains/eew/eew.ts:419 «d3741060e43347e8»",
           "reconstruction/src/domains/eew/eew.ts:433 «2e2a0bf50fac7377»",
-          "reconstruction/src/domains/eew/eew.ts:480 «b0942936e8d96798»",
+          "reconstruction/src/domains/eew/eew.ts:505 «b0942936e8d96798»",
           "reconstruction/contracts/p2-eew-unit.json:218 «10cebe06fb6251af»",
           "reconstruction/contracts/p2-eew-unit.types.ts:59 «917a8de8d29b7f5c»"
         ]
@@ -408,7 +408,7 @@
         "id": "P3-LIFE-AC11",
         "requirement": "最小実装と計算量: 新しい型・field・helperごとに「無いと何が壊れるか」を1行で示す（例: currentUntilが無いとcurrentの期限をnextDeadlineで出せずF01が残る。eewHorizonStaleが無いとhostの時計の進みで全EEWが黙って捨てられる）。gateの期限回収は共有の1関数で行い、容量退去とlatchの解除・evidenceUnknownUntilの延長の規則を共有する。RES-01を守り、全件×全件・state全体のJSON化・合計差分の帳簿を足さない。U-Fは既存のcollect・subjectDeadlineCacheの形を使う。既存試験の期待の変更はAC10で見込んだものに限り、それ以外が要るときは変えずに止めて報告する。",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:492 «819d17b850535438»",
+          "reconstruction/src/domains/eew/eew.ts:517 «819d17b850535438»",
           "reconstruction/src/domains/eew/eew.ts:304 «4a791db4eeb089c4»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:99 «11b74f30e3b16bd1»"
         ]

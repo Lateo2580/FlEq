@@ -1441,7 +1441,11 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     const fresh = (wallTimeMs: number) => decodeFixture(FINAL, "VXSE45",
       withReport("20260102000000", new Date(wallTimeMs).toISOString()), `f01-new-${wallTimeMs}`);
     // horizon の判定は容量より先なので、報時刻を時計へ寄せて容量に届かせる。
-    expect(receive(state, fresh(firstRetain - 1), firstRetain - 1).decisions[0].decision).toBe("capacityExceeded");
+    // P3-EVICT-AC07: 全 gate が報時刻＋10 分を過ぎ current も intent も無いので、拒まず最古の gate を退去して受ける。
+    const evicting = receive(state, fresh(firstRetain - 1), firstRetain - 1);
+    expect([evicting.decisions[0].decision, evicting.state.gates.length, evicting.diagnostics,
+      evicting.state.gates.some((item) => item.subject === "normal/VXSE45/20260101000000")]).toEqual(["changed", 512,
+      [{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 }], false]);
     const reclaimed = deadline(state, firstRetain);
     expect(reclaimed.state.gates).toHaveLength(511);
     expect([reclaimed.decisions, reclaimed.outcomes]).toEqual([[], []]);
@@ -1549,5 +1553,130 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     expect(regional.state.intents.map((item) => item.payload.body)).toEqual(["訂正: テスト震源 / M5.0 / 最大予測震度7", "訂正: テスト震源 / M5.0 / 最大予測震度7"]);
     expect(regional.state.deliveryRecords.slice(2)).toEqual(seven.intents.map((item) => ({ intentId: item.id, disposition: "superseded", expiresAt: item.expiresAt })));
     expect(receive(regional.state, correction("7", false, "6+"), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+  });
+
+  // P3-EVICT-T01・T02 の充填: 通常の最終報 512 件（1 秒間隔、各報時刻－skew の時計で受理）。最初の報の intent は delivered にし、
+  // 残りの intent は期限で掃く。
+  const S = at("2026-01-01T10:00:00+09:00");
+  const eviction = (eventId: string, reportMs: number, kind: "final" | "live" | "next" | "cancel" | "training" = "final") =>
+    decodeFixture(FINAL, "VXSE45", (xml) => {
+      const timed = withReport(eventId, new Date(reportMs).toISOString())(xml);
+      const live = timed.replace(/<NextAdvisory>[^<]*<\/NextAdvisory>/, "");
+      return kind === "live" ? live : kind === "next" ? live.replace("<Serial>30</Serial>", "<Serial>31</Serial>")
+        : kind === "cancel" ? timed.replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>")
+        : kind === "training" ? withOperation(timed, "training") : timed;
+    }, `evict-${kind}-${eventId}-${reportMs}`);
+  const fillFinal = (skewMs: number) => {
+    let state = emptyState();
+    for (let i = 0; i < 512; i++) {
+      const step = receive(state, eviction(String(20260101000000 + i), S + i * 1_000), S + i * 1_000 - skewMs);
+      state = i !== 0 ? step.state : reduceEewUnit(step.state, { kind: "intentUpdate", clock: clock(S - skewMs),
+        intentUpdate: step.intents.map((item) => ({ id: item.id, attempts: 1, nextAttemptAt: S - skewMs, disposition: "delivered" as const })) }).state;
+    }
+    return deadline(state, S + 511_000 - skewMs + 15_000).state;
+  };
+  const removed = (before: EewUnitState, after: EewUnitState) => {
+    const kept = new Set(after.gates.map((item) => item.subject));
+    return before.gates.map((item) => item.subject).filter((subject) => !kept.has(subject));
+  };
+  const capacityEvicted = { level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 };
+  const stale = (eventId: string) => ({ subject: `normal/VXSE45/${eventId}`, operation: "normal", decision: "unchanged", reason: "stale" });
+
+  it("P3-EVICT-T01 contractBoundary / AC01,AC03,AC04: a full normal family evicts its oldest aged gate from report + 600,000 ms only", () => {
+    const filled = fillFinal(0);
+    expect([filled.gates.length, filled.current.length, filled.intents.length]).toEqual([512, 0, 0]);
+    const w0 = S + 600_000;
+    const refused = receive(filled, eviction("20260102000000", w0 - 1, "live"), w0 - 1);
+    expect(refused.decisions[0].decision).toBe("capacityExceeded");
+    expect(refused.state).toBe(filled);
+    const admitted = receive(filled, eviction("20260102000000", w0, "live"), w0);
+    expect(admitted.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
+    expect([removed(filled, admitted.state), admitted.state.gates.length, admitted.diagnostics])
+      .toEqual([["normal/VXSE45/20260101000000"], 512, [capacityEvicted]]);
+    expect(admitted.displayChanges).toMatchObject([{ subject: "normal/VXSE45/20260102000000", before: null }]);
+    expect(eewUnitCodec.decode(JSON.parse(JSON.stringify(eewUnitCodec.encode(admitted.state))))).toMatchObject({ kind: "restored" });
+
+    // training/test を先に退去し、training の受理は normal を退去しない。
+    const mixed = receive({ ...filled, gates: filled.gates.filter((item) => item.subject !== "normal/VXSE45/20260101000005") },
+      eviction("20260101000005", S + 5_000, "training"), w0).state;
+    expect(removed(mixed, receive(mixed, eviction("20260102000000", w0, "live"), w0).state)).toEqual(["training/VXSE45/20260101000005"]);
+    const training = receive(filled, eviction("20260102000001", w0, "training"), w0);
+    expect(training.decisions[0].decision).toBe("capacityExceeded");
+    expect(training.state).toBe(filled);
+    // 最古の gate と同じ subject の intent があれば、次に古い退去できる gate を退去する。
+    const owned = { ...filled, intents: [pendingIntent("normal/VXSE45/20260101000000", w0)] };
+    expect(removed(owned, receive(owned, eviction("20260102000000", w0 + 1_000, "live"), w0 + 1_000).state))
+      .toEqual(["normal/VXSE45/20260101000001"]);
+
+    // 報時刻が 15 分未来: 受信＋700,000 ms（起点 base＋10 分は過ぎた）では退去せず、報時刻＋10 分で退去し、その後の再送は stale。
+    const ahead = fillFinal(900_000);
+    const early = S - 900_000 + 700_000;
+    expect(receive(ahead, eviction("20260102000000", early, "live"), early).decisions[0].decision).toBe("capacityExceeded");
+    const late = receive(ahead, eviction("20260102000000", w0, "live"), w0);
+    expect(removed(ahead, late.state)).toEqual(["normal/VXSE45/20260101000000"]);
+    const resent = receive(late.state, eviction("20260101000000", S), w0);
+    expect([resent.decisions[0], resent.diagnostics.map((item) => item.reason)]).toEqual([stale("20260101000000"), ["eewHorizonStale"]]);
+  });
+
+  it("P3-EVICT-T02 contractBoundary / AC02: reports of an evicted EventID neither revive it nor repeat its notice, except the fixed residual risks", () => {
+    const filled = fillFinal(0);
+    const w0 = S + 600_000;
+    const w1 = S + 601_000;
+    const evicted = receive(filled, eviction("20260102000000", w0, "live"), w0).state;
+    // B7: 配送の証拠のある最後の owner を失った latch は evidenceUnknownUntil を延ばす。
+    expect(evicted.evidenceUnknownUntil).toBe(w0 + 600_000);
+    // B1: 退去した最終報の再送は stale と診断 1 件（gate があれば duplicate）。
+    const resend = eviction("20260101000000", S);
+    expect(receive(filled, resend, w0).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+    const again = receive(evicted, resend, w0);
+    expect(again.state).toBe(evicted);
+    expect([again.decisions[0], again.intents, again.diagnostics.map((item) => item.reason)])
+      .toEqual([stale("20260101000000"), [], ["eewHorizonStale"]]);
+    // B4・残存リスク(2): 報時刻から 10 分以上遅れた取消は捨てる（gate があれば取消の通知 2 件）。
+    const lateCancel = eviction("20260101000000", S + 500, "cancel");
+    expect(receive(filled, lateCancel, w1).intents.map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
+    const dropped = receive(evicted, lateCancel, w1);
+    expect([dropped.decisions[0], dropped.intents]).toEqual([stale("20260101000000"), []]);
+    // B5・残存リスク(4): horizon 内の取消は退去できる別の gate を退去して採用し通知する（gate が残り unattempted なら通知 0）。
+    // 退去できる gate が無ければ capacityExceeded。
+    const cancel1 = (wallTimeMs: number) => eviction("20260101000001", wallTimeMs, "cancel");
+    expect(receive(evicted, cancel1(w1), w1).intents).toEqual([]);
+    const twice = receive(evicted, eviction("20260102000001", w1, "live"), w1).state;
+    expect(removed(evicted, twice)).toEqual(["normal/VXSE45/20260101000001"]);
+    expect(receive(twice, cancel1(w1), w1).decisions[0].decision).toBe("capacityExceeded");
+    const w2 = S + 602_000;
+    const cancelled = receive(twice, cancel1(w2), w2);
+    expect([removed(twice, cancelled.state), cancelled.diagnostics, cancelled.intents.map((item) => item.payload.level)])
+      .toEqual([["normal/VXSE45/20260101000002"], [capacityEvicted], ["cancel", "cancel"]]);
+    // B6・残存リスク(3): 退去した版の報時刻から 10 分以上経って届いた新しい版は、報時刻の差によらず新規として通知する
+    // （gate があれば latch で通知 0）。最後の版の 2 秒後に出て 599 秒遅れて届いた続報も同じ。
+    for (const reportMs of [w1, S + 2_000]) {
+      const next = eviction("20260101000000", reportMs, "next");
+      expect(receive(filled, next, w1).intents).toEqual([]);
+      const revived = receive(evicted, next, w1);
+      expect([revived.outcomes[0].subjects[0].transition, revived.intents.map((item) => item.transition)])
+        .toEqual(["activated", ["activated", "activated"]]);
+    }
+  });
+
+  // 実不具合の再発防止（P3-EVICT-AC01(7)、レビューの P2-1）: A の退去 → 古い B の配送の完了 → 時計の後退 → A の再送で、
+  // B を退去して A を新規として採り直さない。
+  it("P3-EVICT-T03 regression / AC01,AC02 (B12): after the clock steps back, a resent evicted report stays stale instead of evicting an older gate", () => {
+    const filled = fillFinal(0);
+    const w1 = S + 601_000;
+    // B（最古）は遅れた取消の pending があるので退去されず、次に古い A を退去する。
+    const lateCancel = receive(filled, eviction("20260101000000", S + 500, "cancel"), w1);
+    expect(lateCancel.intents).toHaveLength(2);
+    const evictedA = receive(lateCancel.state, eviction("20260102000000", w1, "live"), w1).state;
+    expect(removed(lateCancel.state, evictedA)).toEqual(["normal/VXSE45/20260101000001"]);
+    const deliveredB = reduceEewUnit(evictedA, { kind: "intentUpdate", clock: clock(w1), intentUpdate: lateCancel.intents.map((item) => ({
+      id: item.id, attempts: 1, nextAttemptAt: w1, disposition: "delivered" as const })) }).state;
+    expect(deliveredB.intents.some((item) => item.subject === "normal/VXSE45/20260101000000")).toBe(false);
+    // 取消で B の gate の報時刻は S＋500。時計を B が退去でき A が horizon 内の時刻へ戻す。
+    const back = S + 600_500;
+    const resent = receive(deliveredB, eviction("20260101000001", S + 1_000), back);
+    expect(resent.state).toBe(deliveredB);
+    expect([resent.decisions[0], resent.intents, resent.diagnostics.map((item) => item.reason)])
+      .toEqual([stale("20260101000001"), [], ["eewHorizonStale"]]);
   });
 });

@@ -105,6 +105,8 @@ export type EewUnitState = Readonly<{
   notificationLatches: readonly EewNotificationLatch[];
   // R35: absent means 0; receipt compares this non-persisted wall-clock boundary.
   evidenceUnknownUntil?: number;
+  // P3-EVICT-AC01(7): 非保存。容量の退去で消した normal の gate の報時刻（生値）の family ごとの最大。不在は退去なし。
+  evictedNormalReportMs?: Readonly<Partial<Record<EewCurrent["family"], number>>>;
   persistence: PersistenceStatus;
 }>;
 
