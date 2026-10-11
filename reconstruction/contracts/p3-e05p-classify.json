@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
-    "sha256": "dd95b51c0e41b38604cdfc77498b3dbfe1046bd26d417b9a4ace326c5d06e95c",
+    "sha256": "b956a32b89d69031ce607772150e871bbc1a046b4412d2383a745a4782101adc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -106,7 +106,7 @@
     "contractId": "P3-E05P-CLASSIFY-001",
     "mode": "implementation",
     "objective": "Q-WL2-E05PでFailになったE05-P（p3-mh-e05p-20261011、最大RSS 445.7・406.5・435.9MiB、上限400MiB）の原因を、条件を先に決めた別の窓で分類する。probeのpreloadで4 thread（publisherとowner 3本）のmemoryUsage（rss・heapUsed・heapTotal・external・arrayBuffers）を200msごとに残し、GCのrunではRSSが閾値を越えた直後に4 threadで強制GC（--expose-gc）をかけて前後の値を残す。判定表（GC待ち・heapの予約・allocator/native・生きた値・混合）と次の手の候補を先に固定し、ふだんのΣheapの差（C4より約+55MiB）も確かめる。窓はE05-Pと同じ条件で流し、E02・E05は報告だけで判定しない。新しいmanifestIdで凍結し、C4・MH・E05-Pの凍結manifestと結果は書き換えない。製品のコードとrunnerの本体（run.mjs）・凍結の照合（frozen.ts）は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "3a6decf80479c1cf5ca6a9b699a47bc0e955481a",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
