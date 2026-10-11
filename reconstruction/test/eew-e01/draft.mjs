@@ -359,7 +359,7 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
       E15: { loads: ["P", "C"], minSamplesPerRun: null, runCount: null, sharesWindowWith: "E02-P・E05-P・AC15・E06（A10 と同じ保持上限の窓）",
         condition: "write の帰属不能 0（thread ごとの write 別計数と CheckpointMeasurement・診断 record の帰属が区分ごとに一致）、保存と診断の write の別計数、保存前段の同期区間の占有、verify 段の読んだ bytes の別計数（encode・write へ足さない）。write 別計数は工程 2 で入る" },
       E14: { loads: ["P"], minSamplesPerRun: e14.bundles, runCount: 1, sharesWindowWith: null, intervalMs: e14.intervalMs,
-        condition: "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す（VXSE45 は訂正、通知の backend は silent、前の束の保存を待たない）。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）" },
+        condition: "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す（VXSE45 は訂正、通知の backend は silent、前の束の保存を待たない）。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）。束の成立（区間の重なり）は U-W・U-F で見て、U-E の dirty→ack は重なりの条件なしで別に報告する（Q-MH-E14=B。C4 の E14 とは成立の条件が違うので U-E を同じ指標と呼ばない）" },
       ownerHeap: { loads: ["N"], minSamplesPerRun: ownerHeapSamples, runCount: 1, sharesWindowWith: null,
         condition: "P3-C4-OWNER-HEAP=B': E03 と同じ最大 VPWS50 の入力・初期状態で、inputDone の返信ごとの owner の heap（大型処理の直後の値）を取る補助窓。E01・E03・衝突の窓では inputDone に heap を載せない" },
     }).map(([key, value]) => [key, { ...value, intervalMs: value.intervalMs ?? null }])),

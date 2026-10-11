@@ -439,8 +439,17 @@ export function summarizeE14(records, { bundles, limitMs = 3000 }) {
     const values = linked.flatMap((r) => (r.ownerSideMs[u] == null ? [] : [r.ownerSideMs[u]]));
     return [u, { ...(quantiles(values) ?? {}), rows: values.length, ownerMonotonicMsMissing: linked.length - values.length }];
   }));
-  return { status: linked.length === 0 ? "未確認" : null, bundles: bundles.length, linked: linked.length, unconfirmed: reasons, units, ownerSide, limitMs,
-    note: "unit ごとの dirty→ack。各保存の p99 の和を全体の p99 と呼ばない（P3-C4-AC13(3)⑥）。ownerSide は起点を owner の時刻へ早めた分（monotonicMs − ownerMonotonicMs、P3-UWR-AC08）を別に報告する。Mac の値は報告で、判定場所は Pi（P5）" };
+  // Q-MH-E14=B: 重なりを見ない unit（束の overlapUnits の外）の dirty→ack は、束の成立に依らず、その unit の起点と ack が引けた束の全部から出す。
+  const outsideOverlap = Object.fromEntries(unitList.filter((u) => bundles.length > 0 && bundles[0].overlapUnits != null && !bundles[0].overlapUnits.includes(u)).map((u) => {
+    const values = bundles.flatMap((b) => {
+      const start = index.raised.get(`${b.inputIds[u]}|${u}`);
+      const ack = start == null ? null : e14Acks(index, { k: b.k, inputIds: { [u]: b.inputIds[u] } })[0];
+      return ack == null ? [] : [ack.doneReceivedMonotonicMs - e14Origin(start)];
+    });
+    return [u, { ...(quantiles(values) ?? {}), rows: values.length, overLimit: values.filter((v) => v > limitMs).length }];
+  }));
+  return { status: linked.length === 0 ? "未確認" : null, bundles: bundles.length, linked: linked.length, unconfirmed: reasons, units, ownerSide, outsideOverlap, limitMs,
+    note: "unit ごとの dirty→ack。各保存の p99 の和を全体の p99 と呼ばない（P3-C4-AC13(3)⑥）。outsideOverlap は束の overlapUnits の外の unit（既定では U-E〔Q-MH-E14=B〕、--e14-tsunami では U-W・U-F）の dirty→ack を束の成立に依らず出す。ownerSide は起点を owner の時刻へ早めた分（monotonicMs − ownerMonotonicMs、P3-UWR-AC08）を別に報告する。Mac の値は報告で、判定場所は Pi（P5）" };
 }
 
 // PublishCostReport（AC15/R62）: onSerialize 由来の publishSerialization 観測から。窓 = 1 つの JSONL（E01/E02 の 1 run）。上限は置かない。

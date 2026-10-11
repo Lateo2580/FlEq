@@ -379,4 +379,21 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
       obs({ kind: "processing", measurement: { runId: "r", inputId: "input-2", startedMonotonicMs: 121, endedMonotonicMs: 135, marks: {} } }),
     ])).toEqual({ startMs: 100, endMs: 135 });
   });
+
+  // Q-MH-E14=B（AC08 の予備 e14-run1 の形）: U-E は約 30ms で ack まで終わり、U-W・U-F の起点（約 300ms）と重ならない。重なりは U-W・U-F で見て、
+  // U-E の dirty→ack は束の成立に依らず別に出す。
+  it("Q-MH-E14 B: bundles whose U-E finished before U-W・U-F started are linked on U-W・U-F, and U-E's dirty→ack is reported apart for every bundle", () => {
+    const at = (k: number, unit: "U-E" | "U-W" | "U-F", start: number, done: number) => [raised(e14Bundle(k).inputIds[unit], unit, k + 1, k * 1000 + start),
+      grant(`g${k}${unit}`, unit, k * 1000 + start + 5, k * 1000 + done, { kind: "acknowledged", generation: k + 1 })];
+    const records = [...at(0, "U-E", 9, 28), ...at(0, "U-F", 287, 352), ...at(0, "U-W", 325, 403),
+      ...at(1, "U-E", 9, 31), ...at(1, "U-F", 310, 376), ...at(1, "U-W", 343, 428),
+      // 束 2 は U-F の ack が U-W の起点より前で、U-W・U-F でも重ならない。
+      ...at(2, "U-E", 7, 30), ...at(2, "U-F", 280, 330), ...at(2, "U-W", 340, 420)];
+    const bundles = [0, 1, 2].map((k) => ({ ...e14Bundle(k), overlapUnits: ["U-W", "U-F"] }));
+    const e14 = aux.summarizeE14(records, { bundles });
+    expect([e14.linked, e14.unconfirmed, e14.outsideOverlap]).toMatchObject([2, { notSimultaneous: 1 }, { "U-E": { rows: 3, max: 23, overLimit: 0 } }]);
+    expect(Object.keys(e14.outsideOverlap)).toEqual(["U-E"]);
+    // C4 の規則（3 unit の重なり）では全部 notSimultaneous。
+    expect(aux.summarizeE14(records, { bundles: [0, 1, 2].map(e14Bundle) })).toMatchObject({ linked: 0, unconfirmed: { notSimultaneous: 3 }, outsideOverlap: {} });
+  });
 });

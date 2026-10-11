@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "33bc272e137d25b78660067322b09d956411e4b94d421f1a606e879ed166b5b8",
+    "sha256": "42b26fe1e081b6a81987f1b3edfdba51bdca785496a0988ab54c66df00357cba",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -39,6 +39,13 @@
       }
     ],
     "questionResolutions": [
+      {
+        "id": "Q-MH-E14",
+        "status": "closed",
+        "source": "作者裁定B（2026-10-11 14時半、ご主人）・AC08の予備（p3-prelim-20261011T040319のe14-run1）",
+        "closed": "E14の成立（P3-C4-AC13(3)④の区間の重なり）はU-W・U-Fの2 unitで見る（束のoverlapUnits、既定はU-W・U-F。C6の--e14-tsunamiはU-E・U-Tのまま）。U-Eのdirty→ackは重なりの条件なしで別に報告する（summarizeE14のoutsideOverlap: p50・p99・max・rows・overLimit）。束の送り方（1束で予定の時刻に送る、P3-C4-E14-WINDOW=A）とunits・ownerSideは変えない。C4のE14とは成立の条件が違うので、U-W・U-Fのdirty→ackをC4と並べるときは条件の差を報告に書き、U-EをC4の値と同じ指標と呼ばない。凍結するmanifestのauxiliary.E14.conditionの文は統合担当が凍結の時に「重なりはU-W・U-F、U-Eは別に報告」と直す",
+        "reason": "UWRの後は保存が1秒のtickに乗らず、U-Eの区間（起点約7ms→ack約28ms）がU-W・U-Fの起点（約266〜305ms）より前に閉じる。予備では3 unitの重なりが10束中0（C4は60束中18）で、E14が未確認しか出ない。U-WとU-Fは重なり、書込み権の待ちも見える"
+      },
       {
         "id": "Q-MH-AUTHOR",
         "status": "closed",

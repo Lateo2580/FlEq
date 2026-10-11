@@ -791,7 +791,9 @@ function e14Window(ctx, run) {
         await waitUntil(host, due);
         const inputIds = {};
         for (const f of frames) inputIds[f.unit] = `input-${host.send(f.frame).seq}`;
-        bundles.push({ k, inputIds, ...(ctx.counts.e14Tsunami === true ? { overlapUnits: ["U-E", "U-T"] } : {}) });
+        // Q-MH-E14=B: UWR の後は U-E が約 30ms で保存まで終え、大きな U-W・U-F の parse（約 300ms）と重ならないので、重なりは書込み権を
+        // 取り合う U-W・U-F で見る（U-E の dirty→ack は summarizeE14 が重なりの条件なしで別に出す）。C6 の --e14-tsunami は U-E と U-T の組。
+        bundles.push({ k, inputIds, overlapUnits: ctx.counts.e14Tsunami === true ? ["U-E", "U-T"] : ["U-W", "U-F"] });
         w.progress.trialsStarted = k + 1;
       }
       const until = hrMs() + a.intervalMs;

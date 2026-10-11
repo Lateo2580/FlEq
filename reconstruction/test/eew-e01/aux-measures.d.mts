@@ -63,6 +63,7 @@ export function summarizeE14(records: readonly HostRecord[], options: { bundles:
   status: Status | null; bundles: number; linked: number; unconfirmed: Record<string, number>; limitMs: number; note: string;
   units: Record<string, { p50?: number; p95?: number; p99?: number; max?: number; overLimit: number }>;
   ownerSide: Record<string, { p50?: number; p95?: number; p99?: number; max?: number; rows: number; ownerMonotonicMsMissing: number }>;
+  outsideOverlap: Record<string, { p50?: number; p95?: number; p99?: number; max?: number; rows: number; overLimit: number }>;
 };
 export function ownerHeapReport(rows: readonly { place: string; heapUsedBytes: number; externalBytes: number }[]): Record<string, { rows: number; maxHeapUsedBytes: number; maxExternalBytes: number }>;
 export function e14Index(records: readonly HostRecord[], index?: unknown): unknown;
