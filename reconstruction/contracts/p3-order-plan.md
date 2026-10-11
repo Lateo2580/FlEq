@@ -399,3 +399,9 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 | 契約 | 対象 | 依存 | 状態 |
 |---|---|---|---|
 | K6R `P3-EEW-GATE-EVICT-001`（`p3-eew-gate-evict.json`） | K6 の残存リスク (2)（残存リスク一覧の型 C1）: U-E の family が normal で満杯のとき、報時刻＋10 分を過ぎ current と pending の無い normal の gate を最古順に退去して新しい normal の報を受ける（作者裁定 2026-10-11）。満杯の拒否は 10 分に 512 件を超えるときだけ残る | K6 | 起草（2026-10-11）。作者裁定 D-AGE=A・D-DIAG=A、残存リスク (1)〜(6) 承認（2026-10-11朝）。発注前点検 2026-10-11（1871540b、Q-EVICT-PRECHECK）。P3-MH-T01 の最後の句（充填の開始＋600,000ms の新しい通常の EventID が capacityExceeded）と本契約がぶつかるので、MH との順を決めてから baseOid を割り当てる（Q-EVICT-BASE） |
+
+### E05-P の原因の分類（2026-10-11）
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| `P3-E05P-CLASSIFY-001`（`p3-e05p-classify.json`） | Q-WL2-E05P の Fail（p3-mh-e05p-20261011、E05-P は 3 run とも上限 400MiB 超）の原因を、条件を先に決めた別の窓で分類する。probe の preload で 4 thread の memoryUsage を 200ms ごとに残し、GC の run では RSS が閾値を越えた直後に 4 thread で強制 GC（通常の GC と last-resort の 2 段）。判定表（GC 待ち・heap の予約・allocator/native・生きた値・混合）と次の手の候補、ふだんの Σheap の差（C4 より約 +55MiB）の確かめ方を先に固定する。窓の E02・E05 は報告だけで判定しない。P3-MEASURE-HARNESS-001 は閉じた契約なので、条文を後から足さない（作者裁定 2026-10-11） | MH・WL2 の配送 | 起草（2026-10-11、7d458fbf から）。作者裁定 5 件（P3-E05C-THRESHOLD・GC-CAP・RUN-SPLIT・HEAP-SNAPSHOT・PRELIM-BOUNDS）とも A、判定表の境界と残存リスク (1)〜(10) 承認（2026-10-11 夕、Q-E05C-AUTHOR）。baseOid は発注前点検で割り当てる（Q-E05C-BASE） |

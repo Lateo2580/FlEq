@@ -1,0 +1,484 @@
+{
+  "meta": {
+    "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
+    "sha256": "56adb09dcdaebd670e3478ae7f557e35b6547cf8f271ef71b3dce4928b8fa06d",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
+    "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-E05C-THRESHOLD",
+        "A": "閾値380MiB（rearmは330MiB）: 材料のE05-Pの新の3 runでは380MiB以上の山が1 runに約11〜12（VPWS50が届くたび）あり、400MiB以上の山（2〜8）と同じ形の山をまとめて分類する",
+        "B": "閾値400MiB（rearmは350MiB）: E05の上限と同じ。分類するのは上限を越えた山だけで、run3のように2つしか無いrunがある",
+        "C": "閾値を置かず、大きな入力の処理の後に決まった遅れでGCする: preloadはどの入力を処理したかを知らない（製品の観測はhost-obsの側）ので、runnerからの合図か入力の推定が要る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "A（作者裁定 2026-10-11夕、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む",
+        "reason": "この窓はE05を判定しない（AC04(4)）ので、閾値は上限と同じでなくてよい。山の数が多いほどrunの分類（AC03(3)の2/3）が安定する。材料では380〜400MiBの山と400MiB超の山は同じ形（VPWS50の処理の終わりから約8〜9秒の平ら、P3-E05C-MATERIAL(3)）で、分ける理由が見当たらない。Bは上限を越えた山だけを見る分かりやすさがあるが、run3では分類の山が2つになる。Cは合図の仕組みが増える。代償（Aでも同じ）: GCのrunでは閾値の直後にGCが山を切るので、そのrunでは400MiBを越えたかが分からない（越えるかは観測だけのrunで見る）"
+      },
+      {
+        "id": "P3-E05C-GC-CAP",
+        "A": "1 runに閾値のGCを20回まで: 1,000秒の測定にVPWS50は約17回（P負荷の360秒に6回）来るので、山ごとに1回で全部を覆う",
+        "B": "1 runに5回まで: 最初の数個の山だけ。publisherのGCの停止がE02に入る回数を減らす",
+        "C": "上限を置かない（armとrearmだけで抑える）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "A（作者裁定 2026-10-11夕、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む",
+        "reason": "rearm（閾値−50MiB未満に下がるまで撃たない）で1つの山に1回なので、回数は山の数で決まる。Aは全部の山を分類できる。Bは後半を分類しない（材料ではrun2の最大の山が充填の失効の後、測定の開始から約730秒、P3-E05C-MATERIAL(1)）。GCのrunのE02は判定しないので、Bの利点は小さい。Cはarmの不具合のときに止まる上限が無い"
+      },
+      {
+        "id": "P3-E05C-RUN-SPLIT",
+        "A": "観測だけ2 run＋GCあり2 run（約75分）: 自然の山の形と、GCで分かる回収の有無を別のrunで見る",
+        "B": "GCあり3 run（約55分）: 観測だけのrunを置かない。自然の形は既存のE05-Pの記録（1秒）で代える",
+        "C": "観測だけ1 run＋GCあり2 run（約55分）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "A（作者裁定 2026-10-11夕、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む",
+        "reason": "GCは山の形を変える（AC02の影響の条文）ので、自然の内訳（ΔU・ΔV・ΔX＋ΔOと自然の回収の時刻）はGCの無いrunでしか取れない。既存のE05-Pの記録にはheapTotalと200msの粒度が無く、Bでは自然の側が欠ける。Cは観測の側が1 runで、runの間の差（材料ではrunごとの最大が406〜446MiB、最大の山の位置もrun2だけ違う）を見られない。AはAC03(3)の窓の分類（GCの全runの一致と観測の全runとの整合）を2対2で使える。代償は約20分長いこと（作者の方針では機械の負荷は問わず日数が問題、窓は1回で済む）"
+      },
+      {
+        "id": "P3-E05C-HEAP-SNAPSHOT",
+        "A": "heap snapshotを取らない: ふだんのΣheapの差（AC03(4)）が生きた差と分かったら、保持元の特定は後続の契約にする",
+        "B": "GCのrunの最後（測定の後、停止の前）にweatherCurrentのthreadでv8.writeHeapSnapshot()を1回取る（窓のdirの下、数十〜百数十MB）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "A（作者裁定 2026-10-11夕、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む",
+        "reason": "分類の問い（400MiBを越える山が何か）に要るのはGCの前後の値で、snapshotは要らない。ふだんの差は区切りのGCとC4の最小値で生きた差かどうかまで言え（AC03(4)）、何が持っているかは生きた差と分かってからでよい。Bは合図の種類と大きなfileが増え、rawも重くなる。代償: 生きた差だった場合、保持元の特定にもう1回の短い窓が要る"
+      },
+      {
+        "id": "P3-E05C-PRELIM-BOUNDS",
+        "A": "X＝下に20・上に30MiB、Y＝2: 予備の観測だけのrunの測定の最初の120秒の最大RSSが、E05-Pの同じ120秒の最大の範囲（383.5〜445.7MiB）を広げた[363.5, 475.7]MiBに入り、E02のp99がE05-Pの失効の前のp99の最大（3.39ms）×2＝6.8ms以下",
+        "B": "X＝±10MiB（[373.5, 455.7]MiB）、Y＝1.5（5.1ms）",
+        "C": "数値を置かず報告だけにする（作者が見て決める）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "A（作者裁定 2026-10-11夕、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む",
+        "reason": "E05-Pの3 runの間で、同じ120秒の最大は62MiB違う（run2は約74秒の山が380MiBに届かず、約17秒の山の383.5MiBが最大、P3-E05C-MATERIAL(1)）。観測で上がる分は行の配列（1秒以内に書き出す）と毎秒20回のmemoryUsageで小さい見込みなので、上は+30MiB。下の−20MiBは、観測が山を消していないことを見る。予備のE02は120標本で、nearestRankのp99は上から2番目の値になる。E05-Pの失効の前の最大は6.1〜23.0msあり、1件の外れで越えうるのでY＝2にした。Bは偶然の外れで止まりやすい。Cは『大きく外れない』の線を結果の後に引くことになる。越えたらNO-GOとして凍結せず、E02の行（1件の外れか全体の遅れか）を添えて作者へ戻す"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P3-E05C-MATERIAL",
+        "status": "frozen",
+        "rule": "材料（実装役のhost-obsの写し: p3-mh-e05p-20261011とp3-c4-formal-20261007のe02-P-run1〜3、repoの外）と版付き結果で確かめた事実。統合担当の一次の見立てとの差を含む。(1) 最大RSSは445.7・406.5・435.9MiB（aux-e05-P-run1〜3）。run1・run3の最大は測定の開始（host時計で約67.5秒）から約73〜74秒の山（P負荷のoffset 65,691msのVPWS50。C4も同じ位置）だが、run2の最大406.5MiBは充填の失効の後（測定の開始から約730秒、P負荷の3周目の最初のVPWS50）で、失効の前の最大は398.2MiB（run2のexpirySplit）。見立ての『最高の山はどのrunも約70秒の同じ山』はrun2では成り立たない (2) 400MiBを越えるのは1つの山だけではない: 380MiB以上の山はrunごとに約11〜12（VPWS50が届くたび、約60秒ごと）、400MiB超の山はrun1で8・run2で3・run3で2あり、失効の後の山も含む（run2の3つはどれも失効の後。C4も1 runに7〜8）。1つの山を消しても、run1・run2は別の山で越える (3) 山の形: VPWS50の処理（新は約270ms、C4は約630ms）が終わった直後にRSSが+120〜+160MiB上がり、約8〜9秒平らのまま、weatherCurrentのheapUsed（tickの値）と同時に一段で下がる（例 run1: 133.4秒に316→446MiB、142.5秒に290MiB、weatherCurrentのheapUsedは50→148→58MiB）。平らの間weatherCurrentは処理を終えてtickに返信しているので、+90MiBは処理の後に残ったheap（GC待ちか保持）で、一段の下がりは自然のmajor GCに見える（V8のmemory reducerの既定の遅れ約8秒と合うが、GCの記録が無く未確認） (4) 山の内訳は2つの形がある: 多くの山はΣ(heapUsed＋external)が+90〜+110MiB（ほぼweatherCurrent）でRSSの残りが+10〜+40MiB。P負荷のoffset 186,530msのVPWS50の山などは、tickの値のΣheapが+15〜+40MiBしか上がらないのにRSSの残りが+85〜+125MiBで、同じく約8秒後に一段で下がる（heapは早く回収されたが、V8の予約かallocatorがRSSを持つ形。heapTotalが無いので分けられない）。見立ての『heap+100・残り+70』は窓のふだんの中央値からの差で、山の12〜25秒前からの差では上の2つの形に分かれる (5) externalは山で計約22MiB（publisher 2.5・urgent 1.9・weatherCurrent 9〜14・deferred 3〜8）で主でない。山の後は約8〜9秒でRSSが230〜300MiBに戻り、2分ごとの最小は上がり続けない（どちらも見立てどおり） (6) 段2が減らしたweatherCurrentのheapの山（C4 394〜424→新256〜263MiB）は充填の最中（約35〜49秒）で測定の窓の外（見立てどおり） (7) ふだんのΣheapの差: 測定の窓のthreadごとの最小のheapUsed（tickの値、3 runとも同じ）はC4→新でurgent 8.9→17.6、weatherCurrent 14.5→41.7、deferred 9.6→14.6、publisher 21.8→21.3MiB。自然のGCの後の平らな値はweatherCurrentでC4 約17・新 約58MiB。差の大半はweatherCurrent（U-Wのowner）で、U-Wの充填はMHのP3-MH-RETIME-SCOPE=Aで変えておらず件数もC4と同じ（weatherCurrent 127/1/1、partials 126）なので、見立ての『harnessの状態の差』で説明できるのはurgent（U-E、K6のgate）の分までに見える。weatherCurrentの差は製品の側（C4の後の契約）の生きた値の候補で、未確認（AC03(4)で確かめる） (8) 測定中の増加: threadごとの100秒ごとの最小のheapUsed（tickの値、測定の開始から）は、weatherCurrentで新が41.7→58.4→58.6…59.1MiB（最初の約200秒で上がって平ら）、C4が14.5→16.5→16.8…16.9MiB。300秒以後の100秒ごとの最小の中央値（平ら）は、C4でurgent 9.5・weatherCurrent 16.9・deferred 10.0・publisher 22.5MiB、新でurgent 18.8・weatherCurrent 59.0・deferred 15.2〜19.5・publisher 21.7MiB（3 runの範囲）。ふだんのΣheapの差の約+55MiBはこの平らの差（Σ約+56〜60MiB: weatherCurrent +42.1・urgent +9.3・deferred +5〜+9.5・publisher −0.8）で、測定の開始の時点の最小の差はΣ約+40MiB（(7)）",
+        "reason": "起草の前提を推測で埋めない。数値はrepoの外の材料からの計算で、凍結の前の予備（AC07）と本契約の窓で確かめ直す"
+      },
+      {
+        "id": "P3-E05C-CODE-READ",
+        "status": "frozen",
+        "rule": "起草時（7d458fbf）に実コードで確かめたこと: (1) E05の行はhost launcherのpublisherのthreadのprocess.memoryUsage()で、rssはprocess全体、heapUsed・externalはpublisherだけ（host-launcher.mjsのmemLine、1秒はE02の窓だけ）。ownerのheapはdeadlineDoneの返信（1秒のtick）ごとのownerHeapの行だけで、heapTotal・arrayBuffersが無い（owner-host.tsのthreadHeap、host.tsのownerHeapの行） (2) ownerは3本（urgent・weatherCurrent・deferred、host.ts）で、U-WはweatherCurrent、U-Eはurgent、U-Fはdeferred（unit-coverage.ts） (3) probe-preloadはWorkerが親のexecArgv（--import）とenvを継ぐのでowner threadでも読まれ、placeはworkerData.place、時刻はpublisherの基準へ直す口がある。ownerはterminate()で止まるので短い間隔で書き、書いた時刻をwrittenに残す形（FLEQ_STRINGIFY_OUT）をそのまま使える (4) startHostはnodeArgsとenvを受けてlauncherの引数の先頭に置く（run.mjs）ので、--expose-gcと--importは窓の側だけで足せ、run.mjsを変えなくてよい。host.pidはlauncherのprocessで、quietWaitが通知のbackendを数えるのと同じpid (5) manifestのauxiliaryの鍵はfrozen.tsが8つに固定し（exactKeys）、型も同じなので、分類の窓をauxiliaryに足すにはfrozen.tsと契約の型の改訂が要る。代わりに『manifestのcontractSha256に本契約の鍵があるとき窓を並べる』にすれば、frozen.ts・型・draft.mjsを変えずに入り、今の凍結manifestの窓の並びも変わらない。runnerは鍵の全部を契約から引いて照合するので（P3-MH-AC05(3)）、本契約を載せたmanifestはそのまま照合に渡る。auxiliary.E05.conditionはfrozen.tsが非空だけを見る自由文 (6) 予備（--preliminary）はharnessの1組のdraftで、contractSha256に本契約の鍵が無いので、予備ではctx.preliminaryで窓を並べる。件数は既存の--e02-count、run数は--auxの各1 run (7) e02Verdictはidがe02-で始まる窓だけをE02の6 runの判定に入れるので、分類の窓のidをe05c-にすればE02の判定に混ざらない (8) 既存のreadProbeRowsは大きなprobeのfileを1行ずつ読む形で、分類の集計も同じ形で読める。以上から、触るのはprobe-preload.mjs・windows.mjs・aux-measures.mjsの3本と、その宣言（aux-measures.d.mts）と試験（aux-measures.test.ts・p3.test.ts）だけで足り、run.mjs・frozen.ts・draft.mjs・frames.mjsは変えない",
+        "reason": "起草の前提を推測で埋めない。行はAC01〜AC05のevidenceRefs"
+      },
+      {
+        "id": "P3-E05C-GC-PROBE",
+        "status": "frozen",
+        "rule": "起草時（2026-10-11）にMacBookで、--expose-gcのprocessで300万個のobjectを作って参照を捨てた後の値を測った。Node v22.23.2のmain threadは、確保の後にrss 341・heapTotal 298・heapUsed 269MiB。gc()の後はrss 261・heapTotal 38・heapUsed 3MiBで、2秒後も同じだった。gc({type: 'major', execution: 'sync', flavor: 'last-resort'})の後はrss 47・heapTotal 5・heapUsed 3MiB。Worker（gcは関数）でも342/293/270→261/37/3→53/5/3MiB。Node v26.8.1でも同じ向き（rss 374→296→51MiB）で、レビュー役の実測（node v26: 415/351/299→373/71/3、5秒後も373→last-resortで53/4）と合う。通常のgc()はheapUsedもheapTotalも下げるが、RSSは戻る分の約1/4しか下がらず、last-resortで大半が戻る。V8が解放したpageをOSへ返さず持っている形に見える（仕組みは未確認）。所要はheap約60MiBで通常が約15ms、last-resortが約20ms。Mac miniのNode 22.23.3では未確認（AC07(d)）",
+        "reason": "AC02の2段のGCと、AC03のrをlast-resortの後で見る根拠。通常のGCの後のRSSでrを取ると、GC待ちの山がJ3（allocator）に落ちる（独立レビューのP1-1）"
+      },
+      {
+        "id": "P3-E05C-INHERITED",
+        "status": "frozen",
+        "rule": "変えないもの: E05-P（p3-mh-e05p-20261011）の窓の条件（A10のP負荷、harnessの1組の充填leaveRoomForP、P3-MH-FULL-STATE=DのP窓の扱い〔失効の前後の報告とcurrentsExpiredBeforeMeasure〕、通知の静まり待ち、E02のclient〔毎秒・manifestの件数〕、launcherのmem行1秒）、E05の上限（P 400MiB）とsummarizeE05・summarizeHealthE02の規則、凍結の照合（frozen.ts）と契約の型、--windowsの再実行の規則（Blockedだけ）、正式の通知はreal backendで出力をミュート",
+        "reason": "Q-WL2-E05Pの『条件を決めた別の窓』は、E05-Pの山を同じ条件で再現して分けるための窓で、条件を足すのは観測とGCだけに限る"
+      },
+      {
+        "id": "Q-E05C-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-11夕、ご主人）",
+        "closed": "P3-E05C-THRESHOLD=A（閾値380MiB・rearm 330MiB）、P3-E05C-GC-CAP=A（1 runに20回）、P3-E05C-RUN-SPLIT=A（観測だけ2＋GCあり2）、P3-E05C-HEAP-SNAPSHOT=A（取らない）、P3-E05C-PRELIM-BOUNDS=A（[363.5, 475.7]MiB・E02のp99 6.8ms以下）。全部推奨どおり。承認の範囲: 判定表の境界（AC03(6)の0.5・0.6・0.3、1,000ms・2,000ms、20MiB・10MiB、2/3・1/4・1/3、300秒）と、残存リスク(1)〜(10)の全部",
+        "reason": "独立レビュー（NO-GO→直し→再レビューGO、P3 2件を直した後）の後、作者の分岐5つと判定表の境界・残存リスクを確定した"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "製品の入力とoperationの扱いは変えない。分類の窓はE05-Pと同じ負荷（A10のP）と充填（harnessの1組のleaveRoomForP）を流すだけで、training/testの入力を足さない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-E05P-CLASSIFY-001",
+    "mode": "implementation",
+    "objective": "Q-WL2-E05PでFailになったE05-P（p3-mh-e05p-20261011、最大RSS 445.7・406.5・435.9MiB、上限400MiB）の原因を、条件を先に決めた別の窓で分類する。probeのpreloadで4 thread（publisherとowner 3本）のmemoryUsage（rss・heapUsed・heapTotal・external・arrayBuffers）を200msごとに残し、GCのrunではRSSが閾値を越えた直後に4 threadで強制GC（--expose-gc）をかけて前後の値を残す。判定表（GC待ち・heapの予約・allocator/native・生きた値・混合）と次の手の候補を先に固定し、ふだんのΣheapの差（C4より約+55MiB）も確かめる。窓はE05-Pと同じ条件で流し、E02・E05は報告だけで判定しない。新しいmanifestIdで凍結し、C4・MH・E05-Pの凍結manifestと結果は書き換えない。製品のコードとrunnerの本体（run.mjs）・凍結の照合（frozen.ts）は変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-measure-harness.json",
+      "reconstruction/contracts/p3-weather-light-step2.json",
+      "reconstruction/contracts/p3-e01-reaccept.json",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/runtime/unit-coverage.ts",
+      "reconstruction/src/measurement/eew-e01/**",
+      "reconstruction/test/eew-e01/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "package.json"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/eew-e01/probe-preload.mjs",
+      "reconstruction/test/eew-e01/windows.mjs",
+      "reconstruction/test/eew-e01/aux-measures.mjs",
+      "reconstruction/test/eew-e01/aux-measures.d.mts",
+      "reconstruction/test/eew-e01/aux-measures.test.ts",
+      "reconstruction/test/eew-e01/p3.test.ts",
+      "reconstruction/contracts/p3-e05p-classify.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-e05p-classify.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04",
+      "B06"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P3-MEASURE-HARNESS-001",
+      "P3-WEATHER-LIGHT-002",
+      "P3-E01-REACCEPT-001",
+      "P3-EXECUTION-SPLIT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3E01Manifest",
+      "reconstruction/contracts/p3-execution-split.types.ts#ExecutionPlace"
+    ],
+    "publicFunctions": [
+      "probe-preload.mjsのenv FLEQ_MEM_OUT（行の出力）とFLEQ_MEM_GC（JSON {thresholdBytes, rearmBelowBytes, maxForced, baselineEveryMs}）、FLEQ_MEM_GCのときのSIGUSR2（区切りのGC）。既存のFLEQ_PROBE_OUT・FLEQ_STRINGIFY_OUTは変えない（AC01・AC02）",
+      "aux-measures.mjsの分類の集計関数1つ（preloadの行と定数→山の行・runの分類・区切りのGCの値。名前は実装が決め、aux-measures.d.mtsに宣言する。AC03）",
+      "windows.mjsのauxWindows(ctx)に分類の窓を並べる条件1行と、e02Window（P）の経路の分類の口。exportは増やさない（AC04）"
+    ],
+    "allowedDependencies": [
+      "node:fs",
+      "node:path",
+      "node:perf_hooks",
+      "node:worker_threads（BroadcastChannel）",
+      "node:readline（既存）",
+      "既存の依存だけを使う。新しいnpm依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__15_17_01_251222_VPWW55",
+      "test__fixtures__85_01_01_250630_VPFJ51",
+      "test__fixtures__15_16_01_241031_VPWW56",
+      "test__fixtures__15_16_07_250825_VPWW61",
+      "test__fixtures__81_01_04_251222_VPWP50",
+      "test__fixtures__10_05_05_200826_VPTW61"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-E05C-RES-01",
+        "target": "preloadの観測",
+        "limit": 200,
+        "unit": "ms（threadごとの行の間隔の目標。処理中のthreadではtimerが遅れて伸びる）",
+        "scope": "1行＝memoryUsage() 1回と配列への追加1件。行ごとに全行の走査・直列化をしない（書き出しはtimerでまとめて）",
+        "source": "AC01・AGENTS.mdの受信経路の計算量"
+      },
+      {
+        "id": "P3-E05C-RES-02",
+        "target": "閾値のGC",
+        "limit": 20,
+        "unit": "回／run（作者裁定P3-E05C-GC-CAP=A）",
+        "scope": "1つの山に1回（rearmは閾値−50MiB未満）。上限を超えた山はcappedの行だけを残す",
+        "source": "AC02"
+      },
+      {
+        "id": "P3-E05C-RES-03",
+        "target": "分類の窓の所要",
+        "limit": 75,
+        "unit": "分（裁定A: 観測だけ2＋GCあり2。観測のrun約18分、GCのrun約18.5分。作者裁定P3-E05C-RUN-SPLIT）",
+        "scope": "窓の長さはE02の1,000標本（毎秒）で決まる。1回の強制GC（通常＋last-resort）は起草時の実測で各thread数十ms（heap約60MiB、P3-E05C-GC-PROBE）で、1 runに閾値と基準を合わせて多くて約40回、区切りの待ちは2回×最大10秒なので、GCのrunは1分未満しか延びない。runWindowの期限は既存どおり見込み×2。窓の外の起動・build・予備は含まない",
+        "source": "AC05(3)・P3-E05C-GC-PROBE"
+      },
+      {
+        "id": "P3-E05C-RES-04",
+        "target": "分類の集計",
+        "limit": "行の数に線形（時刻順に1回なめる）",
+        "unit": "1窓",
+        "scope": "threadごとの直近の行を持ち回して各山の値を引く。山ごとに全行を走査し直さない",
+        "source": "AC06・AGENTS.md"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "preloadの行（窓のdirの下のraw）と分類の集計（窓の結果の封印したaux）。製品の保存物には何も足さない"
+    ],
+    "outOfScope": [
+      "製品のsrc（host・runtime・unit・domain・checkpoint・measurement）とrun.mjs・frozen.ts・draft.mjs・frames.mjs・契約の型の変更（変えないと成り立たないと分かったら止めて統合担当へ報告する）",
+      "E05の上限とsummarizeE05・summarizeHealthE02の規則の変更、この窓のE02・E05の判定",
+      "C4・C6・A10・MH（evidence/p3-harness/manifest-e05p.json・manifest-uwr.json）の凍結manifest・trial-setup・initial-stateと版付き結果（windows/p3-mh-e05p-20261011を含む）の書換え",
+      "分類の結果を受けた製品の直し（次の契約、作者裁定）、heap snapshot（P3-E05C-HEAP-SNAPSHOTがAのとき）、PiでのE05の分類、E05-N（300MiB）の分類",
+      "正式・予備の実走（統合担当）",
+      "新しいrunner・benchmark framework・汎用のsampler・npm依存"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-E05C-AC01",
+        "requirement": "観測（probe-preload.mjs）: env FLEQ_MEM_OUT（出力のpathの前置き）があるときだけ、各thread（publisherとowner 3本。placeは既存のplace、時刻は既存のtoPublisherMsでpublisherの基準）が200msごと（setInterval、unref）にprocess.memoryUsage()のrss・heapUsed・heapTotal・external・arrayBuffersを1行に記録し、同じthreadのGCの記録（PerformanceObserverのgcのentry: kind・開始・所要）も行で残す。行は配列に積み、publisherは1秒・ownerは250msごとに<FLEQ_MEM_OUT>.<place>.jsonlへ追記し、ownerは書くたびに<FLEQ_MEM_OUT>.<place>.writtenへ書いた時刻（publisherの基準）を書く（FLEQ_STRINGIFY_OUTと同じ形。ownerはterminate()で止まりexitで書けない）。threadごとの最初の行にgcAvailable（gcが関数か）とnodeVersionを載せる。処理中のthreadではtimerが遅れるので行の間隔はそのまま残し（間を埋めない）、集計はthreadごとの行数と最大の間隔を出す。FLEQ_MEM_OUTが無ければ何もしない（FLEQ_PROBE_OUT・FLEQ_STRINGIFY_OUTの経路とE12・AC15の窓は変えない）。無いと: 今の観測はpublisherのmem行（1秒、heapUsed・externalはpublisherだけ）とownerHeap（tickの返信のときだけ、heapTotal無し）で、heapの予約（heapTotal−heapUsed）とnative・allocatorを分けられず、山の立ち上がり（処理の終わり）も1秒の粒度でしか分からない（P3-E05C-MATERIAL(4)）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/probe-preload.mjs:12 «68693d5e655b26c2»",
+          "reconstruction/test/eew-e01/probe-preload.mjs:13 «d7882b5a642ce115»",
+          "reconstruction/test/eew-e01/probe-preload.mjs:30 «7ff3545c8c14c8cf»",
+          "reconstruction/test/eew-e01/probe-preload.mjs:66 «783484036a8f3dd0»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:50 «08ab9549273fd798»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:57 «2edccdb967d3bc9e»",
+          "reconstruction/src/runtime/owner-host.ts:44 «2eff9992cf005cbd»",
+          "reconstruction/src/host/host.ts:389 «ba91bbb19edb0fe5»",
+          "reconstruction/src/host/host.ts:125 «70eb76efbc89dd53»",
+          "reconstruction/src/runtime/unit-coverage.ts:16 «58338bff75f92aac»"
+        ]
+      },
+      {
+        "id": "P3-E05C-AC02",
+        "requirement": "強制GC（probe-preload.mjs）: env FLEQ_MEM_GC（JSON: thresholdBytes・rearmBelowBytes・maxForced・baselineEveryMs）があるときだけGCをかける。processは--expose-gcで起動する（窓がstartHostのnodeArgsに足す。owner threadのgcの有無はAC01のgcAvailableとT02で確かめる）。決めるのはpublisherだけで、BroadcastChannel（node:worker_threads、unref）でowner 3本へ{id, reason, requestedAtMs}を送り、自分も同じ手順を踏む。各threadは1回の要求で3点を残す: 前の行（memoryUsage）→gc()（通常のmajor）→中の行→gc({type: 'major', execution: 'sync', flavor: 'last-resort'})→後の行を、1つのforcedGcの行（id・reason・requestedAtMs・startMs・各GCの所要・before・afterRegular・afterLastResort）にする（処理中のthreadは処理の後に受けるので、受けた遅れはrequestedAtMsとの差でそのまま残る）。2段にするのは、通常のgc()がheapを回収してもV8が解放したpageをOSへ返さないことが多く、RSSがほぼ残るから（P3-E05C-GC-PROBE）。RSSの戻り（AC03のr）はlast-resortの後で見て、通常のGCの後のRSSは報告だけにする。last-resortが効かない版（flavorを受けない、またはafterLastResortのheapTotal・rssがafterRegularより下がらない）はAC07(d)で見つける。そのときは分類の窓をblockedにして作者に戻す（rの意味が変わるため）。(1) 閾値: publisherの200msの行でrssがthresholdBytes以上で、armなら（初期はarm）reasonをthresholdとして送りdisarmする。rssがrearmBelowBytes（閾値−50MiB）未満に下がったらarmに戻す。1 runの閾値のGCはmaxForced回までで、超えた山はcappedの行だけ残す (2) 基準: baselineEveryMsごとに、rss＜rearmBelowBytesで直前の強制GC（閾値・基準・区切りのどれか。自然のGCは含めない）から10秒以上たっていればreasonをbaselineとして送る（満たさなければ次の200msの行で判定し直す） (3) 区切り: publisherはSIGUSR2を受けたらreasonをphaseとして送る。窓は充填の前と、静まりの後・E02のclientの起動の前に1回ずつ送る。FLEQ_MEM_GCの無いhostにはSIGUSR2を送らない（handlerが無いと既定の動作でprocessが終わる）。値は作者裁定（P3-E05C-THRESHOLD・P3-E05C-GC-CAP、どちらもA: 閾値380MiB・rearm 330MiB・20回・基準60秒）で、windows.mjsの定数1か所に置き、結果に写す。GCが山の形を変える影響（条文として固定する）: 閾値のGCは山の平らな部分（材料では処理の終わりから約8〜9秒）をその場で切るので、GCのrunのE05の最大・山の長さとE02の分位点はE05-Pと比べない（報告だけ）。gc()は呼んだthreadを止める（publisherの停止は/healthzの遅れに入る）。last-resortは通常の運転では起きない強いGC（weakの参照やcacheも捨てうる）で、そのrunの後の山の形・処理の時間も変えうる。基準のGCは山の前のgarbageを減らして山を低くしうるので、自然の山の形は観測だけのrun（FLEQ_MEM_GCなし）で見る。無いと: GCの後にheapUsedが戻るか（GC待ちか生きた値か）と、RSSが戻るか（V8が返すかallocatorが持ち続けるか）を分けられない（Q-WL2-E05Pの『--expose-gc後のRSS』）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-weather-light-step2.json:488 «b084586081363297»",
+          "reconstruction/contracts/p3-e01-reaccept.json:690 «232610e7b2f48904»",
+          "reconstruction/test/eew-e01/probe-preload.mjs:12 «68693d5e655b26c2»",
+          "reconstruction/test/eew-e01/windows.mjs:215 «11b30e55260a51ea»",
+          "reconstruction/test/eew-e01/run.mjs:202 «4c433595b5674dc8»",
+          "reconstruction/test/eew-e01/run.mjs:214 «9f9135a231aea79d»"
+        ]
+      },
+      {
+        "id": "P3-E05C-AC03",
+        "requirement": "判定表（窓を走らせる前に固定し、結果を見てから境界を変えない。C4のAC06の『条件が決まっていない分類を凍結manifestに入れると、結果を見てから条件を決めることになる』）。aux-measures.mjsに純粋な集計関数を1つ足し（preloadの行と定数を受け、山の行・runの分類・区切りのGCの値を返す）、窓がそれを呼ぶ。(1) 定義: RSSはpublisherの行のrss（process全体の値で、threadの値を足し合わせない）。山＝rssが閾値T以上の連続区間（始まり＝最初にT以上の行、終わり＝T−50MiB未満の最初の行）、R_p＝区間の最大のrss、その時刻t_p。床＝山の始まりの前30秒のpublisherの行でrssが最小の行（時刻t_f、R_f）。時刻tの成分は4 threadそれぞれのt以前の最新の行から: U＝Σ heapUsed、V＝Σ(heapTotal−heapUsed)、X＝Σ external（arrayBuffersは内数で別に出す）、O＝rss−U−V−X。E＝R_p−R_f、ΔU・ΔV・ΔX・ΔOはt_pとt_fの差（足すとE）。GCのrunの山は、始まりの後の最初の閾値のGC（4 threadのforcedGcの行）について、g＝Σ(前のheapUsed−通常のGCの後のheapUsed)÷max(Σ前のheapUsed−U(t_f), 1MiB)（生きた値かどうかは通常のGCで見る。last-resortはcacheなども捨てうるので使わない）、r＝(publisherの前のrss−4 thread目のlast-resortの終わりから2,000ms以内の最小のrss)÷(publisherの前のrss−R_f)（通常のgc()はpageをOSへ返さないことが多いので、RSSの戻りはlast-resortの後で見る、AC02）。通常のGCの後のrssで同じ式にしたr_regと、5,000ms後のrssは報告だけ（r_regが小さくrが大きいのは、V8が持っていたpageが返った形） (2) 山の判定（上から最初に当たる行）: J0 未確認＝t_pで最新の行が1,000msより古いthreadがある（処理中で値が古い）、またはGCのrunで閾値のGCが無い（cappedかgcが無い）か4 thread分の行が揃わない／J1 GC待ち＝ΔU≥0.5E、かつGCのrunではg≥0.6かつr≥0.6／J2 heapの予約＝ΔV≥0.5E、かつGCのrunではr≥0.6／J3 allocator・native＝ΔX＋ΔO≥0.5E、またはGCのrunでg≥0.6かつr≤0.3（heapは戻ったのに、last-resortの後もRSSが残る）／J4 生きた値＝ΔU≥0.5E、かつGCのrunでg≤0.3（通常のGCの後もheapUsedが残る）／J5 混合＝どれにも当たらない（内訳の比を報告）。観測だけのrunにはgとrが無いので、J1とJ4は『heap使用が主（J1/J4）』の1つに読み、GCのrunで分ける (3) runと窓の分類: runごとにJ0〜J5の山の数を並べ、観測だけのrunでは400MiBを越えた山の判定の内訳も必ず並べる。runの分類はJ0を除いた山で決める: 最多の判定J_xが2/3以上で2番目の判定J_yが1/4未満ならJ_x、J_yが1/4以上なら『混合（主J_x＋従J_y）』として両方の次の手を出す、どちらでもなければ（3つ以上に散る）混合（内訳の比）。J0が山の1/3を超えたらrunは未確認。材料では残り（RSS−Σheap）が主の形の山が、新のrun1で12中4、run2・run3で11中2あり（P3-E05C-MATERIAL(4)）、2/3だけで読むとこの形が消える。窓の分類＝GCの全runの分類が同じ（主＋従の組も同じ）で、観測だけの全runの最大のrssの山の主な成分がそれと合う（J1・J4↔ΔU、J2↔ΔV、J3↔ΔX＋ΔO）ならその分類、そうでなければ混合（作者へ）。窓が未確認（GCのrunのどれかが未確認、または行が揃わない）なら分類を出さない。原因（処理中のthreadが多い・行の欠け・gcが無い）を作者へ報告し、作者裁定で本契約を改訂して、新しいmanifestIdで観測の間隔・閾値のGCの時点を見直して測り直す（同じmanifestIdで未確認の窓を選び直さない。--windowsで再実行できるのはBlockedだけ） (4) ふだんのΣheapの差（C4より約+55MiB）の確かめ: GCのrunで、区切りのGC（充填の前L_pre、静まりの後L_post）と基準のGCの後のheapUsed（通常のGCの後）を、threadごとに時刻つきで出す。G_late＝測定の開始から300秒以後の、基準のGCの後の値の中央値。C4の比べる値は2つで、どちらもC4のE05-Pの測定の窓のtickの値（P3-E05C-MATERIAL(7)(8)、repoの外の材料から）: 開始の最小（urgent 8.9・weatherCurrent 14.5・deferred 9.6・publisher 21.8MiB）と、平ら（300秒以後の100秒ごとの最小の中央値: urgent 9.5・weatherCurrent 16.9・deferred 10.0・publisher 22.5MiB）。C4の値は自然のGCの後の最小で生きた値の上界なので、差は生きた差の下界。threadごとにS＝L_post−L_pre、D_start＝L_post−C4の開始の最小、D_late＝G_late−C4の平ら、Grow＝G_late−L_postを出す。判定（①〜③はどれか1つ、④は並べて出す）: ①GCの時機の差＝D_start＜20MiBかつD_late＜20MiB／②充填の状態の差＝D_start≥20MiBかつS≥D_start−10MiB（そのthreadのunitの状態の持ち方。U-Wの充填はharnessで変えていないので、weatherCurrentなら製品の側。urgentならK6のgateなどharnessと製品の両方が候補）／③固定の差＝D_start≥20MiBかつS＜D_start−10MiB（製品の側の常駐）。D_start＜20MiBでD_late≥20MiBなら①〜③のどれにも当てず、④で読む／④測定中に増える生きた値＝Grow≥10MiB（P負荷の入力で増えて残る値。材料のweatherCurrentの41.7→約59MiBの型）。①〜④のどれにも当たらないthread（例 D_start＜20MiB・D_late≥20MiB・Grow＜10MiB）は、S・D_start・D_late・Growの数値を並べて混合として作者へ回す。報告では、+55MiBを平らの差（Σ D_late）として、測定の開始の時点の差（Σ D_start、材料では約+40MiB）と書き分ける (5) 次の手の候補（判定から決め、どれを起こすかは作者裁定）: J1 GC待ち→①製品: weatherCurrentの大型処理（VPWS50）の確保を減らす（B04の『treeは処理後解放』の範囲で量を削る、WL2の後続）②製品の設定: ownerのWorkerのresourceLimits（世代の上限）で回収を早める案（host.ts、Piでは別に確かめる）③判定の定義: E05の上限を瞬間のRSSで測るかを作者に諮る（spec E05の改訂、作者裁定）／J2 heapの予約→②と③／J3 allocator・native→native・externalの内訳の窓（Mac mini〔macOSのmalloc〕とPi〔glibc〕で同じ窓）と、Buffer・externalを持つ製品の経路の契約／J4 生きた値→heap snapshotの窓で保持元を特定し、保持を減らす製品の契約／混合（主J_x＋従J_y）→J_xとJ_yの両方の候補／J5→内訳の比を作者に見せて裁定。(4)の②③④で生きた差なら、保持元の特定（heap snapshot。④は測定中の入力で増える保持として）を後続の候補に足す (6) 境界の数（0.5・0.6・0.3、1,000ms・2,000ms、20MiB・10MiB、2/3・1/4・1/3、300秒）は材料の山の大きさ（E 120〜180MiB、山のΔU +90〜+110MiB、残り+10〜+125MiB）から置いた起草の値で、作者が2026-10-11に承認した（Q-E05C-AUTHOR、残存リスク(8)）。無いと: 結果の後に分類の線を引くことになり、同じ結果から別の結論を選べる",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-e01-reaccept.json:690 «232610e7b2f48904»",
+          "reconstruction/contracts/p3-weather-light-step2.json:488 «b084586081363297»",
+          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run1.json:12 «97a419f3024cba6a»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run2.json:12 «4fb37a029d3ce1ec»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run2.json:355 «98de3ba1482deacb»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run2.json:359 «8f3468aea4ef869e»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run3.json:12 «dfebddd74eea61b6»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:86 «1a0da12c23cbc4e6»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:349 «5b0aa2a352768b2c»",
+          "reconstruction/test/eew-e01/windows.mjs:50 «a95cbd5d70e061ec»"
+        ]
+      },
+      {
+        "id": "P3-E05C-AC04",
+        "requirement": "窓（windows.mjs）: (1) 窓のidはe05c-observe-run<k>（FLEQ_MEM_OUTだけ）とe05c-gc-run<k>（--expose-gcとFLEQ_MEM_GCも）。run数は作者裁定P3-E05C-RUN-SPLIT（A: 各2）で、windows.mjsの定数。予備（--aux）は既存どおり各1 run (2) auxWindowsは、manifestのcontractSha256に本契約の鍵（P3-E05P-CLASSIFY-001）があるときか、予備（ctx.preliminary）のときだけこの窓を並べる。今の凍結manifest（C4・C6・MHのE05-P〔p3-mh-e05p-20261011〕・UWR）の窓の並びは変わらない。idはe02-で始めない（e02VerdictがE02の判定に入れない） (3) 中身はe02Window（load P）の経路を使い回す: 同じopenHost（mem行1秒）・fill leaveRoomForP（blockAtExpiry）・通知の静まり待ち・P負荷のreplayPump・E02のclient（manifestのhealthの件数、予備は--e02-count）・expirySplitとcurrentsExpiredAtMeasure。足すのはstartHostのnodeArgs（--importでprobe-preload.mjs、GCのrunは先頭に--expose-gc）とenv（FLEQ_MEM_OUT＝窓のdirの下、GCのrunはFLEQ_MEM_GC）、GCのrunの区切り（openHostの後・fillの前と、fillの後・clientの起動の前にhost.pidへSIGUSR2を送り、区切りのGCの行が4 thread分出るまで最大10秒待つ）と結果。e02Windowの関数を丸ごと複製しない (4) 結果: aux-e05c-<observe|gc>-run<k>.json（sealAux）に、定数（閾値・rearm・上限・基準の周期・200ms）、summarizeE05・summarizeHealthE02の値とexpirySplit（報告だけ。statusesに判定を入れない）、AC03の分類（山の行・runの分類・区切りのGCの値）、threadごとの行数・最大の間隔・gcAvailable・writtenの時刻、閾値のGCの数とcappedの数を書く。窓のstatusは、4 threadの行が窓の終わりまで揃い（ownerのwrittenが窓の終わり−500ms以後）、GCのrunではgcAvailableが4 threadとも真ならN/A、そうでなければ未確認（予備は既存のoutcomeどおり未確認）。E02・E05のPass・Failはこの窓のstatusに出さない (5) preloadのfileは窓のdirの下（rawに入る）で、runnerは窓の終わりに1回だけ読む。無いと: 分類の窓をE05-Pと同じ条件で測れず、E05-Pで越えた山が再現したかを同じ物差しで言えない",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/windows.mjs:323 «08294ceccdf21363»",
+          "reconstruction/test/eew-e01/windows.mjs:330 «5717a34776d97a59»",
+          "reconstruction/test/eew-e01/windows.mjs:331 «d2cc6f5204a03a4e»",
+          "reconstruction/test/eew-e01/windows.mjs:335 «2190bf92b86d7885»",
+          "reconstruction/test/eew-e01/windows.mjs:352 «68b6dac564e4c2e9»",
+          "reconstruction/test/eew-e01/windows.mjs:354 «f14c20e98e647fa7»",
+          "reconstruction/test/eew-e01/windows.mjs:376 «68d53429d2b6b533»",
+          "reconstruction/test/eew-e01/windows.mjs:497 «20e906a48727775c»",
+          "reconstruction/test/eew-e01/windows.mjs:814 «e90072a472003dfd»",
+          "reconstruction/test/eew-e01/windows.mjs:824 «2b3664ea089884a4»",
+          "reconstruction/test/eew-e01/windows.mjs:89 «2d40753e49877577»",
+          "reconstruction/test/eew-e01/windows.mjs:180 «f1dbf7b7b5fb4419»",
+          "reconstruction/test/eew-e01/run.mjs:1707 «adc008712a5092a6»",
+          "reconstruction/test/eew-e01/run.mjs:1712 «a28b5d1ded306093»",
+          "reconstruction/contracts/p3-measure-harness.json:15 «cb4b004ea8b79611»"
+        ]
+      },
+      {
+        "id": "P3-E05C-AC05",
+        "requirement": "凍結と窓の構成（統合担当）: (1) 新しいmanifestId（例 p3-e05c-<日付>）で凍結する。作り方はP3-MH-AC06の型で、E05-Pの凍結manifest（evidence/p3-harness/manifest-e05p.json、p3-mh-e05p-20261011）を写し、変えるのはmanifestId、contractSha256（本契約の鍵を足し、全部の鍵の値を凍結の時点の各契約のmeta.sha256で取り直す。manifest-e05p.jsonのP3-MEASURE-HARNESS-001は33bc272e…で、今の契約は42b26fe1…〔dd94baf6のE14の直しで変わった〕。写したままだとrunnerの照合〔verifyContractHashes〕で止まる。runnerは鍵の全部を契約から引いて照合する）、auxiliary.E05.condition（本契約の窓の条件: 閾値・rearm・上限・基準の周期・run数と、分類の窓のE02・E05は報告だけ、を文で足す。frozen.tsはconditionの非空だけを見る）、smokeConditionDifferences（p3-mh-e05p-20261011からの差の1行）、機械の値（osVersionはos.release()とos.arch()を空白でつないだ値＝preflightと同じ式、device・nodeVersion・chrome.versionは同じ機械の予備のdraftから写す）だけで、sealSelfHashで封じる。置き場はevidence/p3-harness/manifest-e05c.json。frozen.ts・型・trial-setup・initial-stateは変えず、auxiliaryの鍵を増やさない (2) 窓の構成: --manifest <path> --windows e05c-observe-run1〜とe05c-gc-run1〜（作者裁定の数）、Mac mini（E05-Pと同じ機械・独立checkout）、通知はreal backendで出力をミュート。E01・E02-P・E05-P・ownerHeapの窓は入れない (3) 所要の見込み: 1窓＝充填と確かめ約52秒＋静まり約15秒＋E02の1,000標本（1,000秒）＋停止で約18分（GCのrunは、区切りの待ち〔2回×最大10秒〕とGCの停止〔1回は各thread数十ms、P3-E05C-GC-PROBE〕で1分未満増える）。裁定A（観測2＋GC 2）で約75分、build・予備（AC07、約10分）・起動を足して約1.5時間 (4) C4（p3-c4-formal-20261007・p3-c4-formal-deadline-20261008）・MH（manifest-e05p.json・manifest-uwr.json）の凍結manifestとp3-mh-e05p-20261011の結果は書き換えず、結果はp3-e05c-<日付>のwindowsの下に置く。凍結から窓の終わりまで測るcheckoutのcommitを変えない。再実行はBlockedの窓だけ (5) 分類の結果（AC03の窓の分類・(4)の判定・次の手の候補）は統合担当が作者へ報告し、次の契約は作者裁定で起こす。結果を見てから判定表の境界を変えない（変えるなら本契約の改訂と新しいmanifestId）。無いと: 条件を決めない分類を結果の後に読むことになり、Q-WL2-E05Pの『条件を決めた別の窓』にならない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-measure-harness.json:371 «890ce5420a5d9281»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:3 «8187c5a02b8e2367»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:220 «b587352337dfe3a4»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:404 «80e65c348bc863f1»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:360 «e2395df5e7ba706b»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:411 «5eebadb997bfa469»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:412 «55710ba64a9bccd1»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:444 «77110496ed4a623a»",
+          "reconstruction/test/eew-e01/run.mjs:1733 «c4edc6f3aeccfd9a»",
+          "reconstruction/contracts/p3-weather-light-step2.json:477 «ca83cbea8fc2caf6»",
+          "reconstruction/contracts/p3-weather-light-step2.json:488 «b084586081363297»",
+          "reconstruction/contracts/p3-measure-harness.json:11 «e9ca342feffa0c5b»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:17 «4a382cabfdfbbf4d»",
+          "reconstruction/contracts/p3-measure-harness.json:4 «4573a6b91e10d361»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:169 «97a134ad9cb5b784»"
+        ]
+      },
+      {
+        "id": "P3-E05C-AC06",
+        "requirement": "最小実装・最小テスト・計算量: reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す。既存試験の期待値と入力は変えない（変える必要が出たら変えずに止め、試験名・旧の期待・理由を統合担当へ報告する）。追加する試験はtestMappingのT01〜T03に限り、1つの振る舞いに1つ。足す仕組みは各ACの『無いと』の行に限り（preloadのenv 2つとSIGUSR2、分類の関数1つ、窓の口1つ）、汎用のsampler・設定file・新しいrunner・npm依存を作らない。製品のsrc・run.mjs・frozen.ts・draft.mjs・frames.mjs・契約の型を変えない（変えないと成り立たないと分かったら止めて報告する）。計算量: preloadの1行はmemoryUsage() 1回と配列への追加だけ。分類は行を時刻順に1回なめ、threadごとの直近の行を持ち回して各山の値を引く（山ごとに全行を走査し直さない）。runnerはpreloadのfileを窓の終わりに1回だけ、readProbeRowsと同じく1行ずつ読む",
+        "evidenceRefs": [
+          "AGENTS.md:24 «c1288cfa5b0d16dc»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "AGENTS.md:26 «2c223bbb66635b53»",
+          "reconstruction/test/eew-e01/windows.mjs:50 «a95cbd5d70e061ec»"
+        ]
+      },
+      {
+        "id": "P3-E05C-AC07",
+        "requirement": "凍結の前の短い予備（統合担当、Mac mini。予備は未確認で、合否にも分類の結論にも使わない）: --preliminary --aux e05c-observe-run1,e05c-gc-run1 --e02-count 120（測定の開始から2分で、材料の約17秒・約74秒の2つの山を含む）で確かめる。(a) 4 thread（publisher・urgent・weatherCurrent・deferred）の行があり、GCのrunでgcAvailableが4 threadとも真（偽のthreadがあれば凍結しない） (b) threadごとの行の間隔（ふだん200ms、weatherCurrentはVPWS50の処理〔材料で約270ms〕の間だけ伸びる）と、ownerのwrittenが窓の終わりに届くこと (c) 観測だけのrunでVPWS50の山が閾値を越えて再現すること。観測の負荷の線は作者裁定P3-E05C-PRELIM-BOUNDS（A）: 測定の最初の120秒の最大RSSが[363.5, 475.7]MiB（E05-Pの同じ120秒の最大383.5〜445.7MiBの下に20・上に30）に入り、E02のp99が6.8ms（E05-Pの失効の前のp99の最大3.39ms×2）以下 (d) GCのrunで、閾値の山ごとに4 threadのforcedGcの行（受けた遅れと3点を含む）と2秒後・5秒後のRSS、区切りのGCが2回、基準のGC、cappedの数え方。Mac miniのNode 22.23.3で、last-resortのflavorが効くこと（4 threadともafterLastResortのheapTotalとpublisherのrssがafterRegularより下がる。P3-E05C-GC-PROBEの向き）。効かなければ（flavorで例外、または下がらない）分類の窓をblockedにして凍結せず、作者に戻す（rをどのGCの後で取るかを決め直す） (e) SIGUSR2で区切りが入りhostが落ちないこと、観測だけのrunにはSIGUSR2を送らないこと (f) preloadのfileの行数と大きさ（1窓で約2万行の見込み）と、分類の集計が窓の結果に出ること。前提が外れたら凍結せず作者へ報告する（計画§4.3のNO-GOの扱い）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:159 «d81307e8b66b9886»",
+          "reconstruction/test/eew-e01/run.mjs:1546 «f8234fad1f430c7b»",
+          "reconstruction/test/eew-e01/run.mjs:1559 «e5294516c682a2a9»",
+          "reconstruction/test/eew-e01/run.mjs:1707 «adc008712a5092a6»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run1.json:366 «76bd1afa8131d3b9»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run2.json:366 «556bd389b78095c4»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run3.json:366 «c8dc06d7d775d175»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-E05C-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-E05C-AC03"
+        ],
+        "behavior": "分類の集計関数に合成の行（4 thread、200ms）を渡すと、(a) ΔUが主で、通常のGCの後にheapUsedが戻り、last-resortの後にRSSも戻る山はJ1、(b) ΔVが主でlast-resortの後にRSSが戻る山はJ2、(c) heapUsedは戻ったがlast-resortの後もRSSが残る山はJ3、(d) 通常のGCの後もheapUsedが残る山はJ4、(e) どれにも当たらない山はJ5、(f) t_pで1,000msより古いthreadがある山はJ0になる。境界の値ちょうど（ΔU＝0.5E、g＝0.6、r＝0.3）は条文の側に入る。rは通常のGCの後のrssを使わない（通常のGCの後だけRSSが下がらない山がJ3にならない）。runの分類は、2番目の判定が1/4以上なら混合（主＋従）、J0が1/3を超えたら未確認で、判定ごとの山の数と400MiB超の山の内訳を返す。区切りと基準のGCの値からは、(4)の①〜④（S・D_start・D_late・Grow）を返す"
+      },
+      {
+        "testId": "P3-E05C-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-E05C-AC01",
+          "P3-E05C-AC02"
+        ],
+        "behavior": "process.execPathで--expose-gcと--import probe-preload.mjsの子を起動し、Worker（workerData.place）を1本持たせる。FLEQ_MEM_OUTだけなら、2 threadの行（rss・heapUsed・heapTotal・external・arrayBuffers・place・時刻）とgcの行とgcAvailable（真）が出て、forcedGcの行は0。FLEQ_MEM_GCの閾値を1 byteにすると、閾値のGCが2 threadで1回ずつ（rearmに下がらないので2回目は無い）before・afterRegular・afterLastResortの3点付きで出る。子のWorkerで数十MiBのobjectを作って参照を捨ててから閾値のGCを受けさせると、afterLastResortのrssがbeforeのrssより下がる（last-resortがRSSを返すことの境界）。SIGUSR2で区切りのGCが2 thread分出て、閾値を十分大きくすると基準のGCが出る。どちらのenvも無ければfileを作らない"
+      },
+      {
+        "testId": "P3-E05C-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-E05C-AC04"
+        ],
+        "behavior": "auxWindowsは、buildP3Manifestのharnessの1組のdraft（本契約の鍵なし）と予備でないctxでは分類の窓を並べず、contractSha256に本契約の鍵を足したmanifestではe05c-observe-run<k>とe05c-gc-run<k>を作者裁定の数だけ並べ、ctx.preliminary（runs 1）では各1 runを並べる。どのidもe02-で始まらず、既存の窓の並びは変わらない"
+      },
+      {
+        "testId": "P3-E05C-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-E05C-AC06"
+        ],
+        "behavior": "reconstructionの全試験とchrome-eewの試験を、期待値と入力を変えずに通す。shuffle実行でも緑"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約の検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src and contracts types",
+        "stage": "implementation",
+        "purpose": "型検査とreconstruction/dist/の生成（runnerとT03がdistを使う）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "試験の型検査（aux-measures.d.mtsの宣言を含む）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/dist/chrome-eew/",
+        "stage": "implementation",
+        "purpose": "chrome-eewの生成（runnerのDIST_REQUIRED）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "順序依存の検出（preloadのmodule スコープの状態と子processのfileを足すため）"
+      },
+      {
+        "command": "node reconstruction/test/eew-e01/run.mjs --preliminary --aux e05c-observe-run1,e05c-gc-run1 --e02-count 120 --node <node>",
+        "cwd": ".",
+        "target": "Mac miniの短い予備（統合担当が実走）",
+        "stage": "preparation",
+        "purpose": "AC07の前提の確かめ。結果の状態は必ず未確認"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに『無いと何が壊れるか』を1行で書く。最低限: 200msの観測（AC01）、閾値・基準・区切りのGC（AC02）、判定表の集計（AC03）、分類の窓とその並べる条件（AC04）",
+      "本契約ファイルの実装時の編集権はevidenceRefsのanchorと自己digestの同期だけ。受入条件・判定表の境界・裁定値を実装の後に変えない",
+      "工程の成果物（統合担当が実走して記録する）: AC07の予備の記録、凍結manifest（AC05(1)）、版付き結果、作者への報告（窓の分類・ふだんの差の判定・次の手の候補）",
+      "残存リスク（作者承認 2026-10-11夕、ご主人、(1)〜(10)の全部。Q-E05C-AUTHOR）: (1) GCのrunのE02・E05は山をGCで切った値で、E05-Pと比べない。400MiBを越えるかは観測だけのrunでしか見えない (2) 200msの観測は処理中のthreadの値を取れない（timerが処理の後に回る）。処理の最中のheap（parseの木など）はtimerの間隔の伸びとして見えるだけで、t_pでその状態のthreadがあれば山はJ0（未確認）になる (3) 通常のgc()はheapを回収してもV8が解放したpageをOSへ返さないことが多い（起草時の実測で、通常のGCの後のRSSは戻る分の約1/4しか下がらない、P3-E05C-GC-PROBE）。そのため、RSSの戻りはlast-resortの後で見る。last-resortは通常の運転では起きない強いGC（weakの参照やcacheも捨てうる）なので、rが大きいことは『製品が通常の運転でRSSを返す』ことを意味しない（自然の返し方は観測だけのrunの一段の下がりで見る）。4 threadのGCは同時でない（処理中のthreadは遅れる）。pageの返却が2秒より遅いとrが小さく出てJ3に寄る（5秒後のRSSを並べて読む）。last-resortのflavorがMac miniのNode 22.23.3で効かなければ、窓はblockedで作者に戻る（AC07(d)） (4) preloadの観測（4 threadで毎秒20回のmemoryUsageとGCの記録）が負荷を足すので、観測だけのrunもE05-Pと同一の条件ではない（AC07(c)で差を見る） (5) 分類はMac mini（macOSのmalloc）の結果で、Pi（glibc）ではallocatorの形が違いうる。Piの分類は対象外 (6) 予備の--aux allに分類の窓が入る（--e02-countの既定60で各約2分） (7) ふだんの差の比べる相手（C4の最小値）はrepoの外の材料（C4の窓のraw）からの値で、本契約の本文に値だけを写す (8) 判定表の境界（0.5・0.6・0.3、1,000ms・2,000ms、20MiB・10MiB、2/3・1/4・1/3、300秒）は材料の山の大きさから置いた起草の値で、理論の値ではない。境界の近くの山はJ5（混合）として作者へ回る (9) 凍結manifestは本契約のself digestを固定するので、凍結から窓の終わりまでに本契約のfileを変えるとrunnerの照合で止まる (10) E05-Nは分類しない（Failしていない）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-E05C-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "baseOidの割当（統合担当、発注前点検の後）",
+        "requiredEvidence": [
+          "発注前点検（decisionBranchesに起草案・仮置きのまま実装に効くものが0件）とcheck-contract FAIL 0",
+          "割当の時点で本契約のanchor（probe-preload.mjs・windows.mjs・aux-measures.mjs・run.mjs・host-launcher.mjs・frozen.ts・host.ts・owner-host.ts・unit-coverage.tsと、MH・WL2・P3-E01-REACCEPT-001の契約の行、E05-Pのmanifestと結果の行）がずれていないかを確かめ、ずれたanchorを直す"
+        ]
+      },
+      {
+        "id": "Q-E05C-PRELIM",
+        "owner": "integrator",
+        "blocks": [
+          "AC05の凍結"
+        ],
+        "resolveBy": "本契約の配送の後、凍結の前",
+        "requiredEvidence": [
+          "AC07の(a)〜(f)の記録（Mac mini）",
+          "前提が外れた項目の内容と作者への報告"
+        ]
+      }
+    ]
+  }
+}
