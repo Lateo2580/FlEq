@@ -1,0 +1,28 @@
+{
+  "verdict": {
+    "label": "P3 E01",
+    "status": "未確認",
+    "populations": {
+      "fixedBacklog": "未確認",
+      "maxVpws50ParseStarted": "未確認",
+      "maxWeatherCheckpointEncodeStarted": "未確認",
+      "maxForecastCheckpointSave": "未確認",
+      "forecastDeadlineOverlap": "未確認",
+      "maxVpws50ReceivedThenEew": "reference"
+    },
+    "evidenceRefs": []
+  },
+  "cause": {
+    "cause": "none",
+    "decision": "notEvaluated",
+    "evidenceRefs": [],
+    "attemptedFixes": []
+  },
+  "runs": [],
+  "finishedAt": "2026-10-11T06:50:09.429Z",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json --windows e02-P-run1,e02-P-run2,e02-P-run3,ownerHeap-run1",
+    "caffeinate -dims -w 32823"
+  ],
+  "notification": "real"
+}

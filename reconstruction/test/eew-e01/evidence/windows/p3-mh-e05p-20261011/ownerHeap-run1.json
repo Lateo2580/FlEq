@@ -1,0 +1,81 @@
+{
+  "id": "ownerHeap-run1",
+  "attempt": 1,
+  "manifestId": "p3-mh-e05p-20261011",
+  "manifestSha256": "cc54b38fe3f330f9e1aec4e9db04665d1a43ee5677c366dba1a892b0e1cab21c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-e05p-20261011/ownerHeap-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json --windows e02-P-run1,e02-P-run2,e02-P-run3,ownerHeap-run1",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json --windows e02-P-run1,e02-P-run2,e02-P-run3,ownerHeap-run1",
+    "caffeinate -dims -w 32823",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-e05p-20261011/ownerHeap-run1/host-config.json"
+  ],
+  "startedAt": "2026-10-11T06:47:42.921Z",
+  "preflight": {
+    "checkedAt": "2026-10-11T05:54:21.929Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.39",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "233066743349f32ce9231f6235c31a32a396cb58",
+    "gitStatusPorcelain": "",
+    "distSha256": "f787eca29096b1accc1f5a1c64650d9ec1a5e2989479d4c6ed78935bf4694cf9",
+    "runnerSha256": "9294d7de37eb0da90d5ff6fa36668e76bb3a5e0a2a25f993ec9cd4a3c15aff76",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "N/A",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-ownerHeap-run1.json",
+      "sha256": "20eb1aa0bd5fc9f442667631e98d18fd33ea3c6cb5d1b25508299c76cd468046"
+    }
+  ],
+  "liveness": {
+    "pings": 7,
+    "maxFrameGapMs": 2123.708875000477
+  },
+  "hostClock": {
+    "hostClockUnverified": 0,
+    "hostClockAhead": 0,
+    "hostClockBehind": 0
+  },
+  "finishedAt": "2026-10-11T06:50:09.422Z",
+  "raw": [
+    {
+      "file": "aux-ownerHeap-run1.json",
+      "bytes": 5731,
+      "sha256": "20eb1aa0bd5fc9f442667631e98d18fd33ea3c6cb5d1b25508299c76cd468046"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 290,
+      "sha256": "7a73a18090c2aed03dd242224a0b8681876f39a006ffdd91628a95f19f3e709e"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1525,
+      "sha256": "a51dd490afa404ad7fa8787229914023cc31ac2205b656eb62d6d0719c2d86d0"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 455,
+      "sha256": "dff48664b8f76c6f59cbd5e0c0267fd47a75430e16a6c60d68f5ea2f3a1efbe1"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 822711,
+      "sha256": "58e0c5b62b70a6b19ec79c33e07f6c82360e55cd8c561d5707ffbf3ba1d5b03a"
+    }
+  ],
+  "orphans": []
+}

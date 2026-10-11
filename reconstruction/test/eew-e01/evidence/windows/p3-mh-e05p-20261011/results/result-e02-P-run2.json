@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "p2-e02-result-v1",
+  "manifestId": "p3-mh-e05p-20261011",
+  "manifestSha256": "cc54b38fe3f330f9e1aec4e9db04665d1a43ee5677c366dba1a892b0e1cab21c",
+  "resultSha256": "043509db3e3c7376269102a03035fb7e4a0676173122739cba5957fe3675d9a9",
+  "load": "P",
+  "run": 2,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "failures": {},
+  "p99Ms": 2.878833000002487,
+  "maxMs": 6.149666000000252,
+  "workerStates": {
+    "healthy": 1000
+  },
+  "evidenceRefs": [
+    "/Users/tallplain/dev/fleq-a10-runs/p3-mh-e05p-20261011/e02-P-run2/e02.jsonl",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-mh-e05p-20261011/e02-P-run2/host-obs.jsonl"
+  ]
+}
