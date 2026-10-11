@@ -1,0 +1,137 @@
+{
+  "id": "e14-run1",
+  "attempt": 1,
+  "manifestId": "p3-mh-uwr-20261011",
+  "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e14-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+    "caffeinate -dims -w 38999",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e14-run1/host-config.json"
+  ],
+  "startedAt": "2026-10-11T08:01:18.654Z",
+  "preflight": {
+    "checkedAt": "2026-10-11T08:01:18.635Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.39",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
+    "gitStatusPorcelain": "",
+    "distSha256": "f787eca29096b1accc1f5a1c64650d9ec1a5e2989479d4c6ed78935bf4694cf9",
+    "runnerSha256": "7d737728a82cc35b02c82e06ed180ce4449964f2afaf9b6c29644d8191cbb712",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 50411,
+    "verifiedMs": 50542,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "eewOriginWallMs": 1780650000000,
+    "eewHorizonStale": 0,
+    "quiet": {
+      "waitedMs": 15111,
+      "untilLastBackendMs": 16,
+      "backendLaunchesSeen": {},
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "expiry": {
+      "waitedMs": 536257,
+      "observedAfterExpiry": {
+        "snapshotActive": {
+          "eew": "0/0/0",
+          "weatherCurrent": "127/1/1",
+          "weatherTimeseries": "511/0/0"
+        },
+        "checkpoint": {
+          "U-W.national": 3,
+          "U-W.partials": 126,
+          "U-F.subjects": 511
+        }
+      }
+    }
+  },
+  "status": "N/A",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e14-run1.json",
+      "sha256": "8b947c520f01c25f9e07706e2f98dc6b0ffca64b700ee0551c1c5f778c7efb82"
+    }
+  ],
+  "liveness": {
+    "pings": 89,
+    "maxFrameGapMs": 20002.76237499714
+  },
+  "hostClock": {
+    "hostClockUnverified": 0,
+    "hostClockAhead": 0,
+    "hostClockBehind": 0
+  },
+  "finishedAt": "2026-10-11T08:31:03.212Z",
+  "raw": [
+    {
+      "file": "aux-e14-run1.json",
+      "bytes": 22798,
+      "sha256": "8b947c520f01c25f9e07706e2f98dc6b0ffca64b700ee0551c1c5f778c7efb82"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 76898,
+      "sha256": "707d1213c4e2f1fa04a390e9c5bd6df6ddbbf25d9aeb26620aaaf399cb43b719"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1589,
+      "sha256": "3a0c319377685f9fe846cb03a59d280b5588d1431af5c183dd8d524ba9a59139"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 437,
+      "sha256": "d45dfb3773857f8c5f3a02989cc64ffc6fcf4fe7b59a67fccf1f4e9472f5ed9e"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 12810025,
+      "sha256": "efe49a193dadecbeefda95b6a43749c945c1418a77a03feb7e460d6d3df5cd42"
+    }
+  ],
+  "orphans": []
+}

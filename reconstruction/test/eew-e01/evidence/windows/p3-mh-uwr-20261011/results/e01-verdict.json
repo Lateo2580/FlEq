@@ -1,0 +1,92 @@
+{
+  "verdict": {
+    "label": "P3 E01",
+    "status": "未確認",
+    "populations": {
+      "fixedBacklog": "未確認",
+      "maxVpws50ParseStarted": "未確認",
+      "maxWeatherCheckpointEncodeStarted": "Pass",
+      "maxForecastCheckpointSave": "Pass",
+      "forecastDeadlineOverlap": "Pass",
+      "maxVpws50ReceivedThenEew": "reference"
+    },
+    "evidenceRefs": []
+  },
+  "cause": {
+    "cause": "none",
+    "decision": "notEvaluated",
+    "evidenceRefs": [],
+    "attemptedFixes": []
+  },
+  "runs": [
+    {
+      "id": "e01-forecastDeadlineOverlap-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5259786.24033308,
+      "paintWithoutScreenshot": 6
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5328109.020583034,
+      "paintWithoutScreenshot": 3
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5157703.9282079935,
+      "paintWithoutScreenshot": 4
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5957566.374125004,
+      "paintWithoutScreenshot": 2
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5834525.672250032,
+      "paintWithoutScreenshot": 3
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5843588.353167057,
+      "paintWithoutScreenshot": 0
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3845679.03729105,
+      "paintWithoutScreenshot": 0
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3803278.5446670055,
+      "paintWithoutScreenshot": 0
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3698216.1346660256,
+      "paintWithoutScreenshot": 2
+    }
+  ],
+  "finishedAt": "2026-10-11T23:08:03.076Z",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+    "caffeinate -dims -w 38999"
+  ],
+  "notification": "real"
+}

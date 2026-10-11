@@ -1,0 +1,201 @@
+{
+  "id": "e01-maxForecastCheckpointSave-run3",
+  "attempt": 1,
+  "manifestId": "p3-mh-uwr-20261011",
+  "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxForecastCheckpointSave-run3",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+    "caffeinate -dims -w 38999",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxForecastCheckpointSave-run3/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-4l7Z3z --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-10-11T17:07:22.614Z",
+  "preflight": {
+    "checkedAt": "2026-10-11T08:01:18.635Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.39",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
+    "gitStatusPorcelain": "",
+    "distSha256": "f787eca29096b1accc1f5a1c64650d9ec1a5e2989479d4c6ed78935bf4694cf9",
+    "runnerSha256": "7d737728a82cc35b02c82e06ed180ce4449964f2afaf9b6c29644d8191cbb712",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Pass",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-maxForecastCheckpointSave-run3.json",
+      "sha256": "af90f0025a56a54f2ec2963755d366dc0f438fac5daa70f293bd29d0282aec98"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-maxForecastCheckpointSave-run3.json",
+      "sha256": "8fa4974835f60f28ed533685ddf3af71f9a3281bc146bbf4171f1191bdc17394"
+    }
+  ],
+  "liveness": {
+    "pings": 292,
+    "maxFrameGapMs": 5221.172541022301
+  },
+  "hostClock": {
+    "hostClockUnverified": 0,
+    "hostClockAhead": 0,
+    "hostClockBehind": 0
+  },
+  "finishedAt": "2026-10-11T18:44:53.504Z",
+  "raw": [
+    {
+      "file": "aux-e01-maxForecastCheckpointSave-run3.json",
+      "bytes": 7827,
+      "sha256": "8fa4974835f60f28ed533685ddf3af71f9a3281bc146bbf4171f1191bdc17394"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 1217,
+      "sha256": "2140e2f12c6fc2969842bdb3ca40739d8929613f8e70141c247b8841752693f3"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1619,
+      "sha256": "26b5f2bfe98582d33f9850456b3dfd87489047f75ea2c54628d4e384f79c3c82"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 7565317,
+      "sha256": "f351306a3c8ec795173270548cf3470662818743aa1723fcbd4ef3e240d14b02"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 513,
+      "sha256": "465f13bf69e282c15027253b41d074fb666b4ab1a1d808f6752d4466aafea9ef"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 22217055,
+      "sha256": "36ab4f5eb1235d41c85b4fb047fac8fa9473474f6f26c2f1bb06b215c27b0788"
+    },
+    {
+      "file": "result-formal-maxForecastCheckpointSave-run3.json",
+      "bytes": 1546,
+      "sha256": "af90f0025a56a54f2ec2963755d366dc0f438fac5daa70f293bd29d0282aec98"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 4266765,
+      "sha256": "95e2370e6644d3234104d2690c1efc0ba527187c995c8e4b3d50c218046e10c4"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 9931607,
+      "sha256": "aa14d01982e3de2e2dd725e20a4ea56c08516fee9b28ee5f4328cb578dba7b1d"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 8928874,
+      "sha256": "f5e94a78704201dbcb1fc3dee6134de9f507666e146deefec2901c64d89f7cb7"
+    },
+    {
+      "file": "trace-02.json",
+      "bytes": 9764548,
+      "sha256": "addcf38705089af017ee64cf116f113b5c7e6895ae8948ab518a81050eb76514"
+    },
+    {
+      "file": "trace-03.json",
+      "bytes": 7868719,
+      "sha256": "8d9c3d1b24c892252994b957f73ae8038ebff823b2e36ea6ac79f0345aa952d6"
+    },
+    {
+      "file": "trace-04.json",
+      "bytes": 8726341,
+      "sha256": "3653e0dad311e121968b990f6b82daad09cdd51aaf7e2292b12fcf59615523b5"
+    },
+    {
+      "file": "trace-05.json",
+      "bytes": 8892218,
+      "sha256": "d503a6398ee52cd0a7506c10d584d4e6f9ec4b82410b7771bfbd4f0cca7386da"
+    },
+    {
+      "file": "trace-06.json",
+      "bytes": 8702231,
+      "sha256": "781f5d457950b8a29b52aca95c4e0955ad665de8ff0bf535a33bb9592823cf6f"
+    },
+    {
+      "file": "trace-07.json",
+      "bytes": 9320575,
+      "sha256": "9b06063dbb46b9238e1c0d682f6ad054074c70649079ca94a59e787fb6d1799c"
+    },
+    {
+      "file": "trace-08.json",
+      "bytes": 8414545,
+      "sha256": "2b70bd7527e2ce39f74998868bdaa41707899b8c048f04378689ee9d4d4caae2"
+    },
+    {
+      "file": "trace-09.json",
+      "bytes": 9261429,
+      "sha256": "9c883ef47d90ec343c1d3ce674b249bc8a3d04e681ce2361fd2133fa050b698f"
+    },
+    {
+      "file": "trace-10.json",
+      "bytes": 8264768,
+      "sha256": "af784fac00d011b074d09266b3318cd529fd6fc8c7bdcd131a1bb32d87fbe3db"
+    },
+    {
+      "file": "trace-11.json",
+      "bytes": 8886019,
+      "sha256": "1ea54933d40d238f90612135f4e6d5ecfad7d288e407a7e79a91b44c8223601f"
+    },
+    {
+      "file": "trace-12.json",
+      "bytes": 9134820,
+      "sha256": "fff5f346e20c4b487ec4e982858bce361a812ff7a1624ab54263b90e576846eb"
+    },
+    {
+      "file": "trace-13.json",
+      "bytes": 8153597,
+      "sha256": "d7ac23d7cc4030ba27a0a921357c695fbfb6e91656eb965aba4c4100d0ea4400"
+    },
+    {
+      "file": "trace-14.json",
+      "bytes": 8851081,
+      "sha256": "7ece3d7434bce8b73cbe1ab4f000ef1c79144365c537f100f50b91d219e0bf98"
+    },
+    {
+      "file": "trace-15.json",
+      "bytes": 8003502,
+      "sha256": "ef9bb2fca4b97959a51dfe61dd13485ca1a0eb2fd8b2509ad4d77af93ab5452b"
+    },
+    {
+      "file": "trace-16.json",
+      "bytes": 9158374,
+      "sha256": "548e1d4ef096a37af78d2e1dba516af7f0677733603b1c3039e43bde0b78bac4"
+    },
+    {
+      "file": "trace-17.json",
+      "bytes": 8234376,
+      "sha256": "637870b11901dc5aa908fc0040d15fec460fcee1afb3fc26d94a4ea8635b0bf5"
+    },
+    {
+      "file": "trace-18.json",
+      "bytes": 8936994,
+      "sha256": "85b06864c3140daf25f33510bfec3bed79688114d78d7d3bb8622988f4ad5abd"
+    },
+    {
+      "file": "trace-19.json",
+      "bytes": 3860614,
+      "sha256": "3a8e5b27a343e0297e1fff8f1f3ac8f58a8cf659e72db4fcb9777c8846240312"
+    }
+  ],
+  "orphans": []
+}

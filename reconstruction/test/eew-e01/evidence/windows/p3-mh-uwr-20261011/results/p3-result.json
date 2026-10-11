@@ -1,0 +1,1936 @@
+{
+  "schemaVersion": "p3-c4-result-v1",
+  "manifestId": "p3-mh-uwr-20261011",
+  "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+  "resultSha256": "c6d2cfa613bf42886839b4b332ea539f4f99791e9ab607cc1853e49f4735a610",
+  "e01": {
+    "verdict": {
+      "label": "P3 E01",
+      "status": "未確認",
+      "populations": {
+        "fixedBacklog": "未確認",
+        "maxVpws50ParseStarted": "未確認",
+        "maxWeatherCheckpointEncodeStarted": "Pass",
+        "maxForecastCheckpointSave": "Pass",
+        "forecastDeadlineOverlap": "Pass",
+        "maxVpws50ReceivedThenEew": "reference"
+      },
+      "evidenceRefs": []
+    },
+    "cause": {
+      "cause": "none",
+      "decision": "notEvaluated",
+      "evidenceRefs": [],
+      "attemptedFixes": []
+    },
+    "runs": [
+      {
+        "id": "e01-forecastDeadlineOverlap-run1",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 5259786.24033308,
+        "paintWithoutScreenshot": 6
+      },
+      {
+        "id": "e01-forecastDeadlineOverlap-run2",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 5328109.020583034,
+        "paintWithoutScreenshot": 3
+      },
+      {
+        "id": "e01-forecastDeadlineOverlap-run3",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 5157703.9282079935,
+        "paintWithoutScreenshot": 4
+      },
+      {
+        "id": "e01-maxForecastCheckpointSave-run1",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 5957566.374125004,
+        "paintWithoutScreenshot": 2
+      },
+      {
+        "id": "e01-maxForecastCheckpointSave-run2",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 5834525.672250032,
+        "paintWithoutScreenshot": 3
+      },
+      {
+        "id": "e01-maxForecastCheckpointSave-run3",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 5843588.353167057,
+        "paintWithoutScreenshot": 0
+      },
+      {
+        "id": "e01-maxWeatherCheckpointEncodeStarted-run1",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 3845679.03729105,
+        "paintWithoutScreenshot": 0
+      },
+      {
+        "id": "e01-maxWeatherCheckpointEncodeStarted-run2",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 3803278.5446670055,
+        "paintWithoutScreenshot": 0
+      },
+      {
+        "id": "e01-maxWeatherCheckpointEncodeStarted-run3",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 3698216.1346660256,
+        "paintWithoutScreenshot": 2
+      }
+    ]
+  },
+  "e02Verdict": {
+    "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/e02-verdict.json",
+    "sha256": "264c0bdbf01627d5b3787ec9c4326fd3eba6b17a0eaf3150b5e47eb59d8239de"
+  },
+  "preflights": [
+    {
+      "checkedAt": "2026-10-11T08:01:18.635Z",
+      "nodeVersion": "v22.23.3",
+      "chromeVersion": "155.0.8059.39",
+      "osVersion": "27.0.0 arm64",
+      "dist": [
+        "reconstruction/dist/src/host/host.js",
+        "reconstruction/dist/chrome-eew",
+        "dist/engine/messages/message-router.js"
+      ],
+      "gitHead": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
+      "gitStatusPorcelain": "",
+      "distSha256": "f787eca29096b1accc1f5a1c64650d9ec1a5e2989479d4c6ed78935bf4694cf9",
+      "runnerSha256": "7d737728a82cc35b02c82e06ed180ce4449964f2afaf9b6c29644d8191cbb712",
+      "machine": {
+        "cpu": "Apple M2",
+        "cores": 8,
+        "memoryBytes": 8589934592
+      }
+    }
+  ],
+  "windows": [
+    {
+      "id": "e01-forecastDeadlineOverlap-run1",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-forecastDeadlineOverlap-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-forecastDeadlineOverlap-run1/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-Of7OmG --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T18:44:53.612Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-forecastDeadlineOverlap-run1.json",
+          "sha256": "08db5fd0415d0f9f2644fe2ddfcca8b1ec9f6ba27479903193bb07effb1d5e5a"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-forecastDeadlineOverlap-run1.json",
+          "sha256": "9fcb87b2541f822d4300728ed7ced9074c5510dd471c0f9b3d70df5930be501e"
+        }
+      ],
+      "liveness": {
+        "pings": 262,
+        "maxFrameGapMs": 4687.179250001907
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T20:12:47.575Z",
+      "raw": [
+        {
+          "file": "aux-e01-forecastDeadlineOverlap-run1.json",
+          "bytes": 7794,
+          "sha256": "9fcb87b2541f822d4300728ed7ced9074c5510dd471c0f9b3d70df5930be501e"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 1218,
+          "sha256": "b6bc9ffc0fcd55d0e8e70d769f9fc1d34cda7af7a4b2992230ef3d0ec69f5d2a"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1614,
+          "sha256": "ff974ef948e04dce53fab7efa0fcbdd566040406b8f640289cacc565ea773a80"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 10201718,
+          "sha256": "854e5c225b9742377ed95f0628db12a30f86cf4023a128e088281402ca272f39"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 507,
+          "sha256": "a69b7cad1f2586a88ac67b13494fa83279ffa09179b846c691ee7f8c8c980ca6"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 27549315,
+          "sha256": "4bd1702dc6476034dc96a12e57b29798c92afd78ab84f68ffcd805e0d03fab91"
+        },
+        {
+          "file": "result-formal-forecastDeadlineOverlap-run1.json",
+          "bytes": 1538,
+          "sha256": "08db5fd0415d0f9f2644fe2ddfcca8b1ec9f6ba27479903193bb07effb1d5e5a"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 5996561,
+          "sha256": "e4b7a370264834dd1a7485f594d05bcc7a245d7ea1654ae1ca90053faa2c0dee"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 12819229,
+          "sha256": "df04249145b314ceaa6bcfb62e6520f102564dcc2b71b54460db83c5d7ba6341"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 13886527,
+          "sha256": "dc60cf685794adf0f94b7f1d437c7544f4e670740f14a59dd96d7912c05a5410"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 13817239,
+          "sha256": "f9437fd0acc4c8a0ab3cb226e6fdb6717e284cd1ea578f4e54ea389a24d408fe"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 12505261,
+          "sha256": "5c45f8b57cdfb23e14d73cd78df403118142dfd39e8f297a3629331beedf9cb3"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 12641251,
+          "sha256": "7e64ab05200599212f46a701eb01fe475bebdffa63e0cd12cc974e39b81a1fce"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 12607526,
+          "sha256": "c1e100dc3436be5287a497cbeeca6eb09875dd6d48f618c257373e3221f76eae"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 12918252,
+          "sha256": "9eebdf2ef3719b7d3b0a9c476844bd7608f7848bf9b57da276dd15e8e667da93"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 12884574,
+          "sha256": "fca041a860d69de0bb88f86404865310e731301b9e4fc3ad0f435a11dfba0ec9"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 13107657,
+          "sha256": "902588397af3d4ff3336b7dc410e69a45e1004f1a87c475084f5e7b0ef44611e"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 12996214,
+          "sha256": "cc43e83d675d183dcdb079e6b14800a84e58dbe20a901c4f69f2da2f4d987401"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 12912563,
+          "sha256": "6075c0bf99714db5b6a1f66da8fe1e671343ae54df99b86e3135415583b27258"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 12913806,
+          "sha256": "de46123e059d7d251c14c7046ecbd9a0f316632a07a4da0691a3ec7cc7f4b17d"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 12989817,
+          "sha256": "6163172a2e5b5d3b715e1cf1a78f4aea031b775f6184d08affc898e97bfb6a8b"
+        },
+        {
+          "file": "trace-13.json",
+          "bytes": 13115347,
+          "sha256": "ef33f565d56a718bed28be33ab679f1662e02031490922746409ba7d81e6bd45"
+        },
+        {
+          "file": "trace-14.json",
+          "bytes": 12989456,
+          "sha256": "f8c2a2535a644afec4faa903d35560aba71e86e2c8d13f80978dec39a527fc60"
+        },
+        {
+          "file": "trace-15.json",
+          "bytes": 13003861,
+          "sha256": "73f4b3c924503c4d8c47755fc0e1fd78caaeec0057f790068ef90a681e6fb8fb"
+        },
+        {
+          "file": "trace-16.json",
+          "bytes": 12845967,
+          "sha256": "205ad16d1bbeddbc63b55712f0a5595037b1214f0013c959033ca046bd5fec97"
+        },
+        {
+          "file": "trace-17.json",
+          "bytes": 6629498,
+          "sha256": "8c5eb90d8fcbbb3689d4538eea122f1452082d8f8da338b082675ab82b228364"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run2",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-forecastDeadlineOverlap-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-forecastDeadlineOverlap-run2/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-6BzvBO --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T20:12:47.717Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-forecastDeadlineOverlap-run2.json",
+          "sha256": "cad6caff5102af7f715050cc1dc42bee0ad30b52b3d991f6634d4b181ab4e2bc"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-forecastDeadlineOverlap-run2.json",
+          "sha256": "30f1abda8d0f454d62a972a6a10e2bb39822afd57a179e482c174afde64860d5"
+        }
+      ],
+      "liveness": {
+        "pings": 266,
+        "maxFrameGapMs": 4689.664416074753
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T21:41:50.423Z",
+      "raw": [
+        {
+          "file": "aux-e01-forecastDeadlineOverlap-run2.json",
+          "bytes": 7801,
+          "sha256": "30f1abda8d0f454d62a972a6a10e2bb39822afd57a179e482c174afde64860d5"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 1217,
+          "sha256": "e2b5ae650a44bdfa9851ac3a4bdb400418f60d0d8590b1cdf601d7cd9f0af073"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1613,
+          "sha256": "afabf5c42777cca79dbc402d47084b059dee0b163c6f99f42486d80845578c4c"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 10316098,
+          "sha256": "4c91991619d8be4ac7afef84b917d9a3ac53b856ce6b8705f444a26dd7d7dd5b"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 507,
+          "sha256": "d41c4b246e9a3b0fe2847534811d6bac3f4c35fadd09d7e4787201ee05070fe6"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 27903138,
+          "sha256": "7cd92b4af176d30505a955ccc9267d8a388481f64862280faf2dba28e59bc37f"
+        },
+        {
+          "file": "result-formal-forecastDeadlineOverlap-run2.json",
+          "bytes": 1539,
+          "sha256": "cad6caff5102af7f715050cc1dc42bee0ad30b52b3d991f6634d4b181ab4e2bc"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 6072572,
+          "sha256": "269a3d4bad9e294a2509d76353aa603e5cf492ad6003e51a0ecc4bd6000e81e6"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 12845801,
+          "sha256": "3f67e39a96abb731c089e0fdecf6a828536591a7dfd7437258c46ccfd20e5d99"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 13840938,
+          "sha256": "decc68703714135985609820c30bf529d8c7a762fde1fbfcaf1caa356326e777"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 13713318,
+          "sha256": "c9c01c6f7b567f506e0246e1187e9434ce235eb631928cb4a7ef9e271e4fe8a8"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 12590538,
+          "sha256": "c79f83c9a85d240d33f4c62e80d90c5ea9e788eb451fd9f35838dee1954002f2"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 12647409,
+          "sha256": "7465f4c19417858601edb2beb7fe6506de4ccc844116ff88bea5b40ea581b53e"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 12548484,
+          "sha256": "6377b9e1110b992e030d75ab265159b99c7f2d5d2f3fdc9dab7cd0e199dcfba4"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 12931235,
+          "sha256": "007be312afa9fbf19bce59fae1e1357777e13aae4ca1b5fc550c36954770e4ad"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 13017848,
+          "sha256": "9bac57878b198294dee0bac48df63e19a11db8ac3fcc8f04099c33ad176634c1"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 13042265,
+          "sha256": "5f03db83712ff1408e06d773848ce009e10fb70f8997154c8894209f384efa43"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 13031288,
+          "sha256": "d53cbecba31333195eb85f0f5f1e092da4cfb7ac9b8d2fa9009b47464a8399e4"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 12946548,
+          "sha256": "31bd7a0afdf743cf947b41320c44290258c89f4d0b33a826a1c693433c9498fc"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 13038657,
+          "sha256": "0679735b45e09cf56943484c5141f81bf30d097323fc092cd08d9965da0ea3f3"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 12927064,
+          "sha256": "0f8d180f10a05595182ae3f381864aa2450f10d290edb4b6737639d0ecf08a8a"
+        },
+        {
+          "file": "trace-13.json",
+          "bytes": 13158879,
+          "sha256": "779d1badfc6f704aaed4ff55dbc21454288646462128c837a503b6714666f524"
+        },
+        {
+          "file": "trace-14.json",
+          "bytes": 12952929,
+          "sha256": "d3940ee53ff1d1162ba659ae8373d443f46439fe169556242db966e99518df64"
+        },
+        {
+          "file": "trace-15.json",
+          "bytes": 12970890,
+          "sha256": "efde1f3f205016ff8e8ed2bba2cc3492cb11a2e6748d264992daad8b4782d750"
+        },
+        {
+          "file": "trace-16.json",
+          "bytes": 12957069,
+          "sha256": "67d3e6f81c96ccbfc3acd3364e85ad908fc3d3249cd6271fc4ef4ffab1944cf4"
+        },
+        {
+          "file": "trace-17.json",
+          "bytes": 9657057,
+          "sha256": "1469193bdac0dee674273c25b9b44fba43f0e46f0f9708b18608521e94955b4f"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run3",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-forecastDeadlineOverlap-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-forecastDeadlineOverlap-run3/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-9EGhCC --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T21:41:50.567Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-forecastDeadlineOverlap-run3.json",
+          "sha256": "dc47627e1a33873f7984049deb4743ca1619bfd58ec5a176f12ccf6419c2ea5e"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-forecastDeadlineOverlap-run3.json",
+          "sha256": "1e658623eb83b2ada01347e2fc204d83f45860114256ed835cd406e445a82224"
+        }
+      ],
+      "liveness": {
+        "pings": 257,
+        "maxFrameGapMs": 4689.466332912445
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T23:08:02.614Z",
+      "raw": [
+        {
+          "file": "aux-e01-forecastDeadlineOverlap-run3.json",
+          "bytes": 7791,
+          "sha256": "1e658623eb83b2ada01347e2fc204d83f45860114256ed835cd406e445a82224"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 1033,
+          "sha256": "a714ef2ac0f9d9918b8f572518d14e30306ae7a422f284b86ddd85f325625aba"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1616,
+          "sha256": "7411dbdad22a0c306f0ec671e17dabde0b791c62101441fb379f6ff40627878e"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 10023214,
+          "sha256": "934b719d1ad8cadcb7f9a05be907c1fb9e23c2ec5e02e7dd6ff9322d418a0d26"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 507,
+          "sha256": "5931da9671a8f5c7a5b007786c03f8699f6540effc253f5d0e89e1f234379366"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 27004639,
+          "sha256": "30771e5f1673be4975e415269364a40f00d77e291c946728c6f2c35cfb2bfcd7"
+        },
+        {
+          "file": "result-formal-forecastDeadlineOverlap-run3.json",
+          "bytes": 1535,
+          "sha256": "dc47627e1a33873f7984049deb4743ca1619bfd58ec5a176f12ccf6419c2ea5e"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 5879206,
+          "sha256": "fc680e752b37d4c764daf1b863e05062e44c689f53a8dd6261f23455c8ce9506"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 12856862,
+          "sha256": "0e73fc1d44e2172d3e5f51913bf69b19724fc1349a0190d4926411aca4d4af7f"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 13873402,
+          "sha256": "6608667436ddc929e8299a7b8c60f4f4c4f7e6988326f40b06a34aaba88a8521"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 13832414,
+          "sha256": "871ae585ce807e196977dd75d2b8e99ccd987c0e3c23419cb0f32114e5f9e8a9"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 12498524,
+          "sha256": "f6cdd62afe386652e4d18573aeff8014189cfd5fe993e00927a2982e203b9f36"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 12674156,
+          "sha256": "5a9678f393b20d6517d0acf14100806a43b681f8a27709c1dd148f16ef43d857"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 12579805,
+          "sha256": "c291f10d0b1407377ef26a0d5f5d5aa857303e439307bf36819c9e9688d00870"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 12985902,
+          "sha256": "5b81f517abdc7ea8d7f66bb1e550fc8a48289d19eec0246e7be43212c8a9c095"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 12999919,
+          "sha256": "2a4ee50d416135c277fd165d491dbf49ad25bcc840083551682e2ae1bcd1ee50"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 12989352,
+          "sha256": "3dc283f853c826cd82c5fcff0931e17ec58372635eba652cdf4ff254f6e76704"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 12991040,
+          "sha256": "86a8a3c1c83329f90b257cfcd46d9dc915fec87fc17c73d6e83952d53a283bcf"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 12901936,
+          "sha256": "31754ef81c1b502628e56d395d0d103450d2ff0215860687f5a23141f66bf7ce"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 12969730,
+          "sha256": "2a7affa7b8c0f0b93779fc065dbf4f0bb6320be8e41fb9ae0f5ee617153d434e"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 12915619,
+          "sha256": "129bc001aae0e6236510f422fda7b2ab5ef09f84ad28a198d07aaf76957ea44a"
+        },
+        {
+          "file": "trace-13.json",
+          "bytes": 13127607,
+          "sha256": "211fb177e506da489b68c70539d32c0069d9b4dd8356098e814702ca219028c9"
+        },
+        {
+          "file": "trace-14.json",
+          "bytes": 12847333,
+          "sha256": "c8ea2082c7f58178a2d1fecb2311947c529069fe7ef5b17888e520f9a82f2de2"
+        },
+        {
+          "file": "trace-15.json",
+          "bytes": 13059981,
+          "sha256": "f016a4b50a250190b2a6b7141360fec40f59ded1cdfe65df627832c8ddfa4dde"
+        },
+        {
+          "file": "trace-16.json",
+          "bytes": 12772475,
+          "sha256": "63fcb26a5855f2b3c0f0b54c377bdc18516ec353cb85dfab28b6917cd3c52982"
+        },
+        {
+          "file": "trace-17.json",
+          "bytes": 2193496,
+          "sha256": "fe2f5319f565f9762ce88b97e31d3ae8b970b203745040e2b055d1ccbd76c4c4"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run1",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxForecastCheckpointSave-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxForecastCheckpointSave-run1/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-aaLhVB --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T13:50:35.275Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-maxForecastCheckpointSave-run1.json",
+          "sha256": "d40f5b1c7d095b4082fcc4aeccfa055434d2b13e77245ba1513be190d38100dd"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-maxForecastCheckpointSave-run1.json",
+          "sha256": "81ec86a70604304ad1487dbaf9130b42c8d4a1dfd087fbac577a45e278d3fa29"
+        }
+      ],
+      "liveness": {
+        "pings": 297,
+        "maxFrameGapMs": 5202.805583000183
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T15:30:00.312Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxForecastCheckpointSave-run1.json",
+          "bytes": 7807,
+          "sha256": "81ec86a70604304ad1487dbaf9130b42c8d4a1dfd087fbac577a45e278d3fa29"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 1219,
+          "sha256": "0548eacc1eeae45e2670f167c18e67942c20ee11cd31a86a881eb0a227d3ddd5"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1615,
+          "sha256": "620709ed9f86b6464fa7193b15e08f9cb134ec2e3b661b6b7742601cb10a6900"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 7681840,
+          "sha256": "921a11c662957ed72fc096ea909abaab235d8e5c8246a1be97ea5cd1eea002e6"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 513,
+          "sha256": "3faa3e4a450f1e8b4d0d9df63f2433c5f0303efa2fdeeef068131f03517698e4"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 22652632,
+          "sha256": "e606cf6aa47afdf31dd75633c4639f8adeeb43a660e76f55332b367d5dec80c9"
+        },
+        {
+          "file": "result-formal-maxForecastCheckpointSave-run1.json",
+          "bytes": 1544,
+          "sha256": "d40f5b1c7d095b4082fcc4aeccfa055434d2b13e77245ba1513be190d38100dd"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 4341650,
+          "sha256": "b4d8a52cf6f8088fd879a9e62325e7c0a9332df881aa534a8edf2e23a30df151"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 10162236,
+          "sha256": "a189d791dc239fab303bc29de3f9a81060ae9d1dd217b14033d7258a0578b511"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 8861218,
+          "sha256": "53616990a77165ba61c05f80d39b52a6cc57df326c6bbe4709823f50f7c4534a"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 9851409,
+          "sha256": "7a848639ec97d129c639d88d8c2bf4a50047d45cf9d08d5be4ae2e7d089ba6b4"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 8345636,
+          "sha256": "e139e9aaa117c269e01e122ce8f271a19451f72d75b3e7983f96cf5d7ebe8368"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 8927772,
+          "sha256": "56ff0923a58f4dd0c52c81d9d1ef8345d9f66da8493faaed4ebf94eb8e090a5f"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 8966704,
+          "sha256": "4d1cc720120b5477849b049de1a1812e0753147abf267a81425c02c30a89635b"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 8625264,
+          "sha256": "8c540492212a96bd246f9c9cc3807e54dfb7dfd59a66fa3a4e08dd2cdc074937"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 9447112,
+          "sha256": "e0a98e07e89540af216b36f06e843992b16317935a0cbb7ec901e53dd92dfb0e"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 8313114,
+          "sha256": "e7ab15146ea62e527e95169dd7510bd0bc2dad73a89ef5fb40883763a3d99ec8"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 9186615,
+          "sha256": "417175d60072b41c3d16c387365cccfc2028b381e953103f9208c7b805c9de7a"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 8550912,
+          "sha256": "8ca9798809ef218a778a852282a3f164e03ace2b9f3fe9b59856579277a4b471"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 8882632,
+          "sha256": "542001f7dcdd32dada4de7543374e0feb66c8c0652b43a6464876a0c4e4b2b8e"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 9124025,
+          "sha256": "87a24889fdb9764886b4ae1de0ddee820dd7d384ab872a59df27c21955598320"
+        },
+        {
+          "file": "trace-13.json",
+          "bytes": 7924654,
+          "sha256": "1216822349eeffbf75044680f540be218f567ef8fb7da9892233f5fdfd683823"
+        },
+        {
+          "file": "trace-14.json",
+          "bytes": 8771952,
+          "sha256": "87d080eb067c267b68cd7fae159594587fbe9f9f99b46abccaf5231406915463"
+        },
+        {
+          "file": "trace-15.json",
+          "bytes": 8269912,
+          "sha256": "91074879761f8616183170b4e4c03833bf5fd9cc5ea6ba141094977f13cbb44f"
+        },
+        {
+          "file": "trace-16.json",
+          "bytes": 9279913,
+          "sha256": "8718170398765a0e6279c82ea7ad6d460cd0101ad27fceb0619d10b00f43da1a"
+        },
+        {
+          "file": "trace-17.json",
+          "bytes": 8303407,
+          "sha256": "6a5809e98fb5516d66f1afde070062163e23f6136a76aeddc7b6f06793dcbc6a"
+        },
+        {
+          "file": "trace-18.json",
+          "bytes": 8979133,
+          "sha256": "78011674d043354d35af9344d5a9561ae441d9640736f5be9f72f26c08a8985e"
+        },
+        {
+          "file": "trace-19.json",
+          "bytes": 7370474,
+          "sha256": "2085b1601e45fe13a0ad6a4754ce14cb10770c4f9f25ca8c61e5435df8471018"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run2",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxForecastCheckpointSave-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxForecastCheckpointSave-run2/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-EjgtFg --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T15:30:00.424Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-maxForecastCheckpointSave-run2.json",
+          "sha256": "8874b9b8005742bff188fe533a53249346621aac04e96b283b3bb4053d44acff"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-maxForecastCheckpointSave-run2.json",
+          "sha256": "227440840d1203830b5544171c59a600fe7f0bfec4f94cbad900bb51ef521930"
+        }
+      ],
+      "liveness": {
+        "pings": 291,
+        "maxFrameGapMs": 5226.209375023842
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T17:07:22.505Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxForecastCheckpointSave-run2.json",
+          "bytes": 7825,
+          "sha256": "227440840d1203830b5544171c59a600fe7f0bfec4f94cbad900bb51ef521930"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 1217,
+          "sha256": "d39fff7ea3d81d9aa008e1fd07f86fe14a3042d8e4de7f5e04429525bea79482"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1613,
+          "sha256": "781cb6fb38489290ec5b0483f04253f9971e934825935f91d15b53d131dc0088"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 7560900,
+          "sha256": "fa9f06bbaaba348228f1509864a5534355a5c42a227130f2270cc3cea603c012"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 513,
+          "sha256": "623a2b47a4b53121fe066bd4a9e007cae14787f61ea54f274f0619307ba79ed3"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 22174434,
+          "sha256": "cfb78d81318076c087da39c66a8233b83f272d1346b436b5baa542a0ce73a338"
+        },
+        {
+          "file": "result-formal-maxForecastCheckpointSave-run2.json",
+          "bytes": 1545,
+          "sha256": "8874b9b8005742bff188fe533a53249346621aac04e96b283b3bb4053d44acff"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 4260871,
+          "sha256": "c51975081340d94ae4b71df1cb8a64f62c34204503ca236bb35d359f34d4748e"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 10128698,
+          "sha256": "c2d97c4d5a24ab838cc5d719c5a3da43aa712c239fd924eb56b25d5cf71ae17f"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 9099152,
+          "sha256": "e79acb7c884367b3216abe8ddc46c028566f21cc85adcd2603323bfa578aaf8f"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 9631066,
+          "sha256": "071fc773a1777b107c33def1ae2fb439f84335a4078af7980d62bac87b34473f"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 8075434,
+          "sha256": "88e29448cb1d6ae0f611ff7c8c0c89baf338d72cec5dd09b5d996ad74c67d2c4"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 8945664,
+          "sha256": "65da6973f2fb9226aeda5b080f6795946a271ce66b9c56359cad53566de36244"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 8858060,
+          "sha256": "f8c695bb77edf441b77438a4f4779544ae5637ef03ad91d21742b7b541fed378"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 8647879,
+          "sha256": "39ead4b2e5c353f72b91bc644b66f0aca9028ad6ed6e8d51d7c97b7b76643f41"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 9254611,
+          "sha256": "ef5e3078227e1f36bde176154d2cba7101e628765b7a7cb018d688461a34df96"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 8126609,
+          "sha256": "11937f8f29266be14fc41c1c2437d7f5d373f3153354915b83fb5ba2d079237b"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 9038547,
+          "sha256": "c9c2c1af25b9cd29d1b3ee6d97b68b6a2a84f07fbd4c4106c2d65d9f6921e594"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 8276012,
+          "sha256": "d5396f911ccb562af89f6ac9bc6faf529506f1f29780aacd3e98cc92117cbdfd"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 9138386,
+          "sha256": "5cd274bfec5e86a69cce3d05c5019f7e7433062557b409d177107667db5af97f"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 8809758,
+          "sha256": "fe0ad3ff91b2a3e5273e4c66dd313a28ef94327006764fea59839bf9b556b2f3"
+        },
+        {
+          "file": "trace-13.json",
+          "bytes": 8700452,
+          "sha256": "6a23f6e3f890d83330b93764497abf9c07e25dd9156e540500e0928be1de093a"
+        },
+        {
+          "file": "trace-14.json",
+          "bytes": 9079669,
+          "sha256": "4d8da626401ae64057affdd17d1922c7d5f689d155391efd43efc5ce7a75060b"
+        },
+        {
+          "file": "trace-15.json",
+          "bytes": 7668821,
+          "sha256": "86d1aa167cb062484856e573b65bf929666e8f58854ef75ee9ad8876a89d4f2e"
+        },
+        {
+          "file": "trace-16.json",
+          "bytes": 8851387,
+          "sha256": "0ebcf948e1cc7759f14c7a1ed29ac247efc4dba86dd7ed18ddf826413753a364"
+        },
+        {
+          "file": "trace-17.json",
+          "bytes": 8147058,
+          "sha256": "edbc8f6cfbdf7185bb344e6941065763244f42aebf34dfcc0a3fa7d26c5a73b6"
+        },
+        {
+          "file": "trace-18.json",
+          "bytes": 9262997,
+          "sha256": "e612099e93cd07c478896666540c4a4281862de78044950760b94b1401626734"
+        },
+        {
+          "file": "trace-19.json",
+          "bytes": 3472061,
+          "sha256": "2cbfcc97f611a2c09c12aa20eeb43d2a2a5ce8168116bccccf7930880219751a"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run3",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxForecastCheckpointSave-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxForecastCheckpointSave-run3/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-4l7Z3z --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T17:07:22.614Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-maxForecastCheckpointSave-run3.json",
+          "sha256": "af90f0025a56a54f2ec2963755d366dc0f438fac5daa70f293bd29d0282aec98"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-maxForecastCheckpointSave-run3.json",
+          "sha256": "8fa4974835f60f28ed533685ddf3af71f9a3281bc146bbf4171f1191bdc17394"
+        }
+      ],
+      "liveness": {
+        "pings": 292,
+        "maxFrameGapMs": 5221.172541022301
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T18:44:53.504Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxForecastCheckpointSave-run3.json",
+          "bytes": 7827,
+          "sha256": "8fa4974835f60f28ed533685ddf3af71f9a3281bc146bbf4171f1191bdc17394"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 1217,
+          "sha256": "2140e2f12c6fc2969842bdb3ca40739d8929613f8e70141c247b8841752693f3"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1619,
+          "sha256": "26b5f2bfe98582d33f9850456b3dfd87489047f75ea2c54628d4e384f79c3c82"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 7565317,
+          "sha256": "f351306a3c8ec795173270548cf3470662818743aa1723fcbd4ef3e240d14b02"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 513,
+          "sha256": "465f13bf69e282c15027253b41d074fb666b4ab1a1d808f6752d4466aafea9ef"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 22217055,
+          "sha256": "36ab4f5eb1235d41c85b4fb047fac8fa9473474f6f26c2f1bb06b215c27b0788"
+        },
+        {
+          "file": "result-formal-maxForecastCheckpointSave-run3.json",
+          "bytes": 1546,
+          "sha256": "af90f0025a56a54f2ec2963755d366dc0f438fac5daa70f293bd29d0282aec98"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 4266765,
+          "sha256": "95e2370e6644d3234104d2690c1efc0ba527187c995c8e4b3d50c218046e10c4"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 9931607,
+          "sha256": "aa14d01982e3de2e2dd725e20a4ea56c08516fee9b28ee5f4328cb578dba7b1d"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 8928874,
+          "sha256": "f5e94a78704201dbcb1fc3dee6134de9f507666e146deefec2901c64d89f7cb7"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 9764548,
+          "sha256": "addcf38705089af017ee64cf116f113b5c7e6895ae8948ab518a81050eb76514"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 7868719,
+          "sha256": "8d9c3d1b24c892252994b957f73ae8038ebff823b2e36ea6ac79f0345aa952d6"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 8726341,
+          "sha256": "3653e0dad311e121968b990f6b82daad09cdd51aaf7e2292b12fcf59615523b5"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 8892218,
+          "sha256": "d503a6398ee52cd0a7506c10d584d4e6f9ec4b82410b7771bfbd4f0cca7386da"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 8702231,
+          "sha256": "781f5d457950b8a29b52aca95c4e0955ad665de8ff0bf535a33bb9592823cf6f"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 9320575,
+          "sha256": "9b06063dbb46b9238e1c0d682f6ad054074c70649079ca94a59e787fb6d1799c"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 8414545,
+          "sha256": "2b70bd7527e2ce39f74998868bdaa41707899b8c048f04378689ee9d4d4caae2"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 9261429,
+          "sha256": "9c883ef47d90ec343c1d3ce674b249bc8a3d04e681ce2361fd2133fa050b698f"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 8264768,
+          "sha256": "af784fac00d011b074d09266b3318cd529fd6fc8c7bdcd131a1bb32d87fbe3db"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 8886019,
+          "sha256": "1ea54933d40d238f90612135f4e6d5ecfad7d288e407a7e79a91b44c8223601f"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 9134820,
+          "sha256": "fff5f346e20c4b487ec4e982858bce361a812ff7a1624ab54263b90e576846eb"
+        },
+        {
+          "file": "trace-13.json",
+          "bytes": 8153597,
+          "sha256": "d7ac23d7cc4030ba27a0a921357c695fbfb6e91656eb965aba4c4100d0ea4400"
+        },
+        {
+          "file": "trace-14.json",
+          "bytes": 8851081,
+          "sha256": "7ece3d7434bce8b73cbe1ab4f000ef1c79144365c537f100f50b91d219e0bf98"
+        },
+        {
+          "file": "trace-15.json",
+          "bytes": 8003502,
+          "sha256": "ef9bb2fca4b97959a51dfe61dd13485ca1a0eb2fd8b2509ad4d77af93ab5452b"
+        },
+        {
+          "file": "trace-16.json",
+          "bytes": 9158374,
+          "sha256": "548e1d4ef096a37af78d2e1dba516af7f0677733603b1c3039e43bde0b78bac4"
+        },
+        {
+          "file": "trace-17.json",
+          "bytes": 8234376,
+          "sha256": "637870b11901dc5aa908fc0040d15fec460fcee1afb3fc26d94a4ea8635b0bf5"
+        },
+        {
+          "file": "trace-18.json",
+          "bytes": 8936994,
+          "sha256": "85b06864c3140daf25f33510bfec3bed79688114d78d7d3bb8622988f4ad5abd"
+        },
+        {
+          "file": "trace-19.json",
+          "bytes": 3860614,
+          "sha256": "3a8e5b27a343e0297e1fff8f1f3ac8f58a8cf659e72db4fcb9777c8846240312"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run1",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxWeatherCheckpointEncodeStarted-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxWeatherCheckpointEncodeStarted-run1/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-iMjWLZ --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T10:41:09.432Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-maxWeatherCheckpointEncodeStarted-run1.json",
+          "sha256": "a7e00a269b465063fd9ec4ff1d083ebce04550edca1dafad51b0fbf9068e99cf"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-maxWeatherCheckpointEncodeStarted-run1.json",
+          "sha256": "2df344d91fc752f4e060377ad9a0424c3c1a8c963677fd2102a769c0fa881cfe"
+        }
+      ],
+      "liveness": {
+        "pings": 192,
+        "maxFrameGapMs": 4968.891708016396
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T11:45:21.807Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxWeatherCheckpointEncodeStarted-run1.json",
+          "bytes": 7781,
+          "sha256": "2df344d91fc752f4e060377ad9a0424c3c1a8c963677fd2102a769c0fa881cfe"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 846,
+          "sha256": "3c8aabb1d30161ec3495a9825e7b4c4d2b750b3b13d46fa5a1a2710aec0453bd"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1612,
+          "sha256": "fecfa62417912dd56df2ab044aa9a7775166b9b48f7e6061f4dfa054017d47b8"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 5482633,
+          "sha256": "f458364e61efac226afeba77aed70b4a1eab74928459859ca479618453babf27"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 537,
+          "sha256": "44293e399b7a076858ca26824e0468377018786f4ba7878b951eb8394b5b75dc"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 14405084,
+          "sha256": "5b258d9ab13d4526839a3287aec0adec894166a9ea0b5aa109e68128471ff315"
+        },
+        {
+          "file": "result-formal-maxWeatherCheckpointEncodeStarted-run1.json",
+          "bytes": 1574,
+          "sha256": "a7e00a269b465063fd9ec4ff1d083ebce04550edca1dafad51b0fbf9068e99cf"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 2874820,
+          "sha256": "a6e166a695e10c84830a496e44f378b31fe110fcb2354ea5b8381618ca50384c"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 10506374,
+          "sha256": "245bfdec49ea525b5563af37b1a761f597cd40163b4c699a682dfcc74a0c2772"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 11275827,
+          "sha256": "eff4ecf1e79149b88051b7f9b0dc3f86ce0150e6598ac0dcf90155c930dedb52"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 11022223,
+          "sha256": "d7113b7e30a7b485cf3e0e1ec36dcbc0ebdaace01c84a716b9cd193498fe98fd"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 10192132,
+          "sha256": "99f685e5bba4eea84181cd02688342a55d3560b9c6d78942f022283e58e73d8c"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 10368745,
+          "sha256": "ffcfaa585a4c04eca9528ccbe2492e05e88242088fc2dac351e2e5cac327e8b6"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 10372284,
+          "sha256": "dc3a306335cb754a5484d26064a5b483c4024f8117b4ee04324a8c9201aaef80"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 10757650,
+          "sha256": "6631c9963eea8036885c6b28d5f9a8d22faf0698b12d357705dbba313a683a46"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 10499167,
+          "sha256": "59fb9f86b3a27d8543dd615dbc81a54518f17372a87b2743ead35c1c2c991cb3"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 10327957,
+          "sha256": "11ef6a63fdd60e4f8d9a4a42d206c1377f7cb2df3f9463a073c4d9622fcc190b"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 10377395,
+          "sha256": "f132e8c64977d03acb2ce5d0a67fc940fd3b3ec0aa31fb1741e995ee818cf4a5"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 10278806,
+          "sha256": "409b4ead9bc8942d17ee88e3974e2dead52fa91748e382837ec8aeac5e0772f9"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 10280037,
+          "sha256": "daf3ce7bb6144295ca0858c01013044177f845043b70323611431cea28b4086d"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 8268419,
+          "sha256": "5c64653cda845c7a42f096aba9260fd44e8d04637f8545bf20a213f1839a35a9"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run2",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxWeatherCheckpointEncodeStarted-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxWeatherCheckpointEncodeStarted-run2/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-S1kKkF --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T11:45:21.890Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-maxWeatherCheckpointEncodeStarted-run2.json",
+          "sha256": "6444f7229764aecb9a1575e8b0ab2ef60f679c6335e8bcb8fef34bd8dcc6bf68"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-maxWeatherCheckpointEncodeStarted-run2.json",
+          "sha256": "858c249aaa5d55906e05b22b9bde0a811777a8d8927408b625fb67244380d8b2"
+        }
+      ],
+      "liveness": {
+        "pings": 190,
+        "maxFrameGapMs": 4966.394582986832
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T12:48:51.167Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxWeatherCheckpointEncodeStarted-run2.json",
+          "bytes": 7796,
+          "sha256": "858c249aaa5d55906e05b22b9bde0a811777a8d8927408b625fb67244380d8b2"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 847,
+          "sha256": "435d16b26f96bf45c9e0ed7c7aaada2aba95ee1350b10b46839eaf719e4971c1"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1614,
+          "sha256": "ef95fd33785c6e54f6557b33905c5ec26ff0abf94c9ee275719f17fb46de4486"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 5437470,
+          "sha256": "27fa4715f2cfb5fcf51fdc20045192b4b93bf66aa905d6a630493355f14b5289"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 537,
+          "sha256": "8b0c7f22c34475467be4ea3a3a4d39409897dde4d7309af7a42602226ab9d126"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 14266662,
+          "sha256": "3bed62d8a2becc8240fa60dfd2656a468c3b4845a63679c4115f3a1bc69df117"
+        },
+        {
+          "file": "result-formal-maxWeatherCheckpointEncodeStarted-run2.json",
+          "bytes": 1583,
+          "sha256": "6444f7229764aecb9a1575e8b0ab2ef60f679c6335e8bcb8fef34bd8dcc6bf68"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 2843258,
+          "sha256": "0a109365e28f073543554dc9dd8edf438a6447fea5b31639584e2fc8e0bd3b25"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 10404073,
+          "sha256": "d107c9208907ae0f35e1843448646b0a7af79e7dcad30b2083840df9f7a79036"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 11282817,
+          "sha256": "594c532394d7f3025209b764cf8a32e5d6cec63e70c859365481adffe5888be5"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 10931870,
+          "sha256": "075ffc2a866161d4ebcd63b4d0b78340b87fa2fe3514b11a76e4aa88319e85d8"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 10053085,
+          "sha256": "ccdb255cc0f19fe6aea1a90b34ba7733e30e60b472393476cf71af0973cbd259"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 9828951,
+          "sha256": "f0c67f8973e91cd9e943bff4af18cc2c8277a58bf63c4f2ee8a0461c9652e418"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 9723873,
+          "sha256": "1c967aa24c695b76b9d589a7ea7f23171d7c4bfe3eb27eb8c8a4accf08cdf58c"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 10386522,
+          "sha256": "ce50dc34c36cb54e67d9502a9b9eade207224437aab3b78b77b87da7f47e0671"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 10382547,
+          "sha256": "ebfd5cf82249cc298f4d829ceeb1e08e6ed76042a35aee403d14191f10178202"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 10284439,
+          "sha256": "650a3bf74d5a10ce1279b31221589a1d18b2a02752fd182ae1b77fa38664463c"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 10061409,
+          "sha256": "365a4059841798ae963300e2be7df0df8a1129b91c7b37b046d4cb5d560a28f8"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 10253564,
+          "sha256": "6ab54790d779c238532e5bb6a1ec793e1931daca43a877d258770d753e115136"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 10121179,
+          "sha256": "5269bac94fa4d2d937586ca33e2e61438c0dd28da577156e900209a226168f45"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 6814573,
+          "sha256": "6dfec851669d6916f3c605d4856ebb0fe5f10a0a136521388168949b6447520e"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run3",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxWeatherCheckpointEncodeStarted-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e01-maxWeatherCheckpointEncodeStarted-run3/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-3VgS96 --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-10-11T12:48:51.249Z",
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/result-formal-maxWeatherCheckpointEncodeStarted-run3.json",
+          "sha256": "560aba9e8aa03bb48bd99f904db301e1736a3f2f8e8a88145a0186ca360ffbae"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e01-maxWeatherCheckpointEncodeStarted-run3.json",
+          "sha256": "b1d8b466f358b44a56f93dc6fe3636bee74bb542531c7bed325733cf3ed87f36"
+        }
+      ],
+      "liveness": {
+        "pings": 184,
+        "maxFrameGapMs": 4959.648708999157
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T13:50:35.195Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxWeatherCheckpointEncodeStarted-run3.json",
+          "bytes": 7775,
+          "sha256": "b1d8b466f358b44a56f93dc6fe3636bee74bb542531c7bed325733cf3ed87f36"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 846,
+          "sha256": "df5609e46d14433f264c7e60fd775c6df18663c2d905a80c1d599674434f698b"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1610,
+          "sha256": "0c3e70b40914e997ae64ad88800cec4d557a578e5a98affe90f17af4ac345dba"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 5333345,
+          "sha256": "05290c00b598487c08f69e858f2c3dc3e9de44e368f530fdfe002418fead8d04"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 537,
+          "sha256": "a42eeacb8654bd499ce1744111c14ee14be994095e42dc4fe6f83f4938ad0b7b"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 13865072,
+          "sha256": "15a200b386d6bc3b287624e73f8f50edd61ef5b74c9adc859c917877b45227de"
+        },
+        {
+          "file": "result-formal-maxWeatherCheckpointEncodeStarted-run3.json",
+          "bytes": 1579,
+          "sha256": "560aba9e8aa03bb48bd99f904db301e1736a3f2f8e8a88145a0186ca360ffbae"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 2771633,
+          "sha256": "44cd38b6116793121ca5a4c0535d60107ba3d1e38e6e476ce7f41ac09b0979d6"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 10433801,
+          "sha256": "fd4a868317b0fd2ec97035d7b3d904c946a1621140593e4c3a87f702569e5446"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 11085412,
+          "sha256": "ebdbe257eff117cb0247e4ab9a019601d91706a24c64f58ed43bbd591d118a92"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 10908499,
+          "sha256": "602069bf2123af36489ee345d1d0ea670ca8488561975d6822fe0ff8ac242d69"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 10122741,
+          "sha256": "ae33e9714e15babfe065f982e6ff4c1c536545665010a91d4cae9c6ca69d3e67"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 10003990,
+          "sha256": "45bc6c0041efd393389fe107abced07b4a5ed89e409ec2a61a272785792b0524"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 9715040,
+          "sha256": "e67525c7b1424a54765b28c0298cb02bef21d5c3b84681e96b3e0a17be5c3dcf"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 10351074,
+          "sha256": "64fd856ed7793ed3bfea49e39fd70cd37f0222e7ca75ad197e1f4c990d2faf9c"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 10374689,
+          "sha256": "79f80aff459a4ddb90d397251868cbe26947974a334a42e995164dd95deaa6f3"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 10144442,
+          "sha256": "030cd61a5b3dc67e7b980767bdfdb662c1f609ebfc4a6059bc6a190173d9d34c"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 10060058,
+          "sha256": "35a7c45996281563a1ceb1371d2f4ba2e421222673e5832d7f6f147d57d342c4"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 10175684,
+          "sha256": "baaf7ac2167dbb06d7e30e3e053b445a3d41e4d01329a3188c3c6afd981fefdc"
+        },
+        {
+          "file": "trace-11.json",
+          "bytes": 10123883,
+          "sha256": "13797b3492e74a51470bc002b02318c03cc70499128c745f65d3144d0b620e05"
+        },
+        {
+          "file": "trace-12.json",
+          "bytes": 3200282,
+          "sha256": "6a49918e977572505433c44a806a052a8760aeb400fb9f6275fdade62eb9595f"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e07-C",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e07-C",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e07-C/host-config.json"
+      ],
+      "startedAt": "2026-10-11T09:31:05.009Z",
+      "fill": {
+        "mode": "cycleC",
+        "frames": 1667,
+        "firstSeq": 1,
+        "sentMs": 51726,
+        "verifiedMs": 51870,
+        "observed": {
+          "snapshotActive": {
+            "eew": "512/1/0",
+            "weatherCurrent": "129/1/1",
+            "weatherTimeseries": "512/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 128,
+            "U-F.subjects": 512
+          }
+        },
+        "eewOriginWallMs": 1780650000000,
+        "eewHorizonStale": 0,
+        "quiet": {
+          "waitedMs": 15126,
+          "untilLastBackendMs": 18,
+          "backendLaunchesSeen": {},
+          "quietMs": 15000,
+          "pgrepFailures": 0,
+          "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+        },
+        "observedBeforeMeasure": {
+          "snapshotActive": {
+            "eew": "512/1/0",
+            "weatherCurrent": "129/1/1",
+            "weatherTimeseries": "512/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 128,
+            "U-F.subjects": 512
+          }
+        },
+        "expiry": {
+          "waitedMs": 535246,
+          "observedAfterExpiry": {
+            "snapshotActive": {
+              "eew": "0/0/0",
+              "weatherCurrent": "129/1/1",
+              "weatherTimeseries": "512/0/0"
+            },
+            "checkpoint": {
+              "U-W.national": 3,
+              "U-W.partials": 128,
+              "U-F.subjects": 512
+            }
+          }
+        }
+      },
+      "pingsUnreceived": 0,
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e07-C.json",
+          "sha256": "56253c16eea4628450b268729e25239788d72aaa00e35d5eb84814a758ea3c9d"
+        }
+      ],
+      "liveness": {
+        "pings": 270,
+        "maxFrameGapMs": 20002.81520795822
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T10:41:09.421Z",
+      "raw": [
+        {
+          "file": "aux-e07-C.json",
+          "bytes": 12989,
+          "sha256": "56253c16eea4628450b268729e25239788d72aaa00e35d5eb84814a758ea3c9d"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 120586,
+          "sha256": "8e7064217b7174ccbcf322adc6362dbfd19c75c1da2eb0ba7dbd9db040acdae0"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1589,
+          "sha256": "abc135d2c15c5316588f8d3a21322e61b0404fa05cfa57d5fc41c42fea010698"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 426,
+          "sha256": "df67a3a41b8096a783c24aefc7fd9acfe194d2a234d551142443b78af3993520"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 16308381,
+          "sha256": "8cf52df9b2f421f324e85c959d5723cd24e3672c06c9c917ce427a65f72de0c0"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e07-N",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e07-N",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e07-N/host-config.json"
+      ],
+      "startedAt": "2026-10-11T08:31:03.219Z",
+      "fill": null,
+      "pingsUnreceived": 0,
+      "status": "Pass",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e07-N.json",
+          "sha256": "d36ddd0f261475759c9a3eaeaee55c5139bc730e9ba58c09be20b0a9e89df9f6"
+        }
+      ],
+      "liveness": {
+        "pings": 180,
+        "maxFrameGapMs": 20002.962875008583
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T09:31:05.005Z",
+      "raw": [
+        {
+          "file": "aux-e07-N.json",
+          "bytes": 7892,
+          "sha256": "d36ddd0f261475759c9a3eaeaee55c5139bc730e9ba58c09be20b0a9e89df9f6"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 839,
+          "sha256": "be07bfc99e02f42dfef0b0b9810d1330db05928ead8928f4616d54f4b144e81b"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1578,
+          "sha256": "6a53f4f2649a30a71a8b90e7a6466ab7692ffd8cd6e947e5f0801e53029758e5"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 426,
+          "sha256": "d9aa2cede83d7f02b68cab5a2a94745ed48e509ad76b0786b168c5ef8009caca"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 3830372,
+          "sha256": "b2b0e9f4ddd9fe00edf55b280b42b9ad1d6262c68d47fb23402572ac10c80555"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e14-run1",
+      "attempt": 1,
+      "manifestId": "p3-mh-uwr-20261011",
+      "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+      "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e14-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-uwr.json --windows e14-run1,e07-N,e07-C,e01-maxWeatherCheckpointEncodeStarted-run1,e01-maxWeatherCheckpointEncodeStarted-run2,e01-maxWeatherCheckpointEncodeStarted-run3,e01-maxForecastCheckpointSave-run1,e01-maxForecastCheckpointSave-run2,e01-maxForecastCheckpointSave-run3,e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+        "caffeinate -dims -w 38999",
+        "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-mh-prelim/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-mh-uwr-20261011/e14-run1/host-config.json"
+      ],
+      "startedAt": "2026-10-11T08:01:18.654Z",
+      "fill": {
+        "mode": "leaveRoomForP",
+        "frames": 1664,
+        "firstSeq": 1,
+        "sentMs": 50411,
+        "verifiedMs": 50542,
+        "observed": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        },
+        "eewOriginWallMs": 1780650000000,
+        "eewHorizonStale": 0,
+        "quiet": {
+          "waitedMs": 15111,
+          "untilLastBackendMs": 16,
+          "backendLaunchesSeen": {},
+          "quietMs": 15000,
+          "pgrepFailures": 0,
+          "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+        },
+        "observedBeforeMeasure": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        },
+        "expiry": {
+          "waitedMs": 536257,
+          "observedAfterExpiry": {
+            "snapshotActive": {
+              "eew": "0/0/0",
+              "weatherCurrent": "127/1/1",
+              "weatherTimeseries": "511/0/0"
+            },
+            "checkpoint": {
+              "U-W.national": 3,
+              "U-W.partials": 126,
+              "U-F.subjects": 511
+            }
+          }
+        }
+      },
+      "status": "N/A",
+      "byteViolations": 0,
+      "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-mh-uwr-20261011/results/aux-e14-run1.json",
+          "sha256": "8b947c520f01c25f9e07706e2f98dc6b0ffca64b700ee0551c1c5f778c7efb82"
+        }
+      ],
+      "liveness": {
+        "pings": 89,
+        "maxFrameGapMs": 20002.76237499714
+      },
+      "hostClock": {
+        "hostClockUnverified": 0,
+        "hostClockAhead": 0,
+        "hostClockBehind": 0
+      },
+      "finishedAt": "2026-10-11T08:31:03.212Z",
+      "raw": [
+        {
+          "file": "aux-e14-run1.json",
+          "bytes": 22798,
+          "sha256": "8b947c520f01c25f9e07706e2f98dc6b0ffca64b700ee0551c1c5f778c7efb82"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 76898,
+          "sha256": "707d1213c4e2f1fa04a390e9c5bd6df6ddbbf25d9aeb26620aaaf399cb43b719"
+        },
+        {
+          "file": "diagnostics/shutdown-summary.json",
+          "bytes": 1589,
+          "sha256": "3a0c319377685f9fe846cb03a59d280b5588d1431af5c183dd8d524ba9a59139"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 437,
+          "sha256": "d45dfb3773857f8c5f3a02989cc64ffc6fcf4fe7b59a67fccf1f4e9472f5ed9e"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 12810025,
+          "sha256": "efe49a193dadecbeefda95b6a43749c945c1418a77a03feb7e460d6d3df5cd42"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    }
+  ]
+}

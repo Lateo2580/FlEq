@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "p3-mh-uwr-20261011",
+  "manifestSha256": "0c00df1c53a3f8cfaa85f0bd4861973fdddbe47cc10e3cb72244a1c740967e75",
+  "resultSha256": "6527299212e46c42792b1dca55db433f4d79e59831d89a4585d1788d11945d0e",
+  "window": "e01-forecastDeadlineOverlap-run3",
+  "status": "Pass",
+  "e15": {
+    "status": "Fail",
+    "attempts": 3467,
+    "units": {
+      "U-F": {
+        "encodeCount": 3433,
+        "encodeBytes": 225465953,
+        "writeBytes": 225465953,
+        "occupiedMsLower": 3652.44482421875,
+        "measuredStagesMs": 26920.8203125,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      },
+      "U-E": {
+        "encodeCount": 8,
+        "encodeBytes": 6814,
+        "writeBytes": 6814,
+        "occupiedMsLower": 1.573974609375,
+        "measuredStagesMs": 69.812255859375,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      },
+      "U-W": {
+        "encodeCount": 19,
+        "encodeBytes": 53596614,
+        "writeBytes": 53596614,
+        "occupiedMsLower": 306.34326171875,
+        "measuredStagesMs": 470.875244140625,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      },
+      "U-L": {
+        "encodeCount": 7,
+        "encodeBytes": 15910,
+        "writeBytes": 15910,
+        "occupiedMsLower": 0.75927734375,
+        "measuredStagesMs": 47.0732421875,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 3467
+    },
+    "byteViolations": 0,
+    "unknownInputIds": 0,
+    "blocked": [],
+    "writes": {
+      "status": "Fail",
+      "complete": true,
+      "unconfirmed": [],
+      "unattributed": [
+        {
+          "thread": "deferred",
+          "category": "tmp",
+          "counted": {
+            "count": 3440,
+            "bytes": 225481863
+          },
+          "attributed": {
+            "count": 3433,
+            "bytes": 225465953
+          }
+        }
+      ],
+      "unverified": [],
+      "threads": {
+        "urgent": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 8,
+              "bytes": 6814
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "weatherCurrent": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 19,
+              "bytes": 53596614
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "deferred": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 3440,
+              "bytes": 225481863
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "publisher": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 2,
+              "bytes": 3232
+            },
+            "diagnosticLog": {
+              "count": 6,
+              "bytes": 1033
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        }
+      }
+    },
+    "preSaveSyncMs": {
+      "U-F": {
+        "grants": 3433,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 3652.44482421875,
+        "upperMs": 4657.13525390625,
+        "maxUpperMs": 6.9765625
+      },
+      "U-E": {
+        "grants": 8,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 1.573974609375,
+        "upperMs": 6.621826171875,
+        "maxUpperMs": 1.95654296875
+      },
+      "U-W": {
+        "grants": 19,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 306.34326171875,
+        "upperMs": 312.131103515625,
+        "maxUpperMs": 21.880126953125
+      },
+      "U-L": {
+        "grants": 7,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 0.75927734375,
+        "upperMs": 3.2041015625,
+        "maxUpperMs": 0.78955078125
+      }
+    },
+    "occupancyNote": "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "publishCost": {
+    "window": "e01-forecastDeadlineOverlap-run3",
+    "publishCount": 8737,
+    "totalJsonBytes": 444399078,
+    "maxJsonBytes": 83166,
+    "serializeP50Ms": 0.39333399990573525,
+    "serializeP99Ms": 1.1001670002005994,
+    "serializeMaxMs": 2.054707999806851
+  },
+  "ownerHeap": {
+    "urgent": {
+      "rows": 5149,
+      "maxHeapUsedBytes": 16706656,
+      "maxExternalBytes": 2765359
+    },
+    "weatherCurrent": {
+      "rows": 5149,
+      "maxHeapUsedBytes": 131390392,
+      "maxExternalBytes": 9839683
+    },
+    "deferred": {
+      "rows": 5149,
+      "maxHeapUsedBytes": 34106856,
+      "maxExternalBytes": 2432846
+    }
+  },
+  "notificationAdoption": {
+    "first": {
+      "reservations": 6,
+      "started": 6,
+      "notStarted": 0,
+      "reservationToReplyMs": {
+        "p50": 1.3773330000003625,
+        "p95": 4.04279200010933,
+        "p99": 4.04279200010933,
+        "max": 4.04279200010933
+      },
+      "replyToAttemptMs": {
+        "p50": 0.020042000000103144,
+        "p95": 0.03583299999991141,
+        "p99": 0.03583299999991141,
+        "max": 0.03583299999991141
+      },
+      "createdToReservationWallMs": {
+        "p50": 4.849853515625,
+        "p95": 6.555419921875,
+        "p99": 6.555419921875,
+        "max": 6.555419921875
+      }
+    },
+    "retries": {
+      "reservations": 0,
+      "started": 0,
+      "notStarted": 0,
+      "reservationToReplyMs": null,
+      "replyToAttemptMs": null,
+      "createdToReservationWallMs": null
+    }
+  },
+  "viewCopy": {
+    "inputs": 3459,
+    "unbound": 0,
+    "threadCopiesPerInputUpper": 1,
+    "publishesPerInput": {
+      "p50": 5,
+      "p95": 6,
+      "p99": 7,
+      "max": 1064
+    },
+    "publishBytesPerInput": {
+      "p50": 280848,
+      "p95": 280916,
+      "p99": 442951,
+      "max": 59995754
+    },
+    "serializeMsPerInput": {
+      "p50": 2.368209000211209,
+      "p95": 3.1845010006800294,
+      "p99": 3.9567080005072057,
+      "max": 587.0474590025842
+    },
+    "publishesWithoutSerialization": 0,
+    "attribution": "帰属不能（参考量）",
+    "referenceCopyBytes": "C3a の計量: VPWS50 で view 620,797 byte・返信 622,802 byte"
+  }
+}
