@@ -7,7 +7,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { initialUnits } from "../../src/runtime/owner-runtime";
 import { reduceEewUnit } from "../../src/units/eew/eew-unit";
 import { e14BundleFrames } from "./windows.mjs";
-import type { HostRecord } from "./aux-measures.mjs";
+import type { E05cRow, HostRecord } from "./aux-measures.mjs";
 
 const obs = (o: Record<string, unknown>): HostRecord => ({ t: "obs", o });
 const marker = (point: string, inputId: string, monotonicMs: number) => obs({ kind: "marker", point, runId: "r", inputId, monotonicMs });
@@ -395,5 +395,92 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(Object.keys(e14.outsideOverlap)).toEqual(["U-E"]);
     // C4 の規則（3 unit の重なり）では全部 notSimultaneous。
     expect(aux.summarizeE14(records, { bundles: [0, 1, 2].map(e14Bundle) })).toMatchObject({ linked: 0, unconfirmed: { notSimultaneous: 3 }, outsideOverlap: {} });
+  });
+});
+
+// P3-E05C-T01: 判定表（AC03）。合成の行は 4 thread・200ms。ふだんは thread ごとに heapUsed 20・heapTotal 30・external 5MiB、rss 300MiB。
+// 山 k は 30 秒ごとに 4 秒（閾値 380・rearm 330MiB）。weatherCurrent の heapUsed を u、heapTotal を u+v 増やし、rss を u+v+xo 上げる。
+// GC の run は始まりの行の直後に閾値の GC を受け、通常の GC で freed の heapUsed が戻り（rss は戻らない）、last-resort の後に rss が returned 戻る。
+describe("P3-E05C-T01 the classification table of the E05-P peaks (AC03)", () => {
+  const THREADS = ["publisher", "urgent", "weatherCurrent", "deferred"] as const;
+  type Shape = { u?: number; v?: number; xo?: number; freed?: number; returned?: number; stale?: boolean };
+  const options = { thresholdBytes: 380 * MiB, rearmBelowBytes: 330 * MiB, measureFromMs: 0, measureToMs: Infinity,
+    c4: { start: { publisher: 21.8 * MiB, urgent: 8.9 * MiB, weatherCurrent: 14.5 * MiB, deferred: 9.6 * MiB },
+      flat: { publisher: 22.5 * MiB, urgent: 9.5 * MiB, weatherCurrent: 16.9 * MiB, deferred: 10.0 * MiB } } };
+  const usage = (rss: number, heapUsed = 20, heapTotal = 30) => ({ rss: rss * MiB, heapUsed: heapUsed * MiB, heapTotal: heapTotal * MiB, external: 5 * MiB, arrayBuffers: MiB });
+  const build = (shapes: Shape[], gcRun: boolean) => {
+    const rows: Record<string, E05cRow[]> = Object.fromEntries(THREADS.map((place) => [place, [{ k: "start", place, atMs: 0, nodeVersion: "v22", gcAvailable: true }]]));
+    const shapeAt = (t: number) => { const k = Math.floor(t / 30_000) - 1; return k >= 0 && k < shapes.length && t % 30_000 < 4000 ? { k, s: shapes[k], since: t % 30_000 } : null; };
+    for (let t = 0; t < (shapes.length + 1) * 30_000; t += 200) {
+      const at = shapeAt(t);
+      const s = at?.s ?? {};
+      const [u, v, xo] = [s.u ?? 0, s.v ?? 0, s.xo ?? 0];
+      const peakRss = 300 + u + v + xo;
+      const rss = at == null ? 300 : at.since === 0 || !gcRun ? peakRss : peakRss - (s.returned ?? 0);
+      for (const place of THREADS) {
+        // stale: 山の 2 秒前から weatherCurrent の行が無い（処理中で timer が回らない形）。
+        if (place === "weatherCurrent" && shapeAt(t + 2000)?.s.stale === true && (at == null || at.since < 2000)) continue;
+        rows[place].push({ k: "mem", place, atMs: t, ...(place === "weatherCurrent" && at != null ? usage(rss, 20 + u, 30 + u + v) : usage(rss)) });
+      }
+      if (gcRun && at?.since === 0) {
+        for (const place of THREADS) {
+          const wc = place === "weatherCurrent";
+          rows[place].push({ k: "forcedGc", place, id: at.k + 1, reason: "threshold", requestedAtMs: t, startMs: t + 1, endMs: t + 50,
+            before: wc ? usage(peakRss, 20 + u, 30 + u + v) : usage(peakRss), afterRegular: wc ? usage(peakRss, 20 + u - (s.freed ?? 0), 30 + u + v) : usage(peakRss),
+            afterLastResort: wc ? usage(peakRss - (s.returned ?? 0), 20 + u - (s.freed ?? 0), 30 + u + v) : usage(peakRss - (s.returned ?? 0)) });
+        }
+      }
+    }
+    return rows;
+  };
+  const J1: Shape = { u: 120, freed: 120, returned: 120 };
+  const J3: Shape = { u: 120, freed: 120, returned: 0 };
+  const J0: Shape = { u: 120, freed: 120, returned: 120, stale: true };
+
+  it("each peak falls in the first row it meets: J1〜J5 and J0; a value exactly at a boundary is on the clause's side; r is read after last-resort, not after the regular GC", () => {
+    const shapes: Shape[] = [J1, { v: 120, returned: 120 }, J3, { u: 120 }, { u: 50, v: 50, xo: 50, freed: 50, returned: 150 }, J0,
+      // ΔU＝0.5E かつ g＝0.6 は J1、r＝0.3 は J3。
+      { u: 75, xo: 75, freed: 45, returned: 150 }, { u: 120, freed: 120, returned: 36 }];
+    const result = aux.classifyE05cRun(build(shapes, true), { ...options, gcRun: true });
+    expect(result.peaks.map((p) => p.judgement)).toEqual(["J1", "J2", "J3", "J4", "J5", "J0", "J1", "J3"]);
+    // J1 の山は通常の GC の後の rss が戻らない（rRegular 0）が、last-resort の後に戻る（r 1）。
+    expect(result.peaks[0].gc).toMatchObject({ g: 1, r: 1, rRegular: 0 });
+    expect(result.peaks[5]).toMatchObject({ reason: "staleThread", oldestRowAgeMs: 2200 });
+    expect(result.peaks[6].distances).toMatchObject({ u: 0, g06: 0 });
+    expect(result.peaks[7].distances).toMatchObject({ r03: 0 });
+    // 観測だけの run には g・r が無いので、heap 使用が主の山は J1/J4 の 1 つ。
+    expect(aux.classifyE05cRun(build([J1], false), { ...options, gcRun: false }).peaks.map((p) => p.judgement)).toEqual(["J1/J4"]);
+  });
+
+  it("a run is mixed (primary + secondary) when the second judgement reaches 1/4, single when the first reaches 2/3, and 未確認 when J0 exceeds 1/3; the judgement counts and the over-400MiB breakdown are returned", () => {
+    const run = (shapes: Shape[]) => aux.classifyE05cRun(build(shapes, true), { ...options, gcRun: true }).run;
+    expect(run([J1, J1, J1, J3])).toMatchObject({ status: null, kind: "mixed", primary: "J1", secondary: "J3", counts: { J1: 3, J3: 1 }, over400: { J1: 3, J3: 1 } });
+    expect(run([J1, J1, J1, J1, J3])).toMatchObject({ status: null, kind: "single", primary: "J1" });
+    expect(run([J0, J1, J1])).toMatchObject({ status: null, kind: "single", primary: "J1", counts: { J0: 1, J1: 2 } });
+    expect(run([J0, J0, J1, J1, J1])).toMatchObject({ status: "未確認", reason: "j0OverOneThird" });
+    expect(run([])).toMatchObject({ status: "未確認", reason: "noPeak" });
+  });
+
+  it("the phase and baseline GCs give S, D_start, D_late and Grow per thread and the judgements ①〜④ (AC03(4))", () => {
+    // thread ごとの [L_pre, L_post, 300 秒以後の基準の GC の後の値の中央値]（MiB）。300 秒より前の基準の GC（100MiB）は入れない。
+    const values = { publisher: [21, 22, 22.5], urgent: [25, 30, 30], weatherCurrent: [15, 55, 60], deferred: [10, 12, 25] };
+    const gcRow = (place: string, id: number, reason: "phase" | "baseline", at: number, heapUsed: number, delayMs = 0): E05cRow => ({ k: "forcedGc", place, id, reason,
+      requestedAtMs: at, startMs: at + delayMs, endMs: at + delayMs + 10, before: usage(300, heapUsed), afterRegular: usage(300, heapUsed), afterLastResort: usage(300, heapUsed) });
+    const build = (postDelayMs: Record<string, number> = {}) => Object.fromEntries(Object.entries(values).map(([place, [pre, post, late]]) => [place, [
+      gcRow(place, 1, "phase", -60_000, pre), gcRow(place, 2, "phase", -1000, post, postDelayMs[place]), gcRow(place, 3, "baseline", 299_999, 100),
+      gcRow(place, 4, "baseline", 300_000, late - 0.5), gcRow(place, 5, "baseline", 360_000, late), gcRow(place, 6, "baseline", 420_000, late + 0.5)]]));
+    const { baseline } = aux.classifyE05cRun(build(), { ...options, measureToMs: 1_000_000, gcRun: true, phaseMissing: [[], []] });
+    expect(Object.fromEntries(Object.entries(baseline?.threads ?? {}).map(([p, t]) => [p, t.judgement])))
+      .toEqual({ publisher: ["①"], urgent: ["③"], weatherCurrent: ["②"], deferred: ["①", "④"] });
+    expect(baseline?.threads.weatherCurrent).toMatchObject({ S: 40 * MiB, gLate: 60 * MiB, grow: 5 * MiB });
+    expect(baseline?.threads.deferred.dLate).toBeCloseTo(15 * MiB);
+    expect(baseline?.threads.urgent.gcs.map((g) => [g.id, g.reason, g.requestedAtMs, g.heapUsed])).toEqual([[1, "phase", -60_000, 25 * MiB], [2, "phase", -1000, 30 * MiB],
+      [3, "baseline", 299_999, 100 * MiB], [4, "baseline", 300_000, 29.5 * MiB], [5, "baseline", 360_000, 30 * MiB], [6, "baseline", 420_000, 30.5 * MiB]]);
+    // GC の開始は 10 秒以内（受けた遅れ 9,900ms）でも、runner の待ちの終わりに行が欠けた thread（phaseMissing）は L_post を null にし、出せる値だけを
+    // 出して判定を null にする。欠けていない thread は採る。
+    const late = aux.classifyE05cRun(build({ deferred: 9_900 }), { ...options, measureToMs: 1_000_000, gcRun: true, phaseMissing: [[], ["deferred"]] }).baseline;
+    expect(late?.threads.urgent).toMatchObject({ lPost: 30 * MiB, judgement: ["③"] });
+    expect(late?.threads.deferred).toMatchObject({ lPre: 10 * MiB, lPost: null, gLate: 25 * MiB, S: null, dStart: null, grow: null, judgement: null });
+    expect(late?.threads.deferred.dLate).toBeCloseTo(15 * MiB);
   });
 });

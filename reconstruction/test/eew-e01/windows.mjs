@@ -11,7 +11,7 @@ import { AC15_OWNERS, ac15Intervals, checkpointWindows, compareRetention, finger
 import { viewCopyReport } from "./analysis.mjs";
 import {
   drainBounds, e14Acks, e14Index, hostMsOf, notificationAdoptionReport, ownerHeapReport, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05,
-  summarizeE06, summarizeE07, summarizeE14, summarizeE15,
+  summarizeE06, summarizeE07, summarizeE14, summarizeE15, classifyE05cRun, E12_THREADS,
 } from "./aux-measures.mjs";
 import { hrMs, sleep } from "./chrome.mjs";
 import { E12_CLASSES, FIX, ac15Frame, cycleCFrames, dataFrame, e03Frame, fixtureText, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
@@ -46,13 +46,13 @@ export const seal = (path, body, field) => { writeFileSync(path, sealSelfHash(`$
 // aux の結果は契約に型が無い。共通の頭 4 つを付けて WP2 と同じ自己 hash 規約で封印する（設計メモ §1.5）。
 export const sealAux = (dir, name, manifest, body) => seal(join(dir, name), { schemaVersion: "p2-a10-aux-result-v1", manifestId: manifest.manifestId,
   manifestSha256: manifest.manifestSha256, resultSha256: ZERO_HASH, ...body }, "resultSha256");
-// probe の行（充填を含むと数百 MB）を 1 行ずつ読み、判定区間の始まり以後の行だけを残す（全体を 1 つの文字列にしない）。
+// probe の行（充填を含むと数百 MB）を 1 行ずつ読み、fromMs があれば判定区間の始まり以後の行だけを残す（全体を 1 つの文字列にしない）。
 async function readProbeRows(path, fromMs) {
   const rows = [];
   for await (const line of createInterface({ input: createReadStream(path), crlfDelay: Infinity })) {
     if (line === "") continue;
     const row = JSON.parse(line);
-    if (row[0] >= fromMs) rows.push(row);
+    if (fromMs == null || row[0] >= fromMs) rows.push(row);
   }
   return rows;
 }
@@ -320,16 +320,17 @@ async function quietWait(pid, w, { quietMs = 15_000, deadlineMs = 600_000, pollM
 // ── E02+E05（AC11・AC08）: 別プロセスの /healthz client を走らせ、その間 N または P（充填の後）を流す ──
 // spec §9.9 は E05 を「RSS を毎秒」と定める。10 秒では VPWS50 処理中の山を取り逃す。host の採取周期と E05 の欠測判定が同じ値を使う。
 const E05_MEM_EVERY_MS = 1000;
-function e02Window(ctx, load, run) {
+function e02Window(ctx, load, run, classify = null) {
   const { requestEveryMs, requestTimeoutMs, minSamplesPerRun } = ctx.manifest.health;
   const count = ctx.counts.e02 ?? minSamplesPerRun;
-  const id = `e02-${load}-run${run}`;
+  const id = classify == null ? `e02-${load}-run${run}` : `e05c-${classify}-run${run}`;
   return {
     id, expectedMin: Math.ceil((count * requestEveryMs) / 60_000) + (load === "P" ? 6 : 2),
     run: async (w) => {
-      const host = await openHost(w, ctx, { memEveryMs: E05_MEM_EVERY_MS });
+      const { host, probe } = await openE02Host(w, ctx, classify);
       const filled = load === "P" ? await fill(host, w, ctx, "leaveRoomForP", { blockAtExpiry: true }) : null;
       const out = join(w.dir, "e02.jsonl");
+      await probe?.beforeMeasure();
       const client = startChild(w, ctx, [E02_CLIENT, "--url", `http://127.0.0.1:${host.displayPort}/healthz`, "--count", String(count), "--every-ms", String(requestEveryMs),
         "--timeout-ms", String(requestTimeoutMs), "--load", load, "--run", String(run), "--out", out], "e02-client");
       const pump = replayPump(ctx.manifest.loads[load], host.send, host.wallSec);
@@ -354,15 +355,14 @@ function e02Window(ctx, load, run) {
       const expiry = filled == null ? null : expirySplit(records, samples, { start, end }, ctx, filled.record);
       const late = expiry == null ? null : currentsExpiredAtMeasure(expiry);
       if (late != null) throw new Error(late);
+      if (probe != null) return e05cOutcome(ctx, w, id, probe, { records, start, end, health, e05, reports, expiry, fill: filled?.record ?? null });
       // 窓の status は E02（この窓の主の判定）。E05 は statuses に別に持つ（まとめて潰さない）。予備は status と同じく未確認に倒し、判定は judgedStatuses へ。
       const statuses = { E02: health.status, E05: e05.status };
-      const o = outcome(ctx, health.status, reports, { fill: filled?.record ?? null, expirySplit: expiry,
-        ...(ctx.preliminary ? { statuses: { E02: "未確認", E05: "未確認" }, judgedStatuses: statuses } : { statuses }) });
+      const o = outcome(ctx, health.status, reports, { fill: filled?.record ?? null, expirySplit: expiry, ...(ctx.preliminary ? { statuses: { E02: "未確認", E05: "未確認" }, judgedStatuses: statuses } : { statuses }) });
       o.resultFiles = [
         seal(join(w.dir, `result-e02-${load}-run${run}.json`), { ...health, ...(ctx.preliminary ? { status: o.status, judgedStatus: health.status } : {}),
           evidenceRefs: [`${w.dir}/e02.jsonl`, `${w.dir}/host-obs.jsonl`] }, "resultSha256"),
-        sealAux(w.dir, `aux-e05-${load}-run${run}.json`, ctx.manifest, { window: id, status: ctx.preliminary ? o.status : e05.status, e05, ...reports, fill: o.fill,
-          expirySplit: expiry }),
+        sealAux(w.dir, `aux-e05-${load}-run${run}.json`, ctx.manifest, { window: id, status: ctx.preliminary ? o.status : e05.status, e05, ...reports, fill: o.fill, expirySplit: expiry }),
       ];
       return o;
     },
@@ -822,5 +822,75 @@ export function auxWindows(ctx) {
     ...(ctx.manifest.auxiliary.E07?.loads ?? []).map((load) => e07Window(ctx, load)),
     ...(ctx.manifest.auxiliary.E14 == null ? [] : runs(ctx.manifest.auxiliary.E14.runCount).map((run) => e14Window(ctx, run))),
     ...(ctx.manifest.auxiliary.ownerHeap == null ? [] : runs(ctx.manifest.auxiliary.ownerHeap.runCount).map((run) => ownerHeapWindow(ctx, run))),
+    // P3-E05C-AC04(2): 分類の窓は、manifest の contractSha256 に本契約の鍵があるか予備のときだけ（今の凍結 manifest の並びは変わらない）。
+    // id は e02- で始めない（e02Verdict が E02 の判定に入れない）。
+    ...(ctx.preliminary || ctx.manifest.contractSha256?.[E05C_CONTRACT] != null
+      ? ["observe", "gc"].flatMap((mode) => runs(E05C.runs).map((run) => e02Window(ctx, "P", run, mode))) : []),
   ];
+}
+
+// ── P3-E05P-CLASSIFY-001 の分類の窓（e02Window の P の経路に preload と区切りの GC を足す、P3-E05C-AC04） ──
+// 値は作者裁定 P3-E05C-THRESHOLD・GC-CAP・RUN-SPLIT（どれも A）で、結果に写す。c4 は C4 の E05-P の測定の窓の tick の値（P3-E05C-MATERIAL(7)(8)、
+// repo の外の材料から）で、開始の最小（start）と 300 秒以後の平ら（flat）。sampleEveryMs は preload の固定の間隔。
+const E05C_CONTRACT = "P3-E05P-CLASSIFY-001";
+const MIB = 1024 * 1024;
+const E05C = { gc: { thresholdBytes: 380 * MIB, rearmBelowBytes: 330 * MIB, maxForced: 20, baselineEveryMs: 60_000 }, sampleEveryMs: 200, runs: 2,
+  c4: { start: { publisher: 21.8 * MIB, urgent: 8.9 * MIB, weatherCurrent: 14.5 * MIB, deferred: 9.6 * MIB },
+    flat: { publisher: 22.5 * MIB, urgent: 9.5 * MIB, weatherCurrent: 16.9 * MIB, deferred: 10.0 * MIB } } };
+
+// e02Window の host の起動。分類の窓は preload（GC の run は --expose-gc と FLEQ_MEM_GC も）を足し、GC の run は充填の前の区切りの GC を済ませる。
+// probe.beforeMeasure は静まりの後・E02 の client の起動の前の区切りの GC（観測だけの run には SIGUSR2 を送らない）。
+async function openE02Host(w, ctx, classify) {
+  if (classify == null) return { host: await openHost(w, ctx, { memEveryMs: E05_MEM_EVERY_MS }), probe: null };
+  const gc = classify === "gc";
+  const memOut = join(w.dir, "mem");
+  const host = await openHost(w, ctx, { memEveryMs: E05_MEM_EVERY_MS, nodeArgs: [...(gc ? ["--expose-gc"] : []), "--import", PROBE_PRELOAD],
+    env: { FLEQ_MEM_OUT: memOut, ...(gc ? { FLEQ_MEM_GC: JSON.stringify(E05C.gc) } : {}) } });
+  const phase = gc ? phaseGc(host, ctx, memOut) : null;
+  const probe = { gc, memOut, phaseWaits: phase == null ? null : [await phase(1)], beforeMeasure: async () => { if (phase != null) probe.phaseWaits.push(await phase(2)); } };
+  return { host, probe };
+}
+
+// 区切りの GC（AC04(3)）。host へ SIGUSR2 を送り、4 thread の phase の行が n 個ずつ出るまで最大 10 秒、preload の file の追記分だけを見て待つ。
+// 揃わなくても進める（欠けた thread の AC03(4) の値は集計で null になる）。
+function phaseGc(host, ctx, memOut) {
+  const tails = E12_THREADS.map((place) => ({ place, tail: ctx.tailer(`${memOut}.${place}.jsonl`), seen: 0, phases: 0 }));
+  return async (n) => {
+    const started = hrMs();
+    process.kill(host.pid, "SIGUSR2");
+    for (;;) {
+      host.check();
+      for (const t of tails) {
+        t.tail.refresh();
+        for (; t.seen < t.tail.lines.length; t.seen++) if (t.tail.lines[t.seen].k === "forcedGc" && t.tail.lines[t.seen].reason === "phase") t.phases += 1;
+      }
+      const missing = tails.filter((t) => t.phases < n).map((t) => t.place);
+      if (missing.length === 0 || hrMs() - started > 10_000) return { n, waitedMs: Math.round(hrMs() - started), missing };
+      await sleep(100);
+    }
+  };
+}
+
+// AC04(4)(5): preload の file を窓の終わりに 1 回だけ 1 行ずつ読み、AC03 の分類を aux-e05c の 1 つに封じる（result-e02・aux-e05 は書かない）。
+// E02・E05 は報告だけ。窓の status は、4 thread の行があり、publisher の最後の行が測定の終わり（E02 の client の end の行）−1,000ms 以後、owner の
+// written が終わり−500ms 以後で、GC の run では gcAvailable が 4 thread とも真なら N/A、そうでなければ未確認。
+async function e05cOutcome(ctx, w, id, probe, { records, start, end, health, e05, reports, expiry, fill }) {
+  const { gc, memOut, phaseWaits } = probe;
+  const rows = {};
+  for (const place of E12_THREADS) rows[place] = existsSync(`${memOut}.${place}.jsonl`) ? await readProbeRows(`${memOut}.${place}.jsonl`) : [];
+  const written = Object.fromEntries(E12_THREADS.filter((p) => p !== "publisher")
+    .map((p) => [p, existsSync(`${memOut}.${p}.written`) ? Number(readFileSync(`${memOut}.${p}.written`, "utf8")) : null]));
+  const fromMs = hostMsOf(records, start.hrtimeNs);
+  const toMs = hostMsOf(records, end.hrtimeNs);
+  const classification = fromMs == null || toMs == null ? null
+    : classifyE05cRun(rows, { ...E05C.gc, gcRun: gc, measureFromMs: fromMs, measureToMs: toMs, c4: E05C.c4, phaseMissing: phaseWaits?.map((x) => x.missing) ?? null });
+  const complete = classification != null && E12_THREADS.every((p) => classification.threads[p].rows > 0)
+    && (classification.threads.publisher.lastMs ?? -Infinity) >= toMs - 1000 && Object.values(written).every((at) => at != null && at >= toMs - 500)
+    && (!gc || E12_THREADS.every((p) => classification.threads[p].gcAvailable === true));
+  const o = outcome(ctx, complete ? "N/A" : "未確認", reports, { fill, expirySplit: expiry });
+  o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, contractId: E05C_CONTRACT,
+    constants: { ...E05C.gc, forcedGcEnabled: gc, sampleEveryMs: E05C.sampleEveryMs, runs: E05C.runs, c4: E05C.c4 },
+    note: "E02・E05 は報告だけで判定しない（P3-E05C-AC04(4)）。GC の run の E02・E05 は山を GC で切った値で、E05-P と比べない（AC02）",
+    measureHostMs: { fromMs, toMs }, written, phaseWaits, e05, e02: health, expirySplit: expiry, fill, classification })];
+  return o;
 }

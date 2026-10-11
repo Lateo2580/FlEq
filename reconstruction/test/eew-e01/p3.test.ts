@@ -1,4 +1,7 @@
-import { readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import type { CheckpointMeasurement, EewTraceSample } from "../../contracts/p2-eew-e01.types";
@@ -9,7 +12,7 @@ import { checkpointWindows } from "./ac15.mjs";
 import { assembleP3Trials, assembleTrials, buildHostIndex, rejectionReasons } from "./analysis.mjs";
 import type { ChromeVersionEntry, HostLine, Probe } from "./analysis.mjs";
 import { summarizeE15 } from "./aux-measures.mjs";
-import type { HostRecord } from "./aux-measures.mjs";
+import type { E05cRow, HostRecord } from "./aux-measures.mjs";
 import { buildP3Manifest, contractTextsOf } from "./draft.mjs";
 import { injection, sample } from "./fixtures";
 import { BACKEND_ONLY_CHROME, calibratedSendAt, chromeWindowsRefused, frameGapMeter, livenessBlocked, manifestChromeVersion, parseArgs, populationSpec, predictParseDelay,
@@ -426,5 +429,87 @@ describe("P3-MH-T02/AC02 regressions: the expiry-wait limit and the P-window mea
     // client の起動は期限の前（host 1,199,000）でも、最初の要求が期限の後（50＋1,100 → host 1,200,100）なら Blocked。
     expect([split(1_150).measureStartHostMs, currentsExpiredAtMeasure(split(1_150))]).toEqual([1_200_100, expect.stringContaining("currentsExpiredBeforeMeasure")]);
     expect(currentsExpiredAtMeasure(split(950))).toBeNull();
+  });
+});
+
+// P3-E05C-T02: preload の 200ms の観測と強制 GC（AC01・AC02）。子の Worker は数十 MiB の object を作って参照を捨ててから Atomics で main を
+// 起こす（main の 200ms の timer はそれまで回らないので、閾値の GC は捨てた後に届く）。CJS の eval Worker は --import を読まないので ESM で書く。
+// 子は owner の file に要る行（mem・gc と T02_FORCED 個の forcedGc）が書かれたのを確かめてから Worker を止める（固定の時間で止めると負荷で欠ける）。
+// SIGUSR2 は基準の GC の行が出てから送る。10 秒は失敗の期限で、過ぎたら止めて欠けを試験に見せる。
+describe("P3-E05C-T02 the 200 ms observation and the forced GCs of the preload (AC01/AC02)", () => {
+  const child = `import { existsSync, readFileSync } from "node:fs";
+import { Worker } from "node:worker_threads";
+const flag = new Int32Array(new SharedArrayBuffer(4));
+const worker = new Worker(\`import { workerData } from "node:worker_threads";
+let keep = Array.from({ length: 1e6 }, (_, i) => ({ i, s: "x" + i }));
+keep = null;
+Atomics.store(workerData.flag, 0, 1);
+Atomics.notify(workerData.flag, 0);
+setTimeout(() => {}, 10000);\`, { eval: true, workerData: { place: "urgent", publisherTimeOriginMs: performance.timeOrigin, flag } });
+Atomics.wait(flag, 0, 0, 10000);
+const file = process.env.FLEQ_MEM_OUT == null ? null : process.env.FLEQ_MEM_OUT + ".urgent.jsonl";
+const count = (k) => (file != null && existsSync(file) ? readFileSync(file, "utf8").split("\\n").filter((l) => l.includes('"k":"' + k + '"')).length : 0);
+const deadline = Date.now() + 10000;
+let signalled = false;
+const poll = setInterval(() => {
+  if (process.env.T02_USR2 != null && !signalled && count("forcedGc") >= 1) { signalled = true; process.kill(process.pid, "SIGUSR2"); }
+  const done = file == null || (count("mem") > 0 && count("gc") > 0 && count("forcedGc") >= Number(process.env.T02_FORCED ?? 0));
+  if (done || Date.now() > deadline) { clearInterval(poll); worker.terminate(); }
+}, 50);`;
+  const runChild = async (env: (dir: string) => Record<string, string>) => {
+    const dir = mkdtempSync(join(tmpdir(), "fleq-e05c-"));
+    try {
+      const code = await new Promise<number | null>((done, fail) => {
+        const p = spawn(process.execPath, ["--expose-gc", "--import", join(__dirname, "probe-preload.mjs"), "--input-type=module", "-e", child],
+          { env: { ...process.env, ...env(dir) }, stdio: ["ignore", "inherit", "inherit"] });
+        p.once("error", fail);
+        p.once("exit", done);
+      });
+      const files = readdirSync(dir).sort();
+      const rows = (place: string) => (files.includes(`mem.${place}.jsonl`) ? readFileSync(join(dir, `mem.${place}.jsonl`), "utf8").split("\n").filter((l) => l !== "")
+        .map((l) => JSON.parse(l) as E05cRow) : []);
+      return { code, files, publisher: rows("publisher"), urgent: rows("urgent") };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const forced = (rows: E05cRow[]) => rows.flatMap((r) => (r.k === "forcedGc" ? [r] : []));
+  const gcEnv = (o: Record<string, number>) => JSON.stringify({ thresholdBytes: 1, rearmBelowBytes: 0, maxForced: 20, baselineEveryMs: 60_000, ...o });
+
+  it("FLEQ_MEM_OUT alone writes rows of both threads and no forced GC; a 1-byte threshold forces one GC per thread with three points and last-resort returns the worker's freed pages; SIGUSR2 and a short baseline period force the phase and baseline GCs; neither env writes nothing", async () => {
+    const [observe, threshold, phase, none] = await Promise.all([
+      runChild((dir) => ({ FLEQ_MEM_OUT: join(dir, "mem") })),
+      runChild((dir) => ({ FLEQ_MEM_OUT: join(dir, "mem"), FLEQ_MEM_GC: gcEnv({}), T02_FORCED: "1" })),
+      runChild((dir) => ({ FLEQ_MEM_OUT: join(dir, "mem"), FLEQ_MEM_GC: gcEnv({ thresholdBytes: 1e15, rearmBelowBytes: 1e15, baselineEveryMs: 300 }), T02_USR2: "1", T02_FORCED: "2" })),
+      runChild(() => ({})),
+    ]);
+    expect([observe.code, threshold.code, phase.code, none.code]).toEqual([0, 0, 0, 0]);
+    for (const [place, rows] of [["publisher", observe.publisher], ["urgent", observe.urgent]] as const) {
+      expect(rows[0]).toMatchObject({ k: "start", place, gcAvailable: true });
+      expect(rows.find((r) => r.k === "mem")).toMatchObject({ place, atMs: expect.any(Number), rss: expect.any(Number), heapUsed: expect.any(Number),
+        heapTotal: expect.any(Number), external: expect.any(Number), arrayBuffers: expect.any(Number) });
+    }
+    expect([...observe.publisher, ...observe.urgent].some((r) => r.k === "gc")).toBe(true);
+    expect(forced([...observe.publisher, ...observe.urgent])).toEqual([]);
+    // rearm（0 未満）に下がらないので閾値の GC は 1 回だけ。
+    const [pub, own] = [forced(threshold.publisher), forced(threshold.urgent)];
+    expect([pub.map((f) => f.reason), own.map((f) => [f.id, f.reason, f.error])]).toEqual([["threshold"], [[pub[0].id, "threshold", undefined]]]);
+    expect(own[0]).toMatchObject({ before: { rss: expect.any(Number) }, afterRegular: { rss: expect.any(Number) }, afterLastResort: { rss: expect.any(Number) } });
+    expect(own[0].afterLastResort?.rss).toBeLessThan(own[0].before?.rss ?? 0);
+    expect([forced(phase.publisher).map((f) => f.reason), forced(phase.urgent).map((f) => f.reason)]).toEqual([["baseline", "phase"], ["baseline", "phase"]]);
+    expect(none.files).toEqual([]);
+  });
+});
+
+// P3-E05C-T03: 分類の窓は本契約の鍵を載せた manifest か予備のときだけ並ぶ（AC04(1)(2)）。
+describe("P3-E05C-T03 the classification windows are listed only with the contract key or in the preliminary (AC04)", () => {
+  it("the harness draft lists none; with the key the observe and GC windows come two each after the existing ones; the preliminary lists one each", () => {
+    const b = buildP3Manifest({ id: "p3-harness-test", ...machine, o09Positions: [2, 12], trialSetup: HARNESS_TRIAL_SETUP.ref });
+    const ids = (manifest: P3E01Manifest, extra: Record<string, unknown> = {}) => auxWindows({ manifest, initialState: JSON.parse(b.initialStateText), counts: {}, ...extra }).map((w) => w.id);
+    const plain = ids(b.manifest);
+    const keyed = ids({ ...b.manifest, contractSha256: { ...b.manifest.contractSha256, "P3-E05P-CLASSIFY-001": "0".repeat(64) } });
+    expect(plain.filter((id) => id.startsWith("e05c-"))).toEqual([]);
+    expect(keyed).toEqual([...plain, "e05c-observe-run1", "e05c-observe-run2", "e05c-gc-run1", "e05c-gc-run2"]);
+    expect(ids(b.manifest, { preliminary: true, runs: 1 }).filter((id) => id.startsWith("e05c-"))).toEqual(["e05c-observe-run1", "e05c-gc-run1"]);
   });
 });

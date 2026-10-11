@@ -79,3 +79,31 @@ export function summarizeE12New(records: readonly HostRecord[], probes: Record<s
   status: Status | null; threads: Record<string, { status: Status | null; reason?: string; heapUsedDelta?: number; gcCount?: number }> };
 export function waitInputsDone(read: () => readonly HostRecord[], count: number, options?: { timeoutMs?: number; pollMs?: number }): Promise<boolean>;
 export function waitOwnerHeaps(read: () => readonly HostRecord[], options?: { timeoutMs?: number; pollMs?: number }): Promise<boolean>;
+
+// P3-E05C-AC03: 分類の窓の preload の行（probe-preload.mjs の FLEQ_MEM_OUT）を山の行・run の分類・区切りの GC の値へ。
+type MemUsage = { rss: number; heapUsed: number; heapTotal: number; external: number; arrayBuffers: number };
+export type E05cRow =
+  | { k: "start"; place: string; atMs: number; nodeVersion: string; gcAvailable: boolean }
+  | ({ k: "mem"; place: string; atMs: number } & MemUsage)
+  | { k: "gc"; place: string; atMs: number; kind: number; durationMs: number }
+  | { k: "capped"; place: string; atMs: number }
+  | { k: "forcedGc"; place: string; id: number; reason: "threshold" | "baseline" | "phase"; requestedAtMs: number; startMs: number; endMs: number; error?: string;
+      regularMs?: number; lastResortMs?: number; before?: MemUsage; afterRegular?: MemUsage; afterLastResort?: MemUsage };
+type E05cJudgement = "J0" | "J1" | "J1/J4" | "J2" | "J3" | "J4" | "J5";
+type PerThread = Record<"publisher" | "urgent" | "weatherCurrent" | "deferred", number>;
+export type E05cPeak = { startMs: number; endMs: number | null; peakMs: number; peakRssBytes: number; floorMs: number | null; floorRssBytes: number | null;
+  judgement: E05cJudgement; reason?: string; eBytes?: number; deltaBytes?: { U: number; V: number; X: number; O: number; arrayBuffers: number }; oldestRowAgeMs?: number;
+  distances?: Record<string, number>;
+  gc?: { id: number; g: number; r: number | null; rRegular: number | null; rssMinWithin2sBytes: number | null; rssAt5sBytes: number | null; receiveDelayMs: Record<string, number> } };
+export function classifyE05cRun(rowsByThread: Partial<Record<string, readonly E05cRow[]>>, options: { thresholdBytes: number; rearmBelowBytes: number; gcRun: boolean;
+  measureFromMs: number; measureToMs: number; c4: { start: PerThread; flat: PerThread }; phaseMissing?: readonly (readonly string[])[] | null }): {
+  threads: Record<string, { rows: number; maxGapMs: number | null; lastMs: number | null; gcAvailable: boolean | null; nodeVersion: string | null; gcEntries: number; forcedGcErrors: string[] }>;
+  peaks: E05cPeak[];
+  run: { status: "未確認" | null; reason?: string; kind?: "single" | "mixed" | "mixedRatios"; primary?: E05cJudgement; secondary?: E05cJudgement; ratios?: Record<string, number>;
+    counts: Record<string, number>; over400: Record<string, number>;
+    largestPeak: { peakMs: number; peakRssBytes: number; judgement: E05cJudgement; mainComponent: "U" | "V" | "XO" | null } | null };
+  forcedGc: { threshold: number; thresholdBeforeMeasure: number; thresholdInMeasure: number; capped: number; baseline: number; phase: number };
+  baseline: { threads: Record<string, { lPre: number | null; lPost: number | null; gLate: number | null; baselineGcs: number; S: number | null; dStart: number | null;
+    dLate: number | null; grow: number | null; gcs: { id: number; reason: string; requestedAtMs: number; startMs: number; heapUsed: number | null }[];
+    judgement: string[] | null }>; sumDStartBytes: number | null; sumDLateBytes: number | null; note: string } | null;
+};

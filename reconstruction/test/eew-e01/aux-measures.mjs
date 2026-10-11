@@ -529,3 +529,163 @@ export function summarizeReplayWindow({ probe, startMs, endMs, before, after }) 
     heapBoundarySignedDistanceMs: { before: before.signedDistanceMs ?? 0, after: after.signedDistanceMs ?? 0 },
     note: "heapUsedDelta は前後差であり総 allocation ではない。allocation 推定は --heap-prof の出力を見る", configuration: E12_CONFIG_NOTE };
 }
+
+// P3-E05C-AC03: E05-P の山の分類（判定表は窓の前に固定、境界は作者承認 Q-E05C-AUTHOR）。rowsByThread は thread ごとの preload の行
+// （probe-preload.mjs の FLEQ_MEM_OUT、file の順）。publisher の mem 行を時刻順に 1 回なめて山を切り、各山の値は thread ごとの行を二分探索で
+// 引く（山ごとに全行を走査し直さない、P3-E05C-RES-04）。RSS は publisher の行の rss（process 全体）で、thread の値を足し合わせない。
+// rows（atMs の昇順）で atMs が t 以下（strict なら t 未満）の行の数。
+const countUpTo = (rows, t, strict = false) => {
+  let lo = 0;
+  let hi = rows.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (strict ? rows[mid].atMs < t : rows[mid].atMs <= t) lo = mid + 1; else hi = mid; }
+  return lo;
+};
+// 時刻 t の成分（4 thread それぞれの t 以前の最新の行から）。行の無い thread があれば null。
+function partsAt(mem, t, rss) {
+  const latest = E12_THREADS.map((p) => mem[p][countUpTo(mem[p], t) - 1] ?? null);
+  if (latest.includes(null)) return null;
+  const sum = (f) => latest.reduce((a, r) => a + f(r), 0);
+  const U = sum((r) => r.heapUsed);
+  const V = sum((r) => r.heapTotal - r.heapUsed);
+  const X = sum((r) => r.external);
+  return { U, V, X, A: sum((r) => r.arrayBuffers), O: rss - U - V - X, oldestAgeMs: latest.reduce((a, r) => Math.max(a, t - r.atMs), 0) };
+}
+const tally = (peaks) => {
+  const counts = {};
+  for (const p of peaks) counts[p.judgement] = (counts[p.judgement] ?? 0) + 1;
+  return counts;
+};
+
+// AC03(2) の 1 つの山。GC の run は始まりの後の最初の閾値の GC（4 thread の forcedGc の行）で g と r を出す。
+function e05cPeak(peak, { pub, mem, forced, gcRun }) {
+  const { start, top, end } = peak;
+  let floor = null;
+  for (let j = peak.startIndex - 1; j >= 0 && pub[j].atMs >= start.atMs - 30_000; j--) if (floor == null || pub[j].rss < floor.rss) floor = pub[j];
+  const row = { startMs: start.atMs, endMs: end?.atMs ?? null, peakMs: top.atMs, peakRssBytes: top.rss, floorMs: floor?.atMs ?? null, floorRssBytes: floor?.rss ?? null };
+  const atTop = partsAt(mem, top.atMs, top.rss);
+  const atFloor = floor == null ? null : partsAt(mem, floor.atMs, floor.rss);
+  const unconfirmed = (reason, extra = {}) => ({ ...row, ...extra, judgement: "J0", reason });
+  if (atTop == null || atFloor == null) return unconfirmed("rowsMissing");
+  const E = top.rss - floor.rss;
+  const delta = { U: atTop.U - atFloor.U, V: atTop.V - atFloor.V, X: atTop.X - atFloor.X, O: atTop.O - atFloor.O, arrayBuffers: atTop.A - atFloor.A };
+  const fu = delta.U / E;
+  const fv = delta.V / E;
+  const fxo = (delta.X + delta.O) / E;
+  const base = { eBytes: E, deltaBytes: delta, oldestRowAgeMs: atTop.oldestAgeMs,
+    distances: { u: fu - 0.5, v: fv - 0.5, xo: fxo - 0.5, staleMs: atTop.oldestAgeMs - 1000 } };
+  if (atTop.oldestAgeMs > 1000) return unconfirmed("staleThread", base);
+  let g = null;
+  let r = null;
+  if (gcRun) {
+    const request = [...forced.publisher.values()].find((f) => f.reason === "threshold" && f.requestedAtMs >= start.atMs && (end == null || f.requestedAtMs <= end.atMs));
+    if (request == null) return unconfirmed("noThresholdGc", base);
+    const rows = E12_THREADS.map((p) => forced[p].get(request.id)).filter((f) => f != null && f.error == null);
+    if (rows.length < E12_THREADS.length) return unconfirmed("forcedGcRowsMissing", base);
+    const before = rows.reduce((a, f) => a + f.before.heapUsed, 0);
+    const afterRegular = rows.reduce((a, f) => a + f.afterRegular.heapUsed, 0);
+    g = (before - afterRegular) / Math.max(before - atFloor.U, MiB);
+    // r は 4 thread 目の last-resort の終わりから 2,000ms 以内の最小の rss で見る（通常の GC の後の rss は rRegular として報告だけ、AC02）。
+    const den = request.before.rss - floor.rss;
+    const lastEndMs = rows.reduce((a, f) => Math.max(a, f.endMs), -Infinity);
+    let minRss = null;
+    for (let i = countUpTo(pub, lastEndMs, true); i < pub.length && pub[i].atMs <= lastEndMs + 2000; i++) minRss = Math.min(minRss ?? Infinity, pub[i].rss);
+    const gc = { id: request.id, g, r: null, rRegular: den === 0 ? null : (request.before.rss - request.afterRegular.rss) / den, rssMinWithin2sBytes: minRss,
+      rssAt5sBytes: pub[countUpTo(pub, lastEndMs + 5000, true)]?.rss ?? null,
+      receiveDelayMs: Object.fromEntries(rows.map((f) => [f.place, f.startMs - f.requestedAtMs])) };
+    Object.assign(base.distances, { g06: g - 0.6, g03: g - 0.3 });
+    if (den < MiB) return unconfirmed("rDenominatorBelow1MiB", { ...base, gc });
+    if (minRss == null) return unconfirmed("rowsMissing", { ...base, gc });
+    r = (request.before.rss - minRss) / den;
+    gc.r = r;
+    Object.assign(base.distances, { r06: r - 0.6, r03: r - 0.3 });
+    base.gc = gc;
+  }
+  // 上から最初に当たる行。観測だけの run では J1 と J4 を分けられないので「J1/J4」と読む（GC の run で分ける）。
+  const judgement = fu >= 0.5 && (!gcRun || (g >= 0.6 && r >= 0.6)) ? (gcRun ? "J1" : "J1/J4")
+    : fv >= 0.5 && (!gcRun || r >= 0.6) ? "J2"
+    : fxo >= 0.5 || (gcRun && g >= 0.6 && r <= 0.3) ? "J3"
+    : gcRun && fu >= 0.5 && g <= 0.3 ? "J4" : "J5";
+  return { ...row, ...base, judgement };
+}
+
+// AC03(3): run の分類は J0 を除いた山で決める。J0 が山の 1/3 を超えたか、山が無い run は未確認。比は整数で比べる（2/3・1/4 の丸めを避ける）。
+function e05cRunClass(peaks) {
+  const counts = tally(peaks);
+  const j0 = counts.J0 ?? 0;
+  const over400 = tally(peaks.filter((p) => p.peakRssBytes > 400 * MiB));
+  const top = peaks.reduce((a, p) => (a == null || p.peakRssBytes > a.peakRssBytes ? p : a), null);
+  const largestPeak = top == null ? null : { peakMs: top.peakMs, peakRssBytes: top.peakRssBytes, judgement: top.judgement,
+    mainComponent: top.deltaBytes == null ? null : [["U", top.deltaBytes.U], ["V", top.deltaBytes.V], ["XO", top.deltaBytes.X + top.deltaBytes.O]].reduce((a, b) => (b[1] > a[1] ? b : a))[0] };
+  const report = { counts, over400, largestPeak };
+  if (peaks.length === 0 || 3 * j0 > peaks.length) return { status: "未確認", reason: peaks.length === 0 ? "noPeak" : "j0OverOneThird", ...report };
+  const n = peaks.length - j0;
+  // 山の数が同じ判定は番号の小さい方を先（"J1/J4" は 1 の位置）。
+  const judged = Object.entries(counts).filter(([j]) => j !== "J0").sort(([a, x], [b, y]) => y - x || (a < b ? -1 : 1));
+  const [[jx, nx], [jy, ny] = [null, 0]] = judged;
+  const kind = 4 * ny >= n ? { kind: "mixed", primary: jx, secondary: jy } : 3 * nx >= 2 * n ? { kind: "single", primary: jx }
+    : { kind: "mixedRatios", ratios: Object.fromEntries(judged.map(([j, c]) => [j, c / n])) };
+  return { status: null, ...kind, ...report };
+}
+
+// AC03(4): GC の run のふだんの Σheap の差。区切りの GC（充填の前 L_pre・静まりの後 L_post）と、測定の開始から 300 秒以後の基準の GC の後の
+// heapUsed（通常の GC の後）の中央値 G_late を thread ごとに出す。c4 は C4 の開始の最小（start）と平ら（flat）。phaseMissing は runner の区切りの
+// 待ち（AC04(3)）の結果で、区切りごとに待ちの終わりに行が揃わなかった thread。その thread の L は、後から届いた行があっても null（待ちの結果を
+// 真実源にする。受けた遅れの時刻は publisher のシグナル処理の遅れを含まないので判定に使わない）。待ちの結果が無い区切りも null。
+// 出せる値は出し、判定に要る値（S・D_start・D_late・Grow）が 1 つでも欠けた thread の judgement は null（未確認）。
+function e05cBaseline(forced, { measureFromMs, measureToMs, c4, phaseMissing }) {
+  const ids = (reason, keep = () => true) => [...forced.publisher.values()].filter((f) => f.reason === reason && keep(f)).map((f) => f.id).sort((a, b) => a - b);
+  const [preId, postId] = ids("phase");
+  const late = ids("baseline", (f) => f.requestedAtMs >= measureFromMs + 300_000 && f.requestedAtMs <= measureToMs);
+  const heapAfter = (p, id) => forced[p].get(id)?.afterRegular?.heapUsed ?? null;
+  const phaseAfter = (p, k, id) => (phaseMissing?.[k] == null || phaseMissing[k].includes(p) ? null : heapAfter(p, id));
+  const diff = (a, b) => (a == null || b == null ? null : a - b);
+  const threads = Object.fromEntries(E12_THREADS.map((p) => {
+    const lPre = phaseAfter(p, 0, preId);
+    const lPost = phaseAfter(p, 1, postId);
+    const gLate = median(late.map((id) => heapAfter(p, id)).filter((v) => v != null));
+    const [S, dStart, dLate, grow] = [diff(lPost, lPre), diff(lPost, c4.start[p]), diff(gLate, c4.flat[p]), diff(gLate, lPost)];
+    // 区切りと基準の GC の後の heapUsed を時刻つきで並べる（AC03(4)）。
+    const gcs = [...forced[p].values()].filter((f) => f.reason === "phase" || f.reason === "baseline")
+      .map((f) => ({ id: f.id, reason: f.reason, requestedAtMs: f.requestedAtMs, startMs: f.startMs, heapUsed: f.afterRegular?.heapUsed ?? null }));
+    const values = { lPre, lPost, gLate, baselineGcs: late.length, S, dStart, dLate, grow, gcs };
+    if ([S, dStart, dLate, grow].includes(null)) return [p, { ...values, judgement: null }];
+    // ①〜③はどれか 1 つ（D_start＜20MiB で D_late≥20MiB なら当てない）、④は並べて出す。どれにも当たらなければ混合。
+    const marks = [...(dStart < 20 * MiB && dLate < 20 * MiB ? ["①"] : []), ...(dStart >= 20 * MiB ? [S >= dStart - 10 * MiB ? "②" : "③"] : []),
+      ...(grow >= 10 * MiB ? ["④"] : [])];
+    return [p, { ...values, judgement: marks.length === 0 ? ["混合"] : marks }];
+  }));
+  const sum = (key) => (Object.values(threads).some((t) => t[key] == null) ? null : Object.values(threads).reduce((a, t) => a + t[key], 0));
+  return { threads, sumDStartBytes: sum("dStart"), sumDLateBytes: sum("dLate"), note: "+55MiB は平らの差（Σ D_late）、測定の開始の時点の差は Σ D_start" };
+}
+
+export function classifyE05cRun(rowsByThread, { thresholdBytes, rearmBelowBytes, gcRun, measureFromMs, measureToMs, c4, phaseMissing = null }) {
+  const mem = {};
+  const forced = {};
+  const threads = {};
+  for (const p of E12_THREADS) {
+    const rows = rowsByThread[p] ?? [];
+    mem[p] = rows.filter((r) => r.k === "mem");
+    forced[p] = new Map(rows.filter((r) => r.k === "forcedGc").map((r) => [r.id, r]));
+    const start = rows.find((r) => r.k === "start");
+    threads[p] = { rows: mem[p].length, maxGapMs: mem[p].reduce((a, r, i) => (i === 0 ? a : Math.max(a ?? 0, r.atMs - mem[p][i - 1].atMs)), null),
+      lastMs: mem[p].at(-1)?.atMs ?? null, gcAvailable: start?.gcAvailable ?? null, nodeVersion: start?.nodeVersion ?? null,
+      gcEntries: rows.filter((r) => r.k === "gc").length, forcedGcErrors: rows.filter((r) => r.k === "forcedGc" && r.error != null).map((r) => r.error) };
+  }
+  // 山＝rss が閾値以上の連続区間（始まり＝最初に閾値以上の行、終わり＝rearm〔閾値−50MiB〕未満の最初の行）。測定の窓に始まる山だけを数える。
+  const pub = mem.publisher;
+  const found = [];
+  let open = null;
+  for (let i = 0; i < pub.length; i++) {
+    const r = pub[i];
+    if (open == null) { if (r.rss >= thresholdBytes) open = { startIndex: i, start: r, top: r }; } else if (r.rss < rearmBelowBytes) { found.push({ ...open, end: r }); open = null; } else if (r.rss > open.top.rss) open.top = r;
+  }
+  if (open != null) found.push({ ...open, end: null });
+  const peaks = found.filter((p) => p.start.atMs >= measureFromMs && p.start.atMs <= measureToMs).map((p) => e05cPeak(p, { pub, mem, forced, gcRun }));
+  const reasons = (reason, keep = () => true) => [...forced.publisher.values()].filter((f) => f.reason === reason && keep(f)).length;
+  // 閾値の GC は publisher が局面を知らずに撃つので、上限（maxForced）を測定の前（充填など）でどれだけ使ったかを分けて出す。
+  return { threads, peaks, run: e05cRunClass(peaks),
+    forcedGc: { threshold: reasons("threshold"), thresholdBeforeMeasure: reasons("threshold", (f) => f.requestedAtMs < measureFromMs),
+      thresholdInMeasure: reasons("threshold", (f) => f.requestedAtMs >= measureFromMs && f.requestedAtMs <= measureToMs),
+      capped: (rowsByThread.publisher ?? []).filter((r) => r.k === "capped").length, baseline: reasons("baseline"), phase: reasons("phase") },
+    baseline: gcRun ? e05cBaseline(forced, { measureFromMs, measureToMs, c4, phaseMissing }) : null };
+}
