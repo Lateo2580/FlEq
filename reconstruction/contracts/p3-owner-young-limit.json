@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1eb82ad961a7c338bc58f8d9adfa785aee93fc91",
-    "sha256": "2eb82a1bb5e9f16dafa98f4a7789c2f8a95efead1475995d3acac13948019f43",
+    "sha256": "4025532f9d15357eb9b75d8ae07ef1c1cffcde39e2f0baffe6722e54133b8fa9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -94,7 +94,7 @@
     "contractId": "P3-OWNER-YOUNG-LIMIT-001",
     "mode": "implementation",
     "objective": "E05-Pの山を上限400MiBの内側へ入れる2つ目の手（作者裁定 D-WYL-NEXT=A、判定表のJ2の②）。木を小さくした後の山は、weatherCurrentのowner threadのheapの枠（heapTotal）が1入力で約+92MiB広がる形（J2、heapの予約）だった（Q-WYL-MATERIAL）。host.tsがweatherCurrentのowner threadを作るとき、WorkerのresourceLimits.maxYoungGenerationSizeMbを12にする（D-WYL-VALUE・D-WYL-SCOPE）。受理・状態・出力は変えない。手元の試しで1入力の後のheapTotalは−32〜42MiB（Q-WYL-PROBE）。E05-Pの測り直しは配送の後に統合担当が行う（Q-WYL-E05P）",
-    "baseOid": "unassigned",
+    "baseOid": "185c0cddeaab2908004ac7e1f527bda1208db2da",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
