@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "15cd1a44f78f850487076f2cdf1b39eced715ccea08962c0fd1fb7cd4055b65f",
+    "sha256": "8cc981abf8e3d7a60692d18021f790ff4f2087e106b9bfd93e0a7fe0673b9f8a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "ba89b4e15b1a1cddcdb285f1b4294f8bfceaeb60d9ce762ddfda4018331a9173",
     "sequencesSha256": "9d834611b055cc860e480890dfa68b1b05e2d47aeedd0f75b63904d3fb4c2ab7",
@@ -513,7 +513,7 @@
     "contractId": "P3-UNIT-M-001",
     "mode": "implementation",
     "objective": "M09・M10・M18をI-U-Mとして閉じる。竜巻注意情報（VPHW50/51）・熱中症警戒アラート（VPFT50）・短命の解説情報（地震の解説VXSE56/60・VZSE40、早期天候VPAW51、天候VPZI50/VPCI50、気象の解説VPZJ51/VPCJ51/VPFJ51/VMCJ53/54/55）を、互いに独立した3つのslice（tornado・heat・transient）としてU-Mの一つのreducer・唯一のcodec・viewで扱い、有効期限・対象日・family固定の見える期限と記憶の期限を元報の時刻から数え、取消と版の記憶を保存し（transientは受理の証拠だけ）、Q-NOTICEの該当分を生成し、unit表・coverage・実行場所・snapshotを結線する。横断不変条件P3-X-C1〜C6とパラメータ表（P3-C13-PARAMETERS・P3-C13-CROSS-UNIT）を満たす。",
-    "baseOid": "unassigned",
+    "baseOid": "aa4dc6b8b30a7dd38908befd5d1f60ed9dd6827c",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
