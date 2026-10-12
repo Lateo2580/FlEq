@@ -1,0 +1,908 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "p3-e05c-20261012",
+  "manifestSha256": "86829d01d1e9c33caeb4cde1b4bc7db32b0b30684b6581a2ac821a0f23b45a24",
+  "resultSha256": "1ac9049624e5cb9c0743c22903c2b2226cfeab829b39a9d791f38a0122f5300e",
+  "window": "e05c-gc-run2",
+  "status": "N/A",
+  "contractId": "P3-E05P-CLASSIFY-001",
+  "constants": {
+    "thresholdBytes": 398458880,
+    "rearmBelowBytes": 346030080,
+    "maxForced": 20,
+    "baselineEveryMs": 60000,
+    "forcedGcEnabled": true,
+    "sampleEveryMs": 200,
+    "runs": 2,
+    "c4": {
+      "start": {
+        "publisher": 22858956.8,
+        "urgent": 9332326.4,
+        "weatherCurrent": 15204352,
+        "deferred": 10066329.6
+      },
+      "flat": {
+        "publisher": 23592960,
+        "urgent": 9961472,
+        "weatherCurrent": 17720934.4,
+        "deferred": 10485760
+      }
+    }
+  },
+  "note": "E02・E05 は報告だけで判定しない（P3-E05C-AC04(4)）。GC の run の E02・E05 は山を GC で切った値で、E05-P と比べない（AC02）",
+  "measureHostMs": {
+    "fromMs": 67564.725125,
+    "toMs": 1066573.828459
+  },
+  "written": {
+    "urgent": 1066433.9406738281,
+    "weatherCurrent": 1066541.38671875,
+    "deferred": 1066571.9262695312
+  },
+  "phaseWaits": [
+    {
+      "n": 1,
+      "waitedMs": 512,
+      "missing": []
+    },
+    {
+      "n": 2,
+      "waitedMs": 308,
+      "missing": []
+    }
+  ],
+  "e05": {
+    "status": "Pass",
+    "load": "P",
+    "samples": 996,
+    "maxRssBytes": 393181264,
+    "limitBytes": 419430400,
+    "coverage": {
+      "memEveryMs": 1000,
+      "expectedSamples": 999,
+      "missingSamples": 0,
+      "maxGapMs": 1064.2518329999875,
+      "edgesCovered": true,
+      "maxMissingRatio": 0.01
+    }
+  },
+  "e02": {
+    "schemaVersion": "p2-e02-result-v1",
+    "manifestId": "p3-e05c-20261012",
+    "manifestSha256": "86829d01d1e9c33caeb4cde1b4bc7db32b0b30684b6581a2ac821a0f23b45a24",
+    "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "load": "P",
+    "run": 2,
+    "status": "Pass",
+    "samples": 1000,
+    "missing": 0,
+    "failures": {},
+    "p99Ms": 3.0540839999998752,
+    "maxMs": 41.25249999994412,
+    "workerStates": {
+      "healthy": 1000
+    },
+    "evidenceRefs": []
+  },
+  "expirySplit": {
+    "expiryHostMs": 601000,
+    "measureStartHostMs": 67571.053375,
+    "note": "期限（起点＋600,000ms）の host 単調時計。回収はその後の最初の deadline 要求。報告のみで判定は窓全体",
+    "e05": {
+      "before": {
+        "samples": 532,
+        "maxRssBytes": 391228472
+      },
+      "after": {
+        "samples": 464,
+        "maxRssBytes": 393181264
+      }
+    },
+    "e02": {
+      "before": {
+        "samples": 534,
+        "p50Ms": 1.6980840000032913,
+        "p99Ms": 3.0540839999998752,
+        "maxMs": 5.90783300000021
+      },
+      "after": {
+        "samples": 466,
+        "p50Ms": 1.5462500000139698,
+        "p99Ms": 3.479499999899417,
+        "maxMs": 41.25249999994412
+      }
+    }
+  },
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 50647,
+    "verifiedMs": 50783,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "eewOriginWallMs": 1780650001000,
+    "eewHorizonStale": 0,
+    "quiet": {
+      "waitedMs": 15105,
+      "untilLastBackendMs": 15,
+      "backendLaunchesSeen": {},
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    }
+  },
+  "classification": {
+    "threads": {
+      "publisher": {
+        "rows": 5284,
+        "maxGapMs": 217.348958999999,
+        "lastMs": 1066565.690666,
+        "gcAvailable": true,
+        "nodeVersion": "v22.23.3",
+        "gcEntries": 1361,
+        "forcedGcErrors": []
+      },
+      "urgent": {
+        "rows": 5283,
+        "maxGapMs": 268.074951171875,
+        "lastMs": 1066417.8178710938,
+        "gcAvailable": true,
+        "nodeVersion": "v22.23.3",
+        "gcEntries": 245,
+        "forcedGcErrors": []
+      },
+      "weatherCurrent": {
+        "rows": 5266,
+        "maxGapMs": 464.638916015625,
+        "lastMs": 1066486.7961425781,
+        "gcAvailable": true,
+        "nodeVersion": "v22.23.3",
+        "gcEntries": 3271,
+        "forcedGcErrors": []
+      },
+      "deferred": {
+        "rows": 5283,
+        "maxGapMs": 262.06640625,
+        "lastMs": 1066522.3784179688,
+        "gcAvailable": true,
+        "nodeVersion": "v22.23.3",
+        "gcEntries": 307,
+        "forcedGcErrors": []
+      }
+    },
+    "peaks": [
+      {
+        "startMs": 76763.128208,
+        "endMs": 76965.79675,
+        "peakMs": 76763.128208,
+        "peakRssBytes": 408810328,
+        "floorMs": 60415.731166,
+        "floorRssBytes": 253576144,
+        "eBytes": 155234184,
+        "deltaBytes": {
+          "U": 108510552,
+          "V": 35455656,
+          "X": 1115495,
+          "O": 10152481,
+          "arrayBuffers": 806468
+        },
+        "oldestRowAgeMs": 71.50027831249463,
+        "distances": {
+          "u": 0.19901196504501872,
+          "v": -0.27159891535230407,
+          "xo": -0.4274130496927146,
+          "staleMs": -928.4997216875054,
+          "g06": 0.3185717346354404,
+          "g03": 0.6185717346354405,
+          "r06": 0.32791299112314076,
+          "r03": 0.6279129911231407
+        },
+        "gc": {
+          "id": 4,
+          "g": 0.9185717346354404,
+          "r": 0.9279129911231407,
+          "rRegular": -0.012148509763803056,
+          "rssMinWithin2sBytes": 264766512,
+          "rssAt5sBytes": 266011792,
+          "receiveDelayMs": {
+            "publisher": 0.024791999996523373,
+            "urgent": 0.06699512500199489,
+            "weatherCurrent": 5.694192390626995,
+            "deferred": 0.06455371875199489
+          }
+        },
+        "judgement": "J1"
+      },
+      {
+        "startMs": 133468.425833,
+        "endMs": 133670.14775,
+        "peakMs": 133468.425833,
+        "peakRssBytes": 398667408,
+        "floorMs": 120563.646833,
+        "floorRssBytes": 265061424,
+        "eBytes": 133605984,
+        "deltaBytes": {
+          "U": 2553304,
+          "V": 14928424,
+          "X": 7244671,
+          "O": 108879585,
+          "arrayBuffers": 7215695
+        },
+        "oldestRowAgeMs": 422.2803251874866,
+        "distances": {
+          "u": -0.48088929909007666,
+          "v": -0.3882653040450643,
+          "xo": 0.36915460313514104,
+          "staleMs": -577.7196748125134,
+          "g06": 0.31333356633734943,
+          "g03": 0.6133335663373494,
+          "r06": 0.08653829157831738,
+          "r03": 0.3865382915783174
+        },
+        "gc": {
+          "id": 6,
+          "g": 0.9133335663373494,
+          "r": 0.6865382915783174,
+          "rRegular": -0.010302113414321322,
+          "rssMinWithin2sBytes": 306941784,
+          "rssAt5sBytes": 307122008,
+          "receiveDelayMs": {
+            "publisher": 0.02591599998413585,
+            "urgent": 0.06627343749278225,
+            "weatherCurrent": 16.041859374992782,
+            "deferred": 0.06505273436778225
+          }
+        },
+        "judgement": "J3"
+      }
+    ],
+    "run": {
+      "status": null,
+      "kind": "mixed",
+      "primary": "J1",
+      "secondary": "J3",
+      "counts": {
+        "J1": 1,
+        "J3": 1
+      },
+      "over400": {},
+      "largestPeak": {
+        "peakMs": 76763.128208,
+        "peakRssBytes": 408810328,
+        "judgement": "J1",
+        "mainComponent": "U"
+      }
+    },
+    "forcedGc": {
+      "threshold": 2,
+      "thresholdBeforeMeasure": 0,
+      "thresholdInMeasure": 2,
+      "capped": 0,
+      "baseline": 17,
+      "phase": 2
+    },
+    "baseline": {
+      "threads": {
+        "publisher": {
+          "lPre": 9107568,
+          "lPost": 24392696,
+          "gLate": 22611664,
+          "baselineGcs": 11,
+          "S": 15285128,
+          "dStart": 1533739.1999999993,
+          "dLate": -981296,
+          "grow": -1781032,
+          "gcs": [
+            {
+              "id": 1,
+              "reason": "phase",
+              "requestedAtMs": 557.867583,
+              "startMs": 558.272916,
+              "heapUsed": 9107568
+            },
+            {
+              "id": 2,
+              "reason": "baseline",
+              "requestedAtMs": 60213.734708,
+              "startMs": 60214.161041,
+              "heapUsed": 24374192
+            },
+            {
+              "id": 3,
+              "reason": "phase",
+              "requestedAtMs": 67114.841,
+              "startMs": 67114.861208,
+              "heapUsed": 24392696
+            },
+            {
+              "id": 5,
+              "reason": "baseline",
+              "requestedAtMs": 120361.912791,
+              "startMs": 120362.032,
+              "heapUsed": 24808624
+            },
+            {
+              "id": 7,
+              "reason": "baseline",
+              "requestedAtMs": 180506.514125,
+              "startMs": 180506.622916,
+              "heapUsed": 25053272
+            },
+            {
+              "id": 8,
+              "reason": "baseline",
+              "requestedAtMs": 240623.885375,
+              "startMs": 240624.007416,
+              "heapUsed": 25050776
+            },
+            {
+              "id": 9,
+              "reason": "baseline",
+              "requestedAtMs": 300792.731,
+              "startMs": 300793.219916,
+              "heapUsed": 25106480
+            },
+            {
+              "id": 10,
+              "reason": "baseline",
+              "requestedAtMs": 360932.230083,
+              "startMs": 360932.696875,
+              "heapUsed": 25132592
+            },
+            {
+              "id": 11,
+              "reason": "baseline",
+              "requestedAtMs": 421086.105375,
+              "startMs": 421086.228833,
+              "heapUsed": 25677088
+            },
+            {
+              "id": 12,
+              "reason": "baseline",
+              "requestedAtMs": 481255.875041,
+              "startMs": 481255.999458,
+              "heapUsed": 25470784
+            },
+            {
+              "id": 13,
+              "reason": "baseline",
+              "requestedAtMs": 541408.61875,
+              "startMs": 541408.745916,
+              "heapUsed": 25697120
+            },
+            {
+              "id": 14,
+              "reason": "baseline",
+              "requestedAtMs": 601544.068333,
+              "startMs": 601544.173625,
+              "heapUsed": 25711024
+            },
+            {
+              "id": 15,
+              "reason": "baseline",
+              "requestedAtMs": 661702.92775,
+              "startMs": 661703.051,
+              "heapUsed": 22340264
+            },
+            {
+              "id": 16,
+              "reason": "baseline",
+              "requestedAtMs": 721821.988083,
+              "startMs": 721822.099541,
+              "heapUsed": 22352904
+            },
+            {
+              "id": 17,
+              "reason": "baseline",
+              "requestedAtMs": 781958.670208,
+              "startMs": 781958.795916,
+              "heapUsed": 22569712
+            },
+            {
+              "id": 18,
+              "reason": "baseline",
+              "requestedAtMs": 842103.483666,
+              "startMs": 842103.61025,
+              "heapUsed": 22372400
+            },
+            {
+              "id": 19,
+              "reason": "baseline",
+              "requestedAtMs": 902258.278583,
+              "startMs": 902258.470083,
+              "heapUsed": 22611664
+            },
+            {
+              "id": 20,
+              "reason": "baseline",
+              "requestedAtMs": 962407.634,
+              "startMs": 962407.754958,
+              "heapUsed": 22613936
+            },
+            {
+              "id": 21,
+              "reason": "baseline",
+              "requestedAtMs": 1022551.285375,
+              "startMs": 1022551.3975,
+              "heapUsed": 22392704
+            }
+          ],
+          "judgement": [
+            "①"
+          ]
+        },
+        "urgent": {
+          "lPre": 9187032,
+          "lPost": 19923264,
+          "gLate": 18527600,
+          "baselineGcs": 11,
+          "S": 10736232,
+          "dStart": 10590937.6,
+          "dLate": 8566128,
+          "grow": -1395664,
+          "gcs": [
+            {
+              "id": 1,
+              "reason": "phase",
+              "requestedAtMs": 557.867583,
+              "startMs": 599.67431640625,
+              "heapUsed": 9187032
+            },
+            {
+              "id": 2,
+              "reason": "baseline",
+              "requestedAtMs": 60213.734708,
+              "startMs": 60215.276611328125,
+              "heapUsed": 19923752
+            },
+            {
+              "id": 3,
+              "reason": "phase",
+              "requestedAtMs": 67114.841,
+              "startMs": 67114.96240234375,
+              "heapUsed": 19923264
+            },
+            {
+              "id": 5,
+              "reason": "baseline",
+              "requestedAtMs": 120361.912791,
+              "startMs": 120362.158203125,
+              "heapUsed": 19918784
+            },
+            {
+              "id": 7,
+              "reason": "baseline",
+              "requestedAtMs": 180506.514125,
+              "startMs": 180506.76586914062,
+              "heapUsed": 19923528
+            },
+            {
+              "id": 8,
+              "reason": "baseline",
+              "requestedAtMs": 240623.885375,
+              "startMs": 240624.12744140625,
+              "heapUsed": 19946152
+            },
+            {
+              "id": 9,
+              "reason": "baseline",
+              "requestedAtMs": 300792.731,
+              "startMs": 300793.4228515625,
+              "heapUsed": 19954832
+            },
+            {
+              "id": 10,
+              "reason": "baseline",
+              "requestedAtMs": 360932.230083,
+              "startMs": 360932.9931640625,
+              "heapUsed": 19991720
+            },
+            {
+              "id": 11,
+              "reason": "baseline",
+              "requestedAtMs": 421086.105375,
+              "startMs": 421086.4423828125,
+              "heapUsed": 20000416
+            },
+            {
+              "id": 12,
+              "reason": "baseline",
+              "requestedAtMs": 481255.875041,
+              "startMs": 481256.111328125,
+              "heapUsed": 20006688
+            },
+            {
+              "id": 13,
+              "reason": "baseline",
+              "requestedAtMs": 541408.61875,
+              "startMs": 541408.8308105469,
+              "heapUsed": 20010152
+            },
+            {
+              "id": 14,
+              "reason": "baseline",
+              "requestedAtMs": 601544.068333,
+              "startMs": 601544.4362792969,
+              "heapUsed": 20012928
+            },
+            {
+              "id": 15,
+              "reason": "baseline",
+              "requestedAtMs": 661702.92775,
+              "startMs": 661703.1452636719,
+              "heapUsed": 18516872
+            },
+            {
+              "id": 16,
+              "reason": "baseline",
+              "requestedAtMs": 721821.988083,
+              "startMs": 721822.1684570312,
+              "heapUsed": 18516912
+            },
+            {
+              "id": 17,
+              "reason": "baseline",
+              "requestedAtMs": 781958.670208,
+              "startMs": 781958.8620605469,
+              "heapUsed": 18527600
+            },
+            {
+              "id": 18,
+              "reason": "baseline",
+              "requestedAtMs": 842103.483666,
+              "startMs": 842103.6865234375,
+              "heapUsed": 18526872
+            },
+            {
+              "id": 19,
+              "reason": "baseline",
+              "requestedAtMs": 902258.278583,
+              "startMs": 902258.5578613281,
+              "heapUsed": 18526056
+            },
+            {
+              "id": 20,
+              "reason": "baseline",
+              "requestedAtMs": 962407.634,
+              "startMs": 962407.8142089844,
+              "heapUsed": 18526024
+            },
+            {
+              "id": 21,
+              "reason": "baseline",
+              "requestedAtMs": 1022551.285375,
+              "startMs": 1022551.4926757812,
+              "heapUsed": 18528384
+            }
+          ],
+          "judgement": [
+            "①"
+          ]
+        },
+        "weatherCurrent": {
+          "lPre": 9166384,
+          "lPost": 45265480,
+          "gLate": 63597448,
+          "baselineGcs": 11,
+          "S": 36099096,
+          "dStart": 30061128,
+          "dLate": 45876513.6,
+          "grow": 18331968,
+          "gcs": [
+            {
+              "id": 1,
+              "reason": "phase",
+              "requestedAtMs": 557.867583,
+              "startMs": 600.052978515625,
+              "heapUsed": 9166384
+            },
+            {
+              "id": 2,
+              "reason": "baseline",
+              "requestedAtMs": 60213.734708,
+              "startMs": 60215.27685546875,
+              "heapUsed": 45264400
+            },
+            {
+              "id": 3,
+              "reason": "phase",
+              "requestedAtMs": 67114.841,
+              "startMs": 67114.90869140625,
+              "heapUsed": 45265480
+            },
+            {
+              "id": 5,
+              "reason": "baseline",
+              "requestedAtMs": 120361.912791,
+              "startMs": 120362.25927734375,
+              "heapUsed": 54129832
+            },
+            {
+              "id": 7,
+              "reason": "baseline",
+              "requestedAtMs": 180506.514125,
+              "startMs": 180506.87866210938,
+              "heapUsed": 62928392
+            },
+            {
+              "id": 8,
+              "reason": "baseline",
+              "requestedAtMs": 240623.885375,
+              "startMs": 240625.39135742188,
+              "heapUsed": 62925360
+            },
+            {
+              "id": 9,
+              "reason": "baseline",
+              "requestedAtMs": 300792.731,
+              "startMs": 300794.2507324219,
+              "heapUsed": 63136096
+            },
+            {
+              "id": 10,
+              "reason": "baseline",
+              "requestedAtMs": 360932.230083,
+              "startMs": 360933.7604980469,
+              "heapUsed": 63262368
+            },
+            {
+              "id": 11,
+              "reason": "baseline",
+              "requestedAtMs": 421086.105375,
+              "startMs": 421087.6232910156,
+              "heapUsed": 63254176
+            },
+            {
+              "id": 12,
+              "reason": "baseline",
+              "requestedAtMs": 481255.875041,
+              "startMs": 481257.4267578125,
+              "heapUsed": 63281384
+            },
+            {
+              "id": 13,
+              "reason": "baseline",
+              "requestedAtMs": 541408.61875,
+              "startMs": 541410.1164550781,
+              "heapUsed": 63370080
+            },
+            {
+              "id": 14,
+              "reason": "baseline",
+              "requestedAtMs": 601544.068333,
+              "startMs": 601545.2905273438,
+              "heapUsed": 63368176
+            },
+            {
+              "id": 15,
+              "reason": "baseline",
+              "requestedAtMs": 661702.92775,
+              "startMs": 661704.6633300781,
+              "heapUsed": 63566016
+            },
+            {
+              "id": 16,
+              "reason": "baseline",
+              "requestedAtMs": 721821.988083,
+              "startMs": 721823.7592773438,
+              "heapUsed": 63616048
+            },
+            {
+              "id": 17,
+              "reason": "baseline",
+              "requestedAtMs": 781958.670208,
+              "startMs": 781960.1977539062,
+              "heapUsed": 63597448
+            },
+            {
+              "id": 18,
+              "reason": "baseline",
+              "requestedAtMs": 842103.483666,
+              "startMs": 842104.9912109375,
+              "heapUsed": 63657880
+            },
+            {
+              "id": 19,
+              "reason": "baseline",
+              "requestedAtMs": 902258.278583,
+              "startMs": 902259.9770507812,
+              "heapUsed": 63679808
+            },
+            {
+              "id": 20,
+              "reason": "baseline",
+              "requestedAtMs": 962407.634,
+              "startMs": 962409.2136230469,
+              "heapUsed": 63679856
+            },
+            {
+              "id": 21,
+              "reason": "baseline",
+              "requestedAtMs": 1022551.285375,
+              "startMs": 1022552.83203125,
+              "heapUsed": 63742576
+            }
+          ],
+          "judgement": [
+            "②",
+            "④"
+          ]
+        },
+        "deferred": {
+          "lPre": 9175864,
+          "lPost": 16015536,
+          "gLate": 16990328,
+          "baselineGcs": 11,
+          "S": 6839672,
+          "dStart": 5949206.4,
+          "dLate": 6504568,
+          "grow": 974792,
+          "gcs": [
+            {
+              "id": 1,
+              "reason": "phase",
+              "requestedAtMs": 557.867583,
+              "startMs": 599.65771484375,
+              "heapUsed": 9175864
+            },
+            {
+              "id": 2,
+              "reason": "baseline",
+              "requestedAtMs": 60213.734708,
+              "startMs": 60215.276611328125,
+              "heapUsed": 16019824
+            },
+            {
+              "id": 3,
+              "reason": "phase",
+              "requestedAtMs": 67114.841,
+              "startMs": 67114.90576171875,
+              "heapUsed": 16015536
+            },
+            {
+              "id": 5,
+              "reason": "baseline",
+              "requestedAtMs": 120361.912791,
+              "startMs": 120362.16064453125,
+              "heapUsed": 16017760
+            },
+            {
+              "id": 7,
+              "reason": "baseline",
+              "requestedAtMs": 180506.514125,
+              "startMs": 180506.7705078125,
+              "heapUsed": 16033144
+            },
+            {
+              "id": 8,
+              "reason": "baseline",
+              "requestedAtMs": 240623.885375,
+              "startMs": 240624.13134765625,
+              "heapUsed": 16080040
+            },
+            {
+              "id": 9,
+              "reason": "baseline",
+              "requestedAtMs": 300792.731,
+              "startMs": 300793.3161621094,
+              "heapUsed": 16941760
+            },
+            {
+              "id": 10,
+              "reason": "baseline",
+              "requestedAtMs": 360932.230083,
+              "startMs": 360933.0056152344,
+              "heapUsed": 16949912
+            },
+            {
+              "id": 11,
+              "reason": "baseline",
+              "requestedAtMs": 421086.105375,
+              "startMs": 421086.4426269531,
+              "heapUsed": 16923728
+            },
+            {
+              "id": 12,
+              "reason": "baseline",
+              "requestedAtMs": 481255.875041,
+              "startMs": 481256.1296386719,
+              "heapUsed": 16911896
+            },
+            {
+              "id": 13,
+              "reason": "baseline",
+              "requestedAtMs": 541408.61875,
+              "startMs": 541408.8305664062,
+              "heapUsed": 16934344
+            },
+            {
+              "id": 14,
+              "reason": "baseline",
+              "requestedAtMs": 601544.068333,
+              "startMs": 601544.2653808594,
+              "heapUsed": 16954512
+            },
+            {
+              "id": 15,
+              "reason": "baseline",
+              "requestedAtMs": 661702.92775,
+              "startMs": 661703.1787109375,
+              "heapUsed": 17011176
+            },
+            {
+              "id": 16,
+              "reason": "baseline",
+              "requestedAtMs": 721821.988083,
+              "startMs": 721822.1723632812,
+              "heapUsed": 16990328
+            },
+            {
+              "id": 17,
+              "reason": "baseline",
+              "requestedAtMs": 781958.670208,
+              "startMs": 781958.8603515625,
+              "heapUsed": 16999096
+            },
+            {
+              "id": 18,
+              "reason": "baseline",
+              "requestedAtMs": 842103.483666,
+              "startMs": 842103.6828613281,
+              "heapUsed": 16974840
+            },
+            {
+              "id": 19,
+              "reason": "baseline",
+              "requestedAtMs": 902258.278583,
+              "startMs": 902258.5603027344,
+              "heapUsed": 17014576
+            },
+            {
+              "id": 20,
+              "reason": "baseline",
+              "requestedAtMs": 962407.634,
+              "startMs": 962407.8193359375,
+              "heapUsed": 17007464
+            },
+            {
+              "id": 21,
+              "reason": "baseline",
+              "requestedAtMs": 1022551.285375,
+              "startMs": 1022551.5305175781,
+              "heapUsed": 17059040
+            }
+          ],
+          "judgement": [
+            "①"
+          ]
+        }
+      },
+      "sumDStartBytes": 48135011.199999996,
+      "sumDLateBytes": 59965913.6,
+      "note": "+55MiB は平らの差（Σ D_late）、測定の開始の時点の差は Σ D_start"
+    }
+  }
+}

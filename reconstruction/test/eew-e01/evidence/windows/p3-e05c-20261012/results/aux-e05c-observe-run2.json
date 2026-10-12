@@ -1,0 +1,527 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "p3-e05c-20261012",
+  "manifestSha256": "86829d01d1e9c33caeb4cde1b4bc7db32b0b30684b6581a2ac821a0f23b45a24",
+  "resultSha256": "666376ad9a208e6f8f48a207d24847667d255f66cead31e28c5f9a4842dad432",
+  "window": "e05c-observe-run2",
+  "status": "N/A",
+  "contractId": "P3-E05P-CLASSIFY-001",
+  "constants": {
+    "thresholdBytes": 398458880,
+    "rearmBelowBytes": 346030080,
+    "maxForced": 20,
+    "baselineEveryMs": 60000,
+    "forcedGcEnabled": false,
+    "sampleEveryMs": 200,
+    "runs": 2,
+    "c4": {
+      "start": {
+        "publisher": 22858956.8,
+        "urgent": 9332326.4,
+        "weatherCurrent": 15204352,
+        "deferred": 10066329.6
+      },
+      "flat": {
+        "publisher": 23592960,
+        "urgent": 9961472,
+        "weatherCurrent": 17720934.4,
+        "deferred": 10485760
+      }
+    }
+  },
+  "note": "E02・E05 は報告だけで判定しない（P3-E05C-AC04(4)）。GC の run の E02・E05 は山を GC で切った値で、E05-P と比べない（AC02）",
+  "measureHostMs": {
+    "fromMs": 66519.591376,
+    "toMs": 1065529.555166
+  },
+  "written": {
+    "urgent": 1065575.380859375,
+    "weatherCurrent": 1065545.9841308594,
+    "deferred": 1065394.6274414062
+  },
+  "phaseWaits": null,
+  "e05": {
+    "status": "Fail",
+    "load": "P",
+    "samples": 997,
+    "maxRssBytes": 468894992,
+    "limitBytes": 419430400,
+    "coverage": {
+      "memEveryMs": 1000,
+      "expectedSamples": 999,
+      "missingSamples": 0,
+      "maxGapMs": 1016.2086660000496,
+      "edgesCovered": true,
+      "maxMissingRatio": 0.01
+    }
+  },
+  "e02": {
+    "schemaVersion": "p2-e02-result-v1",
+    "manifestId": "p3-e05c-20261012",
+    "manifestSha256": "86829d01d1e9c33caeb4cde1b4bc7db32b0b30684b6581a2ac821a0f23b45a24",
+    "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "load": "P",
+    "run": 2,
+    "status": "Pass",
+    "samples": 1000,
+    "missing": 0,
+    "failures": {},
+    "p99Ms": 2.5701250000856817,
+    "maxMs": 5.652417000000241,
+    "workerStates": {
+      "healthy": 1000
+    },
+    "evidenceRefs": []
+  },
+  "expirySplit": {
+    "expiryHostMs": 600000,
+    "measureStartHostMs": 66524.582501,
+    "note": "期限（起点＋600,000ms）の host 単調時計。回収はその後の最初の deadline 要求。報告のみで判定は窓全体",
+    "e05": {
+      "before": {
+        "samples": 532,
+        "maxRssBytes": 468894992
+      },
+      "after": {
+        "samples": 465,
+        "maxRssBytes": 427278984
+      }
+    },
+    "e02": {
+      "before": {
+        "samples": 534,
+        "p50Ms": 1.6602920000004815,
+        "p99Ms": 3.096125000000029,
+        "maxMs": 5.652417000000241
+      },
+      "after": {
+        "samples": 466,
+        "p50Ms": 1.5471250000409782,
+        "p99Ms": 2.4687909999629483,
+        "maxMs": 2.5701250000856817
+      }
+    }
+  },
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 50460,
+    "verifiedMs": 50578,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "eewOriginWallMs": 1780650000000,
+    "eewHorizonStale": 0,
+    "quiet": {
+      "waitedMs": 15129,
+      "untilLastBackendMs": 15,
+      "backendLaunchesSeen": {},
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    }
+  },
+  "classification": {
+    "threads": {
+      "publisher": {
+        "rows": 5279,
+        "maxGapMs": 236.24312500003725,
+        "lastMs": 1065586.15425,
+        "gcAvailable": false,
+        "nodeVersion": "v22.23.3",
+        "gcEntries": 1257,
+        "forcedGcErrors": []
+      },
+      "urgent": {
+        "rows": 5279,
+        "maxGapMs": 215.088623046875,
+        "lastMs": 1065574.9416503906,
+        "gcAvailable": false,
+        "nodeVersion": "v22.23.3",
+        "gcEntries": 170,
+        "forcedGcErrors": []
+      },
+      "weatherCurrent": {
+        "rows": 5265,
+        "maxGapMs": 433.3720703125,
+        "lastMs": 1065492.4978027344,
+        "gcAvailable": false,
+        "nodeVersion": "v22.23.3",
+        "gcEntries": 3061,
+        "forcedGcErrors": []
+      },
+      "deferred": {
+        "rows": 5277,
+        "maxGapMs": 210.275390625,
+        "lastMs": 1065291.048828125,
+        "gcAvailable": false,
+        "nodeVersion": "v22.23.3",
+        "gcEntries": 223,
+        "forcedGcErrors": []
+      }
+    },
+    "peaks": [
+      {
+        "startMs": 75691.766583,
+        "endMs": 84572.603958,
+        "peakMs": 83562.883958,
+        "peakRssBytes": 438582720,
+        "floorMs": 57721.759333,
+        "floorRssBytes": 285085288,
+        "eBytes": 153497432,
+        "deltaBytes": {
+          "U": 108610016,
+          "V": 42155552,
+          "X": 6936983,
+          "O": -4205119,
+          "arrayBuffers": 6907858
+        },
+        "oldestRowAgeMs": 163.4706279218808,
+        "distances": {
+          "u": 0.20756894486677802,
+          "v": -0.2253664022209831,
+          "xo": -0.4822025426457949,
+          "staleMs": -836.5293720781192
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 132610.461333,
+        "endMs": 140674.45375,
+        "peakMs": 132610.461333,
+        "peakRssBytes": 468894992,
+        "floorMs": 103141.125125,
+        "floorRssBytes": 330684912,
+        "eBytes": 138210080,
+        "deltaBytes": {
+          "U": 88214888,
+          "V": 42611352,
+          "X": -5765354,
+          "O": 13149194,
+          "arrayBuffers": -5910090
+        },
+        "oldestRowAgeMs": 159.64370604688884,
+        "distances": {
+          "u": 0.13826667345826005,
+          "v": -0.19169143089997487,
+          "xo": -0.4465752425582852,
+          "staleMs": -840.3562939531112
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 192335.755292,
+        "endMs": 200404.354292,
+        "peakMs": 200002.215583,
+        "peakRssBytes": 408125224,
+        "floorMs": 181436.141625,
+        "floorRssBytes": 247336960,
+        "eBytes": 160788264,
+        "deltaBytes": {
+          "U": 106558288,
+          "V": 44354736,
+          "X": 7591035,
+          "O": 2284205,
+          "arrayBuffers": 7591035
+        },
+        "oldestRowAgeMs": 116.68921581251197,
+        "distances": {
+          "u": 0.16272428937972738,
+          "v": -0.2241419560323134,
+          "xo": -0.438582333347414,
+          "staleMs": -883.310784187488
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 253469.995458,
+        "endMs": 261555.683667,
+        "peakMs": 260143.710625,
+        "peakRssBytes": 416466384,
+        "floorMs": 223600.282083,
+        "floorRssBytes": 282515568,
+        "eBytes": 133950816,
+        "deltaBytes": {
+          "U": 24736064,
+          "V": 74272448,
+          "X": 7554374,
+          "O": 27387930,
+          "arrayBuffers": 7554374
+        },
+        "oldestRowAgeMs": 147.56511718750698,
+        "distances": {
+          "u": -0.3153347270389155,
+          "v": 0.05447551734212652,
+          "xo": -0.239140790303211,
+          "staleMs": -852.434882812493
+        },
+        "judgement": "J2"
+      },
+      {
+        "startMs": 312626.413875,
+        "endMs": 320706.636208,
+        "peakMs": 319898.9245,
+        "peakRssBytes": 401029344,
+        "floorMs": 312424.315708,
+        "floorRssBytes": 276420072,
+        "eBytes": 124609272,
+        "deltaBytes": {
+          "U": 85977896,
+          "V": 17274072,
+          "X": -7094209,
+          "O": 28451513,
+          "arrayBuffers": -7097047
+        },
+        "oldestRowAgeMs": 85.16131640627282,
+        "distances": {
+          "u": 0.1899799238053489,
+          "v": -0.36137410384678276,
+          "xo": -0.3286058199585662,
+          "staleMs": -914.8386835937272
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 435942.814,
+        "endMs": 444022.707708,
+        "peakMs": 443014.410833,
+        "peakRssBytes": 402324136,
+        "floorMs": 407076.685417,
+        "floorRssBytes": 273191800,
+        "eBytes": 129132336,
+        "deltaBytes": {
+          "U": 106263256,
+          "V": 21187880,
+          "X": 8271231,
+          "O": -6590031,
+          "arrayBuffers": 8293354
+        },
+        "oldestRowAgeMs": 82.58954393747263,
+        "distances": {
+          "u": 0.3229019879265562,
+          "v": -0.3359211901812107,
+          "xo": -0.48698079774534553,
+          "staleMs": -917.4104560625274
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 672539.526,
+        "endMs": 680814.937375,
+        "peakMs": 680007.086042,
+        "peakRssBytes": 422724112,
+        "floorMs": 646311.995333,
+        "floorRssBytes": 283153752,
+        "eBytes": 139570360,
+        "deltaBytes": {
+          "U": 90241520,
+          "V": 83019280,
+          "X": 1873196,
+          "O": -35563636,
+          "arrayBuffers": 1722312
+        },
+        "oldestRowAgeMs": 186.0491767656058,
+        "distances": {
+          "u": 0.14656650595441612,
+          "v": 0.09482027559433104,
+          "xo": -0.7413867815487472,
+          "staleMs": -813.9508232343942
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 732479.222958,
+        "endMs": 740556.553917,
+        "peakMs": 732479.222958,
+        "peakRssBytes": 429883488,
+        "floorMs": 703022.0785,
+        "floorRssBytes": 297212712,
+        "eBytes": 132670776,
+        "deltaBytes": {
+          "U": 86259312,
+          "V": 12487056,
+          "X": 5622881,
+          "O": 28301527,
+          "arrayBuffers": 5474835
+        },
+        "oldestRowAgeMs": 109.62090721877757,
+        "distances": {
+          "u": 0.1501756799854702,
+          "v": -0.4058793776860098,
+          "xo": -0.24429630229946042,
+          "staleMs": -890.3790927812224
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 795829.675,
+        "endMs": 803896.961542,
+        "peakMs": 795829.675,
+        "peakRssBytes": 427278984,
+        "floorMs": 765976.295083,
+        "floorRssBytes": 300063576,
+        "eBytes": 127215408,
+        "deltaBytes": {
+          "U": 103936160,
+          "V": 12816224,
+          "X": 1086344,
+          "O": 9376680,
+          "arrayBuffers": 806396
+        },
+        "oldestRowAgeMs": 130.15058593754657,
+        "distances": {
+          "u": 0.3170092100793326,
+          "v": -0.39925572537565573,
+          "xo": -0.4177534847036768,
+          "staleMs": -869.8494140624534
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 852526.745333,
+        "endMs": 860602.093792,
+        "peakMs": 852526.745333,
+        "peakRssBytes": 425116560,
+        "floorMs": 842837.346958,
+        "floorRssBytes": 307486080,
+        "eBytes": 117630480,
+        "deltaBytes": {
+          "U": 84374176,
+          "V": 46648672,
+          "X": -1848660,
+          "O": -11543708,
+          "arrayBuffers": -1993402
+        },
+        "oldestRowAgeMs": 76.69650487496983,
+        "distances": {
+          "u": 0.21728157531959402,
+          "v": -0.10343040341244886,
+          "xo": -0.6138511719071451,
+          "staleMs": -923.3034951250302
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 912451.059708,
+        "endMs": 920523.188167,
+        "peakMs": 913461.226542,
+        "peakRssBytes": 399899304,
+        "floorMs": 905600.858792,
+        "floorRssBytes": 247810776,
+        "eBytes": 152088528,
+        "deltaBytes": {
+          "U": 105319888,
+          "V": 48132656,
+          "X": 7953602,
+          "O": -9317618,
+          "arrayBuffers": 7673608
+        },
+        "oldestRowAgeMs": 172.80051660933532,
+        "distances": {
+          "u": 0.1924906788498867,
+          "v": -0.18352211285784814,
+          "xo": -0.5089685659920385,
+          "staleMs": -827.1994833906647
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 973602.298292,
+        "endMs": 981474.2535,
+        "peakMs": 981071.302,
+        "peakRssBytes": 409076168,
+        "floorMs": 943729.201208,
+        "floorRssBytes": 246467312,
+        "eBytes": 162608856,
+        "deltaBytes": {
+          "U": 118547080,
+          "V": 55139704,
+          "X": 5989717,
+          "O": -17067645,
+          "arrayBuffers": 7705472
+        },
+        "oldestRowAgeMs": 178.59643359377515,
+        "distances": {
+          "u": 0.22903212602393563,
+          "v": -0.16090589801578825,
+          "xo": -0.5681262280081474,
+          "staleMs": -821.4035664062249
+        },
+        "judgement": "J1/J4"
+      },
+      {
+        "startMs": 1032712.193667,
+        "endMs": 1040788.239292,
+        "peakMs": 1032712.193667,
+        "peakRssBytes": 419790800,
+        "floorMs": 1009102.203375,
+        "floorRssBytes": 275174936,
+        "eBytes": 144615864,
+        "deltaBytes": {
+          "U": 97651464,
+          "V": 59012344,
+          "X": -5135377,
+          "O": -6912567,
+          "arrayBuffers": -5798856
+        },
+        "oldestRowAgeMs": 157.2341943437932,
+        "distances": {
+          "u": 0.17524724673359482,
+          "v": -0.09193727183346911,
+          "xo": -0.5833099749001258,
+          "staleMs": -842.7658056562068
+        },
+        "judgement": "J1/J4"
+      }
+    ],
+    "run": {
+      "status": null,
+      "kind": "single",
+      "primary": "J1/J4",
+      "counts": {
+        "J1/J4": 12,
+        "J2": 1
+      },
+      "over400": {
+        "J1/J4": 7
+      },
+      "largestPeak": {
+        "peakMs": 132610.461333,
+        "peakRssBytes": 468894992,
+        "judgement": "J1/J4",
+        "mainComponent": "U"
+      }
+    },
+    "forcedGc": {
+      "threshold": 0,
+      "thresholdBeforeMeasure": 0,
+      "thresholdInMeasure": 0,
+      "capped": 0,
+      "baseline": 0,
+      "phase": 0
+    },
+    "baseline": null
+  }
+}

@@ -1,0 +1,192 @@
+{
+  "id": "e05c-observe-run1",
+  "attempt": 1,
+  "manifestId": "p3-e05c-20261012",
+  "manifestSha256": "86829d01d1e9c33caeb4cde1b4bc7db32b0b30684b6581a2ac821a0f23b45a24",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-e05c-20261012/e05c-observe-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05c.json --windows e05c-observe-run1,e05c-observe-run2,e05c-gc-run1,e05c-gc-run2",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05c.json --windows e05c-observe-run1,e05c-observe-run2,e05c-gc-run1,e05c-gc-run2",
+    "caffeinate -dims -w 56727",
+    "FLEQ_MEM_OUT=/Users/tallplain/dev/fleq-a10-runs/p3-e05c-20261012/e05c-observe-run1/mem /opt/homebrew/opt/node@22/bin/node --import /Users/tallplain/dev/fleq-e05c/reconstruction/test/eew-e01/probe-preload.mjs /Users/tallplain/dev/fleq-e05c/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-e05c-20261012/e05c-observe-run1/host-config.json",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-e05c/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:61639/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load P --run 1 --out /Users/tallplain/dev/fleq-a10-runs/p3-e05c-20261012/e05c-observe-run1/e02.jsonl"
+  ],
+  "startedAt": "2026-10-12T02:02:12.217Z",
+  "preflight": {
+    "checkedAt": "2026-10-12T02:02:12.196Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.39",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "21302075c4d928957a148558ac942259ccb5954b",
+    "gitStatusPorcelain": "",
+    "distSha256": "db1692a7d2f90f00ffef31e7d625c884250b522d31f4cb2245716b92dd28857b",
+    "runnerSha256": "8cac749a1f31fbc05e2c009bfaba22c25effbc41abc4c3e1448524f40337ee24",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 50706,
+    "verifiedMs": 50824,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "eewOriginWallMs": 1780650000000,
+    "eewHorizonStale": 0,
+    "quiet": {
+      "waitedMs": 15147,
+      "untilLastBackendMs": 16,
+      "backendLaunchesSeen": {},
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    }
+  },
+  "expirySplit": {
+    "expiryHostMs": 600000,
+    "measureStartHostMs": 66793.194666,
+    "note": "期限（起点＋600,000ms）の host 単調時計。回収はその後の最初の deadline 要求。報告のみで判定は窓全体",
+    "e05": {
+      "before": {
+        "samples": 532,
+        "maxRssBytes": 418050904
+      },
+      "after": {
+        "samples": 465,
+        "maxRssBytes": 427787032
+      }
+    },
+    "e02": {
+      "before": {
+        "samples": 534,
+        "p50Ms": 1.579582999984268,
+        "p99Ms": 3.077624999999898,
+        "maxMs": 6.843957999999475
+      },
+      "after": {
+        "samples": 466,
+        "p50Ms": 1.5293330000713468,
+        "p99Ms": 2.544249999918975,
+        "maxMs": 20.628417000058107
+      }
+    }
+  },
+  "status": "N/A",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-e05c-20261012/results/aux-e05c-observe-run1.json",
+      "sha256": "c7ac1851528c7c7902a9a5dd5a33dadcd6d1d30d52d8db26d533dec818373a46"
+    }
+  ],
+  "liveness": {
+    "pings": 53,
+    "maxFrameGapMs": 20002.492458105087
+  },
+  "hostClock": {
+    "hostClockUnverified": 0,
+    "hostClockAhead": 0,
+    "hostClockBehind": 0
+  },
+  "finishedAt": "2026-10-12T02:19:58.370Z",
+  "raw": [
+    {
+      "file": "aux-e05c-observe-run1.json",
+      "bytes": 12986,
+      "sha256": "c7ac1851528c7c7902a9a5dd5a33dadcd6d1d30d52d8db26d533dec818373a46"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 111604,
+      "sha256": "6af3c2151a939c1680161b1fadb26ceadab218bff9143ed70d521d071645cf4b"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1618,
+      "sha256": "2ec4b5c504e326d0a1d9972916c54f396acde9aedc4b58e9e0016155702cf5b0"
+    },
+    {
+      "file": "e02.jsonl",
+      "bytes": 206067,
+      "sha256": "8c713f672fbd0f047ff433c02604151068deb1f6935f0e885c7ed3b554031244"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 455,
+      "sha256": "51ee2ed92ccb703db327b6bf87403e7f1229b07774edbf9132bd52f7ba495e1e"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 10079197,
+      "sha256": "8e906f7641e224dbb619c74e4beb1c3e97933fd4c33deded083b7db60fc163e9"
+    },
+    {
+      "file": "mem.deferred.jsonl",
+      "bytes": 835379,
+      "sha256": "953866f6c5fd9a4a1bb1199431a5a9313d3a72559208b25076c80f7bacec80e3"
+    },
+    {
+      "file": "mem.deferred.written",
+      "bytes": 18,
+      "sha256": "b906e756db32e701452dc576f85367f74fe0f0890dbb136bc8740c8ae90a640f"
+    },
+    {
+      "file": "mem.publisher.jsonl",
+      "bytes": 911980,
+      "sha256": "88e4e6f671857a1693a0a396db73aa6b9535f0c8ba2f794e004bfe8215847a89"
+    },
+    {
+      "file": "mem.urgent.jsonl",
+      "bytes": 813527,
+      "sha256": "799e34d44d706b9804af97298f9f8d562f2e9e427ab62f8c423aefbd83865586"
+    },
+    {
+      "file": "mem.urgent.written",
+      "bytes": 18,
+      "sha256": "bd186b12a4b51bde2f9d7367879c16fad524cb98b5d3ac455f5872a70c9eec62"
+    },
+    {
+      "file": "mem.weatherCurrent.jsonl",
+      "bytes": 1166268,
+      "sha256": "a899be25942e8c03f429b3363af239d0d4101f97d633e02313a8c9ec77440116"
+    },
+    {
+      "file": "mem.weatherCurrent.written",
+      "bytes": 18,
+      "sha256": "3ac949e107a006535011b436a6ba6f32551e1e801ee118bec73a2c2f9d4bde94"
+    }
+  ],
+  "orphans": []
+}
