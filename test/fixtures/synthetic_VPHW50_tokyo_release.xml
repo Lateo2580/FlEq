@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>竜巻注意情報</Title>
+<DateTime>2014-02-12T04:50:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁予報部</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>東京都竜巻注意情報</Title>
+<ReportDateTime>2014-02-12T13:50:00+09:00</ReportDateTime>
+<TargetDateTime>2014-02-12T13:50:00+09:00</TargetDateTime>
+<ValidDateTime>2014-02-12T14:30:00+09:00</ValidDateTime>
+<EventID />
+<InfoType>発表</InfoType>
+<Serial>2</Serial>
+<InfoKind>竜巻注意情報</InfoKind>
+<InfoKindVersion>1.1_0</InfoKindVersion>
+<Headline>
+<Text />
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+<Warning type="竜巻注意情報（発表細分）">
+<Item>
+<Kind>
+<Name>なし</Name>
+<Code>0</Code>
+<Status>なし</Status>
+</Kind>
+<Area>
+<Name>東京地方</Name>
+<Code>130010</Code>
+</Area>
+</Item>
+<Item>
+<Kind>
+<Name>なし</Name>
+<Code>0</Code>
+<Status>なし</Status>
+</Kind>
+<Area>
+<Name>伊豆諸島北部</Name>
+<Code>130020</Code>
+</Area>
+</Item>
+<Item>
+<Kind>
+<Name>なし</Name>
+<Code>0</Code>
+<Status>なし</Status>
+</Kind>
+<Area>
+<Name>伊豆諸島南部</Name>
+<Code>130030</Code>
+</Area>
+</Item>
+</Warning>
+</Body>
+</Report>

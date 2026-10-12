@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
+    "sha256": "9d834611b055cc860e480890dfa68b1b05e2d47aeedd0f75b63904d3fb4c2ab7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
+    "manifestSha256": "ba89b4e15b1a1cddcdb285f1b4294f8bfceaeb60d9ce762ddfda4018331a9173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -1802,6 +1802,267 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 97,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1392178740000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:97",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 98,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPHW50_tokyo_pair",
+          "receivedAt": 1392178740001,
+          "evaluatedAt": 1392178740001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:98",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:133 «d75ab7eb551715e5» P3-C13-TORNADO-PAIR=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:314 «cc18ecfb5ee1ae95» Q-NOTICE payload",
+            "L2: test/fixtures/synthetic_VPHW50_tokyo_pair.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 99,
+          "action": "receive",
+          "fixtureId": "test__fixtures__19_04_01_140425_VPHW51",
+          "receivedAt": 1392178740002,
+          "evaluatedAt": 1392178740002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:99",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:133 «d75ab7eb551715e5» P3-C13-TORNADO-PAIR=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L2: test/fixtures/19_04_01_140425_VPHW51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 100,
+          "action": "receive",
+          "fixtureId": "test__fixtures__19_04_01_140425_VPHW51",
+          "receivedAt": 1392178740003,
+          "evaluatedAt": 1392178740003,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:100",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L2: test/fixtures/19_04_01_140425_VPHW51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 101,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPHW50_tokyo_cancel",
+          "receivedAt": 1392178860001,
+          "evaluatedAt": 1392178860001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:101",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «fb2ab6a362fdca23» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VPHW50_tokyo_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 102,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPHW50_tokyo_pair",
+          "receivedAt": 1392178860002,
+          "evaluatedAt": 1392178860002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:102",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
+            "L2: test/fixtures/synthetic_VPHW50_tokyo_pair.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 103,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1216432800000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:103",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 104,
+          "action": "receive",
+          "fixtureId": "test__fixtures__30_01_01_100915_VPCI50",
+          "receivedAt": 1216432800001,
+          "evaluatedAt": 1216432800001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:104",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:174 «06058662d337c5dd» P3-C13-TRANSIENT-FAMILIES=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/30_01_01_100915_VPCI50.xml:1 «86e0a4d4f900f574» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 105,
+          "action": "receive",
+          "fixtureId": "test__fixtures__30_01_01_100915_VPCI50",
+          "receivedAt": 1216432800002,
+          "evaluatedAt": 1216432800002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:105",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L2: test/fixtures/30_01_01_100915_VPCI50.xml:1 «86e0a4d4f900f574» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 106,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPCI50_cancel",
+          "receivedAt": 1216436400001,
+          "evaluatedAt": 1216436400001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:106",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «fb2ab6a362fdca23» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VPCI50_cancel.xml:1 «86e0a4d4f900f574» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 107,
+          "action": "receive",
+          "fixtureId": "test__fixtures__30_01_01_100915_VPCI50",
+          "receivedAt": 1216436400002,
+          "evaluatedAt": 1216436400002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:107",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
+            "L2: test/fixtures/30_01_01_100915_VPCI50.xml:1 «86e0a4d4f900f574» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 108,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1706044920000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:108",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 109,
+          "action": "receive",
+          "fixtureId": "test__fixtures__85(82)_02_04_260326_VPFJ51",
+          "receivedAt": 1706044920001,
+          "evaluatedAt": 1706044920001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:109",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:174 «06058662d337c5dd» P3-C13-TRANSIENT-FAMILIES=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/85(82)_02_04_260326_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 110,
+          "action": "receive",
+          "fixtureId": "test__fixtures__85(82)_02_01_250630_VPFJ51",
+          "receivedAt": 1706044920002,
+          "evaluatedAt": 1706044920002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:110",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L2: test/fixtures/85(82)_02_01_250630_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 111,
+          "action": "receive",
+          "fixtureId": "test__fixtures__85(82)_02_07_260326_VPFJ51",
+          "receivedAt": 1706082540001,
+          "evaluatedAt": 1706082540001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:111",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:376 «d34cddca3db4e7f4» I-U-M currentSemantics",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L2: test/fixtures/85(82)_02_07_260326_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
         }
       ]
     },
@@ -2513,6 +2774,10 @@
           "expectedRef": "expected:O02:46",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:156 «a41848d26e8531eb» P3-C13-HEAT-FACTS=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:165 «a2a5eb43ae5919c0» P3-C13-HEAT-SPECIAL=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094» 運用区分隔離",
             "L2: test/fixtures/synthetic_VPFT50_no_body.xml:1 «12c29731e40adc0c» Control/Head/Body"
           ]
@@ -2642,6 +2907,38 @@
             "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L2: test/fixtures/selected_xml/80_01_01_240821_VYSE60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 55,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1392180600000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O02:55",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 56,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPHW50_tokyo_empty",
+          "receivedAt": 1392180600001,
+          "evaluatedAt": 1392180600001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O02:56",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:350 «c25a145e1b777154» Q-ENUM familyTable tornado",
+            "L2: test/fixtures/synthetic_VPHW50_tokyo_empty.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         }
       ]
@@ -5185,6 +5482,12 @@
           "expectedRef": "expected:O08:2",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:42 «7048dbb30f89c3ef» P3-C13-HEAT-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:156 «a41848d26e8531eb» P3-C13-HEAT-FACTS=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:165 «a2a5eb43ae5919c0» P3-C13-HEAT-SPECIAL=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:314 «cc18ecfb5ee1ae95» Q-NOTICE payload",
             "L2: test/fixtures/57_03_01_240401_VPFT50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -5483,6 +5786,157 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
             "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A",
             "L1: reconstruction/contracts/p3-briefing-unit.json:319 «76a0a7eb5d1611af» Q-NOTICE silent"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 22,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1392178740000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:22",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 23,
+          "action": "receive",
+          "fixtureId": "test__fixtures__19_04_01_140425_VPHW51",
+          "receivedAt": 1392178740001,
+          "evaluatedAt": 1392178740001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O08:23",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/19_04_01_140425_VPHW51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 24,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPHW50_tokyo_release",
+          "receivedAt": 1392180600001,
+          "evaluatedAt": 1392180600001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O08:24",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:273 «ffab5729a134da6e» Q-NOTICE tornadoRelease",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VPHW50_tokyo_release.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 25,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1392310200000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:25",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 26,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1374798000000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:26",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 27,
+          "action": "receive",
+          "fixtureId": "test__fixtures__19_03_01_130906_VPHW50",
+          "receivedAt": 1374798000001,
+          "evaluatedAt": 1374798000001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O08:27",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/19_03_01_130906_VPHW50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 28,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1374802199999,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:28",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 29,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1374802200000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:29",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:376 «d34cddca3db4e7f4» I-U-M currentSemantics",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
+          ]
+        },
+        {
+          "sequenceId": "O08",
+          "position": 30,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1374927600000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O08:30",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
           ]
         }
       ]
@@ -13827,8 +14281,13 @@
       "expectedId": "expected:O02:46",
       "sequenceId": "O02",
       "position": 46,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
           "subject": "normal/VPFT50/JPTC240001",
@@ -13839,17 +14298,22 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:156 «a41848d26e8531eb» P3-C13-HEAT-FACTS=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:165 «a2a5eb43ae5919c0» P3-C13-HEAT-SPECIAL=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094» 運用区分隔離",
         "L2: test/fixtures/synthetic_VPFT50_no_body.xml:1 «12c29731e40adc0c» Control/Head/Body"
       ],
       "input": null,
       "checks": [
-        "Body欠落の個片。正常emptyと即断しない。必須構造をQ-VALUES/Q-ENUMで固定。",
+        "Body欠落の報も合法な発表として採る（P3-C13-HEAT-FACTS=AはBodyを読まず、形も確かめない。Q-VALUESのVPFT50の行はこの条文で閉じた）。対象日2024-08-11のactive。",
+        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated、titleは「埼玉県熱中症警戒アラート」、bodyは「埼玉県 8月11日」（Q-NOTICE.payload、P3-C13-HEAT-SPECIAL=Aで「特別警戒 」の接頭辞は無い）。",
         "Control.Status=通常; head.test/envelope Status=notProvided。replayとoperationを分離。"
       ]
     },
@@ -17368,16 +17832,23 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:42 «7048dbb30f89c3ef» P3-C13-HEAT-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:156 «a41848d26e8531eb» P3-C13-HEAT-FACTS=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:165 «a2a5eb43ae5919c0» P3-C13-HEAT-SPECIAL=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:314 «cc18ecfb5ee1ae95» Q-NOTICE payload",
         "L2: test/fixtures/57_03_01_240401_VPFT50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "対象日2024-08-11の熱中症警戒情報。3日retentionとactive期限は別。",
+        "対象日はTargetDateTime（2024-08-11T05:00）のJSTの日付の2024-08-11（P3-C13-HEAT-EXPIRY=A）。activeUntilは2024-08-12T00:00（1723388400000）、retainUntilはReportDateTime＋3日。3日retentionとactive期限は別。",
+        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated、titleは「埼玉県熱中症警戒アラート」、bodyは「埼玉県 8月11日」（Q-NOTICE.payload、P3-C13-HEAT-SPECIAL=Aで「特別警戒 」の接頭辞は無い）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -17390,8 +17861,8 @@
         "kind": "active"
       },
       "subjects": [],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:577 «74dcd821199e6c48»"
@@ -17419,8 +17890,8 @@
         }
       },
       "subjects": [],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:577 «74dcd821199e6c48»",
@@ -17468,10 +17939,15 @@
       "sequenceId": "O08",
       "position": 6,
       "decision": null,
-      "effective": null,
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
       "subjects": [],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6»"
@@ -17481,7 +17957,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "期限切れを解除と表示しない。保持回収後の旧報受理境界はQ-TTL。"
+        "retainUntil（ReportDateTime＋3日、2024-08-14T05:00）を過ぎたendedの記録は除かれていて、記録は0件。期限切れを解除と表示しない。保持回収後の旧報受理境界はP3-C13-RETENTION.lateRule(1)。"
       ]
     },
     {
@@ -24349,6 +24825,867 @@
       "checks": [
         "JPTK・JPTCのreleasedの記録を期限で回収し（wall＝期限で到来）、通知しない（期限での回収は無音、取消と区別する）。記録は0件になり、retainUntil・holdUntilの期限は残らない。入力停止でも有限に終わり、未確認の相関を確定にしない（aliasedにしない）。"
       ]
+    },
+    {
+      "expectedId": "expected:O01:97",
+      "sequenceId": "O01",
+      "position": 97,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 竜巻注意情報の同じ版の対と取消（東京都）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:98",
+      "sequenceId": "O01",
+      "position": 98,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/tornado/気象庁本庁/東京都竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2014-02-12T13:19:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:133 «d75ab7eb551715e5» P3-C13-TORNADO-PAIR=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:314 «cc18ecfb5ee1ae95» Q-NOTICE payload",
+        "L2: test/fixtures/synthetic_VPHW50_tokyo_pair.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ版の対のVPHW50が先着（目撃の層が無い、Headline/Textは「【目撃情報あり】」で始まる）。subjectは官署＋Head/Title（P3-C13-TORNADO-SUBJECT=A）。activeUntilはValidDateTimeの2014-02-12T14:30、retainUntilは13:19＋36時間。sightedはHeadline/Textの印でtrue（P3-C13-TORNADO-PAIR=A）。",
+        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated、titleは「東京都竜巻注意情報」、bodyは「目撃情報あり / 発表中 53地域 / 有効期限 14:30」（市町村等の層の53地域、Q-NOTICE.payload）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:99",
+      "sequenceId": "O01",
+      "position": 99,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/tornado/気象庁本庁/東京都竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2014-02-12T13:19:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:133 «d75ab7eb551715e5» P3-C13-TORNADO-PAIR=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L2: test/fixtures/19_04_01_140425_VPHW51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ版（13:19、発表、Serial 1）のVPHW51が後着。版の比較の最後のheadTypeの順位（VPHW50＜VPHW51）で新しい版として採り、記録をVPHW51の事実（目撃の層の区域1を足した61区域）に置き換える。公開事実のareasが変わるのでsemantic。",
+        "同じ版の対の後着なので通知を作らず、98のpendingも撤回しない（P3-C13-TORNADO-PAIR=A、Q-NOTICE.generationTable）。食い違いの診断は出さない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:100",
+      "sequenceId": "O01",
+      "position": 100,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "duplicate"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/tornado/気象庁本庁/東京都竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2014-02-12T13:19:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L2: test/fixtures/19_04_01_140425_VPHW51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じVPHW51をもう一度受ける。同じ版・同じheadType・同じ公開事実なのでduplicate。記録・pending・保存世代を変えず、通知しない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:101",
+      "sequenceId": "O01",
+      "position": 101,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/tornado/気象庁本庁/東京都竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2014-02-12T13:19:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «fb2ab6a362fdca23» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VPHW50_tokyo_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ時刻・同じSerialの取消（VPHW50）。InfoTypeの順位（取消＞発表）で新しい版として採り、activeの記録をcancelledにして事実を捨てる（P3-C13-CANCEL-SCOPE=A、見える記録が消えるのでsemantic）。HeadlineとBodyは読まない。retainUntilは13:19＋36時間。",
+        "通知: cancellation（取消の前にactive）、desktop＋sound、level=cancel、transition cancelled、titleは「[取消] 東京都竜巻注意情報」、bodyは「この情報は取り消されました」。同じsubjectのpending（98のdesktop）はsupersededにする（P3-C13-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:102",
+      "sequenceId": "O01",
+      "position": 102,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/tornado/気象庁本庁/東京都竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2014-02-12T13:19:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
+        "L2: test/fixtures/synthetic_VPHW50_tokyo_pair.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消より古い版（13:19、発表）の報。staleでcancelledの記録を戻さず、通知しない（spec:1777のO01「取消後の古い報は復活しない」）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:103",
+      "sequenceId": "O01",
+      "position": 103,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 天候情報VPCI50の取消",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:104",
+      "sequenceId": "O01",
+      "position": 104,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPCI50/200806021330地方天候情報気象庁",
+          "revision": {
+            "reportDateTimeRaw": "2008-07-19T11:00:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:174 «06058662d337c5dd» P3-C13-TRANSIENT-FAMILIES=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/30_01_01_100915_VPCI50.xml:1 «86e0a4d4f900f574» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "transientのclimateInfo。subjectは`${operation}/VPCI50/${EventIDの最初の「_」より前}`（P3-C13-TRANSIENT-FAMILIES=A、このEventIDは「_」を持たない）。visibleUntilは11:00＋3時間、retainUntilは11:00＋30日（P3-C13-TRANSIENT-TTL=A）。",
+        "通知: semanticAdoption、desktop＋sound、level=normal、domain weather、transition activated、titleは「梅雨の時期に関する関東甲信地方気象情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:105",
+      "sequenceId": "O01",
+      "position": 105,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "duplicate"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPCI50/200806021330地方天候情報気象庁",
+          "revision": {
+            "reportDateTimeRaw": "2008-07-19T11:00:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L2: test/fixtures/30_01_01_100915_VPCI50.xml:1 «86e0a4d4f900f574» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ報をもう一度受ける。duplicateで記録・pending・保存世代を変えず、通知しない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:106",
+      "sequenceId": "O01",
+      "position": 106,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPCI50/200806021330地方天候情報気象庁",
+          "revision": {
+            "reportDateTimeRaw": "2008-07-19T12:00:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «fb2ab6a362fdca23» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VPCI50_cancel.xml:1 «86e0a4d4f900f574» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じEventIDの取消（12:00、Serial 3）。見える期限（14:00）の内側のactiveをcancelledにする（P3-C13-CANCEL-SCOPE=A）。retainUntilは12:00＋30日。",
+        "通知: cancellation、desktop＋sound、level=cancel、transition cancelled、titleは「[取消] 梅雨の時期に関する関東甲信地方気象情報」、bodyは「この情報は取り消されました」。104のintentは期限（desktop 11:03:00.001）で終端済みで、撤回するpendingは無い。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:107",
+      "sequenceId": "O01",
+      "position": 107,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPCI50/200806021330地方天候情報気象庁",
+          "revision": {
+            "reportDateTimeRaw": "2008-07-19T11:00:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
+        "L2: test/fixtures/30_01_01_100915_VPCI50.xml:1 «86e0a4d4f900f574» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消より古い版の再受信。staleで復活せず、通知しない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:108",
+      "sequenceId": "O01",
+      "position": 108,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 気象解説情報VPFJ51 JPNC240004の遅着",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:109",
+      "sequenceId": "O01",
+      "position": 109,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPFJ51/JPNC240004",
+          "revision": {
+            "reportDateTimeRaw": "2024-01-24T06:22:00+09:00",
+            "serialRaw": "10",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:174 «06058662d337c5dd» P3-C13-TRANSIENT-FAMILIES=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/85(82)_02_04_260326_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "weatherExplanationのSerial 10。visibleUntilは06:22＋3時間、retainUntilは06:22＋36時間。",
+        "通知: semanticAdoption、desktop＋sound、level=normal、transition activated、titleは「福井県気象解説情報（大雪・高波・雷）」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:110",
+      "sequenceId": "O01",
+      "position": 110,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPFJ51/JPNC240004",
+          "revision": {
+            "reportDateTimeRaw": "2024-01-23T17:21:00+09:00",
+            "serialRaw": "6",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L2: test/fixtures/85(82)_02_01_250630_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じEventIDの古い版（前日17:21、Serial 6）が遅れて届く。版の比較でstale（遅着の判定より先、Q-ENUM.revisionOrder）。Serial 10の記録を変えず、通知しない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:111",
+      "sequenceId": "O01",
+      "position": 111,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPFJ51/JPNC240004",
+          "revision": {
+            "reportDateTimeRaw": "2024-01-24T16:49:00+09:00",
+            "serialRaw": "13",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «72c965b5f195a52f» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:376 «d34cddca3db4e7f4» I-U-M currentSemantics",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L2: test/fixtures/85(82)_02_07_260326_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "受信の前の期限処理で、Serial 10の記録はvisibleUntil（09:22）を過ぎてevidenceになる（無音、保存世代を進めない）。Serial 13（16:49）は新しい版で、evidenceの記録への見える採用なのでsemantic。題名（「雷」が外れる）は鍵に入れず事実として置き換える（P3-C13-TRANSIENT-FAMILIES=A）。",
+        "通知: semanticAdoption、desktop＋sound、level=normal、transition activated（記憶からの再採用）、titleは「福井県気象解説情報（大雪・高波）」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:55",
+      "sequenceId": "O02",
+      "position": 55,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: synthetic_VPHW50_tokyo_empty.xml",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:56",
+      "sequenceId": "O02",
+      "position": 56,
+      "decision": {
+        "kind": "rejected",
+        "reason": "requiredStructureMissing"
+      },
+      "effective": null,
+      "subjects": [
+        {
+          "subject": "normal/tornado/気象庁本庁/東京都竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2014-02-12T13:50:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:350 «c25a145e1b777154» Q-ENUM familyTable tornado",
+        "L2: test/fixtures/synthetic_VPHW50_tokyo_empty.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "非取消でHeadlineに竜巻のInformationが無く、Body/WarningにもItemが無い。解除（区域が全部なし）と読まずrequiredStructureMissingで拒否する（P3-C13-TORNADO-FACTS=A、何も書かれていない報で竜巻注意情報を黙って解除しない）。state全体を同じ参照で返す。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:22",
+      "sequenceId": "O08",
+      "position": 22,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 竜巻注意情報の解除（東京都）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:23",
+      "sequenceId": "O08",
+      "position": 23,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/tornado/気象庁本庁/東京都竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2014-02-12T13:19:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/19_04_01_140425_VPHW51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "VPHW51だけが届く（対のVPHW50は来ない）。activeUntilは14:30、sightedは目撃の層とHeadline/Textの印でtrue。",
+        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated、titleは「東京都竜巻注意情報」、bodyは「目撃情報あり / 発表中 53地域 / 有効期限 14:30」（市町村等の層の53地域、Q-NOTICE.payload）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:24",
+      "sequenceId": "O08",
+      "position": 24,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "released"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/tornado/気象庁本庁/東京都竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2014-02-12T13:50:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:273 «ffab5729a134da6e» Q-NOTICE tornadoRelease",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VPHW50_tokyo_release.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "13:50のSerial 2。Headlineに竜巻のInformationが無く、Body/Warningの発表細分のItemが全部なしなので、通常の解除としてendedにする（P3-C13-TORNADO-FACTS=A、P3-C13-TORNADO-EXPIRY=A）。ValidDateTimeは確かめない。retainUntilは13:50＋36時間。解除の実物は無く、形は見込み（残存リスク(19)）。",
+        "通知: tornadoRelease、desktop＋sound、level=info、transition released、titleは「東京都竜巻注意情報」、bodyは「竜巻注意情報は解除されました」。23のintentは期限（desktop 13:22:00.001）で終端済みで、撤回するpendingは無い。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:25",
+      "sequenceId": "O08",
+      "position": 25,
+      "decision": null,
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
+      ],
+      "input": {
+        "required": "入力停止のまま、時計を解除の記録のretainUntil（2014-02-14T01:50:00.000+09:00、13:50＋36時間）へ進めて期限処理を走らせる。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "endedの記録を無音で除く（期限での除去は通知しない）。記録は0件になる。期限切れを解除と表示し直さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:26",
+      "sequenceId": "O08",
+      "position": 26,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 竜巻注意情報の有効期限（長崎県）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:27",
+      "sequenceId": "O08",
+      "position": 27,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/tornado/長崎地方気象台/長崎県竜巻注意情報",
+          "revision": {
+            "reportDateTimeRaw": "2013-07-26T09:20:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/19_03_01_130906_VPHW50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "activeUntilはValidDateTimeの2013-07-26T10:30、retainUntilは09:20＋36時間。sightedはfalse。",
+        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated、titleは「長崎県竜巻注意情報」、bodyは「発表中 24地域 / 有効期限 10:30」（市町村等の層の24地域）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:28",
+      "sequenceId": "O08",
+      "position": 28,
+      "decision": null,
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）"
+      ],
+      "input": {
+        "required": "入力停止、時計を有効期限の1 ms前（2013-07-26T10:29:59.999+09:00）へ。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "有効期限の1 ms前はactiveのまま（27のintentの期限の処理だけが走る）。新しい通知を作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:29",
+      "sequenceId": "O08",
+      "position": 29,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:376 «d34cddca3db4e7f4» I-U-M currentSemantics",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
+      ],
+      "input": {
+        "required": "時計を有効期限（2013-07-26T10:30:00.000+09:00）へ。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "有効期限の到来でactiveをendedにする（見える記録が消えるのでchanged/semantic、I-U-M.currentSemantics(6)）。通知しない。解除の報を捏造しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O08:30",
+      "sequenceId": "O08",
+      "position": 30,
+      "decision": null,
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
+      ],
+      "input": {
+        "required": "時計をretainUntil（2013-07-27T21:20:00.000+09:00、09:20＋36時間）へ。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "endedの記録を無音で除く。記録は0件になる。"
+      ]
     }
   ],
   "unresolvedQuestions": [
@@ -24385,10 +25722,9 @@
       "owner": "integrator",
       "blocks": [
         "VPTA50連続ゼロ/gate-onlyの具体遷移",
-        "洪水all-unknownの保持scope",
-        "VPFT50 Body欠落の合法性/意味判定"
+        "洪水all-unknownの保持scope"
       ],
-      "resolveBy": "VPTA50（U-Y）、洪水（U-R）、VPFT50（U-M）はそれぞれ対象のP3実装契約開始前に値/構造期待を固定"
+      "resolveBy": "VPTA50（U-Y）、洪水（U-R）はそれぞれ対象のP3実装契約開始前に値/構造期待を固定（VPFT50 Body欠落はP3-UNIT-M-001のP3-C13-HEAT-FACTS=Aで閉じた）"
     },
     {
       "id": "Q-OP",

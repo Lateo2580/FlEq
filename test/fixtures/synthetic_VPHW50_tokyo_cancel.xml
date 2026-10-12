@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>竜巻注意情報</Title>
+<DateTime>2014-02-12T04:21:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁予報部</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>東京都竜巻注意情報</Title>
+<ReportDateTime>2014-02-12T13:19:00+09:00</ReportDateTime>
+<TargetDateTime>2014-02-12T13:19:00+09:00</TargetDateTime>
+<ValidDateTime>2014-02-12T14:30:00+09:00</ValidDateTime>
+<EventID />
+<InfoType>取消</InfoType>
+<Serial>1</Serial>
+<InfoKind>竜巻注意情報</InfoKind>
+<InfoKindVersion>1.1_0</InfoKindVersion>
+<Headline>
+<Text>東京都竜巻注意情報を取り消します。</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" />
+</Report>

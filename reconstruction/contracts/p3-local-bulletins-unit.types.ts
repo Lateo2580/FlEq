@@ -34,7 +34,7 @@ type Common = Readonly<{
 export type TornadoAreaLayer = "announcement" | "primary" | "municipalityGroup" | "municipality" | "sighting";
 export type TornadoArea = Readonly<{ layer: TornadoAreaLayer; code: string; name: string }>;
 
-// subject = `${operation}/tornado/${EditorialOffice}/${Head/Title}`（P3-C13-TORNADO-SUBJECT の推奨 A。府県予報区ごと）。VPHW50 と VPHW51 は同じ subject。
+// subject = `${operation}/tornado/${EditorialOffice}/${Head/Title}`（P3-C13-TORNADO-SUBJECT=A。府県予報区ごと）。VPHW50 と VPHW51 は同じ subject。
 // active は activeUntil（Head/ValidDateTime を ReportDateTime + 36 時間で切り詰めた値、無ければ ReportDateTime + 1 時間、P3-C13-TORNADO-EXPIRY）の到来で ended になり、
 // 記憶として retainUntil（ReportDateTime + 36 時間）まで残る。区域が全部「なし」の報も ended（通常の解除）。
 export type TornadoCurrent = Common & (
@@ -44,7 +44,7 @@ export type TornadoCurrent = Common & (
       title: string;
       headline: string;
       editorialOffice: string;
-      // 「目撃情報あり」の区域を持つか Headline/Text が「【目撃情報あり】」で始まる報（P3-C13-TORNADO-PAIR の推奨 A。VPHW51 は VPHW50 と常に対で来るので headType では決めない）。
+      // 「目撃情報あり」の区域を持つか Headline/Text が「【目撃情報あり】」で始まる報（P3-C13-TORNADO-PAIR=A。VPHW51 は VPHW50 と常に対で来るので headType では決めない）。
       sighted: boolean;
       areas: readonly TornadoArea[];
       truncated: boolean;
@@ -52,7 +52,7 @@ export type TornadoCurrent = Common & (
   | Readonly<{ effective: "ended" | "cancelled" }>
 );
 
-// subject = `${operation}/VPFT50/${EventID}`（P3-C13-HEAT-SUBJECT）。active は対象日（P3-C13-HEAT-EXPIRY の推奨 A: Head/TargetDateTime の
+// subject = `${operation}/VPFT50/${EventID}`（P3-C13-HEAT-SUBJECT）。active は対象日（P3-C13-HEAT-EXPIRY=A: Head/TargetDateTime の
 // JST の日付。前日 17 時の第 1 号は翌日 00:00、当日 5 時の報は当日 05:00 で来る）の終わりの到来で ended になり、記憶として retainUntil（ReportDateTime + 3 日）まで残る。
 // 暑さ指数は構造化された値として電文に無いので持たない（P4 は「未提供」と出す、spec:1470）。
 export type HeatCurrent = Common & (
@@ -65,8 +65,6 @@ export type HeatCurrent = Common & (
       editorialOffice: string;
       // 切り詰める前の Head/Title から引いた対象地域の名前（例: 埼玉県）。引けなければ null で、報は拒否しない。
       areaName: string | null;
-      // 切り詰める前の Head/Title が「特別警戒アラート」を含む。
-      special: boolean;
       truncated: boolean;
     }>
   | Readonly<{ effective: "ended" | "cancelled" }>
@@ -77,7 +75,7 @@ export type TransientFamily = "seismicText" | "earlyWeather" | "climateInfo" | "
 
 export type TransientArea = Readonly<{ code: string; name: string }>;
 
-// subject は EventID のある型が `${operation}/${headType}/${EventID の最初の「_」より前}`（接尾の有無をまたいで Serial が続くため）、VPAW51 は `${operation}/VPAW51/${TargetArea の code}/${Head/Title}`（P3-C13-VPAW51-SUBJECT の推奨 A）。
+// subject は EventID のある型が `${operation}/${headType}/${EventID の最初の「_」より前}`（接尾の有無をまたいで Serial が続くため）、VPAW51 は `${operation}/VPAW51/${TargetArea の code}/${Head/Title}`（P3-C13-VPAW51-SUBJECT=A）。
 // active の事実は保存しない（spec:482 の「早期天候・気候・解説の永続 current」は作らない）。保存するのは evidence（受理の証拠だけ）と
 // cancelled で、encode は active を evidence として書く（P3-C13-TRANSIENT-EVIDENCE）。visibleUntil の到来で evidence になる。
 export type TransientCurrent = Common & Readonly<{ family: TransientFamily }> & (

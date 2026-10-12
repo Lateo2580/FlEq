@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "9f9805a817dd9ba5b94dc0312a00fe42377e18c6203e77d7b2fca8da33de82e4",
+    "sha256": "87f87e199e7567b784640202104414f7b8c9d8917b828671e19e66909eef3418",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
-    "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
+    "manifestSha256": "ba89b4e15b1a1cddcdb285f1b4294f8bfceaeb60d9ce762ddfda4018331a9173",
+    "sequencesSha256": "9d834611b055cc860e480890dfa68b1b05e2d47aeedd0f75b63904d3fb4c2ab7",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -453,7 +453,7 @@
           "C13（U-M）のcoverage行の編集: spec §4.3はVPNO50の区域解除をM06/U-W、その他のVPNO50をM18/U-Mに置くが、CoverageRowのreadyはunitを1つしか持てない",
           "VPNO50の内容別振り分けをU-W側で行うか、coverage行の形を変えるかの判断"
         ],
-        "resolveBy": "C13（P3-UNIT-M-001）の契約凍結前",
+        "resolveBy": "C13（P3-UNIT-M-001）の契約凍結前。閉鎖（C13の発注前点検、2026-10-12夜）: P3-C13-VPNO50=A（作者裁定2026-10-12朝）でVPNO50は全部ready＋U-Wのまま置き、U-Mは受けない。U-Wは区域解除以外のVPNO50を受理してstateを変えない（コードは変えない）。spec:498の「その他VPNO50」をU-Wの行に読み替えた（10f47b42、行数を変えない置換）",
         "requiredEvidence": [
           "U-W（weather-current）が区域解除以外のVPNO50を現在どう扱うか（reducerの分岐とfixtureでの結果）",
           "manifestのVPNO50 fixture 2件の内容区分",
