@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "36ab3db6afedda033cb6f50b5da6217426a17d9c",
-    "sha256": "a1406994bcfb31ec4eab1925de3560253c584ac4b5ef226ce31ac7cdf959326e",
+    "sha256": "db79760b1620b6bef26acf2b3db68fe8ce32e5f4aba79431deaa127b8c40e328",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -91,6 +91,14 @@
         "closed": "D-XTC-SHAREは作者裁定A（textのnodeの共有まで含めた4つ）。残存リスク(1)〜(6)を承認",
         "remaining": "なし",
         "reason": "起草の報告で、作者に訊く分岐（D-XTC-SHARE）と残存リスクを確かめた"
+      },
+      {
+        "id": "Q-XTC-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-12午後、HEAD 3026cc0f）",
+        "closed": "(1) 分岐: D-XTC-SCOPE・D-XTC-SHAREは作者裁定A、ほかの3つは技術の分岐で確定。起草案・作者の承認待ちのまま実装に効くものは0件 (2) anchor: evidenceRefsの13行・Q-XTC-E05Pの根拠の2行（check-contractが見ない本文の中の行なので、citedLineで別に確かめた）・contractTypeRefの計16行を3026cc0fの行で読み、条文の主張と合うことを確かめた。起草の後のcommit（36ab3db6..3026cc0f）が変えたのは本契約と計画の行の追加だけで、reconstruction/src・test・toolsは変わっていない（計画の:407は分類の窓の行のまま） (3) 実装の形: 速い経路で要素の配列が決まるのは閉じタグの処理（saveTextの後、parents.popの前）で、閉じる要素は親の配列の末尾（親が\"top\"ならroot）。空要素（/>）はopenが返す配列を使わないので、空の配列の共有はopenの側で入れる。distはtscの出力で先頭が\"use strict\"なので、凍結したnode・配列への代入とpushは例外になる。tree-diffの(a)のbaseの側は今parseTreeだけを包むので、段2の後のdistではbuildTreeを入口にする直しが要る（D-XTC-EQUIVALENCE、tree-diff.mjsはallowedPathsにある） (4) 試験の側: reconstruction/testに、decodeした木を書き換える箇所は0件。shared-runtime.test.tsの再帰のfreezeは凍結済みのobjectを飛ばすので、共有したnodeと共存する (5) 最小実装・計算量: 足すのはdecode-material.tsの中の定数2つ（凍結した空の配列と\"\\n\"のnode）とdecode 1回の間の表2つ、試験はT02の1つだけ。nodeごとにO(1)で、全文の走査は増えない（RES-02） (6) 計画のE05-Pの節に本契約の行を足した（3026cc0f）",
+        "remaining": "なし（baseOidの割当はQ-XTC-BASE）",
+        "reason": "発注前点検の項目を閉じる。Q-XTC-BASEはbaseOidの割当だけを残す"
       }
     ],
     "operationContract": {
