@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
-    "sha256": "9bf83dda38c50b37ca4074f06fba91d01e819556c0c8f37035c73938fd7b4c62",
+    "sha256": "53d42360c25eccd515189d1f9f1ba0ff4fd4a3012ad727ba00341acafb455e79",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -102,6 +102,13 @@
         "source": "作者裁定A（2026-10-12朝、ご主人）・AC07の予備（Mac mini、62cad439、p3-prelim-20261011T231322）と統合担当の試しの予備2回（同じcheckoutの複製にpreloadの試しのpatch、repoの外。Aはp3-prelim-20261011T232651、Bはp3-prelim-20261012T001259のe05c-gc-run1）",
         "closed": "閾値のGCは、publisherが区切りのGC（SIGUSR2）を2回受けた後（静まりの後・E02のclientの起動の前、AC04(3)の2回目）からだけ撃つ。それまでrssが閾値を越えても閾値のGCもcappedの行も出さず、armも外さない（rearmでarmに戻す更新は続ける）。基準のGCと区切りのGCは変えない（どちらも通常＋last-resortの2段）。判定表の境界・閾値・rearm・上限・基準の周期は変えない",
         "reason": "最初の予備のGCのrunで、閾値のGCが充填の間（測定の前、33.9・35.7・43.2秒）に3回撃たれ、測定の間のrssは最大336.0MiBで閾値380MiBに届かず、測定の中の山が0になった（runは未確認、AC03(3)の『山が1つも無いrun』）。観測だけのrunは合格線の内側（最初の120秒の最大419.4MiB、E02のp99 3.88ms）で、VPWS50の山（419.4・385.9MiB）が再現した。試しの予備で、A（この条文）は測定の直前の床238MiBから75.9秒に385.5MiBの山が出て、閾値のGCが1回撃たれJ1に分類できた。B（Aに加えて測定の前の区切りと基準のGCを通常のGCだけにする）は床が270MiBで観測のrun（275MiB）と揃ったが、山は381.4MiBで高くならず、山の分類がJ3に変わった（測定の前のGCのかけ方が分類を動かすので、条件を揃えた比較にならない）。どの形でも山の上がり幅は+105〜+147MiBで、GCのrunの山は閾値の近くに来る（残存リスク(11)）"
+      },
+      {
+        "id": "Q-E05C-RESULT",
+        "status": "closed",
+        "source": "作者裁定A（2026-10-12昼、ご主人）・分類の窓の結果（p3-e05c-20261012、Mac mini、checkout 21302075、記録はa7f470e6のevidence/windows/p3-e05c-20261012）と、統合担当がMac miniのrawで読んだe05c-gc-run2の133.5秒の山の行",
+        "closed": "窓の分類は判定表（AC03(3)）では混合（作者へ）で、GCのrun1がJ1、run2が混合（主J1＋従J3）。作者はこれを実質J1（GC待ち）と読む。次の手はAC03(5)のJ1の①（weatherCurrentの大型処理〔VPWS50〕の確保を減らす、WL2の後続）だけを起こす。J1の②（resourceLimits）・③（E05の定義）と、(4)のweatherCurrentの②＋④に対する保持元の特定（heap snapshot）は起こさず、候補として残す。判定表の境界は変えない（AC03(6)）",
+        "reason": "run2のJ3の山（t_p 133.47秒、R_p 380.2MiB、ΔX＋ΔO＝0.87E、g 0.91、r 0.69）では、t_pのweatherCurrentの最新の行が133.05秒（heapUsed 52.0MiB、古さ422msでJ0の1,000msの内側）で、次の行は465ms後だった。同じ時刻の閾値のGCの行（forcedGc）では、weatherCurrentの前のheapUsedが135.7MiBで、通常のGCの後は60.0MiBだった。処理中のthreadのheap約84MiBが成分のOに入った形（残存リスク(2)）で、heapの増えが通常のGCで回収され、last-resortの後にRSSも戻っている（J1の形）。ほかの山は、観測だけのrunの24山中23がJ1/J4（1つはJ2）で、どちらのrunも最大のrssの山（408.0・447.2MiB）の主な成分はΔUだった。GCのrunのJ1の山は2つとも、gが0.92、rが0.93だった。(4)はweatherCurrentが②＋④（D_start 28.7・S 34.4・D_late 43.8・Grow 17.5MiB）で、ほかの3 threadは①。Σ D_startは46.0MiB、Σ D_lateは57.2MiB"
       }
     ],
     "operationContract": {
