@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1eb82ad961a7c338bc58f8d9adfa785aee93fc91",
-    "sha256": "4025532f9d15357eb9b75d8ae07ef1c1cffcde39e2f0baffe6722e54133b8fa9",
+    "sha256": "4a731d4a7509b06b7f31fbfabed3a0f3286290582619c6c6b4e105d3989571dc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -83,6 +83,14 @@
         "closed": "(1) 分岐: D-WYL-NEXTは作者裁定A、ほかの3つは技術の分岐で確定。起草案・作者の承認待ちは0件 (2) anchor: evidenceRefsの5行とcontractTypeRef・Q-WYL-E05Pの本文の参照を1eb82ad9の行で読み、条文の主張と合うことを確かめた (3) host.tsの行の参照: 6つの契約の10か所がhost.tsの行をanchorで引き（:37・:51・:125・:191・:243・:246・:295・:389・:396・:417）、ほかに本文の中の行の参照が20か所ほどある（:106〜:390）。AC01で行の数を変えないことにしたので、どれもずれない。変えるのはWorkerを作る式の2行（:126・:127）だけで、この2行を引く参照は0件 (4) 実装の形: new Workerの第2引数のobjectに、placeがweatherCurrentのときだけresourceLimitsを足す（spread）。WorkerOptionsのresourceLimits.maxYoungGenerationSizeMbはNode 22の型にある。urgent・deferredのWorkerは今と同じ引数になる (5) 最小実装・最小テスト: 足すのは式の中の1か所で、新しい試験は足さない（T01、効きはAC02とE05-Pの測り直しで示す） (6) 計画のE05-Pの節に本契約の行を足す",
         "remaining": "なし（baseOidの割当はQ-WYL-BASE）",
         "reason": "発注前点検の項目を閉じる"
+      },
+      {
+        "id": "Q-WYL-E05P",
+        "status": "closed",
+        "source": "Mac mini の測り直し（p3-wyl-e05p-20261012、checkout f2288958、manifestSha256 08691ca2…、記録 e63dba43）",
+        "closed": "E05-P の最大 RSS は 370.7・389.3・388.9MiB で 3 run とも Pass（上限 400MiB）。失効の前／後は 370.7／354.0・389.3／348.0・388.9／350.9MiB。E02-P の p99 は 2.82・2.94・3.14ms で Pass。ownerHeap の weatherCurrent の処理直後の heapUsed の最大は 157.3MiB（木の後 289.5、その前 413.3）。余裕は最大 10.7MiB",
+        "remaining": "判定場所は Pi（P5）。Pi の E03（処理の時間、Q-WL2-PI-E03）への効き（手元で 1 入力 約 1.10 倍）は Pi で確かめる",
+        "reason": "E05-P の測り直しを記録して閉じる"
       }
     ],
     "operationContract": {
@@ -184,7 +192,7 @@
         "id": "P3-WYL-AC01",
         "requirement": "方式: host.tsのowner threadを作る所で、placeがweatherCurrentのWorkerだけに resourceLimits: { maxYoungGenerationSizeMb: 12 } を渡す。host.tsの行の数は変えない（6つの契約の10か所〔p3-e05p-classify・p3-lifetime-and-eew-gate・p3-measure-harness・p3-nankai-unit・p3-seismic-unit・p3-tsunami-unit〕がhost.tsの行をanchorで引いていて、行を足すと配送済みの契約のanchorがずれる）。Workerを作る今の2行の式の中に、placeがweatherCurrentのときだけresourceLimitsを足し、値（12）は式の中の1か所に書く。なぜ（E05-Pの山がJ2の形で、weatherCurrentの若い世代の広がりがRSSの跳ねになる、作者裁定 D-WYL-NEXT、P3-WYL-RES-01）は同じ式の行末の日本語のコメントで書く。urgent・deferredのWorkerの作り方、workerData、message・error・exitの扱いは変えない。古い世代の上限は付けない。無いと: 最大VPWS50の1入力でweatherCurrentのheapの枠が約+92MiB広がり、E05-Pの山が上限を越えたまま残る",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-xml-tree-compact.json:388 «7ecfb094a4900cc2»",
+          "reconstruction/contracts/p3-xml-tree-compact.json:112 «7ecfb094a4900cc2»",
           "reconstruction/contracts/p3-e05p-classify.json:290 «3069edab3ad8dad3»",
           "AGENTS.md:24 «c1288cfa5b0d16dc»"
         ]
@@ -278,18 +286,6 @@
           "baseOidの割当（起草は1eb82ad9）。decisionBranchesに起草案・作者の承認待ちが0件であること",
           "host.tsの行をanchorで引く契約の有無を、全契約のevidenceRefsと本文の中の行の参照で確かめる（P3-XML-TREE-COMPACT-001の誤記の再発防止）",
           "計画のE05-Pの節に本契約の行を足す"
-        ]
-      },
-      {
-        "id": "Q-WYL-E05P",
-        "owner": "integrator",
-        "blocks": [
-          "P3-C4-CLOSE-E05Pの再検収"
-        ],
-        "resolveBy": "本契約の配送の後",
-        "requiredEvidence": [
-          "Mac mini（独立checkout）で、新しいmanifestId（例 p3-wyl-e05p-<日付>）をp3-xtc-e05p-20261012と同じ作り方で凍結してから、同じ窓（e02-P-run1〜3・ownerHeap-run1）を測る。前の凍結manifestと結果は書き換えない",
-          "Failなら、山の内訳（分類の窓の観測だけのrunの予備）を作者へ報告し、D-WYL-NEXTのB（全国の履歴の共有）・publisherの若い世代・D（E05の測り方）を作者が決める。本契約のコードの不合格とは扱わない"
         ]
       }
     ]

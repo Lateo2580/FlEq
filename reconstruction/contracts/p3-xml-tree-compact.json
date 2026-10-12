@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "36ab3db6afedda033cb6f50b5da6217426a17d9c",
-    "sha256": "b8589702bdeb0c27fa25f35b8d8e23e69aada6633f36bb044b7287ee7be2a977",
+    "sha256": "00683ecfa616fdd869823b9c82a526f23c689510b57d99eb488608b68c2ef66b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -107,6 +107,14 @@
         "closed": "(1) 契約の誤記: requiredCommandsのcheck-contractのpurposeに「本契約が変えるファイルの行をanchorで引く契約は起草時に0件」と書いたが、P3-REVISION-ORDER-001の2か所（p3-revision-order.jsonのevidenceRefs、decode-material.tsのserialRawの行）が引いていた。発注前点検（Q-XTC-PRECHECK）はこれを確かめていなかった。配送のcommitで2か所の行番号を441→478に直し（行の中身とanchorは同じ）、purposeを直した (2) 文面の絞り: 実装は非公開の型（組立ての間だけchildrenを書き換える要素の型）と、状態を持たない空白の判定の正規表現をmoduleに足した。契約の趣旨（公開の型・APIを足さない、入力の値を溜めない）には反しないので、実装は直さずAC01・AC05の文面を「公開の型」「moduleに足す値」に絞った (3) 試験T02の空白の判定を実装と同じ文字の集合（空白・タブ・CR・LF）に揃えた（品質レビューのP3、全角空白を足したときに正しい実装で落ちないように） (4) 見送り: 空要素のときに使わない配列を1本作る所（品質レビューのP3、効きが小さい）",
         "remaining": "なし",
         "reason": "配送の前に、レビューの指摘と契約の誤りを閉じる"
+      },
+      {
+        "id": "Q-XTC-E05P",
+        "status": "closed",
+        "source": "Mac mini の測り直し 2 回（p3-xtc-e05p-20261012〔1eb82ad9〕、p3-wyl-e05p-20261012〔e63dba43〕）",
+        "closed": "本契約の配送の後の測り直し（p3-xtc-e05p-20261012、checkout 51f9a39f）では、E05-P は 414.0・420.3・410.4MiB で 3 run とも Fail（前は 445.7・406.5・435.9）。同じ版の観測の予備で山の形が J2（heap の予約）に変わったので、作者裁定で次の手 P3-OWNER-YOUNG-LIMIT-001（weatherCurrent の若い世代の上限）を起こした。その配送の後の測り直し（p3-wyl-e05p-20261012）で 370.7・389.3・388.9MiB、3 run とも Pass（Q-WYL-E05P）",
+        "remaining": "なし（E05-P の判定場所は Pi〔P5〕で、Mac mini の Pass は回帰の確かめ）",
+        "reason": "本契約の後の E05-P を記録して閉じる"
       }
     ],
     "operationContract": {
@@ -382,19 +390,6 @@
           "baseOidの割当（起草は36ab3db6）。decisionBranchesに起草案・作者の承認待ちが0件であること",
           "割当の時点で本契約のanchorと、Q-XTC-CODE-READの事実（書き換えの箇所0件・同一性の使い方）を読み直す",
           "計画のE05-Pの節に本契約の行を足す（統合担当）"
-        ]
-      },
-      {
-        "id": "Q-XTC-E05P",
-        "owner": "integrator",
-        "blocks": [
-          "P3-C4-CLOSE-E05Pの再検収（Q-WL2-E05Pの後続）"
-        ],
-        "resolveBy": "本契約の配送の後",
-        "requiredEvidence": [
-          "Mac mini（独立checkout）で、新しいmanifestId（例 p3-xtc-e05p-<日付>）をP3-MEASURE-HARNESS-001のE05-Pの型（p3-mh-e05p-20261011と同じP負荷・同じ窓・3 run・上限400MiB）で凍結してから測る。C4・MH・分類の窓の凍結manifestと結果は書き換えない",
-          "根拠の行: reconstruction/contracts/p3-weather-light-step2.json:477 «ca83cbea8fc2caf6»、reconstruction/contracts/p3-order-plan.md:407 «d01ea5a2d818b5c8»",
-          "Failなら、山の高さの変わり方（p3-mh-e05p-20261011・p3-e05c-20261012の観測だけのrunとの比較）を作者へ報告し、D-XTC-SCOPEのB・C、または分類の窓の(4)のweatherCurrentの②＋④の調べを作者が決める。本契約のコードの不合格とは扱わない"
         ]
       }
     ]
