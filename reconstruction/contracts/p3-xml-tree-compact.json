@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "36ab3db6afedda033cb6f50b5da6217426a17d9c",
-    "sha256": "db79760b1620b6bef26acf2b3db68fe8ce32e5f4aba79431deaa127b8c40e328",
+    "sha256": "be383d283c662daa55594ab3e940c37640a0be9ccfffab5dae61b241952f092d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -110,7 +110,7 @@
     "contractId": "P3-XML-TREE-COMPACT-001",
     "mode": "implementation",
     "objective": "E05-Pの山（実質J1＝GC待ち、Q-E05C-RESULT）を低くする最初の手（作者裁定 D-XTC-SCOPE=A、AC03(5)のJ1の①）。decodeMaterialが作るXmlNodeの木を、値を変えずに小さく作る: childrenとattributesの配列を要素数ちょうどにし、空の配列と、空白だけの同じ値のtextのnodeを凍結して共有し、同じ名前の文字列を揃える（D-XTC-SHARE）。最大VPWS50（15_18_01）の生きた木を、起草時の70.6MiBから約38MiBへ減らす見込み（Q-XTC-PROBE）。木の値・拒否・marks・型・公開APIは変えず、全入力で今と同じ結果を差分の確かめの道具で示す。触るのはdecode-material.tsの木の組立てと、その試験と、比べる道具だけ。E05-Pの測り直しは配送の後に統合担当が行う（Q-XTC-E05P）",
-    "baseOid": "unassigned",
+    "baseOid": "95c6777f852041e287055fb96aae0c63cc42252d",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
