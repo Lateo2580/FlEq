@@ -124,7 +124,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
     for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
       const worker = new Worker(entry, { workerData: { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: performance.timeOrigin,
-        measured: config.observe != null, inputHeap: config.observe != null && config.measureInputHeap === true } satisfies OwnerStartData });
+        measured: config.observe != null, inputHeap: config.observe != null && config.measureInputHeap === true } satisfies OwnerStartData, ...(place === "weatherCurrent" ? { resourceLimits: { maxYoungGenerationSizeMb: 12 } } : {}) }); // E05-P の山は weatherCurrent の若い世代の広がり（J2）なので、この thread だけ縛る（P3-WYL-RES-01、作者裁定 D-WYL-NEXT）。古い世代は縛らない
       workers.set(place, worker);
       worker.on("message", (reply: OwnerReply) => {
         // AC13: T2 and decode are the owner's times, so they are observed before the reply is projected (T3).
