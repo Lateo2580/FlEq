@@ -433,9 +433,12 @@ describe("P3-MH-T02/AC02 regressions: the expiry-wait limit and the P-window mea
 });
 
 // P3-E05C-T02: preload の 200ms の観測と強制 GC（AC01・AC02）。子の Worker は数十 MiB の object を作って参照を捨ててから Atomics で main を
-// 起こす（main の 200ms の timer はそれまで回らないので、閾値の GC は捨てた後に届く）。CJS の eval Worker は --import を読まないので ESM で書く。
+// 起こす（main の 200ms の timer はそれまで回らないので、最初の強制 GC は捨てた後に届く）。CJS の eval Worker は --import を読まないので ESM で書く。
 // 子は owner の file に要る行（mem・gc と T02_FORCED 個の forcedGc）が書かれたのを確かめてから Worker を止める（固定の時間で止めると負荷で欠ける）。
-// SIGUSR2 は基準の GC の行が出てから送る。10 秒は失敗の期限で、過ぎたら止めて欠けを試験に見せる。
+// SIGUSR2 は基準の GC の行が出てから送る。閾値の GC は区切りを 2 回受けた後だけなので（Q-E05C-GC-ARM）、閾値の子は owner の mem の行が
+// T02_USR2_AFTER_MEM 行に達してから 1 回、最初の強制 GC の行の後に mem の行が 3 行増えてからもう 1 回送る（続けて送ると signal が 1 つに潰れうる。
+// 間を空けるのは、1 回目と 2 回目の間に publisher の 200ms の行を入れ、1 回目の後に撃つ誤りを試験で落とすため）。
+// 10 秒は失敗の期限で、過ぎたら止めて欠けを試験に見せる。
 describe("P3-E05C-T02 the 200 ms observation and the forced GCs of the preload (AC01/AC02)", () => {
   const child = `import { existsSync, readFileSync } from "node:fs";
 import { Worker } from "node:worker_threads";
@@ -451,8 +454,14 @@ const file = process.env.FLEQ_MEM_OUT == null ? null : process.env.FLEQ_MEM_OUT 
 const count = (k) => (file != null && existsSync(file) ? readFileSync(file, "utf8").split("\\n").filter((l) => l.includes('"k":"' + k + '"')).length : 0);
 const deadline = Date.now() + 10000;
 let signalled = false;
+let armSent = 0;
+let memAtFirstGc = 0;
 const poll = setInterval(() => {
   if (process.env.T02_USR2 != null && !signalled && count("forcedGc") >= 1) { signalled = true; process.kill(process.pid, "SIGUSR2"); }
+  const afterMem = process.env.T02_USR2_AFTER_MEM;
+  if (afterMem != null && armSent === 0 && count("mem") >= Number(afterMem)) { armSent = 1; process.kill(process.pid, "SIGUSR2"); }
+  else if (afterMem != null && armSent === 1 && count("forcedGc") >= 1) { armSent = 2; memAtFirstGc = count("mem"); }
+  else if (afterMem != null && armSent === 2 && count("mem") >= memAtFirstGc + 3) { armSent = 3; process.kill(process.pid, "SIGUSR2"); }
   const done = file == null || (count("mem") > 0 && count("gc") > 0 && count("forcedGc") >= Number(process.env.T02_FORCED ?? 0));
   if (done || Date.now() > deadline) { clearInterval(poll); worker.terminate(); }
 }, 50);`;
@@ -476,10 +485,10 @@ const poll = setInterval(() => {
   const forced = (rows: E05cRow[]) => rows.flatMap((r) => (r.k === "forcedGc" ? [r] : []));
   const gcEnv = (o: Record<string, number>) => JSON.stringify({ thresholdBytes: 1, rearmBelowBytes: 0, maxForced: 20, baselineEveryMs: 60_000, ...o });
 
-  it("FLEQ_MEM_OUT alone writes rows of both threads and no forced GC; a 1-byte threshold forces one GC per thread with three points and last-resort returns the worker's freed pages; SIGUSR2 and a short baseline period force the phase and baseline GCs; neither env writes nothing", async () => {
+  it("FLEQ_MEM_OUT alone writes rows of both threads and no forced GC; a 1-byte threshold forces nothing before two phase GCs and then one GC per thread with three points, and last-resort returns the worker's freed pages; SIGUSR2 and a short baseline period force the phase and baseline GCs; neither env writes nothing", async () => {
     const [observe, threshold, phase, none] = await Promise.all([
       runChild((dir) => ({ FLEQ_MEM_OUT: join(dir, "mem") })),
-      runChild((dir) => ({ FLEQ_MEM_OUT: join(dir, "mem"), FLEQ_MEM_GC: gcEnv({}), T02_FORCED: "1" })),
+      runChild((dir) => ({ FLEQ_MEM_OUT: join(dir, "mem"), FLEQ_MEM_GC: gcEnv({}), T02_USR2_AFTER_MEM: "3", T02_FORCED: "3" })),
       runChild((dir) => ({ FLEQ_MEM_OUT: join(dir, "mem"), FLEQ_MEM_GC: gcEnv({ thresholdBytes: 1e15, rearmBelowBytes: 1e15, baselineEveryMs: 300 }), T02_USR2: "1", T02_FORCED: "2" })),
       runChild(() => ({})),
     ]);
@@ -491,10 +500,14 @@ const poll = setInterval(() => {
     }
     expect([...observe.publisher, ...observe.urgent].some((r) => r.k === "gc")).toBe(true);
     expect(forced([...observe.publisher, ...observe.urgent])).toEqual([]);
-    // rearm（0 未満）に下がらないので閾値の GC は 1 回だけ。
+    // 区切りの 2 回より前は、閾値（1 byte）を越えた行があっても閾値の GC は出ない。rearm（0 未満）に下がらないので閾値の GC は 1 回だけ。
     const [pub, own] = [forced(threshold.publisher), forced(threshold.urgent)];
-    expect([pub.map((f) => f.reason), own.map((f) => [f.id, f.reason, f.error])]).toEqual([["threshold"], [[pub[0].id, "threshold", undefined]]]);
-    expect(own[0]).toMatchObject({ before: { rss: expect.any(Number) }, afterRegular: { rss: expect.any(Number) }, afterLastResort: { rss: expect.any(Number) } });
+    expect(threshold.publisher.some((r) => r.k === "mem" && r.atMs < pub[0].requestedAtMs)).toBe(true);
+    expect(threshold.publisher.some((r) => r.k === "mem" && r.atMs > pub[0].endMs && r.atMs < pub[1].requestedAtMs)).toBe(true);
+    expect([pub.map((f) => f.reason), own.map((f) => [f.id, f.reason, f.error])]).toEqual([["phase", "phase", "threshold"],
+      pub.map((f) => [f.id, f.reason, undefined])]);
+    expect(own[2]).toMatchObject({ before: { rss: expect.any(Number) }, afterRegular: { rss: expect.any(Number) }, afterLastResort: { rss: expect.any(Number) } });
+    // Worker が捨てた page は最初の強制 GC（区切り）の last-resort で返る。
     expect(own[0].afterLastResort?.rss).toBeLessThan(own[0].before?.rss ?? 0);
     expect([forced(phase.publisher).map((f) => f.reason), forced(phase.urgent).map((f) => f.reason)]).toEqual([["baseline", "phase"], ["baseline", "phase"]]);
     expect(none.files).toEqual([]);

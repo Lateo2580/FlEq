@@ -110,6 +110,9 @@ if (memOut != null) {
   if (channel != null && isMainThread) {
     let nextId = 1;
     let armed = true;
+    // 閾値の GC は区切りの GC を 2 回受けた後（測定の開始の前）からだけ撃つ。充填の間に撃つと測定の前に床が下がり、測定の中の山が
+    // 閾値に届かない（Q-E05C-GC-ARM）。
+    let phases = 0;
     let forced = 0;
     let lastForcedMs = -Infinity;
     let baselineDueMs = now() + gcConfig.baselineEveryMs;
@@ -124,7 +127,7 @@ if (memOut != null) {
     // 強制 GC から 10 秒以上のときに撃ち、満たさなければ次の行で判定し直す（自然の GC は「直前の強制 GC」に含めない）。
     decide = (atMs, rss) => {
       if (rss < gcConfig.rearmBelowBytes) armed = true;
-      if (armed && rss >= gcConfig.thresholdBytes) {
+      if (phases >= 2 && armed && rss >= gcConfig.thresholdBytes) {
         armed = false;
         if (forced < gcConfig.maxForced) { forced += 1; request("threshold"); } else pending.push({ k: "capped", place, atMs });
       } else if (atMs >= baselineDueMs && rss < gcConfig.rearmBelowBytes && atMs - lastForcedMs >= 10_000) {
@@ -132,7 +135,10 @@ if (memOut != null) {
         request("baseline");
       }
     };
-    process.on("SIGUSR2", () => request("phase"));
+    process.on("SIGUSR2", () => {
+      phases += 1;
+      request("phase");
+    });
   }
   setInterval(() => {
     const atMs = now();
