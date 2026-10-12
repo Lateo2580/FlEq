@@ -1,0 +1,386 @@
+{
+  "meta": {
+    "draftedFromOid": "36ab3db6afedda033cb6f50b5da6217426a17d9c",
+    "sha256": "a1406994bcfb31ec4eab1925de3560253c584ac4b5ef226ce31ac7cdf959326e",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
+    "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "D-XTC-SCOPE",
+        "A": "木を詰めることだけ（decode-material.tsの木の組立て）。木の値は変えない",
+        "B": "Aに加えて、U-Wの状態の更新（weather-currentのdomainの読み取り）の途中のゴミ（最大VPWS50で+19MiB）も減らす",
+        "C": "Aに加えて、U-Wの保存（encodeと文字列化、+8と+13MiB）の途中のゴミも減らす（計画の段3〔台帳70〕と重なる）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-12昼、ご主人: まずA）",
+        "reason": "最大VPWS50の1入力でweatherCurrentのheapが増える分のうち、木が70.6MiBで最大（Q-XTC-PROBE）。Aは1つのfileで木の値を変えず、domain・unit・保存に触らない。B・CはAの後のE05-Pの測り直し（Q-XTC-E05P）で足りなければ作者が決める"
+      },
+      {
+        "id": "D-XTC-SHARE",
+        "A": "4つとも行う: (1) childrenとattributesの配列を要素数ちょうどで作る (2) 空のchildren・attributesは、凍結した空の配列1つを共有する (3) 同じdecodeの中で、同じ要素名・属性名の文字列を1つに揃える (4) 同じdecodeの中で、空白だけ（\\n・空白・タブ）の同じ値のtextのnodeを、凍結したnode 1つに共有する。要素（XmlElement）はどれも共有しない",
+        "B": "(1)と(2)だけ（textのnodeは共有せず、木は今と同じく全てのnodeが別のobject）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-12午後、ご主人。textのnodeを共有して木の中で同じobjectが何度も出るので作者に訊いた）",
+        "reason": "起草時の試し（Q-XTC-PROBE、Node 22）で、最大VPWS50の生きた木は今の70.6MiBから、(1)だけで53.9、(1)(2)で49.7、(1)(2)(3)で46.0、Aの4つで37.6MiB（−47%）。Bは49.7MiB（−30%）。最大VPWS50のtextのnode 310,490個の大部分が値\"\\n\"で、(4)が無いと約8MiBが残る。共有するnodeは凍結するので、誤って書き換えると例外になり、ほかのnodeを黙って壊さない（AC03）。読み手がtextのnodeをobjectの同一性で使う箇所は起草時に0件（Q-XTC-CODE-READ）"
+      },
+      {
+        "id": "D-XTC-EQUIVALENCE",
+        "A": "同値はP3-WL2-AC08の差分の確かめの道具（reconstruction/tools/parse-diff/tree-diff.mjs）で示す: (a) baseOidのdistと変更後のdistの比較 (b) 同じscriptの中の旧の組立て（FXPのXMLParserと旧のxmlNodeの写し）との比較。どちらもcorpus全件・境界・変異（seed 20261009・1・2の各100,000件以上）で失敗0。tree-diffは(a)のbaseの側の入口だけを、baseOidのdistにbuildTreeがあればそれを包む形に直す",
+        "B": "全corpusの木のdigestを常設の試験に焼き込む",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当、P3-WL2のD-WL2-EQUIVALENCE=Aと同じ道具を使う）",
+        "reason": "tree-diffは木を値で比べる（isDeepStrictEqual）ので、配列の大きさ・共有・凍結は差にならず、値の差だけが失敗になる。今の(a)はbaseの側の入口をparseTreeと決め打ちしていて（段2の前のdistを前提にした）、段2の後のdistをbaseにすると速い経路を数えず、段の判定がずれる。Bは最小テストが禁じるfixtureの焼き直し"
+      },
+      {
+        "id": "D-XTC-FALLBACK",
+        "A": "旧の経路（parseTree・xmlNode、変な形の入力だけ）は今のまま変えず、詰めない",
+        "B": "旧の経路の木も詰める",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "corpusはfallbackに入らない（P3-WL2で0件）。旧の経路は変な形の結果を決める基準なので、触らずに残す"
+      },
+      {
+        "id": "D-XTC-E05P",
+        "A": "E05-Pの測り直しは、本契約の配送の後に統合担当がMac miniで、新しいmanifestIdで行う（MHの型、p3-mh-e05p-20261011と同じ窓・3 run）。実装者は自分の機械の生きた木と段ごとのheapの増え（AC04）だけを出す",
+        "B": "実装者がE05-Pの窓まで測る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（D-WL2-E05P=Aと同じ）",
+        "reason": "E05-Pの判定は同じ機械（Mac mini）・同じP負荷・同じ窓で行う約束で、実装者の機械では合否を読めない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-XTC-MATERIAL",
+        "status": "closed",
+        "source": "分類の窓（P3-E05P-CLASSIFY-001、p3-e05c-20261012、Mac mini、a7f470e6のevidence/windows/p3-e05c-20261012）と作者裁定Q-E05C-RESULT＝A（2026-10-12昼）",
+        "closed": "E05-Pの山は実質J1（GC待ち）。観測だけのrunの最大のrssは408.0・447.2MiB（上限400MiB）で、最大の山の主な成分はどちらもΔU（Σ heapUsed）。GCのrunの閾値のGCでは、weatherCurrentのheapUsedが前135.7MiB→通常のGCの後60.0MiBで、4 threadの回収のほとんどがweatherCurrent（publisher 26.0→23.6、urgent 19.4→19.0、deferred 15.6→15.3MiB）。山は負荷Pの中の最大VPWS50（15_18_01、約60秒ごと）の処理に重なる",
+        "remaining": "なし",
+        "reason": "本契約が減らす対象（weatherCurrentの1入力の処理のheapの山）の根拠"
+      },
+      {
+        "id": "Q-XTC-PROBE",
+        "status": "closed",
+        "source": "起草時の使い捨ての計測（2026-10-12昼、MacBook・Node v22.23.2、36ab3db6のreconstruction/dist）。scriptはrepoの外（作業のscratchpadのvpws50-alloc.mjs・vpws50-live.mjs・dm/measure.mjs・dm/decode-material.variant.js）",
+        "closed": "(1) 段ごとのheapの増え（U-Wを窓のfullと同じ量で満たしてから〔national 3・partial 128・履歴 128、heapUsed 59.8MiB〕、cycleCFramesのVPWS50 15_18_01を1件。強制GCで揃えてから段の後のheapUsedの差、4回とも同じ傾向）: decode +72.4MiB、U-Wのreceive（receiveOwner）+18〜19MiB、保存のencode +7.9MiB・JSON文字列化 +12.7MiB（文字列5.6〜6.0M文字） (2) decode直後に強制GCをかけても残る木（生きた木）は70.6MiB。木のnodeは465,737個（要素155,247・text 310,490、text の文字の合計696,066）、XMLは3,823,750文字。decodeの中のheapは--trace-gcのscavengeで、validatorの段は26.7MBの床で回収され、木の組立ての段で床が45→86MBへ上がる（validatorのゴミは山にならず、木が山を作る） (3) 関数ごとの確保（HeapProfilerのsampling、GCで回収された分を含む、1入力で303MiB）: fast-xml-parser（XMLValidator.validate）93.0、fastTree 65.9、正規表現のexec 46.8、structuredClone 13.4、JSON文字列化 12.8MiBほか (4) fastTreeの写しを変えた試し（木はbaseと値で一致をdeepStrictEqualで確かめた）: 生きた木 base 70.6MiB、children・attributesの大きさちょうど 53.9、＋空の配列の共有 49.7、＋名前の共有 46.0、＋\"\\n\"のtextのnodeの共有 37.6MiB。最大VPWS50の空白だけのtextは値\"\\n\"の1種類、要素名は62種類。decodeの時間（1回、強制GCの後）は111→116ms (5) Node v26.8.1では同じ入力でdecodeの増えが+61.5MiB（Node 22と違う）。判定はNode 22で行う",
+        "remaining": "なし（実装者はAC04で、配送する実装について改めて測る）",
+        "reason": "D-XTC-SCOPE・D-XTC-SHAREの根拠と、AC04の目安の値"
+      },
+      {
+        "id": "Q-XTC-CODE-READ",
+        "status": "closed",
+        "source": "起草時の版（36ab3db6）のreconstruction/src（decode-material.ts、domains/*、runtime/owner-runtime.ts・owner-host.ts）と、p1-parser-boundary.types.tsの読み合わせ（2026-10-12）",
+        "closed": "(1) XmlElement・XmlText・XmlAttributeの型はReadonlyで、children・attributesはreadonlyの配列。srcに木のnodeや配列を書き換える箇所（push・splice・sort・reverse・lengthの代入・属性の代入）は0件 (2) objectの同一性で木を使うのは、要素（XmlElement）をkeyにしたMap（eew・tsunami・volcano・seismic・weather-timeseriesのleafValuesなど）だけで、textのnodeや配列の同一性を使う箇所は0件 (3) 木はowner threadの中だけで使い、threadをまたいで送らない（decodeMaterialとreceiveOwnerは同じOwnerHost.handleの中、P1-RET-01の1入力の間） (4) 変な形の入力だけが通る旧の経路（parseTree・xmlNode）は別の木を作り、corpusでは通らない",
+        "remaining": "なし（実装者はQ-XTC-BASEの時点の版で読み直す）",
+        "reason": "共有したnode・配列を凍結しても読み手が壊れないことの根拠"
+      },
+      {
+        "id": "Q-XTC-AUTHOR",
+        "status": "closed",
+        "source": "作者の確認（2026-10-12午後、ご主人）",
+        "closed": "D-XTC-SHAREは作者裁定A（textのnodeの共有まで含めた4つ）。残存リスク(1)〜(6)を承認",
+        "remaining": "なし",
+        "reason": "起草の報告で、作者に訊く分岐（D-XTC-SHARE）と残存リスクを確かめた"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "operationの扱いを変えない。木の値（Control.Statusを含む）を変えないので、運用区分の判定と診断は今のまま（AC02の比較に含まれる）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-XML-TREE-COMPACT-001",
+    "mode": "implementation",
+    "objective": "E05-Pの山（実質J1＝GC待ち、Q-E05C-RESULT）を低くする最初の手（作者裁定 D-XTC-SCOPE=A、AC03(5)のJ1の①）。decodeMaterialが作るXmlNodeの木を、値を変えずに小さく作る: childrenとattributesの配列を要素数ちょうどにし、空の配列と、空白だけの同じ値のtextのnodeを凍結して共有し、同じ名前の文字列を揃える（D-XTC-SHARE）。最大VPWS50（15_18_01）の生きた木を、起草時の70.6MiBから約38MiBへ減らす見込み（Q-XTC-PROBE）。木の値・拒否・marks・型・公開APIは変えず、全入力で今と同じ結果を差分の確かめの道具で示す。触るのはdecode-material.tsの木の組立てと、その試験と、比べる道具だけ。E05-Pの測り直しは配送の後に統合担当が行う（Q-XTC-E05P）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-xml-tree-compact.json",
+      "reconstruction/contracts/p3-weather-light-step2.json",
+      "reconstruction/contracts/p3-e05p-classify.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tools/parse-diff/**",
+      "test/fixtures/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/decode-material/decode-material.ts",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+      "reconstruction/tools/parse-diff/tree-diff.mjs"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-xml-tree-compact.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P3-WEATHER-LIGHT-002",
+      "P3-E05P-CLASSIFY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p1-parser-boundary.types.ts#DecodedMaterial",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlNode",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlElement",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlText",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlAttribute",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#ParserMailboxResult"
+    ],
+    "publicFunctions": [
+      "decodeMaterial(item, parseTimes?): ParserMailboxResult（signature・結果の値・marksのkey・parseTimesの位置を変えない）",
+      "classifyMaterial(material)・parserLimits（変えない）。公開の関数・型・exportは足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。新しいnpm依存は足さず、package.json・package-lock.jsonを変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50"
+    ],
+    "sequenceIds": [
+      "O04",
+      "O06",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-XTC-RES-01",
+        "target": "最大VPWS50（15_18_01、e03Frameまたはcycle Cの形）1件のdecodeMaterialの結果が生きたまま持つheap（強制GCの後のheapUsedの差）",
+        "limit": "baseOidの同じ機械・同じNode 22の値の0.6倍以下",
+        "unit": "比（変更後÷baseOid）",
+        "scope": "実装者の機械のNode 22（v22.23.x）。起草時の試しは0.53（70.6→37.6MiB、Q-XTC-PROBE）。Node 26では値が違うので判定に使わない",
+        "source": "Q-XTC-PROBE、D-XTC-SHARE"
+      },
+      {
+        "id": "P3-XTC-RES-02",
+        "target": "decodeMaterial 1回の木の組立てで足す仕事",
+        "limit": "nodeごとにO(1)（名前と空白だけのtextの表を引く1回、閉じるときの配列の写し1回）。全文の走査を増やさない（P3-WL2-RES-02の3段のまま）",
+        "unit": "1 nodeあたりの操作",
+        "scope": "共有の表はdecode 1回の間だけ持ち、入力をまたいで持たない（大きさは1入力のnode数で上が決まる）。凍結した空の配列と\"\\n\"のnodeのようにmoduleで1つの定数は表に数えない",
+        "source": "AGENTS.mdの受信経路の計算量、P3-WL2-RES-02"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存物の形式とbyteは変えない。木の値が同じなので、U-Wの保存は今と同じ）"
+    ],
+    "nonPersistedFields": [
+      "XmlNodeの木（P1-RET-01のまま、1入力の処理の間だけ）と、decode 1回の間だけの共有の表"
+    ],
+    "outOfScope": [
+      "D-XTC-SCOPEのB（U-Wの状態の更新の途中のゴミ）・C（U-Wの保存のencodeと文字列化、計画の段3〔台帳70〕）。E05-Pの測り直し（Q-XTC-E05P）の後に作者が決める",
+      "分類の窓の(4)のweatherCurrentの②＋④（充填の状態がC4より多い・測定中に増える、Q-E05C-RESULT）と、その保持元の特定（heap snapshot）",
+      "木の値・形（textの分割・属性の順・要素の数）・拒否の理由・marks・parseTimesの変更、DecodedMaterial・XmlNode・MaterialValueの型の変更、A4（木を作らない、D-WL2-METHOD）",
+      "旧の経路（parseTree・xmlNode）の変更（D-XTC-FALLBACK=A）、withinXmlLimits・XMLValidator.validateの呼び方と順",
+      "domain（weather-current・weather-timeseries・eew・tsunami・seismic・volcanoなど）、classifyMaterial、owner-runtime・owner-host・unitのコードの変更",
+      "worker・resourceLimits・GCのoption・処理の小分け、E05の400MiBとE03の1秒の値の変更",
+      "E05-Pの測り直し（Q-XTC-E05P）・PiのE03（Q-WL2-PI-E03）の測定と、凍結manifestの編集（統合担当）",
+      "spec本文・計画・他の契約のファイルの改訂（統合担当）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-XTC-AC01",
+        "requirement": "方式（D-XTC-SHARE=A）: decode-material.tsの速い経路（fastTree）の木の組立てで、(1) 要素のchildrenとattributesの配列を、要素数ちょうどの配列にする（閉じるときに写す、または数が決まってから作る。push で伸ばした配列をそのまま木に残さない） (2) 空のchildrenと空のattributesは、moduleで1つの凍結した空の配列（Object.freeze([])）を共有する (3) 要素名と属性名の文字列は、decode 1回の間だけの表で同じ値を1つに揃える (4) 空白だけ（XMLの空白の文字だけ）のtextのnodeは、decode 1回の間だけの表で同じ値のnodeを1つにし、そのnodeを凍結する（値\"\\n\"のnodeはmoduleの定数にしてよい）。要素（XmlElement）はどれも共有せず、木の中に同じ要素のobjectは1度しか出ない。空白でないtextのnodeと属性のobjectは共有しない。木の値（kind・name・value、attributesの順と名前と値、childrenの順、textの分割）は今と同じ。旧の経路（fallback）の木は変えない（D-XTC-FALLBACK=A）。新しいmodule・class・型・公開APIは足さない（decode-material.tsの中の小さな関数と定数だけ）。共有と凍結の理由（E05-PのJ1、作者裁定 D-XTC-SHARE、読み手は木を書き換えない）を、なぜのコメントで書く。無いと: 最大VPWS50の1入力で、木だけで70.6MiBがweatherCurrentのheapに載り、E05-Pの山（実質J1）の大部分が残る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-e05p-classify.json:107 «909381fcca106424»",
+          "reconstruction/contracts/p3-e05p-classify.json:290 «3069edab3ad8dad3»",
+          "reconstruction/contracts/p1-parser-boundary.types.ts:49 «97115ec225c80344»",
+          "reconstruction/contracts/p1-parser-boundary.types.ts:48 «c7a073c3e976a75b»",
+          "AGENTS.md:24 «c1288cfa5b0d16dc»"
+        ]
+      },
+      {
+        "id": "P3-XTC-AC02",
+        "requirement": "同値（D-XTC-EQUIVALENCE=A）: reconstruction/tools/parse-diff/tree-diff.mjsで、(a) baseOidのdist（変更の前に別の場所へ写したもの）と変更後のdist、(b) 同じscriptの中の旧の組立てと変更後のdist、の両方を、corpus全件・P3-WL2-AC03の境界の入力・seed 20261009・1・2の各100,000件以上の変異で回し、失敗0・corpusのfallback 0件を示す。tree-diffの変更は(a)のbaseの側の入口だけ: baseOidのdistにbuildTreeがあればそれを組立ての入口として包み、parseTreeは旧の経路の回数として数える（段2の前のdistを渡したときの今の動きは残す）。比べ方・判定・出力・負の対照（nodetect・fastonly）は変えず、負の対照がどちらも失敗を表示してexit 1で終わることを示す。あわせてreconstruction/test/の全試験が、期待値を変えずに緑で通る。無いと: 配列の作り方や共有の入れ方の誤りで、textの分割・子の順・値が変わっても、木を値で比べる確かめが無く素通りする",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-weather-light-step2.json:64 «4fb910e4d0d797d5»",
+          "reconstruction/contracts/p3-weather-light-step2.json:239 «3ff10bbd3e52e974»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      },
+      {
+        "id": "P3-XTC-AC03",
+        "requirement": "共有の境界: 共有した配列とtextのnodeは凍結されていて、書き換え（要素の追加・値の代入）はstrictのコードで例外になる。共有は空の配列と空白だけのtextのnodeに限り、要素は共有しない（要素をkeyにしたMap〔leafValuesなど〕が今のまま働く）。読み手の型（XmlElementのchildren・attributesはreadonlyの配列、XmlTextはReadonly）は変えない。無いと: 将来のコードが木の1か所を書き換えたとき、共有した他の全ての場所が黙って変わる",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.types.ts:40 «3b0c94a4b5e4be54»",
+          "reconstruction/contracts/p1-parser-boundary.types.ts:45 «d93be56d8b2d46c5»",
+          "reconstruction/contracts/p1-parser-boundary.types.ts:49 «97115ec225c80344»",
+          "reconstruction/contracts/p1-parser-boundary.types.ts:48 «c7a073c3e976a75b»"
+        ]
+      },
+      {
+        "id": "P3-XTC-AC04",
+        "requirement": "heapの測定と報告（P3-XTC-RES-01は合否、ほかは報告）: 実装者の機械のNode 22（v22.23.x）で、baseOidのdistと変更後のdistを同じ手順で測り、前後を並べる。(1) 生きた木: 最大VPWS50 15_18_01（frames.mjsのe03FrameまたはcycleCFramesの形）を1件decodeMaterialにかけ、強制GC（--expose-gc）の前後のheapUsedの差を、別processで3回ずつ取る。変更後÷baseOidの中央値がP3-XTC-RES-01（0.6以下）を満たす (2) 段ごとのheapの増え（報告）: U-Wを窓のfullの量（nearCapacityFramesのVPWS50とVPWW57）で満たしてから、cycleCFramesのVPWS50を4件、decode・receiveOwner・U-Wのcodecのencode・JSON文字列化の各段の後のheapUsedの差 (3) decodeMaterialの時間（報告）: 同じ入力でwarm-up 5件を捨てた20件のp50・最大。変更後のp50がbaseOidの1.15倍を超えたら、配送の前に統合担当へ報告して止める（PiのE03に効くため） (4) 木のnode数・要素数・textの数と、共有したtextの値の種類の数・名前の種類の数。機械・Node・CPU・load averageを併記する。測定のscriptはrepoの外の使い捨てでよく、成果物に中身を載せる。無いと: 木が実際に小さくなったか、時間の代わりに何を払ったかを数字で言えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
+          "reconstruction/contracts/p1-parser-boundary.json:486 «c67ca0773daa1938»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P3-XTC-AC05",
+        "requirement": "変えないもの: decodeMaterialのsignature・結果の値・拒否の理由と優先・marksのkeyとnullの別・parseTimesの開始と終了の位置、withinXmlLimitsとXMLValidator.validateの呼び方と順、全文の走査の回数（P3-WL2-RES-02の3段）、旧の経路への戻り方（検出の規則D2〜D6）、P1の契約の型と公開API。木はowner threadの1入力の処理の間だけ生きる（P1-RET-01）。共有の表はdecode 1回の間だけで、moduleの変数に入力の値を溜めない（moduleの定数は凍結した空の配列と\"\\n\"のnodeだけ）。無いと: 木を詰める変更が、拒否・段・運用区分の診断や、入力をまたいで伸びる表を持ち込んでも気づけない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:486 «c67ca0773daa1938»",
+          "reconstruction/contracts/p3-weather-light-step2.json:239 «3ff10bbd3e52e974»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-XTC-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-XTC-AC02",
+          "P3-XTC-AC05"
+        ],
+        "behavior": "既存のP1-T01〜T07・P3-WL1・P3-WL2の試験と、reconstruction/test/の全試験が、期待値を変えずに緑のまま通る。木の同値はAC02のtree-diffで示し、corpusの木のdigestは焼き込まない"
+      },
+      {
+        "testId": "P3-XTC-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-XTC-AC01",
+          "P3-XTC-AC03"
+        ],
+        "behavior": "p1-parser-boundary.test.tsにitを1つ足す: 改行と字下げの空白のtext・空の要素・属性の無い要素・属性のある要素・同じ名前の要素を含む小さなXMLをdecodeMaterialにかけ、(1) 木の値が期待のliteral（baseOidのdistで取った値）と同じ (2) 空白だけのtextのnodeと、空のchildren・attributesの配列がObject.isFrozen (3) それらへの代入とpushがTypeErrorになる (4) 木の中の要素のobjectがどれも1度しか出ない（Setで数える）、を確かめる。共有の理由（E05-PのJ1、D-XTC-SHARE）をコメントで書く"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O04・O06・O09の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。本契約が変えるファイル（decode-material.ts・p1-parser-boundary.test.ts・tree-diff.mjs）の行をanchorで引く契約は起草時に0件なので、想定内のFAILは無い。FAILが出たら想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "preparation",
+        "purpose": "変更の前に、baseOidのreconstruction/distを作り、repoの外の別の場所へ写す（AC02(a)とAC04の旧の側。git worktree・stashは使わない）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成（vitestとtree-diffより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eewのdist（runnerがimportする）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（T01・T02）。順序を変える回（--sequence.shuffle）も1回通す"
+      },
+      {
+        "command": "node reconstruction/tools/parse-diff/tree-diff.mjs --base <baseOidのdistの写し>",
+        "cwd": ".",
+        "target": "reconstruction/dist と baseOid の dist の写し",
+        "stage": "implementation",
+        "purpose": "AC02の(a)。引数を省いた(b)と、--variant nodetect・--variant fastonly（exit 1になること）も回す"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加・変更した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: 配列の大きさを揃える処理、凍結した空の配列、名前の表、空白だけのtextの表（AC01）、tree-diffのbaseの入口の直し（AC02）",
+      "AC02の実行の記録: (a)(b)と負の対照の、seed・件数・同じ／失敗の件数・fallbackの件数・exit code",
+      "AC04の前後の表（生きた木の3回の値と比、段ごとのheapの増え、decodeの時間、木の数）と、測定のscriptの中身",
+      "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める（木の値が変わったかもしれないため）",
+      "残存リスク（作者承認 2026-10-12午後、ご主人、(1)〜(6)の全部。Q-XTC-AUTHOR）: (1) E05-Pが上限400MiBの内に入るかは本契約では示さない（Q-XTC-E05P）。起草時の見込みは山1つあたり約30〜45MiB低くなる程度で、観測だけのrunの最大447.2MiBが400MiBを下回るとは限らない (2) 共有して凍結したnodeと配列は、将来のコードが書き換えると例外になる（黙って壊れない代わりに、その入力の処理が落ちる） (3) 効きはMacのNode 22で測る。Pi（glibc・arm64）とMac mini（macOSのmalloc）のRSSでどれだけ下がるかは未確認で、RSSはheapの減りと同じだけ下がるとは限らない (4) 配列を写す分だけdecodeの時間が少し増えうる（起草時の試しで111→116ms）。PiのE03（Q-WL2-PI-E03）に効く (5) 旧の経路（変な形の入力だけ）の木は詰めない（corpusでは0件） (6) 共有の表はdecode 1回の間だけで、入力をまたいで同じ値を共有しない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-XTC-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "本契約の発注前点検",
+        "requiredEvidence": [
+          "baseOidの割当（起草は36ab3db6）。decisionBranchesに起草案・作者の承認待ちが0件であること",
+          "割当の時点で本契約のanchorと、Q-XTC-CODE-READの事実（書き換えの箇所0件・同一性の使い方）を読み直す",
+          "計画のE05-Pの節に本契約の行を足す（統合担当）"
+        ]
+      },
+      {
+        "id": "Q-XTC-E05P",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C4-CLOSE-E05Pの再検収（Q-WL2-E05Pの後続）"
+        ],
+        "resolveBy": "本契約の配送の後",
+        "requiredEvidence": [
+          "Mac mini（独立checkout）で、新しいmanifestId（例 p3-xtc-e05p-<日付>）をP3-MEASURE-HARNESS-001のE05-Pの型（p3-mh-e05p-20261011と同じP負荷・同じ窓・3 run・上限400MiB）で凍結してから測る。C4・MH・分類の窓の凍結manifestと結果は書き換えない",
+          "根拠の行: reconstruction/contracts/p3-weather-light-step2.json:477 «ca83cbea8fc2caf6»、reconstruction/contracts/p3-order-plan.md:407 «d01ea5a2d818b5c8»",
+          "Failなら、山の高さの変わり方（p3-mh-e05p-20261011・p3-e05c-20261012の観測だけのrunとの比較）を作者へ報告し、D-XTC-SCOPEのB・C、または分類の窓の(4)のweatherCurrentの②＋④の調べを作者が決める。本契約のコードの不合格とは扱わない"
+        ]
+      }
+    ]
+  }
+}
