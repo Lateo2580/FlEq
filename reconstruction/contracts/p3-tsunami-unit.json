@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "0b58343c63695422c8962783dbd535568248dae8fb375930e84ca94c52025f32",
+    "sha256": "df3fe40df53f011de32d66ee3ae4a35e31821c93b8f1131b6bef3cc50ec84b4a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "ba89b4e15b1a1cddcdb285f1b4294f8bfceaeb60d9ce762ddfda4018331a9173",
     "sequencesSha256": "9d834611b055cc860e480890dfa68b1b05e2d47aeedd0f75b63904d3fb4c2ab7",
@@ -963,8 +963,8 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:72 «4a65d89f48f565e0»",
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
-          "reconstruction/src/runtime/composition-root.ts:1139 «cee278b81108e897»",
-          "reconstruction/contracts/p2-notification-delivery.types.ts:46 «8495a95fbe6b8e16»"
+          "reconstruction/src/runtime/composition-root.ts:1142 «cee278b81108e897»",
+          "reconstruction/contracts/p2-notification-delivery.types.ts:46 «a33a2ed1d3327b47»"
         ]
       },
       {

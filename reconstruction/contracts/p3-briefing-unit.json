@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "3e3cfe21486e2bd920332c577d294d693c5ebe5f5da90bff06d62cd4e3eb3840",
+    "sha256": "b756c03964404ee0e5c5213e0b5fd01a400797e8a01800d4a22e4013400b0c15",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "ba89b4e15b1a1cddcdb285f1b4294f8bfceaeb60d9ce762ddfda4018331a9173",
     "sequencesSha256": "9d834611b055cc860e480890dfa68b1b05e2d47aeedd0f75b63904d3fb4c2ab7",
@@ -393,7 +393,7 @@
         "id": "P3-C12-EVICT-OPERATION",
         "status": "frozen（D-OPERATION=A・D-PAST-RETENTION=A・D-SELF-OUTCOMEの帰結。K4のQ-OPCAP-C12とK4NのQ-OPCAP-N-OTHERSがC12の再開条件へ送った分）",
         "source": "reconstruction/contracts/p3-operation-capacity.json:252 «cf785260c7cec6af»（P3-OPCAP-AC01）・reconstruction/contracts/p3-operation-capacity.json:280 «d7c72753c45da2f2»（AC02）・reconstruction/contracts/p3-operation-capacity.json:63 «14d7db45ca6d6887»（Q-OPCAP-C12）、reconstruction/contracts/p3-operation-capacity-n.json:162 «163af11f4c23d44e»（K4NのAC01）・reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»（AC02）",
-        "rule": "(1) 退去の適格性は順位より前にoperationで決める。受ける報がtraining/testなら、normalの記録はactive・held・released・記憶（replaced・aliased・cancelled）のどれも、retainUntilを過ぎた記録も退去の候補にしない（D-PAST-RETENTION=A。製品の経路はownerが受信の前に期限を回収する、reconstruction/src/runtime/owner-runtime.ts:439 «63380813ee47301c»）。候補はtraining/testの記録だけで、その中の順は(1)retainUntilを過ぎた記録 (2)記憶 (3)生きた記録、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がnormalのときの順とnormalどうしの退去はP3-C12-CAPACITYのまま (2) 候補が無ければ受けた記録自身を退去する（自身の退去）: decisionはchanged/revisionOnly・currentEstablished null、outcomeは[{accepted, revisionOnly, subjects: []}]、診断briefingCapacityEvicted（count 1）、currentsの参照と保存世代を変えず、通知を作らない (3) 自身の退去はtraining/testの記録が0件のときだけ起き（候補はtraining/testの全記録）、置換・alias・対応報の取消は同じoperationの記録にしか効かないので、他のsubjectへの作用は起きえない (4) 自身を退去した取消は、そのsubjectのpendingを全部supersededにし（P3-C12-REPLACEMENT）、intentsが変わったときだけ保存世代を進める（U-L・U-Rと同じ、reconstruction/src/units/flood/flood-unit.ts:308 «1b80cb1e17fb6e55»） (5) 退去は記録の無いsubjectの報だけで起き、入力の前の配列から1件を決め、作用（置換・alias・対応報の取消）は残った記録に当てる。遅着の報（P3-C12-TTL.lateRule）は退去を起こさない（K3のP3-FINAL-AC01の時間の軸）",
+        "rule": "(1) 退去の適格性は順位より前にoperationで決める。受ける報がtraining/testなら、normalの記録はactive・held・released・記憶（replaced・aliased・cancelled）のどれも、retainUntilを過ぎた記録も退去の候補にしない（D-PAST-RETENTION=A。製品の経路はownerが受信の前に期限を回収する、reconstruction/src/runtime/owner-runtime.ts:442 «63380813ee47301c»）。候補はtraining/testの記録だけで、その中の順は(1)retainUntilを過ぎた記録 (2)記憶 (3)生きた記録、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がnormalのときの順とnormalどうしの退去はP3-C12-CAPACITYのまま (2) 候補が無ければ受けた記録自身を退去する（自身の退去）: decisionはchanged/revisionOnly・currentEstablished null、outcomeは[{accepted, revisionOnly, subjects: []}]、診断briefingCapacityEvicted（count 1）、currentsの参照と保存世代を変えず、通知を作らない (3) 自身の退去はtraining/testの記録が0件のときだけ起き（候補はtraining/testの全記録）、置換・alias・対応報の取消は同じoperationの記録にしか効かないので、他のsubjectへの作用は起きえない (4) 自身を退去した取消は、そのsubjectのpendingを全部supersededにし（P3-C12-REPLACEMENT）、intentsが変わったときだけ保存世代を進める（U-L・U-Rと同じ、reconstruction/src/units/flood/flood-unit.ts:308 «1b80cb1e17fb6e55»） (5) 退去は記録の無いsubjectの報だけで起き、入力の前の配列から1件を決め、作用（置換・alias・対応報の取消）は残った記録に当てる。遅着の報（P3-C12-TTL.lateRule）は退去を起こさない（K3のP3-FINAL-AC01の時間の軸）",
         "reason": "training/testの流量で実災害の受理の判断を変えない（D-OPERATION=A）。起草の(1)(2)は受ける報によらずnormalの期限切れ・記憶を退去し、K4前のV/L/Rと同じ形だった（監査F04の型: 訓練の報がnormalの取消の記憶を追い出し、取消より古い報が戻る）。U-Rの形（reconstruction/src/units/flood/flood-unit.ts:101 «8f4563d2c0e98bdc»・reconstruction/src/units/flood/flood-unit.ts:105 «cafff1643f57f709»）を写す"
       },
       {
@@ -991,7 +991,7 @@
           "docs/specs/reconstruction-p0-contracts.md:517 «231a7a68715a07ff»",
           "docs/specs/reconstruction-p0-contracts.md:601 «e15cb9401eef5a41»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «f02f452751bee11d»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «4bdc8c0c0b544157»",
           "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
           "reconstruction/src/runtime/unit-coverage.ts:95 «5eed6a6ea0b164f3»",
           "reconstruction/src/runtime/unit-coverage.ts:96 «5437cd7e08d4da42»",
@@ -1071,13 +1071,13 @@
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
           "docs/specs/reconstruction-p0-contracts.md:2187 «3f547b2b3e583635»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:47 «d8de1bde9950e4c8»",
+          "reconstruction/src/view-projector/view-projector.ts:47 «cca50e27912338d2»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:50 «db940562fc8ebadb»",
-          "reconstruction/src/runtime/composition-root.ts:200 «9ed0037a4a82959a»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «e5fb771cb4e1a245»",
+          "reconstruction/src/runtime/composition-root.ts:201 «9ed0037a4a82959a»",
           "src/engine/display/standby-persistence.ts:315 «ef0460f67661ea53»",
-          "reconstruction/src/view-projector/view-projector.ts:887 «0f29de6d3afeedc3»",
-          "reconstruction/src/view-projector/view-projector.ts:889 «c42a191089542248»"
+          "reconstruction/src/view-projector/view-projector.ts:911 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:913 «c42a191089542248»"
         ]
       },
       {
@@ -1161,7 +1161,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:200 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:201 «9ed0037a4a82959a»"
         ]
       },
       {
@@ -1189,7 +1189,7 @@
           "reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»",
           "reconstruction/contracts/p3-operation-capacity-n.json:34 «4c3aaf00a47d87b1»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
-          "reconstruction/src/runtime/owner-runtime.ts:439 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:442 «63380813ee47301c»",
           "reconstruction/src/units/flood/flood-unit.ts:101 «8f4563d2c0e98bdc»",
           "reconstruction/src/units/flood/flood-unit.ts:105 «cafff1643f57f709»",
           "reconstruction/src/units/flood/flood-unit.ts:308 «1b80cb1e17fb6e55»"
@@ -1217,7 +1217,7 @@
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
           "reconstruction/src/units/landslide/landslide-unit.ts:401 «f207523dece06190»",
           "reconstruction/src/units/landslide/landslide-unit.ts:407 «787c97948197f5ad»",
-          "reconstruction/src/runtime/owner-runtime.ts:399 «c5f6ebb80f2776ef»",
+          "reconstruction/src/runtime/owner-runtime.ts:402 «c5f6ebb80f2776ef»",
           "docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73»",
           "docs/specs/reconstruction-p0-contracts.md:496 «f52fc5b960899f90»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»"

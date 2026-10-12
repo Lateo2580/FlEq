@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0d271ae071a22e14a0a192b9f17320e9b44e3cbb",
-    "sha256": "50d3fa250a46ee9380e4271783822d68db13f65c2409ecece9387784da448e22",
+    "sha256": "a020099537b69b2cd4f7f26ba4e1d5fa4156e56cb5e3052b871583b5804727a4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "ba89b4e15b1a1cddcdb285f1b4294f8bfceaeb60d9ce762ddfda4018331a9173",
     "sequencesSha256": "9d834611b055cc860e480890dfa68b1b05e2d47aeedd0f75b63904d3fb4c2ab7",
@@ -673,7 +673,7 @@
           "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»",
           "docs/specs/reconstruction-p0-contracts.md:515 «b2d19a49aa46190a»",
           "docs/specs/reconstruction-p0-contracts.md:599 «f0c2a2fedd6f32c0»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «f02f452751bee11d»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «4bdc8c0c0b544157»",
           "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
           "reconstruction/src/runtime/unit-coverage.ts:94 «88cdba85989457fd»",
           "reconstruction/src/domains/weather-current/weather-current.ts:151 «6bd033e915fa9e90»",
@@ -689,7 +689,7 @@
           "docs/specs/reconstruction-p0-contracts.md:599 «f0c2a2fedd6f32c0»",
           "docs/specs/reconstruction-p0-contracts.md:534 «92491768609ba6ce»",
           "reconstruction/contracts/p2-snapshot-sse.json:67 «a3f1c965a1d09c56»",
-          "reconstruction/src/view-projector/view-projector.ts:99 «850f0318c98a7301»",
+          "reconstruction/src/view-projector/view-projector.ts:101 «850f0318c98a7301»",
           "reconstruction/src/domains/weather-current/weather-current.ts:35 «3a1f6e3168d4afc3»",
           "test/fixtures/15_16_01_241031_VPWW56.xml:308 «2567a3af87a62e16»",
           "src/dmdata/weather-warning-level.ts:107 «ee52073a9225e6a0»"
@@ -741,9 +741,9 @@
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
-          "reconstruction/src/view-projector/view-projector.ts:87 «ee0a6e3cbb07eb66»",
+          "reconstruction/src/view-projector/view-projector.ts:89 «ee0a6e3cbb07eb66»",
           "reconstruction/contracts/p2-snapshot-sse.json:67 «a3f1c965a1d09c56»",
-          "reconstruction/src/runtime/composition-root.ts:200 «9ed0037a4a82959a»",
+          "reconstruction/src/runtime/composition-root.ts:201 «9ed0037a4a82959a»",
           "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»"
         ]
       },
@@ -814,7 +814,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:200 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:201 «9ed0037a4a82959a»"
         ]
       },
       {

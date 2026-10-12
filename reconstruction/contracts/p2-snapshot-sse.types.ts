@@ -23,6 +23,7 @@ import type { VolcanoUnitView } from "./p3-volcano-unit.types";
 import type { LandslideUnitView } from "./p3-landslide-unit.types";
 import type { FloodUnitView } from "./p3-flood-unit.types";
 import type { BriefingUnitView } from "./p3-briefing-unit.types";
+import type { LocalBulletinsUnitView } from "./p3-local-bulletins-unit.types";
 
 export type DisplayVersion = Readonly<{
   streamId: string;
@@ -47,7 +48,7 @@ export type DisplayWorkerView = Readonly<{
 // P2-A8-AC11: durable restoration is independent of current confirmation.
 export type DisplayRecoveryView = RuntimeRestoration;
 
-export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide" | "flood" | "briefing";
+export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide" | "flood" | "briefing" | "local-bulletins";
 export type DisplaySeverity = "none" | "below" | "forecast" | "advisory" | "warning" | "danger" | "specialWarning";
 export type DisplayAreaSystem = "eewArea" | "prefecture" | "primary" | "municipalityGroup" | "municipality" | "stormSurge" | "forecastArea"
   // P3-C5-SNAPSHOT=A: VTSE41 の津波予報区と VTSE51/52 の観測点。
@@ -127,6 +128,7 @@ export type DisplaySnapshot = Readonly<{
     landslide: DisplayDomainView<LandslideUnitView>;
     flood: DisplayDomainView<FloodUnitView>;
     briefing: DisplayDomainView<BriefingUnitView>;
+    localBulletins: DisplayDomainView<LocalBulletinsUnitView>;
   }>;
   notices: readonly VisibleNotice[];
 }>;
@@ -155,6 +157,7 @@ export type SnapshotProjectionInput = Readonly<{
   landslide: LandslideUnitView;
   flood: FloodUnitView;
   briefing: BriefingUnitView;
+  localBulletins: LocalBulletinsUnitView;
   // A1 accepted outcomes only; A8 derives short-lived screen notices, never A7 intents.
   outcomes: readonly RuntimePublishedOutcome[];
   // P2-A1-DISPLAY-CHANGES: includes deletions/evictions with no PublishedOutcome.
@@ -191,6 +194,7 @@ export type SnapshotProjectionState = Readonly<{
     landslide: DisplayDomainProjection<LandslideUnitView>;
     flood: DisplayDomainProjection<FloodUnitView>;
     briefing: DisplayDomainProjection<BriefingUnitView>;
+    localBulletins: DisplayDomainProjection<LocalBulletinsUnitView>;
   }>;
 }>;
 export type SnapshotProjectionResult =

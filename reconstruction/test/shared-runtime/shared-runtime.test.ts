@@ -59,7 +59,7 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
     runId: "run",
     restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-L": { kind: "empty" }, "U-R": { kind: "empty" },
-      "U-B": { kind: "empty" } },
+      "U-B": { kind: "empty" }, "U-M": { kind: "empty" } },
     admission: {},
     notificationProbeComplete: true,
     units: {
@@ -78,9 +78,10 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       "U-L": { schemaVersion: "p3-landslide-unit-v1", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
       "U-R": { schemaVersion: "p3-flood-unit-v1", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
       "U-B": { schemaVersion: "p3-briefing-unit-v1", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-M": { schemaVersion: "p3-local-bulletins-unit-v1", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: savedProgress },
     },
     checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null, "U-V": null, "U-L": null,
-      "U-R": null, "U-B": null },
+      "U-R": null, "U-B": null, "U-M": null },
     notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
     notificationDeadlines: { desktop: {}, sound: {} },
     shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null, stageResults: {},
@@ -131,8 +132,8 @@ function fixture(path: string, headType: string): DecodedMaterial {
   return decoded.material;
 }
 
-// routeのない入力の代表。VXSE51 は U-Q で ready になった（P3-C7）ので、notPorted のまま残る VXSE56 にする。
-const valid = fixture("test/fixtures/32-35_09_01_191111_VXSE56.xml", "VXSE56");
+// routeのない入力の代表。VXSE51 は U-Q（P3-C7）、VXSE56 は U-M（P3-C13）で ready になったので、notPorted のまま残る U-Y の VPTW60 にする。
+const valid = fixture("test/fixtures/10_04_03_170913_VPTW60.xml", "VPTW60");
 
 
 function controlInput(control: MailboxControl): RuntimeInput {
@@ -259,7 +260,7 @@ function publisherState(whole: RuntimeState): PublisherState {
     pendingIntents: whole.units[unit].intents.filter((item) => item.disposition === "pending") });
   return { runId: whole.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T"),
     "U-Q": mirror("U-Q"), "U-N": mirror("U-N"), "U-V": mirror("U-V"), "U-L": mirror("U-L"), "U-R": mirror("U-R"),
-    "U-B": mirror("U-B") },
+    "U-B": mirror("U-B"), "U-M": mirror("U-M") },
     restoration: whole.restoration, confirmation: whole.confirmation, notificationChannels: whole.notificationChannels,
     notificationProbeComplete: whole.notificationProbeComplete, notificationDeadlines: whole.notificationDeadlines,
     shutdown: whole.shutdown };
@@ -672,15 +673,15 @@ describe("P2 shared runtime", () => {
     const r = await runtime({ selectNotificationAttempt: noAttempts });
     const notices = (["normal", "training", "test"] as const).map((operation) => intent("U-E", operation));
     await r.seeds.eew(r.h, { ...r.h.unit("U-E"), intents: notices });
-    const xml = readFileSync("test/fixtures/32-35_09_01_191111_VXSE56.xml", "utf8");
+    const xml = readFileSync("test/fixtures/10_04_03_170913_VPTW60.xml", "utf8");
     for (const [index, operation] of (["normal", "training", "test"] as const).entries()) {
       const body = Buffer.from(xml.replace("<Status>通常</Status>", `<Status>${STATUS[operation]}</Status>`));
-      const material = materialOf(body, "VXSE56", `operation-${operation}`);
+      const material = materialOf(body, "VPTW60", `operation-${operation}`);
       expect(validateSemanticEnvelope(material)).toMatchObject({ kind: "accepted", envelope: { material: { operation } } });
       const eew = r.h.unit("U-E");
       const mirror = r.root.state.mirror;
       r.at(at(1));
-      await submit(r.h, envelope("run", "VXSE56", `operation-${operation}`, body, at(1), 10 + index));
+      await submit(r.h, envelope("run", "VPTW60", `operation-${operation}`, body, at(1), 10 + index));
       expect(r.root.state.mirror).toBe(mirror);
       expect(r.h.unit("U-E")).toBe(eew);
     }
@@ -785,6 +786,7 @@ describe("P2 shared runtime", () => {
       "U-L": null,
       "U-R": null,
       "U-B": null,
+      "U-M": null,
     } };
     const eew = vi.fn((unit: EewUnitState, input: EewInput) => unitReply(unit, input));
     const outcome = { kind: "deadlineApplied" as const, subjects: [] };
@@ -910,6 +912,7 @@ describe("P2 shared runtime", () => {
       "U-L": done.state.mirror["U-L"].persistence,
       "U-R": done.state.mirror["U-R"].persistence,
       "U-B": done.state.mirror["U-B"].persistence,
+      "U-M": done.state.mirror["U-M"].persistence,
     });
   });
 
@@ -1293,10 +1296,10 @@ describe("P2 shared runtime", () => {
       expect(owner[unit].reads).toBeLessThan(20 * 4_128);
     }
     expect(r.root.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
-    // deferred also owns U-L, U-R and U-B (P3-C10-PLACE=A, P3-C11-PLACE=A, P3-C12-PLACE=A), idle here.
+    // deferred also owns U-L, U-R, U-B and U-M (P3-C10-PLACE=A, P3-C11-PLACE=A, P3-C12-PLACE=A, P3-C13-PLACE=A), idle here.
     expect(r.h.owners.get("weatherCurrent")!["state"]!.deadlines).toEqual({ "U-W": { wallTimeMs: 5_000, monotonicMs: null } });
     expect(r.h.owners.get("deferred")!["state"]!.deadlines).toEqual({ "U-F": { wallTimeMs: 5_000, monotonicMs: null }, "U-L": null,
-      "U-R": null, "U-B": null });
+      "U-R": null, "U-B": null, "U-M": null });
     r.at(at(4_000));
     r.root.tick(at(4_000));
     await r.h.settle();

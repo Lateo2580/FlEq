@@ -52,6 +52,7 @@ const diagnosticReasons = [
   "volcanoRevisionConflict", "volcanoCapacityEvicted", "landslideRevisionConflict", "landslideCapacityEvicted",
   "floodRevisionConflict", "floodCapacityEvicted",
   "briefingRevisionConflict", "briefingCapacityEvicted",
+  "localBulletinsRevisionConflict", "localBulletinsCapacityEvicted",
   "notificationAttemptFailed", "notificationExpired", "notificationCapacityEvicted", "notificationAdapterIsolated",
   "routeIgnored", "routeNotPorted", "routeUnlisted", "ownerReplyLate",
   "dmdataSocketStarted", "dmdataSubscriptionNarrowed", "dmdataSocketListFailed", "dmdataConnectionCapacityExceeded",

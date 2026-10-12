@@ -102,7 +102,7 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
       { status: "notPorted", candidate: "U-B", reason: "S3: 配信開始時期未定" }, "deferred", "deferred"]);
     // 一入力は U-B だけへ届き、同じ deferred の U-F・U-L・U-R の state は同じ参照のまま。
     const owner = restoreOwner({ runId: "run", place: "deferred", clock: now, restored: { "U-F": { kind: "empty" }, "U-L": { kind: "empty" },
-      "U-R": { kind: "empty" }, "U-B": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-R": { kind: "empty" }, "U-B": { kind: "empty" }, "U-M": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const material = decodeFixture(F.k1);
     const routed = receiveOwner(owner, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } }, now, linkedUnitTable);
     expect(routed.changedUnits).toEqual(["U-B"]);
@@ -418,7 +418,7 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     while (terminalBytes(Array.from({ length: count + 1 }, (_, index) => done(index))) <= 98_304) count++;
     const now = clock(T0 + 1_000);
     const empty = restoreOwner({ runId: "run", place: "deferred", clock: now, restored: { "U-F": { kind: "empty" }, "U-L": { kind: "empty" },
-      "U-R": { kind: "empty" }, "U-B": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+      "U-R": { kind: "empty" }, "U-B": { kind: "empty" }, "U-M": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-B": { ...emptyState(), intents: [old, ...Array.from({ length: count }, (_, index) => done(index))] } } };
     const updated = intentUpdateOwner(owner, "U-B", [{ id: old.id, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered" }], now,
       linkedUnitTable);

@@ -127,7 +127,7 @@ async function harness(hooks: ShutdownHooks = {}) {
     return codec.encode(state);
   } }, "U-W": stringCodec("U-W"), "U-T": stringCodec("U-T"), "U-Q": stringCodec("U-Q"),
     "U-N": stringCodec("U-N"), "U-V": stringCodec("U-V"), "U-L": stringCodec("U-L"), "U-R": stringCodec("U-R"),
-    "U-B": stringCodec("U-B") };
+    "U-B": stringCodec("U-B"), "U-M": stringCodec("U-M") };
   // Another runtime over the same files (a restart), started by the caller.
   const runtime = (driver = fixtureDriver(), units: CodecMap = codecs, closeHooks: ShutdownHooks = {}) => {
     const h = harnessedRoot(config, units, { notificationAdapter: recordingNotificationAdapter(),
@@ -366,7 +366,7 @@ it("R28 regression / AC04,AC06: shutdown recovers earlier failures without an ex
           expect(h.root.state.mirror["U-W"].persistence.savedGeneration).toBe(1);
           expect(h.root.state.shutdown.stageResults.finalCheckpoint).toMatchObject({
             // D4 (FINALIZE-TIMEOUT=A): no cutoff was decided, so every unit, the clean U-E too, counts unsaved.
-            result: { kind: "deadlineExceeded" }, pending: { unsavedUnits: 10 },
+            result: { kind: "deadlineExceeded" }, pending: { unsavedUnits: 11 },
           });
           expect(h.order).toEqual([]);
         }

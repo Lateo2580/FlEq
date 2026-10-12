@@ -85,6 +85,7 @@ const initialUnits: RuntimeUnitStates = {
   "U-L": { schemaVersion: "p3-landslide-unit-v1", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
   "U-R": { schemaVersion: "p3-flood-unit-v1", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
   "U-B": { schemaVersion: "p3-briefing-unit-v1", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-M": { schemaVersion: "p3-local-bulletins-unit-v1", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
 };
 
 const placeUnits = (place: ExecutionPlace): readonly RuntimeUnitId[] =>
@@ -144,6 +145,7 @@ function unitJob(state: OwnerState, unit: RuntimeUnitId, input: UnitInput): Unit
     case "U-L": return { unit, state: ownUnit(state, unit), input };
     case "U-R": return { unit, state: ownUnit(state, unit), input };
     case "U-B": return { unit, state: ownUnit(state, unit), input };
+    case "U-M": return { unit, state: ownUnit(state, unit), input };
     default: { const missing: never = unit; throw new Error(`unit ${String(missing)} has no job`); }
   }
 }
@@ -161,6 +163,7 @@ function runUnitJob(units: UnitTable, job: UnitJob): RuntimeUnitSteps[RuntimeUni
     case "U-L": return units[job.unit].reduce(job.state, job.input);
     case "U-R": return units[job.unit].reduce(job.state, job.input);
     case "U-B": return units[job.unit].reduce(job.state, job.input);
+    case "U-M": return units[job.unit].reduce(job.state, job.input);
     default: { const missing: never = job; throw new Error(`unit job ${String(missing)} is not handled`); }
   }
 }
