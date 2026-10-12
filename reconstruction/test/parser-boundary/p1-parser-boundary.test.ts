@@ -443,3 +443,34 @@ it("P3-WL2-T02 contractBoundary / P3-WL2-AC03,AC04: corpus に無い構文で旧
     }
   }
 });
+
+// P3-XTC-T02 contractBoundary / P3-XTC-AC01,AC03: 木の値は変えずに、空白だけの text の node と空の配列を凍結して共有する（D-XTC-SHARE。
+// E05-P の山は実質 J1 で、読み手は木を書き換えない）。期待の literal は baseOid の dist で同じ入力から取った値。
+it("P3-XTC-T02 contractBoundary / P3-XTC-AC01,AC03: 木の値は同じで、共有する node と配列は凍結され、要素は共有されない", () => {
+  const xml = '<Report>\n  <Control><Status>通常</Status></Control>\n  <Head>\n    <EventID>001</EventID>\n    <Serial>02</Serial>\n  </Head>\n  <Body a="1" b="2">\n    <Item/>\n    <Item k="v">x</Item>\n    <Item/>\n  </Body>\n</Report>';
+  const result = decode(xml);
+  if (result.kind !== "decoded") throw Error(result.kind);
+  const root = result.material.xml;
+  expect(root).toEqual(JSON.parse('{"kind":"element","name":"Report","attributes":[],"children":[{"kind":"text","value":"\\n  "},{"kind":"element","name":"Control","attributes":[],"children":[{"kind":"element","name":"Status","attributes":[],"children":[{"kind":"text","value":"通常"}]}]},{"kind":"text","value":"\\n  "},{"kind":"element","name":"Head","attributes":[],"children":[{"kind":"text","value":"\\n    "},{"kind":"element","name":"EventID","attributes":[],"children":[{"kind":"text","value":"001"}]},{"kind":"text","value":"\\n    "},{"kind":"element","name":"Serial","attributes":[],"children":[{"kind":"text","value":"02"}]},{"kind":"text","value":"\\n  "}]},{"kind":"text","value":"\\n  "},{"kind":"element","name":"Body","attributes":[{"name":"a","value":"1"},{"name":"b","value":"2"}],"children":[{"kind":"text","value":"\\n    "},{"kind":"element","name":"Item","attributes":[],"children":[]},{"kind":"text","value":"\\n    "},{"kind":"element","name":"Item","attributes":[{"name":"k","value":"v"}],"children":[{"kind":"text","value":"x"}]},{"kind":"text","value":"\\n    "},{"kind":"element","name":"Item","attributes":[],"children":[]},{"kind":"text","value":"\\n  "}]},{"kind":"text","value":"\\n"}]}'));
+  const elements = new Set<unknown>();
+  let blanks = 0;
+  let empties = 0;
+  const walk = (node: XmlNode): void => {
+    if (node.kind === "text") {
+      if (/^[ \t\r\n]+$/.test(node.value)) { blanks++; expect(Object.isFrozen(node)).toBe(true); expect(() => { (node as { value: string }).value = "x"; }).toThrow(TypeError); }
+      return;
+    }
+    expect(elements.has(node), node.name).toBe(false);
+    elements.add(node);
+    for (const list of [node.attributes, node.children]) {
+      if (list.length > 0) continue;
+      empties++;
+      expect(Object.isFrozen(list)).toBe(true);
+      expect(() => { (list as unknown[]).push({}); }).toThrow(TypeError);
+    }
+    node.children.forEach(walk);
+  };
+  walk(root);
+  expect(blanks).toBeGreaterThan(0);
+  expect(empties).toBeGreaterThan(0);
+});

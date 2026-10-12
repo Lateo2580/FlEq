@@ -71,8 +71,8 @@ function load(dist, side) {
   const file = join(dist, "src/decode-material/decode-material.js");
   let source = readFileSync(file, "utf8");
   const entry = (call) => `{ __probe.calls++; try { return ${call}; } catch (error) { __probe.error = true; throw error; } }\n`;
-  if (side === "base") {
-    // baseOid の dist は parseTree が組立ての入口。
+  if (side === "base" && !source.includes("function buildTree(xml) {")) {
+    // 速い経路より前の baseOid の dist は parseTree が組立ての入口。buildTree がある dist は下の枝で new の側と同じく包む。
     source = replaceOnce(source, "function parseTree(xml) {", `function parseTree(xml) ${entry("__baseParseTree(xml)")}function __baseParseTree(xml) {`);
   } else {
     const call = side === "oldCopy" ? "__probe.oldParseTree(xml)" : side === "fastonly" ? "fastTree(xml)" : "__buildTree(xml)";

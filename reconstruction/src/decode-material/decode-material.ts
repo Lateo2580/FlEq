@@ -15,6 +15,7 @@ import type {
   XmlAttribute,
   XmlElement,
   XmlNode,
+  XmlText,
 } from "../../contracts/p1-parser-boundary.types";
 import { resolveOperation } from "../contracts-revision/operation";
 import { recordParserDiagnostic } from "../diagnostics/parser-diagnostic";
@@ -210,16 +211,25 @@ function checkedName(name: string): string {
 
 // validator が通した属性の文字列は「空白・名前・=・引用符の値」の並びで、名前は XML の名前で重複しない。そのため FXP の
 // buildAttributesMap（object の key）と同じ順と値を、表を作らずに配列で得られる。値は Report の部分木でだけ展開する（旧の xmlNode）。
-function attributeList(source: string, expand: boolean): XmlAttribute[] {
+function attributeList(source: string, expand: boolean, intern: (name: string) => string): readonly XmlAttribute[] {
   const list: XmlAttribute[] = [];
   ATTRIBUTE.lastIndex = 0;
   for (let match = ATTRIBUTE.exec(source); match != null; match = ATTRIBUTE.exec(source)) {
     const name = checkedName(match[1]);
     const value: string | undefined = match[4];
-    if (expand && value !== undefined) list.push({ name, value: xmlValue(value) });
+    if (expand && value !== undefined) list.push({ name: intern(name), value: xmlValue(value) });
   }
-  return list;
+  return list.length === 0 ? EMPTY_NODES : list.slice();
 }
+
+// 木の共有と詰め方（作者裁定 D-XTC-SHARE）。E05-P の山は実質 J1（GC 待ち）で、最大の VPWS50 は木だけで約 70MiB が生きる。読み手は木を
+// 書き換えないので、空の配列と空白だけの text の node は凍結して共有する（書き換えは例外になり、共有先を黙って壊さない）。
+// 無いと、配列の余白・空配列・同じ名前と "\n" の node が node ごとに別 object で残り、山の大部分が残る。要素は共有しない（Map の key に使う）。
+const EMPTY_NODES: readonly never[] = Object.freeze([]);
+const NEWLINE_TEXT: XmlText = Object.freeze({ kind: "text", value: "\n" });
+const BLANK = /^[ \t\r\n]+$/;
+// 閉じるまで children を伸ばす作業中の要素（閉じるときに要素数ちょうどの配列へ置き換える）。
+type Building = { kind: "element"; name: string; attributes: readonly XmlAttribute[]; children: readonly XmlNode[] };
 
 // FXP の tagExpWithClosingIndex と同じく、引用符の中を飛ばして > を探す。
 function quotedEnd(xml: string, from: number): number {
@@ -245,23 +255,46 @@ function fastTree(input: string): XmlElement | null {
   const parents: Array<XmlNode[] | "top" | "outside"> = [];
   let current: XmlNode[] | "top" | "outside" | undefined = "top";
   let root: XmlElement | null = null;
+  // 閉じるまで children を伸ばす要素の棚（parents と同じ段で積み降ろす）。Report の外の要素は null。
+  let owner: Building | null = null;
+  const owners: Array<Building | null> = [];
+  let opened: Building | null = null;
+  // decode 1 回の間だけの表。入力をまたいで持たない（P3-XTC-RES-02）。
+  const names = new Map<string, string>();
+  const blanks = new Map<string, XmlText>();
+  const intern = (name: string): string => {
+    const known = names.get(name);
+    if (known !== undefined) return known;
+    names.set(name, name);
+    return name;
+  };
+  const textNode = (value: string): XmlText => {
+    if (value === "\n") return NEWLINE_TEXT;
+    if (!BLANK.test(value)) return { kind: "text", value };
+    let node = blanks.get(value);
+    if (node === undefined) { node = Object.freeze({ kind: "text", value }); blanks.set(value, node); }
+    return node;
+  };
   // text はコメントをまたいで繋がり、タグで区切られる（旧の textData）。空の text は保存しない。
   let text = "";
   const saveText = (): void => {
     if (text === "") return;
     if (current === undefined) fallback();
-    if (Array.isArray(current)) current.push({ kind: "text", value: xmlValue(text) });
+    if (Array.isArray(current)) current.push(textNode(xmlValue(text)));
     text = "";
   };
   // 旧の parseTree は最上位で最初の "Report" を root にする。ほかの最上位の要素とその中は木に作らない。
-  const open = (name: string, attributes: string): XmlNode[] | "outside" => {
+  const open = (name: string, attributes: string, selfClosing: boolean): XmlNode[] | "outside" => {
     if (current === undefined) fallback();
     const inside = Array.isArray(current) || (current === "top" && root == null && name === "Report");
-    const list = attributeList(attributes, inside);
+    const list = attributeList(attributes, inside, intern);
+    opened = null;
     if (!inside) return "outside";
     const children: XmlNode[] = [];
-    const node: XmlElement = { kind: "element", name, attributes: list, children };
+    // 空要素（/>）は伸ばす配列を使わないので、最初から共有の空の配列にする。
+    const node: Building = { kind: "element", name, attributes: list, children: selfClosing ? EMPTY_NODES : children };
     if (Array.isArray(current)) current.push(node); else root = node;
+    opened = node;
     return children;
   };
   let index = 0;
@@ -276,7 +309,9 @@ function fastTree(input: string): XmlElement | null {
       checkedName(xml.slice(lt + 2, end).trim());
       if (current !== undefined) saveText();
       text = "";
+      if (owner != null && Array.isArray(current)) owner.children = current.length === 0 ? EMPTY_NODES : current.slice();
       current = parents.pop();
+      owner = owners.pop() ?? null;
       index = end + 1;
     } else if (next === 63 /* ? */) {
       // D5: PI は最上位の XML 宣言だけを扱う（木に入らない）。ほかの PI は Report の中でも外でも旧の経路へ戻す（旧は "?name" の要素にし、
@@ -300,16 +335,18 @@ function fastTree(input: string): XmlElement | null {
       const selfClosing = xml.charCodeAt(end - 1) === 47;
       const body = xml.slice(lt + 1, selfClosing ? end - 1 : end);
       const separator = body.search(WHITESPACE);
-      const name = checkedName(separator < 0 ? body : body.slice(0, separator));
+      const name = intern(checkedName(separator < 0 ? body : body.slice(0, separator)));
       if (current !== "top") saveText();
       text = "";
-      if (selfClosing) open(name, separator < 0 ? "" : body.slice(separator + 1));
+      if (selfClosing) open(name, separator < 0 ? "" : body.slice(separator + 1), true);
       else {
         // 旧の maxNestedTags（既定 100）。
         if (current === undefined || parents.length > 100) fallback();
-        const children = open(name, separator < 0 ? "" : body.slice(separator + 1));
+        const children = open(name, separator < 0 ? "" : body.slice(separator + 1), false);
         parents.push(current);
+        owners.push(owner);
         current = children;
+        owner = opened;
       }
       index = end + 1;
     }

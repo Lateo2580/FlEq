@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2a7c78b7029dfe83d4eeb4c0d5f6f1b314eb8536",
-    "sha256": "214d0ea390a309b15b16283d0d952af8a587d0d6ea26a8e9cc288b8d1b577e88",
+    "sha256": "98233384389ea1d7dd4b557c9126ed755569197013f3a8b59499d2305bc1c6f7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -237,7 +237,7 @@
           "reconstruction/src/units/nankai/nankai-unit.ts:319 «e194a8fa9c7c2bbf»",
           "reconstruction/src/units/volcano/volcano-unit.ts:356 «4a609cba95f01662»",
           "reconstruction/src/units/landslide/landslide-unit.ts:265 «7bad47e8e65484aa»",
-          "reconstruction/src/decode-material/decode-material.ts:441 «e7ff21641a768c49»"
+          "reconstruction/src/decode-material/decode-material.ts:478 «e7ff21641a768c49»"
         ]
       },
       {
@@ -290,7 +290,7 @@
         "id": "P3-ORDER-AC06",
         "requirement": "保存・復元と計算量: 保存schema・field・decodeの検査は変えない（ReportRefはserialRaw・infoTypeRawをすでに保存し、decodeがvalidSerialとInfoTypeの語彙を確かめている）。移行は無い。復元の後の比較は保存したwatermark（sourceのReportRef）だけで決まり、AC02の復元を挟んだ6順列で確かめる。U-Nの情報系列は保存しないので、復元の後に情報subjectの側の証拠が無くなる点はK2（F03）の範囲で、K1は系統の現況のwatermarkで同じ最終になることだけを受け入れる。比較は1回O(1)で、呼び出しの回数・走査・state全体の直列化を足さない（AGENTS.mdの受信経路の計算量）。新しい型・field・helper・設定・診断のreasonを足さない（無いと壊れるものが無い）。",
         "evidenceRefs": [
-          "reconstruction/src/decode-material/decode-material.ts:441 «e7ff21641a768c49»",
+          "reconstruction/src/decode-material/decode-material.ts:478 «e7ff21641a768c49»",
           "reconstruction/src/domains/volcano/volcano.ts:44 «4abe9007fd270be8»",
           "reconstruction/src/domains/seismic/seismic.ts:62 «5464c1dcd556c2ae»",
           "reconstruction/src/units/nankai/nankai-unit.ts:319 «e194a8fa9c7c2bbf»"

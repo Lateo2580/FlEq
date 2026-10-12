@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "36ab3db6afedda033cb6f50b5da6217426a17d9c",
-    "sha256": "be383d283c662daa55594ab3e940c37640a0be9ccfffab5dae61b241952f092d",
+    "sha256": "b8589702bdeb0c27fa25f35b8d8e23e69aada6633f36bb044b7287ee7be2a977",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
     "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
@@ -99,6 +99,14 @@
         "closed": "(1) 分岐: D-XTC-SCOPE・D-XTC-SHAREは作者裁定A、ほかの3つは技術の分岐で確定。起草案・作者の承認待ちのまま実装に効くものは0件 (2) anchor: evidenceRefsの13行・Q-XTC-E05Pの根拠の2行（check-contractが見ない本文の中の行なので、citedLineで別に確かめた）・contractTypeRefの計16行を3026cc0fの行で読み、条文の主張と合うことを確かめた。起草の後のcommit（36ab3db6..3026cc0f）が変えたのは本契約と計画の行の追加だけで、reconstruction/src・test・toolsは変わっていない（計画の:407は分類の窓の行のまま） (3) 実装の形: 速い経路で要素の配列が決まるのは閉じタグの処理（saveTextの後、parents.popの前）で、閉じる要素は親の配列の末尾（親が\"top\"ならroot）。空要素（/>）はopenが返す配列を使わないので、空の配列の共有はopenの側で入れる。distはtscの出力で先頭が\"use strict\"なので、凍結したnode・配列への代入とpushは例外になる。tree-diffの(a)のbaseの側は今parseTreeだけを包むので、段2の後のdistではbuildTreeを入口にする直しが要る（D-XTC-EQUIVALENCE、tree-diff.mjsはallowedPathsにある） (4) 試験の側: reconstruction/testに、decodeした木を書き換える箇所は0件。shared-runtime.test.tsの再帰のfreezeは凍結済みのobjectを飛ばすので、共有したnodeと共存する (5) 最小実装・計算量: 足すのはdecode-material.tsの中の定数2つ（凍結した空の配列と\"\\n\"のnode）とdecode 1回の間の表2つ、試験はT02の1つだけ。nodeごとにO(1)で、全文の走査は増えない（RES-02） (6) 計画のE05-Pの節に本契約の行を足した（3026cc0f）",
         "remaining": "なし（baseOidの割当はQ-XTC-BASE）",
         "reason": "発注前点検の項目を閉じる。Q-XTC-BASEはbaseOidの割当だけを残す"
+      },
+      {
+        "id": "Q-XTC-IMPL-AMEND",
+        "status": "closed",
+        "source": "実装（Sonnet、作業木 fleq-xtc-impl、95c6777f）の後の契約適合レビュー（Opus、条件付きGO）と品質レビュー（Opus、GO）を受けた統合担当の決定（2026-10-12午後）",
+        "closed": "(1) 契約の誤記: requiredCommandsのcheck-contractのpurposeに「本契約が変えるファイルの行をanchorで引く契約は起草時に0件」と書いたが、P3-REVISION-ORDER-001の2か所（p3-revision-order.jsonのevidenceRefs、decode-material.tsのserialRawの行）が引いていた。発注前点検（Q-XTC-PRECHECK）はこれを確かめていなかった。配送のcommitで2か所の行番号を441→478に直し（行の中身とanchorは同じ）、purposeを直した (2) 文面の絞り: 実装は非公開の型（組立ての間だけchildrenを書き換える要素の型）と、状態を持たない空白の判定の正規表現をmoduleに足した。契約の趣旨（公開の型・APIを足さない、入力の値を溜めない）には反しないので、実装は直さずAC01・AC05の文面を「公開の型」「moduleに足す値」に絞った (3) 試験T02の空白の判定を実装と同じ文字の集合（空白・タブ・CR・LF）に揃えた（品質レビューのP3、全角空白を足したときに正しい実装で落ちないように） (4) 見送り: 空要素のときに使わない配列を1本作る所（品質レビューのP3、効きが小さい）",
+        "remaining": "なし",
+        "reason": "配送の前に、レビューの指摘と契約の誤りを閉じる"
       }
     ],
     "operationContract": {
@@ -222,7 +230,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-XTC-AC01",
-        "requirement": "方式（D-XTC-SHARE=A）: decode-material.tsの速い経路（fastTree）の木の組立てで、(1) 要素のchildrenとattributesの配列を、要素数ちょうどの配列にする（閉じるときに写す、または数が決まってから作る。push で伸ばした配列をそのまま木に残さない） (2) 空のchildrenと空のattributesは、moduleで1つの凍結した空の配列（Object.freeze([])）を共有する (3) 要素名と属性名の文字列は、decode 1回の間だけの表で同じ値を1つに揃える (4) 空白だけ（XMLの空白の文字だけ）のtextのnodeは、decode 1回の間だけの表で同じ値のnodeを1つにし、そのnodeを凍結する（値\"\\n\"のnodeはmoduleの定数にしてよい）。要素（XmlElement）はどれも共有せず、木の中に同じ要素のobjectは1度しか出ない。空白でないtextのnodeと属性のobjectは共有しない。木の値（kind・name・value、attributesの順と名前と値、childrenの順、textの分割）は今と同じ。旧の経路（fallback）の木は変えない（D-XTC-FALLBACK=A）。新しいmodule・class・型・公開APIは足さない（decode-material.tsの中の小さな関数と定数だけ）。共有と凍結の理由（E05-PのJ1、作者裁定 D-XTC-SHARE、読み手は木を書き換えない）を、なぜのコメントで書く。無いと: 最大VPWS50の1入力で、木だけで70.6MiBがweatherCurrentのheapに載り、E05-Pの山（実質J1）の大部分が残る",
+        "requirement": "方式（D-XTC-SHARE=A）: decode-material.tsの速い経路（fastTree）の木の組立てで、(1) 要素のchildrenとattributesの配列を、要素数ちょうどの配列にする（閉じるときに写す、または数が決まってから作る。push で伸ばした配列をそのまま木に残さない） (2) 空のchildrenと空のattributesは、moduleで1つの凍結した空の配列（Object.freeze([])）を共有する (3) 要素名と属性名の文字列は、decode 1回の間だけの表で同じ値を1つに揃える (4) 空白だけ（XMLの空白の文字だけ）のtextのnodeは、decode 1回の間だけの表で同じ値のnodeを1つにし、そのnodeを凍結する（値\"\\n\"のnodeはmoduleの定数にしてよい）。要素（XmlElement）はどれも共有せず、木の中に同じ要素のobjectは1度しか出ない。空白でないtextのnodeと属性のobjectは共有しない。木の値（kind・name・value、attributesの順と名前と値、childrenの順、textの分割）は今と同じ。旧の経路（fallback）の木は変えない（D-XTC-FALLBACK=A）。新しいmodule・class・公開の型・公開APIは足さない（decode-material.tsの中の小さな関数と定数と、組立ての間だけ使う非公開の型だけ）。共有と凍結の理由（E05-PのJ1、作者裁定 D-XTC-SHARE、読み手は木を書き換えない）を、なぜのコメントで書く。無いと: 最大VPWS50の1入力で、木だけで70.6MiBがweatherCurrentのheapに載り、E05-Pの山（実質J1）の大部分が残る",
         "evidenceRefs": [
           "reconstruction/contracts/p3-e05p-classify.json:107 «909381fcca106424»",
           "reconstruction/contracts/p3-e05p-classify.json:290 «3069edab3ad8dad3»",
@@ -261,7 +269,7 @@
       },
       {
         "id": "P3-XTC-AC05",
-        "requirement": "変えないもの: decodeMaterialのsignature・結果の値・拒否の理由と優先・marksのkeyとnullの別・parseTimesの開始と終了の位置、withinXmlLimitsとXMLValidator.validateの呼び方と順、全文の走査の回数（P3-WL2-RES-02の3段）、旧の経路への戻り方（検出の規則D2〜D6）、P1の契約の型と公開API。木はowner threadの1入力の処理の間だけ生きる（P1-RET-01）。共有の表はdecode 1回の間だけで、moduleの変数に入力の値を溜めない（moduleの定数は凍結した空の配列と\"\\n\"のnodeだけ）。無いと: 木を詰める変更が、拒否・段・運用区分の診断や、入力をまたいで伸びる表を持ち込んでも気づけない",
+        "requirement": "変えないもの: decodeMaterialのsignature・結果の値・拒否の理由と優先・marksのkeyとnullの別・parseTimesの開始と終了の位置、withinXmlLimitsとXMLValidator.validateの呼び方と順、全文の走査の回数（P3-WL2-RES-02の3段）、旧の経路への戻り方（検出の規則D2〜D6）、P1の契約の型と公開API。木はowner threadの1入力の処理の間だけ生きる（P1-RET-01）。共有の表はdecode 1回の間だけで、moduleの変数に入力の値を溜めない（moduleに足す値は、凍結した空の配列・\"\\n\"のnode・状態を持たない空白の判定の正規表現だけ）。無いと: 木を詰める変更が、拒否・段・運用区分の診断や、入力をまたいで伸びる表を持ち込んでも気づけない",
         "evidenceRefs": [
           "reconstruction/contracts/p1-parser-boundary.json:486 «c67ca0773daa1938»",
           "reconstruction/contracts/p3-weather-light-step2.json:239 «3ff10bbd3e52e974»",
@@ -309,7 +317,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約を検査する。本契約が変えるファイル（decode-material.ts・p1-parser-boundary.test.ts・tree-diff.mjs）の行をanchorで引く契約は起草時に0件なので、想定内のFAILは無い。FAILが出たら想定外として報告する"
+        "purpose": "全契約を検査する。本契約が変えるdecode-material.tsの行は、P3-REVISION-ORDER-001の2か所（serialRawの行）がanchorで引いている（起草時に0件と書いたのは誤り、Q-XTC-IMPL-AMEND）。行がずれたFAILは統合担当が配送のcommitでanchorを直す。ほかのFAILは想定外として報告する"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
