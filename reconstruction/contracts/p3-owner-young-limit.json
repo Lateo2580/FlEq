@@ -1,0 +1,297 @@
+{
+  "meta": {
+    "draftedFromOid": "1eb82ad961a7c338bc58f8d9adfa785aee93fc91",
+    "sha256": "2eb82a1bb5e9f16dafa98f4a7789c2f8a95efead1475995d3acac13948019f43",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "05460cfafbba67783188e549eb3bcd1b788a276b07e181be71aed3aa8e269c34",
+    "sequencesSha256": "2ec4043b4bee6f8ccf8125c37e11d2d3b322458aa5731ed48bb16aabec0dd798",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "D-WYL-NEXT",
+        "A": "②: weatherCurrentのowner threadに若い世代の上限（WorkerのresourceLimits.maxYoungGenerationSizeMb）を付ける",
+        "B": "D: 全国のVPWS50の履歴で同じ中身を共有して持つ（U-Wの状態の土台を下げる）",
+        "C": "②とDを一緒に起こす",
+        "D": "③: E05の上限を瞬間のRSSで測るかをspecで見直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-12夕、ご主人: ②から）",
+        "reason": "木を小さくした後の山は判定表のJ2（heapの予約）の形で、山1つのRSSの跳ね（約+122MiB）のうちweatherCurrentのheapTotalが+92MiB（heapUsedは+39MiB）だった（Q-WYL-MATERIAL）。若い世代の上限はその枠の広がりを直接縛り、手元の試しで1入力の後のheapTotalを−32〜42MiB下げた（Q-WYL-PROBE）。Dは土台を最大−16MiB下げるが、unitの状態の持ち方を変える大きい契約になる。②で足りなければDを足す"
+      },
+      {
+        "id": "D-WYL-VALUE",
+        "A": "maxYoungGenerationSizeMb＝12",
+        "B": "24",
+        "C": "6",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "Workerで試した（Q-WYL-PROBE）: 上限なし 175〜185MiB、24で146〜160、12で133〜153、6で138〜148MiB（1入力の後のheapTotal）。処理の時間は上限なし154〜173ms、12で171〜181ms。6は12より下がらず、24は効きが小さい"
+      },
+      {
+        "id": "D-WYL-SCOPE",
+        "A": "weatherCurrentのowner threadだけに付ける",
+        "B": "owner 3本（urgent・weatherCurrent・deferred）に付ける",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "山の跳ねはweatherCurrentとpublisherで、urgent・deferredのheapは山の間ほぼ動かない（Q-WYL-MATERIAL）。EEWのurgentに処理の時間の増えを持ち込まない"
+      },
+      {
+        "id": "D-WYL-E05P",
+        "A": "E05-Pの測り直しは配送の後に統合担当がMac miniで新しいmanifestIdで行う（Q-XTC-E05Pと同じ型、MHのE05-Pの窓・3 run）",
+        "B": "実装者が窓まで測る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（D-XTC-E05P=Aと同じ）",
+        "reason": "E05-Pの判定は同じ機械・同じP負荷・同じ窓で行う約束"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-WYL-MATERIAL",
+        "status": "closed",
+        "source": "木を小さくした後のE05-Pの測り直し（p3-xtc-e05p-20261012、Mac mini、1eb82ad9の記録）と、同じ版の分類の窓の観測だけのrunの予備1本（Mac mini、51f9a39f、2026-10-12 15:56〜16:14、--preliminary --aux e05c-observe-run1 --e02-count 1000、rawはMac miniのp3-mh-prelim/xtc-obs）",
+        "closed": "(1) E05-Pは3 runとも上限400MiBを越えた（414.0・420.3・410.4MiB）。失効の後は371.4・372.5・378.0MiBで内側。前回（p3-mh-e05p-20261011）は445.7・406.5・435.9 (2) 予備の観測のrunでは380MiB以上の山は2つ（407.4・401.0MiB、77.7秒と131.8秒、床283〜289MiB）で、どちらも判定表のJ2（ΔV≥0.5E）。前の版の分類の窓（p3-e05c-20261012）は1 runに11〜13の山で、ほぼJ1/J4 (3) 1つ目の山の跳ね（RSS 285.0→407.4MiB、1回の採取の間）の内訳: weatherCurrentのheapTotal 44.6→136.3MiB（heapUsedは42.4→81.7）、publisherのheapTotal 27.0→50.2MiB、externalの増え約7MiB。urgent・deferredのheapはほぼ動かない",
+        "remaining": "なし",
+        "reason": "本契約が縛る対象（weatherCurrentのheapの枠の広がり）の根拠"
+      },
+      {
+        "id": "Q-WYL-PROBE",
+        "status": "closed",
+        "source": "起草時の使い捨ての計測（2026-10-12夕、MacBook・Node v22.23.2、1f6b1933のreconstruction/dist）。OwnerHost（weatherCurrent）をWorkerの中で動かし、U-Wを窓のfullの量で満たしてから、cycleCFramesのVPWS50を4件、入力と保存の権を続けて渡した。scriptはrepoの外（作業のscratchpadのowner-stack.mjs・owner-semi.mjs・worker-semi.mjs）",
+        "closed": "(1) 1入力の後のheapTotal（GCしない高さ）: 上限なし175.1〜184.6MiB、maxYoungGenerationSizeMb 24で145.6〜160.3、12で133.2〜152.6、6で137.5〜147.5MiB。1入力の時間は上限なし154〜173ms、24で168〜176、12で171〜181、6で172〜180ms。main threadの--max-semi-space-size（8・4・2）でも同じ傾向 (2) 保存の段のゴミ（encodeと文字列化、GCの後に測ると約20MiB）は、保存の書き込みの非同期の間にGCが走るので、入力の山に重なるのは0.7〜5.5MiBだけだった (3) U-Wの土台は全国のVPWS50 1件あたり約8.4MiB増え、履歴の深さ2で止まる（分類の窓のweatherCurrentの④〔Grow 17.5MiB〕と合う）",
+        "remaining": "なし（実装者はAC02で配送する版について改めて測る）",
+        "reason": "D-WYL-VALUE・D-WYL-SCOPEの根拠と、AC02の目安の値"
+      },
+      {
+        "id": "Q-WYL-AUTHOR",
+        "status": "closed",
+        "source": "作者の確認（2026-10-12夕、ご主人）",
+        "closed": "D-WYL-NEXTは作者裁定A（②から）。残存リスク(1)〜(6)を承認（2026-10-12夕、ご主人）",
+        "remaining": "なし",
+        "reason": "次の手の選択と残存リスクの承認"
+      },
+      {
+        "id": "Q-WYL-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-12夕、HEAD 1eb82ad9、本契約は未コミットの下書き）",
+        "closed": "(1) 分岐: D-WYL-NEXTは作者裁定A、ほかの3つは技術の分岐で確定。起草案・作者の承認待ちは0件 (2) anchor: evidenceRefsの5行とcontractTypeRef・Q-WYL-E05Pの本文の参照を1eb82ad9の行で読み、条文の主張と合うことを確かめた (3) host.tsの行の参照: 6つの契約の10か所がhost.tsの行をanchorで引き（:37・:51・:125・:191・:243・:246・:295・:389・:396・:417）、ほかに本文の中の行の参照が20か所ほどある（:106〜:390）。AC01で行の数を変えないことにしたので、どれもずれない。変えるのはWorkerを作る式の2行（:126・:127）だけで、この2行を引く参照は0件 (4) 実装の形: new Workerの第2引数のobjectに、placeがweatherCurrentのときだけresourceLimitsを足す（spread）。WorkerOptionsのresourceLimits.maxYoungGenerationSizeMbはNode 22の型にある。urgent・deferredのWorkerは今と同じ引数になる (5) 最小実装・最小テスト: 足すのは式の中の1か所で、新しい試験は足さない（T01、効きはAC02とE05-Pの測り直しで示す） (6) 計画のE05-Pの節に本契約の行を足す",
+        "remaining": "なし（baseOidの割当はQ-WYL-BASE）",
+        "reason": "発注前点検の項目を閉じる"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "operationの扱いを変えない。V8のheapの若い世代の大きさだけを変え、受理・状態・出力は変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-OWNER-YOUNG-LIMIT-001",
+    "mode": "implementation",
+    "objective": "E05-Pの山を上限400MiBの内側へ入れる2つ目の手（作者裁定 D-WYL-NEXT=A、判定表のJ2の②）。木を小さくした後の山は、weatherCurrentのowner threadのheapの枠（heapTotal）が1入力で約+92MiB広がる形（J2、heapの予約）だった（Q-WYL-MATERIAL）。host.tsがweatherCurrentのowner threadを作るとき、WorkerのresourceLimits.maxYoungGenerationSizeMbを12にする（D-WYL-VALUE・D-WYL-SCOPE）。受理・状態・出力は変えない。手元の試しで1入力の後のheapTotalは−32〜42MiB（Q-WYL-PROBE）。E05-Pの測り直しは配送の後に統合担当が行う（Q-WYL-E05P）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-owner-young-limit.json",
+      "reconstruction/contracts/p3-xml-tree-compact.json",
+      "reconstruction/contracts/p3-e05p-classify.json",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/host/host.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-owner-young-limit.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-EXECUTION-SPLIT-001",
+      "P3-XML-TREE-COMPACT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerStartData"
+    ],
+    "publicFunctions": [
+      "startP2Host（signature・挙動を変えない。owner threadの作り方の設定だけ）。公開の関数・型・exportは足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（node:worker_threadsのWorkerのresourceLimits）。package.json・package-lock.jsonを変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50"
+    ],
+    "sequenceIds": [
+      "O04",
+      "O06",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-WYL-RES-01",
+        "target": "weatherCurrentのowner threadのV8の若い世代",
+        "limit": 12,
+        "unit": "MiB（WorkerのresourceLimits.maxYoungGenerationSizeMb）",
+        "scope": "weatherCurrentのowner threadだけ。urgent・deferredとpublisher（main thread）には付けない。古い世代・code・stackの上限は付けない（メモリ不足で落とさない）",
+        "source": "D-WYL-VALUE・D-WYL-SCOPE、Q-WYL-PROBE"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "D-WYL-NEXTのB（全国の履歴の共有、U-Wの土台）・D（E05の測り方のspecの見直し）。E05-Pの測り直し（Q-WYL-E05P）の後に作者が決める",
+      "publisher（main thread）の若い世代（起動のoption。製品の起動の口を変えるので別に決める）と、urgent・deferredのowner thread",
+      "古い世代の上限（maxOldGenerationSizeMb）・code・stackの上限、GCのflag、処理の小分け",
+      "domain・unit・decode・保存・owner-runtime・owner-hostのコード",
+      "E05の400MiB・E03の1秒の値、凍結manifestの編集（統合担当）",
+      "spec本文・計画・他の契約のファイルの改訂（統合担当）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-WYL-AC01",
+        "requirement": "方式: host.tsのowner threadを作る所で、placeがweatherCurrentのWorkerだけに resourceLimits: { maxYoungGenerationSizeMb: 12 } を渡す。host.tsの行の数は変えない（6つの契約の10か所〔p3-e05p-classify・p3-lifetime-and-eew-gate・p3-measure-harness・p3-nankai-unit・p3-seismic-unit・p3-tsunami-unit〕がhost.tsの行をanchorで引いていて、行を足すと配送済みの契約のanchorがずれる）。Workerを作る今の2行の式の中に、placeがweatherCurrentのときだけresourceLimitsを足し、値（12）は式の中の1か所に書く。なぜ（E05-Pの山がJ2の形で、weatherCurrentの若い世代の広がりがRSSの跳ねになる、作者裁定 D-WYL-NEXT、P3-WYL-RES-01）は同じ式の行末の日本語のコメントで書く。urgent・deferredのWorkerの作り方、workerData、message・error・exitの扱いは変えない。古い世代の上限は付けない。無いと: 最大VPWS50の1入力でweatherCurrentのheapの枠が約+92MiB広がり、E05-Pの山が上限を越えたまま残る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-xml-tree-compact.json:388 «7ecfb094a4900cc2»",
+          "reconstruction/contracts/p3-e05p-classify.json:290 «3069edab3ad8dad3»",
+          "AGENTS.md:24 «c1288cfa5b0d16dc»"
+        ]
+      },
+      {
+        "id": "P3-WYL-AC02",
+        "requirement": "測定と報告: 実装者の機械のNode 22（v22.23.x）で、OwnerHost（weatherCurrent）をWorkerの中で動かし（host.tsと同じresourceLimitsを渡す回と渡さない回）、U-Wを窓のfullの量（nearCapacityFramesのVPWS50とVPWW57）で満たしてから、cycleCFramesのVPWS50を4件、入力の後のheapTotal（GCしない高さ）と1入力の時間を並べる（Q-WYL-PROBEと同じ手順、scriptはrepoの外の使い捨てでよく、成果物に中身を載せる）。目安は上限ありで上限なしより25MiB以上低いこと（起草時は−32〜42MiB）。届かなければ配送の前に統合担当へ報告して止める。1入力の時間（p50）が上限なしの1.15倍を超えたときも報告して止める（PiのE03に効くため）。あわせて、host.tsのhostを起動する既存の試験が全部緑で通ること。無いと: 設定が効いたか、時間の代わりに何を払ったかを数字で言えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-WYL-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-WYL-AC01",
+          "P3-WYL-AC02"
+        ],
+        "behavior": "既存のreconstruction/test/の全試験（hostを起動してowner threadを3本作る試験を含む）が、期待値を変えずに緑のまま通る。設定の値を写すだけの新しい試験は足さない（最小テスト。効きはAC02の測定とE05-Pの測り直しで示す）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O04・O06・O09の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。host.tsの行をanchorで引く契約があれば、行がずれたFAILは統合担当が配送のcommitで直す。ほかのFAILは想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eewのdist"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（T01）。順序を変える回（--sequence.shuffle）も1回通す"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組み（resourceLimitsの1か所）の「無いと何が壊れるか」を1行で書く。host.tsの行の数が変わっていないこと（git diff --statで足した行と消した行が同じ数）を示す",
+      "AC02の表（上限なし・上限ありの各4件のheapTotalと時間、機械・Node・load average）と測定のscriptの中身",
+      "残存リスク（作者承認 2026-10-12夕、ご主人、(1)〜(6)の全部。Q-WYL-AUTHOR）: (1) E05-Pが上限の内側に入るかは本契約では示さない。見込みは山が−25〜40MiBで、前回の最大420.3MiBから見て余裕は小さい (2) 若い世代を小さくすると回収（scavenge）が増え、weatherCurrentの1入力の時間が手元で約5〜10%増える。PiのE03（VPWS50のT2→dispatch p99≤1秒、Q-WL2-PI-E03）への効きは未確認 (3) 効きはMacのNode 22で測る。Pi（glibc・arm64）とMac mini（macOSのmalloc）でRSSがheapTotalと同じだけ下がるかは測り直しまで分からない (4) publisher（main thread）の枠の広がり（山で約+23MiB）は残る (5) Nodeの版を上げると（Node 24など）V8の若い世代の既定と上限の効き方が変わりうる。版を上げるときにE05-Pを測り直す (6) 上限は若い世代だけで、古い世代は縛らないので、メモリ不足でthreadが落ちる経路は足さない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-WYL-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "本契約の発注前点検",
+        "requiredEvidence": [
+          "baseOidの割当（起草は1eb82ad9）。decisionBranchesに起草案・作者の承認待ちが0件であること",
+          "host.tsの行をanchorで引く契約の有無を、全契約のevidenceRefsと本文の中の行の参照で確かめる（P3-XML-TREE-COMPACT-001の誤記の再発防止）",
+          "計画のE05-Pの節に本契約の行を足す"
+        ]
+      },
+      {
+        "id": "Q-WYL-E05P",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C4-CLOSE-E05Pの再検収"
+        ],
+        "resolveBy": "本契約の配送の後",
+        "requiredEvidence": [
+          "Mac mini（独立checkout）で、新しいmanifestId（例 p3-wyl-e05p-<日付>）をp3-xtc-e05p-20261012と同じ作り方で凍結してから、同じ窓（e02-P-run1〜3・ownerHeap-run1）を測る。前の凍結manifestと結果は書き換えない",
+          "Failなら、山の内訳（分類の窓の観測だけのrunの予備）を作者へ報告し、D-WYL-NEXTのB（全国の履歴の共有）・publisherの若い世代・D（E05の測り方）を作者が決める。本契約のコードの不合格とは扱わない"
+        ]
+      }
+    ]
+  }
+}
