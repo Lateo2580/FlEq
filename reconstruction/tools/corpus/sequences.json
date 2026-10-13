@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "819f7efe173aab8a8c9394796765592bbbef244f0340b5f554c23a66abbb9261",
+    "sha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -27148,8 +27148,8 @@
         {
           "subject": "normal/typhoonProbability/TC2606",
           "revision": {
-            "reportDateTimeRaw": "2026-05-31T10:45:00+09:00",
-            "serialRaw": "42",
+            "reportDateTimeRaw": "2026-05-31T09:55:00+09:00",
+            "serialRaw": "41",
             "infoTypeRaw": "発表"
           }
         }
@@ -27170,7 +27170,7 @@
       "input": null,
       "checks": [
         "TC2606の低気圧化の解析（実況1時刻、Remark「台風消滅（温帯低気圧化）」、階級LOWの合成）。Remarkが表の文に完全一致するので台風の終わり（P3-C14-LIFECYCLE=A）。解析のsubjectには記録が無いので、endedの記憶（endCause terminal、retainUntil=10:45＋7日）を作る: 解析のsubjectはchanged/revisionOnlyで通知を作らない（analysisTerminalは見える解析の記録を終えたときだけ、Q-NOTICE.generationTable）。",
-        "同じoperation・TC番号の確率のactive（:58）をended（endCause terminal）にする（P3-C14-TERMINAL=A）: 確率のsubjectはchanged/semantic・currentEstablished null、通知を作らない（Q-NOTICE.silent）。そのsubjectのpendingを全部supersededにする（P3-C14-REPLACEMENT=A。:58のintentはこの時刻には期限切れ）。decisionsは解析と確率の2 subjectで、一回の参照交換で適用する（spec:616）。このrecordのdecisionの射影は確率のsubject（semantic）、effectiveは両subjectともinactive。",
+        "同じoperation・TC番号の確率のactive（:58）をended（endCause terminal）にする（P3-C14-TERMINAL=A）: 確率のsubjectはchanged/semantic・currentEstablished null、通知を作らない（Q-NOTICE.silent）。そのsubjectのpendingを全部supersededにする（P3-C14-REPLACEMENT=A。:58のintentはこの時刻には期限切れ）。decisionsは解析と確率の2 subjectで、一回の参照交換で適用する（spec:616）。subjectごとのdecision: 解析=changed/revisionOnly、確率=changed/semantic（decision欄の射影は確率のsubject）。確率のsubjectのrevisionは確率自身の版（:58の76_01_02、Serial 41）で、解析の版ではない。effectiveは両subjectともinactive（released）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },

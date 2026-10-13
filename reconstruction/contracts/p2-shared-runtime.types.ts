@@ -20,6 +20,7 @@ import type { LandslideCurrent, LandslideInput, LandslideUnitState, LandslideUni
 import type { FloodCurrent, FloodInput, FloodUnitState, FloodUnitStep, FloodUnitView } from "./p3-flood-unit.types";
 import type { BriefingInput, BriefingUnitState, BriefingUnitStep, BriefingUnitView } from "./p3-briefing-unit.types";
 import type { LocalBulletinsInput, LocalBulletinsUnitState, LocalBulletinsUnitStep, LocalBulletinsUnitView } from "./p3-local-bulletins-unit.types";
+import type { TyphoonInput, TyphoonUnitState, TyphoonUnitStep, TyphoonUnitView } from "./p3-typhoon-unit.types";
 
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | Readonly<{ [key: string]: JsonValue }>;
 
@@ -27,13 +28,13 @@ export type UnitId =
   | "U-E" | "U-Q" | "U-T" | "U-N" | "U-W" | "U-L"
   | "U-F" | "U-B" | "U-M" | "U-Y" | "U-V" | "U-R";
 
-export type RuntimeUnitId = "U-E" | "U-W" | "U-F" | "U-T" | "U-Q" | "U-N" | "U-V" | "U-L" | "U-R" | "U-B" | "U-M";
+export type RuntimeUnitId = "U-E" | "U-W" | "U-F" | "U-T" | "U-Q" | "U-N" | "U-V" | "U-L" | "U-R" | "U-B" | "U-M" | "U-Y";
 
 // Per-unit type rows (one line per map). P3-UNIT-TABLE-001 keeps them adjacent and line-neutral:
 // a unit lane adds its key to each of the three maps below.
-export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState; "U-T": TsunamiUnitState; "U-Q": SeismicUnitState; "U-N": NankaiUnitState; "U-V": VolcanoUnitState; "U-L": LandslideUnitState; "U-R": FloodUnitState; "U-B": BriefingUnitState; "U-M": LocalBulletinsUnitState }>;
-export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput; "U-T": TsunamiInput; "U-Q": SeismicInput; "U-N": NankaiInput; "U-V": VolcanoInput; "U-L": LandslideInput; "U-R": FloodInput; "U-B": BriefingInput; "U-M": LocalBulletinsInput }>;
-export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep; "U-T": TsunamiUnitStep; "U-Q": SeismicUnitStep; "U-N": NankaiUnitStep; "U-V": VolcanoUnitStep; "U-L": LandslideUnitStep; "U-R": FloodUnitStep; "U-B": BriefingUnitStep; "U-M": LocalBulletinsUnitStep }>;
+export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState; "U-T": TsunamiUnitState; "U-Q": SeismicUnitState; "U-N": NankaiUnitState; "U-V": VolcanoUnitState; "U-L": LandslideUnitState; "U-R": FloodUnitState; "U-B": BriefingUnitState; "U-M": LocalBulletinsUnitState; "U-Y": TyphoonUnitState }>;
+export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput; "U-T": TsunamiInput; "U-Q": SeismicInput; "U-N": NankaiInput; "U-V": VolcanoInput; "U-L": LandslideInput; "U-R": FloodInput; "U-B": BriefingInput; "U-M": LocalBulletinsInput; "U-Y": TyphoonInput }>;
+export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep; "U-T": TsunamiUnitStep; "U-Q": SeismicUnitStep; "U-N": NankaiUnitStep; "U-V": VolcanoUnitStep; "U-L": LandslideUnitStep; "U-R": FloodUnitStep; "U-B": BriefingUnitStep; "U-M": LocalBulletinsUnitStep; "U-Y": TyphoonUnitStep }>;
 
 export type ClockReading = Readonly<{
   wallTimeMs: number;
@@ -180,7 +181,7 @@ export type UnitView = Readonly<{
   subjects: readonly SubjectOutcome[];
 }>;
 
-export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView | TsunamiUnitView | SeismicUnitView | NankaiUnitView | VolcanoUnitView | LandslideUnitView | FloodUnitView | BriefingUnitView | LocalBulletinsUnitView;
+export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView | TsunamiUnitView | SeismicUnitView | NankaiUnitView | VolcanoUnitView | LandslideUnitView | FloodUnitView | BriefingUnitView | LocalBulletinsUnitView | TyphoonUnitView;
 
 // P2-A1-DISPLAY-CHANGES: direct subject references avoid searching a whole view for a delta.
 export type RuntimeDisplaySubject = Readonly<{
@@ -208,6 +209,8 @@ export type RuntimeDisplaySubject = Readonly<{
   | Readonly<{ unit: "U-B"; current: BriefingUnitView["currents"][number] | null }>
   // I-U-M.view: subject は三 slice の記録（active だけ）。
   | Readonly<{ unit: "U-M"; current: LocalBulletinsUnitView["tornado"][number] | LocalBulletinsUnitView["heat"][number] | LocalBulletinsUnitView["transient"][number] | null }>
+  // I-U-Y.view: subject は解析か確率の記録（active だけ）。
+  | Readonly<{ unit: "U-Y"; current: TyphoonUnitView["analysis"][number] | TyphoonUnitView["probability"][number] | null }>
 );
 
 export type RuntimeDisplayChange = Readonly<{
@@ -230,6 +233,7 @@ export type RuntimeViews = Readonly<{
   "U-R": FloodUnitView;
   "U-B": BriefingUnitView;
   "U-M": LocalBulletinsUnitView;
+  "U-Y": TyphoonUnitView;
 }>;
 
 export type FreshnessRecord = Readonly<{
@@ -292,6 +296,8 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "briefingRevisionConflict" | "briefingCapacityEvicted"
   // P3-UNIT-M-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-M capacity eviction.
   | "localBulletinsRevisionConflict" | "localBulletinsCapacityEvicted"
+  // P3-UNIT-Y-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-Y capacity eviction.
+  | "typhoonRevisionConflict" | "typhoonCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate";

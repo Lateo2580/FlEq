@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "06b7908fd0015b78f95129a6c64440237f8af9bdcf077895f7f5e065dc593e4b",
+    "sha256": "878a002e1e987f38bf8c1fc008f031d0b52efa30fa07e33101915485222ed4f5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
-    "sequencesSha256": "819f7efe173aab8a8c9394796765592bbbef244f0340b5f554c23a66abbb9261",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -319,8 +319,8 @@
         "requirement": "horizonと時刻の扱い（P3-LIFE-D-LATE=A・P3-LIFE-D-SKEW=A）: (1) 判定順はvalidateCandidate→recoveryの未適用→Serialのstale→同版のstale/duplicate→horizon→容量→採用とし、duplicateとSerialのstaleのreasonを変えない。(2) gateの無いsubjectの報はbase＋600,000≦wallでunchanged/stale（stateは同一参照、intents/outcomes空）とし、診断を1件だけ出す: {level:\"WARN\", component:\"eew\", reason:\"eewHorizonStale\", inputId, unit:\"U-E\"}（既存の入力拒否の診断と同じ形で入力ごとに1件。続いた件数の集計は既存のdiagnostic sinkの出現回数に任せ、unitに計数・stateを足さない）。base＋600,000＞wall（＝599,999 ms前の報）は従来どおり採用し、この診断を出さない。(3) 既知subjectの取消はhorizon外でも採用し、currentの除去・同operation＋eventIdの旧pendingのsuperseded・R35の取消通知を従来どおり行う。既知subjectのhorizon外の取消は採用なので診断を出さない。既知subjectのhorizon外の非取消の版はunchanged/staleで、診断を出さない（hostの時計の進みでは最初の報から新規subjectとなり上の診断が出る）。(4) base＝min(ReportDateTime, wall)。ReportDateTimeがwallより1時間未来の報も受理し、currentUntil＝wall＋600,000、retainUntil＝wall＋86,400,000とする。版の順序と同版の比較はReportDateTimeの生値のまま。",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:433 «2e2a0bf50fac7377»",
-          "reconstruction/src/runtime/owner-runtime.ts:113 «4b4c6774cb5a4b56»",
-          "reconstruction/src/runtime/owner-runtime.ts:442 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:114 «4b4c6774cb5a4b56»",
+          "reconstruction/src/runtime/owner-runtime.ts:445 «63380813ee47301c»",
           "reconstruction/src/units/eew/eew-unit.ts:366 «973323028dc564f5»",
           "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»"
         ]

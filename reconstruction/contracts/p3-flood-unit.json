@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "47b5e21d5189721c74eaf6a77affd69bdf756a88d6d9799ee67af012f2d010eb",
+    "sha256": "4371a49f1d7815d2231c4bbe9a0b4f999b13f90491935d7385a3937e9f8b4824",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
-    "sequencesSha256": "819f7efe173aab8a8c9394796765592bbbef244f0340b5f554c23a66abbb9261",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -803,7 +803,7 @@
           "docs/specs/reconstruction-p0-contracts.md:526 «2a6bdc1eecc7f89f»",
           "docs/specs/reconstruction-p0-contracts.md:605 «94c9c00b2938587b»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «4bdc8c0c0b544157»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «58f9765d419bbc5a»",
           "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
           "reconstruction/src/runtime/unit-coverage.ts:110 «3063c67e8d38a23c»",
           "reconstruction/src/runtime/unit-coverage.ts:150 «4195e149678dbbf4»"
@@ -869,10 +869,10 @@
         "requirement": "view・outcome・snapshot: FloodUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-R行、addedScopesのU-Rの空（P3-C11-N2）、snapshotのdomain flood（P3-C11-SNAPSHOT=A、highestSeverityは河川のlevel、nullとkinds空はunknown）を同じ採用結果から作る。active以外の記録を載せず、unavailable・未保存・再起動の空を「洪水予報なし」に読み替えない。U-Rだけが変わった入力でもsnapshotが出し直される（view-projectorの比較・domainの列・byteの合計にU-Rが入る）。実装後に、実配信の最大の日の状態（I-U-R.capacityMeasurement、10 EventID・19,964 byte）と512 subjectの状態でdomain floodのUTF-8 byteとfull/summaryの判定を測って報告し、実配信の最大の日の状態がsummaryに落ちたら配送の前に作者へ報告する。あわせて、domain floodがfullからsummaryへ落ちるEventIDの数の閾値（概算約33: 65,536 byteを実配信の最大の日の記録の平均約2.0 KBで割った値。実装のviewのbyteで測り直す）を報告し、作者とP4へ渡す",
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:47 «cca50e27912338d2»",
+          "reconstruction/src/view-projector/view-projector.ts:47 «513ff83e3efffcbc»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «e5fb771cb4e1a245»",
-          "reconstruction/src/runtime/composition-root.ts:201 «9ed0037a4a82959a»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:52 «45d531fd83f0c3c0»",
+          "reconstruction/src/runtime/composition-root.ts:203 «9ed0037a4a82959a»",
           "docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4»",
           "docs/specs/reconstruction-p0-contracts.md:1468 «35085757904baccf»"
         ]
@@ -948,7 +948,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:201 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:203 «9ed0037a4a82959a»"
         ]
       },
       {

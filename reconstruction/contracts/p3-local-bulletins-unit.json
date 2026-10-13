@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "f742d0826dd169bb8ced2a8fcb8527f23ecf7f5f588861d445b7ca090c0d6cb5",
+    "sha256": "601894c1f3c939f3b9030e94cb1e8ff45a974d869a6feee797752cc172eaf951",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
-    "sequencesSha256": "819f7efe173aab8a8c9394796765592bbbef244f0340b5f554c23a66abbb9261",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -1051,8 +1051,8 @@
           "docs/specs/reconstruction-p0-contracts.md:527 «f457923e12204fd8»",
           "docs/specs/reconstruction-p0-contracts.md:602 «c5228e10a3600dc7»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «4bdc8c0c0b544157»",
-          "reconstruction/src/runtime/unit-coverage.ts:17 «aa64faf67c776d6e»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «58f9765d419bbc5a»",
+          "reconstruction/src/runtime/unit-coverage.ts:17 «edddd5a2cb786e2f»",
           "reconstruction/src/runtime/unit-coverage.ts:32 «f96469205c82e2af»",
           "reconstruction/src/runtime/unit-coverage.ts:38 «f42100d7f16b2a45»",
           "reconstruction/src/runtime/unit-coverage.ts:64 «c8b7f9ced129fe54»",
@@ -1150,8 +1150,8 @@
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
           "reconstruction/src/view-projector/view-projector.ts:57 «5a17c9e48f0764cf»",
           "reconstruction/src/view-projector/view-projector.ts:75 «9ba76e26a91077ec»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «e5fb771cb4e1a245»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:30 «5436611d9fd54ce2»"
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:52 «45d531fd83f0c3c0»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:31 «1ac262efc21a4235»"
         ]
       },
       {

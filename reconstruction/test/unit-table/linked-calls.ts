@@ -16,6 +16,7 @@ export type StubCalls = Readonly<{
   reduceFloodUnit?: UnitModule<"U-R">["reduce"];
   reduceBriefingUnit?: UnitModule<"U-B">["reduce"];
   reduceLocalBulletinsUnit?: UnitModule<"U-M">["reduce"];
+  reduceTyphoonUnit?: UnitModule<"U-Y">["reduce"];
   toEewView?: UnitModule<"U-E">["toView"];
   toWeatherCurrentView?: UnitModule<"U-W">["toView"];
   toWeatherTimeseriesView?: UnitModule<"U-F">["toView"];
@@ -26,10 +27,10 @@ export type StubCalls = Readonly<{
 
 function callsWith(stubs: StubCalls = {}): Readonly<{ units: UnitTable } & NotificationCalls> {
   const { reduceEewUnit, reduceWeatherCurrentUnit, reduceWeatherTimeseriesUnit, reduceTsunamiUnit, reduceSeismicUnit, reduceNankaiUnit, reduceVolcanoUnit,
-    reduceLandslideUnit, reduceFloodUnit, reduceBriefingUnit, reduceLocalBulletinsUnit,
+    reduceLandslideUnit, reduceFloodUnit, reduceBriefingUnit, reduceLocalBulletinsUnit, reduceTyphoonUnit,
     toEewView, toWeatherCurrentView, toWeatherTimeseriesView, toTsunamiView, ...notification } = stubs;
   const { "U-E": eew, "U-W": weather, "U-F": series, "U-T": tsunami, "U-Q": seismic, "U-N": nankai, "U-V": volcano,
-    "U-L": landslide, "U-R": flood, "U-B": briefing, "U-M": localBulletins } = linkedUnitTable;
+    "U-L": landslide, "U-R": flood, "U-B": briefing, "U-M": localBulletins, "U-Y": typhoon } = linkedUnitTable;
   return {
     units: {
       "U-E": { ...eew, reduce: reduceEewUnit ?? eew.reduce, toView: toEewView ?? eew.toView },
@@ -43,6 +44,7 @@ function callsWith(stubs: StubCalls = {}): Readonly<{ units: UnitTable } & Notif
       "U-R": { ...flood, reduce: reduceFloodUnit ?? flood.reduce },
       "U-B": { ...briefing, reduce: reduceBriefingUnit ?? briefing.reduce },
       "U-M": { ...localBulletins, reduce: reduceLocalBulletinsUnit ?? localBulletins.reduce },
+      "U-Y": { ...typhoon, reduce: reduceTyphoonUnit ?? typhoon.reduce },
     },
     ...notification,
   };

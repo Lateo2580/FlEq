@@ -44,18 +44,18 @@ const TRUNCATED_MARKER = "[truncated:fieldLimit]";
 const DATE_LIMIT = 8_640_000_000_000_000;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const TTL: Readonly<Record<RuntimeUnitId, number>> = { "U-E": 15_000, "U-W": 60_000, "U-F": 60_000, "U-T": 60_000, "U-Q": 60_000, "U-N": 60_000,
-  "U-V": 60_000, "U-L": 60_000, "U-R": 60_000, "U-B": 60_000, "U-M": 60_000 };
+  "U-V": 60_000, "U-L": 60_000, "U-R": 60_000, "U-B": 60_000, "U-M": 60_000, "U-Y": 60_000 };
 const NOTICE_TEXT = { eewNew: "緊急地震速報を確認", eewWarning: "緊急地震速報が警報に変わりました" } as const;
 // null: the unit never makes an unavailable notice (U-E has no unavailable state).
 const UNAVAILABLE_TEXT: Readonly<Record<RuntimeUnitId, string | null>> = {
   "U-E": null, "U-W": "気象警報の現況を確認できません", "U-F": "気象時系列情報を確認できません", "U-T": null, "U-Q": null, "U-N": null, "U-V": null,
-  "U-L": null, "U-R": null, "U-B": null, "U-M": null,
+  "U-L": null, "U-R": null, "U-B": null, "U-M": null, "U-Y": null,
 };
 // true: the unit counts events per warning class (A4); the others count from the view's own rows.
 const COUNTS_BY_WARNING_CLASS: Readonly<Record<RuntimeUnitId, boolean>> = { "U-E": true, "U-W": false, "U-F": false, "U-T": false, "U-Q": false, "U-N": false,
-  "U-V": false, "U-L": false, "U-R": false, "U-B": false, "U-M": false };
+  "U-V": false, "U-L": false, "U-R": false, "U-B": false, "U-M": false, "U-Y": false };
 const INFORMATION_TYPE = { "U-E": "eew", "U-W": "weather-warning", "U-F": "weather-warning-timeseries", "U-T": "tsunami", "U-Q": "earthquake",
-  "U-N": "nankai", "U-V": "volcano", "U-L": "landslide", "U-R": "flood", "U-B": "briefing", "U-M": "local-bulletins" } as const;
+  "U-N": "nankai", "U-V": "volcano", "U-L": "landslide", "U-R": "flood", "U-B": "briefing", "U-M": "local-bulletins", "U-Y": "typhoon" } as const;
 const AREA_SYSTEMS: Readonly<Record<RuntimeUnitId, readonly DisplayAreaSystem[]>> = {
   "U-E": ["eewArea"],
   "U-W": ["prefecture", "primary", "municipalityGroup", "municipality", "stormSurge"],
@@ -75,6 +75,8 @@ const AREA_SYSTEMS: Readonly<Record<RuntimeUnitId, readonly DisplayAreaSystem[]>
   "U-B": [],
   // P3-C13-SNAPSHOT=A: 竜巻・熱中症・解説は区域の数え方を持たない。
   "U-M": [],
+  // P3-C14-SNAPSHOT=A: 台風は区域の数え方を持たない。
+  "U-Y": [],
 };
 // Fixed key order keeps full and summary items byte-identical whatever order counts arrive in.
 const UNAVAILABLE_KEYS = ["capacityExceeded", "historyUnavailable", "coverageIncomplete"] as const;
@@ -448,6 +450,24 @@ function localBulletinsTally(value: RuntimeDisplaySubject | null, hidden: boolea
   return tally;
 }
 
+// P3-C14-SNAPSHOT=A: 重大度は見える解析の実況の強さ「猛烈な」が danger、「非常に強い」か大きさ「超大型」が warning、ほかと確率は数えない（none、旧築のカードの重さの写し）。
+function typhoonTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+  if (value == null || value.unit !== "U-Y" || value.current == null) return null;
+  const current = value.current;
+  const operation = value.operation;
+  const tally = emptyTally(operation);
+  if (hidden) return tally;
+  tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
+  tally.active = 1;
+  if ("frames" in current) {
+    const now = current.frames.find((frame) => frame.kind === "analysis");
+    if (now?.intensity === "猛烈な") bump(tally.severities, `${operation}|danger`);
+    else if (now?.intensity === "非常に強い" || now?.size === "超大型") bump(tally.severities, `${operation}|warning`);
+  }
+  addTime(tally, current.source);
+  return tally;
+}
+
 // View bytes excluding subject elements: scalar fields, keys, brackets and element separators.
 function fixedBytes(view: AnyView): number {
   const commas = (length: number) => Math.max(length - 1, 0);
@@ -474,6 +494,9 @@ function fixedBytes(view: AnyView): number {
   if (view.unit === "U-M")
     return utf8({ ...view, subjects: [], tornado: [], heat: [], transient: [] }) + commas(view.subjects.length) + commas(view.tornado.length)
       + commas(view.heat.length) + commas(view.transient.length);
+  if (view.unit === "U-Y")
+    return utf8({ ...view, subjects: [], analysis: [], probability: [] }) + commas(view.subjects.length) + commas(view.analysis.length)
+      + commas(view.probability.length);
   return utf8({ ...view, series: [], subjects: [] }) + commas(view.series.length) + commas(view.subjects.length);
 }
 
@@ -764,7 +787,7 @@ function comparable(snapshot: DisplaySnapshot): string {
     domain(snapshot.current.weatherCurrent), domain(snapshot.current.weatherTimeseries), domain(snapshot.current.tsunami),
     domain(snapshot.current.earthquake), domain(snapshot.current.nankai),
     domain(snapshot.current.volcano), domain(snapshot.current.landslide), domain(snapshot.current.flood),
-    domain(snapshot.current.briefing), domain(snapshot.current.localBulletins), snapshot.notices]);
+    domain(snapshot.current.briefing), domain(snapshot.current.localBulletins), domain(snapshot.current.typhoon), snapshot.notices]);
 }
 
 function summary<View>(projection: DisplayDomainProjection<View>): DisplayDomainView<View> {
@@ -819,6 +842,8 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     noEvents, gates, briefingTally);
   const localBulletins = projectDomain("U-M", previous?.domains.localBulletins ?? null, input.localBulletins, byUnit("U-M"), meta("U-M"),
     noEvents, gates, localBulletinsTally);
+  const typhoon = projectDomain("U-Y", previous?.domains.typhoon ?? null, input.typhoon, byUnit("U-Y"), meta("U-Y"),
+    noEvents, gates, typhoonTally);
 
   // P2-A8-NOTICE: semantic invalidation, then TTL, then generation, then capacity.
   const clockValid = dateValue(input.nowMs);
@@ -877,7 +902,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
       weatherCurrent: weatherCurrent.projection, weatherTimeseries: weatherTimeseries.projection, tsunami: tsunami.projection,
       earthquake: earthquake.projection, nankai: nankai.projection, volcano: volcano.projection,
       landslide: landslide.projection, flood: flood.projection, briefing: briefing.projection,
-      localBulletins: localBulletins.projection },
+      localBulletins: localBulletins.projection, typhoon: typhoon.projection },
   });
   const published = previous?.snapshot ?? null;
   if (!clockValid || expiryInvalid)
@@ -887,7 +912,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
 
   const domains = [eew.projection, weatherCurrent.projection, weatherTimeseries.projection, tsunami.projection,
     earthquake.projection, nankai.projection, volcano.projection, landslide.projection, flood.projection,
-    briefing.projection, localBulletins.projection] as const;
+    briefing.projection, localBulletins.projection, typhoon.projection] as const;
   const shell: DisplaySnapshot = {
     schemaVersion: 1, streamId: input.streamId, sequence: (published?.sequence ?? 0) + 1,
     generatedAt: input.generatedAt,
@@ -899,11 +924,11 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
       weatherTimeseries: weatherTimeseries.projection.full, tsunami: tsunami.projection.full, earthquake: earthquake.projection.full,
       nankai: nankai.projection.full, volcano: volcano.projection.full, landslide: landslide.projection.full,
       flood: flood.projection.full, briefing: briefing.projection.full,
-      localBulletins: localBulletins.projection.full },
+      localBulletins: localBulletins.projection.full, typhoon: typhoon.projection.full },
     notices: selected.notices,
   };
   const shellBytes = utf8({ ...shell, current: { eew: 0, weatherCurrent: 0, weatherTimeseries: 0, tsunami: 0, earthquake: 0, nankai: 0,
-    volcano: 0, landslide: 0, flood: 0, briefing: 0, localBulletins: 0 } }) - 11;
+    volcano: 0, landslide: 0, flood: 0, briefing: 0, localBulletins: 0, typhoon: 0 } }) - 12;
   const commonBytes = shellBytes - utf8(selected.notices);
   if (commonBytes > COMMON_BUDGET) return { kind: "rejected", state: state(published), reason: "snapshotCommonBudgetExceeded",
     diagnostics: [...diagnostics, { level: "WARN", component: "view-projector", reason: "snapshotCommonBudgetExceeded", count: commonBytes }] };
@@ -916,7 +941,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     tsunami: deliver(tsunami.projection), earthquake: deliver(earthquake.projection), nankai: deliver(nankai.projection),
     volcano: deliver(volcano.projection), landslide: deliver(landslide.projection),
     flood: deliver(flood.projection), briefing: deliver(briefing.projection),
-    localBulletins: deliver(localBulletins.projection) } };
+    localBulletins: deliver(localBulletins.projection), typhoon: deliver(typhoon.projection) } };
   const domainBytes = (value: DisplayDomainView<AnyView>, projection: DisplayDomainProjection<AnyView>) =>
     value.delivery === "full" ? projection.utf8Bytes : utf8(value);
   const utf8Bytes = shellBytes + domainBytes(snapshot.current.eew, eew.projection)
@@ -929,7 +954,8 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     + domainBytes(snapshot.current.landslide, landslide.projection)
     + domainBytes(snapshot.current.flood, flood.projection)
     + domainBytes(snapshot.current.briefing, briefing.projection)
-    + domainBytes(snapshot.current.localBulletins, localBulletins.projection);
+    + domainBytes(snapshot.current.localBulletins, localBulletins.projection)
+    + domainBytes(snapshot.current.typhoon, typhoon.projection);
   if (published != null && comparable(published) === comparable(snapshot))
     return { kind: "unchanged", state: state(published), diagnostics };
   return { kind: "projected", state: state(snapshot), snapshot, utf8Bytes, diagnostics };

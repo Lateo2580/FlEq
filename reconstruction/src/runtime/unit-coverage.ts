@@ -5,7 +5,7 @@ import type { ExecutionPlace } from "../../contracts/p3-execution-split.types";
 // P3-UNIT-TABLE-001 (C0). The one list of implemented runtime units (ledger 52 ③): without it each
 // loop re-spells the units and a new unit is silently skipped by the loops that were not updated.
 // An element outside RuntimeUnitId fails `satisfies`; a missing RuntimeUnitId fails CoversAllUnits.
-const runtimeUnits = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M"] as const satisfies readonly RuntimeUnitId[];
+const runtimeUnits = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const satisfies readonly RuntimeUnitId[];
 type CoversAllUnits<L extends readonly RuntimeUnitId[]> = [Exclude<RuntimeUnitId, L[number]>] extends [never] ? L : never;
 const coveredUnits: CoversAllUnits<typeof runtimeUnits> = runtimeUnits;
 
@@ -14,7 +14,7 @@ const coveredUnits: CoversAllUnits<typeof runtimeUnits> = runtimeUnits;
 // unit without its row fails to compile.
 const executionPlaces: Readonly<Record<RuntimeUnitId, ExecutionPlace>> = {
   "U-E": "urgent", "U-W": "weatherCurrent", "U-F": "deferred", "U-T": "urgent", "U-Q": "urgent", "U-N": "urgent", "U-V": "urgent",
-  "U-L": "deferred", "U-R": "deferred", "U-B": "deferred", "U-M": "deferred",
+  "U-L": "deferred", "U-R": "deferred", "U-B": "deferred", "U-M": "deferred", "U-Y": "deferred",
 };
 
 // Coverage: the subscribed XML headTypes (ranges expanded to single codes). A headType not listed here is
@@ -95,18 +95,18 @@ const coverageTable = {
   VPOA50: { status: "ready", unit: "U-B" },
   VPBS50: { status: "ready", unit: "U-B" },
   VPBS51: { status: "notPorted", candidate: "U-B", reason: "S3: 配信開始時期未定" },
-  VPTW60: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTW61: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTW62: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTW63: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTW64: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTW65: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTA50: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTA51: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTA52: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTA53: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTA54: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
-  VPTA55: { status: "notPorted", candidate: "U-Y", reason: "U-Yの移植待ち" },
+  VPTW60: { status: "ready", unit: "U-Y" },
+  VPTW61: { status: "ready", unit: "U-Y" },
+  VPTW62: { status: "ready", unit: "U-Y" },
+  VPTW63: { status: "ready", unit: "U-Y" },
+  VPTW64: { status: "ready", unit: "U-Y" },
+  VPTW65: { status: "ready", unit: "U-Y" },
+  VPTA50: { status: "ready", unit: "U-Y" },
+  VPTA51: { status: "ready", unit: "U-Y" },
+  VPTA52: { status: "ready", unit: "U-Y" },
+  VPTA53: { status: "ready", unit: "U-Y" },
+  VPTA54: { status: "ready", unit: "U-Y" },
+  VPTA55: { status: "ready", unit: "U-Y" },
   VXKO50: { status: "ready", unit: "U-R" },
   VXKO51: { status: "ready", unit: "U-R" },
   VXKO52: { status: "ready", unit: "U-R" },

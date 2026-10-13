@@ -56,6 +56,7 @@ import { landslideUnit } from "../units/landslide/landslide-unit";
 import { floodUnit } from "../units/flood/flood-unit";
 import { briefingUnit } from "../units/briefing/briefing-unit";
 import { localBulletinsUnit } from "../units/local-bulletins/local-bulletins-unit";
+import { typhoonUnit } from "../units/typhoon/typhoon-unit";
 import { tsunamiUnit } from "../units/tsunami/tsunami-unit";
 import { weatherCurrentUnit } from "../units/weather-current/weather-current-unit";
 import { weatherTimeseriesUnit } from "../units/weather-timeseries/weather-timeseries-unit";
@@ -69,11 +70,11 @@ import {
 import type { MirrorUnit, PublisherState, RuntimeMirror } from "./shared-runtime";
 import { executionPlaces, placeOfHeadType, runtimeUnits } from "./unit-coverage";
 
-// A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F, C5 U-T, C7 U-Q, C8 U-N, C9 U-V, C10 U-L, C11 U-R, C12 U-B, C13 U-M). Notification (A7) links here on delivery.
+// A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F, C5 U-T, C7 U-Q, C8 U-N, C9 U-V, C10 U-L, C11 U-R, C12 U-B, C13 U-M, C14 U-Y). Notification (A7) links here on delivery.
 // P3-UNIT-TABLE-001: the one table of unit functions. A unit lane adds its row here and nowhere else.
 const linkedUnitTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit,
   "U-Q": seismicUnit, "U-N": nankaiUnit, "U-V": volcanoUnit, "U-L": landslideUnit, "U-R": floodUnit,
-  "U-B": briefingUnit, "U-M": localBulletinsUnit } satisfies UnitTable;
+  "U-B": briefingUnit, "U-M": localBulletinsUnit, "U-Y": typhoonUnit } satisfies UnitTable;
 // Durable rows give the codec, ephemeral rows none; the literal keeps each unit's own codec type (no `as`).
 const codecOf = <K extends RuntimeUnitId>(module: UnitModule<K>) =>
   module.persistence.kind === "durable" ? module.persistence.codec : undefined;
@@ -82,6 +83,7 @@ const linkedUnitCodecs: CodecMap<RuntimeUnitStates> = {
   "U-T": codecOf(linkedUnitTable["U-T"]), "U-Q": codecOf(linkedUnitTable["U-Q"]),
   "U-N": codecOf(linkedUnitTable["U-N"]), "U-V": codecOf(linkedUnitTable["U-V"]),
   "U-L": codecOf(linkedUnitTable["U-L"]), "U-R": codecOf(linkedUnitTable["U-R"]), "U-B": codecOf(linkedUnitTable["U-B"]), "U-M": codecOf(linkedUnitTable["U-M"]),
+  "U-Y": codecOf(linkedUnitTable["U-Y"]),
 } satisfies Record<RuntimeUnitId, unknown>;
 const linkedRuntimeCalls = { units: linkedUnitTable, selectNotificationAttempt, applyNotificationResult } as const;
 // Execution places in unit order; one owner per place (D-P3-1).
@@ -201,27 +203,28 @@ function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
   const eew = viewOf(state.mirror["U-E"]), weatherCurrent = viewOf(state.mirror["U-W"]), weatherTimeseries = viewOf(state.mirror["U-F"]);
   const tsunami = viewOf(state.mirror["U-T"]), earthquake = viewOf(state.mirror["U-Q"]), nankai = viewOf(state.mirror["U-N"]);
   const volcano = viewOf(state.mirror["U-V"]), landslide = viewOf(state.mirror["U-L"]), flood = viewOf(state.mirror["U-R"]);
-  const briefing = viewOf(state.mirror["U-B"]), localBulletins = viewOf(state.mirror["U-M"]);
+  const briefing = viewOf(state.mirror["U-B"]), localBulletins = viewOf(state.mirror["U-M"]), typhoon = viewOf(state.mirror["U-Y"]);
   if (eew.unit !== "U-E" || weatherCurrent.unit !== "U-W" || weatherTimeseries.unit !== "U-F" || tsunami.unit !== "U-T"
     || earthquake.unit !== "U-Q" || nankai.unit !== "U-N" || volcano.unit !== "U-V"
     || landslide.unit !== "U-L" || flood.unit !== "U-R" || briefing.unit !== "U-B"
-    || localBulletins.unit !== "U-M") throw new Error("mirror view of another unit");
+    || localBulletins.unit !== "U-M" || typhoon.unit !== "U-Y") throw new Error("mirror view of another unit");
   const admissionCounts: RuntimeAdmissionCounts = { "U-E": state.mirror["U-E"].admissionCounts,
     "U-W": state.mirror["U-W"].admissionCounts, "U-F": state.mirror["U-F"].admissionCounts, "U-T": state.mirror["U-T"].admissionCounts,
     "U-Q": state.mirror["U-Q"].admissionCounts, "U-N": state.mirror["U-N"].admissionCounts,
     "U-V": state.mirror["U-V"].admissionCounts, "U-L": state.mirror["U-L"].admissionCounts,
     "U-R": state.mirror["U-R"].admissionCounts, "U-B": state.mirror["U-B"].admissionCounts,
-    "U-M": state.mirror["U-M"].admissionCounts };
+    "U-M": state.mirror["U-M"].admissionCounts, "U-Y": state.mirror["U-Y"].admissionCounts };
   return {
     // An invalid clock is passed through unrounded; A8 rejects it as snapshotClockInvalid.
     streamId, generatedAt: Number.isNaN(date.getTime()) ? String(nowMs) : date.toISOString(), nowMs, connection, worker,
     persistence: { "U-E": state.mirror["U-E"].persistence, "U-W": state.mirror["U-W"].persistence,
       "U-F": state.mirror["U-F"].persistence, "U-T": state.mirror["U-T"].persistence, "U-Q": state.mirror["U-Q"].persistence,
       "U-N": state.mirror["U-N"].persistence, "U-V": state.mirror["U-V"].persistence,
-      "U-L": state.mirror["U-L"].persistence, "U-R": state.mirror["U-R"].persistence, "U-B": state.mirror["U-B"].persistence, "U-M": state.mirror["U-M"].persistence },
+      "U-L": state.mirror["U-L"].persistence, "U-R": state.mirror["U-R"].persistence, "U-B": state.mirror["U-B"].persistence, "U-M": state.mirror["U-M"].persistence,
+      "U-Y": state.mirror["U-Y"].persistence },
     recovery: state.restoration, confirmation: state.confirmation, admissionCounts,
     notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
-    eew, weatherCurrent, weatherTimeseries, tsunami, earthquake, nankai, volcano, landslide, flood, briefing, localBulletins, outcomes: step.outcomes, displayChanges: step.displayChanges,
+    eew, weatherCurrent, weatherTimeseries, tsunami, earthquake, nankai, volcano, landslide, flood, briefing, localBulletins, typhoon, outcomes: step.outcomes, displayChanges: step.displayChanges,
   };
 }
 
@@ -542,10 +545,10 @@ class RuntimeCompositionRoot {
     let state: PublisherState = {
       runId, mirror: { "U-E": mirror["U-E"]!, "U-W": mirror["U-W"]!, "U-F": mirror["U-F"]!, "U-T": mirror["U-T"]!,
         "U-Q": mirror["U-Q"]!, "U-N": mirror["U-N"]!, "U-V": mirror["U-V"]!, "U-L": mirror["U-L"]!, "U-R": mirror["U-R"]!,
-        "U-B": mirror["U-B"]!, "U-M": mirror["U-M"]! },
+        "U-B": mirror["U-B"]!, "U-M": mirror["U-M"]!, "U-Y": mirror["U-Y"]! },
       restoration: { "U-E": restoration["U-E"]!, "U-W": restoration["U-W"]!, "U-F": restoration["U-F"]!, "U-T": restoration["U-T"]!,
         "U-Q": restoration["U-Q"]!, "U-N": restoration["U-N"]!, "U-V": restoration["U-V"]!, "U-L": restoration["U-L"]!,
-        "U-R": restoration["U-R"]!, "U-B": restoration["U-B"]!, "U-M": restoration["U-M"]! },
+        "U-R": restoration["U-R"]!, "U-B": restoration["U-B"]!, "U-M": restoration["U-M"]!, "U-Y": restoration["U-Y"]! },
       confirmation: initialConfirmation(), notificationChannels, notificationProbeComplete: false,
       notificationDeadlines: { desktop: {}, sound: {} },
       shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null,
@@ -1295,7 +1298,8 @@ class RuntimeCompositionRoot {
     return { "U-E": mirror["U-E"].persistence, "U-W": mirror["U-W"].persistence, "U-F": mirror["U-F"].persistence,
       "U-T": mirror["U-T"].persistence, "U-Q": mirror["U-Q"].persistence, "U-N": mirror["U-N"].persistence,
       "U-V": mirror["U-V"].persistence, "U-L": mirror["U-L"].persistence, "U-R": mirror["U-R"].persistence,
-      "U-B": mirror["U-B"].persistence, "U-M": mirror["U-M"].persistence };
+      "U-B": mirror["U-B"].persistence, "U-M": mirror["U-M"].persistence,
+      "U-Y": mirror["U-Y"].persistence };
   }
 
   // P2-A10-AC12・P3-UWR-AC01: unit ごとに保存か照合を最大 1 件。host の tick ごとと、owner の返信の反映ごと（P3-UWR-AC03）に呼ぶ。
@@ -1611,7 +1615,7 @@ type UnsavedMark = { oldestMs: number | null; sinceGrantMs: number | null; after
 function unsavedMarks(): Record<RuntimeUnitId, UnsavedMark> {
   const mark = (): UnsavedMark => ({ oldestMs: null, sinceGrantMs: null, afterGrant: false });
   return { "U-E": mark(), "U-W": mark(), "U-F": mark(), "U-T": mark(), "U-Q": mark(), "U-N": mark(), "U-V": mark(), "U-L": mark(), "U-R": mark(),
-    "U-B": mark(), "U-M": mark() };
+    "U-B": mark(), "U-M": mark(), "U-Y": mark() };
 }
 
 // P3-C4-AC13(3)②（工程2c）: 反映した inputDone の inputGenerations にある unit ごとに 1 行（E14 の束の起点）。at は反映（absorb）の前に

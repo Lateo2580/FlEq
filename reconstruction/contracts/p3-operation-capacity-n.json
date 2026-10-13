@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "1d307989560e298199af040831df538ec9d75e24",
-    "sha256": "0e8213133d0c522dd5095cc5e1070ee027ef77d04e17fddaaaf60e54d6ddf4e6",
+    "sha256": "4323b64513d1e2c53d3b1734f8808330d4145c0efa10cf8c552fe7617ba76401",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
-    "sequencesSha256": "819f7efe173aab8a8c9394796765592bbbef244f0340b5f554c23a66abbb9261",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -173,7 +173,7 @@
           "reconstruction/contracts/p3-operation-capacity.json:253 «fb1985ac7345a14e»",
           "reconstruction/contracts/p3-authority-evidence.json:255 «22ec592c44f8b40b»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
-          "reconstruction/src/runtime/owner-runtime.ts:442 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:445 «63380813ee47301c»",
           "reconstruction/src/units/nankai/nankai-unit.ts:743 «973323028dc564f5»"
         ]
       },
