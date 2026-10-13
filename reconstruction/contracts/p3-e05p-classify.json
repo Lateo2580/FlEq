@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
-    "sha256": "af9c4a53d8599dc74c638fd5d7e1ab36670e6be16c35a01e363f4f72aca7e063",
+    "sha256": "52b39f2121412b8887e555c9f385290c5a7c6397107ed9925cd2148a10d830cc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "e1347f1e573af0dec620dc91bd244619f4898d47ee0d225fad7c0e7a1eab0327",
-    "sequencesSha256": "8d946f072c1ea47b2e4db8e2f2f9026d6322bfd3ac713f1bf974ee373710c65c",
+    "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
+    "sequencesSha256": "819f7efe173aab8a8c9394796765592bbbef244f0340b5f554c23a66abbb9261",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -340,7 +340,7 @@
           "reconstruction/contracts/p3-weather-light-step2.json:488 «b084586081363297»",
           "reconstruction/contracts/p3-measure-harness.json:11 «e9ca342feffa0c5b»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:17 «4a382cabfdfbbf4d»",
-          "reconstruction/contracts/p3-measure-harness.json:4 «15d34dff9d6a2408»",
+          "reconstruction/contracts/p3-measure-harness.json:4 «e0030c1c7e0fb52c»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:169 «97a134ad9cb5b784»"
         ]
       },
