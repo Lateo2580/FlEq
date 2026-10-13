@@ -180,7 +180,8 @@ describe("P3-UNIT-Y-001 U-Y through the composition root", () => {
     console.info("P3-C14 maximum views", JSON.stringify({ analysis64, probability64, both,
       probabilitySubjectsOverDomainBudget: Math.floor(65_536 / (probability64.domainBytes / 64)) + 1, analysisSubjectsOverDomainBudget: Math.floor(65_536 / (analysis64.domainBytes / 64)) + 1 }));
     expect([analysis64.activeCount, probability64.activeCount, both.activeCount]).toEqual([64, 64, 128]);
-  });
+    // 1.85 MB の確率の報を 128 回 decode する。Mac mini で約 10 秒、CI（Node 24）で 30 秒を超えた（7955db54）。
+  }, 120_000);
 
   // acceptance: §13.3 の保存失敗中の取消・古い ack・通常終了・復元直後の続報、deferred の 6 unit の同時 dirty（AC11）。
   it("P3-C14-T11 acceptance / AC11: cancel during save failure, old ack, normal shutdown, the follow-up after restore and per-unit rights", async () => {
