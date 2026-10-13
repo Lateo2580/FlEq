@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "9d834611b055cc860e480890dfa68b1b05e2d47aeedd0f75b63904d3fb4c2ab7",
+    "sha256": "8d946f072c1ea47b2e4db8e2f2f9026d6322bfd3ac713f1bf974ee373710c65c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "ba89b4e15b1a1cddcdb285f1b4294f8bfceaeb60d9ce762ddfda4018331a9173",
+    "manifestSha256": "e1347f1e573af0dec620dc91bd244619f4898d47ee0d225fad7c0e7a1eab0327",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -2063,6 +2063,204 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
             "L2: test/fixtures/85(82)_02_07_260326_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 112,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1601275800000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:112",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 113,
+          "action": "receive",
+          "fixtureId": "test__fixtures__10_05_01_200826_VPTW60",
+          "receivedAt": 1601275800001,
+          "evaluatedAt": 1601275800001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:113",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:100 «a0caf26d7d8f45ad» P3-C14-ANALYSIS-FACTS=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:109 «ac99de7e2bc2d42e» P3-C14-LIFECYCLE=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:224 «d28aed04f03f172c» Q-NOTICE analysisAppear",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/10_05_01_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 114,
+          "action": "receive",
+          "fixtureId": "test__fixtures__10_05_02_200826_VPTW60",
+          "receivedAt": 1601275931000,
+          "evaluatedAt": 1601275931000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:114",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:290 «2dc64cb4a6444b77» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+            "L2: test/fixtures/10_05_02_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 115,
+          "action": "receive",
+          "fixtureId": "test__fixtures__10_05_03_200826_VPTW60",
+          "receivedAt": 1601276291000,
+          "evaluatedAt": 1601276291000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:115",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:362 «68a26227b03eae9f» Q-ENUM diagnosticReasons",
+            "L2: test/fixtures/10_05_03_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 116,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPTW60_cancel",
+          "receivedAt": 1601276400000,
+          "evaluatedAt": 1601276400000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:116",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VPTW60_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 117,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPTW60_cancel",
+          "receivedAt": 1601276400001,
+          "evaluatedAt": 1601276400001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:117",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+            "L2: test/fixtures/synthetic_VPTW60_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 118,
+          "action": "receive",
+          "fixtureId": "test__fixtures__10_05_01_200826_VPTW60",
+          "receivedAt": 1601276460000,
+          "evaluatedAt": 1601276460000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:118",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+            "L2: test/fixtures/10_05_01_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 119,
+          "action": "receive",
+          "fixtureId": "test__fixtures__10_05_04_200826_VPTW60",
+          "receivedAt": 1601286600000,
+          "evaluatedAt": 1601286600000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:119",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:224 «d28aed04f03f172c» Q-NOTICE analysisAppear",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/10_05_04_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 120,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1616140500000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:120",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 121,
+          "action": "receive",
+          "fixtureId": "test__fixtures__76_01_01_200630_VPTA50",
+          "receivedAt": 1616140500001,
+          "evaluatedAt": 1616140500001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:121",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/76_01_01_200630_VPTA50.xml:1 «17be3f519a7eee26» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 122,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPTA50_cancel",
+          "receivedAt": 1616140560000,
+          "evaluatedAt": 1616140560000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:122",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VPTA50_cancel.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
         }
       ]
     },
@@ -2357,6 +2555,11 @@
           "expectedRef": "expected:O02:19",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
@@ -2364,44 +2567,56 @@
           "sequenceId": "O02",
           "position": 20,
           "action": "receive",
-          "fixtureId": "test__fixtures__76_01_03_260602_VPTA50",
-          "receivedAt": 1780383300000,
-          "evaluatedAt": 1780383300000,
+          "fixtureId": "test__fixtures__synthetic_VPTA50_TC2606_zero",
+          "receivedAt": 1780210500000,
+          "evaluatedAt": 1780210500000,
           "inputSource": "replay",
           "operationExpected": "normal",
           "expectedRef": "expected:O02:20",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
-            "L2: test/fixtures/76_01_03_260602_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:33 «27dbe2fca6362869» P3-C14-ZERO=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:43 «24a357544ead9a8c» P3-C14-NOTICE-LEVELS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:279 «2bfda1fe4d1dbf75» Q-NOTICE probabilityZero",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VPTA50_TC2606_zero.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O02",
           "position": 21,
           "action": "receive",
-          "fixtureId": null,
-          "receivedAt": 1780386900000,
-          "evaluatedAt": 1780386900000,
+          "fixtureId": "test__fixtures__76_01_03_260602_VPTA50",
+          "receivedAt": 1780383300000,
+          "evaluatedAt": 1780383300000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O02:21",
+          "expectedRef": "expected:O02:21",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:33 «27dbe2fca6362869» P3-C14-ZERO=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:279 «2bfda1fe4d1dbf75» Q-NOTICE probabilityZero",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:313 «3c42d312cc14259c» Q-NOTICE silent",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:370 «3020518891026112» I-U-Y currentSemantics",
+            "L2: test/fixtures/76_01_03_260602_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
         {
           "sequenceId": "O02",
           "position": 22,
           "action": "receive",
-          "fixtureId": null,
-          "receivedAt": 1780390500000,
-          "evaluatedAt": 1780390500000,
+          "fixtureId": "test__fixtures__synthetic_VPTA50_TC2606_noarea",
+          "receivedAt": 1780404900000,
+          "evaluatedAt": 1780404900000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O02:22",
+          "expectedRef": "expected:O02:22",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
-            "L1: docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b» newer empty"
+            "L1: docs/specs/reconstruction-p0-contracts.md:733 «66e0af68048253c0» rejected",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:33 «27dbe2fca6362869» P3-C14-ZERO=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:356 «9cee8dac7f5d1bb5» Q-ENUM familyTable probability",
+            "L2: test/fixtures/synthetic_VPTA50_TC2606_noarea.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -2939,6 +3154,80 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:350 «c25a145e1b777154» Q-ENUM familyTable tornado",
             "L2: test/fixtures/synthetic_VPHW50_tokyo_empty.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 57,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780188900000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O02:57",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 58,
+          "action": "receive",
+          "fixtureId": "test__fixtures__76_01_02_260531_VPTA50",
+          "receivedAt": 1780188900001,
+          "evaluatedAt": 1780188900001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O02:58",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 59,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPTW60_TC2606_lowering",
+          "receivedAt": 1780191900000,
+          "evaluatedAt": 1780191900000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O02:59",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f» 一入力の原子的な適用",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:109 «ac99de7e2bc2d42e» P3-C14-LIFECYCLE=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:23 «0c72256f36a4d416» P3-C14-TERMINAL=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:246 «83e0158261aaeceb» Q-NOTICE analysisTerminal",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:313 «3c42d312cc14259c» Q-NOTICE silent",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VPTW60_TC2606_lowering.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 60,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPTA50_TC2606_zero",
+          "receivedAt": 1780210500000,
+          "evaluatedAt": 1780210500000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O02:60",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:23 «0c72256f36a4d416» P3-C14-TERMINAL=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:127 «4076b61caaa1f41e» P3-C14-TERMINAL-LATE=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:313 «3c42d312cc14259c» Q-NOTICE silent",
+            "L2: test/fixtures/synthetic_VPTA50_TC2606_zero.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         }
       ]
@@ -5448,6 +5737,226 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
             "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
             "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 71,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1601275800000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:71",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 72,
+          "action": "receive",
+          "fixtureId": "test__fixtures__10_05_01_200826_VPTW60",
+          "receivedAt": 1601275800001,
+          "evaluatedAt": 1601275800001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:72",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:370 «3020518891026112» I-U-Y currentSemantics",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:224 «d28aed04f03f172c» Q-NOTICE analysisAppear",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/10_05_01_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 73,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1601275800002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:73",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2362d0bc95d5ca6c» I-U-Y persisted"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 74,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1601275800003,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:74",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:136 «a68a1df5feef39a1» P3-C14-RETENTION=A"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 75,
+          "action": "receive",
+          "fixtureId": "test__fixtures__10_05_02_200826_VPTW60",
+          "receivedAt": 1601275931000,
+          "evaluatedAt": 1601275931000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:75",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:290 «2dc64cb4a6444b77» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+            "L2: test/fixtures/10_05_02_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 76,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1601275931001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:76",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2362d0bc95d5ca6c» I-U-Y persisted"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 77,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1601318999999,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:77",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 78,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1601319000000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:78",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:370 «3020518891026112» I-U-Y currentSemantics",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:313 «3c42d312cc14259c» Q-NOTICE silent"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 79,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1616140500000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:79",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 80,
+          "action": "receive",
+          "fixtureId": "test__fixtures__76_01_01_200630_VPTA50",
+          "receivedAt": 1616140500001,
+          "evaluatedAt": 1616140500001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:80",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/76_01_01_200630_VPTA50.xml:1 «17be3f519a7eee26» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 81,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1616140500002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:81",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2362d0bc95d5ca6c» I-U-Y persisted"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 82,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1616140500003,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:82",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:136 «a68a1df5feef39a1» P3-C14-RETENTION=A"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 83,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPTA50_cancel",
+          "receivedAt": 1616140560000,
+          "evaluatedAt": 1616140560000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:83",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VPTA50_cancel.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         }
       ]
@@ -8970,6 +9479,132 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
             "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
             "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 91,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780188900000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:91",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 92,
+          "action": "receive",
+          "fixtureId": "test__fixtures__76_01_02_260531_VPTA50",
+          "receivedAt": 1780188900001,
+          "evaluatedAt": 1780188900001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:92",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979» O10",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 93,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780188900002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:93",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:835 «187d65da3382a48c»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 94,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780188900003,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:94",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:779 «1d91070eeee6726c»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 95,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPTA50_TC2606_zero",
+          "receivedAt": 1780210500000,
+          "evaluatedAt": 1780210500000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:95",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979» O10",
+            "L1: docs/specs/reconstruction-p0-contracts.md:779 «1d91070eeee6726c»",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:33 «27dbe2fca6362869» P3-C14-ZERO=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:279 «2bfda1fe4d1dbf75» Q-NOTICE probabilityZero",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VPTA50_TC2606_zero.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 96,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780210500001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:96",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:796 «d67314b63ec56a68»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 97,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780210500002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:97",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 98,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780210500003,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:98",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14"
           ]
         }
       ]
@@ -13444,7 +14079,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
       ],
       "input": {
-        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: VPTA50 TC2606",
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: VPTA50 TC2606（見える確率→全ゼロ→連続ゼロ→地域の無い報）",
         "acquisition": "synthetic"
       },
       "checks": [
@@ -13464,7 +14099,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPTA50/TC2606",
+          "subject": "normal/typhoonProbability/TC2606",
           "revision": {
             "reportDateTimeRaw": "2026-05-31T09:55:00+09:00",
             "serialRaw": "41",
@@ -13472,16 +14107,22 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
       ],
       "input": null,
       "checks": [
-        "TC2606 serial41、非ゼロ確率を保持。",
+        "TC2606 Serial 41の非ゼロの報（地域375のうち1以上の値を持つ地域が273）。記録の無いsubjectなのでactiveの記録を作る: 1以上の地域273だけをdaily 5つ・peak・peakSlotで持ち、府県予報区等の表とmaxFiveDay 100を持つ（P3-C14-PROB-FACTS=A）。activeUntil=ReportDateTime＋12時間（2026-05-31T21:55、P3-C14-EXPIRY=A）、retainUntil=ReportDateTime＋7日。subjectはnormal/typhoonProbability/TC2606（P3-C14-SUBJECT=A、データ種類コードのiiを鍵に入れない）。",
+        "通知: probabilityAppear（記録無しからの見える採用）、desktop＋sound、level=normal（P3-C14-NOTICE-LEVELS=A）、transition activated。bodyは「台風第6号（JANGMI） 最大 100%（奄美地方/北部）」（5日積算の最大の最初の地域、Q-NOTICE.payload）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -13489,65 +14130,6 @@
       "expectedId": "expected:O02:20",
       "sequenceId": "O02",
       "position": 20,
-      "decision": null,
-      "effective": null,
-      "subjects": [
-        {
-          "subject": "normal/VPTA50/TC2606",
-          "revision": {
-            "reportDateTimeRaw": "2026-06-02T15:55:00+09:00",
-            "serialRaw": "87",
-            "infoTypeRaw": "発表"
-          }
-        }
-      ],
-      "notices": null,
-      "intents": null,
-      "basisLevel": 1,
-      "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
-        "L2: test/fixtures/76_01_03_260602_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
-      ],
-      "input": null,
-      "checks": [
-        "TC2606 serial87、全ゼロ確率。連続ゼロ1回と正常emptyは同一扱いにしない。正確なinactive遷移はQ-VALUES。",
-        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
-      ]
-    },
-    {
-      "expectedId": "unmet:O02:21",
-      "sequenceId": "O02",
-      "position": 21,
-      "decision": null,
-      "effective": null,
-      "subjects": [
-        {
-          "subject": "normal/O02/input.requiredに記した対象（未充足）",
-          "revision": {
-            "reportDateTimeRaw": "2026-06-02T16:55:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
-          }
-        }
-      ],
-      "notices": null,
-      "intents": null,
-      "basisLevel": 1,
-      "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02"
-      ],
-      "input": {
-        "required": "VPTA50 TC2606 serial88、ReportDateTime=2026-06-02T16:55:00+09:00、正常な全ゼロ後続報。",
-        "acquisition": "REST見込み/無ければsynthetic"
-      },
-      "checks": [
-        "連続ゼロ閾値/タイミングをQ-VALUESで固定。newer gate-onlyはwatermarkを進める。"
-      ]
-    },
-    {
-      "expectedId": "unmet:O02:22",
-      "sequenceId": "O02",
-      "position": 22,
       "decision": {
         "kind": "changed",
         "change": "semantic"
@@ -13560,27 +14142,109 @@
       },
       "subjects": [
         {
-          "subject": "normal/O02/input.requiredに記した対象（未充足）",
+          "subject": "normal/typhoonProbability/TC2606",
           "revision": {
-            "reportDateTimeRaw": "2026-06-02T17:55:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2026-05-31T15:55:00+09:00",
+            "serialRaw": "47",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
-        "L1: docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b» newer empty"
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:33 «27dbe2fca6362869» P3-C14-ZERO=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:43 «24a357544ead9a8c» P3-C14-NOTICE-LEVELS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:279 «2bfda1fe4d1dbf75» Q-NOTICE probabilityZero",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VPTA50_TC2606_zero.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VPTA50 TC2606 serial89、ReportDateTime=2026-06-02T17:55:00+09:00、合法gate-only（有効periodなし）のnewer report。",
-        "acquisition": "REST見込み/無ければsynthetic"
-      },
+      "input": null,
       "checks": [
-        "newer正常emptyならwatermarkを進め、旧currentを除く。全ゼロ確率と空periodは区別。合法入力shapeはQ-VALUES。"
+        "全地域・全時間帯が0の報（76_01_03の値のまま時刻を−48時間ずらした合成、Serial 47）。見えていた:19の記録（activeUntil 21:55の前）をzeroにする（P3-C14-ZERO=A）: 事実を捨ててviewから外し、watermarkをこの報へ進める。見える記録の出入りなのでsemantic。retainUntil=2026-06-07T15:55。",
+        "通知: probabilityZero（見える記録からzero、1回だけ）、desktop＋sound、level=info、transition released、bodyは「台風第6号（JANGMI） 暴風域に入る確率1%以上の地域なし」（Q-NOTICE.payload）。:19のintentは期限（sound 60秒・desktop 180秒）を過ぎている。",
+        "このstepは発注前点検で:20の入力を差し替えた（起草時は76_01_03）。76_01_03は:19の2日6時間後でP3-C14-EXPIRY=Aでは:19が12時間で記憶になり、系列が「見える記録からzero」を一度も通らないため。76_01_03は:21へ移した。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:21",
+      "sequenceId": "O02",
+      "position": 21,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "noActiveItems"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2606",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-02T15:55:00+09:00",
+            "serialRaw": "87",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:33 «27dbe2fca6362869» P3-C14-ZERO=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:279 «2bfda1fe4d1dbf75» Q-NOTICE probabilityZero",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:313 «3c42d312cc14259c» Q-NOTICE silent",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:370 «3020518891026112» I-U-Y currentSemantics",
+        "L2: test/fixtures/76_01_03_260602_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "TC2606 Serial 87の全ゼロの報（実配信）。:20のzeroの記録（retainUntil 06-07T15:55の内側）の後のzeroなので連続ゼロ: changed/revisionOnly（P3-C14-ZERO=A、I-U-Y.currentSemantics(5)）。記録のsourceとretainUntil（06-09T15:55）をこの報へ進め、watermarkを進める。見えるものは変わらない。",
+        "通知0（Q-NOTICE.silentの連続ゼロ）。起草時のunmet:O02:21（Serial 88・16:55の全ゼロの続報、合成待ち）を、この実配信の全ゼロの報で埋めた。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:22",
+      "sequenceId": "O02",
+      "position": 22,
+      "decision": {
+        "kind": "rejected",
+        "reason": "requiredStructureMissing"
+      },
+      "effective": null,
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2606",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-02T21:55:00+09:00",
+            "serialRaw": "93",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: docs/specs/reconstruction-p0-contracts.md:733 «66e0af68048253c0» rejected",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:33 «27dbe2fca6362869» P3-C14-ZERO=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:356 «9cee8dac7f5d1bb5» Q-ENUM familyTable probability",
+        "L2: test/fixtures/synthetic_VPTA50_TC2606_noarea.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "地域（Item）が1個も無い確率の報（日積算5つとTimeSeriesInfoは節だけある合成、Serial 93）。正常なempty（spec:731のinactive/noActiveItems）として採らず、requiredStructureMissingで拒否する（P3-C14-ZERO=A、Q-ENUM.familyTable）。state全体を同じ参照で返し、watermarkを進めない。:21のzeroの記録はそのまま。",
+        "起草時のunmet:O02:22（合法gate-onlyのnewer reportでchanged/semantic・inactive/noActiveItems）はP3-C14-ZERO=Aで拒否の期待に書き換えた。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -21145,6 +21809,217 @@
       ]
     },
     {
+      "expectedId": "expected:O10:91",
+      "sequenceId": "O10",
+      "position": 91,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 保存障害中の確率の報（U-Y、76_01_02は実配信、全ゼロの報は合成）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:92",
+      "sequenceId": "O10",
+      "position": 92,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2606",
+          "revision": {
+            "reportDateTimeRaw": "2026-05-31T09:55:00+09:00",
+            "serialRaw": "41",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979» O10",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "TC2606 Serial 41の非ゼロの報（地域375のうち1以上の値を持つ地域が273）。記録の無いsubjectなのでactiveの記録を作る: 1以上の地域273だけをdaily 5つ・peak・peakSlotで持ち、府県予報区等の表とmaxFiveDay 100を持つ（P3-C14-PROB-FACTS=A）。activeUntil=ReportDateTime＋12時間（2026-05-31T21:55、P3-C14-EXPIRY=A）、retainUntil=ReportDateTime＋7日。subjectはnormal/typhoonProbability/TC2606（P3-C14-SUBJECT=A、データ種類コードのiiを鍵に入れない）。",
+        "通知: probabilityAppear（記録無しからの見える採用）、desktop＋sound、level=normal（P3-C14-NOTICE-LEVELS=A）、transition activated。bodyは「台風第6号（JANGMI） 最大 100%（奄美地方/北部）」（5日積算の最大の最初の地域、Q-NOTICE.payload）。",
+        "このケースの前提（O02:19と同じ採用）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:93",
+      "sequenceId": "O10",
+      "position": 93,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:835 «187d65da3382a48c»"
+      ],
+      "input": {
+        "required": "U-Y世代g1の保存ackを確定。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "再起動時の基準はg1（:92のactiveの記録）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:94",
+      "sequenceId": "O10",
+      "position": 94,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:779 «1d91070eeee6726c»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14"
+      ],
+      "input": {
+        "required": "g2以降のU-Y書込みにENOSPCを返す。失敗I/Oは終了する。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "最新受理を停止しない、dirty/未保存を表示。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:95",
+      "sequenceId": "O10",
+      "position": 95,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "noActiveItems"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2606",
+          "revision": {
+            "reportDateTimeRaw": "2026-05-31T15:55:00+09:00",
+            "serialRaw": "47",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979» O10",
+        "L1: docs/specs/reconstruction-p0-contracts.md:779 «1d91070eeee6726c»",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:33 «27dbe2fca6362869» P3-C14-ZERO=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:279 «2bfda1fe4d1dbf75» Q-NOTICE probabilityZero",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VPTA50_TC2606_zero.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "保存故障中も受信・意味判定・currentの更新を続ける（spec:779）。1.85 MBの全ゼロの報で:92の見える記録をzeroにし、probabilityZeroのinfoを1件作る（P3-C14-ZERO=A、O02:20と同じ採用）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:96",
+      "sequenceId": "O10",
+      "position": 96,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:796 «d67314b63ec56a68»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14"
+      ],
+      "input": {
+        "required": "U-Y世代g2の保存試行をENOSPCで終了。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "g2未保存。currentはzeroのまま、g1（:92のactive）へ巻き戻さない。U-Yは最新世代が保存されるまでdirty。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:97",
+      "sequenceId": "O10",
+      "position": 97,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14"
+      ],
+      "input": {
+        "required": "ディスク容量を回復。停止確認後だけwriterを再開する。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "回復の前後でcurrentを変えない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:98",
+      "sequenceId": "O10",
+      "position": 98,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14"
+      ],
+      "input": {
+        "required": "zeroの記録を含む最新U-Y世代のackを確定。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "保存済みへ移る。表示currentの巻戻し0。保存した世代にはzeroの記録（retainUntil 06-07T15:55）とprobabilityZeroのintentが入る。"
+      ]
+    },
+    {
       "expectedId": "expected:O11:1",
       "sequenceId": "O11",
       "position": 1,
@@ -24671,6 +25546,378 @@
       ]
     },
     {
+      "expectedId": "expected:O07:71",
+      "sequenceId": "O07",
+      "position": 71,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 台風解析（U-Y）の保存→再起動→直後の訂正→保存→再起動→見える期限の非延長（10_05_01・10_05_02は気象庁のサンプル電文）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:72",
+      "sequenceId": "O07",
+      "position": 72,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T15:50:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:370 «3020518891026112» I-U-Y currentSemantics",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:224 «d28aed04f03f172c» Q-NOTICE analysisAppear",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/10_05_01_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "TC2001 Serial 3の発表。activeの記録（activeUntil 09-29T03:50、retainUntil 10-05T15:50）を作る。通知: analysisAppear、desktop＋sound、level=normal。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:73",
+      "sequenceId": "O07",
+      "position": 73,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2362d0bc95d5ca6c» I-U-Y persisted"
+      ],
+      "input": {
+        "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "解析のactiveの記録とpendingのintent（desktop・sound）が同じ世代に入る（I-U-Y.persisted）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:74",
+      "sequenceId": "O07",
+      "position": 74,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:136 «a68a1df5feef39a1» P3-C14-RETENTION=A"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Yだけから復元、時計+1ms。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで戻る（spec:997、Q-NOTICE.restart）。activeUntil・retainUntilを延ばさない（I-U-Y.restore、P3-C14-RETENTION=A）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:75",
+      "sequenceId": "O07",
+      "position": 75,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T15:50:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:290 «2dc64cb4a6444b77» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+        "L2: test/fixtures/10_05_02_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
+      ],
+      "input": null,
+      "checks": [
+        "復元直後の同じ版の訂正。復元した記録との差で決め、予報72時間後・96時間後の中心気圧が変わるのでsemantic（Q-NOTICE.restart）。",
+        "通知: correction、desktop＋sound、level=normal。復元した:72のdesktopのpending（期限内）は同じsubject・channelなのでsupersededにする（P3-C14-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:76",
+      "sequenceId": "O07",
+      "position": 76,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2362d0bc95d5ca6c» I-U-Y persisted"
+      ],
+      "input": {
+        "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "訂正の記録（activeUntilは15:50＋12時間のまま）とcorrectionのintentが同じ世代に入る。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:77",
+      "sequenceId": "O07",
+      "position": 77,
+      "decision": null,
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Yだけから復元、時計2020-09-29T03:49:59.999+09:00（activeUntilの1 ms前）。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元した解析の記録はactiveのまま（activeUntilの前）。activeUntilはsourceのReportDateTime（15:50）＋12時間のままで、受信・復元の時刻で延ばさない（P3-C14-EXPIRY=A、I-U-Y.restore）。:75のintentは元のexpiresAtを過ぎている。復元でintentを作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:78",
+      "sequenceId": "O07",
+      "position": 78,
+      "decision": null,
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:370 «3020518891026112» I-U-Y currentSemantics",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:313 «3c42d312cc14259c» Q-NOTICE silent"
+      ],
+      "input": {
+        "required": "入力なしで時計を2020-09-29T03:50:00.000+09:00（activeUntil）へ進め、期限処理を走らせる。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "activeUntilの到来で解析の記録はended（endCause expired）になり、viewから外れる（deadline入力でchanged/semantic、I-U-Y.currentSemantics(6)）。期限では通知しない（Q-NOTICE.silent）。記憶はretainUntil（10-05T15:50）まで残る。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:79",
+      "sequenceId": "O07",
+      "position": 79,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 台風の暴風域に入る確率（U-Y）の保存→再起動→直後の取消（76_01_01は気象庁のサンプル電文、取消は合成）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:80",
+      "sequenceId": "O07",
+      "position": 80,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2021-03-19T16:55:00+09:00",
+            "serialRaw": "13",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/76_01_01_200630_VPTA50.xml:1 «17be3f519a7eee26» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "TC2001 Serial 13の確率（地域375のうち1以上が273）。記録の無いsubjectなのでactiveの記録を作る。activeUntil=ReportDateTime＋12時間（2021-03-20T04:55、P3-C14-EXPIRY=A。TargetDateTimeの2020-09-30からは数えない）、retainUntil=＋7日。",
+        "通知: probabilityAppear、desktop＋sound、level=normal、transition activated。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:81",
+      "sequenceId": "O07",
+      "position": 81,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2362d0bc95d5ca6c» I-U-Y persisted"
+      ],
+      "input": {
+        "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "確率のactiveの記録（1以上の地域273）とpendingのintent（desktop・sound）が同じ世代に入る（I-U-Y.persisted）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:82",
+      "sequenceId": "O07",
+      "position": 82,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:136 «a68a1df5feef39a1» P3-C14-RETENTION=A"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Yだけから復元、時計+1ms。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで戻る。activeUntil・retainUntilを延ばさない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:83",
+      "sequenceId": "O07",
+      "position": 83,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2021-03-19T16:55:00+09:00",
+            "serialRaw": "13",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VPTA50_cancel.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "復元直後の取消。復元したactiveの記録をcancelledにして事実を戻さない（P3-C14-CANCEL-SCOPE=A）。",
+        "通知: cancellation、level=cancel。復元した:80のpending（期限の前）を両channelともsupersededにする（P3-C14-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
       "expectedId": "expected:O08:16",
       "sequenceId": "O08",
       "position": 16,
@@ -25356,6 +26603,407 @@
       ]
     },
     {
+      "expectedId": "expected:O01:112",
+      "sequenceId": "O01",
+      "position": 112,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 台風解析 TC2001 の発表→訂正→同じ版の2通目の訂正→取消→取消の重複→取消の後の古い報→取消より新しい続報（10_05_01〜04は気象庁のサンプル電文、取消は合成）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:113",
+      "sequenceId": "O01",
+      "position": 113,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T15:50:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:100 «a0caf26d7d8f45ad» P3-C14-ANALYSIS-FACTS=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:109 «ac99de7e2bc2d42e» P3-C14-LIFECYCLE=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:224 «d28aed04f03f172c» Q-NOTICE analysisAppear",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/10_05_01_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "TC2001 Serial 3の発表（実況と予報12〜120時間後の7時刻、階級は熱帯低気圧(TD)、Remark「台風発生予想」は終わりの表の外なのでactive、P3-C14-LIFECYCLE=A）。記録の無いsubjectなのでactiveの記録を作る。activeUntil=15:50＋12時間（09-29T03:50）、retainUntil=＋7日（10-05T15:50）。",
+        "通知: analysisAppear、desktop＋sound、level=normal、transition activated。名前の札はNumberが空なので「熱帯低気圧（TC2001）」（Q-NOTICE.payload）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:114",
+      "sequenceId": "O01",
+      "position": 114,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T15:50:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:290 «2dc64cb4a6444b77» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+        "L2: test/fixtures/10_05_02_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ版の訂正（InfoTypeの順位で発表より上位、Q-ENUM.revisionOrder）。予報72時間後・96時間後の中心気圧が999→986 hPaに変わる（実況の階級は同じ）。記録を置き換え、公開事実が変わるのでsemantic。activeUntil・retainUntilは同じReportDateTimeから数えるので変わらない。",
+        "通知: correction（見える記録への訂正）、desktop＋sound、level=normal、transition updated、titleに「[訂正] 」、bodyの冒頭に「訂正: 」。:113のdesktopのpending（期限15:53:00.001の前）は同じsubject・channelなのでsupersededにする（P3-C14-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:115",
+      "sequenceId": "O01",
+      "position": 115,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T15:50:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:362 «68a26227b03eae9f» Q-ENUM diagnosticReasons",
+        "L2: test/fixtures/10_05_03_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ版・同じInfoType（訂正）の2通目で、予報の中心気圧が:114と違う（986→996 hPa）。先着を保ってunchanged/stale＋WARN診断typhoonRevisionConflict（Q-ENUM.revisionOrder・diagnosticReasons）。記録・pending・保存世代を変えず、通知しない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:116",
+      "sequenceId": "O01",
+      "position": 116,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T15:50:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VPTW60_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ版の取消（InfoTypeの順位で訂正より上位）。activeの記録をcancelledにして事実を捨てる（P3-C14-CANCEL-SCOPE=A）。取消のBodyは読まない。retainUntil=15:50＋7日。",
+        "通知: cancellation（取消の前にactive）、desktop＋sound、level=cancel、transition cancelled、titleは「[取消] 台風解析・予報情報」、bodyは「この情報は取り消されました」。そのsubjectのpendingを両channelともsupersededにする（P3-C14-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:117",
+      "sequenceId": "O01",
+      "position": 117,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "duplicate"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T15:50:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+        "L2: test/fixtures/synthetic_VPTW60_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ取消をもう一度受ける。同じ版・同じInfoType・同じ公開事実（取消は事実を持たない）なのでduplicate。state・pending・保存世代を変えず、通知しない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:118",
+      "sequenceId": "O01",
+      "position": 118,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T15:50:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+        "L2: test/fixtures/10_05_01_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消の後に元の発表が遅着。取消以前の版なのでstaleで、activeは復活しない（Q-ENUM.revisionOrder、P3-C14-CANCEL-SCOPE=A）。通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:119",
+      "sequenceId": "O01",
+      "position": 119,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2020-09-28T18:50:00+09:00",
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:224 «d28aed04f03f172c» Q-NOTICE analysisAppear",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/10_05_04_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
+      ],
+      "input": null,
+      "checks": [
+        "取消（15:50）より新しい版のSerial 4の発表（続報）。新しい報として採り、cancelledの記憶からactiveにする（P3-C14-CANCEL-SCOPE=A）。activeUntil=18:50＋12時間、retainUntil=＋7日。",
+        "通知: analysisAppear（記憶（cancelled）からの見える採用）、desktop＋sound、level=normal、transition activated。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:120",
+      "sequenceId": "O01",
+      "position": 120,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 台風の暴風域に入る確率 TC2001 の発表→取消（76_01_01は気象庁のサンプル電文、取消は合成）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:121",
+      "sequenceId": "O01",
+      "position": 121,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2021-03-19T16:55:00+09:00",
+            "serialRaw": "13",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/76_01_01_200630_VPTA50.xml:1 «17be3f519a7eee26» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "TC2001 Serial 13の確率（地域375のうち1以上が273）。記録の無いsubjectなのでactiveの記録を作る。activeUntil=ReportDateTime＋12時間（2021-03-20T04:55、P3-C14-EXPIRY=A。TargetDateTimeの2020-09-30からは数えない）、retainUntil=＋7日。",
+        "通知: probabilityAppear、desktop＋sound、level=normal、transition activated。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:122",
+      "sequenceId": "O01",
+      "position": 122,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2001",
+          "revision": {
+            "reportDateTimeRaw": "2021-03-19T16:55:00+09:00",
+            "serialRaw": "13",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «3507b4dcf99e17d5» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VPTA50_cancel.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ版の取消（MeteorologicalInfosが空、取消のBodyは読まない、Q-ENUM.familyTable）。activeの記録をcancelledにして事実を捨てる。解析の記録には効かない（P3-C14-CANCEL-SCOPE=A）。",
+        "通知: cancellation、desktop＋sound、level=cancel、transition cancelled、titleは「[取消] 台風の暴風域に入る確率」。直前の発表のpending（期限の前）を両channelともsupersededにする（P3-C14-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
       "expectedId": "expected:O02:55",
       "sequenceId": "O02",
       "position": 55,
@@ -25408,6 +27056,162 @@
       "input": null,
       "checks": [
         "非取消でHeadlineに竜巻のInformationが無く、Body/WarningにもItemが無い。解除（区域が全部なし）と読まずrequiredStructureMissingで拒否する（P3-C13-TORNADO-FACTS=A、何も書かれていない報で竜巻注意情報を黙って解除しない）。state全体を同じ参照で返す。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:57",
+      "sequenceId": "O02",
+      "position": 57,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: TC2606の見える確率の後の低気圧化（P3-C14-TERMINAL）と、その後の確率の報（76_01_02は実配信、低気圧化と全ゼロの報は合成）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:58",
+      "sequenceId": "O02",
+      "position": 58,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2606",
+          "revision": {
+            "reportDateTimeRaw": "2026-05-31T09:55:00+09:00",
+            "serialRaw": "41",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:82 «fd157f9b33436e04» P3-C14-SUBJECT=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:53 «5c482e225d9246e8» P3-C14-PROB-FACTS=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:257 «999f91c1382fa5fa» Q-NOTICE probabilityAppear",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 «17be3f519a7eee26» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "TC2606 Serial 41の非ゼロの報（地域375のうち1以上の値を持つ地域が273）。記録の無いsubjectなのでactiveの記録を作る: 1以上の地域273だけをdaily 5つ・peak・peakSlotで持ち、府県予報区等の表とmaxFiveDay 100を持つ（P3-C14-PROB-FACTS=A）。activeUntil=ReportDateTime＋12時間（2026-05-31T21:55、P3-C14-EXPIRY=A）、retainUntil=ReportDateTime＋7日。subjectはnormal/typhoonProbability/TC2606（P3-C14-SUBJECT=A、データ種類コードのiiを鍵に入れない）。",
+        "通知: probabilityAppear（記録無しからの見える採用）、desktop＋sound、level=normal（P3-C14-NOTICE-LEVELS=A）、transition activated。bodyは「台風第6号（JANGMI） 最大 100%（奄美地方/北部）」（5日積算の最大の最初の地域、Q-NOTICE.payload）。",
+        "このケースの前提（:19と同じ採用）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:59",
+      "sequenceId": "O02",
+      "position": 59,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "released"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonAnalysis/TC2606",
+          "revision": {
+            "reportDateTimeRaw": "2026-05-31T10:45:00+09:00",
+            "serialRaw": "42",
+            "infoTypeRaw": "発表"
+          }
+        },
+        {
+          "subject": "normal/typhoonProbability/TC2606",
+          "revision": {
+            "reportDateTimeRaw": "2026-05-31T10:45:00+09:00",
+            "serialRaw": "42",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f» 一入力の原子的な適用",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:109 «ac99de7e2bc2d42e» P3-C14-LIFECYCLE=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:23 «0c72256f36a4d416» P3-C14-TERMINAL=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:246 «83e0158261aaeceb» Q-NOTICE analysisTerminal",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:313 «3c42d312cc14259c» Q-NOTICE silent",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VPTW60_TC2606_lowering.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "TC2606の低気圧化の解析（実況1時刻、Remark「台風消滅（温帯低気圧化）」、階級LOWの合成）。Remarkが表の文に完全一致するので台風の終わり（P3-C14-LIFECYCLE=A）。解析のsubjectには記録が無いので、endedの記憶（endCause terminal、retainUntil=10:45＋7日）を作る: 解析のsubjectはchanged/revisionOnlyで通知を作らない（analysisTerminalは見える解析の記録を終えたときだけ、Q-NOTICE.generationTable）。",
+        "同じoperation・TC番号の確率のactive（:58）をended（endCause terminal）にする（P3-C14-TERMINAL=A）: 確率のsubjectはchanged/semantic・currentEstablished null、通知を作らない（Q-NOTICE.silent）。そのsubjectのpendingを全部supersededにする（P3-C14-REPLACEMENT=A。:58のintentはこの時刻には期限切れ）。decisionsは解析と確率の2 subjectで、一回の参照交換で適用する（spec:616）。このrecordのdecisionの射影は確率のsubject（semantic）、effectiveは両subjectともinactive。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:60",
+      "sequenceId": "O02",
+      "position": 60,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "released"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/typhoonProbability/TC2606",
+          "revision": {
+            "reportDateTimeRaw": "2026-05-31T15:55:00+09:00",
+            "serialRaw": "47",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:23 «0c72256f36a4d416» P3-C14-TERMINAL=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:127 «4076b61caaa1f41e» P3-C14-TERMINAL-LATE=A",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:313 «3c42d312cc14259c» Q-NOTICE silent",
+        "L2: test/fixtures/synthetic_VPTA50_TC2606_zero.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "解析のsubjectがterminalでendedの間（:59の記憶、retainUntil 06-07T10:45）に届いた確率の報。全ゼロでもzeroにせず、記憶としてだけ採る（ended・endCause terminal、sourceとretainUntilをこの報へ進める、P3-C14-TERMINAL-LATE=A）。前の確率の記録（:59でended）は見えていないのでchanged/revisionOnly。見せない・鳴らさない。",
+        "解析の新しい版がactiveになった後の確率の報が見えることは試験内（P3-C14-T04）で確かめる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25721,10 +27525,9 @@
       "id": "Q-VALUES",
       "owner": "integrator",
       "blocks": [
-        "VPTA50連続ゼロ/gate-onlyの具体遷移",
         "洪水all-unknownの保持scope"
       ],
-      "resolveBy": "VPTA50（U-Y）、洪水（U-R）はそれぞれ対象のP3実装契約開始前に値/構造期待を固定（VPFT50 Body欠落はP3-UNIT-M-001のP3-C13-HEAT-FACTS=Aで閉じた）"
+      "resolveBy": "洪水（U-R）は対象のP3実装契約開始前に値/構造期待を固定（VPFT50 Body欠落はP3-UNIT-M-001のP3-C13-HEAT-FACTS=Aで閉じた。VPTA50連続ゼロ/gate-onlyの具体遷移はP3-UNIT-Y-001のP3-C14-ZERO=A（作者裁定2026-10-13）で閉じた: 見える記録からzeroはchanged/semantic・info 1回、zeroの後のzeroはrevisionOnly・通知0、地域の無い報はrequiredStructureMissingで拒否。O02:19〜22）"
     },
     {
       "id": "Q-OP",

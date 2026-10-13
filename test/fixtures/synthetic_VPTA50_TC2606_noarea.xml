@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>台風の暴風域に入る確率</Title>
+<DateTime>2026-06-02T12:53:04Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>台風の暴風域に入る確率</Title>
+<ReportDateTime>2026-06-02T21:55:00+09:00</ReportDateTime>
+<TargetDateTime>2026-06-02T21:00:00+09:00</TargetDateTime>
+<TargetDuration>PT120H</TargetDuration>
+<EventID>TC2606</EventID>
+<InfoType>発表</InfoType>
+<Serial>93</Serial>
+<InfoKind>台風の暴風域に入る確率</InfoKind>
+<InfoKindVersion>1.4_0</InfoKindVersion>
+<Headline>
+<Text/>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<MeteorologicalInfos type="台風情報">
+<MeteorologicalInfo type="台風呼称">
+<DateTime>2026-06-02T21:00:00+09:00</DateTime>
+<Item>
+<Kind>
+<Property>
+<Type>呼称</Type>
+<TyphoonNamePart>
+<Name>JANGMI</Name>
+<NameKana>チャンミー</NameKana>
+<Number>2606</Number>
+</TyphoonNamePart>
+</Property>
+</Kind>
+</Item>
+</MeteorologicalInfo>
+<MeteorologicalInfo type="台風の暴風域に入る確率（1日積算）">
+<DateTime>2026-06-02T21:00:00+09:00</DateTime>
+<Duration>PT24H</Duration>
+<Name>24時間先</Name>
+</MeteorologicalInfo>
+<MeteorologicalInfo type="台風の暴風域に入る確率（2日積算）">
+<DateTime>2026-06-02T21:00:00+09:00</DateTime>
+<Duration>PT48H</Duration>
+<Name>48時間先</Name>
+</MeteorologicalInfo>
+<MeteorologicalInfo type="台風の暴風域に入る確率（3日積算）">
+<DateTime>2026-06-02T21:00:00+09:00</DateTime>
+<Duration>PT72H</Duration>
+<Name>72時間先</Name>
+</MeteorologicalInfo>
+<MeteorologicalInfo type="台風の暴風域に入る確率（4日積算）">
+<DateTime>2026-06-02T21:00:00+09:00</DateTime>
+<Duration>PT96H</Duration>
+<Name>96時間先</Name>
+</MeteorologicalInfo>
+<MeteorologicalInfo type="台風の暴風域に入る確率（5日積算）">
+<DateTime>2026-06-02T21:00:00+09:00</DateTime>
+<Duration>PT120H</Duration>
+<Name>120時間先</Name>
+</MeteorologicalInfo>
+<TimeSeriesInfo>
+<TimeDefines>
+<TimeDefine timeId="1">
+<DateTime>2026-06-02T21:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="2">
+<DateTime>2026-06-03T00:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="3">
+<DateTime>2026-06-03T03:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="4">
+<DateTime>2026-06-03T06:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="5">
+<DateTime>2026-06-03T09:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="6">
+<DateTime>2026-06-03T12:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="7">
+<DateTime>2026-06-03T15:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="8">
+<DateTime>2026-06-03T18:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="9">
+<DateTime>2026-06-03T21:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="10">
+<DateTime>2026-06-04T00:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="11">
+<DateTime>2026-06-04T03:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="12">
+<DateTime>2026-06-04T06:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="13">
+<DateTime>2026-06-04T09:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="14">
+<DateTime>2026-06-04T12:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="15">
+<DateTime>2026-06-04T15:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="16">
+<DateTime>2026-06-04T18:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="17">
+<DateTime>2026-06-04T21:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="18">
+<DateTime>2026-06-05T00:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="19">
+<DateTime>2026-06-05T03:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="20">
+<DateTime>2026-06-05T06:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="21">
+<DateTime>2026-06-05T09:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="22">
+<DateTime>2026-06-05T12:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="23">
+<DateTime>2026-06-05T15:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="24">
+<DateTime>2026-06-05T18:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="25">
+<DateTime>2026-06-05T21:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="26">
+<DateTime>2026-06-06T00:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="27">
+<DateTime>2026-06-06T03:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="28">
+<DateTime>2026-06-06T06:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="29">
+<DateTime>2026-06-06T09:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="30">
+<DateTime>2026-06-06T12:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="31">
+<DateTime>2026-06-06T15:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="32">
+<DateTime>2026-06-06T18:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="33">
+<DateTime>2026-06-06T21:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="34">
+<DateTime>2026-06-07T00:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="35">
+<DateTime>2026-06-07T03:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="36">
+<DateTime>2026-06-07T06:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="37">
+<DateTime>2026-06-07T09:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="38">
+<DateTime>2026-06-07T12:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="39">
+<DateTime>2026-06-07T15:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+<TimeDefine timeId="40">
+<DateTime>2026-06-07T18:00:00+09:00</DateTime>
+<Duration>PT3H</Duration>
+</TimeDefine>
+</TimeDefines>
+</TimeSeriesInfo>
+</MeteorologicalInfos>
+</Body>
+</Report>

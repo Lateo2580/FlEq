@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "e3e8222e8c9d50e661dfd485a46fde824bae6e9483bbc4a170ee1277265048a7",
+    "sha256": "7274217f86977195d1c78461ab2b262f92ca65e8dd3213f7571713c81766ae9a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "ba89b4e15b1a1cddcdb285f1b4294f8bfceaeb60d9ce762ddfda4018331a9173",
-    "sequencesSha256": "9d834611b055cc860e480890dfa68b1b05e2d47aeedd0f75b63904d3fb4c2ab7",
+    "manifestSha256": "e1347f1e573af0dec620dc91bd244619f4898d47ee0d225fad7c0e7a1eab0327",
+    "sequencesSha256": "8d946f072c1ea47b2e4db8e2f2f9026d6322bfd3ac713f1bf974ee373710c65c",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -36,7 +36,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定A（2026-10-13朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（全ゼロはzero、見える記録からのzeroだけinfoで1回、地域の無い報は拒否）だけを読む",
-        "reason": "sequences.jsonのQ-VALUES「VPTA50連続ゼロ/gate-onlyの具体遷移」（owner integrator、U-Yの実装契約の前に固定）をこの分岐で閉じる。実配信の採取（起草者が2026-10-13に集計。~/dev/fleq-corpus-p0/20260923-capacity の x-2025-08-10・09-05・2026-01-11・02-08・06-03・06-26・09-21 の telegrams.json で format=xml の報、originalId を持つ JSON 版は除く、重複0。ほかに ~/dev/fleq-corpus-p0/20260916-VPTA50 の2通。dmdataの非EEW電文）の確率24通のうち全ゼロは14通、捕った並びでゼロの後のゼロは10回、0でない値からゼロへは2回（TC2606 Serial 41→87、TC2608 Serial 67→73）。地域の数は24/24が375、時間帯は24/24が40×PT3Hで、全ゼロでも1.85 MBの報が来る（確率は暴風域に入る確率にかかわらず発表、dmdataの電文の説明）。地域の無い報の実物・仕様の記述は無い。旧築は全ゼロで表示を消し（deactivateAllZero、src/engine/display/project-typhoon-probability.ts:463 «4950e6606ef2c0c7»）、前もゼロなら通知を止めた（src/engine/messages/typhoon-probability-state.ts:57 «91af8bfb1906dcc2»）。Aの代償: 地域の無い報は拒否の診断だけで、確率の表示は前の記録のまま（見える期限で終わる）。sequences.jsonのunmet:O02:22（「合法gate-only（有効periodなし）」でchanged/semantic・inactive/noActiveItemsを期待）はAでは拒否の期待に書き換える（Q-C14-PRECHECK）。Bの代償: Bodyの欠けた壊れた報で確率を黙って消す（fail-dark）。Cの代償: 遠い台風でも確率0のカードを並べる"
+        "reason": "sequences.jsonのQ-VALUES「VPTA50連続ゼロ/gate-onlyの具体遷移」（owner integrator、U-Yの実装契約の前に固定）をこの分岐で閉じる。実配信の採取（起草者が2026-10-13に集計。~/dev/fleq-corpus-p0/20260923-capacity の x-2025-08-10・09-05・2026-01-11・02-08・06-03・06-26・09-21 の telegrams.json で format=xml の報、originalId を持つ JSON 版は除く、重複0。ほかに ~/dev/fleq-corpus-p0/20260916-VPTA50 の2通。dmdataの非EEW電文）の確率24通のうち全ゼロは14通、捕った並びでゼロの後のゼロは10回、0でない値からゼロへは2回（TC2606 Serial 41→87、TC2608 Serial 67→73）。地域の数は24/24が375、時間帯は24/24が40×PT3Hで、全ゼロでも1.85 MBの報が来る（確率は暴風域に入る確率にかかわらず発表、dmdataの電文の説明）。地域の無い報の実物・仕様の記述は無い。旧築は全ゼロで表示を消し（deactivateAllZero、src/engine/display/project-typhoon-probability.ts:463 «4950e6606ef2c0c7»）、前もゼロなら通知を止めた（src/engine/messages/typhoon-probability-state.ts:57 «91af8bfb1906dcc2»）。Aの代償: 地域の無い報は拒否の診断だけで、確率の表示は前の記録のまま（見える期限で終わる）。sequences.jsonのunmet:O02:22（「合法gate-only（有効periodなし）」でchanged/semantic・inactive/noActiveItemsを期待）はAでは拒否の期待に書き換えた（Q-C14-PRECHECK、expected:O02:22）。Bの代償: Bodyの欠けた壊れた報で確率を黙って消す（fail-dark）。Cの代償: 遠い台風でも確率0のカードを並べる"
       },
       {
         "id": "P3-C14-NOTICE-LEVELS",
@@ -64,7 +64,7 @@
         "B": "U-Yをweather Current（U-Wのworker）に置く",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草案（発注前点検で統合担当が確定する、Q-C14-PRECHECK。C12・C13と同じ扱い）。根拠: spec:1027はdeferredを「U-Fなど急がないunitと、readyでないheadTypeの入力」とし、D-P3-1は急ぐunitと急がないunitを同居させない（reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»）。U-Yの通知の群はother（P3-C14-NOTICE-GROUP）",
+        "ruling": "統合担当が発注前点検で確定（2026-10-13、Q-C14-PRECHECK）: A（deferred）。起草の読みを変える材料は無い。根拠: spec:1027はdeferredを「U-Fなど急がないunitと、readyでないheadTypeの入力」とし、D-P3-1は急ぐunitと急がないunitを同居させない（reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»）。U-Yの通知の群はother（P3-C14-NOTICE-GROUP）で、EEW・津波緊急より先には選ばれない。AC12の待ちの線は、EEW（urgent）が約40 ms（E01の250 msを計画:239の速度差約6.3倍で割った値、C12・C13と同じ）で、超えたら配送の前に作者へ報告しPLACEを見直す。U-Yの待ちとU-Yの後ろの待ちは約160 ms（C12の(18)・C13の(21)の実測の線）で、超過はP3-C14-INTERFERENCE-OVER=A（作者裁定）により残存リスク(14)として承認済み、PiはC22へ。C10〜C13のPLACEと同じ読み",
         "reason": "今のVPTW60〜65・VPTA50〜55はnotPortedで、すでにdeferredで解凍・XML parseされている（spec:1027）。起草者が2026-10-13にMacで測った（reconstruction/distのdecodeMaterial、12回）: 1,849,665 byteのVPTA50（76_01_02）の解凍の手前からdecodeの終わりまで中央値36.1 ms・最大39.5 ms（76_01_01は中央値37.9・最大58.9 ms）、XML node 118,642（上限320,000）、生きた木は1通あたり8.8 MiB。57,369 byteのVPTW60は中央値1.1 ms・2,260 node。Pi（約6.3倍、計画:239）では確率の報のdecodeが約230 ms。deferredの最長はVPWP50（C13の実測で後ろの待ち最大161 ms、reconstruction/contracts/p3-local-bulletins-unit.json:449 «4b8064615c84a074»）で、確率の報はそれより短い見込み。Bの代償: U-Wの重い処理（VPWS50）と台風を同じ列に並べ、E05-PとU-Wの待ちに台風の1.85 MBが加わる"
       },
       {
@@ -84,7 +84,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が起草で確定（spec:534の非対象「名前で擬似subjectを作らない」。EventIDは電文自身の識別情報）",
-        "reason": "気象庁の解説（台風解析・予報情報(延長予報)XMLの解説・台風の暴風域に入る確率XMLの解説、tec_material.htmlのManual zip、2026-10-09版）はEventIDを「“TC0910”等TC番号」とする。dmdataの電文の説明（we02670）はiiを台風等ごとの枠とし、消滅まで変わらず、消滅で空いた番号は次の台風等に付くとする。実配信の採取（起草者が2026-10-13に集計。~/dev/fleq-corpus-p0/20260923-capacity の x-2025-08-10・09-05・2026-01-11・02-08・06-03・06-26・09-21 の telegrams.json で format=xml の報、originalId を持つ JSON 版は除く、重複0。ほかに ~/dev/fleq-corpus-p0/20260916-VPTA50 の2通。dmdataの非EEW電文）でEventIDは130/130が「TC」＋数字4桁、6個のTCはそれぞれ1つのiiだけを使い（6/6）、確率と解析の対はiiの一の位が22/22同じ。TC番号は台風番号（TyphoonNamePart/Number）と6個中5個で違う（TC2520は台風2515、TC2606だけ同じ）。Bではiiが変わったときに1つの台風が2件になり、枠の再利用で別の台風が同じheadTypeに来る。Aの代償: sequences.jsonのexpected:O02:19・:20のsubjectを書き直す（Q-C14-PRECHECK）"
+        "reason": "気象庁の解説（台風解析・予報情報(延長予報)XMLの解説・台風の暴風域に入る確率XMLの解説、tec_material.htmlのManual zip、2026-10-09版）はEventIDを「“TC0910”等TC番号」とする。dmdataの電文の説明（we02670）はiiを台風等ごとの枠とし、消滅まで変わらず、消滅で空いた番号は次の台風等に付くとする。実配信の採取（起草者が2026-10-13に集計。~/dev/fleq-corpus-p0/20260923-capacity の x-2025-08-10・09-05・2026-01-11・02-08・06-03・06-26・09-21 の telegrams.json で format=xml の報、originalId を持つ JSON 版は除く、重複0。ほかに ~/dev/fleq-corpus-p0/20260916-VPTA50 の2通。dmdataの非EEW電文）でEventIDは130/130が「TC」＋数字4桁、6個のTCはそれぞれ1つのiiだけを使い（6/6）、確率と解析の対はiiの一の位が22/22同じ。TC番号は台風番号（TyphoonNamePart/Number）と6個中5個で違う（TC2520は台風2515、TC2606だけ同じ）。Bではiiが変わったときに1つの台風が2件になり、枠の再利用で別の台風が同じheadTypeに来る。Aの代償: sequences.jsonのexpected:O02:19・:20のsubjectを書き直した（Q-C14-PRECHECK）"
       },
       {
         "id": "P3-C14-COVERAGE",
@@ -364,7 +364,7 @@
       },
       {
         "id": "I-U-Y",
-        "status": "作者裁定6件A（2026-10-13朝、ご主人: P3-C14-EXPIRY・TERMINAL・ZERO・NOTICE-LEVELS・PROB-FACTS・INTERFERENCE-OVER）。P3-C14-PLACEは発注前点検で統合担当が確定する。ほかは統合担当の起草の確定",
+        "status": "作者裁定6件A（2026-10-13朝、ご主人: P3-C14-EXPIRY・TERMINAL・ZERO・NOTICE-LEVELS・PROB-FACTS・INTERFERENCE-OVER）。P3-C14-PLACEは発注前点検で統合担当がA（deferred）に確定した（2026-10-13）。ほかは統合担当の起草の確定",
         "slices": "analysis（VPTW60〜65、M11）とprobability（VPTA50〜55、M12）の2つ。stateは配列を2つ持ち、件数の上限と退去をsliceごとに別々に数える（spec:603「解析・確率の独立slice」）。sliceをまたぐ作用はP3-C14-TERMINALだけ（spec:551）。無いと何が壊れるか: 1つの配列にすると、訓練の確率の報の多発が解析の記録を退去し、期限・byteの集計もsliceごとに分けられない",
         "subjects": "P3-C14-SUBJECT。一入力の変更は一回の参照交換で原子的に適用する（spec:616）。P3-C14-TERMINAL=Aでは解析と確率の2 subjectを同じ参照交換で変える",
         "currentSemantics": "(1) 発表・訂正の採用: 事実を組み（I-U-Y.boundsで切る）、記録を置き換える（前の報の時刻・地域を残さない）。解析の終わりの報はended（terminal、P3-C14-LIFECYCLE）、確率の全ゼロの報はzero（P3-C14-ZERO） (2) 取消はP3-C14-CANCEL-SCOPE (3) 遅着はP3-C14-RETENTION.lateRule (4) 期限: 見える記録はactiveUntilでended（expired）、全記録はretainUntilで除く。到来の処理は無音 (5) changeは最終の表示の変化で決める（K3のD-OUTCOME=A）: 見える記録の出入りか公開事実の変化か退去があればsemantic、ほかはrevisionOnly（連続ゼロ、記憶だけの取消、記憶への遅着） (6) 期限の到来で見えなくなるときはdeadline入力でchanged/semantic",
@@ -444,7 +444,7 @@
       },
       {
         "id": "P3-C14-INTERFERENCE",
-        "status": "frozen（台帳63、計画:79の共通条文。P3-C14-PLACE=A=deferredの見込み）",
+        "status": "frozen（台帳63、計画:79の共通条文。P3-C14-PLACE=A（deferred、発注前点検で確定））",
         "longestUninterrupted": "deferredでU-Yが足す非中断処理: 最大の確率の報（fixtureの最大1,850,328 byte、76_01_01。spec:1066）の解凍・XML parse・reduce、合法最大（I-U-Y.capacityReserve、7,227,295 byte）のU-Yのcheckpoint encode、全subjectの同時の期限回収（最大128記録）、合法最大でのtoView。起草時の見積もり（2026-10-13、Mac、reconstruction/distのingestXmlData＋decodeMaterial、12回）: 確率の報のdecodeは中央値36.1〜37.9 ms・最大39.5〜58.9 ms、解析の報は中央値1.1 ms。reduceは地域×45の値の1回の読み取り（未測定）",
         "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。同居するU-F・U-L・U-R・U-B・U-Mとの待ち合い（最大VPWP50の処理の最中に投入したVPTA50の投入→T2と、最大VPTA50の処理の最中に投入したVPHW51の投入→T2）を報告する。正式E01ではない。EEWの待ちの最大が約40 ms（E01の250 msをreconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»の速度差約6.3倍で割った値）を超えたら、配送の前に作者へ報告しP3-C14-PLACEを見直す。U-Yの待ち、またはU-Yの後ろの待ちの最大が約160 msを超えたら同じく作者へ報告する。超えたときの扱いはP3-C14-INTERFERENCE-OVER=A（作者裁定2026-10-13朝）による",
         "measurementInputs": "C13のP3-C13-INTERFERENCE.measurementInputsと同じ: 報の時刻を投入の時のhostの壁時計に寄せ（確率はTargetDateTimeとTimeDefineも寄せる）、測った各入力のdecisionがchangedであることを結果に含める"
@@ -491,7 +491,7 @@
       {
         "id": "P3-C14-DEPS",
         "status": "frozen",
-        "rule": "着手条件: C13（P3-UNIT-M-001）の配送（dcf8ea8c）、K1〜K6・K4N・K6Rの配送、作者裁定（2026-10-13朝の6件、Q-C14-AUTHOR）と残存リスクの承認、発注前点検（Q-C14-PRECHECK）の済み。baseOidは発注前点検のcommitに割り当てる（Q-C14-BASE）。起草のanchorはdcf8ea8cで読んだ。allowedPathsはunitの数・一覧の機械的な追加でC10〜C13の試験と重なる。U-Yはdelivery-growth.tsをimportするだけで編集しない"
+        "rule": "着手条件: C13（P3-UNIT-M-001）の配送（dcf8ea8c）、K1〜K6・K4N・K6Rの配送、作者裁定（2026-10-13朝の6件、Q-C14-AUTHOR）と残存リスクの承認、発注前点検（Q-C14-PRECHECK、2026-10-13に閉じた）の済み。baseOidは発注前点検のcommitに割り当てる（Q-C14-BASE）。起草のanchorはdcf8ea8cで読み、発注前点検で80319d5fに対してcheck-contractを通した。allowedPathsはunitの数・一覧の機械的な追加でC10〜C13の試験と重なる。U-Yはdelivery-growth.tsをimportするだけで編集しない"
       },
       {
         "id": "Q-C14-AUTHOR",
@@ -499,6 +499,13 @@
         "source": "作者裁定（2026-10-13朝、ご主人）",
         "closed": "decisionBranchesの作者分岐6件（P3-C14-EXPIRY・TERMINAL・ZERO・NOTICE-LEVELS・PROB-FACTS・INTERFERENCE-OVER）は全部A、残存リスク(1)〜(21)は承認（P3-C14-RESIDUAL-RISKS.status）。PROB-FACTS=Aによりspec:579の「最大256 subject」を64へ行数を変えない置換で直した",
         "reason": "作者の判断を待つ未決を残さない"
+      },
+      {
+        "id": "Q-C14-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-13、HEAD 80319d5f）",
+        "closed": "(1) P3-C14-PLACE＝A（deferred）を統合担当が確定した。AC12の待ちの線は、EEW約40 ms（E01の250 msをreconstruction/contracts/p3-order-plan.md:239の速度差約6.3倍で割った値、C12・C13と同じ）と、U-Yの待ち・U-Yの後ろの待ちの約160 ms（C12の(18)・C13の(21)の実測の線）で、約160 msの超過はP3-C14-INTERFERENCE-OVER=A（作者裁定）で残存リスク(14)として承認済み、EEWの約40 ms超だけが配送前の報告とPLACEの見直しの条件と確かめた。これで契約に「起草案」は残らない (2) O02（確率）: :19・:20のsubjectをnormal/typhoonProbability/TC2606に直し、:19（76_01_02、probabilityAppear normal）の通知を埋めた。:20はEXPIRY=Aでは76_01_03（:19の2日6時間後）が記憶からのzeroになり「見える記録からzero」が系列で一度も通らないので、:20の入力を合成synthetic_VPTA50_TC2606_zero（76_01_03の値のまま時刻を−48時間、:19の6時間後、Serial 47）に差し替えてchanged/semantic・info 1回にし、76_01_03は:21へ移して連続ゼロ（changed/revisionOnly・通知0）でunmet:O02:21を埋めた（stepを足さず:18〜22の5 stepのまま閉じる。受信の時計は報のReportDateTimeより前にできないので時計だけを寄せる方法は採れない）。:22は合成synthetic_VPTA50_TC2606_noarea（地域のItemが1個も無い報）でrequiredStructureMissingの拒否に書き換えた。sequences.jsonのQ-VALUESからVPTA50の行をP3-C14-ZEROで閉じた。TERMINALの系列としてO02:57〜60（76_01_02の見える確率→合成synthetic_VPTW60_TC2606_lowering（:58の50分後の低気圧化）で確率がended terminal・解析は記憶のterminal→その後の全ゼロの報が記憶だけ（TERMINAL-LATE））を足した (3) O01:112〜122（TC2001の解析の発表→訂正（10_05_02）→同じ版の2通目の訂正（10_05_03、stale＋typhoonRevisionConflict）→取消→取消の重複→取消の後の古い報→取消より新しい続報（10_05_04）、確率76_01_01の発表→取消）、O07:71〜83（解析の保存→再起動→直後の訂正→保存→activeUntilの1 ms前の復元と到来で期限の非延長、確率の保存→再起動→直後の取消）、O10:91〜98（保存故障中の1.85 MBの全ゼロの報、current巻戻し0）を足した。spec:400・:401がM11にO01/O02/O07、M12にO02/O07/O10を挙げるため。解析の見える記録の台風消滅（analysisTerminalのinfo）と、終わりの後の解析の新しい版で確率が戻ることは試験内（T02・T04・T08）に任せた (4) fixture: 気象庁のサンプル3本（10_05_02・10_05_03・10_05_04、jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、confirmedOriginal、distributionは2026-10-09の裁定がEEWの7本の文言なのでunconfirmedのまま）と合成3本（上の2本は76_01_03から、loweringはsynthetic_VPTW60_TC2606から）。実配信の採取（TC2606 Serial 99・115など）は入れていない。VPTA51・2個の台風の並び・確率の訂正は試験内か残存リスクのまま。expectedDecisionsとexpectationEvidenceは1→22、fixtureIdsは11→17本（正常8→13、取消2、拒否1→2）、AC10・T10を直した。manifest 308件（XML 287、合成109、原本確認29）、P1契約・P1-T01（reconstruction/test/parser-boundary）・check-manifest・READMEの件数を直し、P1の行を引くWL1・WL2・XTCの行番号（15か所）とE05PのMHのhashの行のanchorを同期、全契約のhashを付け直した。sequencesのunmetは90→88 (5) check-contractは80319d5fで全契約PASS（本契約のanchorはずれていない）。本点検で本契約が変えた行（PLACE・I-U-Y.status・INTERFERENCE.status・DEPS・ZERO/SUBJECTのreasonの時制・AC10・T10）を引く他の契約は0。RES-02の1,536（U-Mまでのp2-notification-delivery.types.ts:46の1,408に128）を確かめた (6) 裁定前の書き方（推奨A・〜のとき・起草案・裁定待ち）は残っていない（残る「見込み」「満杯のとき」は気象と条件の記述）",
+        "reason": "発注前点検の項目を閉じる。baseOidの割当を止める未決は残さない（Q-C14-BASEは実装の着手だけを止める）"
       }
     ],
     "operationContract": {
@@ -671,14 +678,20 @@
     "fixtureIds": [
       "test__fixtures__10_04_03_170913_VPTW60",
       "test__fixtures__10_05_01_200826_VPTW60",
+      "test__fixtures__10_05_02_200826_VPTW60",
+      "test__fixtures__10_05_03_200826_VPTW60",
+      "test__fixtures__10_05_04_200826_VPTW60",
       "test__fixtures__10_05_05_200826_VPTW61",
       "test__fixtures__10_05_06_200826_VPTW62",
       "test__fixtures__76_01_01_200630_VPTA50",
       "test__fixtures__76_01_02_260531_VPTA50",
       "test__fixtures__76_01_03_260602_VPTA50",
+      "test__fixtures__synthetic_VPTA50_TC2606_noarea",
+      "test__fixtures__synthetic_VPTA50_TC2606_zero",
       "test__fixtures__synthetic_VPTA50_cancel",
-      "test__fixtures__synthetic_VPTW60_cancel",
       "test__fixtures__synthetic_VPTW60_TC2606",
+      "test__fixtures__synthetic_VPTW60_TC2606_lowering",
+      "test__fixtures__synthetic_VPTW60_cancel",
       "test__fixtures__typhoon-probability-card__synthetic_VPTA50_duplicate_area"
     ],
     "sequenceIds": [
@@ -689,12 +702,138 @@
     ],
     "expectedDecisions": [
       {
+        "expectedRef": "expected:O01:113"
+      },
+      {
+        "expectedRef": "expected:O01:114"
+      },
+      {
+        "expectedRef": "expected:O01:115"
+      },
+      {
+        "expectedRef": "expected:O01:116"
+      },
+      {
+        "expectedRef": "expected:O01:117"
+      },
+      {
+        "expectedRef": "expected:O01:118"
+      },
+      {
+        "expectedRef": "expected:O01:119"
+      },
+      {
+        "expectedRef": "expected:O01:121"
+      },
+      {
+        "expectedRef": "expected:O01:122"
+      },
+      {
         "expectedRef": "expected:O02:19"
+      },
+      {
+        "expectedRef": "expected:O02:20"
+      },
+      {
+        "expectedRef": "expected:O02:21"
+      },
+      {
+        "expectedRef": "expected:O02:22"
+      },
+      {
+        "expectedRef": "expected:O02:58"
+      },
+      {
+        "expectedRef": "expected:O02:59"
+      },
+      {
+        "expectedRef": "expected:O02:60"
+      },
+      {
+        "expectedRef": "expected:O07:72"
+      },
+      {
+        "expectedRef": "expected:O07:75"
+      },
+      {
+        "expectedRef": "expected:O07:80"
+      },
+      {
+        "expectedRef": "expected:O07:83"
+      },
+      {
+        "expectedRef": "expected:O10:92"
+      },
+      {
+        "expectedRef": "expected:O10:95"
       }
     ],
     "expectationEvidence": [
       {
+        "expectedRef": "expected:O01:113"
+      },
+      {
+        "expectedRef": "expected:O01:114"
+      },
+      {
+        "expectedRef": "expected:O01:115"
+      },
+      {
+        "expectedRef": "expected:O01:116"
+      },
+      {
+        "expectedRef": "expected:O01:117"
+      },
+      {
+        "expectedRef": "expected:O01:118"
+      },
+      {
+        "expectedRef": "expected:O01:119"
+      },
+      {
+        "expectedRef": "expected:O01:121"
+      },
+      {
+        "expectedRef": "expected:O01:122"
+      },
+      {
         "expectedRef": "expected:O02:19"
+      },
+      {
+        "expectedRef": "expected:O02:20"
+      },
+      {
+        "expectedRef": "expected:O02:21"
+      },
+      {
+        "expectedRef": "expected:O02:22"
+      },
+      {
+        "expectedRef": "expected:O02:58"
+      },
+      {
+        "expectedRef": "expected:O02:59"
+      },
+      {
+        "expectedRef": "expected:O02:60"
+      },
+      {
+        "expectedRef": "expected:O07:72"
+      },
+      {
+        "expectedRef": "expected:O07:75"
+      },
+      {
+        "expectedRef": "expected:O07:80"
+      },
+      {
+        "expectedRef": "expected:O07:83"
+      },
+      {
+        "expectedRef": "expected:O10:92"
+      },
+      {
+        "expectedRef": "expected:O10:95"
       }
     ],
     "semanticDeadlines": [
@@ -958,7 +1097,7 @@
       },
       {
         "id": "P3-C14-AC10",
-        "requirement": "corpus: expectedDecisionsのexpected:O02:19（TC2606 Serial 41の非ゼロの採用）を履歴oracleで通し、制御step O02:18と、発注前点検で埋めるO02:20〜22（P3-C14-ZERO）とO01・O07・O10の追加step（Q-C14-PRECHECK）も同じ系列で確かめる。E13: fixtureIdsの全正常fixture（11本から取消2本と拒否1本を除く8本）で、各fixtureの時刻に合わせた時計の期限処理後も残る恒常的unavailable 0。取消2本は記憶だけの取消として採り、拒否1本（synthetic_VPTA50_duplicate_area）は拒否。Q-LIMITの境界入力は試験内で作る。unmetを免除しない",
+        "requirement": "corpus: expectedDecisionsの22 step（確率: O02:19の非ゼロの採用、O02:20の見える記録からzero（info 1回）、O02:21の連続ゼロ（revisionOnly・通知0）、O02:22の地域の無い報の拒否、O02:58〜60の見える確率の後の低気圧化（P3-C14-TERMINAL）とその後の確率の報の記憶だけの採用、O01:121・122の発表→取消。解析: O01:113〜119のTC2001の発表→訂正→同じ版の2通目の訂正（stale＋typhoonRevisionConflict）→取消→取消の重複→取消の後の古い報→取消より新しい続報。保存: O07:72・75の保存→再起動→直後の訂正、O07:80・83の保存→再起動→直後の取消、O10:92・95の保存故障中の全ゼロの報）を履歴oracleで通し、制御step（O01:112・120、O02:18・57、O07:71・73・74・76〜79・81・82、O10:91・93・94・96〜98のrestart・save・advanceClock・injectFailure・recover。O07:77・78は見える期限の非延長）も同じ系列で確かめる（Q-C14-PRECHECKで足した）。E13: fixtureIdsの全正常fixture（17本から取消2本と拒否2本を除く13本）で、各fixtureの時刻に合わせた時計の期限処理後も残る恒常的unavailable 0。取消2本は記憶だけの取消として採り、拒否2本（synthetic_VPTA50_duplicate_areaとsynthetic_VPTA50_TC2606_noarea）は拒否。Q-LIMITの境界入力は試験内で作る。unmetを免除しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
           "docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
@@ -968,7 +1107,9 @@
           "reconstruction/contracts/p3-order-plan.md:250 «e7b5f7170b0d07ba»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:12 «c6dceb6c6d212f70»",
           "reconstruction/tools/corpus/sequences.json#expected:O02:19",
-          "reconstruction/tools/corpus/sequences.json#expected:O02:20"
+          "reconstruction/tools/corpus/sequences.json#expected:O02:20",
+          "reconstruction/tools/corpus/sequences.json#expected:O02:59",
+          "reconstruction/tools/corpus/sequences.json#expected:O01:115"
         ]
       },
       {
@@ -1113,7 +1254,7 @@
         "referenceIds": [
           "P3-C14-AC10"
         ],
-        "behavior": "expected:O02:19と制御step O02:18、発注前点検で埋めた期待のstep、fixtureIdsの全正常fixture（8本）のE13集計"
+        "behavior": "AC10のexpectedDecisionsの22 stepと制御step（O01:112〜122、O02:18〜22・57〜60、O07:71〜83、O10:91〜98）、fixtureIdsの全正常fixture（13本）のE13集計"
       },
       {
         "testId": "P3-C14-T11",
@@ -1217,21 +1358,6 @@
       "容量の実測: 実装後に、I-U-Y.capacityMeasurementのfixtureで実際の記録・intentのencode byteを測り、契約の値と並べて報告する（10%以上違えば統合担当がI-U-Yの数を直す）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-C14-PRECHECK",
-        "owner": "integrator",
-        "blocks": [
-          "baseOidの割当"
-        ],
-        "resolveBy": "統合担当の発注前点検（作者裁定の後）",
-        "requiredEvidence": [
-          "P3-C14-PLACEの確定（deferred）と、AC12の待ちの線（EEW約40 ms・U-Y約160 ms）の確認",
-          "sequences.json: expected:O02:19・:20のsubjectをP3-C14-SUBJECT=Aの書き方（normal/typhoonProbability/TC2606）に直し、:19のnotices・intents、:20のdecision・effective・notices・intentsをP3-C14-ZERO=A・NOTICE-LEVELS=A・EXPIRY=Aで埋める。:19（2026-05-31T09:55）から:20（06-02T15:55）までは2日6時間あるので、EXPIRY=Aでは:19の記録は12時間で記憶になり、:20は記憶からのzero（changed/revisionOnly・通知0）になる。このままでは「見える記録からzero」の遷移が系列で一度も通らないので、:20の時刻を詰める（受信の時計を:19の12時間以内に寄せる）か、その遷移のstepを足すかを決める。unmet:O02:21（Serial 88・16:55の全ゼロの続報。実配信では確率は6時間ごとでSerialは2か6ずつ進むので、実物の形（採取のTC2606 Serial 99の全ゼロ）か合成で埋める）、unmet:O02:22（ZERO=Aにより地域の無い報の拒否の期待へ書き換え）。sequences.jsonのQ-VALUESからVPTA50の行をP3-C14-ZEROで閉じる",
-          "O01（解析の発表→続報→訂正（気象庁のサンプル10_05_02）→取消（synthetic_VPTW60_cancel）→重複→遅着、確率の取消（synthetic_VPTA50_cancel））・O07（保存→停止→復元→直後の訂正・取消、両slice）・O10（保存失敗中の確率の報）へのU-Yのstepの追加の要否と、O02のP3-C14-TERMINALの系列（確率の後の低気圧化）",
-          "fixtureの追加の要否（P3-C14-CORPUS.shortage）: 低気圧化の解析（採取のTC2606 Serial 115、dmdataの非EEWで二次利用可）、訂正・同じ版の食い違いの解析（気象庁のサンプル10_05_02・10_04_04）、連続ゼロの確率（採取のTC2606 Serial 99、1通1.85 MBなので本数を絞る）。manifestの件数・hashの付け直し",
-          "check-contractで本契約のanchorが割当の時点でずれていないこと（起草はdcf8ea8cで読み、spec:400・:401・:523・:524を行数を変えずに書き換えた。これらの行を引く他の契約は0）"
-        ]
-      },
       {
         "id": "Q-C14-BASE",
         "owner": "integrator",
