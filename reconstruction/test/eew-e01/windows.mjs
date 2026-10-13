@@ -14,7 +14,7 @@ import {
   summarizeE06, summarizeE07, summarizeE14, summarizeE15, classifyE05cRun, E12_THREADS,
 } from "./aux-measures.mjs";
 import { hrMs, sleep } from "./chrome.mjs";
-import { E12_CLASSES, FIX, ac15Frame, cycleCFrames, dataFrame, e03Frame, fixtureText, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
+import { E12_CLASSES, FIX, ac15Frame, cycleCFrames, dataFrame, e03Frame, fixtureText, loadEvents, nearCapacityFrames, replayLoad, sendPaced, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
 import { tsunamiReport } from "./tsunami.mjs";
 
 import { quantiles, summarizeHealthE02 } from "../../dist/src/measurement/eew-e01/judge.js";
@@ -26,8 +26,8 @@ const E12_RUN = join(HERE, "e12-run.mjs");
 const PROBE_PRELOAD = join(HERE, "probe-preload.mjs");
 
 // 通常負荷の再生（E01 の背景と E02・E03 の負荷が共有する）。ReplayLoad の offset どおりに、窓の長さで繰り返す。報告時刻は投入時点の壁時計。
-export function replayPump(load, send, wallNow, startHr = hrMs()) {
-  const events = loadEvents(load);
+export function replayPump(load, send, wallNow, startHr = hrMs(), extra = null) {
+  const events = extra == null ? loadEvents(load) : mergedEvents(load, extra);
   let next = 0;
   return () => {
     for (;;) {
@@ -323,7 +323,7 @@ const E05_MEM_EVERY_MS = 1000;
 function e02Window(ctx, load, run, classify = null) {
   const { requestEveryMs, requestTimeoutMs, minSamplesPerRun } = ctx.manifest.health;
   const count = ctx.counts.e02 ?? minSamplesPerRun;
-  const id = classify == null ? `e02-${load}-run${run}` : `e05c-${classify}-run${run}`;
+  const id = classify == null ? `e02-${load}-run${run}` : classify === E05Y.mark ? `e05y-${load}-run${run}` : `e05c-${classify}-run${run}`;
   return {
     id, expectedMin: Math.ceil((count * requestEveryMs) / 60_000) + (load === "P" ? 6 : 2),
     run: async (w) => {
@@ -334,12 +334,12 @@ function e02Window(ctx, load, run, classify = null) {
       const client = startChild(w, ctx, [E02_CLIENT, "--url", `http://127.0.0.1:${host.displayPort}/healthz`, "--count", String(count), "--every-ms", String(requestEveryMs),
         "--timeout-ms", String(requestTimeoutMs), "--load", load, "--run", String(run), "--out", out], "e02-client");
       const pump = replayPump(ctx.manifest.loads[load], host.send, host.wallSec);
-      w.progress.phase = "measure";
+      const typhoon = classify === E05Y.mark ? e05yPump(ctx, host) : null; w.progress.phase = "measure";
       w.progress.total = count;
       let beat = 0;
       await waitChild(client, count * requestEveryMs + 120_000, () => {
         host.check();
-        pump();
+        (typhoon?.pump ?? pump)();
         if (hrMs() - beat > 10_000) { beat = hrMs(); w.progress.trialsStarted = readJsonl(out).filter((r) => r.sampleIndex != null).length; }
       });
       await host.stop();
@@ -355,7 +355,7 @@ function e02Window(ctx, load, run, classify = null) {
       const expiry = filled == null ? null : expirySplit(records, samples, { start, end }, ctx, filled.record);
       const late = expiry == null ? null : currentsExpiredAtMeasure(expiry);
       if (late != null) throw new Error(late);
-      if (probe != null) return e05cOutcome(ctx, w, id, probe, { records, start, end, health, e05, reports, expiry, fill: filled?.record ?? null });
+      if (probe != null || typhoon != null) return (probe != null ? e05cOutcome : e05yOutcome)(ctx, w, id, probe ?? typhoon, { host, records, start, end, health, e05, reports, expiry, fill: filled?.record ?? null });
       // 窓の status は E02（この窓の主の判定）。E05 は statuses に別に持つ（まとめて潰さない）。予備は status と同じく未確認に倒し、判定は judgedStatuses へ。
       const statuses = { E02: health.status, E05: e05.status };
       const o = outcome(ctx, health.status, reports, { fill: filled?.record ?? null, expirySplit: expiry, ...(ctx.preliminary ? { statuses: { E02: "未確認", E05: "未確認" }, judgedStatuses: statuses } : { statuses }) });
@@ -826,6 +826,8 @@ export function auxWindows(ctx) {
     // id は e02- で始めない（e02Verdict が E02 の判定に入れない）。
     ...(ctx.preliminary || ctx.manifest.contractSha256?.[E05C_CONTRACT] != null
       ? ["observe", "gc"].flatMap((mode) => runs(E05C.runs).map((run) => e02Window(ctx, "P", run, mode))) : []),
+    // P3-E05Y-AC03: 上乗せの窓も、manifest の contractSha256 に P3-E05P-TYPHOON-001 の鍵があるか予備のときだけ。分類の窓の後に並べる。
+    ...(ctx.preliminary || ctx.manifest.contractSha256?.[E05Y_CONTRACT] != null ? runs(E05Y.runs).map((run) => e02Window(ctx, "P", run, E05Y.mark)) : []),
   ];
 }
 
@@ -841,7 +843,7 @@ const E05C = { gc: { thresholdBytes: 380 * MIB, rearmBelowBytes: 330 * MIB, maxF
 // e02Window の host の起動。分類の窓は preload（GC の run は --expose-gc と FLEQ_MEM_GC も）を足し、GC の run は充填の前の区切りの GC を済ませる。
 // probe.beforeMeasure は静まりの後・E02 の client の起動の前の区切りの GC（観測だけの run には SIGUSR2 を送らない）。
 async function openE02Host(w, ctx, classify) {
-  if (classify == null) return { host: await openHost(w, ctx, { memEveryMs: E05_MEM_EVERY_MS }), probe: null };
+  if (classify == null || classify === E05Y.mark) return { host: await openHost(w, ctx, { memEveryMs: E05_MEM_EVERY_MS }), probe: null };
   const gc = classify === "gc";
   const memOut = join(w.dir, "mem");
   const host = await openHost(w, ctx, { memEveryMs: E05_MEM_EVERY_MS, nodeArgs: [...(gc ? ["--expose-gc"] : []), "--import", PROBE_PRELOAD],
@@ -893,4 +895,123 @@ async function e05cOutcome(ctx, w, id, probe, { records, start, end, health, e05
     note: "E02・E05 は報告だけで判定しない（P3-E05C-AC04(4)）。GC の run の E02・E05 は山を GC で切った値で、E05-P と比べない（AC02）",
     measureHostMs: { fromMs, toMs }, written, phaseWaits, e05, e02: health, expirySplit: expiry, fill, classification })];
   return o;
+}
+
+// ── P3-E05P-TYPHOON-001 の上乗せの窓（e02Window の P の経路に確率の報 VPTA50 を 1 周ごとに 3 通足す、P3-E05Y-AC01〜AC03） ──
+// 値は作者裁定 P3-E05Y-FREQ・PLACE・CONTROL（どれも A）。mark は e02Window の第 4 引数の印（分類の窓の mode と区別する）。
+// peakOffsetMs は負荷 P の VPWS50 で、上乗せの後の山の区間の終わりの基準（AC05(2)）。
+const E05Y_CONTRACT = "P3-E05P-TYPHOON-001";
+const E05Y = { mark: "typhoon", runs: 3, peakOffsetMs: 305_612, afterPeakMs: 15_000, maxDelayMs: 1000 };
+export const E05Y_LOAD = replayLoad("P-typhoon", { windowMs: 360_000, events: [["76_01_01_200630_VPTA50", 300_121], ["76_01_02_260531_VPTA50", 302_121],
+  ["76_01_03_260602_VPTA50", 304_121]].map(([fixture, offsetMs]) => ({ fixture, offsetMs })) }, 1);
+
+// AC01: 上乗せを負荷の列に offset の昇順で混ぜ、1 つの cursor で送る（2 本の pump は呼び出しが遅れると負荷の後の入力が上乗せより先に出る）。
+// 同じ offset は負荷が先（安定な sort）。周期は負荷の durationMs なので、違えば上乗せが負荷の別の位置に重なる。
+function mergedEvents(load, extra) {
+  if (extra.durationMs !== load.durationMs) throw new Error(`load ${extra.id}: durationMs ${extra.durationMs} differs from load ${load.id} (${load.durationMs})`);
+  return [...loadEvents(load), ...loadEvents(extra).map((e) => ({ ...e, extra: true }))].sort((a, b) => a.offsetMs - b.offsetMs);
+}
+
+// AC02(2)・AC06④: 上乗せの窓の P の pump（測定の間に呼ぶのはこれ 1 本）。send は host.send を包んで返り値をそのまま返し、上乗せの入力と
+// 周ごとの VPWS50（区間の終わりの基準）の入力を拾う。列の順に送るので、上乗せの k 番目の送りは周 floor(k / 3) の (k mod 3) 通目。
+function e05yPump(ctx, host) {
+  const load = ctx.manifest.loads.P;
+  const startHr = hrMs();
+  const sent = [];
+  const peaks = [];
+  const send = (frame, event) => {
+    const r = host.send(frame);
+    if (event.extra) sent.push({ inputId: `input-${r.seq}`, injectedHrMs: r.injectedHrMs });
+    else if (event.offsetMs === E05Y.peakOffsetMs) peaks.push(`input-${r.seq}`);
+    return r;
+  };
+  return { load, startHr, sent, peaks, pump: replayPump(load, send, host.wallSec, startHr, E05Y_LOAD) };
+}
+
+// AC02(3)(4)(6): 記録を 1 回なめて（P3-E05Y-RES-02）、上乗せの入力ごとの待ち・処理・decode、区間ごとの最大、成立の確かめを aux-e05y の 1 つに
+// 封じる。確かめの期待の集合は予定（startHr＋周×durationMs＋offset）から作るので、送られなかった入力も欠けとして数える。
+// 窓の status（run の判定）は確かめが通れば生の E05、通らなければ未確認。statuses.E05 は生の E05。
+function e05yOutcome(ctx, w, id, typhoon, { host, records, start, end, health, e05, reports, expiry, fill }) {
+  const fromMs = hostMsOf(records, start.hrtimeNs);
+  const toMs = hostMsOf(records, end.hrtimeNs);
+  const { ordering, offsetsMs, durationMs } = E05Y_LOAD;
+  const n = offsetsMs.length;
+  const scheduledHostMs = (k) => host.hostMs(typhoon.startHr + Math.floor(k / n) * durationMs + offsetsMs[k % n]);
+  let total = typhoon.sent.length;
+  while (toMs != null && scheduledHostMs(total) <= toMs) total += 1;
+  const inside = (at) => at != null && fromMs != null && toMs != null && at >= fromMs && at <= toMs;
+  const rows = Array.from({ length: total }, (_, k) => {
+    const s = typhoon.sent[k];
+    const due = scheduledHostMs(k);
+    const sentHostMs = s == null ? null : host.hostMs(s.injectedHrMs);
+    return { inputId: s?.inputId ?? null, fixture: ordering[k % n], cycle: Math.floor(k / n), scheduledHostMs: due, sentHostMs,
+      delayMs: sentHostMs == null ? null : sentHostMs - due, scheduledInMeasure: inside(due), sentInMeasure: inside(sentHostMs),
+      waitMs: null, processingMs: null, processingEndHostMs: null, decodeMs: null, generationRaisedHostMs: null };
+  });
+  const byId = new Map(rows.filter((r) => r.inputId != null).map((r) => [r.inputId, { row: r, t1: null, t2: null }]));
+  const peakEnds = new Map(typhoon.peaks.map((p) => [p, null]));
+  const mem = [];
+  const heap = [];
+  for (const r of records) {
+    if (r.t === "mem") { mem.push(r); continue; }
+    const o = r.t === "obs" ? r.o : null;
+    if (o == null) continue;
+    if (o.kind === "ownerHeap") { if (o.replyKind === "deadlineDone" && o.place === "deferred") heap.push(o); continue; }
+    const inputId = o.kind === "processing" ? o.measurement.inputId : o.inputId;
+    if (o.kind === "processing" && peakEnds.has(inputId)) peakEnds.set(inputId, o.measurement.endedMonotonicMs);
+    const hit = byId.get(inputId);
+    if (hit == null) continue;
+    if (o.kind === "marker" && o.point === "T1") hit.t1 = o.monotonicMs;
+    else if (o.kind === "marker" && o.point === "T2") hit.t2 = o.monotonicMs;
+    else if (o.kind === "processing") [hit.row.processingMs, hit.row.processingEndHostMs] = [o.measurement.endedMonotonicMs - o.measurement.startedMonotonicMs, o.measurement.endedMonotonicMs];
+    else if (o.kind === "decode") hit.row.decodeMs = o.endedMonotonicMs - o.startedMonotonicMs;
+    else if (o.kind === "generationRaised" && o.unit === "U-Y") hit.row.generationRaisedHostMs = o.monotonicMs;
+  }
+  for (const { row, t1, t2 } of byId.values()) row.waitMs = t1 == null || t2 == null ? null : t2 - t1;
+  const checked = rows.filter((r) => r.scheduledInMeasure);
+  const missing = checked.flatMap((r) => {
+    const lacks = [[r.inputId != null, "sent"], [r.sentInMeasure, "sentInMeasure"], [r.delayMs != null && r.delayMs <= E05Y.maxDelayMs, "delay"],
+      [r.generationRaisedHostMs != null && r.generationRaisedHostMs <= toMs, "generationRaised"], [r.processingEndHostMs != null && r.processingEndHostMs <= toMs, "processingEnd"]]
+      .flatMap(([ok, name]) => (ok ? [] : [name]));
+    return lacks.length === 0 ? [] : [{ inputId: r.inputId, cycle: r.cycle, fixture: r.fixture, lacks }];
+  });
+  const reason = fromMs == null || toMs == null ? "clockUnavailable" : checked.length === 0 ? "noOverlayInMeasure" : missing.length > 0 ? "overlayIncomplete" : null;
+  const intervals = [];
+  for (let c = 0; c * n < rows.length && rows[c * n].sentHostMs != null; c++) {
+    const peakEnd = peakEnds.get(typhoon.peaks[c]) ?? null;
+    const sides = new Set(rows.slice(c * n, c * n + n).filter((r) => r.sentHostMs != null).map((r) => (r.sentHostMs < expiry.expiryHostMs ? "before" : "after")));
+    intervals.push({ cycle: c, fromHostMs: rows[c * n].sentHostMs, toHostMs: peakEnd == null ? null : peakEnd + E05Y.afterPeakMs, peakInputId: typhoon.peaks[c] ?? null,
+      fillExpiry: sides.size === 1 ? [...sides][0] : "straddles" });
+  }
+  const memTop = spanMaxima(mem, (r) => r.perfNowMs, (r) => r.rss, fromMs, toMs, intervals);
+  const heapTop = spanMaxima(heap, (o) => o.monotonicMs, (o) => o.heapUsedBytes, fromMs, toMs, intervals);
+  const heapOf = (h) => (h == null ? null : { heapUsedBytes: h.heapUsedBytes, externalBytes: h.externalBytes, monotonicMs: h.monotonicMs });
+  intervals.forEach((i, k) => Object.assign(i, { maxRssBytes: memTop.spans[k]?.rss ?? null, maxRssAtHostMs: memTop.spans[k]?.perfNowMs ?? null, deferredHeapMax: heapOf(heapTop.spans[k]) }));
+  const peak = memTop.measure;
+  const maxRss = peak == null ? null : { rssBytes: peak.rss, perfNowMs: peak.perfNowMs, sinceMeasureStartMs: peak.perfNowMs - fromMs,
+    intervalCycle: intervals.find((i) => i.toHostMs != null && peak.perfNowMs >= i.fromHostMs && peak.perfNowMs <= i.toHostMs)?.cycle ?? null };
+  const runStatus = reason == null ? e05.status : "未確認";
+  const o = outcome(ctx, runStatus, reports, { fill, expirySplit: expiry,
+    ...(ctx.preliminary ? { statuses: { E05: "未確認" }, judgedStatuses: { E05: e05.status } } : { statuses: { E05: e05.status } }) });
+  o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, contractId: E05Y_CONTRACT, rawE05Status: e05.status,
+    check: { passed: reason == null, reason, checked: checked.length, excludedOutsideMeasure: rows.length - checked.length, missing },
+    note: "E02 は報告だけ（P3-E05Y-AC02(3)）。時刻は host の時計。waitMs は T2−T1、processingMs は processing の始まりから終わり（返信の待ち・射影・publish を含む）、decodeMs は decode の行。maxRss.intervalCycle が null は区間外",
+    overlay: { id: E05Y_LOAD.id, ordering, offsetsMs, durationMs, sha256: E05Y_LOAD.sha256 }, measureHostMs: { fromMs, toMs },
+    inputs: rows, withoutProcessing: rows.filter((r) => r.inputId != null && r.processingMs == null).length, intervals,
+    allBundlesAfterExpiry: intervals.length > 0 && intervals.every((i) => i.fillExpiry === "after"), maxRss,
+    deferredHeapInMeasure: heapOf(heapTop.measure), e05, e02: health, expirySplit: expiry, fill, ...reports })];
+  return o;
+}
+
+// 測定の窓と区間ごとの最大の要素（AC02(4)・AC05(2)、P3-E05Y-RES-02）: list を 1 回なめ、標本ごとに入る区間のすべてに足す（区間は多くて
+// 3 つで線形）。区間の終わりは VPWS50 の処理の終わり＋15 秒で、処理が遅れると次の束の始まりを越えて重なりうる。終わりの無い区間は最大を出さない。
+function spanMaxima(list, at, value, fromMs, toMs, spans) {
+  const keep = (m, x) => (m == null || value(x) > value(m) ? x : m);
+  const out = { measure: null, spans: spans.map(() => null) };
+  for (const x of list) {
+    const t = at(x);
+    if (fromMs != null && toMs != null && t >= fromMs && t <= toMs) out.measure = keep(out.measure, x);
+    spans.forEach((s, k) => { if (s.toHostMs != null && t >= s.fromHostMs && t <= s.toHostMs) out.spans[k] = keep(out.spans[k], x); });
+  }
+  return out;
 }

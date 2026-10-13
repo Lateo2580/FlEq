@@ -17,6 +17,7 @@ import { buildP3Manifest, contractTextsOf } from "./draft.mjs";
 import { injection, sample } from "./fixtures";
 import { BACKEND_ONLY_CHROME, calibratedSendAt, chromeWindowsRefused, frameGapMeter, livenessBlocked, manifestChromeVersion, parseArgs, populationSpec, predictParseDelay,
   predictTick, publishedBy, reclaimTickToEncodeMs, scanHostLines, startInjector, trialTarget } from "./run.mjs";
+import * as windows from "./windows.mjs";
 import { auxWindows, currentsExpiredAtMeasure, expirySplit, waitFillExpiry } from "./windows.mjs";
 
 const machine = { chromeVersion: "154.0.8037.92", nodeVersion: "v22.23.2", osVersion: "27.0.0 arm64", device: "test" };
@@ -524,5 +525,53 @@ describe("P3-E05C-T03 the classification windows are listed only with the contra
     expect(plain.filter((id) => id.startsWith("e05c-"))).toEqual([]);
     expect(keyed).toEqual([...plain, "e05c-observe-run1", "e05c-observe-run2", "e05c-gc-run1", "e05c-gc-run2"]);
     expect(ids(b.manifest, { preliminary: true, runs: 1 }).filter((id) => id.startsWith("e05c-"))).toEqual(["e05c-observe-run1", "e05c-gc-run1"]);
+  });
+});
+
+// P3-E05Y-T01: 上乗せの窓は本契約の鍵を載せた manifest か予備のときだけ、分類の窓の後に並ぶ（AC03）。
+describe("P3-E05Y-T01 the typhoon overlay windows are listed only with the contract key or in the preliminary (AC03)", () => {
+  it("the harness draft lists none; with both keys e05y-P-run1..3 come after the existing and the classification windows; the preliminary lists run1 only; no id starts with e02-", () => {
+    const b = buildP3Manifest({ id: "p3-harness-test", ...machine, o09Positions: [2, 12], trialSetup: HARNESS_TRIAL_SETUP.ref });
+    const ids = (manifest: P3E01Manifest, extra: Record<string, unknown> = {}) => auxWindows({ manifest, initialState: JSON.parse(b.initialStateText), counts: {}, ...extra }).map((w) => w.id);
+    const plain = ids(b.manifest);
+    const keyed = ids({ ...b.manifest, contractSha256: { ...b.manifest.contractSha256, "P3-E05P-CLASSIFY-001": "0".repeat(64), "P3-E05P-TYPHOON-001": "0".repeat(64) } });
+    expect(plain.filter((id) => id.startsWith("e05y-"))).toEqual([]);
+    expect(keyed).toEqual([...plain, "e05c-observe-run1", "e05c-observe-run2", "e05c-gc-run1", "e05c-gc-run2", "e05y-P-run1", "e05y-P-run2", "e05y-P-run3"]);
+    expect(ids(b.manifest, { preliminary: true, runs: 1 }).filter((id) => id.startsWith("e05y-"))).toEqual(["e05y-P-run1"]);
+  });
+});
+
+// P3-E05Y-T02: 上乗せの ReplayLoad と、負荷 P と混ぜて 1 つの cursor で送る pump（AC01）。startHr を 2 周分より前にして 1 回呼ぶと、
+// 2 周と 3 周目の頭までを一度に送る（偽の時計は使わない）。周期を誤った pump は予定より前に送るので、送った時の時計を予定と比べる。windows.d.mts（本契約の allowedPaths の外）は replayPump と上乗せの定数を
+// 宣言しないので、名前で引いて関数であることを確かめてから呼ぶ。
+describe("P3-E05Y-T02 the overlay load and the single merged pump (AC01)", () => {
+  it("the overlay passes loadEvents with the ruled fixtures, offsets, VPTA50 and P's period; one call sends P and the overlay in offset order across cycles, P first on a tie; another period is refused", () => {
+    const { P, N } = built().manifest.loads;
+    const [replayPump, overlay]: unknown[] = [Reflect.get(windows, "replayPump"), Reflect.get(windows, "E05Y_LOAD")];
+    const hrNow = () => Number(process.hrtime.bigint()) / 1e6;
+    const drain = (extra: unknown) => {
+      const sent: { name: string; headType: string; offsetMs: number; extra?: boolean; calledAt: number }[] = [];
+      if (typeof replayPump !== "function") throw new Error("windows.mjs exports no replayPump");
+      const startHr = hrNow() - 2 * P.durationMs - 100;
+      const step: unknown = replayPump(P, (_frame: unknown, event: Omit<(typeof sent)[number], "calledAt">) => { sent.push({ ...event, calledAt: hrNow() }); }, () => Date.now(),
+        startHr, extra);
+      if (typeof step !== "function") throw new Error("replayPump returned no pump");
+      step();
+      return { startHr, sent };
+    };
+    expect(overlay).toMatchObject({ id: "P-typhoon", durationMs: P.durationMs });
+    const { startHr, sent } = drain(overlay);
+    // 1 周の期待の列: P の 21 通と作者裁定の 3 通を offset の昇順に（P3-E05Y-PLACE=A）。最初の 2 周は列全体を照合する。
+    const ruled = [["76_01_01_200630_VPTA50", 300_121], ["76_01_02_260531_VPTA50", 302_121], ["76_01_03_260602_VPTA50", 304_121]] as const;
+    const cycle = [...P.ordering.map((ref, i) => [ref.replace("test__fixtures__", ""), P.offsetsMs[i], false] as const), ...ruled.map(([name, offsetMs]) => [name, offsetMs, true] as const)]
+      .sort((a, b) => a[1] - b[1]);
+    expect(sent.slice(0, 2 * cycle.length).map((e) => [e.name, e.offsetMs, e.extra === true])).toEqual([...cycle, ...cycle]);
+    expect(sent.filter((e) => e.extra).map((e) => e.headType)).toEqual(sent.filter((e) => e.extra).map(() => "VPTA50"));
+    // どの送出も予定時刻（startHr＋周×durationMs＋offset）より前でない。
+    expect(sent.filter((e, i) => e.calledAt < startHr + Math.floor(i / cycle.length) * P.durationMs + e.offsetMs)).toEqual([]);
+    // P 自身を上乗せにすると全 offset が同じになり、どの組も P（extra なし）が先。
+    const tie = drain(P).sent.slice(0, 2 * P.offsetsMs.length);
+    expect(tie.map((e) => [e.offsetMs, e.extra === true])).toEqual(P.offsetsMs.flatMap((o) => [[o, false], [o, true]]));
+    expect(() => drain(N)).toThrow("durationMs");
   });
 });

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f130ed396687593783f92e10757ef9863dea0bc2",
-    "sha256": "777af1d723be4dea828906413403a4ec4a6cedbe837227ee8ba84d85d193a990",
+    "sha256": "0837e71831da1211b26dc6d49f0b5af5faf1d87461a42b931c4aec82793d14ab",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -224,7 +224,7 @@
           "reconstruction/test/eew-e01/frames.mjs:96 «f1f80a8f28c7eae4»",
           "reconstruction/test/eew-e01/frames.mjs:99 «5e33372db55faf23»",
           "reconstruction/test/eew-e01/frames.mjs:111 «f2449f595eb3794e»",
-          "reconstruction/test/eew-e01/windows.mjs:29 «81efaa2bf7e2aecb»",
+          "reconstruction/test/eew-e01/windows.mjs:29 «01d3e3a519f9df42»",
           "reconstruction/test/eew-e01/windows.mjs:36 «a33b4302cd5c4a7b»",
           "reconstruction/test/eew-e01/draft.mjs:168 «533540ee64cbe7c1»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-wyl-e05p.json:160 «5b5169ee7d9ed3e8»",
@@ -244,7 +244,7 @@
         "requirement": "窓（windows.mjs）: (1) 窓のidはe05y-P-run<k>（k＝1〜3）。窓の数3はwindows.mjsの定数（manifestのhealth.runCountと同じ3だが、その値を読まない）。idはe02-で始めない（e02VerdictがE02の判定に入れない） (2) 中身はe02Window（load P）の経路を使い回す: 同じopenHost（mem行1秒）・fill leaveRoomForP（blockAtExpiry）・通知の静まり待ち・P負荷のreplayPump・E02のclient（manifestのhealthの件数、予備は--e02-count）・summarizeE05・expirySplitとcurrentsExpiredAtMeasure。足すのは、上乗せのReplayLoadを第5引数で渡したP負荷のreplayPump（AC01、測定の間に呼ぶpumpは1本）と結果だけで、e02Windowの関数を丸ごと複製しない。e02Windowの引数（323行）とpumpの呼び出し（336行）は分類の窓が引く行なので変えず、上乗せの窓の区別とpumpの差し替えはAC06の行の約束の書き方による (3) 判定: 2つを書き分ける。生のE05はsummarizeE05（load P、上限400MiB）のstatus（上限を越えればFail、欠測なら未確認、それ以外はPass）。runの判定は、(6)の確かめが通らなければ未確認、通れば生のE05のまま。結果のstatuses.E05は生のE05、窓のstatusはrunの判定。E02は報告だけで、statusesにはE05だけを入れる（予備は既存のoutcomeどおり未確認に倒し、判定はjudgedStatusesへ） (4) 結果: aux-e05y-P-run<k>.json（sealAux）に、e05（summarizeE05の値）、e02（summarizeHealthE02の値、報告だけ）、expirySplit、hostReports（ownerHeapのplaceごとの生涯の最大を含む。充填の山を拾いうる）、上乗せのReplayLoad（AC01）、上乗せで送った入力の行（inputId・fixture・周の番号・予定時刻〔startHr＋周×durationMs＋offset〕と送った時刻・遅れ・測定の窓の中か。時刻はどちらもhost.hostMs(injectedHrMs)の形でhostの時計にそろえる）と、その入力ごとの待ち・処理・decodeの時間を書く。待ちはT2−T1（enqueueからownerの開始まで、publisherの時計）、処理はprocessingの行の始まりから終わり（ownerの開始からpublisherが返信を反映し終えるまでで、返信の待ち・射影・publishを含み、deferredの中の処理だけではない）、decodeはそのinputIdのdecodeの行の始まりから終わり。ほかに、上乗せの束（周ごとの3通）ごとに充填の失効（expirySplitの失効の時刻）の前か後か、最大RSSのmem行の時刻（perfNowMs）と測定の開始（hostMsOf(start.hrtimeNs)）からの経過、AC05(2)の区間ごとの最大RSSとrunの最大RSSがどの区間にあるか（無ければ区間外）、測定の窓の中のdeferredのownerHeapの最大と区間ごとのdeferredのownerHeapの最大、(6)の確かめの結果を書く。これらの値はwindows.mjsの中で記録を1回なめて出す（aux-measures.mjsに新しい関数を足さない）。処理の行が無い入力（測定の終わりの後に送った等）はnullで残し、数えて出す。e02Windowのresult-e02・aux-e05のfileは書かない (5) 確率の報の入力ごとの値は報告だけで判定しない（C14の残存リスク(14)の観測。約160msの線の扱いはC14のP3-C14-INTERFERENCE-OVER=Aのまま、PiはC22）。処理に1.1〜1.3秒の値が出ても、deferredの中の同期の停止とは断定しない（decodeと並べて読む） (6) 未確認にする確かめ（期待の集合は予定から作る）: 予定時刻（startHr＋周×durationMs＋offset、hostの時計）が測定の窓（E02のclientのstart〜end。終わりは要求件数で決まり、厳密に1,000秒ではない）の中にある上乗せの各入力について、①送られている ②送った時刻が測定の窓の中 ③予定時刻からの遅れが1,000ms以下 ④hostの記録にgenerationRaisedの行（obs、inputIdが一致し、unitがU-Y。composition-root.tsのmeasuring.observe）があり、その時刻が測定の終わり以前 ⑤processingの行の終わりが測定の終わり以前、の全部を求める。1つでも欠ければ、その窓のrunの判定は生のE05によらず未確認にし、欠けたinputIdと欠けた項目を結果に並べる（U-Yの拒否は決定的なので、遅れや欠けも同じ扱いで、Blockedにして再実行させない。作者へ戻し、本契約の改訂と新しいmanifestIdで測り直す）。予定時刻が測定の窓の外の入力はこの確かめから外し、数を出す。無いと: 上乗せの窓をE05-Pと同じ条件で測れず、対照との差が上乗せの寄与と言えない",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/windows.mjs:323 «78045dc3d8f5cae9»",
-          "reconstruction/test/eew-e01/windows.mjs:326 «b248ef28aab6672d»",
+          "reconstruction/test/eew-e01/windows.mjs:326 «0bfe73367ddbae5f»",
           "reconstruction/test/eew-e01/windows.mjs:331 «d2cc6f5204a03a4e»",
           "reconstruction/test/eew-e01/windows.mjs:336 «2190bf92b86d7885»",
           "reconstruction/test/eew-e01/windows.mjs:353 «68b6dac564e4c2e9»",
