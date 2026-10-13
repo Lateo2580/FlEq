@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "7274217f86977195d1c78461ab2b262f92ca65e8dd3213f7571713c81766ae9a",
+    "sha256": "edfcda9a863758195d9aa75e3b1ccfe04d35c1f4ec4cb26b786d75202001b3ab",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "e1347f1e573af0dec620dc91bd244619f4898d47ee0d225fad7c0e7a1eab0327",
     "sequencesSha256": "8d946f072c1ea47b2e4db8e2f2f9026d6322bfd3ac713f1bf974ee373710c65c",
@@ -517,7 +517,7 @@
     "contractId": "P3-UNIT-Y-001",
     "mode": "implementation",
     "objective": "M11・M12をI-U-Yとして閉じる。台風解析・予報情報（VPTW60〜65）と台風の暴風域に入る確率（VPTA50〜55）を、TC番号ごとの独立した2つのslice（analysis・probability）としてU-Yの一つのreducer・唯一のcodec・viewで扱い、解析の全時刻の数の緯度経度と予報円の中心・半径（R50の意味要件）、確率の地域ごとの値と全ゼロ・連続ゼロの判定を持ち、見える期限と記憶の期限を元報の時刻から数え、取消と版の記憶を保存し、台風消滅で同じTC番号の確率を終わらせ、Q-NOTICEの該当分を生成し、unit表・coverageの12行（R53）・実行場所・snapshotを結線する。横断不変条件P3-X-C1〜C6とパラメータ表（P3-C14-PARAMETERS・P3-C14-CROSS-UNIT）を満たす。",
-    "baseOid": "unassigned",
+    "baseOid": "b3df1e3f8013adc2445c75e0425bb361791ba11e",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
