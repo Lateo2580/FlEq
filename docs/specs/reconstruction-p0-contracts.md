@@ -397,8 +397,8 @@ nextDeadline(state): Deadline | null
 | M08 `weather-timeseries` | VPWP50 の subject、period、正常 empty、容量不足 | O02/O09。194 period と gate-only | U-F。7日 retention | カードに合わせた state 削減探索 |
 | M09 `tornado` | 官署別区域、目撃、通常解除、有効期限 | O01/O02/O08 | U-M の tornado slice、36時間 retention | 名前からの地図区域推定 |
 | M10 `heat` | 対象日・地域、通常／特別、取消 | O01/O08 | U-M の heat slice、対象日終了・3日 retention | 日付の受信時刻置換 |
-| M11 `typhoon-analysis` | 台風 identity、解析、低気圧化、発生取消 | O01/O02/O07 | U-Y の analysis slice、7日 tombstone | 根拠のない確率 slice の消去 |
-| M12 `typhoon-probability` | VPTA50、地域・時刻・値、連続ゼロ、empty | O02/O07/O10 | U-Y の probability slice、7日 retention | 表示失敗による gate 巻戻し |
+| M11 `typhoon-analysis` | VPTW60〜65、台風 identity、解析、低気圧化、発生取消 | O01/O02/O07 | U-Y の analysis slice、7日 tombstone | 根拠のない確率 slice の消去 |
+| M12 `typhoon-probability` | VPTA50〜55、地域・時刻・値、連続ゼロ、empty | O02/O07/O10 | U-Y の probability slice、7日 retention | 表示失敗による gate 巻戻し |
 | M13 `flood` | EventID、河川・発表区間・観測点、解除と unknown | O01/O02/O07 | U-R。36時間 retention | 全 unknown の解除扱い |
 | M14 `volcano-alert` | VFVO50/51/VFSVii、火山別数値・非数値警報 | O01/O07。多火山報の局所取消 | U-V。alert tombstone30日 | 同火山の噴火・降灰の無条件取消 |
 | M15 `volcano-eruption` | VFVO52/56、火山と EventID の対応、空コード取消 | O01/O07 | U-V。eruption tombstone2日 | 出典不明 identity の推測 |
@@ -520,8 +520,8 @@ RC には21 route がある。以下は全21 route を網羅し、意味の異�
 | `climateInfo` / VPZI50/VPCI50 | M18 | U-M | current/gate N、intent D | 当該情報subjectの表示・取消 | RC:217、RF:241–248 |
 | `weatherExplanation` / VPCJ51/VPZJ51/VPFJ51/VMCJ53/54/55 | M18 | U-M | current/gate N、intent D | 当該情報subjectの表示・取消。気象警報を変更しない | RC:227、RF:250–257 |
 | `heatAlert` / VPFT50 | M10 | U-M | D | 対象日・対象地域、取消、期限、intent | RC:237、RF:410–421 |
-| `typhoonAnalysis` / VPTW60/61/62 | M11 | U-Y | D | 台風analysis、低気圧化・発生取消、watermark、intent | RC:243、RF:423–435 |
-| `typhoonProbability` / VPTA50 | M12 | U-Y | D | probability、gate-only、連続ゼロ、取消・期限、intent | RC:253、RF:437–449 |
+| `typhoonAnalysis` / VPTW60〜65 | M11 | U-Y | D | 台風analysis、低気圧化・発生取消、watermark、intent | RC:243、RF:423–435 |
+| `typhoonProbability` / VPTA50〜55 | M12 | U-Y | D | probability、gate-only、連続ゼロ、取消・期限、intent | RC:253、RF:437–449 |
 | `floodForecast` / VXKO50–89 | M13 | U-R | D | EventID、station digest、河川・区間、取消・解除、unknown保持根拠 | RC:259、RF:508–569 |
 | `floodForecast` / VXSU50–59 | M13 | U-R | D対象のlifecycle、観測seriesなし | 確定できる見出し・区間状態、取消。存在しない観測seriesを作らない | RC:82–85、RF:520–569 |
 | `raw` / 未対応・parse失敗のfallback | M18 | U-M | N | 業務currentを作らない。元route・reasonを診断へ残す | RC:269、RF:259–266 |
@@ -576,7 +576,7 @@ P3 の追加実装で新しい横断不変条件を発見した場合は、Q13 �
 | 竜巻 | 最大128 subject、36時間 retention |
 | 熱中症 | 最大256 subject、3日 retention、activeは対象日で評価 |
 | 台風解析 | 最大64 subject、tombstone7日 |
-| 台風確率 | 最大256 subject、7日 retention |
+| 台風確率 | 最大64 subject、7日 retention（P3-C14-PROB-FACTS=A、作者裁定2026-10-13） |
 | 火山 | 各family最大128 subject。alert30日、eruption2日、ashfall7日の取消記憶 |
 | 洪水 | 最大512 subject、36時間 retention |
 | VFVO53 batch | 最大20件、quiet8秒、maxWait90秒を互換開始値 |
