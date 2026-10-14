@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "p2-a10-e02-verdict-v1",
+  "manifestId": "p3-dyl-e05y-20261014",
+  "manifestSha256": "8a96c6641d06515056ab703d53dd137e551e5d129b03cb5a3b8883d8785b13cf",
+  "resultSha256": "a8222944149da392d11abfb4aebf780b04164ef8fd58a7ddacbde52c2f165c56",
+  "runs": [
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "p3-dyl-e05y-20261014",
+      "manifestSha256": "8a96c6641d06515056ab703d53dd137e551e5d129b03cb5a3b8883d8785b13cf",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "N",
+      "run": 1,
+      "status": "未確認",
+      "samples": 0,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": null,
+      "maxMs": null,
+      "workerStates": {},
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "p3-dyl-e05y-20261014",
+      "manifestSha256": "8a96c6641d06515056ab703d53dd137e551e5d129b03cb5a3b8883d8785b13cf",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "N",
+      "run": 2,
+      "status": "未確認",
+      "samples": 0,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": null,
+      "maxMs": null,
+      "workerStates": {},
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "p3-dyl-e05y-20261014",
+      "manifestSha256": "8a96c6641d06515056ab703d53dd137e551e5d129b03cb5a3b8883d8785b13cf",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "N",
+      "run": 3,
+      "status": "未確認",
+      "samples": 0,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": null,
+      "maxMs": null,
+      "workerStates": {},
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "p3-dyl-e05y-20261014",
+      "manifestSha256": "8a96c6641d06515056ab703d53dd137e551e5d129b03cb5a3b8883d8785b13cf",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "P",
+      "run": 1,
+      "status": "Pass",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 2.7439159999485128,
+      "maxMs": 7.690666999988025,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "p3-dyl-e05y-20261014",
+      "manifestSha256": "8a96c6641d06515056ab703d53dd137e551e5d129b03cb5a3b8883d8785b13cf",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "P",
+      "run": 2,
+      "status": "Pass",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 2.776207999995677,
+      "maxMs": 37.57754199998453,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "p3-dyl-e05y-20261014",
+      "manifestSha256": "8a96c6641d06515056ab703d53dd137e551e5d129b03cb5a3b8883d8785b13cf",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "P",
+      "run": 3,
+      "status": "Pass",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 2.7034590000112075,
+      "maxMs": 42.094791000010446,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    }
+  ],
+  "unusable": {},
+  "finishedAt": "2026-10-14T08:13:25.721Z"
+}

@@ -1,0 +1,170 @@
+{
+  "id": "e02-P-run1",
+  "attempt": 1,
+  "manifestId": "p3-dyl-e05y-20261014",
+  "manifestSha256": "8a96c6641d06515056ab703d53dd137e551e5d129b03cb5a3b8883d8785b13cf",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-dyl-e05y-20261014/e02-P-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-dyl-e05y.json --windows e02-P-run1,e05y-P-run1,e02-P-run2,e05y-P-run2,e02-P-run3,e05y-P-run3 --notification real --node /opt/homebrew/opt/node@22/bin/node",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-dyl-e05y.json --windows e02-P-run1,e05y-P-run1,e02-P-run2,e05y-P-run2,e02-P-run3,e05y-P-run3 --notification real --node /opt/homebrew/opt/node@22/bin/node",
+    "caffeinate -dims -w 6845",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-e05s/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-dyl-e05y-20261014/e02-P-run1/host-config.json",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-e05s/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:56955/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load P --run 1 --out /Users/tallplain/dev/fleq-a10-runs/p3-dyl-e05y-20261014/e02-P-run1/e02.jsonl"
+  ],
+  "startedAt": "2026-10-14T06:26:44.175Z",
+  "preflight": {
+    "checkedAt": "2026-10-14T06:26:44.156Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.39",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "93165e44d73e2cc5fc301f29b916fef792014d04",
+    "gitStatusPorcelain": "",
+    "distSha256": "80d1f101a2f76821af70fe14e6bed0f6c220fe84f11aebc21e9118f0acbd79c3",
+    "runnerSha256": "a2290405b82bd38a27d41afd6946d29d3040b86930903255374859434b1fadb4",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 51680,
+    "verifiedMs": 51824,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "eewOriginWallMs": 1780650000000,
+    "eewHorizonStale": 0,
+    "quiet": {
+      "waitedMs": 15078,
+      "untilLastBackendMs": 15,
+      "backendLaunchesSeen": {},
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    }
+  },
+  "expirySplit": {
+    "expiryHostMs": 600000,
+    "measureStartHostMs": 67727.247584,
+    "note": "期限（起点＋600,000ms）の host 単調時計。回収はその後の最初の deadline 要求。報告のみで判定は窓全体",
+    "e05": {
+      "before": {
+        "samples": 531,
+        "maxRssBytes": 367585832
+      },
+      "after": {
+        "samples": 466,
+        "maxRssBytes": 381758688
+      }
+    },
+    "e02": {
+      "before": {
+        "samples": 533,
+        "p50Ms": 1.5172499999971478,
+        "p99Ms": 3.3066250000001673,
+        "maxMs": 7.690666999988025
+      },
+      "after": {
+        "samples": 467,
+        "p50Ms": 1.3996249999618158,
+        "p99Ms": 2.572167000034824,
+        "maxMs": 3.0107500000158325
+      }
+    }
+  },
+  "statuses": {
+    "E02": "Pass",
+    "E05": "Pass"
+  },
+  "status": "Pass",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-dyl-e05y-20261014/results/result-e02-P-run1.json",
+      "sha256": "1f0395e5739a610425da58748e8840484122b4425c49e43c86174af110207cc2"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-dyl-e05y-20261014/results/aux-e05-P-run1.json",
+      "sha256": "52bb6968a2fab849dee10ddae0539da7c9a0405b44156034e637a5ec4dbed026"
+    }
+  ],
+  "liveness": {
+    "pings": 53,
+    "maxFrameGapMs": 20002.655666947365
+  },
+  "hostClock": {
+    "hostClockUnverified": 0,
+    "hostClockAhead": 0,
+    "hostClockBehind": 0
+  },
+  "finishedAt": "2026-10-14T06:44:31.240Z",
+  "raw": [
+    {
+      "file": "aux-e05-P-run1.json",
+      "bytes": 10960,
+      "sha256": "52bb6968a2fab849dee10ddae0539da7c9a0405b44156034e637a5ec4dbed026"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 108964,
+      "sha256": "d0ab2d96978721bf0efadf7bfe47b7a68baeee081a27d066cbe2ac44ace3c08b"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1926,
+      "sha256": "06859a9fd4e87142251fc44c04050c478b589ae7cb002cf9937dec92a4b302c1"
+    },
+    {
+      "file": "e02.jsonl",
+      "bytes": 206067,
+      "sha256": "410ba839a9ddb4749a33756d854258be3b441e002fe4d9415be9c9b4d2023184"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 446,
+      "sha256": "a52909dfb93f26ad1c54cc6b12e1eac205b0e103e2c8074db55e2e5d50a25acb"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 10110837,
+      "sha256": "a48cea5aa989efdcdc17be47fa70eca463f5d624eb044622028e0ad02f17a1a2"
+    },
+    {
+      "file": "result-e02-P-run1.json",
+      "bytes": 659,
+      "sha256": "1f0395e5739a610425da58748e8840484122b4425c49e43c86174af110207cc2"
+    }
+  ],
+  "orphans": []
+}
