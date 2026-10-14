@@ -124,7 +124,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
     for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
       const worker = new Worker(entry, { workerData: { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: performance.timeOrigin,
-        measured: config.observe != null, inputHeap: config.observe != null && config.measureInputHeap === true } satisfies OwnerStartData, ...(place === "weatherCurrent" ? { resourceLimits: { maxYoungGenerationSizeMb: 12 } } : {}) }); // E05-P の山は weatherCurrent の若い世代の広がり（J2）なので、この thread だけ縛る（P3-WYL-RES-01、作者裁定 D-WYL-NEXT）。古い世代は縛らない
+        measured: config.observe != null, inputHeap: config.observe != null && config.measureInputHeap === true } satisfies OwnerStartData, ...(place === "urgent" ? {} : { resourceLimits: { maxYoungGenerationSizeMb: 12 } }) }); // weatherCurrent は E05-P の山の若い世代の広がり（J2、P3-WYL-RES-01、作者裁定 D-WYL-NEXT）、deferred は e05y-P の山の区間の heap の枠の広がり（S1V、P3-DYL-RES-01、作者裁定 D-DYL-NEXT）なので縛る。urgent は回収の増えを EEW・津波に持ち込まないよう縛らない。古い世代は縛らない
       workers.set(place, worker);
       worker.on("message", (reply: OwnerReply) => {
         // AC13: T2 and decode are the owner's times, so they are observed before the reply is projected (T3).
