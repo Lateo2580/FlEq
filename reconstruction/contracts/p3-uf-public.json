@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "3f8f2779ccb0ef4a3163ecfc251f13094038d12ea7c854b88fc2bf2098c303b6",
+    "sha256": "c6c28898f0d5a0965f681c7eaea62c8c8789dd2b82732537eba550ecc24eeb09",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -161,7 +161,7 @@
     "contractId": "P3-UF-PUBLIC-001",
     "mode": "implementation",
     "objective": "U-F（気象の時系列、VPWP50）のownerがpublisherへ出す値を、常設表示に要る小さい公開形式に限る（作者の裁定D0〔2026-10-15〕の3単位の1つ目、Proレビュー§8.2の①・§3.1『公開形式だけ先に変える』）。いまはviewのseriesにstateの全subject（平常15.6〜15.8 MB）が載り、displayChangesのcurrentもsubject全体で、U-Fが変わるたびに構造化複製でmainへ渡る。publisherは全体が1 MiBを越えた所で64 KiBを越える分野をまとめて要約にするので、U-Fが原因で地震まで要約に落ちる（監査A3）。本契約は (1) 官署ごとの公開形式（要約のitemsとnoticeの材料、詳細を開く鍵）をownerが作り、view・displayChanges・normalの公開の制限の切替・復元の4経路のcurrentをそれに替える (2) 公開形式のbyteの上界を、鍵の数×1鍵の上界として全部の文字列の欄を含めて書き、実fixtureで組んだ平常の大きさのstateで確かめる (3) periodの値へ届く詳細の口と、要約だけを受けた画面が官署・版へ届く索引ページを作る（鍵はidと短い版、時系列1ページ64 period・索引1ページ32件・1応答64 KiB・受け付け8件・本文の排出まで2秒・通常の入力と期限より後に送る。版が変われば最新を旧版と偽らずversionChanged。作者裁定P3-UFP-D-DETAIL-SCREEN=Aにより、作者裁定P2-A8-D03=AをU-Fについて一部覆す）。U-Fのstate・codec・意味のreducer・保存の形は変えない（同じ入力でstateと保存内容が同じことをcorpus履歴で照合する）。RSSの主張はしない（E05の充填の作り直しは別の契約、Q-UFP-E05）",
-    "baseOid": "unassigned",
+    "baseOid": "9b0248ac82d0748e834c65ba4f97e588b7e87be0",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
