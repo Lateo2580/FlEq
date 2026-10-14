@@ -575,3 +575,59 @@ describe("P3-E05Y-T02 the overlay load and the single merged pump (AC01)", () =>
     expect(() => drain(N)).toThrow("durationMs");
   });
 });
+
+// P3-E05S-T01: 補助の窓は本契約の鍵を載せた manifest か予備のときだけ、上乗せの窓の後に run ごとに対照・上乗せの順で並ぶ（AC03）。
+describe("P3-E05S-T01 the split windows are listed only with the contract key or in the preliminary (AC03)", () => {
+  it("the harness draft lists none; with the classification, typhoon and split keys e05s-p/e05s-y alternate per run after the existing windows; the preliminary lists run1 of each", () => {
+    const b = buildP3Manifest({ id: "p3-harness-test", ...machine, o09Positions: [2, 12], trialSetup: HARNESS_TRIAL_SETUP.ref });
+    const ids = (manifest: P3E01Manifest, extra: Record<string, unknown> = {}) => auxWindows({ manifest, initialState: JSON.parse(b.initialStateText), counts: {}, ...extra }).map((w) => w.id);
+    const keys = { ...b.manifest.contractSha256, "P3-E05P-CLASSIFY-001": "0".repeat(64), "P3-E05P-TYPHOON-001": "0".repeat(64) };
+    const before = ids({ ...b.manifest, contractSha256: keys });
+    expect(ids(b.manifest).filter((id) => id.startsWith("e05s-"))).toEqual([]);
+    expect(ids({ ...b.manifest, contractSha256: { ...keys, "P3-E05Y-SPLIT-001": "0".repeat(64) } }))
+      .toEqual([...before, "e05s-p-run1", "e05s-y-run1", "e05s-p-run2", "e05s-y-run2", "e05s-p-run3", "e05s-y-run3"]);
+    expect(ids(b.manifest, { preliminary: true, runs: 1 }).filter((id) => id.startsWith("e05s-"))).toEqual(["e05s-p-run1", "e05s-y-run1"]);
+  });
+});
+
+// P3-E05S-T02: 区間の内訳の行の選び方と未確認の条件（AC02(3)〜(5)）。owner の行は publisher より 150ms 前にずらし、heapUsed にその行の時刻を入れて、
+// どの行を採ったかを値で見る。publisher の rss は山（104,000・106,000 の同値）と床（80,000・90,000 の同値）と、区間・床の外のより高い／低い値を置く。
+// heapTotal・external・arrayBuffers も行の時刻に比例させ、内訳と差分の符号・足し方の誤りを値で落とす。
+describe("P3-E05S-T02 the peak and floor rows, the per-thread values and the unconfirmed conditions of a span (AC02)", () => {
+  it("picks the earliest max in the span and the latest min in the 30 s before it, the latest row at or before t per thread, and marks stale, busy, noPeakEnd and a missed peak", () => {
+    const MiB = 1024 * 1024;
+    const pubRss = (at: number) => (at === 112_000 ? 500 : at === 104_000 || at === 106_000 ? 400 : at === 80_000 || at === 90_000 ? 290 : at === 65_000 ? 100 : 300) * MiB;
+    const row = (place: string, atMs: number) => ({ k: "mem", place, atMs, rss: pubRss(atMs), heapUsed: atMs, heapTotal: atMs * 1.5, external: atMs / 10, arrayBuffers: atMs / 50 });
+    const series = (place: string, offsetMs: number) => Array.from({ length: 276 }, (_, i) => row(place, 60_000 + 200 * i + offsetMs));
+    const rows = { publisher: series("publisher", 0), urgent: series("urgent", -150), weatherCurrent: series("weatherCurrent", -150), deferred: series("deferred", -150) };
+    const span = { fromHostMs: 100_000, toHostMs: 110_000 };
+    type Options = NonNullable<Parameters<typeof windows.e05sSplit>[2]>;
+    const split = (r: Parameters<typeof windows.e05sSplit>[0] = rows, options: Options = {}, s: { fromHostMs: number; toHostMs: number | null } = span) => windows.e05sSplit(r, [s],
+      { starts: [{ place: "deferred", atMs: 103_850, inputId: "input-1" }], mem: [{ perfNowMs: 105_000, rss: 395 * MiB }], ...options }).spans[0];
+    // 処理の始まりが採った行の時刻ちょうど（103,850）なら busy にしない（(行の時刻, t] の左は開く）。
+    const base = split();
+    expect(base).toMatchObject({ status: "ok", peak: { atMs: 104_000, rss: 400 * MiB }, floor: { atMs: 90_000, rss: 290 * MiB }, gBytes: 0, peakAttribution: null,
+      eBytes: 110 * MiB, residual: { peak: 400 * MiB - 664_880, floor: 290 * MiB - 575_280, delta: 110 * MiB - 89_600 } });
+    expect([base.threads.publisher.peak, base.threads.deferred.peak, base.threads.urgent.floor, base.threads.deferred.delta]).toMatchObject([{ atMs: 104_000, ageMs: 0 },
+      { atMs: 103_850, ageMs: 150, U: 103_850, V: 51_925, X: 10_385, A: 2_077 }, { atMs: 89_850, ageMs: 150, U: 89_850 }, { U: 14_000, V: 7_000, X: 1_400, A: 280 }]);
+    // weatherCurrent の t_p の行を 103,000（古さ 1,000ms）にすると ok、102,999（1,001ms）にすると stale。
+    const wcAt = (atMs: number) => ({ ...rows, weatherCurrent: [...rows.weatherCurrent.filter((r) => r.atMs <= 102_850), row("weatherCurrent", atMs),
+      ...rows.weatherCurrent.filter((r) => r.atMs > 104_000)] });
+    expect([split(wcAt(103_000)).status, split(wcAt(102_999)).status]).toEqual(["ok", "stale"]);
+    // 採った行（103,850）と t_p の間の deferred の GC と、t_p ちょうどの処理の始まりは、時刻の順に busy（右は閉じる）。床の側の処理の始まりも同じ。
+    const withGc = { ...rows, deferred: [...rows.deferred, { k: "gc", place: "deferred", atMs: 103_900, kind: 1, durationMs: 2 }] };
+    const gc = split(withGc, { starts: [{ place: "deferred", atMs: 104_000, inputId: "input-3" }] });
+    expect([gc.status, gc.threads.deferred.busy]).toEqual(["busy", [{ side: "peak", atMs: 103_900, gc: 1 }, { side: "peak", atMs: 104_000, inputId: "input-3" }]]);
+    const started = split(rows, { starts: [{ place: "urgent", atMs: 89_900, inputId: "input-2" }] });
+    expect([started.status, started.threads.urgent.busy]).toEqual(["busy", [{ side: "floor", atMs: 89_900, inputId: "input-2" }]]);
+    expect(split(rows, {}, { fromHostMs: 100_000, toHostMs: null }).status).toBe("noPeakEnd");
+    // 重なったときの優先: 行の欠け（urgent に t_f 以前の行が無い）は終わりの無い区間・busy より先、終わりの無い区間は床の stale より先、stale は busy より先。
+    const noEnd = { fromHostMs: 100_000, toHostMs: null };
+    const urgentLate = { ...withGc, urgent: rows.urgent.filter((r) => r.atMs > 90_000) };
+    const floorStale = { ...rows, weatherCurrent: rows.weatherCurrent.filter((r) => r.atMs <= 88_850 || r.atMs > 90_000) };
+    expect([split(urgentLate).status, split(urgentLate, {}, noEnd).status, split(floorStale, {}, noEnd).status, split({ ...wcAt(102_999), deferred: withGc.deferred }).status])
+      .toEqual(["rowsMissing", "rowsMissing", "noPeakEnd", "stale"]);
+    // mem 行の区間の最大が t_p の rss より 1 byte 高いだけで、取り逃しの印が付き、status は ok のまま。
+    expect(split(rows, { mem: [{ perfNowMs: 105_000, rss: 400 * MiB + 1 }] })).toMatchObject({ status: "ok", gBytes: 1, peakAttribution: "未確定（取り逃し）" });
+  });
+});

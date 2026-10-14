@@ -11,3 +11,12 @@ export type ExpirySplit = { expiryHostMs: number; measureStartHostMs: number | n
 export function expirySplit(records: readonly unknown[], rows: readonly { requestStartMonotonicMs: number; bodyCompleteMonotonicMs: number | null; httpStatus: number | null; failure: string | null }[],
   client: { start: { hrtimeNs: string; perfNowMs?: number }; end: { hrtimeNs: string } }, ctx: { wallOriginMs: number }, fill: { eewOriginWallMs: number }): ExpirySplit;
 export function currentsExpiredAtMeasure(split: ExpirySplit): string | null;
+// P3-E05S-AC02(3)〜(5): 区間の内訳（試験が読む分だけの宣言）。
+export function e05sSplit(rows: Record<string, readonly { k: string; atMs: number; [key: string]: unknown }[]>, spans: readonly { fromHostMs: number; toHostMs: number | null }[],
+  options?: { starts?: readonly { place: string | null; atMs: number; inputId: string }[]; mem?: readonly { perfNowMs: number; rss: number }[]; fromMs?: number | null; toMs?: number | null }): {
+  threads: Record<string, { rows: number; maxGapMs: number | null; lastMs: number | null }>;
+  publisherMax: { atMs: number; rss: number } | null;
+  spans: { status: "rowsMissing" | "noPeakEnd" | "stale" | "busy" | "ok"; peak: { atMs: number; rss: number } | null; floor: { atMs: number; rss: number } | null; eBytes: number | null;
+    threads: Record<string, { peak: { atMs: number; ageMs: number; U: number; V: number; X: number; A: number } | null; floor: { atMs: number; ageMs: number; U: number; V: number; X: number; A: number } | null;
+      delta: { U: number; V: number; X: number; A: number } | null; busy: { side: "peak" | "floor"; atMs: number; inputId?: string; gc?: number }[] }>;
+    residual: { peak: number | null; floor: number | null; delta: number | null }; gBytes: number | null; peakAttribution: "未確定（取り逃し）" | null }[] };
