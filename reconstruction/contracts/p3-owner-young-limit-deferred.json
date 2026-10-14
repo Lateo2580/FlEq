@@ -1,0 +1,331 @@
+{
+  "meta": {
+    "draftedFromOid": "aa6c95b749fa1e21ebc64e1a2200e6068a206986",
+    "sha256": "57cfb4f112128a426e4f07596948ff35771dd00dbb932f7cca99f6534205998e",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "D-DYL-NEXT",
+        "A": "②: deferredのowner threadにも若い世代の上限（WorkerのresourceLimits.maxYoungGenerationSizeMb）を付ける",
+        "B": "③: U-Yの確率の報のdecodeの確保を減らす製品の契約（P3-XML-TREE-COMPACT-001の型をVPTA50の経路に）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-14午後、ご主人: ②で進める）",
+        "reason": "補助の窓（P3-E05Y-SPLIT-001、p3-e05s-20261014）は周0・周1とも3 runすべてS1V（deferredのheapTotal−heapUsedの差が主）で、同契約のAC05(5)で事前に固定した次の手がS1V→②だった（Q-DYL-MATERIAL）。③はS1Uのときの先の手"
+      },
+      {
+        "id": "D-DYL-VALUE",
+        "A": "maxYoungGenerationSizeMb＝12（weatherCurrentと同じ値。手元のNode 22で新しい世代の枠〔new_space〕は8MiB）",
+        "B": "16（new_spaceは16MiB）",
+        "C": "4（new_spaceは4MiB）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-14午後、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む（Q-DYL-AUTHOR）",
+        "reason": "Workerの試し（Q-DYL-PROBE）: 上限なしのnew_spaceは32MiB、8と12はどちらも8MiB、16と24はどちらも16MiB、4は4MiBで、値は段で効く。確率の報の後のheapTotalは上限なし94.9〜145.5MiB、12で54.1〜93.5、16で69.3〜117.1、4で50.5〜90.0。最大級のVPWP50の後は上限なし126.8〜159.6、12で99.5〜116.1、16で107.9〜126.1、4で95.9〜112.7。1入力の時間（p50）は確率の報で上限なし77.6ms・12で82.7（+6.6%）・16で82.0・4で86.5（+11%）、VPWP50で189.7・196.1（+3.4%）・199.3・201.5（+6.2%）。4は12より山が下がらず時間だけ増え、16は効きが小さい。12はweatherCurrentと同じ値で、host.tsの式を1か所の値で書ける"
+      },
+      {
+        "id": "D-DYL-SCOPE",
+        "A": "deferredのowner threadに足す（weatherCurrentの12はそのまま、urgentとpublisherには付けない）",
+        "B": "urgentにも付けて3本とも同じにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-14午後、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む（Q-DYL-AUTHOR）",
+        "reason": "S1Vはdeferredの増えで、urgentのheapは山の間ほぼ動かない（P3-OWNER-YOUNG-LIMIT-001のQ-WYL-MATERIAL）。EEW・津波のurgentに回収の増えによる時間の増え（E01 p99≤250ms）を持ち込まない。publisherは起動のoptionの話で別に決める（前例と同じ）"
+      },
+      {
+        "id": "D-DYL-E05P",
+        "A": "配送の後に統合担当がMac miniで新しいmanifestId（例 p3-dyl-e05y-<日付>）をp3-e05y-20261013と同じ作り方で凍結し、上乗せの窓e05y-Pと対照の素のE05-P（e02-P）を交互に3 runずつ測る。e05y-Pが3 runともPassでなければ、補助の窓（P3-E05Y-SPLIT-001のe05s-y・e05s-p）を新しいmanifestIdで測り、deferredのΔVが下がったかを見てから次の手を作者に諮る",
+        "B": "Aと同じ回に、補助の窓（probe付きのe05s-y・e05s-p）3 runずつも初めから並べる（約1時間増）",
+        "C": "e05y-Pだけを3 run（対照なし）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-14午後、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む（Q-DYL-AUTHOR）",
+        "reason": "E05の判定はprobeの無い窓で、TYPHOONの正式と同じ交互の並べ方でしか前回と比べられない（P3-E05Y-INHERITED）。probeの窓は判定に使えない（P3-E05S-AC05(6)）ので、Passなら要らない。Failのときだけ機序（ΔVが下がったか、RSSに入っていたか）を見る。Bは作者の方針（日数が問題、機械の負荷は問わない）なら1回で済ませる案。Cは対照との差で読めない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-DYL-MATERIAL",
+        "status": "closed",
+        "source": "P3-E05P-TYPHOON-001の正式（p3-e05y-20261013、06df4c22）とP3-E05Y-SPLIT-001の正式（p3-e05s-20261014、54226dec）、計画の表の行",
+        "closed": "(1) e05y-P（負荷Pに台風の確率の報VPTA50 3通〔1通約1.85MB、U-Y、deferred〕を1周ごとに上乗せ）の最大RSSは392.9・407.5・387.7MiBで1 runがE05（400MiB）を越えた。対照の素のE05-Pは383.3・390.3・381.7MiB (2) 補助の窓は周0・周1とも3 runすべてS1V: 周0のd_S1は47.7〜48.5MiBで、deferredのΔV（heapTotal−heapUsed）の差+37.5〜38.3、ΔU+9.9〜10.1、ΔX+0.1。周1は17.3〜17.8MiB。weatherCurrentの差は−16.8〜+0.5MiB。対照を1つずつ替えても変わらず、取り逃し0 (3) 同契約のAC05(5)で事前に固定した次の手はS1V→②（deferredのownerにも若い世代の上限、値は別の契約で測る、容量の増えがRSSに入っていたかは②の後のE05-Pの測り直しで見る） (4) TYPHOONの窓（run2）のdeferredの確率の報1通の処理は93〜132ms（decode 80〜106ms）、待ち0.1〜0.2ms",
+        "remaining": "なし",
+        "reason": "本契約が縛る対象（deferredのheapの枠の広がり）の根拠"
+      },
+      {
+        "id": "Q-DYL-CODE-READ",
+        "status": "closed",
+        "source": "起草時（aa6c95b7）に実コードで確かめたこと",
+        "closed": "(1) host.tsはowner threadを1つのforで3本作り、Workerの式は126・127行の2行。resourceLimitsは127行の中でplaceがweatherCurrentのときだけ渡す（P3-OWNER-YOUNG-LIMIT-001） (2) deferredのownerに載るunitはU-F（VPWP50）・U-L・U-R・U-B・U-M・U-Y（VPTA50など）で、readyのunitを持たない入力（ignored・notPorted・unlisted）のdecodeもdeferredで行う（unit-coverage.ts） (3) owner threadの処理の時間が効く所: E03（最大正常XMLの処理開始→確定 p99≤1秒）、E07（通常入力の最大待機年齢5秒）、E14（正常unitのdirty更新から世代ackまで≤3秒）、ownerの監視（最古の未返信要求が5秒でstalled、composition-root）。deferredのownerの期限の回収（deadline要求）はownerが要求を処理する時に行うので、遅れるのは処理の時間の分だけ (4) resourceLimitsにmaxYoungGenerationSizeMbだけを渡すと、古い世代・code・stackはWorkerの既定のままで、上限に当たった値は捨てられず古い世代へ移る（昇格）。V8の若い世代の上限は回収の頻度と昇格の早さだけを変え、JSの値・受理・状態・出力の計算は変えない",
+        "remaining": "なし",
+        "reason": "変える所とその外への効きを推測で埋めない"
+      },
+      {
+        "id": "Q-DYL-PROBE",
+        "status": "closed",
+        "source": "起草時の使い捨ての計測（2026-10-14 13:02〜13:10、Mac mini・Apple M2・Node v22.23.3、使い捨てのcheckout aa6c95b7のreconstruction/dist、load average 約2）。scriptはrepoの外（Mac miniのfleq-a10-runs/dyl-probeのworker.mjs・main.mjs・all.sh・sum.mjs、終わった後に消した）。main.mjsは値ごとに新しいprocessでWorkerを1本作り（resourceLimitsを渡さない回と、maxYoungGenerationSizeMb 4・8・12・16・24を渡す回）、worker.mjsはその中でOwnerHost（place deferred、measured false、空のstateDirectory）をrestoreし、窓の充填と同じU-F 511 subject（nearCapacityFramesのleaveRoomForP〔forecastSubjectsの空き1〕のVPWP50）を入れてU-Fの保存の権を1回渡し、3秒待ってから、周を2回: e05y-Pのoverlayの3 fixture（76_01_01・76_01_02・76_01_03のVPTA50、weatherFrameで報告時刻を投入時へ移す）を1通ずつ入れてU-Yの保存の権を渡し2秒待つ、続けて最大級のVPWP50（81_09_01、2.27MB）を入れてU-Fの保存の権を渡し5秒待つ。各入力のhandleの直後にprocess.memoryUsage()とv8のnew_spaceの大きさを取り、handleの時間を測った。各値3 run",
+        "closed": "(1) new_spaceの大きさ（入力の後）: 上限なし32MiB、4で4、8と12で8、16と24で16MiB (2) 確率の報の後のheapTotal（GCしない高さ、6入力×3 run）: 上限なし94.9〜145.5MiB、4で50.5〜90.0、8で54.4〜93.7、12で54.1〜93.5、16で69.3〜117.1、24で69.3〜117.1。周0の1通目は上限なし98.9〜99.1、12で54.1〜65.3（−34〜45MiB） (3) heapUsedは確率の報の後 上限なし62.4〜121.8、12で44.8〜84.9MiB。値は捨てられず、保存は全部acknowledged (4) 最大級のVPWP50の後のheapTotal: 上限なし126.8〜159.6、12で99.5〜116.1、16で107.9〜126.1MiB。run全体のheapTotalの最大は上限なし140.4〜159.6、12で107.1〜116.1 (5) 1入力の時間（p50、範囲）: 確率の報は上限なし77.6ms（73.3〜87.7）、4で86.5（77.2〜96.4）、8で80.9、12で82.7（76.9〜94.3）、16で82.0、24で84.3。VPWP50は189.7（184.2〜191.7）、4で201.5、8で190.1、12で196.1（190.4〜206.6）、16で199.3、24で207.9 (6) 終わりのprocessのRSS（Workerとmain）: 上限なし210.9〜235.8MiB、12で183.0〜185.3 (7) 試しはowner 1本で、publisher・他のownerの重なり・窓の時間の間の縮みは入らない。heapTotalの下がりがRSSに同じだけ出るかは窓でしか分からない",
+        "remaining": "なし（実装者はAC03で配送する版について改めて測る）",
+        "reason": "D-DYL-VALUEの根拠と、AC03の目安の値"
+      },
+      {
+        "id": "Q-DYL-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-14午後、ご主人）",
+        "closed": "D-DYL-VALUE=A（12）、D-DYL-SCOPE=A（deferredだけ足す、weatherCurrentは12のまま、urgentは縛らない）、D-DYL-E05P=A（新しいmanifestIdでe05y-Pと素のE05-Pを交互に3 runずつ、全Passでなければ後で補助の窓）。どれも推奨どおり。残存リスク(1)〜(10)を一括承認",
+        "remaining": "なし",
+        "reason": "分岐3つと残存リスクの確定"
+      },
+      {
+        "id": "Q-DYL-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-14午後、HEAD aa6c95b7、本契約は未コミットの下書き）",
+        "closed": "(1) 分岐: D-DYL-NEXTは作者裁定A、VALUE・SCOPE・E05Pも作者裁定A（Q-DYL-AUTHOR）。裁定前の書き方（案の段の状態・裁定の欄・値の場合分け）を裁定の形に直し、契約の中に残っていないことを文字列の検索で確かめた (2) anchor: evidenceRefsの14件とcontractTypeRefをaa6c95b7の行で読み、条文の主張と合うことを確かめた（SPLITのAC05(5)のS1V→②、計画のSPLITの正式の結果、前例のAC01、127行を引く2件、deferredのunit、E03・E05・E07・E14の行、ownerの監視の5秒、AGENTS.mdの最小実装・最小テスト）。起草の後のcommitは無く、ずれは0件 (3) host.tsの行の参照: 8契約20か所のanchor（異なる行15）を数え直し、Q-DYL-LINESと同じ。内容が変わる127行を引くのはp3-e05p-typhoon.json:290とp3-e05y-split.json:353の2件だけで、同期はAC01に統合担当が配送のcommitで行うと書いた（«sha16»とmeta.sha256だけ、本文は書き換えない）。本契約はhost.tsの行をanchorで引かない (4) allowedPaths: 実装者が触るのはhost.tsだけで、2つの契約のanchorの同期は統合担当の配送のcommitの仕事（前例P3-OWNER-YOUNG-LIMIT-001も同じ形）なので、2つの契約はallowedPathsに入れない。AC01・outOfScope・check-contractのpurposeにそう書いた (5) 実装の形: new Workerの第2引数のobjectで、placeがurgentでないときだけresourceLimits（12）をspreadで足す1行の置き換え。weatherCurrentのWorkerは今と同じ引数、urgentも今と同じ引数になる (6) 実装役が迷う所を直した: AC01の値の場合分けを除いて12と1つの条件に、AC02(2)の一致の確かめで時計の固定の仕方（sharedNowを定数）と比べない欄（marks・decode・heap）を書いた。checkpointのattemptIdはrunId・unit・世代・連番で、乱数を使わないので、時計を固定すればslotのファイルは2回の流しで同じbytesになる見込み (7) 最小実装・最小テスト: 足すのは式の中の1か所で、新しい試験は足さない（T01、効きはAC03とE05-Pの測り直し、欠けの無さはAC02(2)） (8) 計画のE05-Pの節の本契約の行を点検済みの状態にした",
+        "remaining": "なし（baseOidの割当はQ-DYL-BASE）",
+        "reason": "発注前点検の項目を閉じる"
+      },
+      {
+        "id": "Q-DYL-LINES",
+        "status": "closed",
+        "source": "起草時（aa6c95b7）にreconstruction/contracts/の全json（46本）とp3-order-plan.mdのhost.tsの行の参照を数えた",
+        "closed": "(1) host.tsの行をanchor（file:line «sha16»）で引くのは8契約20件（異なる行15）: p3-e05p-classify（125・389）、p3-e05p-typhoon（127・133・134・153×2・306・389）、p3-e05y-split（127・153）、p3-lifetime-and-eew-gate（51・191・243・246）、p3-measure-harness（396・417）、p3-nankai-unit（37）、p3-seismic-unit（37）、p3-tsunami-unit（295）。ほかに本文の中の行の参照（anchorなし）が24か所（37〜438行）と計画の表に7か所 (2) 本契約で内容が変わる127行をanchorで引くのはp3-e05p-typhoon.jsonの290行（P3-E05Y-AC05のevidenceRefs）とp3-e05y-split.jsonの353行（P3-E05S-AC05のevidenceRefs）の2件で、どちらも『host.tsのresourceLimitsは今weatherCurrentだけ』の根拠。126行を引く参照は0件 (3) 1行を1行で置き換えれば、ほかの18件と本文・計画の参照はずれない。本契約自身はhost.tsの行をanchorで引かない（配送で自分のanchorが落ちないように）",
+        "remaining": "なし（同期はAC01、確かめはQ-DYL-BASE）",
+        "reason": "行の約束と、配送の時のanchorの同期の範囲"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "operationの扱いを変えない。deferredのowner threadのV8の若い世代の大きさだけを変え、受理・状態・出力・通知・保存は変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-OWNER-YOUNG-LIMIT-002",
+    "mode": "implementation",
+    "objective": "台風の確率の報を上乗せしたE05-P（e05y-P）の山を上限400MiBの内側へ入れる手（作者裁定 D-DYL-NEXT=A、P3-E05Y-SPLIT-001のS1V→②）。補助の窓で、上乗せの後の山の区間のdeferredのheapの容量の増えは主にheapTotal−heapUsed（ΔV、+37.5〜38.3MiB）だった（Q-DYL-MATERIAL）。host.tsがowner threadを作るとき、deferredのWorkerにもresourceLimits.maxYoungGenerationSizeMbを渡す（作者裁定 D-DYL-VALUE=A・D-DYL-SCOPE=A: 値は12、deferredに足し、weatherCurrentの12はそのまま、urgentは縛らない）。受理・状態・出力・通知・保存は変えない（作者の方針 2026-10-14: 仕様どおりに動いて欠けが出る状態は致命的）。手元の試しで確率の報の後のheapTotalは約−40MiB、1入力の時間は+3〜7%（Q-DYL-PROBE）。E05-Pの測り直しは配送の後に統合担当（D-DYL-E05P、Q-DYL-E05P）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-owner-young-limit-deferred.json",
+      "reconstruction/contracts/p3-owner-young-limit.json",
+      "reconstruction/contracts/p3-e05y-split.json",
+      "reconstruction/contracts/p3-e05p-typhoon.json",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/host/host.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-owner-young-limit-deferred.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-EXECUTION-SPLIT-001",
+      "P3-OWNER-YOUNG-LIMIT-001",
+      "P3-E05Y-SPLIT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerStartData"
+    ],
+    "publicFunctions": [
+      "startP2Host（signature・挙動を変えない。owner threadの作り方の設定だけ）。公開の関数・型・exportは足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（node:worker_threadsのWorkerのresourceLimits）。package.json・package-lock.jsonを変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__76_01_01_200630_VPTA50",
+      "test__fixtures__76_01_02_260531_VPTA50",
+      "test__fixtures__76_01_03_260602_VPTA50",
+      "test__fixtures__81_09_01_260605_VPWP50",
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-DYL-RES-01",
+        "target": "deferredのowner threadのV8の若い世代",
+        "limit": 12,
+        "unit": "MiB（WorkerのresourceLimits.maxYoungGenerationSizeMb。作者裁定 D-DYL-VALUE=A）",
+        "scope": "deferredのowner thread。weatherCurrentの12（P3-WYL-RES-01）はそのまま。urgentとpublisher（main thread）には付けない（D-DYL-SCOPE）。古い世代・code・stackの上限は付けない（メモリ不足で落とさない、値を捨てない）",
+        "source": "D-DYL-VALUE・D-DYL-SCOPE、Q-DYL-PROBE"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "D-DYL-NEXTのB（U-Yのdecodeの確保を減らす製品の契約）。E05-Pの測り直し（Q-DYL-E05P）の後に作者が決める",
+      "publisher（main thread）とurgentのowner threadの若い世代、weatherCurrentの値（12）の見直し",
+      "古い世代の上限（maxOldGenerationSizeMb）・code・stackの上限、GCのflag、処理の小分け",
+      "domain・unit・decode・保存・owner-runtime・owner-hostのコード",
+      "E05の400MiB・E03の1秒・E07の5秒・E14の3秒の値、凍結manifestの編集（統合担当）",
+      "spec本文・計画・他の契約のファイルの改訂（統合担当。AC01のanchorの同期も統合担当が配送のcommitで行う）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-DYL-AC01",
+        "requirement": "方式と行の約束: host.tsのowner threadを作る所で、placeがdeferredのWorkerにもresourceLimits: { maxYoungGenerationSizeMb: 12 } を渡す（D-DYL-VALUE=A・D-DYL-SCOPE=A）。今の127行（Workerの式の2行目）を1行で置き換え、host.tsの行の数は変えない（git diff --statで足した行と消した行が1と1）。weatherCurrentとdeferredが同じ12なので、urgentだけを外す1つの条件と1か所の値（例 place === \"urgent\" ? {} : { resourceLimits: { maxYoungGenerationSizeMb: 12 } }）で書く。なぜ（e05y-Pの山の区間でdeferredのheapの枠が広がるS1V、作者裁定 D-DYL-NEXT、P3-DYL-RES-01）は同じ行の末の日本語のコメントで、今のweatherCurrentの理由（P3-WYL-RES-01）と並べて書く。urgentのWorkerの作り方、workerData、message・error・exitの扱いは変えない。古い世代の上限は付けない。行の同期（統合担当が配送のcommitで行う。実装者は2つの契約のファイルを触らない〔allowedPathsはhost.tsだけ〕）: 127行をanchorで引くp3-e05p-typhoon.jsonの290行とp3-e05y-split.jsonの353行の«sha16»だけを新しい127行（trimした行のsha256の先頭16 hex）に替え、2つの契約のmeta.sha256を自己digestで入れ直す。本文（『host.tsのresourceLimitsは今weatherCurrentだけ』）はその契約の起草の時点の事実の記録なので書き換えない。ほかの18件のanchorと本文・計画の行の参照はずれないことをcheck-contractのFAIL 0で示す。無いと: 確率の報の入力でdeferredの若い世代が32MiBまで広がり、e05y-Pの山が上限を越えうる形が残る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-e05y-split.json:333 «422c35ca56342be4»",
+          "reconstruction/contracts/p3-order-plan.md:416 «2cf9b9b90498a70e»",
+          "reconstruction/contracts/p3-owner-young-limit.json:193 «c9f837671c9f26e2»",
+          "reconstruction/contracts/p3-e05p-typhoon.json:290 «2ebaae3f2c856c75»",
+          "reconstruction/contracts/p3-e05y-split.json:353 «2ebaae3f2c856c75»",
+          "reconstruction/src/runtime/unit-coverage.ts:17 «edddd5a2cb786e2f»",
+          "AGENTS.md:24 «c1288cfa5b0d16dc»"
+        ]
+      },
+      {
+        "id": "P3-DYL-AC02",
+        "requirement": "欠けを出さない（作者の方針 2026-10-14: 仕様どおりに動いて欠けが出る状態は致命的）: 上限はV8の若い世代の大きさだけを変え、受理・拒否の判断、unitの状態、view・snapshot・SSEの出力、通知のintent、保存（checkpointの中身と世代のack）を変えない。若い世代に収まらない値は捨てられず古い世代へ移る（昇格）だけで、古い世代は縛らないのでメモリ不足でthreadを落とす経路を足さない。確かめ: (1) 既存のreconstruction/test/の全試験（hostを起動してowner threadを3本作る試験を含む）が期待値を変えずに緑で通る (2) AC03の測定の中で、同じ入力の列を上限なしと上限ありで流し、注入の時計を固定して（sharedNowを定数にし、要求のclock・sharedMsは2回の流しで同じ値の列にする）、時刻と処理の時間の欄〔marks・decode・heap〕は比べずに、各入力のinputDoneのoutput（view・pendingIntents・diagnostics）と保存の結果（checkpointDoneのresultの種類と、保存されたslotのファイルのsha256）が一致することを示す。一致しなければ配送せず統合担当へ報告して止める。無いと: heapの数字が下がっても、受理・出力・保存に欠けが無いことを言えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-owner-young-limit.json:193 «c9f837671c9f26e2»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      },
+      {
+        "id": "P3-DYL-AC03",
+        "requirement": "測定と報告: 実装者の機械のNode 22（v22.23.x、重い処理はMac mini）で、OwnerHost（deferred）をWorkerの中で動かし（host.tsと同じresourceLimitsを渡す回と渡さない回、各3 run以上、値ごとに新しいprocess）、U-Fを窓の充填の量（nearCapacityFramesのleaveRoomForPのVPWP50 511件）で満たしてから、e05y-Pのoverlayの3 fixtureのVPTA50と最大級のVPWP50（81_09_01）を、保存の権を挟んで2周入れ、入力の後のheapTotal（GCしない高さ）・heapUsed・new_spaceの大きさ・1入力の時間を並べる（Q-DYL-PROBEと同じ手順、scriptはrepoの外の使い捨てでよく、成果物に中身を載せる）。目安: 確率の報の後のheapTotalが上限なしより25MiB以上低いこと（起草時は周0の1通目で−34〜45MiB）。届かなければ配送の前に統合担当へ報告して止める。1入力の時間（p50）が上限なしの1.15倍を超えたときも報告して止める（Piの処理の時間、E03・E07・E14に効くため）。無いと: 設定が効いたか、時間の代わりに何を払ったかを数字で言えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
+          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
+          "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
+          "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
+          "reconstruction/src/runtime/composition-root.ts:675 «b7bc8ff6372f700f»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-DYL-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-DYL-AC01",
+          "P3-DYL-AC02"
+        ],
+        "behavior": "既存のreconstruction/test/の全試験（hostを起動してowner threadを3本作る試験を含む）が、期待値を変えずに緑のまま通る。設定の値を写すだけの新しい試験は足さない（最小テスト。効きはAC03の測定とE05-Pの測り直しで、欠けの無さはAC02(2)の一致で示す）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O10の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。p3-e05p-typhoon.jsonの290行とp3-e05y-split.jsonの353行のanchorのFAIL（host.ts:127の内容が変わる）は想定内で、統合担当が配送のcommitで直す（AC01）。ほかのFAILは想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eewのdist"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（T01）。順序を変える回（--sequence.shuffle）も1回通す"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組み（deferredのresourceLimits、式の中の1か所）の「無いと何が壊れるか」を1行で書く。host.tsの行の数が変わっていないこと（git diff --statで足した行と消した行が1と1）と、新しい127行のanchor（«sha16»）を示す",
+      "AC02(2)の一致の表（入力ごとのoutputの一致・保存のslotのsha256の一致）とAC03の表（上限なし・上限ありの各入力のheapTotal・heapUsed・new_space・時間、機械・Node・load average）と測定のscriptの中身",
+      "残存リスク（作者承認 2026-10-14午後、ご主人、(1)〜(10)の全部。Q-DYL-AUTHOR）: (1) e05y-PがE05の内側に入るかは本契約では示さない。正式のrun2は上限を7.5MiB越えていて、試しのheapTotalの下がり（約−40MiB）がRSSに同じだけ出るかは窓でしか分からない (2) 若い世代を小さくすると回収（scavenge）が増え、deferredの1入力の時間が手元で+3〜7%（確率の報82.7ms・VPWP50 196.1ms）。Piの時間（E03 p99≤1秒）への効きは未確認 (3) 小さすぎる上限は、回収の増えで処理が遅れ、deferredの入力の待ち（E07の5秒）、U-F・U-Yの保存のack（E14の3秒）、ownerの監視（5秒でstalled）に近づく。手元の値（約0.2秒）では余裕は大きいが、Piでは測っていない (4) 早い昇格: 若い世代に収まらない値が古い世代へ早く移り、古い世代が増えてmark-compact（止まる時間の長いGC）が増えうる。山のheapUsedは減らず、RSSの下がりの一部が古い世代の増えで相殺されうる (5) 効きはMac miniのNode 22で測る。Pi（glibc・arm64）でheapTotalの下がりがRSSに同じだけ出るかは測り直しとP5まで分からない (6) Nodeの版を上げるとV8の若い世代の既定と上限の効き方（8と12がどちらもnew_space 8MiBになる段）が変わりうる。版を上げるときにE05-Pを測り直す (7) 上限は若い世代だけで古い世代は縛らないので、メモリ不足でthreadが落ちる経路は足さないが、古い世代の増えも止めない (8) 試しは確率の報とVPWP50だけ。deferredのほかのunit（U-L・U-R・U-B・U-M）とreadyでない入力のdecodeへの効きは測らない（値は変わらず、時間だけが変わりうる） (9) 配送でp3-e05p-typhoon.jsonとp3-e05y-split.jsonのanchorの«sha16»とmeta.sha256が変わる。本文の『今weatherCurrentだけ』は起草時の事実のまま残る (10) weatherCurrentとpublisherの山（e05y-Pの山はVPWS50の処理の終わりの約0.3秒後で、weatherCurrentと重なる）は本契約では変えない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-DYL-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "発注前点検の後（統合担当、点検のcommitへの割当）",
+        "requiredEvidence": [
+          "baseOidの割当（起草・発注前点検はaa6c95b7）。割当の時点でanchorのずれが0件であることをcheck-contractで確かめる",
+          "割当の前にhost.tsへの別のcommitが入っていれば、host.tsの行をanchorで引く契約と本文の行の参照を数え直し、127行を引くのがQ-DYL-LINES(2)の2件だけであることを確かめ直す"
+        ]
+      },
+      {
+        "id": "Q-DYL-E05P",
+        "owner": "integrator",
+        "blocks": [
+          "P3-E05P-TYPHOON-001の結論（C14の残存リスク(21)）の再検収"
+        ],
+        "resolveBy": "本契約の配送の後",
+        "requiredEvidence": [
+          "D-DYL-E05P=Aの形で、Mac mini（独立checkout）で新しいmanifestIdを凍結してから測る。前の凍結manifestと結果は書き換えない",
+          "Failなら、補助の窓の分類と山の内訳を作者へ報告し、D-DYL-NEXTのB（U-Yのdecodeの確保）・weatherCurrentの値の見直し・E05の測り方を作者が決める。本契約のコードの不合格とは扱わない"
+        ]
+      }
+    ]
+  }
+}
