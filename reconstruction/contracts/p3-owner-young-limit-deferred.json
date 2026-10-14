@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aa6c95b749fa1e21ebc64e1a2200e6068a206986",
-    "sha256": "db321483a8e70fe3a144df85d87d8fcfd3437920bbf595b8dc21316bf52cc5ba",
+    "sha256": "e701a1e1b25391ce3b51cdcb828c9047cb69cadaa711154ce9de9367964a1e30",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -98,6 +98,14 @@
         "closed": "(1) host.tsの行をanchor（file:line «sha16»）で引くのは8契約20件（異なる行15）: p3-e05p-classify（125・389）、p3-e05p-typhoon（127・133・134・153×2・306・389）、p3-e05y-split（127・153）、p3-lifetime-and-eew-gate（51・191・243・246）、p3-measure-harness（396・417）、p3-nankai-unit（37）、p3-seismic-unit（37）、p3-tsunami-unit（295）。ほかに本文の中の行の参照（anchorなし）が24か所（37〜438行）と計画の表に7か所 (2) 本契約で内容が変わる127行をanchorで引くのはp3-e05p-typhoon.jsonの290行（P3-E05Y-AC05のevidenceRefs）とp3-e05y-split.jsonの353行（P3-E05S-AC05のevidenceRefs）の2件で、どちらも『host.tsのresourceLimitsは今weatherCurrentだけ』の根拠。126行を引く参照は0件 (3) 1行を1行で置き換えれば、ほかの18件と本文・計画の参照はずれない。本契約自身はhost.tsの行をanchorで引かない（配送で自分のanchorが落ちないように）",
         "remaining": "なし（同期はAC01、確かめはQ-DYL-BASE）",
         "reason": "行の約束と、配送の時のanchorの同期の範囲"
+      },
+      {
+        "id": "Q-DYL-E05P",
+        "status": "closed",
+        "source": "Mac mini の測り直し（p3-dyl-e05y-20261014、checkout 93165e44、manifestSha256 8a96c664…、記録 b0ae4c34）",
+        "closed": "e05y-P の最大 RSS は 374.5・362.3・380.6MiB で 3 run とも Pass（上限 400MiB、前回 p3-e05y-20261013 は 392.9・407.5・387.7）。対照の素の E05-P は 364.1・354.6・361.3MiB で Pass（前回 383.3・390.3・381.7）。上乗せの区間の最大は周 0 で 361.2・362.3・366.3、周 1 で 366.5・362.0・374.2MiB（前回の周 0 は 387.2〜407.5）。窓の最大は run2 を除き失効の後の約 797.6 秒（上乗せの区間の外）で、対照も同じ時刻。E02 の p99 は 2.66〜2.85ms で Pass。上乗せの成立の確かめは 3 run とも passed（checked 6、missing 0）。deferred の heapUsed の最大は上乗せの窓で 38.1・44.5・44.7MiB（前回 56.2〜56.3）。余裕は最小 19.4MiB",
+        "remaining": "判定場所は Pi（P5）。Pi の E03（処理の時間）への効き（手元で deferred の 1 入力 +3〜7%）は Pi で確かめる。対照も前回より 19〜36MiB 下がっていて、上乗せとの差（10.4・7.7・19.3MiB）は前回（9.6・17.2・6.0）と同じ幅に収まる",
+        "reason": "e05y-P の測り直しを記録して閉じる"
       }
     ],
     "operationContract": {
@@ -312,18 +320,6 @@
         "requiredEvidence": [
           "baseOidの割当（起草・発注前点検はaa6c95b7）。割当の時点でanchorのずれが0件であることをcheck-contractで確かめる",
           "割当の前にhost.tsへの別のcommitが入っていれば、host.tsの行をanchorで引く契約と本文の行の参照を数え直し、127行を引くのがQ-DYL-LINES(2)の2件だけであることを確かめ直す"
-        ]
-      },
-      {
-        "id": "Q-DYL-E05P",
-        "owner": "integrator",
-        "blocks": [
-          "P3-E05P-TYPHOON-001の結論（C14の残存リスク(21)）の再検収"
-        ],
-        "resolveBy": "本契約の配送の後",
-        "requiredEvidence": [
-          "D-DYL-E05P=Aの形で、Mac mini（独立checkout）で新しいmanifestIdを凍結してから測る。前の凍結manifestと結果は書き換えない",
-          "Failなら、補助の窓の分類と山の内訳を作者へ報告し、D-DYL-NEXTのB（U-Yのdecodeの確保）・weatherCurrentの値の見直し・E05の測り方を作者が決める。本契約のコードの不合格とは扱わない"
         ]
       }
     ]
