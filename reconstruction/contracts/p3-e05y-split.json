@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "444de1a7cb8a90ecc7cfe150e91d742936508cae",
-    "sha256": "58e7fedd0b7dfd26710611a63e7e6420973a0b01a75816813eadb8621666a9bd",
+    "sha256": "6601d8b536cfc46d3d16019f8be8b25c888f132146d1d5d63460a10c6d3ad9ca",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -137,7 +137,7 @@
     "contractId": "P3-E05Y-SPLIT-001",
     "mode": "implementation",
     "objective": "P3-E05P-TYPHOON-001の正式の測定（p3-e05y-20261013）で、上乗せの窓e05y-Pが1 runだけ上限400MiBを越えた（407.5MiB、周0の306.2秒、305,612msのVPWS50の処理の終わりの約0.3秒後）。作者はAC05(3)の①（原文『deferredのownerのheapを切り出す補助の窓（案B。既存のownerHeapの窓の入力ごとのheapに上乗せを足す）で、山がdeferredのU-Yか、重なったweatherCurrentかを分ける』）を選んだ（Q-E05S-NEXT）。原文の『案B』は本契約のP3-E05S-SHAPEのAに当たる。本契約は、上乗せの後の山の区間で、記録できた点（probeの山t_p）でどのthreadの何（heapUsed・heapTotal−heapUsed・external、またはheapの容量で説明できない残差）が対照より増えていたかを、既にある観測（probeの行・processingとGCの行・mem行）の照合で届く範囲で出す補助の窓を足す。記録できなかった頂点（1秒のmem行の山がprobeの山より高いとき）の帰属は未確定とする。残差のnativeへの帰属と、heapの容量の増えのRSSへの寄与は断定しない。山の大部分はどの窓でもVPWS50のweatherCurrent（P3-E05C-MATERIAL(3)）なので、問いは対照との差の内訳として立てる。測り方は作者裁定P3-E05S-SHAPE=B（①の原文どおりのAと、rawの読み直しのCは採らない）: e05y-Pの経路に分類の窓のprobe（4 threadの200ms、観測だけ）を足した窓e05s-yと、同じprobeの素のE05-Pの窓e05s-pを交互に3 runずつ走らせ（作者裁定P3-E05S-CONTROL=A・RUNS=A、強制GCなしはGC=A）、区間の最大RSSの時刻でthreadごとのheapUsed・heapTotal−heapUsed・externalとRSSの残りを出す。判定表（S0〜S6）と分類ごとの次の手の候補を結果の前に固定する。窓のE02・E05は報告だけで判定せず、TYPHOONの判定とC14の残存リスク(21)の扱いは変えない。新しいmanifestIdで凍結し、既存の凍結manifestと結果は書き換えない。製品のコードとrunnerの本体（run.mjs）・凍結の照合（frozen.ts）・probe-preload.mjs・aux-measures.mjsは変えない。判定場所のPiでの確認はC22",
-    "baseOid": "unassigned",
+    "baseOid": "556be0a5e8958027e753aadf6af156395a799652",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
