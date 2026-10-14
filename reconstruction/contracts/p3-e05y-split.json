@@ -1,0 +1,484 @@
+{
+  "meta": {
+    "draftedFromOid": "444de1a7cb8a90ecc7cfe150e91d742936508cae",
+    "sha256": "b0471e22af1bcd41da570b857647766dd0c075271c42f6e70fc0b54a1b247d3a",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-E05S-SHAPE",
+        "A": "①の条文どおり（＝P3-E05P-TYPHOON-001のAC05(3)①の『案B』）: 既存のownerHeapの窓（ownerHeap-run<k>。E03の系列＝負荷Nを流しながら最大VPWS50を1,200msごと、measureInputHeapでinputDoneの返信ごとのownerのheap）に確率の報VPTA50を足し、deferredのinputDoneのheapも取る。分かること: 確率の報1通の処理の直後のdeferredのheapUsed・externalと、VPWS50の直後のweatherCurrentの値を同じ窓で並べられる。分からないこと: e05y-Pの山の時刻の内訳（負荷がN＋1.2秒ごとのVPWS50で、充填も失効の前後も無く、GCの間合いがE05-Pと違う）、heapTotal（予約）とRSSの残り（native・allocator）、RSSとの対応（この窓はE05を出さない）",
+        "B": "e05y-Pの負荷のまま、分類の窓のprobe（preloadで4 threadのmemoryUsage〔rss・heapUsed・heapTotal・external・arrayBuffers〕を200msごと、観測だけ）を足した窓e05s-yを、同じprobeの素のE05-Pの窓e05s-pと並べ、上乗せの後の山の区間の最大RSSの時刻で、threadごとのheapUsed・heapTotal−heapUsed・externalとRSSの残りに分ける",
+        "C": "窓を足さず、正式の記録（p3-e05y-20261013）のraw（Mac miniのローカルのhost-obs.jsonl。sha256は窓の記録のrawにある）を読み直し、mem行（1秒のrss）とdeadlineDoneのownerHeapの行（1秒のtick、heapUsed・externalだけ）から、山の時刻のthreadごとの値を出す",
+        "recommended": "B",
+        "provisional": "B",
+        "ruling": "B（作者裁定 2026-10-14朝、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はBの形だけを読む",
+        "reason": "測りたいのは山の時刻の内訳（どのthreadの何がRSSを押し上げたか）。Aの窓は『大型処理の直後のheap』を測る窓で、山の時刻もRSSも見ない（ownerHeapWindowはinputDoneの行だけを集める）。deferredの処理の直後のheapは正式の記録のdeadlineDoneでも既に見えている（周0の302.2秒に56.2MiB、周1は38.9〜39.1MiB、P3-E05S-MATERIAL(3)）ので、Aで新しく分かるのは負荷Nの下での1通ごとの値に限られる。Cは測り直しが要らず最も速いが、ownerHeapの行にheapTotalが無い（owner-host.tsのthreadHeapはheapUsedとexternalだけ）ので、heapの予約（若い世代の広がり。木の後のE05-Pの山はweatherCurrentの予約〔J2〕で、deferredにはまだ若い世代の上限が無い）とRSSの残りを分けられず、ownerのtickは処理中に遅れる。Bは①の条文（既存のownerHeapの窓に足す）から外れるので作者裁定にする。代償: probeは測りを少し変え（残存リスク(1)）、窓の口と集計を足す（AC01・AC02）。probeを足した窓は分類の窓で成り立った（P3-E05S-MATERIAL(7)）"
+      },
+      {
+        "id": "P3-E05S-CONTROL",
+        "A": "同じprobeの素のE05-P（e05s-p-run<k>）を対照として上乗せの窓と同じ数だけ、交互に並べる（e05s-p-run1・e05s-y-run1・e05s-p-run2・…）",
+        "B": "上乗せの窓（e05s-y）だけ。比べる相手は正式の対照（p3-e05y-20261013のe02-P-run1〜3、probe無し）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "A（作者裁定 2026-10-14朝、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む",
+        "reason": "区間の中でdeferredに入る入力は上乗せだけ（負荷Pの区間の中の入力は305,612msのVPWS50 1通で、それはweatherCurrent）なので、deferredのheapの容量の増え（判定表のS1）はほぼ上乗せの窓だけで読める。しかし、重なったweatherCurrentの山が上乗せの窓で高いのか（S3）、未説明の残差か（S5）、区間の中の追加の上昇が小さいのか（S2）は、同じprobeの対照との差でしか読めない。正式の対照にはheapTotalとthreadごとの200msの値が無く、区間の値も計算していない（P3-E05S-MATERIAL(1)）。代償は窓が倍になること（約1時間増。作者の方針では機械の負荷は問わず日数が問題）"
+      },
+      {
+        "id": "P3-E05S-RUNS",
+        "A": "上乗せの窓と対照を各3 run（6窓、約2時間）。周0の判定は3区間の分類を全部並べ（多数・最大RSSのrun・少数）、違えば混合、比較元を替えて分類が変われば未確定（AC05(3)(4)）",
+        "B": "各2 run（4窓、約75分）。2区間の判定が割れると混合",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "A（作者裁定 2026-10-14朝、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む",
+        "reason": "正式の上乗せの窓は3 runのうち1 runだけ越えた（周0の区間の最大は392.9・407.5・387.2MiB）。区間の判定がrunで割れうるので、山の大きいrunと少数の分類を並べて見られる3 runにする。比較元も、Eが中央値の対照を選べ、1つずつ替えて分類が変わるかを3通りで確かめられる（AC05(1)(3)）。Bとの差は約40分"
+      },
+      {
+        "id": "P3-E05S-GC",
+        "A": "観測だけ（強制GCをかけない。FLEQ_MEM_GC・--expose-gc・SIGUSR2を使わない）",
+        "B": "Aに加えて、分類の窓のGCのrunの型（閾値で4 threadに通常＋last-resortのGC）の上乗せの窓を2 run足す（S1Uのとき、残ったheapUsedがGC待ちか生きた値かを分ける）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "A（作者裁定 2026-10-14朝、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む",
+        "reason": "次の手の候補（②deferredの若い世代の上限、③U-Yのdecodeの確保を減らす）を選ぶのに要るのは、deferredの増えた分がheapUsed・予約（heapTotal−heapUsed）・externalのどれかで、観測だけで分かる。残ったheapUsedがGC待ちでも生きた値でも、次の手はどちらも③の側になる（U-Yの記録は1つ数十KBの見込み、P3-E05P-TYPHOON-001の残存リスク(1)）。強制GCは山の形を変え（P3-E05C-AC02）、閾値のarmの条件も足す。代償: S1Uのとき、GC待ちか生きた値かは分からない（要れば後の短い窓、残存リスク(8)）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P3-E05S-MATERIAL",
+        "status": "frozen",
+        "rule": "起草時（444de1a7）に版付きの結果で確かめた事実。(1) P3-E05P-TYPHOON-001の正式の測定（p3-e05y-20261013、Mac mini、checkout 0179eb5d）: 上乗せの窓e05y-Pの最大RSSは392.9・407.5・387.7MiB（runの判定Pass・Fail・Pass）。run1・run2の最大は周0の区間（測定の開始から300.1〜320.9秒）の306.2秒で、run3の最大は周1の666.9秒（387.7MiB）、run3の周0の区間の最大は387.2MiB。周1の区間の最大は387.0・394.0・387.7MiB。対照の素のE05-P（e02-P-run1〜3）の最大は383.3・390.3・381.7MiB（どれも充填の失効の前）。この381.7〜390.3MiBは窓全体の最大の幅で、区間の中の増分の誤差の幅ではない。対照の窓は区間（P3-E05Y-AC05(2)）を計算しないので、対照の周0の区間の値は記録に無い (2) run2の周0: 上乗せの3通の処理の終わりは測定の開始から300.2・302.2・304.2秒、VPWS50（305,612ms）の処理の終わりは305.9秒で、最大RSSの1秒の行はその約0.26秒後の306.2秒。山の立ち上がりはVPWS50の処理の終わりの直後で、分類の窓の材料（P3-E05C-MATERIAL(3)、VPWS50の処理の後に+120〜+160MiB、約8〜9秒平ら）と同じ位置 (3) deferredのownerHeap（deadlineDoneの返信ごと、1秒のtick、heapUsed・externalだけ）: 測定の窓の中の最大は3 runで56.2〜56.3MiB（302.2秒、2通目の処理の直後）、周1は38.9〜39.1MiB（661.8秒）。生涯の最大は上乗せの窓56.2〜56.3MiB、対照36.7・37.4・37.9MiB。山の時刻（306.2秒）のdeferredの値は版付きの結果に無く、rawのhost-obs.jsonl（Mac miniのローカル、sha256は窓の記録のraw）にだけある。weatherCurrentの生涯の最大は両方とも225〜227MiB (4) 確率の報の入力: decode 77〜106ms、処理90〜132ms、待ち0.13〜0.23ms (5) E02のp99（失効の前）は上乗せの窓3.24〜3.29ms、対照3.44〜3.72ms (6) 既存のownerHeapの窓（p3-wyl-e05p-20261012のownerHeap-run1）: inputDoneのweatherCurrentのheapUsedの最大157.3MiB（VPWS50の直後）、deferredは生涯の最大7.9MiB（大きい入力が無い） (7) 分類の窓の観測だけのrun（p3-e05c-20261012、木とYLの前の版）: probeを足した窓で1 threadあたり約5,280行、最大の間隔はpublisher 236ms・weatherCurrent 433ms（VPWS50の処理の間）で、200msの観測が山の時刻に届いた (8) TYPHOONの予備の記録p3-prelim-20261013T122356（Mac mini、P3-E05Y-AC07）はrepoの外",
+        "reason": "起草の前提を推測で埋めない。数値はTYPHOON・WYL・分類の窓の版付きの結果から（evidenceRefsはAC05・AC07）"
+      },
+      {
+        "id": "P3-E05S-CODE-READ",
+        "status": "frozen",
+        "rule": "起草時（444de1a7）に実コードで確かめたこと: (1) 既存のownerHeapの窓（windows.mjsのownerHeapWindow）はe03Seriesを使い、負荷Nを流しながら最大VPWS50を1,200msごと（initial-stateのe03Series）に送り、measureInputHeapを立ててinputDoneの返信ごとのownerのheapを取り、対象の入力のinputDoneの行だけを集める（E05・RSSを出さない）。inputDoneのheapはowner-host.tsでdecodeとunitの適用の後・返信の前にthreadHeap()で取り、値はheapUsedとexternalだけ（heapTotalが無い）。deadlineDoneのheapは測定の印のある全窓で1秒のtickごとに出る。e03SeriesはE03の窓と共有なので、①の条文どおりに上乗せを足すと、E03の系列の作りに口を足すことになる (2) 分類の窓のprobe（probe-preload.mjsのFLEQ_MEM_OUT）は4 threadが200msごとにrss・heapUsed・heapTotal・external・arrayBuffersを1行に記録し、時刻はpublisherの基準（hostの時計と同じ）。openE02Hostは印がnullでもE05Y.markでもなければpreloadを付け、印が『gc』のときだけ--expose-gc・FLEQ_MEM_GC・区切りのSIGUSR2を足す。そのため本契約の印を新しい値にすれば、openE02Hostを変えずに観測だけのprobeが付く (3) e02Windowの337行は印がE05Y.markのときだけ上乗せのpump（e05yPump）を作り、342行はそれを呼ぶ。358行はprobeがあればe05cOutcome、無くpumpがあればe05yOutcomeへ渡すので、probeとpumpの両方がある窓には分岐が要る。326行のidの式は新しい印ではe05c-<印>-run<k>になり、P3-E05C-T03の予備の並びの期待（e05c-で始まるidはobserveとgcの2つ）を変えるので使えない。326行はTYPHOONが引くので変えられず、idはどの契約も引かない行で付ける (4) e05yPump（917〜929行）は起点startHrと上乗せの入力と周ごとのVPWS50の入力を拾い、e05yOutcome（934〜1004行）は予定から期待の集合を作って成立の確かめ・入力の行・区間（上乗せの1通目の送った時刻からVPWS50のprocessingの終わり＋15秒）を出す。どちらもどの契約も引かない行 (5) aux-measures.mjsのclassifyE05cRunとpartsAtは4 threadの和（U・V・X・O）だけを返し、threadごとの値を返さない。分類の窓の関数なので変えず、threadごとの内訳は窓の側に足す (6) host.tsのresourceLimits（若い世代の上限12MB）はweatherCurrentのthreadだけで、deferredには無い (7) windows.mjsの行を引く契約は4つ: 分類の窓14行・TYPHOON 14行・MH 11行・WL2 1行（異なる行34、最後は827行）。TYPHOONが足した行のうち829〜830行（並べる条件）と900行以後（E05Y・E05Y_LOAD・mergedEvents・e05yPump・e05yOutcome・spanMaxima）は、どの契約も引かない。P3-E05P-TYPHOON-001のAC06はWL2をP3-WEATHER-LIGHT-STEP2-001と書くが、実のIDはP3-WEATHER-LIGHT-002（TYPHOONは凍結manifest p3-e05y-20261013にshaが入っているので直さず、本契約は実のIDを使う） (8) run.mjsの予備の--auxは各1 run（ctx.runs 1）で、件数は--e02-count。--windowsは与えた順に回す。予備の通知の既定はsilentで、realは--notification realで指定する（run.mjs） (9) probeの観測はthreadのtimerで動くので、そのthreadが同期の処理やGCをしている間は採れない（分類の窓の材料で、weatherCurrentの422ms古い行を採り、処理中の約84MiBのheapがOに入った例がある、P3-E05P-CLASSIFY-001のQ-E05C-RESULTの理由）。threadが忙しかった区間は既にある行で照らせる: hostの記録のprocessingの行（入力ごとのownerの処理の始まり〜返信の反映の終わり、publisherの基準）と、投入側のplaceOf（headTypeから引く実行場所）と、probeのk＝gcの行（threadごとのGCの始まりと所要） (10) typhoon-unitは受理した確率の報の記録をstateに持つ（probability）ので、周1の床には前の周の上乗せの分が残りうる。以上から、触るのはwindows.mjs・windows.d.mts・p3.test.tsだけで足り、製品のsrc・run.mjs・frozen.ts・draft.mjs・frames.mjs・aux-measures.mjs・probe-preload.mjsは変えない（作者裁定P3-E05S-SHAPE=B）",
+        "reason": "起草の前提を推測で埋めない。行はAC01〜AC03のevidenceRefs"
+      },
+      {
+        "id": "P3-E05S-INHERITED",
+        "status": "frozen",
+        "rule": "変えないもの: TYPHOONの上乗せ（E05Y_LOAD: 3通・offset 300,121・302,121・304,121ms・1周360,000ms、replayPumpの第5引数で1つのcursor）と成立の確かめ（P3-E05Y-AC02(6)の①〜⑤）、e05y-P・e02-P・分類の窓・ownerHeapの窓の振る舞いと結果のfile、E05-Pの窓の条件（A10のP負荷、充填leaveRoomForPとblockAtExpiry、通知の静まり待ち、E02のclient〔毎秒・manifestの件数〕、launcherのmem行1秒）、probe-preload.mjsのFLEQ_MEM_OUTの観測（200ms・行の形・written）、E05の上限とsummarizeE05・summarizeHealthE02の規則、凍結の照合（frozen.ts）と契約の型、--windowsの再実行の規則（Blockedだけ）、正式の通知はreal backendで出力をミュート",
+        "reason": "補助の窓は、e05y-Pと素のE05-Pにthreadごとの観測だけを足した条件で測る。ほかの条件を変えると、TYPHOONの山と同じ山を分けたと言えなくなる"
+      },
+      {
+        "id": "Q-E05S-NEXT",
+        "status": "closed",
+        "source": "作者裁定（2026-10-14朝、ご主人）",
+        "closed": "P3-E05P-TYPHOON-001のAC05(3)の①を起こす（『次は補助の窓をお願いします』）。①の原文は『deferredのownerのheapを切り出す補助の窓（案B。既存のownerHeapの窓の入力ごとのheapに上乗せを足す）で、山がdeferredのU-Yか、重なったweatherCurrentかを分ける』。原文の『案B』は本契約のP3-E05S-SHAPEのAに当たる。本契約はその形から外れるB（作者裁定P3-E05S-SHAPE=B、Q-E05S-AUTHOR）で測る。②deferredの若い世代の上限と③U-Yの確率の報のdecodeの確保を減らす製品の契約は起こさず、本契約の判定表の結果で選ぶ候補として残す",
+        "reason": "TYPHOONの正式の判定（上乗せの窓Fail・対照Pass、AC05(3)では①から）の後の次の手の裁定"
+      },
+      {
+        "id": "Q-E05S-REVIEW1",
+        "status": "closed",
+        "source": "独立レビュー2本（2026-10-14。品質はCodex gpt-6-astra high〔NO-GO、P1 5・P2 2。SHAPE=B・CONTROL=A・RUNS=A・GC=Aには賛成〕、契約適合はClaude Opus〔条件付きGO、P2 1・P3 9〕）",
+        "closed": "全部採った。品質: (1) 古い標本→AC02(4)に、採った行とtの間にそのthreadの処理（processingの始まり、placeOf）かGC（probeのk＝gcの行）の始まりがあればthreadをbusyにする規則、AC02(5)にbusyとmissedPeak（mem行の最大がt_pのrssを5MiB超えて上回る）のstatus、AC05(2)のS0、T02、P3-E05S-CODE-READ(9)、残存リスク(5)(14)。間隔は短くしない (2) 中央値の足し算→AC05(1)の比較元を、okが3つならEが中央値の対照の区間1つの全成分、2つなら成分ごとの平均にし、S1の下位も同じ比較元 (3) Oは未説明の残差→AC05(1)にU＋V＝heapTotalの注、AC05(2)のS1Vを『heapの容量の増加を観測（RSSへの寄与とは断定しない）』、S5を『未説明の残差（nativeへの帰属は確定しない）』、AC05(5)のS1V・S5の次の手、objective、残存リスク(2)(4) (4) 周の判定の決め方→AC05(4)を、多数・最大RSSのrun・少数の分類を必ず並べ、1つでも違えば『runの間の混合』にする形に、AC05(3)に比較元を1つずつ替えて分類が変われば未確定、AC05(5)のS2から『揺れの裾』の読みを外した。AC05(7)・P3-E05S-MATERIAL(1)に、対照の381.7〜390.3MiBは窓全体の最大の幅で区間の増分の誤差の幅ではないこと。残存リスク(3)(15) (5) 床の差→AC05(1)に床の差・増分の差・山の絶対値の差の3つ、AC05(2)のS2の意味を『区間の中の追加の上昇が小さい』に限り、AC05(5)のS2の次の手、P3-E05S-CODE-READ(10)（typhoon-unitのstateの保持で周1の床に前の周の分が残りうる）、残存リスク(6) (6) 予備の通知→AC07とrequiredCommandsに--notification real、AC07(d)を粗い動作の確認とし、分類できるかは正式の窓でAC02(4)(5)とAC05(3)で確かめると書いた (7) 同値の規則→AC02(3)のt_fの同値（遅い方）、AC05(2)のS1の成分の同値の併記、AC05(5)のS6と『runの間の混合』と未確定の次の手の対応。契約適合: 『案B』の取り違え→Q-E05S-NEXTに①の原文をそのまま引き、P3-E05S-SHAPEのAとobjectiveに『＝TYPHOONのAC05(3)①の案B』を書いた／区間の始まり→AC02(1)に予定時刻にそろえる理由／AC02(1)の矛盾→『始まりが測定の窓の中にあり、終わりがnullか測定の窓の中』／計画の415行に裁定と本契約を追記（行は増やさない）／AC06⑤をp3.test.tsは他の契約が引かないに直し、T01・T02の置き場と⑥の同期／AC02(7)にe05s-pのsent 0件／T02とAC07(c)から落ちえない恒等式を外し、T02を行の選び方と未確認の条件に絞った／AC06にwindows.d.mtsを足す理由／AC05(5)のS3を若い世代の上限（12MB、導入済み）の今の値の見直しに／P3-E05S-MATERIAL(3)を56.2〜56.3MiBに。気づいた事実: TYPHOONのAC06はWL2をP3-WEATHER-LIGHT-STEP2-001と書くが実のIDはP3-WEATHER-LIGHT-002で、TYPHOONは凍結manifestにshaが入っているので直さず、本契約は実のIDを使う（P3-E05S-CODE-READ(7)）。残存リスクは13件から15件（(14)busyでS0が増えうる、(15)runの間の混合で次の手が絞れない）",
+        "reason": "指摘を統合担当の方針（直しは最小、新しいprobeや行の種類は足さず、既にある観測の照合で届く範囲に結論の範囲を合わせる）で反映した。再レビューで確かめる（Q-E05S-REVIEW）"
+      },
+      {
+        "id": "Q-E05S-REVIEW2",
+        "status": "closed",
+        "source": "品質レビュー〔Codex gpt-6-astra high〕の再レビュー（2026-10-14、NO-GO・P1 1・P2 3。中央値の足し算・床の差・通知の条件・同値の規則は閉じ、busyを始まりだけで照らすことと区間全体をS0にすることに賛成）",
+        "closed": "全部採った。(1) P1 取り逃しの許容幅が結論を逆転させる→missedPeak（5MiB）のstatusをやめ、AC02(5)で取り逃しの幅g（mem行の区間の最大−t_pのrss）を出し、AC05(3)②でe・nをe−g_b・e＋gの両端に置いて分類が変われば『未確定（取り逃し）』にした。取り逃した頂点にt_pのheapの内訳を当てはめず、AC05(1)とS2の次の手にmem行の山の絶対値の差を並べ、『RSSの差は観測したが、その頂点の帰属は未確認』と返す。T02からmissedPeakを外し、AC05(7)・残存リスク(5)(13)の5MiBを消した (2) P2 裁定の欄に古い周の判定の決め方が残る→P3-E05S-RUNSのAとreasonを今のAC05(3)(4)に合わせ、AC05(4)・残存リスク(15)・Q-E05S-REVIEW1の言い回しから、3区間の三分の二で決める古い決め方の語を消した（契約の中で0件） (3) P2 予備でS0が出たときの凍結の条件→AC07(c)を、凍結をいったん止めて作者へ戻し、戻す内容（原因の種類・thread・山か床か・原因のイベント）を固定し、同じ条件で続けるのは続行の裁定を記録した後だけ、に直し、末尾のNO-GOは(a)(b)(d)に限った (4) P2 計画の416行→objectiveに合わせ、『heapの容量・externalの増分と未説明の残差を、観測で届く範囲で分ける。RSSへの寄与とnativeへの帰属は断定しない』に直した",
+        "reason": "再レビューの残りを直した。品質の側の再確認はQ-E05S-REVIEW"
+      },
+      {
+        "id": "Q-E05S-REVIEW3",
+        "status": "closed",
+        "source": "品質レビュー〔Codex gpt-6-astra high〕の3巡目（2026-10-14、NO-GO・P1 1・P2 1）。同じ論点でNO-GOが3巡続いたので作者に戻し、作者裁定『引く直しで4巡目』（2026-10-14、ご主人）。2巡目の②RUNS・③予備の凍結・④計画の416行とbusy・okでない予備の扱いは閉じた",
+        "closed": "引く方向だけで直し、計算は足さない。(1) P1 両端での分類のし直しでは取り逃した頂点の分類を保証できない→AC05(3)②の両端の分類を消し、S0〜S6を『probeで実際に採れた頂点（t_p）の分類』とし、gかg_bが0より大きければmem行の頂点の帰属を一律に『未確定（取り逃し）』にして観測点の分類と並べる。AC05(4)で周の報告に持ち越し、AC05(5)の頭で観測点の分類を理由に別のthreadの候補を外さないとし、S3の『③は起こさない』を取り逃しの未確定が無いときに限った。gを成分に配る計算はしない (2) P2 gは真の増分の誤差の上限ではない→AC02(5)のgを『2つの観測の系列で観測した最大RSSの食い違いの量』とし、g＝0の意味を『この2つの系列では取り逃しを検出しなかった』に限り、e−g_b〜e＋gの説明を外した。残存リスク(16)を足した。あわせて: objectiveと計画の416行を『記録できた点でどのthreadの何が増えていたか』にそろえ、T02から両端の分類を外して、g＞0で区間に未確定の印が付くことを入れた（次の手から候補が消えないことはAC05(5)の統合担当の規則で、試験の外）。AC07(c)の確かめの書き方も合わせた",
+        "reason": "作者裁定（引く直しで4巡目）に従った。品質の側の再確認はQ-E05S-REVIEW"
+      },
+      {
+        "id": "Q-E05S-REVIEW",
+        "status": "closed",
+        "source": "独立レビュー2本（2026-10-14。品質はCodex gpt-6-astra high、契約適合はClaude Opus。どちらも新規・read-only）",
+        "closed": "品質: NO-GO（Q-E05S-REVIEW1）→NO-GO（Q-E05S-REVIEW2）→NO-GO（Q-E05S-REVIEW3。同じ論点で3巡続いたので作者に戻し、作者裁定『引く直しで4巡目』）→4巡目でGO。契約適合: 条件付きGOで、条件はQ-E05S-REVIEW1で直した",
+        "reason": "レビューの項目を閉じる。直しの中身はQ-E05S-REVIEW1〜3"
+      },
+      {
+        "id": "Q-E05S-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-14朝、ご主人）",
+        "closed": "P3-E05S-SHAPE=B（e05y-Pの負荷のままprobeを足す。①の原文の『案B』＝本契約のAから外れることも承認）、P3-E05S-CONTROL=A（同じprobeの素のE05-Pを交互に）、P3-E05S-RUNS=A（各3 run）、P3-E05S-GC=A（観測だけ）。4つとも推奨どおり。残存リスク(1)〜(16)を一括で承認（(13)の判定表の境界〔10MiB・0.5・1,000ms・30秒・15秒〕とAC07(d)の線は起草時に置いた値であることを含む）",
+        "reason": "独立レビュー（Q-E05S-REVIEW）の後に、分岐4つと残存リスクを確定した"
+      },
+      {
+        "id": "Q-E05S-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-14、HEAD 444de1a7）",
+        "closed": "(a) 分岐: 4つ（SHAPE・CONTROL・RUNS・GC）とも作者裁定（B・A・A・A）。decisionBranchesのrulingとprovisionalを確定の形にし、decisionBranchesと本文（objective〜unresolvedQuestions）に下書きの語（起草の案・裁定の待ち・承認の待ち）が0件であることをgrepで確かめた (b) 裁定の前の書き方を、B・A・A・Aに定まった形に直した: objective（SHAPEの選択肢の列挙と下書きのB）、P3-E05S-RES-01のunit（CONTROL・RUNSがAの場合）、outOfScope 3か所（SHAPE=Aが選ばれたら改訂、SHAPE=C、GC）、AC01 4か所とAC04(2)の裁定値、AC05(5)のGC、AC05(7)とAC07(d)の境界（作者の承認で確定する→残存リスク(13)の一括承認で承認した）、残存リスクの見出しと(8)(9)(13)（(9)はA・Cが選ばれたときの書き直しの文言を消し、①の原文から外れることを作者が承認した、に変えた）、Q-E05S-NEXTとP3-E05S-CODE-READの『Bの形』。decisionBranchesのA・B・Cの案は記録として残した (c) 他の契約が引く行: reconstruction/contracts/の本契約以外のjsonを数え直した。windows.mjsの行を引くのは4契約で、契約ごとの異なる行の和は40（全体で異なる行は34、最後は827行）で、分類の窓14・TYPHOON 14・MH 11・WL2 1。AC06②の行の列と同じ。p3.test.tsとwindows.d.mtsの行を引く他の契約は0件。本契約のallowedPaths（windows.mjs・windows.d.mts・p3.test.ts・本契約）の変更は、AC06①〜⑤（827行までの行の数を変えない、他の契約の行の中身を変えない、同じ文面の行を足さない、p3.test.tsは540行より後か⑥で同期）の範囲で他の契約の行を動かさない (d) anchor: 本契約のevidenceRefs（windows.mjs 24件を含む）とcontractTypeRefを、check-contract.mjsが444de1a7の作業ツリーの実ファイルの行番号とanchorで照合し、FAIL 0。起草の後のcommitは無く、ずれたanchorは0件 (e) 計画（p3-order-plan.md）の本契約の行の状態欄に、裁定・レビュー・点検を書いた（行は増やさない）。baseOidは統合担当が点検のcommitを作ってから割り当てる（Q-E05S-BASE）",
+        "reason": "発注前点検の項目を閉じる。Q-E05S-BASEはbaseOidの割当だけを残し、Q-E05S-PRELIMは配送の後"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "製品の入力とoperationの扱いは変えない。補助の窓はe05y-Pと素のE05-Pと同じ負荷・上乗せ・充填に、threadごとの観測（測る側のpreload）を足すだけで、training/testの入力を足さない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-E05Y-SPLIT-001",
+    "mode": "implementation",
+    "objective": "P3-E05P-TYPHOON-001の正式の測定（p3-e05y-20261013）で、上乗せの窓e05y-Pが1 runだけ上限400MiBを越えた（407.5MiB、周0の306.2秒、305,612msのVPWS50の処理の終わりの約0.3秒後）。作者はAC05(3)の①（原文『deferredのownerのheapを切り出す補助の窓（案B。既存のownerHeapの窓の入力ごとのheapに上乗せを足す）で、山がdeferredのU-Yか、重なったweatherCurrentかを分ける』）を選んだ（Q-E05S-NEXT）。原文の『案B』は本契約のP3-E05S-SHAPEのAに当たる。本契約は、上乗せの後の山の区間で、記録できた点（probeの山t_p）でどのthreadの何（heapUsed・heapTotal−heapUsed・external、またはheapの容量で説明できない残差）が対照より増えていたかを、既にある観測（probeの行・processingとGCの行・mem行）の照合で届く範囲で出す補助の窓を足す。記録できなかった頂点（1秒のmem行の山がprobeの山より高いとき）の帰属は未確定とする。残差のnativeへの帰属と、heapの容量の増えのRSSへの寄与は断定しない。山の大部分はどの窓でもVPWS50のweatherCurrent（P3-E05C-MATERIAL(3)）なので、問いは対照との差の内訳として立てる。測り方は作者裁定P3-E05S-SHAPE=B（①の原文どおりのAと、rawの読み直しのCは採らない）: e05y-Pの経路に分類の窓のprobe（4 threadの200ms、観測だけ）を足した窓e05s-yと、同じprobeの素のE05-Pの窓e05s-pを交互に3 runずつ走らせ（作者裁定P3-E05S-CONTROL=A・RUNS=A、強制GCなしはGC=A）、区間の最大RSSの時刻でthreadごとのheapUsed・heapTotal−heapUsed・externalとRSSの残りを出す。判定表（S0〜S6）と分類ごとの次の手の候補を結果の前に固定する。窓のE02・E05は報告だけで判定せず、TYPHOONの判定とC14の残存リスク(21)の扱いは変えない。新しいmanifestIdで凍結し、既存の凍結manifestと結果は書き換えない。製品のコードとrunnerの本体（run.mjs）・凍結の照合（frozen.ts）・probe-preload.mjs・aux-measures.mjsは変えない。判定場所のPiでの確認はC22",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-e05p-typhoon.json",
+      "reconstruction/contracts/p3-e05p-classify.json",
+      "reconstruction/contracts/p3-measure-harness.json",
+      "reconstruction/contracts/p3-owner-young-limit.json",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/runtime/unit-coverage.ts",
+      "reconstruction/src/units/typhoon/typhoon-unit.ts",
+      "reconstruction/src/measurement/eew-e01/**",
+      "reconstruction/test/eew-e01/**",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "package.json"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/eew-e01/windows.mjs",
+      "reconstruction/test/eew-e01/windows.d.mts",
+      "reconstruction/test/eew-e01/p3.test.ts",
+      "reconstruction/contracts/p3-e05y-split.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-e05y-split.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04",
+      "M11"
+    ],
+    "integrationContractIds": [
+      "I-U-W",
+      "I-U-Y"
+    ],
+    "dependsOnContractIds": [
+      "P3-E05P-TYPHOON-001",
+      "P3-E05P-CLASSIFY-001",
+      "P3-MEASURE-HARNESS-001",
+      "P3-OWNER-YOUNG-LIMIT-001",
+      "P3-UNIT-Y-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3E01Manifest"
+    ],
+    "publicFunctions": [
+      "windows.mjsのexport 1つ: 区間の内訳を出す純粋な関数（4 threadのprobeの行と区間の列を受け、区間ごとの山・床・threadごとの値と差・RSSの残り・statusを返す。AC02(3)）。名前は実装が決め、windows.d.mtsに宣言を1つ足す",
+      "windows.mjsのauxWindows(ctx)に補助の窓を並べる条件1行（AC03）と、e02Window（P）の経路の口（印2つ・idの付け方・pumpとoutcomeの分岐、AC01）。e02Window・e05yOutcome・e05cOutcomeを丸ごと複製しない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけを使う（windows.mjsが既にimportしているもの）。新しいnpm依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__15_17_01_251222_VPWW55",
+      "test__fixtures__85_01_01_250630_VPFJ51",
+      "test__fixtures__15_16_01_241031_VPWW56",
+      "test__fixtures__15_16_07_250825_VPWW61",
+      "test__fixtures__81_01_04_251222_VPWP50",
+      "test__fixtures__10_05_05_200826_VPTW61",
+      "test__fixtures__76_01_01_200630_VPTA50",
+      "test__fixtures__76_01_02_260531_VPTA50",
+      "test__fixtures__76_01_03_260602_VPTA50"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-E05S-RES-01",
+        "target": "補助の窓の所要",
+        "limit": 120,
+        "unit": "分（窓6つ×約18分。作者裁定P3-E05S-CONTROL=A・RUNS=A）",
+        "scope": "1窓＝充填と確かめ約52秒＋静まり約15秒＋E02の1,000標本（1,000秒）＋停止で約18分（TYPHOONの窓と同じ）。probeは窓の長さを変えない。runWindowの期限は既存どおり見込み×2。窓の外の起動・build・予備は含まない",
+        "source": "AC04(3)"
+      },
+      {
+        "id": "P3-E05S-RES-02",
+        "target": "区間の内訳の集計",
+        "limit": "probeの行の数と記録の行の数に線形（それぞれ1回なめる）",
+        "unit": "1窓",
+        "scope": "probeのfileはthreadごとに窓の終わりに1回だけ1行ずつ読む（1 threadあたり約5,300行、P3-E05S-MATERIAL(7)）。区間は周0と周1（多くて3つ）で、山と床はpublisherの行を1回なめて区間ごとに拾い、各threadの時刻t以前の最新の行は行の列の二分探索か1回の前進で引く。busy（AC02(4)）はprocessingの行とprobeのk＝gcの行を時刻順に1回なめ、区間のt_pとt_fの前の隙間（多くて区間×thread×2）に入る始まりを拾う。区間ごとに全行を走査し直さない。e05s-yの上乗せの入力の値はTYPHOONと同じく記録を1回なめる（P3-E05Y-RES-02）。受信経路（host）には何も足さない",
+        "source": "AC02・AGENTS.mdの受信経路の計算量"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "補助の窓の結果（窓の結果の封印したaux）とprobeの行のfile（窓のdirの下のraw）。製品の保存物には何も足さない"
+    ],
+    "outOfScope": [
+      "製品のsrc（host・runtime・unit・domain・checkpoint・measurement）とrun.mjs・frozen.ts・draft.mjs・frames.mjs・aux-measures.mjs・probe-preload.mjs・契約の型の変更（変えないと成り立たないと分かったら止めて統合担当へ報告する）",
+      "e05y-P・e02-P・分類の窓・ownerHeapの窓の振る舞いと結果のfileの変更。既存のownerHeapの窓（e03Series）に上乗せを足すこと（作者裁定P3-E05S-SHAPE=Bで採らなかったA）",
+      "E05の上限とsummarizeE05・summarizeHealthE02の規則の変更、補助の窓のE02・E05の判定、TYPHOONの判定とC14の残存リスク(21)の扱いの変更",
+      "強制GC（FLEQ_MEM_GC・--expose-gc・SIGUSR2）とheap snapshot（作者裁定P3-E05S-GC=A）",
+      "既存の凍結manifest（C4・C6・A10・MH・分類の窓・木・若い世代の測り直し・上乗せ）とtrial-setup・initial-stateと版付き結果の書換え。正式の記録のrawの読み直し（作者裁定P3-E05S-SHAPE=Bで採らなかったC）",
+      "次の手（②deferredの若い世代の上限、③U-Yの確率の報のdecodeの確保を減らす製品の直し、そのほかAC05(4)の候補）。どれを起こすかは結果の後の作者裁定",
+      "TYPHOONのT02のReflect.getの迂回の解消（windows.d.mtsにreplayPump・E05Y_LOADの宣言を足すこと）",
+      "Piでの補助の窓（C22）、E05-N（300MiB）の上乗せ",
+      "正式・予備の実走（統合担当）",
+      "新しいrunner・benchmark framework・npm依存"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-E05S-AC01",
+        "requirement": "窓の口（windows.mjs、作者裁定P3-E05S-SHAPE=B）: (1) 窓は2種。e05s-y-run<k>（上乗せ＋probe: TYPHOONのE05Y_LOADを混ぜた負荷Pのpump）と、e05s-p-run<k>（対照＋probe: 上乗せの無い負荷Pのpump。作者裁定P3-E05S-CONTROL=A）。k＝1〜3（作者裁定P3-E05S-RUNS=A）で、run数はwindows.mjsの定数（manifestのhealth.runCountを読まない）。idはe02-・e05c-・e05y-で始めない（e02VerdictがE02の判定に入れず、P3-E05C-T03・P3-E05Y-T01の予備の並びの期待を変えない） (2) 中身はe02Window（load P）の経路を使い回す: 同じopenHost（mem行1秒）・fill leaveRoomForP（blockAtExpiry）・通知の静まり待ち・E02のclient（manifestのhealthの件数、予備は--e02-count）・summarizeE05・expirySplitとcurrentsExpiredAtMeasure。e02Windowの第4引数に本契約の印（e05s-yとe05s-pの2つ。分類の窓のobserve・gcとE05Y.markのどれとも違う値）を渡す。probeはopenE02Hostの既存の経路で入る（印がnullでもE05Y.markでもないのでpreloadのFLEQ_MEM_OUTが付き、『gc』でないので--expose-gc・FLEQ_MEM_GC・SIGUSR2は付かない。観測だけ、作者裁定P3-E05S-GC=A）。openE02Hostは変えない (3) pump: 測定の間に呼ぶpumpは1本。e05yPumpに省略可の引数（上乗せのReplayLoad、既定はE05Y_LOAD）を足し、e05s-yはE05Y_LOAD、e05s-pは上乗せ無し（replayPumpの第5引数を渡さない）で作る。どちらもstartHr（予定時刻の起点）と周ごとの305,612msのVPWS50の入力を拾う。e05y-Pの窓のpumpと送る列は変えない (4) 結果の分岐: probeとpumpの両方がある窓は本契約のoutcome（AC02）へ渡す。e05cOutcome・e05yOutcomeとその結果のfileの中身は変えない（e05yOutcomeの集計〔入力の行・成立の確かめ・区間〕は共有の関数へ切り出してよい） (5) idの付け方: e02Windowの326行のidの式は他の契約（TYPHOON）が引くので変えない。本契約の印のときの窓のid（返すobjectのid、hostReportsの窓の名、outcomeのauxのfile名）は、どの契約も引かない行（AC06②）で本契約のidに替える。無いと: e05y-Pと素のE05-PをE05-Pと同じ条件で、threadごとの値を付けて測れず、山の時刻の内訳を出せない",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/windows.mjs:323 «78045dc3d8f5cae9»",
+          "reconstruction/test/eew-e01/windows.mjs:326 «0bfe73367ddbae5f»",
+          "reconstruction/test/eew-e01/windows.mjs:330 «9e31ff8274e72b3b»",
+          "reconstruction/test/eew-e01/windows.mjs:337 «05930b9a098c70a1»",
+          "reconstruction/test/eew-e01/windows.mjs:342 «a7f824cb23d0bc5f»",
+          "reconstruction/test/eew-e01/windows.mjs:358 «b368952229bf1f0d»",
+          "reconstruction/test/eew-e01/windows.mjs:846 «d6c4dc32e85303e6»",
+          "reconstruction/test/eew-e01/windows.mjs:849 «10891756dd1d08a7»",
+          "reconstruction/test/eew-e01/windows.mjs:851 «c8ddee6221b2749b»",
+          "reconstruction/test/eew-e01/windows.mjs:917 «a20c3bfe4b7a1107»",
+          "reconstruction/test/eew-e01/windows.mjs:928 «44bba08b732d3550»",
+          "reconstruction/test/eew-e01/p3.test.ts:527 «faa0101f7009913f»",
+          "reconstruction/test/eew-e01/p3.test.ts:540 «f2f67f0ac211fdbb»",
+          "reconstruction/test/eew-e01/run.mjs:202 «4c433595b5674dc8»"
+        ]
+      },
+      {
+        "id": "P3-E05S-AC02",
+        "requirement": "区間と内訳（windows.mjs）: (1) 区間: 周c（c＝0,1,…）ごとに、始まり＝予定時刻（host.hostMs(startHr＋c×360,000＋300,121)）、終わり＝その周の305,612msのVPWS50のprocessingの行の終わり＋15,000ms（P3-E05Y-AC05(2)と同じ長さ）。TYPHOONの区間の始まりは上乗せの1通目を送った時刻（予定からの遅れ45〜97ms）だが、e05s-pには上乗せが無いので、両方の窓を予定時刻にそろえる。始まりが測定の窓（E02のclientのstart〜end、hostの時計）の中にあり、終わりがnullか測定の窓の中にある区間だけを出す（周0と周1。周2の約1,020秒は測定の終わりの後）。VPWS50のprocessingの行が無い区間は終わりをnullにし、statusをnoPeakEndにして残す (2) probeの行: 4 thread（publisher・urgent・weatherCurrent・deferred）の<memOut>.<place>.jsonlのk＝memの行（rss・heapUsed・heapTotal・external・arrayBuffers）とk＝gcの行（GCの始まりatMsと所要）を、窓の終わりに1回だけ1行ずつ読む（readProbeRowsと同じ形。時刻はpublisherの基準＝hostの時計） (3) 区間ごとの値（exportする純粋な関数）: 山t_p＝区間の中のpublisherの行でrssが最大の行（同じ値なら早い方）、床t_f＝区間の始まりの前30,000msのpublisherの行でrssが最小の行（同じ値なら遅い方＝区間の始まりに近い方）。時刻tの各threadの値はt以前で最新の行（publisherはその行自身）から取り、行の古さ（t−atMs）を出す。threadごとにU＝heapUsed、V＝heapTotal−heapUsed、X＝external（arrayBuffersは内数で別に出す）、O＝publisherのrss−4 threadのΣ(U＋V＋X)（未説明の残差）。E＝rss(t_p)−rss(t_f)、threadごとのΔU・ΔV・ΔX・ΔA（arrayBuffers）とΔOは t_pの値−t_fの値 (4) 帰属の未確認（既にある行の照合だけで決める。観測の間隔は短くしない）: probeはthreadのtimerで動き、同期の処理やGCの間は行を採れない（P3-E05S-CODE-READ(9)）。ownerの各threadについて、t_pかt_fで、採った行の時刻からtまでの間（atMs＜始まり≤t）に、そのthreadの処理の始まり（processingの行のstartedMonotonicMsで、その入力の実行場所〔投入側のplaceOf〕がそのthread）か、そのthreadのGCの始まり（probeのk＝gcの行のatMs）があれば、そのthreadの値を未確認（busy。処理のinputIdかGCの種類と時刻を残す）にする。採った行の時刻より前に始まった処理・GCは、行がその後の値なので印を付けない（processingの終わりはpublisherが返信を反映した時刻で、ownerの終わりより遅いため、終わりでは照らさない） (5) 区間のstatus（上から最初に当たるもの）: rowsMissing（t以前の行が無いthreadがある）、noPeakEnd、stale（どれかのthreadのt_pかt_fの行の古さが1,000msを超える）、busy（(4)の未確認のthreadがある）、それ以外はok。別に、g＝同じ区間のmem行〔1秒〕の最大RSS−t_pのprobeのrss（負なら0）を出す。gは2つの観測の系列で観測した最大RSSの食い違いの量で、真の頂点との差の上限ではない（g＝0は、この2つの系列では取り逃しを検出しなかったという意味に限る）。g＞0の区間には『頂点の帰属は未確定（取り逃し）』の印を付ける（statusは変えない。扱いはAC05(3)②）（分類の窓のJ0の形） (6) 結果: aux-<id>.json（sealAux）に、contractId、定数（行の間隔200ms・床の30,000ms・古さの1,000ms・区間の始まりのoffset 300,121ms・VPWS50のoffset 305,612ms・終わりの15,000ms・run数）、measureHostMs、threadごとの行の数・最大の間隔・最後の行の時刻とownerのwrittenの時刻、区間の列（周・始まり・終わり・VPWS50のinputId・充填の失効の前／後／またぐ・status・t_pとt_fの時刻とrss・t_pの測定の開始からの経過とVPWS50の処理の終わりからの経過・E・threadごとのt_pとt_fの値と差と古さとbusyの印・Oの値と差・同じ区間のmem行の最大RSSとその時刻・取り逃しの幅g）、窓の中のpublisherの行の最大rssとその時刻とどの区間の中か（無ければ区間外）、e05（summarizeE05）・e02（summarizeHealthE02）・expirySplit・fill・hostReports（どれも報告だけ）を書く。e05s-yにはさらに、TYPHOONのaux-e05yと同じ形の上乗せのReplayLoad・上乗せの入力の行（待ち・処理・decode）・成立の確かめ（P3-E05Y-AC02(6)の①〜⑤と同じ規則）を書く。result-e02・aux-e05・aux-e05y・aux-e05cのfileは書かない (7) 窓のstatus: 次の全部ならN/A、そうでなければ未確認（予備は既存のoutcomeどおり未確認）: 4 threadの行があり、publisherの最後の行が測定の終わり−1,000ms以後、ownerのwrittenが測定の終わり−500ms以後（P3-E05C-AC04(4)と同じ）、周0の区間が出ている、e05s-yでは成立の確かめが通る、e05s-pでは上乗せを送っていない（e05yPumpのsentが0件）。区間のstatusがokでなくても窓のstatusは変えない（区間の判定はAC05のS0）。E02・E05のPass・Failはstatusにもstatusesにも出さない。ownerHeapの行（deadlineDone、1秒、heapUsed・externalだけ）はhostReportsの報告のままで判定に使わない。無いと: 山の時刻のthreadごとの内訳と、それが窓の行で成り立ったかを、結果の後に決めることになる",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/probe-preload.mjs:13 «d7882b5a642ce115»",
+          "reconstruction/test/eew-e01/probe-preload.mjs:81 «ef852d3cdb783aa6»",
+          "reconstruction/test/eew-e01/probe-preload.mjs:146 «902608b1c11eeca6»",
+          "reconstruction/test/eew-e01/probe-preload.mjs:148 «226186f47d027b88»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:549 «9ab3243df5ce8308»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:550 «e40c7e7d4046f079»",
+          "reconstruction/test/eew-e01/windows.mjs:50 «a95cbd5d70e061ec»",
+          "reconstruction/test/eew-e01/windows.mjs:882 «343cd93a4923709c»",
+          "reconstruction/test/eew-e01/windows.mjs:889 «97e2dc4414c399eb»",
+          "reconstruction/test/eew-e01/windows.mjs:890 «3d7035d5d776525a»",
+          "reconstruction/test/eew-e01/windows.mjs:904 «4f56eafe35439ab1»",
+          "reconstruction/test/eew-e01/windows.mjs:939 «24c0a419b1007904»",
+          "reconstruction/test/eew-e01/windows.mjs:983 «d5cf952bd8dd4c9d»",
+          "reconstruction/test/eew-e01/windows.mjs:1008 «1f32d65e0f268a4a»",
+          "reconstruction/test/eew-e01/windows.mjs:445 «3b8fee10d566f286»",
+          "reconstruction/test/eew-e01/windows.mjs:454 «0dbc3151972de33f»",
+          "reconstruction/src/runtime/owner-host.ts:44 «2eff9992cf005cbd»",
+          "reconstruction/src/runtime/owner-host.ts:110 «c5a56e6dd335f94f»",
+          "reconstruction/src/runtime/owner-host.ts:117 «a36e13e3cdc3b833»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json:397 «228d1f5b6eb24d59»",
+          "reconstruction/test/eew-e01/probe-preload.mjs:85 «91469e7116f209bd»",
+          "reconstruction/src/host/host.ts:153 «8eccbc77af0cc99f»",
+          "reconstruction/test/eew-e01/run.mjs:171 «c90fda14b518a2ae»",
+          "reconstruction/test/eew-e01/windows.mjs:924 «ad88bc23b721bcc8»",
+          "reconstruction/contracts/p3-e05p-classify.json:111 «65aa39594f59cdc0»"
+        ]
+      },
+      {
+        "id": "P3-E05S-AC03",
+        "requirement": "窓を並べる条件（windows.mjsのauxWindows）: manifestのcontractSha256に本契約の鍵（P3-E05Y-SPLIT-001）があるときか、予備（ctx.preliminary）のときだけ、e05s-p-run1・e05s-y-run1・e05s-p-run2・e05s-y-run2・e05s-p-run3・e05s-y-run3の順（runごとに対照が先。予備はctx.runsどおりe05s-p-run1・e05s-y-run1）を並べる。並べる位置は上乗せの窓の要素（830行）の後。今の凍結manifest（C4・C6・MH・分類の窓・木・若い世代の測り直し・上乗せ）の窓の並びは変わらない。無いと: 既存の凍結manifestで窓の並びが変わり、凍結した測定の再実行が別の窓を含む",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/windows.mjs:815 «d329605861c6b221»",
+          "reconstruction/test/eew-e01/windows.mjs:830 «62aed449c8b9699f»"
+        ]
+      },
+      {
+        "id": "P3-E05S-AC04",
+        "requirement": "凍結と窓の構成（統合担当）: (1) 新しいmanifestId（例 p3-e05s-<日付>）で凍結する。作り方は上乗せの窓（P3-E05Y-AC04(1)）の型で、上乗せの窓の凍結manifest（evidence/p3-harness/manifest-e05y.json、p3-e05y-20261013）を写し、変えるのはmanifestId、contractSha256（本契約の鍵を足し、全部の鍵の値を凍結の時点の各契約のmeta.sha256で取り直す）、auxiliary.E05.condition（補助の窓の条件: 窓の2種とrun数・順、probe〔4 threadの200ms、観測だけ、強制GCなし〕、区間と床の定義、窓のE02・E05は報告だけで判定はAC05、を文で足す）、smokeConditionDifferences（p3-e05y-20261013からの差の1行）、機械の値（osVersionはos.release()とos.arch()を空白でつないだ値＝preflightと同じ式、device・nodeVersion・chrome.versionは同じ機械の予備のdraftから写す）だけで、sealSelfHashで封じる。sequences.jsonのdigestが変わっていればo09Subset.sequencesSha256も取り直す（MHの凍結の共通の規則、O09の列は写したまま）。置き場はevidence/p3-harness/manifest-e05s.json。frozen.ts・型・trial-setup・initial-stateは変えず、auxiliaryの鍵を増やさない (2) 窓の構成: --manifest <path> --windows e05s-p-run1,e05s-y-run1,e05s-p-run2,e05s-y-run2,e05s-p-run3,e05s-y-run3（交互、作者裁定P3-E05S-CONTROL=A・RUNS=A）。Mac mini（TYPHOONの正式と同じ機械・独立checkout）、通知はreal backendで出力をミュート。E01・e02-P・e05y-P・分類の窓・ownerHeapの窓は入れない (3) 所要の見込み: 1窓約18分、6窓で約2時間。build・予備（AC07）・起動を足す (4) 既存の凍結manifestと版付き結果は書き換えず、結果はwindows/p3-e05s-<日付>の下に置く。凍結から窓の終わりまで測るcheckoutのcommitを変えない。再実行はBlockedの窓だけ。無いと: 条件を決めない窓を結果の後に読むことになる",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05y.json:3 «22600f8c069a4987»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05y.json:408 «a31ef8ca10a62699»"
+        ]
+      },
+      {
+        "id": "P3-E05S-AC05",
+        "requirement": "判定表と次の手（統合担当。窓を走らせる前に固定し、結果を見てから変えない）: (1) 区間の値: 各窓の区間（AC02(3)）ごとに、D＝deferredのΔU＋ΔV＋ΔX、W＝weatherCurrentの同じ和、R＝publisherとurgentの同じ和、N＝ΔO（未説明の残差の増え）、E＝D＋W＋R＋N。U＋V＝heapTotalなので、heapの中でUとVが入れ替わってもDは動かず、heapTotalの内でresidentになった分はNに入る。比較元: 同じ周のe05s-pの区間でstatusがokのものが3つなら、Eが中央値の対照の区間1つの全成分をそのまま使う（成分ごとの中央値は足し算が合わないので取らない）。okが2つなら成分ごとの平均。1つ以下なら比較元なし。上乗せの窓の区間ごとの差はd＝D−D_b、w＝W−W_b、r＝R−R_b、n＝N−N_b、e＝E−E_b（_bは比較元、MiB＝1,048,576B）。deferredのΔU・ΔV・ΔXの差も同じ比較元から引く。並べて出す差は3つ: 床の差（rss(t_f)の差と、threadごとのU＋V＋XとOの床の差）、増分の差e、山の絶対値の差（rss(t_p)の差）。ほかに、mem行の山の絶対値の差（区間のmem行の最大どうしの差）と、g（AC02(5)）と比較元のg_b（平均のときは平均）を並べる (2) 区間の判定（上から最初に当たる行）: S0 未確認＝上乗せの窓の区間か比較元の区間のstatusがok（AC02(5)。busyを含む）でない、比較元なし、またはその窓の成立の確かめが通らない／S1 deferredのheapの容量の増加を観測＝d≥10MiB（RSSへの寄与とは断定しない）。deferredの成分の差の最大でS1U（heapUsed）・S1V（heapTotal−heapUsed）・S1X（external）に分け、最大が同値なら両方を併記する／S2 区間の中の追加の上昇が小さい＝e＜10MiB（意味はこれに限る。床の差と山の絶対値の差を並べて読む）／S3 weatherCurrent＝w≥0.5e／S4 publisher・urgent＝r≥0.5e／S5 未説明の残差＝n≥0.5e（heapの外〔V8の内部のzone、allocatorが持つpage、native〕か、heapTotalの内でresidentになった分か。nativeへの帰属は確定しない）／S6 混合＝どれにも当たらない（d・w・r・nのeに対する比を並べる）。区間の行には判定の境界までの距離（d−10MiB、e−10MiB、w÷e−0.5、r÷e−0.5、n÷e−0.5、最も古い行の古さ−1,000ms）を並べる (3) 頑健さ（未確定の2つ）: ①比較元: (1)の比較元による分類に加えて、okの対照の区間の1つずつを比較元にした分類も出す。どれかで分類（S1の下位を含む）が変われば『未確定（比較元で変わる）』とし、比較元ごとの分類を並べる ②取り逃し: S0〜S6は『probeで実際に採れた頂点（t_p）の分類』で、mem行の頂点の分類ではない。gかg_bが0より大きければ、その区間のmem行の頂点の帰属は一律に『未確定（取り逃し）』とし、観測点の分類（例 観測点ではS1）と並べて書く。取り逃した頂点に、別の時刻（t_p）のheapの内訳を当てはめず、gを成分に配る計算もしない。報告には『mem行のRSSの差〔値〕は観測したが、その頂点の帰属は未確定』と並べる (4) 周の判定（少数の分類も消さない。TYPHOONのFailは3 runのうち1 runの山）: 周0（充填の失効の前。TYPHOONのFailの山）を主とする。上乗せの窓3つの周0の区間について、①多数の分類（2つ以上が同じもの。S1U・S1V・S1XはS1として数え、下位も書く）、②最大RSS（窓全体のmem行の最大）のrunの区間の分類、③少数の分類を必ず並べる。3つの区間の分類（S1の下位と未確定を含む）が全部同じならその分類、1つでも違えば『runの間の混合』とする。どれかの区間が『未確定（取り逃し）』なら、周の報告にもそれを持ち越す。S0が2つ以上なら周0は未確認。周1（失効の後。床に前の周の上乗せの分が残りうる、P3-E05S-CODE-READ(10)）も同じ規則で別に出す。周0と周1が違えば両方の分類と次の手を作者へ出す。周0が未確認なら、原因（行の古さ・busy・行の欠け・比較元・成立の確かめ）を作者へ報告し、作者裁定で本契約を改訂して新しいmanifestIdで測り直す（--windowsで再実行できるのはBlockedだけ） (5) 分類ごとの次の手の候補（P3-E05Y-AC05(3)の②③を土台にし、どれを起こすかは作者裁定。周に『未確定（取り逃し）』があれば、観測点の分類を理由に別のthreadの候補を外さず、②③を含む全部の候補を残す）: S1V→②deferredのownerにも若い世代の上限（host.tsのresourceLimitsは今weatherCurrentだけ。P3-OWNER-YOUNG-LIMIT-001の型で、値は別の契約で測る。容量の増えがRSSに入っていたかは②の後のE05-Pの測り直しで見る）／S1U→③U-Yの確率の報のdecodeの確保を減らす製品の契約（木の契約P3-XML-TREE-COMPACT-001の型をVPTA50の経路に）を先に、②を次の候補（若い世代の上限は回収を早めうる。残ったheapUsedがGC待ちか生きた値かは本契約では分けない、作者裁定P3-E05S-GC=A）／S1X→③（decodeのBuffer・externalの経路）／S2→区間の中の追加の上昇は対照との差10MiB未満（probeのt_pで）。mem行の山の絶対値の差も並べる。床の差か山の絶対値の差が10MiB以上なら、その差のthreadごとの内訳（周をまたぐ保持、P3-E05S-CODE-READ(10)）を作者に見せて次の手を決める。どちらも10MiB未満なら、上乗せの寄与はこの窓では見えないと報告し、次の手は作者裁定／S3→記録できた点では、U-Yのheapではなく重なったweatherCurrentのheapの容量が上乗せの窓で大きい。取り逃しの未確定が無ければU-Yの製品の直し（③）は候補から外し、weatherCurrentの若い世代の上限（12MB、P3-OWNER-YOUNG-LIMIT-001で導入済み）の今の値の見直しと、E05の上限を瞬間のRSSで測るかを諮ること（P3-E05C-AC03(5)のJ1の③）を候補にする／S4→上乗せの通知と射影（P3-E05P-TYPHOON-001の残存リスク(10)）。候補は通知のbackendをsilentにした上乗せの窓で切り分ける補助の窓／S5→未説明の残差。候補は残差を分ける窓（P3-E05C-AC03(5)のJ3の型の、native・externalの内訳の窓をMac miniとPiで）で、③は残差がdeferredのものと分かってから／S6（1つの区間の中の混合）→その区間でeに対する比の大きい2つの成分の分類の候補を並べる／runの間の混合（(4)）→出た全部の分類の候補を並べる／未確定（(3)）→比較元ごとの分類の候補（取り逃しなら全部の候補）を並べ、測り直しを含めて作者が決める (6) 報告に並べるもの: 窓ごとの区間の値の全部（AC02(6)）と判定・距離・3つの差、(3)の比較元ごとの分類、(4)の①②③、上乗せの窓と対照の区間の最大RSS（probeの200msとmem行の1秒）、窓の最大RSSとその区間、窓のE05・E02（報告だけ。probeを足した窓なので、TYPHOONのE05の判定とC14の残存リスク(21)の扱いには使わない） (7) 境界の数（10MiB・0.5、1,000ms、床の30秒、区間の終わりの15秒）は起草時に置いた値で、残存リスク(13)の一括承認で作者が承認した（2026-10-14、Q-E05S-AUTHOR）。10MiBは、正式の対照の最大（390.3MiB）から上限までの余りが約9.7MiBで、それより小さい寄与だけでは越えにくい大きさ。正式の対照の381.7〜390.3MiBは窓全体の最大の幅で、区間の増分の誤差の幅ではない（区間の増分の対照どうしの揺れは(3)で見る）。0.5と1,000msは分類の窓の判定表（P3-E05C-AC03）と同じ。無いと: 結果を見てから分類の線と次の手を引くことになり、同じ結果から別の結論を選べる",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run1.json:162 «63bd858f8b009425»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run2.json:138 «def9f27d751661d7»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run2.json:134 «3aaeb9462dc4454e»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run2.json:162 «62799d68b198a510»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run2.json:164 «8b1176d094624c71»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run2.json:534 «df1f31b642fd2178»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run3.json:162 «4eb5b4adf5720b3b»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run3.json:165 «0cdae978cda5b1a3»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05-P-run1.json:12 «b1f033e9eac7ff82»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05-P-run2.json:12 «d9a62ba34502ba13»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05-P-run3.json:12 «74292976f2514ff4»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05-P-run1.json:282 «800eb260738af9a9»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05-P-run2.json:282 «5997973ba627266b»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05-P-run3.json:282 «2294f65d09bb4021»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/e05y-P-run2.json:156 «c5aa840a80daf90f»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-ownerHeap-run1.json:14 «cf3338851aa56f20»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-ownerHeap-run1.json:169 «70f71f432b49159c»",
+          "reconstruction/contracts/p3-e05p-typhoon.json:284 «4eba5b5216b75213»",
+          "reconstruction/src/host/host.ts:127 «32a6e9ae1993875b»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:307 «0bce41e8e8220b18»"
+        ]
+      },
+      {
+        "id": "P3-E05S-AC06",
+        "requirement": "最小実装・最小テスト・計算量・行の約束: reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す。既存試験の期待値と入力は変えない（変える必要が出たら変えずに止め、試験名・旧の期待・理由を統合担当へ報告する）。追加する試験はtestMappingのT01・T02に限り、1つの振る舞いに1つ。足す仕組みはAC01の印2つと窓の口、AC02の区間の関数1つとoutcome、AC03の並べる条件だけで、probe-preload.mjs・aux-measures.mjs・run.mjs・frozen.ts・draft.mjs・frames.mjs・製品のsrc・契約の型を変えず、設定file・新しいrunner・npm依存を作らない。windows.d.mtsに足すのはAC02(3)の関数の宣言1つ（無いと: T02がtestの型検査を通らず、TYPHOONのT02のようなReflect.getの回り道が要る）。計算量はP3-E05S-RES-02。行の約束: check-contract.mjsは引いた行を行番号とanchorの両方で照合し、anchorの文面が1行だけに合うことも見る。windows.mjsの行は分類の窓（P3-E05P-CLASSIFY-001、14行）・MH（P3-MEASURE-HARNESS-001、11行）・WL2（P3-WEATHER-LIGHT-002、1行）・上乗せの窓（P3-E05P-TYPHOON-001、14行）が引き（異なる行は34、最後は827行）、これらの契約のdigestは凍結manifestに入っているので、そのanchorは書き換えない。そのため ①827行までの行の数を変えない（足さない・消さない）。auxWindowsの新しい要素は上乗せの窓の要素（830行）の後、新しい定数・関数はファイルの末尾に置く ②中身を変えてよいのはどの契約も引かない行だけ（引く行: 29・36・50・66・89・90・180・181・203・207・215・220・290・323・326・330・331・336・353・355・356・357・360・376・442・497・622・647・681・778・814・815・824・827）。変える見込みは328・337・354・358行（idの付け方、pumpの作り方、outcomeの分岐）と、e05yPump・e05yOutcomeの中（900行以後、どの契約も引かない） ③他の契約のanchorの行と同じ文面（前後の空白を除く）の行を足さない ④openE02Host・e05cOutcome・phaseGcとprobe-preload.mjsは変えない ⑤p3.test.tsの行は他の契約は引かない（本契約のAC01が527・540行を引く）。T01・T02は540行より後に足すか、動いた本契約のanchorを⑥で同期する。windows.d.mtsの行はどの契約も引かない ⑥本契約が引く行（evidenceRefs）が実装で動いたら、本契約のanchorと自己digestを同期する。①〜⑤で書けないと分かったら、行を動かさずに止めて統合担当へ報告する",
+        "evidenceRefs": [
+          "AGENTS.md:24 «c1288cfa5b0d16dc»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      },
+      {
+        "id": "P3-E05S-AC07",
+        "requirement": "凍結の前の短い予備（統合担当、Mac mini。予備は未確認で、合否にも分類の結論にも使わない）: --preliminary --aux e05s-p-run1,e05s-y-run1 --e02-count 330 --notification real（測定の開始から330秒で、周0の区間〔約300〜321秒〕を含む。予備の通知の既定はsilentなので、正式と同じreal backendを明記する。出力はミュート）で確かめる。(a) 両方の窓で4 threadの行があり、publisherの最後の行とownerのwrittenが測定の終わりに届く（AC02(7)） (b) e05s-yで、周0の上乗せ3通についてP3-E05Y-AC02(6)の①〜⑤が全部通り、診断のjsonl（hostのdirのdiagnostics/）にそのinputIdのWARNが無い。e05s-pで上乗せの送出が0件 (c) 両方の窓で周0の区間が出て、t_pとt_fの行と古さ・busyの印・gと取り逃しの印が結果にある。周0の区間のstatusがokでなければ、凍結をいったん止めて作者へ戻す。戻す内容は、okでない区間ごとに、原因の種類（busy・stale・rowsMissing・noPeakEnd）、そのthread、山（t_p）か床（t_f）か、原因のイベント（処理のinputIdとheadType、またはGCの種類と時刻）に固定する。同じ条件のまま凍結へ進むのは、『正式の区間もS0（未確認）になりうることを了承した、続行の裁定』を作者裁定として本契約のquestionResolutionsに記録した後だけ (d) 粗い動作の確認（残存リスク(13)の一括承認で作者が承認した値、Q-E05S-AUTHOR）: e05s-yの周0の区間のmem行の最大RSSが[367.2, 437.5]MiB（TYPHOONの正式の周0の区間の最大387.2〜407.5MiBの下に20・上に30。P3-E05C-PRELIM-BOUNDSと同じ幅）に入り、両方の窓のE02のp99が7.4ms（TYPHOONの正式の6窓の失効の前のp99の最大3.72ms×2）以下。この線は窓が大きく外れていないことを見るだけで、分類できるかの確かめではない。分類できるかは正式の窓で、AC02(4)(5)の標本の条件（busy・staleが無い）と、AC05(3)の比較元で分類が変わらず、取り逃しの未確定が無いことで確かめる（予備の対照は1つなので(3)は見られない）。(a)(b)(d)の前提が外れたら凍結せず作者へ報告する（計画§4.3のNO-GOの扱い）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/run.mjs:1707 «adc008712a5092a6»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run3.json:137 «800e3564d6680905»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05-P-run3.json:404 «8ccedf5453507440»",
+          "reconstruction/test/eew-e01/run.mjs:1561 «18a541ffa699a1f9»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-E05S-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-E05S-AC03"
+        ],
+        "behavior": "auxWindowsは、buildP3Manifestのharnessの1組のdraft（本契約の鍵なし）と予備でないctxでは補助の窓を並べず、contractSha256に分類の窓・上乗せの窓・本契約の鍵を足したmanifestでは既存の窓の後にe05s-p-run1・e05s-y-run1・e05s-p-run2・e05s-y-run2・e05s-p-run3・e05s-y-run3を並べ、ctx.preliminary（runs 1）ではe05s-p-run1・e05s-y-run1だけを並べる。どのidもe02-・e05c-・e05y-で始まらない"
+      },
+      {
+        "testId": "P3-E05S-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-E05S-AC02"
+        ],
+        "behavior": "区間の内訳の関数の行の選び方と未確認の条件: 4 threadの合成の行（200msの間隔で、山と床の位置と各threadの値を決めたもの）と区間を渡すと、t_pが区間の中のpublisherのrssの最大の行（同値は早い方）、t_fが始まりの前30,000msの最小の行（同値は遅い方）になり、threadごとの値がt以前の最新の行から取られる。1つのthreadの最新の行を1,000msより古くするとstale、採った行とt_pの間にそのthreadのprocessingの始まりかk＝gcの行を置くとbusy、区間の終わりがnullならnoPeakEndになる。mem行の区間の最大をt_pのrssより高くするとgが0より大きくなり、区間に『頂点の帰属は未確定（取り逃し）』の印が付く（statusはokのまま）"
+      },
+      {
+        "testId": "P3-E05S-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-E05S-AC06"
+        ],
+        "behavior": "reconstructionの全試験とchrome-eewの試験を、期待値と入力を変えずに通す。shuffle実行でも緑"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約の検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src and contracts types",
+        "stage": "implementation",
+        "purpose": "型検査とreconstruction/dist/の生成（runnerとT01がdistを使う）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "試験の型検査（windows.d.mtsの宣言を含む）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/dist/chrome-eew/",
+        "stage": "implementation",
+        "purpose": "chrome-eewの生成（runnerのDIST_REQUIRED）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "順序依存の検出"
+      },
+      {
+        "command": "node reconstruction/test/eew-e01/run.mjs --preliminary --aux e05s-p-run1,e05s-y-run1 --e02-count 330 --notification real --node <node>",
+        "cwd": ".",
+        "target": "Mac miniの短い予備（統合担当が実走）",
+        "stage": "preparation",
+        "purpose": "AC07の前提の確かめ。結果の状態は必ず未確認"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに『無いと何が壊れるか』を1行で書く。最低限: 印2つと窓の口（AC01）、区間の関数とoutcome（AC02）、並べる条件（AC03）",
+      "本契約ファイルの実装時の編集権はevidenceRefsのanchorと自己digestの同期だけ。受入条件・判定表の境界・裁定値を実装の後に変えない",
+      "工程の成果物（統合担当が実走して記録する）: AC07の予備の記録、凍結manifest（AC04(1)）、版付き結果、作者への報告（AC05(5)）",
+      "残存リスク（2026-10-14 作者承認、ご主人、(1)〜(16)を一括。Q-E05S-AUTHOR）: (1) probeは測りを変える（4 threadで200msごとのmemoryUsageと行の配列）。上乗せの窓と対照の両方に同じprobeを付けて差で読むが、窓のE05の値はTYPHOONの正式（probe無し）と比べない。AC07(d)は粗い動作の確認だけ (2) U＋V＝heapTotalなので、heapの中でUとVが入れ替わってもDは動かない。Vの一部はresidentでなく、heapTotalの内でresidentになった分はOに入る。S1Vは『heapの容量の増加を観測』で、RSSへの寄与とは断定しない。S5は『未説明の残差』で、nativeへの帰属は確定しない (3) 比較元は別のrunの1つ（2つなら平均）で、weatherCurrentの山のrunごとの揺れを含む。正式の対照の381.7〜390.3MiBは窓全体の最大の幅で、区間の増分の揺れは分かっていない。比較元を替えて分類が変われば未確定にする（AC05(3)）ので、揺れが大きいと未確定が増える (4) Oはどのthreadのものか分けられない（V8の内部のzone、allocatorが返さないpage、Bufferの外のnative、heapの中のresidentの増え） (5) 山t_pは200msのpublisherの行の最大で、E05（mem行1秒）の最大と時刻が違いうる。g＞0の区間はmem行の頂点の帰属を未確定にする（AC05(3)②）ので、山の位置しだいで未確定が増え、次の手が絞れないことがある (6) 周1は充填の失効の後でstateの量が違い、typhoon-unitが受理した確率の報を持つので床に前の周の分が残りうる。周0と別に出し、床の差を並べる (7) 上乗せの形（3通、TC2606の確率あり↔zeroの往復）・頻度・置く位置・通知はTYPHOONのまま引き継ぐ（P3-E05P-TYPHOON-001の残存リスク(1)〜(3)・(10)）。通知の処理はR（publisher）に入る (8) 観測だけ（作者裁定P3-E05S-GC=A）なので、S1Uのとき残ったheapUsedがGC待ちか生きた値かは分からない (9) P3-E05S-SHAPE=Bは①の原文（既存のownerHeapの窓に足す『案B』＝本契約のA）から外れる。外れることを作者が承認した（作者裁定P3-E05S-SHAPE=B、2026-10-14） (10) Mac miniだけで測る（macOSのmalloc）。Pi（glibc）では山の形とOが違いうる。PiはC22 (11) 凍結manifestは本契約とTYPHOONの契約のself digestを固定するので、凍結から窓の終わりまでにどちらかのfileを変えるとrunnerの照合で止まる (12) 区間の外の山（周の間の山）は分けない。窓の最大RSSが区間の外にあれば、そのことだけを報告する (13) 判定表の境界（10MiB・0.5・1,000ms・30秒・15秒）とAC07(d)の線は起草時に置いた値で、材料はTYPHOONの3 runと分類の窓だけ (14) busyの印は、採った行とtの間にそのthreadの処理（processingの行がある入力）かGCが始まったときだけ付く。GC（若い世代のscavenge）は200msの間に起きやすく、busyでS0が増えて周0が未確認になりうる。逆に、processingの行の無い仕事（tickのdeadlineの処理、parserで拒んだ入力）の間のheapの動きには印が付かない (15) 少数の分類も残すので、3 runの分類が1つでも違えば『runの間の混合』になり、次の手が1つに絞れないことがある (16) 200msのprobeと1秒のmem行の両方が取り逃した短い山は検出できない。g＝0でも真の頂点はもっと高くありうる"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-E05S-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "baseOidの割当（統合担当、発注前点検の後）",
+        "requiredEvidence": [
+          "baseOidの割当（発注前点検の直しのcommit。点検は444de1a7で行った、Q-E05S-PRECHECK）とcheck-contract FAIL 0",
+          "割当の時点で本契約のanchor（windows.mjs・p3.test.ts・probe-preload.mjs・aux-measures.mjs・run.mjs・host.ts・owner-host.ts・typhoon-unit.ts、TYPHOON・WYLの結果の行、manifest-e05y.json・initial-state.json、TYPHOONと分類の窓の契約の行）がずれていないかを確かめ、ずれたanchorを直す"
+        ]
+      },
+      {
+        "id": "Q-E05S-PRELIM",
+        "owner": "integrator",
+        "blocks": [
+          "AC04の凍結"
+        ],
+        "resolveBy": "本契約の配送の後、凍結の前",
+        "requiredEvidence": [
+          "AC07の(a)〜(d)の記録（Mac mini）",
+          "前提が外れた項目の内容と作者への報告"
+        ]
+      }
+    ]
+  }
+}
