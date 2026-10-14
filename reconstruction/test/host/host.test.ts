@@ -20,7 +20,9 @@ import { RuntimeCompositionRoot, linkedUnitTable } from "../../src/runtime/compo
 const hook = vi.hoisted(() => ({ probeGate: null as Promise<void> | null }));
 // AC11(f): the real owner threads (TEST-PATH (3)). Only the stall test holds the owners' replies away from the host;
 // by default every reply passes straight through.
-const owners = vi.hoisted(() => ({ hold: false, held: [] as (() => void)[], live: new Set<{ terminate(): Promise<number> }>(), workerData: [] as unknown[] }));
+const owners = vi.hoisted(() => ({ hold: false, held: [] as (() => void)[], live: new Set<{ terminate(): Promise<number> }>(), workerData: [] as unknown[],
+  // restart の試験が 2 台目の owner の復元結果（U-E の保存世代）を読む。
+  restored: [] as { unit: string; persistence: { savedGeneration: number | null } }[] }));
 vi.mock("node:worker_threads", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:worker_threads")>();
   class Worker extends actual.Worker {
@@ -31,6 +33,8 @@ vi.mock("node:worker_threads", async (importOriginal) => {
       this.once("exit", () => { owners.live.delete(this); });
     }
     override emit(event: string | symbol, ...args: unknown[]): boolean {
+      const reply = args[0] as { kind?: string; units?: typeof owners.restored } | undefined;
+      if (event === "message" && reply?.kind === "restored") owners.restored.push(...reply.units!);
       if (event !== "message" || !owners.hold) return super.emit(event, ...args);
       owners.held.push(() => { super.emit(event, ...args); });
       return true;
@@ -59,6 +63,8 @@ vi.mock("../../src/host/dmdata-rest", () => {
     },
   };
 });
+// 配送の完了を数える（restart の試験が両 channel の配送の世代を待つ）。
+const deliveries = vi.hoisted(() => ({ delivered: 0 }));
 // AC12: the publisher thread must not decode; every call made in this thread is counted.
 const decodes = vi.hoisted(() => ({ count: 0 }));
 vi.mock("../../src/decode-material/decode-material", async (importOriginal) => {
@@ -74,7 +80,7 @@ vi.mock("../../src/notification-delivery/adapter", async (importOriginal) => ({
   probeDesktopBackend: () => ({ kind: "idle" }),
   probeSoundBackend: async () => { await hook.probeGate; return { kind: "delivered" }; },
   runNotificationAttempt: async (attempt: { attemptId: string; intentId: string; channel: string }, clock: () => unknown) =>
-    ({ kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: clock() }),
+    (deliveries.delivered += 1, { kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: clock() }),
   abortNotificationAttempt: async () => ({ stopped: true }),
 }));
 
@@ -94,6 +100,8 @@ afterEach(async () => {
   hook.probeGate = null;
   owners.hold = false;
   owners.held.length = 0;
+  owners.restored.length = 0;
+  deliveries.delivered = 0;
   skew.ms = 0;
   vi.useRealTimers();
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
@@ -346,18 +354,21 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
     const first = await start(server.url, dirs);
     await until(() => server.sockets.length === 1);
     server.sockets[0].send(dataFrame("VXSE43", vxse43));
-    // Wait for the input's own save: before the frame is applied, U-E is already "saved" at generation 0.
+    // 入力の保存は世代 1 に過ぎず、配送の結果（intentUpdate）が後から世代を進める。両 channel の配送が終わる前に比べる元を
+    // 取ると、stop() が保存する世代より古くなる。
     await until(async () => {
       const persistence = (await snapshot(first.displayPort)).persistence["U-E"];
-      return persistence?.kind === "saved" && (persistence.savedGeneration ?? 0) > 0;
+      return deliveries.delivered === 2 && persistence?.kind === "saved" && (persistence.savedGeneration ?? 0) > 0;
     });
-    const saved = (await snapshot(first.displayPort)).persistence["U-E"];
+    const saved = (await first.stop()).persistence["U-E"];
+    expect(saved?.kind).toBe("saved");
     expect(saved?.savedGeneration).toBeGreaterThan(0);
-    await first.stop();
+    owners.restored.length = 0;
     const second = await start(server.url, dirs);
     const restored = await snapshot(second.displayPort);
     expect(restored.recovery["U-E"].kind).toBe("restored");
-    expect(restored.persistence["U-E"]).toMatchObject({ currentGeneration: saved?.currentGeneration, savedGeneration: saved?.savedGeneration });
+    // 復元直後は通知の期限で deadlineOwner が世代を進めうるので、currentGeneration は比べない。
+    expect(owners.restored.find((unit) => unit.unit === "U-E")?.persistence.savedGeneration).toBe(saved?.savedGeneration);
     expect(restored.current.eew.items.length).toBeGreaterThan(0);
   });
 

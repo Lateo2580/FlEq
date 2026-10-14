@@ -519,8 +519,10 @@ describe("P2-A6 weather timeseries", () => {
     // TEST-PATH (2): U-F starts from the blocker; the publisher verified its coverage before the input arrives.
     const seeds = seeded(callsWith({ ...fixtureDriver().stubs, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView }).units);
     const directory = mkdtempSync(join(tmpdir(), "fleq-a6-t07-"));
+    // assertion が落ちても rmSync の前に診断の flush を待つため、finally から見える所に置く。
+    let h: Harness | undefined;
     try {
-      const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(directory, "state"),
+      h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(directory, "state"),
         legacyStateDirectory: join(directory, "old"), diagnosticDirectory: join(directory, "diagnostics") }, undefined,
       { notificationAdapter: recordingNotificationAdapter(), clock: () => clock(), runtimeCalls: { ...fixtureDriver().calls,
         units: seeds.units } });
@@ -532,8 +534,10 @@ describe("P2-A6 weather timeseries", () => {
       expect(h.root.state.confirmation.units["U-F"].normal).toMatchObject({ whole: null,
         confirmedAt: null, confirmedScopeCount: 0, counts: { startup: 1 },
         scopes: [{ reason: "startup", confirmedAt: null }] });
-      await h.root.diagnostics.flush();
-    } finally { rmSync(directory, { recursive: true, force: true }); }
+    } finally {
+      await h?.root.diagnostics.flush();
+      rmSync(directory, { recursive: true, force: true });
+    }
     const full = inflated(blockerBase, 33_554_432);
     const refused = receive(full, fixture(unknown));
     expect(refused.decisions[0].decision).toBe("capacityExceeded");
@@ -654,7 +658,9 @@ describe("P2-A6 weather timeseries", () => {
     // TEST-PATH (2): each run is the publisher with its in-process owners; the business clock is the publisher's.
     let now = clock();
     const calls = callsWith({ ...fixtureDriver().stubs, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView });
-    const makeRoot = () => harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq",
+    // 止めない root（a・expiry・b・c・e）の診断 sink の mkdir/append が rmSync と並んで走るので、消す前に全 root の flush を待つ。
+    const roots: Harness[] = [];
+    const makeRoot = () => { const root = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq",
       stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "old"),
       diagnosticDirectory: join(directory, "diagnostics") }, { "U-F": weatherTimeseriesUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       runtimeCalls: calls, clock: () => now,
@@ -665,7 +671,7 @@ describe("P2-A6 weather timeseries", () => {
       }, async open(path) { const handle = await disk.open(path);
         return { ...handle, async write(data) { if (fail.write) throw new Error("injected write failure");
           await handle.write(data); } }; } },
-    });
+    }); roots.push(root); return root; };
     let inputSequence = 0;
     const start = async (h: Harness, runId: string, at: ReturnType<typeof clock>) => {
       now = at;
@@ -754,7 +760,10 @@ describe("P2-A6 weather timeseries", () => {
       expect(unit(e).persistence.savedGeneration).toBe(finalGeneration);
       expect(unit(e).subjects).toEqual(unit(d).subjects);
       expect(writes).toBe(3);
-    } finally { rmSync(directory, { recursive: true, force: true }); }
+    } finally {
+      await Promise.allSettled(roots.map((h) => h.root.readDiagnostics({ limit: 1 })));
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   // T08: unrelated expiry cannot make duplicate input an accepted generation contributor.
