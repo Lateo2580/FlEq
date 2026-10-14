@@ -1,0 +1,28 @@
+{
+  "verdict": {
+    "label": "P3 E01",
+    "status": "未確認",
+    "populations": {
+      "fixedBacklog": "未確認",
+      "maxVpws50ParseStarted": "未確認",
+      "maxWeatherCheckpointEncodeStarted": "未確認",
+      "maxForecastCheckpointSave": "未確認",
+      "forecastDeadlineOverlap": "未確認",
+      "maxVpws50ReceivedThenEew": "reference"
+    },
+    "evidenceRefs": []
+  },
+  "cause": {
+    "cause": "none",
+    "decision": "notEvaluated",
+    "evidenceRefs": [],
+    "attemptedFixes": []
+  },
+  "runs": [],
+  "finishedAt": "2026-10-14T03:36:04.322Z",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05s.json --windows e05s-p-run1,e05s-y-run1,e05s-p-run2,e05s-y-run2,e05s-p-run3,e05s-y-run3 --notification real --node /opt/homebrew/opt/node@22/bin/node",
+    "caffeinate -dims -w 95297"
+  ],
+  "notification": "real"
+}
