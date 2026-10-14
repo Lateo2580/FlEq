@@ -1,0 +1,736 @@
+{
+  "meta": {
+    "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
+    "sha256": "3f8f2779ccb0ef4a3163ecfc251f13094038d12ea7c854b88fc2bf2098c303b6",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-UFP-D-FIELDS",
+        "A": "常に配るU-Fの項目は今の要約表示と同じにする: 分野の要約の3行（件数・最高区分・予報区域の数・更新時刻・利用不能・未知Code・未確認・容量超過）と、利用不能のnotice（気象時系列情報を確認できません）。ownerが出す官署ごとの公開形式は、その材料（effective・利用不能の理由・出典・区域Codeの集合・既知Codeの集合・未知Codeの件数）と、noticeと詳細を開く鍵（官署名・id・版・periodの数）だけを持つ。periodの値（時間帯ごとの危険度・雨量など）は詳細の口から取る。snapshotの縮退の規則（P2-A8-RES-06）は変えないので、全体が1 MiB以下のときは官署ごとの公開形式も画面へ届き、越えたときは要約だけが届く",
+        "B": "Aに足して、区域ごとの最大の階級（区域Code→階級）を官署ごとの公開形式に入れて常に配る（P4の地図でU-Fの危険度を塗る材料。1区域あたり約15〜20 byte、実例の58官署で数十KB増える）",
+        "C": "欄はAのまま、snapshotのU-Fは常に要約にする（官署ごとの公開形式はpublisherの集計とnoticeにだけ使い、画面へは出さない。官署と版は詳細の口の索引ページで取る。P2-A8-RES-06をU-Fだけ上書きする）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-15、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む（Q-UFP-AUTHOR）",
+        "reason": "Aは今の画面に出ているものを1つも減らさない（要約のitemsとnoticeは同じ入力で同じ値、P3-UFP-AC04で照合）。新築の画面（chrome-eew）はU-Fを描かず、snapshotでもU-Fは平常の大きさ（state全体15.6〜15.8 MB）のせいで要約に落ちていたので、官署ごとの詳細は画面に出たことが無い。Aは官署・区域の索引までを常設に置くので、snapshotに収まる限り、重大な現況の有無と影響範囲を詳細を開かずに出せる（Pro §3.2）。代わりに、収まるときはsnapshotの1回の直列化に実例の上界で約135 KBが乗る。Bは地図の塗りの材料を、どの画面に何を出すかが決まるP4の前に全分野共通のsnapshotの予算へ積む（材料は詳細のperiodの値から画面の側でも求められる）。Cは合法最大の入力でもU-Fの寄与が要約の2,301 byte以下に固定され直列化も増えないが、画面が官署・区域を出すには索引ページを取りに行く要求が要る。要約だけを受けた画面（A・Bでも全体が1 MiBを越えたとき、Cでは常に）が官署と版へ届く道は詳細の口の索引ページ（Q-UFP-INDEX）で、P3-UFP-D-DETAIL-SCREEN=A（作者裁定）により本契約が作る"
+      },
+      {
+        "id": "P3-UFP-D-DETAIL-SCREEN",
+        "A": "取得の口と上限の検査はP3（本契約）、画面はP4: ownerが要求された1ページだけを作る口（官署の時系列のページと、要約だけを受けた画面が官署・版を知るための索引ページ）、publisherの中継と上限（受け付け8件・ownerに1件・時系列1ページ64 period・索引1ページ32件・1応答64 KiB・受付から本文の排出まで2秒・通常の入力と期限より後に送る）、HTTPの経路 GET /api/display/domains/U-F/detail を本契約で作って試験で確かめる。U-Fの詳細を開く画面はP4で作る。Aは作者裁定P2-A8-D03=A（P2を最小縦断に絞り『P4詳細APIを作らない』）と計画§5.2（IR07の詳細要求はP4の契約でC3aの境界型を改訂する）を、U-Fについて一部覆す",
+        "B": "口も画面もP4: 本契約は公開形式だけ。P4まではU-Fのperiodの値も、要約だけを受けた画面から官署・版へ届く道もどこにも無い（保存しているが見に行けない状態、監査A17がP4まで残る）。P2-A8-D03=Aと計画§5.2はそのまま",
+        "C": "画面もP3: chrome-eewにU-Fの詳細を開く画面を足す（P3の表示をEEWと津波の最小の描画に限っていた範囲を広げる）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定A（2026-10-15、ご主人）、推奨どおり。作者裁定P2-A8-D03=A（P4詳細APIを作らない）をU-Fについて一部覆すことを承知のうえ。採らなかった案は分岐の記録として残すだけで、実装はAの形だけを読む（Q-UFP-AUTHOR）",
+        "reason": "Aは、viewからperiodの値を外すのと同じ契約の中で、保存しているperiodの値へ届く道を用意し、要約だけを受けた画面も索引ページで官署と版へ届ける。数のうち受け付け8件・ownerに1件・1応答64 KiB・1要求1 KiB・2秒はspec §7.10の開始値で、時系列1ページ64 period・索引1ページ32件・wrapperとomittedの予約4,096 byte・誤りの本文256 byteは本契約で足す数（Q-UFP-PAGE・Q-UFP-INDEX）。Bは作業が最小だが、P4の詳細の契約がU-Fの境界型をもう一度変え、A3の直しと詳細の口が別々の時期に同じ型（OwnerRequest・RuntimeDisplaySubject）を触る。CはP3の表示の範囲（chrome-eewのEEWと津波の最小の描画）を広げ、P4の着手前に決める表示の裁定（計画§5.2）より先に画面を作ることになる"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-UFP-SHAPE",
+        "status": "closed",
+        "source": "統合担当の起草（2026-10-15、3fe5dd69のweather-timeseries-unit.ts・view-projector.ts・owner-runtime.ts・owner-host.tsの読み合わせ）",
+        "closed": "公開形式は型WeatherTimeseriesPublicSubject（p2-weather-timeseries-unit.types.tsに新設）で、欄はsubject・operation・office・id・revision・source・effective・unavailableReason・validUntil・areaCodes・knownCodes・unknownCode（unknown・missing・emptyの件数）・periodCount・lastKnownPeriodCountだけ。idとrevisionはQ-UFP-REVISION。viewのseriesの要素と、RuntimeDisplaySubjectのU-Fのcurrentをこの型にする（欄の名前seriesは変えない）。subjectのobjectごとにWeakMapで1回だけ作る（既存のoutcomeCacheと同じ形）。periodの行・辞書の表・lastKnownの中身・gate・intent・retainUntilは載せない",
+        "remaining": "なし",
+        "reason": "要約のitemsとnoticeを今と同じ値で作れる最小の材料で、periodの数に比例する欄を持たない。名前seriesを変えないのは、型が変わるので全量を前提にした読み手はコンパイルで止まり、名前を変えても止まる所は増えないから"
+      },
+      {
+        "id": "Q-UFP-AREAS",
+        "status": "closed",
+        "source": "統合担当の起草（P2-A8-SUMMARY.areasの読み合わせ）",
+        "closed": "区域はCodeの集合（昇順、空文字を除く）で持ち、数にしない。projectorのareaRefs（operation×区域体系×Codeの参照件数）は今のまま",
+        "remaining": "なし",
+        "reason": "P2-A8-SUMMARY.areasはsubjectをまたいで同じCodeを1と数えるので、官署ごとの数の和では同じ値を保証できない（官署の区域が重ならないという前提を契約へ持ち込まない）"
+      },
+      {
+        "id": "Q-UFP-PATHS",
+        "status": "closed",
+        "source": "統合担当の起草（owner-host.tsのoutput・restore、owner-runtime.tsのfinish・restoreOwner、p3-execution-split.types.tsのOwnerUnitDelta・OwnerOutputの読み合わせ）",
+        "closed": "ownerからpublisherへU-Fの値が出る経路は7つ。本契約が変えるのは(1)(2)で、(7)を足す: (1) OwnerUnitDelta.view（入力・期限・intent更新・保存の返信のviewsと、restoredの返信のview）(2) OwnerOutput.displayChanges（reduceの差分、restoreの差分、normalの公開の制限の切替でnormalDisplaySubjectsが出す差分）。(3) outcomes（SubjectOutcome、factsはeffective・periodCount・knownMaxCode）(4) confirmationEvidence（subjectとoffice）(5) pendingIntents（U-Fはintentを作らない。上限128件・131,072 byte）(6) diagnosticsは今の形で小さく有界なので変えない。(7) 詳細の口の返信（OwnerReplyのdetailDone）は時系列1ページか索引1ページか誤りだけで、本文の上限（P3-UFP-RES-03・RES-09）の中",
+        "remaining": "なし",
+        "reason": "Pro §3.3の注意（seriesだけでなくdisplayChangesとoutcome等も同じ境界で見直す）を経路ごとに閉じる。ヘルツのレビューでも、checkpointの返信を含めU-Fの全subjectが抜ける別の経路は見つからなかった"
+      },
+      {
+        "id": "Q-UFP-MASK",
+        "status": "closed",
+        "source": "統合担当の起草（Q-R20-CLEAR.atomicity、owner-runtime.tsのprojectViewの読み合わせ）",
+        "closed": "normalの公開の制限（Q-R20-CLEAR）は今どおり: projectViewはwithoutNormalを通したstateをtoViewへ渡し、seriesからnormalの公開形式が外れる。displayChangesの公開形式は制限の間も付き、projectorがmasked()で寄与を外す。詳細の口も制限の間はnormalのsubjectを索引に載せず、そのページを返さない（P3-UFP-AC06）。Q-R20-CLEAR.atomicityの原文『U-Fのseries（旧activeとその全periodを含む）』は、配送のcommitで統合担当が『U-Fのseries（公開形式）』へ改訂する（重ねて読み替えない、P3-UFP-AC09）",
+        "remaining": "C1の単位（候補2）で制限の形が変われば、その契約が本契約の公開形式と詳細の口に合わせる",
+        "reason": "隠しの形は候補2で変えるので、本契約は今の形を写すだけにして状態機械を増やさない"
+      },
+      {
+        "id": "Q-UFP-REVISION",
+        "status": "closed",
+        "source": "統合担当の決定（ヘルツのレビューH1・H3）。weather-timeseries-unit.tsの容量の退去（非normalのsubjectをgateごと消す）・contentRevisionの進め方、host.tsのinputIdの作り方、composition-root.tsのstreamIdの読み合わせ",
+        "closed": "詳細の鍵は短い2つの値: id＝P2-A8-NOTICE.identityのtargetIdと同じ作り方（SHA256(UTF8(JSON.stringify([\"U-F\", operation, subject])))の小文字hex64）、revision＝そのsubjectのobjectを作ったstepでU-Fのunitが進めた内容版（reduceWeatherTimeseriesUnitが差分のafterのsubjectのobjectに、そのstepのcontentRevisionを記録する。10進で16桁以下）。世代は保存せず、公開形式のcacheから作らない（cacheを作り直しても変わらない）。unitの内容版はrunの中で単調に増え、1つのstepで公開されるのは各subjectの最後のobjectだけなので、退去してからの再作成も別のrevisionになる（ヘルツの列: t1保持→t3 unavailable〔lastKnown=t1〕→退去→t2再受理→t3 unavailable〔lastKnown=t2〕）。runをまたぐ照合はstreamId（runごとのrandomUUID）で切る。stateに入るsubjectのobjectはどれもreduceの差分を通る（restoreも全subjectの差分を出す）ので、記録の無いobjectは無い",
+        "remaining": "なし",
+        "reason": "報時刻・Serial・InfoType・effective・lastKnownの有無では、training/testのsubjectが容量の退去でgateごと消えた後の再受理で同じ値に戻り、違うlastKnownを同じ版として返しうる。inputIdはrunごとにinput-1から振り直す。生の文字列を鍵にするとURLの1,024 byteに入らない"
+      },
+      {
+        "id": "Q-UFP-INDEX",
+        "status": "closed",
+        "source": "統合担当の決定（ヘルツのレビューH2・OpusのレビューO-M3）。view-projector.tsのsummaryのwrapper、spec §8.1（『版付き詳細取得の参照を付ける』と『既知のAPIと分野IDから参照する』）",
+        "closed": "summaryのwrapperにはsubjectも詳細の参照も無いので、詳細の口に索引ページ（part＝index）を足す。要求は{ streamId, part: index, revision: U-Fのviewの内容版（summaryのwrapperにも載るcontentRevision）, page }で、1ページ32件。1件は{ id, operation, office（UTF-8で256 byte以下の先頭、P2-A8-NOTICE.sourceと同じ切り方）, officeTruncated, revision, effective, periodCount, lastKnownPeriodCount }。並びはviewのseriesの順で、normalの公開の制限の間はnormalを載せない（seriesと同じ集合）。内容版が変わっていればversionChangedと今の内容版。snapshotのwire（summaryのwrapper）は変えない",
+        "remaining": "なし",
+        "reason": "要約だけを受けた画面（全体が1 MiBを越えたとき、D-FIELDS=Cでは常に）が最初の詳細の要求を組み立てられない。1件は最大1,797 byte（officeの256 byteをescapeの最大6倍で数えた形）なので、32件とwrapperで57,743 byte、1応答64 KiBに必ず収まる"
+      },
+      {
+        "id": "Q-UFP-DETAIL-PATH",
+        "status": "closed",
+        "source": "統合担当の決定（ヘルツのレビューH4・H5・2巡目H2-3、OpusのレビューO-M2・O-S1）。spec §7.10、p3-execution-boundary.md §2・§4、composition-root.tsのpump・MonitorSlot・slotOf、mailbox.tsのtakeNext、http-sse.ts・host.tsの読み合わせ",
+        "closed": "詳細の要求はmailboxを通さない。composition rootが受け付けた要求を数え、deferredのownerへOwnerRequestのdetailを1件ずつ送る。送るのはpumpを完了した後で、deferredのinFlightInputsと期限の返信待ち（outstandingのdeadline）が無いときだけ（通常受理より下位、spec §7.10）。pumpは取り出せる入力が無くなるまで回り、取り出した直後にinFlightInputsを立てる（送出を留保した入力も入る）。mailboxは置き場のin-flightが無ければ、その置き場の最も古い入力を必ず選べる（同じheadTypeは同じ置き場へ行くので、先の入力に塞がれない）。だからpumpの後にdeferredのin-flightが無ければ、deferred行きの入力はmailboxに待っておらず、mailboxへの問い合わせは要らない。ownerはstateを変えず期限も当てずに、その時点のU-Fのstateから1ページを作ってOwnerReplyのdetailDoneを返す（outputを持たない）。MonitorSlotにdetailを足す（P3-C3B-RES-01の枠8→9）。受け付けの数と2秒の期限はHTTPの応答の完了（finish）か切断（close）まで保つ: rootのrequestDetailは応答のPromiseと完了の通知（done）を返し、HTTPはfinish・closeでdoneを1回だけ呼ぶ。HTTPは既存の表示のserver（127.0.0.1）にGET /api/display/domains/U-F/detailを1本足す。UnitModuleに詳細の欄を足さず、ownerはU-Fの関数を直接呼ぶ。応答の保持は受け付けの8件×65,536 byte＝512 KiB以下になるので別の上限を持たない",
+        "remaining": "ほかの分野の詳細はP4。P4で分野が増えたら、そのときに共通の形へ寄せる",
+        "reason": "mailboxに入れると詳細が入力の件数・byte・in-flightを食って入力の受付を止めうる。書き出しで期限と数を外すと、排出の止まったclientが受け付けを持ち続ける。UnitModuleに欄を足すと実装が1つだけのinterfaceになる（AGENTS.mdの最小実装）。mailboxへの読み取りの口は、pumpの後のinFlightInputsで同じ判定ができるので足さない（ヘルツの2巡目H2-3）"
+      },
+      {
+        "id": "Q-UFP-PAGE",
+        "status": "closed",
+        "source": "統合担当の起草（spec §7.10の6、test/fixtures/81_09_01_260605_VPWP50.xml〔長野、2,268,084 byte、区域81〕の行の形の見積り、ヘルツのレビューH3）",
+        "closed": "時系列の1ページはpart（currentかlastKnown）のperiodsのindexで64件ずつ（page pは[64p, 64p+64)）。pageCount＝max(1, ceil(periodの数/64))で、数えるだけで作れる。1行はperiodMeaningと同じ解決（辞書のindexを外へ出さない）にindexを付けた形で、解決の関数を2つにしない。行は1つずつJSONのbyteを数えて足し、wrapperとomittedの予約4,096 byte（omitted 64件の最大の形で3,429 byte）を引いた61,440 byteを越える行は値を入れず{ index, reason: pageBudget }にする。誤りの本文はstreamId・kind・reason・revisionだけで256 byte以下（最大の形で124 byte）",
+        "remaining": "なし（実例の全ページでomittedが0件になることはP3-UFP-T08で確かめる）",
+        "reason": "起草時の見込みで1行約400〜450 byte（長野のSignificancyの行）なので64行で約29 KiB、上限の半分以下。128行では上限に近い。予約を512 byteにするとomittedが多いときにwrapperが上限を越える"
+      },
+      {
+        "id": "Q-UFP-E05",
+        "status": "closed",
+        "source": "統合担当の起草（.draft/no-overflow-study.md §6.2、.draft/pro-crosscheck.mdの『候補1の効果をRSSで比べるには充填の作り直しが先』、test/eew-e01/frames.mjsのRES07）",
+        "closed": "E05の充填がU-Fの平常のstateを載せていない問題（U-Fの充填は3.5 KBのfixtureを官署名だけ替えて最大512件、平常の15.6〜15.8 MBは一度も載っていない）は本契約に入れず、別の測定の契約に切る（仮ID P3-E05-WEATHER-FILL-001、未起草）。本契約の受入はbyteの照合（P3-UFP-AC02〜AC05）で閉じ、RSSの主張をしない",
+        "remaining": "充填の契約の起草と、前後を比べるかの判断（Q-UFP-E05-FILL）",
+        "reason": "充填の作り直しは閉じた測定の契約（P3-MEASURE-HARNESS-001）の改訂とmanifestの凍結を伴い、3つ目の単位（U-Wの406鍵）も同じ充填が要るので、1本の測定の契約にまとめるほうが凍結と測り直しが1回で済み、本契約はMac miniの窓を待たずにCIで受け入れられる"
+      },
+      {
+        "id": "Q-UFP-SCHEMA",
+        "status": "closed",
+        "source": "統合担当の起草（作者の方針: 永続schemaは変えない前提、Pro §3.1）",
+        "closed": "保存の形（PersistedWeatherTimeseriesUnit、schemaVersion p2-weather-timeseries-unit-v1）・stateの型・codec・意味のreducerは変えない。公開形式・世代・詳細のページは保存しない派生の値",
+        "remaining": "なし。schemaを変える必要が出たら実装を止めてblockedを報告する（移行1セットが要る）",
+        "reason": "公開形式だけを先に変え、意味と保存を変えない対照にすると、減った量の原因が読みやすい（Pro §8.2の①）"
+      },
+      {
+        "id": "Q-UFP-ORDER",
+        "status": "closed",
+        "source": "統合担当の起草（作者の裁定D0の3単位、Pro §4.5）",
+        "closed": "C1の単位（候補2）より先に配送する。owner-host.ts・composition-root.ts・p3-execution-split.types.ts・p2-shared-runtime.types.ts・view-projector.tsは候補2も触るので並走しない。U-Wの単位（候補3）は主にweather-currentのfileを触るので重なりは小さい。U-Wのviewも同じ単位で小さくするならview-projector.tsが重なるので順に並べる",
+        "remaining": "baseOidの割当のときに順を確かめる（Q-UFP-BASE）",
+        "reason": "候補2で隠しを外すと隠れていたfull viewがそのまま再公開されてpublisherの量が増える（Pro §4.5）ので、先に公開形式を小さくする"
+      },
+      {
+        "id": "Q-UFP-LIMIT-RULES",
+        "status": "closed",
+        "source": "作者の裁定D0（2026-10-15、.draft/pro-crosscheck.md）、起草案P3-LIMIT-RULES-001のP3-LIM-D-A3・P3-LIM-AC06・Q-LIM-MEMORY",
+        "closed": "起草案のD-A3（Bを推奨: 要約にする分野の順を決める）とAC06は発注しない。本契約はD-A3のAの向き（U-Fのviewにseriesの全量を載せない）を、P4の詳細要求を待たずに詳細の口と一緒に閉じる形にした。snapshotの縮退の規則（P2-A8-RES-06）は変えない",
+        "remaining": "なし",
+        "reason": "落とす順を決めてもU-Fの大きい転送と保持は残る（Pro §9.1: 直すファイルが少ないことと完成形の仕組みが少ないことは別）"
+      },
+      {
+        "id": "Q-UFP-UW-VIEW",
+        "status": "closed",
+        "source": "統合担当の決定（OpusのレビューO-S5）。weather-current-unit.tsのtoWeatherCurrentView、監査の見積り（.draft/no-overflow-study.md §1のU-Wの行）",
+        "closed": "A3はU-Fだけでは閉じない: U-Wのviewはnationalとpartialsのsnapshotをそのまま載せる。監査の見積り（全国のsnapshot 666,548 byte、partial 128件で約0.4〜0.9 MB）では、U-Wだけで全体が1 MiBを越えうる。本契約の受入（P3-UFP-AC05）はU-Fが原因の巻き添えに限る。残りは3つ目の単位（U-Wの正本・公開の持ち方）で扱う",
+        "remaining": "3つ目の単位の起草で、U-Wのviewの大きさを範囲に入れる",
+        "reason": "本契約の範囲はU-Fの公開境界（作者の裁定の1つ目）で、U-Wのviewを変えるとU-Wの単位と同じファイルを触る"
+      },
+      {
+        "id": "Q-UFP-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-15、ご主人）",
+        "closed": "P3-UFP-D-FIELDS=A（常に配る項目は今の要約表示と同じ）、P3-UFP-D-DETAIL-SCREEN=A（取得の口と上限の検査はP3、画面はP4。作者裁定P2-A8-D03=AをU-Fについて一部覆すことを承知のうえ）。どれも推奨どおり。残存リスク(1)〜(10)を一括承認（推奨どおり）",
+        "remaining": "なし",
+        "reason": "分岐2つと残存リスクの確定"
+      },
+      {
+        "id": "Q-UFP-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-15、HEAD 3fe5dd69＝main、本契約は未コミットの下書き。前例はC14〔b3df1e3f〕とP3-OWNER-YOUNG-LIMIT-002〔fef851af〕）",
+        "closed": "(1) 分岐: D-FIELDS・D-DETAIL-SCREENとも作者裁定A（Q-UFP-AUTHOR）。裁定前の書き方（状態の起草案・裁定の欄の未裁定、『=Aのとき』『=Bなら』『=Cを選んだ場合』の場合分け、残存リスクの『作者の承認を待つ』）を裁定の形に直し、契約の中に残っていないことを文字列の検索で確かめた（『起草案』の字は、別の契約の状態を指す所〔Q-UFP-LIMIT-RULESのP3-LIMIT-RULES-001の2か所、Q-UFP-BASEのP3-CURRENCY-COVERAGE-001の1か所〕と本項だけ） (2) 未決: 残りはQ-UFP-BASE（baseOidの割当、点検の後の定型）・Q-UFP-EXISTING-TESTS（実装の途中の報告）・Q-UFP-E05-FILL（RSSの前後の比較で、本契約の受入ではない）で、発注を止めるものは無い (3) 実在: readPaths 20・allowedPaths 11はどれも有る。fixtureIds 16・sequenceIds（O02）・dependsOnContractIds 6はcheck-contractが照合した。publicFunctionsの既存のもの（toWeatherTimeseriesView・weatherTimeseriesUnit.normalDisplaySubjects・RuntimeCompositionRoot・startDisplayServer）は有り、ほかは新設。moduleIds（B02・B06・B08・B11・M08）とintegrationContractIds（I-U-F）はspecに有る (4) anchor: evidenceRefsの113件（25 file）とcontractTypeRefを3fe5dd69の行で読み、条文の主張と合うことを確かめた（check-contractの照合でずれ0件）。AC09の頭書きの凍結manifestの記述は、pinを持つ17本を数え直した結果 (5) 他の契約が引く行: 本契約が変えるfileの行を、追跡済みの契約がanchorで88か所引いている（host.ts 20、view-projector.ts 25、composition-root.ts 16、owner-runtime.ts 10、p2-shared-runtime.types.ts 7、weather-timeseries-unit.ts 6、owner-host.ts 4、ほかの3 fileは0）。行が動く見込みはview-projector.tsの936・938行（3か所、timeseriesTallyの行数が変わるとき）とcomposition-root.tsの615行以降（8か所）、新しいimportの行を足すならweather-timeseries-unit.ts（6か所）とowner-host.ts（4か所）。host.tsは表示のserverのoptionsの既存の行に足せば0か所。書き方の優先と付け直しはAC09の(12)。未追跡の起草案（P3-LIMIT-RULES-001・P3-CURRENCY-COVERAGE-001）が引く行は、その起草の側で付け直す (6) AC05の前提の測り（baseのdist〔~/dev/FlEq/reconstruction/dist、2026-10-13のbuild。unit・decode・projectorのsrcは3fe5dd69と同じで、その後のsrcのcommitはhost.tsだけ〕を読むだけで使い、fixtureを1通ずつunitに通したviewのJSONのbyteを数えた）: 地震32-35_01_03_240613_VXSE53は25,630 byte、32-35_04_04_240613_VXSE53は16,156 byte、津波32-39_11_11_250206_VTSE41は16,070 byte、EEW 77_01_01_240613_VXSE45は1,465 byte。地震1件では分野が64 KiBに届かず、起草のAC05の前提は成り立たなかった（監査A3の『広く揺れた地震1回で約99,686 byte』は、HEADのU-Qのview〔観測点を載せない、P3-C7-AC12〕では再現しない）。EventIDだけを替えると2件50,785、3件75,950、4件101,115 byteなので、AC05・T05を地震3件に直した (7) 計画§9の表の本契約の行は統合担当が足す（この点検で書ける範囲の外）",
+        "remaining": "なし（baseOidの割当はQ-UFP-BASE）",
+        "reason": "発注前点検の項目を閉じる"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "公開形式と詳細はoperationごとに分ける（subjectとidはoperationを含む）。詳細は別のoperationのsubjectを返さない。normalの公開の制限はnormalだけに効き、training/testの公開形式・索引・詳細を変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UF-PUBLIC-001",
+    "mode": "implementation",
+    "objective": "U-F（気象の時系列、VPWP50）のownerがpublisherへ出す値を、常設表示に要る小さい公開形式に限る（作者の裁定D0〔2026-10-15〕の3単位の1つ目、Proレビュー§8.2の①・§3.1『公開形式だけ先に変える』）。いまはviewのseriesにstateの全subject（平常15.6〜15.8 MB）が載り、displayChangesのcurrentもsubject全体で、U-Fが変わるたびに構造化複製でmainへ渡る。publisherは全体が1 MiBを越えた所で64 KiBを越える分野をまとめて要約にするので、U-Fが原因で地震まで要約に落ちる（監査A3）。本契約は (1) 官署ごとの公開形式（要約のitemsとnoticeの材料、詳細を開く鍵）をownerが作り、view・displayChanges・normalの公開の制限の切替・復元の4経路のcurrentをそれに替える (2) 公開形式のbyteの上界を、鍵の数×1鍵の上界として全部の文字列の欄を含めて書き、実fixtureで組んだ平常の大きさのstateで確かめる (3) periodの値へ届く詳細の口と、要約だけを受けた画面が官署・版へ届く索引ページを作る（鍵はidと短い版、時系列1ページ64 period・索引1ページ32件・1応答64 KiB・受け付け8件・本文の排出まで2秒・通常の入力と期限より後に送る。版が変われば最新を旧版と偽らずversionChanged。作者裁定P3-UFP-D-DETAIL-SCREEN=Aにより、作者裁定P2-A8-D03=AをU-Fについて一部覆す）。U-Fのstate・codec・意味のreducer・保存の形は変えない（同じ入力でstateと保存内容が同じことをcorpus履歴で照合する）。RSSの主張はしない（E05の充填の作り直しは別の契約、Q-UFP-E05）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-execution-boundary.md",
+      "reconstruction/contracts/p3-uf-public.json",
+      "reconstruction/contracts/p2-weather-timeseries-unit.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-execution-lifecycle.json",
+      "reconstruction/contracts/p3-unit-table.json",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/contracts/p2-weather-timeseries-unit.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/http-sse/http-sse.ts",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/test/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-uf-public.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B06",
+      "B08",
+      "B11",
+      "M08"
+    ],
+    "integrationContractIds": [
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P2-WEATHER-TIMESERIES-UNIT-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P3-UNIT-TABLE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-weather-timeseries-unit.types.ts#WeatherTimeseriesUnitView",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeDisplaySubject",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerRequest",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerReply"
+    ],
+    "publicFunctions": [
+      "toWeatherTimeseriesView(state: WeatherTimeseriesUnitState): WeatherTimeseriesUnitView（signatureは変えない。seriesの要素が公開形式になる）",
+      "weatherTimeseriesUnit.normalDisplaySubjects（signatureは変えない。currentが公開形式になる）",
+      "U-Fの詳細の1ページの射影（新、P3-UFP-D-DETAIL-SCREEN=A）: weatherTimeseriesDetail(state: WeatherTimeseriesUnitState, request: WeatherTimeseriesDetailRequest, view: { normalHidden: boolean; contentRevision: string }): WeatherTimeseriesDetailResponse",
+      "RuntimeCompositionRoot.requestDetail(request): { response: Promise<WeatherTimeseriesDetailResponse>; done: () => void }（新、P3-UFP-D-DETAIL-SCREEN=A。doneはHTTPが応答の完了か切断で1回呼ぶ）",
+      "startDisplayServerのoptionsにdetailを1つ足す（新、P3-UFP-D-DETAIL-SCREEN=A）。mailboxには関数を足さない。ほかの公開の関数のsignatureは変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.jsonを変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__81_01_01_260129_VPWP50",
+      "test__fixtures__81_01_02_260129_VPWP50",
+      "test__fixtures__81_01_03_260129_VPWP50",
+      "test__fixtures__81_01_04_251222_VPWP50",
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+      "test__fixtures__81_03_01_260605_VPWP50_unknown_code",
+      "test__fixtures__81_04_01_260605_VPWP50_cancel",
+      "test__fixtures__81_05_01_260605_VPWP50_head_missing",
+      "test__fixtures__81_06_01_260605_VPWP50_criteria_period",
+      "test__fixtures__81_07_01_260605_VPWP50_local_area",
+      "test__fixtures__81_08_01_260605_VPWP50_criteria_property_sibling",
+      "test__fixtures__81_09_01_260605_VPWP50",
+      "test__fixtures__81_09_01_260605_VPWP50_local_identity",
+      "test__fixtures__32-35_01_03_240613_VXSE53",
+      "test__fixtures__32-39_11_11_250206_VTSE41",
+      "test__fixtures__77_01_01_240613_VXSE45"
+    ],
+    "sequenceIds": [
+      "O02"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-UFP-RES-01",
+        "target": "U-Fの公開形式の1鍵（viewの要素2つ〔公開形式とSubjectOutcome〕とsemanticRevisionの1 subject分）",
+        "limit": 1510,
+        "unit": "UTF-8 JSON bytes per key, plus 10 bytes per area code (A(k)), under the premises in scope",
+        "scope": "上界の宣言で、切り詰めの上限ではない。式: b(k)≤1,119＋6×J(office)＋2×J(inputId)＋3×J(reportDateTimeRaw)＋3×J(serialRaw)＋4×J(infoTypeRaw)＋Σ_a(J(a)＋3)。JはJSONのescape込みのUTF-8 byte数（引用符を除く）、aは区域Code。1,119は文字列の欄を空にして数値を最大の桁・enumを最長の値にした固定部（id 64・revision 16桁・operation/VPWP50/の16 byteを含む）。前提（実配信の範囲）: 官署名≤33 byte・inputId≤22文字（input-と安全な整数）・reportDateTimeRaw≤29文字（ISO 8601、小数秒3桁まで）・SerialはASCIIの数字8桁以下（J≤8 byte。『あ』8文字なら1,544 byteで前提の外）・InfoTypeは発表・訂正・取消・区域Code 7桁で、どれもescapeの増分0。このとき1,496＋10×A(k)≤1,510＋10×A(k)。前提の外: liveの文字列はP1のtextの上限16,384文字（JSONで最大98,304 byte）、restoreは32 MiBの世代の中で任意の長さを許すので、1鍵はその長さに比例して伸びる。periodの数・辞書・lastKnownには比例しない。U-Fのview V≤512＋Σ_k b(k)。実例の範囲（normal 58官署、A(k)≤81〔fixtureの最大、81_09_01 長野。Q-PERIOD.measurementの851通では確かめていない〕）で135,072以下",
+        "source": "P3-UFP-AC03"
+      },
+      {
+        "id": "P3-UFP-RES-02",
+        "target": "詳細の時系列の1ページのperiod",
+        "limit": 64,
+        "unit": "periods per page",
+        "scope": "page pは[64p, 64p+64)。pageCount＝max(1, ceil(n/64))、nはpart（currentかlastKnown）のperiodの数",
+        "source": "Q-UFP-PAGE"
+      },
+      {
+        "id": "P3-UFP-RES-03",
+        "target": "詳細の1応答（HTTPの本文、wrapper込み）",
+        "limit": 65536,
+        "unit": "UTF-8 JSON bytes",
+        "scope": "時系列はwrapperとomittedの予約4,096 byteを引いた61,440 byteに行を入れ、入らない行は{ index, reason: pageBudget }にする。索引ページは最大57,743 byteで省略は起きない。途中で切ったJSONを返さない",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（応答byte）"
+      },
+      {
+        "id": "P3-UFP-RES-04",
+        "target": "受け付けた詳細の要求（全clientの合計）",
+        "limit": 8,
+        "unit": "requests",
+        "scope": "受付からHTTPの応答の完了（finish）か切断（close）まで数える。9件目はbusy（429）。応答の保持は8×65,536＝512 KiB以下になり、別の上限を持たない",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（要求総数・mainの応答保持）"
+      },
+      {
+        "id": "P3-UFP-RES-05",
+        "target": "詳細の1要求（HTTPのrequest.url）",
+        "limit": 1024,
+        "unit": "UTF-8 bytes",
+        "scope": "越えたらinvalidRequest（400）でcomposition rootへ渡さない。鍵はidと短い版なので、正しい要求のURLは官署名に依らず最大208 byte。受け付けの合計は8×1,024＝8 KiB以下",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（要求byte）"
+      },
+      {
+        "id": "P3-UFP-RES-06",
+        "target": "deferredのownerの未完了の詳細",
+        "limit": 1,
+        "unit": "outstanding detail request per owner",
+        "scope": "P3-C3A-RES-09の種類ごと1件にdetailを足す（deferredのownerだけ）。pumpを完了した後で、deferredの入力・期限の返信待ちが無いときだけ送る（Q-UFP-DETAIL-PATH）。期限を過ぎても返信が来るまで次を送らない",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（worker内の射影）・P3-C3A-RES-09"
+      },
+      {
+        "id": "P3-UFP-RES-07",
+        "target": "詳細の期限（受付からHTTPの応答の完了か切断まで）",
+        "limit": 2000,
+        "unit": "ms",
+        "scope": "ownerの返信の前に過ぎたらtimeout（504）。504は期限の時点で書き出し、送るための新しい期限を作らない（その書き出しが送り切れなければ〔backpressure〕その場で接続を閉じる）。本文の送信を始めた後に過ぎたら接続を閉じる（不完全なJSONを正常応答にしない）。どの枝でもdoneは1回で、受付枠はそこで戻る。ownerのin-flightは返信まで解放しない",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（timeout: 受付から応答本文の排出まで）"
+      },
+      {
+        "id": "P3-UFP-RES-08",
+        "target": "詳細の索引の1ページの件数",
+        "limit": 32,
+        "unit": "entries per page",
+        "scope": "1件は最大1,797 byte（officeは256 byteの先頭、escapeの最大6倍）で、32件とwrapperで最大57,743 byte。pageCount＝max(1, ceil(件数/32))",
+        "source": "Q-UFP-INDEX"
+      },
+      {
+        "id": "P3-UFP-RES-09",
+        "target": "詳細の誤りの本文（HTTPの本文、streamId込み）",
+        "limit": 256,
+        "unit": "UTF-8 JSON bytes",
+        "scope": "streamId・kind・reason・revisionだけ（最大の形で124 byte）。409のrevisionも短い版か索引の内容版なので伸びない",
+        "source": "Q-UFP-PAGE"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（U-Fのstate・PersistedWeatherTimeseriesUnit・codec・schemaVersion p2-weather-timeseries-unit-v1は変えない）"
+    ],
+    "nonPersistedFields": [
+      "U-Fの公開形式（WeatherTimeseriesPublicSubject）とsubjectのobjectごとのcache（WeakMap）",
+      "subjectのobjectごとの世代（詳細の版。WeakMapでrunの中だけ）",
+      "詳細のページと索引ページ、publisherの詳細の待ち・in-flight・期限・完了の通知（runの中だけ）"
+    ],
+    "outOfScope": [
+      "U-Fのstate・codec・意味のreducer・保存の形・容量の規則（P2-A6-RES-01の32 MiB、RET-01の512件）",
+      "U-Wの公開形式（nationalとpartialsのsnapshotをそのまま載せるview）。3つ目の単位（U-Wの正本・公開の持ち方）の範囲（Q-UFP-UW-VIEW）",
+      "snapshotの縮退の規則（P2-A8-RES-06、全体1 MiB・分野64 KiB・No priority ordering）の変更",
+      "ほかの分野の詳細の口と、詳細を開く画面（P3-UFP-D-DETAIL-SCREEN=AならP4）",
+      "E05の充填の作り直しとRSSの測り直し（Q-UFP-E05）、測定のharness（reconstruction/test/eew-e01の.mjs）と凍結manifestの変更",
+      "C1の隠しの形（候補2）とU-Wの正本の持ち方（候補3）",
+      "実装担当によるspec本文・計画本文・他の契約の本文の変更（P3-UFP-AC09の改訂は配送のcommitで統合担当）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-UFP-AC01",
+        "requirement": "公開形式（Q-UFP-SHAPE・Q-UFP-PATHS）: U-Fのownerからpublisherへ出る値のうちviewとdisplayChangesを公開形式に限る。(1) toWeatherTimeseriesViewのseriesの要素をWeatherTimeseriesPublicSubjectにする（WeatherTimeseriesUnitView.seriesの型を変える。semanticRevision・contentRevision・admission・subjectsは今のまま）(2) reduceWeatherTimeseriesUnitのdisplayChanges、normalDisplaySubjects、restoreのdisplayChangesのRuntimeDisplaySubjectのcurrentを同じ公開形式にする（RuntimeDisplaySubjectのU-Fのcurrentの型を変える）。同じsubjectのobjectからは同じ公開形式のobjectを返す（WeakMap。無いと: viewを作り直すたびに全subjectのperiodを走査し直す）(3) 公開形式の欄はQ-UFP-SHAPEのものだけ。effective=activeのsubjectでは、areaCodesは全periodの区域Code（空文字を除く）の集合、knownCodesはSignificancyのperiodのうちName・Codeがmissing・emptyでなくCodeがtextでQ-VALUES.knownCodesに入るもののCodeの集合、unknownCodeはSignificancyのperiodをP2-A8-SUMMARY.unknownの規則（missing→empty→unknown、既知の表に無いCodeはunknown）で数えた件数。activeでないsubjectはareaCodes・knownCodesを空、unknownCodeを全部0にする（P2-A8-SUMMARYはactiveだけを数える）。periodCountはperiodsの長さ、lastKnownPeriodCountはlastKnownのperiodsの長さ（lastKnownが無ければnull）、idとrevisionはQ-UFP-REVISION、officeはsubjectのoperation/VPWP50/の後の文字列全体（今のRuntimeDisplaySubject.officeと同じ）(4) outcomes・confirmationEvidence・pendingIntents・diagnosticsは変えない",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:443 «c0d4ce3d56fb69e3»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:455 «1c4b52bab6f79d19»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:489 «857f0a0ef78f1ff9»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:409 «7c6629abf6687429»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:67 «c16260c56aed133b»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:109 «3e61e93d9d35c902»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:196 «03c26b0c0caa0d40»",
+          "reconstruction/src/runtime/owner-runtime.ts:334 «700dd293526d8be2»",
+          "reconstruction/src/runtime/owner-host.ts:309 «e0baf553a81410c8»",
+          "reconstruction/src/runtime/owner-host.ts:311 «910631e381d4aaba»",
+          "reconstruction/contracts/p3-execution-split.types.ts:83 «0a58fadc078a2c48»",
+          "reconstruction/contracts/p3-execution-boundary.md:24 «a2093fe26e2e9930»",
+          "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
+          "reconstruction/contracts/p2-snapshot-sse.json:71 «d45898e10bcf5810»",
+          "reconstruction/contracts/p2-snapshot-sse.json:82 «19c19a28d4635611»",
+          "reconstruction/src/view-projector/view-projector.ts:875 «23bf5264c679f8a7»"
+        ]
+      },
+      {
+        "id": "P3-UFP-AC02",
+        "requirement": "同じ入力でownerのstateと保存内容が変わらない（Pro §7.4、Q-UFP-SCHEMA）: 試験の固定の入力列（U-Fのfixture 13本、validUntilの後の期限とrestoreの往復を挟む）で、各stepのcodecのencodeのsha256・decisions・outcomes・intents・nextDeadlineがbase（本契約のbaseOid）の値と一致する。同じ官署・報時刻・Serial・InfoTypeを持つfixture（high_severity・unknown_code・criteria_periodなど）は官署名か報時刻を替えて送り、各stepが狙った採否（changed・stale・duplicate・rejected）になったことを試験の前提として確かめる（同じ鍵でduplicateに落ちて比較が空振りするのを防ぐ）。baseの値は実装の前にbaseで同じ試験を走らせて試験に書く。reduceWeatherTimeseriesCore・collect・evict・replace・fits・measure・persisted・codec・withoutNormalとWeatherTimeseriesUnitState・PersistedWeatherTimeseriesUnit・schemaVersionはdiffで変えない（periodMeaningは返す値を変えない。戻り値の型の注記だけ可）。永続schemaを変える必要が出たら実装を止めてblockedを報告する",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «5ec4d787f5d46a73»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:177 «09598f8b17706761»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:485 «9ea68565634a5bed»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:156 «537767c42d8ef412»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      },
+      {
+        "id": "P3-UFP-AC03",
+        "requirement": "公開形式のbyteの上界（鍵の数×1鍵の上界、P3-UFP-RES-01）: 1鍵の上界b(k)＝公開形式のJSONのbyte＋同じsubjectのSubjectOutcomeのJSONのbyte＋semanticRevisionの1 subject分＋区切り。文字列の欄は全部を数える: subject（公開形式・その出典・SubjectOutcome・その出典・semanticRevisionの5回、官署名はofficeと合わせて6回）・inputId（2回）・reportDateTimeRaw（3回）・serialRaw（3回）・infoTypeRaw（4回）・区域Code（1回ずつ）。前提はbyteで書く（SerialはASCIIの数字8桁以下）。式と前提はRES-01のscope（JSONのescape、inputId、liveのP1の上限とrestoreが許す範囲を含む）。前提の中でb(k)≤1,510＋10×A(k)、U-Fのview V≤512＋Σ_k b(k)。実例の範囲（normal 58官署、A(k)≤81）でV≤135,072 byte。官署58×operation 3＝174鍵でも約0.40 MB、合法の鍵の数512でA(k)＝81なら約1.19 MBで、鍵の数と文字列の長さに比例するだけ（今はU-Fのstate全体、平常15.6〜15.8 MB・合法32 MiBが載る）。ownerの1つの返信のU-FのviewsとdisplayChangesの部分はV＋Σ_{差分のsubject}2×(1,560＋10×A(k)) byte以下（前提の中、before・afterのRuntimeDisplaySubject。restoreはafterだけ。outcomesは本契約で変えず、今の形で有界）。試験で (a) 前提の最長の値と、前提を外れた長い文字列（小数秒2,000桁の報時刻など）で組んだ公開形式が式以下 (b) 実fixtureのsubjectを官署名だけ替えて組んだ平常の大きさのstate（保存の計量B≥15,638,202、Q-PERIOD.measurementの山の最小）で、restoreの返信と1官署の受信の返信のU-FのviewsとdisplayChangesの部分（JSONにしたbyte）が式以下、を確かめ、Bと返信のbyteと比を成果物に書く。計算量（AGENTS.mdの受信経路の計算量）: 公開形式のために、受信・期限の処理でU-Fのstate・view・subjectの全体をJSONにして数える計量を足さず、変わっていないsubjectのperiodを走査し直さない。既存の保存の容量の計量（fits→measure→bytesが、変わったsubjectを1回直列化するP2-A6の差分計量）は変えない（P3-UFP-AC02）。viewを組み立てるときの全subjectの列挙とsemanticRevisionのsortは今どおり残る（P2-A8-COSTの限定の例外）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:212 «83f3cb19f390beb0»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:206 «f9c69abb104ab19a»",
+          "reconstruction/src/decode-material/decode-material.ts:25 «ac5797a85aaedf39»",
+          "reconstruction/src/runtime/owner-runtime.ts:104 «2b9e3cf835889edf»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:286 «4488a156cc0dd4be»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:23 «c1abbbb4993dfe08»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:441 «6f5c686600311853»",
+          "reconstruction/contracts/p2-snapshot-sse.json:99 «ce580c62a24ddb0f»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P3-UFP-AC04",
+        "requirement": "publisherの射影（view-projector.ts）はU-Fの公開形式だけを読み、要約とnoticeを変えない: timeseriesTallyはperiodを走査せず、effective・unavailableReason・source・areaCodes・knownCodes・unknownCodeから寄与を作る（knownCodesはTIMESERIES_SEVERITYで階級へ写す。階級の表はprojectorに残す）。normalの公開の制限の間の寄与（hidden: unknownCodeと時刻を残し、件数・階級・区域を0）も今と同じ。tally.bytesは公開形式とSubjectOutcomeのJSONのbyte（要素ごと）。weatherState・weatherSource・fixedBytesは今の式のまま公開形式を読む。同じ入力でU-Fの要約のitems（3行）とU-Fのnotice（targetId・kind・source）がbaseの値と一致する（P2-A8-SUMMARY・P2-A8-NOTICEを変えない。照合の列はP3-UFP-T02）。projectorの内部のseverityRefsの件数はperiodの数からCodeの数に変わる（highestは有無だけを見るので公開の値は同じ）",
+        "evidenceRefs": [
+          "reconstruction/src/view-projector/view-projector.ts:264 «26d7fa0e8d18a611»",
+          "reconstruction/src/view-projector/view-projector.ts:272 «e2af20ab5dcb807a»",
+          "reconstruction/src/view-projector/view-projector.ts:284 «9fc21c76a402a166»",
+          "reconstruction/src/view-projector/view-projector.ts:500 «d0e85de22743f47e»",
+          "reconstruction/src/view-projector/view-projector.ts:749 «ce95a1aeba411059»",
+          "reconstruction/src/view-projector/view-projector.ts:757 «7221b37da2786add»",
+          "reconstruction/src/view-projector/view-projector.ts:675 «109de0786aaf447e»",
+          "reconstruction/contracts/p2-snapshot-sse.json:68 «e82572eefda0946f»",
+          "reconstruction/contracts/p2-snapshot-sse.json:84 «2364292c7a2bcba1»",
+          "reconstruction/contracts/p2-snapshot-sse.json:97 «d83b94ddc6e18681»"
+        ]
+      },
+      {
+        "id": "P3-UFP-AC05",
+        "requirement": "U-Fの平常の大きいstateが他分野を要約に落とさない（監査A3の反例、Pro §8.3の無関係な詳細の非干渉）: P3-UFP-AC03 (b)のstateと、地震3件（32-35_01_03_240613_VXSE53のEventIDだけを試験の中で替えた3件。1件では分野が65,536 byteに届かない: 発注前点検でbaseのU-Qのviewが1件25,630 byte、3件75,950 byte、Q-UFP-PRECHECK）・津波（32-39_11_11_250206_VTSE41、viewは16,070 byte）・EEW（77_01_01_240613_VXSE45、viewは1,465 byte。K6のhorizonに入るよう報時刻を試験の時計へずらす）を、ほかの分野が空の状態から射影すると、snapshotの地震の分野がfullのまま。判別するのは地震だけ: 要約に落ちるのは64 KiBを越える分野だけで、津波とEEWの分野は65,536 byteを越えないので同席させるだけ（判別に使わない）。地震の分野のbyteが65,536を越えることは試験の中でも前提として確かめる。U-Fの分野のbyteがP3-UFP-AC03のV以下。baseで同じ組み立てを走らせると地震がsummaryになることを成果物に貼る（試験はbaseでは落ちる）。U-Wのviewによる超過は本ACの対象外（Q-UFP-UW-VIEW）",
+        "evidenceRefs": [
+          "reconstruction/src/view-projector/view-projector.ts:936 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:938 «c42a191089542248»",
+          "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»",
+          "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
+          "reconstruction/contracts/p2-snapshot-sse.json:351 «3ab506b00c209b63»"
+        ]
+      },
+      {
+        "id": "P3-UFP-AC06",
+        "requirement": "詳細の口のownerの側（P3-UFP-D-DETAIL-SCREEN=A）:U-Fのunitのfileに純粋な関数weatherTimeseriesDetailを置く（stateを変えない、期限を当てない、dirtyにしない）。要求WeatherTimeseriesDetailRequestは索引{ part: index, revision, page }か時系列{ part: current|lastKnown, id, revision, page }（streamIdはpublisherが照合して外す）。(1) 索引（Q-UFP-INDEX）: revisionはU-Fのviewの内容版（ownerがprojectViewと同じ式で渡す）。違えばversionChangedと今の内容版。1ページ32件で、normalの公開の制限の間はnormalを載せない (2) 時系列: idで見えるsubject（制限の間のnormalを除く。走査はsubjectの数512以下）を探し、無ければversionChanged（revisionはnull）。revisionが今のrevision（Q-UFP-REVISION）と違えばversionChangedと今のrevision。旧版を作り直さない (3) part＝lastKnownでlastKnownが無ければperiod 0件のページ (4) pageは0以上pageCount未満の整数（時系列はmax(1, ceil(n/64))、索引はmax(1, ceil(件数/32))）。外れはinvalidRequest (5) 時系列の行はQ-UFP-PAGEの形で[64p, 64p+64)の行だけを解決し、予約4,096 byteを引いた61,440 byteを越える行は{ index, reason: pageBudget }にする。subject全体・snapshot全体をJSONにしない (6) 応答WeatherTimeseriesDetailResponseは、索引のok { kind, part: index, revision, page, pageCount, subjectCount, entries }、時系列のok { kind, part, id, revision, page, pageCount, periodCount, periods: { index, period }[], omitted: { index, reason }[] }、誤り{ kind: error, reason: invalidRequest|versionChanged|busy|unavailable|timeout, revision }。誤りの本文はstreamIdを足して256 byte以下、okは65,536 byte以下。型はp2-weather-timeseries-unit.types.tsに置き、spec §7.10のDomainDetailPageのU-Fの分として凍結する（periodはperiodMeaningの戻り値と同じ中身の名前付きtuple）",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:120 «99d0cc9bc0c9a140»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:202 «f058e3a180f89e0c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:470 «a486380631b6e9d0»",
+          "reconstruction/src/view-projector/view-projector.ts:793 «25d8f1daebd55d26»",
+          "reconstruction/src/runtime/composition-root.ts:568 «445a2eeb56638c45»",
+          "reconstruction/contracts/p2-snapshot-sse.json:87 «5272dd4ae4de33c9»",
+          "docs/specs/reconstruction-p0-contracts.md:1233 «22620e62c3946a2e»",
+          "docs/specs/reconstruction-p0-contracts.md:1268 «76445404beb6f64a»",
+          "docs/specs/reconstruction-p0-contracts.md:1324 «575c43acf6c6eb1d»",
+          "docs/specs/reconstruction-p0-contracts.md:1336 «62e1d856e76915c4»",
+          "docs/specs/reconstruction-p0-contracts.md:1341 «2a86d7b2b42bba77»",
+          "reconstruction/contracts/p2-shared-runtime.json:195 «741a9df978fd6504»"
+        ]
+      },
+      {
+        "id": "P3-UFP-AC07",
+        "requirement": "詳細の口のpublisherの側（P3-UFP-D-DETAIL-SCREEN=A）:composition rootにrequestDetail(request)を足し、応答のPromiseと完了の通知doneを返す。(1) 要求はmailboxを通さない（Q-UFP-DETAIL-PATH）(2) 受け付けた要求は全clientで8件まで。数はdoneが呼ばれる（HTTPの応答の完了か切断）まで減らさない。9件目はbusy (3) deferredのownerへ送るdetailは1件まで（OwnerRequestにdetail、OwnerReplyにdetailDoneを足す）。送るのはpumpを完了した後で、deferredの実行場所に入力（inFlightInputs）・期限（outstandingのdeadline）の返信待ちが無いときだけ（通常受理より下位、spec §7.10。pumpの後にdeferredのin-flightが無ければdeferred行きの入力はmailboxに残っていない、Q-UFP-DETAIL-PATH）。待つ間も期限は進む（通常の入力が続けばtimeout）。返信が来るまで次を送らない。期限を過ぎた要求の遅い返信は捨て、そのとき初めて次を送る（実処理の終わりの前にin-flightを解放しない）(4) 期限は受付から2,000 ms。ownerの返信の前に過ぎたらtimeout (5) 要求のstreamIdが今のstreamと違えばownerへ送らずversionChanged (6) 停止監視（P3-C3B）: MonitorSlotにdetailを足し（P3-C3B-RES-01の固定の枠8→9）、slotOfの網羅switchにdetailのcaseを足す。detailの未完了はstalled・unresponsiveの判定（P3-C3B-AC01）に入る。deferredのownerが止まった（stoppedUnit、P3-C3B-AC02）か、終了の段階（shutdown.stageがrunningでない）に入った後は、送り済みのin-flightの1件と未送出の待ちの全部にunavailableを返し、以後ownerへ送らない。止まった後に届いたdetailDoneは捨てる (7) clientが切断したら、未送出の待ちから外し、送り済みの返信は捨てる (8) 試験は時計を進めて期限を確かめ、実時間を待たない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1272 «41f5a81e741937a4»",
+          "docs/specs/reconstruction-p0-contracts.md:1274 «68581c201d0982b4»",
+          "docs/specs/reconstruction-p0-contracts.md:1276 «d10bb784033b3676»",
+          "docs/specs/reconstruction-p0-contracts.md:1279 «b3ceaa3218ec4aaa»",
+          "docs/specs/reconstruction-p0-contracts.md:1280 «8008034665199229»",
+          "docs/specs/reconstruction-p0-contracts.md:1286 «56110e613036ac27»",
+          "docs/specs/reconstruction-p0-contracts.md:1288 «e5ce19b30d03f206»",
+          "reconstruction/contracts/p3-execution-split.types.ts:56 «0264a87b13c087be»",
+          "reconstruction/contracts/p3-execution-split.json:543 «33bb4c9bab3af678»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:397 «3090a4f45d8b02ca»",
+          "reconstruction/src/runtime/composition-root.ts:156 «ccc7251d11374545»",
+          "reconstruction/src/runtime/composition-root.ts:486 «c41b24be07ecb85e»",
+          "reconstruction/src/runtime/composition-root.ts:496 «1995a375a3bd0291»",
+          "reconstruction/src/runtime/composition-root.ts:597 «fa584aca79d20543»",
+          "reconstruction/src/runtime/composition-root.ts:795 «ecba0cf7b1c3c190»",
+          "reconstruction/src/runtime/composition-root.ts:805 «c1cec655b9c2dee4»",
+          "reconstruction/src/runtime/composition-root.ts:398 «4d0b3dbc153a4243»",
+          "reconstruction/src/mailbox/mailbox.ts:129 «604fa96ca9256c26»",
+          "reconstruction/src/mailbox/mailbox.ts:69 «06bb4dc5a24c2025»",
+          "reconstruction/src/runtime/unit-coverage.ts:172 «0344f1d6e2b14fc3»"
+        ]
+      },
+      {
+        "id": "P3-UFP-AC08",
+        "requirement": "詳細の口のHTTP（P3-UFP-D-DETAIL-SCREEN=A）:既存の表示のserver（http-sse.ts、host 127.0.0.1、/snapshotと同じ認証境界）にGET /api/display/domains/U-F/detail?streamId&part&id&revision&pageを足す（idはpartがcurrent・lastKnownのときだけ）。request.urlが1,024 byteを越える、欄が欠ける・形が違う（pageは10進の整数、partは列挙の値、idは小文字hex64、revisionは10進の整数か索引の内容版の形）ものは400 invalidRequestでcomposition rootへ渡さない。queryの欄は項目ごとに確かめて組み立てる（asで言い換えない、AGENTS.md）。応答はrequestDetailの結果にstreamIdを足したJSONで、ok 200・invalidRequest 400・versionChanged 409・busy 429・unavailable 503・timeout 504、cache-control: no-store。期限（P3-UFP-RES-07）は受付から応答の完了（finish）か切断（close）までで、本文の送信を始めた後に過ぎたら接続を閉じる（不完全なJSONを正常応答にしない）。ownerの返信が無いまま期限が来たら504をその時点で書き出し、送るための新しい2秒を与えない（送り切れなければその場で接続を閉じる）。finish・closeでrootのdoneを1回だけ呼ぶ。snapshotの配送（publish・/events・/snapshot）は詳細の完了を待たない。U-F以外の分野の経路は作らない（404）",
+        "evidenceRefs": [
+          "reconstruction/src/http-sse/http-sse.ts:144 «c7e6d9bcec8c25b6»",
+          "reconstruction/src/host/host.ts:91 «d5b5451ba219958c»",
+          "reconstruction/src/host/host.ts:145 «e7dcd7bca34dc4b8»",
+          "docs/specs/reconstruction-p0-contracts.md:1273 «70a78ec97aee3f74»",
+          "docs/specs/reconstruction-p0-contracts.md:1278 «919fba1f20a47f31»",
+          "docs/specs/reconstruction-p0-contracts.md:1281 «ec12dd2ecfa47a0c»",
+          "docs/specs/reconstruction-p0-contracts.md:1342 «f794c600962d2878»",
+          "AGENTS.md:28 «c9609171ee8333e3»"
+        ]
+      },
+      {
+        "id": "P3-UFP-AC09",
+        "requirement": "本契約が上書きする他の条文と統合担当の記録。原文は重ねて読み替えず、配送のcommitで統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）。凍結manifestはそれを作ったcommitで再実行する（前例。frozen.tsのverifyContractHashesは走らせたcheckoutの契約の本文と照合する）。起草時（3fe5dd69）に契約のpinを持つ凍結manifest 17本は、どれもHEADの契約のhashと全部は一致しない。改訂する契約のうちP3-EXECUTION-SPLIT-001・P3-EXECUTION-LIFECYCLE-001・P2-SNAPSHOT-SSE-001のpinがHEADと一致しているのはp3-harnessのdyl-e05y・e05s・e05yの3本だけで、配送の後はその3つのpinも一致しなくなる（3本とも、改訂しない別の契約のpinが既に1〜2本違う）。(1) P2-SHARED-RUNTIME-001: Q-R20-CLEAR.atomicityの『U-Fのseries（旧activeとその全periodを含む）』→公開形式のseries、P2-A1-DISPLAY-CHANGES.portのU-Fのbefore・afterのcurrent→公開形式 (2) P2-WEATHER-TIMESERIES-UNIT-001: outOfScope『P4詳細API』のうちU-Fの1ページの射影と索引は本契約 (3) P2-SNAPSHOT-SSE-001: 作者裁定P2-A8-D03=A（reason『P4詳細APIを作らない』）をU-Fについて一部覆す（P3-UFP-D-DETAIL-SCREEN=Aの作者の裁定による。ruling・reasonの原文は消さず注記を足す）。outOfScope『§7.10詳細ページ』とartifactRequirementsの『P4詳細portを追加しない』のU-Fの分、P2-A8-OWNERSHIP.remaining『詳細page wireはP4前に別途凍結する』のうちU-Fのwireは本契約で凍結 (4) spec §7.10の型（DetailRequest・DetailResponse）: U-Fの要求はstreamId・part・id・revision・pageで、requestedVersion・observedVersion・contentRevision・domainId・operation・requestIdを本文に持たず、誤りの理由にcancelledを持たない（切断した要求は応答を返さず捨てる）(5) spec §8.1の個別取得の1〜3: 経路の引数（semanticRevision・sequenceの代わりにpart・id・revision）と、409の照合の単位（分野の内容版ではなく対象のsubjectの版。索引だけは分野の内容版）(6) spec §3の部品の表: B05の『§7.10の詳細request/responseと取消』とB11の『B05の型付き詳細port』は、U-Fについてはcomposition root（B02）が数え・照合し・捨て、B11がrootのrequestDetailを呼ぶ。moduleIdsはB02・B06・B08・B11・M08（mailboxのB05は触らない） (7) p3-execution-boundary.md §2の表: publisher→workerにdetailの要求、worker→publisherに有界な1ページ（P3-UFP-RES-03）を足す (8) P3-EXECUTION-SPLIT-001: P3-C3A-RES-09・AC15の要求の種類にdetail（deferredのownerに1件）を足す。Q-C3A-SPEC-REVISIONの(4)のP4送り（mirrorが各unitの最新viewを持つこととspecの『mainのfull view複製0』の字面の食い違い）は、U-Fについてはmirrorが公開形式だけを持つ形で本契約が閉じる (9) P3-EXECUTION-LIFECYCLE-001: RES-01の固定の枠8→9（detail）、AC01のstalled・unresponsiveの判定にdetailの枠が入る、AC02の停止でdetailのin-flightと待ちにunavailable (10) 計画: §5.2の『IR07の詳細要求はP4の契約でC3aの境界型を改訂する』のうちU-Fの分を本契約へ前倒しする。P3-C6-O09-REST=A（計画の『津波のburst・詳細射影中のE01』〔O09:30・31・39・40・48・49・57・58・66・67〕をP4へ）は変えない。U-Fの詳細の射影中のE01は残存リスク(9)。配送の前に§9の表へ本契約の行を足す（行番号を引く他の契約のanchorは付け直す） (11) DisplaySnapshotのwireの版（schemaVersion: 1、weatherTimeseriesの分野の型）は上げない: U-Fのfull viewの形は変わるが、それを読むclientは無い（chrome-eewはeewとtsunamiだけを読み、schemaVersionが1でないsnapshotを捨てる）。wireの版はP4のdisplay契約でwireを固定するときに上げる (12) 他の契約が引く行（Q-UFP-PRECHECKの(5)）: 行の数を変えない書き方を優先する（p2-shared-runtime.types.tsは同じ行の中で直す、host.tsは表示のserverのoptionsの既存の行に足す、weather-timeseries-unit.tsは346行より上の行の数を変えない、owner-host.tsのdetailのcaseはswitchの最後に置く）。それでも動いた行を引くanchorは、統合担当が配送のcommitで行番号と各契約のmeta.sha256を付け直す（本文は書き換えない）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-shared-runtime.json:195 «741a9df978fd6504»",
+          "reconstruction/contracts/p2-shared-runtime.json:222 «52057b2b7c0d6d41»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:393 «58888ba4c8bfe5f0»",
+          "reconstruction/contracts/p2-snapshot-sse.json:17 «65aec9ecdfda0e1f»",
+          "reconstruction/contracts/p2-snapshot-sse.json:34 «6d9e3cd174465fd2»",
+          "reconstruction/contracts/p2-snapshot-sse.json:374 «e880e6a72e3c200f»",
+          "reconstruction/contracts/p2-snapshot-sse.json:637 «e628c550bdebc598»",
+          "docs/specs/reconstruction-p0-contracts.md:1238 «3c5c21b66fccbe9e»",
+          "docs/specs/reconstruction-p0-contracts.md:1247 «8bdf569e1c7cfa49»",
+          "docs/specs/reconstruction-p0-contracts.md:1254 «1c428a37ed10e975»",
+          "docs/specs/reconstruction-p0-contracts.md:1264 «400bfb87fa260f89»",
+          "docs/specs/reconstruction-p0-contracts.md:1337 «71fa2184b3c836ae»",
+          "docs/specs/reconstruction-p0-contracts.md:1338 «7e729294eee70e3e»",
+          "docs/specs/reconstruction-p0-contracts.md:374 «0f1cefc0d84ee075»",
+          "docs/specs/reconstruction-p0-contracts.md:380 «62ba3cb24efc7a5a»",
+          "reconstruction/contracts/p3-execution-boundary.md:23 «92ed612528871f13»",
+          "reconstruction/contracts/p3-execution-split.json:749 «2fcfb37e1bff5861»",
+          "reconstruction/contracts/p3-execution-split.json:175 «2328dbdbdd90d6af»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:457 «d8cfbd81a379e841»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:476 «5134ff1604c5dd84»",
+          "reconstruction/contracts/p3-order-plan.md:230 «c2d93fba761d26fa»",
+          "reconstruction/contracts/p3-order-plan.md:231 «9ed72a033549bed0»",
+          "reconstruction/contracts/p3-order-plan.md:7 «57615a362084791f»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:111 «0088a403888d3213»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:124 «b3e9f347a1400fbd»",
+          "reconstruction/src/display/chrome-eew/pure.ts:385 «b391641f14fddcf2»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:169 «97a134ad9cb5b784»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-UFP-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-UFP-AC02"
+        ],
+        "behavior": "U-Fのfixture 13本を、同じ鍵のものは官署名か報時刻を替えて受け、validUntilの後の期限とrestoreの往復を挟んだ各stepで、encodeのsha256・decisions・outcomes・intents・nextDeadlineがbaseで記録した値と一致する。各stepが狙った採否（changed・stale・duplicate・rejected）になったことを前提として確かめる"
+      },
+      {
+        "testId": "P3-UFP-T02",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-UFP-AC04"
+        ],
+        "behavior": "T01の列の各stepで、U-Fの要約のitems（3行）がbaseで記録した値と一致する。noticeは既存の正のケース（test/snapshot-sse/corpus.test.tsのP2-A8-T05: active→unavailableで生成、理由の変更で置換、回復・削除で回収）を公開形式で組み直し、targetId・kind・sourceがbaseの値と一致する。normalの公開の制限の間のstep（hidden: unknownCodeと時刻を残す）を含める"
+      },
+      {
+        "testId": "P3-UFP-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UFP-AC01"
+        ],
+        "behavior": "effectiveごと（active・noActiveItems・cancelled・lastKnownありとなしのunavailable）の公開形式の値と、欄の集合がQ-UFP-SHAPEのものだけであること。viewのseriesの要素と、displayChanges・normalDisplaySubjects・restoreのcurrentが同じobject"
+      },
+      {
+        "testId": "P3-UFP-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UFP-AC03"
+        ],
+        "behavior": "(a) 前提の最長の値で組んだ公開形式の1鍵が1,510＋10×A以下、RuntimeDisplaySubject 1件が1,560＋10×A以下。前提を外れた長い文字列（小数秒2,000桁の報時刻、長い官署名）でもRES-01の式以下 (b) 保存の計量B≥15,638,202の平常の大きさのstateで、restoreの返信と1官署の受信の返信のU-FのviewsとdisplayChangesの部分がP3-UFP-AC03の式以下"
+      },
+      {
+        "testId": "P3-UFP-T05",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-UFP-AC05"
+        ],
+        "behavior": "監査A3の再発防止: 平常の大きさのU-Fと、地震3件（32-35_01_03_240613_VXSE53のEventIDを替えた3件。分野が65,536 byteを越えることを前提として確かめる）・津波・EEWを射影して、地震の分野がfull"
+      },
+      {
+        "testId": "P3-UFP-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UFP-AC06"
+        ],
+        "behavior": "詳細のownerの境界: 時系列の最後のページ、pageCountちょうど（invalidRequest）、revisionの不一致（versionChangedと今のrevision）、idの消滅（versionChangedとnull）、normalの制限の間（索引に載らず、ページはversionChanged）、lastKnownのページとlastKnown無し（0件）、索引のページ送りと内容版の不一致（versionChangedと今の内容版）、索引の長い官署名が256 byteで切れてofficeTruncated。版の一意性（ヘルツのH1の列）: trainingのsubjectでt1保持→t3 unavailable（lastKnown=t1）→容量の退去→t2再受理→t3 unavailable（lastKnown=t2）で、前後のrevisionが違い、前のrevisionのlastKnownの要求がversionChangedになる。要求の前後でstateの参照とpersistenceが同じ"
+      },
+      {
+        "testId": "P3-UFP-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UFP-AC06"
+        ],
+        "behavior": "1行が上限を越える合法なstate（長い文字列のperiod）で、その行が{ index, reason: pageBudget }になり、応答が65,536 byte以下の完全なJSON。短い誤ったrevisionへの409の本文が256 byte以下。JSON.stringifyの引数にsubject全体・snapshot全体が来ない"
+      },
+      {
+        "testId": "P3-UFP-T08",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-UFP-AC06"
+        ],
+        "behavior": "81_09_01（長野）のcurrentの全ページでomittedが0件（spec §7.10の6: 通常の合法corpusで未取得を出さない）。最大のページのbyteを成果物に書く"
+      },
+      {
+        "testId": "P3-UFP-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UFP-AC07"
+        ],
+        "behavior": "publisherの上限と順: 9件目がbusy。受付から2,000 msでtimeout。遅い返信の後にだけ次を送る。pumpの後にdeferredの入力・期限が返信待ちの間は詳細を送らず、mailboxにdeferred行きの入力があればpumpがそれを先に送る（開始の順）。detailの枠がstalledの判定に入る。ownerの停止でin-flightの1件と待ちの全部がunavailable、止まった後のdetailDoneは捨てる。終了の段階に入るとunavailable。streamIdの不一致はownerへ送らずversionChanged。切断で待ちから外れる"
+      },
+      {
+        "testId": "P3-UFP-T10",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-UFP-AC08"
+        ],
+        "behavior": "HTTPの経路で200・400（1,025 byteのurl、整数でないpage、hex64でないid）・409・429・503・504が返り、本文がrequestDetailの結果にstreamIdを足したもので、cache-control: no-store。U-F以外の分野は404。排出の止まった応答（drainしないwritable）は受付から2,000 msで接続を閉じ、doneが1回呼ばれて受け付けの数が戻る。ownerが返信しないまま2,000 msで504を書き出し、その504の排出も止まった場合も、新しい期限を待たずに接続を閉じ、doneが1回で受け付けの数が戻る。一往復（索引の版とsubjectの版の取り違えを捕まえる）: snapshotのsummaryのcontentRevisionからHTTPで索引を取り、entriesのidとrevisionでHTTPの時系列のページを取ってok。詳細の待ちの間も/snapshotの応答とSSEの配送が詳細を待たない"
+      },
+      {
+        "testId": "P3-UFP-T11",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-UFP-AC07"
+        ],
+        "behavior": "詳細の処理中（deferredのownerの返信を止めた状態）にEEWを受けると、urgentのownerの受理・publisherの射影・snapshotの配送が詳細を待たずに進む（spec §7.10: 詳細要求で通常・緊急の入力を待たせない）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。本契約のevidenceの行が直しで動いたFAILは想定内で、統合担当が配送のcommitで付け直す。ほかのFAILは想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eewのdist（共有の型を変えるので壊れないことを確かめる）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えても緑（moduleの範囲のWeakMap〔公開形式のcacheと世代〕を足すので）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowed_paths",
+        "stage": "implementation",
+        "purpose": "空白の検査"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由",
+      "足した仕組み（公開形式とcache、世代の記録、詳細の時系列のページと索引ページの射影、OwnerRequest/OwnerReplyのdetail、MonitorSlotのdetail、publisherの待ち・in-flight・期限・完了の通知、HTTPの経路）ごとに『無いと何が壊れるか』を1行",
+      "追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行。期待値を変えた既存の試験の名前と理由（Q-UFP-EXISTING-TESTS、変える前に報告）",
+      "数: T01・T02のbaseの値をどう採ったか（baseのcommitと命令）、T04のB・V・返信のbyteと比、T05のbaseでの結果（地震がsummary）と地震の分野のbyte、T08の最大のページのbyte",
+      "残存リスク（作者承認済み、2026-10-15、Q-UFP-AUTHOR）: (1) A3はU-Fだけでは閉じない。U-Wのview（nationalとpartialsのsnapshot）だけで全体が1 MiBを越えうる。残りは3つ目の単位（Q-UFP-UW-VIEW） (2) 公開形式の1鍵は文字列の欄の長さと区域の数に比例する（RES-01の式）。前提（実配信の範囲）の外の合法な入力（P1のtextの上限16,384文字、restoreは32 MiBの世代の中で任意）では伸び、合法の鍵の数512・区域81ならVは約1.19 MBでU-F自身が1 MiBを越えて他分野を巻き込みうる（実配信の見込みは官署58×operation 3＝174鍵で約0.40 MB）。詳細の要求のURLは鍵がidと短い版なので官署名に依らず208 byte以下で、長い官署名は索引で256 byteに切って見せる (3) P3-UFP-D-FIELDS=Aでは、収まるときU-Fがfullで配られ、snapshotの1回の直列化に実例の上界で約135 KBが乗る。E01のT3→T4への影響は測っていない（C4・E01の窓で見る） (4) 詳細の口はU-Fだけ。ほかの分野はP4 (5) 詳細と索引はその時点のstateから作るので、読む間にsubject（索引ならU-Fのどれか）が更新されると409になる。58官署が同じ時刻に出す時間帯は409が続きうる（自動の再試行はしない、spec §7.10の5）。runが替わると版は全部替わる（streamIdで切る） (6) RSSの効果は測らない（Q-UFP-E05）。E05の窓の結果は本契約の後に変わりうる (7) normalの公開の制限の間はnormalの詳細も索引も返さない。候補2で制限の形が変われば合わせ直す (8) projectorの内部のseverityRefsの件数の数え方が変わる（公開の値は同じ） (9) 詳細の射影中のE01（spec §7.10）: 1ページの射影はdeferredのownerで動きEEWのownerとは別だが、同じプロセスのCPUを使う。開始済みの射影の非中断区間をE01の負荷条件に入れて測るのはC4・E01の窓の範囲で、本契約では測らない（T11は順の確かめだけ） (10) deferredに通常の入力が続く間は詳細が始まらず、2秒でtimeoutになる（通常受理を下げない、spec §7.10）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-UFP-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "発注前点検の後（統合担当、点検のcommitへの割当）",
+        "requiredEvidence": [
+          "baseOidの割当（起草・発注前点検は3fe5dd69）。割当の時点で本契約のanchorのずれが0件であることをcheck-contractで確かめる",
+          "C1の単位（候補2、起草案P3-CURRENCY-COVERAGE-001）・U-Wの単位（候補3）との順（Q-UFP-ORDER）",
+          "割当の前にallowedPathsのfileへ別のcommitが入っていれば、そのfileの行をanchorで引く契約の参照を数え直し、Q-UFP-PRECHECKの(5)の数と照らす"
+        ]
+      },
+      {
+        "id": "Q-UFP-EXISTING-TESTS",
+        "owner": "implementer",
+        "blocks": [
+          "期待値を変える既存の試験の変更"
+        ],
+        "resolveBy": "実装の途中、変える前に報告",
+        "requiredEvidence": [
+          "期待値が変わる既存の試験の名前と理由。起草時の見込み: test/snapshot-sse/cost.test.ts（stringifyの対象がsubjectから公開形式へ）、projection-fixture.ts・corpus.test.ts・startup.test.ts・http-sse.test.ts・boundaries.test.ts（U-Fのcurrentを全subjectで組む所）、test/weather-timeseries-unitのviewのseriesを読む試験、test/unit-table/linked-calls.ts、test/execution-splitのU-Fのviewを読む試験"
+        ]
+      },
+      {
+        "id": "Q-UFP-E05-FILL",
+        "owner": "integrator",
+        "blocks": [
+          "U-Fの公開形式によるRSSの前後の比較（本契約の受入ではない）"
+        ],
+        "resolveBy": "充填の契約の起草（3つ目の単位の起草と合わせる）",
+        "requiredEvidence": [
+          "E05の充填をU-Fの58官署×実例の大きさ（平常15.6〜15.8 MB）とU-Wの対応鍵に替える測定の契約",
+          "新しい充填のharnessがbaseのsrcで動くこと（前後の比較の前提。harnessが本契約の公開形式を前提にするとbaseで測れない）",
+          "baseと配送のcommitでは、P3-UFP-AC09で改訂する契約のhashが違うので、commitごとにmanifestを分けるか、manifestのpinの扱いを決める",
+          "前後を比べるなら、本契約のbaseと配送のcommitの2点を同じ充填で測る（Mac mini、判定場所のPiはP5）"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,914 @@
+{
+  "meta": {
+    "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
+    "sha256": "1cbb5a2526a58e7d285fc45b88030c557caa06201021bb3f1b70d9a6ce480f24",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-CC-D-CLEAR",
+        "A": "印（AC03。U-T の VTSE41 の記録と U-Q の event・長周期の記録に付ける unavailable）は、同じ subject（U-Q の event は印と同じ family）の報を採用し、その報の版が印の source の版以上のときだけ消える。版が印より古い報の採用では新しい記録へ印を引き継ぎ、引き継いだ記録が view に出ない（U-T の解除・取消、U-Q の取消記憶だけの記録）ときは印を外して unit/operation の未確認へ移す。unit/operation の未確認（AC02。確認状態の whole=capacityExceeded）は、unit を覆う回復の証拠（RuntimeInput.coverageVerified の unit scope）だけで消える。時間・再起動・heartbeat・接続の回復・別 subject の採用では、どちらも消さない。期限のある情報は既存の寿命で view から外れ（前回情報の側へ移り）、記録が回収されれば印も一緒に消える。U-W・U-F の既存の印の解除は今どおり（同じ scope の後続の正常採用か coverageConfirmed）",
+        "B": "A に加え、unit/operation の未確認を、拒否した報が採用されていたら current が終わっていた時刻（U-E は報時刻＋600,000 ms など unit の寿命の式）を過ぎたら『前回の欠け』の表示へ移す。slot に時刻を 1 つ持ち、owner と publisher の期限に入れる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "A（作者裁定 2026-10-15、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
+        "reason": "Pro §4.2「復帰は、対象を包含する正常採用や回復結果の証拠で行う。単なるheartbeat、別subjectの新報、再起動、一定時間経過では、未確認の穴が埋まったことにしない」。印を付けるのは、新しい版の採用が拒否した報の中身を包含する記録だけにした（VTSE41 は区域を丸ごと置き換え、U-Q は family ごとの寄与と長周期を丸ごと置き換える）。U-T の観測は新しい版でも載らない station を保つ（P3-C5-OBS-MERGE=A）ので包含を示せず、印にしないで unit の未確認へ寄せる（Q-CC-MARK）。印は報の ReportRef を丸ごと持つので、時刻だけでなく unit の既存の版の比較を使い、拒否した報そのものの再送の採用でも消える（Q-R20-CLEAR の『拒否報より新しい正常採用だけで解除』と同じ向き）。unit/operation の未確認は取りこぼした報の一覧を持たない（全対象の一覧を作らない、Pro §4.4）ので、包含するのは unit を覆う回復の証拠だけ。B の時刻が意味を持つのは U-E の 10 分のような寿命のある分野だけで、U-E の拒否は実配信では届かない（P3-EVICT の後は同じ family の新しい EventID が 10 分の内に 512 件要る）のに、slot の時刻と期限の配線を足す。A の代償: 回復の証拠を作る口（台帳 85）が入るまで、容量の未確認はその run の間ずっと残る。回復の契約には、照合が包含する入力の範囲を持たせる条件が要る（Q-CC-LEDGER85）。再起動では確認状態が startup から始まるので未確認のまま残るが、容量という理由の名前は消える（残存リスク(2)）"
+      },
+      {
+        "id": "P3-CC-D-PENDING",
+        "A": "失敗した系列のまだ鳴っていない desktop の通知の title にだけ、元の報の時刻を付けて鳴らす（過去の出来事として。同じ id のまま書き換えるので期限は元のまま続く、Q-CC-SERIES）。sound の通知は変えない（音は分野と段階だけで WAV を選び、title を使わないので時刻を伝えられない）。対象は U-T の拒否した報の subject と U-Q の系統（lineOf）の desktop の pending。U-E は変えない（Q-CC-UE）。鳴らなくなるもの: U-T なし／U-Q なし。余分に鳴るもの: U-T は失敗した subject のまだ鳴っていない通知（発令・引上げ・続報・降格・解除・取消・観測）が元の期限（音 60 秒・desktop 180 秒）まで鳴る。desktop は『【14:32 発表】』付き、音は今の通知と同じ段階の音で過去の出来事と区別できない（失敗した報が解除でも 14:32 の発令の音が鳴る）／U-Q は失敗した系統のまだ鳴っていない通知（震度速報・震源・震度・長周期・取消）が同じく元の期限まで鳴る（採用に成功していれば事実の変わった新しい報の通知に置き換わって鳴らないもの）",
+        "B": "何もしない（各 unit の今の置換規則のまま。実装 0 行）。鳴らなくなるもの: U-T なし／U-Q なし。余分に鳴るもの: A と同じ通知が、desktop も時刻なしで今の通知のように鳴る（U-T では失敗した報が再発令でも、14:32 の解除・取消が『終わった』と鳴る）",
+        "C": "U-T は緊急群でない旧 pending（P3-C5-REPLACEMENT=A で下位群の続報が採用されたときに置き換わるもの）を取り下げて保存し、緊急群（津波警報・大津波警報の発令・引上げ）は残す。U-Q は取り下げない（事実の変わらない新しい報〔duplicate・stale・revisionOnly〕は通知を作らず置き換えない、P3-UNIT-Q-001 の Q-NOTICE.generationTable）。鳴らなくなるもの: U-T は失敗した subject のまだ鳴っていない津波注意報の発令・続報・降格・解除・取消・観測（採用に成功していれば新しい報の通知が代わりに鳴るが、失敗では何も鳴らない）／U-Q なし。余分に鳴るもの: U-T は配送前の津波警報以上の発令・引上げが時刻なしで元の期限まで（失敗した報が解除でも）／U-Q は B と同じ",
+        "D": "段階によらず、失敗した系列の旧 pending を全部取り下げて保存する（Pro §4.3 の字面。起草の当初の前提）。鳴らなくなるもの: U-T は失敗した subject の配送前の通知が全部（大津波警報・津波警報・津波注意報の発令を含む。試行中の音は A7 が superseded で止める）／U-Q は失敗した系統の配送前の通知が全部（震度 4 以上の warning を含む）。余分に鳴るもの: どちらもなし",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "A（作者裁定 2026-10-15、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
+        "reason": "全案共通で鳴らないもの: 拒否した報そのものの通知（その報は state に入らないので、その intent も入らない）。たとえば既存の subject の津波警報→大津波警報の引上げが容量で入らないと、critical の音はどの案でも鳴らない（U-Q の新しい地震の震度 5 強も同じ）。これは D-FAILNOTICE で扱う。ここで決めるのは、失敗した系列にまだ鳴っていない旧 pending があるときの扱いだけ。Pro §4.3 は『現在成立している警報を知らせる通知』と『重要な変化が起きたことを知らせる通知』を分け、扱えなかった新報の系列の旧 pending を現況の新通知として使わないことを求める。A は desktop では旧 pending を時刻付きの過去の出来事として出し、何も鳴らなくしない（作者の方針『仕様どおりの欠けは致命的』）。ただし音は分野と段階だけで WAV を選び title を使わない（notification-delivery.ts の resolveSoundAsset、adapter は desktop にだけ title・body を渡す）ので、音では過去の出来事と区別できず、desktop が使えない環境では音だけが今の通知のように鳴る。sound の intent を書き換えても音は変わらないので書き換えない。書き換えは別の id の写しにしない: main の期限は intent の id ごとで、新しい id には今の壁時計から単調の期限を作り直す（composition-root.ts の selectDelivery）ので、壁時計が戻ると期限が延びる。同じ id のまま title だけを書き換えれば単調の期限はそのまま続く（新しい仕組みは要らない）。統合担当の案（発令・引上げだけを時刻付きで鳴らし、続報・現況を取り下げる）はそのままでは成り立たない: (1) 既存の intent の欄では見分けられない（U-T の active の間の津波注意報の区域拡大・降格・続報はどれも transition updated・level normal、U-Q の震度の引上げと続報はどれも updated）。見分けるには intent に機会の印を足す（保存の形の変更と移行）(2) 同群の置換（P3-C5-REPLACEMENT=A、P3-C7-REPLACEMENT=A）で、続報の pending が、まだ鳴っていない発令の中身を運んでいることがある。続報を取り下げるとその発令が鳴らない。A の代償: U-T・U-Q に desktop の title を書き換える 10 行前後と試験。失敗した報が解除・引下げでも古い通知が元の期限まで鳴り、音では時刻が伝わらない。main が書き換えの前に選んで予約した試行は選んだ時の文面で鳴る。書き換えた byte が追加の退去なしで収まらないときは元の文面のまま鳴る（残存リスク(4)(13)）。B は実装 0 行だが desktop も古い通知を今の通知のように出す。C・D は配送前の発令を鳴らさなくする"
+      },
+      {
+        "id": "P3-CC-D-FAILNOTICE",
+        "A": "拒否した報の通知を subject の通知から切り離し、unit×operation ごとに 1 つの『処理できていません』の通知（失敗警報）にする（AC10）。拒否した報の fresh（その報を採用していたら作った intent）の level の最大が warning 以上なら、その level・channel で鳴らす。desktop の文面は『【処理できていません】<元の題名>（HH:MM 発表）』（訓練・試験は接頭辞が先）。subject は unit の固定の失敗警報の subject で、subject の pending の置換規則（P3-C5-REPLACEMENT・P3-C7-REPLACEMENT・lineOf）には混ぜず、subject の pending を置き換えも superseded にもしない。同じ unit×operation の失敗警報（pending か終端記録）がもう同じか重い段階であれば鳴らさず、軽ければ重い方で置き換える（段階は上げるだけ）。鳴るもの: U-T は拒否した報が津波警報以上の発令・引上げなら、その段階の音と desktop／U-Q は震度 4 以上・長周期階級 1 以上なら同じ。鳴らないもの: 同じか軽い拒否が続く間（失敗警報の intent が残る間、最長でその期限 60〜180 秒）、注意報以下・観測・取消の報の拒否、収まらないとき、U-E。採用の通知は今と変わらない",
+        "B": "出さない（拒否した報の通知はどの段階でも鳴らない。画面の状態行と最終確認だけで分かる）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "A の形を変えて確定（作者裁定 2026-10-15、ご主人）: 失敗の通知を subject の通知から切り離し、unit ごとに 1 つの『処理できていません』の通知にする（拒否した報の fresh の level が warning 以上なら、その level で鳴らす）。subject の pending の置換規則には混ぜない。3 巡目までの subject 単位の形と、採用の通知にも当てた版の条件（AC10(1) の旧文）は、4 巡目のレビュー（平常の津波観測の同じ版の fragment の info 通知を止める、U-Q の別 family の置換の後に正常採用の warning まで止める）を受けて撤回した",
+        "reason": "拒否の時点で unit は拒否した報の通知の intent（fresh）を作り終えている（U-T は receiveForecast・receiveObservation、U-Q は receiveEarthquake・receiveLongPeriod が adopt の前に作り、adopt は admit の後に fit が null を返して拒否する）ので、段階は新しい状態機械なしに分かる。subject の通知から切り離すと、採用の通知と置換の規則（平常の津波観測の同じ版の fragment の info 通知、U-Q の family をまたぐ系統の置換）に何も足さずに済み、失敗の通知どうしの重複と順序だけを unit の固定の subject の中で決めればよい。B では、既存の subject の津波警報→大津波警報の引上げや新しい地震の震度 5 強が容量で入らないと、その段階の音がどこからも鳴らない（作者の方針『仕様どおりの欠けは致命的』）。代償: 失敗警報の intent の形（unit の固定の subject と、source が別 subject の報）を codec が受けるように直す（AC05）。同じか軽い拒否が続く間は鳴らさないので、別の subject の拒否でも最初の 1 回だけが鳴る。失敗警報の intent が回収された後（最長 180 秒）は、同じ段階の拒否でも再び鳴る"
+      },
+      {
+        "id": "P3-CC-D-SHOW",
+        "A": "印の付いた記録（最終確認の値）は現況に残し、件数・重大度・区域（津波の海岸線の塗りを含む）に今どおり数え、snapshot の unavailable.capacityExceeded に 1 ずつ足す。画面は Pro §4.1 の形: chrome-eew の津波のカードに『最終確認：[通常] 津波 … 大津波警報』と『HH:MM の情報を処理できていません』、EEW と津波の状態行に『[通常] 津波: 処理できていない報がある（容量超過）』。状態行は件数を出さない（今の『容量超過 N 件』の N は無くなる。拒否を数える記録を持たないため。報ごとの記録は診断のファイルに残る）",
+        "B": "U-W・U-F と同じく、印の付いた記録を現況の件数・重大度・区域・塗りから外し、最終確認の値はカードに参考として出す（記録の持ち方は A と同じ。U-T・U-Q の current を外すと観測の寿命と寄与が壊れるので、変えるのは A8 と chrome-eew の数え方だけ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "A（作者裁定 2026-10-15、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
+        "reason": "Pro §2.2「既知の警報は『最終確認時点の情報』として残す。新報の採用に失敗したことは、その事実の確度を変えるのであって、無関係な大津波警報の存在を消す根拠ではない」と §4.1「既知の事実まで粗く消さない」。B は印の付いた大津波警報を海岸線から消し、summary 配送では『0 件』に見せる。津波の予報の active は解除・取消まで時刻で消えない（P3-C5-RETENTION=A）ので、B では続報 1 本の拒否で警報が画面から長く消えうる。A の代償: 最新を処理できていない警報を、件数と塗りでは今の警報と同じに数え、区別はカードと状態行の文言だけ（残存リスク(5)）。U-W・U-F の既存の印（current を外して lastKnown に写す P2 の形）とは数え方が違うまま残る（U-W は正本の単位、U-F は公開境界の単位が扱う）。状態行の件数（chrome-eew の pure.ts の『容量超過 N 件』）は、拒否の記録を外すので出せなくなる（印の数は unavailable.capacityExceeded、unit 全体の未確認は有無だけ）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-CC-CODE-READ",
+        "status": "closed",
+        "source": "起草時の版（3fe5dd69）の src と契約の読み合わせ（2026-10-15）。Pro レビュー（repo 外、To-Claude の 2026-10-14-FlEq-limits-structural-review）§2.2・§4・§8.2②・§8.3 と、その裏取りのメモ（repo 外）",
+        "closed": "(1) capacityExceeded を返すのは 5 か所で、どれも state 不変で返す（eew.ts:492、tsunami-unit.ts:496、seismic-unit.ts:623、weather-current-unit.ts:481、weather-timeseries-unit.ts:230）。12 unit へ配る話ではない (2) U-E は件数を自分の subject を除いて数える（eew.ts:458-459）ので、既存の subject の更新は拒否されず、拒否は新しい subject（EventID×family）だけ (3) U-W・U-F は拒否の前に印を試す: U-W は件数の印（weather-current.ts:629、lastKnown なし）と byte の印（weather-current-unit.ts:467-478、lastKnown 付き→無し）、U-F は lastKnown 付き→無し（weather-timeseries-unit.ts:213-228）。拒否は印も入らないときだけ。U-W の印は subject の intent も落とす（weather-current.ts:453） (4) C1 の隠しは owner-runtime.ts の updateAdmission（:182、記録 512 件・262,144 byte を越えると overflow :210）と projectView（:241-247）、finish の normal 公開の切り替え（:327）、composition-root.ts:995 の normal の pending の除外、view-projector.ts:184 の masked。owner は admission を保存しない（:380） (5) 確認状態の whole は startup で始まり（shared-runtime.ts:202）、消すのは unit の coverageVerified（:99）だけ。本番の dispatch は connectionLost（host.ts:197）と通知の probe（host.ts:476）だけで coverageVerified を出す所は無い（台帳 85） (6) U-T の view は active の記録だけ（tsunami-unit.ts:666）、U-Q は visible（seismic-unit.ts:48）。U-Q の取消記憶だけの記録は予約 RESERVE_BYTES の内に限る（seismic-unit.ts:481） (7) 走行中の試行の intent が superseded になると A7 が止め（notification-delivery.ts:64）、pending でない intent への配送の更新を owner は採らない（owner-runtime.ts:481）。superseded の 3 文字の伸びは deliveryGrowth が pending に予約済み（delivery-growth.ts:7） (9) U-T の観測は station code で合成し、新しい版でも載らない station を保つ（tsunami-unit.ts:439、P3-C5-OBS-MERGE=A）。VTSE41 は区域を丸ごと置き換え、U-Q は family ごとの寄与と長周期を丸ごと置き換える (10) U-Q の取消記憶（memoryOnly）と予約 byte は event と長周期の両方を数える（seismic-unit.ts:51・:117） (11) U-T の decode は記録の source について subject・operation・family の一致を確かめる（tsunami-unit.ts:746-747）。旧版の decoder は知っている鍵だけで記録を組み直すので、未知の鍵（印）は黙って落ちる (12) U-T の通知の段階は P3-C5-NOTICE-LEVELS=A（発令・引上げの津波注意報、続報、注意報の残る降格がどれも normal）、U-Q は P3-C7-NOTICE-LEVELS=A（震度 4 以上 warning、ほか normal、不明 info）。intent の transition は U-T が activated・updated・released・cancelled（tsunami-unit.ts:385）、U-Q は family ごとの activated・updated・cancelled (13) main の通知の期限は intent の id ごとで、新しい id には今の壁時計から単調の期限を作り、pending から外れた id の期限は消す（composition-root.ts:1125・1133-1140）。A7 の期限切れは壁時計か単調の期限の早い方（notification-delivery.ts:36） (14) 音は分野と段階だけで WAV を選び（notification-delivery.ts:13-15）、adapter は desktop にだけ title・body を渡す。main が予約した試行は選んだ時の payload を持つ (15) 拒否した報の通知の intent は拒否の前に作られている: U-T は receiveForecast・receiveObservation の fresh（tsunami-unit.ts:369）を adopt が admit に渡した後に fit が null を返す（:492-:495）。U-Q も receiveEarthquake の fresh（seismic-unit.ts:574）の後に adopt で拒否する（:613-:622）。U-E は警報か予報かを容量の比較の前に決める（eew.ts:402）が、intent は容量の後で作る (16) 重複・遅着の判定は記録の版とだけ比べる（U-T は receiveForecast・receiveObservation、U-Q は receiveEarthquake の family の寄与との compare）ので、拒否した報の再送は記録より新しく見えて fresh をもう一度作る。U-T の取消は同じ subject の pending を群によらず全部置き換える（tsunami-unit.ts:155）。U-Q の admit は置き換える旧 pending を先に決め、その後で新しい通知を容量から外すことがある（seismic-unit.ts:383・:405） (17) 津波観測は同じ版・同じ InfoType の fragment でも未収録の station があれば合成して採用し、info の通知を作る（tsunami-unit.ts の receiveObservation の mode equal、P3-C5-OBS-MERGE=A・P3-C5-NOTICE-OBSERVATION=C）。U-Q は family ごとに版を比べ（seismic-unit.ts:550）、通知の置換は family をまたぐ系統で行う（:387）",
+        "remaining": "なし（baseOid の割当のときに行を読み直す、Q-CC-BASE）",
+        "reason": "条文の当て先を、監査や Pro の引用ではなく起草時の行で確かめる（裏取りのメモで Pro の行番号の数行のずれを直した。1 巡目のレビューの指摘の行も開き直した）"
+      },
+      {
+        "id": "Q-CC-SLOT",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）。Pro §4.2「固定個数の unit／operation の網羅性状態を未確認にし」と、P2-A1-CONFIRMATION",
+        "closed": "印も入らない拒否は、既存の確認状態（RuntimeConfirmation）の slot の whole に寄せる。(1) 理由は UnconfirmedReason に capacityExceeded を 1 つ足す（scopeCapacity を流用しない。scopeCapacity は確認の記録が溢れて畳んだ印で、事実は全部採用している。容量の拒否は事実を 1 つ取りこぼした印で、画面で見分ける） (2) 運ぶのは既存の UnitStep.confirmationEvidence → OwnerOutput.confirmationEvidence の口に足す負の変種 { source: \"capacityExceeded\", scopes: [unit の scope] }（新しい欄・経路を作らない）。返すのは unit（正の証拠と同じ口）: capacityExceeded を返す 5 か所と、印を unit の未確認へ移す場面（AC03(4)）。どちらも受信の step なので owner は今どおり渡す (3) publisher は負の証拠を切断の境界（afterInputSequence）によらず採る（取りこぼしは切断の前の入力でも取りこぼし。境界は正の証拠を確認へ昇格させないためのもの） (4) whole=capacityExceeded は切断（lostConfirmation）と scope 容量の畳みで上書きしない。上書きすると、どこにも残らない容量の失敗の名前が、接続の行で別に見える切断に置き換わる。counts は今どおり『whole の 1 と scope の理由別』: 切断と重なれば { capacityExceeded: 1, disconnected: scope の数 }、scope の畳みと重なれば { capacityExceeded: 1 }（scopes は空。畳んだことは whole の未確認に含まれる） (5) slot に件数・時刻を足さない（失敗ごとの時刻と入力は AC07 の診断に残る）",
+        "remaining": "なし",
+        "reason": "新しい状態機械・全対象の一覧を作らずに、印を付けられない拒否を画面と確認状態へ出す（Pro §4.4 の制約）"
+      },
+      {
+        "id": "Q-CC-MARK",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）。裏取りのメモ『既知の事実を前回情報として残すのは U-W/U-F には lastKnown 付きの印として既にある。足すのは U-E/U-T/U-Q と、印も入らない byte 超過の経路』",
+        "closed": "U-T・U-Q の印は記録に unavailable（reason・拒否した報の source）を足す形にし、U-W・U-F のように current を外して lastKnown へ写す形にしない。意味は同じ（最終確認の値＝その記録、処理できなかった報、理由）。写さない理由: (1) U-T の観測の生死は同じ EventID の予報の effective で決まる（P3-C5-OBS-LIFETIME=A）。予報を外すと観測まで終わる (2) U-Q の event は 4 family の寄与を束ねる（P3-C7-SUBJECT・CANCEL-SCOPE）。VXSE53 1 本の拒否で event を外すと有効な VXSE51・52 の寄与まで消える（Pro §10.5） (3) 写しを持たないので byte は ReportRef 1 つ分しか増えない。付ける記録は、新しい版の採用が拒否した報の中身を包含する記録に限る: U-T の VTSE41（区域を丸ごと置き換える）、U-Q の event（family ごとの寄与を丸ごと置き換える。印は family ごとに 1 つ、最大 4。拒否された family の寄与が無い event にも付く）と長周期。U-T の観測には付けない（P3-C5-OBS-MERGE=A で新しい版でも載らない station を保つので、印を消す条件で包含を示せない。観測の拒否は AC02 の unit の未確認へ寄せる。どちらにしたかの理由: 印を消す条件を版の比較 1 つに保ち、station の一覧を印に持たせない）。付けるのは view に出ている記録だけ（U-T active、U-Q visible）。引き継いだ先の記録が view に出ないとき（版の古い解除・取消の採用、U-Q の取消記憶だけの記録）は印を外して unit の未確認へ移す: 出ていない記録の印は画面に出ず、U-Q の取消記憶の予約 RESERVE_BYTES の式（event と長周期の両方、P3-C7-CAPACITY-BUDGET の予算の裁定）にも印を入れない。印を付けた state も既存の fit を通す（退去の適格性は採用と同じ）。outcome は U-W の addUnavailable と同じ accepted・semantic・transition unavailable。decode は印の source が親の記録に属すること（operation・subject・EventID・許可 family の一致、版の比較に使う Serial・InfoType）を確かめる（AC05）",
+        "remaining": "なし",
+        "reason": "Pro §4.2「更新失敗が既存の現況鍵に結び付くなら、その鍵が持つ出典・現在性の状態へ反映する」を、U-T・U-Q の意味（観測の寿命と合成、family の寄与）を壊さない最小の形で入れる。結び付けられない拒否は §4.2 の『網羅性を粗く未確認にする』へ寄せる"
+      },
+      {
+        "id": "Q-CC-UE",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）。eew.ts:458-459・:492、P3-EEW-GATE-EVICT-001",
+        "closed": "U-E には印を足さない。U-E の拒否は新しい subject（EventID×family）だけに起き、印を付ける『旧値のある subject』が無い。同じ EventID の別 family の current に印を付ける案は、到達に同じ family の新しい EventID が 10 分の内に 512 件要り（P3-EVICT の後、最悪の 1 日の推定 230〜360 件、Q-EVICT-COUNTS）、current は保存しない 10 分の値なので足さない（足すのは拒否が届くと示せたとき）。U-E の拒否は AC02 の unit/operation の未確認と EEW の状態行で見える。D-PENDING=A の書き換えと D-FAILNOTICE=A の失敗警報も U-E には当てない（pending の期限が 15 秒で拒否は届かない。U-E は件数の判定〔eew.ts:488-495〕が intent の生成〔:602-612〕より前なので、拒否の時点で fresh が無い。拒否した報の通知を入れるには latch〔初報・警報の通知済み〕との関係も新しく決める必要がある）。作者に見せた前提（U-E/U-T/U-Q に同じ枝）と違うので、Q-CC-AUTHOR で確かめる",
+        "remaining": "なし",
+        "reason": "届かない場面のために U-E の型と card の描画を広げない（最小実装）"
+      },
+      {
+        "id": "Q-CC-SERIES",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）。P3-C5-REPLACEMENT=A、P3-C7-REPLACEMENT=A、P2-A4 の Q-NOTICE（同じ EventID の置換）",
+        "closed": "『失敗した系列』は各 unit の既存の置換の単位にそろえ、新しい対応表を作らない: U-T は拒否した報の subject（予報と観測は別 subject）、U-Q は lineOf の系統（地震 4 family は EventID ごとに 1 つ、VXSE62 は別）、U-E は同じ operation・EventID（D-PENDING=D のときだけ使う）。U-W・U-F は intent を作らない（P2 のまま、U-W の印は subject の intent を落とす）。系列の外側の pending は変えない。拒否の経路の順: (1) 印を既存の fit に通す（退去の適格性は採用と同じ） (2) D-FAILNOTICE=A の失敗警報を unit の固定の subject に入れる（系列の外。admit は通さず、subject の pending に触れない、AC10） (3) D-PENDING=A の書き換えを、残った系列の desktop の pending に当てる。(2)(3) は (1) を確定した後の state に、ほかの pending や記録を退去させずに（admit の退去 0・fit の退去 0）収まるときだけ当て、収まらなければその段を当てない。D-PENDING=A の書き換え: 写しを作らず、同じ id のまま payload.title だけを替える（訓練・試験の接頭辞の後に『【HH:MM 発表】』。HH:MM は intent の source の ReportDateTime を JST にしたもの。訂正の『[訂正] 』はその後）。同じ時刻の印が既に付いていれば付け直さない（何度拒否されても 1 回）。attempts・nextAttemptAt・期限・段階・channel・transition・source・disposition は変えない。main の単調の期限は id ごとなのでそのまま続き、壁時計が戻っても延びない（別の id にすると main は今の壁時計から期限を作り直す）。走行中の試行は選んだ時の payload を持つので切れない。sound の pending は変えない。main は既存の経路で扱う（mirror の pending が替わるだけ）。main に隠す対応表を再構築しない（P3-X-C6、Pro §4.3）",
+        "remaining": "なし",
+        "reason": "適格性と通知の形は owner が返し、main は配送だけを行う（P3-X-C6）"
+      },
+      {
+        "id": "Q-CC-WIRING",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）。Pro §9.4「拒否subjectと表示eventの対応をmainへ渡す欄の選択、マスクのrevisionを増やす方法、同じscopeの比較を何層で行うかは…実装上の選択」",
+        "closed": "(1) 対応欄: 拒否の鍵と表示の鍵・通知の系列の対応を運ぶ欄は作らない。印は表示している記録そのものに付き、publisher へ運ぶのは (unit, operation) の負の証拠だけ (2) revision: UnitView.contentRevision は unit の基底版の 10 進文字列だけにする（admission の 3 bit を外す）。印を付ける・外すのは公開の意味の変化なので、unit の既存の displayChanges の規則で contentRevision が 1 進む (3) 比較の層: 印を消すかの版の比較は owner の unit の中で 1 回だけ（unit の既存の版の比較を使う）。main と A8 は比べない (4) contentRevision・semanticRevision の形が変わる既存の試験の期待値は Q-CC-EXISTING-TESTS で報告してから変える",
+        "remaining": "なし",
+        "reason": "内部配線は作者の裁定にせず統合担当が閉じる（Pro §9.4）"
+      },
+      {
+        "id": "Q-CC-WIRE",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）",
+        "closed": "snapshot の DisplaySummaryItem.admission と SnapshotProjectionInput.admissionCounts は除く（写す元が無くなる）。容量の失敗は既存の欄で運ぶ: unit/operation の未確認は unconfirmed.capacityExceeded、印は unavailable.capacityExceeded（U-T・U-Q に足す。U-E は常に空のまま）。DisplaySnapshot.schemaVersion は 1 のまま（受け手は同じ配送の chrome-eew だけで、境界の検証を同じ patch で直す。古い版を開いたままのタブは再読込まで snapshot を不正として捨てる、残存リスク(10)）",
+        "remaining": "なし",
+        "reason": "wire に新しい欄を足さず、意味の違う 2 つ（unit の網羅性と記録の現在性）を既存の 2 つの欄に分けて運ぶ"
+      },
+      {
+        "id": "Q-CC-SCHEMA",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）。P3-AUTHORITY-EVIDENCE-001 の P3-AUTH-D-SCHEMA=A（作者裁定 2026-10-10）",
+        "closed": "U-T・U-Q の schemaVersion は v1 のまま、印の鍵を足す（P3-AUTH-D-SCHEMA=A と同じ形）。違いは 1 つ: 印の鍵は印のある記録だけに書く（印の無い記録の bytes は今と同じ。本契約より前の保存物は印の無い記録だけなので、そのまま新しい形でもある）。decode は鍵の無い記録を印なしとして読み、鍵があれば中身を確かめる。U-E・U-W・U-F の保存の形は変えない。D-PENDING=A の書き換えは既存の intent の title だけを替え、D-FAILNOTICE=A の失敗警報は unit の固定の subject を持つ intent で、decode はこの形だけ source と subject の一致を求めない（AC05。置き換えた軽い失敗警報は既存の disposition superseded）。旧版での再実行（本契約より前の版で同じ保存先を開く）: 旧版の decoder は知らない鍵を落として記録を組み直すので、印のある保存物を旧版が開くと印なしの古い値を今の値として出し、旧版が保存し直すと印は消える（書き換えた intent は普通の intent なので旧版でも読める。失敗警報の intent が残っている保存物〔失敗警報から最長 180 秒の間に保存したもの〕は、旧版の decode が source と subject の不一致で拒み、その unit は空から始まる）。schemaVersion を v2 に上げれば旧版は保存物を読まず空から始まる（旧版の側に v2 を読む口が無い）。v1 のままにするのは、旧版で開いたときに事実まで消すより、印だけを失う方が欠けが小さいから。許容するかは作者に確かめる（残存リスク(11)、Q-CC-AUTHOR）",
+        "remaining": "なし",
+        "reason": "保存の形を変えるので、旧データの移行（本契約では読み替え 0 の移行）と復元の試験の 1 セットを受入に入れる（AC05、AGENTS.md・feedback の型）"
+      },
+      {
+        "id": "Q-CC-COST",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）。AGENTS.md の受信経路の計算量、計画§9 の P3-OWNER-YOUNG-LIMIT-002 の行（e05y-P 374.5・362.3・380.6 MiB、Mac mini）",
+        "closed": "受信経路の計算量: 隠しを外す側は処理を減らすだけ（admission の記録の合併・byte の計量、mask の toggle の全 normal subject の displayChanges が無くなる）。足す処理は拒否のときだけ（記録の引き当ては既存の索引か配列の線形 1 回、≦512・1,024）と、採用 1 回につき記録 1 つの印の比較 1 回と、負の証拠 1 件につき slot 1 つの whole と counts の付け替え（scopes を走査しない）。state 全体の直列化は足さない。メモリ: 通常の負荷では拒否が起きず印も作られない。印は拒否のときだけ ReportRef 1 つ分で、各 unit の世代の上限（fit）の内。E05 の測定の窓は新しい subject を足さない入力で組んであり拒否を起こさない（frames.mjs・windows.mjs の注記）ので、本契約は E05 を測り直さない（測るなら統合担当の定例に含める）。拒否のときは既存の fit の走査と退去の候補の整列が加わる（引き当て 1 回だけが費用ではない。拒否は稀で、上限 512・1,024 に限られる既存の規則の内）。D-PENDING=A の書き換えと D-FAILNOTICE=A の失敗警報は、拒否のときだけ intents（pending 128 件以下と終端記録）を 1 回なめる。平常の受信（採用の通知の生成と置換）には何も足さない（3 巡目の版の条件は撤回した）",
+        "remaining": "なし",
+        "reason": "E05 の予算（400 MiB、余裕 19〜38 MiB）を崩す変更でないことを先に書く"
+      },
+      {
+        "id": "Q-CC-LEDGER85",
+        "status": "closed",
+        "source": "起草（統合担当の判断、2026-10-15）。台帳 85（coverageVerified を作るコードが無く、確認状態が run の間ずっと未確認）、P2-A1-CONFIRMATION.supply（照合完了の口だけを凍結し、実 REST 取得・照合の本体は作らない）",
+        "closed": "台帳 85 は本契約で閉じず切り分ける。閉じるには unit を覆う照合（取りこぼしが無いと dmdata の記録で確かめる回復）の本体が要り、それは回復の契約（P3-RECOVERY-001、C16、未起草）の仕事。時間・heartbeat・再起動・別 subject で whole を消す近道は D-CLEAR が退ける形そのもの。本契約との関係: 85 が開いている間は全 slot が未確認（startup）なので、未確認の状態だけでは容量の失敗が見えない。そこで容量の失敗は whole の理由（unconfirmed.capacityExceeded）と専用の状態行（AC06）で見分ける。回復の契約への必須条件（本契約は verifyCoverage を変えない。本番の呼び出しが無い）: 今の verifyCoverage は runId・epoch の一致だけで whole を消す（shared-runtime.ts:86）ので、同じ epoch の中で『照合の開始→新しい容量の拒否→古い照合の結果』と並ぶと、照合が見ていない拒否まで消す。coverageVerified は照合が包含する入力の範囲（照合の開始より前に owner が処理を終えた入力まで）を持ち、範囲の後に採った容量の拒否は消さない、と回復の契約で決める",
+        "remaining": "計画 p3-order-plan.md の C16 の行に、coverageVerified の生成と上の包含の条件を足す（統合担当。受け手の C16 の行と条文を改訂した後に『移管した』と書く。それまでは送り先の候補）",
+        "reason": "閉じる手段が別の責務にあり、本契約の『消える条件』（D-CLEAR）を崩さずに切り分けられる"
+      },
+      {
+        "id": "Q-CC-LIMIT-RULES",
+        "status": "closed",
+        "source": "作者裁定 D0（2026-10-15）: 起草案 P3-LIMIT-RULES-001（未コミットの材料）の S1・S2 を恒久形にせず、Pro §8.2 の 3 単位に切り替える",
+        "closed": "本契約は起草案の S1（P3-LIM-AC01・AC02・RET-03・T01〜T02、D-C1-SCOPE・D-C1-EEW・D-C1-AREA・D-C1-RESTART）を置き換える。D-C1-SCOPE・D-C1-AREA は問いごと消える（隠す範囲が無い。U-W の全国の拒否は unit/operation の未確認になる）。D-C1-EEW は D-CLEAR の B に、D-C1-RESTART は D-PENDING と AC05 の保存に形を変えた。起草案の RES-02（admission の 512 件・262,144 byte）は仕組みごと消える。D-COUNT（省略の数）・D-KEEP-ORDER など S2 以降の分岐は本契約の範囲外",
+        "remaining": "なし",
+        "reason": "起草案のどこを本契約が引き受け、どこを捨てたかを 1 か所で照らせるようにする"
+      },
+      {
+        "id": "Q-CC-ORDER",
+        "status": "closed",
+        "source": "統合担当の決定（直し 1 巡目、2026-10-15）。P3-UF-PUBLIC-001 の Q-UFP-ORDER（U-F の公開境界を先に配送し、並走しない）",
+        "closed": "P3-UF-PUBLIC-001 を先に配送し、本契約の baseOid は U-F の配送の後の発注前点検で割り当てる（並走しない。共有する file は owner-host.ts・composition-root.ts・p3-execution-split.types.ts・p2-shared-runtime.types.ts・view-projector.ts・weather-timeseries-unit.ts・p2-weather-timeseries-unit.types.ts・p2-snapshot-sse.types.ts）。本契約は U-F の単位が足すもののうち、normal の公開の制限に結び付くものを外す: weatherTimeseriesDetail の view 引数の normalHidden の欄と、制限の間に索引へ normal を載せない分岐・時系列で normal を返さない分岐（制限が無くなるので normal も載せて返す）。索引の revision（U-F の view の内容版）からは admission の 3 bit が消え、unit の内容版の 10 進の文字列になる（U-F の HTTP の revision の検査の『索引の内容版の形』もそろえる）、公開形式にした normalDisplaySubjects（UnitModule の関数ごと除く）、Q-UFP-MASK の読み替え。U-F の mask の試験（hidden の step を持つもの）は期待値を変えるか消す（Q-CC-EXISTING-TESTS）",
+        "remaining": "U-F の配送の後に、配送版の P3-UF-PUBLIC-001 と U-F の file を読み直し、AC01(5) の当て先と本契約の行の参照を確かめる（Q-CC-BASE）",
+        "reason": "同じ file を 2 本が並走で直すと統合の衝突になる。U-F の単位が足す制限の配線は本契約で必ず消えるので、先に入れて後で外す順を明記する"
+      },
+      {
+        "id": "Q-CC-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-15、ご主人）",
+        "closed": "判断 4 件: P3-CC-D-CLEAR=A・P3-CC-D-PENDING=A・P3-CC-D-SHOW=A は推奨どおり、P3-CC-D-FAILNOTICE は unit 単位の失敗警報に形を変えて A（decisionBranches の ruling）。残存リスク (1)〜(18) を推奨どおり一括で承認。承認の範囲: U-E に印も失敗警報も足さないこと（Q-CC-UE、(6)）と、U-T の観測に印を付けず unit の未確認に寄せること（Q-CC-MARK、(7)）の確認。前の版で開き直すと印が落ち、失敗警報が残る間の保存物は前の版が読めずその unit が空から始まること（schemaVersion を v1 のままにする、Q-CC-SCHEMA、(11)）の許容",
+        "reason": "requiredEvidence の 4 項（判断の裁定、U-E と観測の扱いの確認、前の版での再実行の許容、残存リスクの承認）がそろった。本契約の発注は Q-CC-BASE（P3-UF-PUBLIC-001 の配送の後の発注前点検、Q-CC-ORDER）で止まったまま"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "training/test の拒否にも同じ規則を当てる（印・title の書き換え・拒否した報の通知・unit/operation の未確認は operation ごと。training/test の slot と記録は本番の表示を変えない）。training/test の受理は normal の記録を退去しない（P3-X-C5・D-OPERATION=A、印を付けるための fit も同じ）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-CURRENCY-COVERAGE-001",
+    "mode": "implementation",
+    "objective": "Pro レビュー §8.2② の単位（作者裁定 2026-10-15: 起草案 P3-LIMIT-RULES-001 の S1・S2 を恒久形にせず 3 単位に切り替える）。容量の拒否（capacityExceeded）を理由に normal の事実を隠す仕組み（C1: owner の withoutNormal による view の除外、main の normal の pending の一括除外、隠すための admission の記録と overflow）を外し、事実とその現在性・網羅性を分ける。(1) view に出ている記録の更新が容量で入らず、新しい版の採用でその中身を包含できる記録（U-T の VTSE41、U-Q の event・長周期）には印（unavailable: 理由と拒否した報）を足し、値は最終確認として残す（U-W・U-F は既存の lastKnown 付きの印のまま、U-E は新しい subject しか拒否しないので印を持たない）。(2) 印を付けない拒否（新しい subject、byte の超過、U-T の観測）は、既存の確認状態の unit/operation の whole を新しい理由 capacityExceeded にして網羅性を未確認にする。(3) 未確認が消えるのは、包含する正常採用（印は同じ subject の版が印以上の採用）か回復の証拠（whole は unit を覆う coverageVerified）だけ（D-CLEAR）。(4) 失敗した系列のまだ鳴っていない旧 pending は取り下げず、desktop の title にだけ元の報の時刻を付けて元の期限まで鳴らす（D-PENDING。音は今の通知と同じ）。拒否した報が warning 以上なら、subject の通知とは別に unit×operation ごとに 1 つの『処理できていません』の失敗警報をその段階で鳴らす（D-FAILNOTICE、作者裁定 2026-10-15）。採用の通知の振る舞いは変えない。別 subject の採用と通知は止めない。(5) 失敗と未確認を snapshot と chrome-eew に持続表示し（D-SHOW）、失敗ごとに診断を 1 行残す。新しい状態機械・全対象の一覧を作らない（Pro §4.4）。U-W の正本の持ち方（鍵集合・履歴）と U-F の公開境界（P3-UF-PUBLIC-001、先に配送）は扱わない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-execution-boundary.md",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p2-chrome-eew.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-weather-timeseries-unit.json",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-seismic-unit.json",
+      "reconstruction/contracts/p3-tsunami-e01.json",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-eew-gate-evict.json",
+      "reconstruction/contracts/p3-authority-evidence.json",
+      "reconstruction/contracts/p3-operation-capacity.json",
+      "reconstruction/contracts/p3-uf-public.json",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p3-unit-table.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/contracts/p2-weather-timeseries-unit.types.ts",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/contracts/p3-seismic-unit.types.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/runtime/shared-runtime.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/src/display/chrome-eew/pure.ts",
+      "reconstruction/src/display/chrome-eew/client.ts",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/src/domains/weather-current/weather-current.ts",
+      "reconstruction/src/units/eew/eew-unit.ts",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts",
+      "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/landslide/landslide-unit.ts",
+      "reconstruction/src/units/flood/flood-unit.ts",
+      "reconstruction/src/units/briefing/briefing-unit.ts",
+      "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts",
+      "reconstruction/src/units/typhoon/typhoon-unit.ts",
+      "reconstruction/test/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-currency-coverage.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B06",
+      "B08",
+      "B09",
+      "B15",
+      "M01",
+      "M02",
+      "M03",
+      "M04",
+      "M06",
+      "M08",
+      "D02",
+      "D11",
+      "D12"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F",
+      "I-U-T",
+      "I-U-Q",
+      "I-U-N",
+      "I-U-V",
+      "I-U-L",
+      "I-U-R",
+      "I-U-B",
+      "I-U-M",
+      "I-U-Y"
+    ],
+    "dependsOnContractIds": [
+      "P2-SHARED-RUNTIME-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P2-CHROME-EEW-001",
+      "P2-EEW-UNIT-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-WEATHER-TIMESERIES-UNIT-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-Q-001",
+      "P3-TSUNAMI-E01-001",
+      "P3-UNIT-TABLE-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-EEW-GATE-EVICT-001",
+      "P3-OPERATION-CAPACITY-001",
+      "P3-AUTHORITY-EVIDENCE-001",
+      "P3-UF-PUBLIC-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#UnconfirmedReason",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#CurrentConfirmationEvidence",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#UnitView",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReason",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySummaryItem",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#SnapshotProjectionInput",
+      "reconstruction/contracts/p3-unit-table.types.ts#UnitModule",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerUnitDelta",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiForecastSubject",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#EarthquakeEvent",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#EarthquakeEventView",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#LongPeriodSubject"
+    ],
+    "publicFunctions": [
+      "UnitModule から withoutNormal・keepsWhileNormalHidden・normalDisplaySubjects を除く。P3-UF-PUBLIC-001（先に配送）が足す weatherTimeseriesDetail(state, request, view: { normalHidden; contentRevision }) の view 引数から normalHidden の欄を除く（signature の変わる公開の関数はこの 2 つだけ）。各 unit の reduce・toView・codec、projectSnapshot、selectNotificationAttempt、confirmOutput・verifyCoverage・lostConfirmation の signature は変えない（変わるのは中の規則と、publicTypes の型の欄だけ）",
+      "印の型 SubjectUnavailable（{ reason: \"capacityExceeded\"; source: ReportRef }）を p2-shared-runtime.types.ts に 1 つ足し、U-T・U-Q の型が使う（記録の型ごとに写さない）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。新しい npm 依存・新しい共有 module・新しい file は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-39_11_11_250206_VTSE41",
+      "test__fixtures__32-39_11_10_250206_VTSE51",
+      "test__fixtures__32-35_04_03_240613_VXSE52",
+      "test__fixtures__32-35_04_04_240613_VXSE53",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-T",
+      "U-Q"
+    ],
+    "persistedFields": [
+      "U-T: TsunamiForecastSubject に optional の unavailable（SubjectUnavailable）。印のある記録だけ鍵を持つ。TsunamiObservationSubject には足さない（鍵があれば decode は invalid）。schemaVersion は p3-tsunami-unit-v1 のまま（Q-CC-SCHEMA）",
+      "U-Q: EarthquakeEvent に optional の unavailable（SubjectUnavailable の配列、family ごとに 1 つ、1〜4 件）、LongPeriodSubject に optional の unavailable（SubjectUnavailable）。取消記憶だけの記録には鍵を持たない。schemaVersion は p3-seismic-unit-v1 のまま",
+      "D-PENDING=A の書き換えは既存の intent の title だけを替える（id・期限・形は変えない）。D-FAILNOTICE=A の失敗警報は、subject が unit×operation の固定の『${operation}/capacityRejected』で source が拒否した報の ReportRef の intent（U-T・U-Q の decode がこの形だけ source と subject の一致を求めない、AC05）。置き換えた軽い失敗警報は既存の disposition superseded"
+    ],
+    "nonPersistedFields": [
+      "RuntimeConfirmation の whole=capacityExceeded（publisher の状態。保存しない。再起動では確認状態が startup から始まり、未確認のまま残る）",
+      "EarthquakeEventView の unavailable（view は保存しない、event の印の写し）"
+    ],
+    "outOfScope": [
+      "U-W の正本の持ち方（収容を約束する鍵集合、履歴の深さ、partial の 128 の上限）と U-W・U-F の既存の印（current を外して lastKnown に写す形）の変更。U-W の単位と U-F の公開境界の単位（P3-UF-PUBLIC の起草中）が扱う",
+      "台帳 85（coverageVerified を作る照合の本体）。回復の契約 P3-RECOVERY-001（C16、未起草）へ送る（Q-CC-LEDGER85）",
+      "拒否された報の本文の回復（取り直し）と、unit が自分で active を退去する欠け（監査 B2・C10）。Pro §4.5 のとおり本契約では直らない",
+      "U-T の観測の station ごとの欠けを個別に追うこと（観測の拒否は印にせず unit の未確認へ寄せる、Q-CC-MARK）",
+      "採用された取消・置換が配送前の発令の通知を置き換える既存の規則（P3-C5-REPLACEMENT=A の取消、P3-C7-REPLACEMENT=A）と、重要遷移の痕跡をどこまで・いつまで残すか（Pro §8.3 の『必要な重要遷移の痕跡』の保持期間）。本契約は容量の拒否が痕跡を消さないこと（D-PENDING=A）だけを扱う",
+      "回復の契約が coverageVerified を作るときの包含の範囲（Q-CC-LEDGER85 の必須条件として送る）",
+      "起草案 P3-LIMIT-RULES-001 の S2 以降（残す順位の共通化・省略の数・戻る道・上限の欄の検査）",
+      "P4 の画面: U-Q・U-W・U-F・ほかの分野の印と未確認の描画（本契約は snapshot に載せ、chrome-eew の EEW と津波だけに出す）、unavailable の notice の U-T・U-Q への拡張",
+      "通知の配送の順・TTL・channel の規則（P2-A7）と各 unit の置換規則（AC04 の書き換えと AC10 の通知を足すだけ）",
+      "測定の runner の stateBreaks の数え方、E05 の測り直し（Q-CC-COST）、凍結 manifest の編集",
+      "実装担当による spec 本文・計画本文・他の契約の本文の変更（読み替えは AC09、計画§9 の行は統合担当）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しい npm 依存、旧築 src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-CC-AC01",
+        "requirement": "容量の拒否で normal を隠す仕組みを外す（Pro §8.2②、§4.4 の消せるもの）。(1) owner: OwnerState.admission、updateAdmission（記録 512 件・262,144 byte・overflow）と admissionRecordByteCache、unitAdmissionCounts、viewBits、projectView の withoutNormal と keepsWhileNormalHidden による除外と contentRevision の admission の 3 bit、finish() の normal 公開の切り替えの displayChanges、normalSubjects を除く。projectView は unit の toView の結果をそのまま返す（contentRevision は unit の基底版の文字列） (2) 型: UnitModule の withoutNormal・keepsWhileNormalHidden・normalDisplaySubjects と 12 unit の実装、各 toView の admission: {}、UnitView.admission、AdmissionRejection・AdmissionSlot・RuntimeAdmission・RuntimeAdmissionCounts、RuntimeState.admission、RuntimeStep.admissionCounts を除く (3) publisher: OwnerUnitDelta.admissionCounts、MirrorUnit.admissionCounts、snapshotInput の admissionCounts を除き、deliveryState は在送中の鍵だけで絞る（normal の pending を unit 単位で外さない） (4) A8: masked() と各 tally の hidden の引数と枝、Meta.admission、DisplaySummaryItem.admission、SnapshotProjectionInput.admissionCounts を除く。U-E の notice の生成は公開 mask を見ない (5) P3-UF-PUBLIC-001（先に配送、Q-CC-ORDER）が足すもののうち、weatherTimeseriesDetail の view 引数の normalHidden の欄と、normal の公開の制限の間に索引へ normal を載せない分岐・時系列で normal を返さない分岐を除く（normal の subject も載せて返す）。索引の revision（U-F の view の内容版）は admission の 3 bit が消えて unit の内容版の 10 進の文字列になり、U-F の HTTP の revision の検査の『索引の内容版の形』も 10 進の整数にそろえる。公開形式にした normalDisplaySubjects は UnitModule ごと除く (6) 5 unit の capacityExceeded の decision から rejection を除く（読む側が無くなる。AdmissionEvidence は currentEstablished が使うので残す）。decision の kind capacityExceeded は残し、AC02 の信号に使う。受入: 容量の拒否の後も、同じ unit の別 subject の正常採用は owner の view、A8 の件数・重大度・区域、chrome-eew の EEW と津波の描画、A7 の配送の候補に出る。無いと何が壊れるか: 拒否 1 件で unit の normal の表示と通知が全部止まる（監査 C1、Pro §2.2）",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/owner-runtime.ts:174 «54f4dd1eb3bb98eb»",
+          "reconstruction/src/runtime/owner-runtime.ts:182 «e12e68576ea87656»",
+          "reconstruction/src/runtime/owner-runtime.ts:210 «f12138f41a8a6974»",
+          "reconstruction/src/runtime/owner-runtime.ts:231 «ba291b8d02779c45»",
+          "reconstruction/src/runtime/owner-runtime.ts:241 «a76ed50ef1f7c136»",
+          "reconstruction/src/runtime/owner-runtime.ts:244 «d68a536cea4a557c»",
+          "reconstruction/src/runtime/owner-runtime.ts:246 «e2fabdcac58a39b2»",
+          "reconstruction/src/runtime/owner-runtime.ts:247 «d68a5584b1d5fc64»",
+          "reconstruction/src/runtime/owner-runtime.ts:250 «7723aa83d97abc92»",
+          "reconstruction/src/runtime/owner-runtime.ts:286 «f61b458e400a2f99»",
+          "reconstruction/src/runtime/owner-runtime.ts:327 «dbedc69a6b8d23fd»",
+          "reconstruction/src/runtime/owner-runtime.ts:380 «5939a4868869eb6c»",
+          "reconstruction/src/runtime/owner-host.ts:294 «bfc580ac3e1e4d4a»",
+          "reconstruction/src/runtime/shared-runtime.ts:35 «d27563d65ef90462»",
+          "reconstruction/src/runtime/shared-runtime.ts:62 «88ef0457fda1ecf7»",
+          "reconstruction/src/runtime/composition-root.ts:211 «743cdc5cb9b3f94e»",
+          "reconstruction/src/runtime/composition-root.ts:225 «4ce4853adb960e55»",
+          "reconstruction/src/runtime/composition-root.ts:536 «4e0902638ece5fae»",
+          "reconstruction/src/runtime/composition-root.ts:995 «8b53dbb1091f06a2»",
+          "reconstruction/src/view-projector/view-projector.ts:184 «d6ebea01c19f026d»",
+          "reconstruction/src/view-projector/view-projector.ts:300 «5212e8fb5618b7d9»",
+          "reconstruction/src/view-projector/view-projector.ts:554 «12fcbb96ebc4bc0c»",
+          "reconstruction/src/view-projector/view-projector.ts:821 «1f29bb9634f1bf99»",
+          "reconstruction/src/view-projector/view-projector.ts:865 «0d24ee6281964fec»",
+          "reconstruction/contracts/p3-unit-table.types.ts:38 «eab442a1aad689cb»",
+          "reconstruction/contracts/p3-unit-table.types.ts:39 «c76611e46a1b7fb2»",
+          "reconstruction/contracts/p3-unit-table.types.ts:40 «e292976ec8579303»",
+          "reconstruction/contracts/p3-execution-split.types.ts:82 «d27563d65ef90462»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:180 «2e7c6d96c900de47»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:425 «74b012ecc03909f6»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:444 «8b116f8bcb5f09c9»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:466 «81ce404347022052»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:70 «37761a57b3c031c1»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:149 «81ce404347022052»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC02",
+        "requirement": "印を付けない拒否を unit/operation の網羅性へ寄せる（Q-CC-SLOT、D-CLEAR=A の形）。(1) 負の証拠は unit が返す（正の証拠と同じ口）: capacityExceeded を返す 5 か所（U-E・U-T・U-Q・U-W・U-F）と、AC03(4) の印を unit の未確認へ移す場面で、UnitStep.confirmationEvidence に { source: \"capacityExceeded\", scopes: [{ unit, operation, kind: \"unit\" }] } を載せる（CurrentConfirmationEvidence に変種を足す。同じ step の同じ (unit, operation) は 1 件）。どちらも受信の step なので owner は今どおり OwnerOutput へ渡す (2) publisher は負の証拠を切断の境界（afterInputSequence）によらず採り、その slot の whole を UnconfirmedReason に足す capacityExceeded にし、counts の whole の分を付け替え、slot の confirmedAt を null にする。scopes は変えない。同じ slot に負の証拠を重ねても whole の 1 は増やさない（counts の capacityExceeded は whole の 1 と、その理由を持つ scope の数の和で、拒否した報の数ではない）。scope の確認・退役では whole の 1 を減らさない。同じ出力の正の証拠とは独立（正の証拠は whole を消さない） (3) whole=capacityExceeded は unit を覆う coverageVerified（verifyCoverage の unit scope、既存）だけで消える。切断（lostConfirmation）と scope 容量の畳み（scopeCapacity）は whole を上書きしない（scope の理由は今どおり変える）。counts は『whole の 1 と scope の理由別』のまま: 切断と重なれば { capacityExceeded: 1, disconnected: scope の数 }、畳みと重なれば { capacityExceeded: 1 }。retireConfirmation は今どおり whole を保つ。時間・heartbeat・接続の回復・別 subject の正の証拠（acceptedReport）では消さない。再起動では確認状態が startup から始まる（P2-A1-CONFIRMATION.startup、未確認のまま）。verifyCoverage は変えない（照合が包含する入力の範囲の条件は回復の契約へ送る、Q-CC-LEDGER85） (4) A8 は UNCONFIRMED_KEYS に capacityExceeded を足し、DisplaySummaryItem.unconfirmed.capacityExceeded で出す。confirmation.state は既存の式 (5) 計算量: 負の証拠 1 件は slot 1 つの whole と counts の付け替えだけで、scopes を走査しない。無いと何が壊れるか: 印を付けない拒否（新しい subject・byte の超過・U-T の観測）が、隠しを外した後に画面と確認状態のどこにも出ない",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/owner-runtime.ts:308 «ed2372f6ec793bc3»",
+          "reconstruction/src/runtime/shared-runtime.ts:79 «8ccfd5159bea157b»",
+          "reconstruction/src/runtime/shared-runtime.ts:86 «475c0488923e4ce9»",
+          "reconstruction/src/runtime/shared-runtime.ts:99 «294d6d1d0865550f»",
+          "reconstruction/src/runtime/shared-runtime.ts:202 «abf0a52943848907»",
+          "reconstruction/src/runtime/shared-runtime.ts:247 «7efed41a88b060fb»",
+          "reconstruction/src/runtime/shared-runtime.ts:390 «9e89f05750d4b15f»",
+          "reconstruction/src/runtime/shared-runtime.ts:411 «96d386b6b020e048»",
+          "reconstruction/src/units/eew/eew-unit.ts:341 «55e0beadaf1d87b7»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:654 «7f5ae0af8ad383a5»",
+          "reconstruction/src/view-projector/view-projector.ts:542 «af542a53994f5ae6»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:388 «d67ceb5bdab3dc93»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:397 «ea0659268e2779f2»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:398 «fff75b8924bbdf6c»",
+          "reconstruction/contracts/p2-shared-runtime.json:203 «8eba6f0dd54de4d6»",
+          "reconstruction/contracts/p2-shared-runtime.json:212 «629595bcf5ec9523»",
+          "reconstruction/contracts/p2-shared-runtime.json:214 «9afc1138a2d8c264»",
+          "reconstruction/src/domains/eew/eew.ts:492 «1ebd5f725b1d024e»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:481 «384afe6db1d91457»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:230 «4543af23ed614b82»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC03",
+        "requirement": "U-T・U-Q の記録の印（Q-CC-MARK、D-CLEAR=A・D-SHOW=A の形）。(1) 形: SubjectUnavailable = { reason: \"capacityExceeded\"; source: ReportRef（拒否した報）}。TsunamiForecastSubject と LongPeriodSubject に optional の unavailable を 1 つ、EarthquakeEvent と EarthquakeEventView に optional の unavailable（family ごとに 1 つ、1〜4 件の配列）を足す。印の無い記録は鍵を持たない。TsunamiObservationSubject には足さない (2) 付ける場面: U-T・U-Q の adopt で fit が null を返したとき、拒否した報の記録（U-T は同じ VTSE41 の subject、U-Q の地震 4 family は同じ operation・EventID の event、VXSE62 は同じ subject）が view に出ていれば（U-T は effective active、U-Q は visible）、その記録に印を付け（同じ記録・同じ family の印があれば版の新しい方へ進め、巻き戻さない）、印だけを既存の fit に通す（退去の適格性は採用と同じ、P3-X-C5）。AC10 の通知と AC04 の書き換えは、印を確定した後の state に追加の退去なしで収まるときだけ当てる。収まれば decision は changed（change semantic、currentEstablished null、正の確認の証拠なし）、outcome は accepted・semantic で subject の transition は unavailable（U-W の addUnavailable と同じ形）、displayChanges と contentRevision は既存の差分の規則で出る。収まらない、記録が無い・view に出ていない、または U-T の観測の拒否のときは印を付けず、AC10 の通知と AC04 の書き換えだけを当てて capacityExceeded を返す（AC02 へ） (3) 消える条件と引き継ぎ: 同じ subject（U-Q の event は印と同じ family）の報を採用したとき、その報の版が印の source の版以上なら印を消し、未満（遅れて届いた古い報）なら新しい記録へ印を引き継ぐ。版の比較は unit の既存の規則（U-T の VTSE41 は ReportDateTime と InfoType の優先、U-Q は family ごとの ReportDateTime・InfoType・Serial）。ほかの subject・family の採用、期限、再起動、heartbeat では消さない (4) 引き継いだ先の記録が view に出ないとき（U-T の解除・取消、U-Q の event と長周期の取消記憶だけの記録＝memoryOnly）は、印を外して AC02 の負の証拠を返す（unit/operation の未確認へ移す）。取消記憶だけの記録は印を持たないので、予約 RESERVE_BYTES の式は変わらない。記録が期限・退去で回収されれば印も一緒に消える（影響が終わる） (5) A8: tsunamiTally・seismicTally は印のある記録を今どおり active・重大度・区域に数え、unavailable.capacityExceeded に記録 1 つにつき 1 を足す（U-Q の event は印の family の数によらず 1）。updatedAt に印の時刻を足さない (6) U-E には印を足さない（Q-CC-UE）。U-W・U-F の既存の印は変えない (7) 計算量: 印を付ける経路は拒否のときだけで、記録の引き当ては既存の索引か配列の線形 1 回（≦512・1,024）に既存の fit が加わる。引き継ぎの判定は採用 1 回につき記録 1 つの比較 1 回。無いと何が壊れるか: 隠しを外した後、拒否で更新できなかった記録の古い値を今の値として出す（Pro §4.1、P3b）",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:493 «46c0c5316dc012ab»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:495 «77729fcd5f20ca0c»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:309 «5db10da9d1ecf8f2»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:439 «3f2690b71e67d7d4»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:666 «72906f66f5646915»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:619 «4c9634c2f0afba12»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:622 «77729fcd5f20ca0c»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:517 «7c8d24258acd6f73»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:48 «a631cd88c9964441»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:51 «89e1a77f78dbf9da»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:117 «91fab6170144ed9f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:481 «0793e68ca9ceb007»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:468 «628c33159a4d6adf»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:220 «9e0a048fabf9d141»",
+          "reconstruction/src/view-projector/view-projector.ts:300 «5212e8fb5618b7d9»",
+          "reconstruction/src/view-projector/view-projector.ts:331 «33e45b161d4c075d»",
+          "reconstruction/contracts/p3-tsunami-unit.json:67 «4518a73cff7d4157»",
+          "reconstruction/contracts/p3-tsunami-unit.json:75 «5b2317587aa2a5fd»",
+          "reconstruction/contracts/p2-shared-runtime.json:171 «2c070a67b0518aef»",
+          "reconstruction/contracts/p2-shared-runtime.json:173 «e78b815c491c24c9»",
+          "reconstruction/contracts/p2-shared-runtime.json:191 «7f111c4d983bcd3c»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC04",
+        "requirement": "失敗した系列の旧 pending（D-PENDING=A の形、Q-CC-SERIES）。(1) 対象: 容量で拒否した報の系列（U-T は拒否した報の subject、U-Q は lineOf の系統）の desktop の pending のうち、まだ同じ時刻の印が付いていないもの（attempts によらない）。AC10 の失敗警報は unit の固定の subject を持ち、失敗した系列の外にあるので書き換わらない。sound の pending は変えない（音は分野と段階だけで WAV を選び title を使わないので、時刻を伝えられない）。系列の外側の pending は変えない（U-T は別 subject、U-Q は別の系統）。印の有無によらず当てる。U-E・U-W・U-F は対象にしない (2) 書き換え: 写しを作らず、同じ id のまま payload.title だけを替える。訓練・試験の接頭辞（PREFIX[operation]）の後に『【HH:MM 発表】』（HH:MM は intent の source の ReportDateTime を JST にしたもの）を入れ、訂正の『[訂正] 』や本文の title はその後に続ける（例『【訓練】【14:32 発表】津波警報』）。attempts・nextAttemptAt・createdAt・expiresAt・level・channel・transition・source・disposition は変えない。main の単調の期限は intent の id ごとなので、そのまま続き、壁時計が戻っても延びない（別の id の写しにすると、main は今の壁時計から期限を作り直し、壁時計の後退で延びる。新しい仕組みは要らない） (3) 収める順と上限: 印（AC03）と AC10 の通知を確定した後の state に、書き換えで増える byte が、ほかの pending や記録を退去させずに通知の上限（件数・byte、予約込み）と世代の上限（fit）の内で収まるときだけ当てる。収まらなければ系列の書き換えを当てず、元の文面のまま残す。state は拒否と同じ reduce で入れて保存する（dirty）。intent の形は変えない (4) 競合: main が書き換えの前に選んで予約した試行は、選んだ時の payload（元の文面）で鳴る（予約は id で照合し、owner は同じ id の pending を採るので、試行は始まる）。書き換えの後に選ばれた試行と、失敗の後の再試行は時刻付きの文面で鳴る。走行中の試行は切れない (5) main は既存の経路で扱う（mirror の pending の文面が替わるだけ。書き換えた pending は同じ id・同じ期限のまま配送の候補に残り、予約の配送の更新も今どおり採られる）。main に隠す対応表を作らない (6) 保存した後の再起動では、書き換えた文面で元の期限まで配送の候補に戻る（P3-C5 の Q-NOTICE.restart と同じ扱い）。D-PENDING=B なら何もしない。C なら U-T の緊急群でない対象（両 channel）を superseded にし（U-Q は何もしない）、D なら系列の対象を両 channel とも全部 superseded にする（U-E は同じ operation・EventID。試行中のものは A7 が superseded で止め、既に出た音は取り消せない）。superseded にした pending の終端記録は、U-Q では既存の admit の TERMINAL_BYTES の回収（seismic-unit.ts:409-415）を通る。無いと何が壊れるか: main の一括除外を外した後、扱えなかった新報の系列の古い現況の通知を、desktop でも時刻の無い今の通知として出す（Pro §4.3）",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:119 «71c1d7d434117f2d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:139 «50b8d73592bcc0c4»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:155 «f65442d3bbd1fa57»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:162 «433e4cdfa4e77e5d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:385 «52991c3ce492095e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:492 «c65904dc9be789ab»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:309 «71c1d7d434117f2d»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:387 «98d9dd9eda28aa06»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:409 «23aaa6b019960aad»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:410 «782eb810929d04a8»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:572 «7ba11fade1b774fd»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:613 «c050c5f77e6e1ce5»",
+          "reconstruction/src/domains/eew/eew.ts:615 «c35c08026b010563»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:453 «b6e63582a7c7e5b6»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:13 «f3dd33a45b215f68»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:15 «1c1164fe384404a1»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:36 «8744f6b8f265e436»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:64 «f04614abff120d81»",
+          "reconstruction/src/notification-delivery/delivery-growth.ts:7 «5ee5604868c1f78a»",
+          "reconstruction/src/runtime/owner-runtime.ts:481 «6af0a32f7c614e1c»",
+          "reconstruction/src/runtime/owner-runtime.ts:503 «607bdc6221e1e7d2»",
+          "reconstruction/src/runtime/composition-root.ts:1125 «6165ed885e32faa7»",
+          "reconstruction/src/runtime/composition-root.ts:1133 «37f6fb43f73421bb»",
+          "reconstruction/src/runtime/composition-root.ts:1139 «c1316ed7219f7ac9»",
+          "reconstruction/src/runtime/composition-root.ts:1222 «e3dfa141be792522»",
+          "reconstruction/contracts/p3-order-plan.md:368 «125e18c065822856»",
+          "reconstruction/contracts/p3-tsunami-unit.json:12 «5b3ec6faa0925a92»",
+          "reconstruction/contracts/p3-tsunami-unit.json:103 «b94b6ddb84f1a5cc»",
+          "reconstruction/contracts/p3-tsunami-unit.json:108 «4802b9c37377190d»",
+          "reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3»",
+          "reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1»",
+          "reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff»",
+          "reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC05",
+        "requirement": "保存の形と移行の 1 セット（Q-CC-SCHEMA、P3-X-C4）。(1) U-T・U-Q の schemaVersion は p3-tsunami-unit-v1・p3-seismic-unit-v1 のまま、AC03 の optional の鍵を足す。encode は印のある記録だけ鍵を書く。decode は鍵の無い記録を印なしとして読む（本契約より前の保存物はそのまま restored）。checkpoint.ts と owner-runtime.ts の schemaVersion の一致の検査は変えない (2) 鍵があるときの検査（印の source が親の記録に属すること）: reason が capacityExceeded。source が各 codec の既存の ReportRef の検査を通り、source.operation が記録の operation と同じ。U-T の予報は source.subject が記録の subject、source.family が VTSE41。U-Q の長周期は source.subject が記録の subject、source.family が VXSE62。U-Q の event は各印の source.family が VXSE51・52・53・61 のどれかで family の重複なし・1〜4 件、source.subject が `${operation}/${family}/${eventId}`（eventId は記録の eventId）。版の比較に使う欄が比べられること（InfoType が各 unit の InfoType の優先の表にあり、U-Q の Serial は validSerial を通る）。TsunamiObservationSubject に鍵があれば invalid。U-Q の取消記憶だけの記録に鍵があれば invalid（AC03(4)）。外れれば今どおり invalid (3) 上界: 印は fit を通った state にだけあるので各 unit の世代の上限（4 MiB）の内。decode の上界の検査は印の byte を含めて数える（fit と同じ境界）。取消記憶の予約（RESERVE_BYTES）には印が入らない (4) 試験の 1 セット: 本契約より前の encode の形（鍵なし）の保存物が restored になり印なしで読めること、印のある state（U-T の予報、U-Q の event の 4 family と長周期）を encode→decode して同じ state に戻ること、不正な印（reason の違い・source の欠け・別 operation・別 subject・別 EventID・event に VXSE62 の印・観測の記録の印・取消記憶だけの記録の印・U-Q の family の重複と 5 件）がどれも invalid になること。AC10 の失敗警報の intent: U-T・U-Q の intent の decode は、subject が『${operation}/capacityRejected』の intent を受け、そのときだけ source.subject と subject の一致を求めず、代わりに source がその unit の報の subject の形で同じ operation であることを確かめる（ほかの intent の検査は今どおり）。本契約より前の保存物には失敗警報が無いので、そのまま読める。U-E・U-W・U-F の保存の形は変えない。旧版での再実行は印を保てない（Q-CC-SCHEMA、残存リスク(11)）。無いと何が壊れるか: 印を保存できないと再起動で印が消えて古い値を今の値として出し、所属を確かめないと別の記録の版で印が誤って消えるか消えなくなる（Pro §8.3 の復元の正直さ）",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:24 «34484a3e4707ee1e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:786 «312519f384672d04»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:797 «dc523517c10c957b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:808 «6a2982d4ce7396a8»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:27 «6102ac4d208bf7d7»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:30 «1446f8f68d93e352»",
+          "reconstruction/src/domains/seismic/seismic.ts:61 «c200b4f7c1ed4c6e»",
+          "reconstruction/contracts/p3-authority-evidence.json:29 «6340c11bb5747ff8»",
+          "reconstruction/contracts/p3-tsunami-unit.json:94 «934d7b48c0b68a8d»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «7c26b4f5f84b12c4»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:807 «3a7a53509c5c0fb5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:969 «c975357bd6cbd7ce»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:813 «3374b7a5c60a993b»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC06",
+        "requirement": "画面（chrome-eew、D-SHOW=A の形、Q-CC-WIRE）。(1) 状態行: buildCapacityExceededLine は item.unconfirmed.capacityExceeded と item.unavailable.capacityExceeded の和が 1 以上のとき行を出す（文言は D-SHOW=A: 『[通常] 緊急地震速報: 処理できていない報がある（容量超過）』、津波は『津波:』）。admission は読まない。件数は出さない（今の『容量超過 N 件』の N は無くなる、D-SHOW=A）。renderStatus は EEW に加えて津波の items にも行を出し、operationVisible も同じ判定を使う (2) 津波のカード: buildTsunamiPaint は印のある予報の card の head の前に『最終確認：』を付け、『HH:MM の情報を処理できていません』（印の source の ReportDateTime を formatJst）の行を足す。海岸線の塗り・区分・T6 の候補は変えない (3) 境界の検証: isItem は admission を見ず、unconfirmed と unavailable が record であることを確かめる。isTsunamiForecast は unavailable があるとき record で source.reportDateTimeRaw が文字列であることを確かめる (4) smoke（test/chrome-eew/smoke.mjs の P2-A9-T03 の AC04 の行）は新しい欄を読む。実走は統合担当（ブラウザの capture は親）。無いと何が壊れるか: 隠しを外した後、P3 の画面に失敗も未確認も出ない（Pro §8.2②『失敗と未確認が画面に持続表示される』）",
+        "evidenceRefs": [
+          "reconstruction/src/display/chrome-eew/pure.ts:181 «f25ff41a69c424b5»",
+          "reconstruction/src/display/chrome-eew/pure.ts:191 «0aea7027f7415b3f»",
+          "reconstruction/src/display/chrome-eew/pure.ts:291 «d1c3bff68f9db73c»",
+          "reconstruction/src/display/chrome-eew/pure.ts:353 «fc30d9b93992428a»",
+          "reconstruction/src/display/chrome-eew/client.ts:146 «50b8cb8803df0b34»",
+          "reconstruction/src/display/chrome-eew/client.ts:148 «7b0bdcb63b7e2604»",
+          "reconstruction/test/chrome-eew/smoke.mjs:486 «b1844b505527ac65»",
+          "reconstruction/src/display/chrome-eew/client.ts:20 «ad19cfb042985517»",
+          "reconstruction/src/display/chrome-eew/main.ts:66 «9dcaefc0dcee6105»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC07",
+        "requirement": "失敗そのものの記録（Pro §4.4 の消してはいけないもの『更新失敗そのものの記録』）。(1) DiagnosticReason と persistent-diagnostic-sink の reason の一覧に capacityRejected を 1 つ足す (2) 5 unit は容量で current にできなかった受信の入力ごとに WARN capacityRejected（component は unit の既存の名前、unit、inputId）を 1 行出す: U-E・U-T・U-Q の capacityExceeded（U-T の観測を含む）と U-T・U-Q の印、U-W の件数の印（weather-current.ts の addUnavailable）と byte の印と最終段の拒否、U-F の印と最終段の拒否。U-W の最終段の checkpointEncodeFailed はこの reason に替える（同じ入力に 2 行出さない） (3) 1 入力 1 行で、全件を走査しない。無いと何が壊れるか: 印が消えた後・再起動の後（確認状態は startup に戻る）に、どの報を処理できなかったかの記録がどこにも残らない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-shared-runtime.types.ts:281 «236713db9bc1ae14»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:40 «ee6e9f22b3f840e0»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:629 «107712d22a266c72»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:484 «4e01e89d8ae764d3»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC08",
+        "requirement": "owner から表示・配送まで 1 本で通す受入（Pro §8.3 の反例のうち本単位に当たるものと、拒否直後・再起動直後・別 subject の採用の競合）。owner-harness（in-process の OwnerHost と composition root）で、owner の受信から publisher の確認状態、A8 の snapshot、chrome-eew の pure 関数、A7 の配送の候補まで通す。容量を満たした初期 state は試験の中で作り、各 fixture が狙った状態で採用されたこと（duplicate・stale でないこと）を前提として確かめる（既存の unit 試験の境界入力の作り方。training の報は normal を退去しないので、training で満杯を作ってよい）。(1) 対象限定の失敗: U-T の観測 subject（VTSE51 32-39_11_10、EventID 20110311144640）の続報が station の上限で入らない → 観測には印を付けず U-T normal の whole=capacityExceeded、観測のまだ鳴っていない desktop の info の pending は title に時刻が付き、sound の pending は変わらない。続いて同じ event の VTSE41（32-39_11_11、大津波警報）を採用 → 予報が view、A8 の activeCount・highestSeverity specialWarning、chrome-eew の津波のカードと塗りに出て、その critical の intent が A7 の候補（normalTsunamiEmergency）に入る。津波の状態行が出る (2) 印を付けない拒否: U-E の family が満杯で退去の候補が無い state への新しい EventID → U-E normal の whole=capacityExceeded、EEW の状態行が出て、既存の EEW の card と pending は変わらない (3) 拒否直後の競合（両方の順）: (a) main が書き換えの前にその desktop の pending を選んで予約していた → 予約は採られ、試行は元の文面で鳴る (b) 書き換えの出力の後に選ぶ → 試行は時刻付きの文面で鳴る。どちらも同じ id なので期限は元のまま (4) 復元の正直さと保存の窓: 印と書き換えを含む世代（G+1）の保存の ack の後に再起動（同じ checkpoint から復元）→ 印は残り view と A8 に出る、書き換えた desktop の pending が書き換えた文面で元の期限まで候補に戻る、確認状態は startup で whole=capacityExceeded は無い。拒否の前の世代 G の保存中に拒否で G+1 になったときは、G の ack の後の再起動では印も書き換えも戻らない（G+1 の ack まで。既存の dirty の規則。3 秒の遅延の診断と 10 秒の権の監視は保存の完了の上限ではない、残存リスク(3)） (5) 再起動直後: 復元の直後に同じ subject の新しい報を採用 → 印が消え、新しい intent が出る (6) 中間の重要遷移（Pro §8.3）: U-T で津波警報の発令を採用し、その通知が配送される前（channel が使えない間）に同じ subject の続報が容量で入らない → 予報に印、発令の desktop の通知は title に『【HH:MM 発表】』が付いて元の期限まで配送の候補に残り、sound の通知は今の文面・段階のまま残る（痕跡を消さない）、画面は最終確認 (7) 遅れて届いた古い報: 記録より新しく印の source より古い報を採用 → 記録は新しくなり印は残る (8) U-Q: VXSE52（32-35_04_03、EventID 20100125161517、震度の無い報なので level normal の pending）で作った event に VXSE53（32-35_04_04）が byte の上限で入らない → event に family VXSE53 の印、U-Q normal の warning の失敗警報が入り（fixture の 32-35_04_04 は最大震度 4）、系統の VXSE52 の normal の pending は置き換わらず、その desktop の title に時刻が付く。その後に同じ VXSE53 を採用すると印が消える (9) U-Q の長周期: VXSE62 の版 3 が容量で入らず長周期の記録に印 → 印より古い版 2 の取消を採用 → 記録は取消（取消記憶だけ）になり、印は外れて U-Q normal の whole=capacityExceeded、取消は fit に拒否されない。(10) 期限の連続: 書き換えの後に壁時計を 30 秒戻しても、書き換えた desktop の通知は元の単調の期限で期限切れになる (11) 失敗警報（D-FAILNOTICE=A）: 既存の subject の津波警報→大津波警報の引上げが容量で入らない → U-T normal の固定の subject の critical の失敗警報（desktop『【処理できていません】大津波警報（HH:MM 発表）』と sound）が A7 の候補（normalTsunamiEmergency）に入り、同じ subject の古い pending は superseded にならず、D-PENDING の書き換えだけが当たる。置き換える軽い失敗警報を含めて追加の退去なしで収まらない state では入らない (12) 続いたとき: 同じ拒否報の再送、より古い報（津波警報）の拒否、別の subject の同じ段階の拒否では、失敗警報は作り直されず、既存の失敗警報の id・期限・配送の状態はそのまま。より重い段階の拒否は重い方（別の id）で置き換えて鳴る。昇格と予約の競合: (a) 旧い失敗警報の予約を owner が採る前に昇格した → 旧警報は superseded で、遅れて届いた予約の配送の更新を owner は採らず、main の遅い返信は試行を始めない (b) owner が予約を採って試行が始まった後に昇格した → 走行中の旧警報は A7 が superseded で止める。どちらも新しい失敗警報が次に選ばれる。失敗警報の intent が回収された後の拒否では再び鳴る。保存して再起動した後でも同じ (13) 採用の通知は base のまま: 同じ版・同じ InfoType の津波観測の fragment の採用は今どおり info の通知を作る。U-Q で VXSE52 を採用、VXSE53（震度 5 強）を拒否して warning の失敗警報、その後に古い VXSE51（震度 3）を採用して系統の pending が置き換わっても失敗警報は残り、後で同じ VXSE53 が採用されると今どおり warning の通知が作られる (14) 保存の台帳: 拒否の前の世代 G の保存中に、新しい subject の拒否で失敗警報だけが入って G+1 へ進む → G の ack の後も G+1 にその受信の inputId が帰属したまま残り、G+1 の保存の後の復元で失敗警報が戻る 試験は 1 振る舞い 1 本（AGENTS.md）",
+        "evidenceRefs": [
+          "reconstruction/test/execution-split/owner-harness.ts:18 «18884b6990f833a7»",
+          "reconstruction/contracts/p3-tsunami-unit.json:23 «9581ab14cf176cf9»",
+          "reconstruction/contracts/p2-shared-runtime.json:196 «d17a0f2a573dbe20»",
+          "reconstruction/src/checkpoint/checkpoint.ts:517 «a23f12fa904e1b83»",
+          "reconstruction/src/runtime/composition-root.ts:1222 «e3dfa141be792522»",
+          "reconstruction/src/runtime/composition-root.ts:1139 «c1316ed7219f7ac9»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:424 «66f98e5f9d8d1cb5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:550 «561a94aa843f3519»",
+          "reconstruction/src/runtime/owner-runtime.ts:454 «c0d82ea339f67c93»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC09",
+        "requirement": "既存の条文の改訂。統合担当が本契約の配送の commit で他の契約の原文を改訂する（本契約で読み替えを重ねない。計画§9 の表の行も同じ commit）。実装担当は他の契約の本文を変えない。改訂する条文: (1) P2-SHARED-RUNTIME-001: Q-R20-CLEAR（記録・解除・bounds・atomicity・restart）、P2-A1-ADMISSION-COUNTS、P2-A1-RES-04・RES-05、nonPersistedFields の admission、P2-A1-DISPLAY-CHANGES の port・coverage・revision の admission の扱い、P2-A1-AC09・T09 を除くか AC01・AC02 の形に書き直す。P2-A1-CONFIRMATION（adoption・bounds の whole）に capacityExceeded と上書きの規則（AC02(3)）を足し、DiagnosticReason の閉集合（E23 型境界の AC と試験）に capacityRejected を足す (2) P2-SNAPSHOT-SSE-001: P2-A8-SUMMARY.counts の admission と normal 公開 mask、P2-A8-NOTICE の mask の規則、P2-A8-T06 の admission の件数の検収を除き、unavailable に U-T・U-Q の印を足す (3) P2-EEW-UNIT-001 の P2-A4-AC10（rejection）と P2-A4-AC06（capacityExceeded は state 不変）、P2-WEATHER-CURRENT-UNIT-001 の R20 の AC と試験（rejection）と P2-A5-AC11 の最終段の診断（checkpointEncodeFailed→capacityRejected）、P2-WEATHER-TIMESERIES-UNIT-001 の a1Followup と R20 の AC と試験、P3-TSUNAMI-UNIT-001 の P3-C5-CAPACITY と Q-NOTICE（desktop の title の書き換えと拒否した報の通知の規則を足す）、P3-UNIT-Q-001 の P3-C7-CAPACITY と Q-NOTICE・P3-C7-REPLACEMENT（同） (4) P3-UNIT-TABLE-001 の UnitModule の AC（withoutNormal ほか 3 つの関数）、P3-EXECUTION-SPLIT-001 の publisher の mirror と publisher に残る状態の admissionCounts、P2-CHECKPOINT-SHUTDOWN-001 の A8 結線の AC の admission の受け渡し (5) P2-CHROME-EEW-001 の P2-A9-AC04 に状態行の規則（AC06）を足す (6) P3-UF-PUBLIC-001（先に配送）の view 引数の normalHidden、索引と時系列の制限の分岐、索引の revision の形、Q-UFP-MASK を除く (7) 起草案 P3-LIMIT-RULES-001 の S1 は本契約が置き換え、発注しない（Q-CC-LIMIT-RULES）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-shared-runtime.json:185 «29ba8e856b31cb23»",
+          "reconstruction/contracts/p2-shared-runtime.json:193 «f8873337c85ae55e»",
+          "reconstruction/contracts/p2-shared-runtime.json:195 «741a9df978fd6504»",
+          "reconstruction/contracts/p2-shared-runtime.json:200 «05df9ab852c4748c»",
+          "reconstruction/contracts/p2-shared-runtime.json:222 «52057b2b7c0d6d41»",
+          "reconstruction/contracts/p2-shared-runtime.json:223 «0b4b49e3c0513e40»",
+          "reconstruction/contracts/p2-shared-runtime.json:224 «c52590ad414c86db»",
+          "reconstruction/contracts/p2-shared-runtime.json:234 «1ae8618b6fd2bc69»",
+          "reconstruction/contracts/p2-shared-runtime.json:480 «6f56c9cd1795295d»",
+          "reconstruction/contracts/p2-shared-runtime.json:525 «2f67e915a92be220»",
+          "reconstruction/contracts/p2-shared-runtime.json:559 «22045b8685694af9»",
+          "reconstruction/contracts/p2-shared-runtime.json:627 «49a76768f1142a92»",
+          "reconstruction/contracts/p2-snapshot-sse.json:63 «32915a667011cad6»",
+          "reconstruction/contracts/p2-snapshot-sse.json:81 «26b1d53738cf5a4e»",
+          "reconstruction/contracts/p2-snapshot-sse.json:562 «c9edbab1e5aa7528»",
+          "reconstruction/contracts/p2-eew-unit.json:434 «e855e595879c158a»",
+          "reconstruction/contracts/p2-eew-unit.json:471 «84d603e1d95edf9f»",
+          "reconstruction/contracts/p2-weather-current-unit.json:443 «a91d1d385759e031»",
+          "reconstruction/contracts/p2-weather-current-unit.json:468 «9c7e9328a0e9d699»",
+          "reconstruction/contracts/p2-weather-current-unit.json:576 «950b1f465c3e3cce»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:185 «c69fc0dc457551ab»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:491 «d522e1184f283582»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:558 «6396463efdfec96b»",
+          "reconstruction/contracts/p3-tsunami-unit.json:204 «18010453b64bb5b1»",
+          "reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1»",
+          "reconstruction/contracts/p3-unit-table.json:263 «29d3a9cb870f7ba8»",
+          "reconstruction/contracts/p3-execution-split.json:558 «26debae86a97f944»",
+          "reconstruction/contracts/p3-execution-split.json:674 «39106d201ec3494b»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:465 «0e1ebf1db9f7b58d»",
+          "reconstruction/contracts/p2-chrome-eew.json:442 «c7b2c056e3f8073e»",
+          "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»"
+        ]
+      },
+      {
+        "id": "P3-CC-AC10",
+        "requirement": "拒否した報の失敗警報（D-FAILNOTICE=A、作者裁定 2026-10-15 の形）。(1) 置き場: unit の既存の intents に、unit×operation ごとの固定の subject『${operation}/capacityRejected』を持つ intent として置く。新しい欄は足さない（intent は既に保存され、段階・時刻・配送の状態を持つ）。publisher の確認状態（whole=capacityExceeded）には結び付けない（確認状態は publisher にあり、owner は拒否した報の段階と題名を知る側で、通知を作るのは owner、P3-X-C6） (2) 作る条件: U-T・U-Q の adopt で fit が null を返したとき、拒否した報の fresh の level の最大が warning か critical で、同じ unit×operation の失敗警報の intent（pending か終端記録、channel によらない）の level の最大がそれより軽いか、そういう intent が無いとき。段階の順は info < normal < warning < critical (3) 形: fresh のうち level が最大の intent ごと（channel は fresh と同じ。normal は desktop と sound、training・test は desktop だけ）に 1 つ。id は『<unit>:capacityRejected:<operation>:<世代>:<channel>』（世代は拒否の reduce の後の currentGeneration）、subject は (1) の固定の subject、source は拒否した報の ReportRef、level・channel・transition は fresh のまま、createdAt と nextAttemptAt は拒否の時計、expiresAt はその unit の TTL（sound 60 秒・desktop 180 秒、U-T・U-Q とも）、attempts 0、disposition pending。title は訓練・試験の接頭辞の後に『【処理できていません】』と元の題名（fresh の title から接頭辞を除いたもの）と『（HH:MM 発表）』（HH:MM は拒否した報の ReportDateTime を JST にしたもの）、body は固定の 1 文 (4) 置換: 同じ unit×operation の pending の失敗警報で、新しいものより軽いものだけを superseded にする（失敗警報どうしだけ。走行中なら A7 が止める）。subject の pending には触れない（置き換えも superseded もしない）。既存の admit は通さない (5) 収める: 新しい失敗警報（と置き換える軽い失敗警報）を足した state が、通知の上限（件数・byte、予約込み）と世代の上限（fit）に、ほかの pending や記録を退去させずに収まるときだけ当てる。U-Q では、昇格で終端記録へ移る軽い失敗警報を含めた終端記録の byte が TERMINAL_BYTES（131,072）を越えるときも当てない（昇格ごと不採用。終端記録を上限まで回収するのは admit の中だけなので、admit を通さないこの経路では回収せず、越えない形で守る）。収まらなければ当てない（置き換えもしない。置き換えるはずだった軽い失敗警報の pending と、その予約はそのまま） (6) 続いたとき: 同じ拒否報の再送・古い報の遅着・別の subject の拒否が、同じか軽い段階なら鳴らさず、既存の失敗警報の id・期限・配送の状態はそのまま。重い段階なら重い方で置き換えて鳴らす（段階は上げるだけで下げない）。失敗警報の intent が state から回収された後（最長でその期限、desktop 180 秒。U-Q は終端記録の上限の回収で早まりうる）は、次の拒否で再び鳴りうる。publisher の未確認が消えるまで待たないのは、owner がその状態を持たず、台帳 85 が開いている間はその run で二度と鳴らなくなるから (7) 再起動: 失敗警報の intent は保存されるので、pending は元の期限まで配送の候補に戻り（Q-NOTICE.restart と同じ扱い）、(6) の判定も続く (8) D-PENDING の書き換えは失敗した系列（subject・lineOf）の pending だけに当たるので、失敗警報は書き換わらない（title の時刻の印は付かない） (9) 採用の通知・置換・取消の全置換には何も足さない（平常の振る舞いは base のまま）。decision は今どおり（印を付けたなら changed、付けなければ capacityExceeded）。正の確認の証拠は返さない。保存の台帳: 失敗警報と D-PENDING の書き換えだけで世代が進む受信（decision は capacityExceeded）も dirty にし、その受信の inputId をその世代に帰属させる（owner-runtime の受信の帰属の条件を『世代が進み decision が changed』から『世代が進み decision が changed か capacityExceeded』に広げる。帰属は保存した世代に含まれる入力の台帳で、正常採用の扱いにはしない、P2-A3-AC10。今の capacityExceeded の経路は 5 unit とも世代を進めず、U-W の印の経路は changed を返すので、広げて帰属が変わるのは本契約の U-T・U-Q の経路だけで、既存の試験の期待は変わらない） (10) U-E・U-W・U-F には当てない（Q-CC-UE。U-W・U-F は通知を作らない） (11) 計算量: 拒否のときだけ intents を 1 回なめる（失敗警報の段階を求める）。平常の受信には何も足さない。B なら作らない。無いと何が壊れるか: 既存の subject の津波警報→大津波警報の引上げや新しい地震の震度 5 強が容量で入らないと、その段階の音がどこからも鳴らない",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:369 «d5c6ed05dd9cc02d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:492 «c65904dc9be789ab»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:493 «46c0c5316dc012ab»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:495 «77729fcd5f20ca0c»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:119 «71c1d7d434117f2d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:139 «50b8d73592bcc0c4»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:155 «f65442d3bbd1fa57»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:162 «433e4cdfa4e77e5d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:424 «66f98e5f9d8d1cb5»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:474 «d19790ea34d6f92b»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:550 «561a94aa843f3519»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:574 «34d74f126790ef99»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:387 «98d9dd9eda28aa06»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:613 «c050c5f77e6e1ce5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:619 «4c9634c2f0afba12»",
+          "reconstruction/src/domains/eew/eew.ts:490 «4cf8acc86bfa0649»",
+          "reconstruction/src/domains/eew/eew.ts:606 «f771288ec61f5f21»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:21 «610e2251eb0ae3de»",
+          "reconstruction/contracts/p3-tsunami-unit.json:23 «9581ab14cf176cf9»",
+          "reconstruction/contracts/p3-tsunami-unit.json:67 «4518a73cff7d4157»",
+          "reconstruction/contracts/p3-tsunami-unit.json:103 «b94b6ddb84f1a5cc»",
+          "reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3»",
+          "reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1»",
+          "reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f»",
+          "reconstruction/src/runtime/owner-runtime.ts:452 «f6c5c0c9769fbe2a»",
+          "reconstruction/src/runtime/owner-runtime.ts:453 «524e871f6bd8a681»",
+          "reconstruction/src/runtime/owner-runtime.ts:454 «c0d82ea339f67c93»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:28 «07c74e7bd693ca87»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:408 «51f30617cb6c39cb»",
+          "reconstruction/src/runtime/composition-root.ts:1180 «1a1621ed24aadde6»",
+          "reconstruction/src/runtime/owner-runtime.ts:481 «6af0a32f7c614e1c»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:64 «f04614abff120d81»",
+          "reconstruction/src/runtime/owner-runtime.ts:273 «29b451e1757a3dc4»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:622 «77729fcd5f20ca0c»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:479 «702b80d62b5d9c62»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:229 «539616777ccf4b0d»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:454 «654add7b0350704c»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-CC-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-CC-AC01",
+          "P3-CC-AC08"
+        ],
+        "behavior": "監査 C1 の再発防止（対象限定の失敗、AC08(1)）: U-T の観測の続報が station の上限で入らなくても、同じ event の VTSE41 の大津波警報が view・A8・chrome-eew の津波のカードと塗りに出て、その critical の intent が A7 の候補に入る。観測は印なしのまま U-T normal が未確認（capacityExceeded）になり、津波の状態行が出る"
+      },
+      {
+        "testId": "P3-CC-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC02",
+          "P3-CC-AC06",
+          "P3-CC-AC08"
+        ],
+        "behavior": "印も入らない拒否（AC08(2)）: U-E の満杯の family への新しい EventID で、U-E normal の whole が capacityExceeded、snapshot の unconfirmed.capacityExceeded が 1、EEW の状態行が出て、既存の EEW の card と pending は変わらない"
+      },
+      {
+        "testId": "P3-CC-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC02"
+        ],
+        "behavior": "whole=capacityExceeded の消える条件と counts: 切断・scope 容量の畳み・別 subject の acceptedReport の後も capacityExceeded のまま、unit を覆う coverageVerified で null になる。同じ slot に負の証拠を 2 回重ねても whole の 1 は増えず、scope の確認と退役で whole の 1 は減らない"
+      },
+      {
+        "testId": "P3-CC-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC03"
+        ],
+        "behavior": "印の消える条件と引き継ぎの境界（AC08(7)）: 印の source より古い報の採用で印が残り、同じ版と新しい版の採用（取消を含む。取消なら現況は取消後）で消え、U-Q の別 family の採用では残る"
+      },
+      {
+        "testId": "P3-CC-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC03",
+          "P3-CC-AC04"
+        ],
+        "behavior": "印が世代の上限に収まらない state では印を付けず capacityExceeded を返し、系列の desktop の title の書き換えだけが state に入る。書き換えも追加の退去なしで収まらないときは元の文面のまま残り、ほかの記録・pending は退去しない"
+      },
+      {
+        "testId": "P3-CC-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC04",
+          "P3-CC-AC08"
+        ],
+        "behavior": "拒否直後の競合（AC08(3)、両方の順）: 書き換えの前に予約された desktop の試行は元の文面で鳴り、書き換えの後に選ばれた試行は時刻付きの文面で鳴る。どちらも id と期限は元のまま"
+      },
+      {
+        "testId": "P3-CC-T07",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC05",
+          "P3-CC-AC08"
+        ],
+        "behavior": "復元の正直さと保存の窓（AC08(4)）: 印と書き換えの世代の ack の後の再起動で、印が view と A8 に出て、書き換えた desktop の pending が書き換えた文面で候補に戻り、確認状態は startup。拒否の前の世代の ack だけで再起動すると印と書き換えは戻らない"
+      },
+      {
+        "testId": "P3-CC-T08",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC03",
+          "P3-CC-AC08"
+        ],
+        "behavior": "再起動直後（AC08(5)）: 復元の直後に同じ subject の新しい報を採用すると印が消え、新しい intent が出る"
+      },
+      {
+        "testId": "P3-CC-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC05"
+        ],
+        "behavior": "保存の移行の 1 セット（AC05）: 鍵の無い旧保存物が restored で印なし、印のある U-T の予報と U-Q の event・長周期が encode→decode で同じ state に戻り、不正な印（reason・source の欠け・別 operation・別 subject・別 EventID・event に VXSE62・観測の記録・取消記憶だけの記録・U-Q の family の重複と 5 件）が invalid。失敗警報の intent（固定の subject、source は別 subject の報）が restored になり、source が別 unit・別 operation の失敗警報は invalid"
+      },
+      {
+        "testId": "P3-CC-T10",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC06"
+        ],
+        "behavior": "chrome-eew: 津波の items の unavailable.capacityExceeded で津波の状態行が出て、印のある予報の card の head に『最終確認：』と『HH:MM の情報を処理できていません』が付き、塗りは印の無いときと同じ"
+      },
+      {
+        "testId": "P3-CC-T11",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC07"
+        ],
+        "behavior": "U-E・U-T・U-Q・U-W・U-F の容量の拒否と印の入力ごとに WARN capacityRejected が 1 行出て、U-W の最終段に checkpointEncodeFailed が出ない"
+      },
+      {
+        "testId": "P3-CC-T12",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC04",
+          "P3-CC-AC08"
+        ],
+        "behavior": "中間の重要遷移（Pro §8.3、AC08(6)）: 津波警報の発令の通知が配送される前に同じ subject の続報が容量で入らなくても、発令の desktop の通知は title に『【HH:MM 発表】』が付いて元の期限まで配送の候補に残り、sound の通知は元のまま残り、予報は印付きの最終確認で出る"
+      },
+      {
+        "testId": "P3-CC-T13",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC03",
+          "P3-CC-AC04",
+          "P3-CC-AC08"
+        ],
+        "behavior": "U-Q（AC08(8)）: VXSE52 で作った event に VXSE53（最大震度 4）が byte の上限で入らないと family VXSE53 の印が付き、U-Q normal の warning の失敗警報が入り、系統の VXSE52 の pending は置き換わらず desktop の title に時刻が付く。同じ VXSE53 の採用で印が消える"
+      },
+      {
+        "testId": "P3-CC-T14",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC03",
+          "P3-CC-AC02"
+        ],
+        "behavior": "U-Q の長周期（AC08(9)）: VXSE62 の版 3 の拒否で印が付いた後に版 2 の取消を採用すると、記録は取消記憶だけになって印が外れ、U-Q normal の whole が capacityExceeded になり、取消は fit に拒否されない"
+      },
+      {
+        "testId": "P3-CC-T15",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC04",
+          "P3-CC-AC08"
+        ],
+        "behavior": "期限の連続（AC08(10)）: desktop の title を書き換えた後に壁時計を 30 秒戻しても、その通知は元の単調の期限で期限切れになり、id は変わらず、書き換えの後も配送の候補に残って予約の配送の更新が採られる。sound の pending は書き換わらない"
+      },
+      {
+        "testId": "P3-CC-T16",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CC-AC10",
+          "P3-CC-AC08"
+        ],
+        "behavior": "失敗警報（AC08(11)）: 既存の subject の津波警報→大津波警報の引上げが容量で入らないと、固定の subject の critical の失敗警報（desktop『【処理できていません】大津波警報（HH:MM 発表）』と sound）が A7 の候補に入り、同じ subject の pending は superseded にならない。拒否した報が注意報以下・観測・取消なら失敗警報は入らない"
+      },
+      {
+        "testId": "P3-CC-T17",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC10",
+          "P3-CC-AC08"
+        ],
+        "behavior": "失敗警報が収まらない state（世代の上限ちょうど、通知の件数・byte の上限、U-Q で昇格の後の終端記録が 131,072 byte を越える）では失敗警報を入れず昇格もせず、置き換えるはずだった軽い失敗警報の pending とその予約は生き残り、ほかの pending と記録は退去しない"
+      },
+      {
+        "testId": "P3-CC-T18",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC10",
+          "P3-CC-AC08"
+        ],
+        "behavior": "続いたとき（AC08(12)）: 同じ拒否報の再送・古い報の拒否・別の subject の同じ段階の拒否では失敗警報は作り直されず、id・期限・配送の状態はそのまま。重い段階の拒否は軽い失敗警報を別の id の重い警報で置き換えて鳴り、旧警報の予約を owner が採る前の昇格では遅い返信で旧試行が始まらず、採った後の昇格では走行中の旧試行が止まり、どちらも新しい警報が選ばれる。失敗警報の intent が回収された後の拒否では再び鳴る。保存して再起動した後でも判定は同じ"
+      },
+      {
+        "testId": "P3-CC-T19",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-CC-AC10",
+          "P3-CC-AC08"
+        ],
+        "behavior": "採用の通知は base のまま（AC08(13)、4 巡目のレビューの 2 経路）: 同じ版・同じ InfoType の津波観測の fragment の採用は info の通知を作る。U-Q の VXSE52 採用→VXSE53 拒否（warning の失敗警報）→古い VXSE51 の採用で系統の pending が置き換わっても失敗警報は残り、後で VXSE53 が採用されると warning の通知が作られる"
+      },
+      {
+        "testId": "P3-CC-T20",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CC-AC10",
+          "P3-CC-AC08"
+        ],
+        "behavior": "保存の台帳（AC08(14)、P2-A3-AC10）: 世代 G の保存中に新しい subject の拒否で失敗警報だけが入って G+1 へ進むと、G+1 にその受信の inputId が帰属し、G の ack の後も残る。decision は capacityExceeded のまま"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash の検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O07 の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。本契約の evidence の行が実装で動いた FAIL は想定内で、統合担当が配送の commit で付け直す。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査と reconstruction/dist/ の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew の dist（pure.ts・client.ts を変える）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えても緑（確認状態・印は instance と unit の state にだけ持ち、module の変数にしない）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowed_paths",
+        "stage": "implementation",
+        "purpose": "空白の検査"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "消した仕組みの表（file ごとの消した行数）と足した行数。足した仕組み（SubjectUnavailable と印の鍵、CurrentConfirmationEvidence の負の変種、UnconfirmedReason の capacityExceeded、DiagnosticReason の capacityRejected、D-PENDING=A の desktop の title の書き換え、D-FAILNOTICE=A の失敗警報〔固定の subject の intent と decode の受け口〕、chrome-eew の行と card の文言）ごとに『無いと何が壊れるか』を 1 行",
+      "追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行。期待値を変えた・消した既存の試験の名前と理由（Q-CC-EXISTING-TESTS）",
+      "残存リスク（2026-10-15 作者承認済み）: (1) 台帳 85 が開いている間、容量の未確認（whole=capacityExceeded）はその run の間消えない。回復の契約が coverageVerified を作るまで (2) 再起動で確認状態は startup から始まり、容量という理由の名前は消える（未確認のまま。どの報かは診断のファイルにだけ残る） (3) 印と書き換えを含む世代の保存の ack の前に落ちて再起動すると、印は戻らず、desktop の pending は時刻なしの元の文面で元の期限の内なら鳴りうる。保存の失敗が続けば窓は元の期限まで残る（3 秒・10 秒は保存の完了の上限ではない）。拒否の前の世代の ack では印も書き換えも保存されていない (4) D-PENDING=A では、失敗した報が解除・引下げだったときも、まだ鳴っていない発令・引上げの通知が元の期限（音 60 秒・desktop 180 秒）まで鳴る。時刻が付くのは desktop の文面だけで、音は今の通知と同じ段階の音で過去の出来事と区別できず、desktop が使えない環境では音だけが鳴る（画面は最終確認と未確認を出す） (5) D-SHOW=A では、最新を処理できていない警報を件数・塗りでは今の警報と同じに数える。U-W・U-F の印は現況から外す形のままで、分野によって数え方が違う。状態行は件数を出さない (6) U-E は印を持たない。同じ EventID の別 family が採用済みのとき、その EEW の card は印なしで出る（拒否は状態行で分かる）。到達には同じ family の新しい EventID が 10 分の内に 512 件要る (7) U-T の観測は印を持たない。観測の拒否は U-T 全体の未確認になり、どの観測が古いかは画面から分からない（観測の記録は最終の値のまま出る） (8) 印は fit の内に収まるときだけ付く。世代の上限ちょうどでは印も入らず、記録は印なしの古い値のまま出る（unit/operation の未確認と状態行だけで分かる）。印のある記録が容量の退去で消えると印も消える（退去そのものは監査 B2・C10 の範囲外） (9) chrome-eew は U-Q・U-W・U-F とほかの分野を描かないので、その印と未確認は snapshot にだけ出る（画面は P4） (10) snapshot の schemaVersion を 1 のまま admission の欄を除くので、本契約より前の chrome-eew を開いたままのタブは再読込まで新しい snapshot を不正として捨てる（heartbeat は今どおり採るので『更新未確認の最終情報』の帯も出ず、更新の前の表示のまま止まる） (11) 本契約の保存物を本契約より前の版で開くと、印なしの古い値を今の値として出し、保存し直すと印が消える（schemaVersion を v1 のままにするため）。失敗警報の intent が残っている保存物（失敗警報から最長 180 秒の間に保存したもの）は、旧版の decode が拒み、その unit は空から始まる (12) 回復の契約が照合の包含の範囲を持たないまま coverageVerified を作ると、照合の後の容量の拒否まで消える（Q-CC-LEDGER85 の条件で防ぐ） (13) main が書き換えの前に選んで予約した試行は元の文面で鳴り、書き換えが追加の退去なしで収まらないときも元の文面のまま鳴る (14) 拒否した報そのものの通知は鳴らない。D-FAILNOTICE=A の失敗警報が鳴るのは、その報の段階が warning 以上のときだけで、注意報以下・観測・取消の報の拒否は画面の状態行だけで分かる（U-Q は (9) のとおり今の画面に出ず snapshot だけ） (15) 失敗警報は、拒否が世代か通知の上限ちょうどで起きると収まらず出ない。後で拒否した報より新しい報が採用されると、記録が古いままなので引上げとしてもう一度鳴る (16) 失敗警報は unit×operation で 1 つなので、同じか軽い段階の拒否が続く間（失敗警報の intent が残る間）は、別の subject の拒否でも鳴らない（画面の印と状態行で分かる。U-Q は (9) のとおり snapshot だけ）。失敗警報の intent が回収された後（最長 180 秒、U-Q は終端記録の上限で早まりうる）は同じ段階の拒否でも再び鳴る (17) 同じ拒否報を後で正常に採用すると、失敗警報（subject の通知と切り離してあるので置き換わらない）と通常の通知の両方が鳴りうる (18) 同じ subject の正常な取消を採用した後も、失敗警報は期限（最長 180 秒）まで残り、まだ鳴っていなければ鳴る"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-CC-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "P3-UF-PUBLIC-001 の配送の後の発注前点検（統合担当、点検の commit への割当、Q-CC-ORDER）",
+        "requiredEvidence": [
+          "発注前に、配送版の P3-UF-PUBLIC-001 と U-F の file（weatherTimeseriesDetail の view 引数、索引と時系列の制限の分岐、索引の revision の形）を読み直し、AC01(5) の除去の当て先を確かめる（U-F は直し中で、起草の時点の形から変わりうる）",
+          "baseOid の割当。割当の時点で本契約の anchor のずれが 0 件であることを check-contract で確かめる",
+          "先に配送された契約で動いた行を引く anchor の付け直し"
+        ]
+      },
+      {
+        "id": "Q-CC-EXISTING-TESTS",
+        "owner": "implementer",
+        "blocks": [
+          "期待値を変える既存の試験の変更"
+        ],
+        "resolveBy": "実装の途中、変える前に報告",
+        "requiredEvidence": [
+          "期待値が変わる・消える既存の試験の名前と理由。見込み: shared-runtime.test.ts の P2-A1-ADMISSION-COUNTS・P2-A1-T09・P2-A1-T12、integration/unit-wiring.test.ts の admission の記録の解除、execution-split.test.ts の admissionCounts、checkpoint-shutdown の review-regressions.test.ts と runtime-fixture.ts、snapshot-sse の startup.test.ts の mask の時刻・boundaries.test.ts と cost.test.ts の admission の件数・http-sse.test.ts・projection-fixture.ts、chrome-eew の pure.test.ts・tsunami.test.ts の items の形、各 unit 試験の rejection の期待と contentRevision の形（\"1:0\" など）、各 *-corpus.test.ts（briefing・flood・landslide・local-bulletins・typhoon・volcano）の view の admission、weather-current-unit.test.ts の最終段の拒否の診断（checkpointEncodeFailed→capacityRejected）、P3-UF-PUBLIC-001 が足す mask の試験（Q-UFP-MASK、P3-UFP-T02 の制限の間の hidden の step、P3-UFP-T06 の『normal の制限の間は索引に載らずページは versionChanged』）と詳細の口の試験の期待値（索引の件数〔normal も載る〕と revision の形〔admission の 3 bit が消える〕、P3-UFP-T10 の HTTP の revision の検査）"
+        ]
+      },
+      {
+        "id": "Q-CC-SMOKE",
+        "owner": "integrator",
+        "blocks": [
+          "本契約の閉鎖"
+        ],
+        "resolveBy": "配送の後",
+        "requiredEvidence": [
+          "chrome-eew の smoke（P2-A9-T03 の AC04 の行）をブラウザで実走し直した記録（容量の行が新しい欄で出ること）"
+        ]
+      }
+    ]
+  }
+}
