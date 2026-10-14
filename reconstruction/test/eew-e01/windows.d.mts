@@ -16,7 +16,7 @@ export function e05sSplit(rows: Record<string, readonly { k: string; atMs: numbe
   options?: { starts?: readonly { place: string | null; atMs: number; inputId: string }[]; mem?: readonly { perfNowMs: number; rss: number }[]; fromMs?: number | null; toMs?: number | null }): {
   threads: Record<string, { rows: number; maxGapMs: number | null; lastMs: number | null }>;
   publisherMax: { atMs: number; rss: number } | null;
-  spans: { status: "rowsMissing" | "noPeakEnd" | "stale" | "busy" | "ok"; peak: { atMs: number; rss: number } | null; floor: { atMs: number; rss: number } | null; eBytes: number | null;
+  spans: { status: "rowsMissing" | "noPeakEnd" | "stale" | "busy" | "ok"; deferredStatus: "rowsMissing" | "noPeakEnd" | "stale" | "busy" | "ok"; peak: { atMs: number; rss: number } | null; floor: { atMs: number; rss: number } | null; eBytes: number | null;
     threads: Record<string, { peak: { atMs: number; ageMs: number; U: number; V: number; X: number; A: number } | null; floor: { atMs: number; ageMs: number; U: number; V: number; X: number; A: number } | null;
       delta: { U: number; V: number; X: number; A: number } | null; busy: { side: "peak" | "floor"; atMs: number; inputId?: string; gc?: number }[] }>;
     residual: { peak: number | null; floor: number | null; delta: number | null }; gBytes: number | null; peakAttribution: "未確定（取り逃し）" | null }[] };

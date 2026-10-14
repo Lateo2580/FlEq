@@ -1073,7 +1073,7 @@ async function e05sOutcome(ctx, w, id, probe, { host, records, start, end, healt
   o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, contractId: E05S_CONTRACT,
     constants: { sampleEveryMs: E05C.sampleEveryMs, floorMs: E05S.floorMs, staleMs: E05S.staleMs, fromOffsetMs: E05S.fromOffsetMs, peakOffsetMs: E05Y.peakOffsetMs,
       afterPeakMs: E05Y.afterPeakMs, runs: E05S.runs, forcedGc: false },
-    note: "E02・E05 は報告だけ（P3-E05S-AC02(7)）。時刻は host の時計（probe は publisher の基準）、値は byte。threads の U・V・X・A は heapUsed・heapTotal−heapUsed・external・arrayBuffers、residual は publisher の rss−4 thread のΣ(U＋V＋X)。gBytes は同じ区間の mem 行の最大−t_p の rss（0 未満は 0）で、0 より大きい区間は頂点の帰属が未確定。maxRss.spanCycle が null は区間外",
+    note: "E02・E05 は報告だけ（P3-E05S-AC02(7)）。時刻は host の時計（probe は publisher の基準）、値は byte。threads の U・V・X・A は heapUsed・heapTotal−heapUsed・external・arrayBuffers、residual は publisher の rss−4 thread のΣ(U＋V＋X)。deferredStatus は deferred の側だけの成否（AC02(5)）。gBytes は同じ区間の mem 行の最大−t_p の rss（0 未満は 0）で、0 より大きい区間は頂点の帰属が未確定。maxRss.spanCycle が null は区間外",
     measureHostMs: { fromMs, toMs }, threads: Object.fromEntries(E12_THREADS.map((p) => [p, { ...split.threads[p], writtenMs: written[p] ?? null }])),
     spans: split.spans.map((s) => ({ ...s, peakSinceMeasureStartMs: s.peak == null ? null : s.peak.atMs - fromMs,
       peakSincePeakEndMs: s.peak == null || s.peakEndHostMs == null ? null : s.peak.atMs - s.peakEndHostMs })),
@@ -1159,10 +1159,14 @@ export function e05sSplit(rows, spans, { starts = [], mem = [], fromMs = null, t
     const rowsMissing = floor == null || (s.toHostMs != null && peak == null) || sides.some((v) => Object.values(v).includes(null));
     const stale = sides.some((v) => Object.values(v).some((x) => x != null && x.ageMs > E05S.staleMs));
     const status = rowsMissing ? "rowsMissing" : s.toHostMs == null ? "noPeakEnd" : stale ? "stale" : Object.keys(busy[k]).length > 0 ? "busy" : "ok";
+    // deferredStatus（作者裁定 B、Q-E05S-PRELIM1）: S1 は deferred の値だけで決まるので、publisher の山・床の行と deferred の側だけを同じ順で見る。
+    const deferred = sides.map((v) => v.deferred);
+    const deferredStatus = floor == null || (s.toHostMs != null && peak == null) || deferred.includes(null) ? "rowsMissing" : s.toHostMs == null ? "noPeakEnd"
+      : deferred.some((x) => x.ageMs > E05S.staleMs) ? "stale" : busy[k].deferred != null ? "busy" : "ok";
     const O = { peak: residual(point.peak, peak), floor: residual(point.floor, floor) };
     const memMax = memTop.spans[k];
     const gBytes = memMax == null || peak == null ? null : Math.max(0, memMax.rss - peak.rss);
-    return { ...s, status, peak: at(peak), floor: at(floor), eBytes: peak == null || floor == null ? null : peak.rss - floor.rss,
+    return { ...s, status, deferredStatus, peak: at(peak), floor: at(floor), eBytes: peak == null || floor == null ? null : peak.rss - floor.rss,
       threads: Object.fromEntries(E12_THREADS.map((p) => {
         const [a, b] = [point.peak?.[p] ?? null, point.floor?.[p] ?? null];
         return [p, { peak: a, floor: b, delta: a == null || b == null ? null : { U: a.U - b.U, V: a.V - b.V, X: a.X - b.X, A: a.A - b.A }, busy: busy[k][p] ?? [] }];

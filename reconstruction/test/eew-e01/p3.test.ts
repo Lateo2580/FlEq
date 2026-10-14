@@ -610,17 +610,24 @@ describe("P3-E05S-T02 the peak and floor rows, the per-thread values and the unc
       eBytes: 110 * MiB, residual: { peak: 400 * MiB - 664_880, floor: 290 * MiB - 575_280, delta: 110 * MiB - 89_600 } });
     expect([base.threads.publisher.peak, base.threads.deferred.peak, base.threads.urgent.floor, base.threads.deferred.delta]).toMatchObject([{ atMs: 104_000, ageMs: 0 },
       { atMs: 103_850, ageMs: 150, U: 103_850, V: 51_925, X: 10_385, A: 2_077 }, { atMs: 89_850, ageMs: 150, U: 89_850 }, { U: 14_000, V: 7_000, X: 1_400, A: 280 }]);
-    // weatherCurrent の t_p の行を 103,000（古さ 1,000ms）にすると ok、102,999（1,001ms）にすると stale。
-    const wcAt = (atMs: number) => ({ ...rows, weatherCurrent: [...rows.weatherCurrent.filter((r) => r.atMs <= 102_850), row("weatherCurrent", atMs),
-      ...rows.weatherCurrent.filter((r) => r.atMs > 104_000)] });
+    // t_p の行を 103,000（古さ 1,000ms）にすると ok、102,999（1,001ms）にすると stale。deferred の行なら deferredStatus も同じ（処理の始まりは置かない）。
+    const peakRowAt = (place: keyof typeof rows, atMs: number) => ({ ...rows, [place]: [...rows[place].filter((r) => r.atMs <= 102_850), row(place, atMs),
+      ...rows[place].filter((r) => r.atMs > 104_000)] });
+    const wcAt = (atMs: number) => peakRowAt("weatherCurrent", atMs);
     expect([split(wcAt(103_000)).status, split(wcAt(102_999)).status]).toEqual(["ok", "stale"]);
+    expect([split(peakRowAt("deferred", 103_000), { starts: [] }).deferredStatus, split(peakRowAt("deferred", 102_999), { starts: [] }).deferredStatus]).toEqual(["ok", "stale"]);
     // 採った行（103,850）と t_p の間の deferred の GC と、t_p ちょうどの処理の始まりは、時刻の順に busy（右は閉じる）。床の側の処理の始まりも同じ。
     const withGc = { ...rows, deferred: [...rows.deferred, { k: "gc", place: "deferred", atMs: 103_900, kind: 1, durationMs: 2 }] };
     const gc = split(withGc, { starts: [{ place: "deferred", atMs: 104_000, inputId: "input-3" }] });
-    expect([gc.status, gc.threads.deferred.busy]).toEqual(["busy", [{ side: "peak", atMs: 103_900, gc: 1 }, { side: "peak", atMs: 104_000, inputId: "input-3" }]]);
+    expect([gc.status, gc.deferredStatus, gc.threads.deferred.busy]).toEqual(["busy", "busy", [{ side: "peak", atMs: 103_900, gc: 1 }, { side: "peak", atMs: 104_000, inputId: "input-3" }]]);
+    // deferred が ok で weatherCurrent だけが山の側で busy（採った行 103,850 と t_p の間の minor GC）なら、区間は busy で deferredStatus は ok（Q-E05S-PRELIM1）。
+    const wcBusy = split({ ...rows, weatherCurrent: [...rows.weatherCurrent, { k: "gc", place: "weatherCurrent", atMs: 103_900, kind: 1, durationMs: 0.3 }] });
+    expect([wcBusy.status, wcBusy.deferredStatus, wcBusy.threads.weatherCurrent.busy]).toEqual(["busy", "ok", [{ side: "peak", atMs: 103_900, gc: 1 }]]);
     const started = split(rows, { starts: [{ place: "urgent", atMs: 89_900, inputId: "input-2" }] });
     expect([started.status, started.threads.urgent.busy]).toEqual(["busy", [{ side: "floor", atMs: 89_900, inputId: "input-2" }]]);
-    expect(split(rows, {}, { fromHostMs: 100_000, toHostMs: null }).status).toBe("noPeakEnd");
+    const ended = split(rows, {}, { fromHostMs: 100_000, toHostMs: null });
+    expect([ended.status, ended.deferredStatus]).toEqual(["noPeakEnd", "noPeakEnd"]);
+    expect(split({ ...rows, deferred: rows.deferred.filter((r) => r.atMs > 90_000) }).deferredStatus).toBe("rowsMissing");
     // 重なったときの優先: 行の欠け（urgent に t_f 以前の行が無い）は終わりの無い区間・busy より先、終わりの無い区間は床の stale より先、stale は busy より先。
     const noEnd = { fromHostMs: 100_000, toHostMs: null };
     const urgentLate = { ...withGc, urgent: rows.urgent.filter((r) => r.atMs > 90_000) };
