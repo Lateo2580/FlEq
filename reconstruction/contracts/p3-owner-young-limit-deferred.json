@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aa6c95b749fa1e21ebc64e1a2200e6068a206986",
-    "sha256": "57cfb4f112128a426e4f07596948ff35771dd00dbb932f7cca99f6534205998e",
+    "sha256": "fa401600f39a00616275aad520dc95579ef7edf1ac827156ad4a9f17c159686c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -109,7 +109,7 @@
     "contractId": "P3-OWNER-YOUNG-LIMIT-002",
     "mode": "implementation",
     "objective": "台風の確率の報を上乗せしたE05-P（e05y-P）の山を上限400MiBの内側へ入れる手（作者裁定 D-DYL-NEXT=A、P3-E05Y-SPLIT-001のS1V→②）。補助の窓で、上乗せの後の山の区間のdeferredのheapの容量の増えは主にheapTotal−heapUsed（ΔV、+37.5〜38.3MiB）だった（Q-DYL-MATERIAL）。host.tsがowner threadを作るとき、deferredのWorkerにもresourceLimits.maxYoungGenerationSizeMbを渡す（作者裁定 D-DYL-VALUE=A・D-DYL-SCOPE=A: 値は12、deferredに足し、weatherCurrentの12はそのまま、urgentは縛らない）。受理・状態・出力・通知・保存は変えない（作者の方針 2026-10-14: 仕様どおりに動いて欠けが出る状態は致命的）。手元の試しで確率の報の後のheapTotalは約−40MiB、1入力の時間は+3〜7%（Q-DYL-PROBE）。E05-Pの測り直しは配送の後に統合担当（D-DYL-E05P、Q-DYL-E05P）",
-    "baseOid": "unassigned",
+    "baseOid": "fef851afb57c45f56dbf79ad823002dea89d77d8",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
