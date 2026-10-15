@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "d7faa4d2f543cd6b7ac5a98c9531e1a47b4ccd52b13e2d9d68b0d456687e1cb5",
+    "sha256": "c8f50042239dbb50afe46c8884e403b44048089ea4cd5871ad9e6dbf4fb8b37e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -149,7 +149,7 @@
     "contractId": "P3-DISASTER-CAPACITY-001",
     "mode": "implementation",
     "objective": "災害の日の電文を本物の順で流して、各unitの器（件数と保存のbyteの上限）がどこまで埋まるかと、拒否・退去・照合の欠けを測る道具の1段目を作る（作者裁定2026-10-15: 設計のD1=A〔2段、まず1段目〕・D2=A〔U-Qの退去を照合の欠けに数える〕・D3=A〔能登2024のtelegram.earthquakeをArchiveから取り、eew.forecastはpersonalのprivate-corpusだけ〕、P3-DC-DESIGN）。1段目は製品のcomposition root（owner-harnessのTEST-PATH）に筋書きのframeを仮想時計で入れ、24時間・7日の期限を実際の規則のまま効かせて、数日分を短い時間で流す。筋書きは7本: 台風・大雨の日の実電文（W1、手元の採取物）、U-Wの鍵の累積（W2）、能登2024の実電文（R1、取得の後）、2011東北の津波（R2、気象庁サンプル＋合成）、南海トラフ巨大地震の全割れ（N1）・半割れと12時間後の後発（N2）・N2に台風・大雨を重ねたもの（N3）（合成。内閣府の令和7年の想定と気象庁の臨時情報の運用から、P3-DC-SOURCES）。測るのはunitごとの器の使用率の最大と時刻、入力単位の拒否と未解消の拒否の状態、退去の件数、snapshotの要約と、照合（容量の退去で消えたものを消えた瞬間に記録する。終わりの状態は手書きの小さい期待例だけを見る）。製品のsrc・契約の型・既存の試験・測定harness（reconstruction/test/eew-e01/）は変えない。2段目（実時間のRSS・EEWの遅れ）とP3-E05-WEATHER-FILL-001は本契約の外",
-    "baseOid": "unassigned",
+    "baseOid": "e37e40ec2d615123de704195a87135a689ef402f",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",

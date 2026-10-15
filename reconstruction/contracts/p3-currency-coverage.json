@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "2b11fa8f8f6d34cb8cb8cb78e0c40fa5f0fafc8fefd0392ab52786a6188ff0df",
+    "sha256": "31904d4599f91bf90a9c0102fa408dcc090cdcf82376169a7324d6809201be27",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -172,7 +172,7 @@
     "contractId": "P3-CURRENCY-COVERAGE-001",
     "mode": "implementation",
     "objective": "Pro レビュー §8.2② の単位（作者裁定 2026-10-15: 起草案 P3-LIMIT-RULES-001 の S1・S2 を恒久形にせず 3 単位に切り替える）。容量の拒否（capacityExceeded）を理由に normal の事実を隠す仕組み（C1: owner の withoutNormal による view の除外、main の normal の pending の一括除外、隠すための admission の記録と overflow）を外し、事実とその現在性・網羅性を分ける。(1) view に出ている記録の更新が容量で入らず、新しい版の採用でその中身を包含できる記録（U-T の VTSE41、U-Q の event・長周期）には印（unavailable: 理由と拒否した報）を足し、値は最終確認として残す（U-W・U-F は既存の lastKnown 付きの印のまま、U-E は新しい subject しか拒否しないので印を持たない）。(2) 印を付けない拒否（新しい subject、byte の超過、U-T の観測）は、既存の確認状態の unit/operation の whole を新しい理由 capacityExceeded にして網羅性を未確認にする。(3) 未確認が消えるのは、包含する正常採用（印は同じ subject の版が印以上の採用）か回復の証拠（whole は unit を覆う coverageVerified）だけ（D-CLEAR）。(4) 失敗した系列のまだ鳴っていない旧 pending は取り下げず、desktop の title にだけ元の報の時刻を付けて元の期限まで鳴らす（D-PENDING。音は今の通知と同じ）。拒否した報が warning 以上なら、subject の通知とは別に unit×operation ごとに 1 つの『処理できていません』の失敗警報をその段階で鳴らす（D-FAILNOTICE、作者裁定 2026-10-15）。採用の通知の振る舞いは変えない。別 subject の採用と通知は止めない。(5) 失敗と未確認を snapshot と chrome-eew に持続表示し（D-SHOW）、失敗ごとに診断を 1 行残す。新しい状態機械・全対象の一覧を作らない（Pro §4.4）。U-W の正本の持ち方（鍵集合・履歴）と U-F の公開境界（P3-UF-PUBLIC-001、先に配送）は扱わない",
-    "baseOid": "unassigned",
+    "baseOid": "e37e40ec2d615123de704195a87135a689ef402f",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
