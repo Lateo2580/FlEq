@@ -1,0 +1,714 @@
+{
+  "meta": {
+    "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
+    "sha256": "c87d4025292003f794683b7328d94e5215b2523037bbb5074e40f36d818f5c98",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
+    "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-DC-D-SUMMARY",
+        "A'": "U-E・U-T・U-Qの分野がsnapshotで要約（delivery=summary）になったら照合の欠けに数える（1回でも要約になればFail）。気象（U-W・U-F）とその他（U-N・U-V・U-L・U-R・U-B・U-M・U-Y）の要約は、分野と始まり・終わりの時刻を報告する",
+        "A": "U-EとU-Tの要約だけを欠けに数え、ほかの分野（U-Qを含む）の要約は報告する",
+        "B": "全分野の要約を欠けに数える",
+        "C": "要約は報告だけにし、合否に入れない",
+        "recommended": "A'",
+        "provisional": "A'",
+        "status": "確定",
+        "ruling": "A'（作者裁定 2026-10-15、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装は A' の形だけを読む",
+        "reason": "要約で残るのは運用区分ごとの件数・最高区分・areaCounts・更新時刻などの数だけで、subjectの識別子もviewも配らない（p2-snapshot-sse.types.ts:62〜:87、view-projector.ts:793〜:797）。地震なら震源・規模・地域ごとの震度、津波なら区域ごとの区分、EEWなら予想震度の区域が配られなくなる。stateが残っていても起きる表示の欠けなので、D2=A（stateの欠け）とは別に決める。A'は命と被害の把握に直結するEEW・津波・地震の3分野を合否に入れる。代償の注: 今のchrome-eewはeewとtsunamiだけを読みU-Qを描かない（client.ts）ので、今の画面の見え方はA'とAで変わらず、A'の差はP4の地震の画面・端末出力・SSEの受け手に効く。各案でFailになる筋書き（起草の見積り、推測）: A'はU-E・U-T・U-Qのどれかが要約になった筋書きで、N1・N2・N3はU-T・U-Qのviewだけで全体が1 MiBを越える見込み、R1は本震のU-Qのview（実例のM7.1で1件120,803 byte）と全体の大きさ次第。AはU-Qだけが要約になる筋書きをPassにしうる（震源・震度が配られなくても合格）。Bは気象の要約もFailで、W1・W2・N3は今のHEADでは平常のU-F・U-Wの要約（A3）でもFailになる見込み（P3-UF-PUBLIC-001の配送の後は推測）。N1・N2・R1・R2は気象を流さないので、Bでも災害の分野の要約だけで決まる。Cは表示の欠けが合否に出ない。どの案でも要約の時刻は全分野で報告し、溢れが災害の情報だけで起きたかの印を書く（P3-DC-AC04(4)）"
+      },
+      {
+        "id": "P3-DC-D-CLOSE",
+        "A": "本契約は道具の配送と7筋書きの結果の記録で閉じる。Failの筋書きは、届いた上限ごとの選択肢（P3-DC-OPTIONS）を作者に出し、直しは別の契約にする",
+        "B": "届いた上限を直す契約が配送され、同じ筋書きでPassするまで本契約を閉じない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "A（作者裁定 2026-10-15、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
+        "reason": "E05-PのFailを分類・XMLの木・若い世代の別々の契約で直した前例（p3-order-plan.mdのE05-Pの節）と同じ形。起草の見積りではW1・W2・N1〜N3がFailの見込みで、Bでは本契約がU-Wの単位・U-Qの容量・C1の単位の直しの後まで閉じず、測定の道具の配送と直しの順が絡む。Aでも測り直しは同じ道具でできる（結果にgitHeadと筋書きのdigestを書く、P3-DC-AC04）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P3-DC-DESIGN",
+        "status": "closed",
+        "source": "作者裁定（2026-10-15、ご主人）。設計の起草は統合担当の委譲（作業ノートのdisaster-injection-design、repo外）",
+        "closed": "D1=A: 道具は2段で、まず1段目（仮想時計で全期間の器と照合）。D2=A: U-Qの容量退去（P3-C7-CAPACITYの(3)・(5)）を照合の欠けに数える。D3=A: 能登2024-01-01・02のtelegram.earthquakeをdmdata Archiveから取る（非EEW）。eew.forecastは取ってpersonalのprivate-corpusだけに置く",
+        "remaining": "なし（2段目は本契約の外、outOfScope）",
+        "reason": "本契約はD1=Aの1段目だけを受け持ち、D2=Aを照合の規則（P3-DC-ORACLE）に、D3=Aを取得の手順（P3-DC-ACQUIRE）に写す"
+      },
+      {
+        "id": "P3-DC-MATERIAL",
+        "status": "frozen",
+        "rule": "起草時（3fe5dd69）の材料。判定には使わず、結果と比べる見込みとして残す。(1) 1件の大きさ（2026-10-13のreconstruction/distのreducerに公開fixtureを通したJSONのbyte。unitのsrcはその後変わっていない）: U-Tの予報66区域19,458・view 26,539（32-39_12_02＋32-39_12_05）、観測点1点は沿岸約386・沖合約430〜488、U-Qのevent（2026-07-28のM7.1、市町村555・観測点1,248）321,811・view 120,803、中（32-35_04_04）38,201・view 16,148、M5.9（32-35_01_03）61,433・view 25,622、U-Eのcurrent 1件のview 16,848（77_01_26、97区域） (2) 実データの数（~/dev/fleq-corpus-p0/20260923-capacityのtelegrams.jsonのmetadata）: U-Wのpartialの鍵（官署×family）は2026-06-03の1日で145（空のstateから数えて129個目が12:44 JST）、06-26で129、09-21で111、3日の累計187（VPWW55・58・59・61とVPNO50。VPWW57・60は0通）。VPWP50の官署は3日とも58、VPWS50は1日144通。2024年の気象（VPWW53・54）は今のU-W・U-Fに入らない（unit-coverage.ts:36・:37） (3) 机上の見積り（推測を含む）: U-Qの4 MiBは南海トラフで103〜174%（退去で欠ける）、snapshotの1 MiBはU-T・U-Qのviewだけで越える、U-Tの沖合の観測点は2 eventの上界で1,024の82%、U-Nの情報は31〜47%、U-Eの10分の件数は8%以下",
+        "reason": "受入の値ではない。結果がこれと大きく違えば、筋書きか道具のどちらかを疑う材料にする"
+      },
+      {
+        "id": "P3-DC-SOURCES",
+        "status": "frozen",
+        "rule": "確認日はすべて2026-10-15。(1) 内閣府 南海トラフ巨大地震モデル・被害想定手法検討会「地震モデル報告書」（令和7年3月31日）https://www.bousai.go.jp/jishin/nankai/kento_wg/pdf/honbun.pdf: 想定震源域は前回報告と同じ（p.4）、津波断層はMw 9クラス（p.5）、駿河湾は地震の数分後に5 m超・高知は20〜30分後に5〜10 m超・伊勢湾と大阪湾奥は1時間〜1時間半後、第1波の後も5、6時間から半日程度は繰り返し大きな津波（p.13・p.14）、ケース①で平均津波高5 m以上は124市区町村・13都県（千葉・東京〔島嶼部〕・神奈川・静岡・愛知・三重・和歌山・徳島・愛媛・高知・大分・宮崎・鹿児島、p.14）、半割れは紀伊半島沖を境に東側と西側でMw 8.6超（p.4・p.22）、最初の地震の12時間後に次が来る場合の参考計算と2回の大きな津波（p.23）、震度の最大値で震度7の地域は静岡・愛知・三重・兵庫・和歌山・徳島・香川・愛媛・高知・宮崎の10県、神奈川県西部から鹿児島県まで震度6弱以上（p.32） (2) 同 計算結果集の一覧 https://www.bousai.go.jp/jishin/nankai/kento_wg/index.html と被害想定の資料一覧 https://www.bousai.go.jp/jishin/nankai/taisaku_wg_02/index.html（参照だけ。表の値は合成に使わない） (3) 気象庁「南海トラフ地震で想定される震度や津波の高さ」https://www.jma.go.jp/jma/kishou/know/jishin/nteq/assumption.html（静岡県から宮崎県の一部で震度7、関東から九州の太平洋沿岸で10 m超） (4) 気象庁「南海トラフ地震に関連する情報」https://www.jma.go.jp/jma/kishou/know/jishin/nteq/info_criterion.html（調査中は監視領域内の速報のM6.8以上など、巨大地震警戒は想定震源域のプレート境界のMw 8.0以上、巨大地震注意は監視領域内のMw 7.0以上かゆっくりすべり、発表は最短約2時間後、警戒約1週間の後に注意約1週間） (5) 気象庁 報道発表（令和6年8月15日）https://www.jma.go.jp/jma/press/2408/15a/202408151800.html（2024-08-08 16:43頃の日向灘の地震の後、8/15に解説情報第7号） (6) 2011の津波の経過: 気象庁技術報告第133号 第5章 https://www.jma.go.jp/jma/kishou/books/gizyutu/133/CHAPTER5.pdf、報道発表 https://www.jma.go.jp/jma/press/1103/13c/201103131830.html、平成23年版消防白書 https://www.fdma.go.jp/publication/hakusho/h23/cat-1/1/488.html（起草では検索の要約から時刻を取った。原文の確認はQ-DC-BASE） (7) 気象庁 報道発表 https://www.jma.go.jp/jma/press/1607/21b/H280721_tsunami-kansoku.html（観測値を出す津波観測点229→385、S-net 125・DONET 31）、https://www.jma.go.jp/jma/press/1902/22a/20190222_tsunami-kansoku.html（408→406） (8) 気象庁 個別コード表 https://xml.kishou.go.jp/jmaxml_20261007_Code.zip（令和8年10月7日一部更新、技術資料 https://xml.kishou.go.jp/tec_material.html）の地震火山関連コード表.xlsxを数えた: シート24の細分区域188・市町村等1,894・震度観測点4,361、シート26の長周期地震動観測点703、シート31の津波予報区98 code（予報区66は32-39_12_02の区分と照らす）、シート35の潮位観測点611（名前に「沖」「ｋｍ」などを含むものを沖合と数えて沿岸191・沖合420） (9) 気象庁 報道発表（平成28年10月11日）https://www.jma.go.jp/jma/press/1610/11c/kumamoto_seisa1610.html と https://www.jma.go.jp/jma/press/1610/11c/kumamoto_seisa.pdf（熊本地震の震度1以上は精査で2,137→4,081回。短時間に多発するときは最大震度3未満の地震を回数で速報する運用） (10) dmdata サービス利用規約 https://dmdata.jp/terms/（14項・15項、ページの最終更新2026/10/14） (11) 気象庁「津波警報・注意報、津波情報、津波予報について」https://www.jma.go.jp/jma/kishou/know/jishin/joho/tsunamiinfo.html（大津波警報は予想される津波の最大波の高さが高いところで3 m超〔数値は10 m超・10 m・5 m〕、津波警報は1 m超3 m以下〔3 m〕、津波注意報は0.2 m以上1 m以下〔1 m〕）",
+        "reason": "合成の上界・帯・時刻と取得の規約の出所を契約の中で辿れるようにする"
+      },
+      {
+        "id": "P3-DC-SCENARIOS",
+        "status": "frozen",
+        "rule": "筋書き7本と、1段目で流す入力・時刻・区切り・手書きの期待例（時刻はJST）。推測の数は推測と書く。どれも空のstateから1 runで流す。N1・N2は災害の情報だけで器と画面が溢れるかを読む筋書きで、気象を重ねない（重ねた版がN3）。(W1、3 run) 2026-06-03・06-26・09-21のtelegram.weatherの実電文を1日ずつ（xmlは2,552・2,876・2,130通）。区切りは6時間ごとと日の終わり。期待例: 日の終わりに、その日にVPWP50を出した官署のU-Fのsubjectが全部ある (W2、1 run) W1の3日を06-03→06-26→09-21の順に同じrunで流し（仮想時計は日の間を飛ばす）、その後に58官署（W1のVPWW55〜61・VPNO50のEditorialOffice。VPWP50だけに出る「気象庁」は含めない）×7 family（VPWW55・57〜61・VPNO50）のうち出ていない鍵を、familyごとの公開fixtureの官署名を替えた報で10分ごとに1つずつ埋める（鍵の空間の上界406）。区切りは各日の終わりと、鍵が128・256・406に達した時刻。期待例: 06-03に出たU-Fのsubjectが06-26の時点で7日の回収で消えていても欠けにならない（容量の診断の無いstepで消えるので記録されない） (R1、1 run、取得の後) 2024-01-01・02のtelegram.earthquakeの実電文の全部と、その日の地震の報から作る合成のEEW（P3-DC-SYNTH）。2024年の気象は今のU-W・U-Fに入らないので流さない。区切りは1/1 16:20・17:00・22:00、1/2 06:00・12:00・24:00。期待例: 本震（1/1 16:10頃のM7.6）のEventIDのeventが1/2 16:09にU-Qにある、1/1 16:22頃の大津波警報のVTSE41のsubjectが1/1 20:00にU-Tにある (R2、1 run) 2011-03-11 14:46の地震の津波。VTSE41は14:49・15:00・15:12が気象庁サンプル（32-39_11_02・09・11。15:12の32-39_11_11を公式の15:14の拡大の代わりに置く）、15:30（北海道太平洋沿岸と伊豆諸島を大津波警報へ）・3/12 03:20（全予報区）・3/12 20:20と3/13 07:30（引き下げ）・3/13 17:58（全解除）が合成。VTSE51は14:50・15:01がサンプル（32-39_11_03・10）で、以後3/12 12:00まで20分ごとに合成（観測点は沿岸の上界191まで増やす。推測）。VTSE52は14:50・14:55がサンプル（61_11_01・02）で、以後3/11 20:00まで20分ごとに合成（観測点は15まで、推測。当時の沖合の点は少ない）。区切りは15:00・16:00・3/12 03:30・3/12 15:00・3/13 18:00・終わり（3/14 00:00）。期待例: 3/12 03:20のVTSE41（66区域）が3/13 07:00にU-Tにある、合成のVTSE51の版k+1で版kの観測点Bを落としてもBが残る（P3-C5-OBS-MERGE、tsunami-unit.ts:439） (N1、1 run) 南海トラフ巨大地震の全割れ。本震はEventID E0、時刻t0。終わりはt0＋48時間。区切りはt0＋10分・1時間・6時間・12時間・24時間・48時間。期待例: E0のeventがt0＋23時間59分にU-Qのviewにある（強震保持の12時間を過ぎても24時間の保持の内）、E0のVTSE41の66区域がt0＋12時間にU-Tにある、U-Nの現況がt0＋2時間1分に巨大地震警戒 (N2、1 run) 東側の半割れ（t0、E0）→臨時情報（調査中・巨大地震警戒）→t0＋12時間に西側の半割れ（E1。内閣府の参考計算の12時間）→警戒1週間→巨大地震注意へ。終わりはt0＋8日。区切りはt0＋10分・2時間・12時間の1分前・12時間10分・13時間・18時間・24時間・36時間・7日・8日。期待例: E0とE1のeventがt0＋12時間10分に両方U-Qにある、U-Nの現況がt0＋7日1分に巨大地震注意 (N3、1 run) N2にW1（2026-06-26）の実電文を受信時刻のまま重ねる。t0は、06-26の受信が最も多い1時間の始まりの12時間前（後発をその1時間の始まりに置く）。N1・N2も同じt0を使い、N2とN3は気象の有無だけが違う。区切りと期待例はN2と同じ",
+        "reason": "設計の筋書き7本を、1段目で再現できる入力・区切り・小さい期待例に固定する（全現況の期待は作らない）"
+      },
+      {
+        "id": "P3-DC-SYNTH",
+        "status": "frozen",
+        "rule": "合成の規則（決まった規則と種だけで作る。種の既定は1）。数には出所の印を付ける: 〔公式〕公式の資料の値、〔上界〕コード表などから取った最大、〔実例〕corpusの実電文の値、〔推測〕根拠の無い置き値。(共通) 型はfixtureIdsの公開の電文。型を最初に置く時刻はframes.mjsのshiftTimestampsで全体を動かして決め、同じeventの続報ではevent の発生時刻（OriginTime）を動かさず、ReportDateTime・観測の時刻・到達時刻をそれぞれ書く（発生時刻が変わると製品は強震保持の期限を計算し直す、seismic-unit.ts:222〜:223）。書き換えはEventID・Serial・ReportDateTime・観測と到達の時刻・区域と観測点の列・InfoTypeと、Control/Statusを通常にすることに限る（型のうち32-39_12_02・32-39_12_05・32-35_01_03・32-35_01_02は訓練の報なので通常に替える）。区域と観測点のcodeと名前は型に実在する値を先に使い、足りない分は同じ桁の合成のcodeと実在の名前に通し番号を付けた名前にする。数の上界〔上界〕はP3-DC-SOURCES (8)のコード表（震度観測点4,361・市町村等1,894・細分区域188・県47・長周期地震動観測点703・津波予報区66・沿岸の潮位観測点191・沖合420） (本震の地震) 型は2026-07-28のM7.1の5通。VXSE51はt0＋4分〔実例〕で細分区域150〔推測〕、VXSE53はt0＋4分〔実例〕に観測点2,000〔推測〕・＋8分〔実例〕に3,500〔推測〕・＋20分〔推測〕に4,361〔上界〕（市町村1,894・細分区域188・県47〔上界〕）、VXSE62は＋10分〔実例〕に観測点400〔推測〕・＋30分〔推測〕に703〔上界〕、VXSE61は＋4時間〔実例〕。震度は県の帯で配る: N1は震度7の10県〔公式、P3-DC-SOURCES (1) p.32〕の観測点に7・6強・6弱を順に、神奈川・山梨・長野・岐阜・滋賀・京都・大阪・奈良・岡山・広島・山口・福岡・大分・熊本・鹿児島に6弱〜5弱〔推測〕、ほかに4〜1（M9で全国が有感として全観測点を載せる〔推測〕）。N2の東側は7を静岡・愛知・三重に、西側は7を兵庫・和歌山・徳島・香川・愛媛・高知・宮崎に置き〔推測〕、ほかはN1と同じ帯 (本震のEEW) 型は77_01_26（97区域）と37_01_01。VXSE45の続報45報をt0＋8秒から4秒ごと〔推測。2024-04-17のM6.6は33報〕、予想震度の区域は20から20報目に188〔上界〕まで増やす。VXSE43（警報）は1・5・10報目〔推測〕 (津波) VTSE41は66予報区〔上界〕を全部載せる。区分は32-39_12_02の区分を基にし、5 m以上の13都県〔公式、p.14のケース①〕の予報区を大津波警報に上げる（N2は側ごとにその側の都県だけ）。都県と予報区の対応は32-39_12_02の区域名とコード表のシート31で決め、決めた66行の表を合成器のsourceに書く。報はt0＋3分〔公式。2011は3分後〕・15分・30分・1時間・3時間・6時間・12時間・24時間・36時間（引き下げ）・48時間（全解除）〔推測〕。到達時刻は駿河湾の予報区がt0＋3分・高知の予報区が＋20分・伊勢湾と大阪湾が＋60分〔公式、p.13・p.14〕、ほかは＋30〜120分〔推測〕。VTSE51はt0＋5分から15分ごとに12時間〔推測。想定の「5、6時間から半日程度は繰り返し」に合わせた長さ〕で、沿岸の観測点は3時間で191〔上界〕まで増やす。VTSE52はt0＋5分から10分ごとに6時間〔推測〕で、沖合の観測点は1時間30分で420〔上界〕まで増やす。観測の高さは区分の公式の基準〔公式、P3-DC-SOURCES (11)〕の範囲に置き（大津波警報の区域は3 m超、津波警報は1 m超3 m以下、注意報は0.2 m以上1 m以下）、大津波警報の区域は想定の5〜10 m超〔公式、p.13〕まで時間とともに上げる (臨時情報) 型は74_01_01（調査中111）・74_01_04（巨大地震警戒120）・74_01_05（巨大地震注意130）・74_01_07（調査終了190）・75_01_01（臨時解説210）・75_01_04（定例200）。N1: VYSE50の111をt0＋20分〔推測〕、120を＋2時間〔公式、最短約2時間〕、VYSE51を＋6時間・＋20時間〔推測〕。N2: 111をt0＋20分と＋12時間20分〔推測〕、120を＋2時間と＋14時間〔公式の最短に合わせる〕、VYSE51を1日目から7日目の10:00と17:00に計14〔推測〕で報ごとに別のEventID〔上界。サンプルでは臨時解説は同じEventIDでSerialが進む〕、130をt0＋7日〔公式、警戒約1週間の後〕 (余震) 本震ごとに24時間で400 event〔推測。熊本2016の震度1以上の速報の回数、能登2024の1/2 11:30までの有感150回以上、気象庁が短時間に多発するとき震度3未満を回数で出す運用から、電文の出るeventを多めに置いた〕。時刻は大森の形の累積N(t)＝K・ln(1＋t/c)（c＝0.05時間、N(24時間)＝400）〔推測〕。大きさは20件ごとに大1（32-35_01_03の形、観測点218〔実例〕）・中5（32-35_04_04の形、136〔実例〕）・小14（32-35_01_02のVXSE52と、32-35_04_04を観測点5に切ったVXSE53）〔推測の比〕。中と大と、小の半分（計360件）にEEW（77_01_01の形、続報5報を2秒ごと）〔推測。24時間の数はQ-EVICT-COUNTSの東北2011の推定230〜360の上端〕。M7級の余震を本震ごとに2件（t0＋40分・＋9時間）〔推測〕: 観測点1,500のVXSE53〔推測〕、新しいEventIDのVTSE41（注意報5区域）とVTSE51 4報（観測点20）〔推測〕、VYSE50の111→130 (R1のEEW) 実電文の地震の報（VXSE51・53）で最大震度3以上のEventIDごとに、77_01_01の形のVXSE45を発生時刻＋5秒から2秒ごとに5報（最大震度6弱以上は77_01_26の形で15報）〔推測〕。EventIDは地震の報と同じ (R2の後半) VTSE41は32-39_11_11と32-39_12_02の区域の列から、VTSE51・VTSE52は32-39_11_10・61_11_02の形から作る (W2の鍵の埋め) familyごとの型は15_17_01_251222_VPWW55・15_16_02_251222_VPWW57・15_16_04_251222_VPWW58・15_16_05_241226_VPWW59・15_16_06_241226_VPWW60・15_16_07_250825_VPWW61・18_00_01_260830_VPNO50_issue。EditorialOfficeを替え、ReportDateTimeを埋める時刻にする",
+        "reason": "公式の資料にある数を上界と帯に使い、無い数は推測の印で固定する。値の細部は器にほぼ効かず、器は件数と文字列の長さで決まる（I-U-Q.capacityMeasurement）"
+      },
+      {
+        "id": "P3-DC-CLOCK",
+        "status": "frozen",
+        "rule": "(1) composition rootはowner-harnessのharnessedRoot（製品のOwnerHostを1プロセスで動かすTEST-PATH）で作り、clockに仮想時計を、runtimeCalls.unitsに観測の表（P3-DC-ORACLE (1)）を渡す。仮想時計のwallTimeMsは筋書きの時刻、monotonicMsはrunの始まりからの経過 (2) 製品のsetTimeout・clearTimeoutはvitestのfake timersにし（display-wiring.test.tsのnoticeの満了の試験と同じ）、仮想時計と同じ量だけ進めて、noticeの満了のtick（composition-root.tsのproject）を仮想の時刻で発火させる。timerのcallbackが読む時計はtimerの満了の時刻にし、callbackが呼んだtickもその時刻でsettleを終えてから時計を先へ進める (3) tick: 製品と同じくrunの始まりからの1秒の格子でだけroot.tickを呼び、呼んだらsettleまで待ってから次へ進む（tickは未返信の期限要求を送り直さないので、待たずに時計を進めると間の期限処理が省かれる、composition-root.ts:891〜:892） (4) 飛ばし: 何も来ない格子は飛ばしてよい。次のtickは、次のframeの時刻・ownerのstateの期限（owner-runtime.ts:47のdeadlinesのwallTimeMsとmonotonicMsの最小。harnessのunit()と同じ読み方）・fake timersの次の満了のうち最も早い時刻以上の最初の格子。飛ばしてよいのは保存がすべて成功している間だけで、保存の再試行の時刻（CheckpointWriter.retryAfter、checkpoint.ts:594。再試行は期限の返信の後のreevaluateで始まる、composition-root.ts:611〜:615）は飛ばし先に入れない。代わりに(6)で保存の失敗そのものを測定不成立にする (5) frame: 時刻順に、途中の格子のtickを(3)(4)で済ませてから仮想時計をそのframeの時刻へ進め、envelope（ingestのreplay、inputIdはinput-<通し番号>）をsubmitで入れてsettleまで待つ。受信の直前の期限の回収は製品の規則のまま（対象のunitだけ、owner-runtime.ts:445）で、流し手は入力の前にtickを足さない (6) 保存は必ず成功するメモリのfile system（test/snapshot-sse/projection-fixture.tsのmemoryWritesと同じ形）に書き、repoの中にもdiskにも書かない。保存の失敗（onMeasurementsのoutcomeがfailedか、retryReasonがnotRetry以外）か診断checkpointRetryScheduledが1件でも出たら、runをblocked（理由checkpointFailed）で止める (7) 起動はstartHarnessで通知のprobeはidle、通知の試行は即時にdeliveredを返すfakeのnotificationAdapter (8) settleの10秒（owner-harness.ts:73）を越えた入力が出たらblocked（settleTimeout）で止める",
+        "reason": "期限の規則（24時間・7日）を製品の周期と順序のまま効かせ、数日分を短い時間で流すため。保存の失敗は2つの直し方のうち小さい方を採った: 保存の再試行の時刻（retryAfterは書込みの内部にあり、1・2・4・8・10秒の段、checkpoint.ts:66）を飛ばし先に読み込むより、測定の保存を失敗しないメモリに限って失敗を測定不成立にする方が、読む所も条件も少ない（器の測定は保存の失敗の振る舞いを測らない）。費用の見積り（推測）: N2の8日を1秒ごとに回すとtick 691,200回で、tickごとに射影とsettleが要る（1回3〜5 msとして35〜60分）。飛ばすとtickは期限の時刻の数（EEWのcurrent約1,400・通知のintentのTTL約3,000・U-QとU-Tの保持約1,000など、合わせて1〜2万）とframe約5,800で、5〜15分"
+      },
+      {
+        "id": "P3-DC-ORACLE",
+        "status": "frozen",
+        "rule": "照合は正しい現況を作り直さない（第二のreducerを作らない）。容量で記録が消えた瞬間を捕まえ、終わりの状態は手書きの小さい期待例だけを見る。(1) 観測の表: linkedUnitTableの12 unitのreduceを、結果を変えずに包む表（owner-harness.tsのseededと同じ包み方）をruntimeCalls.unitsに渡す。包みは呼ばれるたびにunit・入力の種類・inputId・時計・前のstate・stepを受け取り、(2)〜(5)をその場で数え、前のstateを持ち続けない (2) 容量の欠け: stepのdiagnosticsに容量の退去のreasonがあるとき、そのunitのtoView（製品の関数、p3-unit-table.types.ts:34）を前のstateとstep.stateで作り、全unit共通のUnitView.subjects（p2-shared-runtime.types.tsのUnitView）のsubjectが前にあって後に無いものを候補にする。候補のうち、後のstateの記録（intentと終端記録の欄を除く）にsubjectかsource.subjectがその値の要素が無いものだけを容量の欠けとして記録する。後のstateに記録が残っていれば、viewから消えた理由は解除・forecastEnded・取消などの正しい遷移で、欠けではない（U-Tの解除報は予報をreleased・観測をforecastEndedにしてstateに残す、tsunami-unit.ts:345・:665）。U-Qのsubjectはfamilyごと（例 normal/VXSE53/<EventID>）なので、eventの数はEventIDで数える。記録はsubject・unit・運用区分（subjectの頭の語）・退去の時刻・入力・reason・本来の期限（前のstateでそのsubjectを持つ要素か、それを含む要素〔U-Qのevent〕のretainUntil・validUntil・currentUntilのうち最初に有るもの）で、後で期限が来ても消さない。normalの記録のうち、本来の期限が無いか退去の時刻より後のものを欠けに数える（D2=AによりU-Qも数える）。viewに出ない記憶（U-Eのgate、取消記憶、非activeの津波の記録）と非normalの記録は欠けの対象外。したがって容量の欠け0は「viewに出ていたnormalの記録が容量で消えなかった」の意味で、保存した現況全体（記憶・非active・非normalを含む）が欠けていない保証には使わない (3) 退去の件数は欠けと別の量で、全運用区分の数をreasonのcountで足す。reasonの表（p2-shared-runtime.types.ts:282〜:300）: eewCapacityEvicted→U-E、tsunamiCapacityEvicted→U-T、seismicCapacityEvicted→U-Q、nankaiCapacityEvicted→U-N、weatherCurrentCapacityEvicted→U-W、volcanoCapacityEvicted→U-V、landslideCapacityEvicted→U-L、floodCapacityEvicted→U-R、briefingCapacityEvicted→U-B、localBulletinsCapacityEvicted→U-M、typhoonCapacityEvicted→U-Y。U-Fは診断を出さずに非normalのsubjectとlastKnownを削る（weather-timeseries-unit.ts:152・:202）ので、U-Fの退去の件数は未計測（unmeasured）として返し、0と書かない。U-FとU-Wはnormalを容量で退去しない（normalが収まらないときはunavailableの印で、(4)の拒否として数える）。notificationCapacityEvictedは通知のintentの退去で、本契約では数えない（通知のadapterが即時にdeliveredを返すので負荷が掛からない。2段目） (4) 拒否は2つの量: 入力単位＝stepのdecisionsのcapacityExceededと、そのstepで作られたU-W・U-Fのunavailableの印（理由capacityExceeded、sourceのinputIdがその入力。decisionはchangedでも数える）の数（同じ鍵への連続の拒否も1通ずつ数える）／未解消の状態＝返信のadmissionCounts（未解消の記録の数＋overflow、owner-runtime.ts:174〜:177。拒否の累計ではない）と、stateのU-W・U-FのcapacityExceededの印の数の時系列 (5) 合成のframeの入力の結果を3つに分ける: 採用（decisionがchanged、または筋書きが明示したunchanged〔duplicate・stale・noChange〕）／容量の拒否（(4)の入力単位の拒否に当たるもの。有効な測定の結果として数え、後続を流し、筋書きはFailになる。unitによってdecisionがcapacityExceededでもchanged＋印でも同じ扱い）／不正（そのinputIdのreceiveのreduceが無い〔decode・identityの拒否、経路外〕、容量以外の理由のrejected、明示していないunchanged）。不正だけを測定不成立（blocked、理由inputNotAdopted）としてrunを止める。実電文のframeの不正は数えて報告し、止めない (6) 終わりの状態: P3-DC-SCENARIOSの期待例を、その時刻のharnessのunit()のstateとviewで確かめる。外れたら欠け",
+        "reason": "照合器が製品の保持・置換・取消の規則（津波の観測点の累積、U-Fの7日の回収など）を写すと第二の実装になり、正しい保持を欠けと誤る。容量の欠けは、容量の診断が出たstepのviewの差を候補にし、記録が後のstateから消えたかで確かめれば決まるので、unitごとの知識はU-W・U-Fのunavailableの印の欄だけで足りる（鍵は全unit共通のUnitView.subjectsとsubject・source.subjectの欄から取る）"
+      },
+      {
+        "id": "P3-DC-PASS",
+        "status": "frozen",
+        "rule": "筋書きごとにPass・Fail・blockedを決める。Passは (1) 入力単位の拒否0（全unit・全運用区分。合成のframeの容量の拒否も数え、blockedにしない） (2) 容量の欠け0（normalでviewに出ていた記録が後のstateから消え、本来の期限の内のもの。U-Qの退去を含む、D2=A） (3) 手書きの期待例が全部合う (4) P3-DC-D-SUMMARYの裁定の形の要約の扱い（作者裁定A': U-E・U-T・U-Qの要約0）の全部。blockedはdataMissing・digestMismatch・timeBudget・settleTimeout・inputNotAdopted（合成のframeの不正だけ）・checkpointFailedで、Failと数えない。器の使用率・未解消の拒否の状態・全運用区分の退去の件数（U-Fは未計測）は合否にせず表で報告し、90%を越えた上限を名指す。Passは「viewに出ていたnormalの記録が容量で拒否・退去されなかった」の意味で、保存した現況全体の保証ではない。RSS・EEWの遅れ・通知の溢れは判定しない（2段目）。Failのときは届いた上限ごとにP3-DC-OPTIONSの選択肢と行き先を結果に書く",
+        "reason": "器の使用率は届く前の余裕で、合否にすると平常のU-F・U-Wの高さで全部Failになり読めない"
+      },
+      {
+        "id": "P3-DC-OPTIONS",
+        "status": "frozen",
+        "rule": "届いた上限ごとに結果に書く選択肢と行き先（作者に出すのは統合担当）。U-Qの世代4 MiB（退去で欠ける）: P3-C7-CAPACITY-BUDGET（p3-seismic-unit.json）のB（震度観測点をstateに持たない）・C（16 MiB、urgentのencodeが最大4倍）か新しい案、行き先はU-Qの容量の新しい契約。U-Qのevent 512: 同じ契約のRET-01。U-Wのpartial 128と世代16 MiB: 3つ目の単位（U-Wの正本の持ち方、406鍵と取消の履歴）。U-Fの32 MiB: U-Fの容量の新しい契約（P3-UF-PUBLIC-001はviewだけでstateを変えない）。snapshot（U-E・U-Tの要約）: 2つ目の単位（C1）と、要約の順（P3-LIMIT-RULES-001のP3-LIM-AC06の起草案、作者裁定D0で材料として残したもの）。U-Tの観測点1,024: P3-C5-CAPACITY（p3-tsunami-unit.json）の上限。U-Nの情報64: P3-C8-CAPACITY（p3-nankai-unit.json）の深さ。U-Eのfamily 512（10分）: P3-EEW-GATE-EVICT-001。90%を越えて届いていない上限も同じ行き先を添える",
+        "reason": "届いたときに作者へ出す材料を、測った直後に結果から読めるようにする"
+      },
+      {
+        "id": "P3-DC-ACQUIRE",
+        "status": "frozen",
+        "rule": "作者裁定D3=A（2026-10-15）の取得の手順。実行は統合担当（API keyのある手元の機械）で、実装者は実行しない。地震（telegram.earthquake、R1が使う）とEEW（eew.forecast、R1は使わずpersonalの後の用途）を別の問い（Q-DC-ACQUIRE-EQ・Q-DC-ACQUIRE-EEW）にする。(1) 規約: dmdataサービス利用規約 https://dmdata.jp/terms/ （確認2026-10-15、ページの最終更新2026/10/14）の14項は本サービスで得た気象庁発表の情報の二次利用（第三者への無加工の電文の配信を含む）を認め、15項は法人契約以外のEEWの二次配信（広く公開するAPIへの使用、許可の無い第三者への表示・鳴動）を制限する。本repoの方針（作者 2026-09-23）はEEWの原本をpersonalブランチだけに置く (2) 対象: 2024-01-01・2024-01-02（JSTの日）。保存開始は地震津波2020-11-18・EEW 2022-07-20（rest-acquisition-plan.md:14）。eew.warningは契約外（402）なのでVXSE43は取らない（同:41） (3) 一覧: datetime=A~BはBの日のファイルだけを返す実測（同:14）に従い、日ごとに GET https://api.dmdata.jp/v2/archive?classification=<区分>&datetime=<前日>~<その日>&limit=100 を1回（区分2×日2＝4回。返った日が違えば1回ずつ取り直し、最悪6回） (4) 本体: 選んだitemのurl（https://data.api.dmdata.jp/v1/archive/<id>）を4回。要求は最悪で一覧6＋本体4＝10回。rest-acquisition-plan.md:71の探索上限（archive.list 3 req）は同じ計画の探索の枠で、本取得は作者裁定D3=Aの別の枠として一覧を最悪6回まで使う（その旨を取得の記録に書く） (5) Basic認証のkeyは手元の設定（~/Library/Application Support/fleq/config.jsonのapiKey、~/dev/fleq-corpus-p0/20260923-capacity/archive-fetch.mjsの前例）から読み、記録に書かない (6) 負荷: api.dmdata.jpの要求の間は1秒以上（前例のscriptは1.5秒）、data.api.dmdata.jpの間は10秒以上（前例は12秒）。429はmax(通常の間隔, Retry-After, 1→2→4秒)で待ち3回で止める（同:66・:67・:70。公式はarchive本体が5分50 req、同:15）。保存済みは取り直さない。作者の低負荷の要望（1回40件以下、同:16）の内 (7) 置き場: telegram.earthquakeは~/dev/fleq-corpus-p0/<取得日>-noto2024/にtar.gzを受領bytesのまま置き、同じ名前の.item.json（archiveId・requestUrl・classification・date・sha256・byteLength・acquiredAt）とindex.jsonの行を足し、x-2024-01-01・x-2024-01-02に無改変で展開する（同:76の段階1）。distributionはunconfirmedのままでmainへ昇格しない。eew.forecastはpersonalの作業木のprivate-corpus/eew-20240101-noto/にtar.gzとmanifest（sha256・byteLength・acquiredAt・distribution private）を置き、corpus-p0にもmainにも置かない（同:105）。~/dev/fleq-corpus-p0/20260916-archiveには2026-09-16に取ったeew.forecast 2024-04-17・18が既にあり、今回の置き方はそれより厳しい（既存の置き場は本契約で変えない）",
+        "reason": "地震の取得だけがR1の正式のrunを止め、ほかの筋書きもEEWの取得も待たない"
+      },
+      {
+        "id": "P3-DC-INHERITED",
+        "status": "frozen",
+        "rule": "変えないもの: 製品のsrc、契約の型（*.types.ts）、owner-harness.ts（使うだけ。観測の表はseededと同じく呼び出し側で包む）、reconstruction/test/eew-e01/**（frames.mjsのshiftTimestampsはimportして使うだけ）、corpusのmanifestとsequences、既存の試験の期待値、凍結manifestとevidence。実電文のEEWを読む口は作らない（personalで要るときにpersonalの側で足す）。P3-MH-RES-01（新しいrunnerを作らない）はP3-MEASURE-HARNESS-001の範囲（reconstruction/test/eew-e01/の製品経路のrunner）の上限で、本契約は製品経路のrunnerもbenchmark frameworkも作らず、既存のTEST-PATH（owner-harness）をvitestの試験から使うので当たらない",
+        "reason": "測定の道具だけを足し、製品と既存の測定の条件を動かさない"
+      },
+      {
+        "id": "Q-DC-FIX-R1",
+        "status": "closed",
+        "source": "独立レビュー1巡目（ヘルツ NO-GO〔must 7・should 2〕、Opus契約適合 条件付きGO〔must 3・should 6・nit 6〕）と統合担当の方針（2026-10-15）",
+        "closed": "照合を「正しい現況の作り直し」から「容量の診断が出たstepの前後のviewの差で消えた瞬間を捕まえる」形に替えた（P3-DC-ORACLE）。時計は1秒の格子・tickごとのsettle・期限まで飛ばしにした（P3-DC-CLOCK）。拒否は入力単位と未解消の状態に分けた。digestは流す順の(receivedTime, headType, 本文のsha256)にした。P3-DC-D-SUMMARYにA'を足して推奨にし、代償を書き直した。試験は境界例を足してT01〜T10にした。取得は一覧を日ごとにし、問いを地震とEEWに分けた。Q-DC-REMEASUREを足した",
+        "remaining": "なし",
+        "reason": "レビューの指摘の全部を条文に写した記録"
+      },
+      {
+        "id": "Q-DC-FIX-R2",
+        "status": "closed",
+        "source": "独立レビュー2巡目（ヘルツ NO-GO、must 4・should 1。前回のH4・H7・H8は閉鎖）と統合担当の指示（2026-10-15）",
+        "closed": "(1) viewの差は容量の欠けの候補にとどめ、後のstateに記録が残るもの（U-Tの解除のreleased・forecastEndedなど）を欠けから外した（P3-DC-ORACLE (2)、T06(c)） (2) 合成のframeの容量の拒否を有効な測定の結果として数え、後続を流してFailにし、不正だけをblockedにした（ORACLE (5)、T08） (3) 欠けと全運用区分の退去の件数を分け、U-Fの退去の件数は未計測と返す（ORACLE (3)、AC04(3)） (4) 保存は必ず成功するメモリに限り、失敗と再試行の予定をblocked（checkpointFailed）にした。timerのcallbackのtickもその時刻でsettleを終える（CLOCK (2)(4)(6)） (5) T10を期限の直前の短い比べと保存の失敗の例にした。Passを保存した現況全体の保証に使わないと書いた",
+        "remaining": "なし",
+        "reason": "2巡目の指摘の全部を条文に写した記録"
+      },
+      {
+        "id": "Q-DC-FIX-R3",
+        "status": "closed",
+        "source": "独立レビュー3巡目（ヘルツ 条件付きGO、前回のmust 4件は閉鎖、新しいmustは無し、should 1件）と統合担当の指示（2026-10-15）",
+        "closed": "T10(a)のU-Eの比べに、期限の前の対象のcurrent、期限の後の両方式でのcurrentの消滅と、対応するgateのcurrentUntilのnullを足した（U-Eのcurrentとgateは保存のencodeに入らず、失効で世代も進まないため、encodeのsha256の比べだけでは飛ばした側だけcurrentが残る差を見逃す）",
+        "remaining": "なし",
+        "reason": "3巡目の指摘を条文に写した記録"
+      },
+      {
+        "id": "Q-DC-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-15 午後、ご主人）",
+        "closed": "P3-DC-D-SUMMARY は A'、P3-DC-D-CLOSE は A（どちらも推奨どおり）。残存リスク(1)〜(13)は承認",
+        "remaining": "なし",
+        "reason": "発注を止めていた作者の判断の記録"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "実電文は本文のControl/Statusのまま流し、運用区分を書き換えない。合成の電文は通常だけにする（訓練の型も通常に替える）。拒否と容量の欠けは運用区分ごとに数え（容量の欠けの運用区分は退去されたsubjectの頭の語から取る）、training/testの退去をnormalの欠けに混ぜない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-DISASTER-CAPACITY-001",
+    "mode": "implementation",
+    "objective": "災害の日の電文を本物の順で流して、各unitの器（件数と保存のbyteの上限）がどこまで埋まるかと、拒否・退去・照合の欠けを測る道具の1段目を作る（作者裁定2026-10-15: 設計のD1=A〔2段、まず1段目〕・D2=A〔U-Qの退去を照合の欠けに数える〕・D3=A〔能登2024のtelegram.earthquakeをArchiveから取り、eew.forecastはpersonalのprivate-corpusだけ〕、P3-DC-DESIGN）。1段目は製品のcomposition root（owner-harnessのTEST-PATH）に筋書きのframeを仮想時計で入れ、24時間・7日の期限を実際の規則のまま効かせて、数日分を短い時間で流す。筋書きは7本: 台風・大雨の日の実電文（W1、手元の採取物）、U-Wの鍵の累積（W2）、能登2024の実電文（R1、取得の後）、2011東北の津波（R2、気象庁サンプル＋合成）、南海トラフ巨大地震の全割れ（N1）・半割れと12時間後の後発（N2）・N2に台風・大雨を重ねたもの（N3）（合成。内閣府の令和7年の想定と気象庁の臨時情報の運用から、P3-DC-SOURCES）。測るのはunitごとの器の使用率の最大と時刻、入力単位の拒否と未解消の拒否の状態、退去の件数、snapshotの要約と、照合（容量の退去で消えたものを消えた瞬間に記録する。終わりの状態は手書きの小さい期待例だけを見る）。製品のsrc・契約の型・既存の試験・測定harness（reconstruction/test/eew-e01/）は変えない。2段目（実時間のRSS・EEWの遅れ）とP3-E05-WEATHER-FILL-001は本契約の外",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-seismic-unit.json",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p3-eew-gate-evict.json",
+      "reconstruction/contracts/p3-lifetime-and-eew-gate.json",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-weather-timeseries-unit.json",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/src/**",
+      "reconstruction/test/execution-split/owner-harness.ts",
+      "reconstruction/test/integration/display-wiring.test.ts",
+      "reconstruction/test/landslide-unit/landslide-host.test.ts",
+      "reconstruction/test/eew-e01/frames.mjs",
+      "reconstruction/test/eew-e01/frames.d.mts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/tools/corpus/rest-acquisition-plan.md",
+      "test/fixtures/（fixtureIdsのfileだけ）",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "package.json",
+      "reconstruction/src/display/chrome-eew/client.ts",
+      "reconstruction/contracts/p3-unit-table.types.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/disaster/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-disaster-capacity.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B03",
+      "B06",
+      "B07",
+      "B08",
+      "B15",
+      "M01",
+      "M02",
+      "M03",
+      "M04",
+      "M05",
+      "M06",
+      "M08"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-T",
+      "I-U-Q",
+      "I-U-N",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P3-EXECUTION-SPLIT-001",
+      "P3-UNIT-WRITE-RIGHT-001",
+      "P2-EEW-UNIT-001",
+      "P3-LIFETIME-AND-EEW-GATE-001",
+      "P3-EEW-GATE-EVICT-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-Q-001",
+      "P3-UNIT-N-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-WEATHER-TIMESERIES-UNIT-001",
+      "P2-SNAPSHOT-SSE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeUnitStates",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerOutput",
+      "reconstruction/contracts/p2-eew-e01.types.ts#CheckpointMeasurement",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot"
+    ],
+    "publicFunctions": [
+      "筋書きの読み手（reconstruction/test/disaster/のexport 1つ。筋書きのidと外部の採取物のdirを受け、流す順のframeの列〔時刻・headType・本文・出所〕と筋書きのdigestを返す。名前は実装が決める。P3-DC-AC01）",
+      "合成器（同じdirのexport 1つ。筋書きのidと種を受け、合成の電文の列を返す純粋な関数。P3-DC-AC02）",
+      "1段目の流し手（同じdirのexport 1つ。frameの列をowner-harnessのcomposition rootに仮想時計で入れ、器の使用率・拒否・退去・容量の欠け・snapshotの要約・期待例の結果を返す。P3-DC-AC03・AC04）",
+      "観測の表（同じdirのexport 1つ。linkedUnitTableのreduceを結果を変えずに包み、stepごとに容量の欠け・入力単位の拒否・合成のframeの入力の結果を数える。P3-DC-AC05）"
+    ],
+    "allowedDependencies": [
+      "node:crypto",
+      "node:fs",
+      "node:os（試験の一時dirだけ）",
+      "node:path",
+      "vitest（既存）。新しいnpm依存は足さない（package.json・package-lock.jsonを変えない）"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-39_11_02_250206_VTSE41",
+      "test__fixtures__32-39_11_09_250206_VTSE41",
+      "test__fixtures__32-39_11_11_250206_VTSE41",
+      "test__fixtures__32-39_11_03_250206_VTSE51",
+      "test__fixtures__32-39_11_10_250206_VTSE51",
+      "test__fixtures__61_11_01_250206_VTSE52",
+      "test__fixtures__61_11_02_250206_VTSE52",
+      "test__fixtures__32-39_12_02_250206_VTSE41",
+      "test__fixtures__32-39_12_05_250206_VTSE52",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE51_20260728162718_059a2b392646",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_99e82c812e72",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE61_20260728162718_d7e630bbb653",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE62_20260728162718_f9786edc27df",
+      "test__fixtures__selected_xml__74_01_01_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_05_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_07_200512_VYSE50",
+      "test__fixtures__selected_xml__75_01_01_200512_VYSE51",
+      "test__fixtures__selected_xml__75_01_04_200512_VYSE52",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__77_01_26_240613_VXSE45",
+      "test__fixtures__32-35_04_04_240613_VXSE53",
+      "test__fixtures__32-35_01_03_240613_VXSE53",
+      "test__fixtures__32-35_01_02_240613_VXSE52",
+      "test__fixtures__15_17_01_251222_VPWW55",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__15_16_04_251222_VPWW58",
+      "test__fixtures__15_16_05_241226_VPWW59",
+      "test__fixtures__15_16_06_241226_VPWW60",
+      "test__fixtures__15_16_07_250825_VPWW61",
+      "test__fixtures__18_00_01_260830_VPNO50_issue"
+    ],
+    "sequenceIds": [
+      "O05",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-DC-RES-01",
+        "target": "1筋書きの1段目のrunの所要（Mac mini）",
+        "limit": 60,
+        "unit": "分",
+        "scope": "越えたら流し手が自分で止め、所要と止めた時刻を書いたblocked（理由timeBudget）の結果のfileを残して終える。正式のrunの試験のtimeoutはこれに余裕を足した値で、vitestの既定（30秒）を上書きする。Failと数えない",
+        "source": "統合担当の見込みとP3-DC-CLOCKの費用の見積り（飛ばしでN2は5〜15分、推測）"
+      },
+      {
+        "id": "P3-DC-RES-02",
+        "target": "stepごとの観測と、期待例の確かめの計算量",
+        "limit": "stepごとは変わったunitの件数を数えるO(そのunitのsubject数)。viewの差は容量の診断が出たstepだけで作る。期待例は区切りの時刻だけ",
+        "unit": "1 step・1区切り",
+        "scope": "stateを直列化し直さない（byteはonMeasurementsの値を使う）。前のstateを持ち続けない。全件×全件の走査をしない（Mapで引く）",
+        "source": "AGENTS.mdの受信経路の計算量の趣旨"
+      },
+      {
+        "id": "P3-DC-RES-03",
+        "target": "tickの格子",
+        "limit": 1000,
+        "unit": "milliseconds（runの始まりからの格子）",
+        "scope": "製品の周期。何も来ない格子は飛ばしてよい（P3-DC-CLOCK (4)）",
+        "source": "composition-root.tsの1秒のtick（P3-C3A-DEADLINES）"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（製品のstate・保存の形・codecは変えない）"
+    ],
+    "nonPersistedFields": [
+      "筋書きのframeの列・合成の電文・容量の欠けの記録・拒否の数・器の使用率の時系列（runの中だけ。結果はFLEQ_DISASTER_OUTのfileに封じて書く）"
+    ],
+    "outOfScope": [
+      "2段目（1段目の保存の世代からhostを起動し、山の区間を実時間で流して、RSS・EEWの受信から表示までの遅れ・SSEのsnapshotを製品の経路で測る）。行き先: 仮のP3-E05-WEATHER-FILL-001と1本にした測定の契約（Q-UFP-E05-FILLを閉じる契約）。本契約の結果（届いた器と山の時刻）を入力にする",
+      "P3-E05-WEATHER-FILL-001（E05の充填をU-Fの58官署×実例の大きさとU-Wの鍵に替える）。行き先: 上と同じ測定の契約。本契約のW1の結果を充填の材料にできる",
+      "Piでの判定（P5）",
+      "製品のsrc（domains・units・runtime・view-projector・host・checkpoint）・契約の型・上限の値の変更。届いた器の直しはP3-DC-OPTIONSの行き先の契約",
+      "E01/C4の測定harness（reconstruction/test/eew-e01/）・凍結manifest・evidenceの変更（frames.mjsはimportして使うだけ）",
+      "corpusのmanifest・sequencesへの追加と実電文の昇格（rest-acquisition-planの段階2）。本契約は外部の採取物をdirとdigestで読むだけ",
+      "dmdataからの取得の実行（統合担当、Q-DC-ACQUIRE）と、実電文のEEWを読む口（personalで要るときにpersonalの側で足す）",
+      "通知の溢れ（pendingの128件・128 KiBとnotificationCapacityEvicted）。1段目の通知のadapterは即時にdeliveredを返すので負荷が掛からない。行き先: 2段目（実backend）",
+      "器の使用率と未解消の拒否の状態を合否にすること（報告だけ、P3-DC-PASS）",
+      "全現況の期待の再計算（照合は容量の差と手書きの期待例だけ、P3-DC-ORACLE）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-DC-AC01",
+        "requirement": "筋書きの読み手（P3-DC-SCENARIOS）: 7筋書きを流す順のframeの列にする読み手をreconstruction/test/disaster/に置く。(1) 実電文（W1・W2・R1）は外部の採取物のdir（dmdata Archiveを無改変で展開したx-<date>/、telegrams.jsonと本文のfile）を引数で受け、telegrams.jsonのformat=xmlの行だけをreceivedTimeの順（同時刻はtelegrams.jsonの配列の順）に読み、本文のbytesを書き換えずに使う。headTypeはtelegrams.jsonのhead.type、仮想時計の時刻はreceivedTime (2) 筋書きのdigest: 実際に流す順の(receivedTime, headType, 本文のsha256)の列（合成のframeを含む）のsha256。同時刻の順は、実電文はtelegrams.jsonの配列の順、合成は合成器が出した順、N3の併せでは同時刻なら合成を先に置く。引数の期待のdigest（Q-DC-DATA）と違えば走らせずにblocked（digestMismatch）。採取物が無い筋書き（取得の前のR1）はblocked（dataMissing） (3) 合成（R2の後半・N1・N2・W2の鍵の埋め・R1のEEW）はP3-DC-AC02の合成器の出力を同じ形のframeにする。N3はN2とW1（2026-06-26）の列を時刻で併せる (4) mainの筋書きのEEWは合成だけ。結果のfileにEEWの本文と報ごとの時刻の列を書かない（件数と器の値だけ）。無いと: 実電文の順と時刻と書き換えが固定されず、telegrams.jsonの時刻や種類が替わっても同じdigestで別の負荷を測れてしまう",
+        "evidenceRefs": [
+          "reconstruction/tools/corpus/rest-acquisition-plan.md:14 «0635a379cd998b36»",
+          "reconstruction/tools/corpus/rest-acquisition-plan.md:105 «9246e0ccbfd9be76»",
+          "reconstruction/test/execution-split/owner-harness.ts:223 «200f1519f14186b0»",
+          "reconstruction/src/runtime/unit-coverage.ts:36 «42405ed0619f5257»",
+          "reconstruction/src/runtime/unit-coverage.ts:37 «4c96b3a5f6fb6ab2»"
+        ]
+      },
+      {
+        "id": "P3-DC-AC02",
+        "requirement": "合成器（P3-DC-SYNTH）: (1) 型はfixtureIdsの公開の電文だけ。型を最初に置く時刻はshiftTimestampsで決め、同じeventの続報では発生時刻（OriginTime）を動かさず、ReportDateTime・観測の時刻・到達時刻をそれぞれ書く。書き換えはEventID・Serial・ReportDateTime・観測と到達の時刻・区域と観測点の列・InfoTypeと、Control/Statusを通常にすること（訓練の型を通常に替える）に限る。EEWの型は気象庁の公開サンプル（37_01_01・77_01_01・77_01_26）だけ (2) 区域と観測点の数はP3-DC-SOURCES (8)のコード表の数を上界に使い、codeと名前は型に実在する値を先に使って、足りない分は同じ桁の合成のcodeと実在の名前に通し番号を付けた名前にする（起草時にunitのdecodeを読んだ範囲では製品は区域・観測点のcodeを表と照合しない。照合する所が見つかれば、その分野は実在のcodeを使う） (3) 数と時刻はP3-DC-SYNTHのとおりで、各値の出所の印（公式・上界・実例・推測）を合成器のsourceにも書く (4) 決まった規則と種（整数）だけで作り、同じ種なら同じbytes。合成器のsourceのsha256と種を結果に書く。無いと: 南海トラフと2011の後半は実電文が無く筋書きが作れず、続報で発生時刻が動くと強震保持の期限が変わって器が別の条件になる",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
+          "reconstruction/contracts/p3-seismic-unit.json:294 «7e1861bc1c33c278»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:222 «5be87c0685329b41»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:223 «3dcb54e5d2face43»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:24 «34484a3e4707ee1e»"
+        ]
+      },
+      {
+        "id": "P3-DC-AC03",
+        "requirement": "1段目の流し手（P3-DC-CLOCK）: (1) owner-harnessのharnessedRootに、仮想時計（clock）・観測の表（runtimeCalls.units）・displayのpublish（snapshotを受ける）・onMeasurements（保存のencodeのbytes）・必ず成功するメモリの保存のfile system・診断のfile system（fake）・即時にdeliveredを返す通知のadapterを渡してcomposition rootを作り、startHarnessで起動する。保存の失敗か再試行の予定が1件でも出たらblocked（checkpointFailed）で止める。製品のsetTimeout・clearTimeoutはfake timersにして仮想時計と同じ時刻で発火させ、timerのcallbackが呼んだtickもその時刻でsettleを終えてから先へ進む (2) tickはrunの始まりからの1秒の格子でだけ呼び、呼ぶたびにsettleまで待つ。何も来ない格子は飛ばしてよく、次のtickは次のframe・ownerのstateの期限・fake timersの次の満了のうち最も早い時刻以上の最初の格子（保存がすべて成功している前提。保存の再試行の時刻は飛ばし先に入れない）。frameは途中の格子を済ませてから時刻順にsubmitで入れてsettleまで待ち、入力の前にtickを足さない（受信の直前の回収は製品の規則のまま） (3) 1筋書き1 run、空のstateから始める（W2・N3は筋書きの中で前の日を流して作る） (4) 外部の採取物と大きい筋書きは、vitestのdescribe.runIf(process.env.FLEQ_DISASTER === \"1\")の口から、FLEQ_DISASTER_SCENARIO・FLEQ_DISASTER_DATA・FLEQ_DISASTER_DIGEST・FLEQ_DISASTER_OUTで走らせる。その試験のtimeoutはP3-DC-RES-01に余裕を足した値にし、予算を越えたら流し手が自分で止めてblocked（timeBudget）の結果のfileを書いてから終える（vitestのtimeoutで落ちて結果が無い状態にしない）。製品のsrcとowner-harness.tsは変えない。無いと: tickの期限要求が未返信のまま時計だけが進んで間の期限処理が省かれ、また8日の筋書きを1秒ごとに回すと所要が予算を越える",
+        "evidenceRefs": [
+          "reconstruction/test/execution-split/owner-harness.ts:77 «3ac72961d4286306»",
+          "reconstruction/test/execution-split/owner-harness.ts:214 «080b090c4cb3ca1a»",
+          "reconstruction/test/execution-split/owner-harness.ts:234 «fd7c80ca051f2f9d»",
+          "reconstruction/test/execution-split/owner-harness.ts:73 «92d485f6dffa61d6»",
+          "reconstruction/src/runtime/composition-root.ts:891 «58f0aecdcdb34121»",
+          "reconstruction/src/runtime/composition-root.ts:892 «39f404990b4c2ef9»",
+          "reconstruction/src/runtime/composition-root.ts:893 «71f3e73d73b564c2»",
+          "reconstruction/src/runtime/owner-runtime.ts:47 «c0a3b81a85da74e2»",
+          "reconstruction/src/runtime/owner-runtime.ts:445 «63380813ee47301c»",
+          "reconstruction/test/integration/display-wiring.test.ts:130 «959983c9146f2dfa»",
+          "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
+          "reconstruction/src/runtime/composition-root.ts:132 «da19aa28db3b6c45»",
+          "reconstruction/src/checkpoint/checkpoint.ts:590 «e1ef5263c0b6ca25»",
+          "reconstruction/src/checkpoint/checkpoint.ts:594 «7fbc7ddee40d495d»",
+          "reconstruction/src/checkpoint/checkpoint.ts:66 «3f51a4d6e3948188»",
+          "reconstruction/src/runtime/composition-root.ts:611 «4abafaf8844b3aa7»",
+          "reconstruction/src/runtime/composition-root.ts:615 «11c6541c5cd2944f»",
+          "reconstruction/test/snapshot-sse/projection-fixture.ts:83 «b70fda78f149985c»",
+          "reconstruction/src/units/eew/eew-unit.ts:284 «815aa0cb2d10c8e3»",
+          "reconstruction/src/domains/eew/eew.ts:312 «a9e582856884de0d»",
+          "reconstruction/src/domains/eew/eew.ts:326 «1e6532fcd2a85780»"
+        ]
+      },
+      {
+        "id": "P3-DC-AC04",
+        "requirement": "測るもの: runの中で次を数えて結果に書く。(1) 器の使用率: 件数の上限ごと（U-E: familyごとのsubject 512、U-T: 予報512・観測familyごと512・観測点familyごと1,024、U-Q: event 512・長周期256、U-N: 現況6・情報64、U-W: partial 128、U-F: subject 512）の件数を、観測の表が受けたstep.stateから数える。保存のbyteはonMeasurementsのencodeのbytes（CheckpointMeasurement.bytes）をunitの世代の上限（U-E 256 KiB・U-T 4 MiB・U-Q 4 MiB・U-N 288 KiB・U-W 16 MiB・U-F 32 MiB）で割る。上限ごとに最大の比・その時刻・その時の値を残し、90%を越えた上限を名指す (2) 拒否は2つの量に分ける（P3-DC-ORACLE (4)）: 入力単位の拒否（decisionのcapacityExceededと、そのstepで作られたU-W・U-FのcapacityExceededのunavailableの印。入力ごと・unit・運用区分・時刻）と、未解消の拒否の状態（返信のadmissionCountsは未解消の記録の数＋overflowで累計ではない、owner-runtime.ts:174〜:177。とstateの印の数の時系列と最大） (3) 退去: 全運用区分の退去の件数を、P3-DC-ORACLE (3)の表のreasonのcountでunit・時刻ごとに足し、容量の欠け（P3-DC-AC05、normalだけ）と別の量として並べる。U-Fは診断を出さずに非normalのsubjectとlastKnownを削るので、U-Fの退去の件数は未計測（unmeasured）と書き、0と書かない。notificationCapacityEvictedは数えない（2段目） (4) snapshot: publishされたsnapshotごとに分野のdelivery（full・summary）を見て、要約の始まりと終わりの時刻を分野ごとに残す。要約の時刻ごとに分野ごとのbyte（summaryのoriginalBytesとfullのviewのUTF-8のbyte）と、U-F・U-Wを除いた合計が1 MiBを越えるか（災害の情報だけで溢れたかの印）を書く (5) 結果のfileは1 runに1つで、frozen.tsからimportしたsealSelfHash（export済み）で封じ、gitHead・筋書きのdigest・合成器のsourceのsha256と種・P3-DC-PASSの判定・届いた上限ごとのP3-DC-OPTIONS・測ったcommitのreconstruction/contractsにあるP3-UF-PUBLIC-001とP3-CURRENCY-COVERAGE-001とU-Wの単位の契約のcontractIdとmeta.sha256を書く（配送の有無の確かめはQ-DC-REMEASURE）。書き先はFLEQ_DISASTER_OUTの1 fileだけで、試験はrepoの中に書かない。無いと: 器の最大とその時刻、入力ごとの拒否と残った拒否が筋書きごとに残らず、届いたかと溢れの原因を言えない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:459 «66224699b9d11746»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:24 «34484a3e4707ee1e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:27 «6102ac4d208bf7d7»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:25 «f376055a27fbf976»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:627 «7dfd56fda32b885c»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:43 «3ad4bf7c6588ba31»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
+          "reconstruction/src/runtime/composition-root.ts:126 «9a24c78389b3cc16»",
+          "reconstruction/src/runtime/composition-root.ts:1372 «90b8604c422c63fa»",
+          "reconstruction/contracts/p3-execution-split.types.ts:82 «d27563d65ef90462»",
+          "reconstruction/src/runtime/owner-runtime.ts:174 «54f4dd1eb3bb98eb»",
+          "reconstruction/src/runtime/owner-runtime.ts:177 «5c8a5f202fff9c2b»",
+          "reconstruction/contracts/p3-execution-split.types.ts:96 «a2f6e82ae720f68e»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:446 «08eda6d3c0cd84ce»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:220 «9e0a048fabf9d141»",
+          "reconstruction/src/view-projector/view-projector.ts:936 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:938 «c42a191089542248»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:722 «64ef77c780d16b32»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:152 «49bd7937eeae2033»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:202 «f058e3a180f89e0c»"
+        ]
+      },
+      {
+        "id": "P3-DC-AC05",
+        "requirement": "照合（P3-DC-ORACLE、D2=A）: 正しい現況を作り直さない。(1) 観測の表でlinkedUnitTableの12 unitのreduceを結果を変えずに包み、stepごとに数える (2) 容量の欠け: stepのdiagnosticsに容量の退去のreason（P3-DC-ORACLE (3)の表）があるとき、そのunitのtoViewを前のstateとstep.stateで作り、全unit共通のUnitView.subjectsのsubjectが前にあって後に無いものを候補にする。候補のうち、後のstateの記録（intentと終端記録の欄を除く）にsubjectかsource.subjectがその値の要素が無いものだけを、subject・unit・運用区分・退去の時刻・入力・reason・本来の期限とともに容量の欠けとして記録し、後で期限が来ても消さない（後のstateに記録が残る解除・forecastEnded・取消は欠けではない）。normalで本来の期限が無いか退去の時刻より後のものを欠けに数える。容量の欠け0は、保存した現況全体（記憶・非active・非normal）が欠けていない保証ではない (3) 合成のframeの入力の結果を、採用・容量の拒否・不正に分ける。容量の拒否（decisionのcapacityExceeded、またはchangedでU-W・U-Fのunavailableの印）は入力単位の拒否として数えて後続を流し、筋書きをFailにする。不正（reduceが無い、容量以外のrejected、明示していないunchanged）だけを測定不成立（blocked、inputNotAdopted）としてrunを止める。実電文の不正は数えて報告する (4) 終わりの状態はP3-DC-SCENARIOSの手書きの期待例だけを、その時刻のstateとviewで確かめる。外れたら欠け。無いと: 区切りの間に退去して後で期限も過ぎた地震を見逃し、正しい解除や製品の正しい保持（津波の観測点の累積、U-Fの7日の回収）を欠けと誤り、測りたい容量の拒否で測定が止まり、合成の電文が不正のまま負荷不足を測ったことに気づかない",
+        "evidenceRefs": [
+          "reconstruction/test/execution-split/owner-harness.ts:263 «bebbf0ef2ede7d75»",
+          "reconstruction/contracts/p3-unit-table.types.ts:34 «4a372479f4cdc901»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:173 «a763b418a1d2365e»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:282 «6937a8c8bda3acaa»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:300 «87b29b2756cc79e9»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:301 «8900905b21910c83»",
+          "reconstruction/src/domains/eew/eew.ts:272 «a777a5aa32eb2368»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:27 «986ae9b33f93a294»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:439 «3f2690b71e67d7d4»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:33 «a3f5d5da552e2733»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:49 «7f665a2964cdce66»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:200 «0f7bc64f0b86acb0»",
+          "reconstruction/src/units/flood/flood-unit.ts:303 «db818200ef8649bd»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:345 «0661a8bf0d125d0a»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:665 «6334142030400210»",
+          "reconstruction/src/domains/eew/eew.ts:490 «4cf8acc86bfa0649»"
+        ]
+      },
+      {
+        "id": "P3-DC-AC06",
+        "requirement": "合格の条件と報告（P3-DC-PASS・P3-DC-OPTIONS）: 筋書きごとにPass・Fail・blockedを結果に書く。Passは入力単位の拒否0・容量の欠け0（U-Qの退去を含む）・手書きの期待例が全部合う・P3-DC-D-SUMMARYの裁定の形の要約の扱い（作者裁定A': U-E・U-T・U-Qの要約0）の全部。器の使用率・未解消の拒否の状態・全運用区分の退去の件数（U-Fは未計測）は合否にしない。Passは保存した現況全体が欠けていない保証ではない（P3-DC-PASS）。Failのときは届いた上限ごとにP3-DC-OPTIONSの選択肢と行き先を結果に書き、統合担当が作者への判断の材料にする（閉じ方はP3-DC-D-CLOSEの裁定の形）。無いと: 器に届いた筋書きと、届いたときに作者へ何を出すかが結果から読めない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-seismic-unit.json:84 «d145e4f9fab8bf1c»",
+          "reconstruction/contracts/p3-tsunami-unit.json:93 «8d54ba011b4a2190»",
+          "reconstruction/contracts/p3-nankai-unit.json:92 «ebef307b81204d94»",
+          "reconstruction/contracts/p3-eew-gate-evict.json:51 «9600120f2da1f66a»",
+          "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»",
+          "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:63 «56746ded0a53e641»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:87 «c796e88628564648»",
+          "reconstruction/src/view-projector/view-projector.ts:793 «25d8f1daebd55d26»",
+          "reconstruction/src/display/chrome-eew/client.ts:108 «c76935a75f9bdb47»"
+        ]
+      },
+      {
+        "id": "P3-DC-AC07",
+        "requirement": "最小実装・最小テスト・計算量: (1) 新しいfileはreconstruction/test/disaster/の下だけ。製品のsrc・契約の型・既存の試験・reconstruction/test/eew-e01/を変えない。足した仕組みごとに無いと何が壊れるかを1行 (2) 試験はtestMappingのT01〜T10に限る。外部の採取物と大きい筋書き（W1・W2・R1・N1・N2・N3）は既定のvitestのrunで走らせず、describe.runIfの口からだけ走らせる (3) 計算量はP3-DC-RES-02 (4) reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す。無いと: 測定の道具が製品の試験の時間と期待を変える",
+        "evidenceRefs": [
+          "AGENTS.md:24 «c1288cfa5b0d16dc»",
+          "AGENTS.md:26 «2c223bbb66635b53»",
+          "reconstruction/test/landslide-unit/landslide-host.test.ts:211 «0910eacc36dbef29»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-DC-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC-AC05"
+        ],
+        "behavior": "D2=A・区切りの間の退去: U-Qのevent 512件（32-35_01_02_240613_VXSE52の形）の後の513件目で最古のnormalのeventがseismicCapacityEvictedで退去すると、観測の表はそのstepで容量の欠け1（subject・退去の時刻・本来の期限〔報時刻＋24時間〕）を記録し、区切りを待たずに残す。その後に本来の期限が過ぎても欠けは消えない"
+      },
+      {
+        "testId": "P3-DC-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-DC-AC01",
+          "P3-DC-AC03",
+          "P3-DC-AC04"
+        ],
+        "behavior": "R2の小さい版（2011の公開サンプル7通と、地震の28時間後の合成のVTSE41の解除1通）を仮想時計で30時間流すと、(1) 結果にU-Tの器（予報・観測・観測点・世代のbyte）の最大と時刻が出る (2) 観測のsubjectは最新の報時刻＋24時間を過ぎた最初の格子のtickでexpired（観測点が空）になり、容量の欠け0、期待例も合う (3) 入力単位の拒否0 (4) 同じ入力で2回流した結果のfileの、runの所要を除いた本体のsha256が同じ"
+      },
+      {
+        "testId": "P3-DC-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC-AC02"
+        ],
+        "behavior": "合成器: N1の本震のVXSE53はIntensityStation 4,361・City 1,894・Area 188・Pref 47でdecodeを通ってU-Qに採用され、MaxInt 7で強震保持を作る。同じeventの3つのVXSE53でOriginTimeが同じで、強震保持の期限は動かない。VTSE41は66区域でU-Tに採用される。同じ種で同じbytes、種を変えると違うbytes"
+      },
+      {
+        "testId": "P3-DC-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC-AC04"
+        ],
+        "behavior": "拒否の2つの量: (a) U-Wのpartial 128件（15_16_02_251222_VPWW57の官署名を替えた報）の後の新しい官署の報は、入力単位の拒否1（unavailableの印。admissionCountsは増えない） (b) U-Eのfamily 512を10分の内のnormalのEventIDで満たした後の新しいEventIDの報（77_01_01_240613_VXSE45の形）は、入力単位の拒否1でadmissionCountsも1 (c) (a)と同じ鍵へ続けて2通送ると入力単位の拒否は2、未解消の状態は1のまま"
+      },
+      {
+        "testId": "P3-DC-T05",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-DC-AC07"
+        ],
+        "behavior": "reconstructionの全試験とchrome-eewの試験を期待値を変えずに通し、shuffleでも緑。FLEQ_DISASTERを立てない既定のrunでは大きい筋書きが走らない"
+      },
+      {
+        "testId": "P3-DC-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC-AC05"
+        ],
+        "behavior": "製品の正しい遷移を欠けにしない: (a) VTSE51の版1が観測点A・B、版2がAだけ（32-39_11_10の形）でも、容量の欠けは0で、期待例「Bが残る」が合う (b) U-Fの官署のsubjectが報時刻＋7日の期限で回収されても（81_01_04_251222_VPWP50の形）、容量の診断の無いstepなので候補にならず欠け0 (c) 世代の上限の近くまで非activeの古い予報を持つU-Tで、activeの予報Xの解除報（区域を足した報）が、同じstepで別の非activeの記録をtsunamiCapacityEvictedで退去させても、Xはreleasedで後のstateに残るので欠け0（viewから消えたXは候補にとどまる）。退去の件数は1と数える"
+      },
+      {
+        "testId": "P3-DC-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC-AC01",
+          "P3-DC-AC03"
+        ],
+        "behavior": "blockedの条件と記録: (a) 本文を変えずにtelegrams.jsonのreceivedTimeかhead.typeを1行替えるとdigestが変わり、期待のdigestと違ってdigestMismatch (b) 採取物のdirが無いとdataMissing (c) 予算を小さくして越えさせると、流し手が止まってtimeBudgetの結果のfileが残る（vitestのtimeoutで落ちない）"
+      },
+      {
+        "testId": "P3-DC-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC-AC05"
+        ],
+        "behavior": "合成の入力の3つの分け方: (a) 観測点codeの重複したVTSE52（32-39_12_05の形を通常に替えたもの）は製品に構造の拒否をされ、runは測定不成立（blocked、inputNotAdopted）で止まり、器の値を結果に出さない (b) U-Eのfamily 512を10分の内のnormalで満たした後の合成の513件目（77_01_01_240613_VXSE45の形、decisionがcapacityExceeded、eew.ts:490）は入力単位の拒否1として数え、runは後続を流してFailで終わる（blockedにしない） (c) U-Wのpartial 128件の後の新しい官署の合成の報（decisionはchangedでunavailableの印）も(b)と同じく拒否1でFail"
+      },
+      {
+        "testId": "P3-DC-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC-AC06"
+        ],
+        "behavior": "要約の判定（P3-DC-D-SUMMARYの裁定A'の形）: snapshotでU-Tの分野が要約になったrunはFail、U-WとU-Fだけが要約になったrunは要約の時刻を報告してPass（ほかの条件が満ちていれば）。要約の時刻ごとにU-F・U-Wを除いた合計の印が出る"
+      },
+      {
+        "testId": "P3-DC-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC-AC03"
+        ],
+        "behavior": "飛ばしの等価と保存の失敗: (a) 期限の直前（各10秒前）から直後（各10秒後）までの短い区間を、同じ前置き（飛ばしで進めたstate）から1秒ごとのtickと飛ばしたtickで流して比べると、U-Tの観測の24時間の失効、解除の後の予報の7日の回収、U-Eのcurrentの10分の失効、U-Fのsubjectの7日の回収のどれでも、終わりのunitのstateの保存のencodeのsha256・器の最大・入力単位の拒否・容量の欠け・snapshotの要約の始まりと終わりの時刻・P3-DC-PASSの判定が同じ。U-Eのcurrentとgateは保存のencodeに入らず（eew-unit.ts:284）、10分の失効で世代も進まない（eew.ts:312）ので、U-Eの区間では加えて、期限の前には対象のcurrentがあり、期限の後には両方式ともそのcurrentが消え、対応するgateのcurrentUntilがnullであること（eew.ts:326）をharnessのunit()のstateで比べる (b) 保存を1回失敗させるfile systemを渡すと、runは飛ばしで再試行の時刻を越えて測らずにblocked（checkpointFailed）で止まる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhashの検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O05・O09の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "srcと契約型の型検査とreconstruction/dist/の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "reconstruction/test/disaster/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eewのdist（ゲート一式）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全試験（FLEQ_DISASTERを立てない既定のrun）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えても緑"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowed_paths",
+        "stage": "implementation",
+        "purpose": "空白の検査"
+      },
+      {
+        "command": "FLEQ_DISASTER=1 FLEQ_DISASTER_SCENARIO=<id> FLEQ_DISASTER_DATA=<dir> FLEQ_DISASTER_DIGEST=<sha256> FLEQ_DISASTER_OUT=<file> ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/disaster",
+        "cwd": ".",
+        "target": "Mac miniの1段目の正式のrun（統合担当、配送の後）",
+        "stage": "preparation",
+        "purpose": "7筋書きの結果（Q-DC-RUN）。W1・W2・N3・R1は外部の採取物のdirとdigestを渡す。試験のtimeoutはP3-DC-RES-01に余裕を足した値"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由",
+      "足した仕組み（筋書きの読み手、合成器、1段目の流し手、観測の表、結果の封じ）ごとに『無いと何が壊れるか』を1行",
+      "追加した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行",
+      "数: T02の所要と結果のfileの例（R2の小さい版）、T03のN1の本震のVXSE53のbyteとU-Qのeventの保存のbyte（P3-DC-MATERIALの上界約1.07 MBと比べる）、T10の1秒ごとと飛ばしの所要の比",
+      "残存リスク（2026-10-15 作者承認済み）: (1) 1段目は1プロセスで、stateの大きさと器は製品と同じだが、RSSとEEWの遅れは言えない（2段目） (2) 合成の区域・観測点のcodeと名前は実在の値の繰り返しと合成のcodeで、器には件数と文字列の長さが効く。震度や高さの値の細部はbyteにほぼ効かないが、要約の項目（最高区分など）は変わりうる (3) 合成の数のうち〔推測〕の印のもの（余震の24時間400と大きさの比・EEWの続報の数・観測の報の間隔と長さ・VXSE53とVXSE62の途中の点の数・M7級余震2件・臨時情報の途中の時刻・M9で全国が有感）は公式の資料に無い。〔上界〕の印のもの（全観測点・VYSE51を報ごとに別EventID・沖合420点）は最悪の側に置いた値。結果は「この置き値の下で」の値で、R1の実電文の結果と並べて読む (4) tickは1秒の格子で、何も来ない格子を飛ばす。飛ばし先はframe・ownerの期限・fake timersだけで、保存の再試行の時刻は読まないので、保存はメモリで必ず成功させ、失敗はblocked（checkpointFailed）にする。ほかに時刻で動く仕組みがあれば飛ばしが期限を遅らせうる（T10で期限の直前の区間を1秒ごとと比べる） (5) 照合は容量の診断が出たstepのviewの差を候補にして後のstateで確かめるのと、手書きの期待例だけで、値（震度・高さ・文言）や全現況は比べない。容量以外の理由で消えたもの（期限・取消・解除・置き換え）は欠けに数えない。viewに出ない記憶（U-Eのgate・取消記憶・非activeの津波の記録）と非normalは欠けの対象外なので、Passは保存した現況全体が欠けていない保証ではない。U-Fの退去の件数は未計測 (6) 通知のadapterは即時にdeliveredを返すので、通知のpendingとnotificationCapacityEvictedには負荷が掛からない（2段目） (7) W2の406鍵は鍵の空間の上界の合成で、実配信が数か月でそこまで届くかは分からない（3日で187、VPWW57・60は0通） (8) R1は取得までblocked。mainのR1のEEWは合成で、実電文のEEWのrunは本契約の受入に入れない (9) 結果は測ったcommitの製品の値。P3-UF-PUBLIC-001・P3-CURRENCY-COVERAGE-001・U-Wの単位の配送でsnapshot・拒否・器が変わるので、配送のたびに同じ道具で測り直す（Q-DC-REMEASURE）。凍結manifestは作らない（決まった入力と仮想時計で再現し、結果にgitHeadとdigestを書く） (10) 外部の採取物（W1・R1）はrepoの外にあり、CIでは走らない（T01〜T10はrepoの公開fixtureだけ） (11) W1は新しい形式の始まり（2026年5〜6月）の後の3日だけで、冬の気象（降雪）のU-Fは測らない (12) R2の時刻は起草では検索の要約から取った（原文の確認はQ-DC-BASE） (13) 測定の保存はメモリで、disk・保存の失敗・再試行の振る舞いを測らない（器の測定の範囲の外）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-DC-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "発注前点検",
+        "requiredEvidence": [
+          "baseOidの割当と、その時点のcheck-contractで本契約のanchorのずれが0件であること",
+          "R2の公式の時刻（14:49・15:14・15:30・3/12 03:20・3/12 20:20・3/13 07:30・3/13 17:58）を気象庁技術報告第133号と2011-03-13 18:30の報道発表の原文で確かめ、違えばP3-DC-SCENARIOSを直す（15:14の拡大はサンプル32-39_11_11の15:12で代える）",
+          "P3-DC-SYNTHの〔推測〕の印の数をそのまま発注するかの確かめ"
+        ]
+      },
+      {
+        "id": "Q-DC-ACQUIRE-EQ",
+        "owner": "integrator",
+        "blocks": [
+          "R1の正式のrun"
+        ],
+        "resolveBy": "本契約の配送の前後どちらでもよい（R1以外の筋書きは待たない）",
+        "requiredEvidence": [
+          "P3-DC-ACQUIREの手順で取ったtelegram.earthquakeの2 file（2024-01-01・02）の.item.json（archiveId・requestUrl・sha256・byteLength・acquiredAt）とindex.jsonの行",
+          "要求の数と間隔の記録（一覧は最悪6・本体2、429の有無）と、rest-acquisition-plan.md:71の探索上限とは別の枠で使った旨",
+          "R1の筋書きのdigest（P3-DC-AC01(2)の式）"
+        ]
+      },
+      {
+        "id": "Q-DC-ACQUIRE-EEW",
+        "owner": "integrator",
+        "blocks": [
+          "personalで実電文のEEWを使う後の測定（本契約の受入ではない）"
+        ],
+        "resolveBy": "作者裁定D3=Aの範囲で、統合担当の都合のよいとき",
+        "requiredEvidence": [
+          "eew.forecastの2 file（2024-01-01・02）をpersonalの作業木のprivate-corpus/eew-20240101-noto/に置いたcommitと、sha256・byteLength・acquiredAt",
+          "mainにもcorpus-p0にも置いていないことの確かめ"
+        ]
+      },
+      {
+        "id": "Q-DC-DATA",
+        "owner": "integrator",
+        "blocks": [
+          "W1・W2・N3の正式のrun"
+        ],
+        "resolveBy": "正式のrunの前",
+        "requiredEvidence": [
+          "W1の3日（~/dev/fleq-corpus-p0/20260923-capacityのx-2026-06-03・06-26・09-21）を測る機械に写し、筋書きのdigestを記録する",
+          "その展開物が同じ場所のtar.gz（.item.jsonのsha256）から無改変で展開したものであることの確かめ"
+        ]
+      },
+      {
+        "id": "Q-DC-RUN",
+        "owner": "integrator",
+        "blocks": [
+          "本契約の閉鎖"
+        ],
+        "resolveBy": "配送の後",
+        "requiredEvidence": [
+          "7筋書き（W1は3日、R1は取得の後）の結果のfile（自己hashつき）とMac miniでの所要",
+          "筋書きごとのPass・Fail・blockedと、届いた上限ごとのP3-DC-OPTIONSの選択肢を作者に出した記録（P3-DC-D-CLOSEの形）",
+          "結果を構造的欠陥台帳に転記した記録と、正式の結果のfileを置いた場所"
+        ]
+      },
+      {
+        "id": "Q-DC-REMEASURE",
+        "owner": "integrator",
+        "blocks": [
+          "配送の後の器と要約の読み直し"
+        ],
+        "resolveBy": "P3-UF-PUBLIC-001・P3-CURRENCY-COVERAGE-001・U-Wの単位（3つ目の単位）の配送のたび",
+        "requiredEvidence": [
+          "その配送のcommitを含むgitHeadで、影響する筋書き（U-F・U-Wの公開はW1・W2・N3、C1とcurrencyは拒否の起きた筋書き）を同じ道具で測り直した結果のfile",
+          "結果のfileのgitHeadが配送のcommitを含むことの確かめ（git merge-base --is-ancestor）と、前の結果との並べ",
+          "計画（p3-order-plan.md）への測り直しの行（統合担当が足す）"
+        ]
+      },
+      {
+        "id": "Q-DC-EXISTING-TESTS",
+        "owner": "implementer",
+        "blocks": [
+          "期待値を変える既存の試験の変更"
+        ],
+        "resolveBy": "実装の途中、変える前に報告",
+        "requiredEvidence": [
+          "変える見込みは無い（新しい試験はreconstruction/test/disaster/の下だけ）。変える必要が出たら試験の名前・旧の期待・理由"
+        ]
+      }
+    ]
+  }
+}
