@@ -139,7 +139,7 @@ export type EewUnitStep = Readonly<{
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>
     | Readonly<{ decision: "rejected"; reason: RejectionReason }>
-    | Readonly<{ decision: "capacityExceeded"; rejection: AdmissionEvidence & Readonly<{ affectedScope: "subject" }> }>
+    | Readonly<{ decision: "capacityExceeded" }>
     | Readonly<{ decision: "changed"; reason: null; change: "semantic" | "revisionOnly" | "deliveryOnly"; currentEstablished: (AdmissionEvidence & Readonly<{ affectedScope: "subject" }>) | null }>
   ))[];
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];

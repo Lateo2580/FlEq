@@ -274,7 +274,6 @@ function toEewView(state: EewUnitState): EewUnitView {
     semanticRevision: state.gates.map((gate) =>
       `${gate.subject}:${gate.serial}:${gate.terminal ? 1 : 0}:${gate.source.reportDateTimeRaw}`).join("|"),
     contentRevision: String(state.contentRevision),
-    admission: {},
     subjects,
     activeCount: state.current.length,
     current: state.current,
@@ -337,10 +336,12 @@ function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
   if (displayChanges.length !== 0) {
     if (!Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-E content revision exhausted");
   }
+  // 容量の拒否は新しい subject だけに起き印を持たないので、unit/operation の未確認へ寄せる（P3-CC-AC02、Q-CC-UE）。
   const confirmationEvidence: EewUnitStep["confirmationEvidence"] = input.kind === "receive"
-    ? step.decisions.flatMap((item) => item.decision === "changed" && item.currentEstablished != null
-      ? [{ source: "acceptedReport" as const, scopes: [{ unit: "U-E" as const, operation: item.operation,
-        kind: "event" as const, eventId: item.subject.split("/")[2] }] }] : []) : [];
+    ? step.decisions.flatMap<EewUnitStep["confirmationEvidence"][number]>((item) => item.decision === "changed" && item.currentEstablished != null
+      ? [{ source: "acceptedReport", scopes: [{ unit: "U-E", operation: item.operation, kind: "event", eventId: item.subject.split("/")[2] }] }]
+      : item.decision === "capacityExceeded" ? [{ source: "capacityExceeded", scopes: [{ unit: "U-E", operation: item.operation, kind: "unit" }] }]
+        : []) : [];
   return { ...step, state: displayChanges.length !== 0
     ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state,
     displayChanges, confirmationEvidence };
@@ -357,11 +358,6 @@ const eewUnit = {
   toView: toEewView,
   persistence: { kind: "durable", codec: eewUnitCodec },
   confirmationScopeLimit: 1024,
-  withoutNormal: (state) => ({ ...state, current: state.current.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => state.current.filter((item) => item.operation === "normal").map((item) => ({
-    unit: "U-E" as const, operation: item.operation, subject: item.subject, office: null,
-    current: item, subjects: [currentSubject(item)] })),
   terminalIntents: { kind: "deliveryRecords", records: (state) => state.deliveryRecords },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-E">;

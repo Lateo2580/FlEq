@@ -1,13 +1,11 @@
 import type { EewDeliveryRecord } from "./p2-eew-unit.types";
 import type {
   JsonValue,
-  RuntimeDisplaySubject,
   RuntimeUnitId,
   RuntimeUnitInputs,
   RuntimeUnitSteps,
   RuntimeUnitStates,
   RuntimeViews,
-  SubjectOutcome,
   UnitCodec,
   UnitId,
 } from "./p2-shared-runtime.types";
@@ -35,9 +33,6 @@ export type UnitModule<K extends RuntimeUnitId> = Readonly<{
   persistence: UnitPersistence<K>;
   // Former unit-variable branches in shared-runtime.ts (P3 order plan §4.1), one field per branch group.
   confirmationScopeLimit: number;
-  withoutNormal: (state: RuntimeUnitStates[K]) => RuntimeUnitStates[K];
-  keepsWhileNormalHidden: (subject: SubjectOutcome) => boolean;
-  normalDisplaySubjects: (state: RuntimeUnitStates[K]) => Iterable<Extract<RuntimeDisplaySubject, Readonly<{ unit: K }>>>;
   terminalIntents: TerminalIntentRecords<K>;
   reclaimDeadlineBeforeReceive: boolean;
 }>;

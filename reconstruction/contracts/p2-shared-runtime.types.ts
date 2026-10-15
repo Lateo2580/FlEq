@@ -176,8 +176,6 @@ export type UnitView = Readonly<{
   // Changes exactly when public meaning changes; independent of gates, persistence and delivery.
   contentRevision: string;
   // Persistence is metadata in RuntimeState.units; it is not part of a reusable content view.
-  // Derived flag only: a slot exists while records remain or overflow is set.
-  admission: Readonly<Partial<Record<Operation, "capacityExceeded">>>;
   subjects: readonly SubjectOutcome[];
 }>;
 
@@ -300,7 +298,9 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "typhoonRevisionConflict" | "typhoonCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
-  | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate";
+  | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate"
+  // P3-CC-AC07: one per input a unit could not make current because of its capacity.
+  | "capacityRejected";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;
@@ -385,7 +385,8 @@ export type RuntimeRestoration = Readonly<Record<RuntimeUnitId,
   Readonly<{ kind: "restored" | "empty" }> | Extract<RestoreUnitResult, { kind: "unavailable" }>>>;
 
 // P2-A1-CONFIRMATION: restoration success never establishes current completeness.
-export type UnconfirmedReason = "startup" | "disconnected" | "scopeCapacity" | "scopeRetired";
+// capacityExceeded: 容量の拒否で報を 1 つ取りこぼした unit/operation（P3-CC-AC02）。scopeCapacity（確認の記録を畳んだ印）とは別。
+export type UnconfirmedReason = "startup" | "disconnected" | "scopeCapacity" | "scopeRetired" | "capacityExceeded";
 export type ConfirmationScope = Readonly<{ operation: Operation }> & (
   | Readonly<{ unit: RuntimeUnitId; kind: "unit" }>
   // I-U-T.confirmationScope: U-T reuses the event row (VTSE41 EventID), no new row.
@@ -395,10 +396,13 @@ export type ConfirmationScope = Readonly<{ operation: Operation }> & (
 );
 
 // Emitted by A4/A5/A6 only after final admission of a current-establishing received report.
-export type CurrentConfirmationEvidence = Readonly<{
-  source: "acceptedReport";
-  scopes: readonly Exclude<ConfirmationScope, { kind: "unit" }>[];
-}>;
+// capacityExceeded は負の証拠: 印を付けられない容量の拒否で、その unit/operation の whole を未確認にする（P3-CC-AC02）。
+export type CurrentConfirmationEvidence =
+  | Readonly<{ source: "acceptedReport"; scopes: readonly Exclude<ConfirmationScope, { kind: "unit" }>[] }>
+  | Readonly<{ source: "capacityExceeded"; scopes: readonly Extract<ConfirmationScope, { kind: "unit" }>[] }>;
+
+// 容量の拒否で更新できなかった記録の印（P3-CC-AC03）。値は最終確認として残し、source は拒否した報。
+export type SubjectUnavailable = Readonly<{ reason: "capacityExceeded"; source: ReportRef }>;
 
 export type RuntimeConfirmation = Readonly<{
   epoch: number;
@@ -422,26 +426,12 @@ export type AdmissionEvidence = Readonly<{
   affectedScope: "subject" | readonly string[];
 }>;
 
-export type AdmissionRejection = AdmissionEvidence & Pick<ReportRef, "subject">;
-
-// RES-04/05 bound records; overflow remains set throughout this run.
-export type AdmissionSlot = Readonly<{
-  records: readonly AdmissionRejection[];
-  overflow: boolean;
-}>;
-
-// P2-A1-ADMISSION-COUNTS: nine aggregate counts; no rejection records cross this boundary.
-export type RuntimeAdmissionCounts = Readonly<Record<RuntimeUnitId, Readonly<Record<Operation, number>>>>;
-
-export type RuntimeAdmission = Readonly<Partial<Record<RuntimeUnitId, Readonly<Partial<Record<Operation, AdmissionSlot>>>>>>;
-
 export type RuntimeState<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> = Readonly<{
   runId: string;
   units: UnitStates;
   restoration: RuntimeRestoration;
   confirmation: RuntimeConfirmation;
   views: RuntimeViews;
-  admission: RuntimeAdmission;
   checkpointAttempts: Readonly<Partial<Record<RuntimeUnitId, PendingCheckpointAttempt>>>;
   deadlines: Readonly<Record<RuntimeUnitId, RuntimeUnitDeadline | null>>;
   notificationChannels: NotificationDeliveryState["channels"];
@@ -463,7 +453,6 @@ export type RuntimeStep<UnitStates extends RuntimeUnitStates = RuntimeUnitStates
   shutdownSummary: ShutdownSummary | null;
   outcomes: readonly RuntimePublishedOutcome[];
   views: readonly RuntimeUnitView[];
-  admissionCounts: RuntimeAdmissionCounts;
   displayChanges: readonly RuntimeDisplayChange[];
   diagnostics: readonly DiagnosticEvent[];
 }>;

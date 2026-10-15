@@ -8,6 +8,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DecodedMaterial, Operation, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
 import type {
   CheckpointResult,
+  CurrentConfirmationEvidence,
+  RuntimeConfirmation,
   DiagnosticDetails,
   MailboxControl,
   RuntimeInput,
@@ -31,15 +33,15 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { boundDiagnosticDetails, completeDiagnostic } from "../../src/runtime/runtime-diagnostic";
 import type { ExecutionPlace } from "../../contracts/p3-execution-split.types";
 import {
-  capturedOwner, checkpointResultOwner, deadlineOwner, receiveOwner, unitAdmissionCounts, validateSemanticEnvelope,
+  capturedOwner, checkpointResultOwner, deadlineOwner, receiveOwner, validateSemanticEnvelope,
 } from "../../src/runtime/owner-runtime";
 import type { OwnerState, ParserCompletion } from "../../src/runtime/owner-runtime";
 import { fixtureState, ownerFixture } from "../checkpoint-shutdown/runtime-fixture";
 import { envelope, harnessedRoot, idleChannels, manualAdapter, seeded, startHarness, submit, unitBodies } from "../execution-split/owner-harness";
 import type { CodecMap } from "../../src/checkpoint/checkpoint";
-import { linkedUnitCodecs } from "../../src/runtime/composition-root";
+import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import type { NotificationCalls, PublisherInput } from "../../src/runtime/composition-root";
-import { observeStage, requestShutdown } from "../../src/runtime/shared-runtime";
+import { confirmOutput, initialConfirmation, lostConfirmation, observeStage, requestShutdown, verifyCoverage } from "../../src/runtime/shared-runtime";
 import type { PublisherState } from "../../src/runtime/shared-runtime";
 import { callsWith } from "../unit-table/linked-calls";
 import type { StubCalls } from "../unit-table/linked-calls";
@@ -60,7 +62,6 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
     restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-L": { kind: "empty" }, "U-R": { kind: "empty" },
       "U-B": { kind: "empty" }, "U-M": { kind: "empty" }, "U-Y": { kind: "empty" } },
-    admission: {},
     notificationProbeComplete: true,
     units: {
       "U-E": { schemaVersion: "p2-eew-unit-v1", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: progress },
@@ -257,7 +258,7 @@ async function runtime(stubs: StubCalls = {}, start: ClockReading = clock,
 // becomes the publisher state with each unit's mirror.
 function publisherState(whole: RuntimeState): PublisherState {
   const mirror = <K extends RuntimeUnitId>(unit: K) => ({ persistence: whole.units[unit].persistence,
-    admissionCounts: { normal: 0, training: 0, test: 0 }, view: whole.views[unit],
+    view: whole.views[unit],
     pendingIntents: whole.units[unit].intents.filter((item) => item.disposition === "pending") });
   return { runId: whole.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T"),
     "U-Q": mirror("U-Q"), "U-N": mirror("U-N"), "U-V": mirror("U-V"), "U-L": mirror("U-L"), "U-R": mirror("U-R"),
@@ -285,7 +286,7 @@ describe("P2 shared runtime", () => {
     await startHarness(h, "fresh", clock, false);
     expect(h.root.state).toMatchObject({ runId: "fresh", restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" },
       "U-F": { kind: "unavailable", reason: "unknownSchema" } },
-    mirror: { "U-E": { persistence: { currentGeneration: 0 }, admissionCounts: { normal: 0, training: 0, test: 0 } } } });
+    mirror: { "U-E": { persistence: { currentGeneration: 0 } } } });
     await expect(h.root.startRuntime("fresh", clock, idleChannels)).rejects.toThrow("runtime already started");
   });
 
@@ -294,8 +295,6 @@ describe("P2 shared runtime", () => {
     const started = r.root.state;
     expect(runtimeUnits.map((unit) => started.mirror[unit].view.unit)).toEqual(["U-E", "U-W", "U-F"]);
     expect(started.notificationProbeComplete).toBe(false);
-    expect(Object.fromEntries(runtimeUnits.map((unit) => [unit, started.mirror[unit].admissionCounts]))).toEqual({
-      "U-E": { normal: 0, training: 0, test: 0 }, "U-W": { normal: 0, training: 0, test: 0 }, "U-F": { normal: 0, training: 0, test: 0 } });
     const probe = { kind: "notificationProbeCompleted", clock,
       channels: { desktop: { kind: "idle" }, sound: { kind: "unavailable", reason: "backendMissing" } } } as const;
     r.root.dispatch(probe);
@@ -307,33 +306,35 @@ describe("P2 shared runtime", () => {
     expect(r.root.state).toBe(completed);
   });
 
-  it("P2-A1-ADMISSION-COUNTS / A8-AC02 contractBoundary: 1 to 2 changes counts without rebuilding views", () => {
-    const calls = { ...unitCalls, reduceEewUnit: (unit: EewUnitState, input: EewInput): EewUnitStep => ({
-      ...unitReply(unit, input), decisions: input.kind !== "receive" ? [] : input.material.inputId.startsWith("clear")
-        ? [{ subject: input.material.inputId === "clear0" ? "s0" : "s1", operation: "normal",
-          decision: "changed", reason: null, change: "semantic",
-          currentEstablished: { family: "VXSE43", reportDateTimeMs: 100, affectedScope: "subject" } }]
-        : [{ subject: input.material.inputId, operation: "normal", decision: "capacityExceeded",
-          rejection: { family: "VXSE43", reportDateTimeMs: 10, affectedScope: "subject" } }],
-    }) };
-    const enter = (state: OwnerState, id: string) => receiveOwner(state,
-      completion({ kind: "decoded", material: { headType: "VXSE43", inputId: id } as DecodedMaterial }), clock, units(calls));
-    const counts = (state: OwnerState, unit: RuntimeUnitId) => unitAdmissionCounts(state.admission, unit);
-    const first = enter(ownerFixture("urgent", initialState()), "s0");
-    const second = enter(first.state, "s1");
-    expect(counts(first.state, "U-E").normal).toBe(1);
-    expect(counts(second.state, "U-E").normal).toBe(2);
-    // No view is rebuilt for a count-only change (the owner sends no view).
-    expect(second.views).toEqual([]);
-    expect(second.displayChanges).toEqual([]);
-    expect(second.state.units["U-E"]?.contentRevision).toBe(first.state.units["U-E"]?.contentRevision);
-    const partlyCleared = enter(second.state, "clear0");
-    expect(counts(partlyCleared.state, "U-E").normal).toBe(1);
-    expect(partlyCleared.views).toEqual([]);
-    const cleared = enter(partlyCleared.state, "clear1");
-    expect(counts(cleared.state, "U-E").normal).toBe(0);
-    expect(counts(cleared.state, "U-W").normal).toBe(0);
-    expect(counts(cleared.state, "U-F").normal).toBe(0);
+  it("P3-CC-T03 contractBoundary / AC02: whole=capacityExceeded survives disconnect, folding, other evidence and retirement until unit coverage", () => {
+    const table = { ...linkedUnitTable, "U-E": { ...linkedUnitTable["U-E"], confirmationScopeLimit: 2 } };
+    const output = (evidence: readonly CurrentConfirmationEvidence[], retired: readonly string[] = []) => ({ units: [], outcomes: [],
+      diagnostics: [], confirmationEvidence: evidence, retiredEvents: retired.map((eventId) => ({ unit: "U-E" as const, operation: "normal" as const,
+        eventId })), displayChanges: retired.map((eventId) => ({ unit: "U-E" as const, operation: "normal" as const, subject: eventId,
+        before: { unit: "U-E" as const, operation: "normal" as const, subject: eventId, office: null, subjects: [], current: null }, after: null })) });
+    const lost: CurrentConfirmationEvidence = { source: "capacityExceeded", scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }] };
+    const accepted = (...eventIds: string[]): CurrentConfirmationEvidence => ({ source: "acceptedReport",
+      scopes: eventIds.map((eventId) => ({ unit: "U-E" as const, operation: "normal" as const, kind: "event" as const, eventId })) });
+    const slot = (value: RuntimeConfirmation) => value.units["U-E"].normal;
+    // 切断の境界より前の入力（sequence null）でも採り、2 回重ねても whole の 1 は増えない。
+    let confirmation = confirmOutput(initialConfirmation(), table, output([lost, lost]), clock, null);
+    confirmation = confirmOutput(confirmation, table, output([lost]), clock, null);
+    expect(slot(confirmation)).toMatchObject({ whole: "capacityExceeded", counts: { capacityExceeded: 1 }, confirmedAt: null });
+    // 別 subject の正の証拠は scope を確認するが whole を消さない。scope の退役でも whole の 1 は減らない。
+    confirmation = confirmOutput(confirmation, table, output([accepted("20240417000001")]), clock, 5);
+    expect(slot(confirmation)).toMatchObject({ whole: "capacityExceeded", counts: { capacityExceeded: 1 }, confirmedScopeCount: 1 });
+    expect(slot(confirmOutput(confirmation, table, output([], ["20240417000001"]), clock, 6)))
+      .toMatchObject({ whole: "capacityExceeded", counts: { capacityExceeded: 1 }, scopes: [] });
+    // 切断は scope の理由だけを変え、whole は上書きしない。
+    const disconnected = lostConfirmation(confirmation, table, 10);
+    expect(slot(disconnected)).toMatchObject({ whole: "capacityExceeded", counts: { capacityExceeded: 1, disconnected: 1 } });
+    // scope 容量の畳みも whole を上書きしない。
+    const folded = confirmOutput(confirmation, table, output([accepted("20240417000002", "20240417000003")]), clock, 7);
+    expect(slot(folded)).toMatchObject({ whole: "capacityExceeded", counts: { capacityExceeded: 1 }, scopes: [] });
+    // unit を覆う coverageVerified だけが消す。
+    const verified = verifyCoverage(disconnected, table, "run", { kind: "coverageVerified", runId: "run", epoch: disconnected.epoch,
+      scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }], clock });
+    expect(slot(verified)).toMatchObject({ whole: null, counts: {}, confirmedAt: clock.wallTimeMs });
   });
 
   it("P2-A1-CONFIRMATION / A8-AC11 contractBoundary: disconnect sequence excludes queued evidence", async () => {
@@ -473,117 +474,6 @@ describe("P2 shared runtime", () => {
     expect(await count(400)).toBe(await count(200));
   });
 
-  it("P2-A1-T09 contractBoundary / AC09-10: only a newer established current clears a bounded rejection", () => {
-    const calls = {
-      reduceEewUnit: (unit: EewUnitState, input: EewInput): EewUnitStep => {
-        const evidence = { family: "VXSE43", reportDateTimeMs: input.kind === "receive"
-          ? input.material.inputId === "new" ? 13 : input.material.inputId === "old" ? 11 : 12 : 12,
-          affectedScope: "subject" as const };
-        const decisions: EewUnitStep["decisions"] = input.kind !== "receive" ? []
-          : input.material.inputId === "reject" ? [{ subject: "s", operation: "normal", decision: "capacityExceeded", rejection: evidence }]
-            : [{ subject: "s", operation: "normal", decision: "changed", reason: null,
-              change: "semantic", currentEstablished: evidence }];
-        return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] };
-      },
-      toEewView: (unit: EewUnitState) => ({ unit: "U-E" as const, semanticRevision: "s",
-        contentRevision: String(unit.contentRevision), admission: {}, activeCount: 1, current: unit.current,
-        subjects: [{ subject: "s", operation: "normal" as const,
-          informationType: "", transition: "active", severity: null, source: null, facts: {}, changedFields: [] }] }),
-    };
-    const enter = (previous: OwnerState, inputId: string) => receiveOwner(previous,
-      completion({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), clock, units(calls));
-    const rejected = enter(ownerFixture("urgent", initialState()), "reject");
-    expect(rejected.state.admission["U-E"]?.normal?.records).toMatchObject([{ subject: "s", reportDateTimeMs: 12 }]);
-    expect(rejected.views[0]).toMatchObject({ admission: { normal: "capacityExceeded" }, subjects: [] });
-    const stale = enter(rejected.state, "old");
-    expect(stale.state.admission["U-E"]?.normal?.records).toHaveLength(1);
-    const cleared = enter(stale.state, "new");
-    expect(cleared.state.admission["U-E"]?.normal).toBeUndefined();
-    expect(cleared.views[0].subjects).toHaveLength(1);
-    expect(cleared.generationInputIds).toEqual({});
-  });
-
-  it("P2-A1-T09 regression / AC09: U-F capacity stage four hides normal active in both public view paths", () => {
-    const normal: WeatherTimeseriesSubject = {
-      subject: "normal/VPWP50/office", operation: "normal", source: null, effective: "active",
-      unavailableReason: null, lastKnown: null, affectedScope: "subject", validUntil: clock.wallTimeMs + 3_600_000,
-      retainUntil: clock.wallTimeMs + 7 * 86_400_000,
-      strings: ["1", "2026-06-05T00:00:00+09:00", "PT1H", "100", "area", "element"],
-      attributes: [[]], values: [{ kind: "text", value: "value", raw: "value" }],
-      series: [{ meteorologicalInfosPosition: 0, timeSeriesInfoPosition: 0, timeDefines: [{
-        timeId: 0, dateTimeRaw: 1, durationRaw: 2, name: null, startMs: clock.wallTimeMs,
-        endMs: clock.wallTimeMs + 3_600_000,
-      }] }], areas: [{ code: 3, name: 4 }], locals: [], kinds: [{ status: null, dateTimeRaw: null, dateTimeType: null }],
-      periods: [[0, 0, 0, 0, 0, null, 5, null, 0, 0, 0]],
-    };
-    const training = { ...normal, subject: "training/VPWP50/office", operation: "training" as const };
-    const initial = initialState();
-    const unit = { ...initial.units["U-F"], subjects: [normal, training] };
-    const rejected = receiveOwner(ownerFixture("deferred", { ...initial, units: { ...initial.units, "U-F": unit } }),
-      completion({ kind: "decoded", material: { headType: "VPWP50", inputId: "rejected" } as DecodedMaterial }), clock, units({
-        reduceWeatherTimeseriesUnit: (state): WeatherTimeseriesUnitStep => ({ state, nextDeadline: null,
-          decisions: [{ subject: normal.subject, operation: "normal", decision: "capacityExceeded",
-            rejection: { family: "VPWP50", reportDateTimeMs: clock.wallTimeMs, affectedScope: "subject" } }],
-          intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] }),
-        toWeatherTimeseriesView: (state) => ({ unit: "U-F", semanticRevision: "old-active",
-          contentRevision: String(state.contentRevision), admission: {}, series: state.subjects.map(timeseriesPublicSubject),
-          subjects: state.subjects.map((item) => ({ subject: item.subject, operation: item.operation,
-            informationType: "", transition: item.effective, severity: null, source: item.source,
-            facts: { periodCount: item.periods.length }, changedFields: [] })) }),
-      }));
-    expect(rejected.state.units["U-F"]).toBe(unit);
-    expect(rejected.generationInputIds).toEqual({});
-    expect(rejected.views[0]).toEqual(expect.objectContaining({ admission: { normal: "capacityExceeded" },
-      series: [timeseriesPublicSubject(training)], subjects: [expect.objectContaining({ subject: training.subject, operation: "training" })] }));
-  });
-
-  it("P2-A1-T09 contractBoundary / AC09: weather scope clears only the confirmed office and area", () => {
-    const area = (office: string, code: string) => JSON.stringify(["VPWW55", "partial", office,
-      "気象警報・注意報（市町村等）", code]);
-    const left = area("京都地方気象台", "123");
-    const right = area("京都地方気象台", "456");
-    const other = area("大阪管区気象台", "123");
-    const calls = { reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState,
-      input: WeatherCurrentInput): WeatherCurrentUnitStep => {
-      const id = input.kind === "receive" ? input.material.inputId : "";
-      const decisions = id === "reject" ? [{ subject: "s", operation: "normal" as const,
-        decision: "capacityExceeded" as const, rejection: { family: "VPWW55", reportDateTimeMs: 12,
-          affectedScope: [left, right] } }]
-        : [{ subject: "s", operation: "normal" as const, decision: "changed" as const,
-          reason: null, change: "semantic" as const, currentEstablished: { family: "VPWW55",
-            reportDateTimeMs: 13, affectedScope: [id === "other" ? other : id === "left" ? left : right] } }];
-      return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] };
-    } };
-    const enter = (state: OwnerState, inputId: string) => receiveOwner(state,
-      completion({ kind: "decoded", material: { headType: "VPWW55", inputId } as DecodedMaterial }), clock, units(calls)).state;
-    const rejected = enter(ownerFixture("weatherCurrent", initialState()), "reject");
-    expect(enter(rejected, "other").admission["U-W"]?.normal?.records[0].affectedScope).toEqual([left, right]);
-    const partial = enter(rejected, "left");
-    expect(partial.admission["U-W"]?.normal?.records[0].affectedScope).toEqual([right]);
-    expect(enter(partial, "right").admission["U-W"]?.normal).toBeUndefined();
-  });
-
-  it("P2-A1-T09 contractBoundary / RES-04: overflow retains known records and cannot self-clear", () => {
-    const records = Array.from({ length: 512 }, (_, index) => ({ subject: `s-${index}`, family: "VXSE43",
-      reportDateTimeMs: 12, affectedScope: "subject" as const }));
-    const initial: RuntimeState = { ...initialState(), admission: { "U-E": { normal: { records, overflow: false } } } };
-    const calls = { reduceEewUnit: (unit: EewUnitState, input: EewInput): EewUnitStep => {
-      const id = input.kind === "receive" ? input.material.inputId : "";
-      const decisions: EewUnitStep["decisions"] = id === "overflow"
-        ? [{ subject: "new", operation: "normal", decision: "capacityExceeded",
-          rejection: { family: "VXSE43", reportDateTimeMs: 13, affectedScope: "subject" } }]
-        : [{ subject: "s-0", operation: "normal", decision: "changed", reason: null,
-          change: "semantic", currentEstablished: { family: "VXSE43", reportDateTimeMs: 14,
-            affectedScope: "subject" } }];
-      return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] };
-    } };
-    const enter = (state: OwnerState, inputId: string) => receiveOwner(state,
-      completion({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), clock, units(calls)).state;
-    const overflowed = enter(ownerFixture("urgent", initial), "overflow");
-    expect(overflowed.admission["U-E"]?.normal).toMatchObject({ overflow: true, records });
-    const reduced = enter(overflowed, "clear");
-    expect(reduced.admission["U-E"]?.normal).toMatchObject({ overflow: true, records: records.slice(1) });
-  });
   afterEach(() => vi.restoreAllMocks());
 
   it("P2-A1-T01 acceptance / AC01: saved pre-deadline state has zero work in 1,000 ticks", () => {
@@ -796,7 +686,7 @@ describe("P2 shared runtime", () => {
     }));
     const series = vi.fn((unit: WeatherTimeseriesUnitState, input: WeatherTimeseriesInput) => unitReply(unit, input));
     const view = { unit: "U-W" as const, semanticRevision: "revision", contentRevision: "0",
-      admission: {}, subjects: [], national: {}, partials: [], freshnessSuspectCount: 0 };
+      subjects: [], national: {}, partials: [], freshnessSuspectCount: 0 };
     const toView = vi.fn(() => view);
     const calls = { reduceEewUnit: eew, reduceWeatherCurrentUnit: weather, reduceWeatherTimeseriesUnit: series,
       toWeatherCurrentView: toView };
@@ -1181,33 +1071,6 @@ describe("P2 shared runtime", () => {
     expect(waiting.h.unit("U-E").deliveryRecords).toHaveLength(4);
     expect(waiting.h.unit("U-E").deliveryRecords.every((record) => record.disposition === "superseded")).toBe(true);
     expect(waiting.root.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
-  });
-
-  it("P2-A1-T12 contractBoundary / TIME: admission filtering retains the owner's monotonic deadline", async () => {
-    const notice = intent("U-E");
-    // One capacity rejection hides U-E normal intents from selection (admission count > 0).
-    const blocking = (unit: EewUnitState, input: EewInput): EewUnitStep => input.kind === "receive" && input.material.inputId === "block"
-      ? { ...unitReply(unit, input), decisions: [{ subject: "s", operation: "normal", decision: "capacityExceeded",
-        rejection: { family: "VXSE43", reportDateTimeMs: 1, affectedScope: "subject" } }] }
-      : reduceEewUnit(unit, input);
-    const r = await runtime({ ...unitCalls, reduceEewUnit: blocking }, at(0));
-    await r.input("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43", "block", at(0), 1);
-    await seedIntents(r, "U-E", [notice]);
-    const key = JSON.stringify(["U-E", notice.id]);
-    const deadline = r.root.state.notificationDeadlines.desktop[key];
-    expect(deadline).toEqual({ retryAtMonotonicMs: 0, expiresAtMonotonicMs: 4_000 });
-    r.at({ wallTimeMs: 500, monotonicMs: 1 });
-    r.root.tick({ wallTimeMs: 500, monotonicMs: 1 });
-    await r.h.settle();
-    expect(r.root.state.notificationDeadlines.desktop[key]).toBe(deadline);
-    r.at({ wallTimeMs: 400, monotonicMs: 4_000 });
-    r.root.tick({ wallTimeMs: 400, monotonicMs: 4_000 });
-    await r.h.settle();
-    expect(r.h.unit("U-E").intents).toEqual([]);
-    expect(r.h.unit("U-E").deliveryRecords).toContainEqual({
-      intentId: notice.id, disposition: "expired", expiresAt: notice.expiresAt,
-    });
-    expect(r.root.state.notificationDeadlines.desktop[key]).toBeUndefined();
   });
 
   it("P2-A1-T12 contractBoundary / TIME: 384 pending deadlines stay stable across ordinary reevaluation", async () => {

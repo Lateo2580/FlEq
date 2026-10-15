@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "c8c0bc4750964aefb3e55cf50e29412b1f3e8a49fcb7aacd7df5ee831892367a",
+    "sha256": "06c79bf19be33596337f54d26378200f3e38d1ec21e2f7692542577084a6279b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -439,7 +439,7 @@
       },
       {
         "id": "P2-A9-AC04",
-        "requirement": "full配送では現在有効なEEWのoperation・EventID・発表時刻・予想最大震度をcardに表示する。最新snapshotに存在しない対象のcardと地図寄与を除去し、残存対象を維持する。消失理由を推測して取消／終了の文言を生成しない（R59=A）。個別cardの必須項目はfull配送だけに適用する。summaryではoperation別にactiveCount・予報／警報区分・updatedAtと省略中である旨を出し、updatedAt=nullは時刻不明と表示してEventID・震度・区域を補完しない。summaryへ切り替わった時は旧地図塗りを除去する。表示中のtraining/test要約にも確認状態を添える。空card 0、unavailable/summaryを無発令に変換しない。metadataだけのsnapshotで全scene再初期化0を単発smokeの先行証拠として記録する",
+        "requirement": "full配送では現在有効なEEWのoperation・EventID・発表時刻・予想最大震度をcardに表示する。最新snapshotに存在しない対象のcardと地図寄与を除去し、残存対象を維持する。消失理由を推測して取消／終了の文言を生成しない（R59=A）。個別cardの必須項目はfull配送だけに適用する。summaryではoperation別にactiveCount・予報／警報区分・updatedAtと省略中である旨を出し、updatedAt=nullは時刻不明と表示してEventID・震度・区域を補完しない。summaryへ切り替わった時は旧地図塗りを除去する。表示中のtraining/test要約にも確認状態を添える。空card 0、unavailable/summaryを無発令に変換しない。metadataだけのsnapshotで全scene再初期化0を単発smokeの先行証拠として記録する。状態行（P3-CURRENCY-COVERAGE-001 P3-CC-AC06、D-SHOW=A、配送のcommitでP3-CC-AC09により統合担当が改訂）: EEWと津波のoperationごとのitemで、unconfirmed.capacityExceededとunavailable.capacityExceededの和が1以上なら『[通常] 緊急地震速報: 処理できていない報がある（容量超過）』（津波は『津波:』）を出す。件数は出さず、admissionは読まない。印のある津波の予報のcardはheadの前に『最終確認：』を付け、『HH:MM の情報を処理できていません』（印の報のJSTの時:分）の行を足す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:425 «8c167706c5a0a9ab»",
           "docs/specs/reconstruction-p0-contracts.md:1839 «6b9ddf567779f91e»",
@@ -485,13 +485,13 @@
         "id": "P2-A9-AC09",
         "requirement": "R40〜R42のsnapshot項目を意匠なしの最小テキストで描く（2026-09-24作者裁定Q1=A）。(1) notices: 各VisibleNoticeのoperation・A8が生成したtext・官署名を一覧にし、training/testは明示する。textはtextContentで表示し、A9にkind→文言表を重複定義しない。sourceがnull、またはsource.officeがnullなら官署名を出さない。source.officeTruncated=trueなら切詰め済みと分かる印を添える。notice生成・期限計算・並べ替えはA8に任せA9で作らない。(2) channels: desktop/soundの2行でchecking=確認中、available=使える、unavailable=使えない、isolated=隔離中。availableを可聴の保証と書かない。(3) 接続/確認の1行: connection.state（connected/reconnecting/stopped）とdisconnectedAt（AC10の書式、null=未切断）、worker.state（stalled/unresponsive/stoppedは停止系として明示）、ブラウザ側SSE到達のstale、U-Eの確認状態snapshot.current.eew.items[i].confirmation.state（full/summaryの両配送にある）を出す。stale: 最終有効snapshot／名前付きheartbeatの受信から45秒無受信なら最大15秒周期の検査でstaleとし、旧EventSourceを閉じて再接続し、最新完全snapshotで置換する。背景から前景へ戻った時はtimerを待たず直ちに確認する。初回未受信の起点は接続開始時刻とする。heartbeatが運ぶ明示的なworker状態は反映するが、heartbeatや再接続が届いた事実だけでhealthy・確認済みに変えない。normal行は常に、training/test行はそのoperationのcardまたはnoticeを表示している間だけ出す。unconfirmed/partialを確認済みと書かない。stale中とworker停止中は現在の表示を「更新未確認の最終情報」と明示する。U-W/U-FはQ-NOTICE-UX=AどおりA8のunavailable noticeだけを描き、危険度上昇のnoticeを作らない。理由: A8が運ぶ未確認・通知不能・お知らせと、specの再同期を画面と接続で閉じる担当がないとP2の間これらが分からない",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:98 «b14beebdc83475d2»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:57 «fd2ac8da3d1741d1»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:96 «b14beebdc83475d2»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:56 «fd2ac8da3d1741d1»",
           "reconstruction/contracts/p2-snapshot-sse.json:41 «fe443b0075eaa651»",
           "reconstruction/contracts/p2-snapshot-sse.json:468 «f3eed5ecb07ec110»",
           "reconstruction/contracts/p2-snapshot-sse.json:475 «cb25a21169eb89db»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:80 «b731944200fafc30»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:35 «24c063ef29bb6cf5»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:78 «b731944200fafc30»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:34 «24c063ef29bb6cf5»",
           "docs/specs/reconstruction-p0-contracts.md:1189 «0bd907f4258206f3»",
           "docs/specs/reconstruction-p0-contracts.md:1198 «45d7a5dc731dd19b»",
           "docs/specs/reconstruction-p0-contracts.md:1202 «40765ac3f9f7889e»"

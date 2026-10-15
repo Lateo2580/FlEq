@@ -36,7 +36,6 @@ describe("P3-UNIT-L-001 U-L corpus history", () => {
       const material = decodeFixture(fixture.path);
       const step = receive(emptyState(), material, clock(Date.parse(material.reportDateTimeRaw)));
       const after = reduceLandslideUnit(step.state, { kind: "deadline", clock: clock(Date.parse(material.reportDateTimeRaw) + 1) }).state;
-      expect(Object.keys(toLandslideView(after).admission), id).toEqual([]);
       rejected.push(...step.decisions.filter((item) => item.decision === "rejected").map(() => id));
     }
     expect(rejected).toEqual([]);

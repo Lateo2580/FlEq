@@ -141,8 +141,9 @@ describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
     expect(urgent["status"]).toBe("Fail");
     // U-E は報ごとの時刻を書かず件数だけ（P3-DC-AC01 (4)）。
     expect([urgent["eewRejections"], listOf(urgent, "rejections"), recordOf(urgent["pass"])["inputRejections"]]).toEqual([1, [], 1]);
-    expect(recordOf(listOf(urgent, "unresolved").map(recordOf).at(-1)!["counts"])).toEqual({ "U-E": { normal: 1, training: 0, test: 0, marks: 0 } });
-    // (a)(c): U-W の partial 128 の後の新しい官署を 2 通（admissionCounts は増えず、印は 1 のまま）。
+    // 未解消の状態は C1 の信号: U-E の normal の確認状態の whole が capacityExceeded（印の付く記録は無い）。
+    expect([urgent["unresolvedFinal"], urgent["unresolvedMax"]]).toEqual([{ "U-E": { marks: 0, unconfirmed: 1 } }, { "U-E": { marks: 0, unconfirmed: 1 } }]);
+    // (a)(c): U-W の partial 128 の後の新しい官署を 2 通（入力単位の拒否は 2、印の付いた記録は 1 のまま、印が付くので whole は未確認にしない）。
     const weather = Array.from({ length: 130 }, (_, index) => {
       const at = base + index * 60_000;
       return frame(at, "VPWW57", variant("15_16_02_251222_VPWW57", at, { office: `試験気象台${index < 128 ? index : 128}` }));
@@ -151,8 +152,7 @@ describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
     expect(partial["status"]).toBe("Fail");
     expect(listOf(partial, "rejections").map(recordOf).map((item) => [item["inputId"], item["unit"], item["kind"]]))
       .toEqual([["input-129", "U-W", "unavailable"], ["input-130", "U-W", "unavailable"]]);
-    expect(listOf(partial, "unresolved").map(recordOf).map((item) => item["counts"]))
-      .toEqual([{ "U-W": { normal: 0, training: 0, test: 0, marks: 1 } }]);
+    expect(listOf(partial, "unresolved").map(recordOf).map((item) => item["counts"])).toEqual([{ "U-W": { marks: 1, unconfirmed: 0 } }]);
   }, 180_000);
 
   it("P3-DC-T06 contractBoundary / AC05: correct transitions are not losses", async () => {
@@ -399,7 +399,12 @@ function nearTsunamiLimit() {
     if (!pending || input.kind !== "receive" || input.material.inputId !== "seed:1") return unit.reduce(current, input);
     pending = false;
     return { state: seed, nextDeadline: seedDeadline, decisions: [], intents: [], outcomes: [], diagnostics: [], confirmationEvidence: [],
-      displayChanges: [...unit.normalDisplaySubjects(seed)].map((after) => ({ unit: "U-T" as const, operation: after.operation, subject: after.subject, before: null, after })) };
+      // C1 の後は unit の表に表示の差分を作る口が無いので、公開の形（toView の subjects）から製品と同じ形の差分を組む。
+      displayChanges: unit.toView(seed).subjects.map((outcome) => {
+        const current = [...seed.forecasts, ...seed.observations].find((item) => item.subject === outcome.subject) ?? null;
+        return { unit: "U-T" as const, operation: outcome.operation, subject: outcome.subject, before: null,
+          after: { unit: "U-T" as const, operation: outcome.operation, subject: outcome.subject, office: null, current, subjects: [outcome] } };
+      }) };
   } } };
   const prepare = (h: Harness, now: ClockReading) => submit(h, envelope(h.root.state.runId, "VTSE41", "seed:1", Buffer.from(full), now, 100_000));
   return { units, prepare, xRelease };

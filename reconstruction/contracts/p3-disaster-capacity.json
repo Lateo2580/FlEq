@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "df8d513456e47546e0114648ff4fe1adb302f63a1f948d0f0454052b7a5cc79d",
+    "sha256": "732c3e299d012e72a47674f5f4bf79b1ed88c17465575482464bf6e1ec2ecc92",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -72,7 +72,7 @@
       {
         "id": "P3-DC-ORACLE",
         "status": "frozen",
-        "rule": "照合は正しい現況を作り直さない（第二のreducerを作らない）。容量で記録が消えた瞬間を捕まえ、終わりの状態は手書きの小さい期待例だけを見る。(1) 観測の表: linkedUnitTableの12 unitのreduceを、結果を変えずに包む表（owner-harness.tsのseededと同じ包み方）をruntimeCalls.unitsに渡す。包みは呼ばれるたびにunit・入力の種類・inputId・時計・前のstate・stepを受け取り、(2)〜(5)をその場で数え、前のstateを持ち続けない (2) 容量の欠け: stepのdiagnosticsに容量の退去のreasonがあるとき、そのunitのtoView（製品の関数、p3-unit-table.types.ts:34）を前のstateとstep.stateで作り、全unit共通のUnitView.subjects（p2-shared-runtime.types.tsのUnitView）のsubjectが前にあって後に無いものを候補にする。候補のうち、後のstateの記録（intentと終端記録の欄を除く）にsubjectかsource.subjectがその値の要素が無いものだけを容量の欠けとして記録する。後のstateに記録が残っていれば、viewから消えた理由は解除・forecastEnded・取消などの正しい遷移で、欠けではない（U-Tの解除報は予報をreleased・観測をforecastEndedにしてstateに残す、tsunami-unit.ts:345・:665）。U-Qのsubjectはfamilyごと（例 normal/VXSE53/<EventID>）なので、eventの数はEventIDで数える。記録はsubject・unit・運用区分（subjectの頭の語）・退去の時刻・入力・reason・本来の期限（前のstateでそのsubjectを持つ要素か、それを含む要素〔U-Qのevent〕のretainUntil・validUntil・currentUntilのうち最初に有るもの）で、後で期限が来ても消さない。normalの記録のうち、本来の期限が無いか退去の時刻より後のものを欠けに数える（D2=AによりU-Qも数える）。viewに出ない記憶（U-Eのgate、取消記憶、非activeの津波の記録）と非normalの記録は欠けの対象外。したがって容量の欠け0は「viewに出ていたnormalの記録が容量で消えなかった」の意味で、保存した現況全体（記憶・非active・非normalを含む）が欠けていない保証には使わない (3) 退去の件数は欠けと別の量で、全運用区分の数をreasonのcountで足す。reasonの表（p2-shared-runtime.types.ts:282〜:300）: eewCapacityEvicted→U-E、tsunamiCapacityEvicted→U-T、seismicCapacityEvicted→U-Q、nankaiCapacityEvicted→U-N、weatherCurrentCapacityEvicted→U-W、volcanoCapacityEvicted→U-V、landslideCapacityEvicted→U-L、floodCapacityEvicted→U-R、briefingCapacityEvicted→U-B、localBulletinsCapacityEvicted→U-M、typhoonCapacityEvicted→U-Y。U-Fは診断を出さずに非normalのsubjectとlastKnownを削る（weather-timeseries-unit.ts:152・:202）ので、U-Fの退去の件数は未計測（unmeasured）として返し、0と書かない。U-FとU-Wはnormalを容量で退去しない（normalが収まらないときはunavailableの印で、(4)の拒否として数える）。notificationCapacityEvictedは通知のintentの退去で、本契約では数えない（通知のadapterが即時にdeliveredを返すので負荷が掛からない。2段目） (4) 拒否は2つの量: 入力単位＝stepのdecisionsのcapacityExceededと、そのstepで作られたU-W・U-Fのunavailableの印（理由capacityExceeded、sourceのinputIdがその入力。decisionはchangedでも数える）の数（同じ鍵への連続の拒否も1通ずつ数える）／未解消の状態＝返信のadmissionCounts（未解消の記録の数＋overflow、owner-runtime.ts:174〜:177。拒否の累計ではない）と、stateのU-W・U-FのcapacityExceededの印の数の時系列 (5) 合成のframeの入力の結果を3つに分ける: 採用（decisionがchanged、または筋書きが明示したunchanged〔duplicate・stale・noChange〕）／容量の拒否（(4)の入力単位の拒否に当たるもの。有効な測定の結果として数え、後続を流し、筋書きはFailになる。unitによってdecisionがcapacityExceededでもchanged＋印でも同じ扱い）／不正（そのinputIdのreceiveのreduceが無い〔decode・identityの拒否、経路外〕、容量以外の理由のrejected、明示していないunchanged）。不正だけを測定不成立（blocked、理由inputNotAdopted）としてrunを止める。実電文のframeの不正は数えて報告し、止めない (6) 終わりの状態: P3-DC-SCENARIOSの期待例を、その時刻のharnessのunit()のstateとviewで確かめる。外れたら欠け",
+        "rule": "照合は正しい現況を作り直さない（第二のreducerを作らない）。容量で記録が消えた瞬間を捕まえ、終わりの状態は手書きの小さい期待例だけを見る。(1) 観測の表: linkedUnitTableの12 unitのreduceを、結果を変えずに包む表（owner-harness.tsのseededと同じ包み方）をruntimeCalls.unitsに渡す。包みは呼ばれるたびにunit・入力の種類・inputId・時計・前のstate・stepを受け取り、(2)〜(5)をその場で数え、前のstateを持ち続けない (2) 容量の欠け: stepのdiagnosticsに容量の退去のreasonがあるとき、そのunitのtoView（製品の関数、p3-unit-table.types.ts:34）を前のstateとstep.stateで作り、全unit共通のUnitView.subjects（p2-shared-runtime.types.tsのUnitView）のsubjectが前にあって後に無いものを候補にする。候補のうち、後のstateの記録（intentと終端記録の欄を除く）にsubjectかsource.subjectがその値の要素が無いものだけを容量の欠けとして記録する。後のstateに記録が残っていれば、viewから消えた理由は解除・forecastEnded・取消などの正しい遷移で、欠けではない（U-Tの解除報は予報をreleased・観測をforecastEndedにしてstateに残す、tsunami-unit.ts:345・:665）。U-Qのsubjectはfamilyごと（例 normal/VXSE53/<EventID>）なので、eventの数はEventIDで数える。記録はsubject・unit・運用区分（subjectの頭の語）・退去の時刻・入力・reason・本来の期限（前のstateでそのsubjectを持つ要素か、それを含む要素〔U-Qのevent〕のretainUntil・validUntil・currentUntilのうち最初に有るもの）で、後で期限が来ても消さない。normalの記録のうち、本来の期限が無いか退去の時刻より後のものを欠けに数える（D2=AによりU-Qも数える）。viewに出ない記憶（U-Eのgate、取消記憶、非activeの津波の記録）と非normalの記録は欠けの対象外。したがって容量の欠け0は「viewに出ていたnormalの記録が容量で消えなかった」の意味で、保存した現況全体（記憶・非active・非normalを含む）が欠けていない保証には使わない (3) 退去の件数は欠けと別の量で、全運用区分の数をreasonのcountで足す。reasonの表（p2-shared-runtime.types.ts:282〜:300）: eewCapacityEvicted→U-E、tsunamiCapacityEvicted→U-T、seismicCapacityEvicted→U-Q、nankaiCapacityEvicted→U-N、weatherCurrentCapacityEvicted→U-W、volcanoCapacityEvicted→U-V、landslideCapacityEvicted→U-L、floodCapacityEvicted→U-R、briefingCapacityEvicted→U-B、localBulletinsCapacityEvicted→U-M、typhoonCapacityEvicted→U-Y。U-Fは診断を出さずに非normalのsubjectとlastKnownを削る（weather-timeseries-unit.ts:152・:202）ので、U-Fの退去の件数は未計測（unmeasured）として返し、0と書かない。U-FとU-Wはnormalを容量で退去しない（normalが収まらないときはunavailableの印で、(4)の拒否として数える）。notificationCapacityEvictedは通知のintentの退去で、本契約では数えない（通知のadapterが即時にdeliveredを返すので負荷が掛からない。2段目） (4) 拒否は2つの量: 入力単位＝stepのdecisionsのcapacityExceededと、そのstepで作られたunavailableの印（U-W・U-Fの理由capacityExceededの印と、P3-CURRENCY-COVERAGE-001のU-T・U-Qの記録の印。sourceのinputIdがその入力。decisionはchangedでも数える）の数（同じ鍵への連続の拒否も1通ずつ数える）／未解消の状態＝印の付いた記録の数（U-T・U-Qの記録のunavailable、U-W・U-FのcapacityExceededのunavailableの印）と、確認状態のwholeがcapacityExceededのunit×運用区分の数の時系列（拒否の累計ではない。P3-CURRENCY-COVERAGE-001の配送で返信のadmissionCountsが無くなったための読み替え、2026-10-15 統合担当） (5) 合成のframeの入力の結果を3つに分ける: 採用（decisionがchanged、または筋書きが明示したunchanged〔duplicate・stale・noChange〕）／容量の拒否（(4)の入力単位の拒否に当たるもの。有効な測定の結果として数え、後続を流し、筋書きはFailになる。unitによってdecisionがcapacityExceededでもchanged＋印でも同じ扱い）／不正（そのinputIdのreceiveのreduceが無い〔decode・identityの拒否、経路外〕、容量以外の理由のrejected、明示していないunchanged）。不正だけを測定不成立（blocked、理由inputNotAdopted）としてrunを止める。実電文のframeの不正は数えて報告し、止めない (6) 終わりの状態: P3-DC-SCENARIOSの期待例を、その時刻のharnessのunit()のstateとviewで確かめる。外れたら欠け",
         "reason": "照合器が製品の保持・置換・取消の規則（津波の観測点の累積、U-Fの7日の回収など）を写すと第二の実装になり、正しい保持を欠けと誤る。容量の欠けは、容量の診断が出たstepのviewの差を候補にし、記録が後のstateから消えたかで確かめれば決まるので、unitごとの知識はU-W・U-Fのunavailableの印の欄だけで足りる（鍵は全unit共通のUnitView.subjectsとsubject・source.subjectの欄から取る）"
       },
       {
@@ -369,8 +369,8 @@
         "evidenceRefs": [
           "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
           "reconstruction/contracts/p3-seismic-unit.json:294 «7e1861bc1c33c278»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:222 «5be87c0685329b41»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:223 «3dcb54e5d2face43»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:223 «5be87c0685329b41»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:224 «3dcb54e5d2face43»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:24 «34484a3e4707ee1e»"
         ]
       },
@@ -382,46 +382,43 @@
           "reconstruction/test/execution-split/owner-harness.ts:214 «080b090c4cb3ca1a»",
           "reconstruction/test/execution-split/owner-harness.ts:234 «fd7c80ca051f2f9d»",
           "reconstruction/test/execution-split/owner-harness.ts:73 «92d485f6dffa61d6»",
-          "reconstruction/src/runtime/composition-root.ts:891 «58f0aecdcdb34121»",
-          "reconstruction/src/runtime/composition-root.ts:892 «39f404990b4c2ef9»",
-          "reconstruction/src/runtime/composition-root.ts:893 «71f3e73d73b564c2»",
-          "reconstruction/src/runtime/owner-runtime.ts:47 «c0a3b81a85da74e2»",
-          "reconstruction/src/runtime/owner-runtime.ts:445 «63380813ee47301c»",
+          "reconstruction/src/runtime/composition-root.ts:884 «58f0aecdcdb34121»",
+          "reconstruction/src/runtime/composition-root.ts:885 «39f404990b4c2ef9»",
+          "reconstruction/src/runtime/composition-root.ts:886 «71f3e73d73b564c2»",
+          "reconstruction/src/runtime/owner-runtime.ts:41 «c0a3b81a85da74e2»",
+          "reconstruction/src/runtime/owner-runtime.ts:348 «63380813ee47301c»",
           "reconstruction/test/integration/display-wiring.test.ts:130 «959983c9146f2dfa»",
           "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
-          "reconstruction/src/runtime/composition-root.ts:132 «da19aa28db3b6c45»",
+          "reconstruction/src/runtime/composition-root.ts:131 «da19aa28db3b6c45»",
           "reconstruction/src/checkpoint/checkpoint.ts:590 «e1ef5263c0b6ca25»",
           "reconstruction/src/checkpoint/checkpoint.ts:594 «7fbc7ddee40d495d»",
           "reconstruction/src/checkpoint/checkpoint.ts:66 «3f51a4d6e3948188»",
-          "reconstruction/src/runtime/composition-root.ts:611 «4abafaf8844b3aa7»",
-          "reconstruction/src/runtime/composition-root.ts:615 «11c6541c5cd2944f»",
+          "reconstruction/src/runtime/composition-root.ts:604 «4abafaf8844b3aa7»",
+          "reconstruction/src/runtime/composition-root.ts:608 «11c6541c5cd2944f»",
           "reconstruction/test/snapshot-sse/projection-fixture.ts:83 «b70fda78f149985c»",
-          "reconstruction/src/units/eew/eew-unit.ts:284 «815aa0cb2d10c8e3»",
+          "reconstruction/src/units/eew/eew-unit.ts:283 «815aa0cb2d10c8e3»",
           "reconstruction/src/domains/eew/eew.ts:312 «a9e582856884de0d»",
           "reconstruction/src/domains/eew/eew.ts:326 «1e6532fcd2a85780»"
         ]
       },
       {
         "id": "P3-DC-AC04",
-        "requirement": "測るもの: runの中で次を数えて結果に書く。(1) 器の使用率: 件数の上限ごと（U-E: familyごとのsubject 512、U-T: 予報512・観測familyごと512・観測点familyごと1,024、U-Q: event 512・長周期256、U-N: 現況6・情報64、U-W: partial 128、U-F: subject 512）の件数を、観測の表が受けたstep.stateから数える。保存のbyteはonMeasurementsのencodeのbytes（CheckpointMeasurement.bytes）をunitの世代の上限（U-E 256 KiB・U-T 4 MiB・U-Q 4 MiB・U-N 288 KiB・U-W 16 MiB・U-F 32 MiB）で割る。上限ごとに最大の比・その時刻・その時の値を残し、90%を越えた上限を名指す (2) 拒否は2つの量に分ける（P3-DC-ORACLE (4)）: 入力単位の拒否（decisionのcapacityExceededと、そのstepで作られたU-W・U-FのcapacityExceededのunavailableの印。入力ごと・unit・運用区分・時刻）と、未解消の拒否の状態（返信のadmissionCountsは未解消の記録の数＋overflowで累計ではない、owner-runtime.ts:174〜:177。とstateの印の数の時系列と最大） (3) 退去: 全運用区分の退去の件数を、P3-DC-ORACLE (3)の表のreasonのcountでunit・時刻ごとに足し、容量の欠け（P3-DC-AC05、normalだけ）と別の量として並べる。U-Fは診断を出さずに非normalのsubjectとlastKnownを削るので、U-Fの退去の件数は未計測（unmeasured）と書き、0と書かない。notificationCapacityEvictedは数えない（2段目） (4) snapshot: publishされたsnapshotごとに分野のdelivery（full・summary）を見て、要約の始まりと終わりの時刻を分野ごとに残す。要約の時刻ごとに分野ごとのbyte（summaryのoriginalBytesとfullのviewのUTF-8のbyte）と、U-F・U-Wを除いた合計が1 MiBを越えるか（災害の情報だけで溢れたかの印）を書く (5) 結果のfileは1 runに1つで、frozen.tsからimportしたsealSelfHash（export済み）で封じ、gitHead・筋書きのdigest・合成器のsourceのsha256と種・P3-DC-PASSの判定・届いた上限ごとのP3-DC-OPTIONS・測ったcommitのreconstruction/contractsにあるP3-UF-PUBLIC-001とP3-CURRENCY-COVERAGE-001とU-Wの単位の契約のcontractIdとmeta.sha256を書く（配送の有無の確かめはQ-DC-REMEASURE）。書き先はFLEQ_DISASTER_OUTの1 fileだけで、試験はrepoの中に書かない。無いと: 器の最大とその時刻、入力ごとの拒否と残った拒否が筋書きごとに残らず、届いたかと溢れの原因を言えない",
+        "requirement": "測るもの: runの中で次を数えて結果に書く。(1) 器の使用率: 件数の上限ごと（U-E: familyごとのsubject 512、U-T: 予報512・観測familyごと512・観測点familyごと1,024、U-Q: event 512・長周期256、U-N: 現況6・情報64、U-W: partial 128、U-F: subject 512）の件数を、観測の表が受けたstep.stateから数える。保存のbyteはonMeasurementsのencodeのbytes（CheckpointMeasurement.bytes）をunitの世代の上限（U-E 256 KiB・U-T 4 MiB・U-Q 4 MiB・U-N 288 KiB・U-W 16 MiB・U-F 32 MiB）で割る。上限ごとに最大の比・その時刻・その時の値を残し、90%を越えた上限を名指す (2) 拒否は2つの量に分ける（P3-DC-ORACLE (4)）: 入力単位の拒否（decisionのcapacityExceededと、そのstepで作られたunavailableの印〔U-W・U-FのcapacityExceededの印とU-T・U-Qの記録の印。印の付く拒否はdecisionがchangedで返る〕。入力ごと・unit・運用区分・時刻）と、未解消の拒否の状態（印の付いた記録の数と、確認状態のwholeがcapacityExceededのunit×運用区分の数の時系列と最大。累計ではない。P3-CURRENCY-COVERAGE-001の配送で返信のadmissionCountsが無くなったための読み替え、2026-10-15 統合担当） (3) 退去: 全運用区分の退去の件数を、P3-DC-ORACLE (3)の表のreasonのcountでunit・時刻ごとに足し、容量の欠け（P3-DC-AC05、normalだけ）と別の量として並べる。U-Fは診断を出さずに非normalのsubjectとlastKnownを削るので、U-Fの退去の件数は未計測（unmeasured）と書き、0と書かない。notificationCapacityEvictedは数えない（2段目） (4) snapshot: publishされたsnapshotごとに分野のdelivery（full・summary）を見て、要約の始まりと終わりの時刻を分野ごとに残す。要約の時刻ごとに分野ごとのbyte（summaryのoriginalBytesとfullのviewのUTF-8のbyte）と、U-F・U-Wを除いた合計が1 MiBを越えるか（災害の情報だけで溢れたかの印）を書く (5) 結果のfileは1 runに1つで、frozen.tsからimportしたsealSelfHash（export済み）で封じ、gitHead・筋書きのdigest・合成器のsourceのsha256と種・P3-DC-PASSの判定・届いた上限ごとのP3-DC-OPTIONS・測ったcommitのreconstruction/contractsにあるP3-UF-PUBLIC-001とP3-CURRENCY-COVERAGE-001とU-Wの単位の契約のcontractIdとmeta.sha256を書く（配送の有無の確かめはQ-DC-REMEASURE）。書き先はFLEQ_DISASTER_OUTの1 fileだけで、試験はrepoの中に書かない。無いと: 器の最大とその時刻、入力ごとの拒否と残った拒否が筋書きごとに残らず、届いたかと溢れの原因を言えない",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:459 «66224699b9d11746»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:24 «34484a3e4707ee1e»",
           "reconstruction/src/units/seismic/seismic-unit.ts:27 «6102ac4d208bf7d7»",
           "reconstruction/src/units/nankai/nankai-unit.ts:25 «f376055a27fbf976»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:627 «7dfd56fda32b885c»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:630 «7dfd56fda32b885c»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:43 «3ad4bf7c6588ba31»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
-          "reconstruction/src/runtime/composition-root.ts:126 «9a24c78389b3cc16»",
-          "reconstruction/src/runtime/composition-root.ts:1372 «90b8604c422c63fa»",
-          "reconstruction/contracts/p3-execution-split.types.ts:82 «d27563d65ef90462»",
-          "reconstruction/src/runtime/owner-runtime.ts:174 «54f4dd1eb3bb98eb»",
-          "reconstruction/src/runtime/owner-runtime.ts:177 «5c8a5f202fff9c2b»",
-          "reconstruction/contracts/p3-execution-split.types.ts:96 «a2f6e82ae720f68e»",
+          "reconstruction/src/runtime/composition-root.ts:125 «9a24c78389b3cc16»",
+          "reconstruction/src/runtime/composition-root.ts:1365 «90b8604c422c63fa»",
+          "reconstruction/contracts/p3-execution-split.types.ts:95 «a2f6e82ae720f68e»",
           "reconstruction/src/domains/weather-current/weather-current.ts:446 «08eda6d3c0cd84ce»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:220 «9e0a048fabf9d141»",
-          "reconstruction/src/view-projector/view-projector.ts:936 «0f29de6d3afeedc3»",
-          "reconstruction/src/view-projector/view-projector.ts:938 «c42a191089542248»",
+          "reconstruction/src/view-projector/view-projector.ts:912 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:914 «c42a191089542248»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:722 «64ef77c780d16b32»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:152 «49bd7937eeae2033»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:202 «f058e3a180f89e0c»"
@@ -432,20 +429,20 @@
         "requirement": "照合（P3-DC-ORACLE、D2=A）: 正しい現況を作り直さない。(1) 観測の表でlinkedUnitTableの12 unitのreduceを結果を変えずに包み、stepごとに数える (2) 容量の欠け: stepのdiagnosticsに容量の退去のreason（P3-DC-ORACLE (3)の表）があるとき、そのunitのtoViewを前のstateとstep.stateで作り、全unit共通のUnitView.subjectsのsubjectが前にあって後に無いものを候補にする。候補のうち、後のstateの記録（intentと終端記録の欄を除く）にsubjectかsource.subjectがその値の要素が無いものだけを、subject・unit・運用区分・退去の時刻・入力・reason・本来の期限とともに容量の欠けとして記録し、後で期限が来ても消さない（後のstateに記録が残る解除・forecastEnded・取消は欠けではない）。normalで本来の期限が無いか退去の時刻より後のものを欠けに数える。容量の欠け0は、保存した現況全体（記憶・非active・非normal）が欠けていない保証ではない (3) 合成のframeの入力の結果を、採用・容量の拒否・不正に分ける。容量の拒否（decisionのcapacityExceeded、またはchangedでU-W・U-Fのunavailableの印）は入力単位の拒否として数えて後続を流し、筋書きをFailにする。不正（reduceが無い、容量以外のrejected、明示していないunchanged）だけを測定不成立（blocked、inputNotAdopted）としてrunを止める。実電文の不正は数えて報告する (4) 終わりの状態はP3-DC-SCENARIOSの手書きの期待例だけを、その時刻のstateとviewで確かめる。外れたら欠け。無いと: 区切りの間に退去して後で期限も過ぎた地震を見逃し、正しい解除や製品の正しい保持（津波の観測点の累積、U-Fの7日の回収）を欠けと誤り、測りたい容量の拒否で測定が止まり、合成の電文が不正のまま負荷不足を測ったことに気づかない",
         "evidenceRefs": [
           "reconstruction/test/execution-split/owner-harness.ts:263 «bebbf0ef2ede7d75»",
-          "reconstruction/contracts/p3-unit-table.types.ts:34 «4a372479f4cdc901»",
+          "reconstruction/contracts/p3-unit-table.types.ts:32 «4a372479f4cdc901»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:173 «a763b418a1d2365e»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:282 «6937a8c8bda3acaa»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:300 «87b29b2756cc79e9»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:301 «8900905b21910c83»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:280 «6937a8c8bda3acaa»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:298 «87b29b2756cc79e9»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:299 «8900905b21910c83»",
           "reconstruction/src/domains/eew/eew.ts:272 «a777a5aa32eb2368»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:27 «986ae9b33f93a294»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:439 «3f2690b71e67d7d4»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:458 «3f2690b71e67d7d4»",
           "reconstruction/src/units/seismic/seismic-unit.ts:33 «a3f5d5da552e2733»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:49 «7f665a2964cdce66»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:200 «0f7bc64f0b86acb0»",
           "reconstruction/src/units/flood/flood-unit.ts:303 «db818200ef8649bd»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:345 «0661a8bf0d125d0a»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:665 «6334142030400210»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:357 «0661a8bf0d125d0a»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:755 «6334142030400210»",
           "reconstruction/src/domains/eew/eew.ts:490 «4cf8acc86bfa0649»"
         ]
       },
@@ -459,9 +456,9 @@
           "reconstruction/contracts/p3-eew-gate-evict.json:51 «9600120f2da1f66a»",
           "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:63 «56746ded0a53e641»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:87 «c796e88628564648»",
-          "reconstruction/src/view-projector/view-projector.ts:793 «25d8f1daebd55d26»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:62 «56746ded0a53e641»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:85 «c796e88628564648»",
+          "reconstruction/src/view-projector/view-projector.ts:769 «25d8f1daebd55d26»",
           "reconstruction/src/display/chrome-eew/client.ts:108 «c76935a75f9bdb47»"
         ]
       },
@@ -508,7 +505,7 @@
         "referenceIds": [
           "P3-DC-AC04"
         ],
-        "behavior": "拒否の2つの量: (a) U-Wのpartial 128件（15_16_02_251222_VPWW57の官署名を替えた報）の後の新しい官署の報は、入力単位の拒否1（unavailableの印。admissionCountsは増えない） (b) U-Eのfamily 512を10分の内のnormalのEventIDで満たした後の新しいEventIDの報（77_01_01_240613_VXSE45の形）は、入力単位の拒否1でadmissionCountsも1 (c) (a)と同じ鍵へ続けて2通送ると入力単位の拒否は2、未解消の状態は1のまま"
+        "behavior": "拒否の2つの量: (a) U-Wのpartial 128件（15_16_02_251222_VPWW57の官署名を替えた報）の後の新しい官署の報は、入力単位の拒否1（unavailableの印。確認状態のwholeはcapacityExceededにならない） (b) U-Eのfamily 512を10分の内のnormalのEventIDで満たした後の新しいEventIDの報（77_01_01_240613_VXSE45の形）は、入力単位の拒否1で、確認状態のwholeがcapacityExceededのunit×運用区分も1（U-Eには印が無い） (c) (a)と同じ鍵へ続けて2通送ると入力単位の拒否は2、未解消の状態は1のまま"
       },
       {
         "testId": "P3-DC-T05",

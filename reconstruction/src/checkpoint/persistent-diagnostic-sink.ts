@@ -59,7 +59,7 @@ const diagnosticReasons = [
   "dmdataSocketStarted", "dmdataSubscriptionNarrowed", "dmdataSocketListFailed", "dmdataConnectionCapacityExceeded",
   "dmdataSocketStartFailed", "dmdataSocketStartUncertain", "dmdataSocketCloseFailed", "dmdataAuthRejected",
   "dmdataErrorFrame", "connectionLivenessExpired", "ownerStopped",
-  "eewHorizonStale", "hostClockAhead", "hostClockBehind", "hostClockUnverified",
+  "eewHorizonStale", "hostClockAhead", "hostClockBehind", "hostClockUnverified", "capacityRejected",
 ] satisfies readonly DiagnosticReason[];
 
 function lineFor(source: DiagnosticEvent, occurrences = 1): QueueEntry {

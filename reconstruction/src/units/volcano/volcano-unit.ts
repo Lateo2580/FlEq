@@ -1120,7 +1120,7 @@ function toVolcanoView(state: VolcanoUnitState): VolcanoUnitView {
   const subjects = [...alerts, ...eruptions, ...ashfalls, ...bulletins].map(shownOutcome);
   return { unit: "U-V", semanticRevision: [...subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`), ...state.shortfalls.map((item) => `shortfall:${item.id}`)].sort().join("|"),
-  contentRevision: String(state.contentRevision), admission: {}, subjects, alerts, eruptions, ashfalls,
+  contentRevision: String(state.contentRevision), subjects, alerts, eruptions, ashfalls,
   bulletins: bulletins.map(headingOf), shortfalls: state.shortfalls };
 }
 
@@ -1383,19 +1383,12 @@ const volcanoUnitCodec: VolcanoUnitCodec = {
 };
 
 // P3-UNIT-TABLE-001: この unit の行（I-U-V.runtimeRows）。
-const notNormal = <T extends { operation: Operation }>(values: readonly T[]) => values.filter((item) => item.operation !== "normal");
 const volcanoUnit = {
   unit: "U-V",
   reduce: reduceVolcanoUnit,
   toView: toVolcanoView,
   persistence: { kind: "durable", codec: volcanoUnitCodec },
   confirmationScopeLimit: 512,
-  withoutNormal: (state) => ({ ...state, alerts: notNormal(state.alerts), eruptions: notNormal(state.eruptions),
-    ashfalls: notNormal(state.ashfalls), scheduledAshfalls: notNormal(state.scheduledAshfalls), bulletins: notNormal(state.bulletins),
-    shortfalls: notNormal(state.shortfalls), batch: state.batch?.operation === "normal" ? null : state.batch }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => [...state.alerts, ...state.eruptions, ...state.ashfalls, ...state.bulletins]
-    .filter((item) => item.operation === "normal" && visible(item)).map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-V">;

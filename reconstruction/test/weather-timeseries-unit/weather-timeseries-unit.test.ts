@@ -545,6 +545,34 @@ describe("P2-A6 weather timeseries", () => {
     expect(refused.state).toBe(full);
   });
 
+  // P3-CURRENCY-COVERAGE-001 AC07 の U-F 分: 印（unavailable）と最終段の拒否の入力ごとに capacityRejected を 1 行。
+  it("P3-CC-T11 acceptance / AC07: U-F writes one capacityRejected for the mark and for the final refusal", () => {
+    const seed = receive(empty(), fixture(unknown)).state;
+    const old = first(seed), blockerSubject = "normal/VPWP50/blocker";
+    const blocker = { ...old, subject: blockerSubject, source: { ...old.source!, subject: blockerSubject } };
+    const base: WeatherTimeseriesUnitState = { ...seed, subjects: [blocker, old],
+      gates: [{ subject: blockerSubject, operation: "normal", source: blocker.source! }, ...seed.gates] };
+    const newer = fixture("81_09_01_260605_VPWP50", (xml) => xml
+      .replace("<EditorialOffice>長野地方気象台</EditorialOffice>", "<EditorialOffice>稚内地方気象台</EditorialOffice>")
+      .replace("<ReportDateTime>2026-06-06T05:00:00+09:00</ReportDateTime>", "<ReportDateTime>2026-06-05T18:00:00+09:00</ReportDateTime>"));
+    const rejected = (inputId: string) => [{ level: "WARN", component: "weather-timeseries", reason: "capacityRejected", unit: "U-F", inputId }];
+    const marked = receive(inflated(base, 33_554_432 - 1_500), newer, DATE + 3_600_000);
+    expect(marked.state.subjects.find((item) => item.subject === old.subject)?.effective).toBe("unavailable");
+    expect(marked.diagnostics).toEqual(rejected(newer.inputId));
+    // 513 件目の normal の subject は印も入らず最終段で拒否する。
+    const subjects = Array.from({ length: 512 }, (_, index) => {
+      const subject = `normal/VPWP50/office${index}`;
+      return { ...old, subject, source: { ...old.source!, subject } };
+    });
+    const full: WeatherTimeseriesUnitState = { ...seed, subjects,
+      gates: subjects.map((item) => ({ subject: item.subject, operation: item.operation, source: item.source! })) };
+    const material = fixture(unknown, (xml) => xml.replace("稚内地方気象台", "new-office"));
+    const refused = receive(full, material);
+    expect(refused.decisions[0].decision).toBe("capacityExceeded");
+    expect(refused.diagnostics).toEqual(rejected(material.inputId));
+    expect(refused.confirmationEvidence).toEqual([{ source: "capacityExceeded", scopes: [{ unit: "U-F", operation: "normal", kind: "unit" }] }]);
+  });
+
   // T06: lastKnown is taken after expiry and before capacity eviction, then dropped as one snapshot if needed.
   it("T06 preserves or drops whole lastKnown across stages two and three", () => {
     const seed = receive(empty(), fixture(unknown)).state;

@@ -12,6 +12,7 @@ import type {
   RuntimeDisplayChange,
   RejectionReason,
   RuntimeUnitDeadline,
+  SubjectUnavailable,
   UnitCodec,
   UnitView as SharedUnitView,
 } from "./p2-shared-runtime.types";
@@ -93,6 +94,8 @@ export type EarthquakeEvent = Readonly<{
   contributions: readonly EarthquakeContribution[];
   strongHold: StrongShakingHold | null;
   retainUntil: number;
+  // P3-CC-AC03: 容量で入らなかった報の印（family ごとに 1 つ、1〜4 件）。visible な event だけが鍵を持つ。
+  unavailable?: readonly SubjectUnavailable[];
 }>;
 
 // VXSE62。subject = `${operation}/VXSE62/${eventId}`。retainUntil = 最新の採用報の ReportDateTime + 36 時間。
@@ -108,6 +111,8 @@ export type LongPeriodSubject = Readonly<{
   hypocenter: SeismicHypocenter | null;
   intensity: SeismicIntensityObservation | null;
   retainUntil: number;
+  // P3-CC-AC03: 容量で入らなかった報の印。active の記録だけが鍵を持つ。
+  unavailable?: SubjectUnavailable;
 }>;
 
 // 当日地震履歴（operation ごと。日の基準は P3-C7-DAILY-BASIS）。件数と最大震度は全体の震度が既知の段階（I-U-Q.intensityScale）の
@@ -175,6 +180,8 @@ export type EarthquakeEventView = Readonly<{
   tsunamiComment: SeismicTsunamiComment | null;
   tsunamiCommentFamily: "VXSE51" | "VXSE52" | "VXSE53" | null;
   strongHold: StrongShakingHold | null;
+  // event の印の写し（P3-CC-AC03）。
+  unavailable?: readonly SubjectUnavailable[];
 }>;
 
 // active な event と長周期 subject だけを載せる。取消済みの寄与だけになった event は載せない。
@@ -202,7 +209,7 @@ export type SeismicUnitStep = Readonly<{
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>
     | Readonly<{ decision: "rejected"; reason: RejectionReason }>
-    | Readonly<{ decision: "capacityExceeded"; rejection: AdmissionEvidence & Readonly<{ affectedScope: "subject" }> }>
+    | Readonly<{ decision: "capacityExceeded" }>
     | Readonly<{ decision: "changed"; reason: null; change: "semantic" | "revisionOnly" | "deliveryOnly"; currentEstablished: (AdmissionEvidence & Readonly<{ affectedScope: "subject" }>) | null }>
   ))[];
   intents: readonly SeismicIntent[];

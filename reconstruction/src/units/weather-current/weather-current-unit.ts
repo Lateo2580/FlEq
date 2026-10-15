@@ -477,11 +477,9 @@ function reduceWeatherCurrentCore(state: WeatherCurrentUnitState,
       ? { ...item, lastKnown: null } : item) };
   if (fits(dropped)) return { ...unavailable, state: dropped };
   return { ...noChange(state),
-    decisions: [{ subject: validated.candidate.subject, operation: validated.candidate.operation,
-      decision: "capacityExceeded", rejection: { family: validated.candidate.family,
-        reportDateTimeMs: validated.candidate.reportDateTimeMs!, affectedScope: validated.candidate.affectedScope } }],
+    decisions: [{ subject: validated.candidate.subject, operation: validated.candidate.operation, decision: "capacityExceeded" }],
     diagnostics: [{ level: "WARN", component: "weather-current",
-      reason: "checkpointEncodeFailed", unit: "U-W", inputId: input.material.inputId }] };
+      reason: "capacityRejected", unit: "U-W", inputId: input.material.inputId }] };
 }
 
 function restore(state: WeatherCurrentUnitState, value: PersistedWeatherCurrentUnit,
@@ -589,7 +587,7 @@ function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUni
     ...currents.map((item) => `${item.subject}:${item.source.reportDateTimeRaw}:${item.source.serialRaw}`),
     ...state.tombstones.map((item) => `${item.subject}:t:${item.source.reportDateTimeRaw}`),
     ...state.unavailable.map((item) => `${item.subject}:u:${item.reason}:${item.source?.reportDateTimeRaw ?? ""}`),
-  ].sort().join("|"), contentRevision: String(state.contentRevision), admission: {}, subjects,
+  ].sort().join("|"), contentRevision: String(state.contentRevision), subjects,
   national: Object.fromEntries(Object.entries(state.national).filter(([, item]) => item != null && !(restoredAt in item))),
   partials: state.partials.filter((item) => !(restoredAt in item)),
   freshnessSuspectCount: state.freshness.filter((item) => item.freshnessSuspect).length };
@@ -689,11 +687,13 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
     throw new RangeError("U-W content revision exhausted");
+  // 印も入らない最終段の拒否は unit/operation の未確認へ寄せる（P3-CC-AC02）。
   const confirmationEvidence: WeatherCurrentUnitStep["confirmationEvidence"] = input.kind === "receive"
-    ? step.decisions.flatMap((item) => item.decision === "changed" && item.currentEstablished != null
-      ? [{ source: "acceptedReport" as const, scopes: item.currentEstablished.affectedScope.map((token) => ({
+    ? step.decisions.flatMap<WeatherCurrentUnitStep["confirmationEvidence"][number]>((item) => item.decision === "changed"
+      && item.currentEstablished != null ? [{ source: "acceptedReport", scopes: item.currentEstablished.affectedScope.map((token) => ({
         unit: "U-W" as const, operation: item.operation, kind: "area" as const, subject: item.subject, token,
-      })) }] : []) : [];
+      })) }] : item.decision === "capacityExceeded" ? [{ source: "capacityExceeded", scopes: [{ unit: "U-W", operation: item.operation,
+        kind: "unit" }] }] : []) : [];
   return { ...step, state: displayChanges.length !== 0
     ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state,
     displayChanges, confirmationEvidence };
@@ -711,12 +711,6 @@ const weatherCurrentUnit = {
   toView: toWeatherCurrentView,
   persistence: { kind: "durable", codec: weatherCurrentUnitCodec },
   confirmationScopeLimit: 1024,
-  withoutNormal: (state) => ({ ...state, national: { ...state.national, normal: undefined },
-    partials: state.partials.filter((item) => item.operation !== "normal") }),
-  // An unavailable subject stays visible while the normal operation is blocked.
-  keepsWhileNormalHidden: (subject) => subject.transition === "unavailable",
-  normalDisplaySubjects: (state) => [...displaySubjects(state).values()]
-    .filter((value) => value.operation === "normal" && value.current != null),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: false,
 } satisfies UnitModule<"U-W">;

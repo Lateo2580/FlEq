@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import type { DisplaySnapshot } from "../../contracts/p2-snapshot-sse.types";
 import type { TsunamiAreaClass, TsunamiForecastArea, TsunamiForecastSubject } from "../../contracts/p3-tsunami-unit.types";
 import { canonicalCoastJson, COAST_SEGMENTS } from "../../src/display/chrome-eew/coast";
-import { buildTsunamiPaint, eewContentChanged, parseDisplaySnapshot, tsunamiCandidates, tsunamiContentChanged } from "../../src/display/chrome-eew/pure";
+import {
+  buildCapacityExceededLine, buildTsunamiPaint, eewContentChanged, operationVisible, parseDisplaySnapshot, tsunamiCandidates, tsunamiContentChanged,
+} from "../../src/display/chrome-eew/pure";
 import { parseChromeMarkerDetail } from "../../src/measurement/eew-e01/frozen";
 
 const repo = join(__dirname, "../../..");
@@ -21,7 +23,7 @@ const forecast = (eventId: string, areas: readonly TsunamiForecastArea[]): Tsuna
 
 function snapshot(forecasts: readonly TsunamiForecastSubject[], tsunamiRevision = "1", eewRevision = "0", sequence = 1): DisplaySnapshot {
   const item = (operation: "normal" | "training" | "test") => ({ operation, informationType: "tsunami" as const, activeCount: 0, highestSeverity: null, areaCounts: {},
-    updatedAt: null, admission: {}, unavailable: {}, unconfirmed: {}, unknownCode: {}, freshness: {}, confirmation: { state: "unconfirmed" as const, confirmedAt: null } });
+    updatedAt: null, unavailable: {}, unconfirmed: {}, unknownCode: {}, freshness: {}, confirmation: { state: "unconfirmed" as const, confirmedAt: null } });
   const items = [item("normal"), item("training"), item("test")] as const;
   const summary = { contentRevision: eewRevision, items, delivery: "summary" as const, reason: "snapshotBudget" as const, originalBytes: 0, budgetBytes: 0 };
   return {
@@ -34,7 +36,7 @@ function snapshot(forecasts: readonly TsunamiForecastSubject[], tsunamiRevision 
     channels: { desktop: "available", sound: "available" },
     current: { eew: { unit: "U-E", ...summary }, weatherCurrent: { unit: "U-W", ...summary }, weatherTimeseries: { unit: "U-F", ...summary },
       tsunami: { unit: "U-T", contentRevision: tsunamiRevision, items, delivery: "full",
-        view: { unit: "U-T", semanticRevision: "", contentRevision: tsunamiRevision, admission: {}, subjects: [], forecasts, observations: [] } },
+        view: { unit: "U-T", semanticRevision: "", contentRevision: tsunamiRevision, subjects: [], forecasts, observations: [] } },
       earthquake: { unit: "U-Q", ...summary },
       nankai: { unit: "U-N", ...summary }, volcano: { unit: "U-V", ...summary },
       landslide: { unit: "U-L", ...summary }, flood: { unit: "U-R", ...summary },
@@ -127,5 +129,31 @@ describe("P3-C6-T05 minimal coast asset", () => {
     const overlap = COAST_SEGMENTS.some((a, i) => COAST_SEGMENTS.some((b, j) => i < j && a.rect[0] < b.rect[0] + b.rect[2] && b.rect[0] < a.rect[0] + a.rect[2]
       && a.rect[1] < b.rect[1] + b.rect[3] && b.rect[1] < a.rect[1] + a.rect[3]));
     expect([inside, overlap]).toEqual([true, false]);
+  });
+});
+
+// P3-CC-T10 acceptance (P3-CURRENCY-COVERAGE-001 AC06): 印のある予報は最終確認として描き、塗りは変えない。容量の行は津波の items から出る。
+describe("P3-CC-T10 last-confirmed tsunami card and the capacity line", () => {
+  it("marks the card head and adds the unprocessed report time, paints as before, and shows the tsunami capacity line", () => {
+    const plain = forecast("1", [area("311", "majorWarning")]);
+    const marked: TsunamiForecastSubject = { ...plain, unavailable: { reason: "capacityExceeded",
+      source: { ...plain.source, inputId: "j", reportDateTimeRaw: "2026-01-01T14:32:00+09:00" } } };
+    const [before, after] = [buildTsunamiPaint([plain]), buildTsunamiPaint([marked])];
+    expect(after.cards[0]!.head).toBe(`最終確認：${before.cards[0]!.head}`);
+    expect([before.cards[0]!.unavailableLine, after.cards[0]!.unavailableLine]).toEqual([null, "14:32 の情報を処理できていません"]);
+    expect([after.segments, after.areasBySubject]).toEqual([before.segments, before.areasBySubject]);
+    const valid = snapshot([marked]);
+    const item = { ...valid.current.tsunami.items[0], unavailable: { capacityExceeded: 1 } };
+    const withLine: DisplaySnapshot = { ...valid, current: { ...valid.current, tsunami: { ...valid.current.tsunami,
+      items: [item, valid.current.tsunami.items[1], valid.current.tsunami.items[2]] } } };
+    expect(parseDisplaySnapshot(JSON.stringify(withLine))).toEqual(withLine);
+    expect(buildCapacityExceededLine(item)).toBe("[通常] 津波: 処理できていない報がある（容量超過）");
+    expect(buildCapacityExceededLine(valid.current.tsunami.items[0])).toBeNull();
+    // training の容量の行が津波にだけあっても、training の確認状態の行を出す（operationVisible は EEW と津波の容量の行を見る）。
+    const training = { ...valid.current.tsunami.items[1], unavailable: { capacityExceeded: 1 } };
+    const trainingLine: DisplaySnapshot = { ...valid, current: { ...valid.current, tsunami: { ...valid.current.tsunami,
+      items: [valid.current.tsunami.items[0], training, valid.current.tsunami.items[2]] } } };
+    expect([operationVisible(valid, valid.current.eew.items[1]), operationVisible(trainingLine, trainingLine.current.eew.items[1])])
+      .toEqual([false, true]);
   });
 });

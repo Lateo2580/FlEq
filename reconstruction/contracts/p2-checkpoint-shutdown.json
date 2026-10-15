@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "fe6146bcb7e303bb88d1a06a9a83ffa3c7c15536f9b36aacfa0ccb8c61d255fa",
+    "sha256": "f9fac149aefc8c1fe5e4870b777277c76aa3592b8af70a8af8b630de9c557c69",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -462,7 +462,7 @@
       },
       {
         "id": "P2-A3-A8-LINK",
-        "requirement": "A8結線は二段階。発注前: A1 P2-A1-PROBEのstartup→probe結果入力、三具体view/outcomes/displayChanges・restoration/confirmation・persistence/channel・切断時刻の受け渡しをcomposition rootで準備し、A1へのconnectionLost入力を検収する。A3はto*Viewを呼ばず型付き参照を再利用し、保存復元結果をcoverageVerifiedへ変換しない。A8配送後: 実projectSnapshotを呼び、probe前の初期snapshot、以後の更新、notice次期限を既存tickへ配線し、実HTTP/SSE・終了・復元・遅いclientを再検収する。先行修正でA8のstub/interface/brokerを作らない。理由: A8が無い段階の準備と実配線の検収を混同しない。 発注前準備には同stepのadmissionCounts固定9枠の引渡しと、bit不変の件数更新を落とさない起動条件も含める。配送後はprojectSnapshotのrejected.stateも必ず次回previousへ保持し、公開snapshot/sequenceだけを維持する。",
+        "requirement": "A8結線は二段階。発注前: A1 P2-A1-PROBEのstartup→probe結果入力、三具体view/outcomes/displayChanges・restoration/confirmation・persistence/channel・切断時刻の受け渡しをcomposition rootで準備し、A1へのconnectionLost入力を検収する。A3はto*Viewを呼ばず型付き参照を再利用し、保存復元結果をcoverageVerifiedへ変換しない。A8配送後: 実projectSnapshotを呼び、probe前の初期snapshot、以後の更新、notice次期限を既存tickへ配線し、実HTTP/SSE・終了・復元・遅いclientを再検収する。先行修正でA8のstub/interface/brokerを作らない。理由: A8が無い段階の準備と実配線の検収を混同しない。 発注前準備には同stepのadmissionCounts固定9枠の引渡しと、bit不変の件数更新を落とさない起動条件も含める（admissionCountsの引渡しはP3-CURRENCY-COVERAGE-001で件数ごと廃止、配送のcommitでP3-CC-AC09により統合担当が改訂）。配送後はprojectSnapshotのrejected.stateも必ず次回previousへ保持し、公開snapshot/sequenceだけを維持する。",
         "evidenceRefs": [
           "reconstruction/contracts/p2-order-plan.md:28 «1cb9d7da3ab62cca»",
           "docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»",
@@ -684,7 +684,7 @@
       "P2-A3-AC10/R45: 空inputIdsを帰属済みと扱わないと期限だけで進んだ保存世代が終了時にcode 2となる。A10計測は競合EEWをrunと時間区間で照合する",
       "追実装で閉じる項目(A3-A7): P2-A7-AC03のrun/abort公開口へnotificationAttemptsとabortRequestsをA1確定のcause/期限のまま渡す。無いとtimeoutの理由が失われ、停止確認とrun完了からterminal結果を二重採用する。abort側は停止要求/確認だけ、runのPromiseだけがNotificationResultを返す。保存予約後ack前dispatchとO07:17保存ack済み・配送保留を別条件で検収する。時計とE21負荷はA7の正本を参照し、4 reasonの永続allowlist/読取を閉じる。",
       "追実装で閉じる項目(A3-private-EEW): A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]の専用コマンド入口を既存T11/A4-T11/A7-T01の結線系列に設ける。無いと正式検収を公開試験から分離して実行できない。既存の生成・配送assertionを再利用し、独立した総当たりや汎用runnerを作らない。入口は既存allowedPathsのtest/integration/private-eew.mjsとし、正式検収のblockedを公開試験のskip成功へ変換しない。",
-      "P2-A8-AC01/AC09/AC11: A3 composition rootは起動時にA1のadmission済みU-E/U-W/U-F具体viewを全てA8へ渡し、未変更unitは再利用する。A1 RuntimeStep.outcomesとnotificationChannels/restoration/confirmationを渡し、A8 noticeの次expiresAtを既存deadline tickへ予約する。切断時刻とscope未確認化をA1へ入力し、復元empty/unavailableを確認済みemptyへ変換しない。無いと初回snapshotが欠分野になり期限notice/部分確認が残らない",
+      "P2-A8-AC01/AC09/AC11: A3 composition rootは起動時にA1のU-E/U-W/U-F具体view（admissionによる調整はP3-CURRENCY-COVERAGE-001で廃止）を全てA8へ渡し、未変更unitは再利用する。A1 RuntimeStep.outcomesとnotificationChannels/restoration/confirmationを渡し、A8 noticeの次expiresAtを既存deadline tickへ予約する。切断時刻とscope未確認化をA1へ入力し、復元empty/unavailableを確認済みemptyへ変換しない。無いと初回snapshotが欠分野になり期限notice/部分確認が残らない",
       "P2-A8-AC10: 二段階probeの正本はA1 P2-A1-PROBE。probe前の実snapshot公開はA8配送後に検収し、先行段階の三view準備だけを公開成功と呼ばない。",
       "P2-A3-A8-LINK発注前(a)の追従対象/次段allowed_pathsへreconstruction/test/integration/private-eew.mjs、reconstruction/test/notification-delivery/delivery-fixture.ts、reconstruction/test/notification-delivery/notification-delivery.test.tsを含める。無いと型検査外の正式入口がunit付きoutcomeを読めず、probe前の配送停止で既存配送系列が成立しない。private-eewのobserve/accepted判定はunit=U-Eとentry.outcomeのkind/subjectsで照合し、startRuntimeへprobe結果を直接渡さずidle起動→notificationProbeCompletedへ変更する。delivery-fixtureの配送可能emptyはstartup後に明示probe完了を採用し、復元系列もprobe前attempt0→完了後に既存配送/TTL/再試行期待を維持する。private正式検収は既存の明示private corpus入口のみ、通常vitestへ混ぜず、原本未配置を公開fixture成功で代替しない。"
     ],

@@ -145,9 +145,13 @@ async function runtime(streamId, materials) {
 const [S43, S43_45] = await runtime("smoke-a", [material("VXSE43"), material("VXSE45")]);
 // expected:O09:12: VXSE45だけを受けたruntimeの採用snapshot (区域0、予想最大3)。
 const [S45] = await runtime("smoke-b", [material("VXSE45")]);
-// A4のcurrent上限512を超えるnormalの別EventIDを513件入れる。513件目が容量超過になり、normalは公開maskでcardが消える。
-const S_CAPACITY = (await runtime("smoke-capacity", Array.from({ length: 513 },
-  (_, index) => material("VXSE43", String(index + 1).padStart(14, "0"))))).at(-1);
+// A4のcurrent上限512を超えるnormalの別EventIDを513件入れる。513件目が容量超過になり、U-E normal が未確認（capacityExceeded）になる
+// （P3-CC-AC01: 既存の512件のcardは隠さない）。VXSE43の512件は1 MiBを越えてEEWがsummaryで配られる（A8 RES-06）ので、
+// cardが残ることは区域の無いVXSE45（full配送に収まる）の512件で確かめる。
+const capacityRun = (streamId, family) => runtime(streamId, Array.from({ length: 513 },
+  (_, index) => material(family, String(index + 1).padStart(14, "0"))));
+const S_CAPACITY = (await capacityRun("smoke-capacity", "VXSE43")).at(-1);
+const S_CAPACITY_FULL = (await capacityRun("smoke-capacity-full", "VXSE45")).at(-1);
 const [CUR43] = S43.current.eew.view.current;
 const [CUR45] = S45.current.eew.view.current;
 const A8_NOTICE = S43.notices[0];
@@ -480,17 +484,25 @@ async function checkIntensityBounds() {
   "DOM・screenshot画素", { rows, head, pixels, cardPixel, screenshot: "evidence/intensity-bounds.png" });
 }
 
-// AC04: 容量超過でnormalのcardが消えても (公開mask)、無発令と区別できる行が出る。snapshotは実経路の射影そのもの。
+// AC04（P3-CC-AC06(4)）: 容量超過で処理できない報があっても既存のcardは隠さず、未確認（unconfirmed.capacityExceeded）を状態行に出す。
+// snapshotは実経路の射影そのもの。summary配送ではactiveCountと状態行、full配送ではcardと状態行を見る。
 async function checkCapacityExceeded() {
-  const row = S_CAPACITY.current.eew.items[0];
-  const wire = { capacityExceeded: row.admission.capacityExceeded, unavailable: row.unavailable, activeCount: row.activeCount,
-    current: S_CAPACITY.current.eew.view.current.length };
+  const line = "[通常] 緊急地震速報: 処理できていない報がある（容量超過）";
+  const summary = S_CAPACITY.current.eew, full = S_CAPACITY_FULL.current.eew;
+  const wire = { summaryDelivery: summary.delivery, summaryActive: summary.items[0].activeCount,
+    summaryCapacity: summary.items[0].unconfirmed.capacityExceeded, fullDelivery: full.delivery, fullActive: full.items[0].activeCount,
+    fullCapacity: full.items[0].unconfirmed.capacityExceeded, fullCurrent: full.delivery === "full" ? full.view.current.length : null };
   await publish(S_CAPACITY);
-  const rows = await texts("#capacity .eew-capacity");
+  const summaryRows = await texts("#capacity .eew-capacity");
+  const summaryLines = await texts("#cards .eew-summary");
+  await publish(S_CAPACITY_FULL);
+  const fullRows = await texts("#capacity .eew-capacity");
   const cardCount = await evaluate(`document.querySelectorAll("#cards .eew-card").length`);
-  check("P2-A9-T03:AC04:capacityExceededNotNoAlert", wire.capacityExceeded === 1 && wire.current === 0
-    && JSON.stringify(rows) === JSON.stringify(["[通常] 表示できない報がある（容量超過 1 件）"]) && cardCount === 0,
-  "DOM (A1→A4→A8の実経路のsnapshot)", { wire, rows, cardCount });
+  check("P2-A9-T03:AC04:capacityExceededNotNoAlert", wire.summaryDelivery === "summary" && wire.summaryActive === 512
+    && wire.summaryCapacity === 1 && JSON.stringify(summaryRows) === JSON.stringify([line]) && summaryLines.length === 1
+    && wire.fullDelivery === "full" && wire.fullCurrent === 512 && wire.fullActive === 512 && wire.fullCapacity === 1
+    && JSON.stringify(fullRows) === JSON.stringify([line]) && cardCount === 512,
+  "DOM (A1→A4→A8の実経路のsnapshot)", { wire, summaryRows, summaryLines, fullRows, cardCount });
 }
 
 async function checkNotices() {

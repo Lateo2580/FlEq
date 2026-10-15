@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "7b541d17f8030fcdb64df76b67073762473fb20ba40d315759cdfbe2cd7cb630",
+    "sha256": "e564a4d4028287ed8488b8b37e2de770375fed90c5fff8abe24f072fa3e6ba4f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -91,7 +91,7 @@
       },
       {
         "id": "P3-C5-CAPACITY",
-        "A": "上限は4つ: VTSE41 subject 512（三区分合算、旧築maxSubjects 512）、観測subject familyごと512（三区分合算）、station familyごと1024（三区分合算、spec:575）、4 MiB/世代。どれかを超える受理には同じ退去手順を使う: 退去候補は超過量を実際に減らすsubjectだけに限り、(1)retainUntilを過ぎた非active (2)最古の非active（stationsを持つforecastEndedを含む） (3)training/testのactiveを、R14と同じ最古順で必要数だけ。station超過の候補は同じfamilyのstationsを持つ観測subjectだけ、件数超過の候補は同じ種類（VTSE41／同じfamilyの観測）だけ、byte超過は全subject。normalのactiveだけで超えるならcapacityExceeded（state不変）。退去と採用は一回の参照交換で原子的に確定し、確定した退去だけを診断tsunamiCapacityEvicted（count）で返す",
+        "A": "上限は4つ: VTSE41 subject 512（三区分合算、旧築maxSubjects 512）、観測subject familyごと512（三区分合算）、station familyごと1024（三区分合算、spec:575）、4 MiB/世代。どれかを超える受理には同じ退去手順を使う: 退去候補は超過量を実際に減らすsubjectだけに限り、(1)retainUntilを過ぎた非active (2)最古の非active（stationsを持つforecastEndedを含む） (3)training/testのactiveを、R14と同じ最古順で必要数だけ。station超過の候補は同じfamilyのstationsを持つ観測subjectだけ、件数超過の候補は同じ種類（VTSE41／同じfamilyの観測）だけ、byte超過は全subject。normalのactiveだけで超えるならcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で原子的に確定し、確定した退去だけを診断tsunamiCapacityEvicted（count）で返す",
         "B": "旧築どおり上限で最終更新の古いstationを黙って落とす",
         "recommended": "A",
         "provisional": "A",
@@ -201,7 +201,7 @@
         "overlap": "一つの採用報は各channel最大1 intent。機会はescalation、deescalation、continuationの順で一つを選ぶ。訂正は別の機会を作らず、選んだ機会に訂正の接頭辞を付ける",
         "emergencyGroup": "A7のgroup()（notification-delivery.ts:21）が緊急群に入れるのはoperation=normalかつlevelがwarning/criticalのU-T intentだけ。式により、それは警報以上の区域が上がった報（訂正を含む）に限る。区域拡大は新しい区域への警報の発令なので、spec:951の「発令」に含める（spec:1131の発令系も区域拡大を含む）。観測のintentはinfo/cancelなので緊急群に入らない（otherのまま鳴る）",
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec §6.4。津波緊急もTTLと初回待ちを別に判定、spec:973）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない",
-        "replacement": "P3-C5-REPLACEMENT=A。置換の単位はoperation＋subject＋channel（VTSE41と観測は別subjectなので互いを置き換えない）",
+        "replacement": "P3-C5-REPLACEMENT=A。置換の単位はoperation＋subject＋channel（VTSE41と観測は別subjectなので互いを置き換えない）。容量の拒否（P3-CURRENCY-COVERAGE-001、P3-CC-AC03・AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）: VTSE41の採用でfitがnullを返し、拒否した報のsubjectの記録がactiveなら印〔SubjectUnavailable〕を付けてchanged。失敗した系列〔拒否した報のsubject〕のまだ鳴っていないdesktopのpendingはtitleだけを『【HH:MM 発表】』付きに替え〔同じid・元の期限、soundは変えない〕、拒否した報のfreshのlevelの最大がwarning以上なら固定のsubject『operation/capacityRejected』の失敗警報をその段階で足す〔subjectのpendingは置き換えない、失敗警報どうしは重い方だけを残す〕。どれも追加の退去なしで収まるときだけ。印を付けない拒否〔観測を含む〕はunitの負の証拠と診断capacityRejected",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4の先例）",
         "payload": "typeRef reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋本体。本体は到達後の最高区分の名（大津波警報・津波警報・津波注意報・津波予報。区分が無ければ「津波警報・注意報の解除」。effective=releasedの報で、直前の採用状態がactiveだったもの（intentのtransition=released）は、予報区域が残っていても「津波警報・注意報の解除」とする。直前がactiveでないreleasedの報（予報だけの初報、解除の後の予報だけの続報）は、予報区域があれば「津波予報」、無ければ「津波警報・注意報の解除」とする。最高区分がunknownならその区域のKind/Name）、取消は「[取消] 津波警報・注意報・予報」、訂正は「[訂正] 」＋本体、観測は「津波観測に関する情報」（VTSE52は「沖合の津波観測に関する情報」）。bodyは旧築notifier.ts:459〜471と同じく区分の和集合を「・」連結 / 先頭3区域名を「, 」連結 / Headline本文で組み、escalationでは上がった区域を先に並べる。取消は「この情報は取り消されました」。訂正はbody冒頭に「訂正: 」。training/testはbody冒頭に区分の注記行（P2-A4と同じ文）。title/bodyは空にしない",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければ下位群をA7の選択順の逆で必要数だけ退去する。同群以上は退去しない。収容できない機会はchannelごとに全採用か未採用で、未採用なら既存pendingを保ち、診断notificationCapacityEvicted（count）を返す。終端記録は件数の上限を別に置かず、expiresAtで回収し、保存世代のbyte予算（RES-01）に含める（P2の各unitと同じ）",
@@ -963,7 +963,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:72 «4a65d89f48f565e0»",
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
-          "reconstruction/src/runtime/composition-root.ts:1145 «cee278b81108e897»",
+          "reconstruction/src/runtime/composition-root.ts:1138 «cee278b81108e897»",
           "reconstruction/contracts/p2-notification-delivery.types.ts:46 «c19db469a893ebf1»"
         ]
       },

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "2352c569d7194b5b2c0cab9cf7e2e8335e071fa39e4692fcf36aef114cf1bc7c",
+    "sha256": "00f39d5c205cd0a08f122fd4fbab0a1ca96e0d25d88d45103af1c976e614a43f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -204,14 +204,14 @@
           "reconstruction/src/domains/eew/eew.ts:459 «66224699b9d11746»",
           "reconstruction/src/domains/eew/eew.ts:460 «46d540529b5eb462»",
           "reconstruction/src/domains/eew/eew.ts:490 «4cf8acc86bfa0649»",
-          "reconstruction/src/domains/eew/eew.ts:496 «71b63fc9c7ff9c0c»",
-          "reconstruction/src/domains/eew/eew.ts:503 «2b68e7aec65f07ea»",
-          "reconstruction/src/domains/eew/eew.ts:517 «819d17b850535438»",
-          "reconstruction/src/domains/eew/eew.ts:617 «2bd982cccd6538d4»",
-          "reconstruction/src/domains/eew/eew.ts:655 «8803262b0d9dcb97»",
+          "reconstruction/src/domains/eew/eew.ts:497 «71b63fc9c7ff9c0c»",
+          "reconstruction/src/domains/eew/eew.ts:504 «2b68e7aec65f07ea»",
+          "reconstruction/src/domains/eew/eew.ts:518 «819d17b850535438»",
+          "reconstruction/src/domains/eew/eew.ts:618 «2bd982cccd6538d4»",
+          "reconstruction/src/domains/eew/eew.ts:656 «8803262b0d9dcb97»",
           "reconstruction/contracts/p2-eew-unit.json:360 «85c850dde0d58f7e»",
           "reconstruction/src/domains/eew/eew.ts:448 «516a0a37ed2619ea»",
-          "reconstruction/src/domains/eew/eew.ts:661 «8d2b7783d3658594»"
+          "reconstruction/src/domains/eew/eew.ts:662 «8d2b7783d3658594»"
         ]
       },
       {
@@ -225,16 +225,16 @@
           "reconstruction/src/domains/eew/eew.ts:447 «533bdccc801402bd»",
           "reconstruction/src/domains/eew/eew.ts:452 «4b4a25c88b7f3428»",
           "reconstruction/src/domains/eew/eew.ts:304 «4a791db4eeb089c4»",
-          "reconstruction/src/domains/eew/eew.ts:531 «7ee2f83e702dd471»",
-          "reconstruction/src/domains/eew/eew.ts:534 «295c160aab9d48a2»",
-          "reconstruction/src/units/eew/eew-unit.ts:318 «95159a21ab60b9c4»"
+          "reconstruction/src/domains/eew/eew.ts:532 «7ee2f83e702dd471»",
+          "reconstruction/src/domains/eew/eew.ts:535 «295c160aab9d48a2»",
+          "reconstruction/src/units/eew/eew-unit.ts:317 «95159a21ab60b9c4»"
         ]
       },
       {
         "id": "P3-EVICT-AC03",
         "requirement": "満杯の拒否が残る条件と数字: normalの新規EventIDがcapacityExceededになるのは、同じfamilyの512 subjectが全部normalで、どのgateも(a)〜(c)のどれかを欠くとき。currentは報時刻＋10分以内にしか無く（currentUntil＝base＋600,000≦報時刻＋600,000）、pendingは受理から15秒なので、実際には「同じfamilyで、最後に採用した版の報時刻が直近10分に入るnormalのEventIDが512件」で、毎分51.2件を10分続ける速さ（hostの時計が遅れて報時刻が未来のgateは報時刻＋10分まで退去しないので、窓は遅れの分だけ長い。B10）。familyはVXSE43（警報）とVXSE45（地震動予報、予報の段階を含めて毎回出る）で別に数え、VXSE45が先に満ちる。巨大地震の1日のEEWの件数（2026-10-11、気象庁の資料と震源カタログからの推定）: 気象庁は予報を出した地震の数を日ごとには公表していない。月の公式値は2011年3月 1,191・2016年4月 228・2024年1月 376（気象庁 https://www.jma.go.jp/jma/press/2402/08a/2401eew.pdf の月別の表）。震源カタログから推定した最大の24時間は、東北2011で約230〜360（3/11 14:46から）、能登2024で約200。1つの揺れにEventIDが2つ付いた例がある（2023-05-05 21:58 能登半島沖 M5.9、2026-01-06 10:37 島根県東部。小さな地震のEventIDが大きな揺れを取り込んで警報が2本並んだ）。24時間の最大の推定（約230〜360）を全部10分に詰めても512に届かない（余裕は1.4倍以上）が、10分の窓の最大の件数は材料に無く、承認の基準α（実配信の10倍以上、10分に51件以下）を確かめていない。EventIDが2つ付く例は1つの揺れで2件を占めるが、観測は単発。この条件の拒否は残存リスク(1)（作者承認済み、Q-EVICT-DECIDE）。K6の残存リスク(2)（24時間内に512件で拒否）は本契約で置き換える。",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:508 «cb7d034da431db0a»",
+          "reconstruction/src/domains/eew/eew.ts:509 «cb7d034da431db0a»",
           "reconstruction/src/domains/eew/eew.ts:459 «66224699b9d11746»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:17 «0fc7e4401340079f»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:559 «7afe8fcd3c71660e»"
@@ -244,9 +244,9 @@
         "id": "P3-EVICT-AC04",
         "requirement": "診断・保存・型（P3-EVICT-D-DIAG=A）:退去の診断は既存のINFO eewCapacityEvicted（unit \"U-E\"、count＝その受理で退去した件数）で、normalの退去も同じ1件に数える。診断に新しいreason・field・型を足さない。時計の後退の記憶（AC01(7)）はEewUnitStateの非保存のoptional field evictedNormalReportMs（familyごとの数値）1つで、codec（encode・decode）・保存の形・schemaVersionは変えない。restoreの後は不在（退去なし）から始まる。そのstaleは既存のeewHorizonStaleで出す。capacityExceededの形（P2-A4-AC06の専用decision、reason/changeなし）とeewHorizonStaleの出し方（P3-LIFE-AC03(2)）は変えない。PersistedEewUnit・schemaVersion p2-eew-unit-v1・codecは変えず、保存の形が変わらないので旧データの移行と復元の試験の組は要らない（AC02 B8）。",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:689 «6e3a13e6daba7887»",
-          "reconstruction/contracts/p2-eew-unit.json:434 «e855e595879c158a»",
-          "reconstruction/src/units/eew/eew-unit.ts:318 «95159a21ab60b9c4»"
+          "reconstruction/src/domains/eew/eew.ts:690 «6e3a13e6daba7887»",
+          "reconstruction/contracts/p2-eew-unit.json:434 «13156114c3abf36c»",
+          "reconstruction/src/units/eew/eew-unit.ts:317 «95159a21ab60b9c4»"
         ]
       },
       {
@@ -256,7 +256,7 @@
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:385 «5dc9065929148d34»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:107 «60103d416c14b931»",
           "reconstruction/contracts/p2-eew-unit.json:360 «85c850dde0d58f7e»",
-          "reconstruction/contracts/p2-eew-unit.json:434 «e855e595879c158a»",
+          "reconstruction/contracts/p2-eew-unit.json:434 «13156114c3abf36c»",
           "reconstruction/contracts/p2-eew-unit.json:48 «c5b1522329bece54»",
           "reconstruction/contracts/p3-operation-capacity-n.json:36 «be43026345f83292»"
         ]
@@ -274,9 +274,9 @@
         "id": "P3-EVICT-AC07",
         "requirement": "既存試験の変更（変える前に差と理由を統合担当へ報告する）: 起草の試作でreconstructionのvitestは1件だけ落ちた。P3-LIFE-T01の最初のretainUntilの1 ms前の新しいEventIDは、512 gateが全部最終報で報時刻＋10分を過ぎ、currentもpendingも無いので、capacityExceededからchanged（最古のgate、EventID 20260101000000を退去、eewCapacityEvicted count 1、gate 512のまま）へ変わる。その行の期待値だけをこれに変え、T01の残り（retainUntilちょうどの回収、90日後の0件）は変えずに同じstateから続ける。P2-A4-T06-R14のnormalだけ512件への新規normalのcapacityExceededは、gateの報時刻と時計の差が1 msで若いので変わらない（試作で緑）。ここに挙げていない期待値の変更が要る試験が出たら、変えずに止めて差と理由を報告する（AGENTS.md）。vitestの外のchrome-eewのsmokeのS_CAPACITY（smoke.mjs）は報時刻から31秒の時計で513件を入れるので変わらない（読んで確かめた。実走はしていない）。P3-MEASURE-HARNESS-001（MH、1871540bでは未配送）のP3-MH-T01の最後の句「充填の開始＋600,000msのdeadlineの後、同じ時計の新しい通常のEventIDはcapacityExceeded」は本契約の後は成り立たない（付け直した充填のEEWの報時刻は全部充填の開始の秒で(a)を満たし、currentはそのdeadlineで回収され、intentは15秒で掃けるので、最古のgateを退去してchangedになる）。baseOidの時点でMHが配送済みならその1行も本契約の期待値の変更に含める（allowedPathsへMH-T01の試験ファイルを足す改訂はQ-EVICT-BASEで統合担当が行う）。未配送ならMH側の改訂として統合担当が送る（Q-EVICT-BASE）。統合担当の決定（2026-10-11）: MHは40d040c0で配送済みなので、reconstruction/test/eew-e01/frames.test.tsのP3-MH-T01の最後の期待（付け直した充填の失効の後の新しい通常のEventIDのdecision）をcapacityExceededからchanged（最古のgateを退去、eewCapacityEvicted count 1、gate 512のまま）へ変える。その試験のほかの期待（充填の512・stale 0、失効でcurrent 0・gate 512、2024年の時刻はeewHorizonStale）は変えない。MHのAC08(a)（凍結の前のMac miniの予備の「失効の後も新しい通常のEventIDはcapacityExceeded」）は、本契約の配送の後に走らせる予備ではchangedと読み替える（統合担当が予備の記録に書く）。",
         "evidenceRefs": [
-          "reconstruction/test/eew-unit/eew-unit.test.ts:1445 «2b057236a59006f4»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1447 «2b057236a59006f4»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:672 «9c8d75df1c63772a»",
-          "reconstruction/test/eew-unit/eew-unit.test.ts:735 «c86a37f994194ece»"
+          "reconstruction/test/eew-unit/eew-unit.test.ts:739 «4821b8442df7266c»"
         ]
       },
       {

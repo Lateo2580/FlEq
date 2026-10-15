@@ -560,7 +560,7 @@ function toTyphoonView(state: State): TyphoonUnitView {
   const subjects = [...analysis, ...probability].map(shownOutcome);
   return { unit: "U-Y", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), admission: {}, subjects, analysis, probability };
+  contentRevision: String(state.contentRevision), subjects, analysis, probability };
 }
 
 // ---- codec（I-U-Y.persisted・I-U-Y.decode、唯一の TyphoonUnitCodec。受理と同じ上限を確かめる） ----
@@ -789,10 +789,6 @@ const typhoonUnit = {
   toView: toTyphoonView,
   persistence: { kind: "durable", codec: typhoonUnitCodec },
   confirmationScopeLimit: LIMITS.subjects * 2,
-  withoutNormal: (state) => ({ ...state, analysis: state.analysis.filter((item) => item.operation !== "normal"),
-    probability: state.probability.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => [...state.analysis, ...state.probability].filter((item) => item.operation === "normal" && visible(item)).map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-Y">;

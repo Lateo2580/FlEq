@@ -51,7 +51,7 @@ describe("P3-UFP-T05 regression (audit A3)", () => {
     expect(stored).toBeGreaterThanOrEqual(15_638_202);
     const units: RuntimeState["units"] = { ...real.state.units, "U-F": { ...real.state.units["U-F"], ...big } };
     const state: RuntimeState = { ...real.state, units, views: { ...real.state.views,
-      "U-F": { ...toWeatherTimeseriesView(units["U-F"]), admission: {}, contentRevision: "1:0" } } };
+      "U-F": { ...toWeatherTimeseriesView(units["U-F"]), contentRevision: "1" } } };
     const assembled: Step = { ...real, state, displayChanges: [...real.displayChanges, ...allSubjects(state).filter((change) => change.unit === "U-F")] };
     const result = projectSnapshot(projectionInput(assembled, at), null);
     if (result.kind !== "projected") throw new Error(result.kind);

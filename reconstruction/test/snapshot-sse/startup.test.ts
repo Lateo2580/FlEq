@@ -10,6 +10,8 @@ import { projectSnapshot } from "../../src/view-projector/view-projector";
 import {
   allSubjects, decode, expectConsistent, projected, projectionInput, received, startup, step,
 } from "./projection-fixture";
+import { reduceSeismicUnit, seismicUnitCodec, toSeismicView } from "../../src/units/seismic/seismic-unit";
+import { decodeXml as decodeSeismic, emptyState as emptySeismic, vxse53 } from "../seismic-unit/seismic-fixture";
 
 const at = 1780650000000;
 const clock = { wallTimeMs: at, monotonicMs: 1 };
@@ -99,25 +101,6 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
       expect(item.confirmation.state).toBe("unconfirmed");
   });
 
-  it("P2-A8-SUMMARY.times: under the normal mask the kept unknownCode keeps its source time in updatedAt", async () => {
-    const real = await adopt([["15_16_02_251222_VPWW57", "VPWW57", (xml) => xml.replace(/<Code>48<\/Code>/g, "<Code>99</Code>")],
-      ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"]]);
-    // The masked views as A1 projectViews builds them: normal currents leave the view, the admission flag stays.
-    const mask = { normal: "capacityExceeded" as const };
-    const weather = real.units["U-W"], timeseries = real.units["U-F"];
-    const state: RuntimeState = { ...real, views: { ...real.views,
-      "U-W": { ...toWeatherCurrentView({ ...weather, national: { ...weather.national, normal: undefined },
-        partials: weather.partials.filter((item) => item.operation !== "normal") }), admission: mask, contentRevision: "1:1" },
-      "U-F": { ...toWeatherTimeseriesView({ ...timeseries, subjects: timeseries.subjects.filter((item) => item.operation !== "normal") }),
-        admission: mask, contentRevision: "1:1" } } };
-    const none = { normal: 0, training: 0, test: 0 }, one = { normal: 1, training: 0, test: 0 };
-    const result = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state),
-      admissionCounts: { "U-E": none, "U-W": one, "U-F": one, "U-T": none, "U-Q": none, "U-N": none, "U-V": none, "U-L": none, "U-R": none, "U-B": none, "U-M": none, "U-Y": none } }, at), null));
-    for (const [key, time] of [["weatherCurrent", "2020-06-22T23:00:00+09:00"], ["weatherTimeseries", "2026-06-05T17:00:00+09:00"]] as const)
-      expect(result.snapshot.current[key].items[0]).toMatchObject({ activeCount: 0, highestSeverity: null,
-        unknownCode: { unknown: expect.any(Number) }, updatedAt: Date.parse(time) });
-  });
-
   it("P2-A8-T01: active, all three unavailable reasons, unknown Code, freshness and unconfirmed coexist in one row", async () => {
     const real = await adopt([["15_16_02_251222_VPWW57", "VPWW57"], ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"],
       ["81_09_01_260605_VPWP50", "VPWP50"], ["81_09_01_260605_VPWP50", "VPWP50", training]]);
@@ -138,17 +121,12 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
         periods: [], validUntil: null, lastKnown: null, source: { ...wakkanai.source!, inputId: "i".repeat(600_000) } }] };
     const state: RuntimeState = { ...real, units: { ...real.units, "U-W": weather, "U-F": timeseries },
       views: { ...real.views,
-        "U-W": { ...toWeatherCurrentView(weather), admission: {}, contentRevision: "9:0" },
-        "U-F": { ...toWeatherTimeseriesView(timeseries), admission: {}, contentRevision: "9:0" } } };
-    const result = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state),
-      admissionCounts: { "U-E": { normal: 0, training: 0, test: 0 }, "U-W": { normal: 2, training: 0, test: 0 },
-        "U-F": { normal: 0, training: 0, test: 0 }, "U-T": { normal: 0, training: 0, test: 0 },
-        "U-Q": { normal: 0, training: 0, test: 0 }, "U-N": { normal: 0, training: 0, test: 0 },
-        "U-V": { normal: 0, training: 0, test: 0 }, "U-L": { normal: 0, training: 0, test: 0 },
-        "U-R": { normal: 0, training: 0, test: 0 }, "U-B": { normal: 0, training: 0, test: 0 }, "U-M": { normal: 0, training: 0, test: 0 }, "U-Y": { normal: 0, training: 0, test: 0 } } }, at), null));
+        "U-W": { ...toWeatherCurrentView(weather), contentRevision: "9" },
+        "U-F": { ...toWeatherTimeseriesView(timeseries), contentRevision: "9" } } };
+    const result = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state) }, at), null));
     expectConsistent(result.state, result.snapshot, result.utf8Bytes);
     const weatherRow = result.snapshot.current.weatherCurrent.items[0];
-    expect(weatherRow).toMatchObject({ activeCount: 1, highestSeverity: "danger", admission: { capacityExceeded: 2 },
+    expect(weatherRow).toMatchObject({ activeCount: 1, highestSeverity: "danger",
       unavailable: { capacityExceeded: 1, historyUnavailable: 1, coverageIncomplete: 1 },
       freshness: { stale: 1 }, unconfirmed: { startup: 1 } });
     // 公開形式は period を持たないので、出典 1 つの 600,000 文字の inputId で U-F を 1 MiB 超にする。U-F だけが要約になり、行は変わらない。
@@ -162,5 +140,25 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
     expect(summary.items[1]).toMatchObject({ operation: "training", activeCount: 1, highestSeverity: "advisory" });
     expect(Buffer.byteLength(JSON.stringify(summary))).toBeLessThanOrEqual(4096);
     expect([result.snapshot.current.eew.delivery, result.snapshot.current.weatherCurrent.delivery]).toEqual(["full", "full"]);
+  });
+});
+
+// P3-CURRENCY-COVERAGE-001 AC03(5): A8 は印のある event を記録 1 つにつき 1 と数える（印の family の数によらない）。
+describe("P3-CC AC03(5) contractBoundary", () => {
+  it("counts an event with marks on two families once in unavailable.capacityExceeded and keeps it active", async () => {
+    const quake = reduceSeismicUnit(emptySeismic(), { kind: "receive", clock,
+      material: decodeSeismic(vxse53({ eventId: "20260605000001", at: new Date(at).toISOString() }), "VXSE53") }).state;
+    const event = quake.earthquakes[0], source = event.contributions[0].source;
+    const mark = (family: string) => ({ reason: "capacityExceeded" as const,
+      source: { ...source, family, subject: `normal/${family}/${event.eventId}` } });
+    const marked = { ...quake, earthquakes: [{ ...event, unavailable: [mark("VXSE53"), mark("VXSE61")] }] };
+    // U-Q は復元の表示の変化で view を組む（A8 は最初の射影で view 全体を表示の変化から数える）。
+    const restored = reduceSeismicUnit(emptySeismic(), { kind: "restore", persisted: seismicUnitCodec.encode(marked), clock });
+    const base = (await startup(clock)).state;
+    const state: RuntimeState = { ...base, units: { ...base.units, "U-Q": restored.state },
+      views: { ...base.views, "U-Q": toSeismicView(restored.state) } };
+    const started = { state, outcomes: [], displayChanges: [...allSubjects(state), ...restored.displayChanges] };
+    const item = projected(projectSnapshot(projectionInput(started, at), null)).snapshot.current.earthquake.items[0];
+    expect(item).toMatchObject({ activeCount: 1, unavailable: { capacityExceeded: 1 } });
   });
 });

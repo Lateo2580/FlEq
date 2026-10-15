@@ -632,6 +632,30 @@ describe("P2 weather-current unit", () => {
     expect(weatherCurrentUnitCodec.decode({ ...value, national: null }).kind).toBe("invalid");
   });
 
+  // P3-CURRENCY-COVERAGE-001 AC07 の U-W 分（最終段の拒否は下の P2-A5-T09 が capacityRejected の 1 行を確かめる）。
+  it("P3-CC-T11 acceptance / AC07: U-W writes one capacityRejected for the count mark and for the byte mark", () => {
+    const partialMaterial = decodeFixture("15_16_02_251222_VPWW57", "VPWW57");
+    const protectedPartials = Array.from({ length: 128 }, (_, index) => snapshot("normal", "VPWW55", `office-${index}`,
+      `2020-06-21T${String(index % 24).padStart(2, "0")}:00:00+09:00`, `partial-${index}`));
+    const rejected = (inputId: string) => [{ level: "WARN", component: "weather-current", reason: "capacityRejected", unit: "U-W", inputId }];
+    const counted = receive({ ...emptyState(), partials: protectedPartials }, partialMaterial);
+    expect(counted.state.unavailable[0]?.reason).toBe("capacityExceeded");
+    expect(counted.diagnostics).toEqual(rejected(partialMaterial.inputId));
+    const current = snapshot("normal", "VPWS50", "気象庁", "2026-09-06T10:00:00+09:00", "current");
+    const history = { subject: current.subject, operation: current.operation,
+      reports: [snapshot("normal", "VPWS50", "気象庁", "2026-09-05T10:00:00+09:00", "history-1"),
+        snapshot("normal", "VPWS50", "気象庁", "2026-09-05T11:00:00+09:00", "history-2")] };
+    const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W",
+      generation: value.persistence.currentGeneration, capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
+    }).byteLength;
+    const base: WeatherCurrentUnitState = { ...emptyState(), national: { normal: { ...current, phenomena: { padding: "" } } }, histories: [history] };
+    const full = { ...base, national: { normal: { ...current, phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(base) - 100) } } } };
+    const candidate = decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after", "VPWS50", (xml) => bodyWarning(xml), "byte-new");
+    const byBytes = receive(full, candidate);
+    expect(byBytes.state.unavailable).toEqual([expect.objectContaining({ reason: "capacityExceeded" })]);
+    expect(byBytes.diagnostics).toEqual(rejected("byte-new"));
+  });
+
   it("P2-A5-T09 contractBoundary / AC11: normal evicts oldest non-normal count entries atomically", () => {
     const current = snapshot("normal", "VPWS50", "気象庁", "2026-09-06T10:00:00+09:00", "current");
     const oldTraining = snapshot("training", "VPWS50", "気象庁", "2026-09-05T10:00:00+09:00", "old-training");
@@ -751,11 +775,10 @@ describe("P2 weather-current unit", () => {
     expect(refusedStep.state).toBe(refusedFull);
     const established = receive(emptyState(), partialMaterial).decisions[0];
     if (established.decision !== "changed" || established.currentEstablished == null) throw new Error("partial not established");
-    expect(refusedStep.decisions).toEqual([{ subject: established.subject, operation: "normal",
-      decision: "capacityExceeded", rejection: { family: "VPWW57", reportDateTimeMs: Date.parse(partialMaterial.reportDateTimeRaw),
-        affectedScope: established.currentEstablished.affectedScope } }]);
+    // P3-CC-AC07: 最終段の拒否の診断は checkpointEncodeFailed でなく capacityRejected（同じ入力に 2 行出さない）。
+    expect(refusedStep.decisions).toEqual([{ subject: established.subject, operation: "normal", decision: "capacityExceeded" }]);
     expect(refusedStep.diagnostics).toEqual([{ level: "WARN", component: "weather-current",
-      reason: "checkpointEncodeFailed", unit: "U-W", inputId: partialMaterial.inputId }]);
+      reason: "capacityRejected", unit: "U-W", inputId: partialMaterial.inputId }]);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(refusedStep.state)).kind).toBe("restored");
     expect(refusedFull.national.training).toBeDefined();
     expect(envelopeSize(refusedFull)).toBe(16 * 1024 * 1024 - 100);

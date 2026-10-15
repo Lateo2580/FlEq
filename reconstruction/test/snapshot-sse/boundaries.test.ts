@@ -49,9 +49,9 @@ function padded(timeseriesPad: number, weatherPad: number): Step {
     affectedScope: [JSON.stringify(["VPWW57", "partial", "京都地方気象台", "all", ""])] }] };
   const units = { ...base.units, "U-W": weather, "U-F": { ...base.units["U-F"], subjects: [subject] } };
   const state: RuntimeState = { ...base, units, views: { ...base.views,
-    "U-W": { ...toWeatherCurrentView(weather), admission: {}, contentRevision: "1:0" },
-    "U-F": { ...toWeatherTimeseriesView(units["U-F"]), admission: {}, contentRevision: "1:0" } } };
-  return { state, outcomes: [], displayChanges: allSubjects(state), admissionCounts: started.admissionCounts };
+    "U-W": { ...toWeatherCurrentView(weather), contentRevision: "1" },
+    "U-F": { ...toWeatherTimeseriesView(units["U-F"]), contentRevision: "1" } } };
+  return { state, outcomes: [], displayChanges: allSubjects(state) };
 }
 
 function project(value: Step) {
@@ -99,15 +99,15 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
       activeCount: MAX, highestSeverity: unit === "U-E" ? "warning" : "specialWarning",
       areaCounts: unit === "U-E" ? { eewArea: MAX } : unit === "U-F" ? { forecastArea: MAX }
         : { prefecture: MAX, primary: MAX, municipalityGroup: MAX, municipality: MAX, stormSurge: MAX },
-      updatedAt: -LIMIT, admission: { capacityExceeded: MAX },
+      updatedAt: -LIMIT,
       unavailable: unit === "U-E" ? {} : { capacityExceeded: MAX, historyUnavailable: MAX, coverageIncomplete: MAX },
-      unconfirmed: { startup: MAX, disconnected: MAX, scopeCapacity: MAX, scopeRetired: MAX },
+      unconfirmed: { startup: MAX, disconnected: MAX, scopeCapacity: MAX, scopeRetired: MAX, capacityExceeded: MAX },
       unknownCode: unit === "U-E" ? {} : { unknown: MAX, missing: MAX, empty: MAX },
       freshness: unit !== "U-W" ? {} : { headMissing: MAX, reportDateTimeMissing: MAX, reportDateTimeInvalid: MAX,
         identityMissing: MAX, identityInvalid: MAX, requiredStructureMissing: MAX, requiredStructureInvalid: MAX, stale: MAX },
       confirmation: { state: "unconfirmed", confirmedAt: -LIMIT },
     });
-    const wrapper = (unit: RuntimeUnitId): DisplayDomainView<never> => ({ unit, contentRevision: `${MAX}:7`,
+    const wrapper = (unit: RuntimeUnitId): DisplayDomainView<never> => ({ unit, contentRevision: `${MAX}`,
       items: [row(unit, "normal"), row(unit, "training"), row(unit, "test")],
       delivery: "summary", reason: "snapshotBudget", originalBytes: MAX, budgetBytes: 65_536 });
     const sizes = (["U-E", "U-W", "U-F"] as const).map((unit) => Buffer.byteLength(JSON.stringify(wrapper(unit))));
@@ -176,11 +176,10 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
   it("P2-A8-T07 / PUBLICATION (b): rejected steps keep internal deltas and notices; recovery publishes N+1 without double counting", async () => {
     const published = projected(projectSnapshot(projectionInput(started, at), null));
     const one = await combine(started.state, [received("run", eewNow("20240417000001"), clock)]);
-    const counts = { ...one.admissionCounts, "U-W": { normal: 2, training: 0, test: 0 } };
     const two = await combine(one.state, [received("run", eewNow("20240417000002"), clock)]);
     let state = published.state;
     for (const value of [one, two]) {
-      const rejected = projectSnapshot(projectionInput({ ...value, admissionCounts: counts }, at, { generatedAt: "x".repeat(257) }), state);
+      const rejected = projectSnapshot(projectionInput(value, at, { generatedAt: "x".repeat(257) }), state);
       expect(rejected).toMatchObject({ kind: "rejected", reason: "snapshotStringLimitExceeded" });
       expect(rejected.state.snapshot).toBe(published.snapshot);
       state = rejected.state;
@@ -192,14 +191,13 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
       received("run", eewNow("20240417000001", "normal", "37_01_01_240613_VXSE43", (xml) =>
         atTime(xml, "2026-06-05T18:00:10+09:00").replace("<Serial>1</Serial>", "<Serial>2</Serial>")), clock)]);
     expect(three.displayChanges.filter((item) => item.before != null && item.after != null)).toHaveLength(1);
-    const recovered = projected(projectSnapshot(projectionInput({ ...three, admissionCounts: counts }, at + 1000), state));
+    const recovered = projected(projectSnapshot(projectionInput(three, at + 1000), state));
     expect(recovered.snapshot.sequence).toBe(published.snapshot.sequence + 1);
-    expect(recovered.snapshot.current.weatherCurrent.items[0].admission).toEqual({ capacityExceeded: 2 });
     expect(recovered.snapshot.notices.filter((item) => pending.some((old) => old.id === item.id && old.expiresAt === item.expiresAt)))
       .toHaveLength(2);
     expect(recovered.snapshot.notices).toHaveLength(3);
-    expectMatchesReference(recovered.state, reference({ ...three, admissionCounts: counts }, at));
-    const late = projected(projectSnapshot(projectionInput({ ...three, admissionCounts: counts }, at + 15_000), state));
+    expectMatchesReference(recovered.state, reference(three, at));
+    const late = projected(projectSnapshot(projectionInput(three, at + 15_000), state));
     expect(late.snapshot.notices.map((item) => item.operation)).toEqual(["test"]);
   });
 
@@ -221,11 +219,10 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
         return projectSnapshot(projectionInput(value, nowMs), previous);
       }
       const { change, outcome } = timeseriesUnavailable();
-      return projectSnapshot(projectionInput({ state: base, outcomes: [outcome], displayChanges: [change],
-        admissionCounts: started.admissionCounts }, nowMs), previous);
+      return projectSnapshot(projectionInput({ state: base, outcomes: [outcome], displayChanges: [change] }, nowMs), previous);
     };
     const previous = (nowMs: number) => projected(projectSnapshot(projectionInput({ state: base, outcomes: [],
-      displayChanges: allSubjects(base), admissionCounts: started.admissionCounts }, nowMs), null)).state;
+      displayChanges: allSubjects(base) }, nowMs), null)).state;
     for (const nowMs of [-LIMIT, LIMIT - ttl]) {
       const result = projected(await generate(nowMs, previous(nowMs)));
       expect(result.snapshot.notices.map((item) => item.expiresAt)).toEqual([nowMs + ttl]);

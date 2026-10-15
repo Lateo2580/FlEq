@@ -20,6 +20,7 @@ import type { Scenario } from "./scenario";
 // 器の使用率・拒否・退去・容量の欠け・snapshot の要約・期待例を測って、結果を 1 file に封じる。
 
 const ZERO_HASH = "0".repeat(64);
+const OPERATIONS = ["normal", "training", "test"] as const;
 const sha256 = (data: string | Uint8Array): string => createHash("sha256").update(data).digest("hex");
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> => typeof value === "object" && value != null && !Array.isArray(value);
 
@@ -39,8 +40,9 @@ type Outcome = { capacity: number; changed: boolean; invalid: string | null };
 // step の state を unit の型のまま取り出す（K が総称のままだと step.state が全 unit の合併になるため、unit ごとに書く）。
 type StateOf<K extends RuntimeUnitId> = (step: RuntimeUnitSteps[K]) => RuntimeUnitStates[K];
 type Counter<K extends RuntimeUnitId> = (state: RuntimeUnitStates[K]) => readonly (readonly [string, number, number])[];
-// U-W・U-F の capacityExceeded の unavailable の印（P3-DC-ORACLE (4)）。印を作った入力の inputId を返す。
-type Marks<K extends RuntimeUnitId> = (state: RuntimeUnitStates[K]) => readonly (string | null)[];
+// 容量の拒否で記録に付いた unavailable の印（P3-DC-ORACLE (4)、U-T・U-Q は P3-CC-AC03 の記録の印）。印の付いた記録ごとに、
+// その印を作った入力の inputId の列を返す（U-Q の event は family ごとに 1〜4 個の印を持つ）。
+type Marks<K extends RuntimeUnitId> = (state: RuntimeUnitStates[K]) => readonly (readonly (string | null)[])[];
 
 const perFamily = (items: readonly Readonly<{ family: string; subject: string }>[]) => {
   const families = new Map<string, Set<string>>();
@@ -98,16 +100,18 @@ class ObservationTable {
         return [...new Set(["VXSE43", "VXSE45", ...families.keys()])].map((family) => [`U-E.family:${family}`, families.get(family)?.size ?? 0, 512] as const);
       }, null),
       "U-W": this.wrap(base["U-W"], (step) => step.state, (state) => [["U-W.partials", state.partials.length, 128]],
-        (state) => state.unavailable.flatMap((item) => item.reason === "capacityExceeded" ? [item.source?.inputId ?? null] : [])),
+        (state) => state.unavailable.flatMap((item) => item.reason === "capacityExceeded" ? [[item.source?.inputId ?? null]] : [])),
       "U-F": this.wrap(base["U-F"], (step) => step.state, (state) => [["U-F.subjects", state.subjects.length, 512]],
-        (state) => state.subjects.flatMap((item) => item.effective === "unavailable" && item.unavailableReason === "capacityExceeded" ? [item.source?.inputId ?? null] : [])),
+        (state) => state.subjects.flatMap((item) => item.effective === "unavailable" && item.unavailableReason === "capacityExceeded" ? [[item.source?.inputId ?? null]] : [])),
       "U-T": this.wrap(base["U-T"], (step) => step.state, (state) => {
         const count = { VTSE51: [0, 0], VTSE52: [0, 0] };
         for (const item of state.observations) { count[item.family][0]++; count[item.family][1] += item.stations.length; }
         return [["U-T.forecasts", state.forecasts.length, 512], ...units([["U-T.observations:VTSE51", count.VTSE51[0]], ["U-T.observations:VTSE52", count.VTSE52[0]]], 512),
           ...units([["U-T.stations:VTSE51", count.VTSE51[1]], ["U-T.stations:VTSE52", count.VTSE52[1]]], 1_024)];
-      }, null),
-      "U-Q": this.wrap(base["U-Q"], (step) => step.state, (state) => [["U-Q.events", state.earthquakes.length, 512], ["U-Q.longPeriods", state.longPeriods.length, 256]], null),
+      }, (state) => state.forecasts.flatMap((item) => item.unavailable == null ? [] : [[item.unavailable.source.inputId]])),
+      "U-Q": this.wrap(base["U-Q"], (step) => step.state, (state) => [["U-Q.events", state.earthquakes.length, 512], ["U-Q.longPeriods", state.longPeriods.length, 256]],
+        (state) => [...state.earthquakes.flatMap((item) => item.unavailable == null || item.unavailable.length === 0 ? [] : [item.unavailable.map((mark) => mark.source.inputId)]),
+          ...state.longPeriods.flatMap((item) => item.unavailable == null ? [] : [[item.unavailable.source.inputId]])]),
       "U-N": this.wrap(base["U-N"], (step) => step.state, (state) => [["U-N.currents", state.currents.length, 6], ["U-N.information", state.information.length, 64]], null),
       "U-V": this.wrap(base["U-V"], (step) => step.state, noCount, null), "U-L": this.wrap(base["U-L"], (step) => step.state, noCount, null), "U-R": this.wrap(base["U-R"], (step) => step.state, noCount, null),
       "U-B": this.wrap(base["U-B"], (step) => step.state, noCount, null), "U-M": this.wrap(base["U-M"], (step) => step.state, noCount, null), "U-Y": this.wrap(base["U-Y"], (step) => step.state, noCount, null),
@@ -151,7 +155,7 @@ class ObservationTable {
         else outcome.invalid ??= `${decision.decision}:${decision.reason}`;
       }
       // 同じ鍵への続けての拒否も、印の source がその入力なら 1 通ずつ数える。
-      if (marks != null && changed) for (const id of marks(next)) if (id === inputId) {
+      if (marks != null && changed) for (const id of marks(next).flat()) if (id === inputId) {
         outcome.capacity++;
         this.rejections.push({ inputId, unit, operation: material.operation, atMs, kind: "unavailable" });
       }
@@ -365,7 +369,8 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
   const nextTimer = () => Math.min(Infinity, ...timers.values());
   const unresolved: JsonValue[] = [];
   let lastUnresolved = "{}";
-  const unresolvedSeen = new Map<string, Record<"normal" | "training" | "test" | "marks", number>>();
+  let unresolvedFinal: Record<string, JsonValue> = {};
+  const unresolvedSeen = new Map<string, Record<"marks" | "unconfirmed", number>>();
   let ticks = 0, frameCount = 0;
   const realInvalid: Record<string, number> = {};
   const settled = async (action: Promise<void>) => {
@@ -380,19 +385,20 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     h.sent.length = 0;
     h.delivered.length = 0;
     if (saveFailure != null) throw new Blocked("checkpointFailed", saveFailure);
-    // 未解消の拒否の状態（AC04 (2)）: 返信の admissionCounts と U-W・U-F の印の数。変わったときだけ残す。
+    // 未解消の拒否の状態（AC04 (2)、C1 の信号）: unit ごとの印の付いた記録の数（marks）と、確認状態の whole が capacityExceeded の
+    // 運用区分の数（unconfirmed）。変わったときだけ残す。
     const counts: Record<string, JsonValue> = {};
+    const { units: confirmation } = h.root.state.confirmation;
     for (const unit of runtimeUnits) {
-      const { normal, training, test } = h.root.state.mirror[unit].admissionCounts;
       const marks = table.marks[unit] ?? 0;
-      if (normal + training + test + marks === 0) continue;
-      counts[unit] = { normal, training, test, marks };
-      const max = unresolvedSeen.get(unit) ?? { normal: 0, training: 0, test: 0, marks: 0 };
-      unresolvedSeen.set(unit, { normal: Math.max(max.normal, normal), training: Math.max(max.training, training), test: Math.max(max.test, test),
-        marks: Math.max(max.marks, marks) });
+      const unconfirmed = OPERATIONS.filter((operation) => confirmation[unit][operation].whole === "capacityExceeded").length;
+      if (marks + unconfirmed === 0) continue;
+      counts[unit] = { marks, unconfirmed };
+      const max = unresolvedSeen.get(unit) ?? { marks: 0, unconfirmed: 0 };
+      unresolvedSeen.set(unit, { marks: Math.max(max.marks, marks), unconfirmed: Math.max(max.unconfirmed, unconfirmed) });
     }
     const key = JSON.stringify(counts);
-    if (key !== lastUnresolved) { lastUnresolved = key; unresolved.push({ atMs: now.wallTimeMs, counts }); }
+    if (key !== lastUnresolved) { lastUnresolved = key; unresolvedFinal = counts; unresolved.push({ atMs: now.wallTimeMs, counts }); }
   };
   // 時計を target へ進める。途中で満了する timer は満了の時刻で発火させ、その tick も settle してから先へ進む（P3-DC-CLOCK (2)）。
   const moveTo = async (target: number) => {
@@ -528,7 +534,8 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     options: [...limits.filter((item) => item.over90).map((item) => optionOf(item.id)), ...(failingSummary.length === 0 ? [] : [optionOf("snapshot")])],
     // EEW（U-E）は報ごとの時刻の列を書かず件数だけにする（P3-DC-AC01 (4)）。
     rejections: table.rejections.filter((item) => item.unit !== "U-E"), eewRejections: table.rejections.filter((item) => item.unit === "U-E").length,
-    unresolved, unresolvedMax,
+    // 未解消の拒否の状態の時系列・最大・終わりの値。
+    unresolved, unresolvedMax, unresolvedFinal,
     evictions: { total: evictions, series: table.evictions.filter((item) => item.unit !== "U-E") },
     losses: table.losses.filter((item) => item.unit !== "U-E"), eewLosses: { all: table.losses.filter((item) => item.unit === "U-E").length,
       counted: countedLosses.filter((item) => item.unit === "U-E").length }, quakeEventLosses: { all: quakeEvents(table.losses), counted: quakeEvents(countedLosses) },

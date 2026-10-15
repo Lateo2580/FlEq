@@ -582,7 +582,6 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     const view = toTyphoonView(state);
     expect([view.unit, view.analysis.map((item) => item.subject), view.probability.map((item) => item.subject), view.subjects.map((item) => item.subject)]).toEqual([
       "U-Y", [TC2001], [P2606], [TC2001, P2606]]);
-    expect(view.admission).toEqual({});
     // 受理の変化で contentRevision が進み、不変の入力では進まない。
     expect([reduceTyphoonUnit(emptyState(), { kind: "shutdown", clock: clock(0) }).state.contentRevision, send(emptyState(), A01).state.contentRevision, send(emptyState(), END).state.contentRevision]).toEqual([0, 1, 0]);
   });

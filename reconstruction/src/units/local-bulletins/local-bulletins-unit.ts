@@ -569,7 +569,7 @@ function toLocalBulletinsView(state: State): LocalBulletinsUnitView {
   const subjects = [...tornado, ...heat, ...transient].map(shownOutcome);
   return { unit: "U-M", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), admission: {}, subjects, tornado, heat, transient };
+  contentRevision: String(state.contentRevision), subjects, tornado, heat, transient };
 }
 
 // ---- codec（I-U-M.persisted・I-U-M.decode、唯一の LocalBulletinsUnitCodec。受理と同じ上限を確かめる） ----
@@ -771,11 +771,6 @@ const localBulletinsUnit = {
   toView: toLocalBulletinsView,
   persistence: { kind: "durable", codec: localBulletinsUnitCodec },
   confirmationScopeLimit: TORNADO_LIMIT + HEAT_LIMIT + TRANSIENT_TOTAL,
-  withoutNormal: (state) => ({ ...state, tornado: state.tornado.filter((item) => item.operation !== "normal"),
-    heat: state.heat.filter((item) => item.operation !== "normal"), transient: state.transient.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => [...state.tornado, ...state.heat, ...state.transient].filter((item) => item.operation === "normal" && visible(item))
-    .map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-M">;

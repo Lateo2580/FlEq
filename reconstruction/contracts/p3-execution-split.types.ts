@@ -79,8 +79,7 @@ export type OwnerRequest = SentClock & (
 export type OwnerUnitDelta = Readonly<{
   unit: RuntimeUnitId;
   persistence: PersistenceStatus;
-  admissionCounts: Readonly<Record<Operation, number>>;
-  // null: unchanged in this step. A view is the admission-adjusted public view, never the unit state.
+  // null: unchanged in this step. A view is the unit's public view, never the unit state.
   view: RuntimeUnitView | null;
   // Pending intents only (at most 128 items / 128 KiB per unit, P2-A7-RES-01/02); terminal records stay in the owner.
   pendingIntents: readonly NotificationIntent[] | null;

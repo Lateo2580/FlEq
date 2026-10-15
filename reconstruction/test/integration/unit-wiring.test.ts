@@ -100,55 +100,6 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     expect(h.root.lastDisconnectedAt).toBe(at.wallTimeMs - 10);
   });
 
-  it("P2-A1-T09 regression / AC09: real EEW capacity rejection hides dedicated current until a newer adoption", () => {
-    const first = decode("37_01_01_240613_VXSE43", "VXSE43");
-    const at = { wallTimeMs: Date.parse(first.reportDateTimeRaw), monotonicMs: 1 };
-    const initial = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } },
-      calls.units, linkedUnitCodecs).state;
-    const adopted = received(initial, first, at).state;
-    const current = adopted.units["U-E"]!.current[0];
-    // Seed only the prior rejection; the follow-ups and dedicated view use the real unit.
-    const state: OwnerState = { ...adopted, admission: { "U-E": { normal: { overflow: false,
-      records: [{ subject: current.subject, family: current.family,
-        reportDateTimeMs: at.wallTimeMs + 2_000, affectedScope: "subject" }],
-    } } } };
-    const report = (offset: number) => decode("37_01_02_240613_VXSE43", "VXSE43",
-      (xml) => atTime(xml, new Date(at.wallTimeMs + offset).toISOString()), `eew-${offset}`);
-    const blocked = received(state, report(1_000), at);
-    expect(blocked.state.units["U-E"]?.current).toHaveLength(1);
-    expect(blocked.views[0]).toMatchObject({ subjects: [], current: [], activeCount: 0,
-      admission: { normal: "capacityExceeded" } });
-    const cleared = received(blocked.state, report(3_000), at);
-    expect(cleared.state.admission["U-E"]?.normal).toBeUndefined();
-    expect(cleared.views[0]).toMatchObject({ admission: {}, activeCount: 1,
-      current: [{ source: { inputId: "eew-3000" } }] });
-  });
-
-  it("P2-A1-T09 regression / A1 AC09, A5 AC14: real VPNO50 ending confirms its scope and unblocks weather views", () => {
-    const ending = decode("18_00_01_260830_VPNO50_switch", "VPNO50");
-    const at = { wallTimeMs: Date.parse(ending.reportDateTimeRaw), monotonicMs: 1 };
-    let state = ownerFixture("weatherCurrent", fixtureState({}, {}, "run"));
-    for (const material of [decode("15_18_01_250630_VPWS50", "VPWS50"),
-      decode("18_00_01_260830_VPWW55_fukui_L5", "VPWW55")])
-      state = received(state, material, at).state;
-    state = { ...state, admission: { "U-W": { normal: { overflow: false, records: [{
-      family: "VPNO50", subject: "normal/VPNO50/福井地方気象台", reportDateTimeMs: at.wallTimeMs,
-      affectedScope: [JSON.stringify(["VPNO50", "partial", "福井地方気象台", "気象特別警報報知（府県予報区等）", "180000"])],
-    }] } } } };
-    const sameTime = received(state, ending, at);
-    expect(sameTime.views[0]).toMatchObject({ admission: { normal: "capacityExceeded" }, subjects: [], national: {}, partials: [] });
-    expect(sameTime.state.units["U-W"]?.national.normal).toBeDefined();
-    expect(sameTime.state.units["U-W"]?.partials).toHaveLength(1);
-    const newer = decode("18_00_01_260830_VPNO50_switch", "VPNO50",
-      (xml) => atTime(xml, new Date(at.wallTimeMs + 1_000).toISOString()), "ending-newer");
-    const confirmed = received(sameTime.state, newer, at);
-    expect(confirmed.state.admission["U-W"]?.normal).toBeUndefined();
-    expect(confirmed.outcomes[0]).toMatchObject({ unit: "U-W", outcome: {
-      subjects: [{ transition: "released", source: { inputId: "ending-newer" } }] } });
-    expect(confirmed.views[0]).toMatchObject({ admission: {}, national: { normal: expect.any(Object) }, partials: [expect.any(Object)] });
-  });
-
   it("P2-A3-T10 regression / AC10: a save carries exactly the input IDs of its unsaved generations", async () => {
     // TEST-PATH (1) (X4, D5 revised): the owner's generation ledger is the only correlation; a grant reads it.
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 1 };

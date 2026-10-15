@@ -46,9 +46,8 @@ async function buildLarge(): Promise<DisplaySnapshot> {
   const series: WeatherTimeseriesSubject = { ...subject, strings };
   const units = { ...base.units, "U-F": { ...base.units["U-F"], subjects: [series] } };
   const state = { ...base, units, views: { ...base.views,
-    "U-F": { ...toWeatherTimeseriesView(units["U-F"]), admission: {}, contentRevision: "1:0" } } };
-  const result = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state),
-    admissionCounts: started.admissionCounts }, at), null));
+    "U-F": { ...toWeatherTimeseriesView(units["U-F"]), contentRevision: "1" } } };
+  const result = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state) }, at), null));
   expect(result.snapshot.current.weatherTimeseries.delivery).toBe("full");
   return result.snapshot;
 }

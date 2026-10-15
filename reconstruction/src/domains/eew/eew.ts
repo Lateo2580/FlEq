@@ -489,9 +489,10 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   }
   if (eligible.length + (aged == null ? 0 : 1) < needed) return {
     state, nextDeadline: nextEewDeadline(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "capacityExceeded",
-      rejection: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
-    intents: [], outcomes: [], diagnostics: [],
+    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "capacityExceeded" }],
+    // P3-CC-AC07: 失敗そのものを入力ごとに 1 行残す（U-E は印を持たない、Q-CC-UE）。
+    intents: [], outcomes: [], diagnostics: [{ level: "WARN", component: "eew", reason: "capacityRejected", unit: "U-E",
+      inputId: candidate.source.inputId }],
   };
   const evicted = new Set(needed === 0 ? []
     : [...eligible.sort(res02).slice(0, needed), ...(aged == null ? [] : [aged])].map((item) => item.subject));

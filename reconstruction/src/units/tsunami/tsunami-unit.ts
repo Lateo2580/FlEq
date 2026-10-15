@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { MaterialValue, Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome,
+  SubjectOutcome, SubjectUnavailable,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedTsunamiUnit, TsunamiAreaClass, TsunamiEstimation, TsunamiForecastArea, TsunamiForecastSubject, TsunamiHeight,
@@ -32,7 +32,8 @@ type Subject = TsunamiForecastSubject | TsunamiObservationSubject;
 type Level = TsunamiNotificationPayload["level"];
 type InternalStep = Omit<TsunamiUnitStep, "displayChanges" | "confirmationEvidence">;
 type Change = readonly [before: Subject | null, after: Subject | null];
-type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
+// uncovered: この受信が印に結び付けられない取りこぼしを作った（unit/operation の未確認へ、P3-CC-AC02）。
+type Result = Readonly<{ step: InternalStep; changes: readonly Change[]; uncovered?: boolean }>;
 
 // I-U-T.computation: 値に結び付けた encode byte を加算する（受信 1 回で state 全体を直列化しない）。
 const encoder = new TextEncoder();
@@ -139,6 +140,11 @@ function payloadOf(operation: Operation, level: Level, title: string, body: stri
   return { domain: "tsunami", level, title: PREFIX[operation] + (correction ? `[訂正] ${title}` : title),
     body: LEAD[operation] + (correction ? `訂正: ${body}` : body) };
 }
+// P3-CC-D-PENDING=A・D-FAILNOTICE=A の文面の時刻（報の ReportDateTime を JST の HH:MM に）。
+function jstClock(raw: string): string {
+  return new Date(Date.parse(raw) + 32_400_000).toISOString().slice(11, 16);
+}
+const FAIL_BODY = "容量の上限のため、この報を処理できていません。";
 function intentsFor(source: ReportRef, transition: TsunamiIntent["transition"], payload: TsunamiNotificationPayload,
   generation: number, now: number): TsunamiIntent[] {
   // P3-C5-TRAINING=A: training/test は desktop だけ。
@@ -280,6 +286,12 @@ function displaySubject(value: Subject): Extract<RuntimeDisplaySubject, Readonly
 
 // ---- VTSE41（I-U-T.forecastSemantics、Q-ENUM.revisionOrder） ----
 
+// VTSE41 の版の順（ReportDateTime → InfoType の優先）。印の消える条件と進め方に使う（P3-CC-AC03(3)）。
+function forecastOrder(candidate: ForecastCandidate, source: ReportRef): number {
+  return Math.sign(candidate.reportDateTimeMs - Date.parse(source.reportDateTimeRaw)
+    || candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw.trim()) ?? 0));
+}
+
 function transitionOf(from: TsunamiAreaClass, to: TsunamiAreaClass, wasActive: boolean): TsunamiTransitionRecord["transition"] | null {
   const before = AREA_RANK[from], after = AREA_RANK[to];
   if (before === 0) return after === 0 ? null : wasActive ? "expanded" : "issued";
@@ -345,6 +357,11 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
       effective: active ? "active" : "released", areas: candidate.areas, unkeyedAreas: candidate.unkeyedAreas,
       retainUntil: active ? null : existing?.effective === "released" && existing.retainUntil != null ? existing.retainUntil : now + RETAIN_MS };
   }
+  // P3-CC-AC03(3)(4): 印は印の版以上の採用で消える。古い報の採用では active の記録へ引き継ぎ、active でなければ外して unit の未確認へ移す。
+  const mark = existing?.unavailable;
+  const keep = mark != null && forecastOrder(candidate, mark.source) < 0;
+  if (keep && next.effective === "active") next = { ...next, unavailable: mark };
+  const lost = keep && next.effective !== "active";
   const raised = transitions.filter((item) => item.transition === "issued" || item.transition === "expanded" || item.transition === "upgraded");
   const lowered = transitions.some((item) => item.transition === "downgraded" || item.transition === "released");
   const series: TsunamiReportSeries = raised.length !== 0 ? lowered ? "mixed" : "escalation" : lowered ? "deescalation" : "none";
@@ -388,10 +405,12 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
   }
   changes.push([existing, next]);
   const forecasts = index < 0 ? [...state.forecasts, next] : state.forecasts.map((item, at) => at === index ? next : item);
-  const semantic = existing == null || existing.effective !== next.effective || observationsChanged
+  const semantic = existing == null || existing.effective !== next.effective || observationsChanged || existing.unavailable !== next.unavailable
     || !isDeepStrictEqual(existing.areas, next.areas) || !isDeepStrictEqual(existing.unkeyedAreas, next.unkeyedAreas);
-  return adopt(state, candidate, clock, { forecasts, observations, fresh, cancelSubject: candidate.cancelled ? candidate.subject : null,
+  const result = adopt(state, candidate, clock, { forecasts, observations, fresh, cancelSubject: candidate.cancelled ? candidate.subject : null,
     semantic, changes, target: next, facts: { areaTransitions: transitions, series } });
+  // uncovered があるのは拒否の結果だけ（refuse）。採用できたときだけ、外した印を unit の未確認へ移す。
+  return lost && result.uncovered == null ? { ...result, uncovered: true } : result;
 }
 
 // ---- VTSE51/52（P3-C5-OBS-MERGE=A、P3-C5-OBS-LIFETIME=A） ----
@@ -491,9 +510,8 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
 }>): Result {
   const notices = admit(state.intents, proposal.fresh, proposal.cancelSubject);
   const fitted = fit(proposal.forecasts, proposal.observations, notices.intents, candidate.subject, clock.wallTimeMs, candidate.operation);
+  if (fitted == null) return refuse(state, candidate, clock, proposal.fresh);
   const evidence = { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
-  if (fitted == null) return { changes: [], step: { ...idle(state), decisions: [{ subject: candidate.subject,
-    operation: candidate.operation, decision: "capacityExceeded", rejection: evidence }] } };
   const next: TsunamiUnitState = { ...state, forecasts: fitted.forecasts, observations: fitted.observations, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
   const change = proposal.semantic || fitted.evicted.length !== 0 ? "semantic" as const : "revisionOnly" as const;
@@ -510,6 +528,77 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
       intents: notices.admitted,
       outcomes: [{ kind: "accepted", change, subjects: [subjectOutcome(proposal.target, proposal.facts,
         "stations" in proposal.target ? ["observations"] : ["forecasts"])] }],
+      diagnostics },
+  };
+}
+
+// 容量の拒否（P3-CC-AC03・AC04・AC10）。印 → 失敗警報 → 系列の desktop の title の書き換えの順に、前の段を確定した state へ当てる。
+// 印は採用と同じ fit を通し（退去の適格性も同じ）、失敗警報と書き換えは追加の退去なしで収まるときだけ当てる。fresh は拒否した報の通知。
+// ponytail: 拒否のときだけ intents（pending 128 件と終端記録）を数回なめる。平常の受信には足さない（Q-CC-COST）。
+function refuse(state: TsunamiUnitState, candidate: ForecastCandidate | ObservationCandidate, clock: ClockReading,
+  fresh: readonly TsunamiIntent[]): Result {
+  const now = clock.wallTimeMs, operation = candidate.operation;
+  let forecasts = state.forecasts, observations = state.observations, evicted: readonly Subject[] = [];
+  let record: TsunamiForecastSubject | null = null, marked: TsunamiForecastSubject | null = null, covered = false;
+  // 印は新しい版の採用が中身を包含する VTSE41 の active の記録だけに付ける。観測は unit の未確認へ寄せる（Q-CC-MARK）。
+  const found = candidate.kind === "forecast" ? state.forecasts.find((item) => item.subject === candidate.subject && visible(item)) : undefined;
+  if (candidate.kind === "forecast" && found != null) {
+    record = found;
+    if (found.unavailable != null && forecastOrder(candidate, found.unavailable.source) <= 0) covered = true;
+    else {
+      const next = { ...found, unavailable: { reason: "capacityExceeded" as const, source: candidate.source } };
+      const fitted = fit(state.forecasts.map((item) => item === found ? next : item), state.observations, state.intents,
+        candidate.subject, now, operation);
+      if (fitted != null) {
+        ({ forecasts, observations, evicted } = fitted);
+        marked = next;
+        covered = true;
+      }
+    }
+  }
+  const fits = (values: readonly TsunamiIntent[]) => {
+    const pending = values.filter((item) => item.disposition === "pending");
+    return pending.length <= PENDING_ITEMS && listBytes(pending) + reserve(pending) <= PENDING_BYTES
+      && generationBytes(forecasts, observations, values) <= GENERATION_LIMIT;
+  };
+  let intents = state.intents;
+  // D-FAILNOTICE=A: unit×operation の固定の subject。段階は上げるだけで、同じか軽ければ鳴らさない。
+  const level = fresh[0]?.payload.level, failSubject = `${operation}/capacityRejected`;
+  if ((level === "warning" || level === "critical") && intents.every((item) => item.subject !== failSubject
+    || LEVELS.indexOf(level) > LEVELS.findIndex((value) => value === item.payload.level))) {
+    const generation = state.persistence.currentGeneration + 1, at = jstClock(candidate.source.reportDateTimeRaw);
+    const notices = fresh.map((item): TsunamiIntent => ({ ...item, id: `U-T:capacityRejected:${operation}:${generation}:${item.channel}`,
+      subject: failSubject, payload: { ...item.payload, body: FAIL_BODY,
+        title: `${PREFIX[operation]}【処理できていません】${item.payload.title.slice(PREFIX[operation].length)}（${at} 発表）` } }));
+    const next = [...intents.map((item) => item.subject === failSubject && item.disposition === "pending"
+      ? { ...item, disposition: "superseded" as const } : item), ...notices];
+    if (fits(next)) intents = next;
+  }
+  // D-PENDING=A: 失敗した subject のまだ鳴っていない desktop の title にだけ元の報の時刻を付ける（同じ id・期限のまま、音は変えない）。
+  const rewritten = intents.map((item) => {
+    if (item.subject !== candidate.subject || item.channel !== "desktop" || item.disposition !== "pending") return item;
+    const tag = `${PREFIX[item.operation]}【${jstClock(item.source.reportDateTimeRaw)} 発表】`;
+    return item.payload.title.startsWith(tag) ? item
+      : { ...item, payload: { ...item.payload, title: tag + item.payload.title.slice(PREFIX[item.operation].length) } };
+  });
+  if (rewritten.some((item, at) => item !== intents[at]) && fits(rewritten)) intents = rewritten;
+  const before = new Set(state.intents);
+  const touched = forecasts !== state.forecasts || intents !== state.intents;
+  const next: TsunamiUnitState = touched ? { ...state, forecasts, observations, intents, persistence: dirty(state.persistence, clock.monotonicMs) }
+    : state;
+  const diagnostics: DiagnosticDetails[] = [{ level: "WARN", component: "tsunami", reason: "capacityRejected", unit: "U-T",
+    inputId: candidate.source.inputId }];
+  if (evicted.length !== 0) diagnostics.push({ level: "INFO", component: "tsunami", reason: "tsunamiCapacityEvicted",
+    unit: "U-T", count: evicted.length });
+  return {
+    changes: marked == null ? [] : [[record, marked], ...evicted.map((item): Change => [item, null])], uncovered: !covered,
+    step: { state: next, nextDeadline: nextDeadline(next),
+      decisions: [marked == null ? { subject: candidate.subject, operation, decision: "capacityExceeded" }
+        : { subject: candidate.subject, operation, decision: "changed", reason: null, change: "semantic", currentEstablished: null }],
+      intents: intents.filter((item) => !before.has(item) && item.disposition === "pending"),
+      outcomes: marked == null ? [] : [{ kind: "accepted", change: "semantic", subjects: [{ subject: candidate.subject, operation,
+        informationType: candidate.source.infoTypeRaw, transition: "unavailable", severity: null, source: candidate.source,
+        facts: { family: candidate.family, eventId: candidate.eventId }, changedFields: ["unavailable"] }] }],
       diagnostics },
   };
 }
@@ -634,7 +723,7 @@ function reduceCore(state: TsunamiUnitState, input: TsunamiInput): Result {
 }
 
 function reduceTsunamiUnit(state: TsunamiUnitState, input: TsunamiInput): TsunamiUnitStep {
-  const { step, changes } = reduceCore(state, input);
+  const { step, changes, uncovered } = reduceCore(state, input);
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
   const merged = new Map<string, { before: Subject | null; after: Subject | null }>();
   for (const [before, after] of changes) {
@@ -652,12 +741,13 @@ function reduceTsunamiUnit(state: TsunamiUnitState, input: TsunamiInput): Tsunam
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-T content revision exhausted");
   // I-U-T.confirmationScope: scope は常態を確立した（active になった）VTSE41 の採用からだけ出す。観測は対象外（P3-C5-N2）。
   const confirmationEvidence: TsunamiUnitStep["confirmationEvidence"] = input.kind !== "receive" ? []
-    : step.decisions.flatMap((item) => {
+    : [...step.decisions.flatMap((item) => {
       const current = item.decision === "changed" && item.currentEstablished?.family === "VTSE41"
         ? step.state.forecasts.find((value) => value.subject === item.subject) : undefined;
       return current?.effective === "active" ? [{ source: "acceptedReport" as const, scopes: [{ unit: "U-T" as const,
         operation: item.operation, kind: "event" as const, eventId: current.eventId }] }] : [];
-    });
+    }), ...uncovered === true ? [{ source: "capacityExceeded" as const,
+      scopes: [{ unit: "U-T" as const, operation: input.material.operation, kind: "unit" as const }] }] : []];
   return { ...step, state: displayChanges.length !== 0 ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state,
     displayChanges, confirmationEvidence };
 }
@@ -666,7 +756,7 @@ function toTsunamiView(state: TsunamiUnitState): TsunamiUnitView {
   const forecasts = state.forecasts.filter(visible), observations = state.observations.filter(visible);
   const shown: Subject[] = [...forecasts, ...observations];
   return { unit: "U-T", semanticRevision: shown.map((item) => `${item.subject}:${item.source.reportDateTimeRaw}:${item.source.serialRaw}:`
-    + `${item.source.infoTypeRaw}`).sort().join("|"), contentRevision: String(state.contentRevision), admission: {},
+    + `${item.source.infoTypeRaw}`).sort().join("|"), contentRevision: String(state.contentRevision),
   subjects: shown.map((item) => subjectOutcome(item)), forecasts, observations };
 }
 
@@ -738,6 +828,11 @@ function list<T>(value: unknown, item: (entry: unknown) => T | null): T[] | null
 function unique(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
+// 印（P3-CC-AC05）: 鍵があれば reason と拒否した報の ReportRef を確かめる。所属の確認は呼ぶ側。
+function unavailableOf(value: unknown): SubjectUnavailable | null {
+  const row = record(value), source = reportRef(row?.source);
+  return row?.reason === "capacityExceeded" && source != null ? { reason: "capacityExceeded", source } : null;
+}
 function forecastSubject(value: unknown): TsunamiForecastSubject | null {
   const row = record(value);
   const operation = operationOf(row?.operation), source = reportRef(row?.source);
@@ -750,7 +845,12 @@ function forecastSubject(value: unknown): TsunamiForecastSubject | null {
   const effective = row.effective === "active" || row.effective === "released" || row.effective === "cancelled" ? row.effective : null;
   if (effective == null || (effective === "cancelled" ? areas.length !== 0 || unkeyedAreas.length !== 0 : active !== (effective === "active"))
     || (effective === "active") !== (row.retainUntil === null)) return null;
-  return { subject: row.subject, eventId: row.eventId, operation, source, effective, areas, unkeyedAreas, retainUntil: row.retainUntil };
+  // 印は active の記録だけが持ち、source は同じ subject の VTSE41（版の比較に使う欄は reportRef が確かめる）。
+  const mark = "unavailable" in row ? unavailableOf(row.unavailable) : null;
+  if ("unavailable" in row && (mark == null || effective !== "active" || mark.source.subject !== row.subject
+    || mark.source.operation !== operation || mark.source.family !== "VTSE41")) return null;
+  return { subject: row.subject, eventId: row.eventId, operation, source, effective, areas, unkeyedAreas, retainUntil: row.retainUntil,
+    ...mark == null ? {} : { unavailable: mark } };
 }
 function station(value: unknown): TsunamiStation | null {
   const row = record(value), first = record(row?.firstHeight), max = record(row?.maxHeight), revision = record(row?.revision);
@@ -781,7 +881,8 @@ function observationSubject(value: unknown): TsunamiObservationSubject | null {
   const stations = list(row?.stations, station), estimations = list(row?.estimations, estimation);
   const effective = row?.effective === "active" || row?.effective === "cancelled" || row?.effective === "forecastEnded"
     || row?.effective === "expired" ? row.effective : null;
-  if (row == null || operation == null || source == null || family == null || stations == null || estimations == null
+  // 観測は印を持たない（P3-CC-AC03(1)）。
+  if (row == null || "unavailable" in row || operation == null || source == null || family == null || stations == null || estimations == null
     || effective == null || !text(row.eventId) || !/^\d{14}$/.test(row.eventId)
     // reducer は serialRaw を数として比べる（Q-ENUM.priorityRule の Serial: 正整数）。
     || !/^[1-9]\d*$/.test(source.serialRaw.trim()) || !Number.isSafeInteger(Number(source.serialRaw))
@@ -795,6 +896,8 @@ function observationSubject(value: unknown): TsunamiObservationSubject | null {
     validUntil: row.validUntil, retainUntil: row.retainUntil };
 }
 const SUBJECT_FORM = /^(normal|training|test)\/(?:VTSE41|tsunamiObservation:VTSE5[12])\/\d{14}$/;
+// D-FAILNOTICE=A の失敗警報の固定の subject。source は拒否した報なので subject と一致しない（P3-CC-AC05）。
+const FAIL_FORM = /^(normal|training|test)\/capacityRejected$/;
 const LEVEL_SET: readonly Level[] = ["info", "normal", "warning", "critical", "cancel"];
 function intent(value: unknown): TsunamiIntent | null {
   const row = record(value), payload = record(row?.payload);
@@ -804,8 +907,10 @@ function intent(value: unknown): TsunamiIntent | null {
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((item) => item === row?.transition);
   const disposition = (["pending", "delivered", "expired", "superseded"] as const).find((item) => item === row?.disposition);
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
-    || disposition == null || !text(row.id) || row.unit !== "U-T" || !text(row.subject) || SUBJECT_FORM.exec(row.subject)?.[1] !== operation
-    || source.subject !== row.subject || source.operation !== operation
+    || disposition == null || !text(row.id) || row.unit !== "U-T" || !text(row.subject)
+    || (FAIL_FORM.exec(row.subject) ?? SUBJECT_FORM.exec(row.subject))?.[1] !== operation
+    || (FAIL_FORM.test(row.subject) ? SUBJECT_FORM.exec(source.subject)?.[1] !== operation : source.subject !== row.subject)
+    || source.operation !== operation
     || payload.domain !== "tsunami" || !text(payload.title) || payload.title === ""
     || !text(payload.body) || payload.body === "" || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt)
     || !Number.isSafeInteger(row.attempts) || !text(row.configRevision) || row.expiresAt < row.createdAt) return null;
@@ -852,11 +957,6 @@ const tsunamiUnit = {
   toView: toTsunamiView,
   persistence: { kind: "durable", codec: tsunamiUnitCodec },
   confirmationScopeLimit: 512,
-  withoutNormal: (state) => ({ ...state, forecasts: state.forecasts.filter((item) => item.operation !== "normal"),
-    observations: state.observations.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => [...state.forecasts, ...state.observations]
-    .filter((item) => item.operation === "normal" && visible(item)).map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-T">;

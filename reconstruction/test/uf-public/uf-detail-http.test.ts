@@ -76,7 +76,7 @@ describe("P3-UFP-T10 acceptance: the detail path over HTTP", () => {
     const bad = [`${current}&pad=${"9".repeat(1_100)}`,
       `${current.replace("page=0", "page=1.5")}`, `${current.replace("page=0", "page=-1")}`, current.replace(ID, "A".repeat(64)),
       current.replace(ID, "a".repeat(63)), current.replace("revision=3", "revision=x"), current.replace("part=current", "part=other"),
-      `${PATH}?streamId=${STREAM}&part=current&revision=3&page=0`, `${PATH}?streamId=${STREAM}&part=index&revision=3&page=0`,
+      `${PATH}?streamId=${STREAM}&part=current&revision=3&page=0`, `${PATH}?streamId=${STREAM}&part=index&revision=3:0&page=0`,
       `${PATH}?streamId=${STREAM}&part=index&id=${ID}&revision=3:0&page=0`, `${PATH}?streamId=${STREAM}&part=index&id=&revision=3:0&page=0`, `${current}&page=1`, current.replace(`streamId=${STREAM}`, "streamId="),
       current.replace(`streamId=${STREAM}`, `streamId=${"s".repeat(65)}`)];
     for (const path of bad) {
@@ -87,10 +87,10 @@ describe("P3-UFP-T10 acceptance: the detail path over HTTP", () => {
     }
     expect(fake.seen).toEqual([]);
     expect(Buffer.byteLength(bad[0])).toBeGreaterThan(1_024);
-    // 索引の要求の revision は 10 進でなく索引の内容版の形。
-    const index = await fetchText(started.port, `${PATH}?streamId=${STREAM}&part=index&revision=12:5&page=2`);
+    // 索引の要求の revision は unit の内容版の 10 進（P3-CC-AC01(5)、admission の 3 bit は無い）。
+    const index = await fetchText(started.port, `${PATH}?streamId=${STREAM}&part=index&revision=12&page=2`);
     expect(index.status).toBe(200);
-    expect(fake.seen).toEqual([{ streamId: STREAM, detail: { part: "index", revision: "12:5", page: 2 } }]);
+    expect(fake.seen).toEqual([{ streamId: STREAM, detail: { part: "index", revision: "12", page: 2 } }]);
     expect((await fetchText(started.port, "/api/display/domains/U-W/detail?x=1")).status).toBe(404);
     expect((await fetchText((await server()).port, current)).status).toBe(404);
   });

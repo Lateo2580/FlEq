@@ -6,7 +6,7 @@ import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep } from "../../contracts/p2-weather-timeseries-unit.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import { reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnit, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
+import { reduceWeatherTimeseriesUnit, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
 import type { SnapshotProjectionState } from "../../contracts/p2-snapshot-sse.types";
@@ -74,16 +74,17 @@ function trace(): Trace[] {
 }
 
 // T01 と同じ列を runtime（owner と publisher）に通し、各 step で U-F の要約 3 行の digest を取る。1 月の 4 本、6 月の 9 本と続報、
-// normal の公開の制限の間（admission normal と withoutNormal の view）、期限、restore、restore 後の 1 通。
+// 期限、restore、restore 後の 1 通。
 async function summaryRows(): Promise<{ label: string; digest: string }[]> {
   const rows: { label: string; digest: string }[] = [];
   type Line = { current: Step; previous: SnapshotProjectionState | null };
-  const project = (label: string, line: Line, nowMs: number, from: Step = line.current, keep = true) => {
+  const project = (label: string, line: Line, nowMs: number) => {
     // 拒否された報や重複した報では snapshot は変わらない。
-    const result = projectSnapshot(projectionInput(from, nowMs), line.previous);
+    const result = projectSnapshot(projectionInput(line.current, nowMs), line.previous);
     if (result.kind !== "projected") { rows.push({ label, digest: result.kind }); return; }
-    if (keep) line.previous = result.state;
-    rows.push({ label, digest: sha(result.snapshot.current.weatherTimeseries.items) });
+    line.previous = result.state;
+    rows.push({ label, digest: sha(result.snapshot.current.weatherTimeseries.items.map(({ unavailable, unconfirmed, unknownCode, freshness,
+      confirmation, ...head }) => ({ ...head, admission: {}, unavailable, unconfirmed, unknownCode, freshness, confirmation }))) });
   };
   const feed = async (label: string, line: Line, file: string, name: string, hours: number) => {
     const { at } = material(file, name, hours);
@@ -98,14 +99,7 @@ async function summaryRows(): Promise<{ label: string; digest: string }[]> {
   const june = await open({ wallTimeMs: 1780650000000, monotonicMs: 1 });
   for (const [index, file] of JUNE.entries()) await feed(`jun:${file}`, june, file, `jun${index}`, 0);
   for (const [kind, hours] of FOLLOW) await feed(`jun:${kind}`, june, JUNE[0], "jun0", hours);
-  // normal の公開の制限の間: normal の subject は view から外れ、displayChanges は before と after を同じ値で持つ。
   const unit = june.current.state.units["U-F"];
-  const hidden: Step = { ...june.current, outcomes: [], displayChanges: weatherTimeseriesUnit.normalDisplaySubjects(unit).map((value) =>
-    ({ unit: "U-F" as const, operation: value.operation, subject: value.subject, before: value, after: value })),
-  state: { ...june.current.state, views: { ...june.current.state.views, "U-F": { ...toWeatherTimeseriesView(weatherTimeseriesUnit.withoutNormal(unit)),
-    admission: { normal: "capacityExceeded" as const }, contentRevision: `${unit.contentRevision}:1` } } },
-  admissionCounts: { ...june.current.admissionCounts, "U-F": { ...june.current.admissionCounts["U-F"], normal: 1 } } };
-  project("jun:hidden", june, 1780650000000, hidden, false);
   const last = Math.max(...unit.subjects.map((item) => item.validUntil ?? 0));
   const expiredClock = { wallTimeMs: last + 1, monotonicMs: 90 };
   june.current = await step(june.current.state, { kind: "tick", clock: expiredClock });
@@ -121,7 +115,9 @@ async function summaryRows(): Promise<{ label: string; digest: string }[]> {
 }
 
 // base で UFP_RECORD=1 により記録した値。手順: ff51da45 の作業木で、変更した追跡 file を `git show HEAD:<path>` で base に戻し、この file だけを
-// `UFP_RECORD=1 vitest run` で走らせて出力を写した（BASE_ROWS は 2 巡目の summaryRows、BASE_TRACE は 1 巡目から不変）。
+// `UFP_RECORD=1 vitest run` で走らせて出力を写した（BASE_TRACE は 1 巡目から不変）。BASE_ROWS は e37e40ec（P3-CURRENCY-COVERAGE-001 の基準）の
+// 記録のまま。要約の items から admission の欄が消えた（P3-CC-AC01）ので、digest は今の items に基準の位置で admission: {} を戻して取る
+// （admission を除く以外の差があれば一致しない）。制限の間の行（jun:hidden）は仕組みごと無くなったので外した（Q-CC-EXISTING-TESTS）。
 const BASE_DECISIONS: readonly string[] = [
   "jan:81_01_01_260129_VPWP50=changed",
   "jan:81_01_02_260129_VPWP50=changed",
@@ -181,7 +177,6 @@ const BASE_ROWS: readonly string[] = [
   "jun:duplicate=unchanged",
   "jun:stale=unchanged",
   "jun:newer=e7979b13a783784f",
-  "jun:hidden=bc85c87686b9884e",
   "jun:deadline=df1e4992694f91c0",
   "jun:restore=fd7d04685be0d7a1",
   "jun:afterRestore=61972a124b106f9d",

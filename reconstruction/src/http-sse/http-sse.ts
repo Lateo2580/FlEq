@@ -44,7 +44,7 @@ function parseDetail(url: string): Readonly<{ streamId: string; detail: WeatherT
   const streamId = one("streamId"), part = one("part"), revision = one("revision"), page = one("page"), id = one("id");
   if (streamId == null || !/^[\w-]{1,64}$/.test(streamId) || page == null || !/^\d{1,9}$/.test(page) || revision == null) return null;
   if (part === "index")
-    return !params.has("id") && /^\d{1,16}:[0-7]$/.test(revision) ? { streamId, detail: { part, revision, page: Number(page) } } : null;
+    return !params.has("id") && /^\d{1,16}$/.test(revision) ? { streamId, detail: { part, revision, page: Number(page) } } : null;
   if ((part === "current" || part === "lastKnown") && id != null && /^[0-9a-f]{64}$/.test(id) && /^\d{1,16}$/.test(revision))
     return { streamId, detail: { part, id, revision, page: Number(page) } };
   return null;

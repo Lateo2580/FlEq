@@ -575,7 +575,7 @@ function toBriefingView(state: BriefingUnitState): BriefingUnitView {
   const subjects = currents.map(shownOutcome);
   return { unit: "U-B", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), admission: {}, subjects, currents };
+  contentRevision: String(state.contentRevision), subjects, currents };
 }
 
 // ---- codec（I-U-B.persisted・I-U-B.decode、唯一の BriefingUnitCodec。受理と同じ上限を確かめる） ----
@@ -746,9 +746,6 @@ const briefingUnit = {
   toView: toBriefingView,
   persistence: { kind: "durable", codec: briefingUnitCodec },
   confirmationScopeLimit: CURRENT_LIMIT,
-  withoutNormal: (state) => ({ ...state, currents: state.currents.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => state.currents.filter((item) => item.operation === "normal" && visible(item)).map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-B">;

@@ -455,7 +455,10 @@ function addUnavailable(state: WeatherCurrentUnitState, candidate: Candidate, re
   return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
     decisions: [{ subject: candidate.subject, operation: candidate.operation,
       decision: "changed", reason: null, change: "semantic", currentEstablished: null }], intents: [],
-    outcomes: [{ kind: "accepted", change: "semantic", subjects: [outcome(candidate, "unavailable")] }], diagnostics: [] };
+    outcomes: [{ kind: "accepted", change: "semantic", subjects: [outcome(candidate, "unavailable")] }],
+    // P3-CC-AC07: 容量で current にできなかった入力ごとに 1 行（件数の印と byte の印）。
+    diagnostics: reason === "capacityExceeded" ? [{ level: "WARN", component: "weather-current", reason: "capacityRejected", unit: "U-W",
+      inputId: candidate.source.inputId }] : [] };
 }
 
 function owned(snapshotValue: WeatherCurrentSnapshot): readonly string[] {

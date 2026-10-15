@@ -73,7 +73,7 @@ function percentile(values: readonly number[], p: number): number {
 }
 
 describe("P2-A8-T06 regression (AC06/AC13)", () => {
-  it("P2-A8-T06: generatedAt-only is unchanged; metadata and admission-count-only changes advance sequence, not content", async () => {
+  it("P2-A8-T06: generatedAt-only is unchanged; metadata and confirmation-only changes advance sequence, not content", async () => {
     const started = await startup(clock);
     const adopted = await step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
     const first = projected(projectSnapshot(projectionInput(started, at), null));
@@ -86,15 +86,19 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
       { persistence: { ...projectionInput(adopted, at).persistence, "U-W": saved } }), second.state));
     expect([ack.snapshot.sequence, ack.snapshot.semanticRevision]).toEqual([second.snapshot.sequence + 1, second.snapshot.semanticRevision]);
     expect(ack.state.domains).toEqual(second.state.domains);
-    const counts = (normal: number) => ({ ...adopted.admissionCounts, "U-W": { normal, training: 0, test: 0 } });
+    // P3-CC-AC02: 容量の未確認（whole=capacityExceeded）は確認状態だけの変化で、subject を走査しない。
+    const base = adopted.state.confirmation;
+    const slot = base.units["U-W"].normal;
+    const lost = { ...base, units: { ...base.units, "U-W": { ...base.units["U-W"],
+      normal: { ...slot, whole: "capacityExceeded" as const, counts: { ...slot.counts, capacityExceeded: 1 } } } } };
     let state = ack.state;
-    for (const count of [1, 2, 1, 0]) {
-      const { result, measured } = measure(projectionInput({ ...adopted, admissionCounts: counts(count), displayChanges: [],
-        outcomes: [] }, at), state, adopted.state, adopted.state);
+    for (const confirmation of [lost, base]) {
+      const { result, measured } = measure(projectionInput({ ...adopted, displayChanges: [], outcomes: [] }, at,
+        { confirmation }), state, adopted.state, adopted.state);
       const next = projected(result);
       expect(next.snapshot.sequence).toBe(state.snapshot!.sequence + 1);
       expect(next.snapshot.semanticRevision).toBe(second.snapshot.semanticRevision);
-      expect(next.snapshot.current.weatherCurrent.items[0].admission).toEqual(count === 0 ? {} : { capacityExceeded: count });
+      expect(next.snapshot.current.weatherCurrent.items[0].unconfirmed.capacityExceeded).toBe(confirmation === lost ? 1 : undefined);
       expect([measured.eew, measured.weather, measured.timeseries, measured.unchanged, measured.whole]).toEqual([0, 0, 0, 0, 0]);
       state = next.state;
     }
@@ -184,8 +188,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     expect([state.units["U-E"].current.length, Object.keys(state.units["U-W"].national).length, state.units["U-W"].partials.length,
       state.units["U-F"].subjects.length]).toEqual([1024, 3, 128, 512]);
     // AC12: at the legal bounds every full domain exceeds 64 KiB, so all three degrade and the total stays <= 1 MiB.
-    const initial = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state),
-      admissionCounts: (await startup(clock)).admissionCounts }, at), null));
+    const initial = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state) }, at), null));
     expectConsistent(initial.state, initial.snapshot, initial.utf8Bytes);
     let projection = initial.state;
     const capacity = { snapshot: initial.utf8Bytes, eew: projection.domains.eew.utf8Bytes,
@@ -253,7 +256,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
       expect(unchangedPeriodReads).toBe(0);
     }
     expectMatchesReference(projection, reference({ state, outcomes: [], displayChanges: [],
-      admissionCounts: (await startup(clock)).admissionCounts }, at, { connection: { state: "connected", disconnectedAt: null, lastInputAt } }));
+      }, at, { connection: { state: "connected", disconnectedAt: null, lastInputAt } }));
     console.info(JSON.stringify({ test: "P2-A8-T06", ...report }));
   }, 120_000);
 });

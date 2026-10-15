@@ -581,7 +581,7 @@ function toNankaiView(state: NankaiUnitState): NankaiUnitView {
   const subjects = [...currents, ...shownInformation].map(shownOutcome);
   return { unit: "U-N", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), admission: {}, subjects, currents, information: shownInformation.map(headingOf) };
+  contentRevision: String(state.contentRevision), subjects, currents, information: shownInformation.map(headingOf) };
 }
 
 // ---- codec（I-U-N.persisted・I-U-N.decode、唯一の NankaiUnitCodec） ----
@@ -734,11 +734,6 @@ const nankaiUnit = {
   toView: toNankaiView,
   persistence: { kind: "durable", codec: nankaiUnitCodec },
   confirmationScopeLimit: 512,
-  withoutNormal: (state) => ({ ...state, currents: state.currents.filter((item) => item.operation !== "normal"),
-    information: state.information.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => [...state.currents, ...state.information].filter(visible)
-    .filter((item) => item.operation === "normal").map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-N">;

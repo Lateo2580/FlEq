@@ -474,7 +474,7 @@ function toFloodView(state: FloodUnitState): FloodUnitView {
   const subjects = currents.map(shownOutcome);
   return { unit: "U-R", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), admission: {}, subjects, currents };
+  contentRevision: String(state.contentRevision), subjects, currents };
 }
 
 // ---- codec（I-U-R.persisted・I-U-R.decode、唯一の FloodUnitCodec。受理と同じ上限を確かめる） ----
@@ -647,9 +647,6 @@ const floodUnit = {
   toView: toFloodView,
   persistence: { kind: "durable", codec: floodUnitCodec },
   confirmationScopeLimit: 512,
-  withoutNormal: (state) => ({ ...state, currents: state.currents.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => state.currents.filter((item) => item.operation === "normal" && visible(item)).map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-R">;

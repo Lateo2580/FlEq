@@ -5,7 +5,7 @@ import { afterAll, expect } from "vitest";
 
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, RestoreUnitResult, RuntimeAdmissionCounts, RuntimeDisplayChange, RuntimeInput, RuntimePublishedOutcome, RuntimeState,
+  ClockReading, RestoreUnitResult, RuntimeDisplayChange, RuntimeInput, RuntimePublishedOutcome, RuntimeState,
   RuntimeUnitId, RuntimeViews,
 } from "../../contracts/p2-shared-runtime.types";
 import type { UnitTable } from "../../contracts/p3-unit-table.types";
@@ -42,7 +42,7 @@ function received(runId: string, report: Report, clock: ClockReading): Input {
 
 // The runtime seen whole, as A8 projects it: the publisher's state with each owner's units (TEST-PATH (2)).
 type Step = Readonly<{ state: RuntimeState; outcomes: readonly RuntimePublishedOutcome[];
-  displayChanges: readonly RuntimeDisplayChange[]; admissionCounts: RuntimeAdmissionCounts }>;
+  displayChanges: readonly RuntimeDisplayChange[] }>;
 
 // Each step remembers the run it came from; continuing from a run's latest step reuses it, an earlier one replays.
 type Run = { h: Harness; inputs: Input[]; clock: { now: ClockReading }; restored: Restored; units?: UnitTable };
@@ -155,7 +155,7 @@ function view(run: Run): Step["state"] {
   return { runId: publisher.runId, units: { "U-E": h.unit("U-E"), "U-W": h.unit("U-W"), "U-F": h.unit("U-F"), "U-T": h.unit("U-T"),
     "U-Q": h.unit("U-Q"), "U-N": h.unit("U-N"), "U-V": h.unit("U-V"), "U-L": h.unit("U-L"), "U-R": h.unit("U-R"), "U-B": h.unit("U-B"), "U-M": h.unit("U-M"), "U-Y": h.unit("U-Y") },
     views: views(),
-    confirmation: publisher.confirmation, restoration: publisher.restoration, admission: merged((state) => state.admission),
+    confirmation: publisher.confirmation, restoration: publisher.restoration,
     checkpointAttempts: merged((state) => state.checkpointAttempts),
     deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null, "U-V": null, "U-L": null, "U-R": null, "U-B": null, "U-M": null, "U-Y": null, ...merged((state) => state.deadlines) },
     notificationChannels: publisher.notificationChannels, notificationProbeComplete: publisher.notificationProbeComplete,
@@ -164,13 +164,8 @@ function view(run: Run): Step["state"] {
 
 function stepOf(run: Run, outcomes: Step["outcomes"], displayChanges: Step["displayChanges"]): Step {
   const state = view(run);
-  const mirror = run.h.root.state.mirror;
   runs.set(state, { run, length: run.inputs.length });
-  return { state, outcomes, displayChanges, admissionCounts: { "U-E": mirror["U-E"].admissionCounts,
-    "U-W": mirror["U-W"].admissionCounts, "U-F": mirror["U-F"].admissionCounts, "U-T": mirror["U-T"].admissionCounts,
-    "U-Q": mirror["U-Q"].admissionCounts, "U-N": mirror["U-N"].admissionCounts, "U-V": mirror["U-V"].admissionCounts,
-    "U-L": mirror["U-L"].admissionCounts, "U-R": mirror["U-R"].admissionCounts, "U-B": mirror["U-B"].admissionCounts,
-    "U-M": mirror["U-M"].admissionCounts, "U-Y": mirror["U-Y"].admissionCounts } };
+  return { state, outcomes, displayChanges };
 }
 
 async function startup(clock: ClockReading, restored: Restored = empty, units?: UnitTable): Promise<Step> {
@@ -194,9 +189,9 @@ async function step(state: RuntimeState, input: Input): Promise<Step> {
 }
 
 // The publisher state a whole-runtime description gives (A8 reads the mirror only).
-function publisherOf(state: RuntimeState, counts: RuntimeAdmissionCounts): PublisherState {
+function publisherOf(state: RuntimeState): PublisherState {
   const mirror = <K extends RuntimeUnitId>(unit: K) => ({ persistence: state.units[unit].persistence,
-    admissionCounts: counts[unit], view: state.views[unit],
+    view: state.views[unit],
     pendingIntents: state.units[unit].intents.filter((item) => item.disposition === "pending") });
   return { runId: state.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T"),
     "U-Q": mirror("U-Q"), "U-N": mirror("U-N"), "U-V": mirror("U-V"), "U-L": mirror("U-L"), "U-R": mirror("U-R"),
@@ -208,7 +203,7 @@ function publisherOf(state: RuntimeState, counts: RuntimeAdmissionCounts): Publi
 
 // The product A3 mapping with a fixed stream and a connected, healthy transport.
 function projectionInput(value: Step, nowMs: number, overrides: Partial<SnapshotProjectionInput> = {}): SnapshotProjectionInput {
-  return { ...snapshotInput({ state: publisherOf(value.state, value.admissionCounts), outcomes: value.outcomes,
+  return { ...snapshotInput({ state: publisherOf(value.state), outcomes: value.outcomes,
     displayChanges: value.displayChanges }, "stream", nowMs, { state: "connected", disconnectedAt: null, lastInputAt: null },
   { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null }), ...overrides };
 }
@@ -296,16 +291,14 @@ function timeseriesChange(before: WeatherTimeseriesSubject | null, after: Weathe
 async function combine(first: RuntimeState, inputs: readonly Input[]): Promise<Step> {
   let state = first;
   const outcomes: RuntimePublishedOutcome[] = [], displayChanges: RuntimeDisplayChange[] = [];
-  let admissionCounts: RuntimeAdmissionCounts | null = null;
   for (const input of inputs) {
     const next = await step(state, input);
     outcomes.push(...next.outcomes);
     displayChanges.push(...next.displayChanges);
-    admissionCounts = next.admissionCounts;
     state = next.state;
   }
-  if (admissionCounts == null) throw new Error("combine needs at least one input");
-  return { state, outcomes, displayChanges, admissionCounts };
+  if (inputs.length === 0) throw new Error("combine needs at least one input");
+  return { state, outcomes, displayChanges };
 }
 
 export { allSubjects, atTime, calls, combine, decode, eewReport, expectConsistent, expectMatchesReference, projected,

@@ -12,6 +12,7 @@ import type {
   RuntimeDisplayChange,
   RejectionReason,
   RuntimeUnitDeadline,
+  SubjectUnavailable,
   UnitCodec,
   UnitView as SharedUnitView,
 } from "./p2-shared-runtime.types";
@@ -64,6 +65,8 @@ export type TsunamiForecastSubject = Readonly<{
   areas: readonly TsunamiForecastArea[];
   unkeyedAreas: readonly TsunamiUnkeyedArea[];
   retainUntil: number | null;
+  // P3-CC-AC03: 容量で更新できなかった報。印のある active の記録だけが鍵を持つ。
+  unavailable?: SubjectUnavailable;
 }>;
 
 export type TsunamiObservationFamily = "VTSE51" | "VTSE52";
@@ -154,7 +157,7 @@ export type TsunamiUnitStep = Readonly<{
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>
     | Readonly<{ decision: "rejected"; reason: RejectionReason }>
-    | Readonly<{ decision: "capacityExceeded"; rejection: AdmissionEvidence & Readonly<{ affectedScope: "subject" }> }>
+    | Readonly<{ decision: "capacityExceeded" }>
     | Readonly<{ decision: "changed"; reason: null; change: "semantic" | "revisionOnly" | "deliveryOnly"; currentEstablished: (AdmissionEvidence & Readonly<{ affectedScope: "subject" }>) | null }>
   ))[];
   intents: readonly TsunamiIntent[];

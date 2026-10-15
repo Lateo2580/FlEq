@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "b42d069019871aa96ec3f9dbba9636317bc69cbd48dc7eac3187acd1bf94f326",
+    "sha256": "40c328f648eeec26e771f33c960390ae38be7c1dc48497b0b76c9844c2bddd86",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -555,9 +555,9 @@
       "CheckpointEnvelope schemaVersion, unit, generation, capturedAt, payload and sha256（保存bytes・保存先・slot選択はC1と同一。書くthreadだけが変わる）"
     ],
     "nonPersistedFields": [
-      "publisherのunitごとのmirror（公開view・persistence・pending intent・admissionCounts）。ownerの返信だけで更新し、起動時はrestoreの返信で作る",
+      "publisherのunitごとのmirror（公開view・persistence・pending intent。admissionCountsはP3-CURRENCY-COVERAGE-001で除いた）。ownerの返信だけで更新し、起動時はrestoreの返信で作る",
       "通知の予約（requestId・attemptId・channel・intent）、書込み権の保持者、unitごとのretryAfter・連続失敗回数・retryReason、ownerごとの未完了要求",
-      "ownerのunit state・admission・期限・保存試行・世代の寄与入力・slotの記憶・同世代再試行の保持bytes・終端intentの記録（ownerのthreadの中だけ）",
+      "ownerのunit state・期限（admissionはP3-CURRENCY-COVERAGE-001で除いた）・保存試行・世代の寄与入力・slotの記憶・同世代再試行の保持bytes・終端intentの記録（ownerのthreadの中だけ）",
       "OwnerStartData（起動ごと）"
     ],
     "outOfScope": [
@@ -579,7 +579,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-C3A-AC01",
-        "requirement": "実行場所とowner（D-P3-1、P3-C3A-FORM・PLACE-COLUMN・NONREADY）: 起動時にworker_threadsのownerを3本（urgent・weatherCurrent・deferred）だけ作り、電文ごと・要求ごとに作らない。各ownerは自分の実行場所のunitについて、canonicalなunit state・admission・期限・保存試行・世代の寄与入力・終端intentの記録・CheckpointCoordinatorのunit側（slotの記憶・同世代再試行の保持bytes・capture・encode・書込み・照合）と起動時のrestore・startup stepを持つ。publisherのthreadではdecodeMaterial・unitのreduce／toView・codecのencode／decode・checkpoint fileの書込みを呼ばない。実行場所の列はunit-coverage.tsのkeyed Record 1つ、headType→実行場所は同じfileの関数1つで、readyでない入力はdeferredへ送る。publisherは全ownerのrestoredを受けてから自分の状態を作り、owner生成とすべてのrestoreは、最初の接続試行（{ dmdata }ではRESTのlist・startを含む）より前に終える（P2-A3-AC09の意味を保つ）。ownerのworker entryはdistの1 fileで、hostがresolveRepoPathで指す。startP2Hostがどの経路でthrowしても（RuntimeCompositionRootのconstructorのthrowを含む）、それまでに生成したownerをすべて終了させてからrejectする",
+        "requirement": "実行場所とowner（D-P3-1、P3-C3A-FORM・PLACE-COLUMN・NONREADY）: 起動時にworker_threadsのownerを3本（urgent・weatherCurrent・deferred）だけ作り、電文ごと・要求ごとに作らない。各ownerは自分の実行場所のunitについて、canonicalなunit state・期限（admissionはP3-CURRENCY-COVERAGE-001で除いた）・保存試行・世代の寄与入力・終端intentの記録・CheckpointCoordinatorのunit側（slotの記憶・同世代再試行の保持bytes・capture・encode・書込み・照合）と起動時のrestore・startup stepを持つ。publisherのthreadではdecodeMaterial・unitのreduce／toView・codecのencode／decode・checkpoint fileの書込みを呼ばない。実行場所の列はunit-coverage.tsのkeyed Record 1つ、headType→実行場所は同じfileの関数1つで、readyでない入力はdeferredへ送る。publisherは全ownerのrestoredを受けてから自分の状態を作り、owner生成とすべてのrestoreは、最初の接続試行（{ dmdata }ではRESTのlist・startを含む）より前に終える（P2-A3-AC09の意味を保つ）。ownerのworker entryはdistの1 fileで、hostがresolveRepoPathで指す。startP2Hostがどの経路でthrowしても（RuntimeCompositionRootのconstructorのthrowを含む）、それまでに生成したownerをすべて終了させてからrejectする",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:60 «166fda087f5c80b2»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
@@ -665,13 +665,13 @@
           "docs/specs/reconstruction-p0-contracts.md:953 «2d1702a30de1cc0c»",
           "docs/specs/reconstruction-p0-contracts.md:958 «618012b27b0cd8ad»",
           "docs/specs/reconstruction-p0-contracts.md:960 «1aa04ccc8255047a»",
-          "reconstruction/contracts/p2-shared-runtime.json:573 «dcdaa7c72e70cb83»",
-          "reconstruction/contracts/p2-shared-runtime.json:754 «c6065fe573594293»"
+          "reconstruction/contracts/p2-shared-runtime.json:570 «e92a1dbe1a63cd07»",
+          "reconstruction/contracts/p2-shared-runtime.json:751 «c6065fe573594293»"
         ]
       },
       {
         "id": "P3-C3A-AC08",
-        "requirement": "publisherに残る単位横断の状態と順序（P3-C3A-CONFIRMATION-HOME・DEADLINES）: 確認状態・restorationの表示・admissionCounts（ownerの値）・通知channelと通知期限・終了状態と終了要約・接続表示（C2のlostThroughSequenceとrecordConnected）をpublisherが持ち、snapshotはpublisherがmirrorから射影する。順序は3つを分ける: (1) 同じ順序領域の入力の順（mailbox、AC03）(2) owner内の適用順＝そのownerへの要求の順で、返信（checkpointDoneを含む）はすべて適用順に送る（同じportの順で足り、別の順序機構を足さない）(3) publisherの公開順＝返信を受けた順。owner間の中間snapshotの列（どのsequenceにどのunitの更新が載るか）がC3aの基底（baseOid。C2配送後の逐次実行）と一致することは求めない。検収するのは、すべての入力の処理が終わった後のmirror・snapshotの内容がAC11の(b)〜(e)の箇所を除きC3aの基底と同じであることと、各snapshotの不変条件（sequenceとsemanticRevisionが単調、各unitのviewはそのownerの適用順の接頭辞、同じunitのviewが古い版へ戻らない）である。期限は各ownerが自分のunitの分だけを適用する。変化の無い返信（unitsが空でoutcomes・displayChanges・diagnosticsも空）では射影・公開・mirrorの複製をしない（E08）。canonical stateのclone・変更検出の直列化・JSON roundtripは0（E11）",
+        "requirement": "publisherに残る単位横断の状態と順序（P3-C3A-CONFIRMATION-HOME・DEADLINES）: 確認状態（P3-CURRENCY-COVERAGE-001で容量の拒否の負の証拠も切断の境界によらず採る、P3-CC-AC02(2)）・restorationの表示・通知channelと通知期限（admissionCountsはP3-CURRENCY-COVERAGE-001で除き、mainは在送中の鍵だけでpendingを絞る、P3-CC-AC01(3)）・終了状態と終了要約・接続表示（C2のlostThroughSequenceとrecordConnected）をpublisherが持ち、snapshotはpublisherがmirrorから射影する。順序は3つを分ける: (1) 同じ順序領域の入力の順（mailbox、AC03）(2) owner内の適用順＝そのownerへの要求の順で、返信（checkpointDoneを含む）はすべて適用順に送る（同じportの順で足り、別の順序機構を足さない）(3) publisherの公開順＝返信を受けた順。owner間の中間snapshotの列（どのsequenceにどのunitの更新が載るか）がC3aの基底（baseOid。C2配送後の逐次実行）と一致することは求めない。検収するのは、すべての入力の処理が終わった後のmirror・snapshotの内容がAC11の(b)〜(e)の箇所を除きC3aの基底と同じであることと、各snapshotの不変条件（sequenceとsemanticRevisionが単調、各unitのviewはそのownerの適用順の接頭辞、同じunitのviewが古い版へ戻らない）である。期限は各ownerが自分のunitの分だけを適用する。変化の無い返信（unitsが空でoutcomes・displayChanges・diagnosticsも空）では射影・公開・mirrorの複製をしない（E08）。canonical stateのclone・変更検出の直列化・JSON roundtripは0（E11）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:149 «a8542d2933bd43a1»",
           "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»",
@@ -709,7 +709,7 @@
           "reconstruction/tools/corpus/sequences.json#expected:O07:16",
           "reconstruction/tools/corpus/sequences.json#expected:O10:35",
           "reconstruction/tools/corpus/sequences.json#expected:O10:39",
-          "reconstruction/contracts/p2-shared-runtime.json:491 «40cc23ac8c8cd9b1»",
+          "reconstruction/contracts/p2-shared-runtime.json:488 «40cc23ac8c8cd9b1»",
           "reconstruction/contracts/p3-order-plan.md:60 «166fda087f5c80b2»"
         ]
       },

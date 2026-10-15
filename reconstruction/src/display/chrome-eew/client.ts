@@ -113,6 +113,7 @@ function renderTsunami(cards: HTMLElement, coast: HTMLElement, snapshot: Display
     for (const card of paint.cards) {
       const wrap = el("div", `tsu-card ${card.className}`);
       wrap.append(el("div", "tsu-card-head", card.head), el("div", "tsu-card-time", card.reportTimeDisplay));
+      if (card.unavailableLine != null) wrap.append(el("div", "tsu-card-unavailable", card.unavailableLine));
       for (const area of card.areas) wrap.append(el("div", area.className, area.text));
       cardNodes.push(wrap);
     }
@@ -138,13 +139,13 @@ export type StatusElements = Readonly<{
   connection: HTMLElement; banner: HTMLElement;
 }>;
 
-// 状態行 (R40〜R42とU-Eの容量超過件数)。snapshotを受けるたびとheartbeat・stale検査のたびに作り直す。
+// 状態行 (R40〜R42とEEW・津波の容量超過、P3-CC-AC06)。snapshotを受けるたびとheartbeat・stale検査のたびに作り直す。
 // 初回snapshot前 (snapshot=null) も接続・stale・heartbeat由来のworkerを出す。
 function renderStatus(
   elements: StatusElements, snapshot: DisplaySnapshot | null, worker: DisplayWorkerView["state"] | null, browserStale: boolean,
 ): void {
   const items = snapshot?.current.eew.items ?? [];
-  elements.capacity.replaceChildren(...items.flatMap((item) => {
+  elements.capacity.replaceChildren(...[...items, ...snapshot?.current.tsunami.items ?? []].flatMap((item) => {
     const line = buildCapacityExceededLine(item);
     return line == null ? [] : [el("div", "eew-capacity", line)];
   }));

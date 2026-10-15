@@ -102,7 +102,7 @@ export type WeatherCurrentUnitStep = Readonly<{
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>
     | Readonly<{ decision: "rejected"; reason: RejectionReason }>
-    | Readonly<{ decision: "capacityExceeded"; rejection: AdmissionEvidence & Readonly<{ affectedScope: readonly string[] }> }>
+    | Readonly<{ decision: "capacityExceeded" }>
     | Readonly<{ decision: "changed"; reason: null; change: "semantic" | "revisionOnly" | "deliveryOnly"; currentEstablished: (AdmissionEvidence & Readonly<{ affectedScope: readonly string[] }>) | null }>
   ))[];
   intents: readonly NotificationIntent[];

@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util"; import { createHash } from "node:crypto";
 
-import type { JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
+import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
@@ -226,8 +226,11 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
       proposed = replace(proposed, adopted, changed);
     }
   }
+  // P3-CC-AC07: 容量で current にできなかった入力（印か最終段の拒否）ごとに 1 行。
+  const rejected: DiagnosticDetails[] = established == null ? [{ level: "WARN", component: "weather-timeseries",
+    reason: "capacityRejected", unit: "U-F", inputId: input.material.inputId }] : [];
   if (!fits(proposed, generation, input.clock.wallTimeMs)) return { ...step(state),
-    decisions: [{ subject: source.subject, operation: source.operation, decision: "capacityExceeded", rejection: evidence }] };
+    decisions: [{ subject: source.subject, operation: source.operation, decision: "capacityExceeded" }], diagnostics: rejected };
   proposed = { ...proposed, persistence: dirty(state.persistence, input.clock.monotonicMs) };
   const finalFields = established == null ? ["source", "effective", "periods", "validUntil", "retainUntil",
     "unavailableReason", "lastKnown", "affectedScope"] : changedFields;
@@ -241,7 +244,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     decision: "changed", reason: null, change: established == null ? "semantic" : change,
     currentEstablished: established }],
     outcomes: [...deadlineOutcomes, { kind: "accepted", change: established == null ? "semantic" : change,
-      subjects: [outcome(adopted, finalFields)] }] };
+      subjects: [outcome(adopted, finalFields)] }], diagnostics: rejected };
 }
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -477,7 +480,7 @@ function displaySubject(item: WeatherTimeseriesSubject): Extract<RuntimeDisplayS
 function toWeatherTimeseriesView(state: WeatherTimeseriesUnitState): WeatherTimeseriesUnitView {
   return { unit: "U-F", semanticRevision: state.subjects.map((item) =>
     `${item.subject}:${item.source?.reportDateTimeRaw ?? ""}:${item.source?.serialRaw ?? ""}:${item.source?.infoTypeRaw ?? ""}:${item.effective}`)
-    .sort().join("|"), contentRevision: String(state.contentRevision), admission: {}, series: state.subjects.map(publicSubject),
+    .sort().join("|"), contentRevision: String(state.contentRevision), series: state.subjects.map(publicSubject),
     subjects: state.subjects.map((item) => outcome(item, [])) };
 }
 
@@ -498,11 +501,13 @@ function reduceWeatherTimeseriesUnit(state: WeatherTimeseriesUnitState, input: W
     }]);
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
     throw new RangeError("U-F content revision exhausted");
+  // 印も入らない最終段の拒否は unit/operation の未確認へ寄せる（P3-CC-AC02）。
   const confirmationEvidence: WeatherTimeseriesUnitStep["confirmationEvidence"] = input.kind === "receive"
-    ? result.decisions.flatMap((item) => item.decision === "changed" && item.currentEstablished != null
-      ? [{ source: "acceptedReport" as const, scopes: [{ unit: "U-F" as const, operation: item.operation,
-        kind: "series" as const, subject: item.subject,
-        office: item.subject.slice(`${item.operation}/VPWP50/`.length) }] }] : []) : [];
+    ? result.decisions.flatMap<WeatherTimeseriesUnitStep["confirmationEvidence"][number]>((item) => item.decision === "changed"
+      && item.currentEstablished != null ? [{ source: "acceptedReport", scopes: [{ unit: "U-F", operation: item.operation,
+        kind: "series", subject: item.subject, office: item.subject.slice(`${item.operation}/VPWP50/`.length) }] }]
+      : item.decision === "capacityExceeded" ? [{ source: "capacityExceeded", scopes: [{ unit: "U-F", operation: item.operation,
+        kind: "unit" }] }] : []) : [];
   return { ...result, state: displayChanges.length !== 0
     ? { ...result.state, contentRevision: state.contentRevision + 1 } : result.state,
     displayChanges, confirmationEvidence };
@@ -519,9 +524,6 @@ const weatherTimeseriesUnit = {
   toView: toWeatherTimeseriesView,
   persistence: { kind: "durable", codec: weatherTimeseriesUnitCodec },
   confirmationScopeLimit: 512,
-  withoutNormal: (state) => ({ ...state, subjects: state.subjects.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => state.subjects.filter((item) => item.operation === "normal").map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: false,
 } satisfies UnitModule<"U-F">;
@@ -545,25 +547,23 @@ function officePrefix(value: string): Readonly<{ text: string; truncated: boolea
 const versionChanged = (revision: string | null): WeatherTimeseriesDetailResponse => ({ kind: "error", reason: "versionChanged", revision });
 const invalid: WeatherTimeseriesDetailResponse = { kind: "error", reason: "invalidRequest", revision: null };
 function weatherTimeseriesDetail(state: WeatherTimeseriesUnitState, request: WeatherTimeseriesDetailRequest,
-  view: Readonly<{ normalHidden: boolean; contentRevision: string }>): WeatherTimeseriesDetailResponse {
-  // normal の公開の制限の間は、normal の subject を索引に載せず、ページも返さない（P3-UFP-AC06 (1)(2)）。
-  const visible = state.subjects.filter((item) => !(view.normalHidden && item.operation === "normal"));
+  view: Readonly<{ contentRevision: string }>): WeatherTimeseriesDetailResponse {
   const pageOf = (count: number, size: number) => {
     const pageCount = Math.max(1, Math.ceil(count / size));
     return Number.isSafeInteger(request.page) && request.page >= 0 && request.page < pageCount ? pageCount : null;
   };
   if (request.part === "index") {
     if (request.revision !== view.contentRevision) return versionChanged(view.contentRevision);
-    const pageCount = pageOf(visible.length, INDEX_PAGE);
+    const pageCount = pageOf(state.subjects.length, INDEX_PAGE);
     if (pageCount == null) return invalid;
-    const entries = visible.slice(request.page * INDEX_PAGE, (request.page + 1) * INDEX_PAGE).map((item) => {
+    const entries = state.subjects.slice(request.page * INDEX_PAGE, (request.page + 1) * INDEX_PAGE).map((item) => {
       const pub = publicSubject(item), office = officePrefix(pub.office);
       return { id: pub.id, operation: pub.operation, office: office.text, officeTruncated: office.truncated,
         revision: pub.revision, effective: pub.effective, periodCount: pub.periodCount, lastKnownPeriodCount: pub.lastKnownPeriodCount };
     });
-    return { kind: "ok", part: "index", revision: view.contentRevision, page: request.page, pageCount, subjectCount: visible.length, entries };
+    return { kind: "ok", part: "index", revision: view.contentRevision, page: request.page, pageCount, subjectCount: state.subjects.length, entries };
   }
-  const item = visible.find((candidate) => publicSubject(candidate).id === request.id);
+  const item = state.subjects.find((candidate) => publicSubject(candidate).id === request.id);
   if (item == null) return versionChanged(null);
   const { revision } = publicSubject(item);
   if (request.revision !== revision) return versionChanged(revision);

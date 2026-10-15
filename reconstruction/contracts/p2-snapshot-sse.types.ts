@@ -5,7 +5,6 @@ import type {
   DiagnosticDetails,
   PersistenceStatus,
   RuntimePublishedOutcome,
-  RuntimeAdmissionCounts,
   RejectionReason,
   RuntimeDisplayChange,
   RuntimeUnitId,
@@ -67,7 +66,6 @@ export type DisplaySummaryItem = Readonly<{
   highestSeverity: DisplaySeverity | null;
   areaCounts: Readonly<Partial<Record<DisplayAreaSystem, number>>>;
   updatedAt: number | null;
-  admission: Readonly<Partial<Record<"capacityExceeded", number>>>;
   unavailable: Readonly<Partial<Record<"capacityExceeded" | "historyUnavailable" | "coverageIncomplete", number>>>;
   unconfirmed: Readonly<Partial<Record<UnconfirmedReason, number>>>;
   unknownCode: Readonly<Partial<Record<"unknown" | "missing" | "empty", number>>>;
@@ -145,8 +143,6 @@ export type SnapshotProjectionInput = Readonly<{
   persistence: Readonly<Partial<Record<UnitId, PersistenceStatus>>>;
   recovery: DisplayRecoveryView;
   confirmation: RuntimeConfirmation;
-  // Supplied every step, including changes from 1 to 2 with an unchanged admission bit.
-  admissionCounts: RuntimeAdmissionCounts;
   notificationChannels: NotificationDeliveryState["channels"];
   channelProbeComplete: boolean;
   eew: EewUnitView;

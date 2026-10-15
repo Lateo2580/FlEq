@@ -18,7 +18,7 @@ import { countedCheckpointFileSystem, writeCounters } from "./composition-root";
 import type { WriteCounters } from "./composition-root";
 import {
   capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, intentUpdateOwner, ownerViews, placeUnits,
-  receiveOwner, restoreOwner, shutdownInputOwner, unitAdmissionCounts,
+  receiveOwner, restoreOwner, shutdownInputOwner,
 } from "./owner-runtime";
 import type { OwnerState, OwnerStep } from "./owner-runtime";
 
@@ -291,7 +291,7 @@ class OwnerHost {
 
   private delta(unit: RuntimeUnitId, view: RuntimeUnitView | null): OwnerUnitDelta {
     const state = this.state!;
-    return { unit, persistence: this.persistence(unit), admissionCounts: unitAdmissionCounts(state.admission, unit), view,
+    return { unit, persistence: this.persistence(unit), view,
       pendingIntents: state.units[unit]!.intents === this.reported[unit] ? null : this.pending(unit) };
   }
 

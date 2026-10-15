@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "601894c1f3c939f3b9030e94cb1e8ff45a974d869a6feee797752cc172eaf951",
+    "sha256": "66995814d442ca74f654c1b30a51e77f051204894f9ecba9f795595305db1a5b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -1150,7 +1150,7 @@
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
           "reconstruction/src/view-projector/view-projector.ts:57 «5a17c9e48f0764cf»",
           "reconstruction/src/view-projector/view-projector.ts:75 «9ba76e26a91077ec»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:52 «45d531fd83f0c3c0»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «45d531fd83f0c3c0»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:31 «1ac262efc21a4235»"
         ]
       },

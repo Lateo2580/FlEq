@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b117d77a234640203a68f72e9d090249ce6d14bb",
-    "sha256": "6da477c5937cd9119124858d7062b1d66cd750aad364fe0e256543184c1141b8",
+    "sha256": "1c7a3af34c049e7200cc2f15e6b0b4b789e325ac57dcdd1613b87526f6c65694",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -252,11 +252,11 @@
         "id": "P3-OPCAP-AC01",
         "requirement": "退去の適格性をoperationで先に絞る（D-OPERATION=A、P3-X-C5のoperationの軸、監査F04）。U-T・U-V・U-L・U-Rの容量の退去で、受ける報がtraining/testなら、normalの記録はactive・非activeとも（取消・解除・終了の記憶、retainUntilを過ぎた記録もD-PAST-RETENTIONの裁定案Aでは含む）退去の候補にしない。候補は受ける報と同じ区分に限らず、training/testの記録だけ。候補の中の順位（期限切れ→非active→active、ReportDateTimeの古い順）と、受ける報がnormalのときの順（normal同士を含む）は今のまま。候補が尽きたとき: U-Tは今どおりcapacityExceeded（state・nextDeadline不変、Q-OPCAP-T-FORM）、U-V・U-L・U-Rは今どおり受けた記録自身を退去する（AC02）。U-Tの件数（VTSE41・観測family）・station・4 MiBの4つの上限と、VTSE41の退去に連れて消えるforecastEndedの観測（P3-C5-OBS-LIFETIME=A、同じoperation）にも同じ規則を当てる。U-VはVFVO51の全国の解説の警報entryの退去（evictOneの同じ関数）も同じ。受入（反例をそのまま回帰試験にする）: (a) U-T: VTSE41のnormal 512件（EventIDの1件は取消の記憶でretainUntilは時計より後、ReportDateTimeは古い報より新しい）にtrainingの513件目を受けるとcapacityExceededで取消の記憶が残り、その後の同じEventIDの古い報はunchanged/stale。training 1件を含む512件ならtrainingを退去して受け、取消の記憶は残る。(b) U-V・U-L・U-R: 満杯（128・128・512）のうち1件がnormalの非active（取消・ended）、ほかがnormalのactiveのとき、trainingの報を受けても非activeの記録は残り（配列の参照も同じ）、受けた記録が自身を退去する。training 1件を含む満杯ならtrainingを退去して受け、normalの非activeは残る。触った関数（U-Tのfit・tier、U-V・U-L・U-RのevictOne）の上のコメントは新しい規則（受ける報がtraining/testならnormalを(1)〜(4)とも候補にしない）に合わせる（AGENTS.md、触った関数の中のコメント）。",
         "evidenceRefs": [
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:194 «e5ad455674e6937c»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:197 «9f38751af6226203»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:207 «27ee60c18155c859»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:235 «c3326b6d302e8d39»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:493 «46c0c5316dc012ab»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:200 «e5ad455674e6937c»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:203 «9f38751af6226203»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:213 «27ee60c18155c859»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:241 «c3326b6d302e8d39»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:512 «46c0c5316dc012ab»",
           "reconstruction/src/units/volcano/volcano-unit.ts:150 «dbcffbfa7834c13a»",
           "reconstruction/src/units/landslide/landslide-unit.ts:97 «a21bc597eb9220e7»",
           "reconstruction/src/units/flood/flood-unit.ts:97 «c3fdb4da492ae472»",
@@ -265,7 +265,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:838 «6700bf4f0886c1a2»",
           "reconstruction/src/units/landslide/landslide-unit.ts:105 «cafff1643f57f709»",
           "reconstruction/src/units/flood/flood-unit.ts:105 «cafff1643f57f709»",
-          "reconstruction/contracts/p3-tsunami-unit.json:94 «934d7b48c0b68a8d»",
+          "reconstruction/contracts/p3-tsunami-unit.json:94 «e633b2364d9ceee3»",
           "reconstruction/contracts/p3-tsunami-unit.json:380 «fafb75ce989bb59a»",
           "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
           "reconstruction/contracts/p3-volcano-unit.json:396 «b4eb64d556c1a550»",
@@ -294,8 +294,8 @@
           "reconstruction/contracts/p3-final-adoption.json:44 «f8fbec304d91cf5b»",
           "reconstruction/contracts/p3-final-adoption.json:58 «e5bdfce24f1ce39c»",
           "reconstruction/contracts/p3-final-adoption.json:268 «1f764a4407ab71be»",
-          "reconstruction/contracts/p3-final-adoption.json:324 «7922790fe40b6814»",
-          "reconstruction/contracts/p2-shared-runtime.json:189 «837f02f3e547f030»"
+          "reconstruction/contracts/p3-final-adoption.json:322 «7922790fe40b6814»",
+          "reconstruction/contracts/p2-shared-runtime.json:189 «92f0f28d2bb03980»"
         ]
       },
       {
@@ -306,7 +306,7 @@
           "reconstruction/src/units/landslide/landslide-unit.ts:318 «f4ab89453868eb8d»",
           "reconstruction/src/units/landslide/landslide-unit.ts:321 «0a252c057ef91ea5»",
           "reconstruction/src/units/flood/flood-unit.ts:284 «b6870a370007c3eb»",
-          "reconstruction/contracts/p3-final-adoption.json:512 «7e91018d311e9d28»",
+          "reconstruction/contracts/p3-final-adoption.json:510 «7e91018d311e9d28»",
           "reconstruction/contracts/p3-order-plan.md:355 «790390a653f0f301»"
         ]
       },
@@ -317,21 +317,21 @@
           "reconstruction/src/units/weather-current/weather-current-unit.ts:455 «01309d4f1a2b6156»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:459 «59ed3d62d2eb225e»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:467 «8e65a668ea16efc3»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:578 «81ed2949a526f740»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:599 «ab25e7bdf167d89b»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:600 «1cfa7af3edd33400»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:629 «107712d22a266c72»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:581 «81ed2949a526f740»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:602 «ab25e7bdf167d89b»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:603 «1cfa7af3edd33400»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:632 «107712d22a266c72»",
           "reconstruction/contracts/p2-weather-current-unit.json:39 «7f2ae36e32f02124»",
           "reconstruction/contracts/p2-weather-current-unit.json:188 «9346f13f46100255»",
-          "reconstruction/contracts/p2-weather-current-unit.json:443 «a91d1d385759e031»",
-          "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:744 «e0bf06ac27ea774d»"
+          "reconstruction/contracts/p2-weather-current-unit.json:443 «b464a5b3b9a96307»",
+          "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:768 «e0bf06ac27ea774d»"
         ]
       },
       {
         "id": "P3-OPCAP-AC05",
         "requirement": "既存条文の読み替え（旧契約の本文は変えない）。(1) U-T: P3-C5-CAPACITY=A（p3-tsunami-unit.json:94）の退去の候補 (1)(2)(3) は、受ける報がtraining/testならtraining/testの記録だけと読む（AC01）。operationContractの「training/test受理でnormalを退去させない」（:380）はAC01で満たす。(2) U-V・U-L・U-R: P3-C9-CAPACITY=A（p3-volcano-unit.json:132）・P3-C10-CAPACITY=A（p3-landslide-unit.json:88）・P3-C11-CAPACITY=A（p3-flood-unit.json:122）の (1)(2) は受ける報がtraining/testならtraining/testの記録だけ、「(1)〜(3)が無ければ受けた記録自身を退去する」は「training/testの記録が無ければ」と読む。自身の退去の「changed/semantic」はAC02(1)のchanged/revisionOnly（currentEstablished null・acceptedのsubjects空）に読み替える。testMappingの同じ文（p3-volcano-unit.json:1219・p3-landslide-unit.json:862・p3-flood-unit.json:996）も同じ。operationContractの「training/test受理でnormalを先に退去させない」（:396・:333・:384）は「先に」を外して読む。U-Lのpersistedの「training/testの報が自分自身を退去しただけの受理…保存世代を進めない」（p3-landslide-unit.json:273）・U-Rの同じ文（p3-flood-unit.json:319）は変えない。(3) U-L: K3のP3-FINAL-AC05とT05（p3-final-adoption.json:324・:430）の「acceptedのsubjectのtransitionはended」は、AC02(2)の「accepted.subjectsは空・currentEstablished null」に置き換える（保存世代を進める・旧activeを消すは残す）。K3のAC02(7)とD-L-OUTCOME=C（:41・:44）はこの契約で満たし、K3の残存リスク(3)のU-L・(4)・(5)は解消する。(4) U-W: P2-A5-AC11（p2-weather-current-unit.json:443）とR11=A（:39）の「normalの受理」はAC04の範囲（採用・終了・取消。件数の拒否を除く）と読む。(5) K3のP3-FINAL-AC01とT01〜T03（p3-final-adoption.json:241）は変えずに保つ（Q-OPCAP-K3-OBLIGATIONS(1)）。(6) U-B（C12）: P3-C12-CAPACITY=A（p3-briefing-unit.json:139）とoperationContract（:386）はK4で変えず、C12の再開条件（p3-order-plan.md:389）で本契約のAC01・AC02とD-PAST-RETENTIONの裁定に揃える（Q-OPCAP-C12）。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-tsunami-unit.json:94 «934d7b48c0b68a8d»",
+          "reconstruction/contracts/p3-tsunami-unit.json:94 «e633b2364d9ceee3»",
           "reconstruction/contracts/p3-tsunami-unit.json:380 «fafb75ce989bb59a»",
           "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
           "reconstruction/contracts/p3-volcano-unit.json:396 «b4eb64d556c1a550»",
@@ -345,10 +345,10 @@
           "reconstruction/contracts/p3-flood-unit.json:384 «85bb90d02582a4f6»",
           "reconstruction/contracts/p3-flood-unit.json:996 «eb9b809d69d4b949»",
           "reconstruction/contracts/p3-final-adoption.json:241 «743912693175cd64»",
-          "reconstruction/contracts/p3-final-adoption.json:324 «7922790fe40b6814»",
-          "reconstruction/contracts/p3-final-adoption.json:430 «dbb957933255793a»",
+          "reconstruction/contracts/p3-final-adoption.json:322 «7922790fe40b6814»",
+          "reconstruction/contracts/p3-final-adoption.json:428 «dbb957933255793a»",
           "reconstruction/contracts/p2-weather-current-unit.json:39 «7f2ae36e32f02124»",
-          "reconstruction/contracts/p2-weather-current-unit.json:443 «a91d1d385759e031»",
+          "reconstruction/contracts/p2-weather-current-unit.json:443 «b464a5b3b9a96307»",
           "reconstruction/contracts/p3-briefing-unit.json:139 «ae03fec729655ed0»",
           "reconstruction/contracts/p3-briefing-unit.json:509 «05f747539ae9baa7»",
           "reconstruction/contracts/p3-order-plan.md:389 «7939e6ac68fba854»"

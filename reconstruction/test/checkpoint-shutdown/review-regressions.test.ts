@@ -203,7 +203,7 @@ it("R25 regression / AC02,AC05: a forged result reply cannot bypass durability v
   h.root.receive("deferred", { kind: "checkpointDone", grantId: "forged", unit: "U-F", result: fabricated, measurements: [],
     grantStartedMs: null, writeCounts: null, output: { units: [{ unit: "U-F", persistence: { kind: "saved", currentGeneration: 1, savedGeneration: 1,
       savedCapturedAt: attempt.capturedAt, savedAckAt: clock.wallTimeMs, dirtySince: null },
-    admissionCounts: { normal: 0, training: 0, test: 0 }, view: null, pendingIntents: null }],
+    view: null, pendingIntents: null }],
     outcomes: [], displayChanges: [], confirmationEvidence: [], retiredEvents: [], diagnostics: [] } });
   expect(h.root.state.mirror["U-F"].persistence.savedGeneration).toBeNull();
   const before = grants(h.h).length;

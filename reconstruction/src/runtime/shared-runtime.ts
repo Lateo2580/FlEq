@@ -28,11 +28,10 @@ import { runtimeUnits } from "./unit-coverage";
 export { validateSemanticEnvelope } from "./owner-runtime";
 
 // P3-EXECUTION-SPLIT-001 (C3a): the publisher's own state. Units live in their owners; the publisher keeps only the
-// bounded mirror each owner reports (view, persistence, admission counts, pending intents) and the cross-unit state:
+// bounded mirror each owner reports (view, persistence, pending intents) and the cross-unit state:
 // confirmation, restoration, notification channels and deadlines, and shutdown (P3-C3A-CONFIRMATION-HOME).
 type MirrorUnit = Readonly<{
   persistence: PersistenceStatus;
-  admissionCounts: Readonly<Record<Operation, number>>;
   view: RuntimeUnitView;
   pendingIntents: readonly NotificationIntent[];
 }>;
@@ -59,7 +58,7 @@ function applyDeltas(mirror: RuntimeMirror, deltas: readonly OwnerUnitDelta[]): 
   for (const delta of deltas) {
     const previous = next[delta.unit];
     if (delta.view != null && delta.view.unit !== delta.unit) throw new Error("owner view of another unit");
-    next[delta.unit] = { persistence: delta.persistence, admissionCounts: delta.admissionCounts,
+    next[delta.unit] = { persistence: delta.persistence,
       view: delta.view ?? previous.view, pendingIntents: delta.pendingIntents ?? previous.pendingIntents };
   }
   return next;
@@ -78,7 +77,22 @@ function confirmOutput(confirmation: RuntimeConfirmation, units: UnitTable, outp
   next = updateScopes(next, units, addedScopes(output.displayChanges), null);
   if (evidenceSequence != null && evidenceSequence > next.afterInputSequence)
     next = applyConfirmationEvidence(next, units, output.confirmationEvidence, clock.wallTimeMs);
+  // 容量の取りこぼしは切断の境界によらず採る（切断の前の入力でも取りこぼし、P3-CC-AC02(2)）。
+  for (const evidence of output.confirmationEvidence) if (evidence.source === "capacityExceeded")
+    for (const scope of evidence.scopes) next = updateConfirmation(next, units, scope.unit, scope.operation, capacityLost);
   return next;
+}
+
+// whole の 1 を capacityExceeded に付け替える。scopes は走査しない（P3-CC-AC02(5)）。重ねても whole の 1 は増えない。
+function capacityLost(slot: ConfirmationSlot): ConfirmationSlot {
+  if (slot.whole === "capacityExceeded") return slot;
+  const counts = { ...slot.counts };
+  if (slot.whole != null) {
+    counts[slot.whole] = (counts[slot.whole] ?? 1) - 1;
+    if (counts[slot.whole] === 0) delete counts[slot.whole];
+  }
+  counts.capacityExceeded = (counts.capacityExceeded ?? 0) + 1;
+  return { ...slot, whole: "capacityExceeded", counts, confirmedAt: null };
 }
 
 function verifyCoverage(confirmation: RuntimeConfirmation, units: UnitTable, runId: string,
@@ -242,10 +256,13 @@ function updateConfirmation(confirmation: RuntimeConfirmation, units: UnitTable,
   const unitBytes = operations.reduce((sum, name) => sum + confirmation.units[unit][name].scopeBytes, 0);
   const unitCount = operations.reduce((sum, name) => sum + confirmation.units[unit][name].scopes.length, 0);
   let slot = update(current, unitBytes, unitCount);
+  // 畳んでも容量の取りこぼしの名前は上書きしない（畳んだことは whole の未確認に含まれる、P3-CC-AC02(3)）。
   if (unitBytes - current.scopeBytes + slot.scopeBytes > 1_048_576
-    || unitCount - current.scopes.length + slot.scopes.length > units[unit].confirmationScopeLimit)
-    slot = { whole: "scopeCapacity", counts: { scopeCapacity: 1 }, confirmedScopeCount: 0,
-      scopeBytes: 2, scopes: [], confirmedAt: null };
+    || unitCount - current.scopes.length + slot.scopes.length > units[unit].confirmationScopeLimit) {
+    const kept = slot.whole === "capacityExceeded";
+    slot = { whole: kept ? "capacityExceeded" : "scopeCapacity", counts: kept ? { capacityExceeded: 1 } : { scopeCapacity: 1 },
+      confirmedScopeCount: 0, scopeBytes: 2, scopes: [], confirmedAt: null };
+  }
   if (slot === current) return confirmation;
   return { ...confirmation, units: { ...confirmation.units,
     [unit]: { ...confirmation.units[unit], [operation]: slot } } };
@@ -323,7 +340,7 @@ function updateScopes(confirmation: RuntimeConfirmation, units: UnitTable, incom
 
 function applyConfirmationEvidence(confirmation: RuntimeConfirmation, units: UnitTable,
   evidence: readonly CurrentConfirmationEvidence[], at: number): RuntimeConfirmation {
-  return updateScopes(confirmation, units, evidence.flatMap((item) => item.scopes), at);
+  return updateScopes(confirmation, units, evidence.flatMap((item) => item.source === "acceptedReport" ? item.scopes : []), at);
 }
 
 function addedScopes(changes: readonly RuntimeDisplayChange[]): ConfirmationScope[] {
@@ -408,7 +425,11 @@ function lostConfirmation(confirmation: RuntimeConfirmation, units: UnitTable, a
   for (const unit of runtimeUnits) for (const operation of operations)
     next = updateConfirmation(next, units, unit, operation, (slot) => {
       const scopes = slot.scopes.map((item) => ({ scope: item.scope, reason: "disconnected" as const, confirmedAt: null }));
-      return { whole: "disconnected", counts: { disconnected: scopes.length + 1 },
+      // 容量の取りこぼしの名前は切断で上書きしない（切断は接続の行で別に見える、P3-CC-AC02(3)）。
+      const kept = slot.whole === "capacityExceeded";
+      return { whole: kept ? "capacityExceeded" : "disconnected",
+        counts: kept ? { capacityExceeded: 1, ...scopes.length === 0 ? {} : { disconnected: scopes.length } }
+          : { disconnected: scopes.length + 1 },
         confirmedScopeCount: 0, scopeBytes: 2 + scopes.reduce((sum, item) => sum + scopeBytes(item), Math.max(scopes.length - 1, 0)),
         scopes, confirmedAt: null };
     });

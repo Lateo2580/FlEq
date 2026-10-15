@@ -15,7 +15,6 @@ import type {
   NotificationIntent,
   NotificationIntentUpdate,
   ParserDiagnosticProjection,
-  RuntimeAdmissionCounts,
   RuntimeDisplayChange,
   RuntimeInput,
   RuntimePublishedOutcome,
@@ -208,12 +207,6 @@ function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
     || earthquake.unit !== "U-Q" || nankai.unit !== "U-N" || volcano.unit !== "U-V"
     || landslide.unit !== "U-L" || flood.unit !== "U-R" || briefing.unit !== "U-B"
     || localBulletins.unit !== "U-M" || typhoon.unit !== "U-Y") throw new Error("mirror view of another unit");
-  const admissionCounts: RuntimeAdmissionCounts = { "U-E": state.mirror["U-E"].admissionCounts,
-    "U-W": state.mirror["U-W"].admissionCounts, "U-F": state.mirror["U-F"].admissionCounts, "U-T": state.mirror["U-T"].admissionCounts,
-    "U-Q": state.mirror["U-Q"].admissionCounts, "U-N": state.mirror["U-N"].admissionCounts,
-    "U-V": state.mirror["U-V"].admissionCounts, "U-L": state.mirror["U-L"].admissionCounts,
-    "U-R": state.mirror["U-R"].admissionCounts, "U-B": state.mirror["U-B"].admissionCounts,
-    "U-M": state.mirror["U-M"].admissionCounts, "U-Y": state.mirror["U-Y"].admissionCounts };
   return {
     // An invalid clock is passed through unrounded; A8 rejects it as snapshotClockInvalid.
     streamId, generatedAt: Number.isNaN(date.getTime()) ? String(nowMs) : date.toISOString(), nowMs, connection, worker,
@@ -222,7 +215,7 @@ function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
       "U-N": state.mirror["U-N"].persistence, "U-V": state.mirror["U-V"].persistence,
       "U-L": state.mirror["U-L"].persistence, "U-R": state.mirror["U-R"].persistence, "U-B": state.mirror["U-B"].persistence, "U-M": state.mirror["U-M"].persistence,
       "U-Y": state.mirror["U-Y"].persistence },
-    recovery: state.restoration, confirmation: state.confirmation, admissionCounts,
+    recovery: state.restoration, confirmation: state.confirmation,
     notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
     eew, weatherCurrent, weatherTimeseries, tsunami, earthquake, nankai, volcano, landslide, flood, briefing, localBulletins, typhoon, outcomes: step.outcomes, displayChanges: step.displayChanges,
   };
@@ -533,7 +526,7 @@ class RuntimeCompositionRoot {
     const mirror: Partial<Record<RuntimeUnitId, MirrorUnit>> = {};
     const restoration: Partial<Record<RuntimeUnitId, PublisherState["restoration"][RuntimeUnitId]>> = {};
     for (const place of places) for (const unit of this.restored.get(place)!.units) {
-      mirror[unit.unit] = { persistence: unit.persistence, admissionCounts: unit.admissionCounts, view: unit.view,
+      mirror[unit.unit] = { persistence: unit.persistence, view: unit.view,
         pendingIntents: unit.pendingIntents };
       restoration[unit.unit] = unit.restoration;
     }
@@ -992,7 +985,7 @@ class RuntimeCompositionRoot {
     const state = this.state;
     return {
       intents: runtimeUnits.flatMap((unit) => this.deliverableIntents(unit).filter((intent) =>
-        !this.inFlightKeys.has(intentKey(intent)) && (intent.operation !== "normal" || state.mirror[unit].admissionCounts.normal === 0))),
+        !this.inFlightKeys.has(intentKey(intent)))),
       channels: state.notificationChannels, deadlines: state.notificationDeadlines,
     };
   }

@@ -52,7 +52,6 @@ describe("P3-UNIT-R-001 U-R corpus history", () => {
       const material = decodeFixture(fixture.path);
       const step = receive(emptyState(), material, clock(Date.parse(material.reportDateTimeRaw)));
       const after = reduceFloodUnit(step.state, { kind: "deadline", clock: clock(Date.parse(material.reportDateTimeRaw) + 1) }).state;
-      expect(Object.keys(toFloodView(after).admission), id).toEqual([]);
       rejected.push(...step.decisions.filter((item) => item.decision === "rejected").map(() => id));
     }
     expect(rejected).toEqual([]);

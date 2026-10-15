@@ -70,7 +70,6 @@ describe("P3-UNIT-M-001 U-M corpus history", () => {
       const material = decodeFixture(fixture.path);
       const step = receive(emptyState(), material, clock(Date.parse(material.reportDateTimeRaw)));
       const after = reduceLocalBulletinsUnit(step.state, { kind: "deadline", clock: clock(Date.parse(material.reportDateTimeRaw) + 1) }).state;
-      expect(Object.keys(toLocalBulletinsView(after).admission), id).toEqual([]);
       if (step.decisions.some((item) => item.decision === "rejected")) rejected.push(id);
       else if ([...step.state.tornado, ...step.state.heat, ...step.state.transient].some((item) => item.effective === "cancelled")) cancelled++;
     }

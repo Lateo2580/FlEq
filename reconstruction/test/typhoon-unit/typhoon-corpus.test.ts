@@ -92,7 +92,6 @@ describe("P3-UNIT-Y-001 U-Y corpus history", () => {
       const material = decodeFixture(fixture.path);
       const step = receive(emptyState(), material, clock(Date.parse(material.reportDateTimeRaw)));
       const after = reduceTyphoonUnit(step.state, { kind: "deadline", clock: clock(Date.parse(material.reportDateTimeRaw) + 1) }).state;
-      expect(Object.keys(toTyphoonView(after).admission), id).toEqual([]);
       if (step.decisions.some((item) => item.decision === "rejected")) rejected.push(id);
       else if ([...step.state.analysis, ...step.state.probability].some((item) => item.effective === "cancelled")) cancelled++;
     }

@@ -83,7 +83,7 @@ const UNAVAILABLE_KEYS = ["capacityExceeded", "historyUnavailable", "coverageInc
 const UNKNOWN_KEYS = ["unknown", "missing", "empty"] as const;
 const FRESHNESS_KEYS = ["headMissing", "reportDateTimeMissing", "reportDateTimeInvalid", "identityMissing",
   "identityInvalid", "requiredStructureMissing", "requiredStructureInvalid", "stale"] as const;
-const UNCONFIRMED_KEYS: readonly UnconfirmedReason[] = ["startup", "disconnected", "scopeCapacity", "scopeRetired"];
+const UNCONFIRMED_KEYS: readonly UnconfirmedReason[] = ["startup", "disconnected", "scopeCapacity", "scopeRetired", "capacityExceeded"];
 const SEVERITY_RANK: readonly DisplaySeverity[] = ["specialWarning", "danger", "warning", "advisory", "forecast", "below", "none"];
 const NOTICE_FAMILIES: readonly DisplayNoticeSource["family"][] = ["VXSE43", "VXSE45", "VPWS50", "VPWW55", "VPWW57",
   "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50", "VPWP50"];
@@ -122,7 +122,7 @@ type Tally = {
   unavailable: Row["unavailable"];
   unknownCode: Row["unknownCode"];
   freshness: Row["freshness"];
-  // U-E only: the non-terminal current's event, independent of the normal mask (notice identity).
+  // U-E only: the non-terminal current's event (notice identity).
   event: Readonly<{ key: string; eventId: string; warningClass: "forecast" | "warning"; source: ReportRef }> | null;
 };
 type EventRef = Readonly<{ forecast: number; warning: number }>;
@@ -132,7 +132,7 @@ type EventTransition = { operation: Operation; eventId: string; before: "forecas
 type Change = Readonly<{ unit: RuntimeUnitId; operation: Operation; subject: string;
   before: RuntimeDisplaySubject | null; after: RuntimeDisplaySubject | null }>;
 type AnyView = RuntimeUnitView;
-type Meta = Readonly<{ admission: Readonly<Record<Operation, number>>; confirmation: RuntimeConfirmation["units"][RuntimeUnitId] }>;
+type Meta = Readonly<{ confirmation: RuntimeConfirmation["units"][RuntimeUnitId] }>;
 // Keys JSON.stringify([unit, operation, subject]) of this step's accepted semantic A1 outcomes.
 type Gates = ReadonlySet<string>;
 
@@ -179,20 +179,14 @@ function addTime(tally: Tally, source: ReportRef | null): void {
   if (at != null) bump(tally.times, `${tally.operation}|${at}`);
 }
 
-function masked(view: AnyView | null, operation: Operation): boolean {
-  // Q-R20-CLEAR: the normal publication mask is visible to A8 only as the view's admission flag.
-  return view != null && operation === "normal" && view.admission.normal != null;
-}
-
-function eewTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function eewTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-E" || value.current == null) return null;
   const current = value.current;
   const tally = emptyTally(value.operation);
-  if (!hidden) tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
+  tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   if (current.terminal) return tally;
   tally.event = { key: `${value.operation}|${current.eventId}`, eventId: current.eventId,
     warningClass: current.warningClass, source: current.source };
-  if (hidden) return tally;
   for (const area of current.prediction.areas)
     if (area.code !== "") bump(tally.areas, `${value.operation}|eewArea|${area.code}`);
   addTime(tally, current.source);
@@ -205,17 +199,15 @@ const WEATHER_AREA_SYSTEM: ReadonlyMap<string, DisplayAreaSystem> = new Map([
   [WARNING_TYPES[3], "municipality"], [WARNING_TYPES[4], "stormSurge"], [VPNO_TYPE, "prefecture"],
 ]);
 
-function weatherTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function weatherTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-W") return null;
   const operation = value.operation;
   const tally = emptyTally(operation);
   const current = value.current;
   // A5 keeps restored references in subjects but out of national/partials until re-adopted.
   const restored = current != null && value.subjects[0]?.transition === "restoredUnconfirmed";
-  value.subjects.forEach((item, index) => {
-    if (!(index === 0 && current != null && hidden)) tally.bytes += utf8(item);
-  });
-  if (current != null && !hidden && !restored)
+  for (const item of value.subjects) tally.bytes += utf8(item);
+  if (current != null && !restored)
     tally.bytes += utf8(current) + (current.scope === "national" ? utf8(operation) + 1 : 0);
   if (current != null && !restored) {
     let active = false;
@@ -231,17 +223,18 @@ function weatherTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tal
           areaActive = true;
           if (severity == null) count(tally.unknownCode, "unknown", 1);
         }
-        if (severity != null && !hidden) bump(tally.severities, `${operation}|${severity}`);
+        if (severity != null) bump(tally.severities, `${operation}|${severity}`);
       }
       if (!areaActive) continue;
       active = true;
       const tuple = parseScopeToken(token);
       const system = tuple == null ? null : WEATHER_AREA_SYSTEM.get(tuple[3]) ?? null;
-      if (tuple != null && system != null && tuple[4] !== "" && !hidden) bump(tally.areas, `${operation}|${system}|${tuple[4]}`);
+      if (tuple != null && system != null && tuple[4] !== "") bump(tally.areas, `${operation}|${system}|${tuple[4]}`);
     }
-    if (active && !hidden) tally.active = 1;
-    // P2-A8-SUMMARY.times: under the normal mask the row keeps this current's unknownCode, so its time still counts.
-    if (active && (!hidden || Object.keys(tally.unknownCode).length !== 0)) addTime(tally, current.source);
+    if (active) {
+      tally.active = 1;
+      addTime(tally, current.source);
+    }
   }
   for (const record of value.unavailable) {
     count(tally.unavailable, record.reason, 1);
@@ -256,12 +249,12 @@ function weatherTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tal
   return tally;
 }
 
-function timeseriesTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function timeseriesTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-F" || value.current == null) return null;
   const subject = value.current;
   const operation = value.operation;
   const tally = emptyTally(operation);
-  if (!hidden) tally.bytes = utf8(subject) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
+  tally.bytes = utf8(subject) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   if (subject.effective === "unavailable") {
     if (subject.unavailableReason != null) count(tally.unavailable, subject.unavailableReason, 1);
     addTime(tally, subject.source);
@@ -275,16 +268,9 @@ function timeseriesTally(value: RuntimeDisplaySubject | null, hidden: boolean): 
   }
   // knownCodes は重複を除いた Code なので、severityRefs の件数は period でなく Code の数になる。
   // highest() は有無だけを見るので、公開の値は変わらない。
-  if (!hidden) {
-    for (const code of subject.knownCodes) {
-      const severity = TIMESERIES_SEVERITY.get(code);
-      if (severity != null) bump(tally.severities, `${operation}|${severity}`);
-    }
-  }
-  if (hidden) {
-    // P2-A8-SUMMARY.times: the masked row keeps this subject's unknownCode, so its time still counts.
-    if (Object.keys(tally.unknownCode).length !== 0) addTime(tally, subject.source);
-    return tally;
+  for (const code of subject.knownCodes) {
+    const severity = TIMESERIES_SEVERITY.get(code);
+    if (severity != null) bump(tally.severities, `${operation}|${severity}`);
   }
   tally.active = 1;
   for (const area of subject.areaCodes) bump(tally.areas, `${operation}|forecastArea|${area}`);
@@ -297,16 +283,16 @@ const TSUNAMI_SEVERITY: Readonly<Partial<Record<TsunamiAreaClass, DisplaySeverit
   majorWarning: "specialWarning", warning: "warning", unknown: "warning", advisory: "advisory", forecast: "forecast",
 };
 
-function tsunamiTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function tsunamiTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-T" || value.current == null) return null;
   const current = value.current;
   const operation = value.operation;
   const tally = emptyTally(operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   if ("areas" in current) {
-    // 発令中の件数は VTSE41 の subject で数え、観測は観測点の数だけを載せる。
+    // 発令中の件数は VTSE41 の subject で数え、観測は観測点の数だけを載せる。印のある予報も最終確認として数える（P3-CC-D-SHOW=A）。
     tally.active = 1;
+    if (current.unavailable != null) count(tally.unavailable, "capacityExceeded", 1);
     for (const area of current.areas) {
       const severity = TSUNAMI_SEVERITY[area.areaClass];
       if (severity == null) continue;
@@ -328,15 +314,16 @@ function tsunamiTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tal
 const SEISMIC_AREA: Readonly<Record<SeismicIntensityItem["level"], DisplayAreaSystem>> = {
   pref: "prefecture", area: "seismicArea", city: "municipality", station: "seismicStation" };
 
-function seismicTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function seismicTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-Q" || value.current == null) return null;
   const current = value.current;
   const operation = value.operation;
   const tally = emptyTally(operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   const event = "sources" in current;
   if (event) tally.active = 1;
+  // event は印の family の数によらず記録 1 つで 1（P3-CC-AC03(5)）。
+  if (current.unavailable != null) count(tally.unavailable, "capacityExceeded", 1);
   for (const item of current.intensity?.items ?? [])
     if (item.code != null) bump(tally.areas, `${operation}|${SEISMIC_AREA[item.level]}|${item.code}`);
   for (const source of event ? current.sources : [current.source]) addTime(tally, source);
@@ -344,11 +331,10 @@ function seismicTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tal
 }
 
 // P3-C8-SNAPSHOT=A: 重大度は気象の警報区分の語彙なので写さない（highestSeverity は null）。件数は active の現況で数え、情報は数えない。
-function nankaiTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function nankaiTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-N" || value.current == null) return null;
   const current = value.current;
   const tally = emptyTally(value.operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   if ("line" in current) tally.active = 1;
   addTime(tally, current.source);
@@ -356,11 +342,10 @@ function nankaiTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tall
 }
 
 // P3-C9-SNAPSHOT=A: highestSeverity は null。件数は active の警報・噴火・降灰の記録で数え、解説は数えない。
-function volcanoTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function volcanoTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-V" || value.current == null) return null;
   const current = value.current;
   const tally = emptyTally(value.operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   if (!("family" in current)) tally.active = 1;
   // 警報は source と marineSource の新しい方（P3-C9-MARINE=A、unit の latestSource と同じ）。
@@ -371,12 +356,11 @@ function volcanoTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tal
 }
 
 // P3-C10-SNAPSHOT=A: 重大度は U-W と同じ WEATHER_SEVERITY で Kind/Code から引き、表に無い code は unknownCode の unknown に数える。
-function landslideTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function landslideTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-L" || value.current == null) return null;
   const current = value.current;
   const operation = value.operation;
   const tally = emptyTally(operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   tally.active = 1;
   for (const group of current.kinds) {
@@ -394,12 +378,11 @@ function landslideTally(value: RuntimeDisplaySubject | null, hidden: boolean): T
 // P3-C11-SNAPSHOT=A: 重大度は河川の group の level（2 advisory・3 warning・4 danger・5 specialWarning）。level が null の group と
 // kinds 空の記録は unknownCode の unknown に数える（fail-bright）。
 const FLOOD_SEVERITY: ReadonlyMap<number, DisplaySeverity> = new Map([[2, "advisory"], [3, "warning"], [4, "danger"], [5, "specialWarning"]]);
-function floodTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function floodTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-R" || value.current == null) return null;
   const current = value.current;
   const operation = value.operation;
   const tally = emptyTally(operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   tally.active = 1;
   if (current.kinds.length === 0) count(tally.unknownCode, "unknown", 1);
@@ -416,12 +399,11 @@ function floodTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally
 // item は unknownCode の unknown、items が空の記録は unknownCode の empty に数える（旧築の表示の重さの写し、weather-warning-level.ts）。
 const BRIEFING_SEVERITY: ReadonlyMap<string, DisplaySeverity> = new Map([["linearRainObserved", "specialWarning"], ["recordRain", "specialWarning"],
   ["linearRainPredicted", "warning"], ["shortSnow", "warning"]]);
-function briefingTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function briefingTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-B" || value.current == null) return null;
   const current = value.current;
   const operation = value.operation;
   const tally = emptyTally(operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   tally.active = 1;
   if (current.headType === "VPOA50") bump(tally.severities, `${operation}|specialWarning`);
@@ -436,12 +418,11 @@ function briefingTally(value: RuntimeDisplaySubject | null, hidden: boolean): Ta
 }
 
 // P3-C13-SNAPSHOT=A: 重大度は竜巻の sighted が specialWarning、ほかの竜巻と熱中症が warning、transient は数えない（none、旧築の表示の重さの写し）。
-function localBulletinsTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function localBulletinsTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-M" || value.current == null) return null;
   const current = value.current;
   const operation = value.operation;
   const tally = emptyTally(operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   tally.active = 1;
   if ("sighted" in current) bump(tally.severities, `${operation}|${current.sighted ? "specialWarning" : "warning"}`);
@@ -451,12 +432,11 @@ function localBulletinsTally(value: RuntimeDisplaySubject | null, hidden: boolea
 }
 
 // P3-C14-SNAPSHOT=A: 重大度は見える解析の実況の強さ「猛烈な」が danger、「非常に強い」か大きさ「超大型」が warning、ほかと確率は数えない（none、旧築のカードの重さの写し）。
-function typhoonTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tally | null {
+function typhoonTally(value: RuntimeDisplaySubject | null): Tally | null {
   if (value == null || value.unit !== "U-Y" || value.current == null) return null;
   const current = value.current;
   const operation = value.operation;
   const tally = emptyTally(operation);
-  if (hidden) return tally;
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   tally.active = 1;
   if ("frames" in current) {
@@ -546,12 +526,10 @@ function confirmationState(slot: RuntimeConfirmation["units"][RuntimeUnitId][Ope
 function buildItem(unit: RuntimeUnitId, operation: Operation, row: Row, highestSeverity: DisplaySeverity | null,
   meta: Meta): DisplaySummaryItem {
   const slot = meta.confirmation[operation];
-  const admission = meta.admission[operation];
   return {
     operation, informationType: INFORMATION_TYPE[unit], activeCount: row.activeCount, highestSeverity,
     areaCounts: Object.fromEntries(AREA_SYSTEMS[unit].map((system) => [system, row.areaCounts[system] ?? 0])),
     updatedAt: row.updatedAt,
-    admission: admission > 0 ? { capacityExceeded: admission } : {},
     unavailable: nonZero(UNAVAILABLE_KEYS, row.unavailable),
     unconfirmed: nonZero(UNCONFIRMED_KEYS, slot.counts),
     unknownCode: nonZero(UNKNOWN_KEYS, row.unknownCode),
@@ -588,10 +566,10 @@ function eventClass(value: EventRef | undefined): "forecast" | "warning" | null 
 
 function projectDomain<View extends AnyView>(unit: RuntimeUnitId, previous: DisplayDomainProjection<View> | null,
   view: View, changes: readonly Change[], meta: Meta, previousEvents: EventRefs, gates: Gates,
-  tallyOf: (value: RuntimeDisplaySubject | null, hidden: boolean) => Tally | null): DomainStep<View> {
+  tallyOf: (value: RuntimeDisplaySubject | null) => Tally | null): DomainStep<View> {
   const beforeView = previous?.full.view ?? null;
   if (previous != null && changes.length === 0 && view === beforeView) {
-    // Metadata only (admission counts, confirmation): nine slot reads, no subject or element walk.
+    // Metadata only (confirmation): nine slot reads, no subject or element walk.
     const items = previous.full.items.map((item, index) => buildItem(unit, OPERATIONS[index],
       rowFromItem(item), item.highestSeverity, meta));
     const reuse = JSON.stringify(items) === JSON.stringify(previous.full.items);
@@ -650,8 +628,8 @@ function projectDomain<View extends AnyView>(unit: RuntimeUnitId, previous: Disp
   };
   const tallies: { change: Change; before: Tally | null; after: Tally | null }[] = [];
   for (const change of changes) {
-    const before = previous == null ? null : tallyOf(change.before, masked(beforeView, change.operation));
-    const after = tallyOf(change.after, masked(view, change.operation));
+    const before = previous == null ? null : tallyOf(change.before);
+    const after = tallyOf(change.after);
     if (before != null) apply(before, -1, change);
     if (after != null) apply(after, 1, change);
     tallies.push({ change, before, after });
@@ -662,11 +640,9 @@ function projectDomain<View extends AnyView>(unit: RuntimeUnitId, previous: Disp
   const items = OPERATIONS.map((operation, index) => {
     const row = rows[index];
     if (!COUNTS_BY_WARNING_CLASS[unit]) return buildItem(unit, operation, row, highest(severityRefs, operation), meta);
-    // A4 warningClass only; the normal mask hides current-derived activity (Q-R20-CLEAR).
-    const hidden = masked(view, operation);
+    // A4 warningClass only.
     const events = (severityRefs.get(`${operation}|forecast`) ?? 0) + (severityRefs.get(`${operation}|warning`) ?? 0);
-    return buildItem(unit, operation, { ...row, activeCount: hidden ? 0 : events },
-      hidden ? null : highest(severityRefs, operation), meta);
+    return buildItem(unit, operation, { ...row, activeCount: events }, highest(severityRefs, operation), meta);
   });
   const full = { unit, contentRevision: view.contentRevision, items: [items[0], items[1], items[2]] as const,
     delivery: "full" as const, view };
@@ -818,7 +794,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
       && typeof eventId === "string") invalidated.add(sha256(["U-E", subject.operation, eventId]));
   }
   const byUnit = (unit: RuntimeUnitId) => [...changes.values()].filter((change) => change.unit === unit);
-  const meta = (unit: RuntimeUnitId): Meta => ({ admission: input.admissionCounts[unit], confirmation: input.confirmation.units[unit] });
+  const meta = (unit: RuntimeUnitId): Meta => ({ confirmation: input.confirmation.units[unit] });
   const noEvents: EventRefs = new Map();
   const eew = projectDomain("U-E", previous?.domains.eew ?? null, input.eew, byUnit("U-E"), meta("U-E"),
     previous?.domains.eew.eventRefs ?? noEvents, gates, eewTally);
@@ -862,7 +838,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     // Invalidation wins over generation in the same step.
     if (transition.after == null) invalidated.add(targetId);
     if (invalidated.has(targetId)) continue;
-    if (previous == null || !transition.accepted || masked(input.eew, transition.operation)) continue;
+    if (previous == null || !transition.accepted) continue;
     if (transition.before == null)
       create("U-E", transition.operation, transition.eventId, "eewNew",
         noticeSource("U-E", transition.warningSource ?? transition.anySource, null));

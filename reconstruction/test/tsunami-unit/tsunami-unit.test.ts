@@ -9,8 +9,18 @@ import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
 import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
-import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
-import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
+import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
+import { capturedOwner, checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
+import { selectNotificationAttempt } from "../../src/notification-delivery/notification-delivery";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { UnitTable } from "../../contracts/p3-unit-table.types";
+import type { OwnerReply } from "../../contracts/p3-execution-split.types";
+import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
+import { OwnerHost } from "../../src/runtime/owner-host";
+import { envelope } from "../execution-split/owner-harness";
+import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { toTsunamiView, tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
 import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, observation, receive, run, vtse41 } from "./tsunami-fixture";
@@ -264,14 +274,17 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const withForecasts = (forecasts: readonly TsunamiForecastSubject[]): TsunamiUnitState => ({ ...emptyState(), forecasts });
     const report = (eventId: string, operation: "normal" | "training" = "normal") => decodeXml(vtse41({ eventId, operation,
       at: "2099-01-01T09:00:00+09:00", areas: [{ code: "311", name: "千葉県内房", kind: "51" }] }), "VTSE41");
-    // 511 → 512 は収まり、512 の normal active に 513 件目の normal は capacityExceeded（state・nextDeadline 不変、結果は空）。
+    // 511 → 512 は収まり、512 の normal active に 513 件目の normal は capacityExceeded（記録は不変で結果は空）。
+    // P3-CC-AC10・AC07: 新しい subject には印を付けず、拒否した津波警報の段階の失敗警報と capacityRejected の 1 行だけが入る。
     const full = withForecasts(Array.from({ length: 512 }, (_, index) => clone(index)));
     expect(changed(receive(withForecasts(full.forecasts.slice(1)), report("20990101000001"), at)).decision).toBe("changed");
     const refused = receive(full, report("20990101000001"), at);
-    expect(changed(refused)).toMatchObject({ decision: "capacityExceeded", rejection: { family: "VTSE41", affectedScope: "subject" } });
-    expect(refused.state).toBe(full);
-    expect(refused.nextDeadline).toBeNull();
-    expect([refused.intents, refused.outcomes, refused.diagnostics, refused.displayChanges]).toEqual([[], [], [], []]);
+    expect(changed(refused)).toMatchObject({ decision: "capacityExceeded" });
+    expect(refused.state.forecasts).toBe(full.forecasts);
+    expect(refused.intents.map((item) => [item.subject, item.payload.level, item.channel])).toEqual([
+      ["normal/capacityRejected", "warning", "desktop"], ["normal/capacityRejected", "warning", "sound"]]);
+    expect([refused.outcomes, refused.displayChanges]).toEqual([[], []]);
+    expect(refused.diagnostics.map((item) => item.reason)).toEqual(["capacityRejected"]);
     // training の受理は normal を退去させない。
     expect(changed(receive(full, report("20990101000002", "training"), at)).decision).toBe("capacityExceeded");
     // 監査 F04-T（P3-OPCAP-AC01）: normal の取消の記憶は training の受理で退去せず、取消より古い報は stale のまま。training は退去できる。
@@ -280,7 +293,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const normals = Array.from({ length: 510 }, (_, index) => clone(index + 10));
     const kept = withForecasts([memory, clone(9), ...normals]);
     const trainingRefused = receive(kept, report("20990101000002", "training"), at);
-    expect([changed(trainingRefused).decision, trainingRefused.state === kept]).toEqual(["capacityExceeded", true]);
+    // 記録は退去しない（P3-CC-AC10: 入るのは training の失敗警報だけ）。
+    expect([changed(trainingRefused).decision, trainingRefused.state.forecasts === kept.forecasts]).toEqual(["capacityExceeded", true]);
     expect(changed(receive(kept, report(memory.eventId), at))).toMatchObject({ decision: "unchanged", reason: "stale" });
     const drill = clone(2, { operation: "training" });
     const trainingIn = receive(withForecasts([memory, drill, ...normals]), report("20990101000002", "training"), at).state.forecasts;
@@ -624,6 +638,287 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const reissue = (minutesAfter: number) => receive(late.state, decodeXml(vtse41({ eventId: "20110311144640", at: "2011-03-11T15:30:00+09:00",
       areas: [{ code: "210", name: "岩手県", kind: "51" }] }), "VTSE41"), clock(reported + minutesAfter * 60_000)).state.observations[0].effective;
     expect([reissue(30), reissue(24 * 60 + 10)]).toEqual(["active", "expired"]);
+  });
+});
+
+// P3-CURRENCY-COVERAGE-001（C1）の U-T: 容量の拒否の印、失敗した subject の desktop の title、失敗警報。
+describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
+  const base = Date.parse("2099-01-01T09:00:00+09:00");
+  const at = (minute: number) => clock(base + minute * 60_000, minute);
+  const raw = (minute: number) => `2099-01-01T09:${String(minute).padStart(2, "0")}:00+09:00`;
+  const CC = "normal/VTSE41/20990101000011", FAIL = "normal/capacityRejected";
+  const areas = (count: number, kind = "62") => Array.from({ length: count }, (_, index) =>
+    ({ code: String(100 + index), name: `区域${index}`, kind }));
+  const report = (minute: number, list = areas(1), options: { infoType?: "発表" | "訂正" | "取消"; eventId?: string } = {}) =>
+    decodeXml(vtse41({ at: raw(minute), areas: list, ...options }), "VTSE41");
+  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v1", unit: "U-T", generation: 0,
+    capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62
+    + state.intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
+  // 世代を 4 MiB − slack にする終端記録。終端記録と normal の active の予報は退去の候補にならないので、slack を越える増分は拒否になる。
+  const crowd = (state: TsunamiUnitState, slack: number): TsunamiUnitState => {
+    const template = state.intents[0];
+    const pad = (body: string): TsunamiUnitState => ({ ...state, intents: [...state.intents, { ...template, id: "U-T:pad",
+      disposition: "delivered", expiresAt: template.createdAt + 86_400_000, payload: { ...template.payload, body } }] });
+    const crowded = pad("x".repeat(4_194_304 - slack - generation(pad(""))));
+    expect(generation(crowded)).toBe(4_194_304 - slack);
+    return crowded;
+  };
+  const free = (state: TsunamiUnitState): TsunamiUnitState => ({ ...state, intents: state.intents.filter((item) => item.id !== "U-T:pad") });
+  const markOf = (state: TsunamiUnitState) => forecast(state, CC)?.unavailable;
+  const notices = (state: TsunamiUnitState) => state.intents.filter((item) => item.subject === FAIL);
+  const first = () => receive(emptyState(), report(0), at(0)).state;
+  // 新しい subject の 300 区域の報（拒否される大きさ）。kind 51 は warning、52 は critical。
+  const big = (minute: number, eventId: string, kind = "51") => report(minute, areas(300, kind), { eventId });
+
+  it("P3-CC-T04 contractBoundary / AC03(3): a mark stays on an older adoption and leaves on the same, a newer or a cancelling one", () => {
+    const wide = report(3, areas(300));
+    const rejected = receive(crowd(first(), 5_000), wide, at(3));
+    expect(changed(rejected)).toEqual({ subject: CC, operation: "normal", decision: "changed", reason: null, change: "semantic",
+      currentEstablished: null });
+    expect(markOf(rejected.state)).toMatchObject({ reason: "capacityExceeded", source: { reportDateTimeRaw: raw(3) } });
+    expect(forecast(rejected.state, CC)?.source.reportDateTimeRaw).toBe(raw(0));
+    // 印を付けた拒否も失敗そのものを 1 行残し（AC07）、unit の未確認にはしない。
+    expect(rejected.diagnostics).toEqual([{ level: "WARN", component: "tsunami", reason: "capacityRejected", unit: "U-T",
+      inputId: wide.inputId }]);
+    expect(rejected.confirmationEvidence).toEqual([]);
+    const older = receive(rejected.state, report(2), at(4));
+    expect([forecast(older.state, CC)?.source.reportDateTimeRaw, markOf(older.state)?.source.reportDateTimeRaw]).toEqual([raw(2), raw(3)]);
+    const room = free(older.state);
+    for (const [label, material] of [["same", report(3, areas(300))], ["newer", report(5)], ["cancel", report(3, [], { infoType: "取消" })]] as const) {
+      const cleared = receive(room, material, at(6));
+      expect(changed(cleared).decision, label).toBe("changed");
+      expect(forecast(cleared.state, CC), label).not.toHaveProperty("unavailable");
+      if (label === "cancel") expect(forecast(cleared.state, CC)?.effective).toBe("cancelled");
+    }
+  });
+
+  it("P3-CC-T04 contractBoundary / AC03(2): a rejection no newer than the mark is covered by it and does not unconfirm the unit", () => {
+    const marked = receive(crowd(first(), 5_000), report(3, areas(300)), at(3)).state;
+    // 同じ報の再送と、記録より新しく印より古い報。どちらも印が覆うので負の証拠を返さず、decision は capacityExceeded のまま。
+    for (const material of [report(3, areas(300)), report(2, areas(300))]) {
+      const again = receive(marked, material, at(4));
+      expect(changed(again)).toEqual({ subject: CC, operation: "normal", decision: "capacityExceeded" });
+      expect(again.confirmationEvidence).toEqual([]);
+      expect(again.state).toBe(marked);
+    }
+  });
+
+  it("P3-CC-T16 contractBoundary / AC10(2): from one full state a warning rejection adds the failure notice, advisory and observation ones do not", () => {
+    // 件数の上限で拒否が起き、世代には失敗警報の入る余りがある state: VTSE41 の 512 件と VTSE51 の観測点 1,024 点。
+    // 取消は外す: 取消を拒否させるには世代を満たすしかなく、そこでは失敗警報も入らないので段階の門を区別できない。
+    const plain = first(), seed = plain.forecasts[0];
+    const clone = (index: number): TsunamiForecastSubject => {
+      const eventId = String(20980101000000 + index), subject = `normal/VTSE41/${eventId}`;
+      return { ...seed, eventId, subject, source: { ...seed.source, subject } };
+    };
+    let full: TsunamiUnitState = { ...plain, forecasts: [seed, ...Array.from({ length: 511 }, (_, index) => clone(index + 1))] };
+    for (let filler = 0; filler < 4; filler++) full = receive(full, decodeXml(observation({ eventId: `2099010100010${filler}`, at: raw(1),
+      serial: 1, stations: Array.from({ length: 256 }, (_, index) => ({ code: String(30_000 + filler * 256 + index) })) }), "VTSE51"), at(1)).state;
+    expect(full.observations.reduce((sum, item) => sum + item.stations.length, 0)).toBe(1_024);
+    for (const [label, material, count] of [["warning", report(3, areas(1, "51"), { eventId: "20990101000020" }), 2],
+      ["advisory", report(3, areas(1, "62"), { eventId: "20990101000021" }), 0],
+      ["observation", decodeXml(observation({ eventId: "20990101000022", at: raw(3), serial: 1, stations: [{ code: "21001" }] }), "VTSE51"), 0],
+    ] as const) {
+      const refused = receive(full, material, at(3));
+      expect(changed(refused).decision, label).toBe("capacityExceeded");
+      expect(notices(refused.state), label).toHaveLength(count);
+    }
+  });
+
+  it("P3-CC-T05 contractBoundary / AC03(2)・AC04(3): without room for the mark only the desktop title changes, without room for that nothing", () => {
+    const pending = (state: TsunamiUnitState) => state.intents.filter((item) => item.disposition === "pending")
+      .map((item) => [item.id, item.channel, item.payload.title, item.expiresAt]);
+    // 印（ReportRef 1 つ、約 300 byte）は入らず、title の『【09:00 発表】』（18 byte）は入る。
+    const tight = crowd(first(), 100);
+    const step = receive(tight, report(3, areas(300)), at(3));
+    expect(changed(step)).toEqual({ subject: CC, operation: "normal", decision: "capacityExceeded" });
+    expect(step.state.forecasts).toBe(tight.forecasts);
+    expect(step.confirmationEvidence).toEqual([{ source: "capacityExceeded", scopes: [{ unit: "U-T", operation: "normal", kind: "unit" }] }]);
+    expect(pending(step.state)).toEqual(pending(tight).map(([id, channel, title, expiresAt]) =>
+      [id, channel, channel === "desktop" ? `【09:00 発表】${title}` : title, expiresAt]));
+    const full = crowd(first(), 5);
+    expect(receive(full, report(3, areas(300)), at(3)).state).toBe(full);
+  });
+
+  it("P3-CC-T09 contractBoundary / AC05: keyless saves restore, marks and failure notices round-trip, and foreign marks are invalid", () => {
+    const roundTrip = (state: TsunamiUnitState) => tsunamiUnitCodec.decode(JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(state))) as JsonValue);
+    const plain = roundTrip(first());
+    expect(plain.kind === "restored" && plain.state.forecasts[0]).not.toHaveProperty("unavailable");
+    const marked = receive(crowd(first(), 5_000), report(3, areas(300)), at(3)).state;
+    const both = receive(marked, big(4, "20990101000012"), at(4)).state;
+    expect(notices(both).map((item) => item.payload.level)).toEqual(["warning", "warning"]);
+    const decoded = roundTrip(both);
+    if (decoded.kind !== "restored") throw new Error("marked state does not restore");
+    expect([decoded.state.forecasts, decoded.state.intents]).toEqual([both.forecasts, both.intents]);
+    type Row = Record<string, unknown>;
+    const value = JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(both))) as { forecasts: Row[]; observations: Row[]; intents: Row[] };
+    const mark = value.forecasts[0].unavailable as Row, source = mark.source as Row;
+    const withMark = (patch: Row) => ({ ...value, forecasts: [{ ...value.forecasts[0], unavailable: { ...mark, ...patch } }] });
+    const observed = JSON.parse(JSON.stringify(receive(emptyState(), decodeXml(observation({ at: raw(1), serial: 1,
+      stations: [{ code: "21001" }] }), "VTSE51"), at(1)).state.observations[0])) as Row;
+    const notice = value.intents.find((item) => item.subject === FAIL)!;
+    const invalid: [string, unknown][] = [
+      ["reason", withMark({ reason: "historyUnavailable" })],
+      ["source missing", withMark({ source: undefined })],
+      ["other operation", withMark({ source: { ...source, operation: "training", subject: "training/VTSE41/20990101000011" } })],
+      ["other EventID", withMark({ source: { ...source, subject: "normal/VTSE41/20990101000099" } })],
+      ["other family", withMark({ source: { ...source, family: "VTSE51" } })],
+      ["released record", { ...value, forecasts: [{ ...value.forecasts[0], effective: "released", areas: [], retainUntil: 1 }] }],
+      ["observation", { ...value, observations: [{ ...observed, unavailable: mark }] }],
+      ["notice of another unit", { ...value, intents: [...value.intents, { ...notice, id: "x", source: { ...(notice.source as Row),
+        subject: "normal/VXSE53/20990101000012", family: "VXSE53" } }] }],
+      ["notice of another operation", { ...value, intents: [...value.intents, { ...notice, id: "y", source: { ...(notice.source as Row),
+        operation: "training", subject: "training/VTSE41/20990101000012" } }] }],
+    ];
+    for (const [label, payload] of invalid) expect(tsunamiUnitCodec.decode(JSON.parse(JSON.stringify(payload)) as JsonValue).kind, label).toBe("invalid");
+  });
+
+  it("P3-CC-T17 contractBoundary / AC10(5): a failure notice without room is not added and the lighter one stays pending", () => {
+    const warned = receive(crowd(first(), 5_000), big(3, "20990101000012"), at(3)).state;
+    const light = notices(warned);
+    expect(light.map((item) => [item.payload.level, item.disposition])).toEqual([["warning", "pending"], ["warning", "pending"]]);
+    // 世代: 昇格の失敗警報 2 件（約 1 KB）が入らなければ、昇格もせず軽い失敗警報がそのまま残り、何も退去しない。
+    const exact = crowd(free(warned), 300);
+    const byGeneration = receive(exact, big(4, "20990101000013", "52"), at(4));
+    expect(changed(byGeneration).decision).toBe("capacityExceeded");
+    expect(byGeneration.state).toBe(exact);
+    // 件数: pending が 128 件なら最初の失敗警報も入らない（置き換える軽い失敗警報が無いので件数が増える）。
+    const plain = first();
+    const filler = intentsOf("normal/VTSE41/20990101000099", 128 - plain.intents.filter((item) => item.disposition === "pending").length,
+      "info", base);
+    const counted = crowd({ ...plain, intents: [...plain.intents, ...filler] }, 5_000);
+    const byCount = receive(counted, big(4, "20990101000013", "52"), at(4));
+    expect(changed(byCount).decision).toBe("capacityExceeded");
+    expect(byCount.state).toBe(counted);
+    // byte: pending（予約込み）が 131,072 byte の 300 byte 手前なら、件数に余りがあっても失敗警報 2 件（約 1 KB）は入らない。
+    const template = plain.intents[0];
+    const withPending = (body: string): TsunamiUnitState => ({ ...plain, intents: [...plain.intents,
+      { ...template, id: "U-T:pending-pad", payload: { ...template.payload, body } }] });
+    const pendingBytes = (state: TsunamiUnitState) => {
+      const values = state.intents.filter((item) => item.disposition === "pending");
+      return Buffer.byteLength(JSON.stringify(values)) + values.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    };
+    const heavy = withPending("x".repeat(131_072 - 300 - pendingBytes(withPending(""))));
+    expect(pendingBytes(heavy)).toBe(131_072 - 300);
+    const byBytes = crowd(heavy, 5_000);
+    expect(receive(byBytes, big(4, "20990101000013", "52"), at(4)).state).toBe(byBytes);
+  });
+
+  it("P3-CC-T18 contractBoundary / AC10(6)(7): the same or a lighter rejection keeps the notice, a heavier one replaces it, a reclaimed one rings again", () => {
+    const warned = receive(crowd(first(), 5_000), big(3, "20990101000012"), at(3)).state;
+    const light = notices(warned);
+    for (const material of [big(3, "20990101000012"), big(2, "20990101000014"), big(4, "20990101000015")]) {
+      const again = receive(warned, material, at(4));
+      expect(changed(again).decision).toBe("capacityExceeded");
+      expect(notices(again.state)).toEqual(light);
+    }
+    const heavy = receive(warned, big(4, "20990101000016", "52"), at(4)).state;
+    const generationOf = warned.persistence.currentGeneration + 1;
+    expect(notices(heavy).map((item) => [item.id, item.payload.level, item.disposition])).toEqual([
+      [light[0].id, "warning", "superseded"], [light[1].id, "warning", "superseded"],
+      [`U-T:capacityRejected:normal:${generationOf}:desktop`, "critical", "pending"],
+      [`U-T:capacityRejected:normal:${generationOf}:sound`, "critical", "pending"]]);
+    // (a) 旧警報の予約の更新は、昇格の後には採られない（owner は pending でない intent への更新を採らない）。
+    const empty = restoreOwner({ runId: "run", place: "urgent", clock: at(4), restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+    const owner = { ...empty, units: { ...empty.units, "U-T": heavy } };
+    expect(intentUpdateOwner(owner, "U-T", [{ id: light[0].id, attempts: 1, nextAttemptAt: base, disposition: "pending" }], at(4),
+      linkedUnitTable).adopted).toBe(false);
+    // (b) 走行中の旧警報は A7 が superseded で止め、次は新しい失敗警報（緊急群）が選ばれる。
+    const deadlines = Object.fromEntries(heavy.intents.filter((item) => item.disposition === "pending" && item.channel === "desktop")
+      .map((item) => [JSON.stringify(["U-T", item.id]), { retryAtMonotonicMs: 0, expiresAtMonotonicMs: 1e12 }]));
+    const running: NotificationAttempt = { attemptId: "old", intentId: light[0].id, unit: "U-T", subject: FAIL, operation: "normal",
+      channel: "desktop", priorityGroup: "normalTsunamiEmergency", payload: light[0].payload, soundAsset: null, selectedAtMonotonicMs: 0,
+      timeoutAtMonotonicMs: 1e12, expiresAt: light[0].expiresAt };
+    const stopping = selectNotificationAttempt({ intents: heavy.intents, deadlines: { desktop: deadlines, sound: {} },
+      channels: { desktop: { kind: "running", attempt: running }, sound: { kind: "idle" } } }, at(4));
+    expect(stopping.abortRequests).toEqual([{ attemptId: "old", cause: "superseded" }]);
+    const next = selectNotificationAttempt({ intents: heavy.intents, deadlines: { desktop: deadlines, sound: {} },
+      channels: { desktop: { kind: "idle" }, sound: { kind: "idle" } } }, at(4));
+    expect(next.attempts.map((item) => [item.intentId, item.priorityGroup])).toEqual([[notices(heavy)[2].id, "normalTsunamiEmergency"]]);
+    // 保存して復元した後も判定は同じ（critical が残る間は warning を作らない）。
+    const restored = tsunamiUnitCodec.decode(JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(heavy))) as JsonValue);
+    if (restored.kind !== "restored") throw new Error("notice state does not restore");
+    expect(notices(receive(restored.state, big(5, "20990101000017"), at(5)).state)).toEqual(notices(heavy));
+    // 失敗警報の intent が期限で回収された後は、同じ段階の拒否でも再び鳴る。
+    const reclaimed = run(heavy, { kind: "deadline", clock: at(10) }).state;
+    expect(notices(reclaimed)).toEqual([]);
+    expect(notices(receive(reclaimed, big(11, "20990101000018"), at(11)).state).map((item) => item.payload.level)).toEqual(["warning", "warning"]);
+  });
+
+  it("P3-CC-T19 regression / AC10(9): a same-revision observation fragment is still adopted with its info notice", () => {
+    const once = receive(emptyState(), decodeXml(observation({ at: raw(1), serial: 1, stations: [{ code: "21001" }] }), "VTSE51"), at(1));
+    const fragment = receive(once.state, decodeXml(observation({ at: raw(1), serial: 1, stations: [{ code: "21002" }] }), "VTSE51"), at(2));
+    expect(changed(fragment).decision).toBe("changed");
+    expect(fragment.intents.map((item) => [item.subject, item.payload.level])).toEqual([
+      ["normal/tsunamiObservation:VTSE51/20990101000011", "info"], ["normal/tsunamiObservation:VTSE51/20990101000011", "info"]]);
+  });
+
+  it("P3-CC-T20 contractBoundary / AC10(9): a rejection that only adds a failure notice is attributed to the generation it raises", () => {
+    const empty = restoreOwner({ runId: "run", place: "urgent", clock: at(0), restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+    const state = crowd(first(), 5_000);
+    const owner = { ...empty, units: { ...empty.units, "U-T": state } };
+    const generationG = state.persistence.currentGeneration;
+    // 世代 G の保存中（capture の後）に、新しい subject の拒否で失敗警報だけが入って G+1 へ進む。
+    const captured = capturedOwner(owner, { unit: "U-T", attemptId: "save-g", generation: generationG, capturedAt: 1 }, linkedUnitTable).state;
+    const material = big(3, "20990101000012");
+    const rejected = receiveOwner(captured, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } }, at(3),
+      linkedUnitTable);
+    expect(notices(rejected.state.units["U-T"]!)).toHaveLength(2);
+    expect(rejected.state.units["U-T"]!.forecasts).toBe(state.forecasts);
+    expect(rejected.generationInputIds).toEqual({ "U-T": [material.inputId] });
+    const acked = checkpointResultOwner(rejected.state, { kind: "acknowledged", attemptId: "save-g", unit: "U-T", generation: generationG,
+      ackAt: 2, encodedByteLength: 1 }, linkedUnitTable).state.units["U-T"]!.persistence;
+    expect(acked).toMatchObject({ kind: "pending", savedGeneration: generationG, currentGeneration: generationG + 1 });
+  });
+
+  it("P3-CC-T20 contractBoundary / AC08(14): after the ack of G the rejected input stays with G+1, whose save restores the failure notice", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "fleq-cc-t20-"));
+    try {
+      const crowded = crowd(first(), 5_000);
+      // "seed" の入力で U-T を拒否の起きる state にする（世代を 1 つ進める）。ほかの入力は本物の U-T。
+      const units: UnitTable = { ...linkedUnitTable, "U-T": { ...linkedUnitTable["U-T"], reduce: (state, input) =>
+        input.kind === "receive" && input.material.inputId === "seed" ? { state: { ...crowded, persistence: { kind: "pending",
+          currentGeneration: state.persistence.currentGeneration + 1, savedGeneration: state.persistence.savedGeneration,
+          savedCapturedAt: state.persistence.savedCapturedAt, savedAckAt: state.persistence.savedAckAt, dirtySince: input.clock.monotonicMs } },
+          nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] }
+          : linkedUnitTable["U-T"].reduce(state, input) } };
+      // 世代 G の保存は file を開くところで止め、その間に拒否の入力を入れる。
+      let release!: () => void;
+      const gate = new Promise<void>((done) => { release = done; });
+      const files = nodeCheckpointFileSystem();
+      let opens = 0;
+      const parked: CheckpointFileSystem = { ...files, open: async (path) => { if (opens++ === 0) await gate; return files.open(path); } };
+      const replies: OwnerReply[] = [];
+      const host = (table: UnitTable, fileSystem: CheckpointFileSystem) => new OwnerHost({ start: { place: "urgent",
+        stateDirectory: join(directory, "state"), publisherTimeOriginMs: 0, measured: false, inputHeap: false }, units: table,
+        codecs: linkedUnitCodecs, fileSystem, sharedNow: () => 1, reply: (reply) => { replies.push(reply); }, fail: (error) => { throw error; } });
+      const input = (inputId: string, minute: number, xml: string) => ({ kind: "input" as const, clock: at(minute), sharedMs: 1,
+        envelope: envelope("run", "VTSE41", inputId, Buffer.from(xml), at(minute)) });
+      const owner = host(units, parked);
+      owner.handle({ kind: "restore", runId: "run", clock: at(0), sharedMs: 1 });
+      owner.handle(input("seed", 1, vtse41({ at: raw(0), areas: areas(1) })));
+      owner.handle({ kind: "checkpointGrant", grantId: "save-g", unit: "U-T", mode: "save", retryReason: "notRetry", clock: at(1), sharedMs: 1 });
+      owner.handle(input("reject", 3, vtse41({ eventId: "20990101000012", at: raw(3), areas: areas(300, "51") })));
+      release();
+      const saves = () => replies.flatMap((reply) => reply.kind === "checkpointDone" ? [reply] : []);
+      await vi.waitFor(() => expect(saves()).toHaveLength(1));
+      owner.handle({ kind: "checkpointGrant", grantId: "save-g1", unit: "U-T", mode: "save", retryReason: "notRetry", clock: at(3), sharedMs: 1 });
+      await vi.waitFor(() => expect(saves()).toHaveLength(2));
+      const [saveG, saveG1] = saves();
+      expect([saveG.result?.kind, saveG.result?.generation, saveG1.result?.kind, saveG1.result?.generation]).toEqual(["acknowledged", 1, "acknowledged", 2]);
+      expect(saveG1.measurements.length).toBeGreaterThan(0);
+      expect(saveG1.measurements.map((item) => item.inputIds)).toEqual(saveG1.measurements.map(() => ["reject"]));
+      // G+1 の保存から復元すると失敗警報が pending のまま戻る（音 60 秒の期限の内）。
+      replies.length = 0;
+      host(linkedUnitTable, files).handle({ kind: "restore", runId: "run-2", clock: { wallTimeMs: at(3).wallTimeMs + 30_000, monotonicMs: 0 }, sharedMs: 1 });
+      await vi.waitFor(() => expect(replies[0]?.kind).toBe("restored"));
+      const restored = replies[0];
+      if (restored.kind !== "restored") throw new Error("restored expected");
+      expect(restored.units.find((item) => item.unit === "U-T")?.pendingIntents.filter((item) => item.subject === FAIL)
+        .map((item) => [item.channel, item.payload.level])).toEqual([["desktop", "warning"], ["sound", "warning"]]);
+    } finally { rmSync(directory, { recursive: true, force: true }); }
   });
 });
 

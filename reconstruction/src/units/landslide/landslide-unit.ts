@@ -450,7 +450,7 @@ function toLandslideView(state: LandslideUnitState): LandslideUnitView {
   const subjects = currents.map(shownOutcome);
   return { unit: "U-L", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), admission: {}, subjects, currents };
+  contentRevision: String(state.contentRevision), subjects, currents };
 }
 
 // ---- codec（I-U-L.persisted・I-U-L.decode、唯一の LandslideUnitCodec） ----
@@ -575,9 +575,6 @@ const landslideUnit = {
   toView: toLandslideView,
   persistence: { kind: "durable", codec: landslideUnitCodec },
   confirmationScopeLimit: 512,
-  withoutNormal: (state) => ({ ...state, currents: state.currents.filter((item) => item.operation !== "normal") }),
-  keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => state.currents.filter((item) => item.operation === "normal" && visible(item)).map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-L">;

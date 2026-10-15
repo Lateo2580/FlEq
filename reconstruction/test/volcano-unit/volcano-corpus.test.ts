@@ -60,7 +60,6 @@ describe("P3-UNIT-V-001 U-V corpus history", () => {
       const material = decodeFixture(fixture.path);
       const step = receive(emptyState(), material, clock(Date.parse(material.reportDateTimeRaw)));
       const after = reduceVolcanoUnit(step.state, { kind: "deadline", clock: clock(Date.parse(material.reportDateTimeRaw) + 1) }).state;
-      expect(Object.keys(toVolcanoView(after).admission), id).toEqual([]);
       rejected.push(...step.decisions.filter((item) => item.decision === "rejected").map(() => id));
     }
     // 空の state では火山コードの無い警報・降灰の取消だけが結び付く記録を持たず identityMissing（P3-C9-CANCEL-SCOPE=A の (3)）。

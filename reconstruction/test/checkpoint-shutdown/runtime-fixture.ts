@@ -37,7 +37,7 @@ const baseline: RuntimeState = {
   restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
     "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-L": { kind: "empty" }, "U-R": { kind: "empty" },
     "U-B": { kind: "empty" }, "U-M": { kind: "empty" }, "U-Y": { kind: "empty" } },
-  admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null,
+  checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null,
     "U-V": null, "U-L": null, "U-R": null, "U-B": null, "U-M": null, "U-Y": null },
   notificationChannels: testNotificationChannels, notificationProbeComplete: false, notificationDeadlines: { desktop: {}, sound: {} },
   shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null, stageResults: {},
@@ -57,7 +57,6 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
     restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-L": { kind: "empty" }, "U-R": { kind: "empty" },
       "U-B": { kind: "empty" }, "U-M": { kind: "empty" }, "U-Y": { kind: "empty" } },
-    admission: {},
     notificationProbeComplete: true,
     units: {
       "U-E": { ...payload("U-E"), schemaVersion: "p2-eew-unit-v1", contentRevision: 0, current: [], gates: [], intents: [],
@@ -186,7 +185,7 @@ function fixtureDriver() {
 // TEST-PATH (1): the state of one owner, cut from a whole-runtime fixture, for calling the owner core directly.
 function ownerFixture(place: ExecutionPlace, whole: RuntimeState = fixtureState()): OwnerState {
   const unit = place === "urgent" ? "U-E" as const : place === "weatherCurrent" ? "U-W" as const : "U-F" as const;
-  // urgent owns U-E, U-T, U-Q, U-N and U-V (P3-C5-PLACE=A, P3-C7-PLACE=A, P3-C8-PLACE=A, P3-C9-PLACE=A); each keeps its own admission,
+  // urgent owns U-E, U-T, U-Q, U-N and U-V (P3-C5-PLACE=A, P3-C7-PLACE=A, P3-C8-PLACE=A, P3-C9-PLACE=A); each keeps its own
   // deadline and attempt slots.
   const units = unit === "U-E" ? { "U-E": whole.units["U-E"], "U-T": whole.units["U-T"], "U-Q": whole.units["U-Q"], "U-N": whole.units["U-N"],
     "U-V": whole.units["U-V"] }
@@ -198,7 +197,7 @@ function ownerFixture(place: ExecutionPlace, whole: RuntimeState = fixtureState(
     const found = value(item);
     return found == null ? [] : [[item, found]];
   }));
-  return { runId: whole.runId, place, units, admission: pick((item) => whole.admission[item]),
+  return { runId: whole.runId, place, units,
     deadlines: Object.fromEntries(own.map((item) => [item, whole.deadlines[item]])),
     checkpointAttempts: pick((item) => whole.checkpointAttempts[item]), accepting: true, finalized: false };
 }

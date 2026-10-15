@@ -1,8 +1,7 @@
-import type { DecodedMaterial, Operation, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
 import type { UnitJob, UnitTable } from "../../contracts/p3-unit-table.types";
 import type { ExecutionPlace, OwnerOutput } from "../../contracts/p3-execution-split.types";
 import type {
-  AdmissionRejection,
   CheckpointCapture,
   CheckpointResult,
   ClockReading,
@@ -13,7 +12,6 @@ import type {
   PersistenceStatus,
   RejectionReason,
   RestoreUnitResult,
-  RuntimeAdmission,
   RuntimeDisplayChange,
   RuntimePublishedOutcome,
   RuntimeRestoration,
@@ -28,7 +26,6 @@ import type {
   SemanticEnvelopeResult,
 } from "../../contracts/p2-shared-runtime.types";
 import type { CodecMap } from "../checkpoint/checkpoint";
-import { normalizeScopes, scopeContains } from "../domains/weather-current/weather-current";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic";
 import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
@@ -36,14 +33,11 @@ import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage
 // the owner state. The owner thread and the test path (1) call these; nothing here touches another place's units.
 
 const EMPTY: readonly never[] = Object.freeze([]);
-const operations = ["normal", "training", "test"] as const;
-const admissionRecordByteCache = new WeakMap<object, number>();
 
 type OwnerState = Readonly<{
   runId: string;
   place: ExecutionPlace;
   units: Readonly<Partial<RuntimeUnitStates>>;
-  admission: RuntimeAdmission;
   deadlines: Readonly<Partial<Record<RuntimeUnitId, RuntimeUnitDeadline | null>>>;
   checkpointAttempts: RuntimeState["checkpointAttempts"];
   // false once the shutdown input was applied: a later parser input is not applied (P2-WIRE-T04).
@@ -171,84 +165,9 @@ function runUnitJob(units: UnitTable, job: UnitJob): RuntimeUnitSteps[RuntimeUni
   }
 }
 
-function unitAdmissionCounts(admission: RuntimeAdmission, unit: RuntimeUnitId): Readonly<Record<Operation, number>> {
-  const count = (operation: Operation) => {
-    const slot = admission[unit]?.[operation];
-    return (slot?.records.length ?? 0) + (slot?.overflow ? 1 : 0);
-  };
-  return { normal: count("normal"), training: count("training"), test: count("test") };
-}
-
-function updateAdmission(admission: RuntimeAdmission, unit: RuntimeUnitId,
-  decisions: RuntimeUnitSteps[RuntimeUnitId]["decisions"]): RuntimeAdmission {
-  let next = admission;
-  for (const decision of [...decisions.filter((item) => item.decision === "capacityExceeded"),
-    ...decisions.filter((item) => item.decision !== "capacityExceeded")]) {
-    if (decision.decision !== "capacityExceeded" && (decision.decision !== "changed" || decision.currentEstablished == null)) continue;
-    const operation = decision.operation;
-    if (decision.decision === "changed" && next[unit]?.[operation] == null) continue;
-    const slot = next[unit]?.[operation] ?? { records: [], overflow: false };
-    let records = [...slot.records];
-    let overflow = slot.overflow;
-    if (decision.decision === "capacityExceeded") {
-      const { rejection } = decision;
-      const index = records.findIndex((item) => item.family === rejection.family && item.subject === decision.subject);
-      const existing = records[index];
-      const scope = existing?.affectedScope === "subject" || rejection.affectedScope === "subject" ? "subject" as const
-        : existing == null ? rejection.affectedScope : normalizeScopes([...existing.affectedScope, ...rejection.affectedScope]);
-      const candidate: AdmissionRejection = { subject: decision.subject, family: rejection.family,
-        reportDateTimeMs: Math.max(existing?.reportDateTimeMs ?? -Infinity, rejection.reportDateTimeMs), affectedScope: scope };
-      const proposed = index < 0 ? [...records, candidate] : records.map((item, at) => at === index ? candidate : item);
-      const bytes = proposed.reduce((sum, record) => {
-        let size = admissionRecordByteCache.get(record);
-        if (size == null) {
-          size = new TextEncoder().encode(JSON.stringify(record)).byteLength;
-          admissionRecordByteCache.set(record, size);
-        }
-        return sum + size;
-      }, 2 + Math.max(proposed.length - 1, 0));
-      if (proposed.length > 512 || bytes > 262_144) overflow = true;
-      else records = proposed;
-    } else {
-      const evidence = decision.currentEstablished!;
-      records = records.flatMap((record) => {
-        if (record.family !== evidence.family || record.subject !== decision.subject
-          || !(evidence.reportDateTimeMs > record.reportDateTimeMs)) return [record];
-        if (record.affectedScope === "subject") return evidence.affectedScope === "subject" ? [] : [record];
-        if (evidence.affectedScope === "subject") return [];
-        const remaining = record.affectedScope.filter((token) => !scopeContains(evidence.affectedScope as readonly string[], [token]));
-        return remaining.length === 0 ? [] : [{ ...record, affectedScope: remaining }];
-      });
-    }
-    const byOperation = { ...next[unit] };
-    if (records.length === 0 && !overflow) delete byOperation[operation];
-    else byOperation[operation] = { records, overflow };
-    next = { ...next, [unit]: byOperation };
-  }
-  return next;
-}
-
-function viewBits(admission: RuntimeAdmission, unit: RuntimeUnitId): number {
-  return (admission[unit]?.normal == null ? 0 : 1)
-    | (admission[unit]?.training == null ? 0 : 2)
-    | (admission[unit]?.test == null ? 0 : 4);
-}
-
-// The admission-adjusted public view of one unit (never the unit state).
+// The public view of one unit (never the unit state). 容量の拒否で normal を隠さない（P3-CC-AC01）。
 function projectView<K extends RuntimeUnitId>(state: OwnerState, units: UnitTable, unit: K): RuntimeViews[K] {
-  const admission = Object.fromEntries(operations.filter((operation) => state.admission[unit]?.[operation] != null)
-    .map((operation) => [operation, "capacityExceeded" as const]));
-  const normalBlocked = state.admission[unit]?.normal != null;
-  const module = units[unit];
-  const source = ownUnit(state, unit);
-  const base = module.toView(normalBlocked ? module.withoutNormal(source) : source);
-  return { ...base, admission,
-    subjects: normalBlocked ? base.subjects.filter((item) => item.operation !== "normal" || module.keepsWhileNormalHidden(item)) : base.subjects,
-    contentRevision: `${source.contentRevision}:${viewBits(state.admission, unit)}` };
-}
-
-function normalSubjects<K extends RuntimeUnitId>(units: UnitTable, unit: K, state: RuntimeUnitStates[K]) {
-  return units[unit].normalDisplaySubjects(state);
+  return units[unit].toView(ownUnit(state, unit));
 }
 
 // One owner request: its reducer calls, then the changes it must report, in the order they happened.
@@ -281,12 +200,6 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
           [unit]: { ...attempt, postCaptureDirtySince: unitInput.clock.monotonicMs } } };
       }
       next = { ...next, units: { ...next.units, [unit]: step.state } };
-      changed(unit);
-    }
-    const admission = updateAdmission(next.admission, unit, step.decisions);
-    if (admission !== next.admission) {
-      if (viewBits(next.admission, unit) !== viewBits(admission, unit)) viewUnits.add(unit);
-      next = { ...next, admission };
       changed(unit);
     }
     const deadline = step.nextDeadline;
@@ -324,16 +237,6 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
   };
   // beforeProjection: 印のあるときだけ owner-host が渡す測定時刻の読み口。state が決まった後・射影の前に 1 回呼ぶ（P3-UWR-AC08）。
   const finish = (project = true, beforeProjection?: () => void): OwnerStep => {
-    // A normal-admission toggle shows or hides every normal subject of that unit without a unit change.
-    for (const unit of placeUnits(start.place)) {
-      if ((start.admission[unit]?.normal == null) === (next.admission[unit]?.normal == null)) continue;
-      const seen = new Set(displayChanges.filter((item) => item.unit === unit && item.operation === "normal")
-        .map((item) => item.subject));
-      for (const value of normalSubjects(units, unit, ownUnit(next, unit))) {
-        if (seen.has(value.subject)) continue;
-        displayChanges.push({ unit, operation: value.operation, subject: value.subject, before: value, after: value });
-      }
-    }
     // publisher が外す event 単位の確認記録: どの current も持たない event の U-E subject と、view から外れた U-T の VTSE41 subject
     // （I-U-T.confirmationScope。VTSE41 の subject は operation・EventID ごとに 1 つなので、外れた event を残りと照合しない）。
     let retiredEvents: OwnerOutput["retiredEvents"] = EMPTY;
@@ -377,7 +280,7 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
   checkClock(input.clock);
   const pick = <T>(value: (unit: RuntimeUnitId) => T) => Object.fromEntries(own.map((unit) => [unit, value(unit)]));
   const start: OwnerState = { runId: input.runId, place: input.place, units: pick((unit) => initialUnits[unit]),
-    admission: {}, deadlines: pick(() => null), checkpointAttempts: {}, accepting: true, finalized: false };
+    deadlines: pick(() => null), checkpointAttempts: {}, accepting: true, finalized: false };
   const work = session(start, units, input.clock);
   const restoration: Partial<Record<RuntimeUnitId, RuntimeRestoration[RuntimeUnitId]>> = {};
   const restoreUnit = <K extends RuntimeUnitId>(unit: K) => {
@@ -449,8 +352,9 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
   if (unit != null && completion.result.kind === "decoded") {
     const generationBeforeReceive = ownUnit(work.state, unit).persistence.currentGeneration;
     const received = work.reduceUnit(unit, { kind: "receive", material: completion.result.material, clock });
+    // 容量の拒否でも失敗警報と title の書き換えで世代が進めば、その世代に帰属させる（P3-CC-AC10(9)、正常採用の扱いにはしない）。
     if (received.state.persistence.currentGeneration > generationBeforeReceive
-      && received.decisions.some((decision) => decision.decision === "changed"))
+      && received.decisions.some((decision) => decision.decision === "changed" || decision.decision === "capacityExceeded"))
       work.generationInputIds[unit] = [completion.inputId];
   } else if (completion.result.kind === "rejected") {
     const details = parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId);
@@ -582,12 +486,11 @@ function finalizeOwner(state: OwnerState, cutoff: ClockReading, units: UnitTable
 function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest): WeatherTimeseriesDetailResponse {
   const unit = state.units["U-F"];
   if (unit == null) return { kind: "error", reason: "unavailable", revision: null };
-  return weatherTimeseriesDetail(unit, request, { normalHidden: state.admission["U-F"]?.normal != null,
-    contentRevision: `${unit.contentRevision}:${viewBits(state.admission, "U-F")}` });
+  return weatherTimeseriesDetail(unit, request, { contentRevision: String(unit.contentRevision) });
 }
 
 export {
   capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, ownerViews,
-  placeUnits, receiveOwner, restoreOwner, shutdownInputOwner, unitAdmissionCounts, validateSemanticEnvelope,
+  placeUnits, receiveOwner, restoreOwner, shutdownInputOwner, validateSemanticEnvelope,
 };
 export type { OwnerState, OwnerStep, ParserCompletion };

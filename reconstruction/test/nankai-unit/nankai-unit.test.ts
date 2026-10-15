@@ -617,7 +617,6 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       const material = decodeFixture(fixture.path);
       const step = receive(emptyState(), material, clock(Date.parse(material.reportDateTimeRaw)));
       const after = reduceNankaiUnit(step.state, { kind: "deadline", clock: clock(Date.parse(material.reportDateTimeRaw) + 1) }).state;
-      expect(Object.keys(toNankaiView(after).admission), id).toEqual([]);
       groups[step.decisions.at(-1)!.decision === "changed" ? "changed" : "rejected"].push(id);
     }
     expect(groups.rejected).toEqual(["test__fixtures__synthetic_VYSE50_no_earthquake_info"]);

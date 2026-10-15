@@ -46,6 +46,7 @@ function parseReportDateTime(raw: string): number | null {
   const ms = Date.parse(raw);
   return Number.isFinite(ms) ? ms : null;
 }
+const clockOf = (epochMs: number | null): string => epochMs == null ? formatJst(epochMs) : formatJst(epochMs).slice(11, 16);
 
 // 震度の生表記と表示。並び順が段階 (rank = 添字+1)。
 const INTENSITY_SCALE = [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5-", "5弱"], ["5+", "5強"], ["6-", "6弱"],
@@ -173,22 +174,24 @@ function summaryRowVisible(item: DisplaySummaryItem): boolean {
   return item.operation === "normal" || item.activeCount > 0;
 }
 
-// AC04: U-Eで表示できない報は容量超過だけで、A8はA1 P2-A1-ADMISSION-COUNTSをitems[].admissionへ写す
-// (items[].unavailableはU-W/U-F専用でU-Eでは常に空)。normalの公開mask中でcardが消えても件数は残るので、
-// 無発令と区別できるよう1件以上のoperationだけ固定文言の行を出す。
+// P3-CC-AC06（D-SHOW=A）: 容量で処理できていない報は、unit の未確認（unconfirmed）と印のある記録（unavailable）の和で有無だけを出す。
+// 拒否を数える記録を持たないので件数は出さない。
+const CAPACITY_DOMAIN: Readonly<Partial<Record<DisplaySummaryItem["informationType"], string>>> = { eew: "緊急地震速報", tsunami: "津波" };
 function buildCapacityExceededLine(item: DisplaySummaryItem): string | null {
-  const count = item.admission.capacityExceeded ?? 0;
-  return count > 0 ? `[${OPERATION_LABEL[item.operation]}] 表示できない報がある（容量超過 ${count} 件）` : null;
+  const count = (item.unconfirmed.capacityExceeded ?? 0) + (item.unavailable.capacityExceeded ?? 0);
+  const domain = CAPACITY_DOMAIN[item.informationType];
+  return count > 0 && domain != null ? `[${OPERATION_LABEL[item.operation]}] ${domain}: 処理できていない報がある（容量超過）` : null;
 }
 
-// AC09: normalは常に、training/testはそのoperationのcard・summary行・容量超過行・noticeを出している間だけ。
+// AC09: normalは常に、training/testはそのoperationのcard・summary行・容量超過行（EEW と津波）・noticeを出している間だけ。
 function operationVisible(snapshot: DisplaySnapshot, item: DisplaySummaryItem): boolean {
   if (item.operation === "normal") return true;
   const eew = snapshot.current.eew;
   const shownInEew = eew.delivery === "full"
     ? eew.view.current.some((current) => current.operation === item.operation)
     : summaryRowVisible(item);
-  return shownInEew || buildCapacityExceededLine(item) != null
+  const tsunami = snapshot.current.tsunami.items[OPERATIONS.indexOf(item.operation)];
+  return shownInEew || buildCapacityExceededLine(item) != null || buildCapacityExceededLine(tsunami) != null
     || snapshot.notices.some((notice) => notice.operation === item.operation);
 }
 
@@ -232,6 +235,8 @@ export type TsunamiPaintedArea = Readonly<{ code: string; areaClass: TsunamiArea
 type TsunamiCoastSegment = Readonly<{ code: string; rect: CoastRect; className: string; blink: boolean }>;
 type TsunamiCardView = Readonly<{
   subject: string; head: string; className: string; reportTimeDisplay: string;
+  // P3-CC-AC06(2): 印のある予報だけ。最終確認の値のまま、処理できなかった報の時刻を出す。
+  unavailableLine: string | null;
   areas: readonly Readonly<{ text: string; className: string }>[];
 }>;
 type TsunamiPaintView = Readonly<{
@@ -286,11 +291,14 @@ function buildTsunamiPaint(forecasts: readonly TsunamiForecastSubject[]): Tsunam
     areasBySubject.set(subject.subject, [...painted.values()].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)));
     const label = highest == null ? "警報・注意報の区域なし" : TSUNAMI_PAINT[highest].label;
     const rowClass = (value: TsunamiAreaClass) => { const paint = tsunamiPaintClass(value); return paint == null ? "tsu-row" : `tsu-row ${TSUNAMI_PAINT[paint].className}`; };
+    const mark = subject.unavailable;
     return {
       subject: subject.subject,
-      head: `[${OPERATION_LABEL[subject.operation]}] 津波 ${subject.eventId} ${label}`,
+      head: `${mark == null ? "" : "最終確認："}[${OPERATION_LABEL[subject.operation]}] 津波 ${subject.eventId} ${label}`,
       className: highest == null ? "tsu-none" : TSUNAMI_PAINT[highest].className,
       reportTimeDisplay: formatJst(parseReportDateTime(subject.source.reportDateTimeRaw)),
+      // D-SHOW=A の文言（JST の時:分）。formatJst の「YYYY/MM/DD HH:MM:SS」から時:分だけを取る（時刻不明はそのまま）。
+      unavailableLine: mark == null ? null : `${clockOf(parseReportDateTime(mark.source.reportDateTimeRaw))} の情報を処理できていません`,
       areas: [...subject.areas.map((area) => ({ text: `${area.code} ${area.name}: ${area.kindName}${heightText(area)}`, className: rowClass(area.areaClass) })),
         ...subject.unkeyedAreas.map((area) => ({ text: `${area.name}: ${area.kindName}（区域コードなし）`, className: rowClass(kindClass(area.kindCode)) }))],
     };
@@ -350,8 +358,9 @@ const isCurrent = (value: unknown) => isRecord(value) && oneOf(OPERATION_LABEL, 
   && value.prediction.areas.every((area) => isRecord(area) && typeof area.code === "string" && isIntensity(area.intensity));
 const isItem = (value: unknown, operation: Operation) => isRecord(value) && value.operation === operation
   && Number.isSafeInteger(value.activeCount) && (value.highestSeverity === null || oneOf(SEVERITY_LABEL, value.highestSeverity))
-  && isTimeOrNull(value.updatedAt) && isRecord(value.admission)
-  && (value.admission.capacityExceeded === undefined || Number.isSafeInteger(value.admission.capacityExceeded))
+  && isTimeOrNull(value.updatedAt) && isRecord(value.unconfirmed) && isRecord(value.unavailable)
+  && (value.unconfirmed.capacityExceeded === undefined || Number.isSafeInteger(value.unconfirmed.capacityExceeded))
+  && (value.unavailable.capacityExceeded === undefined || Number.isSafeInteger(value.unavailable.capacityExceeded))
   && isRecord(value.confirmation) && oneOf(CONFIRMATION_LABEL, value.confirmation.state)
   && isTimeOrNull(value.confirmation.confirmedAt);
 // P3-C6-AC03(7): 津波の描画に使う項目だけ。
@@ -368,7 +377,9 @@ const isTsunamiForecast = (value: unknown) => isRecord(value) && oneOf(OPERATION
   && isRecord(value.source) && typeof value.source.reportDateTimeRaw === "string"
   && Array.isArray(value.areas) && value.areas.every(isTsunamiArea)
   && Array.isArray(value.unkeyedAreas) && value.unkeyedAreas.every((area) => isRecord(area) && typeof area.name === "string"
-    && typeof area.kindName === "string" && typeof area.kindCode === "string");
+    && typeof area.kindName === "string" && typeof area.kindCode === "string")
+  && (value.unavailable === undefined || isRecord(value.unavailable) && isRecord(value.unavailable.source)
+    && typeof value.unavailable.source.reportDateTimeRaw === "string");
 const isNotice = (value: unknown) => isRecord(value) && oneOf(OPERATION_LABEL, value.operation) && typeof value.text === "string"
   && (value.source === null || isRecord(value.source) && isTextOrNull(value.source.office)
     && typeof value.source.officeTruncated === "boolean");

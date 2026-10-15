@@ -7,7 +7,7 @@ import { parseDisplaySnapshot, parseHeartbeatWorker, replaceDisplaySnapshot } fr
 
 function snapshot(streamId: string, sequence: number): DisplaySnapshot {
   const item = (operation: "normal" | "training" | "test") => ({ operation, informationType: "eew" as const,
-    activeCount: 0, highestSeverity: null, areaCounts: {}, updatedAt: null, admission: {}, unavailable: {},
+    activeCount: 0, highestSeverity: null, areaCounts: {}, updatedAt: null, unavailable: {},
     unconfirmed: {}, unknownCode: {}, freshness: {}, confirmation: { state: "unconfirmed" as const, confirmedAt: null } });
   const items = [item("normal"), item("training"), item("test")] as const;
   const summary = { contentRevision: "0", items, delivery: "summary" as const, reason: "snapshotBudget" as const,

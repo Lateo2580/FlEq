@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "3dfa5b623c8330700529ad0cda10565c906547931672357d40fbfa3a593941da",
+    "sha256": "70ec2463c7d60f1a40ec838cb40890706432a28214ff9502ba897f615dae3d77",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -73,7 +73,7 @@
       },
       {
         "id": "P3-C7-CAPACITY",
-        "A": "上限は4つ: event 512（三区分合算、spec:570）、長周期subject 256（spec:571）、通知pending 128件・128 KiB（spec:981）、4 MiB/世代（spec:475、予算はP3-C7-CAPACITY-BUDGET）。退去できない記録（取消記憶だけのevent・長周期subjectと当日履歴）は件数と文字列長の上限から最大1,357,385 byte、intentは最大262,144 byte（I-U-Q.capacityReserve）。件数の超過（eventの513件目、長周期の257件目）とbyteの超過（4 MiB）では、eventの採用にも長周期の採用にも同じ手順を使う。候補は超過量を実際に減らすものに限り、件数の超過なら同じ種類（event／長周期）だけ、byteの超過ならeventと長周期の両方から、次の順に必要数だけ退去する: (1)retainUntilを過ぎたもの (2)training/test (3)normalのうち強震保持の無いeventと、activeの長周期subjectを、最新の採用報が古い順に（eventと長周期を一つの順に並べる） (4)件数の超過では最古の取消記憶だけのevent・長周期subject (5)強震保持のあるeventの事実の合計が4 MiB−1,357,385−262,144＝2,574,775 byteを超えるときだけ、その超過分の強震保持のeventを古い順に。byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。候補が足りなければcapacityExceeded（state不変）。退去と採用は一回の参照交換で確定し、確定した退去だけを診断seismicCapacityEvicted（count）で返す",
+        "A": "上限は4つ: event 512（三区分合算、spec:570）、長周期subject 256（spec:571）、通知pending 128件・128 KiB（spec:981）、4 MiB/世代（spec:475、予算はP3-C7-CAPACITY-BUDGET）。退去できない記録（取消記憶だけのevent・長周期subjectと当日履歴）は件数と文字列長の上限から最大1,357,385 byte、intentは最大262,144 byte（I-U-Q.capacityReserve）。件数の超過（eventの513件目、長周期の257件目）とbyteの超過（4 MiB）では、eventの採用にも長周期の採用にも同じ手順を使う。候補は超過量を実際に減らすものに限り、件数の超過なら同じ種類（event／長周期）だけ、byteの超過ならeventと長周期の両方から、次の順に必要数だけ退去する: (1)retainUntilを過ぎたもの (2)training/test (3)normalのうち強震保持の無いeventと、activeの長周期subjectを、最新の採用報が古い順に（eventと長周期を一つの順に並べる） (4)件数の超過では最古の取消記憶だけのevent・長周期subject (5)強震保持のあるeventの事実の合計が4 MiB−1,357,385−262,144＝2,574,775 byteを超えるときだけ、その超過分の強震保持のeventを古い順に。byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。候補が足りなければcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で確定し、確定した退去だけを診断seismicCapacityEvicted（count）で返す",
         "B": "上限で新しい地震を拒否する（capacityExceeded）",
         "recommended": "A",
         "provisional": "A",
@@ -222,7 +222,7 @@
         "overlap": "一つの採用報は各channel最大1 intent",
         "emergencyGroup": "U-Qのintentは全部A7の群other（P3-C7-NOTICE-GROUP=A）。criticalの長周期でもEEW・津波緊急を追い越さない",
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない",
-        "replacement": "P3-C7-REPLACEMENT=A",
+        "replacement": "P3-C7-REPLACEMENT=A。容量の拒否（P3-CURRENCY-COVERAGE-001、P3-CC-AC03・AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）: 採用でfitがnullを返し、拒否した報の記録が見えていれば印〔eventはfamilyごと、長周期はsubjectに1つ〕を付けてchanged。失敗した系統〔lineOf〕のまだ鳴っていないdesktopのpendingはtitleだけを『【HH:MM 発表】』付きに替え〔同じid・元の期限、soundは変えない、系統の古いpendingを置き換えない〕、拒否した報のfreshのlevelの最大がwarning以上なら固定のsubject『operation/capacityRejected』の失敗警報をその段階で足す〔昇格で終端記録へ移る軽い失敗警報を含めて終端記録が131,072 byteを越えるときは当てない〕。どれも追加の退去なしで収まるときだけ。印を付けない拒否はunitの負の証拠と診断capacityRejected",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4・C5の先例）",
         "payload": "typeRef reconstruction/contracts/p3-seismic-unit.types.ts#SeismicNotificationPayload。domain=earthquake-eew。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋旧築notifier.ts:417〜:444・:511〜:533と同じ組み方: 発表はHead/Title、訂正は「[訂正] 」＋Head/Title、取消は「[取消] 」＋Head/Title。bodyはlevelと同じくその報自身の事実から組み（eventが導いた事実は使わない）、地震が震源名 / 規模 / 最大震度、長周期が震源名 / 長周期階級 / 最大震度を「 / 」で連結し、部品が無ければHeadline、それも無ければHead/Title。訂正はbody冒頭に「訂正: 」、取消は「この情報は取り消されました」。値の表記（未入電の「以上」、unknownの「不明」）は旧築の通知の表記に揃え、0や空にしない。長周期の部品が無ければ旧築どおりHead/Titleに落ちる（notifier.ts:511〜:533）。title/bodyは空にしない",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順（期限→生成時刻→ID）の後ろのものを外す。U-Qは全部同じ群なので、新しいintentが外れることがある。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。終端記録はexpiresAtで回収し、保存世代のbyte予算に含める。intentの保存のbyte上限（I-U-Q.capacityReserve）を守るため、終端記録の合計が131,072 byteを超える分は、最古の終端記録からexpiresAtの前に回収する（終端記録は遅れた結果の照合にだけ使い、未知idの更新はno-opなので、早く回収しても通知は変わらない）",
@@ -837,7 +837,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1431 «f2dbd48c2d6aef10»",
           "docs/specs/reconstruction-p0-contracts.md:1466 «08938ea11d651b63»",
           "reconstruction/src/view-projector/view-projector.ts:57 «5a17c9e48f0764cf»",
-          "reconstruction/src/runtime/shared-runtime.ts:89 «d3e2db312235b52f»"
+          "reconstruction/src/runtime/shared-runtime.ts:103 «d3e2db312235b52f»"
         ]
       },
       {
@@ -901,7 +901,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:1145 «cee278b81108e897»"
+          "reconstruction/src/runtime/composition-root.ts:1138 «cee278b81108e897»"
         ]
       },
       {

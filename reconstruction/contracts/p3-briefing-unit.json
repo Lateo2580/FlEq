@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "81b36d1141bb112956aaa13f7a13524089b1c2bcf61f215e2e6aff93b537d00d",
+    "sha256": "7b610bfeae702b2062938ba054ca29aed7b474c19e99e8b651cfd33e56857dcb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -1073,11 +1073,11 @@
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
           "reconstruction/src/view-projector/view-projector.ts:47 «513ff83e3efffcbc»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:52 «45d531fd83f0c3c0»",
-          "reconstruction/src/runtime/composition-root.ts:203 «9ed0037a4a82959a»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «45d531fd83f0c3c0»",
+          "reconstruction/src/runtime/composition-root.ts:202 «9ed0037a4a82959a»",
           "src/engine/display/standby-persistence.ts:315 «ef0460f67661ea53»",
-          "reconstruction/src/view-projector/view-projector.ts:936 «0f29de6d3afeedc3»",
-          "reconstruction/src/view-projector/view-projector.ts:938 «c42a191089542248»"
+          "reconstruction/src/view-projector/view-projector.ts:912 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:914 «c42a191089542248»"
         ]
       },
       {
@@ -1161,7 +1161,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:203 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:202 «9ed0037a4a82959a»"
         ]
       },
       {
@@ -1189,7 +1189,7 @@
           "reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»",
           "reconstruction/contracts/p3-operation-capacity-n.json:34 «4c3aaf00a47d87b1»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
-          "reconstruction/src/runtime/owner-runtime.ts:445 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:348 «63380813ee47301c»",
           "reconstruction/src/units/flood/flood-unit.ts:101 «8f4563d2c0e98bdc»",
           "reconstruction/src/units/flood/flood-unit.ts:105 «cafff1643f57f709»",
           "reconstruction/src/units/flood/flood-unit.ts:308 «1b80cb1e17fb6e55»"
@@ -1217,7 +1217,7 @@
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
           "reconstruction/src/units/landslide/landslide-unit.ts:401 «f207523dece06190»",
           "reconstruction/src/units/landslide/landslide-unit.ts:407 «787c97948197f5ad»",
-          "reconstruction/src/runtime/owner-runtime.ts:405 «c5f6ebb80f2776ef»",
+          "reconstruction/src/runtime/owner-runtime.ts:308 «c5f6ebb80f2776ef»",
           "docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73»",
           "docs/specs/reconstruction-p0-contracts.md:496 «f52fc5b960899f90»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»"
@@ -1230,7 +1230,7 @@
           "reconstruction/contracts/p3-final-adoption.json:11 «5abedae21fce5ce6»",
           "reconstruction/contracts/p3-final-adoption.json:20 «83ff5f0c68b86fee»",
           "reconstruction/contracts/p3-final-adoption.json:30 «32c621f71ca55ac4»",
-          "reconstruction/contracts/p3-final-adoption.json:323 «1bbb2683fcc65074»",
+          "reconstruction/contracts/p3-final-adoption.json:321 «1bbb2683fcc65074»",
           "reconstruction/contracts/p3-operation-capacity.json:302 «8f4df3bd7f779570»",
           "reconstruction/src/units/flood/flood-unit.ts:283 «4d933ac282ab7054»",
           "reconstruction/contracts/p3-order-plan.md:370 «231992515371a332»",

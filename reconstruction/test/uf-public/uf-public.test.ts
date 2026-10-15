@@ -54,9 +54,9 @@ function inflated(state: WeatherTimeseriesUnitState, target: number): WeatherTim
 }
 const HIGH = "81_02_01_260605_VPWP50_high_severity", UNKNOWN = "81_03_01_260605_VPWP50_unknown_code", CANCEL = "81_04_01_260605_VPWP50_cancel";
 const NAGANO = "81_09_01_260605_VPWP50";
-const view = (state: WeatherTimeseriesUnitState, revision = "9:0", normalHidden = false) => ({ normalHidden, contentRevision: revision });
-const detail = (state: WeatherTimeseriesUnitState, request: WeatherTimeseriesDetailRequest, normalHidden = false, revision = "9:0") =>
-  weatherTimeseriesDetail(state, request, view(state, revision, normalHidden));
+const view = (_state: WeatherTimeseriesUnitState, revision = "9") => ({ contentRevision: revision });
+const detail = (state: WeatherTimeseriesUnitState, request: WeatherTimeseriesDetailRequest, revision = "9") =>
+  weatherTimeseriesDetail(state, request, view(state, revision));
 const idOf = (state: WeatherTimeseriesUnitState, subject: string) =>
   timeseriesPublicSubject(state.subjects.find((item) => item.subject === subject)!).id;
 const only = (state: WeatherTimeseriesUnitState) => state.subjects[0];
@@ -110,9 +110,6 @@ describe("P3-UFP-AC01 public form", () => {
     // 公開形式はどの経路でも同じ object（view を作り直しても変わらない subject の period は走査し直さない）。
     expect(toWeatherTimeseriesView(noItems.state).series[0]).toBe(view.series[0]);
     for (const change of noItems.displayChanges) expect(change.after?.unit === "U-F" && change.after.current).toBe(published["d-office"]);
-    const normal = weatherTimeseriesUnit.normalDisplaySubjects(noItems.state);
-    expect(normal.map((item) => item.current)).toEqual(view.series.filter((item) => item.operation === "normal"));
-    expect(normal[0].current).toBe(view.series[0]);
     const restored = reduceWeatherTimeseriesUnit(empty(), { kind: "restore", persisted: weatherTimeseriesUnitCodec.encode(noItems.state), clock: clock() });
     const restoredSeries = toWeatherTimeseriesView(restored.state).series;
     expect(restored.displayChanges).toHaveLength(restoredSeries.length);
@@ -134,7 +131,10 @@ describe("P3-UFP-AC03 byte bounds", () => {
     expect(utf8(published.series[0]) + utf8(published.subjects[0]) + 1 + utf8(published.semanticRevision) - 2).toBeLessThanOrEqual(keyBound(item));
     expect(utf8(published)).toBeLessThanOrEqual(512 + keyBound(item));
     // RuntimeDisplaySubject 1 件の 1,560 + 10 x A は前提の中だけで成り立つ。
-    if (premises) expect(utf8(weatherTimeseriesUnit.normalDisplaySubjects(state)[0])).toBeLessThanOrEqual(1_560 + 10 * areas);
+    // RuntimeDisplaySubject 1 件は view の公開形式と outcome を 1 つずつ持つ（unit の displaySubject と同じ組立て）。
+    const shown = { unit: "U-F", operation: item.operation, subject: item.subject, office: published.series[0].office,
+      current: published.series[0], subjects: [published.subjects[0]] };
+    if (premises) expect(utf8(shown)).toBeLessThanOrEqual(1_560 + 10 * areas);
     return { bytes: utf8(published.series[0]) + utf8(published.subjects[0]), areas };
   };
 
@@ -214,8 +214,8 @@ describe("P3-UFP-AC06 detail pages (owner side)", () => {
     // 版の照合: subject の版、消えた id、索引の内容版。
     expect(current(0, "999999")).toEqual({ kind: "error", reason: "versionChanged", revision: pub.revision });
     expect(current(0, pub.revision, "0".repeat(64))).toEqual({ kind: "error", reason: "versionChanged", revision: null });
-    expect(detail(state, { part: "index", revision: "8:0", page: 0 })).toEqual({ kind: "error", reason: "versionChanged", revision: "9:0" });
-    expect(detail(state, { part: "index", revision: "9:0", page: 1 })).toEqual({ kind: "error", reason: "invalidRequest", revision: null });
+    expect(detail(state, { part: "index", revision: "8", page: 0 })).toEqual({ kind: "error", reason: "versionChanged", revision: "9" });
+    expect(detail(state, { part: "index", revision: "9", page: 1 })).toEqual({ kind: "error", reason: "invalidRequest", revision: null });
     // lastKnown が無ければ最初のページが空で、その先のページは invalid。
     expect(detail(state, { part: "lastKnown", id: pub.id, revision: pub.revision, page: 0 })).toMatchObject({ kind: "ok", part: "lastKnown", pageCount: 1, periodCount: 0, periods: [], omitted: [] });
     expect(detail(state, { part: "lastKnown", id: pub.id, revision: pub.revision, page: 1 })).toMatchObject({ kind: "error", reason: "invalidRequest" });
@@ -227,18 +227,16 @@ describe("P3-UFP-AC06 detail pages (owner side)", () => {
     const carried = timeseriesPublicSubject(carrier);
     expect(weatherTimeseriesDetail(holder, { part: "lastKnown", id: carried.id, revision: carried.revision, page: pages - 1 }, view(holder))).toMatchObject({
       kind: "ok", part: "lastKnown", periodCount: count, pageCount: pages });
-    // 索引は view の順で 1 ページ 32 件。normal の公開の制限の間は normal を索引にもページにも出さない。
-    const index = ok(detail(state, { part: "index", revision: "9:0", page: 0 }));
+    // 索引は view の順で 1 ページ 32 件。normal も載せて返す（P3-CC-AC01(5)）。
+    const index = ok(detail(state, { part: "index", revision: "9", page: 0 }));
     expect(index).toMatchObject({ part: "index", subjectCount: 3, pageCount: 1 });
     if (index.part === "index") expect(index.entries.map((entry) => entry.id)).toEqual(state.subjects.map((item) => timeseriesPublicSubject(item).id));
-    const masked = ok(detail(state, { part: "index", revision: "9:0", page: 0 }, true));
-    if (masked.part === "index") expect(masked.entries.map((entry) => entry.operation)).toEqual(["training"]);
-    expect(detail(state, { part: "current", id: pub.id, revision: pub.revision, page: 0 }, true)).toEqual({ kind: "error", reason: "versionChanged", revision: null });
+    expect(detail(state, { part: "current", id: pub.id, revision: pub.revision, page: 0 })).toMatchObject({ kind: "ok" });
     const trainingPub = timeseriesPublicSubject(state.subjects[2]);
-    expect(detail(state, { part: "current", id: trainingPub.id, revision: trainingPub.revision, page: 0 }, true)).toMatchObject({ kind: "ok" });
+    expect(detail(state, { part: "current", id: trainingPub.id, revision: trainingPub.revision, page: 0 })).toMatchObject({ kind: "ok" });
     // 40 件は 32 + 8 に分かれ、長い官署名は 256 byte で切って印を付ける。
     const many = { ...empty(), subjects: Array.from({ length: 40 }, (_all, at) => ({ ...carrier, subject: `normal/VPWP50/${at === 0 ? "あ".repeat(400) : `o-${at}`}`, source: null })) };
-    const firstPage = ok(detail(many, { part: "index", revision: "9:0", page: 0 })), secondPage = ok(detail(many, { part: "index", revision: "9:0", page: 1 }));
+    const firstPage = ok(detail(many, { part: "index", revision: "9", page: 0 })), secondPage = ok(detail(many, { part: "index", revision: "9", page: 1 }));
     if (firstPage.part === "index" && secondPage.part === "index") {
       expect(firstPage.entries).toHaveLength(32);
       expect(secondPage.entries).toHaveLength(8);

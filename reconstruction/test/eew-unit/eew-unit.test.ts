@@ -732,10 +732,12 @@ describe("P2 EEW unit", () => {
       const refused = receive(normalState, attempted);
       const decision: Extract<EewUnitStep["decisions"][number], { decision: "capacityExceeded" }> = {
         decision: "capacityExceeded", subject: `${operation}/VXSE43/00000000009000`, operation,
-        rejection: { family: "VXSE43", reportDateTimeMs: Date.parse(attempted.reportDateTimeRaw), affectedScope: "subject" },
       };
+      // P3-CC-AC02・AC07: 拒否は unit/operation の負の証拠と capacityRejected の 1 行を返す（state は不変のまま）。
       expect(refused).toEqual({ state: normalState, nextDeadline: { wallTimeMs: BASE_TIME + 15_000, monotonicMs: null },
-        decisions: [decision], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] });
+        decisions: [decision], intents: [], outcomes: [],
+        diagnostics: [{ level: "WARN", component: "eew", reason: "capacityRejected", unit: "U-E", inputId: attempted.inputId }],
+        displayChanges: [], confirmationEvidence: [{ source: "capacityExceeded", scopes: [{ unit: "U-E", operation, kind: "unit" }] }] });
       expect(refused.state).toBe(normalState);
     }
     expect(receive(full, normalInputs[0]).state).toBe(full); // Existing subject consumes no additional slot.
@@ -797,7 +799,7 @@ describe("P2 EEW unit", () => {
     const refused = receive(overfull, material(9400, "normal"));
     expect(refused.state).toBe(overfull);
     expect(refused.decisions[0].decision).toBe("capacityExceeded");
-    expect(refused.diagnostics).toEqual([]);
+    expect(refused.diagnostics.map((item) => item.reason)).toEqual(["capacityRejected"]);
     const repairable = { ...overfull, current: overfull.current.slice(1), gates: overfull.gates.slice(1) };
     const repaired = receive(repairable, material(9400, "normal"));
     expect(repaired.state.gates).toHaveLength(512);
