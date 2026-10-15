@@ -10,7 +10,7 @@ import type { EewUnitView } from "./p2-eew-unit.types";
 import type { NotificationDeliveryState, NotificationSelection } from "./p2-notification-delivery.types";
 import type { WeatherCurrentInput, WeatherCurrentSnapshot, WeatherCurrentUnitState, WeatherCurrentUnitStep } from "./p2-weather-current-unit.types";
 import type { WeatherCurrentUnitView } from "./p2-weather-current-unit.types";
-import type { WeatherTimeseriesInput, WeatherTimeseriesSubject, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep } from "./p2-weather-timeseries-unit.types";
+import type { WeatherTimeseriesInput, WeatherTimeseriesPublicSubject, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep } from "./p2-weather-timeseries-unit.types";
 import type { WeatherTimeseriesUnitView } from "./p2-weather-timeseries-unit.types";
 import type { TsunamiForecastSubject, TsunamiInput, TsunamiObservationSubject, TsunamiUnitState, TsunamiUnitStep, TsunamiUnitView } from "./p3-tsunami-unit.types";
 import type { EarthquakeEventView, LongPeriodSubject, SeismicInput, SeismicUnitState, SeismicUnitStep, SeismicUnitView } from "./p3-seismic-unit.types";
@@ -193,7 +193,7 @@ export type RuntimeDisplaySubject = Readonly<{
   | Readonly<{ unit: "U-E"; current: (EewCurrent & Readonly<{ eventId: string; warningClass: "forecast" | "warning" }>) | null }>
   | Readonly<{ unit: "U-W"; current: WeatherCurrentSnapshot | null;
       unavailable: WeatherCurrentUnitState["unavailable"]; freshness: readonly FreshnessRecord[] }>
-  | Readonly<{ unit: "U-F"; current: WeatherTimeseriesSubject | null }>
+  | Readonly<{ unit: "U-F"; current: WeatherTimeseriesPublicSubject | null }>
   | Readonly<{ unit: "U-T"; current: TsunamiForecastSubject | TsunamiObservationSubject | null }>
   // I-U-Q.view: subject は event の鍵か長周期の subject。
   | Readonly<{ unit: "U-Q"; current: EarthquakeEventView | LongPeriodSubject | null }>

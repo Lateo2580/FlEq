@@ -104,10 +104,75 @@ export type PersistedWeatherTimeseriesUnit = Readonly<{
   intents: readonly NotificationIntent[];
 }>;
 
+// P3-UFP-AC01: owner が publisher へ出す subject 1 件の公開形式。period の行・辞書・lastKnown は owner に残し、
+// 詳細の口（WeatherTimeseriesDetailResponse）が (id, revision) で読む。
+export type WeatherTimeseriesPublicSubject = Readonly<{
+  subject: string;
+  operation: Operation;
+  office: string;
+  // JSON.stringify(["U-F", operation, subject]) の sha256 hex（P2-A8-NOTICE.identity の targetId と同じ）。
+  id: string;
+  // この subject の object を作った step の unit の内容版（10 進、16 桁以下）。
+  revision: string;
+  source: ReportRef | null;
+  effective: WeatherTimeseriesSubject["effective"];
+  unavailableReason: WeatherTimeseriesUnavailableReason | null;
+  validUntil: number | null;
+  // 昇順の集合。effective が active でなければ空。
+  areaCodes: readonly string[];
+  knownCodes: readonly string[];
+  unknownCode: Readonly<{ unknown: number; missing: number; empty: number }>;
+  periodCount: number;
+  lastKnownPeriodCount: number | null;
+}>;
+
 export type WeatherTimeseriesUnitView = SharedUnitView & Readonly<{
   unit: "U-F";
-  series: readonly WeatherTimeseriesSubject[];
+  series: readonly WeatherTimeseriesPublicSubject[];
 }>;
+
+// 詳細の口（P3-UFP-AC06）。streamId は publisher が照合して外してから owner へ渡す。
+export type WeatherTimeseriesDetailRequest =
+  | Readonly<{ part: "index"; revision: string; page: number }>
+  | Readonly<{ part: "current" | "lastKnown"; id: string; revision: string; page: number }>;
+
+export type WeatherTimeseriesDetailPeriod = readonly [
+  meteorologicalInfosPosition: number, timeSeriesInfoPosition: number,
+  time: readonly [timeId: string | null, dateTimeRaw: string | null, durationRaw: string | null, name: string | null, startMs: number, endMs: number],
+  area: readonly [code: string | null, name: string | null],
+  kind: readonly [status: string | null, dateTimeRaw: string | null, dateTimeType: string | null],
+  propertyType: string | null, placement: string | null,
+  local: readonly [code: string | null, areaNameCode: string | null, areaName: string | null, name: string | null, anonymousPosition: number | null] | null,
+  elementName: string | null, valueType: string | null,
+  attributes: readonly (readonly [name: string | null, value: string | null])[],
+  value: WeatherTimeseriesValue,
+];
+
+export type WeatherTimeseriesDetailIndexEntry = Readonly<{
+  id: string;
+  operation: Operation;
+  office: string;
+  officeTruncated: boolean;
+  revision: string;
+  effective: WeatherTimeseriesSubject["effective"];
+  periodCount: number;
+  lastKnownPeriodCount: number | null;
+}>;
+
+export type WeatherTimeseriesDetailError = Readonly<{
+  kind: "error";
+  reason: "invalidRequest" | "versionChanged" | "busy" | "unavailable" | "timeout";
+  // 今の版（subject の版か索引の内容版）。当てはまらなければ null。
+  revision: string | null;
+}>;
+
+export type WeatherTimeseriesDetailResponse =
+  | Readonly<{ kind: "ok"; part: "index"; revision: string; page: number; pageCount: number; subjectCount: number;
+      entries: readonly WeatherTimeseriesDetailIndexEntry[] }>
+  | Readonly<{ kind: "ok"; part: "current" | "lastKnown"; id: string; revision: string; page: number; pageCount: number;
+      periodCount: number; periods: readonly Readonly<{ index: number; period: WeatherTimeseriesDetailPeriod }>[];
+      omitted: readonly Readonly<{ index: number; reason: "pageBudget" }>[] }>
+  | WeatherTimeseriesDetailError;
 
 export type WeatherTimeseriesInput =
   | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>

@@ -20,8 +20,8 @@
 
 | 向き | 流れるもの | 流さないもの |
 |---|---|---|
-| publisher → worker | 受理した入力（frame の raw bytes と ingress 済みの外形 metadata、inputId・T0）、control（期限 tick の時計、終了の段階指示）、checkpoint の書込み権（unit ごとに 1 件まで、`P3-UNIT-WRITE-RIGHT-001`） | decode・normalize 済みの中身 |
-| worker → publisher | 版付きの有界な view・outcome・intent 選択の入力・persistence 状態（`kind`・`dirtySince`・`currentGeneration`・`savedGeneration`）、checkpoint の結果と計測、入力の完了、進捗応答、診断 | parse 済み tree（台帳 38: 転送 212ms）、canonical state 全体、checkpoint の bytes |
+| publisher → worker | 受理した入力（frame の raw bytes と ingress 済みの外形 metadata、inputId・T0）、control（期限 tick の時計、終了の段階指示）、checkpoint の書込み権（unit ごとに 1 件まで、`P3-UNIT-WRITE-RIGHT-001`）、U-F の詳細の要求（deferred の owner に 1 件まで、mailbox を通さない。`P3-UF-PUBLIC-001`） | decode・normalize 済みの中身 |
+| worker → publisher | 版付きの有界な view・outcome・intent 選択の入力・persistence 状態（`kind`・`dirtySince`・`currentGeneration`・`savedGeneration`）、checkpoint の結果と計測、入力の完了、進捗応答、診断、U-F の詳細の有界な 1 ページ（1 応答 64 KiB 以下、`P3-UF-PUBLIC-001` の RES-03） | parse 済み tree（台帳 38: 転送 212ms）、canonical state 全体、checkpoint の bytes |
 
 - 大きい frame の envelope の全文 JSON.parse を publisher に残すかは C4 の予備測定の `ingressJsonMs` で決める（plan:194、spec:1072「全文の JSON parse は一回」）。どちらでも parse は 1 回。
 - worker と publisher の間の値は構造化複製できる素のデータに限る（関数・class instance・共有の可変参照を持たない）。

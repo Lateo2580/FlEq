@@ -1,9 +1,9 @@
-import { isDeepStrictEqual } from "node:util";
+import { isDeepStrictEqual } from "node:util"; import { createHash } from "node:crypto";
 
 import type { JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
-  WeatherTimeseriesUnitView } from "../../../contracts/p2-weather-timeseries-unit.types";
+  WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
@@ -117,7 +117,7 @@ function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotoni
       outcome(item, ["effective", "periods", "validUntil"])) }] };
 }
 // AC04/Q-PERIOD: table indexes are local to each snapshot and have no semantic identity.
-function periodMeaning(snapshot: WeatherTimeseriesSnapshot, row: WeatherTimeseriesSnapshot["periods"][number]) {
+function periodMeaning(snapshot: WeatherTimeseriesSnapshot, row: WeatherTimeseriesSnapshot["periods"][number]): WeatherTimeseriesDetailPeriod {
   const text = (index: number | null) => index == null ? null : snapshot.strings[index];
   const series = snapshot.series[row[0]], time = series.timeDefines[row[8]], area = snapshot.areas[row[1]],
     kind = snapshot.kinds[row[2]], local = row[5] == null ? null : snapshot.locals[row[5]];
@@ -437,10 +437,47 @@ function reduceCore(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesI
   if (input.kind === "deadline") return { ...step(applied.state), decisions: applied.decisions, outcomes: applied.outcomes };
   return { ...step(applied.state), outcomes: [{ kind: "batchCompleted", reason: "shutdown", subjects: [] }] };
 }
+// P3-UFP-AC01: subject の公開形式。subject の object ごとに 1 回だけ作る（outcomeCache と同じ形）。無いと view を作り直すたびに、
+// 変わっていない subject の period まで走査し直す。
+const publicCache = new WeakMap<WeatherTimeseriesSubject, WeatherTimeseriesPublicSubject>();
+// subject の object を作った step の unit の内容版（Q-UFP-REVISION）。保存しない。reduce を通っていない object（手で組んだ state）は 0。
+const revisionOf = new WeakMap<WeatherTimeseriesSubject, number>();
+// view-projector.ts の TIMESERIES_SEVERITY の鍵と同じ集合（Q-VALUES.knownCodes）。ずれると要約の件数が変わるので揃えて保つ。
+const KNOWN_CODES: ReadonlySet<string> = new Set(["00", "01", "11", "20", "21", "22", "30", "31", "41", "50", "51"]);
+function publicSubject(item: WeatherTimeseriesSubject): WeatherTimeseriesPublicSubject {
+  const cached = publicCache.get(item);
+  if (cached != null) return cached;
+  const areaCodes = new Set<string>(), known = new Set<string>();
+  const unknownCode = { unknown: 0, missing: 0, empty: 0 };
+  // 要約が数えるのは active の subject だけ（P2-A8-SUMMARY）。
+  if (item.effective === "active") for (const row of item.periods) {
+    const area = item.strings[item.areas[row[1]].code];
+    if (area !== "") areaCodes.add(area);
+    const value = item.values[row[10]];
+    if (value.kind !== "significancy") continue;
+    const reason = value.name.kind === "missing" || value.code.kind === "missing" ? "missing"
+      : value.name.kind === "empty" || value.code.kind === "empty" ? "empty" : value.code.kind === "text" ? null : "unknown";
+    if (reason == null && value.code.kind === "text" && KNOWN_CODES.has(value.code.raw)) known.add(value.code.raw);
+    else unknownCode[reason ?? "unknown"] += 1;
+  }
+  const result: WeatherTimeseriesPublicSubject = { subject: item.subject, operation: item.operation,
+    office: item.subject.slice(`${item.operation}/VPWP50/`.length),
+    id: createHash("sha256").update(JSON.stringify(["U-F", item.operation, item.subject]), "utf8").digest("hex"),
+    revision: String(revisionOf.get(item) ?? 0), source: item.source, effective: item.effective,
+    unavailableReason: item.unavailableReason, validUntil: item.validUntil,
+    areaCodes: [...areaCodes].sort(), knownCodes: [...known].sort(), unknownCode,
+    periodCount: item.periods.length, lastKnownPeriodCount: item.lastKnown?.periods.length ?? null };
+  publicCache.set(item, result);
+  return result;
+}
+function displaySubject(item: WeatherTimeseriesSubject): Extract<RuntimeDisplaySubject, { unit: "U-F" }> {
+  return { unit: "U-F", operation: item.operation, subject: item.subject, office: publicSubject(item).office,
+    current: publicSubject(item), subjects: [outcome(item, [])] };
+}
 function toWeatherTimeseriesView(state: WeatherTimeseriesUnitState): WeatherTimeseriesUnitView {
   return { unit: "U-F", semanticRevision: state.subjects.map((item) =>
     `${item.subject}:${item.source?.reportDateTimeRaw ?? ""}:${item.source?.serialRaw ?? ""}:${item.source?.infoTypeRaw ?? ""}:${item.effective}`)
-    .sort().join("|"), contentRevision: String(state.contentRevision), admission: {}, series: state.subjects,
+    .sort().join("|"), contentRevision: String(state.contentRevision), admission: {}, series: state.subjects.map(publicSubject),
     subjects: state.subjects.map((item) => outcome(item, [])) };
 }
 
@@ -450,10 +487,10 @@ function reduceWeatherTimeseriesUnit(state: WeatherTimeseriesUnitState, input: W
     const key = (after ?? before)!.subject;
     changes.set(key, { before: changes.has(key) ? changes.get(key)!.before : before, after });
   });
-  const subject = (item: WeatherTimeseriesSubject): RuntimeDisplaySubject => ({
-    unit: "U-F", operation: item.operation, subject: item.subject,
-    office: item.subject.slice(`${item.operation}/VPWP50/`.length), current: item, subjects: [outcome(item, [])],
-  });
+  // Q-UFP-REVISION: 新しい object の公開形式を作る前に、その版を記録する。
+  if (result.state !== state) for (const { before, after } of changes.values())
+    if (after != null && after !== before && !revisionOf.has(after)) revisionOf.set(after, state.contentRevision + 1);
+  const subject = displaySubject;
   const displayChanges: WeatherTimeseriesUnitStep["displayChanges"] = result.state === state ? []
     : [...changes].flatMap(([key, { before, after }]) => before === after ? [] : [{
       unit: "U-F" as const, operation: (after ?? before)!.operation, subject: key,
@@ -484,13 +521,68 @@ const weatherTimeseriesUnit = {
   confirmationScopeLimit: 512,
   withoutNormal: (state) => ({ ...state, subjects: state.subjects.filter((item) => item.operation !== "normal") }),
   keepsWhileNormalHidden: () => false,
-  normalDisplaySubjects: (state) => state.subjects.filter((item) => item.operation === "normal").map((item) => ({
-    unit: "U-F" as const, operation: item.operation, subject: item.subject,
-    office: item.subject.slice(`${item.operation}/VPWP50/`.length), current: item,
-    subjects: [outcome(item, [])] })),
+  normalDisplaySubjects: (state) => state.subjects.filter((item) => item.operation === "normal").map(displaySubject),
   terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: false,
 } satisfies UnitModule<"U-F">;
 
-export { outcome as timeseriesSubjectOutcome, reduceWeatherTimeseries, reduceWeatherTimeseriesUnit,
-  toWeatherTimeseriesView, weatherTimeseriesUnit, weatherTimeseriesUnitCodec };
+// P3-UFP-AC06: 詳細の 1 ページ。読むだけで、state も期限も dirty も動かさない。
+const PERIOD_PAGE = 64, INDEX_PAGE = 32, ROW_BUDGET = 61_440, OFFICE_BYTES = 256;
+// notice の source の office と同じ切り方（view-projector.ts の wellFormedPrefix、P2-A8-NOTICE.source）。import しない:
+// view-projector は publisher 側の module で、owner（この unit）は publisher の module を読まない。
+function officePrefix(value: string): Readonly<{ text: string; truncated: boolean }> {
+  let text = "", size = 0;
+  for (const char of value) {
+    const point = char.codePointAt(0)!;
+    const scalar = point >= 0xd800 && point <= 0xdfff ? "\ufffd" : char;
+    const width = Buffer.byteLength(scalar);
+    if (size + width > OFFICE_BYTES) return { text, truncated: true };
+    text += scalar;
+    size += width;
+  }
+  return { text, truncated: false };
+}
+const versionChanged = (revision: string | null): WeatherTimeseriesDetailResponse => ({ kind: "error", reason: "versionChanged", revision });
+const invalid: WeatherTimeseriesDetailResponse = { kind: "error", reason: "invalidRequest", revision: null };
+function weatherTimeseriesDetail(state: WeatherTimeseriesUnitState, request: WeatherTimeseriesDetailRequest,
+  view: Readonly<{ normalHidden: boolean; contentRevision: string }>): WeatherTimeseriesDetailResponse {
+  // normal の公開の制限の間は、normal の subject を索引に載せず、ページも返さない（P3-UFP-AC06 (1)(2)）。
+  const visible = state.subjects.filter((item) => !(view.normalHidden && item.operation === "normal"));
+  const pageOf = (count: number, size: number) => {
+    const pageCount = Math.max(1, Math.ceil(count / size));
+    return Number.isSafeInteger(request.page) && request.page >= 0 && request.page < pageCount ? pageCount : null;
+  };
+  if (request.part === "index") {
+    if (request.revision !== view.contentRevision) return versionChanged(view.contentRevision);
+    const pageCount = pageOf(visible.length, INDEX_PAGE);
+    if (pageCount == null) return invalid;
+    const entries = visible.slice(request.page * INDEX_PAGE, (request.page + 1) * INDEX_PAGE).map((item) => {
+      const pub = publicSubject(item), office = officePrefix(pub.office);
+      return { id: pub.id, operation: pub.operation, office: office.text, officeTruncated: office.truncated,
+        revision: pub.revision, effective: pub.effective, periodCount: pub.periodCount, lastKnownPeriodCount: pub.lastKnownPeriodCount };
+    });
+    return { kind: "ok", part: "index", revision: view.contentRevision, page: request.page, pageCount, subjectCount: visible.length, entries };
+  }
+  const item = visible.find((candidate) => publicSubject(candidate).id === request.id);
+  if (item == null) return versionChanged(null);
+  const { revision } = publicSubject(item);
+  if (request.revision !== revision) return versionChanged(revision);
+  const snapshot = request.part === "current" ? item : item.lastKnown;
+  const count = snapshot?.periods.length ?? 0;
+  const pageCount = pageOf(count, PERIOD_PAGE);
+  if (pageCount == null) return invalid;
+  const periods: { index: number; period: WeatherTimeseriesDetailPeriod }[] = [];
+  const omitted: { index: number; reason: "pageBudget" }[] = [];
+  let used = 0;
+  if (snapshot != null) for (let index = request.page * PERIOD_PAGE; index < Math.min(count, (request.page + 1) * PERIOD_PAGE); index++) {
+    const row = { index, period: periodMeaning(snapshot, snapshot.periods[index]) };
+    // 入らない行は切らずに名前で挙げる。ページは完全な JSON のまま（spec §7.10 (6)）。
+    const size = Buffer.byteLength(JSON.stringify(row)) + (periods.length === 0 ? 0 : 1);
+    if (used + size > ROW_BUDGET) omitted.push({ index, reason: "pageBudget" });
+    else { periods.push(row); used += size; }
+  }
+  return { kind: "ok", part: request.part, id: request.id, revision, page: request.page, pageCount, periodCount: count, periods, omitted };
+}
+
+export { outcome as timeseriesSubjectOutcome, publicSubject as timeseriesPublicSubject, reduceWeatherTimeseries, reduceWeatherTimeseriesUnit,
+  toWeatherTimeseriesView, weatherTimeseriesDetail, weatherTimeseriesUnit, weatherTimeseriesUnitCodec };

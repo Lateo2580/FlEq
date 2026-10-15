@@ -13,7 +13,7 @@ import { callsWith } from "../unit-table/linked-calls";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
-import { reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
+import { reduceWeatherTimeseriesUnit, timeseriesPublicSubject, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { fixtureDriver, fixtureState, ownerFixture, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { envelope, harnessedRoot, seeded, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
@@ -466,7 +466,7 @@ describe("P2-A6 weather timeseries", () => {
     expect(evicted.state.subjects.some((item) => item.subject === training.subject)).toBe(false);
     expect(evicted.displayChanges).toHaveLength(2);
     const deletion = evicted.displayChanges.find((item) => item.after == null);
-    expect(deletion?.before?.unit === "U-F" && deletion.before.current).toBe(training);
+    expect(deletion?.before?.unit === "U-F" && deletion.before.current).toBe(timeseriesPublicSubject(training));
     const revision = fixture(unknown, (xml) => xml
       .replace("<EditorialOffice>稚内地方気象台</EditorialOffice>", "<EditorialOffice>office0</EditorialOffice>")
       .replace("2026-06-05T17:00:00+09:00</ReportDateTime>", "2026-06-05T18:00:00+09:00</ReportDateTime>"));
@@ -708,7 +708,7 @@ describe("P2-A6 weather timeseries", () => {
       expect(restoredStep.displayChanges).toMatchObject([{ unit: "U-F", before: null,
         after: { current: { effective: "active" } } }]);
       expect(restoredStep.displayChanges[0].after?.unit === "U-F"
-        && restoredStep.displayChanges[0].after.current).toEqual(unit(b).subjects[0]);
+        && restoredStep.displayChanges[0].after.current).toEqual(timeseriesPublicSubject(unit(b).subjects[0]));
       expect(unit(b).persistence.savedGeneration).toBe(1);
       fail.write = true;
       await route(b, cancel, DATE + 2);

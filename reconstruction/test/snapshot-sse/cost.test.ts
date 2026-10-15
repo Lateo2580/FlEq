@@ -26,7 +26,8 @@ function elements(state: RuntimeState) {
   return {
     eew: new Set<object>(state.units["U-E"].current),
     weather: new Set<object>([...Object.values(state.units["U-W"].national).filter((item) => item != null), ...state.units["U-W"].partials]),
-    timeseries: new Set<object>(state.units["U-F"].subjects),
+    // projector が読むのは公開形式の object なので、view の series（displayChanges の current と同じ object）を数える。
+    timeseries: new Set<object>(state.views["U-F"].series),
   };
 }
 
@@ -121,8 +122,10 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
   it("P2-A8-T06: summary→full re-measures only the changed subject", async () => {
     const started = await startup(clock);
     const training = (xml: string) => atTime(xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"), "2026-06-05T16:00:00+09:00");
+    // 公開形式は period を持たないので、大きな training の series は 600,000 文字の inputId（出典に 1 回、outcome にもう 1 回）で作る。
+    // U-F だけで 1 MiB を越え、下の取消が出典を短いものに替える。
     const adopted = await combine(started.state, [received("run", decode("81_09_01_260605_VPWP50", "VPWP50"), clock),
-      received("run", decode("81_09_01_260605_VPWP50", "VPWP50", training, "training-nagano"), clock),
+      received("run", decode("81_09_01_260605_VPWP50", "VPWP50", training, "n".repeat(600_000)), clock),
       received("run", timeseries("稚内地方気象台"), clock)]);
     const first = projected(projectSnapshot(projectionInput(adopted, at), null));
     expect(first.snapshot.current.weatherTimeseries.delivery).toBe("summary");

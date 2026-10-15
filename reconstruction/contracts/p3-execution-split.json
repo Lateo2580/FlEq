@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "d262b47139a1cb7ae0052f6799de6dd4b634169103292f1ff0c6f23677aaf13c",
+    "sha256": "b42d069019871aa96ec3f9dbba9636317bc69cbd48dc7eac3187acd1bf94f326",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -172,7 +172,7 @@
         "id": "Q-C3A-SPEC-REVISION",
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-05）。:155・:156は作者承認（2026-10-05）",
-        "closed": "(1) 置換した11行（行数3005のまま）と新anchor: :155→06e3db4b6d7a6269、:156→5ff6459c3e9830f6、:315→d8a0d0fd0b4df481、:375→31cbc32d88e632f5、:377→62f09787079e63d5、:1026→3eec5dfd825629ab、:1027→da2210ef3e4ebcfb（3本とreadyでない入力の置き場）、:1049→486cb0014d998c27、:1054→efef044c85351a6c、:1157→62558ecd7e0b8287、:1164→a0005fcda1372f26。被引用の1件（p2-eew-e01.json:471）とそのmeta.sha256（31adff9f…510f）を同じcommitで更新。(2) 改訂しない行: :1024（見出し）・:1025（区切り）・:1029（関係しない）、:1028（I/Oの種類と戻し方の行でAC05・AC06と合う）、:1155（p2-eew-e01.json:470の被引用。:1157の「§7.1の配置がこれを満たす」で読める）。(3) AC04の挙動変化の許可: 不正UTF-8を含む16 KiB以下の制御形frameは制御でなくenvelopeInvalidになり、C2以後のstartの記録・recordConnected・controlFrame観測・dmdataErrorFrameも起きない（製品のdmdata経路ではwsが1007で閉じるため到達しない）。UTF-8 BOM付きの制御形frameは従来は入力に数えられformatUnsupportedで拒否されたが、制御として扱い入力に数えない。どちらも凍結時に許し、BOM側の試験は足さない。(4) P4送り: C3aのmirrorが各unitの最新viewをpublisherに持つことと、spec:377の第5列（mainへfull viewを別配送しない）・:380・:1233・:1342・:1858・:2537の「mainのfull view複製0」の字面の食い違いは、P4の§7.10のwire固定時に決める。(5) 記録のみの字面のずれ: :1095（Aの非中断処理の追い越し不可は3本構成では同じ実行場所の中だけ）、:1190〜:1191（単数のworker。C3bで扱う）、:1054（上限を数で書かない。AC15等で1件ずつに抑える）、:44（経緯として残す）",
+        "closed": "(1) 置換した11行（行数3005のまま）と新anchor: :155→06e3db4b6d7a6269、:156→5ff6459c3e9830f6、:315→d8a0d0fd0b4df481、:375→31cbc32d88e632f5、:377→62f09787079e63d5、:1026→3eec5dfd825629ab、:1027→da2210ef3e4ebcfb（3本とreadyでない入力の置き場）、:1049→486cb0014d998c27、:1054→efef044c85351a6c、:1157→62558ecd7e0b8287、:1164→a0005fcda1372f26。被引用の1件（p2-eew-e01.json:471）とそのmeta.sha256（31adff9f…510f）を同じcommitで更新。(2) 改訂しない行: :1024（見出し）・:1025（区切り）・:1029（関係しない）、:1028（I/Oの種類と戻し方の行でAC05・AC06と合う）、:1155（p2-eew-e01.json:470の被引用。:1157の「§7.1の配置がこれを満たす」で読める）。(3) AC04の挙動変化の許可: 不正UTF-8を含む16 KiB以下の制御形frameは制御でなくenvelopeInvalidになり、C2以後のstartの記録・recordConnected・controlFrame観測・dmdataErrorFrameも起きない（製品のdmdata経路ではwsが1007で閉じるため到達しない）。UTF-8 BOM付きの制御形frameは従来は入力に数えられformatUnsupportedで拒否されたが、制御として扱い入力に数えない。どちらも凍結時に許し、BOM側の試験は足さない。(4) P4送り: C3aのmirrorが各unitの最新viewをpublisherに持つことと、spec:377の第5列（mainへfull viewを別配送しない）・:380・:1233・:1342・:1858・:2537の「mainのfull view複製0」の字面の食い違いは、P4の§7.10のwire固定時に決める（U-Fについては、mirrorがviewの公開形式だけを持ち詳細をworkerで1ページずつ射影する形で、P3-UF-PUBLIC-001が閉じた。2026-10-15改訂）。(5) 記録のみの字面のずれ: :1095（Aの非中断処理の追い越し不可は3本構成では同じ実行場所の中だけ）、:1190〜:1191（単数のworker。C3bで扱う）、:1054（上限を数で書かない。AC15等で1件ずつに抑える）、:44（経緯として残す）",
         "remaining": "なし（P4送りの箇所はこの記録を真実源とし、P4の§7.10のwire固定の起草時に引き取る）",
         "reason": "unresolvedQuestionsのQ-C3A-SPEC-REVISION（baseOidの割当の前）を閉じる"
       },
@@ -540,8 +540,8 @@
         "id": "P3-C3A-RES-09",
         "target": "outstanding requests per owner",
         "limit": 1,
-        "unit": "outstanding request per kind per owner, except intentUpdate at most 2 per notification channel (one reservation and one result update), so at most 9 per owner",
-        "scope": "inputはmailboxのin-flight（RES-01）。deadlineは未完了1件で、未完了の間のtickは送らず、次のtickで最新の時計を送る（合流）。checkpointGrantは全体で1件（RES-03）。restore・shutdownInput・finalizeは各1回。ownerが止まっても要求は増えない",
+        "unit": "outstanding request per kind per owner, except intentUpdate at most 2 per notification channel (one reservation and one result update), so at most 9 per owner, plus one detail request for the deferred owner only (P3-UF-PUBLIC-001, revised at its delivery)",
+        "scope": "inputはmailboxのin-flight（RES-01）。deadlineは未完了1件で、未完了の間のtickは送らず、次のtickで最新の時計を送る（合流）。checkpointGrantは全体で1件（RES-03）。restore・shutdownInput・finalizeは各1回。detail（U-Fの詳細の1ページ）はdeferredのownerだけに未完了1件（P3-UF-PUBLIC-001のRES-06で改訂）。ownerが止まっても要求は増えない",
         "source": "独立レビュー（2026-10-01）P1-3"
       }
     ],
@@ -597,8 +597,8 @@
         "id": "P3-C3A-AC02",
         "requirement": "境界を越える値と時刻（台帳38、実行境界メモ§2、P3-C3A-CLOCK）: threadをまたぐのはOwnerStartData・OwnerRequest・OwnerReplyだけで、構造化複製できる素のデータに限り（関数・class instance・共有の可変参照を持たない）、各kindのfieldは型の定義どおりに限る。DecodedMaterial・XML node・unit stateの本体・CheckpointRequest（envelopeのpayload）・保存bytesは載せない（RES-06）。ParserMailboxItemはpublisher→ownerへ入力1件につき1回渡り、transferを使うならbyteOffset 0で全長を占めるArrayBufferだけを渡す。時刻は3つを分け、混ぜない（P3-C3A-CLOCK）: (1) 受信時刻＝WS受信callbackの壁時計（item.receivedAt、従来どおり）(2) 業務の時刻＝受理・期限・capture・ack・dirtySince・mailboxの完了照合の時刻で、要求のSentClockからclock＋（共有の実時計の現在値−sharedMs）として外挿する。ただし要求が固定の判断時刻を持つときは外挿せずそのまま使う: intentUpdateのdecisionClock（通知結果の更新は結果のcompletedAt、選択の更新は選択時の時計。unit入力のclockとしてP2と同じに渡し、期限前に完了した成功は後で届いてもdeliveredになる）、finalizeのcutoff。capturedAtは実際にcaptureした時刻、ackAtはdirectory syncの完了後にackを決めた時刻 (3) 計測の時刻＝T2・decode・processingのmarks・CheckpointMeasurementの各段で、共有の実時計の現在値−publisherTimeOriginMsとしてpublisherの実単調時計（performance.now()）の基準へ換算し、注入時計のoffsetを足さない。publisherのT0・T1・T3・T4も同じ実単調時計。注入時計は実時間と同じ速さで進むとみなし、送出後の注入時計の飛びは次の要求から効く（この限界を成果物に書く）。ownerは自分のperformance.now()を他threadの値と直接比べない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-execution-boundary.md:23 «92ed612528871f13»",
-          "reconstruction/contracts/p3-execution-boundary.md:24 «a2093fe26e2e9930»",
+          "reconstruction/contracts/p3-execution-boundary.md:23 «778675a95e83f912»",
+          "reconstruction/contracts/p3-execution-boundary.md:24 «7c66f6ded18dfbab»",
           "reconstruction/contracts/p3-execution-boundary.md:27 «0312174a4bc58c9f»",
           "reconstruction/contracts/p3-order-plan.md:149 «a8542d2933bd43a1»",
           "docs/specs/reconstruction-p0-contracts.md:343 «2ffce7ab8bc76db8»",
@@ -746,7 +746,7 @@
       },
       {
         "id": "P3-C3A-AC15",
-        "requirement": "owner宛て要求の有界性（RES-09）: owner宛てのcontrol要求はmailboxに数えず、種別ごとの固定上限で有界にする。deadlineは未完了1件までで、未完了の間のtickは送らず、次のtickで最新の時計を送る。intentUpdateはchannelごとに予約1件と結果の更新1件まで。checkpointGrantは全体で1件。ownerが返信しなくなっても要求は増えない。ownerはcheckpointのI/Oの完了を待つ間も後続の要求（入力・期限・intent更新）を処理する（checkpointDoneは操作が終わった時点の適用順で送る）",
+        "requirement": "owner宛て要求の有界性（RES-09）: owner宛てのcontrol要求はmailboxに数えず、種別ごとの固定上限で有界にする。deadlineは未完了1件までで、未完了の間のtickは送らず、次のtickで最新の時計を送る。intentUpdateはchannelごとに予約1件と結果の更新1件まで。checkpointGrantは全体で1件。detailはdeferredのownerに未完了1件まで（P3-UF-PUBLIC-001で改訂）。ownerが返信しなくなっても要求は増えない。ownerはcheckpointのI/Oの完了を待つ間も後続の要求（入力・期限・intent更新）を処理する（checkpointDoneは操作が終わった時点の適用順で送る）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1056 «5a36cc2957d9d9a9»",
           "docs/specs/reconstruction-p0-contracts.md:676 «2a94f20f4e770c22»",

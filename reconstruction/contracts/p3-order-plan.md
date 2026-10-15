@@ -227,8 +227,8 @@ S6（Q6 の残り、最終表示端末）と Q5（Q5-a・Q5-b）は P4 着手前
 - R46〜R49・R52（表示語彙・点地物・Pi Chrome の長期検収）と spec:167・§15.4 の改訂（R52）
 - R50・R51 の描画部品（台風の予報円・暴風域、水位ミニグラフ）。意味要件（台風の数値緯度経度、水位の観測・予測 series と基準水位）は P3 の C14・C11 で閉じる
 - R58 と design-system の「ほかN」6 か所の同期
-- IR04・IR07・IR09〜IR13（独立レビュー `2026-09-11-FlEq-P0-v3.1-independent-review.md:205`、作業ノート）。IR07 の詳細要求は worker と main の境界を通るので、P4 の契約で C3a の境界型を改訂する
-- O11（spec:1787）、O09 の EEW の容量縮退（spec:1129）と personal の step、津波の容量縮退の測定（D-P3-6）、津波の burst・詳細射影中の E01（O09:30・31・39・40・48・49・57・58・66・67。詳細射影の実体が P4 にあるため。P3-C6-O09-REST=A、作者裁定 2026-10-09。P3 の完了報告に未検収と書く）
+- IR04・IR07・IR09〜IR13（独立レビュー `2026-09-11-FlEq-P0-v3.1-independent-review.md:205`、作業ノート）。IR07 の詳細要求は worker と main の境界を通るので、P4 の契約で C3a の境界型を改訂する（U-F の分は `P3-UF-PUBLIC-001` で P3 へ前倒しした。2026-10-15）
+- O11（spec:1787）、O09 の EEW の容量縮退（spec:1129）と personal の step、津波の容量縮退の測定（D-P3-6）、津波の burst・詳細射影中の E01（O09:30・31・39・40・48・49・57・58・66・67。詳細射影の実体が P4 にあるため。P3-C6-O09-REST=A、作者裁定 2026-10-09。P3 の完了報告に未検収と書く。U-F の詳細射影は `P3-UF-PUBLIC-001` で P3 に入ったが、その E01 は同契約の残存リスク (9) で C4・E01 の窓の範囲）
 - §11.4 のブラウザ側の互換必須行（津波 chip 再放送・browser dim・reduced-motion）
 - 台帳 50・53・54
 
@@ -422,5 +422,5 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 
 | 契約 | 対象 | 依存 | 状態 |
 |---|---|---|---|
-| `P3-UF-PUBLIC-001`（`p3-uf-public.json`） | U-F の owner が publisher へ出すもの（view・displayChanges・restore・normal の公開の制限）を、常設表示に要る小さい公開形式（1 鍵 1,510＋10×区域 byte）に限り、範囲・版付きの詳細取得の口と索引ページを足す（spec §7.10 の U-F 分を P3 で）。U-F の state・codec・reducer・保存は変えない。A3（他分野の巻き添えの要約）を U-F について閉じる（U-W の分は ③） | P3-EXECUTION-LIFECYCLE-001・P3-UNIT-TABLE-001 | 起草・発注前点検（2026-10-15、3fe5dd69 から）。独立レビュー（品質 ヘルツ NO-GO→条件付き GO、契約適合 Opus 条件付き GO×2）。作者裁定 D-FIELDS＝A・D-DETAIL-SCREEN＝A（作者裁定 P2-A8-D03=A を U-F について一部覆す）、残存リスク (1)〜(10) 一括承認（Q-UFP-AUTHOR、Q-UFP-PRECHECK）。baseOid は点検の commit 9b0248ac に割り当て済み（Q-UFP-BASE） |
+| `P3-UF-PUBLIC-001`（`p3-uf-public.json`） | U-F の owner が publisher へ出すもの（view・displayChanges・restore・normal の公開の制限）を、常設表示に要る小さい公開形式（1 鍵 1,510＋10×区域 byte）に限り、範囲・版付きの詳細取得の口と索引ページを足す（spec §7.10 の U-F 分を P3 で）。U-F の state・codec・reducer・保存は変えない。A3（他分野の巻き添えの要約）を U-F について閉じる（U-W の分は ③） | P3-EXECUTION-LIFECYCLE-001・P3-UNIT-TABLE-001 | 起草・発注前点検（2026-10-15、3fe5dd69 から）。独立レビュー（品質 ヘルツ NO-GO→条件付き GO、契約適合 Opus 条件付き GO×2）。作者裁定 D-FIELDS＝A・D-DETAIL-SCREEN＝A（作者裁定 P2-A8-D03=A を U-F について一部覆す）、残存リスク (1)〜(10) 一括承認（Q-UFP-AUTHOR、Q-UFP-PRECHECK）。baseOid は点検の commit 9b0248ac に割り当て済み（Q-UFP-BASE）。実装のレビュー（品質 ヘルツ GO・契約適合 Opus GO）を経て配送、同じ commit で AC09 の原文の改訂（spec §3・§7.10・§8.1、実行境界メモ §2、P2-SHARED-RUNTIME・P2-WEATHER-TIMESERIES-UNIT・P2-SNAPSHOT-SSE・P3-EXECUTION-SPLIT・P3-EXECUTION-LIFECYCLE、本計画 §5.2） |
 | `P3-CURRENCY-COVERAGE-001`（`p3-currency-coverage.json`） | 容量の拒否で normal を隠す経路（withoutNormal・admission の記録・overflow・main の normal pending の一括除外）を外し、旧値のある記録に付箋（U-T・U-Q。U-W・U-F は既存の lastKnown の印）、付箋の付かない拒否は unit の網羅性（UnconfirmedReason に capacityExceeded）へ。失敗した系列のまだ鳴っていない desktop の題名に時刻、拒否した報が warning 以上なら unit×operation ごとに 1 つの失敗警報 | P3-UF-PUBLIC-001 の配送 | 起草（2026-10-15、3fe5dd69 から）。独立レビュー（品質 ヘルツ NO-GO 4 巡→条件付き GO〔D-FAILNOTICE を unit 単位へ作者裁定で形を変えた後〕、契約適合 Opus 条件付き GO×3）。作者裁定 D-CLEAR・D-PENDING・D-SHOW＝A、D-FAILNOTICE＝A（unit 単位の失敗警報）、残存リスク (1)〜(18) 一括承認（Q-CC-AUTHOR）。発注前点検は ① の配送の後（Q-CC-ORDER） |

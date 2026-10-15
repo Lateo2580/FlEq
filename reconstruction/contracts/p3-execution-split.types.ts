@@ -68,7 +68,7 @@ export type OwnerRequest = SentClock & (
   | Readonly<{ kind: "checkpointGrant"; grantId: string; unit: RuntimeUnitId; mode: "save" | "reconcile";
       retryReason: CheckpointMeasurement["retryReason"] }>
   // spec §5.9 step 3 (each unit's declared shutdown input) and step 4 (last deadlines, then only checkpointGrant).
-  | Readonly<{ kind: "shutdownInput" }>
+  | Readonly<{ kind: "shutdownInput" }> | Readonly<{ kind: "detail"; detail: import("./p2-weather-timeseries-unit.types").WeatherTimeseriesDetailRequest }>
   // cutoff is the one finalization clock for every owner, decided after every earlier request has been answered;
   // deadlines up to it are applied, later ones are not. Owners apply deadlines only while handling a request.
   // If the stage deadline passes before every earlier reply arrives, no cutoff is decided and finalizationAt stays null.
@@ -122,4 +122,6 @@ export type OwnerReply =
       measurements: readonly CheckpointMeasurement[]; grantStartedMs: number | null; writeCounts: WriteCounts | null;
       output: OwnerOutput }>
   | Readonly<{ kind: "shutdownInputDone"; output: OwnerOutput }>
-  | Readonly<{ kind: "finalizeDone"; appliedThrough: ClockReading; output: OwnerOutput }>;
+  | Readonly<{ kind: "finalizeDone"; appliedThrough: ClockReading; output: OwnerOutput }>
+  // P3-UFP-AC07: U-F の詳細の 1 ページ。owner は state も期限も動かさないので output を持たない。
+  | Readonly<{ kind: "detailDone"; response: import("./p2-weather-timeseries-unit.types").WeatherTimeseriesDetailResponse }>;

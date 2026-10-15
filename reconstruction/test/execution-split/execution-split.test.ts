@@ -98,12 +98,13 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       intentUpdate: ["clock", "decisionClock", "kind", "requestId", "sharedMs", "unit", "updates"],
       checkpointGrant: ["clock", "grantId", "kind", "mode", "retryReason", "sharedMs", "unit"],
       shutdownInput: ["clock", "kind", "sharedMs"], finalize: ["clock", "cutoff", "kind", "sharedMs"],
+      detail: ["clock", "detail", "kind", "sharedMs"],
     };
     const replyKeys: Readonly<Record<OwnerReply["kind"], readonly string[]>> = {
       restored: ["kind", "output", "units"], inputDone: ["decode", "generationRaisedMs", "heap", "inputGenerations", "kind", "marks", "output", "processingStartedMs", "settlement"],
       deadlineDone: ["heap", "kind", "output"], intentUpdateDone: ["adopted", "kind", "output", "requestId"],
       checkpointDone: ["grantId", "grantStartedMs", "kind", "measurements", "output", "result", "unit", "writeCounts"],
-      shutdownInputDone: ["kind", "output"], finalizeDone: ["appliedThrough", "kind", "output"],
+      shutdownInputDone: ["kind", "output"], finalizeDone: ["appliedThrough", "kind", "output"], detailDone: ["kind", "response"],
     };
     const outputKeys = ["confirmationEvidence", "diagnostics", "displayChanges", "outcomes", "retiredEvents", "units"];
     const deltaKeys = ["admissionCounts", "pendingIntents", "persistence", "unit", "view"];
@@ -135,6 +136,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       seen.add(reply.kind);
       expect(Object.keys(reply).sort(), reply.kind).toEqual(replyKeys[reply.kind]);
       plain(reply, false);
+      // detailDone は詳細の 1 ページで output を持たない（P3-UFP-AC07）。この試験は詳細を送らない。
+      if (!("output" in reply)) continue;
       expect(Object.keys(reply.output).sort()).toEqual(outputKeys);
       for (const delta of reply.output.units) {
         expect(Object.keys(delta).sort()).toEqual(reply.kind === "restored" ? [...deltaKeys, "restoration"].sort() : deltaKeys);

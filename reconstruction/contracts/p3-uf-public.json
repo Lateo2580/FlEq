@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "c6c28898f0d5a0965f681c7eaea62c8c8789dd2b82732537eba550ecc24eeb09",
+    "sha256": "1d745965147cd52b5e9d416d21fd34abe05e62249244d8c4b1e4778f32bb3acb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -67,7 +67,7 @@
         "id": "Q-UFP-REVISION",
         "status": "closed",
         "source": "統合担当の決定（ヘルツのレビューH1・H3）。weather-timeseries-unit.tsの容量の退去（非normalのsubjectをgateごと消す）・contentRevisionの進め方、host.tsのinputIdの作り方、composition-root.tsのstreamIdの読み合わせ",
-        "closed": "詳細の鍵は短い2つの値: id＝P2-A8-NOTICE.identityのtargetIdと同じ作り方（SHA256(UTF8(JSON.stringify([\"U-F\", operation, subject])))の小文字hex64）、revision＝そのsubjectのobjectを作ったstepでU-Fのunitが進めた内容版（reduceWeatherTimeseriesUnitが差分のafterのsubjectのobjectに、そのstepのcontentRevisionを記録する。10進で16桁以下）。世代は保存せず、公開形式のcacheから作らない（cacheを作り直しても変わらない）。unitの内容版はrunの中で単調に増え、1つのstepで公開されるのは各subjectの最後のobjectだけなので、退去してからの再作成も別のrevisionになる（ヘルツの列: t1保持→t3 unavailable〔lastKnown=t1〕→退去→t2再受理→t3 unavailable〔lastKnown=t2〕）。runをまたぐ照合はstreamId（runごとのrandomUUID）で切る。stateに入るsubjectのobjectはどれもreduceの差分を通る（restoreも全subjectの差分を出す）ので、記録の無いobjectは無い",
+        "closed": "詳細の鍵は短い2つの値: id＝P2-A8-NOTICE.identityのtargetIdと同じ作り方（SHA256(UTF8(JSON.stringify([\"U-F\", operation, subject])))の小文字hex64）、revision＝そのsubjectのobjectを作ったstepでU-Fのunitが進めた内容版（reduceWeatherTimeseriesUnitが差分のafterのsubjectのobjectに、そのstepのcontentRevisionを記録する。10進で16桁以下）。世代は保存せず、公開形式のcacheから作らない（cacheを作り直しても変わらない）。unitの内容版はrunの中で単調に増え、1つのstepで公開されるのは各subjectの最後のobjectだけなので、退去してからの再作成も別のrevisionになる（ヘルツの列: t1保持→t3 unavailable〔lastKnown=t1〕→退去→t2再受理→t3 unavailable〔lastKnown=t2〕）。runをまたぐ照合はstreamId（runごとのrandomUUID）で切る。stateに入るsubjectのobjectはどれもreduceの差分を通る（restoreも全subjectの差分を出す）ので、製品の経路では記録の無いobjectは無い。試験がreduceを通さず手で組んだstateのobjectだけは記録が無く、revisionは\"0\"になる（配送のcommitでP3-UFP-AC09により統合担当が追記）",
         "remaining": "なし",
         "reason": "報時刻・Serial・InfoType・effective・lastKnownの有無では、training/testのsubjectが容量の退去でgateごと消えた後の再受理で同じ値に戻り、違うlastKnownを同じ版として返しうる。inputIdはrunごとにinput-1から振り直す。生の文字列を鍵にするとURLの1,024 byteに入らない"
       },
@@ -234,9 +234,9 @@
     "publicFunctions": [
       "toWeatherTimeseriesView(state: WeatherTimeseriesUnitState): WeatherTimeseriesUnitView（signatureは変えない。seriesの要素が公開形式になる）",
       "weatherTimeseriesUnit.normalDisplaySubjects（signatureは変えない。currentが公開形式になる）",
-      "U-Fの詳細の1ページの射影（新、P3-UFP-D-DETAIL-SCREEN=A）: weatherTimeseriesDetail(state: WeatherTimeseriesUnitState, request: WeatherTimeseriesDetailRequest, view: { normalHidden: boolean; contentRevision: string }): WeatherTimeseriesDetailResponse",
-      "RuntimeCompositionRoot.requestDetail(request): { response: Promise<WeatherTimeseriesDetailResponse>; done: () => void }（新、P3-UFP-D-DETAIL-SCREEN=A。doneはHTTPが応答の完了か切断で1回呼ぶ）",
-      "startDisplayServerのoptionsにdetailを1つ足す（新、P3-UFP-D-DETAIL-SCREEN=A）。mailboxには関数を足さない。ほかの公開の関数のsignatureは変えない"
+      "U-Fの詳細の1ページの射影（新、P3-UFP-D-DETAIL-SCREEN=A）: weatherTimeseriesDetail(state: WeatherTimeseriesUnitState, request: WeatherTimeseriesDetailRequest, view: { normalHidden: boolean; contentRevision: string }): WeatherTimeseriesDetailResponse。同じfileから公開形式の作り手timeseriesPublicSubject(item: WeatherTimeseriesSubject): WeatherTimeseriesPublicSubject（subjectのobjectごとのcache付き、試験も使う）をexportする（配送のcommitでP3-UFP-AC09により統合担当が追記）",
+      "RuntimeCompositionRoot.requestDetail(request: { streamId: string; detail: WeatherTimeseriesDetailRequest }): { response: Promise<WeatherTimeseriesDetailResponse>; done: () => void }（新、P3-UFP-D-DETAIL-SCREEN=A。doneはHTTPが応答の完了か切断で1回呼ぶ。owner-runtime.tsのdetailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest): WeatherTimeseriesDetailResponseが、owner-hostでOwnerRequestのdetailを受けてU-Fのstateへ射影を当てる。配送のcommitでP3-UFP-AC09により統合担当が追記）",
+      "startDisplayServerのoptionsにdetailを1つ足す（新、P3-UFP-D-DETAIL-SCREEN=A）。http-sse.tsはHTTPの経路の処理serveDetail(detail, request: Pick<IncomingMessage, \"url\">, response: ServerResponse): voidをexportする（試験が排出の止まった応答を直接当てる。配送のcommitでP3-UFP-AC09により統合担当が追記）。mailboxには関数を足さない。ほかの公開の関数のsignatureは変えない"
     ],
     "allowedDependencies": [
       "既存の依存だけ。package.json・package-lock.jsonを変えない"
@@ -366,18 +366,18 @@
         "id": "P3-UFP-AC01",
         "requirement": "公開形式（Q-UFP-SHAPE・Q-UFP-PATHS）: U-Fのownerからpublisherへ出る値のうちviewとdisplayChangesを公開形式に限る。(1) toWeatherTimeseriesViewのseriesの要素をWeatherTimeseriesPublicSubjectにする（WeatherTimeseriesUnitView.seriesの型を変える。semanticRevision・contentRevision・admission・subjectsは今のまま）(2) reduceWeatherTimeseriesUnitのdisplayChanges、normalDisplaySubjects、restoreのdisplayChangesのRuntimeDisplaySubjectのcurrentを同じ公開形式にする（RuntimeDisplaySubjectのU-Fのcurrentの型を変える）。同じsubjectのobjectからは同じ公開形式のobjectを返す（WeakMap。無いと: viewを作り直すたびに全subjectのperiodを走査し直す）(3) 公開形式の欄はQ-UFP-SHAPEのものだけ。effective=activeのsubjectでは、areaCodesは全periodの区域Code（空文字を除く）の集合、knownCodesはSignificancyのperiodのうちName・Codeがmissing・emptyでなくCodeがtextでQ-VALUES.knownCodesに入るもののCodeの集合、unknownCodeはSignificancyのperiodをP2-A8-SUMMARY.unknownの規則（missing→empty→unknown、既知の表に無いCodeはunknown）で数えた件数。activeでないsubjectはareaCodes・knownCodesを空、unknownCodeを全部0にする（P2-A8-SUMMARYはactiveだけを数える）。periodCountはperiodsの長さ、lastKnownPeriodCountはlastKnownのperiodsの長さ（lastKnownが無ければnull）、idとrevisionはQ-UFP-REVISION、officeはsubjectのoperation/VPWP50/の後の文字列全体（今のRuntimeDisplaySubject.officeと同じ）(4) outcomes・confirmationEvidence・pendingIntents・diagnosticsは変えない",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:443 «c0d4ce3d56fb69e3»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:455 «1c4b52bab6f79d19»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:489 «857f0a0ef78f1ff9»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:480 «eee9c03ff43ecebd»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:475 «c0bebdd928e5447c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:524 «92e27eb46b541de8»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:409 «7c6629abf6687429»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:67 «c16260c56aed133b»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:109 «3e61e93d9d35c902»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:196 «03c26b0c0caa0d40»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:131 «f79e08d469fb2238»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:196 «22fdd95c5ad1b6ab»",
           "reconstruction/src/runtime/owner-runtime.ts:334 «700dd293526d8be2»",
           "reconstruction/src/runtime/owner-host.ts:309 «e0baf553a81410c8»",
           "reconstruction/src/runtime/owner-host.ts:311 «910631e381d4aaba»",
           "reconstruction/contracts/p3-execution-split.types.ts:83 «0a58fadc078a2c48»",
-          "reconstruction/contracts/p3-execution-boundary.md:24 «a2093fe26e2e9930»",
+          "reconstruction/contracts/p3-execution-boundary.md:24 «7c66f6ded18dfbab»",
           "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
           "reconstruction/contracts/p2-snapshot-sse.json:71 «d45898e10bcf5810»",
           "reconstruction/contracts/p2-snapshot-sse.json:82 «19c19a28d4635611»",
@@ -391,7 +391,7 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «5ec4d787f5d46a73»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:177 «09598f8b17706761»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:485 «9ea68565634a5bed»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:522 «9ea68565634a5bed»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:156 «537767c42d8ef412»",
           "AGENTS.md:26 «2c223bbb66635b53»"
         ]
@@ -406,7 +406,7 @@
           "reconstruction/src/runtime/owner-runtime.ts:104 «2b9e3cf835889edf»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:286 «4488a156cc0dd4be»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:23 «c1abbbb4993dfe08»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:441 «6f5c686600311853»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:478 «6f5c686600311853»",
           "reconstruction/contracts/p2-snapshot-sse.json:99 «ce580c62a24ddb0f»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
@@ -416,7 +416,7 @@
         "requirement": "publisherの射影（view-projector.ts）はU-Fの公開形式だけを読み、要約とnoticeを変えない: timeseriesTallyはperiodを走査せず、effective・unavailableReason・source・areaCodes・knownCodes・unknownCodeから寄与を作る（knownCodesはTIMESERIES_SEVERITYで階級へ写す。階級の表はprojectorに残す）。normalの公開の制限の間の寄与（hidden: unknownCodeと時刻を残し、件数・階級・区域を0）も今と同じ。tally.bytesは公開形式とSubjectOutcomeのJSONのbyte（要素ごと）。weatherState・weatherSource・fixedBytesは今の式のまま公開形式を読む。同じ入力でU-Fの要約のitems（3行）とU-Fのnotice（targetId・kind・source）がbaseの値と一致する（P2-A8-SUMMARY・P2-A8-NOTICEを変えない。照合の列はP3-UFP-T02）。projectorの内部のseverityRefsの件数はperiodの数からCodeの数に変わる（highestは有無だけを見るので公開の値は同じ）",
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:264 «26d7fa0e8d18a611»",
-          "reconstruction/src/view-projector/view-projector.ts:272 «e2af20ab5dcb807a»",
+          "reconstruction/src/view-projector/view-projector.ts:279 «f0e7469dff70429b»",
           "reconstruction/src/view-projector/view-projector.ts:284 «9fc21c76a402a166»",
           "reconstruction/src/view-projector/view-projector.ts:500 «d0e85de22743f47e»",
           "reconstruction/src/view-projector/view-projector.ts:749 «ce95a1aeba411059»",
@@ -429,7 +429,7 @@
       },
       {
         "id": "P3-UFP-AC05",
-        "requirement": "U-Fの平常の大きいstateが他分野を要約に落とさない（監査A3の反例、Pro §8.3の無関係な詳細の非干渉）: P3-UFP-AC03 (b)のstateと、地震3件（32-35_01_03_240613_VXSE53のEventIDだけを試験の中で替えた3件。1件では分野が65,536 byteに届かない: 発注前点検でbaseのU-Qのviewが1件25,630 byte、3件75,950 byte、Q-UFP-PRECHECK）・津波（32-39_11_11_250206_VTSE41、viewは16,070 byte）・EEW（77_01_01_240613_VXSE45、viewは1,465 byte。K6のhorizonに入るよう報時刻を試験の時計へずらす）を、ほかの分野が空の状態から射影すると、snapshotの地震の分野がfullのまま。判別するのは地震だけ: 要約に落ちるのは64 KiBを越える分野だけで、津波とEEWの分野は65,536 byteを越えないので同席させるだけ（判別に使わない）。地震の分野のbyteが65,536を越えることは試験の中でも前提として確かめる。U-Fの分野のbyteがP3-UFP-AC03のV以下。baseで同じ組み立てを走らせると地震がsummaryになることを成果物に貼る（試験はbaseでは落ちる）。U-Wのviewによる超過は本ACの対象外（Q-UFP-UW-VIEW）",
+        "requirement": "U-Fの平常の大きいstateが他分野を要約に落とさない（監査A3の反例、Pro §8.3の無関係な詳細の非干渉）: P3-UFP-AC03 (b)のstateと、地震3件（32-35_01_03_240613_VXSE53のEventIDだけを試験の中で替えた3件。1件では分野が65,536 byteに届かない: 発注前点検でbaseのU-Qのviewが1件25,630 byte、3件75,950 byte、Q-UFP-PRECHECK）・津波（32-39_11_11_250206_VTSE41、viewは16,070 byte）・EEW（77_01_01_240613_VXSE45、viewは1,465 byte。K6のhorizonに入るよう報時刻を試験の時計へずらす）を、ほかの分野が空の状態から射影すると、snapshotの地震の分野がfullのまま。判別するのは地震だけ: 要約に落ちるのは64 KiBを越える分野だけで、津波とEEWの分野は65,536 byteを越えないので同席させるだけ（判別に使わない）。地震の分野のbyteが65,536を越えることは試験の中でも前提として確かめる。U-FのviewのbyteがP3-UFP-AC03のV以下で、snapshotのU-Fの分野のbyteはV＋4,096（分野のwrapperと要約の3行の分）以下（配送のcommitでP3-UFP-AC09により統合担当が読み方を追記）。baseで同じ組み立てを走らせると地震がsummaryになることを成果物に貼る（試験はbaseでは落ちる）。U-Wのviewによる超過は本ACの対象外（Q-UFP-UW-VIEW）",
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:936 «0f29de6d3afeedc3»",
           "reconstruction/src/view-projector/view-projector.ts:938 «c42a191089542248»",
@@ -442,18 +442,18 @@
         "id": "P3-UFP-AC06",
         "requirement": "詳細の口のownerの側（P3-UFP-D-DETAIL-SCREEN=A）:U-Fのunitのfileに純粋な関数weatherTimeseriesDetailを置く（stateを変えない、期限を当てない、dirtyにしない）。要求WeatherTimeseriesDetailRequestは索引{ part: index, revision, page }か時系列{ part: current|lastKnown, id, revision, page }（streamIdはpublisherが照合して外す）。(1) 索引（Q-UFP-INDEX）: revisionはU-Fのviewの内容版（ownerがprojectViewと同じ式で渡す）。違えばversionChangedと今の内容版。1ページ32件で、normalの公開の制限の間はnormalを載せない (2) 時系列: idで見えるsubject（制限の間のnormalを除く。走査はsubjectの数512以下）を探し、無ければversionChanged（revisionはnull）。revisionが今のrevision（Q-UFP-REVISION）と違えばversionChangedと今のrevision。旧版を作り直さない (3) part＝lastKnownでlastKnownが無ければperiod 0件のページ (4) pageは0以上pageCount未満の整数（時系列はmax(1, ceil(n/64))、索引はmax(1, ceil(件数/32))）。外れはinvalidRequest (5) 時系列の行はQ-UFP-PAGEの形で[64p, 64p+64)の行だけを解決し、予約4,096 byteを引いた61,440 byteを越える行は{ index, reason: pageBudget }にする。subject全体・snapshot全体をJSONにしない (6) 応答WeatherTimeseriesDetailResponseは、索引のok { kind, part: index, revision, page, pageCount, subjectCount, entries }、時系列のok { kind, part, id, revision, page, pageCount, periodCount, periods: { index, period }[], omitted: { index, reason }[] }、誤り{ kind: error, reason: invalidRequest|versionChanged|busy|unavailable|timeout, revision }。誤りの本文はstreamIdを足して256 byte以下、okは65,536 byte以下。型はp2-weather-timeseries-unit.types.tsに置き、spec §7.10のDomainDetailPageのU-Fの分として凍結する（periodはperiodMeaningの戻り値と同じ中身の名前付きtuple）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:120 «99d0cc9bc0c9a140»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:120 «847ff8144f4d8bac»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:202 «f058e3a180f89e0c»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:470 «a486380631b6e9d0»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:507 «a486380631b6e9d0»",
           "reconstruction/src/view-projector/view-projector.ts:793 «25d8f1daebd55d26»",
           "reconstruction/src/runtime/composition-root.ts:568 «445a2eeb56638c45»",
           "reconstruction/contracts/p2-snapshot-sse.json:87 «5272dd4ae4de33c9»",
           "docs/specs/reconstruction-p0-contracts.md:1233 «22620e62c3946a2e»",
           "docs/specs/reconstruction-p0-contracts.md:1268 «76445404beb6f64a»",
           "docs/specs/reconstruction-p0-contracts.md:1324 «575c43acf6c6eb1d»",
-          "docs/specs/reconstruction-p0-contracts.md:1336 «62e1d856e76915c4»",
+          "docs/specs/reconstruction-p0-contracts.md:1336 «c2b571049b07b469»",
           "docs/specs/reconstruction-p0-contracts.md:1341 «2a86d7b2b42bba77»",
-          "reconstruction/contracts/p2-shared-runtime.json:195 «741a9df978fd6504»"
+          "reconstruction/contracts/p2-shared-runtime.json:195 «c12f318c54b1157d»"
         ]
       },
       {
@@ -468,10 +468,10 @@
           "docs/specs/reconstruction-p0-contracts.md:1286 «56110e613036ac27»",
           "docs/specs/reconstruction-p0-contracts.md:1288 «e5ce19b30d03f206»",
           "reconstruction/contracts/p3-execution-split.types.ts:56 «0264a87b13c087be»",
-          "reconstruction/contracts/p3-execution-split.json:543 «33bb4c9bab3af678»",
-          "reconstruction/contracts/p3-execution-lifecycle.json:397 «3090a4f45d8b02ca»",
-          "reconstruction/src/runtime/composition-root.ts:156 «ccc7251d11374545»",
-          "reconstruction/src/runtime/composition-root.ts:486 «c41b24be07ecb85e»",
+          "reconstruction/contracts/p3-execution-split.json:543 «51c60c820f5920f9»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:397 «ce6ce022398df88d»",
+          "reconstruction/src/runtime/composition-root.ts:156 «03945f9ae218aaba»",
+          "reconstruction/src/runtime/composition-root.ts:486 «8d0c9de1079fadb3»",
           "reconstruction/src/runtime/composition-root.ts:496 «1995a375a3bd0291»",
           "reconstruction/src/runtime/composition-root.ts:597 «fa584aca79d20543»",
           "reconstruction/src/runtime/composition-root.ts:795 «ecba0cf7b1c3c190»",
@@ -484,9 +484,9 @@
       },
       {
         "id": "P3-UFP-AC08",
-        "requirement": "詳細の口のHTTP（P3-UFP-D-DETAIL-SCREEN=A）:既存の表示のserver（http-sse.ts、host 127.0.0.1、/snapshotと同じ認証境界）にGET /api/display/domains/U-F/detail?streamId&part&id&revision&pageを足す（idはpartがcurrent・lastKnownのときだけ）。request.urlが1,024 byteを越える、欄が欠ける・形が違う（pageは10進の整数、partは列挙の値、idは小文字hex64、revisionは10進の整数か索引の内容版の形）ものは400 invalidRequestでcomposition rootへ渡さない。queryの欄は項目ごとに確かめて組み立てる（asで言い換えない、AGENTS.md）。応答はrequestDetailの結果にstreamIdを足したJSONで、ok 200・invalidRequest 400・versionChanged 409・busy 429・unavailable 503・timeout 504、cache-control: no-store。期限（P3-UFP-RES-07）は受付から応答の完了（finish）か切断（close）までで、本文の送信を始めた後に過ぎたら接続を閉じる（不完全なJSONを正常応答にしない）。ownerの返信が無いまま期限が来たら504をその時点で書き出し、送るための新しい2秒を与えない（送り切れなければその場で接続を閉じる）。finish・closeでrootのdoneを1回だけ呼ぶ。snapshotの配送（publish・/events・/snapshot）は詳細の完了を待たない。U-F以外の分野の経路は作らない（404）",
+        "requirement": "詳細の口のHTTP（P3-UFP-D-DETAIL-SCREEN=A）:既存の表示のserver（http-sse.ts、host 127.0.0.1、/snapshotと同じ認証境界）にGET /api/display/domains/U-F/detail?streamId&part&id&revision&pageを足す（idはpartがcurrent・lastKnownのときだけ）。request.urlが1,024 byteを越える、欄が欠ける・形が違う（pageは10進の整数、partは列挙の値、idは小文字hex64、revisionは10進の整数か索引の内容版の形）ものは400 invalidRequestでcomposition rootへ渡さない。queryの欄は項目ごとに確かめて組み立てる（asで言い換えない、AGENTS.md）。応答はrequestDetailの結果にstreamIdを足したJSONで（400はqueryを解析する前の拒否なので、streamIdを付けず{ kind: error, reason: invalidRequest, revision: null }だけ。配送のcommitでP3-UFP-AC09により統合担当が追記）、ok 200・invalidRequest 400・versionChanged 409・busy 429・unavailable 503・timeout 504、cache-control: no-store。期限（P3-UFP-RES-07）は受付から応答の完了（finish）か切断（close）までで、本文の送信を始めた後に過ぎたら接続を閉じる（不完全なJSONを正常応答にしない）。ownerの返信が無いまま期限が来たら504をその時点で書き出し、送るための新しい2秒を与えない（送り切れなければその場で接続を閉じる）。finish・closeでrootのdoneを1回だけ呼ぶ。snapshotの配送（publish・/events・/snapshot）は詳細の完了を待たない。U-F以外の分野の経路は作らない（404）",
         "evidenceRefs": [
-          "reconstruction/src/http-sse/http-sse.ts:144 «c7e6d9bcec8c25b6»",
+          "reconstruction/src/http-sse/http-sse.ts:204 «c7e6d9bcec8c25b6»",
           "reconstruction/src/host/host.ts:91 «d5b5451ba219958c»",
           "reconstruction/src/host/host.ts:145 «e7dcd7bca34dc4b8»",
           "docs/specs/reconstruction-p0-contracts.md:1273 «70a78ec97aee3f74»",
@@ -500,28 +500,28 @@
         "id": "P3-UFP-AC09",
         "requirement": "本契約が上書きする他の条文と統合担当の記録。原文は重ねて読み替えず、配送のcommitで統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）。凍結manifestはそれを作ったcommitで再実行する（前例。frozen.tsのverifyContractHashesは走らせたcheckoutの契約の本文と照合する）。起草時（3fe5dd69）に契約のpinを持つ凍結manifest 17本は、どれもHEADの契約のhashと全部は一致しない。改訂する契約のうちP3-EXECUTION-SPLIT-001・P3-EXECUTION-LIFECYCLE-001・P2-SNAPSHOT-SSE-001のpinがHEADと一致しているのはp3-harnessのdyl-e05y・e05s・e05yの3本だけで、配送の後はその3つのpinも一致しなくなる（3本とも、改訂しない別の契約のpinが既に1〜2本違う）。(1) P2-SHARED-RUNTIME-001: Q-R20-CLEAR.atomicityの『U-Fのseries（旧activeとその全periodを含む）』→公開形式のseries、P2-A1-DISPLAY-CHANGES.portのU-Fのbefore・afterのcurrent→公開形式 (2) P2-WEATHER-TIMESERIES-UNIT-001: outOfScope『P4詳細API』のうちU-Fの1ページの射影と索引は本契約 (3) P2-SNAPSHOT-SSE-001: 作者裁定P2-A8-D03=A（reason『P4詳細APIを作らない』）をU-Fについて一部覆す（P3-UFP-D-DETAIL-SCREEN=Aの作者の裁定による。ruling・reasonの原文は消さず注記を足す）。outOfScope『§7.10詳細ページ』とartifactRequirementsの『P4詳細portを追加しない』のU-Fの分、P2-A8-OWNERSHIP.remaining『詳細page wireはP4前に別途凍結する』のうちU-Fのwireは本契約で凍結 (4) spec §7.10の型（DetailRequest・DetailResponse）: U-Fの要求はstreamId・part・id・revision・pageで、requestedVersion・observedVersion・contentRevision・domainId・operation・requestIdを本文に持たず、誤りの理由にcancelledを持たない（切断した要求は応答を返さず捨てる）(5) spec §8.1の個別取得の1〜3: 経路の引数（semanticRevision・sequenceの代わりにpart・id・revision）と、409の照合の単位（分野の内容版ではなく対象のsubjectの版。索引だけは分野の内容版）(6) spec §3の部品の表: B05の『§7.10の詳細request/responseと取消』とB11の『B05の型付き詳細port』は、U-Fについてはcomposition root（B02）が数え・照合し・捨て、B11がrootのrequestDetailを呼ぶ。moduleIdsはB02・B06・B08・B11・M08（mailboxのB05は触らない） (7) p3-execution-boundary.md §2の表: publisher→workerにdetailの要求、worker→publisherに有界な1ページ（P3-UFP-RES-03）を足す (8) P3-EXECUTION-SPLIT-001: P3-C3A-RES-09・AC15の要求の種類にdetail（deferredのownerに1件）を足す。Q-C3A-SPEC-REVISIONの(4)のP4送り（mirrorが各unitの最新viewを持つこととspecの『mainのfull view複製0』の字面の食い違い）は、U-Fについてはmirrorが公開形式だけを持つ形で本契約が閉じる (9) P3-EXECUTION-LIFECYCLE-001: RES-01の固定の枠8→9（detail）、AC01のstalled・unresponsiveの判定にdetailの枠が入る、AC02の停止でdetailのin-flightと待ちにunavailable (10) 計画: §5.2の『IR07の詳細要求はP4の契約でC3aの境界型を改訂する』のうちU-Fの分を本契約へ前倒しする。P3-C6-O09-REST=A（計画の『津波のburst・詳細射影中のE01』〔O09:30・31・39・40・48・49・57・58・66・67〕をP4へ）は変えない。U-Fの詳細の射影中のE01は残存リスク(9)。配送の前に§9の表へ本契約の行を足す（行番号を引く他の契約のanchorは付け直す） (11) DisplaySnapshotのwireの版（schemaVersion: 1、weatherTimeseriesの分野の型）は上げない: U-Fのfull viewの形は変わるが、それを読むclientは無い（chrome-eewはeewとtsunamiだけを読み、schemaVersionが1でないsnapshotを捨てる）。wireの版はP4のdisplay契約でwireを固定するときに上げる (12) 他の契約が引く行（Q-UFP-PRECHECKの(5)）: 行の数を変えない書き方を優先する（p2-shared-runtime.types.tsは同じ行の中で直す、host.tsは表示のserverのoptionsの既存の行に足す、weather-timeseries-unit.tsは346行より上の行の数を変えない、owner-host.tsのdetailのcaseはswitchの最後に置く）。それでも動いた行を引くanchorは、統合担当が配送のcommitで行番号と各契約のmeta.sha256を付け直す（本文は書き換えない）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.json:195 «741a9df978fd6504»",
-          "reconstruction/contracts/p2-shared-runtime.json:222 «52057b2b7c0d6d41»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:393 «58888ba4c8bfe5f0»",
-          "reconstruction/contracts/p2-snapshot-sse.json:17 «65aec9ecdfda0e1f»",
-          "reconstruction/contracts/p2-snapshot-sse.json:34 «6d9e3cd174465fd2»",
-          "reconstruction/contracts/p2-snapshot-sse.json:374 «e880e6a72e3c200f»",
-          "reconstruction/contracts/p2-snapshot-sse.json:637 «e628c550bdebc598»",
-          "docs/specs/reconstruction-p0-contracts.md:1238 «3c5c21b66fccbe9e»",
-          "docs/specs/reconstruction-p0-contracts.md:1247 «8bdf569e1c7cfa49»",
+          "reconstruction/contracts/p2-shared-runtime.json:195 «c12f318c54b1157d»",
+          "reconstruction/contracts/p2-shared-runtime.json:222 «49039eb22b92df92»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:393 «51620763be598741»",
+          "reconstruction/contracts/p2-snapshot-sse.json:17 «264714a6817707f1»",
+          "reconstruction/contracts/p2-snapshot-sse.json:34 «e2b9bc46a995d9ac»",
+          "reconstruction/contracts/p2-snapshot-sse.json:374 «8e95021580d94083»",
+          "reconstruction/contracts/p2-snapshot-sse.json:637 «eb7f7fbc161f8150»",
+          "docs/specs/reconstruction-p0-contracts.md:1238 «271c768177fac1b2»",
+          "docs/specs/reconstruction-p0-contracts.md:1247 «5b337cecf1e94e0b»",
           "docs/specs/reconstruction-p0-contracts.md:1254 «1c428a37ed10e975»",
-          "docs/specs/reconstruction-p0-contracts.md:1264 «400bfb87fa260f89»",
-          "docs/specs/reconstruction-p0-contracts.md:1337 «71fa2184b3c836ae»",
-          "docs/specs/reconstruction-p0-contracts.md:1338 «7e729294eee70e3e»",
-          "docs/specs/reconstruction-p0-contracts.md:374 «0f1cefc0d84ee075»",
-          "docs/specs/reconstruction-p0-contracts.md:380 «62ba3cb24efc7a5a»",
-          "reconstruction/contracts/p3-execution-boundary.md:23 «92ed612528871f13»",
-          "reconstruction/contracts/p3-execution-split.json:749 «2fcfb37e1bff5861»",
-          "reconstruction/contracts/p3-execution-split.json:175 «2328dbdbdd90d6af»",
-          "reconstruction/contracts/p3-execution-lifecycle.json:457 «d8cfbd81a379e841»",
-          "reconstruction/contracts/p3-execution-lifecycle.json:476 «5134ff1604c5dd84»",
-          "reconstruction/contracts/p3-order-plan.md:230 «c2d93fba761d26fa»",
-          "reconstruction/contracts/p3-order-plan.md:231 «9ed72a033549bed0»",
+          "docs/specs/reconstruction-p0-contracts.md:1264 «65b5aeee87381bda»",
+          "docs/specs/reconstruction-p0-contracts.md:1337 «152a4904363a6454»",
+          "docs/specs/reconstruction-p0-contracts.md:1338 «f322402351ad4c15»",
+          "docs/specs/reconstruction-p0-contracts.md:374 «3d97fc566f9a85bb»",
+          "docs/specs/reconstruction-p0-contracts.md:380 «7c7c3fff5c4a6e89»",
+          "reconstruction/contracts/p3-execution-boundary.md:23 «778675a95e83f912»",
+          "reconstruction/contracts/p3-execution-split.json:749 «d968f2e47d4c5db9»",
+          "reconstruction/contracts/p3-execution-split.json:175 «7482f5e2279ce9ab»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:457 «3a43d29227291df2»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:476 «577e9c05091a9b44»",
+          "reconstruction/contracts/p3-order-plan.md:230 «9343844d7ce400ed»",
+          "reconstruction/contracts/p3-order-plan.md:231 «d50b01ca53cff3d6»",
           "reconstruction/contracts/p3-order-plan.md:7 «57615a362084791f»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:111 «0088a403888d3213»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:124 «b3e9f347a1400fbd»",
@@ -609,7 +609,7 @@
         "referenceIds": [
           "P3-UFP-AC08"
         ],
-        "behavior": "HTTPの経路で200・400（1,025 byteのurl、整数でないpage、hex64でないid）・409・429・503・504が返り、本文がrequestDetailの結果にstreamIdを足したもので、cache-control: no-store。U-F以外の分野は404。排出の止まった応答（drainしないwritable）は受付から2,000 msで接続を閉じ、doneが1回呼ばれて受け付けの数が戻る。ownerが返信しないまま2,000 msで504を書き出し、その504の排出も止まった場合も、新しい期限を待たずに接続を閉じ、doneが1回で受け付けの数が戻る。一往復（索引の版とsubjectの版の取り違えを捕まえる）: snapshotのsummaryのcontentRevisionからHTTPで索引を取り、entriesのidとrevisionでHTTPの時系列のページを取ってok。詳細の待ちの間も/snapshotの応答とSSEの配送が詳細を待たない"
+        "behavior": "HTTPの経路で200・400（1,025 byteのurl、整数でないpage、hex64でないid）・409・429・503・504が返り、本文がrequestDetailの結果にstreamIdを足したもの（400はstreamIdなし、P3-UFP-AC08）で、cache-control: no-store。U-F以外の分野は404。排出の止まった応答（drainしないwritable）は受付から2,000 msで接続を閉じ、doneが1回呼ばれて受け付けの数が戻る。ownerが返信しないまま2,000 msで504を書き出し、その504の排出も止まった場合も、新しい期限を待たずに接続を閉じ、doneが1回で受け付けの数が戻る。一往復（索引の版とsubjectの版の取り違えを捕まえる）: snapshotのsummaryのcontentRevisionからHTTPで索引を取り、entriesのidとrevisionでHTTPの時系列のページを取ってok。詳細の待ちの間も/snapshotの応答とSSEの配送が詳細を待たない"
       },
       {
         "testId": "P3-UFP-T11",

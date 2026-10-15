@@ -268,18 +268,18 @@ function timeseriesTally(value: RuntimeDisplaySubject | null, hidden: boolean): 
     return tally;
   }
   if (subject.effective !== "active") return tally;
-  const areas = new Set<string>();
-  for (const row of subject.periods) {
-    const area = subject.strings[subject.areas[row[1]].code];
-    if (area !== "") areas.add(area);
-    const value = subject.values[row[10]];
-    if (value.kind !== "significancy") continue;
-    const reason = value.name.kind === "missing" || value.code.kind === "missing" ? "missing"
-      : value.name.kind === "empty" || value.code.kind === "empty" ? "empty"
-        : value.code.kind === "text" ? null : "unknown";
-    const severity = reason == null && value.code.kind === "text" ? TIMESERIES_SEVERITY.get(value.code.raw) : undefined;
-    if (reason != null || severity == null) count(tally.unknownCode, reason ?? "unknown", 1);
-    else if (!hidden) bump(tally.severities, `${operation}|${severity}`);
+  // P3-UFP-AC04: 件数は owner の公開形式が持つ。ここで period を走査し直さない。
+  // unknownCode は Significancy の period ごとの件数（表に無い Code は unknown、P2-A8-SUMMARY.unknown）。
+  for (const key of ["unknown", "missing", "empty"] as const) {
+    if (subject.unknownCode[key] !== 0) count(tally.unknownCode, key, subject.unknownCode[key]);
+  }
+  // knownCodes は重複を除いた Code なので、severityRefs の件数は period でなく Code の数になる。
+  // highest() は有無だけを見るので、公開の値は変わらない。
+  if (!hidden) {
+    for (const code of subject.knownCodes) {
+      const severity = TIMESERIES_SEVERITY.get(code);
+      if (severity != null) bump(tally.severities, `${operation}|${severity}`);
+    }
   }
   if (hidden) {
     // P2-A8-SUMMARY.times: the masked row keeps this subject's unknownCode, so its time still counts.
@@ -287,7 +287,7 @@ function timeseriesTally(value: RuntimeDisplaySubject | null, hidden: boolean): 
     return tally;
   }
   tally.active = 1;
-  for (const area of areas) bump(tally.areas, `${operation}|forecastArea|${area}`);
+  for (const area of subject.areaCodes) bump(tally.areas, `${operation}|forecastArea|${area}`);
   addTime(tally, subject.source);
   return tally;
 }

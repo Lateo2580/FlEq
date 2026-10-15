@@ -17,7 +17,7 @@ import { decodeMaterial } from "../decode-material/decode-material";
 import { countedCheckpointFileSystem, writeCounters } from "./composition-root";
 import type { WriteCounters } from "./composition-root";
 import {
-  capturedOwner, checkpointResultOwner, deadlineOwner, finalizeOwner, intentUpdateOwner, ownerViews, placeUnits,
+  capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, intentUpdateOwner, ownerViews, placeUnits,
   receiveOwner, restoreOwner, shutdownInputOwner, unitAdmissionCounts,
 } from "./owner-runtime";
 import type { OwnerState, OwnerStep } from "./owner-runtime";
@@ -134,7 +134,7 @@ class OwnerHost {
         this.options.reply({ kind: "finalizeDone", appliedThrough: request.cutoff, output: this.output([step]) });
         return;
       }
-      default: { const unknown: never = request; throw new Error(`unknown owner request ${String(unknown)}`); }
+      case "detail": this.options.reply({ kind: "detailDone", response: detailOwner(state, request.detail) }); return; default: { const unknown: never = request; throw new Error(`unknown owner request ${String(unknown)}`); }
     }
   }
 

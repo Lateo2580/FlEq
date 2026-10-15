@@ -16,6 +16,7 @@ import type {
   SseEvent,
   SseTransition,
 } from "../../contracts/p2-snapshot-sse.types";
+import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types";
 
 // P2-SNAPSHOT-SSE-001 RES-02, DLV-01, DLV-02.
 const CLIENT_LIMIT = 8;
@@ -23,6 +24,66 @@ const HEARTBEAT_MS = 15_000;
 const SLOW_CLIENT_MS = 5_000;
 // AC15: the name whitelist is the path check; `/`, `..` and percent-encoded separators cannot match.
 const MODULE_PATH = /^\/chrome-eew\/([a-z0-9-]+)\.js$/;
+
+// P3-UFP-AC08: U-F の詳細の口。数え・stream の照合・owner の期限は root が持ち、この層は要求を読み、答えを書き、
+// 応答の完了か切断まで受け付けの枠を持つ。
+const DETAIL_PATH = "/api/display/domains/U-F/detail";
+const DETAIL_URL_BYTES = 1_024;
+const DETAIL_MS = 2_000;
+const DETAIL_STATUS = { ok: 200, invalidRequest: 400, versionChanged: 409, busy: 429, unavailable: 503, timeout: 504 } as const;
+
+type DetailPort = (request: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest }>) =>
+  Readonly<{ response: Promise<WeatherTimeseriesDetailResponse>; done: () => void }>;
+
+// 欄は項目ごとに確かめて組み立てる。重複・欠け・形の違いは invalid。
+function parseDetail(url: string): Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest }> | null {
+  if (Buffer.byteLength(url) > DETAIL_URL_BYTES) return null;
+  let params: URLSearchParams;
+  try { params = new URL(url, "http://localhost").searchParams; } catch { return null; }
+  const one = (name: string): string | null => { const all = params.getAll(name); return all.length === 1 ? all[0] : null; };
+  const streamId = one("streamId"), part = one("part"), revision = one("revision"), page = one("page"), id = one("id");
+  if (streamId == null || !/^[\w-]{1,64}$/.test(streamId) || page == null || !/^\d{1,9}$/.test(page) || revision == null) return null;
+  if (part === "index")
+    return !params.has("id") && /^\d{1,16}:[0-7]$/.test(revision) ? { streamId, detail: { part, revision, page: Number(page) } } : null;
+  if ((part === "current" || part === "lastKnown") && id != null && /^[0-9a-f]{64}$/.test(id) && /^\d{1,16}$/.test(revision))
+    return { streamId, detail: { part, id, revision, page: Number(page) } };
+  return null;
+}
+
+function sendJson(response: ServerResponse, status: number, body: string): void {
+  response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+  response.end(body);
+}
+
+function serveDetail(detail: DetailPort, request: Pick<IncomingMessage, "url">, response: ServerResponse): void {
+  const admitted = performance.now();
+  const parsed = parseDetail(request.url ?? "");
+  if (parsed == null) return sendJson(response, 400, JSON.stringify({ kind: "error", reason: "invalidRequest", revision: null }));
+  const { response: pending, done } = detail(parsed);
+  let ended = false, answered = false;
+  const end = () => { if (ended) return; ended = true; clearTimeout(timer); done(); };
+  // 期限は受付（この関数の入口）から応答の終わりまで。読まなくなった client は 2 秒で切る。同じ瞬間に root が決めた答えを
+  // 先に書くため、microtask を 1 回待つ。残り時間は受付の時刻から数え、root の同期処理の分を延ばさない。
+  const timer = setTimeout(() => {
+    void Promise.resolve().then(() => {
+      // root の受付は関数入口より後なので、root の答えより先に期限が来うる。まだ何も書いていなければ 504 を書いてから、排出できなければ閉じる。
+      if (!ended && !answered) { answered = true; sendJson(response, 504, JSON.stringify({ streamId: parsed.streamId, kind: "error", reason: "timeout", revision: null })); }
+      if (!response.writableFinished) response.destroy();
+      end();
+    });
+  }, Math.max(0, Math.ceil(DETAIL_MS - (performance.now() - admitted))));
+  timer.unref();
+  response.once("finish", end);
+  response.once("close", end);
+  void pending.then((result) => {
+    if (ended || answered || response.destroyed) return;
+    answered = true;
+    // 書き出しの時点で期限を過ぎていれば、答えの中身にかかわらず timeout を書く。
+    const answer: WeatherTimeseriesDetailResponse = performance.now() - admitted >= DETAIL_MS
+      ? { kind: "error", reason: "timeout", revision: null } : result;
+    sendJson(response, DETAIL_STATUS[answer.kind === "ok" ? "ok" : answer.reason], JSON.stringify({ streamId: parsed.streamId, ...answer }));
+  });
+}
 
 type TraceMarker = Readonly<{ point: "T4"; clock: "node"; monotonicMs: number }>;
 
@@ -86,6 +147,8 @@ type DisplayServerOptions = Readonly<{
   onSerialize?: (observation: Readonly<{ version: DisplayVersion; bytes: number; durationMs: number }>) => void;
   // AC15: A9 HTML entry and flat ES module directory, served same-origin; absent keeps the 3 endpoints only.
   browserAssets?: Readonly<{ htmlPath: string; moduleDirectory: string }>;
+  // P3-UFP-AC08: 無ければ詳細の経路は出さない（404）。
+  detail?: DetailPort;
 }>;
 
 // The Node http owner of the latest snapshot and the ServerResponse objects (B11).
@@ -119,10 +182,7 @@ async function startDisplayServer(options: DisplayServerOptions) {
       }, Math.max(SLOW_CLIENT_MS - (performance.now() - blockedSince), 0) + 1);
   };
 
-  const json = (response: ServerResponse, status: number, body: string) => {
-    response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-    response.end(body);
-  };
+  const json = sendJson;
 
   const asset = (response: ServerResponse, file: string, contentType: string) => readFile(file, (error, body) => {
     // Missing names and directories (EISDIR) are both plain 404s.
@@ -145,6 +205,7 @@ async function startDisplayServer(options: DisplayServerOptions) {
       const result = handleSnapshot(latest);
       return json(response, result.status, result.status === 200 ? latestJson : JSON.stringify(result.body));
     }
+    if (path === DETAIL_PATH && options.detail != null) return serveDetail(options.detail, request, response);
     if (path !== "/events") return json(response, 404, JSON.stringify({ reason: "notFound" }));
     if (clients.size >= CLIENT_LIMIT) return json(response, 503, JSON.stringify({ reason: "clientLimit" }));
     response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store",
@@ -202,4 +263,4 @@ async function startDisplayServer(options: DisplayServerOptions) {
   };
 }
 
-export { handleHealth, handleSnapshot, handleSse, startDisplayServer };
+export { handleHealth, handleSnapshot, handleSse, serveDetail, startDisplayServer };

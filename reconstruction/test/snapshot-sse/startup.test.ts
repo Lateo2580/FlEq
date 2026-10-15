@@ -135,7 +135,7 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
     const wakkanai = real.units["U-F"].subjects[0];
     const timeseries: WeatherTimeseriesUnitState = { ...real.units["U-F"], subjects: [...real.units["U-F"].subjects,
       { ...wakkanai, subject: "normal/VPWP50/網走地方気象台", effective: "unavailable", unavailableReason: "capacityExceeded",
-        periods: [], validUntil: null, lastKnown: null }] };
+        periods: [], validUntil: null, lastKnown: null, source: { ...wakkanai.source!, inputId: "i".repeat(600_000) } }] };
     const state: RuntimeState = { ...real, units: { ...real.units, "U-W": weather, "U-F": timeseries },
       views: { ...real.views,
         "U-W": { ...toWeatherCurrentView(weather), admission: {}, contentRevision: "9:0" },
@@ -151,7 +151,7 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
     expect(weatherRow).toMatchObject({ activeCount: 1, highestSeverity: "danger", admission: { capacityExceeded: 2 },
       unavailable: { capacityExceeded: 1, historyUnavailable: 1, coverageIncomplete: 1 },
       freshness: { stale: 1 }, unconfirmed: { startup: 1 } });
-    // Two Nagano series (normal + training) exceed 1 MiB: only U-F becomes a summary, rows unchanged.
+    // 公開形式は period を持たないので、出典 1 つの 600,000 文字の inputId で U-F を 1 MiB 超にする。U-F だけが要約になり、行は変わらない。
     const summary = result.snapshot.current.weatherTimeseries;
     expect(result.state.domains.weatherTimeseries.utf8Bytes).toBeGreaterThan(1_048_576);
     expect(summary).toMatchObject({ delivery: "summary", reason: "snapshotBudget", budgetBytes: 65_536,

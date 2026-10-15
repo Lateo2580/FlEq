@@ -21,7 +21,7 @@ import { initialUnits } from "../../src/runtime/owner-runtime";
 import type { PublisherState } from "../../src/runtime/shared-runtime";
 import { currentSubject } from "../../src/units/eew/eew-unit";
 import { displaySubjects } from "../../src/units/weather-current/weather-current-unit";
-import { timeseriesSubjectOutcome } from "../../src/units/weather-timeseries/weather-timeseries-unit";
+import { timeseriesPublicSubject, timeseriesSubjectOutcome } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { envelope, harnessedRoot, idleChannels, places } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
@@ -223,7 +223,7 @@ function allSubjects(state: RuntimeState): RuntimeDisplayChange[] {
     changes.push({ unit: "U-W", operation: value.operation, subject: value.subject, before: null, after: value });
   for (const item of state.units["U-F"].subjects) changes.push({ unit: "U-F", operation: item.operation,
     subject: item.subject, before: null, after: { unit: "U-F", operation: item.operation, subject: item.subject,
-      office: item.subject.slice(`${item.operation}/VPWP50/`.length), current: item,
+      office: item.subject.slice(`${item.operation}/VPWP50/`.length), current: timeseriesPublicSubject(item),
       subjects: [timeseriesSubjectOutcome(item, [])] } });
   return changes;
 }
@@ -284,7 +284,7 @@ function unavailableChange(state: RuntimeState, office: string | null,
 function timeseriesChange(before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null):
   Readonly<{ change: RuntimeDisplayChange; outcome: RuntimePublishedOutcome }> {
   const subject = (current: WeatherTimeseriesSubject) => ({ unit: "U-F" as const, operation: current.operation,
-    subject: current.subject, office: current.subject.slice(`${current.operation}/VPWP50/`.length), current,
+    subject: current.subject, office: current.subject.slice(`${current.operation}/VPWP50/`.length), current: timeseriesPublicSubject(current),
     subjects: [timeseriesSubjectOutcome(current, [])] });
   const target = (after ?? before)!;
   return { change: { unit: "U-F", operation: target.operation, subject: target.subject,

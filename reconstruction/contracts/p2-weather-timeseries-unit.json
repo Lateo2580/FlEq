@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "99e3fee2682fcb39d9a432aca9f13e9f2c5e9951201a59f1ba04613dc1ff2b50",
+    "sha256": "ef5f3c1d04e35159700d02fb087817be497affaaff3aa8a3b79dbbd4bc5878be",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -390,7 +390,7 @@
     "outOfScope": [
       "VPTA50",
       "カード幅に合わせた削減",
-      "P4詳細API",
+      "P4詳細API（U-Fの詳細の1ページの射影と索引ページはP3-UF-PUBLIC-001で改訂して同契約が作る）",
       "旧移行tool",
       "O02:18-48のP2外family",
       "未知codeの推測実装"

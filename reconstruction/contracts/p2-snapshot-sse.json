@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "5a08ea6e630aa2a0994ac05022e5e55b00ffd37a39e7dbf060959d9809857fe9",
+    "sha256": "383d4c19549e787b131c598501d0d60a121f30dd78ef78441bfddde9d4dde824",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -14,7 +14,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定D3=A",
-        "reason": "E01に必要な最小縦断を閉じ、P4詳細APIを作らない"
+        "reason": "E01に必要な最小縦断を閉じ、P4詳細APIを作らない（注記: 作者裁定P3-UFP-D-DETAIL-SCREEN=A〔2026-10-15〕で、この裁定をU-Fについて一部覆した。U-Fの詳細の1ページの射影・索引ページ・HTTPの経路はP3-UF-PUBLIC-001が作る）"
       },
       {
         "id": "P2-A8-SSE",
@@ -31,7 +31,7 @@
         "id": "P2-A8-OWNERSHIP",
         "status": "closed",
         "closed": "DisplaySnapshot wire型はA8だけが所有しA9はimportする。E01 trace schema/manifestとE02正式測定はA10だけが所有する（2026-09-28 A10点検 点4）。A9資材の生成・出力先・HTML入口はA9、A8は固定URLの最小静的配信だけを持つ（A9点検 論点a）",
-        "remaining": "P4の12分野・詳細page wireはP4前に別途凍結する",
+        "remaining": "P4の12分野・詳細page wireはP4前に別途凍結する（U-Fの詳細page wireはP3-UF-PUBLIC-001のAC06で凍結した）",
         "reason": "計画§3.2の共有ファイル所有規則"
       },
       {
@@ -371,7 +371,7 @@
       "三分野の現在射影state/集計索引のみ。表示履歴・汎用cache層は持たない。"
     ],
     "outOfScope": [
-      "§7.10詳細ページ",
+      "§7.10詳細ページ（U-Fの分はP3-UF-PUBLIC-001で改訂して同契約が作る）",
       "全12分野",
       "静的asset framework・汎用静的配信（A9資材の固定URL配信だけAC15で持つ）",
       "P4認証拡張",
@@ -502,7 +502,7 @@
         "id": "P2-A8-AC15",
         "requirement": "A9資材の最小静的配信（2026-09-28 A9点検 論点a）: startDisplayServerのoptionsに1 field browserAssets?: { htmlPath: string; moduleDirectory: string }を足し（無指定なら従来どおり）、渡されたA9のHTML入口とES module出力directoryだけを、/eventsと同じloopback originで配信する。GET /はHTML入口をtext/html、GET /chrome-eew/<name>.js（nameは[a-z0-9-]+）は出力directory直下の既存ファイルだけをtext/javascriptで返し、それ以外・path区切り・..・不存在は404。出力はdirectory直下の[a-z0-9-]+.jsのフラット配置とし、ブラウザmoduleのimportも同階層の./<name>.jsに限る。directory一覧・CORS・キャッシュ層・汎用静的framework・このfield以外の設定を作らない。資材が渡されないserverは従来どおり3 endpointだけ。理由: reconstructionのCommonJS出力はブラウザで読めず、別originからの配信はCORSと試験専用の別経路を要する。node:fs・node:pathはこの資材の読取りとpath検査だけに使う。publish観測（A10 P2-A10-AC15、R62）: optionsのonSerializeへ、publishごとの実際の1回のJSON.stringifyの区間（直列化だけ、client writeを含まない）と得た文字列のUTF-8 byteを渡す。計測のために再直列化せず、無指定なら何もしない",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:380 «62ba3cb24efc7a5a»"
+          "docs/specs/reconstruction-p0-contracts.md:380 «7c7c3fff5c4a6e89»"
         ]
       }
     ],
@@ -634,7 +634,7 @@
       "DisplaySnapshot wire型をA8一つに置く。無いとA9が独自schemaを作り再接続・sequence・容量の意味が分岐する",
       "projectSnapshotがないと各UnitViewをmainへ別配送して完全snapshotを複製するため、worker内の一回の射影だけを要求する",
       "HTTP側最新1枚とclient待機最新1枚がないとslow clientごとに旧版を無限保持するため、この二段だけを持ち差分journal・履歴・brokerを作らない",
-      "snapshot/SSE/health handlerはNode標準httpで足りる。1実装interface、factory、静的asset framework、P4詳細portを追加しない",
+      "snapshot/SSE/health handlerはNode標準httpで足りる。1実装interface、factory、静的asset framework、P4詳細portを追加しない（U-Fの詳細の口はP3-UF-PUBLIC-001で改訂して同契約が足す）",
       "A3 composition root結線後とA10 host結線後（worker写像・lastInputAt）に、実SSE再接続・slow client・worker停止を再検収する。unit testは実SSEとE02正式測定の代用にしない",
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、実SSEのPass・Fail・Blocked・N/A・未確認（E02はA10の結果を参照）、残存リスク",
       "notice期限回収とbyte検査がないと全分野summaryでも1MiBを保証できない。nowMsを明示入力として既存期限経路を使い、新しい履歴やtimer層は作らない。SnapshotProjectionResult.rejectedがないと不正共通入力をunchangedまたは正常配送に偽装してしまう",

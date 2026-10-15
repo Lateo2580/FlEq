@@ -28,7 +28,7 @@ import type {
   ShutdownSummary,
 } from "../../contracts/p2-shared-runtime.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
-import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types";
+import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types";
 import type {
   ExecutionPlace, OwnerOutput, OwnerReply, OwnerRequest, OwnerUnitDelta, ParserEnvelope, WriteCounts,
 } from "../../contracts/p3-execution-split.types";
@@ -153,7 +153,7 @@ type HeldUpdate = Readonly<{ unit: RuntimeUnitId; channel: NotificationChannel; 
 
 // P3-C3B-RES-01: one fixed record per owner. sent: the send time of each unanswered request kind (checkpointGrant is
 // left to the 10 s checkpoint monitor); replies may come out of order, so the oldest is the minimum of these slots.
-type MonitorSlot = "deadline" | "shutdownInput" | "input" | "finalize" | `${NotificationChannel}:${IntentRequest["slot"]}`;
+type MonitorSlot = "deadline" | "shutdownInput" | "input" | "finalize" | "detail" | `${NotificationChannel}:${IntentRequest["slot"]}`;
 type OwnerJudgement = DisplayWorkerView["state"];
 type OwnerMonitor = {
   sent: Record<MonitorSlot, number | null>;
@@ -171,7 +171,7 @@ type OwnerMonitor = {
 const judgementRank: Readonly<Record<OwnerJudgement, number>> = { healthy: 0, stalled: 1, unresponsive: 2, stopped: 3 };
 const RESPONSE_MS = 5_000;
 const ownerMonitor = (): OwnerMonitor => ({
-  sent: { deadline: null, shutdownInput: null, input: null, finalize: null, "desktop:reservation": null,
+  sent: { deadline: null, shutdownInput: null, input: null, finalize: null, detail: null, "desktop:reservation": null,
     "desktop:update": null, "sound:reservation": null, "sound:update": null },
   lastReplyAt: null, judged: "healthy", stalledReported: false, unresponsiveReported: false, stopped: false,
   removed: { pending: 0, inFlight: 0 }, refused: null,
@@ -483,7 +483,7 @@ class RuntimeCompositionRoot {
 
   private slotOf(request: OwnerRequestBody): MonitorSlot | null {
     switch (request.kind) {
-      case "deadline": case "shutdownInput": case "input": case "finalize": return request.kind;
+      case "deadline": case "shutdownInput": case "input": case "finalize": case "detail": return request.kind;
       case "intentUpdate": {
         const sent = this.intentRequests.get(request.requestId);
         return sent == null ? null : `${sent.channel}:${sent.slot}`;
@@ -616,7 +616,7 @@ class RuntimeCompositionRoot {
         this.reevaluate();
         this.sendDelayedInputs();
         break;
-      case "intentUpdateDone": this.intentUpdateDone(place, reply); break;
+      case "intentUpdateDone": this.intentUpdateDone(place, reply); break; case "detailDone": this.detailDone(place, reply); break;
       case "checkpointDone": this.checkpointDone(place, reply); break;
       case "shutdownInputDone":
         monitor.sent.shutdownInput = null;
@@ -629,7 +629,7 @@ class RuntimeCompositionRoot {
         break;
       default: { const unknown: never = reply; throw new Error(`unknown owner reply ${String(unknown)}`); }
     }
-    this.wake();
+    this.sendDetail(); this.wake();
   }
 
   // P3-C3B-OWNER-STOP (A): an owner's error or unexpected exit stops that owner only. Its mailbox items, requests,
@@ -645,7 +645,7 @@ class RuntimeCompositionRoot {
     if (monitor.stopped) return;
     const clock = this.clock();
     this.endRefusals(place, clock);
-    monitor.stopped = true;
+    monitor.stopped = true; if (place === "deferred") this.failDetails();
     monitor.removed = this.mailbox.removePlace(place);
     this.inFlightInputs.delete(place);
     this.delayedInputs.delete(place);
@@ -1475,7 +1475,7 @@ class RuntimeCompositionRoot {
     };
     try {
       const requested = requestShutdown(this.state, clock, acceptedThroughSequence);
-      this.current = requested.state;
+      this.current = requested.state; this.failDetails();
       // Every reservation is void from the shutdown request on (P3-C3A-NOTIFY-ADOPT).
       this.reservations = {};
       this.abortAttempts(requested.abortRequests);
@@ -1602,7 +1602,87 @@ class RuntimeCompositionRoot {
     if (finalization == null) return new Set();
     return new Set(runtimeUnits.filter((unit) => !finalization.fixed.has(executionPlaces[unit])));
   }
+
+  // ---- U-F の詳細の口（P3-UFP-AC07）。要求は mailbox に入れない（Q-UFP-DETAIL-PATH）: 受け付けは 8 件、
+  // 期限は受付から 2 秒、deferred の owner には 1 件だけで、ほかに仕事が無いときにだけ送る。 ----
+  private readonly detailWaiting: DetailEntry[] = [];
+  private detailInFlight: DetailEntry | null = null;
+  private detailAccepted = 0;
+
+  // done は HTTP の応答の完了か切断で 1 回呼ぶ。受け付けの枠はそのときに初めて戻る。
+  requestDetail(input: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest }>):
+  { response: Promise<WeatherTimeseriesDetailResponse>; done: () => void } {
+    const refuse = (reason: "busy" | "unavailable" | "versionChanged") =>
+      ({ response: Promise.resolve<WeatherTimeseriesDetailResponse>({ kind: "error", reason, revision: null }), done: () => {} });
+    if (this.current == null || this.state.shutdown.stage !== "running" || this.monitors.deferred.stopped) return refuse("unavailable");
+    if (input.streamId !== this.streamId) return refuse("versionChanged");
+    if (this.detailAccepted >= DETAIL_LIMIT) return refuse("busy");
+    this.detailAccepted += 1;
+    let resolve: (response: WeatherTimeseriesDetailResponse) => void = () => {};
+    const response = new Promise<WeatherTimeseriesDetailResponse>((settle) => { resolve = settle; });
+    // 期限は受付時の絶対時刻（注入時計の monotonic）で持つ。タイマーの実行順に頼らず、送出と返信の採用で時刻を照合する。
+    const entry: DetailEntry = { request: input.detail, resolve, settled: false, released: false, due: this.clock().monotonicMs + DETAIL_MS,
+      timer: setTimeout(() => {
+        const at = this.detailWaiting.indexOf(entry);
+        if (at >= 0) this.detailWaiting.splice(at, 1);
+        this.settleDetail(entry, { kind: "error", reason: "timeout", revision: null });
+      }, DETAIL_MS) };
+    entry.timer.unref();
+    this.detailWaiting.push(entry);
+    this.sendDetail();
+    return { response, done: () => {
+      if (entry.released) return;
+      entry.released = true;
+      entry.settled = true;
+      clearTimeout(entry.timer);
+      this.detailAccepted -= 1;
+      const at = this.detailWaiting.indexOf(entry);
+      if (at >= 0) this.detailWaiting.splice(at, 1);
+    } };
+  }
+
+  private settleDetail(entry: DetailEntry, response: WeatherTimeseriesDetailResponse): void {
+    if (entry.settled) return;
+    // 期限後の答えは、タイマーがまだ走っていなくても timeout にする（P3-UFP-RES-07）。
+    if (!(response.kind === "error" && (response.reason === "timeout" || response.reason === "unavailable")) && this.clock().monotonicMs >= entry.due) response = { kind: "error", reason: "timeout", revision: null };
+    entry.settled = true;
+    clearTimeout(entry.timer);
+    entry.resolve(response);
+  }
+
+  // 期限を過ぎた・切断した要求でも owner の返信が来るまで次を送らない。遅い返信はここで捨てる。
+  private detailDone(place: ExecutionPlace, reply: Extract<OwnerReply, { kind: "detailDone" }>): void {
+    this.monitors[place].sent.detail = null;
+    const entry = this.detailInFlight;
+    this.detailInFlight = null;
+    if (entry != null) this.settleDetail(entry, reply.response);
+  }
+
+  private failDetails(): void {
+    const response: WeatherTimeseriesDetailResponse = { kind: "error", reason: "unavailable", revision: null };
+    for (const entry of this.detailWaiting.splice(0)) this.settleDetail(entry, response);
+    if (this.detailInFlight != null) this.settleDetail(this.detailInFlight, response);
+    this.detailInFlight = null;
+  }
+
+  // pump の後で、deferred の入力も期限の返信待ちも無いときだけ詳細を送る（通常の入力より下位、spec §7.10）。
+  // in-flight が無ければ、mailbox は置き場の最も古い入力を必ず選ぶので、deferred 行きの入力は mailbox に残っていない。
+  private sendDetail(): void {
+    if (this.detailInFlight != null || this.detailWaiting.length === 0 || this.current == null) return;
+    if (this.state.shutdown.stage !== "running" || this.monitors.deferred.stopped) { this.failDetails(); return; }
+    this.pump();
+    if (this.inFlightInputs.has("deferred") || this.outstanding.deferred.deadline) return;
+    const entry = this.detailWaiting.shift()!;
+    if (this.clock().monotonicMs >= entry.due) { this.settleDetail(entry, { kind: "error", reason: "timeout", revision: null }); this.sendDetail(); return; }
+    this.detailInFlight = entry;
+    this.post("deferred", { kind: "detail", detail: entry.request });
+  }
 }
+
+const DETAIL_LIMIT = 8;
+const DETAIL_MS = 2_000;
+type DetailEntry = { request: WeatherTimeseriesDetailRequest; resolve: (response: WeatherTimeseriesDetailResponse) => void;
+  due: number; timer: NodeJS.Timeout; settled: boolean; released: boolean };
 
 // P3-C4-AC13(5): 送った予約（返信を受けたら消す。返信の来ない予約は停止した owner の分だけで、件数は予約の枠で限られる）。
 type ReservationSent = Readonly<{ channel: NotificationChannel; intentId: string; unit: RuntimeUnitId; attempts: number; createdAtWallMs: number;

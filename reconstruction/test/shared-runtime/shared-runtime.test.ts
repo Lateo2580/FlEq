@@ -45,7 +45,7 @@ import { callsWith } from "../unit-table/linked-calls";
 import type { StubCalls } from "../unit-table/linked-calls";
 import { reduceEewUnit } from "../../src/units/eew/eew-unit";
 import { reduceWeatherCurrentUnit, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
-import { reduceWeatherTimeseriesUnit, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
+import { reduceWeatherTimeseriesUnit, timeseriesPublicSubject, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 
 const clock = { wallTimeMs: 1_780_650_000_001, monotonicMs: 12 } as const;
 const savedProgress: PersistenceStatus = Object.freeze({ kind: "saved", currentGeneration: 1, savedGeneration: 1,
@@ -526,7 +526,7 @@ describe("P2 shared runtime", () => {
             rejection: { family: "VPWP50", reportDateTimeMs: clock.wallTimeMs, affectedScope: "subject" } }],
           intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] }),
         toWeatherTimeseriesView: (state) => ({ unit: "U-F", semanticRevision: "old-active",
-          contentRevision: String(state.contentRevision), admission: {}, series: state.subjects,
+          contentRevision: String(state.contentRevision), admission: {}, series: state.subjects.map(timeseriesPublicSubject),
           subjects: state.subjects.map((item) => ({ subject: item.subject, operation: item.operation,
             informationType: "", transition: item.effective, severity: null, source: item.source,
             facts: { periodCount: item.periods.length }, changedFields: [] })) }),
@@ -534,7 +534,7 @@ describe("P2 shared runtime", () => {
     expect(rejected.state.units["U-F"]).toBe(unit);
     expect(rejected.generationInputIds).toEqual({});
     expect(rejected.views[0]).toEqual(expect.objectContaining({ admission: { normal: "capacityExceeded" },
-      series: [training], subjects: [expect.objectContaining({ subject: training.subject, operation: "training" })] }));
+      series: [timeseriesPublicSubject(training)], subjects: [expect.objectContaining({ subject: training.subject, operation: "training" })] }));
   });
 
   it("P2-A1-T09 contractBoundary / AC09: weather scope clears only the confirmed office and area", () => {

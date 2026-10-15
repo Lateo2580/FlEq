@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import type { RuntimeDisplayChange, RuntimePublishedOutcome } from "../../contracts/p2-shared-runtime.types";
@@ -124,6 +125,12 @@ describe("P2-A8-T05 corpusHistory (AC07/AC09)", () => {
     expect(lost.snapshot.notices.map((item) => [item.unit, item.kind, item.text, item.expiresAt, item.source?.office]).sort())
       .toEqual([["U-F", "unavailable", "気象時系列情報を確認できません", at + 60_000, "稚内地方気象台"],
         ["U-W", "unavailable", "気象警報の現況を確認できません", at + 60_000, "京都地方気象台"]]);
+    // U-F の notice の targetId・kind・source は base と同じ式の値（P2-A8-NOTICE.identity）。
+    const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+    const noticeF = lost.snapshot.notices.find((item) => item.unit === "U-F");
+    expect(noticeF).toMatchObject({ kind: "unavailable", targetId: hash(["U-F", "normal", active.subject]) });
+    expect(noticeF?.source).toEqual({ id: hash(["U-F", "normal", "VPWP50", active.subject, active.source!.inputId]), family: "VPWP50", office: "稚内地方気象台",
+        officeTruncated: false, reportTime: Date.parse(active.source!.reportDateTimeRaw) });
     const reason = timeseriesChange(lostF, { ...lostF, unavailableReason: "historyUnavailable" });
     const replaced = projected(projectSnapshot(projectionInput({ ...adopted, outcomes: [reason.outcome],
       displayChanges: [reason.change] }, at + 10_000), lost.state));

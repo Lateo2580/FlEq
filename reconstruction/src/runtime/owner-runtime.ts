@@ -30,7 +30,7 @@ import type {
 import type { CodecMap } from "../checkpoint/checkpoint";
 import { normalizeScopes, scopeContains } from "../domains/weather-current/weather-current";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic";
-import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage";
+import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
 // P3-EXECUTION-SPLIT-001 (C3a) owner core: everything one owner does to its own units, as pure functions of
 // the owner state. The owner thread and the test path (1) call these; nothing here touches another place's units.
@@ -578,8 +578,16 @@ function finalizeOwner(state: OwnerState, cutoff: ClockReading, units: UnitTable
   return work.finish();
 }
 
+// P3-UFP-AC06: owner の state から U-F の詳細の 1 ページを作る。U-F の関数を直接呼ぶ（Q-UFP-DETAIL-PATH）。
+function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest): WeatherTimeseriesDetailResponse {
+  const unit = state.units["U-F"];
+  if (unit == null) return { kind: "error", reason: "unavailable", revision: null };
+  return weatherTimeseriesDetail(unit, request, { normalHidden: state.admission["U-F"]?.normal != null,
+    contentRevision: `${unit.contentRevision}:${viewBits(state.admission, "U-F")}` });
+}
+
 export {
-  capturedOwner, checkpointResultOwner, deadlineOwner, finalizeOwner, initialUnits, intentUpdateOwner, ownerViews,
+  capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, ownerViews,
   placeUnits, receiveOwner, restoreOwner, shutdownInputOwner, unitAdmissionCounts, validateSemanticEnvelope,
 };
 export type { OwnerState, OwnerStep, ParserCompletion };

@@ -94,7 +94,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     browserAssets: { htmlPath: resolveRepoPath("reconstruction/src/display/chrome-eew/index.html"),
       moduleDirectory: resolveRepoPath("reconstruction/dist/chrome-eew/src/display/chrome-eew") },
     onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T4", runId, displayVersion, monotonicMs: marker.monotonicMs }),
-    onSerialize: ({ version, bytes, durationMs }) => emit({ kind: "publishSerialization", displayVersion: version, bytes, durationMs }),
+    onSerialize: ({ version, bytes, durationMs }) => emit({ kind: "publishSerialization", displayVersion: version, bytes, durationMs }), detail: (request) => root.requestDetail(request),
   });
 
   // P3-C3A-AC01: three resident owner threads (dist worker entry), created once here, never per input or request.

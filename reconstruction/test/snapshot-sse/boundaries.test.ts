@@ -37,10 +37,10 @@ function first(value: Step = started, nowMs = at): SnapshotProjectionState {
   return projected(projectSnapshot(projectionInput(value, nowMs), null)).state;
 }
 
-// Legal-shaped padding: a long area name (U-F) and a long input id on an unavailable source (U-W), 1 byte per char.
+// 合法な形の水増し: 長い区域 Code（U-F。公開形式が 1 回だけ載せる文字列）と、利用不能の出典の長い inputId（U-W）。1 文字 1 byte。
 function padded(timeseriesPad: number, weatherPad: number): Step {
   const strings = [...wakkanai.strings];
-  strings[wakkanai.areas[0].name!] = "x".repeat(timeseriesPad);
+  strings[wakkanai.areas[0].code] = "x".repeat(timeseriesPad);
   const subject: WeatherTimeseriesSubject = { ...wakkanai, strings };
   const source = wakkanai.source!;
   const weather: WeatherCurrentUnitState = { ...base.units["U-W"], unavailable: [{ subject: "normal/VPWW57/京都地方気象台",
@@ -62,9 +62,10 @@ function project(value: Step) {
 
 describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
   it("P2-A8-T07: total 1048575/1048576 stay full and 1048577 degrades only the over-budget domain", async () => {
-    const probe = project(padded(0, 0));
+    // 空の区域 Code は areaCodes に入らないので、基準は 1 文字の水増しで取る。そこから 1 文字 1 byte で増える。
+    const probe = project(padded(1, 0));
     for (const [total, delivery] of [[1_048_575, "full"], [1_048_576, "full"], [1_048_577, "summary"]] as const) {
-      const result = project(padded(total - probe.utf8Bytes, 0));
+      const result = project(padded(total - probe.utf8Bytes + 1, 0));
       const full = result.snapshot.current.weatherTimeseries.delivery === "full";
       expect(full ? result.utf8Bytes : result.utf8Bytes - Buffer.byteLength(JSON.stringify(result.snapshot.current.weatherTimeseries))
         + result.state.domains.weatherTimeseries.utf8Bytes).toBe(total);

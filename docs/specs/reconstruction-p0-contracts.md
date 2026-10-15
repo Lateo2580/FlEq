@@ -371,13 +371,13 @@ nextDeadline(state): Deadline | null
 | B02 `app-config` | 設定検証、composition root、起動・停止 | 各公開 adapter | 新旧ディレクトリ・appName 衝突を拒否 | 起動・停止期限。設定だけを保存し、電文状態は持たない |
 | B03 `ingress` | WS/REST/replay を共通入力へ変換、購読根拠を保持 | B01、通信 adapter | O09/O10。接続所有、受信時刻の自前確定 | 再接続・REST deadline。入力の無制限蓄積をしない |
 | B04 `decode-material` | decode、展開、XML tree、metadata、分野抽出 | B01、純粋パーサ資材 | 全 XML、O02/O09。一回 decode・展開・full parse | 入力上限。tree・raw は処理後解放、保存しない |
-| B05 `mailbox` | credit、入力順、件数・byte、worker 完了、§7.10 の詳細 request/response と取消 | B01、MessagePort adapter | O09/O10。満杯・停止・異常終了時も計数一致。詳細要求で通常・緊急入力を待たせない | §7 の入力上限と §7.10 の独立した詳細上限。queue は non-durable |
+| B05 `mailbox` | credit、入力順、件数・byte、worker 完了、§7.10 の詳細 request/response と取消（U-F の詳細は B05 を通さず、B02 の composition root が数え・照合し・捨てる。`P3-UF-PUBLIC-001`） | B01、MessagePort adapter | O09/O10。満杯・停止・異常終了時も計数一致。詳細要求で通常・緊急入力を待たせない | §7 の入力上限と §7.10 の独立した詳細上限。queue は non-durable |
 | B06 `runtime-clock` | 保存単位ごとに唯一の state 更新、期限入力、保存完了入力 | B01、意味モジュール、port | 全系列。同じ入力順・時計で同じ decision | 単調時間と絶対時刻を分離。保存対象は §4 |
 | B07 `checkpoint` | encode 要求、2スロット保存、検証・世代選択 | B01、filesystem adapter | O07/O10。途中書込み・成否不明を区別 | 正常系では初回 dirty から包含世代の保存確認まで3秒以内（§5.8）。状態の意味を補修しない |
 | B08 `view-projector` | unit の worker 内で domain view を射影し、main で各 unit の view から完全 snapshot を射影する。要求された詳細 1 ページは worker 内で射影する | B01、各 `toView` | O02/O11、E13a、D-AC21。危険区域の配送、対象内容版の照合、失敗単位の局所化 | 別 current・旧版保存庫を持たず、main へ full view を別配送しない。詳細は §7.10 |
 | B09 `notification-delivery` | intent の試行、ack・失敗を runtime に戻す | B01、通知・音 adapter | O01/O07/O10。期限内再試行、重複許容 | intent は発生元単位へ保存。独立 outbox DB は作らない |
 | B10 `extension-port` | 型付き outcome の非同期・有界配送 | B01、登録 consumer | O10/O11。遅い／失敗する consumer の隔離 | §12。公開 main は exporter を持たない |
-| B11 `http-sse` | snapshot、health、詳細要求の検証・中継、静的配信、認証 | B01、immutable snapshot、B05 の型付き詳細 port | O11、D-AC21。再接続直後から一枚で復元。詳細の上限・timeout・worker 停止応答 | 最新 snapshot 一枚＋client ごとの待機一枚。詳細応答は §7.10 の有界な一時保持だけとし、配信履歴・full view 複製を持たない |
+| B11 `http-sse` | snapshot、health、詳細要求の検証・中継、静的配信、認証 | B01、immutable snapshot、B05 の型付き詳細 port（U-F は B02 の composition root の requestDetail を呼ぶ。`P3-UF-PUBLIC-001`） | O11、D-AC21。再接続直後から一枚で復元。詳細の上限・timeout・worker 停止応答 | 最新 snapshot 一枚＋client ごとの待機一枚。詳細応答は §7.10 の有界な一時保持だけとし、配信履歴・full view 複製を持たない |
 | B12 `cli-commands` | CLI/REPL を typed command に変換 | B01、command port | §11、O10。無効入力で副作用なし | command deadline。domain state を直接変更しない |
 | B13 `terminal-output` | 採用した意味事実の整形、stdout への有界配送 | B01、表示用値処理 | §11、O02。特殊値と取消を保持 | 出力滞留上限。受理完了条件にしない |
 | B14 `filter-template` | 採用した DSL の構文・型・評価 | B01、出力 DTO | §11。既存文法、表示専用制限、未知 field 拒否 | 式サイズ・深さ上限。通知・受理状態へ作用しない |
@@ -1235,7 +1235,7 @@ summary で省いた詳細の取得は、既存の B05 MessagePort を使って 
 B05 は要求の計数・取消・応答照合、B08 は現在状態からの射影、B11 は認証・HTTP 入出力を所有する。
 
 ```ts
-type DetailRequest = Readonly<{
+type DetailRequest = Readonly<{ // U-F（P3-UF-PUBLIC-001）は { streamId, part, id?, revision, page } で、下の requestId・domainId・operation・requestedVersion・contentRevision を持たない
   requestId: string;
   domainId: UnitId;
   operation: Operation;
@@ -1244,7 +1244,7 @@ type DetailRequest = Readonly<{
   page: number;
 }>;
 
-type DetailResponse =
+type DetailResponse = // U-F（P3-UF-PUBLIC-001）は WeatherTimeseriesDetailResponse に streamId を足した形で、requestId・domainId・operation・requestedVersion・observedVersion・contentRevision を持たない
   | Readonly<{
       kind: "ok";
       requestId: string;
@@ -1261,7 +1261,7 @@ type DetailResponse =
       kind: "error";
       requestId: string;
       reason: "invalidRequest" | "versionChanged" | "busy"
-        | "unavailable" | "timeout" | "cancelled";
+        | "unavailable" | "timeout" | "cancelled"; // U-F は cancelled を持たない（切断した要求は応答を返さず捨てる）
     }>;
 ```
 
@@ -1333,9 +1333,9 @@ U-E／U-T の容量縮退中も緊急表示モード、EEW 宣言高、津波の
 
 個別取得は次を契約とする。HTTP の経路名と開始値は仕様案だ。
 
-1. `GET /api/display/domains/{domainId}/detail` に `streamId`、`semanticRevision`、`sequence`、ページ番号を渡す。任意 URL を snapshot に埋め込まず、既知の API と分野 ID から参照する。
-2. 要求には対象分野の `contentRevision` と運用区分も付ける。応答は要求版 `requestedVersion` と実際に参照した公開版 `observedVersion`、対象内容版、分野・区分・ページ番号・ページ数を返す。一応答へ異なる対象内容版を混ぜない。型と worker 経路は §7.10 に従う。
-3. 要求・応答には streamId、semanticRevision、sequence を保持する。詳細の有効性は、対象分野の公開内容の版でも照合する。他分野・接続・保存 metadata だけの更新では対象詳細を無効化しない。対象分野の内容版が変わった場合だけ `409 versionChanged` とし、旧版保存庫は作らない。
+1. `GET /api/display/domains/{domainId}/detail` に `streamId`、`semanticRevision`、`sequence`、ページ番号を渡す。任意 URL を snapshot に埋め込まず、既知の API と分野 ID から参照する。U-F（`P3-UF-PUBLIC-001`）は `semanticRevision`・`sequence` の代わりに `part`（`index`・`current`・`lastKnown`）・`id`・`revision` を渡す。
+2. 要求には対象分野の `contentRevision` と運用区分も付ける。応答は要求版 `requestedVersion` と実際に参照した公開版 `observedVersion`、対象内容版、分野・区分・ページ番号・ページ数を返す。一応答へ異なる対象内容版を混ぜない。型と worker 経路は §7.10 に従う。U-F は運用区分・`requestedVersion`・`observedVersion`・対象内容版を持たず、`id` と `revision` で対象の subject とその版を指す。
+3. 要求・応答には streamId、semanticRevision、sequence を保持する。詳細の有効性は、対象分野の公開内容の版でも照合する。他分野・接続・保存 metadata だけの更新では対象詳細を無効化しない。対象分野の内容版が変わった場合だけ `409 versionChanged` とし、旧版保存庫は作らない。U-F の 409 の照合の単位は分野の内容版ではなく対象の subject の版で、索引ページだけが分野の内容版で照合する。
 4. client は応答の request ID、対象分野、運用区分、streamId、対象内容版が現在の要求・表示と一致する場合だけ採用する。対象の取消・失効・内容変更・streamId 変更で無効化する。他分野だけの更新による sequence 差では捨てない。worker は要求時の旧版を保存・再現せず、その時点の現在状態だけから射影する。
 5. 版不一致・通信失敗時は最小事実を残し、「更新済み・詳細再取得」または取得失敗を表示する。無制限の自動再試行はせず、再取得操作は最新の版を使う。
 6. 詳細も有界とし、宣言した行・項目境界でページ分割する。1 応答の JSON は開始値 64 KiB 以下。単一項目が上限内に表現できない場合は、該当項目と理由を明示して未取得とし、途中切断した JSON や不完全な正常値を返さない。通常合法 corpus でこの状態が出る設計は受入不可とする。

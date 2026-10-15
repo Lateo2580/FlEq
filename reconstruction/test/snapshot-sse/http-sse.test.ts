@@ -42,7 +42,7 @@ async function buildLarge(): Promise<DisplaySnapshot> {
   const base = (await step(started.state, received("run", decode("81_02_01_260605_VPWP50_high_severity", "VPWP50"), clock))).state;
   const subject = base.units["U-F"].subjects[0];
   const strings = [...subject.strings];
-  strings[subject.areas[0].name!] = "x".repeat(1_000_000);
+  strings[subject.areas[0].code] = "x".repeat(1_000_000);
   const series: WeatherTimeseriesSubject = { ...subject, strings };
   const units = { ...base.units, "U-F": { ...base.units["U-F"], subjects: [series] } };
   const state = { ...base, units, views: { ...base.views,
