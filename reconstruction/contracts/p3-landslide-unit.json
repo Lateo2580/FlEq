@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0d271ae071a22e14a0a192b9f17320e9b44e3cbb",
-    "sha256": "444ccd741985135d891ca8c69270b8be497d7bcaa72d9ddb3d456b4df143252a",
+    "sha256": "eb8c8ea34c6e65fd8b6957c9b6e62bb501acb05e2c2a4ea637312d0528a329b3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -15,7 +15,7 @@
         "recommended": "C",
         "provisional": "C",
         "ruling": "作者裁定C（2026-10-10朝、ご主人）、推奨どおり",
-        "reason": "材料（実配信、~/dev/fleq-corpus-p0の3日分の採取のVPWW56 425本、44官署。官署ごとに同じ日の続報の間隔を数えた）: 報の前の状態がレベル4の間隔138のうち6時間を超えたのは5（最長14.6時間）、レベル2は178のうち32（最長17.8時間）、レベル3は15のうち0、レベル5は12のうち0。定時の出し直しは見られない（全部が区域の変わる報で、事実の変わらない続報は347間隔で0）。日をまたぐ間隔は1日ずつの採取では測れず、日の終わりにactiveのまま次の報が無かった官署・日が48件、最長は最後の報（レベル2）から日の終わりまで20.4時間（本当の間隔はそれ以上）。見え方の違い: 雨が続いて区域と区分が変わらないまま6時間続報が無いと、Bでは土砂の表示が音もなく消える（実配信でレベル4のまま14.6時間続いた例がある）。Aは解除の報まで残す。Aの代償: 切断中に解除の報を取り逃すと、その官署の次の報（数週間後もありうる）まで古い警報が残る。VPWW56はREST回復の対象に無い（spec:2205、P3-C10-N2）。Cはその残りを2日で打ち切る。Cの代償: 区域も区分も変わらない報が48時間来ない警報・注意報は黙って消える（3日分の採取では、日をまたいで48時間変わらない例があるかを測れない）。旧築のBの挙動はgateのactive記録の期限（telegram-revision-gate.ts:1583、受信時刻から6時間）にholderが追従する（standby-persistence-admission.ts:1306）ことから起きる。spec:565は「activeの有効期限とtombstone retentionは別欄で扱う」とするが、spec:573のVPWW56の行は値が1つだけで、どちらの欄かを書いていない。推奨はC: 48時間は測った値でなく、取り逃した解除の残りを有限にするための仮の上限（日をまたぐ無報は下限で20.4時間以上の例がある）。黙って消えて困りうるのは主にレベル2（レベル4の日の中の最長は14.6時間）。どの案でも型は変わらず、retainUntilの値（Cはactiveが+48時間、inactiveが+6時間）と回収の条件だけを差し替える"
+        "reason": "材料（実配信、~/dev/fleq-corpus-p0の3日分の採取のVPWW56 425本、44官署。官署ごとに同じ日の続報の間隔を数えた）: 報の前の状態がレベル4の間隔138のうち6時間を超えたのは5（最長14.6時間）、レベル2は178のうち32（最長17.8時間）、レベル3は15のうち0、レベル5は12のうち0。定時の出し直しは見られない（全部が区域の変わる報で、事実の変わらない続報は347間隔で0）。日をまたぐ間隔は1日ずつの採取では測れず、日の終わりにactiveのまま次の報が無かった官署・日が48件、最長は最後の報（レベル2）から日の終わりまで20.4時間（本当の間隔はそれ以上）。見え方の違い: 雨が続いて区域と区分が変わらないまま6時間続報が無いと、Bでは土砂の表示が音もなく消える（実配信でレベル4のまま14.6時間続いた例がある）。Aは解除の報まで残す。Aの代償: 切断中に解除の報を取り逃すと、その官署の次の報（数週間後もありうる）まで古い警報が残る。VPWW56はREST回復の対象に無い（spec:2205、P3-C10-N2）。Cはその残りを2日で打ち切る。Cの代償: 区域も区分も変わらない報が48時間来ない警報・注意報は黙って消える（3日分の採取では、日をまたいで48時間変わらない例があるかを測れない）。旧築のBの挙動はgateのactive記録の期限（telegram-revision-gate.ts:1612、受信時刻から6時間）にholderが追従する（standby-persistence-admission.ts:1306）ことから起きる。spec:565は「activeの有効期限とtombstone retentionは別欄で扱う」とするが、spec:573のVPWW56の行は値が1つだけで、どちらの欄かを書いていない。推奨はC: 48時間は測った値でなく、取り逃した解除の残りを有限にするための仮の上限（日をまたぐ無報は下限で20.4時間以上の例がある）。黙って消えて困りうるのは主にレベル2（レベル4の日の中の最長は14.6時間）。どの案でも型は変わらず、retainUntilの値（Cはactiveが+48時間、inactiveが+6時間）と回収の条件だけを差し替える"
       },
       {
         "id": "P3-C10-NOTICE-LEVELS",
@@ -77,7 +77,7 @@
       {
         "id": "P3-C10-RETENTION",
         "A": "期限はsourceのReportDateTimeから絶対の長さで数える（ended・cancelledは+21,600,000 ms）。再起動・再受信で延ばさない。到着の時点で期限を過ぎた報は採用してwatermarkを進め、同じreduceで回収する（viewに載らず鳴らない）。記録の無い官署に受理の時点でReportDateTime+6時間を過ぎたactive相当の報が届いたら、activeにせずwatermarkだけのendedの記録にして同じreduceで回収する（P3-C10-ACTIVE-EXPIRY=C）",
-        "B": "旧築どおり受信時刻から数える（telegram-revision-gate.ts:1583のacceptedAtMs）",
+        "B": "旧築どおり受信時刻から数える（telegram-revision-gate.ts:1612のacceptedAtMs）",
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が起草で確定（spec:2213「業務上の期限は元報の絶対時刻から」、C8・C9のRETENTIONと同じ基準。値はspec:573・旧築vpww56-state.ts:20の6時間）",
@@ -234,7 +234,7 @@
         "items": [
           "官署: 旧築はPublishingOfficeでsubjectを作る（weather-parser.ts:449、weather-stream-key.ts:28）。新築はU-Wと同じEditorialOffice（P3-C10-SUBJECTS）。実配信で違うのは本庁だけ（旧築「気象庁」、新築「気象庁本庁」）",
           "事実の読み方: 旧築はHead/Headline/Informationの市町村等の層（無ければ粗い層）から区域の名前とKindを持ち、Bodyは不足の区域を足すだけ（vpww56-state.ts:332、weather-parser.tsのmergeBodyWarningStatuses）。新築はU-Wと同じくBody/Warningの市町村等だけを読み、区域はcodeだけを持つ（P3-C10-AREAS・P3-C10-ACTIVE-STATUS）",
-          "activeの期限: 旧築はactiveの記録も受信から6時間で黙って消す（revision-family-registry.ts:817、telegram-revision-gate.ts:1583、standby-persistence-admission.ts:1306）。新築はP3-C10-ACTIVE-EXPIRY=C（作者裁定）で解除・取消まで残し、元報の時刻から48時間で黙って打ち切る。期限の起点は受信時刻でなく元報の時刻（P3-C10-RETENTION）",
+          "activeの期限: 旧築はactiveの記録も受信から6時間で黙って消す（revision-family-registry.ts:817、telegram-revision-gate.ts:1612、standby-persistence-admission.ts:1306）。新築はP3-C10-ACTIVE-EXPIRY=C（作者裁定）で解除・取消まで残し、元報の時刻から48時間で黙って打ち切る。期限の起点は受信時刻でなく元報の時刻（P3-C10-RETENTION）",
           "通知の機会: 旧築は受理した報ごとに鳴らす（message-router.ts:537〜:552。VPWW56にはweatherDiffが無いので変化なしの抑止も効かない）。新築は事実の変わった採用・解除・訂正・取消の前にactiveだった記録の取消・記録の無い官署への解除だけ（Q-NOTICE.generationTable）",
           "段階: 旧築は報の全区域の最大で、レベル4は表示critical・音warning（weather-warning-level.ts:225〜:231、.claude/rules/message-pipeline.md:143の2026-06-12の決定）、解除だけの報はinfo（level-helpers.ts:343）、取消はcancel、表に無いcodeは名前の推測かinfo。新築はP3-C10-NOTICE-LEVELS=B（作者裁定）で上がった区域で決め、引下げ・解除はnormal、表に無いcodeはwarning。音源は旧築の5段階でなく分野別根音表の気象（C4）",
           "通知の文面: 旧築はbodyを「警報 N地域 / 注意報 M地域 / headline」（notifier.ts:585）。新築はKindの名前ごとの区域の数（Q-NOTICE.payload）",
@@ -706,7 +706,7 @@
           "src/engine/messages/revision-family-registry.ts:794 «efbd87b81d0f6bdb»",
           "src/engine/messages/revision-family-registry.ts:817 «4bbeeddf92d66a41»",
           "src/engine/messages/vpww56-state.ts:20 «7c785986cff0c8cd»",
-          "src/engine/messages/telegram-revision-gate.ts:1583 «9668517b4329cbcb»",
+          "src/engine/messages/telegram-revision-gate.ts:1612 «9668517b4329cbcb»",
           "src/engine/display/standby-persistence-admission.ts:1306 «91a07ed16d5904f3»",
           "src/engine/presentation/processors/process-weather.ts:331 «ba5a938025537a68»"
         ]

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "c77648a0106f60ea1317e1a44cb0c4ef40a35d206eb2fcbe0d879ba645647fe6",
+    "sha256": "4ee70588fd75b70b5376e1702889ade61a1da566beec94bf7c1ef35e2dd02cc7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -111,7 +111,7 @@
       {
         "id": "P3-C11-RETENTION",
         "A": "期限はsourceのReportDateTimeから絶対の長さで数える。再起動・再受信で延ばさない。受理の時点でReportDateTime+36時間を過ぎた報（遅着）は、記録の有無によらずstateを変えない（P3-C11-ACTIVE-EXPIRY.lateRule、どの案でも）",
-        "B": "旧築どおり受信時刻から数え、続報で延ばす（telegram-revision-gate.ts:1583のacceptedAtMs、flood-forecast-state.tsのlastSeenMs）",
+        "B": "旧築どおり受信時刻から数え、続報で延ばす（telegram-revision-gate.ts:1612のacceptedAtMs、flood-forecast-state.tsのlastSeenMs）",
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が起草で確定（spec:2213「業務上の期限は元報の絶対時刻から」、C8〜C10のRETENTIONと同じ基準。値はspec:581・旧築revision-family-registry.ts:510の36時間）",
@@ -281,7 +281,7 @@
           "code表: 旧築のcode表（types.ts:2584・:2735）に22（レベル２氾濫注意報（警報解除）、実配信の12報）と50・52が無く、unknownとして段階の計算から外れ、全部が22の報はinfoで鳴る。新築は22をレベル2に数え、表に無いcodeはnull（active、警報級を軽く鳴らさないwarning、P3-C11-NOTICE-LEVELS）",
           "有効の判定: 旧築はレベル3以上（観測所の現況の観測レベルか見出し）だけをactiveにし、レベル2だけの報で記録を閉じる（revision-family-registry.ts:521・:565）。新築はレベル2もactiveで、code 10の解除で閉じる（P3-C11-ACTIVE-LEVEL）。待機画面に載せる河川の閾値（旧築はレベル3以上、project-flood.ts:169）はP4",
           "読めない報: 旧築は事実を変えずwatermarkだけ進め、新しいEventIDでは何も描かない（observeOnly）。新築はkinds空のactiveとして載せ、前の事実を保つときはその出典の時刻を持つ（P3-C11-UNKNOWN）",
-          "期限: 旧築はactiveと解除の記憶を受信から36時間で消し、続報・訂正で延ばす（telegram-revision-gate.ts:1583、flood-forecast-state.tsのtouch）。新築は元報の時刻から数え、延ばさない（P3-C11-RETENTION）。activeを消すかはP3-C11-ACTIVE-EXPIRY（作者裁定D: 36時間で消してdesktopで知らせる）",
+          "期限: 旧築はactiveと解除の記憶を受信から36時間で消し、続報・訂正で延ばす（telegram-revision-gate.ts:1612、flood-forecast-state.tsのtouch）。新築は元報の時刻から数え、延ばさない（P3-C11-RETENTION）。activeを消すかはP3-C11-ACTIVE-EXPIRY（作者裁定D: 36時間で消してdesktopで知らせる）",
           "通知の機会: 旧築は受理ごとに鳴らし、VXKOの通常の発表だけ観測所のdigestが同じなら抑える。訂正・Headlineだけの報・VXSUは必ず鳴る（process-flood-forecast.ts:175・:178）。新築は河川の段階が変わった報・解除・訂正・activeの取消・記録の無いsubjectへの解除だけ（Q-NOTICE.generationTable、作者裁定E: 観測所の現況レベルの最大の上昇でも鳴る）",
           "段階: 旧築は全河川・観測所の見出しのcodeの最大で、レベル4は表示critical・音warning（flood-level.ts:55・:63）、解除はcancel音、取消はcancel。新築はP3-C11-NOTICE-LEVELS=E（作者裁定、上がった河川と観測所の現況レベルで決め、解除はnormal）。音源は旧築の5段階でなく分野別根音表の気象（C4）",
           "通知の文面: 旧築のbodyは「{先頭の観測所名}: {Headline}」（notifier.ts:1095）。新築はHeadline、無ければKindごとの河川名（Q-NOTICE.payload）",
@@ -836,7 +836,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
           "docs/specs/reconstruction-p0-contracts.md:2213 «9b0efc412a902593»",
           "src/engine/messages/revision-family-registry.ts:510 «f65f9154050538db»",
-          "src/engine/messages/telegram-revision-gate.ts:1583 «9668517b4329cbcb»",
+          "src/engine/messages/telegram-revision-gate.ts:1612 «9668517b4329cbcb»",
           "src/engine/messages/flood-forecast-lifecycle.ts:20 «789a1b2a6c50b6cf»"
         ]
       },

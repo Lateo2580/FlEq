@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "70ec2463c7d60f1a40ec838cb40890706432a28214ff9502ba897f615dae3d77",
+    "sha256": "4ee8323a1f22e0a2304ac26977fb7ab01dd21b2c6fb2cc1ad0f5dc23d27137cf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -243,7 +243,7 @@
           "強震保持の始まり: 新築はVXSE51（発生時刻はHead/TargetDateTimeの16:27）の16:28の採用で強震保持を作る。旧築はOriginTimeが無いと保持を作らず（quake-extreme-store.ts:350、from-earthquake.ts:237）、VXSE53が届いてから始まる（corpusの例では16:31のVXSE53が捨てられるので16:35）",
           "保持の基準（P3-C7-RETENTION）: 旧築の地震のwatermarkは受理時刻から24時間、長周期は受理時刻から36時間（revision-family-registry.ts:155・:211・:506）、震度7保持はOriginTimeから12時間。新築は元報の時刻（ReportDateTime・発生時刻）から",
           "当日地震履歴（P3-C7-DAILY・P3-C7-DAILY-BASIS=B）: 日の基準は旧築と同じで、件数・最大震度は受信時刻の日、recentは発生時刻の日（daily-quake-counter.ts:55〜:105・:183〜:186）。件数を全体MaxIntが既知の段階のときだけ数えるのも旧築（同:57）と同じ。旧築との差は、operationごとの履歴（旧築は訓練・試験も同じ履歴）とcountedEventIdsの2048件の上限（旧築は上限なし）だけ。同じ報を読み直したときの振る舞いはP3-C7-DAILYの末尾（旧築と同じ向き）",
-          "容量（P3-C7-CAPACITY）: 旧築は512件で最古のactiveのwatermarkを退去し取消記憶を守る（telegram-revision-gate.ts:1355）。新築も同じ順に加え、4 MiBのbyte上限、取消記憶の予約、強震保持の生きているeventの保護、training/testを先に退去",
+          "容量（P3-C7-CAPACITY）: 旧築は512件で最古のactiveのwatermarkを退去し取消記憶を守る（telegram-revision-gate.ts:1384）。新築も同じ順に加え、4 MiBのbyte上限、取消記憶の予約、強震保持の生きているeventの保護、training/testを先に退去",
           "訓練: 旧築は既定で訓練報が届かず、届けば通常と同じdesktop＋sound。新築も本番では届かず、届けばdesktopだけ（P3-C7-TRAINING）",
           "VXSE47: 旧築に処理が無く購読もしていない。新築もnotPorted（P3-C7-VXSE47）",
           "長周期の段階と本文: 旧築の長周期はunknownでnormal（level-helpers.ts:314〜:322）、部品が無ければ本文がTitleに落ちる（notifier.ts:511〜:533）。新築も同じ（unknownがinfoになるのは地震だけ）",
@@ -817,7 +817,7 @@
           "docs/specs/reconstruction-p0-contracts.md:475 «aba86312c3e708bb»",
           "docs/specs/reconstruction-p0-contracts.md:570 «410f982df8a2372d»",
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
-          "src/engine/messages/telegram-revision-gate.ts:1355 «2e493cab640d62a2»",
+          "src/engine/messages/telegram-revision-gate.ts:1384 «2e493cab640d62a2»",
           "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»"
         ]
       },
