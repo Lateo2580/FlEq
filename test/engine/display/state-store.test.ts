@@ -324,13 +324,14 @@ describe("DisplayStateStore: EEW", () => {
     expect(store.snapshot(1, T0 + 1_000).activeEews.length).toBe(0);
   });
 
-  it("遅延到着した古い serial の取消は無視される (新しい報を消さない)", () => {
+  it("最終報の後に届いた古い serial の取消は card を外し、その後の古い続報で復活しない", () => {
     const store = new DisplayStateStore();
-    expect(store.applyEvent(eewDto({ serial: "3" }), T0)).toBe(true);
-    expect(store.applyEvent(eewDto({ serial: "2", isCancellation: true }), T0 + 1_000)).toBe(false);
-    const snap = store.snapshot(1, T0 + 1_000);
-    expect(snap.activeEews.length).toBe(1);
-    expect(snap.activeEews[0].serial).toBe("3");
+    expect(store.applyEvent(eewDto({ serial: "5", isFinal: true }), T0)).toBe(true);
+    expect(store.applyEvent(eewDto({ serial: "3", isCancellation: true }), T0 + 1_000)).toBe(true);
+    expect(store.snapshot(1, T0 + 1_000).activeEews.length).toBe(0);
+    expect(store.applyEvent(eewDto({ serial: "4" }), T0 + 2_000)).toBe(false);
+    expect(store.applyEvent(eewDto({ serial: "3", isCancellation: true }), T0 + 3_000)).toBe(false);
+    expect(store.snapshot(2, T0 + 3_000).activeEews.length).toBe(0);
   });
 
   it("保持中と同じ serial の取消は除去する", () => {

@@ -78,10 +78,15 @@ export function processEew(
     ? eewInfo.meta.eventId.value
     : null;
 
+  // 既知 event の取消は抑止経路へ回さず tracker.update で扱い、type によらず最初の 1 本を告知する。
+  // VXSE45 の取消を取り逃しても VXSE44 の取消で画面と通知に残すため。
+  const knownCancellation = eewInfo.infoType === "取消" && eewTracker.hasEvent(eewInfo);
   // 実受信 VXSE45 の相関を最優先し、それがない場合だけ capability を読む。
   const suppressedByObservedVxse45 = msg.head.type === "VXSE44"
+    && !knownCancellation
     && eewTracker.hasSeen45(eewInfo);
   const suppressedByCapability = msg.head.type === "VXSE44"
+    && !knownCancellation
     && !suppressedByObservedVxse45
     && (() => {
       const capability = options?.getDeliveryCapabilities?.();
@@ -200,9 +205,10 @@ export function processEew(
       eewLogger.closeEvent(eventId, "最終報");
       eewTracker.finalizeEvent(eventId);
     }
+    // 抑制した取消は type によらず card の解除だけ通す（VXSE45 の card が VXSE43 の取消で外れるように）。
     if (
-      msg.head.type === "VXSE44"
-      && (result.isCancelled || eewInfo.nextAdvisory != null)
+      result.isCancelled
+      || (msg.head.type === "VXSE44" && eewInfo.nextAdvisory != null)
     ) {
       return {
         kind: "ok",

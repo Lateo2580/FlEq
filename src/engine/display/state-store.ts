@@ -709,7 +709,9 @@ export class DisplayStateStore {
       const previousSerial = sourceRevision?.serial ?? comparableExisting?.serial;
       if (previousSerial !== undefined) {
         const cmp = compareSerial(input.serial, previousSerial);
-        if (cmp < 0) return false;
+        // 2026-10-16 千島列島の誤報で serial 37 の取消が serial 42 の後に届いた。
+        // 古い serial の取消でも card は外す。watermark は戻さず、後着の古い続報を拒否し続ける。
+        if (cmp < 0) return input.isCancellation && this.activeEews.delete(eventId);
         if (
           cmp === 0
           && !input.isFinal

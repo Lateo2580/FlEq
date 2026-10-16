@@ -14,7 +14,8 @@ export function filterStaleEews(
     snapshot.activeEews.filter((e) => e.eventId != null).map((e) => `eew:${e.eventId}`),
   );
   return recentTicker.filter((dto) => {
-    if (dto.domain !== "eew") return true;
+    // 取消は発表から遅れて届くことがある（2026-10-16 千島列島の誤報で約 40 秒後）。寿命はサーバの受信基準 TTL に任せる。
+    if (dto.domain !== "eew" || dto.isCancellation) return true;
     if (dto.groupKey != null && activeKeys.has(dto.groupKey)) return true;
     const reportMs = Date.parse(dto.reportDateTime);
     if (Number.isNaN(reportMs)) {

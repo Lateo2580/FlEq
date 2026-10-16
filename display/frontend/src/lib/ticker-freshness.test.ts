@@ -23,4 +23,8 @@ describe("filterStaleEews", () => {
     const volcano = ticker({ id: "volcano", domain: "volcano", reportDateTime: "2026-07-23T10:00:00+09:00" });
     expect(filterStaleEews([invalid, volcano], snapshot(now, [])).map((dto) => dto.id)).toEqual(["volcano"]);
   });
+  it("発表から 11 分を超えた inactive EEW の取消も、寿命はサーバに任せて残す", () => {
+    const cancel = ticker({ id: "cancel", infoType: "取消", isCancellation: true, reportDateTime: "2026-07-23T19:48:00+09:00" });
+    expect(filterStaleEews([cancel], snapshot(now, [])).map((dto) => dto.id)).toEqual(["cancel"]);
+  });
 });

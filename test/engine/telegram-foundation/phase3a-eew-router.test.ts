@@ -5,11 +5,17 @@ import type { DisplayCallbacks } from "../../../src/engine/messages/display-call
 import type { DisplayIngestSink } from "../../../src/engine/display/types";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import { projectDisplayEvent } from "../../../src/engine/display/project-event";
+import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { playSound } from "../../../src/engine/notification/sound-player";
 import { notifyMock } from "../../setup";
 import {
   createMockWsDataMessageFromXml,
+  FIXTURE_VXSE43_WARNING_S1,
+  FIXTURE_VXSE43_WARNING_S3,
+  FIXTURE_VXSE44_S10,
+  FIXTURE_VXSE45_CANCEL,
   FIXTURE_VXSE45_S1,
+  FIXTURE_VXSE45_S26,
   readFixture,
 } from "../../helpers/mock-message";
 
@@ -36,9 +42,9 @@ vi.mock("fs", async () => {
   };
 });
 
-function message(xml: string, id: string): WsDataMessage {
+function message(xml: string, id: string, type = "VXSE45"): WsDataMessage {
   return {
-    ...createMockWsDataMessageFromXml(xml, "VXSE45"),
+    ...createMockWsDataMessageFromXml(xml, type),
     id,
     meta: undefined,
   };
@@ -315,4 +321,184 @@ describe("Phase 3A EEW router", () => {
     expect(display.displayOutcome).toHaveBeenCalledTimes(1);
     expect(eewTracker.getActiveCount()).toBe(1);
   });
+
+  // 2026-10-16 千島列島の誤報: 最終報 serial 42 の後に serial 37 の取消が届いた事象の合成。
+  it("最終報の後に届いた古い serial の取消を受理し、テロップに1件出して active を空にする", () => {
+    const olderCancel = replaceHeadValue(readFixture(FIXTURE_VXSE45_CANCEL), "Serial", "20");
+    const olderNormal = replaceHeadValue(readFixture(FIXTURE_VXSE45_S1), "Serial", "21");
+    const { feed, store, eewTracker, stats } = cancelHarness();
+    const counts = () => ({
+      notified: notifyMock.mock.calls.length,
+      recorded: stats.getSnapshot().countByType.get("VXSE45") ?? 0,
+    });
+
+    expect(feed(finalXml("26"), "final-26")).toHaveLength(1);
+    const beforeCancel = counts();
+    const cancelled = feed(olderCancel, "cancel-20");
+    expect(cancelled).toHaveLength(1);
+    expect(cancelled[0]).toMatchObject({
+      isCancellation: true,
+      tickerSuppressed: false,
+      tickerSurface: "none",
+      tickerBody: "先ほどの、緊急地震速報（地震動予報）を取り消します。",
+    });
+    expect(counts()).toEqual({
+      notified: beforeCancel.notified + 1,
+      recorded: beforeCancel.recorded + 1,
+    });
+    expect(store.snapshot(1, Date.now()).activeEews).toEqual([]);
+    expect(eewTracker.getActiveCount()).toBe(0);
+
+    const afterCancel = counts();
+    expect(feed(olderNormal, "normal-21")).toEqual([]);
+    expect(feed(olderCancel, "cancel-20-resend")).toEqual([]);
+    expect(counts()).toEqual(afterCancel);
+    expect(store.snapshot(2, Date.now()).activeEews).toEqual([]);
+    expect(eewTracker.getActiveCount()).toBe(0);
+  });
+
+  it("最終報と同じ serial の取消も受理してテロップに出す", () => {
+    const { feed, store } = cancelHarness();
+    feed(finalXml("26"), "final-26");
+    const cancelled = feed(
+      replaceHeadValue(readFixture(FIXTURE_VXSE45_CANCEL), "Serial", "26"),
+      "cancel-26",
+    );
+    expect(cancelled.filter((dto) => dto.tickerSuppressed !== true)).toHaveLength(1);
+    expect(store.snapshot(1, Date.now()).activeEews).toEqual([]);
+  });
+
+  it("取消のあと訂正で復活した event は、別 serial の取消で再び閉じる", () => {
+    const { feed, store } = cancelHarness();
+    feed(finalXml("26"), "final-26");
+    feed(replaceHeadValue(readFixture(FIXTURE_VXSE45_CANCEL), "Serial", "20"), "cancel-20");
+    const revived = feed(
+      replaceHeadValue(replaceHeadValue(readFixture(FIXTURE_VXSE45_S26), "InfoType", "訂正"), "Serial", "26"),
+      "correction-26",
+    );
+    expect(revived).toHaveLength(1);
+    expect(store.snapshot(1, Date.now()).activeEews).toHaveLength(1);
+    const cancelled = feed(
+      replaceHeadValue(readFixture(FIXTURE_VXSE45_CANCEL), "Serial", "21"),
+      "cancel-21",
+    );
+    expect(cancelled.filter((dto) => dto.tickerSuppressed !== true)).toHaveLength(1);
+    expect(store.snapshot(2, Date.now()).activeEews).toEqual([]);
+  });
+
+  // 取消は type によらず最初の 1 本だけ告知し、2 本目以降は card の解除だけにする。
+  it("a: VXSE45 を見ていない event では、VXSE43/44 の取消の後の VXSE45 の取消を告知しない", () => {
+    expect(cancelDelta(
+      [[readFixture(FIXTURE_VXSE43_WARNING_S1), "43-normal", "VXSE43"]],
+      [[readFixture(FIXTURE_VXSE43_WARNING_S3), "43-cancel", "VXSE43"], [cancel45(), "45-cancel"]],
+    )).toEqual(ANNOUNCED_ONCE);
+    expect(cancelDelta(
+      [[readFixture(FIXTURE_VXSE44_S10), "44-normal", "VXSE44"]],
+      [[cancel44(), "44-cancel", "VXSE44"], [cancel45(), "45-cancel"]],
+    )).toEqual(ANNOUNCED_ONCE);
+  });
+
+  it("b: VXSE45 の取消を取り逃しても、VXSE44 の取消で 1 回告知する", () => {
+    expect(cancelDelta(
+      [[readFixture(FIXTURE_VXSE45_S1), "45-normal"]],
+      [[cancel44(), "44-cancel", "VXSE44"]],
+    )).toEqual(ANNOUNCED_ONCE);
+  });
+
+  it("c: VXSE45 の card は VXSE43 の取消だけでも外れる", () => {
+    expect(cancelDelta(
+      [[readFixture(FIXTURE_VXSE45_S1), "45-normal"]],
+      [[readFixture(FIXTURE_VXSE43_WARNING_S3), "43-cancel", "VXSE43"]],
+    )).toEqual(ANNOUNCED_ONCE);
+  });
+
+  it("d: VXSE45 と VXSE44 の取消はどちらの順でも告知 1 回・テロップ 1 行", () => {
+    expect(cancelDelta(
+      [[readFixture(FIXTURE_VXSE45_S1), "45-normal"]],
+      [[cancel45(), "45-cancel"], [cancel44(), "44-cancel", "VXSE44"]],
+    )).toEqual(ANNOUNCED_ONCE);
+    expect(cancelDelta(
+      [[readFixture(FIXTURE_VXSE45_S1), "45-normal"]],
+      [[cancel44(), "44-cancel", "VXSE44"], [cancel45(), "45-cancel"]],
+    )).toEqual(ANNOUNCED_ONCE);
+  });
+
+  it("VXSE43 の取消（isWarning=true）で警報済みにせず、復活後の初めての警報を通知する", () => {
+    const { feed } = cancelHarness();
+    feed(readFixture(FIXTURE_VXSE45_S1), "45-forecast-1");
+    feed(replaceHeadValue(readFixture(FIXTURE_VXSE43_WARNING_S3), "Serial", "1"), "43-cancel-1", "VXSE43");
+    feed(replaceHeadValue(cancel45(), "Serial", "1"), "45-cancel-1");
+    feed(replaceHeadValue(readFixture(FIXTURE_VXSE45_S1), "InfoType", "訂正"), "45-correction-1");
+    const before = notifyMock.mock.calls.length;
+    feed(replaceHeadValue(readFixture(FIXTURE_VXSE45_S26), "Serial", "2"), "45-warning-2");
+    expect(notifyMock.mock.calls.length - before).toBe(1);
+  });
 });
+
+type FeedStep = [xml: string, id: string, type?: string];
+
+const ANNOUNCED_ONCE = { notified: 1, recorded: 1, cli: 1, tickers: 1, releases: 1, activeAfter: 0 };
+
+function cancel45(): string {
+  return readFixture(FIXTURE_VXSE45_CANCEL);
+}
+
+function cancel44(): string {
+  return replaceHeadValue(readFixture(FIXTURE_VXSE45_CANCEL), "Serial", "11");
+}
+
+function cancelDelta(normals: FeedStep[], cancels: FeedStep[]) {
+  const harness = cancelHarness();
+  for (const [xml, id, type] of normals) harness.feed(xml, id, type);
+  const before = harness.counts();
+  for (const [xml, id, type] of cancels) harness.feed(xml, id, type);
+  const after = harness.counts();
+  return {
+    notified: after.notified - before.notified,
+    recorded: after.recorded - before.recorded,
+    cli: after.cli - before.cli,
+    tickers: after.tickers - before.tickers,
+    releases: after.releases - before.releases,
+    activeAfter: harness.store.snapshot(1, Date.now()).activeEews.length,
+  };
+}
+
+function finalXml(serial: string): string {
+  return replaceHeadValue(readFixture(FIXTURE_VXSE45_S26), "Serial", serial).replace(
+    "</Body>",
+    "<NextAdvisory>この情報をもって、緊急地震速報：最終報とします。</NextAdvisory></Body>",
+  );
+}
+
+function cancelHarness() {
+  const display = mockDisplay();
+  const ingested: PresentationEvent[] = [];
+  const { handler, eewTracker, stats } = createMessageHandler({
+    display,
+    displaySink: { ingest: (event) => ingested.push(event) },
+  });
+  const store = new DisplayStateStore();
+  let tickers = 0;
+  let releases = 0;
+  const activeCount = () => store.snapshot(0, Date.now()).activeEews.length;
+  const feed = (xml: string, id: string, type = "VXSE45") => {
+    const before = ingested.length;
+    handler(message(xml, id, type));
+    return ingested.slice(before).map((event) => {
+      const dto = projectDisplayEvent(event, "s");
+      const activeBefore = activeCount();
+      store.applyEvent(dto, Date.now());
+      if (dto.isCancellation && dto.tickerSuppressed !== true) tickers += 1;
+      if (dto.isCancellation && activeCount() < activeBefore) releases += 1;
+      return dto;
+    });
+  };
+  const counts = () => ({
+    notified: notifyMock.mock.calls.length,
+    recorded: stats.getSnapshot().totalCount,
+    cli: vi.mocked(display.displayOutcome).mock.calls.length,
+    tickers,
+    releases,
+  });
+  return { feed, store, eewTracker, stats, counts };
+}

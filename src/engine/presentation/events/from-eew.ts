@@ -88,6 +88,7 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
     ...(outcome.eewResult.displayRestoreRevision != null
       ? { eewDisplayRestoreRevision: outcome.eewResult.displayRestoreRevision }
       : {}),
+    ...(outcome.displayLifecycleOnly === true ? { eewDisplayLifecycleOnly: true as const } : {}),
     ...(info.forecastIntensity?.maxLgIntValue != null
       ? { maxLgIntValue: info.forecastIntensity.maxLgIntValue }
       : {}),
@@ -99,6 +100,8 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
     maxLgInt: info.forecastIntensity?.maxLgInt ?? null,
 
     nextAdvisory: info.nextAdvisory ?? null,
+    // テロップ本文。無ければ tickerSentence の固定文に落ちる。
+    bodyText: info.cancelText ?? null,
 
     areaNames,
     forecastAreaNames: areaNames,

@@ -909,6 +909,35 @@ export class TelegramRevisionGate {
     }
 
     const relation = compareWithSerialPolicy(incomingComparison, existing.comparison, input);
+    if (
+      (relation === "older" || relation === "equal")
+      && input.domain === "eew"
+      && resolvedTrigger === "explicitCancellation"
+    ) {
+      // 2026-10-16 千島列島の誤報で、serial 37 の取消が最終報 serial 42 の後に届いた。
+      // EEW の取消は serial の大小によらず受理する。older では comparison を戻さず、遅れて届く
+      // serial 38〜41 の続報は従来どおり older として捨てる。
+      // 重複は同じ取消の semantic key だけで見る。cancelled は最終報でも立つため使えない。
+      if (candidateSemanticKeys.some((candidate) => existing.semanticKeys.has(candidate))) {
+        return reject("semanticDuplicate", relation);
+      }
+      if (commit) {
+        rememberSemanticKey(existing, nextSemanticKey);
+        if (relation === "equal") existing.comparison = incomingComparison;
+        existing.cancelled = true;
+        existing.acceptedAtMs = input.meta.receivedAtMs;
+        this.touchState(key, existing);
+        this.sweep(input.meta.receivedAtMs);
+      }
+      return {
+        kind: acceptedKind(input, resolvedTrigger),
+        relation,
+        accepted: true,
+        isCorrection: false,
+        isTerminal: input.terminal,
+        resolvedTrigger,
+      };
+    }
     if (relation === "older") return reject("stale", relation);
     if (relation === "unordered") return reject("invalidRevision", relation);
     if (

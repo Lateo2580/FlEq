@@ -305,7 +305,7 @@ describe("EewTracker", () => {
       expect(reactivated.firstReportSignal).toBe(true);
     });
 
-    it("suppressed 取消は latch を削除せず TTL も刷新しない", () => {
+    it("suppressed 訂正は latch を削除せず TTL も刷新しない", () => {
       vi.useFakeTimers();
       try {
         vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
@@ -316,13 +316,6 @@ describe("EewTracker", () => {
         })).firstReportSignal).toBe(true);
 
         vi.advanceTimersByTime(9 * 60 * 1000);
-        const cancellation = tracker.update(createEewInfo({
-          type: "VXSE44",
-          eventId: "signal-suppressed-cancel",
-          serial: "1",
-          infoType: "取消",
-        }));
-        expect(cancellation.isSuppressed).toBe(true);
         const correction = tracker.update(createEewInfo({
           type: "VXSE44",
           eventId: "signal-suppressed-cancel",
@@ -1623,13 +1616,13 @@ describe("EewTracker", () => {
       expect(r43.isUpgradeToWarning).toBe(true);
     });
 
-    it("VXSE45 受信済み → VXSE43 取消のみ到着: 表示抑制、isCancelled は true", () => {
+    it("VXSE45 受信済み → VXSE43 取消のみ到着: 最初の取消として告知し、isCancelled は true", () => {
       tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-edge5" }));
       const r43cancel = tracker.update(createEewInfo({
         type: "VXSE43", serial: "1", eventId: "ev-edge5", infoType: "取消", isWarning: true,
       }));
 
-      expect(r43cancel.isSuppressed).toBe(true);
+      expect(r43cancel.isSuppressed).toBe(false);
       expect(r43cancel.isCancelled).toBe(true);
     });
 

@@ -621,12 +621,18 @@ export class EewTracker {
     if (existing) {
       const typeState = existing.byType.get(headType);
       const isFirst45 = headType === "VXSE45" && !existing.hasSeen45;
+      // 取消は type によらず最初の 1 本だけ告知し、2 本目以降は card の解除だけにする。
+      // 最初の取消は VXSE45 受信済みでも VXSE43/44 から告知する。VXSE45 の取消を取り逃しても
+      // 取消が画面に残るようにするため（2026-10-16 千島列島の誤報の後のレビュー）。
+      // 告知済みは遷移前の isCancelled で見る。terminalOwner は抑制した取消でも上書きされる。
+      const wasCancelled = existing.isCancelled;
       const lifecycleAccepted = this.applyAcceptedLifecycle(existing, info, revisionDecision);
 
       // 抑制判定: VXSE45 受信済みなら VXSE43/44 は抑制
-      const isSuppressed = (
-        existing.hasSeen45 && (headType === "VXSE43" || headType === "VXSE44")
-      ) || !lifecycleAccepted;
+      const isSuppressed = isCancelled
+        ? wasCancelled || !lifecycleAccepted
+        : (existing.hasSeen45 && (headType === "VXSE43" || headType === "VXSE44"))
+          || !lifecycleAccepted;
 
       // type 状態の更新 (抑制されても serial・lastUpdate は更新する)
       const previousInfo = typeState?.previousInfo;
@@ -686,8 +692,10 @@ export class EewTracker {
         : undefined;
 
       // 警報昇格判定 (イベント単位)
-      const isUpgradeToWarning = !isSuppressed && !existing.hasWarningIssued && info.isWarning;
-      if (!isSuppressed) {
+      // 取消は除く。parser は VXSE43 の取消も isWarning=true にするため、最初の取消を告知する
+      // ようにしてから、復活後の初めての警報で昇格の通知が落ちた。
+      const isUpgradeToWarning = !isCancelled && !isSuppressed && !existing.hasWarningIssued && info.isWarning;
+      if (!isCancelled && !isSuppressed) {
         existing.hasWarningIssued = existing.hasWarningIssued || info.isWarning;
       }
       existing.lastUpdate = new Date();
@@ -997,6 +1005,13 @@ export class EewTracker {
   /** valid な EventID だけを type 間相関と第1報 latch の subject にする。 */
   private validEventId(info: ParsedEewInfo): string | null {
     return info.meta.eventId.valid ? info.meta.eventId.value : null;
+  }
+
+  /** valid な EventID の event を追跡中か。既知 event の取消を VXSE44 の抑止経路から外すのに使う。 */
+  hasEvent(info: ParsedEewInfo): boolean {
+    this.cleanup();
+    const eventId = this.validEventId(info);
+    return eventId != null && this.events.has(eventId);
   }
 
   /** 同一 EventID で VXSE45 を受信済みか。invalid EventID は相関しない。 */

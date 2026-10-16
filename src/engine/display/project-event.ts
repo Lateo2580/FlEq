@@ -697,8 +697,11 @@ export function projectDisplayEvent(
   // 起こり得る entries ゼロに偽の安心を与えるため不採用 — 対立的レビュー R2 裁定)。
   // 気象解説も、正規化済み body と headline がともに空なら抑制する。buildTickerSentence() は
   // title fallback で非空になり得るため、ここでは sentence を判定材料にしない。
+  // EEW は緊急パネルが主表示なのでテロップに出さないが、取消だけは出す。パネルが黙って
+  // 閉じるだけだと、誤報が取り消されたことが画面に残らない（2026-10-16 千島列島の誤報）。
+  // lifecycle-only の取消（同じ地震の 2 本目以降、未知 event の抑止 VXSE44）は card の解除だけにする。
   const tickerSuppressed =
-    event.domain === "eew" ||
+    (event.domain === "eew" && (!event.isCancellation || event.eewDisplayLifecycleOnly === true)) ||
     (
       event.domain === "weatherWarningTimeseries" &&
       !event.isCancellation &&

@@ -1639,12 +1639,15 @@ describe("tickerSuppressed (情報ゼロ電文の抑制、spec 2026-07-23 T5-2)"
     expect(dto.tickerSuppressed).toBe(false);
   });
 
-  it("EEW は取消を含め常にテロップから除外する", () => {
+  it("EEW の取消だけはテロップへ面なしで出し、本文が無ければ固定文に落ちる", () => {
     const dto = projectDisplayEvent(
-      baseEvent({ domain: "eew", type: "VXSE45", isCancellation: true, infoType: "取消" }),
+      baseEvent({ domain: "eew", type: "VXSE45", isCancellation: true, infoType: "取消", bodyText: null }),
       "s",
     );
-    expect(dto.tickerSuppressed).toBe(true);
+    expect(dto.tickerSuppressed).toBe(false);
+    expect(dto.tickerSurface).toBe("none");
+    expect(dto.tickerBody).toBeNull();
+    expect(dto.tickerSentence).toBe("緊急地震速報は取り消されました。");
   });
 
   it("headline も本文もない非取消の気象解説は抑制する", () => {

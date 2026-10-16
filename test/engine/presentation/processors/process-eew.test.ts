@@ -387,7 +387,7 @@ describe("processEew", () => {
     expect(dto.tickerSentence).toContain("予想最大震度5弱以上未入電");
   });
 
-  it("VXSE45 受信済みイベントの VXSE44 取消報で finalizeEvent が呼ばれる (active カウントから外れる)", () => {
+  it("VXSE45 受信済みイベントの VXSE44 取消報は最初の取消として告知し、active カウントから外れる", () => {
     // VXSE45 を先に処理 → eewTracker に event 登録
     const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
     const initial = processEew(msg45, eewTracker, eewLogger);
@@ -402,10 +402,9 @@ describe("processEew", () => {
     expect(display.snapshot(1, Date.now()).activeEews).toHaveLength(1);
 
     const closeSpy = vi.spyOn(eewLogger, "closeEvent");
-    const finalizeSpy = vi.spyOn(eewTracker, "finalizeEvent");
 
     // 同じ eventId の VXSE45_CANCEL XML (infoType=取消) を VXSE44 として送信。
-    // tracker.update() は呼ばれないため、closeEvent + finalizeEvent を直接実行する。
+    // 既知 event の取消は抑止経路を通らず tracker.update() で告知される。
     const msg44cancel = createMockWsDataMessage(FIXTURE_VXSE45_CANCEL, {
       classification: "eew.forecast",
       head: { type: "VXSE44", author: "気象庁", time: new Date().toISOString(), test: false },
@@ -414,8 +413,8 @@ describe("processEew", () => {
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
-    expect(result.outcome.eewResult.isSuppressed).toBe(true);
-    expect(result.outcome.stats.shouldRecord).toBe(false);
+    expect(result.outcome.eewResult.isSuppressed).toBe(false);
+    expect(result.outcome.stats.shouldRecord).toBe(true);
     const cancelDto = projectDisplayEvent(fromEewOutcome(result.outcome), "summary");
     expect(cancelDto.emergency).toMatchObject({
       kind: "eew",
@@ -425,7 +424,6 @@ describe("processEew", () => {
     expect(display.applyEvent(cancelDto, Date.now() + 1_000)).toBe(true);
     expect(display.snapshot(2, Date.now() + 1_000).activeEews).toHaveLength(0);
     expect(closeSpy).toHaveBeenCalledWith("20240417231454", "取消");
-    expect(finalizeSpy).toHaveBeenCalledWith("20240417231454");
     expect(eewTracker.getActiveCount()).toBe(0);
   });
 
@@ -440,21 +438,22 @@ describe("processEew", () => {
   });
 
   it("抑制された取消報でも closeEvent が実行される", () => {
-    // VXSE45 を先に処理 → hasSeen45 = true
-    const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
-    processEew(msg45, eewTracker, eewLogger);
+    // VXSE45 の通常報と取消を先に処理 → 告知済みの取消
+    processEew(createMockWsDataMessage(FIXTURE_VXSE45_S1), eewTracker, eewLogger);
+    processEew(createMockWsDataMessage(FIXTURE_VXSE45_CANCEL), eewTracker, eewLogger);
 
     const closeSpy = vi.spyOn(eewLogger, "closeEvent");
 
-    // VXSE45_CANCEL の XML (infoType=取消, eventId=20240417231454) を
-    // head.type=VXSE43 として送信 → 抑制 + 取消のライフサイクル処理
+    // 同じ XML を head.type=VXSE43 として送信 → 2 本目の取消は抑制 + card 解除だけの lifecycle 処理
     const msg43cancel = createMockWsDataMessage(FIXTURE_VXSE45_CANCEL, {
       classification: "eew.warning",
       head: { type: "VXSE43", author: "気象庁", time: new Date().toISOString(), test: false },
     });
     const result = processEew(msg43cancel, eewTracker, eewLogger);
 
-    expect(result.kind).toBe("suppressed");
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.outcome.displayLifecycleOnly).toBe(true);
     expect(closeSpy).toHaveBeenCalledWith("20240417231454", "取消");
   });
 

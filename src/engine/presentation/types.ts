@@ -536,6 +536,8 @@ export interface PresentationEvent {
   maxLgIntRank?: number | null;
   forecastMaxInt?: string | null;
   forecastMaxIntRank?: number | null;
+  /** EewOutcome.displayLifecycleOnly の写し。無いと 2 本目以降の取消（card 解除だけ）もテロップに出る。 */
+  eewDisplayLifecycleOnly?: true;
   /** 抑止 EEW family の終端撤回に伴う display 復元 command。 */
   eewDisplayRestoreRevision?: {
     sourceType: string;
