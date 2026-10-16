@@ -14,10 +14,13 @@ import type {
   VptaDisplayIngestCommand,
 } from "../../../src/engine/display/types";
 import {
+  createMockWsDataMessage,
   createMockWsDataMessageFromXml,
   FIXTURE_VPTA50_DAMREY,
+  FIXTURE_VXSE45_S1,
   readFixture,
 } from "../../helpers/mock-message";
+import { EewEventLogger } from "../../../src/engine/eew/eew-logger";
 import {
   createVptaSentinelCommit,
   findVptaInternalSentinelLeaks,
@@ -419,6 +422,34 @@ describe("message router VPTA admission", () => {
     expect(store.snapshotItems().find((item) => item.kind === "typhoon")).toBeDefined();
     expect(() => router.handler(vptaMessage("after-missing-persistence-adapter")))
       .toThrow(RouterSerializerPoisonedError);
+  });
+
+  it("reports a persistence failure loud but keeps accepting the next EEW", () => {
+    const store = new StandbyStateStore();
+    const persistenceFailure = new Error("standby persistence save failed (stage=writeV2Temp)");
+    const eewLogger = new EewEventLogger();
+    eewLogger.setEnabled(false);
+    const router = createMessageHandler({
+      displaySink: createStoreSink(store),
+      eewLogger,
+      onVptaAdmissionCompletion: (completion) => completion.durableChanged
+        ? {
+            kind: "failed", operation: "schedule", completionAlreadyEmitted: true,
+            receipt: { kind: "scheduled", seq: 1 }, cause: persistenceFailure,
+          }
+        : { kind: "notRequired" },
+      withStandbyDurableNotificationsSuppressed: (callback) => callback(),
+    });
+
+    expect(() => router.handler(vptaMessage("vpta-during-save-failure")))
+      .toThrow(persistenceFailure);
+    expect(store.snapshotItems().find((item) => item.kind === "typhoon")).toBeDefined();
+    router.handler({
+      ...createMockWsDataMessage(FIXTURE_VXSE45_S1),
+      id: "eew-after-save-failure",
+      meta: undefined,
+    });
+    expect(router.eewTracker.getActiveCount()).toBe(1);
   });
 
   it("retains a proven reducer mutation, emits one failed completion, and flushes before throw", () => {

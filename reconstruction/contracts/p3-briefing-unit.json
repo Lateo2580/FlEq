@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "7b610bfeae702b2062938ba054ca29aed7b474c19e99e8b651cfd33e56857dcb",
+    "sha256": "8a40c9db9a684019c816bf9d97df2d9c3806fefff27f42ee414ba9311962ec80",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -114,7 +114,7 @@
         "recommended": "B",
         "provisional": "B",
         "ruling": "作者裁定B（2026-10-10昼前、ご主人）、推奨どおり。採らなかったAは分岐の記録として残すだけで、実装はBの形（aliasedに事実を保ち、対応報の取消で無音でreleased）だけを読む",
-        "reason": "旧築は対応報の取消でVPOA50を無音で表示し直した（legacy-counterpart-correlator.ts:856のcounterpartCancelled、message-router.ts:1471で通知を評価しない）。VPOA50は旧形式の記録的短時間大雨情報として有効なまま残る。容量の差: aliasedの1件の合法最大は2,838 byte（heldは2,872）でVPBS50のactiveの合法最大5,534より小さく（改訂1でK5の方式で数え直した値）、世代の上界は変わらない。実配信の大きさではaliasedの記録が約0.4 KB増える（記憶だけの416 byte→事実を持つ823 byte）。材料: 取消の実配信は0（合成のVPOA50の取消1本・VPBS50の取消1本）。Aは記録雨が取り消されていないのに消える"
+        "reason": "旧築は対応報の取消でVPOA50を無音で表示し直した（legacy-counterpart-correlator.ts:856のcounterpartCancelled、message-router.ts:1474で通知を評価しない）。VPOA50は旧形式の記録的短時間大雨情報として有効なまま残る。容量の差: aliasedの1件の合法最大は2,838 byte（heldは2,872）でVPBS50のactiveの合法最大5,534より小さく（改訂1でK5の方式で数え直した値）、世代の上界は変わらない。実配信の大きさではaliasedの記録が約0.4 KB増える（記憶だけの416 byte→事実を持つ823 byte）。材料: 取消の実配信は0（合成のVPOA50の取消1本・VPBS50の取消1本）。Aは記録雨が取り消されていないのに消える"
       },
       {
         "id": "P3-C12-CANCEL-SCOPE",
@@ -346,7 +346,7 @@
           "予測の置換: 旧築は発生がstrictly newerな予測だけを置き換え（standby-state-store.ts:1292）、区域ごとのwatermarkを別の表（最大512）で持ち、発生の取消の後も古い予測の区域を除いた。新築はP3-C12-REPLACE（作者裁定B: 発生の記録がある間は時刻の前後によらず同じ区域の予測を除く）で、watermarkは発生の記録そのもの",
           "alias: 旧築は報ごと（EventIDの全体、legacy-counterpart-registry.ts:129）、新築は系列ごと（P3-C12-ALIAS）",
           "VPOA50の取消: 旧築は鳴らさなかった（notifier.ts:1115）。新築はreleasedのVPOA50の取消をcancelで鳴らす（Q-NOTICE.cancellation）",
-          "対応報の取消: 旧築はVPOA50を無音で表示し直した（legacy-counterpart-correlator.ts:856→message-router.ts:1471）。新築はP3-C12-COUNTERPART-CANCEL（作者裁定B、同じ形）",
+          "対応報の取消: 旧築はVPOA50を無音で表示し直した（legacy-counterpart-correlator.ts:856→message-router.ts:1474）。新築はP3-C12-COUNTERPART-CANCEL（作者裁定B、同じ形）",
           "相関待ちの再起動: 旧築のholdbackはprocessの中だけ。新築はrestore入力でheldを無音でreleasedにする（P3-C12-VPOA.holdRules (5)）"
         ]
       },
@@ -1046,7 +1046,7 @@
           "src/engine/notification/notifier.ts:1118 «c4a98f1509af88c9»",
           "src/engine/display/standby-state-store.ts:1292 «4218cbb1d0b3187a»",
           "src/engine/messages/legacy-counterpart-correlator.ts:856 «f493b1fb358b08a1»",
-          "src/engine/messages/message-router.ts:1471 «94c595d69e993047»"
+          "src/engine/messages/message-router.ts:1474 «94c595d69e993047»"
         ]
       },
       {

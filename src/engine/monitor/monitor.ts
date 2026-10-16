@@ -887,6 +887,24 @@ export async function startMonitor(config: AppConfig): Promise<void> {
   let isFirstConnection = true;
 
   let manager: MultiConnectionManager | null = null;
+  // 端末は err.message だけを出すので、stage と原因の message を 1 行にまとめる。
+  const standbyPersistenceFailure = (
+    failure: { stage: string; cause: unknown },
+  ): Error => new Error(
+    `standby persistence save failed (stage=${failure.stage}): ${
+      failure.cause instanceof Error ? failure.cause.message : String(failure.cause)}`,
+    { cause: failure.cause },
+  );
+  // flushThrough は timer を止め、失敗しても retry も lastFailure も立てない。普通の予約を
+  // 張り直して、次の非同期 write の失敗記録と backoff の retry に乗せる。
+  const rescheduleAfterFlushFailure = (): void => {
+    try {
+      scheduleCapturedStandbyPersistence();
+    } catch (err) {
+      // 元の flushThrough の失敗は報として返すので、ここでは止めずに端末へ出すだけにする。
+      log.error(`standby persistence reschedule failed: ${err instanceof Error ? err.message : err}`);
+    }
+  };
   const persistVptaAdmissionCompletion = (
     completion: VptaAdmissionCompletion,
   ): VptaPersistenceCompletionAck => {
@@ -911,13 +929,6 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       };
     }
     if (!completion.durableChanged) return { kind: "notRequired" };
-    const asynchronousFailure = standbyPersistence.lastFailure();
-    if (asynchronousFailure != null) {
-      return {
-        kind: "failed", operation: "schedule", completionAlreadyEmitted: true,
-        receipt: null, cause: asynchronousFailure,
-      };
-    }
 
     let receipt;
     try {
@@ -928,20 +939,31 @@ export async function startMonitor(config: AppConfig): Promise<void> {
         receipt: null, cause,
       };
     }
+    // 保存が失敗中でも先に予約する。裏のやり直しは pending を書くので、予約しないと
+    // 回復後もこの報の gate と確率の状態が保存に入らない。失敗は報として返す。
+    const asynchronousFailure = standbyPersistence.lastFailure();
+    if (asynchronousFailure != null) {
+      return {
+        kind: "failed", operation: "schedule", completionAlreadyEmitted: true,
+        receipt, cause: standbyPersistenceFailure(asynchronousFailure),
+      };
+    }
     if (completion.persistence === "deferred") return { kind: "scheduled", receipt };
     let result;
     try {
       result = standbyPersistence.flushThrough(receipt.seq);
     } catch (cause) {
+      rescheduleAfterFlushFailure();
       return {
         kind: "failed", operation: "flushThrough", completionAlreadyEmitted: true,
         receipt, cause,
       };
     }
     if (result.kind === "failed") {
+      rescheduleAfterFlushFailure();
       return {
         kind: "failed", operation: "flushThrough", completionAlreadyEmitted: true,
-        receipt, cause: result.cause,
+        receipt, cause: standbyPersistenceFailure(result),
       };
     }
     return { kind: "flushed", receipt, result };

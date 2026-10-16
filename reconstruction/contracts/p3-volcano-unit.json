@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "ec8b9a6a5218ac629d795b598f8e52598d475faa58858def3a057e0c270090a8",
+    "sha256": "d92b53a91a829ca8129261a6f3811d8baa5e3f5fb36d738b522bc9e1abbac593",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -89,7 +89,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定A（2026-10-09夜、ご主人）、推奨どおり",
-        "reason": "見え方の違い（corpusの45_xx（VFVO50）と46_01_01（VFSV、桜島、周辺海域警戒36、九州南方海上及び日向灘）を同じ火山に当てた場合。実際の対は無い）: VFSVは対象火山と対象海上予報区だけを持ち、VFVO50は海上予報区を持たない。Bでは、VFSVの後のVFVO50が海上予報区を消し、VFVO50の後のVFSVが対象市町村とHeadlineを消す。watermarkが1つなので、VFVO50(T)の後に遅れて届いたVFSV(T−1)はstaleで、消えた海上予報区が戻らない。どちらもSerialは空なので、同じReportDateTimeで両方が出ると片方が捨てられる。Aは両方の事実を保つ。Aの代償: (1) 警報の記録にReportRefが1つ増え、合法最大が1件562 byte増える（I-U-V.capacityReserve） (2) 対象火山のKindが2つの報で違うと、新しい版のKindを採り、VFVO50のHeadline・対象市町村は前のKindの説明のまま残る。旧築との差: 旧築のgateのfamily表はheadTypeの文字列「VFSVii」だけを持ち（revision-family-registry.ts:655）、配信されるVFSV50〜61はpolicyが無いのでraw（message-router.ts:1758〜:1762）へ落ち、見出しの表示だけで通知もstateも無い（:605〜:606）。旧築の試験はfile名から「VFSVii」を補って緑だった（test-samples.ts:116）。dmdataの電文一覧はVFSVii（ii=50〜61）"
+        "reason": "見え方の違い（corpusの45_xx（VFVO50）と46_01_01（VFSV、桜島、周辺海域警戒36、九州南方海上及び日向灘）を同じ火山に当てた場合。実際の対は無い）: VFSVは対象火山と対象海上予報区だけを持ち、VFVO50は海上予報区を持たない。Bでは、VFSVの後のVFVO50が海上予報区を消し、VFVO50の後のVFSVが対象市町村とHeadlineを消す。watermarkが1つなので、VFVO50(T)の後に遅れて届いたVFSV(T−1)はstaleで、消えた海上予報区が戻らない。どちらもSerialは空なので、同じReportDateTimeで両方が出ると片方が捨てられる。Aは両方の事実を保つ。Aの代償: (1) 警報の記録にReportRefが1つ増え、合法最大が1件562 byte増える（I-U-V.capacityReserve） (2) 対象火山のKindが2つの報で違うと、新しい版のKindを採り、VFVO50のHeadline・対象市町村は前のKindの説明のまま残る。旧築との差: 旧築のgateのfamily表はheadTypeの文字列「VFSVii」だけを持ち（revision-family-registry.ts:655）、配信されるVFSV50〜61はpolicyが無いのでraw（message-router.ts:1761〜:1765）へ落ち、見出しの表示だけで通知もstateも無い（:605〜:606）。旧築の試験はfile名から「VFSVii」を補って緑だった（test-samples.ts:116）。dmdataの電文一覧はVFSVii（ii=50〜61）"
       },
       {
         "id": "P3-C9-CANCEL-SCOPE",
@@ -267,7 +267,7 @@
         "id": "P3-C9-LEGACY-DIFF",
         "status": "frozen（旧築の実コードから。作者へ出す見え方の根拠。挙動はコードを読んだ範囲で、旧築を実走して確かめてはいない）",
         "items": [
-          "海上警報: 旧築のgateのfamily表はheadTypeの文字列「VFSVii」だけを持ち（revision-family-registry.ts:655）、配信されるVFSV50〜61はpolicyが無いのでparserまで届かずraw（message-router.ts:1758〜:1762）へ落ち、見出しの表示だけで通知もstateも無い（:605〜:606）。旧築の試験はfile名から「VFSVii」を補って緑だった（test-samples.ts:116）。新築はcoverageのVFSV50〜61をU-Vの警報へ送り、VFVO50とfieldを分けて持つ（P3-C9-MARINE）",
+          "海上警報: 旧築のgateのfamily表はheadTypeの文字列「VFSVii」だけを持ち（revision-family-registry.ts:655）、配信されるVFSV50〜61はpolicyが無いのでparserまで届かずraw（message-router.ts:1761〜:1765）へ落ち、見出しの表示だけで通知もstateも無い（:605〜:606）。旧築の試験はfile名から「VFSVii」を補って緑だった（test-samples.ts:116）。新築はcoverageのVFSV50〜61をU-Vの警報へ送り、VFVO50とfieldを分けて持つ（P3-C9-MARINE）",
           "噴火のsubject: 旧築は火山コードごとに1件で最新の報が置き換える。新築はEventIDごと（P3-C9-ERUPTION-SUBJECT=A、作者裁定）",
           "警報のactive: 旧築は21・35の継続とレベル1の発表・引上げをactiveに残す。新築はレベル2以上と22・23・36・表に無いcodeだけ（P3-C9-ALERT-ACTIVE=A、作者裁定）。全国のVFVO51（44_01_01）で旧築は76火山を「留意」のactiveにする。通知は旧築と同じく単独のVFVO50・VFSVの報ごとに出す。VFVO51は旧築も新築も報ごとに1件",
           "VFVO51の取消: 旧築はentryの火山の警報subjectにclearCurrentした（revision-family-registry.ts:658〜:661）。新築は解説subjectだけを取り消す（P3-C9-CANCEL-SCOPEの(4)）",

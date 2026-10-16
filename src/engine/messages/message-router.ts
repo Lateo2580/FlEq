@@ -1012,7 +1012,10 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         }
         turnPersistenceCause = ack.cause;
         turnPersistenceDispatchFailed = true;
-        poisonSerializer(ack.cause);
+        // schedule / flushThrough の失敗は保存側が裏でやり直すので、受信は止めずに turn の
+        // 終わりで error として投げる。completionCallback は adapter 欠落・completion の形の
+        // 不正などプログラムの誤りなので止める。
+        if (ack.operation === "completionCallback") poisonSerializer(ack.cause);
       }
       return ack;
     },
@@ -1941,7 +1944,13 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     if (persistenceCause != null && !causes.includes(persistenceCause)) causes.push(persistenceCause);
     if (causes.length === 0) return;
     if (causes.length === 1) throw causes[0];
-    throw new AggregateError(causes, "message router drain failed");
+    // 端末は err.message だけを出すので、保存の失敗は集約の message にも載せる。
+    throw new AggregateError(
+      causes,
+      persistenceCause == null
+        ? "message router drain failed"
+        : `message router drain failed; ${describeTapError(persistenceCause)}`,
+    );
   };
 
   const handler = (incoming: WsDataMessage): void => {
