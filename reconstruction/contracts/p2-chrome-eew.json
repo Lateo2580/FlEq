@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "06c79bf19be33596337f54d26378200f3e38d1ec21e2f7692542577084a6279b",
+    "sha256": "f08dc5057d6ea6cbfdb598ff348d06863513f6bb4ad7e31d174e347c58a8bece",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -406,7 +406,7 @@
       "最終意匠",
       "P4正規GISと地理精度合格",
       "E01の1000×3正式検収",
-      "取消・終了・退去の文言表示（R59=A）"
+      "取消・終了・退去の文言表示（R59=A）", "保存状態（未保存・保存失敗理由）の表示。snapshot.persistenceはwireに載るがA9は描かず、P4の本番の画面で欠けをまとめる1か所と合わせて出す（2026-10-18 作者裁定）", "spec §5.4の「未保存」の明示（常設状態領域・カードの印・接続正常表示で隠さない）はchrome-eewでは満たさず、P4で満たす（2026-10-18 作者裁定）"
     ],
     "acceptanceChecks": [
       {
@@ -474,7 +474,7 @@
       },
       {
         "id": "P2-A9-AC08",
-        "requirement": "wire由来の文字列（EventID、operation、notice text/office、保存失敗理由と、整形後の日時を含む）はDOMのtext node（textContent）だけで入れ、HTMLとして解釈させない。reconstruction/src/display/chrome-eew/**でinnerHTML/outerHTML/insertAdjacentHTML/document.write/DOMParser/createContextualFragment/on*属性の文字列組立て/wire値からのclass名・属性名・style文字列組立てを使わない（静的検査で0件）。severity tokenは固定表でclassへ写す。canvasを使う場合もwire由来の文字列をcanvasへ描かない（区域の塗りだけ）。同じ構造・同じ件数のsnapshotで表示文字列だけを<img src=x onerror=...>・<script>・&lt;・改行を含む値へ置換し、要素数不変・新規実行要素0・字面一致を確認する。A8の切詰め印[truncated:fieldLimit]は除去・再整形しない。理由: P4認証前でも受信内容を無条件に信頼しない（外部要件照合O-03、repo外）。A8のJSON化だけではHTML非解釈を証明しない",
+        "requirement": "wire由来の文字列（EventID、operation、notice text/office、整形後の日時を含む）はDOMのtext node（textContent）だけで入れ、HTMLとして解釈させない。reconstruction/src/display/chrome-eew/**でinnerHTML/outerHTML/insertAdjacentHTML/document.write/DOMParser/createContextualFragment/on*属性の文字列組立て/wire値からのclass名・属性名・style文字列組立てを使わない（静的検査で0件）。severity tokenは固定表でclassへ写す。canvasを使う場合もwire由来の文字列をcanvasへ描かない（区域の塗りだけ）。同じ構造・同じ件数のsnapshotで表示文字列だけを<img src=x onerror=...>・<script>・&lt;・改行を含む値へ置換し、要素数不変・新規実行要素0・字面一致を確認する。A8の切詰め印[truncated:fieldLimit]は除去・再整形しない。理由: P4認証前でも受信内容を無条件に信頼しない（外部要件照合O-03、repo外）。A8のJSON化だけではHTML非解釈を証明しない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-snapshot-sse.json:496 «91aedc46acb5ebe4»",
           "reconstruction/contracts/p2-order-plan.md:128 «92abf522f1c7fc0d»",
