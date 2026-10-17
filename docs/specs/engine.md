@@ -779,8 +779,8 @@ class Notifier {
 | 電文タイプ | 判定ロジック |
 |-----------|-------------|
 | EEW | 警報→`critical`、予報→`warning`、取消→`cancel` |
-| 地震情報 | 最大震度4以上→`warning`、その他→`normal` |
-| 津波情報 | 津波に関する警報・注意報含む→`critical`、解除のみ→`warning`、その他→`normal` |
+| 地震情報 | 取消→`cancel`、最大震度が不明（unknown）→`info`、最大震度4以上→`warning`、その他→`normal` |
+| 津波情報 | 取消→`cancel`、全予報区が津波予報（若干の海面変動）のみ→`warning`、津波に関する警報・注意報含む→`critical`、解除のみ→`warning`、その他→`normal` |
 | 長周期地震動 | 階級3-4→`critical`、階級1-2→`warning`、その他→`normal` |
 | テキスト情報 | 常に `info` |
 | 南海トラフ | 常に `warning` |
@@ -805,8 +805,8 @@ class Notifier {
 
 | メソッド | 説明 |
 |---------|------|
-| `earthquakeSoundLevel(info)` | 地震情報のサウンドレベルを判定 (震度4以上→`warning`、他→`normal`) |
-| `tsunamiSoundLevel(info)` | 津波情報のサウンドレベルを判定 (警報・注意報含む→`critical`、解除のみ→`warning`、他→`normal`) |
+| `earthquakeSoundLevel(info)` | 地震情報のサウンドレベルを判定 (取消→`cancel`、最大震度不明→`info`、震度4以上→`warning`、他→`normal`) |
+| `tsunamiSoundLevel(info)` | 津波情報のサウンドレベルを判定 (取消→`cancel`、津波予報のみ→`warning`、警報・注意報含む→`critical`、解除のみ→`warning`、他→`normal`) |
 | `lgObservationSoundLevel(info)` | 長周期地震動のサウンドレベルを判定 (階級3-4→`critical`、階級1-2→`warning`、他→`normal`) |
 | `findMaxForecastInt(info)` | EEW の予測震度地域リストから最大予測震度を `intensityToRank()` で比較して返す。地域がない場合は `"不明"` |
 
@@ -1877,8 +1877,8 @@ interface PresentationDiff {
 | 関数 | 判定ロジック |
 |------|-------------|
 | `eewSoundLevel(info)` | 警報→critical、予報→warning |
-| `earthquakeSoundLevel(info)` | `IntensitySafetyRank` の下限4以上→warning、他／unknown→normal |
-| `tsunamiSoundLevel(info)` | 津波関連(解除以外)→critical、解除→warning、他→normal |
+| `earthquakeSoundLevel(info)` | 取消→cancel、`maxIntValue` が unknown→info、`IntensitySafetyRank`（range は上端、上端が無ければ下限。range 以外は下限）が4以上→warning、他→normal |
+| `tsunamiSoundLevel(info)` | 取消→cancel、全予報区が「津波予報」→warning、津波関連(解除以外)→critical、解除→warning、他→normal |
 | `seismicTextSoundLevel(_info)` | 常に info |
 | `nankaiTroughSoundLevel(info)` | Code120→critical、他→warning |
 | `lgObservationSoundLevel(info)` | `LgIntensitySafetyRank` の階級3-4→critical、1-2→warning、unknown→normal |
