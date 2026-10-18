@@ -1,5 +1,5 @@
 import * as path from "path";
-import * as fs from "fs";
+import * as fs from "fs"; import { execFile } from "child_process"; // 1 行にまとめるのは、新築の契約が引く旧築の行番号をずらさないため
 import {
   NotifyCategory,
   NotifySettings,
@@ -1149,16 +1149,27 @@ export class Notifier {
     if (!this.settings[category] && level !== "critical") return;
     if (this.isMuted()) return;
     try {
-      const nn = this.getNotifier();
-      if (nn) {
-        const iconPath = resolveIconPath(category, level);
-        nn.notify({
-          title,
-          message,
-          sound: false,
-          appID: NOTIFY_APP_NAME,
-          ...(iconPath ? { icon: iconPath } : {}),
-        });
+      if (process.platform === "darwin") {
+        // node-notifier 同梱の terminal-notifier は x86_64 専用で Apple silicon では spawn が同期例外になるため、OS 同梱の osascript を使う。題と本文は argv で渡し、引用符の埋め込みを避ける
+        execFile(
+          "/usr/bin/osascript",
+          ["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", "--", title, message],
+          (err) => {
+            if (err) log.debug(`通知送信エラー: ${err.message}`);
+          },
+        );
+      } else {
+        const nn = this.getNotifier();
+        if (nn) {
+          const iconPath = resolveIconPath(category, level);
+          nn.notify({
+            title,
+            message,
+            sound: false,
+            appID: NOTIFY_APP_NAME,
+            ...(iconPath ? { icon: iconPath } : {}),
+          });
+        }
       }
     } catch (err) {
       if (err instanceof Error) {

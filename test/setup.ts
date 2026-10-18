@@ -71,6 +71,13 @@ vi.mock("../src/engine/notification/sound-player", async (importOriginal) => {
 
 export { notifyMock };
 
+// darwin の Notifier は node-notifier でなく osascript を実起動するため、darwin で回すときだけ
+// node-notifier 経路を通すよう platform を固定する (darwin 経路は notifier-darwin.test.ts が個別に確かめる)。
+// 他 OS では固定しない (Windows で config.test.ts の 0600 権限確認が走って落ちるため)。
+if (process.platform === "darwin") {
+  Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+}
+
 beforeEach(() => {
   notifyMock.mockClear();
   resetDisplayLayoutForTest();  // layout singleton の順序依存・外部 config 汚染を防ぐ
