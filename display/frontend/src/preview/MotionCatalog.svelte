@@ -283,7 +283,7 @@
       domain: "eew",
       type: "VXSE45",
       tickerCategory: "緊急地震速報",
-      tickerSentence: "緊急地震速報 第3報: 日向灘でM7.1の地震。予想最大震度6弱、強い揺れに警戒。",
+      tickerSentence: "緊急地震速報 第3報: 日向灘でM7.1の地震。最大予測震度6弱、強い揺れに警戒。",
       tickerPriority: "high",
     });
   const tickerTip = (): DisplayEventDtoV1 =>
@@ -311,7 +311,7 @@
       domain: "eew",
       type: "VXSE45",
       tickerCategory: "緊急地震速報",
-      tickerSentence: "緊急地震速報 第4報: 日向灘でM7.3に更新。予想最大震度6強、厳重に警戒。",
+      tickerSentence: "緊急地震速報 第4報: 日向灘でM7.3に更新。最大予測震度6強、厳重に警戒。",
       tickerPriority: "high",
     });
   function pushTicker(line: DisplayEventDtoV1): void {

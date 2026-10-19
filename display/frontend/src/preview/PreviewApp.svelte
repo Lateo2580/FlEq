@@ -62,6 +62,7 @@
     attentionVisibilityQuakeInput,
     nankaiSnapshot,
     eewNankaiInput,
+    eewManyInput,
     tsunamiNankaiInput,
     largeQuakeNankaiInput,
     longBodyStandbySnapshot,
@@ -123,6 +124,8 @@
     "emergency-3",
     "emergency-stress",
     "emergency-nankai",
+    "emergency-eew-many",
+    "emergency-eew-many-mix",
     "emergency-weather",
     "emergency-weather-mix",
     "emergency-weather-syncing",
@@ -419,6 +422,8 @@
       scenario === "emergency-3" ||
       scenario === "emergency-stress" ||
       scenario === "emergency-nankai" ||
+      scenario === "emergency-eew-many" ||
+      scenario === "emergency-eew-many-mix" ||
       scenario === "emergency-weather" ||
       scenario === "emergency-weather-mix" ||
       scenario === "emergency-weather-syncing" ||
@@ -556,6 +561,17 @@
         { key: "tsunami:nankai", input: tsunamiNankaiInput },
         { key: "eew:nankai", input: eewNankaiInput },
         { key: "quake:nankai", input: largeQuakeNankaiInput },
+      ];
+    }
+    // 予測地域 105 の EEW ページャ。単独 (主役スロット) と、他パネルと並ぶ compact の 2 場面
+    if (scenario === "emergency-eew-many") {
+      return [{ key: "eew:many", input: eewManyInput }];
+    }
+    if (scenario === "emergency-eew-many-mix") {
+      return [
+        { key: "tsunami:stress", input: tsunamiStressInput },
+        { key: "eew:many", input: eewManyInput },
+        { key: "quake:stress", input: largeQuakeStressInput },
       ];
     }
     // Spec C Phase 2 の気象主役パネル。単独 (主役スロット) / 併発 (右列 compact) / 中身待ちの 3 場面
@@ -718,14 +734,14 @@
     id: "tv-high-1", groupKey: "tv-high", role: "eewWarning", frameLevel: "critical",
     text: "[重大] 緊急地震速報(警報) 日向灘 M7.1 最大震度6弱", title: "緊急地震速報(警報)",
     domain: "eew", type: "VXSE45", tickerCategory: "緊急地震速報",
-    tickerSentence: "緊急地震速報 第3報: 日向灘でM7.1の地震。予想最大震度6弱、強い揺れに警戒。",
+    tickerSentence: "緊急地震速報 第3報: 日向灘でM7.1の地震。最大予測震度6弱、強い揺れに警戒。",
     tickerPriority: "high",
   });
   const tvHighRevision = tickerLine({
     id: "tv-high-2", groupKey: "tv-high", role: "eewWarning", frameLevel: "critical",
     text: "[重大] 緊急地震速報(警報) 日向灘 M7.3 最大震度6強", title: "緊急地震速報(警報)",
     domain: "eew", type: "VXSE45", tickerCategory: "緊急地震速報",
-    tickerSentence: "緊急地震速報 第4報: 日向灘でM7.3に更新。予想最大震度6強、厳重に警戒。",
+    tickerSentence: "緊急地震速報 第4報: 日向灘でM7.3に更新。最大予測震度6強、厳重に警戒。",
     tickerPriority: "high",
   });
   let visualFeed = $state<DisplayEventDtoV1[]>([tvLow]);

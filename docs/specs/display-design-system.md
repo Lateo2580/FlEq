@@ -219,7 +219,7 @@ LCD-confirmed production values (2026-07-29) are `calm: #000000`, `caution: #131
 
 - **Clock**: 待機画面の大時計（時刻＋日付）と緊急画面の小時計の 2 バリアント。`--type-clock-hero`・`--clock-fg`・`--font-num` 依存。小時計の時刻はあえて `--fg`（`--clock-fg` の非減光トーンを避ける）。
 - **ConnectionBadge**: SSE / dmdata 切断時のみ時計上に出す警告バッジ。`--role-connectionStale`・`--role-muted` 依存。意味色 1 つで全体を統一する role 依存の典型。
-- **EewPanel**: 緊急地震速報（警報／予報）パネル。震源・推定最大震度・M・深さ・県別集約を表示。`--surface-panel`・`--header-eewWarning/Forecast-*`・`--num-weight`・`--panel-scale` に広く依存。region-list の区切りは可読性優先で `--role-muted` を使う。
+- **EewPanel**: 緊急地震速報（警報／予報）パネル。震源・最大予測震度・M・深さ・予測地域を表示。予測地域が 11 件以上のときは、QuakePanel と同じ測定棚の実測で 1 ページに束をまとめて割り、`k/P` と未表示数を常設する。同じ地震の続報ではページを保つ。`--surface-panel`・`--header-eewWarning/Forecast-*`・`--num-weight`・`--panel-scale` に広く依存。region-list の区切りは可読性優先で `--role-muted` を使う。
 - **EmergencyScreen**: 緊急パネル群のレイアウト・FLIP 補間・グリッド段組みを司るコンテナ。トークン依存は薄く構造中心。`--panel-scale: 1.5` を自ら注入する唯一の箇所。
 - **InstrumentRow**: 待機画面下部の統計行（受信通数・本日の地震件数＋スパークライン）。`--role-muted`・`--num-weight`・`--fg-faint` 依存。SVG スパークラインは `fill="var(--role-muted)"` を属性で直接埋める。
 - **LatestQuakeCard**: 待機画面左上の「最新の地震」カード（看板ヘッダ＋概要＋震度別グループ／ページング）。`--surface-standby`・`--header-quakeWarning/Critical-*`・`--int-*` 依存。震度 8/9 面の前景は `#000`/`#fff` 直値（トークン未整備箇所）。

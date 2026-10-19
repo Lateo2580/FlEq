@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import { flushSync } from "svelte";
 import EewPanel from "../EewPanel.svelte";
@@ -195,7 +195,7 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     const { container } = render(EewPanel, { input: eewInput({
       forecastMaxInt: "", forecastMaxIntRank: 5, forecastMaxIntSemantic: lower,
     }) });
-    expect(container.querySelector(".max-int")?.textContent?.replace(/\s+/g, " ")).toContain("推定最大震度 5弱以上未入電 ≥");
+    expect(container.querySelector(".max-int")?.textContent?.replace(/\s+/g, " ")).toContain("最大予測震度 5弱以上未入電 ≥");
     expect(container.querySelector(".max-int")?.getAttribute("aria-label")).toContain("以上（下限値）");
   });
 
@@ -307,76 +307,144 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     expect(container.querySelector(".pref-flat-list")).toBeFalsy();
   });
 
-  it("整定中の実測値を保留し、解除後は fallback 10 から実測容量へ更新する", async () => {
-    const originalResizeObserver = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-    class EewResizeObserver {
-      constructor(private callback: (entries: unknown[]) => void) {}
-      observe(element: Element): void {
-        const height = element.classList.contains("region-page-body")
-          ? 100
-          : element.classList.contains("region-line-ruler")
-            ? 20
-            : 0;
-        this.callback([{ contentRect: { height }, borderBoxSize: [{ blockSize: height }], target: element }]);
+  // 測定棚の実測を jsdom で再現する。本文 100px、1 行 20px に地名 4 つ、束ごとに行を改める。
+  // measurable=false の間は測れない (測り直し中) 状態にする
+  async function withProbeLayout(run: (layout: { measurable: boolean }) => Promise<void>): Promise<void> {
+    const layout = { measurable: true };
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    const inShelf = (element: HTMLElement): boolean =>
+      element.classList.contains("region-page-body") && element.closest("[data-partition-probe-shelf]") != null;
+    class ProbeResizeObserver {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe(target: Element): void {
+        this.callback([{ contentRect: { width: 320, height: 100 }, target } as unknown as ResizeObserverEntry], this as unknown as ResizeObserver);
       }
       unobserve(): void {}
       disconnect(): void {}
     }
-    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = EewResizeObserver;
-
+    vi.stubGlobal("ResizeObserver", ProbeResizeObserver);
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(this: HTMLElement) { return inShelf(this) ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get(this: HTMLElement) {
+        if (!layout.measurable || !inShelf(this)) return 0;
+        return [...this.querySelectorAll(".region-row")]
+          .reduce((sum, row) => sum + Math.ceil(row.querySelectorAll(".region-name").length / 4) * 20, 0);
+      },
+    });
     try {
-      const regions = Array.from({ length: 11 }, (_, i) => region(`地域${i}`, { intensity: "7" }));
-      const { container, rerender } = render(EewPanel, { input: eewInput({ regions }), settling: true });
-      flushSync();
-      expectCurrentDot(container.querySelector(".region-pages"), 1, 2);
-
-      await rerender({ input: eewInput({ regions }), settling: false });
-      flushSync();
-      expectCurrentDot(container.querySelector(".region-pages"), 1, 3);
+      await run(layout);
     } finally {
-      if (originalResizeObserver === undefined) {
-        delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-      } else {
-        (globalThis as { ResizeObserver?: unknown }).ResizeObserver = originalResizeObserver;
-      }
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      vi.unstubAllGlobals();
+    }
+  }
+  async function drainProbes(): Promise<void> {
+    for (let i = 0; i < 200; i += 1) {
+      flushSync();
+      await Promise.resolve();
+    }
+  }
+  // 束 1 つ = 7 地域。強度と長周期階級の組で束を分ける
+  function tieredRegions(tierCount: number, extra = 0, prefix = "地域"): DisplayEewRegionV1[] {
+    const tiers = ["7", "6強", "6弱", "5強", "5弱"].flatMap((intensity) => ["3", "2", "1"].map((lg) => ({ intensity, lg })));
+    return tiers.slice(0, tierCount).flatMap(({ intensity, lg }, t) =>
+      Array.from({ length: t === 0 ? 7 + extra : 7 }, (_, i) => region(`${prefix}${t}-${i}`, { intensity, lgIntensity: lg })));
+  }
+  const liveHeader = (container: HTMLElement) => container.querySelector(".region-pages > .region-page-header");
+
+  it("予測地域 105・束 15 は実測で束をまとめて 6 ページに割り、k/P と未表示数を出す (10/16 千島の 19 ページ)", async () => {
+    await withProbeLayout(async () => {
+      const { container } = render(EewPanel, { input: eewInput({ regions: tieredRegions(15) }) });
+      await drainProbes();
+      // 1 ページ 5 行 = 束 2 つ半。1 束 1 ページの旧割付なら 15 ページ以上になる
+      expectCurrentDot(liveHeader(container), 1, 6);
+      expect(container.querySelector("[data-page-attention]")?.textContent).toBe("1/6・未表示6");
+      expect(container.querySelectorAll(".region-pages > .region-page-body .region-row")).toHaveLength(3);
+    });
+  });
+
+  it("整定中は測定棚の実測を反映せず、解除後に反映する", async () => {
+    await withProbeLayout(async () => {
+      const { container, rerender } = render(EewPanel, { input: eewInput({ regions: tieredRegions(5) }), settling: true });
+      await drainProbes();
+      // 実測が無い間は 1 地域ずつの仮ページ (PageDots は 1 ページでは描かない)
+      expect(container.querySelectorAll(".region-pages > .region-page-body .region-name")).toHaveLength(1);
+
+      await rerender({ input: eewInput({ regions: tieredRegions(5) }), settling: false });
+      await drainProbes();
+      expectCurrentDot(liveHeader(container), 1, 2);
+    });
+  });
+
+  it("同じ地震でも最大予測震度が上がった続報では 1 ページ目へ戻る", async () => {
+    vi.useFakeTimers();
+    try {
+      await withProbeLayout(async () => {
+        const { container, rerender } = render(EewPanel, { input: eewInput({ serial: "3", forecastMaxIntRank: 5, regions: tieredRegions(5) }) });
+        await drainProbes();
+        vi.advanceTimersByTime(10_000);
+        await drainProbes();
+        expectCurrentDot(liveHeader(container), 2, 2);
+
+        await rerender({ input: eewInput({ serial: "4", forecastMaxIntRank: 6, regions: tieredRegions(5) }) });
+        await drainProbes();
+        expectCurrentDot(liveHeader(container), 1, 2);
+      });
+    } finally {
+      vi.useRealTimers();
     }
   });
 
-  it("長い地域名で代表行が折り返す場合は、その実行高を使って安全側にページを割る", () => {
-    const originalResizeObserver = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-    const longName = "非常に長い地域名".repeat(8);
-    class WrappingResizeObserver {
-      constructor(private callback: (entries: unknown[]) => void) {}
-      observe(element: Element): void {
-        const height = element.classList.contains("region-page-body")
-          ? 100
-          : element.classList.contains("region-line-ruler") && element.textContent?.includes(longName)
-            ? 40
-            : 20;
-        this.callback([{ contentRect: { height }, borderBoxSize: [{ blockSize: height }], target: element }]);
-      }
-      unobserve(): void {}
-      disconnect(): void {}
-    }
-    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = WrappingResizeObserver;
+  it("別の地震の測り直し中は、前の地震の確定ページを使わず新しい地域を出す", async () => {
+    await withProbeLayout(async (layout) => {
+      const { container, rerender } = render(EewPanel, { input: eewInput({ regions: tieredRegions(5) }) });
+      await drainProbes();
+      expectCurrentDot(liveHeader(container), 1, 2);
 
+      layout.measurable = false;
+      await rerender({ input: eewInput({ eventId: "E2", regions: tieredRegions(5, 0, "新地域") }) });
+      await drainProbes();
+      const names = [...container.querySelectorAll(".region-pages > .region-page-body .region-name")].map((node) => node.textContent);
+      expect(names.length).toBeGreaterThan(0);
+      expect(names.every((name) => name?.startsWith("新地域"))).toBe(true);
+    });
+  });
+
+  it("同じ地震の続報では今のページを保ち、別の地震で 1 ページ目へ戻る", async () => {
+    vi.useFakeTimers();
     try {
-      const regions = [
-        region(longName, { intensity: "7" }),
-        ...Array.from({ length: 10 }, (_, i) => region(`地域${i}`, { intensity: "7" })),
-      ];
-      const { container } = render(EewPanel, { input: eewInput({ regions }) });
-      flushSync();
+      await withProbeLayout(async (layout) => {
+        const { container, rerender } = render(EewPanel, { input: eewInput({ serial: "3", regions: tieredRegions(5) }) });
+        await drainProbes();
+        vi.advanceTimersByTime(10_000);
+        await drainProbes();
+        expectCurrentDot(liveHeader(container), 2, 2);
 
-      expect(container.querySelector(".region-line-ruler")?.classList.contains("region-row")).toBe(true);
-      // 100px / 折返し行 40px = 2 地域/頁。1行 20px と誤認すると 3 頁になる。
-      expectCurrentDot(container.querySelector(".region-pages"), 1, 6);
+        await rerender({ input: eewInput({ serial: "4", regions: tieredRegions(5) }) });
+        await drainProbes();
+        expectCurrentDot(liveHeader(container), 2, 2);
+
+        // 地域が変わった続報: 測り直しが終わるまで直前の確定ページを出し続ける
+        layout.measurable = false;
+        await rerender({ input: eewInput({ serial: "5", regions: tieredRegions(5, 1) }) });
+        await drainProbes();
+        expectCurrentDot(liveHeader(container), 2, 2);
+
+        layout.measurable = true;
+        await rerender({ input: eewInput({ eventId: "E2", serial: "1", regions: tieredRegions(5) }) });
+        await drainProbes();
+        expectCurrentDot(liveHeader(container), 1, 2);
+      });
     } finally {
-      if (originalResizeObserver === undefined) {
-        delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-      } else {
-        (globalThis as { ResizeObserver?: unknown }).ResizeObserver = originalResizeObserver;
-      }
+      vi.useRealTimers();
     }
   });
 

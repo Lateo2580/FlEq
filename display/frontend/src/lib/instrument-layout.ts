@@ -9,7 +9,7 @@ import type { DisplayIntensityGroupV1 } from "./protocol";
 export const STATIC_LIST_MAX = 30;
 
 // EEW の静的小リスト上限。eew-region-tiers.ts の非 compact 22px 境界 (count <= 10) と整合させる。
-// EEW には詳細ページングを設けない (spec §2-a 確定) ため、超過時は計器の県数集約行のみで打ち切る
+// 超過時は EewPanel が予測地域を実測のページャで全件表示する (台帳 92)
 export const EEW_STATIC_LIST_MAX = 10;
 
 // 詳細ページングで 1 ページに詰める市町村数バジェット (preview 目視調整前提の初期値)。

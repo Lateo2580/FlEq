@@ -310,12 +310,11 @@ export function sequentialPartitionRanges(key: PagePartitionKey, placement: "sid
 const GALLOP_UNMEASURED_PER_CALL = 4;
 
 /**
- * Same contract as sequentialPartitionRanges (every accepted page fits and its
- * one-longer extension does not) but finds each boundary with a doubling ladder
- * and a binary search instead of end = start+1, +2, ….  A monotone probe (more
- * candidates never measure shorter) yields exactly the linear boundaries.  Only
- * the weather card uses it: linear search costs one settle iteration per
- * candidate, which is 200 iterations for a typhoon-scale payload.
+ * sequentialPartitionRanges と同じ契約 (採ったページは収まり、1 件延ばすと収まらない) を、
+ * end = start+1, +2, … の線形探索ではなく倍々の梯子と二分探索で境界を求めて満たす。
+ * 測定が単調 (候補を増やして低くならない) なら線形と同じ境界になる。線形は候補 1 つに
+ * settle 1 回かかり、台風規模の payload で 200 回になるため、件数の多い一覧 (待機画面の
+ * 気象カード、EewPanel の予測地域) で使う。
  */
 export function gallopingPartitionRanges(key: PagePartitionKey, placement: "side" | "center", areaCount: number, fixedHeightPx: number, probe: PartitionProbe, tailEntriesForRange: (range: PageRange) => readonly PageTail[]): PartitionResult {
   const ranges: PageRange[] = [];

@@ -244,8 +244,8 @@ describe("processEew", () => {
       forecastMaxInt: "未入電",
       forecastMaxIntRank: 7,
     });
-    expect(dto.tickerSentence).toContain("予想最大震度未入電");
-    expect(dto.tickerSentence).not.toContain("予想最大震度6弱");
+    expect(dto.tickerSentence).toContain("最大予測震度未入電");
+    expect(dto.tickerSentence).not.toContain("最大予測震度6弱");
   });
 
   it("実 processor 経路の VXSE43 4 → VXSE44 6弱 → VXSE45 unknown は VXSE44 safety rank を継承する", () => {
@@ -384,7 +384,7 @@ describe("processEew", () => {
       forecastMaxIntRank: 5,
       regions: [],
     });
-    expect(dto.tickerSentence).toContain("予想最大震度5弱以上未入電");
+    expect(dto.tickerSentence).toContain("最大予測震度5弱以上未入電");
   });
 
   it("VXSE45 受信済みイベントの VXSE44 取消報は最初の取消として告知し、active カウントから外れる", () => {

@@ -9,13 +9,20 @@
     eewRegionFontTier,
     eewRegionListColumnCount,
     paginateEewRegions,
+    type EewRegionPage,
   } from "../lib/eew-region-tiers";
-  import { EEW_STATIC_LIST_MAX, rowCapacity } from "../lib/instrument-layout";
+  import { EEW_STATIC_LIST_MAX } from "../lib/instrument-layout";
   import { createPageCycler } from "../lib/page-cycler.svelte";
-  import { measureBorderHeight, measureHeight } from "../lib/measure-height";
+  import { gallopingPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import type { PageRange } from "../lib/legacy-standby/types";
+  import {
+    PageAttentionState,
+    pageAttentionReservationViewModel,
+    pageContentFingerprint,
+  } from "../lib/page-attention";
   import { depthVisual, magnitudeVisual } from "../lib/magnitude";
   import { intensityVisual, type IntensityVisualV1 } from "../lib/quake-map-colors";
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import PageDots from "./PageDots.svelte";
   import RollingNumber from "./RollingNumber.svelte";
   import NumericSemanticLegend from "./NumericSemanticLegend.svelte";
@@ -79,10 +86,6 @@
   }
 
   const buckets = $derived(bucketByIntensity(displayRegions));
-  const topBucket = $derived<IntensityBucket | null>(buckets[0] ?? null);
-  const regionMeasureSample = $derived(
-    displayRegions.reduce((longest, region) => region.name.length > longest.length ? region.name : longest, "測"),
-  );
   const hasPlum = $derived(input.regions.some((r) => r.isPlum));
   const maxVisual = $derived(intensityVisual(
     input.forecastMaxIntSemantic,
@@ -90,35 +93,223 @@
     input.forecastMaxIntRank,
   ));
   const maxLgVisual = $derived(eewLgIntensityVisual(input.maxLgIntSemantic, input.maxLgInt));
-  let regionAreaHeight = $state(0);
-  let regionLineHeight = $state(0);
-  let pendingRegionAreaHeight: number | null = null;
-  let pendingRegionLineHeight: number | null = null;
-  const regionBudget = $derived(rowCapacity(regionAreaHeight, regionLineHeight, EEW_STATIC_LIST_MAX));
-  const regionPages = $derived(paginateEewRegions(displayRegions, regionBudget));
   const showStaticList = $derived(displayRegions.length > 0 && displayRegions.length <= EEW_STATIC_LIST_MAX);
-  const showRegionPages = $derived(displayRegions.length > EEW_STATIC_LIST_MAX && regionPages.length > 0);
-  const regionResetKey = $derived(`${input.eventId ?? ""}:${input.serial ?? ""}:${displayRegions.length}`);
-  const regionCycler = createPageCycler({ pageCount: () => regionPages.length, resetKey: () => regionResetKey, reducedMotion: () => reducedMotion });
-  onDestroy(() => regionCycler.destroy());
-  const currentRegionPage = $derived(regionPages[regionCycler.index] ?? regionPages[0] ?? null);
-  function measureRegionArea(height: number): void {
-    if (settling) pendingRegionAreaHeight = height;
-    else regionAreaHeight = height;
+  const showRegionPages = $derived(displayRegions.length > EEW_STATIC_LIST_MAX);
+
+  // 予測地域のページ割り (台帳 92、design-system C6)。地域を束 (震度幅×長周期階級) の強い順に
+  // 1 列へ並べ、連続した範囲を測定棚で実際に描いて、本文に収まる最長の範囲を 1 ページにする。
+  // 件数や行数の決め打ちは長い地名で黙って切れるので使わない。1 ページに束をいくつでも載せ、
+  // ページをまたいだ束は次のページの行頭に見出しを再掲する。
+  const regionEntries = $derived(paginateEewRegions(displayRegions, Number.POSITIVE_INFINITY)
+    .flatMap((page) => page.sections)
+    .flatMap((regionTier) => regionTier.regions.map((region) => ({ regionTier, region }))));
+  function regionPageForRange(range: Pick<PageRange, "start" | "end">): EewRegionPage {
+    const sections: EewRegionPage["sections"] = [];
+    for (const { regionTier, region } of regionEntries.slice(range.start, range.end)) {
+      const last = sections.at(-1);
+      if (last?.key === regionTier.key) last.regions.push(region);
+      else sections.push({ ...regionTier, regions: [region] });
+    }
+    return { sections };
   }
-  function measureRegionLine(height: number): void {
-    if (settling) pendingRegionLineHeight = height;
-    else regionLineHeight = height;
+
+  // ponytail: 測定棚の配線 (probe の実測・箱寸法・整定中の保留) は QuakePanel / TsunamiPanel からの
+  // 3 本目のコピー。4 本目が要るときに lib へ共通化する。
+  interface ProbeMeasurement {
+    contentHeight: number;
+    availableHeight: number;
+    contentWidth: number;
+    availableWidth: number;
+  }
+  // jsdom には layout が無いので測定棚を描かず、従来の 1 束ずつの割付で代える (本番では使わない)
+  const probeAvailable = typeof ResizeObserver !== "undefined";
+  let probeWidth = $state(0);
+  let probeHeight = $state(0);
+  let probeMeasurements = $state<Record<string, ProbeMeasurement>>({});
+  let pendingProbeBox: { width: number; height: number } | null = null;
+  const pendingProbeMeasurements = new Map<string, ProbeMeasurement>();
+  // 代替フォントで測った割付は本フォントの適用後に太るので、世代に混ぜて測り直す (QuakePanel と同じ)
+  let fontsGeneration = $state(0);
+  void (typeof document === "undefined" ? null : document.fonts?.ready?.then(() => { fontsGeneration = 1; }));
+  // serial は世代に入れない。地域が同じ続報は測定を使い回し、すぐ確定する
+  const probeGeneration = $derived(`${pageContentFingerprint(
+    { compact },
+    regionEntries.map(({ regionTier, region }) => {
+      const identity = `${regionTier.key}|${region.name}`;
+      return { identity, fingerprint: identity };
+    }),
+  )}:f${fontsGeneration}:w${Math.round(probeWidth * 100) / 100}:h${Math.round(probeHeight * 100) / 100}`);
+  function probeId(range: Pick<PageRange, "start" | "end">): string {
+    return `${probeGeneration}:${range.start}:${range.end}`;
+  }
+  const regionProbe: PartitionProbe = (_key, _placement, range) => {
+    const measured = probeMeasurements[probeId(range)];
+    if (measured == null) return null;
+    // 幅も見る。1 地名が本文幅を超えると横に黙って切れるため
+    return measured.contentHeight <= measured.availableHeight + 1
+      && measured.contentWidth <= measured.availableWidth + 1 ? 0 : 2;
+  };
+  // galloping は sequential と同じ境界を、少ない測定回数で返す (page-partition.ts)。
+  // 続報で地域が変わるたびに測り直すので回数を抑える。key と placement は measure id の
+  // 接頭辞にしか使われない (測定 id は probeId で自前に持つ)
+  const regionPartition = $derived(gallopingPartitionRanges(
+    "quake",
+    "center",
+    regionEntries.length,
+    1,
+    regionProbe,
+    () => [],
+  ));
+  const regionPartitionPending = $derived(probeAvailable && regionPartition.pending.length > 0);
+  const measuredRegionPages = $derived(regionPartition.ranges.map(regionPageForRange));
+  const regionProbePages = $derived(probeAvailable
+    ? regionPartition.pending.map((range) => ({ id: probeId(range), page: regionPageForRange(range) }))
+    : []);
+
+  // 別の地震か、最大予測震度が上がった報でだけ 1 ページ目へ戻す (QuakePanel と同じ)。
+  // 同じ地震の続報では今のページを保つ (10/16 千島の誤報で、続報のたびに 1 ページ目へ戻っていた)
+  const identityKey = $derived(input.eventId ?? input.originTime ?? "");
+  let resetSeq = $state(0);
+  let prevIdentityKey: string | null = null;
+  let prevMaxIntRank = -1;
+  $effect(() => {
+    const key = identityKey;
+    const rank = input.forecastMaxIntRank ?? -1;
+    if (prevIdentityKey != null && (key !== prevIdentityKey || rank > prevMaxIntRank)) {
+      resetSeq += 1;
+    }
+    prevIdentityKey = key;
+    prevMaxIntRank = rank;
+  });
+
+  // 測り直しの間は割付が仮の 1 ページに縮み、cycler が 1 ページ目へ戻ってしまう。
+  // 同じ地震のあいだは、測り終えるまで直前の確定ページを出し続ける。確定ページが空 (表示領域不足)
+  // なら使わない (本文も不足の文も消えるため)
+  let settledRegionPages = $state.raw<{ identityKey: string; pages: EewRegionPage[] } | null>(null);
+  $effect(() => {
+    if (!regionPartitionPending) settledRegionPages = { identityKey, pages: measuredRegionPages };
+  });
+  const regionPages = $derived(!probeAvailable
+    ? paginateEewRegions(displayRegions, EEW_STATIC_LIST_MAX)
+    : regionPartitionPending && settledRegionPages?.identityKey === identityKey && settledRegionPages.pages.length > 0
+      ? settledRegionPages.pages
+      : measuredRegionPages);
+  // 棚の見出しは確定後の本番より狭くならないよう、PageDots の windowed (最大 7 個) と
+  // 「k/P・未表示n」の 2 桁の最悪幅で予約する。仮のページ数で予約すると、確定後の見出しが折れて
+  // 本文が 1 行縮み、最下行が黙って欠けうる
+  const RESERVED_PAGE_COUNT = 10;
+  const regionPageReservation = $derived(pageAttentionReservationViewModel(Math.max(regionPages.length, RESERVED_PAGE_COUNT)));
+
+  const attention = new PageAttentionState();
+  const attentionPages = $derived(regionPages.map((page, index) => {
+    const entries = page.sections.flatMap((section) => section.regions.map((region) => {
+      const identity = `${section.key}|${region.name}`;
+      return { identity, fingerprint: identity };
+    }));
+    const first = entries[0]?.identity ?? `empty:${index}`;
+    const last = entries.at(-1)?.identity ?? `empty:${index}`;
+    return {
+      identity: `eew-regions:${first}:${last}`,
+      fingerprint: pageContentFingerprint({ title: "予測地域", range: index }, entries),
+    };
+  }));
+  $effect(() => {
+    const generation = {
+      episodeKey: `eew:${identityKey}`,
+      severityRank: input.forecastMaxIntRank ?? 0,
+      pages: attentionPages,
+      preserveStablePages: true,
+      partitionPending: regionPartitionPending,
+    };
+    untrack(() => attention.sync(generation));
+  });
+  const regionCycler = createPageCycler({
+    pageCount: () => regionPages.length,
+    resetKey: () => resetSeq,
+    reducedMotion: () => reducedMotion,
+    // 文字列の derived を渡す。配列のまま読むと続報で配列が作り直されるたびに保持時間がやり直しになり、
+    // 短い間隔の続報でページが進まなくなる
+    pageIdentity: () => activeRegionIdentity,
+    pageFingerprint: () => activeRegionFingerprint,
+    onHoldComplete: (_index, identity, fingerprint) => {
+      if (identity != null && activeRegionIdentity === identity && activeRegionFingerprint === fingerprint) {
+        attention.markHoldComplete(identity);
+      }
+    },
+  });
+  const activeRegionIdentity = $derived(attentionPages[regionCycler.index]?.identity ?? null);
+  const activeRegionFingerprint = $derived(attentionPages[regionCycler.index]?.fingerprint ?? "");
+  const attentionView = $derived(attention.viewModel(regionCycler.index));
+  onDestroy(() => {
+    regionCycler.destroy();
+    attention.dispose();
+  });
+  const currentRegionPage = $derived(regionPages[regionCycler.index] ?? regionPages[0] ?? null);
+
+  function commitProbeMeasurement(id: string, measurement: ProbeMeasurement): void {
+    if (settling) {
+      pendingProbeMeasurements.set(id, measurement);
+      return;
+    }
+    const previous = probeMeasurements[id];
+    if (previous?.contentHeight === measurement.contentHeight
+      && previous.availableHeight === measurement.availableHeight
+      && previous.contentWidth === measurement.contentWidth
+      && previous.availableWidth === measurement.availableWidth) return;
+    probeMeasurements = { ...currentGenerationMeasurements(), [id]: measurement };
+  }
+  // 古い世代の測定は二度と引かれないので、足すときに落とす (地域が変わるたびに溜まらないように)
+  function currentGenerationMeasurements(): Record<string, ProbeMeasurement> {
+    const prefix = `${probeGeneration}:`;
+    return Object.fromEntries(Object.entries(probeMeasurements).filter(([key]) => key.startsWith(prefix)));
+  }
+  function measurePartitionProbe(node: HTMLElement, id: string) {
+    let currentId = id;
+    const measure = (): void => {
+      const measurement = {
+        contentHeight: node.scrollHeight,
+        availableHeight: node.clientHeight,
+        contentWidth: node.scrollWidth,
+        availableWidth: node.clientWidth,
+      };
+      if (measurement.contentHeight > 0 && measurement.availableHeight > 0) {
+        commitProbeMeasurement(currentId, measurement);
+      }
+    };
+    if (typeof ResizeObserver === "undefined") return { update(next: string) { currentId = next; } };
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    queueMicrotask(measure);
+    return {
+      update(next: string) { currentId = next; measure(); },
+      destroy() { observer.disconnect(); },
+    };
+  }
+  function observeProbeBox(node: HTMLElement) {
+    if (typeof ResizeObserver === "undefined") return {};
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? node.getBoundingClientRect().width;
+      const height = entries[0]?.contentRect.height ?? node.getBoundingClientRect().height;
+      if (!(width > 0) || !(height > 0)) return;
+      if (settling) pendingProbeBox = { width, height };
+      else {
+        probeWidth = width;
+        probeHeight = height;
+      }
+    });
+    observer.observe(node);
+    return { destroy() { observer.disconnect(); } };
   }
   $effect(() => {
     if (settling) return;
-    if (pendingRegionAreaHeight != null) {
-      regionAreaHeight = pendingRegionAreaHeight;
-      pendingRegionAreaHeight = null;
+    if (pendingProbeBox != null) {
+      probeWidth = pendingProbeBox.width;
+      probeHeight = pendingProbeBox.height;
+      pendingProbeBox = null;
     }
-    if (pendingRegionLineHeight != null) {
-      regionLineHeight = pendingRegionLineHeight;
-      pendingRegionLineHeight = null;
+    if (pendingProbeMeasurements.size > 0) {
+      probeMeasurements = { ...untrack(currentGenerationMeasurements), ...Object.fromEntries(pendingProbeMeasurements) };
+      pendingProbeMeasurements.clear();
     }
   });
   // T8⑥ (preview 目視レビュー): 列数は行数 (震度バケツ数、buckets.length = .region-row の件数)
@@ -128,6 +319,14 @@
   const magnitude = $derived(magnitudeVisual(input.magnitudeSemantic, input.magnitude));
   const depth = $derived(depthVisual(input.depthSemantic, input.depth));
 </script>
+
+{#snippet regionPageBody(page: EewRegionPage)}
+  {#each page.sections as section (section.key)}
+    {@const visual = intensityVisual(section.semantic, section.intensity, section.rank)}
+    {@const lgVisual = eewLgIntensityVisual(section.lgSemantic, section.lgIntensity)}
+    <div class="region-row">{#if visual.render}<span class="region-intensity int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>{/if}{#if lgVisual.render}<span class="region-lg lg-r{lgVisual.colorRank ?? 0}" class:special-unknown={lgVisual.colorClass === "quake-map-unknown"} class:special-empty={lgVisual.colorClass === "quake-map-neutral"} title={lgVisual.tooltip ?? undefined} aria-label={lgVisual.ariaLabel ?? undefined}>長周期{lgVisual.label ?? ""}{#if lgVisual.badge != null}<b class="semantic-badge">{lgVisual.badge}</b>{/if}</span>{/if}<span class="region-name-list">{#each section.regions as region, i (`${region.name}:${i}`)}<span class="region-name">{region.name}</span>{/each}</span></div>
+  {/each}
+{/snippet}
 
 <div class="eew-panel role-{role}" class:compact class:emphasized>
   <div class="heading">
@@ -139,11 +338,11 @@
         <span class="assumed-chip">仮定震源</span>
       {/if}
       <div class="hypocenter">{input.hypocenterName ?? "震源推定中"}</div>
-      {#if maxVisual.render}<div class="max-int" title={maxVisual.tooltip ?? undefined} aria-label={`推定最大${maxVisual.ariaLabel ?? "震度不明"}`}>
+      {#if maxVisual.render}<div class="max-int" title={maxVisual.tooltip ?? undefined} aria-label={`最大予測${maxVisual.ariaLabel ?? "震度不明"}`}>
         {#if input.forecastMaxIntSemantic == null || input.forecastMaxIntSemantic.presence === "value"}
-          推定最大震度 <RollingNumber value={maxVisual.label ?? ""} />
+          最大予測震度 <RollingNumber value={maxVisual.label ?? ""} />
         {:else}
-          推定最大震度 <span class="semantic-value">{maxVisual.label ?? ""}</span>
+          最大予測震度 <span class="semantic-value">{maxVisual.label ?? ""}</span>
         {/if}
         {#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}
       </div>{/if}
@@ -218,18 +417,21 @@
           {/each}
         </div>
       </div>
-    {:else if showRegionPages && currentRegionPage != null}
-      <div class="tile tile-regions region-pages">
-        <div class="region-page-header"><span>予測地域</span><PageDots total={regionCycler.total} current={regionCycler.index} onJump={(i) => regionCycler.jumpTo(i)} /></div>
-        <div class="region-page-body" use:measureHeight={measureRegionArea}>
-          <div class="region-row region-line-ruler" aria-hidden="true" use:measureBorderHeight={measureRegionLine}>
-            <span class="region-intensity">震度{topBucket?.intensity ?? "-"}</span>
-            <span class="region-names">{regionMeasureSample}</span>
-          </div>
-          {#each currentRegionPage.sections as section (section.key)}
-            {@const visual = intensityVisual(section.semantic, section.intensity, section.rank)}
-            {@const lgVisual = eewLgIntensityVisual(section.lgSemantic, section.lgIntensity)}
-            <div class="region-row">{#if visual.render}<span class="region-intensity int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>{/if}{#if lgVisual.render}<span class="region-lg lg-r{lgVisual.colorRank ?? 0}" class:special-unknown={lgVisual.colorClass === "quake-map-unknown"} class:special-empty={lgVisual.colorClass === "quake-map-neutral"} title={lgVisual.tooltip ?? undefined} aria-label={lgVisual.ariaLabel ?? undefined}>長周期{lgVisual.label ?? ""}{#if lgVisual.badge != null}<b class="semantic-badge">{lgVisual.badge}</b>{/if}</span>{/if}<span class="region-names">{section.regions.map((r) => r.name).join(" ")}</span></div>
+    {:else if showRegionPages}
+      <div class="tile tile-regions region-pages" use:observeProbeBox>
+        <div class="region-page-header"><span>予測地域</span><span class="region-page-nav"><PageDots windowed total={regionCycler.total} current={regionCycler.index} onJump={(i) => regionCycler.jumpTo(i)} />{#if attentionView.text !== ""}<span class="page-attention" data-page-attention={attentionView.text}>{attentionView.text}</span>{/if}</span></div>
+        {#if currentRegionPage != null}
+          <div class="region-page-body">{@render regionPageBody(currentRegionPage)}</div>
+        {:else if regionPartition.infeasible}
+          <div class="region-page-infeasible">表示領域不足・{displayRegions.length}地域</div>
+        {/if}
+        <!-- 候補の範囲を本番と同じ幅・高さ・見出し行 (k/P の最大幅を予約) で描き、収まるかを測る -->
+        <div class="partition-probe-shelf" aria-hidden="true" inert data-partition-probe-shelf>
+          {#each regionProbePages as probe (probe.id)}
+            <div class="partition-probe-page">
+              <div class="region-page-header"><span>予測地域</span><span class="region-page-nav"><PageDots windowed total={Math.max(regionPages.length, RESERVED_PAGE_COUNT)} current={0} onJump={() => {}} /><span class="page-attention">{regionPageReservation.text}</span></span></div>
+              <div class="region-page-body" use:measurePartitionProbe={probe.id}>{@render regionPageBody(probe.page)}</div>
+            </div>
           {/each}
         </div>
       </div>
@@ -372,14 +574,38 @@
     overflow: hidden;
     padding: var(--space-4) var(--space-5);
   }
-  .region-pages { display: flex; flex-direction: column; gap: var(--space-2); }
+  .region-pages { position: relative; display: flex; flex-direction: column; gap: var(--space-2); }
   .region-page-header { display: flex; align-items: center; justify-content: space-between; color: var(--role-muted); font-size: var(--type-label-m-size); }
+  .region-page-nav { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+  .page-attention { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .region-page-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-  .region-line-ruler {
+  .region-page-infeasible { color: var(--role-muted); }
+  /* 地名ごとに nowrap にし、折返しは地名と地名の間だけで起こす (QuakePanel の .city-name と同じ) */
+  .region-name-list {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--space-2);
+  }
+  .region-name { white-space: nowrap; }
+  /* 測定棚: live と同じ tile の padding box に重ね、見えない所で候補ページを描く (QuakePanel と同じ) */
+  .partition-probe-shelf,
+  .partition-probe-page {
     position: absolute;
-    inset: 0 0 auto;
+    inset: 0;
+  }
+  .partition-probe-shelf {
     visibility: hidden;
     pointer-events: none;
+    z-index: -1;
+  }
+  .partition-probe-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-5);
   }
   .region-list {
     width: 100%;
@@ -439,7 +665,7 @@
     column-rule: none;
   }
   /* compact (main-stack 非 main スロット): ヒーロー部を凝縮しリスト領域にカード高を渡す
-     (第3波 Fix20)。震央名は display-m(44px) → headline-m(32px) へ2段降格し、推定最大震度と
+     (第3波 Fix20)。震央名は display-m(44px) → headline-m(32px) へ2段降格し、最大予測震度と
      近接2行にする。M/深さ/長周期の stat タイルは箱型をやめ、既存チップ文法 (radius-full +
      surface) のインライン小チップ列へ置き換える (.tile の border/box-shadow は打ち消す) */
   .eew-panel.compact .hypocenter {

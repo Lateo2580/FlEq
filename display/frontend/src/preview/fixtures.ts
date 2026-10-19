@@ -680,6 +680,58 @@ const eewForecastInput: DisplayEewInputV1 = {
 export const eewWarning: DisplayActiveEewV1 = { ...eewWarningInput, updatedAtMs: NOW_MS };
 export const eewForecast: DisplayActiveEewV1 = { ...eewForecastInput, updatedAtMs: NOW_MS };
 
+// #emergency-eew-many / #emergency-eew-many-mix: 2026-10-16 の千島列島の誤報 (警報 serial 17〜42) と
+// 同じ規模 (予測地域 105・束 15) の合成 fixture。地名は気象庁の地震情報細分区域名、束への割り当ては
+// 合成である (EEW の実電文は personal 限定のため使わない)。最長の地名は 10 字。
+const EEW_MANY_NAMES = (
+  "根室地方北部 根室地方中部 根室地方南部 釧路地方北部 釧路地方中南部 十勝地方南部 日高地方東部 十勝地方中部 "
+  + "十勝地方北部 網走地方 北見地方 紋別地方 日高地方中部 日高地方西部 胆振地方中東部 胆振地方西部 上川地方南部 "
+  + "上川地方中部 上川地方北部 宗谷地方北部 宗谷地方南部 北海道利尻礼文 留萌地方中北部 留萌地方南部 空知地方北部 "
+  + "空知地方中部 空知地方南部 石狩地方北部 石狩地方中部 石狩地方南部 後志地方北部 後志地方東部 後志地方西部 "
+  + "渡島地方北部 渡島地方東部 渡島地方西部 檜山地方 青森県下北 青森県三八上北 青森県津軽北部 青森県津軽南部 "
+  + "岩手県沿岸北部 岩手県沿岸南部 岩手県内陸北部 岩手県内陸南部 宮城県北部 宮城県中部 宮城県南部 秋田県沿岸北部 "
+  + "秋田県沿岸南部 秋田県内陸北部 秋田県内陸南部 山形県庄内 山形県最上 山形県村山 山形県置賜 福島県浜通り "
+  + "福島県中通り 福島県会津 茨城県北部 茨城県南部 栃木県北部 栃木県南部 群馬県北部 群馬県南部 埼玉県北部 "
+  + "埼玉県南部 埼玉県秩父 千葉県北東部 千葉県北西部 千葉県南部 東京都２３区 東京都多摩東部 東京都多摩西部 "
+  + "神奈川県東部 神奈川県西部 伊豆大島 新島 神津島 三宅島 八丈島 小笠原 新潟県下越 新潟県中越 新潟県上越 "
+  + "新潟県佐渡 富山県東部 富山県西部 石川県能登 石川県加賀 福井県嶺北 福井県嶺南 山梨県東部・富士五湖 "
+  + "山梨県中・西部 長野県北部 長野県中部 長野県南部 岐阜県飛騨 岐阜県美濃東部 岐阜県美濃中西部 静岡県伊豆 "
+  + "静岡県東部 静岡県中部 静岡県西部 愛知県東部"
+).split(" ");
+// [地域数, 予測震度の下限, 上限, 長周期階級] を強い順に 15 束。地域数の合計は 105
+const EEW_MANY_TIERS: Array<[number, string, string | null, string | null]> = [
+  [3, "5強", null, "2"], [4, "5弱", "5強", "2"], [5, "5弱", null, "2"], [6, "5弱", null, "1"],
+  [6, "4", "5弱", "1"], [5, "4", null, "2"], [9, "4", null, "1"], [8, "4", null, "0"],
+  [7, "3", "4", "1"], [9, "3", null, "1"], [10, "3", null, "0"], [8, "2", "3", "0"],
+  [10, "2", null, "0"], [7, "1", "2", null], [8, "1", null, null],
+];
+const eewManyRegions: DisplayEewRegionV1[] = EEW_MANY_TIERS.flatMap(([count, intensity, intensityTo, lgIntensity], tierIndex) => {
+  const start = EEW_MANY_TIERS.slice(0, tierIndex).reduce((sum, [n]) => sum + n, 0);
+  return EEW_MANY_NAMES.slice(start, start + count).map((name) => ({
+    name, intensity, intensityTo, lgIntensity, isPlum: false, hasArrived: false, arrivalTime: null,
+  }));
+});
+
+export const eewManyInput: DisplayEewInputV1 = {
+  kind: "eew",
+  eventId: "eew-many-preview",
+  serial: "17",
+  isWarning: true,
+  isFinal: false,
+  isCancellation: false,
+  hypocenterName: "千島列島",
+  forecastMaxInt: "5強",
+  forecastMaxIntRank: 6,
+  magnitude: "7.4",
+  colorIndex: null,
+  reportDateTime: NOW_ISO,
+  originTime: NOW_ISO,
+  isAssumedHypocenter: false,
+  depth: "40km",
+  maxLgInt: "2",
+  regions: eewManyRegions,
+};
+
 const tsunamiAdvisoryObservations: DisplayTsunamiObservationV1[] = [
   {
     areaName: "和歌山県", areaKind: "津波注意報", stationName: "串本",
@@ -910,7 +962,7 @@ export const tickerLines: DisplayEventDtoV1[] = [
     type: "VXSE45",
     emergency: eewWarningInput,
     tickerCategory: "緊急地震速報",
-    tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　予想最大震度6弱　強い揺れに警戒",
+    tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　最大予測震度6弱　強い揺れに警戒",
   }),
   tickerLine({
     id: "ticker-warning",
@@ -972,7 +1024,7 @@ export const tickerLines: DisplayEventDtoV1[] = [
     type: "VXSE45",
     emergency: eewWarningInput,
     tickerCategory: "緊急地震速報",
-    tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　予想最大震度6弱　強い揺れに警戒",
+    tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　最大予測震度6弱　強い揺れに警戒",
   }),
   tickerLine({
     id: "ticker-eew-forecast",
@@ -984,7 +1036,7 @@ export const tickerLines: DisplayEventDtoV1[] = [
     type: "VXSE45",
     emergency: eewForecastInput,
     tickerCategory: "緊急地震速報",
-    tickerSentence: "緊急地震速報(予報) #3: 三陸沖でM5.6の地震　予想最大震度4",
+    tickerSentence: "緊急地震速報(予報) #3: 三陸沖でM5.6の地震　最大予測震度4",
   }),
   tickerLine({
     id: "ticker-tsunami-major",
@@ -1186,7 +1238,7 @@ export const tickerLinesLongBody: DisplayEventDtoV1[] = [
     text: "[重大] 緊急地震速報(警報) 日向灘 M7.1 最大震度6弱", title: "緊急地震速報(警報)",
     domain: "eew", type: "VXSE45", emergency: eewWarningInput,
     tickerCategory: "緊急地震速報", tickerPriority: "high",
-    tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　予想最大震度6弱　強い揺れに警戒",
+    tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　最大予測震度6弱　強い揺れに警戒",
   }),
 ];
 
@@ -1519,7 +1571,7 @@ export const tickerLinesStress: DisplayEventDtoV1[] = [
     type: "VXSE45",
     emergency: eewStressInput,
     tickerCategory: "緊急地震速報",
-    tickerSentence: "緊急地震速報 #24: 三陸沖でM9.0の地震　予想最大震度7　東北から関東の広い範囲で強い揺れに警戒",
+    tickerSentence: "緊急地震速報 #24: 三陸沖でM9.0の地震　最大予測震度7　東北から関東の広い範囲で強い揺れに警戒",
   }),
   tickerLine({
     id: "ticker-stress-quake",
@@ -1900,7 +1952,7 @@ export const tickerLinesNankai: DisplayEventDtoV1[] = [
     type: "VXSE45",
     emergency: eewNankaiInput,
     tickerCategory: "緊急地震速報",
-    tickerSentence: "緊急地震速報 #32: 南海トラフ沿いでM9.1の地震　予想最大震度7　東海から九州にかけての広い範囲で強い揺れに警戒",
+    tickerSentence: "緊急地震速報 #32: 南海トラフ沿いでM9.1の地震　最大予測震度7　東海から九州にかけての広い範囲で強い揺れに警戒",
   }),
   tickerLine({
     id: "ticker-nankai-quake",
@@ -2071,7 +2123,7 @@ export const tickerInterruptHigh: DisplayEventDtoV1 = tickerLine({
   tickerCategory: "緊急地震速報",
   tickerPriority: "high",
   groupKey: "eew:b10-interrupt",
-  tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　予想最大震度6弱　強い揺れに警戒",
+  tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　最大予測震度6弱　強い揺れに警戒",
 });
 
 // #ticker-revision: 同一 groupKey の続報を短時間 (t=0 / +1000ms / +2000ms) に 3 版投入する。
@@ -2141,7 +2193,7 @@ export const tickerLinesHighX2: DisplayEventDtoV1[] = [
     tickerCategory: "緊急地震速報",
     tickerPriority: "high",
     groupKey: "eew:b10-highx2",
-    tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　予想最大震度6弱　強い揺れに警戒",
+    tickerSentence: "緊急地震速報 #8: 日向灘でM7.1の地震　最大予測震度6弱　強い揺れに警戒",
   }),
   tickerLine({
     id: "b10-highx2-tsunami",

@@ -353,12 +353,12 @@ describe("EmergencyScreen", () => {
     expect(slots[2].textContent).toContain("09:58 発生");
   });
 
-  it("④ EewPanel が 震央/推定最大震度/M/続報番号 を render する", () => {
+  it("④ EewPanel が 震央/最大予測震度/M/続報番号 を render する", () => {
     const { container } = render(EmergencyScreen, { panels: [panel("eew:1", eewInput())] });
     expect(screen.getByText("浦河沖")).toBeTruthy();
     // v3 で震度表記が「5強」→「5+」に統一された (formatIntShort)
-    // 推定最大震度: プレフィックスは静止テキスト、値は RollingNumber (data-value) で取る
-    expect(container.querySelector(".max-int")?.textContent).toContain("推定最大震度");
+    // 最大予測震度: プレフィックスは静止テキスト、値は RollingNumber (data-value) で取る
+    expect(container.querySelector(".max-int")?.textContent).toContain("最大予測震度");
     expect(container.querySelector('.max-int [data-value="5+"]')).toBeTruthy();
     // Phase B タイル化で M はラベル (「M」) と値 (「6.1」) が別要素の stat タイルに分かれた
     expect(screen.getByText("M", { selector: ".stat-label" })).toBeTruthy();

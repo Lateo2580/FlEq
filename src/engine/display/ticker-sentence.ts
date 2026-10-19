@@ -268,7 +268,7 @@ function eewSentence(event: PresentationEvent): string | null {
   const serial = event.serial != null ? ` #${event.serial}` : "";
   const mag = tickerEarthquakePhrase(event, false);
   const parts = [`${label}${serial}: ${event.hypocenterName}で${mag}`];
-  if (event.forecastMaxInt != null) parts.push(`予想最大震度${event.forecastMaxInt}`);
+  if (event.forecastMaxInt != null) parts.push(`最大予測震度${event.forecastMaxInt}`);
   if (event.isWarning === true) parts.push("強い揺れに警戒");
   return parts.join("　"); // 体言止め・句点なし
 }

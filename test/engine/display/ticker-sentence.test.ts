@@ -409,7 +409,7 @@ describe("buildTickerSentence", () => {
       isWarning: true,
     });
     expect(buildTickerSentence(event)).toBe(
-      "緊急地震速報 #8: 日向灘でM7.1の地震　予想最大震度6弱　強い揺れに警戒",
+      "緊急地震速報 #8: 日向灘でM7.1の地震　最大予測震度6弱　強い揺れに警戒",
     );
   });
 
@@ -425,7 +425,7 @@ describe("buildTickerSentence", () => {
       isWarning: false,
     });
     expect(buildTickerSentence(event)).toBe(
-      "緊急地震速報(予報) #3: 三陸沖でM5.6の地震　予想最大震度4",
+      "緊急地震速報(予報) #3: 三陸沖でM5.6の地震　最大予測震度4",
     );
   });
 
