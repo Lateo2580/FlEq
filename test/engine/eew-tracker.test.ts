@@ -7,6 +7,8 @@ import {
 } from "../../src/engine/eew/eew-tracker";
 import type { ParsedEewInfo, SpecialValue, JmaIntensity } from "../../src/types";
 import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
+import { parseEewTelegram } from "../../src/dmdata/telegram-parser";
+import { createMockWsDataMessage } from "../helpers/mock-message";
 
 /** テスト用の ParsedEewInfo を生成する */
 function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
@@ -630,6 +632,20 @@ describe("EewTracker", () => {
   });
 
   describe("取消報", () => {
+    // 受入条件: 取消の通知・見出しが震源名を出せるよう、型をまたいでも取り消された報を返す
+    it.each([
+      "77_01_26_240613_VXSE45.xml",
+      "37_01_01_240613_VXSE43.xml",
+    ])("実 fixture %s の後の VXSE43 取消で cancelledTarget に震源名が入る", (fixture) => {
+      const parse = (name: string) => parseEewTelegram(createMockWsDataMessage(name))!;
+      const first = parse(fixture);
+      tracker.update(first);
+      const result = tracker.update(parse("37_01_03_240613_VXSE43.xml"));
+      expect(result.isCancelled).toBe(true);
+      expect(first.earthquake?.hypocenterName).toBeTruthy();
+      expect(result.cancelledTarget?.earthquake?.hypocenterName).toBe(first.earthquake?.hypocenterName);
+    });
+
     it("取消報は isCancelled=true を返す", () => {
       tracker.update(createEewInfo({ serial: "1", eventId: "event-001" }));
 

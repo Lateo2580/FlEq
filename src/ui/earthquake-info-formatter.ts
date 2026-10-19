@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { quakeCancelTargetPhrase, type FindRecentQuake } from "../utils/cancel-target-phrase";
 import { ParsedEarthquakeInfo, type JmaIntensity, type JmaLgIntensity, type SpecialValue } from "../types";
 import * as theme from "./theme";
 import { intensityToRank } from "../utils/intensity";
@@ -175,7 +176,10 @@ export function tsunamiShort(info: ParsedEarthquakeInfo): string {
 // ── 本体 ──
 
 /** 地震情報を整形して表示 (新デザイン言語 v1。compact はサマリーライン経路の責務) */
-export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
+export function displayEarthquakeInfo(
+  info: ParsedEarthquakeInfo,
+  findRecentQuake?: FindRecentQuake,
+): void {
   const level = earthquakeFrameLevel(info);
   const label = typeLabel(info.type);
   const width = getFrameWidth();
@@ -205,6 +209,15 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
       } else {
         buf.push(headlineWrapped[i]);
       }
+    }
+  }
+
+  // 取消は何を取り消したかを書く (震源名が引けなければ EventID の時刻)
+  if (info.infoType === "取消") {
+    const target = quakeCancelTargetPhrase(info.eventId, findRecentQuake);
+    if (target != null) {
+      buf.push(frameDivider(level, width));
+      for (const wl of wrapFrameLines(level, chalk.white(`取り消した情報: ${target}`), width)) buf.push(wl);
     }
   }
 

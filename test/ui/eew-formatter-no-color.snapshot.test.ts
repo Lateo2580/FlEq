@@ -31,7 +31,7 @@ const CASES: { label: string; render: () => void }[] = [
   { label: "予報-VXSE45", render: () => displayEewInfo(parsed(FIXTURE_VXSE45_S1, "VXSE45"), { activeCount: 1, colorIndex: 0 }) },
   { label: "PLUM-VXSE45", render: () => displayEewInfo(parsed(FIXTURE_VXSE45_PLUM, "VXSE45"), { activeCount: 1, colorIndex: 0 }) },
   { label: "混在-VXSE45", render: () => displayEewInfo(parsed(FIXTURE_VXSE45_MIXED, "VXSE45"), { activeCount: 1, colorIndex: 0 }) },
-  { label: "最終報-VXSE45", render: () => displayEewInfo(parsed(FIXTURE_VXSE45_FINAL, "VXSE45"), { activeCount: 1, colorIndex: 0 }) },
+  { label: "最終報-VXSE45", render: () => displayEewInfo(parsed(FIXTURE_VXSE45_FINAL, "VXSE45"), { activeCount: 0, colorIndex: 0 }) },
   { label: "取消-VXSE45", render: () => displayEewInfo(parsed(FIXTURE_VXSE45_CANCEL, "VXSE45"), { activeCount: 0, colorIndex: 0 }) },
   { label: "diff付き第2報-VXSE43", render: () => displayEewInfo(parsed(FIXTURE_VXSE43_WARNING_S2, "VXSE43"), { activeCount: 1, colorIndex: 0, diff: DIFF }) },
 ];

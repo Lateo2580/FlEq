@@ -25,7 +25,7 @@ export interface WsManagerStatus {
 export interface WsManagerEvents {
   onData: (msg: WsDataMessage, transport?: WsTransportIdentity) => void;
   onConnected: () => void;
-  onDisconnected: (reason: string) => void;
+  onDisconnected: (reason: string, lastReceivedAtMs?: number | null) => void;
 }
 
 /** start acknowledgement に固定された repair proof 用 transport identity。 */
@@ -336,7 +336,7 @@ export class WebSocketManager implements ConnectionManager {
     this.socketId = null;
     this.heartbeatDeadlineAt = null;
     this.endpointSelector.recordDisconnected();
-    this.events.onDisconnected(reason);
+    this.events.onDisconnected(reason, this.lastReceivedAtMs);
     this.scheduleReconnect();
   }
 
@@ -576,10 +576,10 @@ export class WebSocketManager implements ConnectionManager {
 
   /** ハートビートタイマーをリセット (ping/data 受信時に呼ぶ) */
   private resetHeartbeat(): void {
-    if (this.heartbeatTimer) {
-      clearTimeout(this.heartbeatTimer);
-    }
-    this.heartbeatDeadlineAt = this.now() + HEARTBEAT_TIMEOUT_MS;
+    if (this.heartbeatTimer) clearTimeout(this.heartbeatTimer);
+    const now = this.now();
+    this.lastReceivedAtMs = now;
+    this.heartbeatDeadlineAt = now + HEARTBEAT_TIMEOUT_MS;
     this.heartbeatTimer = setTimeout(() => {
       log.warn(
         `ハートビートタイムアウト: ${HEARTBEAT_TIMEOUT_MS / 1000}秒間 ping を受信していません`
@@ -625,4 +625,7 @@ export class WebSocketManager implements ConnectionManager {
       await this.doConnect(currentSeq);
     }, delay);
   }
+
+  /** ping・データ・接続完了を最後に受けた時刻。切断の始まりとして monitor に渡す */
+  private lastReceivedAtMs: number | null = null;
 }

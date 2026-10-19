@@ -60,10 +60,10 @@ import { extractLeadSentence } from "../../dmdata/heat-alert-parser";
 import * as nodeNotifierLoader from "./node-notifier-loader";
 import * as log from "../../logger";
 import { normalizeLegacyCounterpartDisplayText } from "../presentation/legacy-counterpart-display-text";
+import { eewCancelTargetPhrase, quakeCancelTargetPhrase, type FindRecentQuake } from "../../utils/cancel-target-phrase";
 
 /** 通知アイコンディレクトリ */
 const ICONS_DIR = path.resolve(__dirname, "../../../assets/icons");
-
 /**
  * R1 #9: 通知本文に「いつ・どこで」を入れるため、worst Significancy の詳細を取り出す。
  * 最大本体 Code と一致する最初の Significancy を探し、timeWindow / peak / criteriaPeriod /
@@ -290,7 +290,7 @@ export class Notifier {
   private settings: NotifySettings;
   private soundEnabled: boolean;
   private muteUntil: number | null = null;
-  constructor() {
+  constructor(private readonly findRecentQuake?: FindRecentQuake) {
     const fileConfig = loadConfig();
     this.settings = {
       ...DEFAULT_CONFIG.notify,
@@ -386,7 +386,7 @@ export class Notifier {
     }
 
     if (result.isCancelled) {
-      this.send("[取消] 緊急地震速報", "緊急地震速報は取り消されました", "eew", "cancel");
+      this.send("[取消] 緊急地震速報", this.eewCancelBody(result.cancelledTarget, info.eventId), "eew", "cancel");
       return;
     }
 
@@ -408,7 +408,7 @@ export class Notifier {
 
     this.send(
       title,
-      isCorrection ? `訂正: ${body}` : body,
+      `${isCorrection ? "訂正: " : ""}${isFinal ? "最終報: " : ""}${body}`,
       "eew",
       soundLevel,
     );
@@ -418,7 +418,7 @@ export class Notifier {
     if (info.infoType === "取消") {
       this.send(
         `[取消] ${info.title}`,
-        "この情報は取り消されました",
+        this.earthquakeCancelBody(info),
         "earthquake",
         earthquakeSoundLevel(info),
       );
@@ -1193,5 +1193,15 @@ export class Notifier {
       }
     }
   }
+  // ── 取消の文言 ──
 
+  private eewCancelBody(target: ParsedEewInfo | undefined, eventId: string | null): string {
+    const phrase = eewCancelTargetPhrase(target, eventId);
+    return phrase != null ? `${phrase}の緊急地震速報は取り消されました` : "緊急地震速報は取り消されました";
+  }
+
+  private earthquakeCancelBody(info: ParsedEarthquakeInfo): string {
+    const target = quakeCancelTargetPhrase(info.eventId, this.findRecentQuake);
+    return target != null ? `${target}の情報は取り消されました` : "この情報は取り消されました";
+  }
 }

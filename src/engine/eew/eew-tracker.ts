@@ -95,6 +95,8 @@ export interface EewUpdateResult {
   revisionDecision?: TelegramRevisionDecisionKind;
   /** キャンセル報か */
   isCancelled: boolean;
+  /** 取消が指す報 (震源名・発表時刻の表示用)。追跡が切れていれば無い */
+  cancelledTarget?: ParsedEewInfo;
   /** VXSE45 受信後に到着した VXSE43/44 → 表示抑制 */
   isSuppressed: boolean;
   /** 予報→警報の昇格が発生したか (イベント単位で初回のみ) */
@@ -699,6 +701,8 @@ export class EewTracker {
         existing.hasWarningIssued = existing.hasWarningIssued || info.isWarning;
       }
       existing.lastUpdate = new Date();
+      const cancelledTarget = existing.authoritativeDisplay?.info
+        ?? (previousInfo?.infoType === "取消" ? undefined : previousInfo);
 
       const firstReportSignal = this.updateFirstReportSignalLatch({
         eventId,
@@ -716,6 +720,7 @@ export class EewTracker {
         isCorrection: revisionDecision.isCorrection,
         revisionDecision: revisionDecision.kind,
         isCancelled,
+        ...(isCancelled && cancelledTarget != null ? { cancelledTarget } : {}),
         isSuppressed,
         isUpgradeToWarning,
         activeCount: this.getActiveCount(),

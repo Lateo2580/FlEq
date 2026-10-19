@@ -278,6 +278,18 @@ describe("Notifier", () => {
     expect(playSound).toHaveBeenCalledWith(expectedSound);
   });
 
+  // 受入条件: 地震情報の取消は、記憶から引けたら発生時刻と震源名、引けなければ EventID の時刻 (発生とは言わない) を本文に入れる
+  it("地震情報の取消の本文に、引けた震源名と発生時刻 / 引けなければ EventID の時刻を入れる", () => {
+    const base = parseEarthquakeTelegram(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO))!;
+    const cancel = { ...base, infoType: "取消", eventId: "20220509152315" };
+    new Notifier().notifyEarthquake(cancel);
+    new Notifier((id) => (id === "20220509152315"
+      ? { hypocenterName: "茨城県南部", originTime: "2022-05-09T15:20:00+09:00" }
+      : null)).notifyEarthquake(cancel);
+    expect(notifyMock.mock.calls[0][0].message).toBe("5/9 15:23 頃の地震の情報は取り消されました");
+    expect(notifyMock.mock.calls[1][0].message).toBe("5/9 15:20 頃発生の茨城県南部の地震の情報は取り消されました");
+  });
+
   it("受理済みの plain unknown 続報と取消を各1回通知し、infoへ降格する", () => {
     const base = parseEarthquakeTelegram(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO))!;
     const playSoundMock = vi.mocked(playSound);
@@ -319,7 +331,7 @@ describe("Notifier", () => {
     );
     expect(notifyMock.mock.calls[2][0].message).toContain("最大震度3");
     expect(notifyMock.mock.calls[2][0].message).not.toContain("未入電");
-    expect(notifyMock.mock.calls[3][0].message).toBe("この情報は取り消されました");
+    expect(notifyMock.mock.calls[3][0].message).toMatch(/^\d+\/\d+ 06:55 頃の地震の情報は取り消されました$/);
     expect(playSoundMock).toHaveBeenNthCalledWith(1, "warning");
     expect(playSoundMock).toHaveBeenNthCalledWith(2, "info");
     expect(playSoundMock).toHaveBeenNthCalledWith(3, "normal");
@@ -732,6 +744,28 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
       makeResult({ isNew: false, firstReportSignal: true }),
     );
     expect(playSoundMock).toHaveBeenCalledTimes(3);
+  });
+
+  // 受入条件: 取消は何を取り消したかを書く / 最終報は本文の頭に明示する
+  it("EEW 取消の本文に取り消した速報の震源名と発表時刻を入れ、記憶が無ければ EventID の時刻に落とす", () => {
+    const notifier = new Notifier();
+    const info = makeEewInfo({ eventId: "20240417231454" });
+    const cancel = { ...info, infoType: "取消" };
+    notifier.notifyEew(cancel, makeResult({ isCancelled: true, cancelledTarget: info }));
+    notifier.notifyEew(cancel, makeResult({ isCancelled: true }));
+    const bodies = notifyMock.mock.calls.map((c) => c[0].message);
+    expect(bodies[0]).toBe(`${info.earthquake?.hypocenterName} 13:00 発表の緊急地震速報は取り消されました`);
+    expect(bodies[1]).toBe("23:14 頃検知の地震の緊急地震速報は取り消されました");
+  });
+
+  it("最終報の本文は「最終報: 」で始まる", () => {
+    const notifier = new Notifier();
+    const info = makeEewInfo({ eventId: "EVT-FINAL" });
+    notifier.notifyEew(
+      { ...info, nextAdvisory: "この情報をもって、緊急地震速報を終了します。" },
+      makeResult({ isNew: true }),
+    );
+    expect(notifyMock.mock.calls[0][0].message.startsWith("最終報: ")).toBe(true);
   });
 
   it("受理済み訂正は実質差分がなくても訂正を明示して一回通知する", () => {

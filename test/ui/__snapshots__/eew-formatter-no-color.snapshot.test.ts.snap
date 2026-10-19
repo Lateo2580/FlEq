@@ -342,7 +342,7 @@ exports[`EEW NO_COLOR golden snapshot (chalk.level=0) > 予報-VXSE45 @ wide=180
 exports[`EEW NO_COLOR golden snapshot (chalk.level=0) > 取消-VXSE45 @ standard=140 1`] = `
 "
 
- 緊急地震速報 取消 #32
+ 緊急地震速報 取消 #32 23:14 頃検知の地震
 
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ 取消                                                                                                                                     │
@@ -359,7 +359,7 @@ exports[`EEW NO_COLOR golden snapshot (chalk.level=0) > 取消-VXSE45 @ standard
 exports[`EEW NO_COLOR golden snapshot (chalk.level=0) > 取消-VXSE45 @ ultra-narrow=60 1`] = `
 "
 
- 緊急地震速報 取消 #32
+ 緊急地震速報 取消 #32 23:14 頃検知の地震
 
 ┌──────────────────────────────────────────────────────────┐
 │ 取消                                                     │
@@ -376,7 +376,7 @@ exports[`EEW NO_COLOR golden snapshot (chalk.level=0) > 取消-VXSE45 @ ultra-na
 exports[`EEW NO_COLOR golden snapshot (chalk.level=0) > 取消-VXSE45 @ wide=180 1`] = `
 "
 
- 緊急地震速報 取消 #32
+ 緊急地震速報 取消 #32 23:14 頃検知の地震
 
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ 取消                                                                                                                                                                             │

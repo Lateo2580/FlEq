@@ -60,13 +60,13 @@ function siteIds(file: string, lines: number[]): string[] {
 const MIGRATION_PENDING_FRAME_LINE_SITES = new Set<string>();
 
 const WIDTH_PROVEN_FRAME_LINE_SITES = new Set([
-  ...siteIds("earthquake-info-formatter.ts", [191, 196, 258]),
+  ...siteIds("earthquake-info-formatter.ts", [195, 200, 271]),
   ...siteIds("formatter.ts", [274, 277, 683, 684, 773, 788, 1654, 1659]),
   ...siteIds("lg-observation-formatter.ts", [134, 139, 195]),
   ...siteIds("nankai-trough-formatter.ts", [99, 104, 112]),
   ...siteIds("responsive-table-engine.ts", [71]),
   ...siteIds("seismic-text-formatter.ts", [71, 94, 99]),
-  ...siteIds("tsunami-formatter.ts", [354, 358, 419, 445, 471, 495]),
+  ...siteIds("tsunami-formatter.ts", [354, 358, 419, 445, 473, 497]),
   ...siteIds("volcano-formatter.ts", [418, 421, 474, 513, 516, 525, 583, 626, 743, 781, 996, 1007]),
   ...siteIds("weather-core-action-guide.ts", [51]),
   ...siteIds("weather-core-detail.ts", [59]),

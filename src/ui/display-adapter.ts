@@ -8,6 +8,7 @@ import type { ProcessOutcome } from "../engine/presentation/types";
 import type { WsDataMessage, ParsedVolcanoInfo } from "../types";
 import type { VolcanoPresentation } from "../engine/presentation/volcano-presentation";
 import type { Vfvo53BatchItems } from "../engine/messages/volcano-vfvo53-aggregator";
+import type { FindRecentQuake } from "../utils/cancel-target-phrase";
 import {
   displayRawHeader,
   displayTelegramDiagnostic,
@@ -39,7 +40,7 @@ import { assertNever } from "../utils/assert-never";
 /** DisplayCallbacks の実装を生成する */
 const VPWW_CORE_TYPES = new Set(["VPWW55", "VPWW56", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61"]);
 
-export function createDisplayAdapter(): DisplayCallbacks {
+export function createDisplayAdapter(findRecentQuake?: FindRecentQuake): DisplayCallbacks {
   return {
     displayOutcome(outcome: ProcessOutcome): void {
       switch (outcome.domain) {
@@ -48,10 +49,11 @@ export function createDisplayAdapter(): DisplayCallbacks {
             activeCount: outcome.eewResult.activeCount,
             diff: outcome.eewResult.diff,
             colorIndex: outcome.eewResult.colorIndex,
+            cancelledTarget: outcome.eewResult.cancelledTarget,
           });
           break;
         case "earthquake":
-          displayEarthquakeInfo(outcome.parsed);
+          displayEarthquakeInfo(outcome.parsed, findRecentQuake);
           break;
         case "seismicText":
           displaySeismicTextInfo(outcome.parsed);

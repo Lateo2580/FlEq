@@ -212,7 +212,18 @@ describe("displayEewInfo", () => {
     expect(output).toContain("先ほどの、緊急地震速報（地震動予報）を取り消します。");
   });
 
-  it("複数イベント同時: activeCount > 1 で「同時N件」表示", () => {
+  // 契約境界: 取消は tracker が自分を数えから外した後の件数なので、activeCount 1 でも「ほか」が1件
+  it("EEW取消: activeCount 1 でも「ほかに1件の速報あり」を出す", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE45_CANCEL, {
+      classification: "eew.forecast",
+      head: { type: "VXSE45", author: "気象庁", time: new Date().toISOString(), test: false },
+    });
+    displayEewInfo(parseEewTelegram(msg)!, { activeCount: 1 });
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    expect(output).toContain("ほかに1件の速報あり");
+  });
+
+  it("複数イベント同時: activeCount > 1 で「ほかにN-1件」表示", () => {
     const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
       classification: "eew.forecast",
       head: {
@@ -230,7 +241,7 @@ describe("displayEewInfo", () => {
 
     const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
 
-    expect(output).toContain("同時3件");
+    expect(output).toContain("ほかに2件の速報あり");
     expect(output).toContain("EventID:");
   });
 

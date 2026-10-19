@@ -54,6 +54,7 @@ import { QuakeExtremeStore } from "../display/quake-extreme-store";
 import { QuakeDisplayPersistence } from "../display/quake-display-persistence";
 import { QuakeDisplayStore } from "../display/quake-display-store";
 import { DailyQuakeCounter } from "../messages/daily-quake-counter";
+import { Notifier } from "../notification/notifier";
 import { DailyQuakePersistence } from "../messages/daily-quake-persistence";
 import { Vpws50StateHolder } from "../messages/vpws50-state";
 import { TelegramRevisionGate } from "../messages/telegram-revision-gate";
@@ -284,7 +285,7 @@ export interface SummaryTimerControl {
 export async function startMonitor(config: AppConfig): Promise<void> {
   // display adapter は遅延ロードで ui 依存を monitor 側に限定する
   const { createDisplayAdapter } = await import("../../ui/display-adapter");
-  const display = createDisplayAdapter();
+  const display = createDisplayAdapter((eventId) => dailyQuakeCounter.findRecentQuake(eventId));
   const { createDisplayController } = await import("../display/controller");
 
   // standby active-state は display runtime ではなく monitor 本体が所有する。
@@ -969,6 +970,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
     return { kind: "flushed", receipt, result };
   };
   const { handler: routeMessage, eewLogger, notifier, stats, summaryTracker, flushAndDisposeVolcanoBuffer, disposeLegacyCounterpartCorrelator, buildDisplayStats } = createMessageHandler({
+    notifier: new Notifier((eventId) => dailyQuakeCounter.findRecentQuake(eventId)),
     display,
     displaySink,
     dailyQuakeCounter,
@@ -1088,7 +1090,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       if (disconnectedAt != null) {
         const gapStart = formatTimestamp(new Date(disconnectedAt).toISOString());
         const gapEnd = formatTimestamp(new Date().toISOString());
-        log.warn(`${gapStart} 〜 ${gapEnd} の間、電文を受信できていない可能性があります`);
+        log.warn(`${gapStart}（最終受信）〜 ${gapEnd} の間、電文を受信できていない可能性があります`);
         disconnectedAt = null;
       }
       log.info(chalk.green("リアルタイム受信中..."));
@@ -1099,9 +1101,10 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       updateReplConnectionState(replHandler, true);
       displayRuntime?.hub.publishConnection({ dmdata: "connected" });
     },
-    onDisconnected: (reason) => {
+    onDisconnected: (reason, lastReceivedAtMs) => {
       volcanoRepairJournal?.failAll("subscriptionDisconnected");
-      disconnectedAt = Date.now();
+      // 始まりは最後に受信できた時刻。繋ぎ直しの失敗で onDisconnected が重なっても最初の値を保つ
+      disconnectedAt ??= lastReceivedAtMs ?? Date.now();
       log.warn(`切断されました: ${reason}`);
       updateReplConnectionState(replHandler, false);
       displayRuntime?.hub.publishConnection({ dmdata: "disconnected", reason });

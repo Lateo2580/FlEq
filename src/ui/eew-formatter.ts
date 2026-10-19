@@ -10,6 +10,7 @@ import {
   isNumericMagnitude,
 } from "../utils/magnitude";
 import * as theme from "./theme";
+import { eewCancelTargetPhrase } from "../utils/cancel-target-phrase";
 import {
   FrameLevel,
   getFrameWidth,
@@ -63,6 +64,8 @@ export interface EewDisplayContext {
   diff?: EewDiff;
   /** バナー色分け用のカラーインデックス (0始まり) */
   colorIndex?: number;
+  /** 取消が指す報 (tracker が持っていれば) */
+  cancelledTarget?: ParsedEewInfo;
 }
 
 function pushWrappedCard(
@@ -455,7 +458,8 @@ export function displayEewInfo(
   const colorIndex = context?.colorIndex ?? 0;
 
   if (isCancelled) {
-    const bannerText = ` 緊急地震速報 取消${serialTag}${hypocenterTag}`;
+    const targetPhrase = eewCancelTargetPhrase(context?.cancelledTarget, info.eventId);
+    const bannerText = ` 緊急地震速報 取消${serialTag}${targetPhrase != null ? ` ${targetPhrase}` : hypocenterTag}`;
     const cancelBanner = theme.getRoleChalk("eewCancelBanner");
     buf.push(cancelBanner(" ".repeat(bannerWidth)));
     buf.push(cancelBanner(visualPadEnd(clipToVisualWidth(bannerText, bannerWidth), bannerWidth)));
@@ -502,13 +506,15 @@ export function displayEewInfo(
 
   // カード1行目: infoType + 最重要項目
   const activeCount = context?.activeCount ?? 0;
+  // 取消と最終報は tracker が自分を数えから外した後の件数なので、そのまま「ほか」の数になる
+  const othersCount = isCancelled || info.nextAdvisory != null ? activeCount : activeCount - 1;
   if (!isCancelled) {
     buf.push(hasPreContent ? frameDivider(level, width) : frameTop(level, width));
     const cardParts: { text: string; priority: number }[] = [];
 
     // infoType (+ 同時発生注記)
-    if (activeCount >= 2 && info.eventId) {
-      cardParts.push({ text: theme.getRoleChalk("concurrent")(`同時${activeCount}件発生中`) + chalk.gray(` ${info.infoType}`), priority: 0 });
+    if (othersCount >= 1 && info.eventId) {
+      cardParts.push({ text: theme.getRoleChalk("concurrent")(`ほかに${othersCount}件の速報あり`) + chalk.gray(` ${info.infoType}`), priority: 0 });
     } else {
       cardParts.push({ text: chalk.gray(info.infoType), priority: 0 });
     }
@@ -562,9 +568,9 @@ export function displayEewInfo(
     if (!hasPreContent) {
       buf.push(frameTop(level, width));
     }
-    if (activeCount >= 2 && info.eventId) {
+    if (othersCount >= 1 && info.eventId) {
       pushWrappedFrameLine(buf, level, { width, purpose: "type" }, [
-        { text: theme.getRoleChalk("concurrent")(`同時${activeCount}件発生中`), priority: 0, omission: "never" },
+        { text: theme.getRoleChalk("concurrent")(`ほかに${othersCount}件の速報あり`), priority: 0, omission: "never" },
         { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
       ]);
     } else {

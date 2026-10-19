@@ -285,6 +285,17 @@ it.each([
   expect(plain).toContain(expected);
 });
 
+// 実不具合: 沿岸の検潮所 (VTSE51) まで「沖合観測」の見出しで出していた
+it.each([
+  ["32-39_11_10_250206_VTSE51.xml", "沿岸の観測", "沖合観測"],
+  ["61_11_02_250206_VTSE52.xml", "沖合観測", "沿岸の観測"],
+])("実 fixture %s の観測見出しは %s (%s は出さない)", (fixture, shown, hidden) => {
+  setFrameWidth(140);
+  const plain = stripAnsi(captureDisplay(parseTsunamiTelegram(createMockWsDataMessage(fixture))!));
+  expect(plain).toContain(shown);
+  expect(plain).not.toContain(hidden);
+});
+
 const LONG_AREA = "非常に長い架空の津波予報区名でセル幅を必ず超過させる検証用文字列";
 const LONG_HEIGHT = "１０ｍを大きく超える巨大な津波が長時間継続するおそれ";
 const syntheticLongInfo = (): ParsedTsunamiInfo => canonicalizeLegacyTsunamiInfo({

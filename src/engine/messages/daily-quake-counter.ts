@@ -105,6 +105,15 @@ export class DailyQuakeCounter {
     return true;
   }
 
+  /** 取消の文言用に EventID から地震を引く。
+   *  ponytail: 当日・直近 RECENT_QUAKES_MAX 件・表示投影を通ったものだけ。引けなければ呼び出し側が EventID の時刻に落とす。
+   *  新しい記憶は、取消の対象が分からないという声が実際に出たときに足す */
+  findRecentQuake(eventId: string | null | undefined): { hypocenterName: string | null; originTime: string | null } | null {
+    if (eventId == null) return null;
+    const q = this.recentQuakes.find((candidate) => candidate.eventId === eventId);
+    return q != null ? { hypocenterName: q.hypocenterName, originTime: q.originTime } : null;
+  }
+
   /** 表示用スナップショットを返す */
   getSnapshot(now?: number): DailyQuakeSnapshot {
     if (this.rolloverIfNeeded(now ?? Date.now())) this.notify("rollover");

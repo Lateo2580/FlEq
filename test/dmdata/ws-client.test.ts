@@ -463,8 +463,26 @@ describe("WebSocketManager", () => {
       mockWsInstance.emit("open");
       mockWsInstance.emit("close", 1006, Buffer.from("connection lost"));
 
-      expect(events.onDisconnected).toHaveBeenCalledWith("connection lost");
+      expect(events.onDisconnected).toHaveBeenCalledWith("connection lost", expect.any(Number));
       expect(manager.getStatus().reconnectAttempt).toBe(1);
+
+      manager.close();
+    });
+
+    // 受入条件: 切断の始まりは気付いた時刻でなく最後に ping を受けた時刻
+    it("ping 途絶の切断は最後に受信した時刻を onDisconnected へ渡す", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+      await vi.advanceTimersByTimeAsync(30_000);
+      mockWsInstance.emit("message", JSON.stringify({ type: "ping", pingId: "p1" }));
+      const lastPingAt = Date.now();
+      await vi.advanceTimersByTimeAsync(90_000);
+      mockWsInstance.emit("close", 4000, Buffer.from("heartbeat timeout"));
+
+      expect(events.onDisconnected).toHaveBeenCalledWith("heartbeat timeout", lastPingAt);
 
       manager.close();
     });

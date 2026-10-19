@@ -458,9 +458,11 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   if (info.observations && info.observations.length > 0) {
     const shown = maxObs != null ? info.observations.slice(0, maxObs) : info.observations;
     const hidden = info.observations.length - shown.length;
-    buf.push(frameDividerLabeled(level, "沖合観測", width));
+    // VTSE51 は沿岸の検潮所、沖合の観測は VTSE52 だけ
+    const obsLabel = info.type === "VTSE52" ? "沖合観測" : "沿岸の観測";
+    buf.push(frameDividerLabeled(level, obsLabel, width));
     renderResponsiveTable(buf, level, width, observationColumns(mode), shown);
-    collectDetailForTable(shown, (r) => `【沖合観測】${r.name}`, [
+    collectDetailForTable(shown, (r) => `【${obsLabel}】${r.name}`, [
       { header: "観測点", value: (r) => r.name, hidden: false },
       { header: "センサー", value: (r) => r.sensor, hidden: mode === "ultra-narrow" },
       { header: "初動", value: (r) => r.initial, hidden: mode === "ultra-narrow" },
@@ -470,7 +472,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
     if (hidden > 0) {
       buf.push(frameLine(level, chalk.gray(`... 他 ${hidden} 地点 (詳細参照)`), width));
       details.push({
-        head: `【沖合観測】表示上限で ${hidden} 件省略`,
+        head: `【${obsLabel}】表示上限で ${hidden} 件省略`,
         body: info.observations.slice(shown.length).flatMap((r) => [
           `    ${r.name}`,
           `    最大波高: ${formatObservedMaxHeight(r)}`,

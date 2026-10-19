@@ -150,12 +150,14 @@ VFVO53 ヘッドライン (幅 60) の例。句点直後で折り (`です。` �
 
 ## 地震情報 (VXSE51/52/53/61)
 
-**関数**: `displayEarthquakeInfo(info: ParsedEarthquakeInfo)`（`src/ui/earthquake-info-formatter.ts`）
+**関数**: `displayEarthquakeInfo(info: ParsedEarthquakeInfo, findRecentQuake?)`（`src/ui/earthquake-info-formatter.ts`）
 **パーサ**: `parseEarthquakeTelegram()`
 
 新デザイン言語（weather/津波系で確立したレスポンシブ TUI 列優先度モデル）を適用済み（2026-07 rollout）。旧 `telegram-type-label.ts` のローカル `earthquakeFrameLevel` / `getDisplayMode() === "compact"` 分岐（震度一覧）は撤去済み。compact 表示は summary パイプライン (token-builders) 側の責務で、この formatter は full 表示のみを持つ。
 
 ### 電文タイプ
+
+取消 (`infoType === "取消"`) では、ヘッドラインの下に「取り消した情報: {句}」を 1 行出す。当日の直近の地震を記憶から引けたときは「HH:MM 頃発生の{震源名}の地震」(記憶の発生時刻)、引けなければ EventID の時刻で「HH:MM 頃の地震」(「発生」とは言わない)。日付が今日でなければ頭に「M/D 」を付ける。EventID の時刻は国内の地震なら分まで発生時刻と一致するが、遠地地震はずれる。
 
 | コード | 名称 |
 |--------|------|
@@ -373,7 +375,7 @@ weather/津波系と同一の閾値（`decideDisplayMode()`、`responsive-table-
 
 ### 取消報
 
-バナー（取消色）+ 取消文 + EventID + footer の最短構成。取消文は **`cancelText`（Body/Text 由来）を優先**し、無ければ固定文「この地震についての緊急地震速報は取り消されました。」に fallback する。VXSE45 型（Headline 空 + Body/Text）と VXSE43 型（Headline/Text + Body/Text 両持ち）の双方で cancelText が欠落しない。
+バナー（取消色。取り消した速報の震源名と発表時刻、tracker に無ければ EventID の時刻で「HH:MM 頃検知の地震」を添える）+ 取消文 + EventID + footer の最短構成。取消文は **`cancelText`（Body/Text 由来）を優先**し、無ければ固定文「この地震についての緊急地震速報は取り消されました。」に fallback する。VXSE45 型（Headline 空 + Body/Text）と VXSE43 型（Headline/Text + Body/Text 両持ち）の双方で cancelText が欠落しない。
 
 ### 表示例 (予報 / warning / standard=140, NO_COLOR)
 
@@ -470,7 +472,7 @@ weather/津波系と同一の閾値（`decideDisplayMode()`、`responsive-table-
 
 ```
 
- 緊急地震速報 取消 #32
+ 緊急地震速報 取消 #32 23:14 頃検知の地震
 
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ 取消                                                                                                                                     │
@@ -554,7 +556,7 @@ weather/津波系と同一の閾値（`decideDisplayMode()`、`responsive-table-
 | テスト電文バッジ | `isTest = true` | ` テスト電文 ` (ラズベリー背景) |
 | PLUM法ラベル | `maxIntChangeReason = 9` | `PLUM法 による予測震度変化` (ラズベリー) |
 | ── 区切り ── | | |
-| カード行 | 取消以外 | `{infoType}  │  最大予測震度 {N}  │  長周期階級 {N}  │  M{x.x}  │  深さ {N}km`。`activeCount ≥ 2` 時は infoType の前に `同時{N}件発生中` (オレンジ) を付記。`diff.previousMaxInt` がある場合は `最大予測震度 {旧} → {新}` に変化。幅不足時は生存優先度 (最大予測震度 > M > 深さ > 長周期) の低い部品から落ちる (clamp 経路) |
+| カード行 | 取消以外 | `{infoType}  │  最大予測震度 {N}  │  長周期階級 {N}  │  M{x.x}  │  深さ {N}km`。ほかの速報があるときは infoType の前に `ほかに{N}件の速報あり` (オレンジ) を付記する。通常の報は `activeCount - 1`（`activeCount ≥ 2` で出す）、取消と最終報は tracker が自分を数えから外した後なので `activeCount`（`≥ 1` で出す）。`diff.previousMaxInt` がある場合は `最大予測震度 {旧} → {新}` に変化。幅不足時は生存優先度 (最大予測震度 > M > 深さ > 長周期) の低い部品から落ちる (clamp 経路) |
 | ── 区切り ── | | |
 | ヘッドライン | `headline` があり非取消 | 太字白 |
 | ── 区切り ── | | |
@@ -625,7 +627,7 @@ weather 系と同一の閾値（`decideTsunamiDisplayMode()`、型の共有は�
 |---|---|---|---|
 | 予報区 (forecast) | 区分・地域名・波高 | + 到達予想 (4列) | 4列 + 余裕幅 |
 | 満潮・到達予想 (tide-stations) | 観測点・到達予想 | + 満潮時刻・地域名 (4列) | 4列 + 余裕幅 |
-| 沖合観測 (observations) | 観測点・最大波高 | 5列全部 (センサー含む、wide と同一列順) | 5列全部 |
+| 沖合観測 (observations。VTSE52 のみ。VTSE51 は「沿岸の観測」) | 観測点・最大波高 | 5列全部 (センサー含む、wide と同一列順) | 5列全部 |
 | 沿岸推定 (estimations) | 地域名・波高 | 3列全部 | 3列 + 余裕幅 |
 
 判断根拠: 「どこに・どれくらいの高さが来る/来たか」が意思決定情報 (Tier 1)、到達時刻系が Tier 2。観測点・沖合観測は spec §8 R2-1 でセンサー種別 (計測手段) も standard 幅から表示するよう改訂 (ultra-narrow のみ `[詳細]` へ逃がす)。tide-stations は観測点別の到達予想が Tier 1 (自分の街への到達時刻が避難判断の核)、満潮時刻・親地域名が Tier 2。
@@ -774,7 +776,7 @@ NO_COLOR snapshot (`61_11_01_250206_VTSE52.xml @ wide=180`)からの逐語転記
 | 震源詳細 | `earthquake` がある場合 | 震源地名 / 発生時刻 / 座標 / 規模 |
 | ── 区切り (予報区) ── | `forecast` がある場合 | Tier 割当済みテーブル。件数上限超過分は `... 他 N 地点` + `[詳細]` |
 | ── 区切り (満潮・到達予想) ── | `stations` を持つ Item が 1 つ以上 | Tier 割当済みテーブル (新設) |
-| ── 区切り (沖合観測) ── | `observations` がある場合 | Tier 割当済みテーブル |
+| ── 区切り (沖合観測。VTSE51 は沿岸の観測) ── | `observations` がある場合 | Tier 割当済みテーブル |
 | ── 区切り (沿岸推定) ── | `estimations` がある場合 | Tier 割当済みテーブル |
 | ── [詳細] ── | 隠れ列 (hidden-only)・件数上限超過分のいずれかがある場合 | 1 entry 最大 8 行 / 全体最大 60 行 (超過分は entry 単位で省略表示)。セル内 clip は回収対象外 |
 | ── サマリ ── | `forecast` がある場合 | severity 別件数サマリ (例: `大津波警報 2 区 ・ 津波警報 1 区`) |
@@ -785,7 +787,7 @@ NO_COLOR snapshot (`61_11_01_250206_VTSE52.xml @ wide=180`)からの逐語転記
 ### NO_COLOR 3 重冗長性
 
 1. **行内 severity prefix**: 予報区行の「区分」列そのものがラベルを兼ねる
-2. **label 付き divider**: `frameDividerLabeled` による「予報区」「満潮・到達予想」「沖合観測」「沿岸推定」「[詳細]」の区切り
+2. **label 付き divider**: `frameDividerLabeled` による「予報区」「満潮・到達予想」「沖合観測 (VTSE52 のみ。VTSE51 は沿岸の観測)」「沿岸推定」「[詳細]」の区切り
 3. **末尾サマリブロック**: severity 別の件数サマリ
 
 ### 津波種別の表示スタイル
