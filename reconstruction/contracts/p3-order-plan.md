@@ -425,3 +425,45 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 | `P3-UF-PUBLIC-001`（`p3-uf-public.json`） | U-F の owner が publisher へ出すもの（view・displayChanges・restore・normal の公開の制限）を、常設表示に要る小さい公開形式（1 鍵 1,510＋10×区域 byte）に限り、範囲・版付きの詳細取得の口と索引ページを足す（spec §7.10 の U-F 分を P3 で）。U-F の state・codec・reducer・保存は変えない。A3（他分野の巻き添えの要約）を U-F について閉じる（U-W の分は ③） | P3-EXECUTION-LIFECYCLE-001・P3-UNIT-TABLE-001 | 起草・発注前点検（2026-10-15、3fe5dd69 から）。独立レビュー（品質 ヘルツ NO-GO→条件付き GO、契約適合 Opus 条件付き GO×2）。作者裁定 D-FIELDS＝A・D-DETAIL-SCREEN＝A（作者裁定 P2-A8-D03=A を U-F について一部覆す）、残存リスク (1)〜(10) 一括承認（Q-UFP-AUTHOR、Q-UFP-PRECHECK）。baseOid は点検の commit 9b0248ac に割り当て済み（Q-UFP-BASE）。実装のレビュー（品質 ヘルツ GO・契約適合 Opus GO）を経て配送、同じ commit で AC09 の原文の改訂（spec §3・§7.10・§8.1、実行境界メモ §2、P2-SHARED-RUNTIME・P2-WEATHER-TIMESERIES-UNIT・P2-SNAPSHOT-SSE・P3-EXECUTION-SPLIT・P3-EXECUTION-LIFECYCLE、本計画 §5.2） |
 | `P3-CURRENCY-COVERAGE-001`（`p3-currency-coverage.json`） | 容量の拒否で normal を隠す経路（withoutNormal・admission の記録・overflow・main の normal pending の一括除外）を外し、旧値のある記録に付箋（U-T・U-Q。U-W・U-F は既存の lastKnown の印）、付箋の付かない拒否は unit の網羅性（UnconfirmedReason に capacityExceeded）へ。失敗した系列のまだ鳴っていない desktop の題名に時刻、拒否した報が warning 以上なら unit×operation ごとに 1 つの失敗警報 | P3-UF-PUBLIC-001 の配送 | 起草（2026-10-15、3fe5dd69 から）。独立レビュー（品質 ヘルツ NO-GO 4 巡→条件付き GO〔D-FAILNOTICE を unit 単位へ作者裁定で形を変えた後〕、契約適合 Opus 条件付き GO×3）。作者裁定 D-CLEAR・D-PENDING・D-SHOW＝A、D-FAILNOTICE＝A（unit 単位の失敗警報）、残存リスク (1)〜(18) 一括承認（Q-CC-AUTHOR）。発注前点検は ① の配送（963351a7）の後に済み（Q-CC-PRECHECK、http-sse.ts を allowedPaths に追加）。baseOid は点検の commit e37e40ec に割り当て済み（Q-CC-BASE）。実装のレビュー（品質 ヘルツ NO-GO→条件付き GO、契約適合 Opus 条件付き GO→条件付き GO、Q-CC-IMPL）を経て配送、同じ commit で AC09 の原文の改訂（P2-SHARED-RUNTIME・P2-SNAPSHOT-SSE・P2-EEW-UNIT・P2-WEATHER-CURRENT-UNIT・P2-WEATHER-TIMESERIES-UNIT・P3-TSUNAMI-UNIT・P3-UNIT-Q・P3-UNIT-TABLE・P3-EXECUTION-SPLIT・P2-CHECKPOINT-SHUTDOWN・P2-CHROME-EEW・P3-UF-PUBLIC）。起草案 P3-LIMIT-RULES-001 の S1 は本契約が置き換え、発注しない（Q-CC-LIMIT-RULES）。chrome-eew の smoke は実 Chrome で実走済み（Q-CC-SMOKE） |
 | `P3-DISASTER-CAPACITY-001`（`p3-disaster-capacity.json`） | 災害の日の電文を本物の順で仮想時計に乗せて製品の composition root へ流し、unit ごとの器の使用率の最大・入力単位の拒否と未解消の拒否・退去・容量で消えた記録・snapshot の要約を測る道具の 1 段目。筋書き 7 本（W1 台風・大雨の日の実電文、W2 U-W の鍵の累積、R1 能登 2024 の実電文、R2 2011 東北の津波、N1〜N3 南海トラフの全割れ・半割れと 12 時間後の後発・それに台風を重ねたもの）。製品の src は変えない。2 段目（実時間の RSS・EEW の遅れ）は外 | P3-EXECUTION-SPLIT-001 ほか unit の契約（本文の dependsOnContractIds） | 起草（2026-10-15、3fe5dd69 から）。独立レビュー（品質 ヘルツ NO-GO→条件付き GO、契約適合 Opus 条件付き GO）。作者裁定 D1〜D3＝A、D-SUMMARY＝A'（U-E・U-T・U-Q の要約を欠けに数える）・D-CLOSE＝A（結果の記録で閉じ、直しは別の契約）、残存リスク (1)〜(13) 一括承認（Q-DC-AUTHOR）。発注前点検は済み（Q-DC-PRECHECK、R2 の 7 時刻を原文で確認、余震の EEW の比を 360 件に合わせて直した）。baseOid は点検の commit e37e40ec に割り当て済み（Q-DC-BASE）。実装のレビュー（品質 ヘルツ NO-GO→条件付き GO→GO・契約適合 Opus 条件付き GO→GO）を経て配送（reconstruction/test/disaster/ の 4 file、製品の src は変えない。Q-DC-IMPL）。正式の run（Q-DC-RUN）は配送の後に Mac mini で。R1 は Archive の取得まで blocked（Q-DC-ACQUIRE-EQ）。① ② ③ の配送ごとに同じ道具で測り直す（Q-DC-REMEASURE） |
+
+## 振る舞い表の反映（2026-10-19）
+
+作者が 2026-10-17〜19 に決めた利用者から見た振る舞い表の決まりを、spec §16（H01〜H50）に写した。
+ここでは、それを運ぶ仕事を契約ごとにまとめる。発注の順と見積もりは作者と決める。
+
+### 配送済みの契約を変える仕事（変更の契約の候補）
+
+「永続 schema の移行」は、保存の型が変わり、旧データの移行と復元の試験が要るか。未確認は起草のときに確かめる。
+
+| 候補 | 変える契約 | §16 | 永続 schema の移行 |
+|---|---|---|---|
+| 通知の段の改訂 | `P2-EEW-UNIT-001`（Q-NOTICE.payloadRules の level）、`P3-UNIT-Q-001`（P3-C7-NOTICE-LEVELS）、`P3-TSUNAMI-UNIT-001`（P3-C5-NOTICE-LEVELS）、`P3-UNIT-N-001`（P3-C8-NOTICE-LEVELS）、`P3-UNIT-M-001`（P3-C13-NOTICE-LEVELS） | H06、H08、H09、H12、H13 | 無し |
+| 津波緊急の群の判定を音の段から切り離す | `P2-NOTIFICATION-DELIVERY-001`（P2-A7-IR03 の実装）、`P3-TSUNAMI-UNIT-001`（通知の優先順の導出） | H09 | 群の保存表現と旧 pending の互換処理は要確認 |
+| 通知の文面と取消の通知条件 | `P2-EEW-UNIT-001`（Q-NOTICE.payloadRules の title と body）、`P3-UNIT-Q-001` ほか各 unit の取消の payload、各 unit の LEGACY-DIFF の取消の条件（`P3-TSUNAMI-UNIT-001`・`P3-UNIT-Q-001`・`P3-UNIT-N-001`・`P3-UNIT-V-001`・`P3-UNIT-L-001`・`P3-UNIT-R-001`・`P3-UNIT-M-001`）、各 unit の通知の証拠の保持と復元（例: 土砂は intent を expiresAt で回収するので、数時間後の取消では元の報を通知した証拠が残らない） | H06、H16、H19 | 文面は無し。通知の証拠は保持の方式を要確認 |
+| 新旧の比べ方の横断修正（`P3-REVISION-ORDER-001` の後継） | `P3-REVISION-ORDER-001`、`P2-EEW-UNIT-001`、`P3-LIFETIME-AND-EEW-GATE-001`（P3-LIFE-D-LATE）、`P2-WEATHER-CURRENT-UNIT-001`、全 unit の codec | H14 | 有り（Control/DateTime を保存と復元まで運ぶ） |
+| EEW の閉じ方と鳴り直し | `P3-LIFETIME-AND-EEW-GATE-001`（P3-LIFE-D-EEW）、`P2-EEW-UNIT-001`、`P2-CHECKPOINT-SHUTDOWN-001`（P2-A3-AC01） | H20、H33 | H20・H33 だけなら型の変更は不要（current・gate は保存しない）。H48 の互換処理は別 |
+| 通知の出し直しを B にする | `P2-NOTIFICATION-DELIVERY-001`、`P2-CHECKPOINT-SHUTDOWN-001`（P2-A3-AC01）、`P2-EEW-UNIT-001`（Q-NOTICE.capacity）、全 unit の復元 intent の再試行 | H48、H33 | 未定（保持方式が決まってから） |
+| 期限切れの形の統一と二段の期限 | `P3-UNIT-L-001`（P3-C10-ACTIVE-EXPIRY）、`P3-UNIT-Y-001`（P3-C14-EXPIRY）、`P3-UNIT-N-001`（P3-C8-CURRENT-EXPIRY）、`P3-UNIT-M-001`（P3-C13-TORNADO-EXPIRY）、`P3-UNIT-V-001`（噴火の期限） | H23 | 未定（旧期限の扱いが決まってから） |
+| 消えた理由と欠けの件数のお知らせ | `P2-SNAPSHOT-SSE-001`（P2-A8-NOTICE、Q-NOTICE-UX） | H17、H39、H11（画面のお知らせも作るとき） | A8 の表示 wire に永続 schema の移行は無い。再起動後もまとめを残すかは未定 |
+| 地震の取消の印と保持件数 | `P3-UNIT-Q-001`（P3-C7-CANCEL-SCOPE、P3-C7-CAPACITY） | H18、H36 | 取消表示の recent.cancelled は既存。取消による件数の補正は別で、旧 count は取消を引かず recent は 5 件なので、旧集計を完全には直せない |
+| 南海トラフの情報系列の保存 | `P3-UNIT-N-001`（P3-C8-SUBJECTS、288 KiB の予算） | H30 | 有り |
+| 接続の間隔、繋がらない理由、切断の時刻 | `P3-DMDATA-CONNECT-001`（P3-C2-RETRY、P3-C2-RECOVERY） | H24、H26、H29 | 無し |
+| 取り直しの全分野化 | 各 unit の N2（P3-C7-N2、P3-C8-N2、P3-C9-N2、P3-C10-N2〜P3-C14-N2）、各 unit の recovery の通知（`P3-TSUNAMI-UNIT-001` ほか）。C16 と一緒に | H26、H27 | 未定（保存境界が決まってから） |
+| snapshot で EEW・地震・津波を要約に落とさない | `P2-SNAPSHOT-SSE-001`（`P2-A8-RES-06` の分野の優先）、`P3-DISASTER-CAPACITY-001`（この線で測り直す） | H37 | 無し |
+| 容量を先に取る | 新しい契約。`P3-CURRENCY-COVERAGE-001`（最後の網として残す）、`P3-EEW-GATE-EVICT-001`、`P3-TSUNAMI-UNIT-001`・`P3-UNIT-Q-001` の容量の分岐 | H35 | 未定（採用容量が決まってから） |
+| 手元の時計に頼らない | `P3-LIFETIME-AND-EEW-GATE-001`（P3-LIFE-D-SKEW、AC13）、`P3-UNIT-B-001`・`P3-UNIT-M-001`・`P3-UNIT-Y-001` の時計の扱い、時計を供給する runtime と host、`P2-NOTIFICATION-DELIVERY-001` の通知の期限 | H42 | 補正した時計を渡すだけなら型の変更は不要。旧式で作った期限の扱いは別途 |
+| 読めなかった電文の表示 | `P3-UNIT-TABLE-001`（P3-C0-RUNTIME-DISTINCTION）、`P3-UNIT-M-001`（P3-C13-RAW、作者裁定を覆す） | H43 | 受信時の表示だけなら永続化は不要。履歴の保存まで求めるなら別 |
+| 一覧との突き合わせによる鮮度の疑い | `P2-WEATHER-CURRENT-UNIT-001`（P2-A5-SEM-01）。C16 と一緒に | H41 | 未定（保存境界が決まってから） |
+| 形の違う気象電文の読み方 | `P2-WEATHER-TIMESERIES-UNIT-001`、`P3-UNIT-Y-001` | H44 | 無し |
+
+### 未起草の契約に足すもの
+
+| 契約 | §16 |
+|---|---|
+| C16 `P3-RECOVERY-001` | H04、H22、H26、H27、H28、H31、H32、H41 |
+| C18 `P3-CLI-REPL-001` | H11（`notify` の既定）、H46、H50（設定） |
+| C19 `P3-TERMINAL-OUTPUT-001` | H08（端末の枠）、H18（今日の件数）、H24、H25、H29 |
+| C20 `P3-WEATHER-NOTICE-001` | H11、H19 |
+| ③ U-W の正本の持ち方 | H38 |
+| 区域の対応表の資材（新しい契約） | H50 |
+| P4 の契約群 | H01、H02、H03、H05、H07、H10、H15、H17、H21、H34、H40、H45、H47、H49、H50、ほかの決まりの見せ方 |
