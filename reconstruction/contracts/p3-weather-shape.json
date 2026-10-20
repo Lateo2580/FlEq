@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "a5bac77f81ac8aa9b0e8cebf5a42860edbab77d3d784fd3a9a5ea24e8f1566ed",
+    "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
+    "sha256": "52aa2d38c7f08f9503befe8a452006ebc9885adfbc573d5e0e418b5cf7ed2b15",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -9,12 +9,12 @@
     "decisionBranches": [
       {
         "id": "P3-WS-D-ADDITION",
-        "A": "読み飛ばす: VPWP50の各PartのBaseとBase/Localの直下で、次の要素はperiodにせず読み飛ばし、報は受理する。(a) 局所名がAdditionの要素（気象庁の付加事項。実例は子のNoteに「うねり」「竜巻」「突風」「ひょう」「塩害」）は、refIDの有無によらず黙って読み飛ばす (b) 局所名が値の名前（定数の集合1つ: Significancy・PeakTime・CriteriaPeriodと、PARTSの9つのPartから末尾のPartを除いた名前）でなく、refID属性を持たない要素は読み飛ばし、報ごとに1件のINFO診断weatherTimeseriesElementSkipped（countは(b)で読み飛ばした要素の数）を返す。値の名前でrefIDを持たない要素は今どおりrequiredStructureMissing（警報級の値を黙って落とさない）。値の名前でない要素でもrefIDを持てば今どおりperiod（refIDが解決できなければrequiredStructureInvalid）。保存の形は変えない",
-        "B": "保持する: Aと同じ要素を、periodとは別の表（snapshotのadditions。行は[series, area, kind, Property.Type, Part/配置, Local, 要素名, 属性, 子の値（WeatherTimeseriesCompoundFieldの値の形）]）に持つ。lastKnownにも持たせ、詳細の口の時系列の応答（P3-UF-PUBLIC-001）にも載せる。付加だけが変わった続報はsemanticの変化に数える。schemaVersionはp2-weather-timeseries-unit-v1のまま上げない（checkpointは版が違う保存物をunknownSchemaで捨てる）。表の無い旧いpayloadは空の表として読む",
+        "A": "読み飛ばす: VPWP50の各PartのBaseとBase/Localの直下で、次のものはperiodにせず読み飛ばし、報は受理する。保存の形は変えない（読めない所の印の保存はK14〔段3、仮〕）。(a) 局所名がAdditionの要素（気象庁の付加事項。実例は子のNoteに「うねり」「竜巻」「突風」「ひょう」「塩害」）は、refIDの有無によらず読み飛ばし、診断は出さない（W1で約6割の報に付くので、毎報の診断は読み手を埋める） (b) 局所名が値の名前（定数の集合1つ: Significancy・PeakTime・CriteriaPeriodと、PARTSの9つのPartから末尾のPartを除いた名前）でない要素のうちperiodとして欠けなく読めないもの（refIDが無い・2個以上・解決できない、type属性が2個以上、子を持つ、同じ鍵のperiodが既にある）と、BaseとLocalの直下の空白でない地の文は、読み飛ばして報ごとに1件のINFO診断weatherTimeseriesElementSkippedに数える（P3-WS-AC02）。値の名前でない要素でも欠けなく読めれば今どおりperiod。値の名前の要素のrefIDの欠け・解決できないなどは今どおり拒否し、K14で読めなかった電文のカード（H43）にする（警報級の値を時刻に結べないまま黙って落とさない、Q-WS-REJECTIONS）。読み飛ばしたものの原文の欠片はK14が持つ。本契約では作らない",
+        "B": "保持する: Aの(a)の要素を、periodとは別の表（snapshotのadditions。行は[series, area, kind, Property.Type, Part/配置, Local, 要素名, 属性, 子の値（WeatherTimeseriesCompoundFieldの値の形）]）に持つ。lastKnownにも持たせ、詳細の口の時系列の応答（P3-UF-PUBLIC-001）にも載せる。付加だけが変わった続報はsemanticの変化に数える。U-Fの保存の形が変わるのでschemaVersionをp2-weather-timeseries-unit-v2に上げ、旧い保存物は読まない（P5より前の初期化の作者裁定、Q-WS-SCHEMA）",
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定待ち（起草案）",
-        "reason": "推奨Aで進めてよいか。他の選択肢はB（付加を保持して詳細で返す）。見え方の違い: 今はどちらも画面に出ない（新築の画面chrome-eewはU-Fを描かない）。差が出るのはP4で、Bなら「雷 注意報級（竜巻）」「波 注意報級（うねり）」のように付加の語を出せ、Aでは出せない。危険度のCode（注意報級など）はどちらでも全部残る。Aで落とすもの: 付加の要素だけ（W1の3日で3,142・9,629・4,425個。Baseの直下が3,004・9,535・4,212、Base/Localの直下が138・94・213）。旧築も付加を読まない（src/dmdata/weather-warning-timeseries-parser.ts）。Bの代償: snapshotの型・codecの検査・続報の変化の判定・詳細の応答の4か所を変え、詳細の1ページの予算（64 KiB、P3-UF-PUBLIC-001）に付加の行が入る。後からBへ変えても、VPWP50は数時間ごとに全体を出し直すので、失うのは切替の前に受けた報の付加だけ"
+        "reason": "推奨Aで進めてよいか。他の選択肢はB（付加を読んで保持し、詳細で返す）。H51（spec §16.4、2026-10-20）ではどちらも許される（Aは付加を「読めなかった欄」として原文で残し、Bは読んで使う）。見え方の違い（新築の画面chrome-eewはU-Fを描かないので、差が出るのはP4）: Aでは、雷や波の欄に「注意報級」と出て、付加の語（竜巻・うねりなど）は中身としては出ない（K14の後は原文の欠片として畳まれ、開けば読める）。Bでは「雷 注意報級（竜巻）」「波 注意報級（うねり）」のように付加の語を中身と並べて出せる。危険度（注意報級など）はどちらでも全部残る。Aで読まないもの: 付加の要素だけ（W1の3日で3,142・9,629・4,425個。Baseの直下が3,004・9,535・4,212、Base/Localの直下が138・94・213）。旧築も付加を読まない（src/dmdata/weather-warning-timeseries-parser.ts）。Aでも付加の語は永久には失われない: K14が入れば報の原文の欠片に残る。K14より前に受けた報の分は残らないが、VPWP50は数時間ごとに全体を出し直すので次の報で戻り、新築はまだ画面に出ていないので利用者からは見えない。Bの代償: snapshotの型・codecの検査・続報の変化の判定・詳細の応答の4か所を変え、詳細の1ページの予算（64 KiB、P3-UF-PUBLIC-001）に付加の行が入る。後からBへ変えるときも、P5より前なら保存の形の変更は初期化で済む。K14への申し送り（見え方の論点）: 付加事項は約6割の報に付くので、K14で付加事項にも「読めない所あり」の印を立てると印がほぼ常に出て、合図として効かなくなる。付加事項は「知らない欄」ではなく「知っていて読まない欄」で、原文はK14に残る。印を立てないか、別の形にするかはK14で決める"
       },
       {
         "id": "P3-WS-D-UNKNOWN-SEVERITY",
@@ -23,17 +23,17 @@
         "C": "今のまま: 最高区分は既知のCodeだけで決め、未知を見せる形はP4へ送る（P2-A8-SUMMARY.severityの「未知を最低warningに繰り上げない」）。H44の「警報なしに読み替えない」と合わない",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定待ち（起草案）",
-        "reason": "推奨Aで進めてよいか。他の選択肢はB（未知を警報と見なす）とC（今のまま）。見え方の違い（今は新築の画面がU-Fの要約を描かないので、効くのはP4の画面とSSEの受け手）: 既知が「注意報級未満」だけで未知が1つある運用区分は、Cは「基準未満」、Aは「区分不明」、Bは「警報」。既知に「警報級」があれば3案とも「警報」。Aは分からないものを分からないと出し、既知の重い区分は隠さない。Bは未知が出るたびに警報に見え、新しいCodeが軽い区分だったときに重く見せる。Bの側の先例: 土砂の通知の段（P3-C10-NOTICE-LEVELS=B『表に無いcodeはレベル3と同じ順位に置く』）と津波のunknown。Aが効くのは、P4が「区分不明」（highestSeverityがnullでunknownCodeが1以上）を「なし」「activeなし」と分けて描くときだけ（outOfScopeのP4の行）。手元のW1の3日の未知のCodeは0（Codeは00・01・11・20・21・30・31・41・51の9種）なので、どの案も今の実配信の見え方を変えない。00（値なし）をnone（なし）に数えるのは既知の意味なので本分岐に入れない（Q-WS-NONE-READS (2)）"
+        "ruling": "作者の確認待ち（起草案）。H51（spec §16.4、2026-10-20 作者裁定）の『意味の分からないものを、推測で既知の値に読み替えない』と『その欄が効く範囲の「区分不明」などの印』で、Aに絞れると読んだ（Bは未知を警報と推測し、Cは未知を基準未満・なしの側に隠す）。統合担当が作者に確かめて裁定の形に直す",
+        "reason": "推奨Aで進めてよいか。他の選択肢はB（未知を警報と見なす）とC（今のまま）。見え方の違い（今は新築の画面がU-Fの要約を描かないので、効くのはP4の画面とSSEの受け手）: 既知が「注意報級未満」だけで未知が1つある運用区分は、Cは「基準未満」、Aは「区分不明」、Bは「警報」。既知に「警報級」があれば3案とも「警報」。Aは分からないものを分からないと出し、既知の重い区分は隠さない。Bは未知が出るたびに警報に見え、新しいCodeが軽い区分だったときに重く見せる。Bの側の先例: 土砂の通知の段（P3-C10-NOTICE-LEVELS=B『表に無いcodeはレベル3と同じ順位に置く』）と津波のunknown。Aが効くのは、P4が「区分不明」（highestSeverityがnullでunknownCodeが1以上）を「なし」「activeなし」と分けて描くときだけ（outOfScopeのP4の行）。手元のW1の3日の未知のCodeは0（Codeは00・01・11・20・21・30・31・41・51の9種）なので、どの案も今の実配信の見え方を変えない。00（値なし）をnone（なし）に数えるのは既知の意味なので本分岐に入れない（Q-WS-NONE-READS (2)）。外の階層の知らない要素が効く範囲の既知のCodeは既知のまま残す（Q-WS-LEVELS）ので、本分岐の規則は未知・空・欠落のCodeだけに効き、既知の重い区分は範囲の印に隠れない。範囲の「区分不明」の印はK14で保存しP4が出す"
       },
       {
         "id": "P3-WS-D-TYPHOON",
-        "A": "U-Yで報を丸ごと拒否している次の5つを、その部分だけを落としてtruncated=trueで受理する: (1) 解析の時刻は、まず全部の時刻でDateTimeのtypeだけを読み（今の実況の数えと同じ）、実況の数を決め、typeが表の外の時刻を落とす（typeの欠けか空の時刻は落とさない）。残す時刻（(2)の後）にだけ、hoursの照合（種類と合わなければその時刻を落とす）と今どおりの拒否の条件（DateTimeの欠け・2個以上、typeの欠けか空、Itemの欠け・2個以上、時刻の形の外 → Missing・Invalid）を当てる (2) typeで落とした後の時刻が25個以上 → 実況の時刻（文書のどこにあっても）と、実況でない時刻を文書の順に先から23個、合わせて24個を残し、文書の順で並べる。残さない時刻は(1)のtype のほかを読まず、拒否の条件も当てない (3) 風の域の軸が3本以上 → その域のaxesを[]にし、thresholdMsだけを残す（一部の軸だけを残すと、残らない方向で域を小さく描きうる） (4) 確率の報で、typeが台風呼称でも「台風の暴風域に入る確率（N日積算）」の形でもない節と、その形でNが1〜5の外の節 → その節を落とす。同じNの節が2個以上は今どおりInvalid (5) 確率の時間帯（TimeDefine）が65個以上 → 各地域の値の数を元のTimeDefineの数と比べ（違えば今どおりInvalid）、先の64個の時間帯と値だけで読み、peakとpeakSlotもその範囲で決める。65個目より後の時間帯はtimeId・Duration・時刻を確かめない。実況の時刻がちょうど1個（無ければMissing・2個以上はInvalid）、1〜5日積算の節が各1個、先の64個の時間帯がPT3Hで隙間なく続くこと、値と座標の形は今どおり拒否の条件のまま",
-        "B": "今のまま（採取130通で拒否0。P3-UNIT-Y-001の残存リスク(19)(20)は作者承認済みのまま）",
+        "A": "U-Yで報を丸ごと拒否している次の所を、その部分だけを落とすか読めない欄をnullにして、truncated=trueで受理する（H51）: (1) 解析の時刻は、まず全部の時刻でDateTimeのtypeだけを読み（今の実況の数えと同じ）、実況の数を決め、typeが表の外の時刻を落とす（typeの欠けか空の時刻は落とさない） (2) (1)の後の時刻が25個以上 → 実況の時刻（文書のどこにあっても）と、実況でない時刻を文書の順に先から23個、合わせて24個を残し、文書の順で並べる。残さない時刻は(1)のtypeのほかを読まない (3) 残す時刻のうち実況でない時刻で、時刻として読めないもの（DateTimeの欠け・2個以上・形の外、typeの欠けか空、hoursが種類と合わない、Itemの欠け・2個以上）→ その時刻を落とす。実況の時刻が時刻として読めなければ今どおりMissing・Invalid (4) 残した時刻（実況を含む）と台風呼称の節の中の欄が読めない（数・座標・文字の形の外、Numberの形の外、同じTypeのProperty・中心度のCoordinateかBasePointが2個以上）→ その欄（2個以上なら、その組の全部）をnullにする。今は後のPropertyで上書きするので、2個以上をnullにするのは推測を止める直し。同じtypeのWarningAreaPartが2個以上は今どおりInvalid（域をnullにすると暴風域なしと見分けられない） (5) 風の域の軸が3本以上 → その域のaxesを[]にし、thresholdMsだけを残す（一部の軸だけを残すと、残らない方向で域を小さく描きうる） (6) 確率の報で、typeが台風呼称でも「台風の暴風域に入る確率（N日積算）」の形でもない節と、その形でNが1〜5の外の節 → その節を落とす (7) 確率の時間帯を先から読み、timeIdが順番どおり・DurationがPT3H・DateTimeが基準時刻＋3時間×順番、のどれかを外れた最初の時間帯（DateTime・Durationの欠けを含む）か65個目で止め、そこから後の時間帯と値を読まない（時刻の意味が分からない時間帯の値は推測しない）。各地域の値の数は元のTimeDefineの数と比べ（違えば今どおりInvalid）、refIDの照合とpeak・peakSlotは読んだ時間帯の範囲で行う。最初の時間帯で止まる報は今どおり拒否（slotCountの0は保存の形に無い、typhoon-unit.tsのcodec）。確率の値が形の外（unitが%でない、0〜100の整数でない）の地域と、同じ節か時系列に同じ地域が2個以上の報は今どおりInvalid（地域を外すと0%と見分けられない。地域ごとに「不明」と出す形はK14で決める）。拒否のまま残す所はQ-WS-REJECTIONS",
+        "B": "今のまま（採取130通で拒否0。P3-UNIT-Y-001の残存リスク(19)(20)は作者承認済みのまま）。H51の『電文を黙って断らない』に反するので、記録として残すだけ",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定待ち（起草案）",
-        "reason": "推奨Aで進めてよいか。他の選択肢はB（変えない）。見え方の違い: 気象庁が時刻の種類や時間帯を足したとき、Bではその台風の解析か確率が全部見えなくなり（fail-dark）、Aは足された所だけを落として残りを出し、切り捨ての印（truncated、H34でP4が出す）を付ける。採取の解析106通・確率24通（x-2025-08-10・09-05・2026-06-03・06-26・09-21と20260916-VPTA50の計130通）は、時刻の種類18個・時刻は最大12・時間帯は最大40・確率の節は6種で全部表の内側なので、今の実配信の見え方は変わらない。(1)(2)で残さない時刻はtypeのほかを読まず拒否の条件も当てない（捨てる部分の崩れで報を丸ごと断るのは、形が少し変わっても消えない読み方〔H44〕に反する）。(3)は軸の向きと半径を出さず閾値の風速だけを出す。(5)は落とした時間帯の確率をpeakに入れないので、peakが実際より低く出うる（truncatedで分かる）。Durationが PT3H でない時間帯は時刻の意味が変わるので、落とさず今どおり拒否する（残存リスク(4)）。保存の形は変えない（truncatedは今もある欄で、frames 24・axes 2・slotCount 64の上限の内）"
+        "ruling": "作者の確認待ち（起草案）。H51（spec §16.4、2026-10-20 作者裁定）でBが外れ、Aの形に絞れると読んだ（H51は本契約の残存リスク(4)〔Durationが PT3H でない時間帯の拒否〕を名指しで置き換える）。統合担当が作者に確かめて裁定の形に直す",
+        "reason": "推奨Aで進めてよいか。他の選択肢はB（変えない）。見え方の違い: 気象庁が時刻の種類・時間帯・確率の節を足したり、1つの欄の形を変えたりしたとき、Bではその台風の進路か確率が全部見えなくなる（fail-dark）。Aは足された所・読めない欄だけを抜いて残りを出し、「一部を省いた」の印（truncated、H34でP4が出す）を付ける。採取の解析106通・確率24通（x-2025-08-10・09-05・2026-06-03・06-26・09-21と20260916-VPTA50の計130通）は、時刻の種類18個・時刻は最大12・時間帯は最大40・確率の節は6種で全部表の内側なので、今の実配信の見え方は変わらない。(1)(2)で残さない時刻はtypeのほかを読まない（捨てる部分の崩れで報を丸ごと断るのは、形が少し変わっても消えない読み方〔H44〕に反する）。(4)は読めない欄（気圧・中心など）が空欄で出る（印で分かる）。(5)は軸の向きと半径を出さず閾値の風速だけを出す。(7)は止めた所から後の時間帯の確率をpeakに入れないので、peakが実際より低く出うる（印で分かる）。保存の形は変えない（truncatedは今もある欄で、nullを持てる欄・axesの[]・frames 24・axes 2・slotCount 64の上限の内）"
       }
     ],
     "questionResolutions": [
@@ -48,32 +48,40 @@
       {
         "id": "Q-WS-LEVELS",
         "status": "closed",
-        "source": "統合担当の起草（weather-timeseries.tsの全検査の読み合わせ）",
-        "closed": "値の階層（Base・Base/Local）より外の階層で、表に無い要素は今どおり報ごと拒否する: MeteorologicalInfos直下（weather-timeseries.ts:118）、TimeSeriesInfo直下（:159）、TimeDefine直下（:172）、Item直下（:188、identityの:93）、Area直下（:103、identityInvalid）、Kind直下（:197）、Property直下（:209、PARTSの9種のほかのPart）、Part直下（:238、Base以外）、Significancy直下（:228、Name・Code以外）。残存リスク(1)として作者に見せる",
+        "source": "統合担当の起草（weather-timeseries.tsの全検査の読み合わせ）、H51（spec §16.4、2026-10-20 作者裁定）で改訂",
+        "closed": "H51の『意味を変えうる欄が読めない』として扱い、報は受理する。値の階層より外の階層に、表に無い子要素か空白でない地の文があれば、それを読まずに残りを今どおり読む。範囲の中の既知のCodeは既知のまま残す（unknownに書き換えない。H51の表の2行目は読めた中身と範囲の印を両方出す形で、書き換えると既知の警報級が別の範囲の注意報級の陰に隠れうる）。範囲の「区分不明」の印はU-Fに欄が無いので、H44では保存の形を変えず、報ごとに1件のWARN診断weatherTimeseriesScopeUnclear（countは範囲の中のperiodの数）だけを出す。印の保存はK14（段3、仮）、表示はP4。階層と範囲: Bodyの直下の地の文（weather-timeseries.ts:110〜:111）→報の全部、MeteorologicalInfosの直下（:117〜:118の地の文とTimeSeriesInfoのほかの子）→その容器、TimeSeriesInfoの直下（:159）→その系列、TimeDefinesの直下（:164〜:165の地の文とTimeDefineのほかの子）→その系列、TimeDefineの直下（:172）→そのtimeIdをrefIDで引くperiod、Itemの直下（:188。:93の識別の検査の絞り込みからも外し、全部のItemのAreaを検査する）→そのItem、Areaの直下（:102〜:103の地の文とName・Codeのほかの子）→そのItem、Kindの直下（:197）→そのKind、Propertyの直下（:208〜:209、PARTSの9種のほかのPartを含む）→そのProperty、Partの直下（:238、Base以外）→そのPart、Significancyの直下（:228のName・Codeのほかの子）→そのperiod。値の階層（Base・Base/Localの直下）はP3-WS-D-ADDITIONの(a)(b)。知らないものだけの範囲（その階層に読み飛ばした知らない子か地の文があって、必須の子が欠けるItem〔:194〜:195のKind〕・Kind〔:205〜:206のProperty〕・Property〔:212〜:213のPart〕・Part〔:241〜:242のBase〕）は報を拒否せず、periodを0のままWARN診断に数える（その範囲のcountは0。診断は出る）。気象庁が新しいTypeとPartを足した日に、官署の報の全体を失わないため。拒否は報全体のperiodが0件のときだけ（:270。条件を『読み飛ばしたものがある報』にも広げる）で、知らないものだけの報を『なし』に読み替えない。知らないものも無い欠け（子の全く無いItem・Kind・Property・Part）は今どおりMissing。地の文や知らない子を読み飛ばした結果、今のInvalidの報がMissingに変わる所がある（:112・:168・:270、Base・Localの:216。Q-WS-EXISTING-TESTS）。Bodyの直下のMeteorologicalInfos以外の子要素は、今のコードが読まずに黙って捨てている（:89）。本契約では変えず、W1の3日で出現数を測ってK14で印を決める",
         "remaining": "なし",
-        "reason": "実配信の3日でこれらに当たった報は無い（Q-WS-CAUSE）。外の階層の要素は兄弟の意味を束ねうる（Kindに新しい子が来れば同じKindの値の読み方が変わりうる）ので、読み飛ばすと違う意味の値を既知の値として出しうる。値の階層の要素は1つずつ自分のrefIDで時刻に結び付き、値の名前でなくrefIDも持たない要素は時刻の値ではない（付加事項の類）ので、読み飛ばしても他の値の意味は変わらない。値の名前でrefIDを持たない要素は壊れた値なので今どおり拒否する"
+        "reason": "外の階層の要素は兄弟の意味を束ねうる（Kindに新しい子が来れば同じKindの値の読み方が変わりうる）ので、その範囲の危険度は『区分不明』の印と並べて出す（H51の『推測で既知の値に読み替えない』）。既知のCodeを書き換えないので、ほかの範囲を含めて既知の値は今どおり出て、要約の最高区分も既知の値で決まる。見え方の違い: H44の間は画面に印が無く、知らない要素の有無は診断のfileにしか残らない。K14の後は、外の階層に要素が1つ足されると、その範囲（例: Kindなら同じKindの全部の時刻）に区分不明の印が付く。値の階層の要素は1つずつ自分のrefIDで時刻に結び付くので、値の名前でなくperiodとして読めない要素を読み飛ばしても他の値の意味は変わらない（D-ADDITION、診断はINFO）"
+      },
+      {
+        "id": "Q-WS-REJECTIONS",
+        "status": "closed",
+        "source": "統合担当の起草（H51の後、weather-timeseries.tsとtyphoon.tsの拒否の所の全件の読み合わせ、起草のHEAD 4f7485e8）",
+        "closed": "受け取りに変えるもの: U-F: :110〜:111・:117〜:118・:159・:164〜:165・:172・:188（:93）・:102〜:103・:197・:208〜:209・:228・:238の知らない子と地の文（Q-WS-LEVELS）、:245・:254のBase・Localの地の文と、:216〜:217・:221・:224・:229〜:230に当たる値の名前でない要素、Addition（P3-WS-D-ADDITION）。U-Y: :297の時刻25個以上、:139〜:140の実況でない時刻の読めなさ、:85・:91・:99・:109・:152・:170・:175の時刻の中と台風呼称の節の欄の読めなさ、:118の軸3本以上、:324の知らない節、:363・:368の外れた時間帯から後（P3-WS-D-TYPHOON (1)〜(7)）。拒否のまま残し、K14で読めなかった電文のカード（H43、知っているが読めない）にするもの: U-F: :86の共通の封筒、:87・:96〜:104のControl・EditorialOffice・ItemのArea・AreaのCodeの欠け・2個以上・数字でない（識別。Itemを落とすとその危険度を数える所が無く、警報を黙って落としうる）、:106〜:109のInfoType・headType・Bodyの2個以上、:112の容器の無い報、:116〜:117の容器のtypeの欠け・空・2個以上・別の値（別の種類の情報を推測で読まない）、:163〜:168のTimeDefinesの欠け・2個以上とTimeDefine・Itemの無い系列、:176〜:180のtimeIdの欠け・重複とDateTime・Durationの欠け・形の外（時刻と値の対応が崩れる）、:153の既知の任意の欄（Name・Status・Local/Code・AreaNameほか）の2個以上・子を持つ、:195・:206・:213のKind・Property・Partの無い所（知らないものも無いとき。知らないものだけの範囲はQ-WS-LEVELSで受理）、:201のKindのDateTimeの2個以上・type属性の2個以上、:212のPropertyのTypeの欠け・形の外（値の意味の名前が分からない）、:242〜:243のBaseの欠け（知らないものも無いとき）・2個以上、:254のAreaNameのcode属性の2個以上、値の名前の要素の:216〜:217のrefIDの欠け・2個以上・解決できない・:221のtype属性の2個以上・:224の同じ鍵の値・:227〜:228のSignificancyのName・Codeの2個以上か子を持つName・Code・:229〜:230の子を持つ値、:270の読めた値の無い報。U-Y: :230の封筒、:237のheadType、:244〜:245のEventID、:249〜:250のSerial・ReportDateTime・InfoTypeの長さ・inputId、:256〜:257のTitle（空のtitleは保存の形に無い、typhoon-unit.tsのboundedName）、:261〜:262のInfoType（発表か取消かが決まらない）、:283〜:284のTargetDateTime（時刻・時間帯・期限の起点）、:287〜:291のBody・MeteorologicalInfos、:296の時刻の無い解析、:194の同じtypeの風の域が2個以上（域をnullにすると暴風域なしと見分けられない）、:311〜:312と:139〜:140の実況の時刻の欠け・2個以上・読めなさ（解析の芯）、:216〜:217の地域の識別（節の間の地域の照合と府県のまとめが組めない）、:223の確率の値の形の外と:354・:379の同じ節か時系列に重なる地域（地域を外すと0%と見分けられない。地域ごとに「不明」と出す形はK14で決める）、:324の同じNの節の2個以上、:352の日積算のFiftyKtWindProbabilityが0個か2個以上、:327の1〜5日積算の節の欠け（dailyは5つの数でnullを持てない）、:332のTimeSeriesInfoの欠け・2個以上、:362のTimeDefineが0個、:341の府県の名前の食い違い、最初の時間帯で止まる報（slotCountの0は保存の形に無い）、:380の値の数と時間帯の数の違い、:383の読んだ範囲のrefIDの不一致、:391・:393の地域の無い報・地域の集合の不一致、:419の5日積算が全部0の地域だけの報（maxFiveDayを決められない）",
+        "remaining": "K14の契約に、拒否のまま残すこの一覧を読めなかった電文のカード（H43）の入力として渡す（統合担当、段3）。U-Fの:153・:201の2個以上も、U-Fに印の欄が無いので拒否のままK14へ送る",
+        "reason": "拒否のまま残すのは、H51の『報の全体が読めない』に当たるもの（封筒・識別・種類・発表か取消か・基準時刻）と、既知の欄が欠けるか2つあって、残りを読むにはどれかを推測するか、値を時刻・地域に結べず、落とせば警報級の値や確率を黙って落としうるもの。今の型は時刻の無いperiod、地域の無いItem、空のtitle、slotCountの0、nullのdaily・nullの確率の値を持てず、持たせるなら保存の形を変える（K14で印の形と一緒に決める）。実配信のW1の3日と台風の採取130通でこれらに当たった報は無い（Q-WS-CAUSE、P3-WS-D-TYPHOON）。K14が入るまでは診断の1行だけで、H51に反する状態が残る（残存リスク(11)。新築はまだ画面に出ていない）"
       },
       {
         "id": "Q-WS-NONE-READS",
         "status": "closed",
         "source": "統合担当の起草（U-F・U-Yのparser・domain・unit・projectorで、未知のコードや欠けた値をnone・0・最下段に落とす所の全件の読み合わせ）",
-        "closed": "(1) U-Fの要約の最高区分: 既知のCodeだけで決める（view-projector.ts:271〜:272、unitのknownCodesはweather-timeseries-unit.ts:463〜:464で未知を外す、契約P2-A8-SUMMARY.severityのU-Fとempty）。既知が01・11だけで未知があると「基準未満」、00だけなら「なし」になり、未知が警報なしの側に隠れる → P3-WS-D-UNKNOWN-SEVERITY (2) 00（値なし）をnoneに数える（view-projector.ts:100、旧築も同じ）。値なしは既知のCodeで、要約の最高区分を「なし」にするのは運用区分のactiveなU-Fが00だけのときに限る。本契約では変えない（残存リスク(2)） (3) SubjectOutcome.facts.knownMaxCodeは既知のCodeの最大で未知を外す（weather-timeseries-unit.ts:74）。名前どおりの値で、画面と通知の読み手は無い。変えない (4) domainのSignificancyのCodeは、表の外ならkind unknownでrawのまま持ち（weather-timeseries.ts:70）、空はempty・欠落はmissingで、noneや0に落とさない。変えない (5) U-Y: 0・none・最下段への読み替えは無い。風速・半径・気圧の単位が違えばnull（0ではない）、確率の値の形の外は報ごと拒否（typhoon.ts:223）、要約の重大度はintensityとsizeの決まった文言だけで上げ、ほかの文言はnull（区分不明、view-projector.ts:444〜:445）。変えない (6) 範囲の外の発見: U-Wの要約の最高区分も表の外のCodeを外す（P2-A8-SUMMARY.severityのU-W）。H44の対象（U-F・U-Y）の外なので本契約では変えず、統合担当が計画の振る舞い表の行へ送る (7) NameがmissingかemptyでCodeが既知（例 31）のperiodは、unknownCodeのmissing・emptyに数えられ、既知の最大から外れる（weather-timeseries-unit.ts:462〜:463、Q-VALUES.emptyMissingRule）。P3-WS-D-UNKNOWN-SEVERITY=Aでは、ほかの既知の最大がbelow以下なら区分不明になるが、advisory以上ならその値のまま出て、Nameの欠けた31（warning）は最高区分に効かない（残存リスク(9)）",
+        "closed": "(1) U-Fの要約の最高区分: 既知のCodeだけで決める（view-projector.ts:271〜:272、unitのknownCodesはweather-timeseries-unit.ts:463〜:464で未知を外す、契約P2-A8-SUMMARY.severityのU-Fとempty）。既知が01・11だけで未知があると「基準未満」、00だけなら「なし」になり、未知が警報なしの側に隠れる → P3-WS-D-UNKNOWN-SEVERITY (2) 00（値なし）をnoneに数える（view-projector.ts:100、旧築も同じ）。値なしは既知のCodeで、要約の最高区分を「なし」にするのは運用区分のactiveなU-Fが00だけのときに限る。本契約では変えない（残存リスク(2)） (3) SubjectOutcome.facts.knownMaxCodeは既知のCodeの最大で未知を外す（weather-timeseries-unit.ts:74）。名前どおりの値で、画面と通知の読み手は無い。変えない (4) domainのSignificancyのCodeは、表の外ならkind unknownでrawのまま持ち（weather-timeseries.ts:70）、空はempty・欠落はmissingで、noneや0に落とさない。変えない (5) U-Y: 0・none・最下段への読み替えは無い。風速・半径・気圧の単位が違えばnull（0ではない）、確率の値の形の外は報ごと拒否（typhoon.ts:223、0に読み替えない。K14で読めなかった電文のカード）、時刻の中の欄の形の外はP3-WS-D-TYPHOON=Aでnull（同(4)）、要約の重大度はintensityとsizeの決まった文言だけで上げ、ほかの文言はnull（区分不明、view-projector.ts:444〜:445）。変えない (6) 範囲の外の発見: U-Wの要約の最高区分も表の外のCodeを外す（P2-A8-SUMMARY.severityのU-W）。H44の対象（U-F・U-Y）の外なので本契約では変えず、統合担当が計画の振る舞い表の行へ送る (7) NameがmissingかemptyでCodeが既知（例 31）のperiodは、unknownCodeのmissing・emptyに数えられ、既知の最大から外れる（weather-timeseries-unit.ts:462〜:463、Q-VALUES.emptyMissingRule）。P3-WS-D-UNKNOWN-SEVERITY=Aでは、ほかの既知の最大がbelow以下なら区分不明になるが、advisory以上ならその値のまま出て、Nameの欠けた31（warning）は最高区分に効かない（残存リスク(9)）",
         "remaining": "(6)の行き先（統合担当）",
         "reason": "H44の後半（意味の分からない危険度を警報なしに読み替えない）に当たる所は(1)だけで、見え方が変わるので作者の分岐にした"
       },
       {
         "id": "Q-WS-SCHEMA",
         "status": "closed",
-        "source": "統合担当の起草（PersistedWeatherTimeseriesUnit・PersistedTyphoonUnit・codec・checkpointの版の照合の読み合わせ）",
-        "closed": "推奨の3つ（D-ADDITION=A・D-UNKNOWN-SEVERITY=A・D-TYPHOON=A）では永続の型も版も変わらず、移行は要らない: U-Fは読み飛ばした要素を保存しない、要約は保存しない派生の値、U-Yはtruncatedもframes 24・axes 2・slotCount 64も今の型と上限の内。足すのはDiagnosticReasonの1語（weatherTimeseriesElementSkipped）で、診断のfileの行の理由の表（persistent-diagnostic-sink.ts:62）に足す。D-ADDITION=Bを選ぶときは、snapshotにadditionsを足し、schemaVersionは上げず（checkpoint.ts:450は版が違う保存物をunknownSchemaとして読まない）、additionsの無いpayloadを空の表として項目ごとに組み立てて読む（旧い保存物の読み戻しの試験を1つ足す）",
-        "remaining": "なし",
-        "reason": "計画の行（p3-order-plan.mdの『形の違う気象電文の読み方』、移行『無し』）の見込みと合う。Bは版を上げると更新の後の最初の起動で保存したU-Fを捨てるので、版を据え置いて読み戻しで受ける"
+        "source": "統合担当の起草（PersistedWeatherTimeseriesUnit・PersistedTyphoonUnit・codec・checkpointの版の照合の読み合わせ）、H51で改訂",
+        "closed": "推奨の3つ（D-ADDITION=A・D-UNKNOWN-SEVERITY=A・D-TYPHOON=A）では永続の型も版も変わらず、移行は要らない（U-Fはp2-weather-timeseries-unit-v1、U-Yはp3-typhoon-unit-v1のまま）: U-Fは読み飛ばした要素も、読めない所と範囲の区分不明の印も保存しない（印の保存はK14〔段3、仮〕、p3-order-plan.mdの末尾のH51の入れ方と同じ考え）。要約は保存しない派生の値。U-Yは今ある欄だけで足りる（truncated、nullを持てる欄、axesの[]、frames 24・axes 2・slotCount 64の上限の内）。足すのはDiagnosticReasonの2語（INFOのweatherTimeseriesElementSkippedとWARNのweatherTimeseriesScopeUnclear）で、診断のfileの行の理由の表（persistent-diagnostic-sink.ts:62）に足す。D-ADDITION=Bを選ぶときだけ、snapshotにadditionsを足してschemaVersionをv2に上げ、v1の保存物は読まない（P5より前は開発用の保存を移さずに初期化してよい作者裁定、p3-order-plan.md、2026-10-20）",
+        "remaining": "U-Fの読めない所の印の保存の形（K14、統合担当、段3）",
+        "reason": "計画の行（p3-order-plan.mdの『形の違う気象電文の読み方』、移行『無し』）の見込みと合う。新築はまだ画面に出ていないので、H44の間に印が保存されなくても利用者からは見えない。U-Fの印の欄をH44とK14で2度作り直さない"
       },
       {
         "id": "Q-WS-COST",
         "status": "closed",
         "source": "AGENTS.mdの受信経路の計算量",
-        "closed": "受信1回の処理に走査を足さない: U-Fの読み飛ばしは今の木の走査の中で要素ごとに1回の判定、U-Yの切り詰めは上限までの読み取りで、どちらも全件×全件の走査やJSON.stringifyによる計量を足さない。要約の規則はoperationの行に既にあるunknownCodeの件数と既知の最大だけを見る（subjectとperiodを走査し直さない、P3-UFP-AC04）。受理する報が増える分（W1の3日で547通）、U-Fのstateと保存のbyteと受信の処理は、P2-A6のQ-PERIODで測った平常の大きさ（58官署で15.6〜15.8 MB、上限32 MiB）に戻る",
+        "closed": "受信1回の処理に走査を足さない: U-Fの読み飛ばしは今の木の走査の中で要素ごとに1回の判定、外の階層の範囲のperiodの数は祖先から渡す1つの真偽と、系列ごとの範囲のtimeIdの集合を引くだけ（periodごとに定数）。U-Yの切り詰めは上限までの読み取りだけ。どれも全件×全件の走査やJSON.stringifyによる計量を足さない。要約の規則はoperationの行に既にあるunknownCodeの件数と既知の最大だけを見る（subjectとperiodを走査し直さない、P3-UFP-AC04）。受理する報が増える分（W1の3日で547通）、U-Fのstateと保存のbyteと受信の処理は、P2-A6のQ-PERIODで測った平常の大きさ（58官署で15.6〜15.8 MB、上限32 MiB）に戻る",
         "remaining": "測り直しはQ-WS-REMEASURE",
         "reason": "拒否が無くなるとU-Fの器が設計どおりに埋まるので、器の測り直しを受入に入れた"
       }
@@ -86,13 +94,14 @@
   "contract": {
     "contractId": "P3-WEATHER-SHAPE-001",
     "mode": "implementation",
-    "objective": "U-F（気象の時系列、VPWP50）が実配信の約6割を必須の構造の欠けとして断っているのを直し（spec §16 H44、構造的欠陥台帳89）、形が少し変わっても報を丸ごと失わない読み方にし、意味の分からない危険度を要約で警報なしの側に読み替えないようにする。原因は1か所で、各PartのBase（とBase/Local）の直下にあるrefIDを持たない付加事項<Addition><Note>…</Note></Addition>を時刻の値として読み、refIDの欠けで報ごと拒否している（weather-timeseries.ts:216）。W1の3日のVPWP50 851通のうち547通がこれで拒否され、ほかの検査で止まる報は無い（Q-WS-CAUSE）。U-Y（台風）は採取130通で拒否0だが、表の外の時刻の種類・上限を越える時刻や軸や時間帯・知らない確率の節で報を丸ごと拒否する所を、その部分だけを落として切り捨ての印を付ける読み方に替える（P3-WS-D-TYPHOON）。配送の後にW1を同じ道具で測り直す（Q-WS-REMEASURE、P3-DISASTER-CAPACITY-001のQ-DC-REMEASURE）。再開の並べ方（2026-10-20 作者裁定）の段1",
+    "objective": "U-F（気象の時系列、VPWP50）が実配信の約6割を必須の構造の欠けとして断っているのを直し（spec §16 H44、構造的欠陥台帳89）、形が少し変わっても報を丸ごと失わない読み方にし、意味の分からない危険度を要約で警報なしの側に読み替えないようにする。H51（spec §16.4、2026-10-20 作者裁定）に合わせ、読めた所は使い、読めない所は印を付けて受け取る: U-Fは保存の形を変えず、読めない所は診断（範囲の分かる件数）で残し、読めない所と範囲の区分不明の印の保存はK14（段3、仮）へ送る。報の全体が読めない所だけを拒否のまま残し、K14（段3、仮）で読めなかった電文のカード（H43）にする。原文の欠片はK14が持ち、本契約では作らない。原因は1か所で、各PartのBase（とBase/Local）の直下にあるrefIDを持たない付加事項<Addition><Note>…</Note></Addition>を時刻の値として読み、refIDの欠けで報ごと拒否している（weather-timeseries.ts:216）。W1の3日のVPWP50 851通のうち547通がこれで拒否され、ほかの検査で止まる報は無い（Q-WS-CAUSE）。U-Y（台風）は採取130通で拒否0だが、表の外の時刻の種類・上限を越える時刻や軸や時間帯・知らない確率の節・時刻の意味の外れた時間帯・時刻の中の読めない欄で報を丸ごと拒否する所を、その部分だけを落とすか欄をnullにして切り捨ての印を付ける読み方に替える（P3-WS-D-TYPHOON）。配送の後にW1を同じ道具で測り直す（Q-WS-REMEASURE、P3-DISASTER-CAPACITY-001のQ-DC-REMEASURE）。再開の並べ方（2026-10-20 作者裁定）の段1",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
       "docs/specs/reconstruction-p0-contracts.md",
       "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-persist-premises.md",
       "reconstruction/contracts/p3-weather-shape.json",
       "reconstruction/contracts/p2-weather-timeseries-unit.json",
       "reconstruction/contracts/p2-snapshot-sse.json",
@@ -178,16 +187,16 @@
     "workDeadline": null,
     "persistenceUnits": [],
     "persistedFields": [
-      "なし（U-FのPersistedWeatherTimeseriesUnit・schemaVersion p2-weather-timeseries-unit-v1、U-YのPersistedTyphoonUnit・p3-typhoon-unit-v1、両codecは変えない。P3-WS-D-ADDITION=Bを選んだときだけQ-WS-SCHEMAの形でU-Fのsnapshotに欄を足す）"
+      "なし（U-FのPersistedWeatherTimeseriesUnit・schemaVersion p2-weather-timeseries-unit-v1、U-YのPersistedTyphoonUnit・p3-typhoon-unit-v1、両codecは変えない。P3-WS-D-ADDITION=Bを選んだときだけQ-WS-SCHEMAの形でU-Fのsnapshotに欄を足して版を上げる）"
     ],
     "nonPersistedFields": [
       "要約のU-Fの行のhighestSeverity（保存しない派生の値）",
-      "INFO診断weatherTimeseriesElementSkipped（診断のfileには他の診断と同じく書く）"
+      "INFO診断weatherTimeseriesElementSkippedとWARN診断weatherTimeseriesScopeUnclear（診断のfileには他の診断と同じく書く）"
     ],
     "outOfScope": [
-      "値の階層より外の階層の未知の要素の扱い（Q-WS-LEVELS、今どおり拒否）",
+      "原文の欠片の保存、U-Fの読めない所の印と範囲の区分不明の印の保存、印の形を揃えること、読めなかった電文のカード（H43、Q-WS-REJECTIONSの拒否のまま残す所）、UnconfirmedReasonへの理由の追加（どれもK14、段3）",
       "00（値なし）の要約での読み方と、U-Wの要約の最高区分での未知のCodeの扱い（Q-WS-NONE-READS (2)(6)）",
-      "U-Yの確率のDurationが PT3H でない時間帯（今どおり拒否）",
+      "U-Fの読めない所の印の公開形式（WeatherTimeseriesPublicSubject）・SSE・詳細の応答への載せ方（K14・P4）",
       "VPWW53・54・VPFJ50・VXWW50・VPZJ50・VPCJ50などW1のrealInvalidのnotReduced（U-Fの外。経路と単位の問題）、U-Wの容量の拒否（③ U-Wの正本の持ち方）",
       "U-Fの画面（P4）、付加事項の表示（P3-WS-D-ADDITION=Bを選ぶときも描画はP4）。P4への要件: P3-WS-D-UNKNOWN-SEVERITY=Aは、P4が要約の行の「区分不明」（highestSeverityがnullでunknownCodeが1以上）を「なし」と分けて描くときだけ効く。highestSeverityのnullは「activeなU-Fが無い〔activeCount 0〕」と「区分不明」を兼ねるので、P4はactiveCountとunknownCodeで描き分ける",
       "測定のharness（reconstruction/test/disaster/・reconstruction/test/eew-e01/）の変更と凍結manifestの作り直し",
@@ -197,7 +206,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-WS-AC01",
-        "requirement": "付加事項で報を断らない（P3-WS-D-ADDITION=A、Q-WS-CAUSE）: VPWP50の各PartのBaseとBase/Localの直下で、分岐Aの(a)（局所名Addition、refIDの有無によらない）と(b)（局所名が値の名前の集合に無く、refID属性を持たない）の要素はperiodにせず読み飛ばす。判定はvisitの中で、addへ渡す前（internとsharedの表に何も足す前）に行い、読み飛ばした要素はrefIDの欠け〔:216〕・解決〔:217〕・子を持つ値〔:229〜:230〕の検査に当てない。値の名前の集合はPARTS（:8〜:9）と並べて置く定数のSet 1つ（Significancy・Precipitation・WindDirection・WindSpeed・SnowfallDepth・WaveHeight・TidalLevel・Visibility・Humidity・PeakTime・CriteriaPeriod）。値の名前でrefIDを持たない要素は今どおりrequiredStructureMissing、値の名前でない要素でもrefIDを持てば今どおりperiodで検査も今どおり。Base/Localの識別の子（Code・AreaName・Name）は今どおり値に数えない。受理した報のperiod・辞書・validUntil・effectiveは、同じ報からAdditionを除いた報と同じ（snapshotのJSONが一致する）。拒否の順（Q-ENUM.priorityRule）と、ほかの検査は変えない",
+        "requirement": "付加事項で報を断らない（P3-WS-D-ADDITION=A、Q-WS-CAUSE、H51）: VPWP50の各PartのBaseとBase/Localの直下で、分岐Aの(a)（局所名Addition、refIDの有無によらない）と(b)（局所名が値の名前の集合に無く、periodとして欠けなく読めない要素〔refIDが無い・2個以上・解決できない、type属性が2個以上、子を持つ、同じ鍵のperiodが既にある〕と、Base・Localの空白でない地の文）はperiodにせず読み飛ばす（保存の形は変えない）。判定はvisitの中で、addへ渡す前（internとsharedの表に何も足す前）に行い、読み飛ばした要素はrefIDの欠け〔:216〕・解決〔:217〕・子を持つ値〔:229〜:230〕の検査に当てない。値の名前の集合はPARTS（:8〜:9）と並べて置く定数のSet 1つ（Significancy・Precipitation・WindDirection・WindSpeed・SnowfallDepth・WaveHeight・TidalLevel・Visibility・Humidity・PeakTime・CriteriaPeriod）。値の名前でrefIDを持たない要素は今どおりrequiredStructureMissing、値の名前でない要素でも欠けなく読めれば今どおりperiod。Base/Localの識別の子（Code・AreaName・Name）は今どおり値に数えない。受理した報のperiod・辞書・validUntil・effectiveは、同じ報からAdditionを除いた報と同じ（snapshotのJSONが一致する）。拒否の順（Q-ENUM.priorityRule）と、ほかの検査は変えない。ただし地の文や知らない子を読み飛ばした結果、必須の子が欠けて報全体が拒否になる所では、理由がrequiredStructureInvalidからrequiredStructureMissingに変わる（Q-WS-LEVELS、Q-WS-EXISTING-TESTS）",
         "evidenceRefs": [
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:8 «cce388f2143fadc6»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:215 «1e2d2170f1ec73a3»",
@@ -215,7 +224,7 @@
       },
       {
         "id": "P3-WS-AC02",
-        "requirement": "知らない要素の読み飛ばしを黙らない（P3-WS-D-ADDITION=A）: inspectが報を受理し、AC01の(b)で読み飛ばした要素の数が1以上なら、そのreceiveのstepでINFO診断を1件だけ返す（component weather-timeseries、reason weatherTimeseriesElementSkipped、unit U-F、inputId、countは(b)の数）。門の決定（stale・duplicate・容量の拒否capacityExceeded・changed）によらず1件で、unitのreceiveの早い戻り（weather-timeseries-unit.tsのunchangedと容量の拒否）でも同じ1件を足す。inspectが拒否した報では出さない。DiagnosticReasonの閉集合とpersistent-diagnostic-sinkの理由の表に同じ語を足す。値の階層より外の未知の要素は今どおり拒否（Q-WS-LEVELS）。無いと: 気象庁が値の階層に新しい要素を足したとき、それを読まなかったことがどこにも残らない",
+        "requirement": "知らないものの読み飛ばしを黙らない（P3-WS-D-ADDITION=A、Q-WS-LEVELS）: inspectが報を受理したとき、(i) AC01の(b)で読み飛ばした要素と地の文の数が1以上ならINFO診断を1件（reason weatherTimeseriesElementSkipped、countはその数。Additionは数えない）、(ii) AC10で読み飛ばした外の階層の知らない子と地の文が1つ以上ならWARN診断を1件（reason weatherTimeseriesScopeUnclear、countは範囲の中のperiodの数）を、そのreceiveのstepで返す（どちらもcomponent weather-timeseries、unit U-F、inputId）。門の決定（stale・duplicate・容量の拒否capacityExceeded・changed）によらず同じで、unitのreceiveの早い戻り（weather-timeseries-unit.tsのunchangedと容量の拒否）でも同じものを足す。inspectが拒否した報では出さない。DiagnosticReasonの閉集合とpersistent-diagnostic-sinkの理由の表に2語を足す。無いと: 気象庁が新しい要素を足したとき、それを読まなかったことと、意味を変えうる外側か値の階層かの別が、どこにも残らない（H44の間はU-Fに印の欄が無い）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-shared-runtime.types.ts:303 «25d266b1e4621a1c»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:62 «0b3f82f2a4656d65»",
@@ -241,7 +250,7 @@
       },
       {
         "id": "P3-WS-AC04",
-        "requirement": "台風の報を形の少しの違いで丸ごと失わない（P3-WS-D-TYPHOON=A）: 分岐のAの(1)〜(5)を、その部分だけを落としてcandidateのtruncatedをtrueにして受理する。(1)(2)の順: (i) 全部の時刻でDateTimeのtypeだけを読み、実況の数〔:301〕を今どおり数え（実況が無ければMissing、2個以上ならInvalid）、typeが表の外の時刻を落とす（typeの欠けか空の時刻は落とさず(ii)へ回す） (ii) 残りが25個以上なら、実況の時刻を文書のどこにあっても残し、ほかは文書の順で先から、合わせて24個を文書の順で残す (iii) 残す時刻にだけparseFrameを当て、:138〜:140の1つのifを、今どおり拒否する条件（DateTimeの欠け・2個以上、typeの欠けか空、Itemの欠け・2個以上、時刻の形の外）と、時刻を落とす条件（hoursが種類と合わない）に分ける。落とした時刻・残さない時刻の名前・中心などを読まず、拒否の条件も当てない。(3)は軸が3本以上の域のaxesを[]（codecは0本を受ける）にする。(4)は落とした節の地域を地域の集合の照合〔:393〕に入れない。同じNの節の重複〔:324〕は今どおりInvalid。(5)は時系列の各地域の値の数を元のTimeDefineの数と照合〔:380〕してから先の64個の値で読み、refIDの照合〔:383〕も先の64個で行う。1〜5日積算の節が各1個、PT3Hで隙間なく続くこと、Itemの数、座標・数値・文字の形、地域の集合の一致の検査は今どおり。保存の上限（frames 24・axes 2・slotCount 64）と通知の規則は変えない",
+        "requirement": "台風の報を形の少しの違いで丸ごと失わない（P3-WS-D-TYPHOON=A、H51）: 分岐のAの(1)〜(7)を、その部分だけを落とすか欄をnullにしてcandidateのtruncatedをtrueにして受理する。(1)〜(3)の順: (i) 全部の時刻でDateTimeのtypeだけを読み、実況の数〔:301〕を今どおり数え（実況が無ければMissing、2個以上ならInvalid）、typeが表の外の時刻を落とす（typeの欠けか空の時刻は落とさず(ii)へ回す） (ii) 残りが25個以上なら、実況の時刻を文書のどこにあっても残し、ほかは文書の順で先から、合わせて24個を文書の順で残す (iii) 残す時刻にだけparseFrameを当て、:138〜:140の1つのifを、時刻として読めない条件（DateTimeの欠け・2個以上・形の外、typeの欠けか空、hoursが種類と合わない、Itemの欠け・2個以上）にまとめ、実況でない時刻ならその時刻を落とし、実況の時刻なら今どおりMissing・Invalid。落とした時刻・残さない時刻の名前・中心などを読まない。(4)は:144より後の欄の不備（optional・whole・pointの形の外、:109のNumber、:152の同じType、:170・:175の2個以上）をその時刻の中だけの記録で受け、欄をnullにしてtruncatedを立てる（:152は同じTypeのPropertyを全部無いものとする）。:194の同じtypeの域の2個以上は今どおりInvalid。台風呼称の節の名前（:330）も同じ。(5)は軸が3本以上の域のaxesを[]（codecは0本を受ける）にする。(6)は落とした節の地域を地域の集合の照合〔:393〕に入れない。同じNの節の重複〔:324〕は今どおりInvalid。(7)は:364〜:370の時間帯の検査を、外れた最初の時間帯で止めてslotCountをそこまでの数にする形に替え、時系列の各地域の値の数を元のTimeDefineの数と照合〔:380〕してから、読んだ時間帯の数の値だけでrefIDの照合〔:383〕とpeakを行う。slotCountが0なら拒否。確率の値の形の外〔:223〕と同じ節か時系列に重なる地域〔:354・:379〕は今どおりInvalid。1〜5日積算の節が各1個、Itemの数、地域の識別、地域の集合の一致の検査は今どおり。保存の上限（frames 24・axes 2・slotCount 64）と通知の規則は変えない",
         "evidenceRefs": [
           "reconstruction/src/domains/typhoon/typhoon.ts:117 «3ce2da4e6e6e7381»",
           "reconstruction/src/domains/typhoon/typhoon.ts:118 «2096885e7515b17e»",
@@ -265,12 +274,20 @@
           "reconstruction/contracts/p3-typhoon-unit.json:358 «b66f0930fd583506»",
           "reconstruction/contracts/p3-typhoon-unit.json:440 «45e0f81b8c433afc»",
           "reconstruction/contracts/p3-typhoon-unit.json:441 «3b3587577b6fe5e3»",
-          "reconstruction/contracts/p3-typhoon-unit.json:915 «b7d34b699b71c13a»"
+          "reconstruction/contracts/p3-typhoon-unit.json:915 «b7d34b699b71c13a»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:152 «5cf58eab3ec62706»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:194 «d0c1854a89ce40ea»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:223 «844490aedc0ee871»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:354 «d4062ebdcb0992d0»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:366 «307dfba15b292a9a»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:368 «4a5a514a9164bca6»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:405 «44f162cde8b85498»",
+          "docs/specs/reconstruction-p0-contracts.md:3209 «b0ec3704c104499b»"
         ]
       },
       {
         "id": "P3-WS-AC05",
-        "requirement": "今の形の報の結果を変えない（Q-WS-SCHEMA）: Additionも未知の要素も持たないU-Fのfixtureと、表の内側のU-Yのfixtureでは、decisions・outcomes・intents・state・codecのencodeのbyteが今と同じ。U-F・U-Yの永続の型・schemaVersion・codecを変えない（D-ADDITION=Bを選んだときはQ-WS-SCHEMAの形）。今ある試験がこれを確かめる: U-FはP3-UFP-T01（encodeのsha256・decisions・outcomes・intents・nextDeadline）とP3-UFP-T02（要約の行のdigest。AC03で行が変わる場合はQ-WS-EXISTING-TESTS）、U-YはP3-C14-T10（typhoon-corpus.test.tsの22の期待のstep）。基準値は変えずに緑のまま。期待値を変える既存の試験はQ-WS-EXISTING-TESTSで変える前に報告する",
+        "requirement": "今の形の報の結果を変えない（Q-WS-SCHEMA）: Additionも知らない要素も持たないU-Fのfixtureと、表の内側のU-Yのfixtureでは、decisions・outcomes・intents・state・codecのencodeのbyteが今と同じ。U-F・U-Yの永続の型・schemaVersion・codecを変えない（D-ADDITION=Bを選んだときはQ-WS-SCHEMAの形）。今ある試験がこれを確かめる: U-FはP3-UFP-T01（encodeのsha256・decisions・outcomes・intents・nextDeadline）とP3-UFP-T02（要約の行のdigest。AC03で行が変わる場合はQ-WS-EXISTING-TESTS）、U-YはP3-C14-T10（typhoon-corpus.test.tsの22の期待のstep）。基準値は変えずに緑のまま。期待値を変える既存の試験はQ-WS-EXISTING-TESTSで変える前に報告する",
         "evidenceRefs": [
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «5ec4d787f5d46a73»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:194 «1c53bf5794ad39ab»",
@@ -294,7 +311,7 @@
       },
       {
         "id": "P3-WS-AC07",
-        "requirement": "受信経路の計算量（Q-WS-COST、AGENTS.md）: 読み飛ばしと切り詰めは今の走査の中で要素ごとに定数の判定だけを足し、全件×全件の走査・state全体やsubject全体のJSON.stringifyを足さない。要約の規則はoperationの行ごとに定数の手間。U-Yの(1)(2)は、残さない時刻でDateTimeのtypeだけを読み（今の:301と同じ）、(5)は65個目より後の時間帯と値を数えるだけで読まない",
+        "requirement": "受信経路の計算量（Q-WS-COST、AGENTS.md）: 読み飛ばしと切り詰めは今の走査の中で要素ごとに定数の判定だけを足し、全件×全件の走査・state全体やsubject全体のJSON.stringifyを足さない。外の階層の範囲のperiodの数は祖先から渡す1つの真偽と、系列ごとの範囲のtimeIdの集合だけで数える（範囲のperiodを後から走査し直さない）。要約の規則はoperationの行ごとに定数の手間。U-Yの(1)(2)は、残さない時刻でDateTimeのtypeだけを読み（今の:301と同じ）、(7)は止めた時間帯から後と値を数えるだけで読まない",
         "evidenceRefs": [
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:247 «2ca242e71af35dbc»",
           "reconstruction/src/view-projector/view-projector.ts:642 «dcffa14b1cf83cb3»",
@@ -304,7 +321,7 @@
       },
       {
         "id": "P3-WS-AC08",
-        "requirement": "改める他の条文と統合担当の記録。原文は重ねて読み替えず、配送のcommitで統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）: (1) P2-WEATHER-TIMESERIES-UNIT-001: Q-ENUM.familyTable（TimeSeriesInfoが存在する行）のlegalMissingOrEmptyに『各PartのBase・Base/Local直下の (a) 局所名がAdditionの要素（付加事項。refIDの有無によらない）と、(b) 局所名が値の名前の集合（P3-WS-AC01のSet: Significancy・Precipitation・WindDirection・WindSpeed・SnowfallDepth・WaveHeight・TidalLevel・Visibility・Humidity・PeakTime・CriteriaPeriod）に無くrefIDも持たない要素は、値のleafでなく、読み飛ばして報を受理する（(b)は診断weatherTimeseriesElementSkipped）』を足し、missingの『値leafの必須refID欠落』を『値の名前の集合の要素のrefID欠落』に限る。periodRuleの『値は…BaseまたはBase/Local配下』に同じ除外を足す。Q-VALUESのcloseの『表示で最低warningへ上げるかはP4/A8へ残す』とP2-A6-AC02の同じ字句を、P3-WS-D-UNKNOWN-SEVERITYの裁定の規則に替える (2) P2-SNAPSHOT-SSE-001: P2-A8-SUMMARY.severityのU-Fとemptyの『未知を最低warningに繰り上げない』に、裁定の規則（Aなら区分不明への規則）を足す (3) P2-SHARED-RUNTIME-001: DiagnosticReasonの閉集合（型境界のACと試験）にweatherTimeseriesElementSkippedを足す (4) P3-UNIT-Y-001: Q-ENUM.familyTableの解析と確率のinvalidから、P3-WS-D-TYPHOONで部分の切り捨てに替えた5つを除いてtruncatedの規則として書き、P3-C14-PROB-VALIDATIONのAとP3-C14-RES（frames・axesの『reject beyond』）を合わせ、P3-C14-AC06の境界（時刻24/25・軸2/3）とP3-C14-T01（『DateTimeのtypeの表の外』『時刻25個』『軸3本』を拒否の例に挙げる）・P3-C14-T06（時刻24/25・軸2/3）の拒否の字句を受理＋truncatedに替え、残存リスク(19)(20)をDurationの変化だけの残りに書き直す (5) spec §16のH44の行と、p3-order-plan.mdの『形の違う気象電文の読み方』の行に本契約のIDを書き、移行の欄を確かめる（推奨の3つでは無し） (6) 構造的欠陥台帳89の局所修正の状態（repoの外、統合担当） (7) P2-WEATHER-TIMESERIES-UNIT-001のQ-VALUES.emptyMissingRuleの『最大危険度の計算へ加えない。表示はP4/A8で決める』を(1)と同じ規則に合わせる (8) P3-DISASTER-CAPACITY-001のQ-DC-REMEASURE.resolveByの配送の列に本契約を足す（影響する筋書きはW1・W2・N3）",
+        "requirement": "改める他の条文と統合担当の記録。原文は重ねて読み替えず、配送のcommitで統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）: (1) P2-WEATHER-TIMESERIES-UNIT-001: Q-ENUM.familyTable（TimeSeriesInfoが存在する行）のlegalMissingOrEmptyに『各PartのBase・Base/Local直下の (a) 局所名がAdditionの要素（付加事項。refIDの有無によらない）と、(b) 局所名が値の名前の集合（P3-WS-AC01のSet: Significancy・Precipitation・WindDirection・WindSpeed・SnowfallDepth・WaveHeight・TidalLevel・Visibility・Humidity・PeakTime・CriteriaPeriod）に無く、periodとして欠けなく読めない要素（refIDが無い・2個以上・解決できない、type属性が2個以上、子を持つ、同じ鍵のperiodが既にある）と、Base・Localの直下の空白でない地の文は、値のleafでなく、読み飛ばして報を受理する（(b)は診断weatherTimeseriesElementSkipped）』を足し、missingの『値leafの必須refID欠落』を『値の名前の集合の要素のrefID欠落』に限る。periodRuleの『値は…BaseまたはBase/Local配下』に同じ除外を足す。familyTableのinvalidから、Q-WS-LEVELSの外の階層の知らない子と地の文を除き、読み飛ばして受理し診断weatherTimeseriesScopeUnclearを出す規則として書く。P2-A6-AC04（p2-weather-timeseries-unit.json:428）の『O02:14の全periodと値集合を欠落なく保持する』に、(a)(b)とQ-WS-LEVELSで読み飛ばす要素はperiodにしない旨を足す。Q-VALUESのcloseの『表示で最低warningへ上げるかはP4/A8へ残す』とP2-A6-AC02の同じ字句を、P3-WS-D-UNKNOWN-SEVERITYの裁定の規則に替える (2) P2-SNAPSHOT-SSE-001: P2-A8-SUMMARY.severityのU-Fとemptyの『未知を最低warningに繰り上げない』に、裁定の規則（Aなら区分不明への規則）を足す (3) P2-SHARED-RUNTIME-001: DiagnosticReasonの閉集合（型境界のACと試験）にweatherTimeseriesElementSkippedとweatherTimeseriesScopeUnclearを足す (4) P3-UNIT-Y-001: Q-ENUM.familyTableの解析と確率のinvalidから、P3-WS-D-TYPHOONのAの(1)〜(7)で部分の切り捨てと欄のnullに替えた所を除いてtruncatedの規則として書き、P3-C14-PROB-VALIDATIONのAとP3-C14-RES（frames・axesの『reject beyond』）を合わせ、P3-C14-AC06の境界（時刻24/25・軸2/3）とP3-C14-T01（『DateTimeのtypeの表の外』『時刻25個』『軸3本』を拒否の例に挙げる）・P3-C14-T06（時刻24/25・軸2/3）の拒否の字句を受理＋truncatedに替え、P3-C14-T01・T06の『時間帯65個』『時系列の隙間』『3個目より後のPT6H』『時刻の中の欄の形の外』の拒否の字句も本契約のAの(4)(7)に合わせ（全部の時間帯がPT6H・値の範囲の外・同じtypeの域の2個以上は拒否のまま）、残存リスク(19)(20)を本契約の切り捨ての規則と、拒否のまま残す所（Q-WS-REJECTIONS）に書き直す (5) spec §16のH44の行と、p3-order-plan.mdの『形の違う気象電文の読み方』の行に本契約のIDを書き、移行の欄を確かめる（推奨の3つでは無し） (6) 構造的欠陥台帳89の局所修正の状態（repoの外、統合担当） (7) P2-WEATHER-TIMESERIES-UNIT-001のQ-VALUES.emptyMissingRuleの『最大危険度の計算へ加えない。表示はP4/A8で決める』を(1)と同じ規則に合わせる (8) P3-DISASTER-CAPACITY-001のQ-DC-REMEASURE.resolveByの配送の列に本契約を足す（影響する筋書きはW1・W2・N3） (9) spec §16.4のH51の『置き換えるもの』に本契約の改訂（Q-WS-LEVELS・残存リスク(1)(4)の置き換え）を書き、K14の契約の起草で、U-Fの読めない所と範囲の区分不明の印（本契約は診断だけ）、U-Yのtruncatedと、本契約で拒否のまま残した所（Q-WS-REJECTIONS）を、印の形と読めなかった電文のカード（H43）の入力に入れる（統合担当、段3）。p3-order-plan.md:514の『印と診断を付ける』を『診断を付け、U-Fの印の保存はK14』に直す（planの行は統合担当が直す）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-weather-timeseries-unit.json:52 «66f19257c7cd1c08»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:53 «1fb94a6ecf3ae72f»",
@@ -326,16 +343,42 @@
           "docs/specs/reconstruction-p0-contracts.md:3071 «25c515d57e48138d»",
           "reconstruction/contracts/p3-order-plan.md:457 «ef66bcf641cd0c28»",
           "reconstruction/contracts/p3-order-plan.md:477 «422794effad56631»",
-          "reconstruction/contracts/p3-disaster-capacity.json:709 «5884700ccb024038»"
+          "reconstruction/contracts/p3-disaster-capacity.json:709 «5884700ccb024038»",
+          "docs/specs/reconstruction-p0-contracts.md:3209 «b0ec3704c104499b»",
+          "reconstruction/contracts/p3-order-plan.md:514 «4cf71f2ae00f09a6»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «ae9fa153569777db»"
         ]
       },
       {
         "id": "P3-WS-AC09",
-        "requirement": "最小実装・最小テスト: (1) 足す仕組みは診断の理由1語と、読み飛ばしの判定・要約の規則・U-Yの切り詰めだけ。ほかの型・層・helper・設定を足さない。足した仕組みごとに無いと何が壊れるかを1行 (2) 試験はtestMappingのP3-WS-T01〜T04に限る。U-Fの試験はpublicのfixtureに付加や未知の要素を試験の中で差し込んで作り、新しいfixture fileを足さない（manifestの件数を変えない） (3) reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す",
+        "requirement": "最小実装・最小テスト: (1) 足す仕組みは診断の理由2語と、読み飛ばしの判定・外の階層の範囲のperiodの数え・要約の規則・U-Yの切り詰めだけ。ほかの型・層・helper・設定・保存の欄を足さない。足した仕組みごとに無いと何が壊れるかを1行 (2) 試験はtestMappingのP3-WS-T01〜T05に限る。U-Fの試験はpublicのfixtureに付加や未知の要素を試験の中で差し込んで作り、新しいfixture fileを足さない（manifestの件数を変えない） (3) reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す",
         "evidenceRefs": [
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:79 «77930c433792cec1»",
           "reconstruction/src/domains/typhoon/typhoon.ts:425 «f35fcf322d69470e»",
           "reconstruction/src/view-projector/view-projector.ts:940 «76d9e0e79209d6c9»"
+        ]
+      },
+      {
+        "id": "P3-WS-AC10",
+        "requirement": "外の階層の知らない要素で報を断らない（Q-WS-LEVELS、H51）: Q-WS-LEVELSの階層と範囲の表のとおり、表に無い子要素と空白でない地の文を読まずに残りを今どおり読み、範囲の中の既知のCodeも範囲の外のperiodも今と同じにする（unknownに書き換えない）。範囲のperiodの数をWARN診断weatherTimeseriesScopeUnclearのcountにする（AC02）。Item・Areaの知らない子は:93の絞り込みと:102〜:103の識別の検査から外し（AreaのCodeの欠け・2個以上・数字でないは今どおり識別の拒否）、:110〜:111・:117〜:118・:159・:164〜:165・:172・:188・:197・:208〜:209・:228・:238の`invalid = true`と`continue`をやめて中を読む。知らないものだけの範囲（その階層に読み飛ばしたものがあって:195・:206・:213・:242の必須の子が欠けるItem・Kind・Property・Part）はmissingを立てず、periodを0のままWARN診断に数える。拒否は報全体のperiodが0件のときだけ:270で行い、:270は読み飛ばしたものがある報にも当てる。保存の形は変えない（範囲の印の保存はK14）。無いと: 気象庁が外側に要素を1つ足すだけで、その官署の時系列が全部見えなくなる（H51で置き換える残存リスク(1)）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:93 «a5f705dc092a0f0a»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:103 «e70625b9b8058433»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:111 «6e071c7519bdaeb7»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:118 «276256dac1233e78»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:159 «6a5bcb0136cf84c5»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:165 «e8360871de28342f»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:172 «5c8c31b212f06ed4»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:188 «71e7e5f0b132fc5d»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:197 «db987193a9bf8387»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:209 «dffdd4da5c84dc71»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:228 «35833d4066aecc77»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:238 «2feeef688751267e»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:245 «a546ce10480fe546»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:254 «62e41eeb8d315d0d»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:270 «653f19b4c5126424»",
+          "docs/specs/reconstruction-p0-contracts.md:3199 «f54703b68869368a»",
+          "docs/specs/reconstruction-p0-contracts.md:3192 «5c28b4bfdc60fbd0»"
         ]
       }
     ],
@@ -354,7 +397,7 @@
         "referenceIds": [
           "P3-WS-AC02"
         ],
-        "behavior": "81_01_01のBaseの直下にrefIDを持たない<Remark>x</Remark>を2つ差し込んだ報が受理され、INFOのweatherTimeseriesElementSkipped（count 2、unit U-F、inputId）が1件だけ出る。同じ報を2回受けた2回目（duplicate）でも1件出る。Baseの直下のSignificancyの1つからrefIDを外した報は今どおりrequiredStructureMissingでstateが変わらない。<Remark>をKindの直下に差し込んだ報は今どおりrequiredStructureInvalidでstateが変わらない"
+        "behavior": "81_01_01のBaseの直下にrefIDを持たない<Remark>x</Remark>を2つ差し込んだ報が受理され、INFOのweatherTimeseriesElementSkipped（count 2、unit U-F、inputId）が1件だけ出る。同じ報を2回受けた2回目（duplicate）でも1件出る。Baseの直下のSignificancyの1つからrefIDを外した報は今どおりrequiredStructureMissingでstateが変わらない"
       },
       {
         "testId": "P3-WS-T03",
@@ -370,7 +413,16 @@
         "referenceIds": [
           "P3-WS-AC04"
         ],
-        "behavior": "U-Yの試験の作り手（typhoon-unit.testのanalysisXml・probabilityXml）で、表の外の時刻の種類1個を足した解析、時刻25個の解析（実況を最後に置いた形も）、軸3本の域を持つ解析、知らないtypeの節と6日積算の節を足した確率、時間帯65個の確率が、それぞれその部分を落としてtruncated=trueで受理される（時刻は実況を含む24個で文書の順、軸3本の域はaxes []でthresholdMsが残る、slotCountは64）。25個目より後の残さない時刻のItemが2個でも受理する。実況の無い解析、残す時刻のtypeが空、同じ日の節が2個の確率、PT6Hの確率は今どおり拒否"
+        "behavior": "U-Yの試験の作り手（typhoon-unit.testのanalysisXml・probabilityXml）で、表の外の時刻の種類1個を足した解析、時刻25個の解析（実況を最後に置いた形も）、軸3本の域を持つ解析、予報の時刻のItemが2個の解析、実況の時刻の座標が形の外の解析、知らないtypeの節と6日積算の節を足した確率、3個目の時間帯がPT6Hの確率、時間帯65個の確率が、それぞれその部分を落とすか欄をnullにしてtruncated=trueで受理される（時刻は実況を含む24個で文書の順、軸3本の域はaxes []でthresholdMsが残る、中心はnull、slotCountは2と64）。25個目より後の残さない時刻のItemが2個でも受理する。実況の無い解析、実況の時刻のItemが2個、同じ日の節が2個の確率、全部の時間帯がPT6Hの確率、値が101の地域を1つ含む確率（ほかの地域が1以上でも）、同じtypeの暴風域を2つ持つ解析は今どおり拒否"
+      },
+      {
+        "testId": "P3-WS-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-WS-AC10",
+          "P3-WS-AC02"
+        ],
+        "behavior": "81_01_01の1つのKindの直下に<Remark>x</Remark>を差し込んだ報が受理され、snapshotが差し込む前と同じJSONで（既知のCodeは既知のまま）、WARNのweatherTimeseriesScopeUnclearが1件（countはそのKindのperiodの数）出る。TimeDefineの直下に差し込んだ報では、countがそのtimeIdを引くperiodの数になる。1つのPropertyの子をTypeと<NewPart>だけにした報は受理され、そのPropertyのperiodは0で、ほかのPropertyのperiodは差し込む前と同じ、WARNが1件出る。全部のKindの子を<Remark>だけにした報は、今のrequiredStructureInvalidから、requiredStructureMissing（報全体のperiodが0件、:270）に変わり、stateが変わらない"
       }
     ],
     "requiredCommands": [
@@ -440,9 +492,9 @@
     ],
     "artifactRequirements": [
       "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由",
-      "足した仕組み（診断の理由1語、読み飛ばしの判定、要約の規則、U-Yの5つの切り詰め）ごとに『無いと何が壊れるか』を1行",
+      "足した仕組み（診断の理由2語、読み飛ばしの判定、外の階層の範囲のperiodの数え、要約の規則、U-Yの切り詰め(1)〜(7)）ごとに『無いと何が壊れるか』を1行",
       "追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行。期待値を変えた既存の試験の名前と理由（Q-WS-EXISTING-TESTS、変える前に報告）",
-      "残存リスク（作者の承認を求める、Q-WS-AUTHOR）: (1) 値の階層より外の階層の未知の要素は今どおり報ごと拒否する（Q-WS-LEVELSの9か所）。気象庁がそこへ要素を足すと、その官署の時系列が見えなくなる（拒否の診断は残り、前の版の表示が残る） (2) 00（値なし）は要約でnone（なし）に数える。運用区分のactiveなU-Fが00だけなら「なし」と出る (3) 既知のCodeの表は旧築の集合で、気象庁の別表とは照合していない（P2-WEATHER-TIMESERIES-UNIT-001のQ-VALUES.evidenceStage）。表の外の正当なCodeは未知として数える (4) U-Yの確率でDurationが PT3H でない時間帯は今どおり報ごと拒否する（時刻の意味が変わるので落とさない） (5) U-Yで65個目からの時間帯を落とすと、その時間帯の確率はpeakに入らず、peakが低く出うる（truncatedで分かる） (6) D-ADDITION=Aでは付加事項の語（うねり・竜巻・突風・ひょう・塩害）を保存せず、P4で出せない (7) 受理する報が増えるので（W1の3日で547通）、U-Fのstate・保存・受信の処理は平常の大きさに戻る（P2-A6のQ-PERIODの58官署で15.6〜15.8 MB、上限32 MiB）。Mac miniのW1で器を測り直す（AC06）が、Piの実時間とRSSは測らない（P3-DISASTER-CAPACITY-001の残存リスク(1)と同じ） (8) U-Wの要約の最高区分も表の外のCodeを外す（本契約の外、Q-WS-NONE-READS (6)） (9) NameがmissingかemptyでCodeが既知の危険度は既知の最大に入らない。ほかの既知の最大がadvisory以上なら、その危険度が警報級でも最高区分はadvisoryのまま（Q-WS-NONE-READS (7)） (10) D-TYPHOON=Aで軸が3本以上の域は軸の向きと半径を持たず、閾値の風速だけになる"
+      "残存リスク（作者の承認を求める、Q-WS-AUTHOR）: (1) 知らない要素の中身は読まない。H44の間はU-Fの記録にも画面にも印が残らず、診断（INFOとWARNの件数）だけになる。範囲の既知のCodeは既知のまま出るので、知らない要素が範囲の値（危険度・雨量・風速など）の意味を変えていても、K14で範囲の区分不明の印を保存しP4が出すまで分からない。K14の後は、外の階層に要素が1つ足されると範囲の全部に区分不明の印が付く。知らないものだけの範囲（新しいPartだけのPropertyなど）は値0件のまま受理するので、気象庁が警報級の値を新しい要素だけで出したとき、その値は要約に入らず、H44の間は診断にしか残らない（報全体が知らないものだけならperiod 0件で拒否）。原文はK14が入るまで残らない (2) 00（値なし）は要約でnone（なし）に数える。運用区分のactiveなU-Fが00だけなら「なし」と出る (3) 既知のCodeの表は旧築の集合で、気象庁の別表とは照合していない（P2-WEATHER-TIMESERIES-UNIT-001のQ-VALUES.evidenceStage）。表の外の正当なCodeは未知として数える (4) U-Yの確率で、時刻の意味が外れた時間帯（PT3Hでない・隙間・timeIdの順の外れ）から後と65個目からの時間帯は読まず、その確率はpeakに入らない。peakが実際より低く出うる（U-Yの既存のtruncatedで分かる）。最初の時間帯から外れた報は今どおり拒否 (5) U-Yで確率の値の読めない地域・同じ節か時系列に重なる地域を持つ報と、同じtypeの風の域が2つある解析は、今どおり報ごと拒否する（K14で読めなかった電文のカード。地域ごとに「不明」と出す形はK14で決める） (6) D-ADDITION=Aでは付加事項の語（うねり・竜巻・突風・ひょう・塩害）を中身として持たず、P4では原文を開いて読む形になる（原文の欠片はK14から）。付加事項に印を立てると約6割の報で印が出る（K14への申し送り） (7) 受理する報が増えるので（W1の3日で547通）、U-Fのstate・保存・受信の処理は平常の大きさに戻る（P2-A6のQ-PERIODの58官署で15.6〜15.8 MB、上限32 MiB）。Mac miniのW1で器を測り直す（AC06）が、Piの実時間とRSSは測らない（P3-DISASTER-CAPACITY-001の残存リスク(1)と同じ） (8) U-Wの要約の最高区分も表の外のCodeを外す（本契約の外、Q-WS-NONE-READS (6)） (9) NameがmissingかemptyでCodeが既知の危険度は既知の最大に入らない。ほかの既知の最大がadvisory以上なら、その危険度が警報級でも最高区分はadvisoryのまま（Q-WS-NONE-READS (7)） (10) D-TYPHOON=Aで軸が3本以上の域は軸の向きと半径を持たず閾値の風速だけになり、時刻の中の読めない欄（気圧・中心など）は空欄になる (11) 拒否のまま残す所（Q-WS-REJECTIONS）は、K14が読めなかった電文のカード（H43）を作るまで診断の1行だけになり、H51に反する状態が段3まで続く（新築はまだ画面に出ていない） (12) D-ADDITIONの(b)で値の名前でない要素の同じ鍵のperiodが2つあるとき、1つ目を値として持ち2つ目を読み飛ばす。D-TYPHOONの(4)（2個以上は組の全部をnull）と揃えるかはK14で決める (13) Bodyの直下のMeteorologicalInfos以外の子要素は、今も読まずに黙って捨てている（:89。W1で出現数を測りK14で印を決める）"
     ],
     "unresolvedQuestions": [
       {
@@ -454,8 +506,8 @@
         ],
         "resolveBy": "発注の前（作者の裁定）",
         "requiredEvidence": [
-          "P3-WS-D-ADDITION・P3-WS-D-UNKNOWN-SEVERITY・P3-WS-D-TYPHOONの裁定（推奨はどれもA）",
-          "artifactRequirementsの残存リスク(1)〜(10)の承認"
+          "P3-WS-D-ADDITIONの裁定（推奨A）、P3-WS-D-UNKNOWN-SEVERITYをH51でAに絞った読みの確認、P3-WS-D-TYPHOONのAの中身（(1)〜(7)）の承認",
+          "artifactRequirementsの残存リスク(1)〜(13)の承認"
         ]
       },
       {
@@ -479,7 +531,7 @@
         ],
         "resolveBy": "実装の途中、変える前に報告",
         "requiredEvidence": [
-          "期待値が変わる既存の試験の名前と理由。起草時の見込み: reconstruction/test/typhoon-unit/typhoon-unit.test.tsの拒否の表のうち『DateTime type outside the table』『forecast hours below 3』『estimate other than 1 hour』『25 times』『3 axes』（解析）と『65 TimeDefines』（確率）が受理＋truncatedに変わる。U-Fの要約で既知がbelow以下と未知が並ぶ試験があればnullに変わる（P3-UFP-T02の要約の行のdigest〔uf-history.test.ts〕もAC03で行が変われば対象。起草の見込みでは、T01の列の未知のCodeの報〔81_03_01〕は既知31があるので行は変わらない）。DiagnosticReasonの閉集合を数える試験があれば1語増える"
+          "期待値が変わる既存の試験の名前と理由。起草時の見込み: reconstruction/test/typhoon-unit/typhoon-unit.test.tsの拒否の表のうち『DateTime type outside the table』『forecast hours below 3』『estimate other than 1 hour』『25 times』『3 axes』『coordinate form』『coordinate latitude 95』『Number not 4 digits』（解析。実況の時刻の欄ならnull、ほかの時刻なら時刻を落とす）、『two Items in a time』（作り手がItemを2個にする時刻が実況でなければ受理）と、節の検証の『TimeDefine gap』『65 TimeDefines』（確率）が受理＋truncatedに変わる。『PT6H』（全部の時間帯）・『value 101』・『5-day section shows a code twice』・synthetic_VPTA50_duplicate_areaは拒否のまま。要約で既知がbelow以下と未知が並ぶ試験があればnullに変わる（P3-UFP-T02の要約の行のdigest〔uf-history.test.ts〕もAC03で行が変われば対象。起草の見込みでは、T01の列の未知のCodeの報〔81_03_01〕は既知31があるので行は変わらない）。知らない要素を差し込んで拒否を確かめるU-Fの試験があれば受理に変わる。reconstruction/test/weather-timeseries-unit/weather-timeseries-unit.test.ts:293〜:303の5件（『<TimeDefines>broken』『<Body>broken』『<Kind>broken』『<Base>broken<Significancy/>』『<Local>broken<Significancy/>』）は、地の文を読み飛ばすと子が空になり、TimeDefineの無い系列（:168）・容器の無い報（:112）・報全体のperiodの0件（:270）・値の名前の要素のrefIDの欠け（:216）で、requiredStructureInvalidからrequiredStructureMissingに変わる。DiagnosticReasonの閉集合を数える試験があれば2語増える"
         ]
       },
       {
