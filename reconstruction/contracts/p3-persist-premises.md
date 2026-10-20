@@ -233,7 +233,7 @@ H23 の形（期限切れの形を揃える範囲）:
 
 ### 3.5 段 3 の切り方
 
-- K9 `P3-CORRECTED-CLOCK-001`（仮）: 補正した時計の供給（host → composition root → worker の制御）、組の採り方と 3 場面、根拠の状態の受け渡し、TTL の戻らない時計。変える契約: `P3-LIFETIME-AND-EEW-GATE-001`（P3-LIFE-D-SKEW、AC13）、`P3-EXECUTION-SPLIT-001`（P3-C3A-CLOCK）、`P3-DMDATA-CONNECT-001`（start の時刻と往復の受け渡し）、`P2-NOTIFICATION-DELIVERY-001`（TTL の時計）、`P2-SHARED-RUNTIME-001`（ClockReading か期限の入力）。永続の形の移行: 無し。unit の期限処理は根拠の状態を受け取るだけ K10 で変える。
+- K9 `P3-CLOCK-CHECK-001`（仮）: 補正した時計の供給（host → composition root → worker の制御）、組の採り方と 3 場面、根拠の状態の受け渡し、TTL の戻らない時計。変える契約: `P3-LIFETIME-AND-EEW-GATE-001`（P3-LIFE-D-SKEW、AC13）、`P3-EXECUTION-SPLIT-001`（P3-C3A-CLOCK）、`P3-DMDATA-CONNECT-001`（start の時刻と往復の受け渡し）、`P2-NOTIFICATION-DELIVERY-001`（TTL の時計）、`P2-SHARED-RUNTIME-001`（ClockReading か期限の入力）。永続の形の移行: 無し。unit の期限処理は根拠の状態を受け取るだけ K10 で変える。
 - K10 `P3-EXPIRY-FORM-001`（仮）: 表示の期限切れと回収の分離、根拠の無い期限を退去の第 1 段に入れない順位、ValidDateTime を使う種類の確定、期限切れの記憶の形（U-L・U-R・U-B・U-T・U-V・U-Y・U-M・U-W・U-F の期限処理。U-Q は K11、U-N は K13、U-E は H20 の契約）。H13（竜巻の音）は U-M の同じ file なので混ぜる。変える契約: `P3-UNIT-L-001`（P3-C10-ACTIVE-EXPIRY）、`P3-UNIT-R-001`、`P3-UNIT-B-001`、`P3-TSUNAMI-UNIT-001`（観測の失効）、`P3-UNIT-V-001`、`P3-UNIT-Y-001`（P3-C14-EXPIRY）、`P3-UNIT-M-001`（P3-C13-TORNADO-EXPIRY、P3-C13-NOTICE-LEVELS）、`P2-WEATHER-CURRENT-UNIT-001`・`P2-WEATHER-TIMESERIES-UNIT-001`（根拠の状態の受取り）。永続の形: U-L・U-R・U-B に記憶の状態が増え、U-T の期限切れの観測が観測点を持つので、この 4 unit の `schemaVersion` を上げる（旧い形は読まずに初期化）。試験: 4 unit の新しい形の保存→復元。K8・K9 の後。
 
 ## 4. 重い情報で何を保存し、何を守り、どれだけ持つか（H35〜H38）
@@ -432,7 +432,7 @@ H35（spec:3062）: EEW・津波・大きな地震は上限で落ちない作り
 | 契約（仮） | 決まり | 変える契約（主なもの） | 保存の形 | 試験 | 順 |
 |---|---|---|---|---|---|
 | K7 `P3-VERSION-MATERIAL-001` | H14、取り直しの境界の欄、版を上げた保存の入口（初期状態から始めて上書き）、移行A1 の前提の置き換え | P1-PARSER-BOUNDARY、P2-SHARED-RUNTIME（ReportRef）、P2-CHECKPOINT-SHUTDOWN（envelope）、P3-REVISION-ORDER、P2-EEW-UNIT、P3-LIFETIME-AND-EEW-GATE（D-LATE）、P2-WEATHER-CURRENT/TIMESERIES-UNIT、P3-TSUNAMI-UNIT（OBS-MERGE）、P3-UNIT-M（TORNADO-PAIR）、P3-AUTHORITY-EVIDENCE（移行A1 の AC06、P3-AUTH-T05 の試験 2 本）、P3-CURRENCY-COVERAGE（Q-CC-SCHEMA・AC05、P3-CC-T09 の試験 2 本）、P2-SHARED-RUNTIME（DiagnosticDetails の reason）、P3-EXECUTION-SPLIT（書込み権と一緒に境界を渡す）、spec §16 の 16.2.5（spec:3146 の「移行が要る」）、全 unit の codec | 全 12 unit と envelope の版を上げる。旧い形は初期化 | 新しい形の保存→復元、旧い版だけからの初期化、新旧の slot の混在、未来の版の混在 | 最初（K9 と並行） |
-| K9 `P3-CORRECTED-CLOCK-001` | H42 | P3-LIFETIME-AND-EEW-GATE（D-SKEW・AC13）、P3-EXECUTION-SPLIT（CLOCK）、P3-DMDATA-CONNECT、P2-NOTIFICATION-DELIVERY、P2-SHARED-RUNTIME（ClockReading） | 変えない | 時計の 3 場面と復元した通知の保留 | K7 と並行、K8 より先か同時（契約の json・types の合流は直列） |
+| K9 `P3-CLOCK-CHECK-001` | H42 | P3-LIFETIME-AND-EEW-GATE（D-SKEW・AC13）、P3-EXECUTION-SPLIT（CLOCK）、P3-DMDATA-CONNECT、P2-NOTIFICATION-DELIVERY、P2-SHARED-RUNTIME（ClockReading） | 変えない | 時計の 3 場面と復元した通知の保留 | K7 と並行、K8 より先か同時（契約の json・types の合流は直列） |
 | K8 `P3-NOTICE-LEDGER-001` | H48、H19、H16、H09（注意報の音と群）、H06、H27 の照合、H39 の欄、U-E の印の容量 | P2-NOTIFICATION-DELIVERY（IR03）、P2-CHECKPOINT-SHUTDOWN（A3-AC01）、P2-EEW-UNIT（Q-NOTICE、世代の上限）、P3-TSUNAMI-UNIT（NOTICE-LEVELS・優先順）、P3-CURRENCY-COVERAGE（失敗警報）、通知のある全 unit の Q-NOTICE・LEGACY-DIFF、P3-UNIT-TABLE | 10 unit＋U-W・U-F の版を上げる | 新しい形の保存→復元 | K7・K9 の後 |
 | K10 `P3-EXPIRY-FORM-001` | H23（L・R・B・T・V・Y・M・W・F）、H13 | P3-UNIT-L/R/B/V/Y/M、P3-TSUNAMI-UNIT、P2-WEATHER-CURRENT/TIMESERIES-UNIT | L・R・B・T の版を上げる | 新しい形の保存→復元 | K8・K9 の後 |
 | K11 `P3-UNIT-Q-CAPACITY-001` | H35（地震）、H36、H18、H08、H23（Q） | P3-UNIT-Q | 版を上げる | 新しい形の保存→復元 | K8・K9 の後 |

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "00bb3c16fe3f5f936114a16fbb4140e0106ccf528b09c6e4cbb9ecb602b32ace",
+    "sha256": "cb24e150d16dc89f72f43c785d15f603be3aa949734ebb58c3a74d0e6f6e1701",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -265,7 +265,7 @@
   "contract": {
     "contractId": "P3-RECOVERY-001",
     "mode": "implementation",
-    "objective": "切れていた間と止まっていた間の電文を dmdata の REST（電文の一覧と本文）で取り直し、spec §10.5 の候補状態を一回の採用で unit へ入れる（C16、計画 §2.1）。spec §16 の H04・H22・H26・H27・H28・H31・H32・H41 を運ぶ。履歴の再構築と live の受理は公開と通知の条件を分け、途中公開 0・新規履歴通知 0・live 上書き 0・期限延長 0 を守る。本書は 2026-10-20 の起草の骨組みで、段 2（保存の前提）で決まった形は段 2 のメモ改訂 4 から引く（meta.questionResolutions の Q-REC-PENDING-P2）。着手条件に段 3 の K7（P3-VERSION-MATERIAL-001、境界の欄・envelope・ingress の電文 id）と K9（P3-CORRECTED-CLOCK-001、補正した時計）の配送を加え、RA の H27 の通知は K8（P3-NOTICE-LEDGER-001、通知の印と保存 ack を待つ配送）の配送も待つ。RF と、RC のうち H28・H32 は K7 を待たずに着手でき、RC の H41 は K7 を待つ（Q-REC-STAGE3。どれも仮の契約 ID で、配送されたら dependsOnContractIds へ移す）。条文の【RF】【RA】【RC】は分け方の案（P3-REC-D-SPLIT）の振り分け",
+    "objective": "切れていた間と止まっていた間の電文を dmdata の REST（電文の一覧と本文）で取り直し、spec §10.5 の候補状態を一回の採用で unit へ入れる（C16、計画 §2.1）。spec §16 の H04・H22・H26・H27・H28・H31・H32・H41 を運ぶ。履歴の再構築と live の受理は公開と通知の条件を分け、途中公開 0・新規履歴通知 0・live 上書き 0・期限延長 0 を守る。本書は 2026-10-20 の起草の骨組みで、段 2（保存の前提）で決まった形は段 2 のメモ改訂 4 から引く（meta.questionResolutions の Q-REC-PENDING-P2）。着手条件に段 3 の K7（P3-VERSION-MATERIAL-001、境界の欄・envelope・ingress の電文 id）と K9（P3-CLOCK-CHECK-001、補正した時計）の配送を加え、RA の H27 の通知は K8（P3-NOTICE-LEDGER-001、通知の印と保存 ack を待つ配送）の配送も待つ。RF と、RC のうち H28・H32 は K7 を待たずに着手でき、RC の H41 は K7 を待つ（Q-REC-STAGE3。どれも仮の契約 ID で、配送されたら dependsOnContractIds へ移す）。条文の【RF】【RA】【RC】は分け方の案（P3-REC-D-SPLIT）の振り分け",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -799,7 +799,7 @@
           "RC の H41 の発注（K7）",
           "RF の起点の型の凍結（K7。実装の着手は待たない）"
         ],
-        "resolveBy": "段 3 の K7 P3-VERSION-MATERIAL-001・K9 P3-CORRECTED-CLOCK-001・K8 P3-NOTICE-LEDGER-001（どれも仮の ID）の配送の後",
+        "resolveBy": "段 3 の K7 P3-VERSION-MATERIAL-001・K9 P3-CLOCK-CHECK-001・K8 P3-NOTICE-LEDGER-001（どれも仮の ID）の配送の後",
         "requiredEvidence": [
           "K7 の inputBoundary の型と、ParserMailboxItem に載った dmdata の電文 id。本書の RF が引数で受けていた境界の型との差",
           "K9 の ClockReading（か期限の入力）の根拠の状態の形",
