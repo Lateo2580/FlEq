@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "030de6b1a0820475a2025b24f19017eef651d51ad7c4f6e711dc4412705bcfb7",
+    "sha256": "524dca9dab29d9b60a302aabe1c19a479c85dbced80df572db4baa889d0878f4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -140,7 +140,7 @@
     "contractId": "P3-VERSION-MATERIAL-001",
     "mode": "implementation",
     "objective": "新旧を種類ごとの発表時刻（spec 16.2.5 の表）と Control/DateTime で比べ、報番号を使わない（spec §16 H14）。比べる材料 Control/DateTime を decode から保存と復元まで運び、同じ時刻で中身の違う報と比べる時刻を欠く報を断らず（H51）、手元の版があれば版を残して未確認の印を付けて保存する。あわせて、形を変えた保存を初期化して始められる入口（A/B を合わせた復元と捨ててよい旧い版の一覧、作者裁定 2026-10-20）と、取り直し（C16）の起点になる境界 inputBoundary を checkpoint の envelope に置く。段 2 の設計メモ（p3-persist-premises.md）の §1・§1.4・§2.4・§6・§8 の K7 の行を条文にしたもの。3 回に分けて発注する（Q-VM-SPLIT）",
-    "baseOid": "unassigned",
+    "baseOid": "31a2b4f8f6a4a338722c054972a68b5448bc9edf",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
