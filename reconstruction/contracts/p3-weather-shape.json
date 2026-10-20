@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "d12d709019276701aff1407ad6575d3344b8aa63a4f4f9ad2e1f66b2d4760c17",
+    "sha256": "eed1e62b7957eaf99e3e35124e305730f07f2088051cba639847e29a9eb24080",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -111,7 +111,7 @@
     "contractId": "P3-WEATHER-SHAPE-001",
     "mode": "implementation",
     "objective": "U-F（気象の時系列、VPWP50）が実配信の約6割を必須の構造の欠けとして断っているのを直し（spec §16 H44、構造的欠陥台帳89）、形が少し変わっても報を丸ごと失わない読み方にし、意味の分からない危険度を要約で警報なしの側に読み替えないようにする。H51（spec §16.4、2026-10-20 作者裁定）に合わせ、読めた所は使い、読めない所は印を付けて受け取る: U-Fは保存の形を変えず、読めない所は診断（範囲の分かる件数）で残し、読めない所と範囲の区分不明の印の保存はK14（段3、仮）へ送る。報の全体が読めない所だけを拒否のまま残し、K14（段3、仮）で読めなかった電文のカード（H43）にする。原文の欠片はK14が持ち、本契約では作らない。原因は1か所で、各PartのBase（とBase/Local）の直下にあるrefIDを持たない付加事項<Addition><Note>…</Note></Addition>を時刻の値として読み、refIDの欠けで報ごと拒否している（weather-timeseries.ts:216）。W1の3日のVPWP50 851通のうち547通がこれで拒否され、ほかの検査で止まる報は無い（Q-WS-CAUSE）。U-Y（台風）は採取130通で拒否0だが、表の外の時刻の種類・上限を越える時刻や軸や時間帯・知らない確率の節・時刻の意味の外れた時間帯・時刻の中の読めない欄で報を丸ごと拒否する所を、その部分だけを落とすか欄をnullにして切り捨ての印を付ける読み方に替える（P3-WS-D-TYPHOON）。配送の後にW1を同じ道具で測り直す（Q-WS-REMEASURE、P3-DISASTER-CAPACITY-001のQ-DC-REMEASURE）。再開の並べ方（2026-10-20 作者裁定）の段1",
-    "baseOid": "unassigned",
+    "baseOid": "b7585577d9141e791ff07698524a82032c9cfdcf",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
