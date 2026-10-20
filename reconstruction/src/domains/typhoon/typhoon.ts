@@ -115,8 +115,9 @@ function windArea(part: XmlElement, found: Found): TyphoonWindArea {
   const speed = children(part, "WindSpeed").find((node) => attribute(node, "unit") === "m/s");
   const axes: TyphoonWindAxis[] = [];
   const nodes = children(children(children(part, "Circle")[0] ?? null, "Axes")[0] ?? null, "Axis");
-  if (nodes.length > LIMITS.axes) found.invalid = true;
-  for (const axis of nodes.slice(0, LIMITS.axes)) {
+  // P3-WS-D-TYPHOON (5): 一部の軸だけを残すと、残らない向きで域を小さく描きうるので、軸を持たず閾値だけを残す。
+  if (nodes.length > LIMITS.axes) found.truncated = true;
+  else for (const axis of nodes) {
     const direction = optional(axis, "Direction", found, BOUNDS.direction);
     const radius = children(axis, "Radius").find((node) => attribute(node, "unit") === "km");
     axes.push({ direction, radiusKm: radius == null ? null : whole(scalar(radius), 9999, found) });
@@ -125,33 +126,41 @@ function windArea(part: XmlElement, found: Found): TyphoonWindArea {
 }
 
 const KIND_OF_PREFIX: Readonly<Record<string, TyphoonFrameKind>> = { 推定: "estimate", 予報: "forecast", 延長予報: "extendedForecast" };
+const FRAME_LABEL = /^(推定|予報|延長予報) ?(\d{1,3})時間後$/;
+// 時刻の DateTime の type（全角数字と空白を揃えた形）。DateTime の無い時刻は MeteorologicalInfo の type。
+const labelOf = (info: XmlElement): string => halfWidth(attribute(children(info, "DateTime")[0] ?? info, "type") ?? "");
 
-// 1 時刻（MeteorologicalInfo 1 個）。名前は実況の時刻の呼称だけを返す。
-function parseFrame(info: XmlElement, found: Found): Readonly<{ frame: TyphoonFrame; name: TyphoonName | null; remark: string | null }> | null {
+// 1 時刻（MeteorologicalInfo 1 個）。名前は実況の時刻の呼称だけを返す。now は全部の時刻で数えた実況か（P3-WS-D-TYPHOON (3)）。
+function parseFrame(info: XmlElement, now: boolean, report: Found): Readonly<{ frame: TyphoonFrame; name: TyphoonName | null; remark: string | null }> | null {
   const stamps = children(info, "DateTime");
   const label = stamps.length === 1 ? halfWidth(attribute(stamps[0], "type") ?? "") : "";
   const stamp = stamps.length === 1 ? scalar(stamps[0]) : null;
-  const parts = /^(推定|予報|延長予報) ?(\d{1,3})時間後$/.exec(label);
+  const parts = FRAME_LABEL.exec(label);
   const kind: TyphoonFrameKind | null = label === "実況" ? "analysis" : parts == null ? null : KIND_OF_PREFIX[parts[1]];
   const hours = label === "実況" ? 0 : parts == null ? -1 : Number(parts[2]);
   const items = children(info, "Item");
-  if (stamps.length === 0 || items.length === 0) found.missing = true;
-  if (stamps.length > 1 || items.length > 1 || stamps.length === 1 && (stamp == null || !validReportDateTime(stamp)) || kind == null
+  if (stamps.length !== 1 || items.length !== 1 || stamp == null || !validReportDateTime(stamp) || kind == null
     || kind === "estimate" && hours !== 1 || (kind === "forecast" || kind === "extendedForecast") && (hours < 3 || hours > 120)) {
-    found.invalid = true;
+    // P3-WS-D-TYPHOON (3): 時刻として読めない実況でない時刻は落とす。実況は解析の芯なので今どおり拒否。
+    if (!now) report.truncated = true;
+    else if (stamps.length === 0 || items.length === 0) report.missing = true;
+    else report.invalid = true;
     return null;
   }
-  if (stamp == null || items.length !== 1) return null;
 
-  const properties = new Map<string, XmlElement>();
+  // P3-WS-D-TYPHOON (4): 時刻の中の欄の不備はその時刻だけの記録で受け、欄を null にして truncated にする。
+  const found: Found = { missing: false, invalid: false, truncated: false };
+  const properties = new Map<string, XmlElement>(), twice = new Set<string>();
   for (const kindNode of children(items[0], "Kind"))
     for (const property of children(kindNode, "Property")) {
       const type = children(property, "Type")[0];
       const key = type == null ? null : scalar(type);
       if (key == null) continue;
-      if (properties.has(key)) found.invalid = true;
+      if (properties.has(key)) twice.add(key);
       properties.set(key, property);
     }
+  // 同じ Type の Property は後のもので上書きせず、全部を無いものとする（推測を止める）。
+  for (const key of twice) { properties.delete(key); found.invalid = true; }
   const naming = properties.get("呼称");
   const namePart = children(naming ?? null, "TyphoonNamePart")[0] ?? null;
   const name = naming == null ? null : nameOf(namePart, found);
@@ -191,7 +200,8 @@ function parseFrame(info: XmlElement, found: Found): Readonly<{ frame: TyphoonFr
   };
   const areaOf = (type: string): TyphoonWindArea | null => {
     const nodes = children(windProperty, "WarningAreaPart").filter((node) => attribute(node, "type") === type);
-    if (nodes.length > 1) found.invalid = true;
+    // 域を null にすると暴風域なしと見分けられないので、同じ type の域の 2 個以上は報ごと拒否する（Q-WS-REJECTIONS）。
+    if (nodes.length > 1) report.invalid = true;
     return nodes.length === 0 ? null : windArea(nodes[0], found);
   };
   const frame: TyphoonFrame = {
@@ -203,6 +213,7 @@ function parseFrame(info: XmlElement, found: Found): Readonly<{ frame: TyphoonFr
     pressureHpa: pressure == null ? null : whole(scalar(pressure), 9999, found), maxWindMs: windOf("最大風速"), maxGustMs: windOf("最大瞬間風速"),
     storm: areaOf("暴風域"), gale: areaOf("強風域"), stormWarning: areaOf("暴風警戒域"),
   };
+  if (found.invalid || found.truncated) report.truncated = true;
   return { frame, name, remark };
 }
 
@@ -294,13 +305,17 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
   if (analysisType != null) {
     const nodes = children(infos, "MeteorologicalInfo");
     if (infos != null && nodes.length === 0) found.missing = true;
-    if (nodes.length > LIMITS.frames) found.invalid = true;
     const frames: TyphoonFrame[] = [];
     let remark: string | null = null;
     // 実況の時刻の数は DateTime の type だけで数える（ほかの不備で時刻が読めなくても、実況の欠落と取り違えない）。
-    const nowCount = nodes.filter((node) => halfWidth(attribute(children(node, "DateTime")[0] ?? node, "type") ?? "") === "実況").length;
-    for (const node of nodes.slice(0, LIMITS.frames)) {
-      const read = parseFrame(node, found);
+    const labels = nodes.map(labelOf), nowCount = labels.filter((label) => label === "実況").length;
+    // P3-WS-D-TYPHOON (1)(2): type が表の外の時刻を落とし（欠けか空は残す）、残りが 25 個以上なら実況と先の時刻で 24 個を文書の順に残す。
+    // 落とした時刻と残さない時刻は type のほかを読まない。
+    let room = LIMITS.frames - nowCount;
+    const kept = nodes.filter((_, at) => labels[at] === "実況" || (labels[at] === "" || FRAME_LABEL.test(labels[at])) && room-- > 0);
+    if (kept.length < nodes.length) found.truncated = true;
+    for (const node of kept) {
+      const read = parseFrame(node, labelOf(node) === "実況", found);
       if (read == null) continue;
       frames.push(read.frame);
       if (read.frame.kind === "analysis") {
@@ -317,17 +332,24 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
   // ---- 確率（P3-C14-PROB-VALIDATION） ----
   const sections = new Map<number, XmlElement>();
   let named: XmlElement | null = null;
+  // 節か時間帯を落としたか。落とした所にだけ確率があるかもしれないので、全ゼロ（zero）とは言えない。
+  let dropped = false;
   for (const node of children(infos, "MeteorologicalInfo")) {
     const type = halfWidth(attribute(node, "type") ?? "");
     const day = /^台風の暴風域に入る確率（(\d)日積算）$/.exec(type);
     if (type === "台風呼称") named = node;
-    else if (day == null || Number(day[1]) < 1 || Number(day[1]) > 5 || sections.has(Number(day[1]))) found.invalid = true;
+    // P3-WS-D-TYPHOON (6): 知らない節と 1〜5 日の外の節は落とす（その地域は集合の照合に入らない）。同じ日の節の 2 個以上は今どおり拒否。
+    else if (day == null || Number(day[1]) < 1 || Number(day[1]) > 5) found.truncated = dropped = true;
+    else if (sections.has(Number(day[1]))) found.invalid = true;
     else sections.set(Number(day[1]), node);
   }
   if (infos != null && [1, 2, 3, 4, 5].some((day) => !sections.has(day))) found.missing = true;
   if (named != null) {
     const part = children(children(children(children(named, "Item")[0] ?? null, "Kind")[0] ?? null, "Property")[0] ?? null, "TyphoonNamePart")[0] ?? null;
-    name = nameOf(part, found);
+    // 台風呼称の節の欄の不備も (4) と同じく欄を null にして truncated にする。
+    const own: Found = { missing: false, invalid: false, truncated: false };
+    name = nameOf(part, own);
+    if (own.invalid || own.truncated) found.truncated = true;
   }
   const series = infos == null ? null : only(infos, "TimeSeriesInfo", found);
 
@@ -357,18 +379,24 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     }
   }
 
-  // 時系列: TimeDefine は 1〜64 個で timeId が 1 から連続、最初が TargetDateTime、PT3H で隙間がない。
+  // 時系列: TimeDefine は timeId が 1 から連続、最初が TargetDateTime、PT3H で隙間がない。
+  // P3-WS-D-TYPHOON (7): 外れた最初の時間帯か 65 個目で止め、そこから後の時間帯と値を読まない（時刻の意味が分からない値は推測しない）。
   const defines = children(children(series, "TimeDefines")[0] ?? null, "TimeDefine");
   if (series != null && defines.length === 0) found.missing = true;
-  if (defines.length > LIMITS.slots) found.invalid = true;
-  defines.slice(0, LIMITS.slots).forEach((define, index) => {
+  let slotCount = 0;
+  for (const define of defines.slice(0, LIMITS.slots)) {
     const at = children(define, "DateTime")[0], span = children(define, "Duration")[0];
-    if (at == null || span == null) { found.missing = true; return; }
-    const text = scalar(at);
-    if (attribute(define, "timeId") !== String(index + 1) || scalar(span) !== "PT3H" || text == null || !validReportDateTime(text)
-      || Date.parse(text) !== baseTime + index * SLOT) found.invalid = true;
-  });
-  const slotCount = Math.min(defines.length, LIMITS.slots);
+    const text = at == null ? null : scalar(at);
+    if (span == null || attribute(define, "timeId") !== String(slotCount + 1) || scalar(span) !== "PT3H" || text == null || !validReportDateTime(text)
+      || Date.parse(text) !== baseTime + slotCount * SLOT) break;
+    slotCount++;
+  }
+  if (slotCount < defines.length) found.truncated = dropped = true;
+  // 最初の時間帯で止まる報は今どおり拒否する（slotCount の 0 は保存の形に無い）。
+  if (defines.length > 0 && slotCount === 0) {
+    if (children(defines[0], "DateTime").length === 0 || children(defines[0], "Duration").length === 0) found.missing = true;
+    else found.invalid = true;
+  }
   const peaks = new Map<string, Readonly<{ peak: number; slot: number | null }>>();
   for (const item of children(series, "Item")) {
     itemsSeen++;
@@ -377,9 +405,9 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     const nodes = children(children(property, "FiftyKtWindProbabilityPart")[0] ?? null, "FiftyKtWindProbability");
     if (area == null) continue;
     if (peaks.has(area.code)) found.invalid = true;
-    if (nodes.length !== slotCount) found.invalid = true;
+    if (nodes.length !== defines.length) found.invalid = true;
     let peak = 0, slot: number | null = null;
-    nodes.forEach((node, index) => {
+    nodes.slice(0, slotCount).forEach((node, index) => {
       if (attribute(node, "refID") !== String(index + 1)) found.invalid = true;
       const value = readPercent(node, found);
       if (value > peak) { peak = value; slot = index; }
@@ -402,6 +430,8 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     if (dailyValues.some((value) => value > 0) || peak > 0)
       kept.push({ code, name: area.name, prefectureCode: area.prefectureCode, daily: dailyValues, peak, peakSlot: slot });
   }
+  // 読まなかった所があるのに「1%以上の地域なし」と告げないよう、その全ゼロは今どおり拒否する（P3-WS-D-TYPHOON (6)(7)）。
+  if (kept.length === 0 && dropped) { found.invalid = true; return fail(); }
   if (kept.length === 0)
     return { kind: "accepted", candidate: { ...base(), slice: "probability", headType: probabilityType!, baseTime, slotCount, maxFiveDay: 0, prefectures: [], areas: [], zero: true } };
   const order = [...kept].sort((left, right) => right.daily[4] - left.daily[4] || (left.code < right.code ? -1 : left.code > right.code ? 1 : 0));

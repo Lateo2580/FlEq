@@ -89,17 +89,17 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
       ["InfoType outside the vocabulary", analysisXml({ info: "速報" }), "VPTW60", "requiredStructureInvalid"],
       ["analysis TargetDateTime missing", withoutTag("TargetDateTime")(analysisXml()), "VPTW60", "requiredStructureMissing"],
       ["analysis TargetDateTime not a time", replaceTag("TargetDateTime", "未定")(analysisXml()), "VPTW60", "requiredStructureInvalid"],
-      ["DateTime type outside the table", analysisXml({ later: ["観測　２時間後"] }), "VPTW60", "requiredStructureInvalid"],
-      ["forecast hours below 3", analysisXml({ later: ["予報　２時間後"] }), "VPTW60", "requiredStructureInvalid"],
-      ["estimate other than 1 hour", analysisXml({ later: ["推定　２時間後"] }), "VPTW60", "requiredStructureInvalid"],
+      // P3-WS-T04: 時刻・軸・欄の読めなさは部分を落として受理する（P3-WS-T04 の it）。ここの 7 行は拒否のまま残す所（Q-WS-REJECTIONS）。
+      ["two 実況 with the second as the 25th time", analysisXml({ later: [...Array.from({ length: 23 }, () => "予報　３時間後"), "実況"] }), "VPTW60", "requiredStructureInvalid"],
+      ["no 実況 among 25 times", analysisXml({ later: Array.from({ length: 24 }, () => "予報　３時間後") }).replace('type="実況"', 'type="推定　１時間後"'), "VPTW60", "requiredStructureMissing"],
       ["no 実況", analysisXml().replace('type="実況"', 'type="推定　１時間後"'), "VPTW60", "requiredStructureMissing"],
       ["two 実況", analysisXml({ later: ["実況"] }), "VPTW60", "requiredStructureInvalid"],
       ["two Items in a time", analysisXml({ items: 2 }), "VPTW60", "requiredStructureInvalid"],
-      ["coordinate form", analysisXml({ coordinate: "25.5N125.5E" }), "VPTW60", "requiredStructureInvalid"],
-      ["coordinate latitude 95", analysisXml({ coordinate: "+95.0+125.5/" }), "VPTW60", "requiredStructureInvalid"],
-      ["Number not 4 digits", analysisXml({ number: "26" }), "VPTW60", "requiredStructureInvalid"],
-      ["25 times", analysisXml({ later: Array.from({ length: 24 }, () => "予報　３時間後") }), "VPTW60", "requiredStructureInvalid"],
-      ["3 axes", analysisXml({ axes: 3 }), "VPTW60", "requiredStructureInvalid"],
+      ["実況 DateTime not a time", analysisXml().replace(/(<DateTime type="実況">)[^<]*/, "$1未定"), "VPTW60", "requiredStructureInvalid"],
+      ["実況 without Item", analysisXml({ later: [] }).replace(/<Item>[\s\S]*<\/Item>/, ""), "VPTW60", "requiredStructureMissing"],
+      ["two storm areas of the same type in a forecast time", analysisXml().replace(/<WarningAreaPart(?![\s\S]*<WarningAreaPart)[\s\S]*?<\/WarningAreaPart>/, "$&$&"), "VPTW60", "requiredStructureInvalid"],
+      ["probability two sections of the same day", probabilityXml({ areas: [{ code: "010001", daily: [1, 1, 1, 1, 1], slots: [1] }] }).replace(/<MeteorologicalInfo type="台風の暴風域に入る確率（1日積算）">[\s\S]*?<\/MeteorologicalInfo>/, "$&$&"), "VPTA50", "requiredStructureInvalid"],
+      ["probability value 101 beside areas above zero", probabilityXml({ areas: [{ code: "010001", daily: [1, 1, 1, 1, 101] }, { code: "010002", daily: [5, 5, 5, 5, 5], slots: [5] }] }), "VPTA50", "requiredStructureInvalid"],
       ["MeteorologicalInfos missing", analysisXml().replace(/<MeteorologicalInfos[\s\S]*<\/MeteorologicalInfos>/, ""), "VPTW60", "requiredStructureMissing"],
       ["probability 5-day section missing", probabilityXml({ areas: [{ code: "010001", daily: [1, 1, 1, 1, 1], slots: [1] }], skipDays: [4] }), "VPTA50", "requiredStructureMissing"],
       ["probability TimeSeriesInfo missing", insert("")(probabilityXml({ areas: [{ code: "010001", daily: [1, 1, 1, 1, 1] }] })).replace(/<TimeSeriesInfo>[\s\S]*<\/TimeSeriesInfo>/, ""), "VPTA50", "requiredStructureMissing"],
@@ -217,18 +217,16 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     expect([reasonOf(noArea), noArea.state.probability]).toEqual(["requiredStructureMissing", []]);
     const duplicated = send(visible.state, "typhoon-probability-card/synthetic_VPTA50_duplicate_area");
     expect([reasonOf(duplicated), duplicated.state]).toEqual(["requiredStructureInvalid", visible.state]);
-    // 節の検証: 地域の集合の不一致・時系列の隙間・PT6H・値の範囲外・refID の欠け・TimeDefine 65 個。
+    // 節の検証: 地域の集合の不一致・PT6H（全部の時間帯）・値の範囲外・refID の欠け。時系列の隙間と TimeDefine 65 個は P3-WS-T04 で受理に変わった。
     const base = [{ code: "010001", daily: [1, 2, 3, 4, 5], slots: [5, 9] }, { code: "010002", daily: [0, 0, 0, 0, 1], slots: [1] }] as const;
     const bad = (label: string, xml: string) => expect([label, reasonOf(sendXml(emptyState(), xml, "VPTA50"))], label).toEqual([label, "requiredStructureInvalid"]);
     expect(reasonOf(sendXml(emptyState(), probabilityXml({ areas: base }), "VPTA50"))).toBe("changed");
     bad("series areas differ", probabilityXml({ areas: base, seriesAreas: [base[0], { code: "010003", daily: [0, 0, 0, 0, 1] }] }));
     bad("series misses an area", probabilityXml({ areas: base, seriesAreas: [base[0]] }));
-    bad("TimeDefine gap", probabilityXml({ areas: base, slotCount: 3 }).replace(/(<TimeDefine timeId="3"><DateTime>)[^<]*/, `$1${iso(T0 + 12 * HOUR)}`));
     bad("PT6H", probabilityXml({ areas: base, duration: "PT6H" }));
     bad("first TimeDefine not TargetDateTime", probabilityXml({ areas: base }).replace(/(<TimeDefine timeId="1"><DateTime>)[^<]*/, `$1${iso(T0 + HOUR)}`));
     bad("value 101", probabilityXml({ areas: [{ code: "010001", daily: [1, 1, 1, 1, 101] }] }));
     bad("refID skipped", probabilityXml({ areas: base, slotCount: 3 }).replace('refID="2"', 'refID="7"'));
-    bad("65 TimeDefines", probabilityXml({ areas: base, slotCount: 65 }));
     bad("area code not 6 digits", probabilityXml({ areas: [{ code: "01001", daily: [1, 1, 1, 1, 1] }] }));
     bad("prefecture code with two names", probabilityXml({ areas: [{ code: "010001", daily: [1, 1, 1, 1, 1] }, { code: "010002", prefecture: "別の名前", daily: [1, 1, 1, 1, 1] }] }));
     bad("5-day section shows a code twice", probabilityXml({ areas: [{ code: "010001", daily: [1, 1, 1, 1, 1] }, { code: "010001", daily: [1, 1, 1, 1, 1] }] }));
@@ -735,5 +733,55 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     const terminalStep = sendXml(maximum, analysisXml({ eventId: subjectId, serial: "9999999999", remark: "台風消滅（域外へ出る）", report: iso(at0), target: iso(at0 - 45 * 60_000) }), "VPTW60", at0);
     expect(terminalStep.state.probability.find((item) => item.subject === `normal/typhoonProbability/${subjectId}`)).toMatchObject({ effective: "ended", endCause: "terminal" });
     closes("terminal analysis", terminalStep.state);
+  });
+});
+
+describe("P3-WEATHER-SHAPE-001 U-Y partial reading", () => {
+  // contractBoundary: P3-WS-D-TYPHOON=A の (1)〜(7)。拒否のまま残す所は P3-C14-T01 の表の P3-WS-T04 の行と P3-C14-T03 の PT6H。
+  it("P3-WS-T04 contractBoundary / P3-WS-AC04: unreadable times, axes, fields, sections and slots are dropped with truncated", () => {
+    // 受理され、truncated が立ち、保存の形（codec）にそのまま入る。
+    const accepted = (xml: string, headType: string) => {
+      const step = sendXml(emptyState(), xml, headType);
+      expect(typhoonUnitCodec.decode(JSON.parse(JSON.stringify(typhoonUnitCodec.encode(step.state))) as JsonValue).kind).toBe("restored");
+      return step.state;
+    };
+    const analysis = (xml: string) => {
+      const record = activeAnalysis(accepted(xml, "VPTW60"), TC2606);
+      expect(record.truncated).toBe(true);
+      return record;
+    };
+    const kinds = (record: ReturnType<typeof analysis>) => record.frames.map((frame) => `${frame.kind[0]}${frame.hours}`);
+    const forecasts = (count: number) => Array.from({ length: count }, () => "予報　３時間後");
+    const lastTime = /<MeteorologicalInfo>(?![\s\S]*<MeteorologicalInfo>)(<DateTime[^>]*>[^<]*<\/DateTime>)(<Item>[\s\S]*?<\/Item>)/;
+    // (1) 表の外の type の時刻を落とす。
+    expect(kinds(analysis(analysisXml({ later: ["予報　３時間後", "観測　２時間後"] })))).toEqual(["a0", "f3"]);
+    // (2) 25 個は実況と先の 23 個を文書の順に残す。25 個目の Item 2 個は読まない。実況が最後でも残す。
+    expect(kinds(analysis(analysisXml({ later: forecasts(24) }).replace(lastTime, "<MeteorologicalInfo>$1$2$2")))).toEqual(["a0", ...forecasts(23).map(() => "f3")]);
+    const nowLast = analysisXml({ later: forecasts(24) }).replace(/(<MeteorologicalInfos type="台風情報">)(<MeteorologicalInfo>[\s\S]*?<\/MeteorologicalInfo>)([\s\S]*)(<\/MeteorologicalInfos>)/, "$1$3$2$4");
+    expect(kinds(analysis(nowLast))).toEqual([...forecasts(23).map(() => "f3"), "a0"]);
+    // (3) 実況でない時刻の Item 2 個はその時刻を落とす。
+    expect(kinds(analysis(analysisXml().replace(lastTime, "<MeteorologicalInfo>$1$2$2")))).toEqual(["a0"]);
+    // (4) 実況の座標の形の外は中心を null に。(5) 軸 3 本の域は axes [] で閾値を残す。
+    expect(analysis(analysisXml({ coordinate: "25.5N125.5E" })).frames[0]).toMatchObject({ kind: "analysis", center: null, pressureHpa: 985 });
+    expect(analysis(analysisXml({ axes: 3 })).frames.map((frame) => frame.storm)).toEqual([{ thresholdMs: 25, axes: [] }, { thresholdMs: 25, axes: [] }]);
+
+    const base = [{ code: "010001", daily: [1, 2, 3, 4, 5], slots: [5, 0, 9] }, { code: "010002", daily: [0, 0, 0, 0, 1], slots: [1] }] as const;
+    const probability = (xml: string) => {
+      const record = activeProbability(accepted(xml, "VPTA50"), P2606);
+      expect(record.truncated).toBe(true);
+      return record;
+    };
+    // (6) 知らない節と 6 日積算の節は落とす。その地域（019999）は集合の照合に入らない。
+    const extra = (type: string) => `<MeteorologicalInfo type="${type}"><Item><Kind><Property><Type>台風の暴風域に入る確率</Type><FiftyKtWindProbabilityPart>`
+      + `<FiftyKtWindProbability unit="%">9</FiftyKtWindProbability></FiftyKtWindProbabilityPart></Property></Kind><Area><Name>余分</Name><Code>019999</Code>`
+      + `<Prefecture>県</Prefecture><PrefectureCode>010000</PrefectureCode></Area></Item></MeteorologicalInfo>`;
+    const sections = probability(probabilityXml({ areas: base }).replace("<TimeSeriesInfo>", `${extra("未知の節")}${extra("台風の暴風域に入る確率（６日積算）")}<TimeSeriesInfo>`));
+    expect(sections.areas.map((area) => area.code)).toEqual(["010001", "010002"]);
+    // 1〜5 日と時系列が全部 0 で、落とした節にだけ確率がある報は zero（1%以上の地域なしの通知）にせず拒否する（実不具合の再発防止）。
+    expect(reasonOf(sendXml(emptyState(), probabilityXml({ areas: [{ code: "010001" }] }).replace("<TimeSeriesInfo>", `${extra("未知の節")}<TimeSeriesInfo>`), "VPTA50"))).toBe("requiredStructureInvalid");
+    // (7) 3 個目が PT6H なら 2 個で止め、後の値（9）は peak に入らない。65 個は 64 個まで。
+    const sixHours = probability(probabilityXml({ areas: base }).replace(/(<TimeDefine timeId="3"><DateTime>[^<]*<\/DateTime><Duration>)PT3H/, "$1PT6H"));
+    expect([sixHours.slotCount, sixHours.areas[0].peak, sixHours.areas[0].peakSlot]).toEqual([2, 5, 0]);
+    expect(probability(probabilityXml({ areas: base, slotCount: 65 })).slotCount).toBe(64);
   });
 });

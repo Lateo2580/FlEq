@@ -169,7 +169,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
   if (checked.kind === "rejected") return { ...step(state),
     decisions: [{ subject: checked.subject, operation: input.material.operation, decision: "rejected", reason: checked.reason }],
     diagnostics: [checked.diagnostic] };
-  const candidate = checked.candidate, { source } = candidate;
+  const candidate = checked.candidate, { source } = candidate, notes = checked.diagnostics;
   const collected = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs, changed);
   const base = collected.state;
   const previous = base.subjects.find((item) => item.subject === source.subject);
@@ -179,7 +179,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     const reason = order < 0 ? "stale" : order === 0 && sameSource(source, gate.source) ? "duplicate"
       : order === 0 && !(candidate.cancelled && gate.source.infoTypeRaw !== "取消") ? "stale" : null;
     if (reason != null) return { ...step(base), decisions: [{ subject: source.subject, operation: source.operation,
-      decision: "unchanged", reason }], outcomes: collected.outcomes };
+      decision: "unchanged", reason }], outcomes: collected.outcomes, diagnostics: notes };
   }
   const snapshot = candidate.cancelled || candidate.validUntil == null || candidate.validUntil <= input.clock.wallTimeMs
     ? EMPTY : candidate.snapshot;
@@ -226,9 +226,9 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
       proposed = replace(proposed, adopted, changed);
     }
   }
-  // P3-CC-AC07: 容量で current にできなかった入力（印か最終段の拒否）ごとに 1 行。
-  const rejected: DiagnosticDetails[] = established == null ? [{ level: "WARN", component: "weather-timeseries",
-    reason: "capacityRejected", unit: "U-F", inputId: input.material.inputId }] : [];
+  // P3-CC-AC07: 容量で current にできなかった入力（印か最終段の拒否）ごとに 1 行。P3-WS-AC02: inspect の読み飛ばしの診断は門の決定によらず前に置く。
+  const rejected: DiagnosticDetails[] = [...notes, ...established == null ? [{ level: "WARN", component: "weather-timeseries",
+    reason: "capacityRejected", unit: "U-F", inputId: input.material.inputId } satisfies DiagnosticDetails] : []];
   if (!fits(proposed, generation, input.clock.wallTimeMs)) return { ...step(state),
     decisions: [{ subject: source.subject, operation: source.operation, decision: "capacityExceeded" }], diagnostics: rejected };
   proposed = { ...proposed, persistence: dirty(state.persistence, input.clock.monotonicMs) };

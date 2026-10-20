@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "eed1e62b7957eaf99e3e35124e305730f07f2088051cba639847e29a9eb24080",
+    "sha256": "f1892dabac2c225eea593b4418b4445a21fd5929dbe09f11c988698f659429d9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -100,6 +100,14 @@
         "closed": "(1) 分岐と未決: decisionBranchesの3つ（P3-WS-D-ADDITION・P3-WS-D-UNKNOWN-SEVERITY・P3-WS-D-TYPHOON）はどれも作者裁定A（Q-WS-AUTHOR）で、rulingに『起草案』『待ち』の字は0件、『未』はD-UNKNOWN-SEVERITYの『未知』の3か所だけ。契約の全文でも『起草案』『待ち』『未裁定』『承認を待』は本項のほかに0件。裁定前の場合分けの字（『D-ADDITION=Bを選ぶとき』）がQ-WS-SCHEMAのclosedとoutOfScopeに1か所ずつ残っていたので、裁定の形（採らなかったB、Aで中身を持たない）に直した。unresolvedQuestionsは3件で、owner integratorはQ-WS-BASE（baseOidの割当、点検の後の定型）とQ-WS-REMEASURE（配送の後、本契約の閉鎖だけを止める）、Q-WS-EXISTING-TESTSはimplementer（実装の途中の報告）。questionResolutionsの7件はどれもclosedで、remainingの残るQ-WS-REJECTIONS・Q-WS-SCHEMA（K14、段3）、Q-WS-NONE-READS (6)（計画の振る舞い表への行。p3-order-plan.mdとspecにはまだ無い）、Q-WS-COST（Q-WS-REMEASURE）は発注を止めない。発注を止めるのはQ-WS-BASEだけ (2) anchor: check-contract（HEAD e5f4352e）はexit 0、本契約はPASS（fixtures 3・sequences 1・unresolved 3）で、WARNはbaseOid unassignedの1行だけ。evidenceRefs 117件（異なり103、19 file）とcontractTypeRefの行とhashはcheck-contractの照合でずれ0件。起草の4f7485e8からHEADまでに、reconstruction/src・reconstruction/test・p2-shared-runtime.types.ts・旧築srcは変わっていない（git diffが空）。変わったのはspec（3208行より後に17行の追加）・p3-order-plan.md・p3-persist-premises.mdと契約のjsonだけなので、anchorの無い本文の行の参照（weather-timeseries.ts:216・typhoon.ts:297など）も起草の読みのまま (3) 他の契約が引く行（git grep、本契約を除く追跡済みの契約とspec）: weather-timeseries.tsはanchor 2件（P3-LIFETIME-AND-EEW-GATE-001の:180・:235。値の名前のSetを:8〜:9の近くに足すとずれる）。weather-timeseries-unit.tsはanchor 30件（P3-UF-PUBLIC-001 13・P3-DISASTER-CAPACITY-001 6・P3-LIFETIME-AND-EEW-GATE-001 6・P3-CURRENCY-COVERAGE-001 3・P3-VERSION-MATERIAL-001 2）で、receiveの早い戻りと容量の拒否（:190〜:233の辺り）より後を引くのは:190・:200・:202・:220・:232・:233・:282・:289・:349・:412・:478・:481・:483・:512。typhoon.tsはanchor 0件（本文の参照はp3-persist-premises.mdの1か所）。view-projector.tsはanchor 48件（11契約）で、:271より後を引くのはP3-CURRENCY-COVERAGE-001（:286・:286・:317・:522・:797・:841）・P3-UF-PUBLIC-001（:271・:480・:651・:725・:733・:769・:851・:912・:914）・P3-DISASTER-CAPACITY-001（:769・:912・:914）・P3-UNIT-B-001（:912・:914）・P3-UNIT-N-001（:914）。persistent-diagnostic-sink.tsはanchor 4件（P3-CLOCK-CHECK-001 :57・P3-CURRENCY-COVERAGE-001 :40・P3-LIFETIME-AND-EEW-GATE-001 :50・P3-VERSION-MATERIAL-001 :46）で、どれも理由の表の:62より上。p2-shared-runtime.types.tsはanchor 25件（11契約）で、DiagnosticReasonの:303より後を引くのはP3-CODEC-CLOSURE-001 :305・P3-RECOVERY-001 :329・P3-CURRENCY-COVERAGE-001 :389・:398・:400・P3-VERSION-MATERIAL-001 :385・:510・:520・:554の9件。reconstruction/test/**ではP3-E05P-TYPHOON-001がtyphoon-unit.test.tsの:190・:202・:208・:214を引き、Q-WS-EXISTING-TESTSが変える拒否の表（:92〜:102）はその上にある。anchorの無い本文の参照はweather-timeseries-unit.ts 13・view-projector.ts 23・persistent-diagnostic-sink.ts 7・p2-shared-runtime.types.ts 20か所（check-contractは照合しない）。ずれたときの扱いは統合担当が前例P3-UF-PUBLIC-001のAC09(12)の形に決め、AC09(4)とrequiredCommandsのcheck-contractの行に書いた（行の数を変えない書き方を優先し、それでも動いた行を引くanchorは配送のcommitで付け直す） (4) 実在: readPaths 22（globの4本はどれも1件以上: *.types.ts 22・src/** 57・test/** 634・test/fixtures/** 309）とallowedPaths 7はどれもHEADに有り、新規作成の予定のfileは無い（試験はtest/**の中、新しいfixture fileは作らない〔AC09(2)〕）。fixtureIds 3はmanifestに有りfileも追跡済み、sequenceIds（O02）はsequences.jsonに有る（check-contractも照合した）。publicTypesの3つの型とpublicFunctionsの3つ（weather-timeseries.ts:79のinspect、typhoon.ts:228のparseTyphoon、view-projector.ts:776のprojectSnapshot）は有る。T03の81_03_01のCodeは31・99・12・01で条文と合い、T04の作り手（analysisXml・probabilityXml）はtyphoon-unit.testがimportしている (5) 計画: p3-order-plan.mdの511〜514行（印と原文の保存・H43・UnconfirmedReasonはK14、H44は読む側だけ）はobjective・outOfScopeの1行目・Q-WS-SCHEMAに、522行（3分岐のA、統合担当の3つ、残存リスク(1)〜(13)の承認）はdecisionBranchesのruling・Q-WS-AUTHOR・Q-WS-LEVELS・Q-WS-SCHEMA・artifactRequirementsに、523行（確率の値の読めない地域と同じtypeの風の域の2個以上は拒否のまま、K14で地域ごとに「不明」とH43のカード）はP3-WS-D-TYPHOONのA(7)とrulingの(8)・Q-WS-REJECTIONS・AC04・T04・残存リスク(5)に写っている。字の違いは514行の『印と診断を付ける』だけで、本契約はU-Fを診断だけにして印の保存をK14に送り、planの行の直しはAC08(9)に統合担当の分として書いてある (6) 構造的欠陥台帳97の照合の拡大（2026-10-20 夜、repoの外）で本契約に関わるもの: 『資料と同じ』の気象警報のStatusの値（Ｒ０６ 解説資料:711〜:718）は、本契約がStatusを既知の任意の欄として読む所（Q-WS-REJECTIONSの:153、weather-timeseries.ts:197・:202）と食い違わない。同じ行の『Bodyに Code 00 が出ない（同:466）』は、W1のVPWP50に00が出る（P3-WS-D-UNKNOWN-SEVERITYのreason）ので、VPWP50の資料のことなら食い違うと点検の子が挙げた。統合担当が資料で確かめ、:466は気象警報（Ｒ０６、VPWW）のBodyの記述で、時系列（Ｒ０６）では00は危険度の「値なし」のコード（気象警報・注意報時系列情報（Ｒ０６）_解説資料_別表類の:68）なので食い違わない。台帳の文に電文の名を足した。『資料と食い違う』の気象警報（Ｒ０６、VPWW56）のInfoTypeが発表/訂正だけで取消が無い件は、VPWW56の行でVPWP50の名は無い。U-FはInfoTypeの取消を読み（weather-timeseries.ts:277）、Q-WS-REJECTIONSはInfoTypeの検査（:106〜:109）を拒否のまま残すが、取消の運用に頼る規則は本契約に無い。VPWP50のInfoTypeは運用整理表（2026-04-30）の81 警戒・注意事項時系列情報の行で「発表/訂正」で、取消は運用されていない。U-Fが取消を読む既存の所は本契約で変えない。台風の電文の行は台帳97に無く、『資料に記述が見つからない』の台風が終わった後の確率の止め方は本契約の外（U-Yの寿命）",
         "remaining": "なし（baseOidの割当はQ-WS-BASE）",
         "reason": "発注前点検の項目を閉じる"
+      },
+      {
+        "id": "Q-WS-IMPL",
+        "status": "closed",
+        "source": "統合担当の配送（2026-10-21、実装は Opus の子、base b7585577）",
+        "closed": "実装の patch（8 file、+297 −118）を 2 段のレビューにかけた。契約適合 Opus は GO（P1・P2 なし。他の契約の anchor は全部同じ行のまま、AC09(4) の行の数の制約 4 つも守られている）。品質 Opus は条件付き GO で、P2 1 件（台風の確率の報で、知らない節・1〜5 日の外の節・止めた時間帯を落とした結果、読めた地域が 0 件になると zero の候補になり、typhoon-unit の zeroRecord が『暴風域に入る確率1%以上の地域なし』の released を出す）と P3 2 件（readable の道筋と capacityExceeded の早い戻りの診断を確かめる試験が無い）を修正波 1 で直した。P2 は、落としたものがあって読めた地域が 0 件の報を requiredStructureInvalid で拒否する形にした（P3-WS-T04 に 1 行）。直さなかった P3: typhoon.ts の labelOf の二度読みと PARTS の展開の定数化（効きが無く行がずれるだけ）、Area の無い Item の拒否の理由が requiredStructureInvalid から identityMissing に変わること（AC10 で識別の検査の絞り込みを外した結果で、意図どおり）、受理と truncated に変わった行の追加の試験（testMapping が求めていない）。ゲート（Mac mini、Node 26.10.0）: tsc 3 本・vitest 755 passed／23 skipped（base 750）・shuffle 同じ・check-manifest・check-sequences は exit 0。check-contract の FAIL は本契約の anchor だけで、配送の commit で付け直した（AC09(4)。行が動いただけの 18 件は同じ行へ、書き換わった行を引く 37 件は差分の hunk で当たる書き換え後の行へ、そのうち同じ配列で重なった 2 件は 1 件にまとめた）",
+        "remaining": "読めた地域が 0 件で落としたものがある台風の確率の報の拒否を、Q-WS-REJECTIONS の拒否のまま残す一覧に加えて K14 の入力（H43 の読めなかった電文のカード）に渡す（統合担当、段 3）。AC06 の W1 の測り直しは配送の後に Mac mini で行う",
+        "reason": "拒否に戻したのは、読んでいない節や時間帯に 1% 以上の地域があっても解除の通知を出すと、H51 の『黙って断らない』より重い、誤った安心を伝える形になるため。拒否は診断が付くので黙らない"
       }
     ],
     "operationContract": {
@@ -225,15 +233,14 @@
         "requirement": "付加事項で報を断らない（P3-WS-D-ADDITION=A、Q-WS-CAUSE、H51）: VPWP50の各PartのBaseとBase/Localの直下で、分岐Aの(a)（局所名Addition、refIDの有無によらない）と(b)（局所名が値の名前の集合に無く、periodとして欠けなく読めない要素〔refIDが無い・2個以上・解決できない、type属性が2個以上、子を持つ、同じ鍵のperiodが既にある〕と、Base・Localの空白でない地の文）はperiodにせず読み飛ばす（保存の形は変えない）。判定はvisitの中で、addへ渡す前（internとsharedの表に何も足す前）に行い、読み飛ばした要素はrefIDの欠け〔:216〕・解決〔:217〕・子を持つ値〔:229〜:230〕の検査に当てない。値の名前の集合はPARTS（:8〜:9）と並べて置く定数のSet 1つ（Significancy・Precipitation・WindDirection・WindSpeed・SnowfallDepth・WaveHeight・TidalLevel・Visibility・Humidity・PeakTime・CriteriaPeriod）。値の名前でrefIDを持たない要素は今どおりrequiredStructureMissing、値の名前でない要素でも欠けなく読めれば今どおりperiod。Base/Localの識別の子（Code・AreaName・Name）は今どおり値に数えない。受理した報のperiod・辞書・validUntil・effectiveは、同じ報からAdditionを除いた報と同じ（snapshotのJSONが一致する）。拒否の順（Q-ENUM.priorityRule）と、ほかの検査は変えない。ただし地の文や知らない子を読み飛ばした結果、必須の子が欠けて報全体が拒否になる所では、理由がrequiredStructureInvalidからrequiredStructureMissingに変わる（Q-WS-LEVELS、Q-WS-EXISTING-TESTS）",
         "evidenceRefs": [
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:8 «cce388f2143fadc6»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:215 «1e2d2170f1ec73a3»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:216 «135ad5a01afb711d»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:217 «0852043357bb7b1b»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:229 «fadcd96ee59b5531»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:230 «f4e5af3dcf356052»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:247 «2ca242e71af35dbc»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:248 «0ae38e713300c375»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:249 «ae08e369a164060c»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:271 «fadf497851d88acf»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:214 «1e2d2170f1ec73a3»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:215 «135ad5a01afb711d»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:216 «0852043357bb7b1b»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:229 «c982646406c2faea»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:246 «2ca242e71af35dbc»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:247 «d054d207fed1caf8»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:248 «5f58f878a2a7ca67»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:276 «fadf497851d88acf»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:136 «43cf2cce9dadfaad»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:140 «f08b8a238f240f5f»"
         ]
@@ -242,9 +249,9 @@
         "id": "P3-WS-AC02",
         "requirement": "知らないものの読み飛ばしを黙らない（P3-WS-D-ADDITION=A、Q-WS-LEVELS）: inspectが報を受理したとき、(i) AC01の(b)で読み飛ばした要素と地の文の数が1以上ならINFO診断を1件（reason weatherTimeseriesElementSkipped、countはその数。Additionは数えない）、(ii) AC10で読み飛ばした外の階層の知らない子と地の文が1つ以上ならWARN診断を1件（reason weatherTimeseriesScopeUnclear、countは範囲の中のperiodの数）を、そのreceiveのstepで返す（どちらもcomponent weather-timeseries、unit U-F、inputId）。門の決定（stale・duplicate・容量の拒否capacityExceeded・changed）によらず同じで、unitのreceiveの早い戻り（weather-timeseries-unit.tsのunchangedと容量の拒否）でも同じものを足す。inspectが拒否した報では出さない。DiagnosticReasonの閉集合とpersistent-diagnostic-sinkの理由の表に2語を足す。無いと: 気象庁が新しい要素を足したとき、それを読まなかったことと、意味を変えうる外側か値の階層かの別が、どこにも残らない（H44の間はU-Fに印の欄が無い）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:303 «25d266b1e4621a1c»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:303 «141ea88a871b9bf3»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:62 «0b3f82f2a4656d65»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:281 «e3dc48b3d46347a4»"
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:290 «e3dc48b3d46347a4»"
         ]
       },
       {
@@ -256,7 +263,7 @@
           "reconstruction/src/view-projector/view-projector.ts:271 «f0e7469dff70429b»",
           "reconstruction/src/view-projector/view-projector.ts:272 «87c1ddda6a811cf6»",
           "reconstruction/src/view-projector/view-projector.ts:542 «86e1c3a30390cc30»",
-          "reconstruction/src/view-projector/view-projector.ts:642 «dcffa14b1cf83cb3»",
+          "reconstruction/src/view-projector/view-projector.ts:642 «9b605ed058616c2a»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:463 «dd60944ba8d3b141»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:464 «c145e1c4c106b10d»",
           "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
@@ -269,21 +276,20 @@
         "requirement": "台風の報を形の少しの違いで丸ごと失わない（P3-WS-D-TYPHOON=A、H51）: 分岐のAの(1)〜(7)を、その部分だけを落とすか欄をnullにしてcandidateのtruncatedをtrueにして受理する。(1)〜(3)の順: (i) 全部の時刻でDateTimeのtypeだけを読み、実況の数〔:301〕を今どおり数え（実況が無ければMissing、2個以上ならInvalid）、typeが表の外の時刻を落とす（typeの欠けか空の時刻は落とさず(ii)へ回す） (ii) 残りが25個以上なら、実況の時刻を文書のどこにあっても残し、ほかは文書の順で先から、合わせて24個を文書の順で残す (iii) 残す時刻にだけparseFrameを当て、:138〜:140の1つのifを、時刻として読めない条件（DateTimeの欠け・2個以上・形の外、typeの欠けか空、hoursが種類と合わない、Itemの欠け・2個以上）にまとめ、実況でない時刻ならその時刻を落とし、実況の時刻なら今どおりMissing・Invalid。落とした時刻・残さない時刻の名前・中心などを読まない。(4)は:144より後の欄の不備（optional・whole・pointの形の外、:109のNumber、:152の同じType、:170・:175の2個以上）をその時刻の中だけの記録で受け、欄をnullにしてtruncatedを立てる（:152は同じTypeのPropertyを全部無いものとする）。:194の同じtypeの域の2個以上は今どおりInvalid。台風呼称の節の名前（:330）も同じ。(5)は軸が3本以上の域のaxesを[]（codecは0本を受ける）にする。(6)は落とした節の地域を地域の集合の照合〔:393〕に入れない。同じNの節の重複〔:324〕は今どおりInvalid。(7)は:364〜:370の時間帯の検査を、外れた最初の時間帯で止めてslotCountをそこまでの数にする形に替え、時系列の各地域の値の数を元のTimeDefineの数と照合〔:380〕してから、読んだ時間帯の数の値だけでrefIDの照合〔:383〕とpeakを行う。slotCountが0なら拒否。確率の値の形の外〔:223〕と同じ節か時系列に重なる地域〔:354・:379〕は今どおりInvalid。1〜5日積算の節が各1個、Itemの数、地域の識別、地域の集合の一致の検査は今どおり。保存の上限（frames 24・axes 2・slotCount 64）と通知の規則は変えない",
         "evidenceRefs": [
           "reconstruction/src/domains/typhoon/typhoon.ts:117 «3ce2da4e6e6e7381»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:118 «2096885e7515b17e»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:138 «57794e730285993b»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:139 «c49e993790ea9518»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:140 «8a73104ca5c56796»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:297 «7ad93ce78c9d39f8»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:301 «acd3edaf02c2ff96»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:311 «86c7192d2a3e0f95»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:322 «d8ff94d1054ce346»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:324 «cbfa026c49db58ac»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:363 «8ee50aa323c014c6»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:369 «c100d6e130cc665b»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:380 «816294404f5a4c0a»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:383 «61910075c8e09edb»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:393 «c2b4222494be9c0c»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:409 «16c1b2ce589575ac»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:118 «72f711396d867788»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:142 «ef4a57d242dbc8ac»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:143 «8a73104ca5c56796»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:307 «9a4724e251648b1d»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:311 «21b857748f659958»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:326 «86c7192d2a3e0f95»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:339 «d8ff94d1054ce346»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:341 «6509d53c8a95a333»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:386 «e3f3980d7e67bc16»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:392 «594100b2896cacbd»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:408 «3a6b276d44292054»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:411 «61910075c8e09edb»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:421 «c2b4222494be9c0c»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:439 «16c1b2ce589575ac»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:586 «2d176df9bd29492e»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:638 «386765b0ed3fadfa»",
           "reconstruction/contracts/p3-typhoon-unit.json:352 «38a3e50a557acad3»",
@@ -291,13 +297,13 @@
           "reconstruction/contracts/p3-typhoon-unit.json:440 «45e0f81b8c433afc»",
           "reconstruction/contracts/p3-typhoon-unit.json:441 «3b3587577b6fe5e3»",
           "reconstruction/contracts/p3-typhoon-unit.json:915 «b7d34b699b71c13a»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:152 «5cf58eab3ec62706»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:194 «d0c1854a89ce40ea»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:223 «844490aedc0ee871»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:354 «d4062ebdcb0992d0»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:366 «307dfba15b292a9a»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:368 «4a5a514a9164bca6»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:405 «44f162cde8b85498»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:159 «1fe93b1cae45b127»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:203 «ab68efdc30d82239»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:234 «844490aedc0ee871»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:376 «d4062ebdcb0992d0»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:389 «ae4f8d3adcd67621»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:391 «5e0aab8267f4f2ea»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:435 «44f162cde8b85498»",
           "docs/specs/reconstruction-p0-contracts.md:3209 «b0ec3704c104499b»"
         ]
       },
@@ -329,10 +335,10 @@
         "id": "P3-WS-AC07",
         "requirement": "受信経路の計算量（Q-WS-COST、AGENTS.md）: 読み飛ばしと切り詰めは今の走査の中で要素ごとに定数の判定だけを足し、全件×全件の走査・state全体やsubject全体のJSON.stringifyを足さない。外の階層の範囲のperiodの数は祖先から渡す1つの真偽と、系列ごとの範囲のtimeIdの集合だけで数える（範囲のperiodを後から走査し直さない）。要約の規則はoperationの行ごとに定数の手間。U-Yの(1)(2)は、残さない時刻でDateTimeのtypeだけを読み（今の:301と同じ）、(7)は止めた時間帯から後と値を数えるだけで読まない",
         "evidenceRefs": [
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:247 «2ca242e71af35dbc»",
-          "reconstruction/src/view-projector/view-projector.ts:642 «dcffa14b1cf83cb3»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:297 «7ad93ce78c9d39f8»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:363 «8ee50aa323c014c6»"
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:246 «2ca242e71af35dbc»",
+          "reconstruction/src/view-projector/view-projector.ts:642 «9b605ed058616c2a»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:307 «9a4724e251648b1d»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:386 «e3f3980d7e67bc16»"
         ]
       },
       {
@@ -369,8 +375,8 @@
         "id": "P3-WS-AC09",
         "requirement": "最小実装・最小テスト: (1) 足す仕組みは診断の理由2語と、読み飛ばしの判定・外の階層の範囲のperiodの数え・要約の規則・U-Yの切り詰めだけ。ほかの型・層・helper・設定・保存の欄を足さない。足した仕組みごとに無いと何が壊れるかを1行 (2) 試験はtestMappingのP3-WS-T01〜T05に限る。U-Fの試験はpublicのfixtureに付加や未知の要素を試験の中で差し込んで作り、新しいfixture fileを足さない（manifestの件数を変えない） (3) reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す (4) 他の契約が引く行（Q-WS-PRECHECKの(3)）: 行の数を変えない書き方を優先する（p2-shared-runtime.types.tsは:303の同じ行の中で直す、persistent-diagnostic-sink.tsは:62より後に足す、weather-timeseries.tsは:235より上の行の数を変えない、typhoon-unit.test.tsは:214より上の行の数を変えない）。weather-timeseries-unit.tsとview-projector.tsは変える所より後を引くanchorが多いので、足す行は変える関数の中にとどめる。それでも動いた行を引くanchorは、統合担当が配送のcommitで行番号と各契約のmeta.sha256を付け直す（本文は書き換えない）",
         "evidenceRefs": [
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:79 «77930c433792cec1»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:425 «f35fcf322d69470e»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:84 «77930c433792cec1»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:455 «f35fcf322d69470e»",
           "reconstruction/src/view-projector/view-projector.ts:940 «76d9e0e79209d6c9»"
         ]
       },
@@ -378,21 +384,21 @@
         "id": "P3-WS-AC10",
         "requirement": "外の階層の知らない要素で報を断らない（Q-WS-LEVELS、H51）: Q-WS-LEVELSの階層と範囲の表のとおり、表に無い子要素と空白でない地の文を読まずに残りを今どおり読み、範囲の中の既知のCodeも範囲の外のperiodも今と同じにする（unknownに書き換えない）。範囲のperiodの数をWARN診断weatherTimeseriesScopeUnclearのcountにする（AC02）。Item・Areaの知らない子は:93の絞り込みと:102〜:103の識別の検査から外し（AreaのCodeの欠け・2個以上・数字でないは今どおり識別の拒否）、:110〜:111・:117〜:118・:159・:164〜:165・:172・:188・:197・:208〜:209・:228・:238の`invalid = true`と`continue`をやめて中を読む。知らないものだけの範囲（その階層に読み飛ばしたものがあって:195・:206・:213・:242の必須の子が欠けるItem・Kind・Property・Part）はmissingを立てず、periodを0のままWARN診断に数える。拒否は報全体のperiodが0件のときだけ:270で行い、:270は読み飛ばしたものがある報にも当てる。保存の形は変えない（範囲の印の保存はK14）。無いと: 気象庁が外側に要素を1つ足すだけで、その官署の時系列が全部見えなくなる（H51で置き換える残存リスク(1)）",
         "evidenceRefs": [
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:93 «a5f705dc092a0f0a»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:103 «e70625b9b8058433»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:111 «6e071c7519bdaeb7»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:118 «276256dac1233e78»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:159 «6a5bcb0136cf84c5»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:165 «e8360871de28342f»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:172 «5c8c31b212f06ed4»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:188 «71e7e5f0b132fc5d»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:197 «db987193a9bf8387»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:209 «dffdd4da5c84dc71»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:228 «35833d4066aecc77»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:238 «2feeef688751267e»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:245 «a546ce10480fe546»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:254 «62e41eeb8d315d0d»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:270 «653f19b4c5126424»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:98 «00c89d8b53e62052»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:104 «4fef6a929cca29bc»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:112 «b96be72936006503»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:123 «45c519bc025d73fb»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:162 «a5105e5cdfdd13f2»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:169 «cc1207d1831c1898»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:174 «9613d72edee4d1b1»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:188 «0cc1617657aa5a52»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:195 «f0b1e4a1768f4ee3»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:204 «540b6f409d161d69»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:228 «94c0ac638242c610»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:238 «addbdce2af96f581»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:243 «df4ece2eba4d7b36»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:257 «f613e7b4bcbf10e0»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:274 «1884fdcfaff2104f»",
           "docs/specs/reconstruction-p0-contracts.md:3199 «f54703b68869368a»",
           "docs/specs/reconstruction-p0-contracts.md:3192 «5c28b4bfdc60fbd0»"
         ]

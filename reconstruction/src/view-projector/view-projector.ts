@@ -638,11 +638,11 @@ function projectDomain<View extends AnyView>(unit: RuntimeUnitId, previous: Disp
     transition.after = eventClass(eventRefs.get(`${transition.operation}|${transition.eventId}`));
   for (const operation of timeOps) rowOf(operation).updatedAt = latest(timeRefs, operation);
   const items = OPERATIONS.map((operation, index) => {
-    const row = rows[index];
-    if (!COUNTS_BY_WARNING_CLASS[unit]) return buildItem(unit, operation, row, highest(severityRefs, operation), meta);
-    // A4 warningClass only.
+    // P3-WS-AC03: U-F は未知・空・欠落の危険度があり既知の最大が below 以下なら区分不明（null）。無いと未知が「なし」「基準未満」に隠れる。
+    const row = rows[index], top = highest(severityRefs, operation), unclear = unit === "U-F" && (top == null || top === "below" || top === "none") && UNKNOWN_KEYS.some((key) => (row.unknownCode[key] ?? 0) > 0);
+    if (!COUNTS_BY_WARNING_CLASS[unit]) return buildItem(unit, operation, row, unclear ? null : top, meta);
     const events = (severityRefs.get(`${operation}|forecast`) ?? 0) + (severityRefs.get(`${operation}|warning`) ?? 0);
-    return buildItem(unit, operation, { ...row, activeCount: events }, highest(severityRefs, operation), meta);
+    return buildItem(unit, operation, { ...row, activeCount: events }, top, meta);
   });
   const full = { unit, contentRevision: view.contentRevision, items: [items[0], items[1], items[2]] as const,
     delivery: "full" as const, view };

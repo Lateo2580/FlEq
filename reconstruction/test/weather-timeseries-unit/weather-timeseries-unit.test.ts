@@ -15,6 +15,8 @@ import { checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } 
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { reduceWeatherTimeseriesUnit, timeseriesPublicSubject, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { fixtureDriver, fixtureState, ownerFixture, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
+import { decode, projected, projectionInput, received, startup, step } from "../snapshot-sse/projection-fixture";
+import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { envelope, harnessedRoot, seeded, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 
@@ -292,17 +294,17 @@ describe("P2-A6 weather timeseries", () => {
       [fixture(unknown, (xml) => xml.replace('type="量的予想時系列（市町村等）"', 'type="bad"')
         .replace("<Code>0121400</Code>", "")), "identityMissing"],
       [fixture(unknown, (xml) => xml.replace(/<TimeDefines>[\s\S]*?<\/TimeDefines>/,
-        "<TimeDefines>broken</TimeDefines>")), "requiredStructureInvalid"],
-      [fixture(unknown, (xml) => xml.replace(/<Body[^>]*>[\s\S]*?<\/Body>/, "<Body>broken</Body>")), "requiredStructureInvalid"],
-      [fixture(unknown, (xml) => xml.replace(/<Kind>[\s\S]*?<\/Kind>/g, "<Kind>broken</Kind>")), "requiredStructureInvalid"],
+        "<TimeDefines>broken</TimeDefines>")), "requiredStructureMissing"],
+      [fixture(unknown, (xml) => xml.replace(/<Body[^>]*>[\s\S]*?<\/Body>/, "<Body>broken</Body>")), "requiredStructureMissing"],
+      [fixture(unknown, (xml) => xml.replace(/<Kind>[\s\S]*?<\/Kind>/g, "<Kind>broken</Kind>")), "requiredStructureMissing"],
       // A valid sibling's actual missing child still precedes a different container's invalid type.
       [fixture(unknown, (xml) => xml.replace('type="量的予想時系列（市町村等）"', 'type="bad"')
         .replace("</Body>", '<MeteorologicalInfos type="量的予想時系列（市町村等）"><TimeSeriesInfo/></MeteorologicalInfos></Body>')),
         "requiredStructureMissing"],
-      // Review 2-1: invalid Base/Local text stops descendant refID checks.
+      // Q-WS-EXISTING-TESTS: 地の文は読み飛ばし（P3-WS-AC01・AC10）、残りの欠け（値の refID・TimeDefine・容器・period 0 件）で Missing。
       ...["broken<Significancy/>", "<Local>broken<Significancy/></Local>"].map((body) =>
         [fixture(unknown, (xml) => xml.replace(/<Base>[\s\S]*?<\/Base>/, `<Base>${body}</Base>`)),
-          "requiredStructureInvalid"] as const),
+          "requiredStructureMissing"] as const),
       // Review 7: finite duration whose endpoint is outside Date's range.
       [fixture(unknown, (xml) => xml.replace("PT3H", "P100000000D")), "requiredStructureInvalid"],
     ] as const;
@@ -571,6 +573,10 @@ describe("P2-A6 weather timeseries", () => {
     expect(refused.decisions[0].decision).toBe("capacityExceeded");
     expect(refused.diagnostics).toEqual(rejected(material.inputId));
     expect(refused.confirmationEvidence).toEqual([{ source: "capacityExceeded", scopes: [{ unit: "U-F", operation: "normal", kind: "unit" }] }]);
+    // P3-WS-AC02: 容量で断る早い戻りでも、読み飛ばしの診断を先に出す。
+    const skipping = fixture(unknown, (xml) => xml.replace("稚内地方気象台", "new-office").replace("<Base>", "<Base><Remark>x</Remark>"));
+    expect(receive(full, skipping).diagnostics).toEqual([{ level: "INFO", component: "weather-timeseries", reason: "weatherTimeseriesElementSkipped",
+      inputId: skipping.inputId, unit: "U-F", count: 1 }, ...rejected(skipping.inputId)]);
   });
 
   // T06: lastKnown is taken after expiry and before capacity eviction, then dropped as one snapshot if needed.
@@ -862,5 +868,90 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-F retention", () => {
     const unavailable = pressed.subjects.find((item) => item.subject === first(adopted).subject);
     expect(unavailable).toMatchObject({ effective: "unavailable", validUntil: null, retainUntil: report + week });
     expect(roundTrip(pressed).kind).toBe("restored");
+  });
+});
+
+describe("P3-WEATHER-SHAPE-001 U-F reading", () => {
+  const big = "81_01_01_260129_VPWP50", localArea = "81_07_01_260605_VPWP50_local_area";
+  const bigXml = readFileSync(`test/fixtures/${big}.xml`, "utf8");
+  const atReport = (name: string, transform?: (xml: string) => string) => {
+    const material = fixture(name, transform);
+    return receive(empty(), material, Date.parse(material.reportDateTimeRaw));
+  };
+  const json = (result: ReturnType<typeof receive>) => JSON.stringify(first(result.state));
+  const plainBig = json(atReport(big)), plainLocal = json(atReport(localArea));
+  const significancyBase = /(<SignificancyPart>\s*<Base>)/;
+
+  // regression（構造的欠陥台帳 89）: W1 の VPWP50 の約 6 割は Base と Base/Local の直下の付加事項で報ごと拒否されていた。
+  it("P3-WS-T01 regression / P3-WS-AC01: an Addition under Base or Base/Local is skipped silently, with or without refID", () => {
+    for (const attributes of ["", ' refID="1"']) {
+      const addition = `<Addition${attributes}><Note>うねり</Note></Addition>`;
+      const inBase = atReport(big, (xml) => xml.replace(significancyBase, `$1${addition}`));
+      const inLocal = atReport(localArea, (xml) => xml.replace("<AreaName>陸上</AreaName>", `<AreaName>陸上</AreaName>${addition}`));
+      for (const [label, result, plain] of [["Base", inBase, plainBig], ["Base/Local", inLocal, plainLocal]] as const) {
+        expect([label, attributes, result.decisions[0].decision, result.diagnostics]).toEqual([label, attributes, "changed", []]);
+        expect(json(result), label).toBe(plain);
+      }
+    }
+  });
+
+  // contractBoundary: 値の名前でなく period として読めない要素は INFO 1 件に数える。門の決定によらず出す。値の名前の refID の欠けは今どおり拒否。
+  it("P3-WS-T02 contractBoundary / P3-WS-AC02: unread elements give one INFO per accepted receive, also on a duplicate", () => {
+    const material = fixture(big, (xml) => xml.replace(significancyBase, "$1<Remark>x</Remark><Remark>x</Remark>"));
+    const skipped = { level: "INFO", component: "weather-timeseries", reason: "weatherTimeseriesElementSkipped", inputId: big, unit: "U-F", count: 2 };
+    const once = receive(empty(), material, Date.parse(material.reportDateTimeRaw));
+    expect([once.decisions[0].decision, once.diagnostics]).toEqual(["changed", [skipped]]);
+    const twice = receive(once.state, material, Date.parse(material.reportDateTimeRaw));
+    expect([twice.decisions, twice.diagnostics]).toMatchObject([[{ decision: "unchanged", reason: "duplicate" }], [skipped]]);
+    const noRef = fixture(big, (xml) => xml.replace('<Significancy refID="1" type="大雨浸水危険度">', '<Significancy type="大雨浸水危険度">'));
+    const rejected = receive(once.state, noRef, Date.parse(noRef.reportDateTimeRaw));
+    expect(rejected.decisions).toMatchObject([{ decision: "rejected", reason: "requiredStructureMissing" }]);
+    expect(rejected.state).toBe(once.state);
+    // 値の名前に無い要素でも欠けなく読めれば period で、INFO に数えない。同じ鍵の 2 個目だけを読み飛ばして数える（P3-WS-D-ADDITION の (b)）。
+    const foo = fixture(big, (xml) => xml.replace(significancyBase, '$1<Foo refID="1"/><Foo refID="1"/>'));
+    const read = receive(empty(), foo, Date.parse(foo.reportDateTimeRaw));
+    expect([read.decisions[0].decision, read.diagnostics]).toEqual(["changed", [{ ...skipped, count: 1 }]]);
+    expect(first(read.state).periods.filter((row) => first(read.state).strings[row[6]] === "Foo")).toHaveLength(1);
+  });
+
+  // acceptance: 要約の U-F の行の最高区分。既知の最大が advisory 以上ならそのまま、below 以下で未知があれば区分不明（null）。
+  it("P3-WS-T03 acceptance / P3-WS-AC03: an unknown code turns a none/below summary into null but leaves advisory", async () => {
+    const summary = async (transform: (xml: string) => string) => {
+      const start = await startup({ wallTimeMs: DATE, monotonicMs: 1 });
+      const next = await step(start.state, received("run", decode(unknown, "VPWP50", transform), { wallTimeMs: DATE + 60_000, monotonicMs: 2 }));
+      const { snapshot } = projected(projectSnapshot(projectionInput(next, DATE + 60_000), null));
+      return { normal: snapshot.current.weatherTimeseries.items[0], warning: snapshot.current.weatherCurrent.items };
+    };
+    const advisory = await summary((xml) => xml.replace("<Code>31</Code>", "<Code>20</Code>"));
+    const unclear = await summary((xml) => xml.replace("<Code>31</Code>", "<Code>01</Code>"));
+    const below = await summary((xml) => xml.replace("<Code>31</Code>", "<Code>01</Code>").replace("<Code>99</Code>", "<Code>01</Code>")
+      .replace("<Code>12</Code>", "<Code>01</Code>"));
+    expect([advisory.normal.highestSeverity, unclear.normal.highestSeverity, below.normal.highestSeverity]).toEqual(["advisory", null, "below"]);
+    expect([unclear.normal.unknownCode, unclear.normal.activeCount, below.normal.unknownCode]).toEqual([{ unknown: 2 }, 1, {}]);
+    expect([unclear.warning, below.warning]).toEqual([advisory.warning, advisory.warning]);
+  });
+
+  // contractBoundary: 外の階層の知らない子は読まずに残りを今どおり読み、範囲の period を WARN の count に数える。
+  it("P3-WS-T05 contractBoundary / P3-WS-AC10,AC02: an unknown child outside the value level keeps the rest and counts its scope", () => {
+    const scope = (count: number) => [{ level: "WARN", component: "weather-timeseries", reason: "weatherTimeseriesScopeUnclear", inputId: big, unit: "U-F", count }];
+    const firstKind = /<Kind>[\s\S]*?<\/Kind>/.exec(bigXml)![0];
+    const inKind = atReport(big, (xml) => xml.replace("<Kind>", "<Kind><Remark>x</Remark>"));
+    expect([json(inKind), inKind.diagnostics]).toEqual([plainBig, scope(firstKind.split("refID=").length - 1)]);
+    const inTime = atReport(big, (xml) => xml.replace('<TimeDefine timeId="1">', '<TimeDefine timeId="1"><Remark>x</Remark>'));
+    // timeId は系列ごと。差し込んだのは最初の系列の TimeDefine なので、その系列の中で引く period を数える。
+    const firstSeries = /<TimeSeriesInfo>[\s\S]*?<\/TimeSeriesInfo>/.exec(bigXml)![0];
+    expect([json(inTime), inTime.diagnostics]).toEqual([plainBig, scope(firstSeries.split('refID="1"').length - 1)]);
+    // 知らないものだけの Property は period 0 のまま受理し、ほかの Property の period は差し込む前と同じ。
+    const newPart = fixture(big, (xml) => xml.replace(/<SignificancyPart>[\s\S]*?<\/SignificancyPart>/, "<NewPart>x</NewPart>"));
+    const onlyNew = receive(empty(), newPart, Date.parse(newPart.reportDateTimeRaw));
+    expect([onlyNew.decisions[0].decision, onlyNew.diagnostics]).toEqual(["changed", scope(0)]);
+    expect(first(onlyNew.state).periods).toHaveLength(first(atReport(big).state).periods.length - (firstKind.split("refID=").length - 1));
+    expect(storedMeaning(first(onlyNew.state))).toEqual(xmlMeaning(newPart));
+    // 報全体が知らないものだけなら period 0 件で拒否する（なしに読み替えない）。
+    const seeded = atReport(big).state;
+    const onlyRemarks = fixture(big, (xml) => xml.replace(/<Kind>[\s\S]*?<\/Kind>/g, "<Kind><Remark>x</Remark></Kind>"));
+    const rejected = receive(seeded, onlyRemarks, Date.parse(onlyRemarks.reportDateTimeRaw));
+    expect([rejected.decisions, rejected.state]).toMatchObject([[{ decision: "rejected", reason: "requiredStructureMissing" }], seeded]);
+    expect(rejected.state).toBe(seeded);
   });
 });
