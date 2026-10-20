@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "a16d1da7b0c8826a02dc918b9e0abb44dbb7950c1a58ebe309a33b657a92f51c",
+    "sha256": "d12d709019276701aff1407ad6575d3344b8aa63a4f4f9ad2e1f66b2d4760c17",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -81,7 +81,7 @@
         "id": "Q-WS-SCHEMA",
         "status": "closed",
         "source": "統合担当の起草（PersistedWeatherTimeseriesUnit・PersistedTyphoonUnit・codec・checkpointの版の照合の読み合わせ）、H51で改訂、作者承認（2026-10-20 夕、Q-WS-AUTHOR）",
-        "closed": "裁定の3つ（D-ADDITION=A・D-UNKNOWN-SEVERITY=A・D-TYPHOON=A、2026-10-20 作者裁定）では永続の型も版も変わらず、移行は要らない（U-Fはp2-weather-timeseries-unit-v1、U-Yはp3-typhoon-unit-v1のまま）: U-Fは読み飛ばした要素も、読めない所と範囲の区分不明の印も保存しない（印の保存はK14〔段3、仮〕、p3-order-plan.mdの末尾のH51の入れ方と同じ考え）。要約は保存しない派生の値。U-Yは今ある欄だけで足りる（truncated、nullを持てる欄、axesの[]、frames 24・axes 2・slotCount 64の上限の内）。足すのはDiagnosticReasonの2語（INFOのweatherTimeseriesElementSkippedとWARNのweatherTimeseriesScopeUnclear）で、診断のfileの行の理由の表（persistent-diagnostic-sink.ts:62）に足す。D-ADDITION=Bを選ぶときだけ、snapshotにadditionsを足してschemaVersionをv2に上げ、v1の保存物は読まない（P5より前は開発用の保存を移さずに初期化してよい作者裁定、p3-order-plan.md、2026-10-20）",
+        "closed": "裁定の3つ（D-ADDITION=A・D-UNKNOWN-SEVERITY=A・D-TYPHOON=A、2026-10-20 作者裁定）では永続の型も版も変わらず、移行は要らない（U-Fはp2-weather-timeseries-unit-v1、U-Yはp3-typhoon-unit-v1のまま）: U-Fは読み飛ばした要素も、読めない所と範囲の区分不明の印も保存しない（印の保存はK14〔段3、仮〕、p3-order-plan.mdの末尾のH51の入れ方と同じ考え）。要約は保存しない派生の値。U-Yは今ある欄だけで足りる（truncated、nullを持てる欄、axesの[]、frames 24・axes 2・slotCount 64の上限の内）。足すのはDiagnosticReasonの2語（INFOのweatherTimeseriesElementSkippedとWARNのweatherTimeseriesScopeUnclear）で、診断のfileの行の理由の表（persistent-diagnostic-sink.ts:62）に足す。採らなかったD-ADDITION=Bでは、snapshotにadditionsを足してschemaVersionをv2に上げ、v1の保存物を読まない形だった（P5より前は開発用の保存を移さずに初期化してよい作者裁定、p3-order-plan.md、2026-10-20）",
         "remaining": "U-Fの読めない所の印の保存の形（K14、統合担当、段3）",
         "reason": "計画の行（p3-order-plan.mdの『形の違う気象電文の読み方』、移行『無し』）の見込みと合う。新築はまだ画面に出ていないので、H44の間に印が保存されなくても利用者からは見えない。U-Fの印の欄をH44とK14で2度作り直さない"
       },
@@ -92,6 +92,14 @@
         "closed": "受信1回の処理に走査を足さない: U-Fの読み飛ばしは今の木の走査の中で要素ごとに1回の判定、外の階層の範囲のperiodの数は祖先から渡す1つの真偽と、系列ごとの範囲のtimeIdの集合を引くだけ（periodごとに定数）。U-Yの切り詰めは上限までの読み取りだけ。どれも全件×全件の走査やJSON.stringifyによる計量を足さない。要約の規則はoperationの行に既にあるunknownCodeの件数と既知の最大だけを見る（subjectとperiodを走査し直さない、P3-UFP-AC04）。受理する報が増える分（W1の3日で547通）、U-Fのstateと保存のbyteと受信の処理は、P2-A6のQ-PERIODで測った平常の大きさ（58官署で15.6〜15.8 MB、上限32 MiB）に戻る",
         "remaining": "測り直しはQ-WS-REMEASURE",
         "reason": "拒否が無くなるとU-Fの器が設計どおりに埋まるので、器の測り直しを受入に入れた"
+      },
+      {
+        "id": "Q-WS-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-20 夜、HEAD e5f4352e＝main。本契約は4f7485e8から起草された。前例はQ-UFP-PRECHECK・Q-DC-PRECHECK）",
+        "closed": "(1) 分岐と未決: decisionBranchesの3つ（P3-WS-D-ADDITION・P3-WS-D-UNKNOWN-SEVERITY・P3-WS-D-TYPHOON）はどれも作者裁定A（Q-WS-AUTHOR）で、rulingに『起草案』『待ち』の字は0件、『未』はD-UNKNOWN-SEVERITYの『未知』の3か所だけ。契約の全文でも『起草案』『待ち』『未裁定』『承認を待』は本項のほかに0件。裁定前の場合分けの字（『D-ADDITION=Bを選ぶとき』）がQ-WS-SCHEMAのclosedとoutOfScopeに1か所ずつ残っていたので、裁定の形（採らなかったB、Aで中身を持たない）に直した。unresolvedQuestionsは3件で、owner integratorはQ-WS-BASE（baseOidの割当、点検の後の定型）とQ-WS-REMEASURE（配送の後、本契約の閉鎖だけを止める）、Q-WS-EXISTING-TESTSはimplementer（実装の途中の報告）。questionResolutionsの7件はどれもclosedで、remainingの残るQ-WS-REJECTIONS・Q-WS-SCHEMA（K14、段3）、Q-WS-NONE-READS (6)（計画の振る舞い表への行。p3-order-plan.mdとspecにはまだ無い）、Q-WS-COST（Q-WS-REMEASURE）は発注を止めない。発注を止めるのはQ-WS-BASEだけ (2) anchor: check-contract（HEAD e5f4352e）はexit 0、本契約はPASS（fixtures 3・sequences 1・unresolved 3）で、WARNはbaseOid unassignedの1行だけ。evidenceRefs 117件（異なり103、19 file）とcontractTypeRefの行とhashはcheck-contractの照合でずれ0件。起草の4f7485e8からHEADまでに、reconstruction/src・reconstruction/test・p2-shared-runtime.types.ts・旧築srcは変わっていない（git diffが空）。変わったのはspec（3208行より後に17行の追加）・p3-order-plan.md・p3-persist-premises.mdと契約のjsonだけなので、anchorの無い本文の行の参照（weather-timeseries.ts:216・typhoon.ts:297など）も起草の読みのまま (3) 他の契約が引く行（git grep、本契約を除く追跡済みの契約とspec）: weather-timeseries.tsはanchor 2件（P3-LIFETIME-AND-EEW-GATE-001の:180・:235。値の名前のSetを:8〜:9の近くに足すとずれる）。weather-timeseries-unit.tsはanchor 30件（P3-UF-PUBLIC-001 13・P3-DISASTER-CAPACITY-001 6・P3-LIFETIME-AND-EEW-GATE-001 6・P3-CURRENCY-COVERAGE-001 3・P3-VERSION-MATERIAL-001 2）で、receiveの早い戻りと容量の拒否（:190〜:233の辺り）より後を引くのは:190・:200・:202・:220・:232・:233・:282・:289・:349・:412・:478・:481・:483・:512。typhoon.tsはanchor 0件（本文の参照はp3-persist-premises.mdの1か所）。view-projector.tsはanchor 48件（11契約）で、:271より後を引くのはP3-CURRENCY-COVERAGE-001（:286・:286・:317・:522・:797・:841）・P3-UF-PUBLIC-001（:271・:480・:651・:725・:733・:769・:851・:912・:914）・P3-DISASTER-CAPACITY-001（:769・:912・:914）・P3-UNIT-B-001（:912・:914）・P3-UNIT-N-001（:914）。persistent-diagnostic-sink.tsはanchor 4件（P3-CLOCK-CHECK-001 :57・P3-CURRENCY-COVERAGE-001 :40・P3-LIFETIME-AND-EEW-GATE-001 :50・P3-VERSION-MATERIAL-001 :46）で、どれも理由の表の:62より上。p2-shared-runtime.types.tsはanchor 25件（11契約）で、DiagnosticReasonの:303より後を引くのはP3-CODEC-CLOSURE-001 :305・P3-RECOVERY-001 :329・P3-CURRENCY-COVERAGE-001 :389・:398・:400・P3-VERSION-MATERIAL-001 :385・:510・:520・:554の9件。reconstruction/test/**ではP3-E05P-TYPHOON-001がtyphoon-unit.test.tsの:190・:202・:208・:214を引き、Q-WS-EXISTING-TESTSが変える拒否の表（:92〜:102）はその上にある。anchorの無い本文の参照はweather-timeseries-unit.ts 13・view-projector.ts 23・persistent-diagnostic-sink.ts 7・p2-shared-runtime.types.ts 20か所（check-contractは照合しない）。ずれたときの扱いは統合担当が前例P3-UF-PUBLIC-001のAC09(12)の形に決め、AC09(4)とrequiredCommandsのcheck-contractの行に書いた（行の数を変えない書き方を優先し、それでも動いた行を引くanchorは配送のcommitで付け直す） (4) 実在: readPaths 22（globの4本はどれも1件以上: *.types.ts 22・src/** 57・test/** 634・test/fixtures/** 309）とallowedPaths 7はどれもHEADに有り、新規作成の予定のfileは無い（試験はtest/**の中、新しいfixture fileは作らない〔AC09(2)〕）。fixtureIds 3はmanifestに有りfileも追跡済み、sequenceIds（O02）はsequences.jsonに有る（check-contractも照合した）。publicTypesの3つの型とpublicFunctionsの3つ（weather-timeseries.ts:79のinspect、typhoon.ts:228のparseTyphoon、view-projector.ts:776のprojectSnapshot）は有る。T03の81_03_01のCodeは31・99・12・01で条文と合い、T04の作り手（analysisXml・probabilityXml）はtyphoon-unit.testがimportしている (5) 計画: p3-order-plan.mdの511〜514行（印と原文の保存・H43・UnconfirmedReasonはK14、H44は読む側だけ）はobjective・outOfScopeの1行目・Q-WS-SCHEMAに、522行（3分岐のA、統合担当の3つ、残存リスク(1)〜(13)の承認）はdecisionBranchesのruling・Q-WS-AUTHOR・Q-WS-LEVELS・Q-WS-SCHEMA・artifactRequirementsに、523行（確率の値の読めない地域と同じtypeの風の域の2個以上は拒否のまま、K14で地域ごとに「不明」とH43のカード）はP3-WS-D-TYPHOONのA(7)とrulingの(8)・Q-WS-REJECTIONS・AC04・T04・残存リスク(5)に写っている。字の違いは514行の『印と診断を付ける』だけで、本契約はU-Fを診断だけにして印の保存をK14に送り、planの行の直しはAC08(9)に統合担当の分として書いてある (6) 構造的欠陥台帳97の照合の拡大（2026-10-20 夜、repoの外）で本契約に関わるもの: 『資料と同じ』の気象警報のStatusの値（Ｒ０６ 解説資料:711〜:718）は、本契約がStatusを既知の任意の欄として読む所（Q-WS-REJECTIONSの:153、weather-timeseries.ts:197・:202）と食い違わない。同じ行の『Bodyに Code 00 が出ない（同:466）』は、W1のVPWP50に00が出る（P3-WS-D-UNKNOWN-SEVERITYのreason）ので、VPWP50の資料のことなら食い違うと点検の子が挙げた。統合担当が資料で確かめ、:466は気象警報（Ｒ０６、VPWW）のBodyの記述で、時系列（Ｒ０６）では00は危険度の「値なし」のコード（気象警報・注意報時系列情報（Ｒ０６）_解説資料_別表類の:68）なので食い違わない。台帳の文に電文の名を足した。『資料と食い違う』の気象警報（Ｒ０６、VPWW56）のInfoTypeが発表/訂正だけで取消が無い件は、VPWW56の行でVPWP50の名は無い。U-FはInfoTypeの取消を読み（weather-timeseries.ts:277）、Q-WS-REJECTIONSはInfoTypeの検査（:106〜:109）を拒否のまま残すが、取消の運用に頼る規則は本契約に無い。VPWP50のInfoTypeは運用整理表（2026-04-30）の81 警戒・注意事項時系列情報の行で「発表/訂正」で、取消は運用されていない。U-Fが取消を読む既存の所は本契約で変えない。台風の電文の行は台帳97に無く、『資料に記述が見つからない』の台風が終わった後の確率の止め方は本契約の外（U-Yの寿命）",
+        "remaining": "なし（baseOidの割当はQ-WS-BASE）",
+        "reason": "発注前点検の項目を閉じる"
       }
     ],
     "operationContract": {
@@ -206,7 +214,7 @@
       "00（値なし）の要約での読み方と、U-Wの要約の最高区分での未知のCodeの扱い（Q-WS-NONE-READS (2)(6)）",
       "U-Fの読めない所の印の公開形式（WeatherTimeseriesPublicSubject）・SSE・詳細の応答への載せ方（K14・P4）",
       "VPWW53・54・VPFJ50・VXWW50・VPZJ50・VPCJ50などW1のrealInvalidのnotReduced（U-Fの外。経路と単位の問題）、U-Wの容量の拒否（③ U-Wの正本の持ち方）",
-      "U-Fの画面（P4）、付加事項の表示（P3-WS-D-ADDITION=Bを選ぶときも描画はP4）。P4への要件: P3-WS-D-UNKNOWN-SEVERITY=Aは、P4が要約の行の「区分不明」（highestSeverityがnullでunknownCodeが1以上）を「なし」と分けて描くときだけ効く。highestSeverityのnullは「activeなU-Fが無い〔activeCount 0〕」と「区分不明」を兼ねるので、P4はactiveCountとunknownCodeで描き分ける",
+      "U-Fの画面（P4）、付加事項の表示（P3-WS-D-ADDITION=Aで中身を持たない。原文の欠片はK14、描画はP4）。P4への要件: P3-WS-D-UNKNOWN-SEVERITY=Aは、P4が要約の行の「区分不明」（highestSeverityがnullでunknownCodeが1以上）を「なし」と分けて描くときだけ効く。highestSeverityのnullは「activeなU-Fが無い〔activeCount 0〕」と「区分不明」を兼ねるので、P4はactiveCountとunknownCodeで描き分ける",
       "測定のharness（reconstruction/test/disaster/・reconstruction/test/eew-e01/）の変更と凍結manifestの作り直し",
       "実装担当によるspec本文・計画本文・他の契約の本文の変更（P3-WS-AC08の改訂は配送のcommitで統合担当）",
       "package.json・package-lock.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
@@ -359,7 +367,7 @@
       },
       {
         "id": "P3-WS-AC09",
-        "requirement": "最小実装・最小テスト: (1) 足す仕組みは診断の理由2語と、読み飛ばしの判定・外の階層の範囲のperiodの数え・要約の規則・U-Yの切り詰めだけ。ほかの型・層・helper・設定・保存の欄を足さない。足した仕組みごとに無いと何が壊れるかを1行 (2) 試験はtestMappingのP3-WS-T01〜T05に限る。U-Fの試験はpublicのfixtureに付加や未知の要素を試験の中で差し込んで作り、新しいfixture fileを足さない（manifestの件数を変えない） (3) reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す",
+        "requirement": "最小実装・最小テスト: (1) 足す仕組みは診断の理由2語と、読み飛ばしの判定・外の階層の範囲のperiodの数え・要約の規則・U-Yの切り詰めだけ。ほかの型・層・helper・設定・保存の欄を足さない。足した仕組みごとに無いと何が壊れるかを1行 (2) 試験はtestMappingのP3-WS-T01〜T05に限る。U-Fの試験はpublicのfixtureに付加や未知の要素を試験の中で差し込んで作り、新しいfixture fileを足さない（manifestの件数を変えない） (3) reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す (4) 他の契約が引く行（Q-WS-PRECHECKの(3)）: 行の数を変えない書き方を優先する（p2-shared-runtime.types.tsは:303の同じ行の中で直す、persistent-diagnostic-sink.tsは:62より後に足す、weather-timeseries.tsは:235より上の行の数を変えない、typhoon-unit.test.tsは:214より上の行の数を変えない）。weather-timeseries-unit.tsとview-projector.tsは変える所より後を引くanchorが多いので、足す行は変える関数の中にとどめる。それでも動いた行を引くanchorは、統合担当が配送のcommitで行番号と各契約のmeta.sha256を付け直す（本文は書き換えない）",
         "evidenceRefs": [
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:79 «77930c433792cec1»",
           "reconstruction/src/domains/typhoon/typhoon.ts:425 «f35fcf322d69470e»",
@@ -453,7 +461,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約を検査する。本契約のevidenceの行が直しで動いたFAILは想定内で、統合担当が配送のcommitで付け直す。ほかのFAILは想定外として報告する"
+        "purpose": "全契約を検査する。本契約と他の契約のevidenceの行が直しで動いたFAILは想定内で、統合担当が配送のcommitで付け直す（AC09(4)）。ほかのFAILは想定外として報告する"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
@@ -514,7 +522,7 @@
         "resolveBy": "発注前点検の後（統合担当、点検のcommitへの割当）",
         "requiredEvidence": [
           "baseOidの割当（起草はmeta.draftedFromOid）。割当の時点で本契約のanchorのずれが0件であることをcheck-contractで確かめる",
-          "allowedPathsのfileの行をanchorで引く他の契約の参照の数（変えるfileはweather-timeseries.ts・weather-timeseries-unit.ts・typhoon.ts・view-projector.ts・persistent-diagnostic-sink.ts・p2-shared-runtime.types.ts）"
+          "allowedPathsのfileの行をanchorで引く他の契約の参照の数（変えるfileはweather-timeseries.ts・weather-timeseries-unit.ts・typhoon.ts・view-projector.ts・persistent-diagnostic-sink.ts・p2-shared-runtime.types.ts）。数えた: anchor 109件（weather-timeseries.ts 2・weather-timeseries-unit.ts 30・typhoon.ts 0・view-projector.ts 48・persistent-diagnostic-sink.ts 4・p2-shared-runtime.types.ts 25）。ずれの扱いはAC09(4)（Q-WS-PRECHECKの(3)）"
         ]
       },
       {
