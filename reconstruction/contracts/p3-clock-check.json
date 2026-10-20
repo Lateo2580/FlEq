@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "513fa6ef0c555909e79e1c558e8911f553980fee",
-    "sha256": "5f44c02ffd891b6f455cd358809723658ac88ced46e92309f8ce5edaccbf2bbe",
+    "sha256": "c827bd31385f06953c78afbe6ba281317bfb019895e73373b8baf056c78e6cd5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -74,6 +74,14 @@
         "closed": "根拠の状態の判定は読み1回につき減算と比較の定数回で、clock()を呼ぶ回数を変えない（frameのentryの読みとpublisherの評価の読みをそのまま使う）。確かめはstart 1件とRESTの応答1件ごとに定数。復元由来の印の集合はstartRuntimeでpendingの数（unitごと128、12 unitで1,536以下）だけ作り、intentがpendingでなくなると外す。選択・回収・試行の開始のたびの参照は集合の参照1回。RESTの確かめは起動の30秒に最大1回、以後は\"verified\"でない間だけ10分に最大1回で、受信の経路に入らない",
         "remaining": "なし",
         "reason": "受信の経路に走査を足さない"
+      },
+      {
+        "id": "Q-CK-AUTHOR",
+        "status": "closed",
+        "source": "作者承認（2026-10-20 夜、判断カード『K7 と K9 の残存リスク』ですべて承認）",
+        "closed": "残存リスク (1)〜(11) を承認。P3-CK-D-UNVERIFIED-EEW は 2026-10-20 夕に A と裁定済み",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsのQ-CK-AUTHOR（発注の前）を閉じる"
       }
     ],
     "operationContract": {
@@ -269,7 +277,7 @@
         "requirement": "K7との境目（K7のP3-VM-AC06・Q-VM-NEIGHBOURS）: (1) K7のinputBoundary.receivedAt.basisは、K7の発注1ではnull（K9の前）。K9は、hostがframeを受けたときのentryの読み（host.ts:257）に対するAC01の(3)の値を、受信時刻と一緒に入力の材料へ入れる（K7がnullを置いた所をこの値に替える）。境界を書く時点の値にしない（受信の後に\"verified\"に替わっても、その受信時刻の根拠は変わらない）。取り直しで進めた境界がnullなのはK7のまま (2) 順: K7の発注1 → K9（K7のQ-VM-SPLIT）。K9が先に合流したときは、K7の発注1がK9のhostの判定をそのまま使い、K9は欄を作らない (3) WallBasisの型は先に合流した側が置き、後の側は重ねて足さない (4) 統合担当が直列に合流する対象: p2-shared-runtime.types.tsとP2-SHARED-RUNTIME-001のjson（K7はReportRef・CheckpointEnvelope・DiagnosticReason、K9はWallBasisとDiagnosticReason。同じ閉集合の行に両方が足す）、composition-root.ts（K7は未解決の列と書込み権、K9はoptions.wallBasisと保留）、persistent-diagnostic-sink.tsのreasonの表、host.ts（K7は受信の材料とbasisの写し、K9は根拠の状態の判定）、P3-LIFETIME-AND-EEW-GATE-001のjson（K7はD-LATE、K9はAC13の(4)と残存リスク(3)の書き足し）。K9はP3-EXECUTION-SPLIT-001・ClockReading・期限の入力を変えない（K7のQ-VM-NEIGHBOURSの「K9は時計の供給の通り道」は案1で無くなった、P3-CK-AC08の(4)）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-version-material.json:102 «3987d558ccac9757»",
-          "reconstruction/contracts/p3-version-material.json:436 «9704733973cfd4ca»",
+          "reconstruction/contracts/p3-version-material.json:444 «9704733973cfd4ca»",
           "reconstruction/src/host/host.ts:257 «e2f8e9bb145b6578»",
           "reconstruction/src/host/host.ts:286 «1769f2d76c5f0cf3»",
           "reconstruction/contracts/p3-persist-premises.md:144 «2ceab1141412b0f6»"
@@ -314,8 +322,8 @@
           "reconstruction/contracts/p2-notification-delivery.json:93 «3bdd6c54106f1bb2»",
           "reconstruction/contracts/p3-version-material.json:93 «6fc9b83c9e35a807»",
           "reconstruction/contracts/p3-version-material.json:102 «3987d558ccac9757»",
-          "reconstruction/contracts/p3-version-material.json:334 «7810b2c57f80efce»",
-          "reconstruction/contracts/p3-version-material.json:436 «9704733973cfd4ca»",
+          "reconstruction/contracts/p3-version-material.json:342 «7810b2c57f80efce»",
+          "reconstruction/contracts/p3-version-material.json:444 «9704733973cfd4ca»",
           "docs/specs/reconstruction-p0-contracts.md:811 «d2cc2f01d9ddc8a8»",
           "docs/specs/reconstruction-p0-contracts.md:3069 «27d22285ca1812ca»",
           "docs/specs/reconstruction-p0-contracts.md:3214 «2c0cb54e63e55da9»",
@@ -422,21 +430,9 @@
       "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由",
       "足した仕組み（hostの確かめと根拠の状態の判定、tickの中のRESTの確かめとlistSocketsのdate、WallBasisとoptions.wallBasis、締切の印とoptions.clockDeadlineMissed、復元由来の印、停止の前の失効、診断の理由1語）ごとに『無いと何が壊れるか』を1行",
       "追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行。期待値を変えた既存の試験の名前と理由（Q-CK-EXISTING-TESTS、変える前に報告）",
-      "残存リスク（作者の承認を求める、Q-CK-AUTHOR）: (1) 確かめの幅5秒（置き値）: 確かめた時計でも、期限は最大5秒早く・遅く当たる（届くまでの遅れはGで囲んで幅に入れた）。EEWの15秒のTTLの3分の1 (2) 確かめは接続先の時刻を受けたその場だけなので、確かめた後に手元の時計がNTPなどで飛んでも、休止をまたいでも、次の確かめ（再接続のstartか、\"verified\"でない間のREST）までは\"verified\"のまま（印は出ない）。その間の期限は飛んだ手元の時計で当たる（NTPの飛びは今もある振る舞い、(5)）。\"verified\"の間はRESTで尋ねないので、再接続の無い長いrunでは時計のずれを見つけない (3) 起動から30秒（置き値）の内に確かめられないと（オフライン、dmdataの不調、停電の後のPiのNTPが30秒より遅い、接続が遅くGが5秒を越えるstartとRESTの応答しか来ない）、前回の未送信の通知は鳴らない（鳴らさずに捨てたとして診断に残る。H39のまとめはK8）。確かめる前に停止しても同じく捨てる (4) 確かめるまでの待ちの間、publisherは前回の通知を回収しないが、K10が入るまでunitは復元とdeadline入力で、前回の起動から復元した中身と通知を手元のwallで今どおり失効・回収する。手元の時計が進んだ端末では、確かめる前に先に消え、戻らない（鳴らない向き。K10で消える）。30秒を過ぎても確かめられない端末では、手元の時計のずれのまま期限切れの表示が当たる（印は段4） (5) runの中で手元の時計がNTPで飛ぶと（停電の後のPiが確かめの前に受けた報）、飛ぶ前の時計で作った期限が飛びの分だけ早く・遅く当たる。進む向きでは、飛ぶ前に作った通知の再試行がwallの回収で消える（受信の直後の初回の試行は飛ぶ前に済むことが多い）。今もある振る舞いで、K9は変えない。unitの期限はK10、EEWの起点はEEWの閉じ方 (6) 分岐P3-CK-D-UNVERIFIED-EEW=Aの振る舞いはEEWの閉じ方の契約まで入らない。それまでは今のまま（C）で、時計が10分以上進んだ端末では今のEEWが診断の1行だけで消え（P3-LIFE-AC13のERRORは出る）、遅れた端末では古いEEWが鳴りうる (7) 「時計未確認」の印は段4まで画面に出ない（Q-CK-MARK） (8) K9だけではunitの期限処理は変わらない: 起動の直後・オフライン起動の間、unitは今どおり手元の時計で表示の期限切れと回収を同時に行う。確かめるまで（最長30秒）の待ちはK10 (9) \"verified\"でない間（オフライン起動、再接続のstartが合わない間など）は、K10の後、復元した中身も走行中に受けた中身も、期限の過ぎたものが消えずに残る（表示は期限切れ、器を使う） (10) K8の前は、試行の状態がstartedの前回の通知も保留され、30秒で確かめられなければ捨てる（今は再試行の対象） (11) 時計を確かめられない間、dmdataのREST（GET /socket?status=open）を起動の30秒に最大1回、以後10分に最大1回だけ多く呼ぶ（\"verified\"の間は呼ばない）"
+      "残存リスク（2026-10-20 作者承認済み、Q-CK-AUTHOR）: (1) 確かめの幅5秒（置き値）: 確かめた時計でも、期限は最大5秒早く・遅く当たる（届くまでの遅れはGで囲んで幅に入れた）。EEWの15秒のTTLの3分の1 (2) 確かめは接続先の時刻を受けたその場だけなので、確かめた後に手元の時計がNTPなどで飛んでも、休止をまたいでも、次の確かめ（再接続のstartか、\"verified\"でない間のREST）までは\"verified\"のまま（印は出ない）。その間の期限は飛んだ手元の時計で当たる（NTPの飛びは今もある振る舞い、(5)）。\"verified\"の間はRESTで尋ねないので、再接続の無い長いrunでは時計のずれを見つけない (3) 起動から30秒（置き値）の内に確かめられないと（オフライン、dmdataの不調、停電の後のPiのNTPが30秒より遅い、接続が遅くGが5秒を越えるstartとRESTの応答しか来ない）、前回の未送信の通知は鳴らない（鳴らさずに捨てたとして診断に残る。H39のまとめはK8）。確かめる前に停止しても同じく捨てる (4) 確かめるまでの待ちの間、publisherは前回の通知を回収しないが、K10が入るまでunitは復元とdeadline入力で、前回の起動から復元した中身と通知を手元のwallで今どおり失効・回収する。手元の時計が進んだ端末では、確かめる前に先に消え、戻らない（鳴らない向き。K10で消える）。30秒を過ぎても確かめられない端末では、手元の時計のずれのまま期限切れの表示が当たる（印は段4） (5) runの中で手元の時計がNTPで飛ぶと（停電の後のPiが確かめの前に受けた報）、飛ぶ前の時計で作った期限が飛びの分だけ早く・遅く当たる。進む向きでは、飛ぶ前に作った通知の再試行がwallの回収で消える（受信の直後の初回の試行は飛ぶ前に済むことが多い）。今もある振る舞いで、K9は変えない。unitの期限はK10、EEWの起点はEEWの閉じ方 (6) 分岐P3-CK-D-UNVERIFIED-EEW=Aの振る舞いはEEWの閉じ方の契約まで入らない。それまでは今のまま（C）で、時計が10分以上進んだ端末では今のEEWが診断の1行だけで消え（P3-LIFE-AC13のERRORは出る）、遅れた端末では古いEEWが鳴りうる (7) 「時計未確認」の印は段4まで画面に出ない（Q-CK-MARK） (8) K9だけではunitの期限処理は変わらない: 起動の直後・オフライン起動の間、unitは今どおり手元の時計で表示の期限切れと回収を同時に行う。確かめるまで（最長30秒）の待ちはK10 (9) \"verified\"でない間（オフライン起動、再接続のstartが合わない間など）は、K10の後、復元した中身も走行中に受けた中身も、期限の過ぎたものが消えずに残る（表示は期限切れ、器を使う） (10) K8の前は、試行の状態がstartedの前回の通知も保留され、30秒で確かめられなければ捨てる（今は再試行の対象） (11) 時計を確かめられない間、dmdataのREST（GET /socket?status=open）を起動の30秒に最大1回、以後10分に最大1回だけ多く呼ぶ（\"verified\"の間は呼ばない）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-CK-AUTHOR",
-        "owner": "user",
-        "blocks": [
-          "発注前点検",
-          "実装の着手"
-        ],
-        "resolveBy": "発注の前（作者の承認）",
-        "requiredEvidence": [
-          "artifactRequirementsの残存リスク(1)〜(11)の承認（分岐P3-CK-D-UNVERIFIED-EEWは2026-10-20 夕にA）"
-        ]
-      },
       {
         "id": "Q-CK-BASE",
         "owner": "integrator",
