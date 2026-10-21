@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "513fa6ef0c555909e79e1c558e8911f553980fee",
-    "sha256": "582550f32eeb01bcce81dbc1d48be47e4a9d91c2e20d4cf63c9e9a29d93b0b39",
+    "sha256": "3f06892afe376efaf97ca6ed72bc045867e20724287fcdc4f451d9b64fe1b73e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -101,7 +101,7 @@
     "contractId": "P3-CLOCK-CHECK-001",
     "mode": "implementation",
     "objective": "手元の時計を確かめる（spec §16 H42。「直した時刻」は「確かめた時刻」と読む、作者裁定 2026-10-20 夕の案1）。hostがdmdataのstartのtimeとRESTの応答のDateを受けたその場で手元の時計と比べ（作者裁定 2026-10-20 夜の案A）、根拠の状態（WallBasis）をcomposition rootとK7の受信の材料へ渡し、確かめるまで前回の起動から持ち越した未送信の通知を鳴らさず、起動から30秒（置き値）で確かめられなければ鳴らさずに捨てる（設計メモ p3-persist-premises.md §7の4・8）。時計は差し替えず、期限の評価は手元の時計のまま（前回の起動から復元したものだけ、確かめるまで最長30秒は当てずに待つ）。保存の形と版は変えない。unitの期限処理（30秒の待ち・表示の期限切れだけ）はK10、時計未確認の間のEEW（分岐=A）はEEWの閉じ方の契約、印の描画は段4。再開の並べ方の段3（K7の発注1 → K9 → K8・K10）",
-    "baseOid": "unassigned",
+    "baseOid": "847ade25ca55b480ac3f8261667b29b45b42d1e4",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
