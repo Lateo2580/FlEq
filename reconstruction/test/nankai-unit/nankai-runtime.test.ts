@@ -73,7 +73,7 @@ describe("P3-UNIT-N-001 U-N through the composition root", () => {
     const now = { wallTimeMs: 1_000, monotonicMs: 1 };
     const notice = (unit: NotificationIntent["unit"], domain: string, level: string, createdAt: number): NotificationIntent => ({
       id: unit, unit, subject: unit, operation: "normal", source: { inputId: unit, origin: "live", operation: "normal", family: unit,
-        subject: unit, reportDateTimeRaw: "2020-05-12T16:28:00+09:00", serialRaw: "", infoTypeRaw: "発表" }, transition: "activated",
+        subject: unit, reportDateTimeRaw: "2020-05-12T16:28:00+09:00", controlDateTimeRaw: "2020-05-12T16:28:00+09:00", serialRaw: "", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
       nextAttemptAt: createdAt, attempts: 0, configRevision: "t07", disposition: "pending" });
     // U-N を最も古く作る（同じ群なら先に選ばれる位置）。
@@ -144,9 +144,9 @@ describe("P3-UNIT-N-001 U-N through the composition root", () => {
       max = result.state;
     };
     for (const status of ["通常", "訓練", "試験"]) {
-      add(bound(fixtureXml(ADVISORY.split("/")[1]), status, "E".repeat(64)), "VYSE50", `n-${status}`.padEnd(64, "i"));
+      add(bound(fixtureXml(ADVISORY.split("/")[1]), status, "E".repeat(64)), "VYSE50", `n-${["通常", "訓練", "試験"].indexOf(status)}`.padEnd(64, "i"));
       add(bound(fixtureXml("80_01_01_240821_VYSE60"), status, "F".repeat(64)).replace(/(<EarthquakeInfo[^>]*>\s*<InfoKind>[^<]*<\/InfoKind>)/,
-        `$1<InfoSerial><Name>${wide(32)}</Name><Code>130</Code></InfoSerial>`), "VYSE60", `v-${status}`.padEnd(64, "i"));
+        `$1<InfoSerial><Name>${wide(32)}</Name><Code>130</Code></InfoSerial>`), "VYSE60", `v-${["通常", "訓練", "試験"].indexOf(status)}`.padEnd(64, "i"));
     }
     // 解説（210）は現況に効かないので、情報 subject だけが増える。
     for (let index = 0; index < 64 && max.information.length < 64; index++)

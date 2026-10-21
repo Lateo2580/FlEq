@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "7ae3be167ae364a7f6a5f33146865dfa81379bdb9de66e82e7704b3926667b01",
+    "sha256": "eab6893fbcb35ead5481b50211c1d772a017dbbdff5dc574a2d327d6d4db42e3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -319,7 +319,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:859 «8a40236838b7a43d»",
           "docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
-          "reconstruction/contracts/p3-execution-split.json:636 «629497553b6a7d9c»"
+          "reconstruction/contracts/p3-execution-split.json:636 «271e7a32831fb6a7»"
         ]
       },
       {
@@ -327,7 +327,7 @@
         "requirement": "処理中のownerに権を預けない（unitごと）: 送出済みでinputDoneが未着のparser入力を持つ実行場所のunitには権を出さない（delayedInputsにあって未送出の入力は処理中に数えない）。そのinputDoneの反映の後、次の入力を送る前に、そのunitの権を出す（AC03の順番）。urgentにも同じ規則を当てる（EEWの入力は短く、他unitの権には影響しない）。無いと: 権がownerの処理中の入力（Piの最大VPWS50 約2.3秒）の後ろで待ち、その間に上がった世代の分だけdirty→ackが伸びる",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
-          "reconstruction/contracts/p3-execution-split.json:636 «629497553b6a7d9c»"
+          "reconstruction/contracts/p3-execution-split.json:636 «271e7a32831fb6a7»"
         ]
       },
       {
@@ -396,7 +396,7 @@
         "id": "P3-UWR-AC10",
         "requirement": "改める既存の約束（本契約に記録し、他の契約のファイルは編集しない。specの置換［P3-UWR-SPEC］は1cef61d0で済んだ。他契約の読み替えは統合担当が合流と同じcommitで行う。試験の行番号は実装の作業ツリーの版で、試験名でも引ける）: (1) 全体1件を前提にする条文をunitごとに1件へ改める: P3-C3A-WRITE-RIGHT（A: 全体のin-flight 1件。C3aのBの「ownerごと」より細かい）、P3-C3A-AC05（p3-execution-split.json:636、grantの規則そのもの。§5.8の選択はunitの中、権の解放はそのunitのcheckpointDone、「書込みが終わっていない間は他ownerへgrantしない」を「そのunitへ2件目をgrantしない」に）、P3-C3A-AC15（:749）の「checkpointGrantは全体で1件」、split.jsonのobjectiveの「全体の書込みin-flight 1件」、P3-C3A-RES-03、P3-C3A-RES-09の「ownerあたり最大9（checkpointGrant 1を含む）」をcheckpointGrantはそのownerのunit数まで（今はどのownerも1 unitなので値は変わらず、C5でurgentにU-Tが入ると＋1）、P3-C3A-DLV-01のscope（全体1件の和→unitごとの和）、P2-A3-WRITER・P2-A3-RES-02・P3-C1-RES-04（in-flight attempt total 1→unitごとに1）、P3-C1-AC01の「単位をまたぐ状態は既存の全体writer予約1件だけ」（unitごとの予約のMap 1つに）、P2-A3-AC04（p2-checkpoint-shutdown.json:390）の「試行可能な最古dirtySinceを選び」（unitの中の選択に。3秒・再試行間隔・飢餓なしは保つ） (2) 全体1件を確かめる試験の条文と実試験: P3-C3A-T06（split.json:806「別unitの書込み区間が重ならず、先にdirtyになったunitから保存」、実試験host.test.ts:915の「P3-C3A-T06 acceptance / AC05」）とP3-C3A-T09（:832「U-Wの書込みが終わらない間はU-Fがdirtyでもgrantされない」、実試験execution-split.test.ts:907の「P3-C3A-T09 contractBoundary / AC05」）を、それぞれ「両方が3秒以内にack（区間は重なってよい）」「U-Wの書込みが終わらない間もU-Fはgrantされackされる」に改める (3) P3-C3A-AC15の「ownerはcheckpointのI/O待ちの間も後続の要求を処理する」は、urgentでは常に、非緊急では自分の保存中の留保（AC04）の間の次のparser入力を除いて保つ。T13の保証と期待値は保つ（即時の保存に合わせた保留の設定・準備の順番・完了待ちの変更は許す。T06で足す複数の権からの終了の境界は、今の終了の保証を複数の権へ当てるだけで、T13の期待値は変えない） (4) P3-C3B-DEAD-WRITE-RIGHT=A（権を解放しない）は保ち、running の間に止める範囲を全unitからそのunitだけにする（AC05）。P3-C3B-T02の(4)（「権は解放されず、U-Wはgrantされず」）をrunningの間の「U-Wはgrantされ保存される」に改める (5) 終了処理は変えない（AC07）: P3-C3A-AC09・FINALIZE-TIMEOUT（split.json:129）・終了の最小結線（:685）・P3-C3B-AC03・P3-C3B-T05の(5)・T13は改訂の対象に入れない (6) spec:859・:1053・:872の置換と:862・:841の読みはP3-UWR-SPECのとおり (7) 入力を送った後に故障・保留を仕込む、または保存を明示的に起こす既存の試験は、即時の保存（AC02・AC03）に合わせて準備の順番だけを変えてよい。故障・保留は入力の前に仕込む、保存の完了を待つ、のような変更が該当する。期待値（expectの値と、確かめる事柄）は変えない。変えた試験はartifactに一覧で書く（fileとitの名前と、変えた準備）。準備の順番だけを超える次の変更も、期待値を変えずにここで許す（統合担当の確認が要る）: (a) 世代を飛ばす入力を1件にした（runtime-fixture.tsのfixtureDriver.update。前は世代ごとに1件で、即時の保存では途中の世代ごとに保存が走る）と、変化を期限要求で運ぶ口byDeadline（同じ関数。自分の保存中の留保［AC04］で入力が待つ試験用） (b) 変化を入力でなく期限要求で運ぶ（期限要求は留保されない）: checkpoint.test.tsの「P2-A3-T02 contractBoundary / AC02」（:141、g3）、review-regressions.test.tsの「R27 regression / AC04,AC05」（:244、g2。g1の失敗の返信がpublisherに届く前にownerがg2へ進む条件を保つ） (c) dirtyにする入力をdrainの段へ移した（driver.queueとdrainMailboxの結線。最終保存の段で保存させる）: lifecycle.test.tsの「P3-C3B-T05 acceptance / AC03」（:320、dirtyAtDrain）・「P3-C3B-T05 regression / AC02,AC03」（:596）・「P3-C3B-T05 regression / AC03 (P3-C3A-AC09)」（:617）、execution-split.test.tsの「P3-C3A-T13 contractBoundary / AC15,AC09」の(4)（:666）、unit-wiring.test.tsの「P2-A3-T10 contractBoundary / AC10: an empty later generation」（:275、savedFirstが偽の回） (d) runningの段の保存を失敗させる故障を足した（unitをdirtyのまま残す）: lifecycle.test.tsの「P3-C3B-T05 acceptance / AC03」のfailingOpen（:379・:400の回）、weather-timeseries-unit.test.tsの「T05 restores and saves two generations」（:588、route()の前のfail.write） (e) codecを外した（そのunitを保存しない）: lifecycle.test.tsの「P3-C3B-T06 acceptance / AC05」（:460、U-E）、shared-runtime.test.tsの「B4 contractBoundary」（:883、codecsを空に） (f) 回からunitを外した: review-regressions.test.tsの「I01 contractBoundary / AC04,AC05,AC08」（:1088）の再起動の回からU-W。元はこの回がU-Fだけにgrantされることで全体1件の権も兼ねていたが、(9)へは移さない（この回の期待値は再起動の後のU-Fの復元と保存のままで変わらない。全体1件の性質は(1)で改め、unitごとの権はT01と(9)のR05・I02が確かめる） (g) 保存先をmemoryにした: snapshot-sse/projection-fixture.ts（memoryWrites。apply()は各入力の前に前の保存の完了を待つ） (h) 試験が意図して止めるfile systemの門をpark()で登録した（(8)のsettle()の判定のため）: eew-unit・review-regressions・unit-wiring・notification-wiring・notification-delivery・execution-split・unit-write-rightの各fake (8) owner-harness.tsのsettle()は、保存中の留保（AC04）で待たされていないownerのI/Oの完了を待つように変えてよい。保留されている入力はsettle()が待たない（留保の試験が自分で進める）。試験が意図して止めるI/Oは、fakeの中でpark(gate)により登録し、その門が開くまでは待たない。完了の判定はharnessが追う自分のI/Oの呼出しだけで行い、プロセス全体のfs要求（getActiveResourcesInfo）を見ない。ハングの検出の上限（実時間10秒）は完了の判定とは別に置き、達したら失敗として投げる (9) 期待値を新しい振る舞いへ置き換える試験（統合担当の確定 2026-10-08、どれも全体1件の書込み権かtickごとの選択を確かめていた）: P3-C3A-T06（host.test.ts:915、(2)）、P3-C3A-T09（execution-split.test.ts:907、(2)）、P3-C3A-T12の(2)（execution-split.test.ts:359、(1)のP3-C3A-AC05とAC02。期限要求で運ぶ更新の後の権の送出の順［deadline→checkpointGrant］でAC02を確かめる期待値を足した）、P3-C3B-T04の(3)(4)（lifecycle.test.ts:212・:234、(4)と(1)のP3-C3A-AC05）、review-regressions.test.tsのR05（:635、(1)のP2-A3-WRITER）・R17（:1043、(1)のP3-C3A-AC05）・I02（:1173、(1)のP2-A3-WRITER）・R28の2件（:323、(1)のP2-A3-WRITERとAC03の即時の再評価）。期待値は消さず、unitごとの権・即時の保存と照合を確かめる期待値に置き換える。無いと: 他の契約の条文・試験と本契約が同じ挙動について逆のことを言い、後の契約と試験がどちらを守るか決められない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-execution-split.json:636 «629497553b6a7d9c»",
+          "reconstruction/contracts/p3-execution-split.json:636 «271e7a32831fb6a7»",
           "reconstruction/contracts/p3-execution-split.json:749 «d968f2e47d4c5db9»",
           "reconstruction/contracts/p3-execution-split.json:806 «3f5a5b581b0c80ae»",
           "reconstruction/contracts/p3-execution-split.json:832 «663a656a27e549d3»",

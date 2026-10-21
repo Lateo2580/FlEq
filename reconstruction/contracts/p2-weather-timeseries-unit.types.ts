@@ -89,7 +89,7 @@ export type WeatherTimeseriesGate = Readonly<{
 }>;
 
 export type WeatherTimeseriesUnitState = Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v2";
+  schemaVersion: "p2-weather-timeseries-unit-v3";
   contentRevision: number;
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
@@ -98,7 +98,7 @@ export type WeatherTimeseriesUnitState = Readonly<{
 }>;
 
 export type PersistedWeatherTimeseriesUnit = Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v2";
+  schemaVersion: "p2-weather-timeseries-unit-v3";
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
   intents: readonly NotificationIntent[];
@@ -200,5 +200,5 @@ export type WeatherTimeseriesUnitStep = Readonly<{
 }>;
 
 export type WeatherTimeseriesUnitCodec = UnitCodec<WeatherTimeseriesUnitState, PersistedWeatherTimeseriesUnit> & Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v2";
+  schemaVersion: "p2-weather-timeseries-unit-v3";
 }>;

@@ -89,9 +89,9 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
       [record.replace("<Condition>発表</Condition>", "<Condition>解除</Condition>"), `requiredStructureInvalid ${P}`, "VPOA50"],
     ];
     expect(cases.map(([source, , headType]) => reject(source, headType))).toEqual(cases.map(([, reason]) => reason));
-    // 保存する inputId の上限（64 文字、「"」「\」を除く印字可能な ASCII）。40 文字の EventID と 64 文字の inputId は合法。
-    expect(reject(xml, "VPBS50", "i".repeat(65))).toBe(`identityInvalid ${K}`);
-    expect(reject(xml, "VPBS50", 'in"put')).toBe(`identityInvalid ${K}`);
+    // 保存する inputId の上限（64 文字、「"」「\」を除く印字可能な ASCII）（共通の封筒の検査で断るので subject は空、P3-VM-AC08）。40 文字の EventID と 64 文字の inputId は合法。
+    expect(reject(xml, "VPBS50", "i".repeat(65))).toBe("identityInvalid");
+    expect(reject(xml, "VPBS50", 'in"put')).toBe("identityInvalid");
     expect(receive(base, decodeXml(eventId("~".repeat(40))(xml), "VPBS50", "i".repeat(64)), now).decisions[0].decision).toBe("changed");
     // 合法: Body・Headline の無い取消（記憶だけ、revisionOnly）。
     const bare = cancelOf("2")(xml).replace(/<Headline>[\s\S]*<\/Headline>/, "").replace(/<Body[\s\S]*<\/Body>/, "");
@@ -775,6 +775,7 @@ function boundRecord(headType: "VPBS50" | "VPOA50", index: number): BriefingCurr
   const series = `${"\\".repeat(36)}${String(index).padStart(4, "0")}`, subject = `training/${headType}/${series}`;
   const reportDateTimeRaw = "9999-12-31T23:59:59.99999999999999-23:59";
   const source = { inputId: "i".repeat(64), origin: "replay" as const, operation: "training" as const, family: headType, subject, reportDateTimeRaw,
+    controlDateTimeRaw: reportDateTimeRaw,
     serialRaw: "1234567890", infoTypeRaw: `${"\u000b".repeat(6)}訂正` };
   const text = { title: kanji(64), headline: kanji(192), editorialOffice: kanji(16), truncated: true };
   const areas = (count: number, from: number) => Array.from({ length: count }, (_, at) => ({ code: String(10_000_000 + from + at), name: kanji(16) }));

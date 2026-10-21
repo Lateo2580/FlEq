@@ -23,7 +23,7 @@ import { envelope } from "../execution-split/owner-harness";
 import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { toTsunamiView, tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
-import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, observation, receive, run, vtse41 } from "./tsunami-fixture";
+import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, observation, receive, run, sentLater, vtse41 } from "./tsunami-fixture";
 
 const EVENT = "20110311144640";
 const SUBJECT = `normal/VTSE41/${EVENT}`;
@@ -58,7 +58,7 @@ function intentsOf(subject: string, count: number, level: TsunamiIntent["payload
   const operation = subject.startsWith("training") ? "training" : "normal";
   return Array.from({ length: count }, (_, index) => ({ id: `U-T:${subject}:seed${index}:desktop`, unit: "U-T", subject, operation,
     source: { inputId: `seed-${index}`, origin: "replay", operation, family: subject.includes("VTSE41") ? "VTSE41" : "VTSE51", subject,
-      reportDateTimeRaw: "2099-01-01T09:00:00+09:00", serialRaw: "", infoTypeRaw: "発表" }, transition: "updated", channel: "desktop",
+      reportDateTimeRaw: "2099-01-01T09:00:00+09:00", controlDateTimeRaw: "2099-01-01T00:00:00Z", serialRaw: "", infoTypeRaw: "発表" }, transition: "updated", channel: "desktop",
     payload: { domain: "tsunami", level, title: "試験", body: "試験" }, createdAt: from + index, expiresAt: from + index + 180_000,
     nextAttemptAt: from + index, attempts: 0, configRevision: "test", disposition: "pending" }));
 }
@@ -166,7 +166,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
       expect(forecast(step.state)!.areas.map((area) => area.code).sort()).toEqual([...bodyKinds(xml[index]).keys()].sort());
       if (index === 1) {
         expect(transitionsOf(step)).toEqual([{ areaCode: "201", from: "warning", to: "majorWarning", transition: "upgraded" }]);
-        const correction = receive(step.state, decodeFixture("synthetic_VTSE41_correction", "VTSE41"), clock(times[1] + 1));
+        // corpus の訂正は元の報と Control/DateTime が同じなので、後の送信にして新しい版として受ける（P3-VM-AC03）。
+        const correction = receive(step.state, decodeFixture("synthetic_VTSE41_correction", "VTSE41", sentLater), clock(times[1] + 1));
         expect(changed(correction)).toMatchObject({ decision: "changed", change: "semantic" });
         expect(facts(correction)).toMatchObject({ areaTransitions: [], series: "none" });
         expect(forecast(correction.state)!.areas.find((area) => area.code === "250")!.maxHeight?.value).toMatchObject({ value: 10 });
@@ -176,7 +177,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const cancel = receive(state, decodeFixture("synthetic_VTSE41_cancel", "VTSE41"), clock(1_299_823_920_001));
     // 取消は ReportDateTime 15:05 で 15:12 の報より古いので stale。15:12 より新しい取消を作って確かめる。
     expect(changed(cancel)).toMatchObject({ decision: "unchanged", reason: "stale" });
-    const later = (raw: string) => raw.replace("2011-03-11T15:05:00+09:00", "2011-03-11T15:20:00+09:00");
+    const later = (raw: string) => raw.replace("2011-03-11T15:05:00+09:00", "2011-03-11T15:20:00+09:00")
+      .replace("2011-03-11T06:05:00Z", "2011-03-11T06:20:00Z");
     const cancelled = receive(state, decodeFixture("synthetic_VTSE41_cancel", "VTSE41", later), clock(1_299_824_400_000));
     expect(forecast(cancelled.state)).toMatchObject({ effective: "cancelled", areas: [], unkeyedAreas: [] });
     expect(toTsunamiView(cancelled.state).forecasts).toEqual([]);
@@ -186,8 +188,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     expect(changed(receive(cancelled.state, decodeFixture("synthetic_VTSE41_cancel", "VTSE41", later), clock(1_299_824_400_001))))
       .toMatchObject({ decision: "unchanged", reason: "duplicate" });
     // 取消より新しい報は直前を全区域 none として採用し直す。
-    const reissued = receive(cancelled.state, decodeXml(xml[2].replace(/2011-03-11T15:12:00\+09:00/g, "2011-03-11T15:30:00+09:00"),
-      "VTSE41"), clock(1_299_825_000_000));
+    const reissued = receive(cancelled.state, decodeXml(sentLater(xml[2].replace(/2011-03-11T15:12:00\+09:00/g, "2011-03-11T15:30:00+09:00"),
+      18 * 60), "VTSE41"), clock(1_299_825_000_000));
     expect(forecast(reissued.state)!.effective).toBe("active");
     expect(new Set(transitionsOf(reissued).map((item) => item.transition))).toEqual(new Set(["issued"]));
 
@@ -236,23 +238,28 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
       const strip = (state: TsunamiUnitState) => stations(state, family).map((item) => ({ ...item, revision: null }))
         .sort((left, right) => left.code.localeCompare(right.code));
       expect(strip(results[bThenA].state)).toEqual(strip(results[aThenB].state));
-      // 訂正は同じ station を 1 点のまま更新し、他の station を落とさない。
-      const correctedAt = aThenB + 1;
-      const before = stations(results[aThenB].state, family), after = stations(results[correctedAt].state, family);
+      // corpus の訂正（O05:7・:15）は元の報と Control/DateTime が同じで、手元の値を残して印を付ける（P3-VM-D-SAMETIME=A）。
+      const before = stations(results[aThenB].state, family);
+      expect(stations(results[aThenB + 1].state, family)).toEqual(before);
+      // 後の送信の訂正は新しい版で、同じ station を 1 点のまま更新し、他の station を落とさない。
+      const correction = family === "VTSE51" ? "synthetic_VTSE51_correction" : "synthetic_VTSE52_correction";
+      const after = stations(receive(results[aThenB].state, decodeFixture(correction, family, sentLater), clock(1_299_823_320_001)).state, family);
       expect(after.map((item) => item.code).sort()).toEqual(before.map((item) => item.code).sort());
       const target = family === "VTSE51" ? "21003" : "21090";
       expect(after.find((item) => item.code === target)).toMatchObject(family === "VTSE51"
         ? { areaCode: "220", areaName: "宮城県", revision: { infoTypeRaw: "訂正" } } : { areaCode: "210", areaName: "岩手県" });
       expect(after.filter((item) => item.code !== target)).toEqual(before.filter((item) => item.code !== target));
     }
-    // 同じ revision・同じ InfoType で同じ station の値が違えば入力全体を stale にして診断を残す（部分合成しない）。
+    // 同じ revision・同じ InfoType で同じ station の値が違えば入力全体を stale にして診断を残す（部分合成しない）。値は先の報のまま、
+    // 系列に未確認の印を付ける（P3-VM-AC03）。
     const fragmentA = decodeFixture("synthetic_VTSE51_fragmentA", "VTSE51");
     const merged = receive(emptyState(), fragmentA, clock(1_299_823_320_000)).state;
-    const conflicting = receive(merged, decodeFixture("synthetic_VTSE51_fragmentB", "VTSE51", (xml) => xml
-      .replace("<Station><Name>大船渡</Name><Code>21002</Code>", "<Station><Name>宮古</Name><Code>21001</Code>")),
-    clock(1_299_823_320_001));
+    const fragmentB = decodeFixture("synthetic_VTSE51_fragmentB", "VTSE51", (xml) => xml
+      .replace("<Station><Name>大船渡</Name><Code>21002</Code>", "<Station><Name>宮古</Name><Code>21001</Code>"));
+    const conflicting = receive(merged, fragmentB, clock(1_299_823_320_001));
     expect(changed(conflicting)).toMatchObject({ decision: "unchanged", reason: "stale" });
-    expect(conflicting.state).toBe(merged);
+    const { unconfirmed, ...kept } = conflicting.state.observations[0];
+    expect([kept, unconfirmed?.inputId]).toEqual([merged.observations[0], fragmentB.inputId]);
     expect(conflicting.diagnostics).toMatchObject([{ level: "WARN", reason: "tsunamiRevisionConflict", unit: "U-T" }]);
     // family 独立: VTSE51 の採用は VTSE52 の watermark を変えない。
     const vtse52 = results[1].state.observations.find((item) => item.family === "VTSE52");
@@ -383,7 +390,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（終端記録で埋める。P3-IUR-AC02）。
     const withPad = (pad: number) => ({ ...value, intents: [value.intents[0], { ...value.intents[0], id: "pad", disposition: "delivered",
       payload: { ...(value.intents[0].payload as Record<string, unknown>), body: "x".repeat(pad) } }] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v2", unit: "U-T", generation: 0, capturedAt: 0,
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v3", unit: "U-T", generation: 0, capturedAt: 0,
       payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
     const generationPad = 4_194_304 - generation(0);
     expect(generation(generationPad)).toBe(4_194_304);
@@ -573,7 +580,9 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     expect(o01[4].state.intents.filter((item) => item.disposition === "pending").map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
     const o07 = replay("O07", 27, 34);
     // 復元したstateとの差で決める: 続報は continuation の normal で、同じ発令を再び critical にしない。
-    expect(o07[4].intents.map((item) => item.payload.level)).toEqual(["normal", "normal"]);
+    // :31 の corpus の訂正は元の報と Control/DateTime が同じで未確認（sequences.json の expected:O07:31）。後の送信の訂正で同じことを確かめる。
+    const continued = receive(o07[3].state, decodeFixture("synthetic_VTSE41_correction", "VTSE41", sentLater), clock(1_299_823_260_000));
+    expect(continued.intents.map((item) => item.payload.level)).toEqual(["normal", "normal"]);
     expect(o07[7].intents.map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
     // E13: 全正常の津波 fixture を空の state から受ける。恒常的な unavailable は U-T に無い。観測の無い VTSE51（各地の満潮時刻・
     // 津波到達予想時刻に関する情報）は noChange の別群（Q-ENUM の VTSE51.legalMissing。state・intent・outcome・診断なし）。
@@ -651,7 +660,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     ({ code: String(100 + index), name: `区域${index}`, kind }));
   const report = (minute: number, list = areas(1), options: { infoType?: "発表" | "訂正" | "取消"; eventId?: string } = {}) =>
     decodeXml(vtse41({ at: raw(minute), areas: list, ...options }), "VTSE41");
-  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v2", unit: "U-T", generation: 0,
+  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v3", unit: "U-T", generation: 0,
     capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + state.intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
   // 世代を 4 MiB − slack にする終端記録。終端記録と normal の active の予報は退去の候補にならないので、slack を越える増分は拒否になる。
@@ -740,7 +749,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     expect(receive(full, report(3, areas(300)), at(3)).state).toBe(full);
   });
 
-  it("P3-CC-T09 contractBoundary / AC05: keyless saves restore, marks and failure notices round-trip, and foreign marks are invalid", () => {
+  it("P3-CC-T09 contractBoundary / AC05: an unmarked save restores without marks, marks and failure notices round-trip, and foreign marks are invalid", () => {
     const roundTrip = (state: TsunamiUnitState) => tsunamiUnitCodec.decode(JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(state))) as JsonValue);
     const plain = roundTrip(first());
     expect(plain.kind === "restored" && plain.state.forecasts[0]).not.toHaveProperty("unavailable");

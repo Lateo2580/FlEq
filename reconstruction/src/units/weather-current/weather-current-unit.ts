@@ -35,10 +35,10 @@ import {
 } from "../../domains/weather-current/weather-current";
 import type { CurrentChange } from "../../domains/weather-current/weather-current";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
-const SCHEMA = "p2-weather-current-unit-v2" as const;
+const SCHEMA = "p2-weather-current-unit-v3" as const;
 type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
 const GENERATION_BYTES = 16 * 1024 * 1024;
 const encoder = new TextEncoder();
@@ -156,13 +156,9 @@ function json(value: unknown): value is JsonValue {
 }
 
 function reportRef(value: unknown, unvalidatedTime = false): value is ReportRef {
-  const record = object(value);
-  return record != null && typeof record.inputId === "string"
-    && (record.origin === "live" || record.origin === "recovery" || record.origin === "replay")
-    && operation(record.operation) && (WEATHER_FAMILIES as readonly string[]).includes(String(record.family))
-    && typeof record.subject === "string" && record.subject !== ""
-    && typeof record.reportDateTimeRaw === "string" && (unvalidatedTime || Number.isFinite(Date.parse(record.reportDateTimeRaw)))
-    && typeof record.serialRaw === "string" && typeof record.infoTypeRaw === "string";
+  const ref = readReportRef(value);
+  return ref != null && (WEATHER_FAMILIES as readonly string[]).includes(ref.family) && ref.subject !== ""
+    && (unvalidatedTime || Number.isFinite(Date.parse(ref.reportDateTimeRaw)));
 }
 
 function snapshot(value: unknown): value is WeatherCurrentSnapshot {
@@ -594,7 +590,7 @@ function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUni
 }
 
 const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-current-unit-v1"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-current-unit-v1", "p2-weather-current-unit-v2"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = encodedValue(state);
     if (value == null) throw new Error("U-W checkpoint exceeds or violates its persisted boundary");
@@ -602,7 +598,7 @@ const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
   },
   decode(payload) {
     const value = persistedValue(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-current-unit-v2 payload" } : {
+    return value == null ? { kind: "invalid", reason: "invalid p2-weather-current-unit-v3 payload" } : {
       kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence() },
     };
   },

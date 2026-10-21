@@ -751,7 +751,7 @@ export function e14BundleFrames(k, atWallMs) {
   const text = (name) => fixtureText(name).toString("utf8");
   const eew = text(FIX.vxse45).replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${E14_EVENT_BASE + k}</EventID>`)
     .replace(/<Serial>(\d+)<\/Serial>/, (_, serial) => `<Serial>${Number(serial) + 1}</Serial>`)
-    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jstAt(atWallMs)}</ReportDateTime>`)
+    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jstAt(atWallMs)}</ReportDateTime>`).replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(atWallMs).toISOString().slice(0, 19)}Z</DateTime>`) // P3-VM-AC03: 送信の時刻（Control/DateTime）も束の時刻へ
     .replace(/<InfoType>[^<]*<\/InfoType>/, "<InfoType>訂正</InfoType>");
   const national = text(FIX.vpws50);
   const forecast = text(FIX.vpwp50Large).replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, "<EditorialOffice>官署0</EditorialOffice>");

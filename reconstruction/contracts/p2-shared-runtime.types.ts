@@ -71,7 +71,7 @@ export type ReportRef = Readonly<{
   operation: Operation;
   family: string;
   subject: string;
-  reportDateTimeRaw: string;
+  reportDateTimeRaw: string; controlDateTimeRaw: string; // P3-VM-AC01: 比べる材料の Control/DateTime（無ければ空文字）。保存と復元まで運ぶ（H14）
   serialRaw: string;
   infoTypeRaw: string;
 }>;

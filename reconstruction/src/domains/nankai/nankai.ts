@@ -1,7 +1,7 @@
 import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
 import type { NankaiCurrentLine, NankaiCurrentStatus, NankaiInfoSerial, NankaiReportFamily } from "../../../contracts/p3-nankai-unit.types";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 // P3-UNIT-N-001 の adapter: VYSE50/51/52/60 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -18,7 +18,7 @@ const CODE_EFFECT: ReadonlyMap<string, NankaiCurrentStatus | "end"> = new Map([
 // I-U-N.bounds（UTF-16 の長さ）。
 const BOUNDS = { title: 128, headline: 512, text: 4_096, nextAdvisory: 512, infoKind: 64, code: 8, name: 32 } as const;
 // I-U-N.bounds の現況 1 件の上限 4,718 byte が仮定する ReportRef の長さ（Q-ENUM.identity）。
-const LIMITS = { inputId: 64, reportDateTime: 40, infoType: 8 } as const;
+const LIMITS = { reportDateTime: 40, controlDateTime: 40, infoType: 8 } as const;
 
 // ---- Q-ENUM.identity ----
 
@@ -103,14 +103,13 @@ function parseNankai(material: DecodedMaterial): ParseResult {
   if (!validEventId(eventId) || !validSerial(serialRaw)) return reject("identityInvalid");
   const subject = `${material.operation}/${family}/${eventId}`;
   // 保存する ReportRef の byte の上限（Q-ENUM.identity）。inputId は host が作る値だが、上限を受理と decode で揃える。
-  if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType
-    || material.inputId.length > LIMITS.inputId) return reject("identityInvalid", subject);
+  if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
   const infoTypeRaw = material.infoTypeRaw.trim();
   const infoRank = INFO_RANK.get(infoTypeRaw);
   if (infoRank == null) return reject("requiredStructureInvalid", subject);
   const line: NankaiCurrentLine = family === "VYSE60" ? "VYSE60" : "nankai";
   const source: ReportRef = { inputId: material.inputId, origin: material.origin, operation: material.operation, family,
-    subject, reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw };
+    subject, reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw };
   const cancelled = infoRank === 3;
   const head = first(material.xml, "Head");
   let truncated = false;

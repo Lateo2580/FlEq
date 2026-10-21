@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "d9990053b44496fd54fa6995148e2a04a5a9c9a3",
-    "sha256": "06d148850903d66f7b92f4c0aadc1b41c9d1611a2849a528c124839b82e3d245",
+    "sha256": "ab06ab396171183d19e1edcc0ca027c5404627b81edd869fa0977ae1de0facd8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -138,7 +138,7 @@
     ],
     "publicFunctions": [
       "resolveOperation(OperationEvidence): OperationResolution",
-      "decodeMaterial(ParserMailboxItem): ParserMailboxResult",
+      "decodeMaterial(ParserMailboxItem): ParserMailboxResult（P3-VERSION-MATERIAL-001: DecodedMaterialにControl/DateTimeのcontrolDateTimeRaw〔AC01〕、ParserMailboxItemにdmdataの電文のdmdataId〔AC06〕を足した。P3-VM-AC09(9)により統合担当が改訂）",
       "classifyMaterial(DecodedMaterial): route/family/material metadata",
       "recordParserDiagnostic(ParserDiagnostic): void",
       "ingestXmlData(IngressInput): accepted{item: ParserMailboxItem} | rejected{diagnostic: ParserDiagnostic}",

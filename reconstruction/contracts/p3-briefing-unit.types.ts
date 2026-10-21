@@ -103,7 +103,7 @@ export type BriefingNotificationPayload = Readonly<{
 export type BriefingIntent = NotificationIntent & Readonly<{ payload: BriefingNotificationPayload }>;
 
 export type BriefingUnitState = Readonly<{
-  schemaVersion: "p3-briefing-unit-v2";
+  schemaVersion: "p3-briefing-unit-v3";
   contentRevision: number;
   currents: readonly BriefingCurrent[];
   // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
@@ -112,7 +112,7 @@ export type BriefingUnitState = Readonly<{
 }>;
 
 export type PersistedBriefingUnit = Readonly<{
-  schemaVersion: "p3-briefing-unit-v2";
+  schemaVersion: "p3-briefing-unit-v3";
   currents: readonly BriefingCurrent[];
   intents: readonly BriefingIntent[];
 }>;
@@ -155,5 +155,5 @@ export type BriefingUnitStep = Readonly<{
 }>;
 
 export type BriefingUnitCodec = UnitCodec<BriefingUnitState, PersistedBriefingUnit> & Readonly<{
-  schemaVersion: "p3-briefing-unit-v2";
+  schemaVersion: "p3-briefing-unit-v3";
 }>;

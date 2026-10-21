@@ -13,7 +13,7 @@ import manifest from "../../tools/corpus/manifest.json";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): NankaiUnitState {
-  return { schemaVersion: "p3-nankai-unit-v2", contentRevision: 0, currents: [], information: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-nankai-unit-v3", contentRevision: 0, currents: [], information: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };
@@ -35,10 +35,26 @@ const pathOf = (name: string) => name.startsWith("test/") ? name : /^\d/.test(na
 function fixtureXml(name: string): string {
   return readFileSync(pathOf(name), "utf8");
 }
+// P3-VM-AC03: 試験が Head/ReportDateTime を替えて作った報は、送信の時刻（Control/DateTime、XML の最初の DateTime）も同じだけ動かす
+// （新旧は Control/DateTime で決まる）。Serial や InfoType だけを替えた報は元の報と同じ時刻のまま（同じ時刻の別の版）。
+// 試験が Control/DateTime を自分で替えた報はそのまま。
+function followHead(original: string, xml: string): string {
+  const head = (text: string) => Date.parse(/<ReportDateTime>([^<]*)<\/ReportDateTime>/.exec(text)?.[1] ?? "");
+  const control = (text: string) => /<DateTime>([^<]*)<\/DateTime>/.exec(text)?.[1];
+  const delta = head(xml) - head(original);
+  return !Number.isFinite(delta) || delta === 0 || control(xml) !== control(original) ? xml : xml.replace(/<DateTime>([^<]*)<\/DateTime>/, (_, at: string) =>
+    `<DateTime>${new Date(Date.parse(at) + delta).toISOString()}</DateTime>`);
+}
+// 同じ電文を後の送信にする（Control/DateTime を seconds だけ進める）。
+function sentLater(xml: string, seconds = 1): string {
+  return xml.replace(/<DateTime>([^<]*)<\/DateTime>/, (_, at: string) =>
+    `<DateTime>${new Date(Date.parse(at) + seconds * 1000).toISOString()}</DateTime>`);
+}
 function decodeFixture(name: string, transform: (xml: string) => string = (xml) => xml, inputId?: string): DecodedMaterial {
   const headType = manifest.fixtures.find((item) => item.path === pathOf(name))?.transport.headType;
   if (headType == null) throw new Error(`${name} has no headType in the manifest`);
-  return decodeXml(transform(fixtureXml(name)), headType, inputId ?? `${name.split("/").at(-1)!.slice(0, 40)}#${next()}`);
+  const original = fixtureXml(name);
+  return decodeXml(followHead(original, transform(original)), headType, inputId ?? `${name.split("/").at(-1)!.slice(0, 40)}#${next()}`);
 }
 const replaceTag = (tag: string, value: string) => (xml: string) =>
   xml.replace(new RegExp(`<${tag}>[^<]*</${tag}>`), `<${tag}>${value}</${tag}>`);
@@ -59,4 +75,4 @@ function chain(names: readonly string[], state = emptyState()): NankaiUnitStep[]
   return steps;
 }
 
-export { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send };
+export { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send, sentLater };

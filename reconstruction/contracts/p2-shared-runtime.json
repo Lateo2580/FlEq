@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "d64e79cd3c8a38f209a61cd5f5a2f3a48e6b0d82e3ee3267fef5f50b38f69c75",
+    "sha256": "3d34c307cae1d8b84e083332e7bded8d5d4b8427ff3d9eb552666602c78da6d7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -464,7 +464,7 @@
       "U-F"
     ],
     "persistedFields": [
-      "operation on every durable subject, source, intent, outcome source and checkpoint payload",
+      "operation on every durable subject, source, intent, outcome source and checkpoint payload（P3-VERSION-MATERIAL-001: ReportRefにControl/DateTimeのcontrolDateTimeRaw〔AC01〕、CheckpointEnvelopeに取り直しの境界inputBoundary〔AC06〕、UnitCodecに捨ててよい旧い版discardableSchemaVersionsと1世代の上限maxEnvelopeBytes〔AC05・AC06〕を足した。P3-VM-AC09(9)により統合担当が改訂）",
       "NotificationIntent fields including original createdAt/expiresAt and configRevision",
       "unit state selected by each I-U-* codec; A1 does not define family payloads"
     ],
@@ -519,7 +519,7 @@
       },
       {
         "id": "P2-A1-AC05",
-        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤23種＋容量退去2種（U-WのweatherCurrentCapacityEvicted・U-EのeewCapacityEvicted）（P3-CURRENCY-COVERAGE-001で容量の拒否capacityRejectedを1つ足した。容量でcurrentにできなかった受信の入力ごとに1行、A3永続sinkの固定allowlistにも足す、P3-CC-AC07、配送のcommitでP3-CC-AC09により統合担当が改訂）（P3-WEATHER-SHAPE-001でU-Fの読み飛ばしweatherTimeseriesElementSkipped〔INFO〕と外の階層の知らないものweatherTimeseriesScopeUnclear〔WARN〕の2つを、P3-CLOCK-CHECK-001で時計を確かめられずに鳴らさず捨てた前回の通知notificationExpiredClockUnverified〔INFO〕を1つ足した。どれもA3永続sinkの固定allowlistにも足す。時計の根拠の状態の共有の型WallBasis〔awaiting・verified・unverified〕はP3-VERSION-MATERIAL-001が置き、P3-CLOCK-CHECK-001のhostが値を決める。P3-WS-AC08(3)・P3-CK-AC08(3)により統合担当が改訂）の計50種のunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種・snapshot超過3種を同じsinkへ配送できる。snapshot超過はsnapshotNoticeCapacityExceeded／snapshotCommonBudgetExceeded／snapshotStringLimitExceeded。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する A7の4 reason（notificationAttemptFailed/notificationExpired/notificationCapacityEvicted/notificationAdapterIsolated）だけを追加し、A3永続sinkの固定allowlistと読取結果まで一致させる。E21は失敗/timeout→AttemptFailed、期限到来→Expired、所有unitの容量退去→CapacityEvicted、停止未確認→AdapterIsolatedと対応し、取消/置換/遅い成功は状態と試行照合で扱う。",
+        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤23種＋容量退去2種（U-WのweatherCurrentCapacityEvicted・U-EのeewCapacityEvicted）（P3-CURRENCY-COVERAGE-001で容量の拒否capacityRejectedを1つ足した。容量でcurrentにできなかった受信の入力ごとに1行、A3永続sinkの固定allowlistにも足す、P3-CC-AC07、配送のcommitでP3-CC-AC09により統合担当が改訂）（P3-WEATHER-SHAPE-001でU-Fの読み飛ばしweatherTimeseriesElementSkipped〔INFO〕と外の階層の知らないものweatherTimeseriesScopeUnclear〔WARN〕の2つを、P3-CLOCK-CHECK-001で時計を確かめられずに鳴らさず捨てた前回の通知notificationExpiredClockUnverified〔INFO〕を1つ足した。どれもA3永続sinkの固定allowlistにも足す。時計の根拠の状態の共有の型WallBasis〔awaiting・verified・unverified〕はP3-VERSION-MATERIAL-001が置き、P3-CLOCK-CHECK-001のhostが値を決める。P3-WS-AC08(3)・P3-CK-AC08(3)により統合担当が改訂）（P3-VERSION-MATERIAL-001で保存の旧い版を捨てたINFO checkpointSchemaDiscardedを1つ足し、A3永続sinkの固定allowlistにも足した。P3-VM-AC09(9)により統合担当が改訂）の計50種のunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種・snapshot超過3種を同じsinkへ配送できる。snapshot超過はsnapshotNoticeCapacityExceeded／snapshotCommonBudgetExceeded／snapshotStringLimitExceeded。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する A7の4 reason（notificationAttemptFailed/notificationExpired/notificationCapacityEvicted/notificationAdapterIsolated）だけを追加し、A3永続sinkの固定allowlistと読取結果まで一致させる。E21は失敗/timeout→AttemptFailed、期限到来→Expired、所有unitの容量退去→CapacityEvicted、停止未確認→AdapterIsolatedと対応し、取消/置換/遅い成功は状態と試行照合で扱う。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1211 «1db51524eccef065»",
           "docs/specs/reconstruction-p0-contracts.md:1226 «086e8c5d7c0f990f»",

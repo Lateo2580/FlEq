@@ -10,7 +10,7 @@ import type {
   TransientArea, TransientCurrent, TransientFamily,
 } from "../../../contracts/p3-local-bulletins-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, FAMILY_OF, HEAT_LIMIT, JST, HEAT_RETAIN, HEAT_TARGET_WINDOW, LAYER_SET, LIMITS, TORNADO_DEFAULT_VALID, TORNADO_LIMIT, TORNADO_RETAIN,
@@ -19,12 +19,12 @@ import {
 } from "../../domains/local-bulletins/local-bulletins";
 import type { HeatCandidate, LocalBulletinsCandidate, TornadoCandidate, TransientCandidate, TransientHeadType } from "../../domains/local-bulletins/local-bulletins";
 import { validCode, validHeadline } from "../../domains/briefing/briefing";
-import { cut, infoRankOf, validInputId, validName, validReportDateTime, validSerial } from "../../domains/flood/flood";
+import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "../../domains/flood/flood";
 
 // P3-UNIT-M-001（C13、I-U-M）: 三つの slice（tornado・heat・transient）の current・版・遅着・退去・通知・容量・codec・射影。
 // 三つの slice は件数の上限と退去を別々に持つ（無いと解説の多発が竜巻の記録を退去する、I-U-M.slices）。
 
-const SCHEMA = "p3-local-bulletins-unit-v2" as const;
+const SCHEMA = "p3-local-bulletins-unit-v3" as const;
 // P3-C13-BOUNDS=A・P3-C13-RES-01・RET-05。
 const GENERATION_LIMIT = 4_194_304;
 const TRANSIENT_TOTAL = Object.values(TRANSIENT_LIMIT).reduce((sum, value) => sum + value, 0);
@@ -619,16 +619,12 @@ function subjectParts(subject: string): SubjectParts | null {
   return validSeries(rest) ? { operation, slice: "transient", headType, family } : null;
 }
 function reportRef(value: unknown, subject: string, parts: SubjectParts): ReportRef | null {
-  const row = record(value);
-  const operation = operationOf(row?.operation);
-  if (row == null || operation == null || row.subject !== subject || parts.operation !== operation || !isText(row.family)
-    || !isText(row.inputId) || !validInputId(row.inputId) || !isText(row.reportDateTimeRaw) || !validReportDateTime(row.reportDateTimeRaw)
-    || !isText(row.serialRaw) || row.serialRaw !== "" && !validSerial(row.serialRaw) || !isText(row.infoTypeRaw) || infoRankOf(row.infoTypeRaw) == null
-    || (row.origin !== "live" && row.origin !== "recovery" && row.origin !== "replay")) return null;
-  const family = parts.slice === "tornado" ? row.family === "VPHW50" || row.family === "VPHW51" ? row.family : null
-    : parts.slice === "heat" ? row.family === "VPFT50" ? row.family : null : row.family === subject.split("/")[1] ? row.family : null;
-  return family == null ? null : { inputId: row.inputId, origin: row.origin, operation, family, subject, reportDateTimeRaw: row.reportDateTimeRaw,
-    serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw };
+  const ref = readReportRef(value);
+  if (ref == null || ref.subject !== subject || parts.operation !== ref.operation
+    || !validReportDateTime(ref.reportDateTimeRaw) || ref.serialRaw !== "" && !validSerial(ref.serialRaw) || infoRankOf(ref.infoTypeRaw) == null) return null;
+  const family = parts.slice === "tornado" ? ref.family === "VPHW50" || ref.family === "VPHW51" ? ref.family : null
+    : parts.slice === "heat" ? ref.family === "VPFT50" ? ref.family : null : ref.family === subject.split("/")[1] ? ref.family : null;
+  return family == null ? null : ref;
 }
 function textRecord(row: Fields): Text | null {
   return typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
@@ -754,12 +750,12 @@ function evidenceOf(item: TransientCurrent): PersistedTransientCurrent {
   return found;
 }
 const localBulletinsUnitCodec: LocalBulletinsUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1", "p3-local-bulletins-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-M.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, tornado: state.tornado, heat: state.heat, transient: state.transient.map(evidenceOf), intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v2 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v3 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

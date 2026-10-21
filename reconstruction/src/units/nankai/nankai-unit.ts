@@ -11,14 +11,14 @@ import type {
   PersistedNankaiUnit,
 } from "../../../contracts/p3-nankai-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, nextMark, readReportRef, stepVersion } from "../../contracts-revision/version"; import type { VersionRef } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
 
 // P3-UNIT-N-001（C8、I-U-N）: U-N の現況・情報系列・通知・容量・codec・射影。
 
-const SCHEMA = "p3-nankai-unit-v2" as const;
+const SCHEMA = "p3-nankai-unit-v3" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const LINES = ["nankai", "VYSE60"] as const;
 // P3-C8-CAPACITY=A・P3-C8-RES-01・RET-01〜04。世代の上限は P3-AUTH-D-N-BUDGET=A（K2、当初 256 KiB）。
@@ -45,8 +45,10 @@ type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 
 const isCurrent = (value: Shown): value is NankaiCurrent => "line" in value;
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
-// 版は事実を持つ記録なら source、証拠だけの記録なら証拠（P3-AUTH-AC01(3)）。
-const versionOf = (value: Shown) => value.effective === "evidence" ? value.evidence : value.source;
+// 版は事実を持つ記録なら source、証拠だけの記録なら証拠（P3-AUTH-AC01(3)）。U-N の種類は Control/DateTime だけで比べる（P3-VM-D-TABLE=A）
+// ので、証拠の ReportDateTime は比べに使わず渡さない（保存の値を時刻の文字列に戻すと範囲外で例外になる）。
+const versionOf = (value: Shown): VersionRef => value.effective === "evidence" ? { family: value.family, reportDateTimeRaw: "",
+  controlDateTimeRaw: value.evidence.controlDateTimeRaw, serialRaw: value.evidence.serialRaw } : value.source;
 const msOf = (value: Shown): number => value.effective === "evidence" ? value.evidence.reportDateTimeMs : reportMs(value.source);
 const visible = (value: Shown | null): value is ActiveCurrent | ActiveInformation => value?.effective === "active";
 
@@ -123,17 +125,8 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
 
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
-// P3-ORDER-AC01: ReportDateTime → InfoType の優先 → 同じ EventID なら Serial（欠落はどの数値よりも小）の辞書順。
-function compare(candidate: NankaiCandidate, existing: Shown): number {
-  const time = candidate.reportDateTimeMs - msOf(existing);
-  if (time !== 0) return Math.sign(time);
-  const version = versionOf(existing);
-  const rank = candidate.infoRank - (INFO_RANK.get(version.infoTypeRaw) ?? 0);
-  if (rank !== 0 || candidate.eventId !== existing.eventId) return Math.sign(rank);
-  const left = candidate.source.serialRaw, right = version.serialRaw;
-  return left === right ? 0 : left === "" ? -1 : right === "" ? 1 : Math.sign(Number(left) - Number(right));
-}
-const withoutSource = (value: Shown) => ({ ...value, source: null });
+// P3-VM-AC03: 系統と情報 subject ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
+const withoutSource = (value: Shown) => ({ ...value, source: null, unconfirmed: null });
 
 // ---- 現況（I-U-N.currentSemantics） ----
 
@@ -313,19 +306,38 @@ function displaySubject(value: Fact): Extract<RuntimeDisplaySubject, Readonly<{ 
 
 // ---- 採用（P3-C8-SUBJECTS=A。一入力の変更は一回の参照交換で確定する） ----
 
-type Verdict<T> = Readonly<{ kind: "adopt"; next: T }> | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale"; conflict: boolean }>;
+// held は手元の版を残して系列に印を付ける報（mark はこの後の印、missing は比べる時刻を欠く報、P3-VM-AC03・AC04）。
+type Verdict<T> = Readonly<{ kind: "adopt"; next: T; missing: boolean }>
+  | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale"; held: Readonly<{ mark: ReportRef | null; missing: boolean }> | null }>;
 function judge<T extends Fact>(candidate: NankaiCandidate, existing: Shown | null, next: T): Verdict<T> {
-  if (existing == null) return { kind: "adopt", next };
-  const order = compare(candidate, existing);
-  if (order < 0) return { kind: "unchanged", reason: "stale", conflict: false };
-  // expired と証拠だけの記録は事実を持たないので、同じ revision の再受信は事実を比べずに duplicate（食い違いの WARN を出さない）。
-  if (order === 0) return existing.effective === "expired" || existing.effective === "evidence"
-    || isDeepStrictEqual(withoutSource(existing), withoutSource(next))
-    ? { kind: "unchanged", reason: "duplicate", conflict: false } : { kind: "unchanged", reason: "stale", conflict: true };
-  return { kind: "adopt", next };
+  // expired と証拠だけの記録は事実を持たないので、同じ版の再受信は事実を比べずに duplicate（食い違いの WARN を出さない）。ただし取消でない
+  // 版への同じ時刻の取消は、expired でも勝つ（作者裁定 2026-10-21 昼）。証拠は InfoType だけを比べる。
+  const version = stepVersion(existing == null ? null : { version: versionOf(existing), source: existing.effective === "evidence" ? null
+    : existing.source, cancelled: existing.effective === "evidence" ? existing.evidence.infoTypeRaw === "取消" : existing.effective === "cancelled" },
+  existing == null || existing.effective === "evidence" ? null : existing.unconfirmed ?? null, next.source,
+  () => existing != null && (existing.effective === "evidence" ? existing.evidence.infoTypeRaw === next.source.infoTypeRaw
+    : existing.effective === "expired" ? !candidate.cancelled || existing.source.infoTypeRaw === next.source.infoTypeRaw
+      : existing.source.infoTypeRaw === next.source.infoTypeRaw && isDeepStrictEqual(withoutSource(existing), withoutSource(next))),
+  candidate.cancelled);
+  if (version.kind === "older" || version.kind === "duplicate")
+    return { kind: "unchanged", reason: version.kind === "older" ? "stale" : "duplicate", held: null };
+  if (version.kind === "held") return { kind: "unchanged", reason: "stale", held: version };
+  return { kind: "adopt", next: version.mark == null ? next : { ...next, unconfirmed: version.mark }, missing: version.missing };
 }
-function conflictDiagnostic(candidate: NankaiCandidate): DiagnosticDetails {
-  return { level: "WARN", component: "nankai", reason: "nankaiRevisionConflict", inputId: candidate.source.inputId, unit: "U-N" };
+function heldDiagnostic(candidate: NankaiCandidate, missing: boolean): DiagnosticDetails {
+  return { level: "WARN", component: "nankai", reason: missing ? "requiredStructureMissing" : "nankaiRevisionConflict",
+    inputId: candidate.source.inputId, unit: "U-N" };
+}
+// 印を記録に当てる。現況の印は保存するので保存世代を進め、情報の印は保存しない（P3-VM-AC04、types.ts の注記）。
+function holdState(state: NankaiUnitState, clock: ClockReading, subject: string, mark: ReportRef | null): NankaiUnitState {
+  const marked = <T extends Shown>(values: readonly T[]): readonly T[] => {
+    const at = indexOf(values, subject), found = values[at ?? -1];
+    return found == null || mark == null || found.effective === "evidence" || found.unconfirmed === mark ? values
+      : replaceAt(values, at, { ...found, unconfirmed: mark });
+  };
+  const currents = marked(state.currents), information = marked(state.information);
+  return currents === state.currents && information === state.information ? state : { ...state, currents, information,
+    persistence: currents === state.currents ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
 }
 
 function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, clock: ClockReading): Result {
@@ -344,14 +356,26 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   // 取消・訂正があれば現況へ当てない（取消が先着した古い元報で現況だけが戻らない、Q-C8-IMPL-AMEND(3)）。
   const affects = affectsCurrent(candidate, current);
   const infoVerdict = judge(candidate, info, informationOf(candidate));
-  const currentVerdict = !affects ? null : infoVerdict.kind === "unchanged" ? infoVerdict
+  // 情報 subject が証拠だけ（再起動の後）で duplicate なら中身を比べていないので、現況は現況の版で判定する（P3-VM-AC03）。
+  const unknownInfo = infoVerdict.kind === "unchanged" && infoVerdict.reason === "duplicate" && info?.effective === "evidence";
+  const currentVerdict = !affects ? null : infoVerdict.kind === "unchanged" && !unknownInfo ? infoVerdict
     : judge(candidate, current, currentOf(candidate));
-  if (currentVerdict?.kind === "unchanged") return { changes: [], step: { ...idle(state),
-    decisions: [decision(candidate.currentSubject, currentVerdict, "revisionOnly"), decision(candidate.subject, currentVerdict, "revisionOnly")],
-    diagnostics: currentVerdict.conflict ? [conflictDiagnostic(candidate)] : [] } };
-  if (currentVerdict == null && infoVerdict.kind === "unchanged") return { changes: [], step: { ...idle(state),
-    decisions: [decision(candidate.subject, infoVerdict, "revisionOnly")],
-    diagnostics: infoVerdict.conflict ? [conflictDiagnostic(candidate)] : [] } };
+  // 印は手元の版を残した系列に付ける。現況に効く報を情報 subject で残したときは、現況の系列にも同じ報の印を付ける（情報の印は保存しない）。
+  if (currentVerdict?.kind === "unchanged") {
+    const held = currentVerdict.held, onInfo = currentVerdict === infoVerdict;
+    const currentMark = !onInfo ? held?.mark ?? null : held?.mark == null || current == null ? null
+      : nextMark(current.unconfirmed ?? null, { ...candidate.source, subject: candidate.currentSubject });
+    const marked = held == null ? state : holdState(onInfo ? holdState(state, clock, candidate.subject, held.mark) : state, clock,
+      candidate.currentSubject, currentMark);
+    return { changes: [], step: { ...idle(marked),
+      decisions: [decision(candidate.currentSubject, currentVerdict, "revisionOnly"), decision(candidate.subject, currentVerdict, "revisionOnly")],
+      diagnostics: held == null ? [] : [heldDiagnostic(candidate, held.missing)] } };
+  }
+  if (currentVerdict == null && infoVerdict.kind === "unchanged") {
+    const held = infoVerdict.held, marked = held == null ? state : holdState(state, clock, candidate.subject, held.mark);
+    return { changes: [], step: { ...idle(marked), decisions: [decision(candidate.subject, infoVerdict, "revisionOnly")],
+      diagnostics: held == null ? [] : [heldDiagnostic(candidate, held.missing)] } };
+  }
 
   const nextCurrent = currentVerdict?.kind === "adopt" ? currentVerdict.next : null;
   const nextInfo = infoVerdict.kind === "adopt" ? infoVerdict.next : null;
@@ -425,7 +449,8 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   if (evicted != null || self) diagnostics.push({ level: "INFO", component: "nankai", reason: "nankaiCapacityEvicted", unit: "U-N", count: 1 });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "nankai", reason: "notificationCapacityEvicted",
     unit: "U-N", count: notices.dropped });
-  if (infoVerdict.kind === "unchanged" && infoVerdict.conflict) diagnostics.push(conflictDiagnostic(candidate));
+  if ([currentVerdict, infoVerdict].some((item) => item?.kind === "adopt" && item.missing))
+    diagnostics.push(heldDiagnostic(candidate, true));
   const decisions: Decision[] = [];
   const final = (subject: string, value: Verdict<Fact>, settledValue: ReturnType<typeof settled>): Decision => {
     const made = decision(subject, value, settledValue?.semantic ? "semantic" : "revisionOnly");
@@ -613,15 +638,10 @@ function subjectOperation(subject: string, family: NankaiReportFamily): Operatio
   return lineOf(middle) != null && last === "current" || middle === family && validEventId(last) ? op : null;
 }
 function reportRef(value: unknown): ReportRef | null {
-  const row = record(value);
-  const operation = operationOf(row?.operation), family = familyOf(row?.family);
-  if (row == null || operation == null || family == null || !bounded(row.inputId, LIMITS.inputId) || !isText(row.subject)
-    || !bounded(row.reportDateTimeRaw, LIMITS.reportDateTime) || !Number.isFinite(Date.parse(row.reportDateTimeRaw))
-    || !isText(row.serialRaw) || !validSerial(row.serialRaw) || !isText(row.infoTypeRaw) || !INFO_RANK.has(row.infoTypeRaw)
-    || (row.origin !== "live" && row.origin !== "recovery" && row.origin !== "replay")) return null;
-  if (subjectOperation(row.subject, family) !== operation) return null;
-  return { inputId: row.inputId, origin: row.origin, operation, family, subject: row.subject,
-    reportDateTimeRaw: row.reportDateTimeRaw, serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw };
+  const ref = readReportRef(value, LIMITS.controlDateTime), family = familyOf(ref?.family);
+  return ref == null || family == null || !bounded(ref.reportDateTimeRaw, LIMITS.reportDateTime)
+    || !Number.isFinite(Date.parse(ref.reportDateTimeRaw)) || !validSerial(ref.serialRaw) || !INFO_RANK.has(ref.infoTypeRaw)
+    || subjectOperation(ref.subject, family) !== ref.operation ? null : ref;
 }
 function infoSerial(value: unknown): NankaiInfoSerial | null | "invalid" {
   if (value === null) return null;
@@ -635,7 +655,11 @@ function currentRecord(value: unknown): NankaiCurrent | null {
   if (row == null || operation == null || line == null || source == null || !isText(row.eventId) || !validEventId(row.eventId)
     || row.subject !== `${operation}/${line}/current` || source.subject !== row.subject || (source.family === "VYSE60") !== (line === "VYSE60")
     || row.retainUntil !== reportMs(source) + CURRENT_RETAIN_MS) return null;
-  const base = { subject: row.subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil };
+  // P3-VM-AC04: 印は同じ系統（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
+  const mark = "unconfirmed" in row ? reportRef(row.unconfirmed) : undefined;
+  if (mark === null || mark != null && (mark.subject !== row.subject
+    || mark.operation !== operation)) return null;
+  const base = { subject: row.subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, ...mark == null ? {} : { unconfirmed: mark } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。ended は南海トラフの系統だけ。
     if (FACT_KEYS.some((key) => key in row)) return null;
@@ -674,11 +698,13 @@ function intentRecord(value: unknown): NankaiIntent | null {
 function evidenceRecord(value: unknown): EvidenceInformation | null {
   const row = record(value);
   if (row == null || !isText(row.subject) || typeof row.reportDateTimeMs !== "number" || !Number.isSafeInteger(row.reportDateTimeMs)
-    || !isText(row.serialRaw) || !validSerial(row.serialRaw) || !isText(row.infoTypeRaw) || !INFO_RANK.has(row.infoTypeRaw)) return null;
+    || !isText(row.serialRaw) || !validSerial(row.serialRaw) || !isText(row.infoTypeRaw) || !INFO_RANK.has(row.infoTypeRaw)
+    || !isText(row.controlDateTimeRaw) || controlDateTimeOf(row.controlDateTimeRaw, LIMITS.controlDateTime) !== row.controlDateTimeRaw) return null;
   const [, middle, eventId] = row.subject.split("/");
   const family = familyOf(middle), operation = family == null ? null : subjectOperation(row.subject, family);
   if (family == null || operation == null || eventId == null) return null;
-  const evidence = { subject: row.subject, reportDateTimeMs: row.reportDateTimeMs, serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw };
+  const evidence = { subject: row.subject, reportDateTimeMs: row.reportDateTimeMs, serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw,
+    controlDateTimeRaw: row.controlDateTimeRaw };
   return { subject: row.subject, family, eventId, operation, retainUntil: row.reportDateTimeMs + INFORMATION_RETAIN_MS, effective: "evidence",
     evidence };
 }
@@ -689,7 +715,7 @@ function evidenceOf(value: NankaiInformation): NankaiEvidence {
   let found = evidenceCache.get(value);
   if (found == null) {
     found = { subject: value.subject, reportDateTimeMs: reportMs(value.source), serialRaw: value.source.serialRaw,
-      infoTypeRaw: value.source.infoTypeRaw };
+      infoTypeRaw: value.source.infoTypeRaw, controlDateTimeRaw: value.source.controlDateTimeRaw };
     evidenceCache.set(value, found);
   }
   return found;
@@ -699,8 +725,8 @@ function persisted(value: unknown): Decoded | null {
   const row = record(value);
   if (row == null || row.schemaVersion !== SCHEMA) return null;
   const currents = list(row.currents, currentRecord), intents = list(row.intents, intentRecord);
-  // 鍵の無い保存物は K2 前の旧保存で、証拠は 0 件（移行 A1、P3-AUTH-D-SCHEMA=A・AC06(2)）。
-  const information = "evidence" in row ? list(row.evidence, evidenceRecord) : [];
+  // 鍵の無い保存物は invalid（移行 A1 の旧保存は版で捨てる、P3-VM-AC08）。
+  const information = list(row.evidence, evidenceRecord);
   if (currents == null || intents == null || information == null || currents.length > CURRENT_LIMIT || information.length > INFORMATION_LIMIT
     || new Set(currents.map((entry) => entry.subject)).size !== currents.length
     || new Set(information.map((entry) => entry.subject)).size !== information.length
@@ -717,12 +743,12 @@ function persisted(value: unknown): Decoded | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const nankaiUnitCodec: NankaiUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 情報の事実・contentRevision・persistence は保存しない（I-U-N.persisted、spec:512 の N）。証拠は保存する（P3-AUTH-AC01）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents, evidence: state.information.map(evidenceOf) }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v2 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v3 payload" }
       : { kind: "restored", state: { schemaVersion: SCHEMA, ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

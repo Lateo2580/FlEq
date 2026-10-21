@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "ab8340538a97d489799062f8d37b0ac6a6dd14c6871b04d4d6c2e11db8062340",
+    "sha256": "a14e3e15281b28b4dd92955ea0c21a2828b8c9a29bba9a005d392de9dbd8fee3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -331,7 +331,7 @@
           }
         ],
         "codeTable": "対象火山のKind/CodeはXMLの文字列（子要素の無い要素の直下textのtrim）で引く: 11〜15はレベル1〜5、21・35は活火山であることに留意、22は火口周辺危険、23は入山危険、36は周辺海域警戒（volcano-parser.tsのNON_NUMERIC_ALERT_SEVERITY）。activeかどうかはP3-C9-ALERT-ACTIVE。31・33は対象海上予報区のKindでmarineAreasのkindNameに残す。降灰の区分は75（小さな噴石の落下）・73・72・71・70（降灰）と表に無いcode（unknown、名前が要る）",
-        "revisionOrder": "subjectごとに（警報はfamilyごとのwatermark、P3-C9-MARINE=A）ReportDateTimeで比べ、同時刻で両方にSerialがあればSerialで比べる。それでも同じなら同じrevisionで、InfoTypeの優先（取消>訂正>発表）で後着の上位だけ採用し、降灰の速報詳細はさらにVFVO55>VFVO54。同じrevision・同じInfoType（・同じvariant）で事実が同じならduplicate、違えば先着を保ってstale＋WARN診断volcanoRevisionConflict（corpusの67_01_02: 67_01_01と同じReportDateTime・Serial空・発表で現象が62）。取消以前のrevisionはstaleで、取消したsubjectを戻さない。取消より新しいrevisionの発表・訂正は新しい報として採用し、subjectをactiveに戻す。初報を受けていないsubjectの訂正は新しい報として採用する（43_02_01）。MARINEの例外（P3-C9-MARINE=A）: 警報のVFVO50・VFVO51はsource、VFSVはmarineSourceとだけ比べる。別のfamilyの同じ版は重複・食い違いとせず自分のfieldを当て、対象火山のkindが違うときだけ先着のkindを保ってstale＋volcanoRevisionConflict（kind以外の自分のfieldは当てる）",
+        "revisionOrder": "subjectごとに（警報はfamilyごとのwatermark、P3-C9-MARINE=A）P3-VERSION-MATERIAL-001のcompareVersion（Control/DateTimeで比べ、InfoTypeの順位とSerialは使わない、P3-VM-AC02・AC03）で比べる。降灰の速報詳細は同じ報（Head/ReportDateTimeとInfoTypeが同じ、P3-VM-D-SAME-REPORT=A）ならVFVO55>VFVO54。同じControl/DateTimeで事実が同じならduplicate。同じControl/DateTimeの取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。それ以外で事実が違えば先着を保ってstale＋WARN診断volcanoRevisionConflictとし、未確認の印を付ける（P3-VM-AC04。corpusの67_01_02: 67_01_01と同じReportDateTime・Control/DateTime・Serial空・発表で現象が62）。Control/DateTimeの欠けた報はP3-VM-D-MISSING=A。取消以前のrevisionはstaleで、取消したsubjectを戻さない。取消より新しいrevisionの発表・訂正は新しい報として採用し、subjectをactiveに戻す。初報を受けていないsubjectの訂正は新しい報として採用する（43_02_01）。MARINEの例外（P3-C9-MARINE=A）: 警報のVFVO50・VFVO51はsource、VFSVはmarineSourceとだけ比べる。別のfamilyの報は重複・食い違いとせず自分のfieldを当て、共有のkindはcompareVersionで比べる。同じHead/ReportDateTimeで対象火山のkindが違うときはControl/DateTimeの後の方のkindを採り、volcanoRevisionConflictのWARN診断を残す（P3-VM-AC03、K7の残存リスク(2)。kind以外の自分のfieldは当てる）。P3-VM-AC09(16)により統合担当が改訂",
         "diagnosticReasons": "既存のDiagnosticReason（p2-shared-runtime.types.ts）に火山の同じrevisionの食い違いと件数の上限の退去に当たるものが無いので、volcanoRevisionConflictとvolcanoCapacityEvictedの2つだけを足す（persistent-diagnostic-sink.tsの一覧にも足す）。VFVO51の報全体の不採用もvolcanoRevisionConflict（count）で表す"
       },
       {
@@ -346,7 +346,7 @@
         "shortfallSemantics": "P3-C9-SHORTFALL=A: 不足は復元（C15が作った保存物）でだけ入る。liveで採用した報が、同じoperation・slice・火山コードのvolcano scopeの不足のlastKnownより新しい（lastKnownがnullなら無条件）とき、その不足を除く（domain scopeはliveで除かない）。shortfallResolution: acceptCurrentはvolcano scopeの不足を除き記録は変えない。clearCurrentはvolcano scopeの不足を除き、そのoperation・火山コードのそのsliceのactiveの記録を、警報はended、噴火・降灰はexpiredにする（通知しない）。acknowledgeDomainLossはdomain scopeの不足を除く。idが無いかscopeとactionが合わなければunchanged/noChange（subject `${operation}/shortfall/${id}`、operationは不足のもの、無ければnormal）。不足の増減はviewを変えるのでsemantic",
         "bounds": "文字列の上限（UTF-16の長さ。超えたら切り詰めてtruncated=true）: volcanoName 32、kind.name 32、kind.condition 8、lastKind.name 32、headline 256、地域のkindName 32、phenomenon.name 16、craterName 32、plumeDirection 16、MaterialValueのrawとtextのvalue 32（numberのrangeとunknown・empty・missingはそのまま）、降灰のashName 32・地域の名前 32、解説のtitle 128・headline 256・text 4,096・nextAdvisory 512。ASCIIに限る値（超えたらidentityInvalidかrequiredStructureInvalid）: 火山コード16 byte、市町村・海上予報区・降灰地域のcode 16 byte、kind.code・lastKind.code・phenomenon.code・ashCode 8 byte、復旧不足のid 64 byte、source.family 8 byte（coverageのheadType）、coordinate 40 byte（超えたらnull）、eventDateTimeRaw 40文字。件数: municipalitiesはgroup 8・codeの延べ128、marineAreasはgroup 4・code 32、噴火のmunicipalities 128、解説のvolcanoCodes 128（超えた分は捨ててtruncated=true）。採用時のoutcomeのfactsに載せる本文はVolcanoActivity 4,096・VolcanoPrevention 1,024。corpusの最大はtitle 40、headline 132、VolcanoActivity 3,015、VolcanoPrevention 197、NextAdvisory 29、Body/Text 755文字、VFVO50の対象市町村8、VFVO53の対象市町村30、VFVO55の降灰地域39、VFVO51の火山entry 112で、切り詰めは起きない",
         "deadlines": "nextDeadlineのwallTimeMsは、activeの噴火のvalidUntil、activeの降灰のforecastEndsAt、inactiveの記録・定時・解説のretainUntil、intentのexpiresAtの最小。monotonicMsはbatchのflushの時刻（lastAtMonotonicMs+8,000とstartedAtMonotonicMs+90,000の早い方）。どちらかの到来で期限処理を行う。期限処理は到来分だけを回収・flushし、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（三slice各128・定時128・解説64の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
-        "persisted": "PersistedVolcanoUnitはschemaVersion p3-volcano-unit-v1、alerts、eruptions、ashfalls、shortfalls、intents（pendingと終端記録）。scheduledAshfalls・batch・bulletins・contentRevision・persistenceは保存しない（spec:484の保存しないもの「VFVO53待機batch、runtime restored」、spec:504の短命情報N）。保存しない系列（定時・batch・解説）だけの変化（その採用・revisionOnly・期限の回収・flush）では保存世代を進めない（C8のQ-C8-IMPL-AMEND(5)と同じ）",
+        "persisted": "PersistedVolcanoUnitはschemaVersion p3-volcano-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、alerts、eruptions、ashfalls、shortfalls、intents（pendingと終端記録）。scheduledAshfalls・batch・bulletins・contentRevision・persistenceは保存しない（spec:484の保存しないもの「VFVO53待機batch、runtime restored」、spec:504の短命情報N）。保存しない系列（定時・batch・解説）だけの変化（その採用・revisionOnly・期限の回収・flush）では保存世代を進めない（C8のQ-C8-IMPL-AMEND(5)と同じ）",
         "decode": "codecは一つ（volcanoUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、警報・噴火・降灰の速報詳細はそれぞれ128件以下でsubjectの重複なし、subjectがI-U-V.subjectsの形で運用区分・火山コード・EventIDと一致、EventID・火山コードがQ-ENUM.identityの文字と長さ、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）、active以外の記録は事実のfieldを持たない（types.tsの判別共用体）、警報のsourceとmarineSourceの少なくとも一方が非nullでsourceのfamilyがVFVO50・VFVO51・marineSourceのfamilyがVFSV50〜61、activeの警報のkind.codeがP3-C9-ALERT-ACTIVEのactiveの区分でlevelがcodeと一致、inactiveの警報のretainUntil=sourceとmarineSourceの新しい方のReportDateTime+30日、噴火のvalidUntil=+1日・retainUntil=+2日、降灰のretainUntil=+7日と予報の期間の上限（P3-C9-ASHFALL-PROJECTION）、groups 8以下・topAreasがmin(3, areaCount)件・areaCount=topAreas＋omittedAreaCount、I-U-V.boundsの文字列と件数の上限（code類とMaterialValueを含む）、shortfallsは128件以下でidの重複なし・scopeがvolcanoのときだけ火山コードを持つ、pending≤128件かつ「pendingの実byte＋予約」≤131,072、「pendingの実byte＋予約＋終端記録」≤229,376（Q-NOTICE.capacity。予約はdeliveryGrowth、attemptsは0以上の安全な整数、nextAttemptAtは有限の数）、encode後の世代≤4,194,304 byte、intentのunitがU-VでsubjectがI-U-V.subjectsの形であること（stateに残っているsubjectとの一致は求めない。解説・定時は復元で空になるため）",
         "view": "VolcanoUnitViewはactiveの警報・噴火・降灰、activeの解説の見出し（VolcanoBulletinView。本文を外す、P3-C9-SNAPSHOT）、復旧不足を載せる。定時の降灰とbatchは載せない。SubjectOutcomeはsubjectごとに作り、factsに公開事実（解説は見出しだけ。採用時は警報のVolcanoActivity・VolcanoPreventionも）と変わったfieldを載せる。batchのflushはPublishedOutcome batchCompleted（reasonはdeadline・interrupted・shutdown、subjectsはbatchの定時のsubject）。RuntimeDisplaySubjectにunit U-Vの行（current: VolcanoAlert | VolcanoEruption | VolcanoAshfall | VolcanoBulletinView | null）を足す。unavailable・未保存・再起動の空・復旧不足を「警報なし」に読み替えない",
         "confirmationScope": "U-Vは確認scopeを作らない（P3-C9-N2）。shared-runtime.tsのaddedScopesにU-Vで空を返す分岐を足す",
@@ -369,7 +369,7 @@
       {
         "id": "P3-C9-MIGRATION",
         "status": "frozen",
-        "rule": "PersistedVolcanoUnit（p3-volcano-unit-v1）は新設のschemaなので、C9の中で旧データの移行は要らない。旧築の待機画面の保存（standby-persistence.tsの火山の部分、corpusのtest/fixtures/standby-persistence/v1-volcano-serial.json、expected:O07:24）からU-V候補と復旧不足を作るのはC15（P3-MIGRATION-001）。codecのdecodeはp3-volcano-unit-v1以外をunavailableで返す。C15への申し送り: 旧築の保存の読み戻しはgateの記録を1件ずつ捨てうる（P3-C9-LEGACY-DIFFの「salvage」の項、2026-09-07のベンチでPiの実状態の火山subject 117件の一部）ので、移行器はPiの実状態の火山の記録の件数を入力と出力で突き合わせ、捨てた記録を理由付きで報告する"
+        "rule": "PersistedVolcanoUnit（p3-volcano-unit-v3）は新設のschemaなので、C9の中で旧データの移行は要らない。旧築の待機画面の保存（standby-persistence.tsの火山の部分、corpusのtest/fixtures/standby-persistence/v1-volcano-serial.json、expected:O07:24）からU-V候補と復旧不足を作るのはC15（P3-MIGRATION-001）。codecのdecodeはp3-volcano-unit-v3以外をunavailableで返す。C15への申し送り: 旧築の保存の読み戻しはgateの記録を1件ずつ捨てうる（P3-C9-LEGACY-DIFFの「salvage」の項、2026-09-07のベンチでPiの実状態の火山subject 117件の一部）ので、移行器はPiの実状態の火山の記録の件数を入力と出力で突き合わせ、捨てた記録を理由付きで報告する"
       },
       {
         "id": "P3-C9-DEPS",
@@ -1061,7 +1061,7 @@
       },
       {
         "id": "P3-C9-AC07",
-        "requirement": "保存と復元: PersistedVolcanoUnitと唯一のcodec（schemaVersion p3-volcano-unit-v1）、I-U-V.persisted・I-U-V.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。定時・batch・解説は保存せず、復元の後は空。新設schemaなのでC9に旧データ移行は無い（P3-C9-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報（訂正・取消・旧報）は復元した三sliceとの差で決め、火山のidentityを名前から推測しない（O07）",
+        "requirement": "保存と復元: PersistedVolcanoUnitと唯一のcodec（schemaVersion p3-volcano-unit-v3）、I-U-V.persisted・I-U-V.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。定時・batch・解説は保存せず、復元の後は空。新設schemaなのでC9に旧データ移行は無い（P3-C9-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報（訂正・取消・旧報）は復元した三sliceとの差で決め、火山のidentityを名前から推測しない（O07）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:484 «da8e5e5037c64faf»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
@@ -1338,7 +1338,7 @@
       "予約の式を写さない: pendingの予約はdelivery-growth.tsのdeliveryGrowthをimportして受理とdecodeの両方で呼ぶ（P3-IUR-HELPER=A）。無いと受理とdecodeの式がずれ、台帳73に戻る",
       "batchの期限は単調時計（ClockReading.monotonicMs）で持ち、setTimeoutを使わない。無いと時計の逆行で待ちが止まらない・再現できない（O08、spec:1784）",
       "既存のhelper: children・scalar・text・attribute・leafValuesなどXMLの読み取りとcodecの基本形（record・operationOf・reportRef・list・unique）は、domains/tsunami・domains/seismic・units/tsunami・units/seismic（と合流後のnankai）に同じ写しがある。他unitのdirectoryは触らないので、U-Vの写しを作るなら一覧（AC14）に書く（共有化は統合担当が決める）",
-      "永続schemaの変更: p3-volcano-unit-v1は新設で旧データの移行は無い（P3-C9-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
+      "永続schemaの変更: p3-volcano-unit-v3は新設で旧データの移行は無い（P3-C9-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
       "純粋な意味関数とreduceはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付ける。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。DiagnosticReasonへの追加はQ-ENUM.diagnosticReasonsの2つ（volcanoRevisionConflict・volcanoCapacityEvicted）だけ（persistent-diagnostic-sink.tsの一覧にも足す）",
       "check-contractで、本契約が行を足すファイル（composition-root.ts・owner-runtime.ts・shared-runtime.ts・view-projector.ts・unit-coverage.ts・persistent-diagnostic-sink.ts・p2-shared-runtime.types.ts・p2-snapshot-sse.types.ts・p2-notification-delivery.types.ts）を引く他の契約（C5・C7・C8など）と本契約のanchorだけがFAILするのは想定内として報告する。統合担当が、合流と同じcommitで、そのanchorとmeta.sha256を直す。それ以外のFAILは想定外として扱う",
       "容量の実測: 実装後に、I-U-V.capacityMeasurementのfixtureで実際の警報・噴火・降灰・intentのencode byteを測り、契約の値と並べて報告する（10%以上違えば統合担当がP3-C9-CAPACITYの数を直す）"

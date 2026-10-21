@@ -4,7 +4,7 @@ import type {
   TyphoonFrame, TyphoonFrameKind, TyphoonName, TyphoonPoint, TyphoonPrefecture, TyphoonProbabilityArea, TyphoonWindArea, TyphoonWindAxis,
 } from "../../../contracts/p3-typhoon-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
-import { cut, infoRankOf, validInputId, validName, validReportDateTime, validSerial } from "../flood/flood";
+import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "../flood/flood"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 // P3-UNIT-Y-001 の adapter: VPTW60〜65・VPTA50〜55 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 // 値の形の検査（cut・validName・validSerial ほか）は U-R と同じ規則なので domains/flood の export を使い、XML の読み取りだけを写す（AC13）。
@@ -257,8 +257,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
   const slice = analysisType != null ? "analysis" : "probability";
   const subject = `${operation}/${slice === "analysis" ? "typhoonAnalysis" : "typhoonProbability"}/${idText}`;
   const serialRaw = material.serialRaw.trim();
-  if (serialRaw !== "" && !validSerial(serialRaw) || !validReportDateTime(material.reportDateTimeRaw) || material.infoTypeRaw.length > 8
-    || !validInputId(material.inputId)) return reject("identityInvalid", subject);
+  if (serialRaw !== "" && !validSerial(serialRaw) || !validReportDateTime(material.reportDateTimeRaw) || material.infoTypeRaw.length > 8) return reject("identityInvalid", subject);
 
   // ---- 必須構造（存在を全部確かめてから妥当性を見る） ----
   const found: Found = { missing: false, invalid: false, truncated: false };
@@ -274,7 +273,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
   const cancelled = infoRank === 3;
   const reportMs = common.envelope.reportDateTimeMs;
   const source: ReportRef = { inputId: material.inputId, origin: material.origin, operation, family: material.headType, subject,
-    reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw: material.infoTypeRaw };
+    reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw), serialRaw, infoTypeRaw: material.infoTypeRaw };
   const title = bound(found, titleText ?? "", BOUNDS.title);
   const fail = (): ParseResult => found.missing ? reject("requiredStructureMissing", subject) : reject("requiredStructureInvalid", subject);
 

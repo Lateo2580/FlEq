@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "38b391c05d97993a72acbd841d84358a90804ec116ecc9e9ac05466a1856e98e",
+    "sha256": "261151841ff5aae6cd387493d245162b108e6fc9ae4b13fab714a555e0ea740c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -278,8 +278,8 @@
           "reconstruction/test/eew-e01/run.mjs:175 «63ae549d2228ccd9»",
           "reconstruction/test/eew-e01/windows.mjs:90 «9d9be920312917b2»",
           "reconstruction/test/eew-e01/windows.mjs:203 «ceeb57ed26a79770»",
-          "reconstruction/src/domains/eew/eew.ts:446 «b07146dba76c58e4»",
-          "reconstruction/src/domains/eew/eew.ts:447 «533bdccc801402bd»",
+          "reconstruction/src/domains/eew/eew.ts:445 «b07146dba76c58e4»",
+          "reconstruction/src/domains/eew/eew.ts:446 «533bdccc801402bd»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «dddd02e05041ae59»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:558 «5381e7ef5b71152e»",
           "reconstruction/test/eew-e01/e12-run.mjs:99 «4237bba2f4a5f589»"
@@ -291,7 +291,7 @@
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:272 «a777a5aa32eb2368»",
           "reconstruction/src/domains/eew/eew.ts:273 «1ced5f9ee11c0061»",
-          "reconstruction/src/domains/eew/eew.ts:509 «cb7d034da431db0a»",
+          "reconstruction/src/domains/eew/eew.ts:508 «cb7d034da431db0a»",
           "reconstruction/test/eew-e01/windows.mjs:207 «978570199a3ae1ef»",
           "reconstruction/test/eew-e01/windows.mjs:220 «ff427cfde8eccbac»",
           "reconstruction/test/eew-e01/windows.mjs:331 «d2cc6f5204a03a4e»",

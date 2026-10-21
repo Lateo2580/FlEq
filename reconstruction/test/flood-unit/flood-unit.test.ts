@@ -94,12 +94,12 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
         `requiredStructureMissing ${SUBJECT}`],
     ];
     expect(cases.map(([source]) => reject(source))).toEqual(cases.map(([, reason]) => reason));
-    // 保存する inputId の上限（64 文字）を超える入力は identityInvalid。40 文字の印字可能な ASCII の EventID と 64 文字の inputId は合法。
-    expect(reject(xml, "i".repeat(65))).toBe(`identityInvalid ${SUBJECT}`);
+    // 保存する inputId の上限（64 文字）を超える入力は identityInvalid（共通の封筒の検査で断るので subject は空、P3-VM-AC08）。40 文字の印字可能な ASCII の EventID と 64 文字の inputId は合法。
+    expect(reject(xml, "i".repeat(65))).toBe("identityInvalid");
     expect(receive(base, decodeXml(eventId("~".repeat(40))(xml), "VXKO50", "i".repeat(64)), now).decisions[0].decision).toBe("changed");
     // 合法: Body・Headline の無い取消（記憶だけ）。
-    // inputId は「"」と「\」を除く印字可能な ASCII（品質レビュー P2、容量の上界の 1 文字 1 byte）。
-    expect(['in"put', "in\\put", "入力"].map((inputId) => reject(xml, inputId))).toEqual(Array(3).fill(`identityInvalid ${SUBJECT}`));
+    // inputId は「"」と「\」を除く印字可能な ASCII（品質レビュー P2、容量の上界の 1 文字 1 byte。共通の封筒の検査で断るので subject は空）。
+    expect(['in"put', "in\\put", "入力"].map((inputId) => reject(xml, inputId))).toEqual(Array(3).fill("identityInvalid"));
     // InfoType の raw は trim せずに保存し、比較は trim した値（品質レビュー P3）: 同じ版の「発表」は duplicate。
     const padded = send(base, F.sample, replaceTag("InfoType", "\t発表\t"));
     expect([shape(padded), recordOf(padded.state)?.source.infoTypeRaw, shape(send(padded.state, F.sample)), roundTrip(padded.state).kind]).toEqual([
@@ -632,6 +632,7 @@ function budgetState(bounded: boolean): FloodUnitState {
     // 上界: A1 の形で 40 文字の時刻（retainUntil は 15 桁）、decode が通す最悪の InfoType の raw（trim で消え JSON で 6 byte の U+000B を 6 個）。
     const reportDateTimeRaw = bounded ? "9999-12-31T23:59:59.99999999999999-23:59" : seed.source.reportDateTimeRaw;
     const source = { inputId: "i".repeat(bounded ? 64 : 36), origin: "live" as const, operation, family: "VXKO50", subject, reportDateTimeRaw,
+      controlDateTimeRaw: reportDateTimeRaw,
       serialRaw: bounded ? "1234567890" : "3", infoTypeRaw: bounded ? `${"\u000b".repeat(6)}訂正` : "発表" };
     const base = { subject, operation, headType: "VXKO50", eventId: id, source, retainUntil: Date.parse(reportDateTimeRaw) + RETAIN };
     if (!bounded) return { ...seed, ...base };

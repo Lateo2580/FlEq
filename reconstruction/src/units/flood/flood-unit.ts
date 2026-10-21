@@ -9,17 +9,17 @@ import type {
   FloodUnitState, FloodUnitStep, FloodUnitView, PersistedFloodUnit,
 } from "../../../contracts/p3-flood-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
-  BOUNDS, LIMITS, cut, infoRankOf, levelOf, loneSurrogate, parseFlood, validEventId, validHeadType, validInputId, validKindCode, validName,
+  BOUNDS, LIMITS, cut, infoRankOf, levelOf, loneSurrogate, parseFlood, validEventId, validHeadType, validKindCode, validName,
   validReportDateTime, validRiverCode, validSerial, validStationCode, validTime, validValue,
 } from "../../domains/flood/flood";
 import type { FloodCandidate } from "../../domains/flood/flood";
 
 // P3-UNIT-R-001（C11、I-U-R）: U-R の EventID の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-flood-unit-v2" as const;
+const SCHEMA = "p3-flood-unit-v3" as const;
 // P3-C11-CAPACITY=A・P3-C11-RES-01（P3-C11-BOUNDS=B）・RET-01〜04。
 const CURRENT_LIMIT = 512, GENERATION_LIMIT = 16_777_216;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -508,15 +508,11 @@ function subjectParts(subject: string): Readonly<{ operation: Operation; headTyp
     : { operation, headType: match[2], eventId: match[3] };
 }
 function reportRef(value: unknown, subject: string): ReportRef | null {
-  const row = record(value);
-  const operation = operationOf(row?.operation);
+  const ref = readReportRef(value);
   const parts = subjectParts(subject);
-  if (row == null || operation == null || parts == null || row.family !== parts.headType || row.subject !== subject || parts.operation !== operation
-    || !isText(row.inputId) || !validInputId(row.inputId) || !isText(row.reportDateTimeRaw) || !validReportDateTime(row.reportDateTimeRaw)
-    || !isText(row.serialRaw) || !validSerial(row.serialRaw) || !isText(row.infoTypeRaw) || infoRankOf(row.infoTypeRaw) == null
-    || (row.origin !== "live" && row.origin !== "recovery" && row.origin !== "replay")) return null;
-  return { inputId: row.inputId, origin: row.origin, operation, family: parts.headType, subject, reportDateTimeRaw: row.reportDateTimeRaw,
-    serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw };
+  return ref == null || parts == null || ref.family !== parts.headType || ref.subject !== subject || parts.operation !== ref.operation
+    || !validReportDateTime(ref.reportDateTimeRaw) || !validSerial(ref.serialRaw)
+    || infoRankOf(ref.infoTypeRaw) == null ? null : ref;
 }
 // 受理と同じ上限（group 16・河川の延べ 32・code の形と重複・level と code の一致・rivers が空の group は truncated のときだけ）。
 function kindsRecord(value: unknown, truncated: boolean): FloodKindGroup[] | null {
@@ -630,12 +626,12 @@ function persisted(value: unknown): PersistedFloodUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const floodUnitCodec: FloodUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-R.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-flood-unit-v2 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-flood-unit-v3 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

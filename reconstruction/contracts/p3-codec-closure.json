@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "b06fc74d5d3bf9996b4ed08f5e7ae581390cf7d82d95f3e46d620b5c9f0c3a3a",
+    "sha256": "f96bc6abd9feded99102aaa9f645a708a1600692f63644549e8d0f4ac80a4f52",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -240,7 +240,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
           "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:429 «401ece40cbfc8ff4»"
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:432 «401ece40cbfc8ff4»"
         ]
       },
       {
@@ -248,7 +248,7 @@
         "requirement": "F15: Headlineなし・TextがBMP「あ」79字＋😀のVYSE50をU-Nへ投入する。従来のtext.slice(0,80)は末尾D83Dを作る。Textから切り出す部分を80 UTF-16単位以内でサロゲート対を割らずwell-formedにし、通知全bodyには80単位の上限を置かない。Headlineは既存bound→cutで対を割らない。codecがrestoredでも文字境界の合格とはしない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-nankai-unit.json:199 «00c7d58a8d7d1de3»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:233 «3b04b00a449c0acf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:226 «3b04b00a449c0acf»",
           "reconstruction/src/domains/nankai/nankai.ts:57 «d8c08b2391f4edd9»"
         ]
       },

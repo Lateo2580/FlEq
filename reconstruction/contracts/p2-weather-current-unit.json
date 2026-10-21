@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "c57b75f9568708c2436feed9332b85cb242af1427e837897928591b8cb35dda0",
+    "sha256": "63f2cf55127a29271ef5f0a99bc5da1948c5ebaa6972180e2680848a3f08489a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -378,7 +378,7 @@
       },
       {
         "id": "P2-A5-AC04",
-        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v1の唯一のcodecを用い、全国baseはoperation別1（合算3）、全国履歴2・partial128・partial履歴8は既存の三区分合算上限、16MiBを維持する。decodeはnationalのkeyがnormal/training/testのいずれかで、各WeatherCurrentSnapshot.operationがkeyと一致することを検証し、不一致・未知key・旧単一slot/nullはinvalidとして正常stateへ昇格しない。容量超過はAC11のadmission判定後に理由付きunavailableにする P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する。",
+        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v3の唯一のcodecを用い、全国baseはoperation別1（合算3）、全国履歴2・partial128・partial履歴8は既存の三区分合算上限、16MiBを維持する。decodeはnationalのkeyがnormal/training/testのいずれかで、各WeatherCurrentSnapshot.operationがkeyと一致することを検証し、不一致・未知key・旧単一slot/nullはinvalidとして正常stateへ昇格しない。容量超過はAC11のadmission判定後に理由付きunavailableにする P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
           "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",

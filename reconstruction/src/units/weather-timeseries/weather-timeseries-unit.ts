@@ -4,12 +4,12 @@ import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatu
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
-const SCHEMA = "p2-weather-timeseries-unit-v2" as const;
+const SCHEMA = "p2-weather-timeseries-unit-v3" as const;
 type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
 const LIMIT = 33_554_432, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
 const encoder = new TextEncoder();
@@ -280,13 +280,8 @@ function storedValue(value: unknown): boolean {
   return materialValue(value);
 }
 function reportRef(value: unknown): value is ReportRef {
-  const row = object(value);
-  return row != null && typeof row.inputId === "string"
-    && (row.origin === "live" || row.origin === "recovery" || row.origin === "replay")
-    && (row.operation === "normal" || row.operation === "training" || row.operation === "test")
-    && row.family === "VPWP50" && typeof row.subject === "string" && row.subject !== ""
-    && typeof row.reportDateTimeRaw === "string" && Number.isFinite(Date.parse(row.reportDateTimeRaw))
-    && typeof row.serialRaw === "string" && typeof row.infoTypeRaw === "string";
+  const ref = readReportRef(value);
+  return ref != null && ref.family === "VPWP50" && ref.subject !== "" && Number.isFinite(Date.parse(ref.reportDateTimeRaw));
 }
 function snapshot(value: unknown): value is WeatherTimeseriesSnapshot {
   const record = object(value);
@@ -387,7 +382,7 @@ function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   return measure(subjects, gates, intents, 0, 0) <= LIMIT ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = persisted({ schemaVersion: SCHEMA, subjects: state.subjects, gates: state.gates, intents: state.intents });
     if (value == null) throw new Error("invalid U-F checkpoint payload");
@@ -395,7 +390,7 @@ const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
   },
   decode(payload: JsonValue) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v2 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v3 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
         savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } };
   },

@@ -9,15 +9,15 @@ import type {
   BriefingUnitCodec, BriefingUnitState, BriefingUnitStep, BriefingUnitView, PersistedBriefingUnit,
 } from "../../../contracts/p3-briefing-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, LIMITS, kindOf, parseBriefing, validCode, validHeadline, validSeries, validUnit } from "../../domains/briefing/briefing";
 import type { BriefingCandidate } from "../../domains/briefing/briefing";
-import { cut, infoRankOf, validInputId, validName, validReportDateTime, validSerial, validTime, validValue } from "../../domains/flood/flood";
+import { cut, infoRankOf, validName, validReportDateTime, validSerial, validTime, validValue } from "../../domains/flood/flood";
 
 // P3-UNIT-B-001（C12、I-U-B）: U-B の系列の current・予測の置換・alias・通知・容量・codec・射影。
 
-const SCHEMA = "p3-briefing-unit-v2" as const;
+const SCHEMA = "p3-briefing-unit-v3" as const;
 // P3-C12-BOUNDS=A・P3-C12-RES-01・RET-01〜04。
 const CURRENT_LIMIT = 256, GENERATION_LIMIT = 2_097_152;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -606,15 +606,11 @@ function subjectParts(subject: string): Readonly<{ operation: Operation; headTyp
   return match == null || operation == null || headType == null || !validSeries(match[3]) ? null : { operation, headType, series: match[3] };
 }
 function reportRef(value: unknown, subject: string): ReportRef | null {
-  const row = record(value);
-  const operation = operationOf(row?.operation);
+  const ref = readReportRef(value);
   const parts = subjectParts(subject);
-  if (row == null || operation == null || parts == null || row.family !== parts.headType || row.subject !== subject || parts.operation !== operation
-    || !isText(row.inputId) || !validInputId(row.inputId) || !isText(row.reportDateTimeRaw) || !validReportDateTime(row.reportDateTimeRaw)
-    || !isText(row.serialRaw) || !validSerial(row.serialRaw) || !isText(row.infoTypeRaw) || infoRankOf(row.infoTypeRaw) == null
-    || (row.origin !== "live" && row.origin !== "recovery" && row.origin !== "replay")) return null;
-  return { inputId: row.inputId, origin: row.origin, operation, family: parts.headType, subject, reportDateTimeRaw: row.reportDateTimeRaw,
-    serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw };
+  return ref == null || parts == null || ref.family !== parts.headType || ref.subject !== subject || parts.operation !== ref.operation
+    || !validReportDateTime(ref.reportDateTimeRaw) || !validSerial(ref.serialRaw)
+    || infoRankOf(ref.infoTypeRaw) == null ? null : ref;
 }
 function areaRecord(value: unknown): BriefingArea | null {
   const row = record(value);
@@ -729,12 +725,12 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const briefingUnitCodec: BriefingUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-B.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v2 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v3 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

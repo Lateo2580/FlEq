@@ -97,7 +97,7 @@ export type FloodNotificationPayload = Readonly<{
 export type FloodIntent = NotificationIntent & Readonly<{ payload: FloodNotificationPayload }>;
 
 export type FloodUnitState = Readonly<{
-  schemaVersion: "p3-flood-unit-v2";
+  schemaVersion: "p3-flood-unit-v3";
   contentRevision: number;
   currents: readonly FloodCurrent[];
   // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
@@ -106,7 +106,7 @@ export type FloodUnitState = Readonly<{
 }>;
 
 export type PersistedFloodUnit = Readonly<{
-  schemaVersion: "p3-flood-unit-v2";
+  schemaVersion: "p3-flood-unit-v3";
   currents: readonly FloodCurrent[];
   intents: readonly FloodIntent[];
 }>;
@@ -143,5 +143,5 @@ export type FloodUnitStep = Readonly<{
 }>;
 
 export type FloodUnitCodec = UnitCodec<FloodUnitState, PersistedFloodUnit> & Readonly<{
-  schemaVersion: "p3-flood-unit-v2";
+  schemaVersion: "p3-flood-unit-v3";
 }>;

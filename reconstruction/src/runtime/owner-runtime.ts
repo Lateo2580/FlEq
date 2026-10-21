@@ -26,7 +26,7 @@ import type {
   SemanticEnvelopeResult,
 } from "../../contracts/p2-shared-runtime.types";
 import type { CodecMap } from "../checkpoint/checkpoint";
-import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic";
+import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
 import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
 // P3-EXECUTION-SPLIT-001 (C3a) owner core: everything one owner does to its own units, as pure functions of
@@ -66,21 +66,21 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const noHistory = { dayKey: null, count: 0, maxInt: null, countedEventIds: [], recent: [] } as const;
 const initialUnits: RuntimeUnitStates = {
-  "U-E": { schemaVersion: "p2-eew-unit-v2", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: cleanPersistence },
-  "U-W": { schemaVersion: "p2-weather-current-unit-v2", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+  "U-E": { schemaVersion: "p2-eew-unit-v3", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: cleanPersistence },
+  "U-W": { schemaVersion: "p2-weather-current-unit-v3", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], persistence: cleanPersistence },
-  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v2", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
-  "U-T": { schemaVersion: "p3-tsunami-unit-v2", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: cleanPersistence },
-  "U-Q": { schemaVersion: "p3-seismic-unit-v2", contentRevision: 0, earthquakes: [], longPeriods: [],
+  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v3", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
+  "U-T": { schemaVersion: "p3-tsunami-unit-v3", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: cleanPersistence },
+  "U-Q": { schemaVersion: "p3-seismic-unit-v3", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], persistence: cleanPersistence },
-  "U-N": { schemaVersion: "p3-nankai-unit-v2", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
-  "U-V": { schemaVersion: "p3-volcano-unit-v2", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+  "U-N": { schemaVersion: "p3-nankai-unit-v3", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
+  "U-V": { schemaVersion: "p3-volcano-unit-v3", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: cleanPersistence },
-  "U-L": { schemaVersion: "p3-landslide-unit-v2", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-R": { schemaVersion: "p3-flood-unit-v2", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-B": { schemaVersion: "p3-briefing-unit-v2", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-M": { schemaVersion: "p3-local-bulletins-unit-v2", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
-  "U-Y": { schemaVersion: "p3-typhoon-unit-v2", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
+  "U-L": { schemaVersion: "p3-landslide-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-R": { schemaVersion: "p3-flood-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-B": { schemaVersion: "p3-briefing-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-M": { schemaVersion: "p3-local-bulletins-unit-v3", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
+  "U-Y": { schemaVersion: "p3-typhoon-unit-v3", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
 };
 
 const placeUnits = (place: ExecutionPlace): readonly RuntimeUnitId[] =>
@@ -112,6 +112,8 @@ function validateSemanticEnvelope(material: DecodedMaterial): SemanticEnvelopeRe
   if (material.reportDateTimeRaw.trim() === "") return rejection(material, "reportDateTimeMissing");
   const reportDateTimeMs = reportDateTime(material.reportDateTimeRaw);
   if (reportDateTimeMs == null) return rejection(material, "reportDateTimeInvalid");
+  // P3-VM-AC08: 全 unit の受理で、ReportRef の読み戻し（version.ts の readReportRef）と同じ inputId の上限を 1 度だけ当てる。
+  if (!validInputId(material.inputId)) return rejection(material, "identityInvalid");
   return { kind: "accepted", envelope: { material, reportDateTimeMs } };
 }
 

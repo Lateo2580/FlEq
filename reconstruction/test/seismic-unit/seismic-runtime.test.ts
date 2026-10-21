@@ -58,9 +58,10 @@ const config = { appName: "fleq-p3", stateDirectory: "seismic-state", legacyAppN
 
 const P75 = (name: string) => `telegram-foundation/phase7_5_${name}`;
 const S53A = P75("VXSE53_20260728162718_99e82c812e72"), S53B = P75("VXSE53_20260728162718_bf35e8ea1825");
+// inputId は受理と読み戻しの上限（64 文字、P3-VM-AC08）に収めるため fixture の file 名だけを使う。
 let inputSequence = 0;
 function report(h: Harness, file: string, now: ClockReading, headType = "VXSE53") {
-  return submit(h, envelope(h.root.state.runId, headType, `${file}#${++inputSequence}`, readFileSync(`test/fixtures/${file}.xml`), now, inputSequence));
+  return submit(h, envelope(h.root.state.runId, headType, `${file.split("/").at(-1)}#${++inputSequence}`, readFileSync(`test/fixtures/${file}.xml`), now, inputSequence));
 }
 
 describe("P3-UNIT-Q-001 U-Q through the composition root", () => {
@@ -70,7 +71,7 @@ describe("P3-UNIT-Q-001 U-Q through the composition root", () => {
     const now = { wallTimeMs: 1_000, monotonicMs: 1 };
     const notice = (unit: NotificationIntent["unit"], domain: string, level: string, createdAt: number): NotificationIntent => ({
       id: unit, unit, subject: unit, operation: "normal", source: { inputId: unit, origin: "live", operation: "normal", family: unit,
-        subject: unit, reportDateTimeRaw: "2026-07-28T16:31:00+09:00", serialRaw: "", infoTypeRaw: "発表" }, transition: "activated",
+        subject: unit, reportDateTimeRaw: "2026-07-28T16:31:00+09:00", controlDateTimeRaw: "2026-07-28T16:31:00+09:00", serialRaw: "", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
       nextAttemptAt: createdAt, attempts: 0, configRevision: "t08", disposition: "pending" });
     // U-Q を最も古く作る（同じ群なら先に選ばれる位置）。
@@ -105,7 +106,7 @@ describe("P3-UNIT-Q-001 U-Q through the composition root", () => {
     let projection = projected(projectSnapshot(projectionInput(started, Date.parse("2026-07-28T16:31:00+09:00")), null)).state;
     let state = started.state;
     const send = async (file: string, headType: string, iso: string, monotonicMs: number) => {
-      const next = await step(state, received("run", decode(file, headType, undefined, `${file}#${++inputSequence}`), at(iso, monotonicMs)));
+      const next = await step(state, received("run", decode(file, headType, undefined, `${file.split("/").at(-1)}#${++inputSequence}`), at(iso, monotonicMs)));
       const result = projected(projectSnapshot(projectionInput(next, Date.parse(iso)), projection));
       state = next.state;
       projection = result.state;

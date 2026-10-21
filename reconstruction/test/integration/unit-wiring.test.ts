@@ -60,7 +60,7 @@ function received(owner: OwnerState, material: DecodedMaterial, clock: ClockRead
 const eewIntent: EewUnitState["intents"][number] = { id: "U-E:normal/VXSE43/20240417231454:1:sound", unit: "U-E",
   subject: "normal/VXSE43/20240417231454", operation: "normal", source: { inputId: "intent-source",
     origin: "replay", operation: "normal", family: "VXSE43", subject: "normal/VXSE43/20240417231454",
-    reportDateTimeRaw: "2024-04-17T23:14:59+09:00", serialRaw: "1", infoTypeRaw: "発表" },
+    reportDateTimeRaw: "2024-04-17T23:14:59+09:00", controlDateTimeRaw: "2024-04-17T14:14:59Z", serialRaw: "1", infoTypeRaw: "発表" },
   transition: "activated", channel: "sound", payload: { domain: "earthquake-eew", level: "critical", title: "緊急地震速報（警報）", body: "地震" }, createdAt: 1, expiresAt: 15_001,
   nextAttemptAt: 1, attempts: 0, configRevision: "test", disposition: "pending" };
 

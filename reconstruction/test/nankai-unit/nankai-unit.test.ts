@@ -10,7 +10,7 @@ import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { nankaiUnitCodec, reduceNankaiUnit, toNankaiView } from "../../src/units/nankai/nankai-unit";
-import { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send } from "./nankai-fixture"; import { INPUT_BOUNDARY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
+import { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send, sentLater } from "./nankai-fixture"; import { INPUT_BOUNDARY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 
 const DAY = 86_400_000;
 const F = {
@@ -37,7 +37,7 @@ const roundTrip = (state: NankaiUnitState) => nankaiUnitCodec.decode(JSON.parse(
 const evidenceOnly = (item: NankaiInformation): NankaiInformation => item.effective === "evidence" ? item : { subject: item.subject,
   family: item.family, eventId: item.eventId, operation: item.operation, retainUntil: item.retainUntil, effective: "evidence",
   evidence: { subject: item.subject, reportDateTimeMs: Date.parse(item.source.reportDateTimeRaw), serialRaw: item.source.serialRaw,
-    infoTypeRaw: item.source.infoTypeRaw } };
+    infoTypeRaw: item.source.infoTypeRaw, controlDateTimeRaw: item.source.controlDateTimeRaw } };
 
 describe("P3-UNIT-N-001 U-N reducer", () => {
   // contractBoundary: Q-ENUM の順と原子性、合法の縮退、coverage と実行場所（AC01）。
@@ -123,7 +123,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(shape(send(investigating.state, F.advisory2))[0].slice(0, 2)).toEqual([NANKAI, "changed"]);
     // 古い報（別の EventID）の訂正は現況を巻き戻さず情報だけを変える。現況が stale とした古い報は情報系列にも入らない。
     const both = chain([F.warning, F.advisory]).at(-1)!.state;
-    const oldCorrection = send(both, F.warning, (xml) => replaceTag("InfoType", "訂正")(xml).replace("巨大地震警戒</Name>", "巨大地震警戒（訂正）</Name>"));
+    // 訂正は後の送信（同じ Control/DateTime の訂正は未確認、P3-VM-AC03）。
+    const oldCorrection = send(both, F.warning, (xml) => sentLater(replaceTag("InfoType", "訂正")(xml).replace("巨大地震警戒</Name>", "巨大地震警戒（訂正）</Name>")));
     expect(shape(oldCorrection)).toEqual([["normal/VYSE50/20200512162800", "changed", "semantic"]]);
     expect(currentOf(oldCorrection.state)).toBe(currentOf(both));
     const late = send(send(emptyState(), F.advisory).state, F.warning);
@@ -137,10 +138,11 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const withVyse60 = send(both, F.vyse60, undefined, at("2020-05-12T16:50:00+09:00"));
     expect(currentOf(withVyse60.state)).toBe(currentOf(both));
     expect(status(withVyse60.state, "normal/VYSE60/current")).toBe("subsequentAdvisory");
-    // 同じ revision・同じ InfoType で事実が違えば先着を保って stale＋WARN。
+    // 同じ時刻（Control/DateTime）で事実が違えば先着を保って stale＋WARN、現況と情報 subject に未確認の印（P3-VM-AC03・AC04）。
     const conflict = send(advisory, F.advisory, (xml) => xml.replace(/<Headline>\s*<Text>[^<]*/, "<Headline><Text>別の見出し"));
     expect(shape(conflict)).toEqual([[NANKAI, "unchanged", "stale"], ["normal/VYSE50/20200512163200", "unchanged", "stale"]]);
-    expect(conflict.state).toBe(advisory);
+    const { unconfirmed: currentMark, ...keptCurrent } = currentOf(conflict.state)!;
+    expect([keptCurrent, currentMark?.inputId]).toEqual([currentOf(advisory), conflict.diagnostics[0].inputId]);
     expect(conflict.diagnostics).toMatchObject([{ level: "WARN", reason: "nankaiRevisionConflict", unit: "U-N" }]);
     // 訓練（74_01_04 の Status を訓練に替える）は別の現況で、通常と交差しない。
     const training = send(both, F.warning, (xml) => xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"));
@@ -384,12 +386,12 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       .toBe("restored");
 
     // 契約境界（保存の境界）: 上限の長さの報を受信 → encode → JSON → decode まで通す。6 件の現況（2 系統 × 3 区分）を
-    // EventID 64 byte・inputId 64 文字・ReportDateTime 40 文字・Serial 10 桁・上限を超える 3 byte 文字の文字列で作る。
+    // EventID 64 byte・inputId ASCII 64 文字・ReportDateTime 40 文字・Serial 10 桁・上限を超える 3 byte 文字の文字列で作る。
     let bounded = emptyState();
     const now = at("2020-05-12T16:28:00+09:00");
     for (const [name, headType] of [[F.warning, "VYSE50"], [F.vyse60, "VYSE60"]] as const) for (const status of ["通常", "訓練", "試験"]) {
       const xml = boundaryXml(fixtureXml(name), status);
-      const step = receive(bounded, decodeXml(xml, headType, `${headType}${status}`.padEnd(64, "i")), clock(now));
+      const step = receive(bounded, decodeXml(xml, headType, `${headType}-${["通常", "訓練", "試験"].indexOf(status)}`.padEnd(64, "i")), clock(now));
       expect(step.decisions[0].decision, `${headType} ${status}`).toBe("changed");
       bounded = step.state;
     }
@@ -424,7 +426,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect([shape(sameFacts), sameFacts.intents]).toEqual([[["normal/VYSE51/20200512163800", "changed", "revisionOnly"]], []]);
     expect(send(advisory.state, F.advisory).intents).toEqual([]);
     expect(send(emptyState(), F.otherCancel).intents).toEqual([]);
-    const corrected = send(advisory.state, F.advisory, (xml) => replaceTag("InfoType", "訂正")(xml));
+    const corrected = send(advisory.state, F.advisory, (xml) => sentLater(replaceTag("InfoType", "訂正")(xml)));
     expect(shape(corrected)).toEqual([[NANKAI, "changed", "revisionOnly"], ["normal/VYSE50/20200512163200", "changed", "revisionOnly"]]);
     expect(corrected.intents.map((item) => [item.payload.title, item.payload.body.startsWith("訂正: "), item.transition]))
       .toEqual([["[訂正] 南海トラフ地震臨時情報（巨大地震注意）", true, "updated"], ["[訂正] 南海トラフ地震臨時情報（巨大地震注意）", true, "updated"]]);
@@ -527,7 +529,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       .toHaveLength(2);
     // P3: 現況の source への訂正が効かない code へ直して ended になっても transition は updated。
     const advisory = send(emptyState(), F.advisory).state;
-    const toUnknown = send(advisory, F.advisory, (xml) => replaceTag("InfoType", "訂正")(xml).replace("<Code>130</Code>", "<Code>999</Code>"));
+    const toUnknown = send(advisory, F.advisory, (xml) => sentLater(replaceTag("InfoType", "訂正")(xml).replace("<Code>130</Code>", "<Code>999</Code>")));
     expect([status(toUnknown.state), toUnknown.intents.map((item) => item.transition)]).toEqual(["ended", ["updated", "updated"]]);
     // 情報系列だけの変化（revisionOnly・期限の回収）でも証拠が変わるので保存世代を進める（P3-AUTH-AC01(5)、K2 前は進めなかった）。
     const c1 = send(emptyState(), F.c1);
@@ -548,26 +550,31 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
   // contractBoundary（P3-CODEC-AC03・RES-05、P3-AUTH-RES-01）: 現況 6 件の上限の形（inputId・title・headline・infoSerial を制御文字で上限まで）に
   // 証拠 64 件（subject 80 字・最長の安全な整数の時刻・Serial 10 桁・取消）と通知の予算（pending の実 byte＋予約と終端記録で 229,376）を
   // 足しても 273,259 byte の内側。
-  it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents, 64 evidence records and the whole notice budget stay within 273,259 bytes", () => {
+  // P3-VM-AC08: 上界に Control/DateTime（40 文字）と現況ごとの未確認の印（decoder の許す最長の ReportRef）を足して数え直す。
+  it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents with marks, 64 evidence records and the whole notice budget stay within 280,060 bytes", () => {
     const wide = (length: number) => "\u0001".repeat(length);
+    const time40 = "2020-05-22T15:00:00.00000000000000+09:00";
     const currents = budgetState(true).currents.map((item): NankaiCurrent => {
-      const source = { ...item.source, inputId: wide(64) };
-      return "title" in item ? { ...item, source, title: wide(128), headline: wide(512), infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) } }
-        : { ...item, source };
+      const source = { ...item.source, inputId: "i".repeat(64), controlDateTimeRaw: time40 };
+      const mark = item.effective === "cancelled" || item.effective === "expired" ? {}
+        : { unconfirmed: { ...source, reportDateTimeRaw: time40, serialRaw: "1234567890", infoTypeRaw: "取消" } };
+      return "title" in item ? { ...item, source, ...mark, title: wide(128), headline: wide(512), infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) } }
+        : { ...item, source, ...mark };
     });
     const evidence = Array.from({ length: 64 }, (_, index): NankaiInformation => {
       const eventId = String(index).padStart(64, "E"), subject = `training/VYSE51/${eventId}`, reportDateTimeMs = -9_007_199_254_740_991;
       return { subject, family: "VYSE51", eventId, operation: "training", retainUntil: reportDateTimeMs + 7 * DAY, effective: "evidence",
-        evidence: { subject, reportDateTimeMs, serialRaw: "1234567890", infoTypeRaw: "取消" } };
+        evidence: { subject, reportDateTimeMs, serialRaw: "1234567890", infoTypeRaw: "取消",
+          controlDateTimeRaw: "2020-05-22T15:00:00.00000000000000+09:00" } };
     });
     const state: NankaiUnitState = { ...emptyState(), currents, information: evidence };
     expect(roundTrip(state).kind).toBe("restored");
-    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v2", unit: "U-N", generation: 0, capturedAt: 0,
+    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v3", unit: "U-N", generation: 0, capturedAt: 0,
       payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES;
     console.info("P3-CODEC U-N bound", JSON.stringify({ currents: currents.length, evidence: evidence.length, envelope,
       bound: envelope + 62 - 2 + 229_376 }));
     // 空の intents 配列（2 byte）を通知の予算 229,376 で置き換え、generation と capturedAt の 62 byte と inputBoundary の最大（P3-VM-AC06）を予約する。
-    expect(envelope + 62 - 2 + 229_376).toBeLessThanOrEqual(273_259);
+    expect(envelope + 62 - 2 + 229_376).toBeLessThanOrEqual(280_060);
   });
 
   // contractBoundary: E22 の U-N は対象外（P3-C8-N2、AC13）。
@@ -630,7 +637,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     (xml) => replaceTag("EventID", eventId)(replaceTag("InfoType", infoType)(replaceTag("Serial", serial)(xml))));
   const verdict = (step: NankaiUnitStep) => step.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision);
 
-  // regression（監査 F02）: 同時刻の Serial 2 の発表・Serial 空の訂正・Serial 1 の取消は、6 順列とも、各手順の前に復元を挟んでも取消で終わる。
+  // regression（監査 F02）: 同時刻（同じ Control/DateTime）の Serial 2 の発表・Serial 空の訂正・Serial 1 の取消は、報番号と InfoType の順位を
+  // 比べず（P3-VM-D-SAMETIME=A）、同じ時刻の取消が勝つので（作者裁定 2026-10-21 昼）、6 順列とも各手順の前に復元を挟んでも取消で終わる。
   it("P3-ORDER-T01 regression / AC02: the F02 triple ends in the Serial 1 cancel in all 6 orders, with and without a restore before each step", () => {
     const first = ordered();
     const reports = { A: version(["2", "発表"]), B: version(["", "訂正"]), C: version(["1", "取消"]) };
@@ -645,22 +653,30 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     };
     const finals = [false, true].flatMap((restarting) => ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"].map((order) => [...order].reduce(
       (state, key) => receive(restarting ? restart(state) : state, reports[key as keyof typeof reports], clock(ORDER_AT)).state, first)));
-    expect(finals.map((state) => [currentOf(state)?.effective, currentOf(state)?.source.serialRaw, currentOf(state)?.source.infoTypeRaw,
-      pending(state).map((item) => [item.channel, item.transition]), roundTrip(state).kind]))
-      .toEqual(Array(12).fill(["cancelled", "1", "取消", [["desktop", "cancelled"], ["sound", "cancelled"]], "restored"]));
+    // 同じ時刻の取消は、どの順でも訂正と発表に勝つ（作者裁定 2026-10-21 昼）。取消の採用で印は外れ、取消の後の取消でない報は stale。
+    expect(finals.map((state) => [currentOf(state)?.source.inputId, currentOf(state)?.unconfirmed, roundTrip(state).kind]))
+      .toEqual(Array(12).fill([reports.C.inputId, undefined, "restored"]));
   });
 
-  // contractBoundary: 同時刻の 2 報は InfoType の優先 → 同じ EventID なら Serial（欠落はどの数値よりも小）で決まり、到着順によらない
-  // （AC01・AC03(a)〜(c)）。EventID の違う 2 報は Serial を比べず同じ版で、先着を保って食い違い（AC03(e)）。
-  it("P3-ORDER-T02 contractBoundary / AC01,AC03: InfoType before Serial, a missing Serial below any number, EventIDs apart, in both orders", () => {
+  // contractBoundary: 同時刻（同じ Control/DateTime）の 2 報は InfoType と Serial を比べず、取消は取消でない報に勝ち（作者裁定 2026-10-21 昼）、
+  // ほかは中身（InfoType を含む）が違えば到着順によらず先着を
+  // 残して現況に未確認の印、同じなら Serial が違っても duplicate（P3-VM-D-SAMETIME=A。P3-VM-AC09(1) で K1 の表を置き換える）。
+  // EventID の違う 2 報は先着を保って食い違い（AC03(e)）。
+  it("P3-ORDER-T02 contractBoundary / AC01,AC03: same-time reports keep the first arrival and mark a different one, EventIDs apart, in both orders", () => {
     const first = ordered();
-    // [一方, 他方, 勝つ方]
-    const rows: [readonly [string, string], readonly [string, string], 0 | 1][] = [
-      [["9", "発表"], ["1", "訂正"], 1], [["", "訂正"], ["1", "取消"], 1], [["2", "発表"], ["1", "発表"], 0], [["", "発表"], ["1", "発表"], 1]];
-    for (const [one, other, winner] of rows) for (const [early, late, lateWins] of [[one, other, winner === 1], [other, one, winner === 0]] as const) {
-      const step = receive(receive(first, version(early), clock(ORDER_AT)).state, version(late), clock(ORDER_AT));
-      expect([verdict(step), step.diagnostics, [currentOf(step.state)?.source.serialRaw, currentOf(step.state)?.source.infoTypeRaw]],
-        `${early}→${late}`).toEqual([Array(2).fill(lateWins ? "changed" : "stale"), [], lateWins ? late : early]);
+    // [一方, 他方, 中身が違うか]
+    const rows: [readonly [string, string], readonly [string, string], boolean][] = [
+      [["9", "発表"], ["1", "訂正"], true], [["", "訂正"], ["1", "取消"], true], [["2", "発表"], ["1", "発表"], false], [["", "発表"], ["1", "発表"], false]];
+    for (const [one, other, differs] of rows) for (const [early, late] of [[one, other], [other, one]] as const) {
+      const lateMaterial = version(late);
+      const step = receive(receive(first, version(early), clock(ORDER_AT)).state, lateMaterial, clock(ORDER_AT));
+      // 取消がどちらか一方だけなら取消が勝つ（作者裁定 2026-10-21 昼）。ほかの中身違いは先着を残して後着を印にする。
+      const cancelWins = (early[1] === "取消") !== (late[1] === "取消"), lateWins = cancelWins && late[1] === "取消";
+      const held = differs && !cancelWins;
+      expect([verdict(step), step.diagnostics.map((item) => item.reason), [currentOf(step.state)?.source.serialRaw,
+        currentOf(step.state)?.source.infoTypeRaw], currentOf(step.state)?.unconfirmed?.inputId], `${early}→${late}`)
+        .toEqual([Array(2).fill(lateWins ? "changed" : differs ? "stale" : "duplicate"), held ? ["nankaiRevisionConflict"] : [], lateWins ? late : early,
+          held ? lateMaterial.inputId : undefined]);
     }
     const apart = [version(["2", "発表"], "20200512162900"), version(["1", "発表"])];
     for (const [early, late] of [apart, [...apart].reverse()]) {
@@ -693,21 +709,21 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
         ["normal/VYSE50/20200512162800", "unchanged", "stale"]], [], []]);
       expect(late.state, label).toBe(state);
     }
-    // 版の証拠: 現況に効かない VYSE52（Code 200）の Serial 2 を復元した後、Serial 1 は stale、Serial 2 の再送は duplicate（どちらも intent 0）。
+    // 版の証拠: 現況に効かない VYSE52（Code 200）の Serial 2 を復元した後、同じ Control/DateTime の Serial 1 と Serial 2 の再送はどちらも
+    // duplicate（報番号を比べない、P3-VM-D-SAMETIME=A。intent 0）。
     const at44 = clock(at("2020-05-12T16:44:00+09:00"));
     const serial = (value: string) => decodeFixture(F.regular, replaceTag("Serial", value));
     const restored = restartAt(receive(emptyState(), serial("2"), at44).state, at44.wallTimeMs);
     expect([serial("1"), serial("2")].map((material) => { const step = receive(restored, material, at44);
-      return [verdict(step), step.intents.length]; })).toEqual([[["stale"], 0], [["duplicate"], 0]]);
+      return [verdict(step), step.intents.length]; })).toEqual([[["duplicate"], 0], [["duplicate"], 0]]);
   });
 
-  // contractBoundary（P3-AUTH-AC06）: 旧保存（evidence の鍵が無い）は証拠 0 件で復元し、証拠の decode の不正は invalid。
-  it("P3-AUTH-T05 contractBoundary / AC06: a legacy payload restores with no evidence and malformed evidence is invalid", () => {
+  // contractBoundary（P3-AUTH-AC06）: 証拠の decode の不正は invalid。鍵の無い payload（移行 A1 の旧保存の形）も invalid（旧保存は版で捨てる、
+  // P3-VM-AC08・AC09(6)）。
+  it("P3-AUTH-T05 contractBoundary / AC06: malformed evidence and a payload without the evidence key are invalid", () => {
     const state = chain([F.warning, F.c1, F.regular]).at(-1)!.state;
     const payload = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(state))) as { evidence: Record<string, unknown>[] };
     const { evidence: _evidence, ...legacy } = payload;
-    const decoded = nankaiUnitCodec.decode(legacy as JsonValue);
-    expect([decoded.kind, decoded.kind === "restored" && decoded.state.information]).toEqual(["restored", []]);
     const [first] = payload.evidence;
     const many = Array.from({ length: 65 }, (_, index) => ({ ...first, subject: `normal/VYSE51/K${index}` }));
     const invalid: [string, unknown][] = [
@@ -719,6 +735,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       ["InfoType", { ...payload, evidence: [{ ...first, infoTypeRaw: "不明" }] }],
       ["time not an integer", { ...payload, evidence: [{ ...first, reportDateTimeMs: 1.5 }] }],
       ["evidence not a list", { ...payload, evidence: null }],
+      ["no evidence key", legacy],
+      ["Control/DateTime not a string", { ...payload, evidence: [{ ...first, controlDateTimeRaw: 1 }] }],
     ];
     expect(nankaiUnitCodec.decode({ ...payload, evidence: many.slice(0, 64) } as JsonValue).kind).toBe("restored");
     for (const [name, candidate] of invalid) expect(nankaiUnitCodec.decode(candidate as JsonValue).kind, name).toBe("invalid");
@@ -817,7 +835,9 @@ function budgetState(bounded: boolean): NankaiUnitState {
   let state = emptyState();
   for (const [name, headType] of [[F.warning, "VYSE50"], [F.vyse60, "VYSE60"]] as const) for (const status of ["通常", "訓練", "試験"]) {
     const xml = bounded ? boundaryXml(fixtureXml(name), status) : fixtureXml(name).replace("<Status>通常</Status>", `<Status>${status}</Status>`);
-    state = receive(state, decodeXml(xml, headType, bounded ? `${headType}${status}`.padEnd(64, "i") : undefined), clock(now)).state;
+    // inputId は受理と読み戻しの上限（ASCII 64 文字、P3-VM-AC08）いっぱい。
+    state = receive(state, decodeXml(xml, headType, bounded ? `${headType}-${["通常", "訓練", "試験"].indexOf(status)}`.padEnd(64, "i") : undefined),
+      clock(now)).state;
   }
   const base = bounded ? state.intents[0] : send(emptyState(), F.vyse60).intents[0];
   const sized = (index: number, disposition: NankaiIntent["disposition"]): NankaiIntent => ({ ...base, id: `${base.id}:${index}`, disposition,

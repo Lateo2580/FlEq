@@ -66,7 +66,7 @@ export type TsunamiForecastSubject = Readonly<{
   unkeyedAreas: readonly TsunamiUnkeyedArea[];
   retainUntil: number | null;
   // P3-CC-AC03: 容量で更新できなかった報。印のある active の記録だけが鍵を持つ。
-  unavailable?: SubjectUnavailable;
+  unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。印のある記録だけが鍵を持つ
 }>;
 
 export type TsunamiObservationFamily = "VTSE51" | "VTSE52";
@@ -98,12 +98,12 @@ export type TsunamiObservationSubject = Readonly<{
   eventId: string;
   operation: Operation;
   family: TsunamiObservationFamily;
-  source: ReportRef;
+  source: ReportRef; controlDateTimeRaw: string; // P3-VM-D-SAME-REPORT=A: 別の報と比べる Control/DateTime（採った同じ報の fragment の最大、読めなければ空）
   effective: "active" | "cancelled" | "forecastEnded" | "expired";
   stations: readonly TsunamiStation[];
   estimations: readonly TsunamiEstimation[];
   validUntil: number | null;
-  retainUntil: number | null;
+  retainUntil: number | null; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。印のある記録だけが鍵を持つ
 }>;
 
 // Both channels carry the same owner-generated payload; A7 maps domain/level to the sound and the priority group.
@@ -117,7 +117,7 @@ export type TsunamiNotificationPayload = Readonly<{
 export type TsunamiIntent = NotificationIntent & Readonly<{ payload: TsunamiNotificationPayload }>;
 
 export type TsunamiUnitState = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v2";
+  schemaVersion: "p3-tsunami-unit-v3";
   contentRevision: number;
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
@@ -127,7 +127,7 @@ export type TsunamiUnitState = Readonly<{
 }>;
 
 export type PersistedTsunamiUnit = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v2";
+  schemaVersion: "p3-tsunami-unit-v3";
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
   intents: readonly TsunamiIntent[];
@@ -166,5 +166,5 @@ export type TsunamiUnitStep = Readonly<{
 }>;
 
 export type TsunamiUnitCodec = UnitCodec<TsunamiUnitState, PersistedTsunamiUnit> & Readonly<{
-  schemaVersion: "p3-tsunami-unit-v2";
+  schemaVersion: "p3-tsunami-unit-v3";
 }>;

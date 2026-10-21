@@ -21,7 +21,7 @@ import type {
   WeatherCurrentUnitStep,
   WeatherCurrentUnavailableReason,
 } from "../../../contracts/p2-weather-current-unit.types";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, validInputId } from "../../contracts-revision/version";
 
 const WEATHER_FAMILIES = ["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"] as const;
 const WARNING_TYPES = [
@@ -138,7 +138,7 @@ function scopeContains(confirmed: readonly string[], affected: readonly string[]
 function sourceFor(material: DecodedMaterial, familyValue: WeatherFamily, subject: string): ReportRef {
   return {
     inputId: material.inputId, origin: material.origin, operation: material.operation,
-    family: familyValue, subject, reportDateTimeRaw: material.reportDateTimeRaw,
+    family: familyValue, subject, reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw),
     serialRaw: material.serialRaw, infoTypeRaw: material.infoTypeRaw,
   };
 }
@@ -184,7 +184,8 @@ function inspectIdentity(material: DecodedMaterial) {
 
 function candidateTarget(material: DecodedMaterial, checked: ReturnType<typeof inspectIdentity> = inspectIdentity(material)): Candidate | null {
   const { familyValue, office, codesOf } = checked;
-  if (checked.reason != null || familyValue == null || office == null) return null;
+  // P3-VM-AC08: 封筒の検査で断った inputId の報は対象を持たせない（freshness に読み戻しで通らない ReportRef を残さない）。
+  if (checked.reason != null || familyValue == null || office == null || !validInputId(material.inputId)) return null;
   const scope = scopeFor(familyValue);
   const subject = `${material.operation}/${familyValue}/${office}`;
   const common = validateSemanticEnvelope(material);

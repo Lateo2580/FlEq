@@ -27,7 +27,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const NOW = 1_800_000_000_000;
 
 function emptyState(): WeatherCurrentUnitState {
-  return { schemaVersion: "p2-weather-current-unit-v2", contentRevision: 0, national: {}, partials: [], histories: [],
+  return { schemaVersion: "p2-weather-current-unit-v3", contentRevision: 0, national: {}, partials: [], histories: [],
     ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
@@ -106,7 +106,7 @@ function stringified(run: () => void): unknown[] {
 
 function source(operation: Operation, family: string, subject: string, time: string, inputId: string) {
   return { inputId, origin: "replay" as const, operation, family, subject,
-    reportDateTimeRaw: time, serialRaw: "", infoTypeRaw: "発表" };
+    reportDateTimeRaw: time, controlDateTimeRaw: time, serialRaw: "", infoTypeRaw: "発表" };
 }
 
 function snapshot(operation: Operation, family: string, office: string, time: string, inputId: string,
@@ -275,7 +275,7 @@ describe("P2 weather-current unit", () => {
         xml.replace(
           "<Name>レベル４大雨危険警報</Name>\n<Code>43</Code>\n<Status>特別警報から危険警報</Status>\n<LastKind>\n<Name>レベル５大雨特別警報</Name>\n<Code>33</Code>",
           `<Name>${name}</Name>\n<Code>${code}</Code>\n<Status>${status}</Status>\n<LastKind>\n<Name>レベル４大雨危険警報</Name>\n<Code>43</Code>`,
-        ), status);
+        ), `downgrade-${code}`); // inputId は受理の上限（ASCII 64 文字、P3-VM-AC08）
       const step = receive(emptyState(), material);
       const token = JSON.stringify(["VPWW55", "partial", "福井地方気象台", "気象警報・注意報（府県予報区等）", "180000"]);
       expect(step.decisions[0]).toMatchObject({ decision: "changed", reason: null });
@@ -435,6 +435,17 @@ describe("P2 weather-current unit", () => {
     const cleared = reduceWeatherCurrentUnit(training, { kind: "coverageConfirmed", operation: "normal",
       family: "VPWW57", subject: record.target.subject, affectedScope: record.target.affectedScope, clock: clock(NOW, 2) });
     expect(cleared.state.freshness).toEqual([]);
+  });
+
+  // 実不具合の再発防止（K7 発注 2a の見直し P2、P3-VM-AC08）: 封筒の検査で断った inputId の報は freshness の対象を持たず、保存の世代が
+  // 読み戻しで通らない ReportRef を持たない（修正前は candidateSource に残り、その世代全体が復元で invalid）。
+  it("P3-VM-T05 regression / AC08: a VPWW57 with an inputId over the bound is refused and leaves no freshness record", () => {
+    const state = receive(emptyState(), decodeFixture("15_16_02_251222_VPWW57", "VPWW57")).state;
+    const refused = receive(state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"),
+      "i".repeat(65)), 1);
+    expect([refused.decisions[0].decision, refused.diagnostics.map((item) => item.reason), refused.state.freshness,
+      weatherCurrentUnitCodec.decode(JSON.parse(JSON.stringify(weatherCurrentUnitCodec.encode(refused.state)))).kind])
+      .toEqual(["rejected", ["identityInvalid"], [], "restored"]);
   });
 
   // regression（監査 F09、P3-AUTH-AC05）: 修正前は T1 の不正報で疑義の上限が T1 へ後退し、正常な T1 の採用で T2 の疑義が消えた。

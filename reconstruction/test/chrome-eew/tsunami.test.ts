@@ -17,7 +17,7 @@ const area = (code: string, areaClass: TsunamiAreaClass): TsunamiForecastArea =>
 const forecast = (eventId: string, areas: readonly TsunamiForecastArea[]): TsunamiForecastSubject => ({
   subject: `normal/VTSE41/${eventId}`, eventId, operation: "normal",
   source: { inputId: "i", origin: "replay", operation: "normal", family: "VTSE41", subject: `normal/VTSE41/${eventId}`, reportDateTimeRaw: "2026-01-01T12:00:00+09:00",
-    serialRaw: "", infoTypeRaw: "発表" },
+    controlDateTimeRaw: "2026-01-01T03:00:00Z", serialRaw: "", infoTypeRaw: "発表" },
   effective: "active", areas, unkeyedAreas: [], retainUntil: null,
 });
 

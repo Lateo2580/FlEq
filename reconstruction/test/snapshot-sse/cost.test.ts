@@ -126,17 +126,30 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
   it("P2-A8-T06: summary→full re-measures only the changed subject", async () => {
     const started = await startup(clock);
     const training = (xml: string) => atTime(xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"), "2026-06-05T16:00:00+09:00");
-    // 公開形式は period を持たないので、大きな training の series は 600,000 文字の inputId（出典に 1 回、outcome にもう 1 回）で作る。
-    // U-F だけで 1 MiB を越え、下の取消が出典を短いものに替える。
-    const adopted = await combine(started.state, [received("run", decode("81_09_01_260605_VPWP50", "VPWP50"), clock),
-      received("run", decode("81_09_01_260605_VPWP50", "VPWP50", training, "n".repeat(600_000)), clock),
-      received("run", timeseries("稚内地方気象台"), clock)]);
-    const first = projected(projectSnapshot(projectionInput(adopted, at), null));
-    expect(first.snapshot.current.weatherTimeseries.delivery).toBe("summary");
-    // A newer training 取消 empties the large training series; the other series stay untouched.
+    // A newer training 取消 empties the training series; the other series stay untouched.
     const cancel = (xml: string) => training(xml).replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>")
       .replace("<ReportDateTime>2026-06-05T16:00:00+09:00</ReportDateTime>", "<ReportDateTime>2026-06-05T16:30:00+09:00</ReportDateTime>");
-    const collected = await step(adopted.state, received("run", decode("81_09_01_260605_VPWP50", "VPWP50", cancel, "training-cancel"), clock));
+    // 全体が 1 MiB をわずかに越え、取消で縮む分（区域コードの集合）で 1 MiB 以下に戻るように、官署名の長い subject で埋める。
+    // inputId は受理の上限（64 文字、P3-VM-AC08）、XML の文字列は 16,384 文字までなので、1 つの subject では越えられない。
+    const pad = (index: number, length: number) => received("run", decode("81_09_01_260605_VPWP50", "VPWP50",
+      (xml) => office(xml, `pad${index}-${"n".repeat(length)}`), `pad-${index}`), clock);
+    const build = async (lengths: readonly number[]) => {
+      const adopted = await combine(started.state, [...lengths.map((length, index) => pad(index, length)),
+        received("run", decode("81_09_01_260605_VPWP50", "VPWP50"), clock),
+        received("run", decode("81_09_01_260605_VPWP50", "VPWP50", training, "training-series"), clock),
+        received("run", timeseries("稚内地方気象台"), clock)]);
+      const first = projected(projectSnapshot(projectionInput(adopted, at), null));
+      const collected = await step(adopted.state, received("run", decode("81_09_01_260605_VPWP50", "VPWP50", cancel, "training-cancel"), clock));
+      return { adopted, first, collected, after: projected(projectSnapshot(projectionInput(collected, at), first.state)) };
+    };
+    // 取消の後は 1 MiB 以下なので全部が full で、utf8Bytes が全体の byte。subject の byte は官署名の長さに線形。
+    const none = await build([]), one = await build([16_000]), short = await build([8_000]);
+    const shrink = none.first.state.domains.weatherTimeseries.utf8Bytes - none.after.state.domains.weatherTimeseries.utf8Bytes;
+    const perChar = (one.after.utf8Bytes - short.after.utf8Bytes) / 8_000, perPad = one.after.utf8Bytes - none.after.utf8Bytes - perChar * 16_000;
+    const target = 1_048_576 - Math.floor(shrink / 2) - none.after.utf8Bytes, widest = perPad + perChar * 16_000;
+    const count = Math.floor(target / widest), rest = Math.round((target - count * widest - perPad) / perChar);
+    const { adopted, first, collected } = await build([...Array<number>(count).fill(16_000), ...rest > 0 ? [rest] : []]);
+    expect(first.snapshot.current.weatherTimeseries.delivery).toBe("summary");
     const removed = collected.displayChanges.flatMap((item) => [item.before?.current, item.after?.current]).filter((item) => item != null);
     const { result, measured } = measure(projectionInput(collected, at), first.state, adopted.state, collected.state);
     const full = projected(result);

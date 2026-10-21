@@ -64,23 +64,23 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       "U-B": { kind: "empty" }, "U-M": { kind: "empty" }, "U-Y": { kind: "empty" } },
     notificationProbeComplete: true,
     units: {
-      "U-E": { schemaVersion: "p2-eew-unit-v2", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: progress },
-      "U-W": { schemaVersion: "p2-weather-current-unit-v2", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+      "U-E": { schemaVersion: "p2-eew-unit-v3", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: progress },
+      "U-W": { schemaVersion: "p2-weather-current-unit-v3", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
         tombstones: [], freshness: [], unavailable: [], intents: [], persistence: progress },
-      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v2", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
+      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v3", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
       // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
       // add their rows only).
-      "U-T": { schemaVersion: "p3-tsunami-unit-v2", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: savedProgress },
-      "U-Q": { schemaVersion: "p3-seismic-unit-v2", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
+      "U-T": { schemaVersion: "p3-tsunami-unit-v3", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: savedProgress },
+      "U-Q": { schemaVersion: "p3-seismic-unit-v3", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
         normal: noHistory, training: noHistory, test: noHistory }, intents: [], persistence: savedProgress },
-      "U-N": { schemaVersion: "p3-nankai-unit-v2", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
-      "U-V": { schemaVersion: "p3-volcano-unit-v2", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+      "U-N": { schemaVersion: "p3-nankai-unit-v3", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
+      "U-V": { schemaVersion: "p3-volcano-unit-v3", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
         scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: savedProgress },
-      "U-L": { schemaVersion: "p3-landslide-unit-v2", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-R": { schemaVersion: "p3-flood-unit-v2", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-B": { schemaVersion: "p3-briefing-unit-v2", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-M": { schemaVersion: "p3-local-bulletins-unit-v2", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: savedProgress },
-      "U-Y": { schemaVersion: "p3-typhoon-unit-v2", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: savedProgress },
+      "U-L": { schemaVersion: "p3-landslide-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-R": { schemaVersion: "p3-flood-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-B": { schemaVersion: "p3-briefing-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-M": { schemaVersion: "p3-local-bulletins-unit-v3", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: savedProgress },
+      "U-Y": { schemaVersion: "p3-typhoon-unit-v3", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: savedProgress },
     },
     checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null, "U-V": null, "U-L": null,
       "U-R": null, "U-B": null, "U-M": null, "U-Y": null },
@@ -172,7 +172,7 @@ const runtimeUnits = ["U-E", "U-W", "U-F"] as const;
 function intent(unit: RuntimeUnitId, operation: Operation = "normal"): NotificationIntent & Readonly<{ payload: { domain: "earthquake-eew"; level: "warning"; title: string; body: string } }> {
   return { id: unit + operation, unit, operation, subject: "same", channel: "desktop", transition: "activated",
     source: { inputId: "source", origin: "live", operation, family: "family", subject: "same",
-      reportDateTimeRaw: "", serialRaw: "1", infoTypeRaw: "発表" },
+      reportDateTimeRaw: "", controlDateTimeRaw: "", serialRaw: "1", infoTypeRaw: "発表" },
     payload: { domain: "earthquake-eew", level: "warning", title: "EEW", body: "EEW" }, createdAt: 1_000, expiresAt: 5_000, nextAttemptAt: 1_000, attempts: 0,
     configRevision: "1", disposition: "pending" };
 }
@@ -366,7 +366,7 @@ describe("P2 shared runtime", () => {
   it("P2-A1-CONFIRMATION.startup contractBoundary: a non-suspect freshness record adds no confirmation scope", async () => {
     const token = JSON.stringify(["VPWW57", "partial", "office", "all", ""]);
     const source = { inputId: "late", origin: "replay" as const, operation: "normal" as const, family: "VPWW57",
-      subject: "normal/VPWW57/office", reportDateTimeRaw: "", serialRaw: "", infoTypeRaw: "発表" };
+      subject: "normal/VPWW57/office", reportDateTimeRaw: "", controlDateTimeRaw: "", serialRaw: "", infoTypeRaw: "発表" };
     const after = { unit: "U-W" as const, operation: "normal" as const, subject: source.subject, office: "office",
       current: null, unavailable: [], subjects: [], freshness: [{ target: { operation: "normal" as const, family: "VPWW57",
         subject: source.subject, affectedScope: [token] }, candidateSource: source, currentSource: null,

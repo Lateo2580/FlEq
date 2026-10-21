@@ -38,7 +38,7 @@ type VolcanoRecordBase = Readonly<{
   operation: Operation;
   eventId: string;
   source: ReportRef;
-  retainUntil: number;
+  retainUntil: number; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。取消・期限で事実の消えた記録には無い
 }>;
 
 // 警報（M14、D）。subject = `${operation}/volcano:alert/${volcanoCode}`。VFVO50・VFVO51 の火山 entry・VFSV が同じ subject を更新する。
@@ -72,7 +72,7 @@ export type VolcanoAlert = Readonly<{
   landEventId: string | null;
   marineEventId: string | null;
   landKind: VolcanoKind | null;
-  retainUntil: number;
+  retainUntil: number; unconfirmed?: ReportRef; marineUnconfirmed?: ReportRef; // P3-VM-AC04: 陸上・海上の系列ごとの未確認の印
 }> & (
   | VolcanoAlertFacts
   | Readonly<{ effective: "ended" | "cancelled" }>
@@ -152,7 +152,7 @@ type VolcanoBulletinBase = Readonly<{
   eventId: string;
   operation: Operation;
   source: ReportRef;
-  retainUntil: number;
+  retainUntil: number; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印（解説と同じく保存しない）
 }>;
 type VolcanoBulletinHeading = Readonly<{
   effective: "active";
@@ -192,7 +192,7 @@ export type VolcanoNotificationPayload = Readonly<{
 export type VolcanoIntent = NotificationIntent & Readonly<{ payload: VolcanoNotificationPayload }>;
 
 export type VolcanoUnitState = Readonly<{
-  schemaVersion: "p3-volcano-unit-v2";
+  schemaVersion: "p3-volcano-unit-v3";
   contentRevision: number;
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
@@ -208,7 +208,7 @@ export type VolcanoUnitState = Readonly<{
 }>;
 
 export type PersistedVolcanoUnit = Readonly<{
-  schemaVersion: "p3-volcano-unit-v2";
+  schemaVersion: "p3-volcano-unit-v3";
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
   ashfalls: readonly VolcanoAshfall[];
@@ -254,5 +254,5 @@ export type VolcanoUnitStep = Readonly<{
 }>;
 
 export type VolcanoUnitCodec = UnitCodec<VolcanoUnitState, PersistedVolcanoUnit> & Readonly<{
-  schemaVersion: "p3-volcano-unit-v2";
+  schemaVersion: "p3-volcano-unit-v3";
 }>;

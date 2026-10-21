@@ -2,7 +2,7 @@ import type { DecodedMaterial, MaterialValue, XmlElement, XmlNode } from "../../
 import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
 import type { WeatherTimeseriesCompoundField, WeatherTimeseriesSnapshot, WeatherTimeseriesValue } from "../../../contracts/p2-weather-timeseries-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 const TYPE = "量的予想時系列（市町村等）";
 const PARTS = new Set(["SignificancyPart", "PrecipitationPart", "WindDirectionPart", "WindSpeedPart",
@@ -276,7 +276,7 @@ function inspect(material: DecodedMaterial): Result {
   if (missing) return reject("requiredStructureMissing");
   if (invalid) return reject("requiredStructureInvalid");
   const source: ReportRef = { inputId: material.inputId, origin: material.origin, operation: material.operation,
-    family: "VPWP50", subject, reportDateTimeRaw: material.reportDateTimeRaw,
+    family: "VPWP50", subject, reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw),
     serialRaw: material.serialRaw, infoTypeRaw: infoType.value! };
   const diagnostic = (level: "INFO" | "WARN", reason: "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear",
     count: number): DiagnosticDetails => ({ level, component: "weather-timeseries", reason, inputId: material.inputId, unit: "U-F", count });

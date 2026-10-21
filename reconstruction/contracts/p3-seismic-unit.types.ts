@@ -77,7 +77,7 @@ export type EarthquakeContribution = Readonly<{
   headline: string | null;
   hypocenter: SeismicHypocenter | null;
   intensity: SeismicIntensityObservation | null;
-  tsunamiComment: SeismicTsunamiComment | null;
+  tsunamiComment: SeismicTsunamiComment | null; unconfirmed?: ReportRef; // P3-VM-AC04: family の系列の未確認の印。active の寄与だけが鍵を持つ
 }>;
 
 // 強震保持の根拠（event が導いた全体の震度が既知の段階の 7、event の発生時刻から 12 時間。旧築 QUAKE_EXTREME_HOLD_MS）。
@@ -112,7 +112,7 @@ export type LongPeriodSubject = Readonly<{
   intensity: SeismicIntensityObservation | null;
   retainUntil: number;
   // P3-CC-AC03: 容量で入らなかった報の印。active の記録だけが鍵を持つ。
-  unavailable?: SubjectUnavailable;
+  unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。active の記録だけが鍵を持つ
 }>;
 
 // 当日地震履歴（operation ごと。日の基準は P3-C7-DAILY-BASIS）。件数と最大震度は全体の震度が既知の段階（I-U-Q.intensityScale）の
@@ -148,7 +148,7 @@ export type SeismicNotificationPayload = Readonly<{
 export type SeismicIntent = NotificationIntent & Readonly<{ payload: SeismicNotificationPayload }>;
 
 export type SeismicUnitState = Readonly<{
-  schemaVersion: "p3-seismic-unit-v2";
+  schemaVersion: "p3-seismic-unit-v3";
   contentRevision: number;
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
@@ -159,7 +159,7 @@ export type SeismicUnitState = Readonly<{
 }>;
 
 export type PersistedSeismicUnit = Readonly<{
-  schemaVersion: "p3-seismic-unit-v2";
+  schemaVersion: "p3-seismic-unit-v3";
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
@@ -218,5 +218,5 @@ export type SeismicUnitStep = Readonly<{
 }>;
 
 export type SeismicUnitCodec = UnitCodec<SeismicUnitState, PersistedSeismicUnit> & Readonly<{
-  schemaVersion: "p3-seismic-unit-v2";
+  schemaVersion: "p3-seismic-unit-v3";
 }>;

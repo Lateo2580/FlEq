@@ -49,6 +49,8 @@ describe("P3-UNIT-TABLE-001 route classes", () => {
       { material: decode("36_01_10_240613_VXSE44", "VXSE44"), expected: { reason: "routeIgnored", level: "INFO" } },
       // The envelope check comes first: a rejected notPorted input gets its existing rejection only.
       { material: decode("32-39_11_02_250206_VTSE41", "VPBS51", blank), expected: { reason: "reportDateTimeMissing", level: "WARN" } },
+      // P3-VM-AC08: the envelope check holds inputIds to the ReportRef read-back bound (65 characters is one over).
+      { material: { ...decode("32-39_11_02_250206_VTSE41", "VPBS51"), inputId: "i".repeat(65) }, expected: { reason: "identityInvalid", level: "WARN" } },
     ];
     for (const { material, expected } of cases) {
       const step = receiveOwner(state, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },

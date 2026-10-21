@@ -1,7 +1,7 @@
 import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
 import type { LandslideKindGroup } from "../../../contracts/p3-landslide-unit.types";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 // P3-UNIT-L-001 の adapter: VPWW56 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -18,7 +18,7 @@ const MUNICIPALITY = "気象警報・注意報（市町村等）";
 
 // I-U-L.bounds（UTF-16 の長さ）と件数・ASCII の上限、Q-ENUM.identity の ReportRef の長さ。
 const BOUNDS = { title: 128, kindName: 32, areaName: 32, headline: 256, office: 64 } as const;
-const LIMITS = { inputId: 64, reportDateTime: 40, infoType: 8, areaCode: 16, items: 256, kinds: 8 } as const;
+const LIMITS = { reportDateTime: 40, controlDateTime: 40, infoType: 8, areaCode: 16, items: 256, kinds: 8 } as const;
 
 // Serial は空を合法とし、あれば 10 桁以下の数字列（比較は数として、Q-ENUM.identity）。
 const validSerial = (value: string): boolean => value === "" || /^\d{1,10}$/.test(value);
@@ -81,7 +81,7 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
   const serialRaw = material.serialRaw.trim();
   // 保存する ReportRef の byte の上限（Q-ENUM.identity、C8 の Q-C8-IMPL-AMEND(a)）。
   if (!validSerial(serialRaw) || material.reportDateTimeRaw.length > LIMITS.reportDateTime
-    || material.infoTypeRaw.length > LIMITS.infoType || material.inputId.length > LIMITS.inputId) return reject("identityInvalid", subject);
+    || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
 
   // 存在を全部確かめてから妥当性を見る（Q-ENUM.priorityRule）。
   let missing = false, invalid = false;
@@ -161,7 +161,7 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
   const headline = headlineNode == null ? null : scalar(headlineNode);
   return { kind: "accepted", candidate: { operation: material.operation, office, subject,
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: FAMILY, subject,
-      reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw },
+      reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(titleText, BOUNDS.title),
     headline: headline == null || headline === "" ? null : cut(headline, BOUNDS.headline), kinds, released, truncated, areaNames } };
 }

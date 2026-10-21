@@ -63,7 +63,7 @@ export type EewGate = Readonly<{
   // gate の期限（最後に採用した版の起点＋24 時間、P3-LIFE-RET-01）。
   retainUntil: number;
   // [予測全体, warningClass] の JSON の sha256（取消は null）。current の無い同版訂正を見分ける（P3-LIFE-D-F17KEY）。
-  predictionKey: string | null;
+  predictionKey: string | null; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印（gate と同じく非保存、Q-VM-PRECHECK-2A の (1)(c)）
 }>;
 
 export type EewDeliveryRecord = Readonly<{
@@ -96,7 +96,7 @@ export type EewNotificationPayload = Readonly<{
 }>;
 
 export type EewUnitState = Readonly<{
-  schemaVersion: "p2-eew-unit-v2";
+  schemaVersion: "p2-eew-unit-v3";
   contentRevision: number;
   current: readonly EewCurrent[];
   gates: readonly EewGate[];
@@ -111,7 +111,7 @@ export type EewUnitState = Readonly<{
 }>;
 
 export type PersistedEewUnit = Readonly<{
-  schemaVersion: "p2-eew-unit-v2";
+  schemaVersion: "p2-eew-unit-v3";
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
   deliveryRecords: readonly EewDeliveryRecord[];
 }>;
@@ -148,5 +148,5 @@ export type EewUnitStep = Readonly<{
 }>;
 
 export type EewUnitCodec = UnitCodec<EewUnitState, PersistedEewUnit> & Readonly<{
-  schemaVersion: "p2-eew-unit-v2";
+  schemaVersion: "p2-eew-unit-v3";
 }>;

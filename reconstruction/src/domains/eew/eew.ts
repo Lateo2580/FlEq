@@ -29,7 +29,7 @@ import type {
   EewUnitStep,
 } from "../../../contracts/p2-eew-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, stepVersion } from "../../contracts-revision/version";
 
 const EEW_FAMILIES = ["VXSE43", "VXSE45"] as const;
 type EewFamily = typeof EEW_FAMILIES[number];
@@ -236,7 +236,7 @@ function validateCandidate(material: DecodedMaterial): CandidateResult {
     operation: material.operation, family, subject, serial, cancelled, terminal, prediction, warningAreas,
     source: {
       inputId: material.inputId, origin: material.origin, operation: material.operation,
-      family, subject, reportDateTimeRaw: material.reportDateTimeRaw,
+      family, subject, reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw),
       serialRaw: material.serialRaw, infoTypeRaw: material.infoTypeRaw,
     },
   } };
@@ -403,10 +403,6 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const warningClass = warning ? "warning" as const : "forecast" as const;
   const gate = state.gates.find((item) => item.subject === candidate.subject);
   const previous = state.current.find((item) => item.subject === candidate.subject);
-  if (gate != null && candidate.serial < gate.serial) return {
-    state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
-      decision: "unchanged", reason: "stale" }], intents: [], outcomes: [], diagnostics: [],
-  };
   const retainedPrediction = previous != null && candidate.prediction != null
     && !hasKnownPrediction(candidate.prediction)
     ? hasKnownPrediction(previous.prediction)
@@ -423,24 +419,27 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     source: candidate.source, serial: candidate.serial, terminal: false, prediction: candidate.prediction!, retainedPrediction,
     isAssumedHypocenter: assumed,
   };
-  if (gate != null && candidate.serial === gate.serial) {
-    const candidateTime = Date.parse(candidate.source.reportDateTimeRaw);
-    const gateTime = Date.parse(gate.source.reportDateTimeRaw);
-    if (candidateTime < gateTime || (gate.terminal && !candidate.terminal && candidateTime <= gateTime)) return {
-      state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
-        decision: "unchanged", reason: "stale" }], intents: [], outcomes: [], diagnostics: [],
-    };
-    if (gate.terminal === candidate.terminal && gate.source.reportDateTimeRaw === candidate.source.reportDateTimeRaw
+  // P3-VM-AC03・AC04: gate と Control/DateTime で比べ、同じ秒なら Serial の大きい方を新しい版とする（P3-VM-D-SAMETIME=A の EEW の例外）。
+  const version = stepVersion(gate == null ? null : { version: gate.source, source: gate.source, cancelled: gate.source.infoTypeRaw === "取消" },
+    gate?.unconfirmed ?? null, candidate.source, () => gate != null && gate.terminal === candidate.terminal
+      && gate.source.reportDateTimeRaw === candidate.source.reportDateTimeRaw
       && (gate.source.infoTypeRaw === candidate.source.infoTypeRaw
         || candidate.source.infoTypeRaw === "訂正" && assumed && gate.noticeSource.isAssumedHypocenter)
       && !predictionChanged && (previous == null || candidate.cancelled || candidate.terminal
         || previous.warningClass === warningClass)
-      && isDeepStrictEqual(gate.noticeSource, noticeSource)) return {
-      state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
-        decision: "unchanged", reason: "duplicate" }], intents: [], outcomes: [], diagnostics: [],
-    };
+      && isDeepStrictEqual(gate.noticeSource, noticeSource), candidate.cancelled);
+  const missing = (version.kind === "held" || version.kind === "adopt") && version.missing
+    ? [diagnostic(input.material, "requiredStructureMissing")] : [];
+  if (version.kind !== "adopt") {
+    // 印は gate の項目（非保存）なので保存世代を進めない。
+    const mark = version.kind === "held" ? version.mark : null;
+    const gates = mark != null && mark !== gate?.unconfirmed
+      ? state.gates.map((item) => item === gate ? { ...item, unconfirmed: mark } : item) : state.gates;
+    return { state: gates === state.gates ? state : { ...state, gates }, nextDeadline: nextEewDeadline(state),
+      decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged",
+        reason: version.kind === "duplicate" ? "duplicate" : "stale" }], intents: [], outcomes: [], diagnostics: missing };
   }
-  // P3-LIFE-D-LATE=A・D-SKEW=A: horizon は duplicate・Serial の stale の後、容量の前。既知 subject の取消だけは horizon 外でも採用する。
+  // P3-LIFE-D-LATE=A・D-SKEW=A: horizon は duplicate・版の older（P3-VM-AC03）の後、容量の前。既知 subject の取消だけは horizon 外でも採用する。
   // P3-EVICT-AC01(7): 退去した normal の gate の報時刻以下の新規 subject は時計によらず horizon 外と同じに捨てる（時計の後退での採り直し、B12）。
   const reportMs = Date.parse(candidate.source.reportDateTimeRaw);
   const base = Math.min(reportMs, input.clock.wallTimeMs);
@@ -507,6 +506,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
     serial: candidate.serial, terminal: candidate.terminal, source: candidate.source, noticeSource,
     currentUntil: projected == null ? null : base + CURRENT_MS, retainUntil: base + GATE_MS, predictionKey,
+    ...version.mark == null ? {} : { unconfirmed: version.mark },
   };
   gates = [...gates, nextGate];
 
@@ -684,7 +684,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       currentEstablished: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
     intents: admitted ? newIntents : [],
     outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction, warning)] }],
-    diagnostics: [
+    diagnostics: [...missing,
       ...(expired.length === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "notificationExpired" as const,
         unit: "U-E" as const, count: expired.length }]),
       ...(evicted.size === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "eewCapacityEvicted" as const,

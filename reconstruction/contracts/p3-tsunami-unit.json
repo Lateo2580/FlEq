@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "870c6dcdb9a89960e5c340d3151fcf0bd2e7b4348f3aa447624f686e688aa483",
+    "sha256": "14dca90fff434f91e7bd818aab478903007337aff0a3d56a35b9d929bc16090e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -64,7 +64,7 @@
       },
       {
         "id": "P3-C5-OBS-MERGE",
-        "A": "観測はstation codeで合成する。新しいrevision（ReportDateTime、次にSerial）は載ったstationだけを上書きし、載らないstationを保つ。同じrevisionではInfoTypeの優先（取消>訂正>発表）をVTSE41と同じく適用し、後着の上位だけ採用する。同じrevision・同じInfoTypeの発表fragmentは非重複stationを和集合にする（allowlistはVTSE51/52だけ）。同じrevisionの訂正は載ったstationだけを置き換える。同じrevision・同じInfoTypeで同じstationの値が違うstationが一つでもあれば、入力全体をunchanged(stale)にし（部分合成しない）、WARN診断tsunamiRevisionConflictを残す（Q-REV、可換性保証の外）。古いrevisionはstale。VTSE52のEstimationは新しいrevisionで丸ごと置き換え、同じrevisionのfragmentはArea/Codeで和集合（食い違いは同じ規則）",
+        "A": "観測はstation codeで合成する。同じ報（Head/ReportDateTime・Serial・InfoTypeが同じ、P3-VM-D-SAME-REPORT=A）でない新しい版（P3-VERSION-MATERIAL-001のcompareVersion。記録の比べる用のControl/DateTimeで比べ、InfoTypeの順位とSerialは使わない）は載ったstationだけを上書きし、載らないstationを保つ。InfoTypeの違う組（発表と訂正・取消）は同じ報にせずcompareVersionで比べ、同じControl/DateTimeの取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。訂正は新しい版として採り、VTSE52のEstimationは訂正の分で丸ごと置き換える。同じ報の発表fragmentは非重複stationを和集合にする（allowlistはVTSE51/52だけ）。同じ報で同じstationの値が違うstationが一つでもあれば、入力全体をunchanged(stale)にし（部分合成しない）、WARN診断tsunamiRevisionConflictを残し、系列に未確認の印を付ける（P3-VM-AC03・AC04、Q-REV、可換性保証の外）。同じ報のfragmentの比較基準は採ったfragmentのControl/DateTimeの最大で、本文が同じか部分集合でも食い違いが無く大きいControl/DateTimeを持てばその値だけを更新して保存する（通知しない）。古い版はstale。VTSE52のEstimationは新しい版で丸ごと置き換え、同じ報のfragmentはArea/Codeで和集合（食い違いは同じ規則）。P3-VM-AC09(4)により統合担当が改訂",
         "B": "新しいrevisionで全stationを置き換える",
         "recommended": "A",
         "provisional": "A",
@@ -251,7 +251,7 @@
             "invalid": "VTSE51と同じ。Estimation/ItemがあればArea/Code（空でない、報の中で重複しない）を要する"
           }
         ],
-        "revisionOrder": "VTSE41はReportDateTimeだけで比べ、同時刻はInfoTypeの優先（取消>訂正>発表）で後着の上位だけ採用する。同じ時刻・同じInfoTypeで内容が同じならduplicate、違えば先着を保ってstale＋WARN診断tsunamiRevisionConflict（Q-REV）。VTSE51/52はReportDateTime、次にSerialで、同じrevisionはP3-C5-OBS-MERGEに従う。取消以前のrevisionはstaleで、取消したsubjectを戻さない（O01）。取消より新しいrevisionの発表・訂正は新しい報として採用し、直前を全区域none（観測はstationsなし）としてsubjectをactiveに戻す（気象庁が同じEventIDで出し直した報を捨てない）",
+        "revisionOrder": "VTSE41はP3-VERSION-MATERIAL-001のcompareVersion（Control/DateTimeで比べ、InfoTypeの順位とSerialは使わない、P3-VM-AC02・AC03）で比べる。同じControl/DateTimeで内容（InfoTypeを含む）が同じならduplicate。同じControl/DateTimeの取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。それ以外で内容が違えば先着を保ってstale＋WARN診断tsunamiRevisionConflictとし、系列に未確認の印を付ける（P3-VM-AC04、Q-REV）。Control/DateTimeの欠けた報はP3-VM-D-MISSING=A。VTSE51/52は同じ報（Head/ReportDateTime・Serial・InfoType）をP3-C5-OBS-MERGEで合成し、同じ報でない組は採ったfragmentのControl/DateTimeの最大とcompareVersionで比べる。取消以前のrevisionはstaleで、取消したsubjectを戻さない（O01）。取消より新しいrevisionの発表・訂正は新しい報として採用し、直前を全区域none（観測はstationsなし）としてsubjectをactiveに戻す（気象庁が同じEventIDで出し直した報を捨てない）。P3-VM-AC09(4)により統合担当が改訂",
         "diagnosticReasons": "既存のDiagnosticReason（p2-shared-runtime.types.ts:246〜:250）に同じrevisionの食い違いと津波の容量退去に当たるものが無いので、tsunamiRevisionConflictとtsunamiCapacityEvictedの2つだけを足す（persistent-diagnostic-sink.tsの一覧にも足す）"
       },
       {
@@ -261,7 +261,7 @@
         "forecastSemantics": "VTSE41の発表・訂正はsubjectの区域集合を報の区域集合で置き換える（報に無い区域はnone）。effectiveは注意報以上（unknownを含む）の区域が一つでもあればactive、無ければreleased。releasedも報の区域（予報・解除）を保ち、areas=[]にするのはcancelledだけ。区域ごとの変化はTsunamiTransitionRecordで返す（P3-C5-TRANSITION-BASIS=A）。transitionは前がnone/releasedで後がforecast以上のとき、subjectが前にactiveでなければissued、activeならexpanded。両方forecast以上で順位が上がればupgraded、下がればdowngraded、前がforecast以上で後がnone/releasedならreleased（前も後もnone/releasedなら変化に数えない）。unkeyedAreasのkindCodeも表の区分（表外はunknown）でeffectiveと残った区分の段階には数えるが、TsunamiTransitionRecord・escalation・§7.5の系列の判定には入れない",
         "observationSemantics": "P3-C5-OBS-MERGE=A・P3-C5-OBS-LIFETIME=A。VTSE51とVTSE52はwatermark・station・取消を互いに共有しない。観測の取消はそのsubjectだけをcancelled（stationsを捨ててwatermarkだけ）にする。VTSE41の取消は観測を取り消さないが、P3-C5-OBS-LIFETIMEによりforecastEndedにする",
         "deadlines": "nextDeadlineは、activeの観測のvalidUntil、非activeのsubjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す",
-        "persisted": "PersistedTsunamiUnitはschemaVersion p3-tsunami-unit-v1、forecasts、observations、intents（pendingと終端記録）。contentRevision・persistenceは保存しない",
+        "persisted": "PersistedTsunamiUnitはschemaVersion p3-tsunami-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、forecasts、observations、intents（pendingと終端記録）。contentRevision・persistenceは保存しない",
         "decode": "codecは一つ（tsunamiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、VTSE41 subject≤512、観測subject familyごと≤512、station familyごと≤1024（三区分合算）、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、subjectの重複なし、区域code・station codeの重複なし、areaClassとkindCodeの一致（Q-ENUMの表）、effectiveとareas/stationsの形（cancelled・expiredは空）、intentのunitがU-TでsubjectがU-Tのsubject形式（I-U-T.subjects）であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）",
         "view": "TsunamiUnitViewはactiveのforecasts/observationsだけを載せ（forecastEnded・expiredの観測、releasedのVTSE41は載せない）、SubjectOutcome.factsにareaTransitions（TsunamiTransitionRecordの配列）とseries（TsunamiReportSeries）を載せる。RuntimeDisplaySubjectにunit U-Tの行（current: TsunamiForecastSubject | TsunamiObservationSubject | null）を足す",
         "confirmationScope": "ConfirmationScopeは新しい行を作らず、U-Eの行をunit: \"U-E\" | \"U-T\"、kind \"event\"、eventIdに広げて使う（shared-runtime.ts:89の検証も同じく広げる）。U-Tのscopeは常態を確立したVTSE41の採用からだけ出す（観測はREST回復の対象外でscopeにしない、P3-C5-N2）。confirmationScopeLimitは512（VTSE41の上限と一致）",
@@ -313,7 +313,7 @@
       {
         "id": "P3-C5-MIGRATION",
         "status": "frozen",
-        "rule": "PersistedTsunamiUnit（p3-tsunami-unit-v1）は新設のschemaなので、C5の中で旧データの移行は要らない（新築に既存のU-T保存物は無い）。旧築v2の津波active（keyedActive・観測group）からU-T候補を作るのはC15（P3-MIGRATION-001、計画:80）で、operationの根拠が無いものは移行未確認として報告する（spec §10.4）。codecのdecodeはp3-tsunami-unit-v1以外をunavailableで返す"
+        "rule": "PersistedTsunamiUnit（p3-tsunami-unit-v3）は新設のschemaなので、C5の中で旧データの移行は要らない（新築に既存のU-T保存物は無い）。旧築v2の津波active（keyedActive・観測group）からU-T候補を作るのはC15（P3-MIGRATION-001、計画:80）で、operationの根拠が無いものは移行未確認として報告する（spec §10.4）。codecのdecodeはp3-tsunami-unit-v3以外をunavailableで返す"
       },
       {
         "id": "P3-C5-DEPS",
@@ -869,7 +869,7 @@
       },
       {
         "id": "P3-C5-AC05",
-        "requirement": "保存と復元: PersistedTsunamiUnitと唯一のcodec（schemaVersion p3-tsunami-unit-v1）、I-U-T.persisted・I-U-T.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC5に旧データ移行は無い（P3-C5-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る",
+        "requirement": "保存と復元: PersistedTsunamiUnitと唯一のcodec（schemaVersion p3-tsunami-unit-v3）、I-U-T.persisted・I-U-T.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC5に旧データ移行は無い（P3-C5-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
@@ -1138,7 +1138,7 @@
       "仕組みを一つ足すときは、要求する契約IDと無いと壊れる振る舞いを1行で添える。1実装のinterface・factory・registry・将来用の拡張点を足さない",
       "TsunamiUnitCodec一つだけを実装する。無いと保存と復元のschema選択が曖昧になる",
       "受信経路の計算量: 受信・選択・結果照合1回でunit全体・全subjectの直列化と全件×全件の走査をしない。容量はsubject・station・intent単位の加算で数える（AGENTS.md）。無いと上限付近の受信1回が保持量に比例して遅くなり、urgentのEEWを待たせる",
-      "永続schemaの変更: p3-tsunami-unit-v1は新設で旧データの移行は無い（P3-C5-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
+      "永続schemaの変更: p3-tsunami-unit-v3は新設で旧データの移行は無い（P3-C5-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
       "純粋な意味関数とreduceはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付ける。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。DiagnosticReasonへの追加はQ-ENUM.diagnosticReasonsの2つ（tsunamiRevisionConflict・tsunamiCapacityEvicted）だけ（persistent-diagnostic-sink.tsの一覧にも足す）"
     ],
     "unresolvedQuestions": []

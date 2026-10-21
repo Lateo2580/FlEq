@@ -12,22 +12,35 @@ import type {
   SeismicUnitStep, SeismicUnitView, StrongShakingHold,
 } from "../../../contracts/p3-seismic-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
-  EARTHQUAKE_FAMILIES, INFO_RANK, STAGE_LABEL, knownStage, lgRank, parseSeismic, safetyRank, validEventId, validSerial,
+  EARTHQUAKE_FAMILIES, EVENT_ID_LIMIT, INFO_RANK, REPORT_TIME_LIMIT, SERIAL_DIGITS, STAGE_LABEL, knownStage, lgRank, parseSeismic, safetyRank,
+  validEventId, validReportTime, validSerial,
 } from "../../domains/seismic/seismic";
 import type { EarthquakeCandidate, LongPeriodCandidate, SeismicCandidate } from "../../domains/seismic/seismic";
 
 // P3-UNIT-Q-001（C7、I-U-Q）: U-Q の意味・当日履歴・通知・容量・codec・射影。
 
-const SCHEMA = "p3-seismic-unit-v2" as const;
+const SCHEMA = "p3-seismic-unit-v3" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 // P3-C7-CAPACITY=A・P3-C7-RES-01・RET-01〜05。
-const EVENT_LIMIT = 512, LONG_PERIOD_LIMIT = 256, GENERATION_LIMIT = 4_194_304;
+const EVENT_LIMIT = 512, LONG_PERIOD_LIMIT = 256;
+const encoder = new TextEncoder();
+// P3-VM-AC08（作者裁定 2026-10-21 午後）: 強震保持の事実の予算は、512 件の全部の寄与に印が付く最悪の場合まで旧い形のまま守る。寄与 1 つの増え分の
+// 上界は、読み戻しの上限いっぱいの欄の ReportRef の未確認の印 1 つと、寄与の source と容量不足の印の source の Control/DateTime。予算と器の両方に足す。
+const LONGEST_REF: ReportRef = { inputId: "i".repeat(INPUT_ID_LIMIT), origin: "recovery", operation: "training", family: "VXSE53",
+  subject: `training/VXSE53/${"E".repeat(EVENT_ID_LIMIT)}`, reportDateTimeRaw: "0".repeat(REPORT_TIME_LIMIT),
+  controlDateTimeRaw: "0".repeat(REPORT_TIME_LIMIT), serialRaw: "9".repeat(SERIAL_DIGITS),
+  infoTypeRaw: [...INFO_RANK.keys()].reduce((a, b) => encoder.encode(b).byteLength > encoder.encode(a).byteLength ? b : a) };
+const sizeOf = (text: string) => encoder.encode(text).byteLength;
+const HOLD_GROWTH = EVENT_LIMIT * EARTHQUAKE_FAMILIES.length * (sizeOf(`,"unconfirmed":${JSON.stringify(LONGEST_REF)}`)
+  + 2 * sizeOf(`,"controlDateTimeRaw":"${LONGEST_REF.controlDateTimeRaw}"`));
+// 4 MiB に、同時最大状態の Control/DateTime と印の分（121,513）と強震保持の増え分を足す。
+const GENERATION_LIMIT = 4_194_304 + 121_513 + HOLD_GROWTH;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 131_072;
 // I-U-Q.capacityReserve: 取消記憶だけの記録と当日履歴の上限、強震保持の event に残す事実の予算。
-const RESERVE_BYTES = 1_357_385, HOLD_FACTS_BYTES = 2_574_775;
+const RESERVE_BYTES = 1_470_281, HOLD_FACTS_BYTES = 2_574_775 + HOLD_GROWTH; // P3-VM-AC08: 取消記憶の ReportRef（512×4＋256 件）に controlDateTimeRaw の 49 byte を足した予約
 const RECENT_LIMIT = 5, COUNTED_LIMIT = 2048;
 // P3-C7-SEM-01〜06。
 const EVENT_RETAIN_MS = 86_400_000, LONG_PERIOD_RETAIN_MS = 129_600_000, HOLD_MS = 43_200_000, DAY_MS = 86_400_000;
@@ -53,7 +66,6 @@ const memoryOnly = (value: Shown): boolean => !visible(value);
 
 // ---- byte の加算（I-U-Q.computation。受信 1 回で state 全体を直列化しない） ----
 
-const encoder = new TextEncoder();
 const byteCache = new WeakMap<object, number>();
 function bytes(value: object): number {
   let size = byteCache.get(value);
@@ -514,19 +526,12 @@ function displaySubject(value: Shown): Extract<RuntimeDisplaySubject, Readonly<{
 
 // ---- 採用 ----
 
-// Q-ENUM.revisionOrder（P3-ORDER-AC01）: family ごとに ReportDateTime → InfoType の優先 → Serial（欠落はどの数値よりも小）の辞書順。
-function compare(candidate: SeismicCandidate, source: ReportRef): number {
-  const time = candidate.reportDateTimeMs - reportMs(source);
-  if (time !== 0) return Math.sign(time);
-  const rank = candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw.trim()) ?? 0);
-  if (rank !== 0) return Math.sign(rank);
-  const left = candidate.source.serialRaw.trim(), right = source.serialRaw.trim();
-  return left === right ? 0 : left === "" ? -1 : right === "" ? 1 : Math.sign(Number(left) - Number(right));
-}
-const withoutSource = (value: EarthquakeContribution | LongPeriodSubject) => ({ ...value, source: null });
+// P3-VM-AC03: family の系列ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
+const sameReportKind = (left: ReportRef, right: ReportRef): boolean => left.infoTypeRaw.trim() === right.infoTypeRaw.trim();
+const withoutSource = ({ unconfirmed: _mark, ...value }: EarthquakeContribution | LongPeriodSubject) => ({ ...value, source: null });
 // 印の鍵ごと外す（undefined の鍵を残すと isDeepStrictEqual と保存の形が変わる）。
 const eventWithoutMarks = ({ unavailable: _marks, ...rest }: EarthquakeEvent): EarthquakeEvent => rest;
-const longPeriodWithoutMarks = ({ unavailable: _mark, ...rest }: LongPeriodSubject): LongPeriodSubject => rest;
+const longPeriodWithoutMarks = ({ unavailable: _mark, unconfirmed: _unconfirmed, ...rest }: LongPeriodSubject): LongPeriodSubject => rest;
 // P3-CC-D-PENDING=A・D-FAILNOTICE=A の文面の時刻（報の ReportDateTime を JST の HH:MM に）。
 const jstClock = (raw: string): string => new Date(Date.parse(raw) + JST_MS).toISOString().slice(11, 16);
 const FAIL_BODY = "容量の上限のため、この報を処理できていません。";
@@ -537,9 +542,34 @@ function unchanged(state: SeismicUnitState, candidate: SeismicCandidate, reason:
   return { changes: [], step: { ...idle(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
     decision: "unchanged", reason }], diagnostics } };
 }
-function conflict(state: SeismicUnitState, candidate: SeismicCandidate): Result {
-  return unchanged(state, candidate, "stale", [{ level: "WARN", component: "seismic", reason: "seismicRevisionConflict",
-    inputId: candidate.source.inputId, unit: "U-Q" }]);
+// P3-VM-AC03・AC04: 手元の版を残して系列に未確認の印を付ける。印は保存の byte に入るので採用と同じ fit を通し、収まらなければ
+// 印を置かず unit/operation の未確認へ寄せる（P3-CC-AC02 と同じ）。
+function holdVersion(state: SeismicUnitState, candidate: SeismicCandidate, clock: ClockReading, mark: ReportRef | null, missing: boolean): Result {
+  const plain = unchanged(state, candidate, "stale", [{ level: "WARN", component: "seismic",
+    reason: missing ? "requiredStructureMissing" : "seismicRevisionConflict", inputId: candidate.source.inputId, unit: "U-Q" }]);
+  let earthquakes = state.earthquakes, longPeriods = state.longPeriods, target: Shown | null = null;
+  if (candidate.kind === "earthquake") {
+    const index = indexOf(state.earthquakes, eventKey(candidate.operation, candidate.eventId)), found = state.earthquakes[index ?? -1];
+    const prior = found?.contributions.find((item) => item.family === candidate.family);
+    if (found != null && prior != null && mark != null && prior.unconfirmed !== mark) {
+      target = { ...found, contributions: found.contributions.map((item) => item === prior ? { ...item, unconfirmed: mark } : item) };
+      earthquakes = replaceAt(earthquakes, index, target);
+    }
+  } else {
+    const index = indexOf(state.longPeriods, candidate.subject), found = state.longPeriods[index ?? -1];
+    if (found != null && mark != null && found.unconfirmed !== mark) {
+      target = { ...found, unconfirmed: mark };
+      longPeriods = replaceAt(longPeriods, index, target);
+    }
+  }
+  if (target == null) return plain;
+  const fitted = fit(earthquakes, longPeriods, state.daily, state.intents, target, clock.wallTimeMs);
+  if (fitted == null) return { ...plain, uncovered: true };
+  const next: SeismicUnitState = { ...state, earthquakes: fitted.earthquakes, longPeriods: fitted.longPeriods,
+    persistence: dirty(state.persistence, clock.monotonicMs) };
+  return { changes: fitted.evicted.map((item): Change => [item, null]), step: { ...plain.step, state: next, nextDeadline: nextDeadline(next),
+    diagnostics: [...plain.step.diagnostics, ...fitted.evicted.length === 0 ? [] : [{ level: "INFO" as const, component: "seismic",
+      reason: "seismicCapacityEvicted" as const, unit: "U-Q" as const, count: fitted.evicted.length }]] } };
 }
 
 const indexCache = new WeakMap<readonly Shown[], ReadonlyMap<string, number>>();
@@ -556,18 +586,19 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
   const index = indexOf(state.earthquakes, eventKey(candidate.operation, candidate.eventId));
   const existing = index == null ? null : state.earthquakes[index];
   const prior = existing?.contributions.find((item) => item.family === candidate.family) ?? null;
-  if (prior != null) {
-    const order = compare(candidate, prior.source);
-    if (order < 0) return unchanged(state, candidate, "stale");
-    if (order === 0) return isDeepStrictEqual(withoutSource(prior), withoutSource(candidate.contribution))
-      ? unchanged(state, candidate, "duplicate") : conflict(state, candidate);
-  }
+  const version = stepVersion(prior == null ? null : { version: prior.source, source: prior.source, cancelled: prior.effective === "cancelled" },
+    prior?.unconfirmed ?? null, candidate.source, () => prior != null && sameReportKind(prior.source, candidate.source)
+      && isDeepStrictEqual(withoutSource(prior), withoutSource(candidate.contribution)), candidate.cancelled);
+  if (version.kind === "older" || version.kind === "duplicate") return unchanged(state, candidate, version.kind === "older" ? "stale" : "duplicate");
+  if (version.kind === "held") return holdVersion(state, candidate, clock, version.mark, version.missing);
   const now = clock.wallTimeMs;
-  const contributions = [...(existing?.contributions ?? []).filter((item) => item.family !== candidate.family), candidate.contribution]
+  const adopted = version.mark == null ? candidate.contribution : { ...candidate.contribution, unconfirmed: version.mark };
+  const contributions = [...(existing?.contributions ?? []).filter((item) => item.family !== candidate.family), adopted]
     .sort((left, right) => FAMILY_ORDER[left.family] - FAMILY_ORDER[right.family]);
   const retainUntil = contributions.reduce((max, item) => Math.max(max, reportMs(item.source)), -Infinity) + EVENT_RETAIN_MS;
   // P3-CC-AC03(3): この family の印は印の版以上の採用で消え、古い報の採用では残る。ほかの family の印は残る。
-  const marks = existing?.unavailable?.filter((item) => item.source.family !== candidate.family || compare(candidate, item.source) < 0);
+  const marks = existing?.unavailable?.filter((item) => item.source.family !== candidate.family
+    || compareVersion(item.source, candidate.source) === "older");
   const kept = marks?.length === existing?.unavailable?.length ? existing?.unavailable : marks;
   const draft: EarthquakeEvent = { eventId: candidate.eventId, operation: candidate.operation, contributions,
     strongHold: existing?.strongHold ?? null, retainUntil, ...kept == null || kept.length === 0 ? {} : { unavailable: kept } };
@@ -590,7 +621,7 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
   const history = nextHistory(state.daily[candidate.operation], candidate, next, now);
   const daily = history === state.daily[candidate.operation] ? state.daily : { ...state.daily, [candidate.operation]: history };
   const result = adopt(state, candidate, clock, { earthquakes: replaceAt(state.earthquakes, index, next), longPeriods: state.longPeriods, daily,
-    fresh, semantic, changes: [[existing, next]], target: next,
+    fresh, semantic, changes: [[existing, next]], target: next, missing: version.missing,
     outcome: { subject: candidate.subject, operation: candidate.operation, informationType: candidate.source.infoTypeRaw,
       transition: candidate.contribution.effective, severity: null, source: candidate.source, facts: eventView(next), changedFields: fields } });
   // uncovered があるのは拒否の結果だけ（refuse）。採用できたときだけ、外した印を unit の未確認へ移す。
@@ -604,16 +635,17 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
     source: candidate.source, effective: candidate.cancelled ? "cancelled" : "active", title: candidate.cancelled ? "" : candidate.title,
     headline: candidate.cancelled ? null : candidate.headline, hypocenter: candidate.hypocenter, intensity: candidate.intensity,
     retainUntil: candidate.reportDateTimeMs + LONG_PERIOD_RETAIN_MS };
-  if (existing != null) {
-    const order = compare(candidate, existing.source);
-    if (order < 0) return unchanged(state, candidate, "stale");
-    if (order === 0) return isDeepStrictEqual(withoutSource(longPeriodWithoutMarks(existing)), withoutSource(next))
-      ? unchanged(state, candidate, "duplicate") : conflict(state, candidate);
-  }
+  const version = stepVersion(existing == null ? null : { version: existing.source, source: existing.source,
+    cancelled: existing.effective === "cancelled" }, existing?.unconfirmed ?? null, candidate.source, () => existing != null
+      && sameReportKind(existing.source, candidate.source) && isDeepStrictEqual(withoutSource(longPeriodWithoutMarks(existing)), withoutSource(next)),
+    candidate.cancelled);
+  if (version.kind === "older" || version.kind === "duplicate") return unchanged(state, candidate, version.kind === "older" ? "stale" : "duplicate");
+  if (version.kind === "held") return holdVersion(state, candidate, clock, version.mark, version.missing);
   // P3-CC-AC03(3)(4): 印は印の版以上の採用で消え、古い報の採用では active の記録へ引き継ぐ。取消（取消記憶だけ）なら外して unit の未確認へ。
   const mark = existing?.unavailable;
-  const keep = mark != null && compare(candidate, mark.source) < 0;
+  const keep = mark != null && compareVersion(mark.source, candidate.source) === "older";
   if (keep && next.effective === "active") next = { ...next, unavailable: mark };
+  if (version.mark != null) next = { ...next, unconfirmed: version.mark };
   const lost = keep && next.effective !== "active";
   const now = clock.wallTimeMs;
   const wasActive = existing?.effective === "active";
@@ -626,7 +658,7 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
   const fresh = notify ? intentsFor(candidate, candidate.cancelled ? "cancelled" : wasActive ? "updated" : "activated",
     state.persistence.currentGeneration + 1, now) : [];
   const result = adopt(state, candidate, clock, { earthquakes: state.earthquakes, longPeriods: replaceAt(state.longPeriods, index, next),
-    daily: state.daily, fresh, semantic, changes: [[existing, next]], target: next,
+    daily: state.daily, fresh, semantic, changes: [[existing, next]], target: next, missing: version.missing,
     outcome: longPeriodOutcome(next, next, semantic ? ["longPeriod"] : []) });
   return lost && result.uncovered == null ? { ...result, uncovered: true } : result;
 }
@@ -634,7 +666,7 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
 // 採用の共通部: 通知の収容、容量の退去、保存世代を一回の参照交換で確定する。到着の時点で期限を過ぎた報は同じ reduce で回収する。
 function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: ClockReading, proposal: Readonly<{
   earthquakes: readonly EarthquakeEvent[]; longPeriods: readonly LongPeriodSubject[]; daily: Daily; fresh: readonly SeismicIntent[];
-  semantic: boolean; changes: readonly Change[]; target: Shown; outcome: SubjectOutcome;
+  semantic: boolean; changes: readonly Change[]; target: Shown; outcome: SubjectOutcome; missing: boolean;
 }>): Result {
   const notices = admit(state.intents, proposal.fresh, candidate.cancelled ? candidate.subject : null);
   // 到着の時点で期限を過ぎた記録の無い subject の報は配列へ入れない。同じ reduce で回収される記録のために他の記録を退去しない
@@ -657,7 +689,9 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
   // accepted に載せず currentEstablished も null、change は前の表示が消えたかで決める。
   const semantic = due ? visible(before) : proposal.semantic;
   const change = semantic || fitted.evicted.length !== 0 ? "semantic" as const : "revisionOnly" as const;
-  const diagnostics: DiagnosticDetails[] = [];
+  // P3-VM-D-MISSING=A の (2): 手元の版の無い比べる時刻を欠く報は採って WARN を添える。
+  const diagnostics: DiagnosticDetails[] = proposal.missing ? [{ level: "WARN", component: "seismic", reason: "requiredStructureMissing",
+    inputId: candidate.source.inputId, unit: "U-Q" }] : [];
   if (fitted.evicted.length !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "seismicCapacityEvicted",
     unit: "U-Q", count: fitted.evicted.length });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "notificationCapacityEvicted",
@@ -693,7 +727,7 @@ function refuse(state: SeismicUnitState, candidate: SeismicCandidate, clock: Clo
     const old = found?.unavailable?.find((item) => item.source.family === candidate.family);
     if (found != null && visible(found)) {
       record = found;
-      if (old != null && compare(candidate, old.source) <= 0) covered = true;
+      if (old != null && ["older", "same"].includes(compareVersion(old.source, candidate.source))) covered = true;
       else {
         const next: EarthquakeEvent = { ...found, unavailable: [...(found.unavailable ?? []).filter((item) => item !== old), mark] };
         place(next, fit(state.earthquakes.map((item) => item === found ? next : item), state.longPeriods, state.daily, state.intents, next, now));
@@ -703,7 +737,7 @@ function refuse(state: SeismicUnitState, candidate: SeismicCandidate, clock: Clo
     const found = state.longPeriods[indexOf(state.longPeriods, candidate.subject) ?? -1];
     if (found != null && visible(found)) {
       record = found;
-      if (found.unavailable != null && compare(candidate, found.unavailable.source) <= 0) covered = true;
+      if (found.unavailable != null && ["older", "same"].includes(compareVersion(found.unavailable.source, candidate.source))) covered = true;
       else {
         const next: LongPeriodSubject = { ...found, unavailable: mark };
         place(next, fit(state.earthquakes, state.longPeriods.map((item) => item === found ? next : item), state.daily, state.intents, next, now));
@@ -930,16 +964,11 @@ function subjectParts(subject: string): Readonly<{ operation: Operation; family:
     ? null : { operation: op, family, eventId };
 }
 function reportRef(value: unknown): ReportRef | null {
-  const row = record(value);
-  const operation = operationOf(row?.operation);
-  if (row == null || operation == null || !isText(row.inputId) || !isText(row.family) || !isText(row.subject)
-    || !isText(row.reportDateTimeRaw) || row.reportDateTimeRaw.length > 25 || !Number.isFinite(Date.parse(row.reportDateTimeRaw))
-    || !isText(row.serialRaw) || !validSerial(row.serialRaw) || !isText(row.infoTypeRaw) || !INFO_RANK.has(row.infoTypeRaw)
-    || (row.origin !== "live" && row.origin !== "recovery" && row.origin !== "replay")) return null;
-  const parts = subjectParts(row.subject);
-  if (parts == null || parts.operation !== operation || parts.family !== row.family) return null;
-  return { inputId: row.inputId, origin: row.origin, operation, family: row.family, subject: row.subject,
-    reportDateTimeRaw: row.reportDateTimeRaw, serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw };
+  const ref = readReportRef(value, REPORT_TIME_LIMIT);
+  if (ref == null || !validReportTime(ref.reportDateTimeRaw) || !Number.isFinite(Date.parse(ref.reportDateTimeRaw))
+    || !validSerial(ref.serialRaw) || !INFO_RANK.has(ref.infoTypeRaw)) return null;
+  const parts = subjectParts(ref.subject);
+  return parts == null || parts.operation !== ref.operation || parts.family !== ref.family ? null : ref;
 }
 function materialValue(value: unknown): MaterialValue | null {
   const row = record(value);
@@ -1006,8 +1035,11 @@ function contribution(value: unknown): EarthquakeContribution | null {
   // cancelled は事実を持たず title は空文字（取消記憶の byte 上限、I-U-Q.decode）。
   if (effective === "cancelled" && (row.title !== "" || row.headline !== null || row.targetDateTimeRaw !== null
     || facts.hypocenter != null || facts.intensity != null || facts.comment != null)) return null;
+  // P3-VM-AC04: 未確認の印は同じ family の系列（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
+  const mark = "unconfirmed" in row ? reportRef(row.unconfirmed) : undefined;
+  if (mark === null || mark != null && (mark.subject !== source.subject || mark.operation !== source.operation)) return null;
   return { family, source, effective, targetDateTimeRaw: row.targetDateTimeRaw, title: row.title, headline: row.headline,
-    hypocenter: facts.hypocenter, intensity: facts.intensity, tsunamiComment: facts.comment };
+    hypocenter: facts.hypocenter, intensity: facts.intensity, tsunamiComment: facts.comment, ...mark == null ? {} : { unconfirmed: mark } };
 }
 function strongHold(value: unknown): StrongShakingHold | null | "invalid" {
   if (value === null) return null;
@@ -1054,8 +1086,12 @@ function longPeriod(value: unknown): LongPeriodSubject | null {
   // 印は active の記録だけが持ち、source は同じ subject の VXSE62。
   const mark = "unavailable" in row ? unavailableOf(row.unavailable) : null;
   if ("unavailable" in row && (mark == null || effective !== "active" || mark.source.subject !== row.subject)) return null;
+  const unconfirmed = "unconfirmed" in row ? reportRef(row.unconfirmed) : undefined;
+  if (unconfirmed === null || unconfirmed != null && (unconfirmed.subject !== row.subject
+    || unconfirmed.operation !== operation)) return null;
   return { subject: row.subject, eventId: row.eventId, operation, source, effective, title: row.title, headline: row.headline,
-    hypocenter: facts.hypocenter, intensity: facts.intensity, retainUntil: row.retainUntil, ...mark == null ? {} : { unavailable: mark } };
+    hypocenter: facts.hypocenter, intensity: facts.intensity, retainUntil: row.retainUntil, ...mark == null ? {} : { unavailable: mark },
+    ...unconfirmed == null ? {} : { unconfirmed } };
 }
 // 当日履歴の文字列の上限（SeismicRecentQuake の注記）。
 function boundedValue(value: MaterialValue): boolean {
@@ -1125,13 +1161,13 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const emptyDaily: Daily = { normal: EMPTY_HISTORY, training: EMPTY_HISTORY, test: EMPTY_HISTORY };
 const seismicUnitCodec: SeismicUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-seismic-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-seismic-unit-v1", "p3-seismic-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // state は reducer が上限の内側で作るので、encode は保存 field だけを並べる（contentRevision・persistence は保存しない）。
   encode: (state) => ({ schemaVersion: SCHEMA, earthquakes: state.earthquakes, longPeriods: state.longPeriods, daily: state.daily,
     intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-seismic-unit-v2 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-seismic-unit-v3 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

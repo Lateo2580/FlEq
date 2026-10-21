@@ -2,8 +2,8 @@ import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../c
 import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
 import type { BriefingArea, BriefingItem, BriefingKind, BriefingObservation } from "../../../contracts/p3-briefing-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
-import { cut, infoRankOf, loneSurrogate, validEventId, validInputId, validName, validReportDateTime, validSerial, validTime, validValue }
-  from "../flood/flood";
+import { cut, infoRankOf, loneSurrogate, validEventId, validName, validReportDateTime, validSerial, validTime, validValue }
+  from "../flood/flood"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 // P3-UNIT-B-001 の adapter: VPBS50・VPOA50 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 // 値の形の検査は U-R と同じ規則なので domains/flood の export を使う（写さない。共有化は統合担当が決める、AC12）。
@@ -72,7 +72,7 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
   const serialRaw = material.serialRaw.trim();
   if (serialRaw === "") return reject("identityMissing", subject);
   // 保存する ReportRef の byte の上限（Q-ENUM.identity、C11 と同じ文字の形）。
-  if (!validSerial(serialRaw) || material.reportDateTimeRaw.length > 40 || material.infoTypeRaw.length > 8 || !validInputId(material.inputId))
+  if (!validSerial(serialRaw) || material.reportDateTimeRaw.length > 40 || material.infoTypeRaw.length > 8)
     return reject("identityInvalid", subject);
 
   // 存在を全部確かめてから妥当性を見る（Q-ENUM.priorityRule）。
@@ -216,7 +216,7 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
   if (invalid || infoRank == null || title == null) return reject("requiredStructureInvalid", subject);
   return { kind: "accepted", candidate: { operation: material.operation, headType, series, subject,
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: headType, subject,
-      reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw },
+      reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(title, BOUNDS.title), headline, editorialOffice,
     items, observations, areas, truncated } };
 }

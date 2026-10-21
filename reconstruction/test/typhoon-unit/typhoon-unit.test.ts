@@ -434,7 +434,7 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     const make = (index: number, bodyLength: number) => ({ id: `U-Y:${own.subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-Y" as const, subject: own.subject,
       operation: "normal" as const, source: own.source, transition: "updated" as const, channel: "desktop" as const,
       payload: { domain: "weather" as const, level: "normal" as const, title: "t".repeat(160), body: "b".repeat(bodyLength) }, createdAt: T0, expiresAt: T0 + 180_000,
-      nextAttemptAt: T0, attempts: 0, configRevision: "p3-typhoon-unit-v2", disposition: "pending" as const });
+      nextAttemptAt: T0, attempts: 0, configRevision: "p3-typhoon-unit-v3", disposition: "pending" as const });
     const total = (list: readonly ReturnType<typeof make>[]) => 2 + Math.max(list.length - 1, 0) + list.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + reserve(item), 0);
     const lengths: number[] = [];
     while (total(lengths.map((length, index) => make(index, length))) <= 131_072) lengths.push(512);

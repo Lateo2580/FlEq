@@ -3,7 +3,7 @@ import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../con
 import type { TornadoArea, TornadoAreaLayer, TransientArea, TransientFamily } from "../../../contracts/p3-local-bulletins-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
 import { validCode, validHeadline } from "../briefing/briefing";
-import { cut, infoRankOf, loneSurrogate, validInputId, validName, validReportDateTime, validSerial } from "../flood/flood";
+import { cut, infoRankOf, loneSurrogate, validName, validReportDateTime, validSerial } from "../flood/flood"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 // P3-UNIT-M-001 の adapter: VPHW50/51・VPFT50・短命の解説情報の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 // 値の形の検査（cut・validName・validSerial ほか）は U-R と同じ規則なので domains/flood の export を使い、XML の読み取りだけを写す（AC13）。
@@ -135,8 +135,7 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
   if (subject === "") return reject("identityInvalid");
   const serialRaw = material.serialRaw.trim();
   // 保存する ReportRef の byte の上限（Q-ENUM.identity）。Serial は任意で、あれば 10 桁以下の数字列。
-  if (serialRaw !== "" && !validSerial(serialRaw) || !validReportDateTime(material.reportDateTimeRaw) || material.infoTypeRaw.length > 8
-    || !validInputId(material.inputId)) return reject("identityInvalid", subject);
+  if (serialRaw !== "" && !validSerial(serialRaw) || !validReportDateTime(material.reportDateTimeRaw) || material.infoTypeRaw.length > 8) return reject("identityInvalid", subject);
 
   // ---- 必須構造（存在を全部確かめてから妥当性を見る） ----
   let missing = false, invalid = false, truncated = false;
@@ -167,7 +166,7 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
   } else if (office.state === "ok") editorialOffice = office.value;
 
   const base = { operation, subject, source: { inputId: material.inputId, origin: material.origin, operation, family: material.headType, subject,
-    reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw: material.infoTypeRaw }, reportDateTimeMs: common.envelope.reportDateTimeMs,
+    reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw), serialRaw, infoTypeRaw: material.infoTypeRaw }, reportDateTimeMs: common.envelope.reportDateTimeMs,
     infoRank: infoRank ?? 0, cancelled };
   const reportMs = common.envelope.reportDateTimeMs;
   // 取消は Headline・Body を読まない。

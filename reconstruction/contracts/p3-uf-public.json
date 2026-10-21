@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "aaf951b45a09e8c97195bf5445fec23b3ca8826e8fc088fa1910ef5e65626372",
+    "sha256": "8ae3cf4441173fa876b5050c10716bc180711b0f856ba2b7d34b3626c4bdd9b5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -107,7 +107,7 @@
         "id": "Q-UFP-SCHEMA",
         "status": "closed",
         "source": "統合担当の起草（作者の方針: 永続schemaは変えない前提、Pro §3.1）",
-        "closed": "保存の形（PersistedWeatherTimeseriesUnit、schemaVersion p2-weather-timeseries-unit-v1）・stateの型・codec・意味のreducerは変えない。公開形式・世代・詳細のページは保存しない派生の値",
+        "closed": "保存の形（PersistedWeatherTimeseriesUnit、schemaVersion p2-weather-timeseries-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)））・stateの型・codec・意味のreducerは変えない。公開形式・世代・詳細のページは保存しない派生の値",
         "remaining": "なし。schemaを変える必要が出たら実装を止めてblockedを報告する（移行1セットが要る）",
         "reason": "公開形式だけを先に変え、意味と保存を変えない対照にすると、減った量の原因が読みやすい（Pro §8.2の①）"
       },
@@ -344,7 +344,7 @@
     "workDeadline": null,
     "persistenceUnits": [],
     "persistedFields": [
-      "なし（U-Fのstate・PersistedWeatherTimeseriesUnit・codec・schemaVersion p2-weather-timeseries-unit-v1は変えない）"
+      "なし（U-Fのstate・PersistedWeatherTimeseriesUnit・codec・schemaVersion p2-weather-timeseries-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）は変えない）"
     ],
     "nonPersistedFields": [
       "U-Fの公開形式（WeatherTimeseriesPublicSubject）とsubjectのobjectごとのcache（WeakMap）",
@@ -366,9 +366,9 @@
         "id": "P3-UFP-AC01",
         "requirement": "公開形式（Q-UFP-SHAPE・Q-UFP-PATHS）: U-Fのownerからpublisherへ出る値のうちviewとdisplayChangesを公開形式に限る。(1) toWeatherTimeseriesViewのseriesの要素をWeatherTimeseriesPublicSubjectにする（WeatherTimeseriesUnitView.seriesの型を変える。semanticRevision・contentRevision・admission・subjectsは今のまま）(2) reduceWeatherTimeseriesUnitのdisplayChanges、normalDisplaySubjects（P3-CURRENCY-COVERAGE-001で除いた）、restoreのdisplayChangesのRuntimeDisplaySubjectのcurrentを同じ公開形式にする（RuntimeDisplaySubjectのU-Fのcurrentの型を変える）。同じsubjectのobjectからは同じ公開形式のobjectを返す（WeakMap。無いと: viewを作り直すたびに全subjectのperiodを走査し直す）(3) 公開形式の欄はQ-UFP-SHAPEのものだけ。effective=activeのsubjectでは、areaCodesは全periodの区域Code（空文字を除く）の集合、knownCodesはSignificancyのperiodのうちName・Codeがmissing・emptyでなくCodeがtextでQ-VALUES.knownCodesに入るもののCodeの集合、unknownCodeはSignificancyのperiodをP2-A8-SUMMARY.unknownの規則（missing→empty→unknown、既知の表に無いCodeはunknown）で数えた件数。activeでないsubjectはareaCodes・knownCodesを空、unknownCodeを全部0にする（P2-A8-SUMMARYはactiveだけを数える）。periodCountはperiodsの長さ、lastKnownPeriodCountはlastKnownのperiodsの長さ（lastKnownが無ければnull）、idとrevisionはQ-UFP-REVISION、officeはsubjectのoperation/VPWP50/の後の文字列全体（今のRuntimeDisplaySubject.officeと同じ）(4) outcomes・confirmationEvidence・pendingIntents・diagnosticsは変えない",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:483 «f15f687b3b579095»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:478 «c0bebdd928e5447c»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:412 «7c6629abf6687429»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:478 «f15f687b3b579095»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:473 «c0bebdd928e5447c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:407 «7c6629abf6687429»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:67 «c16260c56aed133b»",
           "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:131 «f79e08d469fb2238»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:194 «22fdd95c5ad1b6ab»",
@@ -386,7 +386,7 @@
         "id": "P3-UFP-AC02",
         "requirement": "同じ入力でownerのstateと保存内容が変わらない（Pro §7.4、Q-UFP-SCHEMA）: 試験の固定の入力列（U-Fのfixture 13本、validUntilの後の期限とrestoreの往復を挟む）で、各stepのcodecのencodeのsha256・decisions・outcomes・intents・nextDeadlineがbase（本契約のbaseOid）の値と一致する。同じ官署・報時刻・Serial・InfoTypeを持つfixture（high_severity・unknown_code・criteria_periodなど）は官署名か報時刻を替えて送り、各stepが狙った採否（changed・stale・duplicate・rejected）になったことを試験の前提として確かめる（同じ鍵でduplicateに落ちて比較が空振りするのを防ぐ）。baseの値は実装の前にbaseで同じ試験を走らせて試験に書く。reduceWeatherTimeseriesCore・collect・evict・replace・fits・measure・persisted・codec・withoutNormalとWeatherTimeseriesUnitState・PersistedWeatherTimeseriesUnit・schemaVersionはdiffで変えない（periodMeaningは返す値を変えない。戻り値の型の注記だけ可）。永続schemaを変える必要が出たら実装を止めてblockedを報告する",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «ca8561f34e108f31»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «e99d3215293c09cf»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:177 «09598f8b17706761»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:156 «537767c42d8ef412»",
@@ -401,9 +401,9 @@
           "reconstruction/contracts/p2-weather-timeseries-unit.json:206 «f9c69abb104ab19a»",
           "reconstruction/src/decode-material/decode-material.ts:25 «ac5797a85aaedf39»",
           "reconstruction/src/runtime/owner-runtime.ts:98 «2b9e3cf835889edf»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:289 «4488a156cc0dd4be»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:283 «67874315c95a7f0f»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:23 «c1abbbb4993dfe08»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:481 «6f5c686600311853»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:476 «6f5c686600311853»",
           "reconstruction/contracts/p2-snapshot-sse.json:99 «6f7a0d72bfa4c6d2»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
@@ -440,7 +440,7 @@
         "evidenceRefs": [
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:120 «847ff8144f4d8bac»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:202 «f058e3a180f89e0c»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:512 «a486380631b6e9d0»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:507 «a486380631b6e9d0»",
           "reconstruction/src/view-projector/view-projector.ts:769 «25d8f1daebd55d26»",
           "reconstruction/src/runtime/composition-root.ts:561 «445a2eeb56638c45»",
           "reconstruction/contracts/p2-snapshot-sse.json:87 «5272dd4ae4de33c9»",

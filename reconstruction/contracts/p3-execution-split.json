@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "c668078b39615027e8c1f326b48fd4a93e177d168ed5e051a8cb3245dd4aa97c",
+    "sha256": "ba7188bf9a4efd6aad41047a01037740769009e187ef123adcb11b186624757b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -590,7 +590,7 @@
           "reconstruction/contracts/p3-execution-boundary.md:16 «1c592c4ecfb317f4»",
           "docs/specs/reconstruction-p0-contracts.md:1031 «69127c89f41d3c74»",
           "reconstruction/contracts/p3-order-plan.md:122 «a3833598bcdcbadc»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «d5e784b591877d5b»"
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»"
         ]
       },
       {
@@ -633,7 +633,7 @@
       },
       {
         "id": "P3-C3A-AC05",
-        "requirement": "checkpointの書込み権（P3-C3A-WRITE-RIGHT、RES-03）: publisherはmirrorのpersistenceから§5.8の選択（uncertainでなくdirtyかつretryAfter到達済みのうち最古のdirtySince、同時刻は固定UnitId順。uncertainで再照合が到達したunitはmode=reconcile）を行い、書込み権をcheckpointGrantで1つずつ渡す。ownerはgrantを適用する時点の現在世代をcaptureしてencodeし（同世代の再試行は保持したbytesとcapturedAtを再利用、C1）、C1と同じ順（tmp回収→open→write→sync→close→rename→syncDirectory）で書き、結果を自unitへ適用してからcheckpointDoneを返す。dirtyでない・世代が既に保存済みならresult=nullで返す。publisherは権をcheckpointDoneでだけ解放する。区別: 書込みが終わっていない（停止未確認を含む）間は他ownerへgrantしない。終了が確認できた失敗（encode・書込み・照合の失敗）はcheckpointDoneで権を返し、そのunitだけを再試行待ちにして他unitの保存を進める。uncertain（rename後・ack前）も操作が終われば権を返し、再照合はretryAfter到達後のmode=reconcileで行う。同じgrantIdのcheckpointDoneの2回目と、現在の権に一致しないcheckpointDoneはmirrorにもretryにも適用しない。publisherはretryAfter（1・2・4・8・10秒）・連続失敗回数・retryReasonとcheckpointRetryScheduled・checkpointOverdue（3秒）・10秒の監視（checkpointUncertain）の診断を持つ。通常終了の最終保存も同じ権で行い、retryAfterを無視するかはpublisherが決める。ownerの中でもC1のP3-C1-RES-01（定常保存の読み直し0）とRES-03（直列化1回）を保つ",
+        "requirement": "checkpointの書込み権（P3-C3A-WRITE-RIGHT、RES-03）: publisherはmirrorのpersistenceから§5.8の選択（uncertainでなくdirtyかつretryAfter到達済みのうち最古のdirtySince、同時刻は固定UnitId順。uncertainで再照合が到達したunitはmode=reconcile）を行い、書込み権をcheckpointGrantで1つずつ渡す。ownerはgrantを適用する時点の現在世代をcaptureしてencodeし（同世代の再試行は保持したbytesとcapturedAtを再利用、C1）、C1と同じ順（tmp回収→open→write→sync→close→rename→syncDirectory）で書き、結果を自unitへ適用してからcheckpointDoneを返す。dirtyでない・世代が既に保存済みならresult=nullで返す。publisherは権をcheckpointDoneでだけ解放する。区別: 書込みが終わっていない（停止未確認を含む）間は他ownerへgrantしない。終了が確認できた失敗（encode・書込み・照合の失敗）はcheckpointDoneで権を返し、そのunitだけを再試行待ちにして他unitの保存を進める。uncertain（rename後・ack前）も操作が終われば権を返し、再照合はretryAfter到達後のmode=reconcileで行う。同じgrantIdのcheckpointDoneの2回目と、現在の権に一致しないcheckpointDoneはmirrorにもretryにも適用しない。publisherはretryAfter（1・2・4・8・10秒）・連続失敗回数・retryReasonとcheckpointRetryScheduled・checkpointOverdue（3秒）・10秒の監視（checkpointUncertain）の診断を持つ。通常終了の最終保存も同じ権で行い、retryAfterを無視するかはpublisherが決める。ownerの中でもC1のP3-C1-RES-01（定常保存の読み直し0）とRES-03（直列化1回）を保つ。P3-VERSION-MATERIAL-001の発注1で、checkpointGrantに取り直しの境界inputBoundaryを足し（captureがenvelopeに書く）、OwnerReplyのrestoredのunitの要素に復元した境界inputBoundaryとsavesを足した（P3-VM-AC06、P3-VM-AC09(12)により統合担当が改訂）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-boundary.md:31 «5fd390bc66770805»",
           "reconstruction/contracts/p3-execution-boundary.md:32 «cc3592cbabff6989»",

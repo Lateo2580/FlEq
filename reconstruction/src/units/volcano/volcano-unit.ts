@@ -11,7 +11,7 @@ import type {
   VolcanoScheduledAshfall, VolcanoShortfall, VolcanoUnitCodec, VolcanoUnitState, VolcanoUnitStep, VolcanoUnitView,
 } from "../../../contracts/p3-volcano-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   ASH, ASH_ORDER, BOUNDS, FAMILIES, INFO_RANK, LIMITS, asciiCode, isMarine, parseVolcano, validEventId, validSerial, validVolcanoCode,
@@ -20,7 +20,7 @@ import type { AlertFacts, VolcanoCandidate, VolcanoEntry } from "../../domains/v
 
 // P3-UNIT-V-001（C9、I-U-V）: U-V の三 slice・定時・batch・解説・復旧不足・通知・容量・codec・射影。
 
-const SCHEMA = "p3-volcano-unit-v2" as const;
+const SCHEMA = "p3-volcano-unit-v3" as const;
 // P3-C9-CAPACITY=A・P3-C9-RES-01・RET-01〜06。世代の上限は P3-CODEC-D-LIMIT=A（K5、当初 4 MiB）。
 const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20, GENERATION_LIMIT = 5_242_880;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -179,18 +179,13 @@ function upsert<T extends Shown>(values: readonly T[], value: T, limit: number, 
 
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
-// P3-ORDER-AC01: ReportDateTime → InfoType の優先 → 同じ family なら Serial（欠落はどの数値よりも小）→ 降灰の速報・詳細は VFVO55 > VFVO54 の辞書順。
-function compare(candidate: VolcanoCandidate, source: ReportRef): number {
-  const time = candidate.reportDateTimeMs - reportMs(source);
-  if (time !== 0) return Math.sign(time);
-  const rank = candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw) ?? 0);
-  if (rank !== 0) return Math.sign(rank);
-  const left = candidate.source.serialRaw, right = source.serialRaw;
-  const serial = candidate.family !== source.family || left === right ? 0 : left === "" ? -1 : right === "" ? 1 : Number(left) - Number(right);
-  if (serial !== 0) return Math.sign(serial);
-  return (candidate.family === "VFVO55" ? 1 : 0) - (source.family === "VFVO55" ? 1 : 0);
-}
-const withoutSource = (value: Shown) => ({ ...value, source: null, marineSource: null, retainUntil: 0 });
+// P3-VM-AC03: 系列ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
+// 降灰の速報・詳細（VFVO54/55）で Head/ReportDateTime と InfoType が同じ組は同じ報で、VFVO55 を採る（P3-VM-D-SAME-REPORT=A の (3)）。
+const sameAshfallReport = (ref: ReportRef, source: ReportRef): boolean => ref.family !== source.family
+  && [ref.family, source.family].every((family) => family === "VFVO54" || family === "VFVO55")
+  && reportMs(ref) === reportMs(source) && ref.infoTypeRaw === source.infoTypeRaw;
+const withoutSource = (value: Shown) => ({ ...value, source: null, marineSource: null, retainUntil: 0, unconfirmed: null, marineUnconfirmed: null });
+type Held = Readonly<{ mark: ReportRef | null; missing: boolean }>;
 
 // ---- 警報（I-U-V.alertSemantics、P3-C9-ALERT-ACTIVE=A・P3-C9-MARINE=A） ----
 
@@ -222,8 +217,8 @@ const fieldsOf = (value: Shown): readonly string[] => isAlert(value) ? ALERT_FIE
   : "topAshName" in value ? SCHEDULED_FIELDS : value.subject.includes("/volcano:eruption/") ? ERUPTION_FIELDS : ASHFALL_FIELDS;
 
 const inactive = (value: VolcanoAlert | null): "ended" | "cancelled" => value?.effective === "cancelled" ? "cancelled" : "ended";
-type AlertVerdict = Readonly<{ kind: "adopt"; next: VolcanoAlert; conflict: boolean }>
-  | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale" | "noChange"; conflict: boolean }>;
+type AlertVerdict = Readonly<{ kind: "adopt"; next: VolcanoAlert; conflict: boolean; missing: boolean }>
+  | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale" | "noChange"; held: Held | null }>;
 function alertBase(candidate: VolcanoCandidate, subject: string, code: string, existing: VolcanoAlert | null, eventId: string,
   kind: VolcanoKind | null) {
   const ref = { ...candidate.source, subject };
@@ -247,18 +242,34 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
   const marine = isMarine(candidate.family);
   const own = existing == null ? null : marine ? existing.marineSource : existing.source;
   const other = existing == null ? null : marine ? existing.source : existing.marineSource;
-  const order = own == null ? 1 : compare(candidate, own);
-  if (order < 0) return { kind: "unchanged", reason: "stale", conflict: false };
+  const ref = { ...candidate.source, subject };
+  if (own != null && compareVersion(own, ref) === "older") return { kind: "unchanged", reason: "stale", held: null };
+  // P3-VM-AC03・AC04: 自分の側（陸上／海上）の系列で版と印を決める。もう一方の側の印は保つ。
+  const settle = (next: VolcanoAlert, conflict: boolean, same: () => boolean): AlertVerdict => {
+    const version = stepVersion(own == null ? null : { version: own, source: own, cancelled: own.infoTypeRaw === "取消" },
+      (marine ? existing?.marineUnconfirmed : existing?.unconfirmed) ?? null, ref, same, candidate.cancelled);
+    if (version.kind === "older" || version.kind === "duplicate")
+      return { kind: "unchanged", reason: version.kind === "older" ? "stale" : "duplicate", held: null };
+    if (version.kind === "held") return { kind: "unchanged", reason: "stale", held: version };
+    const { unconfirmed: _land, marineUnconfirmed: _marine, ...rest } = next;
+    // 警報全体が取消になる採用では両側の印を外す（系列の情報が取消で消えた、AC04 の (b) の (ii)）。
+    const whole = next.effective === "cancelled", kept = whole ? null : (marine ? existing?.unconfirmed : existing?.marineUnconfirmed) ?? null;
+    const ownMark = whole ? null : version.mark, land = marine ? kept : ownMark, sea = marine ? ownMark : kept;
+    return { kind: "adopt", conflict, missing: version.missing,
+      next: { ...rest, ...land == null ? {} : { unconfirmed: land }, ...sea == null ? {} : { marineUnconfirmed: sea } } };
+  };
   const before = existing?.effective === "active" ? existing : null;
   const kind = entry?.kind ?? facts?.kind ?? null;
   // VFVO51 の同じ区分の継続は表示の事実を変えない（VFVO50 の事実を保つ）。land 側の新しい版なので、表示はそのままに landKind（Condition
   // を含む報の値）と source を常に進める（revisionOnly、通知しない。Q-C9-IMPL-AMEND(9)(k)）。同じ版の再送だけが duplicate。
-  if (entry != null && before != null && activeKind(entry.kind) && before.kind.code === entry.kind.code) return order === 0 ? { kind: "unchanged", reason: "duplicate", conflict: false }
-    : { kind: "adopt", next: { ...before, ...alertBase(candidate, subject, code, existing, before.eventId, entry.kind) }, conflict: false };
-  const cross = other == null ? 1 : compare(candidate, other);
+  if (entry != null && before != null && activeKind(entry.kind) && before.kind.code === entry.kind.code)
+    return settle({ ...before, ...alertBase(candidate, subject, code, existing, before.eventId, entry.kind) }, false, () => true);
+  // 陸上と海上の間の kind も compareVersion で比べ、Control/DateTime の後の方を採る。同じ ReportDateTime で kind が食い違えば
+  // volcanoRevisionConflict を残す（P3-VM-AC03、残存リスク (2)）。
+  const cross = other == null ? "newer" : compareVersion(other, ref);
   const sameKind = kind == null ? before == null : before != null && activeKind(kind) && before.kind.code === kind.code;
-  const takeKind = cross > 0 || cross === 0 && sameKind;
-  const crossConflict = cross === 0 && !sameKind && !candidate.cancelled;
+  const takeKind = cross === "newer" || cross === "same" && sameKind;
+  const crossConflict = other != null && reportMs(other) === reportMs(ref) && !sameKind && !candidate.cancelled;
   const base = alertBase(candidate, subject, code, existing, entry != null && existing != null ? existing.eventId : candidate.eventId, kind);
   let next: VolcanoAlert;
   if (candidate.cancelled && marine && existing?.source != null) {
@@ -279,7 +290,7 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
   } else if (kind == null || !activeKind(kind)) {
     // inactive の区分・解除。記録の無い VFVO51 の entry は解除・引下げのときだけ ended を作る（P3-C9-ALERT-ACTIVE=A）。
     if (existing == null && entry != null && !/解除|引下げ/.test(kind?.condition ?? ""))
-      return { kind: "unchanged", reason: "noChange", conflict: false };
+      return { kind: "unchanged", reason: "noChange", held: null };
     // 記録が inactive なら watermark だけを進める（revisionOnly）。
     next = { ...base, effective: before == null ? inactive(existing) : "ended" };
   } else if (entry != null) {
@@ -298,10 +309,9 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
       coordinate: facts!.coordinate, truncated: candidate.truncated };
   }
   // 旧保存で分からない identity（null）は同じ版の再送で埋まっても食い違いにしない。分かっている identity どうしの違いは食い違い（P3-AUTH-AC06(2)）。
-  if (order === 0) return existing != null && isDeepStrictEqual(withoutSource(existing), withoutSource({ ...next,
-    landEventId: existing.landEventId == null ? null : next.landEventId, marineEventId: existing.marineEventId == null ? null : next.marineEventId }))
-    ? { kind: "unchanged", reason: "duplicate", conflict: false } : { kind: "unchanged", reason: "stale", conflict: true };
-  return { kind: "adopt", next, conflict: crossConflict };
+  return settle(next, crossConflict, () => existing != null && own?.infoTypeRaw === ref.infoTypeRaw && isDeepStrictEqual(withoutSource(existing),
+    withoutSource({ ...next, landEventId: existing.landEventId == null ? null : next.landEventId,
+      marineEventId: existing.marineEventId == null ? null : next.marineEventId })));
 }
 
 // ---- 噴火・降灰・定時・解説の記録 ----
@@ -350,15 +360,33 @@ function headingOf(value: ActiveBulletin): VolcanoBulletinView {
   return found;
 }
 
-type Verdict<T> = Readonly<{ kind: "adopt"; next: T }> | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale"; conflict: boolean }>;
-function judge<T extends Shown>(candidate: VolcanoCandidate, existing: T | null, next: T): Verdict<T> {
-  if (existing == null) return { kind: "adopt", next };
-  const order = compare(candidate, existing.source ?? candidate.source);
-  if (order < 0) return { kind: "unchanged", reason: "stale", conflict: false };
-  // expired は事実を捨てた記録なので、同じ revision の再受信は事実を比べずに duplicate。
-  if (order === 0) return existing.effective === "expired" || isDeepStrictEqual(withoutSource(existing), withoutSource(next))
-    ? { kind: "unchanged", reason: "duplicate", conflict: false } : { kind: "unchanged", reason: "stale", conflict: true };
-  return { kind: "adopt", next };
+type Verdict<T> = Readonly<{ kind: "adopt"; next: T; missing: boolean }>
+  | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale"; held: Held | null }>;
+function judge<T extends Exclude<Shown, VolcanoAlert>>(candidate: VolcanoCandidate, existing: T | null, next: T): Verdict<T> {
+  // 同じ報の速報と詳細は詳細を採り、印は外さない。
+  if (existing != null && sameAshfallReport(next.source, existing.source)) return candidate.family === "VFVO55"
+    ? { kind: "adopt", next: existing.unconfirmed == null ? next : { ...next, unconfirmed: existing.unconfirmed }, missing: false }
+    : { kind: "unchanged", reason: "stale", held: null };
+  // expired は事実を捨てた記録なので、同じ版の再受信は事実を比べずに duplicate。ただし取消でない版への同じ時刻の取消は勝つ
+  // （作者裁定 2026-10-21 昼）。
+  const version = stepVersion(existing == null ? null : { version: existing.source, source: existing.source,
+    cancelled: existing.effective === "cancelled" }, existing?.unconfirmed ?? null, next.source,
+  () => existing != null && (existing.effective === "expired" ? !candidate.cancelled || existing.source.infoTypeRaw === next.source.infoTypeRaw
+    : existing.source.infoTypeRaw === next.source.infoTypeRaw && isDeepStrictEqual(withoutSource(existing), withoutSource(next))),
+  candidate.cancelled);
+  if (version.kind === "older" || version.kind === "duplicate")
+    return { kind: "unchanged", reason: version.kind === "older" ? "stale" : "duplicate", held: null };
+  if (version.kind === "held") return { kind: "unchanged", reason: "stale", held: version };
+  return { kind: "adopt", next: version.mark == null ? next : { ...next, unconfirmed: version.mark }, missing: version.missing };
+}
+// P3-VM-AC03: 手元の版を残す報の WARN（比べる時刻の欠けは requiredStructureMissing、同じ版の食い違いは volcanoRevisionConflict）と、
+// 系列への印（marine は警報の海上の側）。印の byte は reduce の世代の上界の検査を通る。
+function hold<T extends Shown>(applied: Applied, candidate: VolcanoCandidate, values: readonly T[], store: (values: readonly T[]) => VolcanoUnitState,
+  subject: string, held: Held, marine = false): void {
+  applied.diagnostics.push(held.missing ? missingDiagnostic(candidate) : conflictDiagnostic(candidate));
+  const index = indexOf(values, subject), found = values[index ?? -1];
+  if (found == null || held.mark == null || (marine && isAlert(found) ? found.marineUnconfirmed : found.unconfirmed) === held.mark) return;
+  applied.state = store(replaceAt(values, index, marine ? { ...found, marineUnconfirmed: held.mark } : { ...found, unconfirmed: held.mark }));
 }
 
 // ---- 通知（questionResolutions[Q-NOTICE]） ----
@@ -504,6 +532,9 @@ function conflictDiagnostic(candidate: VolcanoCandidate, count?: number): Diagno
   return { level: "WARN", component: "volcano", reason: "volcanoRevisionConflict", inputId: candidate.source.inputId, unit: "U-V",
     ...count == null ? {} : { count } };
 }
+function missingDiagnostic(candidate: VolcanoCandidate): DiagnosticDetails {
+  return { level: "WARN", component: "volcano", reason: "requiredStructureMissing", inputId: candidate.source.inputId, unit: "U-V" };
+}
 // P3-C9-SHORTFALL=A: live の採用報が同じ運用区分・slice・火山コードの volcano scope の不足より新しければ除く。
 // VFVO51 は採用した entry の火山コードを集めて 1 回で照合する（entry ごとに全件を走査しない、Q-CODEC-IMPL-AMEND(1)）。
 function liveShortfalls(list: readonly VolcanoShortfall[], candidate: VolcanoCandidate, slice: VolcanoShortfall["slice"],
@@ -572,10 +603,12 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
   const verdict = judgeAlert(candidate, existing, subject, code, candidate.facts, null);
   if (verdict.kind === "unchanged") {
     decide(applied, candidate, subject, verdict);
-    if (verdict.conflict) applied.diagnostics.push(conflictDiagnostic(candidate));
+    if (verdict.held != null) hold(applied, candidate, state.alerts, (alerts) => ({ ...applied.state, alerts }), subject, verdict.held,
+      isMarine(candidate.family));
     return applied;
   }
   if (verdict.conflict) applied.diagnostics.push(conflictDiagnostic(candidate));
+  if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
   const next = verdict.next;
   const facts = candidate.facts;
   const { fields, kept } = place(applied, applied.state.alerts, (alerts) => ({ ...applied.state, alerts }), existing, next, candidate, now, facts == null ? {}
@@ -600,7 +633,7 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
   const kind = facts!.kind;
   // inactiveAdoption: 単独の VFVO50・VFSV の inactive の報を、記録の無い火山か inactive の記録に採用した（P3-C9-ALERT-ACTIVE=A）。
   const inactiveAdoption = before == null && next.effective !== "active" && !activeKind(kind) && (existing == null
-    || compare(candidate, (isMarine(candidate.family) ? existing.source : existing.marineSource) ?? candidate.source) >= 0);
+    || ["newer", "same"].includes(compareVersion((isMarine(candidate.family) ? existing.source : existing.marineSource) ?? null, candidate.source)));
   const correction = candidate.infoRank === 2;
   if (!correction && fields.length === 0 && !inactiveAdoption) return applied;
   const releasing = /解除|引下げ/.test(kind.condition ?? "");
@@ -626,13 +659,14 @@ function receiveEruption(state: VolcanoUnitState, candidate: Candidate<"eruption
   const subject = `${candidate.operation}/volcano:eruption/${candidate.eventId}`;
   const index = indexOf(state.eruptions, subject);
   const existing = index == null ? null : state.eruptions[index];
-  const next = eruptionOf(candidate, existing);
-  const verdict = judge(candidate, existing, next);
+  const verdict = judge(candidate, existing, eruptionOf(candidate, existing));
   if (verdict.kind === "unchanged") {
     decide(applied, candidate, subject, verdict);
-    if (verdict.conflict) applied.diagnostics.push(conflictDiagnostic(candidate));
+    if (verdict.held != null) hold(applied, candidate, state.eruptions, (eruptions) => ({ ...applied.state, eruptions }), subject, verdict.held);
     return applied;
   }
+  const next = verdict.next;
+  if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
   const { fields, kept } = place(applied, applied.state.eruptions, (eruptions) => ({ ...applied.state, eruptions }), existing, next, candidate, now);
   applied.state = { ...applied.state, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "eruption", next.volcanoCode) };
   const before = existing?.effective === "active" ? existing : null;
@@ -662,13 +696,14 @@ function receiveAshfall(state: VolcanoUnitState, candidate: Candidate<"ashfall">
   const subject = `${candidate.operation}/volcano:ashfall/${code}`;
   const index = indexOf(state.ashfalls, subject);
   const existing = index == null ? null : state.ashfalls[index];
-  const next = ashfallOf(candidate, subject, code);
-  const verdict = judge(candidate, existing, next);
+  const verdict = judge(candidate, existing, ashfallOf(candidate, subject, code));
   if (verdict.kind === "unchanged") {
     decide(applied, candidate, subject, verdict);
-    if (verdict.conflict) applied.diagnostics.push(conflictDiagnostic(candidate));
+    if (verdict.held != null) hold(applied, candidate, state.ashfalls, (ashfalls) => ({ ...applied.state, ashfalls }), subject, verdict.held);
     return applied;
   }
+  const next = verdict.next;
+  if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
   // P3-C9-BATCH=A: 採用した VFVO54/55 の前に、同じ運用区分の待機中の batch を通知無しで flush する（interrupted）。stale・duplicate の
   // 再送では flush しない（古い再送で新しい定時の通知を消さない、Q-C9-IMPL-AMEND(6)）。
   if (state.batch != null && state.batch.operation === candidate.operation) {
@@ -702,13 +737,15 @@ function receiveScheduled(state: VolcanoUnitState, candidate: Candidate<"schedul
   const subject = `${candidate.operation}/VFVO53/${code}`;
   const index = indexOf(state.scheduledAshfalls, subject);
   const existing = index == null ? null : state.scheduledAshfalls[index];
-  const next = scheduledOf(candidate, subject, code, existing);
-  const verdict = judge(candidate, existing, next);
+  const verdict = judge(candidate, existing, scheduledOf(candidate, subject, code, existing));
   if (verdict.kind === "unchanged") {
     decide(applied, candidate, subject, verdict);
-    if (verdict.conflict) applied.diagnostics.push(conflictDiagnostic(candidate));
+    if (verdict.held != null) hold(applied, candidate, state.scheduledAshfalls, (scheduledAshfalls) => ({ ...applied.state, scheduledAshfalls }),
+      subject, verdict.held);
     return applied;
   }
+  const next = verdict.next;
+  if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
   const inBatch = state.batch?.subjects.includes(subject) ?? false;
   // 鍵（運用区分と ReportDateTime）の違う batch は、新しい報で記録を上書きする前に通知付きで flush する（旧 batch の outcome・通知が
   // 新しい報を引かない）。
@@ -771,16 +808,17 @@ function flushBatch(state: VolcanoUnitState, reason: "deadline" | "interrupted" 
 
 function receiveBulletin(state: VolcanoUnitState, candidate: Candidate<"bulletin">, now: number): Applied {
   const applied = emptyApplied(state);
-  const next = bulletinOf(candidate);
-  const subject = next.subject;
+  const built = bulletinOf(candidate), subject = built.subject;
   const index = indexOf(state.bulletins, subject);
   const existing = index == null ? null : state.bulletins[index];
-  const verdict = judge(candidate, existing, next);
+  const verdict = judge(candidate, existing, built);
   let notice: Notice | null = null;
   if (verdict.kind === "unchanged") {
     decide(applied, candidate, subject, verdict);
-    if (verdict.conflict) applied.diagnostics.push(conflictDiagnostic(candidate));
+    if (verdict.held != null) hold(applied, candidate, state.bulletins, (bulletins) => ({ ...applied.state, bulletins }), subject, verdict.held);
   } else {
+    const next = verdict.next;
+    if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
     const { fields, kept } = place(applied, applied.state.bulletins, (bulletins) => ({ ...applied.state, bulletins }), existing, next, candidate, now);
     const before = existing?.effective === "active" ? existing : null;
     if (kept && !dueAt(next, now)) {
@@ -808,11 +846,21 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     const existing = index == null ? null : alerts[index];
     return { entry, subject, existing, verdict: judgeAlert(candidate, existing, subject, entry.volcanoCode, null, entry) };
   });
-  if (verdicts.some(({ verdict }) => verdict.kind === "unchanged" && verdict.reason === "stale" || verdict.conflict)) {
+  if (verdicts.some(({ verdict }) => verdict.kind === "unchanged" && verdict.reason === "stale")) {
     for (const { subject } of verdicts) decide(applied, candidate, subject, { kind: "unchanged", reason: "stale" });
     applied.diagnostics.push(conflictDiagnostic(candidate, verdicts.length));
+    // 印は手元の版を残した entry の警報にだけ付け、警報の配列は 1 回だけ作り直す（P3-VM-AC04、I-U-V.computation）。
+    const marks = new Map(verdicts.flatMap(({ subject, verdict }) => verdict.kind === "unchanged" && verdict.held?.mark != null
+      ? [[subject, verdict.held.mark] as const] : []));
+    if (marks.size !== 0) applied.state = { ...applied.state, alerts: applied.state.alerts.map((item) => {
+      const mark = marks.get(item.subject);
+      return mark == null || item.unconfirmed === mark ? item : { ...item, unconfirmed: mark };
+    }) };
     return;
   }
+  // 陸上と海上の間で同じ ReportDateTime の kind の食い違いは、後の kind を採ったうえで WARN を残す（P3-VM-AC03）。
+  const conflicts = verdicts.filter(({ verdict }) => verdict.kind === "adopt" && verdict.conflict).length;
+  if (conflicts !== 0) applied.diagnostics.push(conflictDiagnostic(candidate, conflicts));
   // 採用する entry の記録を Map に集め、警報の配列は 1 回だけ作り直す（I-U-V.computation、全国の VFVO51 で entry ごとに作り直さない）。
   const nexts = new Map(verdicts.flatMap(({ verdict }) => verdict.kind === "adopt" ? [[verdict.next.subject, verdict.next] as const] : []));
   // 採用が無ければ警報の配列を作り直さない（参照の比較で保存世代を進めない）。
@@ -1157,15 +1205,18 @@ function subjectOperation(subject: string): Operation | null {
   return valid ? op : null;
 }
 function reportRef(value: unknown, subject: string, families: (family: string) => boolean): ReportRef | null {
-  const row = record(value);
-  const operation = operationOf(row?.operation), family = familyOf(row?.family);
-  if (row == null || operation == null || family == null || !families(family) || row.subject !== subject
-    || !bounded(row.inputId, LIMITS.inputId) || !bounded(row.reportDateTimeRaw, LIMITS.reportDateTime)
-    || !Number.isFinite(Date.parse(row.reportDateTimeRaw)) || !isText(row.serialRaw) || !validSerial(row.serialRaw)
-    || !isText(row.infoTypeRaw) || !INFO_RANK.has(row.infoTypeRaw) || subjectOperation(subject) !== operation
-    || (row.origin !== "live" && row.origin !== "recovery" && row.origin !== "replay")) return null;
-  return { inputId: row.inputId, origin: row.origin, operation, family, subject, reportDateTimeRaw: row.reportDateTimeRaw,
-    serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw };
+  const ref = readReportRef(value, LIMITS.controlDateTime), family = familyOf(ref?.family);
+  return ref == null || family == null || !families(family) || ref.subject !== subject
+    || !bounded(ref.reportDateTimeRaw, LIMITS.reportDateTime)
+    || !Number.isFinite(Date.parse(ref.reportDateTimeRaw)) || !validSerial(ref.serialRaw)
+    || !INFO_RANK.has(ref.infoTypeRaw) || subjectOperation(subject) !== ref.operation ? null : ref;
+}
+// P3-VM-AC04: 未確認の印の読み戻し（鍵が無ければ null、不正か allowed でない記録の鍵なら undefined）。
+function markOf(row: Fields, key: "unconfirmed" | "marineUnconfirmed", subject: string, families: (family: string) => boolean,
+  allowed: boolean): ReportRef | null | undefined {
+  if (!(key in row)) return null;
+  const mark = reportRef(row[key], subject, families);
+  return mark == null || !allowed ? undefined : mark;
 }
 function kindRecord(value: unknown): VolcanoKind | null {
   const row = record(value);
@@ -1197,8 +1248,7 @@ const ERUPTION_FACT_KEYS = ["volcanoName", "flash", "phenomenon", "eventDateTime
   "plumeDirection", "headline", "municipalities", "truncated", "validUntil"];
 const ASHFALL_FACT_KEYS = ["volcanoName", "variant", "headline", "forecastStartsAt", "forecastEndsAt", "groups", "omittedGroupCount", "truncated"];
 const alertFamily = (family: string): family is VolcanoAlertFamily => family === "VFVO50" || family === "VFVO51";
-// legacy は K2 前の旧保存（警報が identity の鍵を持たない payload、P3-AUTH-AC06(2)）。
-function alertRecord(value: unknown, legacy: boolean): VolcanoAlert | null {
+function alertRecord(value: unknown): VolcanoAlert | null {
   const row = record(value);
   const operation = operationOf(row?.operation);
   if (row == null || operation == null || !isText(row.volcanoCode) || !validVolcanoCode(row.volcanoCode) || !isText(row.eventId)
@@ -1213,15 +1263,18 @@ function alertRecord(value: unknown, legacy: boolean): VolcanoAlert | null {
   // landKind は source の family の区分で、source が null なら null（値域と上限は kind と同じ）。
   const landKind = row.landKind === null ? null : kindRecord(row.landKind);
   if (landKind == null && row.landKind !== null || source == null && landKind != null) return null;
-  // 移行 A1: 片側だけの記録は eventId がその側の identity。両側の記録は最後の書き手が分からないので両方 null（推測しない）。
+  // identity の鍵の無い警報は invalid（移行 A1 の旧保存は版で捨てる、P3-VM-AC08）。
   const land = row.landEventId, marine = row.marineEventId;
-  const landEventId = legacy ? marineSource == null ? row.eventId : null
-    : land === null ? null : source != null && isText(land) && validEventId(land) ? land : undefined;
-  const marineEventId = legacy ? source == null ? row.eventId : null
-    : marine === null ? null : marineSource != null && isText(marine) && validEventId(marine) ? marine : undefined;
+  const landEventId = land === null ? null : source != null && isText(land) && validEventId(land) ? land : undefined;
+  const marineEventId = marine === null ? null : marineSource != null && isText(marine) && validEventId(marine) ? marine : undefined;
   if (landEventId === undefined || marineEventId === undefined) return null;
+  // P3-VM-AC04: 陸上・海上の系列ごとの印。その側の版がある側だけが持つ。
+  const landMark = markOf(row, "unconfirmed", subject, alertFamily, source != null);
+  const seaMark = markOf(row, "marineUnconfirmed", subject, isMarine, marineSource != null);
+  if (landMark === undefined || seaMark === undefined) return null;
   const base = { subject, operation, volcanoCode: row.volcanoCode, eventId: row.eventId, source, marineSource, landKind, landEventId,
-    marineEventId, retainUntil: row.retainUntil };
+    marineEventId, retainUntil: row.retainUntil, ...landMark == null ? {} : { unconfirmed: landMark },
+    ...seaMark == null ? {} : { marineUnconfirmed: seaMark } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
     if (ALERT_FACT_KEYS.some((key) => key in row)) return null;
@@ -1245,9 +1298,10 @@ function eruptionRecord(value: unknown): VolcanoEruption | null {
   if (row == null || operation == null || !isText(row.eventId) || !validEventId(row.eventId)
     || row.subject !== `${operation}/volcano:eruption/${row.eventId}`) return null;
   const subject = row.subject;
-  const source = reportRef(row.source, subject, (family) => family === "VFVO52" || family === "VFVO56");
-  if (source == null || row.retainUntil !== reportMs(source) + ERUPTION_RETAIN_MS) return null;
-  const base = { subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil };
+  const families = (family: string) => family === "VFVO52" || family === "VFVO56";
+  const source = reportRef(row.source, subject, families), mark = markOf(row, "unconfirmed", subject, families, true);
+  if (source == null || mark === undefined || row.retainUntil !== reportMs(source) + ERUPTION_RETAIN_MS) return null;
+  const base = { subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, ...mark == null ? {} : { unconfirmed: mark } };
   if (row.effective !== "active") {
     if (ERUPTION_FACT_KEYS.some((key) => key in row) || !(row.volcanoCode === null || isText(row.volcanoCode) && validVolcanoCode(row.volcanoCode)))
       return null;
@@ -1288,9 +1342,11 @@ function ashfallRecord(value: unknown): VolcanoAshfall | null {
   if (row == null || operation == null || !isText(row.volcanoCode) || !validVolcanoCode(row.volcanoCode) || !isText(row.eventId)
     || !validEventId(row.eventId) || row.subject !== `${operation}/volcano:ashfall/${row.volcanoCode}`) return null;
   const subject = row.subject;
-  const source = reportRef(row.source, subject, (family) => family === "VFVO54" || family === "VFVO55");
-  if (source == null || row.retainUntil !== reportMs(source) + ASHFALL_RETAIN_MS) return null;
-  const base = { subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, volcanoCode: row.volcanoCode };
+  const families = (family: string) => family === "VFVO54" || family === "VFVO55";
+  const source = reportRef(row.source, subject, families), mark = markOf(row, "unconfirmed", subject, families, true);
+  if (source == null || mark === undefined || row.retainUntil !== reportMs(source) + ASHFALL_RETAIN_MS) return null;
+  const base = { subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, volcanoCode: row.volcanoCode,
+    ...mark == null ? {} : { unconfirmed: mark } };
   if (row.effective !== "active") {
     if (ASHFALL_FACT_KEYS.some((key) => key in row)) return null;
     return row.effective === "cancelled" || row.effective === "expired" ? { ...base, effective: row.effective } : null;
@@ -1347,12 +1403,7 @@ const unique = (values: readonly { subject: string }[]) => new Set(values.map((i
 function persisted(value: unknown): PersistedVolcanoUnit | null {
   const row = record(value);
   if (row == null || row.schemaVersion !== SCHEMA) return null;
-  // 旧保存かどうかは payload 単位で見る: 警報が全部 identity の鍵を両方持つか、全部どちらも持たないか（混在は不正、P3-AUTH-AC06(2)）。
-  const keyed = Array.isArray(row.alerts) ? row.alerts.map((entry) => { const alert = record(entry);
-    return alert == null ? 0 : Number("landEventId" in alert) + Number("marineEventId" in alert); }) : [];
-  if (keyed.some((keys) => keys !== keyed[0]) || keyed[0] === 1) return null;
-  const legacy = keyed[0] === 0;
-  const alerts = list(row.alerts, (entry) => alertRecord(entry, legacy), SLICE_LIMIT), eruptions = list(row.eruptions, eruptionRecord, SLICE_LIMIT);
+  const alerts = list(row.alerts, alertRecord, SLICE_LIMIT), eruptions = list(row.eruptions, eruptionRecord, SLICE_LIMIT);
   const ashfalls = list(row.ashfalls, ashfallRecord, SLICE_LIMIT), shortfalls = list(row.shortfalls, shortfallRecord, SHORTFALL_LIMIT);
   const intents = list(row.intents, intentRecord);
   if (alerts == null || eruptions == null || ashfalls == null || shortfalls == null || intents == null || !unique(alerts)
@@ -1370,13 +1421,13 @@ function persisted(value: unknown): PersistedVolcanoUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const volcanoUnitCodec: VolcanoUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1", "p3-volcano-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 定時・batch・解説・contentRevision・persistence は保存しない（I-U-V.persisted、spec:484・:504 の N）。
   encode: (state) => ({ schemaVersion: SCHEMA, alerts: state.alerts, eruptions: state.eruptions, ashfalls: state.ashfalls,
     shortfalls: state.shortfalls, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-volcano-unit-v2 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-volcano-unit-v3 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, scheduledAshfalls: [], batch: null, bulletins: [],
         persistence: cleanPersistence } };
   },

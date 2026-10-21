@@ -47,7 +47,7 @@ export type NankaiCurrent = Readonly<{
   operation: Operation;
   eventId: string;
   source: ReportRef;
-  retainUntil: number;
+  retainUntil: number; unconfirmed?: ReportRef; // P3-VM-AC04: 系統の未確認の印。取消・期限で事実の消えた現況には無い
 }> & (
   | (Readonly<{ line: "nankai"; status: NankaiCurrentStatus }> & NankaiCurrentFacts)
   | (Readonly<{ line: "VYSE60"; status: "subsequentAdvisory" }> & NankaiCurrentFacts)
@@ -68,7 +68,7 @@ type NankaiInformationIdentity = Readonly<{
   operation: Operation;
   retainUntil: number;
 }>;
-type NankaiInformationBase = NankaiInformationIdentity & Readonly<{ source: ReportRef }>;
+type NankaiInformationBase = NankaiInformationIdentity & Readonly<{ source: ReportRef; unconfirmed?: ReportRef }>; // P3-VM-AC04: 情報系列の印は事実と同じく保存しない（spec:512 の N。保存すると上界が予算を越える、AC08）
 type NankaiInformationHeading = Readonly<{
   effective: "active";
   infoKind: string | null;
@@ -82,7 +82,7 @@ export type NankaiEvidence = Readonly<{
   subject: string;
   reportDateTimeMs: number;
   serialRaw: string;
-  infoTypeRaw: string;
+  infoTypeRaw: string; controlDateTimeRaw: string; // P3-VM-AC01: 比べる材料の Control/DateTime
 }>;
 // evidence は復元した証拠だけの記録で、事実も source も持たず view・outcome・表示の変化に出ない。
 export type NankaiInformation =
@@ -106,7 +106,7 @@ export type NankaiNotificationPayload = Readonly<{
 export type NankaiIntent = NotificationIntent & Readonly<{ payload: NankaiNotificationPayload }>;
 
 export type NankaiUnitState = Readonly<{
-  schemaVersion: "p3-nankai-unit-v2";
+  schemaVersion: "p3-nankai-unit-v3";
   contentRevision: number;
   currents: readonly NankaiCurrent[];
   // N: 事実は保存しない。復元の後は証拠だけの記録から始まる（spec:512、P3-AUTH-AC01）。
@@ -117,10 +117,10 @@ export type NankaiUnitState = Readonly<{
 }>;
 
 export type PersistedNankaiUnit = Readonly<{
-  schemaVersion: "p3-nankai-unit-v2";
+  schemaVersion: "p3-nankai-unit-v3";
   currents: readonly NankaiCurrent[];
   intents: readonly NankaiIntent[];
-  // 64 件以下・subject の重複なし。鍵の無い保存物は K2 前の旧保存で、証拠 0 件として読む（P3-AUTH-D-SCHEMA=A・AC06）。
+  // 64 件以下・subject の重複なし。鍵の無い保存物は invalid（旧保存は版で捨てる、P3-VM-AC08）。
   evidence: readonly NankaiEvidence[];
 }>;
 
@@ -159,5 +159,5 @@ export type NankaiUnitStep = Readonly<{
 }>;
 
 export type NankaiUnitCodec = UnitCodec<NankaiUnitState, PersistedNankaiUnit> & Readonly<{
-  schemaVersion: "p3-nankai-unit-v2";
+  schemaVersion: "p3-nankai-unit-v3";
 }>;

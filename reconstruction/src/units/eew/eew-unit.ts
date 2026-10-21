@@ -12,10 +12,10 @@ import type {
 } from "../../../contracts/p2-eew-unit.types";
 import { deliveryRecordEvent, dirty, emptyNotificationLatch, expiredOutcome, nextEewDeadline, notificationArrayBytes,
   reclaimEewLifetime, reduceEew as reduceEewCore } from "../../domains/eew/eew";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES } from "../../checkpoint/checkpoint";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
-const SCHEMA = "p2-eew-unit-v2" as const;
+const SCHEMA = "p2-eew-unit-v3" as const;
 const GENERATION_BYTES = 256 * 1024;
 const INTENT_BYTES = 128 * 1024;
 const encoder = new TextEncoder();
@@ -35,12 +35,7 @@ function finite(value: unknown): value is number {
 }
 
 function reportRef(value: unknown): value is ReportRef {
-  const record = object(value);
-  return record != null && typeof record.inputId === "string"
-    && (record.origin === "live" || record.origin === "recovery" || record.origin === "replay")
-    && operation(record.operation) && typeof record.family === "string" && typeof record.subject === "string"
-    && typeof record.reportDateTimeRaw === "string" && typeof record.serialRaw === "string"
-    && typeof record.infoTypeRaw === "string";
+  return readReportRef(value) != null;
 }
 
 function intent(value: unknown): value is NotificationIntent & Readonly<{ payload: EewNotificationPayload }> {
@@ -281,7 +276,7 @@ function toEewView(state: EewUnitState): EewUnitView {
 }
 
 const eewUnitCodec: EewUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-eew-unit-v1"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-eew-unit-v1", "p2-eew-unit-v2"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value: PersistedEewUnit = {
       schemaVersion: SCHEMA,
@@ -293,7 +288,7 @@ const eewUnitCodec: EewUnitCodec = {
   },
   decode(payload) {
     const value = persisted(payload);
-    if (value == null) return { kind: "invalid", reason: "invalid p2-eew-unit-v2 payload" };
+    if (value == null) return { kind: "invalid", reason: "invalid p2-eew-unit-v3 payload" };
     const latches = new Map<string, EewNotificationLatch>();
     for (const record of value.deliveryRecords) {
       const event = deliveryRecordEvent(record.intentId);

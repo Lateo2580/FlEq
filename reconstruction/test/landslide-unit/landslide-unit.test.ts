@@ -86,8 +86,8 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
         `requiredStructureMissing ${SUBJECT}`],
     ];
     expect(cases.map(([source]) => reject(source))).toEqual(cases.map(([, reason]) => reason));
-    // 保存する inputId の上限（64 文字）を超える入力は identityInvalid。64 単位の官署と 64 文字の inputId は合法。
-    expect(reject(xml, "i".repeat(65))).toBe(`identityInvalid ${SUBJECT}`);
+    // 保存する inputId の上限（64 文字）を超える入力は identityInvalid（共通の封筒の検査で断るので subject は空、P3-VM-AC08）。64 単位の官署と 64 文字の inputId は合法。
+    expect(reject(xml, "i".repeat(65))).toBe("identityInvalid");
     expect(receive(base, decodeXml(office("局".repeat(64))(xml), "i".repeat(64)), now).decisions[0].decision).toBe("changed");
     // 合法: Body/Warning の無い取消（synthetic_VPWW56_cancel）。
     expect(shape(send(base, F.cancel))).toEqual([[SUBJECT, "changed", "revisionOnly"]]);
@@ -567,6 +567,7 @@ function budgetState(bounded: boolean): LandslideUnitState {
     const subject = `${operation}/VPWW56/${name}`;
     const reportDateTimeRaw = bounded ? "-271821-04-20T00:00:00.0000000000000000Z" : seed.source.reportDateTimeRaw;
     const source = { inputId: "i".repeat(bounded ? 64 : 36), origin: "live" as const, operation, family: "VPWW56", subject, reportDateTimeRaw,
+      controlDateTimeRaw: reportDateTimeRaw,
       serialRaw: bounded ? "1234567890" : "", infoTypeRaw: bounded ? "訂正" : "発表" };
     const area = () => bounded ? String(10 ** 15 + code++) : String(1_000_000 + code++);
     // 実例: 1,772 = 44 官署×28 区域 + 20 官署×27 区域、49×1・09×1・29×残り。上界: level null の 8 group に 32 区域ずつ。

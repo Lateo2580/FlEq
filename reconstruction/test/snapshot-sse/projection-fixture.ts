@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,6 +15,7 @@ import type {
   DisplaySnapshot, SnapshotProjectionInput, SnapshotProjectionResult, SnapshotProjectionState,
 } from "../../contracts/p2-snapshot-sse.types";
 import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { validInputId } from "../../src/contracts-revision/version";
 import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
 import { linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem, snapshotInput } from "../../src/runtime/composition-root";
 import type { PublisherInput } from "../../src/runtime/composition-root";
@@ -30,8 +32,10 @@ const calls = linkedRuntimeCalls;
 
 // One report as the host would receive it (bytes, not a decoded tree).
 type Report = Readonly<{ headType: string; inputId: string; body: Uint8Array }>;
+// inputId は受理の上限（ASCII 64 文字、P3-VM-AC08）に収める。収まらない名前は、名前の hash で同じ値を決定的に作る。
+const inputIdOf = (name: string): string => validInputId(name) ? name : `h-${createHash("sha256").update(name).digest("hex").slice(0, 40)}`;
 function decode(file: string, headType: string, transform: (xml: string) => string = (xml) => xml, inputId = file): Report {
-  return { headType, inputId, body: Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8"))) };
+  return { headType, inputId: inputIdOf(inputId), body: Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8"))) };
 }
 
 type Input = Readonly<{ kind: "report"; runId: string; report: Report; clock: ClockReading }>
@@ -301,6 +305,6 @@ async function combine(first: RuntimeState, inputs: readonly Input[]): Promise<S
   return { state, outcomes, displayChanges };
 }
 
-export { allSubjects, atTime, calls, combine, decode, eewReport, expectConsistent, expectMatchesReference, projected,
+export { allSubjects, atTime, calls, combine, decode, eewReport, expectConsistent, expectMatchesReference, inputIdOf, projected,
   projectionInput, publisherOf, received, reference, startup, step, timeseriesChange, unavailableChange };
 export type { Input, Report, Step };

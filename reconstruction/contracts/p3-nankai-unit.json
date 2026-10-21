@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "0ab88929b3644498c6eb572ba9875598582a60dc3a9c05e71364d5da3376b708",
+    "sha256": "00b590149160d9cdc7c528772116ebfc0c3d5f32e9a98c10d1765f9938e8ff41",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -241,7 +241,7 @@
           }
         ],
         "codeTable": "P3-C8-CODE-TABLE=A",
-        "revisionOrder": "subjectごとにReportDateTimeで比べ、同時刻で両方にSerialがあればSerialで比べる（現況のsubjectは別のEventIDの報を比べるので、Serialは同じEventIDのときだけ比べる）。それでも同じなら同じrevisionで、InfoTypeの優先（取消>訂正>発表）で後着の上位だけ採用する。同じrevision・同じInfoTypeで事実が同じならduplicate、違えば先着を保ってstale＋WARN診断nankaiRevisionConflict。取消以前のrevisionはstaleで、取消したsubjectを戻さない。取消より新しいrevisionの発表・訂正は新しい報として採用し、そのsubjectをactiveに戻す。訂正が現況に効くのは、現況のsourceと同じheadType・EventIDの訂正だけで、それ以外の訂正（古い報や別の報の訂正）は情報subjectだけを変え、現況を巻き戻さない",
+        "revisionOrder": "subjectごとにP3-VERSION-MATERIAL-001のcompareVersion（Control/DateTimeで比べ、InfoTypeの順位とSerialは使わない、P3-VM-AC02・AC03）で比べる。同じControl/DateTimeで事実が同じならduplicate。同じControl/DateTimeの取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。それ以外で事実が違えば先着を保ってstale＋WARN診断nankaiRevisionConflictとし、未確認の印を付ける（P3-VM-AC04。現況の印は保存し、情報系列の印は保存しない。情報系列の印の保存はK13、Q-VM-IMPL-2A）。Control/DateTimeの欠けた報はP3-VM-D-MISSING=A。取消以前のrevisionはstaleで、取消したsubjectを戻さない。取消より新しいrevisionの発表・訂正は新しい報として採用し、そのsubjectをactiveに戻す。訂正が現況に効くのは、現況のsourceと同じheadType・EventIDの訂正だけで、それ以外の訂正（古い報や別の報の訂正）は情報subjectだけを変え、現況を巻き戻さない。P3-VM-AC09(16)により統合担当が改訂",
         "diagnosticReasons": "既存のDiagnosticReason（p2-shared-runtime.types.ts）に南海トラフの同じrevisionの食い違いと情報系列の退去に当たるものが無いので、nankaiRevisionConflictとnankaiCapacityEvictedの2つだけを足す（persistent-diagnostic-sink.tsの一覧にも足す）"
       },
       {
@@ -252,7 +252,7 @@
         "informationSemantics": "情報subjectは採用報ごとに事実（infoKind・infoSerial・title・headline・text・nextAdvisory）を置き換える。retainUntil=ReportDateTime+7日の到来で除く（通知しない）。取消はP3-C8-CANCEL-SCOPE。現況を変える報は、現況が採用したときだけ情報subjectを変える（P3-C8-SUBJECTS）",
         "bounds": "文字列の上限（UTF-16の長さ）: title 128、headline 512、text 4,096、nextAdvisory 512、infoKind 64、infoSerial.code 8、infoSerial.name 32。超えたら切り詰めてtruncated=true（corpusの最大はtitle 19、headline 176、text 1,431、nextAdvisory 102文字で、切り詰めは起きない）。現況の1件のencodeの上限は4,718 byte（全ての文字列が上限で、JSONで6 byteになる文字のとき。EventID 64 byte、inputId 64文字、ReportDateTime 40文字、Serial 10桁）",
         "deadlines": "nextDeadlineは、activeの現況のvalidUntil、現況のretainUntil、情報subjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（現況6・情報64の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
-        "persisted": "PersistedNankaiUnitはschemaVersion p3-nankai-unit-v1、currents、intents（pendingと終端記録）。information・contentRevision・persistenceは保存しない（spec:512の情報系列N）",
+        "persisted": "PersistedNankaiUnitはschemaVersion p3-nankai-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、currents、intents（pendingと終端記録）。information・contentRevision・persistenceは保存しない（spec:512の情報系列N）",
         "decode": "codecは一つ（nankaiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、現況≤6件で運用区分・系統の重複なし、subjectが`${operation}/${line}/current`の形で運用区分・系統と一致、EventIDがQ-ENUM.identityの文字（印字可能なASCIIで「/」「\"」「\\」を除く）で64 byte以下、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）、active以外の現況は事実のfield（status・infoSerial・title・headline・truncated・validUntil）を持たない（types.tsの判別共用体）、activeの現況はstatusが系統の表にありvalidUntil=sourceのReportDateTime+7日、retainUntil=sourceのReportDateTime+30日、I-U-N.boundsの文字列の上限、pending≤128件かつ≤131072 byte、終端記録の合計≤98,304 byte、encode後の世代≤262,144 byte、intentのunitがU-NでsubjectがU-Nの現況か情報subjectの形であること（stateに残っているsubjectとの一致は求めない。情報系列は復元で空になるため）。終端記録は単独の98,304 byteでなく、pendingとの合計（≤229,376 byte）で確かめる（配送の更新で終端にした記録は回収しない、Q-C8-IMPL-AMEND(1)）",
         "view": "NankaiUnitViewはactiveの現況と、activeの情報subjectの見出し（NankaiInformationView。本文のtext・nextAdvisoryを外す、P3-C8-SNAPSHOT）だけを載せる。SubjectOutcomeは現況と情報subjectごとに作り、factsに公開事実（情報は見出しだけ）と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Nの行（current: NankaiCurrent | NankaiInformationView | null）を足す。unavailable・未保存・再起動の空を「現況なし」に読み替えない。viewとdisplay subjectのSubjectOutcomeのfactsは識別のfield（eventId・effective・lineかfamily）だけで、公開事実と変わったfieldは採用のoutcome（PublishedOutcome）に載せる（U-QのI-U-Q.viewと同じ、Q-C8-IMPL-AMEND(d)）",
         "confirmationScope": "U-Nは確認scopeを作らない（P3-C8-N2）。shared-runtime.tsのaddedScopesにU-Nで空を返す分岐を足す",
@@ -275,7 +275,7 @@
       {
         "id": "P3-C8-MIGRATION",
         "status": "frozen",
-        "rule": "PersistedNankaiUnit（p3-nankai-unit-v1）は新設のschemaなので、C8の中で旧データの移行は要らない。旧築の待機画面の保存（standby-persistence.tsのPersistedNankaiStateV1）からU-N候補を作るのはC15（P3-MIGRATION-001）。codecのdecodeはp3-nankai-unit-v1以外をunavailableで返す"
+        "rule": "PersistedNankaiUnit（p3-nankai-unit-v3）は新設のschemaなので、C8の中で旧データの移行は要らない。旧築の待機画面の保存（standby-persistence.tsのPersistedNankaiStateV1）からU-N候補を作るのはC15（P3-MIGRATION-001）。codecのdecodeはp3-nankai-unit-v3以外をunavailableで返す"
       },
       {
         "id": "P3-C8-DEPS",
@@ -736,7 +736,7 @@
       },
       {
         "id": "P3-C8-AC05",
-        "requirement": "保存と復元: PersistedNankaiUnitと唯一のcodec（schemaVersion p3-nankai-unit-v1）、I-U-N.persisted・I-U-N.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。情報系列は保存せず、復元の後は空。新設schemaなのでC8に旧データ移行は無い（P3-C8-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報は復元した現況との差で決める（O07）",
+        "requirement": "保存と復元: PersistedNankaiUnitと唯一のcodec（schemaVersion p3-nankai-unit-v3）、I-U-N.persisted・I-U-N.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。情報系列は保存せず、復元の後は空。新設schemaなのでC8に旧データ移行は無い（P3-C8-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報は復元した現況との差で決める（O07）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4»",
           "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
@@ -975,7 +975,7 @@
       "NankaiUnitCodec一つだけを実装する。無いと保存と復元のschema選択が曖昧になる",
       "受信経路の計算量: 受信・選択・結果照合1回でunit全体の直列化と全件×全件の走査をしない。容量は記録単位の加算で数える（AGENTS.md）。無いと上限付近の受信1回が保持量に比例して遅くなり、urgentのEEWを待たせる",
       "既存のhelper: children・scalar・text・attribute・leafValuesなどXMLの読み取りとcodecの基本形（record・operationOf・reportRef・list・unique）は、domains/tsunami・domains/seismic・units/tsunami・units/seismicに同じ写しがある。他unitのdirectoryは触らないので、U-Nの写しを作るなら一覧（AC12）に書く（共有化は統合担当が決める）",
-      "永続schemaの変更: p3-nankai-unit-v1は新設で旧データの移行は無い（P3-C8-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
+      "永続schemaの変更: p3-nankai-unit-v3は新設で旧データの移行は無い（P3-C8-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
       "純粋な意味関数とreduceはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付ける。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。DiagnosticReasonへの追加はQ-ENUM.diagnosticReasonsの2つ（nankaiRevisionConflict・nankaiCapacityEvicted）だけ（persistent-diagnostic-sink.tsの一覧にも足す）",
       "check-contractで、本契約が行を足すファイル（composition-root.ts・owner-runtime.ts・shared-runtime.ts・view-projector.ts・unit-coverage.ts・persistent-diagnostic-sink.ts・p2-shared-runtime.types.ts・p2-snapshot-sse.types.ts・p2-notification-delivery.types.ts）を引く他の契約（C5のP3-TSUNAMI-UNIT-001、C7のP3-UNIT-Q-001など）と本契約のanchorだけがFAILするのは想定内として報告する。統合担当が、合流と同じcommitで、そのanchorとmeta.sha256を直す。それ以外のFAILは想定外として扱う（P3-UNIT-WRITE-RIGHT-001の先例）",
       "容量の実測: 実装後に、I-U-N.capacityMeasurementのfixtureで実際の現況・情報・intentのencode byteを測り、契約の値と並べて報告する（10%以上違えば統合担当がP3-C8-CAPACITYの数を直す）"

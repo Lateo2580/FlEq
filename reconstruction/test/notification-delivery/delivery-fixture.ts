@@ -20,7 +20,7 @@ export function eewEnvelope(runId: string, clock: ClockReading, event?: "A" | "B
 }
 export function notice(id: string, channel: "desktop" | "sound" = "desktop", createdAt = at(0).wallTimeMs): NotificationIntent {
   return { id, unit: "U-W", subject: id, operation: "normal", source: { inputId: id, origin: "replay",
-    operation: "normal", family: "VPWS50", subject: id, reportDateTimeRaw: new Date(createdAt).toISOString(), serialRaw: "1", infoTypeRaw: "発表" },
+    operation: "normal", family: "VPWS50", subject: id, reportDateTimeRaw: new Date(createdAt).toISOString(), controlDateTimeRaw: new Date(createdAt).toISOString(), serialRaw: "1", infoTypeRaw: "発表" },
     transition: "activated", channel, payload: { domain: "weather", level: "info", title: "E21背景", body: "E21背景" },
     createdAt, expiresAt: createdAt + (channel === "sound" ? 60_000 : 180_000), nextAttemptAt: createdAt,
     attempts: 0, configRevision: "e21-v1", disposition: "pending" };

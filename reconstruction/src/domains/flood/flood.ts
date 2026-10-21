@@ -1,7 +1,7 @@
 import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
 import type { FloodCriteria, FloodKindGroup, FloodRiver, FloodStation } from "../../../contracts/p3-flood-unit.types";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 // P3-UNIT-R-001 の adapter: VXKO50〜89・VXSU50〜59 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -18,14 +18,12 @@ const CRITERIA: readonly (readonly [keyof FloodCriteria, RegExp])[] = [["level4P
 // I-U-R.bounds（UTF-16 の長さ）と P3-C11-BOUNDS=B の件数、Q-ENUM.identity の ReportRef の長さ。
 // 観測所の名前は (code, name) の identity なので切らない。上限を超えた名前の観測所はその観測所だけを捨てる（外部監査 F13、統合担当の決定）。
 const BOUNDS = { title: 128, areaName: 64, name: 32, stationName: 48, headline: 256 } as const;
-const LIMITS = { inputId: 64, reportDateTime: 40, infoType: 8, eventId: 40, riverCode: 16, stationCode: 20, groups: 16, rivers: 32,
+const LIMITS = { reportDateTime: 40, controlDateTime: 40, infoType: 8, eventId: 40, riverCode: 16, stationCode: 20, groups: 16, rivers: 32,
   stations: 20, points: 40, sections: 4 } as const;
 
 const validHeadType = (value: string): boolean => /^(?:VXKO[5-8]\d|VXSU5\d)$/.test(value);
 const validEventId = (value: string): boolean => value.length <= LIMITS.eventId && /^[\x21-\x7e]+$/.test(value);
 const validSerial = (value: string): boolean => /^\d{1,10}$/.test(value);
-// inputId は JSON でエスケープされない印字可能な ASCII（「"」と「\」を除く）に限る（品質レビュー P2、I-U-R.capacityReserve の 1 文字 1 byte）。
-const validInputId = (value: string): boolean => /^[\x21\x23-\x5b\x5d-\x7e]{1,64}$/.test(value);
 // ReportDateTime の raw は A1 の受理と同じ時刻の形（ASCII だけ。保存物の decode も同じ形で確かめる）。
 const validReportDateTime = (value: string): boolean => value.length <= LIMITS.reportDateTime
   && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value));
@@ -92,7 +90,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
   if (serialRaw === "") return reject("identityMissing", subject);
   // 保存する ReportRef の byte の上限（Q-ENUM.identity、C8 の Q-C8-IMPL-AMEND(a)）。
   if (!validSerial(serialRaw) || material.reportDateTimeRaw.length > LIMITS.reportDateTime
-    || material.infoTypeRaw.length > LIMITS.infoType || !validInputId(material.inputId)) return reject("identityInvalid", subject);
+    || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
 
   // 存在を全部確かめてから妥当性を見る（Q-ENUM.priorityRule）。
   let missing = false, invalid = false, truncated = false;
@@ -298,11 +296,11 @@ function parseFlood(material: DecodedMaterial): ParseResult {
   if (invalid || infoRank == null || titleText == null) return reject("requiredStructureInvalid", subject);
   return { kind: "accepted", candidate: { operation: material.operation, headType, eventId, subject,
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: headType, subject,
-      reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw },
+      reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(titleText, BOUNDS.title), areaName, headline,
     kinds, times, stations, truncated } };
 }
 
 export { BOUNDS, INFO_RANK, LIMITS, cut, infoRankOf, levelOf, loneSurrogate, parseFlood, validEventId, validHeadType, validKindCode, validName,
-  validInputId, validReportDateTime, validRiverCode, validSerial, validStationCode, validTime, validValue };
+  validReportDateTime, validRiverCode, validSerial, validStationCode, validTime, validValue };
 export type { FloodCandidate };

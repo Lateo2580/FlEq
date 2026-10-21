@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "e98cbeac3cb034918edceb7cc6b62d63a9bba580a25ce98e4362183c52c5a395",
+    "sha256": "1aa1aea56497c53db12b6910fbf09815a923121090f588ee39f55e9520a7b1e8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -337,7 +337,7 @@
       "U-F"
     ],
     "persistedFields": [
-      "CheckpointEnvelope schemaVersion, unit, generation, capturedAt, payload and sha256",
+      "CheckpointEnvelope schemaVersion, unit, generation, capturedAt, payload, inputBoundary (P3-VERSION-MATERIAL-001 AC06; P3-VM-AC09(8)) and sha256",
       "each unit codec payload including durable NotificationIntent and cancellation memory defined by I-U-*",
       "diagnostic rotated records, per-level dropped counts and shutdown summary"
     ],
@@ -429,7 +429,7 @@
       },
       {
         "id": "P2-A3-AC08",
-        "requirement": "UnitCodecのencode→envelope全bytes自己hash→2slot→schema/hash検証→decodeの呼出主体と復元結果を固定し、hash改変・schema不一致・invalid payloadを拒否する。payload不変でgeneration 1→9、unit、schemaVersion、capturedAt各fieldだけを改変してもdigest不一致となり世代選択から除外する。I-U-* codecはunit担当所有、結線と再検収はA3所有",
+        "requirement": "UnitCodecのencode→envelope全bytes自己hash→2slot→schema/hash検証→decodeの呼出主体と復元結果を固定し、hash改変・schema不一致・invalid payloadを拒否する。payload不変でgeneration 1→9、unit、schemaVersion、capturedAt各fieldだけを改変してもdigest不一致となり世代選択から除外する。I-U-* codecはunit担当所有、結線と再検収はA3所有。envelopeは取り直しの境界inputBoundary（P3-VERSION-MATERIAL-001のAC06）を持ち、自己hashと再直列化の照合に含める（P3-VM-AC09(8)により統合担当が改訂）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:334 «07df9b4ceb5650d7»",
           "docs/specs/reconstruction-p0-contracts.md:351 «8bd801c6876cb0c1»",
@@ -438,7 +438,7 @@
       },
       {
         "id": "P2-A3-AC09",
-        "requirement": "R21: 製品起動入口startRuntimeは各unitのrestoreUnitを一度読み、全結果を一つのstartup入力としてreduceRuntime(null, input)へ渡し、戻りstateだけを採用する。通常入力は起動完了後に受ける。restored世代gとcapturedAt、empty世代0、unavailable理由をA1へそのまま渡し、復元後のpersistenceをA3で合成しない。未知schema/世代矛盾などの既存slotを空stateで自動上書きせず、受信継続とslot書込み可否を分離する。writerは古い世代と同世代異hashを無書込みで失敗させ、同世代同hashの再試行は区別する。世代の黙った補正はしない",
+        "requirement": "R21: 製品起動入口startRuntimeは各unitのrestoreUnitを一度読み、全結果を一つのstartup入力としてreduceRuntime(null, input)へ渡し、戻りstateだけを採用する。通常入力は起動完了後に受ける。restored世代gとcapturedAt、empty世代0、unavailable理由をA1へそのまま渡し、復元後のpersistenceをA3で合成しない。未知schema/世代矛盾などの既存slotを空stateで自動上書きせず（例外: P3-VERSION-MATERIAL-001のAC05の捨ててよい旧い版の一覧に載った版のslotは、P5の前だけ空stateから始めて上書きしてよい。一覧はC15の配送までに全unitで空にする。P3-VM-AC09(8)により統合担当が改訂）、受信継続とslot書込み可否を分離する。writerは古い世代と同世代異hashを無書込みで失敗させ、同世代同hashの再試行は区別する。世代の黙った補正はしない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:768 «c6fcdefce2d90c9f»",
           "docs/specs/reconstruction-p0-contracts.md:770 «3fe91886fca8d1d6»",

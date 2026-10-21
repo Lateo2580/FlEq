@@ -13,7 +13,7 @@ import { at, background, calls, eewEnvelope, notice } from "../notification-deli
 import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { projected, projectionInput, received, startup, step } from "../snapshot-sse/projection-fixture";
 import type { Area } from "./tsunami-fixture";
-import { observation, vtse41 } from "./tsunami-fixture";
+import { observation, sentLater, vtse41 } from "./tsunami-fixture";
 
 // TEST-PATH (2): 製品の publisher と in-process の owner（composition root の一経路）で U-T を通す。
 
@@ -59,8 +59,9 @@ const config = { appName: "fleq-p3", stateDirectory: "tsunami-state", legacyAppN
   legacyStateDirectory: "legacy-state", diagnosticDirectory: "tsunami-diagnostics" } as const;
 
 let inputSequence = 0;
-function report(h: Harness, file: string, now: ClockReading, headType = "VTSE41") {
-  return submit(h, envelope(h.root.state.runId, headType, `${file}#${++inputSequence}`, readFileSync(`test/fixtures/${file}.xml`), now, inputSequence));
+function report(h: Harness, file: string, now: ClockReading, headType = "VTSE41", transform = (xml: string) => xml) {
+  return submit(h, envelope(h.root.state.runId, headType, `${file}#${++inputSequence}`,
+    Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8"))), now, inputSequence));
 }
 
 // P3-C5-E21-LOAD-T-v1 の T1 の津波緊急（EventID 20990101000011、311 の大津波警報の発令 → critical）。
@@ -292,7 +293,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T through the composition root", () => {
     expect(second.unit("U-T").intents.filter((item) => item.disposition === "pending").map((item) => [item.id, item.createdAt, item.expiresAt]))
       .toEqual(pendingBefore.filter((item) => item.expiresAt > now.wallTimeMs).map((item) => [item.id, item.createdAt, item.expiresAt]));
     const known = new Set(second.unit("U-T").intents.map((item) => item.id));
-    await report(second, "synthetic_VTSE41_correction", tick(1_000));
+    // corpus の訂正は元の報と Control/DateTime が同じなので、後の送信にして新しい版として受ける（P3-VM-AC03）。
+    await report(second, "synthetic_VTSE41_correction", tick(1_000), "VTSE41", sentLater);
     expect(second.unit("U-T").intents.filter((item) => !known.has(item.id)).map((item) => [item.payload.level, item.payload.title]))
       .toEqual([["normal", "[訂正] 大津波警報"], ["normal", "[訂正] 大津波警報"]]);
     expect(second.failures).toEqual([]);

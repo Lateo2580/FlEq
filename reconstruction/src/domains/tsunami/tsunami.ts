@@ -7,7 +7,7 @@ import type {
   TsunamiUnkeyedArea,
 } from "../../../contracts/p3-tsunami-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 // P3-TSUNAMI-UNIT-001 の adapter: VTSE41/51/52 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -229,7 +229,7 @@ function parseTsunami(material: DecodedMaterial): ParseResult {
   const infoRank = INFO_RANK.get(material.infoTypeRaw.trim());
   if (infoRank == null) return reject("requiredStructureInvalid", subject);
   const source: ReportRef = { inputId: material.inputId, origin: material.origin, operation: material.operation, family,
-    subject, reportDateTimeRaw: material.reportDateTimeRaw, serialRaw: material.serialRaw, infoTypeRaw: material.infoTypeRaw };
+    subject, reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw), serialRaw: material.serialRaw, infoTypeRaw: material.infoTypeRaw };
   const cancelled = infoRank === 3;
   const base = { operation: material.operation, eventId, subject, source, reportDateTimeMs: common.envelope.reportDateTimeMs,
     infoRank, cancelled };

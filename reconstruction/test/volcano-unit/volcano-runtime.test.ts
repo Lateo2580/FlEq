@@ -73,7 +73,7 @@ describe("P3-UNIT-V-001 U-V through the composition root", () => {
     const now = { wallTimeMs: 1_000, monotonicMs: 1 };
     const notice = (unit: NotificationIntent["unit"], domain: string, level: string, createdAt: number): NotificationIntent => ({
       id: unit, unit, subject: unit, operation: "normal", source: { inputId: unit, origin: "live", operation: "normal", family: unit,
-        subject: unit, reportDateTimeRaw: "2014-09-27T12:00:00+09:00", serialRaw: "", infoTypeRaw: "発表" }, transition: "activated",
+        subject: unit, reportDateTimeRaw: "2014-09-27T12:00:00+09:00", controlDateTimeRaw: "2014-09-27T12:00:00+09:00", serialRaw: "", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
       nextAttemptAt: createdAt, attempts: 0, configRevision: "t08", disposition: "pending" });
     // U-V を最も古く作る（同じ群なら先に選ばれる位置）。

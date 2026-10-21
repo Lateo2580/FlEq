@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "72b0405ea9e4659600f1943e13562cc780f2333f987c3071337d9f225cda1654",
+    "sha256": "fa78d8d554082a9ce2dbfded481893c168a3b157103c0340b84030d17c628988",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -593,7 +593,7 @@
           "reconstruction/contracts/p3-tsunami-unit.json:307 «36849f4e316bf8a8»",
           "reconstruction/contracts/p3-volcano-unit.json:176 «08f94de362cd913d»",
           "reconstruction/contracts/p3-seismic-unit.json:166 «824fb5c0849bb244»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:707 «086efc15d89bde4b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:736 «086efc15d89bde4b»",
           "reconstruction/src/domains/eew/eew.ts:374 «600b090d43fc380f»",
           "reconstruction/contracts/p3-order-plan.md:451 «15b50525f89de42e»"
         ]
@@ -802,6 +802,7 @@
         "resolveBy": "段 3 の K7 P3-VERSION-MATERIAL-001・K9 P3-CLOCK-CHECK-001・K8 P3-NOTICE-LEDGER-001（どれも仮の ID）の配送の後",
         "requiredEvidence": [
           "K7 の inputBoundary の型と、ParserMailboxItem に載った dmdata の電文 id。本書の RF が引数で受けていた境界の型との差",
+          "K7 の申し送り（P3-VERSION-MATERIAL-001 の Q-VM-C16-HANDOFF・Q-VM-IMPL-2A）: 時刻の無い報の未確認の印は取り直しで正しい順を確かめたときにだけ外す（順が手元の版と逆なら印の報の側を採る）。容量の端で系列の印と ReportRef を保存できず unit／operation の未確認へ寄せた所（WARN の診断だけが残る）は、その unit／operation の全体を取り直しで確かめ直し、WARN の診断の inputId を永続の証拠に数えない。捨てた旧い版から empty で始まった unit と保存の前に落ちた unit は、穴の無いまま境界が進む（Q-VM-IMPL-1）",
           "K9 の ClockReading（か期限の入力）の根拠の状態の形",
           "K8 の印の鍵と保存 ack を待つ配送の口",
           "配送された契約 ID を dependsOnContractIds へ移した本書の改訂"

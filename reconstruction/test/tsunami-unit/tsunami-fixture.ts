@@ -14,7 +14,7 @@ const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGen
   savedAckAt: null, dirtySince: null };
 
 function emptyState(): TsunamiUnitState {
-  return { schemaVersion: "p3-tsunami-unit-v2", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-tsunami-unit-v3", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: saved };
 }
 
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
@@ -39,16 +39,24 @@ function decodeFixture(file: string, headType: string, transform: (xml: string) 
 type Area = Readonly<{ code?: string; name: string; kind: string; kindName?: string }>;
 const KIND_NAME: Readonly<Record<string, string>> = { "52": "大津波警報", "53": "大津波警報：発表", "51": "津波警報", "62": "津波注意報",
   "71": "津波予報（若干の海面変動）", "50": "警報解除", "60": "津波注意報解除", "00": "津波なし" };
+// 合成の報の Control/DateTime（送信の時刻）。省略時は報時刻に offsetMs を足した時刻で、訂正は元の報の 1 秒後に送る
+// （P3-VM-AC03: 新旧は Control/DateTime で決まり、同じ時刻で中身の違う報は未確認になる）。
+const sent = (at: string, control: string | undefined, offsetMs = 0) => control ?? new Date(Date.parse(at) + offsetMs).toISOString();
+// 同じ電文を後の送信にする（Control/DateTime は XML の最初の DateTime）。
+function sentLater(xml: string, seconds = 1): string {
+  return xml.replace(/<DateTime>([^<]*)<\/DateTime>/, (_, at: string) =>
+    `<DateTime>${new Date(Date.parse(at) + seconds * 1000).toISOString()}</DateTime>`);
+}
 // 合成の VTSE41。EventID・時刻・区域を指定する（O09 の入力の型、P3-C5-E01-SERIES.inputs）。
 function vtse41(options: Readonly<{ eventId?: string; at: string; infoType?: "発表" | "訂正" | "取消"; operation?: Operation;
-  areas?: readonly Area[] }>): string {
+  areas?: readonly Area[]; control?: string }>): string {
   const items = (options.areas ?? []).map((area) => `<Item><Area><Name>${area.name}</Name>${area.code == null ? ""
     : `<Code>${area.code}</Code>`}</Area><Category><Kind><Name>${area.kindName ?? KIND_NAME[area.kind] ?? "不明"}</Name><Code>${area.kind}</Code></Kind></Category>`
     + "</Item>").join("");
   const body = options.infoType === "取消" ? "<Text>先ほどの津波警報を取り消します。</Text>"
     : `<Tsunami><Forecast>${items}</Forecast></Tsunami>`;
   return `<?xml version="1.0" encoding="UTF-8"?><Report xmlns="http://xml.kishou.go.jp/jmaxml1/">`
-    + `<Control><Title>津波警報・注意報・予報a</Title><DateTime>2099-01-01T00:00:00Z</DateTime><Status>${STATUS[options.operation ?? "normal"]}</Status>`
+    + `<Control><Title>津波警報・注意報・予報a</Title><DateTime>${sent(options.at, options.control, options.infoType === "訂正" ? 1000 : 0)}</DateTime><Status>${STATUS[options.operation ?? "normal"]}</Status>`
     + "<EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>"
     + `<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>津波警報</Title><ReportDateTime>${options.at}</ReportDateTime>`
     + `<TargetDateTime>${options.at}</TargetDateTime><EventID>${options.eventId ?? "20990101000011"}</EventID>`
@@ -57,16 +65,16 @@ function vtse41(options: Readonly<{ eventId?: string; at: string; infoType?: "�
     + `<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/">${body}</Body></Report>`;
 }
 type Station = Readonly<{ code: string; name?: string; condition?: string; height?: string }>;
-// 合成の VTSE51/52。station は 32-39_11_10 の Station の形を複製する（T04 の境界入力）。
+// 合成の VTSE51/52。station は 32-39_11_10 の Station の形を複製する（T04 の境界入力）。送信の時刻は報時刻＋Serial ミリ秒。
 function observation(options: Readonly<{ family?: "VTSE51" | "VTSE52"; eventId?: string; at: string; serial: number;
-  infoType?: "発表" | "訂正" | "取消"; operation?: Operation; stations?: readonly Station[] }>): string {
+  infoType?: "発表" | "訂正" | "取消"; operation?: Operation; stations?: readonly Station[]; control?: string }>): string {
   const stations = (options.stations ?? []).map((station) => `<Station><Name>${station.name ?? `観測点${station.code}`}</Name>`
     + `<Code>${station.code}</Code><MaxHeight><Condition>${station.condition ?? "観測中"}</Condition>${station.height == null ? ""
       : `<jmx_eb:TsunamiHeight type="これまでの最大波の高さ" unit="m">${station.height}</jmx_eb:TsunamiHeight>`}</MaxHeight></Station>`).join("");
   const body = options.infoType === "取消" ? "<Text>先ほどの津波観測に関する情報を取り消します。</Text>"
     : `<Tsunami><Observation><Item><Area><Name>岩手県</Name><Code>210</Code></Area>${stations}</Item></Observation></Tsunami>`;
   return `<?xml version="1.0" encoding="UTF-8"?><Report xmlns="http://xml.kishou.go.jp/jmaxml1/">`
-    + `<Control><Title>津波観測に関する情報</Title><DateTime>2099-01-01T00:00:00Z</DateTime><Status>${STATUS[options.operation ?? "normal"]}</Status>`
+    + `<Control><Title>津波観測に関する情報</Title><DateTime>${sent(options.at, options.control, options.serial + (options.infoType === "訂正" ? 1000 : 0))}</DateTime><Status>${STATUS[options.operation ?? "normal"]}</Status>`
     + "<EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>"
     + `<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>津波観測に関する情報</Title><ReportDateTime>${options.at}</ReportDateTime>`
     + `<TargetDateTime>${options.at}</TargetDateTime><EventID>${options.eventId ?? "20990101000011"}</EventID>`
@@ -82,5 +90,5 @@ function run(state: TsunamiUnitState, input: TsunamiInput): TsunamiUnitStep {
   return reduceTsunamiUnit(state, input);
 }
 
-export { clock, decodeFixture, decodeXml, emptyState, fixtureXml, observation, receive, run, vtse41 };
+export { clock, decodeFixture, decodeXml, emptyState, fixtureXml, observation, receive, run, sentLater, vtse41 };
 export type { Area, Station };

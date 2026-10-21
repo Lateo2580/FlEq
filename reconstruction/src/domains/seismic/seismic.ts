@@ -5,7 +5,7 @@ import type {
   SeismicIntensityValue, SeismicTsunamiComment,
 } from "../../../contracts/p3-seismic-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, jsonText } from "../../contracts-revision/version";
 
 // P3-UNIT-Q-001 の adapter: VXSE51/52/53/61/62 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -53,14 +53,16 @@ function lgRank(value: SeismicIntensityValue): number | null {
 
 // 印字可能な ASCII（0x21〜0x7E）で「/」「"」「\」を含まず 40 byte 以下（subject の区切りと、JSON に書いた後の byte が文字数と
 // 同じになるので取消記憶の byte 上限を件数から決められる。実際の EventID は 14 桁、corpus の最長は synthetic の 34 文字、Q-C7-IMPL-AMEND）。
+// 受理と読み戻しの上限の正本（予約の式と印の上界 HOLD_GROWTH が使う、I-U-Q.capacityReserve・P3-VM-AC08）。ReportDateTime は 1 文字 1 byte。
+const EVENT_ID_LIMIT = 40, REPORT_TIME_LIMIT = 25, SERIAL_DIGITS = 10;
 function validEventId(value: string): boolean {
-  return value.length <= 40 && /^[\x21\x23-\x2e\x30-\x5b\x5d-\x7e]+$/.test(value);
+  return value.length <= EVENT_ID_LIMIT && /^[\x21\x23-\x2e\x30-\x5b\x5d-\x7e]+$/.test(value);
 }
-// 予約の式（I-U-Q.capacityReserve）が仮定する ReportDateTime の長さ（Serial は trim して保存し、validSerial が 10 桁以内を保証する）。
-const REPORT_TIME_LIMIT = 25;
+// Serial は trim して保存する。
 function validSerial(value: string): boolean {
-  return value === "" || /^[1-9]\d{0,9}$/.test(value);
+  return value === "" || value.length <= SERIAL_DIGITS && /^[1-9]\d*$/.test(value);
 }
+const validReportTime = (value: string): boolean => jsonText(value, REPORT_TIME_LIMIT);
 
 // ---- XML の読み取り（domains/tsunami と同じ写し。共有化は統合担当が決める、AC13） ----
 
@@ -232,7 +234,7 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
   const reject = (reason: RejectionReason, subject = ""): ParseResult =>
     ({ kind: "rejected", subject, reason, diagnostic: diagnostic(material, reason) });
   // A1 の共通検証は小数秒の桁数を限らないので、予約の式の 25 文字を超える ReportDateTime はここで拒否する。
-  if (material.reportDateTimeRaw.length > REPORT_TIME_LIMIT) return reject("reportDateTimeInvalid");
+  if (!validReportTime(material.reportDateTimeRaw)) return reject("reportDateTimeInvalid");
   const family = EARTHQUAKE_FAMILIES.find((item) => item === material.headType)
     ?? (material.headType === "VXSE62" ? "VXSE62" as const : null);
   if (family == null) return reject("requiredStructureInvalid");
@@ -246,7 +248,7 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
   if (infoRank == null) return reject("requiredStructureInvalid", subject);
   // 保存する生の文字列は trim した値（取消記憶の byte を件数から決めるため、I-U-Q.capacityReserve）。
   const source: ReportRef = { inputId: material.inputId, origin: material.origin, operation: material.operation, family,
-    subject, reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw };
+    subject, reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, REPORT_TIME_LIMIT), serialRaw, infoTypeRaw };
   const cancelled = infoRank === 3;
   const head = first(material.xml, "Head");
   const title = text(head, "Title") || text(first(material.xml, "Control"), "Title") || family;
@@ -288,5 +290,6 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
   }
 }
 
-export { EARTHQUAKE_FAMILIES, INFO_RANK, STAGE_LABEL, knownStage, lgRank, parseSeismic, safetyRank, validEventId, validSerial };
+export { EARTHQUAKE_FAMILIES, EVENT_ID_LIMIT, INFO_RANK, REPORT_TIME_LIMIT, SERIAL_DIGITS, STAGE_LABEL, knownStage, lgRank, parseSeismic, safetyRank,
+  validEventId, validReportTime, validSerial };
 export type { EarthquakeCandidate, LongPeriodCandidate, SeismicCandidate };

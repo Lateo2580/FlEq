@@ -13,7 +13,7 @@ import { reduceLocalBulletinsUnit } from "../../src/units/local-bulletins/local-
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): LocalBulletinsUnitState {
-  return { schemaVersion: "p3-local-bulletins-unit-v2", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-local-bulletins-unit-v3", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };

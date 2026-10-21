@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "e4cc9d83475aef6ef85c41c1bb6299969bd9e59a949b29d2900337b9c7549bf9",
+    "sha256": "558079748efb5ef80ebd0b344034a659107ec68444d4ac21dbdaf0691e8c7042",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -316,7 +316,7 @@
         "currentSemantics": "(1) 発表・訂正の採用: P3-C11-FACTSのkinds・areaName、P3-C11-STATIONSのtimes・stationsを作る（P3-C11-BOUNDSで切る）。受理の時点でReportDateTime+36時間を過ぎた報はstateを変えない（P3-C11-ACTIVE-EXPIRY.lateRule）。kindsが空ならP3-C11-UNKNOWN。kindsにlevelが0でないgroupがあればeffective=activeで事実を全部置き換え、basisReportDateTimeRawはnull（報はEventIDの全河川・観測所を載せるので、前の報の河川・観測所を残さない）。全groupのlevelが0なら、記録がactiveならendedにして事実を捨て、記録がinactiveならsourceを進め（revisionOnly）、記録が無ければendedの記録を作る（watermarkだけ。changed/revisionOnly、通知はQ-NOTICE.generationTableのinactiveAdoption） (2) ほかのsubjectの記録は変えない (3) 取消はP3-C11-CANCEL-SCOPE (4) changeは公開事実（effective・title・areaName・kinds・times・stations・basisReportDateTimeRaw）が変わればsemantic、watermarkだけが進めばrevisionOnly (5) 記録はretainUntilの到来で除く（P3-C11-ACTIVE-EXPIRY=D: activeも+36時間で除き、desktopだけで1件知らせる）",
         "bounds": "文字列の上限（UTF-16の長さ。超えたらコードポイントの境界で切り詰めてtruncated=true。切る位置がサロゲートの組の間に当たれば1単位短く切り、孤立したサロゲートを作らない。C9のQ-C9-IMPL-AMEND(9)(b)と同じ型）: title 128、areaName 64、河川名・Kindの名前 32。観測所名は(code, name)のidentityなので切らず、48単位を超える名前の観測所はその観測所だけを捨ててtruncated=true（外部監査F13、Q-C11-IMPL-AMEND(16)）。名前（areaName・河川名・観測所名・Kindの名前）は制御文字と孤立したサロゲートを拒む（requiredStructureInvalid）。titleは制御文字を拒まず、受理でもdecodeでも制御文字の検査から除く。ReportDateTimeのrawはA1の受理と同じ時刻の形（ASCIIだけ、40文字以下）で持ち、InfoTypeのrawはtrimせずに持つ（8文字以下、前後の空白を含みうる。版の比較はtrimした値、Q-C11-IMPL-AMEND(19)）。inputIdは「\"」と「\\」を除く印字可能なASCII（0x21〜0x7E）の64文字以下。ASCIIに限る値（超えたらrequiredStructureInvalid）: 河川のcode 16 byte・観測所のcode 20 byte（数字だけ）、Kind/Code 2桁、timesは25文字の時刻、値は11文字以下の数。EventIDは40文字の印字可能なASCII（identityInvalid、Q-ENUM.identity）。件数の上限はP3-C11-BOUNDS=B（作者裁定）: group 16・河川の延べ32・観測所20・点40・観測所ごとのChargeSection 4。超えた分は捨ててtruncated=true（groupは段階の低い方から、観測所は現況の観測レベルの低い方から（nullが最も低く、同じ段は電文順の後ろから）、点・河川・ChargeSectionは電文順の後ろから）。Kind/Codeの重複は拒む。通知のtitle 160・body 512・Headline 256（切る）。採用時のoutcomeのfactsに載せるHead/Headline/Textは256文字で切る（保存しない）。実配信の138本の最大はtitle 28文字、Headline 73文字、河川名（ChargeSectionの1行目）6文字、予報区域名14文字、観測所名14文字、EventID 12文字、観測所10、点22、河川7、group 1。fixtureの最大はHeadline 89文字、EventID 34文字（合成）。切り詰めは起きない",
         "deadlines": "nextDeadlineのwallTimeMsは、記録のretainUntilとintentのexpiresAtの最小。到来で期限処理を行い、到来分だけを回収する。到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（512 subjectの同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
-        "persisted": "PersistedFloodUnitはschemaVersion p3-flood-unit-v1、currents、intents（pendingと終端記録）。contentRevision・persistenceは保存しない。保存しない系列は無い。unchanged・rejected（遅着の報のunchanged/staleを含む、P3-C11-ACTIVE-EXPIRY.lateRule）と、新しいintentが容量で外れただけの受理と、training/testの報が自分自身を退去しただけの受理（P3-C11-CAPACITY）では、currentsの参照を変えず保存世代を進めない",
+        "persisted": "PersistedFloodUnitはschemaVersion p3-flood-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、currents、intents（pendingと終端記録）。contentRevision・persistenceは保存しない。保存しない系列は無い。unchanged・rejected（遅着の報のunchanged/staleを含む、P3-C11-ACTIVE-EXPIRY.lateRule）と、新しいintentが容量で外れただけの受理と、training/testの報が自分自身を退去しただけの受理（P3-C11-CAPACITY）では、currentsの参照を変えず保存世代を進めない",
         "decode": "codecは一つ（floodUnitCodec）。decodeは受理と同じ上限で次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない（受理が通した値をdecodeが拒否するとunit全体の復元が落ちる。C9のQ-C9-IMPL-AMEND(9)(b)）: schemaVersion、currentsは512件以下でsubjectの重複なし、subjectがI-U-R.subjectsの形で運用区分・headType・eventIdと一致、headTypeがVXKO50〜89かVXSU50〜59、eventIdがQ-ENUM.identityの文字と長さ、ReportRefの文字列（inputIdは「\"」と「\\」を除く印字可能なASCIIの64文字以下、ReportDateTimeはA1の時刻の形の40文字以下、Serial 10桁、InfoTypeは8文字以下でtrimした値が発表・訂正・取消）とsource.familyがheadType・source.subjectが記録のsubject、retainUntil=sourceのReportDateTime＋129,600,000（effectiveによらず、P3-C11-ACTIVE-EXPIRY=D）、active以外は事実のfieldを持たない（types.tsの判別共用体）、activeのkindsが16 group以下でcodeが2桁・重複なし・levelがQ-ENUM.codeTableとcodeで一致・河川の延べが32以下・河川のcodeが数字で16 byte以下で重複なし・riversが空のgroupはtruncated=trueのときだけ、timesが40以下で時刻の形、stationsが20以下で（code, name）の重複なし・codeが数字で20 byte以下・観測所名が48単位以下（切らない、Q-C11-IMPL-AMEND(16)）・riverCodesが4個以下で重複なく、どれもkindsの河川のcode・values・levelsの長さがtimesと同じ・値が11文字以下の有限の数かnull・levelが0〜5かnull・criteriaの各値も同じ、名前と文字列がI-U-R.boundsの内側（名前は制御文字と孤立したサロゲートなし。titleは孤立したサロゲートだけを確かめ、制御文字は検査しない）、basisReportDateTimeRawがnullかReportDateTimeと同じ形、pending≤128件かつ「pendingの実byte＋予約」≤131,072、「pendingの実byte＋予約＋終端記録」≤229,376（Q-NOTICE.capacity。予約はdeliveryGrowth、attemptsは0以上の安全な整数、nextAttemptAtは有限の数）、encode後の世代≤16,777,216 byte（P3-C11-BOUNDS=B）、intentのunitがU-RでsubjectがI-U-R.subjectsの形であること（stateに残っているsubjectとの一致は求めない。記録の回収の後もpendingは期限まで残るため）",
         "view": "FloodUnitViewはactiveの記録だけを載せる。SubjectOutcomeはsubjectごとに作り、factsに公開事実と変わったfield（採用時はHead/Headline/Textも、I-U-R.bounds）を載せる。RuntimeDisplaySubjectにunit U-Rの行（current: Extract<FloodCurrent, { effective: \"active\" }> | null）を足す。unavailable・未保存・再起動の空を「洪水予報なし」に読み替えない。河川ごとの代表観測所の選択や表示用の観測所の複製は作らない（spec:485の保存しないもの、P4）",
         "confirmationScope": "U-Rは確認scopeを作らない（P3-C11-N2）。shared-runtime.tsのaddedScopesにU-Rで空を返す分岐を足す",
@@ -339,7 +339,7 @@
       {
         "id": "P3-C11-MIGRATION",
         "status": "frozen",
-        "rule": "PersistedFloodUnit（p3-flood-unit-v1）は新設のschemaなので、C11の中で旧データの移行は要らない。旧築の待機画面の保存（standby-persistence.tsのfloodForecast.active、flood-active-reducerのPersistedFloodEventState、gateのfloodForecastの記録）からU-R候補を作るのはC15（P3-MIGRATION-001）。codecのdecodeはp3-flood-unit-v1以外をunavailableで返す。C15への申し送り: 旧築の鍵はEventIDだけ（`flood:event:${eventId}`）で、新築のsubjectに要るheadTypeを旧築の保存が持つかは確かめていない（持たなければ移行器は記録を作れない数を報告する）。旧築の保存は河川と代表観測所の表示の投影で、観測所のseries・基準水位の全部は持たない（project-flood.ts）ので、移した記録は次の報まで観測所が欠ける。移した記録の数を入力と出力で突き合わせる"
+        "rule": "PersistedFloodUnit（p3-flood-unit-v3）は新設のschemaなので、C11の中で旧データの移行は要らない。旧築の待機画面の保存（standby-persistence.tsのfloodForecast.active、flood-active-reducerのPersistedFloodEventState、gateのfloodForecastの記録）からU-R候補を作るのはC15（P3-MIGRATION-001）。codecのdecodeはp3-flood-unit-v3以外をunavailableで返す。C15への申し送り: 旧築の鍵はEventIDだけ（`flood:event:${eventId}`）で、新築のsubjectに要るheadTypeを旧築の保存が持つかは確かめていない（持たなければ移行器は記録を作れない数を報告する）。旧築の保存は河川と代表観測所の表示の投影で、観測所のseries・基準水位の全部は持たない（project-flood.ts）ので、移した記録は次の報まで観測所が欠ける。移した記録の数を入力と出力で突き合わせる"
       },
       {
         "id": "P3-C11-HANDOFF",
@@ -855,7 +855,7 @@
       },
       {
         "id": "P3-C11-AC05",
-        "requirement": "保存と復元: PersistedFloodUnitと唯一のcodec（schemaVersion p3-flood-unit-v1）、I-U-R.persisted・I-U-R.decodeの検査（受理と同じ上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC11に旧データ移行は無い（P3-C11-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報（訂正・取消・旧報・読めない報）は復元した記録との差で決め、subjectを名前・受信時刻から推測しない（O07）",
+        "requirement": "保存と復元: PersistedFloodUnitと唯一のcodec（schemaVersion p3-flood-unit-v3）、I-U-R.persisted・I-U-R.decodeの検査（受理と同じ上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC11に旧データ移行は無い（P3-C11-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報（訂正・取消・旧報・読めない報）は復元した記録との差で決め、subjectを名前・受信時刻から推測しない（O07）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
@@ -1109,7 +1109,7 @@
       "残存リスク: +36時間の規則（P3-C11-RETENTION）は受理の時点の壁時計で判定するので、手元の時計が36時間以上進むと記録の無いsubjectの報がactiveにならず鳴らない。P3-C11-BOUNDSの上限を超える実報が来ると観測所・seriesの一部が欠ける（truncatedで分かる。余裕は実配信の最大に対し観測所2倍・点1.8倍）。deferredでの合法最大の世代のencodeが約16 MiBになる",
       "既存のhelper: XMLの読み取り（localName・children・scalar）は、domains/weather-currentなど他unitに同じ形がある。他unitのdirectoryは触らないので、U-Rの写しを作るかexportされた値をimportするかを一覧（AC12）に書く（共有化は計画§9の小さな契約で統合担当が決める）",
       "名前とtitleの切り詰めはコードポイントの境界で行い、孤立したサロゲートを作らない。無いと非BMPの文字で受理が作った値をdecodeが拒否し、U-R全体の復元が落ちる（C9のQ-C9-IMPL-AMEND(9)(b)と同じ型）",
-      "永続schemaの変更: p3-flood-unit-v1は新設で旧データの移行は無い（P3-C11-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
+      "永続schemaの変更: p3-flood-unit-v3は新設で旧データの移行は無い（P3-C11-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
       "純粋な意味関数とreduceはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付ける。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。DiagnosticReasonへの追加はQ-ENUM.diagnosticReasonsの2つ（floodRevisionConflict・floodCapacityEvicted）だけ（persistent-diagnostic-sink.tsの一覧にも足す）",
       "check-contractで、本契約が行を足すファイル（composition-root.ts・owner-runtime.ts・shared-runtime.ts・view-projector.ts・unit-coverage.ts・persistent-diagnostic-sink.ts・p2-shared-runtime.types.ts・p2-snapshot-sse.types.ts・p2-notification-delivery.types.ts）を引く他の契約（C5・C7〜C10など）と本契約のanchorだけがFAILするのは想定内として報告する。統合担当が、合流と同じcommitで、そのanchorとmeta.sha256を直す。それ以外のFAILは想定外として扱う",
       "容量の実測: 実装後に、I-U-R.capacityMeasurementのfixtureと実配信の形で実際の記録・intentのencode byteを測り、契約の値と並べて報告する（10%以上違えば統合担当がI-U-Rの数を直す）"

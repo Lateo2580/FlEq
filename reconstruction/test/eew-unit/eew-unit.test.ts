@@ -20,13 +20,14 @@ import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-
 import { fixtureDriver, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
 import { envelope, harnessedRoot, park, startHarness, submit } from "../execution-split/owner-harness";
+import { inputIdOf } from "../snapshot-sse/projection-fixture";
 import type { Harness } from "../execution-split/owner-harness";
 
 const BASE_TIME = 1_713_363_299_001;
 
 function emptyState(): EewUnitState {
   return {
-    schemaVersion: "p2-eew-unit-v2", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [],
+    schemaVersion: "p2-eew-unit-v3", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null },
   };
@@ -35,12 +36,19 @@ function emptyState(): EewUnitState {
 function decodeFixture(file: string, headType: "VXSE43" | "VXSE44" | "VXSE45",
   transform: (xml: string) => string = (xml) => xml, inputId = file): DecodedMaterial {
   const body = Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8")));
-  const entered = ingestXmlData({ inputId, inputSequence: 1, receivedAt: BASE_TIME,
+  const entered = ingestXmlData({ inputId: inputIdOf(inputId), inputSequence: 1, receivedAt: BASE_TIME,
     origin: "replay", kind: "replay", body, headType });
   if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
   const decoded = decodeMaterial(entered.item);
   if (decoded.kind !== "decoded") throw new Error(decoded.diagnostic.reason);
   return decoded.material;
+}
+
+// P3-VM-AC03: 本文を変えて作る後の報は、後の送信として Control/DateTime を進める（新旧は Control/DateTime で決まり、
+// 同じ時刻・同じ Serial で中身の違う報は未確認になる）。Control/DateTime は XML の最初の DateTime。
+function sentLater(xml: string, seconds = 1): string {
+  return xml.replace(/<DateTime>([^<]*)<\/DateTime>/, (_, at: string) =>
+    `<DateTime>${new Date(Date.parse(at) + seconds * 1000).toISOString()}</DateTime>`);
 }
 
 function clock(wallTimeMs: number, monotonicMs = 0) {
@@ -62,7 +70,7 @@ function pendingIntent(subject = "normal/VXSE43/20240417231454", createdAt = BAS
   return {
     id: `U-E:${subject}:${createdAt}:${channel}`, unit: "U-E", subject, operation,
     source: { inputId: "intent-source", origin: "replay", operation, family, subject,
-      reportDateTimeRaw: "2024-04-17T23:14:59+09:00", serialRaw: "1", infoTypeRaw: "発表" },
+      reportDateTimeRaw: "2024-04-17T23:14:59+09:00", controlDateTimeRaw: "2024-04-17T14:14:59Z", serialRaw: "1", infoTypeRaw: "発表" },
     transition: "activated", channel, payload: { domain: "earthquake-eew", level: "warning", title: "緊急地震速報（予報）", body: "予報" },
     createdAt, expiresAt: createdAt + 15_000, nextAttemptAt: createdAt,
     attempts: 0, configRevision: "test", disposition: "pending",
@@ -157,7 +165,7 @@ describe("P2 EEW unit", () => {
     expect(forecast.intents[0].payload.level).toBe("warning");
     expect(forecast.state.current[0]).toMatchObject({ eventId: "20240417231454", warningClass: "forecast" });
     const upgraded = receive(forecast.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE45", (xml) =>
-      xml.replace(/<Code>31<\/Code>/g, "<Code>30</Code>").replace(/<Code>1[0-9]<\/Code>/g, "<Code>13</Code>")));
+      sentLater(xml.replace(/<Code>31<\/Code>/g, "<Code>30</Code>").replace(/<Code>1[0-9]<\/Code>/g, "<Code>13</Code>"))));
     expect(upgraded.intents).toHaveLength(2);
     expect(upgraded.intents[0].payload).toMatchObject({ level: "critical", title: "緊急地震速報（警報）" });
     expect(upgraded.state.current[0].warningClass).toBe("warning");
@@ -206,7 +214,7 @@ describe("P2 EEW unit", () => {
     expect(correction.intents[0].payload.body).toContain("訂正: ");
     expect(correction.state.deliveryRecords).toHaveLength(2);
     const final = receive(correction.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43",
-      (xml) => xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>")));
+      (xml) => sentLater(xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>"))));
     expect(final.intents).toHaveLength(2);
     expect(final.intents[0].transition).toBe("released");
     expect(final.state.deliveryRecords).toHaveLength(4);
@@ -245,7 +253,7 @@ describe("P2 EEW unit", () => {
     // (a) Reclaimed delivered records leave a valid empty checkpoint, not proof of no delivery.
     const cleared = reduceEewUnit(delivered.state, { kind: "deadline", clock: clock(BASE_TIME + 15_001) });
     const savedEmpty = eewUnitCodec.encode(cleared.state);
-    expect(savedEmpty).toEqual({ schemaVersion: "p2-eew-unit-v2", intents: [], deliveryRecords: [] });
+    expect(savedEmpty).toEqual({ schemaVersion: "p2-eew-unit-v3", intents: [], deliveryRecords: [] });
     const restarted = reduceEewUnit(emptyState(), { kind: "restore", persisted: savedEmpty, clock: clock(BASE_TIME + 16_000) });
     expect(restarted.state.evidenceUnknownUntil).toBe(BASE_TIME + 616_000);
     const afterRestart = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 16_001);
@@ -360,12 +368,12 @@ describe("P2 EEW unit", () => {
     const correction = (transform: (xml: string) => string) => decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
       (xml) => transform(xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")));
     const first = receive(emptyState(), correction((xml) => xml));
-    const name = receive(first.state, correction((xml) => xml.replace("<Name>豊後水道</Name>", "<Name>別府湾</Name>")));
+    const name = receive(first.state, correction((xml) => sentLater(xml.replace("<Name>豊後水道</Name>", "<Name>別府湾</Name>"))));
     expect(name.intents).toHaveLength(2);
     expect(name.intents[0].payload.body).toContain("別府湾");
-    const magnitude = receive(name.state, correction((xml) => xml
+    const magnitude = receive(name.state, correction((xml) => sentLater(xml
       .replace("<Name>豊後水道</Name>", "<Name>別府湾</Name>")
-      .replace(">5.8</jmx_eb:Magnitude>", ">6.0</jmx_eb:Magnitude>")));
+      .replace(">5.8</jmx_eb:Magnitude>", ">6.0</jmx_eb:Magnitude>"), 2)));
     expect(magnitude.intents[0].payload.body).toContain("M6.0");
     const assumed = decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
       (xml) => xml.replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>"));
@@ -374,9 +382,9 @@ describe("P2 EEW unit", () => {
       .replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>")
       .replace(">5.8</jmx_eb:Magnitude>", ">6.0</jmx_eb:Magnitude>")));
     expect(hiddenMagnitude.decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
-    const correctedName = correction((xml) => xml
+    const correctedName = correction((xml) => sentLater(xml
       .replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>")
-      .replace("<Name>豊後水道</Name>", "<Name>別府湾</Name>"));
+      .replace("<Name>豊後水道</Name>", "<Name>別府湾</Name>")));
     const named = receive(assumedFirst.state, correctedName);
     expect(named.intents).toHaveLength(2);
     expect(named.intents[0].payload.body).toBe("訂正: 仮定震源 / 最大予測震度5弱");
@@ -605,7 +613,7 @@ describe("P2 EEW unit", () => {
     state = receive(state, cancelled).state;
     expect(state.current).toEqual([]);
     const correction = decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) =>
-      xml.replace("2024-04-17T23:15:10+09:00", "2024-04-17T23:18:00+09:00"));
+      xml.replace("2024-04-17T23:15:10+09:00", "2024-04-17T23:18:00+09:00").replace("2024-04-17T14:15:10Z", "2024-04-17T14:18:00Z"));
     expect(receive(state, correction).state.current.some((item) => item.operation === "normal")).toBe(true);
 
     const terminal = receive(state, final45);
@@ -829,7 +837,7 @@ describe("P2 EEW unit", () => {
       { intentId: "later", disposition: "delivered", expiresAt: BASE_TIME + 20_000 },
       { intentId: "earliest", disposition: "superseded", expiresAt: BASE_TIME + 10_000 },
     ] };
-    const envelope = { schemaVersion: "p2-eew-unit-v2", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+    const envelope = { schemaVersion: "p2-eew-unit-v3", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
       capturedAt: -0.0000012345678901234567, payload: eewUnitCodec.encode(state), sha256: "0".repeat(64) };
     const padding = (262_144 - INPUT_BOUNDARY_MAX_BYTES) - Buffer.byteLength(JSON.stringify(envelope));
     const full = { ...state, deliveryRecords: [state.deliveryRecords[0],
@@ -915,7 +923,7 @@ describe("P2 EEW unit", () => {
 
     const withRecord = (length: number): EewUnitState => ({ ...emptyState(),
       deliveryRecords: [{ intentId: "x".repeat(length), disposition: "delivered", expiresAt: 1 }] });
-    const envelope = { schemaVersion: "p2-eew-unit-v2", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+    const envelope = { schemaVersion: "p2-eew-unit-v3", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
       capturedAt: -0.0000012345678901234567, payload: eewUnitCodec.encode(withRecord(0)), sha256: "0".repeat(64) };
     const recordPadding = (262_144 - INPUT_BOUNDARY_MAX_BYTES) - Buffer.byteLength(JSON.stringify(envelope));
     for (const extra of [0, 1]) {
@@ -1257,7 +1265,7 @@ describe("P2 EEW unit", () => {
           const change = (xml: string): string => correction(xml).replace(
             "<ForecastInt><From>5-</From><To>5-</To></ForecastInt>",
             `<ForecastInt><From>${from}</From><To>${to}</To></ForecastInt>`);
-          const material = decodeFixture("37_01_01_240613_VXSE43", family, change, `corrected-${from}-${to}`);
+          const material = decodeFixture("37_01_01_240613_VXSE43", family, (xml) => sentLater(change(xml)), `corrected-${from}-${to}`);
           expect([material.serialRaw, material.reportDateTimeRaw, material.infoTypeRaw])
             .toEqual([first.serialRaw, first.reportDateTimeRaw, "訂正"]);
           const step = receive(baseline, material);
@@ -1269,16 +1277,16 @@ describe("P2 EEW unit", () => {
           expect(step.state.gates[0].source.inputId).toBe(material.inputId);
           expect(step.state.current[0].prediction.maximum).toMatchObject({ from: { raw: from }, to: { raw: to } });
           expect(step.state.current[0].retainedPrediction).toBeNull();
-          const repeated = receive(step.state, decodeFixture("37_01_01_240613_VXSE43", family, change, "correction-redelivery"));
+          const repeated = receive(step.state, decodeFixture("37_01_01_240613_VXSE43", family, (xml) => sentLater(change(xml)), "correction-redelivery"));
           expect(repeated.state).toBe(step.state);
           expect(repeated.outcomes).toEqual([]);
           if (from === "不明") {
             const changedRaw = receive(step.state, decodeFixture("37_01_01_240613_VXSE43", family,
-              (xml) => change(xml).replace("<To>7</To>", "<To>6+</To>"), "different-unknown-raw"));
+              (xml) => sentLater(change(xml).replace("<To>7</To>", "<To>6+</To>"), 2), "different-unknown-raw"));
             expect(changedRaw.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
             expect(changedRaw.state.current[0].prediction.maximum).toMatchObject({ from: { raw: "不明" }, to: { raw: "6+" } });
             expect(changedRaw.outcomes).toHaveLength(1);
-            const knownAgain = receive(step.state, decodeFixture("37_01_01_240613_VXSE43", family, correction, "known-again"));
+            const knownAgain = receive(step.state, decodeFixture("37_01_01_240613_VXSE43", family, (xml) => sentLater(correction(xml), 2), "known-again"));
             expect(knownAgain.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
             expect(knownAgain.state.current[0].source.inputId).toBe("known-again");
             expect(knownAgain.outcomes).toHaveLength(1);
@@ -1311,7 +1319,8 @@ describe("P2 EEW unit", () => {
         const family = regionless ? "VXSE45" : "VXSE43";
         const material = (serial: number, mode: "known" | "unknown" | "partial", to = "7") =>
           decodeFixture("37_01_01_240613_VXSE43", family, (xml) => {
-            let value = withOperation(xml, operation).replace("<Serial>1</Serial>", `<Serial>${serial}</Serial>`);
+            // Serial ごとに 1 秒後の送信、同じ Serial の訂正（to が 7 でない）はさらに 0.5 秒後（P3-VM-AC03）。
+            let value = withOperation(sentLater(xml, serial + (to === "7" ? 0 : 0.5)), operation).replace("<Serial>1</Serial>", `<Serial>${serial}</Serial>`);
             if (regionless) value = value.replace(/<Pref>[\s\S]*?<\/Pref>/g, "");
             if (mode !== "known") value = value.replace(/<(From|To)>[^<]*<\/(From|To)>/g, "<$1>不明</$1>");
             if (mode === "partial") value = regionless ? value.replace("<To>不明</To>", `<To>${to}</To>`)
@@ -1402,7 +1411,7 @@ describe("P2 EEW unit", () => {
       }
       for (const terminal of [false, true]) {
         const end = decodeFixture(terminal ? "37_01_01_240613_VXSE43" : "37_01_03_240613_VXSE43", "VXSE43", (xml) => terminal
-          ? xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>") : xml);
+          ? sentLater(xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>")) : xml);
         expect(receive(state, end, BASE_TIME + age).nextDeadline)
           .toEqual(age < 15_000 ? expected : terminal
             ? { wallTimeMs: BASE_TIME + age + 15_000, monotonicMs: null } : { wallTimeMs: BASE_TIME + age + 86_400_000, monotonicMs: null });
@@ -1422,9 +1431,11 @@ describe("P2 EEW unit", () => {
 describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version correction", () => {
   const FINAL = "77_01_30_260101_VXSE45_FINAL";
   const at = (iso: string) => Date.parse(iso);
+  // EEW の Control/DateTime は報時刻と同じ秒（corpus の 12 通と気象庁のサンプル）なので、報時刻と一緒に替える（P3-VM-AC03）。
   const withReport = (eventId: string, reportDateTime: string) => (xml: string) => xml
     .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`)
-    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${reportDateTime}</ReportDateTime>`);
+    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${reportDateTime}</ReportDateTime>`)
+    .replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${reportDateTime}</DateTime>`);
   const deadline = (state: EewUnitState, wallTimeMs: number) => reduceEewUnit(state, { kind: "deadline", clock: clock(wallTimeMs) });
 
   it("P3-LIFE-T01 regression / AC01,AC02 (F01): 512 final reports reclaim their gates at retainUntil instead of blocking the family forever", () => {
@@ -1527,9 +1538,10 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
   it("P3-LIFE-T03 regression / AC04 (F17): a same-version correction after the final report replaces the pending notice without reviving current", () => {
     const report = Date.parse("2026-01-01T12:00:30+09:00");
     // 1 つ目の ForecastInt は最大予測震度、2 つ目は区域の値。
-    const correction = (intensity: string, warning = false, area = intensity) => decodeFixture(FINAL, "VXSE45", (xml) => {
+    // 中身を変えた訂正は later 秒だけ後の送信（同じ時刻・同じ Serial の再送は duplicate、P3-VM-AC03）。
+    const correction = (intensity: string, warning = false, area = intensity, later = 0) => decodeFixture(FINAL, "VXSE45", (xml) => {
       let position = 0;
-      const corrected = xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")
+      const corrected = sentLater(xml, later).replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")
         .replace(/<From>4<\/From><To>4<\/To>/g, () => {
           const value = position++ === 0 ? intensity : area;
           return `<From>${value}</From><To>${value}</To>`;
@@ -1538,23 +1550,23 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
         "<Headline><Text>テスト地域で地震</Text><Information type=\"緊急地震速報（府県予報区）\"><Item><Kind><Name>緊急地震速報（警報）</Name>"
         + "<Code>31</Code></Kind><Areas codeType=\"緊急地震速報／府県予報区\"><Area><Name>テスト県</Name><Code>9999</Code></Area></Areas></Item></Information></Headline>")
         : corrected;
-    }, `f17-${intensity}-${warning}-${area}`);
+    }, `f17-${intensity}-${warning}-${area}-${later}`);
     const three = receive(emptyState(), correction("3"), report);
-    const seven = receive(three.state, correction("7"), report);
+    const seven = receive(three.state, correction("7", false, "7", 1), report);
     expect(seven.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
     expect([seven.state.current, seven.state.gates.length]).toEqual([[], 1]);
     expect(seven.state.intents.map((item) => [item.channel, item.payload.body])).toEqual([
       ["desktop", "訂正: テスト震源 / M5.0 / 最大予測震度7"], ["sound", "訂正: テスト震源 / M5.0 / 最大予測震度7"]]);
     expect(seven.state.deliveryRecords).toEqual(three.intents.map((item) => ({ intentId: item.id, disposition: "superseded", expiresAt: item.expiresAt })));
-    expect(receive(seven.state, correction("7"), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
-    expect(receive(seven.state, correction("7", true), report).decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
+    expect(receive(seven.state, correction("7", false, "7", 1), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+    expect(receive(seven.state, correction("7", true, "7", 2), report).decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
     // 最大予測震度と warningClass を変えず区域の値だけを訂正した版も差として採用し、旧 pending を差し替える（P3-LIFE-D-F17KEY=A）。
-    const regional = receive(seven.state, correction("7", false, "6+"), report);
+    const regional = receive(seven.state, correction("7", false, "6+", 2), report);
     expect(regional.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
     expect(regional.state.current).toEqual([]);
     expect(regional.state.intents.map((item) => item.payload.body)).toEqual(["訂正: テスト震源 / M5.0 / 最大予測震度7", "訂正: テスト震源 / M5.0 / 最大予測震度7"]);
     expect(regional.state.deliveryRecords.slice(2)).toEqual(seven.intents.map((item) => ({ intentId: item.id, disposition: "superseded", expiresAt: item.expiresAt })));
-    expect(receive(regional.state, correction("7", false, "6+"), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+    expect(receive(regional.state, correction("7", false, "6+", 2), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
   });
 
   // P3-EVICT-T01・T02 の充填: 通常の最終報 512 件（1 秒間隔、各報時刻－skew の時計で受理）。最初の報の intent は delivered にし、

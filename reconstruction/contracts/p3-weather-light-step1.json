@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e02a413fc240931f1830e966ac94dde1e27aa5f5",
-    "sha256": "d461ab5da2367faa1db96f644b35663faa6b2ea1091fa8f56b8e90b15e24fd61",
+    "sha256": "47488261201c77032cf942433880b0ac4d26047dbe8192520f476e3c1a9612cc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -215,7 +215,7 @@
       "U-W"
     ],
     "persistedFields": [
-      "なし（PersistedWeatherCurrentUnit・schemaVersion p2-weather-current-unit-v1・CheckpointEnvelope・slotの形式とbyteは変えない）"
+      "なし（PersistedWeatherCurrentUnit・schemaVersion p2-weather-current-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）・CheckpointEnvelope・slotの形式とbyteは変えない）"
     ],
     "nonPersistedFields": [
       "U-Wのbyteの計量cache（既存のrecordByteCache・mapByteCacheとownershipの差分。新しいcacheの種類は足さない）"
@@ -273,7 +273,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2007 «4b2a085530cf8cb8»",
           "docs/specs/reconstruction-p0-contracts.md:2012 «96edc4cec5855d14»",
-          "reconstruction/contracts/p2-weather-current-unit.json:381 «9da02d2083ff866f»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «caaaef68148666be»",
           "docs/specs/reconstruction-p0-contracts.md:874 «f68a559d178d6dae»"
         ]
       },
@@ -283,7 +283,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p1-parser-boundary.json:543 «4cae89a4f5209c86»",
           "reconstruction/contracts/p2-weather-current-unit.json:356 «86eb55276d25bba1»",
-          "reconstruction/contracts/p2-weather-current-unit.json:381 «9da02d2083ff866f»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «caaaef68148666be»",
           "reconstruction/contracts/p2-weather-current-unit.json:461 «d222ffecf873259b»",
           "docs/specs/reconstruction-p0-contracts.md:1830 «964d8b6f65321973»"
         ]

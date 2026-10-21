@@ -133,7 +133,7 @@ export type TyphoonNotificationPayload = Readonly<{
 export type TyphoonIntent = NotificationIntent & Readonly<{ payload: TyphoonNotificationPayload }>;
 
 export type TyphoonUnitState = Readonly<{
-  schemaVersion: "p3-typhoon-unit-v2";
+  schemaVersion: "p3-typhoon-unit-v3";
   contentRevision: number;
   analysis: readonly TyphoonAnalysisRecord[];
   probability: readonly TyphoonProbabilityRecord[];
@@ -143,7 +143,7 @@ export type TyphoonUnitState = Readonly<{
 }>;
 
 export type PersistedTyphoonUnit = Readonly<{
-  schemaVersion: "p3-typhoon-unit-v2";
+  schemaVersion: "p3-typhoon-unit-v3";
   analysis: readonly TyphoonAnalysisRecord[];
   probability: readonly TyphoonProbabilityRecord[];
   intents: readonly TyphoonIntent[];
@@ -183,5 +183,5 @@ export type TyphoonUnitStep = Readonly<{
 }>;
 
 export type TyphoonUnitCodec = UnitCodec<TyphoonUnitState, PersistedTyphoonUnit> & Readonly<{
-  schemaVersion: "p3-typhoon-unit-v2";
+  schemaVersion: "p3-typhoon-unit-v3";
 }>;

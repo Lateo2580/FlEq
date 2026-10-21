@@ -98,7 +98,7 @@ export type DecodedMaterial = Readonly<{
   origin: AcquisitionOrigin;
   operation: Operation;
   headType: string;
-  reportDateTimeRaw: string;
+  reportDateTimeRaw: string; controlDateTimeRaw: string; // P3-VM-AC01: Control/DateTime の生値（無ければ空文字）。新旧の比べる材料（H14）
   eventIdRaw: string;
   serialRaw: string;
   infoTypeRaw: string;

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "7dfeede1c3d2650bcc01084c61071f4e280f45f63d7f3ba87a83876802e5428c",
+    "sha256": "f915c85f27beffec9d5725bb2e5ba2ca0d686ff639d25a6b1ce0f163e6be673d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -25,7 +25,7 @@
         "provisional": "A",
         "status": "確定（技術の分岐）",
         "ruling": "起草時に推奨で確定（技術の分岐。製品の差はcapacityExceededの閾値が最大5,376 byte早まることだけ）。U-W・U-Fへの拡張はP3-IUR-WEATHER=A（作者裁定）に従う",
-        "reason": "U-T・U-Q・U-W・U-Fの世代の計量はintentの実byteを含み、受理は退去（U-T・U-Qのfit、U-WのfitNormalByByte、U-Fのevict）で上限の内側に収める。intentUpdateは退去を通らないので、上限の手前（128件×最大42 byte＝5,376 byte以内）にあるstateは更新で上限を越え、U-T・U-Qは復元のdecodeが拒否し（P1）、U-W・U-Fはencodeが拒否する（P2）。予約を計量に入れると、更新は「実byte＋予約」を増やさない（attempts・nextAttemptAtの伸びは予約の減りと同じ長さ、pending→終端は予約の内側）。差はU-T・U-Qの4 MiBの0.13%、U-Wの16 MiBの0.03%、U-Fの32 MiBの0.02%。U-Nは世代の上限がcurrents 6件＋pending＋終端の静的な和で足りる（C8）ので変えない。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte）はintentを262,144（pending＋終端）で数えた値で、予約はpendingの131,072の内側なので変わらない。U-Eに足さない理由: U-Eの世代（256 KiB）はeew-unit.tsのreduceの後段（終端記録をexpiresAtの古い順に退去する）が受理・期限・intentUpdateを含む毎stepで実byteに収めるので、更新で上限を越えた保存は起きない。ただしその後段の退去がintentUpdateのstepで更新した記録自身を消すと、owner-runtime.tsのintentUpdateOwnerの照合（終端の記録が無いとthrow）がownerを止める（C8のQ-C8-IMPL-AMEND(1)と同じ形）。今は届かない: (i) pending→終端はintentを抜いてより小さいdeliveryRecordを足すので必ず縮み、退去を起こさない (ii) pendingのままの伸びは新しい記録を作らないので、退去されうる「更新した記録」が無い (iii) 製品の更新の束はcomposition-root.tsの予約（reservation、1件）と結果（1件）の単発か、期限の群（全部expired）で、伸びと終端が1つの束に混ざらない。更新の束ね方を変える契約（伸びと終端を1つのintentUpdateに混ぜる）は、U-Eの世代の計量に予約を足すか、後段の退去から更新した記録を外す（C8の(1)の形）ことを条件に持つ（Q-IUR-BASEで計画§9と台帳73に記録する）"
+        "reason": "U-T・U-Q・U-W・U-Fの世代の計量はintentの実byteを含み、受理は退去（U-T・U-Qのfit、U-WのfitNormalByByte、U-Fのevict）で上限の内側に収める。intentUpdateは退去を通らないので、上限の手前（128件×最大42 byte＝5,376 byte以内）にあるstateは更新で上限を越え、U-T・U-Qは復元のdecodeが拒否し（P1）、U-W・U-Fはencodeが拒否する（P2）。予約を計量に入れると、更新は「実byte＋予約」を増やさない（attempts・nextAttemptAtの伸びは予約の減りと同じ長さ、pending→終端は予約の内側）。差はU-T・U-Qの4 MiBの0.13%、U-Wの16 MiBの0.03%、U-Fの32 MiBの0.02%。U-Nは世代の上限がcurrents 6件＋pending＋終端の静的な和で足りる（C8）ので変えない。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte。K7の発注2aの後の器は5,270,185 byte）はintentを262,144（pending＋終端）で数えた値で、予約はpendingの131,072の内側なので変わらない。U-Eに足さない理由: U-Eの世代（256 KiB）はeew-unit.tsのreduceの後段（終端記録をexpiresAtの古い順に退去する）が受理・期限・intentUpdateを含む毎stepで実byteに収めるので、更新で上限を越えた保存は起きない。ただしその後段の退去がintentUpdateのstepで更新した記録自身を消すと、owner-runtime.tsのintentUpdateOwnerの照合（終端の記録が無いとthrow）がownerを止める（C8のQ-C8-IMPL-AMEND(1)と同じ形）。今は届かない: (i) pending→終端はintentを抜いてより小さいdeliveryRecordを足すので必ず縮み、退去を起こさない (ii) pendingのままの伸びは新しい記録を作らないので、退去されうる「更新した記録」が無い (iii) 製品の更新の束はcomposition-root.tsの予約（reservation、1件）と結果（1件）の単発か、期限の群（全部expired）で、伸びと終端が1つの束に混ざらない。更新の束ね方を変える契約（伸びと終端を1つのintentUpdateに混ぜる）は、U-Eの世代の計量に予約を足すか、後段の退去から更新した記録を外す（C8の(1)の形）ことを条件に持つ（Q-IUR-BASEで計画§9と台帳73に記録する）"
       },
       {
         "id": "P3-IUR-WEATHER",
@@ -244,18 +244,18 @@
       },
       {
         "id": "P3-IUR-AC02",
-        "requirement": "intentを含む世代の計量も予約込み（P3-IUR-GENERATION=A、P3-IUR-RES-02）: U-T・U-QのgenerationBytes（受理のfitとdecodeが共有）、U-WのreservedGenerationBytes（受理のfitNormalByByte）・encodedValue・persistedValue、U-Fのmeasure（受理のfits・evict、encode・decodeが共有）に、pendingの予約の和を足す。退去の手順・順・capacityExceededの条件は変えず、数える値だけが変わる。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte）はdecodeが受けたまま（予約はpendingの131,072の内側）。U-E・U-Nの世代は変えない。無いと: 世代の上限の手前（最大5,376 byte以内）のstateが配送の更新で上限を越え、U-T・U-Qはdecodeが、U-W・U-Fはencodeが拒否する",
+        "requirement": "intentを含む世代の計量も予約込み（P3-IUR-GENERATION=A、P3-IUR-RES-02）: U-T・U-QのgenerationBytes（受理のfitとdecodeが共有）、U-WのreservedGenerationBytes（受理のfitNormalByByte）・encodedValue・persistedValue、U-Fのmeasure（受理のfits・evict、encode・decodeが共有）に、pendingの予約の和を足す。退去の手順・順・capacityExceededの条件は変えず、数える値だけが変わる。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte。K7の発注2aの後の器は5,270,185 byte）はdecodeが受けたまま（予約はpendingの131,072の内側）。U-E・U-Nの世代は変えない。無いと: 世代の上限の手前（最大5,376 byte以内）のstateが配送の更新で上限を越え、U-T・U-Qはdecodeが、U-W・U-Fはencodeが拒否する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-tsunami-unit.json:265 «7002f82c2f44eaff»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «e7f8c1963dbeeace»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «fb1b7563d2547693»"
+          "reconstruction/contracts/p3-seismic-unit.json:310 «d7df9e54dba449d8»"
         ]
       },
       {
         "id": "P3-IUR-AC03",
         "requirement": "更新は予約込みの量を増やさない（intentUpdateに検査を足さない理由）: decodeが受けるattempts（0以上の安全な整数、JSONで16文字以下）とnextAttemptAt（有限の数、JSONで25文字以下）の範囲では、pendingのまま伸びる分は予約の減りと同じ長さで、終端になる分は元のpendingの実byte＋予約の内側（ownerは更新がpendingでないintentを指せば採用しない）。U-T・U-Q・U-E・U-Wのdecodeの値域（attempts・nextAttemptAtの確かめ）は今のまま変えず、U-Fは同じ値域を確かめるようにする（AC06）（作者裁定 2026-10-09、値域で縛らない）。既知の限界はC8と同じ: attemptsが安全な整数を超えた保存物はdecodeが拒否する（約9京回の更新が要る）。無いと: 受理とdecodeの式がそろっていても、式が値域の最長に届かなければ更新の後のdecodeが拒否する",
         "evidenceRefs": [
-          "reconstruction/src/runtime/owner-runtime.ts:385 «6af0a32f7c614e1c»",
+          "reconstruction/src/runtime/owner-runtime.ts:387 «6af0a32f7c614e1c»",
           "reconstruction/contracts/p3-nankai-unit.json:296 «11d1b802043a2d33»"
         ]
       },
@@ -278,7 +278,7 @@
           "reconstruction/contracts/p3-tsunami-unit.json:207 «499a13c8ac294e8d»",
           "reconstruction/contracts/p3-tsunami-unit.json:265 «7002f82c2f44eaff»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «e7f8c1963dbeeace»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «fb1b7563d2547693»"
+          "reconstruction/contracts/p3-seismic-unit.json:310 «d7df9e54dba449d8»"
         ]
       },
       {

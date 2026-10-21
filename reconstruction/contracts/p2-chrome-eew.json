@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "2d04c33e748f8d21d755bdc1040ce7f36ffdc1d379de6b033edb82aad78c757a",
+    "sha256": "f7e9eebaf1843f063ba816b43426d335bbd7256d05dacb58e71b3d4103b8d4fa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
+    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -501,7 +501,7 @@
         "id": "P2-A9-AC10",
         "requirement": "画面に出す日時はすべて日本時間のYYYY/MM/DD HH:mm:ss（ゼロ埋め24時間制、タイムゾーン表記なし）に整形する（2026-09-28ご主人裁定Q-SUMMARY-TIME=A）。変換はepoch msへ+32400000を足しDateのgetUTC*で各fieldを読む固定計算とし、Intl・端末のタイムゾーンに依存しない（Asia/Tokyo固定、日本に夏時間はない）。EEW cardの時刻は、eew配送がfullのときA4 EewCurrent.source.reportDateTimeRaw（報の発表時刻、A1検証済みのoffset付き日時）をepoch msへ解釈して整形し、summaryのときは該当operation行のitems[].updatedAt（A8がreportDateTimeRawから作るepoch ms）を整形する。updatedAt=nullや解釈できない値は「時刻不明」と出し、別の時刻で補わない。snapshot.generatedAtは出さない（2026-09-24作者裁定Q3=A）。summaryで個別cardが描けない場合もAC04どおり無発令に変換しない。理由: 受信遅延や端末設定があっても情報の時点を取り違えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:74 «6be242758d3f3934»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:74 «b54d847410e0aa60»",
           "reconstruction/contracts/p2-eew-unit.types.ts:37 «f77a40e79ba21087»",
           "reconstruction/contracts/p2-snapshot-sse.json:72 «b271248a738b3b9c»"
         ]

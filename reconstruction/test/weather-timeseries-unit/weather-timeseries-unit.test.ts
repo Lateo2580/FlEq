@@ -23,7 +23,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
 function empty(): WeatherTimeseriesUnitState {
-  return { schemaVersion: "p2-weather-timeseries-unit-v2", contentRevision: 0, subjects: [], gates: [], intents: [],
+  return { schemaVersion: "p2-weather-timeseries-unit-v3", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -192,7 +192,7 @@ describe("P2-A6 weather timeseries", () => {
       const notice = { unit: "U-F", id: disposition, disposition, expiresAt: DATE + 1_000,
         subject: "normal/VPWP50/test", operation: "normal", channel: "desktop", transition: "activated",
         source: { inputId: "expiry-boundary", origin: "replay", operation: "normal", family: "VPWP50",
-          subject: "normal/VPWP50/test", reportDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
+          subject: "normal/VPWP50/test", reportDateTimeRaw: new Date(DATE).toISOString(), controlDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
         payload: { title: "boundary", body: "boundary" }, createdAt: DATE, nextAttemptAt: DATE,
         attempts: 0, configRevision: "test" } as const;
       const valid = weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice] });
@@ -209,7 +209,7 @@ describe("P2-A6 weather timeseries", () => {
     const notice = (id: string, body: string, disposition: "pending" | "delivered" = "pending") => ({ unit: "U-F", id, disposition,
       expiresAt: DATE + 1_000, subject: "normal/VPWP50/test", operation: "normal", channel: "desktop", transition: "activated",
       source: { inputId: "reserve-boundary", origin: "replay", operation: "normal", family: "VPWP50", subject: "normal/VPWP50/test",
-        reportDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
+        reportDateTimeRaw: new Date(DATE).toISOString(), controlDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
       payload: { title: "boundary", body }, createdAt: DATE, nextAttemptAt: DATE, attempts: 0, configRevision: "test" } as const);
     const growth = deliveryGrowth(notice("a", ""));
     const pad = 131_072 - Buffer.byteLength(JSON.stringify([notice("a", "")]));
@@ -217,7 +217,7 @@ describe("P2-A6 weather timeseries", () => {
     expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad))] }).kind).toBe("invalid");
     expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad - growth))] }).kind).toBe("restored");
     const wire = (length: number) => ({ ...base, intents: [notice("a", ""), notice("b", "x".repeat(length), "delivered")] });
-    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v2", unit: "U-F", generation: 0,
+    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v3", unit: "U-F", generation: 0,
       capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
     const length = 33_554_432 - generation(0);
     expect(generation(length)).toBe(33_554_432);
@@ -240,7 +240,7 @@ describe("P2-A6 weather timeseries", () => {
     const make = (pad: number) => Array.from({ length: 64 }, (_, index) => ({ unit: "U-F", id: `intent-${index}`, disposition: "pending",
       expiresAt: DATE + 1_000, subject: "normal/VPWP50/test", operation: "normal", channel: "desktop", transition: "activated",
       source: { inputId: "reserve-flow", origin: "replay", operation: "normal", family: "VPWP50", subject: "normal/VPWP50/test",
-        reportDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
+        reportDateTimeRaw: new Date(DATE).toISOString(), controlDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
       payload: { title: "boundary", body: index === 0 ? "x".repeat(pad) : "" }, createdAt: DATE, nextAttemptAt: DATE,
       attempts: 0, configRevision: "test" } as const));
     const reserved = (items: ReturnType<typeof make>) => items.reduce((sum, item) => sum + deliveryGrowth(item), 0);

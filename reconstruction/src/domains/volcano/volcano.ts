@@ -4,7 +4,7 @@ import type {
   VolcanoAreaGroup, VolcanoAshfallGroup, VolcanoKind, VolcanoReportFamily,
 } from "../../../contracts/p3-volcano-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
 // P3-UNIT-V-001 の adapter: VFVO50〜56・VFVO60・VFSV50〜61・VZVO40 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -21,7 +21,7 @@ const BOUNDS = { volcanoName: 32, kindName: 32, condition: 8, headline: 256, are
   direction: 16, value: 32, ashName: 32, areaName: 32, title: 128, text: 4_096, nextAdvisory: 512, activity: 4_096,
   prevention: 1_024 } as const;
 // I-U-V.bounds の件数と ASCII の上限、Q-ENUM.identity の ReportRef の長さ。
-const LIMITS = { inputId: 64, reportDateTime: 40, infoType: 8, volcanoCode: 16, areaCode: 16, code: 8, coordinate: 40,
+const LIMITS = { reportDateTime: 40, controlDateTime: 40, infoType: 8, volcanoCode: 16, areaCode: 16, code: 8, coordinate: 40,
   eventDateTime: 40, municipalityGroups: 8, municipalityCodes: 128, marineGroups: 4, marineCodes: 32, eruptionAreas: 128,
   bulletinVolcanoes: 128, entries: 128 } as const;
 // P3-C9-ASHFALL-PROJECTION=A（旧築 volcano-ashfall-projector.ts と同じ値）。
@@ -286,14 +286,13 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
     return code;
   };
   // 保存する ReportRef の byte の上限（Q-ENUM.identity）。inputId は host が作る値だが、上限を受理と decode で揃える。
-  if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType
-    || material.inputId.length > LIMITS.inputId) return reject("identityInvalid");
+  if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid");
   const infoTypeRaw = material.infoTypeRaw.trim();
   const infoRank = INFO_RANK.get(infoTypeRaw);
   if (infoRank == null) return reject("requiredStructureInvalid");
   const reportDateTimeMs = common.envelope.reportDateTimeMs;
   const source: ReportRef = { inputId: material.inputId, origin: material.origin, operation: material.operation, family,
-    subject: "", reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw };
+    subject: "", reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw };
   const cancelled = infoRank === 3;
   let truncated = false;
   const bound = (value: string | null, limit: number): string | null => {
