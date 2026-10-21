@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "4721377fdb98f41ac7e295625c9edee89479b173f8ee9a993deaba957d4f7e9d",
+    "sha256": "a34c39d9381da068c7a9d7bbb3c893a349c039410413d7b9b83c7e66e4fc94d2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
@@ -706,7 +706,7 @@
         "blocks": [
           "配送の後の器と要約の読み直し"
         ],
-        "resolveBy": "P3-UF-PUBLIC-001・P3-CURRENCY-COVERAGE-001・U-Wの単位（3つ目の単位）の配送のたび（P3-UF-PUBLIC-001は963351a7で配送済みでbaseOidの祖先になるので、本契約の最初の正式のrunがその配送の後の測定に当たる）",
+        "resolveBy": "P3-UF-PUBLIC-001・P3-CURRENCY-COVERAGE-001・U-Wの単位（3つ目の単位）・P3-WEATHER-SHAPE-001（影響する筋書きはW1・W2・N3、4614dee9で配送）の配送のたび（P3-UF-PUBLIC-001は963351a7で配送済みでbaseOidの祖先になるので、本契約の最初の正式のrunがその配送の後の測定に当たる）",
         "requiredEvidence": [
           "その配送のcommitを含むgitHeadで、影響する筋書き（U-F・U-Wの公開はW1・W2・N3、C1とcurrencyは拒否の起きた筋書き）を同じ道具で測り直した結果のfile",
           "結果のfileのgitHeadが配送のcommitを含むことの確かめ（git merge-base --is-ancestor）と、前の結果との並べ",

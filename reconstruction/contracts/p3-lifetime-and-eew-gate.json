@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "0b64d8e568ce382a2a35bae689c3051f11b41c8ce16e1a066095f1a366a1c96c",
+    "sha256": "2a62795175108484caa6d281e13c327d7877620edc083569ff4216fe43523567",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
@@ -357,7 +357,7 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:180 «ef82cd515267e875»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:358 «79cdbbfa9ad21414»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «ae9fa153569777db»"
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «4c07be251d76b228»"
         ]
       },
       {
@@ -427,7 +427,7 @@
       },
       {
         "id": "P3-LIFE-AC13",
-        "requirement": "起動時の時計チェック（残存リスク(3)の条件、作者裁定2026-10-10）: (1) 比べる相手はdmdata WebSocket v2のstart frameのtime（サーバーがstartを送った時刻のISO 8601文字列。旧築の型src/types.ts WsStartMessage.timeが同じ仕様を写している）。host.tsは接続ごとに最初に届くstartをすでに小frameの経路で解析しており、新しい通信・RESTの変更・header読みを足さない（RESTの応答はdmdata-rest.tsのexchangeがheaderを捨てるので使わない）。(2) 形の正しいstart（P3-C2-START-RECORDの判定、timeの有無で変えない）を受けるたびに1回、skew＝startを受けたときのclock().wallTimeMs − Date.parse(time) を測る。timeは「YYYY-MM-DDThh:mm:ss(.小数)?(Z|±hh:mm)」でDate.parseが有限のときだけ使う。|skew|≧300,000 msならERROR、60,000≦|skew|＜300,000ならWARN、＜60,000なら診断なし。reasonはskew＞0でhostClockAhead、skew＜0でhostClockBehind、component=\"host\"、count・durationMsは付けない（host.tsの既存の診断の流儀。同じ診断の繰り返しはsinkのcountが数える）。timeが無い・形が違う・Date.parseが有限でないときはWARN hostClockUnverifiedを1件。(3) 数値の根拠: 60秒はP3-LIFE-D-SKEWの起点の詰め（未来の報を受信時刻へ寄せる）が効き始め、版の時刻の比較がずれ始める目安。300秒はhorizon（600秒）の半分で、進みがEEWを捨てうる手前。往復と片道の遅れ（通常1秒未満）とtimeの秒の丸めはこの幅に含める。(4) ずれを見つけても受信・EEWの判定・接続を止めず、時刻を補正しない。出口は既存の診断のsink（保存する診断の記録）だけで、ディスプレイに新しい要素を作らない。測るのはstartの制御frameの処理の中で、受信経路（dataの投入）に入れない。(5) 再接続ごとに同じ判定を行う（費用はstart 1件ごとの定数）。",
+        "requirement": "起動時の時計チェック（残存リスク(3)の条件、作者裁定2026-10-10）: (1) 比べる相手はdmdata WebSocket v2のstart frameのtime（サーバーがstartを送った時刻のISO 8601文字列。旧築の型src/types.ts WsStartMessage.timeが同じ仕様を写している）。host.tsは接続ごとに最初に届くstartをすでに小frameの経路で解析しており、AC13の診断は新しい通信を足さない。時計の確かめのためのREST（GET /socket?status=open）とDateヘッダの読みはP3-CLOCK-CHECK-001が足す。(2) 形の正しいstart（P3-C2-START-RECORDの判定、timeの有無で変えない）を受けるたびに1回、skew＝startを受けたときのclock().wallTimeMs − Date.parse(time) を測る。timeは「YYYY-MM-DDThh:mm:ss(.小数)?(Z|±hh:mm)」でDate.parseが有限のときだけ使う。|skew|≧300,000 msならERROR、60,000≦|skew|＜300,000ならWARN、＜60,000なら診断なし。reasonはskew＞0でhostClockAhead、skew＜0でhostClockBehind、component=\"host\"、count・durationMsは付けない（host.tsの既存の診断の流儀。同じ診断の繰り返しはsinkのcountが数える）。timeが無い・形が違う・Date.parseが有限でないときはWARN hostClockUnverifiedを1件。(3) 数値の根拠: 60秒はP3-LIFE-D-SKEWの起点の詰め（未来の報を受信時刻へ寄せる）が効き始め、版の時刻の比較がずれ始める目安。300秒はhorizon（600秒）の半分で、進みがEEWを捨てうる手前。往復と片道の遅れ（通常1秒未満）とtimeの秒の丸めはこの幅に含める。(4) ずれを見つけても受信・EEWの判定・接続を止めず、時刻を補正しない。startのtimeはP3-CLOCK-CHECK-001の確かめの物差しにもなる（時計は補正しない）。出口は既存の診断のsink（保存する診断の記録）だけで、ディスプレイに新しい要素を作らない。測るのはstartの制御frameの処理の中で、受信経路（dataの投入）に入れない。(5) 再接続ごとに同じ判定を行う（費用はstart 1件ごとの定数）。",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:277 «9eab77f7d9fbc5e7»",
           "reconstruction/src/host/host.ts:280 «1b1c46f5a7c98e4f»",
@@ -556,7 +556,7 @@
       "F01・F11・F17の監査の再現（gate 512・nextDeadline null・capacityExceeded／7日でsubject消滅／duplicate・本文3）が反転したことを、正式試験の結果で報告する。",
       "本契約ファイルの実装時の編集権はevidenceRefのanchorと自己digestの同期だけに限り、受入条件・裁定値を実装後に変えない。",
       "申し送り（handoff、P3-LIFE-D-HARNESS=Aの後続）: E01/C4の計測harnessの充填規則（frames.mjsのnearCapacityFrames「時刻は動かさない」、windows.mjsのE14の束の時刻、draft.mjsの規則文）とevidenceの凍結文言（initial-state.json等）を、次のE01正式計測（C22のPi計測を含む）の前に別の作業で組み直す。K6の後はEEWの報時刻を充填時のhostの壁時計へ寄せ、U-Eの充填のactiveが窓の間（currentは起点から10分）に失効しないよう、窓の長さか再充填を計測の設計として決める。この作業が終わるまでE01/C4の正式計測を始めない。 組み直しではE01のWS投入側のstart frame（run.mjsのsendStart）にもhostの時計と同じtimeを足す（無いとAC13のhostClockUnverifiedが毎接続出る）。",
-      "残存リスク（作者の承認: (1)(2)(4)〜(8)は2026-10-10承認、(3)はAC13の時計チェックを条件に同日承認）: (1) gateの24時間は系列の長さだけを根拠にした余裕で、取消の時刻の分布は材料に無い。(2) 24時間内に1 familyで512件を超えるnormal EventIDは従来どおりcapacityExceeded。(3) hostの時計が10分以上進んでいると、新しいEEWがすべてhorizon外のstaleになる。接続ごとの時計チェック（AC13）で300秒以上の進みはERROR hostClockAheadの診断が出て、staleにはeewHorizonStaleが出る。それでも進んだまま運用するとEEWは表示・通知されない（時刻は補正しない）。(4) 再起動（A1）・gateの期限回収・容量退去の後は、horizon内の旧報が新規として再び採用・通知されうる。(5) D-HORIZON=Aにより、T・V等の無期限activeは記憶を失った後の古報を新規として受け入れうる。(6) U-Fは未来時刻の報と長いvalidUntilがその官署のsubjectを次の報まで占有する（未来時刻は既存の挙動）。K6より前に旧式（報時刻＋7日）で保存したP10D級のsubjectは引き上げないので、報時刻＋7日で消える（その保存物に限りF11が残る。復元で延ばさない裁定どおり）。(7) P3-LIFE-D-HARNESS=Aにより、E01/C4の計測harnessの充填はK6の後に成り立たない（下の申し送り）。 (8) currentが失効した後に同じ版の非終端の報（未来時刻の報だけが辿る経路）が届くと、gateの比較材料が一致してduplicateになり、currentを作り直さない（旧比較ではwarningClassの比較の飛ばしでcurrentが作り直されえた。古いEEWを復活させない向き）。"
+      "残存リスク（作者の承認: (1)(2)(4)〜(8)は2026-10-10承認、(3)はAC13の時計チェックを条件に同日承認）: (1) gateの24時間は系列の長さだけを根拠にした余裕で、取消の時刻の分布は材料に無い。(2) 24時間内に1 familyで512件を超えるnormal EventIDは従来どおりcapacityExceeded。(3) hostの時計が10分以上進んでいると、新しいEEWがすべてhorizon外のstaleになる。接続ごとの時計チェック（AC13）で300秒以上の進みはERROR hostClockAheadの診断が出て、staleにはeewHorizonStaleが出る。それでも進んだまま運用するとEEWは表示・通知されない（時刻は補正しない）。時計未確認の間のEEWは分岐P3-CK-D-UNVERIFIED-EEW=A（EEWの閉じ方の契約で入れる）。(4) 再起動（A1）・gateの期限回収・容量退去の後は、horizon内の旧報が新規として再び採用・通知されうる。(5) D-HORIZON=Aにより、T・V等の無期限activeは記憶を失った後の古報を新規として受け入れうる。(6) U-Fは未来時刻の報と長いvalidUntilがその官署のsubjectを次の報まで占有する（未来時刻は既存の挙動）。K6より前に旧式（報時刻＋7日）で保存したP10D級のsubjectは引き上げないので、報時刻＋7日で消える（その保存物に限りF11が残る。復元で延ばさない裁定どおり）。(7) P3-LIFE-D-HARNESS=Aにより、E01/C4の計測harnessの充填はK6の後に成り立たない（下の申し送り）。 (8) currentが失効した後に同じ版の非終端の報（未来時刻の報だけが辿る経路）が届くと、gateの比較材料が一致してduplicateになり、currentを作り直さない（旧比較ではwarningClassの比較の飛ばしでcurrentが作り直されえた。古いEEWを復活させない向き）。"
     ],
     "unresolvedQuestions": [
       {

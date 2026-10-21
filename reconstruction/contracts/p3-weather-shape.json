@@ -1,11 +1,11 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "cbc7509e18f39796e67cefa06fcf6d623a03b364b4db0fbbc1f9873b0e1aac6a",
+    "sha256": "0bffa0fefaabc4f294c921bb6bd8ae4f3816edc94377fcc466b20b5022062966",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
-    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3071 «25c515d57e48138d»",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
     "decisionBranches": [
       {
         "id": "P3-WS-D-ADDITION",
@@ -249,8 +249,8 @@
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:247 «d054d207fed1caf8»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:248 «5f58f878a2a7ca67»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:276 «fadf497851d88acf»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:136 «43cf2cce9dadfaad»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:140 «f08b8a238f240f5f»"
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:136 «bc8acc63cafb2146»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:140 «8de3c667b016b665»"
         ]
       },
       {
@@ -275,8 +275,8 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:463 «dd60944ba8d3b141»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:464 «c145e1c4c106b10d»",
           "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
-          "reconstruction/contracts/p2-snapshot-sse.json:68 «e82572eefda0946f»",
-          "reconstruction/contracts/p2-snapshot-sse.json:69 «60ae57ec85b9d783»"
+          "reconstruction/contracts/p2-snapshot-sse.json:68 «62080629b06dab7a»",
+          "reconstruction/contracts/p2-snapshot-sse.json:69 «9930c0e1ce1520e5»"
         ]
       },
       {
@@ -300,11 +300,11 @@
           "reconstruction/src/domains/typhoon/typhoon.ts:439 «16c1b2ce589575ac»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:586 «2d176df9bd29492e»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:638 «386765b0ed3fadfa»",
-          "reconstruction/contracts/p3-typhoon-unit.json:352 «38a3e50a557acad3»",
-          "reconstruction/contracts/p3-typhoon-unit.json:358 «b66f0930fd583506»",
-          "reconstruction/contracts/p3-typhoon-unit.json:440 «45e0f81b8c433afc»",
-          "reconstruction/contracts/p3-typhoon-unit.json:441 «3b3587577b6fe5e3»",
-          "reconstruction/contracts/p3-typhoon-unit.json:915 «b7d34b699b71c13a»",
+          "reconstruction/contracts/p3-typhoon-unit.json:352 «28b728c920e887df»",
+          "reconstruction/contracts/p3-typhoon-unit.json:358 «af03e786dee34b37»",
+          "reconstruction/contracts/p3-typhoon-unit.json:440 «6aa4dac0eb2143e9»",
+          "reconstruction/contracts/p3-typhoon-unit.json:441 «fcb58e30f8a6cce0»",
+          "reconstruction/contracts/p3-typhoon-unit.json:915 «82a1b22dcedf2e70»",
           "reconstruction/src/domains/typhoon/typhoon.ts:161 «5cf58eab3ec62706»",
           "reconstruction/src/domains/typhoon/typhoon.ts:203 «ab68efdc30d82239»",
           "reconstruction/src/domains/typhoon/typhoon.ts:234 «844490aedc0ee871»",
@@ -312,7 +312,7 @@
           "reconstruction/src/domains/typhoon/typhoon.ts:389 «ae4f8d3adcd67621»",
           "reconstruction/src/domains/typhoon/typhoon.ts:391 «5e0aab8267f4f2ea»",
           "reconstruction/src/domains/typhoon/typhoon.ts:435 «44f162cde8b85498»",
-          "docs/specs/reconstruction-p0-contracts.md:3209 «b0ec3704c104499b»"
+          "docs/specs/reconstruction-p0-contracts.md:3209 «f0f82f05f422b938»"
         ]
       },
       {
@@ -353,30 +353,30 @@
         "id": "P3-WS-AC08",
         "requirement": "改める他の条文と統合担当の記録。原文は重ねて読み替えず、配送のcommitで統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）: (1) P2-WEATHER-TIMESERIES-UNIT-001: Q-ENUM.familyTable（TimeSeriesInfoが存在する行）のlegalMissingOrEmptyに『各PartのBase・Base/Local直下の (a) 局所名がAdditionの要素（付加事項。refIDの有無によらない）と、(b) 局所名が値の名前の集合（P3-WS-AC01のSet: Significancy・Precipitation・WindDirection・WindSpeed・SnowfallDepth・WaveHeight・TidalLevel・Visibility・Humidity・PeakTime・CriteriaPeriod）に無く、periodとして欠けなく読めない要素（refIDが無い・2個以上・解決できない、type属性が2個以上、子を持つ、同じ鍵のperiodが既にある）と、Base・Localの直下の空白でない地の文は、値のleafでなく、読み飛ばして報を受理する（(b)は診断weatherTimeseriesElementSkipped）』を足し、missingの『値leafの必須refID欠落』を『値の名前の集合の要素のrefID欠落』に限る。periodRuleの『値は…BaseまたはBase/Local配下』に同じ除外を足す。familyTableのinvalidから、Q-WS-LEVELSの外の階層の知らない子と地の文を除き、読み飛ばして受理し診断weatherTimeseriesScopeUnclearを出す規則として書く。P2-A6-AC04（p2-weather-timeseries-unit.json:428）の『O02:14の全periodと値集合を欠落なく保持する』に、(a)(b)とQ-WS-LEVELSで読み飛ばす要素はperiodにしない旨を足す。Q-VALUESのcloseの『表示で最低warningへ上げるかはP4/A8へ残す』とP2-A6-AC02の同じ字句を、P3-WS-D-UNKNOWN-SEVERITYの裁定の規則に替える (2) P2-SNAPSHOT-SSE-001: P2-A8-SUMMARY.severityのU-Fとemptyの『未知を最低warningに繰り上げない』に、裁定の規則（A、区分不明への規則）を足す (3) P2-SHARED-RUNTIME-001: DiagnosticReasonの閉集合（型境界のACと試験）にweatherTimeseriesElementSkippedとweatherTimeseriesScopeUnclearを足す (4) P3-UNIT-Y-001: Q-ENUM.familyTableの解析と確率のinvalidから、P3-WS-D-TYPHOONのAの(1)〜(7)で部分の切り捨てと欄のnullに替えた所を除いてtruncatedの規則として書き、P3-C14-PROB-VALIDATIONのAとP3-C14-RES（frames・axesの『reject beyond』）を合わせ、P3-C14-AC06の境界（時刻24/25・軸2/3）とP3-C14-T01（『DateTimeのtypeの表の外』『時刻25個』『軸3本』を拒否の例に挙げる）・P3-C14-T06（時刻24/25・軸2/3）の拒否の字句を受理＋truncatedに替え、P3-C14-T01・T06の『時間帯65個』『時系列の隙間』『3個目より後のPT6H』『時刻の中の欄の形の外』の拒否の字句も本契約のAの(4)(7)に合わせ（全部の時間帯がPT6H・値の範囲の外・同じtypeの域の2個以上は拒否のまま）、残存リスク(19)(20)を本契約の切り捨ての規則と、拒否のまま残す所（Q-WS-REJECTIONS）に書き直す (5) spec §16のH44の行と、p3-order-plan.mdの『形の違う気象電文の読み方』の行に本契約のIDを書き、移行の欄を確かめる（裁定の3つでは無し） (6) 構造的欠陥台帳89の局所修正の状態（repoの外、統合担当） (7) P2-WEATHER-TIMESERIES-UNIT-001のQ-VALUES.emptyMissingRuleの『最大危険度の計算へ加えない。表示はP4/A8で決める』を(1)と同じ規則に合わせる (8) P3-DISASTER-CAPACITY-001のQ-DC-REMEASURE.resolveByの配送の列に本契約を足す（影響する筋書きはW1・W2・N3） (9) spec §16.4のH51の『置き換えるもの』に本契約の改訂（Q-WS-LEVELS・残存リスク(1)(4)の置き換え）を書き、K14の契約の起草で、U-Fの読めない所と範囲の区分不明の印（本契約は診断だけ）、U-Yのtruncatedと、本契約で拒否のまま残した所（Q-WS-REJECTIONS）を、印の形と読めなかった電文のカード（H43）の入力に入れる（統合担当、段3）。p3-order-plan.md:514の『印と診断を付ける』を『診断を付け、U-Fの印の保存はK14』に直す（planの行は統合担当が直す）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:52 «66f19257c7cd1c08»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:53 «1fb94a6ecf3ae72f»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:135 «e925bc4d4feda0c3»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:136 «43cf2cce9dadfaad»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:140 «f08b8a238f240f5f»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:411 «7fcc976ff0094006»",
-          "reconstruction/contracts/p2-snapshot-sse.json:68 «e82572eefda0946f»",
-          "reconstruction/contracts/p2-snapshot-sse.json:69 «60ae57ec85b9d783»",
-          "reconstruction/contracts/p3-typhoon-unit.json:118 «38a2af68b97ddfd6»",
-          "reconstruction/contracts/p3-typhoon-unit.json:352 «38a3e50a557acad3»",
-          "reconstruction/contracts/p3-typhoon-unit.json:358 «b66f0930fd583506»",
-          "reconstruction/contracts/p3-typhoon-unit.json:440 «45e0f81b8c433afc»",
-          "reconstruction/contracts/p3-typhoon-unit.json:441 «3b3587577b6fe5e3»",
-          "reconstruction/contracts/p3-typhoon-unit.json:915 «b7d34b699b71c13a»",
-          "reconstruction/contracts/p3-typhoon-unit.json:1056 «ff043e3a49ced192»",
-          "reconstruction/contracts/p3-typhoon-unit.json:1192 «660fb6fbf040029e»",
-          "reconstruction/contracts/p3-typhoon-unit.json:1232 «831a7c3e9eb3f86d»",
-          "docs/specs/reconstruction-p0-contracts.md:3071 «25c515d57e48138d»",
-          "reconstruction/contracts/p3-order-plan.md:457 «ef66bcf641cd0c28»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:52 «f47bfa46d2264123»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:53 «9e9f7871909ba4ce»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:135 «6c46ee902cc9061f»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:136 «bc8acc63cafb2146»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:140 «8de3c667b016b665»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:411 «3da6a908327c86ae»",
+          "reconstruction/contracts/p2-snapshot-sse.json:68 «62080629b06dab7a»",
+          "reconstruction/contracts/p2-snapshot-sse.json:69 «9930c0e1ce1520e5»",
+          "reconstruction/contracts/p3-typhoon-unit.json:118 «22104363ed6bfed6»",
+          "reconstruction/contracts/p3-typhoon-unit.json:352 «28b728c920e887df»",
+          "reconstruction/contracts/p3-typhoon-unit.json:358 «af03e786dee34b37»",
+          "reconstruction/contracts/p3-typhoon-unit.json:440 «6aa4dac0eb2143e9»",
+          "reconstruction/contracts/p3-typhoon-unit.json:441 «fcb58e30f8a6cce0»",
+          "reconstruction/contracts/p3-typhoon-unit.json:915 «82a1b22dcedf2e70»",
+          "reconstruction/contracts/p3-typhoon-unit.json:1056 «0a9a28df1d09798d»",
+          "reconstruction/contracts/p3-typhoon-unit.json:1192 «e5e003ffd938a922»",
+          "reconstruction/contracts/p3-typhoon-unit.json:1232 «a84c0f3c3db674ac»",
+          "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
+          "reconstruction/contracts/p3-order-plan.md:457 «40f593671ef0abda»",
           "reconstruction/contracts/p3-order-plan.md:477 «422794effad56631»",
-          "reconstruction/contracts/p3-disaster-capacity.json:709 «5884700ccb024038»",
-          "docs/specs/reconstruction-p0-contracts.md:3209 «b0ec3704c104499b»",
-          "reconstruction/contracts/p3-order-plan.md:514 «4cf71f2ae00f09a6»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «ae9fa153569777db»"
+          "reconstruction/contracts/p3-disaster-capacity.json:709 «fd294178e1cb86d1»",
+          "docs/specs/reconstruction-p0-contracts.md:3209 «f0f82f05f422b938»",
+          "reconstruction/contracts/p3-order-plan.md:514 «e204d84283a8f0ea»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «4c07be251d76b228»"
         ]
       },
       {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "601dc9bd227b4264a9ffadbfa85f1f0ba3ae08e9e763a5a8219943e0b40bac13",
+    "sha256": "573508bc490f67446330d9137ef2f0f5c446002d3bc78a4228a1d92e8d445ec0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
@@ -88,9 +88,9 @@
         "keyAndBound": "deadlines[channel][JSON.stringify([unit,intentId])]の値は、所有するU-E/U-W/U-Fの実pendingに一対一で対応する。両channel合計は3単位×128=384値以下。operation/subject/channelは既存intentで照合し、mapへ複製しない。Partial lookupはundefinedを返せる。選択対象からの一時除外を所有unitからの削除と混同しない。",
         "adoption": "新規intentを保存世代へ採用した同じClockReadingをW=wallTimeMs、M=monotonicMsとする。createdAt=nextAttemptAt=W、retryAtMonotonicMs=M、expiresAtMonotonicMs=M+max(0,expiresAt-W)。A1の同じ入力処理でA7へ渡し、初回markerもこのMを使う。",
         "failure": "相関一致した失敗確定のcompletedAtをWf/Mf、完了した試行のattemptsをn>=1とする。d(n)=1000,2000,4000,8000（n=1..4）、n>=5は10000ms。nextAttemptAt=Wf+d(n)、retryAtMonotonicMs=Mf+d(n)。expiresAt/createdAt/expiresAtMonotonicMsは維持する。stopped=falseのtimeoutはchannel隔離を先に適用し、新たな試行をしない。",
-        "restore": "新runのW0/M0でW0>=expiresAtならexpiredとして回収する。残るpendingはretryAtMonotonicMs=M0+max(0,nextAttemptAt-W0)、expiresAtMonotonicMs=M0+max(0,expiresAt-W0)。保存createdAt/expiresAt/nextAttemptAtは変更しない。前runの単調値を持ち越さない。",
+        "restore": "hostの状態が\"verified\"の評価のW/M（以下W0/M0、P3-CLOCK-CHECK-001のP3-CK-AC03）でW0>=expiresAtならexpiredとして回収する。残るpendingはretryAtMonotonicMs=M0+max(0,nextAttemptAt-W0)、expiresAtMonotonicMs=M0+max(0,expiresAt-W0)。保存createdAt/expiresAt/nextAttemptAtは変更しない。前runの単調値を持ち越さない。復元由来の通知は、hostの状態が\"awaiting\"の間は壁時計の回収も表の回収も選択も試行の開始も当てず、\"unverified\"なら鳴らさずexpired（notificationExpiredClockUnverified）にする。停止のとき\"verified\"でないまま残るもの（試行中のものを除く）は最終保存の前にexpiredにする（P3-CLOCK-CHECK-001のP3-CK-AC03の(2)(3)）。",
         "ordinaryReevaluation": "receive後の再評価、結果後の選択、channel解放、期限前tickでは既存値を保ち、壁時計残余から張り直さない。生成・復元で作り、失敗確定でretryだけを更新する。停止理由だけの変化でもexpiryを張り直さない。",
-        "order": "各再評価で所有unitの取消/置換/終端を反映し、壁時計W>=expiresAtの絶対TTLを最初に適用する。残るpendingでもM>=expiresAtMonotonicMsならexpiredとし、壁時計後退で寿命を延長しない。期限内だけretryAtMonotonicMsを到来判定し、試行期限=min(Mselect+channelTimeoutMs,expiresAtMonotonicMs)。TTLと試行timeoutが同時ならcause=expiredを優先し、TTL内の試行期限到来はcause=timeout。結果照合にも同じ順を適用する。 選択時の期限回収はattemptの有無によらずpending→expiredのintentUpdateを返し、A1が所有unitへ採用する。試行開始だけの更新はdispositionを維持する。 A1は受信・期限入力・結果再評価で選択除外中を含む全所有pendingを同じ順で回収し、選択制限を維持する。",
+        "order": "各再評価で所有unitの取消/置換/終端を反映し、壁時計W>=expiresAtの絶対TTLを最初に適用する（保留中の復元由来の通知を除く、P3-CLOCK-CHECK-001のP3-CK-AC03の(2)）。残るpendingでもM>=expiresAtMonotonicMsならexpiredとし、壁時計後退で寿命を延長しない。期限内だけretryAtMonotonicMsを到来判定し、試行期限=min(Mselect+channelTimeoutMs,expiresAtMonotonicMs)。TTLと試行timeoutが同時ならcause=expiredを優先し、TTL内の試行期限到来はcause=timeout。結果照合にも同じ順を適用する。 選択時の期限回収はattemptの有無によらずpending→expiredのintentUpdateを返し、A1が所有unitへ採用する。試行開始だけの更新はdispositionを維持する。 A1は受信・期限入力・結果再評価で選択除外中を含む全所有pendingを同じ順で回収し、選択制限を維持する。",
         "reclaim": "所有unitでpendingがdelivered/expired/supersededへ終端化するか削除された同じ採用でmapを削除する。消えたintentのrunning/stoppingはNotificationAttemptとstopByMonotonicMsで停止を追跡し、mapの孤児を保持しない。A1が実pendingとの対応を採用し、A7の期限式を別層に複製しない。",
         "complexity": "受信・通常再評価・選択・1件結果照合は通常O(N)、変更検出の全量直列化は0とし、Nは所有pending Kと終端Tを含む保持intent数とする（Kは各unitのcodecで128件/128KiB以内、Tに固定件数上限はなくU-E 256KiB・U-W 16MiB・U-F 32MiBの保存世代予算に従う）。U-Eの256KiB保存世代予算を超える場合に限り、終端T件のexpiresAt順整列を1回（O(T log T)、同値は既存配列順）行い、必要byte分の退去対象全体を決めて1回のfilterで除去する。超過しない入力では退去用の整列・選択走査をせず、退去R件ごとの全件再走査・splice反復は禁止する。一括失効も照合済みintentUpdateを所有unitごとに一括採用・索引照合してO(K+T)とし、O(K×(K+T))の反復走査は許容しない（U-W/U-F各128 pending＋4000 terminalの同一runtime tickは改訂前162.82ms→改訂後20.21ms、id参照計測込みの単発実測）。"
       },

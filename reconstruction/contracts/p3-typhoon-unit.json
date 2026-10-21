@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "37498302fa7e5a5ededd0f0cb54027146f05cad9fcf4368e03434152734db290",
+    "sha256": "2e0707d96f05aad85864677ee0c3b965442e858b7192c63d8654ed3240c2a98d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
@@ -115,7 +115,7 @@
       },
       {
         "id": "P3-C14-PROB-VALIDATION",
-        "A": "確率の非取消の報は、1〜5日積算の5つのMeteorologicalInfo（typeは「台風の暴風域に入る確率（N日積算）」）とTimeSeriesInfo 1個を必須とし、5つの積算と時系列で地域（Area/Code）の集合が同じで、各節に同じcodeが2回現れず、府県予報区等のcodeと名前の対が1つの報で食い違わず、値が0〜100の整数（unit %）、TimeDefineが1〜64個でtimeIdが1から連続、最初のDateTimeがTargetDateTime、各Durationが PT3H で隙間なく続き、時系列の各地域がrefID 1〜nの値をちょうど1つずつ持つ。5日積算が全地域0なら3時間ごとの値も全部0（配送時に統合担当が補った、Q-C14-IMPL-AMEND）。外れれば報を丸ごと拒否する（requiredStructureInvalid、欠けはrequiredStructureMissing）",
+        "A": "確率の非取消の報は、1〜5日積算の5つのMeteorologicalInfo（typeは「台風の暴風域に入る確率（N日積算）」）とTimeSeriesInfo 1個を必須とし、5つの積算と時系列で地域（Area/Code）の集合が同じで、各節に同じcodeが2回現れず、府県予報区等のcodeと名前の対が1つの報で食い違わず、値が0〜100の整数（unit %）、TimeDefineが1〜64個でtimeIdが1から連続、最初のDateTimeがTargetDateTime、各Durationが PT3H で隙間なく続き、時系列の各地域がrefID 1〜nの値をちょうど1つずつ持つ。5日積算が全地域0なら3時間ごとの値も全部0（配送時に統合担当が補った、Q-C14-IMPL-AMEND）。外れれば報を丸ごと拒否する（requiredStructureInvalid、欠けはrequiredStructureMissing）。P3-WEATHER-SHAPE-001のP3-WS-D-TYPHOON=A（H51、2026-10-20 作者裁定）で次は報を受理してtruncated=trueにする: typeが台風呼称でも「台風の暴風域に入る確率（N日積算）」の形でもない節と、Nが1〜5の外の節は落とし、その地域を地域の集合の照合に入れない。時間帯は先から読み、timeIdが順番どおり・DurationがPT3H・DateTimeがTargetDateTime＋3時間×順番のどれかを外れた最初の時間帯（DateTime・Durationの欠けを含む）か65個目で止め、そこから後の時間帯と値を読まない（slotCountはそこまでの数）。各地域の値の数は元のTimeDefineの数と照合し、refIDの照合とpeak・peakSlotは読んだ時間帯の範囲で行う。台風呼称の節の欄の不備は欄をnullにする。最初の時間帯で止まる報、値の形の外の地域、同じ節か時系列に重なる地域、同じ日の節の2個以上、落とした節か時間帯があって1以上の地域が0件の報は今どおり拒否する（Q-WS-REJECTIONS・Q-WS-IMPL）",
         "B": "旧築どおり外れた報を「表示できない」として受理し、watermarkだけ進める（nonProjectable、src/engine/display/project-typhoon-probability.ts:36 «c4e475739453fd79»）",
         "recommended": "A",
         "provisional": "A",
@@ -349,13 +349,13 @@
             "family": "VPTW60〜65（analysis）",
             "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個。非取消でHead/TargetDateTimeが1個でA1の時刻の形、Body/MeteorologicalInfos（type 台風情報）1個に、MeteorologicalInfoが1〜24個、各MeteorologicalInfoはDateTime 1個（A1の時刻の形、typeが表の形）とItem 1個。実況の時刻がちょうど1個（無ければrequiredStructureMissing）",
             "legalMissing": "取消はTargetDateTime・Bodyを読まない。Headline（気象庁の解説で常に空）、呼称の欠落（nameは全部null）、推定・予報の時刻、風のKind、座標・数値の空タグ（null）、Area/Circleは欠落してよい。EditorialOffice・InfoKindは読まない",
-            "invalid": "DateTimeのtypeが表の外、hoursが時刻の種類と合わない（実況0・推定1・予報と延長予報3〜120の外）、Itemが2個以上、座標が「±DD.D±DDD.D/」の形でないか範囲の外、数値の要素が整数でない・範囲の外、Numberが数字4桁でも空でもない、時刻25個以上、域の軸3本以上、制御文字か孤立したサロゲート、子要素を持つscalar（requiredStructureInvalid）"
+            "invalid": "実況の時刻（DateTimeのtypeで数える）が2個以上か、時刻として読めない（DateTimeの2個以上・A1の時刻の形の外、Itemの2個以上）、同じtypeのWarningAreaPartが2個以上（域をnullにすると暴風域なしと見分けられない）、時刻の外の欄の制御文字か孤立したサロゲート・子要素を持つscalar（requiredStructureInvalid。実況の時刻のDateTime・Itemの欠けはrequiredStructureMissing）。P3-WEATHER-SHAPE-001のP3-WS-D-TYPHOON=A（H51、2026-10-20 作者裁定）で次は報を受理してtruncated=trueにする（requiredの時刻の数とDateTime 1個・Item 1個は実況の時刻と残した時刻に当てる）: DateTimeのtypeが表の外の時刻は落とす（typeの欠けか空の時刻は落とさない）。残りが25個以上なら、実況の時刻と、ほかを文書の順で先から、合わせて24個を文書の順で残す（残さない時刻はtypeのほかを読まない）。実況でない時刻で時刻として読めないもの（DateTimeの欠け・2個以上・形の外、typeの欠けか空、hoursが時刻の種類と合わない〔実況0・推定1・予報と延長予報3〜120の外〕、Itemの欠け・2個以上）はその時刻を落とす。残した時刻と台風呼称の欄の不備（座標が「±DD.D±DDD.D/」の形でないか範囲の外、数値の要素が整数でない・範囲の外、Numberが数字4桁でも空でもない、制御文字か孤立したサロゲート、子要素を持つscalar、同じTypeのPropertyか中心のCoordinate・BasePointの2個以上）はその欄（2個以上ならその組の全部）をnullにする。域の軸3本以上はaxesを[]にしてthresholdMsだけを残す"
           },
           {
             "family": "VPTA50〜55（probability）",
             "required": "Head/Title・InfoType・EventID（解析と同じ）。非取消でTargetDateTime 1個、Body/MeteorologicalInfos 1個に、5つの日積算のMeteorologicalInfoが各ちょうど1個とTimeSeriesInfo 1個、地域1個以上（P3-C14-PROB-VALIDATION）",
             "legalMissing": "取消はTargetDateTime・Bodyを読まない（synthetic_VPTA50_cancelはMeteorologicalInfosが空）。台風呼称のMeteorologicalInfoの欠落（nameは全部null）。Headlineは読まない",
-            "invalid": "P3-C14-PROB-VALIDATIONの各外れ（5日積算が全地域0なのに3時間ごとの値が1以上の報を含む、配送時に統合担当が補った、Q-C14-IMPL-AMEND）と、地域・府県予報区等のcodeが数字6桁でない（requiredStructureInvalid）。地域・時系列の欠けはrequiredStructureMissing"
+            "invalid": "P3-C14-PROB-VALIDATIONの各外れ（P3-WEATHER-SHAPE-001のP3-WS-D-TYPHOON=Aで受理してtruncatedにした知らない節・1〜5日の外の節・外れた時間帯から後と、台風呼称の節の欄の不備〔欄をnull〕を除く。5日積算が全地域0なのに3時間ごとの値が1以上の報を含む、配送時に統合担当が補った、Q-C14-IMPL-AMEND）と、地域・府県予報区等のcodeが数字6桁でない（requiredStructureInvalid）。地域・時系列の欠けはrequiredStructureMissing"
           }
         ],
         "revisionOrder": "subjectごとに(ReportDateTime, InfoTypeの順位（発表＜訂正＜取消）, Serial（欠落は最小）)の辞書順（K1のD-ORDER=A・D-MISSING=A、reconstruction/contracts/p3-revision-order.json:12 «ac34b4abb2e61d4d»）。同じ版・同じInfoTypeで公開事実が同じならduplicate、違えば先着を保ってstale＋WARN診断typhoonRevisionConflict。取消以前の版はstale。版の比較は遅着の判定より先。気象庁のサンプル10_04_03と10_04_04（同じSerial 55・同じ時刻の発表で予報の値が違う）と、10_05_02と10_05_03（同じ版の訂正が2通）はこの規則で後着がstaleになる",
@@ -417,7 +417,7 @@
       },
       {
         "id": "P3-C14-RESIDUAL-RISKS",
-        "status": "(1)〜(21)は作者承認（2026-10-13朝、ご主人）。(1)は基準α、(3)〜(5)は基準βで基準ごとに一括で承認し、ほかは一覧のとおり1件ずつ承認した。群: ほぼ起きない2（(1)は基準α）・時計しだい3（全部基準β）・軽い7・重い2・未知7（計21）。基準α（件数の上限が実配信の同時の最大の10倍以上なら満杯の欠けを保証外）は(1)。基準β（分単位以上の時計のずれでだけ起き、K6のP3-LIFE-AC13の時計チェックで必ず診断に残る、reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «65a63aa39653d995»）は(3)〜(5)。(6)(7)(13)の重さはP3-C14-EXPIRY=A・PROB-FACTS=A・TERMINAL=Aの値で書いた。(14)・(21)の実装後の追記（2026-10-13）も作者承認（2026-10-13夜、ご主人）。(21)は、今のE05-Pの負荷PにVPTA50が0通（台風の電文は3 KBのVPTW61が1 runに3通だけ）でU-Yの寄与が出ないと分かったので、VPTA50（約1.85 MB）を上乗せしたE05-Pの変種の窓を次の契約で起こし、C22の前にMac miniで測る（作者裁定C、2026-10-13夜）",
+        "status": "(1)〜(21)は作者承認（2026-10-13朝、ご主人）。(1)は基準α、(3)〜(5)は基準βで基準ごとに一括で承認し、ほかは一覧のとおり1件ずつ承認した。群: ほぼ起きない2（(1)は基準α）・時計しだい3（全部基準β）・軽い7・重い2・未知7（計21）。基準α（件数の上限が実配信の同時の最大の10倍以上なら満杯の欠けを保証外）は(1)。基準β（分単位以上の時計のずれでだけ起き、K6のP3-LIFE-AC13の時計チェックで必ず診断に残る、reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «dddd02e05041ae59»）は(3)〜(5)。(6)(7)(13)の重さはP3-C14-EXPIRY=A・PROB-FACTS=A・TERMINAL=Aの値で書いた。(14)・(21)の実装後の追記（2026-10-13）も作者承認（2026-10-13夜、ご主人）。(21)は、今のE05-Pの負荷PにVPTA50が0通（台風の電文は3 KBのVPTW61が1 runに3通だけ）でU-Yの寄与が出ないと分かったので、VPTA50（約1.85 MB）を上乗せしたE05-Pの変種の窓を次の契約で起こし、C22の前にMac miniで測る（作者裁定C、2026-10-13夜）",
         "items": [
           "【ほぼ起きない・α】(1) 解析64・確率64（P3-C14-PROB-FACTS=A）の満杯はtraining/testの記録が多いときだけ。同時に存在する台風等はiiの6枠で、実配信の同時の最大は2（2026-06-26、TC2608とTC2609）。64は32倍で基準αに当たる",
           "【ほぼ起きない】(2) TC番号の使い回しで別の台風が同じsubjectに来る。TC番号は西暦下2桁＋その年の通し番号で、記憶の7日の間に同じ番号は来ない",
@@ -437,8 +437,8 @@
           "【未知】(16) 熱帯低気圧化・域外へ出る・発生取消の実物は0（発生取消は気象庁のサンプル10_05_05だけ、低気圧化は採取2通とサンプル10_04_08）。Remarkの書き方が変わると終わりと読めず、見える期限まで残る（fail-bright）",
           "【未知】(17) 熱帯低気圧化の後に同じTC番号で再び台風になる形があるかは確かめていない。新しい版が来れば解析はactiveに戻り、確率も見える",
           "【未知】(18) 確率の0と0でない値の行き来の頻度（Aでは0から立ち上がるたびにnormalで鳴る）。採取では0でない値から0へ2回、0から0でない値へは0回",
-          "【未知】(19) 確率の報の時間帯の数・長さ（40×PT3H）や地域の表（375）が変わると、PT3H以外・65以上の時間帯は報ごと拒否される（fail-dark）。地域の増加は384まで受ける",
-          "【未知】(20) DateTimeのtypeが表（実況・推定　１時間後・予報／延長予報　N時間後）の外の解析の報は報ごと拒否する（Q-ENUM.familyTable）。気象庁が新しい時刻の種類を足すと、その台風の解析が全部見えなくなる（fail-dark）。実配信の106通は18種で全部表の内側",
+          "【未知】(19) 確率の報の時間帯の数・長さ（40×PT3H）や地域の表（375）が変わると、外れた最初の時間帯（PT3Hでない・隙間・timeIdの順の外れ）と65個目から後の時間帯は読まず、その確率はpeakに入らない（truncated。peakが実際より低く出うる。P3-WEATHER-SHAPE-001のP3-WS-D-TYPHOON=Aの(7)と同契約の残存リスク(4)）。最初の時間帯から外れた報と、落とした所があって1以上の地域が0件の報は今どおり報ごと拒否する（Q-WS-REJECTIONS・Q-WS-IMPL、K14で読めなかった電文のカード）。地域の増加は384まで受ける",
+          "【未知】(20) DateTimeのtypeが表（実況・推定　１時間後・予報／延長予報　N時間後）の外の時刻は落とし、残りの時刻で解析の報を受理する（truncated、P3-WEATHER-SHAPE-001のP3-WS-D-TYPHOON=Aの(1)、Q-ENUM.familyTable）。気象庁が新しい時刻の種類を足すと、その種類の時刻だけが見えない。実況の時刻が読めない報と、同じtypeの風の域が2個以上の報は今どおり拒否する（Q-WS-REJECTIONS、K14で読めなかった電文のカード）。実配信の106通は18種で全部表の内側",
           "【未知】(21) 確率の生きたXMLの木は1通8.8 MiB（Mac）。deferredのworkerのheapの山（E05-P、RSS）への寄与は測っていない。実装後の計測（2026-10-13、Mac）で1つのisolateのheapが638 MBに達した。今のE05-Pの負荷PにはVPTA50が入らないので、VPTA50を上乗せしたE05-Pの変種の窓を次の契約で測る（C22の前）【作者承認 2026-10-13夜】"
         ]
       },
@@ -912,7 +912,7 @@
       {
         "id": "P3-C14-RET-03",
         "target": "frames, axes and areas of one report",
-        "limit": "24 frames (reject beyond); 2 axes per wind area (reject beyond); 384 probability areas with a value of 1 or more and 96 prefectures, dropping the lowest five-day values first and skipping any area whose prefecture would be the 97th, with truncated=true",
+        "limit": "24 frames (beyond: keep the analysis frame and the earliest others in document order up to 24, truncated=true); 2 axes per wind area (beyond: axes [] keeping thresholdMs, truncated=true; both by P3-WEATHER-SHAPE-001 P3-WS-D-TYPHOON=A); 384 probability areas with a value of 1 or more and 96 prefectures, dropping the lowest five-day values first and skipping any area whose prefecture would be the 97th, with truncated=true",
         "unit": "per report",
         "source": "P3-C14-BOUNDS・P3-C14-PROB-FACTS"
       },
@@ -1012,7 +1012,7 @@
       },
       {
         "id": "P3-C14-AC03",
-        "requirement": "probability slice（P3-C14-PROB-FACTS・PROB-VALIDATION・ZERO・EXPIRY）: 1以上の地域だけを地域ごとのdaily 5つ・peak・peakSlotと府県予報区等の表で持ち（3時間ごとの40の値は持たない）、maxFiveDayを持つ。節の地域の集合の不一致・重複・値の範囲外・TimeDefineの形の外は報ごと拒否（synthetic_VPTA50_duplicate_areaはrequiredStructureInvalid）。全ゼロの報はzero（見えない）で、見える記録からのzeroだけを1回鳴らし、zeroの後のzeroはrevisionOnlyで鳴らさない（P3-C14-ZERO=A）。地域の無い報は拒否。activeはP3-C14-EXPIRYの式でended、記録は+7日で除く。地域が384を超える報は5日積算の低い方から捨て、採ると府県予報区等が97個目になる地域も飛ばしてtruncated（府県予報区等の表は採った地域をちょうど覆う）",
+        "requirement": "probability slice（P3-C14-PROB-FACTS・PROB-VALIDATION・ZERO・EXPIRY）: 1以上の地域だけを地域ごとのdaily 5つ・peak・peakSlotと府県予報区等の表で持ち（3時間ごとの40の値は持たない）、maxFiveDayを持つ。節の地域の集合の不一致・重複・値の範囲外・最初のTimeDefineの形の外は報ごと拒否（synthetic_VPTA50_duplicate_areaはrequiredStructureInvalid）。知らない節と1〜5日の外の節は落とし、2個目より後のTimeDefineの形の外と65個目はそこで止めて、受理してtruncated。落としたものがあって1以上の地域が0件の報は拒否（P3-WEATHER-SHAPE-001のP3-WS-D-TYPHOON=Aの(6)(7)・Q-WS-IMPL）。全ゼロの報はzero（見えない）で、見える記録からのzeroだけを1回鳴らし、zeroの後のzeroはrevisionOnlyで鳴らさない（P3-C14-ZERO=A）。地域の無い報は拒否。activeはP3-C14-EXPIRYの式でended、記録は+7日で除く。地域が384を超える報は5日積算の低い方から捨て、採ると府県予報区等が97個目になる地域も飛ばしてtruncated（府県予報区等の表は採った地域をちょうど覆う）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:401 «692c567df2a72455»",
           "docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a»",
@@ -1053,7 +1053,7 @@
       },
       {
         "id": "P3-C14-AC06",
-        "requirement": "容量と受信1回の費用（P3-C14-CAPACITY・BOUNDS・PROB-FACTS）: sliceごとの件数の上限ちょうどと+1（normalの受理の退去の順、typhoonCapacityEvicted）、ほかのsliceの記録が退去されない、時刻24/25・軸2/3・地域384/385・府県予報区等96/97・文字列の上限ちょうどと+1（コードポイントの境界）、pendingの128/129件と「byte＋予約」の131,072/131,073、intentUpdateで桁が増えても和が上限の内側、終端記録の98,304 byteを超えた分の期限前の回収、静的上界の世代がencodeでき8,388,608以下。capacityExceededを返さない。保持上限付近で受信1回のencodeが記録単位の加算だけ（全体の直列化0、変えないsliceの配列の作り直し0）。1.85 MBの確率の報1通の処理の所要（decode・reduce・encode）を報告する",
+        "requirement": "容量と受信1回の費用（P3-C14-CAPACITY・BOUNDS・PROB-FACTS）: sliceごとの件数の上限ちょうどと+1（normalの受理の退去の順、typhoonCapacityEvicted）、ほかのsliceの記録が退去されない、時刻24/25・軸2/3（25個目の時刻と3本目の軸は拒否でなく受理してtruncated、P3-WEATHER-SHAPE-001のP3-WS-D-TYPHOON=A）・地域384/385・府県予報区等96/97・文字列の上限ちょうどと+1（コードポイントの境界）、pendingの128/129件と「byte＋予約」の131,072/131,073、intentUpdateで桁が増えても和が上限の内側、終端記録の98,304 byteを超えた分の期限前の回収、静的上界の世代がencodeでき8,388,608以下。capacityExceededを返さない。保持上限付近で受信1回のencodeが記録単位の加算だけ（全体の直列化0、変えないsliceの配列の作り直し0）。1.85 MBの確率の報1通の処理の所要（decode・reduce・encode）を報告する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
           "docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a»",
@@ -1189,7 +1189,7 @@
         "referenceIds": [
           "P3-C14-AC01"
         ],
-        "behavior": "Q-ENUMの各不備（EventIDの欠落・33文字・「/」、Serialの数字列でない・11桁、ReportDateTime・InfoTypeのrawの長さ、inputIdの65文字と「\"」、Head/Titleの欠落、InfoTypeの語彙外、解析のTargetDateTimeの欠落、DateTimeのtypeの表の外、実況の欠落と2個、Item 2個、座標の形・範囲の外、Numberの形の外、時刻25個、軸3本、確率の節の欠落）で最初の一reasonを返しstate参照が不変。Bodyの無い取消は採用。coverage表の12行と実行場所"
+        "behavior": "Q-ENUMの各不備（EventIDの欠落・33文字・「/」、Serialの数字列でない・11桁、ReportDateTime・InfoTypeのrawの長さ、inputIdの65文字と「\"」、Head/Titleの欠落、InfoTypeの語彙外、解析のTargetDateTimeの欠落、実況の欠落と2個、実況の時刻のItem 2個、確率の節の欠落）で最初の一reasonを返しstate参照が不変。DateTimeのtypeの表の外、実況でない時刻のItem 2個、座標の形・範囲の外、Numberの形の外、時刻25個、軸3本は受理してtruncated（P3-WEATHER-SHAPE-001のP3-WS-D-TYPHOON=A、同契約のP3-WS-T04）。Bodyの無い取消は採用。coverage表の12行と実行場所"
       },
       {
         "testId": "P3-C14-T02",
@@ -1205,7 +1205,7 @@
         "referenceIds": [
           "P3-C14-AC03"
         ],
-        "behavior": "76_01_02（地域273）の事実（daily・peak・peakSlot・府県予報区等・maxFiveDay）、76_01_03（全ゼロ）でzero、zero→zero（試験内で作る）がrevisionOnlyで通知0、見える記録→zeroでinfo 1件、記録の無いsubjectのzeroで通知0、地域の無い報の拒否、synthetic_VPTA50_duplicate_areaの拒否、節の地域の不一致・TimeDefineの隙間・PT6Hの拒否、地域385の報の切り捨てとtruncated、activeUntilの境界、+7日の除去"
+        "behavior": "76_01_02（地域273）の事実（daily・peak・peakSlot・府県予報区等・maxFiveDay）、76_01_03（全ゼロ）でzero、zero→zero（試験内で作る）がrevisionOnlyで通知0、見える記録→zeroでinfo 1件、記録の無いsubjectのzeroで通知0、地域の無い報の拒否、synthetic_VPTA50_duplicate_areaの拒否、節の地域の不一致・全部の時間帯がPT6Hの拒否（TimeDefineの隙間と3個目より後のPT6Hはそこで止めて受理しtruncated、P3-WEATHER-SHAPE-001のP3-WS-T04）、地域385の報の切り捨てとtruncated、activeUntilの境界、+7日の除去"
       },
       {
         "testId": "P3-C14-T04",
@@ -1229,7 +1229,7 @@
         "referenceIds": [
           "P3-C14-AC06"
         ],
-        "behavior": "AC06の各境界（件数64/65、時刻24/25、軸2/3、地域384/385、府県予報区等96/97（受理で97個目の府県予報区等の地域を飛ばすことと、decodeで97個の表がunavailableになること）、文字列の上限/+1と非BMP、pending 128/129、byte＋予約131,072/131,073、intentUpdateの桁、終端記録の回収、静的上界の世代のencode）と、保持上限付近の受信1回のencodeが記録単位の加算だけで変えないsliceの配列が同じ参照。境界入力は試験内で作る"
+        "behavior": "AC06の各境界（件数64/65、時刻24/25、軸2/3（25個目と3本目は受理してtruncated、P3-WEATHER-SHAPE-001）、地域384/385、府県予報区等96/97（受理で97個目の府県予報区等の地域を飛ばすことと、decodeで97個の表がunavailableになること）、文字列の上限/+1と非BMP、pending 128/129、byte＋予約131,072/131,073、intentUpdateの桁、終端記録の回収、静的上界の世代のencode）と、保持上限付近の受信1回のencodeが記録単位の加算だけで変えないsliceの配列が同じ参照。境界入力は試験内で作る"
       },
       {
         "testId": "P3-C14-T07",

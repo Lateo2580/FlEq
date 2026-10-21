@@ -514,3 +514,15 @@ B を混ぜる契約（行番号は 57a9dba0）:
 - K7（`P3-VERSION-MATERIAL-001`）の発注 2a・2b には混ぜない。K7 は比べ方と未確認の印に絞り、B の直しは各分野の形を触る契約で入れる。
 
 統合担当の読み（変えるなら起草のときに確かめる）: Serial（版）は識別に入れず全分野で B（EEW の裁定に揃える）。区域ごとに警報級の値を持つ欄（U-L・U-W の Item、津波予報区、地震の区域、降灰の区域、EEW の区域の Code）は C、所属だけの一覧（火山の対象市町村、短命の区域、観測実況、河川の観測所、VFVO60 のタグ）は B。長さの上限（ReportDateTime の 25・40 文字、InfoType の 8、inputId の 64）は A。C の所の一覧（file:line）は各分野の起草のときに同じ読み方で作り直す（今回の表は統合担当の作業ノートにある）。探していない所: 保存の読み戻し（codec の invalid）、世代と容量の上限、P1 の parser・decode-material・ingress。
+
+## 14. K9 の配送で変わる読み（2026-10-21 統合担当、`P3-CLOCK-CHECK-001` の P3-CK-AC08 の (10)）
+
+K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引かれているので書き換えず（:347 は `P3-VERSION-MATERIAL-001` が引く）、読み方をここに足す。
+
+- §8 の表の K9 の行（:435。§3.5 の K9 の行〔:236〕の読みも兼ねる）: 変える契約は `P3-LIFETIME-AND-EEW-GATE-001`（AC13 の (4)・残存リスク (3)）、`P2-NOTIFICATION-DELIVERY-001`（A7-TIME）、`P2-SHARED-RUNTIME-001`（WallBasis・理由 1 語 notificationExpiredClockUnverified）、`P3-VERSION-MATERIAL-001`（K9 の記述）、`P3-DMDATA-CONNECT-001`（REST の確かめ）。P3-LIFE-D-SKEW・`P3-EXECUTION-SPLIT-001`（CLOCK）・ClockReading は外す。順は「K7 の発注 1 の後、K8 より前か同時、K10 より前」。試験は「比べた結果の 3 つと前回の通知の保留（T01・T02）」。
+- 配送の形: composition root へ渡すのは、締切の印を反映した通知用の根拠を返す options.wallBasis の 1 本（読む順は host の中で閉じる。保存の境界の basis は生の確かめの状態、Q-CK-SIMPLIFY）。停止では、試行の終わりを待ち、結果の更新を採ってから、まだ確かめていない前回の通知を失効させ、採用を待つ（Q-CK-IMPL）。残存リスク (12)（停止の途中で owner が止まっているか応答しないと、保留した通知が pending のまま最終保存され、次の起動で時計を確かめた後に重複して鳴りうる）は 2026-10-21 に作者が承認した。
+- §8 の表の K10 の行（:437）: 変える契約に `P2-EEW-UNIT-001`・`P3-UNIT-Q-001`・`P3-UNIT-N-001`（復元した中身の待ち、P3-CK-AC08 の (6)）と、`P3-EXECUTION-SPLIT-001`（SentClock）・`P2-SHARED-RUNTIME-001`（unit の入力の根拠の欄）を足す。
+- §8 の表の K8 の行（:436）: (a) 復元由来の印を started の無いものに限る (b) 鳴らさずに捨てた前回の通知（notificationExpiredClockUnverified の件数）を H39 のまとめに数える（P3-CK-AC08 の (5)）。
+- §8 の表の EEW の閉じ方の行（:442）: 分岐 P3-CK-D-UNVERIFIED-EEW = A を入れる（受けたときの根拠の状態は K10 の欄で読む）。H42 の行が挙げる P3-LIFE-D-SKEW の扱いもこちら（P3-CK-AC08 の (8)）。
+- §11 の「K9・K10 の起草で確かめること」（:494）への答え: (1) 30 秒の待ちは残す（Q-CK-RULING の (3)） (2) 回収は確かめるまで保留する（復元した中身も走行中に受けた中身も。unit の側は K10、P3-CK-AC08 の (6) の (ii)） (3) K8 は K9 の後か同時だが、理由は保存の初期化ではなく、印を started の無いものに絞ることと H39（Q-CK-SCHEMA）。
+- §5 の段 3 の順（:347）の「K7 ∥ K9」は「K7 の発注 1 → K9」と読む（P3-CK-AC04 の (2)）。同じ行の「K9 の前に保存した intent を K8 の初期化で捨てる」順の理由は要らない（K9 は時刻を作り替えない、Q-CK-SCHEMA）。

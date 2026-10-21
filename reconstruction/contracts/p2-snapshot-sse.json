@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "0132e99c29221ca7f6554a609fd03ca46a4d1c73ccc78c2e9734595d545e1d0b",
+    "sha256": "d89843bbb43d5421bb09c80a1931481e531984a9c54ecee64878a71bd39f2d4e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
@@ -65,8 +65,8 @@
         "severity": {
           "U-E": "A4公開warningClassだけを使いforecast < warning。同一eventの非終端currentにwarningが一つでもあればwarning。",
           "U-W": "R39: Codeが正本。00=none; 10,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,29=advisory; 02,03,04,05,06,07,08,09=warning; 43,48,49=danger; 32,33,35,36,37,38,39=specialWarning。この順の最大。Status文言/Nameから格上げしない。解除00をactive現象の区域・activeCountへ加算しない。 phenomenaのstatus=解除または発表警報・注意報はなしは現行階級の候補外とする。",
-          "U-F": "Q-VALUESの既知Codeを00=none;01,11=below;20,21,22=advisory;30,31=warning;41=danger;50,51=specialWarningの順で集約する。既知集合の根拠は同Q-VALUES.evidenceStageのまま(公式現行集合の照合済みとはしない)。Name/Codeのmissing/empty、未知Codeは最大に加えない。",
-          "empty": "対象の既知値が0ならhighestSeverity=null。未知を最低warningに繰り上げない。階級内のCodeを代表Codeに置き換えて返さない。"
+          "U-F": "Q-VALUESの既知Codeを00=none;01,11=below;20,21,22=advisory;30,31=warning;41=danger;50,51=specialWarningの順で集約する。既知集合の根拠は同Q-VALUES.evidenceStageのまま(公式現行集合の照合済みとはしない)。Name/Codeのmissing/empty、未知Codeは最大に加えない。行のunknownCode（unknown・empty・missing）が1以上で既知の最大がnone・belowか既知が無いときはhighestSeverity=null（区分不明）、既知の最大がadvisory以上ならその値（P3-WEATHER-SHAPE-001のP3-WS-D-UNKNOWN-SEVERITY=A、2026-10-20 作者裁定）。",
+          "empty": "対象の既知値が0ならhighestSeverity=null。未知を最低warningに繰り上げない（U-Fは既知の値があってもU-Fの行の区分不明の規則でnullになる。nullはactiveなU-Fが無い〔activeCount 0〕と区分不明を兼ね、P4はactiveCountとunknownCodeで描き分ける）。階級内のCodeを代表Codeに置き換えて返さない。"
         },
         "areas": "areaCountsは現在activeな既知/未知値の区域Codeをoperation×区域体系で集合化し、同じ体系の同じCodeを1と数える。U-E=eewArea(prediction.areas.code)。U-WはQ-ENUM.warningTypesの順にprefecture/primary/municipalityGroup/municipality/stormSurgeの5key、VPNO50の府県予報区等もprefecture。U-F=forecastArea(periodのarea indexが参照するstringsの区域Code、active periodを持つ区域のみ)。異なる体系の同じCodeは別々で、体系をまたぐ合計は返さない。空/欠落区域Codeは数えない。履歴/lastKnown/retainedPredictionを加えない。該当分野のkeyは0でも全て返す。最大5key/行。 U-Wはphenomenaのcanonical token keyのareaType/areaCodeを使い、各値配列のcode!=00かつcode!=nullの現行要素がある区域だけを数える。status=発表警報・注意報はなし/code=nullは正常なしで未知Codeに数えない。status=解除の過去現象は現行として数えない(現況階級の変更方向をStatusから推測する規則ではない)。",
         "times": "updatedAtは当該行に寄与するcurrent/unavailable/freshness(freshnessSuspect=trueのsuspectedSource優先、nullならcandidateSource)の検証済みsource.reportDateTimeRawをepoch msへ変換した最大値、source=nullのみならnull。期限tick・savedCapturedAt・generatedAt・受信時刻を代用しない。負の日時も許す。confirmationはA1-CONFIRMATIONのoperation別状態/採用壁時計を写す。両日時は有限整数かnull、ECMAScript Date範囲[-8640000000000000,8640000000000000]。",

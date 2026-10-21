@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "4a40abde547ccb8dfb4f429414475e5c0360320ed68162ab9153cac0c887512a",
+    "sha256": "7e527bda8d99c8a338c25d93afdab01b8642c08dda029b23812a70abc4d204ee",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
@@ -317,7 +317,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-C2-AC01",
-        "requirement": "live起動入口（P3-C2-ENTRY）: startP2Host({ dmdata, ... })は、表示server・composition rootの起動より前にDmdataSubscriptionを検査する（classificationsは1件以上・重複なし・DmdataClassificationの5区分のどれか。apiKeyは空でない）。appNameはcomposition rootのAppConfig.appNameへそのまま渡し、既存validateAppConfig（legacyAppName=\"fleq\"）で空と\"fleq\"を拒否する（検査を複製しない）。{ wsUrl }のときは従来どおりappName=\"fleq-p2\"。新しいreconstruction/src/host/dmdata-rest.tsに、dmdata REST v2（https://api.dmdata.jp/v2）のsocket一覧（GET /socket?status=<status>。呼び手はopenとwaitingを別々に取る）・socket start（POST /socket）・socket close（DELETE /socket/{id}）の3関数だけを置く。一覧の応答に続き（nextToken等の次ページ）があれば、数え漏れを避けるためその一覧を失敗として扱う。DELETEの成功はHTTP 2xx（204の本文なしを含み、本文があればstatus=ok）またはHTTP 404。HTTP 401・403は他の失敗と区別して呼び手へ返す（P3-C2-RETRY）。認証はBasic（apiKey＋\":\"のbase64、旧築rest-client.ts:27）。socket startのbodyはclassifications・test=\"no\"・appName・formatMode=\"raw\"（旧築:528〜:532）。応答は境界で検査し、一覧はid（有限の整数）・appName（string|null）・status・classificationsだけへ射影して返し、ticket・ipAddressを持ち出さない。socket startの結果は成功・失敗・結果不明の3つで返す（結果不明はRES-05の条件）。socket startはwebsocket.id（有限の整数）・websocket.url（wss:の文字列）・websocket.protocol（string配列）を必須とし、WSはnew WebSocket(url, protocol, { handshakeTimeout })で開く（旧築ws-client.ts:373のsubprotocol）。新しい依存は足さない（node:httpsとws）",
+        "requirement": "live起動入口（P3-C2-ENTRY）: startP2Host({ dmdata, ... })は、表示server・composition rootの起動より前にDmdataSubscriptionを検査する（classificationsは1件以上・重複なし・DmdataClassificationの5区分のどれか。apiKeyは空でない）。appNameはcomposition rootのAppConfig.appNameへそのまま渡し、既存validateAppConfig（legacyAppName=\"fleq\"）で空と\"fleq\"を拒否する（検査を複製しない）。{ wsUrl }のときは従来どおりappName=\"fleq-p2\"。新しいreconstruction/src/host/dmdata-rest.tsに、dmdata REST v2（https://api.dmdata.jp/v2）のsocket一覧（GET /socket?status=<status>。呼び手はopenとwaitingを別々に取る）・socket start（POST /socket）・socket close（DELETE /socket/{id}）の3関数だけを置く。GET /socket?status=openを、時計が確かめられない間だけP3-CLOCK-CHECK-001の確かめに使う（起動の30秒に最大1回、以後10分に最大1回。応答のDateだけを読み、一覧の結果に応答のDateヘッダ〔無ければnull〕を添える）。一覧の応答に続き（nextToken等の次ページ）があれば、数え漏れを避けるためその一覧を失敗として扱う。DELETEの成功はHTTP 2xx（204の本文なしを含み、本文があればstatus=ok）またはHTTP 404。HTTP 401・403は他の失敗と区別して呼び手へ返す（P3-C2-RETRY）。認証はBasic（apiKey＋\":\"のbase64、旧築rest-client.ts:27）。socket startのbodyはclassifications・test=\"no\"・appName・formatMode=\"raw\"（旧築:528〜:532）。応答は境界で検査し、一覧はid（有限の整数）・appName（string|null）・status・classificationsだけへ射影して返し、ticket・ipAddressを持ち出さない。socket startの結果は成功・失敗・結果不明の3つで返す（結果不明はRES-05の条件）。socket startはwebsocket.id（有限の整数）・websocket.url（wss:の文字列）・websocket.protocol（string配列）を必須とし、WSはnew WebSocket(url, protocol, { handshakeTimeout })で開く（旧築ws-client.ts:373のsubprotocol）。新しい依存は足さない（node:httpsとws）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:59 «eba31a5256e845b8»",
           "reconstruction/contracts/p3-order-plan.md:66 «64cfc2aa4b39c8ad»",

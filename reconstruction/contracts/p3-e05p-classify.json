@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
-    "sha256": "bdd957d6f0f6f6b8f7a2d92bcdc7c5327c03c91b6699feed60b79fcee275501e",
+    "sha256": "829f45d6c786d9d38f4e443683b1eaa3359a4ca762ccb5f608c24a8312cb1e5a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
@@ -340,7 +340,7 @@
           "reconstruction/contracts/p3-weather-light-step2.json:488 «b084586081363297»",
           "reconstruction/contracts/p3-measure-harness.json:11 «e9ca342feffa0c5b»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:17 «4a382cabfdfbbf4d»",
-          "reconstruction/contracts/p3-measure-harness.json:4 «ee0f7fd2e22ececd»",
+          "reconstruction/contracts/p3-measure-harness.json:4 «7a967ad27bc4b2f9»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:169 «97a134ad9cb5b784»"
         ]
       },

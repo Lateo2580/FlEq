@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "9487829770b67c48097f3ce983b94753b21470ab49c98a0da44d9d5686f71a40",
+    "sha256": "53b287f613477d1440fbab08a8f6f3aa6ebd8ca37d92125a1360cc7dd591e072",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
     "sequencesSha256": "8f0b6375b684122ab787cf4c4010bbe23bce762d37d0ef985f9cd7bd2b57337c",
@@ -49,8 +49,8 @@
         "id": "Q-VALUES",
         "status": "closed",
         "source": "2026-09-23 R22 ご主人裁定",
-        "closed": "未知Significancy CodeはMaterialValue.kind=unknownとrawコード文字列で保持し、同じperiodのName・時間・区域も保持する。既知Codeも数値化せず文字列で保持する。未知だけの地点も原報有効期間内はactive、既知31のperiodを保持し、未知を既知最大危険度の計算へ混ぜない。P2は未知を識別可能な形で渡すまでとし、表示で最低warningへ上げるかはP4/A8へ残す",
-        "emptyMissingRule": "統合担当裁定: SignificancyのNameとCodeは空要素をMaterialValue.empty、欠落をMaterialValue.missingとして区別して保持し、構造拒否しない。どちらかがempty/missingでもperiodと同じ区域・時間を残し、原報有効期間内の地点はactive。NameまたはCodeがempty/missingのperiodは未知Codeと同様に最大危険度の計算へ加えない。根拠はR22の値を削らない規則と未知値を構造不正にしない採用条件で、官署の全periodを拒否して失わない。表示はP4/A8で決める",
+        "closed": "未知Significancy CodeはMaterialValue.kind=unknownとrawコード文字列で保持し、同じperiodのName・時間・区域も保持する。既知Codeも数値化せず文字列で保持する。未知だけの地点も原報有効期間内はactive、既知31のperiodを保持し、未知を既知最大危険度の計算へ混ぜない。P2は未知を識別可能な形で渡す。要約の最高区分は、operationの行のunknownCode（unknown・empty・missing）が1以上で既知の最大がnone・belowか既知が無いときnull（区分不明）にし、既知の最大がadvisory以上ならその値のまま出す（最低warningへは上げない。P3-WEATHER-SHAPE-001のP3-WS-D-UNKNOWN-SEVERITY=A、2026-10-20 作者裁定）",
+        "emptyMissingRule": "統合担当裁定: SignificancyのNameとCodeは空要素をMaterialValue.empty、欠落をMaterialValue.missingとして区別して保持し、構造拒否しない。どちらかがempty/missingでもperiodと同じ区域・時間を残し、原報有効期間内の地点はactive。NameまたはCodeがempty/missingのperiodは未知Codeと同様に最大危険度の計算へ加えない。根拠はR22の値を削らない規則と未知値を構造不正にしない採用条件で、官署の全periodを拒否して失わない。要約の最高区分はQ-VALUES.closedの区分不明の規則（P3-WEATHER-SHAPE-001のP3-WS-D-UNKNOWN-SEVERITY=A）に従い、区分不明と「なし」の描き分けはP4で決める",
         "knownCodes": [
           "00",
           "01",
@@ -132,12 +132,12 @@
             "family": "VPWP50",
             "infoType": "発表/訂正および取消でTimeSeriesInfoが存在",
             "required": "各TimeSeriesInfoにTimeDefines/TimeDefineが1個以上、Itemが1個以上。各TimeDefineは一意の非空@timeIdとDateTime/Duration。各ItemはArea/Code、Kindが1個以上。各KindはPropertyが1個以上、各PropertyはTypeと値を格納するPart/CriteriaPeriodが1個以上。refID付き要素は同じTimeSeriesInfoのTimeDefineに解決できること",
-            "legalMissingOrEmpty": "TimeDefine/Name、Kind/Status・DateTime、PeakTime、CriteriaPeriod、Localは任意。Base直下とBase/Local配下の値を両方許す。CriteriaPeriodはSignificancyPart/Base配下とProperty直下の両配置を許す。値leafのempty/unknown/missing/rangeはP1 MaterialValueとして保持する。Significancyの未知CodeとName/Codeのempty/missingも構造不正ではなくQ-VALUESのactive規則で保持する。定義済みだが参照されないtimeIdや一部periodだけの値は合法",
-            "missing": "TimeDefines/TimeDefine/Item/Kind/Property/Type/Partの欠落・必須空集合、TimeDefine@timeId/DateTime/Duration欠落、値leafの必須refID欠落はrequiredStructureMissing。Item/Area/Code欠落・空は先行identityMissing",
-            "invalid": "重複timeId、未解決refID、単一scalar重複・非scalar、日時/Durationが下記periodRuleに不適合、containerの非空text、同一[MeteorologicalInfos位置, TimeSeriesInfo位置, Area.Code, Property.Type, Part/配置, Local識別子, 値要素名, @type, refID]の衝突はrequiredStructureInvalid。Property直下CriteriaPeriodとBase/Local配下は別配置として比較する"
+            "legalMissingOrEmpty": "TimeDefine/Name、Kind/Status・DateTime、PeakTime、CriteriaPeriod、Localは任意。Base直下とBase/Local配下の値を両方許す。CriteriaPeriodはSignificancyPart/Base配下とProperty直下の両配置を許す。値leafのempty/unknown/missing/rangeはP1 MaterialValueとして保持する。Significancyの未知CodeとName/Codeのempty/missingも構造不正ではなくQ-VALUESのactive規則で保持する。定義済みだが参照されないtimeIdや一部periodだけの値は合法。各PartのBase・Base/Local直下の (a) 局所名がAdditionの要素（付加事項。refIDの有無によらない）と、(b) 局所名が値の名前の集合（Significancy・Precipitation・WindDirection・WindSpeed・SnowfallDepth・WaveHeight・TidalLevel・Visibility・Humidity・PeakTime・CriteriaPeriod）に無く、periodとして欠けなく読めない要素（refIDが無い・2個以上・解決できない、type属性が2個以上、子を持つ、同じ鍵のperiodが既にある）と、Base・Localの直下の空白でない地の文は、値のleafでなく、読み飛ばして報を受理する（(b)は診断weatherTimeseriesElementSkipped。P3-WEATHER-SHAPE-001のP3-WS-D-ADDITION=A・P3-WS-AC01・AC02）。値の名前の集合に無い要素でもperiodとして欠けなく読めれば値にする",
+            "missing": "TimeDefines/TimeDefine/Item/Kind/Property/Type/Partの欠落・必須空集合、TimeDefine@timeId/DateTime/Duration欠落、値の名前の集合の要素のrefID欠落はrequiredStructureMissing（知らないものだけの範囲〔その階層に読み飛ばした知らない子か地の文があって必須の子が欠けるItem・Kind・Property・Part〕はKind・Property・Part・Baseの欠けにせず、period 0で受け取る。読み飛ばしたものがある報を含め、報全体の読めたperiodが0件ならrequiredStructureMissing。P3-WEATHER-SHAPE-001のQ-WS-LEVELS・P3-WS-AC10）。Item/Area/Code欠落・空は先行identityMissing",
+            "invalid": "重複timeId、未解決refID、単一scalar重複・非scalar、日時/Durationが下記periodRuleに不適合、同一[MeteorologicalInfos位置, TimeSeriesInfo位置, Area.Code, Property.Type, Part/配置, Local識別子, 値要素名, @type, refID]の衝突はrequiredStructureInvalid。Property直下CriteriaPeriodとBase/Local配下は別配置として比較する。値の階層より外の階層の表に無い子要素と空白でない地の文（Bodyの直下の地の文、MeteorologicalInfosの直下のTimeSeriesInfoのほかの子と地の文、TimeSeriesInfo・TimeDefines・TimeDefine・Item・Area・Kind・Property〔PARTSの9種のほかのPartを含む〕・Part〔Base以外〕の直下、SignificancyのName・Codeのほかの子）は構造不正にせず、読まずに残りを今どおり読んで受理し、報ごとに1件のWARN診断weatherTimeseriesScopeUnclear（countは受け取った報のperiodの数）を出す。範囲の中の既知のCodeは既知のまま残す（P3-WEATHER-SHAPE-001のQ-WS-LEVELS・P3-WS-AC10、countの読みはQ-WS-SIMPLIFY）。値の名前の集合の要素の未解決refID・type属性の2個以上・同じ鍵・子を持つ値は今どおりrequiredStructureInvalid"
           }
         ],
-        "periodRule": "timeId/refIDは非空文字列の完全一致で同じTimeSeriesInfo内だけを照合する。TimeDefine/DateTimeはタイムゾーンZまたは±HH:mmを持つ実在するISO暦日時、DurationはP[nD][T[nH][nM][nS]]の非負整数成分で合計秒が正、有限かつ終端日時が表現可能であること（月/年は不許可）。periodは時間参照付き値要素1個で1件。SignificancyはName+Codeの複合値1件、PeakTimeとCriteriaPeriodも各1件、TimeDefineは共有時間定義で件数に含めない。値は各PropertyのSignificancyPart/PrecipitationPart/WindDirectionPart/WindSpeedPart/SnowfallDepthPart/WaveHeightPart/TidalLevelPart/VisibilityPart/HumidityPartのBaseまたはBase/Local配下、またはProperty直下CriteriaPeriodに置く。論理IDは[MeteorologicalInfos位置, TimeSeriesInfo位置, Area.Code, Property.Type, Part/配置, Local識別子, 値要素名, @type, refID]で、Local識別子は[Local/Code, Local/AreaName/@code, Local/AreaName, Local/Name]の全組と各項目の存在情報で構成する。locals.codeは子要素Code、locals.areaNameCodeはAreaNameの属性codeの独立したstrings参照で、双方を照合し優先・fallback・上書きをしない。属性L003と要素L004も両方保持する。全項目が欠落または空の無名Localだけ文書内位置を加えて区別する。要素名はP1の接頭辞付き名のまま比較し、値の種類だけ局所名で判定する。これは報内IDであり異なる報の恒久identityではない。値のnumber/text/empty/missing/unknown/range、SignificancyのName/Code、単位/type/条件属性、Local、PeakTime、CriteriaPeriod、KindのStatus/DateTimeと時間定義を保持し、複合値を分割して数えない。範囲限定の数値・特殊値の意味分類を構造検査で決めない",
+        "periodRule": "timeId/refIDは非空文字列の完全一致で同じTimeSeriesInfo内だけを照合する。TimeDefine/DateTimeはタイムゾーンZまたは±HH:mmを持つ実在するISO暦日時、DurationはP[nD][T[nH][nM][nS]]の非負整数成分で合計秒が正、有限かつ終端日時が表現可能であること（月/年は不許可）。periodは時間参照付き値要素1個で1件。SignificancyはName+Codeの複合値1件、PeakTimeとCriteriaPeriodも各1件、TimeDefineは共有時間定義で件数に含めない。値は各PropertyのSignificancyPart/PrecipitationPart/WindDirectionPart/WindSpeedPart/SnowfallDepthPart/WaveHeightPart/TidalLevelPart/VisibilityPart/HumidityPartのBaseまたはBase/Local配下、またはProperty直下CriteriaPeriodに置く（Base・Base/Local直下のAdditionと、値の名前の集合に無くperiodとして欠けなく読めない要素は値に含めない。familyTableのlegalMissingOrEmpty、P3-WEATHER-SHAPE-001のP3-WS-AC01）。論理IDは[MeteorologicalInfos位置, TimeSeriesInfo位置, Area.Code, Property.Type, Part/配置, Local識別子, 値要素名, @type, refID]で、Local識別子は[Local/Code, Local/AreaName/@code, Local/AreaName, Local/Name]の全組と各項目の存在情報で構成する。locals.codeは子要素Code、locals.areaNameCodeはAreaNameの属性codeの独立したstrings参照で、双方を照合し優先・fallback・上書きをしない。属性L003と要素L004も両方保持する。全項目が欠落または空の無名Localだけ文書内位置を加えて区別する。要素名はP1の接頭辞付き名のまま比較し、値の種類だけ局所名で判定する。これは報内IDであり異なる報の恒久identityではない。値のnumber/text/empty/missing/unknown/range、SignificancyのName/Code、単位/type/条件属性、Local、PeakTime、CriteriaPeriod、KindのStatus/DateTimeと時間定義を保持し、複合値を分割して数えない。範囲限定の数値・特殊値の意味分類を構造検査で決めない",
         "storageRule": {
           "periodRow": [
             "series表index",
@@ -408,7 +408,7 @@
       },
       {
         "id": "P2-A6-AC02",
-        "requirement": "M08は全値のMaterialValue区別と複合値を保持する。Q-VALUESに従い未知Significancy Codeのraw・Name・時間・区域を保持し、未知だけでも有効期間内はactive、既知31を残し、未知は既知最大危険度へ加えない。P2は未知を識別可能に渡し、最低warning表示はP4/A8へ残す",
+        "requirement": "M08は全値のMaterialValue区別と複合値を保持する。Q-VALUESに従い未知Significancy Codeのraw・Name・時間・区域を保持し、未知だけでも有効期間内はactive、既知31を残し、未知は既知最大危険度へ加えない。P2は未知を識別可能に渡し、要約の最高区分はQ-VALUES.closedの区分不明の規則（P3-WEATHER-SHAPE-001のP3-WS-D-UNKNOWN-SEVERITY=A）に従う",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
           "reconstruction/contracts/p2-order-plan.md:168 «773884380c5b0211»",
@@ -425,7 +425,7 @@
       },
       {
         "id": "P2-A6-AC04",
-        "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v1の唯一のcodecを用い、7日retention・512 subject合計・32MiB境界を守る。storageRuleの配列行と共有表をstate・保存・lastKnownに共用し、区域CodeとSignificancy Codeは文字列のまま自己完結してdecodeする。全indexをsnapshot内で解決し、範囲外・未解決ならcodecが拒否する。lastKnownにも独立した辞書・時間表を持たせる。O02:14の全periodと値集合を欠落なく保持する。Q-PERIODはclosed。容量計量はQ-ENUM.capacityRule.byteAccountingに従い、受信時に変化したsubjectだけ再計量し、envelope込みの実checkpoint byteを過少判定しない P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する。",
+        "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v1の唯一のcodecを用い、7日retention・512 subject合計・32MiB境界を守る。storageRuleの配列行と共有表をstate・保存・lastKnownに共用し、区域CodeとSignificancy Codeは文字列のまま自己完結してdecodeする。全indexをsnapshot内で解決し、範囲外・未解決ならcodecが拒否する。lastKnownにも独立した辞書・時間表を持たせる。O02:14の全periodと値集合を欠落なく保持する（familyTableのlegalMissingOrEmptyの(a)(b)とinvalidの外の階層の規則〔P3-WEATHER-SHAPE-001〕で読み飛ばす要素はperiodにしない）。Q-PERIODはclosed。容量計量はQ-ENUM.capacityRule.byteAccountingに従い、受信時に変化したsubjectだけ再計量し、envelope込みの実checkpoint byteを過少判定しない P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
           "docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
