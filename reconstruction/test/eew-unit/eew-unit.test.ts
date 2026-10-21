@@ -1236,7 +1236,7 @@ describe("P2 EEW unit", () => {
       expect(view.activeCount).toBe(step.state.gates[0].terminal ? 0 : 1);
       expect(eewUnitCodec.decode(eewUnitCodec.encode(afterDeadline.state)).kind).toBe("restored");
     }
-    expect(counts).toEqual({ fixtures: 11, normalCorpus: 9, rejected: 0, invalidSynthetic: 2,
+    expect(counts).toEqual({ fixtures: 14, normalCorpus: 12, rejected:0, invalidSynthetic: 2,
       semanticUnavailable: 0, deliverySummary: "N/A: A8 not connected" });
   });
 
