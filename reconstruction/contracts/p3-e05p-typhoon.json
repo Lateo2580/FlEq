@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f130ed396687593783f92e10757ef9863dea0bc2",
-    "sha256": "10af134e2f21ac39660e29eb852a8e6034df8c06d8cd71e9ce648ba67351a29b",
+    "sha256": "4096440ff6d25d6c7093e52d2e722845be16bf6808e48ac882250bb8419654c5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -47,7 +47,7 @@
       {
         "id": "P3-E05Y-CODE-READ",
         "status": "frozen",
-        "rule": "起草時（f130ed39）に実コードで確かめたこと: (1) replayPump(load, send, wallNow, startHr)はReplayLoadのoffsetどおりにdurationMsの周期でくり返し、weatherFrameで報告時刻を投入時点の壁時計へ平行移動して送る。上乗せは、replayPumpに省略可の第5引数（上乗せのReplayLoad）を足し、2つの列をoffsetの昇順に混ぜて1つのcursorで送る（2本のpumpを同じ起点で回すと、呼び出しが遅れたときにPの305,612msが上乗せの300,121〜304,121msより先に送られうる。独立レビューで再現） (2) loadEventsはReplayLoadのsha256を照合してから、fixtureの名前の末尾からheadTypeを取る（76_01_0x_…_VPTA50はVPTA50）。replayLoad(id, {events, windowMs}, 1)で上乗せのReplayLoadを作れ、manifestのloadsに足さずに窓の側の定数で持てる (3) VPTA50はU-Yのready（unit-coverage）で、U-Yはdeferredのowner。U-Yの版の比較は(ReportDateTime, InfoType, Serial)の順で、報告時刻を投入時点へ動かすので、周ごとに同じfixtureを送っても新しい版として受ける。76_01_02と03は同じTC2606なので、stateの確率の記録は2つ（TC2001とTC2606）になる (4) hostは入力ごとに処理の開始・終わり（processingの行）とT1・T2の印を出し、inputIdは投入のseqから`input-<seq>`で、窓の側で確率の報の入力を特定できる。ownerのheapはdeadlineDoneの返信ごとのownerHeapの行（hostReportsのownerHeap、placeごとの最大）で出ている (5) 分類の窓（P3-E05P-CLASSIFY-001）は『manifestのcontractSha256に契約の鍵があるときか予備のときだけ窓を並べる』形で、frozen.ts・型・draft.mjs・run.mjsを変えずに入った。同じ形で入る。e02Verdictはidがe02-で始まる窓だけをE02の判定に入れる (6) e02Window（load P）の経路は、openHost（mem行1秒）・fill leaveRoomForP（blockAtExpiry）・P負荷のreplayPump・E02のclient・summarizeE05・expirySplitとcurrentsExpiredAtMeasureで、上乗せはP負荷のreplayPumpの呼び出しに第5引数を渡すだけで入る（pumpは1本のまま）。以上から、触るのはwindows.mjsと試験（p3.test.ts）だけで足り、製品のsrc・frames.mjs・run.mjs・frozen.ts・draft.mjs・aux-measures.mjsは変えない〔発注前点検（2026-10-13夜）で補足: (6)の『呼び出しに第5引数を渡す』は、e02Windowの336行（pumpの呼び出し）と323行（e02Windowの引数）を分類の窓（P3-E05P-CLASSIFY-001）が引くので、その行では書けない。第5引数を渡したpumpは他の契約が引かない行で作り、呼ぶpumpは1本のまま（AC06の行の約束、Q-E05Y-PRECHECK(3)(4)）〕",
+        "rule": "起草時（f130ed39）に実コードで確かめたこと: (1) replayPump(load, send, wallNow, startHr)はReplayLoadのoffsetどおりにdurationMsの周期でくり返し、weatherFrameで報告時刻を投入時点の壁時計へ平行移動して送る。上乗せは、replayPumpに省略可の第5引数（上乗せのReplayLoad）を足し、2つの列をoffsetの昇順に混ぜて1つのcursorで送る（2本のpumpを同じ起点で回すと、呼び出しが遅れたときにPの305,612msが上乗せの300,121〜304,121msより先に送られうる。独立レビューで再現） (2) loadEventsはReplayLoadのsha256を照合してから、fixtureの名前の末尾からheadTypeを取る（76_01_0x_…_VPTA50はVPTA50）。replayLoad(id, {events, windowMs}, 1)で上乗せのReplayLoadを作れ、manifestのloadsに足さずに窓の側の定数で持てる (3) VPTA50はU-Yのready（unit-coverage）で、U-Yはdeferredのowner。U-Yの版の比較は(ReportDateTime, InfoType, Serial)の順で、報告時刻を投入時点へ動かすので、周ごとに同じfixtureを送っても新しい版として受ける〔K7 P3-VERSION-MATERIAL-001の発注2bの後は、U-Yの版の比較はversion.tsのstepVersion（compareVersion、Control/DateTimeで比べる）で、weatherFrameは全時刻（Control/DateTimeを含む）を投入時点へ動かすので、周ごとの報は同じく新しい版として受ける〕。76_01_02と03は同じTC2606なので、stateの確率の記録は2つ（TC2001とTC2606）になる (4) hostは入力ごとに処理の開始・終わり（processingの行）とT1・T2の印を出し、inputIdは投入のseqから`input-<seq>`で、窓の側で確率の報の入力を特定できる。ownerのheapはdeadlineDoneの返信ごとのownerHeapの行（hostReportsのownerHeap、placeごとの最大）で出ている (5) 分類の窓（P3-E05P-CLASSIFY-001）は『manifestのcontractSha256に契約の鍵があるときか予備のときだけ窓を並べる』形で、frozen.ts・型・draft.mjs・run.mjsを変えずに入った。同じ形で入る。e02Verdictはidがe02-で始まる窓だけをE02の判定に入れる (6) e02Window（load P）の経路は、openHost（mem行1秒）・fill leaveRoomForP（blockAtExpiry）・P負荷のreplayPump・E02のclient・summarizeE05・expirySplitとcurrentsExpiredAtMeasureで、上乗せはP負荷のreplayPumpの呼び出しに第5引数を渡すだけで入る（pumpは1本のまま）。以上から、触るのはwindows.mjsと試験（p3.test.ts）だけで足り、製品のsrc・frames.mjs・run.mjs・frozen.ts・draft.mjs・aux-measures.mjsは変えない〔発注前点検（2026-10-13夜）で補足: (6)の『呼び出しに第5引数を渡す』は、e02Windowの336行（pumpの呼び出し）と323行（e02Windowの引数）を分類の窓（P3-E05P-CLASSIFY-001）が引くので、その行では書けない。第5引数を渡したpumpは他の契約が引かない行で作り、呼ぶpumpは1本のまま（AC06の行の約束、Q-E05Y-PRECHECK(3)(4)）〕",
         "reason": "起草の前提を推測で埋めない。行はAC01〜AC04のevidenceRefs"
       },
       {
@@ -235,8 +235,8 @@
           "reconstruction/tools/corpus/manifest.json:119 «060d5a2a2261a1df»",
           "reconstruction/src/runtime/unit-coverage.ts:104 «06e36402492e327e»",
           "reconstruction/src/runtime/unit-coverage.ts:17 «edddd5a2cb786e2f»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:127 «49b7926dbba50dc6»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:131 «66215059c9956358»"
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:127 «ff1294857dea68be»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:347 «3ca4da5b4c8b2813»"
         ]
       },
       {
@@ -288,14 +288,14 @@
           "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-e05-P-run3.json:12 «0364eb2db61367f9»",
           "reconstruction/contracts/p3-typhoon-unit.json:442 «f64d9d1d8ff57f0e»",
           "reconstruction/src/host/host.ts:158 «cb154e750655ef9b»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:326 «4fbc5b688efa9382»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:329 «eade375e6c78af85»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:333 «c595a873948e788f»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:320 «4fbc5b688efa9382»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:323 «eade375e6c78af85»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:327 «c595a873948e788f»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:190 «8bcbf7e48fb4aded»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:202 «8b82d2ac7ac2977f»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:208 «0894e34cc4b5ac2e»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:214 «abcb3a20e3a68fd6»",
-          "reconstruction/tools/corpus/manifest.json:242 «340db825fd59dc68»"
+          "reconstruction/tools/corpus/manifest.json:243 «340db825fd59dc68»"
         ]
       },
       {

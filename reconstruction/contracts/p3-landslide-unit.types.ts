@@ -47,7 +47,7 @@ export type LandslideCurrent = Readonly<{
   subject: string;
   operation: Operation;
   office: string;
-  source: ReportRef;
+  source: ReportRef; unconfirmed?: ReportRef; // P3-VM-AC04: 系列の未確認の印（取消の採用・期限で消えた記録には無い）
   retainUntil: number;
 }> & (
   | LandslideCurrentFacts
@@ -65,7 +65,7 @@ export type LandslideNotificationPayload = Readonly<{
 export type LandslideIntent = NotificationIntent & Readonly<{ payload: LandslideNotificationPayload }>;
 
 export type LandslideUnitState = Readonly<{
-  schemaVersion: "p3-landslide-unit-v3";
+  schemaVersion: "p3-landslide-unit-v4";
   contentRevision: number;
   currents: readonly LandslideCurrent[];
   // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
@@ -74,7 +74,7 @@ export type LandslideUnitState = Readonly<{
 }>;
 
 export type PersistedLandslideUnit = Readonly<{
-  schemaVersion: "p3-landslide-unit-v3";
+  schemaVersion: "p3-landslide-unit-v4";
   currents: readonly LandslideCurrent[];
   intents: readonly LandslideIntent[];
 }>;
@@ -111,5 +111,5 @@ export type LandslideUnitStep = Readonly<{
 }>;
 
 export type LandslideUnitCodec = UnitCodec<LandslideUnitState, PersistedLandslideUnit> & Readonly<{
-  schemaVersion: "p3-landslide-unit-v3";
+  schemaVersion: "p3-landslide-unit-v4";
 }>;

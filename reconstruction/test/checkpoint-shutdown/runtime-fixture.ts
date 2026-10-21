@@ -61,9 +61,9 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
     units: {
       "U-E": { ...payload("U-E"), schemaVersion: "p2-eew-unit-v3", contentRevision: 0, current: [], gates: [], intents: [],
         deliveryRecords: [], notificationLatches: [], persistence: progress("U-E") },
-      "U-W": { ...payload("U-W"), schemaVersion: "p2-weather-current-unit-v3", contentRevision: 0, national: {}, partials: [],
-        histories: [], ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], persistence: progress("U-W") },
-      "U-F": { ...payload("U-F"), schemaVersion: "p2-weather-timeseries-unit-v3", contentRevision: 0, subjects: [], gates: [],
+      "U-W": { ...payload("U-W"), schemaVersion: "p2-weather-current-unit-v4", contentRevision: 0, national: {}, partials: [],
+        histories: [], ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: progress("U-W") },
+      "U-F": { ...payload("U-F"), schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [], gates: [],
         intents: [], persistence: progress("U-F") },
       "U-T": { ...payload("U-T"), schemaVersion: "p3-tsunami-unit-v3", contentRevision: 0, forecasts: [], observations: [],
         intents: [], persistence: progress("U-T") },

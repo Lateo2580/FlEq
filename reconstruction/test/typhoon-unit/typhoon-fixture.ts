@@ -13,7 +13,7 @@ import { reduceTyphoonUnit } from "../../src/units/typhoon/typhoon-unit";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): TyphoonUnitState {
-  return { schemaVersion: "p3-typhoon-unit-v3", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-typhoon-unit-v4", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };
@@ -44,7 +44,9 @@ function decodeFixture(name: string, transform: (xml: string) => string = (xml) 
 }
 const replaceTag = (tag: string, value: string) => (xml: string) =>
   xml.replace(new RegExp(`<${tag}>[^<]*</${tag}>|<${tag}/>|<${tag} />`), `<${tag}>${value}</${tag}>`);
-const retime = (at: string) => replaceTag("ReportDateTime", at);
+// P3-VM-AC03: 台風の報は Control/DateTime だけで比べるので、報の時刻を替えるときは Control/DateTime も同じ時刻にする（control は Control/DateTime だけ）。
+const control = (at: string) => (xml: string) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, `$1${new Date(Date.parse(at)).toISOString()}$2`);
+const retime = (at: string) => (xml: string) => control(at)(replaceTag("ReportDateTime", at)(xml));
 const serial = (value: string) => replaceTag("Serial", value);
 const eventId = (value: string) => replaceTag("EventID", value);
 const infoType = (value: string) => replaceTag("InfoType", value);
@@ -140,6 +142,8 @@ function maximumPayload() {
   const REPORT = "9000-01-01T00:00:00.12345678901234+09:00";
   const reportMs = Date.parse(REPORT), EDGE = 8.64e15;
   const ref = (subject: string, family: string) => ({ inputId: "i".repeat(64), origin: "replay", operation: "normal", family, subject, reportDateTimeRaw: REPORT, controlDateTimeRaw: REPORT, serialRaw: "9999999999", infoTypeRaw: "発表" });
+  // P3-VM-AC08: 全記録に読み戻しが受ける上限いっぱい（origin recovery・trim で消える U+000B 6 個の InfoType）の未確認の印。
+  const mark = (subject: string, family: string) => ({ ...ref(subject, family), origin: "recovery", infoTypeRaw: `${"\u000b".repeat(6)}発表` });
   const axes = [{ direction: wide(8), radiusKm: 9999 }, { direction: wide(8), radiusKm: 9999 }];
   const windArea = { thresholdMs: 999, axes };
   const frame = (kind: string, hours: number) => ({ kind, hours, validTime: EDGE, category: wide(32), intensity: wide(24), size: wide(24), center: { latitude: -89.9, longitude: -179.9 },
@@ -147,16 +151,16 @@ function maximumPayload() {
   maxGustMs: 999, storm: windArea, gale: windArea, stormWarning: windArea });
   const name = { name: wide(24), nameKana: wide(24), number: "9999", remark: wide(32) };
   const analysisRecord = (index: number) => { const subject = `normal/typhoonAnalysis/${eventIdOf(index)}`;
-  return { subject, operation: "normal", source: ref(subject, "VPTW65"), retainUntil: reportMs + 7 * day, effective: "active", activeUntil: reportMs + 12 * HOUR, baseTime: EDGE,
+  return { subject, operation: "normal", source: ref(subject, "VPTW65"), unconfirmed: mark(subject, "VPTW65"), retainUntil: reportMs + 7 * day, effective: "active", activeUntil: reportMs + 12 * HOUR, baseTime: EDGE,
     title: wide(64), name, frames: [frame("analysis", 0), frame("estimate", 1), ...Array.from({ length: 22 }, () => frame("forecast", 120))], truncated: true }; };
   const prefectureCode = (index: number) => six(100000 + index * 1000);
   const probabilityRecord = (index: number) => { const subject = `normal/typhoonProbability/${eventIdOf(index)}`;
-  return { subject, operation: "normal", source: ref(subject, "VPTA55"), retainUntil: reportMs + 7 * day, effective: "active", activeUntil: reportMs + 12 * HOUR, baseTime: EDGE,
+  return { subject, operation: "normal", source: ref(subject, "VPTA55"), unconfirmed: mark(subject, "VPTA55"), retainUntil: reportMs + 7 * day, effective: "active", activeUntil: reportMs + 12 * HOUR, baseTime: EDGE,
     slotCount: 64, title: wide(64), name, maxFiveDay: 100, prefectures: Array.from({ length: 96 }, (_, at) => ({ code: prefectureCode(at), name: wide(24) })),
     areas: Array.from({ length: 384 }, (_, at) => ({ code: six(100000 + at), name: wide(24), prefectureCode: prefectureCode(at % 96), daily: [100, 100, 100, 100, 100], peak: 100, peakSlot: 63 })),
     truncated: true }; };
   const own = (subject: string) => ({ id: "", unit: "U-Y", subject, operation: "normal", source: ref(subject, subject.includes("Analysis") ? "VPTW65" : "VPTA55"), transition: "updated", channel: "desktop",
-  payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(512) }, createdAt: EDGE, expiresAt: EDGE, nextAttemptAt: EDGE, attempts: 0, configRevision: "p3-typhoon-unit-v3", disposition: "pending" });
+  payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(512) }, createdAt: EDGE, expiresAt: EDGE, nextAttemptAt: EDGE, attempts: 0, configRevision: "p3-typhoon-unit-v4", disposition: "pending" });
   const intentOf = (index: number, bodyLength: number, disposition: string) => ({ ...own(`normal/typhoonAnalysis/${eventIdOf(0)}`), id: `U-Y:${"x".repeat(60)}:${String(index).padStart(6, "0")}:desktop`,
   payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(bodyLength) }, disposition });
   // pending は「実 byte＋予約」131,072 ちょうど、終端記録は 98,304 byte 以内の最大。
@@ -173,10 +177,10 @@ function maximumPayload() {
   terminalList.push(next);
   terminalSize += Buffer.byteLength(JSON.stringify(next)) + 1;
   }
-  const payload = { schemaVersion: "p3-typhoon-unit-v3", analysis: Array.from({ length: 64 }, (_, index) => analysisRecord(index)),
+  const payload = { schemaVersion: "p3-typhoon-unit-v4", analysis: Array.from({ length: 64 }, (_, index) => analysisRecord(index)),
   probability: Array.from({ length: 64 }, (_, index) => probabilityRecord(index)), intents: [...pendingList, ...terminalList] };
 
   return { payload, reportMs, EDGE, pendingTotal, pendingList, eventIdOf };
 }
 
-export { maximumPayload, analysisXml, probabilityXml, sendXml, six, HOUR, clock, compose, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, headTypeOf, infoType, iso, ms, receive, replaceTag, retime, send, serial, status, tick };
+export { control, maximumPayload, analysisXml, probabilityXml, sendXml, six, HOUR, clock, compose, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, headTypeOf, infoType, iso, ms, receive, replaceTag, retime, send, serial, status, tick };

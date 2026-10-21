@@ -23,7 +23,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
 function empty(): WeatherTimeseriesUnitState {
-  return { schemaVersion: "p2-weather-timeseries-unit-v3", contentRevision: 0, subjects: [], gates: [], intents: [],
+  return { schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -217,7 +217,7 @@ describe("P2-A6 weather timeseries", () => {
     expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad))] }).kind).toBe("invalid");
     expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad - growth))] }).kind).toBe("restored");
     const wire = (length: number) => ({ ...base, intents: [notice("a", ""), notice("b", "x".repeat(length), "delivered")] });
-    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v3", unit: "U-F", generation: 0,
+    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v4", unit: "U-F", generation: 0,
       capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
     const length = 33_554_432 - generation(0);
     expect(generation(length)).toBe(33_554_432);
@@ -264,6 +264,33 @@ describe("P2-A6 weather timeseries", () => {
     const grown = update(widened.state, true);
     expect(grown.adopted).toBe(true);
     expect(roundTrip(grown.state.units["U-F"]!).kind).toBe("restored");
+  });
+
+  // acceptance（P3-VM-AC03・AC04）: 同じ時刻（Head と Control/DateTime が同じ）の訂正は門の版を残して門に未確認の印を付け、保存して復元する。
+  // 同じ時刻の取消は勝って印を外す（作者裁定 2026-10-21 昼）。
+  it("P3-VM-T03 acceptance / AC03,AC04: a same-time correction keeps the gate with a saved mark and a same-time cancel wins and clears it", () => {
+    const active = receive(empty(), fixture(unknown));
+    // 実不具合の再発防止（K7 発注 2b のレビュー）: Head・Control/DateTime・Serial・InfoType が同じでも予報の意味が違う報は同じ報でなく、印を付ける。
+    // 同じ報の再送は duplicate。
+    const recoded = receive(active.state, fixture(unknown, (xml) => xml.replace("<Code>31</Code>", "<Code>41</Code>")));
+    expect([receive(active.state, fixture(unknown)).decisions[0], recoded.decisions[0], recoded.state.subjects, recoded.state.gates[0].unconfirmed?.inputId])
+      .toEqual([expect.objectContaining({ decision: "unchanged", reason: "duplicate" }), expect.objectContaining({ decision: "unchanged", reason: "stale" }),
+        active.state.subjects, unknown]);
+    const held = receive(active.state, fixture(unknown, (xml) => xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")));
+    expect([held.decisions[0], held.state.subjects, held.state.gates[0].unconfirmed?.infoTypeRaw]).toEqual([expect.objectContaining({ decision: "unchanged",
+      reason: "stale" }), active.state.subjects, "訂正"]);
+    const restored = weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify(weatherTimeseriesUnitCodec.encode(held.state))));
+    expect(restored.kind === "restored" && restored.state.gates[0].unconfirmed).toEqual(held.state.gates[0].unconfirmed);
+    // 実不具合の再発防止（K7 発注 2b の契約適合の見直し、P3-VM-AC04）: 印は門が state から消えるまで残る。有効期間の終わりで予報が消えても、保存・復元の
+    // 後も同じ印で、retainUntil で記録と門が消えると印も消える。
+    const mark = held.state.gates[0].unconfirmed, tick = (state: WeatherTimeseriesUnitState, at: number) =>
+      reduceWeatherTimeseriesUnit(state, { kind: "deadline", clock: clock(at) }).state;
+    const lapsed = tick(held.state, first(held.state).validUntil!);
+    const reread = weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify(weatherTimeseriesUnitCodec.encode(lapsed))));
+    expect([first(lapsed).effective, lapsed.gates[0].unconfirmed, reread.kind === "restored" && reread.state.gates[0].unconfirmed,
+      tick(lapsed, first(lapsed).retainUntil).gates]).toEqual(["noActiveItems", mark, mark, []]);
+    const cancelled = receive(held.state, fixture(cancel));
+    expect([cancelled.decisions[0].decision, first(cancelled.state).effective, "unconfirmed" in cancelled.state.gates[0]]).toEqual(["changed", "cancelled", false]);
   });
 
   // T01: one contract boundary table covers valid empty/cancel and first rejection reason.

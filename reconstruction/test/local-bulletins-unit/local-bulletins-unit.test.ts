@@ -7,7 +7,7 @@ import { deliveryGrowth as reserve } from "../../src/notification-delivery/deliv
 import { linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import {
-  bulkReports, clock, compose, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, headTitle, infoType, iso, office, receive, replaceTag, retime, send, serial, status, tick,
+  bulkReports, clock, compose, control, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, headTitle, infoType, iso, office, receive, replaceTag, retime, send, serial, status, tick,
 } from "./local-bulletins-fixture";
 
 // P3-UNIT-M-001 の unit 試験（T01〜T08・T12〜T14）。続報と Q-LIMIT の境界入力は fixture を焼かずに試験内で作る。
@@ -140,8 +140,9 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const cancelBoth = sendAs(first51.state, "synthetic_VPHW50_tokyo_cancel", "VPHW51", compose(same51, serial("2")));
     const lateCancel50 = sendAs(cancelBoth.state, "synthetic_VPHW50_tokyo_cancel", "VPHW50", compose(same51, serial("2")));
     expect([cancelBoth.intents.length, reasonOf(lateCancel50)]).toEqual([2, "stale"]);
-    // 訂正の対: 両方の順で訂正の通知 1 件（channel ごと）。
-    const correct = (type: string) => compose(same51, serial("3"), infoType("訂正"), (xml: string) => xml + `<!-- ${type} -->`);
+    // 訂正の対: 両方の順で訂正の通知 1 件（channel ごと）。訂正は後の Control/DateTime（同じ時刻なら未確認の印、P3-VM-AC03）で、対の判定は
+    // Head/ReportDateTime・Serial・InfoType（Control/DateTime を見ない、P3-VM-D-SAME-REPORT=A）。
+    const correct = (type: string) => compose(same51, control("2009-08-10T07:39:00+09:00"), serial("3"), infoType("訂正"), (xml: string) => xml + `<!-- ${type} -->`);
     const c50 = sendAs(first50.state, T50, "VPHW50", correct("a")), c51 = sendAs(c50.state, T51, "VPHW51", correct("b"));
     expect([c50.intents.length, c51.intents.length]).toEqual([2, 0]);
     const d51 = sendAs(first51.state, T51, "VPHW51", correct("c")), d50 = sendAs(d51.state, T50, "VPHW50", correct("d"));
@@ -226,10 +227,13 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const active = send(emptyState(), HEAT);
     expect(active.state.heat[0]).toMatchObject({ subject: HEAT_SUBJECT, effective: "active", targetDate: "2024-08-11", areaName: "埼玉県",
       activeUntil: 1723388400000, retainUntil: ms("2024-08-11T05:00:00+09:00") + 3 * 24 * hours(1) });
-    // 特別警戒を持たない: title_escalation は同じ版なので別の state でふつうの発表（areaName null）。同じ state では食い違いの stale。
+    // 特別警戒を持たない: title_escalation は同じ版なので別の state でふつうの発表（areaName null）。同じ state では食い違いの stale で、
+    // 先着を保って未確認の印を付ける（P3-VM-AC03・AC04）。
     expect(send(emptyState(), "synthetic_VPFT50_title_escalation").state.heat[0]).toMatchObject({ effective: "active", areaName: null });
     const conflict = send(active.state, "synthetic_VPFT50_title_escalation");
-    expect([reasonOf(conflict), conflict.diagnostics.map((item) => item.reason), conflict.state]).toEqual(["stale", ["localBulletinsRevisionConflict"], active.state]);
+    const { unconfirmed: mark, ...held } = conflict.state.heat[0];
+    expect([reasonOf(conflict), conflict.diagnostics.map((item) => item.reason), held, mark?.inputId]).toEqual(["stale", ["localBulletinsRevisionConflict"],
+      active.state.heat[0], conflict.diagnostics[0]?.inputId]);
     // 本文の無い報は合法な発表、取消は cancelled（前が見えれば cancel の通知）。
     expect(send(emptyState(), "synthetic_VPFT50_no_body").state.heat[0].effective).toBe("active");
     const cancelled = send(active.state, "synthetic_VPFT50_cancel", retime("2024-08-11T05:30:00+09:00"));
@@ -331,15 +335,31 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const base = send(emptyState(), HEAT);
     // 同じ版の重複・食い違い（localBulletinsRevisionConflict）・訂正の採用。
     expect(reasonOf(send(base.state, HEAT))).toBe("duplicate");
-    const correction = send(base.state, HEAT, compose(infoType("訂正"), replaceTag("Title", "x")));
+    const correction = send(base.state, HEAT, compose(infoType("訂正"), replaceTag("Title", "x"), control("2024-08-11T05:01:00+09:00")));
     expect(correction.decisions[0]).toMatchObject({ decision: "changed" });
     expect(correction.intents.map((item) => [item.transition, item.payload.title, item.payload.body.startsWith("訂正: ")])).toEqual([
       ["updated", "[訂正] 埼玉県熱中症警戒アラート", true], ["updated", "[訂正] 埼玉県熱中症警戒アラート", true]]);
-    // Serial 欠落は最小（欠落の後の Serial 1 は新しい版、Serial 1 の後の欠落は stale）。数として比べる（9 より 10 が新しい）。
+    // Serial は新旧に使わない（P3-VM-AC03）: 同じ Control/DateTime で Serial だけが違う報は、欠落と 1・9 と 10 のどちらの順でも同じ版の duplicate。
     const missing = send(emptyState(), "32-35_09_01_191111_VXSE56");
-    expect(reasonOf(send(missing.state, "32-35_09_01_191111_VXSE56", serial("1")))).toBe("changed");
-    expect(reasonOf(send(send(emptyState(), "32-35_09_01_191111_VXSE56", serial("1")).state, "32-35_09_01_191111_VXSE56"))).toBe("stale");
-    expect(reasonOf(send(send(emptyState(), HEAT, serial("9")).state, HEAT, serial("10")))).toBe("changed");
+    expect(reasonOf(send(missing.state, "32-35_09_01_191111_VXSE56", serial("1")))).toBe("duplicate");
+    expect(reasonOf(send(send(emptyState(), "32-35_09_01_191111_VXSE56", serial("1")).state, "32-35_09_01_191111_VXSE56"))).toBe("duplicate");
+    expect(reasonOf(send(send(emptyState(), HEAT, serial("9")).state, HEAT, serial("10")))).toBe("duplicate");
+    // 未確認の印は記録が state から消えるまで残る（P3-VM-AC04）: 印→保存→見える期限（証拠になる）→保存・復元のどこでも同じ印。
+    const roundTrip = (state: LocalBulletinsUnitState) => {
+      const decoded = localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify(localBulletinsUnitCodec.encode(state))) as JsonValue);
+      return decoded.kind === "restored" ? decoded.state : emptyState();
+    };
+    const marked = send(missing.state, "32-35_09_01_191111_VXSE56", (xml) => xml.replace(/<Text>([^<]*)<\/Text>/, "<Text>$1（別の本文）</Text>"));
+    const visibleEnd = tick(marked.state, ms("2019-11-11T17:00:00+09:00") + hours(3)).state;
+    expect([reasonOf(marked), roundTrip(marked.state).transient[0].unconfirmed?.inputId, visibleEnd.transient[0].effective,
+      visibleEnd.transient[0].unconfirmed?.inputId, roundTrip(visibleEnd).transient[0].unconfirmed?.inputId]).toEqual(["stale",
+      marked.diagnostics[0]?.inputId, "evidence", marked.diagnostics[0]?.inputId, marked.diagnostics[0]?.inputId]);
+    // 実不具合の再発防止（K7 発注 2b のレビュー）: 同じ Head・Control/DateTime の訂正は、復元の前（見える記録）も後（証拠）も stale で印を付ける。
+    const correct = (state: LocalBulletinsUnitState) => send(state, "32-35_09_01_191111_VXSE56", infoType("訂正"));
+    const restored = reduceLocalBulletinsUnit(emptyState(), { kind: "restore", clock: clock(ms("2019-11-11T17:00:00+09:00")),
+      persisted: localBulletinsUnitCodec.encode(missing.state) }).state;
+    expect([missing.state, restored].map((state) => { const step = correct(state); return [reasonOf(step), step.state.transient[0].unconfirmed?.infoTypeRaw]; }))
+      .toEqual([["stale", "訂正"], ["stale", "訂正"]]);
     // 取消は cancelled にして前の事実を戻さない。記録の無い subject への取消は記憶だけ（通知 0）。
     const memoryOnly = send(emptyState(), "32-35_09_02_220316_VXSE56");
     expect([memoryOnly.state.transient[0].effective, memoryOnly.intents, memoryOnly.decisions[0]]).toMatchObject(["cancelled", [], { decision: "changed", change: "revisionOnly" }]);
@@ -513,7 +533,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const pendingAt = (index: number, bodyLength: number) => ({ id: `U-M:${own.subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-M" as const, subject: own.subject,
       operation: "normal" as const, source: own.source, transition: "updated" as const, channel: "desktop" as const,
       payload: { domain: "weather" as const, level: "warning" as const, title: "t".repeat(160), body: "b".repeat(bodyLength) }, createdAt: T0, expiresAt: T0 + 180_000,
-      nextAttemptAt: T0, attempts: 0, configRevision: "p3-local-bulletins-unit-v3", disposition: "pending" as const });
+      nextAttemptAt: T0, attempts: 0, configRevision: "p3-local-bulletins-unit-v4", disposition: "pending" as const });
     const total = (list: readonly ReturnType<typeof pendingAt>[]) => 2 + Math.max(list.length - 1, 0) + list.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + reserve(item), 0);
     const lengths: number[] = [];
     while (total(lengths.map((length, index) => pendingAt(index, length))) <= 131_072) lengths.push(512);
@@ -570,6 +590,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       ["area name 25 units", (value) => { value.tornado[0].areas[0].name = "名".repeat(25); }],
       ["unit mismatch in an intent", (value) => { value.intents[0].unit = "U-B"; }],
       ["inputId with a quote", (value) => { value.tornado[0].source.inputId = 'a"b'; }],
+      ["mark of another subject", (value) => { value.tornado[0].unconfirmed = { ...value.tornado[0].source, subject: "normal/VPFT50/X" }; }],
       ["pending over 128", (value) => { value.intents = Array.from({ length: 129 }, (_, index) => ({ ...value.intents[0], id: `${value.intents[0].id}#${index}` })); }],
       ["saved object over 229,376 bytes", (value) => {
         const extra = Array.from({ length: 260 }, (_, index) => ({ ...value.intents[0], id: `${value.intents[0].id}~${index}`, disposition: "delivered",
@@ -689,17 +710,19 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     // infoTypeRaw は trim で消える空白 6 文字＋「発表」（JSON で 42 byte）。inputId は 64 文字。
     const source = (subject: string, family: string, index: number) => ({ inputId: `${"i".repeat(60)}${String(index).padStart(4, "0")}`, origin: "replay" as const,
       operation: "training" as const, family, subject, reportDateTimeRaw: reportRaw, controlDateTimeRaw: reportRaw, serialRaw: "9999999999", infoTypeRaw: `${"\u000b".repeat(6)}発表` });
+    // P3-VM-AC08: 全記録に読み戻しが受ける上限いっぱい（inputId 64・origin recovery）の未確認の印。
+    const mark = (subject: string, family: string) => ({ ...source(subject, family, 0), inputId: "i".repeat(64), origin: "recovery" as const });
     const tornado = Array.from({ length: 128 }, (_, index) => {
       const title = `${repeat("題", 61)}${String(index).padStart(3, "0")}`, officeName = repeat("官", 24);
       const subject = `training/tornado/${officeName}/${title}`;
-      return { subject, operation: "training", source: source(subject, "VPHW51", index), retainUntil: REPORT + hours(36), effective: "active", activeUntil: REPORT + hours(36),
+      return { subject, operation: "training", source: source(subject, "VPHW51", index), unconfirmed: mark(subject, "VPHW51"), retainUntil: REPORT + hours(36), effective: "active", activeUntil: REPORT + hours(36),
         title, headline: repeat("文", 384), editorialOffice: officeName, sighted: true, truncated: true,
         areas: Array.from({ length: 128 }, () => ({ layer: "municipalityGroup", code: "12345678", name: repeat("名", 24) })) };
     });
     const heatReport = Date.parse("2024-08-11T05:00:00+09:00");
     const heat = Array.from({ length: 256 }, (_, index) => {
       const subject = `training/VPFT50/${repeat("E", 60)}${String(index).padStart(4, "0")}`;
-      return { subject, operation: "training", source: { ...source(subject, "VPFT50", index), reportDateTimeRaw: "2024-08-11T05:00:00+09:00" }, retainUntil: heatReport + 72 * hours(1),
+      return { subject, operation: "training", source: { ...source(subject, "VPFT50", index), reportDateTimeRaw: "2024-08-11T05:00:00+09:00" }, unconfirmed: mark(subject, "VPFT50"), retainUntil: heatReport + 72 * hours(1),
         effective: "active", activeUntil: Date.parse("2024-08-12T00:00:00+09:00"), targetDate: "2024-08-11", title: repeat("題", 64), headline: repeat("文", 384),
         editorialOffice: repeat("官", 24), areaName: repeat("域", 24), truncated: true };
     });
@@ -708,14 +731,15 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const transient = families.flatMap(([family, headType, count, length]) => Array.from({ length: count }, (_, index) => {
       const subject = headType === "VPAW51" ? `training/VPAW51/12345678/${repeat("題", 61)}${String(index).padStart(3, "0")}`
         : `training/${headType}/${repeat("E", 60)}${String(index).padStart(4, "0")}`;
-      return { subject, operation: "training", family, source: source(subject, headType, index), retainUntil: REPORT + length, effective: index % 2 === 0 ? "evidence" : "cancelled" };
+      return { subject, operation: "training", family, source: source(subject, headType, index), unconfirmed: mark(subject, headType), retainUntil: REPORT + length,
+        effective: index % 2 === 0 ? "evidence" : "cancelled" };
     }));
     // pending は「実 byte＋予約」131,072 まで、終端記録は 98,304 まで（合計 229,376 以内）。
     const intentAt = (index: number, disposition: "pending" | "delivered") => {
       const subject = tornado[index % 128].subject;
       return { id: `U-M:${subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-M" as const, subject, operation: "training" as const, source: tornado[index % 128].source,
         transition: "updated" as const, channel: "desktop" as const, payload: { domain: "weather", level: "warning", title: repeat("題", 160), body: repeat("文", 512) },
-        createdAt: REPORT, expiresAt: REPORT + 180_000, nextAttemptAt: REPORT, attempts: 99_999, configRevision: "p3-local-bulletins-unit-v3", disposition };
+        createdAt: REPORT, expiresAt: REPORT + 180_000, nextAttemptAt: REPORT, attempts: 99_999, configRevision: "p3-local-bulletins-unit-v4", disposition };
     };
     const intents: ReturnType<typeof intentAt>[] = [];
     const sizeOf = (list: readonly object[]) => list.reduce<number>((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
@@ -728,7 +752,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const pendingCount = intents.length;
     for (let index = 1000; sizeOf(intents.filter((item) => item.disposition !== "pending")) + Buffer.byteLength(JSON.stringify(intentAt(index, "delivered"))) + 1 <= 98_304; index++)
       intents.push(intentAt(index, "delivered"));
-    const maximum = { schemaVersion: "p3-local-bulletins-unit-v3", tornado, heat, transient, intents };
+    const maximum = { schemaVersion: "p3-local-bulletins-unit-v4", tornado, heat, transient, intents };
     const decoded = localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify(maximum)) as JsonValue);
     expect(decoded.kind).toBe("restored");
     if (decoded.kind !== "restored") return;
@@ -738,8 +762,24 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       expect([label, again.kind]).toEqual([label, "restored"]);
       if (again.kind === "restored") expect(generationBytes(localBulletinsUnitCodec.encode(again.state)), label).toBeLessThanOrEqual(GENERATION_STATIC_BOUND);
     };
-    const GENERATION_STATIC_BOUND = 3_970_142;
+    const GENERATION_STATIC_BOUND = localBulletinsUnitCodec.maxEnvelopeBytes!;
+    const unmarked = (json: string) => Buffer.byteLength(json.replace(/,"unconfirmed":\{[^}]*\}/g, ""));
     expect(generationBytes(localBulletinsUnitCodec.encode(decoded.state))).toBeLessThanOrEqual(GENERATION_STATIC_BOUND);
+    // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器を広げた量は印の分だけ。印を外した最大の状態は 4 MiB の内側で、各 slice の受理が受ける最長の subject
+    // （1 単位 3 byte）の記録に上限いっぱいの印を付けて encode した印の byte を件数の上限に掛けた和が、広げた量の内側。
+    const empty = localBulletinsUnitCodec.encode(emptyState());
+    expect(unmarked(JSON.stringify(localBulletinsUnitCodec.encode(decoded.state))) + generationBytes(empty) - Buffer.byteLength(JSON.stringify(empty)))
+      .toBeLessThanOrEqual(4_194_304);
+    const wide = repeat("あ", 64), probes = [["tornado", 128, { ...tornado[0], subject: `training/tornado/${repeat("あ", 24)}/${wide}`, title: wide,
+      editorialOffice: repeat("あ", 24) }, "VPHW51"], ["heat", 256, { ...heat[0], subject: `training/VPFT50/${wide}` }, "VPFT50"],
+    ["transient", 768, { ...transient[257], subject: `training/VPAW51/12345678/${wide}` }, "VPAW51"]] as const;
+    const marks = probes.map(([slice, count, record, family]) => {
+      const probe = { ...record, source: { ...record.source, subject: record.subject, family }, unconfirmed: mark(record.subject, family) };
+      const json = JSON.stringify({ ...maximum, tornado: [], heat: [], transient: [], intents: [], [slice]: [probe] });
+      expect([slice, localBulletinsUnitCodec.decode(JSON.parse(json) as JsonValue).kind]).toEqual([slice, "restored"]);
+      return count * (Buffer.byteLength(json) - unmarked(json));
+    });
+    expect(marks.reduce((sum, item) => sum + item, 0)).toBeLessThanOrEqual(localBulletinsUnitCodec.maxEnvelopeBytes! - 4_194_304);
     // (i) 竜巻の続報（最大の記録を新しい版で置き換える）。(ii) 熱中症の取消。(iii) transient の新しい報による退去。(iv) intentUpdate で attempts・nextAttemptAt の桁を伸ばす。
     // (v) 期限処理（見える期限・retainUntil の一括の到来）。(vi) restore 入力。
     const training = status("訓練");

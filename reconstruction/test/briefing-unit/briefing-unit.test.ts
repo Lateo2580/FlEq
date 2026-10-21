@@ -9,7 +9,7 @@ import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { briefingUnitCodec, reduceBriefingUnit, toBriefingView } from "../../src/units/briefing/briefing-unit";
 import {
-  clock, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, iso, observations, rainItem, receive, replaceTag, retime, send, serial, status,
+  clock, control, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, iso, observations, rainItem, receive, replaceTag, retime, send, serial, status,
   tags, tick, withoutHeadline,
 } from "./briefing-fixture";
 
@@ -168,12 +168,14 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
   // acceptance: 版・取消・期限（AC03）。
   it("P3-C12-T03 acceptance / AC03: revisions, subject-scoped cancel, the TTL=B lifetimes, late reports and the final-state outcome", () => {
     const first = send(emptyState(), F.k1);
-    // 同じ版の重複と食い違い（先着を保ち WARN）。
+    // 同じ版の重複と食い違い（先着を保ち WARN、系列に後着の報の未確認の印、P3-VM-AC03・AC04）。
     const duplicate = send(first.state, F.k1);
     expect([shape(duplicate), duplicate.diagnostics, duplicate.state === first.state]).toEqual([[[K, "unchanged", "duplicate"]], [], true]);
     const conflict = send(first.state, F.k1, (xml) => xml.replace("猛烈な雨が降っており", "非常に激しい雨が降っており"));
-    expect([shape(conflict), conflict.diagnostics, conflict.state === first.state]).toEqual([[[K, "unchanged", "stale"]],
-      [{ level: "WARN", component: "briefing", reason: "briefingRevisionConflict", inputId: expect.any(String), unit: "U-B" }], true]);
+    const { unconfirmed: mark, ...firstRecord } = recordOf(conflict.state)!;
+    expect([shape(conflict), conflict.diagnostics, firstRecord, mark?.inputId]).toEqual([[[K, "unchanged", "stale"]],
+      [{ level: "WARN", component: "briefing", reason: "briefingRevisionConflict", inputId: expect.any(String), unit: "U-B" }], recordOf(first.state),
+      conflict.diagnostics[0]?.inputId]);
     // 同じ版の訂正は採用（事実が同じなので revisionOnly）。取消はその subject だけを cancelled にし、前の事実を戻さない。
     const third = send(send(first.state, F.k2).state, F.k3).state;
     expect(shape(send(third, F.correction))).toEqual([[K, "changed", "revisionOnly"]]);
@@ -280,10 +282,11 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     expect([effective(counterCancel.state), effective(counterCancel.state, P), counterCancel.intents.map((item) => item.subject)]).toEqual([
       "cancelled", "released", [K, K]]);
     expect(recordOf(counterCancel.state, P)?.retainUntil).toBe(T0 + SHORT);
-    const ownCancel = send(paired.state, F.oacancel, undefined, T0 + 1_000);
+    // 合成の取消の Control/DateTime は :16 の発表より古いので、後の時刻に替えて採らせる（P3-VM-AC03）。
+    const ownCancel = send(paired.state, F.oacancel, control("2026-08-22T17:10:00+09:00"), T0 + 1_000);
     expect([effective(ownCancel.state), effective(ownCancel.state, P), ownCancel.intents]).toEqual(["active", "cancelled", []]);
     // cancelled の VPOA50 に対応報が来ても取消の記憶が残る（expected:O03:18）。
-    const kept = send(send(held.state, F.oacancel, undefined, T0 + 1).state, F.k1, undefined, T0 + 2);
+    const kept = send(send(held.state, F.oacancel, control("2026-08-22T17:10:00+09:00"), T0 + 1).state, F.k1, undefined, T0 + 2);
     expect(effective(kept.state, P)).toBe("cancelled");
   });
 
@@ -367,13 +370,13 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     const one = (value: object) => Buffer.byteLength(JSON.stringify(value));
     const heldBound = boundRecord("VPOA50", 0);
     console.info("P3-C12 capacity", JSON.stringify({ realPayload: sizes[0], contractReal: 616_800 - 293, boundPayload: sizes[1],
-      contractBound: 1_647_712 - 293, realActive: one(real.currents[0]), contractActive: 1_507, boundActive: one(bound.currents[0]), contractBoundActive: 5_534,
-      boundHeld: one(heldBound), contractBoundHeld: 2_872, realReleased: one(recordOf(tick(send(emptyState(), F.oa1).state, T0 + 60_000).state, P)!),
+      contractBound: 1_785_440 - 293, realActive: one(real.currents[0]), contractActive: 1_507, boundActive: one(bound.currents[0]), contractBoundActive: 6_009,
+      boundHeld: one(heldBound), contractBoundHeld: 3_395, realReleased: one(recordOf(tick(send(emptyState(), F.oa1).state, T0 + 60_000).state, P)!),
       contractReleased: 823, realCancelled: one(recordOf(send(emptyState(), F.kcancel).state)!), contractCancelled: 416,
       realIntent: one(template), counts: [real.currents.length, real.intents.length, bound.intents.length] }));
     for (const item of [real, bound]) expect(roundTrip(item).kind).toBe("restored");
     expect(Math.max(...sizes)).toBeLessThanOrEqual(2_097_152);
-    expect(sizes[1] + 293).toBeLessThanOrEqual(1_647_712);
+    expect(sizes[1] + 293).toBeLessThanOrEqual(1_785_440);
 
     // 保持上限付近で、受信 1 回は記録単位の加算だけ（state・配列・既存の記録を直列化しない）。
     receive(real, report("N9"), clock(now));
@@ -501,6 +504,7 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
       ["ReportDateTime form", withActive({ source: { ...source, reportDateTimeRaw: "\n2026-08-22T17:09:00+09:00" } })],
       ["InfoType", withActive({ source: { ...source, infoTypeRaw: "\t不明" } })],
       ["source family", withActive({ source: { ...source, family: "VPOA50" } })],
+      ["mark of another series", withActive({ unconfirmed: { ...source, subject: "normal/VPBS50/KJPTK202608221710" } })],
       ["pending + delivery reserve > 131072 bytes", { ...value, intents: reserveOver(intent) }],
       ["pending + terminal > 229,376 bytes", { ...value, intents: terminalOver(intent) }],
       ["attempts negative", { ...value, intents: [{ ...intent, attempts: -1 }] }],
@@ -543,7 +547,7 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     expect(channels(send(first.state, F.k2))).toEqual(["desktop:warning:updated", "sound:warning:updated"]);
     const same = send(first.state, F.k1, (xml) => serial("5")(retime("2026-08-22T17:10:00+09:00")(xml)));
     expect([shape(same), same.intents]).toEqual([[[K, "changed", "revisionOnly"]], []]);
-    const corrected = send(first.state, F.k1, replaceTag("InfoType", "訂正"));
+    const corrected = send(first.state, F.k1, (xml) => replaceTag("InfoType", "訂正")(control("2026-08-22T17:09:45+09:00")(xml)));
     expect(corrected.intents.map((item) => [item.transition, item.payload.title, item.payload.body])).toEqual(Array(2).fill(["updated",
       `[訂正] ${title}`, `訂正: ${headline}`]));
     // active の取消は cancel。記憶だけ・held・aliased の取消では作らない。
@@ -567,7 +571,8 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     expect([crowded.intents.map((item) => item.channel), notice.title, notice.body.length, notice.body.startsWith("訂正: 記")]).toEqual([["desktop"],
       `【訓練】[訂正] ${title}`, 4 + 4 * (16 + 1 + 4 * 16 + 3) + 3 * 3, true]);
     const drill = tick(send(emptyState(), F.oa1, status("訓練")).state, T0 + 60_000).state;
-    const drillCorrected = send(drill, F.oa1, (xml) => replaceTag("InfoType", "訂正")(status("訓練")(xml)), T0 + 61_000).intents[0].payload;
+    const drillCorrected = send(drill, F.oa1, (xml) => replaceTag("InfoType", "訂正")(status("訓練")(control("2026-08-22T17:09:45+09:00")(xml))),
+      T0 + 61_000).intents[0].payload;
     expect([drillCorrected.title, drillCorrected.body.startsWith("訂正: "), drillCorrected.body.endsWith("（対応電文未確認）")]).toEqual([
       "【訓練】[訂正] 東京都記録的短時間大雨情報（対応電文未確認）", true, true]);
     // training/test は desktop だけ（P3-C12-TRAINING=A）。
@@ -674,7 +679,7 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
       return [name, Buffer.byteLength(JSON.stringify(briefingUnitCodec.encode(state))) + 293] as const;
     });
     console.info("P3-C12-T13 generation bytes", JSON.stringify(Object.fromEntries(sizes)));
-    for (const [name, size] of sizes) expect(size, name).toBeLessThanOrEqual(1_647_712);
+    for (const [name, size] of sizes) expect(size, name).toBeLessThanOrEqual(1_785_440);
   });
 
   // contractBoundary: held の復元・alias の解除の後の期限と dirty（AC16、台帳 74 の (b)、P3-X-C2・C3）。
@@ -774,14 +779,15 @@ function boundRecord(headType: "VPBS50" | "VPOA50", index: number): BriefingCurr
   const kanji = (length: number) => "雨".repeat(length);
   const series = `${"\\".repeat(36)}${String(index).padStart(4, "0")}`, subject = `training/${headType}/${series}`;
   const reportDateTimeRaw = "9999-12-31T23:59:59.99999999999999-23:59";
-  const source = { inputId: "i".repeat(64), origin: "replay" as const, operation: "training" as const, family: headType, subject, reportDateTimeRaw,
+  // 読み戻しが受ける上限いっぱいの source と未確認の印（P3-VM-AC08）。
+  const source = { inputId: "i".repeat(64), origin: "recovery" as const, operation: "training" as const, family: headType, subject, reportDateTimeRaw,
     controlDateTimeRaw: reportDateTimeRaw,
-    serialRaw: "1234567890", infoTypeRaw: `${"\u000b".repeat(6)}訂正` };
+    serialRaw: "1234567890", infoTypeRaw: `${"\u000b".repeat(6)}訂正` }, unconfirmed = { ...source };
   const text = { title: kanji(64), headline: kanji(192), editorialOffice: kanji(16), truncated: true };
   const areas = (count: number, from: number) => Array.from({ length: count }, (_, at) => ({ code: String(10_000_000 + from + at), name: kanji(16) }));
-  if (headType === "VPOA50") return { subject, operation: "training", headType, series, source, retainUntil: Date.parse(reportDateTimeRaw) + SHORT,
+  if (headType === "VPOA50") return { subject, operation: "training", headType, series, source, unconfirmed, retainUntil: Date.parse(reportDateTimeRaw) + SHORT,
     effective: "held", holdUntil: -1.2345678901234567e-300, ...text, areas: areas(16, 0) };
-  return { subject, operation: "training", headType, series, source, retainUntil: Date.parse(reportDateTimeRaw) + SHORT, effective: "active", ...text,
+  return { subject, operation: "training", headType, series, source, unconfirmed, retainUntil: Date.parse(reportDateTimeRaw) + SHORT, effective: "active", ...text,
     items: Array.from({ length: 4 }, (_, at) => ({ kind: "unknown" as const, condition: kanji(16), areas: areas(4, at * 4) })),
     observations: Array.from({ length: 8 }, (_, at) => ({ part: "precipitation" as const, areaCode: String(10_000_000 + at), areaName: kanji(16),
       label: kanji(16), value: -123456.789, unit: kanji(8), approximation: "atLeast" as const, time: "2026-08-22T17:00:00+09:00" })) };

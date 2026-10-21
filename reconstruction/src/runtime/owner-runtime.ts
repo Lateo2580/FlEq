@@ -67,20 +67,20 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
 const noHistory = { dayKey: null, count: 0, maxInt: null, countedEventIds: [], recent: [] } as const;
 const initialUnits: RuntimeUnitStates = {
   "U-E": { schemaVersion: "p2-eew-unit-v3", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: cleanPersistence },
-  "U-W": { schemaVersion: "p2-weather-current-unit-v3", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
-    tombstones: [], freshness: [], unavailable: [], intents: [], persistence: cleanPersistence },
-  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v3", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
+  "U-W": { schemaVersion: "p2-weather-current-unit-v4", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+    tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
+  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
   "U-T": { schemaVersion: "p3-tsunami-unit-v3", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: cleanPersistence },
   "U-Q": { schemaVersion: "p3-seismic-unit-v3", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], persistence: cleanPersistence },
   "U-N": { schemaVersion: "p3-nankai-unit-v3", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
   "U-V": { schemaVersion: "p3-volcano-unit-v3", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: cleanPersistence },
-  "U-L": { schemaVersion: "p3-landslide-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-R": { schemaVersion: "p3-flood-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-B": { schemaVersion: "p3-briefing-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-M": { schemaVersion: "p3-local-bulletins-unit-v3", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
-  "U-Y": { schemaVersion: "p3-typhoon-unit-v3", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
+  "U-L": { schemaVersion: "p3-landslide-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-R": { schemaVersion: "p3-flood-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-B": { schemaVersion: "p3-briefing-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-M": { schemaVersion: "p3-local-bulletins-unit-v4", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
+  "U-Y": { schemaVersion: "p3-typhoon-unit-v4", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
 };
 
 const placeUnits = (place: ExecutionPlace): readonly RuntimeUnitId[] =>

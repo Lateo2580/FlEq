@@ -12,7 +12,7 @@ import { reduceFloodUnit } from "../../src/units/flood/flood-unit";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): FloodUnitState {
-  return { schemaVersion: "p3-flood-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-flood-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };
@@ -40,7 +40,9 @@ function decodeFixture(name: string, transform: (xml: string) => string = (xml) 
 }
 const replaceTag = (tag: string, value: string) => (xml: string) =>
   xml.replace(new RegExp(`<${tag}>[^<]*</${tag}>|<${tag}/>|<${tag} />`), `<${tag}>${value}</${tag}>`);
-const retime = (at: string) => replaceTag("ReportDateTime", at);
+// P3-VM-AC03: VXKO・VXSU は Control/DateTime だけで比べるので、報の時刻を替えるときは Control/DateTime も同じ時刻にする。
+const retime = (at: string) => (xml: string) => replaceTag("ReportDateTime", at)(xml)
+  .replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, `$1${new Date(Date.parse(at)).toISOString()}$2`);
 const eventId = (value: string) => replaceTag("EventID", value);
 const serial = (value: string) => replaceTag("Serial", value);
 const status = (value: string) => (xml: string) => xml.replace("<Status>通常</Status>", `<Status>${value}</Status>`);

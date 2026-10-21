@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "36ab3db6afedda033cb6f50b5da6217426a17d9c",
-    "sha256": "ab87be6bb1b2c3170896bc940ecabcc135a196a15026913e8f8da3160def9065",
+    "sha256": "991c3e9c57a72bc91facb579d039e120662bf764e547e48a229108b5e0c1f1c4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -271,7 +271,7 @@
         "requirement": "heapの測定と報告（P3-XTC-RES-01は合否、ほかは報告）: 実装者の機械のNode 22（v22.23.x）で、baseOidのdistと変更後のdistを同じ手順で測り、前後を並べる。(1) 生きた木: 最大VPWS50 15_18_01（frames.mjsのe03FrameまたはcycleCFramesの形）を1件decodeMaterialにかけ、強制GC（--expose-gc）の前後のheapUsedの差を、別processで3回ずつ取る。変更後÷baseOidの中央値がP3-XTC-RES-01（0.6以下）を満たす (2) 段ごとのheapの増え（報告）: U-Wを窓のfullの量（nearCapacityFramesのVPWS50とVPWW57）で満たしてから、cycleCFramesのVPWS50を4件、decode・receiveOwner・U-Wのcodecのencode・JSON文字列化の各段の後のheapUsedの差 (3) decodeMaterialの時間（報告）: 同じ入力でwarm-up 5件を捨てた20件のp50・最大。変更後のp50がbaseOidの1.15倍を超えたら、配送の前に統合担当へ報告して止める（PiのE03に効くため） (4) 木のnode数・要素数・textの数と、共有したtextの値の種類の数・名前の種類の数。機械・Node・CPU・load averageを併記する。測定のscriptはrepoの外の使い捨てでよく、成果物に中身を載せる。無いと: 木が実際に小さくなったか、時間の代わりに何を払ったかを数字で言えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
-          "reconstruction/contracts/p1-parser-boundary.json:499 «c67ca0773daa1938»",
+          "reconstruction/contracts/p1-parser-boundary.json:501 «c67ca0773daa1938»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
       },
@@ -279,7 +279,7 @@
         "id": "P3-XTC-AC05",
         "requirement": "変えないもの: decodeMaterialのsignature・結果の値・拒否の理由と優先・marksのkeyとnullの別・parseTimesの開始と終了の位置、withinXmlLimitsとXMLValidator.validateの呼び方と順、全文の走査の回数（P3-WL2-RES-02の3段）、旧の経路への戻り方（検出の規則D2〜D6）、P1の契約の型と公開API。木はowner threadの1入力の処理の間だけ生きる（P1-RET-01）。共有の表はdecode 1回の間だけで、moduleの変数に入力の値を溜めない（moduleに足す値は、凍結した空の配列・\"\\n\"のnode・状態を持たない空白の判定の正規表現だけ）。無いと: 木を詰める変更が、拒否・段・運用区分の診断や、入力をまたいで伸びる表を持ち込んでも気づけない",
         "evidenceRefs": [
-          "reconstruction/contracts/p1-parser-boundary.json:499 «c67ca0773daa1938»",
+          "reconstruction/contracts/p1-parser-boundary.json:501 «c67ca0773daa1938»",
           "reconstruction/contracts/p3-weather-light-step2.json:239 «3ff10bbd3e52e974»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]

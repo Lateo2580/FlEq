@@ -10,7 +10,7 @@ import type {
   TyphoonWindArea, TyphoonWindAxis,
 } from "../../../contracts/p3-typhoon-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { ANALYSIS_TYPES, BOUNDS, LIMITS, PROBABILITY_TYPES, RETAIN, VISIBLE, parseTyphoon, validCode6, validEventId } from "../../domains/typhoon/typhoon";
 import type { AnalysisCandidate, ProbabilityCandidate, TyphoonCandidate } from "../../domains/typhoon/typhoon";
@@ -19,7 +19,7 @@ import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "..
 // P3-UNIT-Y-001（C14、I-U-Y）: 二つの slice（analysis・probability）の current・版・遅着・退去・通知・容量・codec・射影。
 // 二つの slice は件数の上限と退去を別々に持つ（無いと訓練の確率の多発が解析の記録を退去する、I-U-Y.slices）。
 
-const SCHEMA = "p3-typhoon-unit-v3" as const;
+const SCHEMA = "p3-typhoon-unit-v4" as const;
 // P3-C14-RES-01・RET-04。
 const GENERATION_LIMIT = 8_388_608;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -124,15 +124,7 @@ function evictOne<T extends Rec>(values: readonly T[], now: number, incoming: Op
   return worst;
 }
 
-// ---- 版の比較（Q-ENUM.revisionOrder）: (ReportDateTime, InfoType, Serial)。Serial の欠落は最小 ----
-
-const serialNumber = (raw: string): number => raw === "" ? -1 : Number(raw);
-function compare(candidate: TyphoonCandidate, source: ReportRef): number {
-  const time = Math.sign(candidate.reportDateTimeMs - reportMs(source));
-  if (time !== 0) return time;
-  const info = Math.sign(candidate.infoRank - (infoRankOf(source.infoTypeRaw) ?? 0));
-  return info || Math.sign(serialNumber(candidate.source.serialRaw) - serialNumber(source.serialRaw));
-}
+// ---- 版の比較（P3-VM-AC03: subject ごとに compareVersion で比べ、報番号・InfoType の順位は使わない） ----
 
 // 公開事実（重複の判定と見える記録の変化）。
 const FACTS = ["effective", "endCause", "title", "name", "frames", "truncated", "activeUntil", "baseTime", "slotCount", "maxFiveDay", "prefectures", "areas"] as const;
@@ -143,8 +135,10 @@ function changed(before: Rec | null, value: Rec | null): string[] {
 
 // ---- 記録の組み立て（retainUntil・activeUntil は元報の ReportDateTime からの等式。decode も同じ関数で確かめる） ----
 
-type Base = Readonly<{ subject: string; operation: Operation; source: ReportRef }>;
-const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, source: value.source });
+type Base = Readonly<{ subject: string; operation: Operation; source: ReportRef; unconfirmed?: ReportRef }>;
+// 未確認の印は記録が state から消えるまで持つ（見える期限で記憶になっても、解析の終わりで確率が終わっても残す、P3-VM-AC04）。
+const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, source: value.source,
+  ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed } });
 const retainOf = (base: Base) => reportMs(base.source) + RETAIN;
 const visibleOf = (base: Base) => reportMs(base.source) + VISIBLE;
 
@@ -344,17 +338,22 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
   const at = indexOf(values).get(subject);
   const existing = at == null ? null : values[at];
   const built = lane.build(candidate, now, state);
-  const next = built.record;
-  if (existing != null) {
-    const order = compare(candidate, existing.source);
-    // 取消以前の版は stale で、取消した subject を戻さない。同じ版は、見える記録なら事実が同じで duplicate・違えば先着を保つ。
-    // 見えない記録（記憶）は事実を持たないので、記憶の種類が食い違うときだけ stale＋診断、同じなら duplicate（復活させない）。
-    if (order < 0) return unchangedStep(state, subject, operation, "stale");
-    // 重複の判定は遅着の判定より先なので、時計にも解析の終わりにも依らない記録の形と比べる。
-    if (order === 0) return !(visible(existing) ? changed(existing, lane.build(candidate, -Infinity, null).record).length !== 0 : lane.conflicts(existing, candidate))
-      ? unchangedStep(state, subject, operation, "duplicate")
-      : unchangedStep(state, subject, operation, "stale", [{ level: "WARN", component: "typhoon", reason: "typhoonRevisionConflict", inputId: candidate.source.inputId, unit: "U-Y" }]);
+  const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "typhoon", inputId: candidate.source.inputId, unit: "U-Y",
+    reason: missing ? "requiredStructureMissing" : "typhoonRevisionConflict" });
+  // 取消以前の版は stale で、取消した subject を戻さない。同じ版は、見える記録なら InfoType と事実が同じで duplicate・違えば先着を保って印を付ける
+  // （P3-VM-AC04）。正規化した InfoType の一致は見える記録と見えない記録に共通の条件（U-M と同じ、D-SAME-REPORT）。見えない記録（記憶）は事実を
+  // 持たないので、記憶の種類が同じなら duplicate（復活させない）。重複の判定は遅着の判定より先なので、時計にも解析の終わりにも依らない記録の形と
+  // 比べる。印は保存の byte に入るが、上界が予算の内側なので fit を要さない（P3-VM-AC08）。
+  const version = stepVersion(existing == null ? null : { version: existing.source, source: existing.source, cancelled: existing.effective === "cancelled" },
+    existing?.unconfirmed ?? null, candidate.source, () => existing != null && existing.source.infoTypeRaw.trim() === candidate.source.infoTypeRaw.trim()
+      && (visible(existing) ? changed(existing, lane.build(candidate, -Infinity, null).record).length === 0 : !lane.conflicts(existing, candidate)), candidate.cancelled);
+  if (version.kind !== "adopt") {
+    if (version.kind !== "held") return unchangedStep(state, subject, operation, version.kind === "duplicate" ? "duplicate" : "stale");
+    const marked = existing == null || version.mark == null || existing.unconfirmed === version.mark ? state : { ...lane.write(state,
+      values.map((item, position) => position === at ? { ...item, unconfirmed: version.mark } : item)), persistence: dirty(state.persistence, clock.monotonicMs) };
+    return unchangedStep(marked, subject, operation, "stale", [warn(version.missing)]);
   }
+  const next = version.mark == null ? built.record : { ...built.record, unconfirmed: version.mark };
   // P3-C14-RETENTION.lateRule（版の比較の後）: (1) 記憶の期限を過ぎた報は state を変えない。(3) 記憶としてだけ採る報で、subject に記録が無く
   // slice が満杯なら記録を作らず、退去も起こさない。(2) 記憶としてだけ採る報は、前の見える記録を終わらせて pending を撤回する。
   if (next.retainUntil <= now) return unchangedStep(state, subject, operation, "stale");
@@ -411,7 +410,7 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
   decisions.push({ subject, operation, decision: "changed", reason: null, change: kind,
     currentEstablished: { family: candidate.headType, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } });
   if (endedProbability != null) decisions.push({ subject: endedProbability.subject, operation, decision: "changed", reason: null, change: "semantic", currentEstablished: null });
-  const diagnostics: DiagnosticDetails[] = [];
+  const diagnostics: DiagnosticDetails[] = version.missing ? [warn(true)] : [];
   if (evicted != null) diagnostics.push(evictedDiagnostic);
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "typhoon", reason: "notificationCapacityEvicted", unit: "U-Y", count: notices.dropped });
   const replaced: Change = existing == null ? [null, next] : [existing, next];
@@ -684,7 +683,9 @@ function headOf(value: unknown, slice: "analysis" | "probability"): Head | null 
   if (source == null) return null;
   const allowed = BRANCH_KEYS[`${slice}/${String(row.effective)}`] ?? [];
   if (FACT_KEYS.some((key) => key in row && !allowed.includes(key))) return null;
-  return { row, parts, base: { subject: row.subject, operation: parts.operation, source } };
+  // P3-VM-AC04: 印は同じ subject・operation の報（取消の後の時刻の無い報の印も残る）。
+  const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject, parts) : undefined;
+  return mark === null ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source, ...mark == null ? {} : { unconfirmed: mark } } };
 }
 // 記憶（cancelled・ended）の枝。active でないときだけ呼ぶ。
 function memoryRecord(row: Fields, base: Base): (Analysis & Probability) | null {
@@ -768,12 +769,12 @@ function persisted(value: unknown): PersistedTyphoonUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const typhoonUnitCodec: TyphoonUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1", "p3-typhoon-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1", "p3-typhoon-unit-v2", "p3-typhoon-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-Y.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, analysis: state.analysis, probability: state.probability, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v3 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v4 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

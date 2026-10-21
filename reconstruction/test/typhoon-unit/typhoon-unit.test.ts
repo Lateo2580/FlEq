@@ -7,7 +7,7 @@ import { deliveryGrowth as reserve } from "../../src/notification-delivery/deliv
 import { linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import {
-  HOUR, maximumPayload, analysisXml, clock, compose, decodeFixture, decodeXml, emptyState, eventId, infoType, iso, ms, probabilityXml, receive, replaceTag, retime, send, sendXml,
+  HOUR, maximumPayload, analysisXml, clock, compose, control, decodeFixture, decodeXml, emptyState, eventId, infoType, iso, ms, probabilityXml, receive, replaceTag, retime, send, sendXml,
   serial, six, status, tick,
 } from "./typhoon-fixture";
 
@@ -303,30 +303,47 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
 
   // acceptance: 版・取消・遅着（Q-ENUM.revisionOrder・P3-C14-CANCEL-SCOPE・P3-C14-RETENTION）。
   it("P3-C14-T05 acceptance / AC05: revision order, same-version conflict, cancel scope and the late arrival rule", () => {
-    // 同じ版の重複は duplicate、食い違いは先着を保って stale＋typhoonRevisionConflict。
+    // 同じ版の重複は duplicate、食い違いは先着を保って stale＋typhoonRevisionConflict（後着の報の未確認の印、P3-VM-AC03・AC04）。
     const first = send(emptyState(), A01);
     const duplicate = send(first.state, A01);
     expect([reasonOf(duplicate), duplicate.state, duplicate.diagnostics]).toEqual(["duplicate", first.state, []]);
     const conflict = send(first.state, A01, (xml) => xml.replace(">1002<", ">1001<"));
-    expect([reasonOf(conflict), conflict.state, conflict.diagnostics]).toMatchObject(["stale", first.state, [{ level: "WARN", reason: "typhoonRevisionConflict", component: "typhoon", unit: "U-Y" }]]);
-    // 訂正の採用（同じ時刻・Serial で InfoType が上位）と、同じ版の 2 通目の訂正（食い違い）。
+    const { unconfirmed: mark, ...kept } = conflict.state.analysis[0];
+    expect([reasonOf(conflict), kept, mark?.inputId, conflict.diagnostics]).toMatchObject(["stale", first.state.analysis[0], conflict.diagnostics[0]?.inputId,
+      [{ level: "WARN", reason: "typhoonRevisionConflict", component: "typhoon", unit: "U-Y" }]]);
+    // 実不具合の再発防止（K7 発注 2b の契約適合の見直し、P3-VM-AC04）: 印は記録が state から消えるまで残る。見える期限で記憶（ended）になっても、
+    // 保存・復元の後も同じ印で、retainUntil で記録が消えると印も消える。
+    const reported = ms("2020-09-28T15:50:00+09:00");
+    const lapsed = tick(conflict.state, reported + 12 * HOUR).state;
+    const reread = typhoonUnitCodec.decode(JSON.parse(JSON.stringify(typhoonUnitCodec.encode(lapsed))) as JsonValue);
+    expect([lapsed.analysis[0].effective, lapsed.analysis[0].unconfirmed, reread.kind === "restored" && reread.state.analysis[0].unconfirmed,
+      tick(lapsed, lapsed.analysis[0].retainUntil).state.analysis]).toEqual(["ended", mark, mark, []]);
+    // 訂正の採用（Head・Serial が同じで Control/DateTime が新しい）と、Control/DateTime がさらに新しい 2 通目の訂正の採用（P3-VM-AC03）。
     const corrected = send(first.state, A02);
     expect([kindOf(corrected), corrected.intents.map((item) => item.transition), corrected.state.analysis[0].source.infoTypeRaw]).toEqual([["semantic"], ["updated", "updated"], "訂正"]);
     const second = send(corrected.state, A03);
-    expect([reasonOf(second), second.state, second.diagnostics.map((item) => item.reason)]).toEqual(["stale", corrected.state, ["typhoonRevisionConflict"]]);
-    // Serial の欠落は最小、比較は数（10 は 9 より新しい）。
+    expect([reasonOf(second), second.diagnostics, second.state.analysis[0].source.inputId]).toEqual(["changed", [], expect.stringContaining(A03)]);
+    // Serial は新旧に使わない（P3-VM-AC03）: 同じ Control/DateTime で Serial だけが違う・欠ける報は duplicate、事実も違えば先着を保って stale。
     const noSerial = send(first.state, A01, withoutTag("Serial"));
-    expect([reasonOf(noSerial), noSerial.state]).toEqual(["stale", first.state]);
-    expect(reasonOf(send(send(emptyState(), A01, withoutTag("Serial")).state, A01))).toBe("changed");
-    expect(reasonOf(send(send(emptyState(), A01, serial("9")).state, A01, compose(serial("10"), (xml) => xml.replace(">1002<", ">1001<"))))).toBe("changed");
+    expect([reasonOf(noSerial), noSerial.state]).toEqual(["duplicate", first.state]);
+    expect(reasonOf(send(send(emptyState(), A01, withoutTag("Serial")).state, A01))).toBe("duplicate");
+    expect(reasonOf(send(send(emptyState(), A01, serial("9")).state, A01, compose(serial("10"), (xml) => xml.replace(">1002<", ">1001<"))))).toBe("stale");
     // 記憶（zero・ended）に同じ版で種類の違う報が来たら stale＋typhoonRevisionConflict、同じ種類なら duplicate。
     const zeroXml = (five: number) => probabilityXml({ eventId: "TC2606", report: "2026-06-02T15:55:00+09:00", target: "2026-06-02T15:00:00+09:00", serial: "87",
       areas: [{ code: "010001", daily: [five, five, five, five, five], slots: [five] }] });
     const zeroed = sendXml(emptyState(), zeroXml(0), "VPTA50");
     expect(zeroed.state.probability[0].effective).toBe("zero");
     const zeroConflict = sendXml(zeroed.state, zeroXml(7), "VPTA50");
-    expect([reasonOf(zeroConflict), zeroConflict.state, zeroConflict.diagnostics.map((item) => item.reason)]).toEqual(["stale", zeroed.state, ["typhoonRevisionConflict"]]);
+    const { unconfirmed: zeroMark, ...zeroKept } = zeroConflict.state.probability[0];
+    expect([reasonOf(zeroConflict), zeroKept, zeroMark != null, zeroConflict.diagnostics.map((item) => item.reason)]).toEqual(["stale", zeroed.state.probability[0], true,
+      ["typhoonRevisionConflict"]]);
     expect(reasonOf(sendXml(zeroed.state, zeroXml(0), "VPTA50"))).toBe("duplicate");
+    // 実不具合の再発防止（K7 発注 2b のレビュー）: 期限で記憶（ended）になった後の同じ時刻の訂正は、見える記録のときと同じく stale で印を付ける
+    // （正規化した InfoType の一致は見える・見えない記録に共通、D-SAME-REPORT）。同じ報の再送は duplicate。
+    const expired = tick(first.state, ms("2020-09-28T15:50:00+09:00") + 12 * HOUR).state;
+    const lateCorrection = send(expired, A01, infoType("訂正"));
+    expect([expired.analysis[0].effective, reasonOf(send(expired, A01)), reasonOf(lateCorrection), lateCorrection.state.analysis[0].unconfirmed?.infoTypeRaw])
+      .toEqual(["ended", "duplicate", "stale", "訂正"]);
     const terminalEnded = send(emptyState(), END);
     expect(reasonOf(send(terminalEnded.state, END))).toBe("duplicate");
     const endConflict = send(terminalEnded.state, END, (xml) => xml.replace(/<Remark>[^<]*<\/Remark>/, "<Remark>台風発生</Remark>"));
@@ -434,7 +451,7 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     const make = (index: number, bodyLength: number) => ({ id: `U-Y:${own.subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-Y" as const, subject: own.subject,
       operation: "normal" as const, source: own.source, transition: "updated" as const, channel: "desktop" as const,
       payload: { domain: "weather" as const, level: "normal" as const, title: "t".repeat(160), body: "b".repeat(bodyLength) }, createdAt: T0, expiresAt: T0 + 180_000,
-      nextAttemptAt: T0, attempts: 0, configRevision: "p3-typhoon-unit-v3", disposition: "pending" as const });
+      nextAttemptAt: T0, attempts: 0, configRevision: "p3-typhoon-unit-v4", disposition: "pending" as const });
     const total = (list: readonly ReturnType<typeof make>[]) => 2 + Math.max(list.length - 1, 0) + list.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + reserve(item), 0);
     const lengths: number[] = [];
     while (total(lengths.map((length, index) => make(index, length))) <= 131_072) lengths.push(512);
@@ -510,6 +527,7 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
       ["subject of the other slice", withAnalysis, (json) => { analysis0(json).subject = "normal/typhoonProbability/TC2001"; }],
       ["source family of the other slice", withAnalysis, (json) => { R(analysis0(json).source).family = "VPTA50"; }],
       ["source subject differs", withAnalysis, (json) => { R(analysis0(json).source).subject = "normal/typhoonAnalysis/TC9999"; }],
+      ["mark of another subject", withAnalysis, (json) => { analysis0(json).unconfirmed = { ...R(analysis0(json).source), subject: "normal/typhoonAnalysis/TC9999" }; }],
       ["retainUntil off by one", withAnalysis, (json) => { bump(analysis0(json), "retainUntil", 1); }],
       ["activeUntil off by one", withAnalysis, (json) => { bump(analysis0(json), "activeUntil", -1); }],
       ["no 実況 frame", withAnalysis, (json) => { frame(json, 0).kind = "estimate"; frame(json, 0).hours = 1; }],
@@ -604,7 +622,7 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
       expect([label, step.state.intents.filter((item) => item.disposition === "superseded").length, pendingOf(step.state, TC2606).length]).toEqual([label, 2, 2]);
     }
     // 訂正は事実が同じでも作る（[訂正]・「訂正: 」）。
-    const correction = send(appeared.state, A01, infoType("訂正"));
+    const correction = send(appeared.state, A01, compose(infoType("訂正"), control("2020-09-28T15:52:00+09:00")));
     expect(correction.intents.map((item) => [item.transition, item.payload.title, item.payload.body.startsWith("訂正: 熱帯低気圧（TC2001） ")])).toEqual([
       ["updated", "[訂正] 台風解析・予報情報", true], ["updated", "[訂正] 台風解析・予報情報", true]]);
     // 見えない記録（記憶）への訂正は見える記録への訂正でなく見える採用なので activated（題の前置きは [訂正]）。
@@ -701,7 +719,7 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
   // contractBoundary: 最大の保存状態からの閉包（P3-X-C4、I-U-Y.capacityReserve）。保存物を XML でなく JSON で直接組み、
   // 各文字列・配列・数値を decode の上限の最長の形にする（時刻は Date の範囲 ±8.64e15 の内側の最長、報の時刻は 15 桁）。
   it("P3-C14-T13 contractBoundary / AC15: from the largest decodable state every operation re-encodes and re-decodes within the generation budget", () => {
-    const BOUND = 7_230_623;
+    const BOUND = 7_294_879; // P3-VM-AC08: 2a の Control/DateTime と 2b の未確認の印の分を足した静的上界（Q-VM-PRECHECK-2B の (5)）
     const { payload, reportMs, EDGE, pendingTotal, pendingList, eventIdOf } = maximumPayload();
     expect(pendingTotal(pendingList)).toBe(131_072);
     const restored = typhoonUnitCodec.decode(JSON.parse(JSON.stringify(payload)));

@@ -9,7 +9,7 @@ import type {
   LandslideUnitState, LandslideUnitStep, LandslideUnitView, PersistedLandslideUnit,
 } from "../../../contracts/p3-landslide-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version"; import { validReportDateTime } from "../../domains/flood/flood";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, FAMILY, INFO_RANK, LIMITS, cut, groupOrder, levelOf, parseLandslide, validAreaCode, validKindCode, validOffice, validSerial,
@@ -18,7 +18,7 @@ import type { LandslideCandidate } from "../../domains/landslide/landslide";
 
 // P3-UNIT-L-001（C10、I-U-L）: U-L の官署の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-landslide-unit-v3" as const;
+const SCHEMA = "p3-landslide-unit-v4" as const;
 // P3-C10-CAPACITY=A・P3-C10-RES-01・RET-01〜04。
 const CURRENT_LIMIT = 128, GENERATION_LIMIT = 2_097_152;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -112,14 +112,12 @@ function evictOne(values: readonly LandslideCurrent[], now: number, incoming: Op
 
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
-// P3-ORDER-AC01: ReportDateTime → InfoType の優先 → Serial（数として。欠落はどの数値よりも小）の辞書順。
-function compare(candidate: LandslideCandidate, source: ReportRef): number {
-  const time = candidate.reportDateTimeMs - reportMs(source);
-  if (time !== 0) return Math.sign(time);
-  const rank = candidate.infoRank - (INFO_RANK.get(source.infoTypeRaw) ?? 0);
-  if (rank !== 0) return Math.sign(rank);
-  const left = candidate.source.serialRaw, right = source.serialRaw;
-  return left === right ? 0 : left === "" ? -1 : right === "" ? 1 : Math.sign(Number(left) - Number(right));
+// P3-VM-AC03: 官署ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
+// held は手元の版を残して印を付ける報（印は保存の byte に入るが、上界が予算の内側なので fit を要さない、P3-VM-AC08）。
+function judge(existing: LandslideCurrent | null, built: LandslideCurrent, candidate: LandslideCandidate) {
+  return stepVersion(existing == null ? null : { version: existing.source, source: existing.source, cancelled: existing.effective === "cancelled" },
+    existing?.unconfirmed ?? null, candidate.source, () => existing != null && existing.source.infoTypeRaw === candidate.source.infoTypeRaw
+    && changed(existing, built).length === 0, candidate.cancelled);
 }
 
 // ---- 官署の current（I-U-L.currentSemantics） ----
@@ -260,17 +258,17 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   const { subject, operation } = candidate;
   const index = indexOf(state.currents, subject);
   const existing = index == null ? null : state.currents[index];
-  const next = currentOf(candidate, existing, now);
-  if (existing != null) {
-    const order = compare(candidate, existing.source);
-    // 取消以前の版は stale で、取消した subject を戻さない。同じ版・同じ InfoType は事実が同じなら duplicate、違えば先着を保つ。
-    if (order <= 0) {
-      const same = order === 0 && isDeepStrictEqual(changed(existing, next), []);
-      return { changes: [], step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason: same ? "duplicate" : "stale" }],
-        diagnostics: order === 0 && !same ? [{ level: "WARN", component: "landslide", reason: "landslideRevisionConflict",
-          inputId: candidate.source.inputId, unit: "U-L" }] : [] } };
-    }
+  const built = currentOf(candidate, existing, now), version = judge(existing, built, candidate);
+  const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "landslide", inputId: candidate.source.inputId, unit: "U-L",
+    reason: missing ? "requiredStructureMissing" : "landslideRevisionConflict" });
+  // 取消以前の版は stale で、取消した subject を戻さない。同じ版で中身が同じなら duplicate、違えば先着を保って印を付ける（P3-VM-AC04）。
+  if (version.kind !== "adopt") {
+    const marked = version.kind !== "held" || existing == null || version.mark == null || existing.unconfirmed === version.mark ? state
+      : { ...state, currents: replaceAt(state.currents, index, { ...existing, unconfirmed: version.mark }), persistence: dirty(state.persistence, clock.monotonicMs) };
+    return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: version.kind === "duplicate" ? "duplicate" : "stale" }],
+      diagnostics: version.kind === "held" ? [warn(version.missing)] : [] } };
   }
+  const next = version.mark == null ? built : { ...built, unconfirmed: version.mark };
   const fields = visible(existing) || visible(next) ? changed(existing, next) : [];
   // 最終の状態に記録が残らない受理（遅着・自身の退去）は accepted に載せず currentEstablished も null（D-VANISHED=A、P3-OPCAP-AC02）。
   const decided = (change: "semantic" | "revisionOnly", kept = true): Decision => ({ subject, operation, decision: "changed", reason: null, change,
@@ -320,7 +318,7 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   // 到着の時点で期限を過ぎた記録は採用して watermark を進め、同じ reduce で回収する（P3-C10-RETENTION=A）。
   const collected = deadlineAt(adopted) <= now ? collect(adopted, clock) : null;
   const result = collected?.state ?? adopted;
-  const diagnostics: DiagnosticDetails[] = [];
+  const diagnostics: DiagnosticDetails[] = version.missing ? [warn(true)] : [];
   if (evicted != null) diagnostics.push({ level: "INFO", component: "landslide", reason: "landslideCapacityEvicted", unit: "U-L", count: 1 });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "landslide", reason: "notificationCapacityEvicted", unit: "U-L",
     count: notices.dropped });
@@ -480,8 +478,8 @@ function subjectOperation(subject: string): Operation | null {
 function reportRef(value: unknown, subject: string): ReportRef | null {
   const ref = readReportRef(value, LIMITS.controlDateTime);
   return ref == null || ref.family !== FAMILY || ref.subject !== subject || subjectOperation(subject) !== ref.operation
-    || !bounded(ref.reportDateTimeRaw, LIMITS.reportDateTime)
-    || !Number.isFinite(Date.parse(ref.reportDateTimeRaw)) || !validSerial(ref.serialRaw) || !INFO_RANK.has(ref.infoTypeRaw) ? null : ref;
+    // P3-VM-AC08: ReportDateTime は受理（A1）と同じ形だけを受ける（Date.parse は括弧の中の任意の文字を読み飛ばす）。
+    || !validReportDateTime(ref.reportDateTimeRaw) || !validSerial(ref.serialRaw) || !INFO_RANK.has(ref.infoTypeRaw) ? null : ref;
 }
 // 受理と同じ上限（group 8・区域の延べ 256・code の形・level と code の一致・types.ts の順）。
 function kindsRecord(value: unknown): LandslideKindGroup[] | null {
@@ -505,7 +503,10 @@ function currentRecord(value: unknown): LandslideCurrent | null {
     return null;
   const source = reportRef(row.source, row.subject);
   if (source == null) return null;
-  const base = { subject: row.subject, operation, office: row.office, source };
+  // P3-VM-AC04: 印は同じ官署（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
+  const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject) : undefined;
+  if (mark === null) return null;
+  const base = { subject: row.subject, operation, office: row.office, source, ...mark == null ? {} : { unconfirmed: mark } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
     if (FACT_KEYS.some((key) => key in row) || row.retainUntil !== reportMs(source) + INACTIVE_RETAIN_MS) return null;
@@ -553,12 +554,12 @@ function persisted(value: unknown): PersistedLandslideUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const landslideUnitCodec: LandslideUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-landslide-unit-v1", "p3-landslide-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-landslide-unit-v1", "p3-landslide-unit-v2", "p3-landslide-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-L.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-landslide-unit-v3 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-landslide-unit-v4 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

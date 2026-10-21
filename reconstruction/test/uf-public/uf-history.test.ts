@@ -17,8 +17,8 @@ import type { Step } from "../snapshot-sse/projection-fixture";
 // 期待の digest は base（9b0248ac に baseOid の commit ff51da45 を足したもの。src と契約は同じ）でこの file を走らせて記録した値。
 // UFP_RECORD=1 では比べずに今の値を出す。
 const RECORD = process.env.UFP_RECORD != null;
-const sha = (value: unknown) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex").slice(0, 16); const baseVersion = (payload: unknown) => withoutControl(JSON.stringify(payload).replaceAll('"p2-weather-timeseries-unit-v3"', '"p2-weather-timeseries-unit-v1"')); // P3-VM-AC05: 版の文字列だけを base に戻して比べる
-// P3-VM-AC01: ReportRef の controlDateTimeRaw は base に無いので外して比べる（U-F の比べ方は発注 2b まで変えない）。
+const sha = (value: unknown) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex").slice(0, 16); const baseVersion = (payload: unknown) => withoutControl(JSON.stringify(payload).replaceAll('"p2-weather-timeseries-unit-v4"', '"p2-weather-timeseries-unit-v1"')); // P3-VM-AC05: 版の文字列だけを base に戻して比べる
+// P3-VM-AC01: ReportRef の controlDateTimeRaw は base に無いので外して比べる（発注 2b で U-F は Control/DateTime で比べるが、この file の報の採否は変わらない）。
 const withoutControl = (json: string) => json.replace(/"controlDateTimeRaw":"[^"]*",/g, "");
 const office = (xml: string, name: string) => xml.replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, `<EditorialOffice>${name}</EditorialOffice>`);
 // Head の無い報（head_missing の fixture）は報時刻を持たないので、固定の時刻を当てる。
@@ -41,7 +41,7 @@ function material(file: string, name: string, hours: number): Readonly<{ materia
   if (decoded.kind !== "decoded") throw new Error(decoded.diagnostic.reason);
   return { material: decoded.material, at: reportAt(xml) + 60_000 };
 }
-const empty = (): WeatherTimeseriesUnitState => ({ schemaVersion: "p2-weather-timeseries-unit-v3", contentRevision: 0, subjects: [],
+const empty = (): WeatherTimeseriesUnitState => ({ schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [],
   gates: [], intents: [], persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null,
     dirtySince: null } });
 

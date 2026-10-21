@@ -85,11 +85,11 @@ export type WeatherTimeseriesSubject = WeatherTimeseriesSnapshot & Readonly<{
 export type WeatherTimeseriesGate = Readonly<{
   subject: string;
   operation: Operation;
-  source: ReportRef;
+  source: ReportRef; unconfirmed?: ReportRef; // P3-VM-AC04: subject の門の未確認の印（取消の採用で外れる）
 }>;
 
 export type WeatherTimeseriesUnitState = Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v3";
+  schemaVersion: "p2-weather-timeseries-unit-v4";
   contentRevision: number;
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
@@ -98,7 +98,7 @@ export type WeatherTimeseriesUnitState = Readonly<{
 }>;
 
 export type PersistedWeatherTimeseriesUnit = Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v3";
+  schemaVersion: "p2-weather-timeseries-unit-v4";
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
   intents: readonly NotificationIntent[];
@@ -200,5 +200,5 @@ export type WeatherTimeseriesUnitStep = Readonly<{
 }>;
 
 export type WeatherTimeseriesUnitCodec = UnitCodec<WeatherTimeseriesUnitState, PersistedWeatherTimeseriesUnit> & Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v3";
+  schemaVersion: "p2-weather-timeseries-unit-v4";
 }>;

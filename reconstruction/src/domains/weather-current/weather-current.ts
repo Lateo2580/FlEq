@@ -21,7 +21,7 @@ import type {
   WeatherCurrentUnitStep,
   WeatherCurrentUnavailableReason,
 } from "../../../contracts/p2-weather-current-unit.types";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, validInputId } from "../../contracts-revision/version";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { compareVersion, controlDateTimeOf, stepVersion, validInputId } from "../../contracts-revision/version";
 
 const WEATHER_FAMILIES = ["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"] as const;
 const WARNING_TYPES = [
@@ -345,12 +345,41 @@ function historyFor(state: WeatherCurrentUnitState, subject: string, operation: 
   return state.histories.find((item) => item.subject === subject && item.operation === operation) ?? null;
 }
 
+// P3-VM-AC03: 系列の版は current・墓標・unavailable の source のうち compareVersion で最も新しいもの。
 function latestSource(state: WeatherCurrentUnitState, candidate: Candidate): ReportRef | null {
   const sources = [currentFor(state, candidate)?.source,
     ...state.tombstones.filter((item) => item.subject === candidate.subject && item.operation === candidate.operation).map((item) => item.source),
     ...state.unavailable.filter((item) => item.subject === candidate.subject && item.operation === candidate.operation && item.source != null)
       .map((item) => item.source!)].filter((value): value is ReportRef => value != null);
-  return sources.sort((left, right) => Date.parse(right.reportDateTimeRaw) - Date.parse(left.reportDateTimeRaw))[0] ?? null;
+  return sources.reduce<ReportRef | null>((latest, item) => latest == null || compareVersion(latest, item) === "newer" ? item : latest, null);
+}
+// 同じ版の同じ報か（P3-VM-AC03 の duplicate）。版が current の報なら現象、墓標・unavailable の報なら範囲まで同じもの（再送を印にしない）。
+function sameReport(state: WeatherCurrentUnitState, candidate: Candidate, latest: ReportRef, previous: WeatherCurrentSnapshot | null): boolean {
+  if (latest.infoTypeRaw !== candidate.source.infoTypeRaw || latest.serialRaw !== candidate.source.serialRaw) return false;
+  if (previous?.source === latest) return isDeepStrictEqual(previous.phenomena, candidate.phenomena);
+  const record = [...state.tombstones, ...state.unavailable].find((item) => item.source === latest);
+  return record != null && isDeepStrictEqual(record.affectedScope, candidate.affectedScope);
+}
+// P3-VM-AC04: 系列（subject・operation）ごとの未確認の印。印を置き換えるか外す（null）。
+function markOf(state: WeatherCurrentUnitState, candidate: Readonly<{ subject: string; operation: Operation }>): ReportRef | null {
+  return state.unconfirmed.find((item) => item.subject === candidate.subject && item.operation === candidate.operation) ?? null;
+}
+// 系列が current・履歴・墓標・unavailable のどれかに残っているか（codec の印の確かめと同じ集合）。
+function seriesExists(state: Pick<WeatherCurrentUnitState, "national" | "partials" | "histories" | "tombstones" | "unavailable">,
+  operation: Operation, subject: string): boolean {
+  const same = (item: Readonly<{ subject: string; operation: Operation }>) => item.subject === subject && item.operation === operation;
+  return state.national[operation]?.subject === subject || [...state.partials, ...state.histories, ...state.tombstones, ...state.unavailable].some(same);
+}
+// 系列が state から消えたら印も消す。受信で消えうる系列（全国の入れ替え・履歴の退去）の印のある subject だけを確かめる。
+function dropOrphanMark(state: WeatherCurrentUnitState, series: Readonly<{ subject: string; operation: Operation }> | null | undefined): WeatherCurrentUnitState {
+  const mark = series == null ? null : markOf(state, series);
+  return mark == null || seriesExists(state, mark.operation, mark.subject) ? state : { ...state, unconfirmed: state.unconfirmed.filter((item) => item !== mark) };
+}
+function withMark(state: WeatherCurrentUnitState, candidate: Candidate, mark: ReportRef | null): WeatherCurrentUnitState {
+  const current = markOf(state, candidate);
+  if (current === mark) return state;
+  const rest = state.unconfirmed.filter((item) => item !== current);
+  return { ...state, unconfirmed: mark == null ? rest : [...rest, mark] };
 }
 
 function outcome(candidate: Candidate, transition: string, source: ReportRef | null = candidate.source): SubjectOutcome {
@@ -388,9 +417,9 @@ function monitor(state: WeatherCurrentUnitState, candidate: Candidate, decision:
     currentSemanticRevision: current == null ? null : `${current.source.reportDateTimeRaw}/${current.source.serialRaw}`,
     decision, reason, revisionOrder,
     freshnessSuspect: revisionOrder === "newer" || previous?.freshnessSuspect === true,
-    // 疑義の上限は同じ target で後退させない（P3-AUTH-AC05(1)）。
+    // 疑義の上限は同じ target で後退させない（P3-AUTH-AC05(1)）。上限も版と同じ compareVersion で比べる（P3-VM-AC03）。
     suspectedSource: revisionOrder === "newer" && (previous?.suspectedSource == null
-      || Date.parse(candidate.source.reportDateTimeRaw) > Date.parse(previous.suspectedSource.reportDateTimeRaw))
+      || compareVersion(previous.suspectedSource, candidate.source) === "newer")
       ? candidate.source : previous?.suspectedSource ?? null,
     confirmedScope: previous?.confirmedScope ?? [],
     clearCondition: "sameTargetScopeAcceptedOrCoverageConfirmed",
@@ -401,13 +430,13 @@ function monitor(state: WeatherCurrentUnitState, candidate: Candidate, decision:
   return { ...state, freshness, persistence: dirty(state.persistence, clockMs) };
 }
 
-// 疑義は上限以上の版の採用だけで解く（上限より古い採用では残す、P3-AUTH-AC05(2)）。
+// 疑義は上限以上の版の採用だけで解く（上限より古いか順の決まらない採用では残す、P3-AUTH-AC05(2)。比べ方は P3-VM-AC03 の compareVersion）。
 function clearMonitoring(state: WeatherCurrentUnitState, candidate: Candidate): WeatherCurrentUnitState {
-  const at = Date.parse(candidate.source.reportDateTimeRaw);
+  const reaches = (suspected: ReportRef) => { const order = compareVersion(suspected, candidate.source); return order === "newer" || order === "same"; };
   const freshness = state.freshness.filter((record) => !(record.target.operation === candidate.operation
     && record.target.family === candidate.family && record.target.subject === candidate.subject
     && scopeContains(candidate.affectedScope, record.target.affectedScope)
-    && (record.suspectedSource == null || Date.parse(record.suspectedSource.reportDateTimeRaw) <= at)));
+    && (record.suspectedSource == null || reaches(record.suspectedSource))));
   const unavailable = state.unavailable.filter((record) => !(record.operation === candidate.operation
     && record.subject === candidate.subject && scopeContains(candidate.affectedScope, record.affectedScope)));
   return freshness.length === state.freshness.length && unavailable.length === state.unavailable.length
@@ -429,7 +458,8 @@ function removeSubjects(state: WeatherCurrentUnitState, subjects: ReadonlySet<st
     histories: state.histories.filter((item) => item.operation !== operation || !subjects.has(item.subject)),
     ownership: Object.fromEntries(Object.entries(state.ownership)
       .filter(([key, subject]) => !key.startsWith(`${operation}\u0000`) || !subjects.has(subject))),
-    intents: state.intents.filter((item) => item.operation !== operation || !subjects.has(item.subject)) };
+    intents: state.intents.filter((item) => item.operation !== operation || !subjects.has(item.subject)),
+    unconfirmed: state.unconfirmed.filter((item) => item.operation !== operation || !subjects.has(item.subject)) };
 }
 
 function addUnavailable(state: WeatherCurrentUnitState, candidate: Candidate, reason: WeatherCurrentUnavailableReason,
@@ -542,9 +572,10 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   if (validated.kind === "rejected") {
     let next = state;
     if (validated.target != null) {
+      // 受理（A1）が読めない報時刻は順を作らない（Date.parse は 2 月 30 日も読む）。
       const latest = latestSource(state, validated.target);
-      const order = latest == null || validated.target.reportDateTimeMs == null ? "unknown" : validated.target.reportDateTimeMs > Date.parse(latest.reportDateTimeRaw) ? "newer"
-        : validated.target.reportDateTimeMs < Date.parse(latest.reportDateTimeRaw) ? "older" : "same";
+      const compared = latest == null || validated.target.reportDateTimeMs == null ? "undecidable" : compareVersion(latest, validated.target.source);
+      const order = compared === "undecidable" ? "unknown" : compared;
       next = monitor(state, validated.target, "rejected", validated.reason, order, input.clock.monotonicMs);
     }
     return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
@@ -557,28 +588,30 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
     intents: [], outcomes: [], diagnostics: [] };
   const previous = currentFor(state, candidate);
   const latest = latestSource(state, candidate);
-  if (latest != null) {
-    const latestMs = Date.parse(latest.reportDateTimeRaw);
-    if (candidate.reportDateTimeMs! < latestMs) {
-      const next = monitor(state, candidate, "unchanged", "stale", "older", input.clock.monotonicMs);
-      return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
-        decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "stale" }],
-        intents: [], outcomes: [], diagnostics: [] };
-    }
-    if (candidate.reportDateTimeMs === latestMs) {
-      const duplicate = previous != null && previous.source.infoTypeRaw === candidate.source.infoTypeRaw
-        && previous.source.serialRaw === candidate.source.serialRaw
-        && isDeepStrictEqual(previous.phenomena, candidate.phenomena);
-      if (duplicate) return { state, nextDeadline: nextWeatherCurrentDeadline(state),
-        decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "duplicate" }],
-        intents: [], outcomes: [], diagnostics: [] };
-      const next = monitor(state, candidate, "unchanged", "stale", "unknown", input.clock.monotonicMs);
-      return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
-        decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "stale" }],
-        intents: [], outcomes: [], diagnostics: [] };
-    }
+  // P3-VM-AC03・AC04: 系列の版と compareVersion で比べる。older は今どおり monitor の older、同じ版の同じ報は duplicate。同じ時刻の取消は勝ち
+  // （作者裁定 2026-10-21 昼）、ほかの同じ時刻の食い違いと比べる時刻の欠けは版を残して monitor の unknown（今の食い違いの扱い）と系列の印。
+  const version = stepVersion(latest == null ? null : { version: latest, source: latest, cancelled: latest.infoTypeRaw === "取消" }, markOf(state, candidate),
+    candidate.source, () => latest != null && sameReport(state, candidate, latest, previous), candidate.cancelled);
+  const missing: DiagnosticDetails[] = version.kind !== "older" && version.kind !== "duplicate" && version.missing ? [{ level: "WARN",
+    component: "weather-current", reason: "requiredStructureMissing", unit: "U-W", inputId: candidate.source.inputId }] : [];
+  if (version.kind === "duplicate") return { state, nextDeadline: nextWeatherCurrentDeadline(state),
+    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "duplicate" }],
+    intents: [], outcomes: [], diagnostics: [] };
+  if (version.kind !== "adopt") {
+    const monitored = monitor(state, candidate, "unchanged", "stale", version.kind === "older" ? "older" : "unknown", input.clock.monotonicMs);
+    const next = version.kind === "held" ? withMark(monitored, candidate, version.mark) : monitored;
+    return { state: next === state ? state : { ...next, persistence: dirty(state.persistence, input.clock.monotonicMs) },
+      nextDeadline: nextWeatherCurrentDeadline(next),
+      decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "stale" }],
+      intents: [], outcomes: [], diagnostics: missing };
   }
+  const adopted = adoptCandidate(withMark(state, candidate, version.mark), candidate, previous, input, touched);
+  return missing.length === 0 ? adopted : { ...adopted, diagnostics: [...adopted.diagnostics, ...missing] };
+}
 
+// 採用（P3-VM-AC03 の newer）。終了・取消・容量・current の置き換え。
+function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, previous: WeatherCurrentSnapshot | null,
+  input: Extract<WeatherCurrentInput, { kind: "receive" }>, touched: CurrentChange): Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence"> {
   if (candidate.family === "VPNO50") {
     let next = applyEnding(state, candidate, touched);
     const tombstone: WeatherCurrentTombstone = { subject: candidate.subject, operation: candidate.operation,
@@ -637,7 +670,7 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   }
 
   // History limits are depths: a full scope pushes out its oldest report (non-normal first) instead of refusing.
-  let retained = currentFor(working, candidate);
+  let retained = currentFor(working, candidate), evictedReport: WeatherCurrentSnapshot | null = null;
   if (retained != null) {
     const scoped = working.histories.flatMap((item) => item.reports)
       .filter((item) => item.scope === candidate.scope
@@ -649,6 +682,7 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
       // Normal protection: training/test over a normal-only history is adopted without keeping its previous version.
       if (evicted == null) retained = null;
       else {
+        evictedReport = evicted;
         // Only the entry holding the evicted report is rebuilt; the others keep their references (and byte cache).
         working = { ...working, histories: working.histories.flatMap((item) => {
           if (!item.reports.includes(evicted)) return [item];
@@ -680,7 +714,7 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   next = { ...next, ownership, intents: next.intents.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation),
     tombstones: next.tombstones.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation),
   };
-  next = clearMonitoring(next, candidate);
+  next = dropOrphanMark(dropOrphanMark(clearMonitoring(next, candidate), displaced), evictedReport);
   next = { ...next, persistence: dirty(state.persistence, input.clock.monotonicMs) };
   const semantic = previous == null || !isDeepStrictEqual(previous.phenomena, projected.phenomena);
   const change = semantic ? "semantic" as const : "revisionOnly" as const;
@@ -705,6 +739,10 @@ function expireIntents(state: WeatherCurrentUnitState, wallTimeMs: number, monot
 export {
   WEATHER_FAMILIES,
   WARNING_TYPES,
+  dropOrphanMark,
+  markOf,
+  seriesExists,
+  withMark,
   VPNO_TYPE,
   dirty,
   expireIntents,

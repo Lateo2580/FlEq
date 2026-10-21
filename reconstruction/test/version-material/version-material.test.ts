@@ -254,25 +254,27 @@ describe("P3-VERSION-MATERIAL-001 発注 2a", () => {
       const json = JSON.stringify(codec.encode(state));
       const decoded = codec.decode(JSON.parse(json) as JsonValue);
       return { roundTrip: decoded.kind === "restored" && isDeepStrictEqual(JSON.parse(JSON.stringify(codec.encode(decoded.state))), JSON.parse(json)),
-        control: json.includes(`"controlDateTimeRaw":${JSON.stringify(material.controlDateTimeRaw)}`), marked: json.includes('"unconfirmed":'),
+        control: json.includes(`"controlDateTimeRaw":${JSON.stringify(material.controlDateTimeRaw)}`), marked: /"unconfirmed":\[?\{/.test(json),
         mistyped: codec.decode(JSON.parse(json.replace(/"controlDateTimeRaw":"[^"]*"/, '"controlDateTimeRaw":0')) as JsonValue).kind };
     };
     const headline = (xml: string) => xml.replace(/<Headline>\s*<Text>[^<]*/, "<Headline><Text>別の見出し");
+    // 発注 2b: 同じ時刻の訂正（InfoType が違う同じ版）で 7 unit に印を付ける。
+    const corrected = (xml: string) => xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>");
     const rows = {
       "U-E": row(reduceEewUnit, eewUnitCodec, initialUnits["U-E"], "77_01_01_240613_VXSE45", "VXSE45"),
-      "U-W": row(reduceWeatherCurrentUnit, weatherCurrentUnitCodec, initialUnits["U-W"], "15_16_02_251222_VPWW57", "VPWW57"),
-      "U-F": row(reduceWeatherTimeseriesUnit, weatherTimeseriesUnitCodec, initialUnits["U-F"], "81_01_01_260129_VPWP50", "VPWP50"),
+      "U-W": row(reduceWeatherCurrentUnit, weatherCurrentUnitCodec, initialUnits["U-W"], "15_16_02_251222_VPWW57", "VPWW57", corrected),
+      "U-F": row(reduceWeatherTimeseriesUnit, weatherTimeseriesUnitCodec, initialUnits["U-F"], "81_01_01_260129_VPWP50", "VPWP50", corrected),
       "U-T": row(reduceTsunamiUnit, tsunamiUnitCodec, initialUnits["U-T"], "32-39_11_02_250206_VTSE41", "VTSE41", bodyName("別の区域")),
       "U-Q": row(reduceSeismicUnit, seismicUnitCodec, initialUnits["U-Q"], "32-35_04_04_240613_VXSE53", "VXSE53", bodyName("別の震央")),
       "U-N": row(reduceNankaiUnit, nankaiUnitCodec, initialUnits["U-N"], "selected_xml__74_01_05_200512_VYSE50", "VYSE50", headline),
       "U-V": row(reduceVolcanoUnit, volcanoUnitCodec, initialUnits["U-V"], "45_01_01_200522_VFVO50", "VFVO50", headline),
-      "U-L": row(reduceLandslideUnit, landslideUnitCodec, initialUnits["U-L"], "15_16_01_241031_VPWW56", "VPWW56"),
-      "U-R": row(reduceFloodUnit, floodUnitCodec, initialUnits["U-R"], "16_01_01_220728_VXKO50", "VXKO50"),
-      "U-B": row(reduceBriefingUnit, briefingUnitCodec, initialUnits["U-B"], "82_01_01_260324_VPBS50", "VPBS50"),
-      "U-M": row(reduceLocalBulletinsUnit, localBulletinsUnitCodec, initialUnits["U-M"], "19_01_01_091210_VPHW50", "VPHW50"),
-      "U-Y": row(reduceTyphoonUnit, typhoonUnitCodec, initialUnits["U-Y"], "10_04_03_170913_VPTW60", "VPTW60"),
+      "U-L": row(reduceLandslideUnit, landslideUnitCodec, initialUnits["U-L"], "15_16_01_241031_VPWW56", "VPWW56", corrected),
+      "U-R": row(reduceFloodUnit, floodUnitCodec, initialUnits["U-R"], "16_01_01_220728_VXKO50", "VXKO50", corrected),
+      "U-B": row(reduceBriefingUnit, briefingUnitCodec, initialUnits["U-B"], "82_01_01_260324_VPBS50", "VPBS50", corrected),
+      "U-M": row(reduceLocalBulletinsUnit, localBulletinsUnitCodec, initialUnits["U-M"], "19_01_01_091210_VPHW50", "VPHW50", corrected),
+      "U-Y": row(reduceTyphoonUnit, typhoonUnitCodec, initialUnits["U-Y"], "10_04_03_170913_VPTW60", "VPTW60", corrected),
     };
-    const marked = new Set(["U-T", "U-Q", "U-N", "U-V"]);
+    const marked = new Set(["U-T", "U-Q", "U-N", "U-V", "U-W", "U-F", "U-L", "U-R", "U-B", "U-M", "U-Y"]);
     expect(Object.fromEntries(Object.entries(rows).map(([unit, run]) => [unit, run()]))).toEqual(Object.fromEntries(Object.keys(rows)
       .map((unit) => [unit, { roundTrip: true, control: true, marked: marked.has(unit), mistyped: "invalid" }])));
   });

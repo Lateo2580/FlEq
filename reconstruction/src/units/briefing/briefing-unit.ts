@@ -9,7 +9,7 @@ import type {
   BriefingUnitCodec, BriefingUnitState, BriefingUnitStep, BriefingUnitView, PersistedBriefingUnit,
 } from "../../../contracts/p3-briefing-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, LIMITS, kindOf, parseBriefing, validCode, validHeadline, validSeries, validUnit } from "../../domains/briefing/briefing";
 import type { BriefingCandidate } from "../../domains/briefing/briefing";
@@ -17,7 +17,7 @@ import { cut, infoRankOf, validName, validReportDateTime, validSerial, validTime
 
 // P3-UNIT-B-001（C12、I-U-B）: U-B の系列の current・予測の置換・alias・通知・容量・codec・射影。
 
-const SCHEMA = "p3-briefing-unit-v3" as const;
+const SCHEMA = "p3-briefing-unit-v4" as const;
 // P3-C12-BOUNDS=A・P3-C12-RES-01・RET-01〜04。
 const CURRENT_LIMIT = 256, GENERATION_LIMIT = 2_097_152;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -33,7 +33,7 @@ type InternalStep = Omit<BriefingUnitStep, "displayChanges" | "confirmationEvide
 type Decision = BriefingUnitStep["decisions"][number];
 type Change = readonly [before: BriefingCurrent | null, after: BriefingCurrent | null];
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
-type Base = Readonly<{ subject: string; operation: Operation; series: string; source: ReportRef }>;
+type Base = Readonly<{ subject: string; operation: Operation; series: string; source: ReportRef; unconfirmed?: ReportRef }>;
 type Text = Readonly<{ title: string; headline: string; editorialOffice: string; truncated: boolean }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
@@ -43,7 +43,9 @@ const predicted = (item: BriefingItem) => item.kind === "linearRainPredicted";
 
 // ---- 記録の組み立て（retainUntil は P3-C12-TTL=B の等式。decode も同じ関数で確かめる） ----
 
-const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, series: value.series, source: value.source });
+// 未確認の印は系列の版の採用（取消を含む）と記録の回収でだけ外れ、他の系列の作用（置換・alias）と held の解放では残る（P3-VM-AC04）。
+const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, series: value.series, source: value.source,
+  ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed } });
 const textOf = (value: Text): Text => ({ title: value.title, headline: value.headline, editorialOffice: value.editorialOffice,
   truncated: value.truncated });
 const after = (base: Base, ms: number) => reportMs(base.source) + ms;
@@ -177,13 +179,12 @@ function evictOne(values: readonly BriefingCurrent[], now: number, incoming: Ope
 
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
-// ReportDateTime、同時刻なら Serial（数として）、なお同じなら InfoType の優先。
-function compare(candidate: BriefingCandidate, source: ReportRef): number {
-  const time = candidate.reportDateTimeMs - reportMs(source);
-  if (time !== 0) return Math.sign(time);
-  const serial = Number(candidate.source.serialRaw) - Number(source.serialRaw);
-  if (serial !== 0) return Math.sign(serial);
-  return Math.sign(candidate.infoRank - (infoRankOf(source.infoTypeRaw) ?? 0));
+// P3-VM-AC03: 系列ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
+// held は手元の版を残して印を付ける報（印は保存の byte に入るが、上界が予算の内側なので fit を要さない、P3-VM-AC08）。
+function judge(existing: BriefingCurrent | null, next: BriefingCurrent, candidate: BriefingCandidate) {
+  return stepVersion(existing == null ? null : { version: existing.source, source: existing.source, cancelled: existing.effective === "cancelled" },
+    existing?.unconfirmed ?? null, candidate.source, () => existing != null && existing.source.infoTypeRaw.trim() === candidate.source.infoTypeRaw.trim()
+    && changed(existing, next).length === 0, candidate.cancelled);
 }
 
 // 公開事実（Q-ENUM.revisionOrder の重複の判定と、I-U-B.currentSemantics(6) の見える記録の変化）。
@@ -332,13 +333,17 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   let next = nextOf(candidate, existing, state.currents, now);
   const unchanged = (reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = []): Result => ({ changes: [],
     step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
-  if (existing != null) {
-    const order = compare(candidate, existing.source);
-    // 取消以前の版は stale で、取消した subject を戻さない。同じ版・同じ InfoType は事実が同じなら duplicate、違えば先着を保つ。
-    if (order < 0) return unchanged("stale");
-    if (order === 0) return changed(existing, next).length === 0 ? unchanged("duplicate")
-      : unchanged("stale", [{ level: "WARN", component: "briefing", reason: "briefingRevisionConflict", inputId: candidate.source.inputId, unit: "U-B" }]);
+  const version = judge(existing, next, candidate);
+  const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "briefing", inputId: candidate.source.inputId, unit: "U-B",
+    reason: missing ? "requiredStructureMissing" : "briefingRevisionConflict" });
+  // 取消以前の版は stale で、取消した subject を戻さない。同じ版で中身が同じなら duplicate、違えば先着を保って印を付ける（P3-VM-AC04）。
+  if (version.kind !== "adopt") {
+    if (version.kind !== "held") return unchanged(version.kind === "duplicate" ? "duplicate" : "stale");
+    const marked = found == null || version.mark == null || found.value.unconfirmed === version.mark ? state : { ...state,
+      currents: state.currents.map((item, at) => at === found.at ? { ...item, unconfirmed: version.mark! } : item), persistence: dirty(state.persistence, clock.monotonicMs) };
+    return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: "stale" }], diagnostics: [warn(version.missing)] } };
   }
+  if (version.mark != null) next = { ...next, unconfirmed: version.mark };
   const withdrawn = new Set<string>();
   const vanished = (diagnostics: readonly DiagnosticDetails[], kept: BriefingUnitState, changes: readonly Change[], change: "semantic" | "revisionOnly"): Result =>
     ({ changes, step: { ...idle(kept), decisions: [{ subject, operation, decision: "changed", reason: null, change, currentEstablished: null }],
@@ -430,7 +435,7 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   const change = evicted != null || touched.some(shownChange) ? "semantic" as const : "revisionOnly" as const;
   const decision: Decision = { subject, operation, decision: "changed", reason: null, change,
     currentEstablished: { family: candidate.headType, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } };
-  const diagnostics: DiagnosticDetails[] = [];
+  const diagnostics: DiagnosticDetails[] = version.missing ? [warn(true)] : [];
   if (evicted != null) diagnostics.push(evictedDiagnostic);
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "briefing", reason: "notificationCapacityEvicted", unit: "U-B",
     count: notices.dropped });
@@ -668,7 +673,10 @@ function currentRecord(value: unknown): BriefingCurrent | null {
   if (source == null) return null;
   const allowed = BRANCH_KEYS[`${parts.headType}/${row.effective}`] ?? [];
   if (FACT_KEYS.some((key) => key in row && !allowed.includes(key))) return null;
-  const base: Base = { subject: row.subject, operation, series: parts.series, source };
+  // P3-VM-AC04: 印は同じ系列（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
+  const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject) : undefined;
+  if (mark === null) return null;
+  const base: Base = { subject: row.subject, operation, series: parts.series, source, ...mark == null ? {} : { unconfirmed: mark } };
   const text = textRecord(row);
   let built: BriefingCurrent | null = null;
   if (parts.headType === "VPBS50") {
@@ -725,12 +733,12 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const briefingUnitCodec: BriefingUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2", "p3-briefing-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-B.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v3 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v4 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

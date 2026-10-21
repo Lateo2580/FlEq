@@ -51,7 +51,7 @@ export type WeatherCurrentTombstone = Readonly<{
 }>;
 
 export type WeatherCurrentUnitState = Readonly<{
-  schemaVersion: "p2-weather-current-unit-v3";
+  schemaVersion: "p2-weather-current-unit-v4";
   contentRevision: number;
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
@@ -61,12 +61,12 @@ export type WeatherCurrentUnitState = Readonly<{
   // Rejected input may update only this monitoring record under Q-ENUM freshnessRule.
   freshness: readonly FreshnessRecord[];
   unavailable: readonly Readonly<{ subject: string; operation: Operation; reason: WeatherCurrentUnavailableReason; source: ReportRef | null; lastKnown: WeatherCurrentSnapshot | null; affectedScope: readonly string[] }>[];
-  intents: readonly NotificationIntent[];
+  intents: readonly NotificationIntent[]; unconfirmed: readonly ReportRef[]; // P3-VM-AC04: 系列（subject・operation）ごとに 1 つの未確認の印。snapshot に置くと histories の報ごとに増えるので別に持つ
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedWeatherCurrentUnit = Readonly<{
-  schemaVersion: "p2-weather-current-unit-v3";
+  schemaVersion: "p2-weather-current-unit-v4";
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
   histories: readonly WeatherCurrentHistory[];
@@ -74,7 +74,7 @@ export type PersistedWeatherCurrentUnit = Readonly<{
   tombstones: readonly WeatherCurrentTombstone[];
   freshness: readonly FreshnessRecord[];
   unavailable: readonly Readonly<{ subject: string; operation: Operation; reason: WeatherCurrentUnavailableReason; source: ReportRef | null; lastKnown: WeatherCurrentSnapshot | null; affectedScope: readonly string[] }>[];
-  intents: readonly NotificationIntent[];
+  intents: readonly NotificationIntent[]; unconfirmed: readonly ReportRef[];
 }>;
 
 export type WeatherCurrentUnitView = SharedUnitView & Readonly<{
@@ -111,5 +111,5 @@ export type WeatherCurrentUnitStep = Readonly<{
 }>;
 
 export type WeatherCurrentUnitCodec = UnitCodec<WeatherCurrentUnitState, PersistedWeatherCurrentUnit> & Readonly<{
-  schemaVersion: "p2-weather-current-unit-v3";
+  schemaVersion: "p2-weather-current-unit-v4";
 }>;

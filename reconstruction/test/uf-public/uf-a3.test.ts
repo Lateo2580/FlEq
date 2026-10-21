@@ -25,7 +25,7 @@ function naganoState(count: number): WeatherTimeseriesUnitState {
   if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
   const decoded = decodeMaterial(entered.item);
   if (decoded.kind !== "decoded") throw new Error(decoded.diagnostic.reason);
-  const empty: WeatherTimeseriesUnitState = { schemaVersion: "p2-weather-timeseries-unit-v3", contentRevision: 0, subjects: [], gates: [], intents: [],
+  const empty: WeatherTimeseriesUnitState = { schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
   const seed = reduceWeatherTimeseriesUnit(empty, { kind: "receive", material: decoded.material, clock }).state.subjects[0];
   // 同じ保存内容を官署名だけ替えて並べる。長野の実物の大きさの series を官署の数だけ持つ。

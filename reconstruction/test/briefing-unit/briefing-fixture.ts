@@ -12,7 +12,7 @@ import { reduceBriefingUnit } from "../../src/units/briefing/briefing-unit";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): BriefingUnitState {
-  return { schemaVersion: "p3-briefing-unit-v3", contentRevision: 0, currents: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-briefing-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };
@@ -40,7 +40,10 @@ function decodeFixture(name: string, transform: (xml: string) => string = (xml) 
 }
 const replaceTag = (tag: string, value: string) => (xml: string) =>
   xml.replace(new RegExp(`<${tag}>[^<]*</${tag}>|<${tag}/>|<${tag} />`), `<${tag}>${value}</${tag}>`);
-const retime = (at: string) => replaceTag("ReportDateTime", at);
+// P3-VM-AC03: VPOA50 は Control/DateTime だけで、VPBS50 は Head の次に Control/DateTime で比べるので、報の時刻を替えるときは
+// Control/DateTime も同じ時刻にする（control は Control/DateTime だけを替える）。
+const control = (at: string) => (xml: string) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, `$1${new Date(Date.parse(at)).toISOString()}$2`);
+const retime = (at: string) => (xml: string) => control(at)(replaceTag("ReportDateTime", at)(xml));
 const eventId = (value: string) => replaceTag("EventID", value);
 const serial = (value: string) => replaceTag("Serial", value);
 const status = (value: string) => (xml: string) => xml.replace("<Status>通常</Status>", `<Status>${value}</Status>`);
@@ -75,6 +78,6 @@ function send(state: BriefingUnitState, name: string, transform?: (xml: string) 
 }
 const tick = (state: BriefingUnitState, wallTimeMs: number) => reduceBriefingUnit(state, { kind: "deadline", clock: clock(wallTimeMs) });
 
-export { clock, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, iso, observations, rainItem, receive, replaceTag, retime, send, serial,
+export { clock, control, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, iso, observations, rainItem, receive, replaceTag, retime, send, serial,
   status, tagInfo, tags, tick, withoutHeadline };
 export type { Area, Tag };

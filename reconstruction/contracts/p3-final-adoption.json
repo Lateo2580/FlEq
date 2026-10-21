@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "bb48187255d4df66d32ca1903b916b41f533aa995e894af065086a7a44535c2b",
+    "sha256": "f37034b96f72cfd3944a70e6a0add758d141ad2c59b0d1dab07bf9026e22bf02",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -254,7 +254,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:558 «e5f09dfc13030f92»",
           "reconstruction/src/units/volcano/volcano-unit.ts:885 «8b4f910515306c8f»",
           "reconstruction/src/units/volcano/volcano-unit.ts:929 «3163253ec0f873fa»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:289 «e8afc5291a8206af»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:287 «e8afc5291a8206af»",
           "reconstruction/contracts/p3-landslide-unit.json:88 «ff75c945bfaf4bbf»",
           "reconstruction/contracts/p3-seismic-unit.json:76 «edfc93a93ac7766f»",
           "reconstruction/contracts/p3-nankai-unit.json:93 «ac56198078904181»",
@@ -284,7 +284,7 @@
           "reconstruction/contracts/p2-shared-runtime.json:191 «198ceb18bc69f2b0»",
           "reconstruction/contracts/p3-order-plan.md:370 «231992515371a332»",
           "reconstruction/contracts/p3-order-plan.md:381 «63af1164399c448a»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:277 «21b161b3941610ee»"
+          "reconstruction/src/units/landslide/landslide-unit.ts:275 «21b161b3941610ee»"
         ]
       },
       {
@@ -321,14 +321,14 @@
         "id": "P3-FINAL-AC05",
         "requirement": "F12（U-L）は本体を変えず試験と契約の読み替えで閉じる（D-OUTCOME=A）。記録のある官署に、到着の時点で期限を過ぎた新しい解除が届くと、今どおり採用して同じreduceで回収し、まだ有効だった前のactiveを消す（通知しない）。保存の対象（currents）が変わるので保存の世代を進める（+1に限らない。F12の観測は1→3）。acceptedのsubjectのtransitionはended（activeと返さない）。P3-C10-RETENTIONとpersistedの「到着の時点で期限を過ぎた報（遅着の発表・解除だけの遅着とも…正味のstateが変わらない）では、currentsの参照を変えず保存世代を進めない」（p3-landslide-unit.json:273）は、最終の状態が変わらない受理（記録の無い官署への遅着、P3-C10-ACTIVE-EXPIRY）だけに当たると読み替える。既存のP3-C10-T03の遅着の解除（landslide-unit.test.ts:192〜:196、T0のactiveにReportDateTime 2020-06-23T00:00の解除をT0＋7時間1分で受ける。F12と同じ形）に、保存の世代が進むこととacceptedのtransitionがendedであることを足す。",
         "evidenceRefs": [
-          "reconstruction/src/units/landslide/landslide-unit.ts:280 «12767c397d3a7354»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:311 «1f07c849306e8bdb»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:321 «0a252c057ef91ea5»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:278 «12767c397d3a7354»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:309 «1f07c849306e8bdb»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:319 «0a252c057ef91ea5»",
           "reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f»",
-          "reconstruction/contracts/p3-landslide-unit.json:273 «f396d5f13810dcd4»",
+          "reconstruction/contracts/p3-landslide-unit.json:273 «7f724b2a38740b3e»",
           "reconstruction/contracts/p3-landslide-unit.json:12 «c73b1961f3ef092e»",
-          "reconstruction/test/landslide-unit/landslide-unit.test.ts:192 «f08931c457090c2d»",
-          "reconstruction/test/landslide-unit/landslide-unit.test.ts:196 «4b2698ca2b3fa0ef»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:195 «f08931c457090c2d»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:199 «4b2698ca2b3fa0ef»",
           "reconstruction/contracts/p3-order-plan.md:348 «2aa034878016ecd6»"
         ]
       },

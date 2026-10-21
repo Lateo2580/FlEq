@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "df73c1e15e516049a082bcd66c8c487cf1af0ab0b977686ad77227217f4c46ba",
+    "sha256": "cfdc586d3faffafac56cc3b2433dfb466cdcbb283d360699b2464d0cd68642de",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -200,7 +200,7 @@
       "reduceEew、reduceEewUnit、toEewView、eewUnitCodec、reduceWeatherTimeseriesUnit、weatherTimeseriesUnitCodecの公開形は変えない",
       "EewGateに非保存のfieldを3つ足す: currentUntil: number | null（この版のcurrentの期限。currentを作らなかった版・失効後はnull）、retainUntil: number（gateの期限）、predictionKey: string | null（P3-LIFE-D-F17KEY=Aの比較材料）。EewCurrent・EewUnitView・PersistedEewUnitの形は変えない",
       "DiagnosticReason（p2-shared-runtime.types.ts）へ\"eewHorizonStale\"・\"hostClockAhead\"・\"hostClockBehind\"・\"hostClockUnverified\"の4つを足し、persistent-diagnostic-sink.tsの保存するreasonの一覧にも足す（無いとAC03・AC13の診断が型を通らず、保存もされない）。他のreason・DiagnosticDetailsの形は変えない",
-      "WeatherTimeseriesSubject・PersistedWeatherTimeseriesUnitの形とschemaVersion p2-weather-timeseries-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）は変えない（retainUntilの値の式だけ変わる）"
+      "WeatherTimeseriesSubject・PersistedWeatherTimeseriesUnitの形とschemaVersion p2-weather-timeseries-unit-v4（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）は変えない（retainUntilの値の式だけ変わる）"
     ],
     "allowedDependencies": [
       "既存の依存とNode標準（node:crypto、node:util）だけを使う。新しいnpm依存は足さない"
@@ -341,7 +341,7 @@
         "id": "P3-LIFE-AC05",
         "requirement": "F11（U-Fの保持期限）: 受信でsubjectを採用するとき、retainUntil＝max(ReportDateTime＋604,800,000, 採用したsubjectのvalidUntil ?? −∞)とする（容量でunavailableを採用する場合はvalidUntil=nullなのでReportDateTime＋7日）。81_09_01_260605_VPWP50の全DurationをP10Dにした報は、validUntil＝retainUntil＝最終periodの終わりとなり、ReportDateTime＋7日のdeadlineでもactiveのままsubjectとgateが残る。validUntil−1ではactive、validUntilちょうどのdeadlineでは既存の規則どおりdecision changed/semantic・outcome deadlineApplied（effective noActiveItems）を出し、同じ手順の中でsubjectとgateを回収する（期限が一致するときもvalidUntilの失効を先に処理し、有効期間の後に7日を足さない）。validUntilがReportDateTime＋7日より前の報（実fixtureの3時間〜67時間の系列）は従来どおり（validUntilでnoActiveItems、ReportDateTime＋7日で回収）。各段階でencode→JSON→decodeがrestoredになる。",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:190 «3fb0aecb382221e9»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:183 «3fb0aecb382221e9»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:99 «11b74f30e3b16bd1»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:94 «b8c3e551199a6047»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:235 «fe37dd1ffd636ef5»",
@@ -353,11 +353,11 @@
         "id": "P3-LIFE-AC06",
         "requirement": "U-Fの式の統一と既存の範囲: (1) receive・deadline（collect）・decodeで同じ式を使う。decodeのsubjectRowはretainUntilがReportDateTime＋7日と一致する、またはvalidUntil≠nullかつmax(ReportDateTime＋7日, validUntil)と一致する場合だけ受ける。前者は旧式で保存したsubject（validUntil＞ReportDateTime＋7日の旧値を含む）をそのまま読み、新式へ引き上げない。schemaの移行は無い。(2) 日時の上限は既存の範囲に合わせる: ReportDateTimeは既存のreportDateTimeの検証、validUntilは既存のinspect（TimeDefineの開始＋Durationが有限のDate）の範囲のままで狭めない。retainUntilはその範囲の有限numberで、JSONの往復で変わらない。(3) 未来skew: U-Fは既存どおりReportDateTimeを拒否せず生値で式に使う（decodeが式を再計算するため受信時刻で切り詰めない）。(4) 容量: 既存の512 subject・32 MiB・unavailable・capacityExceededの規則と退去順位を変えない。長いvalidUntilはsubjectの占有を延ばすが、同じ官署の次の報が採用されれば置き換わる。",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:344 «99bf89b958a06d85»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:358 «99bf89b958a06d85»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:180 «ef82cd515267e875»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:358 «79cdbbfa9ad21414»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «8ea43e8a13b100e4»"
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «785fcde1500a753c»"
         ]
       },
       {

@@ -9,7 +9,7 @@ import type {
   FloodUnitState, FloodUnitStep, FloodUnitView, PersistedFloodUnit,
 } from "../../../contracts/p3-flood-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, LIMITS, cut, infoRankOf, levelOf, loneSurrogate, parseFlood, validEventId, validHeadType, validKindCode, validName,
@@ -19,9 +19,16 @@ import type { FloodCandidate } from "../../domains/flood/flood";
 
 // P3-UNIT-R-001（C11、I-U-R）: U-R の EventID の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-flood-unit-v3" as const;
+const SCHEMA = "p3-flood-unit-v4" as const;
 // P3-C11-CAPACITY=A・P3-C11-RES-01（P3-C11-BOUNDS=B）・RET-01〜04。
-const CURRENT_LIMIT = 512, GENERATION_LIMIT = 16_777_216;
+const CURRENT_LIMIT = 512;
+// P3-VM-AC08（作者裁定 2026-10-21 夜）: 器は 16 MiB に、全記録が読み戻しの上限いっぱいの未確認の印を持つ最悪の場合の分を足す（印の無い上界は
+// Control/DateTime を含めて 16 MiB の内側）。印 1 つは InfoType の raw が trim で消える U+000B の 6 文字（JSON で 6 byte ずつ）と EventID の「\」40 文字。
+const LONGEST_REF: ReportRef = { inputId: "i".repeat(INPUT_ID_LIMIT), origin: "recovery", operation: "training", family: "VXKO50",
+  subject: `training/VXKO50/${"\\".repeat(LIMITS.eventId)}`, reportDateTimeRaw: "0".repeat(LIMITS.reportDateTime),
+  controlDateTimeRaw: "0".repeat(LIMITS.controlDateTime), serialRaw: "9".repeat(10), infoTypeRaw: `${"\v".repeat(LIMITS.infoType - 2)}発表` };
+const MARK_GROWTH = CURRENT_LIMIT * new TextEncoder().encode(`,"unconfirmed":${JSON.stringify(LONGEST_REF)}`).byteLength;
+const GENERATION_LIMIT = 16_777_216 + MARK_GROWTH;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
 // P3-C11-SEM-01・02（元報の ReportDateTime からの絶対の長さ、P3-C11-RETENTION=A・P3-C11-ACTIVE-EXPIRY=D）。
 const RETAIN_MS = 129_600_000;
@@ -112,13 +119,12 @@ function evictOne(values: readonly FloodCurrent[], now: number, incoming: Operat
 
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
-// ReportDateTime、同時刻なら Serial（数として）、なお同じなら InfoType の優先。
-function compare(candidate: FloodCandidate, source: ReportRef): number {
-  const time = candidate.reportDateTimeMs - reportMs(source);
-  if (time !== 0) return Math.sign(time);
-  const serial = Number(candidate.source.serialRaw) - Number(source.serialRaw);
-  if (serial !== 0) return Math.sign(serial);
-  return Math.sign(candidate.infoRank - (infoRankOf(source.infoTypeRaw) ?? 0));
+// P3-VM-AC03: EventID ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
+// held は手元の版を残して印を付ける報（印は保存の byte に入るが、上界が器の内側なので fit を要さない、P3-VM-AC08）。
+function judge(existing: FloodCurrent | null, built: FloodCurrent, candidate: FloodCandidate) {
+  return stepVersion(existing == null ? null : { version: existing.source, source: existing.source, cancelled: existing.effective === "cancelled" },
+    existing?.unconfirmed ?? null, candidate.source, () => existing != null && existing.source.infoTypeRaw.trim() === candidate.source.infoTypeRaw.trim()
+    && changed(existing, built, FACTS).length === 0, candidate.cancelled);
 }
 
 // ---- EventID の current（I-U-R.currentSemantics） ----
@@ -284,14 +290,17 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
   if (candidate.reportDateTimeMs + RETAIN_MS <= now) return unchanged("stale");
   const index = indexOf(state.currents, subject);
   const existing = index == null ? null : state.currents[index];
-  const next = currentOf(candidate, existing);
-  if (existing != null) {
-    const order = compare(candidate, existing.source);
-    // 取消以前の版は stale で、取消した subject を戻さない。同じ版・同じ InfoType は事実が同じなら duplicate、違えば先着を保つ。
-    if (order < 0) return unchanged("stale");
-    if (order === 0) return changed(existing, next, FACTS).length === 0 ? unchanged("duplicate")
-      : unchanged("stale", [{ level: "WARN", component: "flood", reason: "floodRevisionConflict", inputId: candidate.source.inputId, unit: "U-R" }]);
+  const built = currentOf(candidate, existing), version = judge(existing, built, candidate);
+  const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "flood", inputId: candidate.source.inputId, unit: "U-R",
+    reason: missing ? "requiredStructureMissing" : "floodRevisionConflict" });
+  // 取消以前の版は stale で、取消した subject を戻さない。同じ版で中身が同じなら duplicate、違えば先着を保って印を付ける（P3-VM-AC04）。
+  if (version.kind !== "adopt") {
+    if (version.kind !== "held") return unchanged(version.kind === "duplicate" ? "duplicate" : "stale");
+    const marked = existing == null || version.mark == null || existing.unconfirmed === version.mark ? state
+      : { ...state, currents: replaceAt(state.currents, index, { ...existing, unconfirmed: version.mark }), persistence: dirty(state.persistence, clock.monotonicMs) };
+    return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: "stale" }], diagnostics: [warn(version.missing)] } };
   }
+  const next = version.mark == null ? built : { ...built, unconfirmed: version.mark };
   const fields = visible(existing) || visible(next) ? changed(existing, next) : [];
   const decided = (change: "semantic" | "revisionOnly"): Decision => ({ subject, operation, decision: "changed", reason: null, change,
     currentEstablished: { family: candidate.headType, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } });
@@ -332,7 +341,7 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
     channelsOf(operation)) : [];
   const notices = admit(state.intents, fresh, candidate.cancelled ? subject : null);
   const result: FloodUnitState = { ...state, currents, intents: notices.intents, persistence: dirty(state.persistence, clock.monotonicMs) };
-  const diagnostics: DiagnosticDetails[] = [];
+  const diagnostics: DiagnosticDetails[] = version.missing ? [warn(true)] : [];
   if (evicted != null) diagnostics.push({ level: "INFO", component: "flood", reason: "floodCapacityEvicted", unit: "U-R", count: 1 });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "flood", reason: "notificationCapacityEvicted", unit: "U-R",
     count: notices.dropped });
@@ -571,7 +580,11 @@ function currentRecord(value: unknown): FloodCurrent | null {
     || row.eventId !== parts.eventId) return null;
   const source = reportRef(row.source, row.subject);
   if (source == null || row.retainUntil !== reportMs(source) + RETAIN_MS) return null;
-  const base = { subject: row.subject, operation, headType: parts.headType, eventId: parts.eventId, source, retainUntil: row.retainUntil };
+  // P3-VM-AC04: 印は同じ EventID（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
+  const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject) : undefined;
+  if (mark === null) return null;
+  const base = { subject: row.subject, operation, headType: parts.headType, eventId: parts.eventId, source, retainUntil: row.retainUntil,
+    ...mark == null ? {} : { unconfirmed: mark } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
     if (FACT_KEYS.some((key) => key in row)) return null;
@@ -626,12 +639,12 @@ function persisted(value: unknown): PersistedFloodUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const floodUnitCodec: FloodUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2", "p3-flood-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-R.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-flood-unit-v3 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-flood-unit-v4 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

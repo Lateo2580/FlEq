@@ -57,7 +57,7 @@ type BriefingCommon = Readonly<{
   subject: string;
   operation: Operation;
   series: string;
-  source: ReportRef;
+  source: ReportRef; unconfirmed?: ReportRef; // P3-VM-AC04: 系列の未確認の印（取消の採用・期限で消えた記録には無い）
   retainUntil: number;
 }>;
 
@@ -103,7 +103,7 @@ export type BriefingNotificationPayload = Readonly<{
 export type BriefingIntent = NotificationIntent & Readonly<{ payload: BriefingNotificationPayload }>;
 
 export type BriefingUnitState = Readonly<{
-  schemaVersion: "p3-briefing-unit-v3";
+  schemaVersion: "p3-briefing-unit-v4";
   contentRevision: number;
   currents: readonly BriefingCurrent[];
   // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
@@ -112,7 +112,7 @@ export type BriefingUnitState = Readonly<{
 }>;
 
 export type PersistedBriefingUnit = Readonly<{
-  schemaVersion: "p3-briefing-unit-v3";
+  schemaVersion: "p3-briefing-unit-v4";
   currents: readonly BriefingCurrent[];
   intents: readonly BriefingIntent[];
 }>;
@@ -155,5 +155,5 @@ export type BriefingUnitStep = Readonly<{
 }>;
 
 export type BriefingUnitCodec = UnitCodec<BriefingUnitState, PersistedBriefingUnit> & Readonly<{
-  schemaVersion: "p3-briefing-unit-v3";
+  schemaVersion: "p3-briefing-unit-v4";
 }>;

@@ -25,22 +25,23 @@ const PER_SUBJECT: Readonly<Record<string, readonly { kind: string; change: stri
 const ANALYSIS = "normal/typhoonAnalysis/TC2001", PROBABILITY = "normal/typhoonProbability/TC2606";
 
 describe("P3-UNIT-Y-001 U-Y corpus history", () => {
-  // corpusHistory: expectedDecisions の 22 step と制御 step（O01:112・120、O02:18・57、O07:71・73・74・76〜79・81・82、O10:91・93・94・96〜98）、E13（AC10）。
+  // corpusHistory: expectedDecisions の 22 step と制御 step（O01:112・120、O02:18・57、O07:71・73・74・76〜79・81・82、O10:91・93・94・96〜98）、
+  // 取消の採用の O01:123〜127（Control/DateTime を発表より後にした合成の取消、P3-VM-AC03）、E13（AC10）。
   it("P3-C14-T10 corpusHistory / AC10: the 22 expected steps, the control steps and the E13 population", () => {
-    const o01 = replay("O01", 112, 122);
-    // :113 の発表は analysisAppear（Number が空なので「熱帯低気圧（TC2001）」）。:114 の訂正は correction、:115 の同じ版の 2 通目は stale＋診断。
+    const o01 = replay("O01", 112, 127);
+    // :113 の発表は analysisAppear（Number が空なので「熱帯低気圧（TC2001）」）。:114 の訂正は correction。
     expect(o01[1].intents.map((item) => [item.channel, item.transition, item.payload.level, item.payload.title, item.payload.body.startsWith("熱帯低気圧（TC2001） ")]))
       .toEqual([["desktop", "activated", "normal", "台風解析・予報情報", true], ["sound", "activated", "normal", "台風解析・予報情報", true]]);
     expect(o01[2].intents.map((item) => [item.transition, item.payload.title, item.payload.body.startsWith("訂正: ")])).toEqual([
       ["updated", "[訂正] 台風解析・予報情報", true], ["updated", "[訂正] 台風解析・予報情報", true]]);
-    expect(o01[3].diagnostics).toMatchObject([{ reason: "typhoonRevisionConflict" }]);
-    // :116 の取消は cancel で鳴り、:114 の pending を全部置き換える。:118 の古い報は stale で復活させない。
-    expect(o01[4].intents.map((item) => [item.transition, item.payload.level, item.payload.body])).toEqual([
-      ["cancelled", "cancel", "この情報は取り消されました"], ["cancelled", "cancel", "この情報は取り消されました"]]);
-    expect(pendingOf(o01[4].state, ANALYSIS).map((item) => item.transition)).toEqual(["cancelled", "cancelled"]);
-    expect(recordOf(o01[6].state, ANALYSIS)?.effective).toBe("cancelled");
-    expect(o01[6].state.analysis).toBe(o01[5].state.analysis);
     expect(recordOf(o01[7].state, ANALYSIS)).toMatchObject({ effective: "active", source: { serialRaw: "4" } });
+    // :125 の取消は cancel で鳴り、:124 の pending を全部置き換える。:126 の古い報は stale で復活させず、:127 の続報で active に戻る。
+    expect(o01[13].intents.map((item) => [item.transition, item.payload.level, item.payload.body])).toEqual([
+      ["cancelled", "cancel", "この情報は取り消されました"], ["cancelled", "cancel", "この情報は取り消されました"]]);
+    expect(pendingOf(o01[13].state, ANALYSIS).map((item) => item.transition)).toEqual(["cancelled", "cancelled"]);
+    expect(recordOf(o01[14].state, ANALYSIS)?.effective).toBe("cancelled");
+    expect(o01[14].state.analysis).toBe(o01[13].state.analysis);
+    expect(recordOf(o01[15].state, ANALYSIS)).toMatchObject({ effective: "active", source: { serialRaw: "4" } });
 
     const o02 = replay("O02", 18, 22);
     expect(recordOf(o02[1].state, PROBABILITY)).toMatchObject({ effective: "active", maxFiveDay: 100, slotCount: 40 });

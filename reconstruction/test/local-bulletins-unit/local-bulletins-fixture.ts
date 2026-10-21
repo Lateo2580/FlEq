@@ -13,7 +13,7 @@ import { reduceLocalBulletinsUnit } from "../../src/units/local-bulletins/local-
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): LocalBulletinsUnitState {
-  return { schemaVersion: "p3-local-bulletins-unit-v3", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-local-bulletins-unit-v4", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };
@@ -40,7 +40,9 @@ function decodeFixture(name: string, transform: (xml: string) => string = (xml) 
 }
 const replaceTag = (tag: string, value: string) => (xml: string) =>
   xml.replace(new RegExp(`<${tag}>[^<]*</${tag}>|<${tag}/>|<${tag} />`), `<${tag}>${value}</${tag}>`);
-const retime = (at: string) => replaceTag("ReportDateTime", at);
+// P3-VM-AC03: 竜巻・熱中症・天候情報などは Control/DateTime だけで比べるので、報の時刻を替えるときは Control/DateTime も同じ時刻にする。
+const control = (at: string) => (xml: string) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, `$1${new Date(Date.parse(at)).toISOString()}$2`);
+const retime = (at: string) => (xml: string) => control(at)(replaceTag("ReportDateTime", at)(xml));
 const serial = (value: string) => replaceTag("Serial", value);
 const eventId = (value: string) => replaceTag("EventID", value);
 const infoType = (value: string) => replaceTag("InfoType", value);
@@ -77,5 +79,5 @@ function bulkReports(due: number): readonly Readonly<{ headType: string; xml: st
   ];
 }
 
-export { bulkReports, clock, compose, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, headTitle, headTypeOf, infoType, iso, office, receive, replaceTag, retime, send,
+export { control, bulkReports, clock, compose, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, headTitle, headTypeOf, infoType, iso, office, receive, replaceTag, retime, send,
   serial, status, tick };

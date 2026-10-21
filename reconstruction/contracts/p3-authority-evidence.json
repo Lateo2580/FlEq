@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e4e8e3ab8b58b7cbf8fe7c653767d6633cb51fe2",
-    "sha256": "6012be6e23db7f0b4e8286cfc5c69d036e9da8acbe1c7090939ff20c4b58cf62",
+    "sha256": "df3357abd7195b5995ca8bda38341493c6d226c1d1902acdf2d64b6f2ea7a8ab",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -310,15 +310,15 @@
       },
       {
         "id": "P3-AUTH-AC05",
-        "requirement": "U-Wの疑義の上限の単調性（D-EVIDENCE=A）とF09の閉鎖: (1) monitorはrevisionOrderがnewerのとき、同じtarget（operation・family・subject・affectedScope）の既存のsuspectedSourceより新しい（ReportDateTimeが大きい）候補だけでsuspectedSourceを置き換え、同じか古ければ既存を保つ。freshnessSuspectは今どおり立てたまま。candidateSource・decision・reason・revisionOrderは今どおり候補の値。(2) clearMonitoring（通常の採用とVPNO50の終了の両方が通る）は、同じ対象・包含scopeの記録のうち、suspectedSourceがnullか、ReportDateTimeが採用した報のReportDateTime以下のものだけを消す。上限より古い採用では疑義を残す。coverageConfirmedによる解除とunavailableの解除は変えない。(3) F09の入力（audit-verify/core.cjsのF09: 15_16_02_251222_VPWW57をT0＝2026-01-01T10:00:00+09:00で採用、T2＝10:02のBodyのStatusを「未知」にした報をrejected、T1＝10:01の同じく不正な報、またはT1の正常な報）で、T1の不正の後もsuspectedSourceはT2、T1の正常報はchangedで採用されるがT2の疑義のfreshnessが1件残り、T2以上（10:02以上）の正常報の採用で初めて消える。疑義の後にencode→decodeで復元を挟んでもT2が残る。修正前の観測（afterBad 10:01、afterGood 0件）の反転を正式試験で示す。(4) FreshnessRecordの形・decodeは変えない（旧保存はそのまま読める。すでに後退した保存物は直せない、A1）。",
+        "requirement": "U-Wの疑義の上限の単調性（D-EVIDENCE=A）とF09の閉鎖: (1) monitorはrevisionOrderがnewerのとき、同じtarget（operation・family・subject・affectedScope）の既存のsuspectedSourceより新しい（ReportDateTimeが大きい）候補だけでsuspectedSourceを置き換え、同じか古ければ既存を保つ。freshnessSuspectは今どおり立てたまま。candidateSource・decision・reason・revisionOrderは今どおり候補の値。(2) clearMonitoring（通常の採用とVPNO50の終了の両方が通る）は、同じ対象・包含scopeの記録のうち、suspectedSourceがnullか、ReportDateTimeが採用した報のReportDateTime以下のものだけを消す。上限より古い採用では疑義を残す。coverageConfirmedによる解除とunavailableの解除は変えない。(3) F09の入力（audit-verify/core.cjsのF09: 15_16_02_251222_VPWW57をT0＝2026-01-01T10:00:00+09:00で採用、T2＝10:02のBodyのStatusを「未知」にした報をrejected、T1＝10:01の同じく不正な報、またはT1の正常な報）で、T1の不正の後もsuspectedSourceはT2、T1の正常報はchangedで採用されるがT2の疑義のfreshnessが1件残り、T2以上（10:02以上）の正常報の採用で初めて消える。疑義の後にencode→decodeで復元を挟んでもT2が残る。修正前の観測（afterBad 10:01、afterGood 0件）の反転を正式試験で示す。(4) FreshnessRecordの形・decodeは変えない（旧保存はそのまま読める。すでに後退した保存物は直せない、A1）。〔K7 P3-VERSION-MATERIAL-001の発注2bで、(1)の「新しい（ReportDateTimeが大きい）」と(2)の「ReportDateTimeが採用した報のReportDateTime以下」をcompareVersion（P3-VM-AC02・AC03。VPWW57はHead/ReportDateTimeを先に比べ、同じならControl/DateTime）で読み替えた: (1)は候補がsuspectedSourceに対してnewer、(2)は採用した報がsuspectedSourceに対してnewerかsameのときに消す（順の決まらない報の採用では残す）。P3-VM-AC09(14)により統合担当が改訂〕",
         "evidenceRefs": [
-          "reconstruction/src/domains/weather-current/weather-current.ts:392 «dc0c7965922b5671»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:390 «96d7f4d51eb751f1»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:405 «081b9fe3d24111fc»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:409 «6ee60a5c5ab649fe»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:546 «c77fc0fb2eab0f20»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:548 «986dffefa87923d9»",
-          "reconstruction/contracts/p2-weather-current-unit.json:170 «b3a445b901f00f7c»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:421 «dc0c7965922b5671»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:419 «96d7f4d51eb751f1»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:434 «081b9fe3d24111fc»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:438 «6ee60a5c5ab649fe»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:577 «446e70010e9e5649»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:579 «986dffefa87923d9»",
+          "reconstruction/contracts/p2-weather-current-unit.json:170 «78050374544a8cde»",
           "reconstruction/contracts/p2-weather-current-unit.json:107 «691ff9a99b9e39bb»",
           "reconstruction/contracts/p2-weather-current-unit.json:399 «ff60a1af78555949»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:248 «d097cf9646910f05»",
@@ -341,7 +341,7 @@
           "reconstruction/contracts/p3-codec-closure.json:182 «da66206c5b29e26f»",
           "reconstruction/contracts/p3-codec-closure.json:190 «679fad0f89522733»",
           "reconstruction/contracts/p3-codec-closure.json:388 «4231f511146d4813»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:41 «e446de139709f809»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:41 «08a9bada7afc4a9c»"
         ]
       },
       {
@@ -365,7 +365,7 @@
           "reconstruction/contracts/p3-volcano-unit.json:355 «63831889f88854e8»",
           "reconstruction/contracts/p3-volcano-unit.json:372 «ba21c2d0b72625b5»",
           "reconstruction/contracts/p3-volcano-unit.json:349 «8b6dbc35f1704a60»",
-          "reconstruction/contracts/p2-weather-current-unit.json:170 «b3a445b901f00f7c»",
+          "reconstruction/contracts/p2-weather-current-unit.json:170 «78050374544a8cde»",
           "reconstruction/contracts/p2-weather-current-unit.json:107 «691ff9a99b9e39bb»",
           "reconstruction/contracts/p2-weather-current-unit.json:399 «ff60a1af78555949»",
           "reconstruction/contracts/p3-codec-closure.json:182 «da66206c5b29e26f»",

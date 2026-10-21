@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "34dd3183b2b201eaaaf482cc0bf824d00fa383310b302a65ea55516da3466b61",
+    "sha256": "e20618c584d6ed90ac2c1ec71565d10d972a413afd4aedda9e4bc9cc44f7f80b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
     "decisionBranches": [
       {
@@ -81,7 +81,7 @@
         "id": "Q-WS-SCHEMA",
         "status": "closed",
         "source": "統合担当の起草（PersistedWeatherTimeseriesUnit・PersistedTyphoonUnit・codec・checkpointの版の照合の読み合わせ）、H51で改訂、作者承認（2026-10-20 夕、Q-WS-AUTHOR）",
-        "closed": "裁定の3つ（D-ADDITION=A・D-UNKNOWN-SEVERITY=A・D-TYPHOON=A、2026-10-20 作者裁定）では永続の型も版も変わらず、移行は要らない（U-Fはp2-weather-timeseries-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、U-Yはp3-typhoon-unit-v3のまま）: U-Fは読み飛ばした要素も、読めない所と範囲の区分不明の印も保存しない（印の保存はK14〔段3、仮〕、p3-order-plan.mdの末尾のH51の入れ方と同じ考え）。要約は保存しない派生の値。U-Yは今ある欄だけで足りる（truncated、nullを持てる欄、axesの[]、frames 24・axes 2・slotCount 64の上限の内）。足すのはDiagnosticReasonの2語（INFOのweatherTimeseriesElementSkippedとWARNのweatherTimeseriesScopeUnclear）で、診断のfileの行の理由の表（persistent-diagnostic-sink.ts:62）に足す。採らなかったD-ADDITION=Bでは、snapshotにadditionsを足してschemaVersionをv2に上げ、v1の保存物を読まない形だった（P5より前は開発用の保存を移さずに初期化してよい作者裁定、p3-order-plan.md、2026-10-20）",
+        "closed": "裁定の3つ（D-ADDITION=A・D-UNKNOWN-SEVERITY=A・D-TYPHOON=A、2026-10-20 作者裁定）では永続の型も版も変わらず、移行は要らない（U-Fはp2-weather-timeseries-unit-v4（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、U-Yはp3-typhoon-unit-v4のまま）: U-Fは読み飛ばした要素も、読めない所と範囲の区分不明の印も保存しない（印の保存はK14〔段3、仮〕、p3-order-plan.mdの末尾のH51の入れ方と同じ考え）。要約は保存しない派生の値。U-Yは今ある欄だけで足りる（truncated、nullを持てる欄、axesの[]、frames 24・axes 2・slotCount 64の上限の内）。足すのはDiagnosticReasonの2語（INFOのweatherTimeseriesElementSkippedとWARNのweatherTimeseriesScopeUnclear）で、診断のfileの行の理由の表（persistent-diagnostic-sink.ts:62）に足す。採らなかったD-ADDITION=Bでは、snapshotにadditionsを足してschemaVersionをv2に上げ、v1の保存物を読まない形だった（P5より前は開発用の保存を移さずに初期化してよい作者裁定、p3-order-plan.md、2026-10-20）",
         "remaining": "U-Fの読めない所の印の保存の形（K14、統合担当、段3）",
         "reason": "計画の行（p3-order-plan.mdの『形の違う気象電文の読み方』、移行『無し』）の見込みと合う。新築はまだ画面に出ていないので、H44の間に印が保存されなくても利用者からは見えない。U-Fの印の欄をH44とK14で2度作り直さない"
       },
@@ -219,7 +219,7 @@
     "workDeadline": null,
     "persistenceUnits": [],
     "persistedFields": [
-      "なし（U-FのPersistedWeatherTimeseriesUnit・schemaVersion p2-weather-timeseries-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、U-YのPersistedTyphoonUnit・p3-typhoon-unit-v3、両codecは変えない。P3-WS-D-ADDITION=A〔2026-10-20 作者裁定〕なのでU-Fのsnapshotに欄を足さない）"
+      "なし（U-FのPersistedWeatherTimeseriesUnit・schemaVersion p2-weather-timeseries-unit-v4（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、U-YのPersistedTyphoonUnit・p3-typhoon-unit-v4、両codecは変えない。P3-WS-D-ADDITION=A〔2026-10-20 作者裁定〕なのでU-Fのsnapshotに欄を足さない）"
     ],
     "nonPersistedFields": [
       "要約のU-Fの行のhighestSeverity（保存しない派生の値）",
@@ -272,8 +272,8 @@
           "reconstruction/src/view-projector/view-projector.ts:272 «87c1ddda6a811cf6»",
           "reconstruction/src/view-projector/view-projector.ts:542 «86e1c3a30390cc30»",
           "reconstruction/src/view-projector/view-projector.ts:642 «9b605ed058616c2a»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:458 «dd60944ba8d3b141»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:459 «c145e1c4c106b10d»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:475 «dd60944ba8d3b141»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:476 «c145e1c4c106b10d»",
           "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
           "reconstruction/contracts/p2-snapshot-sse.json:68 «62080629b06dab7a»",
           "reconstruction/contracts/p2-snapshot-sse.json:69 «9930c0e1ce1520e5»"
@@ -298,8 +298,8 @@
           "reconstruction/src/domains/typhoon/typhoon.ts:410 «61910075c8e09edb»",
           "reconstruction/src/domains/typhoon/typhoon.ts:420 «c2b4222494be9c0c»",
           "reconstruction/src/domains/typhoon/typhoon.ts:438 «16c1b2ce589575ac»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:586 «2d176df9bd29492e»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:634 «386765b0ed3fadfa»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:585 «2d176df9bd29492e»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:633 «386765b0ed3fadfa»",
           "reconstruction/contracts/p3-typhoon-unit.json:352 «28b728c920e887df»",
           "reconstruction/contracts/p3-typhoon-unit.json:358 «af03e786dee34b37»",
           "reconstruction/contracts/p3-typhoon-unit.json:440 «6aa4dac0eb2143e9»",
@@ -319,14 +319,14 @@
         "id": "P3-WS-AC05",
         "requirement": "今の形の報の結果を変えない（Q-WS-SCHEMA）: Additionも知らない要素も持たないU-Fのfixtureと、表の内側のU-Yのfixtureでは、decisions・outcomes・intents・state・codecのencodeのbyteが今と同じ。U-F・U-Yの永続の型・schemaVersion・codecを変えない（Q-WS-SCHEMA、D-ADDITION=A）。今ある試験がこれを確かめる: U-FはP3-UFP-T01（encodeのsha256・decisions・outcomes・intents・nextDeadline）とP3-UFP-T02（要約の行のdigest。AC03で行が変わる場合はQ-WS-EXISTING-TESTS）、U-YはP3-C14-T10（typhoon-corpus.test.tsの22の期待のstep）。基準値は変えずに緑のまま。期待値を変える既存の試験はQ-WS-EXISTING-TESTSで変える前に報告する",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «e99d3215293c09cf»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:194 «1c53bf5794ad39ab»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «3e7e38becb675d2e»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:187 «bd87c88c0369446a»",
           "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:43 «e84656f2b8801676»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:664 «ba50fb82ef51ba67»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:663 «ba50fb82ef51ba67»",
           "reconstruction/src/checkpoint/checkpoint.ts:465 «b6fdb65e4e225b7d»",
           "reconstruction/test/uf-public/uf-history.test.ts:189 «85825881864e0803»",
           "reconstruction/test/uf-public/uf-history.test.ts:199 «9a26cef9f7727011»",
-          "reconstruction/test/typhoon-unit/typhoon-corpus.test.ts:29 «281e877c662ed2cd»"
+          "reconstruction/test/typhoon-unit/typhoon-corpus.test.ts:30 «281e877c662ed2cd»"
         ]
       },
       {
@@ -376,7 +376,7 @@
           "reconstruction/contracts/p3-disaster-capacity.json:709 «fd294178e1cb86d1»",
           "docs/specs/reconstruction-p0-contracts.md:3209 «f0f82f05f422b938»",
           "reconstruction/contracts/p3-order-plan.md:514 «e204d84283a8f0ea»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «8ea43e8a13b100e4»"
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «785fcde1500a753c»"
         ]
       },
       {

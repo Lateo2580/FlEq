@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "5ebc7fe4a352e2378714896692cec5a1f9239aff3fec298d7ead4d32e1664454",
+    "sha256": "e75d4f0c54eccb02c10eead66864fe362b9486949c390f0c4ad576dfc621f078",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -422,8 +422,8 @@
           "reconstruction/contracts/p2-shared-runtime.json:212 «f72c89988aab3d82»",
           "reconstruction/contracts/p2-shared-runtime.json:214 «aef448af41bced98»",
           "reconstruction/src/domains/eew/eew.ts:491 «eabbf65cf447a896»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:476 «df0d1f05cfa7e673»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:233 «6859cd1c9fa6974d»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:501 «df0d1f05cfa7e673»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:247 «6859cd1c9fa6974d»"
         ]
       },
       {
@@ -442,8 +442,8 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:65 «89e1a77f78dbf9da»",
           "reconstruction/src/units/seismic/seismic-unit.ts:130 «91fab6170144ed9f»",
           "reconstruction/src/units/seismic/seismic-unit.ts:494 «0793e68ca9ceb007»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:464 «628c33159a4d6adf»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:220 «9e0a048fabf9d141»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:489 «40b1dcceeb4fbcaf»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:234 «9e0a048fabf9d141»",
           "reconstruction/src/view-projector/view-projector.ts:286 «f7871bc3b24b07a6»",
           "reconstruction/src/view-projector/view-projector.ts:317 «11f086d6ca87363e»",
           "reconstruction/contracts/p3-tsunami-unit.json:67 «bb180237cdc0ca15»",
@@ -470,7 +470,7 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:618 «7ba11fade1b774fd»",
           "reconstruction/src/units/seismic/seismic-unit.ts:671 «c050c5f77e6e1ce5»",
           "reconstruction/src/domains/eew/eew.ts:616 «c35c08026b010563»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:454 «b6e63582a7c7e5b6»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:484 «b6e63582a7c7e5b6»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:13 «f3dd33a45b215f68»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:15 «1c1164fe384404a1»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:36 «8744f6b8f265e436»",
@@ -532,8 +532,8 @@
         "evidenceRefs": [
           "reconstruction/contracts/p2-shared-runtime.types.ts:279 «236713db9bc1ae14»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:40 «ee6e9f22b3f840e0»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:633 «107712d22a266c72»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:478 «c6d4c61c65c70517»"
+          "reconstruction/src/domains/weather-current/weather-current.ts:666 «107712d22a266c72»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:503 «c6d4c61c65c70517»"
         ]
       },
       {
@@ -626,9 +626,9 @@
           "reconstruction/src/notification-delivery/notification-delivery.ts:64 «f04614abff120d81»",
           "reconstruction/src/runtime/owner-runtime.ts:194 «29b451e1757a3dc4»",
           "reconstruction/src/units/seismic/seismic-unit.ts:679 «d3c280b98a942787»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:475 «702b80d62b5d9c62»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:232 «539616777ccf4b0d»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:455 «654add7b0350704c»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:500 «702b80d62b5d9c62»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:246 «539616777ccf4b0d»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:485 «654add7b0350704c»"
         ]
       }
     ],

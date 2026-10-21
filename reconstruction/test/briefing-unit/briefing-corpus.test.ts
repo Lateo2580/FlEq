@@ -31,14 +31,9 @@ describe("P3-UNIT-B-001 U-B corpus history", () => {
     // :16 の held は相関の窓（受理の時刻＋60 秒）を持ち、view に載らない。
     expect(recordOf(o03[1].state, JPTK)).toMatchObject({ effective: "held", holdUntil: 1787386200001 });
     expect(toBriefingView(o03[1].state).currents).toEqual([]);
-    // :17 の取消の記憶は :18〜:21 の後も同じ値で残る（cancelled の VPOA50 は alias にしない、P3-C12-ALIAS=A）。
-    const memory = recordOf(o03[2].state, JPTK);
-    expect(memory).toMatchObject({ effective: "cancelled", source: { serialRaw: "2", infoTypeRaw: "取消" },
-      retainUntil: Date.parse("2026-08-22T20:09:00+09:00") });
-    for (const index of [3, 4, 5, 6]) expect(recordOf(o03[index].state, JPTK), String(index)).toEqual(memory);
-    // :18 の accepted は KJPTK だけ。:21 の VPOA50 の取消は KJPTK を変えない。
-    expect(o03[3].outcomes).toMatchObject([{ kind: "accepted", subjects: [{ subject: KJPTK }] }]);
-    expect(o03[3].outcomes[0].subjects).toHaveLength(1);
+    // :17 の合成の取消は :16 の発表より古い（P3-VM-AC03）ので、:18 の対応報で JPTK は aliased になり、:18 の accepted は KJPTK と JPTK。
+    // :21 の VPOA50 の取消は KJPTK を変えない。
+    expect([recordOf(o03[3].state, JPTK)?.effective, o03[3].outcomes[0].subjects.map((item) => item.subject)]).toEqual(["aliased", [KJPTK, JPTK]]);
     expect(recordOf(o03[6].state, KJPTK)).toBe(recordOf(o03[5].state, KJPTK));
     // :24 の発生で予測の能登が除かれて YJPNB は replaced、その pending は superseded。accepted は 2 subject。
     const YJPNB = "normal/VPBS50/YJPNB202608270448";
@@ -46,6 +41,15 @@ describe("P3-UNIT-B-001 U-B corpus history", () => {
     expect(pendingOf(o03[9].state, YJPNB)).toEqual([]);
     expect(o03[9].outcomes[0].kind === "accepted" && o03[9].outcomes[0].subjects.map((item) => [item.subject, item.transition])).toEqual([
       ["normal/VPBS50/HJPNB202608270308", "active"], [YJPNB, "replaced"]]);
+    // 取消先着（:27〜:30、Control/DateTime を発表より後にした合成の取消）: :29 の取消の記憶は :30 の後も同じ値で残る（cancelled の VPOA50 は
+    // alias にしない、P3-C12-ALIAS=A）。:30 の accepted は KJPTK だけ。
+    const late = replay("O03", 27, 30);
+    const memory = recordOf(late[2].state, JPTK);
+    expect(memory).toMatchObject({ effective: "cancelled", source: { serialRaw: "2", infoTypeRaw: "取消" },
+      retainUntil: Date.parse("2026-08-22T20:09:00+09:00") });
+    expect(recordOf(late[3].state, JPTK)).toEqual(memory);
+    expect(late[3].outcomes).toMatchObject([{ kind: "accepted", subjects: [{ subject: KJPTK }] }]);
+    expect(late[3].outcomes[0].subjects).toHaveLength(1);
 
     const o07 = replay("O07", 64, 70);
     expect(recordOf(o07[2].state, JPTC)).toMatchObject({ effective: "held", holdUntil: 1787386200002 });

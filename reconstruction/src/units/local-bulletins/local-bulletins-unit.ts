@@ -10,7 +10,7 @@ import type {
   TransientArea, TransientCurrent, TransientFamily,
 } from "../../../contracts/p3-local-bulletins-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, FAMILY_OF, HEAT_LIMIT, JST, HEAT_RETAIN, HEAT_TARGET_WINDOW, LAYER_SET, LIMITS, TORNADO_DEFAULT_VALID, TORNADO_LIMIT, TORNADO_RETAIN,
@@ -19,15 +19,23 @@ import {
 } from "../../domains/local-bulletins/local-bulletins";
 import type { HeatCandidate, LocalBulletinsCandidate, TornadoCandidate, TransientCandidate, TransientHeadType } from "../../domains/local-bulletins/local-bulletins";
 import { validCode, validHeadline } from "../../domains/briefing/briefing";
-import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "../../domains/flood/flood";
+import { LIMITS as REF_LIMITS, cut, infoRankOf, validName, validReportDateTime, validSerial } from "../../domains/flood/flood";
 
 // P3-UNIT-M-001（C13、I-U-M）: 三つの slice（tornado・heat・transient）の current・版・遅着・退去・通知・容量・codec・射影。
 // 三つの slice は件数の上限と退去を別々に持つ（無いと解説の多発が竜巻の記録を退去する、I-U-M.slices）。
 
-const SCHEMA = "p3-local-bulletins-unit-v3" as const;
+const SCHEMA = "p3-local-bulletins-unit-v4" as const;
 // P3-C13-BOUNDS=A・P3-C13-RES-01・RET-05。
-const GENERATION_LIMIT = 4_194_304;
 const TRANSIENT_TOTAL = Object.values(TRANSIENT_LIMIT).reduce((sum, value) => sum + value, 0);
+// P3-VM-AC08（作者裁定 2026-10-21 夜）: 器は 4 MiB に、全 slice の全記録が読み戻しの上限いっぱいの未確認の印を持つ最悪の場合の分を足す（印の無い
+// 上界は Control/DateTime を含めて 4 MiB の内側）。subject は受理の上限の単位数を 1 単位 3 byte で数え、transient は最長の VPAW51 の形で数える。
+const WIDE = "あ", LONGEST_REF: ReportRef = { inputId: "i".repeat(INPUT_ID_LIMIT), origin: "recovery", operation: "training", family: "VPHW51",
+  subject: "", reportDateTimeRaw: "0".repeat(REF_LIMITS.reportDateTime), controlDateTimeRaw: "0".repeat(REF_LIMITS.controlDateTime),
+  serialRaw: "9".repeat(10), infoTypeRaw: `${"\v".repeat(REF_LIMITS.infoType - 2)}発表` };
+const markBytes = (subject: string) => new TextEncoder().encode(`,"unconfirmed":${JSON.stringify({ ...LONGEST_REF, subject })}`).byteLength;
+const MARK_GROWTH = TORNADO_LIMIT * markBytes(`training/tornado/${WIDE.repeat(BOUNDS.office)}/${WIDE.repeat(BOUNDS.title)}`)
+  + HEAT_LIMIT * markBytes(`training/VPFT50/${WIDE.repeat(BOUNDS.eventId)}`) + TRANSIENT_TOTAL * markBytes(`training/VPAW51/${"9".repeat(8)}/${WIDE.repeat(BOUNDS.title)}`);
+const GENERATION_LIMIT = 4_194_304 + MARK_GROWTH;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
 const NOTICE_BOUNDS = { title: 160, body: 512 } as const;
@@ -133,18 +141,14 @@ function evictOne<T extends Rec>(values: readonly T[], bucket: string, now: numb
   return worst;
 }
 
-// ---- 版の比較（Q-ENUM.revisionOrder）: (ReportDateTime, InfoType, Serial, headType の順位)。順位は竜巻だけ（VPHW50＜VPHW51） ----
+// ---- 版の比較（P3-VM-AC03: subject ごとに compareVersion で比べ、報番号・InfoType の順位は使わない） ----
 
 const serialNumber = (raw: string): number => raw === "" ? -1 : Number(raw);
-const headRank = (family: string): number => family === "VPHW51" ? 1 : 0;
-function compare(candidate: LocalBulletinsCandidate, source: ReportRef): Readonly<{ order: number; pair: boolean }> {
-  const time = Math.sign(candidate.reportDateTimeMs - reportMs(source));
-  if (time !== 0) return { order: time, pair: false };
-  const info = Math.sign(candidate.infoRank - (infoRankOf(source.infoTypeRaw) ?? 0));
-  const serial = Math.sign(serialNumber(candidate.source.serialRaw) - serialNumber(source.serialRaw));
-  const head = candidate.slice === "tornado" ? Math.sign(headRank(candidate.headType) - headRank(source.family)) : 0;
-  // 同じ版の竜巻の対の後着（50→51）は新しい版として採るが、通知の生成と撤回からは外す（P3-C13-TORNADO-PAIR=A）。
-  return { order: info || serial || head, pair: info === 0 && serial === 0 && head > 0 };
+// P3-VM-D-SAME-REPORT=A の (2): Head/ReportDateTime・Serial・InfoType が同じ竜巻の対は同じ報で、今の head の順（50→51 は採るが通知の生成と撤回から
+// 外し、51→50 は stale、P3-C13-TORNADO-PAIR=A）。対の後着は印を外さない。
+function samePair(candidate: LocalBulletinsCandidate, source: ReportRef): boolean {
+  return candidate.slice === "tornado" && candidate.headType !== source.family && candidate.reportDateTimeMs === reportMs(source)
+    && serialNumber(candidate.source.serialRaw) === serialNumber(source.serialRaw) && candidate.infoRank === infoRankOf(source.infoTypeRaw);
 }
 
 // 公開事実（Q-NOTICE.generationTable: title・headline・sighted・areas・activeUntil／targetDate・areaName／tags。重複の判定と見える記録の変化）。editorialOffice は入れない。
@@ -156,9 +160,11 @@ function changed(before: Rec | null, value: Rec | null): string[] {
 
 // ---- 記録の組み立て（retainUntil は元報の ReportDateTime からの等式。decode も同じ関数で確かめる） ----
 
-type Base = Readonly<{ subject: string; operation: Operation; source: ReportRef }>;
+type Base = Readonly<{ subject: string; operation: Operation; source: ReportRef; unconfirmed?: ReportRef }>;
 type Text = Readonly<{ title: string; headline: string; editorialOffice: string; truncated: boolean }>;
-const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, source: value.source });
+// 未確認の印は記録が state から消えるまで持つ（見える期限で記憶・証拠になっても、保存の証拠の形でも残す、P3-VM-AC04）。
+const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, source: value.source,
+  ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed } });
 const textOf = (value: Text): Text => ({ title: value.title, headline: value.headline, editorialOffice: value.editorialOffice, truncated: value.truncated });
 const retain = (base: Base, ms: number) => reportMs(base.source) + ms;
 
@@ -348,20 +354,27 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   const at = index.subjects.get(subject);
   const existing = at == null ? null : values[at];
   const built = lane.build(candidate, now);
-  const next = built.record;
-  const unchanged = (reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = []): Result => ({ changes: [],
-    step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
-  let pairLate = false;
-  if (existing != null) {
-    const { order, pair } = compare(candidate, existing.source);
-    // 取消以前の版は stale で、取消した subject を戻さない。同じ版は、見える記録なら事実が同じで duplicate・違えば先着を保つ。
-    // 見えない記録（記憶・証拠）は事実を持たないので、同じ版は duplicate（復活させない）。
-    if (order < 0) return unchanged("stale");
-    // 重複の判定は遅着の判定より先なので、時計に依らない記録（見える期限の前の形）と比べる。
-    if (order === 0) return !visible(existing) || changed(existing, lane.build(candidate, -Infinity).record).length === 0 ? unchanged("duplicate")
-      : unchanged("stale", [{ level: "WARN", component: "localBulletins", reason: "localBulletinsRevisionConflict", inputId: candidate.source.inputId, unit: "U-M" }]);
-    pairLate = pair;
+  const unchanged = (reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = [], kept = state): Result => ({ changes: [],
+    step: { ...idle(kept), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
+  const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "localBulletins", inputId: candidate.source.inputId, unit: "U-M",
+    reason: missing ? "requiredStructureMissing" : "localBulletinsRevisionConflict" });
+  const pairLate = existing != null && samePair(candidate, existing.source);
+  if (pairLate && candidate.headType !== "VPHW51") return unchanged("stale");
+  // 取消以前の版は stale で、取消した subject を戻さない。同じ版は、正規化した InfoType が同じで、見える記録なら事実も同じなら duplicate・違えば
+  // 先着を保って印を付ける（P3-VM-AC04）。見えない記録（記憶・証拠）は事実を持たないので InfoType だけで見る（復元で証拠になった後も同じ結果）。
+  // 重複の判定は遅着の判定より先なので、時計に依らない記録（見える期限の前の形）と比べる。印は保存の byte に入るが、上界が器の内側なので fit を要さない（P3-VM-AC08）。
+  const version = pairLate ? null : stepVersion(existing == null ? null : { version: existing.source, source: existing.source,
+    cancelled: existing.effective === "cancelled" }, existing?.unconfirmed ?? null, candidate.source, () => existing != null
+    && existing.source.infoTypeRaw.trim() === candidate.source.infoTypeRaw.trim()
+    && (!visible(existing) || changed(existing, lane.build(candidate, -Infinity).record).length === 0), candidate.cancelled);
+  if (version != null && version.kind !== "adopt") {
+    if (version.kind !== "held") return unchanged(version.kind === "duplicate" ? "duplicate" : "stale");
+    return unchanged("stale", [warn(version.missing)], existing == null || version.mark == null || existing.unconfirmed === version.mark ? state
+      : { ...lane.write(state, values.map((item, position) => position === at ? { ...item, unconfirmed: version.mark } : item)),
+        persistence: dirty(state.persistence, clock.monotonicMs) });
   }
+  const mark = version == null ? existing?.unconfirmed : version.mark;
+  const next = mark == null ? built.record : { ...built.record, unconfirmed: mark };
   // P3-C13-RETENTION.lateRule（版の比較の後）: (1) 記憶の期限を過ぎた報は state を変えない。(3) 見える期限を過ぎた報で、subject に記録が無く
   // 枠が満杯なら記録を作らず、退去も起こさない。(2) 見える期限を過ぎた報は記憶としてだけ採り、前の見える記録を終わらせて pending を撤回する。
   if (next.retainUntil <= now) return unchanged("stale");
@@ -411,7 +424,7 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   const kind = evicted != null || shownChange ? "semantic" as const : "revisionOnly" as const;
   const decision: Decision = { subject, operation, decision: "changed", reason: null, change: kind,
     currentEstablished: { family: candidate.headType, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } };
-  const diagnostics: DiagnosticDetails[] = [];
+  const diagnostics: DiagnosticDetails[] = version?.missing === true ? [warn(true)] : [];
   if (evicted != null) diagnostics.push(evictedDiagnostic);
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "localBulletins", reason: "notificationCapacityEvicted", unit: "U-M", count: notices.dropped });
   const replaced: Change = existing == null ? [null, next] : [existing, next];
@@ -677,7 +690,9 @@ function headOf(value: unknown): Head | null {
   if (source == null) return null;
   const allowed = BRANCH_KEYS[`${parts.slice}/${String(row.effective)}`] ?? [];
   if (FACT_KEYS.some((key) => key in row && !allowed.includes(key))) return null;
-  return { row, parts, base: { subject: row.subject, operation: parts.operation, source } };
+  // P3-VM-AC04: 印は同じ subject・operation の報（取消の後の時刻の無い報の印も残る）。
+  const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject, parts) : undefined;
+  return mark === null ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source, ...mark == null ? {} : { unconfirmed: mark } } };
 }
 function tornadoCurrent(value: unknown): TornadoCurrent | null {
   const head = headOf(value);
@@ -750,12 +765,12 @@ function evidenceOf(item: TransientCurrent): PersistedTransientCurrent {
   return found;
 }
 const localBulletinsUnitCodec: LocalBulletinsUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1", "p3-local-bulletins-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1", "p3-local-bulletins-unit-v2", "p3-local-bulletins-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-M.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, tornado: state.tornado, heat: state.heat, transient: state.transient.map(evidenceOf), intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v3 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v4 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

@@ -1,15 +1,15 @@
 {
   "meta": {
     "draftedFromOid": "2a7c78b7029dfe83d4eeb4c0d5f6f1b314eb8536",
-    "sha256": "a157dfc92ab76217f42d913beaf4efc43d0ad032e6ba4ff716bdc8d0e7e5aebf",
+    "sha256": "c8372becab8a1b631724fbfd0ecc79be7caf02fe0dc77a11e6e765ed3bfabc0c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
         "id": "P3-ORDER-D-ORDER",
-        "A": "optional SerialのU-Q・U-N・U-V・U-Lで、版の比較をReportDateTime→InfoTypeの順位（発表＜訂正＜取消）→Serial（欠落は固定の位置、P3-ORDER-D-MISSING）の辞書順にする。今の「両方にSerialがある時だけSerialをInfoTypeより先に比べる」をやめる。",
+        "A": "optional SerialのU-Q・U-N・U-V・U-Lで、版の比較をReportDateTime→InfoTypeの順位（発表＜訂正＜取消）→Serial（欠落は固定の位置、P3-ORDER-D-MISSING）の辞書順にする。今の「両方にSerialがある時だけSerialをInfoTypeより先に比べる」をやめる。〔P3-VERSION-MATERIAL-001で置き換えた: 版の比較は種類の表の側のControl/DateTime（VPWW56はHead/ReportDateTimeを先に比べ、同じならControl/DateTime）を比べるcompareVersionで行い、InfoTypeの順位とSerialは使わない（P3-VM-AC02・AC03。U-Q・U-N・U-Vは発注2a、U-Lは発注2b）。同じ比べる時刻の取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。ほかの同じ時刻の食い違いは先着を保って未確認の印（P3-VM-AC04）。P3-VM-AC09(1)により統合担当が改訂〕",
         "B": "ReportDateTime→Serial（欠落は固定の最小値）→InfoTypeの順位。Serial優先を残すが、同時刻のSerialなし取消がSerialあり発表に負ける。",
         "C": "Serialの有無が違う報は比較不能とし、競合/未確認として解消を待つ。表示・疑義・coverageの契約まで要る。",
         "recommended": "A",
@@ -19,7 +19,7 @@
       },
       {
         "id": "P3-ORDER-D-MISSING",
-        "A": "Serialの欠落（空要素。decode-materialは要素が無くても空文字にする）は、同じ比較の範囲（P3-ORDER-D-SCOPE）のどの数値よりも小さい。欠落同士は等しい。数値同士は数として比べる（V・Lの先頭0は数として同じ: 「01」＝「1」）。",
+        "A": "Serialの欠落（空要素。decode-materialは要素が無くても空文字にする）は、同じ比較の範囲（P3-ORDER-D-SCOPE）のどの数値よりも小さい。欠落同士は等しい。数値同士は数として比べる（V・Lの先頭0は数として同じ: 「01」＝「1」）。〔P3-VERSION-MATERIAL-001で外した: 版の比較でSerialを比べないので、Serialの欠落の位置は使わない（P3-VM-AC02・AC03）。P3-VM-AC09(1)により統合担当が改訂〕",
         "B": "欠落はどの数値よりも大きい（番号の無い報を最新とみなす）。欠落同士は等しい。",
         "recommended": "A",
         "ruling": "作者裁定（2026-10-10）: A",
@@ -27,7 +27,7 @@
       },
       {
         "id": "P3-ORDER-D-SCOPE",
-        "A": "U-Vでもfamily（headType）を問わずSerialを比べる（VFVO50とVFVO51のland側watermark、landとmarineのcross比較、VFVO52とVFVO56の噴火、VFVO54とVFVO55の降灰）。U-NのSerialは今どおり同じEventIDの報の間だけ（headTypeは問わない）。",
+        "A": "U-Vでもfamily（headType）を問わずSerialを比べる（VFVO50とVFVO51のland側watermark、landとmarineのcross比較、VFVO52とVFVO56の噴火、VFVO54とVFVO55の降灰）。U-NのSerialは今どおり同じEventIDの報の間だけ（headTypeは問わない）。〔P3-VERSION-MATERIAL-001で外した: 版の比較でSerialを比べないので、Serialを比べる範囲も無い（P3-VM-AC02・AC03）。P3-VM-AC09(1)により統合担当が改訂〕",
         "B": "Serialは同じ系列の報の間だけ比べる: U-Vは同じfamily、U-Nは同じEventID（headTypeは問わない、今どおり）、U-Q（familyごとのwatermark）とU-L（VPWW56だけ）は常に同じ系列。系列の違う報は時刻とInfoTypeが同じなら同じ版（比較不能）とし、既存のduplicate・食い違い（先着を保ってstale＋WARN）・MARINEの例外・VFVO55＞VFVO54の規則に任せる。",
         "recommended": "B",
         "ruling": "作者裁定（2026-10-10）: B",
@@ -213,7 +213,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-ORDER-AC01",
-        "requirement": "版の比較の規則（作者裁定2026-10-10: P3-ORDER-D-ORDER=A・D-MISSING=A・D-SCOPE=B）: U-Q・U-N・U-V・U-Lの版の比較（compare）を、(1) ReportDateTime（数値の時刻）、(2) InfoTypeの順位（発表1＜訂正2＜取消3）、(3) Serial（D-SCOPEの範囲の報の間だけ。範囲の外は等しいとみなす。欠落はどの数値よりも小、欠落同士は等しい、数値は数として比べる）、(4) U-Vだけ降灰のVFVO55＞VFVO54、の辞書順にする。返り値は符号だけを使い（いまQ・Nの*2は誰も読まない）、呼び手（Q:549・:588、N:310、V:234・:242・:338・:571、L:264）のstale・同じ版・採用の分岐と、同じ版でのduplicate・食い違い（先着を保ってstale＋WARNのseismicRevisionConflict・nankaiRevisionConflict・volcanoRevisionConflict・landslideRevisionConflict）・MARINEの例外・VFVO51のentryの一括の規則は変えない。同じ版＝(1)〜(4)が全部等しい。D-SCOPE=Bの範囲: U-Nは同じEventID（headTypeは問わない、既存）、U-Vは同じfamily、U-Q（familyごとのwatermark）とU-L（VPWW56だけ）は全部。unitごとに直し、共有の比較関数・moduleは作らない（無くても壊れない。比較の残りがunitごとに違い（NのEventID、Vのfamilyと55＞54）、共有先の既存moduleも無い。同じ欠落の位置は4 unitのT02で同じ表で縛る。集約は計画§9の「写した読み取り関数の集約」へ送る）。各関数の上のコメントを新しい順に直す。",
+        "requirement": "版の比較の規則（作者裁定2026-10-10: P3-ORDER-D-ORDER=A・D-MISSING=A・D-SCOPE=B）: U-Q・U-N・U-V・U-Lの版の比較（compare）を、(1) ReportDateTime（数値の時刻）、(2) InfoTypeの順位（発表1＜訂正2＜取消3）、(3) Serial（D-SCOPEの範囲の報の間だけ。範囲の外は等しいとみなす。欠落はどの数値よりも小、欠落同士は等しい、数値は数として比べる）、(4) U-Vだけ降灰のVFVO55＞VFVO54、の辞書順にする。返り値は符号だけを使い（いまQ・Nの*2は誰も読まない）、呼び手（Q:549・:588、N:310、V:234・:242・:338・:571、L:264）のstale・同じ版・採用の分岐と、同じ版でのduplicate・食い違い（先着を保ってstale＋WARNのseismicRevisionConflict・nankaiRevisionConflict・volcanoRevisionConflict・landslideRevisionConflict）・MARINEの例外・VFVO51のentryの一括の規則は変えない。同じ版＝(1)〜(4)が全部等しい。D-SCOPE=Bの範囲: U-Nは同じEventID（headTypeは問わない、既存）、U-Vは同じfamily、U-Q（familyごとのwatermark）とU-L（VPWW56だけ）は全部。unitごとに直し、共有の比較関数・moduleは作らない（無くても壊れない。比較の残りがunitごとに違い（NのEventID、Vのfamilyと55＞54）、共有先の既存moduleも無い。同じ欠落の位置は4 unitのT02で同じ表で縛る。集約は計画§9の「写した読み取り関数の集約」へ送る）。各関数の上のコメントを新しい順に直す。〔P3-VERSION-MATERIAL-001のP3-VM-AC02・AC03で置き換えた: U-Q・U-N・U-V（発注2a）とU-L（発注2b）のcompareは共有のversion.tsのcompareVersion・stepVersion（種類の表の側のControl/DateTime、同じ秒の取消を優先、ほかの同じ時刻の食い違いは先着と未確認の印）になり、上の(1)〜(4)の辞書順とunitごとの比較関数は使わない（U-Lはlandslide-unit.tsのjudge）。P3-VM-AC09(1)により統合担当が改訂〕",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:529 «5921a579315c0f2a»",
           "reconstruction/src/units/seismic/seismic-unit.ts:589 «ca5b13d448917d11»",
@@ -222,33 +222,33 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:182 «cf9c0f808dfbcf55»",
           "reconstruction/src/units/volcano/volcano-unit.ts:372 «991c56106aab071d»",
           "reconstruction/src/units/volcano/volcano-unit.ts:367 «afe39e4d4fa95d54»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:115 «ecc2cb63cfb46560»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:122 «e0300823a2018e79»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:117 «843ba9a46877eeee»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:118 «a3bab6582024580b»",
           "reconstruction/contracts/p3-order-plan.md:348 «2aa034878016ecd6»"
         ]
       },
       {
         "id": "P3-ORDER-AC02",
-        "requirement": "F02の閉鎖（監査の三報をそのまま回帰試験にする）: unitごとにaudit-verify/core.cjsのF02と同じ入力で、Q＝32-35_08_03_100915_VXSE51、N＝74_01_04_200512_VYSE50、V＝43_01_01_200522_VFVO52（噴火subject）、L＝15_16_01_241031_VPWW56のReportDateTime（N・LはTargetDateTimeも）をt−60秒にした初報を受け、A＝Serial 2・発表、B＝Serial空・訂正、C＝Serial 1・取消をどれもReportDateTime＝t・時計tで受ける。6順列（ABC・ACB・BAC・BCA・CAB・CBA）のすべてで、最終のrecord（Qは地震eventのVXSE51の寄与、Nは系統の現況、Vは噴火、Lは官署）はeffective=cancelled、sourceのserialRaw「1」・infoTypeRaw「取消」、pendingの通知は取消のdesktopとsoundの2件（transition cancelled、同じsubjectの旧pendingはsuperseded）で、6順列の最終が一致する。各手順の前に、その時点の保存物（encode→JSON）をrestore入力で戻す（restoreの前のstateのpersistenceは保存世代を引き継ぐ。owner-runtimeの復元と同じ）6順列でも同じ最終になる。各最終のencode→JSON→decodeはrestored。途中のdecisionは到着順で違ってよい（先着した版が後で上書き・取消される）。修正前の観測（cancelled 2通り・active 4通り）の反転を正式試験で示し、未追跡の監査scriptに依存しない。",
+        "requirement": "F02の閉鎖（監査の三報をそのまま回帰試験にする）: unitごとにaudit-verify/core.cjsのF02と同じ入力で、Q＝32-35_08_03_100915_VXSE51、N＝74_01_04_200512_VYSE50、V＝43_01_01_200522_VFVO52（噴火subject）、L＝15_16_01_241031_VPWW56のReportDateTime（N・LはTargetDateTimeも）をt−60秒にした初報を受け、A＝Serial 2・発表、B＝Serial空・訂正、C＝Serial 1・取消をどれもReportDateTime＝t・時計tで受ける。6順列（ABC・ACB・BAC・BCA・CAB・CBA）のすべてで、最終のrecord（Qは地震eventのVXSE51の寄与、Nは系統の現況、Vは噴火、Lは官署）はeffective=cancelled、sourceのserialRaw「1」・infoTypeRaw「取消」、pendingの通知は取消のdesktopとsoundの2件（transition cancelled、同じsubjectの旧pendingはsuperseded）で、6順列の最終が一致する。各手順の前に、その時点の保存物（encode→JSON）をrestore入力で戻す（restoreの前のstateのpersistenceは保存世代を引き継ぐ。owner-runtimeの復元と同じ）6順列でも同じ最終になる。各最終のencode→JSON→decodeはrestored。途中のdecisionは到着順で違ってよい（先着した版が後で上書き・取消される）。修正前の観測（cancelled 2通り・active 4通り）の反転を正式試験で示し、未追跡の監査scriptに依存しない。〔P3-VM-AC09(1)により統合担当が改訂: F02の三報は同じControl/DateTimeなので、P3-VM-AC03と作者裁定2026-10-21昼（同じ秒の取消は訂正と発表より優先）で6順列とも取消で終わり、上の期待はそのまま成り立つ。取消の採用で系列の未確認の印は外れる（Q-VM-IMPL-2Aの読み替え(ii)）〕",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:589 «ca5b13d448917d11»",
           "reconstruction/src/units/nankai/nankai-unit.ts:315 «2388a2da51638bf7»",
           "reconstruction/src/units/volcano/volcano-unit.ts:372 «991c56106aab071d»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:265 «7bad47e8e65484aa»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:261 «6038e3991f074863»",
           "reconstruction/src/decode-material/decode-material.ts:478 «e7ff21641a768c49»"
         ]
       },
       {
         "id": "P3-ORDER-AC03",
-        "requirement": "境界（同じ時刻tで、unitごとに上のfixtureを使う。比較できる2報は両方の到着順で同じ勝者、同じ版は既存の規則で先着）: (a) InfoTypeが違えばSerialを見ない: 発表 Serial 9と訂正 Serial 1は訂正が勝つ（旧は発表が勝つ）。訂正 Serial空と取消 Serial 1は取消。(b) InfoTypeが同じで数値のSerialだけ違う: 大きいSerialが勝ち、小さい方の後着はunchanged/stale（診断なし）。(c) InfoTypeが同じで欠落と数値（D-MISSING=A）: 数値の報が勝つ（後着なら採用、先着なら欠落の後着がstale）。旧は同じ版で先着のduplicate・食い違い。(d) 欠落同士・InfoTypeが同じ: 同じ版で、事実が同じならduplicate、違えば先着を保ってstale＋unitのRevisionConflict。これは既存の振る舞いで、既存試験（LのP3-C10-T03、Qのseismic-unit.test.tsの同じrevisionの食い違い、Nのnankai-unit.test.tsの同じrevisionの食い違い、Vのexpected:O01:17の67_01_01と67_01_02）が受け入れているので、T02には足さない。V・Lでは「01」と「1」も同じ版（Q・NのvalidSerialは先頭0をidentityInvalidで拒否するので、この行はV・Lだけ）。(e) U-Nの系統の現況でEventIDの違う2報（Serial 2と1、事実が違う）: Serialを比べず同じ版で、両方の順で先着を保ちnankaiRevisionConflict（既存）。(f) U-V（D-SCOPE=B）: 45_01_01（VFVO50、Serial空）と44_01_01（VFVO51、Serial 13）を同じReportDateTimeにして火山306に当てると、50→51ではVFVO50を保ちVFVO51の火山entryはP3-C9-VFVO51-ATOMIC=Aで全部stale＋volcanoRevisionConflict、51→50ではVFVO51を保ちVFVO50がstale＋volcanoRevisionConflict（今と同じ）。降灰のVFVO54とVFVO55は同時刻・同InfoTypeならSerialによらずVFVO55（66_01_02のReportDateTimeを66_01_03の2021-05-14T12:51:00+09:00に合わせ、Serialを5に、66_01_03をSerial 1にして、時計もその時刻: 両順ともVFVO55。旧はVFVO54。66_01_02を任意の時刻へ動かすと予報の期間の検査でrequiredStructureInvalidになるので、時刻は66_01_03に合わせる）。(g) 時刻が違えば時刻だけで決まる（既存）。",
+        "requirement": "境界（同じ時刻tで、unitごとに上のfixtureを使う。比較できる2報は両方の到着順で同じ勝者、同じ版は既存の規則で先着）: (a) InfoTypeが違えばSerialを見ない: 発表 Serial 9と訂正 Serial 1は訂正が勝つ（旧は発表が勝つ）。訂正 Serial空と取消 Serial 1は取消。(b) InfoTypeが同じで数値のSerialだけ違う: 大きいSerialが勝ち、小さい方の後着はunchanged/stale（診断なし）。(c) InfoTypeが同じで欠落と数値（D-MISSING=A）: 数値の報が勝つ（後着なら採用、先着なら欠落の後着がstale）。旧は同じ版で先着のduplicate・食い違い。(d) 欠落同士・InfoTypeが同じ: 同じ版で、事実が同じならduplicate、違えば先着を保ってstale＋unitのRevisionConflict。これは既存の振る舞いで、既存試験（LのP3-C10-T03、Qのseismic-unit.test.tsの同じrevisionの食い違い、Nのnankai-unit.test.tsの同じrevisionの食い違い、Vのexpected:O01:17の67_01_01と67_01_02）が受け入れているので、T02には足さない。V・Lでは「01」と「1」も同じ版（Q・NのvalidSerialは先頭0をidentityInvalidで拒否するので、この行はV・Lだけ）。(e) U-Nの系統の現況でEventIDの違う2報（Serial 2と1、事実が違う）: Serialを比べず同じ版で、両方の順で先着を保ちnankaiRevisionConflict（既存）。(f) U-V（D-SCOPE=B）: 45_01_01（VFVO50、Serial空）と44_01_01（VFVO51、Serial 13）を同じReportDateTimeにして火山306に当てると、50→51ではVFVO50を保ちVFVO51の火山entryはP3-C9-VFVO51-ATOMIC=Aで全部stale＋volcanoRevisionConflict、51→50ではVFVO51を保ちVFVO50がstale＋volcanoRevisionConflict（今と同じ）。降灰のVFVO54とVFVO55は同時刻・同InfoTypeならSerialによらずVFVO55（66_01_02のReportDateTimeを66_01_03の2021-05-14T12:51:00+09:00に合わせ、Serialを5に、66_01_03をSerial 1にして、時計もその時刻: 両順ともVFVO55。旧はVFVO54。66_01_02を任意の時刻へ動かすと予報の期間の検査でrequiredStructureInvalidになるので、時刻は66_01_03に合わせる）。(g) 時刻が違えば時刻だけで決まる（既存）。〔P3-VM-AC09(1)により統合担当が改訂: (a)〜(f)はP3-VERSION-MATERIAL-001のP3-VM-AC03・AC04で置き換えた。同じControl/DateTimeの2報はSerialとInfoTypeの順位で決めず、到着順によらない: 取消は取消でない報に勝ち、InfoTypeと事実が同じならduplicate（Serialだけ違う組と「01」と「1」もduplicate）、違えば先着を保ってstale＋unitのRevisionConflictと系列の未確認の印。(g)は同じ（比べる時刻で決まる）〕",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:590 «362ef20100cbeaad»",
           "reconstruction/src/units/nankai/nankai-unit.ts:318 «9a55485ff8b540fd»",
           "reconstruction/src/units/nankai/nankai-unit.ts:137 «b9f35ee8a39ce41d»",
           "reconstruction/src/units/volcano/volcano-unit.ts:312 «103b3818fcc0d7d8»",
           "reconstruction/src/units/volcano/volcano-unit.ts:849 «1f79d53059304ab0»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:267 «3722c817913a7005»",
-          "reconstruction/test/landslide-unit/landslide-unit.test.ts:155 «a8764394861ff66e»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:265 «bc430b5ab35af311»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:156 «1b1c845eee1163d4»",
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:872 «9c3c11847056966a»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:146 «c4d8df60945ee861»",
           "reconstruction/src/domains/seismic/seismic.ts:62 «c200b4f7c1ed4c6e»",
@@ -261,7 +261,7 @@
       },
       {
         "id": "P3-ORDER-AC04",
-        "requirement": "同じ範囲の別の比較の扱い（放置しないための明示）: (1) U-Vの復旧不足のliveでの除去（liveShortfalls、volcano-unit.ts:493〜498）は保存したlastKnown（ReportDateTimeとSerialだけ、InfoTypeとfamilyを持たない）との閾値の比較で、報どうしの版の順ではなく循環しない。K1では変えない: 時刻が新しい、または同時刻で両方にSerialがあり候補が大きいときだけ不足を除く。外れても不足（viewの「失ったかもしれない」表示）が残るだけで記録は変えない。不足を作るのはC15の移行だけなので、C15の起草でlastKnownの形を決めるときにこの比較を見直す。(2) U-Qの公開事実の導出（seismic-unit.ts:170、時刻→familyの優先）とU-Vの最新source（volcano-unit.ts:54、時刻だけ）は別familyの寄与から表示の値を選ぶ規則で、Serialを使わず版の比較ではない。変えない。(3) 退去の順位（各unitのevictOne、時刻・subject）はK4の範囲。(4) U-Nの「訂正・取消は現況のsourceと同じheadType・EventIDのときだけ現況に効く」（nankai-unit.ts:137）と、情報subjectの判定を現況より先に行う順（Q-C8-IMPL-AMEND(3)）は変えない。(5) Serialが必須のU-E・U-R・U-B、Serialを持たない比較のU-T（VTSE41）・U-W・U-Fは変えない（R・Bは時刻→Serial→InfoTypeで欠落が無く全順序）。",
+        "requirement": "同じ範囲の別の比較の扱い（放置しないための明示）: (1) U-Vの復旧不足のliveでの除去（liveShortfalls、volcano-unit.ts:493〜498）は保存したlastKnown（ReportDateTimeとSerialだけ、InfoTypeとfamilyを持たない）との閾値の比較で、報どうしの版の順ではなく循環しない。K1では変えない: 時刻が新しい、または同時刻で両方にSerialがあり候補が大きいときだけ不足を除く。外れても不足（viewの「失ったかもしれない」表示）が残るだけで記録は変えない。不足を作るのはC15の移行だけなので、C15の起草でlastKnownの形を決めるときにこの比較を見直す。(2) U-Qの公開事実の導出（seismic-unit.ts:170、時刻→familyの優先）とU-Vの最新source（volcano-unit.ts:54、時刻だけ）は別familyの寄与から表示の値を選ぶ規則で、Serialを使わず版の比較ではない。変えない。(3) 退去の順位（各unitのevictOne、時刻・subject）はK4の範囲。(4) U-Nの「訂正・取消は現況のsourceと同じheadType・EventIDのときだけ現況に効く」（nankai-unit.ts:137）と、情報subjectの判定を現況より先に行う順（Q-C8-IMPL-AMEND(3)）は変えない。(5) Serialが必須のU-E・U-R・U-B、Serialを持たない比較のU-T（VTSE41）・U-W・U-Fは変えない（R・Bは時刻→Serial→InfoTypeで欠落が無く全順序）。〔P3-VM-AC09(1)により統合担当が改訂: (5)はP3-VERSION-MATERIAL-001で置き換えた。U-E・U-T（発注2a）とU-R・U-B・U-W・U-F（発注2b）もcompareVersion（P3-VM-AC02・AC03）で比べ、Serialは比べない〕",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:547 «163dc99df829d55c»",
           "reconstruction/contracts/p3-volcano-unit.json:346 «3daecd7c92af885e»",
@@ -272,7 +272,7 @@
       },
       {
         "id": "P3-ORDER-AC05",
-        "requirement": "既存条文の読み替え（旧契約の本文は変えない）: (1) P3-UNIT-Q-001のQ-ENUM.revisionOrder「同時刻で両方にSerialがあればSerialで比べる。それでも同じなら同じrevisionで、InfoTypeの優先」を、AC01の順（時刻→InfoType→Serial（欠落は最小））に読み替える。「同じrevision・同じInfoType」は「同じ版（AC01の(1)〜(3)が等しい）」と読む。(2) P3-UNIT-N-001のQ-ENUM.revisionOrderを同じく読み替え、「Serialは同じEventIDのときだけ比べる」は保つ。(3) P3-UNIT-V-001のQ-ENUM.revisionOrderを、時刻→InfoType→Serial（D-SCOPE=Bにより同じfamilyの間だけ）→VFVO55＞VFVO54に読み替える。MARINEの例外（familyごとのwatermark、同じ版の別familyはkindだけ先着）は保つ。(4) P3-UNIT-L-001のQ-ENUM.revisionOrderと、その受入条件の「ReportDateTime→Serial→InfoTypeの優先の順」を「ReportDateTime→InfoTypeの優先→Serial」に読み替える。取消以前の報のstale・取消したsubjectを戻さない・取消より新しい報の再採用などの他の条文は変えない（「取消以前」「取消より新しい」はAC01の順で判定する）。(5) P3-UNIT-Q-001の作者裁定の材料（16:31のVXSE51とVXSE53の対）はfamilyごとのwatermarkの話で、この契約で変わらない。",
+        "requirement": "既存条文の読み替え（旧契約の本文は変えない）: (1) P3-UNIT-Q-001のQ-ENUM.revisionOrder「同時刻で両方にSerialがあればSerialで比べる。それでも同じなら同じrevisionで、InfoTypeの優先」を、AC01の順（時刻→InfoType→Serial（欠落は最小））に読み替える。「同じrevision・同じInfoType」は「同じ版（AC01の(1)〜(3)が等しい）」と読む。(2) P3-UNIT-N-001のQ-ENUM.revisionOrderを同じく読み替え、「Serialは同じEventIDのときだけ比べる」は保つ。(3) P3-UNIT-V-001のQ-ENUM.revisionOrderを、時刻→InfoType→Serial（D-SCOPE=Bにより同じfamilyの間だけ）→VFVO55＞VFVO54に読み替える。MARINEの例外（familyごとのwatermark、同じ版の別familyはkindだけ先着）は保つ。(4) P3-UNIT-L-001のQ-ENUM.revisionOrderと、その受入条件の「ReportDateTime→Serial→InfoTypeの優先の順」を「ReportDateTime→InfoTypeの優先→Serial」に読み替える。取消以前の報のstale・取消したsubjectを戻さない・取消より新しい報の再採用などの他の条文は変えない（「取消以前」「取消より新しい」はAC01の順で判定する）。(5) P3-UNIT-Q-001の作者裁定の材料（16:31のVXSE51とVXSE53の対）はfamilyごとのwatermarkの話で、この契約で変わらない。〔P3-VM-AC09(1)により統合担当が改訂: (1)〜(4)の読み替えはP3-VERSION-MATERIAL-001のP3-VM-AC02〜AC04を指す。各unitのQ-ENUM.revisionOrderの原文はP3-VM-AC09(16)で改訂した〕",
         "evidenceRefs": [
           "reconstruction/contracts/p3-seismic-unit.json:290 «804f1d1c60babb58»",
           "reconstruction/contracts/p3-seismic-unit.json:240 «21be8883fcd7a64b»",
@@ -280,7 +280,7 @@
           "reconstruction/contracts/p3-nankai-unit.json:217 «912e376caf755f81»",
           "reconstruction/contracts/p3-volcano-unit.json:334 «a7aadc822ee9cd23»",
           "reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6»",
-          "reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e»",
+          "reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868»",
           "reconstruction/contracts/p3-landslide-unit.json:700 «6117f7386bda88de»"
         ]
       },
@@ -299,12 +299,12 @@
         "requirement": "既存試験: 起草時の試作でreconstructionのvitestは期待値の変更0件で通った（Q-ORDER-PROTOTYPE）。既存試験の期待値・入力を変える必要が出たら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。新しい試験はT01・T02だけ。",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:589 «ca5b13d448917d11»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:265 «7bad47e8e65484aa»"
+          "reconstruction/src/units/landslide/landslide-unit.ts:261 «6038e3991f074863»"
         ]
       },
       {
         "id": "P3-ORDER-AC08",
-        "requirement": "横断不変条件とパラメータ表: この契約が満たすのはP3-X-C1のうち版順（Q/N/V/Lで比較できる範囲の版順を循環させない。Serial欠落・同版の競合・比較不能（NのEventID違い、D-SCOPE=BのVのfamily違い）の規則を明示）。P3-X-C3のうち、同じ版でstateを変えない（duplicate・食い違いは同じstate参照）ことは既存のまま。P3-X-C4は保存の形を変えないので既存のまま（AC02で各最終のdecodeを確かめる）。P3-X-C2・C5・C6は扱わない（K6・K4・K3）。パラメータ表のIdentity / Revision行の比較tuple: U-Q＝familyごとに(ReportDateTime, InfoType順位, Serial)、U-N＝subjectごとに(ReportDateTime, InfoType順位, 同じEventID（headTypeは問わない）ならSerial)、U-V＝subjectごと（警報はfamilyごとのwatermark）に(ReportDateTime, InfoType順位, 同じfamilyならSerial, VFVO55＞VFVO54)、U-L＝官署ごとに(ReportDateTime, InfoType順位, Serial)。Serial欠落はどの数値よりも小。同じ版の競合は先着を保ちWARN、比較不能の組は同じ版として扱う。",
+        "requirement": "横断不変条件とパラメータ表: この契約が満たすのはP3-X-C1のうち版順（Q/N/V/Lで比較できる範囲の版順を循環させない。Serial欠落・同版の競合・比較不能（NのEventID違い、D-SCOPE=BのVのfamily違い）の規則を明示）。P3-X-C3のうち、同じ版でstateを変えない（duplicate・食い違いは同じstate参照）ことは既存のまま。P3-X-C4は保存の形を変えないので既存のまま（AC02で各最終のdecodeを確かめる）。P3-X-C2・C5・C6は扱わない（K6・K4・K3）。パラメータ表のIdentity / Revision行の比較tuple: U-Q＝familyごとに(ReportDateTime, InfoType順位, Serial)、U-N＝subjectごとに(ReportDateTime, InfoType順位, 同じEventID（headTypeは問わない）ならSerial)、U-V＝subjectごと（警報はfamilyごとのwatermark）に(ReportDateTime, InfoType順位, 同じfamilyならSerial, VFVO55＞VFVO54)、U-L＝官署ごとに(ReportDateTime, InfoType順位, Serial)。Serial欠落はどの数値よりも小。同じ版の競合は先着を保ちWARN、比較不能の組は同じ版として扱う。〔P3-VM-AC09(1)により統合担当が改訂: 版順の比較tupleはP3-VERSION-MATERIAL-001のP3-VM-AC02〜AC04（種類の表の側のControl/DateTime、同じ秒の取消の優先、ほかの同じ時刻の食い違いは先着と未確認の印）を指し、Serialの欠落と比較不能の規則は使わない〕",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:363 «8fe2a1f116ce15af»",
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
@@ -323,7 +323,7 @@
         "referenceIds": [
           "P3-ORDER-AC02"
         ],
-        "behavior": "4 unitの各試験fileに1つずつ: AC02のF02の三報の6順列を、復元なしと各手順の前に復元を挟む形の両方で流し、最終のrecord（effective・sourceのserialRaw・infoTypeRaw）とpendingの通知が全部同じでcancelled・Serial 1・取消、各最終のencode→JSON→decodeがrestoredであることを1つのitで確かめる（表で回す）。"
+        "behavior": "4 unitの各試験fileに1つずつ: AC02のF02の三報の6順列を、復元なしと各手順の前に復元を挟む形の両方で流し、最終のrecord（effective・sourceのserialRaw・infoTypeRaw）とpendingの通知が全部同じでcancelled・Serial 1・取消、各最終のencode→JSON→decodeがrestoredであることを1つのitで確かめる（表で回す）。〔P3-VM-AC09(1)により統合担当が改訂: 期待は変わらない（同じControl/DateTimeの取消が優先、P3-VM-AC03）〕"
       },
       {
         "testId": "P3-ORDER-T02",
@@ -332,7 +332,7 @@
           "P3-ORDER-AC01",
           "P3-ORDER-AC03"
         ],
-        "behavior": "4 unitの各試験fileに1つずつ: AC03の(a)〜(c)を同じ表（InfoType違いはSerialを見ない、同InfoTypeの数値の大小、欠落と数値）で両方の到着順に流し、勝者・decisionを確かめる。V・Lの試験だけ、表に「01」と「1」が同じ版（duplicate）になる行を足す（Q・NのvalidSerialは「01」をidentityInvalidで拒否する）。欠落同士の同じ版のduplicate・食い違い（AC03(d)）は既存試験が受け入れているので足さない。U-Nの試験はAC03(e)、U-Vの試験はAC03(f)（VFVO50とVFVO51の同時刻、VFVO54とVFVO55）を同じitに足す。"
+        "behavior": "4 unitの各試験fileに1つずつ: AC03の(a)〜(c)を同じ表（InfoType違いはSerialを見ない、同InfoTypeの数値の大小、欠落と数値）で両方の到着順に流し、勝者・decisionを確かめる。V・Lの試験だけ、表に「01」と「1」が同じ版（duplicate）になる行を足す（Q・NのvalidSerialは「01」をidentityInvalidで拒否する）。欠落同士の同じ版のduplicate・食い違い（AC03(d)）は既存試験が受け入れているので足さない。U-Nの試験はAC03(e)、U-Vの試験はAC03(f)（VFVO50とVFVO51の同時刻、VFVO54とVFVO55）を同じitに足す。〔P3-VM-AC09(1)により統合担当が改訂: 表はP3-VM-AC03の形に直した（同じ時刻ではSerialとInfoTypeの順位で決めず、取消は勝ち、InfoTypeと事実が同じ組はduplicate、InfoTypeの違う取消でない組は先着を保って未確認の印）〕"
       }
     ],
     "requiredCommands": [

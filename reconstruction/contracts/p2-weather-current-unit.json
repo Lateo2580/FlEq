@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "63f2cf55127a29271ef5f0a99bc5da1948c5ebaa6972180e2680848a3f08489a",
+    "sha256": "7d4506c643698caaf299ac48eb56ea4ed1c8600a3f5472a1d0a1ea8edde79deb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b6436764db217ba6c76dda340e8d2394de760f74d49fcb582a023ac829cbe526",
-    "sequencesSha256": "266a8781ed1323f00875f66dabbb24c5a144866f9c3b74d60b1e9e05d6c240b3",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -167,7 +167,7 @@
         "freshnessRule": {
           "path": "A1共通検証→A5 receive/reduceWeatherCurrentUnit内のfamily検証→decision確定→同reducer内の§7.8監視更新→一回のstate参照交換。共通rejectedを受けてもA5はXMLの検証済み部分だけで監視対象を確定できるか調べる。入力の意味適用・拒否reason選び直しは行わず、新しい公開口やI/O経路は作らない",
           "eligible": "operation/family/office/subjectとaffectedScopeを不正部分に依存せず一意に検証できる場合のみ既存FreshnessRecordを同じ対象キーで更新する。壊れたAreaから全scopeへ拡大しない。一入力内に不正subjectがあっても検証できた対象の監視だけは許す。対象が確認不能なら既存freshnessを維持しdiagnosticだけを返す",
-          "record": "candidateSourceは候補のReportRef、decision/reasonは実際のrejectedまたはunchanged/stale。currentSource/currentSemanticRevisionは採用済み状態を維持する。公開revision比較でnewerを確認できる非採用はrevisionOrder=newer、freshnessSuspect=true、suspectedSource=候補とする。日時不正や比較不能はrevisionOrder=unknownを記録し、既存suspect/suspectedSource/confirmedScopeを解除・上書きしない。older/sameの不採用も既存の疑いを解除しない。Q-REVの未決比較を独自裁定しない",
+          "record": "candidateSourceは候補のReportRef、decision/reasonは実際のrejectedまたはunchanged/stale。currentSource/currentSemanticRevisionは採用済み状態を維持する。公開revision比較でnewerを確認できる非採用はrevisionOrder=newer、freshnessSuspect=true、suspectedSource=候補とする。日時不正や比較不能はrevisionOrder=unknownを記録し、既存suspect/suspectedSource/confirmedScopeを解除・上書きしない。older/sameの不採用も既存の疑いを解除しない。Q-REVの未決比較を独自裁定しない〔P3-VERSION-MATERIAL-001で改めた（P3-VM-AC03・AC04、P3-VM-AC09(14)により統合担当が改訂）: 新旧は系列（subject・operation）の版（current・墓標・unavailableのsourceのうちcompareVersionで最も新しいもの）とcompareVersion（VPWW55〜61・VPWS50・VPNO50はHead/ReportDateTimeを先に比べ、同じならControl/DateTime）で比べる。同じ比べる時刻の後着は、同じ報（InfoType・Serialと、currentの報なら現象、墓標・unavailableの報なら範囲が同じ）ならduplicate、取消かどうかが食い違えば取消を採り（作者裁定2026-10-21昼）、ほかの食い違いと比べる時刻の欠けは先着を保ってunchanged/staleとし、今どおりrevisionOrder=unknownを記録したうえで系列に未確認の印（PersistedWeatherCurrentUnitのunconfirmed、系列ごとに1つ）を付ける。疑いの上限の更新と解除もcompareVersionで比べる（P3-AUTH-AC05）〕",
           "persistence": "例外的にfreshness配列とそれを含むstateの参照交換を許す。national/partials/histories/ownership/tombstones/unavailable/intents、gate/watermarkと意味revisionは不変、intents/outcomesは空。freshnessが変わった場合だけ保存対象の変更として既存A1/A3世代管理でdirty世代を一つ進める。decisionはrejectedのまま、semantic changedや正常採用に偽装しない。復元後も同scopeEncodingと解除規則を適用する"
         },
         "evidence": [
@@ -378,7 +378,7 @@
       },
       {
         "id": "P2-A5-AC04",
-        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v3の唯一のcodecを用い、全国baseはoperation別1（合算3）、全国履歴2・partial128・partial履歴8は既存の三区分合算上限、16MiBを維持する。decodeはnationalのkeyがnormal/training/testのいずれかで、各WeatherCurrentSnapshot.operationがkeyと一致することを検証し、不一致・未知key・旧単一slot/nullはinvalidとして正常stateへ昇格しない。容量超過はAC11のadmission判定後に理由付きunavailableにする P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する。",
+        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v4の唯一のcodecを用い、全国baseはoperation別1（合算3）、全国履歴2・partial128・partial履歴8は既存の三区分合算上限、16MiBを維持する。decodeはnationalのkeyがnormal/training/testのいずれかで、各WeatherCurrentSnapshot.operationがkeyと一致することを検証し、不一致・未知key・旧単一slot/nullはinvalidとして正常stateへ昇格しない。容量超過はAC11のadmission判定後に理由付きunavailableにする P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
           "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",

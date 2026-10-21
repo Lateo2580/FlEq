@@ -148,12 +148,15 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
   // acceptance: 版・取消・期限（AC03）。
   it("P3-C10-T03 acceptance / AC03: revisions, office-scoped cancel, the 6 h / 48 h retention and late reports", () => {
     const first = send(emptyState(), F.soya);
-    // 同じ版の重複と食い違い（先着を保ち WARN）。
+    // 同じ版の重複と食い違い（先着を保ち WARN、官署に後着の報の未確認の印、P3-VM-AC03・AC04）。新しい版の採用で印は外れる。
     const duplicate = send(first.state, F.soya);
     expect([shape(duplicate), duplicate.state, duplicate.diagnostics]).toEqual([[[SUBJECT, "unchanged", "duplicate"]], first.state, []]);
     const conflict = send(first.state, F.soya, areas(soya(["49", ...Array(9).fill("29")])));
-    expect([shape(conflict), conflict.state, conflict.diagnostics]).toEqual([[[SUBJECT, "unchanged", "stale"]], first.state,
-      [{ level: "WARN", component: "landslide", reason: "landslideRevisionConflict", inputId: expect.any(String), unit: "U-L" }]]);
+    const { unconfirmed: mark, ...held } = recordOf(conflict.state)!;
+    expect([shape(conflict), held, mark?.inputId, conflict.diagnostics]).toEqual([[[SUBJECT, "unchanged", "stale"]], recordOf(first.state),
+      conflict.diagnostics[0]?.inputId, [{ level: "WARN", component: "landslide", reason: "landslideRevisionConflict", inputId: expect.any(String), unit: "U-L" }]]);
+    expect([roundTrip(conflict.state), recordOf(send(conflict.state, F.correction).state)?.unconfirmed]).toEqual([expect.objectContaining({
+      kind: "restored", state: expect.objectContaining({ currents: conflict.state.currents }) }), undefined]);
     // 同じ版の訂正は InfoType の優先で採用する。取消は官署だけを cancelled にし、前の事実を戻さない。
     const corrected = send(first.state, F.correction);
     expect(shape(corrected)).toEqual([[SUBJECT, "changed", "revisionOnly"]]);
@@ -311,9 +314,9 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     const real = budgetState(false), bound = budgetState(true);
     const sizes = [real, bound].map((item) => Buffer.byteLength(JSON.stringify(landslideUnitCodec.encode(item))));
     const one = (value: object) => Buffer.byteLength(JSON.stringify(value));
-    console.info("P3-C10 capacity", JSON.stringify({ realPayload: sizes[0], contractReal: 293_040, boundPayload: sizes[1], contractBound: 1_327_328,
+    console.info("P3-C10 capacity", JSON.stringify({ realPayload: sizes[0], contractReal: 293_040, boundPayload: sizes[1], contractBound: 1_400_044,
       realActive: one(seed), contractActive: 815, realEnded: one(recordOf(follow(emptyState(), released()).state)!), contractEnded: 402,
-      realIntent: one(template), contractIntent: 882, boundRecord: one(bound.currents[0]), contractBoundRecord: 8_566,
+      realIntent: one(template), contractIntent: 882, boundRecord: one(bound.currents[0]), contractBoundRecord: 9_178,
       counts: [real.currents.length, real.currents.reduce((sum, item) => sum + (item.effective === "active" ? item.kinds.reduce((total, group) =>
         total + group.areas.length, 0) : 0), 0), real.intents.length, bound.intents.length] }));
     for (const item of [real, bound]) expect(roundTrip(item).kind).toBe("restored");
@@ -361,6 +364,10 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
         source: { ...source, subject: `normal/VPWW56/${"局".repeat(65)}` } })],
       ["inputId over 64", withActive({ source: { ...source, inputId: "i".repeat(65) } })],
       ["ReportDateTime over 40", withActive({ source: { ...source, reportDateTimeRaw: "2020-06-22T23:00:00.0000000000000000+09:00" } })],
+      // P3-VM-AC08: Date.parse が読む形でも、受理（A1）の形でない ReportDateTime は読み戻さない（括弧の中を読み飛ばす）。
+      ["ReportDateTime not the A1 form", withActive({ source: { ...source, reportDateTimeRaw: "Jun 22 2020 (\u0001)" },
+        retainUntil: Date.parse("Jun 22 2020 (\u0001)") + 48 * 3_600_000 })],
+      ["mark of another office", withActive({ unconfirmed: { ...source, subject: "normal/VPWW56/旭川地方気象台" } })],
       ["Serial over 10 digits", withActive({ source: { ...source, serialRaw: "12345678901" } })],
       ["InfoType", withActive({ source: { ...source, infoTypeRaw: "不明" } })],
       ["source family", withActive({ source: { ...source, family: "VPWW55" } })],
@@ -511,6 +518,18 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     expect(roundTrip(grown.state.units["U-L"]!).kind).toBe("restored");
   });
 
+  // contractBoundary（P3-VM-D-MISSING=A・AC04 の (b)）: Control/DateTime の無い報は手元の版を残して WARN（requiredStructureMissing）と時刻の無い印を付け、
+  // その後の新しい版の採用でも印を外さず、取消の採用で外す。
+  it("P3-VM-T02 contractBoundary / AC03,AC04: a report without Control/DateTime is held with a timeless mark that a newer adoption keeps and a cancel clears", () => {
+    const first = send(emptyState(), F.soya);
+    const timeless = send(first.state, F.soya, (xml) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, "$1$2"));
+    expect([shape(timeless), timeless.diagnostics.map((item) => item.reason), recordOf(timeless.state)?.unconfirmed?.controlDateTimeRaw]).toEqual([
+      [[SUBJECT, "unchanged", "stale"]], ["requiredStructureMissing"], ""]);
+    const newer = send(timeless.state, F.correction);
+    expect([shape(newer), recordOf(newer.state)?.unconfirmed?.controlDateTimeRaw]).toEqual([[[SUBJECT, "changed", "revisionOnly"]], ""]);
+    expect(recordOf(send(newer.state, F.cancel).state)?.unconfirmed).toBeUndefined();
+  });
+
   // 版の比較（P3-REVISION-ORDER-001）: 15_16_01 を t−60 秒の初報にし、同じ時刻 t（=T0）の Serial と InfoType だけを替えた報を当てる。
   const ordered = () => send(emptyState(), F.soya, (xml) => replaceTag("TargetDateTime", iso(T0 - 60_000))(retime(iso(T0 - 60_000))(xml))).state;
   const version = ([serial, infoType]: readonly [string, string]) =>
@@ -537,17 +556,19 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       .toEqual(Array(12).fill(["cancelled", "1", "取消", [["desktop", "cancelled"], ["sound", "cancelled"]], "restored"]));
   });
 
-  // contractBoundary: 同時刻の 2 報は InfoType の優先 → Serial（欠落はどの数値よりも小、数として）で決まり、到着順によらない（AC01・AC03(a)〜(c)）。
-  it("P3-ORDER-T02 contractBoundary / AC01,AC03: InfoType before Serial, a missing Serial below any number and \"01\" = \"1\", in both orders", () => {
+  // contractBoundary（P3-VM-AC03 が P3-ORDER-AC01・AC03 を置き換えた）: 同じ時刻（Head と Control/DateTime が同じ）の 2 報は Serial と InfoType の
+  // 順位で決めず、到着順によらない。取消は取消でない報に勝ち、中身（InfoType と事実）が同じなら duplicate、違えば先着を保って未確認の印を付ける。
+  it("P3-ORDER-T02 contractBoundary / P3-VM-AC03: at the same time a cancel wins, Serial is not compared and a differing InfoType is held with a mark", () => {
     const first = ordered();
-    // [一方, 他方, 勝つ方（null は同じ版）]
-    const rows: [readonly [string, string], readonly [string, string], 0 | 1 | null][] = [
-      [["9", "発表"], ["1", "訂正"], 1], [["", "訂正"], ["1", "取消"], 1], [["2", "発表"], ["1", "発表"], 0], [["", "発表"], ["1", "発表"], 1],
-      [["01", "発表"], ["1", "発表"], null]];
-    for (const [one, other, winner] of rows) for (const [early, late, lateWins] of [[one, other, winner === 1], [other, one, winner === 0]] as const) {
+    const rows: [readonly [string, string], readonly [string, string], "cancel" | "duplicate" | "held"][] = [
+      [["9", "発表"], ["1", "訂正"], "held"], [["", "訂正"], ["1", "取消"], "cancel"], [["2", "発表"], ["1", "発表"], "duplicate"],
+      [["", "発表"], ["1", "発表"], "duplicate"], [["01", "発表"], ["1", "発表"], "duplicate"]];
+    for (const [one, other, result] of rows) for (const [early, late] of [[one, other], [other, one]] as const) {
       const step = receive(receive(first, version(early), clock(T0)).state, version(late), clock(T0));
-      expect([verdict(step), step.diagnostics, [recordOf(step.state)?.source.serialRaw, recordOf(step.state)?.source.infoTypeRaw]], `${early}→${late}`)
-        .toEqual([[winner == null ? "duplicate" : lateWins ? "changed" : "stale"], [], lateWins ? late : early]);
+      const record = recordOf(step.state), lateWins = result === "cancel" && late[1] === "取消";
+      expect([verdict(step), step.diagnostics.map((item) => item.reason), [record?.source.serialRaw, record?.source.infoTypeRaw],
+        record?.unconfirmed?.infoTypeRaw], `${early}→${late}`).toEqual([[result === "duplicate" ? "duplicate" : lateWins ? "changed" : "stale"],
+        result === "held" ? ["landslideRevisionConflict"] : [], lateWins ? late : early, result === "held" ? late[1] : undefined]);
     }
   });
 });
@@ -565,8 +586,9 @@ function budgetState(bounded: boolean): LandslideUnitState {
     const operation: Operation = bounded ? "training" : "normal";
     const name = bounded ? `${"局".repeat(60)}${digits(index)}` : `官署${String(index).padStart(2, "0")}地方気象台`;
     const subject = `${operation}/VPWW56/${name}`;
-    const reportDateTimeRaw = bounded ? "-271821-04-20T00:00:00.0000000000000000Z" : seed.source.reportDateTimeRaw;
-    const source = { inputId: "i".repeat(bounded ? 64 : 36), origin: "live" as const, operation, family: "VPWW56", subject, reportDateTimeRaw,
+    // 上界は読み戻しが受ける上限いっぱい（A1 の形の 40 文字、15 桁の retainUntil）の source と未確認の印（P3-VM-AC08）。
+    const reportDateTimeRaw = bounded ? "0000-01-01T00:00:00.0000000000000000000Z" : seed.source.reportDateTimeRaw;
+    const source = { inputId: "i".repeat(bounded ? 64 : 36), origin: bounded ? "recovery" as const : "live" as const, operation, family: "VPWW56", subject, reportDateTimeRaw,
       controlDateTimeRaw: reportDateTimeRaw,
       serialRaw: bounded ? "1234567890" : "", infoTypeRaw: bounded ? "訂正" : "発表" };
     const area = () => bounded ? String(10 ** 15 + code++) : String(1_000_000 + code++);
@@ -574,7 +596,7 @@ function budgetState(bounded: boolean): LandslideUnitState {
     const kinds = bounded ? Array.from({ length: 8 }, (_, group) => ({ code: String(50 + group), name: wide(32), level: null,
       areas: Array.from({ length: 32 }, area) }))
       : seed.kinds.map((group, at) => ({ ...group, areas: Array.from({ length: at < 2 ? 1 : (index < 44 ? 28 : 27) - 2 }, area) }));
-    return { ...seed, subject, operation, office: name, source, retainUntil: Date.parse(reportDateTimeRaw) + 48 * HOUR,
+    return { ...seed, subject, operation, office: name, source, ...bounded ? { unconfirmed: { ...source } } : {}, retainUntil: Date.parse(reportDateTimeRaw) + 48 * HOUR,
       title: bounded ? wide(128) : seed.title, kinds };
   });
   const intentBase = send(emptyState(), F.soya).intents[0];

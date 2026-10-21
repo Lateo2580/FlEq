@@ -4,12 +4,12 @@ import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatu
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
-const SCHEMA = "p2-weather-timeseries-unit-v3" as const;
+const SCHEMA = "p2-weather-timeseries-unit-v4" as const;
 type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
 const LIMIT = 33_554_432, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
 const encoder = new TextEncoder();
@@ -133,7 +133,7 @@ function sameSource(left: ReportRef, right: ReportRef): boolean {
     && left.reportDateTimeRaw === right.reportDateTimeRaw && left.serialRaw === right.serialRaw
     && left.infoTypeRaw === right.infoTypeRaw;
 }
-function replace(state: WeatherTimeseriesUnitState, item: WeatherTimeseriesSubject, change: CurrentChange): WeatherTimeseriesUnitState {
+function replace(state: WeatherTimeseriesUnitState, item: WeatherTimeseriesSubject, change: CurrentChange, mark: ReportRef | null): WeatherTimeseriesUnitState {
   let previous: WeatherTimeseriesSubject | null = null;
   const subjects = state.subjects.filter((old) => {
     if (old.subject !== item.subject) return true;
@@ -143,7 +143,7 @@ function replace(state: WeatherTimeseriesUnitState, item: WeatherTimeseriesSubje
   return { ...state,
     subjects: [...subjects, item],
     gates: [...state.gates.filter((old) => old.subject !== item.subject),
-      { subject: item.subject, operation: item.operation, source: item.source! }] };
+      { subject: item.subject, operation: item.operation, source: item.source!, ...mark == null ? {} : { unconfirmed: mark } }] };
 }
 function fits(state: WeatherTimeseriesUnitState, generation: number, capturedAt: number): boolean {
   return state.subjects.length <= SUBJECT_LIMIT
@@ -174,13 +174,6 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
   const base = collected.state;
   const previous = base.subjects.find((item) => item.subject === source.subject);
   const gate = base.gates.find((item) => item.subject === source.subject);
-  if (gate != null) {
-    const order = candidate.reportDateTimeMs - Date.parse(gate.source.reportDateTimeRaw);
-    const reason = order < 0 ? "stale" : order === 0 && sameSource(source, gate.source) ? "duplicate"
-      : order === 0 && !(candidate.cancelled && gate.source.infoTypeRaw !== "取消") ? "stale" : null;
-    if (reason != null) return { ...step(base), decisions: [{ subject: source.subject, operation: source.operation,
-      decision: "unchanged", reason }], outcomes: collected.outcomes, diagnostics: notes };
-  }
   const snapshot = candidate.cancelled || candidate.validUntil == null || candidate.validUntil <= input.clock.wallTimeMs
     ? EMPTY : candidate.snapshot;
   const normal: WeatherTimeseriesSubject = { ...snapshot, subject: source.subject, operation: source.operation, source,
@@ -188,13 +181,34 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     unavailableReason: null, lastKnown: null, affectedScope: "subject",
     validUntil: snapshot.periods.length === 0 ? null : candidate.validUntil,
     retainUntil: retainUntil(candidate.reportDateTimeMs, snapshot.periods.length === 0 ? null : candidate.validUntil) };
-  const evidence = { family: "VPWP50", reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
-  const change = previous != null && previous.effective === normal.effective && previous.validUntil === normal.validUntil
+  // 予報の意味が同じか（表の並びの違いは同じ、P2-A3 の periodMeaning）。採用の change と同じ版の中身の比べに使う。
+  const sameMeaning = () => previous != null && previous.effective === normal.effective && previous.validUntil === normal.validUntil
     && previous.periods.length === normal.periods.length && previous.periods.every((row, index) =>
-      isDeepStrictEqual(periodMeaning(previous, row), periodMeaning(normal, normal.periods[index])))
-    ? "revisionOnly" as const : "semantic" as const;
+      isDeepStrictEqual(periodMeaning(previous, row), periodMeaning(normal, normal.periods[index])));
+  // P3-VM-AC03・AC04: 門の版と compareVersion で比べる。同じ版で同じ報なら duplicate、同じ時刻の取消は取消でない報に勝ち（作者裁定 2026-10-21 昼）、
+  // ほかの同じ時刻の食い違いと比べる時刻の欠けは門の版を残して印を付ける（Q-REV-UF の同時刻の訂正）。同じ時刻の食い違いに今の WARN は無い。
+  // 同じ報は版の欄と予報の意味が同じもの。予報を持たない記録（期限切れ・取消・容量の unavailable）は事実が無いので版の欄だけで見る。
+  const version = stepVersion(gate == null ? null : { version: gate.source, source: gate.source, cancelled: gate.source.infoTypeRaw === "取消" },
+    gate?.unconfirmed ?? null, source, () => gate != null && sameSource(source, gate.source)
+      && (previous == null || previous.effective !== "active" || sameMeaning()), candidate.cancelled);
+  const missing: DiagnosticDetails[] = version.kind !== "older" && version.kind !== "duplicate" && version.missing
+    ? [{ level: "WARN", component: "weather-timeseries", reason: "requiredStructureMissing", unit: "U-F", inputId: input.material.inputId }] : [];
+  if (version.kind !== "adopt") {
+    const unchanged = { ...step(base), decisions: [{ subject: source.subject, operation: source.operation, decision: "unchanged" as const,
+      reason: version.kind === "duplicate" ? "duplicate" as const : "stale" as const }], outcomes: collected.outcomes, diagnostics: [...notes, ...missing] };
+    if (version.kind !== "held" || gate == null || version.mark == null || gate.unconfirmed === version.mark) return unchanged;
+    // 印は保存の byte に入るので fit を通す。収まらなければ印を置かず unit/operation の未確認へ寄せる（P3-CC-AC02・AC07 と同じ最終段の拒否）。
+    const marked = { ...base, gates: base.gates.map((item) => item === gate ? { ...gate, unconfirmed: version.mark! } : item) };
+    if (!fits(marked, state.persistence.currentGeneration + 1, input.clock.wallTimeMs)) return { ...step(state),
+      decisions: [{ subject: source.subject, operation: source.operation, decision: "capacityExceeded" }], diagnostics: [...notes, ...missing,
+        { level: "WARN", component: "weather-timeseries", reason: "capacityRejected", unit: "U-F", inputId: input.material.inputId }] };
+    const kept = { ...marked, persistence: dirty(state.persistence, input.clock.monotonicMs) };
+    return { ...unchanged, state: kept, nextDeadline: deadline(kept) };
+  }
+  const evidence = { family: "VPWP50", reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
+  const change = sameMeaning() ? "revisionOnly" as const : "semantic" as const;
   const changedFields = change === "revisionOnly" ? ["source", "retainUntil"] : ["source", "effective", "periods", "validUntil", "retainUntil"];
-  let proposed = replace(base, normal, changed);
+  let proposed = replace(base, normal, changed, version.mark);
   const generation = state.persistence.currentGeneration + 1;
   if (!fits(proposed, generation, input.clock.wallTimeMs)) {
     proposed = evict(proposed, source.subject, generation, input.clock.wallTimeMs, changed);
@@ -219,15 +233,15 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     // 無いと normal の retainUntil（長い validUntil）を引き継ぎ、decode が拒否する保存物ができる（P3-LIFE-T04）。
     adopted = { ...normal, ...EMPTY, effective: "unavailable", unavailableReason: "capacityExceeded",
       validUntil: null, retainUntil: retainUntil(candidate.reportDateTimeMs, null), lastKnown };
-    proposed = replace(proposed, adopted, changed);
+    proposed = replace(proposed, adopted, changed, version.mark);
     established = null;
     if (!fits(proposed, generation, input.clock.wallTimeMs)) {
       adopted = { ...adopted, lastKnown: null };
-      proposed = replace(proposed, adopted, changed);
+      proposed = replace(proposed, adopted, changed, version.mark);
     }
   }
   // P3-CC-AC07: 容量で current にできなかった入力（印か最終段の拒否）ごとに 1 行。P3-WS-AC02: inspect の読み飛ばしの診断は門の決定によらず前に置く。
-  const rejected: DiagnosticDetails[] = [...notes, ...established == null ? [{ level: "WARN", component: "weather-timeseries",
+  const rejected: DiagnosticDetails[] = [...notes, ...missing, ...established == null ? [{ level: "WARN", component: "weather-timeseries",
     reason: "capacityRejected", unit: "U-F", inputId: input.material.inputId } satisfies DiagnosticDetails] : []];
   if (!fits(proposed, generation, input.clock.wallTimeMs)) return { ...step(state),
     decisions: [{ subject: source.subject, operation: source.operation, decision: "capacityExceeded" }], diagnostics: rejected };
@@ -347,8 +361,11 @@ function subjectRow(value: unknown): value is WeatherTimeseriesSubject {
 }
 function gateRow(value: unknown): value is WeatherTimeseriesGate {
   const gate = object(value), source = object(gate?.source);
+  const mark = object(gate?.unconfirmed);
+  // P3-VM-AC04: 印は同じ subject・operation の報（取消の後の時刻の無い報の印も残る）。
   return gate != null && typeof gate.subject === "string" && reportRef(gate.source)
-    && source?.subject === gate.subject && source.operation === gate.operation;
+    && source?.subject === gate.subject && source.operation === gate.operation
+    && (!("unconfirmed" in gate) || reportRef(gate.unconfirmed) && mark?.subject === gate.subject && mark.operation === gate.operation);
 }
 // subject は文字列であることだけを確かめる（P2-A1-T12 が U-F の intent を別の形の subject で往復させる）。
 function intentRow(value: unknown): value is NotificationIntent {
@@ -382,7 +399,7 @@ function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   return measure(subjects, gates, intents, 0, 0) <= LIMIT ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = persisted({ schemaVersion: SCHEMA, subjects: state.subjects, gates: state.gates, intents: state.intents });
     if (value == null) throw new Error("invalid U-F checkpoint payload");
@@ -390,7 +407,7 @@ const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
   },
   decode(payload: JsonValue) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v3 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v4 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
         savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } };
   },

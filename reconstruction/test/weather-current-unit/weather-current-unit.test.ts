@@ -27,8 +27,8 @@ import type { Harness } from "../execution-split/owner-harness";
 const NOW = 1_800_000_000_000;
 
 function emptyState(): WeatherCurrentUnitState {
-  return { schemaVersion: "p2-weather-current-unit-v3", contentRevision: 0, national: {}, partials: [], histories: [],
-    ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [],
+  return { schemaVersion: "p2-weather-current-unit-v4", contentRevision: 0, national: {}, partials: [], histories: [],
+    ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -435,6 +435,66 @@ describe("P2 weather-current unit", () => {
     const cleared = reduceWeatherCurrentUnit(training, { kind: "coverageConfirmed", operation: "normal",
       family: "VPWW57", subject: record.target.subject, affectedScope: record.target.affectedScope, clock: clock(NOW, 2) });
     expect(cleared.state.freshness).toEqual([]);
+  });
+
+  // acceptance（P3-VM-AC03・AC04）: 同じ時刻（Head と Control/DateTime が同じ）の中身の違う報は current を残し、monitor の unknown と系列の未確認の印を
+  // 付けて保存・復元する。同じ報の再送は duplicate で印を付けない。同じ時刻の取消は勝って印を外す（作者裁定 2026-10-21 昼）。
+  it("P3-VM-T03 acceptance / AC03,AC04: a same-time conflict keeps the current with a saved series mark and a same-time cancel clears it", () => {
+    const state = receive(emptyState(), decodeFixture("15_16_02_251222_VPWW57", "VPWW57")).state;
+    const resend = receive(state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57"));
+    const held = receive(state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => replaceBodyStatus(xml, "解除"), "same-time"));
+    expect([resend.decisions[0], resend.state.unconfirmed, held.decisions[0], held.state.partials, held.state.freshness[0]?.revisionOrder,
+      held.state.unconfirmed.map((item) => item.inputId)]).toEqual([expect.objectContaining({ decision: "unchanged", reason: "duplicate" }), [],
+      expect.objectContaining({ decision: "unchanged", reason: "stale" }), state.partials, "unknown", ["same-time"]]);
+    const restored = weatherCurrentUnitCodec.decode(JSON.parse(JSON.stringify(weatherCurrentUnitCodec.encode(held.state))));
+    expect(restored.kind === "restored" && restored.state.unconfirmed).toEqual(held.state.unconfirmed);
+    const cancelled = receive(held.state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => cancellation(xml, "2020-06-22T23:00:00+09:00"), "cancel"));
+    expect([cancelled.decisions[0].decision, cancelled.state.unconfirmed]).toEqual(["changed", []]);
+  });
+
+  // 実不具合の再発防止（K7 発注 2b のレビュー、P3-VM-AC04）: 全国の subject が入れ替わって前の系列が state から消えたら、その印も消す。
+  // codec は今ある系列に無い印を invalid にする。
+  it("P3-VM-T03 regression / AC04: a national subject replaced by another office takes its series mark with it", () => {
+    const vpws50 = "weather-alert-kind-area/synthetic-vpws50-change-density-before";
+    const first = receive(emptyState(), decodeFixture(vpws50, "VPWS50", bodyWarning)).state;
+    const held = receive(first, decodeFixture(vpws50, "VPWS50", (xml) => bodyWarning(xml).replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>"), "held"));
+    const replaced = receive(held.state, decodeFixture(vpws50, "VPWS50", (xml) => atTime(bodyWarning(xml), "2026-09-06T10:05:00+09:00", "2")
+      .replace("<EditorialOffice>気象庁</EditorialOffice>", "<EditorialOffice>大阪管区気象台</EditorialOffice>"), "other-office"));
+    const orphan = { ...JSON.parse(JSON.stringify(weatherCurrentUnitCodec.encode(replaced.state))), unconfirmed: held.state.unconfirmed };
+    expect([held.state.unconfirmed.length, Object.values(replaced.state.national).map((item) => item?.office), replaced.state.unconfirmed,
+      weatherCurrentUnitCodec.decode(orphan).kind]).toEqual([1, ["大阪管区気象台"], [], "invalid"]);
+  });
+
+  // 実不具合の再発防止（K7 発注 2b のレビュー r2、P3-VM-AC04）: 訓練の全国 A に時刻の無い報の印を付け、上限まで残り 1,800 byte にした state で別の官署 B の
+  // 全国を受ける。採用は収まらず B の capacityExceeded の記録で収まるとき、仮の採用で外れた A の印は戻り、保存・復元の後も残る。
+  it("P3-VM-T03 regression / AC04: a capacity fallback keeps the mark of the national series that only the discarded adoption displaced", () => {
+    const vpws50 = "weather-alert-kind-area/synthetic-vpws50-change-density-before";
+    const training = (office: string, change: (xml: string) => string = (xml) => xml) => (xml: string) =>
+      change(withOperation(bodyWarning(xml), "training")).replace("<EditorialOffice>気象庁</EditorialOffice>", `<EditorialOffice>${office}</EditorialOffice>`);
+    const a = snapshot("training", "VPWS50", "官署A", "2026-09-06T10:00:00+09:00", "a"), filler = snapshot("normal", "VPWS50", "気象庁", "2026-09-06T10:00:00+09:00", "f");
+    const marked = receive({ ...emptyState(), national: { training: a } }, decodeFixture(vpws50, "VPWS50",
+      training("官署A", (xml) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, "$1$2")), "timeless")).state;
+    const size = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
+      capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
+    const padded = (length: number): WeatherCurrentUnitState => ({ ...marked, national: { ...marked.national, normal: { ...filler, phenomena: { padding: "x".repeat(length) } } } });
+    const full = padded(16 * 1024 * 1024 - 1_800 - size(padded(0)));
+    const step = receive(full, decodeFixture(vpws50, "VPWS50", training("官署B", (xml) => atTime(xml, "2026-09-06T10:05:00+09:00", "2")), "other-office"));
+    const restored = weatherCurrentUnitCodec.decode(JSON.parse(JSON.stringify(weatherCurrentUnitCodec.encode(step.state))));
+    expect([marked.unconfirmed.map((item) => item.inputId), step.state.national.training?.subject, step.state.unavailable.map((item) => [item.subject, item.reason]),
+      step.state.unconfirmed, restored.kind === "restored" && restored.state.unconfirmed]).toEqual([["timeless"], a.subject,
+      [["training/VPWS50/官署B", "capacityExceeded"]], marked.unconfirmed, marked.unconfirmed]);
+  });
+
+  // 実不具合の再発防止（K7 発注 2b のレビュー、P3-VM-AC03・P3-AUTH-AC05）: Head が同じで Control/DateTime 14:00 の報、14:02 の断った報（疑いの上限）、
+  // 14:01 の報の順では、14:01 の採用は上限より古いので疑いを解かない。上限以上（14:02）の採用で解く。
+  it("P3-VM-T03 regression / AC03: a suspicion raised by a rejected 14:02 report survives the adoption of an older 14:01 report", () => {
+    const control = (at: string) => (xml: string) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, `$1${at}$2`);
+    const state = receive(emptyState(), decodeFixture("15_16_02_251222_VPWW57", "VPWW57")).state;
+    const suspected = receive(state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => replaceBodyStatus(control("2020-06-22T14:02:00Z")(xml), "未知"), "at-1402"));
+    const older = receive(suspected.state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57", control("2020-06-22T14:01:00Z"), "at-1401"));
+    const reached = receive(older.state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57", control("2020-06-22T14:02:00Z"), "at-1402-valid"));
+    expect([suspected.decisions[0].decision, older.decisions[0].decision, older.state.freshness.map((item) => [item.freshnessSuspect, item.suspectedSource?.inputId]),
+      reached.decisions[0].decision, reached.state.freshness]).toEqual(["rejected", "changed", [[true, "at-1402"]], "changed", []]);
   });
 
   // 実不具合の再発防止（K7 発注 2a の見直し P2、P3-VM-AC08）: 封筒の検査で断った inputId の報は freshness の対象を持たず、保存の世代が

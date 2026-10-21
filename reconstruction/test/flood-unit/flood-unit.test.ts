@@ -191,15 +191,16 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
   // acceptance: 版・取消・期限（AC03）。
   it("P3-C11-T03 acceptance / AC03: revisions, subject-scoped cancel, the 36 h expiry with its desktop notice and late reports", () => {
     const first = send(emptyState(), F.sample);
-    // 同じ版の重複と食い違い（先着を保ち WARN）。
+    // 同じ版の重複と食い違い（先着を保ち WARN、subject に後着の報の未確認の印、P3-VM-AC03・AC04）。
     const duplicate = send(first.state, F.sample);
     expect([shape(duplicate), duplicate.diagnostics]).toEqual([[[SUBJECT, "unchanged", "duplicate"]], []]);
     expect(duplicate.state).toBe(first.state);
     const conflict = send(first.state, F.sample, rivers([group("40")]));
     expect([shape(conflict), conflict.diagnostics]).toEqual([[[SUBJECT, "unchanged", "stale"]],
       [{ level: "WARN", component: "flood", reason: "floodRevisionConflict", inputId: expect.any(String), unit: "U-R" }]]);
-    expect(conflict.state).toBe(first.state);
-    // ReportDateTime が先で Serial は後（09:30 の Serial 2 の訂正、10:00 の Serial 1 の発表を採用）。
+    const { unconfirmed: mark, ...held } = recordOf(conflict.state)!;
+    expect([held, mark?.inputId, roundTrip(conflict.state).kind]).toEqual([recordOf(first.state), conflict.diagnostics[0]?.inputId, "restored"]);
+    // 新旧は Control/DateTime で決め、Serial は使わない（09:30 の Serial 2 の訂正、10:00 の Serial 1 の発表を採用）。
     expect(shape(send(first.state, F.correction))).toEqual([[SUBJECT, "changed", "semantic"]]);
     expect(shape(send(first.state, F.sample, (xml) => serial("1")(retime("2019-05-27T10:00:00+09:00")(xml))))).toEqual([[SUBJECT, "changed", "revisionOnly"]]);
     // 取消は subject だけを cancelled にし、前の事実を戻さない。
@@ -384,17 +385,21 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     expect(roundTrip(grown.state).kind).toBe("restored");
 
     // I-U-R.capacityMeasurement の同時最大状態（実配信の最大の記録の形）と、上限の文字列での上界（I-U-R.capacityReserve）。
-    // どちらも encode でき 16,777,216 byte 以下で decode が受ける。
+    // どちらも encode でき器（maxEnvelopeBytes）以下で decode が受ける。上界は全記録に読み戻しの上限いっぱいの未確認の印を持つ。
     const real = budgetState(false), bound = budgetState(true);
     const sizes = [real, bound].map((item) => Buffer.byteLength(JSON.stringify(floodUnitCodec.encode(item))));
     const one = (value: object) => Buffer.byteLength(JSON.stringify(value));
     console.info("P3-C11 capacity", JSON.stringify({ realPayload: sizes[0], contractReal: 2_925_920 - 293, boundPayload: sizes[1],
-      contractBound: 16_654_688 - 293, realActive: one(real.currents[0]), contractActive: 5_263, realEnded: one(recordOf(watermarkState())!),
+      contractBound: 16_916_487, realActive: one(real.currents[0]), contractActive: 5_263, realEnded: one(recordOf(watermarkState())!),
       contractEnded: 397, realCancelled: one(recordOf(send(emptyState(), F.cancel).state)!), contractCancelled: 401, realIntent: one(template),
-      contractIntent: 955, boundRecord: one(bound.currents[0]), contractBoundRecord: 32_077, counts: [real.currents.length, real.intents.length,
+      contractIntent: 955, boundRecord: one(bound.currents[0]), contractBoundRecord: 32_599, counts: [real.currents.length, real.intents.length,
         bound.intents.length] }));
     for (const item of [real, bound]) expect(roundTrip(item).kind).toBe("restored");
-    expect(Math.max(...sizes)).toBeLessThanOrEqual(16_777_216);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(floodUnitCodec.maxEnvelopeBytes!);
+    // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器を広げた量は印の分だけ。印を外した上界は 16 MiB の内側で、印 1 つは広げた量の 1/512 以下。
+    const markGrowth = floodUnitCodec.maxEnvelopeBytes! - 16_777_216;
+    expect([Buffer.byteLength(JSON.stringify(floodUnitCodec.encode(bound)).replace(/,"unconfirmed":\{[^}]*\}/g, "")) <= 16_777_216,
+      one(bound.currents[0]) - one({ ...bound.currents[0], unconfirmed: undefined }) <= markGrowth / 512]).toEqual([true, true]);
 
     // 保持上限付近で、受信 1 回は記録単位の加算だけ（state・配列・既存の記録を直列化しない）。
     receive(real, report("N9"), clock(now));
@@ -439,6 +444,8 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
       ["subject and operation", renamed("training/VXKO50/123456789012")],
       ["eventId not ASCII", { ...value, currents: [{ ...record, eventId: "１", subject: "normal/VXKO50/１", source: { ...source, subject: "normal/VXKO50/１" } }] }],
       ["inputId over 64", withActive({ source: { ...source, inputId: "i".repeat(65) } })],
+      ["mark inputId over 64", withActive({ unconfirmed: { ...source, inputId: "i".repeat(65) } })],
+      ["mark of another subject", withActive({ unconfirmed: { ...source, subject: "normal/VXKO50/123456789013" } })],
       ["ReportDateTime over 40", withActive({ source: { ...source, reportDateTimeRaw: "2019-05-27T09:00:00.0000000000000000+09:00" } })],
       ["Serial empty", withActive({ source: { ...source, serialRaw: "" } })],
       ["Serial over 10 digits", withActive({ source: { ...source, serialRaw: "12345678901" } })],
@@ -530,8 +537,8 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     expect(levels(send(emptyState(), F.sample, rivers([group("10")])))).toEqual(["desktop:normal", "sound:normal"]);
     expect(levels(follow(send(emptyState(), F.cancel).state, rivers([group("10")]), "2019-05-27T12:30:00+09:00"))).toEqual(["desktop:normal", "sound:normal"]);
     expect(follow(ended.state, rivers([group("10")]), "2019-05-27T09:40:00+09:00").intents).toEqual([]);
-    // 訂正は事実が同じでも作る（normal、[訂正]・「訂正: 」）。記憶だけの取消では作らない。取消は cancel。
-    const corrected = send(first.state, F.sample, replaceTag("InfoType", "訂正"));
+    // 訂正は事実が同じでも作る（normal、[訂正]・「訂正: 」）。記憶だけの取消では作らない。取消は cancel。訂正は後の Control/DateTime（P3-VM-AC03）。
+    const corrected = send(first.state, F.sample, (xml) => replaceTag("InfoType", "訂正")(retime("2019-05-27T09:00:30+09:00")(xml)));
     expect([shape(corrected), corrected.intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body])]).toEqual([
       [[SUBJECT, "changed", "revisionOnly"]], [["updated", "normal", "[訂正] ○○川上流氾濫警戒情報", `訂正: ${HEADLINE}`],
         ["updated", "normal", "[訂正] ○○川上流氾濫警戒情報", `訂正: ${HEADLINE}`]]]);
@@ -631,10 +638,11 @@ function budgetState(bounded: boolean): FloodUnitState {
     const subject = `${operation}/VXKO50/${id}`;
     // 上界: A1 の形で 40 文字の時刻（retainUntil は 15 桁）、decode が通す最悪の InfoType の raw（trim で消え JSON で 6 byte の U+000B を 6 個）。
     const reportDateTimeRaw = bounded ? "9999-12-31T23:59:59.99999999999999-23:59" : seed.source.reportDateTimeRaw;
-    const source = { inputId: "i".repeat(bounded ? 64 : 36), origin: "live" as const, operation, family: "VXKO50", subject, reportDateTimeRaw,
-      controlDateTimeRaw: reportDateTimeRaw,
+    const source = { inputId: "i".repeat(bounded ? 64 : 36), origin: bounded ? "recovery" as const : "live" as const, operation, family: "VXKO50", subject,
+      reportDateTimeRaw, controlDateTimeRaw: reportDateTimeRaw,
       serialRaw: bounded ? "1234567890" : "3", infoTypeRaw: bounded ? `${"\u000b".repeat(6)}訂正` : "発表" };
-    const base = { subject, operation, headType: "VXKO50", eventId: id, source, retainUntil: Date.parse(reportDateTimeRaw) + RETAIN };
+    const base = { subject, operation, headType: "VXKO50", eventId: id, source, retainUntil: Date.parse(reportDateTimeRaw) + RETAIN,
+      ...bounded ? { unconfirmed: { ...source } } : {} };
     if (!bounded) return { ...seed, ...base };
     const kinds = Array.from({ length: 16 }, (_, at) => ({ code: String(60 + at), name: kanji(32), level: null,
       rivers: Array.from({ length: 2 }, () => ({ code: digits(code++, 16), name: kanji(32) })) }));
