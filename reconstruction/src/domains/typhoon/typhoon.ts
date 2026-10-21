@@ -150,17 +150,17 @@ function parseFrame(info: XmlElement, now: boolean, report: Found): Readonly<{ f
 
   // P3-WS-D-TYPHOON (4): 時刻の中の欄の不備はその時刻だけの記録で受け、欄を null にして truncated にする。
   const found: Found = { missing: false, invalid: false, truncated: false };
-  const properties = new Map<string, XmlElement>(), twice = new Set<string>();
+  // 同じ Type の Property は後のもので上書きせず、全部を無いもの（null）とする（推測を止める）。
+  // 消さずに null を残すので、3 個目も has で既出と分かり、復活しない。
+  const properties = new Map<string, XmlElement | null>();
   for (const kindNode of children(items[0], "Kind"))
     for (const property of children(kindNode, "Property")) {
       const type = children(property, "Type")[0];
       const key = type == null ? null : scalar(type);
       if (key == null) continue;
-      if (properties.has(key)) twice.add(key);
-      properties.set(key, property);
+      if (properties.has(key)) found.invalid = true;
+      properties.set(key, properties.has(key) ? null : property);
     }
-  // 同じ Type の Property は後のもので上書きせず、全部を無いものとする（推測を止める）。
-  for (const key of twice) { properties.delete(key); found.invalid = true; }
   const naming = properties.get("呼称");
   const namePart = children(naming ?? null, "TyphoonNamePart")[0] ?? null;
   const name = naming == null ? null : nameOf(namePart, found);

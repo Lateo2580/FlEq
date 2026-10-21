@@ -642,10 +642,9 @@ describe("P3-CK-T02 contractBoundary / AC02・AC03: the publisher holds a restor
     await r.h.root.diagnostics.flush();
   });
 
-  it("(f) stopping while awaiting, turning unverified during the stop, or with the reservation answers pending: expired before the final save", async () => {
+  it("(f) stopping while awaiting or with the reservation answers pending: expired before the final save", async () => {
     const cases: readonly [string, WallBasis, (basis: { value: WallBasis }, release: () => void) => void][] = [
       ["awaiting", "awaiting", () => {}],
-      ["unverified during the stop", "awaiting", (basis) => { basis.value = "unverified"; }],
       ["reservation answers pending", "verified", (basis, release) => { basis.value = "awaiting"; release(); }],
     ];
     for (const [name, initial, during] of cases) {

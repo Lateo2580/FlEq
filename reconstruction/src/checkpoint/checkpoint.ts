@@ -74,7 +74,7 @@ function envelopeBytes(
     unit: envelope.unit,
     generation: envelope.generation,
     capturedAt: envelope.capturedAt,
-    payload: envelope.payload, ...(envelope.inputBoundary === undefined ? {} : { inputBoundary: envelope.inputBoundary }),
+    payload: envelope.payload, inputBoundary: envelope.inputBoundary,
     sha256,
   }));
 }
@@ -639,25 +639,24 @@ const INPUT_BOUNDARY_MAX_BYTES = encoder.encode(`,"inputBoundary":${JSON.stringi
   receivedAt: { wallTimeMs: -0.0000012345678901234567, basis: "unverified" }, dmdataTime: -0.0000012345678901234567,
   dmdataId: "\"".repeat(128), oldestHole: "disconnected" })}`).byteLength;
 
-// P3-VM-AC06: 保存の envelope の inputBoundary を項目ごとに確かめて組み立てる。欄が無ければ旧い envelope として欄を足さない
-// （再直列化の照合を欄の無い形で行う）。形の崩れは null（その slot は invalid）。
+// P3-VM-AC06: 保存の envelope の inputBoundary を項目ごとに確かめて組み立てる。形の崩れは null（その slot は invalid）。余分な
+// キーと欄の欠けは再直列化の照合で拒否される。
 const holeKinds: readonly InputHole[] = ["refused", "disconnected", "restarted"];
 const basisKinds: readonly WallBasis[] = ["awaiting", "verified", "unverified"];
-const plain = (value: unknown, keys: number): value is Readonly<Record<string, unknown>> =>
-  value != null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === keys;
+const plain = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  value != null && typeof value === "object" && !Array.isArray(value);
 
-function readBoundary(record: Readonly<Record<string, unknown>>): Readonly<{ inputBoundary?: InputBoundary | null }> | null {
-  if (!Object.hasOwn(record, "inputBoundary")) return {};
+function readBoundary(record: Readonly<Record<string, unknown>>): Readonly<{ inputBoundary: InputBoundary | null }> | null {
   const value = record.inputBoundary;
   if (value === null) return { inputBoundary: null };
-  if (!plain(value, 4)) return null;
+  if (!plain(value)) return null;
   const { receivedAt, dmdataTime, dmdataId, oldestHole } = value;
   const time = dmdataTime === null ? null : typeof dmdataTime === "number" && Number.isFinite(dmdataTime) ? dmdataTime : undefined;
   const id = dmdataId === null ? null : dmdataIdOf(dmdataId) ?? undefined;
   const hole = oldestHole === null ? null : holeKinds.find((kind) => kind === oldestHole);
   let received: InputBoundary["receivedAt"] | undefined = null;
   if (receivedAt !== null) {
-    const shaped = plain(receivedAt, 2);
+    const shaped = plain(receivedAt);
     const wallTimeMs = shaped && typeof receivedAt.wallTimeMs === "number" && Number.isFinite(receivedAt.wallTimeMs) ? receivedAt.wallTimeMs : undefined;
     const basis = !shaped ? undefined : receivedAt.basis === null ? null : basisKinds.find((kind) => kind === receivedAt.basis);
     received = wallTimeMs === undefined || basis === undefined ? undefined : { wallTimeMs, basis };
@@ -668,18 +667,18 @@ function readBoundary(record: Readonly<Record<string, unknown>>): Readonly<{ inp
 
 // P3-VM-AC07: publisher が unit ごとに持つ未解決の列。境界は「受信の順でそこ以前の、その unit に振り分けた入力がすべて処理され、
 // この世代に入っている位置」で、書込み権を出すときの最古の未解決の直前の入力（未解決が無ければ受信末尾）。書込み権は parser 入力の
-// 処理中には出ないので、そこまでの入力は capture した state に入っている。持つのは処理待ち（mailbox の 128 件で有界）・穴の区間
-// （64）・受信末尾 1 件の材料だけで、完了した入力の材料は捨てる（Q-VM-COST）。穴（断った入力・切断・再起動）は C16 まで解決しない。
+// 処理中には出ないので、そこまでの入力は capture した state に入っている。持つのは処理待ち（mailbox の 128 件で有界）・最古の穴
+// 1 件・受信末尾 1 件の材料だけで、完了した入力の材料は捨てる（Q-VM-COST）。穴（断った入力・切断・再起動）は C16 まで解決しないので、
+// 境界を決めるのは最古の穴だけ。
 // 優先度で後着を先に処理しても、先着の処理待ちが残る間は境界はその前で止まる（メモ §2.4 の受信順 10 と 11）。
 type MailboxItem = import("../../contracts/p1-parser-boundary.types").ParserMailboxItem;
 type BoundaryPosition = Omit<InputBoundary, "oldestHole">;
-type InputHoleRange = { from: number; to: number; readonly kind: InputHole; readonly before: BoundaryPosition | null };
+type OldestHole = Readonly<{ from: number; kind: InputHole; before: BoundaryPosition | null }>;
 type UnitInputs = { tail: Readonly<{ sequence: number; position: BoundaryPosition }> | null;
-  readonly pending: Map<number, BoundaryPosition | null>; readonly holes: InputHoleRange[] };
-const HOLE_LIMIT = 64; // 置き値（P3-VM-AC07）
+  readonly pending: Map<number, BoundaryPosition | null>; oldestHole: OldestHole | null };
 
 class InputBoundaries {
-  private readonly units = new Map<UnitId, UnitInputs>(runtimeUnits.map((unit) => [unit, { tail: null, pending: new Map(), holes: [] }]));
+  private readonly units = new Map<UnitId, UnitInputs>(runtimeUnits.map((unit) => [unit, { tail: null, pending: new Map(), oldestHole: null }]));
 
   // mailbox が受けた入力。basis は host が frame の entry を読んだ時点の根拠で、受信時刻と一緒に運ぶ（K9 の前は null、AC06）。
   queued(item: MailboxItem, basis: WallBasis | null): void {
@@ -707,7 +706,7 @@ class InputBoundaries {
   restarted(unit: UnitId, restoration: "restored" | "empty" | "unavailable", restored: InputBoundary | null): void {
     if (restoration === "empty") return;
     const before = restored == null ? null : { receivedAt: restored.receivedAt, dmdataTime: restored.dmdataTime, dmdataId: restored.dmdataId };
-    this.units.get(unit)!.holes.push({ from: 0, to: 0, kind: restored?.oldestHole ?? "restarted", before });
+    this.units.get(unit)!.oldestHole ??= { from: 0, kind: restored?.oldestHole ?? "restarted", before };
   }
 
   // owner が処理を終えた入力（decode で拒否した入力も処理済み）。
@@ -717,7 +716,7 @@ class InputBoundaries {
 
   boundary(unit: UnitId): InputBoundary | null {
     const record = this.units.get(unit)!;
-    const hole = record.holes[0];
+    const hole = record.oldestHole;
     let before = hole == null ? record.tail?.position ?? null : hole.before;
     // Map は入れた順（受信の順）なので先頭が最古の処理待ち。
     for (const [sequence, position] of record.pending) { if (hole == null || sequence < hole.from) before = position; break; }
@@ -735,13 +734,8 @@ class InputBoundaries {
       position: { receivedAt: { wallTimeMs: item.receivedAt, basis }, dmdataTime: null, dmdataId: item.dmdataId } };
   }
 
-  // 隣り合う穴（間にこの unit へ振り分けた入力が無い）は 1 つにまとめる。64 を越えたら新しい側の 2 つをまとめ、最古の位置と
-  // 古い側の材料を残す（取り直す範囲が広がるだけ）。
   private hole(record: UnitInputs, sequence: number, kind: InputHole): void {
-    const last = record.holes.at(-1);
-    if (last != null && (record.tail?.sequence ?? -1) <= last.to) { last.to = Math.max(last.to, sequence); return; }
-    record.holes.push({ from: sequence, to: sequence, kind, before: record.tail?.position ?? null });
-    if (record.holes.length > HOLE_LIMIT) { const newest = record.holes.pop()!; record.holes.at(-1)!.to = newest.to; }
+    record.oldestHole ??= { from: sequence, kind, before: record.tail?.position ?? null };
   }
 }
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "2a120d10149e7a9bbfaeac9730d702874547a8d5c93a0f2b8d3af0f59598d30f",
+    "sha256": "ad4d1e42c3ce195653f2b8013d88a161b7c8fc601f3c91fd97c4b88ff4c467d2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -108,6 +108,14 @@
         "closed": "実装の patch（8 file、+297 −118）を 2 段のレビューにかけた。契約適合 Opus は GO（P1・P2 なし。他の契約の anchor は全部同じ行のまま、AC09(4) の行の数の制約 4 つも守られている）。品質 Opus は条件付き GO で、P2 1 件（台風の確率の報で、知らない節・1〜5 日の外の節・止めた時間帯を落とした結果、読めた地域が 0 件になると zero の候補になり、typhoon-unit の zeroRecord が『暴風域に入る確率1%以上の地域なし』の released を出す）と P3 2 件（readable の道筋と capacityExceeded の早い戻りの診断を確かめる試験が無い）を修正波 1 で直した。P2 は、落としたものがあって読めた地域が 0 件の報を requiredStructureInvalid で拒否する形にした（P3-WS-T04 に 1 行）。直さなかった P3: typhoon.ts の labelOf の二度読みと PARTS の展開の定数化（効きが無く行がずれるだけ）、Area の無い Item の拒否の理由が requiredStructureInvalid から identityMissing に変わること（AC10 で識別の検査の絞り込みを外した結果で、意図どおり）、受理と truncated に変わった行の追加の試験（testMapping が求めていない）。ゲート（Mac mini、Node 26.10.0）: tsc 3 本・vitest 755 passed／23 skipped（base 750）・shuffle 同じ・check-manifest・check-sequences は exit 0。check-contract の FAIL は本契約の anchor だけで、配送の commit で付け直した（AC09(4)。行が動いただけの 18 件は同じ行へ、書き換わった行を引く 37 件は差分の hunk で当たる書き換え後の行へ、そのうち同じ配列で重なった 2 件は 1 件にまとめた）",
         "remaining": "読めた地域が 0 件で落としたものがある台風の確率の報の拒否を、Q-WS-REJECTIONS の拒否のまま残す一覧に加えて K14 の入力（H43 の読めなかった電文のカード）に渡す（統合担当、段 3）。AC06 の W1 の測り直しは配送の後に Mac mini で行う",
         "reason": "拒否に戻したのは、読んでいない節や時間帯に 1% 以上の地域があっても解除の通知を出すと、H51 の『黙って断らない』より重い、誤った安心を伝える形になるため。拒否は診断が付くので黙らない"
+      },
+      {
+        "id": "Q-WS-SIMPLIFY",
+        "status": "closed",
+        "source": "統合担当の簡素化（2026-10-21、作者の指示「問題対処のパッチが増えていないか(シンプルで堅牢の原則を守れているか)」。ヘルツ Astra xhigh と Opus の監査を突き合わせ、画面・音・通知の出方を変えない削りだけを採った。実装は Opus の子、品質の見直し ヘルツ GO、ゲート Mac mini で tsc 3 本・vitest 778 passed（通常・shuffle）・checker 3 本 exit 0）",
+        "closed": "AC02・AC10 の WARN の count を『範囲の中の period の数』から『受け取った報の period の数』に読み替えた。範囲の真偽を祖先から渡す引数（inSeries・inItem・inKind・inProperty・inPart・inScope）、unclearTimes、ownValue の中の数え方を削った（今の消費者は診断の数字だけで、範囲の印を保存するのは K14）。知らないものだけの範囲を missing にしない規則（Q-WS-LEVELS）と INFO の skipped は保つ。typhoon の Property の重複は、別の Set と削除のループをやめ、重複したキーを null にして has で既出を見る（重複した欄は採らない、truncated は保つ）",
+        "remaining": "範囲の印と影響した period の数が要るなら K14 で印の形と一緒に作る（本契約の本文の AC02・AC10 の行は他から引かれうるので書き換えない）",
+        "reason": "削っても既知の値の保持・知らない要素の検知・拒否の一覧は変わらない"
       }
     ],
     "operationContract": {
@@ -236,7 +244,7 @@
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:214 «1e2d2170f1ec73a3»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:215 «135ad5a01afb711d»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:216 «0852043357bb7b1b»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:229 «c982646406c2faea»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:230 «c982646406c2faea»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:246 «2ca242e71af35dbc»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:247 «d054d207fed1caf8»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:248 «5f58f878a2a7ca67»",
@@ -297,7 +305,7 @@
           "reconstruction/contracts/p3-typhoon-unit.json:440 «45e0f81b8c433afc»",
           "reconstruction/contracts/p3-typhoon-unit.json:441 «3b3587577b6fe5e3»",
           "reconstruction/contracts/p3-typhoon-unit.json:915 «b7d34b699b71c13a»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:159 «1fe93b1cae45b127»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:161 «5cf58eab3ec62706»",
           "reconstruction/src/domains/typhoon/typhoon.ts:203 «ab68efdc30d82239»",
           "reconstruction/src/domains/typhoon/typhoon.ts:234 «844490aedc0ee871»",
           "reconstruction/src/domains/typhoon/typhoon.ts:376 «d4062ebdcb0992d0»",
@@ -387,15 +395,15 @@
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:98 «00c89d8b53e62052»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:104 «4fef6a929cca29bc»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:112 «b96be72936006503»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:123 «45c519bc025d73fb»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:123 «15e9ab931116734c»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:162 «a5105e5cdfdd13f2»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:169 «cc1207d1831c1898»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:174 «9613d72edee4d1b1»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:174 «877b6bea0ce2eefa»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:188 «0cc1617657aa5a52»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:195 «f0b1e4a1768f4ee3»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:204 «540b6f409d161d69»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:228 «94c0ac638242c610»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:238 «addbdce2af96f581»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:195 «29fd6c068ae04d79»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:204 «f61d0534cc5299c0»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:229 «94c0ac638242c610»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:238 «f9225f5afcb0cf70»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:243 «df4ece2eba4d7b36»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:257 «f613e7b4bcbf10e0»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:274 «1884fdcfaff2104f»",

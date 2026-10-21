@@ -1315,7 +1315,7 @@ it("I03 contractBoundary / AC08: restart selects only valid slots and never rest
     const a = join(h.config.stateDirectory, "U-F-A.json");
     const b = join(h.config.stateDirectory, "U-F-B.json");
     const envelope = (generation: number, schemaVersion = codec.schemaVersion, payload: JsonValue = "payload") =>
-      serializedEnvelope(hashEnvelope({ unit: "U-F", generation, schemaVersion, capturedAt: h.clock().wallTimeMs, payload }));
+      serializedEnvelope(hashEnvelope({ unit: "U-F", generation, schemaVersion, capturedAt: h.clock().wallTimeMs, payload, inputBoundary: null }));
     const broken = new TextEncoder().encode('{"generation":');
     if (scenario !== "empty" && scenario !== "tmp") {
       h.bytes.set(a, envelope(1)); h.bytes.set(b, envelope(2));

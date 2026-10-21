@@ -931,21 +931,19 @@ describe("P3-WEATHER-SHAPE-001 U-F reading", () => {
     expect([unclear.warning, below.warning]).toEqual([advisory.warning, advisory.warning]);
   });
 
-  // contractBoundary: 外の階層の知らない子は読まずに残りを今どおり読み、範囲の period を WARN の count に数える。
+  // contractBoundary: 外の階層の知らない子は読まずに残りを今どおり読み、WARN を 1 件出す（count は報の period の数）。
   it("P3-WS-T05 contractBoundary / P3-WS-AC10,AC02: an unknown child outside the value level keeps the rest and counts its scope", () => {
     const scope = (count: number) => [{ level: "WARN", component: "weather-timeseries", reason: "weatherTimeseriesScopeUnclear", inputId: big, unit: "U-F", count }];
-    const firstKind = /<Kind>[\s\S]*?<\/Kind>/.exec(bigXml)![0];
+    const firstKind = /<Kind>[\s\S]*?<\/Kind>/.exec(bigXml)![0], all = first(atReport(big).state).periods.length;
     const inKind = atReport(big, (xml) => xml.replace("<Kind>", "<Kind><Remark>x</Remark>"));
-    expect([json(inKind), inKind.diagnostics]).toEqual([plainBig, scope(firstKind.split("refID=").length - 1)]);
+    expect([json(inKind), inKind.diagnostics]).toEqual([plainBig, scope(all)]);
     const inTime = atReport(big, (xml) => xml.replace('<TimeDefine timeId="1">', '<TimeDefine timeId="1"><Remark>x</Remark>'));
-    // timeId は系列ごと。差し込んだのは最初の系列の TimeDefine なので、その系列の中で引く period を数える。
-    const firstSeries = /<TimeSeriesInfo>[\s\S]*?<\/TimeSeriesInfo>/.exec(bigXml)![0];
-    expect([json(inTime), inTime.diagnostics]).toEqual([plainBig, scope(firstSeries.split('refID="1"').length - 1)]);
+    expect([json(inTime), inTime.diagnostics]).toEqual([plainBig, scope(all)]);
     // 知らないものだけの Property は period 0 のまま受理し、ほかの Property の period は差し込む前と同じ。
     const newPart = fixture(big, (xml) => xml.replace(/<SignificancyPart>[\s\S]*?<\/SignificancyPart>/, "<NewPart>x</NewPart>"));
     const onlyNew = receive(empty(), newPart, Date.parse(newPart.reportDateTimeRaw));
-    expect([onlyNew.decisions[0].decision, onlyNew.diagnostics]).toEqual(["changed", scope(0)]);
-    expect(first(onlyNew.state).periods).toHaveLength(first(atReport(big).state).periods.length - (firstKind.split("refID=").length - 1));
+    const kept = all - (firstKind.split("refID=").length - 1);
+    expect([onlyNew.decisions[0].decision, onlyNew.diagnostics, first(onlyNew.state).periods.length]).toEqual(["changed", scope(kept), kept]);
     expect(storedMeaning(first(onlyNew.state))).toEqual(xmlMeaning(newPart));
     // 報全体が知らないものだけなら period 0 件で拒否する（なしに読み替えない）。
     const seeded = atReport(big).state;

@@ -125,7 +125,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       id: `${eewIntent.subject}:1:${channel}` }));
     await fileSystem.mkdir(settings.stateDirectory, { recursive: true });
     await fileSystem.writeFile(join(settings.stateDirectory, "U-E-A.json"), serializedEnvelope(hashEnvelope({
-      schemaVersion: eewUnitCodec.schemaVersion, unit: "U-E", generation: 7, capturedAt: 1,
+      schemaVersion: eewUnitCodec.schemaVersion, unit: "U-E", generation: 7, capturedAt: 1, inputBoundary: null,
       payload: eewUnitCodec.encode({ ...fixtureState().units["U-E"], intents: notices }),
     })));
     const at = { wallTimeMs: 10, monotonicMs: 10 };
@@ -167,7 +167,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const initial = fixtureState();
     const payload = eewUnitCodec.encode({ ...initial.units["U-E"], intents: [eewIntent] });
     const envelopeBytes = hashEnvelope({ schemaVersion: eewUnitCodec.schemaVersion,
-      unit: "U-E", generation: 3, capturedAt: 10, payload });
+      unit: "U-E", generation: 3, capturedAt: 10, payload, inputBoundary: null });
     await fileSystem.writeFile(join(settings.stateDirectory, "U-E-A.json"), serializedEnvelope(envelopeBytes));
     const at = { wallTimeMs: 16_000, monotonicMs: 45 };
     const h = wired(settings, { clock: () => at });

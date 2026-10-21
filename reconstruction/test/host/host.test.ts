@@ -1291,7 +1291,7 @@ describe("P3-CLOCK-CHECK-001 the host checks its clock against dmdata's times (P
     expect([probes(), basisNow()]).toEqual([4, "unverified"]);
     k9.skew = -4_000;
     await tickAt(2_430_000);
-    expect([probes(), basisNow()]).toEqual([5, "verified"]);
+    expect([probes(), basisNow()]).toEqual([5, "unverified"]);
     await tickAt(3_030_000);
     expect([probes(), deliveries.delivered]).toEqual([5, 0]);
   });
@@ -1319,11 +1319,10 @@ describe("P3-CLOCK-CHECK-001 the host checks its clock against dmdata's times (P
       await tickAt(30_200);
       if (expired) {
         await until(async () => (await runtimeLines(dirs.diagnosticDirectory, "notificationExpiredClockUnverified")).length === 1);
-        expect(roots.options!.wallBasis!({ wallTimeMs: K9_WB, monotonicMs: K9_M0 + 29_000 })).toBe("verified");
-        expect([deliveries.delivered, roots.options!.clockDeadlineMissed!()]).toEqual([0, true]);
+        expect([deliveries.delivered, roots.options!.wallBasis!({ wallTimeMs: K9_WB, monotonicMs: K9_M0 + 29_000 })]).toEqual([0, "unverified"]);
       } else {
         await until(() => deliveries.delivered === 2);
-        expect(roots.options!.clockDeadlineMissed!()).toBe(false);
+        expect(basisNow()).toBe("verified");
       }
       await host.stop();
       vi.useRealTimers();

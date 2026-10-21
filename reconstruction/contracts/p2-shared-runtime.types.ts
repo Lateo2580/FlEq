@@ -512,7 +512,7 @@ export type CheckpointEnvelope = Readonly<{
   unit: UnitId;
   generation: number;
   capturedAt: number;
-  payload: JsonValue; inputBoundary?: InputBoundary | null; // P3-VM-AC06: 欄の無い旧い envelope は省略のまま読み、照合する（境界は null と読む）
+  payload: JsonValue; inputBoundary?: InputBoundary | null; // P3-VM-AC06: 書き手は常に書き、欄の無い保存は読み戻しで拒否する。省略は各 unit の上界を測る式だけ（JSON に出ない）
   sha256: string;
 }>;
 

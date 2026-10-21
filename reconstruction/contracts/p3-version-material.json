@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "6512956f53041c58dd8590114dfb007d50690908d623210b0fa93baeeb259ec7",
+    "sha256": "8b5027f65ca95f4873e89abed00abb3fa0d89bfe9b712175c591f79d1ee04c90",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -137,6 +137,14 @@
         "closed": "発注 1（AC05〜AC07）を配送した。品質レビュー ヘルツ（Astra high）は NO-GO→NO-GO→NO-GO→NO-GO→GO、契約適合 Opus は条件付き GO（P1 なし）。3 巡目の NO-GO の後に修正の繰り返しを止め、ヘルツ（Astra medium、新しいスレッド）と設計を確かめ直して形を変えた。直したもの: (1) inputBoundary が各 unit の世代の上界から漏れていた（新しい保存が上限を越えたまま書込みと ack が成立する）→ dmdataId を印字できる ASCII（0x21〜0x7E）の 1〜128 byte に限り（外れたら null、checkpoint.ts の dmdataIdOf、ingress と読み戻しの両方）、境界の JSON の最大 INPUT_BOUNDARY_MAX_BYTES＝430 byte を 12 unit の上界に予約した。U-E は capturedAt の予約を 25 文字に広げた（generationByteLength）。(2) 予約込みの上界を受理と codec の encode・decode の全経路でそろえた（読み戻しだけ前の上限で見る例外は、復元後の intentUpdate や再起動の穴で上限を越えるので採らなかった）。U-W の codec も envelope と境界の予約を数える。(3) capture は作った bytes の byteLength を unit ごとの上限（UnitCodec.maxEnvelopeBytes）と比べ、越えたら書かずに failed（stage encode）にする（最後の守り）。(4) 現行の版の slot と一覧に無い版の slot が並んだときは checkpointRestoreRejected を出し、OwnerReply.restored の unit の要素の saves で publisher がその unit をその run の書込み権の候補から外す。(5) 試験の配線: host 経由の overload と connectionLost で穴の種類が envelope に出る試験、穴の 64 個の上限の試験、捨てた診断の component。ゲート（Mac mini、Node 26.10.0）: tsc 3 本・vitest 763 passed／23 skipped（base 755）・shuffle 同じ・check-manifest・check-sequences は exit 0。check-contract の FAIL は anchor の移動と版の文字列の行だけで、配送の commit で 7 契約の anchor と sha256 を付け直した（動いた行は行番号を、中身の変わった行は差分で当たる行へ。本文は書き換えない）",
         "remaining": "発注 2a で schemaVersion を v2→v3 に上げるとき、v2 も各 codec の discardableSchemaVersions に足す。2a の AC08 の世代の上界の数え直しは、INPUT_BOUNDARY_MAX_BYTES（430）と U-E の capturedAt の 25 文字を前提にする。test/eew-e01 の測定の道具は v2 を書くので、evidence の v1 の state を読むと捨ててよい版として empty から始まる（evidence は変えていない、AC09(18)）。C16 への申し送り: 捨てた旧い版から empty で始まった unit と、保存の前に落ちた unit は、穴の無いまま境界が進む（Opus の P3）。版の引上げを発注 1 へ前倒ししたので、配送済みの契約の文面が実装と食い違う所が残る: P2-A3-AC09（p2-checkpoint-shutdown.json の「未知 schema の既存 slot を空 state で自動上書きせず」。捨ててよい旧い版の一覧に載せた版は本契約の AC05 の例外として発注 1 から効いている）、P3-AUTH-AC06 と P3-CC-AC05 の「schemaVersion を据え置いて」、12 unit の契約の json に残る「-unit-v1」、p3-weather-shape.json の「v1 のまま」。本契約の AC09 の (6)(7)(8)(9)(12)(17) の原文の改訂は、発注 2a の配送の commit でまとめて当て、(17) の版は v3 にする。移行A1 の試験（nankai-unit・volcano-unit）は版の文字列を置き換えたので、鍵の無い v2 の payload を読む形になっている（2a で見直す）",
         "reason": "AC05・AC06・Q-VM-SPLIT を次のとおり読み替える（行は他の契約から引かれているので書き換えない）。作者裁定（2026-10-20、p3-order-plan.md の末尾「新築の開発用の保存は P5 の前は初期化してよい」）で裏づくのは、版の引上げと旧い版を捨てることだけで、ほかは統合担当の判断（どれも画面の出る・出ないを変えない）。AC05 の『一覧に登録した旧い版』と Q-VM-SPLIT の『全 12 unit の schemaVersion の引上げは発注 2a』: 発注 1 で全 12 unit を v1→v2 に上げて v1 を一覧に登録した（予約で上界が締まり、前の上限ぎりぎりの v1 の保存は予約込みでは読めないので、invalid→unavailable で保存を止めるより、版で初期化するほうが裁定に合う）。2a はさらに v2→v3 に上げる。AC06 の『欄の無い旧い envelope は捨てずに読む』: v2 の中で欄の無い envelope は今どおり捨てずに読む。v1 の slot は版で捨てる。統合担当の判断: Q-VM-SPLIT の「unit の file は触らない」は、上界の予約と版の定数のために撤回した（12 unit の行の数は変えない）。AC06 の dmdataId は印字できる ASCII の 128 byte 以下に絞った（上界を定数で数えるため）。AC06 の『restoration（RuntimeRestoration・RestoreUnitResult の restored）に載せて』: 復元した境界は OwnerReply.restored の unit の要素（inputBoundary・saves）に載せる。RuntimeRestoration は DisplayRecoveryView でもあり、載せると dmdataId が画面向けの snapshot に出るため。AC05(3) の『最初の保存で旧い slot を上書き』: 旧い版が B にあり A が無いか壊れているとき、最初の保存は A に書き、旧い slot が消えるのは 2 回目の保存（次の起動は (2) の扱いになるので害が無い）"
+      },
+      {
+        "id": "Q-VM-SIMPLIFY",
+        "status": "closed",
+        "source": "統合担当の簡素化（2026-10-21、作者の指示「問題対処のパッチが増えていないか(シンプルで堅牢の原則を守れているか)」。ヘルツ Astra xhigh と Opus の監査を突き合わせ、画面・音・通知の出方を変えない削りだけを採った。実装は Opus の子、品質の見直し ヘルツ GO、ゲート Mac mini で tsc 3 本・vitest 778 passed（通常・shuffle）・checker 3 本 exit 0）",
+        "closed": "AC07 の穴の列（64 区間で持ち、隣り合う穴と上限のときに結合する）を、最古の穴 1 件だけを持つ形に読み替えた（境界が読むのは最古の穴の位置と種類だけで、保存される境界は同じ）。AC06 の『欄の無い旧い envelope は捨てずに読む』は、全 12 unit を v2 に上げ v1 を版で捨てる（Q-VM-IMPL-1）ので、v2 の中で欄の無い envelope は invalid として扱う（今の書き手は常に inputBoundary を書く。型の inputBoundary? は、各 unit の上界の式が欄の無い envelope を測るのに使うので省略できる形のまま）。境界の読み戻しのキー数の検査を削った（余分なキーは再直列化の照合で拒否される）",
+        "remaining": "穴の後ろの区間を部分的に解く要求が出たら C16 で穴の列を設計する（Q-VM-C16-HANDOFF）",
+        "reason": "今の run で穴の列を読む所は最古の 1 件だけ"
       }
     ],
     "operationContract": {

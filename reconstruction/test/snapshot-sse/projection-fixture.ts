@@ -70,8 +70,8 @@ function writeSlots(directory: string, restored: Restored): void {
     if (codec == null) continue;
     const slot = (name: string, value: Uint8Array | string) => writeFileSync(join(directory, `${unit}-${name}.json`), value);
     const valid = (capturedAt: number, schemaVersion = codec.schemaVersion) => serializedEnvelope(hashEnvelope({
-      schemaVersion, unit, generation: 1, capturedAt, payload: initialPayload(unit) }));
-    if (result.kind === "restored") slot(result.slot, serializedEnvelope(hashEnvelope({ ...result.envelope })));
+      schemaVersion, unit, generation: 1, capturedAt, payload: initialPayload(unit), inputBoundary: null }));
+    if (result.kind === "restored") slot(result.slot, serializedEnvelope(hashEnvelope({ inputBoundary: null, ...result.envelope })));
     else if (result.kind === "unavailable" && result.reason === "noValidSlot") slot("A", "invalid");
     else if (result.kind === "unavailable" && result.reason === "unknownSchema") slot("A", valid(1, "unknown-schema"));
     else if (result.kind === "unavailable") { slot("A", valid(1)); slot("B", valid(2)); }

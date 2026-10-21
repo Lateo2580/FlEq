@@ -129,7 +129,7 @@ class MemoryCheckpointFileSystem implements CheckpointFileSystem {
   readonly files = new Map<string, Uint8Array>();
   seed(state: WeatherCurrentUnitState, generation: number, capturedAt: number) {
     this.files.set(resolve(config().stateDirectory, "U-W-A.json"), serializedEnvelope(hashEnvelope({
-      schemaVersion: state.schemaVersion, unit: "U-W", generation, capturedAt,
+      schemaVersion: state.schemaVersion, unit: "U-W", generation, capturedAt, inputBoundary: null,
       payload: weatherCurrentUnitCodec.encode(state),
     })));
   }

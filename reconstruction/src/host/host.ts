@@ -125,7 +125,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   const CLOCK_WAIT_MS = 30_000, CLOCK_TOLERANCE_MS = 5_000, CLOCK_PAUSE_MS = 1_000;
   // t0: startRuntime に渡した時計の monotonic。seenMs: host が見た最新の読み。inTime: M が締切より前の合う確かめがあった。
   let t0 = Infinity, seenMs = -Infinity, verified = false, inTime = false, deadlineMissed = false;
-  // P3-CK-AC01 (3)(5): 締切の印は一度立てたら下ろさない。過去の時計を渡されても seenMs は戻らない。
+  // P3-CK-AC01 (3)(5): 締切の印は一度立てたら下ろさない。過去の時計を渡されても seenMs は戻らない。通知用の根拠（root の wallBasis）は先に今の観測を渡してから印を読み、印を状態より先に見る。
   const wallBasis = (at: ClockReading): WallBasis => {
     if (at.monotonicMs > seenMs) seenMs = at.monotonicMs;
     if (!inTime && seenMs >= t0 + CLOCK_WAIT_MS) deadlineMissed = true;
@@ -172,7 +172,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     root = new RuntimeCompositionRoot({ appName: config.dmdata?.appName ?? "fleq-p2", legacyAppName: "fleq", stateDirectory: config.stateDirectory,
       legacyStateDirectory: `${resolve(config.stateDirectory)}.legacy`, diagnosticDirectory: config.diagnosticDirectory },
     linkedUnitCodecs, {
-      send: (place, request) => workers.get(place)!.postMessage(request), clock, wallBasis, clockDeadlineMissed: () => deadlineMissed, measure: config.observe == null ? undefined : emit,
+      send: (place, request) => workers.get(place)!.postMessage(request), clock, wallBasis: (at) => { const basis = wallBasis(at); return deadlineMissed ? "unverified" : basis; }, measure: config.observe == null ? undefined : emit,
       display: { publish: server.publish, setWorker: server.setWorker,
         onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }) },
       onMeasurements: (measurements) => { for (const measurement of measurements) emit({ kind: "checkpoint", measurement }); },

@@ -108,7 +108,7 @@ type OwnerRequestBody = OwnerRequest extends infer R ? R extends unknown ? Omit<
 type CompositionOptions = Readonly<{
   // P3-C3A: the one way a request reaches an owner. The host posts it to the owner's thread.
   send: (place: ExecutionPlace, request: OwnerRequest) => void;
-  clock?: () => ClockReading; wallBasis?: (at: ClockReading) => WallBasis; clockDeadlineMissed?: () => boolean; // P3-CK-AC02: 根拠の状態と締切の印（省略は "verified" と false）
+  clock?: () => ClockReading; wallBasis?: (at: ClockReading) => WallBasis; // P3-CK-AC02: 締切の印を反映した通知用の根拠（省略は "verified"）
   // performance.timeOrigin + performance.now(), the real clock every thread shares (P3-C3A-CLOCK).
   sharedNow?: () => number;
   diagnosticFileSystem?: DiagnosticFileSystem;
@@ -419,7 +419,7 @@ class RuntimeCompositionRoot {
   constructor(configInput: AppConfig, codecs: CodecMap<RuntimeUnitStates>, options: CompositionOptions) {
     const config = validateAppConfig(configInput);
     this.sendRequest = options.send;
-    this.clock = options.clock ?? systemClock; this.wallBasis = options.wallBasis ?? (() => "verified"); this.clockDeadlineMissed = options.clockDeadlineMissed ?? (() => false);
+    this.clock = options.clock ?? systemClock; this.wallBasis = options.wallBasis ?? (() => "verified");
     this.sharedNow = options.sharedNow ?? sharedClock;
     this.units = options.units ?? linkedUnitTable;
     this.shutdownHooks = options.shutdownHooks ?? {};
@@ -1065,7 +1065,7 @@ class RuntimeCompositionRoot {
   }
 
   // P3-CK-AC03 (2)(3): 保留中の復元由来の intent は wall でも表でも回収せず、"unverified" で鳴らさず失効させる。stopping は停止の前の
-  // 1 回で、"verified" でない間に残るものだけを失効させる。
+  // 1 回で、"verified" でない間に残るものだけを失効させる。理由は停止の前の held で分ける（stopExpired が試行を止めると attempting が変わる）。
   private reclaimExpired(clock: ClockReading, units: readonly RuntimeUnitId[] = runtimeUnits, stopping = false): void {
     const state = this.state;
     if (state.shutdown.finalizationAt != null || this.requestsStopped) return;
@@ -1076,10 +1076,12 @@ class RuntimeCompositionRoot {
         : !stopping && (clock.wallTimeMs >= intent.expiresAt
         || clock.monotonicMs >= (state.notificationDeadlines[intent.channel][intentKey(intent)]?.expiresAtMonotonicMs ?? Infinity))));
     if (expired.length === 0) return;
-    const held = new Set(expired.filter((intent) => this.held(intent, basis)).map(intentKey));
-    this.stopExpired(expired, clock);
-    const counts: Record<"notificationExpired" | "notificationExpiredClockUnverified", Partial<Record<RuntimeUnitId, number>>> = {
+    const counts: Record<"notificationExpired" | "notificationExpiredClockUnverified", Partial<Record<NotificationIntent["unit"], number>>> = {
       notificationExpired: {}, notificationExpiredClockUnverified: {} };
+    for (const intent of expired) {
+      const byUnit = counts[this.held(intent, basis) ? "notificationExpiredClockUnverified" : "notificationExpired"]; byUnit[intent.unit] = (byUnit[intent.unit] ?? 0) + 1;
+    }
+    this.stopExpired(expired, clock);
     const groups = new Map<string, HeldUpdate & { updates: NotificationIntentUpdate[]; keys: string[] }>();
     for (const intent of expired) {
       const unit = runtimeUnits.find((candidate) => candidate === intent.unit);
@@ -1089,8 +1091,6 @@ class RuntimeCompositionRoot {
       group.updates.push({ id: intent.id, attempts: intent.attempts, nextAttemptAt: intent.nextAttemptAt, disposition: "expired" });
       group.keys.push(intentKey(intent));
       groups.set(JSON.stringify([unit, intent.channel]), group);
-      const byUnit = counts[held.has(intentKey(intent)) ? "notificationExpiredClockUnverified" : "notificationExpired"];
-      byUnit[unit] = (byUnit[unit] ?? 0) + 1;
     }
     for (const group of groups.values()) this.queueUpdate(group);
     for (const reason of ["notificationExpired", "notificationExpiredClockUnverified"] as const) for (const unit of runtimeUnits) {
@@ -1620,15 +1620,12 @@ class RuntimeCompositionRoot {
 
   // ---- 時計の確かめ（P3-CLOCK-CHECK-001）: 前回の起動から戻った pending の intent を、host が手元の時計を確かめるまで保留する。 ----
   private readonly wallBasis: (at: ClockReading) => WallBasis;
-  private readonly clockDeadlineMissed: () => boolean;
   // P3-CK-AC03 (1): startRuntime で戻った pending の intent の鍵。後に生まれた intent は入らないので、件数は復元した pending を越えない。
   private readonly restoredKeys = new Set<string>();
 
-  // P3-CK-AC01 (5): 先に wallBasis で host に今の観測を渡してから締切の印を読み、印を状態より先に見る。
+  // P3-CK-AC01 (5): 締切の印を状態より先に見る順は host の wallBasis の中で閉じる。
   private heldBasis(clock: ClockReading): WallBasis {
-    if (this.restoredKeys.size === 0) return "verified";
-    const basis = this.wallBasis(clock);
-    return this.clockDeadlineMissed() ? "unverified" : basis;
+    return this.restoredKeys.size === 0 ? "verified" : this.wallBasis(clock);
   }
 
   // P3-CK-AC03 (2): 保留は新しい選択と試行の開始にだけ当てる。試行中の intent を外すと A7 が superseded で止め、確かめた後に再び鳴らしうる。
