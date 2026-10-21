@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "f5eab2329791d477bd18b974381e700c73b9030e73a51e79c7fdd2ab659fe4bb",
+    "sha256": "bcda8b8fed031429341d0cfa417b61925b2c28f905cd470ad4fa74e530d48489",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -484,7 +484,7 @@
         "evidenceRefs": [
           "reconstruction/src/http-sse/http-sse.ts:204 «c7e6d9bcec8c25b6»",
           "reconstruction/src/host/host.ts:91 «d5b5451ba219958c»",
-          "reconstruction/src/host/host.ts:145 «e7dcd7bca34dc4b8»",
+          "reconstruction/src/host/host.ts:176 «e7dcd7bca34dc4b8»",
           "docs/specs/reconstruction-p0-contracts.md:1273 «70a78ec97aee3f74»",
           "docs/specs/reconstruction-p0-contracts.md:1278 «919fba1f20a47f31»",
           "docs/specs/reconstruction-p0-contracts.md:1281 «ec12dd2ecfa47a0c»",

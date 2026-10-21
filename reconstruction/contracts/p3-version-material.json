@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "bbb314eb88bcb0c396c066cdab2b524f0782f85475be3fa3f32abe43e778e5d4",
+    "sha256": "6512956f53041c58dd8590114dfb007d50690908d623210b0fa93baeeb259ec7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -469,7 +469,7 @@
           "reconstruction/contracts/p3-persist-premises.md:144 «2ceab1141412b0f6»",
           "reconstruction/contracts/p3-execution-split.types.ts:68 «40f7c160c2f5af7e»",
           "reconstruction/contracts/p3-execution-split.types.ts:101 «a896029bd79113b7»",
-          "reconstruction/src/runtime/composition-root.ts:1325 «6f4ddb1bb79ac527»",
+          "reconstruction/src/runtime/composition-root.ts:1334 «6f4ddb1bb79ac527»",
           "reconstruction/src/checkpoint/checkpoint.ts:479 «f2df4d892cf6c2da»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:385 «442242ac46bb58a3»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:554 «91775f59fc97dbc2»"
@@ -481,9 +481,9 @@
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts:718 «a6507ee81b4fb217»",
           "reconstruction/src/runtime/composition-root.ts:871 «d9ca8a096374d838»",
-          "reconstruction/src/runtime/composition-root.ts:1312 «90ced524d38d1efe»",
-          "reconstruction/src/host/host.ts:291 «0c05272de607230d»",
-          "reconstruction/src/host/host.ts:297 «b9212d957dcc4f02»",
+          "reconstruction/src/runtime/composition-root.ts:1321 «90ced524d38d1efe»",
+          "reconstruction/src/host/host.ts:325 «0c05272de607230d»",
+          "reconstruction/src/host/host.ts:331 «78ed7c65133feaf5»",
           "reconstruction/contracts/p3-persist-premises.md:140 «2f26078ea8843032»",
           "reconstruction/contracts/p3-persist-premises.md:141 «642fa0fee91f1ede»",
           "reconstruction/contracts/p3-persist-premises.md:142 «b0bb1f9f3b718590»",

@@ -13,14 +13,14 @@ const BODY_LIMIT_BYTES = 1024 * 1024;
 type DmdataSocket = Readonly<{ id: number; appName: string | null; status: string; classifications: readonly string[] }>;
 // HTTP 401/403 stay apart from other failures: the host stops retrying on them (P3-C2-RETRY).
 type RestRefusal = Readonly<{ kind: "failed" }> | Readonly<{ kind: "authRejected" }>;
-type SocketListResult = Readonly<{ kind: "ok"; sockets: readonly DmdataSocket[] }> | RestRefusal;
+type SocketListResult = Readonly<{ kind: "ok"; sockets: readonly DmdataSocket[]; date: string | null }> | RestRefusal; // date: 応答の Date ヘッダ（P3-CK-AC02）
 type SocketCloseResult = Readonly<{ kind: "ok" }> | RestRefusal;
 // uncertain: the POST was handed over but whether a socket was created cannot be told (P3-C2-START-UNCERTAIN).
 type SocketStartResult = Readonly<{ kind: "ok"; id: number; url: string; protocol: readonly string[] }>
   | RestRefusal | Readonly<{ kind: "uncertain" }>;
 
 // notSent: failed before the request was handed to the OS. lost: handed over, but no complete answer.
-type Exchange = Readonly<{ kind: "notSent" }> | Readonly<{ kind: "lost" }> | Readonly<{ kind: "answered"; status: number; text: string }>;
+type Exchange = Readonly<{ kind: "notSent" }> | Readonly<{ kind: "lost" }> | Readonly<{ kind: "answered"; status: number; text: string; date: string | null }>;
 
 // signal: the caller's hard stop (the host's stop limit, P3-C2-RES-07). Aborted, the request is destroyed or never sent.
 function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: string, signal: AbortSignal | undefined,
@@ -54,7 +54,7 @@ function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: strin
           // A body over the limit is never read whole, so it is no answer.
           if (bytes > BODY_LIMIT_BYTES) lost(); else chunks.push(chunk);
         });
-        response.on("end", () => end({ kind: "answered", status: response.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }));
+        response.on("end", () => end({ kind: "answered", status: response.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8"), date: response.headers.date ?? null }));
         response.on("error", lost);
         response.on("close", lost);
       });
@@ -92,7 +92,7 @@ async function listSockets(apiKey: string, status: "open" | "waiting", signal?: 
       || !isStrings(classifications)) return { kind: "failed" };
     sockets.push({ id, appName, status: socketStatus, classifications });
   }
-  return { kind: "ok", sockets };
+  return { kind: "ok", sockets, date: answer.date };
 }
 
 /** DELETE /socket/{id}. Success is 2xx (an empty 204 included, a body must say ok) or 404 (already gone). */

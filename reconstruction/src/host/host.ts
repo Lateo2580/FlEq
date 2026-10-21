@@ -7,7 +7,7 @@ import type { RawData } from "ws";
 
 import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
-import type { ClockReading, DiagnosticLevel, DiagnosticReason, MailboxEnvelope, ShutdownSummary } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, DiagnosticLevel, DiagnosticReason, MailboxEnvelope, ShutdownSummary, WallBasis } from "../../contracts/p2-shared-runtime.types";
 import type { DmdataClassification, DmdataSubscription } from "../../contracts/p3-dmdata-connect.types";
 import { startDisplayServer } from "../http-sse/http-sse";
 import { ingestXmlData } from "../ingress/ingress";
@@ -120,6 +120,37 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     root.ownerFailed(place, cause);
     if (started) resumeIfDrained();
   };
+  // P3-CK-AC01: 手元の時計の確かめ（作者裁定の案 1・案 A）。時計は差し替えず、接続先の時刻を受けたその場で比べるだけで、後の読みへ外挿しない。
+  // 置き値: 起動から 30 秒の待ち（P3-CK-DLV-01）、幅と G の上限 5 秒（一番短い TTL の 3 分の 1）、R〜M の休止 1 秒（Q-CK-RULER）。
+  const CLOCK_WAIT_MS = 30_000, CLOCK_TOLERANCE_MS = 5_000, CLOCK_PAUSE_MS = 1_000;
+  // t0: startRuntime に渡した時計の monotonic。seenMs: host が見た最新の読み。inTime: M が締切より前の合う確かめがあった。
+  let t0 = Infinity, seenMs = -Infinity, verified = false, inTime = false, deadlineMissed = false;
+  // P3-CK-AC01 (3)(5): 締切の印は一度立てたら下ろさない。過去の時計を渡されても seenMs は戻らない。
+  const wallBasis = (at: ClockReading): WallBasis => {
+    if (at.monotonicMs > seenMs) seenMs = at.monotonicMs;
+    if (!inTime && seenMs >= t0 + CLOCK_WAIT_MS) deadlineMissed = true;
+    return verified ? "verified" : seenMs < t0 + CLOCK_WAIT_MS ? "awaiting" : "unverified";
+  };
+  // Q-CK-RULER: asked は要求の直前の読み（R・Wr）、received は受けた瞬間の読み（M・Wm）、serverMs は接続先の時刻 S。真の時刻は M で
+  // [S, S + G] にあるので、合うなら手元の時計のずれは ±5 秒の内。確かめにならないものは状態を変えない。
+  const verifyClock = (asked: ClockReading, received: ClockReading, serverMs: number, subSecond: boolean): void => {
+    wallBasis(received);
+    const wallMs = received.wallTimeMs - asked.wallTimeMs, monotonicMs = received.monotonicMs - asked.monotonicMs;
+    // R〜M の休止か wall の飛び（見分けないが、どちらでも次の確かめを待つ安全な向き）。
+    if (wallMs - monotonicMs > CLOCK_PAUSE_MS) return;
+    const gap = Math.max(monotonicMs, wallMs) + (subSecond ? 0 : 1_000);
+    if (gap > CLOCK_TOLERANCE_MS) return;
+    const skew = received.wallTimeMs - serverMs;
+    verified = gap - CLOCK_TOLERANCE_MS <= skew && skew <= CLOCK_TOLERANCE_MS;
+    if (verified && received.monotonicMs < t0 + CLOCK_WAIT_MS) inTime = true;
+  };
+  // 暦の上で実在する UTC の年月日と時刻だけを数にする（Date.parse は 2 月 30 日を 3 月 2 日に丸めるので、組み直して一致を見る）。
+  const calendarMs = (year: number, monthIndex: number, day: number, hour: number, minute: number, second: number): number => {
+    const ms = Date.UTC(year, monthIndex, day, hour, minute, second), at = new Date(ms);
+    return hour < 24 && minute < 60 && second < 60 && at.getUTCFullYear() === year && at.getUTCMonth() === monthIndex && at.getUTCDate() === day ? ms : NaN;
+  };
+  // 接続を頼む直前の読み（{ dmdata } は socket start の POST の直前、{ wsUrl } は WebSocket を作る直前）。
+  let startAsked: ClockReading | null = null;
   try {
     const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
     for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
@@ -141,7 +172,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     root = new RuntimeCompositionRoot({ appName: config.dmdata?.appName ?? "fleq-p2", legacyAppName: "fleq", stateDirectory: config.stateDirectory,
       legacyStateDirectory: `${resolve(config.stateDirectory)}.legacy`, diagnosticDirectory: config.diagnosticDirectory },
     linkedUnitCodecs, {
-      send: (place, request) => workers.get(place)!.postMessage(request), clock, measure: config.observe == null ? undefined : emit,
+      send: (place, request) => workers.get(place)!.postMessage(request), clock, wallBasis, clockDeadlineMissed: () => deadlineMissed, measure: config.observe == null ? undefined : emit,
       display: { publish: server.publish, setWorker: server.setWorker,
         onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }) },
       onMeasurements: (measurements) => { for (const measurement of measurements) emit({ kind: "checkpoint", measurement }); },
@@ -159,7 +190,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       },
       shutdownHooks: { drainMailbox: async (_deadline, active) => root.drainInputs(active), closeWorker: endOwners },
     });
-    await root.startRuntime(runId, clock(), { desktop: { kind: "idle" }, sound: { kind: "idle" } });
+    const begun = clock(); t0 = begun.monotonicMs; await root.startRuntime(runId, begun, { desktop: { kind: "idle" }, sound: { kind: "idle" } });
     started = true;
   } catch (error) {
     // Every owner created so far ends before the rejection (P3-C3A-AC01).
@@ -185,6 +216,9 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   let lastAccepted: Readonly<{ sequence: number; inputId: string }> | null = null;
   // Only kept while observing: ingress's JSON time is one of the seven P1 durations of the processing record.
   const ingressJsonMs = new Map<string, number | null>();
+  // P3-CK-AC01 (2): 応答待ちの時計の確かめの REST と、最後に尋ねた時の monotonic。
+  let probing: Promise<void> | null = null;
+  let probedAt: number | null = null;
 
   const recordRejected = (diagnostic: ParserDiagnostic, wallTimeMs: number) =>
     root.enqueueDiagnostic(root.projectParserDiagnostic(diagnostic, runId, wallTimeMs).event);
@@ -264,7 +298,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
         if (typeof head.pingId === "string") ws.send(JSON.stringify({ type: "pong", pingId: head.pingId }), () => {});
         return;
       }
-      if (head?.type === "start" && acceptStart(head, t0)) { checkClock(head.time, entry.wallTimeMs); return; }
+      if (head?.type === "start" && acceptStart(head, t0)) { checkClock(head.time, entry); return; }
       if (head?.type === "pong") return;
       if (head?.type === "error") {
         note("WARN", "dmdataErrorFrame");
@@ -294,27 +328,29 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
         // P3-C5-AC09: VTSE41 は発令・解除・降格・訓練を問わず津波候補（訓練の優先は mailbox が運用区分で外す）。
         : item.headType === "VTSE41" ? "tsunamiCandidate" : "normal" };
     // P3-C3B-AC02: an input for a stopped or unresponsive owner is refused here; the other places go on receiving.
-    if (root.refuseInput(inputId, item.headType, entry)) { root.checkpoint.boundaries.refused(item, null); return; }
+    if (root.refuseInput(inputId, item.headType, entry)) { root.checkpoint.boundaries.refused(item, wallBasis(entry)); return; }
     const t1 = performance.now();
     const result = mailbox.enqueue(envelope);
     if (result.kind === "rejected") {
-      if (result.reason !== "draining") { root.checkpoint.boundaries.refused(item, null); overload(result.reason, ws, entry.wallTimeMs); }
+      if (result.reason !== "draining") { root.checkpoint.boundaries.refused(item, wallBasis(entry)); overload(result.reason, ws, entry.wallTimeMs); }
       return;
     }
-    lastAccepted = { sequence: lastSequence, inputId }; root.checkpoint.boundaries.queued(item, null); // P3-VM-AC07: basis は K9 まで null（AC06）
+    lastAccepted = { sequence: lastSequence, inputId }; root.checkpoint.boundaries.queued(item, wallBasis(entry)); // P3-CK-AC04: basis は frame を受けた読みの根拠
     if (config.observe != null) ingressJsonMs.set(inputId, ingressed.ingressJsonMs);
     emit({ kind: "marker", point: "T1", runId, inputId, monotonicMs: t1 });
     if (stopping == null) root.pump();
   }
 
-  // P3-LIFE-AC13: start ごとに host の時計と dmdata start.time（ISO 8601）のずれを診断に出すだけ。受信・判定・接続は止めず、時刻も補正しない。
-  // 60 秒は D-SKEW の起点の詰めが効き始める目安、300 秒は horizon（600 秒）の半分。
-  function checkClock(time: unknown, wallTimeMs: number): void {
-    const shaped = typeof time === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(time);
-    const serverMs = shaped ? Date.parse(time) : NaN;
-    if (!Number.isFinite(serverMs)) { note("WARN", "hostClockUnverified"); return; }
-    const skew = wallTimeMs - serverMs;
+  // P3-LIFE-AC13: start ごとに host の時計と dmdata start.time（ISO 8601）のずれを診断に出す。受信・判定・接続は止めず、時刻も補正しない。
+  // 60 秒は D-SKEW の起点の詰めが効き始める目安、300 秒は horizon（600 秒）の半分。形の正しい time は時計の確かめにも使う（P3-CK-AC01 (1)）。
+  function checkClock(time: unknown, entry: ClockReading): void {
+    const parts = typeof time === "string" ? /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(time) : null;
+    const serverMs = parts == null || !Number.isFinite(calendarMs(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]), Number(parts[4]),
+      Number(parts[5]), Number(parts[6]))) ? NaN : Date.parse(parts[0]);
+    if (parts == null || !Number.isFinite(serverMs)) { note("WARN", "hostClockUnverified"); return; }
+    const skew = entry.wallTimeMs - serverMs;
     if (Math.abs(skew) >= 60_000) note(Math.abs(skew) >= 300_000 ? "ERROR" : "WARN", skew > 0 ? "hostClockAhead" : "hostClockBehind");
+    if (startAsked != null) verifyClock(startAsked, entry, serverMs, parts[7] != null);
   }
 
   // spec §10.1 / P3-C2-AC02: list, release the own previous socket, check capacity, start. A failure leaves the WS closed.
@@ -342,7 +378,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     }
     ownSocketId = null;
     if (listed.filter((item) => item.id !== released).length + 1 > SOCKET_LIMIT) return refused("failed", "dmdataConnectionCapacityExceeded");
-    const started = await startSocket(dmdata, halt.signal);
+    startAsked = clock(); const started = await startSocket(dmdata, halt.signal);
     if (started.kind === "ok") ownSocketId = started.id;
     if (stopping != null) return "stopped";
     if (started.kind !== "ok") return refused(started.kind, "dmdataSocketStartFailed");
@@ -352,7 +388,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   async function connect(): Promise<Attempt> {
     let url: string;
     let protocols: readonly string[] = [];
-    if (config.dmdata == null) url = config.wsUrl;
+    if (config.dmdata == null) { url = config.wsUrl; startAsked = clock(); }
     else {
       const target = await startDmdataSocket(config.dmdata);
       if (typeof target === "string") return target;
@@ -399,9 +435,33 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       limitViolations: stats.limitViolations, accepted: stats.accepted });
   }
 
+  // P3-CK-AC01 (2)（{ dmdata } だけ）: "verified" でない間、起動の 30 秒に T0 + 15 秒以後の 1 回、以後は締切と最後の問い合わせの遅いほうから
+  // 10 分に 1 回だけ尋ね、応答の Date で確かめる。接続の処理には使わず、失敗・Date の無い応答は確かめにならず診断も足さない。
+  function probeClock(apiKey: string, asked: ClockReading): void {
+    const due = probedAt == null && asked.monotonicMs < t0 + CLOCK_WAIT_MS ? t0 + 15_000 : Math.max(t0 + CLOCK_WAIT_MS, probedAt ?? -Infinity) + 600_000;
+    if (verified || probing != null || asked.monotonicMs < due) return;
+    probedAt = asked.monotonicMs;
+    probing = listSockets(apiKey, "open", halt.signal).then((listed) => {
+      const received = clock();
+      const date = listed.kind === "ok" ? httpDateMs(listed.date) : NaN;
+      // 停止を始めた後の応答は確かめに数えない（ヘルツ r7 の P2）。
+      if (stopping == null && Number.isFinite(date)) verifyClock(asked, received, date, false);
+    }).finally(() => { probing = null; });
+  }
+
+  // RFC 7231 の IMF-fixdate（秒まで）だけを読む。曜日と月名は名前の表で、日付は暦の上の実在で、曜日はその日付との一致で確かめる。
+  function httpDateMs(text: string | null): number {
+    const parts = text == null ? null : /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), (\d{2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT$/.exec(text);
+    if (parts == null) return NaN;
+    const ms = calendarMs(Number(parts[4]), "JanFebMarAprMayJunJulAugSepOctNovDec".indexOf(parts[3]) / 3, Number(parts[2]),
+      Number(parts[5]), Number(parts[6]), Number(parts[7]));
+    return Number.isFinite(ms) && "SunMonTueWedThuFriSat".indexOf(parts[1]) / 3 === new Date(ms).getUTCDay() ? ms : NaN;
+  }
+
   function tick(): void {
     if (stopping != null) return;
     const now = clock();
+    if (config.dmdata != null) probeClock(config.dmdata.apiKey, now);
     observeMailbox("tick", performance.now(), now.monotonicMs);
     // P3-C2-LIVENESS: one comparison per tick cuts a half-open TCP; the close path reports the loss and reconnects.
     const current = socket;
@@ -428,7 +488,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       timer = setTimeout(() => { halt.abort(); done("expired"); }, deadlineMonotonicMs - clock().monotonicMs);
     });
     const released = (async () => {
-      await attempt;
+      await Promise.all([attempt, probing]); // P3-CK-AC01 (2): 応答待ちの時計の確かめも決着させる
       if (ownSocketId == null) return "ok";
       // No DELETE starts at or after the limit, even before its timer has run: that socket stays (residual risk).
       if (halt.signal.aborted || clock().monotonicMs >= deadlineMonotonicMs) return "expired";

@@ -10,19 +10,22 @@ import { WebSocketServer } from "ws";
 import type { WebSocket } from "ws";
 
 import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
+import type { ClockReading } from "../../contracts/p2-shared-runtime.types";
 import type { DisplaySnapshot } from "../../contracts/p2-snapshot-sse.types";
 import type { DmdataSubscription } from "../../contracts/p3-dmdata-connect.types";
 import type { DmdataSocket, SocketCloseResult, SocketListResult, SocketStartResult } from "../../src/host/dmdata-rest";
 import { startP2Host } from "../../src/host/host";
 import type { P2HostConfig } from "../../src/host/host";
 import { RuntimeCompositionRoot, linkedUnitTable } from "../../src/runtime/composition-root";
+import type { CompositionOptions } from "../../src/runtime/composition-root";
 
-const hook = vi.hoisted(() => ({ probeGate: null as Promise<void> | null }));
+// channelsDown: 前回の起動の通知を pending のまま保存するため、probe で両 channel を使えなくする（P3-CK-T01）。
+const hook = vi.hoisted(() => ({ probeGate: null as Promise<void> | null, channelsDown: false }));
 // AC11(f): the real owner threads (TEST-PATH (3)). Only the stall test holds the owners' replies away from the host;
 // by default every reply passes straight through.
 const owners = vi.hoisted(() => ({ hold: false, held: [] as (() => void)[], live: new Set<{ terminate(): Promise<number> }>(), workerData: [] as unknown[],
   // restart の試験が 2 台目の owner の復元結果（U-E の保存世代）を読む。
-  restored: [] as { unit: string; persistence: { savedGeneration: number | null } }[] }));
+  restored: [] as { unit: string; persistence: { savedGeneration: number | null }; pendingIntents?: readonly unknown[] }[] }));
 vi.mock("node:worker_threads", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:worker_threads")>();
   class Worker extends actual.Worker {
@@ -63,6 +66,15 @@ vi.mock("../../src/host/dmdata-rest", () => {
     },
   };
 });
+// P3-CK-T01: host が composition root へ渡した根拠の状態と締切の印を試験が読む（判定は product のまま通す）。
+const roots = vi.hoisted(() => ({ options: null as CompositionOptions | null }));
+vi.mock("../../src/runtime/composition-root", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/runtime/composition-root")>();
+  class RuntimeCompositionRoot extends actual.RuntimeCompositionRoot {
+    constructor(...args: ConstructorParameters<typeof actual.RuntimeCompositionRoot>) { super(...args); roots.options = args[2]; }
+  }
+  return { ...actual, RuntimeCompositionRoot };
+});
 // 配送の完了を数える（restart の試験が両 channel の配送の世代を待つ）。
 const deliveries = vi.hoisted(() => ({ delivered: 0 }));
 // AC12: the publisher thread must not decode; every call made in this thread is counted.
@@ -77,8 +89,8 @@ vi.mock("../../src/decode-material/decode-material", async (importOriginal) => {
 // The product notification backends would pop a real notification and play a sound for every EEW; the asset base is real.
 vi.mock("../../src/notification-delivery/adapter", async (importOriginal) => ({
   ...await importOriginal<typeof import("../../src/notification-delivery/adapter")>(),
-  probeDesktopBackend: () => ({ kind: "idle" }),
-  probeSoundBackend: async () => { await hook.probeGate; return { kind: "delivered" }; },
+  probeDesktopBackend: () => hook.channelsDown ? { kind: "unavailable", reason: "backendMissing" } : { kind: "idle" },
+  probeSoundBackend: async () => { await hook.probeGate; return { kind: hook.channelsDown ? "failed" : "delivered" }; },
   runNotificationAttempt: async (attempt: { attemptId: string; intentId: string; channel: string }, clock: () => unknown) =>
     (deliveries.delivered += 1, { kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: clock() }),
   abortNotificationAttempt: async () => ({ stopped: true }),
@@ -92,12 +104,21 @@ const clock = () => {
   return { wallTimeMs: EEW_AT + Math.trunc(monotonicMs - base), monotonicMs };
 };
 
+// P3-CK-T01: 試験が決める時計。monotonic は進めた分だけ進み、wall は Wb＋ずれ＋進み。休止（pause）は wall と本当の時刻にだけ足す。
+const K9_WB = Date.parse("2026-01-01T03:00:00Z");
+const K9_M0 = 1_000_000;
+const k9 = { advanced: 0, skew: 0, pause: 0 };
+const k9Clock = (): ClockReading => ({ wallTimeMs: K9_WB + k9.skew + k9.advanced + k9.pause, monotonicMs: K9_M0 + k9.advanced });
+const k9True = () => K9_WB + k9.advanced + k9.pause;
+
 // K6（P3-LIFE-AC13）: 既存の start の mock は host の時計と同じ time を持つ（無いと接続ごとに hostClockUnverified が出る）。
 const startTime = () => new Date(clock().wallTimeMs).toISOString();
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
   hook.probeGate = null;
+  hook.channelsDown = false;
+  Object.assign(k9, { advanced: 0, skew: 0, pause: 0 });
   owners.hold = false;
   owners.held.length = 0;
   owners.restored.length = 0;
@@ -384,7 +405,7 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
 const subscription: DmdataSubscription = { apiKey: "KEY-SECRET-2", appName: "fleq-p3-test", classifications: ["eew.forecast", "eew.warning"] };
 const socketOf = (id: number, appName: string | null, status = "open"): DmdataSocket => ({ id, appName, status, classifications: ["eew.forecast"] });
 const listing = (open: readonly DmdataSocket[], waiting: readonly DmdataSocket[] = []) =>
-  async (status: "open" | "waiting"): Promise<SocketListResult> => ({ kind: "ok", sockets: status === "open" ? open : waiting });
+  async (status: "open" | "waiting"): Promise<SocketListResult> => ({ kind: "ok", sockets: status === "open" ? open : waiting, date: null });
 const failed = async () => ({ kind: "failed" as const });
 const opened = (url: string, id: number) => async (): Promise<SocketStartResult> => ({ kind: "ok", id, url, protocol: ["dmdata.v2"] });
 const deletes = () => rest.calls.filter((call) => call.startsWith("delete:"));
@@ -490,7 +511,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     const others = [socketOf(7, subscription.appName), socketOf(8, "other-app")];
     let own: DmdataSocket[] = [];
     let nextId = 21;
-    rest.list = async (status) => ({ kind: "ok", sockets: status === "open" ? [...others, ...own] : [socketOf(9, null, "waiting")] });
+    rest.list = async (status) => ({ kind: "ok", sockets: status === "open" ? [...others, ...own] : [socketOf(9, null, "waiting")], date: null });
     rest.start = async () => {
       const id = nextId++;
       own = [socketOf(id, subscription.appName)];
@@ -523,9 +544,9 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
   const failures: { name: string; reason: string; list: (status: "open" | "waiting") => Promise<SocketListResult>;
     start?: () => Promise<SocketStartResult> }[] = [
     { name: "the open list fails", reason: "dmdataSocketListFailed",
-      list: async (status) => status === "open" ? { kind: "failed" } : { kind: "ok", sockets: [] } },
+      list: async (status) => status === "open" ? { kind: "failed" } : { kind: "ok", sockets: [], date: null } },
     { name: "the waiting list fails", reason: "dmdataSocketListFailed",
-      list: async (status) => status === "waiting" ? { kind: "failed" } : { kind: "ok", sockets: [] } },
+      list: async (status) => status === "waiting" ? { kind: "failed" } : { kind: "ok", sockets: [], date: null } },
     { name: "four waiting sockets fill the capacity", reason: "dmdataConnectionCapacityExceeded",
       list: listing([], [1, 2, 3, 4].map((id) => socketOf(id, "other-app", "waiting"))) },
     { name: "the start fails", reason: "dmdataSocketStartFailed", list: listing([]), start: failed },
@@ -555,7 +576,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     const dirs = await directories();
     let own: DmdataSocket[] = [];
     let nextId = 31;
-    rest.list = async (status) => ({ kind: "ok", sockets: status === "open" ? own : [] });
+    rest.list = async (status) => ({ kind: "ok", sockets: status === "open" ? own : [], date: null });
     rest.start = async () => { own = [socketOf(nextId, subscription.appName)]; return { kind: "ok", id: nextId++, url: server.url, protocol: ["dmdata.v2"] }; };
     rest.close = failed;
     const host = await startDmdata(dirs);
@@ -1053,18 +1074,18 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 start clock check (AC13)", () => {
   });
 });
 
-describe("P3-VERSION-MATERIAL-001 the host lists its inputs for the saved boundary (AC06, AC07)", () => {
-  const text = (name: string) => readFileSync(`test/fixtures/${name}.xml`, "utf8");
-  const frame = (headType: string, body: string, id: string) => JSON.stringify({ ...JSON.parse(dataFrame(headType, body)), id });
-  // The newest slot of a unit, as the next start would restore it, and its boundary (null: no slot or no boundary).
-  const newest = async (dirs: Awaited<ReturnType<typeof directories>>, unit: string) => {
-    const slots = await Promise.all(["A", "B"].map((side) => fileSystem.readFile(join(dirs.stateDirectory, `${unit}-${side}.json`), "utf8")
-      .then((body) => JSON.parse(body) as { generation: number; inputBoundary?: { dmdataId: string | null; oldestHole: string | null } | null },
-        () => null)));
-    return slots.reduce((best, slot) => slot != null && (best == null || slot.generation > best.generation) ? slot : best, null);
-  };
-  const saved = async (dirs: Awaited<ReturnType<typeof directories>>, unit: string) => (await newest(dirs, unit))?.inputBoundary ?? null;
+const text = (name: string) => readFileSync(`test/fixtures/${name}.xml`, "utf8");
+const frame = (headType: string, body: string, id: string) => JSON.stringify({ ...JSON.parse(dataFrame(headType, body)), id });
+// The newest slot of a unit, as the next start would restore it, and its boundary (null: no slot or no boundary).
+const newest = async (dirs: Awaited<ReturnType<typeof directories>>, unit: string) => {
+  const slots = await Promise.all(["A", "B"].map((side) => fileSystem.readFile(join(dirs.stateDirectory, `${unit}-${side}.json`), "utf8")
+    .then((body) => JSON.parse(body) as { generation: number; inputBoundary?: { dmdataId: string | null; oldestHole: string | null } | null },
+      () => null)));
+  return slots.reduce((best, slot) => slot != null && (best == null || slot.generation > best.generation) ? slot : best, null);
+};
+const saved = async (dirs: Awaited<ReturnType<typeof directories>>, unit: string) => (await newest(dirs, unit))?.inputBoundary ?? null;
 
+describe("P3-VERSION-MATERIAL-001 the host lists its inputs for the saved boundary (AC06, AC07)", () => {
   it("P3-VM-T06 contractBoundary / AC06・AC07 (2)(6): an overload-refused input and the disconnect stop the saved boundary, also in the next run", async () => {
     const server = await localServer();
     const dirs = await directories();
@@ -1074,7 +1095,8 @@ describe("P3-VERSION-MATERIAL-001 the host lists its inputs for the saved bounda
     server.sockets[0].send(frame("VPWW57", text("15_16_02_251222_VPWW57"), "id-w1"));
     server.sockets[0].send(frame("VPWP50", text("81_02_01_260605_VPWP50_high_severity"), "id-f1"));
     await until(async () => (await saved(dirs, "U-W"))?.dmdataId === "id-w1" && (await saved(dirs, "U-F"))?.dmdataId === "id-f1", 10_000);
-    expect(await saved(dirs, "U-W")).toMatchObject({ oldestHole: null, receivedAt: { basis: null }, dmdataTime: null });
+    // P3-CK-AC04: start の前（30 秒の内）に受けた入力の根拠は "awaiting"（K9 の前は null）。
+    expect(await saved(dirs, "U-W")).toMatchObject({ oldestHole: null, receivedAt: { basis: "awaiting" }, dmdataTime: null });
     // (2) 130 U-W frames while every owner reply is held: the 120-item normal lane fills however the frames arrive, the mailbox
     // refuses the next one by itemLimit and the host cuts the connection. Released at once, well inside the 5 s owner monitor.
     owners.hold = true;
@@ -1099,5 +1121,236 @@ describe("P3-VERSION-MATERIAL-001 the host lists its inputs for the saved bounda
     server.sockets[2].send(frame("VPWW59", text("15_16_05_241226_VPWW59"), "id-w3"));
     await until(async () => ((await newest(dirs, "U-W"))?.generation ?? 0) > restored, 10_000);
     expect(await saved(dirs, "U-W")).toEqual(refused);
+  });
+});
+
+describe("P3-CLOCK-CHECK-001 the host checks its clock against dmdata's times (P3-CK-T01 acceptance / AC01〜AC04)", () => {
+  const vtse41 = text("synthetic_VTSE41_e01_311warning");
+  const basisNow = () => roots.options!.wallBasis!(k9Clock());
+  // 「接続の試行の外の」listSockets("open")（試行の中の open は waiting と対になる）。
+  const probes = () => rest.calls.filter((call) => call === "list:open").length - rest.calls.filter((call) => call === "list:waiting").length;
+  const runtimeLines = async (dir: string, reason: string) => (await diagnostics(dir)).split("\n").filter((line) => line.includes(`"reason":"${reason}"`))
+    .map((line): { level: string; unit?: string; count?: number } => JSON.parse(line));
+  // 1 tick を進める（host の tick は偽の setInterval）。owner の返信と、その返信ごとの評価が済むまで実時間で少し待つ。
+  const tickAt = async (advancedMs: number) => { k9.advanced = advancedMs; vi.advanceTimersByTime(1_000); await pause(150); };
+  const startFrame = (socketId: number, time: number | string) => JSON.stringify({ type: "start", socketId, classifications: ["eew.forecast"],
+    time: typeof time === "string" ? time : new Date(time).toISOString() });
+  const started = async (dir: string, count: number) => until(async () => (await hostLines(dir)).filter((line) => line.reason === "dmdataSocketStarted").length === count);
+
+  // 前回の起動: 両 channel を使えないまま津波警報を受け、pending の通知（sound 60 秒・desktop 180 秒）を最終保存に残す。
+  async function savePendingTsunami(dirs: Awaited<ReturnType<typeof directories>>) {
+    hook.channelsDown = true;
+    const server = await localServer();
+    const first = await startP2Host({ wsUrl: server.url, ...dirs, displayPort: 0, clock: k9Clock, observe: null });
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(dataFrame("VTSE41", vtse41));
+    await until(async () => (await snapshot(first.displayPort)).current.tsunami.items.length > 0);
+    await first.stop();
+    hook.channelsDown = false;
+    owners.restored.length = 0;
+  }
+  const restoredTsunami = () => owners.restored.find((unit) => unit.unit === "U-T")?.pendingIntents?.length;
+  async function k9Host(dirs: Awaited<ReturnType<typeof directories>>, source: { wsUrl: string } | { dmdata: DmdataSubscription }) {
+    const host = await startP2Host({ ...source, ...dirs, displayPort: 0, clock: k9Clock, observe: null });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    return host;
+  }
+
+  it("(a) the Pi after a power cut: a start 1 h off tries nothing; after NTP the REST check at T0+15 s matches and the notices go out; one extra list by 30 s", async () => {
+    const dirs = await directories();
+    await savePendingTsunami(dirs);
+    const server = await localServer();
+    rest.list = async () => ({ kind: "ok", sockets: [], date: new Date(k9True()).toUTCString() });
+    rest.start = opened(server.url, 61);
+    rest.close = async () => ({ kind: "ok" });
+    k9.skew = -3_600_000;
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    await k9Host(dirs, { dmdata: subscription });
+    expect(restoredTsunami()).toBe(2);
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(startFrame(61, k9True()));
+    await started(dirs.diagnosticDirectory, 1);
+    expect(basisNow()).toBe("awaiting");
+    k9.skew = 0;
+    await tickAt(10_000);
+    expect([deliveries.delivered, probes()]).toEqual([0, 0]);
+    await tickAt(15_000);
+    expect([probes(), basisNow(), deliveries.delivered]).toEqual([1, "verified", 0]);
+    // 確かめた後の最初の評価（次の tick）から効く（P3-CK-AC01 の(6)）。
+    await tickAt(16_000);
+    await until(() => deliveries.delivered === 2);
+    await tickAt(30_000);
+    expect([probes(), basisNow()]).toEqual([1, "verified"]);
+  });
+
+  it("(b)(d) start boundaries: d within [G−5 s, 5 s] matches; G over 5 s or a pause over 1 s is no check; a later wall jump keeps verified until the next start", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const host = await k9Host(dirs, { wsUrl: server.url });
+    await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let socketId = 0;
+    // d（受けた wall − 接続先の時刻）を決めて start を送り、その後の根拠の状態を返す。time を渡すとその字のまま送る。
+    const check = async (d: number, time?: string) => {
+      server.sockets.at(-1)!.send(startFrame(++socketId, time ?? k9Clock().wallTimeMs - d));
+      await started(dirs.diagnosticDirectory, socketId);
+      return basisNow();
+    };
+    // 新しい WS（R はそれを作る直前の読み）。切断の時刻を 1 ms ずらして、host が切断を処理したのを見分ける。
+    const reconnect = async () => {
+      const before = (await snapshot(host.displayPort)).connection.disconnectedAt;
+      const count = server.sockets.length;
+      k9.skew += 1;
+      server.sockets.at(-1)!.terminate();
+      await until(async () => (await snapshot(host.displayPort)).connection.disconnectedAt !== before);
+      vi.advanceTimersByTime(5_000);
+      await until(() => server.sockets.length === count + 1 && server.sockets[count].readyState === 1);
+    };
+    const seen: [string, string][] = [];
+    const expectBasis = async (name: string, d: number, expected: string, time?: string) => {
+      seen.push([name, await check(d, time)]);
+      expect(seen.at(-1)).toEqual([name, expected]);
+    };
+    // (b) G = 0（R も M も 0）、ミリ秒つきの time。
+    for (const [d, expected] of [[5_001, "awaiting"], [5_000, "verified"], [-5_001, "awaiting"], [-5_000, "verified"]] as const)
+      await expectBasis(`G=0 d=${d}`, d, expected);
+    // 暦に無い日付（Date.parse は 3 月 2 日に丸める）は確かめにならず、verified のまま。
+    await expectBasis("2026-02-30 is no check", 0, "verified", "2026-02-30T00:00:00Z");
+    k9.advanced = 2_000;
+    for (const [d, expected] of [[-3_001, "awaiting"], [-3_000, "verified"], [5_001, "awaiting"]] as const)
+      await expectBasis(`G=2000 d=${d}`, d, expected);
+    k9.advanced = 5_001;
+    // G が 5,001 なら d=5,000 は区間 [1, 5,000] に入るが、確かめにならないので awaiting のまま。
+    await expectBasis("G=5001 is no check", 5_000, "awaiting");
+    await reconnect();
+    // R〜M に wall だけが monotonic より進む（休止）。1,000 ms までは確かめで、G は wall の差。
+    k9.pause += 1_000;
+    await expectBasis("pause 1000", 0, "verified");
+    // 休止の 1,000 ms も G に入る（G を monotonic だけで数えると −4,001 が合ってしまう）。
+    await expectBasis("pause 1000 d=-4001", -4_001, "awaiting");
+    await expectBasis("pause 1000 d=-4000", -4_000, "verified");
+    await expectBasis("pause 1000 d=5001", 5_001, "awaiting");
+    k9.pause += 1;
+    await expectBasis("pause 1001 is no check", 0, "awaiting");
+    // (d) 合った後に手元の時計が 1 時間飛んでも次の確かめまでは verified、締切の後の合わない start で unverified。
+    await reconnect();
+    await expectBasis("matched", 0, "verified");
+    k9.skew += 3_600_000;
+    expect(basisNow()).toBe("verified");
+    k9.advanced = 31_000;
+    await reconnect();
+    server.sockets.at(-1)!.send(startFrame(++socketId, k9True()));
+    await started(dirs.diagnosticDirectory, socketId);
+    expect(basisNow()).toBe("unverified");
+  });
+
+  it("(f) K7's boundary: an input received after a matching start is saved with receivedAt.basis \"verified\" (before a start: P3-VM-T06)", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    await k9Host(dirs, { wsUrl: server.url });
+    await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+    server.sockets[0].send(startFrame(1, k9True()));
+    await started(dirs.diagnosticDirectory, 1);
+    expect(basisNow()).toBe("verified");
+    // 保存の段取りは時計の進みで動くので、ここからは試験の時計を実時間で進める（切断が無いので境界は入力まで進む）。
+    const running = setInterval(() => { k9.advanced += 100; }, 100);
+    cleanups.push(() => clearInterval(running));
+    server.sockets[0].send(frame("VPWW57", text("15_16_02_251222_VPWW57"), "id-k9"));
+    await until(async () => (await saved(dirs, "U-W"))?.dmdataId === "id-k9", 10_000);
+    expect(await saved(dirs, "U-W")).toMatchObject({ receivedAt: { basis: "verified" } });
+  });
+
+  it("(c) offline: nothing is tried, at 30 s both expire with one INFO; REST asks every 10 min until a Date matches (G + 1 s), then never; expired stays", async () => {
+    const dirs = await directories();
+    await savePendingTsunami(dirs);
+    let answer: () => Promise<SocketListResult> = failed;
+    rest.list = () => answer();
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    await k9Host(dirs, { dmdata: subscription });
+    expect(restoredTsunami()).toBe(2);
+    await tickAt(15_000);
+    await tickAt(29_000);
+    expect([probes(), deliveries.delivered, await runtimeLines(dirs.diagnosticDirectory, "notificationExpiredClockUnverified")]).toEqual([1, 0, []]);
+    await tickAt(30_000);
+    await until(async () => (await runtimeLines(dirs.diagnosticDirectory, "notificationExpiredClockUnverified")).length === 1);
+    expect(await runtimeLines(dirs.diagnosticDirectory, "notificationExpiredClockUnverified")).toMatchObject([{ level: "INFO", unit: "U-T", count: 2 }]);
+    // REST の Date は秒までなので G に 1,000 ms を足す: ずれ −4,001 ms は合わず、−4,000 ms は合う。
+    let dayName: string | null = "Foo";
+    answer = async () => ({ kind: "ok", sockets: [], date: new Date(k9True()).toUTCString().replace(/^[A-Za-z]{3}/, (day) => dayName ?? day) });
+    await tickAt(629_000);
+    expect(probes()).toBe(1);
+    // IMF-fixdate でない曜日の名前と、日付と合わない曜日（2026-01-01 は木曜）は、時刻が合っていても確かめにならない。
+    await tickAt(630_000);
+    expect([probes(), basisNow()]).toEqual([2, "unverified"]);
+    dayName = "Mon";
+    await tickAt(1_230_000);
+    expect([probes(), basisNow()]).toEqual([3, "unverified"]);
+    dayName = null;
+    k9.skew = -4_001;
+    await tickAt(1_830_000);
+    expect([probes(), basisNow()]).toEqual([4, "unverified"]);
+    k9.skew = -4_000;
+    await tickAt(2_430_000);
+    expect([probes(), basisNow()]).toEqual([5, "verified"]);
+    await tickAt(3_030_000);
+    expect([probes(), deliveries.delivered]).toEqual([5, 0]);
+  });
+
+  it("(e) the deadline is judged by the check's M: a match received at 30.1 s expires the notices, one at 29.95 s lets them go; a past clock keeps the mark", async () => {
+    for (const [receivedMs, expired] of [[30_100, true], [29_950, false]] as const) {
+      Object.assign(k9, { advanced: 0, skew: 0, pause: 0 });
+      deliveries.delivered = 0;
+      const dirs = await directories();
+      await savePendingTsunami(dirs);
+      const server = await localServer();
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+      const host = await k9Host(dirs, { wsUrl: server.url });
+      await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+      // R を 29 秒に置くため、そこで新しい WS を作らせる。
+      server.sockets[0].terminate();
+      await until(async () => (await snapshot(host.displayPort)).connection.state === "reconnecting");
+      k9.advanced = 29_000;
+      vi.advanceTimersByTime(5_000);
+      await until(() => server.sockets.length === 2 && server.sockets[1].readyState === 1);
+      await tickAt(29_900);
+      k9.advanced = receivedMs;
+      server.sockets[1].send(startFrame(1, k9True()));
+      await started(dirs.diagnosticDirectory, 1);
+      await tickAt(30_200);
+      if (expired) {
+        await until(async () => (await runtimeLines(dirs.diagnosticDirectory, "notificationExpiredClockUnverified")).length === 1);
+        expect(roots.options!.wallBasis!({ wallTimeMs: K9_WB, monotonicMs: K9_M0 + 29_000 })).toBe("verified");
+        expect([deliveries.delivered, roots.options!.clockDeadlineMissed!()]).toEqual([0, true]);
+      } else {
+        await until(() => deliveries.delivered === 2);
+        expect(roots.options!.clockDeadlineMissed!()).toBe(false);
+      }
+      await host.stop();
+      vi.useRealTimers();
+    }
+  });
+
+  it("(h) stop() during the T0+15 s REST check waits for its answer; that answer counts for nothing and starts no try and no call", async () => {
+    const dirs = await directories();
+    await savePendingTsunami(dirs);
+    const server = await localServer();
+    let answer: ((result: SocketListResult) => void) | null = null;
+    rest.list = (status) => status === "open" && k9.advanced >= 15_000
+      ? new Promise((done) => { answer = done; }) : Promise.resolve({ kind: "ok", sockets: [], date: null });
+    rest.start = opened(server.url, 62);
+    rest.close = async () => ({ kind: "ok" });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const host = await k9Host(dirs, { dmdata: subscription });
+    await until(() => server.sockets.length === 1);
+    await tickAt(15_000);
+    await until(() => answer != null);
+    let settled = false;
+    const stopped = host.stop().then(() => { settled = true; });
+    await pause(500);
+    expect(settled).toBe(false);
+    const callsAtAnswer = rest.calls.length;
+    answer!({ kind: "ok", sockets: [], date: new Date(k9True()).toUTCString() });
+    await stopped;
+    expect([deliveries.delivered, basisNow(), rest.calls.slice(callsAtAnswer)]).toEqual([0, "awaiting", ["delete:62"]]);
   });
 });

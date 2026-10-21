@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "7442e7355d583a617af1f5250f394ccfd6ebee4fbc0fd2fc9c0e47d53e06f692",
+    "sha256": "7efa3025f0b4cd13db107c0a7a712e3e5774e819addcbcfc4cd04f45bd018e6c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -1351,7 +1351,7 @@
     "artifactRequirements": [
       "allowed_paths限定のpatch、変更file一覧、build/test/shuffleの結果、未実行の検証と理由、残存リスク",
       "最小実装・最小テスト: 追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかの1行（どれにも当たらない試験は削る）。仕組みを一つ足すときは、要求する契約IDと無いと壊れる振る舞いを1行で添える。1実装のinterface・factory・registry・将来用の拡張点を足さない。sliceを2つの配列で持つのはI-U-Y.slices、確率の40の値を持たないのはP3-C14-PROB-FACTSで、別の帳簿・別のcodecを足さない",
-      "既存試験・試験helperを変える箇所は、変える前に理由を報告する。少なくとも: unit-table/type-contract.tsのN5b・N6a・N6b（「まだruntimeに無いunit」の代表のU-Y。U-YでUnitIdが全部そろうので、存在しないunit名（例「U-Z」）に替える、reconstruction/test/unit-table/type-contract.ts:73 «9d57b7c49a90838f»・reconstruction/test/unit-table/type-contract.ts:77 «9febd829f9773959»・reconstruction/test/unit-table/type-contract.ts:81 «55ec9d39a5ad19cd»）、unit-table/unit-table.test.tsのnotPortedの代表（VPTW60・U-Y→notPortedのまま残るVPBS51・U-B、reconstruction/test/unit-table/unit-table.test.ts:48 «89f72ccd642b3a9b»と同じ行のblankの例）、shared-runtime/shared-runtime.test.tsのrouteの無い入力の代表（VPTW60→VPBS51、reconstruction/test/shared-runtime/shared-runtime.test.ts:136 «c848b01703cb020b»とP2-A1-T04のreconstruction/test/shared-runtime/shared-runtime.test.ts:679 «6276c11a2a4428f0»）、owner-harness.ts（unitごとの代表入力にU-Yの行）、runtime-fixture.ts（RuntimeUnitIdの網羅にU-Y）、deferredのrestoreOwnerのrestoredにU-Yの行、unsavedUnitsの数（11→12）とdeferredの数（5→6）、各unitの試験（unitの数・一覧の機械的な追加だけ）",
+      "既存試験・試験helperを変える箇所は、変える前に理由を報告する。少なくとも: unit-table/type-contract.tsのN5b・N6a・N6b（「まだruntimeに無いunit」の代表のU-Y。U-YでUnitIdが全部そろうので、存在しないunit名（例「U-Z」）に替える、reconstruction/test/unit-table/type-contract.ts:73 «a6f3c0a7dcb7292d»・reconstruction/test/unit-table/type-contract.ts:77 «941a6b7c212ccba4»・reconstruction/test/unit-table/type-contract.ts:81 «55ec9d39a5ad19cd»）、unit-table/unit-table.test.tsのnotPortedの代表（VPTW60・U-Y→notPortedのまま残るVPBS51・U-B、reconstruction/test/unit-table/unit-table.test.ts:48 «1a0c96a4a1e9e35c»と同じ行のblankの例）、shared-runtime/shared-runtime.test.tsのrouteの無い入力の代表（VPTW60→VPBS51、reconstruction/test/shared-runtime/shared-runtime.test.ts:137 «07b181745aeedcb0»とP2-A1-T04のreconstruction/test/shared-runtime/shared-runtime.test.ts:679 «6a012770ba3d2bd8»）、owner-harness.ts（unitごとの代表入力にU-Yの行）、runtime-fixture.ts（RuntimeUnitIdの網羅にU-Y）、deferredのrestoreOwnerのrestoredにU-Yの行、unsavedUnitsの数（11→12）とdeferredの数（5→6）、各unitの試験（unitの数・一覧の機械的な追加だけ）",
       "AC13のR45一覧（file:lineと区分）。unit・domain・testのdirectoryの外で足した行・caseの数と、型で漏れを止められない箇所",
       "AC12の干渉の数値（Mac、試行数・最大・中央値）と、AC06の確率の報1通の所要。正式E01と呼ばない",
       "TyphoonUnitCodec一つだけを実装する。無いと保存と復元のschema選択が曖昧になる",

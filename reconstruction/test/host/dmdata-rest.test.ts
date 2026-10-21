@@ -34,10 +34,10 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function answer(status: number, body: string, end: "end" | "truncated" = "end") {
+function answer(status: number, body: string, end: "end" | "truncated" = "end", headers: Readonly<Record<string, string>> = {}) {
   https.handle = (exchange: Exchange) => {
     exchange.outgoing.emit("finish");
-    const response = Object.assign(new EventEmitter(), { statusCode: status, headers: {} });
+    const response = Object.assign(new EventEmitter(), { statusCode: status, headers });
     exchange.onResponse(response);
     if (body !== "") response.emit("data", Buffer.from(body));
     if (end === "end") response.emit("end");
@@ -57,7 +57,10 @@ describe("P3-C2-T08 dmdata REST boundary (AC01, AC08)", () => {
   it("list: Basic auth, projection without ticket or ipAddress; next page, oversize, status=error and non-2xx fail; 401/403 are auth", async () => {
     answer(200, json({ status: "ok", items: [listed] }));
     expect(await listSockets(API_KEY, "waiting")).toEqual({ kind: "ok",
-      sockets: [{ id: 5, appName: "fleq", status: "open", classifications: ["eew.forecast"] }] });
+      sockets: [{ id: 5, appName: "fleq", status: "open", classifications: ["eew.forecast"] }], date: null });
+    // P3-CK-T01 (g): 応答の Date ヘッダは ok の date に載る（時計の確かめの材料、P3-CK-AC02）。
+    answer(200, json({ status: "ok", items: [] }), "end", { date: "Wed, 21 Oct 2026 00:00:01 GMT" });
+    expect(await listSockets(API_KEY, "open")).toEqual({ kind: "ok", sockets: [], date: "Wed, 21 Oct 2026 00:00:01 GMT" });
     const [{ options }] = exchanges();
     expect(options).toMatchObject({ hostname: "api.dmdata.jp", port: 443, method: "GET", path: "/v2/socket?status=waiting" });
     expect(options.headers).toMatchObject({ Authorization: `Basic ${Buffer.from(`${API_KEY}:`).toString("base64")}` });

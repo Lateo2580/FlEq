@@ -24,7 +24,7 @@ import type {
   RuntimeUnitId,
   ShutdownPendingCounts,
   ShutdownStageResult,
-  ShutdownSummary,
+  ShutdownSummary, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
 import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types";
@@ -108,7 +108,7 @@ type OwnerRequestBody = OwnerRequest extends infer R ? R extends unknown ? Omit<
 type CompositionOptions = Readonly<{
   // P3-C3A: the one way a request reaches an owner. The host posts it to the owner's thread.
   send: (place: ExecutionPlace, request: OwnerRequest) => void;
-  clock?: () => ClockReading;
+  clock?: () => ClockReading; wallBasis?: (at: ClockReading) => WallBasis; clockDeadlineMissed?: () => boolean; // P3-CK-AC02: 根拠の状態と締切の印（省略は "verified" と false）
   // performance.timeOrigin + performance.now(), the real clock every thread shares (P3-C3A-CLOCK).
   sharedNow?: () => number;
   diagnosticFileSystem?: DiagnosticFileSystem;
@@ -419,7 +419,7 @@ class RuntimeCompositionRoot {
   constructor(configInput: AppConfig, codecs: CodecMap<RuntimeUnitStates>, options: CompositionOptions) {
     const config = validateAppConfig(configInput);
     this.sendRequest = options.send;
-    this.clock = options.clock ?? systemClock;
+    this.clock = options.clock ?? systemClock; this.wallBasis = options.wallBasis ?? (() => "verified"); this.clockDeadlineMissed = options.clockDeadlineMissed ?? (() => false);
     this.sharedNow = options.sharedNow ?? sharedClock;
     this.units = options.units ?? linkedUnitTable;
     this.shutdownHooks = options.shutdownHooks ?? {};
@@ -557,7 +557,7 @@ class RuntimeCompositionRoot {
       displayChanges.push(...output.displayChanges);
       output.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
     }
-    this.current = state;
+    this.current = state; for (const unit of runtimeUnits) for (const intent of state.mirror[unit].pendingIntents) this.restoredKeys.add(intentKey(intent)); // P3-CK-AC03 (1)
     this.streamId = randomUUID();
     this.evaluateDelivery(clock);
     this.project(outcomes, displayChanges, clock);
@@ -972,20 +972,20 @@ class RuntimeCompositionRoot {
   // A stopped owner's pending intents leave A7, except one whose attempt already runs: it ends by the adapter (AC02).
   private deliverableIntents(unit: RuntimeUnitId): readonly NotificationIntent[] {
     const { pendingIntents } = this.state.mirror[unit];
-    if (!this.stoppedUnit(unit)) return pendingIntents;
-    const channels = this.state.notificationChannels;
-    return pendingIntents.filter((intent) => channelNames.some((name) => {
-      const channel = channels[name];
-      return (channel.kind === "running" || channel.kind === "stopping")
-        && sameIntent(intent, { ...channel.attempt, id: channel.attempt.intentId });
-    }));
+    return this.stoppedUnit(unit) ? pendingIntents.filter((intent) => this.attempting(intent)) : pendingIntents;
   }
 
-  private deliveryState(): NotificationDeliveryState {
+  // channel で running か stopping の試行の intent（停止した owner の intent と、時計の保留の外、P3-CK-AC03 (2)）。
+  private attempting(intent: NotificationIntent): boolean {
+    const channel = this.state.notificationChannels[intent.channel];
+    return (channel.kind === "running" || channel.kind === "stopping") && sameIntent(intent, { ...channel.attempt, id: channel.attempt.intentId });
+  }
+
+  private deliveryState(basis: WallBasis): NotificationDeliveryState {
     const state = this.state;
     return {
       intents: runtimeUnits.flatMap((unit) => this.deliverableIntents(unit).filter((intent) =>
-        !this.inFlightKeys.has(intentKey(intent)))),
+        !this.inFlightKeys.has(intentKey(intent)) && !this.held(intent, basis))),
       channels: state.notificationChannels, deadlines: state.notificationDeadlines,
     };
   }
@@ -1064,16 +1064,22 @@ class RuntimeCompositionRoot {
     return keys;
   }
 
-  private reclaimExpired(clock: ClockReading, units: readonly RuntimeUnitId[] = runtimeUnits): void {
+  // P3-CK-AC03 (2)(3): 保留中の復元由来の intent は wall でも表でも回収せず、"unverified" で鳴らさず失効させる。stopping は停止の前の
+  // 1 回で、"verified" でない間に残るものだけを失効させる。
+  private reclaimExpired(clock: ClockReading, units: readonly RuntimeUnitId[] = runtimeUnits, stopping = false): void {
     const state = this.state;
     if (state.shutdown.finalizationAt != null || this.requestsStopped) return;
     const reserved = this.reservedKeys();
+    const basis = this.heldBasis(clock), clockExpired = stopping ? basis !== "verified" : basis === "unverified";
     const expired = units.flatMap((unit) => this.stoppedUnit(unit) ? [] : state.mirror[unit].pendingIntents).filter((intent) =>
-      !this.inFlightKeys.has(intentKey(intent)) && !reserved.has(intentKey(intent)) && (clock.wallTimeMs >= intent.expiresAt
-        || clock.monotonicMs >= (state.notificationDeadlines[intent.channel][intentKey(intent)]?.expiresAtMonotonicMs ?? Infinity)));
+      !this.inFlightKeys.has(intentKey(intent)) && !reserved.has(intentKey(intent)) && (this.held(intent, basis) ? clockExpired
+        : !stopping && (clock.wallTimeMs >= intent.expiresAt
+        || clock.monotonicMs >= (state.notificationDeadlines[intent.channel][intentKey(intent)]?.expiresAtMonotonicMs ?? Infinity))));
     if (expired.length === 0) return;
+    const held = new Set(expired.filter((intent) => this.held(intent, basis)).map(intentKey));
     this.stopExpired(expired, clock);
-    const counts: Partial<Record<RuntimeUnitId, number>> = {};
+    const counts: Record<"notificationExpired" | "notificationExpiredClockUnverified", Partial<Record<RuntimeUnitId, number>>> = {
+      notificationExpired: {}, notificationExpiredClockUnverified: {} };
     const groups = new Map<string, HeldUpdate & { updates: NotificationIntentUpdate[]; keys: string[] }>();
     for (const intent of expired) {
       const unit = runtimeUnits.find((candidate) => candidate === intent.unit);
@@ -1083,12 +1089,14 @@ class RuntimeCompositionRoot {
       group.updates.push({ id: intent.id, attempts: intent.attempts, nextAttemptAt: intent.nextAttemptAt, disposition: "expired" });
       group.keys.push(intentKey(intent));
       groups.set(JSON.stringify([unit, intent.channel]), group);
-      counts[unit] = (counts[unit] ?? 0) + 1;
+      const byUnit = counts[held.has(intentKey(intent)) ? "notificationExpiredClockUnverified" : "notificationExpired"];
+      byUnit[unit] = (byUnit[unit] ?? 0) + 1;
     }
     for (const group of groups.values()) this.queueUpdate(group);
-    for (const unit of runtimeUnits) if (counts[unit] != null)
-      this.enqueueDiagnostic(completeDiagnostic({ level: "INFO", component: "runtime", reason: "notificationExpired",
-        unit, count: counts[unit] }, clock, state.runId));
+    for (const reason of ["notificationExpired", "notificationExpiredClockUnverified"] as const) for (const unit of runtimeUnits) {
+      const count = counts[reason][unit];
+      if (count != null) this.enqueueDiagnostic(completeDiagnostic({ level: "INFO", component: "runtime", reason, unit, count }, clock, state.runId));
+    }
   }
 
   private stopExpired(expired: readonly NotificationIntent[], clock: ClockReading): void {
@@ -1110,12 +1118,13 @@ class RuntimeCompositionRoot {
   private selectDelivery(clock: ClockReading): void {
     const state = this.state;
     if (state.shutdown.stage !== "running") return;
-    const ownerPending = runtimeUnits.flatMap((unit) => this.deliverableIntents(unit));
-    const before = this.deliveryState();
+    const basis = this.heldBasis(clock), deliverable = runtimeUnits.flatMap((unit) => this.deliverableIntents(unit)), live = new Set(deliverable.map(intentKey));
+    // P3-CK-AC03 (1)(2): pending でなくなった intent の印を外す。保留中の復元由来の intent には表の行を作らず、選択に渡さない。
+    for (const key of this.restoredKeys) if (!live.has(key)) this.restoredKeys.delete(key);
+    const ownerPending = deliverable.filter((intent) => !this.held(intent, basis)), before = this.deliveryState(basis);
     if (ownerPending.length === 0 && before.channels.desktop.kind === "idle" && before.channels.sound.kind === "idle"
       && Object.keys(before.deadlines.desktop).length === 0 && Object.keys(before.deadlines.sound).length === 0
       && this.reservations.desktop == null && this.reservations.sound == null) return;
-    const live = new Set(ownerPending.map(intentKey));
     const deadlines = { desktop: { ...before.deadlines.desktop }, sound: { ...before.deadlines.sound } };
     let changedDeadline = false;
     for (const channel of channelNames) {
@@ -1221,7 +1230,7 @@ class RuntimeCompositionRoot {
       const deadline = state.notificationDeadlines[request.channel][reservation.key];
       // Only an adopted, current, unexpired reservation starts: an invalidated one never calls the adapter.
       if (reply.adopted && state.shutdown.stage === "running" && state.notificationChannels[request.channel].kind === "idle"
-        && intent != null && clock.wallTimeMs < intent.expiresAt && clock.monotonicMs < (deadline?.expiresAtMonotonicMs ?? Infinity)) {
+        && intent != null && clock.wallTimeMs < intent.expiresAt && clock.monotonicMs < (deadline?.expiresAtMonotonicMs ?? Infinity) && !this.held(intent, this.heldBasis(clock))) {
         this.current = { ...state, notificationChannels: { ...state.notificationChannels,
           [request.channel]: { kind: "running", attempt: reservation.attempt } } };
         if (adoption != null) attemptStartedMs = performance.now();
@@ -1256,7 +1265,7 @@ class RuntimeCompositionRoot {
       || (channel.kind === "running" || channel.kind === "stopping") && channel.attempt.intentId === result.intentId)) {
       const apply = this.notificationCalls.applyNotificationResult;
       if (apply == null) throw new Error("A7 result reducer is not linked");
-      const before = this.deliveryState();
+      const before = this.deliveryState(this.heldBasis(clock));
       const step = apply(before, result, result.completedAt);
       this.current = { ...state, notificationChannels: step.state.channels, notificationDeadlines: step.state.deadlines };
       if (channel.kind === "running" || channel.kind === "stopping") {
@@ -1421,10 +1430,22 @@ class RuntimeCompositionRoot {
   // P3-C3A-AC09 sideEffectFinalization: (1) no more state-changing requests (2) every earlier reply applied (3) one cutoff
   // (4) each owner applies its deadlines up to the cutoff. The stage deadline bounds (2) and (4) together.
   private async finalizeOwners(active: () => boolean): Promise<void> {
-    this.requestsStopped = true;
-    this.heldUpdates.length = 0;
+    // 待ちの前に置く: 段が期限で終わっても、未確定の unit は最終保存の外になり、期限の後の返信は late で数えるだけになる。
     const finalization: NonNullable<RuntimeCompositionRoot["finalization"]> = { cutoff: null, fixed: new Set(), closed: false };
     this.finalization = finalization;
+    // P3-CK-AC03 (3): 確かめられないまま残る復元由来の intent は、試行の終わりとその結果の更新・返信待ちを反映した後に鳴らさず失効させ、
+    // その採用を待ってから要求を止める（試行中は回収の外なので、終わりを待たないと結果の更新が送れず、最終保存に pending で残って
+    // 次の起動で待ちがやり直しになる）。
+    if (this.restoredKeys.size !== 0 && this.heldBasis(this.clock()) !== "verified") {
+      const settled = () => [...this.intentRequests.values()].every((request) => this.shutdownExcluded(request.place))
+        && this.heldUpdates.every((update) => this.shutdownExcluded(executionPlaces[update.unit]));
+      await Promise.all(Object.values(this.notificationOperations).flatMap((pending) => pending == null ? [] : [pending.terminal]));
+      await this.until(settled, active);
+      if (active()) this.reclaimExpired(this.clock(), runtimeUnits, true);
+      await this.until(settled, active);
+    }
+    this.requestsStopped = true;
+    this.heldUpdates.length = 0;
     await this.until(() => this.quiet(), active);
     this.delayedInputs.clear();
     this.holdSince.clear();
@@ -1533,7 +1554,8 @@ class RuntimeCompositionRoot {
         if (effect.kind === "finalizeNotificationDelivery") {
           notificationAttempts = channelNames.filter((channel) =>
             this.notificationOperations[channel] != null || this.state.notificationChannels[channel].kind === "isolated").length;
-          if (this.finalization != null) this.finalization.closed = true;
+          // 最終化の待ち（P3-CK-AC03 (3)）が期限で切れても、ここで要求の停止と closed を確定させる。
+          if (this.finalization != null) { this.finalization.closed = true; this.requestsStopped = true; }
         }
         const stats = this.mailbox.stats(this.clock().monotonicMs);
         const observedAt = this.clock();
@@ -1594,6 +1616,24 @@ class RuntimeCompositionRoot {
     const finalization = this.finalization;
     if (finalization == null) return new Set();
     return new Set(runtimeUnits.filter((unit) => !finalization.fixed.has(executionPlaces[unit])));
+  }
+
+  // ---- 時計の確かめ（P3-CLOCK-CHECK-001）: 前回の起動から戻った pending の intent を、host が手元の時計を確かめるまで保留する。 ----
+  private readonly wallBasis: (at: ClockReading) => WallBasis;
+  private readonly clockDeadlineMissed: () => boolean;
+  // P3-CK-AC03 (1): startRuntime で戻った pending の intent の鍵。後に生まれた intent は入らないので、件数は復元した pending を越えない。
+  private readonly restoredKeys = new Set<string>();
+
+  // P3-CK-AC01 (5): 先に wallBasis で host に今の観測を渡してから締切の印を読み、印を状態より先に見る。
+  private heldBasis(clock: ClockReading): WallBasis {
+    if (this.restoredKeys.size === 0) return "verified";
+    const basis = this.wallBasis(clock);
+    return this.clockDeadlineMissed() ? "unverified" : basis;
+  }
+
+  // P3-CK-AC03 (2): 保留は新しい選択と試行の開始にだけ当てる。試行中の intent を外すと A7 が superseded で止め、確かめた後に再び鳴らしうる。
+  private held(intent: NotificationIntent, basis: WallBasis): boolean {
+    return basis !== "verified" && this.restoredKeys.has(intentKey(intent)) && !this.attempting(intent);
   }
 
   // ---- U-F の詳細の口（P3-UFP-AC07）。要求は mailbox に入れない（Q-UFP-DETAIL-PATH）: 受け付けは 8 件、

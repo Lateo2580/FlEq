@@ -1,9 +1,9 @@
 import { promises as fs, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ClockReading, JsonValue, NotificationResult, RuntimeInput } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, JsonValue, NotificationResult, RuntimeInput, WallBasis } from "../../contracts/p2-shared-runtime.types";
 import type { DisplaySnapshot } from "../../contracts/p2-snapshot-sse.types";
 import type { TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
@@ -13,9 +13,10 @@ import { tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
 import { observation, vtse41 } from "../tsunami-unit/tsunami-fixture";
 import type { NotificationAbortRequest, NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import { linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
+import type { ShutdownHooks } from "../../src/runtime/composition-root";
 import { applyNotificationResult } from "../../src/notification-delivery/notification-delivery";
 import { at, eewEnvelope } from "../notification-delivery/delivery-fixture";
-import { envelope, harnessedRoot, park, seeded, startHarness, submit } from "../execution-split/owner-harness";
+import { envelope, harnessedRoot, idleChannels, park, seeded, startHarness, submit, unitBodies } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 
 // TEST-PATH (2): the publisher with its in-process owners; the probe result is dispatched after startup.
@@ -546,4 +547,210 @@ it("P3-CC-T16 acceptance / AC10・AC08(11): a refused upgrade to a major warning
   expect(r.h.unit("U-T").intents.filter((item) => item.subject === "normal/capacityRejected").map((item) => [item.id, item.payload.level]))
     .toEqual(notices.map((item) => [item.id, item.payload.level]));
   await r.h.root.diagnostics.flush();
+});
+
+// ---- P3-CLOCK-CHECK-001（K9）T02 contractBoundary / AC02・AC03: 復元した通知の保留（publisher の境界、TEST-PATH (2)）。実 owner を
+// 通した保存→復元の受入は K10 との結合受入（P3-CK-AC08 の(6)）。 ----
+
+const K9_AT = Date.parse("2026-01-01T12:00:31+09:00");
+const k9At = (ms: number): ClockReading => ({ wallTimeMs: K9_AT + ms, monotonicMs: ms });
+const vxse45Final = readFileSync("test/fixtures/77_01_30_260101_VXSE45_FINAL.xml");
+
+// 前回の起動: 両 channel が使えないまま 77_01_30 の EEW を受け、desktop と sound の pending（15 秒）を保存する。
+async function savedEewPending() {
+  const config = await settings();
+  const now = k9At(0);
+  const h = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: adapter() });
+  await startProbed(h, now, { desktop: unavailable, sound: unavailable });
+  await submit(h, envelope("t11", "VXSE45", "k9-final", vxse45Final, now));
+  await h.root.driveCheckpoint();
+  await h.settle();
+  expect(h.unit("U-E").intents.map((item) => [item.channel, item.disposition])).toEqual([["desktop", "pending"], ["sound", "pending"]]);
+  await h.root.diagnostics.flush();
+  return config;
+}
+
+// 次の起動: basis が null なら wallBasis を渡さない構成。probe の結果を渡すまでは選択しない（startHarness の probe なし）。
+async function restoredEew(config: Awaited<ReturnType<typeof settings>>, start: ClockReading, basis: { value: WallBasis } | null,
+  shutdownHooks?: ShutdownHooks) {
+  const fake = adapter();
+  let now = start;
+  const h = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: fake, shutdownHooks,
+    ...(basis == null ? {} : { wallBasis: () => basis.value }) });
+  await startHarness(h, "k9", now, false);
+  expect(h.root.state.mirror["U-E"].pendingIntents).toHaveLength(2);
+  const probe = async (clock = now) => { h.root.dispatch({ kind: "notificationProbeCompleted", channels: idleChannels, clock }); await h.settle(); };
+  const tick = async (clock: ClockReading) => { now = clock; h.root.mailbox.recordWorkerResponse(clock.monotonicMs); h.root.tick(clock); await h.settle(); };
+  const lines = async () => { await h.root.diagnostics.flush();
+    return (await h.root.readDiagnostics({ limit: 100 })).records.filter((item) => item.reason === "notificationExpiredClockUnverified"); };
+  return { h, fake, probe, tick, lines, set: (clock: ClockReading) => { now = clock; }, restoredIds: h.root.state.mirror["U-E"].pendingIntents.map((item) => item.id) };
+}
+const rows = (h: Harness) => Object.keys(h.root.state.notificationDeadlines.desktop).length + Object.keys(h.root.state.notificationDeadlines.sound).length;
+
+describe("P3-CK-T02 contractBoundary / AC02・AC03: the publisher holds a restored notification until the host has checked its clock", () => {
+  it("(a)(e) while awaiting nothing is tried, rowed or reclaimed, even past expiresAt; verified at the right wall rows and tries it", async () => {
+    const basis = { value: "awaiting" as WallBasis };
+    // (a) 復元の時計の wall が 1 時間遅れている。
+    const r = await restoredEew(await savedEewPending(), { wallTimeMs: K9_AT - 3_600_000, monotonicMs: 0 }, basis);
+    await r.probe();
+    expect([r.fake.attempts.length, rows(r.h)]).toEqual([0, 0]);
+    // (e) 評価の wall が expiresAt（受けてから 15 秒）より後でも、awaiting の間は失効させない。
+    await r.probe(k9At(20_000));
+    await r.tick({ wallTimeMs: K9_AT - 3_600_000, monotonicMs: 1_000 });
+    expect(r.h.sent.some((item) => item.request.kind === "intentUpdate" && item.request.updates.some((update) => update.disposition === "expired"))).toBe(false);
+    expect([r.fake.attempts.length, rows(r.h), r.h.root.state.mirror["U-E"].pendingIntents.length]).toEqual([0, 0, 2]);
+    basis.value = "verified";
+    await r.tick(k9At(2_000));
+    expect(r.fake.attempts.map((item) => item.intentId).sort()).toEqual([...r.restoredIds].sort());
+    expect(rows(r.h)).toBe(2);
+    await r.h.root.diagnostics.flush();
+  });
+
+  it("(b) an unverified evaluation expires both without a try, one INFO with count 2; verified later leaves them expired", async () => {
+    const basis = { value: "awaiting" as WallBasis };
+    const r = await restoredEew(await savedEewPending(), k9At(1_000), basis);
+    basis.value = "unverified";
+    await r.probe();
+    expect(await r.lines()).toMatchObject([{ level: "INFO", component: "runtime", unit: "U-E", count: 2 }]);
+    basis.value = "verified";
+    await r.tick(k9At(2_000));
+    expect([r.fake.attempts.length, r.h.root.state.mirror["U-E"].pendingIntents.length]).toEqual([0, 0]);
+  });
+
+  it("(c) back to awaiting before the reservation's answer: no try then, and none at the next evaluation", async () => {
+    const basis = { value: "verified" as WallBasis };
+    const r = await restoredEew(await savedEewPending(), k9At(1_000), basis);
+    const unhold = r.h.hold((_place, reply) => reply.kind === "intentUpdateDone");
+    await r.probe();
+    const reservations = () => r.h.sent.filter((item) => item.request.kind === "intentUpdate").length;
+    expect([reservations(), r.h.held.length]).toEqual([2, 2]);
+    basis.value = "awaiting";
+    unhold();
+    r.h.release();
+    await r.h.settle();
+    await r.tick(k9At(2_000));
+    expect([r.fake.attempts.length, reservations()]).toEqual([0, 2]);
+    await r.h.root.diagnostics.flush();
+  });
+
+  it("(d) a new EEW received after the restore is tried while awaiting; the restored ones still wait", async () => {
+    const r = await restoredEew(await savedEewPending(), k9At(1_000), { value: "awaiting" });
+    await r.probe();
+    await submit(r.h, eewEnvelope(r.h.root.state.runId, k9At(1_000), "A"));
+    expect(r.fake.attempts).toHaveLength(2);
+    expect(r.fake.attempts.some((item) => r.restoredIds.includes(item.intentId))).toBe(false);
+    await r.h.root.diagnostics.flush();
+  });
+
+  it("(f) stopping while awaiting, turning unverified during the stop, or with the reservation answers pending: expired before the final save", async () => {
+    const cases: readonly [string, WallBasis, (basis: { value: WallBasis }, release: () => void) => void][] = [
+      ["awaiting", "awaiting", () => {}],
+      ["unverified during the stop", "awaiting", (basis) => { basis.value = "unverified"; }],
+      ["reservation answers pending", "verified", (basis, release) => { basis.value = "awaiting"; release(); }],
+    ];
+    for (const [name, initial, during] of cases) {
+      const config = await savedEewPending();
+      const basis = { value: initial };
+      let release = () => {};
+      const r = await restoredEew(config, k9At(1_000), basis, { drainMailbox: async () => { during(basis, release); } });
+      const unhold = r.h.hold((_place, reply) => reply.kind === "intentUpdateDone" && initial === "verified");
+      release = () => { unhold(); r.h.release(); };
+      await r.probe();
+      await r.h.root.shutdownRuntime(0, k9At(1_000));
+      expect([name, r.fake.attempts.length, (await r.lines()).map((line) => line.count)]).toEqual([name, 0, [2]]);
+      const next = harnessedRoot(config, linkedUnitCodecs, { clock: () => k9At(2_000), notificationAdapter: adapter() });
+      await startHarness(next, "k9-after", k9At(2_000), false);
+      expect([name, next.root.state.mirror["U-E"].pendingIntents]).toEqual([name, []]);
+      await next.root.diagnostics.flush();
+    }
+  });
+
+  it("(f) regression: a try begun while verified whose end arrives after the stop began is reconciled, then expired before the final save", async () => {
+    const config = await savedEewPending();
+    const basis = { value: "verified" as WallBasis };
+    let finishLate = () => {};
+    const r = await restoredEew(config, k9At(1_000), basis, { finalizeBatchesAndSideEffects: async () => {
+      // 停止の打ち切りへの adapter の終わりを、回収の段より後の turn に届ける。
+      await new Promise((done) => setImmediate(done));
+      finishLate();
+      return { batches: 0, notificationAttempts: 0 };
+    } });
+    r.fake.abort = async (request) => ({ attemptId: request.attemptId, stopped: true, completedAt: k9At(1_000) });
+    finishLate = () => { for (const attempt of r.fake.attempts) r.fake.complete.get(attempt.attemptId)!({ kind: "aborted", reason: "shutdown",
+      stopped: true, attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: k9At(1_000) }); };
+    await r.probe();
+    expect(r.fake.attempts).toHaveLength(2);
+    basis.value = "awaiting";
+    await r.h.root.shutdownRuntime(0, k9At(1_000));
+    expect((await r.lines()).map((line) => line.count)).toEqual([2]);
+    const next = harnessedRoot(config, linkedUnitCodecs, { clock: () => k9At(2_000), notificationAdapter: adapter() });
+    await startHarness(next, "k9-after", k9At(2_000), false);
+    expect(next.root.state.mirror["U-E"].pendingIntents).toEqual([]);
+    await next.root.diagnostics.flush();
+  });
+
+  it("(f) regression: when the expiry answers miss the finalization limit, no unit gets a final save right and the late answers change nothing", async () => {
+    const hooks: { drain: () => Promise<void> } = { drain: async () => {} };
+    const basis = { value: "awaiting" as WallBasis };
+    const r = await restoredEew(await savedEewPending(), k9At(1_000), basis, { drainMailbox: () => hooks.drain() });
+    await r.probe();
+    // 別の健全な owner（weatherCurrent）の U-W に、停止の時点で未保存の変更を作る（その inputDone を停止の後まで留保し、保存権を出させない）。
+    const unholdInput = r.h.hold((_place, reply) => reply.kind === "inputDone");
+    expect(r.h.root.mailbox.enqueue(envelope(r.h.root.state.runId, unitBodies["U-W"].headType, "k9-w", unitBodies["U-W"].body, k9At(1_000), 9)).kind).toBe("accepted");
+    r.h.root.pump();
+    await r.h.settle();
+    hooks.drain = async () => { unholdInput(); r.h.release(); await r.h.settle(); };
+    // 失効の更新への返信を、副作用の最終化の段（drain の後 5 秒）より後まで留保する。
+    const unholdUpdates = r.h.hold((_place, reply) => reply.kind === "intentUpdateDone");
+    const grantsBefore = r.h.sent.filter((item) => item.request.kind === "checkpointGrant").length;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const stopping = r.h.root.shutdownRuntime(0, k9At(1_000));
+      for (let turn = 0; turn < 200 && r.h.held.length === 0; turn++) await new Promise((done) => setImmediate(done));
+      expect([r.h.root.state.shutdown.stage, r.h.held.length > 0]).toEqual(["sideEffectFinalization", true]);
+      const mirror = r.h.root.state.mirror["U-E"];
+      r.set(k9At(6_000));
+      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(20_000);
+      const summary = await stopping;
+      expect(r.h.sent.filter((item) => item.request.kind === "checkpointGrant").length).toBe(grantsBefore);
+      expect([summary.persistence["U-W"]?.kind, r.h.root.state.shutdown.stageResults.sideEffectFinalization?.result.kind]).toEqual(["pending", "deadlineExceeded"]);
+      // 段の後は要求を止めている: 遅れた返信の後の評価が unverified でも、失効の更新を新しく送らない。
+      basis.value = "unverified";
+      const updates = () => r.h.sent.filter((item) => item.request.kind === "intentUpdate").length;
+      const updatesBefore = updates();
+      unholdUpdates();
+      r.h.release();
+      expect(updates()).toBe(updatesBefore);
+      expect(r.h.root.state.mirror["U-E"]).toBe(mirror);
+      expect(r.h.root.lateReplyCount).toBeGreaterThan(0);
+    } finally { vi.useRealTimers(); }
+    await r.h.root.diagnostics.flush();
+  });
+
+  it("(g) without wallBasis the restored intents are tried at the first evaluation", async () => {
+    const r = await restoredEew(await savedEewPending(), k9At(1_000), null);
+    await r.probe();
+    expect(r.fake.attempts.map((item) => item.intentId).sort()).toEqual([...r.restoredIds].sort());
+    await r.h.root.diagnostics.flush();
+  });
+
+  it("(h) a try begun while verified is not superseded by awaiting and is delivered; the retry after a failure waits", async () => {
+    const basis = { value: "verified" as WallBasis };
+    const r = await restoredEew(await savedEewPending(), k9At(1_000), basis);
+    await r.probe();
+    expect(r.fake.attempts).toHaveLength(2);
+    basis.value = "awaiting";
+    await r.tick(k9At(1_500));
+    const [desktop, sound] = (["desktop", "sound"] as const).map((channel) => r.fake.attempts.find((item) => item.channel === channel)!);
+    r.fake.complete.get(sound.attemptId)!({ kind: "delivered", attemptId: sound.attemptId, intentId: sound.intentId, channel: "sound", completedAt: k9At(1_600) });
+    r.fake.complete.get(desktop.attemptId)!({ kind: "failed", reason: "adapterError", attemptId: desktop.attemptId, intentId: desktop.intentId,
+      channel: "desktop", completedAt: k9At(1_600) });
+    await r.h.settle();
+    await r.tick(k9At(4_000));
+    expect(r.fake.aborts).toEqual([]);
+    expect(r.h.unit("U-E").deliveryRecords.find((item) => item.intentId === sound.intentId)?.disposition).toBe("delivered");
+    expect([r.fake.attempts.length, r.h.unit("U-E").intents.find((item) => item.id === desktop.intentId)?.disposition]).toEqual([2, "pending"]);
+    await r.h.root.diagnostics.flush();
+  });
 });

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "274db585bc3de267ba6c55f772cca9af89eff3cdfe8aae8428ec2be702ff6ba8",
+    "sha256": "8420d5b02fab9a5e999ff7eff106306e9d16c168fe0a4b1258a2cbebecd6db8a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -429,9 +429,9 @@
         "id": "P3-LIFE-AC13",
         "requirement": "起動時の時計チェック（残存リスク(3)の条件、作者裁定2026-10-10）: (1) 比べる相手はdmdata WebSocket v2のstart frameのtime（サーバーがstartを送った時刻のISO 8601文字列。旧築の型src/types.ts WsStartMessage.timeが同じ仕様を写している）。host.tsは接続ごとに最初に届くstartをすでに小frameの経路で解析しており、新しい通信・RESTの変更・header読みを足さない（RESTの応答はdmdata-rest.tsのexchangeがheaderを捨てるので使わない）。(2) 形の正しいstart（P3-C2-START-RECORDの判定、timeの有無で変えない）を受けるたびに1回、skew＝startを受けたときのclock().wallTimeMs − Date.parse(time) を測る。timeは「YYYY-MM-DDThh:mm:ss(.小数)?(Z|±hh:mm)」でDate.parseが有限のときだけ使う。|skew|≧300,000 msならERROR、60,000≦|skew|＜300,000ならWARN、＜60,000なら診断なし。reasonはskew＞0でhostClockAhead、skew＜0でhostClockBehind、component=\"host\"、count・durationMsは付けない（host.tsの既存の診断の流儀。同じ診断の繰り返しはsinkのcountが数える）。timeが無い・形が違う・Date.parseが有限でないときはWARN hostClockUnverifiedを1件。(3) 数値の根拠: 60秒はP3-LIFE-D-SKEWの起点の詰め（未来の報を受信時刻へ寄せる）が効き始め、版の時刻の比較がずれ始める目安。300秒はhorizon（600秒）の半分で、進みがEEWを捨てうる手前。往復と片道の遅れ（通常1秒未満）とtimeの秒の丸めはこの幅に含める。(4) ずれを見つけても受信・EEWの判定・接続を止めず、時刻を補正しない。出口は既存の診断のsink（保存する診断の記録）だけで、ディスプレイに新しい要素を作らない。測るのはstartの制御frameの処理の中で、受信経路（dataの投入）に入れない。(5) 再接続ごとに同じ判定を行う（費用はstart 1件ごとの定数）。",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:243 «9eab77f7d9fbc5e7»",
-          "reconstruction/src/host/host.ts:246 «1b1c46f5a7c98e4f»",
-          "reconstruction/src/host/host.ts:191 «2b486aba370f5fa1»",
+          "reconstruction/src/host/host.ts:277 «9eab77f7d9fbc5e7»",
+          "reconstruction/src/host/host.ts:280 «1b1c46f5a7c98e4f»",
+          "reconstruction/src/host/host.ts:225 «2b486aba370f5fa1»",
           "reconstruction/src/host/host.ts:51 «d550290865b3dfa7»",
           "src/types.ts:576 «0ce12d8cfc86ded5»",
           "reconstruction/contracts/p3-dmdata-connect.json:368 «86f8fbca391f7688»",

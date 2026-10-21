@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "444de1a7cb8a90ecc7cfe150e91d742936508cae",
-    "sha256": "5a540857f77e89320210585bbdbe4395de44d1d2029e5586d4d0adf7d0b47afe",
+    "sha256": "b1b880d716985aed0b95c8b03f2350618f9afb816cbd688e0196c7bce9b78b16",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -302,7 +302,7 @@
           "reconstruction/src/runtime/owner-host.ts:117 «a36e13e3cdc3b833»",
           "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json:397 «228d1f5b6eb24d59»",
           "reconstruction/test/eew-e01/probe-preload.mjs:85 «91469e7116f209bd»",
-          "reconstruction/src/host/host.ts:153 «8eccbc77af0cc99f»",
+          "reconstruction/src/host/host.ts:184 «8eccbc77af0cc99f»",
           "reconstruction/test/eew-e01/run.mjs:171 «c90fda14b518a2ae»",
           "reconstruction/test/eew-e01/windows.mjs:927 «ad88bc23b721bcc8»",
           "reconstruction/contracts/p3-e05p-classify.json:111 «65aa39594f59cdc0»",
@@ -350,7 +350,7 @@
           "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-ownerHeap-run1.json:14 «cf3338851aa56f20»",
           "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-ownerHeap-run1.json:169 «70f71f432b49159c»",
           "reconstruction/contracts/p3-e05p-typhoon.json:284 «4eba5b5216b75213»",
-          "reconstruction/src/host/host.ts:127 «cb154e750655ef9b»",
+          "reconstruction/src/host/host.ts:158 «cb154e750655ef9b»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:307 «0bce41e8e8220b18»"
         ]
       },
