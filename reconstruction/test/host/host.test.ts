@@ -1052,3 +1052,52 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 start clock check (AC13)", () => {
     for (const line of clockLines) expectBare(line, line.level === "ERROR" ? "ERROR" : "WARN");
   });
 });
+
+describe("P3-VERSION-MATERIAL-001 the host lists its inputs for the saved boundary (AC06, AC07)", () => {
+  const text = (name: string) => readFileSync(`test/fixtures/${name}.xml`, "utf8");
+  const frame = (headType: string, body: string, id: string) => JSON.stringify({ ...JSON.parse(dataFrame(headType, body)), id });
+  // The newest slot of a unit, as the next start would restore it, and its boundary (null: no slot or no boundary).
+  const newest = async (dirs: Awaited<ReturnType<typeof directories>>, unit: string) => {
+    const slots = await Promise.all(["A", "B"].map((side) => fileSystem.readFile(join(dirs.stateDirectory, `${unit}-${side}.json`), "utf8")
+      .then((body) => JSON.parse(body) as { generation: number; inputBoundary?: { dmdataId: string | null; oldestHole: string | null } | null },
+        () => null)));
+    return slots.reduce((best, slot) => slot != null && (best == null || slot.generation > best.generation) ? slot : best, null);
+  };
+  const saved = async (dirs: Awaited<ReturnType<typeof directories>>, unit: string) => (await newest(dirs, unit))?.inputBoundary ?? null;
+
+  it("P3-VM-T06 contractBoundary / AC06・AC07 (2)(6): an overload-refused input and the disconnect stop the saved boundary, also in the next run", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const first = await start(server.url, dirs);
+    await until(() => server.sockets.length === 1);
+    // (6) nothing unresolved: each unit's boundary is its last input, with the dmdata id of its frame.
+    server.sockets[0].send(frame("VPWW57", text("15_16_02_251222_VPWW57"), "id-w1"));
+    server.sockets[0].send(frame("VPWP50", text("81_02_01_260605_VPWP50_high_severity"), "id-f1"));
+    await until(async () => (await saved(dirs, "U-W"))?.dmdataId === "id-w1" && (await saved(dirs, "U-F"))?.dmdataId === "id-f1", 10_000);
+    expect(await saved(dirs, "U-W")).toMatchObject({ oldestHole: null, receivedAt: { basis: null }, dmdataTime: null });
+    // (2) 130 U-W frames while every owner reply is held: the 120-item normal lane fills however the frames arrive, the mailbox
+    // refuses the next one by itemLimit and the host cuts the connection. Released at once, well inside the 5 s owner monitor.
+    owners.hold = true;
+    for (let index = 0; index < 130; index++) server.sockets[0].send(frame("VPWW57", "x", `id-junk-${index}`));
+    await until(() => server.sockets[0].readyState === 3);
+    owners.hold = false;
+    for (const deliver of owners.held.splice(0)) deliver();
+    await until(() => server.sockets.length === 2);
+    await until(() => server.sockets[1].readyState === 1);
+    server.sockets[1].send(frame("VPWW58", text("15_16_04_251222_VPWW58"), "id-w2"));
+    server.sockets[1].send(frame("VPWP50", text("81_04_01_260605_VPWP50_cancel"), "id-f2"));
+    // U-W stops before its refused input; U-F, which lost nothing itself, stops at the disconnect.
+    await until(async () => (await saved(dirs, "U-W"))?.oldestHole === "refused" && (await saved(dirs, "U-F"))?.oldestHole === "disconnected", 10_000);
+    const refused = await saved(dirs, "U-W");
+    expect(refused?.dmdataId).toMatch(/^id-junk-/);
+    expect(await saved(dirs, "U-F")).toMatchObject({ dmdataId: "id-f1" });
+    await first.stop();
+    const restored = (await newest(dirs, "U-W"))!.generation;
+    // The next run starts behind the restored boundary and does not pass it.
+    await start(server.url, dirs);
+    await until(() => server.sockets.length === 3);
+    server.sockets[2].send(frame("VPWW59", text("15_16_05_241226_VPWW59"), "id-w3"));
+    await until(async () => ((await newest(dirs, "U-W"))?.generation ?? 0) > restored, 10_000);
+    expect(await saved(dirs, "U-W")).toEqual(refused);
+  });
+});

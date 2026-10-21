@@ -106,7 +106,7 @@ export type LocalBulletinsNotificationPayload = Readonly<{
 export type LocalBulletinsIntent = NotificationIntent & Readonly<{ payload: LocalBulletinsNotificationPayload }>;
 
 export type LocalBulletinsUnitState = Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v1";
+  schemaVersion: "p3-local-bulletins-unit-v2";
   contentRevision: number;
   tornado: readonly TornadoCurrent[];
   heat: readonly HeatCurrent[];
@@ -117,7 +117,7 @@ export type LocalBulletinsUnitState = Readonly<{
 }>;
 
 export type PersistedLocalBulletinsUnit = Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v1";
+  schemaVersion: "p3-local-bulletins-unit-v2";
   tornado: readonly TornadoCurrent[];
   heat: readonly HeatCurrent[];
   transient: readonly PersistedTransientCurrent[];
@@ -159,5 +159,5 @@ export type LocalBulletinsUnitStep = Readonly<{
 }>;
 
 export type LocalBulletinsUnitCodec = UnitCodec<LocalBulletinsUnitState, PersistedLocalBulletinsUnit> & Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v1";
+  schemaVersion: "p3-local-bulletins-unit-v2";
 }>;

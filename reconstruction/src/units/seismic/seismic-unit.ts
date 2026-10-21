@@ -12,7 +12,7 @@ import type {
   SeismicUnitStep, SeismicUnitView, StrongShakingHold,
 } from "../../../contracts/p3-seismic-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   EARTHQUAKE_FAMILIES, INFO_RANK, STAGE_LABEL, knownStage, lgRank, parseSeismic, safetyRank, validEventId, validSerial,
@@ -21,7 +21,7 @@ import type { EarthquakeCandidate, LongPeriodCandidate, SeismicCandidate } from 
 
 // P3-UNIT-Q-001（C7、I-U-Q）: U-Q の意味・当日履歴・通知・容量・codec・射影。
 
-const SCHEMA = "p3-seismic-unit-v1" as const;
+const SCHEMA = "p3-seismic-unit-v2" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 // P3-C7-CAPACITY=A・P3-C7-RES-01・RET-01〜05。
 const EVENT_LIMIT = 512, LONG_PERIOD_LIMIT = 256, GENERATION_LIMIT = 4_194_304;
@@ -103,7 +103,7 @@ function reserve(values: readonly SeismicIntent[]): number {
   return values.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
 }
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-Q", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, earthquakes: [], longPeriods: [], daily: {}, intents: [] }, sha256: "0".repeat(64) }).byteLength;
+  payload: { schemaVersion: SCHEMA, earthquakes: [], longPeriods: [], daily: {}, intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T と同じ予約）。
 function generationBytes(earthquakes: readonly EarthquakeEvent[], longPeriods: readonly LongPeriodSubject[], daily: Daily,
   intents: readonly SeismicIntent[]): number {
@@ -1125,13 +1125,13 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const emptyDaily: Daily = { normal: EMPTY_HISTORY, training: EMPTY_HISTORY, test: EMPTY_HISTORY };
 const seismicUnitCodec: SeismicUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-seismic-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // state は reducer が上限の内側で作るので、encode は保存 field だけを並べる（contentRevision・persistence は保存しない）。
   encode: (state) => ({ schemaVersion: SCHEMA, earthquakes: state.earthquakes, longPeriods: state.longPeriods, daily: state.daily,
     intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-seismic-unit-v1 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-seismic-unit-v2 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

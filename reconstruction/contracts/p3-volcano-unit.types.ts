@@ -192,7 +192,7 @@ export type VolcanoNotificationPayload = Readonly<{
 export type VolcanoIntent = NotificationIntent & Readonly<{ payload: VolcanoNotificationPayload }>;
 
 export type VolcanoUnitState = Readonly<{
-  schemaVersion: "p3-volcano-unit-v1";
+  schemaVersion: "p3-volcano-unit-v2";
   contentRevision: number;
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
@@ -208,7 +208,7 @@ export type VolcanoUnitState = Readonly<{
 }>;
 
 export type PersistedVolcanoUnit = Readonly<{
-  schemaVersion: "p3-volcano-unit-v1";
+  schemaVersion: "p3-volcano-unit-v2";
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
   ashfalls: readonly VolcanoAshfall[];
@@ -254,5 +254,5 @@ export type VolcanoUnitStep = Readonly<{
 }>;
 
 export type VolcanoUnitCodec = UnitCodec<VolcanoUnitState, PersistedVolcanoUnit> & Readonly<{
-  schemaVersion: "p3-volcano-unit-v1";
+  schemaVersion: "p3-volcano-unit-v2";
 }>;

@@ -8,7 +8,7 @@ import type { NotificationDeliveryState } from "../../contracts/p2-notification-
 import type { EewInput, EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
-import { CheckpointCoordinator } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
@@ -26,7 +26,7 @@ const BASE_TIME = 1_713_363_299_001;
 
 function emptyState(): EewUnitState {
   return {
-    schemaVersion: "p2-eew-unit-v1", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [],
+    schemaVersion: "p2-eew-unit-v2", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null },
   };
@@ -245,7 +245,7 @@ describe("P2 EEW unit", () => {
     // (a) Reclaimed delivered records leave a valid empty checkpoint, not proof of no delivery.
     const cleared = reduceEewUnit(delivered.state, { kind: "deadline", clock: clock(BASE_TIME + 15_001) });
     const savedEmpty = eewUnitCodec.encode(cleared.state);
-    expect(savedEmpty).toEqual({ schemaVersion: "p2-eew-unit-v1", intents: [], deliveryRecords: [] });
+    expect(savedEmpty).toEqual({ schemaVersion: "p2-eew-unit-v2", intents: [], deliveryRecords: [] });
     const restarted = reduceEewUnit(emptyState(), { kind: "restore", persisted: savedEmpty, clock: clock(BASE_TIME + 16_000) });
     expect(restarted.state.evidenceUnknownUntil).toBe(BASE_TIME + 616_000);
     const afterRestart = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 16_001);
@@ -829,9 +829,9 @@ describe("P2 EEW unit", () => {
       { intentId: "later", disposition: "delivered", expiresAt: BASE_TIME + 20_000 },
       { intentId: "earliest", disposition: "superseded", expiresAt: BASE_TIME + 10_000 },
     ] };
-    const envelope = { schemaVersion: "p2-eew-unit-v1", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
-      capturedAt: Number.MAX_SAFE_INTEGER, payload: eewUnitCodec.encode(state), sha256: "0".repeat(64) };
-    const padding = 262_144 - Buffer.byteLength(JSON.stringify(envelope));
+    const envelope = { schemaVersion: "p2-eew-unit-v2", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+      capturedAt: -0.0000012345678901234567, payload: eewUnitCodec.encode(state), sha256: "0".repeat(64) };
+    const padding = (262_144 - INPUT_BOUNDARY_MAX_BYTES) - Buffer.byteLength(JSON.stringify(envelope));
     const full = { ...state, deliveryRecords: [state.deliveryRecords[0],
       { ...state.deliveryRecords[1], intentId: "earliest" + "x".repeat(padding) }] };
     expect(() => eewUnitCodec.encode(full)).not.toThrow();
@@ -853,10 +853,10 @@ describe("P2 EEW unit", () => {
       disposition: "delivered" as const, expiresAt: BASE_TIME + 20_000 + (index * 137 + 701) % 1_250 }));
     const seed = { ...emptyState(), intents: [notice], deliveryRecords: records };
     const envelope = { schemaVersion: seed.schemaVersion, unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
-      capturedAt: Number.MAX_SAFE_INTEGER, payload: eewUnitCodec.encode(seed), sha256: "0".repeat(64) };
-    records[0] = { ...records[0], intentId: records[0].intentId + "x".repeat(262_144 - Buffer.byteLength(JSON.stringify(envelope))) };
+      capturedAt: -0.0000012345678901234567, payload: eewUnitCodec.encode(seed), sha256: "0".repeat(64) };
+    records[0] = { ...records[0], intentId: records[0].intentId + "x".repeat((262_144 - INPUT_BOUNDARY_MAX_BYTES) - Buffer.byteLength(JSON.stringify(envelope))) };
     const payload = eewUnitCodec.encode(seed);
-    expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload }))).toBe(262_144);
+    expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload }))).toBe((262_144 - INPUT_BOUNDARY_MAX_BYTES));
     const decoded = eewUnitCodec.decode(payload);
     if (decoded.kind !== "restored") throw new Error("exact generation boundary must restore");
     const earliest = records.reduce((left, right) => left.expiresAt <= right.expiresAt ? left : right);
@@ -915,15 +915,15 @@ describe("P2 EEW unit", () => {
 
     const withRecord = (length: number): EewUnitState => ({ ...emptyState(),
       deliveryRecords: [{ intentId: "x".repeat(length), disposition: "delivered", expiresAt: 1 }] });
-    const envelope = { schemaVersion: "p2-eew-unit-v1", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
-      capturedAt: Number.MAX_SAFE_INTEGER, payload: eewUnitCodec.encode(withRecord(0)), sha256: "0".repeat(64) };
-    const recordPadding = 262_144 - Buffer.byteLength(JSON.stringify(envelope));
+    const envelope = { schemaVersion: "p2-eew-unit-v2", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+      capturedAt: -0.0000012345678901234567, payload: eewUnitCodec.encode(withRecord(0)), sha256: "0".repeat(64) };
+    const recordPadding = (262_144 - INPUT_BOUNDARY_MAX_BYTES) - Buffer.byteLength(JSON.stringify(envelope));
     for (const extra of [0, 1]) {
       const boundary = withRecord(recordPadding + extra);
       const payload = { ...envelope.payload, deliveryRecords: boundary.deliveryRecords };
-      expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload }))).toBe(262_144 + extra);
+      expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload }))).toBe((262_144 - INPUT_BOUNDARY_MAX_BYTES) + extra);
       expect(eewUnitCodec.decode(payload).kind).toBe(extra === 0 ? "restored" : "invalid");
-      if (extra === 0) expect(eewUnitCodec.encode(boundary)).toEqual(payload);
+      if (extra === 0) { expect(eewUnitCodec.encode(boundary)).toEqual(payload); expect(new CheckpointCoordinator("/u-e", { "U-E": eewUnitCodec }, new MemoryCheckpointFileSystem(), () => ({ wallTimeMs: -0.0000012345678901234567, monotonicMs: 0 }), () => {}).capture("U-E", boundary, Number.MAX_SAFE_INTEGER, "k7", { inputIds: [], retryReason: "notRetry" }, { receivedAt: { wallTimeMs: -0.0000012345678901234567, basis: "unverified" }, dmdataTime: -0.0000012345678901234567, dmdataId: '"'.repeat(128), oldestHole: "disconnected" }).request?.encodedByteLength).toBeLessThanOrEqual(262_144); } // P3-VM-AC06: 最長の数と境界でも上限の内側
       else expect(() => eewUnitCodec.encode(boundary)).toThrow(/persisted boundary/);
     }
     for (const count of [127, 128, 129]) {

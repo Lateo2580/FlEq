@@ -513,7 +513,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const pendingAt = (index: number, bodyLength: number) => ({ id: `U-M:${own.subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-M" as const, subject: own.subject,
       operation: "normal" as const, source: own.source, transition: "updated" as const, channel: "desktop" as const,
       payload: { domain: "weather" as const, level: "warning" as const, title: "t".repeat(160), body: "b".repeat(bodyLength) }, createdAt: T0, expiresAt: T0 + 180_000,
-      nextAttemptAt: T0, attempts: 0, configRevision: "p3-local-bulletins-unit-v1", disposition: "pending" as const });
+      nextAttemptAt: T0, attempts: 0, configRevision: "p3-local-bulletins-unit-v2", disposition: "pending" as const });
     const total = (list: readonly ReturnType<typeof pendingAt>[]) => 2 + Math.max(list.length - 1, 0) + list.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + reserve(item), 0);
     const lengths: number[] = [];
     while (total(lengths.map((length, index) => pendingAt(index, length))) <= 131_072) lengths.push(512);
@@ -715,7 +715,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       const subject = tornado[index % 128].subject;
       return { id: `U-M:${subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-M" as const, subject, operation: "training" as const, source: tornado[index % 128].source,
         transition: "updated" as const, channel: "desktop" as const, payload: { domain: "weather", level: "warning", title: repeat("題", 160), body: repeat("文", 512) },
-        createdAt: REPORT, expiresAt: REPORT + 180_000, nextAttemptAt: REPORT, attempts: 99_999, configRevision: "p3-local-bulletins-unit-v1", disposition };
+        createdAt: REPORT, expiresAt: REPORT + 180_000, nextAttemptAt: REPORT, attempts: 99_999, configRevision: "p3-local-bulletins-unit-v2", disposition };
     };
     const intents: ReturnType<typeof intentAt>[] = [];
     const sizeOf = (list: readonly object[]) => list.reduce<number>((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
@@ -728,7 +728,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const pendingCount = intents.length;
     for (let index = 1000; sizeOf(intents.filter((item) => item.disposition !== "pending")) + Buffer.byteLength(JSON.stringify(intentAt(index, "delivered"))) + 1 <= 98_304; index++)
       intents.push(intentAt(index, "delivered"));
-    const maximum = { schemaVersion: "p3-local-bulletins-unit-v1", tornado, heat, transient, intents };
+    const maximum = { schemaVersion: "p3-local-bulletins-unit-v2", tornado, heat, transient, intents };
     const decoded = localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify(maximum)) as JsonValue);
     expect(decoded.kind).toBe("restored");
     if (decoded.kind !== "restored") return;

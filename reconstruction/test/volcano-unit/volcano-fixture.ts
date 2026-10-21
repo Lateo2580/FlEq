@@ -13,7 +13,7 @@ import manifest from "../../tools/corpus/manifest.json";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): VolcanoUnitState {
-  return { schemaVersion: "p3-volcano-unit-v1", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+  return { schemaVersion: "p3-volcano-unit-v2", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {

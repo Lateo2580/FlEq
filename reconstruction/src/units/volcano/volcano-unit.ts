@@ -11,7 +11,7 @@ import type {
   VolcanoScheduledAshfall, VolcanoShortfall, VolcanoUnitCodec, VolcanoUnitState, VolcanoUnitStep, VolcanoUnitView,
 } from "../../../contracts/p3-volcano-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   ASH, ASH_ORDER, BOUNDS, FAMILIES, INFO_RANK, LIMITS, asciiCode, isMarine, parseVolcano, validEventId, validSerial, validVolcanoCode,
@@ -20,7 +20,7 @@ import type { AlertFacts, VolcanoCandidate, VolcanoEntry } from "../../domains/v
 
 // P3-UNIT-V-001（C9、I-U-V）: U-V の三 slice・定時・batch・解説・復旧不足・通知・容量・codec・射影。
 
-const SCHEMA = "p3-volcano-unit-v1" as const;
+const SCHEMA = "p3-volcano-unit-v2" as const;
 // P3-C9-CAPACITY=A・P3-C9-RES-01・RET-01〜06。世代の上限は P3-CODEC-D-LIMIT=A（K5、当初 4 MiB）。
 const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20, GENERATION_LIMIT = 5_242_880;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -69,7 +69,7 @@ const listBytes = (values: readonly object[]): number => 2 + commas(values.lengt
 const terminalBytes = (intents: readonly VolcanoIntent[]): number =>
   intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-V", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, alerts: [], eruptions: [], ashfalls: [], shortfalls: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
+  payload: { schemaVersion: SCHEMA, alerts: [], eruptions: [], ashfalls: [], shortfalls: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q・U-N と同じ予約）。10: 空の配列 5 つ。
 function generationBytes(value: PersistedVolcanoUnit): number {
   return emptyEnvelopeBytes + 62 - 10 + listBytes(value.alerts) + listBytes(value.eruptions) + listBytes(value.ashfalls)
@@ -1370,13 +1370,13 @@ function persisted(value: unknown): PersistedVolcanoUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const volcanoUnitCodec: VolcanoUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 定時・batch・解説・contentRevision・persistence は保存しない（I-U-V.persisted、spec:484・:504 の N）。
   encode: (state) => ({ schemaVersion: SCHEMA, alerts: state.alerts, eruptions: state.eruptions, ashfalls: state.ashfalls,
     shortfalls: state.shortfalls, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-volcano-unit-v1 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-volcano-unit-v2 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, scheduledAshfalls: [], batch: null, bulletins: [],
         persistence: cleanPersistence } };
   },

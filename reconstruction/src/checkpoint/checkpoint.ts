@@ -8,17 +8,17 @@ import type {
   CheckpointRequest,
   CheckpointResult,
   ClockReading,
-  DiagnosticEvent,
+  DiagnosticEvent, InputBoundary, InputHole,
   JsonValue,
   PersistenceStatus,
   RestoreUnitResult,
   RuntimeUnitStates,
   RuntimeUnitId,
   UnitCodec,
-  UnitId,
+  UnitId, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
 import { completeDiagnostic } from "../runtime/runtime-diagnostic";
-import { runtimeUnits } from "../runtime/unit-coverage";
+import { classifyHeadType, runtimeUnits } from "../runtime/unit-coverage";
 
 type WritableCheckpoint = Readonly<{
   write(data: Uint8Array): Promise<void>;
@@ -59,7 +59,7 @@ type Attempt = {
 
 type Slot = "A" | "B";
 type SlotRead = Readonly<{ slot: Slot; envelope: CheckpointEnvelope }>;
-type SlotInvalid = "missing" | "invalid" | "unknownSchema";
+type SlotInvalid = "missing" | "invalid" | "unknownSchema" | Readonly<{ discardable: string }>;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -74,7 +74,7 @@ function envelopeBytes(
     unit: envelope.unit,
     generation: envelope.generation,
     capturedAt: envelope.capturedAt,
-    payload: envelope.payload,
+    payload: envelope.payload, ...(envelope.inputBoundary === undefined ? {} : { inputBoundary: envelope.inputBoundary }),
     sha256,
   }));
 }
@@ -125,6 +125,9 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   // Without it every save re-reads both slots (ledger 55).
   private readonly knowledge = new Map<UnitId, Readonly<{ slot: Slot; generation: number; sha256: string }> | null>();
   private attemptSequence = 0;
+  // P3-VM-AC05: 一覧に無い版の slot を持つ unit（この run では保存しない）と、捨てたことを診断に出した unit（unit ごとに 1 件）。
+  private readonly frozen = new Set<UnitId>();
+  private readonly discardReported = new Set<UnitId>();
 
   // readClock: wallTimeMs is business time (capturedAt, ackAt), monotonicMs is the measured clock of CheckpointMeasurement.
   constructor(
@@ -151,7 +154,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   }
 
   saves(unit: UnitId): boolean {
-    return this.codec(unit) != null;
+    return this.codec(unit) != null && !this.frozen.has(unit);
   }
 
   private readUnit(unit: UnitId): RestoreUnitResult {
@@ -168,9 +171,21 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     }
     const [left, right] = slots;
     if (left === "missing" && right === "missing") return { kind: "empty" };
-    const valid = [left, right].filter((slot): slot is SlotRead => typeof slot !== "string");
+    const valid = [left, right].filter((slot): slot is SlotRead => typeof slot !== "string" && "envelope" in slot);
+    // P3-VM-AC05 (4): 一覧に無い版（未来の版・知らない値）の slot は上書きしない。もう一方が現行版なら復元してよいが、この run の
+    // 保存を止めたことを既存の checkpointRestoreRejected（ERROR）に残す（どちらも読めなければ下で同じ診断を出す）。
+    const unknown = left === "unknownSchema" || right === "unknownSchema";
+    if (unknown) { this.frozen.add(unit); if (valid.length !== 0) this.restoreRejected(unit, "unknownSchema"); }
+    // (2)(3): 捨ててよい旧い版の slot は、現行版と並べば次の保存が、ほかと並べば初期状態からの最初の保存が上書きする。
+    const discarded = [left, right].flatMap((slot) => typeof slot !== "string" && "discardable" in slot ? [slot.discardable] : []);
+    if (discarded.length !== 0 && !unknown && !this.discardReported.has(unit)) {
+      this.discardReported.add(unit);
+      this.emitDiagnostic(completeDiagnostic({ level: "INFO", component: `checkpoint.${discarded[0]}`,
+        reason: "checkpointSchemaDiscarded", unit }, this.readClock(), "restore"));
+    }
     if (valid.length === 0) {
-      const reason = left === "unknownSchema" || right === "unknownSchema" ? "unknownSchema" : "noValidSlot";
+      if (discarded.length !== 0 && !unknown) return { kind: "empty" };
+      const reason = unknown ? "unknownSchema" : "noValidSlot";
       this.restoreRejected(unit, reason);
       return { kind: "unavailable", reason };
     }
@@ -185,7 +200,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   }
 
   // The capture of one granted save: the generation current when the grant is applied, encoded once (C1 RES-03).
-  capture(unit: RuntimeUnitId, value: unknown, generation: number, runId: string, correlation: Correlation)
+  capture(unit: RuntimeUnitId, value: unknown, generation: number, runId: string, correlation: Correlation, inputBoundary: InputBoundary | null = null)
     : Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
     | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }> {
     const codec = this.codec(unit);
@@ -202,8 +217,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
         throw new RangeError("invalid checkpoint generation or capture time");
       const { envelope, bytes } = retained != null
         ? { envelope: retained.request.envelope, bytes: retained.bytes }
-        : sealEnvelope({ schemaVersion: codec.schemaVersion, unit, generation, capturedAt, payload: codec.encode(value) });
-      const encodedByteLength = bytes.byteLength;
+        : sealEnvelope({ schemaVersion: codec.schemaVersion, unit, generation, capturedAt, payload: codec.encode(value), inputBoundary });
+      const encodedByteLength = bytes.byteLength; if (encodedByteLength > (codec.maxEnvelopeBytes ?? Number.POSITIVE_INFINITY)) throw new RangeError("checkpoint envelope exceeds its unit limit"); // P3-VM-AC06: 最後の守り（書かずに encode の失敗にする）
       // A newer generation supersedes the held bytes (up to the whole payload); only a same-generation retry reuses them.
       if (prior != null && retained == null) this.held.delete(unit);
       const ended = this.readClock();
@@ -261,7 +276,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       if (known?.generation === request.generation) { this.knowledge.delete(request.unit); known = undefined; }
       if (known === undefined) {
         const existing = this.restoreUnit(request.unit);
-        if (existing.kind === "unavailable") throw new Error(`checkpoint slot unavailable: ${existing.reason}`);
+        if (existing.kind === "unavailable") throw new Error(`checkpoint slot unavailable: ${existing.reason}`); if (this.frozen.has(request.unit)) throw new Error("checkpoint slot of an unknown version"); // P3-VM-AC05 (4): 読み直しで見つかった一覧に無い版の slot は上書きしない
         if (existing.kind === "restored" && existing.envelope.generation === request.generation) {
           if (existing.envelope.sha256 !== request.envelope.sha256)
             throw new Error("checkpoint generation conflicts with slot");
@@ -274,7 +289,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
           stage = "verify";
           started = stageStarted = this.readClock().monotonicMs;
           const confirmed = this.readSlot(request.unit, existing.slot, this.codec(request.unit)!);
-          if (typeof confirmed === "string" || confirmed.envelope.sha256 !== request.envelope.sha256)
+          if (typeof confirmed === "string" || !("envelope" in confirmed) || confirmed.envelope.sha256 !== request.envelope.sha256)
             throw new Error("existing checkpoint did not verify");
           measurements.push(this.measurement(request, stage, started, this.readClock().monotonicMs,
             byteLength, "succeeded", runId, attempt));
@@ -447,16 +462,18 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     try { value = JSON.parse(text); } catch { return "invalid"; }
     if (value == null || typeof value !== "object" || Array.isArray(value)) return "invalid";
     const record = value as Record<string, unknown>;
-    if (record.schemaVersion !== codec.schemaVersion) return "unknownSchema";
+    if (record.schemaVersion !== codec.schemaVersion) return typeof record.schemaVersion === "string"
+      && codec.discardableSchemaVersions?.includes(record.schemaVersion) === true ? { discardable: record.schemaVersion } : "unknownSchema";
     if (record.unit !== unit || !Number.isSafeInteger(record.generation) || Number(record.generation) < 1
       || typeof record.capturedAt !== "number" || !Number.isFinite(record.capturedAt)
       || record.sha256 !== match[1]) return "invalid";
+    const boundary = readBoundary(record); if (boundary == null) return "invalid";
     const envelope: CheckpointEnvelope = {
       schemaVersion: record.schemaVersion,
       unit,
       generation: Number(record.generation),
       capturedAt: record.capturedAt,
-      payload: record.payload as JsonValue,
+      payload: record.payload as JsonValue, ...boundary,
       sha256: match[1],
     };
     if (decoder.decode(serializedEnvelope(envelope)) !== text) return "invalid";
@@ -477,16 +494,20 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
 // P3-C3A-WRITE-RIGHT（spec §5.8、spec:859）と P3-UWR-AC01: publisher の側。書込み権は unit ごとに 1 つ（unit ごとに保存か照合を
 // 最大 1 件持ち、他 unit の保存を待たない）。保存の候補の unit に出し、終わった失敗の後は 1/2/4/8/10 秒の再試行間隔を置く。
 type CheckpointGrant = Readonly<{ grantId: string; unit: RuntimeUnitId; mode: "save" | "reconcile";
-  retryReason: CheckpointMeasurement["retryReason"]; generation: number; grantedAtMonotonicMs: number; runId: string }>;
+  retryReason: CheckpointMeasurement["retryReason"]; generation: number; grantedAtMonotonicMs: number; runId: string; inputBoundary: InputBoundary | null }>;
 
 class CheckpointWriter {
   private readonly retry = new Map<UnitId, { failures: number; retryAfter: number; retryReason: CheckpointMeasurement["retryReason"] }>();
   private readonly overdue = new Map<UnitId, number>();
   // The generation an owner declined to save (nothing new, or its inputs are not all known): skipped until it changes.
   private readonly declined = new Map<UnitId, number>();
+  // P3-VM-AC05 (4): owner が一覧に無い版の slot を見て、この run では保存しない unit。書込み権の候補にしない。
+  private readonly stopped = new Set<UnitId>();
   // P3-UWR-AC01: unit ごとの出ている権。その unit の権はその grantId の checkpointDone でだけ戻る。
   private readonly held = new Map<UnitId, CheckpointGrant & { monitored: boolean }>();
   private sequence = 0;
+  // P3-VM-AC07: 書込み権に載せる境界の材料（unit ごとの未解決の列）。
+  readonly boundaries = new InputBoundaries();
 
   constructor(
     private readonly saves: (unit: RuntimeUnitId) => boolean,
@@ -494,6 +515,8 @@ class CheckpointWriter {
   ) {}
 
   grantOf(unit: UnitId): CheckpointGrant | null { return this.held.get(unit) ?? null; }
+
+  stopSaving(unit: UnitId): void { this.stopped.add(unit); }
 
   // 出ている権（出した順）。
   get grants(): readonly CheckpointGrant[] { return [...this.held.values()]; }
@@ -509,7 +532,7 @@ class CheckpointWriter {
   // The one "save is due now" test.
   saveDue(persistence: PersistenceStatus, unit: RuntimeUnitId, clock: ClockReading, force = false): boolean {
     return persistence.kind !== "uncertain" && persistence.dirtySince != null
-      && persistence.currentGeneration !== persistence.savedGeneration && this.saves(unit)
+      && persistence.currentGeneration !== persistence.savedGeneration && this.saves(unit) && !this.stopped.has(unit)
       && this.declined.get(unit) !== persistence.currentGeneration
       && (force || (this.retry.get(unit)?.retryAfter ?? Number.NEGATIVE_INFINITY) <= clock.monotonicMs);
   }
@@ -543,7 +566,7 @@ class CheckpointWriter {
     selected.sort((left, right) => left.order - right.order || left.unit.localeCompare(right.unit));
     return selected.slice(0, options.limit ?? selected.length).map(({ unit, mode, generation }) => {
       const grant = { unit, mode, generation, grantId: `${runId}:grant:${++this.sequence}`, retryReason: this.retryReason(unit),
-        grantedAtMonotonicMs: clock.monotonicMs, runId, monitored: false };
+        grantedAtMonotonicMs: clock.monotonicMs, runId, monitored: false, inputBoundary: this.boundaries.boundary(unit) };
       this.held.set(unit, grant);
       return grant;
     });
@@ -604,5 +627,123 @@ class CheckpointWriter {
   }
 }
 
-export { CheckpointCoordinator, CheckpointWriter, hashEnvelope, serializedEnvelope };
+// P3-VM-AC06: dmdata の電文 id は印字できる ASCII（0x21〜0x7E）の 128 byte 以下だけを運ぶ（ほかは null）。ingress と保存の
+// 読み戻しが同じ判定を使い、INPUT_BOUNDARY_MAX_BYTES の前提になる。
+function dmdataIdOf(value: unknown): string | null {
+  return typeof value === "string" && /^[\x21-\x7e]{1,128}$/.test(value) ? value : null;
+}
+
+// P3-VM-AC06: envelope に inputBoundary が足す byte の最大。各 unit の世代の上界（空の envelope の大きさ）に足す。最長の形は、有限な
+// 数の JSON の最長 25 文字（符号・"0." と 5 つの 0・17 桁）が 2 つ、id が 128 文字すべて 2 byte に逃がす '"'、最長の basis と穴の種類。
+const INPUT_BOUNDARY_MAX_BYTES = encoder.encode(`,"inputBoundary":${JSON.stringify({
+  receivedAt: { wallTimeMs: -0.0000012345678901234567, basis: "unverified" }, dmdataTime: -0.0000012345678901234567,
+  dmdataId: "\"".repeat(128), oldestHole: "disconnected" })}`).byteLength;
+
+// P3-VM-AC06: 保存の envelope の inputBoundary を項目ごとに確かめて組み立てる。欄が無ければ旧い envelope として欄を足さない
+// （再直列化の照合を欄の無い形で行う）。形の崩れは null（その slot は invalid）。
+const holeKinds: readonly InputHole[] = ["refused", "disconnected", "restarted"];
+const basisKinds: readonly WallBasis[] = ["awaiting", "verified", "unverified"];
+const plain = (value: unknown, keys: number): value is Readonly<Record<string, unknown>> =>
+  value != null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === keys;
+
+function readBoundary(record: Readonly<Record<string, unknown>>): Readonly<{ inputBoundary?: InputBoundary | null }> | null {
+  if (!Object.hasOwn(record, "inputBoundary")) return {};
+  const value = record.inputBoundary;
+  if (value === null) return { inputBoundary: null };
+  if (!plain(value, 4)) return null;
+  const { receivedAt, dmdataTime, dmdataId, oldestHole } = value;
+  const time = dmdataTime === null ? null : typeof dmdataTime === "number" && Number.isFinite(dmdataTime) ? dmdataTime : undefined;
+  const id = dmdataId === null ? null : dmdataIdOf(dmdataId) ?? undefined;
+  const hole = oldestHole === null ? null : holeKinds.find((kind) => kind === oldestHole);
+  let received: InputBoundary["receivedAt"] | undefined = null;
+  if (receivedAt !== null) {
+    const shaped = plain(receivedAt, 2);
+    const wallTimeMs = shaped && typeof receivedAt.wallTimeMs === "number" && Number.isFinite(receivedAt.wallTimeMs) ? receivedAt.wallTimeMs : undefined;
+    const basis = !shaped ? undefined : receivedAt.basis === null ? null : basisKinds.find((kind) => kind === receivedAt.basis);
+    received = wallTimeMs === undefined || basis === undefined ? undefined : { wallTimeMs, basis };
+  }
+  if (time === undefined || id === undefined || hole === undefined || received === undefined) return null;
+  return { inputBoundary: { receivedAt: received, dmdataTime: time, dmdataId: id, oldestHole: hole } };
+}
+
+// P3-VM-AC07: publisher が unit ごとに持つ未解決の列。境界は「受信の順でそこ以前の、その unit に振り分けた入力がすべて処理され、
+// この世代に入っている位置」で、書込み権を出すときの最古の未解決の直前の入力（未解決が無ければ受信末尾）。書込み権は parser 入力の
+// 処理中には出ないので、そこまでの入力は capture した state に入っている。持つのは処理待ち（mailbox の 128 件で有界）・穴の区間
+// （64）・受信末尾 1 件の材料だけで、完了した入力の材料は捨てる（Q-VM-COST）。穴（断った入力・切断・再起動）は C16 まで解決しない。
+// 優先度で後着を先に処理しても、先着の処理待ちが残る間は境界はその前で止まる（メモ §2.4 の受信順 10 と 11）。
+type MailboxItem = import("../../contracts/p1-parser-boundary.types").ParserMailboxItem;
+type BoundaryPosition = Omit<InputBoundary, "oldestHole">;
+type InputHoleRange = { from: number; to: number; readonly kind: InputHole; readonly before: BoundaryPosition | null };
+type UnitInputs = { tail: Readonly<{ sequence: number; position: BoundaryPosition }> | null;
+  readonly pending: Map<number, BoundaryPosition | null>; readonly holes: InputHoleRange[] };
+const HOLE_LIMIT = 64; // 置き値（P3-VM-AC07）
+
+class InputBoundaries {
+  private readonly units = new Map<UnitId, UnitInputs>(runtimeUnits.map((unit) => [unit, { tail: null, pending: new Map(), holes: [] }]));
+
+  // mailbox が受けた入力。basis は host が frame の entry を読んだ時点の根拠で、受信時刻と一緒に運ぶ（K9 の前は null、AC06）。
+  queued(item: MailboxItem, basis: WallBasis | null): void {
+    const record = this.routed(item);
+    if (record == null) return;
+    record.pending.set(item.inputSequence, record.tail?.position ?? null);
+    this.advance(record, item, basis);
+  }
+
+  // host が停止・無応答の owner に断った入力と、mailbox が overload で断った入力。
+  refused(item: MailboxItem, basis: WallBasis | null): void {
+    const record = this.routed(item);
+    if (record == null) return;
+    this.hole(record, item.inputSequence, "refused");
+    this.advance(record, item, basis);
+  }
+
+  // 切断の間: 接続が切れた位置の後ろは、全 unit の穴。
+  disconnected(acceptedThroughSequence: number): void {
+    for (const record of this.units.values()) this.hole(record, acceptedThroughSequence + 1, "disconnected");
+  }
+
+  // 再起動の間: 復元した境界からこの run の最初の入力までは穴で、前の run の最古の穴の種類を引き継ぐ。保存の無い unit
+  // （初めての起動・初期化の直後）には前の入力が無いので穴を置かない。
+  restarted(unit: UnitId, restoration: "restored" | "empty" | "unavailable", restored: InputBoundary | null): void {
+    if (restoration === "empty") return;
+    const before = restored == null ? null : { receivedAt: restored.receivedAt, dmdataTime: restored.dmdataTime, dmdataId: restored.dmdataId };
+    this.units.get(unit)!.holes.push({ from: 0, to: 0, kind: restored?.oldestHole ?? "restarted", before });
+  }
+
+  // owner が処理を終えた入力（decode で拒否した入力も処理済み）。
+  completed(inputSequence: number): void {
+    for (const record of this.units.values()) record.pending.delete(inputSequence);
+  }
+
+  boundary(unit: UnitId): InputBoundary | null {
+    const record = this.units.get(unit)!;
+    const hole = record.holes[0];
+    let before = hole == null ? record.tail?.position ?? null : hole.before;
+    // Map は入れた順（受信の順）なので先頭が最古の処理待ち。
+    for (const [sequence, position] of record.pending) { if (hole == null || sequence < hole.from) before = position; break; }
+    return before == null ? null : { ...before, oldestHole: hole?.kind ?? null };
+  }
+
+  // 振り分け先の無い入力（ignored・notPorted・unlisted）と取り直しの入力（origin=recovery）は列に入れない。
+  private routed(item: MailboxItem): UnitInputs | null {
+    const route = classifyHeadType(item.headType);
+    return item.origin === "recovery" || route.status !== "ready" ? null : this.units.get(route.unit)!;
+  }
+
+  private advance(record: UnitInputs, item: MailboxItem, basis: WallBasis | null): void {
+    record.tail = { sequence: item.inputSequence,
+      position: { receivedAt: { wallTimeMs: item.receivedAt, basis }, dmdataTime: null, dmdataId: item.dmdataId } };
+  }
+
+  // 隣り合う穴（間にこの unit へ振り分けた入力が無い）は 1 つにまとめる。64 を越えたら新しい側の 2 つをまとめ、最古の位置と
+  // 古い側の材料を残す（取り直す範囲が広がるだけ）。
+  private hole(record: UnitInputs, sequence: number, kind: InputHole): void {
+    const last = record.holes.at(-1);
+    if (last != null && (record.tail?.sequence ?? -1) <= last.to) { last.to = Math.max(last.to, sequence); return; }
+    record.holes.push({ from: sequence, to: sequence, kind, before: record.tail?.position ?? null });
+    if (record.holes.length > HOLE_LIMIT) { const newest = record.holes.pop()!; record.holes.at(-1)!.to = newest.to; }
+  }
+}
+
+export { CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, dmdataIdOf, hashEnvelope, serializedEnvelope };
 export type { CheckpointFileSystem, CheckpointGrant, CodecMap, Correlation, WritableCheckpoint };

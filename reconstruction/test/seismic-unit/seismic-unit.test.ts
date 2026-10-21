@@ -8,7 +8,7 @@ import type {
 import contract from "../../contracts/p3-seismic-unit.json";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
-import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { knownStage, safetyRank } from "../../src/domains/seismic/seismic";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
@@ -511,8 +511,8 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const live = value.intents.find((item) => item.disposition === "pending")!;
     const withPad = (pad: number) => ({ ...value, intents: [live, { ...live, id: "pad", disposition: "delivered",
       payload: { ...(live.payload as Row), body: "x".repeat(pad) } }] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v1", unit: "U-Q", generation: 0, capturedAt: 0,
-      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62;
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v2", unit: "U-Q", generation: 0, capturedAt: 0,
+      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
     const generationPad = 4_194_304 - generation(0);
     expect(generation(generationPad)).toBe(4_194_304);
     expect(seismicUnitCodec.decode(withPad(generationPad - deliveryGrowth(pending(state)[0])) as JsonValue).kind).toBe("restored");
@@ -856,8 +856,8 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     .replace(/2026-07-28T16:2[78]:00\+09:00/g, at).replace(/<MaxInt>7<\/MaxInt>/g, "<MaxInt>3</MaxInt>"));
   const atOf = (iso: string, plus = 0) => clock(Date.parse(iso) + plus);
   const notices = (state: SeismicUnitState) => state.intents.filter((item) => item.subject === FAIL);
-  const generation = (state: SeismicUnitState) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v1", unit: "U-Q", generation: 0,
-    capturedAt: 0, payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62
+  const generation = (state: SeismicUnitState) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v2", unit: "U-Q", generation: 0,
+    capturedAt: 0, payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
   // 世代を 4 MiB − slack にする。normal の受理は普通は退去で収まるので、退去の候補にならない記録だけで埋める: 事実が HOLD_FACTS_BYTES
   // ちょうどの強震保持の event、取消記憶だけの event（予約の内）、他の系統の pending、終端記録。
@@ -1084,7 +1084,7 @@ function budgetState(now: number): SeismicUnitState {
     const eventId = id40("i", index), subject = `normal/VXSE53/${eventId}`;
     return { id: `U-Q:${subject}:${index}:desktop`, unit: "U-Q", subject, operation: "normal", source: source("normal", "VXSE53", eventId, "発表"),
       transition: "activated", channel: "desktop", payload: { domain: "earthquake-eew", level: "warning", title: "震源・震度情報",
-        body: "x".repeat(180) }, createdAt: now - 1000, expiresAt: now + 179_000, nextAttemptAt: now, attempts: 0, configRevision: "p3-seismic-unit-v1",
+        body: "x".repeat(180) }, createdAt: now - 1000, expiresAt: now + 179_000, nextAttemptAt: now, attempts: 0, configRevision: "p3-seismic-unit-v2",
       disposition };
   };
   return { ...emptyState(), earthquakes: [...Array.from({ length: 505 }, (_, index) => memoryEvent(index)),

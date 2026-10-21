@@ -294,14 +294,14 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
         // P3-C5-AC09: VTSE41 は発令・解除・降格・訓練を問わず津波候補（訓練の優先は mailbox が運用区分で外す）。
         : item.headType === "VTSE41" ? "tsunamiCandidate" : "normal" };
     // P3-C3B-AC02: an input for a stopped or unresponsive owner is refused here; the other places go on receiving.
-    if (root.refuseInput(inputId, item.headType, entry)) return;
+    if (root.refuseInput(inputId, item.headType, entry)) { root.checkpoint.boundaries.refused(item, null); return; }
     const t1 = performance.now();
     const result = mailbox.enqueue(envelope);
     if (result.kind === "rejected") {
-      if (result.reason !== "draining") overload(result.reason, ws, entry.wallTimeMs);
+      if (result.reason !== "draining") { root.checkpoint.boundaries.refused(item, null); overload(result.reason, ws, entry.wallTimeMs); }
       return;
     }
-    lastAccepted = { sequence: lastSequence, inputId };
+    lastAccepted = { sequence: lastSequence, inputId }; root.checkpoint.boundaries.queued(item, null); // P3-VM-AC07: basis は K9 まで null（AC06）
     if (config.observe != null) ingressJsonMs.set(inputId, ingressed.ingressJsonMs);
     emit({ kind: "marker", point: "T1", runId, inputId, monotonicMs: t1 });
     if (stopping == null) root.pump();

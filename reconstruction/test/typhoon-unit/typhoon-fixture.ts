@@ -13,7 +13,7 @@ import { reduceTyphoonUnit } from "../../src/units/typhoon/typhoon-unit";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): TyphoonUnitState {
-  return { schemaVersion: "p3-typhoon-unit-v1", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-typhoon-unit-v2", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };
@@ -156,7 +156,7 @@ function maximumPayload() {
     areas: Array.from({ length: 384 }, (_, at) => ({ code: six(100000 + at), name: wide(24), prefectureCode: prefectureCode(at % 96), daily: [100, 100, 100, 100, 100], peak: 100, peakSlot: 63 })),
     truncated: true }; };
   const own = (subject: string) => ({ id: "", unit: "U-Y", subject, operation: "normal", source: ref(subject, subject.includes("Analysis") ? "VPTW65" : "VPTA55"), transition: "updated", channel: "desktop",
-  payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(512) }, createdAt: EDGE, expiresAt: EDGE, nextAttemptAt: EDGE, attempts: 0, configRevision: "p3-typhoon-unit-v1", disposition: "pending" });
+  payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(512) }, createdAt: EDGE, expiresAt: EDGE, nextAttemptAt: EDGE, attempts: 0, configRevision: "p3-typhoon-unit-v2", disposition: "pending" });
   const intentOf = (index: number, bodyLength: number, disposition: string) => ({ ...own(`normal/typhoonAnalysis/${eventIdOf(0)}`), id: `U-Y:${"x".repeat(60)}:${String(index).padStart(6, "0")}:desktop`,
   payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(bodyLength) }, disposition });
   // pending は「実 byte＋予約」131,072 ちょうど、終端記録は 98,304 byte 以内の最大。
@@ -173,7 +173,7 @@ function maximumPayload() {
   terminalList.push(next);
   terminalSize += Buffer.byteLength(JSON.stringify(next)) + 1;
   }
-  const payload = { schemaVersion: "p3-typhoon-unit-v1", analysis: Array.from({ length: 64 }, (_, index) => analysisRecord(index)),
+  const payload = { schemaVersion: "p3-typhoon-unit-v2", analysis: Array.from({ length: 64 }, (_, index) => analysisRecord(index)),
   probability: Array.from({ length: 64 }, (_, index) => probabilityRecord(index)), intents: [...pendingList, ...terminalList] };
 
   return { payload, reportMs, EDGE, pendingTotal, pendingList, eventIdOf };

@@ -43,7 +43,7 @@ const diagnosticReasons = [
   "requiredStructureMissing", "requiredStructureInvalid",
   "checkpointEncodeFailed", "checkpointWriteFailed", "checkpointFileSyncFailed", "checkpointCloseFailed",
   "checkpointRenameFailed", "checkpointDirectorySyncFailed", "checkpointVerifyFailed",
-  "checkpointRetryScheduled", "checkpointOverdue", "checkpointUncertain", "checkpointRestoreRejected",
+  "checkpointRetryScheduled", "checkpointOverdue", "checkpointUncertain", "checkpointRestoreRejected", "checkpointSchemaDiscarded",
   "mailboxRejectedDraining", "mailboxRejectedItemLimit", "mailboxRejectedByteLimit", "mailboxStalled",
   "mailboxLimitViolation", "shutdownStarted", "shutdownUnsavedUnits", "diagnosticSinkFailed",
   "diagnosticQueueOverflow", "snapshotNoticeCapacityExceeded", "snapshotCommonBudgetExceeded",

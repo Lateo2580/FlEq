@@ -9,7 +9,7 @@ import type {
   BriefingUnitCodec, BriefingUnitState, BriefingUnitStep, BriefingUnitView, PersistedBriefingUnit,
 } from "../../../contracts/p3-briefing-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, LIMITS, kindOf, parseBriefing, validCode, validHeadline, validSeries, validUnit } from "../../domains/briefing/briefing";
 import type { BriefingCandidate } from "../../domains/briefing/briefing";
@@ -17,7 +17,7 @@ import { cut, infoRankOf, validInputId, validName, validReportDateTime, validSer
 
 // P3-UNIT-B-001（C12、I-U-B）: U-B の系列の current・予測の置換・alias・通知・容量・codec・射影。
 
-const SCHEMA = "p3-briefing-unit-v1" as const;
+const SCHEMA = "p3-briefing-unit-v2" as const;
 // P3-C12-BOUNDS=A・P3-C12-RES-01・RET-01〜04。
 const CURRENT_LIMIT = 256, GENERATION_LIMIT = 2_097_152;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -77,7 +77,7 @@ const listBytes = (values: readonly object[]): number => 2 + commas(values.lengt
 const terminalBytes = (intents: readonly BriefingIntent[]): number =>
   intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-B", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-R ほかと同じ予約）。4: 空の配列 2 つ。
 function generationBytes(value: PersistedBriefingUnit): number {
   return emptyEnvelopeBytes + 62 - 4 + listBytes(value.currents) + listBytes(value.intents);
@@ -729,12 +729,12 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const briefingUnitCodec: BriefingUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-B.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v1 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v2 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

@@ -294,7 +294,7 @@ function ccEnvelope(clock: ClockReading, headType: string, xml: string) {
 }
 // 世代を 4 MiB − slack にする終端記録を足す（記録の見え方は変えないので A8 の差分と食い違わない）。
 function crowdTsunami(state: TsunamiUnitState, slack: number): TsunamiUnitState {
-  const size = (value: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v1", unit: "U-T", generation: 0, capturedAt: 0,
+  const size = (value: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v2", unit: "U-T", generation: 0, capturedAt: 0,
     payload: tsunamiUnitCodec.encode(value) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62
     + value.intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
   const template = state.intents[0];

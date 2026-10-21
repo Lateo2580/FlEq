@@ -4,12 +4,12 @@ import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatu
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
-const SCHEMA = "p2-weather-timeseries-unit-v1" as const;
+const SCHEMA = "p2-weather-timeseries-unit-v2" as const;
 type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
 const LIMIT = 33_554_432, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
 const encoder = new TextEncoder();
@@ -18,7 +18,7 @@ const subjectDeadlineCache = new WeakMap<WeatherTimeseriesUnitState["subjects"],
 const outcomeCache = new WeakMap<WeatherTimeseriesSubject, SubjectOutcome>();
 type CurrentChange = (before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null) => void;
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-F", generation: 0,
-  capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
+  capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 
 function bytes(value: object): number {
   let size = cache.get(value);
@@ -387,7 +387,7 @@ function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   return measure(subjects, gates, intents, 0, 0) <= LIMIT ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = persisted({ schemaVersion: SCHEMA, subjects: state.subjects, gates: state.gates, intents: state.intents });
     if (value == null) throw new Error("invalid U-F checkpoint payload");
@@ -395,7 +395,7 @@ const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
   },
   decode(payload: JsonValue) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v1 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v2 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
         savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } };
   },

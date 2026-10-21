@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "6c54faf7781ee69bf6468a204f00f15ef49e98a20197da38c2c04dd23c83d3ca",
+    "sha256": "f5eab2329791d477bd18b974381e700c73b9030e73a51e79c7fdd2ab659fe4bb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -386,7 +386,7 @@
         "id": "P3-UFP-AC02",
         "requirement": "同じ入力でownerのstateと保存内容が変わらない（Pro §7.4、Q-UFP-SCHEMA）: 試験の固定の入力列（U-Fのfixture 13本、validUntilの後の期限とrestoreの往復を挟む）で、各stepのcodecのencodeのsha256・decisions・outcomes・intents・nextDeadlineがbase（本契約のbaseOid）の値と一致する。同じ官署・報時刻・Serial・InfoTypeを持つfixture（high_severity・unknown_code・criteria_periodなど）は官署名か報時刻を替えて送り、各stepが狙った採否（changed・stale・duplicate・rejected）になったことを試験の前提として確かめる（同じ鍵でduplicateに落ちて比較が空振りするのを防ぐ）。baseの値は実装の前にbaseで同じ試験を走らせて試験に書く。reduceWeatherTimeseriesCore・collect・evict・replace・fits・measure・persisted・codec・withoutNormalとWeatherTimeseriesUnitState・PersistedWeatherTimeseriesUnit・schemaVersionはdiffで変えない（periodMeaningは返す値を変えない。戻り値の型の注記だけ可）。永続schemaを変える必要が出たら実装を止めてblockedを報告する",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «5ec4d787f5d46a73»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «ca8561f34e108f31»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:177 «09598f8b17706761»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:156 «537767c42d8ef412»",

@@ -10,7 +10,7 @@ import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { nankaiUnitCodec, reduceNankaiUnit, toNankaiView } from "../../src/units/nankai/nankai-unit";
-import { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send } from "./nankai-fixture";
+import { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send } from "./nankai-fixture"; import { INPUT_BOUNDARY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 
 const DAY = 86_400_000;
 const F = {
@@ -562,11 +562,11 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     });
     const state: NankaiUnitState = { ...emptyState(), currents, information: evidence };
     expect(roundTrip(state).kind).toBe("restored");
-    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v1", unit: "U-N", generation: 0, capturedAt: 0,
-      payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) }));
+    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v2", unit: "U-N", generation: 0, capturedAt: 0,
+      payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES;
     console.info("P3-CODEC U-N bound", JSON.stringify({ currents: currents.length, evidence: evidence.length, envelope,
       bound: envelope + 62 - 2 + 229_376 }));
-    // 空の intents 配列（2 byte）を通知の予算 229,376 で置き換え、generation と capturedAt の 62 byte を予約する。
+    // 空の intents 配列（2 byte）を通知の予算 229,376 で置き換え、generation と capturedAt の 62 byte と inputBoundary の最大（P3-VM-AC06）を予約する。
     expect(envelope + 62 - 2 + 229_376).toBeLessThanOrEqual(273_259);
   });
 

@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import type { AcquisitionOrigin, Operation, OperationEvidence, ParserDiagnostic, ParserMailboxItem } from "../../contracts/p1-parser-boundary.types";
-import { recordParserDiagnostic } from "../diagnostics/parser-diagnostic";
+import { recordParserDiagnostic } from "../diagnostics/parser-diagnostic"; import { dmdataIdOf } from "../checkpoint/checkpoint";
 
 // P3-C3A-PARSE-ONCE: the host's one fatal UTF-8 decode and JSON.parse of a small frame, handed on so the frame is
 // never parsed twice. "failed" (invalid UTF-8 or JSON) is rejected here without parsing again.
@@ -43,7 +43,7 @@ export function ingestXmlData(input: IngressInput):
   let encodedBody: Uint8Array;
   let encoding: ParserMailboxItem["encoding"] = "utf-8";
   let compression: ParserMailboxItem["compression"] = null;
-  let ingressJsonMs: number | null = null;
+  let ingressJsonMs: number | null = null; let dmdataId: string | null = null;
   if (input.kind === "ws") {
     const parsed = input.parsed ?? parseFrame(bytes);
     if (parsed.kind === "failed") return reject("envelopeInvalid");
@@ -65,13 +65,13 @@ export function ingestXmlData(input: IngressInput):
     encoding = message.encoding;
     compression = message.compression;
     encodedBody = Buffer.from(message.body, "utf8");
-    headType = head.type;
+    headType = head.type; dmdataId = dmdataIdOf(message.id);
   } else {
     sources.headTest = { kind: "notProvided" };
     sources.envelopeStatus = { kind: "notProvided" };
     encodedBody = bytes;
     headType = input.headType;
   }
-  const item: ParserMailboxItem = { inputId: input.inputId, inputSequence: input.inputSequence, receivedAt: input.receivedAt, origin: input.origin, headType, encoding, compression, encodedBody, encodedByteLength: encodedBody.byteLength, headTest: sources.headTest, envelopeStatus: sources.envelopeStatus };
+  const item: ParserMailboxItem = { inputId: input.inputId, inputSequence: input.inputSequence, receivedAt: input.receivedAt, origin: input.origin, dmdataId, headType, encoding, compression, encodedBody, encodedByteLength: encodedBody.byteLength, headTest: sources.headTest, envelopeStatus: sources.envelopeStatus };
   return { kind: "accepted", item, ingressJsonMs };
 }

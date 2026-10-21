@@ -188,7 +188,7 @@ class OwnerHost {
     const output = this.output([first, deadline]);
     this.options.reply({ kind: "restored", output, units: this.own.map((unit) => ({ ...this.delta(unit, views.get(unit)!),
       view: views.get(unit)!, pendingIntents: this.pending(unit),
-      restoration: first.restoration[unit]! })) });
+      restoration: first.restoration[unit]!, inputBoundary: first.restoration[unit]?.kind === "restored" && restored[unit]?.kind === "restored" ? restored[unit].envelope.inputBoundary ?? null : null, saves: this.checkpoint.saves(unit) })) }); // P3-VM-AC05・AC06: 復元した世代の境界と保存の可否
   }
 
   private grant(request: Extract<OwnerRequest, { kind: "checkpointGrant" }>): void {
@@ -219,7 +219,7 @@ class OwnerHost {
     // The publisher holds one write right per unit (P3-UWR-AC01): a second save of a unit whose attempt is still open is a broken invariant.
     if (state.checkpointAttempts[unit] != null) throw new Error(`a save of ${unit} is already in progress`);
     const correlation = { inputIds, retryReason: request.retryReason };
-    const scheduled = this.checkpoint.capture(unit, state.units[unit], persistence.currentGeneration, state.runId, correlation);
+    const scheduled = this.checkpoint.capture(unit, state.units[unit], persistence.currentGeneration, state.runId, correlation, request.inputBoundary);
     const captured = this.apply(capturedOwner(state, scheduled.capture, this.options.units));
     if (scheduled.request == null) {
       const step = this.apply(checkpointResultOwner(this.state!, scheduled.result, this.options.units));

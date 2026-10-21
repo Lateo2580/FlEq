@@ -106,7 +106,7 @@ export type NankaiNotificationPayload = Readonly<{
 export type NankaiIntent = NotificationIntent & Readonly<{ payload: NankaiNotificationPayload }>;
 
 export type NankaiUnitState = Readonly<{
-  schemaVersion: "p3-nankai-unit-v1";
+  schemaVersion: "p3-nankai-unit-v2";
   contentRevision: number;
   currents: readonly NankaiCurrent[];
   // N: 事実は保存しない。復元の後は証拠だけの記録から始まる（spec:512、P3-AUTH-AC01）。
@@ -117,7 +117,7 @@ export type NankaiUnitState = Readonly<{
 }>;
 
 export type PersistedNankaiUnit = Readonly<{
-  schemaVersion: "p3-nankai-unit-v1";
+  schemaVersion: "p3-nankai-unit-v2";
   currents: readonly NankaiCurrent[];
   intents: readonly NankaiIntent[];
   // 64 件以下・subject の重複なし。鍵の無い保存物は K2 前の旧保存で、証拠 0 件として読む（P3-AUTH-D-SCHEMA=A・AC06）。
@@ -159,5 +159,5 @@ export type NankaiUnitStep = Readonly<{
 }>;
 
 export type NankaiUnitCodec = UnitCodec<NankaiUnitState, PersistedNankaiUnit> & Readonly<{
-  schemaVersion: "p3-nankai-unit-v1";
+  schemaVersion: "p3-nankai-unit-v2";
 }>;

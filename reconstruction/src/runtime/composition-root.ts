@@ -528,7 +528,7 @@ class RuntimeCompositionRoot {
     for (const place of places) for (const unit of this.restored.get(place)!.units) {
       mirror[unit.unit] = { persistence: unit.persistence, view: unit.view,
         pendingIntents: unit.pendingIntents };
-      restoration[unit.unit] = unit.restoration;
+      restoration[unit.unit] = unit.restoration; this.checkpoint.boundaries.restarted(unit.unit, unit.restoration.kind, unit.inputBoundary); if (!unit.saves) this.checkpoint.stopSaving(unit.unit);
     }
     if (runtimeUnits.some((unit) => mirror[unit] == null || restoration[unit] == null)) throw new Error("an owner did not restore every unit");
     if (this.measuring != null) for (const unit of runtimeUnits) {
@@ -571,7 +571,7 @@ class RuntimeCompositionRoot {
         throw new RangeError("invalid disconnect sequence");
       this.current = { ...state, confirmation: lostConfirmation(state.confirmation, this.units, input.acceptedThroughSequence) };
       this.disconnectedAt = input.clock.wallTimeMs;
-      this.lostThroughSequence = input.acceptedThroughSequence;
+      this.lostThroughSequence = input.acceptedThroughSequence; this.checkpoint.boundaries.disconnected(input.acceptedThroughSequence);
     } else if (input.kind === "coverageVerified") {
       const confirmation = verifyCoverage(state.confirmation, this.units, state.runId, input);
       if (confirmation !== state.confirmation) this.current = { ...state, confirmation };
@@ -864,7 +864,7 @@ class RuntimeCompositionRoot {
     const released = completed > this.mailboxCompleted;
     this.mailboxCompleted = completed;
     if (!released) return;
-    this.inFlightInputs.delete(place);
+    this.inFlightInputs.delete(place); this.checkpoint.boundaries.completed(settlement.inputSequence);
     const state = this.state;
     let reconnected = false;
     // A1 ignores an old run's completion, so it cannot end reconnecting either.
@@ -1323,7 +1323,7 @@ class RuntimeCompositionRoot {
       if (grant.mode === "save") Object.assign(mark, { sinceGrantMs: null, afterGrant: true });
     }
     this.post(executionPlaces[grant.unit], { kind: "checkpointGrant", grantId: grant.grantId, unit: grant.unit,
-      mode: grant.mode, retryReason: grant.retryReason });
+      mode: grant.mode, retryReason: grant.retryReason, inputBoundary: grant.inputBoundary });
   }
 
   // E14（P3-C4-AC04(2)）: 返信を受けた時点で権 1 回の区間を 1 行出す。返信が来た owner の counter はその返信の値に替える。

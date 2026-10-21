@@ -96,7 +96,7 @@ export type EewNotificationPayload = Readonly<{
 }>;
 
 export type EewUnitState = Readonly<{
-  schemaVersion: "p2-eew-unit-v1";
+  schemaVersion: "p2-eew-unit-v2";
   contentRevision: number;
   current: readonly EewCurrent[];
   gates: readonly EewGate[];
@@ -111,7 +111,7 @@ export type EewUnitState = Readonly<{
 }>;
 
 export type PersistedEewUnit = Readonly<{
-  schemaVersion: "p2-eew-unit-v1";
+  schemaVersion: "p2-eew-unit-v2";
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
   deliveryRecords: readonly EewDeliveryRecord[];
 }>;
@@ -148,5 +148,5 @@ export type EewUnitStep = Readonly<{
 }>;
 
 export type EewUnitCodec = UnitCodec<EewUnitState, PersistedEewUnit> & Readonly<{
-  schemaVersion: "p2-eew-unit-v1";
+  schemaVersion: "p2-eew-unit-v2";
 }>;

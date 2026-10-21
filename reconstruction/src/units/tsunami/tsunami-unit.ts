@@ -12,14 +12,14 @@ import type {
   TsunamiUnitView, TsunamiUnkeyedArea,
 } from "../../../contracts/p3-tsunami-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { AREA_RANK, INFO_RANK, KIND_CLASS, parseTsunami, sameStation } from "../../domains/tsunami/tsunami";
 import type { ForecastCandidate, ObservationCandidate } from "../../domains/tsunami/tsunami";
 
 // P3-TSUNAMI-UNIT-001（C5、I-U-T）: U-T の意味・通知・容量・codec・射影。
 
-const SCHEMA = "p3-tsunami-unit-v1" as const;
+const SCHEMA = "p3-tsunami-unit-v2" as const;
 // P3-C5-CAPACITY=A と P3-C5-RES-01・RET-01〜03。
 const FORECAST_LIMIT = 512, OBSERVATION_LIMIT = 512, STATION_LIMIT = 1024, GENERATION_LIMIT = 4_194_304;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
@@ -65,7 +65,7 @@ function sumBytes(values: readonly Subject[]): number {
   return values.reduce((sum, item) => sum + subjectBytes(item), Math.max(values.length - 1, 0));
 }
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-T", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, forecasts: [], observations: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
+  payload: { schemaVersion: SCHEMA, forecasts: [], observations: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F と同じ予約）。
 function generationBytes(forecasts: readonly Subject[], observations: readonly Subject[], intents: readonly TsunamiIntent[]): number {
   return emptyEnvelopeBytes + 62 + sumBytes(forecasts) + sumBytes(observations)
@@ -940,12 +940,12 @@ function persisted(value: unknown): PersistedTsunamiUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const tsunamiUnitCodec: TsunamiUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-tsunami-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // state は reducer が上限の内側で作るので、encode は保存 field だけを並べる（contentRevision・persistence は保存しない）。
   encode: (state) => ({ schemaVersion: SCHEMA, forecasts: state.forecasts, observations: state.observations, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-tsunami-unit-v1 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-tsunami-unit-v2 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

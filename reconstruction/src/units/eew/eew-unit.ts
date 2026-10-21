@@ -12,10 +12,10 @@ import type {
 } from "../../../contracts/p2-eew-unit.types";
 import { deliveryRecordEvent, dirty, emptyNotificationLatch, expiredOutcome, nextEewDeadline, notificationArrayBytes,
   reclaimEewLifetime, reduceEew as reduceEewCore } from "../../domains/eew/eew";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES } from "../../checkpoint/checkpoint";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
-const SCHEMA = "p2-eew-unit-v1" as const;
+const SCHEMA = "p2-eew-unit-v2" as const;
 const GENERATION_BYTES = 256 * 1024;
 const INTENT_BYTES = 128 * 1024;
 const encoder = new TextEncoder();
@@ -71,8 +71,8 @@ function deliveryRecord(value: unknown): value is EewDeliveryRecord {
 function generationByteLength(payload: PersistedEewUnit): number {
   return encoder.encode(JSON.stringify({
     schemaVersion: SCHEMA, unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
-    capturedAt: Number.MAX_SAFE_INTEGER, payload, sha256: "0".repeat(64),
-  })).byteLength;
+    capturedAt: -0.0000012345678901234567, payload, sha256: "0".repeat(64), // P3-VM-AC06: capture が受ける有限な数の JSON の最長（25 文字）
+  })).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 }
 
 const generationEnvelopeBytes = generationByteLength({ schemaVersion: SCHEMA, intents: [], deliveryRecords: [] }) - 4;
@@ -281,7 +281,7 @@ function toEewView(state: EewUnitState): EewUnitView {
 }
 
 const eewUnitCodec: EewUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-eew-unit-v1"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value: PersistedEewUnit = {
       schemaVersion: SCHEMA,
@@ -293,7 +293,7 @@ const eewUnitCodec: EewUnitCodec = {
   },
   decode(payload) {
     const value = persisted(payload);
-    if (value == null) return { kind: "invalid", reason: "invalid p2-eew-unit-v1 payload" };
+    if (value == null) return { kind: "invalid", reason: "invalid p2-eew-unit-v2 payload" };
     const latches = new Map<string, EewNotificationLatch>();
     for (const record of value.deliveryRecords) {
       const event = deliveryRecordEvent(record.intentId);

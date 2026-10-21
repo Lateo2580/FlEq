@@ -262,7 +262,7 @@ export type InfrastructureDiagnosticReason =
   | "checkpointEncodeFailed" | "checkpointWriteFailed" | "checkpointFileSyncFailed"
   | "checkpointCloseFailed" | "checkpointRenameFailed" | "checkpointDirectorySyncFailed"
   | "checkpointVerifyFailed" | "checkpointRetryScheduled" | "checkpointOverdue"
-  | "checkpointUncertain" | "checkpointRestoreRejected"
+  | "checkpointUncertain" | "checkpointRestoreRejected" | "checkpointSchemaDiscarded"
   | "mailboxRejectedDraining" | "mailboxRejectedItemLimit" | "mailboxRejectedByteLimit"
   | "mailboxStalled" | "mailboxLimitViolation"
   | "shutdownStarted" | "shutdownUnsavedUnits"
@@ -512,13 +512,13 @@ export type CheckpointEnvelope = Readonly<{
   unit: UnitId;
   generation: number;
   capturedAt: number;
-  payload: JsonValue;
+  payload: JsonValue; inputBoundary?: InputBoundary | null; // P3-VM-AC06: 欄の無い旧い envelope は省略のまま読み、照合する（境界は null と読む）
   sha256: string;
 }>;
 
 // Unit reducers own codecs; A3 calls them at capture/restore, not on idle ticks.
 export type UnitCodec<State, Persisted extends JsonValue> = Readonly<{
-  schemaVersion: string;
+  schemaVersion: string; discardableSchemaVersions?: readonly string[]; maxEnvelopeBytes?: number; // P3-VM-AC05: 捨ててよい旧い版（P5 の前だけ、C15 の配送までに空にする。省略は空）。P3-VM-AC06: 保存 1 世代の envelope の上限（capture の最後の守り）
   encode: (state: State) => Persisted;
   decode: (payload: JsonValue) => UnitDecodeResult<State>;
 }>;
@@ -593,4 +593,17 @@ export type DiagnosticReadResult = Readonly<{
   records: readonly DiagnosticEvent[];
   encodedByteLength: number;
   truncated: boolean;
+}>;
+
+// P3-VM-AC06: 時計の根拠の状態。K9（P3-CLOCK-CHECK-001）より先に合流した側が置く（Q-VM-NEIGHBOURS）。
+export type WallBasis = "awaiting" | "verified" | "unverified";
+
+// P3-VM-AC06・AC07: unit ごとの取り直しの境界（受信の順でそこ以前の、その unit への入力がすべてこの世代に入っている位置）。
+// receivedAt.basis は受信の時点の根拠（K9 の前は null）、receivedAt は取り直しで進めた位置では null、dmdataTime は C16 まで null。
+export type InputHole = "refused" | "disconnected" | "restarted";
+export type InputBoundary = Readonly<{
+  receivedAt: Readonly<{ wallTimeMs: number; basis: WallBasis | null }> | null;
+  dmdataTime: number | null;
+  dmdataId: string | null;
+  oldestHole: InputHole | null;
 }>;

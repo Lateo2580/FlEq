@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "f1892dabac2c225eea593b4418b4445a21fd5929dbe09f11c988698f659429d9",
+    "sha256": "2a120d10149e7a9bbfaeac9730d702874547a8d5c93a0f2b8d3af0f59598d30f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -311,11 +311,11 @@
         "id": "P3-WS-AC05",
         "requirement": "今の形の報の結果を変えない（Q-WS-SCHEMA）: Additionも知らない要素も持たないU-Fのfixtureと、表の内側のU-Yのfixtureでは、decisions・outcomes・intents・state・codecのencodeのbyteが今と同じ。U-F・U-Yの永続の型・schemaVersion・codecを変えない（Q-WS-SCHEMA、D-ADDITION=A）。今ある試験がこれを確かめる: U-FはP3-UFP-T01（encodeのsha256・decisions・outcomes・intents・nextDeadline）とP3-UFP-T02（要約の行のdigest。AC03で行が変わる場合はQ-WS-EXISTING-TESTS）、U-YはP3-C14-T10（typhoon-corpus.test.tsの22の期待のstep）。基準値は変えずに緑のまま。期待値を変える既存の試験はQ-WS-EXISTING-TESTSで変える前に報告する",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «5ec4d787f5d46a73»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «ca8561f34e108f31»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:194 «1c53bf5794ad39ab»",
           "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:43 «e84656f2b8801676»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:668 «ba50fb82ef51ba67»",
-          "reconstruction/src/checkpoint/checkpoint.ts:450 «ddf5c81fd41da4ad»",
+          "reconstruction/src/checkpoint/checkpoint.ts:465 «b6fdb65e4e225b7d»",
           "reconstruction/test/uf-public/uf-history.test.ts:186 «85825881864e0803»",
           "reconstruction/test/uf-public/uf-history.test.ts:196 «9a26cef9f7727011»",
           "reconstruction/test/typhoon-unit/typhoon-corpus.test.ts:29 «281e877c662ed2cd»"

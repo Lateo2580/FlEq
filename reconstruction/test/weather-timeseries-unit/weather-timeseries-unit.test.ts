@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DecodedMaterial, Operation, XmlElement } from "../../contracts/p1-parser-boundary.types";
 import type { WeatherTimeseriesCompoundField, WeatherTimeseriesValue, WeatherTimeseriesSnapshot, WeatherTimeseriesSubject, WeatherTimeseriesUnitState } from "../../contracts/p2-weather-timeseries-unit.types";
-import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { classifyMaterial, decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { callsWith } from "../unit-table/linked-calls";
@@ -23,7 +23,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
 function empty(): WeatherTimeseriesUnitState {
-  return { schemaVersion: "p2-weather-timeseries-unit-v1", contentRevision: 0, subjects: [], gates: [], intents: [],
+  return { schemaVersion: "p2-weather-timeseries-unit-v2", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -51,7 +51,7 @@ function inflated(state: WeatherTimeseriesUnitState, targetBytes: number): Weath
   const item = first(state), at = item.areas[0].name!;
   const payload = weatherTimeseriesUnitCodec.encode(state);
   const base = serializedEnvelope({ schemaVersion: state.schemaVersion, unit: "U-F", generation: 0,
-    capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62;
+    capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
   const added = targetBytes - base;
   if (added < 0) throw new Error("target is below base size");
   return { ...state, subjects: state.subjects.map((subject, position) => position === 0
@@ -217,8 +217,8 @@ describe("P2-A6 weather timeseries", () => {
     expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad))] }).kind).toBe("invalid");
     expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad - growth))] }).kind).toBe("restored");
     const wire = (length: number) => ({ ...base, intents: [notice("a", ""), notice("b", "x".repeat(length), "delivered")] });
-    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v1", unit: "U-F", generation: 0,
-      capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62;
+    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v2", unit: "U-F", generation: 0,
+      capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
     const length = 33_554_432 - generation(0);
     expect(generation(length)).toBe(33_554_432);
     expect(weatherTimeseriesUnitCodec.decode(wire(length)).kind).toBe("invalid");
@@ -500,7 +500,7 @@ describe("P2-A6 weather timeseries", () => {
         const actual = serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-F", generation: 1,
           capturedAt: Date.parse(material.reportDateTimeRaw), payload, sha256: "0".repeat(64) }).byteLength;
         expect(actual).toBeLessThanOrEqual(target);
-        expect(target - actual).toBe(62 - (String(1).length - 1)
+        expect(target - actual).toBe(62 + INPUT_BOUNDARY_MAX_BYTES - (String(1).length - 1)
           - (String(Date.parse(material.reportDateTimeRaw)).length - 1));
       } else expect(() => weatherTimeseriesUnitCodec.encode(value)).toThrow();
     }

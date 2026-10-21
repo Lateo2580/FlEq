@@ -96,7 +96,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       restore: ["clock", "kind", "runId", "sharedMs"], input: ["clock", "envelope", "kind", "sharedMs"],
       deadline: ["clock", "kind", "sharedMs"],
       intentUpdate: ["clock", "decisionClock", "kind", "requestId", "sharedMs", "unit", "updates"],
-      checkpointGrant: ["clock", "grantId", "kind", "mode", "retryReason", "sharedMs", "unit"],
+      checkpointGrant: ["clock", "grantId", "inputBoundary", "kind", "mode", "retryReason", "sharedMs", "unit"],
       shutdownInput: ["clock", "kind", "sharedMs"], finalize: ["clock", "cutoff", "kind", "sharedMs"],
       detail: ["clock", "detail", "kind", "sharedMs"],
     };
@@ -119,7 +119,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
         // No XML node, unit state, terminal intent record or checkpoint envelope anywhere.
         if (keys.includes("children") && keys.includes("attributes")) found.push("XML node");
         if (keys.includes("deliveryRecords")) found.push("terminal intent records");
-        if ("schemaVersion" in item && typeof item.schemaVersion === "string" && item.schemaVersion.endsWith("-unit-v1"))
+        if ("schemaVersion" in item && typeof item.schemaVersion === "string" && /-unit-v\d+$/.test(item.schemaVersion))
           found.push("unit state");
       }
       // The helper already passed every value through structuredClone; plain prototypes show nothing was lost there.
@@ -144,7 +144,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
         expect((delta.pendingIntents ?? []).every((intent) => intent.disposition === "pending")).toBe(true);
       }
       if (reply.kind === "restored") for (const unit of reply.units)
-        expect(Object.keys(unit).sort()).toEqual([...deltaKeys, "restoration"].sort());
+        expect(Object.keys(unit).sort()).toEqual([...deltaKeys, "inputBoundary", "restoration", "saves"].sort());
     }
     expect([...seen].sort()).toEqual(["checkpointDone", "checkpointGrant", "deadline", "deadlineDone", "input", "inputDone",
       "intentUpdate", "intentUpdateDone", "restore", "restored"]);

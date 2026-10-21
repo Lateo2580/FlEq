@@ -4,7 +4,7 @@ import type {
   CheckpointResult,
   ClockReading,
   CurrentConfirmationEvidence,
-  DiagnosticEvent,
+  DiagnosticEvent, InputBoundary,
   MailboxCompletion,
   MailboxEnvelope,
   NotificationIntent,
@@ -66,7 +66,7 @@ export type OwnerRequest = SentClock & (
       decisionClock: ClockReading }>
   // The write right of one unit (spec §5.8, P3-UWR-AC01). "reconcile" re-checks an uncertain unit (spec §5.7).
   | Readonly<{ kind: "checkpointGrant"; grantId: string; unit: RuntimeUnitId; mode: "save" | "reconcile";
-      retryReason: CheckpointMeasurement["retryReason"] }>
+      retryReason: CheckpointMeasurement["retryReason"]; inputBoundary: InputBoundary | null }> // P3-VM-AC07: publisher が出す時点の境界
   // spec §5.9 step 3 (each unit's declared shutdown input) and step 4 (last deadlines, then only checkpointGrant).
   | Readonly<{ kind: "shutdownInput" }> | Readonly<{ kind: "detail"; detail: import("./p2-weather-timeseries-unit.types").WeatherTimeseriesDetailRequest }>
   // cutoff is the one finalization clock for every owner, decided after every earlier request has been answered;
@@ -99,7 +99,7 @@ export type OwnerOutput = Readonly<{
 // checkpointDone is sent when that attempt's filesystem operations have ended and its result has been applied.
 export type OwnerReply =
   | Readonly<{ kind: "restored"; units: readonly (OwnerUnitDelta & Readonly<{
-      restoration: RuntimeRestoration[RuntimeUnitId]; view: RuntimeUnitView; pendingIntents: readonly NotificationIntent[] }>)[];
+      restoration: RuntimeRestoration[RuntimeUnitId]; inputBoundary: InputBoundary | null; saves: boolean; view: RuntimeUnitView; pendingIntents: readonly NotificationIntent[] }>)[]; // P3-VM-AC05 (4): saves=false はこの run で保存しない unit
       output: OwnerOutput }>
   // settlement times are business time (mailbox matching). processingStartedMs is T2 in measured time;
   // marks.workerTransferMs = T2 - (sharedMs - publisherTimeOriginMs).

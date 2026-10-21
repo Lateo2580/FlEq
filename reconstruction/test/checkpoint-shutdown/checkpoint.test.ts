@@ -4,15 +4,16 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
-  ClockReading, JsonValue, RuntimeUnitId, RuntimeUnitStates, UnitCodec, UnitId,
+  ClockReading, DiagnosticEvent, InputBoundary, InputHole, JsonValue, RuntimeUnitId, RuntimeUnitStates, UnitCodec, UnitId,
 } from "../../contracts/p2-shared-runtime.types";
-import { CheckpointCoordinator, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, dmdataIdOf, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { ingestXmlData } from "../../src/ingress/ingress";
 import type { CheckpointFileSystem, CodecMap, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import { nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { harnessedRoot, startHarness } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 
-import { fixtureState, fixtureValue, fixtureDriver, recordingNotificationAdapter } from "./runtime-fixture";
+import { fixtureState, fixtureValue, fixtureDriver, recordingNotificationAdapter, stringCodec } from "./runtime-fixture";
 import type { Fixture } from "./runtime-fixture";
 
 const temporary: string[] = [];
@@ -550,5 +551,186 @@ describe("P3-C1 checkpoint step 1", () => {
     const { adapter, output } = await placed(1, "different");
     expect(output.result).toMatchObject({ kind: "failed", stage: "write" });
     expect(adapter.calls.filter((call) => call === "open")).toEqual([]);
+  });
+});
+
+describe("P3-VM K7 order 1: the restore entrance and the input boundary", () => {
+  it("P3-VM-T05 acceptance / AC05: discardable old slots start empty and are overwritten; a slot of an unknown version is never written", async () => {
+    const path = await directory();
+    const adapter = new MemoryCheckpointFileSystem();
+    const codecs = { "U-F": { ...codec("U-F"), discardableSchemaVersions: ["test-v0"] } };
+    const file = (side: "A" | "B") => join(path, "state", `U-F-${side}.json`);
+    const put = (side: "A" | "B", schemaVersion: string, generation: number) => adapter.files.set(file(side),
+      serializedEnvelope(hashEnvelope({ schemaVersion, unit: "U-F", generation, capturedAt: 1, payload: { value: `g${generation}` } })));
+    const versionOf = (side: "A" | "B") => (JSON.parse(new TextDecoder().decode(adapter.files.get(file(side)))) as { schemaVersion: string }).schemaVersion;
+    // One run's owner-side coordinator over the same files, and one granted save as the owner runs it.
+    const run = () => {
+      const events: DiagnosticEvent[] = [];
+      const coordinator = new CheckpointCoordinator(join(path, "state"), codecs, adapter, () => ({ wallTimeMs: 5_000, monotonicMs: 5 }),
+        (event) => { events.push(event); });
+      const save = async (generation: number) => {
+        const captured = coordinator.capture("U-F", pending({ "U-F": { value: `v${generation}` } }).units["U-F"], generation, "k7", correlation);
+        if (captured.request == null) throw new Error("checkpoint not captured");
+        const output = await coordinator.executeCheckpoint(captured.request, "k7", correlation.inputIds, "notRetry");
+        coordinator.ended(output.result, false);
+        return output.result.kind;
+      };
+      const discarded = () => events.filter((event) => event.reason === "checkpointSchemaDiscarded");
+      return { coordinator, save, discarded };
+    };
+
+    // (1) old slots only: empty, one INFO, and the first save overwrites an old slot.
+    put("A", "test-v0", 3);
+    put("B", "test-v0", 4);
+    const first = run();
+    expect(first.coordinator.restoreUnit("U-F")).toEqual({ kind: "empty" });
+    expect(first.discarded()).toMatchObject([{ level: "INFO", unit: "U-F", component: "checkpoint.test-v0" }]);
+    expect(await first.save(1)).toBe("acknowledged");
+    expect([versionOf("A"), versionOf("B")]).toEqual(["test-v1", "test-v0"]);
+    // (2) current A and old B after that save: A is restored and the next save overwrites B.
+    const second = run();
+    expect(second.coordinator.restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: "A", envelope: { generation: 1 } });
+    expect(await second.save(2)).toBe("acknowledged");
+    expect([versionOf("A"), versionOf("B")]).toEqual(["test-v1", "test-v1"]);
+    // (3) a version outside the list beside the current one: the current slot is restored, the unit saves nothing this run.
+    put("B", "future-v9", 9);
+    const future = adapter.files.get(file("B"));
+    const third = run();
+    expect(third.coordinator.restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: "A", envelope: { generation: 1 } });
+    expect(third.coordinator.saves("U-F")).toBe(false);
+    expect(third.discarded()).toEqual([]);
+    expect(adapter.files.get(file("B"))).toBe(future);
+    // A save whose writer does not know the slots re-reads them first; finding the unknown version there, it writes nothing.
+    expect([await run().save(10), adapter.files.get(file("B")) === future]).toEqual(["failed", true]);
+    // (4) a broken slot beside an old one: empty, and the first save overwrites.
+    adapter.files.set(file("A"), new TextEncoder().encode("invalid"));
+    put("B", "test-v0", 5);
+    const fourth = run();
+    expect(fourth.coordinator.restoreUnit("U-F")).toEqual({ kind: "empty" });
+    expect(fourth.discarded()).toHaveLength(1);
+    expect(await fourth.save(1)).toBe("acknowledged");
+    expect(run().coordinator.restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: "A", envelope: { generation: 1 } });
+  });
+
+  it("P3-VM-T05 acceptance / AC05 (3): beside a slot of an unknown version the publisher grants no save for the run, and the stop is diagnosed", async () => {
+    const path = await directory();
+    const codecs = { "U-F": stringCodec("U-F") };
+    const state = join(path, "state");
+    await fileSystem.mkdir(state, { recursive: true });
+    await fileSystem.writeFile(join(state, "U-F-A.json"), serializedEnvelope(hashEnvelope({ schemaVersion: codecs["U-F"].schemaVersion,
+      unit: "U-F", generation: 1, capturedAt: 1, payload: "g1" })));
+    const future = serializedEnvelope(hashEnvelope({ schemaVersion: "future-v9", unit: "U-F", generation: 9, capturedAt: 1, payload: "g9" }));
+    await fileSystem.writeFile(join(state, "U-F-B.json"), future);
+    const now = { wallTimeMs: 1_000, monotonicMs: 1 };
+    const { h, driver } = wired(path, codecs, () => now);
+    await driver.update(h, pending({ "U-F": "next" }, { "U-F": { kind: "pending", currentGeneration: 2, savedGeneration: 1,
+      savedCapturedAt: 1, savedAckAt: null, dirtySince: 0 } }, "frozen"), now, { "U-F": correlation.inputIds });
+    await granted(h);
+    expect(h.root.state.restoration["U-F"]).toEqual({ kind: "restored" });
+    expect(h.root.state.mirror["U-F"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
+    expect(h.sent.filter(({ request }) => request.kind === "checkpointGrant" && request.unit === "U-F")).toEqual([]);
+    expect(new Uint8Array(await fileSystem.readFile(join(state, "U-F-B.json")))).toEqual(future);
+    await h.root.diagnostics.flush();
+    expect(await reasons(h)).toContain("checkpointRestoreRejected");
+  });
+
+  it("P3-VM-T06 contractBoundary / AC06 (5)(7): the boundary travels with its own generation; an envelope without the field reads as unknown", () => {
+    const adapter = new MemoryCheckpointFileSystem();
+    const coordinator = () => new CheckpointCoordinator("/state", { "U-F": codec("U-F") }, adapter, () => ({ wallTimeMs: 0, monotonicMs: 0 }), () => {});
+    const at = (dmdataId: string, oldestHole: InputHole | null) => ({ receivedAt: { wallTimeMs: 1_000, basis: null }, dmdataTime: null, dmdataId, oldestHole });
+    const put = (side: "A" | "B", generation: number, boundary: Readonly<{ inputBoundary?: ReturnType<typeof at> }>) =>
+      adapter.files.set(join("/state", `U-F-${side}.json`), serializedEnvelope(hashEnvelope({ schemaVersion: "test-v1", unit: "U-F",
+        generation, capturedAt: 1, payload: { value: `g${generation}` }, ...boundary })));
+    put("A", 1, { inputBoundary: at("id-1", null) });
+    put("B", 2, { inputBoundary: at("id-1", "refused") });
+    expect(coordinator().restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: "B", envelope: { inputBoundary: at("id-1", "refused") } });
+    // (5) a broken newer slot: the older slot comes back with the boundary of its own generation.
+    adapter.files.set(join("/state", "U-F-B.json"), new TextEncoder().encode("invalid"));
+    expect(coordinator().restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: "A", envelope: { inputBoundary: at("id-1", null) } });
+    // (7) an envelope written without the field is restored, not discarded, and carries no boundary.
+    put("B", 3, {});
+    const old = coordinator().restoreUnit("U-F");
+    expect(old).toMatchObject({ kind: "restored", slot: "B", envelope: { generation: 3 } });
+    expect(old.kind === "restored" && Object.hasOwn(old.envelope, "inputBoundary")).toBe(false);
+    // An id outside printable ASCII is a broken slot, as ingress would never carry it.
+    put("B", 4, { inputBoundary: at("id 4", null) });
+    expect(coordinator().restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: "A" });
+  });
+
+  it("P3-VM-AC06 contractBoundary: an input boundary adds at most INPUT_BOUNDARY_MAX_BYTES to the envelope a unit bounds", () => {
+    const bytes = (boundary: Readonly<{ inputBoundary?: InputBoundary | null }>) => serializedEnvelope(hashEnvelope({ schemaVersion: "test-v1",
+      unit: "U-F", generation: 1, capturedAt: 1, payload: { value: "v" }, ...boundary })).byteLength;
+    // The longest JSON of a finite number: sign, "0." and five zeros, then 17 digits.
+    const longest = -0.0000012345678901234567;
+    expect(JSON.stringify(longest)).toHaveLength(25);
+    expect(JSON.stringify(Number.MAX_VALUE).length).toBeLessThan(25);
+    const worst: InputBoundary = { receivedAt: { wallTimeMs: longest, basis: "unverified" }, dmdataTime: longest, dmdataId: '"'.repeat(128), oldestHole: "disconnected" };
+    expect(bytes({ inputBoundary: worst }) - bytes({})).toBe(INPUT_BOUNDARY_MAX_BYTES);
+    expect(bytes({ inputBoundary: null }) - bytes({})).toBeLessThan(INPUT_BOUNDARY_MAX_BYTES);
+    // Only printable ASCII ids of 1 to 128 bytes travel, so 128 escaped quotes are the longest id.
+    expect(dmdataIdOf("~".repeat(128))).toBe("~".repeat(128));
+    expect([dmdataIdOf("a".repeat(129)), dmdataIdOf(""), dmdataIdOf("id 1"), dmdataIdOf("ｉｄ"), dmdataIdOf(1)]).toEqual([null, null, null, null, null]);
+  });
+
+  it("P3-VM-AC06 contractBoundary: capture writes an envelope at the unit's limit and fails one byte over it at stage encode without writing", async () => {
+    const path = await directory();
+    const adapter = new RecordingFileSystem();
+    const value = pending({ "U-F": { value: "v1" } }).units["U-F"];
+    const coordinator = (maxEnvelopeBytes: number) => new CheckpointCoordinator(join(path, "state"), { "U-F": { ...codec("U-F"), maxEnvelopeBytes } },
+      adapter, () => ({ wallTimeMs: 1_000, monotonicMs: 1 }), () => {});
+    const size = coordinator(Number.MAX_SAFE_INTEGER).capture("U-F", value, 1, "k7", correlation).request!.encodedByteLength;
+    adapter.calls.length = 0;
+    const over = coordinator(size - 1).capture("U-F", value, 1, "k7", correlation);
+    expect(over).toMatchObject({ request: null, result: { kind: "failed", stage: "encode", encodedByteLength: 0 } });
+    const at = coordinator(size);
+    const captured = at.capture("U-F", value, 1, "k7", correlation);
+    expect(captured.request?.encodedByteLength).toBe(size);
+    expect(adapter.calls.filter((call) => call === "open")).toEqual([]);
+    expect((await at.executeCheckpoint(captured.request!, "k7", correlation.inputIds, "notRetry")).result.kind).toBe("acknowledged");
+  });
+
+  // A WebSocket data frame through ingress, as the host receives it.
+  const wsItem = (inputSequence: number, headType: string, id: unknown, origin: "live" | "recovery" = "live") => {
+    const frame = Buffer.from(JSON.stringify({ type: "data", id, format: "xml", encoding: "utf-8", compression: null,
+      head: { type: headType, test: false }, body: "<Report/>" }));
+    const entered = ingestXmlData({ kind: "ws", inputId: `in-${inputSequence}`, inputSequence, receivedAt: 1_000 + inputSequence, origin, frame });
+    if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
+    return entered.item;
+  };
+  const boundaryAt = (sequence: number, oldestHole: InputHole | null = null) => ({ receivedAt: { wallTimeMs: 1_000 + sequence, basis: null },
+    dmdataTime: null, dmdataId: `id-${sequence}`, oldestHole });
+
+  it("P3-VM-T06 contractBoundary / AC07 (1)(3)(4)(6): the boundary stops before the oldest unresolved input of its unit", () => {
+    const boundaries = new InputBoundaries();
+    expect(boundaries.boundary("U-T")).toBeNull();
+    boundaries.queued(wsItem(9, "VTSE51", "id-9"), null);
+    boundaries.completed(9);
+    boundaries.queued(wsItem(10, "VTSE52", "id-10"), null);
+    boundaries.queued(wsItem(11, "VTSE41", "id-11"), null);
+    // (1) the later VTSE41 is handled first by priority: the boundary does not pass the waiting 10.
+    boundaries.completed(11);
+    expect(boundaries.boundary("U-T")).toEqual(boundaryAt(9));
+    // (6) once 10 completes nothing is unresolved and the boundary is the last input of the unit.
+    boundaries.completed(10);
+    expect(boundaries.boundary("U-T")).toEqual(boundaryAt(11));
+    // (3) a recovery input is not part of the list.
+    boundaries.queued(wsItem(12, "VTSE41", "id-12", "recovery"), null);
+    expect(boundaries.boundary("U-T")).toEqual(boundaryAt(11));
+    expect(wsItem(13, "VTSE41", "x".repeat(129)).dmdataId).toBeNull();
+    // (4) 65 refused ranges: the newest ones merge, the oldest position and the boundary stay.
+    boundaries.refused(wsItem(20, "VTSE41", "id-20"), null);
+    expect(boundaries.boundary("U-T")).toEqual(boundaryAt(11, "refused"));
+    for (let index = 0; index < 64; index += 1) {
+      const sequence = 21 + index * 2;
+      boundaries.queued(wsItem(sequence, "VTSE41", `id-${sequence}`), null);
+      boundaries.completed(sequence);
+      boundaries.refused(wsItem(sequence + 1, "VTSE41", `id-${sequence + 1}`), null);
+    }
+    expect(boundaries.boundary("U-T")).toEqual(boundaryAt(11, "refused"));
+    const { oldestHole: _hole, ...before } = boundaryAt(145);
+    const holes = boundaries["units"].get("U-T")!.holes;
+    expect(holes).toHaveLength(64);
+    expect(holes[63]).toEqual({ from: 146, to: 148, kind: "refused", before });
+    expect(boundaries.boundary("U-Q")).toBeNull();
   });
 });

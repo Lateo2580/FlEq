@@ -10,7 +10,7 @@ import type {
   TransientArea, TransientCurrent, TransientFamily,
 } from "../../../contracts/p3-local-bulletins-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, FAMILY_OF, HEAT_LIMIT, JST, HEAT_RETAIN, HEAT_TARGET_WINDOW, LAYER_SET, LIMITS, TORNADO_DEFAULT_VALID, TORNADO_LIMIT, TORNADO_RETAIN,
@@ -24,7 +24,7 @@ import { cut, infoRankOf, validInputId, validName, validReportDateTime, validSer
 // P3-UNIT-M-001（C13、I-U-M）: 三つの slice（tornado・heat・transient）の current・版・遅着・退去・通知・容量・codec・射影。
 // 三つの slice は件数の上限と退去を別々に持つ（無いと解説の多発が竜巻の記録を退去する、I-U-M.slices）。
 
-const SCHEMA = "p3-local-bulletins-unit-v1" as const;
+const SCHEMA = "p3-local-bulletins-unit-v2" as const;
 // P3-C13-BOUNDS=A・P3-C13-RES-01・RET-05。
 const GENERATION_LIMIT = 4_194_304;
 const TRANSIENT_TOTAL = Object.values(TRANSIENT_LIMIT).reduce((sum, value) => sum + value, 0);
@@ -66,7 +66,7 @@ const listBytes = (values: readonly object[]): number => 2 + commas(values.lengt
 const terminalBytes = (intents: readonly LocalBulletinsIntent[]): number =>
   intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-M", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, tornado: [], heat: [], transient: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
+  payload: { schemaVersion: SCHEMA, tornado: [], heat: [], transient: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-R ほかと同じ予約）。8: 空の配列 4 つ。
 function generationBytes(value: PersistedLocalBulletinsUnit): number {
   return emptyEnvelopeBytes + 62 - 8 + listBytes(value.tornado) + listBytes(value.heat) + listBytes(value.transient) + listBytes(value.intents);
@@ -754,12 +754,12 @@ function evidenceOf(item: TransientCurrent): PersistedTransientCurrent {
   return found;
 }
 const localBulletinsUnitCodec: LocalBulletinsUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-M.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, tornado: state.tornado, heat: state.heat, transient: state.transient.map(evidenceOf), intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v1 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v2 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

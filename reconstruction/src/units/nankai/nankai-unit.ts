@@ -11,14 +11,14 @@ import type {
   PersistedNankaiUnit,
 } from "../../../contracts/p3-nankai-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
 
 // P3-UNIT-N-001（C8、I-U-N）: U-N の現況・情報系列・通知・容量・codec・射影。
 
-const SCHEMA = "p3-nankai-unit-v1" as const;
+const SCHEMA = "p3-nankai-unit-v2" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const LINES = ["nankai", "VYSE60"] as const;
 // P3-C8-CAPACITY=A・P3-C8-RES-01・RET-01〜04。世代の上限は P3-AUTH-D-N-BUDGET=A（K2、当初 256 KiB）。
@@ -77,7 +77,7 @@ function terminalBytes(intents: readonly NankaiIntent[]): number {
   return total;
 }
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-N", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [], evidence: [] }, sha256: "0".repeat(64) }).byteLength;
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [], evidence: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q と同じ予約）。6: 空の配列 3 つ。
 function generationBytes(currents: readonly NankaiCurrent[], intents: readonly NankaiIntent[], evidence: readonly NankaiEvidence[]): number {
   return emptyEnvelopeBytes + 62 - 6 + listBytes(currents) + listBytes(intents) + listBytes(evidence);
@@ -717,12 +717,12 @@ function persisted(value: unknown): Decoded | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const nankaiUnitCodec: NankaiUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 情報の事実・contentRevision・persistence は保存しない（I-U-N.persisted、spec:512 の N）。証拠は保存する（P3-AUTH-AC01）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents, evidence: state.information.map(evidenceOf) }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v1 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v2 payload" }
       : { kind: "restored", state: { schemaVersion: SCHEMA, ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

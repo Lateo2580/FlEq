@@ -80,7 +80,7 @@ export type ParserMailboxItem = Readonly<{
   inputId: string;
   inputSequence: number;
   receivedAt: number;
-  origin: AcquisitionOrigin;
+  origin: AcquisitionOrigin; dmdataId: string | null; // P3-VM-AC06: WS の data frame の id（128 byte 以下）。REST・replay は null
   // dmdata envelope head.type（VPWS50 等）。JMA XML 本文には電文種別コードが無いので B03 が運ぶ。
   headType: string;
   // dmdata envelope の encoding／compression。B03 が許可値で検証して載せ、REST 本文・replay 生 XML は utf-8／null。

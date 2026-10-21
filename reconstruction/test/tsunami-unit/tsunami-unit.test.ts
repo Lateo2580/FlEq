@@ -7,12 +7,12 @@ import type {
 } from "../../contracts/p3-tsunami-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
-import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { capturedOwner, checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { selectNotificationAttempt } from "../../src/notification-delivery/notification-delivery";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UnitTable } from "../../contracts/p3-unit-table.types";
@@ -383,8 +383,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（終端記録で埋める。P3-IUR-AC02）。
     const withPad = (pad: number) => ({ ...value, intents: [value.intents[0], { ...value.intents[0], id: "pad", disposition: "delivered",
       payload: { ...(value.intents[0].payload as Record<string, unknown>), body: "x".repeat(pad) } }] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v1", unit: "U-T", generation: 0, capturedAt: 0,
-      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62;
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v2", unit: "U-T", generation: 0, capturedAt: 0,
+      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
     const generationPad = 4_194_304 - generation(0);
     expect(generation(generationPad)).toBe(4_194_304);
     expect(tsunamiUnitCodec.decode(withPad(generationPad - deliveryGrowth(value.intents[0] as unknown as TsunamiIntent)) as JsonValue).kind).toBe("restored");
@@ -651,8 +651,8 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     ({ code: String(100 + index), name: `区域${index}`, kind }));
   const report = (minute: number, list = areas(1), options: { infoType?: "発表" | "訂正" | "取消"; eventId?: string } = {}) =>
     decodeXml(vtse41({ at: raw(minute), areas: list, ...options }), "VTSE41");
-  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v1", unit: "U-T", generation: 0,
-    capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62
+  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v2", unit: "U-T", generation: 0,
+    capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + state.intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
   // 世代を 4 MiB − slack にする終端記録。終端記録と normal の active の予報は退去の候補にならないので、slack を越える増分は拒否になる。
   const crowd = (state: TsunamiUnitState, slack: number): TsunamiUnitState => {
@@ -899,12 +899,12 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
       const owner = host(units, parked);
       owner.handle({ kind: "restore", runId: "run", clock: at(0), sharedMs: 1 });
       owner.handle(input("seed", 1, vtse41({ at: raw(0), areas: areas(1) })));
-      owner.handle({ kind: "checkpointGrant", grantId: "save-g", unit: "U-T", mode: "save", retryReason: "notRetry", clock: at(1), sharedMs: 1 });
+      owner.handle({ kind: "checkpointGrant", grantId: "save-g", unit: "U-T", mode: "save", retryReason: "notRetry", inputBoundary: null, clock: at(1), sharedMs: 1 });
       owner.handle(input("reject", 3, vtse41({ eventId: "20990101000012", at: raw(3), areas: areas(300, "51") })));
       release();
       const saves = () => replies.flatMap((reply) => reply.kind === "checkpointDone" ? [reply] : []);
       await vi.waitFor(() => expect(saves()).toHaveLength(1));
-      owner.handle({ kind: "checkpointGrant", grantId: "save-g1", unit: "U-T", mode: "save", retryReason: "notRetry", clock: at(3), sharedMs: 1 });
+      owner.handle({ kind: "checkpointGrant", grantId: "save-g1", unit: "U-T", mode: "save", retryReason: "notRetry", inputBoundary: null, clock: at(3), sharedMs: 1 });
       await vi.waitFor(() => expect(saves()).toHaveLength(2));
       const [saveG, saveG1] = saves();
       expect([saveG.result?.kind, saveG.result?.generation, saveG1.result?.kind, saveG1.result?.generation]).toEqual(["acknowledged", 1, "acknowledged", 2]);
@@ -979,3 +979,41 @@ function replay(sequenceId: string, from: number, to: number): TsunamiUnitStep[]
   }
   return steps;
 }
+
+// P3-VM-AC05・AC06（修正波 3）: 予約込みの上界は受理と読み戻しで同じにし、前の上限の計り方で作られた前の版の保存は版で初期化する。
+// 無いと、前の上限まで 430 byte 未満の余裕しか無い正常な保存が invalid になり、A/B の両方がそうなら unavailable でその run の保存も止まる。
+it("P3-VM-AC05 regression: old-version slots, one at the limit before the boundary reserve, start empty and the next save stays within 4 MiB", async () => {
+  const first = receive(emptyState(), decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41"), clock(1_299_822_540_001));
+  const value = JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(first.state))) as { intents: Record<string, unknown>[] };
+  const withPad = (pad: number, schemaVersion: string = tsunamiUnitCodec.schemaVersion) => ({ ...value, schemaVersion, intents: [value.intents[0],
+    { ...value.intents[0], id: "pad", disposition: "delivered", payload: { ...(value.intents[0].payload as Record<string, unknown>), body: "x".repeat(pad) } }] }) as unknown as JsonValue;
+  const growth = deliveryGrowth(value.intents[0] as unknown as TsunamiIntent);
+  const size = (pad: number, reserve: number) => serializedEnvelope({ schemaVersion: tsunamiUnitCodec.schemaVersion, unit: "U-T", generation: 0,
+    capturedAt: 0, payload: withPad(pad), sha256: "0".repeat(64) }).byteLength + 62 + reserve + growth;
+  const oldLimit = 4_194_304 - size(0, 0);
+  const directory = mkdtempSync(join(tmpdir(), "fleq-vm-old-"));
+  try {
+    for (const [side, generation, pad] of [["A", 1, oldLimit], ["B", 2, 0]] as const) writeFileSync(join(directory, `U-T-${side}.json`),
+      serializedEnvelope(hashEnvelope({ schemaVersion: "p3-tsunami-unit-v1", unit: "U-T", generation, capturedAt: 1, payload: withPad(pad, "p3-tsunami-unit-v1") })));
+    const events: { reason: string; unit?: string; component: string }[] = [];
+    const files = nodeCheckpointFileSystem();
+    const coordinator = new CheckpointCoordinator(directory, { "U-T": tsunamiUnitCodec }, files, () => ({ wallTimeMs: 5_000, monotonicMs: 5 }),
+      (event) => { events.push(event); });
+    expect(coordinator.restoreUnit("U-T")).toEqual({ kind: "empty" });
+    expect(events.filter((event) => event.reason === "checkpointSchemaDiscarded"))
+      .toMatchObject([{ unit: "U-T", component: "checkpoint.p3-tsunami-unit-v1" }]);
+    // The next save: the largest state the unit admits now, with the longest input boundary.
+    const decoded = tsunamiUnitCodec.decode(withPad(4_194_304 - size(0, INPUT_BOUNDARY_MAX_BYTES)));
+    if (decoded.kind !== "restored") throw new Error("the reserved limit must restore");
+    expect(tsunamiUnitCodec.decode(withPad(4_194_304 - size(0, INPUT_BOUNDARY_MAX_BYTES) + 1)).kind).toBe("invalid");
+    const longest = -0.0000012345678901234567;
+    const captured = coordinator.capture("U-T", decoded.state, 3, "k7", { inputIds: ["live-1"], retryReason: "notRetry" },
+      { receivedAt: { wallTimeMs: longest, basis: "unverified" }, dmdataTime: longest, dmdataId: "~".repeat(128), oldestHole: "disconnected" });
+    if (captured.request == null) throw new Error("the admitted state must be captured");
+    expect(captured.request.encodedByteLength).toBeLessThanOrEqual(4_194_304);
+    const executed = await coordinator.executeCheckpoint(captured.request, "k7", ["live-1"], "notRetry");
+    expect(executed.result.kind).toBe("acknowledged");
+    expect(new CheckpointCoordinator(directory, { "U-T": tsunamiUnitCodec }, files, () => ({ wallTimeMs: 0, monotonicMs: 0 }), () => {})
+      .restoreUnit("U-T")).toMatchObject({ kind: "restored", slot: "A", envelope: { generation: 3 } });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});

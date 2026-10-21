@@ -26,7 +26,7 @@ function pendingEnvelope(): MailboxEnvelope {
   return {
     messageId: "pending", runId: "run", t0MonotonicMs: 0, enqueuedMonotonicMs: 0,
     priorityReason: "normal", payload: { kind: "parser", item: {
-      inputId: "pending", inputSequence: 1, receivedAt: 0, origin: "replay", headType: "VPWS50",
+      inputId: "pending", inputSequence: 1, receivedAt: 0, origin: "replay", dmdataId: null, headType: "VPWS50",
       encoding: "utf-8", compression: null, encodedBody: new Uint8Array(), encodedByteLength: 0,
       headTest: { kind: "provided", value: false }, envelopeStatus: { kind: "provided", value: "normal" },
     } },

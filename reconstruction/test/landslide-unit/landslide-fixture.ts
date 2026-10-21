@@ -12,7 +12,7 @@ import { reduceLandslideUnit } from "../../src/units/landslide/landslide-unit";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): LandslideUnitState {
-  return { schemaVersion: "p3-landslide-unit-v1", contentRevision: 0, currents: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-landslide-unit-v2", contentRevision: 0, currents: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };

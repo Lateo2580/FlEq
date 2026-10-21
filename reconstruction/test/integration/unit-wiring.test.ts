@@ -111,7 +111,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     owner.handle({ kind: "restore", runId: "run", clock: at, sharedMs: 1 });
     owner.handle({ kind: "input", clock: at, sharedMs: 1,
       envelope: envelope("run", "VPWW57", "real", report("15_16_02_251222_VPWW57"), at) });
-    owner.handle({ kind: "checkpointGrant", grantId: "grant-1", unit: "U-W", mode: "save", retryReason: "notRetry", clock: at, sharedMs: 1 });
+    owner.handle({ kind: "checkpointGrant", grantId: "grant-1", unit: "U-W", mode: "save", retryReason: "notRetry", inputBoundary: null, clock: at, sharedMs: 1 });
     await vi.waitFor(() => expect(replies.at(-1)?.kind).toBe("checkpointDone"));
     const done = replies.at(-1)!;
     if (done.kind !== "checkpointDone") throw new Error("checkpointDone expected");

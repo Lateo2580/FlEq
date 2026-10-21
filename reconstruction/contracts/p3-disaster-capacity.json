@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "732c3e299d012e72a47674f5f4bf79b1ed88c17465575482464bf6e1ec2ecc92",
+    "sha256": "5d64717ddee75983947b254f1ad9cbc50b35cd260ebe402aa142992b2af273f4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07723800108fe9c09758de5387e8e3a3927ad6d8a9e75b5b1f8214333f89f087",
     "sequencesSha256": "727c24933e791a474879862d275e9a893a1ee69f279cdf29a293e0b344070d89",
@@ -390,8 +390,8 @@
           "reconstruction/test/integration/display-wiring.test.ts:130 «959983c9146f2dfa»",
           "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
           "reconstruction/src/runtime/composition-root.ts:131 «da19aa28db3b6c45»",
-          "reconstruction/src/checkpoint/checkpoint.ts:590 «e1ef5263c0b6ca25»",
-          "reconstruction/src/checkpoint/checkpoint.ts:594 «7fbc7ddee40d495d»",
+          "reconstruction/src/checkpoint/checkpoint.ts:613 «e1ef5263c0b6ca25»",
+          "reconstruction/src/checkpoint/checkpoint.ts:617 «7fbc7ddee40d495d»",
           "reconstruction/src/checkpoint/checkpoint.ts:66 «3f51a4d6e3948188»",
           "reconstruction/src/runtime/composition-root.ts:604 «4abafaf8844b3aa7»",
           "reconstruction/src/runtime/composition-root.ts:608 «11c6541c5cd2944f»",

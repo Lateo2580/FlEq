@@ -152,7 +152,7 @@ it("P1-T05 contractBoundary / AC10: below/exact/over bytes and structure; no ful
     if (delta > 0) expect(result).toMatchObject({ diagnostic: { reason: "xmlLimitExceeded" } });
     expect(times.endedMs != null).toBe(delta <= 0);
   }
-  const large = decodeMaterial({ ...context, headType: "VPWS50", encoding: "base64", compression: null, encodedBody: Buffer.alloc(8388608, 65), encodedByteLength: 8388608, headTest: { kind: "notProvided" }, envelopeStatus: { kind: "notProvided" } });
+  const large = decodeMaterial({ ...context, dmdataId: null, headType: "VPWS50", encoding: "base64", compression: null, encodedBody: Buffer.alloc(8388608, 65), encodedByteLength: 8388608, headTest: { kind: "notProvided" }, envelopeStatus: { kind: "notProvided" } });
   expect(large.kind).toBe("rejected");
 });
 

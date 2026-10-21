@@ -10,7 +10,7 @@ import type { WeatherCurrentSnapshot, WeatherCurrentUnitState } from "../../cont
 import manifest from "../../tools/corpus/manifest.json";
 import corpus from "../../tools/corpus/sequences.json";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
-import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { reduceWeatherCurrentMeaning } from "../../src/domains/weather-current/weather-current";
@@ -27,7 +27,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const NOW = 1_800_000_000_000;
 
 function emptyState(): WeatherCurrentUnitState {
-  return { schemaVersion: "p2-weather-current-unit-v1", contentRevision: 0, national: {}, partials: [], histories: [],
+  return { schemaVersion: "p2-weather-current-unit-v2", contentRevision: 0, national: {}, partials: [], histories: [],
     ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
@@ -748,7 +748,7 @@ describe("P2 weather-current unit", () => {
     const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
-    }).byteLength;
+    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
     const padding = 16 * 1024 * 1024 - envelopeSize(near) - 100;
     const nearLimit = { ...near, national: { ...near.national,
       training: { ...near.national.training, phenomena: { padding: "x".repeat(padding) } } } };
@@ -832,7 +832,7 @@ describe("P2 weather-current unit", () => {
     const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
-    }).byteLength;
+    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
     const first = receive(emptyState(), decodeFixture("18_00_01_260830_VPWW55_fukui_L5", "VPWW55")).state;
     const partial = first.partials[0];
     const level5 = Object.entries(partial.phenomena).find(([, value]) => JSON.stringify(value).includes('"code":"33"'));
@@ -913,7 +913,7 @@ describe("P2 weather-current unit", () => {
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
     }).byteLength;
-    const unused = 62 - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
+    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
     const padding = 16 * 1024 * 1024 - actualBytes(accepted.state) - unused;
     const withPadding = (length: number) => ({ ...base,
@@ -1040,7 +1040,7 @@ describe("P2 weather-current unit", () => {
     }).byteLength;
     const accepted = receive(withPadding(0), candidate);
     expect(accepted.state.histories.flatMap((item) => item.reports)).toHaveLength(1);
-    const unused = 62 - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
+    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
     const padding = 16 * 1024 * 1024 - actualBytes(accepted.state) - unused;
     const exact = receive(withPadding(padding), candidate);
@@ -1056,8 +1056,10 @@ describe("P2 weather-current unit", () => {
     const padded = (length: number): WeatherCurrentUnitState => ({ ...emptyState(),
       partials: [{ ...partial, phenomena: { '区域"\\\n': '日本語"\\\n' + "x".repeat(length) } }] });
     const payloadBytes = (value: WeatherCurrentUnitState) => Buffer.byteLength(JSON.stringify(weatherCurrentUnitCodec.encode(value)));
-    const length = 16 * 1024 * 1024 - payloadBytes(padded(0));
-    expect(payloadBytes(padded(length))).toBe(16 * 1024 * 1024);
+    const empty = weatherCurrentUnitCodec.encode(emptyState()); // P3-VM-AC06: 上界は payload の外の envelope と境界の予約込み
+    const outside = serializedEnvelope({ schemaVersion: empty.schemaVersion, unit: "U-W", generation: 0, capturedAt: 0, payload: empty, sha256: "0".repeat(64) }).byteLength - Buffer.byteLength(JSON.stringify(empty)) + 62 + INPUT_BOUNDARY_MAX_BYTES;
+    const length = 16 * 1024 * 1024 - outside - payloadBytes(padded(0));
+    expect(payloadBytes(padded(length))).toBe(16 * 1024 * 1024 - outside);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(padded(length))).kind).toBe("restored");
     expect(() => weatherCurrentUnitCodec.encode(padded(length + 1))).toThrow(message);
 
@@ -1084,8 +1086,8 @@ describe("P2 weather-current unit", () => {
         JSON.stringify(patch)).toBe("invalid");
     const withIntent = (extra: number) => ({ ...padded(extra), intents: intents(1) });
     const wire = (extra: number) => ({ ...weatherCurrentUnitCodec.encode(padded(extra)), intents: intents(1) });
-    const wireLength = 16 * 1024 * 1024 - Buffer.byteLength(JSON.stringify(wire(0)));
-    expect(Buffer.byteLength(JSON.stringify(wire(wireLength)))).toBe(16 * 1024 * 1024);
+    const wireLength = 16 * 1024 * 1024 - outside - Buffer.byteLength(JSON.stringify(wire(0)));
+    expect(Buffer.byteLength(JSON.stringify(wire(wireLength)))).toBe(16 * 1024 * 1024 - outside);
     expect(weatherCurrentUnitCodec.decode(wire(wireLength)).kind).toBe("invalid");
     expect(() => weatherCurrentUnitCodec.encode(withIntent(wireLength))).toThrow(message);
     const inside = wireLength - deliveryGrowth(pendingIntent());

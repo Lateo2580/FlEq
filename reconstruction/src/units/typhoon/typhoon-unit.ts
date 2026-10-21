@@ -10,7 +10,7 @@ import type {
   TyphoonWindArea, TyphoonWindAxis,
 } from "../../../contracts/p3-typhoon-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { ANALYSIS_TYPES, BOUNDS, LIMITS, PROBABILITY_TYPES, RETAIN, VISIBLE, parseTyphoon, validCode6, validEventId } from "../../domains/typhoon/typhoon";
 import type { AnalysisCandidate, ProbabilityCandidate, TyphoonCandidate } from "../../domains/typhoon/typhoon";
@@ -19,7 +19,7 @@ import { cut, infoRankOf, validInputId, validName, validReportDateTime, validSer
 // P3-UNIT-Y-001（C14、I-U-Y）: 二つの slice（analysis・probability）の current・版・遅着・退去・通知・容量・codec・射影。
 // 二つの slice は件数の上限と退去を別々に持つ（無いと訓練の確率の多発が解析の記録を退去する、I-U-Y.slices）。
 
-const SCHEMA = "p3-typhoon-unit-v1" as const;
+const SCHEMA = "p3-typhoon-unit-v2" as const;
 // P3-C14-RES-01・RET-04。
 const GENERATION_LIMIT = 8_388_608;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
@@ -59,7 +59,7 @@ const listBytes = (values: readonly object[]): number => 2 + commas(values.lengt
 const terminalBytes = (intents: readonly TyphoonIntent[]): number =>
   intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-Y", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, analysis: [], probability: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
+  payload: { schemaVersion: SCHEMA, analysis: [], probability: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-R ほかと同じ予約）。6: 空の配列 3 つ。
 function generationBytes(value: PersistedTyphoonUnit): number {
   return emptyEnvelopeBytes + 62 - 6 + listBytes(value.analysis) + listBytes(value.probability) + listBytes(value.intents);
@@ -772,12 +772,12 @@ function persisted(value: unknown): PersistedTyphoonUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const typhoonUnitCodec: TyphoonUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-Y.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, analysis: state.analysis, probability: state.probability, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v1 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v2 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

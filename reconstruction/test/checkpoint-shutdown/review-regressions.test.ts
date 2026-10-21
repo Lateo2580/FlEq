@@ -523,9 +523,10 @@ it.each(["write", "rename"] as const)("P3-C3B-T09 contractBoundary / AC09: a fin
   expect([...h.lines.keys()].filter((path) => path.endsWith(".tmp"))).toEqual([]);
 });
 
-// The slot envelope a capture at `capturedAt` would make for the fixture's U-F value.
+// The slot envelope a capture at `capturedAt` would make for the fixture's U-F value. Its write right carries no input
+// boundary here (the inputs reach the mailbox directly), so the capture writes inputBoundary null (P3-VM-AC06).
 function fixtureEnvelope(generation: number, capturedAt: number, payload: JsonValue = `final-${generation}`) {
-  return hashEnvelope({ schemaVersion: codec.schemaVersion, unit: "U-F", generation, capturedAt, payload });
+  return hashEnvelope({ schemaVersion: codec.schemaVersion, unit: "U-F", generation, capturedAt, payload, inputBoundary: null });
 }
 
 it("R01 regression / AC02,AC08: uncertain needs exact hash and successful sync; post-rename verify failure stays uncertain", async () => {

@@ -35,10 +35,10 @@ import {
 } from "../../domains/weather-current/weather-current";
 import type { CurrentChange } from "../../domains/weather-current/weather-current";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
-import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
-const SCHEMA = "p2-weather-current-unit-v1" as const;
+const SCHEMA = "p2-weather-current-unit-v2" as const;
 type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
 const GENERATION_BYTES = 16 * 1024 * 1024;
 const encoder = new TextEncoder();
@@ -50,7 +50,7 @@ const recordByteCache = new WeakMap<object, number>();
 const mapByteCache = new WeakMap<object, number>();
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-W", generation: 0,
   capturedAt: 0, payload: { schemaVersion: SCHEMA, national: {}, partials: [], histories: [], ownership: {},
-    tombstones: [], freshness: [], unavailable: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
+    tombstones: [], freshness: [], unavailable: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
 
 function recordBytes(value: object): number {
   let bytes = recordByteCache.get(value);
@@ -292,9 +292,9 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length) return null;
   const pending = result.intents.filter((item) => item.disposition === "pending");
   if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength + reserve(pending) > 131_072) return null;
-  // Payload-only boundary: UnitCodec has no capture clock/generation on decode.
-  // Receive admission below adds subject bytes and reserves the envelope numeric fields.
-  return encoder.encode(JSON.stringify(result)).byteLength + reserve(pending) <= GENERATION_BYTES ? result : null;
+  // P3-VM-AC06（修正波 3）: 受理と同じ予約込みの上界で見る。payload の外の envelope（generation と capturedAt の 62 byte と
+  // inputBoundary の最大を含む emptyEnvelopeBytes）を足す。
+  return encoder.encode(JSON.stringify(result)).byteLength + reserve(pending) + emptyEnvelopeBytes + 62 - emptyPayloadBytes <= GENERATION_BYTES ? result : null;
 }
 
 const emptyPayloadBytes = encoder.encode(JSON.stringify({ schemaVersion: SCHEMA, national: {}, partials: [], histories: [],
@@ -356,7 +356,7 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
   const pending = result.intents.filter((item) => item.disposition === "pending");
   if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength + reserve(pending) > 131_072) return null;
   const owned = ownershipMeasure(result.ownership, result.ownership);
-  const bytes = emptyPayloadBytes + mapBytes(result.national) + arrayBytes(result.partials)
+  const bytes = emptyEnvelopeBytes + 62 + mapBytes(result.national) + arrayBytes(result.partials) // P3-VM-AC06: 受理（reservedGenerationBytes）と同じ式
     + arrayBytes(result.histories, historyBytes) + owned.sum + Math.max(owned.count - 1, 0)
     + arrayBytes(result.tombstones) + arrayBytes(result.freshness) + arrayBytes(result.unavailable) + arrayBytes(result.intents, intentBytes);
   return bytes <= GENERATION_BYTES ? result : null;
@@ -594,7 +594,7 @@ function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUni
 }
 
 const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
-  schemaVersion: SCHEMA,
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-current-unit-v1"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = encodedValue(state);
     if (value == null) throw new Error("U-W checkpoint exceeds or violates its persisted boundary");
@@ -602,7 +602,7 @@ const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
   },
   decode(payload) {
     const value = persistedValue(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-current-unit-v1 payload" } : {
+    return value == null ? { kind: "invalid", reason: "invalid p2-weather-current-unit-v2 payload" } : {
       kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence() },
     };
   },

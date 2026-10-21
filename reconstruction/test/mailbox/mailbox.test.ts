@@ -11,7 +11,7 @@ import { Mailbox } from "../../src/mailbox/mailbox";
 function item(inputId: string, inputSequence: number, headType: string, encodedByteLength: number,
   operation: "normal" | "training" | "test" = "normal"): ParserMailboxItem {
   return {
-    inputId, inputSequence, receivedAt: inputSequence, origin: "replay", headType,
+    inputId, inputSequence, receivedAt: inputSequence, origin: "replay", dmdataId: null, headType,
     encoding: "utf-8", compression: null, encodedBody: new Uint8Array(), encodedByteLength,
     headTest: { kind: "provided", value: operation !== "normal" },
     envelopeStatus: { kind: "provided", value: operation },
@@ -314,7 +314,7 @@ describe("P2 mailbox", () => {
     const mailbox = new Mailbox();
     const mailboxItem = fixture("test/fixtures/77_01_01_240613_VXSE45.xml", "VXSE45", 1);
     expect(Object.keys(mailboxItem).sort()).toEqual([
-      "compression", "encodedBody", "encodedByteLength", "encoding", "envelopeStatus", "headTest",
+      "compression", "dmdataId", "encodedBody", "encodedByteLength", "encoding", "envelopeStatus", "headTest",
       "headType", "inputId", "inputSequence", "origin", "receivedAt",
     ]);
     const envelope = { ...parserEnvelope(mailboxItem, "eewCandidate", 20), runId: "run-04", t0MonotonicMs: 19 };
