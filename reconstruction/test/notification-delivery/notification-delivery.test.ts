@@ -207,7 +207,7 @@ describe("P2-A7 notification delivery", () => {
     } finally { platform.mockRestore(); exists.mockRestore(); spawn.mockRestore(); }
   });
 
-  it("T04 corpusHistory: O07 acknowledged pending restores original times; a separate delayed ack does not hold dispatch", async () => {
+  it("T04 corpusHistory: O07 acknowledged pending restores original times; a separate delayed ack holds dispatch up to the 1 s wait", async () => {
     const oracle = JSON.parse(readFileSync("reconstruction/tools/corpus/sequences.json", "utf8")) as {
       expectations: { expectedId: string; intents: unknown }[] };
     expect(oracle.expectations.filter(item => [16, 17, 18].some(i => item.expectedId === `expected:O07:${i}`))
@@ -255,6 +255,11 @@ describe("P2-A7 notification delivery", () => {
       held = false;
       restored.root.tick(clock);
       await restored.settle();
+      // P3-NL-AC07 (1)(3): 予約は採った世代の保存の ack を待ち、ack が返らなければ U-E は待ち始めから 1,000 ms（DLV-01）で adapter を呼ぶ。
+      expect(notices.runs).toEqual([]);
+      clock = { wallTimeMs: clock.wallTimeMs, monotonicMs: 1_550 };
+      restored.root.tick(clock);
+      await restored.settle();
       const attempt = notices.runs[0].attempt;
       const startedCount = notices.runs.length;
       expect(attempt.expiresAt).toBe(original[0].expiresAt);
@@ -262,22 +267,22 @@ describe("P2-A7 notification delivery", () => {
       await restored.settle();
       expect(restored.root.checkpoint.grantOf("U-E")).not.toBeNull();
       expect(restored.root.state.mirror["U-E"].persistence.kind).not.toBe("saved");
-      clock = at(600);
+      clock = { wallTimeMs: at(600).wallTimeMs, monotonicMs: 1_600 };
       // P3-NL-AC06 (2): 再試行するのは起動しなかった試行（notStarted）。起動した後の失敗は通知したか不明で終端になる。
       notices.finish({ kind: "failed", reason: "notStarted",
         attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: clock });
       await restored.settle();
       const deadline = restored.root.state.notificationDeadlines[attempt.channel][JSON.stringify(["U-E", attempt.intentId])];
-      expect(deadline).toEqual({ retryAtMonotonicMs: 1_600, expiresAtMonotonicMs: 15_000 });
+      expect(deadline).toEqual({ retryAtMonotonicMs: 2_600, expiresAtMonotonicMs: 15_000 });
       release();
       await restored.settle();
       expect(restored.newDone().map((reply) => reply.grantId)).toContain(delayed);
-      clock = { wallTimeMs: at(-1_000).wallTimeMs, monotonicMs: 1_599 };
+      clock = { wallTimeMs: at(-1_000).wallTimeMs, monotonicMs: 2_599 };
       restored.root.tick(clock);
       await restored.settle();
       expect(notices.runs).toHaveLength(startedCount);
       expect(restored.root.state.notificationDeadlines[attempt.channel][JSON.stringify(["U-E", attempt.intentId])]).toEqual(deadline);
-      clock = { wallTimeMs: original[0].expiresAt, monotonicMs: 1_600 };
+      clock = { wallTimeMs: original[0].expiresAt, monotonicMs: 2_600 };
       restored.root.tick(clock);
       await restored.settle();
       expect(notices.runs).toHaveLength(startedCount);

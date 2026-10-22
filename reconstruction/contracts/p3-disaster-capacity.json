@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "d83d6d7dc01ebab6f8c4dbef9c9f25b42ada6571609af3896c8007e2d5c40f8e",
+    "sha256": "57bbffc1179b1598eaf215f6dd0b6252728b28c3032cc71377388e6973e2d671",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -382,21 +382,21 @@
           "reconstruction/test/execution-split/owner-harness.ts:214 «080b090c4cb3ca1a»",
           "reconstruction/test/execution-split/owner-harness.ts:234 «fd7c80ca051f2f9d»",
           "reconstruction/test/execution-split/owner-harness.ts:73 «92d485f6dffa61d6»",
-          "reconstruction/src/runtime/composition-root.ts:891 «58f0aecdcdb34121»",
-          "reconstruction/src/runtime/composition-root.ts:892 «39f404990b4c2ef9»",
-          "reconstruction/src/runtime/composition-root.ts:893 «71f3e73d73b564c2»",
+          "reconstruction/src/runtime/composition-root.ts:896 «58f0aecdcdb34121»",
+          "reconstruction/src/runtime/composition-root.ts:897 «39f404990b4c2ef9»",
+          "reconstruction/src/runtime/composition-root.ts:898 «71f3e73d73b564c2»",
           "reconstruction/src/runtime/owner-runtime.ts:43 «c0a3b81a85da74e2»",
-          "reconstruction/src/runtime/owner-runtime.ts:357 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:386 «63380813ee47301c»",
           "reconstruction/test/integration/display-wiring.test.ts:130 «959983c9146f2dfa»",
           "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
           "reconstruction/src/runtime/composition-root.ts:132 «da19aa28db3b6c45»",
           "reconstruction/src/checkpoint/checkpoint.ts:616 «e1ef5263c0b6ca25»",
           "reconstruction/src/checkpoint/checkpoint.ts:620 «7fbc7ddee40d495d»",
           "reconstruction/src/checkpoint/checkpoint.ts:66 «3f51a4d6e3948188»",
-          "reconstruction/src/runtime/composition-root.ts:611 «4abafaf8844b3aa7»",
-          "reconstruction/src/runtime/composition-root.ts:615 «11c6541c5cd2944f»",
+          "reconstruction/src/runtime/composition-root.ts:616 «4abafaf8844b3aa7»",
+          "reconstruction/src/runtime/composition-root.ts:620 «11c6541c5cd2944f»",
           "reconstruction/test/snapshot-sse/projection-fixture.ts:87 «b70fda78f149985c»",
-          "reconstruction/src/units/eew/eew-unit.ts:286 «815aa0cb2d10c8e3»",
+          "reconstruction/src/units/eew/eew-unit.ts:287 «815aa0cb2d10c8e3»",
           "reconstruction/src/domains/eew/eew.ts:361 «a9e582856884de0d»",
           "reconstruction/src/domains/eew/eew.ts:375 «1e6532fcd2a85780»"
         ]
@@ -405,7 +405,7 @@
         "id": "P3-DC-AC04",
         "requirement": "測るもの: runの中で次を数えて結果に書く。(1) 器の使用率: 件数の上限ごと（U-E: familyごとのsubject 512、U-T: 予報512・観測familyごと512・観測点familyごと1,024、U-Q: event 512・長周期256、U-N: 現況6・情報64、U-W: partial 128、U-F: subject 512）の件数を、観測の表が受けたstep.stateから数える。保存のbyteはonMeasurementsのencodeのbytes（CheckpointMeasurement.bytes）をunitの世代の上限（U-E 256 KiB・U-T 4 MiB・U-Q 4 MiB・U-N 288 KiB・U-W 16 MiB・U-F 32 MiB）で割る。上限ごとに最大の比・その時刻・その時の値を残し、90%を越えた上限を名指す (2) 拒否は2つの量に分ける（P3-DC-ORACLE (4)）: 入力単位の拒否（decisionのcapacityExceededと、そのstepで作られたunavailableの印〔U-W・U-FのcapacityExceededの印とU-T・U-Qの記録の印。印の付く拒否はdecisionがchangedで返る〕。入力ごと・unit・運用区分・時刻）と、未解消の拒否の状態（印の付いた記録の数と、確認状態のwholeがcapacityExceededのunit×運用区分の数の時系列と最大。累計ではない。P3-CURRENCY-COVERAGE-001の配送で返信のadmissionCountsが無くなったための読み替え、2026-10-15 統合担当） (3) 退去: 全運用区分の退去の件数を、P3-DC-ORACLE (3)の表のreasonのcountでunit・時刻ごとに足し、容量の欠け（P3-DC-AC05、normalだけ）と別の量として並べる。U-Fは診断を出さずに非normalのsubjectとlastKnownを削るので、U-Fの退去の件数は未計測（unmeasured）と書き、0と書かない。notificationCapacityEvictedは数えない（2段目） (4) snapshot: publishされたsnapshotごとに分野のdelivery（full・summary）を見て、要約の始まりと終わりの時刻を分野ごとに残す。要約の時刻ごとに分野ごとのbyte（summaryのoriginalBytesとfullのviewのUTF-8のbyte）と、U-F・U-Wを除いた合計が1 MiBを越えるか（災害の情報だけで溢れたかの印）を書く (5) 結果のfileは1 runに1つで、frozen.tsからimportしたsealSelfHash（export済み）で封じ、gitHead・筋書きのdigest・合成器のsourceのsha256と種・P3-DC-PASSの判定・届いた上限ごとのP3-DC-OPTIONS・測ったcommitのreconstruction/contractsにあるP3-UF-PUBLIC-001とP3-CURRENCY-COVERAGE-001とU-Wの単位の契約のcontractIdとmeta.sha256を書く（配送の有無の確かめはQ-DC-REMEASURE）。書き先はFLEQ_DISASTER_OUTの1 fileだけで、試験はrepoの中に書かない。無いと: 器の最大とその時刻、入力ごとの拒否と残った拒否が筋書きごとに残らず、届いたかと溢れの原因を言えない",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:547 «66224699b9d11746»",
+          "reconstruction/src/domains/eew/eew.ts:552 «66224699b9d11746»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:30 «632cae790ef4aa0a»",
           "reconstruction/src/units/seismic/seismic-unit.ts:49 «4383702f23ce23b7»",
           "reconstruction/src/units/nankai/nankai-unit.ts:29 «f376055a27fbf976»",
@@ -413,7 +413,7 @@
           "reconstruction/src/units/weather-current/weather-current-unit.ts:44 «3ad4bf7c6588ba31»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:15 «aa1dcb742dc64f1c»",
           "reconstruction/src/runtime/composition-root.ts:126 «9a24c78389b3cc16»",
-          "reconstruction/src/runtime/composition-root.ts:1407 «90b8604c422c63fa»",
+          "reconstruction/src/runtime/composition-root.ts:1488 «90b8604c422c63fa»",
           "reconstruction/contracts/p3-execution-split.types.ts:95 «a2f6e82ae720f68e»",
           "reconstruction/src/domains/weather-current/weather-current.ts:477 «08eda6d3c0cd84ce»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:235 «9e0a048fabf9d141»",
@@ -436,14 +436,14 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:318 «350627aa0c8c0b86»",
           "reconstruction/src/domains/eew/eew.ts:266 «a777a5aa32eb2368»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:34 «986ae9b33f93a294»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:459 «3f2690b71e67d7d4»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:463 «3f2690b71e67d7d4»",
           "reconstruction/src/units/seismic/seismic-unit.ts:55 «a3f5d5da552e2733»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:50 «7f665a2964cdce66»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:215 «0f7bc64f0b86acb0»",
-          "reconstruction/src/units/flood/flood-unit.ts:306 «db818200ef8649bd»",
+          "reconstruction/src/units/flood/flood-unit.ts:309 «db818200ef8649bd»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:383 «0661a8bf0d125d0a»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:845 «6334142030400210»",
-          "reconstruction/src/domains/eew/eew.ts:578 «3ec78c2aad9e3950»"
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:853 «6334142030400210»",
+          "reconstruction/src/domains/eew/eew.ts:583 «3ec78c2aad9e3950»"
         ]
       },
       {

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "5cac611fedbc65457f5e1ac55b8424d9a84d9496be6715e261a882c2feaee632",
+    "sha256": "d13099f5287c4e19d543a01a0812eae96c373e1ddf9f25bd9129e57d56a95396",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -202,7 +202,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "取消を採用し、取消の前にそのfamilyのsubjectがactiveだった。activeでなかったsubject（未受信を含む）の取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
+            "condition": "取消を採用し、取消の前にそのfamilyのsubjectがactiveだった。activeでなかったsubject（未受信を含む）の取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -224,7 +224,7 @@
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C7-REPLACEMENT=A。容量の拒否（P3-CURRENCY-COVERAGE-001、P3-CC-AC03・AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）: 採用でfitがnullを返し、拒否した報の記録が見えていれば印〔eventはfamilyごと、長周期はsubjectに1つ〕を付けてchanged。失敗した系統〔lineOf〕のまだ鳴っていないdesktopのpendingはtitleだけを『【HH:MM 発表】』付きに替え〔同じid・元の期限、soundは変えない、系統の古いpendingを置き換えない〕、拒否した報のfreshのlevelの最大がwarning以上なら固定のsubject『operation/capacityRejected』の失敗警報をその段階で足す〔昇格で終端記録へ移る軽い失敗警報を含めて終端記録が131,072 byteを越えるときは当てない〕。どれも追加の退去なしで収まるときだけ。印を付けない拒否はunitの負の証拠と診断capacityRejected（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4・C5の先例）",
-        "payload": "typeRef reconstruction/contracts/p3-seismic-unit.types.ts#SeismicNotificationPayload。domain=earthquake-eew。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋旧築notifier.ts:417〜:444・:511〜:533と同じ組み方: 発表はHead/Title、訂正は「[訂正] 」＋Head/Title、取消は「[取消] 」＋Head/Title。bodyはlevelと同じくその報自身の事実から組み（eventが導いた事実は使わない）、地震が震源名 / 規模 / 最大震度、長周期が震源名 / 長周期階級 / 最大震度を「 / 」で連結し、部品が無ければHeadline、それも無ければHead/Title。訂正はbody冒頭に「訂正: 」、取消は「この情報は取り消されました」。値の表記（未入電の「以上」、unknownの「不明」）は旧築の通知の表記に揃え、0や空にしない。長周期の部品が無ければ旧築どおりHead/Titleに落ちる（notifier.ts:511〜:533）。title/bodyは空にしない",
+        "payload": "typeRef reconstruction/contracts/p3-seismic-unit.types.ts#SeismicNotificationPayload。domain=earthquake-eew。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋旧築notifier.ts:417〜:444・:511〜:533と同じ組み方: 発表はHead/Title、訂正は「[訂正] 」＋Head/Title、取消は「[取消] 」＋Head/Title。bodyはlevelと同じくその報自身の事実から組み（eventが導いた事実は使わない）、地震が震源名 / 規模 / 最大震度、長周期が震源名 / 長周期階級 / 最大震度を「 / 」で連結し、部品が無ければHeadline、それも無ければHead/Title。訂正はbody冒頭に「訂正: 」、取消は「<震源名> HH:MM 発表の<種類>を取り消しました」。値の表記（未入電の「以上」、unknownの「不明」）は旧築の通知の表記に揃え、0や空にしない。長周期の部品が無ければ旧築どおりHead/Titleに落ちる（notifier.ts:511〜:533）。title/bodyは空にしない（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（<震源名> HH:MM 発表）」、bodyは「<震源名> HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST、<震源名>は取り消した記録の震源名〔無ければ省く、分岐P3-NL-D-CANCEL-EPICENTER=A〕。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順（期限→生成時刻→ID）の後ろのものを外す。U-Qは全部同じ群なので、新しいintentが外れることがある。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。終端記録はexpiresAtで回収し、保存世代のbyte予算に含める。intentの保存のbyte上限（I-U-Q.capacityReserve）を守るため、終端記録の合計が131,072 byteを超える分は、最古の終端記録からexpiresAtの前に回収する（終端記録は遅れた結果の照合にだけ使い、未知idの更新はno-opなので、早く回収しても通知は変わらない）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力は適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P3-C7-N2）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る。復元直後の続報の事実の差は復元したstateとの差で決める（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
@@ -234,7 +234,7 @@
         "id": "P3-C7-LEGACY-DIFF",
         "status": "frozen（旧築の実コードから。作者へ出す見え方の根拠。挙動はコードを読んだ範囲で、旧築を実走して確かめてはいない）",
         "items": [
-          "通知の機会: 旧築は受理した地震・長周期の報ごとにdesktop＋soundを出す（message-router.ts:521〜:529→notifier.ts:417・:511）。新築は公開事実の変わった採用・訂正・取消の前にactiveだったfamilyの取消だけ。事実の同じ新しい報（遅れて届いた古いVXSE51を含む）と、未受信・取消済みの事象の取消では鳴らさない",
+          "通知の機会: 旧築は受理した地震・長周期の報ごとにdesktop＋soundを出す（message-router.ts:521〜:529→notifier.ts:417・:511）。新築は公開事実の変わった採用・訂正・取消の前にactiveだったfamilyの取消だけ。事実の同じ新しい報（遅れて届いた古いVXSE51を含む）と、未受信・取消済みの事象の取消では鳴らさない（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
           "段階: P3-C7-NOTICE-LEVELS=Aなら旧築と同じ式（level-helpers.ts:280〜:289・:314〜:322）。音源は旧築の5段階でなく、分野別根音表の地震・EEW（sound-design-system.md:46）",
           "優先: 旧築には優先群が無く、受理の順に鳴らす。新築のU-Qはotherの群で、EEWと津波緊急の後になる（P3-C7-NOTICE-GROUP）",
           "版の比較と取消の範囲（P3-C7-SUBJECT・P3-C7-CANCEL-SCOPE）: 旧築はVXSE51/52/53/61を一つのwatermarkで比べ（revision-family-registry.ts:205〜:213、includeType: false）、どのfamilyの取消もevent全体を取り消す。同じ16:31でSerialが片方だけ空（VXSE51は空、VXSE53は1）だと比べられず（telegram-revision-gate.ts:439でunordered。比較の入力はtelegram-meta.ts:254〜:258）、後から届いたVXSE53をinvalidRevisionで黙って捨てる（telegram-revision-gate.ts:829〜:841・:913、process-transient-foundation.ts:84。統合担当のレビューで確認）。新築はfamilyごとに比べるのでVXSE51とVXSE53は比べず、同じfamilyの中で片方だけSerialが空なら同じrevisionとして扱う",
@@ -855,10 +855,10 @@
       },
       {
         "id": "P3-C7-AC09",
-        "requirement": "優先群（P3-C7-NOTICE-GROUP=A）: A7のgroup()をintent.unit=「U-E」でnormalEewにする。U-Qのintent（criticalの長周期を含む）はotherで、試行中の津波緊急・EEWを中断せず、EEW・津波緊急の後に選ばれる。U-EのintentのnormalEewと既存のA7の試験の期待は変わらない",
+        "requirement": "優先群（P3-C7-NOTICE-GROUP=A）: A7のgroup()をintent.unit=「U-E」でnormalEewにする。U-Qのintent（criticalの長周期を含む）はotherで、試行中の津波緊急・EEWを中断せず、EEW・津波緊急の後に選ばれる。U-EのintentのnormalEewと既存のA7の試験の期待は変わらない（P3-NOTICE-LEDGER-001の後は、群をownerがintentを作るときにpriorityGroupへ付け〔notice-mark.tsのpriorityGroupOf〕、A7のgroup()はそれを読むだけ、P3-NL-AC11の(2)(3)）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:20 «39a435399fa14346»",
+          "reconstruction/src/units/notice-mark.ts:98 «33e8294945bda7e8»",
           "docs/specs/sound-design-system.md:46 «cbd92a61248d4886»"
         ]
       },
@@ -901,7 +901,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:1158 «cee278b81108e897»"
+          "reconstruction/src/runtime/composition-root.ts:1163 «cee278b81108e897»"
         ]
       },
       {

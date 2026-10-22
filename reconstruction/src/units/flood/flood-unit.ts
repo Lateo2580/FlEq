@@ -18,7 +18,7 @@ import {
 } from "../../domains/flood/flood";
 import type { FloodCandidate } from "../../domains/flood/flood";
 import {
-  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 
@@ -190,10 +190,13 @@ function noticeOf(before: FloodCurrent | null, after: Active): Readonly<{ change
   return { changed: rivers || level != null, level: level ?? "normal" };
 }
 // 題は operationPrefix＋訂正・取消の前置き＋Head/Title。本文は Headline、無ければ group ごとの河川名、それも無ければ題。
-function payloadOf(candidate: FloodCandidate, after: FloodCurrent, level: Level): FloodNotificationPayload {
+// 取消は取り消した記録の ReportDateTime（cancelledAt）を書く（P3-NL-AC10）。
+function payloadOf(candidate: FloodCandidate, after: FloodCurrent, level: Level, cancelledAt: string | null = null): FloodNotificationPayload {
   const prefix = PREFIX[candidate.operation];
-  if (candidate.cancelled) return { domain: "weather", level: "cancel", title: cut(`${prefix}[取消] ${candidate.title}`, NOTICE_BOUNDS.title),
-    body: "この情報は取り消されました" };
+  if (candidate.cancelled) {
+    const text = cancelText(candidate.title, cancelledAt);
+    return { domain: "weather", level: "cancel", title: cut(prefix + text.title, NOTICE_BOUNDS.title), body: cut(text.body, NOTICE_BOUNDS.body) };
+  }
   const correction = candidate.infoRank === 2;
   const groups = visible(after) ? after.kinds.map((group) => [group.name, group.rivers.map((river) => river.name).join("・")]
     .filter((part) => part !== "").join(" ")).join(" / ") : "";
@@ -209,7 +212,7 @@ function intentsFor(source: Readonly<{ subject: string; operation: Operation; so
   return channels.map((channel) => ({ id: noticeId("U-R", source.subject, "", source.source, transition, channel), unit: "U-R",
     subject: source.subject, operation: source.operation, source: source.source, transition, channel, payload, createdAt: now,
     expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
-    ...freshState("U-R", source.operation, payload.level) }));
+    ...freshState("U-R", source.operation) }));
 }
 // P3-C11-TRAINING=A: training/test は desktop だけ。
 const channelsOf = (operation: Operation) => operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
@@ -326,15 +329,16 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
   // 記憶だけの取消・ended の記録への解除・河川の段階も観測の最大も上がらない報では作らない。
   const correction = candidate.infoRank === 2;
   const notice = visible(next) ? noticeOf(existing, next) : null;
-  const notify = candidate.cancelled ? visible(existing) : correction || (notice != null ? notice.changed
+  // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
+  const notify = candidate.cancelled ? visible(existing) || heard(existing?.notice) : correction || (notice != null ? notice.changed
     : visible(existing) || existing == null || existing.effective === "cancelled");
   const transition = candidate.cancelled ? "cancelled" as const : correction ? "updated" as const
     : visible(next) ? visible(existing) ? "updated" as const : "activated" as const : "released" as const;
   const level = candidate.cancelled ? "cancel" : notice?.level ?? "normal";
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const digest = notify ? versionDigest(candidate.source) : "";
-  const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level), now, channelsOf(operation), existing?.notice,
-    digest) : [];
+  const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level, existing?.source.reportDateTimeRaw ?? null), now,
+    channelsOf(operation), existing?.notice, digest) : [];
   const notices = admit(state.intents, fresh, candidate.cancelled ? subject : null);
   // P3-NL-AC02 (3): admit を通った版と種類を EventID の系列の印に足す（全 channel が断られた版は入れない）。
   if (notices.admitted.length !== 0) {

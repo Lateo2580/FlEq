@@ -17,7 +17,7 @@ import { ANALYSIS_TYPES, BOUNDS, LIMITS, PROBABILITY_TYPES, RETAIN, VISIBLE, par
 import type { AnalysisCandidate, ProbabilityCandidate, TyphoonCandidate } from "../../domains/typhoon/typhoon";
 import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "../../domains/flood/flood";
 import {
-  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 
@@ -164,10 +164,16 @@ function labelOf(name: TyphoonName, eventId: string): string {
 }
 type Mark = "plain" | "correction" | "cancel";
 // 題は operationPrefix＋訂正・取消の前置き＋Head/Title。接頭辞は切る範囲の外に置き、本体だけを上限から引いた長さで切る（K5 の F15 の型）。
-function payloadOf(operation: Operation, level: Level, title: string, body: string, mark: Mark): TyphoonNotificationPayload {
-  const titleHead = PREFIX[operation] + (mark === "correction" ? "[訂正] " : mark === "cancel" ? "[取消] " : "");
+// 取消は取り消した記録の ReportDateTime（cancelledAt）を書く（P3-NL-AC10）。
+function payloadOf(operation: Operation, level: Level, title: string, body: string, mark: Mark, cancelledAt: string | null = null): TyphoonNotificationPayload {
+  if (mark === "cancel") {
+    const words = cancelText(title, cancelledAt);
+    return { domain: "weather", level, title: PREFIX[operation] + cut(words.title, NOTICE_BOUNDS.title - PREFIX[operation].length),
+      body: cut(words.body, NOTICE_BOUNDS.body) };
+  }
+  const titleHead = PREFIX[operation] + (mark === "correction" ? "[訂正] " : "");
   const bodyHead = mark === "correction" ? "訂正: " : "";
-  const text = mark === "cancel" ? "この情報は取り消されました" : bodyHead + cut(body === "" ? title : body, NOTICE_BOUNDS.body - bodyHead.length);
+  const text = bodyHead + cut(body === "" ? title : body, NOTICE_BOUNDS.body - bodyHead.length);
   return { domain: "weather", level, title: titleHead + cut(title, NOTICE_BOUNDS.title - titleHead.length), body: text };
 }
 // P3-NL-AC01: ID は世代番号を含まない。系列の印に同じ版の鍵と種類があれば作らない。
@@ -179,7 +185,7 @@ function intentsFor(source: Readonly<{ subject: string; operation: Operation; so
   return channels.map((channel) => ({ id: noticeId("U-Y", source.subject, "", source.source, transition, channel), unit: "U-Y",
     subject: source.subject, operation: source.operation, source: source.source, transition, channel, payload, createdAt: now,
     expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
-    ...freshState("U-Y", source.operation, payload.level) }));
+    ...freshState("U-Y", source.operation) }));
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-Y の intent は全部 other の群（P3-C14-NOTICE-GROUP）。
 function a7Order(left: TyphoonIntent, right: TyphoonIntent): number {
@@ -274,7 +280,8 @@ const analysisLane: Lane<Analysis, AnalysisCandidate> = {
   // 終わりの記憶（terminal）と期限の記憶（expired）は、同じ版の報が台風の終わりかどうかで決まる。
   conflicts: (existing, candidate) => existing.effective === "ended" && (existing.endCause === "terminal") !== candidate.terminal,
   notice(candidate, existing, next, was) {
-    if (candidate.cancelled) return was ? { level: "cancel", mark: "cancel", transition: "cancelled", body: "" } : null;
+    // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
+    if (candidate.cancelled) return was || heard(existing?.notice) ? { level: "cancel", mark: "cancel", transition: "cancelled", body: "" } : null;
     const label = labelOf(candidate.name, candidate.eventId);
     if (next.effective === "ended") return was && candidate.terminal ? { level: "info", mark: "plain", transition: "released",
       body: [label, candidate.name.remark].filter((part) => part != null).join(" ") } : null;
@@ -306,7 +313,8 @@ const probabilityLane: Lane<Probability, ProbabilityCandidate> = {
   // zero の記憶に同じ版の全ゼロでない報が来たら食い違い（ended は事実の元が分からないので種類で比べない）。
   conflicts: (existing, candidate) => existing.effective === "zero" && !candidate.zero,
   notice(candidate, existing, next, was) {
-    if (candidate.cancelled) return was ? { level: "cancel", mark: "cancel", transition: "cancelled", body: "" } : null;
+    // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
+    if (candidate.cancelled) return was || heard(existing?.notice) ? { level: "cancel", mark: "cancel", transition: "cancelled", body: "" } : null;
     const label = labelOf(candidate.name, candidate.eventId);
     if (next.effective === "zero") return was ? { level: "info", mark: "plain", transition: "released", body: `${label} 暴風域に入る確率1%以上の地域なし` } : null;
     if (next.effective !== "active") return null;
@@ -394,8 +402,8 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
   const notice = built.late ? null : lane.notice(candidate, existing, next, was);
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const digest = notice == null ? "" : versionDigest(candidate.source);
-  const fresh = notice == null ? [] : intentsFor(candidate, notice.transition, payloadOf(operation, notice.level, candidate.title, notice.body, notice.mark),
-    now, existing?.notice, digest);
+  const fresh = notice == null ? [] : intentsFor(candidate, notice.transition, payloadOf(operation, notice.level, candidate.title, notice.body, notice.mark,
+    existing?.source.reportDateTimeRaw ?? null), now, existing?.notice, digest);
   const notices = admit(state.intents, fresh, withdrawn);
   // P3-NL-AC02 (3): admit を通った版と種類を系列の印に足す（全 channel が断られた版は入れない）。
   if (notice != null && notices.admitted.length !== 0) {

@@ -91,27 +91,48 @@ function restoreStarted<T extends NotificationIntent>(intents: readonly T[]): Re
   return started.length === 0 ? { intents, started } : { intents: intents.filter((item) => item.lastAttempt !== "started"), started };
 }
 
-// P3-NL-AC11 (2) の発注 1 の読み（Q-NL-PRECHECK (0)(c)）: A7 の group()（notification-delivery.ts）と同じ値を owner が付ける。
-function priorityGroupOf(unit: UnitId, operation: Operation, level: unknown): NotificationPriorityGroup {
+// P3-NL-AC11 (2): 群は owner が作るときに決め、A7 はこの欄を読むだけ（level から決めない）。emergency は U-T の報が警報以上
+// （未知の区分を含む）への発令・引上げ・区域拡大を含むか。
+function priorityGroupOf(unit: UnitId, operation: Operation, emergency = false): NotificationPriorityGroup {
   if (operation !== "normal") return "other";
   if (unit === "U-E") return "normalEew";
-  return unit === "U-T" && (level === "warning" || level === "critical") ? "normalTsunamiEmergency" : "other";
+  return unit === "U-T" && emergency ? "normalTsunamiEmergency" : "other";
 }
 
 // 新しく作る intent の 3 つの欄（P3-NL-AC06 (1)・AC11 (2)）。
-function freshState(unit: UnitId, operation: Operation, level: unknown): Pick<NotificationIntent, "lastAttempt" | "replayed" | "priorityGroup"> {
-  return { lastAttempt: null, replayed: false, priorityGroup: priorityGroupOf(unit, operation, level) };
+function freshState(unit: UnitId, operation: Operation, emergency = false): Pick<NotificationIntent, "lastAttempt" | "replayed" | "priorityGroup"> {
+  return { lastAttempt: null, replayed: false, priorityGroup: priorityGroupOf(unit, operation, emergency) };
+}
+
+// P3-NL-AC09 (1): 取消を通知する条件の後ろ半分。系列の印の証拠が possible か unknown（通知が外へ出たかもしれない）。
+function heard(mark: NoticeMark | undefined): boolean {
+  return mark != null && mark.evidence !== "unattempted";
+}
+
+// P3-NL-AC10 (3): 取消の title（接頭辞の前）と body。kind は取消の報の Head/Title（末尾の「の取消」は除く。付けたままだと「…の取消を
+// 取り消しました」になり、承認した表の形と食い違う）、at は取り消した記録の ReportDateTime（JST の HH:MM、読めなければ書かない）、
+// name は震源名・火山名（無ければ書かない）。
+function cancelText(kind: string, at: string | null, name: string | null = null): Readonly<{ title: string; body: string }> {
+  const type = kind.replace(/\s+/g, " ").trim().replace(/の取消$/, "") || kind.trim();
+  const ms = at == null ? Number.NaN : Date.parse(at);
+  const what = [name, Number.isFinite(ms) ? `${new Date(ms + 32_400_000).toISOString().slice(11, 16)} 発表` : null]
+    .filter((part) => part != null && part !== "").join(" ");
+  return what === "" ? { title: `[取消] ${type}`, body: `${type}を取り消しました` }
+    : { title: `[取消] ${type}（${what}）`, body: `${what}の${type}を取り消しました` };
 }
 
 type Fields = Readonly<Record<string, unknown>>;
 
 // P3-NL-AC06・AC11 (5)・AC05: codec が intent の新しい欄を項目ごとに確かめる。保存するのは pending だけ（終端は印に置き換わる）、
-// 群は owner の作る値と一致、desktop は鳴らし直さないので replayed は false。
+// 群は owner の作る値と一致（U-T の normal は other か、level が warning・critical のときの normalTsunamiEmergency。群は level から
+// 決められないので上界だけを確かめる）、desktop は鳴らし直さないので replayed は false。
 function readIntentState(row: Fields, unit: UnitId, operation: Operation, level: unknown):
   Pick<NotificationIntent, "lastAttempt" | "replayed" | "priorityGroup"> | null {
   const lastAttempt = row.lastAttempt === "started" || row.lastAttempt === "failed" || row.lastAttempt === null ? row.lastAttempt : undefined;
-  const priorityGroup = priorityGroupOf(unit, operation, level);
-  if (lastAttempt === undefined || typeof row.replayed !== "boolean" || row.priorityGroup !== priorityGroup
+  const priorityGroup = row.priorityGroup === priorityGroupOf(unit, operation) ? priorityGroupOf(unit, operation)
+    : row.priorityGroup === "normalTsunamiEmergency" && unit === "U-T" && operation === "normal" && (level === "warning" || level === "critical")
+      ? row.priorityGroup : null;
+  if (lastAttempt === undefined || typeof row.replayed !== "boolean" || priorityGroup == null
     || row.disposition !== "pending" || row.replayed && row.channel === "desktop") return null;
   return { lastAttempt, replayed: row.replayed, priorityGroup };
 }
@@ -170,6 +191,6 @@ const FAILURE_MARKS_MAX_BYTES = new TextEncoder().encode(JSON.stringify((["train
 
 export {
   FAILURE_MARKS_MAX_BYTES, readFailureMarks,
-  applyIntentUpdate, failureNoticeId, fragmentKey, freshState, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed,
+  applyIntentUpdate, cancelText, failureNoticeId, fragmentKey, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed,
   priorityGroupOf, raiseEvidence, readIntentState, readNoticeMark, restoreStarted, shown, strongerEvidence, updateEvidence, versionDigest,
 };

@@ -1,15 +1,15 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "690d3de6e00da1df5aab5c78f28c09de50ba9aa8c5eac11776e65ce0c45fa7c4",
+    "sha256": "1ca3146ac6a1e0c35e6c4adafb63207ca9e77894a022fa3aed71e8e2747f6cf6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
         "id": "P3-C5-NOTICE-LEVELS",
-        "A": "VTSE41の通知の段階（payload.level）を、区分の変化から決まる段階と、報全体の到達後に残った区分から決まる段階の大きい方にする。区域の順位はnone/released=0・forecast=1・advisory=2・warning=3（unknownも3、P3-C5-KIND-ENUM=B）・majorWarning=4。変化の段階: 直前の採用状態より上がった区域があれば、上がった区域の到達先の最高でmajorWarning→critical、warning/unknown→warning、advisory→normal、forecast→info、上がった区域が無ければinfo。残った区分の段階: 到達後に注意報以上の区域が一つでもあればnormal、無ければinfo。取消はcancel。訂正は同じ式に訂正の接頭辞を付けるだけ。A7の緊急群の判定（notification-delivery.ts:21: normalかつdomain=tsunamiかつlevelがwarning/critical）は変えず、緊急群に入るのは大津波警報・津波警報の発令・引上げ・区域拡大を含む報だけになる（spec:951）",
+        "A": "VTSE41の通知の段階（payload.level）を、区分の変化から決まる段階と、報全体の到達後に残った区分から決まる段階の大きい方にする。区域の順位はnone/released=0・forecast=1・advisory=2・warning=3（unknownも3、P3-C5-KIND-ENUM=B）・majorWarning=4。変化の段階: 直前の採用状態より上がった区域があれば、上がった区域の到達先の最高でmajorWarning→critical、warning/unknown→warning、advisory→normal、forecast→info、上がった区域が無ければinfo。残った区分の段階: 到達後に注意報以上の区域が一つでもあればnormal、無ければinfo。取消はcancel。訂正は同じ式に訂正の接頭辞を付けるだけ。A7の緊急群の判定（notification-delivery.ts:21: normalかつdomain=tsunamiかつlevelがwarning/critical）は変えず、緊急群に入るのは大津波警報・津波警報の発令・引上げ・区域拡大を含む報だけになる（spec:951）（P3-NOTICE-LEDGER-001で改訂: 注意報への発令・引上げ・区域拡大〔advisory〕はwarning、H09、P3-NL-AC11の(1)。緊急群はA7のgroup()がintentのpriorityGroupを読み、ownerが警報以上への発令・引上げ・区域拡大を含むnormalの報にnormalTsunamiEmergencyを付ける、P3-NL-AC11の(2)(3)）",
         "B": "旧築の段階の式（level-helpers.ts:291〜299）を保つ: 全区域が津波予報ならwarning、名前に「津波」を含み「解除」を含まない区域が一つでもあればcritical（「津波予報（若干の海面変動）」も含むので、注意報解除と若干の海面変動が混ざる解除報もcritical）、それ以外で解除を含めばwarning、取消cancel。緊急群の判定はlevelからpayloadの明示flag（発令・引上げ・区域拡大を含む報だけtrue）へ移す。A7のgroup()・NotificationAttemptとP2-NOTIFICATION-DELIVERY-001の改訂が要る",
         "recommended": "A",
         "provisional": "A",
@@ -100,7 +100,7 @@
       },
       {
         "id": "P3-C5-REPLACEMENT",
-        "A": "新しいintentは、同じsubject・同じchannelで同群以上（A7の選択順）の古いpendingだけをsupersededにする。下位群の新intentは上位群のpendingを置き換えず両方残し、選択順で上位が先に出る。取消は群によらず同subjectの全pendingを両channelでsupersededにする。delivered・expiredは変えない",
+        "A": "新しいintentは、同じsubject・同じchannelで同群以上（A7の選択順）の古いpendingだけをsupersededにする。下位群の新intentは上位群のpendingを置き換えず両方残し、選択順で上位が先に出る。取消は群によらず同subjectの全pendingを両channelでsupersededにする。delivered・expiredは変えない（P3-NOTICE-LEDGER-001: 群はintentのpriorityGroupで比べる〔tsunami-unit.tsのgroupRank、P3-NL-AC11の(4)〕）",
         "B": "EEW（P2-A4 Q-NOTICE）と同じく最新一件で置き換える",
         "recommended": "A",
         "provisional": "A",
@@ -176,7 +176,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "VTSE41の取消を採用し、取消の前にsubjectがactiveだった。activeでなかったsubject（未受信を含む）の取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
+            "condition": "VTSE41の取消を採用し、取消の前にsubjectがactiveだった。activeでなかったsubject（未受信を含む）の取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -199,7 +199,7 @@
         ],
         "level": "VTSE41の発表・訂正はP3-C5-NOTICE-LEVELS=Aの式: level=max(変化の段階, 残った区分の段階)。段階の大小はinfo<normal<warning<critical。残った区分は報全体の到達後の状態で決める（下がった区域の行き先だけを見ない）。取消はcancel。観測（VTSE51/52の発表・訂正）は報の中身・VTSE41の区分によらず常にinfo（P3-C5-NOTICE-OBSERVATION=C）、観測の取消はcancel",
         "overlap": "一つの採用報は各channel最大1 intent。機会はescalation、deescalation、continuationの順で一つを選ぶ。訂正は別の機会を作らず、選んだ機会に訂正の接頭辞を付ける",
-        "emergencyGroup": "A7のgroup()（notification-delivery.ts:21）が緊急群に入れるのはoperation=normalかつlevelがwarning/criticalのU-T intentだけ。式により、それは警報以上の区域が上がった報（訂正を含む）に限る。区域拡大は新しい区域への警報の発令なので、spec:951の「発令」に含める（spec:1131の発令系も区域拡大を含む）。観測のintentはinfo/cancelなので緊急群に入らない（otherのまま鳴る）",
+        "emergencyGroup": "A7のgroup()（notification-delivery.ts:18〜:21）はintentのpriorityGroupを返すだけで、ownerが緊急群（normalTsunamiEmergency）を付けるのはoperation=normalで、警報以上（津波警報・大津波警報、未知の区分を含む）への発令・引上げ・区域拡大を含むU-Tの報（訂正を含む、ほかの区域の降格・部分解除を含んでも除かない）だけ（notice-mark.tsのpriorityGroupOf、P3-NOTICE-LEDGER-001のP3-NL-AC11の(2)(3)。前はlevelがwarning/criticalのnormalのintentで、注意報がwarningになったので音の段から切り離した）。区域拡大は新しい区域への警報の発令なので、spec:951の「発令」に含める（spec:1131の発令系も区域拡大を含む）。観測のintentはinfo/cancelなので緊急群に入らない（otherのまま鳴る）",
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec §6.4。津波緊急もTTLと初回待ちを別に判定、spec:973）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C5-REPLACEMENT=A。置換の単位はoperation＋subject＋channel（VTSE41と観測は別subjectなので互いを置き換えない）。容量の拒否（P3-CURRENCY-COVERAGE-001、P3-CC-AC03・AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）: VTSE41の採用でfitがnullを返し、拒否した報のsubjectの記録がactiveなら印〔SubjectUnavailable〕を付けてchanged。失敗した系列〔拒否した報のsubject〕のまだ鳴っていないdesktopのpendingはtitleだけを『【HH:MM 発表】』付きに替え〔同じid・元の期限、soundは変えない〕、拒否した報のfreshのlevelの最大がwarning以上なら固定のsubject『operation/capacityRejected』の失敗警報をその段階で足す〔subjectのpendingは置き換えない、失敗警報どうしは重い方だけを残す〕。どれも追加の退去なしで収まるときだけ。印を付けない拒否〔観測を含む〕はunitの負の証拠と診断capacityRejected",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4の先例）",
@@ -216,7 +216,7 @@
           "通知の段階（P3-C5-NOTICE-LEVELS=A）: 旧築はVTSE41/51/52の採用ごとにdesktop＋soundを出し、段階は報の中身だけで決める（level-helpers.ts:291〜299: 予報欄なしnormal、全区域が津波予報warning、「津波」を含み「解除」を含まない区域が一つでもあればcritical、それ以外で解除を含めばwarning、取消cancel）。新築では津波警報の発令critical→warning、注意報の発令critical→normal、警報・注意報中の続報と区分不変の訂正critical→normal、降格critical→normal、解除の混在報critical→info、全区域解除の報warning→info、予報だけの初報warning→info",
           "観測の通知（P3-C5-NOTICE-OBSERVATION=C）: 旧築は観測報ごとにdesktop＋soundを出し、段階は報の中身で決める（level-helpers.ts:291〜299: 警報・注意報中のVTSE51はcritical、予報だけのVTSE51はwarning、予報欄の無いVTSE52はnormal）。新築も観測報ごとにdesktop＋soundを出すが、段階はすべてinfo（単音）で、緊急群に入らない。警報・注意報中のVTSE51はcritical（3打）→info、予報だけのVTSE51はwarning→info、VTSE52はnormal→info",
           "通知の題と本文: 旧築の題はXMLのTitleのまま（例「津波警報・注意報・予報a」、notifier.ts:470）で、本文は報の順に先頭3区域。新築の題は到達後の最高区分の名（解除の報は「津波警報・注意報の解除」）で、escalationでは上がった区域を先に並べる",
-          "取消の通知: 旧築は受理した取消を毎回cancelで通知する（notifier.ts:452〜455）。新築は取消の前にactiveだったsubjectだけ。解除済み・未受信の事象の取消では鳴らない",
+          "取消の通知: 旧築は受理した取消を毎回cancelで通知する（notifier.ts:452〜455）。新築は取消の前にactiveだったsubjectだけ。解除済み・未受信の事象の取消では鳴らない（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
           "表外のKind・Area/Codeの欠落（P3-C5-KIND-ENUM=B）: 旧築は未知のKindを名前のまま表示し（表示の区分は付かない）、名前に「津波」があればcriticalで鳴らした。Area/Codeの無い区域はその報の表示だけに合成し（保存しない）、音はcritical。新築は表外の区分をKind/Nameと重大度warningで表示し警報と同じ重さで鳴らす（上がればwarning）。Area/Codeの無い区域は名前で表示・保存し、activeと残った区分の段階に数えるが変化には使わないので、その区域だけの警報の発令はnormalで鳴る（旧築critical）",
           "観測の寿命（P3-C5-OBS-LIFETIME）: 旧築はfamilyに1 subjectで事象をまたいでstationを合成し、全警報が無くなったときだけ畳む。解除の後に届いた観測は表示した。新築はEventIDごとで、解除の後に届いた観測は表示もinfoの音も出さない（作者裁定 2026-10-06夜、P3-C5-NOTICE-OBSERVATION=Cの例外）。24時間の失効は新設",
           "容量（P3-C5-CAPACITY）: 旧築は1024超のstationを診断なしで落とした。新築は退去手順とnormalのcapacityExceeded。4 MiB超・VTSE41の513件目・観測subjectの513件目の扱いも新しい",
@@ -904,7 +904,7 @@
           "docs/specs/reconstruction-p0-contracts.md:987 «92c005f60b052cd8»",
           "docs/specs/reconstruction-p0-contracts.md:993 «a4aca264685cdfaa»",
           "docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:21 «610e2251eb0ae3de»"
+          "reconstruction/src/units/notice-mark.ts:99 «085550b0cc032fbb»"
         ]
       },
       {
@@ -963,7 +963,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:72 «4a65d89f48f565e0»",
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
-          "reconstruction/src/runtime/composition-root.ts:1158 «cee278b81108e897»",
+          "reconstruction/src/runtime/composition-root.ts:1163 «cee278b81108e897»",
           "reconstruction/contracts/p2-notification-delivery.types.ts:46 «c19db469a893ebf1»"
         ]
       },

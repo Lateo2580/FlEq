@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "a60374b4167eb17f64321aeb29f56cda012acf100243803d23eb940fdd58129d",
+    "sha256": "91800829c877bf3063efd430796fb1333fbc6acd50e8ceafea89f3e198d86a63",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -370,7 +370,7 @@
         "id": "P2-A3-AC02",
         "requirement": "P2-O10-CHECKPOINT-v2の31-40を順に実行する。U-F初期化→実fixture受理→g1保存→故障設定→取消g2→保存失敗→同じslotのg1復元→故障解除→取消再取得→最新保存を検収する。取消喪失可能区間を確認済みcurrentと混同しない。56-90はU-F/U-Wだけのwrite遅延・rename前後・ack喪失・単位固有失敗。旧U-V/export操作はsubset外。置換欠落の起草blockは解除、実行合格は別途必要。",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
           "docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
           "reconstruction/contracts/p2-order-plan.md:29 «35a6e87440bc3528»",
           "reconstruction/tools/corpus/sequences.json#expected:O10:35",
@@ -447,14 +447,14 @@
       },
       {
         "id": "P2-A3-AC10",
-        "requirement": "R45/A10-AC09: 世代帰属とcapture集約の正本は本条とする。dispatchは各unitの前後のcurrentGenerationとA1 RuntimeStep.generationInputIdsを照合し、世代が進んだunitの明示keyにある配列だけを、そのstepの世代変化に寄与した入力として採用する。changedUnitsやparser入力の存在からinputIdを推定しない。起動時は検証済み復元g（emptyなら0）を基点として起動回収後の世代変化を照合する。未保存区間の各世代変化で検証した寄与IDを保持し、capture時はsavedGenerationより後から捕捉世代までの和集合を重複なく固定する。g1=[x]→g2=[]でもg1未保存ならcapture g2のinputIdsは[x]、g1保存確認済みなら[]となる。期限・intentUpdate・起動回収だけの[]は当該stepに寄与入力がないという明示値で、以前の未保存寄与IDを消さない。世代が進んだunitのkey欠落・世代対応不一致は帰属不明であり、[]で補完しない。未保存区間に不明な世代変化が一つでも残ればcapture不可・終了code 2とし、後続の[]や別世代の寄与IDで過去の欠落を帰属済みにしない。外部の明示correlationはA1出力から集約した対象unit/generationのinputIdsとの一致確認にだけ使い、上書き・優先・欠落補完の根拠にしない。古いackで除けるのは保存確認済み世代までの寄与IDだけで、捕捉後の未保存寄与と欠落を保持する。競合EEWのIDを補填せず、EEW競合はrunIdと単調時間区間で照合する",
+        "requirement": "R45/A10-AC09: 世代帰属とcapture集約の正本は本条とする。dispatchは各unitの前後のcurrentGenerationとA1 RuntimeStep.generationInputIdsを照合し、世代が進んだunitの明示keyにある配列だけを、そのstepの世代変化に寄与した入力として採用する。changedUnitsやparser入力の存在からinputIdを推定しない。起動時は検証済み復元g（emptyなら0）を基点として起動回収後の世代変化を照合する。未保存区間の各世代変化で検証した寄与IDを保持し、capture時はsavedGenerationより後から捕捉世代までの和集合を重複なく固定する。g1=[x]→g2=[]でもg1未保存ならcapture g2のinputIdsは[x]、g1保存確認済みなら[]となる。期限・intentUpdate・起動回収だけの[]は当該stepに寄与入力がないという明示値で、以前の未保存寄与IDを消さない。世代が進んだunitのkey欠落・世代対応不一致は帰属不明であり、[]で補完しない。未保存区間に不明な世代変化が一つでも残ればcapture不可・終了code 2とし、後続の[]や別世代の寄与IDで過去の欠落を帰属済みにしない。外部の明示correlationはA1出力から集約した対象unit/generationのinputIdsとの一致確認にだけ使い、上書き・優先・欠落補完の根拠にしない。古いackで除けるのは保存確認済み世代までの寄与IDだけで、捕捉後の未保存寄与と欠落を保持する。競合EEWのIDを補填せず、EEW競合はrunIdと単調時間区間で照合する（P3-NOTICE-LEDGER-001: H39の件数だけが変わった入力〔P3-NL-AC14の(5)〕も世代を進め、その入力のIDを帰属させる）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-eew-e01.types.ts"
         ]
       },
       {
         "id": "P2-A3-AC11",
-        "requirement": "A7結線後、所有unitの保存予約後・ack前にnotificationAttemptsを実adapterへdispatchし、P2-A7-TIMEの壁時計TTL/単調期限をcontrol入力で駆動する。abortRequestsのattemptId/causeをA7停止口へ渡し、終了停止のcause=shutdownと停止期限はA1のRuntimeStep.abortRequests/notificationChannelsからそのまま転送し、A3では決め直さない。terminal NotificationResultはrunNotificationAttemptのPromiseから一度だけA1へ戻し、abort側の停止確認を二つ目のterminal結果として配送しない。4通知reasonを永続sinkのallowlistへ加え再起動後readDiagnosticsで検収する。O07:17は保存ack済み・配送保留、保存予約後ack遅延中dispatchは別条件。E21はA7負荷表v1でOS別に結線検収する。",
+        "requirement": "A7結線後、試行の開始を採った世代の保存ackの後にnotificationAttemptsを実adapterへdispatchし（例外はP3-NOTICE-LEDGER-001のP3-NL-AC07の(3)。前は所有unitの保存予約後・ack前にdispatchした）、P2-A7-TIMEの壁時計TTL/単調期限をcontrol入力で駆動する。abortRequestsのattemptId/causeをA7停止口へ渡し、終了停止のcause=shutdownと停止期限はA1のRuntimeStep.abortRequests/notificationChannelsからそのまま転送し、A3では決め直さない。terminal NotificationResultはrunNotificationAttemptのPromiseから一度だけA1へ戻し、abort側の停止確認を二つ目のterminal結果として配送しない。4通知reasonを永続sinkのallowlistへ加え再起動後readDiagnosticsで検収する。O07:17は保存ack済み・配送保留、保存予約後ack遅延中dispatchは別条件。E21はA7負荷表v1でOS別に結線検収する。",
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts"
@@ -597,7 +597,7 @@
         "referenceIds": [
           "P2-A3-AC11"
         ],
-        "behavior": "既存A3 T01/T07/T11とA7 T01/T02/T04の結線系列で、保存予約済み・ack遅延中dispatch、理由付きabort/終了停止、run側だけのterminal結果一件、4 reasonの保存後読取を確認する。O07:17の保存ack済み・配送保留と混ぜない。E21はA7負荷表v1の人工競合/実33報を区別し、A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]のprivate corpusで正式33報部分を実行し、公開環境ではblocked。"
+        "behavior": "既存A3 T01/T07/T11とA7 T01/T02/T04の結線系列で、保存予約済み・ack遅延中dispatch（P3-NOTICE-LEDGER-001の後は、ackの無いまま1秒の待ちの後にdispatch、P3-NL-AC07の(3)）、理由付きabort/終了停止、run側だけのterminal結果一件、4 reasonの保存後読取を確認する。O07:17の保存ack済み・配送保留と混ぜない。E21はA7負荷表v1の人工競合/実33報を区別し、A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]のprivate corpusで正式33報部分を実行し、公開環境ではblocked。"
       }
     ],
     "requiredCommands": [

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "f4240a3a17667994d85d6056abffc9a55e7bbead23506f0ebc00a70d74f519b9",
+    "sha256": "bc4ff3bcda7dd991ad9eeb5a0f11684b0be625539d00bf992daa4684f6463031",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3134 «5e826dd4265997f1»",
     "decisionBranches": [
       {
@@ -69,8 +69,8 @@
           "reconstruction/src/checkpoint/checkpoint.ts:188 «0d7a23c67d3bc8ee»",
           "reconstruction/src/checkpoint/checkpoint.ts:197 «8cb7a21761e99aaa»",
           "reconstruction/src/checkpoint/checkpoint.ts:310 «d8c8c47fe3547576»",
-          "reconstruction/src/runtime/owner-runtime.ts:294 «6d697a491431e3be»",
-          "reconstruction/src/runtime/owner-runtime.ts:297 «890b0a8cddc63328»",
+          "reconstruction/src/runtime/owner-runtime.ts:320 «6d697a491431e3be»",
+          "reconstruction/src/runtime/owner-runtime.ts:323 «890b0a8cddc63328»",
           "reconstruction/src/runtime/owner-host.ts:57 «c8c61640df663994»",
           "reconstruction/src/runtime/owner-host.ts:181 «50d2ca18fd95e5e1»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»"
@@ -417,15 +417,15 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:68 «edf494a4209b84d6»",
           "reconstruction/src/decode-material/decode-material.ts:476 «76071c296440ae12»",
           "reconstruction/src/units/eew/eew-unit.ts:44 «d724b0576b748700»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:867 «c54e90427dfcf389»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1020 «c54e90427dfcf389»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:663 «c54e90427dfcf389»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1263 «a9edac1936c9c251»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:501 «5e595b3cb9e6ca03»",
-          "reconstruction/src/units/flood/flood-unit.ts:542 «5e595b3cb9e6ca03»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:648 «5e595b3cb9e6ca03»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:669 «2399ef065255702a»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:637 «2399ef065255702a»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:875 «c54e90427dfcf389»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1028 «c54e90427dfcf389»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:669 «c54e90427dfcf389»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1282 «a9edac1936c9c251»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:506 «5e595b3cb9e6ca03»",
+          "reconstruction/src/units/flood/flood-unit.ts:546 «5e595b3cb9e6ca03»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:656 «5e595b3cb9e6ca03»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:679 «2399ef065255702a»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:645 «2399ef065255702a»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:159 «72311d7f29152c1b»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:297 «f7f0c40f726ce42b»",
           "docs/specs/reconstruction-p0-contracts.md:3041 «c7475242b1f1451a»"
@@ -437,7 +437,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3134 «5e826dd4265997f1»",
           "docs/specs/reconstruction-p0-contracts.md:3147 «a19260d1cf0d4046»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:590 «ca5b13d448917d11»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:594 «ca5b13d448917d11»",
           "docs/specs/reconstruction-p0-contracts.md:3201 «61d7594e40aecdac»",
           "reconstruction/contracts/p3-order-plan.md:515 «701af1e7733def87»",
           "docs/specs/reconstruction-p0-contracts.md:3140 «ee9f06747736e457»"
@@ -447,27 +447,27 @@
         "id": "P3-VM-AC03",
         "requirement": "【発注 2a は U-E・U-T・U-Q・U-N・U-V、2b は U-L・U-R・U-B・U-M・U-Y・U-W・U-F】比べ方の置き換え: 各 unit の版の比較（seismic-unit.ts:518、nankai-unit.ts:127、volcano-unit.ts:183、landslide-unit.ts:117、tsunami-unit.ts:290 と観測の :436、flood-unit.ts:124、briefing-unit.ts:184、local-bulletins-unit.ts:366、typhoon-unit.ts:347、eew.ts:406 の Serial の stale、weather-current.ts:593 の同時刻、weather-timeseries-unit.ts:191）を AC02 の compareVersion に置き換える。比べる単位（系列）は今の watermark の単位のまま（U-V は subject×陸上／海上。陸上と海上の間で共有の kind・level を比べるときも compareVersion を使い、同じ Head/ReportDateTime で kind が食い違う組は Control/DateTime の後の方を採ったうえで今の volcanoRevisionConflict の WARN 診断を残す〔気象庁は 2 つの独立した情報単位の間の順を定めておらず、同時刻の食い違いは運用上の想定外のため。残存リスク (2)〕、U-Q は event の寄与の family ごと、U-T の観測は subject、ほかは subject）で、subject の鍵は変えない。older は今どおり stale。same で中身が同じなら今どおり duplicate。same で中身が違えば（取消かどうかが食い違う組は取消を採る。作者裁定 2026-10-21 昼、Q-VM-IMPL-2A。U-E では Serial の例外より先）、先に確定していた版を残し、その系列に未確認の印（AC04）を付け、今の食い違いの WARN 診断（seismicRevisionConflict など、U-W は今の freshness の monitor の unknown）を残す。undecidable（P3-VM-D-MISSING）は報を断らない。手元の版があれば版を残し（採らず、通知しない）、その系列に未確認の印を付け、WARN 診断（reason は今の欠けの requiredStructureMissing を使い、新しい reason を足さない）を出す。手元の版が無ければ、採って出し通知の規則どおりに鳴らす（WARN 診断を添える。P3-VM-D-MISSING=A、2026-10-20 作者裁定）。同じ報の組（P3-VM-D-SAME-REPORT=A）: 津波観測の fragment（Head/ReportDateTime・Serial・InfoType が同じ。tsunami-unit.ts:418 の今の鍵と同じ）は今の合成（tsunami-unit.ts:461 の同じ版の判定を「同じ報」の判定に読み替え、同じ報の中で値が食い違う fragment は今どおり手元の版を残して採らず（tsunami-unit.ts:429 の stale と tsunamiRevisionConflict）、加えて系列に未確認の印を付ける（H51 の「同じ時刻で中身が違う」）。InfoType の違う組は同じ報にせず、今の InfoType の順位（tsunami-unit.ts:436 の higher）を使わずに compareVersion で比べる。観測の記録に比べる用の Control/DateTime（採った同じ報の fragment の最大、P3-VM-D-SAME-REPORT=A）を持って保存し、別の報との比べに使う。同じ報の fragment が、内容が同じか手元の部分集合で今は duplicate になる報（tsunami-unit.ts:483）でも、食い違いが無く、より大きい Control/DateTime を持てば、比べる用の Control/DateTime だけを更新して保存する（通知を作らず、未確認の印も外さない）。無いと、本文の同じ fragment の着く順で基準が変わり、後の別の報の新旧が順で変わる。同じ報の追加の fragment の採用では未確認の印を外さない）、竜巻の対（Head/ReportDateTime・Serial・InfoType が同じ）は今の head の順、降灰 VFVO54/55（Head/ReportDateTime と InfoType が同じ）は VFVO55 を採る。U-E は gate の Serial の比べを compareVersion に替え、compareVersion が same なら Serial の大きい方を newer、小さい方を older とし（P3-VM-D-SAMETIME=A の EEW の例外）、同じ版の予測の比べ（predictionKey）は Serial も同じときに行う。U-E の採用・stale・duplicate・未確認の印の付け外し（AC04）は、すべてこの例外を当てた後の判定を使う。Serial は U-E・U-R・U-B の今の値の検査（必須・数値）を残し、事実（第 N 報）としての表示も残す。無いと: H14 の「報番号を使わない」が満たせず、台帳 91（serial 37 の取消が serial 42 の後に届いて stale）が直らない",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:590 «ca5b13d448917d11»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:297 «2388a2da51638bf7»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:594 «ca5b13d448917d11»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:301 «2388a2da51638bf7»",
           "reconstruction/src/units/volcano/volcano-unit.ts:379 «991c56106aab071d»",
           "reconstruction/src/units/landslide/landslide-unit.ts:119 «843ba9a46877eeee»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:349 «3ca4da5b4c8b2813»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:466 «98704ee12eae464b»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:501 «9814d95b4bd8620e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:470 «98704ee12eae464b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:505 «9814d95b4bd8620e»",
           "reconstruction/src/units/flood/flood-unit.ts:126 «169f3b6c42c0b0b2»",
           "reconstruction/src/units/briefing/briefing-unit.ts:187 «dc6542c31e7d8684»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:359 «bb46061917cd0844»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:338 «3ca4da5b4c8b2813»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:365 «bb46061917cd0844»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:346 «3ca4da5b4c8b2813»",
           "reconstruction/src/domains/eew/eew.ts:473 «9db3aa10ed859c05»",
           "reconstruction/src/domains/weather-current/weather-current.ts:593 «63571d9e910c4524»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:192 «0c4bf4cc6f7ce2d9»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:548 «727d9f9b6e6b31b2»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:552 «727d9f9b6e6b31b2»",
           "reconstruction/contracts/p3-persist-premises.md:63 «80b3b4d07acc2533»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:498 «50249c26c241ac53»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:502 «50249c26c241ac53»",
           "docs/specs/reconstruction-p0-contracts.md:3201 «61d7594e40aecdac»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:444 «794a7a625a173a1c»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:531 «428fe6ebee338d50»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:526 «7e792155840555cf»"
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:448 «794a7a625a173a1c»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:535 «428fe6ebee338d50»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:530 «7e792155840555cf»"
         ]
       },
       {
@@ -491,7 +491,7 @@
           "reconstruction/src/checkpoint/checkpoint.ts:197 «8cb7a21761e99aaa»",
           "reconstruction/src/checkpoint/checkpoint.ts:310 «d8c8c47fe3547576»",
           "reconstruction/src/runtime/owner-host.ts:181 «50d2ca18fd95e5e1»",
-          "reconstruction/src/runtime/owner-runtime.ts:297 «890b0a8cddc63328»",
+          "reconstruction/src/runtime/owner-runtime.ts:323 «890b0a8cddc63328»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»",
           "reconstruction/contracts/p3-persist-premises.md:68 «b9ae66e7aeebf460»",
           "reconstruction/contracts/p3-persist-premises.md:73 «32ecbbdb103e9932»",
@@ -512,7 +512,7 @@
           "reconstruction/contracts/p3-persist-premises.md:144 «2ceab1141412b0f6»",
           "reconstruction/contracts/p3-execution-split.types.ts:68 «40f7c160c2f5af7e»",
           "reconstruction/contracts/p3-execution-split.types.ts:101 «a896029bd79113b7»",
-          "reconstruction/src/runtime/composition-root.ts:1367 «6f4ddb1bb79ac527»",
+          "reconstruction/src/runtime/composition-root.ts:1448 «6f4ddb1bb79ac527»",
           "reconstruction/src/checkpoint/checkpoint.ts:482 «f2df4d892cf6c2da»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:406 «442242ac46bb58a3»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:583 «91775f59fc97dbc2»"
@@ -522,9 +522,9 @@
         "id": "P3-VM-AC07",
         "requirement": "【発注 1】境界の意味と publisher の未解決の列: unit ごとの境界 B は「受信の順（inputSequence）で B 以前の、その unit に振り分けた入力が、すべて処理され、その効果がこの世代に入っていると確かめられる位置」。publisher は unit ごとに未解決のものだけを持つ: (a) 処理待ち（その unit に振り分けて mailbox に入れ、まだ完了していない入力。mailbox の件数の上限 128 で有界）、(b) 断った入力（mailbox が overload で断った入力、host が停止した owner に断った入力 composition-root.ts:718）、(c) 切断の間（接続が切れた位置 lostThroughSequence の後ろ、全 unit）、(d) 再起動の間（復元した境界からこの run の最初の入力まで、全 unit）。decode で拒否した入力と、振り分け先の無い入力（ignored・unlisted）は解決済み。origin=recovery の入力は列に入れない。(b)〜(d) は区間（始まりと終わりの位置）で持ち、隣り合う区間はまとめ、区間の数は unit ごと 64（置き値）まで、超えたら新しい側の区間どうしをまとめる（最古の位置は失わない）。(b)〜(d) は本契約の中では解決しない（解決の入力は C16）。書込み権を出すとき、その unit の最古の未解決の位置の直前の入力を境界として渡す。未解決が無ければ、その unit に振り分けた入力のうち受信の順で最後のもの（受信末尾。未解決が無いので処理済みと保証できる）まで境界を進める。境界の材料（inputSequence・receivedAt〔受信時の basis を含む、AC06〕・dmdataId）は有界に持つ: unit ごとに受信末尾の材料を 1 つ、処理待ちの各入力と穴の各区間に「その直前にその unit に振り分けた入力の材料」を 1 つずつ（振り分けは受信の順なので、列に入れる時点で決まる）。持つ数は処理待ち 128＋区間 64＋1 で、完了した入力の材料は捨ててよい。区間をまとめるときは古い側の材料を残す。書込み権は parser 入力の処理中には出ない（実行境界メモ §3）ので、渡した位置までの入力は capture した state に入っている。優先度で後着が先に処理されても、先着の処理待ちが残る間は境界はその前で止まる。owner の入力 ID の記録（owner-host の ledger）は使わない。無いと: 優先度で先に処理した後着を境界にして保存し、待っていた先着を取り直しの範囲から落とす（メモ §2.4 の受信順 10 と 11 の例）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:725 «a6507ee81b4fb217»",
-          "reconstruction/src/runtime/composition-root.ts:878 «d9ca8a096374d838»",
-          "reconstruction/src/runtime/composition-root.ts:1354 «90ced524d38d1efe»",
+          "reconstruction/src/runtime/composition-root.ts:730 «a6507ee81b4fb217»",
+          "reconstruction/src/runtime/composition-root.ts:883 «d9ca8a096374d838»",
+          "reconstruction/src/runtime/composition-root.ts:1435 «90ced524d38d1efe»",
           "reconstruction/src/host/host.ts:325 «0c05272de607230d»",
           "reconstruction/src/host/host.ts:331 «78ed7c65133feaf5»",
           "reconstruction/contracts/p3-persist-premises.md:140 «2f26078ea8843032»",
@@ -539,8 +539,8 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:434 «d44612fdef60c5b8»",
           "reconstruction/contracts/p3-order-plan.md:501 «3b4f6a0bcd7043d2»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1322 «099cbda0f875cc38»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:755 «c3e19aa5872c4e40»"
+          "reconstruction/src/units/volcano/volcano-unit.ts:1341 «099cbda0f875cc38»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:761 «c3e19aa5872c4e40»"
         ]
       },
       {

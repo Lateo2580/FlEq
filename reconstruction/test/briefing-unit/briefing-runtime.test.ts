@@ -80,7 +80,7 @@ describe("P3-UNIT-B-001 U-B through the composition root", () => {
         subject: unit, reportDateTimeRaw: "2026-08-22T17:09:00+09:00", controlDateTimeRaw: "2026-08-22T17:09:00+09:00", serialRaw: "1", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
       nextAttemptAt: createdAt, attempts: 0, configRevision: "t08", disposition: "pending",
-      ...freshState(unit, "normal", level) });
+      ...freshState(unit, "normal", level === "warning" || level === "critical") });
     // U-B を最も古く作る（同じ群なら先に選ばれる位置）。
     const briefing = notice("U-B", "weather", "warning", -10), tsunami = notice("U-T", "tsunami", "critical", 0);
     const eew = notice("U-E", "earthquake-eew", "warning", 5);

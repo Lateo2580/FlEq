@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "b117d77a234640203a68f72e9d090249ce6d14bb",
-    "sha256": "05cd3c375d275c5df16916fb5c6216c451cff166b1ba06c48380916c59b5c15e",
+    "sha256": "55c3f5d62d18e6f67590b58aaaed6c266aa6797accb895a877c23a1fd3aaae03",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -256,13 +256,13 @@
           "reconstruction/src/units/tsunami/tsunami-unit.ts:216 «9f38751af6226203»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:226 «27ee60c18155c859»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:254 «c3326b6d302e8d39»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:572 «0c823fb1e7631d0a»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:579 «0c823fb1e7631d0a»",
           "reconstruction/src/units/volcano/volcano-unit.ts:151 «dbcffbfa7834c13a»",
           "reconstruction/src/units/landslide/landslide-unit.ts:99 «a21bc597eb9220e7»",
           "reconstruction/src/units/flood/flood-unit.ts:106 «c3fdb4da492ae472»",
           "reconstruction/src/units/volcano/volcano-unit.ts:161 «809996ba80032871»",
           "reconstruction/src/units/volcano/volcano-unit.ts:177 «899e44a57ae48411»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:906 «6700bf4f0886c1a2»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:925 «6700bf4f0886c1a2»",
           "reconstruction/src/units/landslide/landslide-unit.ts:107 «cafff1643f57f709»",
           "reconstruction/src/units/flood/flood-unit.ts:114 «cafff1643f57f709»",
           "reconstruction/contracts/p3-tsunami-unit.json:94 «e633b2364d9ceee3»",
@@ -280,16 +280,16 @@
         "id": "P3-OPCAP-AC02",
         "requirement": "自身の退去と遅着の結果の時制（D-OUTCOME=A・D-VANISHED=A・D-SELF-OUTCOMEの裁定案A、K3から引き継いだ義務）。(1) U-V・U-L・U-Rでtraining/testの報が自身を退去した受理（記録を残さない）は、decisionがchanged/revisionOnly・currentEstablished null、outcomeが[{accepted, revisionOnly, subjects: []}]。診断（volcano・landslide・floodCapacityEvicted、count 1）、stateの参照・保存世代を変えないこと、通知を作らないこと、U-L・U-Rで採用した取消がそのsubjectのpendingを置き換えること（C10のQ-C10-IMPL-AMEND(5)）は今のまま。U-Vの自身の退去はaccepted.changeを決める退去（applied.evicted）に数えず、診断のcountには数える（同じ入力の他の記録の退去はK3のAC02(3)どおりsemantic）。U-VのVFVO51の警報entryの自身の退去（applyEntries）も同じ（そのentryのdecisionはchanged/revisionOnly・currentEstablished null、acceptedのsubjectsに警報のsubjectを載せず、解説のsubjectは今どおり載せる）。(2) U-Lの到着の時点で期限を過ぎた報: 記録の無い官署への報（同じreduceで足さない）と、記録のある官署への報（採用して同じreduceで回収する、F12）は、最終の状態に記録が無いのでaccepted.subjectsに載せずcurrentEstablishedをnullにする。changeは今の式のまま（前がactiveならsemantic、そうでなければrevisionOnly）。保存世代はK3のAC05のまま（記録のある官署なら進め、無い官署なら進めない）。(3) 最終の状態に記録が残る受理、unchanged・rejected、deadline・restore・intentUpdate・shutdownの結果は変えない。",
         "evidenceRefs": [
-          "reconstruction/src/units/volcano/volcano-unit.ts:579 «231c191bd77922c5»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:582 «1f84fd59c083cd6b»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:861 «15ba9cf67c2cb520»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:917 «379e066bb9e1e4c3»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1000 «3b54901203444d8f»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:282 «126ccce35fbf7edf»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:290 «49ff7142814b80f5»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:321 «0a252c057ef91ea5»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:330 «59099ab734a47201»",
-          "reconstruction/src/units/flood/flood-unit.ts:316 «6caaf913502cd8f0»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:590 «231c191bd77922c5»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:593 «1f84fd59c083cd6b»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:880 «15ba9cf67c2cb520»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:936 «379e066bb9e1e4c3»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1019 «3b54901203444d8f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:285 «126ccce35fbf7edf»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:293 «49ff7142814b80f5»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:326 «0a252c057ef91ea5»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:335 «59099ab734a47201»",
+          "reconstruction/src/units/flood/flood-unit.ts:319 «6caaf913502cd8f0»",
           "reconstruction/contracts/p3-final-adoption.json:41 «4a88e87a68db3280»",
           "reconstruction/contracts/p3-final-adoption.json:44 «f8fbec304d91cf5b»",
           "reconstruction/contracts/p3-final-adoption.json:58 «e5bdfce24f1ce39c»",
@@ -303,9 +303,9 @@
         "requirement": "U-Lの遅着の解除で前のactiveのpendingを撤回する（D-WITHDRAW=A、P3-X-C6、K3の残存リスク(3)）。U-Lで到着の時点で期限を過ぎた採用（記録のretainUntilが受理の時計以下）が前のactiveの記録を置き換えるとき、取消でなくても新しい通知を作らず、そのsubjectのpendingを全部（両channel）supersededにする（取消の置換と同じ、P3-C10-REPLACEMENT=A）。前の記録がactiveでなければ今のまま。受入: 15_16_01_241031_VPWW56をT0（2020-06-22T23:00:00+09:00）で受け、ReportDateTimeをT0＋7時間−6時間−2分にした続報（区分を変える）をT0＋7時間−30秒で受け（pending desktop・sound）、ReportDateTimeをT0＋7時間−6時間−1分にした全区域の解除をT0＋7時間で受けると、currentsは空、pendingは0、新しいintentは0。修正前の観測（pending 2件が残る）の反転を正式試験で示す。U-RはACTIVE-EXPIRY.lateRuleで遅着をstaleにする（flood-unit.ts:283）ので当たらない。",
         "evidenceRefs": [
           "reconstruction/src/units/landslide/landslide-unit.ts:32 «679d97cc7e4432f5»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:311 «f4ab89453868eb8d»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:321 «0a252c057ef91ea5»",
-          "reconstruction/src/units/flood/flood-unit.ts:282 «b6870a370007c3eb»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:316 «f4ab89453868eb8d»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:326 «0a252c057ef91ea5»",
+          "reconstruction/src/units/flood/flood-unit.ts:285 «b6870a370007c3eb»",
           "reconstruction/contracts/p3-final-adoption.json:510 «7e91018d311e9d28»",
           "reconstruction/contracts/p3-order-plan.md:355 «790390a653f0f301»"
         ]
@@ -361,7 +361,7 @@
           "reconstruction/test/volcano-unit/volcano-unit.test.ts:372 «b7c7d47534d3c902»",
           "reconstruction/test/landslide-unit/landslide-unit.test.ts:251 «d339680a79160886»",
           "reconstruction/test/landslide-unit/landslide-unit.test.ts:205 «bdd3743b4117bf5b»",
-          "reconstruction/test/flood-unit/flood-unit.test.ts:292 «d285b9b009b4e998»"
+          "reconstruction/test/flood-unit/flood-unit.test.ts:293 «d285b9b009b4e998»"
         ]
       },
       {

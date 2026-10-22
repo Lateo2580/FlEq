@@ -22,7 +22,7 @@ import type { HeatCandidate, LocalBulletinsCandidate, TornadoCandidate, Transien
 import { validCode, validHeadline } from "../../domains/briefing/briefing";
 import { LIMITS as REF_LIMITS, cut, infoRankOf, validName, validReportDateTime, validSerial } from "../../domains/flood/flood";
 import {
-  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed, raiseEvidence, readIntentState, readNoticeMark,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed, raiseEvidence, readIntentState, readNoticeMark,
   restoreStarted, shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 
@@ -187,11 +187,17 @@ const transientActive = (base: Base, family: TransientFamily, text: Text, areas:
 
 const PREFIX: Readonly<Record<Operation, string>> = { normal: "", training: "【訓練】", test: "【試験】" };
 // 題は operationPrefix＋訂正・取消の前置き＋Head/Title。接頭辞は切る範囲の外に置き、本体だけを上限から引いた長さで切る（K5 の F15 の型）。
-function payloadOf(domain: Domain, operation: Operation, level: Level, title: string, body: string, mark: "plain" | "correction" | "cancel" | "release"):
-  LocalBulletinsNotificationPayload {
-  const titleHead = PREFIX[operation] + (mark === "correction" ? "[訂正] " : mark === "cancel" ? "[取消] " : "");
+// 取消は取り消した記録の ReportDateTime（cancelledAt）を書く（P3-NL-AC10）。
+function payloadOf(domain: Domain, operation: Operation, level: Level, title: string, body: string, mark: "plain" | "correction" | "cancel" | "release",
+  cancelledAt: string | null = null): LocalBulletinsNotificationPayload {
+  if (mark === "cancel") {
+    const words = cancelText(title, cancelledAt);
+    return { domain, level, title: PREFIX[operation] + cut(words.title, NOTICE_BOUNDS.title - PREFIX[operation].length),
+      body: cut(words.body, NOTICE_BOUNDS.body) };
+  }
+  const titleHead = PREFIX[operation] + (mark === "correction" ? "[訂正] " : "");
   const bodyHead = mark === "correction" ? "訂正: " : "";
-  const text = mark === "cancel" ? "この情報は取り消されました" : mark === "release" ? "竜巻注意情報は解除されました"
+  const text = mark === "release" ? "竜巻注意情報は解除されました"
     : bodyHead + cut(body === "" ? title : body, NOTICE_BOUNDS.body - bodyHead.length);
   return { domain, level, title: titleHead + cut(title, NOTICE_BOUNDS.title - titleHead.length), body: text };
 }
@@ -205,7 +211,7 @@ function intentsFor(source: Readonly<{ subject: string; operation: Operation; so
   return channels.map((channel) => ({ id: noticeId("U-M", source.subject, "", source.source, transition, channel), unit: "U-M",
     subject: source.subject, operation: source.operation, source: source.source, transition, channel, payload, createdAt: now,
     expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
-    ...freshState("U-M", source.operation, payload.level) }));
+    ...freshState("U-M", source.operation) }));
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-M の intent は全部 other の群（P3-C13-NOTICE-GROUP=A）。
 function a7Order(left: LocalBulletinsIntent, right: LocalBulletinsIntent): number {
@@ -404,7 +410,11 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   const style = lane.style(candidate);
   let payload: LocalBulletinsNotificationPayload | null = null;
   if (!pairLate) {
-    if (candidate.cancelled) { if (was) payload = payloadOf(style.domain, operation, "cancel", candidate.title, "", "cancel"); }
+    // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
+    if (candidate.cancelled) {
+      if (existing != null && (was || heard(existing.notice)))
+        payload = payloadOf(style.domain, operation, "cancel", candidate.title, "", "cancel", existing.source.reportDateTimeRaw);
+    }
     else if (release) { if (was) payload = payloadOf(style.domain, operation, "info", candidate.title, "", "release"); }
     else if (visible(next) && (correction || !was || changed(existing, next).length !== 0))
       payload = payloadOf(style.domain, operation, style.level, next.title, lane.body(candidate, next), correction ? "correction" : "plain");

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "1c22e6488da780e46b2e570e1c2933acc6026ecef43f0fda19ca831a47f53da7",
+    "sha256": "4992417f9ab6d659f8c73821e70341a89af86119589b4e6b5d6cf2ecc5287a0c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -240,7 +240,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "取消を採用し、取消の前に記録がactiveだった。記憶だけの取消（P3-C11-CANCEL-SCOPE）は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
+            "condition": "取消を採用し、取消の前に記録がactiveだった。記憶だけの取消（P3-C11-CANCEL-SCOPE）は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -267,7 +267,7 @@
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C11-REPLACEMENT=A",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（C5・C7〜C10の先例）。更新で増えるbyteはQ-NOTICE.capacityの予約の内側に収まる（台帳73）。更新で終端にした記録は期限前の回収の対象から外す（Q-NOTICE.capacity）",
-        "payload": "typeRef reconstruction/contracts/p3-flood-unit.types.ts#FloodNotificationPayload。domain=weather（分野別根音表の気象C4、旧築notifier.tsもfloodForecastを気象の音に寄せた）。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-R.boundsで切った値）。bodyは取消なら「この情報は取り消されました」。ほかはHead/Headline/Text（256文字で切る）、それが空なら採用後の記録のgroupごとに「{Kindの名前} {河川名を「・」でつなぐ}」を「 / 」でつなぎ、それも空ならtitle。訂正はbodyの冒頭に「訂正: 」。期限切れ（P3-C11-ACTIVE-EXPIRY=D）はdesktopだけで、titleはoperationPrefix＋「[期限切れ] 」＋回収した記録のtitle、bodyは「{areaName}の洪水予報は36時間続報がなく、現況を確認できません」（areaNameが空なら「この洪水予報は36時間続報がなく、現況を確認できません」）。intentのsourceとsubjectは回収した記録のもの。titleは160文字・bodyは512文字でコードポイントの境界で切り、空にしない（旧築のbodyは「{先頭の観測所名}: {Headline}」、notifier.ts:1095）",
+        "payload": "typeRef reconstruction/contracts/p3-flood-unit.types.ts#FloodNotificationPayload。domain=weather（分野別根音表の気象C4、旧築notifier.tsもfloodForecastを気象の音に寄せた）。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-R.boundsで切った値）。bodyは取消なら「HH:MM 発表の<種類>を取り消しました」。ほかはHead/Headline/Text（256文字で切る）、それが空なら採用後の記録のgroupごとに「{Kindの名前} {河川名を「・」でつなぐ}」を「 / 」でつなぎ、それも空ならtitle。訂正はbodyの冒頭に「訂正: 」。期限切れ（P3-C11-ACTIVE-EXPIRY=D）はdesktopだけで、titleはoperationPrefix＋「[期限切れ] 」＋回収した記録のtitle、bodyは「{areaName}の洪水予報は36時間続報がなく、現況を確認できません」（areaNameが空なら「この洪水予報は36時間続報がなく、現況を確認できません」）。intentのsourceとsubjectは回収した記録のもの。titleは160文字・bodyは512文字でコードポイントの境界で切り、空にしない（旧築のbodyは「{先頭の観測所名}: {Headline}」、notifier.ts:1095）（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（HH:MM 発表）」、bodyは「HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件、かつ「pendingごとのJSON UTF-8 byte＋予約」の和を131,072 byte以内にする（spec:981）。予約はreconstruction/src/notification-delivery/delivery-growth.tsのdeliveryGrowthで数え、受理とdecodeで同じ関数を使う。式の真実源は横断の契約（P3-INTENT-UPDATE-RESERVE-001）で、本契約は式を写さない。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順（期限→生成時刻→ID）の後ろのものを外す。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。新しいintentが容量で外れただけのときは元の配列を返し、保存世代を進めない（C9のQ-C9-IMPL-AMEND(9)(e)）。終端記録はexpiresAtで回収し、保存世代のbyte予算に含める。終端記録の合計が98,304 byteを超える分は最古の終端記録からexpiresAtの前に回収する。ただし配送の更新（intentUpdate）で終端にした記録は回収の対象から外し、次に古い終端記録から回収する（C8のQ-C8-IMPL-AMEND(1)）。そのため終端記録は単独の98,304でなく、「pendingの実byte＋予約＋終端記録」≤229,376 byteで確かめる（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力は適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P3-C11-N2）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る（spec:997）。復元直後の続報の事実の差と、上がった河川と観測所の現況レベルの最大（P3-C11-NOTICE-LEVELS=E）は、復元した記録との差で決める。復元の時点で期限を過ぎたactiveの記録は、復元の後の最初の期限処理で回収し、期限切れのdesktopを1件作る（P3-C11-ACTIVE-EXPIRY=D）（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
@@ -282,7 +282,7 @@
           "有効の判定: 旧築はレベル3以上（観測所の現況の観測レベルか見出し）だけをactiveにし、レベル2だけの報で記録を閉じる（revision-family-registry.ts:521・:565）。新築はレベル2もactiveで、code 10の解除で閉じる（P3-C11-ACTIVE-LEVEL）。待機画面に載せる河川の閾値（旧築はレベル3以上、project-flood.ts:169）はP4",
           "読めない報: 旧築は事実を変えずwatermarkだけ進め、新しいEventIDでは何も描かない（observeOnly）。新築はkinds空のactiveとして載せ、前の事実を保つときはその出典の時刻を持つ（P3-C11-UNKNOWN）",
           "期限: 旧築はactiveと解除の記憶を受信から36時間で消し、続報・訂正で延ばす（telegram-revision-gate.ts:1612、flood-forecast-state.tsのtouch）。新築は元報の時刻から数え、延ばさない（P3-C11-RETENTION）。activeを消すかはP3-C11-ACTIVE-EXPIRY（作者裁定D: 36時間で消してdesktopで知らせる）",
-          "通知の機会: 旧築は受理ごとに鳴らし、VXKOの通常の発表だけ観測所のdigestが同じなら抑える。訂正・Headlineだけの報・VXSUは必ず鳴る（process-flood-forecast.ts:175・:178）。新築は河川の段階が変わった報・解除・訂正・activeの取消・記録の無いsubjectへの解除だけ（Q-NOTICE.generationTable、作者裁定E: 観測所の現況レベルの最大の上昇でも鳴る）",
+          "通知の機会: 旧築は受理ごとに鳴らし、VXKOの通常の発表だけ観測所のdigestが同じなら抑える。訂正・Headlineだけの報・VXSUは必ず鳴る（process-flood-forecast.ts:175・:178）。新築は河川の段階が変わった報・解除・訂正・activeの取消・記録の無いsubjectへの解除だけ（Q-NOTICE.generationTable、作者裁定E: 観測所の現況レベルの最大の上昇でも鳴る）（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
           "段階: 旧築は全河川・観測所の見出しのcodeの最大で、レベル4は表示critical・音warning（flood-level.ts:55・:63）、解除はcancel音、取消はcancel。新築はP3-C11-NOTICE-LEVELS=E（作者裁定、上がった河川と観測所の現況レベルで決め、解除はnormal）。音源は旧築の5段階でなく分野別根音表の気象（C4）",
           "通知の文面: 旧築のbodyは「{先頭の観測所名}: {Headline}」（notifier.ts:1095）。新築はHeadline、無ければKindごとの河川名（Q-NOTICE.payload）",
           "保存する事実: 旧築は観測所のdigest（変化の検出用）と待機画面の河川・代表観測所の投影を別々に保存し、雨量・浸水想定地区・氾濫水の予報もパースする。新築は河川の段階・観測所のseries・基準水位だけを1つの記録に持ち、代表観測所の選択はP4（P3-C11-FACTS・P3-C11-STATIONS）",
@@ -872,7 +872,7 @@
           "reconstruction/src/view-projector/view-projector.ts:47 «513ff83e3efffcbc»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «45d531fd83f0c3c0»",
-          "reconstruction/src/runtime/composition-root.ts:207 «9ed0037a4a82959a»",
+          "reconstruction/src/runtime/composition-root.ts:210 «9ed0037a4a82959a»",
           "docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4»",
           "docs/specs/reconstruction-p0-contracts.md:1468 «35085757904baccf»"
         ]
@@ -899,10 +899,10 @@
       },
       {
         "id": "P3-C11-AC08",
-        "requirement": "優先群（P3-C11-NOTICE-GROUP=A）: U-Rのintent（レベル5を含む）はotherで、試行中の津波緊急・EEWを中断せず、同時にpendingのEEW・津波緊急より後に選ばれる。A7のgroup()は変えない",
+        "requirement": "優先群（P3-C11-NOTICE-GROUP=A）: U-Rのintent（レベル5を含む）はotherで、試行中の津波緊急・EEWを中断せず、同時にpendingのEEW・津波緊急より後に選ばれる。A7のgroup()は変えない（P3-NOTICE-LEDGER-001の後は、群をownerがintentを作るときにpriorityGroupへ付け〔notice-mark.tsのpriorityGroupOf〕、A7のgroup()はそれを読むだけ、P3-NL-AC11の(2)(3)）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:20 «39a435399fa14346»"
+          "reconstruction/src/units/notice-mark.ts:99 «085550b0cc032fbb»"
         ]
       },
       {
@@ -926,7 +926,7 @@
         "requirement": "§13.3の9段をcomposition rootの一経路で: 保存失敗中の取消（ENOSPCの間も取消をcurrentへ反映し前の世代へ巻き戻さない）、古いack、通常終了、復元直後の続報。current巻戻し0・最新dirty世代維持。checkpointの書込み権と同時dirtyはP3-UNIT-WRITE-RIGHT-001の規則のまま（P3-C11-WRITE-RIGHT、deferredのU-F・U-L・U-R）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»"
         ]
       },
@@ -948,7 +948,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:207 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:210 «9ed0037a4a82959a»"
         ]
       },
       {

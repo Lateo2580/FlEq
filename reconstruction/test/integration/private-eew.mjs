@@ -293,13 +293,20 @@ async function main() {
         const payload = intent.payload;
         const payloadValid = Object.keys(payload).sort().join(",") === "body,domain,level,title"
           && payload.domain === "earthquake-eew"
-          && payload.level === (opportunity === "cancellation" ? "cancel" : stage === "警報" ? "critical" : "warning")
-          && stage != null && payload.title === (opportunity === "cancellation" ? "[取消] 緊急地震速報"
-            : `${opportunity === "correction" ? "[訂正] " : ""}緊急地震速報（${stage}）`)
+          // P3-NL-AC12: 第 1 報・警報への切替・危険が増した続報に当たらない最終報は normal で、本文の頭に「最終報: 」。
+          // P3-NL-AC10: 取消は「[取消] <Head/Title>（<震源名> HH:MM 発表）」と「…を取り消しました」。
+          // 訂正の最終報（本文が「最終報: 訂正: 」）も normal（統合担当の判断 5）。
+          && payload.level === (opportunity === "cancellation" ? "cancel"
+            : opportunity === "finalReport" || opportunity === "correction" && payload.body.startsWith("最終報: 訂正: ") ? "normal"
+              : stage === "警報" ? "critical" : "warning")
+          && stage != null && (opportunity === "cancellation" ? payload.title.startsWith("[取消] 緊急地震速報")
+            : payload.title === `${opportunity === "correction" ? "[訂正] " : ""}緊急地震速報（${stage}）`)
           && validText(payload.body) && (opportunity === "cancellation"
-            ? payload.body === "緊急地震速報は取り消されました。"
-            : opportunity === "correction" ? payload.body.startsWith("訂正: ")
-              : opportunity === "hazardIncrease" ? payload.body.startsWith("続報: ")
+            ? payload.body.endsWith("を取り消しました")
+            : opportunity === "finalReport" ? payload.body.startsWith("最終報: ")
+            : opportunity === "correction" ? /^(?:最終報: )?訂正: /.test(payload.body)
+              // 危険が増した最終報は「最終報: 続報: 」で、level は警報・予報の段（finalOnly でない、P3-NL-D-FINAL-OVERLAP=A）。
+              : opportunity === "hazardIncrease" ? /^(?:最終報: )?続報: /.test(payload.body)
                 : !/^(?:【訓練】|【試験】|訓練の電文|試験の電文|訂正:|続報:)/.test(payload.body))
           && created.every((other) => other.payload.domain === payload.domain && other.payload.level === payload.level
             && other.payload.title === payload.title && other.payload.body === payload.body);

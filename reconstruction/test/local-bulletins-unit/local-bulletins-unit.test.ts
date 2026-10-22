@@ -645,7 +645,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(followUp.state.intents).toHaveLength(2);
     expect(send(followUp.state, N50, compose(serial("3"), at("2013-07-26T09:40:00+09:00"), replaceTag("ValidDateTime", "2013-07-26T11:00:00+09:00"))).intents).toEqual([]);
     const cancel = send(first.state, "synthetic_VPHW50_tokyo_cancel", compose(office("長崎地方気象台"), headTitle("長崎県竜巻注意情報"), at("2013-07-26T09:25:00+09:00"), serial("2")));
-    expect(shape(cancel)).toEqual(both("cancelled", "weather", "cancel", "[取消] 長崎県竜巻注意情報", "この情報は取り消されました"));
+    expect(shape(cancel)).toEqual(both("cancelled", "weather", "cancel", "[取消] 長崎県竜巻注意情報（09:20 発表）", "09:20 発表の長崎県竜巻注意情報を取り消しました"));
     expect(pendingOf(cancel.state, NAGASAKI).map((item) => item.transition)).toEqual(["cancelled", "cancelled"]);
     // 熱中症は warning、解説は seismicText が info（earthquake-eew）、ほかは normal（weather）。
     expect(shape(send(emptyState(), HEAT))).toEqual(both("activated", "weather", "warning", "埼玉県熱中症警戒アラート", "埼玉県 8月11日"));

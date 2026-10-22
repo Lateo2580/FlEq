@@ -20,7 +20,7 @@ import {
 } from "../../domains/seismic/seismic";
 import type { EarthquakeCandidate, LongPeriodCandidate, SeismicCandidate } from "../../domains/seismic/seismic";
 import {
-  FAILURE_MARKS_MAX_BYTES, applyIntentUpdate, failureNoticeId, freshState, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed,
+  FAILURE_MARKS_MAX_BYTES, applyIntentUpdate, cancelText, failureNoticeId, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed,
   raiseEvidence, readFailureMarks, readIntentState, readNoticeMark, restoreStarted, shown, updateEvidence,
   versionDigest,
 } from "../notice-mark";
@@ -361,10 +361,14 @@ function levelOf(candidate: SeismicCandidate): Level {
   const rank = maxInt == null ? null : safetyRank(maxInt);
   return rank != null && rank >= 4 ? "warning" : "normal";
 }
-function payloadOf(candidate: SeismicCandidate): SeismicNotificationPayload {
+// cancelled は取り消した記録の ReportDateTime と震源名（P3-NL-AC10、P3-NL-D-CANCEL-EPICENTER=A）。
+type Cancelled = Readonly<{ at: string; name: string | null }>;
+function payloadOf(candidate: SeismicCandidate, cancelled: Cancelled | null): SeismicNotificationPayload {
   const prefix = PREFIX[candidate.operation];
-  if (candidate.cancelled) return { domain: "earthquake-eew", level: "cancel", title: `${prefix}[取消] ${candidate.title}`,
-    body: "この情報は取り消されました" };
+  if (candidate.cancelled) {
+    const text = cancelText(candidate.title, cancelled?.at ?? null, cancelled?.name ?? null);
+    return { domain: "earthquake-eew", level: "cancel", title: prefix + text.title, body: text.body };
+  }
   const hypocenter = candidate.kind === "longPeriod" ? candidate.hypocenter : candidate.contribution.hypocenter;
   const intensity = candidate.kind === "longPeriod" ? candidate.intensity : candidate.contribution.intensity;
   const maxInt = intensity == null ? null : intensityLabel(intensity.maxInt, "intensity");
@@ -382,15 +386,15 @@ function payloadOf(candidate: SeismicCandidate): SeismicNotificationPayload {
 }
 // P3-NL-AC01: ID は世代番号を含まない。family の系列の印に同じ版の鍵と種類があれば作らない。
 function intentsFor(candidate: SeismicCandidate, transition: SeismicIntent["transition"], now: number,
-  notice: Readonly<{ mark: NoticeMark | undefined; version: string }>): SeismicIntent[] {
+  notice: Readonly<{ mark: NoticeMark | undefined; version: string }>, cancelled: Cancelled | null = null): SeismicIntent[] {
   if (noticed(notice.mark, notice.version, noticeKind(transition))) return [];
   // P3-C7-TRAINING=A: training/test は desktop だけ。
   const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  const payload = payloadOf(candidate);
+  const payload = payloadOf(candidate, cancelled);
   return channels.map((channel) => ({ id: noticeId("U-Q", candidate.subject, "", candidate.source, transition, channel), unit: "U-Q",
     subject: candidate.subject, operation: candidate.operation, source: candidate.source, transition, channel, payload, createdAt: now,
     expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
-    ...freshState("U-Q", candidate.operation, payload.level) }));
+    ...freshState("U-Q", candidate.operation) }));
 }
 
 // P3-C7-REPLACEMENT=A の系統: 地震の 4 family は一つ、長周期は別。subject は `${operation}/${family}/${eventId}`。
@@ -618,9 +622,12 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
   // 印の付け外しも公開の意味の変化（P3-CC-AC03）。
   const semantic = fields.length !== 0 || wasActive && candidate.cancelled || existing?.unavailable !== next.unavailable;
   const due = next.retainUntil <= now;
-  // Q-NOTICE.generationTable: 公開事実の変わった採用・訂正・取消の前に active だった family の取消。期限で回収される報では作らない。
-  const notify = !due && (candidate.cancelled ? wasActive : candidate.infoRank === 2 || fields.length !== 0);
-  const fresh = notify ? intentsFor(candidate, candidate.cancelled ? "cancelled" : wasActive ? "updated" : "activated", now, notice) : [];
+  // Q-NOTICE.generationTable: 公開事実の変わった採用・訂正・取消の前に active だったか印に通知の証拠のある family の取消（P3-NL-AC09）。
+  // 期限で回収される報では作らない。
+  const notify = !due && (candidate.cancelled ? wasActive || heard(prior?.notice) : candidate.infoRank === 2 || fields.length !== 0);
+  const fresh = notify ? intentsFor(candidate, candidate.cancelled ? "cancelled" : wasActive ? "updated" : "activated", now, notice,
+    candidate.cancelled && prior != null && existing != null ? { at: prior.source.reportDateTimeRaw, name: factsOf(existing).hypocenter?.name ?? null }
+      : null) : [];
   const history = nextHistory(state.daily[candidate.operation], candidate, next, now);
   const daily = history === state.daily[candidate.operation] ? state.daily : { ...state.daily, [candidate.operation]: history };
   const result = adopt(state, candidate, clock, { earthquakes: replaceAt(state.earthquakes, index, next), longPeriods: state.longPeriods, daily,
@@ -660,8 +667,9 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
   // 通知は事実の変化だけで決める（印の付け外しで鳴らさない、P3-CC-AC10(9)）。
   const semantic = factsChanged || existing?.unavailable !== next.unavailable;
   const due = next.retainUntil <= now;
-  const notify = !due && (candidate.cancelled ? wasActive : candidate.infoRank === 2 || factsChanged);
-  const fresh = notify ? intentsFor(candidate, candidate.cancelled ? "cancelled" : wasActive ? "updated" : "activated", now, notice) : [];
+  const notify = !due && (candidate.cancelled ? wasActive || heard(existing?.notice) : candidate.infoRank === 2 || factsChanged);
+  const fresh = notify ? intentsFor(candidate, candidate.cancelled ? "cancelled" : wasActive ? "updated" : "activated", now, notice,
+    existing == null ? null : { at: existing.source.reportDateTimeRaw, name: existing.hypocenter?.name ?? null }) : [];
   const result = adopt(state, candidate, clock, { earthquakes: state.earthquakes, longPeriods: replaceAt(state.longPeriods, index, next),
     daily: state.daily, fresh, semantic, changes: [[existing, next]], target: next, missing: version.missing, version: notice.version,
     outcome: longPeriodOutcome(next, next, semantic ? ["longPeriod"] : []) });

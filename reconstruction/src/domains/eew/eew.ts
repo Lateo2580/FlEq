@@ -31,7 +31,7 @@ import type {
 } from "../../../contracts/p2-eew-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, stepVersion, versionKey } from "../../contracts-revision/version";
-import { freshState, noticeId } from "../../units/notice-mark";
+import { cancelText, freshState, noticeId } from "../../units/notice-mark";
 
 const EEW_FAMILIES = ["VXSE43", "VXSE45"] as const;
 type EewFamily = typeof EEW_FAMILIES[number];
@@ -503,10 +503,15 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     unit: "U-E", subject: candidate.subject, operation: candidate.operation, source: candidate.source, transition,
     channel, payload, createdAt: input.clock.wallTimeMs, expiresAt: input.clock.wallTimeMs + 15_000,
     nextAttemptAt: input.clock.wallTimeMs, attempts: 0, configRevision: "p2-eew-unit-v1", disposition: "pending" as const,
-    ...freshState("U-E", candidate.operation, payload.level),
+    ...freshState("U-E", candidate.operation),
   }));
-  const cancelPayload: EewNotificationPayload = { domain: "earthquake-eew", level: "cancel", title: `${prefix}[取消] 緊急地震速報`,
-    body: `${lead}緊急地震速報は取り消されました。` };
+  // P3-NL-AC10: 取消の種類は取消の報の Head/Title（128 文字で切る）。時刻と震源名は取り消した記録（gate、無ければ印の family の記録の
+  // 時刻だけ）から。どちらも無い取消は種類だけ（AC10 の (3)）。
+  const titleNode = first(first(input.material.xml, "Head")!, "Title");
+  const cancelWords = cancelText((titleNode == null ? "" : scalar(titleNode) ?? "").slice(0, 128).replace(/[\ud800-\udbff]$/, "").trim() || "緊急地震速報",
+    gate?.source.reportDateTimeRaw ?? recorded?.reportDateTimeRaw ?? null, gate?.noticeSource.hypocenter ?? null);
+  const cancelPayload: EewNotificationPayload = { domain: "earthquake-eew", level: "cancel", title: prefix + cancelWords.title,
+    body: lead + cancelWords.body };
   // P3-NL-AC04 (5) の (a)(b): 採らない取消でも取消の intent だけは作る（H48 の「鳴らないか二重かなら二重」、2026-10-22 作者裁定）。
   // 通知するかは印の latch の証拠（H19）、印が無ければ通知する。決定と診断は P2 の実装どおり（stale か capacityExceeded）。
   const cancelOnly = (refused: Omit<EewUnitStep, "displayChanges" | "confirmationEvidence">): Omit<EewUnitStep, "displayChanges" | "confirmationEvidence"> => {
@@ -671,10 +676,15 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   if (noticed(mark, candidate.family, candidate.source, kind)) opportunity = false;
   const parts = [assumed ? "仮定震源" : noticeSource.hypocenter, noticeSource.magnitude,
     `最大予測震度${maxIntensity}`].filter((part): part is string => part != null && part !== "");
-  let bodyText = candidate.cancelled ? "緊急地震速報は取り消されました。" : earthquake == null ? title : parts.join(" / ");
-  if (correction && !candidate.cancelled) bodyText = `訂正: ${bodyText}`;
-  const payload: EewNotificationPayload = candidate.cancelled ? cancelPayload : { domain: "earthquake-eew", level: warning ? "critical" : "warning",
-    title: prefix + title, body: hazardIncrease && !correction ? `続報: ${lead}${bodyText}` : lead + bodyText };
+  let bodyText = earthquake == null ? title : parts.join(" / ");
+  if (correction) bodyText = `訂正: ${bodyText}`;
+  // P3-NL-AC12・P3-NL-D-FINAL-OVERLAP=A: 最終報は本文の頭に「最終報: 」（続報の頭書きより前）。第 1 報・警報への切替・危険が増した続報に当たらない
+  // 最終報だけ普通の音。
+  const finalHead = candidate.terminal ? "最終報: " : "";
+  const finalOnly = candidate.terminal && mark?.firstReportNotified === true && !(warning && !mark.warningNotified) && !hazardIncrease;
+  const payload: EewNotificationPayload = candidate.cancelled ? cancelPayload : { domain: "earthquake-eew",
+    level: finalOnly ? "normal" : warning ? "critical" : "warning",
+    title: prefix + title, body: hazardIncrease && !correction ? `${finalHead}続報: ${lead}${bodyText}` : lead + finalHead + bodyText };
   const transition = candidate.cancelled ? "cancelled" : candidate.terminal ? "released" : previous == null ? "activated" : "updated";
   const placed = admitIntents(state, candidate, eventId, opportunity ? intentsOf(payload, transition) : [], evicted, opportunity,
     input.clock.wallTimeMs);

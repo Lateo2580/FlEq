@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "289936503a2aabb029231da9f4b02306775ca43f76e31e08ae1cd9b82aad3bb5",
+    "sha256": "aecacf1ae3f5b4aba20096a019873a50914914e8a05b5db7ad4d88a41f1525ff",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -223,7 +223,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "取消を採用し、取消の前に対象がactiveだった（定時の降灰は、batchに入っていたか記録がactive）。P3-C9-CANCEL-SCOPEの(3)の記憶だけの取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
+            "condition": "取消を採用し、取消の前に対象がactiveだった（定時の降灰は、batchに入っていたか記録がactive）。P3-C9-CANCEL-SCOPEの(3)の記憶だけの取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -257,7 +257,7 @@
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs（batchはflushしたClockReading.wallTimeMs）。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C9-REPLACEMENT=A",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4・C5・C7・C8の先例）。更新で増えるbyteはQ-NOTICE.capacityの予約の内側に収まる（台帳73）。更新で終端にした記録は期限前の回収の対象から外す（Q-NOTICE.capacity）",
-        "payload": "typeRef reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoNotificationPayload。domain=volcano。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋旧築notifier.ts:540〜:566と同じ組み方: Head/Titleから先頭の「火山名　山名　」を除いた文字列（volcano-parser.tsのextractVolcanoBase）で、訂正は「[訂正] 」、取消は「[取消] 」を前に付ける。batchは「降灰予報（定時）」。bodyは取消なら「この情報は取り消されました」、それ以外は旧築の要約（volcano-presentation.ts）: 警報は「火山名 / Lv{レベル}（レベルのある区分だけ） / Kindの名前」、噴火は「火山名 / 現象名 / 噴煙{高さ}m」（高さが無ければ省く、不明なら「噴煙高度不明」）、降灰は「火山名 / 降灰予報（速報|詳細|定時） / 最も重いgroupの区分名」、解説はHeadlineかTitle、推定噴煙流向報は「火山名 推定噴煙流向報」、batchは「{件数}火山: {先頭3火山の名前を「、」で}」（4件以上は「 +{残り}」）。batchの中身が1件ならその報の単発の形（旧築のflushの1件、volcano-vfvo53-aggregator.ts）。訂正はbodyの冒頭に「訂正: 」。文字列はI-U-V.boundsで切った値から組む。title/bodyは空にしない",
+        "payload": "typeRef reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoNotificationPayload。domain=volcano。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋旧築notifier.ts:540〜:566と同じ組み方: Head/Titleから先頭の「火山名　山名　」を除いた文字列（volcano-parser.tsのextractVolcanoBase）で、訂正は「[訂正] 」、取消は「[取消] 」を前に付ける。batchは「降灰予報（定時）」。bodyは取消なら「<火山名> HH:MM 発表の<種類>を取り消しました」、それ以外は旧築の要約（volcano-presentation.ts）: 警報は「火山名 / Lv{レベル}（レベルのある区分だけ） / Kindの名前」、噴火は「火山名 / 現象名 / 噴煙{高さ}m」（高さが無ければ省く、不明なら「噴煙高度不明」）、降灰は「火山名 / 降灰予報（速報|詳細|定時） / 最も重いgroupの区分名」、解説はHeadlineかTitle、推定噴煙流向報は「火山名 推定噴煙流向報」、batchは「{件数}火山: {先頭3火山の名前を「、」で}」（4件以上は「 +{残り}」）。batchの中身が1件ならその報の単発の形（旧築のflushの1件、volcano-vfvo53-aggregator.ts）。訂正はbodyの冒頭に「訂正: 」。文字列はI-U-V.boundsで切った値から組む。title/bodyは空にしない（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（<火山名> HH:MM 発表）」、bodyは「<火山名> HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST、<火山名>は取り消した記録の火山名〔無ければ省く、分岐P3-NL-D-CANCEL-EPICENTER=A〕。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）。海上の部分だけの取消（火山現象に関する海上警報だけの取消）は、<種類>を「火山現象に関する海上警報」とし、火山名と時刻を同じ形で書く（2026-10-22作者裁定、P3-NOTICE-LEDGER-001のP3-NL-AC10の(3)）",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件、かつ「pendingごとのJSON UTF-8 byte＋予約」の和を131,072 byte以内にする（spec:981）。予約はreconstruction/src/notification-delivery/delivery-growth.tsのdeliveryGrowth（P3-INTENT-UPDATE-RESERVE-001のP3-IUR-HELPER=A）で数え、受理とdecodeで同じ関数を使う。式の真実源は横断の契約で、本契約は式を写さない（台帳73: intentUpdateでattempts・nextAttemptAtの桁が増えても上限を破らない）。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順（期限→生成時刻→ID）の後ろのものを外す。U-Vは全部同じ群なので、新しいintentが外れることがある。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。終端記録はexpiresAtで回収し、保存世代のbyte予算に含める。終端記録の合計が98,304 byteを超える分は、最古の終端記録からexpiresAtの前に回収する。ただし配送の更新（intentUpdate）で終端にした記録は回収の対象から外し、次に古い終端記録から回収する（ownerは更新した記録が残ることで結果を照合し、消えるとurgentのownerが止まる。C8のQ-C8-IMPL-AMEND(1)）。そのため終端記録は単独の98,304でなく、「pendingの実byte＋予約＋終端記録」≤229,376 byteで確かめる（更新で終端にした記録は元のpendingのbyteの内側なので合計を越えない）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力は適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P3-C9-N2）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る（spec:997）。復元直後の続報の事実の差は、復元した三sliceとの差で決める（定時の降灰・解説・batchは空から始まる）（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
@@ -281,7 +281,7 @@
           "出典: 旧築はcompositeごとに受理した報の転送ID（sourceEventIds）を持ち、compositeの三sliceがすべて空になるまで減らさない（volcano-state.ts:414〜:418、deleteIfEmpty）。上限4,096（:25）に達すると以後の受理がholderで失敗し、その火山の報は取引ごと拒否される（volcano-route-handler.ts:376〜:380の注記、起動時の併合もvolcano-initializer.ts:1089で失敗）。長く続く警報（レベル2・3が数年）がある火山で噴火・降灰の報が続くと、この上限に向かって単調に伸びる。新築は記録ごとのReportRef（警報はsourceとmarineSourceの2つ）だけを持ち、転送IDの履歴を持たない。1件の大きさと件数はI-U-V.boundsとP3-C9-CAPACITYで決まり、受理を重ねても伸びない",
           "旧築の待機画面の保存の読み戻し（salvage）: foundation.volcanoのgateの記録を1件ずつ厳しく照合し、外れた記録・重複したsubjectを捨てる（standby-persistence.ts:4237〜:4256、invalid-entry・duplicate-subject）。2026-09-07のベンチの副観測（Piの実状態の火山subject 117件の一部が捨てられた）の原因は、checkoutのコードだけでは特定できなかった。117件は全国の解説の112 entryがgateに作るsubject（留意の継続とレベル1の取消記憶を含む）と符合する（推定）。新築はこの経路を持たない: 復元はunit全体のdecodeでunavailableか全部の採用で（I-U-V.decode）、記録を一部だけ捨てない。全国の解説の留意の列挙は記録を作らない（P3-C9-ALERT-ACTIVE=A）。Piの旧築の状態からの移行で同じ記録が失われないかはC15が確かめる（P3-C9-MIGRATION）",
           "容量: 旧築はfamilyごと128 subjectで新しいsubjectを拒否する（rejectNewSubject）。新築は退去して受け、capacityExceededを返さない（P3-C9-CAPACITY）",
-          "通知: 旧築はgateを通った報ごとにdesktop＋soundを出す。新築は事実の変わった採用・訂正・取消の前にactiveだった対象の取消・batchのflushだけで鳴らし、事実の同じ新しいrevisionでは鳴らさない。段階はP3-C9-NOTICE-LEVELS。音源は旧築の5段階でなく分野別根音表の火山（G4）",
+          "通知: 旧築はgateを通った報ごとにdesktop＋soundを出す。新築は事実の変わった採用・訂正・取消の前にactiveだった対象の取消・batchのflushだけで鳴らし、事実の同じ新しいrevisionでは鳴らさない。段階はP3-C9-NOTICE-LEVELS。音源は旧築の5段階でなく分野別根音表の火山（G4）（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
           "優先: 旧築には優先群が無く受理の順に鳴らす。新築のU-Vはotherの群で、EEWと津波緊急の後になる（P3-C9-NOTICE-GROUP）",
           "訓練: 旧築は既定で訓練報が届かず、届けば通常と同じdesktop＋sound。新築も本番では届かず、届けばdesktopだけ（P3-C9-TRAINING）",
           "復旧不足: 旧築は旧形式の復元時に不足（omission）を作り、volcanorepairのstatus/accept/clear/acknowledge-domain/restで解決する。新築は不足を作るのが移行（C15）だけで、解決の入力の結線はC18、REST回復はC16（P3-C9-SHORTFALL・P3-C9-N2）"
@@ -1097,10 +1097,10 @@
       },
       {
         "id": "P3-C9-AC10",
-        "requirement": "優先群（P3-C9-NOTICE-GROUP=A）: U-Vのintent（criticalの噴火速報を含む）はotherで、試行中の津波緊急・EEWを中断せず、同時にpendingのEEW・津波緊急より後に選ばれる。A7のgroup()は変えない",
+        "requirement": "優先群（P3-C9-NOTICE-GROUP=A）: U-Vのintent（criticalの噴火速報を含む）はotherで、試行中の津波緊急・EEWを中断せず、同時にpendingのEEW・津波緊急より後に選ばれる。A7のgroup()は変えない（P3-NOTICE-LEDGER-001の後は、群をownerがintentを作るときにpriorityGroupへ付け〔notice-mark.tsのpriorityGroupOf〕、A7のgroup()はそれを読むだけ、P3-NL-AC11の(2)(3)）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:20 «39a435399fa14346»",
+          "reconstruction/src/units/notice-mark.ts:99 «085550b0cc032fbb»",
           "docs/specs/sound-design-system.md:45 «5927892358d11484»"
         ]
       },
@@ -1126,7 +1126,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»",
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»",
           "reconstruction/contracts/p3-order-plan.md:218 «c60076e915feb659»"
         ]
@@ -1150,7 +1150,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:207 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:210 «9ed0037a4a82959a»"
         ]
       },
       {

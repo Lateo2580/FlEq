@@ -780,6 +780,6 @@ class InputBoundaries {
   }
 }
 
-export { CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, LOSS_TALLY_MAX_BYTES, dmdataIdOf, hashEnvelope, keptLosses,
+export { CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, LOSS_TALLY_MAX_BYTES, dmdataIdOf, hashEnvelope, keptLosses, lossReasons,
   serializedEnvelope };
 export type { CheckpointFileSystem, CheckpointGrant, CodecMap, Correlation, WritableCheckpoint };

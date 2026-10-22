@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "843a3b0af1ff5f83c3de27953ad788d114e7fa5df811f1797a0a8ef48bcb93a8",
+    "sha256": "83195c9facd8f6c36e556c71c2376f5ca4e142c53dd32f775499dd7c3bd2752b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -298,7 +298,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "取消を採用し、取消の前に記録が見えた（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
+            "condition": "取消を採用し、取消の前に記録が見えた（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -317,7 +317,7 @@
         "timing": "createdAt=nextAttemptAt=採用のClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C14-REPLACEMENT=A",
         "intentUpdate": "C13のQ-NOTICE.intentUpdateと同じ（既存idだけを更新、未知id・同値はno-op、更新で増えるbyteは予約の内側、台帳73）",
-        "payload": "typeRef reconstruction/contracts/p3-typhoon-unit.types.ts#TyphoonNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-Y.boundsで切った値）。名前の札: numberがあれば「台風第{numberの下2桁を数にした値}号」と、nameがあれば「（{name}）」、numberが無ければ「熱帯低気圧（{EventID}）」（旧築のnotifyTyphoonAnalysis、src/engine/notification/notifier.ts:972 «7560be2051a3676a»と同じ向き）。bodyは取消なら「この情報は取り消されました」。解析は「{札} {実況のcategory・intensity・size・locationのnullでないものを空白でつなぐ}」、Terminalは「{札} {remark}」。確率は「{札} 最大 {maxFiveDay}%（{府県予報区等名}/{地域名}）」（地域はdaily[4]がmaxFiveDayの最初の地域、codeの順）、Zeroは「{札} 暴風域に入る確率1%以上の地域なし」（旧築の文と同じ）。訂正は冒頭に「訂正: 」。titleは160文字・bodyは512文字でコードポイントの境界で切り、接頭辞は切る範囲の外に置く（K5のF15の型）",
+        "payload": "typeRef reconstruction/contracts/p3-typhoon-unit.types.ts#TyphoonNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-Y.boundsで切った値）。名前の札: numberがあれば「台風第{numberの下2桁を数にした値}号」と、nameがあれば「（{name}）」、numberが無ければ「熱帯低気圧（{EventID}）」（旧築のnotifyTyphoonAnalysis、src/engine/notification/notifier.ts:972 «7560be2051a3676a»と同じ向き）。bodyは取消なら「HH:MM 発表の<種類>を取り消しました」。解析は「{札} {実況のcategory・intensity・size・locationのnullでないものを空白でつなぐ}」、Terminalは「{札} {remark}」。確率は「{札} 最大 {maxFiveDay}%（{府県予報区等名}/{地域名}）」（地域はdaily[4]がmaxFiveDayの最初の地域、codeの順）、Zeroは「{札} 暴風域に入る確率1%以上の地域なし」（旧築の文と同じ）。訂正は冒頭に「訂正: 」。titleは160文字・bodyは512文字でコードポイントの境界で切り、接頭辞は切る範囲の外に置く（K5のF15の型）（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（HH:MM 発表）」、bodyは「HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）",
         "capacity": "C13のQ-NOTICE.capacityと同じ: pending 128件かつ「pendingごとのJSON UTF-8 byte＋予約」の和131,072 byte以内（spec:981、U-Yの2つのsliceで1つの予算）。予約はreconstruction/src/notification-delivery/delivery-growth.tsのdeliveryGrowthで数え、受理とdecodeで同じ関数を使う（式の真実源はP3-INTENT-UPDATE-RESERVE-001）。終端記録は98,304 byteを超える分を最古からexpiresAtの前に回収、「pendingの実byte＋予約＋終端記録」≤229,376 byte（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力は適用しない（P3-C14-N2）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る（spec:997）（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
@@ -333,7 +333,7 @@
           "期限: 旧築は解析をReportDateTime＋1日、確率を基点＋120時間で消した。新築はP3-C14-EXPIRY=A（両方ReportDateTime＋12時間）",
           "確率の事実: 旧築のカードは要約（最大・上位5府県予報区・最悪の地域）。新築は1以上の地域ごとの値（P3-C14-PROB-FACTS=A）",
           "全ゼロ: 旧築は表示を消し、ゼロをinfoで鳴らし、連続ゼロを止めた（判定はメモリだけで再起動で失う）。新築はzeroの記録として保存し、連続ゼロの判定が再起動をまたぐ（P3-C14-ZERO）",
-          "通知: 旧築は解析を毎報normalで鳴らした。新築は遷移だけ（P3-C14-NOTICE-LEVELS=A）",
+          "通知: 旧築は解析を毎報normalで鳴らした。新築は遷移だけ（P3-C14-NOTICE-LEVELS=A）（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
           "壊れた確率の報: 旧築はnonProjectableとして受理しwatermarkを進めた。新築は拒否（P3-C14-PROB-VALIDATION）",
           "容量: 旧築はgateのmaxSubjects（解析64・確率256）で黙って追い出した。新築はsliceごとに退去の順で受け、診断を出す",
           "優先: 旧築には優先群が無い。新築のU-Yはotherで、EEW・津波緊急の後"
@@ -1110,7 +1110,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
           "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
           "reconstruction/contracts/p3-order-plan.md:250 «e7b5f7170b0d07ba»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:12 «c6dceb6c6d212f70»",
           "reconstruction/tools/corpus/sequences.json#expected:O02:19",
@@ -1125,7 +1125,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»",
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»"
         ]
       },

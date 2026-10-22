@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "c996c987d5405edcec231760a943d03738206067371004de292a40ae77e5fa9a",
+    "sha256": "549001b63e1db59ab023d4742412eb40170be897da19e51163dfc1520c75263c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -247,8 +247,8 @@
         "id": "P3-CODEC-AC04",
         "requirement": "F15: Headlineなし・TextがBMP「あ」79字＋😀のVYSE50をU-Nへ投入する。従来のtext.slice(0,80)は末尾D83Dを作る。Textから切り出す部分を80 UTF-16単位以内でサロゲート対を割らずwell-formedにし、通知全bodyには80単位の上限を置かない。Headlineは既存bound→cutで対を割らない。codecがrestoredでも文字境界の合格とはしない。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-nankai-unit.json:199 «00c7d58a8d7d1de3»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:221 «3b04b00a449c0acf»",
+          "reconstruction/contracts/p3-nankai-unit.json:199 «03304c3de6d7ff60»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:225 «3b04b00a449c0acf»",
           "reconstruction/src/domains/nankai/nankai.ts:57 «d8c08b2391f4edd9»"
         ]
       },
@@ -261,7 +261,7 @@
           "reconstruction/contracts/p3-volcano-unit.json:356 «4d05feb1846e13f3»",
           "reconstruction/contracts/p3-volcano-unit.json:1052 «352e4d34ea000f28»",
           "reconstruction/contracts/p3-volcano-unit.json:1219 «252254da7d2c4eff»",
-          "reconstruction/contracts/p3-nankai-unit.json:199 «00c7d58a8d7d1de3»",
+          "reconstruction/contracts/p3-nankai-unit.json:199 «03304c3de6d7ff60»",
           "reconstruction/contracts/p3-nankai-unit.json:261 «235a708afe8880ce»"
         ]
       },

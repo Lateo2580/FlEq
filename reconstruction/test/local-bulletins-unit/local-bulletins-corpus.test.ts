@@ -25,12 +25,12 @@ describe("P3-UNIT-M-001 U-M corpus history", () => {
     expect(recordOf(o01[2].state, TOKYO)).toMatchObject({ effective: "active", sighted: true, retainUntil: Date.parse("2014-02-14T01:19:00+09:00") });
     // :101 の取消は cancel で鳴り、98 の pending を全部置き換える。:102 の古い報は stale。
     expect(o01[4].intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body])).toEqual([
-      ["cancelled", "cancel", "[取消] 東京都竜巻注意情報", "この情報は取り消されました"], ["cancelled", "cancel", "[取消] 東京都竜巻注意情報", "この情報は取り消されました"]]);
+      ["cancelled", "cancel", "[取消] 東京都竜巻注意情報（13:19 発表）", "13:19 発表の東京都竜巻注意情報を取り消しました"], ["cancelled", "cancel", "[取消] 東京都竜巻注意情報（13:19 発表）", "13:19 発表の東京都竜巻注意情報を取り消しました"]]);
     expect(recordOf(o01[4].state, TOKYO)?.effective).toBe("cancelled");
     expect(o01[5].state).toBe(o01[4].state);
     expect(o01[7].intents.map((item) => item.payload.level)).toEqual(["normal", "normal"]);
     expect(o01[9].intents.map((item) => [item.transition, item.payload.title])).toEqual([
-      ["cancelled", "[取消] 梅雨の時期に関する関東甲信地方気象情報"], ["cancelled", "[取消] 梅雨の時期に関する関東甲信地方気象情報"]]);
+      ["cancelled", "[取消] 梅雨の時期に関する関東甲信地方気象情報（11:00 発表）"], ["cancelled", "[取消] 梅雨の時期に関する関東甲信地方気象情報（11:00 発表）"]]);
     // :111 はevidence（保存世代を進めない移行）の後の再採用で、記憶からの activated。
     expect(o01[14].intents.map((item) => item.transition)).toEqual(["activated", "activated"]);
 

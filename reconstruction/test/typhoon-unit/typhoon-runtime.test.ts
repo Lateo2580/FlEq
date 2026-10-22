@@ -83,7 +83,7 @@ describe("P3-UNIT-Y-001 U-Y through the composition root", () => {
         subject: unit, reportDateTimeRaw: "2026-08-22T17:09:00+09:00", controlDateTimeRaw: "2026-08-22T17:09:00+09:00", serialRaw: "1", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
       nextAttemptAt: createdAt, attempts: 0, configRevision: "t09", disposition: "pending",
-      ...freshState(unit, "normal", level) });
+      ...freshState(unit, "normal", level === "warning" || level === "critical") });
     const deadlines = (intents: readonly NotificationIntent[]) => ({ desktop: Object.fromEntries(intents.map((item) =>
       [JSON.stringify([item.unit, item.id]), { retryAtMonotonicMs: 0, expiresAtMonotonicMs: 1e9 }])), sound: {} });
     const tsunami = notice("U-T", "tsunami", "critical", 0), eew = notice("U-E", "earthquake-eew", "warning", 5);

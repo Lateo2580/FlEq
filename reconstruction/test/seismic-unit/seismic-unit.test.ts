@@ -721,7 +721,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(send(emptyState(), "synthetic_VXSE53_cancel").intents).toEqual([]);
     const cancel = send(series[5].state, "synthetic_VXSE53_cancel");
     expect(cancel.intents.map((item) => [item.payload.level, item.payload.title, item.payload.body]))
-      .toEqual([["cancel", "[取消] 震源・震度情報", "この情報は取り消されました"], ["cancel", "[取消] 震源・震度情報", "この情報は取り消されました"]]);
+      .toEqual([["cancel", "[取消] 震源・震度情報（熊本県熊本地方 16:35 発表）", "熊本県熊本地方 16:35 発表の震源・震度情報を取り消しました"], ["cancel", "[取消] 震源・震度情報（熊本県熊本地方 16:35 発表）", "熊本県熊本地方 16:35 発表の震源・震度情報を取り消しました"]]);
     // 置換（P3-C7-REPLACEMENT=A）: 同じ event・系統・channel の古い pending を置き換える。長周期は別系統。
     const pendingOf = (state: SeismicUnitState) => pending(state).map((item) => `${item.subject.split("/")[1]}:${item.channel}`);
     expect(pendingOf(series[6].state)).toEqual(["VXSE53:desktop", "VXSE53:sound", "VXSE62:desktop", "VXSE62:sound"]);
@@ -1250,4 +1250,11 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-Q restores failed and null p
   expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
     restore: (state, at) => reduceSeismicUnit(emptyState(), { kind: "restore", persisted: seismicUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => state.earthquakes.flatMap((item) => item.contributions).find((item) => item.source.subject === subject)?.notice });
+});
+
+// P3-NL-T07 の取消の文面の行（P3-NL-AC10、Q-NL-CANCEL-TEXT の U-Q の行）: 取り消した記録の震源名と発表時刻、種類は取消の報の Head/Title。
+it("P3-NL-T07 contractBoundary / AC10: the VXSE53 cancel names the cancelled report's hypocenter and time", () => {
+  const cancel = send(send(emptyState(), F.s53a).state, "synthetic_VXSE53_cancel");
+  const row = ["cancel", "[取消] 震源・震度情報（熊本県熊本地方 16:31 発表）", "熊本県熊本地方 16:31 発表の震源・震度情報を取り消しました"];
+  expect(cancel.intents.map((item) => [item.payload.level, item.payload.title, item.payload.body])).toEqual([row, row]);
 });

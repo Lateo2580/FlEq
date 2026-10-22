@@ -16,7 +16,7 @@ import { BOUNDS, LIMITS, kindOf, parseBriefing, validCode, validHeadline, validS
 import type { BriefingCandidate } from "../../domains/briefing/briefing";
 import { cut, infoRankOf, validName, validReportDateTime, validSerial, validTime, validValue } from "../../domains/flood/flood";
 import {
-  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 
@@ -228,13 +228,19 @@ function nextOf(candidate: BriefingCandidate, existing: BriefingCurrent | null, 
 const PREFIX: Readonly<Record<Operation, string>> = { normal: "", training: "【訓練】", test: "【試験】" };
 // 題は operationPrefix＋訂正・取消の前置き＋Head/Title、VPOA50 は末尾に「（対応電文未確認）」。本文は Headline、無ければ item ごとの
 // 種別と区域、それも無ければ題。接頭辞・接尾辞は切る範囲の外に置き、本体だけを上限から引いた長さで切る（Q-NOTICE.payload、K5 の F15 の型）。
+// 取消は取り消した記録の ReportDateTime（cancelledAt）を書き、「（対応電文未確認）」を付けない（P3-NL-AC10 (3)）。
 function payloadOf(operation: Operation, headType: "VPBS50" | "VPOA50", level: Level, title: string, body: string,
-  mark: "plain" | "correction" | "cancel"): BriefingNotificationPayload {
+  mark: "plain" | "correction" | "cancel", cancelledAt: string | null = null): BriefingNotificationPayload {
+  if (mark === "cancel") {
+    const text = cancelText(title, cancelledAt);
+    return { domain: "weather", level, title: PREFIX[operation] + cut(text.title, NOTICE_BOUNDS.title - PREFIX[operation].length),
+      body: cut(text.body, NOTICE_BOUNDS.body) };
+  }
   const suffix = headType === "VPOA50" ? UNCONFIRMED : "";
-  const titleHead = PREFIX[operation] + (mark === "correction" ? "[訂正] " : mark === "cancel" ? "[取消] " : "");
+  const titleHead = PREFIX[operation] + (mark === "correction" ? "[訂正] " : "");
   const bodyHead = mark === "correction" ? "訂正: " : "";
   return { domain: "weather", level, title: titleHead + cut(title, NOTICE_BOUNDS.title - titleHead.length - suffix.length) + suffix,
-    body: mark === "cancel" ? "この情報は取り消されました" : bodyHead + cut(body, NOTICE_BOUNDS.body - bodyHead.length - suffix.length) + suffix };
+    body: bodyHead + cut(body, NOTICE_BOUNDS.body - bodyHead.length - suffix.length) + suffix };
 }
 function bodyOf(value: Visible): string {
   if (value.headline !== "") return value.headline;
@@ -251,7 +257,7 @@ function intentsFor(source: Readonly<{ subject: string; operation: Operation; so
   return channels.map((channel) => ({ id: noticeId("U-B", source.subject, "", source.source, transition, channel), unit: "U-B",
     subject: source.subject, operation: source.operation, source: source.source, transition, channel, payload, createdAt: now,
     expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
-    ...freshState("U-B", source.operation, payload.level) }));
+    ...freshState("U-B", source.operation) }));
 }
 // P3-NL-AC02 (3): admit を通った intent の版と種類を、その系列の記録の印に足す（全 channel が断られた版は入れない）。
 function markAdmitted(currents: readonly BriefingCurrent[], admitted: readonly BriefingIntent[]): readonly BriefingCurrent[] {
@@ -424,7 +430,9 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
 
   // Q-NOTICE.generationTable（自分の subject だけ、一 channel 1 件）。訂正は事実が同じでも作る。
   const correction = candidate.infoRank === 2;
-  const payload = candidate.cancelled ? visible(existing) ? payloadOf(operation, candidate.headType, "cancel", candidate.title, "", "cancel") : null
+  // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
+  const payload = candidate.cancelled ? existing != null && (visible(existing) || heard(existing.notice))
+    ? payloadOf(operation, candidate.headType, "cancel", candidate.title, "", "cancel", existing.source.reportDateTimeRaw) : null
     : visible(next) && (correction || !visible(existing) || changed(existing, next).length !== 0)
       ? payloadOf(operation, candidate.headType, "warning", next.title, bodyOf(next), correction ? "correction" : "plain") : null;
   const transition = candidate.cancelled ? "cancelled" as const : correction || visible(existing) ? "updated" as const : "activated" as const;

@@ -17,7 +17,7 @@ import {
 } from "../../domains/landslide/landslide";
 import type { LandslideCandidate } from "../../domains/landslide/landslide";
 import {
-  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 
@@ -164,10 +164,13 @@ function levelFor(before: LandslideCurrent | null, after: Active): Level {
   return level;
 }
 // 題は operationPrefix＋訂正・取消の前置き＋Head/Title、本文は Kind の名前ごとの区域の数と Headline（旧築 notifier.ts の組み方を区分ごとに）。
-function payloadOf(candidate: LandslideCandidate, after: LandslideCurrent, level: Level): LandslideNotificationPayload {
+// 取消は取り消した記録の ReportDateTime（cancelledAt）を書く（P3-NL-AC10）。
+function payloadOf(candidate: LandslideCandidate, after: LandslideCurrent, level: Level, cancelledAt: string | null = null): LandslideNotificationPayload {
   const prefix = PREFIX[candidate.operation];
-  if (candidate.cancelled) return { domain: "weather", level: "cancel", title: cut(`${prefix}[取消] ${candidate.title}`, NOTICE_BOUNDS.title),
-    body: "この情報は取り消されました" };
+  if (candidate.cancelled) {
+    const text = cancelText(candidate.title, cancelledAt);
+    return { domain: "weather", level: "cancel", title: cut(prefix + text.title, NOTICE_BOUNDS.title), body: cut(text.body, NOTICE_BOUNDS.body) };
+  }
   const correction = candidate.infoRank === 2;
   const groups = visible(after) ? after.kinds.map((group) => `${group.name} ${group.areas.length}地域`) : [];
   const body = groups.length === 0 ? candidate.headline ?? candidate.title : [...groups, ...candidate.headline == null ? [] : [candidate.headline]].join(" / ");
@@ -183,7 +186,7 @@ function intentsFor(candidate: LandslideCandidate, transition: LandslideIntent["
   return channels.map((channel) => ({ id: noticeId("U-L", candidate.subject, "", candidate.source, transition, channel), unit: "U-L",
     subject: candidate.subject, operation: candidate.operation, source: candidate.source, transition, channel, payload, createdAt: now,
     expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
-    ...freshState("U-L", candidate.operation, payload.level) }));
+    ...freshState("U-L", candidate.operation) }));
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-L の intent は全部 other の群（P3-C10-NOTICE-GROUP=A）。
 function a7Order(left: LandslideIntent, right: LandslideIntent): number {
@@ -299,14 +302,16 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   // Q-NOTICE.generationTable。訂正は事実が同じでも作る。記録の無い官署か取消の記録への解除の報（inactiveAdoption）も作る。
   // 期限で回収される報・記憶だけの取消・endedの記録への解除では作らない。
   const correction = candidate.infoRank === 2;
-  const notify = !due && (candidate.cancelled ? visible(existing) : correction || (visible(next) ? !visible(existing) || fields.length !== 0
+  // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
+  const notify = !due && (candidate.cancelled ? visible(existing) || heard(existing?.notice) : correction || (visible(next) ? !visible(existing) || fields.length !== 0
     : visible(existing) || candidate.released && (existing == null || existing.effective === "cancelled")));
   const transition = candidate.cancelled ? "cancelled" as const : correction ? "updated" as const
     : visible(next) ? visible(existing) ? "updated" as const : "activated" as const : "released" as const;
   const level = candidate.cancelled ? "cancel" : visible(next) ? levelFor(existing, next) : "normal";
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const digest = notify ? versionDigest(candidate.source) : "";
-  const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level), now, existing?.notice, digest) : [];
+  const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level, existing?.source.reportDateTimeRaw ?? null), now,
+    existing?.notice, digest) : [];
   // 到着の時点で期限を過ぎた採用が前の active を置き換えるなら、取消でなくてもその pending を全部撤回する（D-WITHDRAW=A、P3-OPCAP-AC03）。
   const notices = admit(state.intents, fresh, candidate.cancelled || due && visible(existing) ? subject : null);
   // P3-NL-AC02 (3): admit を通った版と種類を官署の系列の印に足す（全 channel が断られた版は入れない）。

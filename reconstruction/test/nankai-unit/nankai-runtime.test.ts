@@ -77,7 +77,7 @@ describe("P3-UNIT-N-001 U-N through the composition root", () => {
         subject: unit, reportDateTimeRaw: "2020-05-12T16:28:00+09:00", controlDateTimeRaw: "2020-05-12T16:28:00+09:00", serialRaw: "", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
       nextAttemptAt: createdAt, attempts: 0, configRevision: "t07", disposition: "pending",
-      ...freshState(unit, "normal", level) });
+      ...freshState(unit, "normal", level === "warning" || level === "critical") });
     // U-N を最も古く作る（同じ群なら先に選ばれる位置）。
     const nankai = notice("U-N", "earthquake-eew", "critical", -10), tsunami = notice("U-T", "tsunami", "critical", 0);
     const eew = notice("U-E", "earthquake-eew", "warning", 5);

@@ -25,7 +25,7 @@ const INFO_RANK: ReadonlyMap<string, number> = new Map([["発表", 1], ["訂正"
 
 type Revision = Pick<ReportRef, "reportDateTimeRaw" | "serialRaw" | "infoTypeRaw">;
 type Common = Readonly<{ operation: Operation; eventId: string; subject: string; source: ReportRef; reportDateTimeMs: number;
-  infoRank: number; cancelled: boolean; headline: string | null }>;
+  infoRank: number; cancelled: boolean; headline: string | null; title: string | null }>;
 type ForecastCandidate = Common & Readonly<{ kind: "forecast"; family: "VTSE41";
   areas: readonly TsunamiForecastArea[]; unkeyedAreas: readonly TsunamiUnkeyedArea[] }>;
 type ObservationCandidate = Common & Readonly<{ kind: "observation"; family: TsunamiObservationFamily; serial: number;
@@ -231,8 +231,11 @@ function parseTsunami(material: DecodedMaterial): ParseResult {
   const source: ReportRef = { inputId: material.inputId, origin: material.origin, operation: material.operation, family,
     subject, reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw), serialRaw: material.serialRaw, infoTypeRaw: material.infoTypeRaw };
   const cancelled = infoRank === 3;
+  // P3-NL-AC10 (1): 取消の文面の種類（Head/Title、ほかの分野と同じく 128 文字で切る）。無ければ null で、unit が今の固定の題を使う。
+  const titleNodes = children(head, "Title");
+  const titleRaw = titleNodes.length === 1 ? blank(scalar(titleNodes[0])) : null;
   const base = { operation: material.operation, eventId, subject, source, reportDateTimeMs: common.envelope.reportDateTimeMs,
-    infoRank, cancelled };
+    infoRank, cancelled, title: titleRaw == null ? null : titleRaw.slice(0, 128).replace(/[\ud800-\udbff]$/, "") };
   try {
     const headlineNodes = children(children(head, "Headline")[0] ?? null, "Text");
     const headline = headlineNodes.length === 1 ? blank(scalar(headlineNodes[0])) : null;

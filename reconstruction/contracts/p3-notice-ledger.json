@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "48381f42d4430fe569dacc167a01149374ed73b54bde801c155839eda707482e",
+    "sha256": "e9d41aecefb3a63c5bcae30c9ba15278ed518aebe5d2b1cfe09a69b4f40c53da",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -132,6 +132,14 @@
         "closed": "今回の発注は Q-NL-SPLIT の発注 2（AC07・AC09〜AC13 と AC14 の数え方、AC16・AC17）で、点検は発注 2 の条文を 739ecc97 の実装に当てた (1) 発注 1 の読み替え（Q-NL-IMPL-1）の発注 2 への当たり方（本文は書き換えず次のとおり読む）: (a) 予約（AC07 の (1)(5)）: 739ecc97 は採用の返信で予約を消してから adapter を呼ぶ（composition-root.ts:1238）。発注 2 は採用の後も予約を残し、G（返信を反映した後の mirror の currentGeneration、:1235 の absorb の後）と待ち始め（:1233 の clock の monotonic）を持たせる。予約は「送出済み（返信待ち）」と「採用済み（ack 待ち）」の 2 つの時期を持ち、採用済みの予約を捨てる所（selectDelivery の :1194・:1201。A7 の選択が別の intent を返したときで、上位群に限らず同じ群の期限の早い intent でも今どおり捨てる。停止。intent が intents から外れたとき）では AC06 の (5) の failed の更新をその場で送る。発注 1 の dropReservation（:1272）は返信の時だけ呼ばれるので採用済みの予約には届かない。期限で外れた intent は reclaimExpired の expired の更新が終端なので failed は送らない（dropReservation の expiresAt の判定と同じ。monotonic の期限で外れたものも送らない）。reservedKeys（:1068）が回収から守るのは送出済みの予約だけなので、採用済みの予約の intent は今どおり期限で回収される (b) 試行の状態: 予約の採用で lastAttempt started と印の evidence possible が付く（AC02 の (3)、発注 1）。ack を待つ間に捨てた予約も possible のまま（AC06 の (5)）なので、残存リスク (18)（取りやめた報の取消が鳴る）の窓は待ちの分（最長 10 秒）だけ広がる（承認済みの (18) の範囲）。A7 は採用済みの予約の intent を評価のたびにまた選ぶ（publisher は channel を running にしない、:1196）が、key が同じなので :1200 で何もしない。adapter に渡すのは予約の attempt（attemptId は owner が採った attempts と同じ）で、A7 が作り直した attempt ではない (c) 試行の期限（AC06 の (4)）: 発注 1 は返信の時に作り直す（:1247〜:1248）。発注 2 は同じ式を adapter を呼ぶ時（ack の評価・締切の timer・例外の判定）へ移す (d) 期限の中断の notificationExpired（Q-NL-IMPL-1 の (a)）と desktop の期限の後の delivered（(b)）: AC14 の (4) の lossReason は publisher が A7 の診断から決める今の形（:1310〜:1311）をそのまま数える (e) refused を外したこと（(h)）: AC13 の (1) は、その run の中の同じ版の受け直しを版の比べ（duplicate）で落とし、再起動・記録の退去の後は印で照合する、と読む（AC02 の (3) の改訂と同じ） (f) 印の置き場（Q-NL-IMPL-1 の (ii)(iii)、notice-mark.ts:139 の shown）: AC09 の印の証拠は保存する記録の notice（U-V の海上は marineNotice、U-N の情報系列は保存する証拠の記録、U-E は EewNoticeMark.deliveryEvidence）から読み、view からは読めない (g) priorityGroup（Q-NL-PRECHECK の (0)(c)）: 群を作る所は notice-mark.ts:95 の priorityGroupOf（level から決める）だけで、codec の readIntentState（:110〜:117）が保存の値をこの式との一致で確かめる。AC11 の (1) で注意報が warning になると level から U-T の群を決められないので、priorityGroupOf に「警報以上への発令・引上げ・区域拡大を含む」を渡す形にし、U-T の codec の確かめは AC11 の (5) どおり「normal なら other か normalTsunamiEmergency」に緩める（normalTsunamiEmergency を level が warning か critical のときに限るのは AC11 の (5) に無いが、上界の確かめとして足してよいと読む、推測）。groupRank（tsunami-unit.ts:147）は intent.priorityGroup を読む。失敗警報（:626〜:628）は operation によらない判定なので、priorityGroup ではなく同じ「含む」の判定を使う（AC11 の (4)） (h) 版: 発注 2 は保存の形を変えない（EEW の level に normal を足すこと〔eew-unit.ts:48〕と U-T の群の確かめを緩めることは読み取りの広がりだけ）ので schemaVersion を上げない（AC15 の (1) は発注 1 で済み）。発注 1 の slot はそのまま読める (i) AC14 の数え方の置き場: owner-runtime.ts の session の reduceUnit（:228 の診断）、restoreOwner（:321）、intentUpdateOwner（:390〜:412）の採用の後の lossReason（採られなかった更新は数えない）。AC08 の notificationOutcomeUnknown は unit の復元の診断で出る（tsunami-unit.ts:778 ほか）ので、AC14 の (4) の「unit の採用の結果の診断」に復元の診断を含めて読む（含めないと通知したか不明を数えられない）。件数だけが変わる入力の世代は setPersistence（:240）では足りない: 捕捉の後の dirty（postCaptureDirtySince、:199〜:207）を reduceUnit と同じに扱い、generationInputIds に key を置く（無いと owner-host.ts:267 でその unit がその run では保存しない集合に入る、P3-OLB-AC02）。capture は owner-host.ts:222〜:223 が state.losses を渡す（発注 1）。数えない欠け（推測）: unit の intentUpdate が期限を過ぎた更新を expired に変える所（eew-unit.ts:200 ほか）は lossReason も診断も無い (j) AC07 の (8): 測定の行の型（p2-eew-e01.types.ts:131 の notificationAdoption、allowedPaths の外）は変えず、行を出す時を返信の時（composition-root.ts:1255〜:1259）から adapter を呼ぶ時か予約を捨てる時へ移す。attemptStartedMonotonicMs－replyReceivedMonotonicMs が保存の待ちになり、測定の道具（test/eew-e01/aux-measures.mjs:363 の replyToAttemptMs）は変えずに読める (2) 未決: unresolvedQuestions は 5 件で Q-NL-PRECHECK の時と同じ。発注を止めるのは Q-NL-BASE（baseOid 503ed664 を本点検の commit に割り当て直す）だけ。Q-NL-PI-LATENCY・Q-NL-FRAGMENT・Q-NL-EEW-COUNT は本契約の閉鎖だけ、Q-NL-EXISTING-TESTS は実装担当。decisionBranches 4 件の ruling は作者裁定のままで、「起草案」「未裁定」「承認を待」「仮の形」「確認待ち」「推奨 A」「A なら」「B のとき」は Q-NL-PRECHECK の記録の引用と Q-NL-BASE の requiredEvidence のほかに 0 件 (3) anchor: check-contract（739ecc97）は exit 0、本契約は PASS（fixtures 10・sequences 3・unresolved 5）、WARN は P3-RECOVERY-001 の baseOid unassigned の 1 行。発注 2 の条文（AC07・AC09〜AC14）の evidenceRefs 85 件は行の中身が条文の意味と合う。補足: AC10 の eew.ts:615 は取消でない報の title の行で、EEW の取消の文面は cancelPayload（eew.ts:508〜:509。採る取消〔:676〕と採らずに通知する取消〔:512 の cancelOnly〕の両方が使う）で作る。AC07 の owner-runtime.ts:445 は checkpointResultOwner の写しの行で、ack が savedGeneration を進めるのは :452。本文の行の参照（anchor の無いもの）は発注 1 の配送で 17 か所がずれていたので直した（発注 2 の条文だけ、行の数は変えない）: AC07 の composition-root.ts:1231〜:1237→:1236〜:1252・checkpoint.ts:549→:552・:1432→:1465・:1439→:1471・:886→:893・:944→:951、AC09 の tsunami-unit.ts:400・:520→:414・:538・eew.ts:535→:608、AC11 の tsunami-unit.ts:132→:142・:137→:147・:596→:628、AC12 の eew.ts:186→:180・p2-eew-unit.types.ts:93→:104・eew.ts:536→:608、AC14 の composition-root.ts:1069→:1076・owner-runtime.ts:358→:366・checkpoint.ts:638→:641。AC06 と questionResolutions の行は記録なので直していない。本契約の json の行を引く他の契約・spec・sequences は 0 件（git grep -n 'p3-notice-ledger.json:[0-9]'）なので、本項で本契約の行が動いても他は FAIL にならない (4) 他の契約が引く行（式は Q-NL-PRECHECK の (3) と同じ git grep -n -o -E '((reconstruction|src|test|docs)/[A-Za-z0-9_./-]+):([0-9]+) «[0-9a-f]{16}»' を reconstruction/contracts の json・md、docs/specs、reconstruction/tools/corpus/sequences.json に当て、本契約を除き、発注 2 が変える見込みの 23 file に絞った）: 492 件。composition-root.ts 61・eew.ts 56・nankai-unit.ts 54・volcano-unit.ts 54・seismic-unit.ts 52・tsunami-unit.ts 49・p2-shared-runtime.types.ts 26・owner-runtime.ts 25・landslide-unit.ts 23・checkpoint.ts 19・notification-delivery.ts 18・flood-unit.ts 15・eew-unit.ts 11・owner-host.ts 11・typhoon-unit.ts 11・p2-eew-unit.types.ts 2・briefing-unit.ts 2・local-bulletins-unit.ts 2・p2-notification-delivery.types.ts 1。notice-mark.ts・adapter.ts・domains/tsunami/tsunami.ts・p3-tsunami-unit.types.ts は 0。中身が変わりうる行を引くもの（約 50 件、差分で付け直す）: notification-delivery.ts:20（P3-C7:861・P3-C9:1103・P3-C10:773・P3-C11:905・P3-C12:1111。group() の U-E の行）と :21（P3-CC:612・P3-C5:907。津波緊急の式）は AC11 の (3) で消える。:18（P3-C13:214・:1180、P3-C14:1101）は宣言の行で残る見込み。composition-root.ts の selectDelivery と返信の処理（:1132〜:1193 と :1235・:1244。P3-CK:284〜:286・:288・:329、P3-CC:481〜:484・:547・:548・:624、P3-C7:904、P3-C5:966）と :1480（P3-CK:289、requestsStopped）。owner-runtime.ts の session・restore・受信の帰属・intentUpdateOwner（:198・:227・:289・:294・:297・:317・:366〜:369・:396・:407。P3-CC 9 件、P3-VM 3 件、P3-AUTH:340、P3-C12:1220、P3-IUR:258）。eew.ts:502・:504・:606・:608・:611・:612（P3-CC:611、P3-CK:258、P3-EVICT:227・:228、P3-MEASURE:403・:404）。owner-host.ts:181・:222（P3-VM:75・:493・:510）。volcano-unit.ts:641（P3-FINAL:308）。ほかは行の数が変われば後ろへずれるだけで、発注 1 と同じく配送の commit で付け直す（AC18 の (14)） (5) AC18 の発注 2 の分: 発注 1 の配送の一覧（~/dev/fleq-vault-archive/k8-notice-ledger-20261022/deliver-1/revisions.txt）の「当てない: 発注 2」40 行と、一部だけ当てた 13 行（H19 の条件を残した各 unit の generationTable の取消の行 10、P3-CC-D-FAILNOTICE の U-T の段階、P3-C3A-NOTIFY-ADOPT〔p3-execution-split.json:102〕と P3-C3A-AC07〔:661〕の ack を待つ形、設計メモ §15 の §8 の K8 の行の読み）を、点検の作業場所の .precheck/revisions-2.txt に 53 行と追補 3 行で書き直した（repo には入れない。統合担当が配送の作業ノートへ写す）。改訂先の行はどれも 739ecc97 に実在し、行番号は発注 1 の一覧と同じ（発注 1 の配送はこれらの契約の行の数を変えていない）。食い違いと補足: (a) LEGACY-DIFF の取消の条件の行が 4 つ違っていた: P3-C9 は :273（VFVO51 の取消の範囲）ではなく :284、P3-C10 は :237（active の期限）ではなく :238、P3-C12 は :338（寿命）ではなく :341（と :348 の VPOA50 の取消）、P3-C14 は取消の条件の行が無く、:332（台風の終わり）ではなく通知の行 :336 に添える。P3-C5:219・P3-C7:237・P3-C8:209・P3-C11:285・P3-C13:338 は合う (b) P2-EEW の payloadRules は :191 が頭で、当てるのは :196（level）・:197（title）・:198（body） (c) 一覧に無いが同じ配送で当てるもの: sequences.json の expectations の checks のうち取消の文面を書く 10 step（O01:46・:65・:76・:83・:95・:101・:106・:122・:125、O07:61）。sequences.json は allowedPaths の外で、発注 1 と同じく統合担当が当てる (6) 取消の文面（Q-NL-CANCEL-TEXT）: 11 行と記録の無い EEW の行は、今の unit の作り方で表のとおりに出せる。種類（取消の報の Head/Title）を今の候補が持つのは U-Q（seismic.ts:254）・U-N（nankai.ts:121）・U-V（volcano.ts:305〜:306。頭の「火山名　浅間山　」は :306 の置換で既に外れる）・U-L・U-R・U-B・U-M・U-Y。U-T（domains/tsunami/tsunami.ts）と U-E（domains/eew/eew.ts）の候補は Head/Title を読まず、今は固定の字（tsunami-unit.ts:416「[取消] 津波警報・注意報・予報」、観測は OBSERVATION_TITLE、eew.ts:508「[取消] 緊急地震速報」）なので、題を読む（受理の材料は reduce の中で読める、eew.ts:442。他の分野と同じく 128 文字で切る。候補の欄を 1 つ足すのは AC10 の種類の規則に要るものと読む、推測）。取り消した記録の時刻と震源名・火山名: U-E は gate の source と noticeSource.hypocenter（eew.ts:450・:438）、印だけのときは recorded（:472、family の記録）の reportDateTimeRaw、どちらも無ければ種類だけ。U-Q は記録の震源（seismic-unit.ts:206）と source。U-V は記録の volcanoName（警報・噴火・降灰・定時の記録が持つ）で、文面は noticeOf（volcano-unit.ts:406）1 か所で作れる（呼ぶ所 :644・:650・:697・:741・:791・:847 から取り消した記録を渡す。H19 の後は active でない記録も渡す）。ほかの unit も取消の payload は 1 関数（seismic-unit.ts:364・nankai-unit.ts:217・flood-unit.ts:193・landslide-unit.ts:167・briefing-unit.ts:231・local-bulletins-unit.ts:190・typhoon-unit.ts:167、U-T は payloadOf〔tsunami-unit.ts:150〕を呼ぶ :415・:539、U-E は :508）。上限: NOTICE_BOUNDS（title 160・body 512）を持つ 5 unit は、接頭辞 4＋「[取消] 」5＋題（U-L・U-R 128、U-B・U-M・U-Y 64）＋「（HH:MM 発表）」10 で最長 147 文字なので、今の切り詰め（flood・landslide は全体を切り、briefing・local-bulletins・typhoon は頭を除いた本体を切る）で切れずに出る。body は最長 150 文字前後。U-E・U-T・U-Q・U-N・U-V の codec は文字数を縛らない（空でないことだけ）。題は分野の上限（nankai・volcano 128）。震源名は view では 64 文字に切る（seismic-unit.ts:318。記録の側の上限は確かめていない）。pending の byte の上限（131,072）は取消の intent が数十 byte 伸びる分だけ早く満ちる（推測、上界の式は変わらない）。表に無い 2 つ（作者に確かめる、remaining）: U-B の VPOA50 の取消は今 title の末尾に「（対応電文未確認）」が付く（briefing-unit.ts:233）が表の行は付けていない。U-V の海上の部分の取消（volcano-unit.ts:643〜:646）は固定の「[取消] 火山現象に関する海上警報」で、表に行が無い (7) AC07 の時間の決まり: 今の構造で実装できる。保存の ack の経路: owner-host が保存の結果を checkpointResultOwner（owner-runtime.ts:434〜:465。ack で savedGeneration を進める :451〜:453、失敗で kind failed :455、結果不明で uncertain :457）に通し、checkpointDone の返信（owner-host.ts:200）で publisher へ送る。publisher は checkpointDone（composition-root.ts:1401）→ownerOutput（:1408）→absorb で mirror に反映（:780）→evaluateDelivery（:789）で知る。host の tick（:893→:911）でも評価する。判定の材料: (a) failed・uncertain は mirror の persistence.kind (b) 保存されない・断った・stopSaving は、CheckpointWriter.saveDue(persistence, unit, clock, true)（checkpoint.ts:536〜:541）が dirty で uncertain でないのに false を返すことで判定できる（!saves・stopped・declined が currentGeneration と同じ。owner が断るのは owner-host.ts:213〜:216、記録は checkpoint.ts:585〜:587）。新しい読み口は要らない (c) 1 秒・10 秒は待ち始めからの monotonic。締切の timer は noticeTimer とは別の 1 本にする（project が毎回 noticeTimer を外す〔:943〕ので、共用すると締切が消える）。予約は channel ごとに 1 件なので最短は 2 件の比較 (d) 停止: shutdownRuntime は :1517 で noticeTimer を外し、:1527 で予約を全部消す。待っている予約の failed の更新は :1527 の前に送り（消した後は予約が分からない）、finalizeOwners（:1465）では K9 の分岐（:1471〜:1478）と同じ settled の待ち（intentRequests と heldUpdates の解決）を条件なしで :1480 の requestsStopped の前に置く（heldUpdates は :1481 で消され、queueUpdate は requestsStopped の後に何も送らない、:1019）。停止の後に採用で返った送出済みの予約は、発注 1 の dropReservation（:1253・:1254）が failed を送る (e) G の保存の権は返信の後の reevaluate（:1262）ですぐ出る（その実行場所に返事待ちの入力があるときは inputDone の後、:1353、P3-UWR-AC02） (8) Q-NL-EXISTING-TESTS の候補（file:行、739ecc97。推測を含む）: (a) 取消の文面: seismic-unit.test.ts:724、nankai-unit.test.ts:582、volcano-unit.test.ts:573・:674、tsunami-unit.test.ts:525、landslide-unit.test.ts:453、local-bulletins-unit.test.ts:648、flood-corpus.test.ts:27、briefing-corpus.test.ts:23、local-bulletins-corpus.test.ts:28・:33、typhoon-corpus.test.ts:40、integration/private-eew.mjs:296〜:300（EEW の取消の title・body と、最終報の level〔今は critical か warning〕） (b) H09: tsunami-unit.test.ts:485（注意報〔kind 62〕の発令が normal）。:721 の P3-CC-T16（注意報だけの拒否は失敗警報を作らない）は期待が変わらず判定の式が変わる。tsunami-runtime.test.ts:174 と各 unit の *-runtime.test.ts の群の順は変わらない見込み (c) AC07: composition root を通し、予約の採用の直後に adapter が呼ばれる前提の試験。integration/notification-wiring.test.ts（adapter を見る所 49）・execution-split/execution-split.test.ts（42）・execution-lifecycle/lifecycle.test.ts（18）・tsunami-unit/tsunami-runtime.test.ts（10）・integration/shutdown.test.ts（7）・execution-split/c4-measurement.test.ts:230（notificationAdoption の行が出る時）・各 unit の *-runtime.test.ts（4〜5）。保存を回して ack を返す harness か monotonic を進める時計の無い試験は adapter が呼ばれなくなる（推測、どの試験が保存を回すかは読んでいない） (d) H19: P3-ORDER-T01（volcano-unit.test.ts:908・seismic-unit.test.ts:849・landslide-unit.test.ts:537・nankai-unit.test.ts:626）、volcano-unit.test.ts:631・:1051、tsunami-unit.test.ts:151 は解除・期限の後の取消を含みうる（推測）。Q-NL-PRECHECK の (6)(e) の O01:65・:66・O07:34 は取消の前に active（checks に「取消の前にactiveなので」）なので通知の有無は変わらず、題の字だけが変わる（(5)(c)）。O03:21・O07:70（記録の無い subject）と O03:29（held の記録。通知していないので証拠は unattempted と推測）も変わらない (e) H06: eew-unit.test.ts:208〜:220 は最終報の transition だけを見るので変わらない見込み。private-eew.mjs は (a) (f) AC14: unit の単体の容量の拒否の試験（seismic-unit.test.ts:405〜:413・tsunami-unit.test.ts:288〜:297）は owner を通らないので変わらない見込み。owner を通して容量の拒否で世代が進まないことを見る試験は数えていない",
         "remaining": "発注を止めるのは Q-NL-BASE（baseOid を本点検の commit に割り当て直す）だけ。統合担当の分（発注は止めない）: (1) の読み（予約の 2 つの時期と failed の更新、試行の期限を作る時、priorityGroup の作り方と U-T の codec の緩め、版を上げないこと、数える置き場と復元の診断、測定の行を出す時）を発注文に写す。(6) の題を読む欄（U-T・U-E の候補）を発注文で認める。(5) の revisions-2.txt（53 行と追補 3 行、LEGACY-DIFF の 4 行の付け替えと sequences.json の 10 step を含む）を配送の commit で当て、(4) の中身の変わる行を引く anchor を差分で付け直す。作者確認の 2 つは 2026-10-22 に作者が決めた（チャットでは統合担当が (A) の推奨を「付けない」に改めて見せ、作者は両方とも推奨を採った）: (A) U-B の VPOA50 の取消の title に「（対応電文未確認）」を付けない。「[取消] 東京都記録的短時間大雨情報（17:09 発表）」で、承認した表と同じ形 (B) U-V の海上の部分だけの取消は「[取消] 火山現象に関する海上警報（西之島 13:03 発表）」「西之島 13:03 発表の火山現象に関する海上警報を取り消しました」（浅間山は内陸の火山で海上警報が出ないので例を西之島にした）。AC10 の (3) と Q-NL-CANCEL-TEXT の表に足した。統合担当の決定（2026-10-22）: baseOid を作者確認の 2 件を記録した commit 99d8e7e5（本点検 4d052529 の後、本契約の文面だけを変えた）に割り当てた。(1) の読みと (6) の題を読む欄は発注文にそのまま写す。(5) の revisions-2.txt と anchor の付け直しは発注 2 の配送の commit で当てる",
         "reason": "発注前点検の項目を閉じる（発注 2。発注 1 の配送 739ecc97 の後）"
+      },
+      {
+        "id": "Q-NL-IMPL-2",
+        "status": "closed",
+        "source": "統合担当の配送（発注 2、2026-10-22、base 99d8e7e5。前例は Q-NL-IMPL-1）",
+        "closed": "発注 2（Q-NL-SPLIT の形: AC07・AC09〜AC13 と AC14 の数え方、AC16・AC17）を配送した（実装 44 file）。レビューの経過: 品質 ヘルツ（gpt-6-astra high、read-only、新しい thread）は r1 NO-GO→r2 条件付き GO→r3 で直した（再レビューは無し）。r1 の NO-GO は P2 2 件（releaseWaiting が A7 の選び直しより先に adapter を呼ぶ／capture で外した losses が owner の加算元に残り次の加算で復活する）、r2 の条件は P2 1 件（private-eew.mjs の oracle が「最終報: 続報: 」を落とす）で、r3 は oracle の 1 行の直し。契約適合 Opus は r1 条件付き GO（P3 8 件、下の決定で全部処理）。統合担当の決定（r1 の指摘をまとめて直した 9 件）: (a) 選び直しを先に確定してから保存待ちを解放する（P3-NL-T04 の (e) の行を足した） (b) capture で外した losses を owner の加算元からも外す（P3-NL-T06） (c) UWR-T03 の intent の更新を 2 回以上に戻す（時計を 10 秒進める） (d) 最終報の本文の頭を「最終報: 」にする。危険が増した続報と重なるときは「最終報: 続報: <注記>…」（続報の頭書きが注記より前なのは P2 の形のまま） (e) private-eew.mjs の訂正の最終報を normal にする (f) T06 に tsunamiCapacityEvicted の count と、reclaimExpired を二重に数えない確かめ（後者は notification-wiring.test.ts）を足す (g) T01 の H19 の行を owner を通す形にする（synthetic_VTSE41_e01_311warning、取消は synthetic_VTSE41_cancel の EventID と時刻を書き換えて使う） (h) 取消の種類の末尾の「の取消」を除く（作者承認の表の U-R の行の形に合わせる。synthetic_VXKO50_cancel の Head/Title が「○○川上流氾濫警戒情報の取消」のため。AC10 の (3) に足した） (i) eew.ts の 128 文字の切り詰めで孤立したサロゲートを除く。実装の判断を認めたもの: (j) T05 は 32-39_13_07（訓練の注意報の解除）を通常運用の注意報の発令に inline で書き換えて使う（新しい fixture を足さない、AC17 の (2)） (k) U-E は候補の欄を足さず reduce の中で Head/Title を読む（Q-NL-PRECHECK-2 の (6) はどちらも認める） (l) 採用済みの予約を外すのは、A7 が別の intent を選んだときか intent が配れる集合から出たときだけ。A7 が何も返さず intent がまだ配れるなら予約を残す (m) evaluateDelivery で選び直しの後に待ちを解放する（(a) で順を改めた） (n) 訂正の最終報も normal で「最終報: 訂正: 」（AC12 の (1) は訂正を除いておらず、例外は分岐 P3-NL-D-FINAL-OVERLAP の 3 つだけ）。実装の読み替え: Q-NL-PRECHECK-2 の (1) の (a)〜(j) のとおり。既存の試験の期待値の変更（Q-NL-EXISTING-TESTS、実装の報告）: 取消の文面（AC10）は briefing-corpus・flood-corpus・landslide-unit・local-bulletins-corpus・local-bulletins-unit・nankai-unit・seismic-unit・typhoon-corpus・tsunami-unit・volcano-unit の取消の行。tsunami-unit の注意報の発令は normal から warning（H09、AC11）。eew-unit の訂正の最終報は「最終報: 訂正: …」（AC12）。AC07 で、P2-A3-T11（notification-wiring）は名前を変えた（adapter は 1 秒の待ちの後に呼ばれる）、notification-delivery の T04/O07 は遅れた ack が配りを最長 1 秒止めるので monotonic の時計を +1000 ずらした、UWR-T03 は (c) のとおり。stub の忠実さ: shared-runtime の B4 と weather-current の P2-A5-T03 で、stub の A7 が定数 1 でなく attempts＋1 を返す（待っている予約がまた選ばれるため）。test の helper の freshState の引数の形を合わせた（期待値は変えていない）。試験の追加: tsunami-unit に P3-NL-T01 の H19 の行（受入、AC09・AC10・AC13）・T05（受入、AC11）・T06（契約境界、AC14）、eew-unit に T03 の AC10・AC12 の行（受入）、seismic-unit に T07 の VXSE53 の取消の文面（契約境界）、flood-unit に T07 の「の取消」を除く行（契約境界）、notification-wiring に T04 の (a)〜(f)（契約境界、AC07。(c) は fake の setTimeout だけ）と T06 の publisher の行。ゲート（Mac mini、r1・r2）: tsc 3 本・vitest（825 passed／23 skipped、base 816）・shuffle・check-manifest・check-sequences は緑。check-contract の FAIL は anchor のずれと notification-delivery.ts:20・:21 の消失だけで、配送の commit で付け直した（:20・:21 の参照は群の式の移った notice-mark.ts の priorityGroupOf の行 :98・:99 へ）。あわせて AC18 の発注 2 の分（Q-NL-PRECHECK-2 の (5) の 53 行と追補 3 行）を当て、sequences.json の取消の文面 10 step を P3-NL-AC10 の形に直し（O01:65 は配送の確かめで実装に通して出した）、改訂した契約の sha256 と全契約の sequencesSha256 を作り直した。testMapping の T01・T04・T05・T06・T07 は実装の試験の形に合わせた",
+        "remaining": "未試験の行: integration/private-eew.mjs は private の EEW データが要るので実行していない（r3 の oracle の直しも同じ）。残存リスク（実装の申告と統合担当）: (1) 本番ではすべての通知が保存の ack を最長 1 秒（U-E・U-T・critical）か 10 秒待つ。Pi の上の遅れは未測定（Q-NL-PI-LATENCY） (2) 停止の時の settle の待ち（intentRequests と heldUpdates の解決）が無条件になった。sideEffectFinalization の段の期限で抑える (3) U-V の ended・expired・cancelled の記録の型は volcanoName を持たないので、H19 で広げた後の取消は火山名を欠く（AC10 の (2) の「記録に火山名が無ければ書かない」の内） (4) P3-CC-T17 は decodeXml の inputId の桁数に敏感で、T06 を describe の最後に置いた (5) AC07 の (8) の測定の行の型と測定の道具は変えていない",
+        "reason": "発注 2 の配送の記録。AC10 の (3) は統合担当の決定 (h) で「の取消」を除く規則を足し、testMapping の T01・T04・T05・T06・T07 を実装の試験に合わせた"
       }
     ],
     "operationContract": {
@@ -438,7 +446,7 @@
           "reconstruction/contracts/p3-persist-premises.md:128 «f1d4b5d6501fb72c»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
           "reconstruction/contracts/p3-persist-premises.md:363 «b6c8464d1c8db380»",
-          "reconstruction/contracts/p3-currency-coverage.json:34 «3018aeb0d806af71»",
+          "reconstruction/contracts/p3-currency-coverage.json:34 «77264aaea2922beb»",
           "reconstruction/contracts/p2-eew-unit.types.ts:69 «dfb5e80994ee5861»"
         ]
       },
@@ -450,8 +458,8 @@
           "reconstruction/contracts/p3-persist-premises.md:334 «0c6a877b41bfeaf2»",
           "reconstruction/contracts/p3-persist-premises.md:342 «c0e8cca6c03cf72d»",
           "reconstruction/contracts/p3-persist-premises.md:462 «43d8621e7a99e0e0»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:498 «50249c26c241ac53»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:517 «98d63d2c0e791dbd»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:502 «50249c26c241ac53»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:521 «98d63d2c0e791dbd»",
           "reconstruction/contracts/p3-version-material.json:746 «809ea2fcefa35918»"
         ]
       },
@@ -465,21 +473,21 @@
           "reconstruction/contracts/p3-persist-premises.md:467 «2dd982004a6f8bcd»",
           "reconstruction/contracts/p2-eew-unit.json:203 «1d80539752f6e4e5»",
           "reconstruction/src/units/eew/eew-unit.ts:20 «851723a90699d3cd»",
-          "reconstruction/src/units/eew/eew-unit.ts:177 «0962ef0ee55f6578»",
-          "reconstruction/src/units/eew/eew-unit.ts:210 «75cab3decb7e526b»",
-          "reconstruction/src/units/eew/eew-unit.ts:298 «b60a496975f400d0»",
-          "reconstruction/src/domains/eew/eew.ts:602 «8cf8503515b3efc1»",
-          "reconstruction/src/domains/eew/eew.ts:530 «0f6fbc43d164413e»",
-          "reconstruction/src/domains/eew/eew.ts:535 «533bdccc801402bd»",
-          "reconstruction/src/domains/eew/eew.ts:608 «295c160aab9d48a2»",
+          "reconstruction/src/units/eew/eew-unit.ts:178 «0962ef0ee55f6578»",
+          "reconstruction/src/units/eew/eew-unit.ts:211 «75cab3decb7e526b»",
+          "reconstruction/src/units/eew/eew-unit.ts:299 «b60a496975f400d0»",
+          "reconstruction/src/domains/eew/eew.ts:607 «8cf8503515b3efc1»",
+          "reconstruction/src/domains/eew/eew.ts:535 «0f6fbc43d164413e»",
+          "reconstruction/src/domains/eew/eew.ts:540 «533bdccc801402bd»",
+          "reconstruction/src/domains/eew/eew.ts:613 «295c160aab9d48a2»",
           "reconstruction/contracts/p2-eew-unit.types.ts:69 «dfb5e80994ee5861»",
-          "reconstruction/contracts/p2-eew-unit.types.ts:125 «531066f08121f700»",
+          "reconstruction/contracts/p2-eew-unit.types.ts:126 «531066f08121f700»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:55 «1b292c119b7a8386»",
           "reconstruction/contracts/p3-eew-gate-evict.json:219 «e50c23af5cc04e51»",
-          "reconstruction/src/domains/eew/eew.ts:580 «eabbf65cf447a896»",
-          "reconstruction/src/domains/eew/eew.ts:606 «7c8f0a00cd7cc8aa»",
+          "reconstruction/src/domains/eew/eew.ts:585 «eabbf65cf447a896»",
+          "reconstruction/src/domains/eew/eew.ts:611 «7c8f0a00cd7cc8aa»",
           "src/engine/notification/notifier.ts:389 «8a01b0958c1cd6b3»",
-          "reconstruction/src/domains/eew/eew.ts:536 «5f55796ca759a009»",
+          "reconstruction/src/domains/eew/eew.ts:541 «5f55796ca759a009»",
           "reconstruction/contracts/p3-eew-gate-evict.json:202 «9d0d3c7e03600c07»"
         ]
       },
@@ -490,8 +498,8 @@
           "reconstruction/contracts/p3-persist-premises.md:127 «7bab8a9355ae9e90»",
           "reconstruction/contracts/p3-unit-table.types.ts:23 «e9aa1ab592d4d861»",
           "reconstruction/contracts/p3-unit-table.types.ts:30 «247e5eb77fe63e12»",
-          "reconstruction/src/runtime/owner-runtime.ts:403 «1bb3f6cd2b8f47c5»",
-          "reconstruction/src/units/eew/eew-unit.ts:339 «973323028dc564f5»",
+          "reconstruction/src/runtime/owner-runtime.ts:432 «1bb3f6cd2b8f47c5»",
+          "reconstruction/src/units/eew/eew-unit.ts:340 «973323028dc564f5»",
           "reconstruction/src/units/seismic/seismic-unit.ts:50 «e03057af8e6a011b»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:46 «e03057af8e6a011b»",
           "reconstruction/contracts/p3-unit-table.json:262 «44c584515eccf09a»"
@@ -501,18 +509,18 @@
         "id": "P3-NL-AC06",
         "requirement": "【発注 1】試行の状態と結果の分け方（H48、spec:954・:966、ヘルツ r1 の 1・2）: (1) NotificationIntent に lastAttempt: \"started\"｜\"failed\"｜null を足す（null は試行していない）と replayed: boolean（1 回の鳴らし直しを使ったか、(2)。無いと: 鳴らし直しも上位群に切られるたびに鳴らし直し、回数を縛れない）。予約（composition-root.ts:1194 の attempts＋1 の更新）は lastAttempt を \"started\" にして送る。NotificationIntentUpdate に lastAttempt・lossReason・replayed・expiresAt を足す（expiresAt は (2) の置き直しでだけ変わる）。lossReason は \"notificationExpired\"｜\"notificationExpiredClockUnverified\"｜\"notificationOutcomeUnknown\"｜null の 3 語（AC14 の H39 の通知の理由）で、終端にする更新にだけ付ける。publisher の reclaimExpired（composition-root.ts:1069）は、K9 の失効（:1082 の notificationExpiredClockUnverified）を含めて、送る expired の更新に診断と同じ理由の lossReason を付ける。選択時の期限の回収と結果の照合での失効は notificationExpired (2) 再試行は、送っていないと確定した失敗と、1 回の鳴らし直しだけ: NotificationResult の failed の reason に \"notStarted\"（外へ何も出していないと証明できる: backend の列の組み立てが失敗した、どの backend もプロセスを生成できなかった〔spawn の同期の例外、error で pid が無い〕、adapter を呼んだ時点で期限か試行の期限を過ぎていて起動しなかった〔adapter.ts:81、P2 の実装では timeout を返す〕）を足す。A7 は failed/notStarted を P2 の実装どおり nextAttemptAt を延ばして再試行し、lastAttempt を \"failed\" にする。sound の試行で、adapter がプロセスを起動した後に結果の分からずに終わったもの（起動した後の失敗〔P2 の実装の adapterRejected・起動後の adapterError、adapter.ts:113〕、timeout〔stopped=true〕、上位群の中断〔aborted/higherPriority、stopped=true〕）は、intent の replayed が false なら 1 回だけ鳴らし直す（H48 の 2026-10-22 の例外「鳴らないか二重かなら二重」）: replayed を true、lastAttempt を \"failed\" にし、nextAttemptAt を P2 の実装の遅れの式（notification-delivery.ts:128）で延ばし、期限を min(max(元の expiresAt, 試行が終わった wall＋元の長さ), createdAt＋2×元の長さ) に、monotonic の期限（deadlines の expiresAtMonotonicMs、notification-delivery.ts:131 で retryAt と一緒に置く）も min(max(元の値, 終わった monotonic＋元の長さ), 元の値＋元の長さ) に置き直す（元の長さは expiresAt－createdAt。EEW 15 秒・ほかの sound 60 秒）。置き直すのは鳴らし直しの 1 回だけで、元の期限の前に終わった試行だけに付く（期限を過ぎた結果は expired、notification-delivery.ts:107）。上界は式の min で守る（無いと: 壁時計が戻ったときの試行の終わりから数えて、上界を越えうる）。codec の期限の長さの検査は、P2 の実装の U-E の検査（eew-unit.ts:56 の expiresAt－createdAt ≦ 15,000）だけを広げ、ほかの unit には足さない。U-E の上界は channel と replayed で決める: desktop は常に 15,000、sound は replayed が false なら 15,000・true なら 30,000。ほかの unit の値（sound 60,000・replayed なら 120,000、desktop 180,000）は検査を足さずに式で守る。desktop で replayed が true の intent は形の外として invalid にする（desktop は鳴らし直さない）。無いと: 津波の音が EEW に切られ、EEW の音が続く間に元の 60 秒が来て、鳴らし直しが期限で落ちる。上位群の音の後に鳴るのは A7 の群の順（AC11）による。timeout も鳴らし直す理由: 10 秒で終わらない再生は、止まって無音だったのか鳴った後に終わらなかったのか分からないので、物差しどおり二重を選ぶ（旧築 sound-player.ts:263 は音を切らずに後の音を待たせるので、切られた音・時間内に終わらない音を無音のまま捨てない）。鳴らし直しの backend は (3)。replayed が true の試行が同じく終わったもの、desktop の起動した後の失敗・timeout・中断（desktop は鳴らし直さない。旧築 notifier.ts:1148〜:1177 も desktop の通知を再試行しないので、旧築より出なくなる所にならない）、期限・置換・停止の中断、stopped=false の隔離は「通知したか不明」とし、意味上まだ有効でも再試行しない: 終端（disposition \"expired\"、lossReason notificationOutcomeUnknown）にし、印の evidence は possible のまま。P2 の実装の「上位群の中断は期限の内で何度でも再試行」（notification-delivery.ts:127）と spec:960 の「中断した intent がなお意味上有効なら元の期限を維持して再試行規則へ戻す」は、1 回だけ・期限を数え直す形に改める（spec の食い違いは AC18 の (13)） (3) adapter（adapter.ts）: 同じ試行の中で次の backend へ進む fallback は、前の backend が notStarted のときだけにする（起動した後の失敗では止めて、その試行を結果の分からない終わり〔failed/adapterRejected・adapterError〕で返す。P2 の実装では adapter.ts:113 の手前で次の backend を起動し、列の最後まで回数を縛らずに鳴らし直しうる）。鳴らし直しは (2) の 1 回で、次の試行として列の次の backend で鳴らす（旧築 sound-player.ts:427 と同じく列の次の道具、2026-10-22 作者裁定）。音の backend の選び方は分岐 P3-NL-D-SOUND-BACKEND の裁定 B: 起動時の確かめ〔composition-root.ts:463〕で鳴った backend から始め、起動した後に失敗した試行と timeout の試行の後は列の次の backend へ進める（鳴らし直しと次の通知の両方がそこから始まる。上位群の中断では backend は悪くないので進めない。列の最後の次は先頭に戻る。列が 1 つの macOS の afplay は同じ backend で鳴らし直す）。位置は composition root が run の中だけで持ち、runNotificationAttempt に渡す。desktop は backend が 1 つなので列を進めない。起動時の確かめ（probeSoundBackend、adapter.ts:161。runAttempt を共有する）は無音の WAV を鳴らすだけで利用者に聞こえないので、本番の通知の fallback の制限から分ける: 前の backend のプロセスの終了（close）を確かめた後なら、起動した後の失敗でも次の backend を試す（P2 の実装どおり）。probe 全体の期限（5 秒）と、停止を確かめられないときの隔離は今のまま。無いと: ffplay が起動した後に失敗し paplay なら鳴る環境で、probe が ffplay で終わり sound が unavailable になる (4) 試行の期限（NotificationAttempt.timeoutAtMonotonicMs）は adapter を実際に呼ぶ時（AC07 の (2)(3)）に min(呼ぶ時の monotonic＋channel の timeout〔sound 10 秒・desktop 5 秒〕, intent の単調の期限) で作り直す。P2 の実装では A7 の選択の時に作る（notification-delivery.ts:84）ので、保存の待ちが 5 秒を越えると adapter が呼ばれずに timeout になる（ヘルツ r1 の 2）。選択・予約・待ちの測り方（selectedAtMonotonicMs、spec:956 の初回 1 秒）は今のまま (5) adapter を呼ばずに捨てた予約（AC07 の (5)(6)）は、lastAttempt を \"failed\" に戻す更新を同じ口で送る（送っていないと確定。無いと: 予約の後に保存し、adapter を呼ばずに再起動すると、復元で「通知したか不明」になり鳴らない）。印の evidence は下げない（possible のまま。取消が鳴る向きに倒す） (6) deliveryGrowth（delivery-growth.ts:7）に lastAttempt の伸び（null の 4 文字から \"started\" の 9 文字、5 byte）を足す（P3-INTENT-UPDATE-RESERVE-001 の式）。replayed（false→true）と expiresAt（13 桁のまま）は伸びない (7) priorityGroup の欄は AC11",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3075 «c9a00347f389c710»",
+          "docs/specs/reconstruction-p0-contracts.md:3075 «0e06bccef4d096b1»",
           "docs/specs/reconstruction-p0-contracts.md:954 «7df084dfec28900c»",
           "docs/specs/reconstruction-p0-contracts.md:960 «ed1339c17a231d35»",
           "docs/specs/reconstruction-p0-contracts.md:966 «17a8cabae704311a»",
           "reconstruction/contracts/p3-persist-premises.md:133 «0ef39d5d589715bd»",
           "reconstruction/contracts/p3-persist-premises.md:136 «5596a64d784f6647»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:86 «746e67a56ded9808»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:142 «5a0db5bf5ba8c087»",
-          "reconstruction/src/runtime/composition-root.ts:1076 «d8901fa45e61695f»",
-          "reconstruction/src/runtime/composition-root.ts:1091 «8cfadc0caf9e8ed1»",
-          "reconstruction/src/runtime/composition-root.ts:1205 «064f38fc06be1d45»",
-          "reconstruction/src/runtime/composition-root.ts:470 «709181cb515a96f9»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:83 «746e67a56ded9808»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:139 «5a0db5bf5ba8c087»",
+          "reconstruction/src/runtime/composition-root.ts:1081 «d8901fa45e61695f»",
+          "reconstruction/src/runtime/composition-root.ts:1096 «8cfadc0caf9e8ed1»",
+          "reconstruction/src/runtime/composition-root.ts:1215 «064f38fc06be1d45»",
+          "reconstruction/src/runtime/composition-root.ts:475 «709181cb515a96f9»",
           "reconstruction/src/notification-delivery/adapter.ts:99 «329d40ed6a824198»",
           "reconstruction/src/notification-delivery/adapter.ts:108 «df73017f36be6be6»",
           "reconstruction/src/notification-delivery/adapter.ts:112 «9121c5228fd34b3f»",
@@ -528,43 +536,43 @@
           "reconstruction/contracts/p2-notification-delivery.json:90 «e04708d153abbd15»",
           "reconstruction/contracts/p2-notification-delivery.json:124 «d06358d395cf76e1»",
           "reconstruction/contracts/p2-notification-delivery.json:481 «61b61e180de1814d»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:150 «c5ca8c8ddc49a6f1»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:147 «c5ca8c8ddc49a6f1»",
           "docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f»",
           "docs/specs/reconstruction-p0-contracts.md:973 «fafb3542a1028174»",
           "docs/specs/reconstruction-p0-contracts.md:980 «41c804768114d783»",
           "src/engine/notification/sound-player.ts:263 «c0b960fab010eb1e»",
           "src/engine/notification/sound-player.ts:427 «f04f1d2d9fdf5f45»",
-          "reconstruction/src/units/eew/eew-unit.ts:58 «4d8ac35f1f81c48e»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:109 «8923bbfaa3fca12b»"
+          "reconstruction/src/units/eew/eew-unit.ts:59 «4d8ac35f1f81c48e»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:106 «8923bbfaa3fca12b»"
         ]
       },
       {
         "id": "P3-NL-AC07",
         "requirement": "【発注 2】保存 ack を待つ配送（H48、作者裁定 §7 の 7、設計メモ §2.4、ヘルツ r1 の 2・6）: (1) 予約の採用の返信（composition-root.ts:1236〜:1252）で、adapter をすぐ呼ばず、その unit の mirror の persistence.currentGeneration（試行の開始を採った世代 G）と返信を受けた時の monotonic（待ち始め）を予約に残す。予約は今どおり channel を持つ（同じ channel で次の試行を始めない） (2) 平時: mirror の savedGeneration が G 以上になった評価で、今の開始の条件（採用・stage running・channel idle・期限の内・K9 の保留でない）を確かめ、AC06 の (4) で試行の期限を作り直して adapter を呼ぶ。全部の通知が対象 (3) 例外（通知の側から見た保存の障害）: 待っている間に (a) その unit の persistence.kind が failed か uncertain (b) その unit が保存されない（復元の返信の saves が false、owner-host.ts:181。書込み権に owner が G 以上の世代の保存を断った〔checkpoint の declined〕。stopSaving） (c) 待ち始めから 10,000 ms（置き値、P3-NL-DLV-02。checkpoint の権の 10 秒の監視〔checkpoint.ts:552、P3-UWR-AC01〕と同じ値で、保存が失敗にも結果不明にもならずに止まった場合を保存の障害に含める）を過ぎた、のどれかなら、すべての intent を ack を待たずに adapter を呼ぶ（2026-10-22 作者裁定。旧築 notifier.ts:1148〜:1180 は保存の失敗を見ずに鳴らす。r3 の案では EEW・津波・最も重い音だけで、ほかは期限まで待って notificationSaveBlocked で落としていた）。加えて unit U-E・unit U-T・payload.level critical の intent は、待ち始めから 1,000 ms（置き値、P3-NL-DLV-01、作者裁定 §7 の 7）を過ぎたら呼ぶ。待っている間に期限が来たものは P2 の実装どおり notificationExpired。この判定は通知の側だけで、checkpoint の 10 秒の監視と書込み権は変えない (4) 回復: persistence.kind ではなく、savedGeneration が G 以上に進んだことで平時に戻す (5) 待っている間に intent が置換・取消・期限で外れたら、今の selectDelivery の予約の削除と同じく予約を捨てる。上位群の intent が来たら、待っている下位の予約は捨てて channel を譲る（adapter を呼ぶ前なので中断ではない）。捨てた予約は AC06 の (5) (6) 停止（ヘルツ r2 の 3）: (a) 停止の開始（shutdownRequested）で待ちの締切の timer を外し、以後張らない。待っている予約は adapter を呼ばない（今どおり） (b) finalizeOwners（composition-root.ts:1465）は、K9 の待ちの分岐（:1471、復元由来の通知があって確かめていないときだけ）とは別に、要求を止める（requestsStopped）前に次を行う: 待っていて捨てた予約の lastAttempt を \"failed\" に戻す更新を送り、送出済みの予約の返信（intentRequests）が遅れて採用で返ってきたら、adapter を呼ばずに同じく failed に戻す更新を送り、intentRequests と heldUpdates（同じ owner・channel の更新枠が使用中で待っている更新）の両方が解決するまで待つ。P2 の実装では requestsStopped の直後に heldUpdates を消すので、枠が使用中のときの failed の更新が捨てられる (c) この待ちは sideEffectFinalization の段の期限（P3-C3A-AC09）の内で、期限に届いたら今どおり要求を止める（残存リスク (4)）。最終保存の後の条件（設計メモ :134 の「終了の段で最終保存を過ぎた後」）は、停止の段では新しい試行を始めないので要らない (7) 待ちの締切（ヘルツ r1 の 6）: host の 1 秒の tick（composition-root.ts:893）だけでは、tick の直後に採った予約が最長約 2 秒待つ。publisher は、待っている予約の最短の締切（待ち始め＋1,000 ms か＋10,000 ms。予約は channel ごとに 1 件なので 2 件の比較）に 1 本の timer（今の noticeTimer〔composition-root.ts:951〕と同じ作り、unref・張り直し）を置き、締切で評価する。予約が無くなれば外す (8) 待ちの時間を測定の記録（measuring.reservations）に足し、spec:956 の初回 1 秒の測り方（保存待ちを含める）を変えない",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3075 «c9a00347f389c710»",
-          "docs/specs/reconstruction-p0-contracts.md:949 «28854b020dc75755»",
+          "docs/specs/reconstruction-p0-contracts.md:3075 «0e06bccef4d096b1»",
+          "docs/specs/reconstruction-p0-contracts.md:949 «a47c18ebcb6de837»",
           "docs/specs/reconstruction-p0-contracts.md:956 «26c466d1a7f4b166»",
           "reconstruction/contracts/p3-persist-premises.md:133 «0ef39d5d589715bd»",
           "reconstruction/contracts/p3-persist-premises.md:134 «d18c26ed80c51700»",
           "reconstruction/contracts/p3-persist-premises.md:135 «743429c85af83c7f»",
           "reconstruction/contracts/p3-persist-premises.md:419 «a52a75413176caf2»",
           "reconstruction/contracts/p3-persist-premises.md:421 «ab58cf85ed99e44f»",
-          "reconstruction/src/runtime/composition-root.ts:893 «71f3e73d73b564c2»",
-          "reconstruction/src/runtime/composition-root.ts:951 «c98bab069678e362»",
-          "reconstruction/src/runtime/composition-root.ts:1242 «262ccda53e5153b1»",
-          "reconstruction/src/runtime/composition-root.ts:1252 «1b64bc661b7d9952»",
-          "reconstruction/src/runtime/composition-root.ts:1465 «d0c6b666cf0da5ef»",
-          "reconstruction/src/runtime/composition-root.ts:1472 «5f3fb69d10113811»",
-          "reconstruction/contracts/p3-execution-split.json:685 «4798a3d38b9a7ba4»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:457 «619bb12b70f28334»",
+          "reconstruction/src/runtime/composition-root.ts:898 «71f3e73d73b564c2»",
+          "reconstruction/src/runtime/composition-root.ts:956 «c98bab069678e362»",
+          "reconstruction/src/runtime/composition-root.ts:1322 «6fbcc4636e6a7ae5»",
+          "reconstruction/src/runtime/composition-root.ts:1286 «1b64bc661b7d9952»",
+          "reconstruction/src/runtime/composition-root.ts:1550 «d0c6b666cf0da5ef»",
+          "reconstruction/src/runtime/composition-root.ts:1559 «5f3fb69d10113811»",
+          "reconstruction/contracts/p3-execution-split.json:685 «e275f52678b07e0e»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:457 «d78d3e35ad31be60»",
           "reconstruction/src/checkpoint/checkpoint.ts:537 «cc329d3ed1170794»",
           "reconstruction/src/checkpoint/checkpoint.ts:552 «68cf5e887e2364da»",
           "reconstruction/src/runtime/owner-host.ts:181 «50d2ca18fd95e5e1»",
-          "reconstruction/src/runtime/owner-runtime.ts:445 «a3772a4757bc6933»",
+          "reconstruction/src/runtime/owner-runtime.ts:485 «a3772a4757bc6933»",
           "reconstruction/contracts/p3-unit-write-right.json:318 «9e629e374a548141»",
           "reconstruction/contracts/p3-execution-split.json:101 «190e19f50d0dfb4c»",
-          "reconstruction/contracts/p3-execution-split.json:661 «164034b16f81467f»",
+          "reconstruction/contracts/p3-execution-split.json:661 «2a18ac2c08cf011c»",
           "src/engine/notification/notifier.ts:1148 «531975c6e68bd97d»",
           "src/engine/notification/notifier.ts:1180 «4fdf5ba8d3e6bdef»"
         ]
@@ -576,34 +584,34 @@
           "reconstruction/contracts/p3-persist-premises.md:136 «5596a64d784f6647»",
           "reconstruction/contracts/p3-persist-premises.md:525 «7bf1ba3fc9c8ec7d»",
           "reconstruction/contracts/p3-persist-premises.md:527 «70a3ffe6b373dcd8»",
-          "reconstruction/contracts/p3-clock-check.json:342 «c045b229b153ba2d»",
+          "reconstruction/contracts/p3-clock-check.json:342 «03c3a5260de255f3»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:359 «118f0bc1fa574d7b»",
           "reconstruction/contracts/p2-notification-delivery.json:91 «53cff9917d12bece»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:774 «d5467a2b7a9b777a»"
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:782 «d5467a2b7a9b777a»"
         ]
       },
       {
         "id": "P3-NL-AC09",
         "requirement": "【発注 2】H19 取消の条件（spec:3046、設計メモ :131）: (1) 通知のある 10 unit（U-E・U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-Y）で、取消の通知を「取消の直前に active だった、またはその系列の印の evidence が possible か unknown」のときに作る。P2 の実装の条件（active だった、例 tsunami-unit.ts:414・:538）を含むので、P2 の実装で鳴る取消は鳴らなくならない (2) 新しく鳴るのは、解除・期限切れの表示の後もまだ記録（印）を覚えている系列の取消（例: 解除した津波警報の取消、期限を過ぎて記憶になった地域の警報の取消）と、U-E の再起動・gate の退去の後に印のある EventID へ届いた遅い取消（AC04 の (5)）。記録の無い系列（未受信・退去・回収の後）の取消は P2 の実装どおり鳴らない。ただし U-E は、gate も印も無い EventID・family への取消を、採るか（horizon の内で枠がある）によらず通知する（AC04 の (5)、2026-10-22 作者裁定、旧築 notifier.ts:389） (3) U-E は今の latch の証拠（eew.ts:608）が保存の印になり、条件は変えない (4) 取消の音は今どおり cancel。群は AC11 に従う（通常運用の U-E の取消は normalEew、ほかの unit の取消は other。今の A7 の group() と同じ、ヘルツ r1 の 8）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3046 «614b182e9fb70d03»",
+          "docs/specs/reconstruction-p0-contracts.md:3046 «d827c421cada4e9c»",
           "reconstruction/contracts/p3-persist-premises.md:131 «2c43d0b85d261f1c»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:414 «9ace8d6dcb4d49f2»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:538 «6e539e4282e6f9cb»",
-          "reconstruction/src/domains/eew/eew.ts:608 «295c160aab9d48a2»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:415 «c035559a7276e8ea»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:544 «6e539e4282e6f9cb»",
+          "reconstruction/src/domains/eew/eew.ts:613 «295c160aab9d48a2»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "src/engine/notification/notifier.ts:389 «8a01b0958c1cd6b3»"
         ]
       },
       {
         "id": "P3-NL-AC10",
-        "requirement": "【発注 2】H16 取消の文面（spec:3043）: (1) 10 unit の取消の通知の title と body に、何を取り消したか（取消の報の Head/Title。取消は取り消す報と同じ題名で出る。記録が題名を持たない unit〔U-E〕もこれで書ける。例「震源・震度情報」「緊急地震速報（地震動予報）」。U-V は Head/Title の頭の「火山名」と火山の名前〔例「火山名　浅間山　」〕を除いた残り、例「噴火警報（火口周辺）」）と発表時刻（取り消した記録の source の ReportDateTime を JST の HH:MM、P3-CC-D-FAILNOTICE の時刻と同じ書き方。U-E の印だけのときは family の記録の reportDateTimeRaw）を書く。記録の無い系列の取消は U-E を除き通知しない（AC09） (2) 震源名は分岐 P3-NL-D-CANCEL-EPICENTER（作者裁定 A: 震源を持つ記録の分野〔EEW の gate の noticeSource.hypocenter、U-Q の event の震源名〕だけ）。U-V は震源名の位置に取り消した記録の volcanoName を書く（2026-10-22 作者の指摘）。記録に震源名・火山名が無ければ書かない（U-E の再起動の後の遅い取消は gate が無いので書かない、残存リスク (20)） (3) 文面: title「[取消] <種類>（<震源名> HH:MM 発表）」、body「<震源名> HH:MM 発表の<種類>を取り消しました」（震源名が無ければ title・body とも震源名を省く。H16 の「取消の見出しと通知に震源名」どおり title にも入れる）。U-E で取り消した記録（gate も印も）が無い取消（AC04 の (5)）は時刻も書かない: title「[取消] <種類>」、body「<種類>を取り消しました」（旧築 notifier.ts:1200 も対象が分からないときは「緊急地震速報は取り消されました」で対象を書かない）。U-B の VPOA50 の取消には「（対応電文未確認）」を付けない（この印は対応する電文を見たかの印で、何を取り消したかに関わらない）。U-V の海上の部分だけの取消（火山現象に関する海上警報だけの取消）は、種類を「火山現象に関する海上警報」とし、火山名と時刻を同じ形で書く（2026-10-22 作者裁定、Q-NL-PRECHECK-2 の作者確認 2 件）。訓練・試験の接頭辞と注記行は今どおり先に付ける。10 unit の実例は questionResolutions の Q-NL-CANCEL-TEXT の表で、作者が承認した（Q-NL-AUTHOR）。通知の文面は P3 で作り P4 へ送らない（p3-order-plan.md:484） (4) 文字数の上限（各 unit の NOTICE_BOUNDS など）の内で切り詰める今の規則は変えない",
+        "requirement": "【発注 2】H16 取消の文面（spec:3043）: (1) 10 unit の取消の通知の title と body に、何を取り消したか（取消の報の Head/Title。取消は取り消す報と同じ題名で出る。記録が題名を持たない unit〔U-E〕もこれで書ける。例「震源・震度情報」「緊急地震速報（地震動予報）」。U-V は Head/Title の頭の「火山名」と火山の名前〔例「火山名　浅間山　」〕を除いた残り、例「噴火警報（火口周辺）」）と発表時刻（取り消した記録の source の ReportDateTime を JST の HH:MM、P3-CC-D-FAILNOTICE の時刻と同じ書き方。U-E の印だけのときは family の記録の reportDateTimeRaw）を書く。記録の無い系列の取消は U-E を除き通知しない（AC09） (2) 震源名は分岐 P3-NL-D-CANCEL-EPICENTER（作者裁定 A: 震源を持つ記録の分野〔EEW の gate の noticeSource.hypocenter、U-Q の event の震源名〕だけ）。U-V は震源名の位置に取り消した記録の volcanoName を書く（2026-10-22 作者の指摘）。記録に震源名・火山名が無ければ書かない（U-E の再起動の後の遅い取消は gate が無いので書かない、残存リスク (20)） (3) 文面: title「[取消] <種類>（<震源名> HH:MM 発表）」、body「<震源名> HH:MM 発表の<種類>を取り消しました」（種類〔取消の報の Head/Title〕の末尾が「の取消」のときは除いてから使う〔統合担当の決定、Q-NL-IMPL-2〕。震源名が無ければ title・body とも震源名を省く。H16 の「取消の見出しと通知に震源名」どおり title にも入れる）。U-E で取り消した記録（gate も印も）が無い取消（AC04 の (5)）は時刻も書かない: title「[取消] <種類>」、body「<種類>を取り消しました」（旧築 notifier.ts:1200 も対象が分からないときは「緊急地震速報は取り消されました」で対象を書かない）。U-B の VPOA50 の取消には「（対応電文未確認）」を付けない（この印は対応する電文を見たかの印で、何を取り消したかに関わらない）。U-V の海上の部分だけの取消（火山現象に関する海上警報だけの取消）は、種類を「火山現象に関する海上警報」とし、火山名と時刻を同じ形で書く（2026-10-22 作者裁定、Q-NL-PRECHECK-2 の作者確認 2 件）。訓練・試験の接頭辞と注記行は今どおり先に付ける。10 unit の実例は questionResolutions の Q-NL-CANCEL-TEXT の表で、作者が承認した（Q-NL-AUTHOR）。通知の文面は P3 で作り P4 へ送らない（p3-order-plan.md:484） (4) 文字数の上限（各 unit の NOTICE_BOUNDS など）の内で切り詰める今の規則は変えない",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3043 «910571af484c07c7»",
-          "reconstruction/src/domains/eew/eew.ts:615 «90c93f2cfd91be75»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:366 «a1c57dd6a1a724e1»",
+          "docs/specs/reconstruction-p0-contracts.md:3043 «25cb6d35dc4ddee7»",
+          "reconstruction/src/domains/eew/eew.ts:620 «90c93f2cfd91be75»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:370 «766fd07f63db2e36»",
           "reconstruction/contracts/p2-eew-unit.json:191 «095cf6adda999792»",
-          "reconstruction/contracts/p3-currency-coverage.json:34 «3018aeb0d806af71»",
+          "reconstruction/contracts/p3-currency-coverage.json:34 «77264aaea2922beb»",
           "reconstruction/contracts/p3-order-plan.md:442 «13b37fbd2c0f1292»",
           "reconstruction/contracts/p3-order-plan.md:484 «afce2a57bc11abf4»",
           "src/engine/notification/notifier.ts:1200 «65ce7494290d13cc»"
@@ -613,7 +621,7 @@
         "id": "P3-NL-AC11",
         "requirement": "【発注 2】H09 注意報の音と群の切り離し（spec:3036 と注、設計メモ :137）: (1) U-T の段階で津波注意報への発令・引上げ・区域拡大（riseLevel の advisory、tsunami-unit.ts:142）を warning にする（P2 の実装では normal）。大津波警報への引上げの critical、観測の info、取消の cancel、上がらない続報の normal は変えない。16.2.1 の地域設定のしきい値は地域設定の側（C18 と区域の対応表の契約）に残す（spec:3098） (2) NotificationIntent に priorityGroup: NotificationPriorityGroup（p2-notification-delivery.types.ts:10 の型、p2-shared-runtime.types.ts へ移すか import する）を足す。owner が作るときに決める: U-E は operation が normal なら normalEew、U-T は operation が normal で、その報が警報以上（津波警報・大津波警報、未知の区分を含む P3-C5-KIND-ENUM）への発令・引上げ・区域拡大を含むなら normalTsunamiEmergency（ほかの区域の降格・部分解除を含んでも除かない）、ほかは other。U-Q は other のまま（P3-C7-NOTICE-GROUP=A） (3) A7 の group()（notification-delivery.ts:18〜:24）は intent.priorityGroup を返すだけにする (4) U-T の中の群の判定（groupRank、tsunami-unit.ts:147。置換・容量の退去）と失敗警報の判定（tsunami-unit.ts:628、P3-CC-D-FAILNOTICE）を同じ判定に揃える。失敗警報は、拒否した報が警報以上への発令・引上げ・区域拡大を含むときに作り（operation によらない、今の level の判定と同じく training・test にも当てる）、段階は fresh の level の最大。注意報だけの拒否は今どおり失敗警報を作らない (5) codec は priorityGroup を確かめる（normal 以外は other、U-E の normal は normalEew、ほかの unit は U-T を除き other）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3036 «2685ce7c86b79cbd»",
+          "docs/specs/reconstruction-p0-contracts.md:3036 «71b1b9a7c7b83808»",
           "docs/specs/reconstruction-p0-contracts.md:3079 «847b4d7e72d13f13»",
           "docs/specs/reconstruction-p0-contracts.md:3082 «0ae98525ff546827»",
           "docs/specs/reconstruction-p0-contracts.md:3098 «14c99ebd382b7011»",
@@ -621,13 +629,13 @@
           "reconstruction/contracts/p3-persist-premises.md:330 «408f530cbf7982fe»",
           "reconstruction/contracts/p3-tsunami-unit.json:11 «10c1cc61e2fcb5e8»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:142 «76f9ccfdb32529b0»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:147 «256db0e2f8cba821»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:628 «813e47f43cace15c»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:146 «256db0e2f8cba821»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:636 «255c31f8e0275a9d»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:21 «610e2251eb0ae3de»",
+          "reconstruction/src/units/notice-mark.ts:99 «085550b0cc032fbb»",
           "reconstruction/contracts/p2-notification-delivery.types.ts:10 «8e994c0d4bf50f4b»",
           "reconstruction/contracts/p2-notification-delivery.json:11 «e9f4b08ec5226fd8»",
-          "reconstruction/contracts/p2-notification-delivery.json:438 «ae41bf10a408a028»",
+          "reconstruction/contracts/p2-notification-delivery.json:438 «31ffd01d5ed450fa»",
           "reconstruction/contracts/p3-seismic-unit.json:57 «884ad0b7effcdfc4»",
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»"
         ]
@@ -636,13 +644,13 @@
         "id": "P3-NL-AC12",
         "requirement": "【発注 2】H06 EEW の最終報（spec:3033）: (1) 最終報（取消でなく NextAdvisory のある報、eew.ts:180 の terminal）の通知の level を normal にし、body の頭に「最終報: 」を書く（訓練・試験の注記行の後）。EewNotificationPayload.level（p2-eew-unit.types.ts:104）に \"normal\" を足す（音は earthquake-eew-normal.wav、今ある資材） (2) 第 1 報・警報への切替・危険が増した続報に当たる最終報は分岐 P3-NL-D-FINAL-OVERLAP（作者裁定 A: 今の音で鳴らし、本文に「最終報」と書く） (3) 最終報を通知するか（eew.ts:608 の notify の条件、最終報は今どおり鳴らす）・取消の cancel・群（normalEew）は変えない",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3033 «7a8314b5e9b3ea59»",
+          "docs/specs/reconstruction-p0-contracts.md:3033 «d95e4a38927ea892»",
           "reconstruction/src/domains/eew/eew.ts:180 «febb29d41329b53e»",
-          "reconstruction/src/domains/eew/eew.ts:609 «cbb4373eadfff199»",
-          "reconstruction/src/domains/eew/eew.ts:666 «3a484754f127e5f3»",
-          "reconstruction/src/domains/eew/eew.ts:676 «82d230f8f7de3232»",
-          "reconstruction/src/domains/eew/eew.ts:677 «4784c8a09252e1b5»",
-          "reconstruction/contracts/p2-eew-unit.types.ts:104 «dda3494deb779e3d»",
+          "reconstruction/src/domains/eew/eew.ts:614 «cbb4373eadfff199»",
+          "reconstruction/src/domains/eew/eew.ts:671 «3a484754f127e5f3»",
+          "reconstruction/src/domains/eew/eew.ts:686 «663bbf2595dbc195»",
+          "reconstruction/src/domains/eew/eew.ts:687 «3d6dabee6f218462»",
+          "reconstruction/contracts/p2-eew-unit.types.ts:105 «b01225dea5a2873d»",
           "reconstruction/contracts/p2-eew-unit.json:191 «095cf6adda999792»"
         ]
       },
@@ -650,7 +658,7 @@
         "id": "P3-NL-AC13",
         "requirement": "【発注 2】H27 の照合（重ねない側だけ、spec:3054、設計メモ :138）: (1) 取り直しで拾った報から unit が作る intent も、AC01 の照合を通す。同じ系列の印に同じ版の鍵と種類があれば作らない（既存の pending・送信済み・送信したか不明のどれでも重ねない。終端の intent は印に置き換わっているので、印だけを見ればよい） (2) 何と比べた引上げか、取り直しの音の段、表示は C16（P3-RECOVERY-001 の P3-REC-AC の RA の行、P3-REC-D-RAISE-*）の領分で、本契約は作らない。C16 が作る引上げの intent の ID も AC01 の形にする (3) 印の保持の期間は §7 の 1(c)（AC02 の (4)）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3054 «2134d1e09a239364»",
+          "docs/specs/reconstruction-p0-contracts.md:3054 «9844920e53171b3b»",
           "reconstruction/contracts/p3-persist-premises.md:138 «bbb031b0b7edf986»",
           "reconstruction/contracts/p3-recovery.json:573 «d3a653c4b2b5681a»",
           "reconstruction/contracts/p3-persist-premises.md:128 «f1d4b5d6501fb72c»"
@@ -660,7 +668,7 @@
         "id": "P3-NL-AC14",
         "requirement": "【発注 1 は欄、発注 2 は数え方】H39 の件数の欄（spec:3066・16.2.6、作者裁定 §7 の 3）: (1) 置き場: CheckpointEnvelope に losses を足す（K7 の inputBoundary と同じく、owner が capture で書き、復元で読む。unit の payload には足さない。無いと: unit の reduce と codec を 12 回開けて数えることになり、数える担い手が unit ごとに散る）。欄の無い旧い envelope は空として読む（K7 の inputBoundary と同じ） (2) 形: { reason, count, lastAt }[]。reason ごとに 1 行（設計メモ :300 の「分野・理由ごと」。分野は envelope の unit。operation は分けない: 診断の行は operation を持たず、退去は引き金の入力と別の operation の記録を外しうる）。count は安全な整数で飽和させ、lastAt は最後に足したときの手元の wall (3) 数える理由（閉集合）: 通知の notificationExpired・notificationExpiredClockUnverified（K9、§14 の (b)）・notificationCapacityEvicted・notificationOutcomeUnknown（新）、印の noticeMarkEvicted（新）、情報の capacityRejected と各 unit の容量の退去（eewCapacityEvicted・weatherCurrentCapacityEvicted・tsunamiCapacityEvicted ほか 9 語）。新しい 2 語を DiagnosticReason（p2-shared-runtime.types.ts:299）と persistent-diagnostic-sink の表に足す（無いと: 通知したか不明・印を捨てた件数が、ふつうの期限切れと見分けられない） (4) 数え方: owner は unit の採用の結果の診断（reason・unit・count、count が無ければ 1）と、採用した NotificationIntentUpdate の lossReason（AC06 の (1)）を数える。publisher が出す診断（reclaimExpired の notificationExpired、composition-root.ts:1076）は main の診断の行のままで、owner は lossReason の側でだけ数える（二重に数えない） (5) 保存（ヘルツ r1 の 7）: losses の変化は永続状態の変更で、unit の state が変わらない入力（例: 保存済みの unit が容量で報を断っただけ）でも、owner はその unit の世代を進めて dirty にし、その入力の ID を世代の入力 ID の記録（owner-host の ledger）に帰属させ、capture の後の変更（postCaptureDirtySince）として扱う。同じ入力で unit が世代を進めたときは、その世代に含めて別の世代を作らない。owner は unit の state の persistence（currentGeneration・dirtySince）を進め、domain の中身と contentRevision は変えない。generationInputIds にその unit の key を必ず置く（key が無いと P3-OLB-AC02 で unit がその run では保存しない集合に入る）。今の容量の拒否で世代が進んだときの帰属（owner-runtime.ts:366、P3-CC-AC10(9)）と同じ扱いで、正常採用の根拠にはしない。無いと: 断っただけの入力の件数が保存されず、再起動で消える (6) 保持: 行は lastAt＋24 時間（置き値、§7 の 3）を過ぎたら capture と復元のときに外す (7) 上界: unit ごとの理由（最大 7）の行で、envelope の上限に LOSS_TALLY_MAX_BYTES（INPUT_BOUNDARY_MAX_BYTES と同じ作り方、checkpoint.ts:641）を足す (8) 数えない欠けの行き先（outOfScope）: mailbox・host が断った入力（mailboxRejected*）は unit が決まる前の欠けで、取り直しの境界の穴（K7 の oldestHole、C16 が埋める）。読めなかった EEW・津波（H43）は K14、照合できないまま時間がたった EEW の「…は未確認」（H28）は C16。画面へ送る口・件数の分からない欠けを 0 件と出さないこと（spec:3151〜:3155）は段 4",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3066 «35241df4e618368e»",
+          "docs/specs/reconstruction-p0-contracts.md:3066 «35e93a2c45a24cc6»",
           "docs/specs/reconstruction-p0-contracts.md:3151 «84071cfa5cd47632»",
           "docs/specs/reconstruction-p0-contracts.md:3153 «9b8178d18d1ca17d»",
           "docs/specs/reconstruction-p0-contracts.md:3154 «4477aad74aaca4d2»",
@@ -671,11 +679,11 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:318 «350627aa0c8c0b86»",
           "reconstruction/src/checkpoint/checkpoint.ts:641 «7cd2ed82d8fa4c92»",
           "reconstruction/src/checkpoint/checkpoint.ts:690 «271e5d5c4145cb60»",
-          "reconstruction/src/runtime/composition-root.ts:1076 «d8901fa45e61695f»",
+          "reconstruction/src/runtime/composition-root.ts:1081 «d8901fa45e61695f»",
           "reconstruction/contracts/p3-persist-premises.md:525 «7bf1ba3fc9c8ec7d»",
-          "reconstruction/src/runtime/owner-runtime.ts:366 «f6c5c0c9769fbe2a»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»",
-          "reconstruction/contracts/p2-shared-runtime.json:563 «2d92f30ceb21245b»"
+          "reconstruction/src/runtime/owner-runtime.ts:395 «63adcad8d045ce86»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «7c601648697d31b3»",
+          "reconstruction/contracts/p2-shared-runtime.json:563 «b594796dccab77ba»"
         ]
       },
       {
@@ -705,7 +713,7 @@
         "evidenceRefs": [
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "reconstruction/contracts/p3-unit-table.types.ts:23 «e9aa1ab592d4d861»",
-          "reconstruction/src/runtime/composition-root.ts:951 «c98bab069678e362»"
+          "reconstruction/src/runtime/composition-root.ts:956 «c98bab069678e362»"
         ]
       },
       {
@@ -713,7 +721,7 @@
         "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方を優先する）: (1) P2-NOTIFICATION-DELIVERY-001: P2-A7-IR03 の A に「群は owner が intent に付けた priorityGroup を読む（P3-NOTICE-LEDGER-001 の P3-NL-AC11）」を足す。P2-A7-AC01 の「津波緊急の意味生成と合格はP3に残す」の後に「群の判定は intent の priorityGroup」を足す。P2-A7-TIME の failure に「再試行は result の failed/notStarted と、sound の起動した後に結果の分からずに終わった試行（failed/adapterRejected・起動後の failed/adapterError・timeout・aborted/higherPriority）の 1 回の鳴らし直し（期限は終わった時から元の長さを数え直す）。ほかは通知したか不明で終端（P3-NL-AC06 の (2)）」を、restore に「lastAttempt が started の pending は unit が復元で不明にし、ここに来ない（P3-NL-AC08）」を足す。persistedFields の 1 行目に「lastAttempt・priorityGroup」を足し、P2-A7-RET-01 の limit を「系列の印（P3-NL-AC02）。終端の intent は残さない」にする。P2-A7-DLV-01 の scope の「includes save」に「保存 ack の待ち（EEW・津波・critical は最長 1 秒、ほかは 10 秒、保存の障害の間は待たない、P3-NL-DLV-01・DLV-02）」を足す。P2-A7-AC05（:472）の「保存予約した後、保存ackを待たず試行する」を「試行の開始を採った世代の保存 ack を待ってから試行する（例外は P3-NL-AC07 の (3)）」に替える (2) P2-CHECKPOINT-SHUTDOWN-001: P2-A3-AC01 の「元期限内のpending intentだけを再試行し」の後に「（lastAttempt が started のものは通知したか不明として再試行しない、P3-NL-AC08）」を足す。envelope の型の AC に losses（P3-NL-AC14）を足す (3) P2-SHARED-RUNTIME-001: NotificationIntent（lastAttempt・priorityGroup・replayed）・NotificationIntentUpdate（lastAttempt・lossReason・replayed・expiresAt）・CheckpointEnvelope（losses）・NoticeMark・DiagnosticReason の 2 語を型の境界の AC と試験の閉集合に足す (4) P2-EEW-UNIT-001: Q-NOTICE.payloadRules に H06（最終報は normal と「最終報: 」、P3-NL-D-FINAL-OVERLAP の裁定）と H16（取消の文面、P3-NL-AC10）を足す。Q-NOTICE.latchRules を「latch は EventID ごとの印として family ごとの版の材料と一緒に保存し、起点＋24 時間か 2,048 件の上限まで残す。gate の退去・期限では消さない（releaseOrphanLatches と preexisting は無い）。gate の無い報は印の版と比べる（P3-NL-AC04）」に替える。Q-NOTICE.capacity の deliveryRecords と 256KiB の文を「終端の記録は持たない。世代の上限は 2,097,152 byte（P3-NL-AC04）」に替える。Q-NOTICE.generationTable の ID の形を P3-NL-AC01 にする。Q-NOTICE の検収の AC（:479）の「通知済みflags/危険増大基準は採用時だけ進め、保存しない。復元では配送証拠だけを再構成する」を「印として保存する（P3-NL-AC04）」に替え、「expiresAt=createdAt+15000」に「（sound の 1 回の鳴らし直しを除く、P3-NL-AC06 の (2)）」を添える。容量の AC（:434）の「normalだけで上限を超える場合はcapacityExceeded」に「（取消は採らずに取消の intent だけを作る、P3-NL-AC04 の (5)）」を足す。schemaVersion を上げた旨を添える (5) P3-TSUNAMI-UNIT-001: P3-C5-NOTICE-LEVELS の A に「注意報への発令・引上げ・区域拡大は warning（H09、P3-NL-AC11）」を、Q-NOTICE.emergencyGroup に「群は intent の priorityGroup で、警報以上への発令・引上げ・区域拡大を含む normal の報」を、Q-NOTICE.generationTable の取消の行に H19 の条件（P3-NL-AC09）と ID の形を、Q-NOTICE.restart に started の扱い（P3-NL-AC08）を、Q-NOTICE.capacity に「終端の intent は残さない」を、P3-C5-LEGACY-DIFF の「新築は取消の前にactiveだったsubjectだけ」に「と、印の証拠のある系列（H19）」を足す。P3-C5-REPLACEMENT の群の判定を priorityGroup と読む旨を添える (6) P3-CURRENCY-COVERAGE-001: P3-CC-D-FAILNOTICE の A の「fresh の level の最大が warning 以上なら」を「U-T は拒否した報が警報以上への発令・引上げ・区域拡大を含むなら（H09 の群と同じ判定、P3-NL-AC11）、U-Q は今どおり」に、「pending か終端記録」を「pending か失敗の印（P3-NL-AC02 の (6)）」に替える (7) P3-UNIT-TABLE-001: UnitModule の表の AC（:263 の行）から terminalIntents の文を外す (8) P3-INTENT-UPDATE-RESERVE-001: P3-IUR-AC01 の deliveryGrowth の式に lastAttempt の伸び（5 byte）を足す（replayed・expiresAt は伸びない） (9) P3-UNIT-Q-001（P3-C7）・P3-UNIT-N-001（P3-C8）・P3-UNIT-V-001（P3-C9）・P3-UNIT-L-001（P3-C10）・P3-UNIT-R-001（P3-C11）・P3-UNIT-B-001（P3-C12）・P3-UNIT-M-001（P3-C13）・P3-UNIT-Y-001（P3-C14）: それぞれ Q-NOTICE.generationTable の取消の行（H19 の条件、P3-NL-AC09）と ID の形（P3-NL-AC01）、Q-NOTICE.restart（P3-NL-AC08）、Q-NOTICE.capacity（終端の intent を残さない、P3-NL-AC05）、Q-NOTICE.payload（取消の文面、P3-NL-AC10）、各 LEGACY-DIFF の取消の条件の文（例 P3-C7-LEGACY-DIFF の「取消の前にactiveだったfamilyの取消だけ」）に「と、印の証拠のある系列の取消（H19）」を足す。器と上界の数字は、それを書く契約（P3-C7-CAPACITY-BUDGET ほか）に添える。schemaVersion を上げた旨を添える (10) P2-WEATHER-CURRENT-UNIT-001・P2-WEATHER-TIMESERIES-UNIT-001: intent の型と schemaVersion を上げた旨を添える (11) P3-CLOCK-CHECK-001: P3-CK-AC03 の (1) の「K8 の started が入るまでは今の復元の再試行の対象と同じ」の後に「K8 の後は started の無いものだけ（P3-NL-AC08）」を、P3-CK-AC08 の (5) に「P3-NL-AC08・AC14 で済み」を添える (12) P3-RECOVERY-001: P3-REC-AC10（RA の行、:573）の「intent の ID と照合は K8 の印（系列＋版の鍵＋遷移＋channel）で行い」と questionResolutions の :180 の「intent の ID と印の鍵は「系列＋版の鍵＋遷移＋channel」」を、2 つに分けて読む旨を添える: intent の ID は P3-NL-AC01 の (1) の形（遷移・channel を含む）、重複を抑える照合は P3-NL-AC01 の (2) の印の種類（報・取消・期限。channel を問わない）による。:215 の「保存の障害の間と待ちが 1 秒（置き値）を越えたときだけ EEW・津波・critical が待たずに出る」に「保存の障害の間はすべての通知、待ちが 10 秒を越えたときはほかの通知も（P3-NL-AC07 の (3)）」を添える (13) spec（§6.3 の :949※・:960※ と O10 の行 :1786※〔重複許容〕の本文、2026-10-22 に H48 の行へ足した例外と食い違う §6.3 の :954※（7 の「送っていないと確定したものだけを元の期限内で再試行」）・:960※（中断した intent を元の期限で再試行へ戻す）と §6.4 の :972※・:973※（15 秒・60 秒の期限）・:980※（元の期限を延長しない）〔1 回の鳴らし直しとその期限の数え直し、P3-NL-AC06 の (2)〕、:949※ の「緊急通知を fsync 待ちにしない」〔保存の障害の間はすべての通知、P3-NL-AC07 の (3)〕、H06・H09・H16・H19・H27・H39・H48 の行への本契約の ID、§6 の Linux の再生列の行〔probe で鳴った backend から始める、P3-NL-AC06 の (3)〕）と設計メモ（§8 の K8 の行の読みを新しい節に足す。§0〜§14 の行は書き換えない）は統合担当が main で別に行う (14) 他の契約が引く行: 変える file（各 unit・eew.ts・composition-root.ts・owner-runtime.ts・notification-delivery.ts・checkpoint.ts・types）の行を anchor で引く他の契約の参照は、発注前点検で数え、動いた行は配送の commit で付け直す（本文は書き換えない） (15) 配送の commit で本契約の publicTypes に p2-shared-runtime.types.ts#NoticeMark と p2-eew-unit.types.ts#EewNoticeMark を足す（起草の時点では型がまだ無く、check-contract が型の実在を求める） (16) P3-LIFETIME-AND-EEW-GATE-001（ヘルツ r1 の 5・9、適合 P2-2）: P3-LIFE-D-LATE の A の「既知subject（gateあり）の取消を除き」を「既知subject（gateあり、または gate は無いがその EventID・family の記録を持つ U-E の印あり、P3-NL-AC04 の (5)）の取消を除き」に替え、「その例外に当たらない horizon 外の取消も、採らずに取消の intent だけを作る（P3-NL-AC04 の (5) の (a)）」を添える。horizon の規則（:235 の rule）と AC03（:319）の (2)「gateの無いsubjectの報は…unchanged/stale（stateは同一参照、intents/outcomes空）」にも「（gate も印も無い EventID の取消は、採らずに取消の intent と印だけを足す、P3-NL-AC04 の (5)）」を添える。P3-LIFE-AC01（F01、:297）の nextEewDeadline の「deliveryRecordsのexpiresAt」を「印の retainUntil」に替え、同じ AC01 の後半の「gate の除去で latch を解除・初期化し evidenceUnknownUntil を延ばす」規則を消す（印は gate の除去で消えず、evidenceUnknownUntil は復元の 10 分だけ、P3-NL-AC04 の (6)）。AC08（:375）の (1)「U-Eのduplicate・stale・rejected・capacityExceeded・recoveryの未適用はstateを同一参照で返し」に「（horizon の外と容量で採らない取消は、current・gate を変えずに取消の intent と印だけを足す、P3-NL-AC04 の (5)）」を、(2)「再起動後の保証は報の起点からの10分のhorizonだけ」に「（印のある EventID は、印の版より古い報を stale にし、遅い取消を採る、P3-NL-AC04）」を足す。:385 の (4)「Q-NOTICE.latchRules.lifetimeの最後のowner退去とevidenceUnknownUntilの回収にgateの期限回収を含める」を「latch は印として gate と別の寿命（P3-NL-AC04 の (6)）。evidenceUnknownUntil は復元の 10 分だけ」に替える。AC11（:409）の「容量退去とlatchの解除・evidenceUnknownUntilの延長の規則を共有する」から latch の解除と延長を外す。P3-LIFE の試験の行（:460）の「gateの期限回収でdelivered証拠のlatchが解除されevidenceUnknownUntil＝回収時刻＋600,000」を「gate の期限回収で印は消えない」に替え、「horizon外の既知subjectの取消」に印だけの EventID の取消の行を足す (17) P3-EEW-GATE-EVICT-001（ヘルツ r1 の 9、適合 P2-2）: P3-EVICT-AC01 の (5)（:202）の「releaseOrphanLatchesのlatchの解除とevidenceUnknownUntilの延長」を消す（印は退去で消えない）。P3-EVICT-AC02（:219）の B 表の B4（取消で、報時刻＋600,000≦wall）の結論を「印のある EventID の取消は採用して通知する。印が 2,048 件の上限で捨てられた EventID の取消は、採らずに取消の通知だけを出す（P3-NL-AC04 の (5)、2026-10-22 作者裁定）」に、B1〜B3 に「印の版より古い報は stale」を添え、「latch・evidenceUnknownUntil は非保存」の文を「latch は印として保存（P3-NL-AC04）、evidenceUnknownUntil は非保存」に替える。P3-EVICT-AC03（:234）と残存リスクの (1)（:400）の「capacityExceeded」の取消に「（取消は採らずに通知だけを出す、P3-NL-AC04 の (5)）」を添える (18) P3-EXECUTION-SPLIT-001（ヘルツ r1 の 9）: P3-C3A-NOTIFY-ADOPT の A と P3-C3A-AC07（:661）の「adopted=trueの返信が現在の予約に一致し、shutdown前でintentの期限内のときだけ…adapterを1回呼ぶ」を「…採用の世代の保存 ack を待ってから（例外は P3-NL-AC07 の (3)）adapter を 1 回呼ぶ。試行の期限は呼ぶ時に作る（P3-NL-AC06 の (4)）」に、「それ以外の返信はmirrorだけを反映する」に「捨てた予約は lastAttempt を failed に戻す更新を送る（P3-NL-AC06 の (5)）」を足す。P3-C3A-AC09（:685）の終了の段の (1) の前に「待っている予約の lastAttempt を failed に戻す更新を送る（P3-NL-AC07 の (6)）」を足す (19) P2-NOTIFICATION-DELIVERY-001 の P2-A7-ADAPTER（:124 の再生列）と音の AC（:481）: 「同じ試行の中で列の次へ進むのはプロセスを生成できなかったとき（notStarted）だけ。起動した後に失敗した試行は結果の分からない終わりで返し、1 回の鳴らし直しを次の試行で列の次の backend から鳴らす。delivery は probe で鳴った backend から始め、起動した後の失敗と timeout の後は列の次へ進める（P3-NL-D-SOUND-BACKEND の裁定 B、P3-NL-AC06 の (2)(3)）」を足す。P2-A7-ADAPTER.run（:102）の「soundは前processのclose後にだけ次playerを試し、成功または列の全失敗で一件を返す」を「前 process の close の後に次の player を試すのは、前が notStarted のときだけ」に替える。NotificationResult の failed の reason に notStarted を足す。probe は本番の fallback の制限から分ける（P3-NL-AC06 の (3)） (20) P2-CHECKPOINT-SHUTDOWN-001: P2-A3-AC11（:457）の「所有unitの保存予約後・ack前にnotificationAttemptsを実adapterへdispatch」を「試行の開始を採った世代の保存 ack の後に dispatch（例外は P3-NL-AC07 の (3)）」に替える。P2-A3-AC10（:450）に「H39 の件数だけが変わった入力（P3-NL-AC14 の (5)）も世代を進め、その入力の ID を帰属させる」を足す (21) P2-SHARED-RUNTIME-001: R45（:563）の「採用に寄与したparser inputIdだけを含み」に「（容量の拒否と H39 の件数だけの変化で世代が進んだ入力を含む、P3-CC-AC10(9)・P3-NL-AC14 の (5)）」を、:570 の「U-E終端はdeliveryRecords、U-W/U-F終端はintentsで確認する」を「終端の intent は全 unit で、対象の intent が intents に無いことと、unit の保存の世代が進んだことで確認する（P3-NL-AC05 の (3)）」に替え、同じ条の後半の「U-E終端記録にはattempts/nextAttemptAtが無いので更新前intentと照合したid/disposition/expiresAt、およびunitの保存世代進行で確認し、存在しないfieldを要求しない」を消す（終端記録が無くなる）。同じ条の計算量の文の「Nは所有pending Kと終端Tを含む保持intent数…Tに固定件数上限はなくU-E 256KiB・U-W 16MiB・U-F 32MiBの保存世代予算に従う」を「N は所有 pending K（各 unit 128 件/128KiB）」に、「U-Eの256KiB保存世代予算を超える場合に限り、終端T件のexpiresAt順整列を1回…splice反復は禁止する」を消し（終端の退去が無くなる）、「一括失効も…O(K+T)」を「O(K)」に替える。:680 の試験の行の「実reduceEewUnitの終端deliveryRecordsを使い採用確認する」と、:759 の残りの項目の「A1はU-E終端intentUpdateをdeliveryRecordsで、U-W/U-Fをintentsで採用確認し」を、AC05 の (3) の確かめに替える (22) 終端の予算・終端記録を前提にした他の条文（grep で確かめた。決定の記録〔decisionBranches の A・B・reason〕の行は原文のまま）: P2-EEW-UNIT-001 の Q-NOTICE.stateRule（:104）の「current/gates/intents/deliveryRecords/persistence」から deliveryRecords を外し、Q-NOTICE.latchRules.restart（:211）の「latch自体はPersistedEewUnitへ保存しない。codec復元で既存intentのattemptsとdeliveryRecords…」を「latch は印として保存する（P3-NL-AC04）」に替える。P3-LIFETIME-AND-EEW-GATE-001 の資源の上限（:260）の「gates＋intents＋deliveryRecords」を「gates＋intents＋印」に、persistedFields（:280）の「PersistedEewUnit（intents・deliveryRecords）」を「（intents・notices）」に替える。P3-EEW-GATE-EVICT-001 の persistedFields（:187）も同じ。P3-INTENT-UPDATE-RESERVE-001 の outOfScope（:226 の U-E の終端記録の退去の規則、:229 の U-Q 131,072・U-N 98,304 の終端記録の回収）に「P3-NOTICE-LEDGER-001 で終端記録は無くなった」を添える。P3-OPERATION-CAPACITY-N-001 の outOfScope（:155）の「終端記録の回収（trimTerminal）」も同じ。P3-UNIT-N-001 の P3-C8-CAPACITY の A（:93）の「終端記録の予算」の項に「P3-NOTICE-LEDGER-001 で外した（印に置き換え）」を添える。P3-CURRENCY-COVERAGE-001 の試験の行（:784）の「U-Q で昇格の後の終端記録が 131,072…」を「失敗の印（P3-NL-AC02 の (6)）」の形に替える。各 unit 契約の persistedFields の「intent: pendingの全fieldと元のcreatedAt/expiresAt、終端記録（expiresAtまで…）」（P3-UNIT-B :967・P3-UNIT-R :780・P3-UNIT-L :651・P3-UNIT-N :667・P3-UNIT-M :1020・P3-UNIT-Q :743・P3-UNIT-Y :958・P3-TSUNAMI-UNIT :810・P3-UNIT-V :959）の終端記録の句を「系列の印（P3-NL-AC02）」に替える (23) 「期限を延ばさない」の文（行は起草者が実物で確かめた）に「（sound の 1 回の鳴らし直しを除く、P3-NL-AC06 の (2)）」を添える: P2-NOTIFICATION-DELIVERY-001 の P2-A7-TIME.failure（:90 の「expiresAt/createdAt/expiresAtMonotonicMsは維持する」）・ordinaryReevaluation（:92 の「失敗確定でretryだけを更新する」）・P2-A7-SEM-01 と SEM-02 の rule（:306・:314）・persistedFields の不変条件（:418 の「A7は期限を保存し直すときも元expiresAtを延ばさない」）、P2-EEW-UNIT-001 の SEM の rule（:325）と容量の AC（:434 の「期限を延長しない」）、P2-CHECKPOINT-SHUTDOWN-001 の P2-A3-AC01（:359 の「期限を延長しない」）、各 unit 契約の sound の semanticDeadlines の rule の「再起動・再試行で延ばさない」（id で書く: P3-C7-SEM-05・P3-C5-SEM-03・P3-C8-SEM-04・P3-C9-SEM-08・P3-C10-SEM-03・P3-C11-SEM-03・P3-C12-SEM-04・P3-C13-SEM-07・P3-C14-SEM-05。起草者が id と target〔sound intent〕を実物で突き合わせた）と、intent の timing の行（P3-UNIT-B :323・P3-UNIT-R :267・P3-UNIT-L :222・P3-UNIT-M :311・P3-UNIT-N :196・P3-UNIT-Q :224・P3-TSUNAMI-UNIT :203・P3-UNIT-Y :317・P3-UNIT-V :257 の「expiresAtはsound=createdAt+60000」と、期限を延ばさない文）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-notification-delivery.json:11 «e9f4b08ec5226fd8»",
-          "reconstruction/contracts/p2-notification-delivery.json:438 «ae41bf10a408a028»",
+          "reconstruction/contracts/p2-notification-delivery.json:438 «31ffd01d5ed450fa»",
           "reconstruction/contracts/p2-notification-delivery.json:90 «e04708d153abbd15»",
           "reconstruction/contracts/p2-notification-delivery.json:91 «53cff9917d12bece»",
           "reconstruction/contracts/p2-notification-delivery.json:93 «4b653ed4f8e9b140»",
@@ -728,7 +736,7 @@
           "reconstruction/contracts/p3-currency-coverage.json:33 «564a65852b1e1e52»",
           "reconstruction/contracts/p3-unit-table.json:262 «44c584515eccf09a»",
           "reconstruction/contracts/p3-intent-update-reserve.json:235 «18eef364f9da3127»",
-          "reconstruction/contracts/p3-clock-check.json:342 «c045b229b153ba2d»",
+          "reconstruction/contracts/p3-clock-check.json:342 «03c3a5260de255f3»",
           "reconstruction/contracts/p3-recovery.json:573 «d3a653c4b2b5681a»",
           "reconstruction/contracts/p3-seismic-unit.json:177 «bf62709d233420e1»",
           "reconstruction/contracts/p3-nankai-unit.json:148 «bf62709d233420e1»",
@@ -747,7 +755,7 @@
           "reconstruction/contracts/p3-local-bulletins-unit.json:321 «2b6067fc976d44c4»",
           "reconstruction/contracts/p3-typhoon-unit.json:327 «8f1e297b2a46ee4e»",
           "reconstruction/contracts/p3-persist-premises.md:436 «f9154f6ac083aed7»",
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:55 «1b292c119b7a8386»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:297 «c6137ac7359137a0»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:375 «9520f57329034bc9»",
@@ -757,13 +765,13 @@
           "reconstruction/contracts/p3-eew-gate-evict.json:202 «9d0d3c7e03600c07»",
           "reconstruction/contracts/p3-eew-gate-evict.json:219 «e50c23af5cc04e51»",
           "reconstruction/contracts/p3-execution-split.json:101 «190e19f50d0dfb4c»",
-          "reconstruction/contracts/p3-execution-split.json:661 «164034b16f81467f»",
-          "reconstruction/contracts/p3-execution-split.json:685 «4798a3d38b9a7ba4»",
+          "reconstruction/contracts/p3-execution-split.json:661 «2a18ac2c08cf011c»",
+          "reconstruction/contracts/p3-execution-split.json:685 «e275f52678b07e0e»",
           "reconstruction/contracts/p2-notification-delivery.json:124 «d06358d395cf76e1»",
           "reconstruction/contracts/p2-notification-delivery.json:481 «61b61e180de1814d»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:457 «619bb12b70f28334»",
-          "reconstruction/contracts/p2-shared-runtime.json:563 «2d92f30ceb21245b»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «7c601648697d31b3»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:457 «d78d3e35ad31be60»",
+          "reconstruction/contracts/p2-shared-runtime.json:563 «b594796dccab77ba»",
           "reconstruction/contracts/p2-shared-runtime.json:570 «820d80e71d4972de»",
           "reconstruction/contracts/p2-shared-runtime.json:680 «2bafb2e0e46de906»",
           "reconstruction/contracts/p2-shared-runtime.json:759 «995164ac7381c057»",
@@ -795,16 +803,16 @@
           "reconstruction/contracts/p2-notification-delivery.json:102 «a4b8ae61e4daa486»",
           "reconstruction/contracts/p2-notification-delivery.json:306 «970dab30a4473d9e»",
           "reconstruction/contracts/p2-notification-delivery.json:418 «d8fb4f10fe74c781»",
-          "reconstruction/contracts/p2-notification-delivery.json:472 «7736686071cf6568»",
+          "reconstruction/contracts/p2-notification-delivery.json:472 «d4a752dce205773d»",
           "reconstruction/contracts/p2-eew-unit.json:325 «c09500337d812055»",
           "reconstruction/contracts/p2-eew-unit.json:479 «be91a5dcbb153d33»",
           "reconstruction/contracts/p3-recovery.json:180 «c7b71eb68122432b»",
-          "reconstruction/contracts/p3-recovery.json:215 «b3d9dfa1cdb0abd2»",
+          "reconstruction/contracts/p3-recovery.json:215 «eb9aaf01523256dc»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:235 «814bf54d7efd4483»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:319 «5456d046d1b3f837»",
           "reconstruction/contracts/p3-tsunami-unit.json:727 «edbacc7ab890ee27»",
-          "reconstruction/contracts/p3-tsunami-unit.json:219 «c0f45f6ba729c964»",
-          "reconstruction/contracts/p3-seismic-unit.json:237 «f4ae78e91fd97601»",
+          "reconstruction/contracts/p3-tsunami-unit.json:219 «58a8b4101f54579a»",
+          "reconstruction/contracts/p3-seismic-unit.json:237 «821292a1c525c433»",
           "reconstruction/contracts/p3-briefing-unit.json:323 «e7d36bb6aa62035b»",
           "reconstruction/contracts/p3-flood-unit.json:267 «e7397048152229aa»",
           "reconstruction/contracts/p3-landslide-unit.json:222 «e7397048152229aa»",
@@ -828,7 +836,7 @@
           "P3-NL-AC09",
           "P3-NL-AC13"
         ],
-        "behavior": "U-T の実 owner を通した保存→復元: synthetic_VTSE41_e01_311warning の津波警報を受けて通知を作り、保存して復元し、同じ報を受け直す（live と replay）と intent を作らない（ID に世代番号が無く、印の版の鍵と種類で照合）。synthetic_VTSE41_cancel を、警報が active のときと、解除で記憶になった後（印の evidence が possible）の両方で受け、どちらも取消を通知する（H19）。印の無い系列（未受信）の取消は通知しない。終端の intent が intents に残らず、owner の照合が通る"
+        "behavior": "U-T の実 owner を通した保存→復元: synthetic_VTSE41_e01_311warning の津波警報を受けて通知を作り、保存して復元し、同じ報を受け直す（live と replay）と intent を作らない（ID に世代番号が無く、印の版の鍵と種類で照合）。H19 の行も owner を通し、synthetic_VTSE41_cancel の EventID と時刻をこの警報の後に書き換えた取消を、警報が active のときと、解除で記憶になった後（印の evidence が possible）の両方で受け、どちらも取消を通知し、文面に種類と取り消した記録の発表時刻がある（H19・H16）。解除の後でも印の evidence が unattempted なら通知せず、印の無い系列（未受信）の取消も通知しない。終端の intent が intents に残らず、owner の照合が通る"
       },
       {
         "testId": "P3-NL-T02",
@@ -856,7 +864,7 @@
           "P3-NL-AC07",
           "P3-NL-AC08"
         ],
-        "behavior": "composition root と実 owner で: (a) 平時は予約の採用の後、savedGeneration が G に届くまで adapter を呼ばず、届いた評価で呼ぶ。desktop の保存の待ちが 5,001 ms（TTL の内）でも adapter は呼ばれ、試行の期限は呼んだ時から 5 秒 (b) persistence が failed・uncertain の間は、U-E・U-T・critical でない intent（例: U-V の普通の音）も待たずに呼ぶ (c) 保存の ack が返らないとき、host の tick の 10 ms 後に採った EEW の予約は、次の tick を待たず待ち始め＋1,000 ms の timer で呼ばれ、ほかの intent は＋1,000 ms では呼ばれず＋10,000 ms で呼ばれる (d) ack で savedGeneration が G 以上になると平時に戻る (e) 結果 failed/notStarted は再試行され lastAttempt failed。sound の failed/adapterRejected・timeout・上位群の中断は 1 回だけ鳴らし直され（replayed true、期限は終わった時＋元の長さ。上位群の中断では、元の 60 秒を過ぎても上位群の音の後に鳴る）、鳴らし直しも同じに終わると再試行されず notificationOutcomeUnknown。desktop の同じ終わりは鳴らし直さない。U-E の EEW の音の鳴らし直しで期限を延ばした lastAttempt failed の intent を保存→復元すると、codec が通し（上界 30,000）、復元の後の再試行が二度目に同じく終わると notificationOutcomeUnknown で終端する。reclaimExpired の失効（K9 の notificationExpiredClockUnverified を含む）の更新に lossReason が付く (f) 予約を保存した後、adapter を呼ぶ前に停止すると、復元由来の通知の無い run でも、同じ owner・channel の更新枠が使用中（heldUpdates に入る）でも、最終保存の前に lastAttempt が failed に戻り、次の起動で再試行される。停止の後に 1 秒の締切の timer が張られない。lastAttempt started の pending を保存して再起動すると、復元で不明になり鳴らず、K9 の保留の対象に入らない"
+        "behavior": "composition root と実 owner で: (a) 平時は予約の採用の後、savedGeneration が G に届くまで adapter を呼ばず、届いた評価で呼ぶ。desktop の保存の待ちが 5,001 ms（TTL の内）でも adapter は呼ばれ、試行の期限は呼んだ時から 5 秒 (b) persistence が failed・uncertain の間は、U-E・U-T・critical でない intent（例: U-V の普通の音）も待たずに呼ぶ (c) 保存の ack が返らないとき、host の tick の 10 ms 後に採った EEW の予約は、次の tick を待たず待ち始め＋1,000 ms の timer で呼ばれ、ほかの intent は＋1,000 ms では呼ばれず＋10,000 ms で呼ばれる (d) ack で savedGeneration が G 以上になると平時に戻る (e) 結果 failed/notStarted は再試行され lastAttempt failed。sound の failed/adapterRejected・timeout・上位群の中断は 1 回だけ鳴らし直され（replayed true、期限は終わった時＋元の長さ。上位群の中断では、元の 60 秒を過ぎても上位群の音の後に鳴る）、鳴らし直しも同じに終わると再試行されず notificationOutcomeUnknown。desktop の同じ終わりは鳴らし直さない。U-E の EEW の音の鳴らし直しで期限を延ばした lastAttempt failed の intent を保存→復元すると、codec が通し（上界 30,000）、復元の後の再試行が二度目に同じく終わると notificationOutcomeUnknown で終端する。reclaimExpired の失効（K9 の notificationExpiredClockUnverified を含む）の更新に lossReason が付く (f) 予約を保存した後、adapter を呼ぶ前に停止すると、復元由来の通知の無い run でも、同じ owner・channel の更新枠が使用中（heldUpdates に入る）でも、最終保存の前に lastAttempt が failed に戻り、次の起動で再試行される。停止の後に 1 秒の締切の timer が張られない。lastAttempt started の pending を保存して再起動すると、復元で不明になり鳴らず、K9 の保留の対象に入らない。AC07 の結線の試験（notification-wiring.test.ts の P3-NL-T04 の describe）は (a)〜(d)・(f) の行に加え、(e) の名で「保存の ack が上位群の再試行の時刻と重なるとき、待っている予約は adapter を呼ぶ前に譲る」（AC07 の (5)、統合担当の決定、Q-NL-IMPL-2）を持つ。上の (e) の再試行・鳴らし直しの行は発注 1 の試験"
       },
       {
         "testId": "P3-NL-T05",
@@ -864,7 +872,7 @@
         "referenceIds": [
           "P3-NL-AC11"
         ],
-        "behavior": "32-39_13_07_250206_VTSE41（津波注意報だけ）の通知は level warning・priorityGroup other で、A7 の選択で津波緊急の群に入らない。synthetic_VTSE41_e01_311warning は priorityGroup normalTsunamiEmergency。容量で拒否した注意報だけの報は失敗警報を作らず、警報の報は作る（P3-CC-D-FAILNOTICE の判定）"
+        "behavior": "32-39_13_07_250206_VTSE41（訓練の津波注意報の解除。通常運用の津波注意報の発令に inline で書き換えて使う、AC17 の (2)）の通知は level warning・priorityGroup other で、A7 の選択で津波緊急の群に入らない。synthetic_VTSE41_e01_311warning は priorityGroup normalTsunamiEmergency。容量で拒否した注意報だけの報は失敗警報を作らず、警報の報は作る（P3-CC-D-FAILNOTICE の判定）（この行は P3-CC-T16 が確かめる）"
       },
       {
         "testId": "P3-NL-T06",
@@ -872,7 +880,7 @@
         "referenceIds": [
           "P3-NL-AC14"
         ],
-        "behavior": "owner の数え方: 保存済みの unit が容量で報を断っただけ（unit の state は不変）でも世代が進み、件数が保存→復元で残る。unit の診断（tsunamiCapacityEvicted の count、capacityRejected の 1 件）と intentUpdate の lossReason（notificationExpiredClockUnverified）が理由ごとに足され、保存→復元で残り、lastAt＋24 時間を過ぎた行は capture で外れる。欄の無い旧い envelope は空として読む。publisher の reclaimExpired の診断は owner で二重に数えない"
+        "behavior": "owner の数え方: 保存済みの unit が容量で報を断っただけ（unit の state は不変）でも世代が進み、件数が保存→復元で残る。unit の診断（tsunamiCapacityEvicted の count、capacityRejected の 1 件）と intentUpdate の lossReason（notificationExpiredClockUnverified）が理由ごとに足され、保存→復元で残り、lastAt＋24 時間を過ぎた行は capture で外れる。欄の無い旧い envelope は空として読む。publisher の reclaimExpired の診断は owner で二重に数えない。tsunamiCapacityEvicted の count と保存→復元・capture は tsunami-unit.test.ts（capture で外れた行は owner の加算元からも外れ、同じ理由をまた足すと 1 件から数え直す）、reclaimExpired を二重に数えない確かめは notification-wiring.test.ts、欄の無い envelope と capture の 24 時間の行は checkpoint.test.ts（発注 1）"
       },
       {
         "testId": "P3-NL-T08",
@@ -889,7 +897,7 @@
           "P3-NL-AC15",
           "P3-NL-AC10"
         ],
-        "behavior": "12 unit ごとの新しい形の保存→復元（印・失敗の印・lastAttempt・priorityGroup を含む）と、捨てた旧い版の slot から初期状態で始まること。静的上界の試験（各 unit の既存の上界の試験）の値を印と終端の外しで数え直す。telegram-foundation__phase7_5_VXSE53_20260728162718_99e82c812e72 の後の synthetic_VXSE53_cancel の取消の通知の文面（種類・発表時刻・震源名）"
+        "behavior": "12 unit ごとの新しい形の保存→復元（印・失敗の印・lastAttempt・priorityGroup を含む）と、捨てた旧い版の slot から初期状態で始まること。静的上界の試験（各 unit の既存の上界の試験）の値を印と終端の外しで数え直す。telegram-foundation__phase7_5_VXSE53_20260728162718_99e82c812e72 の後の synthetic_VXSE53_cancel の取消の通知の文面（種類・発表時刻・震源名）。Head/Title の末尾が「の取消」の取消（synthetic_VXKO50_cancel）は種類から「の取消」を除く（flood-unit.test.ts、AC10 の (3)）"
       }
     ],
     "requiredCommands": [

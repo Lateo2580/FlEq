@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "5ae33089defe69954857bd3ad5bdcc11ccb8196f",
-    "sha256": "e02bf7d7ab7fed9562956713ae595945d254f1647e6f8f47a90339e65a4f0275",
+    "sha256": "6fc167007da1ff5202a8f5144d7f9fa0d44f45d292760fe45e933ae9d33b671f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -203,14 +203,14 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-unit-write-right.json:52 «50ff06928f8e796c»",
           "reconstruction/contracts/p3-unit-write-right.json:57 «91a371f814200b5c»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»"
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «7c601648697d31b3»"
         ]
       },
       {
         "id": "P3-OLB-AC02",
         "requirement": "捨てても保存を辞退しない、帰属不明は捨てない（P2-A3-AC10の不明の扱いを保つ、P3-OLB-UNKNOWN=A）: inputIds()がnullを返すのは、unitがそのrunでは保存しない集合（今のunavailable）に入っているときだけにする。世代が上がったstepのgenerationInputIdsにそのunitのkeyが無いとき（restoreとapplyが今nullの項目を作るところ）は、項目を足さずにunitをその集合へ入れる。上限で捨てた世代は不明に数えず、inputIds()は残った項目の和集合（世代の順、重複なし）を返す。grantの辞退の条件（persistence・saves・inputIds()==null）とpublisherのdeclined（CheckpointWriter）は変えない。復帰の後は、次の権で今の世代をcaptureし、ackまで進む。ただし無条件ではない: 終了処理の中では、副作用の固定に間に合わず未固定になったowner、停止扱いのowner、段の期限の後の復帰には、C3a・C3bの従来の除外（P3-C3A-AC09・P3-C3A-FINALIZE-TIMEOUT=A・P3-C3B-AC03）がそのまま効き、本契約はそれを変えない。帰属不明のunitがあっても、他に優先する終了理由があれば最終codeは3になりうる（codeの選び方は変えない）。無いと: 捨てた世代を不明と同じに扱うと、復帰後の権がinputIds()==nullで辞退され、declinedがその世代を飛ばし、次の世代でもまた辞退して再起動まで保存できない（終了はcode 2）。不明を項目として持つと、上限で捨てたときに不明が消え、P2-A3-AC10が拒むcaptureを通す",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «7c601648697d31b3»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:592 «dfe24ca87cd9cc8d»",
           "reconstruction/contracts/p3-unit-write-right.json:353 «965f301772842e4c»"
         ]
@@ -235,7 +235,7 @@
         "id": "P3-OLB-AC05",
         "requirement": "既存の約束（本契約に記録し、他の契約の条文は編集しない。下の改める4件は、上限の外については本契約のAC05が優先する［supersedes］。記録は統合担当が行う、Q-OLB-BASE）: 変えない: P3-UNIT-WRITE-RIGHT-001のunitごとの権・留保・再評価（I/Oが止まったunitの権を解放しない、他unitの保存は続く。本契約はownerの記録だけを変える）、C3a・C3bの終了処理（最終保存の段も同じgrantを通るので、上限の内側では今と同じで、上限の外では辞退せず保存する。quiet・cutoff・codeの規則は変えない。帰属不明のcode 2は保つ。他に優先する理由があればcode 3になりうるのも今どおり、AC02）、P2-A3-AC10の帰属の規則（明示keyの配列だけを採用、[]は寄与なしの明示値、keyの欠落は不明で後から補わない、古いackで消すのは保存確認済みの世代まで）。改める（上限の内側に限ると読む）: (1) P2-A3-AC10の「capture時はsavedGenerationより後から捕捉世代までの和集合を重複なく固定する」→ 未保存の世代が4,096以下のとき。超えたら直近4,096世代の和集合 (2) P3-UWR-AC05の「inputIdsは未保存区間の寄与IDの和集合（P2-A3-AC10）のまま保存できる」とP3-UWR-T01の「inputIdsは前回の保存の後の全入力IDの和集合になる」→ (1)と同じ読み (3) P3-UNIT-WRITE-RIGHT-001の残存リスク(3)の「ledgerはそのunitだけ伸びる」→ 4,096項目で止まる (4) P2-EEW-E01のE15の「trace run/inputへ相関」→ 上限の外では古い入力を保存へ相関しない。無いと: 他の契約の条文と本契約が同じ挙動について違うことを言う",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «7c601648697d31b3»",
           "reconstruction/contracts/p3-unit-write-right.json:353 «965f301772842e4c»",
           "reconstruction/contracts/p3-unit-write-right.json:417 «920adb13fabb5d34»",
           "reconstruction/contracts/p3-unit-write-right.json:527 «dc3e1930ecc033c2»",

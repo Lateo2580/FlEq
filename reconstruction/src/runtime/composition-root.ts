@@ -142,7 +142,10 @@ type ProjectedStep = Readonly<{ state: PublisherState; outcomes: readonly Runtim
   displayChanges: readonly RuntimeDisplayChange[] }>;
 
 // A reserved attempt (P3-C3A-NOTIFY-ADOPT): the selected attempt waits for its owner to adopt the attempt count.
-type Reservation = Readonly<{ requestId: string; attempt: NotificationAttempt; unit: RuntimeUnitId; key: string }>;
+// P3-NL-AC07 (1): 採用の返信の後は waiting（採った世代 G と待ち始めの monotonic）を持ち、保存の ack か保存の障害まで adapter を呼ばない。
+// replyReceivedMs は測定の時だけの返信の時刻（AC07 (8)）。
+type Reservation = Readonly<{ requestId: string; attempt: NotificationAttempt; unit: RuntimeUnitId; key: string;
+  waiting?: Readonly<{ generation: number; sinceMs: number; replyReceivedMs: number | null }> }>;
 // One owner intentUpdate in flight: per owner and channel one reservation and one other update (P3-C3A-RES-09).
 // keys: intents whose result is decided and in transit (out of selection and expiry). reserved: the intent a reservation
 // names; it stays selectable, but no expiry update may overtake the owner's adoption with a stale attempt count.
@@ -420,6 +423,8 @@ class RuntimeCompositionRoot {
   private streamId = "";
   private projection: SnapshotProjectionState | null = null;
   private noticeTimer: NodeJS.Timeout | null = null;
+  // P3-NL-AC07 (7): 保存の ack を待つ予約の最短の締切の timer（noticeTimer とは別の 1 本。project が noticeTimer を毎回外すので共用しない）。
+  private ackTimer: NodeJS.Timeout | null = null;
   private lastDiagnosticTick = -Infinity;
   private readonly measuring: Measuring | null;
 
@@ -1191,14 +1196,19 @@ class RuntimeCompositionRoot {
       const reservation = this.reservations[name];
       if (attempt == null) {
         // The reserved intent is no longer selected (higher priority, cancellation, expiry): its late reply starts nothing.
-        if (reservation != null) delete this.reservations[name];
+        // P3-NL-AC07 (5): 採用済みで ack を待つ予約は、その intent が外れたとき（置換・取消・期限・保留）だけ捨て、その場で lastAttempt を
+        // failed に戻す（Q-NL-PRECHECK-2 (1)(a)）。上位群・別の intent の選択は下の attempt のある側で捨てる。
+        if (reservation != null && (reservation.waiting == null || !before.intents.some((intent) => intentKey(intent) === reservation.key))) {
+          delete this.reservations[name];
+          this.dropWaiting(name, reservation, clock);
+        }
         const chosen = selection.state.channels[name];
         if (chosen !== channels[name] && chosen.kind !== "running") { channels[name] = chosen; channelsChanged = true; }
         continue;
       }
       const key = JSON.stringify([attempt.unit, attempt.intentId]);
       if (reservation?.key === key) continue;
-      if (reservation != null) delete this.reservations[name];
+      if (reservation != null) { delete this.reservations[name]; this.dropWaiting(name, reservation, clock); }
       const unit = runtimeUnits.find((candidate) => candidate === attempt.unit);
       const updated = selection.state.intents.find((candidate) => sameIntent(candidate, { ...attempt, id: attempt.intentId }));
       if (unit == null || updated == null || this.slotBusy(executionPlaces[unit], name, "reservation") || this.requestsStopped) continue;
@@ -1217,7 +1227,81 @@ class RuntimeCompositionRoot {
   private evaluateDelivery(clock: ClockReading): void {
     if (this.state.shutdown.finalizationAt != null) return;
     this.reclaimExpired(clock);
+    // P3-NL-AC07 (5): 先に選び直しを確定し（別の intent が選ばれた予約は adapter を呼ばずに捨てる）、また選ばれた予約だけを解放する。
     this.selectDelivery(clock);
+    this.releaseWaiting(clock);
+  }
+
+  // P3-NL-AC07 (2)(3)(7): 採用済みの予約は、その unit の保存が G に届いたか（平時）、保存の障害（失敗・結果不明・保存されない）か、
+  // 待ち始めから U-E・U-T・critical は 1,000 ms（DLV-01）・ほかは 10,000 ms（DLV-02）を過ぎたら adapter を呼ぶ。残りの最短の締切に timer を
+  // 1 本置く（予約は channel ごとに 1 件なので 2 件の比較）。判定は予約ごとに mirror との比較 1 回（P3-NL-AC16）。
+  private releaseWaiting(clock: ClockReading): void {
+    if (this.ackTimer != null) clearTimeout(this.ackTimer);
+    this.ackTimer = null;
+    if (this.state.shutdown.stage !== "running") return;
+    let due = Infinity;
+    for (const channel of channelNames) {
+      const reservation = this.reservations[channel], waiting = reservation?.waiting;
+      if (reservation == null || waiting == null) continue;
+      const { unit, attempt } = reservation;
+      const limit = waiting.sinceMs + (unit === "U-E" || unit === "U-T" || attempt.payload.level === "critical" ? 1_000 : 10_000);
+      if (this.saveSettled(unit, waiting.generation, clock) || clock.monotonicMs >= limit) this.startReserved(channel, reservation, clock);
+      else due = Math.min(due, limit);
+    }
+    if (due === Infinity) return;
+    this.ackTimer = setTimeout(() => {
+      this.ackTimer = null;
+      const now = this.clock();
+      this.evaluateDelivery(now);
+      this.project([], [], now);
+    }, Math.min(Math.max(due - clock.monotonicMs, 0), 2 ** 31 - 1));
+    this.ackTimer.unref();
+  }
+
+  // 平時の ack（savedGeneration が G 以上。回復も kind でなくこれで見る、AC07 (4)）か、通知の側から見た保存の障害（AC07 (3)(a)(b)）。
+  // 保存されない unit（復元の saves が false・この run で保存しない・owner が断った世代）は、dirty なのに saveDue が false になる。
+  private saveSettled(unit: RuntimeUnitId, generation: number, clock: ClockReading): boolean {
+    const persistence = this.state.mirror[unit].persistence;
+    return (persistence.savedGeneration ?? 0) >= generation || persistence.kind === "failed" || persistence.kind === "uncertain"
+      || persistence.dirtySince != null && !this.checkpoint.saveDue(persistence, unit, clock, true);
+  }
+
+  // 予約の試行を始める。今の開始の条件（stage running・channel idle・期限の内・K9 の保留でない）を満たさなければ予約を捨てる（AC06 (5)）。
+  private startReserved(channel: NotificationChannel, reservation: Reservation, clock: ClockReading): void {
+    delete this.reservations[channel];
+    const state = this.state;
+    const intent = state.mirror[reservation.unit].pendingIntents.find((candidate) => intentKey(candidate) === reservation.key);
+    const deadline = state.notificationDeadlines[channel][reservation.key];
+    if (state.notificationChannels[channel].kind !== "idle" || intent == null || this.inFlightKeys.has(reservation.key)
+      || clock.wallTimeMs >= intent.expiresAt || clock.monotonicMs >= (deadline?.expiresAtMonotonicMs ?? Infinity)
+      || this.held(intent, this.heldBasis(clock))) {
+      this.dropWaiting(channel, reservation, clock);
+      return;
+    }
+    // P3-NL-AC06 (4): 試行の期限は adapter を実際に呼ぶ時に作り直す（保存の待ちで試行の時間を食わない）。
+    const attempt = { ...reservation.attempt, timeoutAtMonotonicMs: Math.min(clock.monotonicMs + ATTEMPT_TIMEOUT_MS[channel],
+      deadline?.expiresAtMonotonicMs ?? Infinity) };
+    this.current = { ...state, notificationChannels: { ...state.notificationChannels, [channel]: { kind: "running", attempt } } };
+    this.observeAdoption(reservation, this.measuring == null ? null : performance.now());
+    this.runAttempt(attempt);
+  }
+
+  // adapter を呼ばずに捨てた採用済みの予約（上位群・別の intent の選択・置換・取消・期限・停止）。返信待ちの予約は返信の時に扱う。
+  private dropWaiting(channel: NotificationChannel, reservation: Reservation, clock: ClockReading): void {
+    if (reservation.waiting == null) return;
+    this.observeAdoption(reservation, null);
+    this.failReserved([reservation.unit], reservation.key, channel, clock);
+  }
+
+  // P3-C4-AC13(5)・P3-NL-AC07 (8): 予約の行は adapter を呼ぶ時か捨てる時に出す（attemptStarted－replyReceived が保存の待ち）。
+  private observeAdoption(reservation: Reservation, attemptStartedMs: number | null): void {
+    const adoption = this.measuring?.reservations.get(reservation.requestId);
+    if (this.measuring == null || adoption == null) return;
+    this.measuring.reservations.delete(reservation.requestId);
+    this.measuring.observe({ kind: "notificationAdoption", runId: this.state.runId, channel: adoption.channel, intentId: adoption.intentId,
+      unit: adoption.unit, attempts: adoption.attempts, createdAtWallMs: adoption.createdAtWallMs, reservationSentWallMs: adoption.sentWallMs,
+      reservationSentMonotonicMs: adoption.sentMs, replyReceivedMonotonicMs: reservation.waiting?.replyReceivedMs ?? performance.now(), adopted: true,
+      attemptStartedMonotonicMs: attemptStartedMs });
   }
 
   private intentUpdateDone(place: ExecutionPlace, reply: Extract<OwnerReply, { kind: "intentUpdateDone" }>): void {
@@ -1226,37 +1310,29 @@ class RuntimeCompositionRoot {
     this.monitors[place].sent[`${request.channel}:${request.slot}`] = null;
     this.intentRequests.delete(reply.requestId);
     for (const key of request.keys) this.inFlightKeys.delete(key);
-    // P3-C4-AC13(5): 予約の返信を受けた時刻（測定の時だけ）。adapter の呼出しの開始は下の runAttempt の直前。
+    // P3-C4-AC13(5): 予約の返信を受けた時刻（測定の時だけ）。採用して待つ予約の行は adapter を呼ぶ時か捨てる時に出す（observeAdoption）。
     const adoption = request.slot === "reservation" ? this.measuring?.reservations.get(reply.requestId) : undefined;
     const replyReceivedMs = adoption == null ? null : performance.now();
-    let attemptStartedMs: number | null = null;
     const clock = this.clock();
     const channels = this.state.notificationChannels;
     const changed = this.absorb(place, reply.output, null, clock);
     const reservation = this.reservations[request.channel];
-    if (request.slot === "reservation" && reservation?.requestId === reply.requestId) {
-      delete this.reservations[request.channel];
-      const state = this.state;
-      const intent = state.mirror[reservation.unit].pendingIntents.find((candidate) => candidate.id === reservation.attempt.intentId);
-      const deadline = state.notificationDeadlines[request.channel][reservation.key];
-      // Only an adopted, current, unexpired reservation starts: an invalidated one never calls the adapter.
-      const expired = intent == null || clock.wallTimeMs >= intent.expiresAt || clock.monotonicMs >= (deadline?.expiresAtMonotonicMs ?? Infinity);
-      if (reply.adopted && state.shutdown.stage === "running" && state.notificationChannels[request.channel].kind === "idle"
-        && intent != null && !expired && !this.held(intent, this.heldBasis(clock))) {
-        // P3-NL-AC06 (4): 試行の期限は adapter を実際に呼ぶ時に作り直す（発注 1 は予約の採用の返信で呼ぶ時、Q-NL-PRECHECK (0)(a)）。
-        const attempt = { ...reservation.attempt, timeoutAtMonotonicMs: Math.min(clock.monotonicMs + ATTEMPT_TIMEOUT_MS[request.channel],
-          deadline?.expiresAtMonotonicMs ?? Infinity) };
-        this.current = { ...state, notificationChannels: { ...state.notificationChannels,
-          [request.channel]: { kind: "running", attempt } } };
-        if (adoption != null) attemptStartedMs = performance.now();
-        this.runAttempt(attempt);
-      } else if (reply.adopted) this.dropReservation(request, clock);
-    } else if (request.slot === "reservation" && reply.adopted) this.dropReservation(request, clock);
-    if (this.measuring != null && adoption != null && replyReceivedMs != null) {
+    let waiting = false;
+    if (request.slot === "reservation" && reservation?.requestId === reply.requestId && reply.adopted && this.state.shutdown.stage === "running") {
+      // P3-NL-AC07 (1): adapter をすぐ呼ばず、返信を反映した後のその unit の世代 G と待ち始めを残す。開始の条件と ack は releaseWaiting が
+      // この返信の評価（下の evaluateDelivery）から確かめる。
+      this.reservations[request.channel] = { ...reservation, waiting: { generation: this.state.mirror[reservation.unit].persistence.currentGeneration,
+        sinceMs: clock.monotonicMs, replyReceivedMs } };
+      waiting = true;
+    } else if (request.slot === "reservation") {
+      if (reservation?.requestId === reply.requestId) delete this.reservations[request.channel];
+      if (reply.adopted) this.dropReservation(request, clock);
+    }
+    if (this.measuring != null && adoption != null && replyReceivedMs != null && !waiting) {
       this.measuring.reservations.delete(reply.requestId);
       this.measuring.observe({ kind: "notificationAdoption", runId: this.state.runId, channel: adoption.channel, intentId: adoption.intentId,
         unit: adoption.unit, attempts: adoption.attempts, createdAtWallMs: adoption.createdAtWallMs, reservationSentWallMs: adoption.sentWallMs,
-        reservationSentMonotonicMs: adoption.sentMs, replyReceivedMonotonicMs: replyReceivedMs, adopted: reply.adopted, attemptStartedMonotonicMs: attemptStartedMs });
+        reservationSentMonotonicMs: adoption.sentMs, replyReceivedMonotonicMs: replyReceivedMs, adopted: reply.adopted, attemptStartedMonotonicMs: null });
     }
     this.flushHeldUpdates();
     this.reevaluate(clock);
@@ -1266,17 +1342,22 @@ class RuntimeCompositionRoot {
     if (changed || this.state.notificationChannels !== channels) this.project(reply.output.outcomes, reply.output.displayChanges, clock);
   }
 
-  // P3-NL-AC06 (5)（発注 1 の口は Q-NL-PRECHECK (0)(b)）: adapter を呼ばずに捨てた予約（現在の予約と合わない返信・停止の後・保留）は、
-  // 採られた lastAttempt started を failed に戻す更新を送る（送っていないと確定。無いと復元で通知したか不明になり鳴らない）。期限の外の
-  // ものは reclaimExpired が expired で終える。印の evidence は下げない（unit の規則）。
+  // P3-NL-AC06 (5)（発注 1 の口は Q-NL-PRECHECK (0)(b)）: 採用の返信の後に adapter を呼ばずに捨てた予約（現在の予約と合わない返信・停止の後）は、
+  // 採られた lastAttempt started を failed に戻す更新を送る（送っていないと確定。無いと復元で通知したか不明になり鳴らない）。
   private dropReservation(request: IntentRequest, clock: ClockReading): void {
-    if (request.reserved == null) return;
-    for (const unit of placeUnits(request.place)) {
-      const intent = this.state.mirror[unit].pendingIntents.find((item) => intentKey(item) === request.reserved);
+    if (request.reserved != null) this.failReserved(placeUnits(request.place), request.reserved, request.channel, clock);
+  }
+
+  // 期限（wall か monotonic）の外のものは reclaimExpired が expired で終えるので送らない（Q-NL-PRECHECK-2 (1)(a)）。結果の決まった更新が
+  // もう出ている intent にも送らない。印の evidence は下げない（unit の規則）。
+  private failReserved(units: readonly RuntimeUnitId[], key: string, channel: NotificationChannel, clock: ClockReading): void {
+    if (this.inFlightKeys.has(key)) return;
+    for (const unit of units) {
+      const intent = this.state.mirror[unit].pendingIntents.find((item) => intentKey(item) === key);
       if (intent == null) continue;
-      if (intent.lastAttempt === "started" && clock.wallTimeMs < intent.expiresAt)
-        this.queueUpdate({ unit, channel: request.channel, decisionClock: clock, keys: [intentKey(intent)],
-          updates: [updateOf({ ...intent, lastAttempt: "failed" })] });
+      if (intent.lastAttempt === "started" && clock.wallTimeMs < intent.expiresAt
+        && clock.monotonicMs < (this.state.notificationDeadlines[channel][key]?.expiresAtMonotonicMs ?? Infinity))
+        this.queueUpdate({ unit, channel, decisionClock: clock, keys: [key], updates: [updateOf({ ...intent, lastAttempt: "failed" })] });
       return;
     }
   }
@@ -1405,7 +1486,11 @@ class RuntimeCompositionRoot {
     if (!this.checkpoint.done(reply.grantId, reply.unit, reply.result, reply.measurements, previous, clock)) return;
     if (this.late(place)) return;
     if (reply.measurements.length !== 0) this.onMeasurements(reply.measurements);
-    this.ownerOutput(place, reply.output, null);
+    // P3-NL-AC07 (3)(b): owner が断った保存（空の返信）でも、ack を待つ予約はすぐ判定し直す（次の tick を待たない）。
+    if (!this.ownerOutput(place, reply.output, null) && channelNames.some((name) => this.reservations[name]?.waiting != null)) {
+      this.evaluateDelivery(clock);
+      this.project([], [], clock);
+    }
     // P3-UWR-AC03・AC06: 結果を問わず、反映の後に権を再評価する（保存中に上がった世代の unit へ次の権、辞退の後の次の候補）。
     this.reevaluate(clock);
     this.sendDelayedInputs(clock);
@@ -1469,14 +1554,16 @@ class RuntimeCompositionRoot {
     // P3-CK-AC03 (3): 確かめられないまま残る復元由来の intent は、試行の終わりとその結果の更新・返信待ちを反映した後に鳴らさず失効させ、
     // その採用を待ってから要求を止める（試行中は回収の外なので、終わりを待たないと結果の更新が送れず、最終保存に pending で残って
     // 次の起動で待ちがやり直しになる）。
+    const settled = () => [...this.intentRequests.values()].every((request) => this.shutdownExcluded(request.place))
+      && this.heldUpdates.every((update) => this.shutdownExcluded(executionPlaces[update.unit]));
     if (this.restoredKeys.size !== 0 && this.heldBasis(this.clock()) !== "verified") {
-      const settled = () => [...this.intentRequests.values()].every((request) => this.shutdownExcluded(request.place))
-        && this.heldUpdates.every((update) => this.shutdownExcluded(executionPlaces[update.unit]));
       await Promise.all(Object.values(this.notificationOperations).flatMap((pending) => pending == null ? [] : [pending.terminal]));
       await this.until(settled, active);
       if (active()) this.reclaimExpired(this.clock(), runtimeUnits, true);
-      await this.until(settled, active);
     }
+    // P3-NL-AC07 (6)(b): 捨てた予約の failed の更新（送出済みの予約の返信が遅れて採用で返ったときの分を含む）と、枠が使用中で待つ更新が
+    // 解決するまで、要求を止めない（止めると heldUpdates が消され、復元で通知したか不明になる）。段の期限の内（P3-C3A-AC09）。
+    await this.until(settled, active);
     this.requestsStopped = true;
     this.heldUpdates.length = 0;
     await this.until(() => this.quiet(), active);
@@ -1516,6 +1603,9 @@ class RuntimeCompositionRoot {
     if (this.state.shutdown.stage !== "running") throw new Error("shutdown already started");
     if (this.noticeTimer != null) clearTimeout(this.noticeTimer);
     this.noticeTimer = null;
+    // P3-NL-AC07 (6)(a): 待ちの締切の timer は停止の開始で外し、以後張らない（releaseWaiting は running の外で張らない）。
+    if (this.ackTimer != null) clearTimeout(this.ackTimer);
+    this.ackTimer = null;
     const failure: { error?: unknown } = {};
     this.onNotificationDispatchFailure = (error) => {
       if (!Object.hasOwn(failure, "error")) failure.error = error;
@@ -1523,7 +1613,12 @@ class RuntimeCompositionRoot {
     try {
       const requested = requestShutdown(this.state, clock, acceptedThroughSequence);
       this.current = requested.state; this.failDetails();
-      // Every reservation is void from the shutdown request on (P3-C3A-NOTIFY-ADOPT).
+      // Every reservation is void from the shutdown request on (P3-C3A-NOTIFY-ADOPT). P3-NL-AC07 (6)(b): ack を待っていた予約は adapter を
+      // 呼ばず、消す前に lastAttempt を failed に戻す更新を送る（消した後は予約が分からない）。
+      for (const name of channelNames) {
+        const reservation = this.reservations[name];
+        if (reservation != null) this.dropWaiting(name, reservation, clock);
+      }
       this.reservations = {};
       this.abortAttempts(requested.abortRequests);
       for (const place of places) this.endRefusals(place, clock);

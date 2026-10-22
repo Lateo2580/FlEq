@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "39c28f705127495bec9bab8163821a0c5fb20d8f5c3c683b61b2f2805676d3d6",
+    "sha256": "2172199cb198c105e62615b1afcf8212c7c01bcacfb21906fde4d9d4fa4cd31d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -355,7 +355,7 @@
           "docs/specs/reconstruction-p0-contracts.md:872 «b3b0c2329adfa0da»",
           "docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
           "reconstruction/contracts/p3-execution-lifecycle.json:75 «c998c8d30f543159»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»"
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «7c601648697d31b3»"
         ]
       },
       {

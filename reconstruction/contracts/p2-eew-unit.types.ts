@@ -99,9 +99,10 @@ export type EewNoticeMark = Omit<EewNotificationLatch, "notifiedWarningAreas"> &
 }>;
 
 // P2-A4-AC11: both channels carry the same owner-generated payload; A7 reads it unchanged.
+// P3-NL-AC12: normal は最終報（H06、earthquake-eew-normal.wav）。
 export type EewNotificationPayload = Readonly<{
   domain: "earthquake-eew";
-  level: "warning" | "critical" | "cancel";
+  level: "normal" | "warning" | "critical" | "cancel";
   title: string;
   body: string;
 }>;

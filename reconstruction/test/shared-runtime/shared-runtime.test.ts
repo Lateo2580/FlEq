@@ -175,7 +175,7 @@ function intent(unit: RuntimeUnitId, operation: Operation = "normal"): Notificat
     source: { inputId: "source", origin: "live", operation, family: "family", subject: "same",
       reportDateTimeRaw: "", controlDateTimeRaw: "", serialRaw: "1", infoTypeRaw: "発表" },
     payload: { domain: "earthquake-eew", level: "warning", title: "EEW", body: "EEW" }, createdAt: 1_000, expiresAt: 5_000, nextAttemptAt: 1_000, attempts: 0,
-    configRevision: "1", disposition: "pending", ...freshState(unit, operation, "warning") };
+    configRevision: "1", disposition: "pending", ...freshState(unit, operation) };
 }
 function attempt(notice: NotificationIntent): NotificationAttempt {
   return { attemptId: "attempt-" + notice.id, intentId: notice.id, unit: notice.unit, subject: notice.subject,
@@ -822,7 +822,7 @@ describe("P2 shared runtime", () => {
       const selection = vi.fn((delivery: NotificationDeliveryState) => delivery.channels.desktop.kind !== "idle"
         || delivery.intents.length === 0 ? noAttempts(delivery) : {
           state: { channels: { ...delivery.channels, desktop: { kind: "running" as const, attempt: selected } },
-            intents: delivery.intents.map((value) => ({ ...value, attempts: 1, nextAttemptAt: 2000 })), deadlines: delivery.deadlines },
+            intents: delivery.intents.map((value) => ({ ...value, attempts: value.attempts + 1, nextAttemptAt: 2000 })), deadlines: delivery.deadlines },
           attempts: [selected], abortRequests: [], diagnostics: [],
         });
       const result: NotificationResult = { kind: "delivered", attemptId: selected.attemptId, intentId: notice.id,

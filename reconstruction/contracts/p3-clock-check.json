@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "513fa6ef0c555909e79e1c558e8911f553980fee",
-    "sha256": "e9db5c5faa9a28f59435b4fc58b29240c00eae88528afd4f8a0dccf2a77bb2d3",
+    "sha256": "78d04c587ed7d45fdf5f8d2f6950e7e4bae2dbc11925aa285d028144ec2a7d73",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -251,7 +251,7 @@
           "reconstruction/src/host/host.ts:461 «c1d6a32b12c6ecc5»",
           "reconstruction/src/host/dmdata-rest.ts:57 «8528c5831f89e6ed»",
           "reconstruction/src/host/dmdata-rest.ts:80 «b0f4cd2e077efab7»",
-          "reconstruction/src/runtime/composition-root.ts:909 «8ae52d9d693e7af3»",
+          "reconstruction/src/runtime/composition-root.ts:914 «8ae52d9d693e7af3»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «dddd02e05041ae59»",
           "reconstruction/contracts/p3-persist-premises.md:400 «84a5747c84adc8cb»",
           "reconstruction/contracts/p3-persist-premises.md:426 «2da899c097a9e079»",
@@ -278,23 +278,23 @@
         "id": "P3-CK-AC03",
         "requirement": "前回の起動から持ち越した未送信の通知（publisher、作者裁定 §7の4）: (1) 印: startRuntimeでmirrorに戻ったpendingのintentに「復元由来」の印を付け（publisherの中の集合）、そのintentがpendingでなくなる（配送・失効・取消・削除）まで持つ。startRuntimeの後に生まれたintentには付けない（時計未確認の間に受けた新しい通知は今どおり鳴る）。K8のstartedが入るまでは今の復元の再試行の対象と同じ（startedの無いものに限るのはK8）。K8の後はstartedの無いものだけ（startedのpendingはunitが復元で外して通知したか不明にする、P3-NOTICE-LEDGER-001のP3-NL-AC08） (2) publisherはT0も30,000 msも持たず、hostの根拠の状態（options.wallBasis(その時の時計)）にだけ従う。印のあるものについて状態を見るのは、各評価（reclaimExpiredとselectDelivery）と、予約の返事から試行を始める直前（composition-root.ts:1223）。P3-CK-AC01の(5)の順でoptions.wallBasisを呼んだ後に締切の印（options.clockDeadlineMissed()）を読み、立っていれば状態より先にそれを見て\"unverified\"と同じに扱う。\"awaiting\"なら保留する（新しい選択に渡さず、表の行を作らず、wallと表のどちらでも回収せず、予約の返事が来ても試行を始めない。一度\"verified\"で進めた後に\"awaiting\"へ戻っても保留し直す、ヘルツr4のP1-1）。保留は新しい選択と予約の返事からの試行の開始にだけ当て、channelでrunning・stoppingの試行のintentはdeliveryStateのintentsから外さず、表の行も消さず、結果の照合を今どおり行う（外すとA7が所有元の無い試行としてsupersededで止め、鳴り終えた通知を確かめた後にもう一度鳴らしうる、notification-delivery.ts:62、ヘルツr5のP1-2）。結果が確定した後の再試行に保留を当てる。\"verified\"なら印の無いintentと同じに扱う（表の行が無ければ、その評価の確かめたwallで今の式〔composition-root.ts:1131・:1132〕が作る。回収もその評価の手元のwallと表で今どおり当てる）。\"unverified\"なら試行を始めず、鳴らさずexpiredにする（今の回収と同じintentUpdateの経路で、unitごとにINFO notificationExpiredClockUnverified〔component runtime、unit、count〕を1件。H39のまとめはK8） (3) 停止: finalizeOwnersが状態を変える要求を止める前（composition-root.ts:1424）に、予約・更新の返信待ちを待って反映し、その後も印があり試行中でなく、その時の状態が\"verified\"でない（\"awaiting\"・\"unverified\"、または締切の印が立っている）ものを全部、(2)の\"unverified\"と同じにexpiredにしてownerへ送り、採用を待ってから止める（停止の間に30秒を越えた場合を含む、ヘルツr5のP1-1）。最終保存はその後なので、次の起動で待ちがやり直しにならない（ヘルツr4のP1-4）。試行中のものは今どおり停止のcutoffで扱う (4) expiredにしたものは戻さない（§7の8） (5) wallBasisを省略した構成（\"verified\"）では、印があっても今と同じに振る舞う (6) 担い手: publisherの側（前回の通知の選択・試行の開始・回収・停止）はK9がcomposition rootで持つ。unitの側（復元とdeadline入力で、前回の起動から復元した中身と通知に当てる期限切れ・回収。12 unit全部、例 eew-unit.ts:144）は、unitが復元の中で当てるのでcomposition rootでは止められず、K10が持つ（P3-CK-AC08の(6)）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:523 «75f7fbe098d5d486»",
-          "reconstruction/src/runtime/composition-root.ts:994 «1313f91067b382e4»",
-          "reconstruction/src/runtime/composition-root.ts:1082 «b9d28f2077571b5d»",
-          "reconstruction/src/runtime/composition-root.ts:1132 «fbd11fd1af8bd6ec»",
-          "reconstruction/src/runtime/composition-root.ts:1151 «d7749d8fbe7d1c6e»",
-          "reconstruction/src/runtime/composition-root.ts:1152 «c1316ed7219f7ac9»",
-          "reconstruction/src/runtime/composition-root.ts:1217 «f29b91e09636769b»",
-          "reconstruction/src/runtime/composition-root.ts:1244 «8174d51b14fd30d3»",
-          "reconstruction/src/runtime/composition-root.ts:1480 «d640dda1e6000b11»",
+          "reconstruction/src/runtime/composition-root.ts:528 «75f7fbe098d5d486»",
+          "reconstruction/src/runtime/composition-root.ts:999 «1313f91067b382e4»",
+          "reconstruction/src/runtime/composition-root.ts:1087 «b9d28f2077571b5d»",
+          "reconstruction/src/runtime/composition-root.ts:1137 «fbd11fd1af8bd6ec»",
+          "reconstruction/src/runtime/composition-root.ts:1156 «d7749d8fbe7d1c6e»",
+          "reconstruction/src/runtime/composition-root.ts:1157 «c1316ed7219f7ac9»",
+          "reconstruction/src/runtime/composition-root.ts:1227 «f29b91e09636769b»",
+          "reconstruction/src/runtime/composition-root.ts:1277 «5aa98a558d5d1c22»",
+          "reconstruction/src/runtime/composition-root.ts:1567 «d640dda1e6000b11»",
           "reconstruction/contracts/p2-notification-delivery.json:91 «53cff9917d12bece»",
           "reconstruction/contracts/p2-notification-delivery.json:92 «aedd6eb1dde09275»",
           "reconstruction/contracts/p3-persist-premises.md:212 «ce417493105359bb»",
           "reconstruction/contracts/p3-persist-premises.md:214 «fa51e4fd14c08277»",
           "reconstruction/contracts/p3-persist-premises.md:400 «84a5747c84adc8cb»",
           "reconstruction/contracts/p3-persist-premises.md:426 «2da899c097a9e079»",
-          "reconstruction/src/units/eew/eew-unit.ts:178 «7d07bb535c3f2398»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:64 «cb5d2c17e741dc26»"
+          "reconstruction/src/units/eew/eew-unit.ts:179 «7d07bb535c3f2398»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:61 «cb5d2c17e741dc26»"
         ]
       },
       {
@@ -316,8 +316,8 @@
           "reconstruction/contracts/p3-persist-premises.md:436 «f9154f6ac083aed7»",
           "reconstruction/contracts/p3-persist-premises.md:437 «61a8f2beec79f242»",
           "reconstruction/contracts/p3-persist-premises.md:442 «6094ee65c405a792»",
-          "reconstruction/src/units/eew/eew-unit.ts:139 «91151c25973aa618»",
-          "reconstruction/src/units/eew/eew-unit.ts:178 «7d07bb535c3f2398»"
+          "reconstruction/src/units/eew/eew-unit.ts:140 «91151c25973aa618»",
+          "reconstruction/src/units/eew/eew-unit.ts:179 «7d07bb535c3f2398»"
         ]
       },
       {
@@ -325,8 +325,8 @@
         "requirement": "受信経路の計算量（AGENTS.md、Q-CK-COST）: 根拠の状態の判定は読み1回に定数で、clock()を呼ぶ回数を増やさない（frameのentryの読みとpublisherの評価の読みを使う）。確かめはstart 1件とRESTの応答1件ごとに定数。RESTの確かめは起動の30秒に最大1回、以後は\"verified\"でない間だけ10分に最大1回。保留の集合の参照は選択と回収のたびにintentごとに1回（全件×全件にしない）。state全体のJSON化を足さない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:291 «e2f8e9bb145b6578»",
-          "reconstruction/src/runtime/composition-root.ts:994 «1313f91067b382e4»",
-          "reconstruction/src/runtime/composition-root.ts:1132 «fbd11fd1af8bd6ec»"
+          "reconstruction/src/runtime/composition-root.ts:999 «1313f91067b382e4»",
+          "reconstruction/src/runtime/composition-root.ts:1137 «fbd11fd1af8bd6ec»"
         ]
       },
       {
@@ -339,7 +339,7 @@
       },
       {
         "id": "P3-CK-AC08",
-        "requirement": "改める他の条文と申し送り。原文は重ねて読み替えず、配送のcommitで統合担当が改訂する: (1) P3-LIFETIME-AND-EEW-GATE-001: P3-LIFE-AC13の(4)の「時刻を補正しない」の後に「startのtimeはP3-CLOCK-CHECK-001の確かめの物差しにもなる（時計は補正しない）」を書き足す。AC13の(1)の「新しい通信・RESTの変更・header読みを足さない（RESTの応答はdmdata-rest.tsのexchangeがheaderを捨てるので使わない）」を「AC13の診断は新しい通信を足さない。時計の確かめのためのREST（GET /socket?status=open）とDateヘッダの読みはP3-CLOCK-CHECK-001が足す」に替える。残存リスク(3)に「時計未確認の間のEEWは分岐P3-CK-D-UNVERIFIED-EEW=A（EEWの閉じ方の契約で入れる）」を書き足す (2) P2-NOTIFICATION-DELIVERY-001: P2-A7-TIME.restore（:91）の「新runのW0/M0」を「hostの状態が\"verified\"の評価のW/M（P3-CLOCK-CHECK-001のP3-CK-AC03）」に替え、「復元由来の通知は、hostの状態が\"awaiting\"の間は壁時計の回収も表の回収も選択も試行の開始も当てず、\"unverified\"なら鳴らさずexpired（notificationExpiredClockUnverified）にする。停止のとき\"awaiting\"のまま残るものは最終保存の前にexpiredにする」を足す。order（:93）の「壁時計W>=expiresAtの絶対TTLを最初に適用する」に「保留中の復元由来の通知を除く」を足す（P3-CK-AC03の(2)と揃える、ヘルツr4のP1-3・Opus r4のP1） (3) P2-SHARED-RUNTIME-001: 型の境界のACと試験の閉集合にWallBasisとnotificationExpiredClockUnverifiedを足す (4) P3-VERSION-MATERIAL-001（K7）: Q-VM-SPLIT（:93）の「発注 1 は P2-SHARED-RUNTIME・P3-EXECUTION-SPLIT・…で K9 と重なり」からP3-EXECUTION-SPLITを外す。Q-VM-NEIGHBOURS（:102）のK9の側をP3-CK-AC04の(4)の対象に書き直し、「補正した時計の値と basis…を書くのは K9」を「basisの値を書くのはK9」に、「K9 は P3-LIFE-D-SKEW と AC13」を「K9はAC13の(4)と残存リスク(3)」にする（P3-EXECUTION-SPLIT・ClockReading・期限の入力も外す）。outOfScope（:401）の「時計の補正と根拠の状態」を「時計の確かめと根拠の状態」にする。P3-VM-AC06（:503）の「K9 の前は wallBasis() が無いので basis は null」の後に「K9の後はhostの判定の値（P3-CK-AC04）」を足し、「wallBasis() の値」はhostの根拠の状態（P3-CK-AC01の(3)）と読む旨を足す (5) K8の起草への申し送り: (a) 復元由来の印をstartedの無いものに限ること (b) 鳴らさずに捨てた前回の通知（notificationExpiredClockUnverifiedの件数）をH39のまとめに数えること（作者裁定 §7の4） (6) K10の起草への申し送り（Opus r4のP2）: K10は12 unit全部について、(i) 前回の起動から復元した中身と通知には、hostの状態が\"awaiting\"の間（\"verified\"になるか起動から30秒まで）は期限切れの表示も回収も当てない (ii) \"verified\"でない間（\"awaiting\"・\"unverified\"、オフライン起動と、再接続のstartが合わない間を含む）は、復元した中身も走行中に受けた中身も、手元の時計で期限切れの表示だけを当てて回収しない（(i)の間の復元した中身は表示も当てない）。\"verified\"になったら、その評価の手元のwallで回収する（§7の8「中身は確かめた時計でしか消さない」、Opus r8のP2-4）。復元の中で前回の通知を失効させる所（eew-unit.ts:144ほか）も同じ待ちに入れる。根拠の状態をownerとunitの入力へ運ぶ欄（SentClockとunitの入力、12 unit全部）もK10。K9の保留が実ownerの保存→復元を通して効くこと（T02(e)の結合受入）はK10の受入で確かめる (7) 段4の起草への申し送り: 「時計未確認」の印の口（hostの状態が\"verified\"でない間、分岐P3-CK-D-UNVERIFIED-EEW=AのEEWの印を含む、Q-CK-MARK） (8) EEWの閉じ方の起草への申し送り: 分岐P3-CK-D-UNVERIFIED-EEW=A（受けたときの根拠の状態はK10の欄で読む）。H42の行が挙げるP3-LIFE-D-SKEWの扱いもこちら (9) 配送のcommitで本契約のpublicTypesにp2-shared-runtime.types.ts#WallBasisを足す（起草の時点では型がまだ無く、check-contractが型の実在を求める） (10) specと設計メモへの追記は統合担当がmainで別に行う（本契約の配送のcommitの対象外）。設計メモの§0〜§11の行は他の契約から引かれている（:347はP3-VERSION-MATERIAL-001がanchorで引く）ので、(b)〜(f)は§11・§12と同じく行を書き換えずに新しい節へ足す（(b)は§3.5のK9の行〔:236〕の読みも兼ねる）。本契約から見て要る所: (a) specのH42の行（:3069）: 本契約のIDを書く。変える契約の欄のうち、P3-LIFE-D-SKEWはEEWの閉じ方（分岐P3-CK-D-UNVERIFIED-EEW）へ移す。「時計を供給するruntimeとhost」は、供給が無くなりhostの確かめだけになる。P3-UNIT-B・M・Yの時計の残存リスク（例 p3-briefing-unit.json:439の(2)）は案1で変わらない（本契約の残存リスク(5)と同じ） (b) 設計メモ§8のK9の行（:435）: 変える契約をP3-LIFETIME-AND-EEW-GATE（AC13の(4)・残存リスク(3)）・P2-NOTIFICATION-DELIVERY（A7-TIME）・P2-SHARED-RUNTIME（WallBasis・理由1語）・P3-VERSION-MATERIAL（K9の記述）・P3-DMDATA-CONNECT（RESTの確かめ、(11)）にする（D-SKEW・P3-EXECUTION-SPLIT（CLOCK）・ClockReadingを外す）。順を「K7の発注1の後、K8より前か同時、K10より前」にする。試験を「比べた結果の3つと前回の通知の保留（T01・T02）」にする (c) §8のK10の行（:437）の変える契約に、P2-EEW-UNIT・P3-UNIT-Q・P3-UNIT-N（復元した中身の待ち、(6)）とP3-EXECUTION-SPLIT（SentClock）・P2-SHARED-RUNTIME（unitの入力の根拠の欄）を足す (d) §8のK8の行（:436）に(5)を、EEWの閉じ方の行（:442）に(8)を足す (e) §11の「K9・K10の起草で確かめること」（:494）の3点への答えを写す: (1) 30秒の待ちは残す（Q-CK-RULINGの(3)） (2) 回収は確かめるまで保留する（復元した中身も走行中に受けた中身も、(6)の(ii)） (3) K8はK9の後か同時だが、理由は保存の初期化でなく印の絞りとH39（Q-CK-SCHEMA） (f) 設計メモの段3の順（:347）の「K7 ∥ K9」を「K7の発注1 → K9」にする（P3-CK-AC04の(2)） (11) P3-DMDATA-CONNECT-001: P3-C2-AC01（:320）のRESTの呼び出しに「GET /socket?status=openを、時計が確かめられない間だけP3-CLOCK-CHECK-001の確かめに使う（起動の30秒に最大1回、以後10分に最大1回。応答のDateだけを読む）」を足す (12) 他の契約が引く行（Q-CK-PRECHECKの(3)）: 行の数を変えない書き方を優先する（p2-shared-runtime.types.tsは、DiagnosticReasonの語を:299の行の中〔notificationExpiredの隣〕に足し、:303〔P3-WEATHER-SHAPE-001が引く〕は触らず、WallBasisはfileの末尾に置く。persistent-diagnostic-sink.tsは:57の行の中に足す。dmdata-rest.tsは既存の型と関数の行の中で直す〔他の契約のanchorは:6・:11だけ〕）。host.tsとcomposition-root.tsは変える所より後を引くanchorが多い（host.tsは25件のうち:76より後が22件、composition-root.tsは47件が全部:111より後）ので、足す行は変える型と関数の中にとどめる。K7（P3-VERSION-MATERIAL-001）とallowedPathsが重なるhost.ts・composition-root.ts・p2-shared-runtime.types.ts・persistent-diagnostic-sink.ts・reconstruction/test/**は統合担当が直列に合流し（P3-CK-AC04の(4)）、後に合流する側の行を付け直す。それでも動いた行を引くanchor（:299の行の中で直すときのP3-DISASTER-CAPACITY-001の:299を含む）は、統合担当が配送のcommitで行番号と各契約のmeta.sha256を付け直す（本文は書き換えない）",
+        "requirement": "改める他の条文と申し送り。原文は重ねて読み替えず、配送のcommitで統合担当が改訂する: (1) P3-LIFETIME-AND-EEW-GATE-001: P3-LIFE-AC13の(4)の「時刻を補正しない」の後に「startのtimeはP3-CLOCK-CHECK-001の確かめの物差しにもなる（時計は補正しない）」を書き足す。AC13の(1)の「新しい通信・RESTの変更・header読みを足さない（RESTの応答はdmdata-rest.tsのexchangeがheaderを捨てるので使わない）」を「AC13の診断は新しい通信を足さない。時計の確かめのためのREST（GET /socket?status=open）とDateヘッダの読みはP3-CLOCK-CHECK-001が足す」に替える。残存リスク(3)に「時計未確認の間のEEWは分岐P3-CK-D-UNVERIFIED-EEW=A（EEWの閉じ方の契約で入れる）」を書き足す (2) P2-NOTIFICATION-DELIVERY-001: P2-A7-TIME.restore（:91）の「新runのW0/M0」を「hostの状態が\"verified\"の評価のW/M（P3-CLOCK-CHECK-001のP3-CK-AC03）」に替え、「復元由来の通知は、hostの状態が\"awaiting\"の間は壁時計の回収も表の回収も選択も試行の開始も当てず、\"unverified\"なら鳴らさずexpired（notificationExpiredClockUnverified）にする。停止のとき\"awaiting\"のまま残るものは最終保存の前にexpiredにする」を足す。order（:93）の「壁時計W>=expiresAtの絶対TTLを最初に適用する」に「保留中の復元由来の通知を除く」を足す（P3-CK-AC03の(2)と揃える、ヘルツr4のP1-3・Opus r4のP1） (3) P2-SHARED-RUNTIME-001: 型の境界のACと試験の閉集合にWallBasisとnotificationExpiredClockUnverifiedを足す (4) P3-VERSION-MATERIAL-001（K7）: Q-VM-SPLIT（:93）の「発注 1 は P2-SHARED-RUNTIME・P3-EXECUTION-SPLIT・…で K9 と重なり」からP3-EXECUTION-SPLITを外す。Q-VM-NEIGHBOURS（:102）のK9の側をP3-CK-AC04の(4)の対象に書き直し、「補正した時計の値と basis…を書くのは K9」を「basisの値を書くのはK9」に、「K9 は P3-LIFE-D-SKEW と AC13」を「K9はAC13の(4)と残存リスク(3)」にする（P3-EXECUTION-SPLIT・ClockReading・期限の入力も外す）。outOfScope（:401）の「時計の補正と根拠の状態」を「時計の確かめと根拠の状態」にする。P3-VM-AC06（:503）の「K9 の前は wallBasis() が無いので basis は null」の後に「K9の後はhostの判定の値（P3-CK-AC04）」を足し、「wallBasis() の値」はhostの根拠の状態（P3-CK-AC01の(3)）と読む旨を足す (5) K8の起草への申し送り: (a) 復元由来の印をstartedの無いものに限ること (b) 鳴らさずに捨てた前回の通知（notificationExpiredClockUnverifiedの件数）をH39のまとめに数えること（作者裁定 §7の4）。(a)(b)はP3-NOTICE-LEDGER-001のP3-NL-AC08・AC14で済み (6) K10の起草への申し送り（Opus r4のP2）: K10は12 unit全部について、(i) 前回の起動から復元した中身と通知には、hostの状態が\"awaiting\"の間（\"verified\"になるか起動から30秒まで）は期限切れの表示も回収も当てない (ii) \"verified\"でない間（\"awaiting\"・\"unverified\"、オフライン起動と、再接続のstartが合わない間を含む）は、復元した中身も走行中に受けた中身も、手元の時計で期限切れの表示だけを当てて回収しない（(i)の間の復元した中身は表示も当てない）。\"verified\"になったら、その評価の手元のwallで回収する（§7の8「中身は確かめた時計でしか消さない」、Opus r8のP2-4）。復元の中で前回の通知を失効させる所（eew-unit.ts:144ほか）も同じ待ちに入れる。根拠の状態をownerとunitの入力へ運ぶ欄（SentClockとunitの入力、12 unit全部）もK10。K9の保留が実ownerの保存→復元を通して効くこと（T02(e)の結合受入）はK10の受入で確かめる (7) 段4の起草への申し送り: 「時計未確認」の印の口（hostの状態が\"verified\"でない間、分岐P3-CK-D-UNVERIFIED-EEW=AのEEWの印を含む、Q-CK-MARK） (8) EEWの閉じ方の起草への申し送り: 分岐P3-CK-D-UNVERIFIED-EEW=A（受けたときの根拠の状態はK10の欄で読む）。H42の行が挙げるP3-LIFE-D-SKEWの扱いもこちら (9) 配送のcommitで本契約のpublicTypesにp2-shared-runtime.types.ts#WallBasisを足す（起草の時点では型がまだ無く、check-contractが型の実在を求める） (10) specと設計メモへの追記は統合担当がmainで別に行う（本契約の配送のcommitの対象外）。設計メモの§0〜§11の行は他の契約から引かれている（:347はP3-VERSION-MATERIAL-001がanchorで引く）ので、(b)〜(f)は§11・§12と同じく行を書き換えずに新しい節へ足す（(b)は§3.5のK9の行〔:236〕の読みも兼ねる）。本契約から見て要る所: (a) specのH42の行（:3069）: 本契約のIDを書く。変える契約の欄のうち、P3-LIFE-D-SKEWはEEWの閉じ方（分岐P3-CK-D-UNVERIFIED-EEW）へ移す。「時計を供給するruntimeとhost」は、供給が無くなりhostの確かめだけになる。P3-UNIT-B・M・Yの時計の残存リスク（例 p3-briefing-unit.json:439の(2)）は案1で変わらない（本契約の残存リスク(5)と同じ） (b) 設計メモ§8のK9の行（:435）: 変える契約をP3-LIFETIME-AND-EEW-GATE（AC13の(4)・残存リスク(3)）・P2-NOTIFICATION-DELIVERY（A7-TIME）・P2-SHARED-RUNTIME（WallBasis・理由1語）・P3-VERSION-MATERIAL（K9の記述）・P3-DMDATA-CONNECT（RESTの確かめ、(11)）にする（D-SKEW・P3-EXECUTION-SPLIT（CLOCK）・ClockReadingを外す）。順を「K7の発注1の後、K8より前か同時、K10より前」にする。試験を「比べた結果の3つと前回の通知の保留（T01・T02）」にする (c) §8のK10の行（:437）の変える契約に、P2-EEW-UNIT・P3-UNIT-Q・P3-UNIT-N（復元した中身の待ち、(6)）とP3-EXECUTION-SPLIT（SentClock）・P2-SHARED-RUNTIME（unitの入力の根拠の欄）を足す (d) §8のK8の行（:436）に(5)を、EEWの閉じ方の行（:442）に(8)を足す (e) §11の「K9・K10の起草で確かめること」（:494）の3点への答えを写す: (1) 30秒の待ちは残す（Q-CK-RULINGの(3)） (2) 回収は確かめるまで保留する（復元した中身も走行中に受けた中身も、(6)の(ii)） (3) K8はK9の後か同時だが、理由は保存の初期化でなく印の絞りとH39（Q-CK-SCHEMA） (f) 設計メモの段3の順（:347）の「K7 ∥ K9」を「K7の発注1 → K9」にする（P3-CK-AC04の(2)） (11) P3-DMDATA-CONNECT-001: P3-C2-AC01（:320）のRESTの呼び出しに「GET /socket?status=openを、時計が確かめられない間だけP3-CLOCK-CHECK-001の確かめに使う（起動の30秒に最大1回、以後10分に最大1回。応答のDateだけを読む）」を足す (12) 他の契約が引く行（Q-CK-PRECHECKの(3)）: 行の数を変えない書き方を優先する（p2-shared-runtime.types.tsは、DiagnosticReasonの語を:299の行の中〔notificationExpiredの隣〕に足し、:303〔P3-WEATHER-SHAPE-001が引く〕は触らず、WallBasisはfileの末尾に置く。persistent-diagnostic-sink.tsは:57の行の中に足す。dmdata-rest.tsは既存の型と関数の行の中で直す〔他の契約のanchorは:6・:11だけ〕）。host.tsとcomposition-root.tsは変える所より後を引くanchorが多い（host.tsは25件のうち:76より後が22件、composition-root.tsは47件が全部:111より後）ので、足す行は変える型と関数の中にとどめる。K7（P3-VERSION-MATERIAL-001）とallowedPathsが重なるhost.ts・composition-root.ts・p2-shared-runtime.types.ts・persistent-diagnostic-sink.ts・reconstruction/test/**は統合担当が直列に合流し（P3-CK-AC04の(4)）、後に合流する側の行を付け直す。それでも動いた行を引くanchor（:299の行の中で直すときのP3-DISASTER-CAPACITY-001の:299を含む）は、統合担当が配送のcommitで行番号と各契約のmeta.sha256を付け直す（本文は書き換えない）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «dddd02e05041ae59»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:559 «07ba393566664a0d»",

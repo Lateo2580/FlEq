@@ -81,7 +81,7 @@ describe("P3-UNIT-R-001 U-R through the composition root", () => {
         subject: unit, reportDateTimeRaw: "2019-05-27T09:00:00+09:00", controlDateTimeRaw: "2019-05-27T09:00:00+09:00", serialRaw: "1", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
       nextAttemptAt: createdAt, attempts: 0, configRevision: "t07", disposition: "pending",
-      ...freshState(unit, "normal", level) });
+      ...freshState(unit, "normal", level === "warning" || level === "critical") });
     // U-R を最も古く作る（同じ群なら先に選ばれる位置）。
     const flood = notice("U-R", "weather", "critical", -10), tsunami = notice("U-T", "tsunami", "critical", 0);
     const eew = notice("U-E", "earthquake-eew", "warning", 5);

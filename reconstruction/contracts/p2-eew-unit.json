@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "71d76c53fc5d1009d441a2b4a6acdc0dd0844f1a80e2a5069f3be19a8ae19557",
+    "sha256": "b72205f67e83a79dcb677d239adb092c86c4021f605edff2f0313b5570a23386",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -193,9 +193,9 @@
           "reason": "P2-A4-AC11: 音段階・タイトル・本文の型と文言がA4に無いと、A7が同じEEWを別の警報段階や運用区分で配送する。EewUnitState/PersistedEewUnit/EewUnitStepのintents.payloadをこの型へ結び、未接続の説明用型にしない。",
           "ownership": "型にある4キーだけを両channelへ同一内容で渡す。A4の生成とcodec復元境界でこの型/値域を保証し、A1/A7は内部で再検証・文言再生成・既定値補完をしない。全family共通schemaへ拡張しない。",
           "warning": "src/dmdata/telegram-parser.tsのxmlWarning（headType=VXSE43、警報区域Kind、警報Headline codeのいずれか）だけを意味受理時に一度判定し、level・baseTitle・warningNotifiedで共用する。VXSE45を常に予報と決めつけない。",
-          "level": "取消はcancel、それ以外は警報ならcritical、予報ならwarning。domainは型のリテラルearthquake-eew。",
-          "title": "operationPrefixはnormalが空、trainingが【訓練】、testが【試験】。baseTitleは警報なら緊急地震速報（警報）、予報なら緊急地震速報（予報）。titleはoperationPrefix＋（取消なら[取消] 緊急地震速報、訂正なら[訂正] ＋baseTitle、その他はbaseTitle）。",
-          "body": "取消は緊急地震速報は取り消されました。それ以外は旧notifier.ts:401-416の震源名・notificationMagnitude・最大予測震度ラベルを欠損項目省略で / 連結し、地震諸元が無ければ区分接頭辞を付ける前の通知タイトルを本文にする。訂正はその本文の冒頭に訂正: を付ける。仮定震源要素なら震源名とMを「仮定震源」一語に置き換え、最大予測震度を残す。hazardIncreaseは本文先頭に「続報: 」を付け、警報title/criticalを使う。",
+          "level": "取消はcancel、それ以外は警報ならcritical、予報ならwarning。domainは型のリテラルearthquake-eew。（P3-NOTICE-LEDGER-001で改訂: 最終報〔取消でなくNextAdvisoryのある報〕は、第1報・警報への切替・危険が増した続報に当たらなければnormal〔音はearthquake-eew-normal.wav〕、当たれば今の音のまま〔分岐P3-NL-D-FINAL-OVERLAP=A〕、H06、P3-NL-AC12）",
+          "title": "operationPrefixはnormalが空、trainingが【訓練】、testが【試験】。baseTitleは警報なら緊急地震速報（警報）、予報なら緊急地震速報（予報）。titleはoperationPrefix＋（取消なら「[取消] <種類>（<震源名> HH:MM 発表）」〔<種類>は取消の報のHead/Titleを128文字で切った値、震源名と時刻は取り消したgateのnoticeSource.hypocenterとsource。gateが無く印だけなら印のfamilyの記録の時刻だけ、gateも印も無い取消は「[取消] <種類>」。H16、P3-NOTICE-LEDGER-001のP3-NL-AC10〕、訂正なら[訂正] ＋baseTitle、その他はbaseTitle）。",
+          "body": "取消は「<震源名> HH:MM 発表の<種類>を取り消しました」（震源名・時刻の無いときは省き、gateも印も無い取消は「<種類>を取り消しました」、P3-NOTICE-LEDGER-001のP3-NL-AC10）。それ以外は旧notifier.ts:401-416の震源名・notificationMagnitude・最大予測震度ラベルを欠損項目省略で / 連結し、地震諸元が無ければ区分接頭辞を付ける前の通知タイトルを本文にする。訂正はその本文の冒頭に訂正: を付ける。仮定震源要素なら震源名とMを「仮定震源」一語に置き換え、最大予測震度を残す。hazardIncreaseは本文先頭に「続報: 」を付け、警報title/criticalを使う。最終報は本文の頭（訓練・試験の注記行の後）に「最終報: 」を付け、訂正の最終報は「最終報: 訂正: 」。危険が増した続報と重なる最終報は「最終報: 続報: 」を注記行より前に置く（続報の頭書きの位置はP2のまま。H06、P3-NOTICE-LEDGER-001のP3-NL-AC12、分岐P3-NL-D-FINAL-OVERLAP=A）。",
           "operationLead": "最後にtrainingは「訓練の電文です。通常運用の警報ではありません。」、testは「試験の電文です。通常運用の警報ではありません。」と改行を本文冒頭へ付ける。normalは付けない。取消・訂正でもこの本文冒頭とタイトルの区分接頭辞を維持する。title/bodyは空でない文字列で、容量は既存pending byte上限で判定する。 hazardIncreaseでは「続報: 」を最終本文の先頭に置き、その後にtraining/testの区分leadを続ける。訂正との重複では訂正接頭辞を優先する。",
           "warningRationale": "統合担当決定: 新築routeはheadTypeから導く（reconstruction/src/decode-material/decode-material.ts:203-204）ため警報分類はVXSE43と同値でxmlWarningに含まれ、旧築のclassificationだけが警報となる状態も仕様不整合の観測ログ対象（src/dmdata/telegram-parser.ts:941-960）なので、封筒classificationを要求せずP1契約は改訂しない。",
           "assumedHypocenter": "旧築のCondition「仮定震源要素」またはM1.0・深さ10kmかつMaxIntChangeReason=9/PLUM区域の同条件をA4で一度判定し、通知本文とEewUnitView.current[].isAssumedHypocenterに共用する。 fallbackは旧築と同じ[+-](数字または.数字)の座標成分、深さ絶対値のm/km変換、理由parseInt、MのparseFloat後toFixed(1)を使う。"
@@ -444,7 +444,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:790 «c4632aae59a2f1fc»",
           "docs/specs/reconstruction-p0-contracts.md:796 «d67314b63ec56a68»",
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»"
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»"
         ]
       },
       {

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "45466bb9e2eca5e81f5cd0a9aad857c7d8dab2e2e87b0f2cf39073e6f6194891",
+    "sha256": "3192f2956420e5f6503fa2e49fbf721cb622c7a6d54749c1f8428adca4301ff7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -442,7 +442,7 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:217 «f058e3a180f89e0c»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:533 «a486380631b6e9d0»",
           "reconstruction/src/view-projector/view-projector.ts:769 «25d8f1daebd55d26»",
-          "reconstruction/src/runtime/composition-root.ts:568 «445a2eeb56638c45»",
+          "reconstruction/src/runtime/composition-root.ts:573 «445a2eeb56638c45»",
           "reconstruction/contracts/p2-snapshot-sse.json:87 «5272dd4ae4de33c9»",
           "docs/specs/reconstruction-p0-contracts.md:1233 «22620e62c3946a2e»",
           "docs/specs/reconstruction-p0-contracts.md:1268 «76445404beb6f64a»",
@@ -466,13 +466,13 @@
           "reconstruction/contracts/p3-execution-split.types.ts:56 «0264a87b13c087be»",
           "reconstruction/contracts/p3-execution-split.json:543 «51c60c820f5920f9»",
           "reconstruction/contracts/p3-execution-lifecycle.json:397 «ce6ce022398df88d»",
-          "reconstruction/src/runtime/composition-root.ts:156 «03945f9ae218aaba»",
-          "reconstruction/src/runtime/composition-root.ts:486 «8d0c9de1079fadb3»",
-          "reconstruction/src/runtime/composition-root.ts:496 «1995a375a3bd0291»",
-          "reconstruction/src/runtime/composition-root.ts:597 «fa584aca79d20543»",
-          "reconstruction/src/runtime/composition-root.ts:795 «ecba0cf7b1c3c190»",
-          "reconstruction/src/runtime/composition-root.ts:805 «c1cec655b9c2dee4»",
-          "reconstruction/src/runtime/composition-root.ts:398 «4d0b3dbc153a4243»",
+          "reconstruction/src/runtime/composition-root.ts:159 «03945f9ae218aaba»",
+          "reconstruction/src/runtime/composition-root.ts:491 «8d0c9de1079fadb3»",
+          "reconstruction/src/runtime/composition-root.ts:501 «1995a375a3bd0291»",
+          "reconstruction/src/runtime/composition-root.ts:602 «fa584aca79d20543»",
+          "reconstruction/src/runtime/composition-root.ts:800 «ecba0cf7b1c3c190»",
+          "reconstruction/src/runtime/composition-root.ts:810 «c1cec655b9c2dee4»",
+          "reconstruction/src/runtime/composition-root.ts:401 «4d0b3dbc153a4243»",
           "reconstruction/src/mailbox/mailbox.ts:129 «604fa96ca9256c26»",
           "reconstruction/src/mailbox/mailbox.ts:69 «06bb4dc5a24c2025»",
           "reconstruction/src/runtime/unit-coverage.ts:172 «0344f1d6e2b14fc3»"

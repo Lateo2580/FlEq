@@ -450,8 +450,8 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     expect(send(emptyState(), F.cancel).intents).toEqual([]);
     const cancel = send(first.state, F.cancel);
     expect(cancel.intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body])).toEqual([
-      ["cancelled", "cancel", "[取消] 宗谷地方土砂災害警報・注意報", "この情報は取り消されました"],
-      ["cancelled", "cancel", "[取消] 宗谷地方土砂災害警報・注意報", "この情報は取り消されました"]]);
+      ["cancelled", "cancel", "[取消] 宗谷地方土砂災害警報・注意報（23:00 発表）", "23:00 発表の宗谷地方土砂災害警報・注意報を取り消しました"],
+      ["cancelled", "cancel", "[取消] 宗谷地方土砂災害警報・注意報（23:00 発表）", "23:00 発表の宗谷地方土砂災害警報・注意報を取り消しました"]]);
     // 置換（P3-C10-REPLACEMENT=A）: 同じ subject・channel の新しい intent は古い pending を、取消は対象 subject の全 pending を置き換える。
     const replaced = follow(first.state, soya(["49", ...Array(9).fill("29")]), "2020-06-22T23:00:30+09:00").state;
     // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。

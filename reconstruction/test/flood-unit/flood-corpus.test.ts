@@ -24,7 +24,7 @@ describe("P3-UNIT-R-001 U-R corpus history", () => {
     expect(o01[4].state.intents.filter((item) => item.subject === "normal/VXKO50/123456789013").map((item) => item.disposition))
       .toEqual(["pending", "pending"]);
     expect(o01[5].intents.map((item) => [item.payload.title, item.payload.body])).toEqual([
-      ["[取消] ○○川上流氾濫警戒情報の取消", "この情報は取り消されました"], ["[取消] ○○川上流氾濫警戒情報の取消", "この情報は取り消されました"]]);
+      ["[取消] ○○川上流氾濫警戒情報（09:30 発表）", "09:30 発表の○○川上流氾濫警戒情報を取り消しました"], ["[取消] ○○川上流氾濫警戒情報（09:30 発表）", "09:30 発表の○○川上流氾濫警戒情報を取り消しました"]]);
     // 取消は 123456789012 だけで、123456789013 の active は残る。
     expect(toFloodView(o01[5].state).currents.map((item) => item.subject)).toEqual(["normal/VXKO50/123456789013"]);
     const kozagawa = replay("O01", 86, 88);

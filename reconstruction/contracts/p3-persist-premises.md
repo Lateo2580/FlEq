@@ -532,3 +532,10 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
 - §2.4 の記録の案 A（:127）の「`UnitModule.terminalIntents` の `deliveryRecords` の口を全 unit で使う」は採らなかった。終端の intent は全 unit で intents から外し、結果は系列の印（U-E は EventID ごとの印）に残す。`terminalIntents` と `TerminalIntentRecords`、U-E の `deliveryRecords`、終端の予算 `TERMINAL_BYTES` は消した（P3-NL-AC05）。
 - §2.4 の印の大きさの見積もり（「系列あたり約 130〜200 byte」「U-E 約 120 byte×2,048」「512 KiB 前後」）は、実装の上界で系列の印 102 byte、U-T の観測の印 420 byte、U-E の印 954 byte×2,048、U-E の世代 2 MiB（P3-NL-AC04 の (8)、Q-NL-BYTES）。
 - §8 の表の K8 の行（:436）の読みのうち、保存 ack を待つ配送・H19・H16・H09・H06・H27 と H39 の数え方は発注 2 の配送で足す。
+
+## 16. K8 の発注 2 の配送で変わる読み（2026-10-22 統合担当、`P3-NOTICE-LEDGER-001` の AC18）
+
+- §8 の表の K8 の行（:436）は次のとおり読む。H48 は保存 ack を待つ配送で、全部の通知が試行の開始を採った世代の保存 ack を待つ（P3-NL-AC07）。H19 は取消の前に active だったか、印の証拠（possible・unknown）のある系列の取消を通知する（P3-NL-AC09）。H16 は取消の文面に種類（取消の報の Head/Title、末尾の「の取消」は除く）・震源名（U-V は火山名）・取り消した記録の発表時刻を書く（P3-NL-AC10）。H09 は注意報への発令・引上げ・区域拡大を warning にし、群を owner が intent の `priorityGroup` に付ける（P3-NL-AC11）。H06 は最終報を normal にし本文に「最終報: 」を書く（P3-NL-AC12）。H27 は取り直しで作る intent も印で照合する（P3-NL-AC13）。H39 は owner が envelope の `losses` に数える（P3-NL-AC14）。
+- 同じ行の「変える契約」には P2-CHECKPOINT-SHUTDOWN（A3-AC10・AC11）、P2-SHARED-RUNTIME（R45）、P3-EXECUTION-SPLIT（C3A-NOTIFY-ADOPT・AC07・AC09）、P3-CURRENCY-COVERAGE（失敗警報の判定）、P3-CLOCK-CHECK（AC08 の (5)）、P3-RECOVERY（Q の :215）が加わった。「版を上げる」は発注 1 で済み、発注 2 は保存の形を変えないので版を上げない（Q-NL-PRECHECK-2 の (1)(h)）。
+- §2.4 の H48 の例外（:134）の「障害の間だけ EEW（U-E）・津波（U-T）・payload.level が critical の通知は ack を待たずに出し、ほかは出さずに期限で落として H39 に数える」は、2026-10-22 の作者裁定で「保存の障害の間はすべての通知を待たずに出す。待ちの上限は EEW・津波・critical が 1 秒、ほかは 10 秒（checkpoint の 10 秒の監視と同じ値で、止まった保存を障害に含める）」と読む（P3-NL-AC07 の (3)）。同じ行の例外の条件「終了の段で最終保存を過ぎた後」は、停止の段では新しい試行を始めないので要らない（P3-NL-AC07 の (6)(c)）。
+- §2.4 の H09（:137）の「publisher の判定（`notification-delivery.ts:19〜25`）はそれを読むだけ」は、`group()` が `intent.priorityGroup` を返す形になり、群を作るのは `notice-mark.ts` の `priorityGroupOf` だけになった。

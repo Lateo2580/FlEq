@@ -9,6 +9,7 @@ import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { floodUnitCodec, reduceFloodUnit, toFloodView } from "../../src/units/flood/flood-unit";
+import { cancelText } from "../../src/units/notice-mark";
 import {
   SAMPLE_RIVERS, clock, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, receive, replaceTag, retime, rivers, send, serial, stationsXml,
   status,
@@ -680,4 +681,11 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-R restores failed and null p
   expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
     restore: (state, at) => reduceFloodUnit(emptyState(), { kind: "restore", persisted: floodUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => state.currents.find((item) => item.subject === subject)?.notice });
+});
+
+// P3-NL-T07 の取消の文面の行（P3-NL-AC10、Q-NL-CANCEL-TEXT の U-R の行）: 取消の報の Head/Title の末尾の「の取消」は種類に入れない
+// （synthetic_VXKO50_cancel の題「○○川上流氾濫警戒情報の取消」で「…の取消を取り消しました」と出さない）。
+it("P3-NL-T07 contractBoundary / AC10: a cancel title ending in の取消 is named without it", () => {
+  expect(cancelText("○○川上流氾濫警戒情報の取消", "2022-07-28T09:30:00+09:00"))
+    .toEqual({ title: "[取消] ○○川上流氾濫警戒情報（09:30 発表）", body: "09:30 発表の○○川上流氾濫警戒情報を取り消しました" });
 });

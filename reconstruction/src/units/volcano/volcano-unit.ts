@@ -18,7 +18,7 @@ import {
 } from "../../domains/volcano/volcano";
 import type { AlertFacts, VolcanoCandidate, VolcanoEntry } from "../../domains/volcano/volcano";
 import {
-  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 
@@ -402,13 +402,24 @@ const PREFIX: Readonly<Record<Operation, string>> = { normal: "", training: "【
 // series は通知の系列（警報の海上の側だけ "marine"、P3-NL-AC01 (1)）。
 type Notice = Readonly<{ subject: string; series: "" | "marine"; operation: Operation; source: ReportRef; transition: VolcanoIntent["transition"];
   payload: VolcanoNotificationPayload }>;
+// 取り消した記録の ReportDateTime と火山名（P3-NL-AC10 (2)）。kind は海上の部分だけの取消の種類。
+type Cancelled = Readonly<{ at: string | null; name: string | null; kind?: string }>;
+// P3-NL-AC09 (1): 取消を通知するのは、取り消した記録が active だったか、その系列の印に通知の証拠があるとき（H19）。火山名は事実を持つ
+// 記録だけが持つ。
+function cancelledOf(existing: Shown | null, source: ReportRef | null, mark: NoticeMark | undefined): Cancelled | null {
+  if (existing == null || existing.effective !== "active" && !heard(mark)) return null;
+  return { at: source?.reportDateTimeRaw ?? null, name: "volcanoName" in existing ? existing.volcanoName : null };
+}
 // 題は operationPrefix＋Head/Title から「火山名　山名　」を除いた文字列、訂正・取消は前置き（旧築 notifier.ts の notifyVolcano）。
 function noticeOf(candidate: VolcanoCandidate, subject: string, transition: VolcanoIntent["transition"], level: Level,
-  summary: string): Notice {
+  summary: string, cancelled: Cancelled | null = null): Notice {
   const prefix = PREFIX[candidate.operation], source = { ...candidate.source, subject };
   const series = subject.includes("/volcano:alert/") && isMarine(candidate.family) ? "marine" as const : "" as const;
-  if (candidate.cancelled) return { subject, series, operation: candidate.operation, source, transition, payload: { domain: "volcano",
-    level: "cancel", title: `${prefix}[取消] ${candidate.title}`, body: "この情報は取り消されました" } };
+  if (candidate.cancelled) {
+    const text = cancelText(cancelled?.kind ?? candidate.title, cancelled?.at ?? null, cancelled?.name ?? null);
+    return { subject, series, operation: candidate.operation, source, transition, payload: { domain: "volcano",
+      level: "cancel", title: prefix + text.title, body: text.body } };
+  }
   const correction = candidate.infoRank === 2, body = summary === "" ? candidate.title : summary;
   return { subject, series, operation: candidate.operation, source, transition, payload: { domain: "volcano", level,
     title: prefix + (correction ? `[訂正] ${candidate.title}` : candidate.title), body: correction ? `訂正: ${body}` : body } };
@@ -427,7 +438,7 @@ function intentsFor(notice: Notice, now: number, mark: NoticeMark | undefined, v
   return channels.map((channel) => ({ id: noticeId("U-V", notice.subject, notice.series, notice.source, notice.transition, channel), unit: "U-V",
     subject: notice.subject, operation: notice.operation, source: notice.source, transition: notice.transition, channel, payload: notice.payload,
     createdAt: now, expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
-    ...freshState("U-V", notice.operation, notice.payload.level) }));
+    ...freshState("U-V", notice.operation) }));
 }
 // 系列の記録の印を読み・書き換える（警報の海上の側は marineNotice）。記録の無い subject（定時の batch）は何もしない。
 function seriesMark(state: VolcanoUnitState, subject: string, marine: boolean): NoticeMark | undefined {
@@ -641,13 +652,16 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
   if (candidate.cancelled && isMarine(candidate.family) && existing?.source != null) {
     // 海上の部分だけの取消: VFSV の pending だけを置き換え、海上警報の取消と分かる通知にする（VFVO50 の通知は残す）。
     applied.cancelled.add(`${subject}\n${MARINE_PART}`);
-    if (before != null) applied.notice = { ...noticeOf(candidate, subject, "cancelled", "cancel", ""), payload: { domain: "volcano", level: "cancel",
-      title: `${PREFIX[candidate.operation]}[取消] 火山現象に関する海上警報`, body: "火山現象に関する海上警報・海上予報が取り消されました" } };
+    // 種類は「火山現象に関する海上警報」（P3-NL-AC10 (3)、2026-10-22 作者裁定）。
+    const marine = cancelledOf(existing, existing.marineSource, existing.marineNotice);
+    if (marine != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", { ...marine, kind: "火山現象に関する海上警報" });
     return applied;
   }
   if (candidate.cancelled) {
     applied.cancelled.add(subject);
-    if (before != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "");
+    const cancelled = isMarine(candidate.family) ? cancelledOf(existing, existing?.marineSource ?? null, existing?.marineNotice)
+      : cancelledOf(existing, existing?.source ?? null, existing?.notice);
+    if (cancelled != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
     return applied;
   }
   const kind = facts!.kind;
@@ -694,7 +708,8 @@ function receiveEruption(state: VolcanoUnitState, candidate: Candidate<"eruption
   if (dueAt(next, now)) { if (before != null) applied.cancelled.add(subject); return applied; }
   if (candidate.cancelled) {
     applied.cancelled.add(subject);
-    if (before != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "");
+    const cancelled = cancelledOf(existing, existing?.source ?? null, existing?.notice);
+    if (cancelled != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
     return applied;
   }
   if (candidate.infoRank !== 2 && fields.length === 0) return applied;
@@ -738,7 +753,8 @@ function receiveAshfall(state: VolcanoUnitState, candidate: Candidate<"ashfall">
   if (dueAt(next, now)) { if (before != null) applied.cancelled.add(subject); return applied; }
   if (candidate.cancelled) {
     applied.cancelled.add(subject);
-    if (before != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "");
+    const cancelled = cancelledOf(existing, existing?.source ?? null, existing?.notice);
+    if (cancelled != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
     return applied;
   }
   if (candidate.infoRank !== 2 && fields.length === 0) return applied;
@@ -787,8 +803,10 @@ function receiveScheduled(state: VolcanoUnitState, candidate: Candidate<"schedul
       applied.state = { ...applied.state, batch: subjects.length === 0 ? null : { ...batch, subjects } };
     }
     applied.cancelled.add(subject);
-    if ((inBatch || existing?.effective === "active") && !dueAt(next, now))
-      applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "");
+    const cancelled = cancelledOf(existing, existing?.source ?? null, existing?.notice);
+    if ((inBatch || cancelled != null) && !dueAt(next, now))
+      applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled ?? { at: existing?.source.reportDateTimeRaw ?? null,
+        name: existing?.volcanoName ?? null });
     return applied;
   }
   if (!kept || dueAt(next, now)) return applied;
@@ -844,7 +862,8 @@ function receiveBulletin(state: VolcanoUnitState, candidate: Candidate<"bulletin
     if (kept && !dueAt(next, now)) {
       if (candidate.cancelled) {
         applied.cancelled.add(subject);
-        if (before != null) notice = noticeOf(candidate, subject, "cancelled", "cancel", "");
+        const cancelled = cancelledOf(existing, existing?.source ?? null, existing?.notice);
+        if (cancelled != null) notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
       } else if (candidate.infoRank === 2 || fields.length !== 0) {
         const facts = candidate.facts!;
         const level = candidate.family === "VFVO51" && facts.extraordinary ? "normal" : "info";

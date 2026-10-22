@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "4f7baf28a11e1ceff5c7af64fb9e71026dc3d6820566934066929148a115b946",
+    "sha256": "6eeffb5fd26f3b1f444692472f3deb31eb406c9a64455ff13c673383779d09a1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -173,7 +173,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "取消を採用し、取消の前に対象の現況か情報subjectがactiveだった（P3-C8-CANCEL-SCOPEの(1)(2)）。(3)の未受信の対象の取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
+            "condition": "取消を採用し、取消の前に対象の現況か情報subjectがactiveだった（P3-C8-CANCEL-SCOPEの(1)(2)）。(3)の未受信の対象の取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -196,7 +196,7 @@
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C8-REPLACEMENT=A",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4・C5・C7の先例）",
-        "payload": "typeRef reconstruction/contracts/p3-nankai-unit.types.ts#NankaiNotificationPayload。domain=earthquake-eew。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋旧築notifier.ts:489〜:509と同じ組み方: 発表はHead/Title、訂正は「[訂正] 」＋Head/Title、取消は「[取消] 」＋Head/Title。bodyは取消なら「この情報は取り消されました」、それ以外はHead/Headline/Text、無ければ本文（EarthquakeInfo/Text）の先頭80文字、それも無ければHead/Title。訂正はbodyの冒頭に「訂正: 」。文字列はI-U-N.boundsで切った値から組む。title/bodyは空にしない",
+        "payload": "typeRef reconstruction/contracts/p3-nankai-unit.types.ts#NankaiNotificationPayload。domain=earthquake-eew。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋旧築notifier.ts:489〜:509と同じ組み方: 発表はHead/Title、訂正は「[訂正] 」＋Head/Title、取消は「[取消] 」＋Head/Title。bodyは取消なら「HH:MM 発表の<種類>を取り消しました」、それ以外はHead/Headline/Text、無ければ本文（EarthquakeInfo/Text）の先頭80文字、それも無ければHead/Title。訂正はbodyの冒頭に「訂正: 」。文字列はI-U-N.boundsで切った値から組む。title/bodyは空にしない（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（HH:MM 発表）」、bodyは「HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順（期限→生成時刻→ID）の後ろのものを外す。U-Nは全部同じ群なので、新しいintentが外れることがある。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。終端記録はexpiresAtで回収し、保存世代のbyte予算に含める。終端記録の合計が98,304 byteを超える分は、最古の終端記録からexpiresAtの前に回収する（終端記録は遅れた結果の照合にだけ使い、未知idの更新はno-opなので、早く回収しても通知は変わらない）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力は適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P3-C8-N2）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る。復元直後の続報の事実の差は、復元した現況との差で決める（情報系列は空から始まる）（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
@@ -206,7 +206,7 @@
         "id": "P3-C8-LEGACY-DIFF",
         "status": "frozen（旧築の実コードから。作者へ出す見え方の根拠。挙動はコードを読んだ範囲で、旧築を実走して確かめてはいない）",
         "items": [
-          "通知の機会: 旧築はgateを通った報ごとにdesktop＋soundを出す（message-router.ts:513〜:515・:533〜:534→notifier.ts:489）。現況のsourceとEventIDが一致しない取消と未受信の対象の取消（corpusの74_03_01）はgateで落ち、鳴らない（process-standby-foundation.ts:75〜:82、process-message.ts:290）。新築は事実の変わった採用・訂正・取消の前にactiveだった対象の取消だけで鳴らし、事実の同じ新しいrevisionでは鳴らさない",
+          "通知の機会: 旧築はgateを通った報ごとにdesktop＋soundを出す（message-router.ts:513〜:515・:533〜:534→notifier.ts:489）。現況のsourceとEventIDが一致しない取消と未受信の対象の取消（corpusの74_03_01）はgateで落ち、鳴らない（process-standby-foundation.ts:75〜:82、process-message.ts:290）。新築は事実の変わった採用・訂正・取消の前にactiveだった対象の取消だけで鳴らし、事実の同じ新しいrevisionでは鳴らさない（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
           "段階: P3-C8-NOTICE-LEVELS=B（作者裁定）で、新築のlevelは旧築の表示の段階（level-helpers.ts:232〜:244）と同じ表。旧築のsoundの式（:308〜:312、120はcritical・ほかはwarning）とは、調査終了（190）と定例解説（200）がwarningでなくinfoになる点で違う（旧築は短三和音2回、新築は単音）。旧築のdesktopは段階を持たない。音源は旧築の5段階でなく、分野別根音表の地震・EEW（sound-design-system.md:46）",
           "優先: 旧築には優先群が無く、受理の順に鳴らす。新築のU-Nはotherの群で、EEWと津波緊急の後になる（P3-C8-NOTICE-GROUP）",
           "現況の対象: 旧築は120・130で現況を作り、190で無条件に消し（巨大地震注意の最中の調査終了でも注意が消える）、ほかのcode・InfoSerialの無い報（VYSE60を含む）では現況を変えない（nankai-status.ts:7〜:20、standby-state-store.ts:2393〜:2403）。新築はP3-C8-INVESTIGATING=Aで調査中も現況にし（activeの警戒・注意は置き換えない）、190はinvestigatingだけを終え、P3-C8-VYSE60=AでVYSE60を別の系統の現況にする",
@@ -805,7 +805,7 @@
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
-          "reconstruction/src/runtime/composition-root.ts:1350 «4b3e06f0acf52345»",
+          "reconstruction/src/runtime/composition-root.ts:1431 «4b3e06f0acf52345»",
           "reconstruction/contracts/p3-execution-boundary.md:12 «664a6f4b27d9fc87»",
           "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -818,7 +818,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:211 «75cf2512443da992»"
+          "reconstruction/src/runtime/composition-root.ts:214 «75cf2512443da992»"
         ]
       },
       {

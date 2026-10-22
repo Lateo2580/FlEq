@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "5c458f9510d4534883c6fcbd668722c91a1f9963e97b6a1ae254377eab8e6fed",
+    "sha256": "a6e3ed665d55c2b07a8cb3507ac4b2157f42ba81bf7dfeb7dc1f9f41ecdcf19a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -222,7 +222,7 @@
         "C": "Aに加え、前の記録を消す代わりに事実を持たない記憶（BriefingReportCurrentの新しい枝。sourceは遅着の報、retainUntilはsource＋3時間）として残し、watermarkを保つ",
         "recommended": "A",
         "ruling": "作者裁定A（2026-10-10夜、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（前の見える記録より新しい版の遅着は採用して同じreduceで回収し、前の記録を消してpendingを撤回する）だけを読む",
-        "reason": "P3-C12-TTL=B（作者裁定）では寿命が報の形で決まり、同じ系列の新しい版が前の版より短い寿命になりうる（予測だけのactive 3時間→itemsが空・unknownを含む・予測でない種別を含むactive 2時間）。例: 08:00の予測だけの報（11:00まで）の続報08:30がitemsの空の報（10:30まで）で10:45に届くと、Bでは新しい報を捨て、古い予測を11:00まで見せる。D-OUTCOME=A（作者裁定、reconstruction/contracts/p3-final-adoption.json:11 «5abedae21fce5ce6»）は「新通知を出すほど新鮮でない」と「既存activeを取り消さない」を分け、U-Lの遅着の解除が旧activeを消す意味を固定した（reconstruction/contracts/p3-final-adoption.json:321 «1bbb2683fcc65074»）。K4はU-Lの遅着の解除で前のactiveのpendingを撤回する（reconstruction/contracts/p3-operation-capacity.json:302 «8f4df3bd7f779570»）。U-Rは遅着をstaleにする（reconstruction/src/units/flood/flood-unit.ts:281 «4d933ac282ab7054»）が、U-Rの寿命は全部36時間で逆転が無い。U-Bで逆転が起きるのは前の記録が予測だけのVPBS50のactive（3時間）で新しい版が2時間の記録のときだけ（VPOA50の見える枝は全部2時間、取消は記憶3時間で前の見える記録より先に遅着にならない）。実配信の線状降水帯直前予測の系列（Y）の続報は全部予測で、逆転の実例は0（itemsの空・unknownは合成のfixtureだけ）。Aの代償: 前の記録を消すとwatermarkも消え、その後1時間の窓の内に届くさらに古い予測の報は新しい記録として採られうる（D-HORIZON=Aの保証外、U-Lと同じ）。CはAの代償を消すが、型・decode・viewの枝が1つ増え、実例0の二重の遅着のための仕組みになる。Bは実装が最小だが、終わった版の予測を最長1時間見せ、そのpendingも残す（P3-X-C2・C6の向きと逆）。どの案でも、2時間の記録が期限で消えた後の1時間の窓に届く、それより古い予測だけの報は採られうる（記憶を残さない。P3-C12-PARAMETERS.lifetime）"
+        "reason": "P3-C12-TTL=B（作者裁定）では寿命が報の形で決まり、同じ系列の新しい版が前の版より短い寿命になりうる（予測だけのactive 3時間→itemsが空・unknownを含む・予測でない種別を含むactive 2時間）。例: 08:00の予測だけの報（11:00まで）の続報08:30がitemsの空の報（10:30まで）で10:45に届くと、Bでは新しい報を捨て、古い予測を11:00まで見せる。D-OUTCOME=A（作者裁定、reconstruction/contracts/p3-final-adoption.json:11 «5abedae21fce5ce6»）は「新通知を出すほど新鮮でない」と「既存activeを取り消さない」を分け、U-Lの遅着の解除が旧activeを消す意味を固定した（reconstruction/contracts/p3-final-adoption.json:321 «1bbb2683fcc65074»）。K4はU-Lの遅着の解除で前のactiveのpendingを撤回する（reconstruction/contracts/p3-operation-capacity.json:302 «8f4df3bd7f779570»）。U-Rは遅着をstaleにする（reconstruction/src/units/flood/flood-unit.ts:284 «4d933ac282ab7054»）が、U-Rの寿命は全部36時間で逆転が無い。U-Bで逆転が起きるのは前の記録が予測だけのVPBS50のactive（3時間）で新しい版が2時間の記録のときだけ（VPOA50の見える枝は全部2時間、取消は記憶3時間で前の見える記録より先に遅着にならない）。実配信の線状降水帯直前予測の系列（Y）の続報は全部予測で、逆転の実例は0（itemsの空・unknownは合成のfixtureだけ）。Aの代償: 前の記録を消すとwatermarkも消え、その後1時間の窓の内に届くさらに古い予測の報は新しい記録として採られうる（D-HORIZON=Aの保証外、U-Lと同じ）。CはAの代償を消すが、型・decode・viewの枝が1つ増え、実例0の二重の遅着のための仕組みになる。Bは実装が最小だが、終わった版の予測を最長1時間見せ、そのpendingも残す（P3-X-C2・C6の向きと逆）。どの案でも、2時間の記録が期限で消えた後の1時間の窓に届く、それより古い予測だけの報は採られうる（記憶を残さない。P3-C12-PARAMETERS.lifetime）"
       },
       {
         "id": "P3-C12-EVICT-PROTECT",
@@ -305,7 +305,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "取消を採用し、取消の前に記録がactive（VPBS50）かreleased（VPOA50）だった。記憶だけの取消、heldとaliasedの取消では作らない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
+            "condition": "取消を採用し、取消の前に記録がactive（VPBS50）かreleased（VPOA50）だった。記憶だけの取消、heldとaliasedの取消では作らない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -323,7 +323,7 @@
         "timing": "createdAt=nextAttemptAt=採用（releaseは期限処理）のClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C12-REPLACEMENT=A（改訂1: 新しいintentの無い取消も置き換える。置換と遅着の撤回はP3-C12-REPLACE-PENDING=A・P3-C12-LATE-INVERSION=A）",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（C5・C7〜C11の先例）。更新で増えるbyteはQ-NOTICE.capacityの予約の内側に収まる（台帳73）。更新で終端にした記録は期限前の回収の対象から外す",
-        "payload": "typeRef reconstruction/contracts/p3-briefing-unit.types.ts#BriefingNotificationPayload。domain=weather（分野別根音表の気象C4）。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-B.boundsで切った値）、VPOA50は末尾に「（対応電文未確認）」。bodyは取消なら「この情報は取り消されました」。ほかはHeadline（I-U-B.bounds）、空ならitemsごとに「{condition（nullなら「種別不明」）} {区域名を「・」でつなぐ}」を「 / 」でつなぎ、それも空ならtitle。VPOA50は末尾に「（対応電文未確認）」、訂正は冒頭に「訂正: 」。titleは160文字・bodyは512文字でコードポイントの境界で切り、空にしない。接頭辞（operationPrefix・「[訂正] 」・「[取消] 」・「訂正: 」）と接尾辞（「（対応電文未確認）」）は切る範囲の外に置き、本体（Head/Title、Headline、itemsの要約）だけを上限から接頭辞・接尾辞の長さを引いた長さで切る（改訂1、K5のF15の型: 切った位置で目印を失わず、孤立したサロゲートを作らない）（旧築はConditionの要約・区域2件・観測1件をつないだ、notifier.ts:875）",
+        "payload": "typeRef reconstruction/contracts/p3-briefing-unit.types.ts#BriefingNotificationPayload。domain=weather（分野別根音表の気象C4）。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-B.boundsで切った値）、VPOA50は末尾に「（対応電文未確認）」（取消には付けない、2026-10-22作者裁定、P3-NOTICE-LEDGER-001のP3-NL-AC10の(3)）。bodyは取消なら「HH:MM 発表の<種類>を取り消しました」。ほかはHeadline（I-U-B.bounds）、空ならitemsごとに「{condition（nullなら「種別不明」）} {区域名を「・」でつなぐ}」を「 / 」でつなぎ、それも空ならtitle。VPOA50は末尾に「（対応電文未確認）」、訂正は冒頭に「訂正: 」。titleは160文字・bodyは512文字でコードポイントの境界で切り、空にしない。接頭辞（operationPrefix・「[訂正] 」・「[取消] 」・「訂正: 」）と接尾辞（「（対応電文未確認）」）は切る範囲の外に置き、本体（Head/Title、Headline、itemsの要約）だけを上限から接頭辞・接尾辞の長さを引いた長さで切る（改訂1、K5のF15の型: 切った位置で目印を失わず、孤立したサロゲートを作らない）（旧築はConditionの要約・区域2件・観測1件をつないだ、notifier.ts:875）（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（HH:MM 発表）」、bodyは「HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件、かつ「pendingごとのJSON UTF-8 byte＋予約」の和を131,072 byte以内にする（spec:981）。予約はreconstruction/src/notification-delivery/delivery-growth.tsのdeliveryGrowthで数え、受理とdecodeで同じ関数を使う。式の真実源は横断の契約（P3-INTENT-UPDATE-RESERVE-001）で、本契約は式を写さない。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順（期限→生成時刻→ID）の後ろのものを外す。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。新しいintentが容量で外れただけでcurrentsも変わらないときは元の配列を返し、保存世代を進めない（C9のQ-C9-IMPL-AMEND(9)(e)。currents（置換・alias・取消の記憶）が変わる受理は、通知の機会が外れても保存世代を進める。改訂1）。終端記録はexpiresAtで回収し、保存世代のbyte予算に含める。終端記録の合計が98,304 byteを超える分は最古の終端記録からexpiresAtの前に回収する。ただし配送の更新で終端にした記録は回収の対象から外す（C8のQ-C8-IMPL-AMEND(1)）。そのため「pendingの実byte＋予約＋終端記録」≤229,376 byteで確かめる（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力は適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P3-C12-N2）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る（spec:997）。復元直後の続報の差は復元した記録との差で決める。復元したheldはrestore入力で全部無音のreleasedになる（P3-C12-VPOA.holdRules (5)。先にretainUntilを過ぎた記録を除き、変化があれば保存世代を進める、P3-C12-AC16）（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
@@ -338,14 +338,14 @@
           "寿命: 旧築はカードを元報の時刻から120分、取消の表示を10分で消し（standby-registry.ts:15・:16）、記憶は受信から120分。新築は元報の時刻からP3-C12-TTL（作者裁定B: 予測だけ3時間、記憶3時間）",
           "種別: 旧築の音の種別は語の部分一致（briefing-parser.ts:54）、カードの種別は完全一致。新築は完全一致だけ（P3-C12-KINDS）",
           "通知の音: 旧築は種別によらずwarning、Conditionの無い報はinfo（level-helpers.ts:395）、取消はcancel。新築はP3-C12-NOTICE-LEVELS（作者裁定A: 全部warning、Conditionの無い報もwarning）",
-          "通知の機会: 旧築は受理したVPBS50ごとに鳴らした（message-router.ts:561）。新築は公開事実の変わった採用・訂正・activeの取消だけ（重複・古い報・置換・期限では鳴らない）",
+          "通知の機会: 旧築は受理したVPBS50ごとに鳴らした（message-router.ts:561）。新築は公開事実の変わった採用・訂正・activeの取消だけ（重複・古い報・置換・期限では鳴らない）（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
           "VPOA50: 旧築も新築も60秒待つ（P3-C12-VPOA=A）。旧築はHeadとBodyの区域・Kindの一致を確かめ、合わなければ鳴らさずに表示した。新築はHeadだけを読み、Information（記録的短時間大雨情報（発表細分））の形の外は拒否する（Q-ENUM）",
           "容量: 旧築はカード128件を受信の古い順に黙って捨てた（standby-registry.ts:17）。新築は退去の順で受け、診断を出す（P3-C12-CAPACITY）",
           "優先: 旧築には優先群が無い。新築のU-Bはotherの群で、EEWと津波緊急の後になる（P3-C12-NOTICE-GROUP）",
           "訓練: 旧築は既定で訓練報が届かず、届けば通常と同じ。新築も本番では届かず、届けばdesktopだけ（P3-C12-TRAINING）",
           "予測の置換: 旧築は発生がstrictly newerな予測だけを置き換え（standby-state-store.ts:1292）、区域ごとのwatermarkを別の表（最大512）で持ち、発生の取消の後も古い予測の区域を除いた。新築はP3-C12-REPLACE（作者裁定B: 発生の記録がある間は時刻の前後によらず同じ区域の予測を除く）で、watermarkは発生の記録そのもの",
           "alias: 旧築は報ごと（EventIDの全体、legacy-counterpart-registry.ts:129）、新築は系列ごと（P3-C12-ALIAS）",
-          "VPOA50の取消: 旧築は鳴らさなかった（notifier.ts:1115）。新築はreleasedのVPOA50の取消をcancelで鳴らす（Q-NOTICE.cancellation）",
+          "VPOA50の取消: 旧築は鳴らさなかった（notifier.ts:1115）。新築はreleasedのVPOA50の取消をcancelで鳴らす（Q-NOTICE.cancellation）（P3-NOTICE-LEDGER-001の後は、取消の前にreleasedかactiveだったか、印の証拠のある系列の取消、H19、P3-NL-AC09）",
           "対応報の取消: 旧築はVPOA50を無音で表示し直した（legacy-counterpart-correlator.ts:856→message-router.ts:1474）。新築はP3-C12-COUNTERPART-CANCEL（作者裁定B、同じ形）",
           "相関待ちの再起動: 旧築のholdbackはprocessの中だけ。新築はrestore入力でheldを無音でreleasedにする（P3-C12-VPOA.holdRules (5)）"
         ]
@@ -393,7 +393,7 @@
         "id": "P3-C12-EVICT-OPERATION",
         "status": "frozen（D-OPERATION=A・D-PAST-RETENTION=A・D-SELF-OUTCOMEの帰結。K4のQ-OPCAP-C12とK4NのQ-OPCAP-N-OTHERSがC12の再開条件へ送った分）",
         "source": "reconstruction/contracts/p3-operation-capacity.json:252 «cf785260c7cec6af»（P3-OPCAP-AC01）・reconstruction/contracts/p3-operation-capacity.json:280 «d7c72753c45da2f2»（AC02）・reconstruction/contracts/p3-operation-capacity.json:63 «14d7db45ca6d6887»（Q-OPCAP-C12）、reconstruction/contracts/p3-operation-capacity-n.json:162 «163af11f4c23d44e»（K4NのAC01）・reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»（AC02）",
-        "rule": "(1) 退去の適格性は順位より前にoperationで決める。受ける報がtraining/testなら、normalの記録はactive・held・released・記憶（replaced・aliased・cancelled）のどれも、retainUntilを過ぎた記録も退去の候補にしない（D-PAST-RETENTION=A。製品の経路はownerが受信の前に期限を回収する、reconstruction/src/runtime/owner-runtime.ts:357 «63380813ee47301c»）。候補はtraining/testの記録だけで、その中の順は(1)retainUntilを過ぎた記録 (2)記憶 (3)生きた記録、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がnormalのときの順とnormalどうしの退去はP3-C12-CAPACITYのまま (2) 候補が無ければ受けた記録自身を退去する（自身の退去）: decisionはchanged/revisionOnly・currentEstablished null、outcomeは[{accepted, revisionOnly, subjects: []}]、診断briefingCapacityEvicted（count 1）、currentsの参照と保存世代を変えず、通知を作らない (3) 自身の退去はtraining/testの記録が0件のときだけ起き（候補はtraining/testの全記録）、置換・alias・対応報の取消は同じoperationの記録にしか効かないので、他のsubjectへの作用は起きえない (4) 自身を退去した取消は、そのsubjectのpendingを全部supersededにし（P3-C12-REPLACEMENT）、intentsが変わったときだけ保存世代を進める（U-L・U-Rと同じ、reconstruction/src/units/flood/flood-unit.ts:311 «1b80cb1e17fb6e55»） (5) 退去は記録の無いsubjectの報だけで起き、入力の前の配列から1件を決め、作用（置換・alias・対応報の取消）は残った記録に当てる。遅着の報（P3-C12-TTL.lateRule）は退去を起こさない（K3のP3-FINAL-AC01の時間の軸）",
+        "rule": "(1) 退去の適格性は順位より前にoperationで決める。受ける報がtraining/testなら、normalの記録はactive・held・released・記憶（replaced・aliased・cancelled）のどれも、retainUntilを過ぎた記録も退去の候補にしない（D-PAST-RETENTION=A。製品の経路はownerが受信の前に期限を回収する、reconstruction/src/runtime/owner-runtime.ts:386 «63380813ee47301c»）。候補はtraining/testの記録だけで、その中の順は(1)retainUntilを過ぎた記録 (2)記憶 (3)生きた記録、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がnormalのときの順とnormalどうしの退去はP3-C12-CAPACITYのまま (2) 候補が無ければ受けた記録自身を退去する（自身の退去）: decisionはchanged/revisionOnly・currentEstablished null、outcomeは[{accepted, revisionOnly, subjects: []}]、診断briefingCapacityEvicted（count 1）、currentsの参照と保存世代を変えず、通知を作らない (3) 自身の退去はtraining/testの記録が0件のときだけ起き（候補はtraining/testの全記録）、置換・alias・対応報の取消は同じoperationの記録にしか効かないので、他のsubjectへの作用は起きえない (4) 自身を退去した取消は、そのsubjectのpendingを全部supersededにし（P3-C12-REPLACEMENT）、intentsが変わったときだけ保存世代を進める（U-L・U-Rと同じ、reconstruction/src/units/flood/flood-unit.ts:314 «1b80cb1e17fb6e55»） (5) 退去は記録の無いsubjectの報だけで起き、入力の前の配列から1件を決め、作用（置換・alias・対応報の取消）は残った記録に当てる。遅着の報（P3-C12-TTL.lateRule）は退去を起こさない（K3のP3-FINAL-AC01の時間の軸）",
         "reason": "training/testの流量で実災害の受理の判断を変えない（D-OPERATION=A）。起草の(1)(2)は受ける報によらずnormalの期限切れ・記憶を退去し、K4前のV/L/Rと同じ形だった（監査F04の型: 訓練の報がnormalの取消の記憶を追い出し、取消より古い報が戻る）。U-Rの形（reconstruction/src/units/flood/flood-unit.ts:110 «8f4563d2c0e98bdc»・reconstruction/src/units/flood/flood-unit.ts:114 «cafff1643f57f709»）を写す"
       },
       {
@@ -1074,7 +1074,7 @@
           "reconstruction/src/view-projector/view-projector.ts:47 «513ff83e3efffcbc»",
           "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «45d531fd83f0c3c0»",
-          "reconstruction/src/runtime/composition-root.ts:207 «9ed0037a4a82959a»",
+          "reconstruction/src/runtime/composition-root.ts:210 «9ed0037a4a82959a»",
           "src/engine/display/standby-persistence.ts:315 «ef0460f67661ea53»",
           "reconstruction/src/view-projector/view-projector.ts:912 «0f29de6d3afeedc3»",
           "reconstruction/src/view-projector/view-projector.ts:914 «c42a191089542248»"
@@ -1105,10 +1105,10 @@
       },
       {
         "id": "P3-C12-AC08",
-        "requirement": "優先群（P3-C12-NOTICE-GROUP=A）: U-Bのintentはotherで、試行中の津波緊急・EEWを中断せず、同時にpendingのEEW・津波緊急より後に選ばれる。A7のgroup()は変えない",
+        "requirement": "優先群（P3-C12-NOTICE-GROUP=A）: U-Bのintentはotherで、試行中の津波緊急・EEWを中断せず、同時にpendingのEEW・津波緊急より後に選ばれる。A7のgroup()は変えない（P3-NOTICE-LEDGER-001の後は、群をownerがintentを作るときにpriorityGroupへ付け〔notice-mark.tsのpriorityGroupOf〕、A7のgroup()はそれを読むだけ、P3-NL-AC11の(2)(3)）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
-          "reconstruction/src/notification-delivery/notification-delivery.ts:20 «39a435399fa14346»"
+          "reconstruction/src/units/notice-mark.ts:99 «085550b0cc032fbb»"
         ]
       },
       {
@@ -1136,7 +1136,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»",
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»"
         ]
       },
@@ -1161,7 +1161,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:207 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:210 «9ed0037a4a82959a»"
         ]
       },
       {
@@ -1189,10 +1189,10 @@
           "reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»",
           "reconstruction/contracts/p3-operation-capacity-n.json:34 «4c3aaf00a47d87b1»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
-          "reconstruction/src/runtime/owner-runtime.ts:357 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:386 «63380813ee47301c»",
           "reconstruction/src/units/flood/flood-unit.ts:110 «8f4563d2c0e98bdc»",
           "reconstruction/src/units/flood/flood-unit.ts:114 «cafff1643f57f709»",
-          "reconstruction/src/units/flood/flood-unit.ts:311 «1b80cb1e17fb6e55»"
+          "reconstruction/src/units/flood/flood-unit.ts:314 «1b80cb1e17fb6e55»"
         ]
       },
       {
@@ -1215,9 +1215,9 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:364 «5e1acee1ff023c32»",
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:416 «f207523dece06190»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:426 «d5467a2b7a9b777a»",
-          "reconstruction/src/runtime/owner-runtime.ts:317 «c5f6ebb80f2776ef»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:421 «f207523dece06190»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:431 «d5467a2b7a9b777a»",
+          "reconstruction/src/runtime/owner-runtime.ts:346 «c7c7fe340564feca»",
           "docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73»",
           "docs/specs/reconstruction-p0-contracts.md:496 «f52fc5b960899f90»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»"
@@ -1232,7 +1232,7 @@
           "reconstruction/contracts/p3-final-adoption.json:30 «32c621f71ca55ac4»",
           "reconstruction/contracts/p3-final-adoption.json:321 «1bbb2683fcc65074»",
           "reconstruction/contracts/p3-operation-capacity.json:302 «8f4df3bd7f779570»",
-          "reconstruction/src/units/flood/flood-unit.ts:281 «4d933ac282ab7054»",
+          "reconstruction/src/units/flood/flood-unit.ts:284 «4d933ac282ab7054»",
           "reconstruction/contracts/p3-order-plan.md:370 «231992515371a332»",
           "reconstruction/contracts/p3-order-plan.md:368 «125e18c065822856»",
           "reconstruction/contracts/p3-operation-capacity-n.json:162 «163af11f4c23d44e»"

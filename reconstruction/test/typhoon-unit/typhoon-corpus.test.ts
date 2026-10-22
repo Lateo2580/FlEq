@@ -37,7 +37,7 @@ describe("P3-UNIT-Y-001 U-Y corpus history", () => {
     expect(recordOf(o01[7].state, ANALYSIS)).toMatchObject({ effective: "active", source: { serialRaw: "4" } });
     // :125 の取消は cancel で鳴り、:124 の pending を全部置き換える。:126 の古い報は stale で復活させず、:127 の続報で active に戻る。
     expect(o01[13].intents.map((item) => [item.transition, item.payload.level, item.payload.body])).toEqual([
-      ["cancelled", "cancel", "この情報は取り消されました"], ["cancelled", "cancel", "この情報は取り消されました"]]);
+      ["cancelled", "cancel", "15:50 発表の台風解析・予報情報を取り消しました"], ["cancelled", "cancel", "15:50 発表の台風解析・予報情報を取り消しました"]]);
     expect(pendingOf(o01[13].state, ANALYSIS).map((item) => item.transition)).toEqual(["cancelled", "cancelled"]);
     expect(recordOf(o01[14].state, ANALYSIS)?.effective).toBe("cancelled");
     expect(o01[14].state.analysis).toBe(o01[13].state.analysis);

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f130ed396687593783f92e10757ef9863dea0bc2",
-    "sha256": "27f80ef0b91c68d638c4e32bcbe8068e827f46552ccbf5c5faf4cb29d4f95a2c",
+    "sha256": "f6a7f628e72da223e8f49733bbc75c3a791ddc4833fe85c82eb8afb65326808f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -236,7 +236,7 @@
           "reconstruction/src/runtime/unit-coverage.ts:104 «06e36402492e327e»",
           "reconstruction/src/runtime/unit-coverage.ts:17 «edddd5a2cb786e2f»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:129 «ff1294857dea68be»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:338 «3ca4da5b4c8b2813»"
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:346 «3ca4da5b4c8b2813»"
         ]
       },
       {
@@ -259,7 +259,7 @@
           "reconstruction/src/host/host.ts:340 «4e59b32fa47cec3d»",
           "reconstruction/src/host/host.ts:164 «b747b81e2514721e»",
           "reconstruction/src/host/host.ts:165 «e110b2548c865519»",
-          "reconstruction/src/runtime/composition-root.ts:1770 «89d351c384d4c301»",
+          "reconstruction/src/runtime/composition-root.ts:1865 «89d351c384d4c301»",
           "reconstruction/contracts/p3-typhoon-unit.json:435 «35816c13f4204db8»"
         ]
       },
@@ -288,9 +288,9 @@
           "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-e05-P-run3.json:12 «0364eb2db61367f9»",
           "reconstruction/contracts/p3-typhoon-unit.json:442 «f64d9d1d8ff57f0e»",
           "reconstruction/src/host/host.ts:158 «cb154e750655ef9b»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:311 «4fbc5b688efa9382»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:314 «eade375e6c78af85»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:318 «c595a873948e788f»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:319 «4fbc5b688efa9382»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:322 «eade375e6c78af85»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:326 «c595a873948e788f»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:192 «8bcbf7e48fb4aded»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:204 «8b82d2ac7ac2977f»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:210 «0894e34cc4b5ac2e»",
@@ -313,7 +313,7 @@
         "evidenceRefs": [
           "reconstruction/test/eew-e01/windows.mjs:323 «78045dc3d8f5cae9»",
           "reconstruction/src/host/host.ts:184 «8eccbc77af0cc99f»",
-          "reconstruction/src/runtime/composition-root.ts:1770 «89d351c384d4c301»",
+          "reconstruction/src/runtime/composition-root.ts:1865 «89d351c384d4c301»",
           "reconstruction/test/eew-e01/run.mjs:1707 «adc008712a5092a6»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-wyl-e05p.json:158 «b9e1362e4009ebe0»"
         ]

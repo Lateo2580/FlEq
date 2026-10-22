@@ -1,15 +1,15 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "585059eaff476a0e86eb2742f48cfa05d4bfa2bc228b2ddbcad833723a58153d",
+    "sha256": "16cc3aaf31015a67cf1a9c4a63bdf9ce9961fd26701ffc9344957acaf90a5d7b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
         "id": "P2-A7-IR03",
-        "A": "通常運用EEW、通常運用津波緊急、その他の固定3群とし、上位到着時は下位試行をabortする",
+        "A": "通常運用EEW、通常運用津波緊急、その他の固定3群とし、上位到着時は下位試行をabortする（P3-NOTICE-LEDGER-001で改訂: 群はownerがintentに付けたpriorityGroupを読む、P3-NL-AC11）",
         "B": "通常再試行を先着順のまま続ける",
         "recommended": "A",
         "provisional": "A",
@@ -331,7 +331,7 @@
         "unit": "seconds",
         "clock": "monotonic",
         "status": "provisional",
-        "scope": "includes save, queue, abort-stop and dispatch cost",
+        "scope": "includes save (with the wait for the save acknowledgement of the generation that recorded the attempt start: at most 1 s for EEW, tsunami and critical, 10 s otherwise, no wait while saving fails; P3-NOTICE-LEDGER-001 P3-NL-DLV-01, DLV-02), queue, abort-stop and dispatch cost",
         "source": "§6.3/E21"
       },
       {
@@ -435,7 +435,7 @@
     "acceptanceChecks": [
       {
         "id": "P2-A7-AC01",
-        "requirement": "IR03/E21のEEW部分: 通常運用EEW→通常運用津波緊急→その他の固定群、群内expiresAt→createdAt→intentId順を使い、通常再試行がEEW初回試行を追い越さない。津波緊急の意味生成と合格はP3に残す",
+        "requirement": "IR03/E21のEEW部分: 通常運用EEW→通常運用津波緊急→その他の固定群、群内expiresAt→createdAt→intentId順を使い、通常再試行がEEW初回試行を追い越さない。津波緊急の意味生成と合格はP3に残す。群の判定はintentのpriorityGroup（P3-NOTICE-LEDGER-001のP3-NL-AC11）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
           "docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe»",
@@ -469,7 +469,7 @@
       },
       {
         "id": "P2-A7-AC05",
-        "requirement": "所有unitの同じ世代にintentを採用して保存予約した後、保存ackを待たず試行する。有効結果をattemptId/intentId/operation/期限/置換状態で照合し、dirty正本は所有unitの更新結果とする。時計式と適用順はP2-A7-TIME。O07:16〜18のintents:nullの通知期待は契約側で検収する。O07:17は保存ack済み・配送保留。保存予約後・ack遅延中の試行は別の故障注入条件とする。",
+        "requirement": "所有unitの同じ世代にintentを採用して保存予約し、試行の開始を採った世代の保存ackを待ってから試行する（例外はP3-NOTICE-LEDGER-001のP3-NL-AC07の(3)。2026-10-22作者裁定で改訂、前は保存ackを待たず試行した）。有効結果をattemptId/intentId/operation/期限/置換状態で照合し、dirty正本は所有unitの更新結果とする。時計式と適用順はP2-A7-TIME。O07:16〜18のintents:nullの通知期待は契約側で検収する。O07:17は保存ack済み・配送保留。保存予約後・ack遅延中の試行は別の故障注入条件とする。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f»",
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
@@ -526,7 +526,7 @@
         "referenceIds": [
           "P2-A7-AC05"
         ],
-        "behavior": "契約のO07:15-18系列を保存ack済み・配送保留→復元→元期限で評価し、保存予約後ack遅延中dispatchは別条件とする。同じ期限系列に新規生成→失敗確定→壁時計変動を伴う通常再評価→終端/回収を置き、P2-A7-TIMEの値が通常再評価で張り直されず壁時計TTLが試行timeoutより先に適用されることを確認する"
+        "behavior": "契約のO07:15-18系列を保存ack済み・配送保留→復元→元期限で評価し、保存予約後ack遅延中dispatchは別条件とする（P3-NOTICE-LEDGER-001の後は、遅れたackが配りを最長1秒止める、P3-NL-AC07の(3)）。同じ期限系列に新規生成→失敗確定→壁時計変動を伴う通常再評価→終端/回収を置き、P2-A7-TIMEの値が通常再評価で張り直されず壁時計TTLが試行timeoutより先に適用されることを確認する"
       },
       {
         "testId": "P2-A7-T05",

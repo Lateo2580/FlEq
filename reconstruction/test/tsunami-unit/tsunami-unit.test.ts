@@ -63,7 +63,7 @@ function intentsOf(subject: string, count: number, level: TsunamiIntent["payload
     source: { inputId: `seed-${index}`, origin: "replay", operation, family: subject.includes("VTSE41") ? "VTSE41" : "VTSE51", subject,
       reportDateTimeRaw: "2099-01-01T09:00:00+09:00", controlDateTimeRaw: "2099-01-01T00:00:00Z", serialRaw: "", infoTypeRaw: "発表" }, transition: "updated", channel: "desktop",
     payload: { domain: "tsunami", level, title: "試験", body: "試験" }, createdAt: from + index, expiresAt: from + index + 180_000,
-    nextAttemptAt: from + index, attempts: 0, configRevision: "test", disposition: "pending", ...freshState("U-T", operation, level) }));
+    nextAttemptAt: from + index, attempts: 0, configRevision: "test", disposition: "pending", ...freshState("U-T", operation, level === "warning" || level === "critical") }));
 }
 
 // 実 byte が 131,072 ちょうどで、配送の更新の予約を足すと超える pending（P3-IUR-AC01）。
@@ -479,10 +479,10 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
       receive(state, decodeXml(vtse41({ at: raw(minute), ...options, areas: areas.map((area) => ({ ...area, name: `区域${area.code}` })) }),
         "VTSE41"), at(minute));
     const levels = (step: TsunamiUnitStep) => step.intents.map((item) => `${item.channel}:${item.payload.level}`);
-    // 発令の段階: 大津波警報 critical、津波警報 warning、注意報 normal、予報だけ info（直前が active でない released の題は津波予報）。
+    // 発令の段階: 大津波警報 critical、津波警報 warning、注意報 warning（P3-NL-AC11 (1)、H09）、予報だけ info（直前が active でない released の題は津波予報）。
     expect(levels(send(emptyState(), 0, [{ code: "311", kind: "52" }]))).toEqual(["desktop:critical", "sound:critical"]);
     expect(levels(send(emptyState(), 0, [{ code: "311", kind: "51" }]))).toEqual(["desktop:warning", "sound:warning"]);
-    expect(levels(send(emptyState(), 0, [{ code: "311", kind: "62" }]))).toEqual(["desktop:normal", "sound:normal"]);
+    expect(levels(send(emptyState(), 0, [{ code: "311", kind: "62" }]))).toEqual(["desktop:warning", "sound:warning"]);
     const forecastOnly = send(emptyState(), 0, [{ code: "311", kind: "71" }]);
     expect(forecastOnly.intents.map((item) => [item.payload.level, item.payload.title])).toEqual([["info", "津波予報"], ["info", "津波予報"]]);
     const issued = send(emptyState(), 0, [{ code: "311", kind: "51" }, { code: "312", kind: "51" }]);
@@ -522,7 +522,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     expect(raised.state.intents).toHaveLength(2);
     const cancel = send(continued.state, 3, [], { infoType: "取消" });
     expect(cancel.intents.map((item) => [item.payload.level, item.payload.title, item.payload.body]))
-      .toEqual([["cancel", "[取消] 津波警報・注意報・予報", "この情報は取り消されました"], ["cancel", "[取消] 津波警報・注意報・予報", "この情報は取り消されました"]]);
+      .toEqual([["cancel", "[取消] 津波警報（09:01 発表）", "09:01 発表の津波警報を取り消しました"], ["cancel", "[取消] 津波警報（09:01 発表）", "09:01 発表の津波警報を取り消しました"]]);
     expect(pending(cancel.state)).toEqual(["desktop:cancel", "sound:cancel"]);
     // active でなかった subject の取消は通知しない。
     expect(send(emptyState(), 3, [], { infoType: "取消" }).intents).toEqual([]);
@@ -957,6 +957,49 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
         .map((item) => [item.channel, item.payload.level])).toEqual([["desktop", "warning"], ["sound", "warning"]]);
     } finally { rmSync(directory, { recursive: true, force: true }); }
   });
+
+  // P3-NL-T06（P3-NL-AC14 の数え方。describe の最後に置く: 前に置くと decodeXml の inputId の連番の桁が変わり、P3-CC-T17 の byte の境界値がずれる）:
+  // 保存済みの U-T が容量で報を断っただけ（unit の state は不変）でも owner が世代を進めてその入力に帰属させ、unit の診断（count のある
+  // tsunamiCapacityEvicted を含む）と採用した更新の lossReason を理由ごとに足す。件数は保存→復元で残り、capture が外した期限の後の行は
+  // 加算元からも外れて、同じ理由をまた足すと 1 件から数え直す。publisher の失効の診断を owner で二重に数えないことは notification-wiring の T06。
+  it("P3-NL-T06 contractBoundary / AC14: a refusal that leaves the unit unchanged still raises a generation, and the counts survive a restore", () => {
+    const saved = { kind: "saved" as const, currentGeneration: 1, savedGeneration: 1, savedCapturedAt: null, savedAckAt: null, dirtySince: null };
+    const full: TsunamiUnitState = { ...crowd(first(), 5), persistence: saved };
+    // 退去の件数（count）を数えることを確かめるため、拒否の 1 歩に count 3 の tsunamiCapacityEvicted を添える unit の表（owner は unit の
+    // 診断をそのまま数える）。
+    const units: UnitTable = { ...linkedUnitTable, "U-T": { ...linkedUnitTable["U-T"], reduce: (state, input) => {
+      const step = linkedUnitTable["U-T"].reduce(state, input);
+      return input.kind !== "receive" ? step : { ...step, diagnostics: [...step.diagnostics, { level: "INFO", component: "tsunami",
+        reason: "tsunamiCapacityEvicted", unit: "U-T", count: 3 }] };
+    } } };
+    const empty = restoreOwner({ runId: "run", place: "urgent", clock: at(0), restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+    const refuse = (state: typeof empty, minute: number, clockAt = at(minute)) => {
+      const wide = report(minute, areas(300));
+      return { wide, step: receiveOwner(state, { runId: "run", inputId: wide.inputId, result: { kind: "decoded", material: wide } }, clockAt, units) };
+    };
+    const { wide, step: refused } = refuse({ ...empty, units: { ...empty.units, "U-T": full } }, 3);
+    const unit = refused.state.units["U-T"]!;
+    expect([unit.forecasts === full.forecasts, unit.persistence, refused.generationInputIds["U-T"]]).toEqual([true,
+      { ...saved, kind: "pending", currentGeneration: 2, dirtySince: 3 }, [wide.inputId]]);
+    const pending = unit.intents.slice(0, 2);
+    const expired = intentUpdateOwner(refused.state, "U-T", pending.map((item) => ({ ...item, disposition: "expired" as const,
+      lossReason: "notificationExpiredClockUnverified" as const })), at(4), linkedUnitTable);
+    const losses = [{ reason: "capacityRejected", count: 1, lastAt: at(3).wallTimeMs }, { reason: "tsunamiCapacityEvicted", count: 3, lastAt: at(3).wallTimeMs },
+      { reason: "notificationExpiredClockUnverified", count: 2, lastAt: at(4).wallTimeMs }];
+    expect([expired.adopted, expired.state.losses["U-T"]]).toEqual([true, losses]);
+    const back = restoreOwner({ runId: "run-2", place: "urgent", clock: at(5), restored: { "U-E": { kind: "empty" }, "U-Q": { kind: "empty" },
+      "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-T": { kind: "restored", envelope: { schemaVersion: "p3-tsunami-unit-v4", unit: "U-T",
+        generation: 3, capturedAt: at(4).wallTimeMs, payload: tsunamiUnitCodec.encode(expired.state.units["U-T"]!) as JsonValue,
+        losses: expired.state.losses["U-T"], sha256: "0".repeat(64) }, slot: "A" } } }, linkedUnitTable, linkedUnitCodecs);
+    expect(back.state.losses["U-T"]).toEqual(losses);
+    // 拒否の 2 行の lastAt＋24 時間ちょうどの capture は、その 2 行を外し、加算元からも外す。同じ理由をまた足すと 1 件から。
+    const generation = expired.state.units["U-T"]!.persistence.currentGeneration;
+    const captured = capturedOwner(expired.state, { attemptId: "a1", unit: "U-T", generation, capturedAt: at(3).wallTimeMs + 86_400_000 }, units);
+    expect(captured.state.losses["U-T"]).toEqual([losses[2]]);
+    expect(refuse(captured.state, 6).step.state.losses["U-T"]).toEqual([losses[2], { reason: "capacityRejected", count: 1, lastAt: at(6).wallTimeMs },
+      { reason: "tsunamiCapacityEvicted", count: 3, lastAt: at(6).wallTimeMs }]);
+  });
 });
 
 // sequences.json の履歴 oracle（expected:<seq>:<position>）を step ごとに照合する。save と restart は codec を通す。
@@ -976,6 +1019,56 @@ it("P3-NL-T01 acceptance / AC01・AC02・AC05: a resent warning makes no intent 
     nextAttemptAt: at.wallTimeMs, disposition: "delivered" as const, lossReason: null })), at, linkedUnitTable);
   const unit = updated.state.units["U-T"]!;
   expect([updated.adopted, unit.intents, forecast(unit, first.intents[0].subject)?.notice?.evidence]).toEqual([true, [], "possible"]);
+});
+
+// P3-NL-T01 の H19 の行（P3-NL-AC09・AC10・AC13）: owner を通し、synthetic_VTSE41_e01_311warning の警報への取消（synthetic_VTSE41_cancel の
+// EventID と時刻をこの警報の後に替えたもの）は、警報が active のときと、解除で記憶になった後でも印の証拠（possible）があれば通知し、文面に種類
+// （取消の報の Head/Title）と取り消した記録の発表時刻を書く。印の証拠が unattempted の解除の後と、記録の無い系列の取消は通知しない。
+it("P3-NL-T01 acceptance / AC09・AC10・AC13: a cancel notifies while active or after a release with notice evidence, never for an unknown series", () => {
+  const warning = decodeFixture("synthetic_VTSE41_e01_311warning", "VTSE41");
+  const cancel = decodeFixture("synthetic_VTSE41_cancel", "VTSE41", (xml) => xml.replaceAll("20110311144640", "20260101115800")
+    .replace("2011-03-11T15:05:00+09:00", "2026-01-01T12:05:00+09:00").replace("2011-03-11T06:05:00Z", "2026-01-01T03:05:00Z"));
+  const release = decodeXml(vtse41({ eventId: "20260101115800", at: "2026-01-01T12:01:00+09:00", areas: [{ code: "311", name: "千葉県内房", kind: "50" }] }),
+    "VTSE41");
+  const at = clock(Date.parse(cancel.reportDateTimeRaw));
+  const empty = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
+    "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+  const owner = (state: typeof empty, material: typeof warning) => receiveOwner(state, { runId: "run", inputId: material.inputId,
+    result: { kind: "decoded", material } }, at, linkedUnitTable).state;
+  const cancels = (state: typeof empty) => state.units["U-T"]!.intents.filter((item) => item.transition === "cancelled")
+    .map((item) => [item.channel, item.payload.level, item.payload.title, item.payload.body]);
+  const expected = ["[取消] 大津波警報・津波警報・津波注意報・津波予報（11:59 発表）", "11:59 発表の大津波警報・津波警報・津波注意報・津波予報を取り消しました"];
+  const active = owner(empty, warning);
+  expect(cancels(owner(active, cancel))).toEqual([["desktop", "cancel", ...expected], ["sound", "cancel", ...expected]]);
+  // 解除で記憶になった系列。通知を試みた印（possible）なら取消を通知し、試みていなければ通知しない。
+  const tried = intentUpdateOwner(active, "U-T", active.units["U-T"]!.intents.map((item) => ({ ...item, attempts: 1, lastAttempt: "started" as const,
+    lossReason: null })), at, linkedUnitTable).state;
+  for (const [base, notified] of [[tried, true], [active, false]] as const) {
+    const released = owner(base, release);
+    const record = released.units["U-T"]!.forecasts.find((item) => item.eventId === "20260101115800");
+    expect([record?.effective, record?.notice?.evidence]).toEqual(["released", notified ? "possible" : "unattempted"]);
+    expect(cancels(owner(released, cancel)).length).toBe(notified ? 2 : 0);
+  }
+  expect(cancels(owner(empty, cancel))).toEqual([]);
+});
+
+// P3-NL-T05（P3-NL-AC11、H09）: 津波注意報だけの報は警報の音（warning）で、群は other のまま（A7 の選択で津波緊急の群に入らない）。
+// 警報の報は normalTsunamiEmergency。容量で拒否した注意報だけの報が失敗警報を作らないことは P3-CC-T16 が確かめる。
+// 32-39_13_07 は訓練の注意報の解除なので、通常運用の注意報の発令に書き換えて使う（区域は同じ 5 つ）。
+it("P3-NL-T05 acceptance / AC11: an advisory-only report sounds as a warning but stays in the other group", () => {
+  const advisory = decodeFixture("32-39_13_07_250206_VTSE41", "VTSE41", (xml) => xml.replace("<Status>訓練</Status>", "<Status>通常</Status>")
+    .replaceAll("<Name>津波注意報解除</Name>", "<Name>津波注意報</Name>").replaceAll("<Code>60</Code>", "<Code>62</Code>"));
+  const warning = decodeFixture("synthetic_VTSE41_e01_311warning", "VTSE41");
+  const issued = receive(emptyState(), advisory, clock(Date.parse(advisory.reportDateTimeRaw)));
+  expect(issued.intents.map((item) => [item.channel, item.payload.level, item.priorityGroup])).toEqual([["desktop", "warning", "other"],
+    ["sound", "warning", "other"]]);
+  const desktop = issued.intents[0];
+  const selected = selectNotificationAttempt({ intents: [desktop], channels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
+    deadlines: { desktop: { [JSON.stringify(["U-T", desktop.id])]: { retryAtMonotonicMs: 0, expiresAtMonotonicMs: 1e9 } }, sound: {} } },
+  { wallTimeMs: desktop.createdAt, monotonicMs: 0 });
+  expect(selected.attempts.map((item) => item.priorityGroup)).toEqual(["other"]);
+  expect(receive(emptyState(), warning, clock(Date.parse(warning.reportDateTimeRaw))).intents.map((item) => item.priorityGroup))
+    .toEqual(["normalTsunamiEmergency", "normalTsunamiEmergency"]);
 });
 
 // P3-NL-T02（P3-NL-AC03）: 同じ版の fragment はそれぞれ 1 回ずつ通知し、受け直しても作らない。17 件目の fragment で最古の鍵が捨てられ、

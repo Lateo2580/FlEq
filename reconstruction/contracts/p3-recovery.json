@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "169a76d98b5b796e4e291d35157e1287f3667f49510db1301968dc5c99398d4a",
+    "sha256": "349bc03593c5e7c9279268809735cf41096aea08ae809f103ab55085ba31fffc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -212,7 +212,7 @@
             "clauses": [
               "P3-REC-AC10"
             ],
-            "closed": "メモ §2.4・K8: 平時は全部の通知が試行の開始を記録した世代の保存 ack を待つ。保存の障害の間と待ちが 1 秒（置き値）を越えたときだけ EEW・津波・critical が待たずに出る",
+            "closed": "メモ §2.4・K8: 平時は全部の通知が試行の開始を記録した世代の保存 ack を待つ。保存の障害の間と待ちが 1 秒（置き値）を越えたときだけ EEW・津波・critical が待たずに出る（2026-10-22 作者裁定で広げた: 保存の障害の間はすべての通知、待ちが 10 秒を越えたときはほかの通知も待たずに出る、P3-NOTICE-LEDGER-001 の P3-NL-AC07 の (3)）",
             "author": "§7 の 7（EEW・津波・最も重い音も平時は待つか） → 作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434）"
           },
           {
@@ -572,7 +572,7 @@
         "id": "P3-REC-AC10",
         "requirement": "【RA】取り直しで拾った引上げ（H27）: 採用のときに、取り直しの起点の状態（再起動なら復元した状態、切断なら切断の時点の状態）の区域ごとの区分と候補を比べ、いまも有効な引上げだけを unit が 1 件の intent にする（段 2 のメモ §2.4、比べ方は P3-REC-D-RAISE-BASIS）。intent の ID と照合は K8 の印（系列＋版の鍵＋遷移＋channel）で行い（P3-NOTICE-LEDGER-001で2つに分けて読む: intentのIDはP3-NL-AC01の(1)の形〔遷移・channelを含む〕、重複を抑える照合はP3-NL-AC01の(2)の印の種類〔報・取消・期限。channelを問わない〕による）、その系列の印にすでにある鍵なら作らない。取り直しで受け直した同じ報は鳴らない。印の保持は P3-REC-D-RAISE-RECORD-PERIOD。音は P3-REC-D-RAISE-SOUND、大津波警報への引上げは critical・津波警報は warning。payload に発表時刻と「取り直しで拾った」印を持つ。配送は K8 の H48 の規則に従う: 平時はこの intent も試行の開始を記録した世代の保存 ack を待ってから外へ出し、保存の障害の間と待ちが 1 秒（置き値）を越えたときだけ、津波警報以上と critical が待たずに出る（メモ §2.4・§7 の 7、作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434））。本書は配送の順を足さない。途中の報は鳴らさない",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3054 «2134d1e09a239364»"
+          "docs/specs/reconstruction-p0-contracts.md:3054 «9844920e53171b3b»"
         ]
       },
       {
@@ -593,7 +593,7 @@
           "reconstruction/contracts/p3-tsunami-unit.json:307 «36849f4e316bf8a8»",
           "reconstruction/contracts/p3-volcano-unit.json:176 «08f94de362cd913d»",
           "reconstruction/contracts/p3-seismic-unit.json:166 «824fb5c0849bb244»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:797 «086efc15d89bde4b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:805 «086efc15d89bde4b»",
           "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
           "reconstruction/contracts/p3-order-plan.md:451 «15b50525f89de42e»"
         ]

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "5245814f6969610470083736a4ea9bd63692113c35962814fa845a1fbfc17872",
+    "sha256": "d2fdd59e869827dfe08822b69b57e80912c1ba626887a8d24a042493db99c9eb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -292,7 +292,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "取消を採用し、取消の前に記録が見えた（active）。記憶だけの取消では作らない。同じ版の竜巻の対の後着（VPHW50の後のVPHW51、P3-C13-TORNADO-PAIR=A）では作らない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
+            "condition": "取消を採用し、取消の前に記録が見えた（active）。記憶だけの取消では作らない。同じ版の竜巻の対の後着（VPHW50の後のVPHW51、P3-C13-TORNADO-PAIR=A）では作らない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -311,7 +311,7 @@
         "timing": "createdAt=nextAttemptAt=採用のClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C13-REPLACEMENT=A（同じ版の竜巻の対の後着（VPHW50の後のVPHW51、P3-C13-TORNADO-PAIR=A）は撤回もしない）",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない。更新で増えるbyteはQ-NOTICE.capacityの予約の内側（台帳73）。更新で終端にした記録は期限前の回収の対象から外す",
-        "payload": "typeRef reconstruction/contracts/p3-local-bulletins-unit.types.ts#LocalBulletinsNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-M.boundsで切った値）。bodyは取消なら「この情報は取り消されました」。竜巻は「目撃情報あり」（sighted）・「発表中 {最も細かい層の区域の数}地域」（区域が0なら省く。旧築のsrc/engine/notification/notifier.ts:628 «b47bb55ce50a1b5c»と同じ。層はmunicipality→municipalityGroup→primary→announcementの順で区域を持つ最初の層、旧築のsrc/dmdata/tornado-parser.ts:241 «bb7036a0acaae878»と同じ数え方。層をまたいで足さない。P3-C13-BOUNDSの延べ128で区域を切る前の報の区域で数える。通知は採用の時に作るので保存しない値でよい）・「有効期限 {ValidDateTimeのJSTのHH:MM}」（ValidDateTimeが無く推定した期限は出さない。切り詰めた値も出さず電文の値を出す）を「 / 」でつなぎ、tornadoReleaseは「竜巻注意情報は解除されました」。熱中症は「{areaName（nullなら省く）} {targetDateのM月D日}」（targetDateはP3-C13-HEAT-EXPIRY=AのTargetDateTimeのJSTの日付）。transientはheadlineの最初の行、空ならtitle。訂正は冒頭に「訂正: 」。titleは160文字・bodyは512文字でコードポイントの境界で切り、空にしない。接頭辞（operationPrefix・「[訂正] 」・「[取消] 」・「訂正: 」）は切る範囲の外に置き、本体だけを上限から接頭辞の長さを引いた長さで切る（K5のF15の型）",
+        "payload": "typeRef reconstruction/contracts/p3-local-bulletins-unit.types.ts#LocalBulletinsNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-M.boundsで切った値）。bodyは取消なら「HH:MM 発表の<種類>を取り消しました」。竜巻は「目撃情報あり」（sighted）・「発表中 {最も細かい層の区域の数}地域」（区域が0なら省く。旧築のsrc/engine/notification/notifier.ts:628 «b47bb55ce50a1b5c»と同じ。層はmunicipality→municipalityGroup→primary→announcementの順で区域を持つ最初の層、旧築のsrc/dmdata/tornado-parser.ts:241 «bb7036a0acaae878»と同じ数え方。層をまたいで足さない。P3-C13-BOUNDSの延べ128で区域を切る前の報の区域で数える。通知は採用の時に作るので保存しない値でよい）・「有効期限 {ValidDateTimeのJSTのHH:MM}」（ValidDateTimeが無く推定した期限は出さない。切り詰めた値も出さず電文の値を出す）を「 / 」でつなぎ、tornadoReleaseは「竜巻注意情報は解除されました」。熱中症は「{areaName（nullなら省く）} {targetDateのM月D日}」（targetDateはP3-C13-HEAT-EXPIRY=AのTargetDateTimeのJSTの日付）。transientはheadlineの最初の行、空ならtitle。訂正は冒頭に「訂正: 」。titleは160文字・bodyは512文字でコードポイントの境界で切り、空にしない。接頭辞（operationPrefix・「[訂正] 」・「[取消] 」・「訂正: 」）は切る範囲の外に置き、本体だけを上限から接頭辞の長さを引いた長さで切る（K5のF15の型）（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（HH:MM 発表）」、bodyは「HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件、かつ「pendingごとのJSON UTF-8 byte＋予約」の和を131,072 byte以内にする（spec:981。U-Mの3つのsliceで1つの予算）。予約はreconstruction/src/notification-delivery/delivery-growth.tsのdeliveryGrowthで数え、受理とdecodeで同じ関数を使う（式の真実源はP3-INTENT-UPDATE-RESERVE-001で、本契約は式を写さない）。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順の後ろのものを外す。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。新しいintentが容量で外れただけで記録も変わらないときは元の配列を返し、保存世代を進めない。終端記録は98,304 byteを超える分を最古からexpiresAtの前に回収する（配送の更新で終端にした記録を除く）。「pendingの実byte＋予約＋終端記録」≤229,376 byte（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力は適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空（P3-C13-N2）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る（spec:997）。transientの事実は復元しない（P3-C13-TRANSIENT-EVIDENCE=A）ので、復元直後の同じ報はduplicate、新しい版はevidenceとの比較で新しい報として採る（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
@@ -335,7 +335,7 @@
           "raw: 旧築はparse失敗・未対応の報を見出しだけの短命の表示にした。新築は診断だけ（P3-C13-RAW=A）",
           "容量: 旧築はgateのmaxSubjectsで黙って追い出した。新築はsliceごとに退去の順で受け、診断を出す（P3-C13-CAPACITY）",
           "優先: 旧築には優先群が無い。新築のU-Mはotherで、EEW・津波緊急の後になる",
-          "解説の取消: 旧築は取消を表示の有無に関係なく鳴らした（src/engine/notification/notifier.ts:477 «e2b89766021ebd16»、気象の解説も同じ形）。新築は見える記録の取消だけを鳴らし、記憶だけの取消は鳴らさない（Q-NOTICE.cancellation）",
+          "解説の取消: 旧築は取消を表示の有無に関係なく鳴らした（src/engine/notification/notifier.ts:477 «e2b89766021ebd16»、気象の解説も同じ形）。新築は見える記録の取消だけを鳴らし、記憶だけの取消は鳴らさない（Q-NOTICE.cancellation）（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
           "竜巻の目撃: 旧築はVPHW51をheadTypeだけで目撃とした。実配信ではVPHW51はVPHW50と常に対で来る（155/155）ので、旧築はすべての竜巻注意情報を目撃として表示していたと読める。新築はsightingの層かHeadline/Textの「【目撃情報あり】」で決め、対は1回だけ鳴らす（P3-C13-TORNADO-PAIR=A）"
         ]
       },
@@ -1202,7 +1202,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»",
-          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»"
         ]
       },

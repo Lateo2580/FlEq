@@ -27,7 +27,7 @@ import type {
   SemanticEnvelopeResult,
 } from "../../contracts/p2-shared-runtime.types";
 import type { CodecMap } from "../checkpoint/checkpoint";
-import { keptLosses } from "../checkpoint/checkpoint";
+import { keptLosses, lossReasons } from "../checkpoint/checkpoint";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
 import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
@@ -176,6 +176,27 @@ function projectView<K extends RuntimeUnitId>(state: OwnerState, units: UnitTabl
   return units[unit].toView(ownUnit(state, unit));
 }
 
+// P3-NL-AC14 (2)(3)(4): 理由ごとの行に件数を足す（閉集合の外・別の unit の行は数えない）。count は安全な整数で飽和させ、lastAt は足した時の
+// 手元の wall。何も足さなければ null。ponytail: 行は unit ごとに最大 7（P3-NL-RES-04）なので行の探索は線形。
+function addLosses(rows: readonly LossTally[] | undefined, unit: RuntimeUnitId,
+  items: readonly Readonly<{ reason: string; unit?: string; count?: number }>[], at: number): readonly LossTally[] | null {
+  let next: LossTally[] | null = null;
+  for (const item of items) {
+    const reason = lossReasons(unit).find((value) => value === item.reason), count = item.count ?? 1;
+    if (reason == null || item.unit != null && item.unit !== unit || !Number.isSafeInteger(count) || count < 1) continue;
+    next ??= [...rows ?? []];
+    const index = next.findIndex((row) => row.reason === reason);
+    next[index < 0 ? next.length : index] = { reason, count: Math.min((index < 0 ? 0 : next[index].count) + count, Number.MAX_SAFE_INTEGER), lastAt: at };
+  }
+  return next;
+}
+// P3-NL-AC14 (5): 件数だけが変わった入力でもその unit の世代を進めて保存させる（unit の dirty と同じ形。domain の中身と contentRevision は
+// 変えない）。無いと断っただけの入力の件数が保存されず、再起動で消える。
+function raised(persistence: PersistenceStatus, monotonicMs: number): PersistenceStatus {
+  const progress = { ...persistence, currentGeneration: persistence.currentGeneration + 1, dirtySince: persistence.dirtySince ?? monotonicMs };
+  return persistence.kind === "saved" ? { ...progress, kind: "pending" } : progress;
+}
+
 // One owner request: its reducer calls, then the changes it must report, in the order they happened.
 function session(start: OwnerState, units: UnitTable, clock: ClockReading | null) {
   let next = start;
@@ -194,18 +215,23 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
   const reduceUnit = (unit: RuntimeUnitId, unitInput: UnitInput) => {
     const step = runUnitJob(units, unitJob(next, unit, unitInput));
     const previous = ownUnit(next, unit);
-    if (step.state.persistence.currentGeneration > previous.persistence.currentGeneration)
+    // P3-NL-AC14 (4)(5): unit の採用の結果の診断を数える。同じ入力で unit が世代を進めたなら、その世代に含める。
+    const losses = addLosses(next.losses[unit], unit, step.diagnostics, unitInput.clock.wallTimeMs);
+    if (losses != null) next = { ...next, losses: { ...next.losses, [unit]: losses } };
+    const bump = losses != null && step.state.persistence.currentGeneration <= previous.persistence.currentGeneration;
+    const persistence = bump ? raised(step.state.persistence, unitInput.clock.monotonicMs) : step.state.persistence;
+    if (persistence.currentGeneration > previous.persistence.currentGeneration)
       generationInputIds[unit] ??= [];
-    if (step.state !== previous) {
+    if (step.state !== previous || bump) {
       const attempt = next.checkpointAttempts[unit];
       // The first changed durable generation after capture defines the next dirty interval.
       if (attempt != null && attempt.postCaptureDirtySince == null
-        && step.state.persistence.currentGeneration > previous.persistence.currentGeneration
-        && step.state.persistence.currentGeneration > attempt.generation) {
+        && persistence.currentGeneration > previous.persistence.currentGeneration
+        && persistence.currentGeneration > attempt.generation) {
         next = { ...next, checkpointAttempts: { ...next.checkpointAttempts,
           [unit]: { ...attempt, postCaptureDirtySince: unitInput.clock.monotonicMs } } };
       }
-      next = { ...next, units: { ...next.units, [unit]: step.state } };
+      next = { ...next, units: { ...next.units, [unit]: bump ? { ...step.state, persistence } : step.state } };
       changed(unit);
     }
     const deadline = step.nextDeadline;
@@ -304,17 +330,20 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
       savedGeneration: envelope.generation, savedCapturedAt: envelope.capturedAt, savedAckAt: null, dirtySince: null };
     const seeded = { ...decoded.state, persistence };
     // P3-NL-AC14 (6): lastAt＋24 時間を過ぎた行は復元のときに外す。
-    const losses = keptLosses(envelope.losses ?? [], input.clock.wallTimeMs).losses;
-    if (losses != null) work.state = { ...work.state, losses: { ...work.state.losses, [unit]: losses } };
+    const kept = keptLosses(envelope.losses ?? [], input.clock.wallTimeMs).losses;
     // 唯一の `as`: CodecMap は JsonValue で型付けされ、state と保存の payload はこの unit 自身の codec が作った。K が generic なので
     // ここでは job 全体が相関した union から外れ、unit・state・入力の対応は目で確かめる。
     const step = runUnitJob(units, { unit, state: seeded,
       input: { kind: "restore", persisted: codec.encode(seeded), clock: input.clock } } as UnitJob);
-    work.state = { ...work.state, units: { ...work.state.units, [unit]: step.state },
-      deadlines: { ...work.state.deadlines, [unit]: step.nextDeadline } };
+    // P3-NL-AC14 (4)(5) の読み（Q-NL-PRECHECK-2 (1)(i)）: 復元の診断（通知したか不明）も数え、件数だけが変われば世代を進める。
+    const losses = addLosses(kept, unit, step.diagnostics, input.clock.wallTimeMs) ?? kept;
+    const unitState = losses !== kept && step.state.persistence.currentGeneration <= envelope.generation
+      ? { ...step.state, persistence: raised(step.state.persistence, input.clock.monotonicMs) } : step.state;
+    work.state = { ...work.state, units: { ...work.state.units, [unit]: unitState },
+      deadlines: { ...work.state.deadlines, [unit]: step.nextDeadline }, ...losses == null ? {} : { losses: { ...work.state.losses, [unit]: losses } } };
     restoration[unit] = { kind: "restored" };
     work.changed(unit);
-    if (step.state.persistence.currentGeneration > envelope.generation) work.generationInputIds[unit] = [];
+    if (unitState.persistence.currentGeneration > envelope.generation) work.generationInputIds[unit] = [];
     for (const outcome of step.outcomes) work.outcomes.push({ unit, outcome });
     work.displayChanges.push(...step.displayChanges.filter((change) => change.after != null)
       .map((change) => ({ ...change, before: null })));
@@ -359,12 +388,12 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
   // unit は共通の Head・日時の検査を自分でもう一度行う（入力ごとに診断 1 件）。U-W は拒否した入力でも §7.8 の鮮度の監視を続ける
   // （A1 freshnessException）。
   if (unit != null && completion.result.kind === "decoded") {
-    const generationBeforeReceive = ownUnit(work.state, unit).persistence.currentGeneration;
+    const generationBeforeReceive = ownUnit(work.state, unit).persistence.currentGeneration, lossesBefore = work.state.losses[unit];
     const received = work.reduceUnit(unit, { kind: "receive", material: completion.result.material, clock });
     // 容量の拒否でも失敗警報と title の書き換えで世代が進めば、その世代に帰属させる（P3-CC-AC10(9)、正常採用の扱いにはしない）。
-    // U-E の採らない取消が取消の intent と印を足した世代も同じ（P3-NL-AC04 (5)）。
-    if (received.state.persistence.currentGeneration > generationBeforeReceive
-      && (received.intents.length !== 0
+    // U-E の採らない取消が取消の intent と印を足した世代、件数だけが変わった世代も同じ（P3-NL-AC04 (5)・AC14 (5)）。
+    if (ownUnit(work.state, unit).persistence.currentGeneration > generationBeforeReceive
+      && (received.intents.length !== 0 || work.state.losses[unit] !== lossesBefore
         || received.decisions.some((decision) => decision.decision === "changed" || decision.decision === "capacityExceeded")))
       work.generationInputIds[unit] = [completion.inputId];
   } else if (completion.result.kind === "rejected") {
@@ -409,6 +438,10 @@ function intentUpdateOwner<K extends RuntimeUnitId>(state: OwnerState, unit: K, 
         || intent.replayed !== candidate.replayed || intent.expiresAt !== candidate.expiresAt)
       throw new Error("unit did not adopt the correlated intent update");
   }
+  // P3-NL-AC14 (4): 採用した更新の lossReason を数える（終端の更新だけが持ち、採用で世代は進んでいる）。
+  const losses = addLosses(work.state.losses[unit], unit, updates.flatMap((update) => update.lossReason == null ? [] : [{ reason: update.lossReason }]),
+    decision.wallTimeMs);
+  if (losses != null) work.state = { ...work.state, losses: { ...work.state.losses, [unit]: losses } };
   return { ...work.finish(), adopted: true };
 }
 
@@ -425,6 +458,13 @@ function capturedOwner(state: OwnerState, capture: CheckpointCapture, units: Uni
       unit, attemptId: capture.attemptId, generation: capture.generation,
       capturedAt: capture.capturedAt, postCaptureDirtySince: null,
     } } };
+  }
+  // P3-NL-AC14 (6): capture が envelope から外した行（lastAt＋24 時間を過ぎた行）は、加算元からも外す。無いと外した行が state に残り、
+  // 次の加算で再び保存され、再起動を挟むかで同じ入力の件数が変わる。
+  const losses = work.state.losses[unit];
+  if (losses != null) {
+    const kept = keptLosses(losses, capture.capturedAt).losses;
+    if (kept?.length !== losses.length) work.state = { ...work.state, losses: { ...work.state.losses, [unit]: kept } };
   }
   return work.finish();
 }

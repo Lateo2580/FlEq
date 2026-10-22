@@ -20,8 +20,8 @@ describe("P3-UNIT-B-001 U-B corpus history", () => {
     expect(o01[5].intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body.startsWith("訂正: ")])).toEqual([
       ["updated", "warning", "[訂正] 東京都気象防災速報（記録的短時間大雨）", true], ["updated", "warning", "[訂正] 東京都気象防災速報（記録的短時間大雨）", true]]);
     expect(o01[6].intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body])).toEqual([
-      ["cancelled", "cancel", "[取消] 東京都気象防災速報（記録的短時間大雨）", "この情報は取り消されました"],
-      ["cancelled", "cancel", "[取消] 東京都気象防災速報（記録的短時間大雨）", "この情報は取り消されました"]]);
+      ["cancelled", "cancel", "[取消] 東京都気象防災速報（記録的短時間大雨）（17:27 発表）", "17:27 発表の東京都気象防災速報（記録的短時間大雨）を取り消しました"],
+      ["cancelled", "cancel", "[取消] 東京都気象防災速報（記録的短時間大雨）（17:27 発表）", "17:27 発表の東京都気象防災速報（記録的短時間大雨）を取り消しました"]]);
     expect(pendingOf(o01[6].state, KJPTK).map((item) => item.transition)).toEqual(["cancelled", "cancelled"]);
     expect(recordOf(o01[6].state, KJPTK)?.retainUntil).toBe(Date.parse("2026-08-22T20:27:00+09:00"));
 

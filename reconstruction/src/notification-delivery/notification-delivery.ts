@@ -16,11 +16,8 @@ function resolveSoundAsset(payload: NotificationIntent["payload"]): Notification
 }
 
 function group(intent: NotificationIntent): NotificationPriorityGroup {
-  if (intent.operation !== "normal") return "other";
-  if (intent.unit === "U-E") return "normalEew"; // P3-C7-NOTICE-GROUP=A: U-Q の地震情報も domain=earthquake-eew だが other。
-  if (intent.payload.domain === "tsunami" && (intent.payload.level === "warning" || intent.payload.level === "critical"))
-    return "normalTsunamiEmergency";
-  return "other";
+  // P3-NL-AC11 (3): 群は owner が intent を作るときに決める（音の段から切り離す、H09）。
+  return intent.priorityGroup;
 }
 
 const rank = { normalEew: 0, normalTsunamiEmergency: 1, other: 2 } as const;

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "8a9fe26a7a14d6534e13d1863d4c8d9e27e5897c0571ae241d2830877ede222a",
+    "sha256": "bfbe05740b8aea924885153c9a4c308d8492a44686f8a1abb8a34736b74673b4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -560,7 +560,7 @@
       },
       {
         "id": "P2-A1-AC10",
-        "requirement": "R45/A10-AC09: RuntimeStep.generationInputIdsは保存世代が進んだunitにだけkeyを返す。採用に寄与したparser inputIdだけを含み、期限・intentUpdate・起動回収だけなら空配列を明示する。parserと期限処理が同じstepでも、当該unitの保存変更へparserが寄与した場合だけそのinputIdを含める。配列はこのstepの世代変化だけの寄与を表し、未保存の過去世代の寄与を置き換えない。A3での世代差照合・capture集約・欠落の扱いはP2-A3-AC10を正本とする。EEW競合はrunIdと単調時間区間で照合し競合EEW inputIdを偽装しない",
+        "requirement": "R45/A10-AC09: RuntimeStep.generationInputIdsは保存世代が進んだunitにだけkeyを返す。採用に寄与したparser inputIdだけを含み（容量の拒否とH39の件数だけの変化で世代が進んだ入力を含む、P3-CC-AC10(9)・P3-NOTICE-LEDGER-001のP3-NL-AC14の(5)）、期限・intentUpdate・起動回収だけなら空配列を明示する。parserと期限処理が同じstepでも、当該unitの保存変更へparserが寄与した場合だけそのinputIdを含める。配列はこのstepの世代変化だけの寄与を表し、未保存の過去世代の寄与を置き換えない。A3での世代差照合・capture集約・欠落の扱いはP2-A3-AC10を正本とする。EEW競合はrunIdと単調時間区間で照合し競合EEW inputIdを偽装しない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-eew-e01.types.ts"
         ]

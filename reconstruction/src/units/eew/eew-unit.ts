@@ -45,7 +45,8 @@ function readIntent(value: unknown): EewIntent | null {
   const record = object(value), payload = object(record?.payload), source = readReportRef(record?.source);
   const transition = TRANSITIONS.find((item) => item === record?.transition);
   const channel = record?.channel === "desktop" || record?.channel === "sound" ? record.channel : null;
-  const level = payload?.level === "warning" || payload?.level === "critical" || payload?.level === "cancel" ? payload.level : null;
+  const level = payload?.level === "normal" || payload?.level === "warning" || payload?.level === "critical" || payload?.level === "cancel"
+    ? payload.level : null;
   const id = record?.id, subject = record?.subject, title = payload?.title, body = payload?.body, configRevision = record?.configRevision;
   const createdAt = record?.createdAt, expiresAt = record?.expiresAt, nextAttemptAt = record?.nextAttemptAt, attempts = record?.attempts;
   if (record == null || payload == null || source == null || transition == null || channel == null || level == null

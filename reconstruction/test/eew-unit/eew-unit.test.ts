@@ -74,7 +74,7 @@ function pendingIntent(subject = "normal/VXSE43/20240417231454", createdAt = BAS
       reportDateTimeRaw: "2024-04-17T23:14:59+09:00", controlDateTimeRaw: "2024-04-17T14:14:59Z", serialRaw: "1", infoTypeRaw: "発表" },
     transition: "activated", channel, payload: { domain: "earthquake-eew", level: "warning", title: "緊急地震速報（予報）", body: "予報" },
     createdAt, expiresAt: createdAt + 15_000, nextAttemptAt: createdAt,
-    attempts: 0, configRevision: "test", disposition: "pending", ...freshState("U-E", operation, "warning"),
+    attempts: 0, configRevision: "test", disposition: "pending", ...freshState("U-E", operation),
   };
 }
 
@@ -1417,6 +1417,33 @@ describe("P2 EEW unit", () => {
     expect([back.state.intents.map((item) => item.channel), back.state.notices[0].deliveryEvidence]).toEqual([["desktop"], "unknown"]);
     expect(back.diagnostics).toContainEqual(expect.objectContaining({ reason: "notificationOutcomeUnknown", unit: "U-E", count: 1 }));
   });
+
+  // P3-NL-T03 の取消の文面（AC10、Q-NL-CANCEL-TEXT の U-E の 3 行）と最終報（AC12、P3-NL-D-FINAL-OVERLAP=A）の行。
+  it("P3-NL-T03 acceptance / AC10・AC12: a cancel names its type, hypocenter and time, and only a plain final report is normal", () => {
+    const shape = (step: EewUnitStep) => step.intents.map((item) => [item.payload.level, item.payload.title, item.payload.body]);
+    const both = (...row: string[]) => [row, row];
+    const issued = receive(emptyState(), decodeFixture("77_01_03_240613_VXSE45", "VXSE45"));
+    const cancel = decodeFixture("77_01_33_240613_VXSE45", "VXSE45"), at = Date.parse("2024-04-17T23:17:00+09:00");
+    // 通知した（証拠 possible の）報の取消。gate のある取消は震源名と発表時刻（取り消した gate の報）、再起動の後の印だけの取消は family の
+    // 記録の時刻だけ、どちらも無ければ種類だけ。
+    const delivered = reduceEewUnit(issued.state, { kind: "intentUpdate", clock: clock(BASE_TIME), intentUpdate: issued.intents.map((item) => ({ ...item,
+      attempts: 1, nextAttemptAt: BASE_TIME, disposition: "delivered" as const, lossReason: null })) }).state;
+    expect(shape(receive(delivered, cancel, at))).toEqual(both("cancel", "[取消] 緊急地震速報（地震動予報）（豊後水道 23:14 発表）",
+      "豊後水道 23:14 発表の緊急地震速報（地震動予報）を取り消しました"));
+    const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(delivered), clock: clock(BASE_TIME + 1_000) }).state;
+    expect(shape(receive(restored, cancel, at))).toEqual(both("cancel", "[取消] 緊急地震速報（地震動予報）（23:14 発表）",
+      "23:14 発表の緊急地震速報（地震動予報）を取り消しました"));
+    expect(shape(receive(emptyState(), cancel, at))).toEqual(both("cancel", "[取消] 緊急地震速報（地震動予報）", "緊急地震速報（地震動予報）を取り消しました"));
+    // 最終報: 続報の流れの最後は普通の音で本文の頭に「最終報: 」。第 1 報が最終報なら今の音（予報なので warning）のまま「最終報: 」を書く。
+    const finalAt = Date.parse("2026-01-01T12:00:30+09:00"), final = decodeFixture("77_01_30_260101_VXSE45_FINAL", "VXSE45");
+    const body = "最終報: テスト震源 / M5.0 / 最大予測震度4";
+    expect(shape(receive(emptyState(), final, finalAt))).toEqual(both("warning", "緊急地震速報（予報）", body));
+    const before = decodeFixture("77_01_30_260101_VXSE45_FINAL", "VXSE45", (xml) => xml.replace(/<NextAdvisory>[^<]*<\/NextAdvisory>/, "")
+      .replace("<Serial>30</Serial>", "<Serial>29</Serial>").replace("03:00:30Z", "03:00:29Z").replace("12:00:30+09:00</ReportDateTime>",
+        "12:00:29+09:00</ReportDateTime>"), "t03-before-final");
+    const followed = receive(receive(emptyState(), before, finalAt).state, final, finalAt);
+    expect(shape(followed)).toEqual(both("normal", "緊急地震速報（予報）", body));
+  });
 });
 
 describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version correction", () => {
@@ -1544,7 +1571,7 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     expect(seven.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
     expect([seven.state.current, seven.state.gates.length]).toEqual([[], 1]);
     expect(seven.state.intents.map((item) => [item.channel, item.payload.body])).toEqual([
-      ["desktop", "訂正: テスト震源 / M5.0 / 最大予測震度7"], ["sound", "訂正: テスト震源 / M5.0 / 最大予測震度7"]]);
+      ["desktop", "最終報: 訂正: テスト震源 / M5.0 / 最大予測震度7"], ["sound", "最終報: 訂正: テスト震源 / M5.0 / 最大予測震度7"]]);
     expect(seven.state.intents.some((item) => three.intents.some((old) => old.id === item.id))).toBe(false);
     expect(receive(seven.state, correction("7", false, "7", 1), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
     expect(receive(seven.state, correction("7", true, "7", 2), report).decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
@@ -1552,7 +1579,7 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     const regional = receive(seven.state, correction("7", false, "6+", 2), report);
     expect(regional.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
     expect(regional.state.current).toEqual([]);
-    expect(regional.state.intents.map((item) => item.payload.body)).toEqual(["訂正: テスト震源 / M5.0 / 最大予測震度7", "訂正: テスト震源 / M5.0 / 最大予測震度7"]);
+    expect(regional.state.intents.map((item) => item.payload.body)).toEqual(["最終報: 訂正: テスト震源 / M5.0 / 最大予測震度7", "最終報: 訂正: テスト震源 / M5.0 / 最大予測震度7"]);
     expect(regional.state.intents.some((item) => seven.intents.some((old) => old.id === item.id))).toBe(false);
     expect(receive(regional.state, correction("7", false, "6+", 2), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
   });

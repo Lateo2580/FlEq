@@ -579,8 +579,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(o01[7].intents.map((item) => [item.payload.level, item.payload.title, item.payload.body.startsWith("訂正: ")]))
       .toEqual([["warning", "[訂正] 南海トラフ地震関連解説情報（第３号）", true], ["warning", "[訂正] 南海トラフ地震関連解説情報（第３号）", true]]);
     expect(o01[8].intents.map((item) => [item.payload.level, item.payload.title, item.payload.body]))
-      .toEqual([["cancel", "[取消] 南海トラフ地震臨時情報（巨大地震注意）", "この情報は取り消されました"],
-        ["cancel", "[取消] 南海トラフ地震臨時情報（巨大地震注意）", "この情報は取り消されました"]]);
+      .toEqual([["cancel", "[取消] 南海トラフ地震臨時情報（巨大地震注意）（16:32 発表）", "16:32 発表の南海トラフ地震臨時情報（巨大地震注意）を取り消しました"],
+        ["cancel", "[取消] 南海トラフ地震臨時情報（巨大地震注意）（16:32 発表）", "16:32 発表の南海トラフ地震臨時情報（巨大地震注意）を取り消しました"]]);
     expect(status(o01[11].state)).toBe("cancelled");
     expect(o01[2].intents.map((item) => [item.subject, item.transition, item.payload.level])).toEqual([[NANKAI, "updated", "critical"],
       [NANKAI, "updated", "critical"]]);

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "ab3fd8cf0cbc829f6b72075a5415571bc62a4d034d569ef191eb99c7c85cdb36",
+    "sha256": "101d6a5810061edcf785e3af9429c4c33f7b64f71f504b978b631523ee055391",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
     "decisionBranches": [
       {
@@ -298,8 +298,8 @@
           "reconstruction/src/domains/typhoon/typhoon.ts:410 «61910075c8e09edb»",
           "reconstruction/src/domains/typhoon/typhoon.ts:420 «c2b4222494be9c0c»",
           "reconstruction/src/domains/typhoon/typhoon.ts:438 «16c1b2ce589575ac»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:618 «2d176df9bd29492e»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:666 «386765b0ed3fadfa»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:626 «2d176df9bd29492e»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:674 «386765b0ed3fadfa»",
           "reconstruction/contracts/p3-typhoon-unit.json:352 «28b728c920e887df»",
           "reconstruction/contracts/p3-typhoon-unit.json:358 «af03e786dee34b37»",
           "reconstruction/contracts/p3-typhoon-unit.json:440 «6aa4dac0eb2143e9»",
@@ -322,7 +322,7 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:13 «07dc2214af84961f»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:188 «bd87c88c0369446a»",
           "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:43 «e84656f2b8801676»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:696 «ba50fb82ef51ba67»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:704 «ba50fb82ef51ba67»",
           "reconstruction/src/checkpoint/checkpoint.ts:467 «b6fdb65e4e225b7d»",
           "reconstruction/test/uf-public/uf-history.test.ts:189 «85825881864e0803»",
           "reconstruction/test/uf-public/uf-history.test.ts:199 «9a26cef9f7727011»",

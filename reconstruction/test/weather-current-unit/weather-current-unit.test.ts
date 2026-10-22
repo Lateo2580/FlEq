@@ -358,7 +358,7 @@ describe("P2 weather-current unit", () => {
           || !delivery.intents.some((item) => item.disposition === "pending")
           ? { state: delivery, attempts: [], abortRequests: [], diagnostics: [] } : ({
           state: { ...delivery, channels: { ...delivery.channels, desktop: { kind: "running", attempt } },
-            intents: delivery.intents.map((item) => ({ ...item, attempts: 1, nextAttemptAt: NOW + 500 })) },
+            intents: delivery.intents.map((item) => ({ ...item, attempts: item.attempts + 1, nextAttemptAt: NOW + 500 })) },
           attempts: [attempt], abortRequests: [], diagnostics: [],
         }),
         applyNotificationResult: (delivery) => ({

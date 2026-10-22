@@ -16,7 +16,7 @@ import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
 import {
-  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 
@@ -214,9 +214,13 @@ function levelOf(candidate: NankaiCandidate): Level {
   const code = candidate.facts.infoSerial?.code;
   return code == null ? "warning" : CODE_LEVEL.get(code) ?? "warning";
 }
-function payloadOf(candidate: NankaiCandidate): NankaiNotificationPayload {
+// at は取り消した記録の ReportDateTime（P3-NL-AC10）。
+function payloadOf(candidate: NankaiCandidate, at: string | null): NankaiNotificationPayload {
   const prefix = PREFIX[candidate.operation], { title, headline, text } = candidate.facts;
-  if (candidate.cancelled) return { domain: "earthquake-eew", level: "cancel", title: `${prefix}[取消] ${title}`, body: "この情報は取り消されました" };
+  if (candidate.cancelled) {
+    const words = cancelText(title, at);
+    return { domain: "earthquake-eew", level: "cancel", title: prefix + words.title, body: words.body };
+  }
   // Text の先頭 80 単位はサロゲートの対を割らずに切る（P3-CODEC-AC04、F15）。
   const body = headline ?? (text == null ? null : cut(text, 80)) ?? title;
   const correction = candidate.infoRank === 2;
@@ -225,15 +229,15 @@ function payloadOf(candidate: NankaiCandidate): NankaiNotificationPayload {
 }
 // P3-NL-AC01: ID は世代番号を含まない。系列（現況か情報 subject）の印に同じ版の鍵と種類があれば作らない。
 function intentsFor(candidate: NankaiCandidate, subject: string, transition: NankaiIntent["transition"], now: number,
-  notice: Readonly<{ mark: NoticeMark | undefined; version: string }>): NankaiIntent[] {
+  notice: Readonly<{ mark: NoticeMark | undefined; version: string }>, at: string | null = null): NankaiIntent[] {
   if (noticed(notice.mark, notice.version, noticeKind(transition))) return [];
   // P3-C8-TRAINING=A: training/test は desktop だけ。
   const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  const payload = payloadOf(candidate);
+  const payload = payloadOf(candidate, at);
   const source = { ...candidate.source, subject };
   return channels.map((channel) => ({ id: noticeId("U-N", subject, "", source, transition, channel), unit: "U-N", subject,
     operation: candidate.operation, source, transition, channel, payload, createdAt: now, expiresAt: now + TTL[channel], nextAttemptAt: now,
-    attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-N", candidate.operation, payload.level) }));
+    attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-N", candidate.operation) }));
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-N の intent は全部 other の群（P3-C8-NOTICE-GROUP=A）。
 function a7Order(left: NankaiIntent, right: NankaiIntent): number {
@@ -391,7 +395,8 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
     && current?.source.family === candidate.family && current.eventId === candidate.eventId;
   // 自身を退去した情報 subject には通知を作らない。現況を採用したなら現況の通知は今どおり（P3-OPCAP-N-AC02）。
   const notify = !due && !(self && nextCurrent == null)
-    && (candidate.cancelled ? nextCurrent != null && visible(current) || nextInfo != null && visible(info)
+    // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
+    && (candidate.cancelled ? nextCurrent != null && (visible(current) || heard(current?.notice)) || nextInfo != null && (visible(info) || heard(info?.notice))
       : candidate.infoRank === 2 || (restoredSource ? currentFields.length !== 0 : nextInfo != null && infoFields.length !== 0));
   const subject = nextCurrent != null ? candidate.currentSubject : candidate.subject;
   const before = nextCurrent != null ? current : info;
@@ -400,7 +405,8 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
     : nextCurrent?.effective === "ended" ? "released" as const : visible(before) ? "updated" as const : "activated" as const;
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const version = versionDigest(candidate.source);
-  const fresh = notify ? intentsFor(candidate, subject, transition, now, { mark: before?.notice, version }) : [];
+  const at = before == null ? null : "evidence" in before ? new Date(before.evidence.reportDateTimeMs).toISOString() : before.source.reportDateTimeRaw;
+  const fresh = notify ? intentsFor(candidate, subject, transition, now, { mark: before?.notice, version }, at) : [];
   const cancelledSubjects = new Set(candidate.cancelled ? [...nextCurrent == null ? [] : [candidate.currentSubject],
     ...nextInfo == null ? [] : [candidate.subject]] : []);
   const notices = admit(state.intents, fresh, cancelledSubjects);

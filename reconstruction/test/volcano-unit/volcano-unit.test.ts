@@ -570,7 +570,7 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       ["降灰予報（速報）", "桜島 / 降灰予報（速報） / 小さな噴石の落下"], ["桜島　推定噴煙流向報", "桜島 推定噴煙流向報"],
       ["火山に関するお知らせ", "噴火警報及び噴火予報の発表開始のお知らせ"]]);
     expect(payload(send(send(emptyState(), F.o1).state, F.o3, (xml) => replaceTag("EventID", "20200522144900_306")(xml))))
-      .toEqual(["[取消] 噴火に関する火山観測報", "この情報は取り消されました"]);
+      .toEqual(["[取消] 噴火に関する火山観測報（浅間山 14:49 発表）", "浅間山 14:49 発表の噴火に関する火山観測報を取り消しました"]);
     // revisionOnly・noChange・duplicate・記憶だけの取消では作らない。訂正は事実が同じでも作る。VFVO51 は複数火山が変わっても 1 件。
     const alert = send(emptyState(), F.a306);
     expect(send(alert.state, F.a306, retime("2020-05-22T13:04:00+09:00")).intents).toEqual([]);
@@ -671,7 +671,7 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect(alertOf(partial.state, "306")).toMatchObject({ effective: "active", kind: { code: "13" }, marineAreas: [] });
     expect(partial.state.intents.filter((item) => item.source.family === "VFVO50").map((item) => item.disposition)).toEqual(["pending", "pending"]);
     expect(partial.intents.map((item) => [item.payload.level, item.payload.title, item.payload.body])).toEqual(Array(2).fill(["cancel",
-      "[取消] 火山現象に関する海上警報", "火山現象に関する海上警報・海上予報が取り消されました"]));
+      "[取消] 火山現象に関する海上警報（浅間山 13:02 発表）", "浅間山 13:02 発表の火山現象に関する海上警報を取り消しました"]));
     // VFVO50 と VFSV が同じ区分（36）で VFSV が新しくても、VFSV の取消の後は VFVO50 の区分（landKind）が active を支える。
     const sea = send(emptyState(), F.a306, (xml) => xml.replaceAll("<Code>13</Code>", "<Code>36</Code>")).state;
     const seaMarine = send(sea, F.marine, marine("306", "2020-05-22T13:10:00+09:00")).state;

@@ -330,10 +330,12 @@ describe("P3-UNIT-WRITE-RIGHT-001 (TEST-PATH (2))", () => {
       expect([stage, r.delayed(), r.h.unit("U-W").persistence.currentGeneration]).toEqual([stage, 0, 2]);
       await r.root.diagnostics.flush();
     }
-    // The notification probe's selection and its result reach weatherCurrent as intent updates while its input is held.
+    // The notification probe's selection and its result reach weatherCurrent as intent updates while its save is held. P3-NL-AC07:
+    // the attempt waits for that save's ack and U-W is tried after 10,000 ms without it (P3-NL-DLV-02); by then the 1 s own-save hold
+    // of the input has ended (P3-UWR-HOLD-LIMIT=A).
     const seeds = seeded(calls.units);
     const files = gatedFiles();
-    const now = at(0);
+    let now = at(0);
     const h = harnessedRoot(config(), linkedUnitCodecs, { clock: () => now, notificationAdapter: recordingNotificationAdapter(),
       runtimeCalls: { ...calls, units: seeds.units }, checkpointFileSystem: files.system });
     await startHarness(h, "uwr", now, false);
@@ -347,9 +349,12 @@ describe("P3-UNIT-WRITE-RIGHT-001 (TEST-PATH (2))", () => {
     const from = h.sent.length;
     h.root.dispatch({ kind: "notificationProbeCompleted", channels: idleChannels, clock: now });
     await h.settle();
+    expect(h.root["delayedInputs"].size).toBe(1);
+    now = at(10_000);
+    h.root.tick(now);
+    await h.settle();
     expect(h.sent.slice(from).filter(({ place, request }) => place === "weatherCurrent" && request.kind === "intentUpdate").length)
       .toBeGreaterThanOrEqual(2);
-    expect(h.root["delayedInputs"].size).toBe(1);
     release();
     await h.settle();
     expect(h.root["delayedInputs"].size).toBe(0);

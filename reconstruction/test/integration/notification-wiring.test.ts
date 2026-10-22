@@ -12,6 +12,7 @@ import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth"
 import { toTsunamiView, tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
 import { observation, vtse41 } from "../tsunami-unit/tsunami-fixture";
 import type { NotificationAbortRequest, NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
+import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
 import { linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import type { ShutdownHooks } from "../../src/runtime/composition-root";
 import { applyNotificationResult } from "../../src/notification-delivery/notification-delivery";
@@ -57,7 +58,7 @@ function adapter() {
     } };
 }
 
-it("P2-A3-T11 acceptance / AC11: a dirty owner reservation dispatches before checkpoint acknowledgement and adopts one run result", async () => {
+it("P2-A3-T11 acceptance / AC11: a dirty owner reservation dispatches without the checkpoint acknowledgement after the 1 s wait and adopts one run result", async () => {
   const fake = adapter();
   let now = at(0);
   // The save's write never completes here: the reservation and its result proceed while the save is in flight.
@@ -66,6 +67,11 @@ it("P2-A3-T11 acceptance / AC11: a dirty owner reservation dispatches before che
     checkpointFileSystem: { ...files, open: () => park(new Promise(() => {})) } });
   await startProbed(h, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
   await eew(h, now);
+  // P3-NL-AC07 (3): ack の返らない保存は待たず、U-E は待ち始めから 1,000 ms（DLV-01）で adapter を呼ぶ。
+  expect(fake.attempts).toHaveLength(0);
+  now = at(1_000);
+  h.root.tick(now);
+  await h.settle();
   expect(fake.attempts).toHaveLength(1);
   expect(h.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "pending", savedGeneration: 0 });
   void h.root.driveCheckpoint();
@@ -73,7 +79,7 @@ it("P2-A3-T11 acceptance / AC11: a dirty owner reservation dispatches before che
   expect(h.root.checkpoint.grantOf("U-E")).not.toBeNull();
   expect(h.root.state.mirror["U-E"].persistence.savedGeneration).toBe(0);
   const attempt = fake.attempts[0];
-  now = at(1);
+  now = at(1_001);
   fake.complete.get(attempt.attemptId)!({ kind: "delivered", attemptId: attempt.attemptId,
     intentId: attempt.intentId, channel: attempt.channel, completedAt: now });
   await h.settle();
@@ -764,4 +770,185 @@ describe("P3-CK-T02 contractBoundary / AC02・AC03: the publisher holds a restor
     expect([r.fake.attempts.length, r.h.unit("U-E").intents.find((item) => item.id === desktop.intentId)?.disposition]).toEqual([2, "pending"]);
     await r.h.root.diagnostics.flush();
   });
+});
+
+// P3-NL-T04 の保存 ack の行（P3-NL-AC07）。保存の open を止める・失敗させる fake（止めた open は release で全部進む）。
+function savesControl() {
+  const files = nodeCheckpointFileSystem();
+  let gate: Promise<void> = Promise.resolve(), open = () => {};
+  const control = { mode: "ok" as "ok" | "fail" | "park",
+    hold() { control.mode = "park"; gate = new Promise((resolve) => { open = resolve; }); },
+    release() { control.mode = "ok"; open(); } };
+  const system: CheckpointFileSystem = { ...files, open: (path) => control.mode === "fail" ? Promise.reject(new Error("disk full"))
+    : control.mode === "park" ? park(gate).then(() => files.open(path)) : files.open(path) };
+  return { control, system };
+}
+// U-Q の震源・震度情報（warning 以下の普通の通知）。期限で回収されないよう報時刻を試験の時計の近くにする。
+const quake = (inputId: string, clock: ClockReading, eventId = "20240417231400", sequence = 40) => envelope("t11", "VXSE53", inputId,
+  Buffer.from(Buffer.from(unitBodies["U-Q"].body).toString("utf8").replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`)
+    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>2024-04-17T23:14:00+09:00</ReportDateTime>")), clock, sequence);
+const delivered = (attempt: NotificationAttempt, completedAt: ClockReading): NotificationResult => ({ kind: "delivered",
+  attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt });
+
+describe("P3-NL-T04 contractBoundary / AC07: the adapter waits for the save of the generation that adopted the attempt", () => {
+  it("(a) a non-urgent desktop reservation waits past 5 s for its save, and its attempt deadline counts from the call", async () => {
+    const saves = savesControl();
+    saves.control.hold();
+    const fake = adapter();
+    let now = at(0);
+    const h = harnessedRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake, checkpointFileSystem: saves.system });
+    await startProbed(h, now, { desktop: { kind: "idle" }, sound: unavailable });
+    await submit(h, quake("q1", now));
+    expect([fake.attempts.length, h.unit("U-Q").intents.map((item) => [item.channel, item.lastAttempt])]).toEqual([0, [["desktop", "started"], ["sound", null]]]);
+    now = at(5_001);
+    h.root.tick(now);
+    await h.settle();
+    expect(fake.attempts).toHaveLength(0);
+    saves.control.release();
+    await h.settle();
+    expect(fake.attempts.map((item) => [item.unit, item.channel, item.timeoutAtMonotonicMs])).toEqual([["U-Q", "desktop", 10_001]]);
+    await h.root.diagnostics.flush();
+  });
+
+  it("(b)(d) while the save fails a non-urgent reservation is tried at once; after an ack the next one waits for its save again", async () => {
+    const saves = savesControl();
+    saves.control.mode = "fail";
+    const fake = adapter();
+    let now = at(0);
+    const h = harnessedRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake, checkpointFileSystem: saves.system });
+    await startProbed(h, now, { desktop: { kind: "idle" }, sound: unavailable });
+    await submit(h, quake("q1", now));
+    expect([h.root.state.mirror["U-Q"].persistence.kind, fake.attempts.length]).toEqual(["failed", 1]);
+    fake.complete.get(fake.attempts[0].attemptId)!(delivered(fake.attempts[0], now));
+    await h.settle();
+    saves.control.mode = "ok";
+    now = at(2_000);
+    await h.root.driveCheckpoint();
+    await h.settle();
+    expect(h.root.state.mirror["U-Q"].persistence.kind).toBe("saved");
+    saves.control.hold();
+    await submit(h, quake("q2", now, "20240417231401", 41));
+    expect(fake.attempts).toHaveLength(1);
+    saves.control.release();
+    await h.settle();
+    expect(fake.attempts).toHaveLength(2);
+    await h.root.diagnostics.flush();
+  });
+
+  it("(c) without an ack an EEW reserved 10 ms after a tick starts on its own 1 s timer; a non-urgent one waits 10 s", async () => {
+    const saves = savesControl();
+    saves.control.hold();
+    const fake = adapter();
+    let now = at(0);
+    const h = harnessedRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake, checkpointFileSystem: saves.system });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await startProbed(h, now, { desktop: unavailable, sound: { kind: "idle" } });
+      h.root.tick(now);
+      await h.settle();
+      const ticks = vi.spyOn(h.root, "tick");
+      now = at(10);
+      await eew(h, now);
+      now = at(1_009);
+      vi.advanceTimersByTime(999);
+      await h.settle();
+      expect(fake.attempts).toHaveLength(0);
+      now = at(1_010);
+      vi.advanceTimersByTime(1);
+      await h.settle();
+      expect([fake.attempts.map((item) => [item.unit, item.channel]), ticks.mock.calls.length]).toEqual([[["U-E", "sound"]], 0]);
+      fake.complete.get(fake.attempts[0].attemptId)!(delivered(fake.attempts[0], now));
+      await h.settle();
+      now = at(2_000);
+      await submit(h, quake("q1", now));
+      now = at(3_000);
+      h.root.tick(now);
+      await h.settle();
+      expect(fake.attempts).toHaveLength(1);
+      now = at(12_000);
+      vi.advanceTimersByTime(10_000);
+      await h.settle();
+      expect(fake.attempts.map((item) => [item.unit, item.channel])).toEqual([["U-E", "sound"], ["U-Q", "sound"]]);
+    } finally { vi.useRealTimers(); }
+    await h.root.diagnostics.flush();
+  });
+
+  // 境界: 保存の ack が届く評価で、上位群の通知の再試行の時刻にも達したら、先に選び直して上位群を予約し、待っていた予約は adapter を呼ばずに
+  // failed に戻す（鳴らしてから上位群で中断しない、P3-NL-AC07 (5)）。
+  it("(e) when the ack lands as a higher group's retry falls due, the waiting reservation yields before any call", async () => {
+    const saves = savesControl();
+    const fake = adapter();
+    let now = at(0);
+    const h = harnessedRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake, checkpointFileSystem: saves.system });
+    await startProbed(h, now, { desktop: unavailable, sound: { kind: "idle" } });
+    await eew(h, now);
+    // EEW の音は起動しなかった（notStarted）ので 1,000 ms 後に再試行する。その間に U-Q の音を予約し、保存（U-Q の分だけ）を待たせる。
+    const eewAttempt = fake.attempts[0];
+    fake.complete.get(eewAttempt.attemptId)!({ kind: "failed", reason: "notStarted", attemptId: eewAttempt.attemptId, intentId: eewAttempt.intentId,
+      channel: "sound", completedAt: now });
+    await h.settle();
+    saves.control.hold();
+    await submit(h, quake("q1", now));
+    const waiting = h.unit("U-Q").intents.find((item) => item.channel === "sound")!;
+    expect([waiting.lastAttempt, fake.attempts.length]).toEqual(["started", 1]);
+    now = at(1_000);
+    saves.control.release();
+    await h.settle();
+    expect([fake.attempts.map((item) => [item.unit, item.channel]), fake.aborts]).toEqual([[["U-E", "sound"], ["U-E", "sound"]], []]);
+    expect(h.unit("U-Q").intents.find((item) => item.id === waiting.id)?.lastAttempt).toBe("failed");
+    await h.root.diagnostics.flush();
+  });
+
+  it("(f) a reservation waiting at the stop goes back to failed before the final save, even behind a busy update slot", async () => {
+    const saves = savesControl();
+    saves.control.hold();
+    const fake = adapter();
+    const config = await settings();
+    let now = at(0), releaseHeld = () => {};
+    const h = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: fake, checkpointFileSystem: saves.system,
+      shutdownHooks: { drainMailbox: async () => { saves.control.release(); releaseHeld(); } } });
+    await startProbed(h, now, { desktop: unavailable, sound: { kind: "idle" } });
+    await eew(h, now);
+    now = at(1_000);
+    h.root.tick(now);
+    await h.settle();
+    expect(fake.attempts).toHaveLength(1);
+    // EEW の音の結果の更新（同じ owner・channel の更新枠）が返事待ちの間に、津波の音の予約が保存を待つ。
+    const from = h.sent.length;
+    const unhold = h.hold((_place, reply) => reply.kind === "intentUpdateDone" && h.sent.slice(from).some(({ request }) =>
+      request.kind === "intentUpdate" && request.requestId === reply.requestId && request.updates.some((update) => update.disposition === "delivered")));
+    fake.complete.get(fake.attempts[0].attemptId)!(delivered(fake.attempts[0], now));
+    await h.settle();
+    await submit(h, envelope("t11", unitBodies["U-T"].headType, "t1", unitBodies["U-T"].body, now, 50));
+    const waiting = h.unit("U-T").intents.find((item) => item.channel === "sound")!;
+    expect([waiting.lastAttempt, fake.attempts.length, h.held.length, h.root["ackTimer"] == null]).toEqual(["started", 1, 1, false]);
+    releaseHeld = () => { unhold(); h.release(); };
+    await h.root.shutdownRuntime(0, now);
+    expect(h.root["ackTimer"]).toBeNull();
+    expect(h.sent.flatMap(({ request }) => request.kind === "intentUpdate" ? request.updates : [])
+      .filter((update) => update.lastAttempt === "failed").map((update) => update.id)).toEqual([waiting.id]);
+    const next = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: adapter() });
+    await startHarness(next, "t11-next", now, false);
+    expect(next.root.state.mirror["U-T"].pendingIntents.filter((item) => item.channel === "sound").map((item) => [item.id, item.lastAttempt]))
+      .toEqual([[waiting.id, "failed"]]);
+    await h.root.diagnostics.flush();
+    await next.root.diagnostics.flush();
+  });
+});
+
+// P3-NL-T06 の publisher の行（P3-NL-AC14 (4)）: reclaimExpired の失効は main の診断の行のままで owner は数えない。owner が数えるのは unit の
+// 診断か採用した更新の lossReason のどちらか一方（ここでは unit の期限が先に外し、publisher の失効の更新は採られない）なので、2 件は 2 件。
+it("P3-NL-T06 contractBoundary / AC14: the publisher's reclaim is not counted again by the owner", async () => {
+  let now = at(0);
+  const h = harnessedRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: adapter() });
+  await startProbed(h, now, { desktop: unavailable, sound: unavailable });
+  await eew(h, now);
+  expect(h.root.state.mirror["U-E"].pendingIntents).toHaveLength(2);
+  now = at(16_000);
+  h.root.tick(now);
+  await h.settle();
+  await h.root.diagnostics.flush();
+  const lines = (await h.root.readDiagnostics({ limit: 100 })).records.filter((item) => item.reason === "notificationExpired");
+  expect([lines.map((item) => [item.component, item.count]), h.root.state.mirror["U-E"].pendingIntents]).toEqual([[["runtime", 2], ["eew", 2]], []]);
+  expect(h.owners.get("urgent")!["state"]!.losses["U-E"]).toMatchObject([{ reason: "notificationExpired", count: 2 }]);
 });

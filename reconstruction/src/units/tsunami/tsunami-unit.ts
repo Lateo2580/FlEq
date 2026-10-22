@@ -17,7 +17,7 @@ import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { AREA_RANK, INFO_RANK, KIND_CLASS, parseTsunami, sameStation } from "../../domains/tsunami/tsunami";
 import type { ForecastCandidate, ObservationCandidate } from "../../domains/tsunami/tsunami";
 import {
-  FAILURE_MARKS_MAX_BYTES, readFailureMarks, applyIntentUpdate, failureNoticeId, fragmentKey, freshState, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed, raiseEvidence,
+  FAILURE_MARKS_MAX_BYTES, readFailureMarks, applyIntentUpdate, cancelText, failureNoticeId, fragmentKey, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed, raiseEvidence,
   readIntentState, readNoticeMark, restoreStarted, shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 
@@ -138,14 +138,13 @@ const OBSERVATION_TITLE: Readonly<Record<TsunamiObservationFamily, string>> = {
 function maxLevel(left: Exclude<Level, "cancel">, right: Exclude<Level, "cancel">): Exclude<Level, "cancel"> {
   return LEVELS.indexOf(left) >= LEVELS.indexOf(right) ? left : right;
 }
-// P3-C5-NOTICE-LEVELS=A の変化の段階。
+// P3-C5-NOTICE-LEVELS=A の変化の段階。注意報への発令・引上げ・区域拡大は警報の音（P3-NL-AC11 (1)、H09）。
 function riseLevel(value: TsunamiAreaClass): Exclude<Level, "cancel"> {
-  return value === "majorWarning" ? "critical" : value === "warning" || value === "unknown" ? "warning"
-    : value === "advisory" ? "normal" : "info";
+  return value === "majorWarning" ? "critical" : value === "warning" || value === "unknown" || value === "advisory" ? "warning" : "info";
 }
-// A7 の group()（notification-delivery.ts）と同じ判定。A7 は export しておらず変えない（outOfScope）ので写す。
+// P3-NL-AC11 (4): 置換・退去の群は intent の群（A7 と同じ欄）で比べる。
 function groupRank(intent: TsunamiIntent): number {
-  return intent.operation === "normal" && (intent.payload.level === "warning" || intent.payload.level === "critical") ? 1 : 2;
+  return intent.priorityGroup === "normalTsunamiEmergency" ? 1 : 2;
 }
 function payloadOf(operation: Operation, level: Level, title: string, body: string, correction: boolean): TsunamiNotificationPayload {
   return { domain: "tsunami", level, title: PREFIX[operation] + (correction ? `[訂正] ${title}` : title),
@@ -157,14 +156,15 @@ function jstClock(raw: string): string {
 }
 const FAIL_BODY = "容量の上限のため、この報を処理できていません。";
 // P3-NL-AC01: ID は世代番号を含まない。系列の印に同じ版の鍵と種類（観測は fragment の鍵も）があれば作らない。
+// emergency は報が警報以上（未知の区分を含む）への発令・引上げ・区域拡大を含むか（P3-NL-AC11 (2)）。
 function intentsFor(source: ReportRef, transition: TsunamiIntent["transition"], payload: TsunamiNotificationPayload,
-  now: number, notice: Readonly<{ mark: NoticeMark | undefined; version: string; fragment?: string }>): TsunamiIntent[] {
+  now: number, notice: Readonly<{ mark: NoticeMark | undefined; version: string; fragment?: string }>, emergency = false): TsunamiIntent[] {
   if (noticed(notice.mark, notice.version, noticeKind(transition), notice.fragment)) return [];
   // P3-C5-TRAINING=A: training/test は desktop だけ。
   const channels = source.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
   return channels.map((channel) => ({ id: noticeId("U-T", source.subject, "", source, transition, channel, notice.fragment), unit: "U-T",
     subject: source.subject, operation: source.operation, source, transition, channel, payload, createdAt: now, expiresAt: now + TTL[channel],
-    nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-T", source.operation, payload.level) }));
+    nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-T", source.operation, emergency) }));
 }
 
 // P3-C5-REPLACEMENT=A と Q-NOTICE.capacity。置換は同じ subject・channel で同群以上の pending だけ、取消は subject の全 pending。
@@ -410,10 +410,13 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
   });
 
   let fresh: TsunamiIntent[] = [];
+  const raisedToWarning = raised.some((item) => AREA_RANK[item.to] >= AREA_RANK.warning);
   if (candidate.cancelled) {
-    // 取消の前に active だった subject だけ通知する（Q-NOTICE.generationTable cancellation）。
-    if (wasActive) fresh = intentsFor(candidate.source, "cancelled", payloadOf(candidate.operation, "cancel",
-      "[取消] 津波警報・注意報・予報", "この情報は取り消されました", false), now, notice);
+    // P3-NL-AC09 (1): 取消の前に active だったか、系列の印に通知の証拠がある subject だけ通知する（H19）。文面は AC10。
+    if (existing != null && (wasActive || heard(existing.notice))) {
+      const text = cancelText(candidate.title ?? "津波警報・注意報・予報", existing.source.reportDateTimeRaw);
+      fresh = intentsFor(candidate.source, "cancelled", payloadOf(candidate.operation, "cancel", text.title, text.body, false), now, notice);
+    }
   } else {
     const rising = new Set(raised.map((item) => item.areaCode));
     const change = raised.reduce<Exclude<Level, "cancel">>((level, item) => maxLevel(level, riseLevel(item.to)), "info");
@@ -427,14 +430,15 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
       candidate.headline ?? ""].filter((part) => part !== "");
     const transition = !wasActive && next.effective === "active" ? "activated" : wasActive && next.effective !== "active" ? "released" : "updated";
     fresh = intentsFor(candidate.source, transition, payloadOf(candidate.operation, maxLevel(change, remaining), title,
-      parts.length === 0 ? title : parts.join(" / "), candidate.infoRank === 2), now, notice);
+      parts.length === 0 ? title : parts.join(" / "), candidate.infoRank === 2), now, notice, raisedToWarning);
   }
   changes.push([existing, next]);
   const forecasts = index < 0 ? [...state.forecasts, next] : state.forecasts.map((item, at) => at === index ? next : item);
   const semantic = existing == null || existing.effective !== next.effective || observationsChanged || existing.unavailable !== next.unavailable
     || !isDeepStrictEqual(existing.areas, next.areas) || !isDeepStrictEqual(existing.unkeyedAreas, next.unkeyedAreas);
   const result = adopt(state, candidate, clock, { forecasts, observations, fresh, cancelSubject: candidate.cancelled ? candidate.subject : null,
-    semantic, changes, target: next, facts: { areaTransitions: transitions, series }, missing: version.missing, notice });
+    semantic, changes, target: next, facts: { areaTransitions: transitions, series }, missing: version.missing, notice,
+    emergency: raisedToWarning });
   // uncovered があるのは拒否の結果だけ（refuse）。採用できたときだけ、外した印を unit の未確認へ移す。
   return lost && result.uncovered == null ? { ...result, uncovered: true } : result;
 }
@@ -535,23 +539,26 @@ function receiveObservation(state: TsunamiUnitState, candidate: ObservationCandi
   }
   const title = OBSERVATION_TITLE[candidate.family];
   // P3-C5-NOTICE-OBSERVATION=C: 観測は info。forecastEnded のままの採用では作らない（P3-C5-OBS-LIFETIME=A の例外）。
+  const cancel = candidate.cancelled && existing != null && (wasActive || heard(existing.notice))
+    ? cancelText(candidate.title ?? title, existing.source.reportDateTimeRaw) : null;
   const fresh = next.source !== candidate.source ? [] : candidate.cancelled
-    ? wasActive ? intentsFor(candidate.source, "cancelled", payloadOf(candidate.operation, "cancel", `[取消] ${title}`,
-      "この情報は取り消されました", false), now, notice) : []
+    ? cancel != null ? intentsFor(candidate.source, "cancelled", payloadOf(candidate.operation, "cancel", cancel.title, cancel.body, false),
+      now, notice) : []
     : next.effective === "active" ? intentsFor(candidate.source, wasActive ? "updated" : "activated", payloadOf(candidate.operation,
       "info", title, [candidate.stations.slice(0, 3).map((item) => item.name).join(", "), candidate.headline ?? ""]
         .filter((part) => part !== "").join(" / ") || title, candidate.infoRank === 2), now, notice) : [];
   const observations = index < 0 ? [...state.observations, next] : state.observations.map((item, at) => at === index ? next : item);
   return adopt(state, candidate, clock, { forecasts: state.forecasts, observations, fresh,
     cancelSubject: candidate.cancelled && next.source === candidate.source ? candidate.subject : null,
-    semantic: touched || existing?.effective !== next.effective, changes: [[existing, next]], target: next, facts: {}, missing, notice });
+    semantic: touched || existing?.effective !== next.effective, changes: [[existing, next]], target: next, facts: {}, missing, notice,
+    emergency: false });
 }
 
 // 採用の共通部: 通知の収容、容量の退去、保存世代を一回の参照交換で確定する。
 function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | ObservationCandidate, clock: ClockReading, proposal: Readonly<{
   forecasts: readonly TsunamiForecastSubject[]; observations: readonly TsunamiObservationSubject[]; fresh: readonly TsunamiIntent[];
   cancelSubject: string | null; semantic: boolean; changes: readonly Change[]; target: Subject; facts: Readonly<Record<string, JsonValue>>;
-  missing: boolean; notice: Readonly<{ version: string; fragment?: string }>;
+  missing: boolean; notice: Readonly<{ version: string; fragment?: string }>; emergency: boolean;
 }>): Result {
   const notices = admit(state.intents, proposal.fresh, proposal.cancelSubject);
   // P3-NL-AC02 (3): admit を通った版と種類を系列の印に足す（全 channel が断られた版は入れない）。
@@ -570,7 +577,7 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
     }
   }
   const fitted = fit(forecasts, observations, notices.intents, state.failureMarks, candidate.subject, clock.wallTimeMs, candidate.operation);
-  if (fitted == null) return refuse(state, candidate, clock, proposal.fresh);
+  if (fitted == null) return refuse(state, candidate, clock, proposal.fresh, proposal.emergency);
   const evidence = { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
   const next: TsunamiUnitState = { ...state, forecasts: fitted.forecasts, observations: fitted.observations, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
@@ -595,10 +602,11 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
 }
 
 // 容量の拒否（P3-CC-AC03・AC04・AC10）。印 → 失敗警報 → 系列の desktop の title の書き換えの順に、前の段を確定した state へ当てる。
-// 印は採用と同じ fit を通し（退去の適格性も同じ）、失敗警報と書き換えは追加の退去なしで収まるときだけ当てる。fresh は拒否した報の通知。
+// 印は採用と同じ fit を通し（退去の適格性も同じ）、失敗警報と書き換えは追加の退去なしで収まるときだけ当てる。fresh は拒否した報の通知、
+// emergency は拒否した報が警報以上への発令・引上げ・区域拡大を含むか（P3-NL-AC11 (4)。operation によらない）。
 // ponytail: 拒否のときだけ intents（pending 128 件と終端記録）を数回なめる。平常の受信には足さない（Q-CC-COST）。
 function refuse(state: TsunamiUnitState, candidate: ForecastCandidate | ObservationCandidate, clock: ClockReading,
-  fresh: readonly TsunamiIntent[]): Result {
+  fresh: readonly TsunamiIntent[], emergency: boolean): Result {
   const now = clock.wallTimeMs, operation = candidate.operation;
   let forecasts = state.forecasts, observations = state.observations, evicted: readonly Subject[] = [];
   let record: TsunamiForecastSubject | null = null, marked: TsunamiForecastSubject | null = null, covered = false;
@@ -625,7 +633,7 @@ function refuse(state: TsunamiUnitState, candidate: ForecastCandidate | Observat
   // D-FAILNOTICE=A: unit×operation の固定の subject。段階は上げるだけで、失敗の印の until まで同じか軽ければ鳴らさない（P3-NL-AC02 (6)）。
   const level = fresh[0]?.payload.level, failSubject = `${operation}/capacityRejected`;
   const failed = state.failureMarks.find((item) => item.operation === operation && item.until > now);
-  if ((level === "warning" || level === "critical") && (failed == null || LEVELS.indexOf(level) > LEVELS.indexOf(failed.level))) {
+  if (emergency && (level === "warning" || level === "critical") && (failed == null || LEVELS.indexOf(level) > LEVELS.indexOf(failed.level))) {
     const at = jstClock(candidate.source.reportDateTimeRaw);
     const notices = fresh.map((item): TsunamiIntent => ({ ...item, id: failureNoticeId("U-T", failSubject, candidate.source, item.channel),
       subject: failSubject, payload: { ...item.payload, body: FAIL_BODY,
