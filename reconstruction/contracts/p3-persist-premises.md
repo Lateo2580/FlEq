@@ -526,3 +526,9 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
 - §8 の表の EEW の閉じ方の行（:442）: 分岐 P3-CK-D-UNVERIFIED-EEW = A を入れる（受けたときの根拠の状態は K10 の欄で読む）。H42 の行が挙げる P3-LIFE-D-SKEW の扱いもこちら（P3-CK-AC08 の (8)）。
 - §11 の「K9・K10 の起草で確かめること」（:494）への答え: (1) 30 秒の待ちは残す（Q-CK-RULING の (3)） (2) 回収は確かめるまで保留する（復元した中身も走行中に受けた中身も。unit の側は K10、P3-CK-AC08 の (6) の (ii)） (3) K8 は K9 の後か同時だが、理由は保存の初期化ではなく、印を started の無いものに絞ることと H39（Q-CK-SCHEMA）。
 - §5 の段 3 の順（:347）の「K7 ∥ K9」は「K7 の発注 1 → K9」と読む（P3-CK-AC04 の (2)）。同じ行の「K9 の前に保存した intent を K8 の初期化で捨てる」順の理由は要らない（K9 は時刻を作り替えない、Q-CK-SCHEMA）。
+
+## 15. K8 の発注 1 の配送で変わる読み（2026-10-22 統合担当、`P3-NOTICE-LEDGER-001` の AC18）
+
+- §2.4 の記録の案 A（:127）の「`UnitModule.terminalIntents` の `deliveryRecords` の口を全 unit で使う」は採らなかった。終端の intent は全 unit で intents から外し、結果は系列の印（U-E は EventID ごとの印）に残す。`terminalIntents` と `TerminalIntentRecords`、U-E の `deliveryRecords`、終端の予算 `TERMINAL_BYTES` は消した（P3-NL-AC05）。
+- §2.4 の印の大きさの見積もり（「系列あたり約 130〜200 byte」「U-E 約 120 byte×2,048」「512 KiB 前後」）は、実装の上界で系列の印 102 byte、U-T の観測の印 420 byte、U-E の印 954 byte×2,048、U-E の世代 2 MiB（P3-NL-AC04 の (8)、Q-NL-BYTES）。
+- §8 の表の K8 の行（:436）の読みのうち、保存 ack を待つ配送・H19・H16・H09・H06・H27 と H39 の数え方は発注 2 の配送で足す。

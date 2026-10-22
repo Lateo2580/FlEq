@@ -66,12 +66,6 @@ export type EewGate = Readonly<{
   predictionKey: string | null; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印（gate と同じく非保存、Q-VM-PRECHECK-2A の (1)(c)）
 }>;
 
-export type EewDeliveryRecord = Readonly<{
-  intentId: string;
-  disposition: NotificationIntent["disposition"];
-  expiresAt: number;
-}>;
-
 export type EewNotificationLatch = Readonly<{
   // P2-A4-AC11: operation + validated EventID, never the family-bearing subject.
   eventId: string;
@@ -80,11 +74,28 @@ export type EewNotificationLatch = Readonly<{
   warningNotified: boolean;
   vxse45Accepted: boolean;
   deliveryEvidence: "unattempted" | "possible" | "unknown";
-  // Evidence predating this latch survives removal of its current/gate owners.
-  preexisting: boolean;
   notifiedMaximumRank: number;
   // Bit n represents the normalized three-digit area Code n (0..999).
   notifiedWarningAreas: bigint;
+}>;
+
+// P3-NL-AC04 (1): family ごとの記録。その family で最後に採った版の比べる材料（compareVersion と Serial の例外に渡す欄）と、その版が
+// 取消か、その版で作った種類（報・取消、この順）。生値は保存の形にそろえる（40 文字の JSON 1 byte 文字か空、Serial は trim）。
+export type EewNoticeFamily = Readonly<{
+  family: "VXSE43" | "VXSE45";
+  reportDateTimeRaw: string;
+  controlDateTimeRaw: string;
+  serialRaw: string;
+  cancelled: boolean;
+  kinds: readonly ("report" | "cancel")[];
+}>;
+
+// P3-NL-AC04 (1): U-E の EventID ごとの通知の印（保存する）。latch の欄（区域は bigint の 16 進の文字列、0 は "0"）と、印の期限
+// （その EventID で最後に採った版の起点＋24 時間を下げない）と family ごとの記録（VXSE43・VXSE45 の 2 件まで、この順）。
+export type EewNoticeMark = Omit<EewNotificationLatch, "notifiedWarningAreas"> & Readonly<{
+  notifiedWarningAreas: string;
+  retainUntil: number;
+  families: readonly EewNoticeFamily[];
 }>;
 
 // P2-A4-AC11: both channels carry the same owner-generated payload; A7 reads it unchanged.
@@ -96,14 +107,15 @@ export type EewNotificationPayload = Readonly<{
 }>;
 
 export type EewUnitState = Readonly<{
-  schemaVersion: "p2-eew-unit-v3";
+  schemaVersion: "p2-eew-unit-v4";
   contentRevision: number;
   current: readonly EewCurrent[];
   gates: readonly EewGate[];
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the EventID's notice mark.
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
-  deliveryRecords: readonly EewDeliveryRecord[];
-  notificationLatches: readonly EewNotificationLatch[];
-  // R35: absent means 0; receipt compares this non-persisted wall-clock boundary.
+  // P3-NL-AC04: EventID ごとの通知の印（gate と別の寿命、2,048 件まで）。
+  notices: readonly EewNoticeMark[];
+  // R35: absent means 0; receipt compares this non-persisted wall-clock boundary (restore sets it for 10 minutes).
   evidenceUnknownUntil?: number;
   // P3-EVICT-AC01(7): 非保存。容量の退去で消した normal の gate の報時刻（生値）の family ごとの最大。不在は退去なし。
   evictedNormalReportMs?: Readonly<Partial<Record<EewCurrent["family"], number>>>;
@@ -111,9 +123,9 @@ export type EewUnitState = Readonly<{
 }>;
 
 export type PersistedEewUnit = Readonly<{
-  schemaVersion: "p2-eew-unit-v3";
+  schemaVersion: "p2-eew-unit-v4";
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
-  deliveryRecords: readonly EewDeliveryRecord[];
+  notices: readonly EewNoticeMark[];
 }>;
 
 export type EewUnitView = SharedUnitView & Readonly<{
@@ -148,5 +160,5 @@ export type EewUnitStep = Readonly<{
 }>;
 
 export type EewUnitCodec = UnitCodec<EewUnitState, PersistedEewUnit> & Readonly<{
-  schemaVersion: "p2-eew-unit-v3";
+  schemaVersion: "p2-eew-unit-v4";
 }>;

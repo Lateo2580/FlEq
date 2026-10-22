@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "e20618c584d6ed90ac2c1ec71565d10d972a413afd4aedda9e4bc9cc44f7f80b",
+    "sha256": "ab3fd8cf0cbc829f6b72075a5415571bc62a4d034d569ef191eb99c7c85cdb36",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
     "decisionBranches": [
       {
@@ -257,8 +257,8 @@
         "id": "P3-WS-AC02",
         "requirement": "知らないものの読み飛ばしを黙らない（P3-WS-D-ADDITION=A、Q-WS-LEVELS）: inspectが報を受理したとき、(i) AC01の(b)で読み飛ばした要素と地の文の数が1以上ならINFO診断を1件（reason weatherTimeseriesElementSkipped、countはその数。Additionは数えない）、(ii) AC10で読み飛ばした外の階層の知らない子と地の文が1つ以上ならWARN診断を1件（reason weatherTimeseriesScopeUnclear、countは範囲の中のperiodの数）を、そのreceiveのstepで返す（どちらもcomponent weather-timeseries、unit U-F、inputId）。門の決定（stale・duplicate・容量の拒否capacityExceeded・changed）によらず同じで、unitのreceiveの早い戻り（weather-timeseries-unit.tsのunchangedと容量の拒否）でも同じものを足す。inspectが拒否した報では出さない。DiagnosticReasonの閉集合とpersistent-diagnostic-sinkの理由の表に2語を足す。無いと: 気象庁が新しい要素を足したとき、それを読まなかったことと、意味を変えうる外側か値の階層かの別が、どこにも残らない（H44の間はU-Fに印の欄が無い）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:303 «141ea88a871b9bf3»",
-          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:62 «0b3f82f2a4656d65»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:324 «141ea88a871b9bf3»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:63 «0b3f82f2a4656d65»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:290 «e3dc48b3d46347a4»"
         ]
       },
@@ -272,8 +272,8 @@
           "reconstruction/src/view-projector/view-projector.ts:272 «87c1ddda6a811cf6»",
           "reconstruction/src/view-projector/view-projector.ts:542 «86e1c3a30390cc30»",
           "reconstruction/src/view-projector/view-projector.ts:642 «9b605ed058616c2a»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:475 «dd60944ba8d3b141»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:476 «c145e1c4c106b10d»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:484 «dd60944ba8d3b141»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:485 «c145e1c4c106b10d»",
           "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
           "reconstruction/contracts/p2-snapshot-sse.json:68 «62080629b06dab7a»",
           "reconstruction/contracts/p2-snapshot-sse.json:69 «9930c0e1ce1520e5»"
@@ -298,8 +298,8 @@
           "reconstruction/src/domains/typhoon/typhoon.ts:410 «61910075c8e09edb»",
           "reconstruction/src/domains/typhoon/typhoon.ts:420 «c2b4222494be9c0c»",
           "reconstruction/src/domains/typhoon/typhoon.ts:438 «16c1b2ce589575ac»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:585 «2d176df9bd29492e»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:633 «386765b0ed3fadfa»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:618 «2d176df9bd29492e»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:666 «386765b0ed3fadfa»",
           "reconstruction/contracts/p3-typhoon-unit.json:352 «28b728c920e887df»",
           "reconstruction/contracts/p3-typhoon-unit.json:358 «af03e786dee34b37»",
           "reconstruction/contracts/p3-typhoon-unit.json:440 «6aa4dac0eb2143e9»",
@@ -319,11 +319,11 @@
         "id": "P3-WS-AC05",
         "requirement": "今の形の報の結果を変えない（Q-WS-SCHEMA）: Additionも知らない要素も持たないU-Fのfixtureと、表の内側のU-Yのfixtureでは、decisions・outcomes・intents・state・codecのencodeのbyteが今と同じ。U-F・U-Yの永続の型・schemaVersion・codecを変えない（Q-WS-SCHEMA、D-ADDITION=A）。今ある試験がこれを確かめる: U-FはP3-UFP-T01（encodeのsha256・decisions・outcomes・intents・nextDeadline）とP3-UFP-T02（要約の行のdigest。AC03で行が変わる場合はQ-WS-EXISTING-TESTS）、U-YはP3-C14-T10（typhoon-corpus.test.tsの22の期待のstep）。基準値は変えずに緑のまま。期待値を変える既存の試験はQ-WS-EXISTING-TESTSで変える前に報告する",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:12 «3e7e38becb675d2e»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:187 «bd87c88c0369446a»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:13 «07dc2214af84961f»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:188 «bd87c88c0369446a»",
           "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:43 «e84656f2b8801676»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:663 «ba50fb82ef51ba67»",
-          "reconstruction/src/checkpoint/checkpoint.ts:465 «b6fdb65e4e225b7d»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:696 «ba50fb82ef51ba67»",
+          "reconstruction/src/checkpoint/checkpoint.ts:467 «b6fdb65e4e225b7d»",
           "reconstruction/test/uf-public/uf-history.test.ts:189 «85825881864e0803»",
           "reconstruction/test/uf-public/uf-history.test.ts:199 «9a26cef9f7727011»",
           "reconstruction/test/typhoon-unit/typhoon-corpus.test.ts:30 «281e877c662ed2cd»"
@@ -367,16 +367,16 @@
           "reconstruction/contracts/p3-typhoon-unit.json:440 «6aa4dac0eb2143e9»",
           "reconstruction/contracts/p3-typhoon-unit.json:441 «fcb58e30f8a6cce0»",
           "reconstruction/contracts/p3-typhoon-unit.json:915 «82a1b22dcedf2e70»",
-          "reconstruction/contracts/p3-typhoon-unit.json:1056 «0a9a28df1d09798d»",
+          "reconstruction/contracts/p3-typhoon-unit.json:1056 «3a1ea732f92fcf22»",
           "reconstruction/contracts/p3-typhoon-unit.json:1192 «e5e003ffd938a922»",
-          "reconstruction/contracts/p3-typhoon-unit.json:1232 «a84c0f3c3db674ac»",
+          "reconstruction/contracts/p3-typhoon-unit.json:1232 «519a4dff25d47ccb»",
           "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
           "reconstruction/contracts/p3-order-plan.md:457 «40f593671ef0abda»",
           "reconstruction/contracts/p3-order-plan.md:477 «422794effad56631»",
           "reconstruction/contracts/p3-disaster-capacity.json:709 «fd294178e1cb86d1»",
           "docs/specs/reconstruction-p0-contracts.md:3209 «f0f82f05f422b938»",
           "reconstruction/contracts/p3-order-plan.md:514 «e204d84283a8f0ea»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «785fcde1500a753c»"
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «0a1ea73f12cf49eb»"
         ]
       },
       {

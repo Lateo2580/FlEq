@@ -4,12 +4,12 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
-  ClockReading, DiagnosticEvent, InputBoundary, InputHole, JsonValue, RuntimeUnitId, RuntimeUnitStates, UnitCodec, UnitId,
+  ClockReading, DiagnosticEvent, InputBoundary, InputHole, JsonValue, LossTally, RuntimeUnitId, RuntimeUnitStates, UnitCodec, UnitId,
 } from "../../contracts/p2-shared-runtime.types";
 import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, dmdataIdOf, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import type { CheckpointFileSystem, CodecMap, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
-import { nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
+import { linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { harnessedRoot, startHarness } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 
@@ -721,4 +721,39 @@ describe("P3-VM K7 order 1: the restore entrance and the input boundary", () => 
     expect(boundaries.boundary("U-T")).toEqual(boundaryAt(11, "refused"));
     expect(boundaries.boundary("U-Q")).toBeNull();
   });
+});
+
+// P3-NL-T06（P3-NL-AC14 の発注 1 の行。owner の数え方は発注 2）: 欄の無い旧い envelope は空として読み、lastAt＋24 時間を過ぎた行は capture で外れる。
+it("P3-NL-T06 contractBoundary / AC14: an envelope without losses reads empty, and rows past lastAt + 24 h leave at capture", async () => {
+  const path = await directory(), DAY = 86_400_000, now = { wallTimeMs: 100_000_000, monotonicMs: 1 };
+  const coordinator = new CheckpointCoordinator(path, { "U-F": codec("U-F") }, nodeCheckpointFileSystem(), () => now, () => {});
+  let generation = 0;
+  const save = async (losses: readonly LossTally[]) => {
+    const captured = coordinator.capture("U-F", pending({ "U-F": { value: "v" } }).units["U-F"], ++generation, "t06", correlation, null, losses);
+    const output = await coordinator.executeCheckpoint(captured.request!, "t06", correlation.inputIds, "notRetry");
+    coordinator.ended(output.result, false);
+    const restored = coordinator.restoreUnit("U-F");
+    if (restored.kind !== "restored") throw new Error("the saved slot does not restore");
+    return restored.envelope;
+  };
+  expect(await save([])).not.toHaveProperty("losses");
+  const kept = { reason: "notificationOutcomeUnknown" as const, count: 1, lastAt: now.wallTimeMs - DAY + 1 };
+  expect((await save([{ reason: "notificationExpired", count: 3, lastAt: now.wallTimeMs - DAY }, kept])).losses).toEqual([kept]);
+});
+
+// P3-NL-T07（P3-NL-AC15 の発注 1 の行）: 12 unit とも、形を変えた前の版の slot は捨てて初期状態から始める（印・失敗の印・lastAttempt・
+// priorityGroup を含む新しい形の保存→復元は各 unit の試験が持つ）。
+it("P3-NL-T07 contractBoundary / AC15: every unit discards a slot of its previous schema and starts empty", async () => {
+  const path = await directory();
+  await fileSystem.mkdir(path, { recursive: true });
+  const units: readonly RuntimeUnitId[] = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M", "U-Y"];
+  for (const unit of units) {
+    const previous = linkedUnitCodecs[unit]?.discardableSchemaVersions?.at(-1) ?? "";
+    await fileSystem.writeFile(join(path, `${unit}-A.json`), serializedEnvelope(hashEnvelope({ schemaVersion: previous, unit, generation: 1, capturedAt: 1,
+      payload: {} })));
+    const events: DiagnosticEvent[] = [];
+    const restored = new CheckpointCoordinator(path, linkedUnitCodecs, nodeCheckpointFileSystem(), () => ({ wallTimeMs: 1, monotonicMs: 1 }),
+      (event) => { events.push(event); }).restoreUnit(unit);
+    expect([unit, previous !== "", restored.kind, events.some((event) => event.reason === "checkpointSchemaDiscarded")]).toEqual([unit, true, "empty", true]);
+  }
 });

@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -10,7 +11,7 @@ import type { WeatherCurrentSnapshot, WeatherCurrentUnitState } from "../../cont
 import manifest from "../../tools/corpus/manifest.json";
 import corpus from "../../tools/corpus/sequences.json";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
-import { INPUT_BOUNDARY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { reduceWeatherCurrentMeaning } from "../../src/domains/weather-current/weather-current";
@@ -27,7 +28,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const NOW = 1_800_000_000_000;
 
 function emptyState(): WeatherCurrentUnitState {
-  return { schemaVersion: "p2-weather-current-unit-v4", contentRevision: 0, national: {}, partials: [], histories: [],
+  return { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [],
     ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
@@ -122,7 +123,7 @@ function pendingIntent(): NotificationIntent {
     source: source("normal", "VPWS50", subject, "2026-09-06T10:00:00+09:00", "intent"),
     transition: "activated", channel: "desktop", payload: {}, createdAt: NOW,
     expiresAt: NOW + 10_000, nextAttemptAt: NOW, attempts: 0,
-    configRevision: "test", disposition: "pending" };
+    configRevision: "test", disposition: "pending", lastAttempt: null, replayed: false, priorityGroup: "other" as const };
 }
 
 class MemoryCheckpointFileSystem implements CheckpointFileSystem {
@@ -331,12 +332,12 @@ describe("P2 weather-current unit", () => {
       decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [],
     });
     const selected = reduceWeatherCurrentUnit(intentState, { kind: "intentUpdate",
-      intentUpdate: { id: intent.id, attempts: 1, nextAttemptAt: NOW + 500, disposition: "pending" },
+      intentUpdate: { ...intent, attempts: 1, nextAttemptAt: NOW + 500, disposition: "pending", lossReason: null },
       clock: clock(NOW, 7) });
     expect(selected.decisions[0]).toMatchObject({ change: "deliveryOnly" });
     expect(selected.state.persistence).toMatchObject({ currentGeneration: 1, dirtySince: 7 });
     expect(reduceWeatherCurrentUnit(selected.state, { kind: "intentUpdate",
-      intentUpdate: { id: "unknown", attempts: 1, nextAttemptAt: NOW, disposition: "pending" }, clock: clock() }).state)
+      intentUpdate: { id: "unknown", attempts: 1, nextAttemptAt: NOW, disposition: "pending", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null }, clock: clock() }).state)
       .toBe(selected.state);
     expect(reduceWeatherCurrentUnit(intentState, { kind: "deadline", clock: clock(NOW + 10_000) }).state.intents).toEqual([]);
     // R8: A1 must find the adopted completed intent; expiry later reclaims it.
@@ -372,7 +373,8 @@ describe("P2 weather-current unit", () => {
     notifying.root.tick(now);
     await notifying.settle();
     const completed = notifying.unit("U-W");
-    expect(completed.intents[0]).toMatchObject({ disposition: "delivered", attempts: 1, expiresAt: intent.expiresAt });
+    // P3-NL-AC05 (1): 終端の intent は intents から外れる。
+    expect(completed.intents).toEqual([]);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(completed)))
       .toMatchObject({ kind: "restored", state: { intents: completed.intents } });
     now = clock(intent.expiresAt, 3);
@@ -475,7 +477,7 @@ describe("P2 weather-current unit", () => {
     const marked = receive({ ...emptyState(), national: { training: a } }, decodeFixture(vpws50, "VPWS50",
       training("官署A", (xml) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, "$1$2")), "timeless")).state;
     const size = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
-      capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
+      capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
     const padded = (length: number): WeatherCurrentUnitState => ({ ...marked, national: { ...marked.national, normal: { ...filler, phenomena: { padding: "x".repeat(length) } } } });
     const full = padded(16 * 1024 * 1024 - 1_800 - size(padded(0)));
     const step = receive(full, decodeFixture(vpws50, "VPWS50", training("官署B", (xml) => atTime(xml, "2026-09-06T10:05:00+09:00", "2")), "other-office"));
@@ -819,7 +821,7 @@ describe("P2 weather-current unit", () => {
     const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
-    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
+    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
     const padding = 16 * 1024 * 1024 - envelopeSize(near) - 100;
     const nearLimit = { ...near, national: { ...near.national,
       training: { ...near.national.training, phenomena: { padding: "x".repeat(padding) } } } };
@@ -903,7 +905,7 @@ describe("P2 weather-current unit", () => {
     const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
-    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
+    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
     const first = receive(emptyState(), decodeFixture("18_00_01_260830_VPWW55_fukui_L5", "VPWW55")).state;
     const partial = first.partials[0];
     const level5 = Object.entries(partial.phenomena).find(([, value]) => JSON.stringify(value).includes('"code":"33"'));
@@ -984,7 +986,7 @@ describe("P2 weather-current unit", () => {
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
     }).byteLength;
-    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
+    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
     const padding = 16 * 1024 * 1024 - actualBytes(accepted.state) - unused;
     const withPadding = (length: number) => ({ ...base,
@@ -1111,7 +1113,7 @@ describe("P2 weather-current unit", () => {
     }).byteLength;
     const accepted = receive(withPadding(0), candidate);
     expect(accepted.state.histories.flatMap((item) => item.reports)).toHaveLength(1);
-    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
+    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
     const padding = 16 * 1024 * 1024 - actualBytes(accepted.state) - unused;
     const exact = receive(withPadding(padding), candidate);
@@ -1128,7 +1130,7 @@ describe("P2 weather-current unit", () => {
       partials: [{ ...partial, phenomena: { '区域"\\\n': '日本語"\\\n' + "x".repeat(length) } }] });
     const payloadBytes = (value: WeatherCurrentUnitState) => Buffer.byteLength(JSON.stringify(weatherCurrentUnitCodec.encode(value)));
     const empty = weatherCurrentUnitCodec.encode(emptyState()); // P3-VM-AC06: 上界は payload の外の envelope と境界の予約込み
-    const outside = serializedEnvelope({ schemaVersion: empty.schemaVersion, unit: "U-W", generation: 0, capturedAt: 0, payload: empty, sha256: "0".repeat(64) }).byteLength - Buffer.byteLength(JSON.stringify(empty)) + 62 + INPUT_BOUNDARY_MAX_BYTES;
+    const outside = serializedEnvelope({ schemaVersion: empty.schemaVersion, unit: "U-W", generation: 0, capturedAt: 0, payload: empty, sha256: "0".repeat(64) }).byteLength - Buffer.byteLength(JSON.stringify(empty)) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
     const length = 16 * 1024 * 1024 - outside - payloadBytes(padded(0));
     expect(payloadBytes(padded(length))).toBe(16 * 1024 * 1024 - outside);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(padded(length))).kind).toBe("restored");
@@ -1181,8 +1183,8 @@ describe("P2 weather-current unit", () => {
     const empty = restoreOwner({ runId: "run", place: "weatherCurrent", clock: now, restored: { "U-W": { kind: "empty" } } },
       linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-W": first.state } };
-    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-W", from.units["U-W"]!.intents.map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
-      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-W", from.units["U-W"]!.intents.map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER,
+      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const, lossReason: null })), now, linkedUnitTable);
     // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
     const widened = update(owner, false);
     expect(widened.adopted).toBe(true);
@@ -1205,4 +1207,11 @@ describe("P2 weather-current unit", () => {
     expect(weatherCurrentUnitCodec.decode(payload!).kind).toBe("restored");
   });
 
+});
+
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る（U-W は印を持たない）。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-W restores failed and null pending with their fields and drops a started one", () => {
+  const intent = pendingIntent();
+  expectRestoreStarted({ intents: [intent, { ...intent, id: `${intent.id}-2` }], make: (intents) => ({ ...emptyState(), intents }),
+    restore: (state, at) => reduceWeatherCurrentUnit(emptyState(), { kind: "restore", persisted: weatherCurrentUnitCodec.encode(state), clock: at }) });
 });

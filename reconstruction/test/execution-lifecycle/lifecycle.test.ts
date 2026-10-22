@@ -545,7 +545,7 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     if (expiry.kind !== "intentUpdate") throw new Error("expiry update expected");
     expect([expiry.updates.length, expiry.updates.every((update) => update.disposition === "expired")]).toEqual([127, true]);
     expect(l.h.unit("U-E").intents.map((value) => value.channel)).toEqual(["desktop", "sound"]);
-    expect(l.h.unit("U-E").notificationLatches[0].firstReportNotified).toBe(true);
+    expect(l.h.unit("U-E").notices[0].firstReportNotified).toBe(true);
     await l.root.diagnostics.flush();
   });
 

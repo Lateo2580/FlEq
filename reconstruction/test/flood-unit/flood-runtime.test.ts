@@ -16,6 +16,7 @@ import type { Harness } from "../execution-split/owner-harness";
 import { projected, projectionInput, received, startup, step } from "../snapshot-sse/projection-fixture";
 import { clock, decodeXml, emptyState, eventId, receive, retime, rivers, stationsXml } from "./flood-fixture";
 import type { StationSpec } from "./flood-fixture";
+import { freshState } from "../../src/units/notice-mark";
 
 // TEST-PATH (2): 製品の publisher と in-process の owner（composition root の一経路）で U-R を通す。
 
@@ -79,7 +80,8 @@ describe("P3-UNIT-R-001 U-R through the composition root", () => {
       id: unit, unit, subject: unit, operation: "normal", source: { inputId: unit, origin: "live", operation: "normal", family: unit,
         subject: unit, reportDateTimeRaw: "2019-05-27T09:00:00+09:00", controlDateTimeRaw: "2019-05-27T09:00:00+09:00", serialRaw: "1", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
-      nextAttemptAt: createdAt, attempts: 0, configRevision: "t07", disposition: "pending" });
+      nextAttemptAt: createdAt, attempts: 0, configRevision: "t07", disposition: "pending",
+      ...freshState(unit, "normal", level) });
     // U-R を最も古く作る（同じ群なら先に選ばれる位置）。
     const flood = notice("U-R", "weather", "critical", -10), tsunami = notice("U-T", "tsunami", "critical", 0);
     const eew = notice("U-E", "earthquake-eew", "warning", 5);
@@ -212,7 +214,8 @@ describe("P3-UNIT-R-001 U-R through the composition root", () => {
     expect(runningAdapter.aborts).toHaveLength(2);
     expect(view(failed).currents).toEqual([]);
     expect(afterCancel.currents.map((item) => item.effective)).toEqual(["cancelled"]);
-    expect(afterCancel.intents.filter((item) => issued.includes(item.id)).map((item) => item.disposition)).toEqual(issued.map(() => "superseded"));
+    // P3-NL-AC05 (1): 置き換えた intent は intents から外れる（結果は系列の印に残る）。
+    expect(afterCancel.intents.filter((item) => issued.includes(item.id))).toEqual([]);
 
     // 古い ack: 保存の書込み中に続報を採用すると、ack は古い世代だけを確定し、次の世代の dirty を保つ。
     const gated = new MemoryFiles();

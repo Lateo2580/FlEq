@@ -9,7 +9,7 @@ import type {
   CheckpointResult,
   ClockReading,
   DiagnosticEvent, InputBoundary, InputHole,
-  JsonValue,
+  JsonValue, LossReason, LossTally,
   PersistenceStatus,
   RestoreUnitResult,
   RuntimeUnitStates,
@@ -74,7 +74,7 @@ function envelopeBytes(
     unit: envelope.unit,
     generation: envelope.generation,
     capturedAt: envelope.capturedAt,
-    payload: envelope.payload, inputBoundary: envelope.inputBoundary,
+    payload: envelope.payload, inputBoundary: envelope.inputBoundary, losses: envelope.losses,
     sha256,
   }));
 }
@@ -200,7 +200,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   }
 
   // The capture of one granted save: the generation current when the grant is applied, encoded once (C1 RES-03).
-  capture(unit: RuntimeUnitId, value: unknown, generation: number, runId: string, correlation: Correlation, inputBoundary: InputBoundary | null = null)
+  capture(unit: RuntimeUnitId, value: unknown, generation: number, runId: string, correlation: Correlation, inputBoundary: InputBoundary | null = null,
+    losses: readonly LossTally[] = [])
     : Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
     | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }> {
     const codec = this.codec(unit);
@@ -217,7 +218,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
         throw new RangeError("invalid checkpoint generation or capture time");
       const { envelope, bytes } = retained != null
         ? { envelope: retained.request.envelope, bytes: retained.bytes }
-        : sealEnvelope({ schemaVersion: codec.schemaVersion, unit, generation, capturedAt, payload: codec.encode(value), inputBoundary });
+        : sealEnvelope({ schemaVersion: codec.schemaVersion, unit, generation, capturedAt, payload: codec.encode(value), inputBoundary,
+          ...keptLosses(losses, capturedAt) });
       const encodedByteLength = bytes.byteLength; if (encodedByteLength > (codec.maxEnvelopeBytes ?? Number.POSITIVE_INFINITY)) throw new RangeError("checkpoint envelope exceeds its unit limit"); // P3-VM-AC06: 最後の守り（書かずに encode の失敗にする）
       // A newer generation supersedes the held bytes (up to the whole payload); only a same-generation retry reuses them.
       if (prior != null && retained == null) this.held.delete(unit);
@@ -468,12 +470,13 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       || typeof record.capturedAt !== "number" || !Number.isFinite(record.capturedAt)
       || record.sha256 !== match[1]) return "invalid";
     const boundary = readBoundary(record); if (boundary == null) return "invalid";
+    const losses = readLosses(record, unit); if (losses == null) return "invalid";
     const envelope: CheckpointEnvelope = {
       schemaVersion: record.schemaVersion,
       unit,
       generation: Number(record.generation),
       capturedAt: record.capturedAt,
-      payload: record.payload as JsonValue, ...boundary,
+      payload: record.payload as JsonValue, ...boundary, ...losses,
       sha256: match[1],
     };
     if (decoder.decode(serializedEnvelope(envelope)) !== text) return "invalid";
@@ -639,6 +642,44 @@ const INPUT_BOUNDARY_MAX_BYTES = encoder.encode(`,"inputBoundary":${JSON.stringi
   receivedAt: { wallTimeMs: -0.0000012345678901234567, basis: "unverified" }, dmdataTime: -0.0000012345678901234567,
   dmdataId: "\"".repeat(128), oldestHole: "disconnected" })}`).byteLength;
 
+// P3-NL-AC14 (3): 数える理由の閉集合。unit の行に出るのは通知の 4 語・容量の拒否・その unit の容量の退去と、U-E だけ印の退去。
+const NOTICE_LOSSES: readonly LossReason[] = ["notificationExpired", "notificationExpiredClockUnverified", "notificationCapacityEvicted",
+  "notificationOutcomeUnknown", "capacityRejected"];
+const UNIT_EVICTION: Readonly<Partial<Record<UnitId, LossReason>>> = { "U-E": "eewCapacityEvicted", "U-W": "weatherCurrentCapacityEvicted",
+  "U-T": "tsunamiCapacityEvicted", "U-Q": "seismicCapacityEvicted", "U-N": "nankaiCapacityEvicted", "U-V": "volcanoCapacityEvicted",
+  "U-L": "landslideCapacityEvicted", "U-R": "floodCapacityEvicted", "U-B": "briefingCapacityEvicted", "U-M": "localBulletinsCapacityEvicted",
+  "U-Y": "typhoonCapacityEvicted" };
+function lossReasons(unit: UnitId): readonly LossReason[] {
+  const eviction = UNIT_EVICTION[unit];
+  return [...NOTICE_LOSSES, ...unit === "U-E" ? ["noticeMarkEvicted" as const] : [], ...eviction == null ? [] : [eviction]];
+}
+// P3-NL-AC14 (7): envelope に losses が足す byte の最大（INPUT_BOUNDARY_MAX_BYTES と同じ作り方）。最長の形は、閉集合の長い順の 7 語（unit の
+// 行の最大）に、count が安全な整数の最長 16 桁、lastAt が有限な数の JSON の最長 25 文字。
+const LOSS_TALLY_MAX_BYTES = encoder.encode(`,"losses":${JSON.stringify([...new Set([...NOTICE_LOSSES, "noticeMarkEvicted",
+  ...Object.values(UNIT_EVICTION)])].sort((left, right) => right.length - left.length).slice(0, 7)
+  .map((reason) => ({ reason, count: Number.MAX_SAFE_INTEGER, lastAt: -0.0000012345678901234567 })))}`).byteLength;
+// P3-NL-RET-03（置き値）: 行は lastAt＋24 時間を過ぎたら capture と復元のときに外す。
+const LOSS_RETAIN_MS = 86_400_000;
+function keptLosses(losses: readonly LossTally[], wallTimeMs: number): Readonly<{ losses?: readonly LossTally[] }> {
+  const kept = losses.filter((item) => item.lastAt + LOSS_RETAIN_MS > wallTimeMs);
+  return kept.length === 0 ? {} : { losses: kept };
+}
+// P3-NL-AC14 (1): 欄の無い envelope は空。行は unit の理由の閉集合で reason ごとに 1 行、count は 1 以上の安全な整数、lastAt は有限な数。
+function readLosses(record: Readonly<Record<string, unknown>>, unit: UnitId): Readonly<{ losses?: readonly LossTally[] }> | null {
+  const value = record.losses;
+  if (value === undefined) return {};
+  if (!Array.isArray(value)) return null;
+  const allowed = lossReasons(unit), rows: LossTally[] = [];
+  for (const row of value) {
+    if (!plain(row)) return null;
+    const reason = allowed.find((item) => item === row.reason);
+    if (reason == null || rows.some((item) => item.reason === reason) || !Number.isSafeInteger(row.count) || Number(row.count) < 1
+      || typeof row.lastAt !== "number" || !Number.isFinite(row.lastAt)) return null;
+    rows.push({ reason, count: Number(row.count), lastAt: row.lastAt });
+  }
+  return { losses: rows };
+}
+
 // P3-VM-AC06: 保存の envelope の inputBoundary を項目ごとに確かめて組み立てる。形の崩れは null（その slot は invalid）。余分な
 // キーと欄の欠けは再直列化の照合で拒否される。
 const holeKinds: readonly InputHole[] = ["refused", "disconnected", "restarted"];
@@ -739,5 +780,6 @@ class InputBoundaries {
   }
 }
 
-export { CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, dmdataIdOf, hashEnvelope, serializedEnvelope };
+export { CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, LOSS_TALLY_MAX_BYTES, dmdataIdOf, hashEnvelope, keptLosses,
+  serializedEnvelope };
 export type { CheckpointFileSystem, CheckpointGrant, CodecMap, Correlation, WritableCheckpoint };

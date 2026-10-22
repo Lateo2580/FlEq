@@ -2,8 +2,8 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, DiagnosticDetails, JsonValue, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome,
+  ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject,
+  RuntimeUnitDeadline, SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   NankaiCurrent, NankaiCurrentLine, NankaiCurrentStatus, NankaiEvidence, NankaiInfoSerial, NankaiInformation, NankaiInformationView, NankaiInput,
@@ -11,19 +11,23 @@ import type {
   PersistedNankaiUnit,
 } from "../../../contracts/p3-nankai-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, nextMark, readReportRef, stepVersion } from "../../contracts-revision/version"; import type { VersionRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, nextMark, readReportRef, stepVersion } from "../../contracts-revision/version"; import type { VersionRef } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
+import {
+  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  shown, updateEvidence, versionDigest,
+} from "../notice-mark";
 
 // P3-UNIT-N-001（C8、I-U-N）: U-N の現況・情報系列・通知・容量・codec・射影。
 
-const SCHEMA = "p3-nankai-unit-v3" as const;
+const SCHEMA = "p3-nankai-unit-v4" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const LINES = ["nankai", "VYSE60"] as const;
 // P3-C8-CAPACITY=A・P3-C8-RES-01・RET-01〜04。世代の上限は P3-AUTH-D-N-BUDGET=A（K2、当初 256 KiB）。
 const CURRENT_LIMIT = 6, INFORMATION_LIMIT = 64, GENERATION_LIMIT = 294_912;
-const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
+const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C8-SEM-01〜05（元報の ReportDateTime からの絶対の長さ、P3-C8-RETENTION=A）。
 const DAY_MS = 86_400_000;
 const CURRENT_VALID_MS = 7 * DAY_MS, CURRENT_RETAIN_MS = 30 * DAY_MS, INFORMATION_RETAIN_MS = 7 * DAY_MS;
@@ -68,18 +72,8 @@ function listBytes(values: readonly object[]): number {
   if (total == null) { total = 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0); sumCache.set(values, total); }
   return total;
 }
-// 終端記録の合計（区切りの 1 byte を含む）。受理と decode で同じ式を使う（I-U-N.capacityReserve）。
-const terminalCache = new WeakMap<readonly NankaiIntent[], number>();
-function terminalBytes(intents: readonly NankaiIntent[]): number {
-  let total = terminalCache.get(intents);
-  if (total == null) {
-    total = intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
-    terminalCache.set(intents, total);
-  }
-  return total;
-}
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-N", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [], evidence: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [], evidence: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q と同じ予約）。6: 空の配列 3 つ。
 function generationBytes(currents: readonly NankaiCurrent[], intents: readonly NankaiIntent[], evidence: readonly NankaiEvidence[]): number {
   return emptyEnvelopeBytes + 62 - 6 + listBytes(currents) + listBytes(intents) + listBytes(evidence);
@@ -126,7 +120,8 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
 // ---- 版の比較（Q-ENUM.revisionOrder） ----
 
 // P3-VM-AC03: 系統と情報 subject ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
-const withoutSource = (value: Shown) => ({ ...value, source: null, unconfirmed: null });
+// 通知の印（P3-NL-AC02）も中身の比べに入れない。
+const withoutSource = (value: Shown) => ({ ...value, source: null, unconfirmed: null, notice: null });
 
 // ---- 現況（I-U-N.currentSemantics） ----
 
@@ -181,7 +176,7 @@ const headingCache = new WeakMap<ActiveInformation, NankaiInformationView>();
 function headingOf(value: ActiveInformation): NankaiInformationView {
   let found = headingCache.get(value);
   if (found == null) {
-    const { text: _text, nextAdvisory: _next, ...heading } = value;
+    const { text: _text, nextAdvisory: _next, notice: _notice, ...heading } = value;
     found = heading;
     headingCache.set(value, found);
   }
@@ -228,34 +223,21 @@ function payloadOf(candidate: NankaiCandidate): NankaiNotificationPayload {
   return { domain: "earthquake-eew", level: levelOf(candidate), title: prefix + (correction ? `[訂正] ${title}` : title),
     body: correction ? `訂正: ${body}` : body };
 }
-function intentsFor(candidate: NankaiCandidate, subject: string, transition: NankaiIntent["transition"], generation: number,
-  now: number): NankaiIntent[] {
+// P3-NL-AC01: ID は世代番号を含まない。系列（現況か情報 subject）の印に同じ版の鍵と種類があれば作らない。
+function intentsFor(candidate: NankaiCandidate, subject: string, transition: NankaiIntent["transition"], now: number,
+  notice: Readonly<{ mark: NoticeMark | undefined; version: string }>): NankaiIntent[] {
+  if (noticed(notice.mark, notice.version, noticeKind(transition))) return [];
   // P3-C8-TRAINING=A: training/test は desktop だけ。
   const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
   const payload = payloadOf(candidate);
   const source = { ...candidate.source, subject };
-  return channels.map((channel) => ({ id: `U-N:${subject}:${generation}:${channel}`, unit: "U-N", subject, operation: candidate.operation,
-    source, transition, channel, payload, createdAt: now, expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0,
-    configRevision: SCHEMA, disposition: "pending" }));
+  return channels.map((channel) => ({ id: noticeId("U-N", subject, "", source, transition, channel), unit: "U-N", subject,
+    operation: candidate.operation, source, transition, channel, payload, createdAt: now, expiresAt: now + TTL[channel], nextAttemptAt: now,
+    attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-N", candidate.operation, payload.level) }));
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-N の intent は全部 other の群（P3-C8-NOTICE-GROUP=A）。
 function a7Order(left: NankaiIntent, right: NankaiIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-}
-// 終端記録の合計が 98,304 byte を超える分は、最古の終端記録から期限前に回収する（未知 id の更新は no-op なので通知は変わらない）。
-// kept は今の配送の更新で終端にした記録で、回収しない（owner は更新した記録が残ることで照合する。Q-C8-IMPL-AMEND(1)）。
-// kept だけで上限を超える分は、元の pending の byte の内側なので pending と終端記録の合計の上限に収まる。
-function trimTerminal(intents: readonly NankaiIntent[], kept: ReadonlySet<string> = new Set()): readonly NankaiIntent[] {
-  let terminal = terminalBytes(intents);
-  if (terminal <= TERMINAL_BYTES) return intents;
-  const gone = new Set<NankaiIntent>();
-  for (const item of intents.filter((value) => value.disposition !== "pending" && !kept.has(value.id))
-    .sort((left, right) => left.createdAt - right.createdAt)) {
-    if (terminal <= TERMINAL_BYTES) break;
-    gone.add(item);
-    terminal -= bytes(item) + 1;
-  }
-  return intents.filter((item) => !gone.has(item));
 }
 // Q-NOTICE.capacity と P3-C8-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、取消は対象 subject の全 pending を置き換える。
 function admit(current: readonly NankaiIntent[], fresh: readonly NankaiIntent[], cancelled: ReadonlySet<string>):
@@ -263,9 +245,9 @@ function admit(current: readonly NankaiIntent[], fresh: readonly NankaiIntent[],
   const superseded = new Set<NankaiIntent>();
   const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
-    if (item.disposition === "pending" && (cancelled.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`))) superseded.add(item);
+    if (cancelled.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
-  const pool = [...current.filter((item) => item.disposition === "pending" && !superseded.has(item)), ...fresh];
+  const pool = [...current.filter((item) => !superseded.has(item)), ...fresh];
   const out = new Set<NankaiIntent>();
   // 同じ群の中で A7 の選択順の後ろのものから外す。新しい intent が外れることもある（channel ごとに全採用か未採用）。
   let count = pool.length, size = listBytes(pool) + pool.reduce((sum, item) => sum + deliveryGrowth(item), 0);
@@ -277,8 +259,8 @@ function admit(current: readonly NankaiIntent[], fresh: readonly NankaiIntent[],
       size -= bytes(item) + 1 + deliveryGrowth(item);
     }
   const admitted = fresh.filter((item) => !out.has(item));
-  const intents = trimTerminal([...current.map((item) => superseded.has(item) || out.has(item)
-    ? { ...item, disposition: "superseded" as const } : item), ...admitted]);
+  // P3-NL-AC05 (1)(2): 置換・退去した intent は外す（結果は系列の印に残り、終端記録の予算と回収は無い）。
+  const intents = [...current.filter((item) => !superseded.has(item) && !out.has(item)), ...admitted];
   return { intents, admitted, dropped: [...out].filter((item) => !fresh.includes(item)).length + fresh.length - admitted.length };
 }
 
@@ -300,7 +282,7 @@ function shownOutcome(value: Fact): SubjectOutcome {
   return found;
 }
 function displaySubject(value: Fact): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-N" }>> {
-  const current = isCurrent(value) ? value.effective === "active" ? value : null : value.effective === "active" ? headingOf(value) : null;
+  const current = isCurrent(value) ? value.effective === "active" ? shown(value) : null : value.effective === "active" ? headingOf(value) : null;
   return { unit: "U-N", operation: value.operation, subject: value.subject, office: null, current, subjects: [shownOutcome(value)] };
 }
 
@@ -377,8 +359,11 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
       diagnostics: held == null ? [] : [heldDiagnostic(candidate, held.missing)] } };
   }
 
-  const nextCurrent = currentVerdict?.kind === "adopt" ? currentVerdict.next : null;
-  const nextInfo = infoVerdict.kind === "adopt" ? infoVerdict.next : null;
+  // P3-NL-AC02 (2)(4): 通知の印は系列の記録へ引き継ぐ（情報 subject は証拠だけの記録からも）。
+  const adoptedCurrent = currentVerdict?.kind === "adopt" ? currentVerdict.next : null;
+  const adoptedInfo = infoVerdict.kind === "adopt" ? infoVerdict.next : null;
+  let nextCurrent = adoptedCurrent == null || current?.notice == null ? adoptedCurrent : { ...adoptedCurrent, notice: current.notice };
+  let nextInfo = adoptedInfo == null || info?.notice == null ? adoptedInfo : { ...adoptedInfo, notice: info.notice };
   const currentFields = nextCurrent == null ? [] : visible(current) || visible(nextCurrent) ? changed(visible(current) ? current : null,
     nextCurrent, CURRENT_FIELDS) : [];
   const infoFields = nextInfo == null ? [] : visible(info) || visible(nextInfo) ? changed(visible(info) ? info : null,
@@ -413,10 +398,22 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   // 訂正は ended になっても updated（Q-NOTICE.transition の訂正の規則が先）。
   const transition = candidate.cancelled ? "cancelled" as const : candidate.infoRank === 2 ? "updated" as const
     : nextCurrent?.effective === "ended" ? "released" as const : visible(before) ? "updated" as const : "activated" as const;
-  const fresh = notify ? intentsFor(candidate, subject, transition, state.persistence.currentGeneration + 1, now) : [];
+  // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
+  const version = versionDigest(candidate.source);
+  const fresh = notify ? intentsFor(candidate, subject, transition, now, { mark: before?.notice, version }) : [];
   const cancelledSubjects = new Set(candidate.cancelled ? [...nextCurrent == null ? [] : [candidate.currentSubject],
     ...nextInfo == null ? [] : [candidate.subject]] : []);
   const notices = admit(state.intents, fresh, cancelledSubjects);
+  // P3-NL-AC02 (3): admit を通った版と種類を、通知した系列（現況か情報 subject）の印に足す。
+  if (notices.admitted.length !== 0) {
+    const kind = noticeKind(transition);
+    if (nextCurrent != null) nextCurrent = { ...nextCurrent, notice: markNotice(nextCurrent.notice, version, kind) };
+    else if (nextInfo != null) {
+      const original = nextInfo, marked = { ...original, notice: markNotice(original.notice, version, kind) };
+      information = information.map((item) => item === original ? marked : item);
+      nextInfo = marked;
+    }
+  }
 
   // 記録の無い現況も、到着の時点で保持の期限を過ぎていれば入れない（情報 subject と同じ、P3-FINAL-AC01(1)(5)）。
   const currentDue = nextCurrent != null && currentIndex == null && nextCurrent.retainUntil <= now;
@@ -497,8 +494,7 @@ function collect(state: NankaiUnitState, clock: ClockReading, base = state.infor
       return false;
     });
   const intents = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
-  const expiredIntents = intents === state.intents ? 0
-    : state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= now).length;
+  const expiredIntents = state.intents.length - intents.length;
   const persisted = currents !== state.currents || intents !== state.intents || !sameItems(information, base);
   return { state: { ...state, currents, information, intents,
     persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence }, changes, expiredIntents };
@@ -518,20 +514,40 @@ function deadlineStep(state: NankaiUnitState, clock: ClockReading, shutdown: boo
 
 // ---- intentUpdate（Q-NOTICE.intentUpdate） ----
 
+// P3-NL-AC02 (3)・AC08 (1): intent の系列（現況か情報 subject）の印の証拠を上げる（下げない）。
+function raiseNotices(state: NankaiUnitState, raised: ReadonlyMap<string, NoticeEvidence>): NankaiUnitState {
+  const raise = <T extends Shown>(values: readonly T[]): readonly T[] => {
+    let next = values;
+    for (const [subject, evidence] of raised) {
+      const at = indexOf(next, subject), found = next[at ?? -1];
+      const notice = found?.notice == null ? undefined : raiseEvidence(found.notice, evidence);
+      if (found != null && notice !== found.notice) next = replaceAt(next, at, { ...found, notice });
+    }
+    return next;
+  };
+  const currents = raise(state.currents), information = raise(state.information);
+  return currents === state.currents && information === state.information ? state : { ...state, currents, information };
+}
+
 function intentUpdate(state: NankaiUnitState, input: Extract<NankaiInput, { kind: "intentUpdate" }>): Result {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
   const changedIntents = new Map<string, NankaiIntent>();
+  const raised = new Map<string, NoticeEvidence>();
   for (const update of updates) {
     const current = originals.get(update.id);
-    if (current == null || update.attempts < current.attempts || current.attempts === update.attempts
-      && current.nextAttemptAt === update.nextAttemptAt && current.disposition === update.disposition) continue;
-    changedIntents.set(current.id, { ...current, attempts: update.attempts, nextAttemptAt: update.nextAttemptAt, disposition: update.disposition });
+    const updated = current == null ? null : applyIntentUpdate(current, update);
+    if (updated == null) continue;
+    changedIntents.set(updated.id, updated);
+    const evidence = updateEvidence(updated);
+    if (evidence != null) raised.set(updated.subject, evidence);
   }
   if (changedIntents.size === 0) return { changes: [], step: idle(state) };
-  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7 の先例）。配送で増えた終端記録も 98,304 byte に収める（decode と同じ境界）。
-  const next = { ...state, intents: trimTerminal(state.intents.map((item) => changedIntents.get(item.id) ?? item), new Set(changedIntents.keys())),
-    persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7 の先例）。pending でなくなった intent は外す（P3-NL-AC05 (1)）。
+  const next = { ...raiseNotices(state, raised), intents: state.intents.flatMap((item) => {
+    const updated = changedIntents.get(item.id);
+    return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
+  }), persistence: dirty(state.persistence, input.clock.monotonicMs) };
   const adopted = [...changedIntents.values()];
   return { changes: [], step: { ...idle(next),
     decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
@@ -548,12 +564,18 @@ function restore(state: NankaiUnitState, persisted: PersistedNankaiUnit, clock: 
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "nankai",
     reason: "requiredStructureInvalid", unit: "U-N" }] } };
   // Q-NOTICE.restart: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。情報系列は証拠だけの記録から始まる。
-  const applied = collect({ ...decoded.state, persistence: state.persistence }, clock);
-  const shown = applied.state.currents.filter(visible);
-  return { changes: shown.map((item): Change => [null, item]), step: { ...idle(applied.state),
-    outcomes: [{ kind: "recoveryApplied", scope: ["U-N"], coverage: shown.map((item) => item.subject), subjects: [] }],
-    diagnostics: applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "nankai", reason: "notificationExpired",
-      unit: "U-N", count: applied.expiredIntents }] } };
+  // P3-NL-AC08 (1): started のまま残った pending は通知したか不明として外し、系列の印の証拠を unknown にする。
+  const restored = restoreStarted(decoded.state.intents);
+  const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
+    intents: restored.intents, persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
+  const applied = collect(base, clock);
+  const active = applied.state.currents.filter(visible);
+  const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "nankai",
+    reason: "notificationExpired", unit: "U-N", count: applied.expiredIntents }];
+  if (restored.started.length !== 0) diagnostics.push({ level: "INFO", component: "nankai", reason: "notificationOutcomeUnknown",
+    unit: "U-N", count: restored.started.length });
+  return { changes: active.map((item): Change => [null, item]), step: { ...idle(applied.state),
+    outcomes: [{ kind: "recoveryApplied", scope: ["U-N"], coverage: active.map((item) => item.subject), subjects: [] }], diagnostics } };
 }
 
 function receive(state: NankaiUnitState, input: Extract<NankaiInput, { kind: "receive" }>): Result {
@@ -606,7 +628,8 @@ function toNankaiView(state: NankaiUnitState): NankaiUnitView {
   const subjects = [...currents, ...shownInformation].map(shownOutcome);
   return { unit: "U-N", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), subjects, currents, information: shownInformation.map(headingOf) };
+  contentRevision: String(state.contentRevision), subjects, currents: currents.map((item) => shown(item)),
+  information: shownInformation.map(headingOf) };
 }
 
 // ---- codec（I-U-N.persisted・I-U-N.decode、唯一の NankaiUnitCodec） ----
@@ -657,9 +680,11 @@ function currentRecord(value: unknown): NankaiCurrent | null {
     || row.retainUntil !== reportMs(source) + CURRENT_RETAIN_MS) return null;
   // P3-VM-AC04: 印は同じ系統（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed) : undefined;
-  if (mark === null || mark != null && (mark.subject !== row.subject
+  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
+  if (mark === null || notice === null || mark != null && (mark.subject !== row.subject
     || mark.operation !== operation)) return null;
-  const base = { subject: row.subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, ...mark == null ? {} : { unconfirmed: mark } };
+  const base = { subject: row.subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, ...mark == null ? {} : { unconfirmed: mark },
+    ...notice == null ? {} : { notice } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。ended は南海トラフの系統だけ。
     if (FACT_KEYS.some((key) => key in row)) return null;
@@ -682,19 +707,19 @@ function intentRecord(value: unknown): NankaiIntent | null {
   const level = LEVEL_SET.find((entry) => entry === payload?.level);
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
-  const disposition = (["pending", "delivered", "expired", "superseded"] as const).find((entry) => entry === row?.disposition);
+  const fields = row == null || operation == null ? null : readIntentState(row, "U-N", operation, level);
   // state に残る subject との一致は求めない（情報の事実は復元されない、I-U-N.decode）。
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
-    || disposition == null || !isText(row.id) || row.unit !== "U-N" || !isText(row.subject) || source.subject !== row.subject
+    || fields == null || !isText(row.id) || row.unit !== "U-N" || !isText(row.subject) || source.subject !== row.subject
     || source.operation !== operation || payload.domain !== "earthquake-eew" || !isText(payload.title) || payload.title === ""
     || !isText(payload.body) || payload.body === "" || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt)
     || !Number.isSafeInteger(row.attempts) || Number(row.attempts) < 0 || !isText(row.configRevision) || row.expiresAt < row.createdAt) return null;
   return { id: row.id, unit: "U-N", subject: row.subject, operation, source, transition, channel,
     payload: { domain: "earthquake-eew", level, title: payload.title, body: payload.body }, createdAt: row.createdAt,
     expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
-    disposition };
+    disposition: "pending", ...fields };
 }
-// 証拠を証拠だけの情報 subject として戻す（P3-AUTH-AC01(2)）。
+// 証拠を証拠だけの情報 subject として戻す（P3-AUTH-AC01(2)）。印は記録へ戻す（P3-NL-AC02 (2)）。
 function evidenceRecord(value: unknown): EvidenceInformation | null {
   const row = record(value);
   if (row == null || !isText(row.subject) || typeof row.reportDateTimeMs !== "number" || !Number.isSafeInteger(row.reportDateTimeMs)
@@ -702,20 +727,22 @@ function evidenceRecord(value: unknown): EvidenceInformation | null {
     || !isText(row.controlDateTimeRaw) || controlDateTimeOf(row.controlDateTimeRaw, LIMITS.controlDateTime) !== row.controlDateTimeRaw) return null;
   const [, middle, eventId] = row.subject.split("/");
   const family = familyOf(middle), operation = family == null ? null : subjectOperation(row.subject, family);
-  if (family == null || operation == null || eventId == null) return null;
+  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
+  if (family == null || operation == null || eventId == null || notice === null) return null;
   const evidence = { subject: row.subject, reportDateTimeMs: row.reportDateTimeMs, serialRaw: row.serialRaw, infoTypeRaw: row.infoTypeRaw,
     controlDateTimeRaw: row.controlDateTimeRaw };
   return { subject: row.subject, family, eventId, operation, retainUntil: row.reportDateTimeMs + INFORMATION_RETAIN_MS, effective: "evidence",
-    evidence };
+    evidence, ...notice == null ? {} : { notice } };
 }
-// encode の証拠の射影は記録ごとに一度だけ作る（P3-AUTH-RES-03）。
-const evidenceCache = new WeakMap<FactInformation, NankaiEvidence>();
+// encode の証拠の射影は記録ごとに一度だけ作る（P3-AUTH-RES-03）。印は記録の notice を写す（P3-NL-AC02 (2)）。
+const evidenceCache = new WeakMap<NankaiInformation, NankaiEvidence>();
 function evidenceOf(value: NankaiInformation): NankaiEvidence {
-  if (value.effective === "evidence") return value.evidence;
+  if (value.effective === "evidence" && value.notice == null) return value.evidence;
   let found = evidenceCache.get(value);
   if (found == null) {
-    found = { subject: value.subject, reportDateTimeMs: reportMs(value.source), serialRaw: value.source.serialRaw,
-      infoTypeRaw: value.source.infoTypeRaw, controlDateTimeRaw: value.source.controlDateTimeRaw };
+    const notice = value.notice == null ? {} : { notice: value.notice };
+    found = value.effective === "evidence" ? { ...value.evidence, ...notice } : { subject: value.subject, reportDateTimeMs: reportMs(value.source),
+      serialRaw: value.source.serialRaw, infoTypeRaw: value.source.infoTypeRaw, controlDateTimeRaw: value.source.controlDateTimeRaw, ...notice };
     evidenceCache.set(value, found);
   }
   return found;
@@ -731,11 +758,9 @@ function persisted(value: unknown): Decoded | null {
     || new Set(currents.map((entry) => entry.subject)).size !== currents.length
     || new Set(information.map((entry) => entry.subject)).size !== information.length
     || new Set(intents.map((entry) => entry.id)).size !== intents.length) return null;
-  const pending = intents.filter((entry) => entry.disposition === "pending");
-  // 終端記録は単独でなく pending との合計で見る（配送の更新で終端にした記録は回収しない、Q-C8-IMPL-AMEND(1)）。
-  // 受理と同じ式（実 byte＋配送の更新の予約）で数える（Q-C8-IMPL-AMEND(7)(8)）。
-  const pendingBytes = listBytes(pending) + pending.reduce((sum, item) => sum + deliveryGrowth(item), 0);
-  if (pending.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || pendingBytes + terminalBytes(intents) > PENDING_BYTES + TERMINAL_BYTES
+  // 受理と同じ式（実 byte＋配送の更新の予約）で数える（Q-C8-IMPL-AMEND(7)(8)）。保存する intent は pending だけ（P3-NL-AC05）。
+  const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES
     || generationBytes(currents, intents, information.map(evidenceOf)) > GENERATION_LIMIT) return null;
   return { currents, intents, information };
 }
@@ -743,12 +768,12 @@ function persisted(value: unknown): Decoded | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const nankaiUnitCodec: NankaiUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 情報の事実・contentRevision・persistence は保存しない（I-U-N.persisted、spec:512 の N）。証拠は保存する（P3-AUTH-AC01）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents, evidence: state.information.map(evidenceOf) }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v3 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v4 payload" }
       : { kind: "restored", state: { schemaVersion: SCHEMA, ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };
@@ -760,7 +785,6 @@ const nankaiUnit = {
   toView: toNankaiView,
   persistence: { kind: "durable", codec: nankaiUnitCodec },
   confirmationScopeLimit: 512,
-  terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-N">;
 

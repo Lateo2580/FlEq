@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { MaterialValue, Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, DiagnosticDetails, JsonValue, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject,
+  ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject,
   RuntimeUnitDeadline, SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
@@ -11,19 +11,23 @@ import type {
   VolcanoScheduledAshfall, VolcanoShortfall, VolcanoUnitCodec, VolcanoUnitState, VolcanoUnitStep, VolcanoUnitView,
 } from "../../../contracts/p3-volcano-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   ASH, ASH_ORDER, BOUNDS, FAMILIES, INFO_RANK, LIMITS, asciiCode, isMarine, parseVolcano, validEventId, validSerial, validVolcanoCode,
 } from "../../domains/volcano/volcano";
 import type { AlertFacts, VolcanoCandidate, VolcanoEntry } from "../../domains/volcano/volcano";
+import {
+  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  shown, updateEvidence, versionDigest,
+} from "../notice-mark";
 
 // P3-UNIT-V-001（C9、I-U-V）: U-V の三 slice・定時・batch・解説・復旧不足・通知・容量・codec・射影。
 
-const SCHEMA = "p3-volcano-unit-v3" as const;
+const SCHEMA = "p3-volcano-unit-v4" as const;
 // P3-C9-CAPACITY=A・P3-C9-RES-01・RET-01〜06。世代の上限は P3-CODEC-D-LIMIT=A（K5、当初 4 MiB）。
 const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20, GENERATION_LIMIT = 5_242_880;
-const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
+const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C9-SEM-01〜07（元報の ReportDateTime からの絶対の長さ、P3-C9-RETENTION=A。batch は単調時計）。
 const DAY_MS = 86_400_000;
 const ALERT_RETAIN_MS = 30 * DAY_MS, ERUPTION_VALID_MS = DAY_MS, ERUPTION_RETAIN_MS = 2 * DAY_MS, ASHFALL_RETAIN_MS = 7 * DAY_MS,
@@ -65,11 +69,8 @@ function bytes(value: object): number {
 }
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
-// 終端記録の合計（区切りの 1 byte を含む）。受理と decode で同じ式を使う（Q-NOTICE.capacity）。
-const terminalBytes = (intents: readonly VolcanoIntent[]): number =>
-  intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-V", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, alerts: [], eruptions: [], ashfalls: [], shortfalls: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
+  payload: { schemaVersion: SCHEMA, alerts: [], eruptions: [], ashfalls: [], shortfalls: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q・U-N と同じ予約）。10: 空の配列 5 つ。
 function generationBytes(value: PersistedVolcanoUnit): number {
   return emptyEnvelopeBytes + 62 - 10 + listBytes(value.alerts) + listBytes(value.eruptions) + listBytes(value.ashfalls)
@@ -77,7 +78,7 @@ function generationBytes(value: PersistedVolcanoUnit): number {
 }
 // 配送の更新で伸びうる分（pending の deliveryGrowth）を 1 回だけ足した世代の byte（P3-CODEC-RES-01）。
 const reservedGenerationBytes = (value: PersistedVolcanoUnit): number => generationBytes(value)
-  + value.intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
+  + value.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
 
 // ---- 期限（I-U-V.deadlines） ----
 
@@ -184,7 +185,9 @@ function upsert<T extends Shown>(values: readonly T[], value: T, limit: number, 
 const sameAshfallReport = (ref: ReportRef, source: ReportRef): boolean => ref.family !== source.family
   && [ref.family, source.family].every((family) => family === "VFVO54" || family === "VFVO55")
   && reportMs(ref) === reportMs(source) && ref.infoTypeRaw === source.infoTypeRaw;
-const withoutSource = (value: Shown) => ({ ...value, source: null, marineSource: null, retainUntil: 0, unconfirmed: null, marineUnconfirmed: null });
+// 通知の印（P3-NL-AC02）も中身の比べに入れない。
+const withoutSource = (value: Shown) => ({ ...value, source: null, marineSource: null, retainUntil: 0, unconfirmed: null, marineUnconfirmed: null,
+  notice: null, marineNotice: null });
 type Held = Readonly<{ mark: ReportRef | null; missing: boolean }>;
 
 // ---- 警報（I-U-V.alertSemantics、P3-C9-ALERT-ACTIVE=A・P3-C9-MARINE=A） ----
@@ -232,8 +235,10 @@ function alertBase(candidate: VolcanoCandidate, subject: string, code: string, e
   const marineEventId = marine ? candidate.eventId : existing?.marineEventId ?? null;
   const retainUntil = Math.max(source == null ? -Infinity : reportMs(source), marineSource == null ? -Infinity : reportMs(marineSource))
     + ALERT_RETAIN_MS;
+  // P3-NL-AC02 (2)(4): 陸上・海上の通知の印は記録へ引き継ぐ。
   return { subject, operation: candidate.operation, volcanoCode: code, eventId, source, marineSource, landKind, landEventId, marineEventId,
-    retainUntil };
+    retainUntil, ...existing?.notice == null ? {} : { notice: existing.notice },
+    ...existing?.marineNotice == null ? {} : { marineNotice: existing.marineNotice } };
 }
 // 一つの警報の報（VFVO50・VFSV・VFVO51 の火山 entry）を記録に当てる。版は自分の family の watermark とだけ比べ、kind は
 // 別の family と比べて新しいときだけ取る（同じ版で kind が違えば先着を保って食い違い、P3-C9-MARINE=A）。
@@ -353,7 +358,7 @@ const headingCache = new WeakMap<ActiveBulletin, VolcanoBulletinView>();
 function headingOf(value: ActiveBulletin): VolcanoBulletinView {
   let found = headingCache.get(value);
   if (found == null) {
-    const { text: _text, nextAdvisory: _next, ...heading } = value;
+    const { text: _text, nextAdvisory: _next, notice: _notice, ...heading } = value;
     found = heading;
     headingCache.set(value, found);
   }
@@ -362,7 +367,9 @@ function headingOf(value: ActiveBulletin): VolcanoBulletinView {
 
 type Verdict<T> = Readonly<{ kind: "adopt"; next: T; missing: boolean }>
   | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale"; held: Held | null }>;
-function judge<T extends Exclude<Shown, VolcanoAlert>>(candidate: VolcanoCandidate, existing: T | null, next: T): Verdict<T> {
+function judge<T extends Exclude<Shown, VolcanoAlert>>(candidate: VolcanoCandidate, existing: T | null, built: T): Verdict<T> {
+  // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。
+  const next = existing?.notice == null ? built : { ...built, notice: existing.notice };
   // 同じ報の速報と詳細は詳細を採り、印は外さない。
   if (existing != null && sameAshfallReport(next.source, existing.source)) return candidate.family === "VFVO55"
     ? { kind: "adopt", next: existing.unconfirmed == null ? next : { ...next, unconfirmed: existing.unconfirmed }, missing: false }
@@ -392,16 +399,18 @@ function hold<T extends Shown>(applied: Applied, candidate: VolcanoCandidate, va
 // ---- 通知（questionResolutions[Q-NOTICE]） ----
 
 const PREFIX: Readonly<Record<Operation, string>> = { normal: "", training: "【訓練】", test: "【試験】" };
-type Notice = Readonly<{ subject: string; operation: Operation; source: ReportRef; transition: VolcanoIntent["transition"];
+// series は通知の系列（警報の海上の側だけ "marine"、P3-NL-AC01 (1)）。
+type Notice = Readonly<{ subject: string; series: "" | "marine"; operation: Operation; source: ReportRef; transition: VolcanoIntent["transition"];
   payload: VolcanoNotificationPayload }>;
 // 題は operationPrefix＋Head/Title から「火山名　山名　」を除いた文字列、訂正・取消は前置き（旧築 notifier.ts の notifyVolcano）。
 function noticeOf(candidate: VolcanoCandidate, subject: string, transition: VolcanoIntent["transition"], level: Level,
   summary: string): Notice {
   const prefix = PREFIX[candidate.operation], source = { ...candidate.source, subject };
-  if (candidate.cancelled) return { subject, operation: candidate.operation, source, transition, payload: { domain: "volcano",
+  const series = subject.includes("/volcano:alert/") && isMarine(candidate.family) ? "marine" as const : "" as const;
+  if (candidate.cancelled) return { subject, series, operation: candidate.operation, source, transition, payload: { domain: "volcano",
     level: "cancel", title: `${prefix}[取消] ${candidate.title}`, body: "この情報は取り消されました" } };
   const correction = candidate.infoRank === 2, body = summary === "" ? candidate.title : summary;
-  return { subject, operation: candidate.operation, source, transition, payload: { domain: "volcano", level,
+  return { subject, series, operation: candidate.operation, source, transition, payload: { domain: "volcano", level,
     title: prefix + (correction ? `[訂正] ${candidate.title}` : candidate.title), body: correction ? `訂正: ${body}` : body } };
 }
 function plumeText(value: MaterialValue): string | null {
@@ -410,30 +419,40 @@ function plumeText(value: MaterialValue): string | null {
   return value.kind === "unknown" ? "噴煙高度不明" : null;
 }
 const join = (parts: readonly (string | null)[]) => parts.filter((part): part is string => part != null && part !== "").join(" / ");
-function intentsFor(notice: Notice, generation: number, now: number): VolcanoIntent[] {
+// P3-NL-AC01: ID は世代番号を含まない。系列の印に同じ版の鍵と種類があれば作らない（定時の batch の通知は記録を持たない）。
+function intentsFor(notice: Notice, now: number, mark: NoticeMark | undefined, version: string): VolcanoIntent[] {
+  if (noticed(mark, version, noticeKind(notice.transition))) return [];
   // P3-C9-TRAINING=A: training/test は desktop だけ。
   const channels = notice.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  return channels.map((channel) => ({ id: `U-V:${notice.subject}:${generation}:${channel}`, unit: "U-V", subject: notice.subject,
-    operation: notice.operation, source: notice.source, transition: notice.transition, channel, payload: notice.payload, createdAt: now,
-    expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending" }));
+  return channels.map((channel) => ({ id: noticeId("U-V", notice.subject, notice.series, notice.source, notice.transition, channel), unit: "U-V",
+    subject: notice.subject, operation: notice.operation, source: notice.source, transition: notice.transition, channel, payload: notice.payload,
+    createdAt: now, expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
+    ...freshState("U-V", notice.operation, notice.payload.level) }));
+}
+// 系列の記録の印を読み・書き換える（警報の海上の側は marineNotice）。記録の無い subject（定時の batch）は何もしない。
+function seriesMark(state: VolcanoUnitState, subject: string, marine: boolean): NoticeMark | undefined {
+  for (const values of [state.alerts, state.eruptions, state.ashfalls, state.scheduledAshfalls, state.bulletins] as const) {
+    const found = values[indexOf(values, subject) ?? -1];
+    if (found != null) return marine && isAlert(found) ? found.marineNotice : found.notice;
+  }
+  return undefined;
+}
+function remark(state: VolcanoUnitState, subject: string, marine: boolean,
+  change: (mark: NoticeMark | undefined) => NoticeMark | undefined): VolcanoUnitState {
+  const apply = <T extends Shown>(values: readonly T[]): readonly T[] => {
+    const at = indexOf(values, subject), found = values[at ?? -1];
+    if (found == null) return values;
+    const before = marine && isAlert(found) ? found.marineNotice : found.notice, after = change(before);
+    return after === before ? values : replaceAt(values, at, marine && isAlert(found) ? { ...found, marineNotice: after } : { ...found, notice: after });
+  };
+  const alerts = apply(state.alerts), eruptions = apply(state.eruptions), ashfalls = apply(state.ashfalls);
+  const scheduledAshfalls = apply(state.scheduledAshfalls), bulletins = apply(state.bulletins);
+  return alerts === state.alerts && eruptions === state.eruptions && ashfalls === state.ashfalls && scheduledAshfalls === state.scheduledAshfalls
+    && bulletins === state.bulletins ? state : { ...state, alerts, eruptions, ashfalls, scheduledAshfalls, bulletins };
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-V の intent は全部 other の群（P3-C9-NOTICE-GROUP=A）。
 function a7Order(left: VolcanoIntent, right: VolcanoIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-}
-// 終端記録の合計が 98,304 byte を超える分は、最古の終端記録から期限前に回収する。kept は今の配送の更新で終端にした記録で、回収しない
-// （owner は更新した記録が残ることで照合する。C8 の Q-C8-IMPL-AMEND(1)）。kept だけで上限を超える分は元の pending の byte の内側。
-function trimTerminal(intents: readonly VolcanoIntent[], kept: ReadonlySet<string> = new Set()): readonly VolcanoIntent[] {
-  let terminal = terminalBytes(intents);
-  if (terminal <= TERMINAL_BYTES) return intents;
-  const gone = new Set<VolcanoIntent>();
-  for (const item of intents.filter((value) => value.disposition !== "pending" && !kept.has(value.id))
-    .sort((left, right) => left.createdAt - right.createdAt)) {
-    if (terminal <= TERMINAL_BYTES) break;
-    gone.add(item);
-    terminal -= bytes(item) + 1;
-  }
-  return intents.filter((item) => !gone.has(item));
 }
 // 海上の部分だけの取消の鍵（`${subject}\nVFSV`）。その subject の VFSV の pending だけを置き換える。
 const MARINE_PART = "VFSV";
@@ -444,11 +463,11 @@ function admit(current: readonly VolcanoIntent[], fresh: readonly VolcanoIntent[
   const superseded = new Set<VolcanoIntent>();
   const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
-    if (item.disposition === "pending" && (cancelled.has(item.subject) || (!marinePart || isMarine(item.source.family))
-      && replaced.has(`${item.subject}\n${item.channel}`) || isMarine(item.source.family) && cancelled.has(`${item.subject}\n${MARINE_PART}`)))
+    if (cancelled.has(item.subject) || (!marinePart || isMarine(item.source.family))
+      && replaced.has(`${item.subject}\n${item.channel}`) || isMarine(item.source.family) && cancelled.has(`${item.subject}\n${MARINE_PART}`))
       superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
-  const pool = [...current.filter((item) => item.disposition === "pending" && !superseded.has(item)), ...fresh];
+  const pool = [...current.filter((item) => !superseded.has(item)), ...fresh];
   const out = new Set<VolcanoIntent>();
   // 同じ群の中で A7 の選択順の後ろのものから外す。予約は配送の更新で伸びうる byte（P3-INTENT-UPDATE-RESERVE-001、式は写さない）。
   let count = pool.length, size = listBytes(pool) + pool.reduce((sum, item) => sum + deliveryGrowth(item), 0);
@@ -460,11 +479,11 @@ function admit(current: readonly VolcanoIntent[], fresh: readonly VolcanoIntent[
       size -= bytes(item) + 1 + deliveryGrowth(item);
     }
   const admitted = fresh.filter((item) => !out.has(item));
-  // 新しい intent が容量で外れただけなら、既存の intent も終端記録も変わらないので元の配列を返す（保存世代を進めない）。
+  // 新しい intent が容量で外れただけなら、既存の intent は変わらないので元の配列を返す（保存世代を進めない）。
   if (superseded.size === 0 && admitted.length === 0 && [...out].every((item) => fresh.includes(item)))
     return { intents: current, admitted: [], dropped: fresh.length };
-  const intents = trimTerminal([...current.map((item) => superseded.has(item) || out.has(item)
-    ? { ...item, disposition: "superseded" as const } : item), ...admitted]);
+  // P3-NL-AC05 (1)(2): 置換・退去した intent は外す（結果は系列の印に残り、終端記録の予算と回収は無い）。
+  const intents = [...current.filter((item) => !superseded.has(item) && !out.has(item)), ...admitted];
   return { intents, admitted, dropped: [...out].filter((item) => !fresh.includes(item)).length + fresh.length - admitted.length };
 }
 
@@ -474,8 +493,9 @@ function factsOf(value: Shown): Readonly<Record<string, JsonValue>> {
   if (isBulletin(value)) return value.effective === "active" ? headingFacts(headingOf(value))
     : { family: value.family, eventId: value.eventId, effective: value.effective };
   if (value.effective !== "active") return { eventId: value.eventId, effective: value.effective, volcanoCode: value.volcanoCode };
-  if (isAlert(value)) { const { source: _source, marineSource: _marine, ...rest } = value; return rest; }
-  const { source: _source, ...rest } = value;
+  // 通知の印（P3-NL-AC02）は outcome の事実に出さない。
+  if (isAlert(value)) { const { source: _source, marineSource: _marine, notice: _notice, marineNotice: _sea, ...rest } = value; return rest; }
+  const { source: _source, notice: _notice, ...rest } = value;
   return rest;
 }
 const headingFacts = ({ source: _source, ...rest }: VolcanoBulletinView): Readonly<Record<string, JsonValue>> => rest;
@@ -496,7 +516,7 @@ function shownOutcome(value: Shown): SubjectOutcome {
 }
 function displaySubject(value: Shown): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-V" }>> {
   const current = !visible(value) || "topAshName" in value ? null : isBulletin(value) && value.effective === "active" ? headingOf(value)
-    : isBulletin(value) ? null : value;
+    : isBulletin(value) ? null : shown(value);
   return { unit: "U-V", operation: value.operation, subject: value.subject, office: null, current, subjects: [shownOutcome(value)] };
 }
 
@@ -802,7 +822,7 @@ function flushBatch(state: VolcanoUnitState, reason: "deadline" | "interrupted" 
   const names = items.map((item) => item.volcanoName);
   const body = items.length === 1 ? join([last.volcanoName, "降灰予報（定時）", last.topAshName])
     : `${items.length}火山: ${names.slice(0, 3).join("、")}${items.length > 3 ? ` +${items.length - 3}` : ""}`;
-  return { state: next, outcome, notice: { subject, operation: batch.operation, source: { ...last.source, subject }, transition: "activated",
+  return { state: next, outcome, notice: { subject, series: "", operation: batch.operation, source: { ...last.source, subject }, transition: "activated",
     payload: { domain: "volcano", level: "info", title: `${PREFIX[batch.operation]}降灰予報（定時）`, body } } };
 }
 
@@ -919,11 +939,18 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
 
 // 一入力の Applied を確定する: intent の採用と置換、保存世代、到着の時点で期限を過ぎた記録の同じ reduce での回収。
 function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading): Result {
-  const now = clock.wallTimeMs;
-  const fresh = applied.notice == null ? [] : intentsFor(applied.notice, state.persistence.currentGeneration + 1, now);
+  const now = clock.wallTimeMs, notice = applied.notice;
+  // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
+  const version = notice == null ? "" : versionDigest(notice.source), marine = notice?.series === "marine";
+  const fresh = notice == null ? [] : intentsFor(notice, now, seriesMark(applied.state, notice.subject, marine), version);
   const notices = admit(applied.state.intents, fresh, applied.cancelled,
     [...applied.cancelled].some((key) => key.endsWith(`\n${MARINE_PART}`)));
-  const adopted: VolcanoUnitState = { ...applied.state, intents: notices.intents };
+  // P3-NL-AC02 (3): admit を通った版と種類を系列の記録の印に足す（全 channel が断られた版は入れない）。
+  const marked = notice == null || notices.admitted.length === 0 ? applied.state
+    : remark(applied.state, notice.subject, marine, (mark) => markNotice(mark, version, noticeKind(notice.transition)));
+  if (marked !== applied.state) applied.changes = applied.changes.map(([before, after]) => [before, after == null || after.subject !== notice?.subject
+    ? after : noticeRecord(marked, after)]);
+  const adopted: VolcanoUnitState = { ...marked, intents: notices.intents };
   // 保存しない系列（定時・batch・解説）だけの変化では保存世代を進めない（I-U-V.persisted）。
   const stamped = { ...adopted, persistence: persistedChanged(state, adopted) ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
   const collected = deadlineAt(stamped) <= now ? collect(stamped, clock) : null;
@@ -939,6 +966,13 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading):
     outcomes.push({ kind: "accepted", change: applied.semantic ? "semantic" : "revisionOnly", subjects: applied.subjects });
   return { changes: [...applied.changes, ...collected?.changes ?? []],
     step: { state: next, nextDeadline: nextDeadline(next), decisions: applied.decisions, intents: notices.admitted, outcomes, diagnostics } };
+}
+
+// 印を付け直した後の同じ subject の記録（表示の変化の after を state の記録に揃える）。
+function noticeRecord(state: VolcanoUnitState, value: Shown): Shown {
+  const values: readonly Shown[] = isAlert(value) ? state.alerts : isBulletin(value) ? state.bulletins : "topAshName" in value
+    ? state.scheduledAshfalls : value.subject.includes("/volcano:eruption/") ? state.eruptions : state.ashfalls;
+  return values[indexOf(values, value.subject) ?? -1] ?? value;
 }
 
 // 受理の結果を回収の後の記録に揃える（D-OUTCOME=A・D-VANISHED=A、P3-FINAL-AC02）。記録が消えた subject は accepted に載せず
@@ -1001,16 +1035,17 @@ function collect(state: VolcanoUnitState, clock: ClockReading): Readonly<{ state
       changes.push([item, after]);
       return after == null ? [] : [after];
     });
+  // 期限で事実を捨てても、通知の印は記録と同じに残る（P3-NL-AC02 (4)）。
   const expired = <T extends VolcanoEruption | VolcanoAshfall>(item: T) => ({ subject: item.subject, operation: item.operation,
-    eventId: item.eventId, source: item.source, retainUntil: item.retainUntil, volcanoCode: item.volcanoCode, effective: "expired" as const });
+    eventId: item.eventId, source: item.source, retainUntil: item.retainUntil, volcanoCode: item.volcanoCode, effective: "expired" as const,
+    ...item.notice == null ? {} : { notice: item.notice } });
   const alerts = sweep(state.alerts, alertDeadline, (item) => item);
   const eruptions = sweep<VolcanoEruption>(state.eruptions, eruptionDeadline, expired);
   const ashfalls = sweep<VolcanoAshfall>(state.ashfalls, ashfallDeadline, (item) => ({ ...expired(item), volcanoCode: item.volcanoCode }));
   const scheduledAshfalls = sweep(state.scheduledAshfalls, retained, (item) => item);
   const bulletins = sweep(state.bulletins, retained, (item) => item);
   const intents = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
-  const expiredIntents = intents === state.intents ? 0
-    : state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= now).length;
+  const expiredIntents = state.intents.length - intents.length;
   const next = { ...state, alerts, eruptions, ashfalls, scheduledAshfalls, bulletins, intents };
   return { state: { ...next, persistence: persistedChanged(state, next) ? dirty(state.persistence, clock.monotonicMs) : state.persistence },
     changes, expiredIntents };
@@ -1026,7 +1061,7 @@ function deadlineStep(state: VolcanoUnitState, clock: ClockReading, shutdown: bo
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "volcano",
     reason: "notificationExpired", unit: "U-V", count: applied.expiredIntents }];
   if (flushed?.notice != null) {
-    const notices = admit(next.intents, intentsFor(flushed.notice, next.persistence.currentGeneration + 1, clock.wallTimeMs), new Set());
+    const notices = admit(next.intents, intentsFor(flushed.notice, clock.wallTimeMs, undefined, versionDigest(flushed.notice.source)), new Set());
     // 新しい通知が容量で外れただけ（admit が元の配列を返した）なら保存対象は変わらないので世代を進めない。
     if (notices.intents !== next.intents) next = { ...next, intents: notices.intents, persistence: dirty(next.persistence, clock.monotonicMs) };
     admitted = notices.admitted;
@@ -1042,20 +1077,31 @@ function deadlineStep(state: VolcanoUnitState, clock: ClockReading, shutdown: bo
 
 // ---- intentUpdate（Q-NOTICE.intentUpdate） ----
 
+// P3-NL-AC02 (3)・AC08 (1): intent の系列の印の証拠を上げる（下げない）。警報の海上の側は VFSV の報の intent。
+function raiseNotices(state: VolcanoUnitState, raised: readonly Readonly<{ intent: VolcanoIntent; evidence: NoticeEvidence }>[]): VolcanoUnitState {
+  return raised.reduce((next, { intent, evidence }) => remark(next, intent.subject, isMarine(intent.source.family),
+    (mark) => mark == null ? mark : raiseEvidence(mark, evidence)), state);
+}
+
 function intentUpdate(state: VolcanoUnitState, input: Extract<VolcanoInput, { kind: "intentUpdate" }>): Result {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
   const changedIntents = new Map<string, VolcanoIntent>();
+  const raised: { intent: VolcanoIntent; evidence: NoticeEvidence }[] = [];
   for (const update of updates) {
     const current = originals.get(update.id);
-    if (current == null || update.attempts < current.attempts || current.attempts === update.attempts
-      && current.nextAttemptAt === update.nextAttemptAt && current.disposition === update.disposition) continue;
-    changedIntents.set(current.id, { ...current, attempts: update.attempts, nextAttemptAt: update.nextAttemptAt, disposition: update.disposition });
+    const updated = current == null ? null : applyIntentUpdate(current, update);
+    if (updated == null) continue;
+    changedIntents.set(updated.id, updated);
+    const evidence = updateEvidence(updated);
+    if (evidence != null) raised.push({ intent: updated, evidence });
   }
   if (changedIntents.size === 0) return { changes: [], step: idle(state) };
-  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7・C8 の先例）。更新で終端にした記録は期限前の回収から外す。
-  const next = { ...state, intents: trimTerminal(state.intents.map((item) => changedIntents.get(item.id) ?? item), new Set(changedIntents.keys())),
-    persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7・C8 の先例）。pending でなくなった intent は外す（P3-NL-AC05 (1)）。
+  const next = { ...raiseNotices(state, raised), intents: state.intents.flatMap((item) => {
+    const updated = changedIntents.get(item.id);
+    return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
+  }), persistence: dirty(state.persistence, input.clock.monotonicMs) };
   const adopted = [...changedIntents.values()];
   return { changes: [], step: { ...idle(next),
     decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
@@ -1087,16 +1133,19 @@ function resolveShortfall(state: VolcanoUnitState, input: Extract<VolcanoInput, 
       changes.push([item, after]);
       return after;
     });
+    // 通知の印は記録と同じに残る（P3-NL-AC02 (4)）。
+    const marks = (item: Shown) => ({ ...item.notice == null ? {} : { notice: item.notice },
+      ...isAlert(item) && item.marineNotice != null ? { marineNotice: item.marineNotice } : {} });
     if (found.slice === "alert") next = { ...next, alerts: end<VolcanoAlert>(state.alerts, (item) => ({ subject: item.subject,
       operation: item.operation, volcanoCode: item.volcanoCode, eventId: item.eventId, source: item.source, marineSource: item.marineSource,
       landKind: item.landKind, landEventId: item.landEventId, marineEventId: item.marineEventId,
-      retainUntil: item.retainUntil, effective: "ended" })) };
+      retainUntil: item.retainUntil, effective: "ended", ...marks(item) })) };
     if (found.slice === "eruption") next = { ...next, eruptions: end<VolcanoEruption>(state.eruptions, (item) => ({ subject: item.subject,
       operation: item.operation, eventId: item.eventId, source: item.source, retainUntil: item.retainUntil, volcanoCode: item.volcanoCode,
-      effective: "expired" })) };
+      effective: "expired", ...marks(item) })) };
     if (found.slice === "ashfall") next = { ...next, ashfalls: end<VolcanoAshfall>(state.ashfalls, (item) => ({ subject: item.subject,
       operation: item.operation, eventId: item.eventId, source: item.source, retainUntil: item.retainUntil, volcanoCode: item.volcanoCode,
-      effective: "expired" })) };
+      effective: "expired", ...marks(item) })) };
   }
   next = { ...next, persistence: dirty(state.persistence, input.clock.monotonicMs) };
   return { changes, step: { ...idle(next), decisions: [{ subject, operation, decision: "changed", reason: null, change: "semantic",
@@ -1110,12 +1159,18 @@ function restore(state: VolcanoUnitState, persisted: PersistedVolcanoUnit, clock
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "volcano",
     reason: "requiredStructureInvalid", unit: "U-V" }] } };
   // Q-NOTICE.restart: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。定時・batch・解説は空から始まる。
-  const applied = collect({ ...decoded.state, persistence: state.persistence }, clock);
-  const shown: Shown[] = [...applied.state.alerts, ...applied.state.eruptions, ...applied.state.ashfalls].filter(visible);
-  return { changes: shown.map((item): Change => [null, item]), step: { ...idle(applied.state),
-    outcomes: [{ kind: "recoveryApplied", scope: ["U-V"], coverage: shown.map((item) => item.subject), subjects: [] }],
-    diagnostics: applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "volcano", reason: "notificationExpired",
-      unit: "U-V", count: applied.expiredIntents }] } };
+  // P3-NL-AC08 (1): started のまま残った pending は通知したか不明として外し、系列の印の証拠を unknown にする。
+  const restored = restoreStarted(decoded.state.intents);
+  const base = { ...raiseNotices(decoded.state, restored.started.map((intent) => ({ intent, evidence: "unknown" as const }))),
+    intents: restored.intents, persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
+  const applied = collect(base, clock);
+  const active: Shown[] = [...applied.state.alerts, ...applied.state.eruptions, ...applied.state.ashfalls].filter(visible);
+  const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "volcano",
+    reason: "notificationExpired", unit: "U-V", count: applied.expiredIntents }];
+  if (restored.started.length !== 0) diagnostics.push({ level: "INFO", component: "volcano", reason: "notificationOutcomeUnknown",
+    unit: "U-V", count: restored.started.length });
+  return { changes: active.map((item): Change => [null, item]), step: { ...idle(applied.state),
+    outcomes: [{ kind: "recoveryApplied", scope: ["U-V"], coverage: active.map((item) => item.subject), subjects: [] }], diagnostics } };
 }
 
 function reduceCore(state: VolcanoUnitState, input: VolcanoInput): Result {
@@ -1168,7 +1223,8 @@ function toVolcanoView(state: VolcanoUnitState): VolcanoUnitView {
   const subjects = [...alerts, ...eruptions, ...ashfalls, ...bulletins].map(shownOutcome);
   return { unit: "U-V", semanticRevision: [...subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`), ...state.shortfalls.map((item) => `shortfall:${item.id}`)].sort().join("|"),
-  contentRevision: String(state.contentRevision), subjects, alerts, eruptions, ashfalls,
+  contentRevision: String(state.contentRevision), subjects, alerts: alerts.map((item) => shown(item)),
+  eruptions: eruptions.map((item) => shown(item)), ashfalls: ashfalls.map((item) => shown(item)),
   bulletins: bulletins.map(headingOf), shortfalls: state.shortfalls };
 }
 
@@ -1271,10 +1327,14 @@ function alertRecord(value: unknown): VolcanoAlert | null {
   // P3-VM-AC04: 陸上・海上の系列ごとの印。その側の版がある側だけが持つ。
   const landMark = markOf(row, "unconfirmed", subject, alertFamily, source != null);
   const seaMark = markOf(row, "marineUnconfirmed", subject, isMarine, marineSource != null);
-  if (landMark === undefined || seaMark === undefined) return null;
+  // P3-NL-AC02 (5): 陸上・海上の通知の印も、その側の版がある側だけが持つ。
+  const notice = "notice" in row ? source == null ? null : readNoticeMark(row.notice) : undefined;
+  const marineNotice = "marineNotice" in row ? marineSource == null ? null : readNoticeMark(row.marineNotice) : undefined;
+  if (landMark === undefined || seaMark === undefined || notice === null || marineNotice === null) return null;
   const base = { subject, operation, volcanoCode: row.volcanoCode, eventId: row.eventId, source, marineSource, landKind, landEventId,
     marineEventId, retainUntil: row.retainUntil, ...landMark == null ? {} : { unconfirmed: landMark },
-    ...seaMark == null ? {} : { marineUnconfirmed: seaMark } };
+    ...seaMark == null ? {} : { marineUnconfirmed: seaMark }, ...notice == null ? {} : { notice },
+    ...marineNotice == null ? {} : { marineNotice } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
     if (ALERT_FACT_KEYS.some((key) => key in row)) return null;
@@ -1300,8 +1360,10 @@ function eruptionRecord(value: unknown): VolcanoEruption | null {
   const subject = row.subject;
   const families = (family: string) => family === "VFVO52" || family === "VFVO56";
   const source = reportRef(row.source, subject, families), mark = markOf(row, "unconfirmed", subject, families, true);
-  if (source == null || mark === undefined || row.retainUntil !== reportMs(source) + ERUPTION_RETAIN_MS) return null;
-  const base = { subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, ...mark == null ? {} : { unconfirmed: mark } };
+  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
+  if (source == null || mark === undefined || notice === null || row.retainUntil !== reportMs(source) + ERUPTION_RETAIN_MS) return null;
+  const base = { subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, ...mark == null ? {} : { unconfirmed: mark },
+    ...notice == null ? {} : { notice } };
   if (row.effective !== "active") {
     if (ERUPTION_FACT_KEYS.some((key) => key in row) || !(row.volcanoCode === null || isText(row.volcanoCode) && validVolcanoCode(row.volcanoCode)))
       return null;
@@ -1344,9 +1406,10 @@ function ashfallRecord(value: unknown): VolcanoAshfall | null {
   const subject = row.subject;
   const families = (family: string) => family === "VFVO54" || family === "VFVO55";
   const source = reportRef(row.source, subject, families), mark = markOf(row, "unconfirmed", subject, families, true);
-  if (source == null || mark === undefined || row.retainUntil !== reportMs(source) + ASHFALL_RETAIN_MS) return null;
+  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
+  if (source == null || mark === undefined || notice === null || row.retainUntil !== reportMs(source) + ASHFALL_RETAIN_MS) return null;
   const base = { subject, operation, eventId: row.eventId, source, retainUntil: row.retainUntil, volcanoCode: row.volcanoCode,
-    ...mark == null ? {} : { unconfirmed: mark } };
+    ...mark == null ? {} : { unconfirmed: mark }, ...notice == null ? {} : { notice } };
   if (row.effective !== "active") {
     if (ASHFALL_FACT_KEYS.some((key) => key in row)) return null;
     return row.effective === "cancelled" || row.effective === "expired" ? { ...base, effective: row.effective } : null;
@@ -1388,16 +1451,17 @@ function intentRecord(value: unknown): VolcanoIntent | null {
   const level = LEVEL_SET.find((entry) => entry === payload?.level);
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
-  const disposition = (["pending", "delivered", "expired", "superseded"] as const).find((entry) => entry === row?.disposition);
+  const fields = row == null || operation == null ? null : readIntentState(row, "U-V", operation, level);
   // state に残る subject との一致は求めない（解説・定時は復元で空になる、I-U-V.decode）。
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
-    || disposition == null || !isText(row.id) || row.unit !== "U-V" || !isText(row.subject) || subjectOperation(row.subject) !== operation
+    || fields == null || !isText(row.id) || row.unit !== "U-V" || !isText(row.subject) || subjectOperation(row.subject) !== operation
     || source.operation !== operation || payload.domain !== "volcano" || !isText(payload.title) || payload.title === ""
     || !isText(payload.body) || payload.body === "" || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt)
     || !count(row.attempts) || !isText(row.configRevision) || row.expiresAt < row.createdAt) return null;
   return { id: row.id, unit: "U-V", subject: row.subject, operation, source, transition, channel,
     payload: { domain: "volcano", level, title: payload.title, body: payload.body }, createdAt: row.createdAt,
-    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision, disposition };
+    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
+    disposition: "pending", ...fields };
 }
 const unique = (values: readonly { subject: string }[]) => new Set(values.map((item) => item.subject)).size === values.length;
 function persisted(value: unknown): PersistedVolcanoUnit | null {
@@ -1409,25 +1473,23 @@ function persisted(value: unknown): PersistedVolcanoUnit | null {
   if (alerts == null || eruptions == null || ashfalls == null || shortfalls == null || intents == null || !unique(alerts)
     || !unique(eruptions) || !unique(ashfalls) || new Set(shortfalls.map((item) => item.id)).size !== shortfalls.length
     || new Set(intents.map((item) => item.id)).size !== intents.length) return null;
-  const pending = intents.filter((entry) => entry.disposition === "pending");
-  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。終端記録は pending との合計で見る（Q-NOTICE.capacity）。
-  const pendingBytes = listBytes(pending) + pending.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
+  const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedVolcanoUnit = { schemaVersion: SCHEMA, alerts, eruptions, ashfalls, shortfalls, intents };
-  if (pending.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || pendingBytes + terminalBytes(intents) > PENDING_BYTES + TERMINAL_BYTES
-    || generationBytes(result) > GENERATION_LIMIT) return null;
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const volcanoUnitCodec: VolcanoUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1", "p3-volcano-unit-v2"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1", "p3-volcano-unit-v2", "p3-volcano-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 定時・batch・解説・contentRevision・persistence は保存しない（I-U-V.persisted、spec:484・:504 の N）。
   encode: (state) => ({ schemaVersion: SCHEMA, alerts: state.alerts, eruptions: state.eruptions, ashfalls: state.ashfalls,
     shortfalls: state.shortfalls, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-volcano-unit-v3 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-volcano-unit-v4 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, scheduledAshfalls: [], batch: null, bulletins: [],
         persistence: cleanPersistence } };
   },
@@ -1440,7 +1502,6 @@ const volcanoUnit = {
   toView: toVolcanoView,
   persistence: { kind: "durable", codec: volcanoUnitCodec },
   confirmationScopeLimit: 512,
-  terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-V">;
 

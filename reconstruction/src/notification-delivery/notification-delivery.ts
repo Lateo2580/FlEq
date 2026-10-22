@@ -24,6 +24,8 @@ function group(intent: NotificationIntent): NotificationPriorityGroup {
 }
 
 const rank = { normalEew: 0, normalTsunamiEmergency: 1, other: 2 } as const;
+// 試行の期限の長さ。P3-NL-AC06 (4): publisher は adapter を実際に呼ぶ時に同じ長さで期限を作り直す。
+const ATTEMPT_TIMEOUT_MS: Readonly<Record<NotificationChannel, number>> = { sound: 10_000, desktop: 5_000 };
 function earlier(a: NotificationIntent, b: NotificationIntent): boolean {
   const priority = rank[group(a)] - rank[group(b)];
   return priority < 0 || priority === 0 && (a.expiresAt < b.expiresAt
@@ -81,7 +83,7 @@ function selectNotificationAttempt(state: NotificationDeliveryState, clock: Cloc
         intentId: best.id, unit: best.unit, subject: best.subject, operation: best.operation, channel: channelName,
         priorityGroup: group(best), payload: best.payload, soundAsset,
         selectedAtMonotonicMs: clock.monotonicMs,
-        timeoutAtMonotonicMs: Math.min(clock.monotonicMs + (channelName === "sound" ? 10_000 : 5_000), deadline.expiresAtMonotonicMs),
+        timeoutAtMonotonicMs: Math.min(clock.monotonicMs + ATTEMPT_TIMEOUT_MS[channelName], deadline.expiresAtMonotonicMs),
         expiresAt: best.expiresAt };
       const index = intents.indexOf(best);
       intents[index] = { ...best, attempts: best.attempts + 1 };
@@ -119,22 +121,44 @@ function applyNotificationResult(state: NotificationDeliveryState, result: Notif
   if (!stopped) diagnostics.push({ level: "ERROR", component: "notification-delivery", reason: "notificationAdapterIsolated", attemptId: attempt.attemptId });
   if (intent != null && intent.disposition === "pending") {
     let changed: NotificationIntent | null = null;
+    const delay = Math.min(10_000, 1_000 * 2 ** Math.min(intent.attempts - 1, 4));
+    const deadline = state.deadlines[result.channel][key(intent)];
+    const retry = (expiresAtMonotonicMs = deadline?.expiresAtMonotonicMs) => {
+      if (deadline != null && expiresAtMonotonicMs != null) deadlines = { ...state.deadlines, [result.channel]: { ...state.deadlines[result.channel],
+        [key(intent)]: { retryAtMonotonicMs: result.completedAt.monotonicMs + delay, expiresAtMonotonicMs } } };
+      return result.completedAt.wallTimeMs + delay;
+    };
+    const higherPriority = cause === "higherPriority" || cause == null && result.kind === "aborted" && result.reason === "higherPriority";
+    // P3-NL-AC06 (2): 起動した後に結果の分からずに終わった sound（起動後の失敗・timeout・上位群の中断）は 1 回だけ鳴らし直す。
+    const replayable = stopped && intent.channel === "sound" && !intent.replayed
+      && (timedOut || higherPriority || cause == null && result.kind === "failed");
     if (isExpired) {
       changed = { ...intent, disposition: "expired" };
       diagnostics.push({ level: "INFO", component: "notification-delivery", reason: "notificationExpired", unit: intent.unit, count: 1 });
     } else if (channel.kind === "running" && result.kind === "delivered" && !timedOut)
       changed = { ...intent, disposition: "delivered" };
-    else if (failed || cause === "higherPriority" || cause == null && result.kind === "aborted" && result.reason === "higherPriority") {
-      const delay = Math.min(10_000, 1_000 * 2 ** Math.min(intent.attempts - 1, 4));
-      changed = { ...intent, nextAttemptAt: result.completedAt.wallTimeMs + delay };
-      deadlines = { ...state.deadlines, [result.channel]: { ...state.deadlines[result.channel],
-        [key(intent)]: { ...state.deadlines[result.channel][key(intent)]!, retryAtMonotonicMs: result.completedAt.monotonicMs + delay } } };
+    else if (result.kind === "failed" && result.reason === "notStarted")
+      changed = { ...intent, lastAttempt: "failed", nextAttemptAt: retry() };
+    else if (replayable) {
+      // 期限は終わった時から元の長さを数え直し、作成から元の長さの 2 倍（monotonic は元の期限＋元の長さ）を上界にする。
+      const length = intent.expiresAt - intent.createdAt;
+      // 延ばした期限は整数にそろえる（小数の時計で桁が伸びると配送の更新の予約 deliveryGrowth を越える）。切り捨てで元の期限を下回るなら
+      // 元の期限のまま（作成＋2 倍の長さの上界も越えない）。
+      const extended = Math.min(Math.max(intent.expiresAt, result.completedAt.wallTimeMs + length), intent.createdAt + 2 * length);
+      const expiresAt = extended === intent.expiresAt ? extended : Math.max(intent.expiresAt, Math.floor(extended));
+      const monotonic = deadline == null ? undefined : Math.min(Math.max(deadline.expiresAtMonotonicMs,
+        result.completedAt.monotonicMs + length), deadline.expiresAtMonotonicMs + length);
+      changed = { ...intent, lastAttempt: "failed", replayed: true, expiresAt, nextAttemptAt: retry(monotonic) };
+    } else {
+      // 通知したか不明: 意味上まだ有効でも再試行しない（P3-NL-AC06 (2)）。publisher はこの診断で更新の lossReason を決める。
+      changed = { ...intent, disposition: "expired" };
+      diagnostics.push({ level: "INFO", component: "notification-delivery", reason: "notificationOutcomeUnknown", unit: intent.unit, count: 1 });
     }
-    if (changed != null) intents = state.intents.map((value, at) => at === index ? changed! : value);
+    intents = state.intents.map((value, at) => at === index ? changed! : value);
   }
   if (failed) diagnostics.push({ level: "WARN",
     component: "notification-delivery", reason: "notificationAttemptFailed", attemptId: attempt.attemptId });
   return { state: { ...state, intents, channels: nextChannels, deadlines }, diagnostics };
 }
 
-export { resolveSoundAsset, selectNotificationAttempt, applyNotificationResult };
+export { ATTEMPT_TIMEOUT_MS, resolveSoundAsset, selectNotificationAttempt, applyNotificationResult };

@@ -2,26 +2,31 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, DiagnosticDetails, JsonValue, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome,
+  ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
+  SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   LandslideCurrent, LandslideInput, LandslideIntent, LandslideKindGroup, LandslideNotificationPayload, LandslideUnitCodec,
   LandslideUnitState, LandslideUnitStep, LandslideUnitView, PersistedLandslideUnit,
 } from "../../../contracts/p3-landslide-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version"; import { validReportDateTime } from "../../domains/flood/flood";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version"; import { validReportDateTime } from "../../domains/flood/flood";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, FAMILY, INFO_RANK, LIMITS, cut, groupOrder, levelOf, parseLandslide, validAreaCode, validKindCode, validOffice, validSerial,
 } from "../../domains/landslide/landslide";
 import type { LandslideCandidate } from "../../domains/landslide/landslide";
+import {
+  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  shown, updateEvidence, versionDigest,
+} from "../notice-mark";
 
 // P3-UNIT-L-001（C10、I-U-L）: U-L の官署の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-landslide-unit-v4" as const;
+const SCHEMA = "p3-landslide-unit-v5" as const;
 // P3-C10-CAPACITY=A・P3-C10-RES-01・RET-01〜04。
 const CURRENT_LIMIT = 128, GENERATION_LIMIT = 2_097_152;
-const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
+const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C10-SEM-01・02（元報の ReportDateTime からの絶対の長さ、P3-C10-RETENTION=A・P3-C10-ACTIVE-EXPIRY=C）。
 const HOUR_MS = 3_600_000;
 const ACTIVE_RETAIN_MS = 48 * HOUR_MS, INACTIVE_RETAIN_MS = 6 * HOUR_MS;
@@ -49,11 +54,8 @@ function bytes(value: object): number {
 }
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
-// 終端記録の合計（区切りの 1 byte を含む）。受理と decode で同じ式を使う（Q-NOTICE.capacity）。
-const terminalBytes = (intents: readonly LandslideIntent[]): number =>
-  intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-L", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q・U-N・U-V と同じ予約）。4: 空の配列 2 つ。
 function generationBytes(value: PersistedLandslideUnit): number {
   return emptyEnvelopeBytes + 62 - 4 + listBytes(value.currents) + listBytes(value.intents);
@@ -172,31 +174,20 @@ function payloadOf(candidate: LandslideCandidate, after: LandslideCurrent, level
   return { domain: "weather", level, title: cut(prefix + (correction ? `[訂正] ${candidate.title}` : candidate.title), NOTICE_BOUNDS.title),
     body: cut(correction ? `訂正: ${body}` : body, NOTICE_BOUNDS.body) };
 }
+// P3-NL-AC01: ID は世代番号を含まない。官署の系列の印に同じ版の鍵と種類があれば作らない。
 function intentsFor(candidate: LandslideCandidate, transition: LandslideIntent["transition"], payload: LandslideNotificationPayload,
-  generation: number, now: number): LandslideIntent[] {
+  now: number, mark: NoticeMark | undefined, version: string): LandslideIntent[] {
+  if (noticed(mark, version, noticeKind(transition))) return [];
   // P3-C10-TRAINING=A: training/test は desktop だけ。
   const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  return channels.map((channel) => ({ id: `U-L:${candidate.subject}:${generation}:${channel}`, unit: "U-L", subject: candidate.subject,
-    operation: candidate.operation, source: candidate.source, transition, channel, payload, createdAt: now, expiresAt: now + TTL[channel],
-    nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending" }));
+  return channels.map((channel) => ({ id: noticeId("U-L", candidate.subject, "", candidate.source, transition, channel), unit: "U-L",
+    subject: candidate.subject, operation: candidate.operation, source: candidate.source, transition, channel, payload, createdAt: now,
+    expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
+    ...freshState("U-L", candidate.operation, payload.level) }));
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-L の intent は全部 other の群（P3-C10-NOTICE-GROUP=A）。
 function a7Order(left: LandslideIntent, right: LandslideIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-}
-// 終端記録の合計が 98,304 byte を超える分は、最古の終端記録から期限前に回収する。kept は今の配送の更新で終端にした記録で、回収しない
-// （owner は更新した記録が残ることで照合する。C8 の Q-C8-IMPL-AMEND(1)）。kept だけで上限を超える分は元の pending の byte の内側。
-function trimTerminal(intents: readonly LandslideIntent[], kept: ReadonlySet<string> = new Set()): readonly LandslideIntent[] {
-  let terminal = terminalBytes(intents);
-  if (terminal <= TERMINAL_BYTES) return intents;
-  const gone = new Set<LandslideIntent>();
-  for (const item of intents.filter((value) => value.disposition !== "pending" && !kept.has(value.id))
-    .sort((left, right) => left.createdAt - right.createdAt)) {
-    if (terminal <= TERMINAL_BYTES) break;
-    gone.add(item);
-    terminal -= bytes(item) + 1;
-  }
-  return intents.filter((item) => !gone.has(item));
 }
 // Q-NOTICE.capacity と P3-C10-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、取消は対象 subject の全 pending を置き換える。
 function admit(current: readonly LandslideIntent[], fresh: readonly LandslideIntent[], cancelled: string | null):
@@ -204,9 +195,9 @@ function admit(current: readonly LandslideIntent[], fresh: readonly LandslideInt
   const superseded = new Set<LandslideIntent>();
   const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
-    if (item.disposition === "pending" && (item.subject === cancelled || replaced.has(`${item.subject}\n${item.channel}`))) superseded.add(item);
+    if (item.subject === cancelled || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
-  const pool = [...current.filter((item) => item.disposition === "pending" && !superseded.has(item)), ...fresh];
+  const pool = [...current.filter((item) => !superseded.has(item)), ...fresh];
   const out = new Set<LandslideIntent>();
   // 同じ群の中で A7 の選択順の後ろのものから外す。予約は配送の更新で伸びうる byte（P3-INTENT-UPDATE-RESERVE-001、式は写さない）。
   let count = pool.length, size = listBytes(pool) + pool.reduce((sum, item) => sum + deliveryGrowth(item), 0);
@@ -218,11 +209,11 @@ function admit(current: readonly LandslideIntent[], fresh: readonly LandslideInt
       size -= bytes(item) + 1 + deliveryGrowth(item);
     }
   const admitted = fresh.filter((item) => !out.has(item));
-  // 新しい intent が容量で外れただけなら、既存の intent も終端記録も変わらないので元の配列を返す（C9 の Q-C9-IMPL-AMEND(9)(e)）。
+  // 新しい intent が容量で外れただけなら、既存の intent は変わらないので元の配列を返す（C9 の Q-C9-IMPL-AMEND(9)(e)）。
   if (superseded.size === 0 && admitted.length === 0 && [...out].every((item) => fresh.includes(item)))
     return { intents: current, admitted: [], dropped: fresh.length };
-  const intents = trimTerminal([...current.map((item) => superseded.has(item) || out.has(item)
-    ? { ...item, disposition: "superseded" as const } : item), ...admitted]);
+  // P3-NL-AC05 (1)(2): 置換・退去した intent は外す（結果は系列の印に残り、終端記録の予算と回収は無い）。
+  const intents = [...current.filter((item) => !superseded.has(item) && !out.has(item)), ...admitted];
   return { intents, admitted, dropped: [...out].filter((item) => !fresh.includes(item)).length + fresh.length - admitted.length };
 }
 
@@ -247,7 +238,7 @@ function shownOutcome(value: LandslideCurrent): SubjectOutcome {
   return found;
 }
 function displaySubject(value: LandslideCurrent): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-L" }>> {
-  return { unit: "U-L", operation: value.operation, subject: value.subject, office: value.office, current: visible(value) ? value : null,
+  return { unit: "U-L", operation: value.operation, subject: value.subject, office: value.office, current: visible(value) ? shown(value) : null,
     subjects: [shownOutcome(value)] };
 }
 
@@ -268,7 +259,9 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
     return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: version.kind === "duplicate" ? "duplicate" : "stale" }],
       diagnostics: version.kind === "held" ? [warn(version.missing)] : [] } };
   }
-  const next = version.mark == null ? built : { ...built, unconfirmed: version.mark };
+  // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。
+  let next: LandslideCurrent = { ...built, ...version.mark == null ? {} : { unconfirmed: version.mark },
+    ...existing?.notice == null ? {} : { notice: existing.notice } };
   const fields = visible(existing) || visible(next) ? changed(existing, next) : [];
   // 最終の状態に記録が残らない受理（遅着・自身の退去）は accepted に載せず currentEstablished も null（D-VANISHED=A、P3-OPCAP-AC02）。
   const decided = (change: "semantic" | "revisionOnly", kept = true): Decision => ({ subject, operation, decision: "changed", reason: null, change,
@@ -311,10 +304,19 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   const transition = candidate.cancelled ? "cancelled" as const : correction ? "updated" as const
     : visible(next) ? visible(existing) ? "updated" as const : "activated" as const : "released" as const;
   const level = candidate.cancelled ? "cancel" : visible(next) ? levelFor(existing, next) : "normal";
-  const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level), state.persistence.currentGeneration + 1, now) : [];
+  // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
+  const digest = notify ? versionDigest(candidate.source) : "";
+  const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level), now, existing?.notice, digest) : [];
   // 到着の時点で期限を過ぎた採用が前の active を置き換えるなら、取消でなくてもその pending を全部撤回する（D-WITHDRAW=A、P3-OPCAP-AC03）。
   const notices = admit(state.intents, fresh, candidate.cancelled || due && visible(existing) ? subject : null);
-  const adopted: LandslideUnitState = { ...state, currents, intents: notices.intents, persistence: dirty(state.persistence, clock.monotonicMs) };
+  // P3-NL-AC02 (3): admit を通った版と種類を官署の系列の印に足す（全 channel が断られた版は入れない）。
+  if (notices.admitted.length !== 0) {
+    const unmarked = next;
+    next = { ...unmarked, notice: markNotice(unmarked.notice, digest, noticeKind(transition)) };
+    currents = currents.map((item) => item === unmarked ? next : item);
+  }
+  const adopted: LandslideUnitState = { ...state, currents, intents: notices.intents,
+    persistence: dirty(state.persistence, clock.monotonicMs) };
   // 到着の時点で期限を過ぎた記録は採用して watermark を進め、同じ reduce で回収する（P3-C10-RETENTION=A）。
   const collected = deadlineAt(adopted) <= now ? collect(adopted, clock) : null;
   const result = collected?.state ?? adopted;
@@ -355,8 +357,7 @@ function collect(state: LandslideUnitState, clock: ClockReading): Readonly<{ sta
     return false;
   });
   const intents = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
-  const expiredIntents = intents === state.intents ? 0
-    : state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= now).length;
+  const expiredIntents = state.intents.length - intents.length;
   const persisted = currents !== state.currents || intents !== state.intents;
   return { state: { ...state, currents, intents, persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence },
     changes, expiredIntents };
@@ -372,20 +373,36 @@ function deadlineStep(state: LandslideUnitState, clock: ClockReading, shutdown: 
 
 // ---- intentUpdate（Q-NOTICE.intentUpdate） ----
 
+// P3-NL-AC02 (3)・AC08 (1): intent の官署の系列の印の証拠を上げる（下げない）。
+function raiseNotices(state: LandslideUnitState, raised: ReadonlyMap<string, NoticeEvidence>): LandslideUnitState {
+  let currents = state.currents;
+  for (const [subject, evidence] of raised) {
+    const at = indexOf(currents, subject), found = currents[at ?? -1];
+    const notice = found?.notice == null ? undefined : raiseEvidence(found.notice, evidence);
+    if (found != null && notice !== found.notice) currents = replaceAt(currents, at, { ...found, notice });
+  }
+  return currents === state.currents ? state : { ...state, currents };
+}
+
 function intentUpdate(state: LandslideUnitState, input: Extract<LandslideInput, { kind: "intentUpdate" }>): Result {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
   const changedIntents = new Map<string, LandslideIntent>();
+  const raised = new Map<string, NoticeEvidence>();
   for (const update of updates) {
     const current = originals.get(update.id);
-    if (current == null || update.attempts < current.attempts || current.attempts === update.attempts
-      && current.nextAttemptAt === update.nextAttemptAt && current.disposition === update.disposition) continue;
-    changedIntents.set(current.id, { ...current, attempts: update.attempts, nextAttemptAt: update.nextAttemptAt, disposition: update.disposition });
+    const updated = current == null ? null : applyIntentUpdate(current, update);
+    if (updated == null) continue;
+    changedIntents.set(updated.id, updated);
+    const evidence = updateEvidence(updated);
+    if (evidence != null) raised.set(updated.subject, evidence);
   }
   if (changedIntents.size === 0) return { changes: [], step: idle(state) };
-  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7〜C9 の先例）。更新で終端にした記録は期限前の回収から外す。
-  const next = { ...state, intents: trimTerminal(state.intents.map((item) => changedIntents.get(item.id) ?? item), new Set(changedIntents.keys())),
-    persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7〜C9 の先例）。pending でなくなった intent は外す（P3-NL-AC05 (1)）。
+  const next = { ...raiseNotices(state, raised), intents: state.intents.flatMap((item) => {
+    const updated = changedIntents.get(item.id);
+    return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
+  }), persistence: dirty(state.persistence, input.clock.monotonicMs) };
   const adopted = [...changedIntents.values()];
   return { changes: [], step: { ...idle(next),
     decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
@@ -401,13 +418,19 @@ function restore(state: LandslideUnitState, persisted: PersistedLandslideUnit, c
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "landslide",
     reason: "requiredStructureInvalid", unit: "U-L" }] } };
-  // Q-NOTICE.restart: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。
-  const applied = collect({ ...decoded.state, persistence: state.persistence }, clock);
-  const shown = applied.state.currents.filter(visible);
-  return { changes: shown.map((item): Change => [null, item]), step: { ...idle(applied.state),
-    outcomes: [{ kind: "recoveryApplied", scope: ["U-L"], coverage: shown.map((item) => item.subject), subjects: [] }],
-    diagnostics: applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "landslide", reason: "notificationExpired",
-      unit: "U-L", count: applied.expiredIntents }] } };
+  // Q-NOTICE.restart: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。P3-NL-AC08 (1): started のまま残った
+  // pending は通知したか不明として外し、系列の印の証拠を unknown にする。
+  const restored = restoreStarted(decoded.state.intents);
+  const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
+    intents: restored.intents, persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
+  const applied = collect(base, clock);
+  const active = applied.state.currents.filter(visible);
+  const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "landslide",
+    reason: "notificationExpired", unit: "U-L", count: applied.expiredIntents }];
+  if (restored.started.length !== 0) diagnostics.push({ level: "INFO", component: "landslide", reason: "notificationOutcomeUnknown",
+    unit: "U-L", count: restored.started.length });
+  return { changes: active.map((item): Change => [null, item]), step: { ...idle(applied.state),
+    outcomes: [{ kind: "recoveryApplied", scope: ["U-L"], coverage: active.map((item) => item.subject), subjects: [] }], diagnostics } };
 }
 
 function reduceCore(state: LandslideUnitState, input: LandslideInput): Result {
@@ -448,7 +471,7 @@ function toLandslideView(state: LandslideUnitState): LandslideUnitView {
   const subjects = currents.map(shownOutcome);
   return { unit: "U-L", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), subjects, currents };
+  contentRevision: String(state.contentRevision), subjects, currents: currents.map((item) => shown(item)) };
 }
 
 // ---- codec（I-U-L.persisted・I-U-L.decode、唯一の LandslideUnitCodec） ----
@@ -505,8 +528,10 @@ function currentRecord(value: unknown): LandslideCurrent | null {
   if (source == null) return null;
   // P3-VM-AC04: 印は同じ官署（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject) : undefined;
-  if (mark === null) return null;
-  const base = { subject: row.subject, operation, office: row.office, source, ...mark == null ? {} : { unconfirmed: mark } };
+  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
+  if (mark === null || notice === null) return null;
+  const base = { subject: row.subject, operation, office: row.office, source, ...mark == null ? {} : { unconfirmed: mark },
+    ...notice == null ? {} : { notice } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
     if (FACT_KEYS.some((key) => key in row) || row.retainUntil !== reportMs(source) + INACTIVE_RETAIN_MS) return null;
@@ -525,16 +550,17 @@ function intentRecord(value: unknown): LandslideIntent | null {
   const level = LEVEL_SET.find((entry) => entry === payload?.level);
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
-  const disposition = (["pending", "delivered", "expired", "superseded"] as const).find((entry) => entry === row?.disposition);
+  const fields = row == null || operation == null ? null : readIntentState(row, "U-L", operation, level);
   // state に残る subject との一致は求めない（記録の回収の後も pending は期限まで残る、I-U-L.decode）。
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
-    || disposition == null || !isText(row.id) || row.unit !== "U-L" || !isText(row.subject) || source.operation !== operation
+    || fields == null || !isText(row.id) || row.unit !== "U-L" || !isText(row.subject) || source.operation !== operation
     || payload.domain !== "weather" || !isText(payload.title) || payload.title === "" || !isText(payload.body) || payload.body === ""
     || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt) || !count(row.attempts) || !isText(row.configRevision)
     || row.expiresAt < row.createdAt) return null;
   return { id: row.id, unit: "U-L", subject: row.subject, operation, source, transition, channel,
     payload: { domain: "weather", level, title: payload.title, body: payload.body }, createdAt: row.createdAt,
-    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision, disposition };
+    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
+    disposition: "pending", ...fields };
 }
 function persisted(value: unknown): PersistedLandslideUnit | null {
   const row = record(value);
@@ -542,24 +568,22 @@ function persisted(value: unknown): PersistedLandslideUnit | null {
   const currents = list(row.currents, currentRecord, CURRENT_LIMIT), intents = list(row.intents, intentRecord);
   if (currents == null || intents == null || new Set(currents.map((item) => item.subject)).size !== currents.length
     || new Set(intents.map((item) => item.id)).size !== intents.length) return null;
-  const pending = intents.filter((entry) => entry.disposition === "pending");
-  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。終端記録は pending との合計で見る（Q-NOTICE.capacity）。
-  const pendingBytes = listBytes(pending) + pending.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
+  const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedLandslideUnit = { schemaVersion: SCHEMA, currents, intents };
-  if (pending.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || pendingBytes + terminalBytes(intents) > PENDING_BYTES + TERMINAL_BYTES
-    || generationBytes(result) > GENERATION_LIMIT) return null;
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const landslideUnitCodec: LandslideUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-landslide-unit-v1", "p3-landslide-unit-v2", "p3-landslide-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-landslide-unit-v1", "p3-landslide-unit-v2", "p3-landslide-unit-v3", "p3-landslide-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-L.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-landslide-unit-v4 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-landslide-unit-v5 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };
@@ -571,7 +595,6 @@ const landslideUnit = {
   toView: toLandslideView,
   persistence: { kind: "durable", codec: landslideUnitCodec },
   confirmationScopeLimit: 512,
-  terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-L">;
 

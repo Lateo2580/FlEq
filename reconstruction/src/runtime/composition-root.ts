@@ -46,7 +46,8 @@ import { PersistentDiagnosticSink, projectParserDiagnostic } from "../checkpoint
 import type { DiagnosticFileSystem } from "../checkpoint/persistent-diagnostic-sink";
 import { Mailbox } from "../mailbox/mailbox";
 import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath, runNotificationAttempt } from "../notification-delivery/adapter";
-import { applyNotificationResult, selectNotificationAttempt } from "../notification-delivery/notification-delivery";
+import type { SoundBackend } from "../notification-delivery/adapter";
+import { ATTEMPT_TIMEOUT_MS, applyNotificationResult, selectNotificationAttempt } from "../notification-delivery/notification-delivery";
 import { eewUnit } from "../units/eew/eew-unit";
 import { nankaiUnit } from "../units/nankai/nankai-unit";
 import { seismicUnit } from "../units/seismic/seismic-unit";
@@ -114,7 +115,7 @@ type CompositionOptions = Readonly<{
   diagnosticFileSystem?: DiagnosticFileSystem;
   mailbox?: Mailbox;
   notificationAdapter?: Readonly<{
-    run: (attempt: NotificationAttempt, clock: () => ClockReading) => Promise<NotificationResult>;
+    run: (attempt: NotificationAttempt, clock: () => ClockReading, soundBackend?: SoundBackend) => Promise<NotificationResult>;
     abort: (request: NotificationAbortRequest, stopByMonotonicMs: number, clock: () => ClockReading) => Promise<unknown>;
   }>;
   notificationCalls?: NotificationCalls;
@@ -191,6 +192,10 @@ const sameIntent = (left: NotificationIntent, right: Pick<NotificationIntent, "i
   left.id === right.id && left.unit === right.unit && left.operation === right.operation
   && left.subject === right.subject && left.channel === right.channel;
 const isParser = (envelope: MailboxEnvelope): envelope is ParserEnvelope => envelope.payload.kind === "parser";
+// owner へ送る intent の更新（P3-NL-AC06 (1)）。lossReason は終端にする更新にだけ付ける。
+const updateOf = (intent: NotificationIntent, lossReason: NotificationIntentUpdate["lossReason"] = null): NotificationIntentUpdate => ({
+  id: intent.id, attempts: intent.attempts, nextAttemptAt: intent.nextAttemptAt, disposition: intent.disposition,
+  lastAttempt: intent.lastAttempt, replayed: intent.replayed, expiresAt: intent.expiresAt, lossReason });
 
 function viewOf(unit: MirrorUnit) { return unit.view; }
 
@@ -366,6 +371,8 @@ class RuntimeCompositionRoot {
   private readonly notificationOperations: Record<NotificationChannel,
     { attemptId: string; terminal: Promise<void> } | null> = { desktop: null, sound: null };
   private onNotificationDispatchFailure: ((error: unknown) => void) | null = null;
+  // P3-NL-D-SOUND-BACKEND=B: run の中だけの音の backend の位置（保存しない）。probe で鳴った backend から始める。
+  private readonly soundBackend: SoundBackend = { index: 0 };
   private readonly onMeasurements: (measurements: readonly CheckpointMeasurement[]) => void;
   private readonly onInputDone: (reply: InputDone) => void;
   private current: PublisherState | null = null;
@@ -460,7 +467,7 @@ class RuntimeCompositionRoot {
       silent.fill(0, 44);
       const path = join(directory, "silent.wav");
       await fileSystem.writeFile(path, silent);
-      if ((await probeSoundBackend(path, this.clock)).kind === "delivered") sound = { kind: "idle" };
+      if ((await probeSoundBackend(path, this.clock, this.soundBackend)).kind === "delivered") sound = { kind: "idle" };
     } catch { /* A failed probe leaves the sound channel unavailable. */ }
     finally { if (directory != null) await fileSystem.rm(directory, { recursive: true, force: true }).catch(() => {}); }
     return { desktop, sound };
@@ -1040,7 +1047,7 @@ class RuntimeCompositionRoot {
     if (previous != null) throw new Error("notification channel already has an operation");
     // The executor catches a synchronous run throw; only adapter errors become failed terminals.
     const operation = new Promise<NotificationResult>((resolve) => {
-      resolve(this.notificationAdapter.run(attempt, this.clock));
+      resolve(this.notificationAdapter.run(attempt, this.clock, this.soundBackend));
     }).catch((): NotificationResult => ({ kind: "failed", reason: "adapterError",
       attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: this.clock() }))
       .then((result) => {
@@ -1078,8 +1085,12 @@ class RuntimeCompositionRoot {
     if (expired.length === 0) return;
     const counts: Record<"notificationExpired" | "notificationExpiredClockUnverified", Partial<Record<NotificationIntent["unit"], number>>> = {
       notificationExpired: {}, notificationExpiredClockUnverified: {} };
+    // P3-NL-AC06 (1): 送る expired の更新に診断と同じ理由の lossReason を付ける（理由は停止の前の held で分ける）。
+    const reasons = new Map<NotificationIntent, keyof typeof counts>();
     for (const intent of expired) {
-      const byUnit = counts[this.held(intent, basis) ? "notificationExpiredClockUnverified" : "notificationExpired"]; byUnit[intent.unit] = (byUnit[intent.unit] ?? 0) + 1;
+      const reason = this.held(intent, basis) ? "notificationExpiredClockUnverified" : "notificationExpired";
+      reasons.set(intent, reason);
+      const byUnit = counts[reason]; byUnit[intent.unit] = (byUnit[intent.unit] ?? 0) + 1;
     }
     this.stopExpired(expired, clock);
     const groups = new Map<string, HeldUpdate & { updates: NotificationIntentUpdate[]; keys: string[] }>();
@@ -1088,7 +1099,7 @@ class RuntimeCompositionRoot {
       if (unit == null) continue;
       const group = groups.get(JSON.stringify([unit, intent.channel]))
         ?? { unit, channel: intent.channel, updates: [], decisionClock: clock, keys: [] };
-      group.updates.push({ id: intent.id, attempts: intent.attempts, nextAttemptAt: intent.nextAttemptAt, disposition: "expired" });
+      group.updates.push(updateOf({ ...intent, disposition: "expired" }, reasons.get(intent)));
       group.keys.push(intentKey(intent));
       groups.set(JSON.stringify([unit, intent.channel]), group);
     }
@@ -1171,7 +1182,7 @@ class RuntimeCompositionRoot {
       const originals = before.intents.filter((original) => expired.some((intent) => sameIntent(original, intent)));
       for (const intent of originals) this.queueUpdate({ unit: runtimeUnits.find((unit) => unit === intent.unit)!,
         channel: intent.channel, decisionClock: clock, keys: [intentKey(intent)],
-        updates: [{ id: intent.id, attempts: intent.attempts, nextAttemptAt: intent.nextAttemptAt, disposition: "expired" }] });
+        updates: [updateOf({ ...intent, disposition: "expired" }, "notificationExpired")] });
     }
     const channels = { ...this.state.notificationChannels };
     let channelsChanged = false;
@@ -1192,8 +1203,8 @@ class RuntimeCompositionRoot {
       const updated = selection.state.intents.find((candidate) => sameIntent(candidate, { ...attempt, id: attempt.intentId }));
       if (unit == null || updated == null || this.slotBusy(executionPlaces[unit], name, "reservation") || this.requestsStopped) continue;
       // The attempt count is adopted by the owner first; the adapter starts only on its adopted reply.
-      const requestId = this.sendIntentUpdate(unit, name, "reservation", [{ id: updated.id, attempts: updated.attempts,
-        nextAttemptAt: updated.nextAttemptAt, disposition: updated.disposition }], clock, [], key);
+      // P3-NL-AC06 (1): 予約は試行の開始（lastAttempt started）を owner に採らせる。
+      const requestId = this.sendIntentUpdate(unit, name, "reservation", [updateOf({ ...updated, lastAttempt: "started" })], clock, [], key);
       this.reservations[name] = { requestId, attempt, unit, key };
       this.measuring?.reservations.set(requestId, { channel: name, intentId: updated.id, unit, attempts: updated.attempts, createdAtWallMs: updated.createdAt,
         sentWallMs: clock.wallTimeMs, sentMs: performance.now() });
@@ -1229,14 +1240,18 @@ class RuntimeCompositionRoot {
       const intent = state.mirror[reservation.unit].pendingIntents.find((candidate) => candidate.id === reservation.attempt.intentId);
       const deadline = state.notificationDeadlines[request.channel][reservation.key];
       // Only an adopted, current, unexpired reservation starts: an invalidated one never calls the adapter.
+      const expired = intent == null || clock.wallTimeMs >= intent.expiresAt || clock.monotonicMs >= (deadline?.expiresAtMonotonicMs ?? Infinity);
       if (reply.adopted && state.shutdown.stage === "running" && state.notificationChannels[request.channel].kind === "idle"
-        && intent != null && clock.wallTimeMs < intent.expiresAt && clock.monotonicMs < (deadline?.expiresAtMonotonicMs ?? Infinity) && !this.held(intent, this.heldBasis(clock))) {
+        && intent != null && !expired && !this.held(intent, this.heldBasis(clock))) {
+        // P3-NL-AC06 (4): 試行の期限は adapter を実際に呼ぶ時に作り直す（発注 1 は予約の採用の返信で呼ぶ時、Q-NL-PRECHECK (0)(a)）。
+        const attempt = { ...reservation.attempt, timeoutAtMonotonicMs: Math.min(clock.monotonicMs + ATTEMPT_TIMEOUT_MS[request.channel],
+          deadline?.expiresAtMonotonicMs ?? Infinity) };
         this.current = { ...state, notificationChannels: { ...state.notificationChannels,
-          [request.channel]: { kind: "running", attempt: reservation.attempt } } };
+          [request.channel]: { kind: "running", attempt } } };
         if (adoption != null) attemptStartedMs = performance.now();
-        this.runAttempt(reservation.attempt);
-      }
-    }
+        this.runAttempt(attempt);
+      } else if (reply.adopted) this.dropReservation(request, clock);
+    } else if (request.slot === "reservation" && reply.adopted) this.dropReservation(request, clock);
     if (this.measuring != null && adoption != null && replyReceivedMs != null) {
       this.measuring.reservations.delete(reply.requestId);
       this.measuring.observe({ kind: "notificationAdoption", runId: this.state.runId, channel: adoption.channel, intentId: adoption.intentId,
@@ -1249,6 +1264,21 @@ class RuntimeCompositionRoot {
     this.evaluateDelivery(clock);
     // E08: a reply that changed neither a unit nor a channel is not projected.
     if (changed || this.state.notificationChannels !== channels) this.project(reply.output.outcomes, reply.output.displayChanges, clock);
+  }
+
+  // P3-NL-AC06 (5)（発注 1 の口は Q-NL-PRECHECK (0)(b)）: adapter を呼ばずに捨てた予約（現在の予約と合わない返信・停止の後・保留）は、
+  // 採られた lastAttempt started を failed に戻す更新を送る（送っていないと確定。無いと復元で通知したか不明になり鳴らない）。期限の外の
+  // ものは reclaimExpired が expired で終える。印の evidence は下げない（unit の規則）。
+  private dropReservation(request: IntentRequest, clock: ClockReading): void {
+    if (request.reserved == null) return;
+    for (const unit of placeUnits(request.place)) {
+      const intent = this.state.mirror[unit].pendingIntents.find((item) => intentKey(item) === request.reserved);
+      if (intent == null) continue;
+      if (intent.lastAttempt === "started" && clock.wallTimeMs < intent.expiresAt)
+        this.queueUpdate({ unit, channel: request.channel, decisionClock: clock, keys: [intentKey(intent)],
+          updates: [updateOf({ ...intent, lastAttempt: "failed" })] });
+      return;
+    }
   }
 
   // A7 settles the channel at once; the intent's update goes to its owner with the result's completedAt.
@@ -1276,12 +1306,15 @@ class RuntimeCompositionRoot {
         const lateSuccess = candidate?.disposition === "delivered" && (channel.kind !== "running"
           || result.kind !== "delivered" || original?.disposition !== "pending"
           || clock.wallTimeMs >= (original?.expiresAt ?? -Infinity) || clock.monotonicMs >= channel.attempt.timeoutAtMonotonicMs);
+        // A7 は通知したか不明の終端に notificationOutcomeUnknown の診断を添える（ほかの expired は結果の照合での失効）。
+        const lossReason = candidate?.disposition !== "expired" ? null
+          : step.diagnostics.some((item) => item.reason === "notificationOutcomeUnknown") ? "notificationOutcomeUnknown" : "notificationExpired";
         if (original != null && candidate != null && unit != null && !lateSuccess
           && (original.attempts !== candidate.attempts || original.nextAttemptAt !== candidate.nextAttemptAt
-            || original.disposition !== candidate.disposition))
+            || original.disposition !== candidate.disposition || original.lastAttempt !== candidate.lastAttempt
+            || original.replayed !== candidate.replayed || original.expiresAt !== candidate.expiresAt))
           this.queueUpdate({ unit, channel: result.channel, decisionClock: result.completedAt, keys: [intentKey(original)],
-            updates: [{ id: candidate.id, attempts: candidate.attempts, nextAttemptAt: candidate.nextAttemptAt,
-              disposition: candidate.disposition }] });
+            updates: [updateOf(candidate, lossReason)] });
       }
       for (const details of step.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
       // An attempt of a stopped owner ends here: its result has no owner to go to (P3-C3B-AC02).

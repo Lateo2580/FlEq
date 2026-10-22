@@ -4,6 +4,7 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -39,6 +40,7 @@ type VolcanoRecordBase = Readonly<{
   eventId: string;
   source: ReportRef;
   retainUntil: number; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。取消・期限で事実の消えた記録には無い
+  notice?: NoticeMark; // P3-NL-AC02: 通知の印（記録と同じに生きる）。表示には出さない
 }>;
 
 // 警報（M14、D）。subject = `${operation}/volcano:alert/${volcanoCode}`。VFVO50・VFVO51 の火山 entry・VFSV が同じ subject を更新する。
@@ -73,6 +75,7 @@ export type VolcanoAlert = Readonly<{
   marineEventId: string | null;
   landKind: VolcanoKind | null;
   retainUntil: number; unconfirmed?: ReportRef; marineUnconfirmed?: ReportRef; // P3-VM-AC04: 陸上・海上の系列ごとの未確認の印
+  notice?: NoticeMark; marineNotice?: NoticeMark; // P3-NL-AC02: 陸上・海上の系列ごとの通知の印（その側の版がある側だけ）。表示には出さない
 }> & (
   | VolcanoAlertFacts
   | Readonly<{ effective: "ended" | "cancelled" }>
@@ -153,6 +156,7 @@ type VolcanoBulletinBase = Readonly<{
   operation: Operation;
   source: ReportRef;
   retainUntil: number; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印（解説と同じく保存しない）
+  notice?: NoticeMark; // P3-NL-AC02: 通知の印（解説と同じく保存しない）。表示には出さない
 }>;
 type VolcanoBulletinHeading = Readonly<{
   effective: "active";
@@ -192,7 +196,7 @@ export type VolcanoNotificationPayload = Readonly<{
 export type VolcanoIntent = NotificationIntent & Readonly<{ payload: VolcanoNotificationPayload }>;
 
 export type VolcanoUnitState = Readonly<{
-  schemaVersion: "p3-volcano-unit-v3";
+  schemaVersion: "p3-volcano-unit-v4";
   contentRevision: number;
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
@@ -202,13 +206,13 @@ export type VolcanoUnitState = Readonly<{
   scheduledAshfalls: readonly VolcanoScheduledAshfall[];
   batch: VolcanoAshfallBatch | null;
   bulletins: readonly VolcanoBulletin[];
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly VolcanoIntent[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedVolcanoUnit = Readonly<{
-  schemaVersion: "p3-volcano-unit-v3";
+  schemaVersion: "p3-volcano-unit-v4";
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
   ashfalls: readonly VolcanoAshfall[];
@@ -254,5 +258,5 @@ export type VolcanoUnitStep = Readonly<{
 }>;
 
 export type VolcanoUnitCodec = UnitCodec<VolcanoUnitState, PersistedVolcanoUnit> & Readonly<{
-  schemaVersion: "p3-volcano-unit-v3";
+  schemaVersion: "p3-volcano-unit-v4";
 }>;

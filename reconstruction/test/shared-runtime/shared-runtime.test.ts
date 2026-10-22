@@ -46,6 +46,7 @@ import type { PublisherState } from "../../src/runtime/shared-runtime";
 import { callsWith } from "../unit-table/linked-calls";
 import type { StubCalls } from "../unit-table/linked-calls";
 import { reduceEewUnit } from "../../src/units/eew/eew-unit";
+import { freshState } from "../../src/units/notice-mark";
 import { reduceWeatherCurrentUnit, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { reduceWeatherTimeseriesUnit, timeseriesPublicSubject, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 
@@ -64,23 +65,23 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       "U-B": { kind: "empty" }, "U-M": { kind: "empty" }, "U-Y": { kind: "empty" } },
     notificationProbeComplete: true,
     units: {
-      "U-E": { schemaVersion: "p2-eew-unit-v3", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: progress },
-      "U-W": { schemaVersion: "p2-weather-current-unit-v4", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+      "U-E": { schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [], persistence: progress },
+      "U-W": { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
         tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: progress },
-      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
+      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v5", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
       // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
       // add their rows only).
-      "U-T": { schemaVersion: "p3-tsunami-unit-v3", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: savedProgress },
-      "U-Q": { schemaVersion: "p3-seismic-unit-v3", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
-        normal: noHistory, training: noHistory, test: noHistory }, intents: [], persistence: savedProgress },
-      "U-N": { schemaVersion: "p3-nankai-unit-v3", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
-      "U-V": { schemaVersion: "p3-volcano-unit-v3", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+      "U-T": { schemaVersion: "p3-tsunami-unit-v4", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: savedProgress },
+      "U-Q": { schemaVersion: "p3-seismic-unit-v4", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
+        normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: savedProgress },
+      "U-N": { schemaVersion: "p3-nankai-unit-v4", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
+      "U-V": { schemaVersion: "p3-volcano-unit-v4", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
         scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: savedProgress },
-      "U-L": { schemaVersion: "p3-landslide-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-R": { schemaVersion: "p3-flood-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-B": { schemaVersion: "p3-briefing-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-M": { schemaVersion: "p3-local-bulletins-unit-v4", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: savedProgress },
-      "U-Y": { schemaVersion: "p3-typhoon-unit-v4", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: savedProgress },
+      "U-L": { schemaVersion: "p3-landslide-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-R": { schemaVersion: "p3-flood-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-B": { schemaVersion: "p3-briefing-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-M": { schemaVersion: "p3-local-bulletins-unit-v5", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: savedProgress },
+      "U-Y": { schemaVersion: "p3-typhoon-unit-v5", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: savedProgress },
     },
     checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null, "U-V": null, "U-L": null,
       "U-R": null, "U-B": null, "U-M": null, "U-Y": null },
@@ -174,7 +175,7 @@ function intent(unit: RuntimeUnitId, operation: Operation = "normal"): Notificat
     source: { inputId: "source", origin: "live", operation, family: "family", subject: "same",
       reportDateTimeRaw: "", controlDateTimeRaw: "", serialRaw: "1", infoTypeRaw: "発表" },
     payload: { domain: "earthquake-eew", level: "warning", title: "EEW", body: "EEW" }, createdAt: 1_000, expiresAt: 5_000, nextAttemptAt: 1_000, attempts: 0,
-    configRevision: "1", disposition: "pending" };
+    configRevision: "1", disposition: "pending", ...freshState(unit, operation, "warning") };
 }
 function attempt(notice: NotificationIntent): NotificationAttempt {
   return { attemptId: "attempt-" + notice.id, intentId: notice.id, unit: notice.unit, subject: notice.subject,
@@ -191,8 +192,11 @@ function unitReply<S extends EewUnitState | WeatherCurrentUnitState | WeatherTim
     for (const update of "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate) {
       const original = state.intents.find((notice) => notice.id === update.id);
       if (original != null && (original.attempts !== update.attempts || original.nextAttemptAt !== update.nextAttemptAt
-        || original.disposition !== update.disposition)) {
-        state = { ...state, intents: state.intents.map((notice) => notice === original ? { ...notice, ...update } : notice),
+        || original.disposition !== update.disposition || original.lastAttempt !== update.lastAttempt)) {
+        // P3-NL-AC05 (1)(3): 終端の更新は intent を外す（owner は intents に無く世代が進んだことで採用を確かめる）。
+        state = { ...state, intents: update.disposition !== "pending" ? state.intents.filter((notice) => notice !== original)
+          : state.intents.map((notice) => notice === original ? { ...notice, attempts: update.attempts, nextAttemptAt: update.nextAttemptAt,
+            lastAttempt: update.lastAttempt, replayed: update.replayed, expiresAt: update.expiresAt } : notice),
           persistence: { ...state.persistence, kind: "pending", currentGeneration: state.persistence.currentGeneration + 1,
             dirtySince: state.persistence.dirtySince ?? input.clock.monotonicMs } };
       }
@@ -839,17 +843,18 @@ describe("P2 shared runtime", () => {
       expect(selection.mock.calls[0][0].channels).toEqual(idleChannels);
       expect(r.h.unit(unit).intents[0]).toMatchObject({ attempts: 1, nextAttemptAt: 2000, disposition: "pending" });
       expect(r.h.unit(unit).persistence).toMatchObject({ kind: "pending", currentGeneration: 2 });
-      // AC11(d): the attempt starts once the owner adopted the reservation's update.
-      expect(r.notices.runs.map((run) => run.attempt)).toEqual([selected]);
+      // AC11(d): the attempt starts once the owner adopted the reservation's update. P3-NL-AC06 (4): その時に試行の期限を作り直す
+      // （ここでは intent の期限の monotonic 4,000 が 5 秒の長さより先に来る）。
+      expect(r.notices.runs.map((run) => run.attempt)).toEqual([{ ...selected, timeoutAtMonotonicMs: 4_000 }]);
       expect(r.root.state.notificationChannels.sound).toEqual({ kind: "idle" });
       expect(runtimeUnits.filter((candidate) => candidate !== unit).map((candidate) => r.h.unit(candidate))).toEqual(others);
       r.at(at(2));
       r.notices.finish(result);
       await r.h.settle();
       if (unit === "U-E") {
+        // P3-NL-AC05: 終端の intent は intents から外れる（U-E の deliveryRecords は無い）。
         expect(r.h.unit("U-E").intents).toEqual([]);
-        expect(r.h.unit("U-E").deliveryRecords).toContainEqual({ intentId: notice.id, disposition: "delivered", expiresAt: 5000 });
-        // A late timeout at the wall deadline: the record is reclaimed with the expiry.
+        // A late timeout at the wall deadline: the intent leaves with the expiry.
         const late = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: vi.fn(selection.getMockImplementation()!),
           applyNotificationResult: (delivery) => ({ state: { ...delivery,
             channels: { ...delivery.channels, desktop: { kind: "idle" } },
@@ -860,10 +865,9 @@ describe("P2 shared runtime", () => {
           channel: "desktop", completedAt: at(4000) });
         await late.h.settle();
         expect(late.h.unit("U-E").intents).toEqual([]);
-        expect(late.h.unit("U-E").deliveryRecords).toEqual([]);
         expect(late.h.unit("U-E").persistence.currentGeneration).toBe(3);
         expect(late.root.state.notificationChannels.desktop.kind).toBe("idle");
-      } else expect(r.h.unit(unit).intents[0]).toMatchObject({ disposition: "delivered", attempts: 1, expiresAt: 5000 });
+      } else expect(r.h.unit(unit).intents).toEqual([]);
       expect(r.h.unit(unit).persistence.currentGeneration).toBe(3);
       expect(r.root.state.notificationChannels.desktop.kind).toBe("idle");
       expect(apply).toHaveBeenCalledTimes(1);
@@ -881,10 +885,9 @@ describe("P2 shared runtime", () => {
     r.root.tick(rewound);
     await r.h.settle();
     expect(r.notices.runs).toEqual([]);
+    // P3-NL-AC05: 期限の intent は intents から外れ、結果は EventID の印に残る（U-E の deliveryRecords は無い）。
     expect(r.h.unit("U-E").intents).toEqual([]);
-    expect(r.h.unit("U-E").deliveryRecords).toEqual(received.intents.map((item) => ({
-      intentId: item.id, disposition: "expired", expiresAt: item.expiresAt,
-    })));
+    expect(r.h.unit("U-E").notices).toHaveLength(1);
   });
 
   it("P2-A1-T12 contractBoundary / TIME: reclaims 128 monotonic-expired intents before receiving a new event", async () => {
@@ -905,8 +908,7 @@ describe("P2 shared runtime", () => {
     expect(owner.mock.calls[1][1].kind).toBe("receive");
     expect(r.h.unit("U-E").intents.map((value) => value.channel)).toEqual(["desktop", "sound"]);
     expect(r.h.unit("U-E").current).toHaveLength(1);
-    expect(r.h.unit("U-E").deliveryRecords).toHaveLength(128);
-    expect(r.h.unit("U-E").notificationLatches[0].firstReportNotified).toBe(true);
+    expect(r.h.unit("U-E").notices[0].firstReportNotified).toBe(true);
   });
 
   it("P2-A1-T12 regression / TIME: monotonic expiry stops a running attempt with expired before reclaiming its deadline", async () => {
@@ -933,8 +935,6 @@ describe("P2 shared runtime", () => {
     expect(r.root.state.notificationChannels.desktop).toEqual({ kind: "stopping", attempt: active,
       cause: "expired", stopByMonotonicMs: 16_000 });
     expect(r.root.state.notificationDeadlines.desktop[key]).toBeUndefined();
-    expect(r.h.unit("U-E").deliveryRecords).toHaveLength(2);
-    expect(r.h.unit("U-E").deliveryRecords.every((record) => record.disposition === "expired")).toBe(true);
     const followups = r.h.unit("U-E").intents;
     expect(followups.map((notice) => notice.channel)).toEqual(["desktop", "sound"]);
     for (const notice of followups) {
@@ -952,14 +952,15 @@ describe("P2 shared runtime", () => {
     expect(last.intents).toEqual(followups);
   });
 
-  it("P2-A1-AC10 regression / R45: a non-notifying follow-up does not own terminal-record reclamation", () => {
+  // P3-NL-AC05 (1)・AC04 (2): 終端の記録の回収は無くなり、通知しない続報も印の版の材料を進めるので、その世代はこの入力のもの。
+  it("P2-A1-AC10 regression / R45: a non-notifying follow-up owns the generation of the mark it advances", () => {
     const initial = initialState();
     const material = fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43");
     let eew = reduceEewUnit(initial.units["U-E"], { kind: "receive", material, clock: at(0) }).state;
     for (const notice of eew.intents) eew = reduceEewUnit(eew, { kind: "intentUpdate", clock: at(1),
-      intentUpdate: { id: notice.id, attempts: 1, nextAttemptAt: 1_000, disposition: "delivered" } }).state;
+      intentUpdate: { ...notice, attempts: 1, nextAttemptAt: 1_000, disposition: "delivered", lossReason: null } }).state;
     const before = eew.persistence.currentGeneration;
-    expect(eew.deliveryRecords).toHaveLength(2);
+    expect(eew.intents).toEqual([]);
     const state: RuntimeState = { ...initial, units: { ...initial.units, "U-E": eew },
       deadlines: { ...initial.deadlines, "U-E": { wallTimeMs: 16_000, monotonicMs: null } } };
     const entered = ingestXmlData({ inputId: "unchanged-hazard-followup", inputSequence: 2,
@@ -971,10 +972,9 @@ describe("P2 shared runtime", () => {
     if (decoded.kind !== "decoded") throw new Error("invalid synthetic follow-up");
     const continued = receiveOwner(ownerFixture("urgent", state), completion(decoded), at(15_000), units());
     expect(continued.state.units["U-E"]?.persistence.currentGeneration).toBe(before + 1);
-    expect(continued.state.units["U-E"]?.deliveryRecords).toEqual([]);
     expect(continued.state.units["U-E"]?.intents).toEqual([]);
     expect(continued.state.units["U-E"]?.current[0].serial).toBe(2);
-    expect(continued.generationInputIds).toEqual({ "U-E": [] });
+    expect(continued.generationInputIds).toEqual({ "U-E": ["unchanged-hazard-followup"] });
   });
 
   it("P2-A1-T12 contractBoundary / AC11 R35 R36: hazard increase stops the old attempt and cancellation follows delivery evidence", async () => {
@@ -1021,7 +1021,7 @@ describe("P2 shared runtime", () => {
     expect(r.root.state.notificationDeadlines.desktop[key]).toBeUndefined();
     expect(r.notices.aborts).toEqual([active.attemptId]);
     expect(r.notices.runs).toHaveLength(1);
-    expect(r.h.unit("U-E").notificationLatches[0].deliveryEvidence).toBe("possible");
+    expect(r.h.unit("U-E").notices[0].deliveryEvidence).toBe("possible");
     const followups = r.h.unit("U-E").intents;
     expect(followups).toHaveLength(2);
     for (const notice of followups) expect(notice.payload.body).toMatch(/^続報: /);
@@ -1031,11 +1031,8 @@ describe("P2 shared runtime", () => {
     expect(r.notices.runs).toHaveLength(1);
     expect(r.h.unit("U-E").intents).toHaveLength(2);
     expect(r.h.unit("U-E").intents.every((notice) => notice.payload.level === "cancel")).toBe(true);
-    expect(r.h.unit("U-E").deliveryRecords).toContainEqual({ intentId: active.intentId,
-      disposition: "superseded", expiresAt: active.expiresAt });
-    for (const notice of followups) expect(r.h.unit("U-E").deliveryRecords).toContainEqual({
-      intentId: notice.id, disposition: "superseded", expiresAt: notice.expiresAt,
-    });
+    // P3-NL-AC05: 置換した intent は intents から外れる。
+    expect(r.h.unit("U-E").intents.some((notice) => notice.id === active.intentId || followups.includes(notice))).toBe(false);
     r.at(at(3));
     r.notices.finish({ kind: "aborted", stopped: true, reason: "superseded", attemptId: active.attemptId,
       intentId: active.intentId, channel: "desktop", completedAt: at(3) });
@@ -1063,13 +1060,11 @@ describe("P2 shared runtime", () => {
       waiting.at(at(index));
       await waiting.input(`test/fixtures/${file}_240613_VXSE43.xml`, "VXSE43", `waiting-${index}`, at(index), index + 1);
       expect(waiting.notices.runs).toEqual([]);
-      expect(waiting.h.unit("U-E").notificationLatches[0].deliveryEvidence).toBe("unattempted");
+      expect(waiting.h.unit("U-E").notices[0].deliveryEvidence).toBe("unattempted");
       expect(waiting.h.unit("U-E").intents).toHaveLength(index === 2 ? 0 : 2);
       if (index === 1) expect(waiting.h.unit("U-E").intents[0].payload.body).toMatch(/^続報: /);
     }
     expect(waiting.h.unit("U-E").current).toEqual([]);
-    expect(waiting.h.unit("U-E").deliveryRecords).toHaveLength(4);
-    expect(waiting.h.unit("U-E").deliveryRecords.every((record) => record.disposition === "superseded")).toBe(true);
     expect(waiting.root.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
   });
 
@@ -1109,13 +1104,13 @@ describe("P2 shared runtime", () => {
     expect(preserved.state.notificationChannels.desktop).toBe(existing.notificationChannels.desktop);
   });
 
-  it("P2-A1-T12 contractBoundary / TIME: 128 pending plus 4000 terminal intents expire with linear owner work", async () => {
+  // P3-NL-AC05 (1): 終端の intent は保存しない（codec が受けない）ので、4,000 件の終端は作れない。128 件の pending の期限切れだけを測る。
+  it("P2-A1-T12 contractBoundary / TIME: 128 pending intents expire with linear owner work", async () => {
     const initial = initialState();
     const notices = (unit: "U-W" | "U-F") => {
       const base = intent(unit);
       const source = { ...base.source, family: unit === "U-W" ? "VPWS50" : "VPWP50", reportDateTimeRaw: "2026-09-23T00:00:00Z" };
-      return Array.from({ length: 4_128 }, (_, index): NotificationIntent => ({ ...base, source,
-        id: `${unit}-${index}`, disposition: index < 4_000 ? "delivered" : "pending" }));
+      return Array.from({ length: 128 }, (_, index): NotificationIntent => ({ ...base, source, id: `${unit}-${index}` }));
     };
     const weatherPayload = weatherCurrentUnitCodec.encode({ ...initial.units["U-W"], intents: notices("U-W") });
     const seriesPayload = weatherTimeseriesUnitCodec.encode({ ...initial.units["U-F"], intents: notices("U-F") });
@@ -1153,26 +1148,20 @@ describe("P2 shared runtime", () => {
     r.at(late);
     r.root.tick(late);
     await r.h.settle();
-    console.info("128 pending + 4000 terminal", { totalMs: performance.now() - start, owner });
+    console.info("128 pending", { totalMs: performance.now() - start, owner });
     for (const unit of ["U-W", "U-F"] as const) {
-      expect(r.h.unit(unit).intents).toHaveLength(4_128);
-      expect(r.h.unit(unit).intents.slice(4_000).every((notice) => notice.disposition === "expired")).toBe(true);
+      expect(r.h.unit(unit).intents).toEqual([]);
       expect(r.h.unit(unit).persistence.currentGeneration).toBe(seededGeneration[unit] + 128);
-      expect(owner[unit].reads).toBeLessThan(20 * 4_128);
+      expect(owner[unit].reads).toBeLessThan(20 * 128);
     }
     expect(r.root.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
     // deferred also owns U-L, U-R, U-B and U-M (P3-C10-PLACE=A, P3-C11-PLACE=A, P3-C12-PLACE=A, P3-C13-PLACE=A), idle here.
-    expect(r.h.owners.get("weatherCurrent")!["state"]!.deadlines).toEqual({ "U-W": { wallTimeMs: 5_000, monotonicMs: null } });
-    expect(r.h.owners.get("deferred")!["state"]!.deadlines).toEqual({ "U-F": { wallTimeMs: 5_000, monotonicMs: null }, "U-L": null,
+    expect(r.h.owners.get("weatherCurrent")!["state"]!.deadlines).toEqual({ "U-W": null });
+    expect(r.h.owners.get("deferred")!["state"]!.deadlines).toEqual({ "U-F": null, "U-L": null,
       "U-R": null, "U-B": null, "U-M": null, "U-Y": null });
-    r.at(at(4_000));
-    r.root.tick(at(4_000));
-    await r.h.settle();
-    expect(r.h.unit("U-W").intents).toEqual([]);
-    expect(r.h.unit("U-F").intents).toEqual([]);
     for (const [codec, payload] of [[weatherCurrentUnitCodec, weatherPayload], [weatherTimeseriesUnitCodec, seriesPayload]] as const) {
-      expect(codec.decode({ ...payload, intents: [...payload.intents, { ...payload.intents[4_000], id: "overflow" }] }).kind).toBe("invalid");
-      expect(codec.decode({ ...payload, intents: [{ ...payload.intents[4_000], payload: { body: "x".repeat(131_072) } }] }).kind).toBe("invalid");
+      expect(codec.decode({ ...payload, intents: [...payload.intents, { ...payload.intents[0], id: "overflow" }] }).kind).toBe("invalid");
+      expect(codec.decode({ ...payload, intents: [{ ...payload.intents[0], payload: { body: "x".repeat(131_072) } }] }).kind).toBe("invalid");
     }
   });
 
@@ -1232,7 +1221,7 @@ describe("P2 shared runtime", () => {
       reading.monotonicMs >= 9 ? noAttempts(delivery) : select(delivery, reading) }, at(0));
     await seedIntents(crossed, "U-E", [notice, normal]);
     const running = crossed.root.state.notificationChannels.desktop;
-    expect(running).toMatchObject({ kind: "running", attempt: active });
+    expect(running).toMatchObject({ kind: "running", attempt: { ...active, timeoutAtMonotonicMs: 4_000 } });
     crossed.at(at(10));
     crossed.root.tick(at(10));
     await crossed.h.settle();

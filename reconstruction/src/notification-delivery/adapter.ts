@@ -47,7 +47,11 @@ function commands(attempt: NotificationAttempt, probeWav?: string): readonly (re
   throw new RangeError("unsupported notification backend");
 }
 
-function runAttempt(attempt: NotificationAttempt, clock: () => ClockReading, probeWav?: string): Promise<NotificationResult> {
+// P3-NL-D-SOUND-BACKEND=B: 音の backend の列の位置。composition root が run の中だけで 1 つ持ち、probe と各試行に渡す。試行は index から
+// 始め、起動した backend を書き、起動した後に失敗したか時間内に終わらなかったら次へ進める（列の最後の次は先頭）。desktop は使わない。
+type SoundBackend = { index: number };
+
+function runAttempt(attempt: NotificationAttempt, clock: () => ClockReading, probeWav?: string, soundBackend?: SoundBackend): Promise<NotificationResult> {
   if (active[attempt.channel] != null) throw new Error("notification channel occupied");
   let resolveResult!: (result: NotificationResult) => void;
   const terminal = new Promise<NotificationResult>((resolvePromise) => { resolveResult = resolvePromise; });
@@ -70,16 +74,30 @@ function runAttempt(attempt: NotificationAttempt, clock: () => ClockReading, pro
     } };
   active[attempt.channel] = context;
   let backends: ReturnType<typeof commands>;
+  // P3-NL-AC06 (2): 列を組めなかった試行は外へ何も出していない。
   try { backends = commands(attempt, probeWav); }
-  catch { finish({ ...base(clock()), kind: "failed", reason: "adapterError" }); return terminal; }
+  catch { finish({ ...base(clock()), kind: "failed", reason: "notStarted" }); return terminal; }
+  const sound = attempt.channel === "sound" ? soundBackend : undefined;
+  const first = sound == null ? 0 : sound.index % backends.length;
+  // 起動した後の失敗と timeout は、その backend の次から始めさせる（上位群・期限・置換・停止の中断では backend は悪くないので進めない）。
+  const advance = (index: number) => { if (sound != null) sound.index = (index + 1) % backends.length; };
+  const stop = context.stop;
+  let launched: number | null = null;
+  context.stop = (stopped, completedAt) => {
+    if (context.stopObservation == null && context.cause === "timeout" && launched != null) advance(launched);
+    stop(stopped, completedAt);
+  };
 
-  const launch = (index: number) => {
+  // offset は列の先頭（first）から数えた位置。列を 1 周したら終える。
+  const launch = (offset: number) => {
     if (settled || context.cause != null) return;
-    // A1 owns semantic stop causes. With no process running, report the reached attempt deadline;
-    // result adoption applies TTL first, including monotonic TTL that only A1's map knows.
+    const index = (first + offset) % backends.length;
+    const next = () => offset + 1 < backends.length;
+    // 止める理由は A1 が持つ。プロセスを起動していなければ試行は始まっていない（P3-NL-AC06 (2)）。結果の採用は TTL（A1 の表だけが知る
+    // monotonic の TTL を含む）を先に当てる。
     const adapterCalledAt = clock();
     if (adapterCalledAt.wallTimeMs >= attempt.expiresAt || adapterCalledAt.monotonicMs >= attempt.timeoutAtMonotonicMs) {
-      finish({ ...base(adapterCalledAt), kind: "timeout", stopped: true });
+      finish({ ...base(adapterCalledAt), kind: "failed", reason: "notStarted" });
       return;
     }
     const [executable, argv] = backends[index];
@@ -89,18 +107,20 @@ function runAttempt(attempt: NotificationAttempt, clock: () => ClockReading, pro
     let child: childProcess.ChildProcess;
     try { child = childProcess.spawn(executable, [...argv], { shell: false, stdio: "ignore" }); }
     catch {
-      // Synchronous spawn failure proves there is no child; no close event can follow.
-      if (index + 1 < backends.length) launch(index + 1);
-      else finish({ ...base(clock()), kind: "failed", reason: "adapterError" });
+      // spawn の同期の失敗は子が無いことの証拠で、close は来ない。
+      if (next()) launch(offset + 1);
+      else finish({ ...base(clock()), kind: "failed", reason: "notStarted" });
       return;
     }
     context.child = child;
     context.noChild = false;
+    launched = index;
+    if (sound != null) sound.index = index;
     let errored = false;
     child.once("error", () => {
       errored = true;
       context.noChild = child.pid == null;
-      // This proves stop only. A fallback must still wait for this handle's real close.
+      // これは停止の証拠だけ。次の backend へ進むのは、この handle の本当の close を待ってから。
       if (context.noChild && context.cause != null) context.stop(true, clock());
     });
     child.once("close", (code: number | null) => {
@@ -109,17 +129,21 @@ function runAttempt(attempt: NotificationAttempt, clock: () => ClockReading, pro
       if (settled) return;
       if (context.cause != null) { context.stop(true, completedAt); return; }
       if (!errored && code === 0) { finish({ ...base(completedAt), kind: "delivered" }); return; }
-      if (index + 1 < backends.length) launch(index + 1);
-      else finish({ ...base(completedAt), kind: "failed", reason: errored ? "adapterError" : "adapterRejected" });
+      // P3-NL-AC06 (3): 次の backend へ進むのは、プロセスを生成できなかった（pid の無い error）ときだけ。起動した後の失敗は
+      // 結果の分からない終わりで返す。probe は無音なので、前の close を確かめた後なら起動した後の失敗でも次を試す。
+      const started = !(errored && child.pid == null);
+      if (next() && (!started || probeWav != null)) { launch(offset + 1); return; }
+      if (started) advance(index);
+      finish({ ...base(completedAt), kind: "failed", reason: !started ? "notStarted" : errored ? "adapterError" : "adapterRejected" });
     });
   };
   launch(0);
-  // A1 deadline inputs produce the reason and absolute stop deadline; run never invents an abort request.
+  // 止める理由と絶対の停止の期限は A1 の期限の入力が作る。run は中断の要求を自分では作らない。
   return terminal;
 }
 
-function runNotificationAttempt(attempt: NotificationAttempt, clock: () => ClockReading): Promise<NotificationResult> {
-  return runAttempt(attempt, clock);
+function runNotificationAttempt(attempt: NotificationAttempt, clock: () => ClockReading, soundBackend?: SoundBackend): Promise<NotificationResult> {
+  return runAttempt(attempt, clock, undefined, soundBackend);
 }
 
 function abortNotificationAttempt(request: NotificationAbortRequest, stopByMonotonicMs: number,
@@ -157,16 +181,17 @@ function probeDesktopBackend(): Extract<NotificationChannelState, { kind: "idle"
     : { kind: "unavailable", reason: "backendMissing" };
 }
 
-// AC06: the caller owns a silent WAV in os.tmpdir(); probe shares delivery's finite player/close path.
-async function probeSoundBackend(silentWavPath: string, clock: () => ClockReading): Promise<NotificationResult> {
+// AC06: 無音の WAV は呼ぶ側が os.tmpdir() に持つ。probe は配送と同じ有限の player と close の経路を使う。
+// P3-NL-D-SOUND-BACKEND=B: soundBackend には鳴った backend の位置が残る（delivery はそこから始める）。
+async function probeSoundBackend(silentWavPath: string, clock: () => ClockReading, soundBackend?: SoundBackend): Promise<NotificationResult> {
   const start = clock();
   const attempt: NotificationAttempt = { attemptId: "sound-probe", intentId: "sound-probe", unit: "U-W",
     subject: "sound-probe", operation: "normal", channel: "sound", priorityGroup: "other",
     payload: { domain: "weather", level: "info" }, soundAsset: "reconstruction/assets/sounds/weather-info.wav",
     selectedAtMonotonicMs: start.monotonicMs, timeoutAtMonotonicMs: start.monotonicMs + 5_000,
     expiresAt: start.wallTimeMs + 5_000 };
-  const run = runAttempt(attempt, clock, silentWavPath);
-  // Probe has no business owner; its own deadline must also end a hung player.
+  const run = runAttempt(attempt, clock, silentWavPath, soundBackend);
+  // probe には業務の owner が無いので、自分の期限で止まった player も終わらせる。
   const timer = setTimeout(() => {
     const now = clock();
     void abortNotificationAttempt({ attemptId: attempt.attemptId, cause: "timeout" }, now.monotonicMs + 1_000, clock);
@@ -175,3 +200,4 @@ async function probeSoundBackend(silentWavPath: string, clock: () => ClockReadin
 }
 
 export { runNotificationAttempt, abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath };
+export type { SoundBackend };

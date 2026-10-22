@@ -4,6 +4,8 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  FailureMark,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -78,6 +80,7 @@ export type EarthquakeContribution = Readonly<{
   hypocenter: SeismicHypocenter | null;
   intensity: SeismicIntensityObservation | null;
   tsunamiComment: SeismicTsunamiComment | null; unconfirmed?: ReportRef; // P3-VM-AC04: family の系列の未確認の印。active の寄与だけが鍵を持つ
+  notice?: NoticeMark; // P3-NL-AC02: family の系列の通知の印（寄与と同じに生き、取消記憶にも残る）。表示には出さない
 }>;
 
 // 強震保持の根拠（event が導いた全体の震度が既知の段階の 7、event の発生時刻から 12 時間。旧築 QUAKE_EXTREME_HOLD_MS）。
@@ -113,6 +116,7 @@ export type LongPeriodSubject = Readonly<{
   retainUntil: number;
   // P3-CC-AC03: 容量で入らなかった報の印。active の記録だけが鍵を持つ。
   unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。active の記録だけが鍵を持つ
+  notice?: NoticeMark; // P3-NL-AC02: 通知の印（記録と同じに生きる）。表示には出さない
 }>;
 
 // 当日地震履歴（operation ごと。日の基準は P3-C7-DAILY-BASIS）。件数と最大震度は全体の震度が既知の段階（I-U-Q.intensityScale）の
@@ -148,22 +152,24 @@ export type SeismicNotificationPayload = Readonly<{
 export type SeismicIntent = NotificationIntent & Readonly<{ payload: SeismicNotificationPayload }>;
 
 export type SeismicUnitState = Readonly<{
-  schemaVersion: "p3-seismic-unit-v3";
+  schemaVersion: "p3-seismic-unit-v4";
   contentRevision: number;
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly SeismicIntent[];
+  failureMarks: readonly FailureMark[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedSeismicUnit = Readonly<{
-  schemaVersion: "p3-seismic-unit-v3";
+  schemaVersion: "p3-seismic-unit-v4";
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
   intents: readonly SeismicIntent[];
+  failureMarks: readonly FailureMark[];
 }>;
 
 // event の公開事実（I-U-Q.earthquakeSemantics）。subject は event の鍵 `${operation}/earthquake/${eventId}` で、判定の
@@ -218,5 +224,5 @@ export type SeismicUnitStep = Readonly<{
 }>;
 
 export type SeismicUnitCodec = UnitCodec<SeismicUnitState, PersistedSeismicUnit> & Readonly<{
-  schemaVersion: "p3-seismic-unit-v3";
+  schemaVersion: "p3-seismic-unit-v4";
 }>;

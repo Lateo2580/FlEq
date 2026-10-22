@@ -21,7 +21,8 @@ import type {
   EewCurrent,
   EewGate,
   EewInput,
-  EewNotificationLatch,
+  EewNoticeFamily,
+  EewNoticeMark,
   EewNotificationPayload,
   EewPrediction,
   EewPredictionIntensity,
@@ -29,22 +30,15 @@ import type {
   EewUnitStep,
 } from "../../../contracts/p2-eew-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, stepVersion } from "../../contracts-revision/version";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, stepVersion, versionKey } from "../../contracts-revision/version";
+import { freshState, noticeId } from "../../units/notice-mark";
 
 const EEW_FAMILIES = ["VXSE43", "VXSE45"] as const;
 type EewFamily = typeof EEW_FAMILIES[number];
 
-// R35: share defaults; restoring delivery evidence must not restore notice flags.
-const emptyNotificationLatch = {
-  firstReportNotified: false, warningNotified: false, vxse45Accepted: false,
-  deliveryEvidence: "unknown" as const, preexisting: true,
-  notifiedMaximumRank: -1, notifiedWarningAreas: 0n,
-};
-
-function deliveryRecordEvent(intentId: string): Pick<EewNotificationLatch, "operation" | "eventId"> | null {
-  const match = /^U-E:(normal|training|test):(\d{14}):\d+:(?:desktop|sound)$/.exec(intentId);
-  return match == null ? null : { operation: match[1] as EewNotificationLatch["operation"], eventId: match[2] };
-}
+// P3-NL-RES-01（置き値）: EventID ごとの印は gate と別に 2,048 件まで。
+const NOTICE_LIMIT = 2_048;
+type EewIntent = EewUnitState["intents"][number];
 
 // Immutable notification objects own the data; this only memoizes their UTF-8 size.
 const notificationByteCache = new WeakMap<object, number>();
@@ -286,26 +280,81 @@ function gateDeadline(gates: EewUnitState["gates"]): number {
   return at;
 }
 
+// 印の配列（不変）ごとの retainUntil の最小（gateDeadline と同じ理由。無いと期限の出し直しのたびに 2,048 件を読み直す）。
+const noticeDeadlineCache = new WeakMap<EewUnitState["notices"], number>();
+function noticeDeadline(notices: EewUnitState["notices"]): number {
+  let at = noticeDeadlineCache.get(notices);
+  if (at == null) { at = notices.reduce((min, item) => Math.min(min, item.retainUntil), Infinity); noticeDeadlineCache.set(notices, at); }
+  return at;
+}
+
 function nextEewDeadline(state: EewUnitState): RuntimeUnitDeadline | null {
   let wallTimeMs = Infinity;
-  for (const item of state.intents) if (item.disposition === "pending") wallTimeMs = Math.min(wallTimeMs, item.expiresAt);
-  for (const item of state.deliveryRecords) wallTimeMs = Math.min(wallTimeMs, item.expiresAt);
-  // current/gate が残る限り null にしない（P3-LIFE-AC01）。currentUntil は retainUntil より前なので両方を見る。
-  wallTimeMs = Math.min(wallTimeMs, gateDeadline(state.gates));
+  for (const item of state.intents) wallTimeMs = Math.min(wallTimeMs, item.expiresAt);
+  // current/gate が残る限り null にしない（P3-LIFE-AC01）。currentUntil は retainUntil より前なので両方を見る。印の期限も入れる（P3-NL-AC04 (6)）。
+  wallTimeMs = Math.min(wallTimeMs, gateDeadline(state.gates), noticeDeadline(state.notices));
   return wallTimeMs === Infinity ? null : { wallTimeMs, monotonicMs: null };
 }
 
-// 最後の owner（current/gate）を失った latch の解除。容量退去と gate の期限回収で共有する（Q-NOTICE.latchRules.lifetime、P3-LIFE-AC01）。
-function releaseOrphanLatches(latches: readonly EewNotificationLatch[], owners: ReadonlySet<string>,
-  wallTimeMs: number, evidenceUnknownUntil: number): Readonly<{ latches: EewNotificationLatch[]; evidenceUnknownUntil: number }> {
-  let until = evidenceUnknownUntil;
-  const kept = latches.flatMap((item) => {
-    if (owners.has(`${item.operation}/VXSE43/${item.eventId}`) || owners.has(`${item.operation}/VXSE45/${item.eventId}`)) return [item];
-    if (!item.preexisting && item.deliveryEvidence !== "unattempted") until = Math.max(until, wallTimeMs + 600_000);
-    return item.preexisting ? [{ ...emptyNotificationLatch, operation: item.operation,
-      eventId: item.eventId, deliveryEvidence: item.deliveryEvidence }] : [];
-  });
-  return { latches: kept, evidenceUnknownUntil: until };
+// ---- 通知の印（P3-NL-AC04。EventID ごとに保存し、gate の退去・期限に縛られない） ----
+
+const noticeKey = (operation: string, eventId: string) => `${operation}/${eventId}`;
+// 印の位置（配列に結び付けた Map。受理 1 回に 1 回の参照、P3-NL-AC16）。
+const noticeIndexCache = new WeakMap<EewUnitState["notices"], ReadonlyMap<string, number>>();
+function noticeAt(notices: EewUnitState["notices"], operation: string, eventId: string): number | undefined {
+  let index = noticeIndexCache.get(notices);
+  if (index == null) { index = new Map(notices.map((item, at) => [noticeKey(item.operation, item.eventId), at])); noticeIndexCache.set(notices, index); }
+  return index.get(noticeKey(operation, eventId));
+}
+const familyOf = (mark: EewNoticeMark | undefined, family: EewFamily) => mark?.families.find((item) => item.family === family);
+// 受けた報の比べる材料を保存の形にそろえる（ReportDateTime も Control/DateTime と同じ 40 文字の上限、Serial は trim。EEW の版の比べは
+// Control/DateTime と Serial だけなので比べ方は変わらない）。
+function familyRecord(source: ReportRef, family: EewFamily, cancelled: boolean, kinds: EewNoticeFamily["kinds"]): EewNoticeFamily {
+  return { family, reportDateTimeRaw: controlDateTimeOf(source.reportDateTimeRaw), controlDateTimeRaw: source.controlDateTimeRaw,
+    serialRaw: source.serialRaw.trim(), cancelled, kinds };
+}
+// (2): 版の材料は通知を作らない採用でも最後に採った版へ進める。kind は admit を通った種類（無ければ null）で、同じ版なら足し、版が変われば作り直す。
+function nextFamilies(families: readonly EewNoticeFamily[], source: ReportRef, family: EewFamily, cancelled: boolean,
+  kind: "report" | "cancel" | null): readonly EewNoticeFamily[] {
+  const previous = families.find((item) => item.family === family);
+  const same = previous != null && versionKey(previous) === versionKey(source);
+  const kinds = (["report", "cancel"] as const).filter((item) => item === kind || same && previous.kinds.includes(item));
+  const record = familyRecord(source, family, cancelled, kinds);
+  return [...families.filter((item) => item.family !== family), record].sort((left, right) => left.family < right.family ? -1 : 1);
+}
+// (4): その family の記録に同じ版の鍵と種類があれば、もう作らない（family をまたぐ重複は latch の規則で抑える）。
+function noticed(mark: EewNoticeMark | undefined, family: EewFamily, source: ReportRef, kind: "report" | "cancel"): boolean {
+  const record = familyOf(mark, family);
+  return record != null && record.kinds.includes(kind) && versionKey(record) === versionKey(source);
+}
+// 欄ごとの比べ（family 2 件・種類 2 件まで）。同じなら印の配列を作り直さず、保存世代も進めない。
+function sameMark(left: EewNoticeMark, right: EewNoticeMark): boolean {
+  return left.firstReportNotified === right.firstReportNotified && left.warningNotified === right.warningNotified
+    && left.vxse45Accepted === right.vxse45Accepted && left.deliveryEvidence === right.deliveryEvidence
+    && left.notifiedMaximumRank === right.notifiedMaximumRank && left.notifiedWarningAreas === right.notifiedWarningAreas
+    && left.retainUntil === right.retainUntil && left.families.length === right.families.length
+    && left.families.every((item, at) => {
+      const other = right.families[at];
+      return item.family === other.family && item.reportDateTimeRaw === other.reportDateTimeRaw && item.controlDateTimeRaw === other.controlDateTimeRaw
+        && item.serialRaw === other.serialRaw && item.cancelled === other.cancelled && item.kinds.join() === other.kinds.join();
+    });
+}
+// (7): 印を置き換えるか足す。2,048 件を越えるなら、gate も current も pending の intent も無い印のうち retainUntil の最小（同じなら
+// operation・EventID の順）を 1 件捨てる。
+// ponytail: 越えた採用だけ印を線形に 1 回探す（上限 2,048、AGENTS.md の上限のある稀な一括処理）。
+function placeNotice(notices: readonly EewNoticeMark[], mark: EewNoticeMark, at: number | undefined,
+  gates: readonly EewGate[], current: readonly EewCurrent[], intents: readonly EewIntent[]): Readonly<{ notices: readonly EewNoticeMark[]; evicted: number }> {
+  if (at != null) return { notices: sameMark(notices[at], mark) ? notices : notices.map((item, position) => position === at ? mark : item), evicted: 0 };
+  if (notices.length < NOTICE_LIMIT) return { notices: [...notices, mark], evicted: 0 };
+  const owned = new Set([...gates, ...current, ...intents].map((item) => noticeKey(item.operation, item.subject.split("/")[2])));
+  owned.add(noticeKey(mark.operation, mark.eventId));
+  let victim: EewNoticeMark | null = null;
+  for (const item of notices) {
+    if (owned.has(noticeKey(item.operation, item.eventId))) continue;
+    if (victim == null || item.retainUntil < victim.retainUntil || item.retainUntil === victim.retainUntil
+      && (item.operation < victim.operation || item.operation === victim.operation && item.eventId < victim.eventId)) victim = item;
+  }
+  return victim == null ? { notices: [...notices, mark], evicted: 0 } : { notices: [...notices.filter((item) => item !== victim), mark], evicted: 1 };
 }
 
 // P3-LIFE-AC01: deadline 入力での current・gate の期限回収（期限ちょうどで失効）。失効は取消ではないので取消の表示・通知を作らない。
@@ -330,11 +379,8 @@ function reclaimEewLifetime(state: EewUnitState, wallTimeMs: number,
   const expired = state.current.filter((item) => ending.has(item.subject));
   expired.forEach((item) => changed(item, null));
   const current = expired.length === 0 ? state.current : state.current.filter((item) => !ending.has(item.subject));
-  if (!gateRemoved) return { state: { ...state, current, gates }, expired };
-  const released = releaseOrphanLatches(state.notificationLatches, new Set([...current, ...gates].map((item) => item.subject)),
-    wallTimeMs, state.evidenceUnknownUntil ?? 0);
-  return { state: { ...state, current, gates, notificationLatches: released.latches,
-    evidenceUnknownUntil: released.evidenceUnknownUntil }, expired };
+  // 印は gate の除去で消えず、evidenceUnknownUntil も延ばさない（P3-NL-AC04 (6)）。
+  return { state: { ...state, current, gates }, expired };
 }
 
 function expiredOutcome(current: EewCurrent): SubjectOutcome {
@@ -420,36 +466,79 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     isAssumedHypocenter: assumed,
   };
   // P3-VM-AC03・AC04: gate と Control/DateTime で比べ、同じ秒なら Serial の大きい方を新しい版とする（P3-VM-D-SAMETIME=A の EEW の例外）。
-  const version = stepVersion(gate == null ? null : { version: gate.source, source: gate.source, cancelled: gate.source.infoTypeRaw === "取消" },
-    gate?.unconfirmed ?? null, candidate.source, () => gate != null && gate.terminal === candidate.terminal
+  // P3-NL-AC04 (3): gate の無い報（再起動・退去の後）は、その EventID・family の印の記録を手元の版として同じ規則で比べる。
+  const markAt = noticeAt(state.notices, candidate.operation, eventId);
+  const mark = markAt == null ? undefined : state.notices[markAt];
+  const recorded = gate == null ? familyOf(mark, candidate.family) : undefined;
+  let version = stepVersion(gate != null ? { version: gate.source, source: gate.source, cancelled: gate.source.infoTypeRaw === "取消" }
+    : recorded == null ? null : { version: recorded, source: null, cancelled: recorded.cancelled },
+  gate?.unconfirmed ?? null, candidate.source, () => gate != null && gate.terminal === candidate.terminal
       && gate.source.reportDateTimeRaw === candidate.source.reportDateTimeRaw
       && (gate.source.infoTypeRaw === candidate.source.infoTypeRaw
         || candidate.source.infoTypeRaw === "訂正" && assumed && gate.noticeSource.isAssumedHypocenter)
       && !predictionChanged && (previous == null || candidate.cancelled || candidate.terminal
         || previous.warningClass === warningClass)
       && isDeepStrictEqual(gate.noticeSource, noticeSource), candidate.cancelled);
+  // 記録しか無いときは中身を比べないので、同じ版を duplicate に寄せず採る（current は作り直し、種類の照合で鳴らない）。取消済みの取消の
+  // 再送は stale（P3-NL-AC04 (3)(5)）。
+  if (recorded != null && version.kind === "held")
+    version = recorded.cancelled && candidate.cancelled && !version.missing ? { kind: "older" } : { kind: "adopt", mark: null, missing: version.missing };
   const missing = (version.kind === "held" || version.kind === "adopt") && version.missing
     ? [diagnostic(input.material, "requiredStructureMissing")] : [];
   if (version.kind !== "adopt") {
     // 印は gate の項目（非保存）なので保存世代を進めない。
-    const mark = version.kind === "held" ? version.mark : null;
-    const gates = mark != null && mark !== gate?.unconfirmed
-      ? state.gates.map((item) => item === gate ? { ...item, unconfirmed: mark } : item) : state.gates;
+    const unconfirmed = version.kind === "held" ? version.mark : null;
+    const gates = unconfirmed != null && unconfirmed !== gate?.unconfirmed
+      ? state.gates.map((item) => item === gate ? { ...item, unconfirmed } : item) : state.gates;
     return { state: gates === state.gates ? state : { ...state, gates }, nextDeadline: nextEewDeadline(state),
       decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged",
         reason: version.kind === "duplicate" ? "duplicate" : "stale" }], intents: [], outcomes: [], diagnostics: missing };
   }
+  const prefix = candidate.operation === "normal" ? "" : candidate.operation === "training" ? "【訓練】" : "【試験】";
+  const lead = candidate.operation === "normal" ? "" : candidate.operation === "training"
+    ? "訓練の電文です。通常運用の警報ではありません。\n" : "試験の電文です。通常運用の警報ではありません。\n";
+  const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
+  const intentsOf = (payload: EewNotificationPayload, transition: EewIntent["transition"]): EewIntent[] => channels.map((channel) => ({
+    id: noticeId("U-E", candidate.subject, "", candidate.source, transition, channel),
+    unit: "U-E", subject: candidate.subject, operation: candidate.operation, source: candidate.source, transition,
+    channel, payload, createdAt: input.clock.wallTimeMs, expiresAt: input.clock.wallTimeMs + 15_000,
+    nextAttemptAt: input.clock.wallTimeMs, attempts: 0, configRevision: "p2-eew-unit-v1", disposition: "pending" as const,
+    ...freshState("U-E", candidate.operation, payload.level),
+  }));
+  const cancelPayload: EewNotificationPayload = { domain: "earthquake-eew", level: "cancel", title: `${prefix}[取消] 緊急地震速報`,
+    body: `${lead}緊急地震速報は取り消されました。` };
+  // P3-NL-AC04 (5) の (a)(b): 採らない取消でも取消の intent だけは作る（H48 の「鳴らないか二重かなら二重」、2026-10-22 作者裁定）。
+  // 通知するかは印の latch の証拠（H19）、印が無ければ通知する。決定と診断は P2 の実装どおり（stale か capacityExceeded）。
+  const cancelOnly = (refused: Omit<EewUnitStep, "displayChanges" | "confirmationEvidence">): Omit<EewUnitStep, "displayChanges" | "confirmationEvidence"> => {
+    if (!candidate.cancelled || mark != null && mark.deliveryEvidence === "unattempted"
+      || noticed(mark, candidate.family, candidate.source, "cancel")) return refused;
+    const placed = admitIntents(state, candidate, eventId, intentsOf(cancelPayload, "cancelled"), new Set(), true, input.clock.wallTimeMs);
+    if (!placed.admitted) return refused;
+    // 印の期限は intent を採った時の wall＋24 時間を下げない（ヘルツ r4 の P1。起点＋24 時間はもう過去でありうる）。family の記録は取消の報。
+    const nextMark: EewNoticeMark = { eventId, operation: candidate.operation, firstReportNotified: mark?.firstReportNotified ?? false,
+      warningNotified: mark?.warningNotified ?? false, vxse45Accepted: mark?.vxse45Accepted ?? false,
+      deliveryEvidence: mark?.deliveryEvidence ?? "unknown", notifiedMaximumRank: mark?.notifiedMaximumRank ?? -1,
+      notifiedWarningAreas: mark?.notifiedWarningAreas ?? "0", retainUntil: Math.max(mark?.retainUntil ?? -Infinity, Math.ceil(input.clock.wallTimeMs) + GATE_MS),
+      families: nextFamilies(mark?.families ?? [], candidate.source, candidate.family, true, "cancel") };
+    const notices = placeNotice(state.notices, nextMark, markAt, state.gates, state.current, placed.intents);
+    const next: EewUnitState = { ...state, intents: placed.intents, notices: notices.notices,
+      persistence: dirty(state.persistence, input.clock.monotonicMs) };
+    return { ...refused, state: next, nextDeadline: nextEewDeadline(next), intents: placed.fresh,
+      diagnostics: [...refused.diagnostics, ...placed.diagnostics, ...notices.evicted === 0 ? [] : [{ level: "INFO" as const, component: "eew",
+        reason: "noticeMarkEvicted" as const, unit: "U-E" as const, count: notices.evicted }]] };
+  };
   // P3-LIFE-D-LATE=A・D-SKEW=A: horizon は duplicate・版の older（P3-VM-AC03）の後、容量の前。既知 subject の取消だけは horizon 外でも採用する。
+  // 既知は gate があるか、gate は無いがその EventID・family の印の記録があること（P3-NL-AC04 (5)）。
   // P3-EVICT-AC01(7): 退去した normal の gate の報時刻以下の新規 subject は時計によらず horizon 外と同じに捨てる（時計の後退での採り直し、B12）。
   const reportMs = Date.parse(candidate.source.reportDateTimeRaw);
   const base = Math.min(reportMs, input.clock.wallTimeMs);
   if ((base + HORIZON_MS <= input.clock.wallTimeMs || gate == null && candidate.operation === "normal"
-    && reportMs <= (state.evictedNormalReportMs?.[candidate.family] ?? -Infinity)) && (gate == null || !candidate.cancelled)) return {
+    && reportMs <= (state.evictedNormalReportMs?.[candidate.family] ?? -Infinity)) && !(candidate.cancelled && (gate != null || recorded != null))) return cancelOnly({
     state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
       decision: "unchanged", reason: "stale" }], intents: [], outcomes: [],
     // 無いと host の時計の進みで全 EEW が黙って捨てられる。既知 subject の遅れた版は時刻の逆転した異常データなので出さない。
     diagnostics: gate == null ? [diagnostic(input.material, "eewHorizonStale")] : [],
-  };
+  });
 
   // Gate source wins; current-only subjects still consume the same family budget.
   const subjects = new Map<string, EewCurrent | EewGate>();
@@ -486,13 +575,13 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       }
     }
   }
-  if (eligible.length + (aged == null ? 0 : 1) < needed) return {
+  if (eligible.length + (aged == null ? 0 : 1) < needed) return cancelOnly({
     state, nextDeadline: nextEewDeadline(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "capacityExceeded" }],
-    // P3-CC-AC07: 失敗そのものを入力ごとに 1 行残す（U-E は印を持たない、Q-CC-UE）。
+    // P3-CC-AC07: 失敗そのものを入力ごとに 1 行残す（U-E は容量の印を持たない、Q-CC-UE）。
     intents: [], outcomes: [], diagnostics: [{ level: "WARN", component: "eew", reason: "capacityRejected", unit: "U-E",
       inputId: candidate.source.inputId }],
-  };
+  });
   const evicted = new Set(needed === 0 ? []
     : [...eligible.sort(res02).slice(0, needed), ...(aged == null ? [] : [aged])].map((item) => item.subject));
   let currents = state.current.filter((item) => {
@@ -510,33 +599,17 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   };
   gates = [...gates, nextGate];
 
-  const previousLatch = state.notificationLatches.find((item) => item.operation === candidate.operation && item.eventId === eventId);
-  // A receive always retains its gate; only capacity eviction can remove a latch's last owner.
-  const otherLatches = state.notificationLatches.filter((item) => item.operation !== candidate.operation || item.eventId !== eventId);
-  const { latches: retainedLatches, evidenceUnknownUntil } = evicted.size === 0
-    ? { latches: otherLatches, evidenceUnknownUntil: state.evidenceUnknownUntil ?? 0 }
-    : releaseOrphanLatches(otherLatches, new Set([...currents, ...gates].map((owner) => owner.subject)),
-      input.clock.wallTimeMs, state.evidenceUnknownUntil ?? 0);
-  let deliveryEvidence = previousLatch?.deliveryEvidence;
-  const preexisting = previousLatch?.preexisting ?? false;
-  if (deliveryEvidence == null) {
-    const priorIntents = state.intents.filter((item) => item.operation === candidate.operation && item.subject.split("/")[2] === eventId);
-    const priorRecords = state.deliveryRecords.filter((item) => {
-      const owner = deliveryRecordEvent(item.intentId);
-      return owner?.operation === candidate.operation && owner.eventId === eventId;
-    });
-    const hasHistory = priorIntents.length > 0 || priorRecords.length > 0
-      || [...state.current, ...state.gates].some((item) => item.operation === candidate.operation && item.subject.split("/")[2] === eventId);
-    deliveryEvidence = priorIntents.some((item) => item.attempts > 0 || item.disposition === "delivered")
-      || priorRecords.some((item) => item.disposition === "delivered") ? "possible"
-      : hasHistory || candidate.cancelled || input.clock.wallTimeMs < evidenceUnknownUntil ? "unknown" : "unattempted";
-  }
+  // P3-NL-AC04 (6): latch は EventID の印として保存し、gate の退去・期限に縛られない。印が無いのは初めての EventID か、gate・current・pending の
+  // 無い印を捨てた後なので、証拠は取消か復元の後の 10 分なら unknown、ほかは unattempted。
+  const evidenceUnknownUntil = state.evidenceUnknownUntil ?? 0;
+  const deliveryEvidence = mark?.deliveryEvidence
+    ?? (candidate.cancelled || input.clock.wallTimeMs < evidenceUnknownUntil ? "unknown" : "unattempted");
   const correction = candidate.source.infoTypeRaw === "訂正";
   const notify = candidate.cancelled ? deliveryEvidence !== "unattempted"
     : correction || candidate.terminal
-    || (!previousLatch?.vxse45Accepted || candidate.family !== "VXSE43")
-      && (!previousLatch?.firstReportNotified || warning && !previousLatch.warningNotified);
-  const eligibleNotice = candidate.family !== "VXSE43" || !previousLatch?.vxse45Accepted;
+    || (!mark?.vxse45Accepted || candidate.family !== "VXSE43")
+      && (!mark?.firstReportNotified || warning && !mark.warningNotified);
+  const eligibleNotice = candidate.family !== "VXSE43" || !mark?.vxse45Accepted;
   let opportunity = notify && eligibleNotice;
   const baseTitle = warning ? "緊急地震速報（警報）" : "緊急地震速報（予報）";
   const title = candidate.cancelled ? "[取消] 緊急地震速報" : correction ? `[訂正] ${baseTitle}` : baseTitle;
@@ -584,44 +657,87 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   }
   if (maximumRank >= 0 && uncertain !== 0)
     maxIntensity += maximumOpen ? "・一部不明" : "以上の可能性・一部不明";
-  const notifiedAreas = previousLatch?.notifiedWarningAreas ?? 0n;
+  const notifiedAreas = BigInt(`0x${mark?.notifiedWarningAreas ?? "0"}`);
   let newWarningAreas = 0n;
   for (const area of warningAreas) if (/^\d{3}$/.test(area)) {
     const bit = 1n << BigInt(area);
     if ((notifiedAreas & bit) === 0n) newWarningAreas |= bit;
   }
-  const hazardIncrease = warning && previousLatch?.warningNotified === true && !candidate.cancelled
-    && (maximumRank > previousLatch.notifiedMaximumRank || newWarningAreas !== 0n);
+  const hazardIncrease = warning && mark?.warningNotified === true && !candidate.cancelled
+    && (maximumRank > mark.notifiedMaximumRank || newWarningAreas !== 0n);
   opportunity = opportunity || hazardIncrease && eligibleNotice;
+  // P3-NL-AC04 (4): その family の記録に同じ版の鍵と種類があれば作らない（再起動・取り直しの後に受け直した同じ報）。
+  const kind = candidate.cancelled ? "cancel" as const : "report" as const;
+  if (noticed(mark, candidate.family, candidate.source, kind)) opportunity = false;
   const parts = [assumed ? "仮定震源" : noticeSource.hypocenter, noticeSource.magnitude,
     `最大予測震度${maxIntensity}`].filter((part): part is string => part != null && part !== "");
   let bodyText = candidate.cancelled ? "緊急地震速報は取り消されました。" : earthquake == null ? title : parts.join(" / ");
   if (correction && !candidate.cancelled) bodyText = `訂正: ${bodyText}`;
-  const prefix = candidate.operation === "normal" ? "" : candidate.operation === "training" ? "【訓練】" : "【試験】";
-  const lead = candidate.operation === "normal" ? "" : candidate.operation === "training"
-    ? "訓練の電文です。通常運用の警報ではありません。\n" : "試験の電文です。通常運用の警報ではありません。\n";
-  const payload: EewNotificationPayload = { domain: "earthquake-eew", level: candidate.cancelled ? "cancel" : warning ? "critical" : "warning",
-    title: prefix + title, body: hazardIncrease && !correction && !candidate.cancelled
-      ? `続報: ${lead}${bodyText}` : lead + bodyText };
-  const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  const newIntents: EewUnitState["intents"][number][] = opportunity ? channels.map((channel) => ({
-    id: `U-E:${candidate.operation}:${eventId}:${state.persistence.currentGeneration + 1}:${channel}`,
-    unit: "U-E", subject: candidate.subject, operation: candidate.operation, source: candidate.source,
-    transition: candidate.cancelled ? "cancelled" : candidate.terminal ? "released" : previous == null ? "activated" : "updated",
-    channel, payload, createdAt: input.clock.wallTimeMs, expiresAt: input.clock.wallTimeMs + 15_000,
-    nextAttemptAt: input.clock.wallTimeMs, attempts: 0, configRevision: "p2-eew-unit-v1", disposition: "pending" as const,
-  })) : [];
-  const expired = state.intents.filter((intent) => intent.expiresAt <= input.clock.wallTimeMs);
-  const active = state.intents.filter((intent) => intent.expiresAt > input.clock.wallTimeMs);
+  const payload: EewNotificationPayload = candidate.cancelled ? cancelPayload : { domain: "earthquake-eew", level: warning ? "critical" : "warning",
+    title: prefix + title, body: hazardIncrease && !correction ? `続報: ${lead}${bodyText}` : lead + bodyText };
+  const transition = candidate.cancelled ? "cancelled" : candidate.terminal ? "released" : previous == null ? "activated" : "updated";
+  const placed = admitIntents(state, candidate, eventId, opportunity ? intentsOf(payload, transition) : [], evicted, opportunity,
+    input.clock.wallTimeMs);
+  const admitted = placed.admitted;
+  const notified = admitted && opportunity;
+  // P3-NL-AC04 (1)(2): EventID の印。latch は採用で進め、retainUntil は今回の版の起点＋24 時間を下げない（別 family の遅い報で短くしない）。
+  const nextMark: EewNoticeMark = { eventId, operation: candidate.operation,
+    firstReportNotified: (mark?.firstReportNotified ?? false) || notified && !candidate.cancelled,
+    warningNotified: (mark?.warningNotified ?? false) || notified && !candidate.cancelled && warning,
+    vxse45Accepted: (mark?.vxse45Accepted ?? false) || candidate.family === "VXSE45",
+    deliveryEvidence,
+    notifiedMaximumRank: notified && warning && !candidate.cancelled
+      ? Math.max(mark?.notifiedMaximumRank ?? -1, maximumRank) : mark?.notifiedMaximumRank ?? -1,
+    notifiedWarningAreas: (notified && warning && !candidate.cancelled ? notifiedAreas | newWarningAreas : notifiedAreas).toString(16),
+    // 整数に切り上げる（下げない）。保存の上界を整数の桁で数えるため（P3-NL-AC04 (8)、時計の小数は試験の境界値だけ）。
+    retainUntil: Math.max(mark?.retainUntil ?? -Infinity, Math.ceil(base) + GATE_MS),
+    families: nextFamilies(mark?.families ?? [], candidate.source, candidate.family, candidate.cancelled,
+      notified && placed.fresh.length !== 0 ? kind : null) };
+  const notices = placeNotice(state.notices, nextMark, markAt, gates, currents, placed.intents);
+  const semanticChanged = predictionChanged
+    || gate?.terminal !== candidate.terminal || evicted.size !== 0
+    || projected != null && previous?.warningClass !== projected.warningClass;
+  const change = semanticChanged ? "semantic" : "revisionOnly";
+  const next: EewUnitState = {
+    ...state, current: currents, gates, evidenceUnknownUntil,
+    // P3-EVICT-AC01(7): normal を退去したときだけ覚える（training/test の退去では覚えない）。
+    ...(aged == null ? {} : { evictedNormalReportMs: { ...state.evictedNormalReportMs, [candidate.family]:
+      Math.max(state.evictedNormalReportMs?.[candidate.family] ?? -Infinity, Date.parse(aged.source.reportDateTimeRaw)) } }),
+    intents: placed.intents, notices: notices.notices,
+    persistence: notices.notices !== state.notices || placed.intents.length !== state.intents.length
+      || placed.intents.some((intent, index) => intent !== state.intents[index]) ? dirty(state.persistence, input.clock.monotonicMs) : state.persistence,
+  };
+  return {
+    state: next, nextDeadline: nextEewDeadline(next),
+    decisions: [{ subject: candidate.subject, operation: candidate.operation,
+      decision: "changed", reason: null, change,
+      currentEstablished: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
+    intents: placed.fresh,
+    outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction, warning)] }],
+    diagnostics: [...missing, ...placed.diagnostics,
+      ...(evicted.size === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "eewCapacityEvicted" as const,
+        unit: "U-E" as const, count: evicted.size }]),
+      ...(notices.evicted === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "noticeMarkEvicted" as const,
+        unit: "U-E" as const, count: notices.evicted }]),
+    ],
+  };
+}
+
+// 新しい intent の収容（P2-A7-TIME.complexity）: 期限の来た pending を外し、同じ EventID の置換と退去した subject の intent を外し、上限を越えれば
+// 下位の運用区分の pending を外す。置換・退去した intent は intents から外す（結果は印に残る、P3-NL-AC05 (1)）。admitted は全部の新しい intent が入ったか。
+function admitIntents(state: EewUnitState, candidate: Candidate, eventId: string, fresh: readonly EewIntent[], evicted: ReadonlySet<string>,
+  replacing: boolean, wallTimeMs: number): Readonly<{ intents: readonly EewIntent[]; fresh: readonly EewIntent[]; admitted: boolean;
+    diagnostics: readonly DiagnosticDetails[] }> {
+  const expired = state.intents.filter((intent) => intent.expiresAt <= wallTimeMs);
+  const active = state.intents.filter((intent) => intent.expiresAt > wallTimeMs);
   const sameEvent = (intent: NotificationIntent) => intent.operation === candidate.operation
     && intent.subject.split("/")[2] === eventId;
   const replace = (intent: NotificationIntent) => evicted.has(intent.subject)
-    || (candidate.cancelled || opportunity) && sameEvent(intent)
-      && (candidate.cancelled || newIntents.some((item) => item.channel === intent.channel));
+    || (candidate.cancelled || replacing) && sameEvent(intent)
+      && (candidate.cancelled || fresh.some((item) => item.channel === intent.channel));
   const retained = active.filter((intent) => !replace(intent));
-  const removed = active.filter(replace);
-  let proposed = [...retained, ...newIntents];
-  const evictedIntents: EewUnitState["intents"][number][] = [];
+  let proposed = [...retained, ...fresh];
+  const evictedIntents: EewIntent[] = [];
   // 配送の更新の予約は notificationArrayBytes（U-E の世代の計量と cache を共有）の外で足す（P3-INTENT-UPDATE-RESERVE-001）。
   let proposedBytes = notificationArrayBytes(proposed) + proposed.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   let proposedCount = proposed.length;
@@ -645,54 +761,11 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       : active.filter((intent) => !evicted.has(intent.subject));
     evictedIntents.length = 0;
   }
-  const superseded = admitted ? removed : active.filter((intent) => evicted.has(intent.subject)
-    || candidate.cancelled && sameEvent(intent));
-  const records = [...state.deliveryRecords,
-    ...expired.map((intent) => ({ intentId: intent.id, disposition: "expired" as const, expiresAt: intent.expiresAt })),
-    ...[...superseded, ...evictedIntents].map((intent) => ({ intentId: intent.id, disposition: "superseded" as const, expiresAt: intent.expiresAt }))];
-  const durableChanged = records.length !== state.deliveryRecords.length || proposed.length !== state.intents.length
-    || proposed.some((intent, index) => intent !== state.intents[index]);
-  const semanticChanged = predictionChanged
-    || gate?.terminal !== candidate.terminal || evicted.size !== 0
-    || projected != null && previous?.warningClass !== projected.warningClass;
-  const change = semanticChanged ? "semantic" : "revisionOnly";
-  const next: EewUnitState = {
-    ...state, current: currents, gates, evidenceUnknownUntil,
-    // P3-EVICT-AC01(7): normal を退去したときだけ覚える（training/test の退去では覚えない）。
-    ...(aged == null ? {} : { evictedNormalReportMs: { ...state.evictedNormalReportMs, [candidate.family]:
-      Math.max(state.evictedNormalReportMs?.[candidate.family] ?? -Infinity, Date.parse(aged.source.reportDateTimeRaw)) } }),
-    intents: proposed,
-    deliveryRecords: records,
-    notificationLatches: [...retainedLatches,
-    { operation: candidate.operation, eventId,
-      firstReportNotified: (previousLatch?.firstReportNotified ?? false) || admitted && opportunity && !candidate.cancelled,
-      warningNotified: (previousLatch?.warningNotified ?? false) || admitted && opportunity && !candidate.cancelled && warning,
-      vxse45Accepted: (previousLatch?.vxse45Accepted ?? false) || candidate.family === "VXSE45",
-      deliveryEvidence, preexisting,
-      notifiedMaximumRank: admitted && opportunity && warning && !candidate.cancelled
-        ? Math.max(previousLatch?.notifiedMaximumRank ?? -1, maximumRank) : previousLatch?.notifiedMaximumRank ?? -1,
-      notifiedWarningAreas: admitted && opportunity && warning && !candidate.cancelled
-        ? notifiedAreas | newWarningAreas : notifiedAreas }],
-    persistence: durableChanged ? dirty(state.persistence, input.clock.monotonicMs) : state.persistence,
-  };
-  const transition = candidate.cancelled ? "cancelled" : candidate.terminal ? "released"
-    : previous == null ? "activated" : "updated";
-  return {
-    state: next, nextDeadline: nextEewDeadline(next),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation,
-      decision: "changed", reason: null, change,
-      currentEstablished: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
-    intents: admitted ? newIntents : [],
-    outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction, warning)] }],
-    diagnostics: [...missing,
-      ...(expired.length === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "notificationExpired" as const,
-        unit: "U-E" as const, count: expired.length }]),
-      ...(evicted.size === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "eewCapacityEvicted" as const,
-        unit: "U-E" as const, count: evicted.size }]),
-      ...(evictedIntents.length === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "notificationCapacityEvicted" as const,
-        unit: "U-E" as const, count: evictedIntents.length }]),
-    ],
-  };
+  const diagnostics: DiagnosticDetails[] = [];
+  if (expired.length !== 0) diagnostics.push({ level: "INFO", component: "eew", reason: "notificationExpired", unit: "U-E", count: expired.length });
+  if (evictedIntents.length !== 0) diagnostics.push({ level: "INFO", component: "eew", reason: "notificationCapacityEvicted", unit: "U-E",
+    count: evictedIntents.length });
+  return { intents: proposed, fresh: admitted ? fresh : [], admitted, diagnostics };
 }
 
-export { reduceEew, nextEewDeadline, reclaimEewLifetime, expiredOutcome, dirty, notificationArrayBytes, emptyNotificationLatch, deliveryRecordEvent };
+export { reduceEew, nextEewDeadline, reclaimEewLifetime, expiredOutcome, dirty, notificationArrayBytes, noticeAt };

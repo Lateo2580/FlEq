@@ -109,5 +109,40 @@ it("T02 regression #4: fallback waits for close, survives synchronous spawn fail
   now = { wallTimeMs: 1, monotonicMs: 5_000 };
   atDeadline.emit("close", 1);
   expect(spawn).toHaveBeenCalledTimes(1);
-  expect(await expired).toMatchObject({ kind: "timeout", stopped: true, attemptId: "deadline" });
+  // P3-NL-AC06 (3): 起動した後の失敗は次の backend へ進まず、結果の分からない終わり（adapterRejected）で返す。
+  expect(await expired).toMatchObject({ kind: "failed", reason: "adapterRejected", attemptId: "deadline" });
+});
+
+// P3-NL-T08（P3-NL-AC06 (2)(3)、P3-NL-D-SOUND-BACKEND=B）: 起動しなかった試行は notStarted、起動した後の失敗は次の backend へ進まない。
+// probe は無音なので起動した後の失敗の次を試し、鳴った backend の位置を残す。起動した後に失敗した試行の次は列の次の backend から始まる。
+it("P3-NL-T08 contractBoundary / AC06: notStarted, no fallback after a launch, probe fallback and the sound backend position", async () => {
+  vi.spyOn(process, "platform", "get").mockReturnValue("linux");
+  const { probeSoundBackend, runNotificationAttempt } = await import("../../src/notification-delivery/adapter");
+  const now = { wallTimeMs: 0, monotonicMs: 0 };
+  const sound = { ...attempt, channel: "sound" as const, soundAsset: "reconstruction/assets/sounds/weather-info.wav" as const };
+  const spawn = vi.mocked(childProcess.spawn).mockReset().mockImplementation(() => { throw new Error("ENOENT"); });
+  expect(await runNotificationAttempt(sound, () => now)).toMatchObject({ kind: "failed", reason: "notStarted" });
+  spawn.mockReset();
+  expect(await runNotificationAttempt({ ...sound, attemptId: "late", timeoutAtMonotonicMs: 0 }, () => now))
+    .toMatchObject({ kind: "failed", reason: "notStarted" });
+  expect(spawn).not.toHaveBeenCalled();
+  const backend = { index: 0 };
+  const first = child(), second = child();
+  spawn.mockReset().mockReturnValueOnce(first).mockReturnValueOnce(second);
+  const probe = probeSoundBackend("silent.wav", () => now, backend);
+  first.emit("close", 1);
+  second.emit("close", 0);
+  expect([await probe, backend.index]).toMatchObject([{ kind: "delivered" }, 1]);
+  const launched = child();
+  spawn.mockReset().mockReturnValue(launched);
+  const run = runNotificationAttempt({ ...sound, attemptId: "b" }, () => now, backend);
+  launched.emit("close", 1);
+  expect(await run).toMatchObject({ kind: "failed", reason: "adapterRejected" });
+  expect([spawn.mock.calls.map(([exe]) => exe), backend.index]).toEqual([["/usr/bin/paplay"], 2]);
+  const last = child();
+  spawn.mockReset().mockReturnValue(last);
+  const wrap = runNotificationAttempt({ ...sound, attemptId: "c" }, () => now, backend);
+  last.emit("close", 1);
+  await wrap;
+  expect([spawn.mock.calls.map(([exe]) => exe), backend.index]).toEqual([["/usr/bin/aplay"], 0]);
 });

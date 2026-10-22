@@ -23,7 +23,7 @@ const FIELDS = ["areaCodes", "effective", "id", "knownCodes", "lastKnownPeriodCo
 const KNOWN = new Set(["00", "01", "11", "20", "21", "22", "30", "31", "41", "50", "51"]);
 const utf8 = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
-const empty = (): WeatherTimeseriesUnitState => ({ schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [],
+const empty = (): WeatherTimeseriesUnitState => ({ schemaVersion: "p2-weather-timeseries-unit-v5", contentRevision: 0, subjects: [],
   gates: [], intents: [], persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
     savedAckAt: null, dirtySince: null } });
 
@@ -158,7 +158,7 @@ describe("P3-UFP-AC03 byte bounds", () => {
   });
 
   it("P3-UFP-T04: at the normal-sized state (B >= 15,638,202) the restore reply and one report's reply stay within the formula", () => {
-    const base = serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v4", unit: "U-F", generation: 0, capturedAt: 0,
+    const base = serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v5", unit: "U-F", generation: 0, capturedAt: 0,
       payload: weatherTimeseriesUnitCodec.encode(empty()), sha256: "0".repeat(64) }).byteLength + 62;
     const clone = (index: number) => withStrings(seed, `normal/VPWP50/office-${String(index).padStart(3, "0")}`, {});
     const size = (state: WeatherTimeseriesUnitState) => serializedEnvelope({ schemaVersion: state.schemaVersion, unit: "U-F", generation: 0,

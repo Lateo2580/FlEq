@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "aa6c95b749fa1e21ebc64e1a2200e6068a206986",
-    "sha256": "d2795ba20af8555c887f259e3c5ec1e50f23528284e4c077c78a98fb1ce496e7",
+    "sha256": "000cf2873c2ed91b62d04f28a613c7425963ab9bc675d34cdddbf4590ef8dd74",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -237,7 +237,7 @@
           "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
           "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
           "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
-          "reconstruction/src/runtime/composition-root.ts:668 «b7bc8ff6372f700f»"
+          "reconstruction/src/runtime/composition-root.ts:675 «b7bc8ff6372f700f»"
         ]
       }
     ],

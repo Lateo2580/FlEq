@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
 import type { LocalBulletinsUnitState, LocalBulletinsUnitStep } from "../../contracts/p3-local-bulletins-unit.types";
+import { noticeMarkBytes } from "../../src/units/notice-mark";
 import { generationBytes, localBulletinsUnitCodec, reduceLocalBulletinsUnit, toLocalBulletinsView } from "../../src/units/local-bulletins/local-bulletins-unit";
 import { deliveryGrowth as reserve } from "../../src/notification-delivery/delivery-growth";
 import { linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
@@ -471,7 +473,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(pending.intents.filter((item) => item.disposition === "pending")).toHaveLength(128);
     const over64 = send(pending, N50, tornadoN(64));
     expect(over64.diagnostics).toEqual([{ level: "INFO", component: "localBulletins", reason: "notificationCapacityEvicted", unit: "U-M", count: 2 }]);
-    // A7 の選択順の後ろから外すので、pending は 128 件のまま（外れた分は superseded の終端記録）。
+    // A7 の選択順の後ろから外すので、pending は 128 件のまま（外れた分は intents から外れる、P3-NL-AC05 (1)）。
     expect(over64.state.intents.filter((item) => item.disposition === "pending")).toHaveLength(128);
     // byte の予算: 長い intent の 120 subject を送っても pending の「実 byte＋予約」は 131,072 以内で、保存物は decode できる。
     let heavy = emptyState();
@@ -480,19 +482,13 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(heavyPending.length).toBeLessThan(120 * 2);
     expect(localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify(localBulletinsUnitCodec.encode(heavy))) as JsonValue).kind).toBe("restored");
     // intentUpdate で attempts が 1 桁から 5 桁になっても予約の内側で decode できる。
-    const grown = reduceLocalBulletinsUnit(pending, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending.intents.map((item) => ({ id: item.id, attempts: 12_345,
-      nextAttemptAt: T0 + 1_234_567_890, disposition: "pending" as const })) });
+    const grown = reduceLocalBulletinsUnit(pending, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending.intents.map((item) => ({ ...item, attempts: 12_345,
+      nextAttemptAt: T0 + 1_234_567_890, disposition: "pending" as const, lossReason: null })) });
     expect(localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify(localBulletinsUnitCodec.encode(grown.state))) as JsonValue).kind).toBe("restored");
-    // 終端記録は 98,304 byte を超えた分を最古から期限前に回収する（更新で終端にした記録は除く）。
-    let terminal = pending;
+    // 終端記録の予算は無くなった（P3-NL-AC05 (2)）: 終端の更新は intent を外す。
     const ids = pending.intents.map((item) => item.id);
-    const delivered = reduceLocalBulletinsUnit(terminal, { kind: "intentUpdate", clock: clock(T0), intentUpdate: ids.map((id) => ({ id, attempts: 1, nextAttemptAt: T0, disposition: "delivered" as const })) });
-    terminal = delivered.state;
-    const terminalBytes = terminal.intents.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
-    expect(terminalBytes).toBeGreaterThan(98_304);
-    for (let index = 70; index < 90; index++) terminal = send(terminal, N50, tornadoN(index)).state;
-    const terminalNow = terminal.intents.filter((item) => item.disposition !== "pending").reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
-    expect(terminalNow).toBeLessThanOrEqual(98_304);
+    const delivered = reduceLocalBulletinsUnit(pending, { kind: "intentUpdate", clock: clock(T0), intentUpdate: ids.map((id) => ({ id, attempts: 1, nextAttemptAt: T0, disposition: "delivered" as const, lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null })) });
+    expect(delivered.state.intents).toEqual([]);
     // 受信 1 回の費用は記録・intent 単位の加算だけ: 満杯の slice へ受信しても、直列化は 1 つの intent ごと（16 KB 未満）で、state・slice の全体は 1 度も直列化しない。
     // 変えない slice の配列は同じ参照のまま。
     const material = decodeFixture("30_01_01_100915_VPCI50", eventId("C9999"));
@@ -533,7 +529,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const pendingAt = (index: number, bodyLength: number) => ({ id: `U-M:${own.subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-M" as const, subject: own.subject,
       operation: "normal" as const, source: own.source, transition: "updated" as const, channel: "desktop" as const,
       payload: { domain: "weather" as const, level: "warning" as const, title: "t".repeat(160), body: "b".repeat(bodyLength) }, createdAt: T0, expiresAt: T0 + 180_000,
-      nextAttemptAt: T0, attempts: 0, configRevision: "p3-local-bulletins-unit-v4", disposition: "pending" as const });
+      nextAttemptAt: T0, attempts: 0, configRevision: "p3-local-bulletins-unit-v5", disposition: "pending" as const, lastAttempt: null, replayed: false, priorityGroup: "other" as const });
     const total = (list: readonly ReturnType<typeof pendingAt>[]) => 2 + Math.max(list.length - 1, 0) + list.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + reserve(item), 0);
     const lengths: number[] = [];
     while (total(lengths.map((length, index) => pendingAt(index, length))) <= 131_072) lengths.push(512);
@@ -592,11 +588,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       ["inputId with a quote", (value) => { value.tornado[0].source.inputId = 'a"b'; }],
       ["mark of another subject", (value) => { value.tornado[0].unconfirmed = { ...value.tornado[0].source, subject: "normal/VPFT50/X" }; }],
       ["pending over 128", (value) => { value.intents = Array.from({ length: 129 }, (_, index) => ({ ...value.intents[0], id: `${value.intents[0].id}#${index}` })); }],
-      ["saved object over 229,376 bytes", (value) => {
-        const extra = Array.from({ length: 260 }, (_, index) => ({ ...value.intents[0], id: `${value.intents[0].id}~${index}`, disposition: "delivered",
-          payload: { ...value.intents[0].payload, body: "長".repeat(512) } }));
-        value.intents = [...value.intents, ...extra];
-      }],
+      ["terminal intent (P3-NL-AC05)", (value) => { value.intents = [{ ...value.intents[0], disposition: "delivered" }]; }],
     ];
     for (const [label, change] of bad) {
       const value = copy();
@@ -649,7 +641,8 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const followUp = send(first.state, N50, compose(serial("2"), at("2013-07-26T09:30:00+09:00"), replaceTag("ValidDateTime", "2013-07-26T11:00:00+09:00")));
     expect(shape(followUp)).toEqual(both("updated", "weather", "warning", "長崎県竜巻注意情報", "発表中 24地域 / 有効期限 11:00"));
     expect(pendingOf(followUp.state, NAGASAKI).filter((item) => item.createdAt === ms("2013-07-26T09:30:00+09:00"))).toHaveLength(2);
-    expect(followUp.state.intents.filter((item) => item.disposition === "superseded")).toHaveLength(2);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(followUp.state.intents).toHaveLength(2);
     expect(send(followUp.state, N50, compose(serial("3"), at("2013-07-26T09:40:00+09:00"), replaceTag("ValidDateTime", "2013-07-26T11:00:00+09:00"))).intents).toEqual([]);
     const cancel = send(first.state, "synthetic_VPHW50_tokyo_cancel", compose(office("長崎地方気象台"), headTitle("長崎県竜巻注意情報"), at("2013-07-26T09:25:00+09:00"), serial("2")));
     expect(shape(cancel)).toEqual(both("cancelled", "weather", "cancel", "[取消] 長崎県竜巻注意情報", "この情報は取り消されました"));
@@ -734,25 +727,26 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       return { subject, operation: "training", family, source: source(subject, headType, index), unconfirmed: mark(subject, headType), retainUntil: REPORT + length,
         effective: index % 2 === 0 ? "evidence" : "cancelled" };
     }));
-    // pending は「実 byte＋予約」131,072 まで、終端記録は 98,304 まで（合計 229,376 以内）。
-    const intentAt = (index: number, disposition: "pending" | "delivered") => {
+    // pending は「実 byte＋予約」131,072 まで（終端記録は P3-NL-AC05 で無くなった）。
+    const intentAt = (index: number) => {
       const subject = tornado[index % 128].subject;
       return { id: `U-M:${subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-M" as const, subject, operation: "training" as const, source: tornado[index % 128].source,
         transition: "updated" as const, channel: "desktop" as const, payload: { domain: "weather", level: "warning", title: repeat("題", 160), body: repeat("文", 512) },
-        createdAt: REPORT, expiresAt: REPORT + 180_000, nextAttemptAt: REPORT, attempts: 99_999, configRevision: "p3-local-bulletins-unit-v4", disposition };
+        createdAt: REPORT, expiresAt: REPORT + 180_000, nextAttemptAt: REPORT, attempts: 99_999, configRevision: "p3-local-bulletins-unit-v5", disposition: "pending" as const, lastAttempt: null, replayed: false, priorityGroup: "other" as const };
     };
     const intents: ReturnType<typeof intentAt>[] = [];
     const sizeOf = (list: readonly object[]) => list.reduce<number>((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
     const growth = (item: ReturnType<typeof intentAt>) => reserve(item);
     for (let index = 0; intents.length < 128; index++) {
-      const next = intentAt(index, "pending");
+      const next = intentAt(index);
       if (sizeOf([...intents, next]) + [...intents, next].reduce((sum, entry) => sum + growth(entry), 0) > 131_072) break;
       intents.push(next);
     }
     const pendingCount = intents.length;
-    for (let index = 1000; sizeOf(intents.filter((item) => item.disposition !== "pending")) + Buffer.byteLength(JSON.stringify(intentAt(index, "delivered"))) + 1 <= 98_304; index++)
-      intents.push(intentAt(index, "delivered"));
-    const maximum = { schemaVersion: "p3-local-bulletins-unit-v4", tornado, heat, transient, intents };
+    // P3-NL-AC15 (2): 全部の記録に最長の通知の印。
+    const notice = { version: "0".repeat(16), kinds: ["report", "cancel", "expiry"] as const, evidence: "unattempted" as const };
+    const maximum = { schemaVersion: "p3-local-bulletins-unit-v5", tornado: tornado.map((item) => ({ ...item, notice })), heat: heat.map((item) => ({ ...item, notice })),
+      transient: transient.map((item) => ({ ...item, notice })), intents };
     const decoded = localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify(maximum)) as JsonValue);
     expect(decoded.kind).toBe("restored");
     if (decoded.kind !== "restored") return;
@@ -763,13 +757,14 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       if (again.kind === "restored") expect(generationBytes(localBulletinsUnitCodec.encode(again.state)), label).toBeLessThanOrEqual(GENERATION_STATIC_BOUND);
     };
     const GENERATION_STATIC_BOUND = localBulletinsUnitCodec.maxEnvelopeBytes!;
-    const unmarked = (json: string) => Buffer.byteLength(json.replace(/,"unconfirmed":\{[^}]*\}/g, ""));
+    const unmarked = (json: string) => Buffer.byteLength(json.replace(/,"(?:unconfirmed|notice)":\{[^}]*\}/g, ""));
     expect(generationBytes(localBulletinsUnitCodec.encode(decoded.state))).toBeLessThanOrEqual(GENERATION_STATIC_BOUND);
-    // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器を広げた量は印の分だけ。印を外した最大の状態は 4 MiB の内側で、各 slice の受理が受ける最長の subject
-    // （1 単位 3 byte）の記録に上限いっぱいの印を付けて encode した印の byte を件数の上限に掛けた和が、広げた量の内側。
+    // P3-VM-AC08（作者裁定 2026-10-21 夜）・P3-NL-D-CAPACITY=A: 器を広げた量は未確認の印と通知の印の分（外した終端記録の 98,304 を引く）。印を
+    // 外した最大の状態は 4 MiB−98,304 の内側で、各 slice の受理が受ける最長の subject（1 単位 3 byte）の記録に上限いっぱいの未確認の印を付けて
+    // encode した印の byte を件数の上限に掛けた和と、通知の印の上界の和が、広げた量の内側。
     const empty = localBulletinsUnitCodec.encode(emptyState());
     expect(unmarked(JSON.stringify(localBulletinsUnitCodec.encode(decoded.state))) + generationBytes(empty) - Buffer.byteLength(JSON.stringify(empty)))
-      .toBeLessThanOrEqual(4_194_304);
+      .toBeLessThanOrEqual(4_194_304 - 98_304);
     const wide = repeat("あ", 64), probes = [["tornado", 128, { ...tornado[0], subject: `training/tornado/${repeat("あ", 24)}/${wide}`, title: wide,
       editorialOffice: repeat("あ", 24) }, "VPHW51"], ["heat", 256, { ...heat[0], subject: `training/VPFT50/${wide}` }, "VPFT50"],
     ["transient", 768, { ...transient[257], subject: `training/VPAW51/12345678/${wide}` }, "VPAW51"]] as const;
@@ -779,7 +774,8 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       expect([slice, localBulletinsUnitCodec.decode(JSON.parse(json) as JsonValue).kind]).toEqual([slice, "restored"]);
       return count * (Buffer.byteLength(json) - unmarked(json));
     });
-    expect(marks.reduce((sum, item) => sum + item, 0)).toBeLessThanOrEqual(localBulletinsUnitCodec.maxEnvelopeBytes! - 4_194_304);
+    expect(marks.reduce((sum, item) => sum + item, 0) + (128 + 256 + 768) * noticeMarkBytes("notice"))
+      .toBeLessThanOrEqual(localBulletinsUnitCodec.maxEnvelopeBytes! - 4_194_304 + 98_304);
     // (i) 竜巻の続報（最大の記録を新しい版で置き換える）。(ii) 熱中症の取消。(iii) transient の新しい報による退去。(iv) intentUpdate で attempts・nextAttemptAt の桁を伸ばす。
     // (v) 期限処理（見える期限・retainUntil の一括の到来）。(vi) restore 入力。
     const training = status("訓練");
@@ -794,8 +790,8 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const evictor = send(decoded.state, "89_01_01_250630_VMCJ55", compose(training, eventId("NEWMAX0001"), at("2013-07-26T09:25:00+09:00")), ms("2013-07-26T09:25:00+09:00"));
     expect(evictor.diagnostics.map((item) => item.reason)).toContain("localBulletinsCapacityEvicted");
     closes("(iii) transient eviction", evictor.state);
-    const updated = reduceLocalBulletinsUnit(decoded.state, { kind: "intentUpdate", clock: clock(REPORT), intentUpdate: intents.map((item) => ({ id: item.id, attempts: 123_456_789_012,
-      nextAttemptAt: 1_700_000_000_000_000, disposition: item.disposition === "pending" ? "pending" as const : "delivered" as const })) });
+    const updated = reduceLocalBulletinsUnit(decoded.state, { kind: "intentUpdate", clock: clock(REPORT), intentUpdate: intents.map((item) => ({ ...item, attempts: 123_456_789_012,
+      nextAttemptAt: 1_700_000_000_000_000, disposition: "pending" as const, lossReason: null })) });
     closes("(iv) intent update", updated.state);
     // 一括の期限（全 subject の同時の期限）: 件数と所要を計測して報告する（AC12 の一部）。
     const sweptAt = REPORT + hours(37);
@@ -873,4 +869,12 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect([evictions(next), next.state.tornado, next.state.heat, next.state.transient.filter((item) => item.family === "seismicText")]).toEqual([
       [evicted], others.tornado, others.heat, others.transient.filter((item) => item.family === "seismicText")]);
   });
+});
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-M restores failed and null pending with their fields and drops a started one", () => {
+  const issued = send(emptyState(), N50);
+  expect(issued.intents.length).toBeGreaterThanOrEqual(2);
+  expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
+    restore: (state, at) => reduceLocalBulletinsUnit(emptyState(), { kind: "restore", persisted: localBulletinsUnitCodec.encode(state), clock: at }),
+    markOf: (state, subject) => records(state).find((item) => item.subject === subject)?.notice });
 });

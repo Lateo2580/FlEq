@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { LONGEST_NOTICE, expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
 import type { LandslideCurrent, LandslideIntent, LandslideUnitState, LandslideUnitStep } from "../../contracts/p3-landslide-unit.types";
@@ -162,7 +163,8 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     expect(shape(corrected)).toEqual([[SUBJECT, "changed", "revisionOnly"]]);
     const cancelled = send(corrected.state, F.cancel);
     expect([shape(cancelled), recordOf(cancelled.state)]).toEqual([[[SUBJECT, "changed", "semantic"]], { subject: SUBJECT, operation: "normal",
-      office: "稚内地方気象台", source: expect.objectContaining({ infoTypeRaw: "取消" }), retainUntil: T0 + 6 * HOUR, effective: "cancelled" }]);
+      office: "稚内地方気象台", source: expect.objectContaining({ infoTypeRaw: "取消" }), retainUntil: T0 + 6 * HOUR, effective: "cancelled",
+      notice: expect.objectContaining({ kinds: ["cancel"] }) }]); // P3-NL-AC02 (2): 系列の記録に通知の印
     // 取消以前の版は stale で復活しない。取消より新しい発表は新しい報として採用し active に戻す（activated）。
     for (const name of [F.soya, F.correction]) expect(shape(send(cancelled.state, name))).toEqual([[SUBJECT, "unchanged", "stale"]]);
     const again = follow(cancelled.state, soya(ORIGINAL));
@@ -270,7 +272,8 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       .toEqual([false, expect.arrayContaining(["training/VPWW56/T2"])]);
     const withdrawn = receive(evictedTraining, decodeFixture(F.cancel, (xml) => status("訓練")(office("T2")(retime(iso(now))(xml)))), clock(now));
     expect(withdrawn.state.currents).toBe(evictedTraining.currents);
-    expect(withdrawn.state.intents.filter((item) => item.subject === "training/VPWW56/T2").map((item) => item.disposition)).toEqual(["superseded"]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(withdrawn.state.intents.filter((item) => item.subject === "training/VPWW56/T2")).toEqual([]);
     expect(withdrawn.state.persistence.currentGeneration).toBe(evictedTraining.persistence.currentGeneration + 1);
 
     // 一報の Item 256・Kind/Code の種類 8 は受ける（257・9 は T01）。title 128/129 文字と Kind の名前 32/33 文字の切り詰め。
@@ -306,8 +309,8 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     expect(dropped.state.intents).toBe(busy.intents);
     // 配送の更新で attempts が 1 桁から 5 桁・nextAttemptAt の桁が増えても、予約の内側で decode が受ける。
     const budget = send({ ...emptyState(), intents: seeded(10, pad) }, F.soya).state;
-    const grown = reduceLandslideUnit(budget, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending(budget).map((item) => ({ id: item.id,
-      attempts: 12_345, nextAttemptAt: T0 + 0.123456, disposition: "pending" as const })) });
+    const grown = reduceLandslideUnit(budget, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending(budget).map((item) => ({ ...item,
+      attempts: 12_345, nextAttemptAt: T0 + 0.123456, disposition: "pending" as const, lossReason: null })) });
     expect(roundTrip(grown.state).kind).toBe("restored");
 
     // I-U-L.capacityMeasurement の同時最大状態（実例の最大）と、上限の文字列での上界。どちらも encode でき 2,097,152 byte 以下で decode が受ける。
@@ -391,7 +394,7 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       ["pending + delivery reserve > 131072 bytes", { ...value, intents: reserveOver(intent) }],
       ["attempts negative", { ...value, intents: [{ ...intent, attempts: -1 }] }],
       ["nextAttemptAt not finite", { ...value, intents: [{ ...intent, nextAttemptAt: null }] }],
-      ["pending + terminal > 229,376 bytes", { ...value, intents: terminalOver(intent) }],
+      ["terminal intent (P3-NL-AC05)", { ...value, intents: [{ ...intent, disposition: "delivered" }] }],
       ["intent of another unit", { ...value, intents: [{ ...intent, unit: "U-N" }] }],
       ["intent domain", { ...value, intents: [{ ...intent, payload: { ...(intent.payload as Row), domain: "volcano" } }] }],
       ["intent subject form", { ...value, intents: [{ ...intent, subject: "normal/VYSE50/1", source: { ...(intent.source as Row), subject: "normal/VYSE50/1" } }] }],
@@ -451,18 +454,19 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       ["cancelled", "cancel", "[取消] 宗谷地方土砂災害警報・注意報", "この情報は取り消されました"]]);
     // 置換（P3-C10-REPLACEMENT=A）: 同じ subject・channel の新しい intent は古い pending を、取消は対象 subject の全 pending を置き換える。
     const replaced = follow(first.state, soya(["49", ...Array(9).fill("29")]), "2020-06-22T23:00:30+09:00").state;
-    expect(replaced.intents.map((item) => item.disposition)).toEqual(["superseded", "superseded", "pending", "pending"]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(replaced.intents.map((item) => item.disposition)).toEqual(["pending", "pending"]);
     expect(pending(send(replaced, F.cancel, retime("2020-06-22T23:00:40+09:00")).state).map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
     expect(send(first.state, F.soya, office("旭川地方気象台")).state.intents.slice(0, 2)).toEqual(first.state.intents);
     // intentUpdate: 既存 id だけを一括で更新し、保存世代を 1 つ進める。未知 id・同値は no-op。
     const [desktop] = first.intents;
-    const updated = reduceLandslideUnit(first.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: [{ id: desktop.id,
-      attempts: 1, nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending" }, { id: "unknown", attempts: 1, nextAttemptAt: 0,
-      disposition: "delivered" }] });
+    const updated = reduceLandslideUnit(first.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: [{ ...desktop,
+      attempts: 1, nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null }, { id: "unknown", attempts: 1, nextAttemptAt: 0,
+      disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null }] });
     expect([updated.state.persistence.currentGeneration, updated.decisions]).toMatchObject([first.state.persistence.currentGeneration + 1,
       [{ decision: "changed", change: "deliveryOnly" }]]);
-    expect(reduceLandslideUnit(updated.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: { id: desktop.id, attempts: 1,
-      nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending" } }).state).toBe(updated.state);
+    expect(reduceLandslideUnit(updated.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: { ...desktop, attempts: 1,
+      nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null } }).state).toBe(updated.state);
     // 復元直後の続報は復元した記録との差で決める（同じ報は duplicate で鳴らさない、引下げは normal）。訓練は desktop だけ。
     const restored = reduceLandslideUnit(emptyState(), { kind: "restore", persisted: landslideUnitCodec.encode(first.state),
       clock: clock(desktop.createdAt + 1) }).state;
@@ -483,25 +487,19 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
   });
 
   // 実不具合の再発防止の型（C8 の Q-C8-IMPL-AMEND(1)(2) を U-L で）: owner を通した更新・保存・復元。
-  it("P3-C10-T04 contractBoundary / AC04: an owner terminal update at the terminal budget and pending at its budget survive save and restore", () => {
+  // 終端記録の予算は無くなった（P3-NL-AC05 (2)）ので、終端の更新は intent を外して owner が採る。
+  it("P3-C10-T04 contractBoundary / AC04: an owner terminal update removes its intent and pending at its budget survives save and restore", () => {
     const template = send(emptyState(), F.soya).intents[0];
-    const terminalBytes = (values: readonly LandslideIntent[]) => values.filter((item) => item.disposition !== "pending")
-      .reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
     const old: LandslideIntent = { ...template, id: "old-pending", createdAt: T0 - 100_000, expiresAt: T0 + 80_000 };
-    const done = (index: number): LandslideIntent => ({ ...template, id: `done-${index}`, createdAt: T0 + index, disposition: "delivered" });
-    let count = 0;
-    while (terminalBytes(Array.from({ length: count + 1 }, (_, index) => done(index))) <= 98_304) count++;
     const now = clock(T0 + 1_000);
     const empty = restoreOwner({ runId: "run", place: "deferred", clock: now, restored: { "U-F": { kind: "empty" }, "U-L": { kind: "empty" },
       "U-R": { kind: "empty" }, "U-B": { kind: "empty" }, "U-M": { kind: "empty" }, "U-Y": { kind: "empty" } } },
       linkedUnitTable, linkedUnitCodecs).state;
-    const owner = { ...empty, units: { ...empty.units, "U-L": { ...emptyState(), intents: [old, ...Array.from({ length: count }, (_, index) => done(index))] } } };
-    const updated = intentUpdateOwner(owner, "U-L", [{ id: old.id, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered" }], now,
+    const owner = { ...empty, units: { ...empty.units, "U-L": { ...emptyState(), intents: [old] } } };
+    const updated = intentUpdateOwner(owner, "U-L", [{ ...old, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered", lossReason: null }], now,
       linkedUnitTable);
     expect(updated.adopted).toBe(true);
-    expect(updated.state.units["U-L"]!.intents.find((item) => item.id === old.id)?.disposition).toBe("delivered");
-    // 終端記録の合計が 98,304 byte を超える分は最古（done-0）から期限前に回収し、更新で終端にした記録は回収しない。
-    expect(updated.state.units["U-L"]!.intents.some((item) => item.id === "done-0")).toBe(false);
+    expect(updated.state.units["U-L"]!.intents).toEqual([]);
     expect(roundTrip(updated.state.units["U-L"]!).kind).toBe("restored");
     // 予算いっぱいに受理した pending が、最長の配送の更新（attempts 16 桁・nextAttemptAt 25 文字）の後も保存・復元できる。
     let full = emptyState();
@@ -511,9 +509,8 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     expect(pending(full).length).toBeLessThan(128);
     const first = roundTrip(full);
     if (first.kind !== "restored") throw new Error("the admitted state does not decode");
-    const grown = intentUpdateOwner({ ...empty, units: { ...empty.units, "U-L": first.state } }, "U-L", pending(first.state).map((item, index) => ({
-      id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
-      disposition: index % 3 === 0 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    const grown = intentUpdateOwner({ ...empty, units: { ...empty.units, "U-L": first.state } }, "U-L", pending(first.state).map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
+      disposition: index % 3 === 0 ? "superseded" as const : "pending" as const, lossReason: null })), now, linkedUnitTable);
     expect(grown.adopted).toBe(true);
     expect(roundTrip(grown.state.units["U-L"]!).kind).toBe("restored");
   });
@@ -596,7 +593,9 @@ function budgetState(bounded: boolean): LandslideUnitState {
     const kinds = bounded ? Array.from({ length: 8 }, (_, group) => ({ code: String(50 + group), name: wide(32), level: null,
       areas: Array.from({ length: 32 }, area) }))
       : seed.kinds.map((group, at) => ({ ...group, areas: Array.from({ length: at < 2 ? 1 : (index < 44 ? 28 : 27) - 2 }, area) }));
-    return { ...seed, subject, operation, office: name, source, ...bounded ? { unconfirmed: { ...source } } : {}, retainUntil: Date.parse(reportDateTimeRaw) + 48 * HOUR,
+    // P3-NL-AC15 (2): 上界は最長の通知の印も持つ。
+    return { ...seed, subject, operation, office: name, source, ...bounded ? { unconfirmed: { ...source }, notice: LONGEST_NOTICE } : {},
+      retainUntil: Date.parse(reportDateTimeRaw) + 48 * HOUR,
       title: bounded ? wide(128) : seed.title, kinds };
   });
   const intentBase = send(emptyState(), F.soya).intents[0];
@@ -611,15 +610,7 @@ function budgetState(bounded: boolean): LandslideUnitState {
     pendingIntents.push(item);
     size += width;
   }
-  // 終端記録は配送の更新で終端にした記録を含めて「pending の実 byte＋予約＋終端記録」229,376 byte まで。
-  const terminal: LandslideIntent[] = [];
-  for (let index = 1000; ; index++) {
-    const item = sized(index, "delivered");
-    if (size + bytes(item) + 1 > 229_376) break;
-    terminal.push(item);
-    size += bytes(item) + 1;
-  }
-  return { ...emptyState(), currents, intents: [...pendingIntents, ...terminal] };
+  return { ...emptyState(), currents, intents: pendingIntents };
 }
 
 // 実 byte が 131,072 ちょうどで、予約を足すと超える pending（受理と同じ式）。
@@ -631,13 +622,11 @@ function reserveOver(intent: Record<string, unknown>): Record<string, unknown>[]
   if (Buffer.byteLength(JSON.stringify(items)) !== 131_072) throw new Error("pending is not 131,072 bytes");
   return items;
 }
-// 「pending の実 byte＋予約＋終端記録」が 229,377 byte（世代の上限より十分小さい）。
-function terminalOver(intent: Record<string, unknown>): Record<string, unknown>[] {
-  const make = (index: number, pad: number) => ({ ...intent, id: `done-${index}`, disposition: "delivered",
-    payload: { ...(intent.payload as Record<string, unknown>), body: "x".repeat(1 + pad) } });
-  const items = Array.from({ length: 80 }, (_, index) => make(index, 2_000));
-  const terminal = (values: readonly Record<string, unknown>[]) => values.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
-  items[0] = make(0, 2_000 + 229_377 - 2 - terminal(items));
-  if (2 + terminal(items) !== 229_377) throw new Error("terminal is not 229,377 bytes");
-  return items;
-}
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-L restores failed and null pending with their fields and drops a started one", () => {
+  const issued = send(emptyState(), F.soya);
+  expect(issued.intents.length).toBeGreaterThanOrEqual(2);
+  expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
+    restore: (state, at) => reduceLandslideUnit(emptyState(), { kind: "restore", persisted: landslideUnitCodec.encode(state), clock: at }),
+    markOf: (state, subject) => state.currents.find((item) => item.subject === subject)?.notice });
+});

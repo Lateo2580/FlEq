@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "086b36b3744bdbbed7c91211c7a849f2ffa7beb570517a43a873a354599fb00f",
+    "sha256": "620ab3c9da88106743edbe661fd75f838d60889e219fbed7fd3a645206d9fc4a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -197,7 +197,6 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeUnitInputs",
       "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeUnitSteps",
       "reconstruction/contracts/p3-unit-table.types.ts#UnitPersistence",
-      "reconstruction/contracts/p3-unit-table.types.ts#TerminalIntentRecords",
       "reconstruction/contracts/p3-unit-table.types.ts#UnitModule",
       "reconstruction/contracts/p3-unit-table.types.ts#UnitTable",
       "reconstruction/contracts/p3-unit-table.types.ts#UnitJob",
@@ -260,7 +259,7 @@
       },
       {
         "id": "P3-C0-AC02",
-        "requirement": "unit表をp3-unit-table.types.tsのUnitModule<K>・UnitTableで固定する。eew-unit.ts・weather-current-unit.ts・weather-timeseries-unit.tsがそれぞれ自分のmodule値を `satisfies UnitModule<K>` でexportし、composition-root.tsの `linkedUnitTable = { \"U-E\": …, \"U-W\": …, \"U-F\": … } satisfies UnitTable` が3行だけを持つ。各fieldの値: reduce・toView・persistence（durable、既存codec）は既存関数をそのまま指す。confirmationScopeLimitはU-E 1024・U-W 1024・U-F 512（P2-A1-CONFIRMATION.bounds、現shared-runtime.ts:145）。withoutNormal・keepsWhileNormalHiddenは現:399-420の各unit枝（U-Wだけtransition=unavailableのsubjectをnormal遮蔽中も残す）、normalDisplaySubjectsは現:434-447の各unit枝（この3つはP3-CURRENCY-COVERAGE-001でnormalの公開の制限ごとUnitModuleから除いた、P3-CC-AC01(2)、配送のcommitでP3-CC-AC09により統合担当が改訂）、terminalIntentsはU-Eだけ{kind:deliveryRecords}で他は{kind:intents}（現:725-727）、reclaimDeadlineBeforeReceiveはU-Eだけtrue（現:926）を、式を変えずに移す。linkedRuntimeCallsは {units: linkedUnitTable, selectNotificationAttempt, applyNotificationResult}、linkedUnitCodecsは表のdurable行のcodecから作り別のリテラルcodec表を持たない（書き方はquestionResolutions P3-C0-NO-AS-FORMの許可形。Object.fromEntriesやloopで空objectを埋めない）。各fieldは現行の分岐1群に対応し、それ以外のfield（将来用・表示用）を足さない",
+        "requirement": "unit表をp3-unit-table.types.tsのUnitModule<K>・UnitTableで固定する。eew-unit.ts・weather-current-unit.ts・weather-timeseries-unit.tsがそれぞれ自分のmodule値を `satisfies UnitModule<K>` でexportし、composition-root.tsの `linkedUnitTable = { \"U-E\": …, \"U-W\": …, \"U-F\": … } satisfies UnitTable` が3行だけを持つ。各fieldの値: reduce・toView・persistence（durable、既存codec）は既存関数をそのまま指す。confirmationScopeLimitはU-E 1024・U-W 1024・U-F 512（P2-A1-CONFIRMATION.bounds、現shared-runtime.ts:145）。withoutNormal・keepsWhileNormalHiddenは現:399-420の各unit枝（U-Wだけtransition=unavailableのsubjectをnormal遮蔽中も残す）、normalDisplaySubjectsは現:434-447の各unit枝（この3つはP3-CURRENCY-COVERAGE-001でnormalの公開の制限ごとUnitModuleから除いた、P3-CC-AC01(2)、配送のcommitでP3-CC-AC09により統合担当が改訂）、terminalIntents（U-Eだけ{kind:deliveryRecords}。P3-NOTICE-LEDGER-001のP3-NL-AC05の(3)で全unitが同じ扱いになりUnitModuleから消した）、reclaimDeadlineBeforeReceiveはU-Eだけtrue（現:926）を、式を変えずに移す。linkedRuntimeCallsは {units: linkedUnitTable, selectNotificationAttempt, applyNotificationResult}、linkedUnitCodecsは表のdurable行のcodecから作り別のリテラルcodec表を持たない（書き方はquestionResolutions P3-C0-NO-AS-FORMの許可形。Object.fromEntriesやloopで空objectを埋めない）。各fieldは現行の分岐1群に対応し、それ以外のfield（将来用・表示用）を足さない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:18 «97876f3f16d8a449»",
           "docs/specs/reconstruction-p0-contracts.md:334 «07df9b4ceb5650d7»",

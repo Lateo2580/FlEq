@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "cfdc586d3faffafac56cc3b2433dfb466cdcbb283d360699b2464d0cd68642de",
+    "sha256": "ac7bad0e3aee6115b31424e14c45791acce39c5bdb4467d4d0f0013fbfb0049c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -53,7 +53,7 @@
       },
       {
         "id": "P3-LIFE-D-LATE",
-        "A": "base＋10分≦clock.wallTimeMsの報（horizon外）は、既知subject（gateあり）の取消を除き、すべてunchanged/staleでstateを変えない。duplicateと版のolder（P3-VERSION-MATERIAL-001のcompareVersionのolder。Control/DateTimeが同じときだけSerialの小さい報をolder、P3-VM-D-SAMETIME=AのEEWの例外。同じ秒で取消かどうかが食い違えばSerialより先に取消を採る、作者裁定2026-10-21昼。P3-VM-AC09(2)により統合担当が改訂）の判定はhorizonより先に行い、従来のreason（duplicate・stale）を保つ。既知subjectの取消はhorizon外でも従来どおり採用する（currentの除去、旧pendingのsuperseded、R35の通知）。",
+        "A": "base＋10分≦clock.wallTimeMsの報（horizon外）は、既知subject（gateあり、またはgateは無いがそのEventID・familyの記録を持つU-Eの印あり、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）の取消を除き、すべてunchanged/staleでstateを変えない。duplicateと版のolder（P3-VERSION-MATERIAL-001のcompareVersionのolder。Control/DateTimeが同じときだけSerialの小さい報をolder、P3-VM-D-SAMETIME=AのEEWの例外。同じ秒で取消かどうかが食い違えばSerialより先に取消を採る、作者裁定2026-10-21昼。P3-VM-AC09(2)により統合担当が改訂）の判定はhorizonより先に行い、従来のreason（duplicate・stale）を保つ。既知subjectの取消はhorizon外でも従来どおり採用する（currentの除去、旧pendingのsuperseded、R35の通知）。その例外に当たらないhorizon外の取消も、採らずに取消のintentだけを作る（P3-NL-AC04の(5)の(a)）。",
         "B": "horizonを新規subjectだけに掛け、既知subjectのhorizon外の新しい版（非取消）はgateへ採用しcurrentを作らない（通知は既存の機会の規則のまま）。",
         "recommended": "A",
         "ruling": "作者裁定（2026-10-10）: A",
@@ -232,7 +232,7 @@
         "target": "U-Eの新規subjectの再確立horizon",
         "limit": 600000,
         "unit": "ms（base起点）",
-        "rule": "gateの無いsubjectの報はbase＋600,000≦clock.wallTimeMsならunchanged/staleで採用しない。既知subject（gateあり）の扱いはP3-LIFE-D-LATEによる",
+        "rule": "gateの無いsubjectの報はbase＋600,000≦clock.wallTimeMsならunchanged/staleで採用しない。既知subject（gateあり）の扱いはP3-LIFE-D-LATEによる（gateも印も無いEventIDの取消は、採らずに取消のintentと印だけを足す、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）",
         "source": "P3-LIFE-D-EEW=A"
       }
     ],
@@ -257,7 +257,7 @@
       {
         "id": "P3-LIFE-RES-01",
         "target": "U-E・U-Fの受信hot path",
-        "limit": "1受信・1期限処理あたり保持要素（gates＋intents＋deliveryRecords、またはsubjects＋intents）の線形1回まで。全件×全件0、state全体の直列化0",
+        "limit": "1受信・1期限処理あたり保持要素（gates＋intents＋印（P3-NOTICE-LEDGER-001でdeliveryRecordsを置き換えた。印の退去は越えた採用だけO(2,048)、P3-NL-RES-05）、またはsubjects＋intents）の線形1回まで。全件×全件0、state全体の直列化0",
         "unit": "1受信・選択・結果照合",
         "scope": "期限の回収はnextDeadlineとdeadline入力（U-EはP3-UNIT-TABLE-001のreclaimDeadlineBeforeReceive）で行い、receiveの中で全gateの期限を走査して回収しない。nextDeadlineの最小値の計算はgatesの線形1回を許す（既存のreceiveが同じ次数でgatesをfilterしている）。U-FのsubjectDeadlineCacheと同じWeakMapの再利用は任意。予測の比較材料の計算は今回報の予測のJSON化1回だけ",
         "source": "AGENTS.md 受信経路の計算量・P3-X-C2"
@@ -277,7 +277,7 @@
       "U-F"
     ],
     "persistedFields": [
-      "U-E: PersistedEewUnit（intents・deliveryRecords）とschemaVersion p2-eew-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）は変えない（D-EEWの再起動A1）。current・gateは今どおり保存しない",
+      "U-E: PersistedEewUnit（intents・notices）とschemaVersion p2-eew-unit-v4（P3-NOTICE-LEDGER-001で上げた版。本契約の時点はintents・deliveryRecordsとp2-eew-unit-v3）は本契約では変えない（D-EEWの再起動A1）。current・gateは今どおり保存しない",
       "U-F: 保存schemaとfieldは変えない。subject.retainUntilの値がP3-LIFE-RET-02の式になる。decodeは新しい式の値と旧式の値（ReportDateTime＋7日）の両方を受け、旧値を新式へ引き上げない（復元で延ばさない）"
     ],
     "nonPersistedFields": [
@@ -294,45 +294,45 @@
     "acceptanceChecks": [
       {
         "id": "P3-LIFE-AC01",
-        "requirement": "F01（U-Eの寿命）: 受理でgateを置くたびにretainUntil＝base＋86,400,000、currentを作る版はcurrentUntil＝base＋600,000、作らない版（取消・終端）はnullとする。nextEewDeadlineは既存のpending intent・deliveryRecordsのexpiresAtに加え、各gateのcurrentUntil（nullでない）とretainUntilの最小を返し、current/gateが残る限りnullにしない。deadline入力でclock.wallTimeMs≧currentUntilのcurrentを除き（gateは残しcurrentUntilをnull）、≧retainUntilのgateを除く。currentの除去はdisplayChangesのbefore→null、decisionはchanged/semantic・currentEstablished=null、outcomeはdeadlineAppliedでtransition=\"expired\"とし、取消の表示・transition=\"cancelled\"・通知intentを作らない。gateの除去はdecision・outcomeを出さない。current・gateは非保存なので、これらの除去だけでは保存世代を進めない（intentの失効・記録の回収は従来どおり）。gateを除去した手順では、容量退去（eew.ts:403-413）と同じ規則でownerの無いlatchを全件処理する（除去したgateのeventだけを見ない。restore由来でownerの無いlatchも対象）: 非preexistingのlatchは落とし、preexistingのlatchは配送証拠だけを残した初期値に戻す。unattempted以外の配送証拠を持つ非preexistingのlatchを落とすときはevidenceUnknownUntilをmax(旧値, clock.wallTimeMs＋600,000)へ延ばす。容量退去と共有のhelperで1か所にする。期限ちょうど（wall＝期限）で失効し、wall＝期限−1では残る。",
+        "requirement": "F01（U-Eの寿命）: 受理でgateを置くたびにretainUntil＝base＋86,400,000、currentを作る版はcurrentUntil＝base＋600,000、作らない版（取消・終端）はnullとする。nextEewDeadlineは既存のpending intentのexpiresAtと印のretainUntil（P3-NOTICE-LEDGER-001でdeliveryRecordsを印に置き換えた、P3-NL-AC04）に加え、各gateのcurrentUntil（nullでない）とretainUntilの最小を返し、current/gateが残る限りnullにしない。deadline入力でclock.wallTimeMs≧currentUntilのcurrentを除き（gateは残しcurrentUntilをnull）、≧retainUntilのgateを除く。currentの除去はdisplayChangesのbefore→null、decisionはchanged/semantic・currentEstablished=null、outcomeはdeadlineAppliedでtransition=\"expired\"とし、取消の表示・transition=\"cancelled\"・通知intentを作らない。gateの除去はdecision・outcomeを出さない。current・gateは非保存なので、これらの除去だけでは保存世代を進めない（intentの失効・記録の回収は従来どおり）。gateを除去しても印（latch）は消さず、evidenceUnknownUntilも延ばさない（P3-NOTICE-LEDGER-001のP3-NL-AC04の(6)。前はownerの無いlatchを解除・初期化しevidenceUnknownUntilを延ばした）。期限ちょうど（wall＝期限）で失効し、wall＝期限−1では残る。",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:294 «59c85e923a361b62»",
-          "reconstruction/src/domains/eew/eew.ts:458 «66224699b9d11746»",
-          "reconstruction/src/domains/eew/eew.ts:489 «4cf8acc86bfa0649»",
-          "reconstruction/src/domains/eew/eew.ts:518 «819d17b850535438»",
-          "reconstruction/src/units/eew/eew-unit.ts:207 «7ae59fc1e10c624b»",
-          "reconstruction/contracts/p2-eew-unit.json:210 «b6da23058a7bf3f2»",
-          "reconstruction/contracts/p2-eew-unit.json:216 «1d34ada5b5030cf2»"
+          "reconstruction/src/domains/eew/eew.ts:295 «51f1dc3968334db6»",
+          "reconstruction/src/domains/eew/eew.ts:547 «66224699b9d11746»",
+          "reconstruction/src/domains/eew/eew.ts:578 «3ec78c2aad9e3950»",
+          "reconstruction/src/domains/eew/eew.ts:602 «8cf8503515b3efc1»",
+          "reconstruction/src/units/eew/eew-unit.ts:234 «7ae59fc1e10c624b»",
+          "reconstruction/contracts/p2-eew-unit.json:210 «2e7bdfdff97cc1af»",
+          "reconstruction/contracts/p2-eew-unit.json:216 «a6ef516b8c0c2b17»"
         ]
       },
       {
         "id": "P3-LIFE-AC02",
         "requirement": "F01の閉鎖: 77_01_30_260101_VXSE45_FINALのEventIDを20260101000000＋i、ReportDateTimeを2026-01-01T10:00:00+09:00＋i×30秒（i=0..511）に替えた通常の最終報512件を各報時刻の時計で受理すると、gate 512・current 0・pending intent 2（最後の報のdesktopとsound）で、nextDeadlineはそのintentの15秒TTL（2026-01-01T14:15:45+09:00）。そのdeadlineでintentが失効した後のnextDeadlineは最初のgateのretainUntil（2026-01-02T10:00:00+09:00）。その1 ms前の時計で、ReportDateTime＝その時計（horizon内）にした新しいEventIDの通常報は従来どおりcapacityExceeded（horizonの判定が容量より先なので、報時刻を寄せないとeewHorizonStaleになり容量に届かない）。最初のretainUntilちょうどのdeadlineでgateが1件減り、同じ時計の新しいEventIDの報（ReportDateTime＝その時計）がchanged/semanticで受理される。90日後のdeadlineではgate 0・current 0・nextDeadline null（監査F01の観測gate 512・nextDeadline null・capacityExceededの反転）。",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:294 «59c85e923a361b62»",
-          "reconstruction/src/domains/eew/eew.ts:489 «4cf8acc86bfa0649»",
+          "reconstruction/src/domains/eew/eew.ts:295 «51f1dc3968334db6»",
+          "reconstruction/src/domains/eew/eew.ts:578 «3ec78c2aad9e3950»",
           "reconstruction/contracts/p2-eew-unit.json:360 «85c850dde0d58f7e»"
         ]
       },
       {
         "id": "P3-LIFE-AC03",
-        "requirement": "horizonと時刻の扱い（P3-LIFE-D-LATE=A・P3-LIFE-D-SKEW=A）: (1) 判定順はvalidateCandidate→recoveryの未適用→版のolder（P3-VERSION-MATERIAL-001のcompareVersionのolder。Control/DateTimeが同じときだけSerialの小さい報をolder、P3-VM-D-SAMETIME=AのEEWの例外。P3-VM-AC09(2)により統合担当が改訂）→同版のstale/duplicate→horizon→容量→採用とし、duplicateとolderのreason（stale）を変えない。(2) gateの無いsubjectの報はbase＋600,000≦wallでunchanged/stale（stateは同一参照、intents/outcomes空）とし、診断を1件だけ出す: {level:\"WARN\", component:\"eew\", reason:\"eewHorizonStale\", inputId, unit:\"U-E\"}（既存の入力拒否の診断と同じ形で入力ごとに1件。続いた件数の集計は既存のdiagnostic sinkの出現回数に任せ、unitに計数・stateを足さない）。base＋600,000＞wall（＝599,999 ms前の報）は従来どおり採用し、この診断を出さない。(3) 既知subjectの取消はhorizon外でも採用し、currentの除去・同operation＋eventIdの旧pendingのsuperseded・R35の取消通知を従来どおり行う。既知subjectのhorizon外の取消は採用なので診断を出さない。既知subjectのhorizon外の非取消の版はunchanged/staleで、診断を出さない（hostの時計の進みでは最初の報から新規subjectとなり上の診断が出る）。(4) base＝min(ReportDateTime, wall)。ReportDateTimeがwallより1時間未来の報も受理し、currentUntil＝wall＋600,000、retainUntil＝wall＋86,400,000とする。版の順序と同版の比較はcompareVersion（baseはReportDateTimeのまま。P3-VM-AC09(2)により統合担当が改訂）。",
+        "requirement": "horizonと時刻の扱い（P3-LIFE-D-LATE=A・P3-LIFE-D-SKEW=A）: (1) 判定順はvalidateCandidate→recoveryの未適用→版のolder（P3-VERSION-MATERIAL-001のcompareVersionのolder。Control/DateTimeが同じときだけSerialの小さい報をolder、P3-VM-D-SAMETIME=AのEEWの例外。P3-VM-AC09(2)により統合担当が改訂）→同版のstale/duplicate→horizon→容量→採用とし、duplicateとolderのreason（stale）を変えない。(2) gateの無いsubjectの報はbase＋600,000≦wallでunchanged/stale（stateは同一参照、intents/outcomes空。gateも印も無いEventIDの取消は、採らずに取消のintentと印だけを足す、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）とし、診断を1件だけ出す: {level:\"WARN\", component:\"eew\", reason:\"eewHorizonStale\", inputId, unit:\"U-E\"}（既存の入力拒否の診断と同じ形で入力ごとに1件。続いた件数の集計は既存のdiagnostic sinkの出現回数に任せ、unitに計数・stateを足さない）。base＋600,000＞wall（＝599,999 ms前の報）は従来どおり採用し、この診断を出さない。(3) 既知subjectの取消はhorizon外でも採用し、currentの除去・同operation＋eventIdの旧pendingのsuperseded・R35の取消通知を従来どおり行う。既知subjectのhorizon外の取消は採用なので診断を出さない。既知subjectのhorizon外の非取消の版はunchanged/staleで、診断を出さない（hostの時計の進みでは最初の報から新規subjectとなり上の診断が出る）。(4) base＝min(ReportDateTime, wall)。ReportDateTimeがwallより1時間未来の報も受理し、currentUntil＝wall＋600,000、retainUntil＝wall＋86,400,000とする。版の順序と同版の比較はcompareVersion（baseはReportDateTimeのまま。P3-VM-AC09(2)により統合担当が改訂）。",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:424 «d55b2c8e4e9e70d2»",
-          "reconstruction/src/runtime/owner-runtime.ts:108 «4b4c6774cb5a4b56»",
-          "reconstruction/src/runtime/owner-runtime.ts:350 «63380813ee47301c»",
-          "reconstruction/src/units/eew/eew-unit.ts:357 «973323028dc564f5»",
+          "reconstruction/src/domains/eew/eew.ts:475 «d55b2c8e4e9e70d2»",
+          "reconstruction/src/runtime/owner-runtime.ts:112 «4b4c6774cb5a4b56»",
+          "reconstruction/src/runtime/owner-runtime.ts:357 «63380813ee47301c»",
+          "reconstruction/src/units/eew/eew-unit.ts:339 «973323028dc564f5»",
           "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»"
         ]
       },
       {
         "id": "P3-LIFE-AC04",
-        "requirement": "F17（同版訂正）: 77_01_30_260101_VXSE45_FINALのInfoTypeを訂正にし、全体・区域のForecastInt 4→3の版を空stateへ、続けて同じSerial・同じReportDateTime・同じ震源名とMで4→7の版を、どちらも報時刻の時計で受理する。2報目はchanged/semantic（従来はunchanged/duplicate）、current 0のまま（最終報のcurrentを復活させない）、gate 1、pendingはdesktop・soundの2件で本文「訂正: テスト震源 / M5.0 / 最大予測震度7」、1報目の2件はdeliveryRecordsへsupersededで入る。同じ4→7をもう一度送るとunchanged/duplicate。予測を変えず警報の判定（Q-NOTICE.payloadRules.warning、例えばHeadlineのKind Code 31の追加）だけを変えた同版・同時刻の訂正の最終報も、予報→警報の差としてchanged（従来はwarningClassの比較が終端で飛ばされduplicate）。比較材料は[予測全体, warningClass]のsha256（P3-LIFE-D-F17KEY）。currentがある場合の重複判定（直前currentの予測全体の同値とwarningClassの一致）は変えず、currentが無くgateがある場合だけgateの比較材料（P3-LIFE-D-F17KEY）で予測とwarningClassの差を判定する。gateは通知本文・予測全体・区域の配列を持たない。",
+        "requirement": "F17（同版訂正）: 77_01_30_260101_VXSE45_FINALのInfoTypeを訂正にし、全体・区域のForecastInt 4→3の版を空stateへ、続けて同じSerial・同じReportDateTime・同じ震源名とMで4→7の版を、どちらも報時刻の時計で受理する。2報目はchanged/semantic（従来はunchanged/duplicate）、current 0のまま（最終報のcurrentを復活させない）、gate 1、pendingはdesktop・soundの2件で本文「訂正: テスト震源 / M5.0 / 最大予測震度7」、1報目の2件はsupersededになる（P3-NOTICE-LEDGER-001の後はintentsから外れ、結果はEventIDの印に残る、P3-NL-AC05）。同じ4→7をもう一度送るとunchanged/duplicate。予測を変えず警報の判定（Q-NOTICE.payloadRules.warning、例えばHeadlineのKind Code 31の追加）だけを変えた同版・同時刻の訂正の最終報も、予報→警報の差としてchanged（従来はwarningClassの比較が終端で飛ばされduplicate）。比較材料は[予測全体, warningClass]のsha256（P3-LIFE-D-F17KEY）。currentがある場合の重複判定（直前currentの予測全体の同値とwarningClassの一致）は変えず、currentが無くgateがある場合だけgateの比較材料（P3-LIFE-D-F17KEY）で予測とwarningClassの差を判定する。gateは通知本文・予測全体・区域の配列を持たない。",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:414 «4fc2403a3608a88f»",
-          "reconstruction/src/domains/eew/eew.ts:415 «d3741060e43347e8»",
-          "reconstruction/src/domains/eew/eew.ts:424 «d55b2c8e4e9e70d2»",
-          "reconstruction/src/domains/eew/eew.ts:505 «b0942936e8d96798»",
+          "reconstruction/src/domains/eew/eew.ts:460 «4fc2403a3608a88f»",
+          "reconstruction/src/domains/eew/eew.ts:461 «d3741060e43347e8»",
+          "reconstruction/src/domains/eew/eew.ts:475 «d55b2c8e4e9e70d2»",
+          "reconstruction/src/domains/eew/eew.ts:594 «b0942936e8d96798»",
           "reconstruction/contracts/p2-eew-unit.json:218 «10cebe06fb6251af»",
           "reconstruction/contracts/p2-eew-unit.types.ts:59 «917a8de8d29b7f5c»"
         ]
@@ -341,9 +341,9 @@
         "id": "P3-LIFE-AC05",
         "requirement": "F11（U-Fの保持期限）: 受信でsubjectを採用するとき、retainUntil＝max(ReportDateTime＋604,800,000, 採用したsubjectのvalidUntil ?? −∞)とする（容量でunavailableを採用する場合はvalidUntil=nullなのでReportDateTime＋7日）。81_09_01_260605_VPWP50の全DurationをP10Dにした報は、validUntil＝retainUntil＝最終periodの終わりとなり、ReportDateTime＋7日のdeadlineでもactiveのままsubjectとgateが残る。validUntil−1ではactive、validUntilちょうどのdeadlineでは既存の規則どおりdecision changed/semantic・outcome deadlineApplied（effective noActiveItems）を出し、同じ手順の中でsubjectとgateを回収する（期限が一致するときもvalidUntilの失効を先に処理し、有効期間の後に7日を足さない）。validUntilがReportDateTime＋7日より前の報（実fixtureの3時間〜67時間の系列）は従来どおり（validUntilでnoActiveItems、ReportDateTime＋7日で回収）。各段階でencode→JSON→decodeがrestoredになる。",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:183 «3fb0aecb382221e9»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:99 «11b74f30e3b16bd1»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:94 «b8c3e551199a6047»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:184 «3fb0aecb382221e9»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:100 «11b74f30e3b16bd1»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:95 «b8c3e551199a6047»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:235 «fe37dd1ffd636ef5»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:343 «c65d86bdce25607b»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:634 «fadca38e32211ea4»"
@@ -353,41 +353,41 @@
         "id": "P3-LIFE-AC06",
         "requirement": "U-Fの式の統一と既存の範囲: (1) receive・deadline（collect）・decodeで同じ式を使う。decodeのsubjectRowはretainUntilがReportDateTime＋7日と一致する、またはvalidUntil≠nullかつmax(ReportDateTime＋7日, validUntil)と一致する場合だけ受ける。前者は旧式で保存したsubject（validUntil＞ReportDateTime＋7日の旧値を含む）をそのまま読み、新式へ引き上げない。schemaの移行は無い。(2) 日時の上限は既存の範囲に合わせる: ReportDateTimeは既存のreportDateTimeの検証、validUntilは既存のinspect（TimeDefineの開始＋Durationが有限のDate）の範囲のままで狭めない。retainUntilはその範囲の有限numberで、JSONの往復で変わらない。(3) 未来skew: U-Fは既存どおりReportDateTimeを拒否せず生値で式に使う（decodeが式を再計算するため受信時刻で切り詰めない）。(4) 容量: 既存の512 subject・32 MiB・unavailable・capacityExceededの規則と退去順位を変えない。長いvalidUntilはsubjectの占有を延ばすが、同じ官署の次の報が採用されれば置き換わる。",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:358 «99bf89b958a06d85»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:359 «99bf89b958a06d85»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:15 «aa1dcb742dc64f1c»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:180 «ef82cd515267e875»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:358 «79cdbbfa9ad21414»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «785fcde1500a753c»"
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «0a1ea73f12cf49eb»"
         ]
       },
       {
         "id": "P3-LIFE-AC07",
         "requirement": "F14の保証範囲（D-HORIZON=A、条文だけ）: (1) U-E: 再受理horizonは10分（SEM-02）。gate（24時間）のある間は旧版の復活を防ぐ。gateの期限回収・容量退去・再起動（A1でgate非保存）の後は、horizon内（報の起点から10分未満）の旧報が新規subjectとして再び採用されうる（同じ版の再通知を含む）。(2) U-F: 新規受理で作るactiveはvalidUntilがwallより後のperiodを持つ報に限られる（既存のinspectと採用の規則）。保持期限がvalidUntil以上なので、有効中の旧報の復活は同じsubjectのgateが防ぐ。U-FはDurableでtrainingの容量退去の後だけ保証外。(3) U-T（津波予報のactive）・U-V（噴火警報のactive）など期限で消えないactiveを持つunitの再受理horizonは無制限とする。取消・版の記憶が保持される期間・容量・保存の範囲でのみ旧報の復活を防ぎ、期限GC・normal同士の容量退去・非永続stateの再起動の後に届いた古報は新規として受け入れうる。これは作者承認の残存リスクであり、この契約ではT/Vのコードを変えない。C12以降の新規unitは計画§9のパラメータ表のLifetime行でhorizonを明示する。",
         "evidenceRefs": [
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:369 «4f3b5d2523b1805c»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:91 «ee67c3c47e745e7e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:384 «43b73be19bcd20e0»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:92 «ee67c3c47e745e7e»",
           "reconstruction/contracts/p3-order-plan.md:379 «d7ffea3ecccbb72d»",
           "docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»"
         ]
       },
       {
         "id": "P3-LIFE-AC08",
-        "requirement": "延長しない・再起動A1: (1) U-Eのduplicate・stale・rejected・capacityExceeded・recoveryの未適用はstateを同一参照で返し、current/gateの期限を変えない。(2) restoreは従来どおりcurrent・gateを空で始め（P2-A4-AC08）、保存からcurrent/gateを作らない。再起動後の保証は報の起点からの10分のhorizonだけ（AC07(1)）。(3) U-Fの復元はdecodeした期限をそのまま使い、collectで到来済みの期限を適用する（P2-A6-SEM-01）。再送（同じReportRef）はduplicateでretainUntilを変えない。",
+        "requirement": "延長しない・再起動A1: (1) U-Eのduplicate・stale・rejected・capacityExceeded・recoveryの未適用はstateを同一参照で返し（horizonの外と容量で採らない取消は、current・gateを変えずに取消のintentと印だけを足す、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）、current/gateの期限を変えない。(2) restoreは従来どおりcurrent・gateを空で始め（P2-A4-AC08）、保存からcurrent/gateを作らない。再起動後の保証は報の起点からの10分のhorizonだけ（印のあるEventIDは、印の版より古い報をstaleにし、遅い取消を採る、P3-NL-AC04）（AC07(1)）。(3) U-Fの復元はdecodeした期限をそのまま使い、collectで到来済みの期限を適用する（P2-A6-SEM-01）。再送（同じReportRef）はduplicateでretainUntilを変えない。",
         "evidenceRefs": [
-          "reconstruction/src/units/eew/eew-unit.ts:312 «95159a21ab60b9c4»",
+          "reconstruction/src/units/eew/eew-unit.ts:297 «bc9a6b0d231d49e7»",
           "reconstruction/contracts/p2-eew-unit.json:373 «7b6f64a3974ca83e»",
           "reconstruction/contracts/p2-eew-unit.json:374 «3c39bc5d436ef7a6»",
-          "docs/specs/reconstruction-p0-contracts.md:474 «c1cbc9b6d1241018»"
+          "docs/specs/reconstruction-p0-contracts.md:474 «33206d8dd5ed3dee»"
         ]
       },
       {
         "id": "P3-LIFE-AC09",
-        "requirement": "既存条文の読み替え（旧契約の本文は変えない）: (1) P2-A4-AC06の「15秒の絶対TTL、familyごと三区分合算512 subject、取消・終端・shutdown」へcurrentの10分・gateの24時間の期限とdeadlineでの回収を足して読む。512の上限とRES-02の退去規則・capacityExceededの形は変えない（24時間内に512件を超えるnormal EventIDは従来どおりcapacityExceeded）。(2) P2-A4-AC02の「current失効」はSEM-01の失効を指す（retainedPredictionも除く）。(3) Q-NOTICE.duplicateCorrectionの「予測震度」の比較は、currentが無くgateがある場合はgateの比較材料で行う（AC04）。(4) Q-NOTICE.latchRules.lifetimeの「最後のowner退去」とevidenceUnknownUntilの「回収」にgateの期限回収を含める（AC01）。(5) P2-WEATHER-TIMESERIES-UNIT-001のP2-A6-RET-02（7日）とstorageRule「retainUntilはsubjectの最新採用報のReportDateTime＋7日」をP3-LIFE-RET-02の式へ、P2-A6-AC04の「7日retention」とcodecの検査をAC06へ読み替える。P2-A6-SEM-01（activeは原報のperiodで評価、7日をactive期限へ流用しない、復元で延長しない）は維持する。(6) P2-A4-AC10（R20）: 期限による失効・horizonのstaleはcurrentEstablished=nullで、根拠を作らない。",
+        "requirement": "既存条文の読み替え（旧契約の本文は変えない）: (1) P2-A4-AC06の「15秒の絶対TTL、familyごと三区分合算512 subject、取消・終端・shutdown」へcurrentの10分・gateの24時間の期限とdeadlineでの回収を足して読む。512の上限とRES-02の退去規則・capacityExceededの形は変えない（24時間内に512件を超えるnormal EventIDは従来どおりcapacityExceeded）。(2) P2-A4-AC02の「current失効」はSEM-01の失効を指す（retainedPredictionも除く）。(3) Q-NOTICE.duplicateCorrectionの「予測震度」の比較は、currentが無くgateがある場合はgateの比較材料で行う（AC04）。(4) Q-NOTICE.latchRules.lifetimeのlatchは印としてgateと別の寿命（P3-NOTICE-LEDGER-001のP3-NL-AC04の(6)）。evidenceUnknownUntilは復元の10分だけ（前は「最後のowner退去」とevidenceUnknownUntilの「回収」にgateの期限回収を含めた、AC01）。(5) P2-WEATHER-TIMESERIES-UNIT-001のP2-A6-RET-02（7日）とstorageRule「retainUntilはsubjectの最新採用報のReportDateTime＋7日」をP3-LIFE-RET-02の式へ、P2-A6-AC04の「7日retention」とcodecの検査をAC06へ読み替える。P2-A6-SEM-01（activeは原報のperiodで評価、7日をactive期限へ流用しない、復元で延長しない）は維持する。(6) P2-A4-AC10（R20）: 期限による失効・horizonのstaleはcurrentEstablished=nullで、根拠を作らない。",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-eew-unit.json:434 «13156114c3abf36c»",
+          "reconstruction/contracts/p2-eew-unit.json:434 «d0a6bd848f75d6fe»",
           "reconstruction/contracts/p2-eew-unit.json:401 «b966e6e6ad5a6baa»",
           "reconstruction/contracts/p2-eew-unit.json:218 «10cebe06fb6251af»",
-          "reconstruction/contracts/p2-eew-unit.json:210 «b6da23058a7bf3f2»",
+          "reconstruction/contracts/p2-eew-unit.json:210 «2e7bdfdff97cc1af»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:358 «79cdbbfa9ad21414»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:634 «fadca38e32211ea4»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:343 «c65d86bdce25607b»"
@@ -397,8 +397,8 @@
         "id": "P3-LIFE-AC10",
         "requirement": "既存試験の変更（変える前に差と理由を統合担当へ報告する）: 起草時の試作（寿命とhorizonだけを入れ、F17KEY・eewHorizonStale・U-Fの式は入れていない）でreconstructionのvitestは7ファイル19件が落ちた。試作から見込む期待値の変更はP2-A4-T13の1本（currentとgateの残るstateのnextDeadlineがnullでなくgate/currentの期限になる）。P2-A4-T11のR35境界は入力の変更に分類する（BASE_TIME＋616,000の新規subjectの報が報の起点から605,001 ms後でhorizon外になるので、報時刻を時計へ寄せ、evidenceUnknownUntilの端という境界の意味と期待値を保つ）。試作に入れていない部分を含め、ここに挙げていない期待値の変更が要る試験が出たら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。残りはEEWの報時刻（2024-04-17のfixture）と試験の時計（2024-06-13・2026-06-05など）の差が10分以上あることが原因で、報時刻か時計を寄せる入力の変更だけで期待値は変えない: eew-unit.test.tsのP2-A4-T06-R14、snapshot-sse/boundaries.test.tsのP2-A8-T07（11件）、cost.test.tsのP2-A8-T06、http-sse.test.tsのP2-A8-T05、execution-split/c4-measurement.test.tsのP3-C4-T10 K1、execution-split.test.tsのP3-C3A-T12、eew-e01/aux-measures.test.tsのP3-C4-T10 E14。共有の入力helper（projection-fixture.ts）を変える場合は、それを使う他の試験も緑であることを確かめる。delivery-fixture.tsの凍結したA4入力（eewEnvelope）は変えず、呼ぶ側の時計を寄せる。U-Fの既存試験は試作で落ちなかった。E01/C4の計測harnessの充填規則はP3-LIFE-D-HARNESS=Aにより申し送り（artifactRequirements）へ回す。",
         "evidenceRefs": [
-          "reconstruction/test/eew-unit/eew-unit.test.ts:263 «1b826d79e0291953»",
-          "reconstruction/test/eew-unit/eew-unit.test.ts:1398 «c8bac082a5cae62d»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:260 «1b826d79e0291953»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1317 «edd94ff0606b3b76»",
           "reconstruction/test/snapshot-sse/cost.test.ts:17 «64414e21afe6bcb9»",
           "reconstruction/test/eew-e01/aux-measures.test.ts:290 «4eca9a2dc8e471f2»",
           "reconstruction/test/eew-e01/frames.mjs:138 «093a41fe5ebc308b»"
@@ -406,11 +406,11 @@
       },
       {
         "id": "P3-LIFE-AC11",
-        "requirement": "最小実装と計算量: 新しい型・field・helperごとに「無いと何が壊れるか」を1行で示す（例: currentUntilが無いとcurrentの期限をnextDeadlineで出せずF01が残る。eewHorizonStaleが無いとhostの時計の進みで全EEWが黙って捨てられる）。gateの期限回収は共有の1関数で行い、容量退去とlatchの解除・evidenceUnknownUntilの延長の規則を共有する。RES-01を守り、全件×全件・state全体のJSON化・合計差分の帳簿を足さない。U-Fは既存のcollect・subjectDeadlineCacheの形を使う。既存試験の期待の変更はAC10で見込んだものに限り、それ以外が要るときは変えずに止めて報告する。",
+        "requirement": "最小実装と計算量: 新しい型・field・helperごとに「無いと何が壊れるか」を1行で示す（例: currentUntilが無いとcurrentの期限をnextDeadlineで出せずF01が残る。eewHorizonStaleが無いとhostの時計の進みで全EEWが黙って捨てられる）。gateの期限回収は共有の1関数で行う（latchの解除・evidenceUnknownUntilの延長はP3-NOTICE-LEDGER-001で無くなった、P3-NL-AC04の(6)）。RES-01を守り、全件×全件・state全体のJSON化・合計差分の帳簿を足さない。U-Fは既存のcollect・subjectDeadlineCacheの形を使う。既存試験の期待の変更はAC10で見込んだものに限り、それ以外が要るときは変えずに止めて報告する。",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:518 «819d17b850535438»",
-          "reconstruction/src/domains/eew/eew.ts:304 «4a791db4eeb089c4»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:99 «11b74f30e3b16bd1»"
+          "reconstruction/src/domains/eew/eew.ts:602 «8cf8503515b3efc1»",
+          "reconstruction/src/domains/eew/eew.ts:362 «a9f9a4e43769a0aa»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:100 «11b74f30e3b16bd1»"
         ]
       },
       {
@@ -457,7 +457,7 @@
           "P3-LIFE-AC03",
           "P3-LIFE-AC08"
         ],
-        "behavior": "表形式の境界: currentUntil−1/ちょうど（失効はchanged/semantic・deadlineApplied expired・intentなし・保存世代不変）、horizonの599,999 ms（採用・診断0件）/600,000 ms（stale・eewHorizonStale 1件）（新規subject）、horizon外の既知subjectの取消（採用・旧pendingのsuperseded・診断0件）と非取消（stale・診断0件）、duplicateで期限が動かないこと、1時間未来の報の期限＝受信時刻起点、gateの期限回収でdelivered証拠のlatchが解除されevidenceUnknownUntil＝回収時刻＋600,000。"
+        "behavior": "表形式の境界: currentUntil−1/ちょうど（失効はchanged/semantic・deadlineApplied expired・intentなし・保存世代不変）、horizonの599,999 ms（採用・診断0件）/600,000 ms（stale・eewHorizonStale 1件）（新規subject）、horizon外の既知subjectの取消（採用・旧pendingのsuperseded・診断0件）、印だけのEventIDのhorizon外の取消（採用・latchの証拠で通知、P3-NL-AC04の(5)）と非取消（stale・診断0件）、duplicateで期限が動かないこと、1時間未来の報の期限＝受信時刻起点、gateの期限回収で印は消えない（P3-NOTICE-LEDGER-001のP3-NL-AC04の(6)。前はdelivered証拠のlatchが解除されevidenceUnknownUntil＝回収時刻＋600,000）。"
       },
       {
         "testId": "P3-LIFE-T03",

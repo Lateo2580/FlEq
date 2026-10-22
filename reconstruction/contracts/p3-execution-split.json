@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "c0716482a4f6afc127b7f8325a1789e21ce6115afc59007ea4fb26042bd3a996",
+    "sha256": "ee3981bed7c1c9ef2e9d1b58a112e5fe914a54e278e00d0b22bcb21614f48ef4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -99,7 +99,7 @@
       },
       {
         "id": "P3-C3A-NOTIFY-ADOPT",
-        "A": "予約で試行回数を消費する（P2の計数のまま）。publisherはmirrorのpending intentでA7の選択を行い、新しい試行を始めるchannelはA7の状態へ採用せず予約（requestId・attemptId・channel・intent）として持ち、intentUpdate（attempts＋1、P2と同じ）を所有ownerへ送る。予約はmirrorが変わるたびの再評価で別のintentが選ばれたとき（上位通知・取消・期限）とshutdownで無効化する。adopted=trueの返信が現在の予約に一致し、shutdown前でintentの期限内のときだけA7の選択結果をそのchannelへ採用してadapterを呼ぶ。それ以外の返信はmirrorだけを反映する。既に始まった試行のabortはA7どおり即時に採用する",
+        "A": "予約で試行回数を消費する（P2の計数のまま）。publisherはmirrorのpending intentでA7の選択を行い、新しい試行を始めるchannelはA7の状態へ採用せず予約（requestId・attemptId・channel・intent）として持ち、intentUpdate（attempts＋1、P2と同じ）を所有ownerへ送る。予約はmirrorが変わるたびの再評価で別のintentが選ばれたとき（上位通知・取消・期限）とshutdownで無効化する。adopted=trueの返信が現在の予約に一致し、shutdown前でintentの期限内のときだけA7の選択結果をそのchannelへ採用してadapterを呼ぶ（試行の期限はadapterを呼ぶ時に作る、P3-NOTICE-LEDGER-001のP3-NL-AC06の(4)）。それ以外の返信はmirrorだけを反映する。採られた予約（lastAttempt started）を捨てるときは、lastAttemptをfailedに戻す更新を送る（P3-NOTICE-LEDGER-001のP3-NL-AC06の(5)）。既に始まった試行のabortはA7どおり即時に採用する",
         "B": "予約と実際の試行を区別する（提示する設計案）。intentに予約中の状態を持たせ、ownerは予約では試行回数と配送の証拠（U-Eのattempts＞0）を進めず、adapterの起動を確認してから進める。この案の変更範囲: NotificationIntentの型と3 unitのcodec（永続schemaの変更と旧データの移行）、A7の再試行間隔の計算、U-EのdeliveryEvidenceの判定で、C3aのfile所有（units/*・domains/*・notification-delivery）の外なので別契約になる。永続しない予約など別の区別の仕方は未検討で、Bを選ぶ場合はその別契約の起草で設計から決める",
         "recommended": "A",
         "provisional": "A",
@@ -214,7 +214,7 @@
           {
             "clause": "P2-A1-AC11（p2-shared-runtime.json:573）とartifactRequirements B4（:754「channelと3 unit共通のintentUpdate入力を同じ呼出しで一度に採用」）",
             "replacedBy": "P3-C3A-AC07（予約方式）",
-            "keeps": "照合済みのintentUpdateだけを所有unitの保存世代へ採用してから試行する順、現在intentを失った試行のabort、U-Eの終端はdeliveryRecordsで確認（owner内）",
+            "keeps": "照合済みのintentUpdateだけを所有unitの保存世代へ採用してから試行する順、現在intentを失った試行のabort、終端は全unitで対象のintentがintentsに無く保存世代が進んだことで確認（owner内、P3-NOTICE-LEDGER-001のP3-NL-AC05の(3)。前はU-Eの終端をdeliveryRecordsで確認）",
             "reaccept": "P3-C3A-T07、既存のnotification-delivery・notification-wiringの試験",
             "revisedBy": "統合担当（合流のcommit）"
           },
@@ -658,14 +658,14 @@
       },
       {
         "id": "P3-C3A-AC07",
-        "requirement": "通知の採用と実行（P3-C3A-NOTIFY-ADOPT）: publisherはmirrorのpending intentとchannel状態でA7の選択・結果処理（selectNotificationAttempt・applyNotificationResult、期限切れの回収）を行う。A7の出力のうち、既に始まった試行に関わるもの（abortRequests・stopping）は即時に採用する。新しい試行を始めるchannelはA7の状態へ採用せず、予約（requestId・attemptId・channel・intent）として持ち、intentUpdateを所有ownerへ送る（channelごとに予約は1つ）。予約はmirrorが変わるたびにA7を同じ規則で再評価し、同じintentが選ばれる間だけ保つ。別のintentが選ばれた（上位の通知・取消・期限）とき、または終了要求（shutdownRequested）で無効化する。ownerは要求の全更新を採用するか1つも採用しない（intentが無い・識別子が違う・既に終端なら採用しない）。adopted=trueの返信が現在の予約のrequestIdに一致し、shutdown前でintentの期限内のときだけ、A7の選択結果をそのchannelへ採用してadapterを1回呼ぶ。それ以外の返信はownerの更新（mirror）だけを反映し、adapterの起動・channelの状態変更・他の予約の解除に使わない。通知結果（NotificationResult）を作らない。結果の採用（delivered・失敗・期限切れ）はpublisherがA7でchannelを先に確定し、intentの更新をdecisionClock＝結果のcompletedAtとともにownerへ送る。ownerはその固定時計でintentの期限を判定し（owner が処理した時刻では判定しない）、識別子・終端状態の再照合は従来どおり行う。同じintentに二重の試行を作らない。U-Eの終端記録（deliveryRecords）での採用確認はownerの中で行う",
+        "requirement": "通知の採用と実行（P3-C3A-NOTIFY-ADOPT）: publisherはmirrorのpending intentとchannel状態でA7の選択・結果処理（selectNotificationAttempt・applyNotificationResult、期限切れの回収）を行う。A7の出力のうち、既に始まった試行に関わるもの（abortRequests・stopping）は即時に採用する。新しい試行を始めるchannelはA7の状態へ採用せず、予約（requestId・attemptId・channel・intent）として持ち、intentUpdateを所有ownerへ送る（channelごとに予約は1つ）。予約はmirrorが変わるたびにA7を同じ規則で再評価し、同じintentが選ばれる間だけ保つ。別のintentが選ばれた（上位の通知・取消・期限）とき、または終了要求（shutdownRequested）で無効化する。ownerは要求の全更新を採用するか1つも採用しない（intentが無い・識別子が違う・既に終端なら採用しない）。adopted=trueの返信が現在の予約のrequestIdに一致し、shutdown前でintentの期限内のときだけ、A7の選択結果をそのchannelへ採用してadapterを1回呼ぶ（試行の期限はadapterを呼ぶ時に作る、P3-NOTICE-LEDGER-001のP3-NL-AC06の(4)）。それ以外の返信はownerの更新（mirror）だけを反映し、adapterの起動・channelの状態変更・他の予約の解除に使わない。採られた予約（lastAttempt started）を捨てるときは、lastAttemptをfailedに戻す更新を送る（P3-NOTICE-LEDGER-001のP3-NL-AC06の(5)）。通知結果（NotificationResult）を作らない。結果の採用（delivered・失敗・期限切れ）はpublisherがA7でchannelを先に確定し、intentの更新をdecisionClock＝結果のcompletedAtとともにownerへ送る。ownerはその固定時計でintentの期限を判定し（owner が処理した時刻では判定しない）、識別子・終端状態の再照合は従来どおり行う。同じintentに二重の試行を作らない。終端の採用確認はownerの中で、対象のintentがintentsに無く保存世代が進んだことで行う（P3-NOTICE-LEDGER-001のP3-NL-AC05の(3)。U-EのdeliveryRecordsは無くなった）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:948 «2329df574f1ba7a9»",
           "docs/specs/reconstruction-p0-contracts.md:949 «28854b020dc75755»",
           "docs/specs/reconstruction-p0-contracts.md:953 «2d1702a30de1cc0c»",
           "docs/specs/reconstruction-p0-contracts.md:958 «618012b27b0cd8ad»",
-          "docs/specs/reconstruction-p0-contracts.md:960 «1aa04ccc8255047a»",
-          "reconstruction/contracts/p2-shared-runtime.json:570 «e92a1dbe1a63cd07»",
+          "docs/specs/reconstruction-p0-contracts.md:960 «ed1339c17a231d35»",
+          "reconstruction/contracts/p2-shared-runtime.json:570 «820d80e71d4972de»",
           "reconstruction/contracts/p2-shared-runtime.json:751 «c6065fe573594293»"
         ]
       },

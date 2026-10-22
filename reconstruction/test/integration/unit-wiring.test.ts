@@ -62,7 +62,7 @@ const eewIntent: EewUnitState["intents"][number] = { id: "U-E:normal/VXSE43/2024
     origin: "replay", operation: "normal", family: "VXSE43", subject: "normal/VXSE43/20240417231454",
     reportDateTimeRaw: "2024-04-17T23:14:59+09:00", controlDateTimeRaw: "2024-04-17T14:14:59Z", serialRaw: "1", infoTypeRaw: "発表" },
   transition: "activated", channel: "sound", payload: { domain: "earthquake-eew", level: "critical", title: "緊急地震速報（警報）", body: "地震" }, createdAt: 1, expiresAt: 15_001,
-  nextAttemptAt: 1, attempts: 0, configRevision: "test", disposition: "pending" };
+  nextAttemptAt: 1, attempts: 0, configRevision: "test", disposition: "pending", lastAttempt: null, replayed: false, priorityGroup: "normalEew" };
 
 // TEST-PATH (2): the publisher and its in-process owners; parser inputs travel as the host would enqueue them.
 function wired(settings: Awaited<ReturnType<typeof config>>, options: Omit<Parameters<typeof harnessedRoot>[2] & object, never> = {}) {
@@ -206,7 +206,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const initial = fixtureState({}, { "U-W": { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } }, "run");
     const state = { ...initial, units: { ...initial.units,
-      "U-E": { ...initial.units["U-E"], notificationLatches: [] } }, deadlines: { ...initial.deadlines,
+      "U-E": initial.units["U-E"] }, deadlines: { ...initial.deadlines,
       "U-E": null, "U-W": { wallTimeMs: null, monotonicMs: at.monotonicMs }, "U-F": null } };
     const units = { ...calls.units, "U-W": { ...calls.units["U-W"],
       reduce: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
@@ -376,8 +376,10 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     // the urgent owner's next deadline request, not in this input's step.
     const clock = { wallTimeMs: 1_713_363_299_001, monotonicMs: 1 };
     const initial = fixtureState({}, {}, "run");
+    // P3-NL-AC04 (6): 期限の来た U-E の記録は通知の印（retainUntil）。
     const state: RuntimeState = { ...initial, units: { ...initial.units, "U-E": { ...initial.units["U-E"],
-      deliveryRecords: [{ intentId: "elapsed", disposition: "delivered", expiresAt: clock.wallTimeMs }] } },
+      notices: [{ eventId: "20240417231454", operation: "normal", firstReportNotified: true, warningNotified: true, vxse45Accepted: false,
+        deliveryEvidence: "possible", notifiedMaximumRank: -1, notifiedWarningAreas: "0", retainUntil: clock.wallTimeMs, families: [] }] } },
       deadlines: { "U-E": { wallTimeMs: clock.wallTimeMs, monotonicMs: null }, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null,
         "U-V": null, "U-L": null, "U-R": null, "U-B": null, "U-M": null, "U-Y": null } };
     const material = decode("37_01_01_240613_VXSE43", "VXSE44", (xml) => xml
@@ -388,7 +390,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     expect(ignored.diagnostics).toMatchObject([{ reason: "routeIgnored", level: "INFO", inputId: "ignored-44" }]);
     const deadline = deadlineOwner(ownerFixture("urgent", state), clock, calls.units);
     expect(deadline.state.units["U-E"]?.current).toEqual([]);
-    expect(deadline.state.units["U-E"]?.deliveryRecords).toEqual([]);
+    expect(deadline.state.units["U-E"]?.notices).toEqual([]);
     expect(deadline.changedUnits).toEqual(["U-E"]);
     expect(deadline.generationInputIds).toEqual({ "U-E": [] });
   });

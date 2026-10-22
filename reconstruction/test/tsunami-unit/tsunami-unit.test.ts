@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
 import type {
   TsunamiAreaClass, TsunamiForecastSubject, TsunamiIntent, TsunamiObservationSubject, TsunamiTransitionRecord, TsunamiUnitState,
@@ -7,7 +8,7 @@ import type {
 } from "../../contracts/p3-tsunami-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
-import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { capturedOwner, checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
@@ -23,6 +24,8 @@ import { envelope } from "../execution-split/owner-harness";
 import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { toTsunamiView, tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
+import { freshState } from "../../src/units/notice-mark";
+import { versionKey } from "../../src/contracts-revision/version";
 import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, observation, receive, run, sentLater, vtse41 } from "./tsunami-fixture";
 
 const EVENT = "20110311144640";
@@ -60,7 +63,7 @@ function intentsOf(subject: string, count: number, level: TsunamiIntent["payload
     source: { inputId: `seed-${index}`, origin: "replay", operation, family: subject.includes("VTSE41") ? "VTSE41" : "VTSE51", subject,
       reportDateTimeRaw: "2099-01-01T09:00:00+09:00", controlDateTimeRaw: "2099-01-01T00:00:00Z", serialRaw: "", infoTypeRaw: "発表" }, transition: "updated", channel: "desktop",
     payload: { domain: "tsunami", level, title: "試験", body: "試験" }, createdAt: from + index, expiresAt: from + index + 180_000,
-    nextAttemptAt: from + index, attempts: 0, configRevision: "test", disposition: "pending" }));
+    nextAttemptAt: from + index, attempts: 0, configRevision: "test", disposition: "pending", ...freshState("U-T", operation, level) }));
 }
 
 // 実 byte が 131,072 ちょうどで、配送の更新の予約を足すと超える pending（P3-IUR-AC01）。
@@ -352,10 +355,10 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     expect(pushed.state.observations.map((item) => item.operation)).toEqual(["normal"]);
     expect(pushed.diagnostics).toMatchObject([{ reason: "tsunamiCapacityEvicted", count: 1 }]);
 
-    // 4 MiB/世代: byte の超過は全 subject が候補。normal だけで超えるなら capacityExceeded。
+    // 器/世代（4 MiB＋印の分、P3-NL-AC15）: byte の超過は全 subject が候補。normal だけで超えるなら capacityExceeded。
     const wide = (index: number, operation: "normal" | "training") => clone(index, { operation,
       areas: Array.from({ length: 1000 }, (_, code) => ({ ...seed.areas[0], code: String(code).padStart(3, "0"), name: "区".repeat(40) })) });
-    const count = Math.ceil(4_194_304 / Buffer.byteLength(JSON.stringify(wide(0, "normal"))));
+    const count = Math.ceil(tsunamiUnitCodec.maxEnvelopeBytes! / Buffer.byteLength(JSON.stringify(wide(0, "normal"))));
     const pressed = receive(withForecasts(Array.from({ length: count }, (_, index) => wide(index, index === 0 ? "training" : "normal"))),
       report("20990101000010"), at);
     expect(pressed.diagnostics).toMatchObject([{ reason: "tsunamiCapacityEvicted", count: 1 }]);
@@ -379,7 +382,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const first = receive(emptyState(), decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41"), clock(1_299_822_540_001));
     const both = receive(first.state, decodeFixture("32-39_11_10_250206_VTSE51", "VTSE51"), clock(1_299_823_260_000)).state;
     const payload = JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(both))) as JsonValue;
-    expect(Object.keys(payload as object).sort()).toEqual(["forecasts", "intents", "observations", "schemaVersion"]);
+    expect(Object.keys(payload as object).sort()).toEqual(["failureMarks", "forecasts", "intents", "observations", "schemaVersion"]);
     const decoded = tsunamiUnitCodec.decode(payload);
     expect(decoded).toEqual({ kind: "restored", state: { ...both, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
       savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } });
@@ -387,13 +390,13 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const area0 = (value.forecasts[0].areas as Record<string, unknown>[])[0];
     const measuredStation = (value.observations[0].stations as { maxHeight: { height: object | null } }[])
       .find((item) => item.maxHeight.height != null)!;
-    // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（終端記録で埋める。P3-IUR-AC02）。
-    const withPad = (pad: number) => ({ ...value, intents: [value.intents[0], { ...value.intents[0], id: "pad", disposition: "delivered",
-      payload: { ...(value.intents[0].payload as Record<string, unknown>), body: "x".repeat(pad) } }] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v3", unit: "U-T", generation: 0, capturedAt: 0,
-      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
-    const generationPad = 4_194_304 - generation(0);
-    expect(generation(generationPad)).toBe(4_194_304);
+    // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（P3-IUR-AC02）。終端記録は無くなった（P3-NL-AC05）ので予報の区域名で埋める。
+    const withPad = (pad: number) => ({ ...value, intents: [value.intents[0]], forecasts: [{ ...value.forecasts[0],
+      areas: [{ ...area0, name: `${String(area0.name)}${"x".repeat(pad)}` }, ...(value.forecasts[0].areas as unknown[]).slice(1)] }, ...value.forecasts.slice(1)] });
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v4", unit: "U-T", generation: 0, capturedAt: 0,
+      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
+    const generationPad = tsunamiUnitCodec.maxEnvelopeBytes! - generation(0);
+    expect(generation(generationPad)).toBe(tsunamiUnitCodec.maxEnvelopeBytes!);
     expect(tsunamiUnitCodec.decode(withPad(generationPad - deliveryGrowth(value.intents[0] as unknown as TsunamiIntent)) as JsonValue).kind).toBe("restored");
     const invalid: [string, unknown][] = [
       ["schemaVersion", { ...value, schemaVersion: "p3-tsunami-unit-v0" }],
@@ -411,7 +414,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
         ({ ...(value.observations[0].stations as Record<string, unknown>[])[0], code: String(40000 + index) })) }] }],
       ["pending > 128", { ...value, intents: Array.from({ length: 129 }, (_, index) => ({ ...value.intents[0], id: `pending-${index}` })) }],
       ["pending real 131072 + reserve", { ...value, intents: reserveOver(value.intents[0]) }],
-      ["generation real 4 MiB + reserve", withPad(generationPad)],
+      ["generation real limit + reserve", withPad(generationPad)],
       ["expired keeps stations", { ...value, observations: [{ ...value.observations[0], effective: "expired", retainUntil: 1 }] }],
       ["infoTypeRaw outside INFO_RANK", { ...value, forecasts: [{ ...value.forecasts[0], source: { ...(value.forecasts[0].source as object),
         infoTypeRaw: "不明" } }] }],
@@ -456,9 +459,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-T": first.state } };
-    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-T", from.units["U-T"]!.intents.filter((item) => item.disposition === "pending").map((item, index) => ({
-      id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
-      disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-T", from.units["U-T"]!.intents.filter((item) => item.disposition === "pending").map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
+      disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const, lossReason: null })), now, linkedUnitTable);
     // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
     const widened = update(owner, false);
     expect(widened.adopted).toBe(true);
@@ -516,7 +518,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     expect(pending(continued.state)).toEqual(["desktop:warning", "sound:warning", "desktop:normal", "sound:normal"]);
     const raised = send(continued.state, 2, [{ code: "311", kind: "52" }, { code: "312", kind: "51" }]);
     expect(pending(raised.state)).toEqual(["desktop:critical", "sound:critical"]);
-    expect(raised.state.intents.filter((item) => item.disposition === "superseded")).toHaveLength(4);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる（結果は印に残る）。
+    expect(raised.state.intents).toHaveLength(2);
     const cancel = send(continued.state, 3, [], { infoType: "取消" });
     expect(cancel.intents.map((item) => [item.payload.level, item.payload.title, item.payload.body]))
       .toEqual([["cancel", "[取消] 津波警報・注意報・予報", "この情報は取り消されました"], ["cancel", "[取消] 津波警報・注意報・予報", "この情報は取り消されました"]]);
@@ -529,8 +532,9 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const admitted = send(lowerFull, 0, [{ code: "311", kind: "52" }]);
     expect(admitted.intents).toHaveLength(2);
     expect(admitted.diagnostics).toEqual([{ level: "INFO", component: "tsunami", reason: "notificationCapacityEvicted", unit: "U-T", count: 2 }]);
-    expect(admitted.state.intents.filter((item) => item.disposition === "superseded").map((item) => item.id))
-      .toEqual([lowerFull.intents[126].id, lowerFull.intents[127].id]);
+    // P3-NL-AC05 (1): 退去した pending は intents から外れる。
+    expect(admitted.state.intents.map((item) => item.id)).toEqual([...lowerFull.intents.slice(0, 126).map((item) => item.id),
+      ...admitted.intents.map((item) => item.id)]);
     const sameFull = { ...emptyState(), intents: intentsOf("normal/VTSE41/20980101000001", 128, "critical", at(0).wallTimeMs) };
     const refused = send(sameFull, 0, [{ code: "311", kind: "52" }]);
     expect([refused.intents, refused.state.intents.filter((item) => item.disposition === "pending")]).toEqual([[], sameFull.intents]);
@@ -538,12 +542,12 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
 
     // intentUpdate: 既存 id だけを一括で更新し、保存世代を 1 つ進める。未知 id・同値は no-op。
     const [desktop] = issued.intents;
-    const updated = run(issued.state, { kind: "intentUpdate", clock: at(0), intentUpdate: [{ id: desktop.id, attempts: 1,
-      nextAttemptAt: at(0).wallTimeMs + 1_000, disposition: "pending" }, { id: "unknown", attempts: 1, nextAttemptAt: 0, disposition: "delivered" }] });
+    const updated = run(issued.state, { kind: "intentUpdate", clock: at(0), intentUpdate: [{ ...desktop, attempts: 1,
+      nextAttemptAt: at(0).wallTimeMs + 1_000, disposition: "pending", lossReason: null }, { id: "unknown", attempts: 1, nextAttemptAt: 0, disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null }] });
     expect(updated.state.persistence.currentGeneration).toBe(issued.state.persistence.currentGeneration + 1);
     expect(updated.decisions).toMatchObject([{ decision: "changed", change: "deliveryOnly" }]);
-    expect(run(updated.state, { kind: "intentUpdate", clock: at(0), intentUpdate: { id: desktop.id, attempts: 1,
-      nextAttemptAt: at(0).wallTimeMs + 1_000, disposition: "pending" } }).state).toBe(updated.state);
+    expect(run(updated.state, { kind: "intentUpdate", clock: at(0), intentUpdate: { ...desktop, attempts: 1,
+      nextAttemptAt: at(0).wallTimeMs + 1_000, disposition: "pending", lossReason: null } }).state).toBe(updated.state);
 
     // 観測は警報中でも info で desktop＋sound（緊急群に入らない）。training/test は desktop だけ。
     const warning = receive(emptyState(), decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41"), clock(1_299_822_540_001));
@@ -660,19 +664,21 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     ({ code: String(100 + index), name: `区域${index}`, kind }));
   const report = (minute: number, list = areas(1), options: { infoType?: "発表" | "訂正" | "取消"; eventId?: string } = {}) =>
     decodeXml(vtse41({ at: raw(minute), areas: list, ...options }), "VTSE41");
-  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v3", unit: "U-T", generation: 0,
+  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v4", unit: "U-T", generation: 0,
     capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
-    + state.intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
-  // 世代を 4 MiB − slack にする終端記録。終端記録と normal の active の予報は退去の候補にならないので、slack を越える増分は拒否になる。
+    + LOSS_TALLY_MAX_BYTES + state.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  // 世代を器 − slack にする別の EventID の normal の active な予報。normal の active は退去の候補にならないので、slack を越える増分は
+  // 拒否になる（P3-NL-AC05 で終端記録は無くなったので、詰め物は予報に置く。器は印の分だけ 4 MiB より大きい、P3-NL-AC15）。
+  const PAD = "normal/VTSE41/20990101009999";
   const crowd = (state: TsunamiUnitState, slack: number): TsunamiUnitState => {
-    const template = state.intents[0];
-    const pad = (body: string): TsunamiUnitState => ({ ...state, intents: [...state.intents, { ...template, id: "U-T:pad",
-      disposition: "delivered", expiresAt: template.createdAt + 86_400_000, payload: { ...template.payload, body } }] });
-    const crowded = pad("x".repeat(4_194_304 - slack - generation(pad(""))));
-    expect(generation(crowded)).toBe(4_194_304 - slack);
+    const { notice: _notice, ...template } = state.forecasts[0];
+    const pad = (name: string): TsunamiUnitState => ({ ...state, forecasts: [...state.forecasts, { ...template, subject: PAD,
+      eventId: "20990101009999", source: { ...template.source, subject: PAD }, areas: template.areas.map((area) => ({ ...area, name: area.name + name })) }] });
+    const crowded = pad("x".repeat(tsunamiUnitCodec.maxEnvelopeBytes! - slack - generation(pad(""))));
+    expect(generation(crowded)).toBe(tsunamiUnitCodec.maxEnvelopeBytes! - slack);
     return crowded;
   };
-  const free = (state: TsunamiUnitState): TsunamiUnitState => ({ ...state, intents: state.intents.filter((item) => item.id !== "U-T:pad") });
+  const free = (state: TsunamiUnitState): TsunamiUnitState => ({ ...state, forecasts: state.forecasts.filter((item) => item.subject !== PAD) });
   const markOf = (state: TsunamiUnitState) => forecast(state, CC)?.unavailable;
   const notices = (state: TsunamiUnitState) => state.intents.filter((item) => item.subject === FAIL);
   const first = () => receive(emptyState(), report(0), at(0)).state;
@@ -786,8 +792,13 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     const warned = receive(crowd(first(), 5_000), big(3, "20990101000012"), at(3)).state;
     const light = notices(warned);
     expect(light.map((item) => [item.payload.level, item.disposition])).toEqual([["warning", "pending"], ["warning", "pending"]]);
-    // 世代: 昇格の失敗警報 2 件（約 1 KB）が入らなければ、昇格もせず軽い失敗警報がそのまま残り、何も退去しない。
-    const exact = crowd(free(warned), 300);
+    // 世代: 昇格の失敗警報 2 件が入らなければ、昇格もせず軽い失敗警報がそのまま残り、何も退去しない。置き換える軽い失敗警報は
+    // intents から外れる（P3-NL-AC05 (1)）ので、増えるのは題と level の数 byte。その増え分ちょうどの余りなら昇格が入り、1 byte 少なければ入らない。
+    const roomy = crowd(free(warned), 5_000);
+    const growth = generation(receive(roomy, big(4, "20990101000013", "52"), at(4)).state) - generation(roomy);
+    const fits = crowd(free(warned), growth);
+    expect(notices(receive(fits, big(4, "20990101000013", "52"), at(4)).state).map((item) => item.payload.level)).toEqual(["critical", "critical"]);
+    const exact = crowd(free(warned), growth - 1);
     const byGeneration = receive(exact, big(4, "20990101000013", "52"), at(4));
     expect(changed(byGeneration).decision).toBe("capacityExceeded");
     expect(byGeneration.state).toBe(exact);
@@ -801,8 +812,9 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     expect(byCount.state).toBe(counted);
     // byte: pending（予約込み）が 131,072 byte の 300 byte 手前なら、件数に余りがあっても失敗警報 2 件（約 1 KB）は入らない。
     const template = plain.intents[0];
+    // 詰め物は退去できない緊急群の pending にする（退去した pending は intents から外れて世代が空く、P3-NL-AC05 (1)）。
     const withPending = (body: string): TsunamiUnitState => ({ ...plain, intents: [...plain.intents,
-      { ...template, id: "U-T:pending-pad", payload: { ...template.payload, body } }] });
+      { ...template, id: "U-T:pending-pad", priorityGroup: "normalTsunamiEmergency", payload: { ...template.payload, level: "critical", body } }] });
     const pendingBytes = (state: TsunamiUnitState) => {
       const values = state.intents.filter((item) => item.disposition === "pending");
       return Buffer.byteLength(JSON.stringify(values)) + values.reduce((sum, item) => sum + deliveryGrowth(item), 0);
@@ -822,16 +834,14 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
       expect(notices(again.state)).toEqual(light);
     }
     const heavy = receive(warned, big(4, "20990101000016", "52"), at(4)).state;
-    const generationOf = warned.persistence.currentGeneration + 1;
-    expect(notices(heavy).map((item) => [item.id, item.payload.level, item.disposition])).toEqual([
-      [light[0].id, "warning", "superseded"], [light[1].id, "warning", "superseded"],
-      [`U-T:capacityRejected:normal:${generationOf}:desktop`, "critical", "pending"],
-      [`U-T:capacityRejected:normal:${generationOf}:sound`, "critical", "pending"]]);
+    // P3-NL-AC01 (4)・AC05 (1): ID は拒否した報の版の鍵から作り、置き換えた軽い失敗警報は intents から外れる。
+    expect(notices(heavy).map((item) => [item.id, item.payload.level, item.disposition])).toEqual((["desktop", "sound"] as const).map((channel) =>
+      [JSON.stringify(["U-T", FAIL, JSON.stringify([Date.parse(raw(4))]), channel]), "critical", "pending"]));
     // (a) 旧警報の予約の更新は、昇格の後には採られない（owner は pending でない intent への更新を採らない）。
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: at(4), restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-T": heavy } };
-    expect(intentUpdateOwner(owner, "U-T", [{ id: light[0].id, attempts: 1, nextAttemptAt: base, disposition: "pending" }], at(4),
+    expect(intentUpdateOwner(owner, "U-T", [{ ...light[0], attempts: 1, nextAttemptAt: base, disposition: "pending", lossReason: null }], at(4),
       linkedUnitTable).adopted).toBe(false);
     // (b) 走行中の旧警報は A7 が superseded で止め、次は新しい失敗警報（緊急群）が選ばれる。
     const deadlines = Object.fromEntries(heavy.intents.filter((item) => item.disposition === "pending" && item.channel === "desktop")
@@ -844,7 +854,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     expect(stopping.abortRequests).toEqual([{ attemptId: "old", cause: "superseded" }]);
     const next = selectNotificationAttempt({ intents: heavy.intents, deadlines: { desktop: deadlines, sound: {} },
       channels: { desktop: { kind: "idle" }, sound: { kind: "idle" } } }, at(4));
-    expect(next.attempts.map((item) => [item.intentId, item.priorityGroup])).toEqual([[notices(heavy)[2].id, "normalTsunamiEmergency"]]);
+    expect(next.attempts.map((item) => [item.intentId, item.priorityGroup])).toEqual([[notices(heavy)[0].id, "normalTsunamiEmergency"]]);
     // 保存して復元した後も判定は同じ（critical が残る間は warning を作らない）。
     const restored = tsunamiUnitCodec.decode(JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(heavy))) as JsonValue);
     if (restored.kind !== "restored") throw new Error("notice state does not restore");
@@ -853,6 +863,24 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     const reclaimed = run(heavy, { kind: "deadline", clock: at(10) }).state;
     expect(notices(reclaimed)).toEqual([]);
     expect(notices(receive(reclaimed, big(11, "20990101000018"), at(11)).state).map((item) => item.payload.level)).toEqual(["warning", "warning"]);
+  });
+
+  // P3-NL-AC02 (6): 失敗警報が配送されて intents から外れた後も、失敗の印の until の内は同じ段階の拒否で鳴らない。
+  it("P3-NL-T01 acceptance / AC02 (6): a delivered failure notice leaves the intents and its mark keeps the same stage silent", () => {
+    const warned = receive(crowd(first(), 5_000), big(3, "20990101000012"), at(3)).state;
+    const delivered = run(warned, { kind: "intentUpdate", clock: at(3), intentUpdate: notices(warned).map((item) => ({ ...item, attempts: 1,
+      nextAttemptAt: item.createdAt, disposition: "delivered" as const, lossReason: null })) }).state;
+    expect([notices(delivered), delivered.failureMarks.map((item) => item.level)]).toEqual([[], ["warning"]]);
+    const again = receive(delivered, big(4, "20990101000015"), at(4));
+    expect([changed(again).decision, again.intents, notices(again.state)]).toEqual(["capacityExceeded", [], []]);
+  });
+
+  // P3-NL-AC08 (1)(4)・AC15 (4): 失敗警報の started も復元で外れ、もう一方は戻る。
+  it("P3-NL-T07 contractBoundary / AC08・AC15 (4): a started failure notice is dropped at restore and the other one returns", () => {
+    const warned = receive(crowd(first(), 5_000), big(3, "20990101000012"), at(3)).state;
+    const [desktop, sound] = notices(warned);
+    expectRestoreStarted({ intents: [desktop, sound], make: (intents) => ({ ...warned, intents }),
+      restore: (state, clockAt) => run(emptyState(), { kind: "restore", persisted: tsunamiUnitCodec.encode(state), clock: clockAt }) });
   });
 
   it("P3-CC-T19 regression / AC10(9): a same-revision observation fragment is still adopted with its info notice", () => {
@@ -932,6 +960,55 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
 });
 
 // sequences.json の履歴 oracle（expected:<seq>:<position>）を step ごとに照合する。save と restart は codec を通す。
+// P3-NL-T01（P3-NL-AC01・AC02・AC05 の行。H19 の取消 AC09・AC13 は発注 2）: ID は世代番号を含まず、同じ報を保存→復元の後に origin（live・replay）
+// によらず受け直しても intent を作らない。終端の更新は intent を外し、owner は intents に無く世代が進んだことで採用を確かめる。
+it("P3-NL-T01 acceptance / AC01・AC02・AC05: a resent warning makes no intent after a restore, and a terminal update leaves the intents", () => {
+  const warning = decodeFixture("synthetic_VTSE41_e01_311warning", "VTSE41");
+  const at = clock(Date.parse(warning.reportDateTimeRaw));
+  const first = receive(emptyState(), warning, at);
+  expect(first.intents.map((item) => item.id)).toEqual(first.intents.map((item) => JSON.stringify(["U-T", item.subject, "", versionKey(item.source),
+    item.transition, item.channel])));
+  const restored = run(emptyState(), { kind: "restore", persisted: tsunamiUnitCodec.encode(first.state), clock: at }).state;
+  for (const origin of ["live", "replay"] as const) expect([origin, receive(restored, { ...warning, origin }, at).intents]).toEqual([origin, []]);
+  const empty = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
+    "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+  const updated = intentUpdateOwner({ ...empty, units: { ...empty.units, "U-T": first.state } }, "U-T", first.intents.map((item) => ({ ...item, attempts: 1,
+    nextAttemptAt: at.wallTimeMs, disposition: "delivered" as const, lossReason: null })), at, linkedUnitTable);
+  const unit = updated.state.units["U-T"]!;
+  expect([updated.adopted, unit.intents, forecast(unit, first.intents[0].subject)?.notice?.evidence]).toEqual([true, [], "possible"]);
+});
+
+// P3-NL-T02（P3-NL-AC03）: 同じ版の fragment はそれぞれ 1 回ずつ通知し、受け直しても作らない。17 件目の fragment で最古の鍵が捨てられ、
+// その fragment を受け直しても state の値が同じなので作らない。
+it("P3-NL-T02 acceptance / AC03: each fragment of one version notifies once, a resent one does not, and the 17th drops the oldest key", () => {
+  const a = decodeFixture("synthetic_VTSE51_fragmentA", "VTSE51"), b = decodeFixture("synthetic_VTSE51_fragmentB", "VTSE51");
+  const at = clock(Date.parse(a.reportDateTimeRaw));
+  const one = receive(emptyState(), a, at), two = receive(one.state, b, at);
+  expect([one.intents.length, two.intents.length, receive(two.state, a, at).intents]).toEqual([2, 2, []]);
+  const AT = "2099-01-01T09:01:00+09:00";
+  const fragment = (code: string) => decodeXml(observation({ at: AT, serial: 1, stations: [{ code }] }), "VTSE51");
+  let state = emptyState();
+  for (let index = 0; index < 17; index++) {
+    const step = receive(state, fragment(String(21_001 + index)), clock(Date.parse(AT)));
+    expect([index, step.intents.length]).toEqual([index, 2]);
+    state = step.state;
+  }
+  expect(state.observations[0].notice?.fragments).toHaveLength(16);
+  expect(receive(state, fragment("21001"), clock(Date.parse(AT))).intents).toEqual([]);
+});
+
+// P3-NL-T02 の推定区域の行（P3-NL-AC03 (1)）: 推定区域だけの fragment 2 つは観測点の差分がどちらも空でも別の鍵になり、後の fragment の通知を潰さない。
+it("P3-NL-T02 acceptance / AC03: an estimation-only fragment does not suppress a later estimation-only fragment", () => {
+  const estimationOnly = (xml: string) => xml.replace(/<Station>[\s\S]*?<\/Station>/g, "");
+  const first = decodeFixture("synthetic_VTSE52_fragmentA", "VTSE52", estimationOnly);
+  const second = decodeFixture("synthetic_VTSE52_fragmentA", "VTSE52", (xml) => estimationOnly(xml).replace("<Name>岩手県</Name><Code>210</Code>",
+    "<Name>宮城県</Name><Code>220</Code>"));
+  const at = clock(Date.parse(first.reportDateTimeRaw));
+  const one = receive(emptyState(), first, at);
+  expect([one.intents.length, receive(one.state, second, at).intents.length]).toEqual([2, 2]);
+});
+
+
 function replay(sequenceId: string, from: number, to: number): TsunamiUnitStep[] {
   const sequence = corpus.sequences.find((item) => item.sequenceId === sequenceId)!;
   const expectations = new Map(corpus.expectations.map((item) => [item.expectedId, item]));
@@ -993,12 +1070,15 @@ function replay(sequenceId: string, from: number, to: number): TsunamiUnitStep[]
 // 無いと、前の上限まで 430 byte 未満の余裕しか無い正常な保存が invalid になり、A/B の両方がそうなら unavailable でその run の保存も止まる。
 it("P3-VM-AC05 regression: old-version slots start empty and the next save stays within 4 MiB", async () => {
   const first = receive(emptyState(), decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41"), clock(1_299_822_540_001));
-  const value = JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(first.state))) as { intents: Record<string, unknown>[] };
-  const withPad = (pad: number, schemaVersion: string = tsunamiUnitCodec.schemaVersion) => ({ ...value, schemaVersion, intents: [value.intents[0],
-    { ...value.intents[0], id: "pad", disposition: "delivered", payload: { ...(value.intents[0].payload as Record<string, unknown>), body: "x".repeat(pad) } }] }) as unknown as JsonValue;
+  const value = JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(first.state))) as { intents: Record<string, unknown>[];
+    forecasts: (Record<string, unknown> & { areas: Record<string, unknown>[] })[] };
+  // 終端記録は無くなった（P3-NL-AC05）ので予報の区域名で埋める。
+  const withPad = (pad: number, schemaVersion: string = tsunamiUnitCodec.schemaVersion) => ({ ...value, schemaVersion, intents: [value.intents[0]],
+    forecasts: [{ ...value.forecasts[0], areas: [{ ...value.forecasts[0].areas[0], name: `${String(value.forecasts[0].areas[0].name)}${"x".repeat(pad)}` },
+      ...value.forecasts[0].areas.slice(1)] }, ...value.forecasts.slice(1)] }) as unknown as JsonValue;
   const growth = deliveryGrowth(value.intents[0] as unknown as TsunamiIntent);
   const size = (pad: number, reserve: number) => serializedEnvelope({ schemaVersion: tsunamiUnitCodec.schemaVersion, unit: "U-T", generation: 0,
-    capturedAt: 0, payload: withPad(pad), sha256: "0".repeat(64) }).byteLength + 62 + reserve + growth;
+    capturedAt: 0, payload: withPad(pad), sha256: "0".repeat(64) }).byteLength + 62 + reserve + LOSS_TALLY_MAX_BYTES + growth;
   const directory = mkdtempSync(join(tmpdir(), "fleq-vm-old-"));
   try {
     // 旧い版は容量の検査の前に版で捨てるので、slot の大きさは問わない。
@@ -1012,17 +1092,27 @@ it("P3-VM-AC05 regression: old-version slots start empty and the next save stays
     expect(events.filter((event) => event.reason === "checkpointSchemaDiscarded"))
       .toMatchObject([{ unit: "U-T", component: "checkpoint.p3-tsunami-unit-v1" }]);
     // The next save: the largest state the unit admits now, with the longest input boundary.
-    const decoded = tsunamiUnitCodec.decode(withPad(4_194_304 - size(0, INPUT_BOUNDARY_MAX_BYTES)));
+    const limit = tsunamiUnitCodec.maxEnvelopeBytes!;
+    const decoded = tsunamiUnitCodec.decode(withPad(limit - size(0, INPUT_BOUNDARY_MAX_BYTES)));
     if (decoded.kind !== "restored") throw new Error("the reserved limit must restore");
-    expect(tsunamiUnitCodec.decode(withPad(4_194_304 - size(0, INPUT_BOUNDARY_MAX_BYTES) + 1)).kind).toBe("invalid");
+    expect(tsunamiUnitCodec.decode(withPad(limit - size(0, INPUT_BOUNDARY_MAX_BYTES) + 1)).kind).toBe("invalid");
     const longest = -0.0000012345678901234567;
     const captured = coordinator.capture("U-T", decoded.state, 3, "k7", { inputIds: ["live-1"], retryReason: "notRetry" },
       { receivedAt: { wallTimeMs: longest, basis: "unverified" }, dmdataTime: longest, dmdataId: "~".repeat(128), oldestHole: "disconnected" });
     if (captured.request == null) throw new Error("the admitted state must be captured");
-    expect(captured.request.encodedByteLength).toBeLessThanOrEqual(4_194_304);
+    expect(captured.request.encodedByteLength).toBeLessThanOrEqual(limit);
     const executed = await coordinator.executeCheckpoint(captured.request, "k7", ["live-1"], "notRetry");
     expect(executed.result.kind).toBe("acknowledged");
     expect(new CheckpointCoordinator(directory, { "U-T": tsunamiUnitCodec }, files, () => ({ wallTimeMs: 0, monotonicMs: 0 }), () => {})
       .restoreUnit("U-T")).toMatchObject({ kind: "restored", slot: "A", envelope: { generation: 3 } });
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-T restores failed and null pending with their fields and drops a started one", () => {
+  const warning = decodeFixture("synthetic_VTSE41_e01_311warning", "VTSE41");
+  const issued = receive(emptyState(), warning, clock(Date.parse(warning.reportDateTimeRaw)));
+  expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
+    restore: (state, at) => run(emptyState(), { kind: "restore", persisted: tsunamiUnitCodec.encode(state), clock: at }),
+    markOf: (state, subject) => state.forecasts.find((item) => item.subject === subject)?.notice });
 });

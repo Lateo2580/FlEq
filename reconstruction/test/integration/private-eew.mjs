@@ -151,10 +151,18 @@ async function main() {
   const observe = (output, settlement) => {
     const unit = urgent?.state?.units["U-E"];
     if (unit != null) {
-      for (const item of unit.intents) adopted.set(item.id, { disposition: item.disposition,
+      for (const item of unit.intents) adopted.set(item.id, { disposition: item.disposition, subject: item.subject,
         basis: "U-E owner state intent", generation: unit.persistence.currentGeneration });
-      for (const item of unit.deliveryRecords) adopted.set(item.intentId, { disposition: item.disposition,
-        basis: "U-E owner state deliveryRecords", generation: unit.persistence.currentGeneration });
+      // P3-NL-AC05 (1): 終端の intent は intents から外れ、結果は EventID の印に残る。外れた intent は、印の証拠が possible で adapter の終わりが
+      // delivered なら delivered の採用、ほかは superseded と読む（期限切れは下の outcome の expired で読む）。
+      const present = new Set(unit.intents.map((item) => item.id));
+      for (const [id, last] of adopted) if (last.disposition === "pending" && !present.has(id)) {
+        const [operation, , eventId] = last.subject.split("/");
+        const evidence = unit.notices.find((mark) => mark.operation === operation && mark.eventId === eventId)?.deliveryEvidence;
+        const delivered = evidence === "possible" && (terminals.get(id) ?? []).some((result) => result.kind === "delivered");
+        adopted.set(id, { disposition: delivered ? "delivered" : "superseded", subject: last.subject, basis: "U-E owner state notice mark",
+          generation: unit.persistence.currentGeneration });
+      }
     }
     for (const entry of output.outcomes) if (entry.unit === "U-E") for (const subject of entry.outcome.subjects)
       if (subject.transition === "expired" && typeof subject.facts?.intentId === "string")

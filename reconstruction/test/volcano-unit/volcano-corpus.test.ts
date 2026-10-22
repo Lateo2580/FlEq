@@ -19,7 +19,8 @@ describe("P3-UNIT-V-001 U-V corpus history", () => {
     // :18 の訂正は同じ subject・channel の :16 の pending を置き換え、critical の「[訂正] 噴火速報」。
     expect(o01[3].intents.map((item) => [item.payload.level, item.payload.title])).toEqual([["critical", "[訂正] 噴火速報"],
       ["critical", "[訂正] 噴火速報"]]);
-    expect(o01[3].state.intents.slice(0, 2).map((item) => item.disposition)).toEqual(["superseded", "superseded"]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(o01[3].state.intents).toEqual(o01[3].intents);
     // :17 は同じ版の食い違い（WARN）。:27 は浅間山の噴火の記録が 2 件、:28 は 143900_306 だけを取り消す。
     expect(o01[2].diagnostics).toMatchObject([{ level: "WARN", reason: "volcanoRevisionConflict" }]);
     expect(o01[12].state.eruptions.map((item) => [item.subject, item.effective])).toEqual([

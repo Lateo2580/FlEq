@@ -18,7 +18,8 @@ describe("P3-UNIT-L-001 U-L corpus history", () => {
     // :82 の訂正は :81 の pending（同じ subject・channel）を置き換え、:83 の取消は :82 の pending を両 channel とも置き換える。
     expect(o01[2].intents.map((item) => [item.payload.level, item.payload.title])).toEqual([["normal", "[訂正] 宗谷地方土砂災害警報・注意報"],
       ["normal", "[訂正] 宗谷地方土砂災害警報・注意報"]]);
-    expect(o01[2].state.intents.slice(0, 2).map((item) => item.disposition)).toEqual(["superseded", "superseded"]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(o01[2].state.intents).toEqual(o01[2].intents);
     expect(o01[3].state.intents.filter((item) => item.disposition === "pending").map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
     expect(o01[1].intents.map((item) => item.payload.level)).toEqual(["warning", "warning"]);
     const o03 = replay("O03", 25, 26);
@@ -26,7 +27,8 @@ describe("P3-UNIT-L-001 U-L corpus history", () => {
     const o07 = replay("O07", 45, 53);
     // :48 の復元は intent を作らず、:49 の訂正は復元した :46 の pending を置き換える。:52 の復元の後も取消の記憶が残る。
     expect(o07[3].intents).toEqual([]);
-    expect(o07[4].state.intents.filter((item) => item.disposition === "superseded").map((item) => item.channel)).toEqual(["desktop", "sound"]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる（残るのは :49 の訂正の分だけ）。
+    expect(o07[4].state.intents).toEqual(o07[4].intents);
     expect(o07[7].state.currents.map((item) => item.effective)).toEqual(["cancelled"]);
 
     // E13: fixtureIds の全正常 fixture を各 fixture の時刻の時計で受け、期限処理の後も残る恒常的な unavailable は U-L に無い。

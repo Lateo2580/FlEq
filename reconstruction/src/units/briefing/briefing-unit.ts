@@ -2,25 +2,30 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, DiagnosticDetails, JsonValue, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome,
+  ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
+  SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   BriefingArea, BriefingCurrent, BriefingInput, BriefingIntent, BriefingItem, BriefingKind, BriefingNotificationPayload, BriefingObservation,
   BriefingUnitCodec, BriefingUnitState, BriefingUnitStep, BriefingUnitView, PersistedBriefingUnit,
 } from "../../../contracts/p3-briefing-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, LIMITS, kindOf, parseBriefing, validCode, validHeadline, validSeries, validUnit } from "../../domains/briefing/briefing";
 import type { BriefingCandidate } from "../../domains/briefing/briefing";
 import { cut, infoRankOf, validName, validReportDateTime, validSerial, validTime, validValue } from "../../domains/flood/flood";
+import {
+  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  shown, updateEvidence, versionDigest,
+} from "../notice-mark";
 
 // P3-UNIT-B-001（C12、I-U-B）: U-B の系列の current・予測の置換・alias・通知・容量・codec・射影。
 
-const SCHEMA = "p3-briefing-unit-v4" as const;
+const SCHEMA = "p3-briefing-unit-v5" as const;
 // P3-C12-BOUNDS=A・P3-C12-RES-01・RET-01〜04。
 const CURRENT_LIMIT = 256, GENERATION_LIMIT = 2_097_152;
-const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
+const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C12-TTL=B（SEM-01・02、元報の ReportDateTime から）と相関の窓（SEM-03、受理の時計から）。
 const SHORT_MS = 7_200_000, LONG_MS = 10_800_000, HOLD_MS = 60_000;
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
@@ -33,7 +38,7 @@ type InternalStep = Omit<BriefingUnitStep, "displayChanges" | "confirmationEvide
 type Decision = BriefingUnitStep["decisions"][number];
 type Change = readonly [before: BriefingCurrent | null, after: BriefingCurrent | null];
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
-type Base = Readonly<{ subject: string; operation: Operation; series: string; source: ReportRef; unconfirmed?: ReportRef }>;
+type Base = Readonly<{ subject: string; operation: Operation; series: string; source: ReportRef; unconfirmed?: ReportRef; notice?: NoticeMark }>;
 type Text = Readonly<{ title: string; headline: string; editorialOffice: string; truncated: boolean }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
@@ -44,8 +49,9 @@ const predicted = (item: BriefingItem) => item.kind === "linearRainPredicted";
 // ---- 記録の組み立て（retainUntil は P3-C12-TTL=B の等式。decode も同じ関数で確かめる） ----
 
 // 未確認の印は系列の版の採用（取消を含む）と記録の回収でだけ外れ、他の系列の作用（置換・alias）と held の解放では残る（P3-VM-AC04）。
+// 通知の印は記録と同じに生きる（P3-NL-AC02 (4)）。
 const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, series: value.series, source: value.source,
-  ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed } });
+  ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed }, ...value.notice == null ? {} : { notice: value.notice } });
 const textOf = (value: Text): Text => ({ title: value.title, headline: value.headline, editorialOffice: value.editorialOffice,
   truncated: value.truncated });
 const after = (base: Base, ms: number) => reportMs(base.source) + ms;
@@ -75,11 +81,8 @@ function bytes(value: object): number {
 }
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
-// 終端記録の合計（区切りの 1 byte を含む）。受理と decode で同じ式を使う（Q-NOTICE.capacity）。
-const terminalBytes = (intents: readonly BriefingIntent[]): number =>
-  intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-B", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-R ほかと同じ予約）。4: 空の配列 2 つ。
 function generationBytes(value: PersistedBriefingUnit): number {
   return emptyEnvelopeBytes + 62 - 4 + listBytes(value.currents) + listBytes(value.intents);
@@ -239,31 +242,29 @@ function bodyOf(value: Visible): string {
     .filter((part) => part !== "").join(" ")).join(" / ") : "";
   return summary !== "" ? summary : value.title;
 }
+// P3-NL-AC01: ID は世代番号を含まない。系列の印に同じ版の鍵と種類があれば作らない。
 function intentsFor(source: Readonly<{ subject: string; operation: Operation; source: ReportRef }>, transition: BriefingIntent["transition"],
-  payload: BriefingNotificationPayload, generation: number, now: number): BriefingIntent[] {
+  payload: BriefingNotificationPayload, now: number, mark: NoticeMark | undefined, version: string): BriefingIntent[] {
+  if (noticed(mark, version, noticeKind(transition))) return [];
   // P3-C12-TRAINING=A: training/test は desktop だけ。
   const channels = source.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  return channels.map((channel) => ({ id: `U-B:${source.subject}:${generation}:${channel}`, unit: "U-B", subject: source.subject,
-    operation: source.operation, source: source.source, transition, channel, payload, createdAt: now, expiresAt: now + TTL[channel],
-    nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending" }));
+  return channels.map((channel) => ({ id: noticeId("U-B", source.subject, "", source.source, transition, channel), unit: "U-B",
+    subject: source.subject, operation: source.operation, source: source.source, transition, channel, payload, createdAt: now,
+    expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
+    ...freshState("U-B", source.operation, payload.level) }));
+}
+// P3-NL-AC02 (3): admit を通った intent の版と種類を、その系列の記録の印に足す（全 channel が断られた版は入れない）。
+function markAdmitted(currents: readonly BriefingCurrent[], admitted: readonly BriefingIntent[]): readonly BriefingCurrent[] {
+  if (admitted.length === 0) return currents;
+  const marks = new Map(admitted.map((item) => [item.subject, item]));
+  return currents.map((item) => {
+    const intent = marks.get(item.subject);
+    return intent == null ? item : { ...item, notice: markNotice(item.notice, versionDigest(intent.source), noticeKind(intent.transition)) };
+  });
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-B の intent は全部 other の群（P3-C12-NOTICE-GROUP=A）。
 function a7Order(left: BriefingIntent, right: BriefingIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-}
-// 終端記録の合計が 98,304 byte を超える分は、最古の終端記録から期限前に回収する。kept は今の配送の更新で終端にした記録で、回収しない
-// （owner は更新した記録が残ることで照合する。C8 の Q-C8-IMPL-AMEND(1)）。
-function trimTerminal(intents: readonly BriefingIntent[], kept: ReadonlySet<string> = new Set()): readonly BriefingIntent[] {
-  let terminal = terminalBytes(intents);
-  if (terminal <= TERMINAL_BYTES) return intents;
-  const gone = new Set<BriefingIntent>();
-  for (const item of intents.filter((value) => value.disposition !== "pending" && !kept.has(value.id))
-    .sort((left, right) => left.createdAt - right.createdAt)) {
-    if (terminal <= TERMINAL_BYTES) break;
-    gone.add(item);
-    terminal -= bytes(item) + 1;
-  }
-  return intents.filter((item) => !gone.has(item));
 }
 // Q-NOTICE.capacity と P3-C12-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、withdrawn の subject（取消・alias・
 // 置換で replaced・遅着の撤回）は全 pending を置き換える。
@@ -272,9 +273,9 @@ function admit(current: readonly BriefingIntent[], fresh: readonly BriefingInten
   const superseded = new Set<BriefingIntent>();
   const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
-    if (item.disposition === "pending" && (withdrawn.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`))) superseded.add(item);
+    if (withdrawn.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
-  const pool = [...current.filter((item) => item.disposition === "pending" && !superseded.has(item)), ...fresh];
+  const pool = [...current.filter((item) => !superseded.has(item)), ...fresh];
   const out = new Set<BriefingIntent>();
   // 同じ群の中で A7 の選択順の後ろのものから外す。予約は配送の更新で伸びうる byte（P3-INTENT-UPDATE-RESERVE-001、式は写さない）。
   let count = pool.length, size = listBytes(pool) + pool.reduce((sum, item) => sum + deliveryGrowth(item), 0);
@@ -286,11 +287,11 @@ function admit(current: readonly BriefingIntent[], fresh: readonly BriefingInten
       size -= bytes(item) + 1 + deliveryGrowth(item);
     }
   const admitted = fresh.filter((item) => !out.has(item));
-  // 新しい intent が容量で外れただけなら、既存の intent も終端記録も変わらないので元の配列を返す（C9 の Q-C9-IMPL-AMEND(9)(e)）。
+  // 新しい intent が容量で外れただけなら、既存の intent は変わらないので元の配列を返す（C9 の Q-C9-IMPL-AMEND(9)(e)）。
   if (superseded.size === 0 && admitted.length === 0 && [...out].every((item) => fresh.includes(item)))
     return { intents: current, admitted: [], dropped: fresh.length };
-  const intents = trimTerminal([...current.map((item) => superseded.has(item) || out.has(item)
-    ? { ...item, disposition: "superseded" as const } : item), ...admitted]);
+  // P3-NL-AC05 (1)(2): 置換・退去した intent は外す（結果は系列の印に残り、終端記録の予算と回収は無い）。
+  const intents = [...current.filter((item) => !superseded.has(item) && !out.has(item)), ...admitted];
   return { intents, admitted, dropped: [...out].filter((item) => !fresh.includes(item)).length + fresh.length - admitted.length };
 }
 
@@ -319,7 +320,7 @@ function shownOutcome(value: BriefingCurrent): SubjectOutcome {
   return found;
 }
 function displaySubject(value: BriefingCurrent): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-B" }>> {
-  return { unit: "U-B", operation: value.operation, subject: value.subject, office: null, current: visible(value) ? value : null,
+  return { unit: "U-B", operation: value.operation, subject: value.subject, office: null, current: visible(value) ? shown(value) : null,
     subjects: [shownOutcome(value)] };
 }
 
@@ -344,6 +345,8 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
     return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: "stale" }], diagnostics: [warn(version.missing)] } };
   }
   if (version.mark != null) next = { ...next, unconfirmed: version.mark };
+  // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。
+  if (existing?.notice != null) next = { ...next, notice: existing.notice };
   const withdrawn = new Set<string>();
   const vanished = (diagnostics: readonly DiagnosticDetails[], kept: BriefingUnitState, changes: readonly Change[], change: "semantic" | "revisionOnly"): Result =>
     ({ changes, step: { ...idle(kept), decisions: [{ subject, operation, decision: "changed", reason: null, change, currentEstablished: null }],
@@ -425,12 +428,17 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
     : visible(next) && (correction || !visible(existing) || changed(existing, next).length !== 0)
       ? payloadOf(operation, candidate.headType, "warning", next.title, bodyOf(next), correction ? "correction" : "plain") : null;
   const transition = candidate.cancelled ? "cancelled" as const : correction || visible(existing) ? "updated" as const : "activated" as const;
-  const fresh = payload == null ? [] : intentsFor(candidate, transition, payload, state.persistence.currentGeneration + 1, now);
+  // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
+  const fresh = payload == null ? [] : intentsFor(candidate, transition, payload, now, existing?.notice, versionDigest(candidate.source));
   const notices = admit(state.intents, fresh, withdrawn);
-  const result: BriefingUnitState = { ...state, currents, intents: notices.intents, persistence: dirty(state.persistence, clock.monotonicMs) };
+  const marked = markAdmitted(currents, notices.admitted);
+  const result: BriefingUnitState = { ...state, currents: marked, intents: notices.intents,
+    persistence: dirty(state.persistence, clock.monotonicMs) };
 
   // change は最終の表示の変化で決める（I-U-B.currentSemantics(6)）。accepted は触れた subject のうち最終の状態に記録が残るもの。
-  const touched: Change[] = [[existing, next], ...[...edits].filter(([at]) => at !== own).map(([at, value]): Change => [values[at], value])];
+  // 自分の記録は印を足した後の state の記録（表示の変化の after を state に揃える）。
+  const ownAfter = marked === currents ? next : marked[indexOf(marked).subjects.get(subject) ?? -1] ?? next;
+  const touched: Change[] = [[existing, ownAfter], ...[...edits].filter(([at]) => at !== own).map(([at, value]): Change => [values[at], value])];
   const shownChange = ([before, value]: Change) => visible(before) !== visible(value) || visible(before) && changed(before, value).length !== 0;
   const change = evicted != null || touched.some(shownChange) ? "semantic" as const : "revisionOnly" as const;
   const decision: Decision = { subject, operation, decision: "changed", reason: null, change,
@@ -469,7 +477,6 @@ function collect(state: BriefingUnitState, clock: ClockReading, silent: boolean)
   const held = silent && state.currents.some((item) => item.effective === "held");
   if (!held && deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0, intents: [], dropped: 0 };
   const changes: Change[] = [];
-  const generation = state.persistence.currentGeneration + 1;
   const released: BriefingIntent[] = [];
   const currents = !held && minOf(state.currents, recordDeadline) > now ? state.currents : state.currents.flatMap((item) => {
     if (item.retainUntil <= now) { changes.push([item, null]); return []; }
@@ -478,16 +485,19 @@ function collect(state: BriefingUnitState, clock: ClockReading, silent: boolean)
     changes.push([item, value]);
     if (!silent && now < item.holdUntil + HOLD_MS && visible(value))
       released.push(...intentsFor(value, "activated", payloadOf(value.operation, "VPOA50", "warning", value.title, bodyOf(value), "plain"),
-        generation, now));
+        now, value.notice, versionDigest(value.source)));
     return [value];
   });
   const remaining = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
-  const expiredIntents = remaining === state.intents ? 0
-    : state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= now).length;
+  const expiredIntents = state.intents.length - remaining.length;
   const notices = admit(remaining, released, new Set());
   const persisted = changes.length !== 0 || notices.intents !== state.intents;
-  return { state: persisted ? { ...state, currents: changes.length === 0 ? state.currents : currents, intents: notices.intents,
-    persistence: dirty(state.persistence, clock.monotonicMs) } : state, changes, expiredIntents, intents: notices.admitted, dropped: notices.dropped };
+  // 解放の通知の印は released の記録へ足し、表示の変化の after もその記録に揃える。
+  const marked = markAdmitted(changes.length === 0 ? state.currents : currents, notices.admitted);
+  const settled = notices.admitted.length === 0 ? changes : changes.map(([before, value]): Change =>
+    [before, value == null ? value : marked[indexOf(marked).subjects.get(value.subject) ?? -1] ?? value]);
+  return { state: persisted ? { ...state, currents: marked, intents: notices.intents,
+    persistence: dirty(state.persistence, clock.monotonicMs) } : state, changes: settled, expiredIntents, intents: notices.admitted, dropped: notices.dropped };
 }
 
 function deadlineStep(state: BriefingUnitState, clock: ClockReading, shutdown: boolean): Result {
@@ -503,20 +513,39 @@ function deadlineStep(state: BriefingUnitState, clock: ClockReading, shutdown: b
 
 // ---- intentUpdate（Q-NOTICE.intentUpdate） ----
 
+// P3-NL-AC02 (3)・AC08 (1): intent の系列の印の証拠を上げる（下げない）。
+function raiseNotices(state: BriefingUnitState, raised: ReadonlyMap<string, NoticeEvidence>): BriefingUnitState {
+  if (raised.size === 0) return state;
+  let touched = false;
+  const currents = state.currents.map((item) => {
+    const evidence = raised.get(item.subject);
+    const notice = evidence == null || item.notice == null ? item.notice : raiseEvidence(item.notice, evidence);
+    if (notice === item.notice) return item;
+    touched = true;
+    return { ...item, notice };
+  });
+  return touched ? { ...state, currents } : state;
+}
+
 function intentUpdate(state: BriefingUnitState, input: Extract<BriefingInput, { kind: "intentUpdate" }>): Result {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
   const changedIntents = new Map<string, BriefingIntent>();
+  const raised = new Map<string, NoticeEvidence>();
   for (const update of updates) {
     const current = originals.get(update.id);
-    if (current == null || update.attempts < current.attempts || current.attempts === update.attempts
-      && current.nextAttemptAt === update.nextAttemptAt && current.disposition === update.disposition) continue;
-    changedIntents.set(current.id, { ...current, attempts: update.attempts, nextAttemptAt: update.nextAttemptAt, disposition: update.disposition });
+    const updated = current == null ? null : applyIntentUpdate(current, update);
+    if (updated == null) continue;
+    changedIntents.set(updated.id, updated);
+    const evidence = updateEvidence(updated);
+    if (evidence != null) raised.set(updated.subject, evidence);
   }
   if (changedIntents.size === 0) return { changes: [], step: idle(state) };
-  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7〜C11 の先例）。更新で終端にした記録は期限前の回収から外す。
-  const next = { ...state, intents: trimTerminal(state.intents.map((item) => changedIntents.get(item.id) ?? item), new Set(changedIntents.keys())),
-    persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7〜C11 の先例）。pending でなくなった intent は外す（P3-NL-AC05 (1)）。
+  const next = { ...raiseNotices(state, raised), intents: state.intents.flatMap((item) => {
+    const updated = changedIntents.get(item.id);
+    return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
+  }), persistence: dirty(state.persistence, input.clock.monotonicMs) };
   const adopted = [...changedIntents.values()];
   return { changes: [], step: { ...idle(next),
     decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
@@ -534,12 +563,18 @@ function restore(state: BriefingUnitState, persisted: PersistedBriefingUnit, clo
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "briefing",
     reason: "requiredStructureInvalid", unit: "U-B" }] } };
-  const applied = collect({ ...decoded.state, persistence: state.persistence }, clock, true);
-  const shown = applied.state.currents.filter(visible);
-  return { changes: shown.map((item): Change => [null, item]), step: { ...idle(applied.state),
-    outcomes: [{ kind: "recoveryApplied", scope: ["U-B"], coverage: shown.map((item) => item.subject), subjects: [] }],
-    diagnostics: applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "briefing", reason: "notificationExpired",
-      unit: "U-B", count: applied.expiredIntents }] } };
+  // P3-NL-AC08 (1): started のまま残った pending は通知したか不明として外し、系列の印の証拠を unknown にする。
+  const restored = restoreStarted(decoded.state.intents);
+  const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
+    intents: restored.intents, persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
+  const applied = collect(base, clock, true);
+  const active = applied.state.currents.filter(visible);
+  const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "briefing",
+    reason: "notificationExpired", unit: "U-B", count: applied.expiredIntents }];
+  if (restored.started.length !== 0) diagnostics.push({ level: "INFO", component: "briefing", reason: "notificationOutcomeUnknown",
+    unit: "U-B", count: restored.started.length });
+  return { changes: active.map((item): Change => [null, item]), step: { ...idle(applied.state),
+    outcomes: [{ kind: "recoveryApplied", scope: ["U-B"], coverage: active.map((item) => item.subject), subjects: [] }], diagnostics } };
 }
 
 function reduceCore(state: BriefingUnitState, input: BriefingInput): Result {
@@ -580,7 +615,7 @@ function toBriefingView(state: BriefingUnitState): BriefingUnitView {
   const subjects = currents.map(shownOutcome);
   return { unit: "U-B", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), subjects, currents };
+  contentRevision: String(state.contentRevision), subjects, currents: currents.map((item) => shown(item)) };
 }
 
 // ---- codec（I-U-B.persisted・I-U-B.decode、唯一の BriefingUnitCodec。受理と同じ上限を確かめる） ----
@@ -675,8 +710,10 @@ function currentRecord(value: unknown): BriefingCurrent | null {
   if (FACT_KEYS.some((key) => key in row && !allowed.includes(key))) return null;
   // P3-VM-AC04: 印は同じ系列（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject) : undefined;
-  if (mark === null) return null;
-  const base: Base = { subject: row.subject, operation, series: parts.series, source, ...mark == null ? {} : { unconfirmed: mark } };
+  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
+  if (mark === null || notice === null) return null;
+  const base: Base = { subject: row.subject, operation, series: parts.series, source, ...mark == null ? {} : { unconfirmed: mark },
+    ...notice == null ? {} : { notice } };
   const text = textRecord(row);
   let built: BriefingCurrent | null = null;
   if (parts.headType === "VPBS50") {
@@ -704,16 +741,17 @@ function intentRecord(value: unknown): BriefingIntent | null {
   const level = LEVEL_SET.find((entry) => entry === payload?.level);
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
-  const disposition = (["pending", "delivered", "expired", "superseded"] as const).find((entry) => entry === row?.disposition);
+  const fields = row == null || operation == null ? null : readIntentState(row, "U-B", operation, level);
   // state に残る subject との一致は求めない（記録の回収の後も pending は期限まで残る、I-U-B.decode）。
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
-    || disposition == null || !isText(row.id) || row.unit !== "U-B" || !isText(row.subject) || source.operation !== operation
+    || fields == null || !isText(row.id) || row.unit !== "U-B" || !isText(row.subject) || source.operation !== operation
     || payload.domain !== "weather" || !isText(payload.title) || payload.title === "" || !isText(payload.body) || payload.body === ""
     || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt) || !count(row.attempts) || !isText(row.configRevision)
     || row.expiresAt < row.createdAt) return null;
   return { id: row.id, unit: "U-B", subject: row.subject, operation, source, transition, channel,
     payload: { domain: "weather", level, title: payload.title, body: payload.body }, createdAt: row.createdAt,
-    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision, disposition };
+    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
+    disposition: "pending", ...fields };
 }
 function persisted(value: unknown): PersistedBriefingUnit | null {
   const row = record(value);
@@ -721,24 +759,22 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
   const currents = list(row.currents, currentRecord, CURRENT_LIMIT), intents = list(row.intents, intentRecord);
   if (currents == null || intents == null || new Set(currents.map((item) => item.subject)).size !== currents.length
     || new Set(intents.map((item) => item.id)).size !== intents.length) return null;
-  const pending = intents.filter((entry) => entry.disposition === "pending");
-  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。終端記録は pending との合計で見る（Q-NOTICE.capacity）。
-  const pendingBytes = listBytes(pending) + pending.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
+  const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedBriefingUnit = { schemaVersion: SCHEMA, currents, intents };
-  if (pending.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || pendingBytes + terminalBytes(intents) > PENDING_BYTES + TERMINAL_BYTES
-    || generationBytes(result) > GENERATION_LIMIT) return null;
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const briefingUnitCodec: BriefingUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2", "p3-briefing-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2", "p3-briefing-unit-v3", "p3-briefing-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-B.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v4 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v5 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };
@@ -750,7 +786,6 @@ const briefingUnit = {
   toView: toBriefingView,
   persistence: { kind: "durable", codec: briefingUnitCodec },
   confirmationScopeLimit: CURRENT_LIMIT,
-  terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-B">;
 

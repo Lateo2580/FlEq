@@ -4,6 +4,7 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -58,6 +59,7 @@ type BriefingCommon = Readonly<{
   operation: Operation;
   series: string;
   source: ReportRef; unconfirmed?: ReportRef; // P3-VM-AC04: 系列の未確認の印（取消の採用・期限で消えた記録には無い）
+  notice?: NoticeMark; // P3-NL-AC02: 系列の通知の印（記録と同じに生きる）。表示には出さない
   retainUntil: number;
 }>;
 
@@ -103,16 +105,16 @@ export type BriefingNotificationPayload = Readonly<{
 export type BriefingIntent = NotificationIntent & Readonly<{ payload: BriefingNotificationPayload }>;
 
 export type BriefingUnitState = Readonly<{
-  schemaVersion: "p3-briefing-unit-v4";
+  schemaVersion: "p3-briefing-unit-v5";
   contentRevision: number;
   currents: readonly BriefingCurrent[];
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly BriefingIntent[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedBriefingUnit = Readonly<{
-  schemaVersion: "p3-briefing-unit-v4";
+  schemaVersion: "p3-briefing-unit-v5";
   currents: readonly BriefingCurrent[];
   intents: readonly BriefingIntent[];
 }>;
@@ -155,5 +157,5 @@ export type BriefingUnitStep = Readonly<{
 }>;
 
 export type BriefingUnitCodec = UnitCodec<BriefingUnitState, PersistedBriefingUnit> & Readonly<{
-  schemaVersion: "p3-briefing-unit-v4";
+  schemaVersion: "p3-briefing-unit-v5";
 }>;

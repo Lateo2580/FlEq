@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -623,7 +623,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-volcano-unit.json:334 «a7aadc822ee9cd23» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «830cf5e215de8dff» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
             "L2: test/fixtures/43_03_01_200522_VFVO52.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
@@ -681,7 +681,7 @@
             "L1: reconstruction/contracts/p3-volcano-unit.json:334 «a7aadc822ee9cd23» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
             "L1: reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6» P3-C9-MARINE=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «830cf5e215de8dff» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VFVO50_cancel.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -795,7 +795,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-volcano-unit.json:334 «a7aadc822ee9cd23» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-volcano-unit.json:226 «830cf5e215de8dff» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VFVO55_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -935,7 +935,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-flood-unit.json:108 «d2e334e47d0fa659» P3-C11-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-flood-unit.json:243 «44fe5884736c13e5» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-flood-unit.json:243 «1f6771a867cb8969» Q-NOTICE cancellation",
             "L2: test/fixtures/synthetic_VXKO50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -1045,7 +1045,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-seismic-unit.json:290 «804f1d1c60babb58» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-seismic-unit.json:205 «7f6b50d260e9df88» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:205 «d37d4c47d622970b» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-seismic-unit.json:40 «9f2ed44e0a1cb3ed» P3-C7-CANCEL-SCOPE=A",
             "L1: reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1» P3-C7-REPLACEMENT=A",
             "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
@@ -1237,7 +1237,7 @@
           "expectedRef": "expected:O01:65",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-            "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «ce88e4edcb75c729» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -1441,7 +1441,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-nankai-unit.json:244 «bfc71a8b711fa13d» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-nankai-unit.json:66 «12d2ca0cebf39643» P3-C8-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-nankai-unit.json:176 «1df7e30209991af4» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:176 «31effdfeb52e5154» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -1567,7 +1567,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «e8bd700d8139e539» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «1ce0b23dad35d944» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -1781,7 +1781,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:308 «472a6836d5458435» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPBS50_KJPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -1887,7 +1887,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «94532c39ce9a4b07» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «fb2ab6a362fdca23» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «42302ac873ebd1ad» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPHW50_tokyo_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -1973,7 +1973,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «94532c39ce9a4b07» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «fb2ab6a362fdca23» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «42302ac873ebd1ad» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPCI50_cancel.xml:1 «86e0a4d4f900f574» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -2152,7 +2152,7 @@
             "L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03（K7 の比べ方、同じ秒の取消の優先）",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «99bad6083b908639» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPTW60_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -2261,7 +2261,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «99bad6083b908639» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPTA50_cancel.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
@@ -2318,7 +2318,7 @@
             "L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03（K7 の比べ方、同じ秒の取消の優先）",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «99bad6083b908639» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPTW60_cancel_newer.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない。Control/DateTime を元の報より後にした取消、Q-VM-IMPL-2B）"
@@ -3593,7 +3593,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:308 «472a6836d5458435» Q-NOTICE cancellation",
             "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -3811,7 +3811,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:308 «472a6836d5458435» Q-NOTICE cancellation",
             "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel_newer.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない。Control/DateTime を元の報より後にした取消、Q-VM-IMPL-2B）"
           ]
         },
@@ -4813,7 +4813,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:3",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:475 «aba86312c3e708bb»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:475 «37212c339ccbf4a3»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1814 «4a417d72b1611509»"
           ]
         },
@@ -5025,8 +5025,8 @@
           "expectedRef": "expected:O07:17",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:474 «c1cbc9b6d1241018»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f» EEW intent TTL"
+            "L1: docs/specs/reconstruction-p0-contracts.md:474 «33206d8dd5ed3dee»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f» EEW intent TTL"
           ]
         },
         {
@@ -5042,7 +5042,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
             "L1: docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f» EEW intent TTL"
+            "L1: docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f» EEW intent TTL"
           ]
         },
         {
@@ -5216,7 +5216,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:29",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e» §4.2 U-T",
+            "L1: docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249» §4.2 U-T",
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
           ]
         },
@@ -5233,7 +5233,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
-            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart"
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «f57c130108d70252» Q-NOTICE restart"
           ]
         },
         {
@@ -5248,7 +5248,7 @@
           "expectedRef": "expected:O07:31",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «f57c130108d70252» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-tsunami-unit.json:168 «7f25e429950cfac0» Q-NOTICE continuation",
             "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VTSE41_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -5265,7 +5265,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:32",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e» §4.2 U-T",
+            "L1: docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249» §4.2 U-T",
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
           ]
         },
@@ -5282,7 +5282,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
-            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart"
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «f57c130108d70252» Q-NOTICE restart"
           ]
         },
         {
@@ -5297,7 +5297,7 @@
           "expectedRef": "expected:O07:34",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «ce88e4edcb75c729» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -5363,8 +5363,8 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
-            "L1: reconstruction/contracts/p3-nankai-unit.json:202 «0b0276177e8537f1» Q-NOTICE restart",
-            "L1: reconstruction/contracts/p3-nankai-unit.json:255 «c1a91edc6b0cc576» I-U-N.persisted"
+            "L1: reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:255 «5a6e7001bdccc647» I-U-N.persisted"
           ]
         },
         {
@@ -5380,7 +5380,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-nankai-unit.json:66 «12d2ca0cebf39643» P3-C8-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-nankai-unit.json:176 «1df7e30209991af4» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:176 «31effdfeb52e5154» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -5447,7 +5447,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
-            "L1: reconstruction/contracts/p3-nankai-unit.json:202 «0b0276177e8537f1» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A"
           ]
@@ -5514,7 +5514,7 @@
           "expectedRef": "expected:O07:47",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «7f724b2a38740b3e» I-U-L persisted"
+            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «b01eb2a38c63a8e7» I-U-L persisted"
           ]
         },
         {
@@ -5529,7 +5529,7 @@
           "expectedRef": "expected:O07:48",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «62bccde6f806cfc1» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f» P3-C10-RETENTION=A"
           ]
         },
@@ -5548,7 +5548,7 @@
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
             "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «62bccde6f806cfc1» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -5567,7 +5567,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «e8bd700d8139e539» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «1ce0b23dad35d944» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -5584,7 +5584,7 @@
           "expectedRef": "expected:O07:51",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «7f724b2a38740b3e» I-U-L persisted"
+            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «b01eb2a38c63a8e7» I-U-L persisted"
           ]
         },
         {
@@ -5599,7 +5599,7 @@
           "expectedRef": "expected:O07:52",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «62bccde6f806cfc1» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f» P3-C10-RETENTION=A"
           ]
         },
@@ -5683,7 +5683,7 @@
           "expectedRef": "expected:O07:57",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4» U-Rの保存するもの",
-            "L1: reconstruction/contracts/p3-flood-unit.json:319 «92627f1e043e0a47» I-U-R persisted"
+            "L1: reconstruction/contracts/p3-flood-unit.json:319 «504e6d4547eb742b» I-U-R persisted"
           ]
         },
         {
@@ -5698,7 +5698,7 @@
           "expectedRef": "expected:O07:58",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A"
           ]
         },
@@ -5716,7 +5716,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
             "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
-            "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
             "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -5736,7 +5736,7 @@
             "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
-            "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
             "L2: test/fixtures/synthetic_VXKO50_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -5754,7 +5754,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-flood-unit.json:108 «d2e334e47d0fa659» P3-C11-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-flood-unit.json:243 «44fe5884736c13e5» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-flood-unit.json:243 «1f6771a867cb8969» Q-NOTICE cancellation",
             "L2: test/fixtures/synthetic_VXKO50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -5857,7 +5857,7 @@
           "expectedRef": "expected:O07:67",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73» U-Bの保存するもの",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:383 «0cec2ccdc87a08af» I-U-B persisted"
+            "L1: reconstruction/contracts/p3-briefing-unit.json:383 «667dc977b6bb4feb» I-U-B persisted"
           ]
         },
         {
@@ -5872,7 +5872,7 @@
           "expectedRef": "expected:O07:68",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:329 «346831de2d3f6434» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:329 «461d6efb5708bfe7» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
             "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A"
           ]
@@ -5892,7 +5892,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:329 «346831de2d3f6434» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:329 «461d6efb5708bfe7» Q-NOTICE restart",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -5958,7 +5958,7 @@
           "expectedRef": "expected:O07:73",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «e02b9c95e4c125f4» I-U-Y persisted"
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
           ]
         },
         {
@@ -5973,7 +5973,7 @@
           "expectedRef": "expected:O07:74",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «39228ba2cd3f0eb3» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:136 «a68a1df5feef39a1» P3-C14-RETENTION=A"
           ]
@@ -5993,7 +5993,7 @@
             "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:290 «2dc64cb4a6444b77» Q-NOTICE correction",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «39228ba2cd3f0eb3» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
             "L2: test/fixtures/10_05_02_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
           ]
@@ -6010,7 +6010,7 @@
           "expectedRef": "expected:O07:76",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «e02b9c95e4c125f4» I-U-Y persisted"
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
           ]
         },
         {
@@ -6025,7 +6025,7 @@
           "expectedRef": "expected:O07:77",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «39228ba2cd3f0eb3» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）"
           ]
@@ -6093,7 +6093,7 @@
           "expectedRef": "expected:O07:81",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «e02b9c95e4c125f4» I-U-Y persisted"
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
           ]
         },
         {
@@ -6108,7 +6108,7 @@
           "expectedRef": "expected:O07:82",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «39228ba2cd3f0eb3» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:136 «a68a1df5feef39a1» P3-C14-RETENTION=A"
           ]
@@ -6127,7 +6127,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «99bad6083b908639» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPTA50_cancel.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
@@ -12719,7 +12719,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-volcano-unit.json:334 «a7aadc822ee9cd23» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «830cf5e215de8dff» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
         "L2: test/fixtures/43_03_01_200522_VFVO52.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
@@ -12842,7 +12842,7 @@
         "L1: reconstruction/contracts/p3-volcano-unit.json:334 «a7aadc822ee9cd23» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
         "L1: reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6» P3-C9-MARINE=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «830cf5e215de8dff» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VFVO50_cancel.xml:1 «2829d7cd59093588» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -13088,7 +13088,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-volcano-unit.json:334 «a7aadc822ee9cd23» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-volcano-unit.json:96 «a20e887a7f6350f2» P3-C9-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «60e8721b07d43cc1» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-volcano-unit.json:226 «830cf5e215de8dff» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573» P3-C9-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VFVO55_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -13384,7 +13384,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-flood-unit.json:108 «d2e334e47d0fa659» P3-C11-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-flood-unit.json:243 «44fe5884736c13e5» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-flood-unit.json:243 «1f6771a867cb8969» Q-NOTICE cancellation",
         "L2: test/fixtures/synthetic_VXKO50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -13627,7 +13627,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-seismic-unit.json:290 «804f1d1c60babb58» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-seismic-unit.json:205 «7f6b50d260e9df88» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:205 «d37d4c47d622970b» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-seismic-unit.json:40 «9f2ed44e0a1cb3ed» P3-C7-CANCEL-SCOPE=A",
         "L1: reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1» P3-C7-REPLACEMENT=A",
         "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
@@ -15749,7 +15749,7 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:308 «472a6836d5458435» Q-NOTICE cancellation",
         "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -18013,7 +18013,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:475 «aba86312c3e708bb»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:475 «37212c339ccbf4a3»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1814 «4a417d72b1611509»"
       ],
       "input": {
@@ -18404,8 +18404,8 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:474 «c1cbc9b6d1241018»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f» EEW intent TTL"
+        "L1: docs/specs/reconstruction-p0-contracts.md:474 «33206d8dd5ed3dee»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f» EEW intent TTL"
       ],
       "input": {
         "required": "U-E intent保存ack、配送を一時保留。",
@@ -18429,7 +18429,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
         "L1: docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f» EEW intent TTL"
+        "L1: docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f» EEW intent TTL"
       ],
       "input": {
         "required": "同時計+1ms、U-Eを復元。",
@@ -22903,7 +22903,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-        "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «ce88e4edcb75c729» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -23058,7 +23058,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e» §4.2 U-T",
+        "L1: docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249» §4.2 U-T",
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
       ],
       "input": {
@@ -23082,7 +23082,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
-        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart"
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «f57c130108d70252» Q-NOTICE restart"
       ],
       "input": {
         "required": "直前にsaveしたU-Tだけから復元、時計+1ms。",
@@ -23118,7 +23118,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «f57c130108d70252» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-tsunami-unit.json:168 «7f25e429950cfac0» Q-NOTICE continuation",
         "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VTSE41_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -23140,7 +23140,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e» §4.2 U-T",
+        "L1: docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249» §4.2 U-T",
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
       ],
       "input": {
@@ -23164,7 +23164,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
-        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart"
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «f57c130108d70252» Q-NOTICE restart"
       ],
       "input": {
         "required": "直前にsaveしたU-Tだけから復元、時計+1ms。",
@@ -23203,7 +23203,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «ce88e4edcb75c729» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -23576,7 +23576,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-nankai-unit.json:244 «bfc71a8b711fa13d» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-nankai-unit.json:66 «12d2ca0cebf39643» P3-C8-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-nankai-unit.json:176 «1df7e30209991af4» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:176 «31effdfeb52e5154» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -24004,8 +24004,8 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
-        "L1: reconstruction/contracts/p3-nankai-unit.json:202 «0b0276177e8537f1» Q-NOTICE restart",
-        "L1: reconstruction/contracts/p3-nankai-unit.json:255 «c1a91edc6b0cc576» I-U-N.persisted"
+        "L1: reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:255 «5a6e7001bdccc647» I-U-N.persisted"
       ],
       "input": {
         "required": "直前にsaveしたU-Nだけから復元、時計16:33:00。",
@@ -24045,7 +24045,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-nankai-unit.json:66 «12d2ca0cebf39643» P3-C8-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-nankai-unit.json:176 «1df7e30209991af4» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:176 «31effdfeb52e5154» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -24161,7 +24161,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
-        "L1: reconstruction/contracts/p3-nankai-unit.json:202 «0b0276177e8537f1» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
         "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A"
       ],
@@ -24335,7 +24335,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «e8bd700d8139e539» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «1ce0b23dad35d944» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -24666,7 +24666,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «7f724b2a38740b3e» I-U-L persisted"
+        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «b01eb2a38c63a8e7» I-U-L persisted"
       ],
       "input": {
         "required": "U-Lの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -24688,7 +24688,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «62bccde6f806cfc1» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f» P3-C10-RETENTION=A"
       ],
       "input": {
@@ -24728,7 +24728,7 @@
         "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
         "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «62bccde6f806cfc1» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -24770,7 +24770,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «e8bd700d8139e539» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «1ce0b23dad35d944» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -24793,7 +24793,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «7f724b2a38740b3e» I-U-L persisted"
+        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «b01eb2a38c63a8e7» I-U-L persisted"
       ],
       "input": {
         "required": "取消の後のU-Lの世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -24815,7 +24815,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «62bccde6f806cfc1» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f» P3-C10-RETENTION=A"
       ],
       "input": {
@@ -24976,7 +24976,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4» U-Rの保存するもの",
-        "L1: reconstruction/contracts/p3-flood-unit.json:319 «92627f1e043e0a47» I-U-R persisted"
+        "L1: reconstruction/contracts/p3-flood-unit.json:319 «504e6d4547eb742b» I-U-R persisted"
       ],
       "input": {
         "required": "U-Rの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -24998,7 +24998,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A"
       ],
       "input": {
@@ -25037,7 +25037,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
         "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
-        "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
         "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -25077,7 +25077,7 @@
         "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
-        "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
         "L2: test/fixtures/synthetic_VXKO50_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -25118,7 +25118,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-flood-unit.json:108 «d2e334e47d0fa659» P3-C11-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-flood-unit.json:243 «44fe5884736c13e5» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-flood-unit.json:243 «1f6771a867cb8969» Q-NOTICE cancellation",
         "L2: test/fixtures/synthetic_VXKO50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -25442,7 +25442,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:308 «472a6836d5458435» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPBS50_KJPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -25601,7 +25601,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73» U-Bの保存するもの",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:383 «0cec2ccdc87a08af» I-U-B persisted"
+        "L1: reconstruction/contracts/p3-briefing-unit.json:383 «667dc977b6bb4feb» I-U-B persisted"
       ],
       "input": {
         "required": "U-Bの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -25623,7 +25623,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:329 «346831de2d3f6434» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:329 «461d6efb5708bfe7» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
         "L1: reconstruction/contracts/p3-briefing-unit.json:130 «7c97f713bcb5dc64» P3-C12-RETENTION=A"
       ],
@@ -25665,7 +25665,7 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:329 «346831de2d3f6434» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:329 «461d6efb5708bfe7» Q-NOTICE restart",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -25787,7 +25787,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «e02b9c95e4c125f4» I-U-Y persisted"
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
       ],
       "input": {
         "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -25809,7 +25809,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «39228ba2cd3f0eb3» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:136 «a68a1df5feef39a1» P3-C14-RETENTION=A"
       ],
@@ -25850,7 +25850,7 @@
         "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:290 «2dc64cb4a6444b77» Q-NOTICE correction",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «39228ba2cd3f0eb3» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
         "L2: test/fixtures/10_05_02_200826_VPTW60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文（jmaxml_20260917_Samples.zipの同名ファイルと全bytes一致、manifest参照）"
       ],
@@ -25873,7 +25873,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «e02b9c95e4c125f4» I-U-Y persisted"
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
       ],
       "input": {
         "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -25897,7 +25897,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «39228ba2cd3f0eb3» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:12 «4e44d5c3e469a46f» P3-C14-EXPIRY=A（作者裁定）"
       ],
@@ -26011,7 +26011,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «e02b9c95e4c125f4» I-U-Y persisted"
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
       ],
       "input": {
         "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -26033,7 +26033,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «44be1d2fee06ca4f» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:323 «39228ba2cd3f0eb3» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:381 «bdb98224597c366d» I-U-Y restore",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:136 «a68a1df5feef39a1» P3-C14-RETENTION=A"
       ],
@@ -26076,7 +26076,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «99bad6083b908639» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPTA50_cancel.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
@@ -26411,7 +26411,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «94532c39ce9a4b07» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «fb2ab6a362fdca23» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «42302ac873ebd1ad» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPHW50_tokyo_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -26588,7 +26588,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «94532c39ce9a4b07» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «fb2ab6a362fdca23» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «42302ac873ebd1ad» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPCI50_cancel.xml:1 «86e0a4d4f900f574» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -26942,7 +26942,7 @@
         "L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03（K7 の比べ方、同じ秒の取消の優先）",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «99bad6083b908639» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPTW60_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -27159,7 +27159,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «99bad6083b908639» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPTA50_cancel.xml:1 «17be3f519a7eee26» 合成入力（manifest synthetic、配信原本ではない）"
@@ -27753,7 +27753,7 @@
         "L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03（K7 の比べ方、同じ秒の取消の優先）",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:145 «08213d300e2d6186» P3-C14-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «aaa83cf8a198dcda» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:301 «99bad6083b908639» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:311 «bc2f44d718c8d613» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L1: reconstruction/contracts/p3-typhoon-unit.json:172 «b910b0994683c592» P3-C14-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPTW60_cancel_newer.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない。Control/DateTime を元の報より後にした取消、Q-VM-IMPL-2B）"
@@ -27935,7 +27935,7 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:308 «1b5a2682b6b725b5» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:308 «472a6836d5458435» Q-NOTICE cancellation",
         "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel_newer.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない。Control/DateTime を元の報より後にした取消、Q-VM-IMPL-2B）"
       ],
       "input": null,

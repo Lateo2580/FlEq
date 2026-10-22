@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "bdbfafb57538e5dea9b7bd5bb04f701fc3d16bc9921aa43c2291e055030f92b4",
+    "sha256": "a60374b4167eb17f64321aeb29f56cda012acf100243803d23eb940fdd58129d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -356,7 +356,7 @@
     "acceptanceChecks": [
       {
         "id": "P2-A3-AC01",
-        "requirement": "O07:15-18: U-E保存後の再起動でactive EEWを復活させず、元期限内のpending intentだけを再試行し期限を延長しない",
+        "requirement": "O07:15-18: U-E保存後の再起動でactive EEWを復活させず、元期限内のpending intentだけを再試行し（lastAttemptがstartedのものは通知したか不明として再試行しない、P3-NOTICE-LEDGER-001のP3-NL-AC08）期限を延長しない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-order-plan.md:28 «1cb9d7da3ab62cca»",
           "docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»",
@@ -429,7 +429,7 @@
       },
       {
         "id": "P2-A3-AC08",
-        "requirement": "UnitCodecのencode→envelope全bytes自己hash→2slot→schema/hash検証→decodeの呼出主体と復元結果を固定し、hash改変・schema不一致・invalid payloadを拒否する。payload不変でgeneration 1→9、unit、schemaVersion、capturedAt各fieldだけを改変してもdigest不一致となり世代選択から除外する。I-U-* codecはunit担当所有、結線と再検収はA3所有。envelopeは取り直しの境界inputBoundary（P3-VERSION-MATERIAL-001のAC06）を持ち、自己hashと再直列化の照合に含める（P3-VM-AC09(8)により統合担当が改訂）",
+        "requirement": "UnitCodecのencode→envelope全bytes自己hash→2slot→schema/hash検証→decodeの呼出主体と復元結果を固定し、hash改変・schema不一致・invalid payloadを拒否する。payload不変でgeneration 1→9、unit、schemaVersion、capturedAt各fieldだけを改変してもdigest不一致となり世代選択から除外する。I-U-* codecはunit担当所有、結線と再検収はA3所有。envelopeは取り直しの境界inputBoundary（P3-VERSION-MATERIAL-001のAC06）を持ち、自己hashと再直列化の照合に含める（P3-VM-AC09(8)により統合担当が改訂）。envelopeはH39の件数の欄losses（P3-NOTICE-LEDGER-001のP3-NL-AC14。ownerがcaptureで書き、行の無いときは欄を書かず、欄の無いenvelopeは空として読む）も持ち、自己hashと再直列化の照合に含める（P3-NL-AC18(2)により統合担当が改訂）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:334 «07df9b4ceb5650d7»",
           "docs/specs/reconstruction-p0-contracts.md:351 «8bd801c6876cb0c1»",

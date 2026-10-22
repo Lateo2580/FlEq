@@ -4,6 +4,8 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  FailureMark,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -67,6 +69,7 @@ export type TsunamiForecastSubject = Readonly<{
   retainUntil: number | null;
   // P3-CC-AC03: 容量で更新できなかった報。印のある active の記録だけが鍵を持つ。
   unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。印のある記録だけが鍵を持つ
+  notice?: NoticeMark; // P3-NL-AC02: 通知の印（記録と同じに生きる）。印のある記録だけが鍵を持ち、表示には出さない
 }>;
 
 export type TsunamiObservationFamily = "VTSE51" | "VTSE52";
@@ -104,6 +107,7 @@ export type TsunamiObservationSubject = Readonly<{
   estimations: readonly TsunamiEstimation[];
   validUntil: number | null;
   retainUntil: number | null; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。印のある記録だけが鍵を持つ
+  notice?: NoticeMark; // P3-NL-AC02・AC03: 通知の印（fragment の鍵を持つ）。表示には出さない
 }>;
 
 // Both channels carry the same owner-generated payload; A7 maps domain/level to the sound and the priority group.
@@ -117,20 +121,22 @@ export type TsunamiNotificationPayload = Readonly<{
 export type TsunamiIntent = NotificationIntent & Readonly<{ payload: TsunamiNotificationPayload }>;
 
 export type TsunamiUnitState = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v3";
+  schemaVersion: "p3-tsunami-unit-v4";
   contentRevision: number;
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly TsunamiIntent[];
+  failureMarks: readonly FailureMark[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedTsunamiUnit = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v3";
+  schemaVersion: "p3-tsunami-unit-v4";
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
   intents: readonly TsunamiIntent[];
+  failureMarks: readonly FailureMark[];
 }>;
 
 // Active subjects only; inactive watermarks stay in the state.
@@ -166,5 +172,5 @@ export type TsunamiUnitStep = Readonly<{
 }>;
 
 export type TsunamiUnitCodec = UnitCodec<TsunamiUnitState, PersistedTsunamiUnit> & Readonly<{
-  schemaVersion: "p3-tsunami-unit-v3";
+  schemaVersion: "p3-tsunami-unit-v4";
 }>;

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "7163095e7d15e72e2178c74b4fce0e244deb6df3a3a7defcdad7641d8115eeab",
+    "sha256": "4c6267ef8a877705724c86bf98719ab453bf16500214f8da85a31a319ab62f9b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -536,7 +536,7 @@
       },
       {
         "id": "P3-C3B-AC06",
-        "requirement": "再検収と既存試験: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。C3a配送後の試験は期待値を変えずに通す。期待値を変えてよい理由は次の5つだけ（(a)〜(d)の対象は271db561で、(e)は6321e1e0で実測した）: (a) P3-C3A-T10（execution-split.test.ts:926、ownerFailedで例外、以後どのownerへも要求を送らない）を、例外を投げずにstoppedになり、以後そのownerにだけ要求を送らない期待へ。host.test.ts:935のP3-C3A-T10（ownerFailedを差し替え、stop()の外のexitが届き、stop()のexitは届かない）は、予期されたexitをendOwners以後に限る読み替え（publicFunctionsのstartP2Host）でも期待値を変えずに通る見込み (b) host.test.tsのstall試験（:312。C3aでもhost.test.tsに残り、本物のowner 3本のWorker.emitを差し替えて全ownerの全返信を保留する［:22〜:38］。入力はVPWW57でweatherCurrentへ行く）: 全返信の保留なので、weatherCurrentのownerはAC01でstalledとunresponsiveの両方になり、heartbeatの列は[\"stalled\"]から[\"unresponsive\"]へ（:326）、[\"stalled\", \"healthy\"]から[\"unresponsive\", \"healthy\"]へ（:334）、/healthzの値はstalledからunresponsiveへ（:329）変わる。診断の検査（:328）はmailboxStalledを含むことだけなので変えない（実際には既存のcomponent mailboxの分に、owner.weatherCurrentとowner.weatherCurrent.responseの各1件と、どのownerも5秒返信しないのでmailbox.workerの1件が加わる）。この試験はT01(4)（stalledだけ）を受け持たない (c) P2-A10-AC13の写像のうち、tick自身を生存応答とする前提の箇所（271db561では(b)のほかに該当する期待値は見つからない。integration/notification-wiring.test.ts:254は試験側でrecordWorkerResponseを呼ぶだけで期待値に関わらない） (d) P2-A3-T06のworker停止の場合で、本物のownerの停止によってcodeと要約の理由が変わる箇所（271db561のintegration/shutdown.test.ts:41の5つの場合［通常・未保存・mailboxの残り・batchの失敗・closeWorkerの失敗］にownerの停止は無く、該当は見つからない。worker停止の場合はT05(3)で新しく確かめる） (e) INTENT-RECLAIM=A（AC08）で、C3aのD3が変えた期待をD3の前へ戻す2試験: shared-runtime.test.ts:959（ownerへの最初の要求が128件のexpiredの更新で、受信がその後。新しいeventのintentはdesktop・soundの2件、firstReportNotifiedはtrue、deliveryRecordsはexpiredの128件）と:985（続報の受信より先に旧intent 2件がexpiredで回収され、走行中の試行はcause expiredで止まり、deliveryRecordsの2件はsupersededでなくexpired）。ほかに、入力の直前の回収で要求の順序・件数が変わる試験は、その入力のunitの期限切れintentが受信より先に回収されることだけが理由の場合に限る。変更前に該当試験の一覧を実測で確定して理由とともに報告する。これ以外の理由で期待値の変更が要る試験、またはallowedPathsの外の試験の変更が要る場合はblockedとして報告する",
+        "requirement": "再検収と既存試験: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。C3a配送後の試験は期待値を変えずに通す。期待値を変えてよい理由は次の5つだけ（(a)〜(d)の対象は271db561で、(e)は6321e1e0で実測した）: (a) P3-C3A-T10（execution-split.test.ts:926、ownerFailedで例外、以後どのownerへも要求を送らない）を、例外を投げずにstoppedになり、以後そのownerにだけ要求を送らない期待へ。host.test.ts:935のP3-C3A-T10（ownerFailedを差し替え、stop()の外のexitが届き、stop()のexitは届かない）は、予期されたexitをendOwners以後に限る読み替え（publicFunctionsのstartP2Host）でも期待値を変えずに通る見込み (b) host.test.tsのstall試験（:312。C3aでもhost.test.tsに残り、本物のowner 3本のWorker.emitを差し替えて全ownerの全返信を保留する［:22〜:38］。入力はVPWW57でweatherCurrentへ行く）: 全返信の保留なので、weatherCurrentのownerはAC01でstalledとunresponsiveの両方になり、heartbeatの列は[\"stalled\"]から[\"unresponsive\"]へ（:326）、[\"stalled\", \"healthy\"]から[\"unresponsive\", \"healthy\"]へ（:334）、/healthzの値はstalledからunresponsiveへ（:329）変わる。診断の検査（:328）はmailboxStalledを含むことだけなので変えない（実際には既存のcomponent mailboxの分に、owner.weatherCurrentとowner.weatherCurrent.responseの各1件と、どのownerも5秒返信しないのでmailbox.workerの1件が加わる）。この試験はT01(4)（stalledだけ）を受け持たない (c) P2-A10-AC13の写像のうち、tick自身を生存応答とする前提の箇所（271db561では(b)のほかに該当する期待値は見つからない。integration/notification-wiring.test.ts:254は試験側でrecordWorkerResponseを呼ぶだけで期待値に関わらない） (d) P2-A3-T06のworker停止の場合で、本物のownerの停止によってcodeと要約の理由が変わる箇所（271db561のintegration/shutdown.test.ts:41の5つの場合［通常・未保存・mailboxの残り・batchの失敗・closeWorkerの失敗］にownerの停止は無く、該当は見つからない。worker停止の場合はT05(3)で新しく確かめる） (e) INTENT-RECLAIM=A（AC08）で、C3aのD3が変えた期待をD3の前へ戻す2試験: shared-runtime.test.ts:959（ownerへの最初の要求が128件のexpiredの更新で、受信がその後。新しいeventのintentはdesktop・soundの2件、firstReportNotifiedはtrue、deliveryRecordsはexpiredの128件）と:985（続報の受信より先に旧intent 2件がexpiredで回収され、走行中の試行はcause expiredで止まり、deliveryRecordsの2件はsupersededでなくexpired）。ほかに、入力の直前の回収で要求の順序・件数が変わる試験は、その入力のunitの期限切れintentが受信より先に回収されることだけが理由の場合に限る。変更前に該当試験の一覧を実測で確定して理由とともに報告する。これ以外の理由で期待値の変更が要る試験、またはallowedPathsの外の試験の変更が要る場合はblockedとして報告する（P3-NOTICE-LEDGER-001の後はdeliveryRecordsが無く、U-Eの終端のintentはintentsから外れて結果はEventIDの印に残る。(e)の2試験は終端の更新でintentsから外れることで確かめる、P3-NL-AC05）",
         "evidenceRefs": [
           "AGENTS.md:26 «2c223bbb66635b53»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «5690e4b254967e23»",
@@ -646,7 +646,7 @@
         "referenceIds": [
           "P3-C3B-AC08"
         ],
-        "behavior": "helperと注入時計で確かめる（C3a配送記録F4の場合）。(1) U-Eにwallの期限16,000のpending intent 128件（件数の上限いっぱい）を置き、wall 900・monotonic 15,000（壁時計が遅れ、monotonicだけで期限切れ）でVXSE43の新しい地震を受けると、U-Eのownerへはexpiredの更新（128件）が受信より先に届き、新しい地震のintent（desktop・sound）が作られ、firstReportNotifiedがtrue、deliveryRecordsはexpiredの128件（既存のshared-runtime.test.ts:959をAC06の(e)でこの期待へ戻したもので受け持ってよい） (2) (1)の状態で、U-Eのdesktopの更新枠が別の更新（試行結果の更新）の返信待ちのときに入力が届くと、その入力はその返信と保留された期限切れの更新の送出の後にownerへ送られ、(1)と同じくintentが作られる。保留の間、その入力はmailboxのin-flightに数えられ、owner宛ての要求はP3-C3A-RES-09の上限を超えない"
+        "behavior": "helperと注入時計で確かめる（C3a配送記録F4の場合）。(1) U-Eにwallの期限16,000のpending intent 128件（件数の上限いっぱい）を置き、wall 900・monotonic 15,000（壁時計が遅れ、monotonicだけで期限切れ）でVXSE43の新しい地震を受けると、U-Eのownerへはexpiredの更新（128件）が受信より先に届き、新しい地震のintent（desktop・sound）が作られ、firstReportNotifiedがtrue、deliveryRecordsはexpiredの128件（既存のshared-runtime.test.ts:959をAC06の(e)でこの期待へ戻したもので受け持ってよい） (2) (1)の状態で、U-Eのdesktopの更新枠が別の更新（試行結果の更新）の返信待ちのときに入力が届くと、その入力はその返信と保留された期限切れの更新の送出の後にownerへ送られ、(1)と同じくintentが作られる。保留の間、その入力はmailboxのin-flightに数えられ、owner宛ての要求はP3-C3A-RES-09の上限を超えない（P3-NOTICE-LEDGER-001の後はdeliveryRecordsが無く、expiredの128件はintentsから外れて結果は印に残る、P3-NL-AC05）"
       },
       {
         "testId": "P3-C3B-T09",

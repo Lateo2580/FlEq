@@ -116,9 +116,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
         if (!(prototype === Object.prototype || prototype === Array.prototype || allowBytes && item instanceof Uint8Array))
           found.push("not plain data");
         const keys = Object.keys(item);
-        // No XML node, unit state, terminal intent record or checkpoint envelope anywhere.
+        // No XML node, unit state or checkpoint envelope anywhere.
         if (keys.includes("children") && keys.includes("attributes")) found.push("XML node");
-        if (keys.includes("deliveryRecords")) found.push("terminal intent records");
         if ("schemaVersion" in item && typeof item.schemaVersion === "string" && /-unit-v\d+$/.test(item.schemaVersion))
           found.push("unit state");
       }
@@ -269,7 +268,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       expect(retry.attempt.intentId).toBe("w-desktop");
       const completedAt = at(100);
       now = completedAt;
-      adapter.finish({ kind: "failed", reason: "adapterError", attemptId: retry.attempt.attemptId, intentId: "w-desktop",
+      // P3-NL-AC06 (2): 再試行するのは起動しなかった試行（notStarted）。起動した後の失敗は通知したか不明で終端になる。
+      adapter.finish({ kind: "failed", reason: "notStarted", attemptId: retry.attempt.attemptId, intentId: "w-desktop",
         channel: "desktop", completedAt });
       await h.settle();
       expect(h.unit("U-W").intents[0]).toMatchObject({ attempts: 2, nextAttemptAt: completedAt.wallTimeMs + 2_000 });
@@ -483,8 +483,9 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       for (const run of adapter.runs) adapter.finish({ kind: "delivered", attemptId: run.attempt.attemptId,
         intentId: run.attempt.intentId, channel: run.attempt.channel, completedAt: at(14_000) });
       await h.settle();
-      expect(h.unit("U-E").deliveryRecords.filter((record) => adapter.runs.some((run) => run.attempt.intentId === record.intentId))
-        .map((record) => record.disposition)).toEqual(["delivered", "delivered"]);
+      // P3-NL-AC05: delivered の intent は intents から外れ、結果は EventID の印に残る。
+      expect([h.unit("U-E").intents.filter((intent) => adapter.runs.some((run) => run.attempt.intentId === intent.id)),
+        h.unit("U-E").notices.map((mark) => mark.deliveryEvidence)]).toEqual([[], ["possible"]]);
       await h.root.diagnostics.flush();
     }
   });
@@ -844,7 +845,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     expect([sends("b"), sends("c")]).toEqual([1, 1]);
     expect(sends("a")).toBe(2); // the reservation, then its delivered result
     expect(h.root.state.mirror["U-W"].pendingIntents).toEqual([]);
-    expect(h.unit("U-W").intents.map((item) => [item.id, item.disposition])).toEqual([["a", "delivered"]]);
+    // P3-NL-AC05 (1): 終端の intent は intents から外れる。
+    expect(h.unit("U-W").intents).toEqual([]);
     await h.root.diagnostics.flush();
   });
 

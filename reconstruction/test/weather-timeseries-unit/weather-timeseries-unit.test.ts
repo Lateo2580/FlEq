@@ -1,4 +1,6 @@
 import { Buffer } from "node:buffer";
+import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
+import type { NotificationIntent } from "../../contracts/p2-shared-runtime.types";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DecodedMaterial, Operation, XmlElement } from "../../contracts/p1-parser-boundary.types";
 import type { WeatherTimeseriesCompoundField, WeatherTimeseriesValue, WeatherTimeseriesSnapshot, WeatherTimeseriesSubject, WeatherTimeseriesUnitState } from "../../contracts/p2-weather-timeseries-unit.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { classifyMaterial, decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { callsWith } from "../unit-table/linked-calls";
@@ -23,7 +25,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
 function empty(): WeatherTimeseriesUnitState {
-  return { schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [], gates: [], intents: [],
+  return { schemaVersion: "p2-weather-timeseries-unit-v5", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -51,7 +53,7 @@ function inflated(state: WeatherTimeseriesUnitState, targetBytes: number): Weath
   const item = first(state), at = item.areas[0].name!;
   const payload = weatherTimeseriesUnitCodec.encode(state);
   const base = serializedEnvelope({ schemaVersion: state.schemaVersion, unit: "U-F", generation: 0,
-    capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
+    capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
   const added = targetBytes - base;
   if (added < 0) throw new Error("target is below base size");
   return { ...state, subjects: state.subjects.map((subject, position) => position === 0
@@ -154,14 +156,15 @@ describe("P2-A6 weather timeseries", () => {
     });
     const notice = { unit: "U-F", id: "delivery", disposition: "pending", expiresAt: DATE + 1_000,
       subject: seed.subject, operation: "normal", channel: "desktop", transition: "activated", source: seed.source!,
-      payload: {}, createdAt: DATE, nextAttemptAt: DATE, attempts: 0, configRevision: "test" } as const;
+      payload: {}, createdAt: DATE, nextAttemptAt: DATE, attempts: 0, configRevision: "test", lastAttempt: null, replayed: false, priorityGroup: "other" as const } as const;
     const ready = reduceWeatherTimeseriesUnit({ ...active, subjects, intents: [notice] },
       { kind: "deadline", clock: clock() });
     reads = 0;
     const delivered = reduceWeatherTimeseriesUnit(ready.state, { kind: "intentUpdate", clock: clock(DATE + 1),
-      intentUpdate: { id: notice.id, attempts: 1, nextAttemptAt: DATE + 1, disposition: "delivered" } });
-    expect(delivered.state.intents[0].disposition).toBe("delivered");
-    expect(delivered.nextDeadline).toEqual({ wallTimeMs: DATE + 1_000, monotonicMs: null });
+      intentUpdate: { ...notice, attempts: 1, nextAttemptAt: DATE + 1, disposition: "delivered", lossReason: null } });
+    // P3-NL-AC05 (1): 終端の intent は intents から外れ、次の期限は subject の期限（cache）に戻る。
+    expect(delivered.state.intents).toEqual([]);
+    expect(delivered.nextDeadline?.wallTimeMs).toBeGreaterThan(DATE + 1_000);
     expect(delivered.displayChanges).toEqual([]);
     expect(reads).toBe(0);
   });
@@ -172,9 +175,9 @@ describe("P2-A6 weather timeseries", () => {
     const subjects = new Proxy(Array.from({ length: 512 }, (_, index) => index === 0 ? seed : { ...seed, subject: `normal/VPWP50/${index}` }), {
       get(target, key, receiver) { if (typeof key === "string" && /^\d+$/.test(key)) reads++; return Reflect.get(target, key, receiver); },
     });
-    const notice = { unit: "U-F", id: "expiring", disposition: "delivered", expiresAt: DATE + 1_000,
+    const notice = { unit: "U-F", id: "expiring", disposition: "pending", expiresAt: DATE + 1_000,
       subject: seed.subject, operation: "normal", channel: "desktop", transition: "activated", source: seed.source!,
-      payload: {}, createdAt: DATE, nextAttemptAt: DATE, attempts: 1, configRevision: "test" } as const;
+      payload: {}, createdAt: DATE, nextAttemptAt: DATE, attempts: 1, configRevision: "test", lastAttempt: null, replayed: false, priorityGroup: "other" as const } as const;
     const ready = reduceWeatherTimeseriesUnit({ ...active, subjects, intents: [notice] }, { kind: "deadline", clock: clock() });
     reads = 0;
     const collected = reduceWeatherTimeseriesUnit(ready.state, { kind: "deadline", clock: clock(DATE + 1_000) });
@@ -187,38 +190,43 @@ describe("P2-A6 weather timeseries", () => {
   });
   it("P2-A6-T03 contractBoundary: every intent disposition needs a finite expiry before deadline scheduling", () => {
     const base = weatherTimeseriesUnitCodec.encode(empty());
-    const dispositions = ["pending", "delivered", "expired", "superseded"] as const;
-    for (const [index, disposition] of dispositions.entries()) {
-      const notice = { unit: "U-F", id: disposition, disposition, expiresAt: DATE + 1_000,
+    {
+      const notice = { unit: "U-F", id: "pending", disposition: "pending", expiresAt: DATE + 1_000,
         subject: "normal/VPWP50/test", operation: "normal", channel: "desktop", transition: "activated",
         source: { inputId: "expiry-boundary", origin: "replay", operation: "normal", family: "VPWP50",
           subject: "normal/VPWP50/test", reportDateTimeRaw: new Date(DATE).toISOString(), controlDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
         payload: { title: "boundary", body: "boundary" }, createdAt: DATE, nextAttemptAt: DATE,
-        attempts: 0, configRevision: "test" } as const;
+        attempts: 0, configRevision: "test", lastAttempt: null, replayed: false, priorityGroup: "other" as const } as const;
       const valid = weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice] });
       if (valid.kind !== "restored") throw new Error("finite expiry must restore");
       expect(reduceWeatherTimeseriesUnit(valid.state, { kind: "deadline", clock: clock() }).nextDeadline)
         .toEqual({ wallTimeMs: DATE + 1_000, monotonicMs: null });
-      const invalid = [null, "later", Infinity, NaN][index];
-      expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [{ ...notice, expiresAt: invalid }] }).kind).toBe("invalid");
+      for (const invalid of [null, "later", Infinity, NaN])
+        expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [{ ...notice, expiresAt: invalid }] }).kind).toBe("invalid");
       const { expiresAt: _expiresAt, ...missing } = notice;
       expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [missing] }).kind).toBe("invalid");
+      // P3-NL-AC05 (1): 終端の intent は保存しない（結果は系列の印に残る）。
+      for (const disposition of ["delivered", "expired", "superseded"])
+        expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [{ ...notice, disposition }] }).kind, disposition).toBe("invalid");
     }
 
     // P3-IUR-AC01・AC02・AC06: 実 byte は上限ちょうどで予約を足すと超える pending と世代、予約の式が頼る attempts・nextAttemptAt の値域。
-    const notice = (id: string, body: string, disposition: "pending" | "delivered" = "pending") => ({ unit: "U-F", id, disposition,
+    const notice = (id: string, body: string) => ({ unit: "U-F", id, disposition: "pending",
       expiresAt: DATE + 1_000, subject: "normal/VPWP50/test", operation: "normal", channel: "desktop", transition: "activated",
       source: { inputId: "reserve-boundary", origin: "replay", operation: "normal", family: "VPWP50", subject: "normal/VPWP50/test",
         reportDateTimeRaw: new Date(DATE).toISOString(), controlDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
-      payload: { title: "boundary", body }, createdAt: DATE, nextAttemptAt: DATE, attempts: 0, configRevision: "test" } as const);
+      payload: { title: "boundary", body }, createdAt: DATE, nextAttemptAt: DATE, attempts: 0, configRevision: "test", lastAttempt: null, replayed: false, priorityGroup: "other" as const } as const);
     const growth = deliveryGrowth(notice("a", ""));
     const pad = 131_072 - Buffer.byteLength(JSON.stringify([notice("a", "")]));
     expect(Buffer.byteLength(JSON.stringify([notice("a", "x".repeat(pad))]))).toBe(131_072);
     expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad))] }).kind).toBe("invalid");
     expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad - growth))] }).kind).toBe("restored");
-    const wire = (length: number) => ({ ...base, intents: [notice("a", ""), notice("b", "x".repeat(length), "delivered")] });
-    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v4", unit: "U-F", generation: 0,
-      capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
+    // 終端記録は無くなった（P3-NL-AC05）ので、世代は subject の文字列辞書で埋める。
+    const activeValue = weatherTimeseriesUnitCodec.encode(receive(empty(), fixture(unknown)).state), [subject] = activeValue.subjects;
+    const wire = (length: number) => ({ ...activeValue, intents: [notice("a", "")],
+      subjects: [{ ...subject, strings: [...subject.strings.slice(0, -1), `${subject.strings.at(-1)!}${"x".repeat(length)}`] }] });
+    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v5", unit: "U-F", generation: 0,
+      capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
     const length = 33_554_432 - generation(0);
     expect(generation(length)).toBe(33_554_432);
     expect(weatherTimeseriesUnitCodec.decode(wire(length)).kind).toBe("invalid");
@@ -242,7 +250,7 @@ describe("P2-A6 weather timeseries", () => {
       source: { inputId: "reserve-flow", origin: "replay", operation: "normal", family: "VPWP50", subject: "normal/VPWP50/test",
         reportDateTimeRaw: new Date(DATE).toISOString(), controlDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
       payload: { title: "boundary", body: index === 0 ? "x".repeat(pad) : "" }, createdAt: DATE, nextAttemptAt: DATE,
-      attempts: 0, configRevision: "test" } as const));
+      attempts: 0, configRevision: "test", lastAttempt: null, replayed: false, priorityGroup: "other" as const } as const));
     const reserved = (items: ReturnType<typeof make>) => items.reduce((sum, item) => sum + deliveryGrowth(item), 0);
     const pending = make(131_072 - Buffer.byteLength(JSON.stringify(make(0))) - reserved(make(0)));
     expect(Buffer.byteLength(JSON.stringify(pending)) + reserved(pending)).toBe(131_072);
@@ -255,8 +263,8 @@ describe("P2-A6 weather timeseries", () => {
       "U-R": { kind: "empty" }, "U-B": { kind: "empty" }, "U-M": { kind: "empty" }, "U-Y": { kind: "empty" } } },
       linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...owner0, units: { ...owner0.units, "U-F": first.state } };
-    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-F", from.units["U-F"]!.intents.map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
-      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-F", from.units["U-F"]!.intents.map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER,
+      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const, lossReason: null })), now, linkedUnitTable);
     // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
     const widened = update(owner, false);
     expect(widened.adopted).toBe(true);
@@ -527,7 +535,7 @@ describe("P2-A6 weather timeseries", () => {
         const actual = serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-F", generation: 1,
           capturedAt: Date.parse(material.reportDateTimeRaw), payload, sha256: "0".repeat(64) }).byteLength;
         expect(actual).toBeLessThanOrEqual(target);
-        expect(target - actual).toBe(62 + INPUT_BOUNDARY_MAX_BYTES - (String(1).length - 1)
+        expect(target - actual).toBe(62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES - (String(1).length - 1)
           - (String(Date.parse(material.reportDateTimeRaw)).length - 1));
       } else expect(() => weatherTimeseriesUnitCodec.encode(value)).toThrow();
     }
@@ -979,4 +987,16 @@ describe("P3-WEATHER-SHAPE-001 U-F reading", () => {
     expect([rejected.decisions, rejected.state]).toMatchObject([[{ decision: "rejected", reason: "requiredStructureMissing" }], seeded]);
     expect(rejected.state).toBe(seeded);
   });
+});
+
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る（U-F は印を持たない）。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-F restores failed and null pending with their fields and drops a started one", () => {
+  const intent = (id: string, channel: "desktop" | "sound"): NotificationIntent => ({ unit: "U-F", id, disposition: "pending", expiresAt: DATE + 60_000,
+    subject: "normal/VPWP50/test", operation: "normal", channel, transition: "activated",
+    source: { inputId: "restore", origin: "replay", operation: "normal", family: "VPWP50", subject: "normal/VPWP50/test",
+      reportDateTimeRaw: new Date(DATE).toISOString(), controlDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
+    payload: { title: "restore", body: "restore" }, createdAt: DATE, nextAttemptAt: DATE, attempts: 0, configRevision: "test",
+    lastAttempt: null, replayed: false, priorityGroup: "other" });
+  expectRestoreStarted({ intents: [intent("a", "desktop"), intent("b", "sound")], make: (intents) => ({ ...empty(), intents }),
+    restore: (state, at) => reduceWeatherTimeseriesUnit(empty(), { kind: "restore", persisted: weatherTimeseriesUnitCodec.encode(state), clock: at }) });
 });

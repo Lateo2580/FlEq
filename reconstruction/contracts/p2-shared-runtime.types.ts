@@ -7,7 +7,7 @@ import type {
 } from "./p1-parser-boundary.types";
 import type { EewCurrent, EewInput, EewUnitState, EewUnitStep } from "./p2-eew-unit.types";
 import type { EewUnitView } from "./p2-eew-unit.types";
-import type { NotificationDeliveryState, NotificationSelection } from "./p2-notification-delivery.types";
+import type { NotificationDeliveryState, NotificationPriorityGroup, NotificationSelection } from "./p2-notification-delivery.types";
 import type { WeatherCurrentInput, WeatherCurrentSnapshot, WeatherCurrentUnitState, WeatherCurrentUnitStep } from "./p2-weather-current-unit.types";
 import type { WeatherCurrentUnitView } from "./p2-weather-current-unit.types";
 import type { WeatherTimeseriesInput, WeatherTimeseriesPublicSubject, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep } from "./p2-weather-timeseries-unit.types";
@@ -112,6 +112,12 @@ export type NotificationIntent = Readonly<{
   attempts: number;
   configRevision: string;
   disposition: "pending" | "delivered" | "expired" | "superseded";
+  // P3-NL-AC06 (1): 試行の状態（null は試行していない）。started は予約の採用で付き、復元で残っていれば通知したか不明（P3-NL-AC08）。
+  lastAttempt: "started" | "failed" | null;
+  // P3-NL-AC06 (2): 1 回の鳴らし直しを使ったか（無いと上位群に切られるたびに鳴らし直し、回数を縛れない）。
+  replayed: boolean;
+  // P3-NL-AC11 (2): owner が作るときに決める A7 の群（発注 1 は A7 の group() と同じ値）。
+  priorityGroup: NotificationPriorityGroup;
 }>;
 
 export type NotificationResult = Readonly<{
@@ -121,13 +127,26 @@ export type NotificationResult = Readonly<{
   completedAt: ClockReading;
 }> & (
   | Readonly<{ kind: "delivered" }>
-  | Readonly<{ kind: "failed"; reason: "adapterRejected" | "adapterError" }>
+  // notStarted: 外へ何も出していないと証明できる失敗（P3-NL-AC06 (2)）。ほかの failed は起動した後の、結果の分からない終わり。
+  | Readonly<{ kind: "failed"; reason: "adapterRejected" | "adapterError" | "notStarted" }>
   | Readonly<{ kind: "timeout"; stopped: boolean }>
   | Readonly<{ kind: "aborted"; reason: "higherPriority" | "expired" | "superseded" | "shutdown"; stopped: boolean }>
 );
 
 // A1 has already correlated the intent; selection does not fabricate a result.
-export type NotificationIntentUpdate = Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition">;
+// P3-NL-AC06 (1): expiresAt は 1 回の鳴らし直しでだけ変わる。lossReason は終端にする更新にだけ付く（H39 の通知の理由）。
+export type NotificationLossReason = "notificationExpired" | "notificationExpiredClockUnverified" | "notificationOutcomeUnknown";
+export type NotificationIntentUpdate = Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition" | "lastAttempt" | "replayed" | "expiresAt">
+  & Readonly<{ lossReason: NotificationLossReason | null }>;
+
+// P3-NL-AC02: 系列の通知の印。version は版の鍵（versionKey）の sha256 の先頭 16 桁、kinds はその版で作った種類（この順・重複なし）、
+// evidence はその系列の通知が外へ出たかの証拠（下げない）、fragments は U-T の観測の fragment の鍵（版ごとに 16 件まで、P3-NL-AC03）。
+export type NoticeKind = "report" | "cancel" | "expiry";
+export type NoticeEvidence = "unattempted" | "possible" | "unknown";
+export type NoticeMark = Readonly<{ version: string; kinds: readonly NoticeKind[]; evidence: NoticeEvidence; fragments?: readonly string[] }>;
+// P3-NL-AC02 (6): U-T・U-Q の失敗の印（unit×operation ごと）。最後に作った失敗警報の段階と expiresAt。until まで同じか軽い段階の
+// 失敗警報を作らない（終端の intent を外しても、鳴り終えた直後の同じ段階の拒否で鳴り直さない）。
+export type FailureMark = Readonly<{ operation: Operation; level: "warning" | "critical"; until: number }>;
 
 export type PublicValue = JsonValue;
 
@@ -297,6 +316,8 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   // P3-UNIT-Y-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-Y capacity eviction.
   | "typhoonRevisionConflict" | "typhoonCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationExpiredClockUnverified" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
+  // P3-NL-AC14 (3): 通知したか不明で終えた intent と、U-E の印を容量で捨てた件数。
+  | "notificationOutcomeUnknown" | "noticeMarkEvicted"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate"
   // P3-CC-AC07: one per input a unit could not make current because of its capacity. P3-WS-AC02: U-F が受理した報の読み飛ばし（INFO）と外の階層の知らない子（WARN）を報ごとに 1 件。
@@ -513,8 +534,16 @@ export type CheckpointEnvelope = Readonly<{
   generation: number;
   capturedAt: number;
   payload: JsonValue; inputBoundary?: InputBoundary | null; // P3-VM-AC06: 書き手は常に書き、欄の無い保存は読み戻しで拒否する。省略は各 unit の上界を測る式だけ（JSON に出ない）
+  losses?: readonly LossTally[]; // P3-NL-AC14: owner が capture で書き、復元で読む H39 の件数。行の無いときは欄を書かず、欄の無い envelope は空として読む
   sha256: string;
 }>;
+
+// P3-NL-AC14 (2)(3): unit の落とした件数（reason ごとに 1 行、operation は分けない）。count は安全な整数で飽和、lastAt は最後に足した手元の wall。
+export type LossReason = NotificationLossReason | "notificationCapacityEvicted" | "noticeMarkEvicted" | "capacityRejected"
+  | "eewCapacityEvicted" | "weatherCurrentCapacityEvicted" | "tsunamiCapacityEvicted" | "seismicCapacityEvicted" | "nankaiCapacityEvicted"
+  | "volcanoCapacityEvicted" | "landslideCapacityEvicted" | "floodCapacityEvicted" | "briefingCapacityEvicted" | "localBulletinsCapacityEvicted"
+  | "typhoonCapacityEvicted";
+export type LossTally = Readonly<{ reason: LossReason; count: number; lastAt: number }>;
 
 // Unit reducers own codecs; A3 calls them at capture/restore, not on idle ticks.
 export type UnitCodec<State, Persisted extends JsonValue> = Readonly<{

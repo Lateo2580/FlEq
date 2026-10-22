@@ -210,7 +210,8 @@ describe("P3-VERSION-MATERIAL-001 発注 2a", () => {
     const tsunami = (state: TsunamiUnitState, material: DecodedMaterial) => reduceTsunamiUnit(state, { kind: "receive", material,
       clock: { wallTimeMs: Date.parse("2011-03-11T15:02:30+09:00"), monotonicMs: 0 } });
     const feed = (...materials: DecodedMaterial[]) => materials.reduce((state, material) => tsunami(state, material).state, initialUnits["U-T"]);
-    const strip = (state: TsunamiUnitState) => state.observations.map(({ source: _source, ...rest }) => ({ ...rest,
+    // 通知の印は着いた順の記録なので比べない（版が変われば fragments は新しい版の 1 件から始める、P3-NL-AC03 (2)）。
+    const strip = (state: TsunamiUnitState) => state.observations.map(({ source: _source, notice: _notice, ...rest }) => ({ ...rest,
       stations: rest.stations.map((item) => ({ ...item, revision: null })).sort((left, right) => left.code.localeCompare(right.code)) }));
     const between = (state: TsunamiUnitState) => outcome(tsunami(state, fixture("synthetic_VTSE51_fragmentA", "VTSE51",
       (xml) => sentLater(5)(xml.replace("<Serial>4</Serial>", "<Serial>5</Serial>")))).decisions[0]);

@@ -2,24 +2,29 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, DiagnosticDetails, JsonValue, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome,
+  ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
+  SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   FloodCriteria, FloodCurrent, FloodInput, FloodIntent, FloodKindGroup, FloodNotificationPayload, FloodRiver, FloodStation, FloodUnitCodec,
   FloodUnitState, FloodUnitStep, FloodUnitView, PersistedFloodUnit,
 } from "../../../contracts/p3-flood-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, LIMITS, cut, infoRankOf, levelOf, loneSurrogate, parseFlood, validEventId, validHeadType, validKindCode, validName,
   validReportDateTime, validRiverCode, validSerial, validStationCode, validTime, validValue,
 } from "../../domains/flood/flood";
 import type { FloodCandidate } from "../../domains/flood/flood";
+import {
+  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  shown, updateEvidence, versionDigest,
+} from "../notice-mark";
 
 // P3-UNIT-R-001（C11、I-U-R）: U-R の EventID の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-flood-unit-v4" as const;
+const SCHEMA = "p3-flood-unit-v5" as const;
 // P3-C11-CAPACITY=A・P3-C11-RES-01（P3-C11-BOUNDS=B）・RET-01〜04。
 const CURRENT_LIMIT = 512;
 // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器は 16 MiB に、全記録が読み戻しの上限いっぱいの未確認の印を持つ最悪の場合の分を足す（印の無い上界は
@@ -29,7 +34,7 @@ const LONGEST_REF: ReportRef = { inputId: "i".repeat(INPUT_ID_LIMIT), origin: "r
   controlDateTimeRaw: "0".repeat(LIMITS.controlDateTime), serialRaw: "9".repeat(10), infoTypeRaw: `${"\v".repeat(LIMITS.infoType - 2)}発表` };
 const MARK_GROWTH = CURRENT_LIMIT * new TextEncoder().encode(`,"unconfirmed":${JSON.stringify(LONGEST_REF)}`).byteLength;
 const GENERATION_LIMIT = 16_777_216 + MARK_GROWTH;
-const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
+const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C11-SEM-01・02（元報の ReportDateTime からの絶対の長さ、P3-C11-RETENTION=A・P3-C11-ACTIVE-EXPIRY=D）。
 const RETAIN_MS = 129_600_000;
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
@@ -56,11 +61,8 @@ function bytes(value: object): number {
 }
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
-// 終端記録の合計（区切りの 1 byte を含む）。受理と decode で同じ式を使う（Q-NOTICE.capacity）。
-const terminalBytes = (intents: readonly FloodIntent[]): number =>
-  intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-R", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-L ほかと同じ予約）。4: 空の配列 2 つ。
 function generationBytes(value: PersistedFloodUnit): number {
   return emptyEnvelopeBytes + 62 - 4 + listBytes(value.currents) + listBytes(value.intents);
@@ -199,11 +201,15 @@ function payloadOf(candidate: FloodCandidate, after: FloodCurrent, level: Level)
   return { domain: "weather", level, title: cut(prefix + (correction ? `[訂正] ${candidate.title}` : candidate.title), NOTICE_BOUNDS.title),
     body: cut(correction ? `訂正: ${body}` : body, NOTICE_BOUNDS.body) };
 }
+// P3-NL-AC01: ID は世代番号を含まない。EventID の系列の印に同じ版の鍵と種類があれば作らない（期限の通知は元の報の版から出る）。
 function intentsFor(source: Readonly<{ subject: string; operation: Operation; source: ReportRef }>, transition: FloodIntent["transition"],
-  payload: FloodNotificationPayload, generation: number, now: number, channels: readonly ("desktop" | "sound")[]): FloodIntent[] {
-  return channels.map((channel) => ({ id: `U-R:${source.subject}:${generation}:${channel}`, unit: "U-R", subject: source.subject,
-    operation: source.operation, source: source.source, transition, channel, payload, createdAt: now, expiresAt: now + TTL[channel],
-    nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending" }));
+  payload: FloodNotificationPayload, now: number, channels: readonly ("desktop" | "sound")[], mark: NoticeMark | undefined,
+  version: string): FloodIntent[] {
+  if (noticed(mark, version, noticeKind(transition))) return [];
+  return channels.map((channel) => ({ id: noticeId("U-R", source.subject, "", source.source, transition, channel), unit: "U-R",
+    subject: source.subject, operation: source.operation, source: source.source, transition, channel, payload, createdAt: now,
+    expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
+    ...freshState("U-R", source.operation, payload.level) }));
 }
 // P3-C11-TRAINING=A: training/test は desktop だけ。
 const channelsOf = (operation: Operation) => operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
@@ -211,29 +217,15 @@ const channelsOf = (operation: Operation) => operation === "normal" ? ["desktop"
 function a7Order(left: FloodIntent, right: FloodIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
 }
-// 終端記録の合計が 98,304 byte を超える分は、最古の終端記録から期限前に回収する。kept は今の配送の更新で終端にした記録で、回収しない
-// （owner は更新した記録が残ることで照合する。C8 の Q-C8-IMPL-AMEND(1)）。kept だけで上限を超える分は元の pending の byte の内側。
-function trimTerminal(intents: readonly FloodIntent[], kept: ReadonlySet<string> = new Set()): readonly FloodIntent[] {
-  let terminal = terminalBytes(intents);
-  if (terminal <= TERMINAL_BYTES) return intents;
-  const gone = new Set<FloodIntent>();
-  for (const item of intents.filter((value) => value.disposition !== "pending" && !kept.has(value.id))
-    .sort((left, right) => left.createdAt - right.createdAt)) {
-    if (terminal <= TERMINAL_BYTES) break;
-    gone.add(item);
-    terminal -= bytes(item) + 1;
-  }
-  return intents.filter((item) => !gone.has(item));
-}
 // Q-NOTICE.capacity と P3-C11-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、取消は対象 subject の全 pending を置き換える。
 function admit(current: readonly FloodIntent[], fresh: readonly FloodIntent[], cancelled: string | null):
   Readonly<{ intents: readonly FloodIntent[]; admitted: readonly FloodIntent[]; dropped: number }> {
   const superseded = new Set<FloodIntent>();
   const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
-    if (item.disposition === "pending" && (item.subject === cancelled || replaced.has(`${item.subject}\n${item.channel}`))) superseded.add(item);
+    if (item.subject === cancelled || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
-  const pool = [...current.filter((item) => item.disposition === "pending" && !superseded.has(item)), ...fresh];
+  const pool = [...current.filter((item) => !superseded.has(item)), ...fresh];
   const out = new Set<FloodIntent>();
   // 同じ群の中で A7 の選択順の後ろのものから外す。予約は配送の更新で伸びうる byte（P3-INTENT-UPDATE-RESERVE-001、式は写さない）。
   let count = pool.length, size = listBytes(pool) + pool.reduce((sum, item) => sum + deliveryGrowth(item), 0);
@@ -245,11 +237,11 @@ function admit(current: readonly FloodIntent[], fresh: readonly FloodIntent[], c
       size -= bytes(item) + 1 + deliveryGrowth(item);
     }
   const admitted = fresh.filter((item) => !out.has(item));
-  // 新しい intent が容量で外れただけなら、既存の intent も終端記録も変わらないので元の配列を返す（C9 の Q-C9-IMPL-AMEND(9)(e)）。
+  // 新しい intent が容量で外れただけなら、既存の intent は変わらないので元の配列を返す（C9 の Q-C9-IMPL-AMEND(9)(e)）。
   if (superseded.size === 0 && admitted.length === 0 && [...out].every((item) => fresh.includes(item)))
     return { intents: current, admitted: [], dropped: fresh.length };
-  const intents = trimTerminal([...current.map((item) => superseded.has(item) || out.has(item)
-    ? { ...item, disposition: "superseded" as const } : item), ...admitted]);
+  // P3-NL-AC05 (1)(2): 置換・退去した intent は外す（結果は系列の印に残り、終端記録の予算と回収は無い）。
+  const intents = [...current.filter((item) => !superseded.has(item) && !out.has(item)), ...admitted];
   return { intents, admitted, dropped: [...out].filter((item) => !fresh.includes(item)).length + fresh.length - admitted.length };
 }
 
@@ -275,7 +267,7 @@ function shownOutcome(value: FloodCurrent): SubjectOutcome {
   return found;
 }
 function displaySubject(value: FloodCurrent): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-R" }>> {
-  return { unit: "U-R", operation: value.operation, subject: value.subject, office: null, current: visible(value) ? value : null,
+  return { unit: "U-R", operation: value.operation, subject: value.subject, office: null, current: visible(value) ? shown(value) : null,
     subjects: [shownOutcome(value)] };
 }
 
@@ -300,7 +292,9 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
       : { ...state, currents: replaceAt(state.currents, index, { ...existing, unconfirmed: version.mark }), persistence: dirty(state.persistence, clock.monotonicMs) };
     return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: "stale" }], diagnostics: [warn(version.missing)] } };
   }
-  const next = version.mark == null ? built : { ...built, unconfirmed: version.mark };
+  // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。
+  let next: FloodCurrent = { ...built, ...version.mark == null ? {} : { unconfirmed: version.mark },
+    ...existing?.notice == null ? {} : { notice: existing.notice } };
   const fields = visible(existing) || visible(next) ? changed(existing, next) : [];
   const decided = (change: "semantic" | "revisionOnly"): Decision => ({ subject, operation, decision: "changed", reason: null, change,
     currentEstablished: { family: candidate.headType, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } });
@@ -337,10 +331,19 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
   const transition = candidate.cancelled ? "cancelled" as const : correction ? "updated" as const
     : visible(next) ? visible(existing) ? "updated" as const : "activated" as const : "released" as const;
   const level = candidate.cancelled ? "cancel" : notice?.level ?? "normal";
-  const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level), state.persistence.currentGeneration + 1, now,
-    channelsOf(operation)) : [];
+  // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
+  const digest = notify ? versionDigest(candidate.source) : "";
+  const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level), now, channelsOf(operation), existing?.notice,
+    digest) : [];
   const notices = admit(state.intents, fresh, candidate.cancelled ? subject : null);
-  const result: FloodUnitState = { ...state, currents, intents: notices.intents, persistence: dirty(state.persistence, clock.monotonicMs) };
+  // P3-NL-AC02 (3): admit を通った版と種類を EventID の系列の印に足す（全 channel が断られた版は入れない）。
+  if (notices.admitted.length !== 0) {
+    const unmarked = next;
+    next = { ...unmarked, notice: markNotice(unmarked.notice, digest, noticeKind(transition)) };
+    currents = currents.map((item) => item === unmarked ? next : item);
+  }
+  const result: FloodUnitState = { ...state, currents, intents: notices.intents,
+    persistence: dirty(state.persistence, clock.monotonicMs) };
   const diagnostics: DiagnosticDetails[] = version.missing ? [warn(true)] : [];
   if (evicted != null) diagnostics.push({ level: "INFO", component: "flood", reason: "floodCapacityEvicted", unit: "U-R", count: 1 });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "flood", reason: "notificationCapacityEvicted", unit: "U-R",
@@ -377,17 +380,16 @@ function collect(state: FloodUnitState, clock: ClockReading): Readonly<{ state: 
   const now = clock.wallTimeMs;
   if (deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0, intents: [], dropped: 0 };
   const changes: Change[] = [];
-  const generation = state.persistence.currentGeneration + 1;
   const expiry: FloodIntent[] = [];
+  // 期限の通知の記録は同じ回収で消えるので、印もそこで消える（P3-NL-AC02 (4)）。
   const currents = minOf(state.currents, (item) => item.retainUntil) > now ? state.currents : state.currents.filter((item) => {
     if (item.retainUntil > now) return true;
     changes.push([item, null]);
-    if (visible(item)) expiry.push(...intentsFor(item, "expired", expiryPayload(item), generation, now, ["desktop"]));
+    if (visible(item)) expiry.push(...intentsFor(item, "expired", expiryPayload(item), now, ["desktop"], item.notice, versionDigest(item.source)));
     return false;
   });
   const remaining = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
-  const expiredIntents = remaining === state.intents ? 0
-    : state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= now).length;
+  const expiredIntents = state.intents.length - remaining.length;
   const notices = admit(remaining, expiry, null);
   const persisted = currents !== state.currents || notices.intents !== state.intents;
   return { state: { ...state, currents, intents: notices.intents,
@@ -408,20 +410,36 @@ function deadlineStep(state: FloodUnitState, clock: ClockReading, shutdown: bool
 
 // ---- intentUpdate（Q-NOTICE.intentUpdate） ----
 
+// P3-NL-AC02 (3)・AC08 (1): intent の EventID の系列の印の証拠を上げる（下げない）。
+function raiseNotices(state: FloodUnitState, raised: ReadonlyMap<string, NoticeEvidence>): FloodUnitState {
+  let currents = state.currents;
+  for (const [subject, evidence] of raised) {
+    const at = indexOf(currents, subject), found = currents[at ?? -1];
+    const notice = found?.notice == null ? undefined : raiseEvidence(found.notice, evidence);
+    if (found != null && notice !== found.notice) currents = replaceAt(currents, at, { ...found, notice });
+  }
+  return currents === state.currents ? state : { ...state, currents };
+}
+
 function intentUpdate(state: FloodUnitState, input: Extract<FloodInput, { kind: "intentUpdate" }>): Result {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
   const changedIntents = new Map<string, FloodIntent>();
+  const raised = new Map<string, NoticeEvidence>();
   for (const update of updates) {
     const current = originals.get(update.id);
-    if (current == null || update.attempts < current.attempts || current.attempts === update.attempts
-      && current.nextAttemptAt === update.nextAttemptAt && current.disposition === update.disposition) continue;
-    changedIntents.set(current.id, { ...current, attempts: update.attempts, nextAttemptAt: update.nextAttemptAt, disposition: update.disposition });
+    const updated = current == null ? null : applyIntentUpdate(current, update);
+    if (updated == null) continue;
+    changedIntents.set(updated.id, updated);
+    const evidence = updateEvidence(updated);
+    if (evidence != null) raised.set(updated.subject, evidence);
   }
   if (changedIntents.size === 0) return { changes: [], step: idle(state) };
-  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7〜C10 の先例）。更新で終端にした記録は期限前の回収から外す。
-  const next = { ...state, intents: trimTerminal(state.intents.map((item) => changedIntents.get(item.id) ?? item), new Set(changedIntents.keys())),
-    persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  // 所有配列は一括で索引化して一度だけ置き換える（P2-A4・C5・C7〜C10 の先例）。pending でなくなった intent は外す（P3-NL-AC05 (1)）。
+  const next = { ...raiseNotices(state, raised), intents: state.intents.flatMap((item) => {
+    const updated = changedIntents.get(item.id);
+    return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
+  }), persistence: dirty(state.persistence, input.clock.monotonicMs) };
   const adopted = [...changedIntents.values()];
   return { changes: [], step: { ...idle(next),
     decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
@@ -434,20 +452,25 @@ function intentUpdate(state: FloodUnitState, input: Extract<FloodInput, { kind: 
 
 // Q-NOTICE.restart: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。期限を過ぎた記録と intent は、復元の後の
 // 最初の期限処理で回収する（active の期限切れの desktop はそこで作る、P3-C11-ACTIVE-EXPIRY=D）。
-function restore(state: FloodUnitState, persisted: PersistedFloodUnit): Result {
+// P3-NL-AC08 (1): started のまま残った pending は通知したか不明として外し、系列の印の証拠を unknown にする。
+function restore(state: FloodUnitState, persisted: PersistedFloodUnit, clock: ClockReading): Result {
   const decoded = floodUnitCodec.decode(persisted);
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "flood",
     reason: "requiredStructureInvalid", unit: "U-R" }] } };
-  const restored = { ...decoded.state, persistence: state.persistence };
-  const shown = restored.currents.filter(visible);
-  return { changes: shown.map((item): Change => [null, item]), step: { ...idle(restored),
-    outcomes: [{ kind: "recoveryApplied", scope: ["U-R"], coverage: shown.map((item) => item.subject), subjects: [] }] } };
+  const started = restoreStarted(decoded.state.intents);
+  const restored = { ...raiseNotices(decoded.state, new Map(started.started.map((item) => [item.subject, "unknown" as const]))),
+    intents: started.intents, persistence: started.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
+  const active = restored.currents.filter(visible);
+  return { changes: active.map((item): Change => [null, item]), step: { ...idle(restored),
+    outcomes: [{ kind: "recoveryApplied", scope: ["U-R"], coverage: active.map((item) => item.subject), subjects: [] }],
+    diagnostics: started.started.length === 0 ? [] : [{ level: "INFO", component: "flood", reason: "notificationOutcomeUnknown",
+      unit: "U-R", count: started.started.length }] } };
 }
 
 function reduceCore(state: FloodUnitState, input: FloodInput): Result {
   switch (input.kind) {
-    case "restore": return restore(state, input.persisted);
+    case "restore": return restore(state, input.persisted, input.clock);
     case "intentUpdate": return intentUpdate(state, input);
     case "deadline": return deadlineStep(state, input.clock, false);
     case "shutdown": return deadlineStep(state, input.clock, true);
@@ -483,7 +506,7 @@ function toFloodView(state: FloodUnitState): FloodUnitView {
   const subjects = currents.map(shownOutcome);
   return { unit: "U-R", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), subjects, currents };
+  contentRevision: String(state.contentRevision), subjects, currents: currents.map((item) => shown(item)) };
 }
 
 // ---- codec（I-U-R.persisted・I-U-R.decode、唯一の FloodUnitCodec。受理と同じ上限を確かめる） ----
@@ -582,9 +605,10 @@ function currentRecord(value: unknown): FloodCurrent | null {
   if (source == null || row.retainUntil !== reportMs(source) + RETAIN_MS) return null;
   // P3-VM-AC04: 印は同じ EventID（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject) : undefined;
-  if (mark === null) return null;
+  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
+  if (mark === null || notice === null) return null;
   const base = { subject: row.subject, operation, headType: parts.headType, eventId: parts.eventId, source, retainUntil: row.retainUntil,
-    ...mark == null ? {} : { unconfirmed: mark } };
+    ...mark == null ? {} : { unconfirmed: mark }, ...notice == null ? {} : { notice } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
     if (FACT_KEYS.some((key) => key in row)) return null;
@@ -610,16 +634,17 @@ function intentRecord(value: unknown): FloodIntent | null {
   const level = LEVEL_SET.find((entry) => entry === payload?.level);
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
-  const disposition = (["pending", "delivered", "expired", "superseded"] as const).find((entry) => entry === row?.disposition);
+  const fields = row == null || operation == null ? null : readIntentState(row, "U-R", operation, level);
   // state に残る subject との一致は求めない（記録の回収の後も pending は期限まで残る、I-U-R.decode）。
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
-    || disposition == null || !isText(row.id) || row.unit !== "U-R" || !isText(row.subject) || source.operation !== operation
+    || fields == null || !isText(row.id) || row.unit !== "U-R" || !isText(row.subject) || source.operation !== operation
     || payload.domain !== "weather" || !isText(payload.title) || payload.title === "" || !isText(payload.body) || payload.body === ""
     || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt) || !count(row.attempts) || !isText(row.configRevision)
     || row.expiresAt < row.createdAt) return null;
   return { id: row.id, unit: "U-R", subject: row.subject, operation, source, transition, channel,
     payload: { domain: "weather", level, title: payload.title, body: payload.body }, createdAt: row.createdAt,
-    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision, disposition };
+    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
+    disposition: "pending", ...fields };
 }
 function persisted(value: unknown): PersistedFloodUnit | null {
   const row = record(value);
@@ -627,24 +652,22 @@ function persisted(value: unknown): PersistedFloodUnit | null {
   const currents = list(row.currents, currentRecord, CURRENT_LIMIT), intents = list(row.intents, intentRecord);
   if (currents == null || intents == null || new Set(currents.map((item) => item.subject)).size !== currents.length
     || new Set(intents.map((item) => item.id)).size !== intents.length) return null;
-  const pending = intents.filter((entry) => entry.disposition === "pending");
-  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。終端記録は pending との合計で見る（Q-NOTICE.capacity）。
-  const pendingBytes = listBytes(pending) + pending.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
+  const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedFloodUnit = { schemaVersion: SCHEMA, currents, intents };
-  if (pending.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || pendingBytes + terminalBytes(intents) > PENDING_BYTES + TERMINAL_BYTES
-    || generationBytes(result) > GENERATION_LIMIT) return null;
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const floodUnitCodec: FloodUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2", "p3-flood-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2", "p3-flood-unit-v3", "p3-flood-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-R.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-flood-unit-v4 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-flood-unit-v5 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };
@@ -656,7 +679,6 @@ const floodUnit = {
   toView: toFloodView,
   persistence: { kind: "durable", codec: floodUnitCodec },
   confirmationScopeLimit: 512,
-  terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-R">;
 

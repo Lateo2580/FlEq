@@ -23,7 +23,7 @@ export function notice(id: string, channel: "desktop" | "sound" = "desktop", cre
     operation: "normal", family: "VPWS50", subject: id, reportDateTimeRaw: new Date(createdAt).toISOString(), controlDateTimeRaw: new Date(createdAt).toISOString(), serialRaw: "1", infoTypeRaw: "発表" },
     transition: "activated", channel, payload: { domain: "weather", level: "info", title: "E21背景", body: "E21背景" },
     createdAt, expiresAt: createdAt + (channel === "sound" ? 60_000 : 180_000), nextAttemptAt: createdAt,
-    attempts: 0, configRevision: "e21-v1", disposition: "pending" };
+    attempts: 0, configRevision: "e21-v1", disposition: "pending", lastAttempt: null, replayed: false, priorityGroup: "other" };
 }
 // The frozen four-pending U-W background of C1.
 export function background(foreground: ClockReading): NotificationIntent[] {

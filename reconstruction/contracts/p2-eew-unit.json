@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "7902de8ca0fe0be6fedcb77a09cb971853ce2412722df7e09133c2d765c227c1",
+    "sha256": "71d76c53fc5d1009d441a2b4a6acdc0dd0844f1a80e2a5069f3be19a8ae19557",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -101,7 +101,7 @@
             "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、全体ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
           }
         ],
-        "stateRule": "rejectedはEewUnitStateのcurrent/gates/intents/deliveryRecords/persistence参照、family watermark、PublishedOutcome、NotificationIntentをすべて不変にし、diagnosticだけを返す notificationLatchesも不変。"
+        "stateRule": "rejectedはEewUnitStateのcurrent/gates/intents/notices/persistence参照、family watermark、PublishedOutcome、NotificationIntentをすべて不変にし、diagnosticだけを返す notices（EventIDごとの印。P3-NOTICE-LEDGER-001でdeliveryRecords・notificationLatchesを置き換えた、P3-NL-AC04）も不変。"
       },
       {
         "id": "Q-NOTICE",
@@ -185,8 +185,8 @@
           }
         ],
         "overlap": "一つの受理報が複数機会を満たしても各channel最大1 intentとする。取消を優先し、それ以外はpayloadRulesの訂正接頭辞を適用する。",
-        "capacity": "保存世代採用前にQ-NOTICE.generationTableの置換と新intent集合を合わせた候補を作り、三区分・両channelのpendingをJSON UTF-8で128件/131072 byte以内にする。期限切れ・保持期限を終えた終端記録を先に回収し、なお上位新intentの収容に必要なら下位群をA7選択順の逆順で必要分だけ退去する。同群以上を退去しない。通常機会は対象channel集合を全採用できた場合だけ置換/退去を確定し、未採用なら古いpendingを維持する。有効取消による両channelのsupersededは収容可否と独立に確定する。退去はnotificationCapacityEvictedと件数を返し、意味取消/R20正常採用根拠にしない。U-EのdeliveryRecordsはexpiresAtまで保持し、expiresAt到来分を回収する。256KiBの保存世代予算に当たる場合は通知の受理を拒否せず、expiresAtが最も早い終端記録から必要分だけ外す（終端記録は重複判定専用であり、spec §6.1は重複通知を許容する）。",
-        "generationRule": "EventIDはA4が意味境界で検証した14桁eventIdを使う。operation＋eventIdはfamilyを含むsubjectとは別keyで、両familyの通知を束ねる。VXSE45を意味受理した後の同event VXSE43は通知候補外。通常の続報が通知機会を満たさなければ既存pendingを維持する。origin=recoveryの入力はP3の候補採用実装まではcurrent/gate/latch/intent/records/persistenceへ適用しない。意味検証後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空で未適用を返す。recoveryの適用はP3の候補採用契約で行う。",
+        "capacity": "保存世代採用前にQ-NOTICE.generationTableの置換と新intent集合を合わせた候補を作り、三区分・両channelのpendingをJSON UTF-8で128件/131072 byte以内にする。上位新intentの収容に必要なら下位群をA7選択順の逆順で必要分だけ退去する。同群以上を退去しない。通常機会は対象channel集合を全採用できた場合だけ置換/退去を確定し、未採用なら古いpendingを維持する。有効取消による両channelのsupersededは収容可否と独立に確定する。退去はnotificationCapacityEvictedと件数を返し、意味取消/R20正常採用根拠にしない。終端の記録は持たない（pendingでなくなったintentはintentsから外し、結果はEventIDごとの印に残す）。世代の上限は2,097,152 byte（P3-NOTICE-LEDGER-001のP3-NL-AC04・AC05）。",
+        "generationRule": "EventIDはA4が意味境界で検証した14桁eventIdを使う。operation＋eventIdはfamilyを含むsubjectとは別keyで、両familyの通知を束ねる。VXSE45を意味受理した後の同event VXSE43は通知候補外。通常の続報が通知機会を満たさなければ既存pendingを維持する。origin=recoveryの入力はP3の候補採用実装まではcurrent/gate/latch/intent/records/persistenceへ適用しない。意味検証後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空で未適用を返す。recoveryの適用はP3の候補採用契約で行う。。intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形（JSON.stringify([unit, subject, 系列, 版の鍵, 遷移, channel])。系列は空文字、版の鍵はversionKeyでSerialを含む）で保存の世代番号を含まない",
         "replacementRationale": "統合担当決定: 旧築は即時送信で待ち行列を持たず、15秒TTL内に古い予報を遅れて鳴らす価値はないため、各channelの最新採用一件を残す。通知機会のない続報はこの決定の対象外。",
         "payloadRules": {
           "typeRef": "reconstruction/contracts/p2-eew-unit.types.ts#EewNotificationPayload",
@@ -207,13 +207,13 @@
           "firstReportNotified": "第1報・警報昇格・訂正・最終報の通知機会で、対象channel集合を同世代へ採用できたときだけtrue。保存ackや配送成功を待たず、意味受理だけでも立てない。取消では変更しない。",
           "warningNotified": "非取消の警報通知の対象channel集合を同世代へ採用できたときだけtrue。第1報が警報ならfirstReportNotifiedと同時に立てる。取消・配送結果では変更しない。",
           "capacityFailure": "normalの2 intentまたはtraining/testの1 intentは機会単位で全採用か未採用とし、部分採用しない。収容できなければfirstReportNotified/warningNotifiedは従前値を保つ。意味受理済みVXSE45のvxse45Acceptedだけは上記規則で進む。",
-          "lifetime": "通知済みflagと危険増大基準はcurrent/gates和集合に保持し、最後のowner退去で解除する（最大1024事象）。preexistingの配送証拠だけはその実行中に保持する。復元のpending最大128件＋canonicalなrecord最小84 byte/256KiBから配送証拠は最大3248事象、通常ownerと合わせた上限4272。通常生成intentには必ずowner latchがあるため、latch欠落中intentUpdateは復元側の証拠に限られ、受信ごとに無期限の証拠を増やさない。",
-          "restart": "latch自体はPersistedEewUnitへ保存しない。codec復元で既存intentのattemptsとdeliveryRecords（A4生成idのoperation/eventId）から配送証拠だけを再構成する。通知済みflagはfalse、最大震度-1、区域bitmap0。復元した事象の証拠なしはunknownでありunattemptedにしない。空保存を含む復元時のevidenceUnknownUntilより前は、新事象も証拠なしをunknownとする。",
+          "lifetime": "latchはEventIDごとの印（EewNoticeMark）としてfamilyごとの版の材料と一緒に保存し、起点＋24時間（retainUntil）か2,048件の上限まで残す。gateの退去・期限では消さない（releaseOrphanLatchesとpreexistingは無い）。gateの無い報は印の版と比べる（P3-NOTICE-LEDGER-001のP3-NL-AC04）",
+          "restart": "latchは印としてPersistedEewUnitのnoticesに保存し、codecは印を項目ごとに確かめて復元する（P3-NOTICE-LEDGER-001のP3-NL-AC04）。空保存を含む復元時のevidenceUnknownUntil（10分）より前は、新事象も証拠なしをunknownとする",
           "notifiedMaximumRank": "採用済み警報機会の最大予測震度階級を単調最大で保持。不明は-1。下がって戻った場合は再通知しない。",
           "notifiedWarningAreas": "予測の意味検証でtrim済みの区域Codeを共用し、3桁数字だけを比較する（他のCodeで入力拒否しない）。Code 000〜999の最大1000区域をbigintの1000bitに対応させ、今回報の追加bitだけをORする。過去stateを変更せず、累積集合の列挙/コピーはしない。差分は今回報の区域数O(A)、bit演算の幅は1000bit以下。",
           "deliveryEvidence": "unattempted/possible/unknownの3値。新規実行中事象で過去証拠がなくevidenceUnknownUntil以降のときだけunattempted。既存current/gate/intent/recordがあり試行の証拠が無ければunknown。attempts>0またはdeliveredはpossibleへ単調更新。latchが無いintentUpdateでも事象証拠を残す。取消はunattemptedだけ抑止する。",
-          "preexisting": "codec復元またはlatch欠落中のintentUpdateから得た過去証拠を保持する印。元pending/recordsの回収後もその実行中はdeliveryEvidenceを忘れない。保存fieldには含めない。",
-          "evidenceUnknownUntil": "単位ごとに非保存の壁時計msを1つ持ち、未設定は0とする。正常復元時（空の保存も、配送済みrecords回収後と区別できないため含む）およびunattempted以外の配送証拠を持つlatchを最後のowner容量退去/回収で捨てる時にmax(旧値, 現在時刻+600000ms)へ延ばす。引継ぎ証拠なしの新latchはこの時刻より前ならunknown、時刻以降で他の証拠もなければunattemptedとする。既存latchの証拠は弱めない。10分はEEWの一連の報が通常数分で最終報に至る間の取消を安全側で通知するための暫定値。保存fieldやdeadlineタイマーは増やさない。"
+          "preexisting": "P3-NOTICE-LEDGER-001で消した（latchは印として保存し、gateの退去で消えないので、過去の証拠を別に持つ印は要らない、P3-NL-AC04の(6)）",
+          "evidenceUnknownUntil": "単位ごとに非保存の壁時計msを1つ持ち、未設定は0とする。正常復元時（空の保存も、配送済みrecords回収後と区別できないため含む）およびunattempted以外の配送証拠を持つlatchを最後のowner容量退去/回収で捨てる時にmax(旧値, 現在時刻+600000ms)へ延ばす。引継ぎ証拠なしの新latchはこの時刻より前ならunknown、時刻以降で他の証拠もなければunattemptedとする。既存latchの証拠は弱めない。10分はEEWの一連の報が通常数分で最終報に至る間の取消を安全側で通知するための暫定値。保存fieldやdeadlineタイマーは増やさない。（P3-NOTICE-LEDGER-001: 延ばすのは正常復元時だけになった。latchは印としてgateの退去・回収で捨てないので、退去・回収の延長は無い、P3-NL-AC04の(6)）"
         },
         "duplicateCorrection": "同Serial・同発表時刻の訂正は予測震度に加え元の震源名と表示Mを比較する。仮定震源ではMだけを比較から外し、本文を作るときだけ震源名を仮定震源へ置換する。発表→訂正でも、両報が仮定震源で予測/元震源名が同じなら非表示M差をduplicateとする（InfoType一致を要求しない）。"
       }
@@ -322,7 +322,7 @@
         "target": "live EEW intent",
         "limit": 15,
         "unit": "seconds from createdAt",
-        "rule": "cancel, expiry and replacement win earlier; restart never extends expiresAt",
+        "rule": "cancel, expiry and replacement win earlier; restart never extends expiresAt (except the single sound replay of P3-NOTICE-LEDGER-001 P3-NL-AC06 (2))",
         "source": "§6.4"
       }
     ],
@@ -346,10 +346,10 @@
       {
         "id": "P2-A4-RES-01",
         "target": "U-E encoded generation",
-        "limit": 262144,
+        "limit": 2097152,
         "unit": "UTF-8 bytes",
-        "scope": "intent and minimal delivery records only",
-        "source": "§4.2"
+        "scope": "pending intents and per-EventID notice marks (at most 2,048, P3-NOTICE-LEDGER-001 P3-NL-AC04; the minimal delivery records were removed)",
+        "source": "§4.2（P3-NOTICE-LEDGER-001のP3-NL-AC04の(8)で256 KiBから広げた）"
       },
       {
         "id": "P2-A4-RES-02",
@@ -414,9 +414,9 @@
       },
       {
         "id": "P2-A4-AC04",
-        "requirement": "PersistedEewUnitとschemaVersion=p2-eew-unit-v3の唯一のcodecを用い、active current/gate/latchをencodeせず、256KiB境界を安全に拒否する",
+        "requirement": "PersistedEewUnitとschemaVersion=p2-eew-unit-v4（P3-NOTICE-LEDGER-001で上げた版、P3-NL-AC15の(1)。v1〜v3は捨ててよい版）の唯一のcodecを用い、active current/gateをencodeせず（latchはEventIDごとの印noticesとして保存する、P3-NL-AC04）、2,097,152 byte境界（P3-NL-AC04の(8)、当初256KiB）を安全に拒否する",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:474 «c1cbc9b6d1241018»",
+          "docs/specs/reconstruction-p0-contracts.md:474 «33206d8dd5ed3dee»",
           "docs/specs/reconstruction-p0-contracts.md:610 «2b0711de60ba1b88»"
         ]
       },
@@ -431,10 +431,10 @@
       },
       {
         "id": "P2-A4-AC06",
-        "requirement": "15秒の絶対TTL、familyごと三区分合算512 subject、取消・終端・shutdownを適用し、取消済み/置換済み/期限切れintentを再生せず期限を延長しない。合算上限でnormalを新規受理する際はRES-02のtraining/test最古subjectを必要数だけ先に退去候補とし、normalだけで上限を超える場合はcapacityExceeded。training/test流入でもnormalを保護する。容量退去そのものをunavailable・取消として扱わず、確定した退去だけをDiagnosticDetails.reason=eewCapacityEvictedと既存fieldのunit/count等で記録する。受理不能なら退去診断も確定せずstateを不変にする容量不受理はEewUnitStep.decisionsのA4専用{ decision: \"capacityExceeded\", subject, operation }で返し、reason/changeは追加しない（rejectionはP3-CURRENCY-COVERAGE-001で除いた。stateは不変のまま、confirmationEvidenceに負の証拠source=capacityExceeded〔U-E/operationのunit scope〕、diagnosticsにWARN capacityRejectedを1行返す。U-Eは印も失敗警報も持たない、P3-CC-AC02・AC07・Q-CC-UE、配送のcommitでP3-CC-AC09により統合担当が改訂）。構造不正のrejected、unchanged、changed、eewCapacityEvicted診断で代用しない。入力のsubject/operationを保持し、state参照とnextDeadlineを維持、intents/outcomesは空、退去診断は生成しない（容量の拒否の診断capacityRejectedだけを出す）。",
+        "requirement": "15秒の絶対TTL、familyごと三区分合算512 subject、取消・終端・shutdownを適用し、取消済み/置換済み/期限切れintentを再生せず期限を延長しない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）。合算上限でnormalを新規受理する際はRES-02のtraining/test最古subjectを必要数だけ先に退去候補とし、normalだけで上限を超える場合はcapacityExceeded（取消は採らずに取消のintentだけを作る、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）。training/test流入でもnormalを保護する。容量退去そのものをunavailable・取消として扱わず、確定した退去だけをDiagnosticDetails.reason=eewCapacityEvictedと既存fieldのunit/count等で記録する。受理不能なら退去診断も確定せずstateを不変にする容量不受理はEewUnitStep.decisionsのA4専用{ decision: \"capacityExceeded\", subject, operation }で返し、reason/changeは追加しない（rejectionはP3-CURRENCY-COVERAGE-001で除いた。stateは不変のまま、confirmationEvidenceに負の証拠source=capacityExceeded〔U-E/operationのunit scope〕、diagnosticsにWARN capacityRejectedを1行返す。U-Eは印も失敗警報も持たない、P3-CC-AC02・AC07・Q-CC-UE、配送のcommitでP3-CC-AC09により統合担当が改訂）。構造不正のrejected、unchanged、changed、eewCapacityEvicted診断で代用しない。入力のsubject/operationを保持し、state参照とnextDeadlineを維持、intents/outcomesは空、退去診断は生成しない（容量の拒否の診断capacityRejectedだけを出す）。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:569 «e5e9f04bfdb8aa36»",
-          "docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f»",
+          "docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f»",
           "docs/specs/reconstruction-p0-contracts.md:1001 «45eb754d7a4c339a»"
         ]
       },
@@ -476,7 +476,7 @@
       },
       {
         "id": "P2-A4-AC11",
-        "requirement": "Q-NOTICEの6通知機会・payloadRules・latchRulesをVXSE43/45で検収する。normalはdesktop/sound、training/testはdesktopのみ。createdAtは採用clock.wallTimeMs、expiresAt=createdAt+15000。latest-onlyと原子的収容を維持する。R35は3値の配送証拠でunattemptedだけ取消通知を抑止し、旧pendingのsupersededは独立に行う。通知済みflags/危険増大基準は採用時だけ進め、保存しない。復元では配送証拠だけを再構成する。R36の警報区域比較はtrimした3桁Code最大1000に有界で差分は今回報O(A)。R37は原震源名と表示Mを比較し、仮定震源の非表示M差は発表→訂正でも抑止する。recoveryはP3候補採用までstate全体に未適用とする。 R35の記録回収後空保存復元・配送証拠latch容量退去後の続報→取消を、非保存evidenceUnknownUntilの10分保護と期限境界で検収する。",
+        "requirement": "Q-NOTICEの6通知機会・payloadRules・latchRulesをVXSE43/45で検収する。normalはdesktop/sound、training/testはdesktopのみ。createdAtは採用clock.wallTimeMs、expiresAt=createdAt+15000（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）。latest-onlyと原子的収容を維持する。R35は3値の配送証拠でunattemptedだけ取消通知を抑止し、旧pendingのsupersededは独立に行う。通知済みflags/危険増大基準は採用時だけ進め、EventIDごとの印として保存する（P3-NOTICE-LEDGER-001のP3-NL-AC04）。R36の警報区域比較はtrimした3桁Code最大1000に有界で差分は今回報O(A)。R37は原震源名と表示Mを比較し、仮定震源の非表示M差は発表→訂正でも抑止する。recoveryはP3候補採用までstate全体に未適用とする。 R35の記録回収後空保存復元・配送証拠latch容量退去後の続報→取消を、非保存evidenceUnknownUntilの10分保護と期限境界で検収する。",
         "evidenceRefs": [
           "src/engine/notification/notifier.ts",
           "src/engine/presentation/level-helpers.ts",
@@ -536,7 +536,7 @@
           "P2-A4-AC03",
           "P2-A4-AC06"
         ],
-        "behavior": "familyごと三区分混在の受理候補総数511/512/513件で、上限内は退去なし、超過時は必要数のtraining/test最古subjectだけを退去してnormalを受理する。normalのみ512件への新規normalとtraining/test流入はcapacityExceededで同じstate参照、training/testに退去余地があればnormal不変で受理する。検証済み日時、同時刻のoperation/subject/inputId tuple、current/gate重複の同順位を含め列挙順を変えて同じ退去集合となること、別familyを退去しないことを確認する。退去候補選定後でも受理不能ならcurrent/gates/retainedPrediction/intents/deliveryRecords/persistenceを含むstateを変更せず退去診断も出さない。成功時は退去と採用を一度に確定しeewCapacityEvictedのunit/countを検収する。容量退去による取消・unavailable・取消通知を生成せず、意味処理の区分交差0を維持する。容量不受理の返却値はsubject/operationを伴う専用decision=capacityExceeded（rejectionはP3-CURRENCY-COVERAGE-001で除いた）とし、reason/changeを持たず、rejectedや退去診断に置き換えないこと、state/nextDeadline不変・intents/outcomesが空であることを型境界と実行結果の両方で確認する"
+        "behavior": "familyごと三区分混在の受理候補総数511/512/513件で、上限内は退去なし、超過時は必要数のtraining/test最古subjectだけを退去してnormalを受理する。normalのみ512件への新規normalとtraining/test流入はcapacityExceededで同じstate参照、training/testに退去余地があればnormal不変で受理する。検証済み日時、同時刻のoperation/subject/inputId tuple、current/gate重複の同順位を含め列挙順を変えて同じ退去集合となること、別familyを退去しないことを確認する。退去候補選定後でも受理不能ならcurrent/gates/retainedPrediction/intents/notices/persistenceを含むstateを変更せず退去診断も出さない。成功時は退去と採用を一度に確定しeewCapacityEvictedのunit/countを検収する。容量退去による取消・unavailable・取消通知を生成せず、意味処理の区分交差0を維持する。容量不受理の返却値はsubject/operationを伴う専用decision=capacityExceeded（rejectionはP3-CURRENCY-COVERAGE-001で除いた）とし、reason/changeを持たず、rejectedや退去診断に置き換えないこと、state/nextDeadline不変・intents/outcomesが空であることを型境界と実行結果の両方で確認する"
       },
       {
         "testId": "P2-A4-T10-R20",

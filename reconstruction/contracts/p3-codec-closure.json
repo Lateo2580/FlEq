@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "8a7356ac5afc696ddce10002bb7d43b8b732a3729671b3b0f8399bbc4e8cf9f9",
+    "sha256": "c996c987d5405edcec231760a943d03738206067371004de292a40ae77e5fa9a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -219,7 +219,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:356 «65a518be48a17c28»",
           "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
-          "reconstruction/contracts/p3-volcano-unit.json:1052 «ad57318196433981»"
+          "reconstruction/contracts/p3-volcano-unit.json:1052 «352e4d34ea000f28»"
         ]
       },
       {
@@ -227,11 +227,11 @@
         "requirement": "U-VのGENERATION_LIMITとdecodeの世代検査を5,242,880 byteへ揃え、既存generationBytesと62 byteの予約を維持する。受信、deadlineStepのbatch flush、shutdown、shortfallResolution、restore後のcollect、intentUpdateの最終候補についてgenerationBytes＋pendingのdeliveryGrowthの和を上限と比較する。配送予約込み静的上界4,753,484 byteによりdecoderを通るstateから合法な受信・期限・配送更新で超過は起きず、更新intentのowner照合も保持できる。検査は実装の誤りによる上界の破れに対する守りである。超過時は入力前のstateそのもの（persistence・contentRevision・batchを含む）と元のnextDeadlineを返し、候補の変更・intent・outcome・displayChanges・confirmationEvidenceを一切出さない。decisionは1件だけ {subject:\"\", operation:\"normal\", decision:\"rejected\", reason:\"requiredStructureInvalid\"}（unit全体の不整合を示す既存の復元拒否と同じ形）。診断も1件だけ {level:\"ERROR\", component:\"volcanoGenerationLimit\", unit:\"U-V\", reason:\"requiredStructureInvalid\", count:1} とし、componentで通常の入力不正と識別する。capacityExceededは返さず、byteを理由とする退去を行わない。record byte cacheと線形の和を使い、全state再直列化・合計差分の帳簿は足さない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:74 «369b997230539d12»",
-          "reconstruction/src/notification-delivery/delivery-growth.ts:8 «d0b7db8c1f4b8e3d»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:75 «369b997230539d12»",
+          "reconstruction/src/notification-delivery/delivery-growth.ts:10 «d0b7db8c1f4b8e3d»",
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:57 «5c81f7bf815c513f»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:305 «de991f366dd4a01c»"
+          "reconstruction/contracts/p2-shared-runtime.types.ts:326 «de991f366dd4a01c»"
         ]
       },
       {
@@ -240,7 +240,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
           "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:432 «401ece40cbfc8ff4»"
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:435 «401ece40cbfc8ff4»"
         ]
       },
       {
@@ -248,7 +248,7 @@
         "requirement": "F15: Headlineなし・TextがBMP「あ」79字＋😀のVYSE50をU-Nへ投入する。従来のtext.slice(0,80)は末尾D83Dを作る。Textから切り出す部分を80 UTF-16単位以内でサロゲート対を割らずwell-formedにし、通知全bodyには80単位の上限を置かない。Headlineは既存bound→cutで対を割らない。codecがrestoredでも文字境界の合格とはしない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-nankai-unit.json:199 «00c7d58a8d7d1de3»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:226 «3b04b00a449c0acf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:221 «3b04b00a449c0acf»",
           "reconstruction/src/domains/nankai/nankai.ts:57 «d8c08b2391f4edd9»"
         ]
       },
@@ -256,21 +256,21 @@
         "id": "P3-CODEC-AC05",
         "requirement": "既存条文の読み替え: (1) I-U-V.capacityReserve/capacityMeasurement、P3-C9-RES-01/AC06/T05の旧上界3,867,485 byteはRES-04の4,753,484へ、P3-C9-CAPACITY=A・I-U-V.decode・P3-C9-RES-01/AC06/T05の4 MiBは5 MiB（5,242,880）へ改める。旧契約の本文は変更せず、spec本体のU-V予算行はAC08で実装担当が改訂する。(2) P3-C9-CAPACITY=Aの件数の退去で受ける通常経路とcapacityExceededを返さない規則を維持する。byte超過は上界の破れ（実装の誤り）だけで起き、その場合はAC02のrejected/requiredStructureInvalidと診断でstateを保つ。byte不足の複数退去・training/testによるnormal退去を新設しない。(3) Q-NOTICE.capacityの131,072/229,376とdeliveryGrowth、I-U-Nの256 KiBとRES-05の上界は維持する。(4) Q-NOTICE.payloadのText先頭80単位だけをAC04の対を割らない意味で読む。既存試験の期待を変える前に差と理由を報告する。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-volcano-unit.json:350 «20d6e2e27276e4ff»",
-          "reconstruction/contracts/p3-volcano-unit.json:355 «63831889f88854e8»",
+          "reconstruction/contracts/p3-volcano-unit.json:350 «67d2d05c815b3a83»",
+          "reconstruction/contracts/p3-volcano-unit.json:355 «f0faebbc97be833b»",
           "reconstruction/contracts/p3-volcano-unit.json:356 «4d05feb1846e13f3»",
-          "reconstruction/contracts/p3-volcano-unit.json:1052 «ad57318196433981»",
-          "reconstruction/contracts/p3-volcano-unit.json:1219 «0fe76a1bc6d69f22»",
+          "reconstruction/contracts/p3-volcano-unit.json:1052 «352e4d34ea000f28»",
+          "reconstruction/contracts/p3-volcano-unit.json:1219 «252254da7d2c4eff»",
           "reconstruction/contracts/p3-nankai-unit.json:199 «00c7d58a8d7d1de3»",
-          "reconstruction/contracts/p3-nankai-unit.json:261 «594dd25e009975f7»"
+          "reconstruction/contracts/p3-nankai-unit.json:261 «235a708afe8880ce»"
         ]
       },
       {
         "id": "P3-CODEC-AC06",
         "requirement": "新たな型・helper・cacheごとに「無いと何が壊れるか」を1行で示す。既存bytes()のrecord byte cacheとgenerationBytesの線形和を使う。合計差分の帳簿、将来用の抽象、受信1回の全件×全件、全stateのJSON化を足さない。既存試験の期待変更は事前に理由を報告する。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-volcano-unit.json:1052 «ad57318196433981»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:61 «c1abbbb4993dfe08»",
+          "reconstruction/contracts/p3-volcano-unit.json:1052 «352e4d34ea000f28»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:65 «c1abbbb4993dfe08»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
       },
@@ -278,7 +278,7 @@
         "id": "P3-CODEC-AC07",
         "requirement": "Macで容量と処理時間を実測する。AC01のF08構成をn=128・警報を疎にしない各slice/shortfalls 128件とし、decoderが許すbounded fieldをU+0001または孤立サロゲートで上限まで、asciiCodeを引用符/バックスラッシュで上限まで、ReportRef.inputIdを64単位まで、通知を配送予約込みの予算まで充填する。identityText・Date.parseが通るReportDateTime・時刻の関係・重複禁止は守る。5 MiB近傍の計測用stateはdecode=restoredを必須とし、到達不能な保守的上界4,753,484と実際のserializedEnvelope byte、generationBytes、配送予約、上界との差を区別して記録する。余白を埋めるため許容範囲外のfieldを足さない。このstateで実製品checkpoint経路のencode（JSON化・hashを含む）、実ファイル書込み・file sync・rename・directory sync・全体時間、およびAC01のVFVO50 1報のreduce時間をMacで測る。2スロットA/Bを先に作った後に次の世代を書き、rename前のA/B＋一時ファイルとrename後の保存量を実byteで測る（A/B同時上界9,506,968 byte、A/B＋一時ファイルの上界14,260,452 byte。5 MiBを各ファイルの硬い上限とした値は10,485,760/15,728,640 byte）。機種・OS・Node 20/22/24の版、試行数・warmup、中央値・最大、受信前後のbyte、RSSとピーク、ファイルサイズとディスク占有量を記録し、codec.encodeの参照構築だけをencode時間として報告しない。Node 20/22/24が手元に無い場合は手元の版で測り、版を記録する（計測は目安。試験の合否はCIの対応版で取る）。Macでencodeの中央値が100 ms、書込みからdirectory syncまでの全体が1,000 ms、VFVO50 1報の投入→T2が160 ms（台帳63の報告の線）のどれかを超えたら、配送の前に統合担当経由で作者へ報告する。結果と再現手順を本契約meta.questionResolutionsのQ-CODEC-MEASUREMENTへ追記する。起草時は未測定であり成功扱いしない。Piの同条件実測はC22へ申し送り、Macの値を代用しない。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-volcano-unit.json:355 «63831889f88854e8»",
+          "reconstruction/contracts/p3-volcano-unit.json:355 «f0faebbc97be833b»",
           "reconstruction/contracts/p3-volcano-unit.json:356 «4d05feb1846e13f3»",
           "reconstruction/src/checkpoint/checkpoint.ts:91 «83d91d970c9228d8»"
         ]

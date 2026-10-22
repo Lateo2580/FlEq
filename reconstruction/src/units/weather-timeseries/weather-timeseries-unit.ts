@@ -4,12 +4,13 @@ import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatu
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
+import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
 
-const SCHEMA = "p2-weather-timeseries-unit-v4" as const;
+const SCHEMA = "p2-weather-timeseries-unit-v5" as const;
 type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
 const LIMIT = 33_554_432, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
 const encoder = new TextEncoder();
@@ -18,7 +19,7 @@ const subjectDeadlineCache = new WeakMap<WeatherTimeseriesUnitState["subjects"],
 const outcomeCache = new WeakMap<WeatherTimeseriesSubject, SubjectOutcome>();
 type CurrentChange = (before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null) => void;
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-F", generation: 0,
-  capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
+  capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
 
 function bytes(value: object): number {
   let size = cache.get(value);
@@ -377,7 +378,7 @@ function intentRow(value: unknown): value is NotificationIntent {
     && (item.channel === "desktop" || item.channel === "sound") && object(item.payload) != null && json(item.payload)
     && finite(item.createdAt) && finite(item.expiresAt) && finite(item.nextAttemptAt) && item.expiresAt >= item.createdAt
     && Number.isSafeInteger(item.attempts) && Number(item.attempts) >= 0 && typeof item.configRevision === "string"
-    && typeof item.disposition === "string" && ["pending", "delivered", "expired", "superseded"].includes(item.disposition);
+    && readIntentState(item, "U-F", item.operation, null) != null;
 }
 function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   const row = object(payload);
@@ -399,7 +400,7 @@ function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   return measure(subjects, gates, intents, 0, 0) <= LIMIT ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3", "p2-weather-timeseries-unit-v4"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = persisted({ schemaVersion: SCHEMA, subjects: state.subjects, gates: state.gates, intents: state.intents });
     if (value == null) throw new Error("invalid U-F checkpoint payload");
@@ -407,7 +408,7 @@ const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
   },
   decode(payload: JsonValue) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v4 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v5 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
         savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } };
   },
@@ -419,11 +420,16 @@ function reduceCore(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesI
     if (decoded.kind === "invalid") return { ...step(state), decisions: [{ subject: "", operation: "normal",
       decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "weather-timeseries",
       reason: "requiredStructureInvalid", unit: "U-F" }] };
-    const base = { ...decoded.state, persistence: state.persistence };
+    // P3-NL-AC08 (1): started のまま残った pending は通知したか不明（再試行しない）。
+    const restored = restoreStarted(decoded.state.intents);
+    const base = { ...decoded.state, intents: restored.intents,
+      persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, input.clock.monotonicMs) };
     const applied = collect(base, input.clock.wallTimeMs, input.clock.monotonicMs, () => {});
     for (const item of applied.state.subjects) changed(null, item);
     return { ...step(applied.state), outcomes: [{ kind: "recoveryApplied", scope: ["U-F"],
-      coverage: applied.state.subjects.map((item) => item.subject), subjects: [] }] };
+      coverage: applied.state.subjects.map((item) => item.subject), subjects: [] }],
+      diagnostics: restored.started.length === 0 ? [] : [{ level: "INFO", component: "weather-timeseries",
+        reason: "notificationOutcomeUnknown", unit: "U-F", count: restored.started.length }] };
   }
   if (input.kind === "intentUpdate") {
     const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
@@ -432,15 +438,18 @@ function reduceCore(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesI
     let persistence = state.persistence;
     for (const update of updates) {
       const current = originals.get(update.id);
-      if (current == null || update.attempts < current.attempts) continue;
-      if (current.attempts === update.attempts && current.nextAttemptAt === update.nextAttemptAt
-        && current.disposition === update.disposition) continue;
-      changed.set(current.id, { ...current, ...update });
+      const updated = current == null ? null : applyIntentUpdate(current, update);
+      if (updated == null) continue;
+      changed.set(updated.id, updated);
       persistence = dirty(persistence, input.clock.monotonicMs);
     }
     if (changed.size === 0) return step(state);
     const adopted = [...changed.values()];
-    const next = { ...state, intents: state.intents.map((item) => changed.get(item.id) ?? item), persistence };
+    // P3-NL-AC05 (1): pending でなくなった intent は intents から外す。
+    const next = { ...state, intents: state.intents.flatMap((item) => {
+      const updated = changed.get(item.id);
+      return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
+    }), persistence };
     return { ...step(next), decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation,
       decision: "changed", reason: null, change: "deliveryOnly", currentEstablished: null })),
       intents: adopted.filter((item) => item.disposition === "pending"),
@@ -536,7 +545,6 @@ const weatherTimeseriesUnit = {
   toView: toWeatherTimeseriesView,
   persistence: { kind: "durable", codec: weatherTimeseriesUnitCodec },
   confirmationScopeLimit: 512,
-  terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: false,
 } satisfies UnitModule<"U-F">;
 

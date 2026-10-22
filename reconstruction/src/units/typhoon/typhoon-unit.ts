@@ -2,7 +2,8 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, DiagnosticDetails, JsonValue, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome,
+  ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
+  SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedTyphoonUnit, TyphoonAnalysisRecord, TyphoonFrame, TyphoonFrameKind, TyphoonInput, TyphoonIntent, TyphoonName, TyphoonNotificationPayload,
@@ -10,19 +11,23 @@ import type {
   TyphoonWindArea, TyphoonWindAxis,
 } from "../../../contracts/p3-typhoon-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { ANALYSIS_TYPES, BOUNDS, LIMITS, PROBABILITY_TYPES, RETAIN, VISIBLE, parseTyphoon, validCode6, validEventId } from "../../domains/typhoon/typhoon";
 import type { AnalysisCandidate, ProbabilityCandidate, TyphoonCandidate } from "../../domains/typhoon/typhoon";
 import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "../../domains/flood/flood";
+import {
+  applyIntentUpdate, freshState, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  shown, updateEvidence, versionDigest,
+} from "../notice-mark";
 
 // P3-UNIT-Y-001（C14、I-U-Y）: 二つの slice（analysis・probability）の current・版・遅着・退去・通知・容量・codec・射影。
 // 二つの slice は件数の上限と退去を別々に持つ（無いと訓練の確率の多発が解析の記録を退去する、I-U-Y.slices）。
 
-const SCHEMA = "p3-typhoon-unit-v4" as const;
+const SCHEMA = "p3-typhoon-unit-v5" as const;
 // P3-C14-RES-01・RET-04。
 const GENERATION_LIMIT = 8_388_608;
-const PENDING_ITEMS = 128, PENDING_BYTES = 131_072, TERMINAL_BYTES = 98_304;
+const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
 const NOTICE_BOUNDS = { title: 160, body: 512 } as const;
 
@@ -55,11 +60,8 @@ function bytes(value: object): number {
 }
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
-// 終端記録の合計（区切りの 1 byte を含む）。受理と decode で同じ式を使う（Q-NOTICE.capacity）。
-const terminalBytes = (intents: readonly TyphoonIntent[]): number =>
-  intents.reduce((sum, item) => item.disposition === "pending" ? sum : sum + bytes(item) + 1, 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-Y", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, analysis: [], probability: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES; // P3-VM-AC06: envelope の inputBoundary の最大
+  payload: { schemaVersion: SCHEMA, analysis: [], probability: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-R ほかと同じ予約）。6: 空の配列 3 つ。
 function generationBytes(value: PersistedTyphoonUnit): number {
   return emptyEnvelopeBytes + 62 - 6 + listBytes(value.analysis) + listBytes(value.probability) + listBytes(value.intents);
@@ -135,10 +137,10 @@ function changed(before: Rec | null, value: Rec | null): string[] {
 
 // ---- 記録の組み立て（retainUntil・activeUntil は元報の ReportDateTime からの等式。decode も同じ関数で確かめる） ----
 
-type Base = Readonly<{ subject: string; operation: Operation; source: ReportRef; unconfirmed?: ReportRef }>;
-// 未確認の印は記録が state から消えるまで持つ（見える期限で記憶になっても、解析の終わりで確率が終わっても残す、P3-VM-AC04）。
+type Base = Readonly<{ subject: string; operation: Operation; source: ReportRef; unconfirmed?: ReportRef; notice?: NoticeMark }>;
+// 未確認の印は記録が state から消えるまで持つ（見える期限で記憶になっても、解析の終わりで確率が終わっても残す、P3-VM-AC04）。通知の印も同じ（P3-NL-AC02 (4)）。
 const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, source: value.source,
-  ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed } });
+  ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed }, ...value.notice == null ? {} : { notice: value.notice } });
 const retainOf = (base: Base) => reportMs(base.source) + RETAIN;
 const visibleOf = (base: Base) => reportMs(base.source) + VISIBLE;
 
@@ -168,31 +170,20 @@ function payloadOf(operation: Operation, level: Level, title: string, body: stri
   const text = mark === "cancel" ? "この情報は取り消されました" : bodyHead + cut(body === "" ? title : body, NOTICE_BOUNDS.body - bodyHead.length);
   return { domain: "weather", level, title: titleHead + cut(title, NOTICE_BOUNDS.title - titleHead.length), body: text };
 }
+// P3-NL-AC01: ID は世代番号を含まない。系列の印に同じ版の鍵と種類があれば作らない。
 function intentsFor(source: Readonly<{ subject: string; operation: Operation; source: ReportRef }>, transition: TyphoonIntent["transition"],
-  payload: TyphoonNotificationPayload, generation: number, now: number): TyphoonIntent[] {
+  payload: TyphoonNotificationPayload, now: number, mark: NoticeMark | undefined, version: string): TyphoonIntent[] {
+  if (noticed(mark, version, noticeKind(transition))) return [];
   // P3-C14-TRAINING=A: training/test は desktop だけ。
   const channels = source.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  return channels.map((channel) => ({ id: `U-Y:${source.subject}:${generation}:${channel}`, unit: "U-Y", subject: source.subject,
-    operation: source.operation, source: source.source, transition, channel, payload, createdAt: now, expiresAt: now + TTL[channel],
-    nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending" }));
+  return channels.map((channel) => ({ id: noticeId("U-Y", source.subject, "", source.source, transition, channel), unit: "U-Y",
+    subject: source.subject, operation: source.operation, source: source.source, transition, channel, payload, createdAt: now,
+    expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
+    ...freshState("U-Y", source.operation, payload.level) }));
 }
 // A7 の選択順（期限 → 生成時刻 → ID）。U-Y の intent は全部 other の群（P3-C14-NOTICE-GROUP）。
 function a7Order(left: TyphoonIntent, right: TyphoonIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-}
-// 終端記録の合計が 98,304 byte を超える分は、最古の終端記録から期限前に回収する。kept は今の配送の更新で終端にした記録で、回収しない
-// （owner は更新した記録が残ることで照合する）。
-function trimTerminal(intents: readonly TyphoonIntent[], kept: ReadonlySet<string> = new Set()): readonly TyphoonIntent[] {
-  let terminal = terminalBytes(intents);
-  if (terminal <= TERMINAL_BYTES) return intents;
-  const gone = new Set<TyphoonIntent>();
-  for (const item of intents.filter((value) => value.disposition !== "pending" && !kept.has(value.id))
-    .sort((left, right) => left.createdAt - right.createdAt)) {
-    if (terminal <= TERMINAL_BYTES) break;
-    gone.add(item);
-    terminal -= bytes(item) + 1;
-  }
-  return intents.filter((item) => !gone.has(item));
 }
 // Q-NOTICE.capacity と P3-C14-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、withdrawn の subject（取消・遅着・終わりの撤回）は全 pending を置き換える。
 function admit(current: readonly TyphoonIntent[], fresh: readonly TyphoonIntent[], withdrawn: ReadonlySet<string>):
@@ -200,9 +191,9 @@ function admit(current: readonly TyphoonIntent[], fresh: readonly TyphoonIntent[
   const superseded = new Set<TyphoonIntent>();
   const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
-    if (item.disposition === "pending" && (withdrawn.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`))) superseded.add(item);
+    if (withdrawn.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
-  const pool = [...current.filter((item) => item.disposition === "pending" && !superseded.has(item)), ...fresh];
+  const pool = [...current.filter((item) => !superseded.has(item)), ...fresh];
   const out = new Set<TyphoonIntent>();
   // 同じ群の中で A7 の選択順の後ろのものから外す。予約は配送の更新で伸びうる byte（P3-INTENT-UPDATE-RESERVE-001、式は写さない）。
   let count = pool.length, size = listBytes(pool) + pool.reduce((sum, item) => sum + deliveryGrowth(item), 0);
@@ -214,11 +205,11 @@ function admit(current: readonly TyphoonIntent[], fresh: readonly TyphoonIntent[
       size -= bytes(item) + 1 + deliveryGrowth(item);
     }
   const admitted = fresh.filter((item) => !out.has(item));
-  // 新しい intent が容量で外れただけなら、既存の intent も終端記録も変わらないので元の配列を返す。
+  // 新しい intent が容量で外れただけなら、既存の intent は変わらないので元の配列を返す。
   if (superseded.size === 0 && admitted.length === 0 && [...out].every((item) => fresh.includes(item)))
     return { intents: current, admitted: [], dropped: fresh.length };
-  const intents = trimTerminal([...current.map((item) => superseded.has(item) || out.has(item)
-    ? { ...item, disposition: "superseded" as const } : item), ...admitted]);
+  // P3-NL-AC05 (1)(2): 置換・退去した intent は外す（結果は系列の印に残り、終端記録の予算と回収は無い）。
+  const intents = [...current.filter((item) => !superseded.has(item) && !out.has(item)), ...admitted];
   return { intents, admitted, dropped: [...out].filter((item) => !fresh.includes(item)).length + fresh.length - admitted.length };
 }
 
@@ -244,7 +235,7 @@ function shownOutcome(value: Rec): SubjectOutcome {
   return found;
 }
 function displaySubject(value: Rec): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-Y" }>> {
-  return { unit: "U-Y", operation: value.operation, subject: value.subject, office: null, current: visible(value) ? value : null, subjects: [shownOutcome(value)] };
+  return { unit: "U-Y", operation: value.operation, subject: value.subject, office: null, current: visible(value) ? shown(value) : null, subjects: [shownOutcome(value)] };
 }
 
 // ---- 受信（P3-C14-PARAMETERS.adoptionOutcome の順。一入力の変更は一回の参照交換で確定する、I-U-Y.subjects） ----
@@ -353,7 +344,9 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
       values.map((item, position) => position === at ? { ...item, unconfirmed: version.mark } : item)), persistence: dirty(state.persistence, clock.monotonicMs) };
     return unchangedStep(marked, subject, operation, "stale", [warn(version.missing)]);
   }
-  const next = version.mark == null ? built.record : { ...built.record, unconfirmed: version.mark };
+  const unmarked = version.mark == null ? built.record : { ...built.record, unconfirmed: version.mark };
+  // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。
+  let next: T = existing?.notice == null ? unmarked : { ...unmarked, notice: existing.notice };
   // P3-C14-RETENTION.lateRule（版の比較の後）: (1) 記憶の期限を過ぎた報は state を変えない。(3) 記憶としてだけ採る報で、subject に記録が無く
   // slice が満杯なら記録を作らず、退去も起こさない。(2) 記憶としてだけ採る報は、前の見える記録を終わらせて pending を撤回する。
   if (next.retainUntil <= now) return unchangedStep(state, subject, operation, "stale");
@@ -399,10 +392,19 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
   // Q-NOTICE.generationTable（自分の subject だけ、一 channel 1 件）。訂正は事実が同じでも作る。記憶としてだけ採る報では作らない。
   const was = visible(existing), now_ = visible(next);
   const notice = built.late ? null : lane.notice(candidate, existing, next, was);
+  // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
+  const digest = notice == null ? "" : versionDigest(candidate.source);
   const fresh = notice == null ? [] : intentsFor(candidate, notice.transition, payloadOf(operation, notice.level, candidate.title, notice.body, notice.mark),
-    state.persistence.currentGeneration + 1, now);
+    now, existing?.notice, digest);
   const notices = admit(state.intents, fresh, withdrawn);
-  const result: State = { ...written, intents: notices.intents, persistence: dirty(state.persistence, clock.monotonicMs) };
+  // P3-NL-AC02 (3): admit を通った版と種類を系列の印に足す（全 channel が断られた版は入れない）。
+  if (notice != null && notices.admitted.length !== 0) {
+    const plain = next;
+    next = { ...plain, notice: markNotice(plain.notice, digest, noticeKind(notice.transition)) };
+    written = lane.write(written, lane.read(written).map((item) => item === plain ? next : item));
+  }
+  const result: State = { ...written, intents: notices.intents,
+    persistence: dirty(state.persistence, clock.monotonicMs) };
 
   // change は最終の表示の変化で決める（I-U-Y.currentSemantics(5)）。accepted は最終の状態に残る subject（今回の記録）。
   const shownChange = was !== now_ || was && changed(existing, next).length !== 0;
@@ -460,7 +462,7 @@ function collect(state: State, clock: ClockReading, withIntents: boolean): Reado
   if (deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0 };
   const analysis = sweep(state.analysis, now, analysisLane.expire), probability = sweep(state.probability, now, probabilityLane.expire);
   const intents = !withIntents || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
-  const expiredIntents = intents === state.intents ? 0 : state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= now).length;
+  const expiredIntents = state.intents.length - intents.length;
   const persisted = analysis.changes.length !== 0 || probability.changes.length !== 0 || intents !== state.intents;
   const moved: State = { ...state, analysis: analysis.values, probability: probability.values, intents };
   return { state: persisted ? { ...moved, persistence: dirty(state.persistence, clock.monotonicMs) } : moved,
@@ -481,20 +483,43 @@ function deadlineStep(state: State, clock: ClockReading): Result {
 
 // ---- intentUpdate（Q-NOTICE.intentUpdate） ----
 
+// P3-NL-AC02 (3)・AC08 (1): intent の系列（解析か確率）の印の証拠を上げる（下げない）。
+function raiseNotices(state: State, raised: ReadonlyMap<string, NoticeEvidence>): State {
+  if (raised.size === 0) return state;
+  const raise = <T extends Rec>(values: readonly T[]): readonly T[] => {
+    let touched = false;
+    const next = values.map((item) => {
+      const evidence = raised.get(item.subject);
+      const notice = evidence == null || item.notice == null ? item.notice : raiseEvidence(item.notice, evidence);
+      if (notice === item.notice) return item;
+      touched = true;
+      return { ...item, notice };
+    });
+    return touched ? next : values;
+  };
+  const analysis = raise(state.analysis), probability = raise(state.probability);
+  return analysis === state.analysis && probability === state.probability ? state : { ...state, analysis, probability };
+}
+
 function intentUpdate(state: State, input: Extract<TyphoonInput, { kind: "intentUpdate" }>): Result {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
   const changedIntents = new Map<string, TyphoonIntent>();
+  const raised = new Map<string, NoticeEvidence>();
   for (const update of updates) {
     const current = originals.get(update.id);
-    if (current == null || update.attempts < current.attempts || current.attempts === update.attempts
-      && current.nextAttemptAt === update.nextAttemptAt && current.disposition === update.disposition) continue;
-    changedIntents.set(current.id, { ...current, attempts: update.attempts, nextAttemptAt: update.nextAttemptAt, disposition: update.disposition });
+    const updated = current == null ? null : applyIntentUpdate(current, update);
+    if (updated == null) continue;
+    changedIntents.set(updated.id, updated);
+    const evidence = updateEvidence(updated);
+    if (evidence != null) raised.set(updated.subject, evidence);
   }
   if (changedIntents.size === 0) return { changes: [], step: idle(state) };
-  // 所有配列は一括で索引化して一度だけ置き換える。更新で終端にした記録は期限前の回収から外す。
-  const next = { ...state, intents: trimTerminal(state.intents.map((item) => changedIntents.get(item.id) ?? item), new Set(changedIntents.keys())),
-    persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  // 所有配列は一括で索引化して一度だけ置き換える。pending でなくなった intent は外す（P3-NL-AC05 (1)）。
+  const next = { ...raiseNotices(state, raised), intents: state.intents.flatMap((item) => {
+    const updated = changedIntents.get(item.id);
+    return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
+  }), persistence: dirty(state.persistence, input.clock.monotonicMs) };
   const adopted = [...changedIntents.values()];
   return { changes: [], step: { ...idle(next),
     decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
@@ -513,10 +538,17 @@ function restore(state: State, persisted: PersistedTyphoonUnit, clock: ClockRead
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "typhoon",
     reason: "requiredStructureInvalid", unit: "U-Y" }] } };
-  const applied = collect({ ...decoded.state, contentRevision: state.contentRevision, persistence: state.persistence }, clock, false);
-  const shown = [...applied.state.analysis, ...applied.state.probability].filter(visible);
-  return { changes: shown.map((item): Change => [null, item]), step: { ...idle(applied.state),
-    outcomes: [{ kind: "recoveryApplied", scope: ["U-Y"], coverage: shown.map((item) => item.subject), subjects: [] }] } };
+  // P3-NL-AC08 (1): started のまま残った pending は通知したか不明として外し、系列の印の証拠を unknown にする。
+  const restored = restoreStarted(decoded.state.intents);
+  const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
+    intents: restored.intents, contentRevision: state.contentRevision,
+    persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
+  const applied = collect(base, clock, false);
+  const active = [...applied.state.analysis, ...applied.state.probability].filter(visible);
+  return { changes: active.map((item): Change => [null, item]), step: { ...idle(applied.state),
+    outcomes: [{ kind: "recoveryApplied", scope: ["U-Y"], coverage: active.map((item) => item.subject), subjects: [] }],
+    diagnostics: restored.started.length === 0 ? [] : [{ level: "INFO", component: "typhoon", reason: "notificationOutcomeUnknown",
+      unit: "U-Y", count: restored.started.length }] } };
 }
 
 function reduceCore(state: State, input: TyphoonInput): Result {
@@ -559,7 +591,8 @@ function toTyphoonView(state: State): TyphoonUnitView {
   const subjects = [...analysis, ...probability].map(shownOutcome);
   return { unit: "U-Y", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), subjects, analysis, probability };
+  contentRevision: String(state.contentRevision), subjects, analysis: analysis.map((item) => shown(item)),
+  probability: probability.map((item) => shown(item)) };
 }
 
 // ---- codec（I-U-Y.persisted・I-U-Y.decode、唯一の TyphoonUnitCodec。受理と同じ上限を確かめる） ----
@@ -685,7 +718,9 @@ function headOf(value: unknown, slice: "analysis" | "probability"): Head | null 
   if (FACT_KEYS.some((key) => key in row && !allowed.includes(key))) return null;
   // P3-VM-AC04: 印は同じ subject・operation の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject, parts) : undefined;
-  return mark === null ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source, ...mark == null ? {} : { unconfirmed: mark } } };
+  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
+  return mark === null || notice === null ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source,
+    ...mark == null ? {} : { unconfirmed: mark }, ...notice == null ? {} : { notice } } };
 }
 // 記憶（cancelled・ended）の枝。active でないときだけ呼ぶ。
 function memoryRecord(row: Fields, base: Base): (Analysis & Probability) | null {
@@ -736,16 +771,17 @@ function intentRecord(value: unknown): TyphoonIntent | null {
   const level = LEVEL_SET.find((entry) => entry === payload?.level);
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
-  const disposition = (["pending", "delivered", "expired", "superseded"] as const).find((entry) => entry === row?.disposition);
+  const fields = row == null || operation == null ? null : readIntentState(row, "U-Y", operation, level);
   // state に残る subject との一致は求めない（記録の回収の後も pending は期限まで残る、I-U-Y.decode）。
   if (row == null || payload == null || operation == null || source == null || level == null || payload.domain !== "weather" || channel == null || transition == null
-    || disposition == null || !isText(row.id) || row.unit !== "U-Y" || !isText(row.subject) || source.operation !== operation
+    || fields == null || !isText(row.id) || row.unit !== "U-Y" || !isText(row.subject) || source.operation !== operation
     || !bounded(payload.title, NOTICE_BOUNDS.title) || payload.title === "" || !bounded(payload.body, NOTICE_BOUNDS.body) || payload.body === ""
     || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt) || !count(row.attempts) || !isText(row.configRevision)
     || row.expiresAt < row.createdAt) return null;
   return { id: row.id, unit: "U-Y", subject: row.subject, operation, source, transition, channel,
     payload: { domain: "weather", level, title: payload.title, body: payload.body }, createdAt: row.createdAt,
-    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision, disposition };
+    expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
+    disposition: "pending", ...fields };
 }
 function persisted(value: unknown): PersistedTyphoonUnit | null {
   const row = record(value);
@@ -757,24 +793,22 @@ function persisted(value: unknown): PersistedTyphoonUnit | null {
   for (const rows of [analysis, probability])
     if (new Set(rows.map((item) => item.subject)).size !== rows.length) return null;
   if (new Set(intents.map((item) => item.id)).size !== intents.length) return null;
-  const pending = intents.filter((entry) => entry.disposition === "pending");
-  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。終端記録は pending との合計で見る（Q-NOTICE.capacity）。
-  const pendingBytes = listBytes(pending) + pending.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
+  const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedTyphoonUnit = { schemaVersion: SCHEMA, analysis, probability, intents };
-  if (pending.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || pendingBytes + terminalBytes(intents) > PENDING_BYTES + TERMINAL_BYTES
-    || generationBytes(result) > GENERATION_LIMIT) return null;
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const typhoonUnitCodec: TyphoonUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1", "p3-typhoon-unit-v2", "p3-typhoon-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1", "p3-typhoon-unit-v2", "p3-typhoon-unit-v3", "p3-typhoon-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-Y.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, analysis: state.analysis, probability: state.probability, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v4 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v5 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };
@@ -786,7 +820,6 @@ const typhoonUnit = {
   toView: toTyphoonView,
   persistence: { kind: "durable", codec: typhoonUnitCodec },
   confirmationScopeLimit: LIMITS.subjects * 2,
-  terminalIntents: { kind: "intents" },
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-Y">;
 

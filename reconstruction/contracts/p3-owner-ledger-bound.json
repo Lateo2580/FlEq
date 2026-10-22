@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "5ae33089defe69954857bd3ad5bdcc11ccb8196f",
-    "sha256": "f232b3cb5591dff736963cf582ef26c200fccb656bbc1624c1db4879f6f3232d",
+    "sha256": "e02bf7d7ab7fed9562956713ae595945d254f1647e6f8f47a90339e65a4f0275",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -228,7 +228,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p2-checkpoint-shutdown.json:401 «998141f6cd409dee»",
           "reconstruction/contracts/p2-eew-e01.json:498 «e32528567119139b»",
-          "reconstruction/contracts/p3-e01-reaccept.json:778 «57b454c048ec4882»"
+          "reconstruction/contracts/p3-e01-reaccept.json:778 «49710bb127df193f»"
         ]
       },
       {

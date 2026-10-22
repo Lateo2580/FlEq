@@ -189,9 +189,12 @@ describe("P3-TSUNAMI-UNIT-001 U-T through the composition root", () => {
     const generated: Record<string, number> = {};
     for (const [index, file] of ["32-39_11_02_250206_VTSE41", "32-39_11_09_250206_VTSE41", "32-39_11_11_250206_VTSE41"].entries()) {
       now = { wallTimeMs: now.wallTimeMs + (index === 0 ? 0 : 1_000), monotonicMs: index * 1_000 };
-      const known = new Set(h.unit("U-T").intents.map((item) => item.id));
+      const known = new Set([...h.unit("U-T").intents.map((item) => item.id), ...calls.map((item) => item.attempt.intentId)]);
+      const before = calls.length;
       await report(h, file, now);
-      for (const item of h.unit("U-T").intents) if (!known.has(item.id)) generated[item.id] = now.monotonicMs;
+      // 終わった intent は intents から外れる（P3-NL-AC05 (1)）ので、この入力の間に始まった試行の intent も数える。
+      for (const id of [...h.unit("U-T").intents.map((item) => item.id), ...calls.slice(before).map((item) => item.attempt.intentId)])
+        if (!known.has(id)) generated[id] = now.monotonicMs;
     }
     const waits = calls.filter((item) => item.attempt.intentId in generated)
       .map((item) => item.monotonicMs - generated[item.attempt.intentId]);
@@ -246,12 +249,11 @@ describe("P3-TSUNAMI-UNIT-001 U-T through the composition root", () => {
     const afterCancel = failed.unit("U-T");
     expect(afterCancel.persistence).toMatchObject({ kind: "failed", savedGeneration: 0 });
     expect(afterCancel.persistence.currentGeneration).toBeGreaterThan(beforeCancel);
-    // 試行中の発令の intent は superseded になり、A7 がその試行を止める。
+    // 試行中の発令の intent は置き換えで intents から外れ（P3-NL-AC05 (1)）、A7 がその試行を止める。
     expect(running.aborts).toHaveLength(2);
     expect(afterCancel.forecasts).toMatchObject([{ effective: "cancelled", areas: [] }]);
     expect(view(failed).forecasts).toEqual([]);
-    expect(afterCancel.intents.filter((item) => issuedIntents.includes(item.id)).map((item) => item.disposition))
-      .toEqual(issuedIntents.map(() => "superseded"));
+    expect(afterCancel.intents.filter((item) => issuedIntents.includes(item.id))).toEqual([]);
 
     // 古い ack: 保存の書込み中に続報を採用すると、ack は古い世代だけを確定し、次の世代の dirty を保つ。
     const gated = new MemoryFiles();

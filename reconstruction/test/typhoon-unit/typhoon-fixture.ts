@@ -13,7 +13,7 @@ import { reduceTyphoonUnit } from "../../src/units/typhoon/typhoon-unit";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): TyphoonUnitState {
-  return { schemaVersion: "p3-typhoon-unit-v4", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-typhoon-unit-v5", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };
@@ -160,25 +160,21 @@ function maximumPayload() {
     areas: Array.from({ length: 384 }, (_, at) => ({ code: six(100000 + at), name: wide(24), prefectureCode: prefectureCode(at % 96), daily: [100, 100, 100, 100, 100], peak: 100, peakSlot: 63 })),
     truncated: true }; };
   const own = (subject: string) => ({ id: "", unit: "U-Y", subject, operation: "normal", source: ref(subject, subject.includes("Analysis") ? "VPTW65" : "VPTA55"), transition: "updated", channel: "desktop",
-  payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(512) }, createdAt: EDGE, expiresAt: EDGE, nextAttemptAt: EDGE, attempts: 0, configRevision: "p3-typhoon-unit-v4", disposition: "pending" });
+  payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(512) }, createdAt: EDGE, expiresAt: EDGE, nextAttemptAt: EDGE, attempts: 0, configRevision: "p3-typhoon-unit-v5", disposition: "pending",
+  lastAttempt: null, replayed: false, priorityGroup: "other" });
   const intentOf = (index: number, bodyLength: number, disposition: string) => ({ ...own(`normal/typhoonAnalysis/${eventIdOf(0)}`), id: `U-Y:${"x".repeat(60)}:${String(index).padStart(6, "0")}:desktop`,
   payload: { domain: "weather", level: "normal", title: "t".repeat(160), body: "b".repeat(bodyLength) }, disposition });
-  // pending は「実 byte＋予約」131,072 ちょうど、終端記録は 98,304 byte 以内の最大。
+  // pending は「実 byte＋予約」131,072 ちょうど（終端記録は P3-NL-AC05 で無くなった）。
   const pendingTotal = (list: readonly object[]) => 2 + Math.max(list.length - 1, 0) + list.reduce<number>((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + reserve(item as never), 0);
   const lengths: number[] = [];
   while (pendingTotal(lengths.map((length, index) => intentOf(index, length, "pending"))) <= 131_072) lengths.push(512);
   let excess = pendingTotal(lengths.map((length, index) => intentOf(index, length, "pending"))) - 131_072;
   for (let index = lengths.length - 1; excess > 0; index--) { const cutBy = Math.min(excess, 511); lengths[index] -= cutBy; excess -= cutBy; }
   const pendingList = lengths.map((length, index) => intentOf(index, length, "pending"));
-  const terminalList: object[] = [];
-  let terminalSize = 0;
-  while (terminalSize + Buffer.byteLength(JSON.stringify(intentOf(1000 + terminalList.length, 512, "delivered"))) + 1 <= 98_304) {
-  const next = intentOf(1000 + terminalList.length, 512, "delivered");
-  terminalList.push(next);
-  terminalSize += Buffer.byteLength(JSON.stringify(next)) + 1;
-  }
-  const payload = { schemaVersion: "p3-typhoon-unit-v4", analysis: Array.from({ length: 64 }, (_, index) => analysisRecord(index)),
-  probability: Array.from({ length: 64 }, (_, index) => probabilityRecord(index)), intents: [...pendingList, ...terminalList] };
+  // P3-NL-AC15 (2): 全部の記録に最長の通知の印。
+  const notice = { version: "0".repeat(16), kinds: ["report", "cancel", "expiry"], evidence: "unattempted" };
+  const payload = { schemaVersion: "p3-typhoon-unit-v5", analysis: Array.from({ length: 64 }, (_, index) => ({ ...analysisRecord(index), notice })),
+  probability: Array.from({ length: 64 }, (_, index) => ({ ...probabilityRecord(index), notice })), intents: pendingList };
 
   return { payload, reportMs, EDGE, pendingTotal, pendingList, eventIdOf };
 }

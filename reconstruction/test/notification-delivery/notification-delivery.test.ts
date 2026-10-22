@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClockReading, NotificationIntent, NotificationResult, RuntimeInput } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
-import { resolveSoundAsset, selectNotificationAttempt } from "../../src/notification-delivery/notification-delivery";
+import { applyNotificationResult, resolveSoundAsset, selectNotificationAttempt } from "../../src/notification-delivery/notification-delivery";
 import { linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import type { PublisherState } from "../../src/runtime/shared-runtime";
 import { harnessedRoot, manualAdapter, park, seeded, startHarness, submit } from "../execution-split/owner-harness";
@@ -108,14 +108,16 @@ describe("P2-A7 notification delivery", () => {
       intentId: attempt.intentId, channel: attempt.channel, completedAt: at(5_000) });
     // The run already settled, so its expiry needs no abort call (as before: no abort for the completed run).
     expect(d.notices.aborts).toEqual([]);
-    expect(d.h.unit("U-W").intents.find((item) => item.id === "one")?.disposition).toBe("expired");
+    // P3-NL-AC05 (1): 終端の intent は intents から外れる。
+    expect(d.h.unit("U-W").intents.some((item) => item.id === "one")).toBe(false);
     expect(d.started(1).map(item => item.intentId)).toEqual(["two"]);
     expect(d.root.state.notificationDeadlines.desktop[key(first)]).toBeUndefined();
     await d.root.diagnostics.flush();
     expect((await d.root.readDiagnostics({ limit: 256 })).records.some(item => item.reason === "notificationAttemptFailed")).toBe(false);
   });
 
-  it("T02 regression #3: success after the attempt deadline becomes timeout backoff instead of an immediate retry", async () => {
+  // P3-NL-AC06 (2): 試行の期限の後の終わり（desktop の timeout）は通知したか不明で終端にし、再試行しない（旧: timeout の backoff）。
+  it("T02 regression #3: success after the attempt deadline ends as outcome unknown instead of a retry", async () => {
     const first = { ...notice("one"), expiresAt: at(15_000).wallTimeMs };
     const d = await delivery(at(0));
     await d.seeds.weather(d.h, { ...d.h.unit("U-W"), intents: [first] });
@@ -123,14 +125,11 @@ describe("P2-A7 notification delivery", () => {
     await d.finish({ kind: "delivered",
       attemptId: attempt.attemptId, intentId: attempt.intentId, channel: "desktop", completedAt: at(5_001) });
     expect(d.started(1)).toEqual([]);
-    expect(d.h.unit("U-W").intents[0]).toMatchObject({ disposition: "pending", nextAttemptAt: at(6_001).wallTimeMs });
-    expect(d.root.state.notificationDeadlines.desktop[key(first)]).toEqual({ retryAtMonotonicMs: 6_001, expiresAtMonotonicMs: 15_000 });
+    expect(d.h.unit("U-W").intents).toEqual([]);
     await d.root.diagnostics.flush();
     expect((await d.root.readDiagnostics({ limit: 256 })).records.filter(item => item.reason === "notificationAttemptFailed")).toHaveLength(1);
-    await d.tick(at(6_000));
-    expect(d.started(1)).toEqual([]);
     await d.tick(at(6_001));
-    expect(d.started(1)).toHaveLength(1);
+    expect(d.started(1)).toEqual([]);
   });
 
   it("T03 contractBoundary: A1 adopts 384 keys and reclaims terminal/deleted owners in the same step, including capacity-sized ticks", async () => {
@@ -264,7 +263,8 @@ describe("P2-A7 notification delivery", () => {
       expect(restored.root.checkpoint.grantOf("U-E")).not.toBeNull();
       expect(restored.root.state.mirror["U-E"].persistence.kind).not.toBe("saved");
       clock = at(600);
-      notices.finish({ kind: "failed", reason: "adapterRejected",
+      // P3-NL-AC06 (2): 再試行するのは起動しなかった試行（notStarted）。起動した後の失敗は通知したか不明で終端になる。
+      notices.finish({ kind: "failed", reason: "notStarted",
         attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: clock });
       await restored.settle();
       const deadline = restored.root.state.notificationDeadlines[attempt.channel][JSON.stringify(["U-E", attempt.intentId])];
@@ -320,4 +320,28 @@ describe("P2-A7 notification delivery", () => {
     await d.tick(at(0));
     expect(d.started(0)).toEqual([]);
   });
+});
+
+// P3-NL-T04 (e)（P3-NL-AC06 (2)）: notStarted は再試行（lastAttempt failed）。sound の起動した後の失敗・timeout・上位群の中断は 1 回だけ
+// 鳴らし直し（replayed、期限は終わった時＋元の長さ）、鳴らし直しも同じに終わると通知したか不明で終端。desktop の同じ終わりは鳴らし直さない。
+it("P3-NL-T04 contractBoundary / AC06 (e): notStarted retries, a started sound replays once, then the outcome is unknown", () => {
+  const end = (intent: NotificationIntent, result: (attempt: NotificationAttempt) => NotificationResult) => {
+    const deadline = { [JSON.stringify([intent.unit, intent.id])]: { retryAtMonotonicMs: 0, expiresAtMonotonicMs: 1e12 } };
+    const selected = selectNotificationAttempt({ intents: [intent], channels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
+      deadlines: { desktop: intent.channel === "desktop" ? deadline : {}, sound: intent.channel === "sound" ? deadline : {} } }, at(0));
+    return applyNotificationResult(selected.state, result(selected.attempts[0]), at(1_000));
+  };
+  const of = (attempt: NotificationAttempt) => ({ attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: at(1_000) });
+  const sound = notice("s", "sound"), desktop = notice("d", "desktop");
+  expect(end(sound, (attempt) => ({ kind: "failed", reason: "notStarted", ...of(attempt) })).state.intents[0])
+    .toMatchObject({ disposition: "pending", lastAttempt: "failed", replayed: false, expiresAt: sound.expiresAt });
+  const unknown = (step: ReturnType<typeof end>) => [step.state.intents[0].disposition, step.diagnostics.some((item) => item.reason === "notificationOutcomeUnknown")];
+  for (const result of [(attempt: NotificationAttempt): NotificationResult => ({ kind: "failed", reason: "adapterRejected", ...of(attempt) }),
+    (attempt: NotificationAttempt): NotificationResult => ({ kind: "timeout", stopped: true, ...of(attempt) }),
+    (attempt: NotificationAttempt): NotificationResult => ({ kind: "aborted", reason: "higherPriority", stopped: true, ...of(attempt) })]) {
+    const replay = end(sound, result).state.intents[0];
+    expect(replay).toMatchObject({ disposition: "pending", lastAttempt: "failed", replayed: true, expiresAt: at(1_000).wallTimeMs + 60_000 });
+    expect(unknown(end(replay, result))).toEqual(["expired", true]);
+  }
+  expect(unknown(end(desktop, (attempt) => ({ kind: "failed", reason: "adapterRejected", ...of(attempt) })))).toEqual(["expired", true]);
 });

@@ -471,15 +471,15 @@ byte 予算は**開始値**だ。P1〜P3 で最大正常入力・同時最大状
 
 | 単位 | 内容 | 保存するもの | 保存しないもの | 1世代の開始 byte 予算 |
 |---|---|---|---|---:|
-| U-E `eew` | EEW | 期限付き intent、配送済み／失効の必要最小記録 | active EEW、予測保持 latch、実行中 gate | 256 KiB |
-| U-Q `seismic` | 地震・長周期 | 有効観測、出典、取消記憶、強震保持の根拠、必要な当日履歴、intent | 描画 path、カード配置、別地図 snapshot | 4 MiB |
-| U-T `tsunami` | 津波警報・観測 | EventID 別警報、区域状態、VTSE51/52 の独立観測系列、station記憶、取消、intent | 表示用複製、復旧用 REST queue | 4 MiB |
+| U-E `eew` | EEW | 期限付き intent、EventID ごとの通知の印（配送済み／失効の記録の代わり、`P3-NOTICE-LEDGER-001` の P3-NL-AC04） | active EEW、予測保持 latch、実行中 gate | 2 MiB（2026-10-22 `P3-NOTICE-LEDGER-001` で印 2,048 件の分を足した、P3-NL-AC04 の (8)。当初 256 KiB） |
+| U-Q `seismic` | 地震・長周期 | 有効観測、出典、取消記憶、強震保持の根拠、必要な当日履歴、intent | 描画 path、カード配置、別地図 snapshot | 4 MiB（器は K7・K8 の作者裁定で広げた 5,374,354 byte、`P3-UNIT-Q-001` の P3-C7-RES-01） |
+| U-T `tsunami` | 津波警報・観測 | EventID 別警報、区域状態、VTSE51/52 の独立観測系列、station記憶、取消、intent | 表示用複製、復旧用 REST queue | 4 MiB（器は 2026-10-22 の作者裁定 P3-NL-D-CAPACITY=A で印の分を足した 4,676,841 byte、P3-C5-RES-01） |
 | U-N `nankai` | 南海トラフ | 現況、現況更新の出典・取消記憶、intent | 説明だけの報の永続 current | 288 KiB（2026-10-10 作者裁定 P3-AUTH-D-N-BUDGET=A、K2。当初 256 KiB） |
 | U-W `weather-current` | VPWS50、VPWW55/57–61、VPNO50終了 | 全国 base、partial、現象所有情報、履歴、watermark、区域終了 tombstone、intent | 別 standby／promotion current | 16 MiB |
 | U-L `landslide` | VPWW56 | 官署×type の current・gate・取消・期限・intent | 全国一括の権威ある union | 2 MiB |
 | U-F `weather-timeseries` | VPWP50 | period、subject revision、正常 empty、unavailable根拠、取消、期限、intent | カード幅に合わせた切捨て state | 32 MiB |
 | U-B `briefing` | VPBS50/VPOA50 | 復元が必要な速報 lifecycle、予測置換・取消・alias記憶、出典、intent | 相関待ち timer、raw原文、一般 holdback queue | 2 MiB |
-| U-M `local-and-bulletins` | 竜巻・熱中症・各種短命情報 | tornado/heat の意味状態・取消・期限、通知対象の intent | 早期天候・気候・解説・raw の永続 current | 4 MiB |
+| U-M `local-and-bulletins` | 竜巻・熱中症・各種短命情報 | tornado/heat の意味状態・取消・期限、通知対象の intent | 早期天候・気候・解説・raw の永続 current | 4 MiB（器は K7・K8 の作者裁定で印の分を足した 4,904,960 byte、P3-C13-RES-01） |
 | U-Y `typhoon` | 台風解析・確率 | 独立 slice、各 revision・期限・取消、連続ゼロ判定、intent | formatter 別の台風 cache | 8 MiB |
 | U-V `volcano` | 警報・噴火・降灰 | 三 slice、火山と EventID の対応、provenance、取消・復旧不足、intent | VFVO53 待機 batch、runtime `restored` | 5 MiB（2026-10-10 作者裁定 P3-CODEC-D-LIMIT=A、K5。当初 4 MiB） |
 | U-R `flood` | 指定河川・水位周知 | EventID lifecycle、河川・区間・station事実、gate、取消・期限、intent | 別 card current、表示用 station 複製 | 16 MiB（2026-10-10 作者裁定 P3-C11-BOUNDS=B、R20。当初 8 MiB） |
@@ -941,7 +941,7 @@ interface NotificationIntent {
 - 同一 revision の異なる受理済み訂正を区別する。
 - 意図的な再通知は、業務上の再通知機会を識別する情報を含める。
 - raw XML、巨大な parsed object、formatter の可変状態を保存しない。
-- desktop と sound の成否を別々に記録する。`channel:"sound"` の音源は、保存単位の分野（気象／火山／地震・EEW／津波）× 段階で選ぶ。分野別根音表（`docs/specs/sound-design-system.md` §分野別根音表 v1、2026-09-17 統合済み）は新築で実装し、旧築の 5 段階 `playSound(level)` には入れない（2026-09-15 ご主人裁定 B）。Linux の再生列は旧築と同じ `ffplay → paplay → aplay` を使い、起動時 probe も同じ列を辿る（Issue #20）。
+- desktop と sound の成否を別々に記録する。`channel:"sound"` の音源は、保存単位の分野（気象／火山／地震・EEW／津波）× 段階で選ぶ。分野別根音表（`docs/specs/sound-design-system.md` §分野別根音表 v1、2026-09-17 統合済み）は新築で実装し、旧築の 5 段階 `playSound(level)` には入れない（2026-09-15 ご主人裁定 B）。Linux の再生列は旧築と同じ `ffplay → paplay → aplay` を使い、起動時 probe も同じ列を辿る（Issue #20）。 同じ試行の中で次の backend へ進むのは前の backend が何も出していない（notStarted）ときだけで、起動した後の失敗・timeout の試行の後は、次の試行を列の次の backend から始める。delivery は probe で鳴った backend から始める（2026-10-22 作者裁定、`P3-NOTICE-LEDGER-001` の P3-NL-AC06 の (3)・分岐 P3-NL-D-SOUND-BACKEND=B）。
 
 ### 6.3 試行・選択順・保存順序（保存と再試行の順序は §16 の H48）（§16 で改定）
 
@@ -951,13 +951,13 @@ interface NotificationIntent {
 4. 固定優先群は **通常運用の EEW → 通常運用の津波緊急 → その他**。津波緊急は大津波警報・津波警報の発令・引上げとする。区分や優先度を自由な数値設定にしない。同群は期限、生成時刻、intent ID の順とする。
 5. 試行ごとに `attemptId`、AbortSignal、単調時計の timeout を与える。
 6. 結果を runtime 入力へ戻し、現在の intent・区分・attemptId・期限・置換状態と照合する。
-7. 有効な成功だけを delivered にして同じ単位を dirty にする。失敗・timeout は、送っていないと確定したものだけを元の期限内で再試行対象とする。（§16 で改定）
+7. 有効な成功だけを delivered にして同じ単位を dirty にする。失敗・timeout は、送っていないと確定したものだけを元の期限内で再試行対象とする。sound の起動した後に結果の分からずに終わった試行（起動後の失敗・timeout・上位群の中断）は 1 回だけ鳴らし直す（H48 の 2026-10-22 の例外、`P3-NOTICE-LEDGER-001` の P3-NL-AC06 の (2)）。（§16 で改定）
 
 正常 adapter と固定した合法負荷における、緊急 intent の生成から**初回 adapter 呼出しまでの待ち時間は暫定 1 秒以内**を開始目標とする。保存待ち・queue 待ち・進行中処理の停止待ちを含め、選択可能になった時刻から測り直さない。音の終了・人の認知までの値ではない。
 
 緊急 intent 到着時に下位群を実行中なら、その試行結果を無効化して abort を要求する。通常の channel timeout 満了まで待たず、既存の停止確認猶予内で処理を閉じる。外部へ既に出た音・通知を巻き戻したとは扱わない。上位群が下位群の再試行より先に選ばれること、同群・上位群の処理がある場合も初回待ちの実測から除外しないことを契約とする。
 
-取消・置換・期限・試行 timeout でも結果を無効化し、abort を要求して論理 channel を解放する。遅い成功で delivered や別試行の結果を書き換えない。中断した intent がなお意味上有効なら、元の期限を維持して再試行規則へ戻す。
+取消・置換・期限・試行 timeout でも結果を無効化し、abort を要求して論理 channel を解放する。遅い成功で delivered や別試行の結果を書き換えない。中断した intent がなお意味上有効なら（上位群の中断・試行 timeout）、sound は 1 回だけ鳴らし直し、期限は終わった時から元の長さで数え直す（生成から元の長さの 2 倍まで）。desktop と 2 回目は通知したか不明として再試行しない（2026-10-22 作者裁定、`P3-NOTICE-LEDGER-001` の P3-NL-AC06 の (2)）。
 
 論理 channel の解放と外部実処理の停止は別だ。停止確認できない adapter は隔離・無効化し、同じ実処理へ次を重ねない。channel は新しい intent を有界に保持できるが、利用可能になるまで試行せず、期限到達で欠落を記録する。隔離中の欠落を 1 秒条件の成功として数えない。
 
@@ -969,15 +969,15 @@ Q7 で採用される training／test 通知は区分を明示し、通常運用
 
 | 項目 | 開始値・契約 |
 |---|---|
-| live EEW intent | 元の生成から 15 秒以内。より早い取消・失効・置換を優先 |
-| その他 sound | 元の生成から 60 秒以内。津波緊急も TTL と初回待ちを別判定 |
+| live EEW intent | 元の生成から 15 秒以内。より早い取消・失効・置換を優先。sound の 1 回の鳴らし直しは最長 30 秒まで（`P3-NOTICE-LEDGER-001` の P3-NL-AC06 の (2)） |
+| その他 sound | 元の生成から 60 秒以内。津波緊急も TTL と初回待ちを別判定。sound の 1 回の鳴らし直しは最長 120 秒まで（`P3-NOTICE-LEDGER-001` の P3-NL-AC06 の (2)） |
 | その他 desktop | 元の生成から 180 秒以内 |
 | sound の一試行 timeout | 暫定 10 秒。緊急到着による下位群の中断は §6.3 |
 | desktop の一試行 timeout | 暫定 5 秒。緊急到着による下位群の中断は §6.3 |
 | 実際の試行期限 | channel timeout と intent 残存期限の短い方。取消・置換・優先中断は先に適用 |
 | abort 後の停止確認猶予 | 暫定 1 秒。未確認なら adapter を隔離・無効化 |
 | 緊急群の初回試行待ち | 生成から呼出しまで暫定 1 秒以内。停止・dispatch の費用も含む |
-| 再試行間隔 | 失敗確定から 1、2、4、8 秒、その後最大 10 秒。元の期限を延長しない |
+| 再試行間隔 | 失敗確定から 1、2、4、8 秒、その後最大 10 秒。元の期限を延長しない（sound の 1 回の鳴らし直しを除く、`P3-NOTICE-LEDGER-001` の P3-NL-AC06 の (2)） |
 | pending intent | 保存単位ごと最大 128 件かつ 128 KiB。運用区分・channel を合算 |
 | 同時試行 | channel ごと 1 件。停止未確認の実処理を別に計数し、重ね呼出ししない |
 | 完了・失効記録 | family の重複判定に必要な期間だけ保持 |

@@ -1,4 +1,5 @@
 import { mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { LONGEST_NOTICE, expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -10,7 +11,7 @@ import type { JsonValue, ReportRef } from "../../contracts/p2-shared-runtime.typ
 import type {
   VolcanoAlert, VolcanoAreaGroup, VolcanoBulletin, VolcanoEruption, VolcanoInput, VolcanoIntent, VolcanoShortfall, VolcanoUnitState, VolcanoUnitStep,
 } from "../../contracts/p3-volcano-unit.types";
-import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
@@ -43,8 +44,8 @@ const roundTrip = (state: VolcanoUnitState) => volcanoUnitCodec.decode(JSON.pars
 const tick = (state: VolcanoUnitState, wallTimeMs: number, monotonicMs = 0) =>
   reduceVolcanoUnit(state, { kind: "deadline", clock: clock(wallTimeMs, monotonicMs) });
 // 保存 1 世代の byte（checkpoint envelope の JSON＋generation/capturedAt の 62 byte の予約）と、pending の配送予約を足した値（P3-CODEC-RES-01）。
-const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v3", unit: "U-V",
-  generation: 0, capturedAt: 0, payload: volcanoUnitCodec.encode(state), sha256: "0".repeat(64) })) + 62 + INPUT_BOUNDARY_MAX_BYTES;
+const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v4", unit: "U-V",
+  generation: 0, capturedAt: 0, payload: volcanoUnitCodec.encode(state), sha256: "0".repeat(64) })) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
 const reserved = (state: VolcanoUnitState) => generation(state) + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
 const emptyOwner = (now: ReturnType<typeof clock>) => restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" },
   "U-T": { kind: "empty" }, "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
@@ -284,10 +285,12 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     const silent = tick(crowded, t0 + 8_000, 8_000);
     expect([silent.state.batch, silent.intents, silent.state.persistence]).toEqual([null, [], crowded.persistence]);
     expect(silent.state.intents).toBe(seeds);
-    // batch の通知は前の batch の未配送の通知を置き換える（P3-C9-REPLACEMENT=A）。
+    // batch の通知は前の batch の未配送の通知を置き換える（P3-C9-REPLACEMENT=A）。置き換えた pending は intents から外れる（P3-NL-AC05 (1)）。
     const again = send(quiet.state, F.scheduled, volcano("507", "霧島山"), t0 + 9_000, 9_000).state;
-    expect(tick(again, t0 + 17_000, 17_000).state.intents.map((item) => [item.subject, item.disposition])).toEqual([
-      ["normal/VFVO53/batch", "superseded"], ["normal/VFVO53/batch", "superseded"], ["normal/VFVO53/batch", "pending"], ["normal/VFVO53/batch", "pending"]]);
+    const rebatched = tick(again, t0 + 17_000, 17_000);
+    expect(rebatched.state.intents.map((item) => [item.subject, item.disposition])).toEqual([
+      ["normal/VFVO53/batch", "pending"], ["normal/VFVO53/batch", "pending"]]);
+    expect(rebatched.state.intents).toEqual(rebatched.intents);
     // 7 秒おきの追加でも maxWait 90 秒で 1 回（13 火山、本文は「13火山: 先頭 3 火山 +10」）。
     let state = emptyState();
     for (let index = 0; index < 13; index++) state = send(state, F.scheduled, volcano(`V${index}`, `火山${index}`), t0 + index * 7_000,
@@ -425,8 +428,8 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect(dropped.state.intents).toBe(crowded.intents);
     // 配送の更新で attempts が 1 桁から 5 桁・nextAttemptAt の桁が増えても、予約の内側で decode が受ける。
     const budget = send({ ...emptyState(), intents: seeded(10, pad) }, F.o1).state;
-    const grown = reduceVolcanoUnit(budget, { kind: "intentUpdate", clock: clock(reported), intentUpdate: pending(budget).map((item) => ({ id: item.id,
-      attempts: 12_345, nextAttemptAt: reported + 0.123456, disposition: "pending" as const })) });
+    const grown = reduceVolcanoUnit(budget, { kind: "intentUpdate", clock: clock(reported), intentUpdate: pending(budget).map((item) => ({ ...item,
+      attempts: 12_345, nextAttemptAt: reported + 0.123456, disposition: "pending" as const, lossReason: null })) });
     expect(roundTrip(grown.state).kind).toBe("restored");
 
     // I-U-V.capacityMeasurement の同時最大状態（実例の最大）と、上限の文字列での上界。どちらも encode でき 4,194,304 byte 以下で decode が受ける。
@@ -525,7 +528,7 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       ["pending + delivery reserve > 131072 bytes", { ...value, intents: reserveOver(intent) }],
       ["attempts negative", { ...value, intents: [{ ...intent, attempts: -1 }] }],
       ["nextAttemptAt not finite", { ...value, intents: [{ ...intent, nextAttemptAt: null }] }],
-      ["pending + terminal > 229,376 bytes", { ...value, intents: terminalOver(intent) }],
+      ["terminal intent (P3-NL-AC05)", { ...value, intents: [{ ...intent, disposition: "delivered" }] }],
       ["intent of another unit", { ...value, intents: [{ ...intent, unit: "U-N" }] }],
       ["intent subject form", { ...value, intents: [{ ...intent, subject: "normal/VYSE50/1", source: { ...(intent.source as Row), subject: "normal/VYSE50/1" } }] }],
     ];
@@ -577,19 +580,20 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       .toEqual([["changed", "revisionOnly"], [["updated", "[訂正] 噴火警報（火口周辺）", true], ["updated", "[訂正] 噴火警報（火口周辺）", true]]]);
     // 置換（P3-C9-REPLACEMENT=A）: 同じ subject・channel の新しい intent は古い pending を、取消は対象 subject の全 pending を置き換える。
     const replaced = send(alert.state, F.continuation, retime("2020-05-22T13:03:30+09:00")).state;
-    expect(replaced.intents.map((item) => item.disposition)).toEqual(["superseded", "superseded", "pending", "pending"]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(replaced.intents.map((item) => item.disposition)).toEqual(["pending", "pending"]);
     const cancelled = send(replaced, F.alertCancel, retime("2020-05-22T13:03:40+09:00")).state;
     expect(pending(cancelled).map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
     expect(send(alert.state, F.o1, undefined, at("2020-05-22T13:03:10+09:00")).state.intents.slice(0, 2)).toEqual(alert.state.intents);
     // intentUpdate: 既存 id だけを一括で更新し、保存世代を 1 つ進める。未知 id・同値は no-op。
     const [desktop] = alert.intents;
-    const updated = reduceVolcanoUnit(alert.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: [{ id: desktop.id,
-      attempts: 1, nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending" }, { id: "unknown", attempts: 1, nextAttemptAt: 0,
-      disposition: "delivered" }] });
+    const updated = reduceVolcanoUnit(alert.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: [{ ...desktop,
+      attempts: 1, nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null }, { id: "unknown", attempts: 1, nextAttemptAt: 0,
+      disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null }] });
     expect([updated.state.persistence.currentGeneration, updated.decisions]).toMatchObject([alert.state.persistence.currentGeneration + 1,
       [{ decision: "changed", change: "deliveryOnly" }]]);
-    expect(reduceVolcanoUnit(updated.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: { id: desktop.id, attempts: 1,
-      nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending" } }).state).toBe(updated.state);
+    expect(reduceVolcanoUnit(updated.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: { ...desktop, attempts: 1,
+      nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null } }).state).toBe(updated.state);
     // 復元直後の続報は復元した三 slice との差で決める（同じ報は duplicate で鳴らさない、継続は info）。試験は desktop だけ。
     const restored = reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(alert.state),
       clock: clock(desktop.createdAt + 1) }).state;
@@ -729,26 +733,20 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     }
   });
 
-  // 実不具合の再発防止の型（C8 の Q-C8-IMPL-AMEND(1)(2) を U-V で）: owner を通した更新・保存・復元。
-  it("P3-C9-T05 contractBoundary / AC06: an owner terminal update at the terminal budget and pending at its budget survive save and restore", () => {
+  // 実不具合の再発防止の型（C8 の Q-C8-IMPL-AMEND(1)(2) を U-V で）: owner を通した更新・保存・復元。終端記録の予算は無くなった
+  // （P3-NL-AC05 (2)）ので、終端の更新は intent を外して owner が採る。
+  it("P3-C9-T05 contractBoundary / AC06: an owner terminal update removes its intent and pending at its budget survives save and restore", () => {
     const reported = at("2020-05-22T14:49:00+09:00");
     const template = send(emptyState(), F.o1).intents[0];
-    const terminalBytes = (values: readonly VolcanoIntent[]) => values.filter((item) => item.disposition !== "pending")
-      .reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
     const old: VolcanoIntent = { ...template, id: "old-pending", createdAt: reported - 100_000, expiresAt: reported + 80_000 };
-    const done = (index: number): VolcanoIntent => ({ ...template, id: `done-${index}`, createdAt: reported + index, disposition: "delivered" });
-    let count = 0;
-    while (terminalBytes(Array.from({ length: count + 1 }, (_, index) => done(index))) <= 98_304) count++;
     const now = clock(reported + 1_000);
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
-    const owner = { ...empty, units: { ...empty.units, "U-V": { ...emptyState(), intents: [old, ...Array.from({ length: count }, (_, index) => done(index))] } } };
-    const updated = intentUpdateOwner(owner, "U-V", [{ id: old.id, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered" }], now,
+    const owner = { ...empty, units: { ...empty.units, "U-V": { ...emptyState(), intents: [old] } } };
+    const updated = intentUpdateOwner(owner, "U-V", [{ ...old, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered", lossReason: null }], now,
       linkedUnitTable);
     expect(updated.adopted).toBe(true);
-    expect(updated.state.units["U-V"]!.intents.find((item) => item.id === old.id)?.disposition).toBe("delivered");
-    // 終端記録の合計が 98,304 byte を超える分は最古（done-0）から期限前に回収し、更新で終端にした記録は回収しない。
-    expect(updated.state.units["U-V"]!.intents.some((item) => item.id === "done-0")).toBe(false);
+    expect(updated.state.units["U-V"]!.intents).toEqual([]);
     expect(roundTrip(updated.state.units["U-V"]!).kind).toBe("restored");
     // 予算いっぱいに受理した pending が、最長の配送の更新（attempts 16 桁・nextAttemptAt 25 文字）の後も保存・復元できる。
     let full = emptyState();
@@ -758,18 +756,17 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect(pending(full).length).toBeLessThan(128);
     const first = roundTrip(full);
     if (first.kind !== "restored") throw new Error("the admitted state does not decode");
-    const grown = intentUpdateOwner({ ...empty, units: { ...empty.units, "U-V": first.state } }, "U-V", pending(first.state).map((item, index) => ({
-      id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
-      disposition: index % 3 === 0 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    const grown = intentUpdateOwner({ ...empty, units: { ...empty.units, "U-V": first.state } }, "U-V", pending(first.state).map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
+      disposition: index % 3 === 0 ? "superseded" as const : "pending" as const, lossReason: null })), now, linkedUnitTable);
     expect(grown.adopted).toBe(true);
     expect(roundTrip(grown.state.units["U-V"]!).kind).toBe("restored");
   });
 
   // 実不具合の再発防止（F08、P3-CODEC-AC01）: 旧 4 MiB の内側で保存した state が移行なしで復元し、VFVO50 1 報で 4 MiB を超えても 5 MiB の内側で保存・復元できる。
   it("P3-CODEC-T01 regression / AC01,AC02: F08 — a state saved under 4 MiB restores, takes one VFVO50 and saves and restores within 5 MiB", () => {
-    // 開始の件数は K2 の identity の鍵で 109 から 108 へ、K7 の Control/DateTime で 101 へ（開始 ≤ 4 MiB・1 報後 > 4 MiB の意味は同じ、
-    // P3-AUTH-AC08(5)・P3-VM-AC08）。
-    const start = f08State(101, true);
+    // 開始の件数は K2 の identity の鍵で 109 から 108 へ、K7 の Control/DateTime で 101 へ、終端記録（98,304 byte）を外し通知の印を足して 107 へ
+    // （開始 ≤ 4 MiB・1 報後 > 4 MiB の意味は同じ、P3-AUTH-AC08(5)・P3-VM-AC08・P3-NL-AC05）。
+    const start = f08State(107, true);
     const now = clock(at(F08_AT));
     const restored = reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(start), clock: now });
     expect(restored.outcomes).toMatchObject([{ kind: "recoveryApplied", scope: ["U-V"] }]);
@@ -801,13 +798,13 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       [{ kind: "batchCompleted", reason: "deadline" }]]);
     state = kept(flushed.state);
     const owner = emptyOwner(now);
-    const updates = pending(state).map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
-      disposition: index % 2 === 0 ? "superseded" as const : "pending" as const }));
+    const updates = pending(state).map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
+      disposition: index % 2 === 0 ? "superseded" as const : "pending" as const, lossReason: null }));
     const updated = intentUpdateOwner({ ...owner, units: { ...owner.units, "U-V": state } }, "U-V", updates, now, linkedUnitTable);
     expect(updated.adopted).toBe(true);
     state = kept(updated.state.units["U-V"]!);
-    // 更新した intent は全部残る（owner は更新した記録で照合する）。
-    expect(updates.every((update) => state.intents.some((item) => item.id === update.id && item.disposition === update.disposition))).toBe(true);
+    // pending の更新は残り、終端にした intent は外れる（owner は intents に無く世代が進んだことで照合する、P3-NL-AC05 (1)(3)）。
+    expect(updates.every((update) => state.intents.some((item) => item.id === update.id) === (update.disposition === "pending"))).toBe(true);
     console.info("P3-CODEC RES-04 maximum (reserved bytes)", JSON.stringify(sizes));
     // K2 の family ごとの identity（64 字×2）を足した上界（P3-AUTH-RES-02）4,774,476 に、K7 の Control/DateTime と系列ごとの未確認の印
     // （decoder の最大で印 512 件 364,416 byte、印の外の Control/DateTime 41,700 byte）を足した 5,180,592（P3-VM-AC08、5 MiB まで 62,288）。
@@ -829,8 +826,8 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       ["shutdown", eruption, { kind: "shutdown", clock: clock(reported + DAY_MS) }],
       ["shortfallResolution", { ...emptyState(), shortfalls: [shortfall("s1", "volcano", "306")] }, { kind: "shortfallResolution", id: "s1",
         action: "acceptCurrent", clock: clock(reported) }],
-      ["intentUpdate", eruption, { kind: "intentUpdate", clock: clock(reported), intentUpdate: { id: eruption.intents[0].id, attempts: 1,
-        nextAttemptAt: reported + 1_000, disposition: "pending" } }],
+      ["intentUpdate", eruption, { kind: "intentUpdate", clock: clock(reported), intentUpdate: { ...eruption.intents[0], attempts: 1,
+        nextAttemptAt: reported + 1_000, disposition: "pending", lossReason: null } }],
     ];
     for (const [name, base, input] of rows) {
       const probe = reserved(reduceVolcanoUnit(withHeavy(base, 1_000), input).state);
@@ -1101,7 +1098,9 @@ function budgetState(bounded: boolean): VolcanoUnitState {
     if (!bounded) return base;
     const groups = (count: number, codes: number) => Array.from({ length: count }, (_, at) => ({ kindName: wide(32),
       codes: Array.from({ length: at === 0 ? codes : 0 }, (_, item) => `${"8".repeat(12)}${String(item).padStart(4, "0")}`) }));
-    return { ...base, volcanoName: wide(32), kind: { code: "12345678", name: wide(32), condition: wide(8) }, lastKind: { code: "12345678", name: wide(32) },
+    // P3-NL-AC15 (2): 上界は陸上・海上の系列の最長の通知の印も持つ。
+    return { ...base, notice: LONGEST_NOTICE, marineNotice: LONGEST_NOTICE, volcanoName: wide(32), kind: { code: "12345678", name: wide(32), condition: wide(8) },
+      lastKind: { code: "12345678", name: wide(32) },
       landKind: { code: "12345678", name: wide(32), condition: wide(8) },
       level: null, headline: wide(256), municipalities: groups(8, 128), marineAreas: groups(4, 32), coordinate: "+".repeat(40), truncated: false };
   });
@@ -1109,7 +1108,7 @@ function budgetState(bounded: boolean): VolcanoUnitState {
     const subject = `${operation(index)}/volcano:eruption/${eventId(index)}`;
     const base = { ...real.eruption, subject, operation: operation(index), eventId: eventId(index), volcanoCode: code(index),
       source: ref(subject, "VFVO52", operation(index)), retainUntil: reported + 2 * DAY, validUntil: reported + DAY };
-    return bounded ? { ...base, volcanoName: wide(32), phenomenon: { code: "12345678", name: wide(16) }, eventDateTimeRaw: "+".repeat(40),
+    return bounded ? { ...base, notice: LONGEST_NOTICE, volcanoName: wide(32), phenomenon: { code: "12345678", name: wide(16) }, eventDateTimeRaw: "+".repeat(40),
       craterName: wide(32), plumeAboveCrater: value(wide(32)), plumeAboveSeaLevel: value(wide(32)), plumeDirection: wide(16), headline: wide(256),
       municipalities: Array.from({ length: 128 }, (_, item) => `${"7".repeat(12)}${String(item).padStart(4, "0")}`) } : base;
   });
@@ -1119,7 +1118,7 @@ function budgetState(bounded: boolean): VolcanoUnitState {
     const subject = `${operation(index)}/volcano:ashfall/${code(index)}`;
     const base = { ...real.ashfall, subject, operation: operation(index), volcanoCode: code(index), eventId: eventId(index),
       source: ref(subject, "VFVO54", operation(index), ashAt), retainUntil: ashAt + 7 * DAY };
-    return bounded ? { ...base, volcanoName: wide(32), headline: wide(256), forecastStartsAt: reported, forecastEndsAt: reported + 3_600_000,
+    return bounded ? { ...base, notice: LONGEST_NOTICE, volcanoName: wide(32), headline: wide(256), forecastStartsAt: reported, forecastEndsAt: reported + 3_600_000,
       groups: Array.from({ length: 8 }, (_, group) => ({ hazardClass: "unknown" as const, ashCode: `7${String(group).padStart(7, "0")}`, ashName: wide(32),
         areaCount: 2_048, omittedAreaCount: 2_045, topAreas: Array.from({ length: 3 }, (_, area) => ({ code: `${"6".repeat(12)}${group}${area}00`,
           name: wide(32), firstForecastEndAt: reported + 3_600_000 })) })), omittedGroupCount: 2_040 } : base;
@@ -1129,8 +1128,8 @@ function budgetState(bounded: boolean): VolcanoUnitState {
       serialRaw: "1234567890" }, reason: "terminalQuarantine" })) : [];
   return { ...emptyState(), alerts, eruptions, ashfalls, shortfalls, intents: fillIntents(send(emptyState(), F.a306).intents[0]) };
 }
-// pending（実 byte＋配送予約で 131,072 まで、128 件）と終端記録（98,304 まで）を seed の複製で詰める。
-// exact は先頭の pending と先頭の終端記録の body を ASCII で伸ばし、両方の予算をちょうど使い切る（AC07 の decoder の最大）。
+// pending（実 byte＋配送予約で 131,072 まで、128 件）を seed の複製で詰める（終端記録は P3-NL-AC05 で無くなった）。
+// exact は先頭の pending の body を ASCII で伸ばし、予算をちょうど使い切る（AC07 の decoder の最大）。
 function fillIntents(seed: VolcanoIntent, exact = false): VolcanoIntent[] {
   const reported = at("2020-05-22T15:00:00+09:00");
   const sized = (index: number, disposition: VolcanoIntent["disposition"]): VolcanoIntent => ({ ...seed, id: `${seed.id}:${index}`,
@@ -1144,21 +1143,12 @@ function fillIntents(seed: VolcanoIntent, exact = false): VolcanoIntent[] {
     pendingIntents.push(item);
     size += width;
   }
-  const terminal: VolcanoIntent[] = [];
-  for (let size = 0, index = 1000; ; index++) {
-    const item = sized(index, "delivered");
-    if (size + bytes(item) + 1 > 98_304) break;
-    terminal.push(item);
-    size += bytes(item) + 1;
-  }
   if (exact) {
     const pad = (item: VolcanoIntent, length: number): VolcanoIntent => ({ ...item, payload: { ...item.payload, body: item.payload.body + "x".repeat(length) } });
     const pendingSize = Buffer.byteLength(JSON.stringify(pendingIntents)) + pendingIntents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
-    const terminalSize = terminal.reduce((sum, item) => sum + bytes(item) + 1, 0);
     pendingIntents[0] = pad(pendingIntents[0], 131_072 - pendingSize);
-    terminal[0] = pad(terminal[0], 98_304 - terminalSize);
   }
-  return [...pendingIntents, ...terminal];
+  return pendingIntents;
 }
 
 // P3-CODEC-AC01 の F08 構成: budgetState(true) の上限の記録で、先頭 escaped 件の記録の地域コードをバックスラッシュ 16 字（JSON で 32 byte）にする。
@@ -1230,13 +1220,11 @@ function reserveOver(intent: Record<string, unknown>): Record<string, unknown>[]
   if (Buffer.byteLength(JSON.stringify(items)) !== 131_072) throw new Error("pending is not 131,072 bytes");
   return items;
 }
-// 「pending の実 byte＋予約＋終端記録」が 229,377 byte（世代の上限より十分小さい）。
-function terminalOver(intent: Record<string, unknown>): Record<string, unknown>[] {
-  const make = (index: number, pad: number) => ({ ...intent, id: `done-${index}`, disposition: "delivered",
-    payload: { ...(intent.payload as Record<string, unknown>), body: "x".repeat(1 + pad) } });
-  const items = Array.from({ length: 80 }, (_, index) => make(index, 2_000));
-  const terminal = (values: readonly Record<string, unknown>[]) => values.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
-  items[0] = make(0, 2_000 + 229_377 - 2 - terminal(items));
-  if (2 + terminal(items) !== 229_377) throw new Error("terminal is not 229,377 bytes");
-  return items;
-}
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-V restores failed and null pending with their fields and drops a started one", () => {
+  const issued = send(emptyState(), F.a306);
+  expect(issued.intents.length).toBeGreaterThanOrEqual(2);
+  expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
+    restore: (state, at) => reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(state), clock: at }),
+    markOf: (state, subject) => state.alerts.find((item) => item.subject === subject)?.notice });
+});

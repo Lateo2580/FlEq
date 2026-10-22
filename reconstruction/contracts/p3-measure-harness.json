@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "8cc8d1d96f6ca11d202b024bfb10546db61ad1cc857db2cea5be5e313c265fa8",
+    "sha256": "29eab0138312161300922a225811d456ff479b21c6e0a9701d3251fa6e4dd250",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -278,8 +278,8 @@
           "reconstruction/test/eew-e01/run.mjs:175 «63ae549d2228ccd9»",
           "reconstruction/test/eew-e01/windows.mjs:90 «9d9be920312917b2»",
           "reconstruction/test/eew-e01/windows.mjs:203 «ceeb57ed26a79770»",
-          "reconstruction/src/domains/eew/eew.ts:445 «b07146dba76c58e4»",
-          "reconstruction/src/domains/eew/eew.ts:446 «533bdccc801402bd»",
+          "reconstruction/src/domains/eew/eew.ts:534 «b07146dba76c58e4»",
+          "reconstruction/src/domains/eew/eew.ts:535 «533bdccc801402bd»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «dddd02e05041ae59»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:558 «5381e7ef5b71152e»",
           "reconstruction/test/eew-e01/e12-run.mjs:99 «4237bba2f4a5f589»"
@@ -289,9 +289,9 @@
         "id": "P3-MH-AC02",
         "requirement": "K6の後の満杯の状態（RES-07の合法最大）は作者裁定P3-MH-FULL-STATEの案で作る（裁定の前に実装を発注しない）。どの案でも: 充填の確かめでsnapshotActiveのeewは512/0/0（cycleCは512/1/0）とAC01(5)のeewHorizonStale 0件。gateの数はsnapshotにも保存にも出ないので、AC01(5)と、充填のcurrentの失効の後にeewのactiveCountが下がることで間接に確かめる。新しいinitial-state（P3-MH-SETUP-PATH=A）のrecipeに、採った案の規則と期待値を書く。案ごと: B・D（P窓）＝測定の開始とobservedBeforeMeasureの確かめ（windows.mjsのverify(0)）を、充填のEEWの起点＋600,000msより前に終える（超えたらBlocked、理由currentsExpiredBeforeMeasure）。結果に失効の時刻（hostの単調時計）と、E05のmax RSSとE02の分位点（p50・p99・max）をそれぞれ失効の前・後に分けた値を報告として並べる（判定は今どおり窓全体で、E05は上限400MiB、E02は今の規則）。C・D（C窓とE14）＝充填の確かめの後、hostの壁時計が充填の起点＋600,000ms＋2 tickを過ぎ、/snapshotのeewが0/0/0になるまで待ち（上限は起点＋660,000ms、超えたらstateNotReproducible）、weatherの件数をもう一度確かめてから周期・束を始める。その後のcurrentは0のままではない: cycleCの通常の続報（Serial 2、1周期に1件）は採用ごとにcurrentを作り直し各10分生きるので、周期0〜9で増えて約10件で一定になる（warm-upは継いだ5周期のまま）。訓練のEventIDは同じ周期のうちに取消すので残らない。E14の束の訂正もcurrentを作り直し、20秒間隔なら約30件で一定になる。recipeの期待値はこの数で書く（周期の終わりのeewのactiveCount、cycleCの周期10以後は約10）。E06のexpectedPerCycle（eewCapacityEvicted 1件/周期）は変えない。A＝充填した1,024 subjectを各々currentUntilより前に送り直す規則（Serial＋1・予測同じ・報時刻は送る時点）をrecipeに書き、送り直しの入力は負荷と別に窓の結果で数える。どの案でも負荷N・P・Cは変えない。無いと: K6の後は充填のcurrentが10分で消えるので、窓（E02-Pは約17分、E07-C・E06は60分超）の状態が窓の途中で変わり、何を測ったかが窓ごとに定まらない",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:272 «a777a5aa32eb2368»",
-          "reconstruction/src/domains/eew/eew.ts:273 «1ced5f9ee11c0061»",
-          "reconstruction/src/domains/eew/eew.ts:508 «cb7d034da431db0a»",
+          "reconstruction/src/domains/eew/eew.ts:266 «a777a5aa32eb2368»",
+          "reconstruction/src/domains/eew/eew.ts:267 «1ced5f9ee11c0061»",
+          "reconstruction/src/domains/eew/eew.ts:597 «cb7d034da431db0a»",
           "reconstruction/test/eew-e01/windows.mjs:207 «978570199a3ae1ef»",
           "reconstruction/test/eew-e01/windows.mjs:220 «ff427cfde8eccbac»",
           "reconstruction/test/eew-e01/windows.mjs:331 «d2cc6f5204a03a4e»",
@@ -319,8 +319,8 @@
           "reconstruction/test/eew-e01/run.mjs:586 «2bfeca300c6bc1e0»",
           "reconstruction/test/eew-e01/run.mjs:1022 «85806ed5c1d24587»",
           "reconstruction/test/eew-e01/tsunami.mjs:142 «628c89efb787f40c»",
-          "reconstruction/src/runtime/composition-root.ts:608 «11c6541c5cd2944f»",
-          "reconstruction/src/runtime/composition-root.ts:902 «8ae52d9d693e7af3»",
+          "reconstruction/src/runtime/composition-root.ts:615 «11c6541c5cd2944f»",
+          "reconstruction/src/runtime/composition-root.ts:909 «8ae52d9d693e7af3»",
           "reconstruction/src/host/host.ts:432 «8edb03cbaac4d5d9»",
           "reconstruction/src/host/host.ts:477 «ad819a23ad1211bf»",
           "reconstruction/contracts/p3-tsunami-e01.json:140 «5ba34e07c2110ba7»",
@@ -400,8 +400,8 @@
         "requirement": "凍結の前の短い予備（統合担当、Mac mini。予備は未確認で合否に使わない。draftはAC05(6)の引数でAC05(1)の1組から作る）で、起草の前提を実機で確かめる: (a) 付け直した充填: leaveRoomForPとcycleCでeewが512/0/0（cycleCは512/1/0）、eewHorizonStale 0件、充填＋静まりの所要（C4では約60秒）。充填の起点＋600,000ms＋2 tickでeewが0/0/0に下がり、そのとき新しい通常のEventIDの報がcapacityExceededのまま（gateが残る） (b) cycleC: 失効の後の周期でeewCapacityEvictedが周期ごとに1件（initial-stateのexpectedPerCycle）、eewHorizonStale 0件 (c) 3つの保存母集団の較正: warm-up 20＋標本20程度で、成立率と「引き金（forecastDeadlineOverlapはtick）→対象のencode開始」の分布。forecastDeadlineOverlapの保存がvalidUntilの後の最初のtickのdeadlineDoneの直後に始まり、次のtickではないこと（mailboxのtickの行とcheckpointのencode開始を並べる）。noticeの満了による追加のtickの回数 (d) E14: owner側の区間が全部の束で出て正 (e) E12の旧側の所要が600秒の内であること（AC01(3)）。startのtime: 窓ごとにhostClockUnverified・hostClockAhead・hostClockBehindが0件 (f) 凍結manifestの照合: osVersionが27.0.0 arm64でpreflightを通り、contractSha256の鍵の契約を1つ欠いた版と1文字変えた版で走らずに止まる (g) P3-MH-FULL-STATEがAなら送り直しで通知intentが出ないこと、B・DならP窓のE05の最大RSSが失効の前か後か。結果は作者へ報告し、前提が外れたら凍結しない（計画§4.3のNO-GOの扱い）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:159 «d81307e8b66b9886»",
-          "reconstruction/src/domains/eew/eew.ts:538 «2782abadd16a835c»",
-          "reconstruction/src/domains/eew/eew.ts:539 «ca785e9071c4cf01»",
+          "reconstruction/src/domains/eew/eew.ts:611 «e1d1a8112f8bf816»",
+          "reconstruction/src/domains/eew/eew.ts:612 «33f9d7eaf7be7d52»",
           "reconstruction/contracts/p3-tsunami-e01.json:140 «5ba34e07c2110ba7»"
         ]
       }

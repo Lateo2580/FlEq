@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "43fa2f166c3c27a7a6d94a707efcc22bbb7b287e9a3674d43bc28900432e4353",
+    "sha256": "5ef24b55a70bb476dfb1c555fa90b2008b41de9a9ca2958ac16901d563c42f6d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -526,7 +526,7 @@
           "docs/specs/reconstruction-p0-contracts.md:372 «88b96373c39dc725»",
           "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
           "reconstruction/contracts/p2-shared-runtime.json:231 «83b1c0f70f4231a6»",
-          "reconstruction/contracts/p2-notification-delivery.json:481 «be44bb2f479ff151»"
+          "reconstruction/contracts/p2-notification-delivery.json:481 «61b61e180de1814d»"
         ]
       },
       {

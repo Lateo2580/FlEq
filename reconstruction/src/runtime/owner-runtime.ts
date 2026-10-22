@@ -8,6 +8,7 @@ import type {
   CurrentConfirmationEvidence,
   DiagnosticDetails,
   DiagnosticEvent,
+  LossTally,
   NotificationIntentUpdate,
   PersistenceStatus,
   RejectionReason,
@@ -26,6 +27,7 @@ import type {
   SemanticEnvelopeResult,
 } from "../../contracts/p2-shared-runtime.types";
 import type { CodecMap } from "../checkpoint/checkpoint";
+import { keptLosses } from "../checkpoint/checkpoint";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
 import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
@@ -40,6 +42,8 @@ type OwnerState = Readonly<{
   units: Readonly<Partial<RuntimeUnitStates>>;
   deadlines: Readonly<Partial<Record<RuntimeUnitId, RuntimeUnitDeadline | null>>>;
   checkpointAttempts: RuntimeState["checkpointAttempts"];
+  // P3-NL-AC14 (1): unit ごとの H39 の件数（envelope の losses。capture で書き、復元で読む。数え方は発注 2）。
+  losses: Readonly<Partial<Record<RuntimeUnitId, readonly LossTally[]>>>;
   // false once the shutdown input was applied: a later parser input is not applied (P2-WIRE-T04).
   accepting: boolean;
   // true once finalized: no deadline and no input is applied (spec §5.9 step 4).
@@ -66,21 +70,21 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const noHistory = { dayKey: null, count: 0, maxInt: null, countedEventIds: [], recent: [] } as const;
 const initialUnits: RuntimeUnitStates = {
-  "U-E": { schemaVersion: "p2-eew-unit-v3", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: cleanPersistence },
-  "U-W": { schemaVersion: "p2-weather-current-unit-v4", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+  "U-E": { schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [], persistence: cleanPersistence },
+  "U-W": { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
-  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v4", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
-  "U-T": { schemaVersion: "p3-tsunami-unit-v3", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: cleanPersistence },
-  "U-Q": { schemaVersion: "p3-seismic-unit-v3", contentRevision: 0, earthquakes: [], longPeriods: [],
-    daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], persistence: cleanPersistence },
-  "U-N": { schemaVersion: "p3-nankai-unit-v3", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
-  "U-V": { schemaVersion: "p3-volcano-unit-v3", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v5", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
+  "U-T": { schemaVersion: "p3-tsunami-unit-v4", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
+  "U-Q": { schemaVersion: "p3-seismic-unit-v4", contentRevision: 0, earthquakes: [], longPeriods: [],
+    daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: cleanPersistence },
+  "U-N": { schemaVersion: "p3-nankai-unit-v4", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
+  "U-V": { schemaVersion: "p3-volcano-unit-v4", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: cleanPersistence },
-  "U-L": { schemaVersion: "p3-landslide-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-R": { schemaVersion: "p3-flood-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-B": { schemaVersion: "p3-briefing-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-M": { schemaVersion: "p3-local-bulletins-unit-v4", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
-  "U-Y": { schemaVersion: "p3-typhoon-unit-v4", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
+  "U-L": { schemaVersion: "p3-landslide-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-R": { schemaVersion: "p3-flood-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-B": { schemaVersion: "p3-briefing-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-M": { schemaVersion: "p3-local-bulletins-unit-v5", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
+  "U-Y": { schemaVersion: "p3-typhoon-unit-v5", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
 };
 
 const placeUnits = (place: ExecutionPlace): readonly RuntimeUnitId[] =>
@@ -272,8 +276,8 @@ function checkClock(clock: ClockReading): void {
     throw new RangeError("runtime clock must be finite");
 }
 
-// Startup restore of the owner's units (P2-A3-AC09 per owner): each unit's restore runs once, the restored
-// persistence is never synthesized. Views are projected by ownerViews once restore and deadlines are applied.
+// 起動時の owner の unit の復元（owner ごとの P2-A3-AC09）。各 unit の restore は 1 回だけで、復元した persistence を合成しない。view は
+// 復元と期限を当てた後に ownerViews が射影する。
 function restoreOwner(input: Readonly<{ runId: string; place: ExecutionPlace; clock: ClockReading;
   restored: Readonly<Partial<Record<RuntimeUnitId, RestoreUnitResult>>> }>,
 units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ restoration: Partial<RuntimeRestoration> }> {
@@ -282,7 +286,7 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
   checkClock(input.clock);
   const pick = <T>(value: (unit: RuntimeUnitId) => T) => Object.fromEntries(own.map((unit) => [unit, value(unit)]));
   const start: OwnerState = { runId: input.runId, place: input.place, units: pick((unit) => initialUnits[unit]),
-    deadlines: pick(() => null), checkpointAttempts: {}, accepting: true, finalized: false };
+    deadlines: pick(() => null), checkpointAttempts: {}, losses: {}, accepting: true, finalized: false };
   const work = session(start, units, input.clock);
   const restoration: Partial<Record<RuntimeUnitId, RuntimeRestoration[RuntimeUnitId]>> = {};
   const restoreUnit = <K extends RuntimeUnitId>(unit: K) => {
@@ -299,8 +303,11 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
     const persistence: PersistenceStatus = { kind: "saved", currentGeneration: envelope.generation,
       savedGeneration: envelope.generation, savedCapturedAt: envelope.capturedAt, savedAckAt: null, dirtySince: null };
     const seeded = { ...decoded.state, persistence };
-    // The one `as`: CodecMap is typed over JsonValue; this unit's own codec made both state and persisted payload.
-    // With K generic the whole job escapes the correlated union here, so unit, state and input are checked by eye.
+    // P3-NL-AC14 (6): lastAt＋24 時間を過ぎた行は復元のときに外す。
+    const losses = keptLosses(envelope.losses ?? [], input.clock.wallTimeMs).losses;
+    if (losses != null) work.state = { ...work.state, losses: { ...work.state.losses, [unit]: losses } };
+    // 唯一の `as`: CodecMap は JsonValue で型付けされ、state と保存の payload はこの unit 自身の codec が作った。K が generic なので
+    // ここでは job 全体が相関した union から外れ、unit・state・入力の対応は目で確かめる。
     const step = runUnitJob(units, { unit, state: seeded,
       input: { kind: "restore", persisted: codec.encode(seeded), clock: input.clock } } as UnitJob);
     work.state = { ...work.state, units: { ...work.state.units, [unit]: step.state },
@@ -337,7 +344,7 @@ function routedUnit(state: OwnerState, completion: ParserCompletion): RuntimeUni
   return route.unit;
 }
 
-// One parser input: route, receive or exactly one diagnostic (P3-UNIT-TABLE-001, P3-C3A-NONREADY).
+// parser の入力 1 件: 振り分け、受信、またはちょうど 1 件の診断（P3-UNIT-TABLE-001、P3-C3A-NONREADY）。
 function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: ClockReading, units: UnitTable,
   beforeProjection?: () => void): OwnerStep {
   checkClock(clock);
@@ -345,24 +352,26 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
   if (completion.runId !== state.runId || state.finalized) return work.finish(true, beforeProjection);
   const unit = routedUnit(state, completion);
   const route = completion.result.kind === "decoded" ? classifyHeadType(completion.result.material.headType) : null;
-  // Before a receive, a unit that asks for it reclaims its own wall-clock deadline (A4 terminal records).
-  // Maintenance has no parser attribution: only the receive below names this input.
+  // 受信の前に、求める unit は自分の wall の期限（記録の期限）を回収する。回収は parser の入力に帰属させず、この入力の名を
+  // 持つのは下の受信だけ。
   if (unit != null && units[unit].reclaimDeadlineBeforeReceive && state.deadlines[unit]?.wallTimeMs != null)
     work.applyDeadlines([unit]);
-  // Units re-run the common Head/date check themselves: one diagnostic per input, and
-  // U-W keeps §7.8 freshness monitoring for rejected inputs (A1 freshnessException).
+  // unit は共通の Head・日時の検査を自分でもう一度行う（入力ごとに診断 1 件）。U-W は拒否した入力でも §7.8 の鮮度の監視を続ける
+  // （A1 freshnessException）。
   if (unit != null && completion.result.kind === "decoded") {
     const generationBeforeReceive = ownUnit(work.state, unit).persistence.currentGeneration;
     const received = work.reduceUnit(unit, { kind: "receive", material: completion.result.material, clock });
     // 容量の拒否でも失敗警報と title の書き換えで世代が進めば、その世代に帰属させる（P3-CC-AC10(9)、正常採用の扱いにはしない）。
+    // U-E の採らない取消が取消の intent と印を足した世代も同じ（P3-NL-AC04 (5)）。
     if (received.state.persistence.currentGeneration > generationBeforeReceive
-      && received.decisions.some((decision) => decision.decision === "changed" || decision.decision === "capacityExceeded"))
+      && (received.intents.length !== 0
+        || received.decisions.some((decision) => decision.decision === "changed" || decision.decision === "capacityExceeded")))
       work.generationInputIds[unit] = [completion.inputId];
   } else if (completion.result.kind === "rejected") {
     const details = parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId);
     if (details != null) work.diagnose(details);
   } else if (route?.status === "ignored") {
-    // P3-UNIT-TABLE-001: at most one diagnostic per input; ignored headTypes skip the envelope check.
+    // P3-UNIT-TABLE-001: 入力ごとに診断は 1 件まで。無視する headType は封筒の検査をしない。
     work.diagnose(boundDiagnosticDetails({ level: "INFO", component: "shared-runtime", reason: "routeIgnored", inputId: completion.inputId }));
   } else {
     const result = validateSemanticEnvelope(completion.result.material);
@@ -376,8 +385,8 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
   return work.finish(true, beforeProjection);
 }
 
-// The correlated intent updates of one unit, adopted in one unit input (P2-A1 B4) or not at all (P3-C3A-NOTIFY-ADOPT):
-// an update for an intent the unit no longer holds as pending adopts nothing. decision is the fixed decision clock.
+// 1 unit の照合済みの intent の更新を 1 回の unit 入力でまとめて採るか、まったく採らない（P2-A1 B4、P3-C3A-NOTIFY-ADOPT）。unit が
+// pending として持たない intent への更新は何も採らない。decision は固定した判断の時計。
 function intentUpdateOwner<K extends RuntimeUnitId>(state: OwnerState, unit: K, updates: readonly NotificationIntentUpdate[],
   decision: ClockReading, units: UnitTable): OwnerStep & Readonly<{ adopted: boolean }> {
   checkClock(decision);
@@ -387,29 +396,18 @@ function intentUpdateOwner<K extends RuntimeUnitId>(state: OwnerState, unit: K, 
   if (state.finalized || updates.length === 0 || updates.some((update) => originals.get(update.id)?.disposition !== "pending"))
     return { ...work.finish(), adopted: false };
   const previousGeneration = before.persistence.currentGeneration;
-  // ponytail: K <= 128, T only byte-bounded (256KiB/16MiB/32MiB); keep O(K + T) batching if budgets grow.
+  // ponytail: unit ごとの pending は 128 件まで（P3-NL-AC05 で終端記録は無い）。上限が増えても O(K) の一括のままにする。
   work.reduceUnit(unit, { kind: "intentUpdate", clock: decision, intentUpdate: updates.length === 1 ? updates[0] : updates });
   const adopted = ownUnit(work.state, unit);
   const intentsById = new Map(adopted.intents.map((intent) => [intent.id, intent]));
-  const terminal = units[unit].terminalIntents;
-  const recordsById = terminal.kind === "deliveryRecords"
-    ? new Map(terminal.records(adopted).map((record) => [record.intentId, record])) : null;
+  // P3-NL-AC05 (3): 終端の intent は全 unit で印に置き換わるので、intents に無く世代が進んだことで採用を確かめる。
   for (const candidate of updates) {
-    const original = originals.get(candidate.id)!;
-    if (recordsById != null && candidate.disposition !== "pending") {
-      // At the wall deadline A4 reclaims the terminal record in the same adoption.
-      const reclaimed = candidate.disposition === "expired" && decision.wallTimeMs >= original.expiresAt;
-      const record = recordsById.get(original.id);
-      if ((!reclaimed && (record?.disposition !== candidate.disposition || record.expiresAt !== original.expiresAt))
-        || intentsById.has(original.id)
-        || adopted.persistence.currentGeneration <= previousGeneration)
-        throw new Error("unit did not adopt the correlated intent update");
-    } else {
-      const intent = intentsById.get(original.id);
-      if (intent?.attempts !== candidate.attempts || intent.nextAttemptAt !== candidate.nextAttemptAt
-        || intent.disposition !== candidate.disposition)
-        throw new Error("unit did not adopt the correlated intent update");
-    }
+    const intent = intentsById.get(candidate.id);
+    if (candidate.disposition !== "pending" ? intent != null || adopted.persistence.currentGeneration <= previousGeneration
+      : intent?.attempts !== candidate.attempts || intent.nextAttemptAt !== candidate.nextAttemptAt
+        || intent.disposition !== candidate.disposition || intent.lastAttempt !== candidate.lastAttempt
+        || intent.replayed !== candidate.replayed || intent.expiresAt !== candidate.expiresAt)
+      throw new Error("unit did not adopt the correlated intent update");
   }
   return { ...work.finish(), adopted: true };
 }

@@ -4,6 +4,7 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -48,6 +49,7 @@ export type NankaiCurrent = Readonly<{
   eventId: string;
   source: ReportRef;
   retainUntil: number; unconfirmed?: ReportRef; // P3-VM-AC04: 系統の未確認の印。取消・期限で事実の消えた現況には無い
+  notice?: NoticeMark; // P3-NL-AC02: 系統の通知の印（記録と同じに生きる）。表示には出さない
 }> & (
   | (Readonly<{ line: "nankai"; status: NankaiCurrentStatus }> & NankaiCurrentFacts)
   | (Readonly<{ line: "VYSE60"; status: "subsequentAdvisory" }> & NankaiCurrentFacts)
@@ -67,6 +69,8 @@ type NankaiInformationIdentity = Readonly<{
   eventId: string;
   operation: Operation;
   retainUntil: number;
+  // P3-NL-AC02 (2): 情報系列の通知の印。情報の本文は保存しないが、印は証拠と一緒に保存する。表示には出さない。
+  notice?: NoticeMark;
 }>;
 type NankaiInformationBase = NankaiInformationIdentity & Readonly<{ source: ReportRef; unconfirmed?: ReportRef }>; // P3-VM-AC04: 情報系列の印は事実と同じく保存しない（spec:512 の N。保存すると上界が予算を越える、AC08）
 type NankaiInformationHeading = Readonly<{
@@ -83,6 +87,7 @@ export type NankaiEvidence = Readonly<{
   reportDateTimeMs: number;
   serialRaw: string;
   infoTypeRaw: string; controlDateTimeRaw: string; // P3-VM-AC01: 比べる材料の Control/DateTime
+  notice?: NoticeMark; // P3-NL-AC02 (2): 保存の形だけが持つ（記録の notice の写し）
 }>;
 // evidence は復元した証拠だけの記録で、事実も source も持たず view・outcome・表示の変化に出ない。
 export type NankaiInformation =
@@ -106,18 +111,18 @@ export type NankaiNotificationPayload = Readonly<{
 export type NankaiIntent = NotificationIntent & Readonly<{ payload: NankaiNotificationPayload }>;
 
 export type NankaiUnitState = Readonly<{
-  schemaVersion: "p3-nankai-unit-v3";
+  schemaVersion: "p3-nankai-unit-v4";
   contentRevision: number;
   currents: readonly NankaiCurrent[];
   // N: 事実は保存しない。復元の後は証拠だけの記録から始まる（spec:512、P3-AUTH-AC01）。
   information: readonly NankaiInformation[];
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly NankaiIntent[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedNankaiUnit = Readonly<{
-  schemaVersion: "p3-nankai-unit-v3";
+  schemaVersion: "p3-nankai-unit-v4";
   currents: readonly NankaiCurrent[];
   intents: readonly NankaiIntent[];
   // 64 件以下・subject の重複なし。鍵の無い保存物は invalid（旧保存は版で捨てる、P3-VM-AC08）。
@@ -159,5 +164,5 @@ export type NankaiUnitStep = Readonly<{
 }>;
 
 export type NankaiUnitCodec = UnitCodec<NankaiUnitState, PersistedNankaiUnit> & Readonly<{
-  schemaVersion: "p3-nankai-unit-v3";
+  schemaVersion: "p3-nankai-unit-v4";
 }>;

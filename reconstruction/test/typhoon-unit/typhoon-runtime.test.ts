@@ -14,6 +14,7 @@ import { envelope, harnessedRoot, manualAdapter, park, startHarness, submit, uni
 import type { Harness } from "../execution-split/owner-harness";
 import { projected, projectionInput, received, startup, step } from "../snapshot-sse/projection-fixture";
 import { analysisXml, clock, compose, decodeXml, emptyState, fixtureXml, iso, probabilityXml, receive, replaceTag, retime, send, sendXml, serial, six } from "./typhoon-fixture";
+import { freshState } from "../../src/units/notice-mark";
 
 // TEST-PATH (2): 製品の publisher と in-process の owner（composition root の一経路）で U-M を通す。
 
@@ -81,7 +82,8 @@ describe("P3-UNIT-Y-001 U-Y through the composition root", () => {
       id: unit, unit, subject: unit, operation: "normal", source: { inputId: unit, origin: "live", operation: "normal", family: unit,
         subject: unit, reportDateTimeRaw: "2026-08-22T17:09:00+09:00", controlDateTimeRaw: "2026-08-22T17:09:00+09:00", serialRaw: "1", infoTypeRaw: "発表" }, transition: "activated",
       channel: "desktop", payload: { domain, level, title: unit, body: unit }, createdAt, expiresAt: createdAt + 180_000,
-      nextAttemptAt: createdAt, attempts: 0, configRevision: "t09", disposition: "pending" });
+      nextAttemptAt: createdAt, attempts: 0, configRevision: "t09", disposition: "pending",
+      ...freshState(unit, "normal", level) });
     const deadlines = (intents: readonly NotificationIntent[]) => ({ desktop: Object.fromEntries(intents.map((item) =>
       [JSON.stringify([item.unit, item.id]), { retryAtMonotonicMs: 0, expiresAtMonotonicMs: 1e9 }])), sound: {} });
     const tsunami = notice("U-T", "tsunami", "critical", 0), eew = notice("U-E", "earthquake-eew", "warning", 5);
@@ -209,7 +211,8 @@ describe("P3-UNIT-Y-001 U-Y through the composition root", () => {
     expect(runningAdapter.aborts).toHaveLength(2);
     expect(view(failed).analysis).toEqual([]);
     expect(afterCancel.analysis.map((item) => item.effective)).toEqual(["cancelled"]);
-    expect(afterCancel.intents.filter((item) => issued.includes(item.id)).map((item) => item.disposition)).toEqual(issued.map(() => "superseded"));
+    // P3-NL-AC05 (1): 置き換えた intent は intents から外れる（結果は系列の印に残る）。
+    expect(afterCancel.intents.filter((item) => issued.includes(item.id))).toEqual([]);
 
     // 保存失敗中の 1.85 MB の確率の報: 受信・意味判定・current の更新を続け、current を前の世代へ巻き戻さない。
     const bigFailing = new MemoryFiles();

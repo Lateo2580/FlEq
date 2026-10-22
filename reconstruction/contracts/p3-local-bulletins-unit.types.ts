@@ -4,6 +4,7 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -25,6 +26,7 @@ type Common = Readonly<{
   operation: Operation;
   // 版と取消の受理の証拠（K2）。事実を捨てた記憶でも残す。
   source: ReportRef; unconfirmed?: ReportRef; // P3-VM-AC04: 系列の未確認の印（取消の採用・期限で消えた記録には無い）
+  notice?: NoticeMark; // P3-NL-AC02: 系列の通知の印（記録と同じに生きる）。表示には出さない
   // 記憶まで含めた保持の期限。起点は source の ReportDateTime（P3-C13-RETENTION）。再起動・再受信で延ばさない。
   retainUntil: number;
 }>;
@@ -106,18 +108,18 @@ export type LocalBulletinsNotificationPayload = Readonly<{
 export type LocalBulletinsIntent = NotificationIntent & Readonly<{ payload: LocalBulletinsNotificationPayload }>;
 
 export type LocalBulletinsUnitState = Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v4";
+  schemaVersion: "p3-local-bulletins-unit-v5";
   contentRevision: number;
   tornado: readonly TornadoCurrent[];
   heat: readonly HeatCurrent[];
   transient: readonly TransientCurrent[];
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly LocalBulletinsIntent[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedLocalBulletinsUnit = Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v4";
+  schemaVersion: "p3-local-bulletins-unit-v5";
   tornado: readonly TornadoCurrent[];
   heat: readonly HeatCurrent[];
   transient: readonly PersistedTransientCurrent[];
@@ -159,5 +161,5 @@ export type LocalBulletinsUnitStep = Readonly<{
 }>;
 
 export type LocalBulletinsUnitCodec = UnitCodec<LocalBulletinsUnitState, PersistedLocalBulletinsUnit> & Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v4";
+  schemaVersion: "p3-local-bulletins-unit-v5";
 }>;

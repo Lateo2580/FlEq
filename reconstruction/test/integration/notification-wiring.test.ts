@@ -9,7 +9,7 @@ import type { TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { buildCapacityExceededLine, buildTsunamiPaint } from "../../src/display/chrome-eew/pure";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
-import { tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
+import { toTsunamiView, tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
 import { observation, vtse41 } from "../tsunami-unit/tsunami-fixture";
 import type { NotificationAbortRequest, NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import { linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
@@ -77,8 +77,8 @@ it("P2-A3-T11 acceptance / AC11: a dirty owner reservation dispatches before che
   fake.complete.get(attempt.attemptId)!({ kind: "delivered", attemptId: attempt.attemptId,
     intentId: attempt.intentId, channel: attempt.channel, completedAt: now });
   await h.settle();
-  expect(h.unit("U-E").deliveryRecords.filter((item) => item.intentId === attempt.intentId))
-    .toMatchObject([{ disposition: "delivered" }]);
+  // P3-NL-AC05: delivered の intent は intents から外れ、結果は EventID の印に残る。
+  expect([h.unit("U-E").intents.some((item) => item.id === attempt.intentId), h.unit("U-E").notices[0].deliveryEvidence]).toEqual([false, "possible"]);
   expect(h.root.state.mirror["U-E"].persistence.savedGeneration).toBe(0);
   await h.root.diagnostics.flush();
 });
@@ -295,14 +295,16 @@ function ccEnvelope(clock: ClockReading, headType: string, xml: string) {
 }
 // 世代を 4 MiB − slack にする終端記録を足す（記録の見え方は変えないので A8 の差分と食い違わない）。
 function crowdTsunami(state: TsunamiUnitState, slack: number): TsunamiUnitState {
-  const size = (value: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v3", unit: "U-T", generation: 0, capturedAt: 0,
+  const size = (value: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v4", unit: "U-T", generation: 0, capturedAt: 0,
     payload: tsunamiUnitCodec.encode(value) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62
-    + value.intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
-  const template = state.intents[0];
-  const pad = (body: string): TsunamiUnitState => ({ ...state, intents: [...state.intents, { ...template, id: "U-T:pad",
-    disposition: "delivered", expiresAt: template.createdAt + 86_400_000, payload: { ...template.payload, body } }] });
-  const crowded = pad("x".repeat(4_194_304 - slack - size(pad(""))));
-  expect(size(crowded)).toBe(4_194_304 - slack);
+    + value.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  // 詰め物は別の EventID の normal の active な予報（退去の候補にならない）。P3-NL-AC05 で終端記録は無くなり、器は印の分だけ 4 MiB より大きい。
+  const { notice: _notice, ...template } = state.forecasts[0];
+  const subject = "normal/VTSE41/20990101009999";
+  const pad = (name: string): TsunamiUnitState => ({ ...state, forecasts: [...state.forecasts, { ...template, subject, eventId: "20990101009999",
+    source: { ...template.source, subject }, areas: template.areas.map((area) => ({ ...area, name: area.name + name })) }] });
+  const crowded = pad("x".repeat(tsunamiUnitCodec.maxEnvelopeBytes! - slack - size(pad(""))));
+  expect(size(crowded)).toBe(tsunamiUnitCodec.maxEnvelopeBytes! - slack);
   return crowded;
 }
 async function ccRuntime(channels: Channels, start: ClockReading, config?: Awaited<ReturnType<typeof settings>>) {
@@ -432,8 +434,9 @@ it("P3-CC-T18 acceptance / AC10(6)・AC08(12)(a): a reservation of the light fai
   expect(light.payload.level).toBe("warning");
   // 大津波警報の拒否（昇格）が owner へ向かった後に、main が軽い失敗警報を選ぶ。owner は昇格の後なので予約を採らず、旧い試行は始まらない。
   await reserveBehind(r, forecastEnvelope(r.now, "20990101000003", 2, "52", 300), running, light.id);
-  const [old, heavy] = failSound();
-  expect([old.id, old.disposition, heavy.payload.level]).toEqual([light.id, "superseded", "critical"]);
+  // P3-NL-AC05 (1): 置き換えた軽い失敗警報は intents から外れる。
+  const [heavy, ...rest] = failSound();
+  expect([rest, heavy.payload.level]).toEqual([[], "critical"]);
   expect(r.fake.attempts.some((item) => item.intentId === light.id)).toBe(false);
   expect(r.fake.attempts.at(-1)).toMatchObject({ intentId: heavy.id, priorityGroup: "normalTsunamiEmergency" });
   await r.h.root.diagnostics.flush();
@@ -469,7 +472,8 @@ it("P3-CC-T07 acceptance / AC05・AC08(4): after the saved rejection the mark an
   expect(next.h.root.state.confirmation.units["U-T"].normal.whole).toBe("startup");
   const tsunami = lastTsunami(next.published);
   expect(tsunami.items[0].unavailable).toEqual({ capacityExceeded: 1 });
-  expect(tsunami.delivery === "full" && tsunami.view.forecasts[0].unavailable).toMatchObject({ reason: "capacityExceeded" });
+  // 詰め物（別の EventID の予報の区域名で器を埋める）で A8 の全文の配信は上限を越えるので、view は unit から作る。
+  expect(toTsunamiView(unit).forecasts.find((item) => item.subject === CC_SUBJECT)?.unavailable).toMatchObject({ reason: "capacityExceeded" });
   // 拒否の前の世代だけを保存していたなら、印も書き換えも戻らない。
   const earlier = (await restarted(false)).next.h.unit("U-T");
   expect(earlier.forecasts.find((item) => item.subject === CC_SUBJECT)).not.toHaveProperty("unavailable");
@@ -521,7 +525,8 @@ it("P3-CC-T15 contractBoundary / AC04(2)・AC08(10): a stamped desktop keeps its
   r.h.root.mailbox.recordWorkerResponse(r.now.monotonicMs);
   r.h.root.tick(r.now);
   await r.h.settle();
-  expect(r.h.unit("U-T").intents.find((item) => item.id === waiting.desktop.id)?.disposition).toBe("expired");
+  // P3-NL-AC05 (1): 期限切れの intent は intents から外れる。
+  expect(r.h.unit("U-T").intents.some((item) => item.id === waiting.desktop.id)).toBe(false);
   expect(r.h.root.state.notificationDeadlines.desktop[key]).toBeUndefined();
   await r.h.root.diagnostics.flush();
 });
@@ -612,6 +617,9 @@ describe("P3-CK-T02 contractBoundary / AC02・AC03: the publisher holds a restor
     basis.value = "unverified";
     await r.probe();
     expect(await r.lines()).toMatchObject([{ level: "INFO", component: "runtime", unit: "U-E", count: 2 }]);
+    // P3-NL-T04 (e)・P3-NL-AC06 (1): reclaimExpired の失効の更新は、診断と同じ理由を lossReason に持つ。
+    expect(r.h.sent.flatMap((item) => item.request.kind === "intentUpdate" ? item.request.updates : []).map((update) => update.lossReason))
+      .toEqual(["notificationExpiredClockUnverified", "notificationExpiredClockUnverified"]);
     basis.value = "verified";
     await r.tick(k9At(2_000));
     expect([r.fake.attempts.length, r.h.root.state.mirror["U-E"].pendingIntents.length]).toEqual([0, 0]);
@@ -629,7 +637,9 @@ describe("P3-CK-T02 contractBoundary / AC02・AC03: the publisher holds a restor
     r.h.release();
     await r.h.settle();
     await r.tick(k9At(2_000));
-    expect([r.fake.attempts.length, reservations()]).toEqual([0, 2]);
+    // P3-NL-AC06 (5)（Q-NL-PRECHECK (0)(b)）: adapter を呼ばずに捨てた予約は lastAttempt を failed に戻す更新を送る。
+    const sent = r.h.sent.flatMap((item) => item.request.kind === "intentUpdate" ? item.request.updates : []);
+    expect([r.fake.attempts.length, reservations(), sent.map((update) => update.lastAttempt)]).toEqual([0, 4, ["started", "started", "failed", "failed"]]);
     await r.h.root.diagnostics.flush();
   });
 
@@ -681,7 +691,8 @@ describe("P3-CK-T02 contractBoundary / AC02・AC03: the publisher holds a restor
     expect(r.fake.attempts).toHaveLength(2);
     basis.value = "awaiting";
     await r.h.root.shutdownRuntime(0, k9At(1_000));
-    expect((await r.lines()).map((line) => line.count)).toEqual([2]);
+    // P3-NL-AC06 (2): 起動した後に止めた試行の終わりは通知したか不明で終端になり、時計の未確認での失効の行は出ない。
+    expect((await r.lines()).map((line) => line.count)).toEqual([]);
     const next = harnessedRoot(config, linkedUnitCodecs, { clock: () => k9At(2_000), notificationAdapter: adapter() });
     await startHarness(next, "k9-after", k9At(2_000), false);
     expect(next.root.state.mirror["U-E"].pendingIntents).toEqual([]);
@@ -743,12 +754,13 @@ describe("P3-CK-T02 contractBoundary / AC02・AC03: the publisher holds a restor
     await r.tick(k9At(1_500));
     const [desktop, sound] = (["desktop", "sound"] as const).map((channel) => r.fake.attempts.find((item) => item.channel === channel)!);
     r.fake.complete.get(sound.attemptId)!({ kind: "delivered", attemptId: sound.attemptId, intentId: sound.intentId, channel: "sound", completedAt: k9At(1_600) });
-    r.fake.complete.get(desktop.attemptId)!({ kind: "failed", reason: "adapterError", attemptId: desktop.attemptId, intentId: desktop.intentId,
+    // P3-NL-AC06 (2): 再試行するのは送っていないと確定した失敗（notStarted）だけ。
+    r.fake.complete.get(desktop.attemptId)!({ kind: "failed", reason: "notStarted", attemptId: desktop.attemptId, intentId: desktop.intentId,
       channel: "desktop", completedAt: k9At(1_600) });
     await r.h.settle();
     await r.tick(k9At(4_000));
     expect(r.fake.aborts).toEqual([]);
-    expect(r.h.unit("U-E").deliveryRecords.find((item) => item.intentId === sound.intentId)?.disposition).toBe("delivered");
+    expect(r.h.unit("U-E").intents.some((item) => item.id === sound.intentId)).toBe(false);
     expect([r.fake.attempts.length, r.h.unit("U-E").intents.find((item) => item.id === desktop.intentId)?.disposition]).toEqual([2, "pending"]);
     await r.h.root.diagnostics.flush();
   });

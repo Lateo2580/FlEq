@@ -20,8 +20,9 @@ describe("P3-UNIT-R-001 U-R corpus history", () => {
     // :43 の訂正は ReportDateTime が新しいので採用し、△△川と観測所 2 つが外れる。:45 の同じ版の訂正は :44 の pending を置き換える。
     expect(o01[2].intents.map((item) => [item.payload.level, item.payload.body.startsWith("訂正: ")])).toEqual([["normal", true], ["normal", true]]);
     expect(o01[2].state.currents[0]).toMatchObject({ kinds: [{ rivers: [{ name: "○○川" }] }], stations: [{ name: "○○○水位観測所" }] });
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
     expect(o01[4].state.intents.filter((item) => item.subject === "normal/VXKO50/123456789013").map((item) => item.disposition))
-      .toEqual(["superseded", "superseded", "pending", "pending"]);
+      .toEqual(["pending", "pending"]);
     expect(o01[5].intents.map((item) => [item.payload.title, item.payload.body])).toEqual([
       ["[取消] ○○川上流氾濫警戒情報の取消", "この情報は取り消されました"], ["[取消] ○○川上流氾濫警戒情報の取消", "この情報は取り消されました"]]);
     // 取消は 123456789012 だけで、123456789013 の active は残る。

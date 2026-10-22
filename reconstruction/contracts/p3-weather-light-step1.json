@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e02a413fc240931f1830e966ac94dde1e27aa5f5",
-    "sha256": "7a381bf4c9b6412128e071611218285d098fe795c20c900c37630127d46c0c92",
+    "sha256": "c8ceba98e006d5e5894d8f1d0cb62578cae34828200ba64b0c60a91be9a8045a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -273,7 +273,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2007 «4b2a085530cf8cb8»",
           "docs/specs/reconstruction-p0-contracts.md:2012 «96edc4cec5855d14»",
-          "reconstruction/contracts/p2-weather-current-unit.json:381 «880913780ae5b656»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «b199ef4905927d28»",
           "docs/specs/reconstruction-p0-contracts.md:874 «f68a559d178d6dae»"
         ]
       },
@@ -283,7 +283,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p1-parser-boundary.json:545 «4cae89a4f5209c86»",
           "reconstruction/contracts/p2-weather-current-unit.json:356 «86eb55276d25bba1»",
-          "reconstruction/contracts/p2-weather-current-unit.json:381 «880913780ae5b656»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «b199ef4905927d28»",
           "reconstruction/contracts/p2-weather-current-unit.json:461 «d222ffecf873259b»",
           "docs/specs/reconstruction-p0-contracts.md:1830 «964d8b6f65321973»"
         ]

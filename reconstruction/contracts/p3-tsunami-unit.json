@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "96bdfdf9ce4229df89d35b709e274f23723b1a815a7d74eca388760166e269f4",
+    "sha256": "690d3de6e00da1df5aab5c78f28c09de50ba9aa8c5eac11776e65ce0c45fa7c4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -176,7 +176,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "VTSE41の取消を採用し、取消の前にsubjectがactiveだった。activeでなかったsubject（未受信を含む）の取消は通知しない",
+            "condition": "VTSE41の取消を採用し、取消の前にsubjectがactiveだった。activeでなかったsubject（未受信を含む）の取消は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -200,13 +200,13 @@
         "level": "VTSE41の発表・訂正はP3-C5-NOTICE-LEVELS=Aの式: level=max(変化の段階, 残った区分の段階)。段階の大小はinfo<normal<warning<critical。残った区分は報全体の到達後の状態で決める（下がった区域の行き先だけを見ない）。取消はcancel。観測（VTSE51/52の発表・訂正）は報の中身・VTSE41の区分によらず常にinfo（P3-C5-NOTICE-OBSERVATION=C）、観測の取消はcancel",
         "overlap": "一つの採用報は各channel最大1 intent。機会はescalation、deescalation、continuationの順で一つを選ぶ。訂正は別の機会を作らず、選んだ機会に訂正の接頭辞を付ける",
         "emergencyGroup": "A7のgroup()（notification-delivery.ts:21）が緊急群に入れるのはoperation=normalかつlevelがwarning/criticalのU-T intentだけ。式により、それは警報以上の区域が上がった報（訂正を含む）に限る。区域拡大は新しい区域への警報の発令なので、spec:951の「発令」に含める（spec:1131の発令系も区域拡大を含む）。観測のintentはinfo/cancelなので緊急群に入らない（otherのまま鳴る）",
-        "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec §6.4。津波緊急もTTLと初回待ちを別に判定、spec:973）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない",
+        "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec §6.4。津波緊急もTTLと初回待ちを別に判定、spec:973）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C5-REPLACEMENT=A。置換の単位はoperation＋subject＋channel（VTSE41と観測は別subjectなので互いを置き換えない）。容量の拒否（P3-CURRENCY-COVERAGE-001、P3-CC-AC03・AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）: VTSE41の採用でfitがnullを返し、拒否した報のsubjectの記録がactiveなら印〔SubjectUnavailable〕を付けてchanged。失敗した系列〔拒否した報のsubject〕のまだ鳴っていないdesktopのpendingはtitleだけを『【HH:MM 発表】』付きに替え〔同じid・元の期限、soundは変えない〕、拒否した報のfreshのlevelの最大がwarning以上なら固定のsubject『operation/capacityRejected』の失敗警報をその段階で足す〔subjectのpendingは置き換えない、失敗警報どうしは重い方だけを残す〕。どれも追加の退去なしで収まるときだけ。印を付けない拒否〔観測を含む〕はunitの負の証拠と診断capacityRejected",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4の先例）",
         "payload": "typeRef reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋本体。本体は到達後の最高区分の名（大津波警報・津波警報・津波注意報・津波予報。区分が無ければ「津波警報・注意報の解除」。effective=releasedの報で、直前の採用状態がactiveだったもの（intentのtransition=released）は、予報区域が残っていても「津波警報・注意報の解除」とする。直前がactiveでないreleasedの報（予報だけの初報、解除の後の予報だけの続報）は、予報区域があれば「津波予報」、無ければ「津波警報・注意報の解除」とする。最高区分がunknownならその区域のKind/Name）、取消は「[取消] 津波警報・注意報・予報」、訂正は「[訂正] 」＋本体、観測は「津波観測に関する情報」（VTSE52は「沖合の津波観測に関する情報」）。bodyは旧築notifier.ts:459〜471と同じく区分の和集合を「・」連結 / 先頭3区域名を「, 」連結 / Headline本文で組み、escalationでは上がった区域を先に並べる。取消は「この情報は取り消されました」。訂正はbody冒頭に「訂正: 」。training/testはbody冒頭に区分の注記行（P2-A4と同じ文）。title/bodyは空にしない",
-        "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければ下位群をA7の選択順の逆で必要数だけ退去する。同群以上は退去しない。収容できない機会はchannelごとに全採用か未採用で、未採用なら既存pendingを保ち、診断notificationCapacityEvicted（count）を返す。終端記録は件数の上限を別に置かず、expiresAtで回収し、保存世代のbyte予算（RES-01）に含める（P2の各unitと同じ）",
+        "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければ下位群をA7の選択順の逆で必要数だけ退去する。同群以上は退去しない。収容できない機会はchannelごとに全採用か未採用で、未採用なら既存pendingを保ち、診断notificationCapacityEvicted（count）を返す。終端記録は件数の上限を別に置かず、expiresAtで回収し、保存世代のbyte予算（RES-01）に含める（P2の各unitと同じ）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力はC16（P3-RECOVERY-001）の候補採用までstate全体に適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P2-A4 Q-NOTICE.generationRuleと同じ）",
-        "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る。復元直後の続報の区分の差は復元したstateとの差で決める（同じ発令を再起動のたびに鳴らさない）",
+        "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る。復元直後の続報の区分の差は復元したstateとの差で決める（同じ発令を再起動のたびに鳴らさない）（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
         "legacyDifference": "旧築との差の一覧は questionResolutions[P3-C5-LEGACY-DIFF]"
       },
       {
@@ -261,11 +261,11 @@
         "forecastSemantics": "VTSE41の発表・訂正はsubjectの区域集合を報の区域集合で置き換える（報に無い区域はnone）。effectiveは注意報以上（unknownを含む）の区域が一つでもあればactive、無ければreleased。releasedも報の区域（予報・解除）を保ち、areas=[]にするのはcancelledだけ。区域ごとの変化はTsunamiTransitionRecordで返す（P3-C5-TRANSITION-BASIS=A）。transitionは前がnone/releasedで後がforecast以上のとき、subjectが前にactiveでなければissued、activeならexpanded。両方forecast以上で順位が上がればupgraded、下がればdowngraded、前がforecast以上で後がnone/releasedならreleased（前も後もnone/releasedなら変化に数えない）。unkeyedAreasのkindCodeも表の区分（表外はunknown）でeffectiveと残った区分の段階には数えるが、TsunamiTransitionRecord・escalation・§7.5の系列の判定には入れない",
         "observationSemantics": "P3-C5-OBS-MERGE=A・P3-C5-OBS-LIFETIME=A。VTSE51とVTSE52はwatermark・station・取消を互いに共有しない。観測の取消はそのsubjectだけをcancelled（stationsを捨ててwatermarkだけ）にする。VTSE41の取消は観測を取り消さないが、P3-C5-OBS-LIFETIMEによりforecastEndedにする",
         "deadlines": "nextDeadlineは、activeの観測のvalidUntil、非activeのsubjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す",
-        "persisted": "PersistedTsunamiUnitはschemaVersion p3-tsunami-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）、forecasts、observations、intents（pendingと終端記録）。contentRevision・persistenceは保存しない",
+        "persisted": "PersistedTsunamiUnitはschemaVersion p3-tsunami-unit-v4（P3-NOTICE-LEDGER-001で上げた版、P3-NL-AC15の(1)。v1〜v3は捨ててよい版）、forecasts、observations、intents（pendingだけ、P3-NL-AC05）、failureMarks（失敗の印、P3-NL-AC02の(6)）。予報・観測の記録は印notice?を持つ（観測はfragmentの鍵16件まで、P3-NL-AC02・AC03）。contentRevision・persistenceは保存しない",
         "decode": "codecは一つ（tsunamiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、VTSE41 subject≤512、観測subject familyごと≤512、station familyごと≤1024（三区分合算）、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、subjectの重複なし、区域code・station codeの重複なし、areaClassとkindCodeの一致（Q-ENUMの表）、effectiveとareas/stationsの形（cancelled・expiredは空）、intentのunitがU-TでsubjectがU-Tのsubject形式（I-U-T.subjects）であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）",
         "view": "TsunamiUnitViewはactiveのforecasts/observationsだけを載せ（forecastEnded・expiredの観測、releasedのVTSE41は載せない）、SubjectOutcome.factsにareaTransitions（TsunamiTransitionRecordの配列）とseries（TsunamiReportSeries）を載せる。RuntimeDisplaySubjectにunit U-Tの行（current: TsunamiForecastSubject | TsunamiObservationSubject | null）を足す",
         "confirmationScope": "ConfirmationScopeは新しい行を作らず、U-Eの行をunit: \"U-E\" | \"U-T\"、kind \"event\"、eventIdに広げて使う（shared-runtime.ts:89の検証も同じく広げる）。U-Tのscopeは常態を確立したVTSE41の採用からだけ出す（観測はREST回復の対象外でscopeにしない、P3-C5-N2）。confirmationScopeLimitは512（VTSE41の上限と一致）",
-        "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-T、executionPlacesにU-T=urgent（P3-C5-PLACE）、coverage表のVTSE41/51/52をready＋U-T。UnitModule<\"U-T\">はpersistence durable、terminalIntents kind intents、reclaimDeadlineBeforeReceive true",
+        "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-T、executionPlacesにU-T=urgent（P3-C5-PLACE）、coverage表のVTSE41/51/52をready＋U-T。UnitModule<\"U-T\">はpersistence durable、terminalIntents kind intents（P3-NOTICE-LEDGER-001でUnitModuleから消した、P3-NL-AC05の(3)）、reclaimDeadlineBeforeReceive true",
         "computation": "容量はsubject・station・intentごとのencode byteをWeakMapでその値に結び付けて加算する（weather-timeseries-unit.ts:15〜24・weather-current-unit.ts:48〜57の先例）。nextDeadlineの最小値もsubject配列に結び付けたcacheで持つ（同:16の先例）。stationの合成と区域の差は、受信1回につき既存のcode→要素のMapを1回作って引く（素朴なfindでは1 fragmentで1024×1024の走査になる）。受信1回でstate全体を直列化しない"
       },
       {
@@ -724,7 +724,7 @@
         "target": "U-T sound intent",
         "limit": 60,
         "unit": "seconds from original createdAt",
-        "rule": "津波緊急もTTLと初回待ちを別判定。再起動・再試行で延ばさない",
+        "rule": "津波緊急もTTLと初回待ちを別判定。再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "source": "spec:973"
       },
       {
@@ -787,8 +787,8 @@
       {
         "id": "P3-C5-RES-01",
         "target": "U-T encoded generation",
-        "limit": 4194304,
-        "unit": "UTF-8 bytes",
+        "limit": 4676841,
+        "unit": "UTF-8 bytes; after P3-NOTICE-LEDGER-001 the limit adds the worst-case notice marks (forecasts 512×102, observations 1,024×420 with 16 fragment keys) and the failure marks (233 bytes), P3-NL-D-CAPACITY=A",
         "scope": "forecasts, observations and intents; counted as a sum of per-subject and per-intent encodings",
         "source": "spec:476"
       },
@@ -807,7 +807,7 @@
     "persistedFields": [
       "VTSE41 subject: subject・eventId・operation・source・effective・areas（cancelled以外）・unkeyedAreas・retainUntil",
       "観測subject: subject・eventId・operation・family・source（family watermark）・effective・stations（activeとforecastEnded）・estimations・validUntil・retainUntil",
-      "intent: pendingの全fieldと元のcreatedAt/expiresAt、終端記録（expiresAtまで）"
+      "intent: pendingの全fieldと元のcreatedAt/expiresAt、系列の印（P3-NL-AC02。終端のintentは残さない、P3-NOTICE-LEDGER-001）"
     ],
     "nonPersistedFields": [
       "contentRevision、persistence（RuntimeState側のmetadata）",
@@ -862,7 +862,7 @@
         "id": "P3-C5-AC04",
         "requirement": "容量: P3-C5-CAPACITY=A。4つの上限（VTSE41 subject 512、観測subject familyごと512、station familyごと1024、4 MiB/世代）に同じ退去手順を使い、候補は超過量を実際に減らすsubjectに限る。normalのactiveだけで超えるときのcapacityExceeded（state・nextDeadline不変、intents/outcomes空、退去診断なし）。容量はI-U-T.computationどおりsubject・station単位のencode byteの加算で数え、受信1回でstate全体を直列化・全件×全件の走査をしない（AGENTS.md「受信経路の計算量」）。最大正常と+1の境界入力（Q-LIMIT）で確かめる",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e»",
+          "docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249»",
           "docs/specs/reconstruction-p0-contracts.md:575 «fd672d3dc14c0599»",
           "src/engine/messages/tsunami-state.ts:35 «3c43556f2545b40f»"
         ]
@@ -871,7 +871,7 @@
         "id": "P3-C5-AC05",
         "requirement": "保存と復元: PersistedTsunamiUnitと唯一のcodec（schemaVersion p3-tsunami-unit-v3）、I-U-T.persisted・I-U-T.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC5に旧データ移行は無い（P3-C5-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e»",
+          "docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:596 «c20d709bf6f86046»"
         ]
@@ -891,7 +891,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:948 «2329df574f1ba7a9»",
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
-          "docs/specs/reconstruction-p0-contracts.md:973 «0f9853c505322060»",
+          "docs/specs/reconstruction-p0-contracts.md:973 «fafb3542a1028174»",
           "src/engine/notification/notifier.ts:451 «39e6620419fd6b37»",
           "src/engine/presentation/level-helpers.ts:291 «9635e9d4f403967e»"
         ]
@@ -963,7 +963,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:72 «4a65d89f48f565e0»",
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
-          "reconstruction/src/runtime/composition-root.ts:1147 «cee278b81108e897»",
+          "reconstruction/src/runtime/composition-root.ts:1158 «cee278b81108e897»",
           "reconstruction/contracts/p2-notification-delivery.types.ts:46 «c19db469a893ebf1»"
         ]
       },

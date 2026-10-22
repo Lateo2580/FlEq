@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "6e874bea0ea83f311cc994f339a5cff9d8e290de2096a5e1838cafa18976689d",
+    "sha256": "585059eaff476a0e86eb2742f48cfa05d4bfa2bc228b2ddbcad833723a58153d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -87,9 +87,9 @@
         "reason": "P2-A7-AC04/AC05/R26: pending対応の有界mapと更新式が無いと、再評価で再試行が先延ばしになり、終端の期限がrun中に増え続ける。",
         "keyAndBound": "deadlines[channel][JSON.stringify([unit,intentId])]の値は、所有するU-E/U-W/U-Fの実pendingに一対一で対応する。両channel合計は3単位×128=384値以下。operation/subject/channelは既存intentで照合し、mapへ複製しない。Partial lookupはundefinedを返せる。選択対象からの一時除外を所有unitからの削除と混同しない。",
         "adoption": "新規intentを保存世代へ採用した同じClockReadingをW=wallTimeMs、M=monotonicMsとする。createdAt=nextAttemptAt=W、retryAtMonotonicMs=M、expiresAtMonotonicMs=M+max(0,expiresAt-W)。A1の同じ入力処理でA7へ渡し、初回markerもこのMを使う。",
-        "failure": "相関一致した失敗確定のcompletedAtをWf/Mf、完了した試行のattemptsをn>=1とする。d(n)=1000,2000,4000,8000（n=1..4）、n>=5は10000ms。nextAttemptAt=Wf+d(n)、retryAtMonotonicMs=Mf+d(n)。expiresAt/createdAt/expiresAtMonotonicMsは維持する。stopped=falseのtimeoutはchannel隔離を先に適用し、新たな試行をしない。",
-        "restore": "hostの状態が\"verified\"の評価のW/M（以下W0/M0、P3-CLOCK-CHECK-001のP3-CK-AC03）でW0>=expiresAtならexpiredとして回収する。残るpendingはretryAtMonotonicMs=M0+max(0,nextAttemptAt-W0)、expiresAtMonotonicMs=M0+max(0,expiresAt-W0)。保存createdAt/expiresAt/nextAttemptAtは変更しない。前runの単調値を持ち越さない。復元由来の通知は、hostの状態が\"awaiting\"の間は壁時計の回収も表の回収も選択も試行の開始も当てず、\"unverified\"なら鳴らさずexpired（notificationExpiredClockUnverified）にする。停止のとき\"verified\"でないまま残るもの（試行中のものを除く）は最終保存の前にexpiredにする（P3-CLOCK-CHECK-001のP3-CK-AC03の(2)(3)）。",
-        "ordinaryReevaluation": "receive後の再評価、結果後の選択、channel解放、期限前tickでは既存値を保ち、壁時計残余から張り直さない。生成・復元で作り、失敗確定でretryだけを更新する。停止理由だけの変化でもexpiryを張り直さない。",
+        "failure": "相関一致した失敗確定のcompletedAtをWf/Mf、完了した試行のattemptsをn>=1とする。d(n)=1000,2000,4000,8000（n=1..4）、n>=5は10000ms。nextAttemptAt=Wf+d(n)、retryAtMonotonicMs=Mf+d(n)。expiresAt/createdAt/expiresAtMonotonicMsは維持する。stopped=falseのtimeoutはchannel隔離を先に適用し、新たな試行をしない。（P3-NOTICE-LEDGER-001: 再試行はresultのfailed/notStartedと、soundの起動した後に結果の分からずに終わった試行〔failed/adapterRejected・起動後のfailed/adapterError・timeout・aborted/higherPriority〕の1回の鳴らし直しだけ。鳴らし直しは期限を終わった時から元の長さで数え直す〔createdAt＋元の長さの2倍まで〕。ほかは通知したか不明で終端〔P3-NL-AC06の(2)〕。expiresAt/expiresAtMonotonicMsを変えるのはこの1回だけ）",
+        "restore": "hostの状態が\"verified\"の評価のW/M（以下W0/M0、P3-CLOCK-CHECK-001のP3-CK-AC03）でW0>=expiresAtならexpiredとして回収する。残るpendingはretryAtMonotonicMs=M0+max(0,nextAttemptAt-W0)、expiresAtMonotonicMs=M0+max(0,expiresAt-W0)。保存createdAt/expiresAt/nextAttemptAtは変更しない。前runの単調値を持ち越さない。復元由来の通知は、hostの状態が\"awaiting\"の間は壁時計の回収も表の回収も選択も試行の開始も当てず、\"unverified\"なら鳴らさずexpired（notificationExpiredClockUnverified）にする。停止のとき\"verified\"でないまま残るもの（試行中のものを除く）は最終保存の前にexpiredにする（P3-CLOCK-CHECK-001のP3-CK-AC03の(2)(3)）。lastAttemptがstartedのpendingはunitが復元で通知したか不明にし、ここに来ない（P3-NOTICE-LEDGER-001のP3-NL-AC08）。",
+        "ordinaryReevaluation": "receive後の再評価、結果後の選択、channel解放、期限前tickでは既存値を保ち（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）、壁時計残余から張り直さない。生成・復元で作り、失敗確定でretryだけを更新する。停止理由だけの変化でもexpiryを張り直さない。",
         "order": "各再評価で所有unitの取消/置換/終端を反映し、壁時計W>=expiresAtの絶対TTLを最初に適用する（保留中の復元由来の通知を除く、P3-CLOCK-CHECK-001のP3-CK-AC03の(2)）。残るpendingでもM>=expiresAtMonotonicMsならexpiredとし、壁時計後退で寿命を延長しない。期限内だけretryAtMonotonicMsを到来判定し、試行期限=min(Mselect+channelTimeoutMs,expiresAtMonotonicMs)。TTLと試行timeoutが同時ならcause=expiredを優先し、TTL内の試行期限到来はcause=timeout。結果照合にも同じ順を適用する。 選択時の期限回収はattemptの有無によらずpending→expiredのintentUpdateを返し、A1が所有unitへ採用する。試行開始だけの更新はdispositionを維持する。 A1は受信・期限入力・結果再評価で選択除外中を含む全所有pendingを同じ順で回収し、選択制限を維持する。",
         "reclaim": "所有unitでpendingがdelivered/expired/supersededへ終端化するか削除された同じ採用でmapを削除する。消えたintentのrunning/stoppingはNotificationAttemptとstopByMonotonicMsで停止を追跡し、mapの孤児を保持しない。A1が実pendingとの対応を採用し、A7の期限式を別層に複製しない。",
         "complexity": "受信・通常再評価・選択・1件結果照合は通常O(N)、変更検出の全量直列化は0とし、Nは所有pending Kと終端Tを含む保持intent数とする（Kは各unitのcodecで128件/128KiB以内、Tに固定件数上限はなくU-E 256KiB・U-W 16MiB・U-F 32MiBの保存世代予算に従う）。U-Eの256KiB保存世代予算を超える場合に限り、終端T件のexpiresAt順整列を1回（O(T log T)、同値は既存配列順）行い、必要byte分の退去対象全体を決めて1回のfilterで除去する。超過しない入力では退去用の整列・選択走査をせず、退去R件ごとの全件再走査・splice反復は禁止する。一括失効も照合済みintentUpdateを所有unitごとに一括採用・索引照合してO(K+T)とし、O(K×(K+T))の反復走査は許容しない（U-W/U-F各128 pending＋4000 terminalの同一runtime tickは改訂前162.82ms→改訂後20.21ms、id参照計測込みの単発実測）。"
@@ -99,7 +99,7 @@
         "status": "closed",
         "reason": "P2-A7-AC03: notify()ではChildProcessを所有できず停止確認が取れないため、既存実行ファイルをspawnしrunだけをterminal結果の返却口にする。",
         "requests": "NotificationSelection/RuntimeStep.abortRequestsは{attemptId,cause}。causeはtimeoutまたは共有NotificationResult.aborted.reasonで、A1→A3→abortNotificationAttemptの途中で推定し直さない。stoppingには最初に確定したcauseを保持する。",
-        "run": "runNotificationAttemptは二channelの現在試行に限ってChildProcessと完了待ちを所有し、spawnの直前でadapterCalledAtMonotonicMsを記録する。terminal NotificationResultの唯一の返却口はこのPromise。desktopのspawn不能/自然終了失敗はfailed、要求なしのexit code 0＋closeはdelivered。soundは前processのclose後にだけ次playerを試し、成功または列の全失敗で一件を返す。fallbackでも同じattemptId/試行期限を使い、timeoutを起算し直さない。無効化要求を確定した後のexit code 0をdeliveredに戻さない。",
+        "run": "runNotificationAttemptは二channelの現在試行に限ってChildProcessと完了待ちを所有し、spawnの直前でadapterCalledAtMonotonicMsを記録する。terminal NotificationResultの唯一の返却口はこのPromise。desktopのspawn不能/自然終了失敗はfailed、要求なしのexit code 0＋closeはdelivered。soundは前processのclose後に次playerを試すのは、前がnotStarted（外へ何も出していない）のときだけで、起動した後の失敗はその試行を結果の分からない終わり〔failed/adapterRejected・adapterError〕で返す。成功または列の全notStartedで一件を返す（P3-NOTICE-LEDGER-001のP3-NL-AC06の(3)。起動時のprobeSoundBackendは無音なのでこの制限から分け、close後なら起動した後の失敗でも次を試す）。fallbackでも同じattemptId/試行期限を使い、timeoutを起算し直さない。無効化要求を確定した後のexit code 0をdeliveredに戻さない。",
         "abort": "abortNotificationAttemptは対象processへSIGTERMを要求し、渡されたstopByMonotonicMsまで停止確認を待って{attemptId,stopped,completedAt}だけを返す。NotificationResultを返さずA1へterminal入力を送らない。run側が同じ停止観測からcause=timeoutならkind=timeout、その他ならkind=aborted/reason=causeを一度だけ返す。停止未確認ならstopped=falseでterminal化しchannelを隔離、遅いclose/successから二件目を返さない。",
         "stopDeadline": "stopByMonotonicMsは要求時M+1000。終了時はA1のsideEffectFinalization期限とのminをA1/A7で確定してA3へ渡す。abort側で猶予を起算し直さない。",
         "stopEvidence": "spawnした子のcloseを観測したとき（またはspawn失敗で子が存在しないと確定したとき）だけ停止確認済みとする。exitだけ、kill()の戻り値、AbortSignalの応答、timeout宣言は停止証拠にしない。sound fallbackの次playerも前processのclose確認後だけ起動する。OS通知サービスへ既に引き渡したdesktop表示を取り消したという保証は含めない。",
@@ -121,7 +121,7 @@
           {
             "os": "Linux / Raspberry Pi 本番",
             "channel": "sound",
-            "executable": "/usr/bin/ffplay → /usr/bin/paplay → /usr/bin/aplay",
+            "executable": "/usr/bin/ffplay → /usr/bin/paplay → /usr/bin/aplay（同じ試行の中で列の次へ進むのはプロセスを生成できなかったとき〔notStarted〕だけ。起動した後に失敗した試行は結果の分からない終わりで返し、1回の鳴らし直しを次の試行で列の次のbackendから鳴らす。deliveryはprobeで鳴ったbackendから始め、起動した後の失敗とtimeoutの後は列の次へ進める。P3-NOTICE-LEDGER-001の分岐P3-NL-D-SOUND-BACKENDの裁定B、P3-NL-AC06の(2)(3)）",
             "argv": "ffplay: -nodisp -autoexit -loglevel quiet wavPath、paplay: wavPath、aplay: -q wavPath。probeも同じ列。",
             "condition": "音声deviceが利用可能。abort/timeout中はfallbackを継続しない。"
           },
@@ -303,7 +303,7 @@
         "target": "live EEW intent",
         "limit": 15,
         "unit": "seconds from original createdAt",
-        "rule": "cancel, expiry and replacement win earlier; retry and restart never extend expiresAt",
+        "rule": "cancel, expiry and replacement win earlier; retry and restart never extend expiresAt (except the single sound replay of P3-NOTICE-LEDGER-001 P3-NL-AC06 (2))",
         "source": "§6.4/Q-NOTICE"
       },
       {
@@ -311,7 +311,7 @@
         "target": "other sound intent",
         "limit": 60,
         "unit": "seconds from original createdAt",
-        "rule": "保存単位ごと。再起動/再試行でexpiresAtを延ばさない",
+        "rule": "保存単位ごと。再起動/再試行でexpiresAtを延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "source": "§6.4"
       },
       {
@@ -368,7 +368,7 @@
       {
         "id": "P2-A7-RET-01",
         "target": "pending and minimal completed intent records",
-        "limit": "original family dedupe period only; expiry, superseded and completed records are reclaimed first",
+        "limit": "terminal intents are not kept; the dedupe record is the series notice mark (P3-NL-AC02), which lives with its series record (P3-NOTICE-LEDGER-001 P3-NL-AC05; formerly: original family dedupe period only; expiry, superseded and completed records are reclaimed first)",
         "source": "§6.4"
       }
     ],
@@ -413,9 +413,9 @@
       "U-F"
     ],
     "persistedFields": [
-      "NotificationIntent remains owned by its originating U-E/U-W/U-F unit with original createdAt/expiresAt, attempts, nextAttemptAt, configRevision and disposition; A7 owns no durable intent store",
+      "NotificationIntent remains owned by its originating U-E/U-W/U-F unit with original createdAt/expiresAt, attempts, nextAttemptAt, configRevision, disposition, lastAttempt, replayed and priorityGroup (P3-NOTICE-LEDGER-001 P3-NL-AC06・AC11; pending intents only, P3-NL-AC05); A7 owns no durable intent store",
       "Selection updates and correlated delivery/expiry/supersession updates are applied atomically by A1 through the owning unit's intentUpdate input before that unit's generation is checkpointed",
-      "createdAt/expiresAt/nextAttemptAtは壁時計。A7は期限を保存し直すときも元expiresAtを延ばさない"
+      "createdAt/expiresAt/nextAttemptAtは壁時計。A7は期限を保存し直すときも元expiresAtを延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）"
     ],
     "nonPersistedFields": [
       "NotificationAttempt, NotificationAbortRequest and owned ChildProcess handles",
@@ -455,7 +455,7 @@
         "requirement": "P2-A7-ADAPTERに従い、上位到着/所有intent消失（期限失効を除きsuperseded）/失効/timeout/shutdownの理由をabortRequestsでA3へ渡す。runのPromiseだけがNotificationResultを一度返し、abortの戻り値は停止確認だけ。既存Linux/macOS実行ファイルをspawnしてhandle/closeを所有し、停止未確認ならchannel隔離、重ね呼出し0、遅い成功によるdelivered書換え0とする。desktopの表示差はP2-A7-DESKTOP-EXPERIENCEの裁定に従う。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:958 «618012b27b0cd8ad»",
-          "docs/specs/reconstruction-p0-contracts.md:960 «1aa04ccc8255047a»",
+          "docs/specs/reconstruction-p0-contracts.md:960 «ed1339c17a231d35»",
           "docs/specs/reconstruction-p0-contracts.md:962 «aa57e0ea5ddebeb1»"
         ]
       },
@@ -471,16 +471,16 @@
         "id": "P2-A7-AC05",
         "requirement": "所有unitの同じ世代にintentを採用して保存予約した後、保存ackを待たず試行する。有効結果をattemptId/intentId/operation/期限/置換状態で照合し、dirty正本は所有unitの更新結果とする。時計式と適用順はP2-A7-TIME。O07:16〜18のintents:nullの通知期待は契約側で検収する。O07:17は保存ack済み・配送保留。保存予約後・ack遅延中の試行は別の故障注入条件とする。",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f»",
+          "docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f»",
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
           "reconstruction/tools/corpus/sequences.json#expected:O07:16"
         ]
       },
       {
         "id": "P2-A7-AC06",
-        "requirement": "soundはcheckout内根音表v1のweather/volcano/earthquake-eew/tsunami×info/normal/warning/critical/cancelだけをreconstruction/assets/sounds/<domain>-<level>.wavへ解決し、domain不明のfallbackを作らない。Linux probeと再生はffplay→paplay→aplayを同順にする。旧築assets/soundsとscripts/render-sounds.mjsは編集しない。生成WAVの全20ファイルのsha256と使用レンダラhashを配送証拠に固定する 旧スクリプトはimport/実行せず、合成式とWAV処理のみ最小移植。20本共通ピークで正規化し、生成コマンド・参照元hash・新生成器hash・20 WAV hashを配送証拠にする。",
+        "requirement": "soundはcheckout内根音表v1のweather/volcano/earthquake-eew/tsunami×info/normal/warning/critical/cancelだけをreconstruction/assets/sounds/<domain>-<level>.wavへ解決し、domain不明のfallbackを作らない。Linux probeと再生はffplay→paplay→aplayを同順にする（再生の同じ試行の中で列の次へ進むのはnotStartedのときだけ。deliveryはprobeで鳴ったbackendから始め、起動した後の失敗とtimeoutの後は列の次へ進める、P3-NOTICE-LEDGER-001のP3-NL-AC06の(3)・分岐P3-NL-D-SOUND-BACKENDの裁定B）。旧築assets/soundsとscripts/render-sounds.mjsは編集しない。生成WAVの全20ファイルのsha256と使用レンダラhashを配送証拠に固定する 旧スクリプトはimport/実行せず、合成式とWAV処理のみ最小移植。20本共通ピークで正規化し、生成コマンド・参照元hash・新生成器hash・20 WAV hashを配送証拠にする。",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:944 «a9a0d7b09bdc982b»",
+          "docs/specs/reconstruction-p0-contracts.md:944 «1cc5cadfeb9a2665»",
           "docs/specs/sound-design-system.md:36 «5473e1a530cb2639»",
           "docs/specs/sound-design-system.md:62 «48b4dd1b0d36d84e»"
         ]

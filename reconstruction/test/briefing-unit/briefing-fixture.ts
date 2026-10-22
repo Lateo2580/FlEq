@@ -12,7 +12,7 @@ import { reduceBriefingUnit } from "../../src/units/briefing/briefing-unit";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): BriefingUnitState {
-  return { schemaVersion: "p3-briefing-unit-v4", contentRevision: 0, currents: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-briefing-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };

@@ -4,6 +4,7 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -26,6 +27,7 @@ type Common = Readonly<{
   operation: Operation;
   // 版と取消の受理の証拠（K2）。事実を捨てた記憶でも残す。
   source: ReportRef; unconfirmed?: ReportRef; // P3-VM-AC04: 系列の未確認の印（取消の採用・期限で消えた記録には無い）
+  notice?: NoticeMark; // P3-NL-AC02: 系列の通知の印（記録と同じに生きる）。表示には出さない
   // 記憶まで含めた保持の期限。起点は source の ReportDateTime（P3-C14-RETENTION）。再起動・再受信で延ばさない。
   retainUntil: number;
 }>;
@@ -133,17 +135,17 @@ export type TyphoonNotificationPayload = Readonly<{
 export type TyphoonIntent = NotificationIntent & Readonly<{ payload: TyphoonNotificationPayload }>;
 
 export type TyphoonUnitState = Readonly<{
-  schemaVersion: "p3-typhoon-unit-v4";
+  schemaVersion: "p3-typhoon-unit-v5";
   contentRevision: number;
   analysis: readonly TyphoonAnalysisRecord[];
   probability: readonly TyphoonProbabilityRecord[];
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly TyphoonIntent[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedTyphoonUnit = Readonly<{
-  schemaVersion: "p3-typhoon-unit-v4";
+  schemaVersion: "p3-typhoon-unit-v5";
   analysis: readonly TyphoonAnalysisRecord[];
   probability: readonly TyphoonProbabilityRecord[];
   intents: readonly TyphoonIntent[];
@@ -183,5 +185,5 @@ export type TyphoonUnitStep = Readonly<{
 }>;
 
 export type TyphoonUnitCodec = UnitCodec<TyphoonUnitState, PersistedTyphoonUnit> & Readonly<{
-  schemaVersion: "p3-typhoon-unit-v4";
+  schemaVersion: "p3-typhoon-unit-v5";
 }>;

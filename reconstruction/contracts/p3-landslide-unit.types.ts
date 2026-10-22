@@ -4,6 +4,7 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -48,6 +49,7 @@ export type LandslideCurrent = Readonly<{
   operation: Operation;
   office: string;
   source: ReportRef; unconfirmed?: ReportRef; // P3-VM-AC04: 系列の未確認の印（取消の採用・期限で消えた記録には無い）
+  notice?: NoticeMark; // P3-NL-AC02: 系列の通知の印（記録と同じに生きる）。表示には出さない
   retainUntil: number;
 }> & (
   | LandslideCurrentFacts
@@ -65,16 +67,16 @@ export type LandslideNotificationPayload = Readonly<{
 export type LandslideIntent = NotificationIntent & Readonly<{ payload: LandslideNotificationPayload }>;
 
 export type LandslideUnitState = Readonly<{
-  schemaVersion: "p3-landslide-unit-v4";
+  schemaVersion: "p3-landslide-unit-v5";
   contentRevision: number;
   currents: readonly LandslideCurrent[];
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly LandslideIntent[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedLandslideUnit = Readonly<{
-  schemaVersion: "p3-landslide-unit-v4";
+  schemaVersion: "p3-landslide-unit-v5";
   currents: readonly LandslideCurrent[];
   intents: readonly LandslideIntent[];
 }>;
@@ -111,5 +113,5 @@ export type LandslideUnitStep = Readonly<{
 }>;
 
 export type LandslideUnitCodec = UnitCodec<LandslideUnitState, PersistedLandslideUnit> & Readonly<{
-  schemaVersion: "p3-landslide-unit-v4";
+  schemaVersion: "p3-landslide-unit-v5";
 }>;

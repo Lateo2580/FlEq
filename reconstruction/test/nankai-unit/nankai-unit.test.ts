@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { LONGEST_NOTICE, expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
 import type { NankaiCurrent, NankaiInformation, NankaiIntent, NankaiUnitState, NankaiUnitStep } from "../../contracts/p3-nankai-unit.types";
@@ -10,7 +11,8 @@ import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { nankaiUnitCodec, reduceNankaiUnit, toNankaiView } from "../../src/units/nankai/nankai-unit";
-import { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send, sentLater } from "./nankai-fixture"; import { INPUT_BOUNDARY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
+import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
+import { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send, sentLater } from "./nankai-fixture"; import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 
 const DAY = 86_400_000;
 const F = {
@@ -34,10 +36,11 @@ const status = (state: NankaiUnitState, subject = NANKAI) => {
 };
 const roundTrip = (state: NankaiUnitState) => nankaiUnitCodec.decode(JSON.parse(JSON.stringify(nankaiUnitCodec.encode(state))) as JsonValue);
 // 復元で戻る証拠だけの情報 subject（P3-AUTH-AC01(2)）。
+// P3-NL-AC02 (2): 情報の本文は保存しないが、印は保存する証拠の記録に持つ。
 const evidenceOnly = (item: NankaiInformation): NankaiInformation => item.effective === "evidence" ? item : { subject: item.subject,
   family: item.family, eventId: item.eventId, operation: item.operation, retainUntil: item.retainUntil, effective: "evidence",
   evidence: { subject: item.subject, reportDateTimeMs: Date.parse(item.source.reportDateTimeRaw), serialRaw: item.source.serialRaw,
-    infoTypeRaw: item.source.infoTypeRaw, controlDateTimeRaw: item.source.controlDateTimeRaw } };
+    infoTypeRaw: item.source.infoTypeRaw, controlDateTimeRaw: item.source.controlDateTimeRaw }, ...item.notice == null ? {} : { notice: item.notice } };
 
 describe("P3-UNIT-N-001 U-N reducer", () => {
   // contractBoundary: Q-ENUM の順と原子性、合法の縮退、coverage と実行場所（AC01）。
@@ -107,7 +110,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const ended = chain([F.inv1, F.ended]).at(-1)!;
     expect(shape(ended)).toEqual([[NANKAI, "changed", "semantic"], ["normal/VYSE50/20200512163600", "changed", "semantic"]]);
     expect(currentOf(ended.state)).toEqual({ subject: NANKAI, operation: "normal", eventId: "20200512163600", line: "nankai", effective: "ended",
-      source: expect.objectContaining({ family: "VYSE50", subject: NANKAI }), retainUntil: at("2020-05-12T16:36:00+09:00") + 30 * DAY });
+      source: expect.objectContaining({ family: "VYSE50", subject: NANKAI }), retainUntil: at("2020-05-12T16:36:00+09:00") + 30 * DAY,
+      notice: expect.objectContaining({ kinds: ["report"] }) }); // P3-NL-AC02 (2): 系列の記録に通知の印
     expect(ended.intents.map((item) => [item.transition, item.payload.level])).toEqual([["released", "info"], ["released", "info"]]);
     // VYSE51 の第 1〜3 号は同じ EventID の情報 subject の revision で並び、現況と系統の watermark を変えない。
     expect(series.slice(7, 10).map((step) => {
@@ -206,8 +210,9 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const old = send(training.state, F.advisory, undefined, now);
     expect([shape(old), old.intents, old.state.currents]).toEqual([[[NANKAI, "unchanged", "stale"], ["normal/VYSE50/20200512163200", "unchanged", "stale"]],
       [], restored.currents]);
-    // 情報 subject を自身の退去で残さなくても、同じ報の現況の採用と通知は今のまま（P3-OPCAP-N-AC02）。
-    const drill = send(restored, F.advisory, (xml) => xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"), now);
+    // 情報 subject を自身の退去で残さなくても、同じ報の現況の採用と通知は今のまま（P3-OPCAP-N-AC02）。pending は空にする（ID と欄の伸びた
+    // 124 件の pending が byte の予算に届き、訓練の通知が先に外れるため。P3-NL-AC01・AC06）。
+    const drill = send({ ...restored, intents: [] }, F.advisory, (xml) => xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"), now);
     expect(drill.state.information).toBe(restored.information);
     expect([shape(drill), drill.decisions.at(-1), drill.intents.map((item) => [item.channel, item.payload.title.slice(0, 4)])]).toEqual([
       [["training/nankai/current", "changed", "semantic"], ["training/VYSE50/20200512163200", "changed", "revisionOnly"]],
@@ -273,27 +278,16 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const fresh = send(emptyState(), F.advisory).intents;
     // 配送の更新で伸びうる byte（attempts 16 桁・nextAttemptAt 25 文字・disposition 3 文字まで）を予約した残りが pending の予算
     // （作者裁定、Q-C8-IMPL-AMEND(7)(8)）。
-    const growth = (item: NankaiIntent) => 16 - JSON.stringify(item.attempts).length + 25 - JSON.stringify(item.nextAttemptAt).length + 3;
+    const growth = deliveryGrowth;
     const pad = 131_072 - bytesOf([...seeded(10), ...fresh]) - [...seeded(10), ...fresh].reduce((sum, item) => sum + growth(item), 0);
     expect(pending(send({ ...emptyState(), intents: seeded(10, pad) }, F.advisory).state)).toHaveLength(12);
     const byteOver = send({ ...emptyState(), intents: seeded(10, pad + 1) }, F.advisory);
     expect([byteOver.intents.map((item) => item.channel), bytesOf(pending(byteOver.state)) <= 131_072]).toEqual([["sound"], true]);
-    // 終端記録の合計が 98,304 byte を超える分は最古から期限前に回収する。配送（intentUpdate）で増えた分も同じで、保存物を decode が受ける。
-    const terminal = (count: number): NankaiIntent[] => seeded(count).map((item, index) => ({ ...item, id: `done-${index}`,
-      createdAt: reported - 100_000 + index, disposition: "delivered" }));
-    const terminalBytes = (values: readonly NankaiIntent[]) => values.filter((item) => item.disposition !== "pending")
-      .reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
-    let count = 0;
-    while (terminalBytes(terminal(count + 1)) <= 98_304) count++;
-    const filled: NankaiUnitState = { ...emptyState(), intents: [...terminal(count), ...seeded(1)] };
-    const delivered = reduceNankaiUnit(filled, { kind: "intentUpdate", clock: clock(reported), intentUpdate: { id: "seed-0", attempts: 1,
-      nextAttemptAt: reported, disposition: "delivered" } });
-    expect(terminalBytes(delivered.state.intents)).toBeLessThanOrEqual(98_304);
-    expect(delivered.state.intents.some((item) => item.id === "done-0")).toBe(false);
+    // 終端記録の予算は無くなった（P3-NL-AC05 (2)）: 終端の更新は intent を外し、保存物を decode が受ける。
+    const delivered = reduceNankaiUnit({ ...emptyState(), intents: seeded(1) }, { kind: "intentUpdate", clock: clock(reported), intentUpdate: {
+      id: "seed-0", attempts: 1, nextAttemptAt: reported, disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null } });
+    expect(delivered.state.intents).toEqual([]);
     expect(roundTrip(delivered.state).kind).toBe("restored");
-    const superseding = send({ ...emptyState(), intents: [...terminal(count), ...seeded(1).map((item) => ({ ...item,
-      subject: NANKAI, source: { ...item.source, family: "VYSE50", subject: NANKAI } }))] }, F.advisory);
-    expect(terminalBytes(superseding.state.intents)).toBeLessThanOrEqual(98_304);
 
     // I-U-N.capacityMeasurement の同時最大状態（実例の最大）と、上限の文字列での上界。どちらも encode でき 262,144 byte 以下で decode が受ける。
     const real = budgetState(false);
@@ -365,16 +359,13 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       // 実 byte は 131,072 以下でも、配送の更新の予約を足すと超える pending（受理と同じ式、Q-C8-IMPL-AMEND(7)）。
       ["pending + delivery reserve > 131072 bytes", { ...value, currents: [], intents: reserveOver(intent)  }],
       ["attempts not a safe integer", { ...value, intents: [{ ...intent, attempts: Number.MAX_SAFE_INTEGER + 1 }] }],
-      // 終端記録は pending との合計で数える（Q-C8-IMPL-AMEND(1)）。世代の上限の手前の 229,377〜262,143 byte に置く。
-      ["pending + terminal > 229,376 bytes", { ...value, currents: [], intents: many(100, (index) => ({ ...intent, id: `done-${index}`,
-        disposition: "delivered", payload: { ...(intent.payload as Row), body: "x".repeat(1_700) } })) }],
+      // 終端の intent は保存しない（P3-NL-AC05 (1)）。
+      ["terminal intent", { ...value, intents: [{ ...intent, disposition: "delivered" }] }],
       ["duplicate intent", { ...value, intents: [intent, intent] }],
       ["intent of another unit", { ...value, intents: [{ ...intent, unit: "U-Q" }] }],
       ["intent subject form", { ...value, intents: [{ ...intent, subject: "normal/VXSE53/20200512162800",
         source: { ...(intent.source as Row), subject: "normal/VXSE53/20200512162800" } }] }],
     ];
-    const combined = Buffer.byteLength(JSON.stringify((invalid.find(([name]) => name.startsWith("pending + terminal"))![1] as { intents: unknown }).intents));
-    expect(combined > 229_376 && combined < 262_144 - 400, String(combined)).toBe(true);
     for (const [name, candidate] of invalid) expect(nankaiUnitCodec.decode(candidate as JsonValue).kind, name).toBe("invalid");
     // 値域は狭めない（作者裁定、Q-C8-IMPL-AMEND(8)）: worker の時計（Date.now() に performance の小数を足す）の小数の nextAttemptAt、
     // 負の時刻、大きな attempts を受ける。
@@ -432,8 +423,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       .toEqual([["[訂正] 南海トラフ地震臨時情報（巨大地震注意）", true, "updated"], ["[訂正] 南海トラフ地震臨時情報（巨大地震注意）", true, "updated"]]);
     // 置換（P3-C8-REPLACEMENT=A）: 巨大地震警戒が未配送の調査中を置き換え、解説は互いに消さない。
     const replaced = send(send(emptyState(), F.inv1).state, F.warning, retime("2020-05-12T16:20:30+09:00")).state;
-    expect(replaced.intents.map((item) => [item.payload.level, item.disposition])).toEqual([["warning", "superseded"], ["warning", "superseded"],
-      ["critical", "pending"], ["critical", "pending"]]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(replaced.intents.map((item) => [item.payload.level, item.disposition])).toEqual([["critical", "pending"], ["critical", "pending"]]);
     const commentaries = send(send(emptyState(), F.c1).state, F.regular, retime("2020-05-12T16:38:30+09:00")).state;
     expect(pending(commentaries).map((item) => item.subject)).toEqual(["normal/VYSE51/20200512163800", "normal/VYSE51/20200512163800",
       "normal/VYSE52/20200512164400", "normal/VYSE52/20200512164400"]);
@@ -445,13 +436,13 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       .intents[0].payload.body).toBe("南海トラフ地震臨時情報（巨大地震注意）");
     // intentUpdate: 既存 id だけを一括で更新し、保存世代を 1 つ進める。未知 id・同値は no-op。
     const [desktop] = advisory.intents;
-    const updated = reduceNankaiUnit(advisory.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: [{ id: desktop.id,
-      attempts: 1, nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending" }, { id: "unknown", attempts: 1, nextAttemptAt: 0,
-      disposition: "delivered" }] });
+    const updated = reduceNankaiUnit(advisory.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: [{ ...desktop,
+      attempts: 1, nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null }, { id: "unknown", attempts: 1, nextAttemptAt: 0,
+      disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null }] });
     expect(updated.state.persistence.currentGeneration).toBe(advisory.state.persistence.currentGeneration + 1);
     expect(updated.decisions).toMatchObject([{ decision: "changed", change: "deliveryOnly" }]);
-    expect(reduceNankaiUnit(updated.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: { id: desktop.id, attempts: 1,
-      nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending" } }).state).toBe(updated.state);
+    expect(reduceNankaiUnit(updated.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: { ...desktop, attempts: 1,
+      nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null } }).state).toBe(updated.state);
     // 復元直後の続報は復元した現況との差で決める（同じ報は duplicate で鳴らさない。情報系列は空から始まる）。
     const restored = reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(advisory.state),
       clock: clock(desktop.createdAt + 1) }).state;
@@ -461,29 +452,22 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       .map((item) => [item.channel, item.payload.title])).toEqual([["desktop", "【試験】南海トラフ地震臨時情報（巨大地震注意）"]]);
   });
 
-  // 実不具合の再発防止（C8 実装のレビュー、Q-C8-IMPL-AMEND(1)・(2)）。
-  it("P3-C8-T04 regression / AC04: the owner adopts a terminal update at the terminal budget", () => {
+  // 実不具合の再発防止（C8 実装のレビュー、Q-C8-IMPL-AMEND(1)・(2)）。終端記録の予算は無くなった（P3-NL-AC05 (2)）ので、owner は
+  // intent が外れ世代が進んだことで終端の更新の採用を確かめる（AC05 (3)）。urgent の owner は投げない。
+  it("P3-C8-T04 regression / AC04: the owner adopts a terminal update that removes the intent", () => {
     const reported = at("2020-05-12T16:32:00+09:00");
     const template = send(emptyState(), F.advisory).intents[0];
-    const terminalBytes = (values: readonly NankaiIntent[]) => values.filter((item) => item.disposition !== "pending")
-      .reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
-    // (1) 古い pending の再試行待ちの間に新しい終端記録が 98,304 byte 近くまで溜まり、その pending の配送が完了しても、owner が
-    // 照合する更新した記録は残る（回収は次に古い終端記録から）。urgent の owner は投げない。
     const old: NankaiIntent = { ...template, id: "old-pending", createdAt: reported - 100_000, expiresAt: reported + 80_000 };
-    const done = (index: number): NankaiIntent => ({ ...template, id: `done-${index}`, createdAt: reported + index, disposition: "delivered" });
-    let count = 0;
-    while (terminalBytes([...Array.from({ length: count + 1 }, (_, index) => done(index))]) <= 98_304) count++;
-    const unitState: NankaiUnitState = { ...emptyState(), intents: [old, ...Array.from({ length: count }, (_, index) => done(index))] };
+    const unitState: NankaiUnitState = { ...emptyState(), intents: [old] };
     const now = clock(reported + 1_000);
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-N": unitState } };
-    const updated = intentUpdateOwner(owner, "U-N", [{ id: old.id, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered" }],
+    const updated = intentUpdateOwner(owner, "U-N", [{ ...old, attempts: 1, nextAttemptAt: now.wallTimeMs, disposition: "delivered", lossReason: null }],
       now, linkedUnitTable);
     expect(updated.adopted).toBe(true);
     const after = updated.state.units["U-N"]!;
-    expect(after.intents.find((item) => item.id === old.id)?.disposition).toBe("delivered");
-    expect(after.intents.some((item) => item.id === "done-0")).toBe(false);
+    expect(after.intents).toEqual([]);
     expect(roundTrip(after).kind).toBe("restored");
   });
 
@@ -502,8 +486,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-N": first.state } };
-    const grown = intentUpdateOwner(owner, "U-N", pending(first.state).map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
-      nextAttemptAt: -0.0000018927186924017318, disposition: index % 3 === 0 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    const grown = intentUpdateOwner(owner, "U-N", pending(first.state).map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER,
+      nextAttemptAt: -0.0000018927186924017318, disposition: index % 3 === 0 ? "superseded" as const : "pending" as const, lossReason: null })), now, linkedUnitTable);
     expect(grown.adopted).toBe(true);
     expect(roundTrip(grown.state.units["U-N"]!).kind).toBe("restored");
   });
@@ -548,9 +532,9 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
   });
 
   // contractBoundary（P3-CODEC-AC03・RES-05、P3-AUTH-RES-01）: 現況 6 件の上限の形（inputId・title・headline・infoSerial を制御文字で上限まで）に
-  // 証拠 64 件（subject 80 字・最長の安全な整数の時刻・Serial 10 桁・取消）と通知の予算（pending の実 byte＋予約と終端記録で 229,376）を
-  // 足しても 273,259 byte の内側。
+  // 証拠 64 件（subject 80 字・最長の安全な整数の時刻・Serial 10 桁・取消）と通知の予算（pending の実 byte＋予約 131,072）を足しても内側。
   // P3-VM-AC08: 上界に Control/DateTime（40 文字）と現況ごとの未確認の印（decoder の許す最長の ReportRef）を足して数え直す。
+  // P3-NL-AC15 (2): 全記録に最長の通知の印を足し、終端記録の予算 98,304 は外す。
   it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents with marks, 64 evidence records and the whole notice budget stay within 280,060 bytes", () => {
     const wide = (length: number) => "\u0001".repeat(length);
     const time40 = "2020-05-22T15:00:00.00000000000000+09:00";
@@ -558,23 +542,23 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       const source = { ...item.source, inputId: "i".repeat(64), controlDateTimeRaw: time40 };
       const mark = item.effective === "cancelled" || item.effective === "expired" ? {}
         : { unconfirmed: { ...source, reportDateTimeRaw: time40, serialRaw: "1234567890", infoTypeRaw: "取消" } };
-      return "title" in item ? { ...item, source, ...mark, title: wide(128), headline: wide(512), infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) } }
-        : { ...item, source, ...mark };
+      return "title" in item ? { ...item, source, ...mark, notice: LONGEST_NOTICE, title: wide(128), headline: wide(512),
+        infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) } } : { ...item, source, ...mark, notice: LONGEST_NOTICE };
     });
     const evidence = Array.from({ length: 64 }, (_, index): NankaiInformation => {
       const eventId = String(index).padStart(64, "E"), subject = `training/VYSE51/${eventId}`, reportDateTimeMs = -9_007_199_254_740_991;
-      return { subject, family: "VYSE51", eventId, operation: "training", retainUntil: reportDateTimeMs + 7 * DAY, effective: "evidence",
+      return { subject, family: "VYSE51", eventId, operation: "training", retainUntil: reportDateTimeMs + 7 * DAY, effective: "evidence", notice: LONGEST_NOTICE,
         evidence: { subject, reportDateTimeMs, serialRaw: "1234567890", infoTypeRaw: "取消",
           controlDateTimeRaw: "2020-05-22T15:00:00.00000000000000+09:00" } };
     });
     const state: NankaiUnitState = { ...emptyState(), currents, information: evidence };
     expect(roundTrip(state).kind).toBe("restored");
-    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v3", unit: "U-N", generation: 0, capturedAt: 0,
-      payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES;
+    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v4", unit: "U-N", generation: 0, capturedAt: 0,
+      payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
     console.info("P3-CODEC U-N bound", JSON.stringify({ currents: currents.length, evidence: evidence.length, envelope,
-      bound: envelope + 62 - 2 + 229_376 }));
-    // 空の intents 配列（2 byte）を通知の予算 229,376 で置き換え、generation と capturedAt の 62 byte と inputBoundary の最大（P3-VM-AC06）を予約する。
-    expect(envelope + 62 - 2 + 229_376).toBeLessThanOrEqual(280_060);
+      bound: envelope + 62 - 2 + 131_072 }));
+    // 空の intents 配列（2 byte）を通知の予算 131,072 で置き換え、generation と capturedAt の 62 byte と inputBoundary の最大（P3-VM-AC06）を予約する。
+    expect(envelope + 62 - 2 + 131_072).toBeLessThanOrEqual(280_060);
   });
 
   // contractBoundary: E22 の U-N は対象外（P3-C8-N2、AC13）。
@@ -609,8 +593,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     // :38 の復元は intent を作らず、:36 の pending を元の期限で戻す。:39 の取消は復元した現況を取り消し、その pending を置き換える。
     expect(o07[3].state.intents.map((item) => [item.channel, item.expiresAt])).toEqual(o07[1].state.intents.map((item) => [item.channel, item.expiresAt]));
     expect(o07[3].state.information).toEqual(o07[2].state.information.map(evidenceOnly));
-    expect(o07[4].state.intents.filter((item) => item.subject === NANKAI && item.transition === "activated").map((item) => item.disposition))
-      .toEqual(["superseded", "superseded"]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(o07[4].state.intents.filter((item) => item.subject === NANKAI && item.transition === "activated")).toEqual([]);
     expect(infoOf(o07[4].state, "normal/VYSE50/20200512163200")).toMatchObject({ effective: "cancelled" });
     // :43 は validUntil の 1 ms 前で active、:44 の到来で expired。通知しない。
     expect(currentOf(o07[8].state)).toMatchObject({ effective: "active", validUntil: at("2020-05-19T16:28:00+09:00") });
@@ -847,19 +831,12 @@ function budgetState(bounded: boolean): NankaiUnitState {
   for (let size = 2, index = 0; pendingIntents.length < 128; index++) {
     // pending の予算は配送の更新の予約込み（Q-C8-IMPL-AMEND(8)）。
     const item = sized(index, "pending"), width = bytes(item) + (pendingIntents.length === 0 ? 0 : 1)
-      + 16 - JSON.stringify(item.attempts).length + 25 - JSON.stringify(item.nextAttemptAt).length + 3;
+      + deliveryGrowth(item);
     if (size + width > 131_072) break;
     pendingIntents.push(item);
     size += width;
   }
-  const terminal: NankaiIntent[] = [];
-  for (let size = 0, index = 1000; ; index++) {
-    const item = sized(index, "delivered");
-    if (size + bytes(item) + 1 > 98_304) break;
-    terminal.push(item);
-    size += bytes(item) + 1;
-  }
-  return { ...state, intents: [...pendingIntents, ...terminal] };
+  return { ...state, intents: pendingIntents };
 }
 
 // 保存の境界の報: EventID 64 byte、ReportDateTime 40 文字、Serial 10 桁、全ての文字列を上限より長い 3 byte の文字で埋める。
@@ -887,3 +864,11 @@ function reserveOver(intent: Record<string, unknown>): Record<string, unknown>[]
   if (Buffer.byteLength(JSON.stringify(items)) !== 131_072) throw new Error("pending is not 131,072 bytes");
   return items;
 }
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-N restores failed and null pending with their fields and drops a started one", () => {
+  const issued = send(emptyState(), F.advisory);
+  expect(issued.intents.length).toBeGreaterThanOrEqual(2);
+  expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
+    restore: (state, at) => reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(state), clock: at }),
+    markOf: (state, subject) => [...state.currents, ...state.information].find((item) => item.subject === subject)?.notice });
+});

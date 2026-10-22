@@ -4,6 +4,7 @@ import type {
   CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
+  NoticeMark,
   NotificationIntent,
   NotificationIntentUpdate,
   PersistenceStatus,
@@ -80,6 +81,7 @@ export type FloodCurrent = Readonly<{
   headType: string;
   eventId: string;
   source: ReportRef; unconfirmed?: ReportRef; // P3-VM-AC04: 系列の未確認の印（取消の採用・期限で消えた記録には無い）
+  notice?: NoticeMark; // P3-NL-AC02: 系列の通知の印（記録と同じに生きる）。表示には出さない
   retainUntil: number;
 }> & (
   | FloodCurrentFacts
@@ -97,16 +99,16 @@ export type FloodNotificationPayload = Readonly<{
 export type FloodIntent = NotificationIntent & Readonly<{ payload: FloodNotificationPayload }>;
 
 export type FloodUnitState = Readonly<{
-  schemaVersion: "p3-flood-unit-v4";
+  schemaVersion: "p3-flood-unit-v5";
   contentRevision: number;
   currents: readonly FloodCurrent[];
-  // Pending and terminal records; terminal ones leave at expiresAt and count in the generation byte budget.
+  // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly FloodIntent[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedFloodUnit = Readonly<{
-  schemaVersion: "p3-flood-unit-v4";
+  schemaVersion: "p3-flood-unit-v5";
   currents: readonly FloodCurrent[];
   intents: readonly FloodIntent[];
 }>;
@@ -143,5 +145,5 @@ export type FloodUnitStep = Readonly<{
 }>;
 
 export type FloodUnitCodec = UnitCodec<FloodUnitState, PersistedFloodUnit> & Readonly<{
-  schemaVersion: "p3-flood-unit-v4";
+  schemaVersion: "p3-flood-unit-v5";
 }>;

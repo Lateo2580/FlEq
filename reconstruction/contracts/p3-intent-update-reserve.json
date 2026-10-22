@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "96660fd6a8b1ed11b993431d2c25b439338d5cba5547aecc346e259ffbcfb75b",
+    "sha256": "5fb67c3351b6a72dc22ddb7a23085d6d370f1cd27758fb65b8bc9b200892dd23",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -43,7 +43,7 @@
         "id": "Q-IUR-CODE-READ",
         "status": "closed",
         "source": "起草時の版（0ed0c626）のtsunami-unit.ts・seismic-unit.ts・eew-unit.ts・domains/eew/eew.ts・weather-current-unit.ts・weather-timeseries-unit.ts・nankai-unit.ts・owner-runtime.tsの読み合わせ（2026-10-09）",
-        "closed": "(1) 更新を受けるのはpendingだけ: ownerのintentUpdateOwnerは、更新のどれかがpendingでないintentを指せば何も採用しない。終端記録が後から伸びることは無い (2) intentUpdateが変える欄はattempts・nextAttemptAt・dispositionの3つ（U-T・U-Q・U-Nは3欄を書き、U-E・U-W・U-Fは更新を展開する。NotificationIntentUpdateはid・attempts・nextAttemptAt・dispositionだけ）。U-Eは期限の後の更新をexpiredにする。どのunitもintentUpdateで上限を確かめない (3) 終端の形: U-T・U-Q・U-N・U-W・U-Fは同じ記録のdispositionを書き換えてintentsに残す（pendingより最大3文字長い）。U-Eは記録をintentsから抜き、deliveryRecords（intentId・disposition・expiresAt）を足す。deliveryRecordは元のintentより小さいので、U-Eの伸びはattemptsとnextAttemptAtだけ（式の+3は1件3 byte余る） (4) decodeの値域: U-T・U-Q・U-E・U-W・U-Nはattemptsが0以上の安全な整数、nextAttemptAtが有限の数。U-Fはattempts・nextAttemptAtを確かめない（rowをasで言い換える） (5) pendingの上限128件・131,072 byte: U-Tは受理（admitのfits）とdecode（persisted）、U-Qは受理（admitのpool）とdecode、U-Eは受理（domains/eew/eew.tsのfits）とdecode・encode（eew-unit.tsのpersisted）、U-W・U-Fはdecode・encodeだけ（受理の経路が無い） (6) intentを含む世代の上限: U-T 4,194,304（fitとpersistedがgenerationBytesを共有）、U-Q 4,194,304（同）、U-E 262,144（reduceの後段が受理・期限・intentUpdateを含む毎stepで終端記録をexpiresAtの古い順に退去して実byteに収める。decodeはgeneration・capturedAtを最大の安全な整数で数える。後段の退去がintentUpdateのstepで更新した記録自身を消すとintentUpdateOwnerの照合がthrowするが、今は届かない: pending→終端は必ず縮む・pendingのままの伸びは新しい記録を作らない・製品の更新の束は単発（予約・結果）か全部expiredの群で混ざらない。P3-IUR-GENERATIONのreason）、U-W 16 MiB（受理のreservedGenerationBytes・encodeのencodedValue・decodeのpersistedValueの3か所で数える。decodeはenvelopeを含まないpayloadだけ）、U-F 32 MiB（measureを受理・encode・decodeが共有） (7) 終端記録の回収: U-Qは受理のときだけ終端131,072 byteを超えた分を回収し、decodeは終端を単独で数えない。U-Tは終端の上限を別に置かない。どちらも更新のときは回収しないので、C8のQ-C8-IMPL-AMEND(1)（更新した記録を回収してownerが止まる）の形は無い (8) 実装の地雷: (a) seismic-unit.tsのlistBytesはsumCache（WeakMap）を配列だけで引き、size関数を区別しない。同じ配列をbytesと予約の2つのsize関数で数えると、後の呼び出しが前の和を返す (b) domains/eew/eew.tsのnotificationArrayBytesはeew-unit.tsの世代の計量（予約を足さない側）とcacheを共有する。どちらも予約は関数の中に入れず、横で別に足す (9) 生成者: U-W・U-Fのdomain・unitにintentの生成箇所は無い（attempts: 0はU-E・U-T・U-Q・U-Nだけ）。pendingを持つのは、pendingを含む保存物を復元したときだけ",
+        "closed": "(1) 更新を受けるのはpendingだけ: ownerのintentUpdateOwnerは、更新のどれかがpendingでないintentを指せば何も採用しない。終端記録が後から伸びることは無い (2) intentUpdateが変える欄はattempts・nextAttemptAt・dispositionの3つ（U-T・U-Q・U-Nは3欄を書き、U-E・U-W・U-Fは更新を展開する。NotificationIntentUpdateはid・attempts・nextAttemptAt・dispositionだけ）。U-Eは期限の後の更新をexpiredにする。どのunitもintentUpdateで上限を確かめない (3) 終端の形: U-T・U-Q・U-N・U-W・U-Fは同じ記録のdispositionを書き換えてintentsに残す（pendingより最大3文字長い）。U-Eは記録をintentsから抜き、deliveryRecords（intentId・disposition・expiresAt）を足す。deliveryRecordは元のintentより小さいので、U-Eの伸びはattemptsとnextAttemptAtだけ（式の+3は1件3 byte余る） (4) decodeの値域: U-T・U-Q・U-E・U-W・U-Nはattemptsが0以上の安全な整数、nextAttemptAtが有限の数。U-Fはattempts・nextAttemptAtを確かめない（rowをasで言い換える） (5) pendingの上限128件・131,072 byte: U-Tは受理（admitのfits）とdecode（persisted）、U-Qは受理（admitのpool）とdecode、U-Eは受理（domains/eew/eew.tsのfits）とdecode・encode（eew-unit.tsのpersisted）、U-W・U-Fはdecode・encodeだけ（受理の経路が無い） (6) intentを含む世代の上限: U-T 4,194,304（fitとpersistedがgenerationBytesを共有）、U-Q 4,194,304（同）、U-E 262,144（reduceの後段が受理・期限・intentUpdateを含む毎stepで終端記録をexpiresAtの古い順に退去して実byteに収める。decodeはgeneration・capturedAtを最大の安全な整数で数える。後段の退去がintentUpdateのstepで更新した記録自身を消すとintentUpdateOwnerの照合がthrowするが、今は届かない: pending→終端は必ず縮む・pendingのままの伸びは新しい記録を作らない・製品の更新の束は単発（予約・結果）か全部expiredの群で混ざらない。P3-IUR-GENERATIONのreason）、U-W 16 MiB（受理のreservedGenerationBytes・encodeのencodedValue・decodeのpersistedValueの3か所で数える。decodeはenvelopeを含まないpayloadだけ）、U-F 32 MiB（measureを受理・encode・decodeが共有） (7) 終端記録の回収: U-Qは受理のときだけ終端131,072 byteを超えた分を回収し、decodeは終端を単独で数えない。U-Tは終端の上限を別に置かない。どちらも更新のときは回収しないので、C8のQ-C8-IMPL-AMEND(1)（更新した記録を回収してownerが止まる）の形は無い (8) 実装の地雷: (a) seismic-unit.tsのlistBytesはsumCache（WeakMap）を配列だけで引き、size関数を区別しない。同じ配列をbytesと予約の2つのsize関数で数えると、後の呼び出しが前の和を返す (b) domains/eew/eew.tsのnotificationArrayBytesはeew-unit.tsの世代の計量（予約を足さない側）とcacheを共有する。どちらも予約は関数の中に入れず、横で別に足す (9) 生成者: U-W・U-Fのdomain・unitにintentの生成箇所は無い（attempts: 0はU-E・U-T・U-Q・U-Nだけ）。pendingを持つのは、pendingを含む保存物を復元したときだけ （P3-NOTICE-LEDGER-001の後: 終端は全unitでintentsから外れ〔deliveryRecords・終端記録の回収は無い〕、更新の欄はlastAttempt・replayed・expiresAt・lossReasonを足した。U-Eの世代は2,097,152）",
         "remaining": "なし（baseOidの割当のときに読み直す、Q-IUR-BASE）",
         "reason": "unitごとの差を決めて、式をそのまま当ててよいかを確かめる"
       },
@@ -221,25 +221,25 @@
       "予約は保存せず、数えるたびにintentのattempts・nextAttemptAtから計算する"
     ],
     "outOfScope": [
-      "本契約が触らない関数のasの言い換え（unitの外のhelperのobject()、eew.tsのdeliveryRecordEventなど）。触る関数の中のasはAC06で直す",
+      "本契約が触らない関数のasの言い換え（unitの外のhelperのobject()、eew.tsのdeliveryRecordEventなど）。触る関数の中のasはAC06で直す（deliveryRecordEventはP3-NOTICE-LEDGER-001で消えた）",
       "U-Nの挙動（C8で直し済み。P3-IUR-HELPER=Aのときもimportの差し替えだけ）",
-      "U-Eの世代（262,144 byte）の計量と、終端記録の退去の規則（eew-unit.tsのreduceの後段）。更新の束ね方を変える契約への条件はP3-IUR-GENERATIONのreason",
+      "U-Eの世代（262,144 byte）の計量と、終端記録の退去の規則（eew-unit.tsのreduceの後段）。更新の束ね方を変える契約への条件はP3-IUR-GENERATIONのreason（P3-NOTICE-LEDGER-001で終端記録は無くなり、U-Eの世代は2,097,152 byte）",
       "decodeの値域を狭めること（attempts 0〜999・nextAttemptAtを整数に縛る案は作者裁定 2026-10-09で取り下げ）",
       "intentUpdateに上限の検査や回収を足すこと（予約の不変条件で足りる、AC03）",
-      "終端記録の回収の規則（U-Qの受理のときの131,072 byte、U-Nの98,304 byte）",
+      "終端記録の回収の規則（U-Qの受理のときの131,072 byte、U-Nの98,304 byte）（P3-NOTICE-LEDGER-001で終端記録は無くなった）",
       "C9〜C14の未起草のunit（式の使い方は計画の共通条文に統合担当が書く、Q-IUR-BASE）",
       "spec本文・計画・他の契約のファイルの改訂（統合担当、AC05）。package.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
     ],
     "acceptanceChecks": [
       {
         "id": "P3-IUR-AC01",
-        "requirement": "pendingの予算は予約込み、受理とdecodeで同じ式（台帳73、P3-IUR-RES-01）: U-T・U-Q・U-E・U-W・U-Fのpendingの131,072 byteの検査は、JSONのUTF-8の実byteにpendingごとの予約（max(0,16−attemptsのJSONの長さ)＋max(0,25−nextAttemptAtのJSONの長さ)＋3）の和を足して数える。受理: U-Tはadmitのfits、U-Qはadmitのpoolの大きさと外すときの引き算（1件ごとに実byte＋1＋予約を引く）、U-Eはdomains/eew/eew.tsのfitsと下位の退去の引き算。decode・encode: U-T・U-Qのpersisted、U-Eのpersisted（encodeも同じ関数を通る）、U-WのpersistedValue（decode）とencodedValue（encode。P3-WL1-AC05の並びの同期を保つ）、U-Fのpersisted（encodeとdecodeが共有）。U-W・U-Fには受理の経路が無い。実装の地雷（Q-IUR-CODE-READ (8)）: 予約の和はlistBytesやnotificationArrayBytesの中に入れず、横で別に足す（U-QのlistBytesは配列だけで和をcacheするので、同じ配列を別のsize関数で数えると前の和が返る。eew.tsのnotificationArrayBytesはU-Eの世代の計量と共有で、そこへ予約を入れるとU-Eの世代に予約が混ざる）。件数128と退去の順・群・全採用か未採用は変えない。U-Eはdispositionがintentsの中で伸びない（終端はdeliveryRecordsへ移る）が、同じ式で数え、1件3 byteの余りを許す（式を1つに保つ）。無いと: 上限ちょうどまで受理したpendingが配送の更新で伸び、U-T・U-Qは保存した世代を復元のdecodeが拒否し（正常な旧slotへ後退、無ければnoValidSlot）、U-E・U-W・U-Fはencodeが拒否して保存が失敗する",
+        "requirement": "pendingの予算は予約込み、受理とdecodeで同じ式（台帳73、P3-IUR-RES-01）: U-T・U-Q・U-E・U-W・U-Fのpendingの131,072 byteの検査は、JSONのUTF-8の実byteにpendingごとの予約（max(0,16−attemptsのJSONの長さ)＋max(0,25−nextAttemptAtのJSONの長さ)＋3＋max(0,9−lastAttemptのJSONの長さ)〔nullからstartedへの伸び5、P3-NOTICE-LEDGER-001のP3-NL-AC06の(6)。replayed・expiresAtは伸びない〕）の和を足して数える。受理: U-Tはadmitのfits、U-Qはadmitのpoolの大きさと外すときの引き算（1件ごとに実byte＋1＋予約を引く）、U-Eはdomains/eew/eew.tsのfitsと下位の退去の引き算。decode・encode: U-T・U-Qのpersisted、U-Eのpersisted（encodeも同じ関数を通る）、U-WのpersistedValue（decode）とencodedValue（encode。P3-WL1-AC05の並びの同期を保つ）、U-Fのpersisted（encodeとdecodeが共有）。U-W・U-Fには受理の経路が無い。実装の地雷（Q-IUR-CODE-READ (8)）: 予約の和はlistBytesやnotificationArrayBytesの中に入れず、横で別に足す（U-QのlistBytesは配列だけで和をcacheするので、同じ配列を別のsize関数で数えると前の和が返る。eew.tsのnotificationArrayBytesはU-Eの世代の計量と共有で、そこへ予約を入れるとU-Eの世代に予約が混ざる）。件数128と退去の順・群・全採用か未採用は変えない。U-Eはdispositionがintentsの中で伸びない（終端はintentsから外れる。前はdeliveryRecordsへ移った、P3-NOTICE-LEDGER-001）が、同じ式で数え、1件3 byteの余りを許す（式を1つに保つ）。無いと: 上限ちょうどまで受理したpendingが配送の更新で伸び、U-T・U-Qは保存した世代を復元のdecodeが拒否し（正常な旧slotへ後退、無ければnoValidSlot）、U-E・U-W・U-Fはencodeが拒否して保存が失敗する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:344 «cab21d450b7db8ea»",
           "reconstruction/contracts/p3-nankai-unit.json:296 «11d1b802043a2d33»",
           "reconstruction/contracts/p3-nankai-unit.json:297 «af3fe4ee1a81eeaa»",
-          "reconstruction/contracts/p3-tsunami-unit.json:207 «499a13c8ac294e8d»",
-          "reconstruction/contracts/p2-eew-unit.json:188 «d6f88269602312bd»"
+          "reconstruction/contracts/p3-tsunami-unit.json:207 «d31b9ee92b979154»",
+          "reconstruction/contracts/p2-eew-unit.json:188 «8b4c8ba028dc9fe9»"
         ]
       },
       {
@@ -248,14 +248,14 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-tsunami-unit.json:265 «7002f82c2f44eaff»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «e7f8c1963dbeeace»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «d7df9e54dba449d8»"
+          "reconstruction/contracts/p3-seismic-unit.json:310 «fb6c17c8f1ed8eb9»"
         ]
       },
       {
         "id": "P3-IUR-AC03",
         "requirement": "更新は予約込みの量を増やさない（intentUpdateに検査を足さない理由）: decodeが受けるattempts（0以上の安全な整数、JSONで16文字以下）とnextAttemptAt（有限の数、JSONで25文字以下）の範囲では、pendingのまま伸びる分は予約の減りと同じ長さで、終端になる分は元のpendingの実byte＋予約の内側（ownerは更新がpendingでないintentを指せば採用しない）。U-T・U-Q・U-E・U-Wのdecodeの値域（attempts・nextAttemptAtの確かめ）は今のまま変えず、U-Fは同じ値域を確かめるようにする（AC06）（作者裁定 2026-10-09、値域で縛らない）。既知の限界はC8と同じ: attemptsが安全な整数を超えた保存物はdecodeが拒否する（約9京回の更新が要る）。無いと: 受理とdecodeの式がそろっていても、式が値域の最長に届かなければ更新の後のdecodeが拒否する",
         "evidenceRefs": [
-          "reconstruction/src/runtime/owner-runtime.ts:387 «6af0a32f7c614e1c»",
+          "reconstruction/src/runtime/owner-runtime.ts:396 «6af0a32f7c614e1c»",
           "reconstruction/contracts/p3-nankai-unit.json:296 «11d1b802043a2d33»"
         ]
       },
@@ -273,12 +273,12 @@
         "id": "P3-IUR-AC05",
         "requirement": "既存の約束の読み替え（本契約に記録し、他の契約の条文は編集しない。統合担当が計画§9と台帳73に記録する、Q-IUR-BASE）: (1) P2-EEW-UNIT-001のQ-NOTICE.capacityの「pendingを128件/131072 byte以内」、P2-NOTIFICATION-DELIVERY-001の「U-E/U-W/U-Fそれぞれ128件/128KiB」のU-E、P3-TSUNAMI-UNIT-001のQ-NOTICE.capacityとI-U-T.decode、P3-UNIT-Q-001のI-U-Q.decode、P2-WEATHER-CURRENT-UNIT-001・P2-WEATHER-TIMESERIES-UNIT-001のpendingの128件/131,072 byte（U-W・U-F）は、予約込みと読む (2) U-T・U-Qのdecodeの「encode後の世代≤4 MiB」、U-Wの16 MiB、U-Fの32 MiBの世代の上限は予約込みと読む (3) P3-UNIT-Q-001のI-U-Q.capacityReserveの「intentの上限は262,144 byte＝pending 131,072＋終端記録131,072」は変えない（pendingは予約込みで131,072、更新の後は終端が131,072を一時超えても和は262,144以下）。既存試験の期待値の変更（変更前の理由の報告を兼ねる）: eew-unit.test.tsのP2-A4-T11（受理のpendingを実byteでちょうど131,072にして+0は採用・+1は不採用）とP2-A4-T03（encodeのpendingを実byteでちょうど131,072）、weather-current-unit.test.tsのP3-WL1-T06（encodeのpendingを実byteでちょうど131,072にしてdecodeがrestored・+1はthrow）の3本は、境界を「実byte＋予約＝131,072」に置き直す（paddingから予約の和を引く）。+0は採用・+1は不採用という期待の形は変えない。無いと: 他の契約の条文と本契約が同じ境界について違うことを言い、既存試験が実byteの境界で落ちる",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-eew-unit.json:188 «d6f88269602312bd»",
+          "reconstruction/contracts/p2-eew-unit.json:188 «8b4c8ba028dc9fe9»",
           "reconstruction/contracts/p2-notification-delivery.json:464 «4fba6740a3879e38»",
-          "reconstruction/contracts/p3-tsunami-unit.json:207 «499a13c8ac294e8d»",
+          "reconstruction/contracts/p3-tsunami-unit.json:207 «d31b9ee92b979154»",
           "reconstruction/contracts/p3-tsunami-unit.json:265 «7002f82c2f44eaff»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «e7f8c1963dbeeace»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «d7df9e54dba449d8»"
+          "reconstruction/contracts/p3-seismic-unit.json:310 «fb6c17c8f1ed8eb9»"
         ]
       },
       {
@@ -316,7 +316,7 @@
           "P3-IUR-AC01",
           "P3-IUR-AC03"
         ],
-        "behavior": "U-E: VXSE43の受理でpendingを予約込みの131,072に置く（実fixtureのintentは件数が先に効くので、既存のP2-A4-T11と同じくbodyを伸ばした既存のpendingに足す）→ encode・decode → urgentのownerで全pendingを最長へ更新（3件に1件はsuperseded。U-EではdeliveryRecordsへ移る）→ adoptedがtrue → encode（throwしない）・decodeがrestored。eew-unit.test.tsに1つのit"
+        "behavior": "U-E: VXSE43の受理でpendingを予約込みの131,072に置く（実fixtureのintentは件数が先に効くので、既存のP2-A4-T11と同じくbodyを伸ばした既存のpendingに足す）→ encode・decode → urgentのownerで全pendingを最長へ更新（3件に1件はsuperseded。P3-NOTICE-LEDGER-001の後は全unitでintentsから外れ、結果は印に残る）→ adoptedがtrue → encode（throwしない）・decodeがrestored。eew-unit.test.tsに1つのit"
       },
       {
         "testId": "P3-IUR-T05",

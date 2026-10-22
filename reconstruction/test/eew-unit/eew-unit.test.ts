@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 
 import type { DecodedMaterial, Operation } from "../../contracts/p1-parser-boundary.types";
 import type { NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
-import type { EewInput, EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
+import type { EewInput, EewNoticeMark, EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
-import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
@@ -17,6 +17,7 @@ import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth"
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
+import { freshState } from "../../src/units/notice-mark";
 import { fixtureDriver, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
 import { envelope, harnessedRoot, park, startHarness, submit } from "../execution-split/owner-harness";
@@ -27,7 +28,7 @@ const BASE_TIME = 1_713_363_299_001;
 
 function emptyState(): EewUnitState {
   return {
-    schemaVersion: "p2-eew-unit-v3", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [],
+    schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null },
   };
@@ -73,7 +74,7 @@ function pendingIntent(subject = "normal/VXSE43/20240417231454", createdAt = BAS
       reportDateTimeRaw: "2024-04-17T23:14:59+09:00", controlDateTimeRaw: "2024-04-17T14:14:59Z", serialRaw: "1", infoTypeRaw: "発表" },
     transition: "activated", channel, payload: { domain: "earthquake-eew", level: "warning", title: "緊急地震速報（予報）", body: "予報" },
     createdAt, expiresAt: createdAt + 15_000, nextAttemptAt: createdAt,
-    attempts: 0, configRevision: "test", disposition: "pending",
+    attempts: 0, configRevision: "test", disposition: "pending", ...freshState("U-E", operation, "warning"),
   };
 }
 
@@ -141,10 +142,9 @@ describe("P2 EEW unit", () => {
     const continued = receive(initial.state, second);
     expect(continued.intents).toHaveLength(2);
     expect(continued.intents[0].payload.body).toMatch(/^続報: /);
-    expect(continued.state.deliveryRecords).toHaveLength(2);
+    expect(continued.state.intents).toEqual(continued.intents);
     const ending = receive(continued.state, cancelled);
     expect(ending.intents).toHaveLength(0);
-    expect(ending.state.deliveryRecords.filter((item) => item.disposition === "superseded")).toHaveLength(4);
     expect(ending.state.intents).toEqual([]);
     const training = receive(ending.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
       (xml) => withOperation(xml, "training")));
@@ -155,7 +155,7 @@ describe("P2 EEW unit", () => {
     expect(training.state.intents.filter((item) => item.operation === "normal")).toEqual([]);
     const cross = receive(initial.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE45"));
     expect(cross.intents).toEqual([]);
-    expect(cross.state.notificationLatches[0].vxse45Accepted).toBe(true);
+    expect(cross.state.notices[0].vxse45Accepted).toBe(true);
     expect(receive(cross.state, second).intents).toEqual([]);
     const crossCancel = receive(cross.state, cancelled);
     expect(crossCancel.intents).toEqual([]);
@@ -212,12 +212,12 @@ describe("P2 EEW unit", () => {
     expect(correction.intents).toHaveLength(2);
     expect(correction.intents[0].payload).toMatchObject({ title: "[訂正] 緊急地震速報（警報）" });
     expect(correction.intents[0].payload.body).toContain("訂正: ");
-    expect(correction.state.deliveryRecords).toHaveLength(2);
+    expect(correction.state.intents).toEqual(correction.intents);
     const final = receive(correction.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43",
       (xml) => sentLater(xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>"))));
     expect(final.intents).toHaveLength(2);
     expect(final.intents[0].transition).toBe("released");
-    expect(final.state.deliveryRecords).toHaveLength(4);
+    expect(final.state.intents).toEqual(final.intents);
   });
 
   it("P2-A4-T11 contractBoundary / R35: cancellation follows attempted or unknown delivery evidence", () => {
@@ -226,49 +226,46 @@ describe("P2 EEW unit", () => {
     const silent = receive(first.state, cancelled);
     expect(silent.intents).toEqual([]);
     expect(silent.state.intents).toEqual([]);
-    expect(silent.state.deliveryRecords).toHaveLength(2);
+    // P3-NL-AC02 (3): 試行の開始（lastAttempt started の採用）で possible。
     const selected = reduceEewUnit(first.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
-      intentUpdate: { id: first.intents[0].id, attempts: 1, nextAttemptAt: BASE_TIME, disposition: "pending" } });
-    expect(selected.state.notificationLatches[0].deliveryEvidence).toBe("possible");
+      intentUpdate: { ...first.intents[0], attempts: 1, nextAttemptAt: BASE_TIME, disposition: "pending", lastAttempt: "started", lossReason: null } });
+    expect(selected.state.notices[0].deliveryEvidence).toBe("possible");
     expect(receive(selected.state, cancelled).intents).toHaveLength(2);
     const delivered = reduceEewUnit(selected.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
-      intentUpdate: selected.state.intents.map((item) => ({ id: item.id, attempts: 1,
-        nextAttemptAt: BASE_TIME, disposition: "delivered" as const })) });
-    for (const [saved, evidence] of [[first.state, "unknown"], [silent.state, "unknown"],
-      [selected.state, "possible"], [delivered.state, "possible"]] as const) {
+      intentUpdate: selected.state.intents.map((item) => ({ ...item, attempts: 1,
+        nextAttemptAt: BASE_TIME, disposition: "delivered" as const, lossReason: null })) });
+    // P3-NL-AC04 (6)・AC08: 印は保存して復元で作り直さない。started の pending だけが復元で unknown になり、試行の無い pending は unattempted のまま。
+    for (const [saved, evidence, notifies] of [[first.state, "unattempted", false], [selected.state, "unknown", true],
+      [delivered.state, "possible", true]] as const) {
       const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(saved), clock: clock(BASE_TIME) });
-      expect(restored.state.notificationLatches[0]).toMatchObject({ deliveryEvidence: evidence, firstReportNotified: false });
+      expect(restored.state.notices[0]).toMatchObject({ deliveryEvidence: evidence, firstReportNotified: true });
       const continued = receive(restored.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"));
-      expect(continued.state.notificationLatches[0].deliveryEvidence).toBe(evidence);
-      expect(receive(continued.state, cancelled).intents).toHaveLength(2);
+      expect(continued.state.notices[0].deliveryEvidence).toBe(evidence);
+      expect(receive(continued.state, cancelled).intents).toHaveLength(notifies ? 2 : 0);
     }
-    const orphan = reduceEewUnit({ ...first.state, current: [], gates: [], notificationLatches: [] }, {
-      kind: "intentUpdate", clock: clock(BASE_TIME), intentUpdate: { id: first.intents[0].id,
-        attempts: 1, nextAttemptAt: BASE_TIME, disposition: "expired" } });
-    const reclaimed = reduceEewUnit(orphan.state, { kind: "deadline", clock: clock(BASE_TIME + 15_001) });
-    const continued = receive(reclaimed.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 15_002);
-    expect(continued.state.notificationLatches[0].deliveryEvidence).toBe("possible");
-    expect(receive(continued.state, cancelled, BASE_TIME + 15_003).intents).toHaveLength(2);
+    // P3-NL-AC04 (3)(5): 取消を採った印は復元の後も手元の版になり、同じ取消の再送は stale。
+    const restoredSilent = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(silent.state), clock: clock(BASE_TIME) });
+    expect(receive(restoredSilent.state, cancelled).decisions[0]).toMatchObject({ decision: "unchanged", reason: "stale" });
 
-    // (a) Reclaimed delivered records leave a valid empty checkpoint, not proof of no delivery.
+    // (a) P3-NL-AC04 (6): 終端の intent を外しても印が証拠を持ち越す。印も無い空の checkpoint は配送しなかった証明にならない。
     const cleared = reduceEewUnit(delivered.state, { kind: "deadline", clock: clock(BASE_TIME + 15_001) });
-    const savedEmpty = eewUnitCodec.encode(cleared.state);
-    expect(savedEmpty).toEqual({ schemaVersion: "p2-eew-unit-v3", intents: [], deliveryRecords: [] });
+    expect(eewUnitCodec.encode(cleared.state)).toMatchObject({ intents: [], notices: [{ deliveryEvidence: "possible" }] });
+    const savedEmpty = { schemaVersion: "p2-eew-unit-v4" as const, intents: [], notices: [] };
     const restarted = reduceEewUnit(emptyState(), { kind: "restore", persisted: savedEmpty, clock: clock(BASE_TIME + 16_000) });
     expect(restarted.state.evidenceUnknownUntil).toBe(BASE_TIME + 616_000);
     const afterRestart = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 16_001);
-    expect(afterRestart.state.notificationLatches[0].deliveryEvidence).toBe("unknown");
+    expect(afterRestart.state.notices[0].deliveryEvidence).toBe("unknown");
     expect(receive(afterRestart.state, cancelled, BASE_TIME + 16_002).intents).toHaveLength(2);
     // K6（P3-LIFE-AC10）: 報時刻を時計へ寄せる（23:15:10 のままだと horizon 外の新規 subject で stale になる）。取消（23:17:00）より前に置く。
     const atBoundary = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) => xml
       .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>2024-04-17T23:16:00+09:00</ReportDateTime>")), BASE_TIME + 616_000);
-    expect(atBoundary.state.notificationLatches[0].deliveryEvidence).toBe("unattempted");
+    expect(atBoundary.state.notices[0].deliveryEvidence).toBe("unattempted");
     expect(receive(atBoundary.state, cancelled, BASE_TIME + 616_001).intents).toEqual([]);
 
     // (b) Evict the last owner of a delivered training event at the real 512-subject boundary.
     const training = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => withOperation(xml, "training")));
     const sent = reduceEewUnit(training.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
-      intentUpdate: { id: training.intents[0].id, attempts: 1, nextAttemptAt: BASE_TIME, disposition: "delivered" } });
+      intentUpdate: { ...training.intents[0], attempts: 1, nextAttemptAt: BASE_TIME, disposition: "delivered", lossReason: null } });
     const owner = sent.state.current[0];
     const gate = sent.state.gates[0];
     const fillerSubjects = Array.from({ length: 511 }, (_, index) => `training/VXSE43/${String(index).padStart(14, "0")}`);
@@ -280,13 +277,14 @@ describe("P2 EEW unit", () => {
     };
     const evicted = receive(crowded, decodeFixture("37_01_01_240613_VXSE43", "VXSE43"), BASE_TIME + 1_000);
     expect(evicted.state.gates.some((item) => item.subject === owner.subject)).toBe(false);
-    expect(evicted.state.notificationLatches.some((item) => item.operation === "training")).toBe(false);
-    expect(evicted.state.evidenceUnknownUntil).toBe(BASE_TIME + 601_000);
+    // P3-NL-AC04 (6): 印は gate の退去に縛られず証拠を持ち越すので、evidenceUnknownUntil を延ばさない。
+    expect(evicted.state.notices.find((item) => item.operation === "training")?.deliveryEvidence).toBe("possible");
+    expect(evicted.state.evidenceUnknownUntil ?? 0).toBe(0);
     const expired = reduceEewUnit(evicted.state, { kind: "deadline", clock: clock(BASE_TIME + 16_001) });
-    expect(expired.state.deliveryRecords).toEqual([]);
+    expect(expired.state.intents.filter((item) => item.operation === "training")).toEqual([]);
     const afterEviction = receive(expired.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43",
       (xml) => withOperation(xml, "training")), BASE_TIME + 16_002);
-    expect(afterEviction.state.notificationLatches.find((item) => item.operation === "training")?.deliveryEvidence).toBe("unknown");
+    expect(afterEviction.state.notices.find((item) => item.operation === "training")?.deliveryEvidence).toBe("possible");
     const trainingCancel = receive(afterEviction.state, decodeFixture("37_01_03_240613_VXSE43", "VXSE43",
       (xml) => withOperation(xml, "training")), BASE_TIME + 16_003);
     expect(trainingCancel.intents).toHaveLength(1);
@@ -344,7 +342,7 @@ describe("P2 EEW unit", () => {
     const step = receive(emptyState(), material);
     expect(step.intents).toHaveLength(2);
     expect(step.state.current[0].prediction.areas).toHaveLength(1001);
-    expect(step.state.notificationLatches[0].notifiedWarningAreas).toBe((1n << 1000n) - 1n);
+    expect(step.state.notices[0].notifiedWarningAreas).toBe(((1n << 1000n) - 1n).toString(16));
   });
 
   it("P2-A4-T11 regression / I-09: assumed hypocenter hides magnitude in body and view", () => {
@@ -409,8 +407,7 @@ describe("P2 EEW unit", () => {
     expect(recovered.outcomes).toEqual([]);
     expect(recovered.intents).toEqual([]);
     expect(recovered.state.intents).toEqual(first.state.intents);
-    expect(recovered.state.deliveryRecords).toEqual(first.state.deliveryRecords);
-    expect(recovered.state.notificationLatches[0].firstReportNotified).toBe(true);
+    expect(recovered.state.notices[0].firstReportNotified).toBe(true);
     const live = receive(recovered.state, { ...cancelled, origin: "live" });
     expect(live.decisions[0].decision).toBe("changed");
     expect(live.state.current).toEqual([]);
@@ -428,12 +425,12 @@ describe("P2 EEW unit", () => {
     const refused = receive(occupied, first);
     expect(refused.intents).toEqual([]);
     expect(refused.state.intents).toEqual(occupied.intents);
-    expect(refused.state.notificationLatches[0]).toMatchObject({ firstReportNotified: false,
+    expect(refused.state.notices[0]).toMatchObject({ firstReportNotified: false,
       warningNotified: false });
     const second = decodeFixture("37_01_02_240613_VXSE43", "VXSE43");
     const admitted = receive(refused.state, second, BASE_TIME + 15_001);
     expect(admitted.intents).toHaveLength(2);
-    expect(admitted.state.notificationLatches[0]).toMatchObject({ firstReportNotified: true,
+    expect(admitted.state.notices[0]).toMatchObject({ firstReportNotified: true,
       warningNotified: true });
     const lower = { ...emptyState(), intents: [
       ...occupied.intents.slice(0, 126),
@@ -443,7 +440,6 @@ describe("P2 EEW unit", () => {
     expect(preempted.intents).toHaveLength(2);
     expect(preempted.diagnostics).toContainEqual({ level: "INFO", component: "eew",
       reason: "notificationCapacityEvicted", unit: "U-E", count: 2 });
-    expect(preempted.state.deliveryRecords).toHaveLength(2);
     expect(preempted.state.intents).toHaveLength(128);
     expect(preempted.state.intents.filter((intent) => intent.operation !== "normal")).toEqual([]);
     const pair = receive(emptyState(), first).intents;
@@ -459,7 +455,7 @@ describe("P2 EEW unit", () => {
       const step = receive({ ...emptyState(), intents: [pending] }, first);
       expect(step.intents).toEqual(extra === 0 ? pair : []);
       expect(step.state.intents).toEqual(extra === 0 ? [pending, ...pair] : [pending]);
-      expect(step.state.notificationLatches[0].firstReportNotified).toBe(extra === 0);
+      expect(step.state.notices[0].firstReportNotified).toBe(extra === 0);
     }
   });
   it("P2-A4-T01 contractBoundary / AC01: frozen validation order and legal reduced structures are atomic", () => {
@@ -711,7 +707,6 @@ describe("P2 EEW unit", () => {
           expect(step.outcomes.flatMap((outcome) => outcome.subjects).map((subject) => subject.transition)).toEqual(["activated"]);
           expect(step.state.current.some((item) => item.subject === old.subject)).toBe(size < 512);
           if (size === 512) {
-            expect(step.state.deliveryRecords).toContainEqual({ intentId: pending.id, disposition: "superseded", expiresAt: pending.expiresAt });
             expect(step.state.intents.map((intent) => intent.subject))
               .toEqual([protectedCurrent[0].subject, ...step.intents.map((intent) => intent.subject)]);
             const readmitted = receive(step.state, mixed[2]);
@@ -813,105 +808,22 @@ describe("P2 EEW unit", () => {
     expect(repaired.state.gates).toHaveLength(512);
     expect(repaired.diagnostics).toEqual([{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 2 }]);
 
-    // Same operation/event has two family owners; only eviction of the last owner ends its latch.
+    // P3-NL-AC04 (6): 同じ operation・EventID の 2 family の gate を退去しても、印は残る（gate の退去に縛られない）。
     let lifetime = receiveAtReport({ ...full, current: full.current.slice(1), gates: full.gates.slice(1) },
       material(9500, "training", "2024-04-17T00:00:00Z")).state;
     lifetime = receiveAtReport(lifetime, material(9500, "training", "2024-04-17T00:00:00Z", "VXSE45")).state;
-    const latch = lifetime.notificationLatches.find((item) => item.operation === "training" && item.eventId === "00000000009500");
+    const latch = lifetime.notices.find((item) => item.operation === "training" && item.eventId === "00000000009500");
     expect(latch).toMatchObject({ vxse45Accepted: true });
     lifetime = receive(lifetime, material(9501, "normal")).state;
     expect(lifetime.gates.some((item) => item.operation === "training" && item.subject === "training/VXSE43/00000000009500")).toBe(false);
     expect(lifetime.gates.some((item) => item.operation === "training" && item.subject === "training/VXSE45/00000000009500")).toBe(true);
-    expect(lifetime.notificationLatches.find((item) => item.operation === "training" && item.eventId === "00000000009500")).toEqual(latch);
+    expect(lifetime.notices.find((item) => item.operation === "training" && item.eventId === "00000000009500")).toEqual(latch);
     for (let index = 1; index <= 511; index++)
       lifetime = receiveAtReport(lifetime, material(index, "normal", "2024-04-17T14:00:00Z", "VXSE45")).state;
     const lastOwner = receiveAtReport(lifetime, material(9501, "normal", "2024-04-17T14:00:00Z", "VXSE45"));
     expect(lastOwner.diagnostics).toContainEqual({ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 });
     expect(lastOwner.state.gates.some((item) => item.operation === "training" && item.subject.endsWith("/00000000009500"))).toBe(false);
-    expect(lastOwner.state.notificationLatches.some((item) => item.operation === "training" && item.eventId === "00000000009500")).toBe(false);
-  });
-
-  it("P2-A4-T11 contractBoundary: evicts earliest terminal records at the generation budget and keeps admitting", () => {
-    const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
-    const state: EewUnitState = { ...emptyState(), deliveryRecords: [
-      { intentId: "later", disposition: "delivered", expiresAt: BASE_TIME + 20_000 },
-      { intentId: "earliest", disposition: "superseded", expiresAt: BASE_TIME + 10_000 },
-    ] };
-    const envelope = { schemaVersion: "p2-eew-unit-v3", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
-      capturedAt: -0.0000012345678901234567, payload: eewUnitCodec.encode(state), sha256: "0".repeat(64) };
-    const padding = (262_144 - INPUT_BOUNDARY_MAX_BYTES) - Buffer.byteLength(JSON.stringify(envelope));
-    const full = { ...state, deliveryRecords: [state.deliveryRecords[0],
-      { ...state.deliveryRecords[1], intentId: "earliest" + "x".repeat(padding) }] };
-    expect(() => eewUnitCodec.encode(full)).not.toThrow();
-    const accepted = receive(full, first);
-    expect(accepted.decisions[0]).toMatchObject({ decision: "changed" });
-    expect(accepted.intents.map((item) => item.channel)).toEqual(["desktop", "sound"]);
-    expect(accepted.state.deliveryRecords).toEqual([state.deliveryRecords[0]]);
-    expect(accepted.state.persistence.currentGeneration).toBe(1);
-    expect(eewUnitCodec.decode(eewUnitCodec.encode(accepted.state)).kind).toBe("restored");
-    const following = receive(accepted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"));
-    expect(following.decisions[0]).toMatchObject({ decision: "changed" });
-    expect(following.intents).toHaveLength(2);
-    expect(following.intents[0].payload.body).toContain("続報: ");
-  });
-
-  it("P2-A4-T11 contractBoundary: capacity pressure selects the oldest prefix once for metadata and receive", () => {
-    const notice = { ...pendingIntent(), attempts: 9 };
-    const records = Array.from({ length: 2_500 }, (_, index) => ({ intentId: `terminal-${index}`,
-      disposition: "delivered" as const, expiresAt: BASE_TIME + 20_000 + (index * 137 + 701) % 1_250 }));
-    const seed = { ...emptyState(), intents: [notice], deliveryRecords: records };
-    const envelope = { schemaVersion: seed.schemaVersion, unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
-      capturedAt: -0.0000012345678901234567, payload: eewUnitCodec.encode(seed), sha256: "0".repeat(64) };
-    records[0] = { ...records[0], intentId: records[0].intentId + "x".repeat((262_144 - INPUT_BOUNDARY_MAX_BYTES) - Buffer.byteLength(JSON.stringify(envelope))) };
-    const payload = eewUnitCodec.encode(seed);
-    expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload }))).toBe((262_144 - INPUT_BOUNDARY_MAX_BYTES));
-    const decoded = eewUnitCodec.decode(payload);
-    if (decoded.kind !== "restored") throw new Error("exact generation boundary must restore");
-    const earliest = records.reduce((left, right) => left.expiresAt <= right.expiresAt ? left : right);
-    let reads = 0;
-    for (const record of decoded.state.deliveryRecords) {
-      const expiresAt = record.expiresAt;
-      Object.defineProperty(record, "expiresAt", { enumerable: true, get: () => { reads++; return expiresAt; } });
-    }
-    const started = performance.now();
-    const updated = reduceEewUnit(decoded.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
-      intentUpdate: { id: notice.id, attempts: 10, nextAttemptAt: notice.nextAttemptAt, disposition: "pending" } });
-    console.info("2500 terminal / attempts 9->10", { ms: performance.now() - started, expiresAtReads: reads });
-    const selectionBound = 4 * records.length * Math.ceil(Math.log2(records.length));
-    expect(reads).toBeLessThan(selectionBound);
-    expect(updated.state.deliveryRecords.map((record) => record.intentId))
-      .toEqual(records.filter((record) => record !== earliest).map((record) => record.intentId));
-    expect(updated.state.intents[0].attempts).toBe(10);
-    expect(eewUnitCodec.decode(eewUnitCodec.encode(updated.state)).kind).toBe("restored");
-    reads = 0;
-    const withinBudget = reduceEewUnit(updated.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
-      intentUpdate: { id: notice.id, attempts: 11, nextAttemptAt: notice.nextAttemptAt, disposition: "pending" } });
-    expect(reads).toBeLessThan(3 * records.length);
-    expect(withinBudget.state.deliveryRecords).toEqual(updated.state.deliveryRecords);
-    for (const name of ["豊後水道", "震".repeat(6_000)]) {
-      const material = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
-        xml.replace("<Hypocenter><Area><Name>豊後水道</Name>", `<Hypocenter><Area><Name>${name}</Name>`));
-      const withoutRecords = receive({ ...decoded.state, deliveryRecords: [] }, material);
-      const candidates = [...records, ...withoutRecords.state.deliveryRecords];
-      const oldestFirst = [...candidates].sort((a, b) => a.expiresAt - b.expiresAt);
-      reads = 0;
-      const start = performance.now();
-      const received = receive(decoded.state, material);
-      const measuredReads = reads;
-      const removed = candidates.length - received.state.deliveryRecords.length;
-      console.info("2500 terminal / receive", { nameLength: name.length, removed,
-        expiresAtReads: measuredReads, ms: performance.now() - start });
-      expect(measuredReads).toBeLessThan(selectionBound);
-      expect(removed).toBeGreaterThan(name.length > 4 ? 100 : 1);
-      expect(received.intents.map((item) => item.channel)).toEqual(["desktop", "sound"]);
-      const expectedRemoved = new Set(oldestFirst.slice(0, removed).map((record) => record.intentId));
-      expect(received.state.deliveryRecords.map((record) => record.intentId))
-        .toEqual(candidates.filter((record) => !expectedRemoved.has(record.intentId)).map((record) => record.intentId));
-      const kept = eewUnitCodec.encode(received.state);
-      expect(eewUnitCodec.decode(kept).kind).toBe("restored");
-      expect(eewUnitCodec.decode({ ...kept,
-        deliveryRecords: [...kept.deliveryRecords, oldestFirst[removed - 1]] }).kind).toBe("invalid");
-    }
+    expect(lastOwner.state.notices.find((item) => item.operation === "training" && item.eventId === "00000000009500")).toEqual(latch);
   });
 
   it("P2-A4-T03 contractBoundary / AC04: codec roundtrip excludes current/gate and rejects exact next-byte overflow", () => {
@@ -921,19 +833,30 @@ describe("P2 EEW unit", () => {
     const decoded = eewUnitCodec.decode(value);
     expect(decoded).toMatchObject({ kind: "restored", state: { current: [], gates: [], intents: [{ id: state.intents[0].id }] } });
 
-    const withRecord = (length: number): EewUnitState => ({ ...emptyState(),
-      deliveryRecords: [{ intentId: "x".repeat(length), disposition: "delivered", expiresAt: 1 }] });
-    const envelope = { schemaVersion: "p2-eew-unit-v3", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
-      capturedAt: -0.0000012345678901234567, payload: eewUnitCodec.encode(withRecord(0)), sha256: "0".repeat(64) };
-    const recordPadding = (262_144 - INPUT_BOUNDARY_MAX_BYTES) - Buffer.byteLength(JSON.stringify(envelope));
-    for (const extra of [0, 1]) {
-      const boundary = withRecord(recordPadding + extra);
-      const payload = { ...envelope.payload, deliveryRecords: boundary.deliveryRecords };
-      expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload }))).toBe((262_144 - INPUT_BOUNDARY_MAX_BYTES) + extra);
-      expect(eewUnitCodec.decode(payload).kind).toBe(extra === 0 ? "restored" : "invalid");
-      if (extra === 0) { expect(eewUnitCodec.encode(boundary)).toEqual(payload); expect(new CheckpointCoordinator("/u-e", { "U-E": eewUnitCodec }, new MemoryCheckpointFileSystem(), () => ({ wallTimeMs: -0.0000012345678901234567, monotonicMs: 0 }), () => {}).capture("U-E", boundary, Number.MAX_SAFE_INTEGER, "k7", { inputIds: [], retryReason: "notRetry" }, { receivedAt: { wallTimeMs: -0.0000012345678901234567, basis: "unverified" }, dmdataTime: -0.0000012345678901234567, dmdataId: '"'.repeat(128), oldestHole: "disconnected" }).request?.encodedByteLength).toBeLessThanOrEqual(262_144); } // P3-VM-AC06: 最長の数と境界でも上限の内側
-      else expect(() => eewUnitCodec.encode(boundary)).toThrow(/persisted boundary/);
-    }
+    // P3-NL-AC04 (7)(8): 印は 2,048 件まで。最長の印 2,048 件と予約込みで上限の pending を持つ世代に、H39 の欄と envelope・inputBoundary の
+    // 上限を足しても GENERATION_BYTES（2,097,152）の内に入る。
+    const raw = "2".repeat(40);
+    const family = (name: "VXSE43" | "VXSE45") => ({ family: name, reportDateTimeRaw: raw, controlDateTimeRaw: raw,
+      serialRaw: String(Number.MAX_SAFE_INTEGER), cancelled: false, kinds: ["report", "cancel"] as const });
+    const longest = (index: number) => ({ eventId: String(10_000_000_000_000 + index), operation: "training" as const,
+      firstReportNotified: false, warningNotified: false, vxse45Accepted: false, deliveryEvidence: "unattempted" as const,
+      notifiedMaximumRank: -1, notifiedWarningAreas: "f".repeat(250), retainUntil: -Number.MAX_SAFE_INTEGER,
+      families: [family("VXSE43"), family("VXSE45")] });
+    const markBytes = Buffer.byteLength(JSON.stringify(longest(0))) + 1;
+    expect(markBytes).toBe(954);
+    const largest = pendingIntent();
+    const fullIntents = [{ ...largest, payload: { ...largest.payload, body: largest.payload.body
+      + "x".repeat(131_072 - Buffer.byteLength(JSON.stringify([largest])) - deliveryGrowth(largest)) } }];
+    const fullState = { ...emptyState(), intents: fullIntents, notices: Array.from({ length: 2_048 }, (_, index) => longest(index)) };
+    const fullPayload = eewUnitCodec.encode(fullState);
+    const fullEnvelope = { schemaVersion: "p2-eew-unit-v4", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+      capturedAt: -0.0000012345678901234567, payload: fullPayload, sha256: "0".repeat(64) };
+    const formula = 2_048 * markBytes + 131_072 + LOSS_TALLY_MAX_BYTES + INPUT_BOUNDARY_MAX_BYTES
+      + Buffer.byteLength(JSON.stringify({ ...fullEnvelope, payload: { ...fullPayload, intents: [], notices: [] } }));
+    expect(Buffer.byteLength(JSON.stringify(fullEnvelope)) + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES).toBeLessThanOrEqual(formula);
+    expect(formula).toBeLessThanOrEqual(2_097_152);
+    expect(eewUnitCodec.decode(JSON.parse(JSON.stringify(fullPayload))).kind).toBe("restored");
+    expect(eewUnitCodec.decode({ ...fullPayload, notices: [...fullPayload.notices, longest(2_048)] }).kind).toBe("invalid");
     for (const count of [127, 128, 129]) {
       const many = { ...emptyState(), intents: Array.from({ length: count }, (_, index) =>
         pendingIntent(`normal/VXSE43/${String(index).padStart(14, "0")}`)) };
@@ -974,8 +897,8 @@ describe("P2 EEW unit", () => {
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-E": restored.state } };
-    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-E", from.units["U-E"]!.intents.map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
-      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-E", from.units["U-E"]!.intents.map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER,
+      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const, lossReason: null })), now, linkedUnitTable);
     // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
     const widened = update(owner, false);
     expect(widened.adopted).toBe(true);
@@ -1103,7 +1026,7 @@ describe("P2 EEW unit", () => {
     expect(root.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
     const savedPayload = checkpoint.envelope.payload;
     if (savedPayload == null || typeof savedPayload !== "object") throw new Error("invalid checkpoint payload");
-    expect(Object.keys(savedPayload)).toEqual(["schemaVersion", "intents", "deliveryRecords"]);
+    expect(Object.keys(savedPayload)).toEqual(["schemaVersion", "intents", "notices"]);
     expect(restored.state.current).toEqual([]);
     expect(restored.state.gates).toEqual([]);
 
@@ -1141,9 +1064,7 @@ describe("P2 EEW unit", () => {
     const afterFailureCancel = failed.unit("U-E");
     expect(afterFailureCancel.current).toEqual([]);
     expect(afterFailureCancel.persistence).toMatchObject({ kind: "failed", currentGeneration: 2, savedGeneration: null });
-    expect(afterFailureCancel.deliveryRecords).toContainEqual({
-      intentId: unit.intents[0].id, disposition: "superseded", expiresAt: unit.intents[0].expiresAt,
-    });
+    expect(afterFailureCancel.intents.some((item) => item.id === unit.intents[0].id)).toBe(false);
 
     const shutdownFiles = new MemoryCheckpointFileSystem();
     const stopping = await seed(wired(shutdownFiles));
@@ -1181,8 +1102,7 @@ describe("P2 EEW unit", () => {
     expect(cancelled.state.intents.filter((intent) => intent.operation !== "normal"))
       .toEqual(state.intents.filter((intent) => intent.operation !== "normal"));
     expect(cancelled.intents).toHaveLength(0);
-    expect(cancelled.state.deliveryRecords).toEqual([{ intentId: state.intents[0].id,
-      disposition: "superseded", expiresAt: state.intents[0].expiresAt }]);
+    expect(cancelled.state.intents.some((intent) => intent.id === state.intents[0].id)).toBe(false);
     for (const operation of ["training", "test"] as const) {
       const duplicate = receive(cancelled.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
         (xml) => withOperation(xml, operation), `after-cancel-${operation}`));
@@ -1194,13 +1114,14 @@ describe("P2 EEW unit", () => {
     expect(cancelAgain.decisions[0]).toMatchObject({ reason: "duplicate" });
   });
 
-  it("P2-A4-T07 regression / AC04,06,08: restore rejects terminal-record conflicts and extended TTL", () => {
+  // P3-NL-AC05 (1): 終端は印に置き換わり保存しないので、終端の disposition の intent を持つ保存は invalid（旧い deliveryRecords との衝突の代わり）。
+  it("P2-A4-T07 regression / AC04,06,08: restore rejects terminal intents and extended TTL", () => {
     for (const operation of ["normal", "training", "test"] as const) {
       const intent = pendingIntent(`${operation}/VXSE43/20240417231454`);
       const value = eewUnitCodec.encode({ ...emptyState(), intents: [intent] });
       for (const disposition of ["delivered", "superseded", "expired"] as const)
         for (const age of [14_999, 15_000, 15_001]) {
-          const conflicting = { ...value, deliveryRecords: [{ intentId: intent.id, disposition, expiresAt: intent.expiresAt }] };
+          const conflicting = { ...value, intents: [{ ...intent, disposition }] };
           expect(eewUnitCodec.decode(conflicting).kind).toBe("invalid");
           const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: conflicting, clock: clock(BASE_TIME + age) });
           expect(restored.intents).toEqual([]);
@@ -1377,10 +1298,10 @@ describe("P2 EEW unit", () => {
     expect(reduceEewUnit(state, { kind: "restore", persisted: eewUnitCodec.encode(state), clock: clock(BASE_TIME) }).nextDeadline).toEqual(expected);
     expect(reduceEewUnit(state, { kind: "restore", persisted: { ...eewUnitCodec.encode(state), intents: [pending, pending] }, clock: clock(BASE_TIME) }).nextDeadline).toEqual(expected);
 
-    const selection = { id: pending.id, attempts: 1, nextAttemptAt: BASE_TIME + 500, disposition: "pending" as const };
+    const selection = { ...pending, attempts: 1, nextAttemptAt: BASE_TIME + 500, disposition: "pending" as const, lossReason: null };
     const selected = reduceEewUnit(state, { kind: "intentUpdate", intentUpdate: selection, clock: clock(BASE_TIME, 123) });
     expect(selected.state.persistence).toMatchObject({ kind: "pending", currentGeneration: 2, dirtySince: 0 });
-    expect(selected.state.intents[0]).toMatchObject({ ...selection, createdAt: pending.createdAt, expiresAt: pending.expiresAt });
+    expect(selected.state.intents[0]).toEqual({ ...pending, attempts: 1, nextAttemptAt: BASE_TIME + 500 });
     expect(selected.decisions[0]).toMatchObject({ change: "deliveryOnly" });
     expect(selected.nextDeadline).toEqual(expected);
     for (const update of [selection, { ...selection, id: "unknown" }, { ...selection, attempts: 0 }]) {
@@ -1390,13 +1311,10 @@ describe("P2 EEW unit", () => {
       expect(same.state).toBe(selected.state);
     }
     const delivered = reduceEewUnit(selected.state, { kind: "intentUpdate", intentUpdate: { ...selection, disposition: "delivered" }, clock: clock(BASE_TIME + 1, 124) });
+    // P3-NL-AC05 (1): 終端は intents から外れて記録を残さないので、期限の回収を待たない。
     expect(delivered.state.intents).toEqual([]);
     expect(delivered.state.persistence.currentGeneration).toBe(3);
-    expect(delivered.nextDeadline).toEqual(expected);
-    const reclaimed = reduceEewUnit(delivered.state, { kind: "deadline", clock: clock(pending.expiresAt, 125) });
-    expect(reclaimed.state.deliveryRecords).toEqual([]);
-    expect(reclaimed.nextDeadline).toEqual(currentDeadline);
-    expect(reclaimed.state.persistence.currentGeneration).toBe(4);
+    expect(delivered.nextDeadline).toEqual(currentDeadline);
     for (const age of [14_999, 15_000, 15_001]) {
       for (const monotonic of [0, Number.MAX_SAFE_INTEGER]) {
         const tick = reduceEewUnit(state, { kind: "deadline", clock: clock(BASE_TIME + age, monotonic) });
@@ -1412,9 +1330,9 @@ describe("P2 EEW unit", () => {
       for (const terminal of [false, true]) {
         const end = decodeFixture(terminal ? "37_01_01_240613_VXSE43" : "37_01_03_240613_VXSE43", "VXSE43", (xml) => terminal
           ? sentLater(xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>")) : xml);
-        expect(receive(state, end, BASE_TIME + age).nextDeadline)
-          .toEqual(age < 15_000 ? expected : terminal
-            ? { wallTimeMs: BASE_TIME + age + 15_000, monotonicMs: null } : { wallTimeMs: BASE_TIME + age + 86_400_000, monotonicMs: null });
+        // P3-NL-AC05 (1): 置き換えた pending は記録を残さないので、その期限は次の期限に入らない。
+        expect(receive(state, end, BASE_TIME + age).nextDeadline).toEqual(terminal
+          ? { wallTimeMs: BASE_TIME + age + 15_000, monotonicMs: null } : { wallTimeMs: BASE_TIME + age + 86_400_000, monotonicMs: null });
       }
       const result = reduceEewUnit(state, { kind: "intentUpdate", intentUpdate: selection, clock: clock(BASE_TIME + age) });
       expect(result.nextDeadline).toEqual(age < 15_000 ? expected : currentDeadline);
@@ -1425,6 +1343,79 @@ describe("P2 EEW unit", () => {
     expect(reduceEewUnit({ ...state, intents: [later, pending] }, { kind: "deadline", clock: clock(pending.expiresAt) }).nextDeadline)
       .toEqual({ wallTimeMs: later.expiresAt, monotonicMs: null });
     expect(receive(emptyState(), first).nextDeadline).toEqual(expected);
+  });
+
+  // P3-NL-T03（P3-NL-AC04 の行。取消の文面 AC10・最終報 AC12 は発注 2）と P3-NL-T04 (e)・(f) の U-E の行（AC06 (2)・AC08）。
+  it("P3-NL-T03 acceptance / AC04: the U-E mark compares versions after a restore, keeps its lifetime and answers late cancels", () => {
+    const DAY = 86_400_000, R0 = Date.parse("2024-04-17T23:14:59+09:00");
+    const jst = (ms: number) => new Date(ms + 32_400_000).toISOString().replace(".000Z", "+09:00");
+    const retime = (ms: number) => (xml: string) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jst(ms)}</ReportDateTime>`)
+      .replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(ms).toISOString()}</DateTime>`);
+    const restore = (state: EewUnitState, nowMs: number) => reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(state),
+      clock: clock(nowMs) });
+    const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43"), second = decodeFixture("37_01_02_240613_VXSE43", "VXSE43");
+    const cancelled = decodeFixture("37_01_03_240613_VXSE43", "VXSE43");
+    // (1) 通知した報（契約の 77_01_03_240613_VXSE45）を保存→復元の後に受け直しても鳴らない（gate は無いが family の記録の版と種類で照合）。
+    const vxse45 = decodeFixture("77_01_03_240613_VXSE45", "VXSE45");
+    const issued45 = receive(emptyState(), vxse45);
+    expect(issued45.intents).toHaveLength(2);
+    expect(receive(restore(issued45.state, BASE_TIME + 1_000).state, vxse45, BASE_TIME + 2_000).intents).toEqual([]);
+    // 同じ EventID・Control/DateTime・Serial の VXSE43 の後の VXSE45 は family の記録が別なので照合で潰れず、latch の規則（区域の増加）で鳴る。
+    const notified = receive(emptyState(), first);
+    expect(notified.intents).toHaveLength(2);
+    const widened = receive(notified.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE45", (xml) => xml.replaceAll("<Code>622</Code>", "<Code>999</Code>"),
+      "t03-cross"));
+    expect(widened.intents.map((item) => item.payload.body.startsWith("続報: "))).toEqual([true, true]);
+    // (2) より新しい版を採った後は、復元の後の古い版（同じ family）は stale。
+    const newer = receive(notified.state, second);
+    expect(receive(restore(newer.state, BASE_TIME + 1_000).state, first, BASE_TIME + 2_000).decisions[0])
+      .toMatchObject({ decision: "unchanged", reason: "stale" });
+    // (3) 再起動の後、発表から 10 分以上遅れた取消は印の記録で既知として採り、印の証拠（possible）で通知する。
+    const delivered = reduceEewUnit(notified.state, { kind: "intentUpdate", clock: clock(BASE_TIME), intentUpdate: notified.intents.map((item) => ({ ...item,
+      attempts: 1, nextAttemptAt: BASE_TIME, disposition: "delivered" as const, lossReason: null })) }).state;
+    const late = receive(restore(delivered, BASE_TIME + 1_000).state, cancelled, Date.parse("2024-04-17T23:17:00+09:00") + 600_000);
+    expect([late.decisions[0].decision, late.intents.map((item) => item.payload.level)]).toEqual(["changed", ["cancel", "cancel"]]);
+    // (4) 交差の順: 24 時間の直前に通知した VXSE45 最終報の印の期限は、遅れて届いた古い VXSE43 の取消で短くならず、復元の後に最終報を受け直しても鳴らない。
+    const final45 = decodeFixture("37_01_01_240613_VXSE43", "VXSE45", (xml) => retime(R0 + DAY - 60_000)(xml)
+      .replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>"), "t03-final");
+    const finalStep = receive(notified.state, final45, R0 + DAY - 59_999);
+    expect(finalStep.intents.map((item) => item.transition)).toEqual(["released", "released"]);
+    const crossed = receive(finalStep.state, decodeFixture("37_01_03_240613_VXSE43", "VXSE43", retime(R0 + 60_000), "t03-late-cancel"), R0 + DAY + 120_000);
+    expect(crossed.state.notices[0].retainUntil).toBe(R0 + 2 * DAY - 60_000);
+    expect(receive(restore(crossed.state, R0 + DAY + 180_000).state, final45, R0 + DAY + 181_000).intents).toEqual([]);
+    // (5) 2,048 件の印があるときの新しい EventID の採用は、gate・current・pending の無い印のうち retainUntil の最小を捨て noticeMarkEvicted を出す。
+    const mark = (index: number): EewNoticeMark => ({ eventId: String(10_000_000_000_000 + index), operation: "normal", firstReportNotified: true,
+      warningNotified: false, vxse45Accepted: false, deliveryEvidence: "possible", notifiedMaximumRank: -1, notifiedWarningAreas: "0",
+      retainUntil: BASE_TIME + DAY + index, families: [{ family: "VXSE43", reportDateTimeRaw: "2024-04-17T23:00:00+09:00",
+        controlDateTimeRaw: "2024-04-17T14:00:00Z", serialRaw: "1", cancelled: false, kinds: ["report"] }] });
+    const evicting = receive({ ...emptyState(), notices: Array.from({ length: 2_048 }, (_, index) => mark(index)) }, first);
+    expect([evicting.state.notices.length, evicting.state.notices.some((item) => item.eventId === mark(0).eventId)]).toEqual([2_048, false]);
+    expect(evicting.diagnostics).toContainEqual({ level: "INFO", component: "eew", reason: "noticeMarkEvicted", unit: "U-E", count: 1 });
+    // (6) gate も印も無い EventID への発表から 10 分より後の取消は、gate・current を作らずに取消を通知し、受け直しても、期限の回収と
+    // 保存→復元の後に受け直しても鳴らない（印の retainUntil は採った時の wall＋24 時間）。
+    const lateAt = Date.parse("2024-04-17T23:17:00+09:00") + 600_000;
+    const orphanCancel = decodeFixture("77_01_33_240613_VXSE45", "VXSE45");
+    const orphan = receive(emptyState(), orphanCancel, lateAt);
+    expect([orphan.decisions[0], orphan.state.gates, orphan.state.current, orphan.intents.map((item) => item.payload.level)])
+      .toMatchObject([{ decision: "unchanged", reason: "stale" }, [], [], ["cancel", "cancel"]]);
+    expect(orphan.state.notices[0].retainUntil).toBe(lateAt + DAY);
+    expect(receive(orphan.state, orphanCancel, lateAt + 1).intents).toEqual([]);
+    const reclaimed = reduceEewUnit(orphan.state, { kind: "deadline", clock: clock(lateAt + 15_000) }).state;
+    expect(reclaimed.intents).toEqual([]);
+    expect(receive(reclaimed, orphanCancel, lateAt + 16_000).intents).toEqual([]);
+    expect(receive(restore(reclaimed, lateAt + 17_000).state, orphanCancel, lateAt + 18_000).intents).toEqual([]);
+    // P3-NL-T04 (e): 鳴らし直しで期限を延ばした sound の pending は 30,000 ms まで codec が通す。desktop の replayed は通さない。
+    const replayed = { ...pendingIntent(), lastAttempt: "failed" as const, replayed: true };
+    for (const [length, kind] of [[30_000, "restored"], [30_001, "invalid"]] as const)
+      expect(eewUnitCodec.decode({ ...eewUnitCodec.encode(emptyState()), intents: [{ ...replayed, expiresAt: replayed.createdAt + length }] }).kind).toBe(kind);
+    expect(eewUnitCodec.decode({ ...eewUnitCodec.encode(emptyState()), intents: [{ ...pendingIntent("training/VXSE43/20240417231454"), replayed: true }] }).kind)
+      .toBe("invalid");
+    // P3-NL-T04 (f)・AC08: lastAttempt started の pending は復元で外れて鳴らず、印の証拠は unknown、notificationOutcomeUnknown を出す。
+    const started = reduceEewUnit(notified.state, { kind: "intentUpdate", clock: clock(BASE_TIME), intentUpdate: { ...notified.intents[1], attempts: 1,
+      nextAttemptAt: BASE_TIME, disposition: "pending", lastAttempt: "started", lossReason: null } }).state;
+    const back = restore(started, BASE_TIME + 1_000);
+    expect([back.state.intents.map((item) => item.channel), back.state.notices[0].deliveryEvidence]).toEqual([["desktop"], "unknown"]);
+    expect(back.diagnostics).toContainEqual(expect.objectContaining({ reason: "notificationOutcomeUnknown", unit: "U-E", count: 1 }));
   });
 });
 
@@ -1498,15 +1489,14 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     // (3) 既知 subject: horizon 外の取消は採用（旧 pending の superseded・取消通知・診断なし）、horizon 外の続報は stale（診断なし）。
     const live = receive(emptyState(), first, report + 595_000);
     const attempted = reduceEewUnit(live.state, { kind: "intentUpdate", clock: clock(report + 595_000),
-      intentUpdate: { id: live.intents[0].id, attempts: 1, nextAttemptAt: report + 595_000, disposition: "pending" } }).state;
+      intentUpdate: { ...live.intents[0], attempts: 1, nextAttemptAt: report + 595_000, disposition: "pending", lastAttempt: "started", lossReason: null } }).state;
     const lateCancel = decodeFixture("37_01_03_240613_VXSE43", "VXSE43", (xml) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/,
       `<ReportDateTime>${new Date(report + 1_000).toISOString()}</ReportDateTime>`), "late-cancel");
     const cancelled = receive(attempted, lateCancel, report + 601_000);
     expect(cancelled.decisions[0]).toMatchObject({ decision: "changed" });
     expect([cancelled.state.current, cancelled.diagnostics]).toEqual([[], []]);
     expect(cancelled.intents.map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
-    expect(cancelled.state.deliveryRecords.filter((item) => item.disposition === "superseded").map((item) => item.intentId))
-      .toEqual(live.intents.map((item) => item.id));
+    expect(cancelled.state.intents.filter((item) => live.intents.some((old) => old.id === item.id))).toEqual([]);
     const lateFollowup = receive(live.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), Date.parse("2024-04-17T23:15:10+09:00") + 600_000);
     expect([lateFollowup.state, lateFollowup.decisions[0], lateFollowup.diagnostics]).toEqual([live.state,
       { subject: "normal/VXSE43/20240417231454", operation: "normal", decision: "unchanged", reason: "stale" }, []]);
@@ -1516,22 +1506,20 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     const future = receive(emptyState(), first, report - 3_600_000);
     expect(future.state.gates[0]).toMatchObject({ currentUntil: report - 3_000_000, retainUntil: report - 3_600_000 + 86_400_000 });
 
-    // (5) gate の期限回収は decision・outcome を出さず、delivered 証拠の latch を解き evidenceUnknownUntil を延ばす。
+    // (5) gate の期限回収は decision・outcome を出さない。印も retainUntil（版の起点＋24 時間）で外れ、evidenceUnknownUntil は延ばさない（P3-NL-AC04 (6)）。
     const sent = receive(emptyState(), first, report);
-    const delivered = reduceEewUnit(sent.state, { kind: "intentUpdate", clock: clock(report), intentUpdate: sent.intents.map((item) => ({
-      id: item.id, attempts: 1, nextAttemptAt: report, disposition: "delivered" as const })) });
+    const delivered = reduceEewUnit(sent.state, { kind: "intentUpdate", clock: clock(report), intentUpdate: sent.intents.map((item) => ({ ...item, attempts: 1, nextAttemptAt: report, disposition: "delivered" as const, lossReason: null })) });
     const withoutCurrent = deadline(delivered.state, report + 600_000).state;
     const gone = deadline(withoutCurrent, report + 86_400_000);
-    expect([gone.state.gates, gone.state.notificationLatches, gone.decisions, gone.outcomes]).toEqual([[], [], [], []]);
-    expect(gone.state.evidenceUnknownUntil).toBe(report + 86_400_000 + 600_000);
-    // restore 由来の preexisting latch は、gate の期限回収で配送の証拠だけを残した初期値へ戻る（落とさず、延長もしない）。
+    expect([gone.state.gates, gone.state.notices, gone.decisions, gone.outcomes]).toEqual([[], [], [], []]);
+    expect(gone.state.evidenceUnknownUntil).toBe(0);
+    // 復元した印は作り直さず持ち越し（preexisting は無い）、同じ期限で外れる。復元の evidenceUnknownUntil（10 分）は今のまま。
     const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(delivered.state), clock: clock(report + 1_000) });
     const reowned = receive(restored.state, first, report + 2_000);
-    expect(reowned.state.notificationLatches[0]).toMatchObject({ preexisting: true, firstReportNotified: true, deliveryEvidence: "possible" });
+    expect(reowned.intents).toEqual([]);
+    expect(reowned.state.notices[0]).toMatchObject({ firstReportNotified: true, deliveryEvidence: "possible" });
     const reset = deadline(reowned.state, report + 86_400_000);
-    expect(reset.state.gates).toEqual([]);
-    expect(reset.state.notificationLatches).toEqual([{ operation: "normal", eventId: "20240417231454", firstReportNotified: false,
-      warningNotified: false, vxse45Accepted: false, deliveryEvidence: "possible", preexisting: true, notifiedMaximumRank: -1, notifiedWarningAreas: 0n }]);
+    expect([reset.state.gates, reset.state.notices]).toEqual([[], []]);
     expect(reset.state.evidenceUnknownUntil).toBe(report + 601_000);
   });
 
@@ -1557,7 +1545,7 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     expect([seven.state.current, seven.state.gates.length]).toEqual([[], 1]);
     expect(seven.state.intents.map((item) => [item.channel, item.payload.body])).toEqual([
       ["desktop", "訂正: テスト震源 / M5.0 / 最大予測震度7"], ["sound", "訂正: テスト震源 / M5.0 / 最大予測震度7"]]);
-    expect(seven.state.deliveryRecords).toEqual(three.intents.map((item) => ({ intentId: item.id, disposition: "superseded", expiresAt: item.expiresAt })));
+    expect(seven.state.intents.some((item) => three.intents.some((old) => old.id === item.id))).toBe(false);
     expect(receive(seven.state, correction("7", false, "7", 1), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
     expect(receive(seven.state, correction("7", true, "7", 2), report).decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
     // 最大予測震度と warningClass を変えず区域の値だけを訂正した版も差として採用し、旧 pending を差し替える（P3-LIFE-D-F17KEY=A）。
@@ -1565,7 +1553,7 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     expect(regional.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
     expect(regional.state.current).toEqual([]);
     expect(regional.state.intents.map((item) => item.payload.body)).toEqual(["訂正: テスト震源 / M5.0 / 最大予測震度7", "訂正: テスト震源 / M5.0 / 最大予測震度7"]);
-    expect(regional.state.deliveryRecords.slice(2)).toEqual(seven.intents.map((item) => ({ intentId: item.id, disposition: "superseded", expiresAt: item.expiresAt })));
+    expect(regional.state.intents.some((item) => seven.intents.some((old) => old.id === item.id))).toBe(false);
     expect(receive(regional.state, correction("7", false, "6+", 2), report).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
   });
 
@@ -1585,7 +1573,7 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     for (let i = 0; i < 512; i++) {
       const step = receive(state, eviction(String(20260101000000 + i), S + i * 1_000), S + i * 1_000 - skewMs);
       state = i !== 0 ? step.state : reduceEewUnit(step.state, { kind: "intentUpdate", clock: clock(S - skewMs),
-        intentUpdate: step.intents.map((item) => ({ id: item.id, attempts: 1, nextAttemptAt: S - skewMs, disposition: "delivered" as const })) }).state;
+        intentUpdate: step.intents.map((item) => ({ ...item, attempts: 1, nextAttemptAt: S - skewMs, disposition: "delivered" as const, lossReason: null })) }).state;
     }
     return deadline(state, S + 511_000 - skewMs + 15_000).state;
   };
@@ -1637,8 +1625,9 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     const w0 = S + 600_000;
     const w1 = S + 601_000;
     const evicted = receive(filled, eviction("20260102000000", w0, "live"), w0).state;
-    // B7: 配送の証拠のある最後の owner を失った latch は evidenceUnknownUntil を延ばす。
-    expect(evicted.evidenceUnknownUntil).toBe(w0 + 600_000);
+    // B7 → P3-NL-AC04 (6): 印は gate の退去で消えず証拠を持ち越すので、evidenceUnknownUntil を延ばさない。
+    expect(evicted.notices.find((item) => item.eventId === "20260101000000")?.deliveryEvidence).toBe("possible");
+    expect(evicted.evidenceUnknownUntil).toBe(0);
     // B1: 退去した最終報の再送は stale と診断 1 件（gate があれば duplicate）。
     const resend = eviction("20260101000000", S);
     expect(receive(filled, resend, w0).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
@@ -1649,8 +1638,9 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     // B4・残存リスク(2): 報時刻から 10 分以上遅れた取消は捨てる（gate があれば取消の通知 2 件）。
     const lateCancel = eviction("20260101000000", S + 500, "cancel");
     expect(receive(filled, lateCancel, w1).intents.map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
-    const dropped = receive(evicted, lateCancel, w1);
-    expect([dropped.decisions[0], dropped.intents]).toEqual([stale("20260101000000"), []]);
+    // P3-NL-AC04 (5): 退去で gate を失っても印の記録があれば既知として採用し、印の証拠（possible）で取消を通知する。
+    const known = receive(evicted, lateCancel, w1);
+    expect([known.decisions[0].decision, known.intents.map((item) => item.payload.level)]).toEqual(["changed", ["cancel", "cancel"]]);
     // B5・残存リスク(4): horizon 内の取消は退去できる別の gate を退去して採用し通知する（gate が残り unattempted なら通知 0）。
     // 退去できる gate が無ければ capacityExceeded。
     const cancel1 = (wallTimeMs: number) => eviction("20260101000001", wallTimeMs, "cancel");
@@ -1660,17 +1650,35 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     expect(receive(twice, cancel1(w1), w1).decisions[0].decision).toBe("capacityExceeded");
     const w2 = S + 602_000;
     const cancelled = receive(twice, cancel1(w2), w2);
+    // P3-NL-AC04 (6): 退去で消えない印の証拠（unattempted、通知を試みていない）で決めるので、取消を通知しない。
     expect([removed(twice, cancelled.state), cancelled.diagnostics, cancelled.intents.map((item) => item.payload.level)])
-      .toEqual([["normal/VXSE45/20260101000002"], [capacityEvicted], ["cancel", "cancel"]]);
-    // B6・残存リスク(3): 退去した版の報時刻から 10 分以上経って届いた新しい版は、報時刻の差によらず新規として通知する
-    // （gate があれば latch で通知 0）。最後の版の 2 秒後に出て 599 秒遅れて届いた続報も同じ。
+      .toEqual([["normal/VXSE45/20260101000002"], [capacityEvicted], []]);
+    // B6 → P3-NL-AC04 (6): 退去した版の報時刻から 10 分以上経って届いた新しい版は新規の current になるが、印の latch が残るので通知しない
+    // （残存リスク(3) は消える）。最後の版の 2 秒後に出て 599 秒遅れて届いた続報も同じ。
     for (const reportMs of [w1, S + 2_000]) {
       const next = eviction("20260101000000", reportMs, "next");
       expect(receive(filled, next, w1).intents).toEqual([]);
       const revived = receive(evicted, next, w1);
       expect([revived.outcomes[0].subjects[0].transition, revived.intents.map((item) => item.transition)])
-        .toEqual(["activated", ["activated", "activated"]]);
+        .toEqual(["activated", []]);
     }
+  });
+
+  // P3-NL-T03 の行（P3-NL-AC04 (5) の (a)(b)）: gate も印も無い EventID への取消は、family の 512 が満ちた capacityExceeded でも、B12 で捨てる
+  // ときも、gate・current を作らずに取消を通知し（印の証拠は unknown）、受け直しても鳴らない。
+  it("P3-NL-T03 contractBoundary / AC04 (5): a mark-less cancel refused by capacity or by B12 still notifies once", () => {
+    const filled = fillFinal(0);
+    const w0 = S + 600_000;
+    const full = receive(filled, eviction("20260102000009", w0 - 1, "cancel"), w0 - 1);
+    expect([full.decisions[0].decision, full.state.gates, full.intents.map((item) => item.payload.level)])
+      .toEqual(["capacityExceeded", filled.gates, ["cancel", "cancel"]]);
+    expect(full.state.notices.find((item) => item.eventId === "20260102000009")?.deliveryEvidence).toBe("unknown");
+    expect(receive(full.state, eviction("20260102000009", w0 - 1, "cancel"), w0).intents).toEqual([]);
+    const evicted = receive(filled, eviction("20260102000000", w0, "live"), w0).state;
+    const b12 = receive(evicted, eviction("20260101999999", S, "cancel"), S + 1);
+    expect([b12.decisions[0], b12.diagnostics.map((item) => item.reason), b12.intents.map((item) => item.payload.level)])
+      .toEqual([stale("20260101999999"), ["eewHorizonStale"], ["cancel", "cancel"]]);
+    expect(receive(b12.state, eviction("20260101999999", S, "cancel"), S + 2).intents).toEqual([]);
   });
 
   // 実不具合の再発防止（P3-EVICT-AC01(7)、レビューの P2-1）: A の退去 → 古い B の配送の完了 → 時計の後退 → A の再送で、
@@ -1683,8 +1691,7 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
     expect(lateCancel.intents).toHaveLength(2);
     const evictedA = receive(lateCancel.state, eviction("20260102000000", w1, "live"), w1).state;
     expect(removed(lateCancel.state, evictedA)).toEqual(["normal/VXSE45/20260101000001"]);
-    const deliveredB = reduceEewUnit(evictedA, { kind: "intentUpdate", clock: clock(w1), intentUpdate: lateCancel.intents.map((item) => ({
-      id: item.id, attempts: 1, nextAttemptAt: w1, disposition: "delivered" as const })) }).state;
+    const deliveredB = reduceEewUnit(evictedA, { kind: "intentUpdate", clock: clock(w1), intentUpdate: lateCancel.intents.map((item) => ({ ...item, attempts: 1, nextAttemptAt: w1, disposition: "delivered" as const, lossReason: null })) }).state;
     expect(deliveredB.intents.some((item) => item.subject === "normal/VXSE45/20260101000000")).toBe(false);
     // 取消で B の gate の報時刻は S＋500。時計を B が退去でき A が horizon 内の時刻へ戻す。
     const back = S + 600_500;

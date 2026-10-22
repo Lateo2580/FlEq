@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "76723b3b36cc5e1567e21c9bac84c8c6f8567a4046fc5cedbfc11cb5beb3b098",
+    "sha256": "d83d6d7dc01ebab6f8c4dbef9c9f25b42ada6571609af3896c8007e2d5c40f8e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -369,9 +369,9 @@
         "evidenceRefs": [
           "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
           "reconstruction/contracts/p3-seismic-unit.json:294 «7e1861bc1c33c278»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:235 «5be87c0685329b41»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:236 «3dcb54e5d2face43»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:24 «34484a3e4707ee1e»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:244 «5be87c0685329b41»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:245 «3dcb54e5d2face43»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:30 «632cae790ef4aa0a»"
         ]
       },
       {
@@ -382,46 +382,46 @@
           "reconstruction/test/execution-split/owner-harness.ts:214 «080b090c4cb3ca1a»",
           "reconstruction/test/execution-split/owner-harness.ts:234 «fd7c80ca051f2f9d»",
           "reconstruction/test/execution-split/owner-harness.ts:73 «92d485f6dffa61d6»",
-          "reconstruction/src/runtime/composition-root.ts:884 «58f0aecdcdb34121»",
-          "reconstruction/src/runtime/composition-root.ts:885 «39f404990b4c2ef9»",
-          "reconstruction/src/runtime/composition-root.ts:886 «71f3e73d73b564c2»",
-          "reconstruction/src/runtime/owner-runtime.ts:41 «c0a3b81a85da74e2»",
-          "reconstruction/src/runtime/owner-runtime.ts:350 «63380813ee47301c»",
+          "reconstruction/src/runtime/composition-root.ts:891 «58f0aecdcdb34121»",
+          "reconstruction/src/runtime/composition-root.ts:892 «39f404990b4c2ef9»",
+          "reconstruction/src/runtime/composition-root.ts:893 «71f3e73d73b564c2»",
+          "reconstruction/src/runtime/owner-runtime.ts:43 «c0a3b81a85da74e2»",
+          "reconstruction/src/runtime/owner-runtime.ts:357 «63380813ee47301c»",
           "reconstruction/test/integration/display-wiring.test.ts:130 «959983c9146f2dfa»",
           "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
-          "reconstruction/src/runtime/composition-root.ts:131 «da19aa28db3b6c45»",
-          "reconstruction/src/checkpoint/checkpoint.ts:613 «e1ef5263c0b6ca25»",
-          "reconstruction/src/checkpoint/checkpoint.ts:617 «7fbc7ddee40d495d»",
+          "reconstruction/src/runtime/composition-root.ts:132 «da19aa28db3b6c45»",
+          "reconstruction/src/checkpoint/checkpoint.ts:616 «e1ef5263c0b6ca25»",
+          "reconstruction/src/checkpoint/checkpoint.ts:620 «7fbc7ddee40d495d»",
           "reconstruction/src/checkpoint/checkpoint.ts:66 «3f51a4d6e3948188»",
-          "reconstruction/src/runtime/composition-root.ts:604 «4abafaf8844b3aa7»",
-          "reconstruction/src/runtime/composition-root.ts:608 «11c6541c5cd2944f»",
+          "reconstruction/src/runtime/composition-root.ts:611 «4abafaf8844b3aa7»",
+          "reconstruction/src/runtime/composition-root.ts:615 «11c6541c5cd2944f»",
           "reconstruction/test/snapshot-sse/projection-fixture.ts:87 «b70fda78f149985c»",
-          "reconstruction/src/units/eew/eew-unit.ts:278 «815aa0cb2d10c8e3»",
-          "reconstruction/src/domains/eew/eew.ts:312 «a9e582856884de0d»",
-          "reconstruction/src/domains/eew/eew.ts:326 «1e6532fcd2a85780»"
+          "reconstruction/src/units/eew/eew-unit.ts:286 «815aa0cb2d10c8e3»",
+          "reconstruction/src/domains/eew/eew.ts:361 «a9e582856884de0d»",
+          "reconstruction/src/domains/eew/eew.ts:375 «1e6532fcd2a85780»"
         ]
       },
       {
         "id": "P3-DC-AC04",
         "requirement": "測るもの: runの中で次を数えて結果に書く。(1) 器の使用率: 件数の上限ごと（U-E: familyごとのsubject 512、U-T: 予報512・観測familyごと512・観測点familyごと1,024、U-Q: event 512・長周期256、U-N: 現況6・情報64、U-W: partial 128、U-F: subject 512）の件数を、観測の表が受けたstep.stateから数える。保存のbyteはonMeasurementsのencodeのbytes（CheckpointMeasurement.bytes）をunitの世代の上限（U-E 256 KiB・U-T 4 MiB・U-Q 4 MiB・U-N 288 KiB・U-W 16 MiB・U-F 32 MiB）で割る。上限ごとに最大の比・その時刻・その時の値を残し、90%を越えた上限を名指す (2) 拒否は2つの量に分ける（P3-DC-ORACLE (4)）: 入力単位の拒否（decisionのcapacityExceededと、そのstepで作られたunavailableの印〔U-W・U-FのcapacityExceededの印とU-T・U-Qの記録の印。印の付く拒否はdecisionがchangedで返る〕。入力ごと・unit・運用区分・時刻）と、未解消の拒否の状態（印の付いた記録の数と、確認状態のwholeがcapacityExceededのunit×運用区分の数の時系列と最大。累計ではない。P3-CURRENCY-COVERAGE-001の配送で返信のadmissionCountsが無くなったための読み替え、2026-10-15 統合担当） (3) 退去: 全運用区分の退去の件数を、P3-DC-ORACLE (3)の表のreasonのcountでunit・時刻ごとに足し、容量の欠け（P3-DC-AC05、normalだけ）と別の量として並べる。U-Fは診断を出さずに非normalのsubjectとlastKnownを削るので、U-Fの退去の件数は未計測（unmeasured）と書き、0と書かない。notificationCapacityEvictedは数えない（2段目） (4) snapshot: publishされたsnapshotごとに分野のdelivery（full・summary）を見て、要約の始まりと終わりの時刻を分野ごとに残す。要約の時刻ごとに分野ごとのbyte（summaryのoriginalBytesとfullのviewのUTF-8のbyte）と、U-F・U-Wを除いた合計が1 MiBを越えるか（災害の情報だけで溢れたかの印）を書く (5) 結果のfileは1 runに1つで、frozen.tsからimportしたsealSelfHash（export済み）で封じ、gitHead・筋書きのdigest・合成器のsourceのsha256と種・P3-DC-PASSの判定・届いた上限ごとのP3-DC-OPTIONS・測ったcommitのreconstruction/contractsにあるP3-UF-PUBLIC-001とP3-CURRENCY-COVERAGE-001とU-Wの単位の契約のcontractIdとmeta.sha256を書く（配送の有無の確かめはQ-DC-REMEASURE）。書き先はFLEQ_DISASTER_OUTの1 fileだけで、試験はrepoの中に書かない。無いと: 器の最大とその時刻、入力ごとの拒否と残った拒否が筋書きごとに残らず、届いたかと溢れの原因を言えない",
         "evidenceRefs": [
-          "reconstruction/src/domains/eew/eew.ts:458 «66224699b9d11746»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:24 «34484a3e4707ee1e»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:40 «6051c8757a3fccfa»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:25 «f376055a27fbf976»",
+          "reconstruction/src/domains/eew/eew.ts:547 «66224699b9d11746»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:30 «632cae790ef4aa0a»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:49 «4383702f23ce23b7»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:29 «f376055a27fbf976»",
           "reconstruction/src/domains/weather-current/weather-current.ts:664 «7dfd56fda32b885c»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:43 «3ad4bf7c6588ba31»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «aa1dcb742dc64f1c»",
-          "reconstruction/src/runtime/composition-root.ts:125 «9a24c78389b3cc16»",
-          "reconstruction/src/runtime/composition-root.ts:1374 «90b8604c422c63fa»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:44 «3ad4bf7c6588ba31»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:15 «aa1dcb742dc64f1c»",
+          "reconstruction/src/runtime/composition-root.ts:126 «9a24c78389b3cc16»",
+          "reconstruction/src/runtime/composition-root.ts:1407 «90b8604c422c63fa»",
           "reconstruction/contracts/p3-execution-split.types.ts:95 «a2f6e82ae720f68e»",
           "reconstruction/src/domains/weather-current/weather-current.ts:477 «08eda6d3c0cd84ce»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:234 «9e0a048fabf9d141»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:235 «9e0a048fabf9d141»",
           "reconstruction/src/view-projector/view-projector.ts:912 «0f29de6d3afeedc3»",
           "reconstruction/src/view-projector/view-projector.ts:914 «c42a191089542248»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:722 «64ef77c780d16b32»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:152 «49bd7937eeae2033»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:216 «f058e3a180f89e0c»"
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:153 «49bd7937eeae2033»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:217 «f058e3a180f89e0c»"
         ]
       },
       {
@@ -429,21 +429,21 @@
         "requirement": "照合（P3-DC-ORACLE、D2=A）: 正しい現況を作り直さない。(1) 観測の表でlinkedUnitTableの12 unitのreduceを結果を変えずに包み、stepごとに数える (2) 容量の欠け: stepのdiagnosticsに容量の退去のreason（P3-DC-ORACLE (3)の表）があるとき、そのunitのtoViewを前のstateとstep.stateで作り、全unit共通のUnitView.subjectsのsubjectが前にあって後に無いものを候補にする。候補のうち、後のstateの記録（intentと終端記録の欄を除く）にsubjectかsource.subjectがその値の要素が無いものだけを、subject・unit・運用区分・退去の時刻・入力・reason・本来の期限とともに容量の欠けとして記録し、後で期限が来ても消さない（後のstateに記録が残る解除・forecastEnded・取消は欠けではない）。normalで本来の期限が無いか退去の時刻より後のものを欠けに数える。容量の欠け0は、保存した現況全体（記憶・非active・非normal）が欠けていない保証ではない (3) 合成のframeの入力の結果を、採用・容量の拒否・不正に分ける。容量の拒否（decisionのcapacityExceeded、またはchangedでU-W・U-Fのunavailableの印）は入力単位の拒否として数えて後続を流し、筋書きをFailにする。不正（reduceが無い、容量以外のrejected、明示していないunchanged）だけを測定不成立（blocked、inputNotAdopted）としてrunを止める。実電文の不正は数えて報告する (4) 終わりの状態はP3-DC-SCENARIOSの手書きの期待例だけを、その時刻のstateとviewで確かめる。外れたら欠け。無いと: 区切りの間に退去して後で期限も過ぎた地震を見逃し、正しい解除や製品の正しい保持（津波の観測点の累積、U-Fの7日の回収）を欠けと誤り、測りたい容量の拒否で測定が止まり、合成の電文が不正のまま負荷不足を測ったことに気づかない",
         "evidenceRefs": [
           "reconstruction/test/execution-split/owner-harness.ts:263 «bebbf0ef2ede7d75»",
-          "reconstruction/contracts/p3-unit-table.types.ts:32 «4a372479f4cdc901»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:173 «a763b418a1d2365e»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:280 «6937a8c8bda3acaa»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:298 «87b29b2756cc79e9»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:299 «350627aa0c8c0b86»",
-          "reconstruction/src/domains/eew/eew.ts:272 «a777a5aa32eb2368»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:27 «986ae9b33f93a294»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:445 «3f2690b71e67d7d4»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:46 «a3f5d5da552e2733»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:49 «7f665a2964cdce66»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:214 «0f7bc64f0b86acb0»",
-          "reconstruction/src/units/flood/flood-unit.ts:312 «db818200ef8649bd»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:368 «0661a8bf0d125d0a»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:784 «6334142030400210»",
-          "reconstruction/src/domains/eew/eew.ts:489 «4cf8acc86bfa0649»"
+          "reconstruction/contracts/p3-unit-table.types.ts:26 «4a372479f4cdc901»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:192 «a763b418a1d2365e»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:299 «6937a8c8bda3acaa»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:317 «87b29b2756cc79e9»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:318 «350627aa0c8c0b86»",
+          "reconstruction/src/domains/eew/eew.ts:266 «a777a5aa32eb2368»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:34 «986ae9b33f93a294»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:459 «3f2690b71e67d7d4»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:55 «a3f5d5da552e2733»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:50 «7f665a2964cdce66»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:215 «0f7bc64f0b86acb0»",
+          "reconstruction/src/units/flood/flood-unit.ts:306 «db818200ef8649bd»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:383 «0661a8bf0d125d0a»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:845 «6334142030400210»",
+          "reconstruction/src/domains/eew/eew.ts:578 «3ec78c2aad9e3950»"
         ]
       },
       {

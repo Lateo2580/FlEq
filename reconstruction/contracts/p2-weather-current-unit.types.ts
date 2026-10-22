@@ -51,7 +51,7 @@ export type WeatherCurrentTombstone = Readonly<{
 }>;
 
 export type WeatherCurrentUnitState = Readonly<{
-  schemaVersion: "p2-weather-current-unit-v4";
+  schemaVersion: "p2-weather-current-unit-v5";
   contentRevision: number;
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
@@ -66,7 +66,7 @@ export type WeatherCurrentUnitState = Readonly<{
 }>;
 
 export type PersistedWeatherCurrentUnit = Readonly<{
-  schemaVersion: "p2-weather-current-unit-v4";
+  schemaVersion: "p2-weather-current-unit-v5";
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
   histories: readonly WeatherCurrentHistory[];
@@ -111,5 +111,5 @@ export type WeatherCurrentUnitStep = Readonly<{
 }>;
 
 export type WeatherCurrentUnitCodec = UnitCodec<WeatherCurrentUnitState, PersistedWeatherCurrentUnit> & Readonly<{
-  schemaVersion: "p2-weather-current-unit-v4";
+  schemaVersion: "p2-weather-current-unit-v5";
 }>;

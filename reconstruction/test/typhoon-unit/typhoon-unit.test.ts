@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
 import type { TyphoonAnalysisRecord, TyphoonProbabilityRecord, TyphoonUnitState, TyphoonUnitStep } from "../../contracts/p3-typhoon-unit.types";
 import { generationBytes, reduceTyphoonUnit, toTyphoonView, typhoonUnitCodec } from "../../src/units/typhoon/typhoon-unit";
 import { deliveryGrowth as reserve } from "../../src/notification-delivery/delivery-growth";
+import { versionKey } from "../../src/contracts-revision/version";
 import { linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import {
@@ -255,7 +257,8 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
       [TC2606, "revisionOnly", true], [P2606, "semantic", false]]);
     expect(lowered.state.analysis[0]).toMatchObject({ effective: "ended", endCause: "terminal" });
     expect(lowered.state.probability[0]).toMatchObject({ effective: "ended", endCause: "terminal", source: { serialRaw: "41" } });
-    expect([lowered.intents, pendingOf(lowered.state, P2606), lowered.state.intents.map((item) => item.disposition)]).toEqual([[], [], ["superseded", "superseded"]]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect([lowered.intents, pendingOf(lowered.state, P2606), lowered.state.intents]).toEqual([[], [], []]);
     // 表示が変わる（確率の見える記録が消える）ので outcome の change は semantic（I-U-Y.currentSemantics(5)）。解析の decision は revisionOnly のまま。
     expect(lowered.outcomes).toMatchObject([{ kind: "accepted", change: "semantic", subjects: [{ subject: TC2606, transition: "ended" }, { subject: P2606, transition: "ended" }] }]);
     expect(lowered.displayChanges).toMatchObject([{ subject: P2606, before: { current: { effective: "active" } }, after: null }]);
@@ -428,30 +431,19 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     expect(over64.diagnostics).toContainEqual({ level: "INFO", component: "typhoon", reason: "notificationCapacityEvicted", unit: "U-Y", count: 2 });
     expect(over64.state.intents.filter((item) => item.disposition === "pending")).toHaveLength(128);
     // intentUpdate で attempts が 1 桁から 5 桁になっても予約の内側で decode できる。
-    const grown = reduceTyphoonUnit(pending, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending.intents.map((item) => ({ id: item.id, attempts: 12_345,
-      nextAttemptAt: T0 + 1_234_567_890, disposition: "pending" as const })) });
+    const grown = reduceTyphoonUnit(pending, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending.intents.map((item) => ({ ...item, attempts: 12_345,
+      nextAttemptAt: T0 + 1_234_567_890, disposition: "pending" as const, lossReason: null })) });
     expect(typhoonUnitCodec.decode(JSON.parse(JSON.stringify(typhoonUnitCodec.encode(grown.state))) as JsonValue).kind).toBe("restored");
-    // 終端記録は 98,304 byte を超えた分を最古から期限前に回収する。
-    const deliver = (state: TyphoonUnitState, list: readonly string[]) => reduceTyphoonUnit(state, { kind: "intentUpdate", clock: clock(T0),
-      intentUpdate: list.map((id) => ({ id, attempts: 1, nextAttemptAt: T0, disposition: "delivered" as const })) }).state;
-    const size = (state: TyphoonUnitState) => state.intents.filter((item) => item.disposition !== "pending").reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
-    const oldIds = pending.intents.map((item) => item.id);
-    const firstRound = deliver(pending, oldIds);
-    expect(size(firstRound)).toBeGreaterThan(80_000);
-    // 20 subject 分（40 件）を新しく送って届けると、合計が 98,304 を超える分は最古の終端記録から回収され、今届けた記録は残る。
-    let second = firstRound;
-    for (let index = 70; index < 90; index++) second = sendXml(second, analysisN(index), "VPTW60").state;
-    const freshIds = second.intents.filter((item) => item.disposition === "pending").map((item) => item.id);
-    const terminal = deliver(second, freshIds);
-    expect(size(terminal)).toBeLessThanOrEqual(98_304);
-    expect(freshIds.every((id) => terminal.intents.some((item) => item.id === id && item.disposition === "delivered"))).toBe(true);
-    expect(terminal.intents.some((item) => item.id === oldIds[0])).toBe(false);
+    // 終端記録の予算は無くなった（P3-NL-AC05 (2)）: 終端の更新は intent を外す。
+    const delivered = reduceTyphoonUnit(pending, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending.intents.map((item) => ({ id: item.id, attempts: 1,
+      nextAttemptAt: T0, disposition: "delivered" as const, lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null })) }).state;
+    expect(delivered.intents).toEqual([]);
     // pending の「実 byte＋予約」131,072 ちょうどは decode でき、131,073 は unavailable（予約は deliveryGrowth を import して数える）。
     const own = sendXml(emptyState(), analysisXml(), "VPTW60").state.analysis[0];
     const make = (index: number, bodyLength: number) => ({ id: `U-Y:${own.subject}:${String(index).padStart(6, "0")}:desktop`, unit: "U-Y" as const, subject: own.subject,
       operation: "normal" as const, source: own.source, transition: "updated" as const, channel: "desktop" as const,
       payload: { domain: "weather" as const, level: "normal" as const, title: "t".repeat(160), body: "b".repeat(bodyLength) }, createdAt: T0, expiresAt: T0 + 180_000,
-      nextAttemptAt: T0, attempts: 0, configRevision: "p3-typhoon-unit-v4", disposition: "pending" as const });
+      nextAttemptAt: T0, attempts: 0, configRevision: "p3-typhoon-unit-v5", disposition: "pending" as const, lastAttempt: null, replayed: false, priorityGroup: "other" as const });
     const total = (list: readonly ReturnType<typeof make>[]) => 2 + Math.max(list.length - 1, 0) + list.reduce((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)) + reserve(item), 0);
     const lengths: number[] = [];
     while (total(lengths.map((length, index) => make(index, length))) <= 131_072) lengths.push(512);
@@ -618,8 +610,8 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     for (const [label, change] of [["category", { category: "台風(TS)" }], ["intensity", { category: "熱帯低気圧(TD)", intensity: "強い" }], ["size", { category: "熱帯低気圧(TD)", size: "大型" }]] as const) {
       const step = sendXml(v1.state, analysisXml({ ...change, serial: "43", report: "2026-05-31T11:45:00+09:00", target: "2026-05-31T11:00:00+09:00" }), "VPTW60");
       expect([label, step.intents.map((item) => [item.channel, item.transition, item.payload.level])], label).toEqual([label, [["desktop", "updated", "normal"], ["sound", "updated", "normal"]]]);
-      // 置換: 同じ subject・channel の古い pending は superseded、新しい pending が 2 件。
-      expect([label, step.state.intents.filter((item) => item.disposition === "superseded").length, pendingOf(step.state, TC2606).length]).toEqual([label, 2, 2]);
+      // 置換: 同じ subject・channel の古い pending は intents から外れ（P3-NL-AC05 (1)）、新しい pending が 2 件。
+      expect([label, step.state.intents.length, pendingOf(step.state, TC2606).length]).toEqual([label, 2, 2]);
     }
     // 訂正は事実が同じでも作る（[訂正]・「訂正: 」）。
     const correction = send(appeared.state, A01, compose(infoType("訂正"), control("2020-09-28T15:52:00+09:00")));
@@ -650,13 +642,14 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     const longTitle = sendXml(emptyState(), headTitle("題".repeat(64))(analysisXml({ info: "訂正" })), "VPTW60");
     expect(longTitle.intents[0].payload.title.length).toBeLessThanOrEqual(160);
     expect(longTitle.intents[0].payload.title.startsWith("[訂正] 題")).toBe(true);
-    // 一入力の intent は各 channel 最大 1 件で、id は subject・世代・channel から決まる。
-    expect(appeared.intents.map((item) => item.id)).toEqual([`U-Y:${TC2001}:1:desktop`, `U-Y:${TC2001}:1:sound`]);
-    // intentUpdate: 既存の id だけを更新し、未知の id と同値は no-op（同じ参照）。delivered は終端記録として残り、pending を数える対象から外れる。
+    // 一入力の intent は各 channel 最大 1 件で、id は unit・subject・系列・版の鍵・遷移・channel から決まる（世代番号を含まない、P3-NL-AC01）。
+    expect(appeared.intents.map((item) => item.id)).toEqual(appeared.intents.map((item) => JSON.stringify(["U-Y", TC2001, "", versionKey(item.source),
+      item.transition, item.channel])));
+    // intentUpdate: 既存の id だけを更新し、未知の id と同値は no-op（同じ参照）。delivered は intents から外れる（P3-NL-AC05 (1)）。
     const id = appeared.intents[0].id;
-    const delivered = reduceTyphoonUnit(appeared.state, { kind: "intentUpdate", clock: clock(T0), intentUpdate: { id, attempts: 1, nextAttemptAt: T0, disposition: "delivered" } });
-    expect([delivered.decisions.map((item) => item.decision === "changed" ? item.change : null), delivered.state.intents.find((item) => item.id === id)?.disposition]).toEqual([["deliveryOnly"], "delivered"]);
-    const noop = reduceTyphoonUnit(delivered.state, { kind: "intentUpdate", clock: clock(T0), intentUpdate: [{ id, attempts: 1, nextAttemptAt: T0, disposition: "delivered" }, { id: "none", attempts: 1, nextAttemptAt: T0, disposition: "delivered" }] });
+    const delivered = reduceTyphoonUnit(appeared.state, { kind: "intentUpdate", clock: clock(T0), intentUpdate: { id, attempts: 1, nextAttemptAt: T0, disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null } });
+    expect([delivered.decisions.map((item) => item.decision === "changed" ? item.change : null), delivered.state.intents.some((item) => item.id === id)]).toEqual([["deliveryOnly"], false]);
+    const noop = reduceTyphoonUnit(delivered.state, { kind: "intentUpdate", clock: clock(T0), intentUpdate: [{ id, attempts: 1, nextAttemptAt: T0, disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null }, { id: "none", attempts: 1, nextAttemptAt: T0, disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null }] });
     expect([noop.state, noop.decisions]).toEqual([delivered.state, []]);
   });
 
@@ -706,7 +699,8 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     const refill = fillAnalysis(64);
     const withPending = { ...refill, intents: holder.state.intents };
     const cancelSelf = sendXml(withPending, status("訓練")(cancelOf(100)), "VPTW60");
-    expect(cancelSelf.state.intents.filter((item) => item.subject === "training/typhoonAnalysis/TC0100").map((item) => item.disposition)).toEqual(["superseded"]);
+    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
+    expect(cancelSelf.state.intents.filter((item) => item.subject === "training/typhoonAnalysis/TC0100")).toEqual([]);
     expect(cancelSelf.state.persistence.currentGeneration).toBe(withPending.persistence.currentGeneration + 1);
     const cancelOther = sendXml(withPending, status("訓練")(cancelOf(110)), "VPTW60");
     expect([cancelOther.state, cancelOther.state.persistence.currentGeneration]).toEqual([withPending, withPending.persistence.currentGeneration]);
@@ -743,8 +737,8 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     expect(evictions(evict).length).toBe(1);
     closes("new subject evicts", evict.state);
     closes("probability eviction", sendXml(maximum, probabilityXml({ eventId: "TC7777", report: iso(at0), target: iso(at0 - 3_600_000), areas: [{ code: "010001", daily: [1, 1, 1, 1, 1], slots: [1] }] }), "VPTA50", at0).state);
-    closes("intentUpdate digits", reduceTyphoonUnit(maximum, { kind: "intentUpdate", clock: clock(T0), intentUpdate: maximum.intents.filter((item) => item.disposition === "pending").map((item) => ({ id: item.id,
-      attempts: 123_456_789_012, nextAttemptAt: EDGE, disposition: "pending" as const })) }).state);
+    closes("intentUpdate digits", reduceTyphoonUnit(maximum, { kind: "intentUpdate", clock: clock(T0), intentUpdate: maximum.intents.filter((item) => item.disposition === "pending").map((item) => ({ ...item,
+      attempts: 123_456_789_012, nextAttemptAt: EDGE, disposition: "pending" as const, lossReason: null })) }).state);
     closes("visible deadline", tick(maximum, reportMs + 12 * HOUR).state);
     closes("retain deadline", tick(maximum, reportMs + 7 * day).state);
     closes("restore input", reduceTyphoonUnit(emptyState(), { kind: "restore", persisted: typhoonUnitCodec.encode(maximum), clock: clock(reportMs + HOUR) }).state);
@@ -802,4 +796,12 @@ describe("P3-WEATHER-SHAPE-001 U-Y partial reading", () => {
     expect([sixHours.slotCount, sixHours.areas[0].peak, sixHours.areas[0].peakSlot]).toEqual([2, 5, 0]);
     expect(probability(probabilityXml({ areas: base, slotCount: 65 })).slotCount).toBe(64);
   });
+});
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-Y restores failed and null pending with their fields and drops a started one", () => {
+  const issued = send(emptyState(), A01);
+  expect(issued.intents.length).toBeGreaterThanOrEqual(2);
+  expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
+    restore: (state, at) => reduceTyphoonUnit(emptyState(), { kind: "restore", persisted: typhoonUnitCodec.encode(state), clock: at }),
+    markOf: (state, subject) => [...state.analysis, ...state.probability].find((item) => item.subject === subject)?.notice });
 });

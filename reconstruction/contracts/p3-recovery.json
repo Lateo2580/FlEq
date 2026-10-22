@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "82ad45fe9c8776d25dcac54bae01327dd620a76127c4ef2addcb9220074d8e8f",
+    "sha256": "169a76d98b5b796e4e291d35157e1287f3667f49510db1301968dc5c99398d4a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "25cbef9420ca4ccbe9d2850189906dde1d4ff2cc10fb3d929494db77b5c41f9f",
+    "sequencesSha256": "134f09e07f92674ced17e4221930e149ff979fb189323672a205c926fc71b524",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -177,7 +177,7 @@
             "clauses": [
               "P3-REC-AC10"
             ],
-            "closed": "メモ §2・K8: intent の ID と印の鍵は「系列＋版の鍵＋遷移＋channel」。取り直しで受け直した同じ報は印で鳴らない。引上げは取り直しの起点の状態と比べる",
+            "closed": "メモ §2・K8: intent の ID と印の鍵は「系列＋版の鍵＋遷移＋channel」。取り直しで受け直した同じ報は印で鳴らない。引上げは取り直しの起点の状態と比べる（P3-NOTICE-LEDGER-001で2つに分けて読む: intentのIDはP3-NL-AC01の(1)の形〔遷移・channelを含む〕、重複を抑える照合はP3-NL-AC01の(2)の印の種類〔報・取消・期限。channelを問わない〕による）",
             "author": "§7 の 1(a) 音・1(b) 比べ方（P3-REC-D-RAISE-SOUND・RAISE-BASIS） → 作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434）"
           },
           {
@@ -564,13 +564,13 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2220 «a3a44a06404484c9»",
           "docs/specs/reconstruction-p0-contracts.md:3031 «375d564fe0344d12»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:329 «d22d7f39e8d1c98f»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:350 «d22d7f39e8d1c98f»",
           "reconstruction/src/runtime/shared-runtime.ts:98 «d4dcf0c5da493b28»"
         ]
       },
       {
         "id": "P3-REC-AC10",
-        "requirement": "【RA】取り直しで拾った引上げ（H27）: 採用のときに、取り直しの起点の状態（再起動なら復元した状態、切断なら切断の時点の状態）の区域ごとの区分と候補を比べ、いまも有効な引上げだけを unit が 1 件の intent にする（段 2 のメモ §2.4、比べ方は P3-REC-D-RAISE-BASIS）。intent の ID と照合は K8 の印（系列＋版の鍵＋遷移＋channel）で行い、その系列の印にすでにある鍵なら作らない。取り直しで受け直した同じ報は鳴らない。印の保持は P3-REC-D-RAISE-RECORD-PERIOD。音は P3-REC-D-RAISE-SOUND、大津波警報への引上げは critical・津波警報は warning。payload に発表時刻と「取り直しで拾った」印を持つ。配送は K8 の H48 の規則に従う: 平時はこの intent も試行の開始を記録した世代の保存 ack を待ってから外へ出し、保存の障害の間と待ちが 1 秒（置き値）を越えたときだけ、津波警報以上と critical が待たずに出る（メモ §2.4・§7 の 7、作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434））。本書は配送の順を足さない。途中の報は鳴らさない",
+        "requirement": "【RA】取り直しで拾った引上げ（H27）: 採用のときに、取り直しの起点の状態（再起動なら復元した状態、切断なら切断の時点の状態）の区域ごとの区分と候補を比べ、いまも有効な引上げだけを unit が 1 件の intent にする（段 2 のメモ §2.4、比べ方は P3-REC-D-RAISE-BASIS）。intent の ID と照合は K8 の印（系列＋版の鍵＋遷移＋channel）で行い（P3-NOTICE-LEDGER-001で2つに分けて読む: intentのIDはP3-NL-AC01の(1)の形〔遷移・channelを含む〕、重複を抑える照合はP3-NL-AC01の(2)の印の種類〔報・取消・期限。channelを問わない〕による）、その系列の印にすでにある鍵なら作らない。取り直しで受け直した同じ報は鳴らない。印の保持は P3-REC-D-RAISE-RECORD-PERIOD。音は P3-REC-D-RAISE-SOUND、大津波警報への引上げは critical・津波警報は warning。payload に発表時刻と「取り直しで拾った」印を持つ。配送は K8 の H48 の規則に従う: 平時はこの intent も試行の開始を記録した世代の保存 ack を待ってから外へ出し、保存の障害の間と待ちが 1 秒（置き値）を越えたときだけ、津波警報以上と critical が待たずに出る（メモ §2.4・§7 の 7、作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434））。本書は配送の順を足さない。途中の報は鳴らさない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3054 «2134d1e09a239364»"
         ]
@@ -593,8 +593,8 @@
           "reconstruction/contracts/p3-tsunami-unit.json:307 «36849f4e316bf8a8»",
           "reconstruction/contracts/p3-volcano-unit.json:176 «08f94de362cd913d»",
           "reconstruction/contracts/p3-seismic-unit.json:166 «824fb5c0849bb244»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:736 «086efc15d89bde4b»",
-          "reconstruction/src/domains/eew/eew.ts:374 «600b090d43fc380f»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:797 «086efc15d89bde4b»",
+          "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
           "reconstruction/contracts/p3-order-plan.md:451 «15b50525f89de42e»"
         ]
       },
@@ -651,7 +651,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
           "reconstruction/src/host/host.ts:331 «78ed7c65133feaf5»",
-          "reconstruction/src/runtime/composition-root.ts:139 «3a377e064ab358c4»"
+          "reconstruction/src/runtime/composition-root.ts:140 «3a377e064ab358c4»"
         ]
       }
     ],

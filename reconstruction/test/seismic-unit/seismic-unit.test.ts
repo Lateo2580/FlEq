@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { JsonValue, ReportRef } from "../../contracts/p2-shared-runtime.types";
 import type {
@@ -8,13 +9,14 @@ import type {
 import contract from "../../contracts/p3-seismic-unit.json";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
-import { INPUT_BOUNDARY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { knownStage, safetyRank } from "../../src/domains/seismic/seismic";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { reduceSeismicUnit, seismicUnitCodec, toSeismicView } from "../../src/units/seismic/seismic-unit";
+import { FAILURE_MARKS_MAX_BYTES, noticeMarkBytes } from "../../src/units/notice-mark";
 import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, sentLater, vxse53 } from "./seismic-fixture";
 
 const EVENT = "20260728162718";
@@ -26,8 +28,11 @@ const F = {
   s62: P75("VXSE62_20260728162718_f9786edc27df"), s61: P75("VXSE61_20260728162718_d7e630bbb653"),
 } as const;
 const HOUR = 3_600_000;
-// seismic-unit.ts の HOLD_GROWTH と HOLD_FACTS_BYTES（P3-VM-AC08）。器は 4 MiB＋同時最大状態の Control/DateTime と印の分＋HOLD_GROWTH。
-const HOLD_GROWTH = seismicUnitCodec.maxEnvelopeBytes! - 4_194_304 - 121_513, HOLD_FACTS_BYTES = 2_574_775 + HOLD_GROWTH;
+// seismic-unit.ts の HOLD_GROWTH・HOLD_FACTS_BYTES・RESERVE_BYTES（P3-VM-AC08・P3-NL-D-CAPACITY=A）。器は 4 MiB＋同時最大状態の
+// Control/DateTime と印の分＋HOLD_GROWTH＋通知の印（寄与 512×4・長周期 256）＋失敗の印−外した終端 intent の予算 131,072。
+const MARK = noticeMarkBytes("notice"), CONTRIBUTION_MARKS = 512 * 4 * MARK, NOTICE_GROWTH = CONTRIBUTION_MARKS + 256 * MARK;
+const HOLD_GROWTH = seismicUnitCodec.maxEnvelopeBytes! - 4_194_304 - 121_513 - NOTICE_GROWTH - FAILURE_MARKS_MAX_BYTES + 131_072;
+const HOLD_FACTS_BYTES = 2_574_775 + HOLD_GROWTH + CONTRIBUTION_MARKS, RESERVE_BYTES = 1_470_281 + NOTICE_GROWTH;
 const ORIGIN = Date.parse("2026-07-28T16:27:00+09:00");
 const decision = (step: SeismicUnitStep) => step.decisions[0];
 const eventOf = (state: SeismicUnitState, eventId = EVENT, operation: Operation = "normal") =>
@@ -516,7 +521,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     console.info("P3-C7 capacity budget parts", JSON.stringify({ memoryEvent: sizeOf(budget.earthquakes[0]), largestEvent: sizeOf(budget.earthquakes[505]),
       memoryLongPeriod: sizeOf(budget.longPeriods[255]), longPeriod: sizeOf(budget.longPeriods[0]), history: sizeOf(budget.daily.normal),
       recentRow: sizeOf(budget.daily.normal.recent[0]), daily: sizeOf(budget.daily), intents: sizeOf(budget.intents), reserve }));
-    expect(reserve).toBeLessThanOrEqual(1_470_281);
+    expect(reserve).toBeLessThanOrEqual(RESERVE_BYTES);
     expect(encoded).toBeLessThanOrEqual(seismicUnitCodec.maxEnvelopeBytes!);
     expect(seismicUnitCodec.decode(JSON.parse(JSON.stringify(seismicUnitCodec.encode(budget))) as JsonValue).kind).toBe("restored");
     const plusOne = receive(budget, quake("N0010"), at);
@@ -540,7 +545,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
   it("P3-C7-T06 contractBoundary / AC06: one codec, persisted fields only, every decode check and restore without new intents", () => {
     const state = chain([F.s51d, F.s53a, F.s62, "synthetic_VXSE53_cancel"]).at(-1)!.state;
     const payload = JSON.parse(JSON.stringify(seismicUnitCodec.encode(state))) as JsonValue;
-    expect(Object.keys(payload as object).sort()).toEqual(["daily", "earthquakes", "intents", "longPeriods", "schemaVersion"]);
+    expect(Object.keys(payload as object).sort()).toEqual(["daily", "earthquakes", "failureMarks", "intents", "longPeriods", "schemaVersion"]);
     expect(seismicUnitCodec.decode(payload)).toEqual({ kind: "restored", state: { ...state, contentRevision: 0, persistence: { kind: "saved",
       currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } });
     type Row = Record<string, unknown>;
@@ -555,12 +560,12 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const lpN = (index: number) => ({ ...lp, eventId: `L${index}`, subject: `normal/VXSE62/L${index}`,
       source: { ...(lp.source as Row), subject: `normal/VXSE62/L${index}` } });
     const hold = quake.strongHold as Row | null;
-    // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（終端記録で埋める。P3-IUR-AC02）。
+    // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（P3-IUR-AC02）。終端記録は無くなった（P3-NL-AC05）ので寄与の title で埋める。
     const live = value.intents.find((item) => item.disposition === "pending")!;
-    const withPad = (pad: number) => ({ ...value, intents: [live, { ...live, id: "pad", disposition: "delivered",
-      payload: { ...(live.payload as Row), body: "x".repeat(pad) } }] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v3", unit: "U-Q", generation: 0, capturedAt: 0,
-      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES;
+    const withPad = (pad: number) => ({ ...value, intents: [live], earthquakes: [{ ...quake, contributions: contributions.map((item) => item === active
+      ? { ...item, title: `${String(item.title)}${"x".repeat(pad)}` } : item) }, ...value.earthquakes.slice(1)] });
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v4", unit: "U-Q", generation: 0, capturedAt: 0,
+      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
     const limit = seismicUnitCodec.maxEnvelopeBytes!;
     const generationPad = limit - generation(0);
     expect(generation(generationPad)).toBe(limit);
@@ -573,7 +578,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       ["pending > 131072 bytes", { ...value, intents: many(100, (index) => ({ ...value.intents[0], id: `big-${index}`, disposition: "pending",
         payload: { ...(value.intents[0].payload as Row), body: "x".repeat(1400) } })) }],
       ["pending real 131072 + reserve", { ...value, intents: reserveOver(live) }],
-      ["generation real 4 MiB + reserve", withPad(generationPad)],
+      ["generation real limit + reserve", withPad(generationPad)],
       ["generation over the limit", { ...value, earthquakes: many(Math.ceil(seismicUnitCodec.maxEnvelopeBytes! / 300_000), (index) => ({ ...eventN(index), contributions: [{ ...active,
         headline: "x".repeat(300_000), source: { ...(active.source as Row), subject: `normal/${String(active.family)}/E${index}` } }] })) }],
       ["EventID not printable ASCII", withQuake({ eventId: "地震" })],
@@ -677,9 +682,8 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
       "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
     const owner = { ...empty, units: { ...empty.units, "U-Q": first.state } };
-    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-Q", pending(from.units["U-Q"]!).map((item, index) => ({
-      id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
-      disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-Q", pending(from.units["U-Q"]!).map((item, index) => ({ ...item, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
+      disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const, lossReason: null })), now, linkedUnitTable);
     // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
     const widened = update(owner, false);
     expect(widened.adopted).toBe(true);
@@ -741,12 +745,12 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(pending(newer.state)).toHaveLength(128);
     // intentUpdate: 既存 id だけを一括で更新し、保存世代を 1 つ進める。未知 id・同値は no-op。
     const [desktop] = series[0].intents;
-    const updated = reduceSeismicUnit(series[0].state, { kind: "intentUpdate", clock: clock(reported), intentUpdate: [{ id: desktop.id, attempts: 1,
-      nextAttemptAt: reported + 1_000, disposition: "pending" }, { id: "unknown", attempts: 1, nextAttemptAt: 0, disposition: "delivered" }] });
+    const updated = reduceSeismicUnit(series[0].state, { kind: "intentUpdate", clock: clock(reported), intentUpdate: [{ ...desktop, attempts: 1,
+      nextAttemptAt: reported + 1_000, disposition: "pending", lossReason: null }, { id: "unknown", attempts: 1, nextAttemptAt: 0, disposition: "delivered", lastAttempt: null, replayed: false, expiresAt: 0, lossReason: null }] });
     expect(updated.state.persistence.currentGeneration).toBe(series[0].state.persistence.currentGeneration + 1);
     expect(updated.decisions).toMatchObject([{ decision: "changed", change: "deliveryOnly" }]);
-    expect(reduceSeismicUnit(updated.state, { kind: "intentUpdate", clock: clock(reported), intentUpdate: { id: desktop.id, attempts: 1,
-      nextAttemptAt: reported + 1_000, disposition: "pending" } }).state).toBe(updated.state);
+    expect(reduceSeismicUnit(updated.state, { kind: "intentUpdate", clock: clock(reported), intentUpdate: { ...desktop, attempts: 1,
+      nextAttemptAt: reported + 1_000, disposition: "pending", lossReason: null } }).state).toBe(updated.state);
     // training/test は desktop だけ。
     const training = send(emptyState(), "32-35_01_03_240613_VXSE53");
     expect(training.intents.map((item) => [item.channel, item.payload.title])).toEqual([["desktop", "【訓練】震源・震度情報"]]);
@@ -914,11 +918,12 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     .replace(/2026-07-28T16:2[78]:00\+09:00/g, at).replace(/<MaxInt>7<\/MaxInt>/g, "<MaxInt>3</MaxInt>"));
   const atOf = (iso: string, plus = 0) => clock(Date.parse(iso) + plus);
   const notices = (state: SeismicUnitState) => state.intents.filter((item) => item.subject === FAIL);
-  const generation = (state: SeismicUnitState) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v3", unit: "U-Q", generation: 0,
+  const generation = (state: SeismicUnitState) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v4", unit: "U-Q", generation: 0,
     capturedAt: 0, payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
-    + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    + LOSS_TALLY_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
   // 世代を器の上限 − slack にする。normal の受理は普通は退去で収まるので、退去の候補にならない記録だけで埋める: 事実が HOLD_FACTS_BYTES
-  // ちょうどの強震保持の event、取消記憶だけの記録と当日履歴（予約の内、crowd）、他の系統の pending、終端記録。
+  // ちょうどの強震保持の event、取消記憶だけの記録（長周期は通知の印つき）と当日履歴（予約の内、crowd）、他の系統の pending（終端記録は
+  // P3-NL-AC05 で無くなった）。
   const pad = (now: number) => {
     const iso = new Date(now).toISOString();
     const source = (family: string, eventId: string, extra: Partial<EarthquakeContribution["source"]> = {}) => ({ inputId: "pad",
@@ -932,30 +937,30 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     const intent = (id: string, disposition: SeismicIntent["disposition"], body: string): SeismicIntent => ({ id, unit: "U-Q",
       subject: "normal/VXSE52/99990101000003", operation: "normal", source: source("VXSE52", "99990101000003"), transition: "activated",
       channel: "desktop", payload: { domain: "earthquake-eew", level: "normal", title: "pad", body }, createdAt: now, expiresAt: now + HOUR,
-      nextAttemptAt: now, attempts: 0, configRevision: "test", disposition });
+      nextAttemptAt: now, attempts: 0, configRevision: "test", disposition, lastAttempt: null, replayed: false, priorityGroup: "other" as const });
     const holdSize = (headline: string) => Buffer.byteLength(JSON.stringify(hold(headline)));
-    return { held: hold("x".repeat(HOLD_FACTS_BYTES - holdSize(""))), pending: intent("U-Q:pad:pending", "pending", "x".repeat(124_000)),
-      terminal: intent("U-Q:pad:terminal", "delivered", "x".repeat(128_000)) };
+    return { held: hold("x".repeat(HOLD_FACTS_BYTES - holdSize(""))), pending: intent("U-Q:pad:pending", "pending", "x".repeat(124_000)) };
   };
   // 予約の側（取消記憶だけの event・長周期と training・test の当日履歴）は、読み戻しの上限（inputId 64 文字、P3-VM-AC08）の内の記録で埋め、
   // 最後に inputId を削って世代を max − slack ちょうどにする。件数は上限の内に収め、続く受信で件数の退去が起きないようにする。
   const crowd = (state: SeismicUnitState, slack: number, now: number): SeismicUnitState => {
-    const { held, pending: waiting, terminal } = pad(now);
+    const { held, pending: waiting } = pad(now);
+    const notice = { version: "0".repeat(16), kinds: ["report", "cancel", "expiry"] as const, evidence: "unattempted" as const };
     const reserve = budgetState(now);
     const widen = (source: EarthquakeContribution["source"], length = 64) => ({ ...source, inputId: "i".repeat(length), origin: "recovery" as const });
     const template = reserve.earthquakes[0];
     const memoryEvent = (index: number, length = 64): EarthquakeEvent => {
       const eventId = `m${String(index).padStart(39, "0")}`;
-      return { ...template, eventId, retainUntil: now + 24 * HOUR, contributions: template.contributions.map((item) => ({ ...item,
+      return { ...template, eventId, retainUntil: now + 24 * HOUR, contributions: template.contributions.map(({ notice: _notice, ...item }) => ({ ...item,
         source: widen({ ...item.source, subject: `${item.source.operation}/${item.family}/${eventId}` }, length) })) };
     };
     const periods = reserve.longPeriods.filter((item) => item.effective === "cancelled")
-      .slice(0, 256 - state.longPeriods.length).map((item) => ({ ...item, retainUntil: now + 24 * HOUR, source: widen(item.source) }));
+      .slice(0, 256 - state.longPeriods.length).map((item) => ({ ...item, notice, retainUntil: now + 24 * HOUR, source: widen(item.source) }));
     const count = 512 - state.earthquakes.length - 1;
     const fill = (lengths: readonly number[]): SeismicUnitState => ({ ...state,
       earthquakes: [...state.earthquakes, held, ...lengths.map((length, index) => memoryEvent(index, length))],
       longPeriods: [...state.longPeriods, ...periods], daily: { ...state.daily, training: reserve.daily.training, test: reserve.daily.test },
-      intents: [...state.intents, waiting, terminal] });
+      intents: [...state.intents, waiting] });
     const lengths = Array.from({ length: count }, () => 64);
     let excess = generation(fill(lengths)) - (seismicUnitCodec.maxEnvelopeBytes! - slack);
     expect(excess).toBeGreaterThanOrEqual(0);
@@ -972,7 +977,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     const sizeOf = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
     expect(crowded.earthquakes.filter((item) => item.contributions.every((entry) => entry.effective === "cancelled")).reduce((sum, item) => sum + sizeOf(item), 0)
       + crowded.longPeriods.filter((item) => item.effective === "cancelled").reduce((sum, item) => sum + sizeOf(item), 0) + sizeOf(crowded.daily))
-      .toBeLessThanOrEqual(1_470_281);
+      .toBeLessThanOrEqual(RESERVE_BYTES);
     return crowded;
   };
   const free = (state: SeismicUnitState): SeismicUnitState => ({ ...state,
@@ -1028,7 +1033,8 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     }
   });
 
-  it("P3-CC-T17 contractBoundary / AC10(5): a promotion whose superseded notice would push the terminal records past 131,072 bytes is not applied", () => {
+  // P3-NL-AC05 (2): 終端記録の予算（131,072）は無くなったので、昇格の失敗警報が軽い失敗警報を置き換えて入る行だけを残す。
+  it("P3-CC-T17 contractBoundary / AC10(5): a refused promotion replaces the lighter failure notice, which leaves the intents", () => {
     // 軽い（warning の）失敗警報が待つ state から、退去の候補になる記録（この地震の event）を外す。残るのは退去できない詰め物だけなので、
     // 長周期の新しい報は byte の上限で拒否になる。
     const { refused } = refused53();
@@ -1039,19 +1045,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
       .replace(/<Headline>\s*<Text>/, `<Headline><Text>${"長".repeat(10_000)}`));
     const promoted = receive(base, lg(), atOf(T53, 60_000));
     expect(decision(promoted).decision).toBe("capacityExceeded");
-    expect(notices(promoted.state).map((item) => [item.payload.level, item.disposition])).toEqual([
-      ["warning", "superseded"], ["warning", "superseded"], ["critical", "pending"], ["critical", "pending"]]);
-    // 終端記録を、軽い失敗警報 2 件が移ると 131,072 byte を越える大きさにすると、昇格ごと当てない（admit を通さないので回収もしない）。
-    const terminalBytes = (state: SeismicUnitState) => state.intents.reduce((sum, item) => item.disposition === "pending" ? sum
-      : sum + Buffer.byteLength(JSON.stringify(item)) + 1, 0);
-    const pad = base.intents.find((item) => item.id === "U-Q:pad:terminal")!;
-    const withTerminal = (body: string): SeismicUnitState => ({ ...base, intents: base.intents.map((item) => item === pad
-      ? { ...pad, payload: { ...pad.payload, body } } : item) });
-    const tight = withTerminal("x".repeat(pad.payload.body.length + 131_072 - 500 - terminalBytes(base)));
-    expect(terminalBytes(tight)).toBe(131_072 - 500);
-    const blocked = receive(tight, lg(), atOf(T53, 60_000));
-    expect(decision(blocked).decision).toBe("capacityExceeded");
-    expect(blocked.state).toBe(tight);
+    expect(notices(promoted.state).map((item) => [item.payload.level, item.disposition])).toEqual([["critical", "pending"], ["critical", "pending"]]);
   });
 
   it("P3-CC-T14 contractBoundary / AC03(4)・AC02: an older cancel of a marked long period drops the mark into the unit's unconfirmed", () => {
@@ -1114,13 +1108,21 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     for (const [label, payload] of invalid) expect(seismicUnitCodec.decode(JSON.parse(JSON.stringify(payload)) as JsonValue).kind, label).toBe("invalid");
   });
 
+  // P3-NL-AC08 (1)(4)・AC15 (4): 失敗警報の started も復元で外れ、もう一方は戻る。
+  it("P3-NL-T07 contractBoundary / AC08・AC15 (4): a started failure notice is dropped at restore and the other one returns", () => {
+    const { refused } = refused53();
+    const [desktop, sound] = notices(refused.state);
+    expectRestoreStarted({ intents: [desktop, sound], make: (intents) => ({ ...refused.state, intents }),
+      restore: (state, at) => reduceSeismicUnit(emptyState(), { kind: "restore", persisted: seismicUnitCodec.encode(state), clock: at }) });
+  });
+
   it("P3-CC-T19 regression / AC10(9): an older VXSE51 replaces the line's pending but not the failure notice, and VXSE53 still notifies on adoption", () => {
     const { refused } = refused53();
     const warned = notices(refused.state);
     const older = receive(refused.state, s51("2010-01-25T16:17:30+09:00"), atOf(T53, 1_000));
     expect(older.intents.map((item) => item.subject)).toEqual([`normal/VXSE51/${QUAKE}`, `normal/VXSE51/${QUAKE}`]);
-    expect(older.state.intents.filter((item) => item.subject === `normal/VXSE52/${QUAKE}`).map((item) => item.disposition))
-      .toEqual(["superseded", "superseded"]);
+    // P3-NL-AC05 (1): 置き換えた系統の pending は intents から外れる。
+    expect(older.state.intents.filter((item) => item.subject === `normal/VXSE52/${QUAKE}`)).toEqual([]);
     expect(notices(older.state)).toEqual(warned);
     const adopted = receive(free(older.state), s53(), atOf(T53, 2_000));
     expect(adopted.intents.map((item) => [item.subject, item.payload.level])).toEqual([
@@ -1165,18 +1167,24 @@ function budgetState(now: number): SeismicUnitState {
     maxInt: text(32), countedEventIds: Array.from({ length: 2048 }, (_, index) => id40(prefix, index)),
     recent: Array.from({ length: 5 }, (_, index) => ({ eventId: id40(prefix, index), originTimeRaw: wide(40), reportDateTimeRaw: "2099-01-01T08:59:59+09:00",
       hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false })) });
-  const intent = (index: number, disposition: SeismicIntent["disposition"]): SeismicIntent => {
+  const intent = (index: number): SeismicIntent => {
     const eventId = id40("i", index), subject = `normal/VXSE53/${eventId}`;
     return { id: `U-Q:${subject}:${index}:desktop`, unit: "U-Q", subject, operation: "normal", source: source("normal", "VXSE53", eventId, "発表"),
       transition: "activated", channel: "desktop", payload: { domain: "earthquake-eew", level: "warning", title: "震源・震度情報",
-        body: "x".repeat(180) }, createdAt: now - 1000, expiresAt: now + 179_000, nextAttemptAt: now, attempts: 0, configRevision: "p3-seismic-unit-v3",
-      disposition };
+        body: "x".repeat(100) }, createdAt: now - 1000, expiresAt: now + 179_000, nextAttemptAt: now, attempts: 0, configRevision: "p3-seismic-unit-v4",
+      disposition: "pending", lastAttempt: null, replayed: false, priorityGroup: "other" as const };
   };
-  return { ...emptyState(), earthquakes: [...Array.from({ length: 505 }, (_, index) => memoryEvent(index)),
-    ...Array.from({ length: 7 }, (_, index) => largest(index))],
-  longPeriods: [...Array.from({ length: 7 }, (_, index) => lp(index, false)), ...Array.from({ length: 249 }, (_, index) => lp(index, true))],
+  // P3-NL-AC15 (2): 寄与と長周期の全部に最長の通知の印、失敗の印は 3 operation。終端記録は無い（P3-NL-AC05）。pending の本文は
+  // intent の欄が増えた分（P3-NL-AC06）だけ短くし、予約込み 131,072 byte の内に収める。
+  const notice = { version: "0".repeat(16), kinds: ["report", "cancel", "expiry"] as const, evidence: "unattempted" as const };
+  const marked = (event: EarthquakeEvent): EarthquakeEvent => ({ ...event, contributions: event.contributions.map((item) => ({ ...item, notice })) });
+  return { ...emptyState(), earthquakes: [...Array.from({ length: 505 }, (_, index) => marked(memoryEvent(index))),
+    ...Array.from({ length: 7 }, (_, index) => marked(largest(index)))],
+  longPeriods: [...Array.from({ length: 7 }, (_, index) => lp(index, false)), ...Array.from({ length: 249 }, (_, index) => lp(index, true))]
+    .map((item) => ({ ...item, notice })),
   daily: { normal: history("n"), training: history("t"), test: history("s") },
-  intents: [...Array.from({ length: 128 }, (_, index) => intent(index, "pending")), ...Array.from({ length: 128 }, (_, index) => intent(index + 128, "delivered"))] };
+  intents: Array.from({ length: 128 }, (_, index) => intent(index)),
+  failureMarks: (["normal", "training", "test"] as const).map((operation) => ({ operation, level: "critical" as const, until: now + HOUR })) };
 }
 
 // sequences.json の履歴 oracle（expected:<seq>:<position>）を step ごとに照合する。U-Q でない step は飛ばす。save と restart は codec を通す。
@@ -1235,3 +1243,11 @@ function replay(sequenceId: string, from: number, to: number): SeismicUnitStep[]
   }
   return steps;
 }
+
+// P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る。
+it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-Q restores failed and null pending with their fields and drops a started one", () => {
+  const issued = send(emptyState(), "32-35_04_03_240613_VXSE52");
+  expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
+    restore: (state, at) => reduceSeismicUnit(emptyState(), { kind: "restore", persisted: seismicUnitCodec.encode(state), clock: at }),
+    markOf: (state, subject) => state.earthquakes.flatMap((item) => item.contributions).find((item) => item.source.subject === subject)?.notice });
+});
