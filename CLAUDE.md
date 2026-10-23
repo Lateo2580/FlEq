@@ -67,7 +67,7 @@ npm run start:lowmem # メモリ最適化モードで実行
 - **独立レビューは必ず新規 codex 呼び出し + read-only**。実装に使ったスレッドを流用しない
 - **独立性**: Claude の自己評価を Codex に見せない（盲点の多様性確保）
 - **実装委譲時は作業契約を必須とする**: 目的・完了条件・対象/非対象範囲・allowed_paths・base_oid 固定・禁止 git 操作・成果物は patch のみ（`git diff --binary --no-ext-diff`）。検証不能時は blocked 報告を認める（成功扱いにしない）
-- 委譲環境は使い捨て clone で用意し、依存準備は `npm ci --ignore-scripts` を標準とする
+- 委譲環境は使い捨て clone で用意する。依存は、lockfile が本体と同じなら本体の node_modules を `cp -cR`（CoW コピー）で写し、違えば `npm ci --ignore-scripts` で入れる（`~/.claude/rules/cow-copy.md`。node_modules を symlink にしない）
 - 委譲の段階導入・意味的手直し率の判定閾値は運用側メモ（memory `reference_model_division_v1`）を参照
 - **display/frontend の実装委譲は Phase 0（規範読み込み）を最初の成果物にする**: `docs/specs/display-design-system.md`・`theme.css`・header/footer 統一 spec・錨カードを読み、使うトークンと倣う錨の file:line を申告してから実装（2026-09-05、規範を読まない類推実装で乖離 11 件が積み上がった経緯）
 - **実装委譲文には「最小実装・最小テスト」を定型で入れる**: 完了条件の列挙に続けて「仕組みを足すときは無いと何が壊れるかを 1 行で示す／テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに対応するかを成果物に 1 行で書く」を書く。gpt-6-astra への委譲では省略しない（2026-09-11 作者指示、詳細は `AGENTS.md` §コーディング規約）
