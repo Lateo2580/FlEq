@@ -1,0 +1,875 @@
+{
+  "meta": {
+    "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
+    "sha256": "9730acda3260d06e30e6ce38573ab0f73541f87ffcb3e44791f6f99c0f720903",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-EF-D-EXPIRED-MEMORY",
+        "A": "期限切れの記憶（effective \"expired\"、最終更新の時刻は source の ReportDateTime）を回収できる時刻を「表示の期限＋6 時間（置き値。U-L の解除・取消の記憶と同じ長さ、landslide-unit.ts:32）」にする: U-L は元報＋54 時間、U-R は元報＋42 時間、U-B は元報＋9 時間（U-B は表示の期限が 2 時間と 3 時間の 2 つあり、記憶は事実を持たないので元報からの固定、P3-EF-AC05 の (3)）",
+        "C": "回収できる時刻を「表示の期限＋その unit の表示の長さ」にする: U-L は元報＋96 時間、U-R は元報＋72 時間、U-B は元報＋6 時間",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定（2026-10-25、ご主人）: A",
+        "reason": "選ぶのは長さだけ（記憶を残すことは H23 の「全分野で同じ形」と、時計を確かめる前の回収を止める決まり〔設計メモ :219・:223〕で決まっている。統合担当 D5）。長さは「回収できる時刻」で、実際に残る長さは、時計を確かめるまで延び（回収は確かめた時計でだけ当てる）、件数の上限での退去で縮む（記憶は見える記録より先に押し出される）。記憶が残る間は通知の印も残るので、その間に届いた取消は元の報を通知していれば取消として鳴る（H19、P3-NL-AC09）。利用者から見た違い（どちらも、確かめた時計で上限に届かない日の値）: A では、期限で見えなくなった土砂災害警戒情報・洪水予報・記録雨と線状降水帯の情報の取消が、見えなくなってから 6 時間（U-B の 2 時間の記録は 7 時間）の内なら鳴る。C では土砂 48 時間・洪水 36 時間の内なら鳴るが、U-B は 3 時間（2 時間の記録は 4 時間）と A より短い。C は記憶が件数の上限（U-L 128・U-R 512・U-B 256）を長く使い、大雨の日に新しい報のために記憶が早く押し出される（画面に出ないもの）。なぜ分岐になるか: §7 の 1(c) の「覚えている間」（p3-persist-premises.md:378）の例に U-L・U-R・U-B が無く、H23（spec:3050）も長さを決めていない。推奨の理由: 3 unit を同じ長さにでき、U-L の今の記憶と旧築の VPWW56 の記憶（revision-family-registry.ts:817、6 時間）に揃う。K11（地震）も期限切れの記憶の長さを分岐にし、同じ形（effective \"expired\"、最終更新の時刻）で揃える（統合担当 D5） 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】期限切れの記憶を残す長さは資料に記述なし（VPWW56・VXKO・VPOA50・VPBS50 は ValidDateTime を持たない、jma-2026-head-control-list.txt:44・:50・:53〜:54・:158〜:159）。記憶の間に届く取消: VXKO・VPOA50・VPBS50 は InfoType に取消を持つ（manual/指定河川洪水予報（氾濫警報・注意報）_解説資料.txt:65、manual/記録的短時間大雨情報_解説資料.txt:94〜:97、manual/気象解説情報形式_解説資料.txt:147〜:151）。取消は独立した情報単位全体を取り消す（jma-2013-xml-guide.txt:441〜:442）。VPWW56 の InfoType は発表・訂正だけで（manual/気象警報・注意報（Ｒ０６）_解説資料.txt:150〜:152、jma-2026-head-control-list.txt:44）、U-L の記憶の間に取消の報は来ない（Q-EF-JMA の食い違い）"
+      },
+      {
+        "id": "P3-EF-D-TRANSIENT-VALID",
+        "A": "今のまま: 早期天候情報（VPAW51）・全般天候情報（VPZI50）・地方天候情報（VPCI50）も、見える長さは元報の ReportDateTime から 3 時間（P3-C13-TRANSIENT-TTL=A、local-bulletins.ts:28 の VISIBLE_TRANSIENT）。電文の有効期限（Head/ValidDateTime）は使わない",
+        "B": "H23 の文言どおり: Head/ValidDateTime を持つ VPAW51・VPZI50・VPCI50 は、ValidDateTime（family の記憶の期限〔7 日・30 日〕を越えない）まで見せる。ValidDateTime が無い報（地方天候情報の梅雨に関する情報）・読めない報・ReportDateTime 以前の値の報は 3 時間で、読めない値には WARN の診断を出して報は受け取る（H51、P3-EF-AC13 と同じ扱い）。見える間の事実は今どおり保存しない（spec:482）ので、再起動すると証拠だけになり画面から消える",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定（2026-10-25、ご主人）: A",
+        "reason": "利用者から見た違い: A では、早期天候情報と天候情報のカードは発表から 3 時間で画面から消える（今の新築と同じ。旧築のテロップの寿命 180 分、constants.ts:54）。B では、早期天候情報は約 5 日、全般天候情報は約 11 日（fixture 72_08_01・29_01_01 の ValidDateTime）画面に残り続け、再起動するとその時点で消える。なぜ分岐になるか: H23（spec:3050）は「何時間で消すかは電文の有効期限を使う」と決め、気象庁の管理部・ヘッダ部の運用整理表（~/research/fleq-jma-premises/sources/jma-2026-head-control-list.txt の 30・31・72 行）もこの 3 種に「情報の有効終了日時」を書く。一方、作者は 2026-10-12 に同じ問いの B を選ばずに A とし（P3-C13-TRANSIENT-TTL）、H23 の「改める契約」の欄にも P3-C13-TRANSIENT-TTL は無い。2 つの作者の決まりが食い違う。推奨の理由: 短命の解説は画面の「お知らせ」で、5〜11 日出し続けると待受の画面を長く占める。B は見える事実を保存しない作り（spec:482）と合わず、再起動の有無で見える長さが変わる。A を選ぶなら H23 の行に「短命の解説（M18）は見える長さを有効期限にしない」と書き足す（P3-EF-AC14 の (15)）。竜巻（VPHW50/51）は今どおり ValidDateTime を使う（P3-C13-TORNADO-EXPIRY=A） 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】reason の「運用整理表の 30・31・72 行」は表の通番で、file の行は jma-2026-head-control-list.txt:72（全般天候情報）・:73（地方天候情報。梅雨に関する天候情報に限り ValidDateTime は記述されない）・:140（早期天候情報）。早期天候情報の失効時刻は発表時刻の 5 日後（manual/早期天候情報_解説資料.txt:98〜:100）、天候情報の失効時刻は梅雨の天候情報では出現しない（manual/天候情報_解説資料.txt:82〜:85）。失効時刻に達すると情報は無効（jma-2013-xml-guide.txt:411〜:417）。見える長さを 3 時間にするのは資料に記述なし（作者裁定 P3-C13-TRANSIENT-TTL=A と本分岐の A）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-EF-SOURCES",
+        "status": "closed",
+        "source": "起草者のコードの読み合わせ（2026-10-22、HEAD 4dad6cb5。K7・K8・K9 の配送の後）",
+        "closed": "今の期限の処理: (1) unit の期限は全部 unit の reduce の中で当たる。owner は unit の nextDeadline の到来で deadline の入力を作り（owner-runtime.ts:263）、受信の前にも回収し（:386）、復元の直後にも当てる（owner-host.ts:177）。publisher は 1 秒の tick ごとに各 owner へ期限要求を送る（composition-root.ts:914） (2) 時計は要求に載った publisher の時計を owner が実経過で外挿する（SentClock、p3-execution-split.types.ts:49）。根拠の状態は運ばれない (3) host は生の確かめの状態 wallBasis（host.ts:129）と、締切の印を反映した通知用の状態（host.ts:175 の options.wallBasis、Q-CK-SIMPLIFY）の 2 つを持つ。保存の境界は前者を使う (4) 表示の期限と事実・記録の回収を同じ時計で同時に行う所: U-L は active も inactive も retainUntil で黙って消す（landslide-unit.ts:358）、U-R は 36 時間で消して desktop の期限切れを作る（flood-unit.ts:392）、U-B は見える記録も記憶も retainUntil で消す、U-T は観測の失効で観測点を捨てる（tsunami-unit.ts:124）、U-V・U-Y・U-M・U-N・U-F は表示の期限で事実を捨てた記憶に移し、記憶は retainUntil で消す。U-Q は記録を 24 時間で消す。U-T・U-Q の失敗の印は until で外し、受信でも until > now で有効を判定する（tsunami-unit.ts:635・:705、seismic-unit.ts:785） (5) 容量の退去の第 1 段は「retainUntil を過ぎた記録」（landslide-unit.ts:104 ほか 9 unit） (6) 復元の中で期限を当てる unit: U-L（landslide-unit.ts:431）・U-V（volcano-unit.ts:1185）・U-Y（typhoon-unit.ts:554）・U-M（local-bulletins-unit.ts:581）・U-N（nankai-unit.ts:577）・U-E（eew-unit.ts:179）。U-R・U-B・U-T は復元の直後の owner の期限要求で当てる (7) 表示の期限を過ぎてから採る報: U-L は記録の無い官署への遅着を ended として採り、同じ reduce で回収して記録を残さない（landslide-unit.ts:141・:283）、U-M の竜巻は ended の記憶（local-bulletins-unit.ts:303）、U-B は P3-C12-LATE-INVERSION で採って同じ reduce で消す（briefing-unit.ts:362） (8) 竜巻の active の通知は目撃でも目撃でなくても warning（local-bulletins-unit.ts:308 の style）。同じ報の 50 と 51 は版の鍵が同じ（version.ts の versionKey は headType を含まない）ので、K8 の照合（notice-mark.ts の noticed）では 51 の通知は同じ report として作られない (9) U-B の subject は EventID の最初の「_」より前の系列（briefing.ts:70・:71） (10) U-T の予報（VTSE41）は時間の期限を持たない（P3-C5-RETENTION=A）",
+        "remaining": "なし",
+        "reason": "変える所の場所を確かめた 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】(9) の「_」より前の系列: VPOA50 の EventID は「_」より前が一連の情報のイベント番号（第 1 号の発表日時）、後が当該情報の番号（manual/記録的短時間大雨情報_解説資料.txt:87〜:93、jma-2026-head-control-list.txt:197）。VPBS50 は「_」より前が親番 ID、後が枝番 ID（manual/気象解説情報形式_解説資料.txt:2190〜:2199）。(10) VTSE41 の失効時刻は若干の海面変動だけが残る報に記載する（manual/地震火山関連_解説資料.txt:227〜:231）"
+      },
+      {
+        "id": "Q-EF-RULINGS",
+        "status": "closed",
+        "source": "作者裁定と §16 の決まり（設計メモ §7 の作者裁定 2026-10-20、§11・§12・§14・§16、p3-order-plan.md の 2026-10-21 朝の判断 2、spec §16 の H13・H23・H42）と 2026-10-22 のレビューの後の統合担当の決定 D1〜D10、2026-10-25 の作者裁定（分岐 2 件は A、VTSE41 の有効期限は P4）",
+        "closed": "本契約に効く決まりを分岐にせず写す: (1) §7 の 4（p3-persist-premises.md:400）と §11・§14 の (1)(2)（:527）: 前回の起動から復元した中身と通知には、時計を確かめるまで（最長 30 秒）期限切れの表示も回収も当てない。確かめられなければ手元の時計で表示の期限切れだけを当て、中身の削除（事実・観測点・通知の印の回収と記録の削除）は確かめるまでしない（統合担当 D1、設計メモ :219・:223・:232） → AC02・AC05 (2) §7 の 8（:426）: 一度出した期限切れは戻さない → AC02 の (4)・AC07 の (5) (3) H23（:226・:227）: 期限切れは記憶の記録に理由 expired と最終更新の時刻を残す形に揃える。揃える範囲は全分野で、U-L・U-R・U-B は本契約、記憶を残さない案は無い（統合担当 D5）。U-R の期限切れの通知は今の出方を残す → AC05 (4) §3.3 の退去（:221）: 根拠の無い時計で期限を過ぎて見えるだけの記録は退去の第 1 段に入れない → AC03 (5) §12 と判断 2（p3-order-plan.md:540、設計メモ :501）: U-B の記録的短時間大雨は EventID の全体ごとに報ごと 1 件、期限 2 時間は変えない、alias も報ごと → AC09 (6) H13（spec:3040）: 竜巻注意情報は普通の音、目撃情報があれば警報の音。目撃の判定は P3-C13-TORNADO-PAIR のまま → AC07 (7) H23 の後半（spec:3050）と気象庁の運用整理表（Q-EF-VALID）: 何時間で消すかは電文の有効期限を使う → AC08（VPAW51・VPZI50・VPCI50 は作者の決まりが食い違ったので分岐 P3-EF-D-TRANSIENT-VALID にし、作者裁定 A で 3 時間のまま。VTSE41 は作者裁定 2026-10-25 で K10 では使わない） (8) §10（:479）: 原文の欠片の欄を足さない → AC13 の (3) (9) §13（:510・:516）: K10 が触る unit の報を丸ごと断る所は K10 で受け取りに変える → AC13 (10) K9 の申し送り（P3-CK-AC08 の (6)）と §14（:524）: 12 unit の復元の待ちと回収の保留、根拠を owner と unit の入力へ運ぶ欄は K10 → AC01・AC02・AC04 (11) K8 の作者裁定「鳴らないか二重かなら二重を選ぶ」（p3-order-plan.md の 2026-10-22）: 竜巻の対で目撃が後から立ったときの 2 回目の音 → AC07 の (4)、残存リスク (15)",
+        "remaining": "なし",
+        "reason": "§7・§16・作者裁定と統合担当の決定で決まったものは decisionBranches に入れない"
+      },
+      {
+        "id": "Q-EF-RECALL",
+        "status": "closed",
+        "source": "統合担当の決定 D1（2026-10-22、r0 の読み「中身＝記録」を取り下げて設計メモ :219・:223・:232 と作者裁定 §7 の 4・8 どおりに戻した）",
+        "closed": "表示の期限切れと回収を次のとおり分ける: 表示の期限切れ＝見える記録を見えなくすること。時計を確かめる前は、記録に「期限切れの保留」の印 expiryPending: true を付けるだけで事実（中身・観測点・推定区域）と通知の印を残す。回収＝(a) 保留の記録の事実を捨てて unit の期限切れの記憶に移す (b) 記憶と非 active の記録を retainUntil で記録ごと消す (c) U-E の EventID の印を retainUntil で外す (d) U-T・U-Q の失敗の印を until で外す（統合担当 D7） (e) intent を壁時計の expiresAt で外す（publisher の表と K9 の保留が受け持つ）。回収は確かめた時計（\"verified\" の入力）でだけ当てる。確かめた時計では表示の期限切れと (a) を同じ reduce で当て、保留の印は付けない（今の新築と同じ時刻に記憶へ移る）。印は L・R・B・T・V・Y・M・N・F の 9 unit の見える記録に足す（保存の形が変わるので版を上げる。上界は 1 件 21 byte の増え、Q-EF-BYTES）",
+        "remaining": "なし",
+        "reason": "残存リスク (3)"
+      },
+      {
+        "id": "Q-EF-BASIS-SHAPE",
+        "status": "closed",
+        "source": "統合担当の決め（起草、発注前点検で変えてよい）。K9 の Q-CK-BASIS-SHAPE（「ownerとunitの期限の入力へ運ぶ欄はK10が足す」）",
+        "closed": "(1) SentClock に basis: WallBasis を足す（必須。作るのは composition root の post だけ、試験の直書きは 10 か所〔unit-wiring.test.ts 3・tsunami-unit.test.ts 5・c4-measurement.test.ts 2〕） (2) 根拠の出どころは CompositionOptions に足す contentBasis?: (at: ClockReading) => WallBasis（省略は \"verified\"。試験と測定のため、K9 の options.wallBasis と同じ扱い）。host は生の確かめの状態（host.ts:129 の wallBasis。保存の境界の basis と同じ）を渡す。通知用の options.wallBasis は締切の印を反映して run の終わりまで \"unverified\" に留まるので使わない（無いと: 起動から 30 秒の内に確かめられなかった run では、後で確かめても回収できず、器と保存の大きさが満ちていく） (3) unit の入力（12 unit の receive・deadline・restore・shutdown）に basis?: WallBasis を足す（省略は \"verified\"。owner-runtime は必ず入れる。試験の直書き〔deadline 102 か所・restore 86 か所〕を変えないため） (4) ClockReading・RuntimeUnitDeadline・envelope には足さない",
+        "remaining": "なし",
+        "reason": "根拠の値は、待つ（awaiting）・表示の期限切れだけ（unverified）・回収まで（verified）にそのまま対応する"
+      },
+      {
+        "id": "Q-EF-AWAITING",
+        "status": "closed",
+        "source": "統合担当の決め（起草、発注前点検で変えてよい）。K9 の P3-CK-AC08 の (6) の (i)（復元した中身は awaiting の間は表示も回収も当てない）と (ii)（走行中に受けた中身は表示の期限切れだけ）",
+        "closed": "\"awaiting\" の間（起動から確かめるまで、最長 30 秒）は、復元した中身も走行中に受けた中身も、unit は期限を何も当てない（表示の期限切れの印も付けない）。記録ごとに「復元したか」の印を持たない。この間に起きうる違いは 2 つで、どちらも最長 30 秒（AC02 の (5)、残存リスク (1) と同じ文）: (i) 受けた後この 30 秒の内に表示の期限が来る記録は、期限切れになるのが最長 30 秒遅れる (ii) 表示の期限を過ぎてから採る報（P3-EF-AC05 の (5)）は、この間は見える記録として採られ、鳴らないまま最長 30 秒見えうる。遅着の stale と、表示の期限を過ぎた報を鳴らさない判定は今どおり当たる",
+        "remaining": "なし",
+        "reason": "印を足すと 12 unit の記録の形が変わり、30 秒の差のために保存の形を開けることになる"
+      },
+      {
+        "id": "Q-EF-FORM",
+        "status": "closed",
+        "source": "設計メモ §3.3（:226・:227）、spec:735（期限切れは解除報ではない）、統合担当の決定 D5・D6、起草者のコードの読み",
+        "closed": "期限切れの記憶の読み方（H23 の「理由 expired と最終更新の時刻」。最終更新の時刻はどの unit も記録の source の ReportDateTime）: U-L・U-R・U-B は新しい effective \"expired\"（AC05）。U-T の観測は今の effective \"expired\"（観測点は回収で捨てる）。U-T の予報は時間の期限を持たないまま（P3-C5-RETENTION=A。VTSE41 の有効期限は作者裁定 2026-10-25 で P4）。U-V の噴火・降灰は今の \"expired\"。U-Y は今の ended＋endCause \"expired\"。U-M の竜巻は新しい \"expired\"（今は解除と同じ ended）、熱中症の ended は期限と遅着でしか生まれない（解除の報が無い）ので ended のまま、短命の evidence は見える期限と遅着でしか生まれないので evidence のまま。U-N の現況は今の \"expired\"。U-F は validUntil の到来で noActiveItems に lapsed: true を足す（D6。報が「なし」の noActiveItems と保存の上で見分ける。欄 1 つ、14 byte）。U-W は時間の期限を持たない（③）。U-E は current を保存しない（EEW の閉じ方）。U-Q は K11（同じ形で揃える、D5）",
+        "remaining": "なし",
+        "reason": "H23 の形を unit ごとに揃える所と変えない所を決めた 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】期限切れを解除と分けて扱う読みは、ValidDateTime に達すると「有効な情報が無い状態（発表無し）」になるという運用指針（jma-2013-xml-guide.txt:411〜:417）に倣う。期限を持つ報の期限の長さ（ValidDateTime を持たない種類）と、最終更新の時刻に ReportDateTime を使うことは資料に記述なし（電文の新旧は Control/DateTime の最も新しいもので決める、jma-2013-xml-guide.txt:402〜:406）"
+      },
+      {
+        "id": "Q-EF-VALID",
+        "status": "closed",
+        "source": "統合担当の決定 D10。気象庁「管理部・ヘッダ部の運用整理表」（~/research/fleq-jma-premises/sources/jma-2026-head-control-list.txt、ValidDateTime の列）と XML 一覧表（jma-2026-xml-list-hyo1_1.txt、種類の名前と headType の対応）、気象庁 XML 仕様 1.6・運用指針 2.1.3.3（ValidDateTime は「現在時刻が当該時刻に達した時点で当該電文の情報は無効」、jma-2022-xml-format-v1_3.txt:787・jma-2013-xml-guide.txt:412）。corpus の数え（.draft/valid_dt.py）で照らした",
+        "closed": "本契約の unit の種類ごとの Head/ValidDateTime: (A) ある: 竜巻注意情報 VPHW50/51（表の 19 行「注意情報の有効終了日時」）、早期天候情報 VPAW51（72 行「情報の有効終了日時」）、全般天候情報 VPZI50（30 行、同）、地方天候情報 VPCI50（31 行、同。梅雨に関する天候情報には書かれない）、降灰予報 VFVO53/54/55（66 行「降灰予報の失効時刻」）、津波警報・注意報・予報 VTSE41（39 行「津波予報（若干の海面変動）の失効時刻」） (B) 無い（「-」）: VPWW56（15 行）、VXKO50〜89（16 行、VXKO70 を含む）、VXSU50〜59（91 行）、VPOA50（18 行）、VPBS50（82 行）、VTSE51（38 行）・VTSE52（61 行）、VFVO50（45 行）・VFVO51（44 行）・VFVO52（43 行）・VFVO56（67 行）・VFVO60（79 行）、VFSV50〜61（46 行）、VZVO40（火山に関するお知らせ）、VPTW60〜65（9・10 行）、VPTA50〜55（76 行）、VPZJ51・VPCJ51・VPFJ51（83〜85 行）、VMCJ53〜55（87〜89 行）、VXSE56・VXSE60（34 行の系）、VZSE40（42 行）、VPFT50（熱中症警戒アラート、124 行の行）、VPWP50（81 行）。資料に無い種類は残っていない。決め: 竜巻は今どおり ValidDateTime。降灰予報は本文の予報の終わり forecastEndsAt のまま（corpus の 3 通で ValidDateTime と一致。食い違いを見つけたら配送の後に報告）。VTSE41 は使わない（作者裁定 2026-10-25、P4 で決める。AC08 の (3)）。VPAW51・VPZI50・VPCI50 は使わない（作者裁定 P3-EF-D-TRANSIENT-VALID=A、元報から 3 時間のまま）。ほかは今のこちらで決めた長さ",
+        "remaining": "なし（VTSE41 の ValidDateTime を読むかは P4。corpus の fixture と気象庁のサンプル 3 通〔32-39_11_02・:09・:11〕に ValidDateTime を持つ VTSE41 は無い）",
+        "reason": "設計メモ §9（:464）が K10 の起草に割り当てた確かめを閉じた 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】「表の N 行」は運用整理表の通番で、file の行ではない（VPFT50 の「124 行」だけは file の行）。通番から file の行: 19→jma-2026-head-control-list.txt:59〜:63（失効時刻は :60・:63）、72→:140、30→:72、31→:73、66→:133、39→:96、15→:34〜:49（VPWW56 は :39、時刻と InfoType の欄は :44）、16→:50、91→:172〜:173、18→:53〜:54、82→:158〜:159、38→:91、61→:128、45→:109、44→:107〜:108、43→:104〜:106、67→:134〜:135、79→:154〜:155、46→:110、火山に関するお知らせ→:102〜:103、9・10→:21・:23、76→:150、83〜85→:160〜:162、87〜89→:166〜:168、34→:78〜:79、42→:99、81→:157。各行の ValidDateTime の欄を確かめ、(A)(B) の分けは合っていた（\"-\" は当該要素を使わない、:186〜:187）。ValidDateTime の意味は jma-2022-xml-format-v1_3.txt:787〜:789 と jma-2013-xml-guide.txt:411〜:417。降灰予報の失効時刻は基点時刻から定時 18 時間・速報 1 時間・詳細概ね 6 時間（manual/地震火山関連_解説資料.txt:235〜:237）"
+      },
+      {
+        "id": "Q-EF-SIGHTING",
+        "status": "closed",
+        "source": "統合担当の決定 D3（ヘルツ r0 の 2）。K8 の照合（P3-NL-AC01・AC03、notice-mark.ts の noticeId・noticed・markNotice の fragment の口）",
+        "closed": "竜巻の通知の照合で目撃の有無を区別する: 目撃（sighted）の採用の intent は、ID と照合と印に fragment の鍵 SIGHTED（\"sighted\" の sha256 の先頭 16 桁、U-T の観測の fragment の鍵と同じ形）を付ける。目撃の無い採用は付けない。照合は K8 のまま「同じ版の鍵・同じ種類・同じ fragment の鍵があれば作らない」なので: (i) 目撃の無い 50 の通知の後、同じ報の 51 で目撃が立つと、印に SIGHTED が無いので warning を 1 件作り、印に SIGHTED を足す (ii) 50 が先に目撃なら印に SIGHTED があり、51 は作らない (iii) 51 を受け直しても印に SIGHTED があるので作らない (iv) 印は保存されるので、保存と復元を挟んでも (i)〜(iii) は同じ。50 の通知がまだ pending なら、51 の warning は同じ subject・channel の pending を今の admit どおり置き換え（50 の音は鳴らない）、配送済みなら warning がもう 1 回鳴る（K8 の「二重を選ぶ」の内、残存リスク (15)）。U-M の印の上界は竜巻 128 件に fragment の鍵 1 件の分（33 byte）を足す",
+        "remaining": "なし",
+        "reason": "H13 の目撃の音を、K8 の照合を壊さずに 1 回だけ出す 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】目撃の層は Control/Title「竜巻注意情報（目撃情報付き）」と Information[@type=竜巻注意情報（目撃情報あり）]（manual/竜巻注意情報_解説資料.txt:33〜:35・:126〜:128）。VPHW50 と VPHW51 を同じ報の対として照合することは資料に記述なし。Title が違うので、運用指針の独立した情報単位（Title・EditorialOffice・Status〔・EventID〕、jma-2013-xml-guide.txt:394〜:399）では別の単位になる（Q-EF-JMA の食い違い）。目撃の有無で音を分けるのは資料に記述なし（作者裁定 H13）"
+      },
+      {
+        "id": "Q-EF-SCOPE",
+        "status": "closed",
+        "source": "設計メモ §14（:524）と §5（:347「後ろの 6 本は触る unit が重ならない」・:444）の食い違い",
+        "closed": "K9 の申し送りどおり、根拠の当て方（AC02・AC03）は 12 unit 全部に本契約で入れる（K9 の残存リスク (4)・(8) は「K10 で消える」として承認済み）。U-E・U-Q は期限の形を変えない。U-N は現況の保留の印（AC05）だけを足す。このため seismic-unit.ts・nankai-unit.ts の期限と退去の関数を本契約と K11・K13 の両方が触るので、K11・K13 は本契約の後に置くか、統合担当が直列に合流する。U-W は時間の期限を持たず、本契約は U-W の入力の型と intent の失効の根拠だけを触るので、③ が K10 を待つ理由（:444）は「入力の型の合流」だけになる（③ の起草は待たなくてよく、合流を K10 の後にする）。K12 は U-T の同じ関数（fit と観測の失効）を触るので K10 の後のまま",
+        "remaining": "段 3 の並べ方の直しは統合担当（P3-EF-AC14 の (17)）",
+        "reason": "申し送りを満たし、K11・K12・K13・③ との重なりを先に書いた"
+      },
+      {
+        "id": "Q-EF-BYTES",
+        "status": "closed",
+        "source": "起草者の数え（今の型と codec の式の比べ。測った値ではない、見積もり）。統合担当の決定 D1・D2・D3・D6",
+        "closed": "足す byte: 期限切れの保留の印 ,\"expiryPending\":true は 1 件 21 byte、U-F の ,\"lapsed\":true は 14 byte、竜巻の印の fragment の鍵 1 件は 33 byte。期限切れの記憶は事実を持たないので、同じ unit の見える記録より小さい。よって入力なしで起きる形の移り（保留の印を付ける・記憶に移る）で増えうる byte は、見える記録 1 件につき 21 byte が最大（U-F も lapsed の 14 より印の 21 が大きい）。静的上界の増え（件数の上限×増え、見積もり）: U-L ＋2,688（128×21）、U-R ＋10,752（512×21）、U-B ＋5,376（256×21）、U-T ＋21,504（観測 2×512×21。予報は時間の期限を持たないので印が付かない）、U-V ＋5,376（噴火 128＋降灰の速報詳細 128、×21）、U-Y ＋2,688（解析 64＋確率 64）、U-M ＋12,288（竜巻 128＋熱中症 256 の印 384×21＋竜巻の fragment の鍵 128×33。短命の active は保存しない）、U-N ＋126（現況 6×21）、U-F ＋10,752（512×21）。器との比べ（K8 の後の値からの見積もり）: U-L 約 1,317,484＜2,097,152、U-R 約 16,883,000＜17,019,904（P3-C11-RES-01）、U-B 約 1,718,624＜2,097,152、U-V 3,867,485＋5,376＜5,242,880、U-Y・U-M は今の静的上界の余りの内、U-N 280,060＋126＜294,912。U-T と U-F は内容の実測 byte で器を守り、器いっぱいまで受け入れる unit（U-T は fit、U-F は fits〔weather-timeseries-unit.ts:151〕と decode〔:400〕の measure。U-F の既存の境界試験は 33,554,432 byte ちょうどを保存できるとする）なので、増えは受理と復元の両方の境界で「見える記録ごとに 21 byte」の予約として数え（D2、ヘルツ r1 の 1。K8 の pending の deliveryGrowth の予約と同じ形）、器を印の最悪の分だけ広げる（U-T 4,676,841＋21,504＝4,698,345、U-F 33,554,432＋10,752＝33,565,184。作者裁定 P3-NL-D-CAPACITY=A と同じ向きで、退去と unavailable の時期を今と同じにする）。U-F の記憶への移行（lapsed の 14 byte）も 21 byte の予約の内。ほかの unit も実装の静的上界の試験で器を越えたら同じ向きで広げ、配送の記録で作者に伝える。U-B の件数: 同時に持つ記録は「線状降水帯の系列（最長 3 時間）＋記録雨の報（元報から 9 時間、作者裁定 P3-EF-D-EXPIRED-MEMORY=A）」で、上限 256 で押さえる（実配信の静岡の例で同時に 6 件、設計メモ :501。9 時間の窓の最大本数は未測、Q-EF-UB-COUNT）",
+        "remaining": "実装の静的上界の試験で値を確かめる（P3-EF-AC10 の (2)）。発注 2 で型に値を足した unit は数え直す",
+        "reason": "器の値と予約の形を決めた"
+      },
+      {
+        "id": "Q-EF-COST",
+        "status": "closed",
+        "source": "AGENTS.md の受信経路の計算量",
+        "closed": "(1) 根拠の判定と owner の根拠の切替えの判定（直前の要求の根拠との比べ）は入力 1 件に定数 (2) unit は表示の期限・回収の期限（retainUntil・until）・保留の記録・intent の期限の最小を、配列に結び付けた今の cache（minOf・deadlineCache）で別々に持ち、根拠で当てない種類は比べない。\"awaiting\"・\"unverified\" の間も publisher は毎秒期限要求を送る（composition-root.ts:914）が、当てる期限が来ていなければ unit は O(1) で同じ state の参照を返し、配列を作り直さず世代を進めない（今の U-Q の collect は到来の判定の後に必ず新しい state を作るので、そこも直す）。nextDeadline は根拠によらず全部の期限の最小のまま（保留の記録は表示の期限の値で数える）。時計が後ろへ直ったときの保留の記録の回収は到来の判定を通さず、根拠が verified に替わった最初の要求で owner が unit ごとに 1 回当てる（P3-EF-AC02 の (7)） (3) 止めた回収は各 unit の件数の上限（U-L 128・U-R 512・U-B 256・U-T 予報 512＋観測 2×512・U-V slice 4×128＋解説 64・U-Y 2×64・U-M 竜巻 128＋熱中症 256＋短命 768・U-Q 512＋256・U-N 現況 6＋情報 64・U-F 512・U-E 印 2,048）の内で、保持と decode の両方で効く。\"verified\" に替わった最初の要求の回収はその件数の線形 1 回（上限のある稀な一括処理） (4) U-T・U-F の予約は今の加算（U-T は fit の generationBytes、U-F は measure）に「印の無い active の記録の数×21」を足すだけで、件数は今の数えから取る。U-T の退去は記録ごとに予約も差し引く（定数）、U-F は数え直し (5) U-B の報ごとの subject で、受信 1 回の索引の作り直しは今どおり 256 件の線形 (6) state 全体の JSON 化を足さない",
+        "remaining": "なし",
+        "reason": "受信経路に全件×全件の走査を足さない"
+      },
+      {
+        "id": "Q-EF-SPLIT",
+        "status": "closed",
+        "source": "統合担当の決め（発注前点検で変えてよい）。前例は K7 の Q-VM-SPLIT、K8 の Q-NL-SPLIT",
+        "closed": "発注は 2 つ: 発注 1（期限）＝ AC01〜AC12（根拠の欄、根拠ごとの当て方、退去の順、期限切れの保留と記憶、U-T、U-M の竜巻と H13、有効期限、U-B の記録雨、版と上界）。9 unit の版を 1 回で上げる。発注 2（H51 の受け取り）＝ AC13（設計メモ §13 の 35 か所）。発注 2 で型に値を足した unit は、もう一度版を上げてよい（P5 の前の初期化の作者裁定）。どちらの発注も AC11・AC12 を守る",
+        "remaining": "なし",
+        "reason": "期限の決まり（12 unit）と報の受け取り（6 unit・35 か所）を 1 回のレビューに入れない"
+      },
+      {
+        "id": "Q-EF-H51-SITES",
+        "status": "closed",
+        "source": "設計メモ §13（:510、行番号は 57a9dba0）を HEAD 4dad6cb5 の行へ写した（.draft/map13.py。行の中身で照合）",
+        "closed": "HEAD の行: U-T tsunami.ts :223・:225（VTSE51・52 の Serial）、:101〜:104・:128〜:129（Kind/Code・Name の欠け）、:106（区域の Code の形の外）、:89・:94・:109・:112・:117（予報区の高さ・到達時刻・Condition）、:147・:154・:157〜:161・:193〜:197（観測点・推定の値）。U-V volcano.ts :282（Serial）、:316（取消の火山コード）、:155・:180・:336・:363・:375・:400（名前）、:330〜:333・:350（座標・最後の噴火の code・時刻）、:165〜:174・:360（種別と区域の code）、:214・:220〜:221・:246・:249（降灰の期間と区域の数）、:231、:395・:407、volcano-unit.ts :630・:730・:772（取消の相手が 0 件か 2 件以上の noTarget）。U-L landslide.ts :83（Serial ほか）、:137（Status が表に無い値）、:142〜:143（Kind/Code・Name）。U-R flood.ts :90・:92（Serial）、:139・:156・:167（名前）、:192〜:242・:254〜:268（観測所の値と基準）。U-B briefing.ts :73・:75（Serial）、:118（EditorialOffice）、:136（Condition）、:208（記録雨の Kind）、:152〜:184（観測）。U-M local-bulletins.ts :138（Serial ほか）、:163〜:164（官署の名前）、:176・:180（見出し）、:204・:250（ValidDateTime）、:194（区域の code・名前）、:303・:311（短命の区域と本文）",
+        "remaining": "各所を B（受け取り）と C（拒否のまま K14 の H43 のカードへ）に分ける読みは、発注 2 の実装が統合担当の読み（:516）で表に作り直す（§13 の「C の所の一覧は各分野の起草のときに同じ読み方で作り直す」）",
+        "reason": "K10 が直す所の場所を今の行で確かめた"
+      },
+      {
+        "id": "Q-EF-JMA",
+        "status": "closed",
+        "source": "気象庁の資料との照合（p3-order-plan.md の末尾の節「気象庁の資料との照合（2026-10-25 作者裁定）」。発注前点検の前に起草者が当てた。前例は K13 の Q-NS-JMA）",
+        "closed": "資料は repo の外の ~/research/fleq-jma-premises/sources/ の文字起こし: 管理部・ヘッダ部の運用整理表（jma-2026-head-control-list.txt）、XML 一覧表（jma-2026-xml-list-hyo1_1.txt）、運用指針（jma-2013-xml-guide.txt）、XML 仕様（jma-2022-xml-format-v1_3.txt）、解説資料（manual/ の竜巻注意情報・記録的短時間大雨情報・気象解説情報形式〔別表類を含む〕・気象警報・注意報（Ｒ０６）・指定河川洪水予報・天候情報・早期天候情報・地震火山関連）と気象庁のサンプル（samples/）。版は 2026-10-25 の時点で 2026-10-20 の控えと同じ（p3-order-plan.md の同じ節。改訂の見張りの check.sh は許可 root の外なので起草者は回していない）。本契約の reason・requirement に「【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】」の印で書いた資料の場所は、この folder からの相対の file 名と行（行は grep で引き、その行の文を確かめた）。照合した条文: decisionBranches の 2 本、Q-EF-SOURCES・Q-EF-FORM・Q-EF-VALID・Q-EF-SIGHTING、P3-EF-AC04〜AC09・AC13。operationContract の normal/training/test は Control/Status の通常・訓練・試験（jma-2013-xml-guide.txt:343〜:353）。資料に記述の無いもの（表示の期限と記憶の長さ、観測の 24 時間、竜巻の ValidDateTime が無いときの 1 時間と「なし」の報を解除と読むこと、VPHW50 と VPHW51 の対、記録雨の EventID の「K」と対応報、音の段階、読めない所の受け取り）は、その条文に「資料に記述なし」と書き、ほかの根拠（作者裁定・corpus の採取・spec）と分けた。全内容出力スタイルシートは使っていない",
+        "remaining": "資料と食い違う所は契約を直さずに統合担当へ報告した: (1) VPWW56 の InfoType は発表・訂正だけで取消が無いので、U-L の期限切れの記憶の間に取消が鳴る場面は来ない（分岐 P3-EF-D-EXPIRED-MEMORY の reason・AC05 の (7)） (2) VPHW50 と VPHW51 は Title が違い、運用指針では別の独立した情報単位になる（P3-C13-TORNADO-PAIR・Q-EF-SIGHTING） (3) 線状降水帯の VPBS50 を親番で 1 件に畳む今の形は、枝番の情報どうしを更新とみなさない資料と食い違う（P3-C12-SUBJECTS=A、AC09） (4) 記録雨の VPBS50 の EventID の頭の「K」は気象庁のサンプルに無く、記録雨を見分ける資料の口は情報タグ「記録雨」（r8 で AC09 の (1) を情報タグに替えた。新築のパーサは情報タグの item を kind recordRain として既に読む。alias〔AC09 の (2)〕の「K」＋VPOA50 の EventID の対応はほかに結ぶ口が無いので残る、資料に記述なし、VPOA50 は令和 10 年度に廃止予定） (5) 竜巻注意情報の InfoType に取消は無いが、P3-C13 の取消の通知は残る（AC07 の (2)） (6) 分岐 P3-EF-D-TRANSIENT-VALID の reason の「30・31・72 行」は通番で file の行ではない（印で file の行を書き足した）。作者の裁定が要るかは統合担当が決める",
+        "reason": "台帳 97（根拠の無い前提）の照合を発注前点検の前に当てた記録"
+      },
+      {
+        "id": "Q-EF-AUTHOR",
+        "status": "closed",
+        "source": "作者承認（分岐 2 件と VTSE41 の消す案は 2026-10-25 朝の作者裁定、残存リスク (1)〜(15) は同日の朝、ご主人「K10の残存リスクも問題ありません！」）",
+        "closed": "分岐 P3-EF-D-EXPIRED-MEMORY・P3-EF-D-TRANSIENT-VALID は推奨どおり A（ruling 欄）。VTSE41 の有効期限は K10 で読まず P4 で決める（AC08 の (3)）。残存リスク (1)〜(15)（artifactRequirements の残存リスクの項）を承認（竜巻の音が軽くなる (5)、記録雨のカードが報ごと (6)、受け取りで出る・鳴るものが増える (13)、竜巻の対で 2 回鳴る (15) を含む）。(16) は同日の作者裁定で解消",
+        "remaining": "なし",
+        "reason": "unresolvedQuestions の Q-EF-AUTHOR（発注 1 の発注の前）を閉じる"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "時計の根拠の当て方・期限切れの記憶・退去の第 1 段の条件は operation によらず同じ（training・test も同じ）。退去で normal を守る D-OPERATION=A は今のまま。記録雨の報ごとの subject は operation を頭に持つ（今の形）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-EXPIRY-FORM-001",
+    "mode": "implementation",
+    "objective": "期限の分け方と期限切れの形（spec §16 の H23・H13・H42 の unit の側、設計メモ p3-persist-premises.md §3 と作者裁定 §7 の 4・8、K9 の申し送り P3-CK-AC08 の (6)、2026-10-22 の統合担当の決定 D1〜D10）。時計の根拠の状態（awaiting・unverified・verified）を publisher から owner と 12 unit の入力へ運び、確かめるまでは期限を当てず（復元した中身も）、確かめられない間は表示の期限切れだけを保留の印で当てて事実・通知の印・記録の回収（記憶への移行・記録ごと消す・退去の第 1 段・失敗の印）を止める。U-L・U-R・U-B は期限で記録ごと消さず期限切れの記憶に移し、U-F は期限切れを「なし」と見分け、U-M の竜巻の期限は解除と見分ける。竜巻注意情報は目撃が無ければ普通の音（H13）。記録的短時間大雨は報ごとに 1 件（作者裁定の判断 2）。電文の有効期限を使う種類を確定する。設計メモ §13 の報を丸ごと断る 35 か所を受け取りに変える（発注 2）。再開の並べ方の段 3（K8・K9 の後、K11・K12・K13・③ の前）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-persist-premises.md",
+      "reconstruction/contracts/p3-expiry-form.json",
+      "reconstruction/contracts/p3-clock-check.json",
+      "reconstruction/contracts/p3-notice-ledger.json",
+      "reconstruction/contracts/p3-version-material.json",
+      "reconstruction/contracts/*.json",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/contracts/p2-weather-timeseries-unit.types.ts",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/contracts/p3-seismic-unit.types.ts",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p3-volcano-unit.types.ts",
+      "reconstruction/contracts/p3-landslide-unit.types.ts",
+      "reconstruction/contracts/p3-flood-unit.types.ts",
+      "reconstruction/contracts/p3-briefing-unit.types.ts",
+      "reconstruction/contracts/p3-local-bulletins-unit.types.ts",
+      "reconstruction/contracts/p3-typhoon-unit.types.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/units/**",
+      "reconstruction/src/domains/tsunami/tsunami.ts",
+      "reconstruction/src/domains/volcano/volcano.ts",
+      "reconstruction/src/domains/landslide/landslide.ts",
+      "reconstruction/src/domains/flood/flood.ts",
+      "reconstruction/src/domains/briefing/briefing.ts",
+      "reconstruction/src/domains/local-bulletins/local-bulletins.ts",
+      "reconstruction/test/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-expiry-form.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B01",
+      "B02",
+      "B06",
+      "M01",
+      "M02",
+      "M03",
+      "M04",
+      "M05",
+      "M06",
+      "M07",
+      "M08",
+      "M09",
+      "M10",
+      "M11",
+      "M12",
+      "M13",
+      "M14",
+      "M15",
+      "M16",
+      "M17",
+      "M18"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-CLOCK-CHECK-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-EEW-UNIT-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-WEATHER-TIMESERIES-UNIT-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-Q-001",
+      "P3-UNIT-N-001",
+      "P3-UNIT-V-001",
+      "P3-UNIT-L-001",
+      "P3-UNIT-R-001",
+      "P3-UNIT-B-001",
+      "P3-UNIT-M-001",
+      "P3-UNIT-Y-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#WallBasis",
+      "reconstruction/contracts/p3-execution-split.types.ts#SentClock",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideCurrent",
+      "reconstruction/contracts/p3-flood-unit.types.ts#FloodCurrent",
+      "reconstruction/contracts/p3-briefing-unit.types.ts#BriefingCurrent",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiObservationSubject",
+      "reconstruction/contracts/p3-local-bulletins-unit.types.ts#TornadoCurrent",
+      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideInput",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiInput",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewInput"
+    ],
+    "publicFunctions": [
+      "new RuntimeCompositionRoot(..., options)（composition-root.ts、options に contentBasis?: (at: ClockReading) => WallBasis を足す。省略は \"verified\"）",
+      "startP2Host(config)（host.ts、signature は変えない。contentBasis に生の確かめの状態を渡す）",
+      "各 unit の reduce・toView・codec の公開形は変えない（変えるのは入力の basis?、記録の形と schemaVersion、U-B の記録雨の subject、竜巻の level）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_16_01_241031_VPWW56",
+      "test__fixtures__16_02_01_220728_VXKO50",
+      "test__fixtures__phase6b_VPOA50_JPTK202608221709_202608221709",
+      "test__fixtures__phase6b_VPOA50_JPTK202608221709_202608221717",
+      "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221709",
+      "test__fixtures__phase6b_VPBS50_KJPTK202608221709_202608221717",
+      "test__fixtures__VPBS50_YJPNB202608270448",
+      "test__fixtures__82_01_02_250630_VPBS50",
+      "test__fixtures__synthetic_VPBS50_multi",
+      "test__fixtures__synthetic_VTSE51_fragmentA",
+      "test__fixtures__synthetic_VTSE41_e01_311warning",
+      "test__fixtures__19_04_01_140425_VPHW51",
+      "test__fixtures__synthetic_VPHW50_tokyo_pair",
+      "test__fixtures__72_08_01_190327_VPAW51",
+      "test__fixtures__29_01_01_140129_VPZI50"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O03",
+      "O07",
+      "O08"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [
+      {
+        "id": "P3-EF-SEM-01",
+        "target": "U-L・U-R・U-B の期限切れの記憶（effective expired）を回収できる時刻",
+        "limit": 6,
+        "unit": "hours added to the display deadline（U-L は元報＋48 時間、U-R は＋36 時間、U-B は元報＋3 時間に固定）",
+        "rule": "分岐 P3-EF-D-EXPIRED-MEMORY=A（作者裁定 2026-10-25）。回収は入力の根拠が verified のときだけ（P3-EF-AC02）。実際に残る長さは時計の確かめで延び、件数の上限での退去で縮む",
+        "source": "p3-persist-premises.md :226・:227、U-L の記憶の長さ（landslide-unit.ts:32）"
+      }
+    ],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P3-EF-RET-01",
+        "target": "retainUntil を過ぎても時計を確かめられない間に残る記録",
+        "limit": "各 unit の件数の上限の内（P3-EF-AC11 の (3)）。verified の最初の要求で回収する（時計が後ろへ直っても、P3-EF-AC02 の (7)）",
+        "source": "p3-persist-premises.md :219・:221、作者裁定 §7 の 4"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P3-EF-RES-01",
+        "target": "根拠の判定と期限の要求",
+        "limit": "入力 1 件に定数。awaiting・unverified の間の毎秒の期限要求は、当てる期限が来ていなければ O(1) で同じ参照を返す。回収の一括は verified に替わった最初の要求で件数の上限の線形 1 回",
+        "unit": "1 入力",
+        "source": "AGENTS.md 受信経路の計算量、Q-EF-COST"
+      },
+      {
+        "id": "P3-EF-RES-02",
+        "target": "U-B の記録（記録雨の報ごとの subject を含む）",
+        "limit": 256,
+        "unit": "subjects, normal/training/test combined（P3-C12-BOUNDS=A のまま）",
+        "source": "Q-EF-BYTES、Q-EF-UB-COUNT"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-L",
+      "U-R",
+      "U-B",
+      "U-T",
+      "U-V",
+      "U-Y",
+      "U-M",
+      "U-N",
+      "U-F"
+    ],
+    "persistedFields": [
+      "L・R・B・T・V・Y・M・N・F の見える記録の expiryPending?: true（期限切れの保留の印、21 byte）",
+      "U-L・U-R・U-B の記録の effective \"expired\"（事実を持たない記憶、retainUntil は元報からの固定の式）",
+      "U-F の subject の lapsed?: true（期限切れの noActiveItems）",
+      "U-M の竜巻の記録の effective \"expired\"（今は ended）と、目撃の通知の印の fragment の鍵 SIGHTED",
+      "U-B の記録雨の subject（EventID の全体）"
+    ],
+    "nonPersistedFields": [
+      "SentClock の basis と unit の入力の basis（要求ごと、保存しない）",
+      "CompositionOptions の contentBasis（host の生の確かめの状態の読み口）",
+      "owner-host の直前の要求の根拠（根拠の切替えでの評価、P3-EF-AC02 の (7)）"
+    ],
+    "outOfScope": [
+      "U-Q の期限切れの形・守る線・畳み（H23・H35・H36）: K11 P3-UNIT-Q-CAPACITY-001。本契約は根拠の当て方だけ（P3-EF-AC04）。K11 への申し送り: 強震保持を置き換える守る線の 24 時間の判定も、強震保持の解除と同じく verified の時計でだけ外す（P3-EF-AC04）",
+      "U-N の期限の二段（巨大地震警戒→注意→expired）と情報系列の全文: K13 P3-UNIT-N-SERIES-001",
+      "U-E の current・gate の寿命と、時計未確認の間の EEW（P3-CK-D-UNVERIFIED-EEW=A）: EEW の閉じ方の契約",
+      "U-W の解除・「なし」の partial の回収の期限と鍵の数え直し: ③",
+      "U-T の観測点の上限: K12 P3-UNIT-T-CAPACITY-001",
+      "読めない所の印と原文の欠片の保存、H43 の「読めなかった電文」のカード: K14（設計メモ §10）",
+      "期限切れ・時計未確認の印を画面へ送る口と描画（H17・H23 の見せ方）: 段 4・P4",
+      "時計の確かめそのもの（host の判定、前回の通知の保留）: K9 P3-CLOCK-CHECK-001（配送済み）",
+      "測定の harness（reconstruction/test/eew-e01/・reconstruction/test/disaster/）の変更と凍結した結果の作り直し",
+      "sequences.json・manifest.json の変更（記録雨の期待の書き換えは統合担当、Q-EF-SEQUENCES）",
+      "spec 本文・計画・設計メモ・他の契約の本文の変更（P3-EF-AC14 の改訂は配送の commit で統合担当）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しい npm 依存、旧築 src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-EF-AC01",
+        "requirement": "【発注 1】根拠の状態の受け渡し（K9 の申し送り P3-CK-AC08 の (6)、設計メモ §14 の :524、Q-EF-BASIS-SHAPE）: (1) SentClock（p3-execution-split.types.ts:49）に basis: WallBasis を足し、publisher は post（composition-root.ts:486）で、その要求の clock と同じ時点の根拠を入れる (2) 根拠は CompositionOptions に足す contentBasis?: (at: ClockReading) => WallBasis から読む（省略は \"verified\"）。host は締切の印を反映しない生の確かめの状態（host.ts:129 の wallBasis、保存の境界の basis と同じ）を渡す（host.ts:175 の隣）。通知用の options.wallBasis は使わない（無いと: 起動から 30 秒の内に確かめられなかった run では、後で確かめても run の終わりまで \"unverified\" のままで回収できない） (3) owner-host は要求ごとに base（owner-host.ts:82）に basis を持ち、その要求で作る unit の入力に入れる。時計と違って外挿しない（送った時点の根拠のまま。替わった根拠は次の要求で効き、毎秒の期限要求〔composition-root.ts:914〕があるので遅れは最長 1 tick） (4) 12 unit の入力の型の receive・deadline・restore・shutdown に basis?: WallBasis を足す（省略は \"verified\"。owner-runtime は必ず入れる。finalize の期限は finalize の要求の basis）。intentUpdate には足さない (5) ClockReading・RuntimeUnitDeadline・envelope は変えない（basis は保存しない）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-execution-split.types.ts:49 «72182cdd1124bb81»",
+          "reconstruction/src/runtime/composition-root.ts:486 «02af1e2c5449ae3c»",
+          "reconstruction/src/host/host.ts:129 «f45693862d044177»",
+          "reconstruction/src/host/host.ts:175 «9befb93275c9ab3e»",
+          "reconstruction/src/runtime/owner-host.ts:82 «7ffdb294af88ffe0»",
+          "reconstruction/src/runtime/composition-root.ts:914 «8ae52d9d693e7af3»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:628 «63409c8d5e8c3c17»",
+          "reconstruction/contracts/p3-clock-check.json:341 «7aacda7ef9dc60ee»",
+          "reconstruction/contracts/p3-persist-premises.md:524 «d6034014bda2abef»",
+          "reconstruction/contracts/p3-clock-check.json:103 «34f52cc3b1065b0c»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC02",
+        "requirement": "【発注 1】根拠ごとの期限の当て方（12 unit、設計メモ :219・:222・:223・:232、作者裁定 §7 の 4・8、§14 の :527、Q-EF-RECALL・Q-EF-AWAITING）: (1) \"awaiting\": unit は期限を何も当てない（表示の期限切れも保留の印も回収も intent の失効も）。restore・deadline・shutdown の入力、受信の前の回収（owner-runtime.ts:386）と受信の reduce の中の回収、復元の直後の期限要求（owner-host.ts:177）の全部。前回の起動から復元した中身と通知はこれで確かめるまで待つ（§7 の 4） (2) \"unverified\": 表示の期限の来た見える記録に期限切れの保留の印（expiryPending: true）を付けて見えなくする（view から外し、通知の判定では見えない記録として扱う）。事実・観測点・通知の印は残し、回収（Q-EF-RECALL の (a)〜(e)）はしない。U-R の「[期限切れ]」の desktop の通知は印を付けるときに今どおり作る（設計メモ :227） (3) \"verified\": 表示の期限の来た記録は同じ reduce で期限切れの記憶に移す（今の新築と同じ時刻、保留の印は付けない）。保留の印のある記録は、\"verified\" の deadline・restore の入力で、表示の期限と手元の wall の比べによらず、その入力の手元の wall で記憶に移す（P3-CK-AC08 の (6) の (ii)。印は表示の期限切れを一度当てた証拠で、時計が後ろへ直っても (4) で戻さない）。回収の期限の来た記録は今どおり消す (4) 一度当てた表示の期限切れは根拠が替わっても、同じ版・同じ報の対の後着を受けても戻さない（§7 の 8、AC07 の (5)） (5) 受信の判定（遅着の stale〔例 flood-unit.ts:285〕、表示の期限を過ぎた報を鳴らさない）は根拠によらず今どおり手元の時計で行う。表示の期限を過ぎてから採る報の記録の形は AC05 の (5)。\"awaiting\" の間は、受けた後 30 秒の内に期限の来る記録の期限切れが最長 30 秒遅れ、表示の期限を過ぎてから採る報は鳴らないまま最長 30 秒見えうる（Q-EF-AWAITING、残存リスク (1) と同じ） (6) 当てる期限が無い入力は同じ state の参照を返し、世代を進めない（AC11） (7) 根拠の切替えでの評価（ヘルツ r1 の 2・r2 の 1）: owner-host は直前の要求の根拠を持ち（保存しない。起動後の最初の要求〔restore〕は直前が verified でないと数える。数えるのは結果〔OwnerOutput〕を返して期限を当てる今の口の restore・input・deadline の要求だけ）、それらの要求の根拠が \"verified\" で直前がそうでないとき、その要求の処理の前に、自分の unit 全部へ deadline の入力を 1 回、到来の判定（owner-runtime.ts:257 の applyDeadlines の nextDeadline と clock の比べ）を通さずに当てる。restore の要求では復元の直後の期限要求（owner-host.ts:177）をこの形にする。nextDeadline は AC11 の (2) のまま全部の期限の最小（保留の記録は元の表示の期限の値）で、ほかの要求の到来の判定は今どおり。無いと: 進んだ時計で保留にした記録が、時計が後ろへ直って verified になったとき、元の表示の期限まで到来の判定に遮られて回収されない（例: 土砂の元報 R、R＋49 時間の時計で保留、R＋1 時間へ直ると R＋48 時間まで 47 時間残る）。保留の状態を保存して verified で復元しても同じ。当てる期限の無い unit は (6) で同じ参照を返す。detail の要求（detailDone は OwnerOutput を持たない、p3-execution-split.types.ts の detailDone）とほかの要求（intentUpdate・checkpointGrant・shutdownInput・finalize）では評価せず、根拠の切替えを消費しない（直前の根拠を書き換えない）。detailDone の型は変えない。無いと: 最初の verified の要求が detail のとき、owner の中で表示・通知・保存の世代が変わっても publisher に返せず、次の deadline 要求ではもう当て済みで変化を返せない。評価は次の restore・input・deadline の要求で行い、毎秒の deadline 要求（composition-root.ts:914）があるので遅れは最長 1 tick",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:219 «097c4e992b73935b»",
+          "reconstruction/contracts/p3-persist-premises.md:222 «b5b47e77b7862666»",
+          "reconstruction/contracts/p3-persist-premises.md:223 «973ddc0f21f6d14e»",
+          "reconstruction/contracts/p3-persist-premises.md:400 «84a5747c84adc8cb»",
+          "reconstruction/contracts/p3-persist-premises.md:426 «2da899c097a9e079»",
+          "reconstruction/contracts/p3-persist-premises.md:527 «70a3ffe6b373dcd8»",
+          "reconstruction/src/runtime/owner-runtime.ts:386 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-host.ts:177 «21dcd24ab1f8ddc9»",
+          "reconstruction/src/runtime/owner-runtime.ts:263 «26d1e29d753694c3»",
+          "reconstruction/src/runtime/owner-runtime.ts:257 «c3193ce7c9aec27e»",
+          "reconstruction/contracts/p3-execution-split.types.ts:126 «e39000aa100184bc»",
+          "reconstruction/src/runtime/owner-host.ts:137 «95b43a894c5d3f14»",
+          "reconstruction/src/units/flood/flood-unit.ts:285 «b6870a370007c3eb»",
+          "reconstruction/contracts/p3-clock-check.json:278 «a44ef459ba494e84»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC03",
+        "requirement": "【発注 1】容量の退去の順（設計メモ :221）: 退去の第 1 段「retainUntil を過ぎた記録」（landslide-unit.ts:104、flood-unit.ts:111、briefing-unit.ts:172、tsunami-unit.ts:215、volcano-unit.ts:157、typhoon-unit.ts:118、local-bulletins-unit.ts:137、seismic-unit.ts:479、nankai-unit.ts:195）は、受けた入力の根拠が \"verified\" のときだけ当てる。それ以外では、その記録は期限の内の記録と同じ段に入り、今の古い順で並ぶ。保留の印のある記録は記憶の段（見えない記録の段）に入る。守る記録（normal の見える記録、U-Q の強震保持、training/test の受理で normal を退去しない D-OPERATION=A）まで届いたときの扱いは根拠によらず今どおり（U-Q は K11）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:104 «79e3f8389c409b2d»",
+          "reconstruction/src/units/flood/flood-unit.ts:111 «fc9f3ad48814b679»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:172 «e542f68693c16a39»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:215 «d522892439c461cf»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:157 «55fb8417b4dafa06»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:118 «5633da911d329a07»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:137 «5633da911d329a07»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:479 «b34d1486d1f60f0f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:195 «08fc4464ec0fd60f»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC04",
+        "requirement": "【発注 1】U-E・U-Q・U-N・U-W・U-F の範囲（設計メモ §14 の :524、Q-EF-SCOPE）: 期限の形は変えず（U-Q は K11、U-N の二段は K13、U-E は EEW の閉じ方、U-W は ③）、AC02・AC03 の根拠の当て方を入れる: U-E は intent の失効（eew-unit.ts:140、復元の :179）と印の回収（:240）。U-Q は記録の回収（seismic-unit.ts:835）と失敗の印の回収を止め、強震保持の解除（:836）と当日の履歴の切替えも verified の時計でだけ当てる。受信の側の切替え（:290、手元の時計の「今日」と dayKey が違えば履歴を空にする）も同じで、unverified の受信では履歴を空にせず、切替えは verified になってから当てる（無いと: 確かめていない時計で今日の件数と最大震度が消える）（unverified では当てずに記録をそのまま保つ。無いと: 確かめていない時計で強震保持が外れ、退去で守る段〔:482〕から通常の段へ落ちる。設計メモ :221、AC02 の (1)）。U-N は現況の expired（表示）を AC02 の (2)(3) の形（保留の印、AC05）で当て、現況と情報の回収（nankai-unit.ts:487）を止める。U-W は intent の失効だけ。U-F は validUntil の表示の期限切れを保留の印の形で当て、記憶（noActiveItems＋lapsed、AC05 の (6)）への移行と retainUntil の回収（weather-timeseries-unit.ts:100）を verified に限る。印の分の byte は受理と復元の境界で予約する（AC10 の (5)）。U-E の current・gate の寿命（eew.ts の reclaimEewLifetime）と時計未確認の間の EEW（分岐 P3-CK-D-UNVERIFIED-EEW=A）は EEW の閉じ方の契約のまま 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】U-F の VPWP50 は ValidDateTime を持たず（jma-2026-head-control-list.txt:157）、validUntil の表示の期限は資料に記述なし（P2-A6 の決め）。U-N の VYSE50〜52 も持たない（jma-2026-head-control-list.txt:142・:145、K13 の Q-NS-JMA）。強震保持と当日の履歴は資料に記述なし",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:524 «d6034014bda2abef»",
+          "reconstruction/src/units/eew/eew-unit.ts:140 «91151c25973aa618»",
+          "reconstruction/src/units/eew/eew-unit.ts:179 «7d07bb535c3f2398»",
+          "reconstruction/src/units/eew/eew-unit.ts:240 «f7def0232029d9ef»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:835 «3cce335e151b5b58»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:836 «08f1f471124d1809»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:290 «3e3e2a754731cc9f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:482 «1212cbe43d8917aa»",
+          "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:487 «3cce335e151b5b58»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:100 «11b74f30e3b16bd1»",
+          "reconstruction/contracts/p3-persist-premises.md:347 «3362aa8218ae44a7»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC05",
+        "requirement": "【発注 1】期限切れの保留と記憶（H23、設計メモ :219・:223・:226・:227、統合担当 D1・D5・D6・D8・D9、Q-EF-RECALL・Q-EF-FORM、分岐 P3-EF-D-EXPIRED-MEMORY）: (1) 保留の印: L・R・B・T・V・Y・M・N・F の見える記録（表示の期限を持つもの: U-L の active〔元報＋48 時間、landslide-unit.ts:32〕、U-R の active〔＋36 時間、flood-unit.ts:39〕、U-B の VPBS50 の active と VPOA50 の released〔＋2〜3 時間、briefing-unit.ts:30〕、U-T の観測、U-V の噴火・降灰の active、U-Y の解析・確率の active、U-M の竜巻・熱中症の active〔短命の active は保存しないので印は run の中だけ〕、U-N の現況の active、U-F の active の subject）に expiryPending?: true を足す。decode は、印のある記録の表示の期限が source から作る式の値と合うことを確かめる（数を持たないので式で確かめる） (2) 記憶への移行（回収の (a)）: 印のある記録と、verified の入力で表示の期限の来た記録は、unit の期限切れの記憶に移る（事実を捨てる）。U-L・U-R・U-B は新しい effective \"expired\"（欄は今の ended・cancelled の記憶と同じ識別・source・unconfirmed?・notice?・retainUntil）。ほかは Q-EF-FORM の今の形 (3) 記憶の retainUntil（回収できる時刻＝表示の期限＋6 時間、作者裁定 P3-EF-D-EXPIRED-MEMORY=A）: U-L は元報＋54 時間（48＋6）、U-R は元報＋42 時間（36＋6）、U-B は元報＋9 時間（3＋6。D9: 元報からの固定にする。表示の期限は 2 時間と 3 時間があるが、記憶は事実を持たず、どちらだったかを知るには欄が 1 つ要る。固定なら欄が要らず decode も今の記憶と同じ等式で済む。代償は 2 時間の記録の記憶が 1 時間長い）。decode は等式で確かめる (4) 移るときは今どおり無音。U-R だけは desktop の「[期限切れ]」を今どおり 1 件作る（P3-C11-ACTIVE-EXPIRY=D、flood-unit.ts:392。unverified なら印を付けるときに作り、保留の印のある記録を記憶へ移すときは作らない。1 つの記録で 1 回だけ） (5) 表示の期限を過ぎてから採る報（D8: U-L の遅着〔landslide-unit.ts:141、記録の無い官署に元報＋6 時間を過ぎた active 相当の報〕は今どおり ended として採って同じ reduce で回収し記録を残さない〔:283、記憶にも保留にもしない〕、元報＋48 時間を過ぎた active の版、U-B の P3-C12-LATE-INVERSION〔briefing-unit.ts:362〕、U-B の対応報の取消で aliased から released に付け替えた VPOA50 で retainUntil を過ぎたもの〔briefing-unit.ts:422、今は記録ごと除く〕、U-M の竜巻の遅着〔local-bulletins-unit.ts:303〕）は、採った報の記録を (2) の期限切れの記憶にする（verified）か、保留の印を付けた見える記録にする（unverified）。鳴らさない、前の見える記録の pending を撤回する、は今どおり (6) U-F（D6）: validUntil の到来で記憶に移る subject は今の noActiveItems に lapsed: true を足し、報が「なし」の noActiveItems と保存の上で見分ける。decode は lapsed が true か無いことを確かめる (7) 通知の印（P3-NL-AC02）は保留と記憶の間も残るので、その間に届いた取消は H19 の条件（P3-NL-AC09）で通知する (8) 遅着の規則と版の比べ方は今のまま。記憶のある subject への同じ版・古い版は今の規則で duplicate・stale 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】表示の期限（U-L 48 時間、U-R 36 時間、U-B 2〜3 時間）と記憶の長さは資料に記述なし（VPWW56・VXKO・VPOA50・VPBS50 は ValidDateTime を持たない、jma-2026-head-control-list.txt:44・:50・:53〜:54・:158〜:159）。(5) の対応報: VPBS50 の情報タグ「記録雨」が従前の記録的短時間大雨情報に当たる（manual/気象解説情報形式_解説資料_別表類.txt:37、manual/気象解説情報形式_解説資料.txt:1844〜:1845）。VPBS50 と VPOA50 を EventID で結ぶ対応は資料に記述なし（corpus の dmdata の採取の対）。(7) の取消: VXKO・VPOA50・VPBS50 は InfoType に取消を持つ（manual/指定河川洪水予報（氾濫警報・注意報）_解説資料.txt:65、manual/記録的短時間大雨情報_解説資料.txt:94〜:97、manual/気象解説情報形式_解説資料.txt:147〜:151）。VPWW56 の InfoType は発表・訂正だけ（manual/気象警報・注意報（Ｒ０６）_解説資料.txt:150〜:152）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:219 «097c4e992b73935b»",
+          "reconstruction/contracts/p3-persist-premises.md:223 «973ddc0f21f6d14e»",
+          "reconstruction/contracts/p3-persist-premises.md:226 «147b7db281483a3d»",
+          "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «ac88c9eb75863b62»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:32 «679d97cc7e4432f5»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:141 «add4e8f0b318c21b»",
+          "reconstruction/src/units/flood/flood-unit.ts:39 «7dd58db140c67f9f»",
+          "reconstruction/src/units/flood/flood-unit.ts:392 «21d95b1ca05587a8»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:30 «bd685834780fe4ac»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:362 «a9466abd0ddd7d16»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:422 «3820ac52a000d558»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:303 «3e8b81926539c780»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:283 «e8afc5291a8206af»",
+          "reconstruction/contracts/p3-flood-unit.json:11 «dd92899faea4af42»",
+          "reconstruction/contracts/p3-landslide-unit.json:11 «b1327e3deb596f4a»",
+          "reconstruction/contracts/p3-notice-ledger.json:594 «459c8c988dc7d6ff»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC06",
+        "requirement": "【発注 1】U-T（設計メモ :219・:237、§5 の :336、統合担当 D2・D7）: (1) 観測の失効（validUntil＝最新の採用報の ReportDateTime＋24 時間、P3-C5-SEM-01）は AC02 の形で当てる: unverified では保留の印を付けて観測点と推定区域を持ったまま view から外し、verified で今の effective \"expired\"（観測点と推定区域を捨てる、tsunami-unit.ts:124）に移す (2) 予報は時間の期限を持たないまま（P3-C5-RETENTION=A。VTSE41 の有効期限は作者裁定 2026-10-25 で P4、AC08 の (3)）で、保留の印も付かない (3) byte の予約（D2）: 入力なしで起きる形の移り（保留の印・記憶への移行）で増えうる byte を、見える観測の記録 1 件につき 21 byte として、受理の境界（fit の generationBytes）と復元の境界（decode の上限の確かめ）の両方で数える（AC10 の (5)）。器は 4,698,345（＝4,676,841＋観測 1,024×21、Q-EF-BYTES） (4) 失敗の印（D7）: until での削除と、受信の時の有効の判定（until > now、tsunami-unit.ts:635・:705）を同じ根拠の規則にする。verified の入力では今どおり。それ以外では until を過ぎても印を消さず、有効として扱う（失敗警報を重ねない） (5) 観測点の件数の上限（family ごと 1,024）は保留の観測の観測点も今どおり数え、超えたときは保留の観測を見えない記録の段で退去する（P3-C5-CAPACITY）。同じ報の fragment の足し合わせ（P3-C5-OBS-MERGE）は保留の観測には当てず、見える状態に戻さない 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】VTSE51・VTSE52 は ValidDateTime を持たない（jma-2026-head-control-list.txt:91・:128。失効時刻を置くのは津波警報・注意報・予報と降灰予報だけ、manual/地震火山関連_解説資料.txt:227〜:228）ので、観測の失効の 24 時間は資料に記述なし（P3-C5-SEM-01 の決め）。VTSE41 の失効時刻（同 :228〜:231、jma-2026-head-control-list.txt:96）は K10 では読まない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:219 «097c4e992b73935b»",
+          "reconstruction/contracts/p3-persist-premises.md:237 «1d49645b299abef6»",
+          "reconstruction/contracts/p3-persist-premises.md:336 «1d50527cb7406ee1»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:124 «5578fbe47b685f1b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:635 «67b7015b3b37e3e2»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:705 «26d3919ceec6fa64»",
+          "reconstruction/contracts/p3-tsunami-unit.json:707 «ef467e3b8b11d9b0»",
+          "reconstruction/contracts/p3-tsunami-unit.json:93 «8d54ba011b4a2190»",
+          "reconstruction/contracts/p3-tsunami-unit.json:84 «e394e30e152264ba»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC07",
+        "requirement": "【発注 1】U-M の竜巻（H23・H13、統合担当 D3・D4、Q-EF-SIGHTING）: (1) 竜巻の active の表示の期限（ValidDateTime、無ければ ReportDateTime＋1 時間、local-bulletins-unit.ts:302）で移る記憶を effective \"expired\" にする（今は解除と同じ ended、:306）。区域が全部「なし」の報（通常の解除）は ended のまま。retainUntil は今どおり＋36 時間 (2) H13（spec:3040）: 竜巻の active の採用の通知の level を、目撃（sighted、P3-C13-TORNADO-PAIR の判定）でなければ normal、目撃なら warning にする（今は両方 warning）。解除の info と取消の cancel は変えない (3) 目撃の採用の intent の ID・照合・印に fragment の鍵 SIGHTED を付ける（Q-EF-SIGHTING。K8 の改訂、P3-EF-AC14 の (19)） (4) 同じ報の対の後着（VPHW50 の後の VPHW51、P3-C13-TORNADO-PAIR=A は通知を作らない）で sighted が false から true に替わり、記録が見える（保留の印も記憶も無い）ときは、warning の通知を 1 件作る。照合で SIGHTED が印にあれば作らない。先着の通知が pending なら今の admit どおり同じ subject・channel の pending を置き換え、配送済みならもう 1 回鳴る（残存リスク (15)） (5) 同じ報の対の後着（samePair の道）は、記録に保留の印があるか記憶なら、見える状態に戻さず、通知も作らない（D4、§7 の 8）。保留の印のある記録の事実は後着の事実に置き換えてよい (6) 熱中症（ended は期限と遅着でしか生まれない）と短命（evidence）の記憶の形は変えない（Q-EF-FORM） 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】竜巻注意情報の失効時刻は Head/ValidDateTime（manual/竜巻注意情報_解説資料.txt:95〜:96、jma-2026-head-control-list.txt:60・:63）。無いときの ReportDateTime＋1 時間は資料に記述なし。目撃は Control/Title「竜巻注意情報（目撃情報付き）」と Information[@type=竜巻注意情報（目撃情報あり）]（同 :33〜:35・:126〜:128）。Kind の Name・Status の「なし」は値として載る（同 :174〜:182）が、区域が全部「なし」の報を解除と読むことは資料に記述なし。InfoType は発表・訂正だけで取消は無い（同 :98〜:99、jma-2026-head-control-list.txt:60・:63）。VPHW50 と VPHW51 の対は資料に記述なし（Q-EF-SIGHTING）。目撃の有無で音を分けるのは作者裁定 H13",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3040 «9ad7bb8c4c242662»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:302 «de5f6ad6f9bb5626»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:306 «727b0327dbeb66a7»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:71 «ae21c1c8b24e54cc»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:127 «b4e9d71e90d6fd5d»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:30 «b445248ff47525de»",
+          "reconstruction/contracts/p3-notice-ledger.json:430 «58092c37f1d9bb2f»",
+          "reconstruction/contracts/p3-notice-ledger.json:454 «1e57ae42f4bd5526»",
+          "src/engine/presentation/level-helpers.ts:363 «d60e6813bbcdcc48»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC08",
+        "requirement": "【発注 1】電文の有効期限を使う種類（H23 の後半、設計メモ :464、統合担当 D10、Q-EF-VALID）: (1) 竜巻（VPHW50/51）は今どおり Head/ValidDateTime（P3-C13-TORNADO-EXPIRY=A） (2) 降灰予報（VFVO53/54/55）は本文の予報の終わり forecastEndsAt のまま（corpus の 3 通で Head/ValidDateTime と一致）。読む仕組みを足さない (3) 津波（VTSE41）: K10 では Head/ValidDateTime を読まず、U-T の予報に期限の決まりを足さない（作者裁定 2026-10-25。予報だけの報〔区域が全部 Kind/Code 71〜73、tsunami.ts:17〕は今の新築でも released で画面に出ないので、出すかどうかと何時まで出すかは P4 で決める）。U-T の観測の期限処理（AC06）は本契約のまま (4) VPAW51・VPZI50・VPCI50 は今のまま元報から 3 時間で、Head/ValidDateTime を使わない（作者裁定 P3-EF-D-TRANSIENT-VALID=A。H23 の行への書き足しは AC14 の (15)） (5) ほかの種類は気象庁の表で ValidDateTime を使わない（Q-EF-VALID の (B)）ので、今のこちらで決めた長さのまま 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】失効時刻の意味は jma-2022-xml-format-v1_3.txt:787〜:789・jma-2013-xml-guide.txt:411〜:417。(1) 竜巻は manual/竜巻注意情報_解説資料.txt:95〜:96 (2) 降灰予報の失効時刻は基点時刻から定時 18 時間・速報 1 時間・詳細概ね 6 時間（manual/地震火山関連_解説資料.txt:235〜:237、jma-2026-head-control-list.txt:133） (3) VTSE41 は若干の海面変動だけが残る報に失効時刻を記載する（manual/地震火山関連_解説資料.txt:228〜:231、jma-2026-head-control-list.txt:96） (4) VPAW51 は発表時刻の 5 日後（manual/早期天候情報_解説資料.txt:98〜:100）、天候情報は梅雨の天候情報には出現しない（manual/天候情報_解説資料.txt:82〜:85、jma-2026-head-control-list.txt:73） (5) 種類ごとの ValidDateTime の有無は Q-EF-VALID（通番と file の行の対応も同じ所）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:464 «b462d769c42d01c0»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «ac88c9eb75863b62»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:17 «2dc41861cb53db5d»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:28 «7bb740ba02fdda43»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:51 «a1e07e726fee81f0»",
+          "reconstruction/contracts/p3-tsunami-unit.json:84 «e394e30e152264ba»",
+          "docs/specs/reconstruction-p0-contracts.md:482 «b3c2ec06b0f3bf46»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC09",
+        "requirement": "【発注 1】U-B の記録的短時間大雨（作者裁定の判断 2、p3-order-plan.md:540、設計メモ :501）: (1) subject: VPOA50 と、VPBS50 のうち情報タグの item が 1 件以上で全部 recordRain の報（Condition が「記録雨」か「記録的短時間大雨」、P3-C12-KINDS=A の表〔briefing.ts の KINDS〕。資料の見分け方は情報タグ「記録雨」、manual/気象解説情報形式_解説資料.txt:1844〜:1845・manual/気象解説情報形式_解説資料_別表類.txt:37、Q-EF-JMA）は `${operation}/${headType}/${EventID の trim の全体}`（briefing.ts:70・:71 で「_」より前を取る所を、この 2 つでは全体にする）。series の欄も全体を持つ。EventID の頭の「K」では見分けない（無いと: dmdata が EventID の付け方を変えると、記録雨が報ごとに出ず系列で畳まれる）。訂正は、同じ運用区分に同じ EventID の記録があればその記録の subject を引き継ぎ（訂正で情報タグの組が替わっても subject を替えない。無いと: 訂正で記録雨が系列へ、または系列が報ごとへ移り、元の記録が残って 2 枚になる）、元の記録が無いときだけ訂正の報の情報タグで決める。VPBS50 の取消は情報タグを読まない（取消は Body と Headline を読まない、briefing.ts の「取消は Body と Headline を読まない」の所。実物 synthetic_VPBS50_KJPTK_cancel は Headline に記録雨のタグを持つが読まない）ので、すべて次の当て方で当てる: EventID の全体を subject とする記録雨の記録が同じ運用区分にあればそれに当てる（無いと: 取消が報ごとの記録に届かず効かない。取消の本文の形は資料に記述なし）。無いとき、EventID に「_」（枝番）がある取消は系列へ当てず、今の「記録の無い取消」として扱う（H19 で鳴らない。枝番の情報は親番の情報を更新しない、manual/気象解説情報形式_解説資料.txt:137〜:145。無いと: 記憶の期限を過ぎて消えた記録雨の報の取消が、同じ親番の線状降水帯などの系列の記録を取り消す）。枝番の無い取消は今どおり系列へ当てる。線状降水帯（Y・H）とほかの VPBS50（記録雨とほかの種別が混ざる報を含む）は今どおり系列ごと (2) alias（P3-C12-ALIAS を報ごとに）: VPBS50 の EventID の全体が「K」＋VPOA50 の EventID の全体のとき、または VPBS50 の EventID の全体が VPOA50 の EventID の全体と一致するとき（「K」が無くなっても同じ記録雨が 2 枚・2 回にならないため。VPOA50 の EventID の形は manual/記録的短時間大雨情報_解説資料.txt:87〜:93、気象庁の記録雨のサンプル samples/82_01_02_250630_VPBS50.xml:14 の EventID が同じ形）、同じ運用区分の中でだけ結ぶ。aliased・held・released の移り方と P3-C12-COUNTERPART-CANCEL は今どおり。例外: 対応報の取消で released に付け替えた VPOA50 の retainUntil が過ぎているときに記録ごと除く今の道（briefing-unit.ts:422）は、AC05 の (5) の形にする（verified なら expired の記憶〔元報＋9 時間〕、unverified なら保留の印。無いと: 時計を確かめる前に事実と通知の印を捨て、確かめた後も記憶が残らず H19 の取消が鳴らない） (3) 期限は今どおり（VPOA50 の released・VPBS50 の active 2 時間、記憶 3 時間、P3-C12-TTL=B）に、AC05 の保留と期限切れの記憶を足す (4) 版の比べ方・取消は subject ごとに今どおりで、取消はその報の subject だけに効く（同じ系列のほかの報は残る） (5) 件数の上限 256 と器 2,097,152 byte は変えない（Q-EF-BYTES。超えた日は P3-C12-CAPACITY の順で退去） (6) sequences.json の期待（expected:O01:90〜96、O03:16〜20・:28〜30、O07:62・:65〜70、O08:15・:19・:21・:27・:29・:30。記録雨の subject、U-R・U-B の期限切れの記憶、目撃の無い竜巻の normal、竜巻の ended→expired）の書き換えは統合担当が発注前点検で行い、全契約の sequencesSha256 を付け直す（Q-EF-SEQUENCES、前例 Q-C12-PRECHECK）。O03:21（EventID に「_」の無い取消）は変わらない 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】VPOA50 の EventID は発表官署地点略号＋第 1 号の発表日時＋「_」＋当該情報の発表日時（manual/記録的短時間大雨情報_解説資料.txt:87〜:93、jma-2026-head-control-list.txt:53・:197）で、EventID の全体は報ごとに違う。VPBS50 の「_」の後は枝番 ID で、枝番の付いた情報は一連の現象の単独・単発の情報として扱い、親番の情報も別の枝番の情報も更新しない（manual/気象解説情報形式_解説資料.txt:131〜:145・:2190〜:2201、jma-2026-head-control-list.txt:202）。記録雨を報ごとにするのはこれと合う。線状降水帯（Y・H）を「_」より前の親番で 1 件に畳む今の形（P3-C12-SUBJECTS=A）は、枝番の情報どうしを更新とみなさない資料と食い違う（Q-EF-JMA、本契約では変えない）。EventID の頭の「K」と、VPBS50 の EventID が「K」＋VPOA50 の EventID になる対応は資料に記述なし（dmdata の採取の phase6b の対。気象庁の記録雨のサンプル samples/82_01_02_250630_VPBS50.xml:14 の EventID は「K」で始まらない、Q-EF-JMA の食い違い）。取消は独立した情報単位全体を取り消す（jma-2013-xml-guide.txt:441〜:442）。VPOA50 は令和 10 年度に廃止予定（jma-2026-xml-list-hyo1_1.txt:54）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:540 «e669fad8909b31a4»",
+          "reconstruction/contracts/p3-persist-premises.md:501 «d365f25841c1b3ef»",
+          "reconstruction/src/domains/briefing/briefing.ts:70 «c3e6077638d9aac9»",
+          "reconstruction/src/domains/briefing/briefing.ts:71 «1e91fa4abbcdc756»",
+          "reconstruction/contracts/p3-briefing-unit.json:11 «dfc687985b849797»",
+          "reconstruction/contracts/p3-briefing-unit.json:102 «cf489d6eda8b3b35»",
+          "reconstruction/contracts/p3-briefing-unit.json:111 «eabd07a8d5b8d52b»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:422 «3820ac52a000d558»",
+          "reconstruction/contracts/p3-briefing-unit.json:21 «d4609b3591eee540»",
+          "reconstruction/contracts/p3-briefing-unit.json:500 «f9d05920a03398b0»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC10",
+        "requirement": "【発注 1】保存の形・版・上界（設計メモ §3.5 の :237・§8 の :437、作者裁定「P5 の前は初期化してよい」、統合担当 D1・D2）: (1) 形の変わる 9 unit（U-L p3-landslide-unit-v6・U-R p3-flood-unit-v6・U-B p3-briefing-unit-v6・U-T p3-tsunami-unit-v5・U-V p3-volcano-unit-v5・U-Y p3-typhoon-unit-v6・U-M p3-local-bulletins-unit-v6・U-N p3-nankai-unit-v5・U-F p2-weather-timeseries-unit-v6）の schemaVersion を 1 つ上げ、旧い版を discardableSchemaVersions に足す（P3-VM-AC05）。旧い形を読む移行は作らない (2) 上界の式に保留の印（見える記録 1 件 21 byte）、U-F の lapsed、U-M の SIGHTED の鍵を足して数え直し、各 unit の静的上界の試験の値を改める（Q-EF-BYTES の見積もり）。U-T の器は 4,698,345、U-F の器は 33,565,184 にする（(5)）。ほかの unit の上界が器を越えたら、作者裁定 P3-NL-D-CAPACITY=A と同じ向き（最悪の分だけ広げる）で広げ、配送の記録で作者に伝える (3) U-E・U-Q・U-W は保存の形を変えないので版を上げない（入力の型だけが変わる） (4) 新しい形の保存→復元の試験を 9 unit ごとに残す（保留の印のある記録と記憶を含む、P3-X-C4）。U-T と U-F は器の境界いっぱい（予約を含む）の状態で、見える記録を保留にし、記憶に移し、保存して復元できることを確かめる（D2、P3-EF-T09） (5) 予約（D2、ヘルツ r1 の 1）: 内容の実測 byte で器いっぱいまで受け入れる U-T と U-F は、入力なしで起きる形の移り（保留の印、記憶への移行、U-F の lapsed）で増えうる byte を、見える記録（U-T は active の観測、U-F は active の subject）1 件につき 21 byte として、受理の境界（U-T は fit の generationBytes、U-F は fits の measure〔weather-timeseries-unit.ts:151〕）と復元の境界（decode の上限の確かめ、U-F は :400）の両方で数える。器は印の最悪の分だけ広げる（U-T 4,676,841＋1,024×21＝4,698,345、U-F 33,554,432＋512×21＝33,565,184。作者裁定 P3-NL-D-CAPACITY=A と同じ向き、Q-EF-BYTES）。無いと: 器いっぱいの状態で unverified の期限切れを迎えると、事実を残したまま印の分だけ増えて器を越え、encode が保存を拒む。予約の対象は印の無い active の記録だけで、印が付いた記録は予約を外して実 byte（印の 21 byte を含む）で数える。退去（ヘルツ r2 の 2）: U-T の fit は最初に計った大きさから退去する記録の分を差し引く（tsunami-unit.ts の fit の remove、subjectBytes(item)＋1）ので、退去する記録が予約の対象なら、その実 byte と予約の 21 byte を一緒に差し引く（無いと: 収まったのに予約が計算上残り、余分な退去か拒否になる）。U-F の fits は退去の候補ごとに measure を state から数え直す形（差し引かない）なので、予約も数え直しの中で「印の無い active の subject の数×21」として数え、退去した subject の予約は数え直しで外れる（差し引きの規則は足さない）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:237 «1d49645b299abef6»",
+          "reconstruction/contracts/p3-persist-premises.md:437 «61a8f2beec79f242»",
+          "reconstruction/contracts/p3-version-material.json:483 «48a20c148c9cad7d»",
+          "reconstruction/contracts/p3-landslide-unit.json:728 «7252409da28d9416»",
+          "reconstruction/contracts/p3-flood-unit.json:857 «fd4121c385c113ee»",
+          "reconstruction/contracts/p3-briefing-unit.json:1066 «735d8be02e32c37e»",
+          "reconstruction/contracts/p3-tsunami-unit.json:871 «fca4589a9c96c90a»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:1145 «dac3d284cb4fa774»",
+          "reconstruction/contracts/p3-volcano-unit.json:1063 «c550efe9064438f2»",
+          "reconstruction/contracts/p3-typhoon-unit.json:1068 «8988a2d779283b10»",
+          "reconstruction/contracts/p3-nankai-unit.json:738 «65ab16864e8cf09e»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:427 «00c342338736e149»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:366 «d33338c4a6107c8e»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:151 «5475ebe741df852b»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:400 «9c2800a3496e9070»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:15 «aa1dcb742dc64f1c»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:244 «fbcfc766b2c7ab78»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC11",
+        "requirement": "受信経路の計算量（AGENTS.md、Q-EF-COST）: (1) 根拠の判定は入力 1 件に定数 (2) unit は表示の期限・回収の期限・保留の記録・intent の期限の最小を配列ごとの cache で別々に持ち、根拠で当てない種類の期限は比べない。\"awaiting\"・\"unverified\" の間の毎秒の期限要求は、当てる期限が来ていなければ O(1) で同じ参照を返す（配列を作り直さない、世代を進めない）。nextDeadline は根拠によらず全部の期限の最小のままにする（無いと: 回収の期限を外した nextDeadline のまま \"verified\" に替わると、owner が期限の入力を作らず〔owner-runtime.ts:263〕、回収が次の別の期限か受信まで止まる）。保留の記録は元の表示の期限の値で数え、時計が後ろへ直ったときの回収は到来の判定を通さない AC02 の (7) で当てる (3) 止めた回収は各 unit の件数の上限の内（保持と decode の両方で効く）で、\"verified\" に替わった最初の要求（AC02 の (7)）でその件数の線形 1 回だけ回収する（上限のある稀な一括処理） (4) U-T・U-F の予約は今の加算（fit・measure）に「印の無い active の記録の数×21」を足すだけ。U-T の fit の退去は記録ごとに実 byte と（予約の対象なら）21 byte を一緒に差し引き、U-F は今どおり measure の数え直しで外れる（AC10 の (5)） (5) U-B の報ごとの subject で受信 1 回の索引の作り直しは今どおり 256 件の線形 (6) state 全体の JSON 化を足さない",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:914 «8ae52d9d693e7af3»",
+          "reconstruction/src/runtime/owner-runtime.ts:263 «26d1e29d753694c3»",
+          "reconstruction/src/runtime/owner-runtime.ts:257 «c3193ce7c9aec27e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:835 «3cce335e151b5b58»",
+          "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC12",
+        "requirement": "最小実装・最小テスト: (1) 足す仕組みは、SentClock の basis、CompositionOptions の contentBasis、unit の入力の basis、9 unit の保留の印 expiryPending、U-L・U-R・U-B の expired の記憶の枝、U-F の lapsed、U-M の竜巻の expired と SIGHTED の鍵、U-B の記録雨の subject の形、U-T・U-F の 21 byte の予約、owner-host の直前の要求の根拠（AC02 の (7)）だけ。ほかの型・層・helper・設定・timer を足さない。unit ごとの表示の期限切れと回収は今の collect の中で分ける（共通の helper を足すなら notice-mark.ts と同じく 1 か所に置き、無いと何が壊れるかを 1 行） (2) 試験は testMapping の P3-EF-T01〜T10 に限る。新しい fixture file を足さない（変えた報は試験の中で inline に作る） (3) reconstruction のゲート一式（tsc 3 本・vitest・shuffle・checker 3 本）を通す",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-execution-split.types.ts:49 «72182cdd1124bb81»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:306 «727b0327dbeb66a7»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC13",
+        "requirement": "【発注 2】H51 の受け取り（設計メモ §13 の :510、統合担当の読み :516、Q-EF-H51-SITES）: (1) Q-EF-H51-SITES の各所を、報を丸ごと断る（rejected）から受け取りに変える。受け取った報は読めた所を使い、読めない所は型に既にある値（unknown・null・空・truncated）で表す。型に値を足すときは無いと何が壊れるかを 1 行書き、その unit の版を上げる (2) 読めない所ごとに WARN の診断を 1 件出す（理由は既存の requiredStructureMissing・requiredStructureInvalid、decision は受け取りの側） (3) 読めない所の印と原文の欠片は保存しない（K14、設計メモ §10 の :479） (4) 音は読めた値の今の規則で決め、新しい音の規則を作らない。読めない値の扱いは既存の先例に従う（U-R の表に無い code は warning〔P3-C11-NOTICE-LEVELS=E〕、U-L の null は 3 の直後、U-T の区分 unknown は警報と同じ順位） (5) Serial（版）が欠ける・形の外の報は受け取る（新旧に Serial を使わない、K7）。U-T の観測の同じ版の fragment の足し合わせ（P3-C5-OBS-MERGE）は Serial が読めた報どうしに限る (6) U-V の取消で相手が 0 件か 2 件以上（volcano-unit.ts の noTarget）は手元の記録を変えず、WARN を出す (7) ValidDateTime の読めない値（竜巻 local-bulletins.ts :204・:250）は、WARN を出して ValidDateTime が無い報と同じに受け取る（H51） (8) 区域ごとに警報級の値を持つ欄（:516 の C）に当たる所は拒否のまま残し、K14 の「読めなかった電文」のカード（H43）へ送る。各所の扱い（B で受け取った／C で拒否のまま）を表で返す 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】VPWW56 は EventID と Serial が常に空（manual/気象警報・注意報（Ｒ０６）_解説資料.txt:146〜:156）で、版の新旧は Serial でなく Control/DateTime の最も新しいもので決める（jma-2013-xml-guide.txt:402〜:406）ので、Serial を使わない受け取りは資料と合う。火山の電文の EventID は訂正・取消のための索引（jma-2026-head-control-list.txt:103・:106・:135・:155）。読めない所のある報を受け取る規則と、竜巻の ValidDateTime の読めない値の扱いは資料に記述なし（H51 の作者裁定）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:510 «696c30fe7e528ddd»",
+          "reconstruction/contracts/p3-persist-premises.md:516 «eeb3c59348dfc086»",
+          "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:223 «eef11945c52b0725»",
+          "reconstruction/src/domains/landslide/landslide.ts:137 «b83d71855416bf0d»",
+          "reconstruction/src/domains/flood/flood.ts:90 «41e67cf2e126bf78»",
+          "reconstruction/src/domains/briefing/briefing.ts:73 «41e67cf2e126bf78»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:138 «e0a8121394add044»",
+          "reconstruction/src/domains/volcano/volcano.ts:282 «8095d213a0706896»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC14",
+        "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方を優先する）: (1) P3-CLOCK-CHECK-001: P3-CK-AC08 の (6) の後に「（P3-EXPIRY-FORM-001 の P3-EF-AC01・AC02・AC04・AC05 で済み。(ii) の \"awaiting\" の間は、走行中に受けた中身にも表示の期限切れを当てない形にした、P3-EF-AC02 の (1)・Q-EF-AWAITING）」を足す。P3-CK-AC02 の CompositionOptions の文に「unit の期限へは別の contentBasis（生の確かめの状態、P3-EF-AC01）」を足す。残存リスク (4) と (8) に「K10 で解消（P3-EF-AC02）」、(9) に「K10 の形（表示は期限切れの保留、事実と記録は確かめるまで残る、P3-EF-AC02・AC05）」を書き足す (2) P3-EXECUTION-SPLIT-001: P3-C3A-CLOCK の A に「要求は送った時点の時計の根拠 basis も運び、owner は外挿しない（P3-EF-AC01）」を、P3-C3A-AC02 の「各kindのfieldは型の定義どおり」の後に「（SentClock の basis を含む）」を足す。P3-C3A-DEADLINES の A の末尾に「（根拠が verified に替わった最初の要求と verified での復元では、owner は到来の判定を通さず unit ごとに 1 回 deadline を当てる、P3-EF-AC02 の (7)）」を足す (3) P2-SHARED-RUNTIME-001: P2-A1-AC05（型の境界）に「12 unit の入力の receive・deadline・restore・shutdown の basis?: WallBasis（省略は verified、P3-EF-AC01）」を足す (4) P3-UNIT-L-001: P3-C10-ACTIVE-EXPIRY の C の「activeの記録はsourceのReportDateTime+48時間（172,800,000 ms）で黙って除く（通知しない）」を「…で事実を持たない expired の記憶に移し（通知しない。時計を確かめる前は保留の印、P3-EF-AC05）、記憶は元報＋54 時間（＋48 時間＋6 時間、分岐 P3-EF-D-EXPIRED-MEMORY=A）で除く」に替える。P3-C10-SEM-02 の rule に同じ文を、landslide の Q-NOTICE の expiry の「記録の回収（P3-C10-ACTIVE-EXPIRY=Cのactiveの+48時間の回収を含む）では通知しない」を「期限切れの記憶への移行と記録の回収では通知しない」にする。P3-C10-CAPACITY の (1) に「（受けた入力の根拠が verified のときだけ、P3-EF-AC03）」、(2) の inactive に「expired と保留の印のある記録を含む」を足す。P3-C10-AC03 の期限に「時計の根拠の当て方は P3-EF-AC02」を足し、P3-C10-AC03 の「activeの記録はsourceのReportDateTime+48時間で黙って除く」、I-U-L.currentSemantics の (5) の「activeの記録はretainUntil（+48時間、P3-C10-ACTIVE-EXPIRY=C）の到来で黙って除く」、P3-C10-T03 の「activeの47時間59分と48時間（P3-C10-ACTIVE-EXPIRY=C、黙って除き通知0）」を、それぞれ「…で expired の記憶に移す（通知しない、P3-EF-AC05）」の形にする。P3-C10-AC05 の版を p3-landslide-unit-v6 にする (5) P3-UNIT-R-001: P3-C11-ACTIVE-EXPIRY の D の「除くのと同じreduceでdesktopだけのintentを1件作る」を「expired の記憶に移す（確かめる前は保留の印を付ける）のと同じ reduce で desktop だけの intent を 1 件作り、記憶は元報＋42 時間（＋36 時間＋6 時間、同じ分岐）で除く（P3-EF-AC05。変種 D' の型の枝と同じ形で、長さだけが違う）」に替える。P3-C11-SEM-02 の rule に同じ文を足す。P3-C11-AC03 の「記録はretainUntil（sourceのReportDateTime+36時間）で除き」、P3-C11-AC09 の「activeの記録の+36時間の回収」、P3-C11-T03 の「activeも36時間で除き」、I-U-R.currentSemantics の (5) の「activeも+36時間で除き」を「active は＋36 時間で expired の記憶に移し（記憶は元報＋42 時間で除く、P3-EF-AC05）」の形にする。P3-C11-CAPACITY の (1)(2) と P3-C11-AC05 の版（v6）は (4) と同じ (6) P3-UNIT-B-001: P3-C12-SUBJECTS の ruling に「2026-10-21 朝の作者裁定（判断 2）で記録的短時間大雨（VPOA50 と、情報タグが記録雨の VPBS50）だけ C に替えた。線状降水帯は A のまま（P3-EXPIRY-FORM-001 の P3-EF-AC09）」を足す。P3-C12-ALIAS の A に「記録雨は報ごと: VPBS50 の EventID の全体が K＋VPOA50 の EventID の全体」を足す。P3-C12-TTL の ruling と P3-C12-SEM-01 の rule に「見える記録は期限で expired の記憶に移す（記憶は元報＋9 時間、P3-EF-AC05）」を、P3-C12-LATE-INVERSION の A に「採った報の記録は expired の記憶にする（P3-EF-AC05 の (5)）」を足す。P3-C12-COUNTERPART-CANCEL の ruling に「released に付け替えた VPOA50 の retainUntil が過ぎていても除かず expired の記憶にする（確かめる前は保留の印、P3-EF-AC09 の (2)）」を足す。P3-C12-RET-01 の target「series subjects」を「series subjects and record-rain report subjects（P3-EF-AC09）」にする。P3-C12-CAPACITY の (1)(2) は (4) と同じ。P3-C12-AC06 の版を v6 にする。P3-C12-AC03 の「記録はretainUntil（P3-C12-TTL）で黙って除く」、P3-C12-AC15 の「過ぎていれば除く」、P3-C12-AC16 の「受理の時刻以前なら記録を除く」、I-U-B.currentSemantics の (3) の「受理の時刻以前ならreleasedにせず記録を除く」を「…見える記録は expired の記憶に移す（確かめる前は保留の印、P3-EF-AC05。記憶は元報＋9 時間で除く）」の形にする (7) P3-TSUNAMI-UNIT-001: P3-C5-SEM-01 の rule に「失効は確かめる前は保留の印で観測点を持ち、確かめた時計で expired に移して観測点を捨てる（P3-EF-AC06）」を足す。P3-C5-CAPACITY の (1) に「（入力の根拠が verified のときだけ）」と「受理と復元の境界で見える観測の記録ごとに 21 byte を予約し、器は 4,698,345（P3-EF-AC06 の (3)）」を足す。P3-C5-RES-01 の limit を 4,698,345 にする。P3-C5-AC05 の版を v5 にする (8) P3-UNIT-M-001: P3-C13-TORNADO-EXPIRY の A の「activeの記録は…の到来でendedにする」を「…の到来で expired の記憶にする（解除は ended、P3-EF-AC07）」に替え、P3-C13-SEM-01 の rule に同じ文を足す。P3-C13-RETENTION の lateRule の (2)（記憶の期限の内側で見える期限を過ぎた報は記憶としてだけ採る）の竜巻の記憶を expired にする。P3-C13-NOTICE-LEVELS の A の「竜巻のactiveの採用（目撃を含む）はwarning」を「竜巻の active の採用は normal、目撃は warning（H13、P3-EF-AC07）」に替える。P3-C13-TORNADO-PAIR の A の「通知は作らない」の後に「（sighted が false から true に替わり記録が見える後着は warning を 1 件、照合は目撃の鍵 SIGHTED、P3-EF-AC07 の (3)(4)。期限切れの記録を見える状態に戻さない、(5)）」を足す。P3-C13-TRANSIENT-TTL の ruling に分岐 P3-EF-D-TRANSIENT-VALID の作者裁定（2026-10-25、A: 3 時間のまま）を足す。P3-C13-CAPACITY の (1) は (4) と同じ。P3-C13-AC07 の版を v6 にする (9) P3-UNIT-V-001: P3-C9-RETENTION に「噴火・降灰の expired への移行は確かめる前は保留の印、回収（記憶への移行と retainUntil で除く）は入力の根拠が verified のときだけ（P3-EF-AC02・AC05）」、P3-C9-CAPACITY の (1) に (4) と同じ文を足す。P3-C9-AC07 の版を v5 にする (10) P3-UNIT-Y-001: P3-C14-EXPIRY の common に (9) と同じ文を、P3-C14-CAPACITY の (1) に (4) と同じ文を足す。P3-C14-AC07 の版を v6 にする (11) P2-EEW-UNIT-001: P2-A4-AC08 の「期限内pending intentだけを元期限で再試行し」の後に「（復元の根拠が awaiting の間、unit は intent を失効させない。P3-EF-AC04）」を、P2-A4-AC06 に「印の回収と intent の壁時計の失効は入力の根拠が verified のときだけ」を足す (12) P3-UNIT-Q-001: P3-C7-RETENTION に「回収（記録と失敗の印）と強震保持の解除・当日の切替えは入力の根拠が verified のときだけ（P3-EF-AC04）」、P3-C7-CAPACITY の第 1 段に (4) と同じ文を足す (13) P3-UNIT-N-001: P3-C8-RETENTION に「現況の expired は確かめる前は保留の印、回収は入力の根拠が verified のときだけ（P3-EF-AC04・AC05）」、P3-C8-CAPACITY に (4) と同じ文を足す。P3-C8-AC05 の版を v5 にする (14) P2-WEATHER-CURRENT-UNIT-001・P2-WEATHER-TIMESERIES-UNIT-001: P2-A5-AC05 の intent に「壁時計の失効は入力の根拠が verified のときだけ（P3-EF-AC02）」、P2-A6-AC06 の「7日retention」と P2-A6-AC08 の「復元時の期限回収」に「validUntil の表示の期限は確かめる前は保留の印、記憶（noActiveItems＋lapsed）への移行と回収は verified のときだけ（P3-EF-AC04・AC05 の (6)）」を足す。P2-A6-AC04 の版を v6 にする。P2-A6-RES-01 の limit を 33,565,184 にし、scope に「受理と復元の境界で active の subject ごとに 21 byte を予約する（P3-EF-AC10 の (5)）」を足す (15) spec §16（統合担当が main で別に）: H23 の行（:3050）の改める列に「P3-EXPIRY-FORM-001（期限切れの保留と記憶、U-T・U-F・U-M の形、時計の根拠ごとの当て方）」を、H13 の行（:3040）に「P3-EXPIRY-FORM-001 の P3-EF-AC07」を、H42 の行（:3069）に「unit の期限処理は P3-EXPIRY-FORM-001」を足す。H23 の行に「短命の解説（M18）は見える長さを有効期限にしない（分岐 P3-EF-D-TRANSIENT-VALID=A）」と「VTSE41 の若干の海面変動だけの予報の有効期限は P4 で決める（作者裁定 2026-10-25）」を足す。§4.2 の表の U-T の行（:476）の器を 4,698,345 byte に、U-F の行（:480）の予算の欄に「（器は P3-EXPIRY-FORM-001 で期限の印の予約を足した 33,565,184 byte、P2-A6-RES-01）」を足す (16) P3-NOTICE-LEDGER-001: 残存リスク (7) の「河川の情報は K10 まで期限で記録ごと消える」を「土砂・洪水・記録雨は期限の後も記憶を残す（P3-EF-AC05、分岐 P3-EF-D-EXPIRED-MEMORY）」に替える。P3-NL-RET-04（失敗の印）の limit に「until を過ぎた印の削除は入力の根拠が verified のときだけ（P3-EF-AC06 の (4)）」を足す (17) 設計メモ（統合担当が main で別に。§0〜§16 の行は他の契約から引かれているので書き換えず、新しい節に足す）: §3.5・§8 の K10 の行（:237・:437）の読み（版を上げるのは L・R・B・T・V・Y・M・N・F、変える契約は本 AC の (1)〜(14) と (19)）、§5 の段 3 の順（:347・:444）に「K11・K13 は K10 の後（seismic-unit.ts・nankai-unit.ts の期限と退去の関数を両方が触る）。③ は U-W の期限を K10 が触らないので起草は待たず、入力の型の合流だけ K10 の後。K12 は U-T の同じ関数を触るので K10 の後（Q-EF-SCOPE）」を足す (18) 他の契約が引く行がこの配送で動いたら、統合担当が配送の commit で行番号と各契約の meta.sha256 を付け直す（本文は書き換えない） (19) P3-NOTICE-LEDGER-001（D3）: P3-NL-AC01 の (1) の「U-T の観測だけ末尾に fragment の鍵」を「U-T の観測と U-M の竜巻の目撃（鍵 SIGHTED、P3-EXPIRY-FORM-001 の Q-EF-SIGHTING）だけ末尾に fragment の鍵」に、P3-NL-AC02・AC03 の印の fragments の「観測だけ」を「観測と竜巻の目撃」にする。U-M の印の上界に鍵 1 件の分を足す (20) decode の等式（P3-EF-AC05 の (1)(3)）: I-U-L.decode の「retainUntil=sourceのReportDateTime＋（activeは172,800,000、inactiveは21,600,000。P3-C10-ACTIVE-EXPIRY=C）」に「expired は 194,400,000（＋54 時間）」を、I-U-R.decode の「retainUntil=sourceのReportDateTime＋129,600,000（effectiveによらず、P3-C11-ACTIVE-EXPIRY=D）」を「＋129,600,000（expired だけ 151,200,000〔＋42 時間〕）」に、I-U-B.decode の「retainUntil＝sourceのReportDateTime＋P3-C12-TTLの長さ（effectiveとitemsの種別で決まる等式）」に「expired は 32,400,000（＋9 時間、表示の期限によらず元報から固定）」を足す。3 つとも「保留の印 expiryPending は表示の期限を持つ見える記録（U-L・U-R・U-B の active と U-B の VPOA50 の released）にだけ置け、その記録の retainUntil は印の無い同じ枝の等式（表示の期限）のまま。expired は事実のfieldを持たない」を足す（無いと: 記憶と保留の印のある保存を decode が等式の外として拒み、unit の復元が落ちる）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-clock-check.json:341 «7aacda7ef9dc60ee»",
+          "reconstruction/contracts/p3-clock-check.json:265 «a086d55dbd904746»",
+          "reconstruction/contracts/p3-clock-check.json:458 «d3523e35e2e5c886»",
+          "reconstruction/contracts/p3-execution-split.json:38 «240920f4f74ef34a»",
+          "reconstruction/contracts/p3-execution-split.json:597 «42bf94e347e4746c»",
+          "reconstruction/contracts/p3-execution-split.json:74 «469e6e1d18963279»",
+          "reconstruction/contracts/p2-shared-runtime.json:521 «2bcbe55ab6671b9b»",
+          "reconstruction/contracts/p3-landslide-unit.json:11 «b1327e3deb596f4a»",
+          "reconstruction/contracts/p3-landslide-unit.json:575 «3585c63887ccd87f»",
+          "reconstruction/contracts/p3-landslide-unit.json:152 «bf62709d233420e1»",
+          "reconstruction/contracts/p3-landslide-unit.json:87 «6416519667ba770c»",
+          "reconstruction/contracts/p3-landslide-unit.json:699 «95a796e4986c6c92»",
+          "reconstruction/contracts/p3-landslide-unit.json:267 «7c5c427e71902ece»",
+          "reconstruction/contracts/p3-flood-unit.json:831 «b57addacf24bf526»",
+          "reconstruction/contracts/p3-flood-unit.json:909 «d2d005355e71304f»",
+          "reconstruction/contracts/p3-flood-unit.json:313 «9c4f770d68d1edd9»",
+          "reconstruction/contracts/p3-briefing-unit.json:377 «b661e89fb6bfe83c»",
+          "reconstruction/contracts/p3-flood-unit.json:11 «dd92899faea4af42»",
+          "reconstruction/contracts/p3-flood-unit.json:704 «2cd6bf182d5a904f»",
+          "reconstruction/contracts/p3-flood-unit.json:121 «7278aa8e1f758b2a»",
+          "reconstruction/contracts/p3-briefing-unit.json:11 «dfc687985b849797»",
+          "reconstruction/contracts/p3-briefing-unit.json:867 «ab98828cc2a90690»",
+          "reconstruction/contracts/p3-briefing-unit.json:219 «1253dc4b2c55ccc7»",
+          "reconstruction/contracts/p3-briefing-unit.json:910 «a365c07c6f18b2cc»",
+          "reconstruction/contracts/p3-briefing-unit.json:138 «6b89ad7f82b7cc8f»",
+          "reconstruction/contracts/p3-briefing-unit.json:111 «eabd07a8d5b8d52b»",
+          "reconstruction/contracts/p3-briefing-unit.json:1019 «449ca1a8337db871»",
+          "reconstruction/contracts/p3-briefing-unit.json:1199 «4cbdf85acd48ec73»",
+          "reconstruction/contracts/p3-briefing-unit.json:1213 «eabb1692186cf18a»",
+          "reconstruction/contracts/p3-tsunami-unit.json:707 «ef467e3b8b11d9b0»",
+          "reconstruction/contracts/p3-tsunami-unit.json:93 «8d54ba011b4a2190»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:30 «b445248ff47525de»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:886 «b6f5969ecd02f469»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:182 «627f38b6580a550f»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:71 «ae21c1c8b24e54cc»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:200 «d2f47fc5d6c3024f»",
+          "reconstruction/contracts/p3-volcano-unit.json:104 «4b1936ee534e299d»",
+          "reconstruction/contracts/p3-volcano-unit.json:131 «b90507dc6884b39b»",
+          "reconstruction/contracts/p3-typhoon-unit.json:11 «ddedbb966e1b47fa»",
+          "reconstruction/contracts/p3-typhoon-unit.json:153 «d16535d42e9da16d»",
+          "reconstruction/contracts/p2-eew-unit.json:451 «c5850842f9af87cd»",
+          "reconstruction/contracts/p2-eew-unit.json:433 «901c2322546bb4a0»",
+          "reconstruction/contracts/p3-seismic-unit.json:66 «6e19d8e726bf54ec»",
+          "reconstruction/contracts/p3-seismic-unit.json:75 «db7a16129f5268ee»",
+          "reconstruction/contracts/p3-nankai-unit.json:83 «f81686abf9d215c1»",
+          "reconstruction/contracts/p3-nankai-unit.json:92 «ebef307b81204d94»",
+          "reconstruction/contracts/p2-weather-current-unit.json:389 «3d1c648ec5c4ae4f»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:445 «73e19802004cf1a3»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:464 «a2e27e43ae457d1a»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:366 «d33338c4a6107c8e»",
+          "reconstruction/contracts/p3-notice-ledger.json:430 «58092c37f1d9bb2f»",
+          "reconstruction/contracts/p3-notice-ledger.json:343 «f24393fc6ddd69fb»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «ac88c9eb75863b62»",
+          "docs/specs/reconstruction-p0-contracts.md:3040 «9ad7bb8c4c242662»",
+          "docs/specs/reconstruction-p0-contracts.md:3069 «4779d76542c103df»",
+          "docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249»",
+          "docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+          "reconstruction/contracts/p3-notice-ledger.json:973 «a67304a3422d75cc»",
+          "reconstruction/contracts/p3-persist-premises.md:347 «3362aa8218ae44a7»",
+          "reconstruction/contracts/p3-persist-premises.md:444 «f269fa1e2cc789cf»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-EF-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-EF-AC01",
+          "P3-EF-AC02",
+          "P3-EF-AC04",
+          "P3-EF-AC05"
+        ],
+        "behavior": "実 owner を通した保存→復元（composition root と owner、contentBasis を試験が注入。K9 の T02(e) の結合受入、P3-CK-AC08 の (6)）: 15_16_01_241031_VPWW56 の U-L の active、synthetic_VTSE51_fragmentA の U-T の観測、synthetic_VTSE41_e01_311warning の pending の通知を保存し、復元の時計の wall を元報の 49 時間後にして起動する: (a) contentBasis が \"awaiting\" の間、U-L・U-T の記録は見えたまま、pending の intent は unit で失効せず、publisher は K9 どおり保留する (b) \"unverified\" にすると、U-L と U-T の観測は保留の印で view から外れ、事実（区域・観測点）と通知の印は残り、retainUntil を過ぎても消えない。復元由来の通知は K9 どおり notificationExpiredClockUnverified で失効する。この状態を保存して復元しても印と事実が残る (c) その後 \"verified\" にすると、最初の期限要求で U-L は expired の記憶（事実なし、retainUntil は元報＋54 時間）に、U-T の観測は観測点の無い expired に移り、retainUntil を過ぎた記録は消える (d) contentBasis を省略した構成では今と同じ時刻に記憶へ移る (e) 時計が後ろへ直る場合（AC02 の (7)）: 走行中に手元の時計を元報の 49 時間後に進めて \"unverified\" で U-L を保留にし、時計を元報の 1 時間後に戻して \"verified\" にすると、最初の要求で U-L は expired の記憶に移る（元の表示の期限＝元報＋48 時間を待たない）。同じ保留の状態を保存し、元報の 1 時間後の時計の \"verified\" で復元しても、復元の要求で記憶に移る (f) verified になった最初の要求が detail のとき（ヘルツ r2 の 1）: detail は評価せず detailDone だけを返し、次の deadline 要求で一度だけ評価して、U-L の記憶への移行が deadlineDone の output（表示の変化と保存の世代）に出る。その次の deadline 要求では評価を繰り返さない（同じ参照）"
+      },
+      {
+        "testId": "P3-EF-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-EF-AC02",
+          "P3-EF-AC03",
+          "P3-EF-AC04",
+          "P3-EF-AC11"
+        ],
+        "behavior": "12 unit の表形式の試験: 表示の期限・retainUntil・intent の expiresAt・（U-T・U-Q の）失敗の印の until をどれも過ぎた記録を持つ state に、basis \"awaiting\"・\"unverified\"・\"verified\" の deadline・restore の入力を当てる。\"awaiting\" は同じ state の参照、\"unverified\" は保留の印だけで、続けて同じ入力を当てると同じ参照（世代が進まない）、失敗の印は残って有効のまま（同じ失敗を受けても失敗警報を重ねない）、\"verified\" は記憶への移行と回収まで。U-L の満杯（128 件）に retainUntil を過ぎた記憶と古い active があるとき、\"unverified\" の受信では見えない記録の段の古い順で退去し、\"verified\" では第 1 段から退去する（U-T の fit も同じ形で 1 本）"
+      },
+      {
+        "testId": "P3-EF-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-EF-AC05",
+          "P3-EF-AC09"
+        ],
+        "behavior": "U-L（15_16_01_241031_VPWW56）・U-R（16_02_01_220728_VXKO50）・U-B（phase6b_VPBS50_KJPTK202608221709_202608221709）の見える記録が表示の期限で expired の記憶に移り（U-R は desktop の「[期限切れ]」1 件）、retainUntil が U-L 元報＋54 時間・U-R 元報＋42 時間・U-B 元報＋9 時間になる。記憶の間に届いた取消（印の証拠 possible）は取消として通知し、記憶が消えた後は通知しない。U-B で aliased の VPOA50（phase6b_VPOA50_JPTK202608221709_202608221709）の対応の VPBS50 の取消を、released の期限（元報＋2 時間）を過ぎてから受けると、verified では expired の記憶（retainUntil 元報＋9 時間）が残ってその間の VPOA50 の取消が取消として通知され、unverified では保留の印で事実と通知の印が残る（AC09 の (2) の例外）。U-R の「[期限切れ]」は unverified で印を付けるときに 1 件だけ作り、続く verified で記憶へ移すときは作らない（合わせて 1 件、AC05 の (4)）。表示の期限を過ぎてから採る報（U-L の 48 時間を過ぎた active の版、U-B の LATE-INVERSION、竜巻の遅着）は expired の記憶になり鳴らない。U-F の active が validUntil で noActiveItems＋lapsed になり、報が「なし」の noActiveItems と保存→復元の後も見分けられる"
+      },
+      {
+        "testId": "P3-EF-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-EF-AC06"
+        ],
+        "behavior": "U-T: synthetic_VTSE51_fragmentA の観測が unverified の validUntil で保留になり観測点と推定区域を持ったまま view から外れ、verified で expired に移って観測点を捨てる"
+      },
+      {
+        "testId": "P3-EF-T05",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-EF-AC07",
+          "P3-EF-AC08"
+        ],
+        "behavior": "19_04_01_140425_VPHW51 と synthetic_VPHW50_tokyo_pair: 目撃の無い竜巻の採用は normal、目撃は warning、解除は info。ValidDateTime の到来で expired、区域が全部なしの報で ended。統合担当が書き換えた O08:27（目撃の無い VPHW50 は normal）・O08:29・:30（ended→expired）を通す。72_08_01_190327_VPAW51・29_01_01_140129_VPZI50 は Head/ValidDateTime を持っても元報から 3 時間で見えなくなる（P3-EF-D-TRANSIENT-VALID=A）"
+      },
+      {
+        "testId": "P3-EF-T06",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-EF-AC09"
+        ],
+        "behavior": "phase6b_VPOA50_JPTK202608221709_202608221709 と _202608221717、phase6b_VPBS50_KJPTK202608221709_202608221709 と _202608221717 が報ごとの subject になり、VPBS50 の K＋EventID の全体で VPOA50 と報ごとに結ぶ。線状降水帯（VPBS50_YJPNB202608270448）は系列ごとのまま。「K」で始まらない EventID の記録雨（82_01_02_250630_VPBS50、情報タグ「記録雨」）も報ごとの subject になり、記録雨とほかの種別の item が混ざる synthetic_VPBS50_multi は系列のまま。記録雨の報（phase6b_VPBS50_KJPTK202608221709_202608221717）の記録が記憶の期限を過ぎて無い状態で、同じ EventID の取消（synthetic_VPBS50_KJPTK_cancel を inline で同じ EventID にした報）が届くと、同じ親番の系列の記録を取り消さず、鳴らない。統合担当が書き換えた sequences の expected:O01:90〜96、O03:16〜20・:28〜30、O07:62・:65〜70、O08:15・:19・:21・:27・:29・:30 を履歴 oracle で通す"
+      },
+      {
+        "testId": "P3-EF-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-EF-AC05",
+          "P3-EF-AC10",
+          "P3-EF-AC14"
+        ],
+        "behavior": "9 unit の新しい形（保留の印のある記録、expired の記憶、U-F の lapsed、竜巻の expired と SIGHTED の鍵、記録雨の subject）の保存→復元と、捨てた旧い版の slot から初期状態で始まること。U-L・U-R・U-B で、expired の記憶と保留の印のある記録を持つ保存は読み戻せ、retainUntil が等式（記憶は U-L 元報＋54 時間・U-R＋42 時間・U-B＋9 時間、保留の印のある記録は表示の期限）から外れた記憶と、表示の期限を持たない記録に保留の印を持つ保存は unavailable になる（P3-EF-AC14 の (20)）。各 unit の静的上界の試験を保留の印の分を足した値に改め、O07:62（U-R の期限）を通す"
+      },
+      {
+        "testId": "P3-EF-T08",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-EF-AC13"
+        ],
+        "behavior": "【発注 2】Q-EF-H51-SITES の分け方ごとに、fixture を試験の中で inline に変えた報（Serial の欠け、名前の欠け、観測値の形の外、取消の相手が 2 件、竜巻の ValidDateTime の形の外）が rejected でなく受け取られ、読めた所が state に入り、WARN の診断が 1 件ずつ出る。C と読んだ所は rejected のまま"
+      },
+      {
+        "testId": "P3-EF-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-EF-AC04",
+          "P3-EF-AC06",
+          "P3-EF-AC10"
+        ],
+        "behavior": "（D2、ヘルツ r1 の 1）U-T と U-F のそれぞれで: 器の境界いっぱい（予約を含め U-T は 4,698,345 byte、U-F は 33,565,184 byte ちょうど）まで埋め（U-T は観測と予報、U-F は active の subject）、受信なしで期限を進めて全部の見える記録（U-T は観測、U-F は active の subject）を unverified で保留にし、さらに verified で記憶（U-T は expired、U-F は noActiveItems＋lapsed）に移し、そのたびに保存して復元できる（decode の上限で落ちない）。境界いっぱいの状態に受信を 1 件足すと受理の境界（U-T は fit、U-F は fits）で今どおり退去か unavailable・拒否になる。予約が無いと境界いっぱいの状態から保留の印で器を越えることを、予約を外した 1 本の対比で unit ごとに確かめる。退去の境界（ヘルツ r2 の 2）: U-T で、印の無い active の観測を 1 件退去すれば、その実 byte と予約の 21 byte の解放込みでちょうど収まる状態に新しい観測を受けると、退去はちょうど 1 件で、受けた報は採られる（2 件目の退去も拒否も無い）。U-F でも subject を 1 件退去すれば数え直しで収まる状態で、退去はちょうど 1 件で unavailable・拒否にならない"
+      },
+      {
+        "testId": "P3-EF-T10",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-EF-AC07"
+        ],
+        "behavior": "（D3・D4）見出しの印を消した VPHW50（inline、目撃なし）の後に目撃の層のある VPHW51（同じ報）を受けると: (a) 50 の通知が pending なら warning が 1 件だけ（50 の pending は置き換わる） (b) 50 の通知が配送済みなら warning がもう 1 件 (c) 50 の後に保存→復元を挟んでも warning はちょうど 1 件 (d) 51 を受け直しても作らない。D4: 50 を受けた後 unverified で表示の期限を過ぎて保留にし、保存→復元し、verified にして記憶に移した後に同じ報の 51 が後着しても、見える状態に戻らず通知も作らない（unverified の保留の間に後着しても同じ）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash 検査（新しい fixture file を足さないことの確かめを含む）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O03・O07・O08 の参照を検査する（統合担当の書き換えの後）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。本契約と他の契約の evidence の行が直しで動いた FAIL は想定内で、統合担当が配送の commit で付け直す（P3-EF-AC14 の (18)）。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査と reconstruction/dist/ の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew の dist（共有の型を変えるので壊れないことを確かめる）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えても緑（owner の根拠は要求ごとの値で、module スコープに置かない）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowed_paths",
+        "stage": "implementation",
+        "purpose": "空白の検査"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由",
+      "足した仕組み（SentClock の basis、contentBasis、unit の入力の basis、保留の印 expiryPending、expired の記憶の枝、U-T・U-F の 21 byte の予約、owner-host の直前の要求の根拠、U-F の lapsed、竜巻の expired と SIGHTED、記録雨の subject、発注 2 で型に足した値）ごとに『無いと何が壊れるか』を 1 行",
+      "追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行。期待値を変えた既存の試験と sequences の step の名前と理由（Q-EF-EXISTING-TESTS、変える前に報告）",
+      "版を上げた 9 unit の静的上界の試験の新しい値と器（Q-EF-BYTES の見積もりとの差、器を広げた unit があればその値）",
+      "【発注 2】Q-EF-H51-SITES の各所の扱いの表（B で受け取った／C で拒否のまま K14 へ、理由 1 行）",
+      "残存リスク（2026-10-25 作者承認済み、Q-EF-AUTHOR。「今の新築より鳴らなくなる・出なくなる」と「旧築と比べて変わる」を含む）: (1) 起動から時計を確かめるまで（最長 30 秒）、前回の起動から復元した情報は期限を過ぎていても見えたままで、洪水の「[期限切れ]」の通知もその間は出ない（作者裁定 §7 の 4 どおり）。この間に受けた情報は、受けた後 30 秒の内に期限が来るものの期限切れが最長 30 秒遅れ、表示の期限を過ぎてから採る報は鳴らないまま最長 30 秒見えうる（Q-EF-AWAITING。今の新築では手元の時計ですぐ当たる） (2) 時計を確かめられない間（オフライン起動、停電の後の Pi が NTP で合わせる前など）、期限を過ぎた情報は表示だけ期限切れ（保留）になり、事実と記録は消えずに件数の上限と器を使う。満ちると見えない記録の古い順に押し出される。回収は確かめた後の最初の要求で行い、時計が後ろへ直っても元の期限を待たない（P3-EF-AC02 の (7)。K9 の残存リスク (9)、作者承認済み） (3) 時計を確かめられない間に手元の時計が進んでいると、まだ有効な情報が早く期限切れと表示され、確かめた後も戻らない（§7 の 8）。中身（事実・観測点・通知の印）は確かめるまで残るが、画面には戻らない (4) 受信の判定（遅着の stale、表示の期限を過ぎた報を鳴らさない）は時計を確かめる前でも手元の時計で行う。手元の時計が大きく進んだ端末では、新しい報が遅着として採られず鳴らない（今の新築と同じ。旧築も受信時の手元の時計で期限を数える、telegram-revision-gate.ts:1612） (5) 目撃情報の無い竜巻注意情報の音が、警報の音（warning）から普通の音（normal）に軽くなる（作者裁定 H13。今の新築と旧築〔level-helpers.ts:363、parser の soundLevel〕はどちらも warning） (6) 記録的短時間大雨は報ごとに 1 件になり、同じ官署の報が 2 時間に何本も来るとカードが報の数だけ並ぶ（今の新築は系列ごとに 1 件、旧築は種別×官署で 1 件 standby-state-store.ts:3698）。取消はその報だけを取り消し、同じ系列のほかの報は残る（作者裁定の判断 2） (7) 記録雨の記録の件数の上限は 256 のまま。元報から 記憶を回収できる時刻（表示の期限＋6 時間、作者裁定 P3-EF-D-EXPIRED-MEMORY=A。U-B の 2 時間の記録は 7 時間。時計を確かめるまで延び、件数の上限での退去で縮む）までの窓に 256 本を越える日は、見えない記録（記憶）から、それでも足りなければ古い見える記録から押し出される（Q-EF-UB-COUNT、実配信の上限は未測） (8) 期限で見えなくなった土砂・洪水・記録雨と線状降水帯の情報の取消が、記憶を回収できる時刻（表示の期限＋6 時間、作者裁定 P3-EF-D-EXPIRED-MEMORY=A。U-B の 2 時間の記録は 7 時間。時計を確かめるまで延び、件数の上限での退去で縮む）の内なら新しく鳴る（H19。今の新築では鳴らない。旧築の取消の通知は確かめていない） (9) U-T と U-F の器が印の分だけ大きくなり（U-T 4,698,345 byte、U-F 33,565,184 byte）、大きな津波・大雨の日の保存が少し大きくなる（U-T は EEW と同じ urgent の worker。EEW の保存の待ちは最長 1 秒で打ち切る、P3-NL-AC07）。保留の観測は観測点を持ったまま観測点の上限（family ごと 1,024）を使い、満ちると見えない記録として先に押し出される (10) 早期天候情報・天候情報は電文の有効期限（5〜11 日）より前に 3 時間で画面から消える（H23 の文言と違う。作者裁定 P3-EF-D-TRANSIENT-VALID=A、H23 の行に書き足す） (11) 降灰予報の表示の期限は本文の予報の終わりのまま。Head/ValidDateTime と食い違う報が来たら、電文の有効期限と違う時刻で消える（corpus の 3 通では一致） (12) EEW・地震は時計の根拠の当て方だけが入り、期限切れの形（H23）は EEW の閉じ方・K11 まで今のまま（地震は 24 時間で記録ごと消える） (13) 【発注 2】今まで丸ごと断っていた報の一部（Serial の欠け、名前・観測値の欠け・形の外など 35 か所）を受け取るので、読めない所のある報が画面に出て鳴りうる（今の新築では断って何も出ない）。読めない所の印は K14 まで画面に出ず、WARN の診断だけ (14) 旧築と比べて期限が変わるもの: 土砂は旧築が受信から 6 時間で消す（revision-family-registry.ts:817）のに対し元報から 48 時間＋記憶、洪水は旧築の画面のカードが元報から 12 時間で消える（standby-registry.ts:26 の fallbackTtlMs、flood-active-reducer.ts:78。revision-family-registry.ts:568 の 36 時間は新旧の判定の状態の長さ）のに対し 36 時間で「[期限切れ]」の通知＋記憶、記録雨・線状降水帯は旧築のカードが受信から 120 分・取消 10 分（standby-registry.ts:15・:16）なのに対し元報から 2〜3 時間（P3-C12-TTL、変えない）。旧築は時計を確かめずに手元の時計（受信時刻）で消す (15) 竜巻の同じ報の対で、目撃の無い VPHW50 の通知が配送された後に目撃の層のある VPHW51 が届くと、普通の音と警報の音で 2 回鳴る（K8 の「鳴らないか二重かなら二重」の内、Q-EF-SIGHTING） (16) 若干の海面変動だけの津波予報を電文の有効期限で消す案（2026-10-25 作者裁定で解消。K10 では VTSE41 の有効期限を読まず、予報だけの報は今の新築どおり released で画面に出ない。出すかどうかと何時まで出すかは P4 で決める）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-EF-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "発注前点検の後（統合担当、点検の commit への割当）",
+        "requiredEvidence": [
+          "baseOid の割当（起草は meta.draftedFromOid）と、その時点で本契約の anchor のずれが 0 件であること（check-contract）",
+          "decisionBranches の ruling が空でないこと",
+          "allowedPaths の file の行を anchor で引く他の契約の参照の数（変える file は 12 unit・6 domain・composition-root.ts・owner-runtime.ts・owner-host.ts・host.ts・types）"
+        ]
+      },
+      {
+        "id": "Q-EF-SEQUENCES",
+        "owner": "integrator",
+        "blocks": [
+          "発注 1 の実装の着手"
+        ],
+        "resolveBy": "発注前点検（前例 Q-C12-PRECHECK）",
+        "requiredEvidence": [
+          "sequences.json の expected:O01:90〜96、O03:16〜20・:28〜30、O07:62・:65〜70、O08:15・:19・:21・:27・:29・:30 の期待の書き換え（記録雨の subject は EventID の全体、取消はその報だけ、U-R・U-B の期限切れの記憶、目撃の無い竜巻は normal、竜巻の期限は expired）と、全契約の sequencesSha256 の付け直し",
+          "check-sequences と check-contract の exit 0"
+        ]
+      },
+      {
+        "id": "Q-EF-EXISTING-TESTS",
+        "owner": "implementer",
+        "blocks": [
+          "期待値を変える既存の試験の変更"
+        ],
+        "resolveBy": "実装の途中、変える前に報告",
+        "requiredEvidence": [
+          "期待値が変わる既存の試験の名前と理由。起草時の見込み: (a) U-L・U-R・U-B の期限で記録が消えることを見る試験（expired の記憶が残る） (b) 竜巻の音が warning であることと、期限の記憶が ended であることを見る試験 (c) U-B の記録雨の subject の文字列を見る試験 (d) 退去の順で retainUntil を過ぎた記録を先に選ぶことを見る試験（根拠を省略すれば verified で今と同じ） (e) schemaVersion の文字列と静的上界の値を見る試験、execution-split.test.ts の要求の種類ごとの欄の名前の一覧（requestKeys、SentClock の basis が全要求の欄に入る） (f) U-F の期限の後の形を見る試験（lapsed） (g) 【発注 2】rejected を期待する試験のうち受け取りに変えた所"
+        ]
+      },
+      {
+        "id": "Q-EF-UB-COUNT",
+        "owner": "integrator",
+        "blocks": [
+          "本契約の閉鎖"
+        ],
+        "resolveBy": "配送の後（実配信の採取と災害の日の道具、Q-DC-REMEASURE）",
+        "requiredEvidence": [
+          "実配信の記録雨（VPOA50 と、情報タグが記録雨の VPBS50）の報が、元報から記憶を回収できる時刻までの窓（9 時間、作者裁定 P3-EF-D-EXPIRED-MEMORY=A）に何本来るかの最大（設計メモ :501 の静岡の例は同時に 6 件）",
+          "U-B の件数の上限 256 を据え置くか"
+        ]
+      }
+    ]
+  }
+}
