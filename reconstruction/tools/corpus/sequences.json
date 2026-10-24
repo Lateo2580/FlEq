@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
+    "sha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -15695,7 +15695,7 @@
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -15716,8 +15716,8 @@
       ],
       "input": null,
       "checks": [
-        "VPOA50の系列JPTK202608221709（EventID JPTK202608221709_202608221709、Serial 1）の記録の無い状態への発表。対応するVPBS50の系列KJPTK202608221709（「K」＋s、P3-C12-ALIAS=A）はまだactiveでないのでheld（holdUntil=受理の時刻+60,000=1787386200001、P3-C12-VPOA=A）。viewに載せず通知しない。heldへの採用はrevisionOnly（I-U-B.currentSemantics(6)）。retainUntil=ReportDateTime+2時間。",
-        "aliasは系列の文字（VPOA50の系列sとVPBS50の系列「K」＋s）だけで結び、区域・現象・時刻の窓で相関を作らない（P3-C12-ALIAS=A、旧築のcode fallbackは採らない）。",
+        "VPOA50（EventID JPTK202608221709_202608221709、Serial 1）の記録の無い状態への発表。VPOA50 の subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)）。対応するVPBS50（EventID の全体が「K」＋JPTK202608221709_202608221709、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (2)）はまだactiveでないのでheld（holdUntil=受理の時刻+60,000=1787386200001、P3-C12-VPOA=A）。viewに載せず通知しない。heldへの採用はrevisionOnly（I-U-B.currentSemantics(6)）。retainUntil=ReportDateTime+2時間。",
+        "aliasはEventIDの全体の文字（VPBS50 の全体が「K」＋VPOA50 の全体か、両者が一致するとき、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (2)）だけで結び、区域・現象・時刻の窓で相関を作らない（P3-C12-ALIAS=A、旧築のcode fallbackは採らない）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -15732,7 +15732,7 @@
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "2",
@@ -15754,7 +15754,7 @@
       ],
       "input": null,
       "checks": [
-        "対応報（KJPTK）の前に、同じ EventID の合成の取消（synthetic_VPOA50_JPTK_cancel、Control/DateTime 08:09:00Z）。:16 の発表（08:09:31Z）より古く、VPOA50 は Control/DateTime だけで比べる種類（P3-VM-D-TABLE=A）なので older で unchanged/stale（P3-VM-AC03）。JPTK は held のまま（同じ参照）で、取消の記憶を作らず通知しない。",
+        "対応報（KJPTK202608221709_202608221709）の前に、同じ EventID（JPTK202608221709_202608221709、同じ subject）の合成の取消（synthetic_VPOA50_JPTK_cancel、Control/DateTime 08:09:00Z）。:16 の発表（08:09:31Z）より古く、VPOA50 は Control/DateTime だけで比べる種類（P3-VM-D-TABLE=A）なので older で unchanged/stale（P3-VM-AC03）。JPTK は held のまま（同じ参照）で、取消の記憶を作らず通知しない。",
         "取消先着の組合せ（VPOA50 の取消が対応報より先）は :29〜:30（Control/DateTime を発表より後にした合成の取消）で確かめる（Q-VM-IMPL-2B）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -15772,7 +15772,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -15794,9 +15794,9 @@
       ],
       "input": null,
       "checks": [
-        "記録雨の系列KJPTK202608221709（気象庁本庁、EventID KJPTK202608221709_202608221709）の記録の無い状態へのSerial 1の発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。subjectは系列（P3-C12-SUBJECTS=A）。retainUntil=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）。",
+        "記録雨の報 KJPTK202608221709_202608221709（気象庁本庁、Serial 1、17:09）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
         "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
-        "対応するVPOA50の系列JPTK202608221709は held なので alias にする（P3-C12-ALIAS=A、:17 の合成の取消は stale）。accepted.subjects は KJPTK と JPTK（JPTK は aliased）。",
+        "対応するVPOA50（JPTK202608221709_202608221709）は held で、この報の EventID の全体が「K」＋その全体なので alias にする（P3-EXPIRY-FORM-001 の P3-EF-AC09 の (2)、:17 の合成の取消は stale）。accepted.subjects は KJPTK202608221709_202608221709 と JPTK202608221709_202608221709（JPTK は aliased）。",
         ":17 の合成の取消は stale なので JPTK の取消の記憶は無い（P3-VM-AC03、Q-VM-IMPL-2B）。取消の記憶が対応報の採用の後も残ることは :29〜:30 で確かめる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -15814,7 +15814,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221717",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:17:00+09:00",
             "serialRaw": "2",
@@ -15834,8 +15834,8 @@
       ],
       "input": null,
       "checks": [
-        "Serial 2（17:17、EventIDの「_」より前が同じ）は同じ記録を置き換える。観測は板橋区の120（以上、atLeast）だけになり、headlineも変わる（公開事実の変化、change semantic）。retainUntil=17:17+2時間。",
-        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "記録雨の報 KJPTK202608221709_202608221717（気象庁本庁、Serial 2、17:17）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は板橋区の120（以上、atLeast）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。:18 の記録は EventID の全体が違う別の subject で、置き換えず active のまま残る。EventID の全体が「K」＋VPOA50 の EventID の全体になる VPOA50 は無いので alias は作らない（aliased の JPTK は :18 の記録の対応のまま）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:18 の pending は別の subject なので置き換えない。",
         ":17 の合成の取消は stale なので JPTK の取消の記憶は無い（P3-VM-AC03、Q-VM-IMPL-2B）。取消の記憶が対応報の採用の後も残ることは :29〜:30 で確かめる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -15853,7 +15853,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221727",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
             "serialRaw": "3",
@@ -15873,8 +15873,8 @@
       ],
       "input": null,
       "checks": [
-        "Serial 3（17:27）は同じ記録を置き換える。観測は豊島区の100（約）だけになる（公開事実の変化）。retainUntil=17:27+2時間。",
-        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "記録雨の報 KJPTK202608221709_202608221727（気象庁本庁、Serial 3、17:27）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は豊島区の100（約）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。:18・:19 の記録は別の subject で、active のまま残る。alias は作らない（:19 と同じ）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:18・:19 の pending は別の subject なので置き換えない。",
         ":17 の合成の取消は stale なので JPTK の取消の記憶は無い（P3-VM-AC03、Q-VM-IMPL-2B）。取消の記憶が対応報の採用の後も残ることは :29〜:30 で確かめる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -18993,7 +18993,7 @@
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -19015,7 +19015,7 @@
       ],
       "input": null,
       "checks": [
-        "単独のVPOA50（系列JPTK202608221709）。対応するVPBS50の系列KJPTK202608221709が無いのでheld（holdUntil=受理の時刻+60,000=1787386200001。業務の期限でない相関の窓で、受理の時計から数える、P3-C12-VPOA.holdRules (1)）。根拠のない対応相手を生成しない。viewに載せず通知しない（revisionOnly）。",
+        "単独のVPOA50（EventID JPTK202608221709_202608221709、subject はその全体、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)）。対応するVPBS50（KJPTK202608221709_202608221709）が無いのでheld（holdUntil=受理の時刻+60,000=1787386200001。業務の期限でない相関の窓で、受理の時計から数える、P3-C12-VPOA.holdRules (1)）。根拠のない対応相手を生成しない。viewに載せず通知しない（revisionOnly）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25154,8 +25154,8 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "123456789013のactiveの記録（retainUntil=2019-05-28T22:00+09:00、元報の10:00から36時間。:58の復元で延びない）を回収し、同じreduceでdesktopだけの期限切れを1件作る（transition expired、level info、titleは「[期限切れ] ○○川上流レベル３氾濫警報（継続）」、bodyは「○○川上流の洪水予報は36時間続報がなく、現況を確認できません」、soundは作らない。P3-C11-ACTIVE-EXPIRY=D）。",
-        "123456789012の取消の記憶（retainUntil=2019-05-29T00:00+09:00）は黙って除く（ended・cancelledの回収では通知しない、Q-NOTICE expiry）。到来分だけを回収し、viewとsnapshotに洪水の記録は載らない。"
+        "123456789013のactiveの記録（表示の期限=2019-05-28T22:00+09:00、元報の10:00から36時間。:58の復元で延びない）を、事実を持たない expired の記憶に移し（retainUntil=2019-05-29T04:00+09:00、元報+42時間、P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)、分岐 P3-EF-D-EXPIRED-MEMORY=A）、同じreduceでdesktopだけの期限切れを1件作る（transition expired、level info、titleは「[期限切れ] ○○川上流レベル３氾濫警報（継続）」、bodyは「○○川上流の洪水予報は36時間続報がなく、現況を確認できません」、soundは作らない。P3-C11-ACTIVE-EXPIRY=D、P3-EXPIRY-FORM-001 の P3-EF-AC05 の (4)）。",
+        "123456789012の取消の記憶（retainUntil=2019-05-29T00:00+09:00）は黙って除く（ended・cancelledの回収では通知しない、Q-NOTICE expiry）。到来分だけを当て、viewとsnapshotに洪水の記録は載らない（123456789013 は見えない記憶）。"
       ]
     },
     {
@@ -25232,7 +25232,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -25254,7 +25254,7 @@
       ],
       "input": null,
       "checks": [
-        "記録雨の系列KJPTK202608221709（気象庁本庁、EventID KJPTK202608221709_202608221709）の記録の無い状態へのSerial 1の発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。subjectは系列（P3-C12-SUBJECTS=A）。retainUntil=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）。",
+        "記録雨の報 KJPTK202608221709_202608221709（気象庁本庁、Serial 1、17:09）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
         "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -25272,7 +25272,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221717",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:17:00+09:00",
             "serialRaw": "2",
@@ -25293,8 +25293,8 @@
       ],
       "input": null,
       "checks": [
-        "Serial 2（17:17、EventIDの「_」より前が同じ）は同じ記録を置き換える。観測は板橋区の120（以上、atLeast）だけになり、headlineも変わる（公開事実の変化、change semantic）。retainUntil=17:17+2時間。",
-        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "記録雨の報 KJPTK202608221709_202608221717（気象庁本庁、Serial 2、17:17）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は板橋区の120（以上、atLeast）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。:90 の記録（KJPTK202608221709_202608221709）は EventID の全体が違う別の subject で、置き換えず active のまま残る。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:90 の pending は別の subject なので置き換えない（P3-C12-REPLACEMENT=A は同じ subject・channel だけ）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25311,7 +25311,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221727",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
             "serialRaw": "3",
@@ -25332,8 +25332,8 @@
       ],
       "input": null,
       "checks": [
-        "Serial 3（17:27）は同じ記録を置き換える。観測は豊島区の100（約）だけになる（公開事実の変化）。retainUntil=17:27+2時間。",
-        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "記録雨の報 KJPTK202608221709_202608221727（気象庁本庁、Serial 3、17:27）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は豊島区の100（約）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。:90・:91 の記録は別の subject で、active のまま残る。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:90・:91 の pending は別の subject なので置き換えない（P3-C12-REPLACEMENT=A は同じ subject・channel だけ）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25350,7 +25350,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221727",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
             "serialRaw": "3",
@@ -25368,7 +25368,7 @@
       ],
       "input": null,
       "checks": [
-        "同じSerial 3の発表をもう一度受ける。同じrevision・同じInfoType・同じ公開事実なのでduplicate（Q-ENUM.revisionOrder）。記録・pending・保存世代を変えず、通知しない。",
+        "同じSerial 3の発表（EventID KJPTK202608221709_202608221727）をもう一度受ける。同じsubject・同じrevision・同じInfoType・同じ公開事実なのでduplicate（Q-ENUM.revisionOrder）。記録・pending・保存世代を変えず、通知しない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25385,7 +25385,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221727",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
             "serialRaw": "3",
@@ -25406,7 +25406,7 @@
       ],
       "input": null,
       "checks": [
-        "Serial 3と同じrevision（17:27、Serial 3）の訂正。InfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。公開事実はSerial 3と同じで、見える記録の事実が変わらないのでchangeはrevisionOnly（I-U-B.currentSemantics(6)）。sourceは訂正の報に進む。",
+        "Serial 3と同じrevision（17:27、Serial 3、EventID KJPTK202608221709_202608221727）の訂正。同じ運用区分に同じ EventID の記録（:92）があるので、その subject を引き継ぐ（P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)）。InfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。公開事実はSerial 3と同じで、見える記録の事実が変わらないのでchangeはrevisionOnly（I-U-B.currentSemantics(6)）。sourceは訂正の報に進む。:90・:91 の記録は変わらない。",
         "通知: correction（activeの記録への訂正は事実が同じでも作る、spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）、desktop＋sound、level=warning、transition updated、titleは「[訂正] 東京都気象防災速報（記録的短時間大雨）」、bodyは「訂正: 」で始まる。同じsubject・channelの古いpendingはsupersededにする。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -25427,7 +25427,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221727",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:27:00+09:00",
             "serialRaw": "3",
@@ -25448,7 +25448,7 @@
       ],
       "input": null,
       "checks": [
-        "同じrevision（17:27、Serial 3）の取消。取消>訂正で採用し、activeの記録をcancelledにして事実を捨てる（P3-C12-CANCEL-SCOPE=A、見える記録が消えるのでsemantic）。取消の記憶のretainUntil=17:27+3時間（2026-08-22T20:27:00+09:00、P3-C12-TTL=B）。BodyとHeadlineは読まない（Q-ENUM.familyTable）。",
+        "同じrevision（17:27、Serial 3）の取消（EventID KJPTK202608221709_202608221727）。取消は情報タグを読まず、EventID の全体を subject とする記録雨の記録（:92〜:94）が同じ運用区分にあるのでそれに当てる（P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)）。取消>訂正で採用し、activeの記録をcancelledにして事実を捨てる（P3-C12-CANCEL-SCOPE=A、見える記録が消えるのでsemantic）。取消はこの報の subject だけに効き、:90・:91 の記録は active のまま残る（P3-EXPIRY-FORM-001 の P3-EF-AC09 の (4)、作者裁定の判断 2）。取消の記憶のretainUntil=17:27+3時間（2026-08-22T20:27:00+09:00、P3-C12-TTL=B）。BodyとHeadlineは読まない（Q-ENUM.familyTable）。",
         "通知: cancellation（取消の前にactive）、desktop＋sound、level=cancel、transition cancelled、titleは「[取消] 東京都気象防災速報（記録的短時間大雨）（17:27 発表）」、bodyは「17:27 発表の東京都気象防災速報（記録的短時間大雨）を取り消しました」（P3-NOTICE-LEDGER-001のP3-NL-AC10: 種類は取消の報のHead/Title、時刻は取り消した記録〔:94〕の発表）。採用した取消はこのsubjectの全pendingをsupersededにする（P3-C12-REPLACEMENT=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -25459,7 +25459,7 @@
       "position": 96,
       "decision": {
         "kind": "unchanged",
-        "reason": "stale"
+        "reason": "duplicate"
       },
       "effective": {
         "kind": "inactive",
@@ -25469,7 +25469,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -25488,7 +25488,7 @@
       ],
       "input": null,
       "checks": [
-        "取消の記憶の期限（20:27:00.000）の1ms後に、Serial 1の発表（ReportDateTime 17:09）が遅着。ownerは受信の前に到来した期限を回収するので（reclaimDeadlineBeforeReceive）、受理の時点で記録は無い。この報が作る記録のretainUntil（17:09+2時間）を過ぎているので、記録が無ければstateを変えない（unchanged/stale、P3-C12-TTL.lateRule）。記録を作らず、view・通知・退去なし、保存世代を進めない。この規則が無ければ取消した系列が古い報で戻る（spec:1777のO01「取消後の古い報は復活しない」）。",
+        ":95 の取消の記憶の期限（20:27:00.000）の1ms後に、Serial 1の発表（ReportDateTime 17:09、EventID KJPTK202608221709_202608221709）が遅着。ownerは受信の前に到来した期限を当てるので（reclaimDeadlineBeforeReceive）、:95 の取消の記憶は回収され、:90・:91 の active は表示の期限（19:09・19:17）を過ぎて事実を持たない expired の記憶になっている（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)、通知しない。記憶の retainUntil は元報+9時間で :90 は 2026-08-23T02:09:00+09:00、:91 は 02:17:00）。この報の subject（:90 と同じ）には記憶があり、版（17:09、Serial 1、発表）が記憶と同じなので duplicate（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (8)。見えない記録は事実を持たないので InfoType だけで比べる、U-M の今の判定と同じ）。記憶を見える状態に戻さず、view・通知・退去なし、保存世代を進めない。記憶の回収（02:09）の後なら、記録が無く retainUntil（17:09+2時間）を過ぎた報なので unchanged/stale（P3-C12-TTL.lateRule）。この規則が無ければ期限切れの報が古い報で戻る（spec:1777のO01「取消後の古い報は復活しない」と同じ確かめ）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25527,7 +25527,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -25548,7 +25548,7 @@
       ],
       "input": null,
       "checks": [
-        "記録雨の系列KJPTK202608221709（気象庁本庁、EventID KJPTK202608221709_202608221709）の記録の無い状態へのSerial 1の発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。subjectは系列（P3-C12-SUBJECTS=A）。retainUntil=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）。",
+        "記録雨の報 KJPTK202608221709_202608221709（気象庁本庁、Serial 1、17:09）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
         "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -25564,7 +25564,7 @@
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTC202608221709",
+          "subject": "normal/VPOA50/JPTC202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -25585,7 +25585,7 @@
       ],
       "input": null,
       "checks": [
-        "熊谷地方気象台のVPOA50の系列JPTC202608221709の記録の無い状態への発表。対応するVPBS50の系列KJPTC202608221709は無いのでheld（holdUntil=1787386200002）。viewに載せず通知しない（revisionOnly）。KJPTKはJPTKの対応報でJPTCとは結ばない（P3-C12-ALIAS=A）。",
+        "熊谷地方気象台のVPOA50（EventID JPTC202608221709_202608221709、subject はその全体、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)）の記録の無い状態への発表。対応するVPBS50（KJPTC202608221709_202608221709）は無いのでheld（holdUntil=1787386200002）。viewに載せず通知しない（revisionOnly）。KJPTK202608221709_202608221709 は JPTK202608221709_202608221709 の対応報で JPTC とは結ばない（P3-EXPIRY-FORM-001 の P3-EF-AC09 の (2)）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25608,7 +25608,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "KJPTKのactiveの記録（retainUntil=17:09+2時間）、JPTCのheldの記録（holdUntil=1787386200002をそのまま）、:65のintent（pending）が同じ世代に入る（I-U-B.persisted、decodeはheldを受ける）。"
+        "KJPTK202608221709_202608221709 の active の記録（retainUntil=表示の期限 17:09+2時間）、JPTC202608221709_202608221709 の held の記録（holdUntil=1787386200002をそのまま）、:65のintent（pending）が同じ世代に入る（I-U-B.persisted、decodeはheldを受ける）。"
       ]
     },
     {
@@ -25649,7 +25649,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221717",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:17:00+09:00",
             "serialRaw": "2",
@@ -25670,8 +25670,8 @@
       ],
       "input": null,
       "checks": [
-        "Serial 2（17:17、EventIDの「_」より前が同じ）は同じ記録を置き換える。観測は板橋区の120（以上、atLeast）だけになり、headlineも変わる（公開事実の変化、change semantic）。retainUntil=17:17+2時間。 差は復元した記録（Serial 1）との差で決める（Q-NOTICE.restart）。",
-        "通知: semanticAdoption（activeの記録への公開事実の変わった新しいrevision）、desktop＋sound、level=warning、transition updated。同じsubject・channelの古いpendingはsupersededにする（P3-C12-REPLACEMENT=A）。",
+        "記録雨の報 KJPTK202608221709_202608221717（気象庁本庁、Serial 2、17:17）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は板橋区の120（以上、atLeast）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。復元した KJPTK202608221709_202608221709 の記録（Serial 1）は EventID の全体が違う別の subject で、置き換えず active のまま残る。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:65 の pending は別の subject なので置き換えない。",
         "releasedのJPTCは変わらない（対応報ではない）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -25692,7 +25692,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "2",
@@ -25711,8 +25711,8 @@
       ],
       "input": null,
       "checks": [
-        "VPOA50の系列JPTK202608221709の記録の無いsubjectへの取消（Serial 2、17:09）。取消の記憶だけを作り（changeはrevisionOnly）、通知しない。retainUntil=17:09+3時間。",
-        "復元したKJPTK（JPTKの対応報）のactiveの記録は変わらない（VPOA50の取消はVPBS50へ波及しない、P3-C12-CANCEL-SCOPE=A）。releasedのJPTCも変わらない。",
+        "VPOA50（EventID JPTK202608221709_202608221709、subject はその全体）の記録の無いsubjectへの取消（Serial 2、17:09）。取消の記憶だけを作り（changeはrevisionOnly）、通知しない。retainUntil=17:09+3時間。",
+        "復元した KJPTK202608221709_202608221709（JPTK の対応報）と :69 の KJPTK202608221709_202608221717 の active の記録は変わらない（VPOA50の取消はVPBS50へ波及しない、P3-C12-CANCEL-SCOPE=A）。releasedのJPTCも変わらない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -26169,7 +26169,7 @@
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTC202608221709",
+          "subject": "normal/VPOA50/JPTC202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -26189,7 +26189,7 @@
       ],
       "input": null,
       "checks": [
-        "逆行した時計で、VPOA50の系列JPTC202608221709の記録の無い状態への発表を受ける。対応するKJPTC202608221709は無いのでheld（holdUntil=受理の時刻+60,000=1787386200002）。viewに載せず通知しない。releasedのJPTKは変わらない。",
+        "逆行した時計で、VPOA50（EventID JPTC202608221709_202608221709、subject はその全体）の記録の無い状態への発表を受ける。対応するKJPTC202608221709_202608221709は無いのでheld（holdUntil=受理の時刻+60,000=1787386200002）。viewに載せず通知しない。releasedのJPTKは変わらない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -26241,7 +26241,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "JPTK・JPTCのreleasedの記録を期限で回収し（wall＝期限で到来）、通知しない（期限での回収は無音、取消と区別する）。記録は0件になり、retainUntil・holdUntilの期限は残らない。入力停止でも有限に終わり、未確認の相関を確定にしない（aliasedにしない）。"
+        "JPTK・JPTCのreleasedの記録が表示の期限（wall＝期限で到来）で事実を持たない expired の記憶に移り（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)）、通知しない（期限切れは無音、取消と区別する）。記憶の retainUntil は元報+9時間（2026-08-23T02:09:00+09:00、P3-EXPIRY-FORM-001 の P3-EF-AC05 の (3)）で、view から外れ、holdUntilの期限は残らない。入力停止でも有限に終わり、未確認の相関を確定にしない（aliasedにしない）。"
       ]
     },
     {
@@ -27571,7 +27571,7 @@
       "input": null,
       "checks": [
         "activeUntilはValidDateTimeの2013-07-26T10:30、retainUntilは09:20＋36時間。sightedはfalse。",
-        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated、titleは「長崎県竜巻注意情報」、bodyは「発表中 24地域 / 有効期限 10:30」（市町村等の層の24地域）。",
+        "通知: semanticAdoption、desktop＋sound、level=normal（目撃が無いので普通の音、H13・P3-EXPIRY-FORM-001 の P3-EF-AC07 の (2)）、transition activated、titleは「長崎県竜巻注意情報」、bodyは「発表中 24地域 / 有効期限 10:30」（市町村等の層の24地域）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -27628,7 +27628,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "有効期限の到来でactiveをendedにする（見える記録が消えるのでchanged/semantic、I-U-M.currentSemantics(6)）。通知しない。解除の報を捏造しない。"
+        "有効期限の到来でactiveを事実を持たない expired の記憶にする（解除の ended と見分ける、P3-EXPIRY-FORM-001 の P3-EF-AC07 の (1)。見える記録が消えるのでchanged/semantic、I-U-M.currentSemantics(6)）。retainUntilは今どおり09:20＋36時間。通知しない。解除の報を捏造しない。"
       ]
     },
     {
@@ -27656,7 +27656,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "endedの記録を無音で除く。記録は0件になる。"
+        "expired の記憶を無音で除く。記録は0件になる。"
       ]
     },
     {
@@ -27877,7 +27877,7 @@
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -27898,7 +27898,7 @@
       ],
       "input": null,
       "checks": [
-        "VPOA50 の系列 JPTK202608221709 の記録の無い状態への発表（:16 と同じ入力）。対応する VPBS50 の系列 KJPTK202608221709 はまだ active でないので held（holdUntil=受理の時刻+60,000）。view に載せず通知しない。held への採用は revisionOnly。",
+        "VPOA50（EventID JPTK202608221709_202608221709）の記録の無い状態への発表（:16 と同じ入力）。VPOA50 の subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)）。対応するVPBS50（EventID の全体が「K」＋JPTK202608221709_202608221709、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (2)）はまだactiveでないのでheld（holdUntil=受理の時刻+60,000）。view に載せず通知しない。held への採用は revisionOnly。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -27918,7 +27918,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPOA50/JPTK202608221709",
+          "subject": "normal/VPOA50/JPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "2",
@@ -27940,8 +27940,8 @@
       ],
       "input": null,
       "checks": [
-        "対応報（KJPTK）の前に、同じ EventID の合成の取消（synthetic_VPOA50_JPTK_cancel_newer、Serial 2、Control/DateTime 08:09:40Z）。:28 の発表（08:09:31Z）より新しい版で取消を採り、held の記録を cancelled にして事実を捨てる（P3-VM-AC03、P3-C12-CANCEL-SCOPE=A）。held は見えない記録なので change は revisionOnly。held の取消は通知しない（Q-NOTICE cancellation）。",
-        "取消の記憶（subject normal/VPOA50/JPTK202608221709、operation normal、取消 revision=(2026-08-22T17:09:00+09:00,2,取消)、出典=この入力、retainUntil=17:09+3時間）を採取し、:30 の後にも同じ値で残ることを照合する。",
+        "対応報（KJPTK202608221709_202608221709）の前に、同じ EventID（JPTK202608221709_202608221709、同じ subject）の合成の取消（synthetic_VPOA50_JPTK_cancel_newer、Serial 2、Control/DateTime 08:09:40Z）。:28 の発表（08:09:31Z）より新しい版で取消を採り、held の記録を cancelled にして事実を捨てる（P3-VM-AC03、P3-C12-CANCEL-SCOPE=A）。held は見えない記録なので change は revisionOnly。held の取消は通知しない（Q-NOTICE cancellation）。",
+        "取消の記憶（subject normal/VPOA50/JPTK202608221709_202608221709、operation normal、取消 revision=(2026-08-22T17:09:00+09:00,2,取消)、出典=この入力、retainUntil=17:09+3時間）を採取し、:30 の後にも同じ値で残ることを照合する。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -27958,7 +27958,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPBS50/KJPTK202608221709",
+          "subject": "normal/VPBS50/KJPTK202608221709_202608221709",
           "revision": {
             "reportDateTimeRaw": "2026-08-22T17:09:00+09:00",
             "serialRaw": "1",
@@ -27980,8 +27980,8 @@
       ],
       "input": null,
       "checks": [
-        "記録雨の系列 KJPTK202608221709 の記録の無い状態への Serial 1 の発表（:18 と同じ入力）。通知: semanticAdoption、desktop＋sound、level=warning、transition activated。",
-        "対応する VPOA50 の系列 JPTK202608221709 は :29 で cancelled なので alias にしない（P3-C12-ALIAS=A）。accepted.subjects は KJPTK だけ。:29 の取消の記憶は、このstepの後も同じ値で残り、取消済みの VPOA50 は戻らない。",
+        "記録雨の報 KJPTK202608221709_202608221709 の記録の無い状態への Serial 1 の発表（:18 と同じ入力、情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない））。通知: semanticAdoption、desktop＋sound、level=warning、transition activated。",
+        "対応する VPOA50（JPTK202608221709_202608221709）は :29 で cancelled なので alias にしない（P3-C12-ALIAS=A、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (2)）。accepted.subjects は KJPTK202608221709_202608221709 だけ。:29 の取消の記憶は、このstepの後も同じ値で残り、取消済みの VPOA50 は戻らない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     }
