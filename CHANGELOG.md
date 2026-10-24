@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [4.1.0](https://github.com/Lateo2580/FlEq/compare/v4.0.1...v4.1.0) (2026-10-24)
+
+
+### バグ修正
+
+* **display:** EEW の予測地域を実測でページに割り、続報で 1 ページ目に戻さない ([717a9bd](https://github.com/Lateo2580/FlEq/commit/717a9bdf6661c1e28e6604cff38b742ac6faba63))
+* **display:** 保持の切れた大地震カードが同じ地震の続報で戻らないようにする ([4dc3e82](https://github.com/Lateo2580/FlEq/commit/4dc3e8215d9a5e022b4e56cdcd8b63926453bbb4))
+* **display:** 地図の出典が欠けた保存から戻した大地震カードを、保持内の続報で消さない ([95b44c8](https://github.com/Lateo2580/FlEq/commit/95b44c825ef4e263bc5778dce6c6699b07b63850))
+* **eew:** 最終報より古い serial の取消を受理し、取消をテロップに 1 行出す ([01d9462](https://github.com/Lateo2580/FlEq/commit/01d9462b3d74b160cc18f16cd404e8e30d75fd80))
+* **notification:** Apple silicon の Mac でデスクトップ通知が出ない不具合を osascript で直す ([09ea38b](https://github.com/Lateo2580/FlEq/commit/09ea38bf8c025c49c8b15465a15a19662d1e7fa8))
+* **router:** 全般台風情報 VPTI50-52 を ignore にする ([2874b9e](https://github.com/Lateo2580/FlEq/commit/2874b9e6dd4db2eb4fb0539927ad0912d94ca3b5))
+* **router:** 台風解析 VPTW60-65・暴風域確率 VPTA50-55 を全番号で受け付ける ([115e624](https://github.com/Lateo2580/FlEq/commit/115e624bfe134804f8cc1c982e2cd4fea058a3e9))
+* **standby:** 台風確率の保存失敗で受信全体を止めず、端末にエラーを出して裏で保存をやり直す ([7a2bdad](https://github.com/Lateo2580/FlEq/commit/7a2bdad099c8b58e3718486a547f481ab46e62c3))
+* **ui:** 取消の対象・最終報・速報の件数・切断の始まり・沿岸の観測の言葉を直す ([bad8855](https://github.com/Lateo2580/FlEq/commit/bad8855865f46d8ea26d36b337216e05626cf627))
+* **weather:** VPWS50 の異常解除率判定が Body の一部解除（Status=解除）を根拠に数えず全国報を保留し続ける経路を塞ぐ ([4422622](https://github.com/Lateo2580/FlEq/commit/4422622ab66e603f3b65913ea889c3de58296a04)), closes [#17](https://github.com/Lateo2580/FlEq/issues/17)
+
+
+### リファクタリング
+
+* 本番から到達しないモジュール 4 つと、それだけを検査していたテストを削除する ([59c2031](https://github.com/Lateo2580/FlEq/commit/59c2031e12517b469ed8165852c75cdef4850879))
+
+
+### ドキュメント
+
+* AGENTS.md に「受信経路の計算量」の規範を足す ([556087a](https://github.com/Lateo2580/FlEq/commit/556087a76ab73ad53c2bf3a3cf0f5c236c695988))
+* AGENTS.md の規約にコメントの書き方と、読み戻しで as による言い換えをしないことを足す ([0531a96](https://github.com/Lateo2580/FlEq/commit/0531a9648bbfcb1add0f2ca168ee673a949d93ce))
+* **claude:** relations の 8 型と向きを明記する ([44c50c2](https://github.com/Lateo2580/FlEq/commit/44c50c261f38c580236b244ef259199a7440bb28))
+* **claude:** 実装と中間レビューを Claude 側へ戻し、Codex は総合レビューのみにする ([a3d1679](https://github.com/Lateo2580/FlEq/commit/a3d1679b01deb292db72181353ef019c9f556756))
+* **claude:** 自律サイクル規則の参照先を personal ブランチと明記する ([5304d08](https://github.com/Lateo2580/FlEq/commit/5304d08fa0d6ab69c792a98a935c482b10167ae4))
+* **claude:** 重複した実装原則を除き、Codex の経路とモデル表を現行に揃える ([648df5e](https://github.com/Lateo2580/FlEq/commit/648df5e42468078e89f5b5a12fec81fcca0fc4dc))
+* README とランディングページに全面再構成中のお知らせを追加する ([71c435b](https://github.com/Lateo2580/FlEq/commit/71c435ba066544a3d2318889d8f916b41f272874))
+* **router:** VPTI50-52 の ignore 理由を「配信終了」に訂正する ([4edf262](https://github.com/Lateo2580/FlEq/commit/4edf262beb62b1a867a91c6a569da30b135463e8))
+* **site:** フッターの版表記を v4.0.1 に更新する ([cba23a0](https://github.com/Lateo2580/FlEq/commit/cba23a0a938cc5ab7d4e44a3f56a70433b03ad74))
+* **specs:** K7 発注 2a の配送で改訂した spec の行を入れる（P3-VM-AC09(10)、625863fd の入れ漏れ） ([1ea29e8](https://github.com/Lateo2580/FlEq/commit/1ea29e8073d0f10f9e92fed4242761b1de9ace4c))
+* レビュー方針に、並行性・状態機械を含む契約の中間レビューの片方を Codex に替える作者裁定（2026-10-06）を足す ([9e6f2fc](https://github.com/Lateo2580/FlEq/commit/9e6f2fcb8c2df9b399bffbcf5b3d47b558599bb3))
+* 委譲環境の依存準備を CoW コピーに合わせる ([93c5adc](https://github.com/Lateo2580/FlEq/commit/93c5adcb68bc0fe85c2f01395801240e1a193fd8))
+* 新築 spec の Q7 保留の残りと容量拒否の注記、旧築 engine.md の音の段をコードと契約に合わせる ([1cbee76](https://github.com/Lateo2580/FlEq/commit/1cbee769e4ec763d11586f81ac1510f1c72ecb55))
+* 通常の作業フローを委譲とオーケストレーションにする旨を CLAUDE.md に書く ([02417bd](https://github.com/Lateo2580/FlEq/commit/02417bd11c1f9936e86256ec2307a8bb1b79dbf8))
+
 ## [4.0.1](https://github.com/Lateo2580/FlEq/compare/v4.0.0...v4.0.1) (2026-09-21)
 
 
