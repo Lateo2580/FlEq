@@ -717,7 +717,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
 
   // 地図の contribution／host 絶対期限／large-quake reference／revision は display runtime
   // ではなく monitor が所有する。display off 中も受理し、別ファイルの additive v1 へ保存する。
-  const quakeDisplayStore = new QuakeDisplayStore();
+  const quakeDisplayStore = new QuakeDisplayStore(() => dailyQuakeCounter.getRecentQuakes());
   const quakeDisplayPersistence = new QuakeDisplayPersistence(
     join(process.cwd(), "data", "runtime", "quake-display-v1.json"),
   );

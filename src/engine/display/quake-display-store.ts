@@ -1,5 +1,6 @@
 import type { PresentationEvent } from "../presentation/types";
 import { projectDisplayEvent, projectQuakeMapCommand } from "./project-event";
+import type { DisplayRecentQuakeV1 } from "./types";
 import {
   DisplayStateStore,
   type DisplayQuakeLifecyclePersistedV1,
@@ -12,8 +13,16 @@ export type QuakeDisplayDurability = "debounced";
  * 内部では既存 DisplayStateStore の確定済み mutation を再利用し、wire の二重実装を避ける。
  */
 export class QuakeDisplayStore {
-  private readonly store = new DisplayStateStore();
+  private readonly store: DisplayStateStore;
   private durableListeners = new Set<(durability: QuakeDisplayDurability) => void>();
+
+  /**
+   * recentQuakes: display runtime と同じ daily 履歴。無いと、地図の contributions が欠けた保存から
+   * 戻したカードを表示側だけが保ち、ここでは続報で消して次の再起動で失う。
+   */
+  constructor(recentQuakes?: () => DisplayRecentQuakeV1[]) {
+    this.store = new DisplayStateStore(undefined, undefined, undefined, recentQuakes);
+  }
 
   onDurable(listener: (durability: QuakeDisplayDurability) => void): () => void {
     this.durableListeners.add(listener);

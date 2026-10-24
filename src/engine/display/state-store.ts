@@ -193,6 +193,10 @@ function addedAreasForWire(added: readonly WeatherPromotionMemberV1[]): DisplayW
   return [...byKind.values()];
 }
 
+function largeQuakeHoldExpired(quake: { updatedAtMs: number }, nowMs: number): boolean {
+  return nowMs - quake.updatedAtMs > LARGE_QUAKE_HOLD_MIN * MIN_MS;
+}
+
 // 現在の緊急状態 (EEW/津波/大地震/気象警報/接続) を合成する表示用ストア。
 // 時刻は全メソッドで nowMs 注入 (クラス内で Date.now() を呼ばない)。
 // applyEvent/sweep の boolean = 「state snapshot の再配信が必要な変化があったか」。
@@ -273,7 +277,7 @@ export class DisplayStateStore {
       this.quakeMapContributions.set(event.eventKey, bySource);
     }
     for (const entry of state.largeQuakes) {
-      if (nowMs - entry.value.updatedAtMs <= LARGE_QUAKE_HOLD_MIN * MIN_MS) {
+      if (!largeQuakeHoldExpired(entry.value, nowMs)) {
         this.largeQuakes.set(entry.key, structuredClone(entry.value));
       }
     }
@@ -323,6 +327,9 @@ export class DisplayStateStore {
       : this.weatherChanges.apply(presentationEvent, nowMs);
     changed = this.quakeExtreme.applyDto(dto, nowMs) || changed;
     const quakeObservationBridge = quakeObservationBridgeOf(dto);
+    // 表示側（5 秒）と永続側（60 秒）は sweep の間隔が違う。期限の切れたカード・host を基準に地図の
+    // command を判断すると片方だけが延長・選択を変えるので、受信の時点で同じ失効状態にそろえてから当てる。
+    changed = this.expireQuakeMapLifecycle(nowMs) || changed;
     const quakeMapMutation = quakeMapCommand == null
       ? { accepted: true, changed: false, preservation: "none" as const }
       : this.applyQuakeMapCommand(quakeMapCommand, nowMs);
@@ -342,7 +349,6 @@ export class DisplayStateStore {
       && quakeMapMutation.preservation === "none"
       && quakeProjection != null
       && heldLargeQuake != null
-      && nowMs - heldLargeQuake.updatedAtMs <= LARGE_QUAKE_HOLD_MIN * MIN_MS
       && this.restoredLatestBaseline(quakeProjection) != null;
     if (
       quakeMapMutation.accepted
@@ -664,6 +670,38 @@ export class DisplayStateStore {
       && sameRevision(quake.mapRevision, event.revision));
   }
 
+  /**
+   * 大地震カードと地図 host の期限切れを外し、外れた参照が指していた eventKey の出典だけを掃除する。
+   * 受信経路で呼ぶので、計算量は largeQuakes の 1 走査＋外れた件数×残りのカード数まで（全体の prune はしない）。
+   */
+  private expireQuakeMapLifecycle(nowMs: number): boolean {
+    const released = new Set<string>();
+    let changed = false;
+    for (const [id, q] of this.largeQuakes) {
+      if (!largeQuakeHoldExpired(q, nowMs)) continue;
+      this.largeQuakes.delete(id);
+      if (q.mapEventKey != null) released.add(q.mapEventKey);
+      changed = true;
+    }
+    if (this.quakeMapHost != null && nowMs >= this.quakeMapHost.expiresAtMs) {
+      released.add(this.quakeMapHost.eventKey);
+      this.quakeMapHost = null;
+      changed = true;
+    }
+    if (this.unknownQuakeMapHost != null && nowMs >= this.unknownQuakeMapHost.expiresAtMs) {
+      released.add(this.unknownQuakeMapHost.eventKey);
+      this.unknownQuakeMapHost = null;
+      changed = true;
+    }
+    for (const eventKey of released) {
+      if (this.quakeMapHost?.eventKey === eventKey || this.unknownQuakeMapHost?.eventKey === eventKey) continue;
+      const effective = this.effectiveQuakeMapEvent(eventKey);
+      if (effective != null && this.largeQuakeReferencesMapEvent(effective)) continue;
+      changed = this.quakeMapContributions.delete(eventKey) || changed;
+    }
+    return changed;
+  }
+
   private pruneUnreferencedQuakeMapEvents(): boolean {
     let changed = false;
     for (const eventKey of [...this.quakeMapContributions.keys()]) {
@@ -956,17 +994,7 @@ export class DisplayStateStore {
         this.eewSourceRevisions.delete(key);
       }
     }
-    for (const [id, q] of this.largeQuakes) {
-      if (nowMs - q.updatedAtMs > LARGE_QUAKE_HOLD_MIN * MIN_MS) { this.largeQuakes.delete(id); changed = true; }
-    }
-    if (this.quakeMapHost != null && nowMs >= this.quakeMapHost.expiresAtMs) {
-      this.quakeMapHost = null;
-      changed = true;
-    }
-    if (this.unknownQuakeMapHost != null && nowMs >= this.unknownQuakeMapHost.expiresAtMs) {
-      this.unknownQuakeMapHost = null;
-      changed = true;
-    }
+    changed = this.expireQuakeMapLifecycle(nowMs) || changed;
     this.quakeMapRevisionGuard.sweep(nowMs);
     // SSE 無客中は気象点灯の時計だけを止める。他 domain の lifecycle は従来どおり進める
     if (sweepWeatherPromotions) {

@@ -13,7 +13,12 @@ import { DailyQuakeCounter } from "../../src/engine/messages/daily-quake-counter
 import { DailyQuakePersistence } from "../../src/engine/messages/daily-quake-persistence";
 import { QuakeDisplayPersistence } from "../../src/engine/display/quake-display-persistence";
 import { createMessageHandler } from "../../src/engine/messages/message-router";
-import { createMockWsDataMessage, createMockWsDataMessageFromXml, readFixture } from "../helpers/mock-message";
+import {
+  createMockWsDataMessage,
+  createMockWsDataMessageFromXml,
+  FIXTURE_PHASE7_5_VXSE53_073528,
+  readFixture,
+} from "../helpers/mock-message";
 
 // 実系列: 2009-08-11 駿河湾 (EventID 20090811050711)。VXSE51 05:09 最大 6弱、VXSE61 08:55。
 const VXSE51 = "32-35_07_01_100915_VXSE51.xml";
@@ -28,11 +33,27 @@ function vxse61At(hhmm: string): string {
   return readFixture(VXSE61).replaceAll("<ReportDateTime>2009-08-11T08:55", `<ReportDateTime>2009-08-11T${hhmm}`);
 }
 
+/** 実 XML の震度値だけを置き換える（要素・属性・階層は保つ）。 */
+function withIntensity(xml: string, value: string): string {
+  return xml
+    .replaceAll("震度５弱以上未入電", value)
+    .replace(/<(MaxInt|Int)([^>]*)>[^<]*<\/\1>/g, (_match: string, tag: string, attributes: string) =>
+      `<${tag}${attributes}>${value}</${tag}>`);
+}
+
+/** 熊本の VXSE53（EventID 20260728162718）を all-unknown にし、時刻を駿河湾の系列の手前（04 時台）へ寄せる。 */
+const UNKNOWN_EVENT_ID = "20260728162718";
+function allUnknownVxse53(): string {
+  return withIntensity(readFixture(FIXTURE_PHASE7_5_VXSE53_073528), "未入電")
+    .replaceAll("2026-07-28T16:", "2009-08-11T04:")
+    .replaceAll("2026-07-28T07:", "2009-08-10T19:");
+}
+
 function harness(initialNowMs: number, restored: { daily?: DailyQuakeCounter; quakeDisplay?: QuakeDisplayStore } = {}) {
   let nowMs = initialNowMs;
   vi.setSystemTime(nowMs);
   const daily = restored.daily ?? new DailyQuakeCounter(nowMs);
-  const quakeDisplay = restored.quakeDisplay ?? new QuakeDisplayStore();
+  const quakeDisplay = restored.quakeDisplay ?? new QuakeDisplayStore(() => daily.getRecentQuakes());
   const standby = new StandbyStateStore();
   let hub: InfoDisplayHub | null = null;
   const sink = createDisplaySink({
@@ -55,10 +76,16 @@ function harness(initialNowMs: number, restored: { daily?: DailyQuakeCounter; qu
   display.restoreQuakeLifecycle(quakeDisplay.export(), nowMs);
   hub = new InfoDisplayHub(display, { summarize: (e) => e.title, weatherAlerts: () => [], now: () => nowMs });
   let seq = 0;
+  // 本番の間隔を写す: 表示側（hub）は 5 秒ごと、永続側（monitor）は 60 秒ごとに sweep する。
+  // 同時に回すと、両者の期限切れの時刻のずれが隠れる。
+  let displaySweptAt = initialNowMs;
+  let durableSweptAt = initialNowMs;
+  const advance = (toMs: number) => {
+    for (let t = displaySweptAt + 5_000; t < toMs; t += 5_000) { display.sweep(t); displaySweptAt = t; }
+    for (let t = durableSweptAt + 60_000; t < toMs; t += 60_000) { quakeDisplay.sweep(t); durableSweptAt = t; }
+  };
   const deliver = (message: WsDataMessage, atMs: number) => {
-    // 本番の hub は 5 秒ごとに sweep する。受信の直前にも 1 回回して、latest の TTL 切れを再現する。
-    display.sweep(atMs - 1_000);
-    quakeDisplay.sweep(atMs - 1_000);
+    advance(atMs);
     nowMs = atMs;
     vi.setSystemTime(atMs);
     handler.handler(normalizeTelegramMessage({ ...message, id: `followup:${seq++}`, meta: undefined }, atMs).message);
@@ -73,8 +100,11 @@ function harness(initialNowMs: number, restored: { daily?: DailyQuakeCounter; qu
       vi.setSystemTime(atMs);
       display.sweep(atMs);
       quakeDisplay.sweep(atMs);
+      displaySweptAt = atMs;
+      durableSweptAt = atMs;
     },
     largeQuakes: () => hub!.buildSnapshot().largeQuakes,
+    mapLayer: () => hub!.buildSnapshot().mapLayers?.quake,
     latest: () => hub!.buildSnapshot().latestQuake,
   };
 }
@@ -97,7 +127,7 @@ function restart(
   quakePersistence.save(damage(h.quakeDisplay.export()), atMs);
   const quakeLoaded = quakePersistence.load(atMs);
   quakePersistence.dispose();
-  const quakeDisplay = new QuakeDisplayStore();
+  const quakeDisplay = new QuakeDisplayStore(() => daily.getRecentQuakes());
   if (quakeLoaded != null) quakeDisplay.restore(quakeLoaded, atMs);
   return harness(atMs, { daily, quakeDisplay });
 }
@@ -166,5 +196,66 @@ describe("保持の切れた大地震カードは、同じ地震の続報で戻�
       maxInt: "6-",
       reportDateTime: "2009-08-11T05:14:00+09:00",
     });
+    // 永続の真実源も同じ判定で残す。表示だけ残すと、次の再起動でカードが消える。
+    expect(h.quakeDisplay.export().largeQuakes.map((entry) => entry.key)).toEqual([EVENT_ID]);
+    const again = restart(h, T51 + 6 * MIN);
+    expect(again.largeQuakes()).toHaveLength(1);
+    expect(again.largeQuakes()[0]).toMatchObject({ eventId: EVENT_ID, maxInt: "6-" });
+  });
+
+  // 実不具合の再発防止（2026-10-24 レビュー P2）: 表示側の sweep が先にカードを消した後の続報で、
+  // 永続側だけが保持の切れたカードを更新して延ばし、display off→on で戻していた。
+  it("live: 表示側の sweep が先に消した直後の VXSE61 で、永続側も延長せず display off→on で戻らない", () => {
+    const h = harness(T51);
+    h.deliverFixture(VXSE51, T51);
+    h.deliverXml(vxse61At("05:19"), "VXSE61", T51 + 10 * MIN + 10_000);
+    expect(h.largeQuakes()).toHaveLength(0);
+    expect(h.quakeDisplay.export().largeQuakes).toEqual([]);
+    const redisplayed = harness(T51 + 10 * MIN + 11_000, { daily: h.daily, quakeDisplay: h.quakeDisplay });
+    expect(redisplayed.largeQuakes()).toHaveLength(0);
+  });
+
+  // 実不具合の再発防止（2026-10-24 レビュー P2）: 表示側の sweep が host を消した後の続報で、永続側だけが
+  // 残った contribution を保持元にして host を延ばし、display off→on で地図を戻していた。
+  it.each([
+    { name: "nonEmergencyHost", xml: () => withIntensity(readFixture(VXSE51), "4"), type: "VXSE51", eventId: EVENT_ID },
+    { name: "unknownHost", xml: () => withIntensity(readFixture(VXSE51), "未入電"), type: "VXSE51", eventId: EVENT_ID },
+  ] as const)("live: 表示側の sweep が $name を消した直後の VXSE61 で、永続側も延長せず display off→on で戻らない", (c) => {
+    const h = harness(T51);
+    h.deliverXml(c.xml(), c.type, T51 + 10_000);
+    expect(h.mapLayer()?.[c.name]).toMatchObject({ eventKey: `earthquake:${c.eventId}` });
+    const followup = vxse61At("05:14").replace(`<EventID>${EVENT_ID}</EventID>`, `<EventID>${c.eventId}</EventID>`);
+    h.deliverXml(followup, "VXSE61", T51 + 5 * MIN + 15_000);
+    expect(h.mapLayer()?.[c.name] ?? null).toBeNull();
+    expect(h.quakeDisplay.export()[c.name] ?? null).toBeNull();
+    const redisplayed = harness(T51 + 5 * MIN + 16_000, { daily: h.daily, quakeDisplay: h.quakeDisplay });
+    expect(redisplayed.mapLayer()).toEqual(h.mapLayer());
+  });
+
+  // 実不具合の再発防止（2026-10-24 レビュー P2）: 表示側の sweep が消した別 EventID のカードを、永続側だけが
+  // 有効な参照として数え、後から来た all-unknown の unknownHost を選ばなかった。
+  it("live: 表示側の sweep が別の地震のカードを消した直後の all-unknown は、両方の owner で unknownHost になる", () => {
+    const h = harness(T51);
+    h.deliverFixture(VXSE51, T51);
+    h.deliverXml(allUnknownVxse53(), "VXSE53", T51 + 10 * MIN + 10_000);
+    const unknownHost = { eventKey: `earthquake:${UNKNOWN_EVENT_ID}` };
+    expect(h.mapLayer()?.unknownHost).toMatchObject(unknownHost);
+    expect(h.quakeDisplay.export().unknownHost).toMatchObject(unknownHost);
+    const redisplayed = harness(T51 + 10 * MIN + 11_000, { daily: h.daily, quakeDisplay: h.quakeDisplay });
+    expect(redisplayed.mapLayer()).toEqual(h.mapLayer());
+  });
+
+  it("restart 保持内・地図の contributions 欠け: 明示の取消では表示と永続の両方から消える", () => {
+    const before = harness(T51);
+    before.deliverFixture(VXSE51, T51);
+    const h = restart(before, T51 + 2 * MIN, (state) => ({ ...state, contributions: [] }));
+    expect(h.largeQuakes()).toHaveLength(1);
+    const cancel = readFixture("32-35_10_01_220510_VXSE51.xml")
+      .replace("<EventID>20220509152315</EventID>", `<EventID>${EVENT_ID}</EventID>`)
+      .replace("<ReportDateTime>2022-05-10T18:10:00+09:00", "<ReportDateTime>2009-08-11T05:14:00+09:00");
+    h.deliverXml(cancel, "VXSE51", T51 + 5 * MIN);
+    expect(h.largeQuakes()).toHaveLength(0);
+    expect(h.quakeDisplay.export().largeQuakes).toEqual([]);
+    expect(restart(h, T51 + 6 * MIN).largeQuakes()).toHaveLength(0);
   });
 });
