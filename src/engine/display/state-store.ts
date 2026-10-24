@@ -463,7 +463,6 @@ export class DisplayStateStore {
       : quakeObservationBridge.latest;
     if (latestQuake != null) {
       changed = this.applyLatestQuake(latestQuake, nowMs) || changed;
-      changed = this.restoreLargeQuakeFromLatest(latestQuake, nowMs) || changed;
     }
     changed = this.pruneUnreferencedQuakeMapEvents() || changed;
     return changed;
@@ -927,41 +926,6 @@ export class DisplayStateStore {
       reportDateTime: recent.reportDateTime,
       updatedAtMs: 0,
     }, recentMeta);
-  }
-
-  /** restoredLatestBaseline で初めて復元された latest と同じ震度を emergency にも揃える。 */
-  private restoreLargeQuakeFromLatest(input: DisplayLatestQuakeInputV1, nowMs: number): boolean {
-    if (
-      this.recentQuakesProvider == null
-      || input.eventId == null
-      || input.eventId.trim() === ""
-      || this.largeQuakes.has(input.eventId)
-      || this.latestQuake == null
-      || this.latestQuake.eventId !== input.eventId
-      || quakeCardRank(this.latestQuake) < TIER_QUAKE_ALERT_RANK
-      || this.restoredLatestBaseline(input) == null
-    ) return false;
-    const latest = this.latestQuake;
-    if (latest.maxInt == null || latest.maxIntRank == null) return false;
-    this.largeQuakes.set(input.eventId, {
-      kind: "largeQuake",
-      eventId: latest.eventId,
-      originTime: latest.originTime,
-      hypocenterName: latest.hypocenterName,
-      magnitude: latest.magnitude,
-      magnitudeSemantic: latest.magnitudeSemantic,
-      maxInt: latest.maxInt,
-      maxIntRank: latest.maxIntRank,
-      maxIntSemantic: latest.maxIntSemantic,
-      intensityGroups: latest.intensityGroups,
-      reportDateTime: latest.reportDateTime,
-      depth: latest.depth,
-      depthSemantic: latest.depthSemantic,
-      maxLgInt: null,
-      tsunamiWarning: latest.tsunamiWarning,
-      updatedAtMs: nowMs,
-    });
-    return true;
   }
 
   sweep(nowMs: number, sweepWeatherPromotions = true): boolean {

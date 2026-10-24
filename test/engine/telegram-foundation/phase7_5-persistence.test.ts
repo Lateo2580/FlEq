@@ -110,12 +110,8 @@ describe("§7.5 unit 6: real fixture persistence", () => {
     const restartedSnapshot = restartedStore.snapshot(1, followupNowMs);
     expect(restartedSnapshot.latestQuake).toEqual(liveSnapshot.latestQuake);
     expect(restartedSnapshot.recentQuakes).toEqual(liveSnapshot.recentQuakes);
-    expect(restartedSnapshot.largeQuakes[0]).toMatchObject({
-      eventId: "20260728162718",
-      maxInt: "7",
-      maxIntRank: 9,
-      hypocenterName: liveSnapshot.largeQuakes[0]?.hypocenterName,
-    });
+    // VXSE61 は VXSE51 の約 4 時間後。live の sweep なら大地震カードは保持 10 分で消えているので、再起動後も作り直さない。
+    expect(restartedSnapshot.largeQuakes).toEqual([]);
   });
 
   it("実 VXSE53 の exact Area group は daily restart 後も具体値を保つ", () => {

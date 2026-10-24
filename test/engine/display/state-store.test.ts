@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
+import { QuakeDisplayStore } from "../../../src/engine/display/quake-display-store";
 import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
 import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../../../src/engine/messages/tsunami-state";
 import {
@@ -594,12 +595,16 @@ describe("DisplayStateStore: largeQuakes / recentQuakes", () => {
       const restored = new DailyQuakeCounter(Date.parse(first.reportDateTime));
       expect(restored.restore(persisted.export(), Date.parse(first.reportDateTime))).toBe(true);
 
+      // 本番の再起動は monitor 所有の quake lifecycle（保持内の largeQuake）も読み戻す。
+      const lifecycle = new QuakeDisplayStore();
+      lifecycle.applyPresentationEvent(first, Date.parse(first.reportDateTime));
       const store = new DisplayStateStore(
         undefined,
         undefined,
         undefined,
         () => restored.getRecentQuakes(Date.parse("2026-07-06T21:01:00+09:00")),
       );
+      store.restoreQuakeLifecycle(lifecycle.export(), Date.parse(first.reportDateTime));
       expect(store.snapshot(0, Date.parse(first.reportDateTime)).latestQuake).toBeNull();
       const followup = quakePresentation(
         type,
