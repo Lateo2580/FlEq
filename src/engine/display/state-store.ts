@@ -332,12 +332,25 @@ export class DisplayStateStore {
     const retainsKnownSafety = quakeMeta != null
       && !hasResolvedQuakeCancellation(quakeMeta)
       && shouldRetainKnownQuakeSafety(quakeMeta.maxIntValue);
+    const heldLargeQuake = quakeProjection?.eventId == null
+      ? undefined
+      : this.largeQuakes.get(quakeProjection.eventId);
+    // 地図の contributions だけが欠けた保存ファイルから保持内に戻したカードは、地図の側で §7.4 の保持を
+    // 判定できず、震度の無い続報で消える。同じ EventID の daily baseline で §7.4 を確かめて保つ。
+    // カードの無いときは作らない（2026-10-24 レビュー P2）。
+    const preservesByRestoredBaseline = quakeMapMutation.accepted
+      && quakeMapMutation.preservation === "none"
+      && quakeProjection != null
+      && heldLargeQuake != null
+      && nowMs - heldLargeQuake.updatedAtMs <= LARGE_QUAKE_HOLD_MIN * MIN_MS
+      && this.restoredLatestBaseline(quakeProjection) != null;
     if (
       quakeMapMutation.accepted
       && quakeProjection?.eventId != null
       && quakeProjection.eventId.trim() !== ""
       && quakeMeta != null
       && !retainsKnownSafety
+      && !preservesByRestoredBaseline
       && (
         hasResolvedQuakeCancellation(quakeMeta)
         || !quakeMeta.intensityStructureMissing
@@ -348,7 +361,7 @@ export class DisplayStateStore {
     }
     if (
       quakeMapMutation.accepted
-      && quakeMapMutation.preservation === "structuralMissing"
+      && (quakeMapMutation.preservation === "structuralMissing" || preservesByRestoredBaseline)
       && quakeProjection?.eventId != null
       && quakeProjection.eventId.trim() !== ""
     ) {

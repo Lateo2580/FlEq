@@ -5,7 +5,7 @@ import type { WsDataMessage } from "../../src/types";
 import { normalizeTelegramMessage } from "../../src/dmdata/telegram-ingress";
 import { createDisplaySink } from "../../src/engine/monitor/display-sink";
 import { InfoDisplayHub } from "../../src/engine/display/hub";
-import { DisplayStateStore } from "../../src/engine/display/state-store";
+import { DisplayStateStore, type DisplayQuakeLifecyclePersistedV1 } from "../../src/engine/display/state-store";
 import { StandbyStateStore } from "../../src/engine/display/standby-state-store";
 import { WeatherPromotionStore } from "../../src/engine/display/weather-promotion-store";
 import { QuakeDisplayStore } from "../../src/engine/display/quake-display-store";
@@ -80,7 +80,11 @@ function harness(initialNowMs: number, restored: { daily?: DailyQuakeCounter; qu
 }
 
 /** プロセス再起動: 本番と同じく daily・quakeDisplay をファイルへ保存して読み戻し、fresh な display を作る。 */
-function restart(h: ReturnType<typeof harness>, atMs: number) {
+function restart(
+  h: ReturnType<typeof harness>,
+  atMs: number,
+  damage: (state: DisplayQuakeLifecyclePersistedV1) => DisplayQuakeLifecyclePersistedV1 = (state) => state,
+) {
   const dir = fs.mkdtempSync(path.join(process.cwd(), ".large-quake-restart-"));
   tempDirs.push(dir);
   const dailyPersistence = new DailyQuakePersistence(path.join(dir, "daily-quake.json"), 0);
@@ -90,7 +94,7 @@ function restart(h: ReturnType<typeof harness>, atMs: number) {
   const daily = new DailyQuakeCounter(atMs);
   expect(dailyLoaded != null && daily.restore(dailyLoaded, atMs)).toBe(true);
   const quakePersistence = new QuakeDisplayPersistence(path.join(dir, "quake-display.json"), 0);
-  quakePersistence.save(h.quakeDisplay.export(), atMs);
+  quakePersistence.save(damage(h.quakeDisplay.export()), atMs);
   const quakeLoaded = quakePersistence.load(atMs);
   quakePersistence.dispose();
   const quakeDisplay = new QuakeDisplayStore();
@@ -116,6 +120,7 @@ describe("保持の切れた大地震カードは、同じ地震の続報で戻�
     expect(h.largeQuakes()).toHaveLength(0);
     h.deliverXml(vxse61At("05:39"), "VXSE61", T51 + 30 * MIN);
     expect(h.largeQuakes()).toHaveLength(0);
+    expect(h.latest()).toMatchObject({ eventId: EVENT_ID, reportDateTime: "2009-08-11T05:39:00+09:00" });
   });
 
   it("live: latest も切れた後（実時刻 08:55）の VXSE61 で戻らない", () => {
@@ -124,6 +129,7 @@ describe("保持の切れた大地震カードは、同じ地震の続報で戻�
     h.sweep(T51 + 11 * MIN);
     h.deliverFixture(VXSE61, T61);
     expect(h.largeQuakes()).toHaveLength(0);
+    expect(h.latest()).toMatchObject({ eventId: EVENT_ID, reportDateTime: "2009-08-11T08:55:00+09:00" });
   });
 
   it("restart 保持内: 再起動の後もカードは震度 6弱のまま残り、続報でも保つ", () => {
@@ -144,5 +150,21 @@ describe("保持の切れた大地震カードは、同じ地震の続報で戻�
     expect(h.largeQuakes()).toHaveLength(0);
     h.deliverFixture(VXSE61, T61);
     expect(h.largeQuakes()).toHaveLength(0);
+    expect(h.latest()).toMatchObject({ eventId: EVENT_ID, reportDateTime: "2009-08-11T08:55:00+09:00" });
+  });
+
+  // 実不具合の再発防止（2026-10-24 レビュー P2）: 地図の contributions だけが欠けた保存ファイルでも、保持内の続報でカードを消さない。
+  it("restart 保持内・地図の contributions 欠け: 続報の後もカードは震度 6弱のまま残る", () => {
+    const before = harness(T51);
+    before.deliverFixture(VXSE51, T51);
+    const h = restart(before, T51 + 2 * MIN, (state) => ({ ...state, contributions: [] }));
+    expect(h.largeQuakes()).toHaveLength(1);
+    h.deliverXml(vxse61At("05:14"), "VXSE61", T51 + 5 * MIN);
+    expect(h.largeQuakes()).toHaveLength(1);
+    expect(h.largeQuakes()[0]).toMatchObject({
+      eventId: EVENT_ID,
+      maxInt: "6-",
+      reportDateTime: "2009-08-11T05:14:00+09:00",
+    });
   });
 });
