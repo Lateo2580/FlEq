@@ -1,0 +1,615 @@
+{
+  "meta": {
+    "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
+    "sha256": "83f9e105eb96ec7693ea082e2866728e7191e55498cdfebd570fa4e55a5f9575",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "4029bb88bb77d56daa1037da2e90693d9a400656f5b7dedff020bf1e1fda0c3d",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-NS-D-STEPDOWN-NOTICE",
+        "A": "巨大地震警戒の現況が warningUntil（ReportDateTime＋7 日）で巨大地震注意へ移るとき、通知を作らない。表示の変化（status）と deadlineApplied の outcome だけを出す（描き方は P4）。validUntil の expired も今どおり通知しない",
+        "B": "走行中に期限を迎えて移るとき（期限の入力・受信の前の回収で、warningUntil がその run の復元の時刻より後のもの）、desktop の通知を 1 回作る（音なし。level info。title は「南海トラフ地震臨時情報（巨大地震注意）」、body は「巨大地震警戒の期間（発表から 7 日）が過ぎ、巨大地震注意の期間に移りました」の固定の文。訓練・試験も desktop だけ）。印の種類は既にある expiry を使う",
+        "C": "B に加えて sound も作る（level warning、巨大地震注意の報と同じ短三和音 2 回）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定（2026-10-22、ご主人）: A",
+        "reason": "利用者から見た違い: A では、巨大地震警戒の発表から 7 日目（ReportDateTime の 168 時間後）に、画面の区分が音も通知も無く「巨大地震注意」に替わり、気づくのは画面を見たときになる。B では、その時刻にデスクトップの通知が 1 回出る（音は鳴らない）。C では、さらに注意の音が鳴る。時刻は発表の 7 日後の同じ時刻なので、夜中にも鳴りうる。どの案でも、validUntil で消えるときは鳴らない。B・C でも、停止している間に 7 日を越え、起動の復元の回収で移ったときは通知を作らない（復元で intent を作らない規則、P3-NS-AC01 の (3)・Q-NOTICE.restart。画面は起動のときから「巨大地震注意」）。停止の間に validUntil も越えたときは、復元で直接 expired になり、どの案でも何も出ない。K10 が入った後、復元で当てずに保留した期限（awaiting・unverified の間）を後で当てたときも、復元由来として通知を作らない（統合担当の決定 D5。区別は「warningUntil が復元の時刻以前か」で、K10 が復元由来の中身を保留するのに使う区別をそのまま使い、印を足さない）。決まっていない理由: 作者裁定（p3-order-plan.md:539）は移る期間と数え始めを決めたが、移るときの知らせ方は書いていない。H12（spec:3039）は巨大地震注意の報の音を決めたが、電文の無い移り変わりの音は書いていない。推奨の理由: 電文の無い、時間で決まる移り変わりで、危険が下がる向き。旧築も今の新築も、時間で決まる変化では鳴らさない（旧築は 7 日で黙って消える standby-state-store.ts:2403、新築は Q-NOTICE の expiry）。B・C は、期限の入力から intent を作る経路（今の U-N には無い）と固定の文面が増える。【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】7 日目の巨大地震警戒から巨大地震注意への移りと、その知らせ方は資料に記述なし（地震関連情報番号のコード表 code/地震火山関連コード表.txt:8217・:8218 は 120 巨大地震警戒・130 巨大地震注意の報の値で、時間で移ることを表す報やコードは無い。VYSE50 は失効時刻を持たない、manual/地震火山関連_解説資料.txt:227〜:228・jma-2026-head-control-list.txt:142）。ほかの根拠: 期間を 2 週間とし後の 1 週間を巨大地震注意と同じ対応にするのは内閣府の資料（cao-bousai-nankai-elearning-review.md:39、地震発生から数える）、7 日・14 日を ReportDateTime から数えるのは作者裁定（計画 :539）"
+      },
+      {
+        "id": "P3-NS-D-INFO-MEMORY",
+        "A": "情報 subject は表示の期限（P3-NS-SEM-03）で本文と未確認の印を捨てて expired の記憶になり、ReportDateTime＋30 日まで残る（現況の watermark の 30 日〔P3-C8-SEM-02〕、旧築が取り除いた情報の記録を覚えておく長さ 30 日〔tombstoneRetentionMs、revision-family-registry.ts:154・:477〕と同じ）。取消の記録（cancelled）も同じ 30 日",
+        "B": "記憶を ReportDateTime＋14 日まで残す（巨大地震警戒の二段の終わりと同じ長さ）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定（2026-10-22、ご主人）: A",
+        "reason": "利用者から見た違い: 記憶は画面の一覧に出ず、どちらの案でも表示の期限を過ぎた情報は一覧から消え、同じ報が届き直しても鳴らない。違いは 2 つ。(1) 取消: A では発表から 14〜30 日の間に届いた情報の取消が、元の報を通知していれば鳴る（H19、P3-NL-AC09）。B では 14 日を過ぎた取消は鳴らない（今の新築では 7 日を過ぎた取消は鳴らない）。ただし A と B で差が出るのは、情報系列の印だけが通知の根拠になる取消に限る。現況の印が残る取消（期限切れの現況も通知の印を持つ、統合担当の決定 D1）は、どちらの案でも 30 日まで鳴りうる (2) 器: 記憶も 64 件の枠を使う。退去は training/test が先で normal の記憶が後（P3-NS-AC06 の (5)）なので、記憶が長いほど、枠が埋まった日に訓練・試験の情報が先に押し出される期間と、normal の記憶だけで埋まって訓練・試験の情報を受けても残らない期間が長くなる（残存リスク (4)）。退去で消えた古い報が届き直して鳴りうる期間（残存リスク (16)）は、記憶が長いほど短くなる。64 件は情報 subject（family×EventID）の数で、実配信で届く見込みは無い。決まっていない理由: 設計メモ :226 は期限切れを「記憶の記録に理由 expired と最終更新の時刻を残す」形に揃えると決め、§7 の 1(c)（:378）は通知の印を「その情報を覚えている間」持つと決めたが、南海トラフの情報を覚える長さは書いていない（現況の 30 日だけ）。記憶を持たない案（表示の期限で記録ごと消す）は :226 の形に合わないので出さない。推奨の理由: 長さを現況の watermark と旧築に揃え、新しい数を作らない。記憶 1 件は上界 985 byte で器（P3-NS-RES-01）の内。【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】南海トラフの情報を覚えておく長さは資料に記述なし（VYSE50〜52 は失効時刻を持たない、manual/地震火山関連_解説資料.txt:227〜:228・jma-2026-head-control-list.txt:142・:145）。取消が「独立した情報単位」全体を取り消すこと（manual/地震火山関連_解説資料.txt:2050〜:2052）は資料のとおりで、取消を受けて鳴らす期間の長さの根拠は作者裁定と旧築の 30 日"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-NS-SOURCES",
+        "status": "closed",
+        "source": "統合担当の依頼（2026-10-22）。HEAD 4dad6cb5（K7・K8・K9 は配送済み）で、設計メモ・計画・spec・U-N の契約と実コードを読み合わせた",
+        "closed": "本契約の中身は設計メモ p3-persist-premises.md の :311（§4.10 の K13 の行: 情報系列の全文の保存と予算、H12、U-N の期限〔H23〕、変える契約 P3-UNIT-N-001 の P3-C8-SUBJECTS・CURRENT-EXPIRY・NOTICE-LEVELS、版を上げる、新しい形の保存→復元）と :440（§8 の表の K13 の行: H30・H12・H23〔N〕、K8・K9 の後）を全部覆う。そのほかに効く行: §0 の 4（:20、南海トラフの情報系列は全文を保存する）、§3.3 の H23 の形（:226・:227、U-N は K13）、§4.6（:284〜:286、A: 64 件を全文で、予算 2.5 MiB 前後、作者に戻すものは無い）、§5（:347、後ろの 6 本は触る unit が重ならない前提。§14 の :524 で K10 も U-N を触ることになったので AC10 で扱う）、§7（:363、1〜8 はすべて推奨どおり。1(c) の印の保持〔:378〕）、§9（:459、上界約 2.36 MB は見積もり）、§10（:477〜:479、原文の欠片は K14、K13 は欄を足さない）、§11・§14（K9 の配送で「根拠のある時計」は確かめた手元の時計、回収の保留は K10）、§12（:500、二段と移行の時刻の 1 field）、§13（:512・:516、U-N の B は Serial と InfoSerial/Name の 2 か所）、§15・§16（K8 の配送: 終端の intent は印に置き換え済み、印の上界 102 byte、H19・H16 は配送済み）。計画 p3-order-plan.md の :539（判断 1: 巨大地震警戒は 7 日で巨大地震注意、さらに 7 日で expired、数え始めは ReportDateTime、入れる所は K13）と :554（情報系列の未確認の印は K13 で入れ、それまでは保存しない。K7 の AC04 の例外）。spec §16 の H12（:3039）・H23（:3050）・H30（:3057）、§4.2 の U-N の行（:477、288 KiB）、§4.3 の :512（情報系列 N）。K7 の Q-VM-IMPL-2A（p3-version-material.json:161 の読み替え (i)）、K8 の P3-NL-AC02 の (2)（p3-notice-ledger.json:443、U-N の情報系列は証拠の記録に印を持つ）",
+        "remaining": "なし",
+        "reason": "本契約が覆う範囲と根拠の行を 1 か所に写す"
+      },
+      {
+        "id": "Q-NS-RULINGS",
+        "status": "closed",
+        "source": "作者裁定（2026-10-20 の §7 すべて推奨、2026-10-20 の「P5 の前は初期化してよい」、2026-10-20 の H51、2026-10-21 朝の台帳 97、2026-10-21 昼の K7 発注 2a）と spec §16 の文言",
+        "closed": "分岐にせず本文に写したもの（決まっているので作者に戻さない）: (1) 巨大地震警戒の二段（計画 :539 の判断 1、設計メモ :500）→ P3-NS-AC03。移るときの知らせ方だけは決まっていないので分岐 P3-NS-D-STEPDOWN-NOTICE (2) 情報系列の未確認の印を K13 で保存する（計画 :554）→ P3-NS-AC02 (3) H12「調査中は普通の音、巨大地震警戒は最も重い音、巨大地震注意は警報の音のまま」（spec:3039）→ P3-NS-AC05。調査中は InfoSerial/Code の 111・112・113（P3-C8-CODE-TABLE=A の investigating）と読む (4) H30「南海トラフの情報の一覧も再起動の後に戻す」（spec:3057）と設計メモ §4.6 の A（64 件を全文で）→ P3-NS-AC01 (5) H23「期限で消すときは理由と最終更新の時刻を全分野で同じ形で出す。何時間で消すかは電文の有効期限、無い種類だけこちらで決める」（spec:3050）と設計メモ :226 の形 → P3-NS-AC04。VYSE50〜52・60 は ValidDateTime を持たない（設計メモ :187 の corpus の範囲、P3-C8-CURRENT-EXPIRY の reason の 13 本とも TargetDateTime＝ReportDateTime）ので、長さはこちらで決める種類。覚える長さだけ分岐 P3-NS-D-INFO-MEMORY (6) H51 の B（設計メモ §13 の :512・:516）→ P3-NS-AC07 (7) 原文の欠片の欄は足さない（設計メモ :479）→ AC07 の (3) (8) 新築の旧い形は読まずに初期化する（計画 :503、K7 の入口）→ P3-NS-AC08 (9) 時計を確かめるまでの回収の保留は K10（設計メモ §14 の :524・:527 の (2)）→ P3-NS-AC10 (10) 器は器の上限の撤回をしない作者の方向（計画 :547）の内で、設計メモ :286 の「2.5 MiB 前後」→ 統合担当の決め（Q-NS-INTEGRATOR）",
+        "remaining": "なし",
+        "reason": "決まっている所を分岐にしない。【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】(3) の 111〜113 が調査中なのは code/地震火山関連コード表.txt:8214〜:8216（120 巨大地震警戒は :8217、130 巨大地震注意は :8218）。(5) の失効時刻を持たないことは manual/地震火山関連_解説資料.txt:227〜:228（失効時刻は津波と降灰予報の電文だけ）と jma-2026-head-control-list.txt:142・:145・:156（VYSE50〜52・60 の ValidDateTime は「－」）、TargetDateTime＝ReportDateTime は manual/地震火山関連_解説資料.txt:208〜:210 と jma-2026-head-control-list.txt:142 の「同左」。H23 の長さ（7 日）は資料に記述なし"
+      },
+      {
+        "id": "Q-NS-FLOW",
+        "status": "closed",
+        "source": "起草者のコードの読み合わせ（HEAD 4dad6cb5）",
+        "closed": "今の U-N: (1) 情報系列は最小の証拠（subject・reportDateTimeMs・serialRaw・infoTypeRaw・controlDateTimeRaw と通知の印）だけを payload.evidence に書き（nankai-unit.ts:779 の encode、:744〜:755 の evidenceOf）、復元では事実を持たない effective \"evidence\" の記録として戻す（:729〜:742）。view・一覧には出ない (2) 情報の未確認の印は state にだけ付き、保存しない（holdState は情報の印で保存世代を進めない、:317〜:326。types.ts:75 の注記） (3) 情報 subject は ReportDateTime＋7 日（INFORMATION_RETAIN_MS、:33）で記録ごと消え（collect、:496〜:501）、消えるときの outcome は出ない（deadlineStep は after の無い変化を outcome にしない、:511） (4) 現況は validUntil＝ReportDateTime＋7 日で expired（事実を捨てる）、retainUntil＝＋30 日で消える（:90・:486〜:495）。巨大地震警戒も注意も同じ (5) 段階は報自身の code の表（CODE_LEVEL、:210・:211）で、111〜113 は warning (6) 退去は情報 64 件で、retainUntil を過ぎたもの → training/test → normal の最古（evictOne、:194〜:204） (7) 受信の容量は件数と pending の byte だけで数え、世代の byte は decode のときに記録ごとの byte の加算で確かめる（generationBytes、:78〜:80・:770）。上限は 294,912（:29） (8) domain は Serial の形の外を identityInvalid で断り（nankai.ts:103）、InfoSerial/Name が 2 個以上か子要素を持つと requiredStructureInvalid で断る（nankai.ts:136 の single、:88） (9) 復元は現況の active だけを表示の変化と coverage に載せる（:578・:583）",
+        "remaining": "なし",
+        "reason": "変える所の場所を確かめた"
+      },
+      {
+        "id": "Q-NS-BYTES",
+        "status": "closed",
+        "source": "起草者の見積もり（.draft/bound.mjs、今の型と codec の上限から JSON.stringify の UTF-8 byte を数えた。実装で試験が数え直す）",
+        "closed": "上界の式: 世代 ≤ 空の envelope（schemaVersion・unit・generation 0・capturedAt 0・空の配列 3 つ・sha256）＋inputBoundary の最大 430（checkpoint.ts:641）＋losses の最大 721（checkpoint.ts:658）＋generation と capturedAt の伸び 62 − 空の intents の 2 ＋ pending の予算 131,072（配送の更新の予約込み）＋現況 6 件の和＋情報 64 件の和＋区切り。記録の上界は decode が受ける最長で数えた: 文字列は UTF-16 の長さの上限（I-U-N.bounds）を JSON で 6 byte になる文字で埋める（decode は長さだけを見る）。ReportDateTime も同じく 40 単位×6 byte で数える（decoder は長さ 40 以下と Date.parse の成功しか見ない、ヘルツ r0 の H8）。Control/DateTime は受理と同じ形（controlDateTimeOf、ASCII 40 文字）。時刻の数は 17 文字、ReportRef の残りは inputId 64・origin recovery・operation training・subject 80・Serial 10 桁・InfoType 取消（6 byte）、通知の印は最長（version 16 桁・kinds 3 つ・unattempted）。値（見積もり）: 現況 1 件 5,684 byte（warningUntil と未確認の印と通知の印を含む。VYSE60 は 5,652）、情報 1 件 33,869 byte（active、本文 4,096 単位、未確認の印と通知の印を含む）、expired の記憶 1 件 985 byte。今（v4、証拠 64 件・345 byte）の上界は 188,585 byte（P3-CODEC-T02 の 280,060 は K8 の前の終端の予算を含む値で、今の試験の上限としては緩い）、本契約の後は 2,334,223 byte（6 byte の文字）。3 byte の文字（漢字）で埋めると 1,293,375 byte。実例の最大は、情報 1 件が約 5.2 KB（75_01_04 の定例解説、C8 の測り直し 5,056 byte に Control/DateTime・validUntil・通知の印を足した見込み）なので 64 件で約 0.33 MB、世代で約 0.5 MB の見込み。設計メモ :286 の約 2.36 MB は終端の予算を含む前の値から数えたもの。上限 2,621,440 byte（2.5 MiB、器は広げない）に対し余りは 287,217 byte。解析の上界（この式）と、試験と時間の測定に使う合法な大きな状態（P3-NS-T04・AC09: 合法な日時と期限、重ならない subject、文字列は 3 byte の文字で上限の長さ）は分けて扱う。ReportDateTime の 40 単位×6 byte と合法な時刻の文字列との差は、合法な状態では届かない byte の予約として解析の上界に残す",
+        "remaining": "実装の試験（P3-NS-T04）での数え直し",
+        "reason": "器の値を決める根拠"
+      },
+      {
+        "id": "Q-NS-COST",
+        "status": "closed",
+        "source": "AGENTS.md の受信経路の計算量",
+        "closed": "受信 1 回: 現況と情報 subject は配列に結び付けた Map の索引で引き（nankai-unit.ts:110〜:118、配列が替わったときだけ作り直す O(64)）、印の照合は記録 1 件。65 件目の退去は 64 件の一回の走査（evictOne、ponytail の上限は INFORMATION_LIMIT と decode の 64 で効く）。期限の回収は最小の期限の cache で到来を見て、到来したときだけ現況 6・情報 64 を回収する（上限のある一括、今のまま）。世代の byte は受信では数えない（静的上界が上限の内なので受信で断る必要が無い）。decode では記録ごとの byte（WeakMap の cache）の加算で数え、state 全体を直列化しない。記録 1 件の byte は記録を作ったときに 1 回だけ（最大 33 KB の文字列化）。保存の encode は今どおり保存のときだけ（checkpoint）",
+        "remaining": "なし",
+        "reason": "受信の経路に全件×全件の走査と state 全体の直列化を足さない"
+      },
+      {
+        "id": "Q-NS-INTEGRATOR",
+        "status": "closed（統合担当の決め。画面・音・通知の出方を変えない値と形）",
+        "source": "起草者の提案（統合担当が配送までに確かめる）",
+        "closed": "(1) 器: U-N の 1 世代の上限 GENERATION_LIMIT と maxEnvelopeBytes を 2,621,440 byte（2.5 MiB）にする（設計メモ :286 の「2.5 MiB 前後」。上界の見積もり 2,334,223 の 1.12 倍） (2) 版: p3-nankai-unit-v5、discardableSchemaVersions は v1〜v4 (3) 欄の名と値: 現況の移る時刻は warningUntil（巨大地震警戒の現況だけ、＝ReportDateTime＋7×86,400,000 ms、移った後も残す）、その現況の validUntil は＋14×86,400,000 ms。情報 subject の active は validUntil（P3-NS-SEM-03）を持ち、retainUntil は記憶の終わり（分岐 P3-NS-D-INFO-MEMORY）。payload の鍵は information（evidence を外す） (4) 統合担当の決定 D2（2026-10-22、K11 の順と揃える）: 情報 64 件の退去は、retainUntil を過ぎた記録 → training/test の記録 → normal の expired の記憶 → normal の記録の最古の順（P3-NS-AC06 の (5)） (5) H51 の B の受け方: Serial は空にして WARN identityInvalid、Name は null にして WARN requiredStructureInvalid（新しい診断の語を足さない） (6) 復元の表示の変化と recoveryApplied の coverage に、active の情報 subject も載せる（一覧が戻ることを表示の変化で知らせる。通知はしない） (7) 情報の view（NankaiInformationView）は validUntil を持つ（現況の view が validUntil を持つのと同じ。snapshot は 64×約 30 byte 増える） (8) 統合担当の決定 D1（2026-10-22）: 期限切れの現況（expired）も通知の印を持ち続ける。今の collect（nankai-unit.ts:490 の expired の現況を作る base）が印を落としているのは直す対象（K8 の H19 の heard と同じ考え: 通知した報の取消は鳴らす） (9) 統合担当の決定 D3（2026-10-22）: 実装の patch に reconstruction/tools/corpus/sequences.json を許す（replay の試験が effective の欄を読むので、実装の中で直さないとゲートが赤になる）。sequencesSha256 の付け直しと check-contract の sha の FAIL は想定内で、配送の commit で統合担当が付け直す",
+        "remaining": "なし",
+        "reason": "分岐にしない値を 1 か所に置く"
+      },
+      {
+        "id": "Q-NS-AUTHOR",
+        "status": "closed",
+        "source": "作者承認（分岐 2 件は 2026-10-22、残存リスク (1)〜(16) は 2026-10-25 朝、ご主人「残存リスク16件についても問題ありません！」）",
+        "closed": "分岐 P3-NS-D-STEPDOWN-NOTICE・P3-NS-D-INFO-MEMORY は推奨どおり A（ruling 欄）。残存リスク (1)〜(16)（artifactRequirements の最後の項）を承認（今の新築より出なくなる・軽くなる (1)(2)(4)、決定 D4 で残す (3)(6)、遅い取消が鳴る側に増える (5) を含む）",
+        "remaining": "なし",
+        "reason": "unresolvedQuestions の Q-NS-AUTHOR（発注の前）を閉じる"
+      },
+      {
+        "id": "Q-NS-JMA",
+        "status": "closed",
+        "source": "気象庁の資料との照合（p3-order-plan.md の末尾の節「気象庁の資料との照合（2026-10-25 作者裁定）」。発注前点検の前に起草者が当てた）",
+        "closed": "資料は repo の外の ~/research/fleq-jma-premises/sources/ の文字起こし: 地震火山関連 XML 電文解説資料 令和7年12月（manual/地震火山関連_解説資料.txt）、地震火山関連コード表（code/地震火山関連コード表.txt）、管理部・ヘッダ部の運用整理表（jma-2026-head-control-list.txt）。補助に内閣府の資料（cao-bousai-nankai-elearning-review.md）。版は 2026-10-25 の時点で 2026-10-20 の控えと同じ。本契約の reason・source・requirement に「【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】」の印で書いた資料の場所は、この folder からの相対の file 名と行（行は grep で引き、その行の文を確かめた）。電文の意味に頼る条文として照合したもの: decisionBranches の 2 本、Q-NS-RULINGS の (3)(5)、P3-NS-SEM-01〜04、P3-NS-RET-01、P3-NS-AC01〜AC05・AC07。operationContract の normal/training/test は Control/Status の通常・訓練・試験（manual/地震火山関連_解説資料.txt:123〜:127、jma-2026-head-control-list.txt:142）。資料に記述の無いもの（二段の期間、情報の表示と記憶の長さ、64 件、音の段階）は、その条文に「資料に記述なし」と書き、ほかの根拠（作者裁定・内閣府の資料・旧築・spec）と分けた。全内容出力スタイルシートは使っていない",
+        "remaining": "資料と食い違う所（南海トラフの報の訂正の扱い、Serial と EventID の受ける形の幅、family と独立した情報単位の鍵の粒度）は契約を直さずに統合担当へ報告した。作者の裁定が要るかは統合担当が決める",
+        "reason": "台帳 97（根拠の無い前提）の照合を発注前点検の前に当てた記録"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal/training/test の区分は P3-UNIT-N-001 の operationContract のまま。情報 64 件の退去で、受ける報が training/test なら normal の記録（expired の記憶を含む）を候補にしない。二段の移り変わりと記憶は区分ごとの記録に当て、区分をまたがない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UNIT-N-SERIES-001",
+    "mode": "implementation",
+    "objective": "南海トラフ（U-N）の情報系列を全文で保存して再起動の後に一覧を戻し（spec §16 H30）、情報系列の未確認の印も保存する（K7 の AC04 の例外を閉じる、計画 :554）。巨大地震警戒は 7 日で巨大地震注意へ移り、さらに 7 日で expired にする（作者裁定 2026-10-21 朝の判断 1）。情報 subject の期限切れを記憶の記録の形にする（H23）。調査中の音を普通の音にする（H12）。U-N の Serial と InfoSerial/Name の読めない報を断らずに受ける（H51 の B、設計メモ §13）。器を 2.5 MiB に広げ、版を上げて旧い形は初期化する。時計を確かめるまでの回収の保留は K10、読めない所の印と原文は K14、見せ方は P4。再開の並べ方の段 3（K8・K9 の後、K10 と同じ file は直列）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "docs/specs/sound-design-system.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-persist-premises.md",
+      "reconstruction/contracts/p3-unit-n-series.json",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p3-version-material.json",
+      "reconstruction/contracts/p3-notice-ledger.json",
+      "reconstruction/contracts/p3-clock-check.json",
+      "reconstruction/contracts/p3-authority-evidence.json",
+      "reconstruction/contracts/p3-codec-closure.json",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "test/fixtures/**",
+      "src/dmdata/telegram-parser.ts",
+      "src/engine/display/standby-state-store.ts",
+      "src/engine/display/standby-registry.ts",
+      "src/engine/display/standby-persistence.ts",
+      "src/engine/presentation/level-helpers.ts",
+      "src/engine/messages/revision-family-registry.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/nankai/**",
+      "reconstruction/src/units/nankai/**",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/test/nankai-unit/**",
+      "reconstruction/test/shared-runtime/shared-runtime.test.ts",
+      "reconstruction/test/version-material/version-material.test.ts",
+      "reconstruction/tools/corpus/sequences.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-unit-n-series.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M05"
+    ],
+    "integrationContractIds": [
+      "I-U-N"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-N-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-CLOCK-CHECK-001",
+      "P3-AUTHORITY-EVIDENCE-001",
+      "P3-OPERATION-CAPACITY-N-001",
+      "P3-CODEC-CLOSURE-001",
+      "P3-FINAL-ADOPTION-001",
+      "P3-REVISION-ORDER-001",
+      "P3-UNIT-TABLE-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiCurrent",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiInformation",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiInformationView",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitState",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#PersistedNankaiUnit",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitCodec",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiNotificationPayload"
+    ],
+    "publicFunctions": [
+      "reduceNankaiUnit(state, input)・toNankaiView(state)・nankaiUnitCodec・nankaiUnit（reconstruction/src/units/nankai/nankai-unit.ts、signature は変えない）",
+      "parseNankai(material)（reconstruction/src/domains/nankai/nankai.ts、signature は変えない。Serial と InfoSerial/Name の読めない報を accepted にし、診断を候補に添える）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__selected_xml__74_01_01_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_05_200512_VYSE50",
+      "test__fixtures__selected_xml__75_01_01_200512_VYSE51",
+      "test__fixtures__selected_xml__75_01_02_200512_VYSE51",
+      "test__fixtures__selected_xml__75_01_03_200512_VYSE51",
+      "test__fixtures__synthetic_VYSE50_cancel",
+      "test__fixtures__selected_xml__80_01_01_240821_VYSE60"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [
+      {
+        "id": "P3-NS-SEM-01",
+        "target": "巨大地震警戒の現況（line nankai、status megaquakeWarning）",
+        "limit": 7,
+        "unit": "days from the source ReportDateTime",
+        "rule": "warningUntil の到来で status を megaquakeAdvisory に替える（active のまま、事実と印は残す）。通知は作らない（P3-NS-D-STEPDOWN-NOTICE=A）。再起動・再受信で延ばさない",
+        "source": "作者裁定 2026-10-21 朝の判断 1（p3-order-plan.md:539）。【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】7 日で移ることは資料に記述なし（内閣府の資料 cao-bousai-nankai-elearning-review.md:39 は、巨大地震警戒の期間を地震発生から 2 週間とし、後の 1 週間は巨大地震注意と同じ対応とする）。数え始めの ReportDateTime は発表官署の発表時刻で、南海トラフの情報は分値まで有効（manual/地震火山関連_解説資料.txt:193〜:198）"
+      },
+      {
+        "id": "P3-NS-SEM-02",
+        "target": "warningUntil を持つ現況の active",
+        "limit": 14,
+        "unit": "days from the source ReportDateTime",
+        "rule": "validUntil の到来で expired（事実を捨てる、通知の印は残す、通知しない）。warningUntil を持たない現況は今どおり 7 日（P3-C8-SEM-01）。120 を置き換えた 130 の現況は、その 130 の報から 7 日（引き継がない、統合担当の決定 D4）",
+        "source": "作者裁定 2026-10-21 朝の判断 1（p3-order-plan.md:539）。【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】14 日で消すことは資料に記述なし（内閣府の資料 cao-bousai-nankai-elearning-review.md:39）。巨大地震注意（130）と VYSE60 の 7 日も資料に記述なし（内閣府の資料 cao-bousai-nankai-elearning-review.md:38 は巨大地震注意の対応の期間を地震発生から 1 週間が基本とする）。電文は失効時刻を持たない（manual/地震火山関連_解説資料.txt:227〜:228、jma-2026-head-control-list.txt:142・:156）。120 と 130 が別の EventID の報になるのは、臨時情報が報ごとに識別番号を割り振るため（manual/地震火山関連_解説資料.txt:2128、jma-2026-head-control-list.txt:200）"
+      },
+      {
+        "id": "P3-NS-SEM-03",
+        "target": "情報 subject の表示（active）",
+        "limit": 7,
+        "unit": "days from the ReportDateTime",
+        "rule": "validUntil の到来で expired の記憶にする（本文と未確認の印を捨て、source と通知の印を残す。通知しない）。120 の報の情報も 7 日（統合担当の決定 D4）",
+        "source": "spec:3050 H23、設計メモ :226、P3-C8-SEM-03 の長さ。【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】情報の表示の長さは資料に記述なし（VYSE50〜52 は失効時刻を持たない、manual/地震火山関連_解説資料.txt:227〜:228、jma-2026-head-control-list.txt:142・:145）"
+      },
+      {
+        "id": "P3-NS-SEM-04",
+        "target": "情報 subject の記録（active・cancelled・expired）",
+        "limit": 30,
+        "unit": "days from the ReportDateTime",
+        "rule": "retainUntil の到来で記録を除く。P3-NS-D-INFO-MEMORY=A（作者裁定 2026-10-22）の値",
+        "source": "分岐 P3-NS-D-INFO-MEMORY、P3-C8-SEM-02。【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】資料に記述なし（根拠は作者裁定と旧築の 30 日）"
+      }
+    ],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P3-NS-RET-01",
+        "target": "情報 subject（active・cancelled・expired の記憶）",
+        "limit": 64,
+        "unit": "subjects, normal/training/test combined",
+        "source": "P3-C8-RET-02 の件数のまま。65 件目の退去の順は P3-NS-AC06 の (5)（retainUntil を過ぎたもの → training/test → normal の expired の記憶 → normal の最古、統合担当の決定 D2）。【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】subject（operation・family・EventID）は資料の「独立した情報単位」（情報名称・運用種別・識別情報の組、編集官署は鍵にしない、manual/地震火山関連_解説資料.txt:1758〜:1763）に当たる。family はデータ種類コード（VYSE50/51/52/60）で、資料の鍵の情報名称（Control/Title）より細かい（VYSE51・VYSE52 は同じ情報名称、jma-2026-head-control-list.txt:145）。64 件は資料に記述なし"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P3-NS-RES-01",
+        "target": "U-N encoded generation",
+        "limit": 2621440,
+        "unit": "UTF-8 bytes（envelope を含む）",
+        "scope": "現況 6・情報 64・pending 131,072 の全部を上限の文字列で埋めた静的上界は 2,334,223 byte（見積もり、Q-NS-BYTES）。decode は記録ごとの byte の加算で確かめる",
+        "source": "設計メモ :286（2.5 MiB 前後）、Q-NS-INTEGRATOR の (1)。P3-C8-RES-01・P3-AUTH-RES-01 の 294,912 を置き換える"
+      },
+      {
+        "id": "P3-NS-RES-02",
+        "target": "受信 1 回の費用",
+        "limit": "索引の参照と印の照合は記録 1 件、退去は 64 件の一回の走査、期限の回収は到来したときだけ現況 6・情報 64。世代の byte は受信で数えない",
+        "unit": "1 受信",
+        "source": "AGENTS.md 受信経路の計算量、Q-NS-COST"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-N"
+    ],
+    "persistedFields": [
+      "現況: 今の欄（P3-C8 の persistedFields）に warningUntil（巨大地震警戒の現況だけ）",
+      "情報 subject（payload.information、64 件以下）: active は subject・family・eventId・operation・source・unconfirmed?・notice?・infoKind・infoSerial・title・headline・truncated・text・nextAdvisory・validUntil・retainUntil。cancelled は事実を持たず source・unconfirmed?・notice?・retainUntil。expired は source・notice?・retainUntil",
+      "intent: 今どおり pending だけ（P3-NL-AC05）"
+    ],
+    "nonPersistedFields": [
+      "contentRevision・persistence（RuntimeState 側の metadata）",
+      "記録ごとの encode byte の cache・索引の Map・最小の期限の cache（復元で作り直す）",
+      "DecodedMaterial/XML tree、Appendix、UnitView、PublishedOutcome"
+    ],
+    "outOfScope": [
+      "時計を確かめるまでの表示の期限切れと回収の保留（U-N を含む全 unit、P3-CK-AC08 の (6)）と、根拠の状態を unit の入力へ運ぶ欄: K10 P3-EXPIRY-FORM-001",
+      "読めない所・決められない所の印と原文の欠片（H51、設計メモ §10）と、読めなかった電文のカード（H43）: K14",
+      "一覧・期限切れ・二段の見せ方（札・色・掲載の期間）と snapshot の器: P4・段 4。view は今どおり見出しだけ",
+      "南海トラフの端末出力: C19。旧築の待機画面の保存からの移行: C15",
+      "災害の日の道具（reconstruction/test/disaster/**）の BYTE_LIMITS と凍結した結果（P3-DISASTER-CAPACITY-001）",
+      "spec・計画・設計メモ・他の契約の本文の変更（P3-NS-AC12 の改訂は配送の commit で統合担当）。sequences.json は P3-NS-AC08 の 9 step の期待だけを実装の patch で直し、sequencesSha256 の付け直しは統合担当",
+      "通知の印の形・照合・H19・H16・保存 ack を待つ配送（K8）と、版の比べ方・未確認の印の付け外しの規則（K7）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しい npm 依存、旧築 src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-NS-AC01",
+        "requirement": "情報系列の全文の保存と復元（H30、設計メモ §4.6 の A）: (1) 情報 subject の記録を保存する（persistedFields の 2 行目）。payload の鍵は information。証拠だけの変種（effective \"evidence\"、NankaiEvidence、evidenceRecord・evidenceOf と cache）と、それを読む分岐（judge の証拠の比べ、unknownInfo、versionOf の証拠の側）を消す（P3-AUTH-AC01 の (1)(2) を置き換える） (2) decode は記録を項目ごとに確かめて組み立てる（AGENTS.md の読み戻し。全体を as で言い換えない）: subject の形と family・EventID・operation の一致、source の subject が記録の subject、retainUntil＝source の ReportDateTime＋記憶の長さ（AC04）、active は validUntil＝＋7 日と I-U-N.bounds の文字列の上限、active 以外は事実の欄を持たない、unconfirmed は同じ subject・operation の ReportRef（AC02）、notice は readNoticeMark。64 件以下で subject の重複なし。外れれば invalid（unavailable） (3) 復元: 情報系列は保存したとおりに戻り、view の一覧（active の見出し）が再起動の前と同じになる。復元の表示の変化と recoveryApplied の coverage に active の情報 subject も載せる（今は現況だけ、nankai-unit.ts:583）。復元で intent を作らない（Q-NOTICE.restart のまま）。復元の後に同じ報を受け直すと、情報 subject の版で duplicate・stale になり鳴らない。現況の source と同じ報の続報で情報 subject が無いとき（退去の後）だけ、今どおり復元した現況との差で通知を決める（Q-C8-IMPL-AMEND の (3)(4) と P3-AUTH-AC01 の (4) の「無いか証拠だけ」を「無いとき」と読む） (4) 保存世代: 情報系列の変化（採用・印・期限・退去）は全部保存世代を進める（I-U-N.persisted の「情報系列だけの変化では進めない」と collect の base の比べ〔nankai-unit.ts:504 の sameItems〕を消す） 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】同じ報・古い報の判定（duplicate・stale）は Control/DateTime で比べ、資料も最新の情報を Serial でなく Control/DateTime で探すとする（manual/地震火山関連_解説資料.txt:272〜:273）。続報が同じ subject に入るのは、定例以外の解説情報の続報が第 1 号と同じ EventID を使うため（manual/地震火山関連_解説資料.txt:2128〜:2130、jma-2026-head-control-list.txt:144）。臨時情報と定例の解説情報は報ごとに別の EventID（manual/地震火山関連_解説資料.txt:2128、jma-2026-head-control-list.txt:147・:200）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3057 «2cbe5eb3b2caee96»",
+          "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
+          "reconstruction/contracts/p3-persist-premises.md:20 «26bffafeb63439f5»",
+          "reconstruction/contracts/p3-persist-premises.md:286 «9c966db4adfba699»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:762 «95f2766703f13cc4»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:779 «e96937f8a2394003»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:583 «1392939e8bd74b6b»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:504 «b02c4f99ed1b499d»",
+          "reconstruction/contracts/p3-nankai-unit.types.ts:117 «4ba47b262d802774»"
+        ]
+      },
+      {
+        "id": "P3-NS-AC02",
+        "requirement": "情報系列の未確認の印の保存（計画 :554、K7 の Q-VM-IMPL-2A の読み替え (i) を閉じる）: (1) 情報 subject の unconfirmed（P3-VM-AC04）を保存して復元する。holdState は情報の印でも保存世代を進める（nankai-unit.ts:317 の注記と、保存世代を進めるかの :326 の分岐を直す。types.ts:75 の注記も直す） (2) 印の付け外しは K7 の規則（version.ts の stepVersion・nextMark）のまま。expired の記憶に移るときに印を外す（現況の expired と同じ。Q-VM-IMPL-2A の (ii)「期限で消えた記録は印を持たない」）。取消の記録に付いた時刻の無い報の印は、現況と同じく保存する (3) 再起動の後も、印の付いた系列は先着の版を確定した版として出さない（未確認のまま） 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】版は Control/DateTime（発信時刻、秒値まで有効、manual/地震火山関連_解説資料.txt:118〜:120・:272〜:273）。同じ Control/DateTime で中身の違う報の扱い（未確認の印）は資料に記述なし（K7 の規則）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:554 «7e54c379d775076a»",
+          "reconstruction/contracts/p3-nankai-unit.types.ts:75 «cc2be7ff6be819cb»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:317 «665bec9b190c30cd»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:326 «2d8c704604d1030f»",
+          "reconstruction/contracts/p3-version-material.json:161 «5b9c3d5813d8cd57»"
+        ]
+      },
+      {
+        "id": "P3-NS-AC03",
+        "requirement": "巨大地震警戒の二段（作者裁定 2026-10-21 朝の判断 1、設計メモ :500、H23）: (1) status が megaquakeWarning になる現況の採用（code 120 の発表と 120 への訂正）では、現況に warningUntil＝source の ReportDateTime＋7×86,400,000 ms を持たせ、validUntil を＋14×86,400,000 ms にする。ほかの現況（130・111〜113・VYSE60）は validUntil＝＋7 日で warningUntil を持たない。120 の現況を別の報の 130 が置き換えるときも、その 130 の報から 7 日で、二段を引き継がない（統合担当の決定 D4。残存リスク (3)）。retainUntil は今どおり＋30 日 (2) warningUntil の到来（期限の入力・受信の前の回収・復元の回収のどれでも）で status を megaquakeAdvisory に替え、effective は active のまま。title・headline・infoSerial・truncated・source・未確認の印・通知の印・warningUntil は変えない（warningUntil は移った時刻として残す）。validUntil の到来で今どおり expired（事実を捨てる。通知の印は残す、AC04 の (7)）。期限は元報の時刻から数え、再起動・再受信で延ばさない (3) 移り変わりは表示の変化と deadlineApplied の outcome（changedFields [\"status\"]）を出し、保存世代を進める。通知は作らない（P3-NS-D-STEPDOWN-NOTICE=A、作者裁定 2026-10-22。期限の入力・受信の前の回収・復元の回収・K10 が保留した期限の後の適用のどの経路で移っても、validUntil の expired でも intent 0） (4) 移った後の現況は、報で作られた megaquakeAdvisory と同じに扱う: 調査中（111〜113）は置き換えない（I-U-N.currentSemantics の (2)）、190 は効かない（(3)）、取消・訂正・新しい 120・130 は今どおり置き換える (5) 期限の評価（ヘルツ r0 の H1）: nextDeadline の候補に warningUntil を入れるのは status が megaquakeWarning の間だけ（currentDeadline、nankai-unit.ts:90。移った後は validUntil と retainUntil だけ）。collect は 1 件ごとに retainUntil → validUntil → まだ当てていない warningUntil の順で見る（retainUntil を過ぎていれば除き、validUntil を過ぎていれば直接 expired、どちらでもなく warningUntil を過ぎていれば移る）。14 日を過ぎてからの復元は移らずに直接 expired。移った後の同じ時刻の再評価は同じ state 参照と空の結果（collect の早い return も同じ期限の式で決まる） (6) decode: status が megaquakeWarning の現況は warningUntil を必ず持ち（＝ReportDateTime＋7 日）、megaquakeAdvisory の現況は持ってよく（あれば同じ式）、ほかの status・VYSE60・active 以外は持たない。warningUntil のある現況の validUntil は＋14 日、無い現況は＋7 日（等式のまま）。復元の時点で warningUntil を過ぎていれば復元の回収で移す (7) 時間で導いた状態を報の中身の差にしない（ヘルツ r0 の H2）: 同じ版（同じ Control/DateTime）の中身の比べ（judge の sameContent、nankai-unit.ts:306）では、warningUntil を持つ現況の status を megaquakeWarning と読み、validUntil・warningUntil（版から導く値）は比べない。7 日目に移った現況へ同じ 120 が再送されても duplicate で、未確認の印を足さず通知もしない。情報の記憶が退去で消えた後と、移った状態を復元した後も同じ 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】code 120 は巨大地震警戒、130 は巨大地震注意、111〜113 は調査中、190 は調査終了（code/地震火山関連コード表.txt:8214〜:8219）。二段の期間は資料に記述なし（P3-NS-SEM-01・SEM-02）。120 への訂正: InfoType の一般の規則（訂正は「独立した情報単位」の直前の Control/DateTime の最も新しい電文を訂正する、manual/地震火山関連_解説資料.txt:257〜:258）はあるが、運用整理表は VYSE50 の InfoType を「発表/取消」とし訂正を挙げない（jma-2026-head-control-list.txt:142）。訂正の扱いの根拠は P3-UNIT-N-001 の Q-ENUM.revisionOrder と合成の fixture（synthetic_VYSE51_correction）で、実配信の南海トラフの訂正の報は corpus に無い。臨時情報の Head/Title は種別名を付ける（例「南海トラフ地震臨時情報（巨大地震警戒）」、manual/地震火山関連_解説資料.txt:166〜:168）ので、移った後も題は巨大地震警戒のまま（残存リスク (15)）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:539 «ddb6646b2a21634d»",
+          "reconstruction/contracts/p3-persist-premises.md:500 «575400be18e2ddb5»",
+          "reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069»",
+          "reconstruction/contracts/p3-nankai-unit.json:38 «708092eea9459375»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:33 «34295f7048718d13»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:90 «15758ae61f834ccc»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:306 «24e6a28be452f8f5»",
+          "src/engine/display/standby-state-store.ts:2403 «688a975560aa9fe3»"
+        ]
+      },
+      {
+        "id": "P3-NS-AC04",
+        "requirement": "情報の期限の形（H23、設計メモ :226・:227）: (1) active の情報 subject は validUntil（＝ReportDateTime＋7 日。120 の報の情報も同じ、統合担当の決定 D4。残存リスク (6)）の到来で expired の記憶になる: 本文・見出しの事実と未確認の印を捨て、subject・family・eventId・operation・source（最終更新の報。その ReportDateTime が最終更新の時刻）・通知の印・retainUntil を残す。view・一覧に載らない。deadlineApplied の outcome に transition expired と source を載せる（現況の expired と同じ形）。通知しない (2) 記録は retainUntil の到来で除く。長さは ReportDateTime＋30 日（P3-NS-D-INFO-MEMORY=A、作者裁定 2026-10-22）。cancelled の記録も同じ式（取消の報の ReportDateTime から） (3) 到着の時点で表示の期限を過ぎた報: 記録のある subject では採って同じ reduce で記憶にし（通知しない。今の due の規則〔nankai-unit.ts:379〕を表示の期限で読む）、記録の無い subject には入れない（P3-FINAL-AC01 のまま） (4) 記憶の同じ版の受け直しは事実を比べずに duplicate（今の expired の規則）、記憶より古い報は stale、新しい版は採用して、表示の期限の内なら active に戻し通知の規則どおり (5) 記憶の系列の取消は採って cancelled にし、印の証拠が possible か unknown なら通知する（H19、P3-NL-AC09 のまま） (6) H23 の「全分野で同じ形」: U-N の形は「effective expired・source（最終更新）・通知の印を持つ記憶の記録」で、現況の expired と同じ。K10 が他の分野で別の欄に決めたら、U-N を揃える改訂は K10 が出す（AC10） (7) 統合担当の決定 D1: 期限切れの現況（expired）も通知の印を持ち続ける（今の collect が expired の現況を作るときに印を落とす所、nankai-unit.ts:490 を直す）。通知した現況が期限切れの後に取り消されたら、印の証拠で取消を通知する（H19、保存と復元を挟んでも同じ） 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】VYSE50〜52・60 は失効時刻（ValidDateTime）を持たない（manual/地震火山関連_解説資料.txt:227〜:228、jma-2026-head-control-list.txt:142・:145・:156）ので、表示の期限と記憶の長さは資料に記述なし（H23 の「無い種類だけこちらで決める」）。取消は「独立した情報単位」全体を取り消す（manual/地震火山関連_解説資料.txt:2050〜:2052）。取消の報は EarthquakeInfo と NextAdvisory を持たない（manual/地震火山関連_解説資料.txt:6210・:6244）ので、取消の記録は事実を持たない。取消の Serial は直前の最新の情報番号で、番号は更新しない（manual/地震火山関連_解説資料.txt:2080・:265）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3050 «ac88c9eb75863b62»",
+          "reconstruction/contracts/p3-persist-premises.md:226 «147b7db281483a3d»",
+          "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
+          "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:169 «4e8d9e62184c457e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:379 «631cd0a196608ead»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:490 «6811547ee118f414»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:497 «53c8510ab6a27485»"
+        ]
+      },
+      {
+        "id": "P3-NS-AC05",
+        "requirement": "H12 の音（spec:3039）: 段階の表（CODE_LEVEL、nankai-unit.ts:210・:211）の 111・112・113 を normal にする。120 の critical、130 の warning は今どおり（H12 の「のまま」）。210・219 の warning、190・200 の info、InfoSerial の無い報（VYSE60 を含む）と表に無い code の warning、取消の cancel は変えない。訂正も同じ表。training/test は今どおり desktop だけ、A7 の群は今どおり other。鳴り方: 調査中（74_01_01〜03）は地震・EEW の normal（単音 C5、sound-design-system.md の分野別根音表） 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】code の意味は地震関連情報番号のコード表（code/地震火山関連コード表.txt:8214〜:8216 の 111〜113 調査中、:8217 の 120 巨大地震警戒、:8218 の 130 巨大地震注意、:8219 の 190 調査終了、:8220 の 200 定例解説、:8221・:8222 の 210・219 臨時解説〔次回も臨時解説／次回は定例解説〕）。InfoSerial は 0 回か 1 回（manual/地震火山関連_解説資料.txt:6218）、VYSE60 の EarthquakeInfo は InfoSerial を持たない（manual/地震火山関連_解説資料.txt:6264〜:6275）。どの code を何の音で鳴らすかは資料に記述なし（H12）。「訂正も同じ表」の訂正は、運用整理表が VYSE50・51・52・60 の InfoType を「発表/取消」とする（jma-2026-head-control-list.txt:142・:145・:156）ので、実配信に無い場合への備え",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3039 «67fc617e917d9443»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:210 «9b48a5b02c5ebbf9»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:211 «caac024db48c3248»",
+          "reconstruction/contracts/p3-nankai-unit.json:34 «2d40ba3042690f99»",
+          "docs/specs/sound-design-system.md:46 «cbd92a61248d4886»",
+          "src/engine/presentation/level-helpers.ts:311 «353366078841131c»"
+        ]
+      },
+      {
+        "id": "P3-NS-AC06",
+        "requirement": "器・上界・受信の費用（設計メモ §4.6、AGENTS.md）: (1) U-N の 1 世代の上限（GENERATION_LIMIT と maxEnvelopeBytes）を 2,621,440 byte にする（P3-NS-RES-01）。件数（現況 6・情報 64・pending 128 件・131,072 byte）と文字列の上限（I-U-N.bounds）は変えない (2) 解析の上界（Q-NS-BYTES の式、6 byte の文字と ReportDateTime の予約を含む 2,334,223）が上限の内側であることを式で示し、試験は合法な大きな状態の保存→復元で確かめる（P3-NS-T04、P3-CODEC-T02 を置き換える）。解析の上界が上限を越えたら実装を止めて報告する (3) decode は今どおり、世代の byte を記録ごとの encode byte の加算で数えて上限と比べる (4) 受信 1 回の費用は P3-NS-RES-02（Q-NS-COST）。受信の経路で state 全体・情報 64 件の全体を直列化せず、全件×全件の走査をしない (5) 情報 64 件の 65 件目の退去の順（P3-C8-CAPACITY=A を改める。上ほど先に失う）: (i) retainUntil を過ぎた記録 (ii) training/test の記録（古い順） (iii) normal の expired の記憶（古い順） (iv) normal の記録の最古（統合担当の決定 D2、K11 の順と揃える）。最後まで残るのは normal の active の情報の新しいもの。受ける報が training/test なら normal の記録（記憶を含む）を候補にせず、training/test の記録だけから (i)(ii) の順で選び、候補が無ければ受けた記録を残さない（P3-OPCAP-N-AC01・AC02 のまま）。退去は nankaiCapacityEvicted と H39 の数え方（P3-NL-AC14）のまま。現況 6 件は退去しない。pending は今の A7 の順。世代の byte は静的上界が上限の内なので受信では断らない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:286 «9c966db4adfba699»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:29 «f376055a27fbf976»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:195 «08fc4464ec0fd60f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:770 «3eae670a7b0c94bf»",
+          "AGENTS.md"
+        ]
+      },
+      {
+        "id": "P3-NS-AC07",
+        "requirement": "§13 の B（H51、設計メモ :512・:516）: (1) Serial（nankai.ts:103）: 形の外（空でも 1〜10 桁の正整数でもない）の Serial は報を断らず、ReportRef の serialRaw を空にして受け、WARN 診断 identityInvalid（component nankai・inputId・unit U-N）を添える。U-N の新旧は Control/DateTime だけで比べ（P3-VM-D-TABLE=A）、通知の印の版の鍵にも Serial は入らない（versionKey は EEW だけ Serial を足す）ので、比べ方と照合は変わらない。EventID の欠け・形の外は今どおり断る（A） (2) InfoSerial/Name（nankai.ts:136）: Name が 2 個以上か子要素を持つときは報を断らず、infoSerial.name を null にして受け、WARN 診断 requiredStructureInvalid を添える。EarthquakeInfo・InfoSerial・Code の 2 個以上と子要素は今どおり断る（現況と音の段階を決める値で、推測で選ばない。C、K14 の H43 のカード） (3) 読めなかった所の印と原文の欠片は K14（設計メモ :479）。本契約は欄を足さない (4) 受けた報は通知の規則どおりに鳴る 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】Serial は臨時情報と定例の解説情報で常に空、定例以外の解説情報で 1〜99999999（manual/地震火山関連_解説資料.txt:2145〜:2146・:2150）、定例の後は第 1 号に戻る（manual/地震火山関連_解説資料.txt:2156〜:2160）。最新の情報は Serial でなく Control/DateTime で探す（manual/地震火山関連_解説資料.txt:272〜:273）ので、Serial を空にして受けても新旧の比べは資料どおり。受ける Serial の形（1〜10 桁）と EventID の形（nankai.ts の validEventId、印字可能な ASCII の 64 文字以下）は資料の形（Serial は 8 桁まで、EventID は 14 桁の数字で必ず 1 回、manual/地震火山関連_解説資料.txt:2118・:2126）より広い。InfoSerial は 0 回か 1 回、Name と Code は各 1 回（manual/地震火山関連_解説資料.txt:6218・:6225・:6229）なので、Name の 2 個以上と子要素は資料の形の外",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:512 «2a281d50f6687a95»",
+          "reconstruction/contracts/p3-persist-premises.md:516 «eeb3c59348dfc086»",
+          "reconstruction/src/domains/nankai/nankai.ts:103 «89e8e68bf3f13d43»",
+          "reconstruction/src/domains/nankai/nankai.ts:136 «4ab3f459bc286fd3»",
+          "reconstruction/src/domains/nankai/nankai.ts:88 «467930b3b93c4608»",
+          "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
+          "src/dmdata/telegram-parser.ts:1193 «22f5ba43f575b794»"
+        ]
+      },
+      {
+        "id": "P3-NS-AC08",
+        "requirement": "版と保存→復元と corpus（作者裁定「P5 の前は初期化してよい」、P3-VM-AC05、統合担当の決定 D3）: (1) schemaVersion を p3-nankai-unit-v5 にし、discardableSchemaVersions に v4 を足す（v1〜v4）。旧い形を読む移行は作らない。版の文字列は types.ts・nankai-unit.ts・owner-runtime.ts の初期の state の表（:80）・試験（nankai-fixture.ts:16・nankai-unit.test.ts:556・shared-runtime.test.ts:77）を同じ行の中で替える (2) 新しい形の保存→復元の試験（P3-NS-T01）と、v4 の保存物が捨ててよい版になること（P3-NS-T04）を残す（P3-X-C4） (3) sequences.json の 9 step の期待を実装の patch で直す（step の数と位置は変えない。replay の試験が effective の欄を読むので、直さないとゲートが赤になる）: O01:69 の checks の level を normal（H12）に、O01:70 の「validUntil=16:28+7日」を warningUntil（＋7 日）と validUntil（＋14 日）に、O07:37・:42 の「情報系列は保存しない」、O07:38 の「情報系列は空から始まる」、O07:39 の「情報系列は復元で空なので」を全文の保存と復元に、O07:41 の validUntil を warningUntil と validUntil に、O07:43 の「validUntilの1 ms前」を warningUntil の 1 ms 前に、O07:44 の effective を active にし checks を「status は megaquakeAdvisory、通知なし（P3-NS-D-STEPDOWN-NOTICE=A）。巨大地震注意へ移る」に。sequences.json の meta.sha256 が変わり、全契約の sequencesSha256 と sha256 が check-contract で FAIL になるのは想定内で、配送の commit で統合担当が付け直す (4) 既存の試験の nankai-unit.test.ts:64・:65 の Serial「0」と 11 桁の行は、P3-NS-AC07 で受ける報になる（期待を accepted と WARN identityInvalid に替える。Q-NS-EXISTING-TESTS (k)）",
+        "evidenceRefs": [
+          "reconstruction/src/units/nankai/nankai-unit.ts:777 «18ad626b0a925db4»",
+          "reconstruction/src/runtime/owner-runtime.ts:80 «56d58ceb3064bcc2»",
+          "reconstruction/contracts/p3-order-plan.md:503 «4226852a4ae2323b»",
+          "reconstruction/test/nankai-unit/nankai-unit.test.ts:64 «2faf939675b09f7d»",
+          "reconstruction/tools/corpus/sequences.json#expected:O07:44",
+          "reconstruction/tools/corpus/sequences.json#expected:O01:70"
+        ]
+      },
+      {
+        "id": "P3-NS-AC09",
+        "requirement": "urgent の干渉の報告（P3-C8-AC11・P3-C8-INTERFERENCE の形、P3-C8-PLACE=A）: 合法な大きな状態（P3-NS-T04 の状態。解析の上界ではない）の U-N の encode の所要と、その最中に投入した EEW の投入→T0・T0→T2 の待ちを Mac で報告する（試行数・最大・中央値）。最大が約 40 ms を越えたら配送の前に作者へ報告し、P3-C8-PLACE と器（P3-NS-RES-01）を見直す。U-Q の合法最大の encode の最中の値（C7 の AC12）と並べて書く。Pi での保存 1 回の時間と EEW の待ちは段 4（作者の方向 2026-10-21）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-nankai-unit.json:803 «3dd833d01981eb3d»",
+          "reconstruction/src/runtime/unit-coverage.ts:16 «58338bff75f92aac»",
+          "reconstruction/contracts/p3-order-plan.md:547 «6210004ba3292953»"
+        ]
+      },
+      {
+        "id": "P3-NS-AC10",
+        "requirement": "隣の契約との境目: (1) K10（P3-EXPIRY-FORM-001）: 時計を確かめるまでの保留は K10 が U-N にも入れる（設計メモ §14 の :524、P3-CK-AC08 の (6)。K10 は「unverified の間は表示の期限切れだけで回収しない、verified で回収する」形と読む）。本契約の期限の処理は 2 つに分けて書く: 表示の期限切れ（二段の status の移り、現況と情報の view からの外し）と、事実を捨てる処理（現況の expired で事実を捨てる、情報の expired の記憶への移りで本文と未確認の印を捨てる、retainUntil での除去）。K13 だけのときは両方を同じ評価で行う。K10 が先に合流していれば、事実を捨てる処理を K10 の verified の回収の側に置き、unverified の間は表示の期限切れだけを当てる（本文を残す形は K10 の形を使い、本契約で別の形を足さない）。K10 が保留した復元由来の期限を verified の後に当てるときも、移り変わりの通知は作らない（P3-NS-D-STEPDOWN-NOTICE=A で、どの経路の移りでも作らない）。受入例: 復元→awaiting→verified→期限の適用で、移り変わりは当たり intent は 0（K10 が先なら P3-NS-T02 に足し、後なら K10 の受入に申し送る）。両方が nankai-unit.ts を触るので合流は直列（統合担当） (2) K14: 読めない所の印と原文の欄（AC07 の (3)） (3) K8: 印の形・照合・H19・H16 は変えない。記憶の記録と期限切れの現況が印を持ち続けるので、P3-NL-AC02 の (4)「印は系列の記録と同じに生きる」が記録の長さまで延びる (4) C15: 旧築の待機画面の保存（standby-persistence.ts:756、現況だけ）から移す形は C15。旧築は情報系列を保存しないので移す情報は無い (5) 段 4・P4: 一覧・期限切れ・二段の見せ方と snapshot の器は変えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:524 «d6034014bda2abef»",
+          "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
+          "reconstruction/contracts/p3-notice-ledger.json:443 «e770a96450993840»",
+          "src/engine/display/standby-persistence.ts:756 «f66b938527ed523c»"
+        ]
+      },
+      {
+        "id": "P3-NS-AC11",
+        "requirement": "最小実装・最小テスト: (1) 足す仕組みは、現況の warningUntil 1 欄、情報の validUntil 1 欄と expired の変種 1 つ、退去の段 1 つ（normal の expired の記憶）だけ。K10 が先に合流していれば、表示だけの期限切れの形は K10 のものを使う（AC10 の (1)）。消すものは、証拠だけの変種（NankaiEvidence・evidenceRecord・evidenceOf と cache・unknownInfo・judge と versionOf の証拠の分岐）、collect の base の比べ（sameItems）、holdState の「情報の印は保存しない」分岐。ほかの型・層・helper・設定を足さない。足した仕組みごとに無いと何が壊れるかを 1 行 (2) 試験は testMapping の P3-NS-T01〜T07 に限る（既存の試験の期待値の変更は Q-NS-EXISTING-TESTS で変える前に報告）。新しい fixture file を足さない（境界の報は試験の中で作る） (3) reconstruction のゲート一式（tsc 3 本・vitest・shuffle・checker 3 本）を通す",
+        "evidenceRefs": [
+          "reconstruction/src/units/nankai/nankai-unit.ts:729 «f832a42825afdb9d»",
+          "reconstruction/contracts/p3-nankai-unit.types.ts:85 «642930f057c0c6ad»",
+          "reconstruction/contracts/p3-nankai-unit.types.ts:98 «bc3382728e98539e»",
+          "AGENTS.md"
+        ]
+      },
+      {
+        "id": "P3-NS-AC12",
+        "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方を優先し、書き換えた行を anchor で引く他の契約と sequences.json の参照は同じ commit で付け直す。P3-UNIT-N-001 の行は sequences.json が :12・:39・:48・:57・:66・:84・:111・:154・:165・:176・:187・:192・:202・:227・:244・:251・:252・:255 を、他の契約が :84・:92・:93・:148・:196・:199・:202・:206・:216・:217・:244・:252・:255・:256・:261・:278・:296・:297・:303・:650・:667・:716・:739・:858・:866 を引く）: (1) P3-UNIT-N-001: (a) P3-C8-CURRENT-EXPIRY の ruling（:43）を「作者裁定A（2026-10-09）を作者裁定B（2026-10-21 朝、台帳 97、p3-order-plan.md の判断 1）に選び直した。P3-UNIT-N-SERIES-001 の P3-NS-AC03」に (b) P3-C8-NOTICE-LEVELS の ruling（:34）・Q-NOTICE.level（:192）・P3-C8-LEGACY-DIFF の段階（:210）に「（H12: 111・112・113 は normal、P3-NS-AC05）」を添える (c) Q-NOTICE.generationTable の expiry（:187）に「巨大地震警戒から巨大地震注意への移りでは通知を作らない（P3-NS-D-STEPDOWN-NOTICE=A、P3-NS-AC03 の (3)）」、Q-NOTICE.restart（:202）の「（情報系列は空から始まる）」を「（情報系列は保存したとおりに戻る。情報 subject が無いときだけ復元した現況との差、P3-NS-AC01）」に (d) P3-C8-RETENTION の A（:84）と P3-C8-SEM-03・P3-C8-RET-02 に P3-NS-SEM-03・SEM-04・RET-01 を、P3-C8-SUBJECTS の reason（:53）の「情報系列（復元で空）」に「（P3-NS-AC01 で保存する）」を添える (e) P3-C8-CAPACITY の A（:93）・P3-C8-RES-01・I-U-N.capacityReserve（:261）・capacityMeasurement（:262）・P3-C8-AC04 に P3-NS-RES-01 と AC06 の退去の順を添える (f) I-U-N の currentSemantics の (6)（:251）・informationSemantics（:252）・deadlines（:254）・persisted（:255）・decode（:256）、persistedFields・nonPersistedFields（:666・:670）、P3-C8-AC03（:716）・AC05（:739）、P3-C8-MIGRATION（:278）に P3-NS-AC01〜AC04・AC08 を添える (g) Q-ENUM の identity（:228）の Serial と familyTable の invalid（:234）の Name を P3-NS-AC07 に、revisionOrder（:244）の「情報系列の印は保存しない。情報系列の印の保存はK13」を「情報系列の印も保存する（P3-NS-AC02）」に (h) P3-C8-LEGACY-DIFF の期限（:214）と情報系列（:216）に旧築との差（残存リスク (8)(9)）を添える (i) testMapping の P3-C8-T03（:853）・T04（:861）・T08（:893）の behavior と Q-ENUM.priorityRule（:227）の Serial に P3-NS-AC04・AC06・AC08・AC07 を添える (j) P3-C8-SEM-01（:575〜）と I-U-N.currentSemantics の (1)（:251）の「validUntil=ReportDateTime+7日」に「巨大地震警戒は warningUntil と＋14 日（P3-NS-AC03）」を添える (2) P3-AUTHORITY-EVIDENCE-001: P3-AUTH-D-EVIDENCE の A（:12）の「表示本文全体の永続化は要件にしない」に「（H30 で情報系列を全文で保存する形に替えた、P3-UNIT-N-SERIES-001）」、AC01（:255）に「証拠は P3-NS-AC01 の全文の記録に置き換えた（(1)(2) は読まない。(3) の同じ版の duplicate は記憶の記録で続き、(4) は「無いとき」と読む）」、AC06（:330）・AC07（:349）の (1)(2)(3)・RES-01（:206・:208）・RET-01（:188）・D-N-BUDGET（:21）に P3-NS-RES-01・RET-01 を添える。P3-AUTH-T01・T02 の判定（stale・duplicate・intent 0）は全文の記録でもそのまま通る。T01 の中で証拠だけの記録の形を見る所と、T05 の evidence の鍵の無い payload の拒否は期待値が変わる（Q-NS-EXISTING-TESTS の (g)） (3) P3-VERSION-MATERIAL-001: Q-VM-IMPL-2A（:161）の読み替え (i) の後に「（P3-UNIT-N-SERIES-001 の P3-NS-AC02 で閉じた）」を添える (4) P3-NOTICE-LEDGER-001: P3-NL-AC02 の (2)（:443）の「U-N の情報系列は保存する証拠の記録に持つ（情報の本文は保存しないが、印は保存する）」を「U-N の情報系列は情報 subject の記録に持つ（P3-UNIT-N-SERIES-001 で全文を保存）」に (5) spec（統合担当が main で）: §4.2 の U-N の行（:477）の保存する欄に「情報系列（全文）」、予算を「2.5 MiB（P3-UNIT-N-SERIES-001）」に。§4.3 の :512 の「情報系列N」を「情報系列D」に。§16 の H12（:3039）・H23（:3050）・H30（:3057）の契約の欄に P3-UNIT-N-SERIES-001（AC05・AC03/AC04・AC01）を足す (6) 設計メモ: §0〜§16 の行は書き換えず、新しい節（K13 の配送で変わる読み）に、§4.6（:284〜:286）の上界と予算の値、§3.3 の U-N の形（:227）、§12（:500）の field の名 warningUntil、§13（:512）の B の受け方を足す (7) sequences.json の 9 step は P3-NS-AC08 の (3) で実装が直す（統合担当は sequencesSha256 と全契約の sha256 を配送の commit で付け直す） (8) P3-DISASTER-CAPACITY-001 への申し送り: 道具の BYTE_LIMITS の U-N（294,912、runner.ts:188）は U-Q の不整合と一緒に道具の直しで扱う（本契約では変えない） (9) P3-OPERATION-CAPACITY-N-001: P3-OPCAP-N-AC01（:163）の「K2の証拠だけの記録（effective \"evidence\"）」を「expired の記憶（P3-NS-AC04）」に、「受ける報がnormalのときの順（期限切れ→training/test→normalの最古）」を「（期限切れ→training/test→normal の expired の記憶→normalの最古、P3-NS-AC06 の (5)）」にする (10) P3-CODEC-CLOSURE-001: P3-CODEC-RES-05（:190）と P3-CODEC-T02（:308）の U-N の上界と上限に P3-NS-RES-01 を添える (11) P3-FINAL-ADOPTION-001: K2 の証拠だけの記録の行（:64）に「P3-UNIT-N-SERIES-001 で証拠だけの記録は無くなり、expired の記憶に替わった」を添える (12) P3-REVISION-ORDER-001: AC の「U-Nの情報系列は保存しないので」（:289）に「（P3-UNIT-N-SERIES-001 で保存する）」を添える",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-nankai-unit.json:38 «708092eea9459375»",
+          "reconstruction/contracts/p3-nankai-unit.json:34 «2d40ba3042690f99»",
+          "reconstruction/contracts/p3-nankai-unit.json:187 «d4e358cef8a12114»",
+          "reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab»",
+          "reconstruction/contracts/p3-nankai-unit.json:244 «bfc71a8b711fa13d»",
+          "reconstruction/contracts/p3-nankai-unit.json:255 «5a6e7001bdccc647»",
+          "reconstruction/contracts/p3-authority-evidence.json:12 «43b639408d6e8ea1»",
+          "reconstruction/contracts/p3-authority-evidence.json:255 «22ec592c44f8b40b»",
+          "docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4»",
+          "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
+          "reconstruction/contracts/p3-operation-capacity-n.json:163 «e0d7d430b7920cc4»",
+          "reconstruction/contracts/p3-codec-closure.json:190 «679fad0f89522733»",
+          "reconstruction/contracts/p3-final-adoption.json:64 «65b3041e21236db0»",
+          "reconstruction/contracts/p3-revision-order.json:289 «8dab76e5cf56554c»",
+          "reconstruction/tools/corpus/sequences.json#expected:O07:44",
+          "reconstruction/tools/corpus/sequences.json#expected:O01:69"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-NS-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-NS-AC01",
+          "P3-NS-AC02",
+          "P3-NS-AC08"
+        ],
+        "behavior": "nankai-unit.test.ts に 1 つ: 75_01_01→75_01_02→75_01_03（同じ EventID の情報）と 74_01_05（現況）を受け、75_01_03 と同じ Control/DateTime で Headline を替えた報で情報 subject に未確認の印を付け、encode→JSON→decode→restore する。information が保存前と同じ（本文・未確認の印・通知の印）、toNankaiView の information（見出し）が同じ、restore の displayChanges に情報 subject が載り intents は空。75_01_03 の受け直しは duplicate・intent 0。nankai-runtime.test.ts に 1 つ: owner の checkpoint から復元した owner の U-N の view に情報の一覧が戻る"
+      },
+      {
+        "testId": "P3-NS-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-NS-AC03"
+        ],
+        "behavior": "74_01_04（120）を時刻 t（ReportDateTime）に受け、warningUntil＝t＋7 日・validUntil＝t＋14 日。受けた 120 の報の intent を配送で片付けた後の nextDeadline は t＋7 日（pending の intent の expiresAt も期限の候補なので、片付ける前はそちらが先）。期限の入力 t＋7 日−1 ms で megaquakeWarning、t＋7 日で megaquakeAdvisory（active、title と source は同じ、intents 0〔分岐 STEPDOWN-NOTICE=A〕、deadlineApplied の changedFields [\"status\"]、保存世代＋1）。displayChanges は 2 件（現況の status の変化と、同じ時刻の 120 の情報 subject の失効）。移った後の nextDeadline は t＋14 日（STEPDOWN-NOTICE=A で移り変わりの intent が無いので、現況の validUntil。情報の記憶の retainUntil は t＋30 日、INFO-MEMORY=A）で、同じ時刻の期限の入力をもう一度当てると同じ state 参照と空の結果。t＋7 日−1 ms に保存した state を t＋7 日＋1 ms に復元すると megaquakeAdvisory（intents 0）、t＋14 日＋1 ms に復元すると直接 expired。K10 が先に合流していれば、t＋7 日＋1 ms の復元を awaiting で保留し、verified にした後の期限の適用で移り、intent は 0（STEPDOWN-NOTICE=A）。移った現況へ同じ 74_01_04 を t＋8 日に再送すると duplicate・未確認の印なし・intent 0、移った state を保存→復元した後と、情報 subject を退去させた後でも同じ。t＋8 日に別の EventID の 74_01_01（111、時刻を替える）を受けると現況は megaquakeAdvisory のまま、情報 subject が activated（level normal）。t＋14 日−1 ms で active、t＋14 日で expired（intent 0）。74_01_05（130）は warningUntil を持たず t＋7 日で expired。t＋3 日の 130（別の EventID）が 120 を置き換えると、warningUntil は無く validUntil は t＋10 日"
+      },
+      {
+        "testId": "P3-NS-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-NS-AC04",
+          "P3-NS-AC06"
+        ],
+        "behavior": "75_01_01 を t に受け、t＋7 日で expired の記憶（view の information は空、outcome の transition expired と source、保存の記録に本文と未確認の印が無い）。t＋10 日に同じ報は duplicate・intent 0。同じ EventID・family の取消（synthetic_VYSE50_cancel の family・EventID・時刻を t＋10 日に替える）を受けると、印の evidence が possible なら取消の intent 2、unattempted なら 0。取消の記録は取消の報の時刻＋30 日（t＋40 日、INFO-MEMORY=A）まで残り、そこで消える。取消の無い記憶は t＋30 日（INFO-MEMORY=A）で消える。D1: 74_01_05（130）を通知して印を possible にし、t＋7 日で expired の現況（印を持つ）→保存→復元→t＋10 日の同じ報の取消で取消の intent 2。64 件の境界: training の記録・normal の記憶・normal の active を混ぜた 64 件に normal の 65 件目を受けると training の記録が先に退去し、training が無ければ normal の最古の記憶が退去し、active は残る。normal の記録だけで 64 件のときに training の報を受けると、受けた記録を残さない（nankaiCapacityEvicted）"
+      },
+      {
+        "testId": "P3-NS-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-NS-AC01",
+          "P3-NS-AC03",
+          "P3-NS-AC06",
+          "P3-NS-AC08"
+        ],
+        "behavior": "decode の拒否の表（invalid）: megaquakeWarning の現況に warningUntil が無い・値が式と違う、VYSE60 か megaquakeAdvisory 以外に warningUntil、warningUntil のある現況の validUntil が＋14 日でない、expired・cancelled の情報に本文の欄、active の情報の validUntil・retainUntil が式と違う、unconfirmed の subject が記録と違う、情報 65 件、payload に evidence の鍵。合法な大きな状態: 現況 6 件（line nankai の 3 件だけ warningUntil、印つき）・情報 64 件（重ならない subject、合法な ReportDateTime〔40 文字の ASCII の時刻〕と式どおりの期限、文字列は 3 byte の文字で上限の長さ、印つき）・pending 131,072 の世代を保存→復元し、restored で 2,621,440 以下（実測の値と解析の上界 2,334,223〔Q-NS-BYTES、6 byte の文字と ReportDateTime の予約を含む〕を並べて console に出す。既存の P3-CODEC-T02 を置き換える。この状態を AC09 の時間の測定にも使う）。codec の discardableSchemaVersions が v1〜v4"
+      },
+      {
+        "testId": "P3-NS-T05",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-NS-AC05"
+        ],
+        "behavior": "既存の P3-C8-T06 の level の表を書き換える: 74_01_01〜03（111〜113）と 111 への訂正は normal、74_01_04 は critical、74_01_05 は warning、75_01_01 は warning、74_01_07 は info、80_01_01 は warning、取消は cancel（新しい it は足さない）"
+      },
+      {
+        "testId": "P3-NS-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-NS-AC07"
+        ],
+        "behavior": "75_01_01 の Serial を「abc」にした報は accepted（serialRaw は空、WARN identityInvalid）で情報 subject に入り通知される。74_01_05 の InfoSerial に Name を 2 つにした報は accepted（infoSerial.name は null、code 130 で現況は megaquakeAdvisory、WARN requiredStructureInvalid）。Code を 2 つにした報は今どおり rejected/requiredStructureInvalid で state は同じ参照"
+      },
+      {
+        "testId": "P3-NS-T07",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-NS-AC01",
+          "P3-NS-AC03",
+          "P3-NS-AC05"
+        ],
+        "behavior": "既存の P3-C8-T08 を書き換える（AC12 の (7) の sequences.json の改訂に合わせる）: O01:69 の level は normal、O07:38 の復元の後の information は保存前の全文と同じ、O07:43 は warningUntil の 1 ms 前で megaquakeWarning、O07:44 は megaquakeAdvisory（active、通知なし〔STEPDOWN-NOTICE=A〕）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash の検査（新しい fixture file を足さないことの確かめを含む）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O07 の参照の検査"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。本契約と他の契約の evidence の行が直しで動いた FAIL と、sequences.json の直し（P3-NS-AC08 の (3)）で全契約の sequencesSha256・sha256 が合わなくなる FAIL は想定内で、統合担当が配送の commit で付け直す（統合担当の決定 D3、P3-NS-AC12）。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査と reconstruction/dist/ の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew の dist（U-N の型を変えるので壊れないことを確かめる）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えても緑（記録ごとの cache は WeakMap のまま、module スコープに状態を置かない）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowed_paths",
+        "stage": "implementation",
+        "purpose": "空白の検査"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由",
+      "足した仕組み（warningUntil、情報の validUntil と expired の変種、退去の段）ごとに『無いと何が壊れるか』を 1 行。消したもの（証拠だけの変種と cache・分岐、collect の base の比べ、情報の印を保存しない分岐）の一覧",
+      "追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行。期待値を変えた既存の試験の名前と理由（Q-NS-EXISTING-TESTS、変える前に報告）",
+      "合法な大きな状態の実測の値（P3-NS-T04 の console）と、解析の上界 2,334,223（Q-NS-BYTES）の数え直しの値。解析の上界が 10% 以上違えば理由",
+      "P3-NS-AC09 の干渉の報告（Mac、試行数・最大・中央値、U-Q の encode の最中の値と並べて）",
+      "残存リスク（2026-10-25 作者承認済み、Q-NS-AUTHOR）: (1)【今の新築との差】調査中（111〜113）の通知の音が軽くなる（短三和音 2 回の warning から単音の normal、H12）。鳴らなくなるわけではない。訂正の報も同じ (2)【今の新築との差】巨大地震警戒の発表から 7〜14 日の間に届いた調査中（111〜113）の報は、現況を「調査中」に替えない（移った後の巨大地震注意は、報で作られた巨大地震注意と同じく調査中で置き換えない、I-U-N.currentSemantics の (2)）。今の新築では 7 日で現況が消えるので、その報で現況が「調査中」になる。情報 subject と通知は出る (3)【決定 D4 で残すもの】巨大地震警戒（120）を別の報の巨大地震注意（130）が置き換えると、現況はその 130 の報から 7 日で消え、元の 120 の 14 日目より早く巨大地震注意が終わりうる（災害の日の N2 の並び〔reconstruction/test/disaster/synth.ts:626〜:633〕では 120 が t0＋2 時間・＋14 時間、130 が t0＋7 日で、終わりは t0＋14 日）。120 の 14 日目まで残す形を望むなら、作者の裁定で後の契約にする (4)【今の新築との差】器が埋まった日の退去は training/test が先で normal の記憶が後（統合担当の決定 D2）なので、normal の記憶（表示の期限から 30 日まで）が残る代わりに訓練・試験の情報が先に一覧から消える。normal の記録だけで 64 件が埋まった日に訓練・試験の情報を受けても残らない（training/test の報は normal を退去させない）。今の新築では 7 日で記録が消えるので、記憶の分だけ起きやすい。64 件は情報 subject（family×EventID）の数で、実配信で届く見込みは無い (5)【今の新築との差・増える側】遅い取消が鳴る側に増える: 表示の期限から記憶の終わりまでの情報の取消（分岐 P3-NS-D-INFO-MEMORY）と、期限切れの現況の取消（30 日まで、統合担当の決定 D1）が、元の報を通知していれば鳴る（H19）。Serial の形の外の報と InfoSerial/Name の読めない報が、断られずに表示され鳴る（H51 の B）。読めなかった所の印は K14 まで出ない (6)【今の新築との差・増える側】再起動の後も情報の一覧（本文を含む）が戻る（H30）。巨大地震警戒は 7 日で消えず、さらに 7 日「巨大地震注意」として残る。【決定 D4 で残すもの】120 の報の情報 subject は 7 日で記憶に移るので、7〜14 日目の巨大地震注意は本文（次回の発表の予定を含む）を出せる記録を持たない（現況は title と headline だけ）。120 の情報を 14 日残す形を望むなら、作者の裁定で後の契約にする (7)【旧築との差】調査中の音: 旧築は 120 以外を warning で鳴らす（src/engine/presentation/level-helpers.ts:311）、表示の段階も warning（同 :240）。新築は normal（H12） (8)【旧築との差】巨大地震警戒: 旧築は報の時刻から 7 日で現況を消す（src/engine/display/standby-state-store.ts:115・:2403）。新築は 7 日で巨大地震注意へ移し、14 日で消す（作者裁定。政府の期間より約 2 時間長い、計画 :539） (9)【旧築との差】情報の一覧: 旧築は情報を保存しない（src/engine/messages/revision-family-registry.ts:477 の durable false）ので再起動で消え、同じ情報の報を受け直すと新しく採用して鳴りうる。新築は戻り、受け直しても鳴らない。旧築は取り除いた情報の記録を 30 日・256 件覚えておく（tombstoneRetentionMs、同 :154・:477）。新築は表示 7 日・記憶 30 日・64 件（容量で退去） (10)【旧築との差】InfoSerial/Name: 旧築は Name を緩く読み、読めなければ InfoSerial ごと持たない（src/dmdata/telegram-parser.ts:1193〜:1196）。新築は code を残して name を null にする (11) 器の上界は見積もり（ReportDateTime を含め 6 byte の文字で上限いっぱいの 2,334,223 byte）。実装の試験で数え直し、2,621,440 を越えれば止めて報告する（器は広げない） (12) urgent の worker で、U-N の合法最大の encode が今の約 12 倍（見積もりで約 0.19 MB から約 2.33 MB）になり、その間に届いた EEW の処理が待つ（実例の最大は世代で約 0.5 MB の見込み。U-Q の合法最大 5.27 MB より小さい）。Mac の測定（AC09）で約 40 ms を越えたら配送の前に作者へ報告する。Pi は段 4 (13) K10 が入るまで、二段の移り変わりと情報の記憶への移り・記録の除去は、確かめていない手元の時計でも当たる（K9 の残存リスク (4)(8) と同じ形）。時計が進んだ端末で起動すると、巨大地震警戒が早く巨大地震注意へ移って見え、戻らない (14) 災害の日の道具の BYTE_LIMITS は U-N を 294,912 のまま持つ（reconstruction/test/disaster/runner.ts:188）ので、U-N.bytes がそれを越えると使用率を 100% 超で出す（判定は変わらない。U-Q と同じ未確認の不整合、道具の契約で扱う） (15) 7〜14 日の「巨大地震注意」は電文の無い状態で、title・headline は元の巨大地震警戒の報のまま（status だけが替わる）。区分の札と題が食い違って見えない描き方は P4 (16) 64 件の退去で消えた情報の古い報が後から届くと、新しく採用されて鳴りうる（P3-C8-CAPACITY の承認済みの代償と同じ。記憶も退去で消える）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-NS-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "発注前点検の後（統合担当、点検の commit への割当）",
+        "requiredEvidence": [
+          "baseOid の割当（起草は meta.draftedFromOid）と、その時点で本契約の anchor のずれが 0 件であること（check-contract）",
+          "decisionBranches の ruling が空でないこと（Q-NS-AUTHOR）",
+          "K10（P3-EXPIRY-FORM-001）と nankai-unit.ts の合流の順（AC10 の (1)）。K10 が先なら本契約の anchor と AC03・AC04 の当て先の付け直し",
+          "allowedPaths の file の行を anchor で引く他の契約の参照の数"
+        ]
+      },
+      {
+        "id": "Q-NS-EXISTING-TESTS",
+        "owner": "implementer",
+        "blocks": [
+          "期待値を変える既存の試験の変更"
+        ],
+        "resolveBy": "実装の途中、変える前に報告",
+        "requiredEvidence": [
+          "期待値が変わる既存の試験の名前と理由。起草時の見込み: (a) P3-C8-T08（O07:38 の information が evidenceOnly の写し、O07:43・:44 の expired、O01:69 の level、O01:70・O07:41 の validUntil） (b) P3-C8-T06（111 の level、情報だけの変化の保存世代は今も進む） (c) P3-C8-T03（情報の 7 日で記録が消える期待が記憶に替わる） (d) P3-C8-T04（退去の順、D2） (e) P3-C8-T05（payload の鍵 evidence、復元の後の information） (f) P3-CODEC-T02（上界 280,060 → P3-NS-T04 に置き換え） (g) P3-AUTH-T01 の中で証拠だけの記録の形を見る所と、P3-AUTH-T05 の evidence の鍵の無い payload の拒否（T01・T02 の stale・duplicate・intent 0 の判定は変わらない） (h) 版の文字列: shared-runtime.test.ts:77・nankai-fixture.ts:16・nankai-unit.test.ts:556 (i) 74_01_01〜03 の level を warning と見る試験 (j) version-material.test.ts の P3-VM-T03（:198 が payload の evidence の鍵を直に読む） (k) nankai-unit.test.ts:64・:65 の Serial「0」と 11 桁を identityInvalid の拒否と見る行（P3-NS-AC07 で受ける報になる）"
+        ]
+      }
+    ]
+  }
+}
