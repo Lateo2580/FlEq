@@ -653,7 +653,7 @@ export type UnreadableMark = Readonly<{ parts: readonly UnreadablePart[]; headli
 
 // P3-UM-AC08（K14、H43）: 報の全体が読めなかった電文のカード。owner が振り分け先の unit の envelope に書く（K8 の losses と同じ置き場）。
 // count は知らない種類を headType ごとにまとめた件数（ほかは 1）。raw は展開した本文の先頭（16,384 byte）で、rawCut は切った印、
-// rawDropped は器の都合で原文と areas を外した印（raw は null、rawCut とは独立）。areas は U-Y の確率の報の地域ごとの 5 日積算（読めない地域は null）。
+// rawDropped は器の都合で原文を外した印（raw は null、rawCut・areas とは独立）。areas は U-Y の確率の報の地域ごとの 5 日積算（読めない地域は null）。
 export type UnreadableCardKind = "unknownType" | "unreadable" | "unidentified";
 export type UnreadableCard = Readonly<{
   kind: UnreadableCardKind;
