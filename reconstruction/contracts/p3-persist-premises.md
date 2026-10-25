@@ -567,8 +567,8 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
 
 ## 21. K14 の起草で決めた読み（2026-10-25 統合担当、`P3-UNREADABLE-MARK-001`、起草案）
 
-- §10 の「subject の記録に印と原文の欠片」（:477）: 印は記録の欄 `unreadable?`（K7 の `unconfirmed?` とは別の欄）で、part は domain の warn の所 1 つ。原文の欠片と見出し文は boundedString（1,536 byte）で切り、unit ごとに 131,072 byte（置き値）の予算の内で持つ（P3-UM-AC01〜AC03）。
+- §10 の「subject の記録に印と原文の欠片」（:477）: 印は記録の欄 `unreadable?`（K7 の `unconfirmed?` とは別の欄）で、part は domain の warn の所 1 つ。原文の欠片と見出し文は boundedString（1,536 byte）で切り、unit ごとの予算（131,072 byte、U-F は 1,048,576 byte、置き値）の内で持つ（P3-UM-AC01〜AC03）。
 - §10 の「器が足りないときは原文を先に外す」（:478）: 予算を越えたら ReportDateTime の最も古い記録の原文から外して rawDropped を付け、H39 の unreadableDropped に数える（P3-UM-D-RAW-BUDGET）。器の上界は記録の上限×印の上界＋予算で広げる。
-- §8 の表の H43 の行（:451）の「履歴まで残すなら別の置き場」: カードは owner が振り分け先の unit の envelope に書く（K8 の losses と同じ置き場、P3-UM-D-CARD-PLACE）。unit の無い入力は U-M の envelope。
+- §8 の表の H43 の行（:451）の「履歴まで残すなら別の置き場」: カードは owner が振り分け先の unit の envelope に書く（K8 の losses と同じ置き場、P3-UM-D-CARD-PLACE）。unit の無い入力は U-M の envelope。台風の確率の報は既決どおり断り、カードに地域ごとの値と「不明」を載せる（P3-UM-AC14）。
 - §13 の C（:505）: unit が `decision: "rejected"` を返した入力と parser の拒否と知らない種類が、全部カードの入力になる（C の所を unit ごとに数え直さない）。
-- §20 の「比べから外して直す」（:566）: 1 つの値の欄は前の読めた値の digest で比べ、一覧の欄は読めた要素の追加だけを数え、U-T の観測の Serial は中身の fragment の鍵で比べる（P3-UM-D-COMPARE）。
+- §20 の「比べから外して直す」（:566）: 推奨は、1 つの値の欄は前の読めた値の digest で比べ、一覧の欄は要素ごとの鍵の集合で比べ、U-T の観測は revision を除いた中身の fragment の鍵で比べる形（P3-UM-D-COMPARE、作者の確認待ち）。
