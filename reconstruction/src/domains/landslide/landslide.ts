@@ -59,15 +59,19 @@ type LandslideCandidate = Readonly<{
   cancelled: boolean; title: string; headline: string | null; kinds: readonly LandslideKindGroup[]; released: boolean;
   truncated: boolean; areaNames: Readonly<Record<string, string>>;
 }>;
-type ParseResult = Readonly<{ kind: "accepted"; candidate: LandslideCandidate }>
+// diagnostics は受けた報の読めなかった所（P3-EF-AC13、H51 の B）。
+type ParseResult = Readonly<{ kind: "accepted"; candidate: LandslideCandidate; diagnostics: readonly DiagnosticDetails[] }>
   | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
 
 // Q-ENUM.priorityRule の順に最初の一 RejectionReason を返す。拒否の subject は官署を読めた後だけ官署の subject。
 function parseLandslide(material: DecodedMaterial): ParseResult {
   const common = validateSemanticEnvelope(material);
   if (common.kind === "rejected") return { kind: "rejected", subject: "", reason: common.reason, diagnostic: common.diagnostic };
-  const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason,
-    diagnostic: { level: "WARN", component: "landslide", reason, inputId: material.inputId, unit: "U-L" } });
+  const diagnostic = (reason: RejectionReason): DiagnosticDetails => ({ level: "WARN", component: "landslide", reason, inputId: material.inputId, unit: "U-L" });
+  const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason, diagnostic: diagnostic(reason) });
+  // H51 の B（P3-EF-AC13）: 読めない所は報を断らず、所ごとに WARN を 1 件残す。
+  const warnings = new Map<string, "requiredStructureMissing" | "requiredStructureInvalid">();
+  const warn = (site: string, reason: "requiredStructureMissing" | "requiredStructureInvalid") => { if (!warnings.has(site)) warnings.set(site, reason); };
 
   // Q-ENUM.identity: Control/EditorialOffice（P3-C10-SUBJECTS=A）。
   const controls = children(material.xml, "Control");
@@ -78,10 +82,11 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
   const office = officeValues[0];
   if (controls.length !== 1 || offices.length !== 1 || office == null || !validOffice(office)) return reject("identityInvalid");
   const subject = `${material.operation}/${FAMILY}/${office}`;
-  const serialRaw = material.serialRaw.trim();
+  // P3-EF-AC13 (5): 形の外の Serial は空にして受ける（新旧に Serial を使わない、K7）。
+  let serialRaw = material.serialRaw.trim();
+  if (!validSerial(serialRaw)) { warn("serial", "requiredStructureInvalid"); serialRaw = ""; }
   // 保存する ReportRef の byte の上限（Q-ENUM.identity、C8 の Q-C8-IMPL-AMEND(a)）。
-  if (!validSerial(serialRaw) || material.reportDateTimeRaw.length > LIMITS.reportDateTime
-    || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
+  if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
 
   // 存在を全部確かめてから妥当性を見る（Q-ENUM.priorityRule）。
   let missing = false, invalid = false;
@@ -139,8 +144,12 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
       const kindCodes = children(kind, "Code"), names = children(kind, "Name");
       const kindCode = kindCodes.length === 0 ? null : scalar(kindCodes[0]);
       const name = names.length === 0 ? null : scalar(names[0]);
-      if (kindCodes.length === 0 || kindCode === "" || names.length === 0 || name === "") { missing = true; continue; }
-      if (kindCodes.length > 1 || names.length > 1 || kindCode == null || name == null || !validKindCode(kindCode)) { invalid = true; continue; }
+      if (kindCodes.length === 0 || kindCode === "") { missing = true; continue; }
+      if (kindCodes.length > 1 || kindCode == null || !validKindCode(kindCode)) { invalid = true; continue; }
+      // Kind/Name は表示だけで、区分は Code で読める（H51 の B）。Status・Code は区域の警報級の値なので拒否のまま（C）。
+      if (names.length === 0 || name === "") warn("kindName", "requiredStructureMissing");
+      else if (names.length > 1 || name == null) warn("kindName", "requiredStructureInvalid");
+      const label = names.length === 1 && name != null ? name : "";
       if (status === RELEASED) released = true;
       // P3-C10-ACTIVE-STATUS=A: 「解除」「発表警報・注意報はなし」と code 00 は inactive。
       if (status === RELEASED || kindCode === "00" || code == null) continue;
@@ -148,7 +157,7 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
       const areaName = nameNode == null ? null : scalar(nameNode);
       if (areaName != null && areaName !== "") areaNames[code] = cut(areaName, BOUNDS.areaName);
       const group = groups.get(kindCode);
-      if (group == null) groups.set(kindCode, { name: bound(name, BOUNDS.kindName), areas: [code] });
+      if (group == null) groups.set(kindCode, { name: bound(label, BOUNDS.kindName), areas: [code] });
       else group.areas.push(code);
     }
     if (groups.size > LIMITS.kinds) invalid = true;
@@ -159,7 +168,7 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
     areas: group.areas })).sort(groupOrder);
   const headlineNode = children(children(head, "Headline")[0] ?? null, "Text")[0];
   const headline = headlineNode == null ? null : scalar(headlineNode);
-  return { kind: "accepted", candidate: { operation: material.operation, office, subject,
+  return { kind: "accepted", diagnostics: [...warnings.values()].map(diagnostic), candidate: { operation: material.operation, office, subject,
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: FAMILY, subject,
       reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(titleText, BOUNDS.title),

@@ -502,6 +502,10 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   };
 }
 
+// 受けた報の読めなかった所の WARN を先に置く（P3-EF-AC13 (2)）。
+function warned(result: Result, diagnostics: readonly DiagnosticDetails[]): Result {
+  return diagnostics.length === 0 ? result : { ...result, step: { ...result.step, diagnostics: [...diagnostics, ...result.step.diagnostics] } };
+}
 function receive(state: BriefingUnitState, input: Extract<BriefingInput, { kind: "receive" }>): Result {
   const parsed = parseBriefing(input.material);
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
@@ -510,7 +514,7 @@ function receive(state: BriefingUnitState, input: Extract<BriefingInput, { kind:
   // Q-NOTICE.recovery・P3-C12-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
-  return receiveCandidate(state, retarget(candidate, state.currents), input.clock, input.basis ?? "verified");
+  return warned(receiveCandidate(state, retarget(candidate, state.currents), input.clock, input.basis ?? "verified"), parsed.diagnostics);
 }
 
 // P3-EF-AC09 (1): 訂正で情報タグの組が替わっても記録を動かさない（無いと元の記録が残って 2 枚になる）。系列の報は、同じ運用区分に同じ
@@ -718,7 +722,8 @@ function reportRef(value: unknown, subject: string): ReportRef | null {
   const ref = readReportRef(value);
   const parts = subjectParts(subject);
   return ref == null || parts == null || ref.family !== parts.headType || ref.subject !== subject || parts.operation !== ref.operation
-    || !validReportDateTime(ref.reportDateTimeRaw) || !validSerial(ref.serialRaw)
+    // 読めなかった Serial は空で保存する（P3-EF-AC13 (5)、Q-EF-PRECHECK-2 (a)）。
+    || !validReportDateTime(ref.reportDateTimeRaw) || ref.serialRaw !== "" && !validSerial(ref.serialRaw)
     || infoRankOf(ref.infoTypeRaw) == null ? null : ref;
 }
 function areaRecord(value: unknown): BriefingArea | null {
@@ -756,7 +761,8 @@ function observationRecord(value: unknown): BriefingObservation | null {
 }
 function textRecord(row: Fields): Text | null {
   return typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
-    || !validHeadline(row.headline) || !boundedName(row.editorialOffice, BOUNDS.office) ? null
+    // 読めなかった官署は空で受ける（P3-EF-AC13）。
+    || !validHeadline(row.headline) || !bounded(row.editorialOffice, BOUNDS.office) || row.editorialOffice !== "" && !validName(row.editorialOffice) ? null
     : { title: row.title, headline: row.headline, editorialOffice: row.editorialOffice, truncated: row.truncated };
 }
 // 枝ごとに持ってよい事実の field（types.ts の判別共用体）。ほかの枝の field を持つ保存物は拒む。

@@ -62,7 +62,6 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       [editorial(""), "identityMissing"], [editorial("<EditorialOffice> </EditorialOffice>"), "identityMissing"],
       [editorial("<EditorialOffice>稚内地方気象台</EditorialOffice><EditorialOffice>旭川地方気象台</EditorialOffice>"), "identityInvalid"],
       [office("局".repeat(65))(xml), "identityInvalid"], [office("稚内\t気象台")(xml), "identityInvalid"],
-      [replaceTag("Serial", "1a")(xml), `identityInvalid ${SUBJECT}`], [replaceTag("Serial", "12345678901")(xml), `identityInvalid ${SUBJECT}`],
       // 小数秒で 40 文字を超える ReportDateTime と、8 文字を超える InfoType の raw（保存する ReportRef の上限、Q-ENUM.identity）。
       [retime("2020-06-22T23:00:00.0000000000000000+09:00")(xml), `identityInvalid ${SUBJECT}`],
       [replaceTag("InfoType", "発表        ")(xml), `identityInvalid ${SUBJECT}`],

@@ -54,17 +54,17 @@ describe("P3-UNIT-V-001 U-V corpus history", () => {
     expect(recordOf(o10[6].state, "normal/volcano:eruption/20140927120000_312")?.effective).toBe("active");
     expect(recordOf(o10[8].state, "normal/volcano:eruption/20140927120000_312")?.effective).toBe("cancelled");
 
-    const rejected: string[] = [];
+    const untargeted: string[] = [];
     // E13: fixtureIds の全正常 fixture を各 fixture の時刻の時計で受け、期限処理の後も残る恒常的な unavailable は U-V に無い。
     for (const id of contract.contract.fixtureIds) {
       const fixture = manifest.fixtures.find((item) => item.fixtureId === id)!;
       const material = decodeFixture(fixture.path);
       const step = receive(emptyState(), material, clock(Date.parse(material.reportDateTimeRaw)));
       const after = reduceVolcanoUnit(step.state, { kind: "deadline", clock: clock(Date.parse(material.reportDateTimeRaw) + 1) }).state;
-      rejected.push(...step.decisions.filter((item) => item.decision === "rejected").map(() => id));
+      untargeted.push(...step.decisions.filter((item) => item.decision === "rejected" || item.subject === "").map(() => id));
     }
-    // 空の state では火山コードの無い警報・降灰の取消だけが結び付く記録を持たず identityMissing（P3-C9-CANCEL-SCOPE=A の (3)）。
-    expect(rejected).toEqual(["test__fixtures__synthetic_VFVO50_cancel", "test__fixtures__synthetic_VFVO55_cancel"]);
+    // 空の state では火山コードの無い警報・降灰の取消だけが結び付く記録を持たず、手元を変えずに受け取る（P3-C9-CANCEL-SCOPE=A の (3)、P3-EF-AC13 (6)）。
+    expect(untargeted).toEqual(["test__fixtures__synthetic_VFVO50_cancel", "test__fixtures__synthetic_VFVO55_cancel"]);
   });
 });
 

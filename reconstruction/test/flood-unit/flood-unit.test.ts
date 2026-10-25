@@ -67,8 +67,6 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
       [ids(""), "identityMissing"], [ids("<EventID> </EventID>"), "identityMissing"],
       [ids("<EventID>123456789012</EventID><EventID>123456789013</EventID>"), "identityInvalid"],
       [eventId("1".repeat(41))(xml), "identityInvalid"], [eventId("１２３")(xml), "identityInvalid"],
-      [xml.replace("<Serial>3</Serial>", ""), `identityMissing ${SUBJECT}`],
-      [serial("1a")(xml), `identityInvalid ${SUBJECT}`], [serial("12345678901")(xml), `identityInvalid ${SUBJECT}`],
       // 小数秒で 40 文字を超える ReportDateTime と、8 文字を超える InfoType の raw（保存する ReportRef の上限、Q-ENUM.identity）。
       [retime("2019-05-27T09:00:00.0000000000000000+09:00")(xml), `identityInvalid ${SUBJECT}`],
       [replaceTag("InfoType", "発表        ")(xml), `identityInvalid ${SUBJECT}`],
@@ -80,13 +78,6 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
       [riverPart((part) => part.replace("<Code>30</Code>", "<Code>3</Code>"))(xml), `requiredStructureInvalid ${SUBJECT}`],
       [riverPart((part) => part.replace("9876543210", "1234567890"))(xml), `requiredStructureInvalid ${SUBJECT}`],
       [riverPart((part) => part.replace("9876543210", "1".repeat(17)))(xml), `requiredStructureInvalid ${SUBJECT}`],
-      [riverPart((part) => part.replace("<Name>○○川</Name>", "<Name>○○\t川</Name>"))(xml), `requiredStructureInvalid ${SUBJECT}`],
-      [seriesPart((part) => part + part)(xml), `requiredStructureInvalid ${SUBJECT}`],
-      [seriesPart((part) => part.replace('timeId="2"', 'timeId="1"'))(xml), `requiredStructureInvalid ${SUBJECT}`],
-      [seriesPart((part) => part.replace("2019-05-27T10:00:00+09:00", "2019-05-27T10:00:00Z"))(xml), `requiredStructureInvalid ${SUBJECT}`],
-      [seriesPart((part) => part.replace('refID="7" condition="正常">145.00', 'refID="8" condition="正常">145.00'))(xml), `requiredStructureInvalid ${SUBJECT}`],
-      [additionPart((part) => part.replace("<Name>△△△水位観測所</Name>", "<Name>○○○水位観測所</Name>"))(xml), `requiredStructureInvalid ${SUBJECT}`],
-      [seriesPart((part) => part.replace(">143.00<", ">143.0001<"))(xml), `requiredStructureInvalid ${SUBJECT}`],
       // Head/InfoType は 1 個の scalar（C10 の品質レビュー P2: 子要素や重複を取消と読まない）。
       [xml.replace("<InfoType>発表</InfoType>", "<InfoType>取消<X/></InfoType>"), `requiredStructureInvalid ${SUBJECT}`],
       // 実不具合（品質レビュー P2）: 子要素を持つ Kind/Code は報ごと拒む（その group だけを落とすと、残った解除の group で現況を消す）。
@@ -453,7 +444,6 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
       ["mark inputId over 64", withActive({ unconfirmed: { ...source, inputId: "i".repeat(65) } })],
       ["mark of another subject", withActive({ unconfirmed: { ...source, subject: "normal/VXKO50/123456789013" } })],
       ["ReportDateTime over 40", withActive({ source: { ...source, reportDateTimeRaw: "2019-05-27T09:00:00.0000000000000000+09:00" } })],
-      ["Serial empty", withActive({ source: { ...source, serialRaw: "" } })],
       ["Serial over 10 digits", withActive({ source: { ...source, serialRaw: "12345678901" } })],
       ["InfoType", withActive({ source: { ...source, infoTypeRaw: "不明" } })],
       ["source family", withActive({ source: { ...source, family: "VXKO51" } })],

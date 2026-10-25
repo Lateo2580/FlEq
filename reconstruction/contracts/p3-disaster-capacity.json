@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "589c8bc0dabdb8333c772049844320116fbcec8b74a416dbf0eb5d474238dcd3",
+    "sha256": "afff2aaabab66f3f2ef7f8ba0e36e77e89ff0da960f87d505f713a3d7333f707",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -436,13 +436,13 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:318 «350627aa0c8c0b86»",
           "reconstruction/src/domains/eew/eew.ts:266 «a777a5aa32eb2368»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:36 «986ae9b33f93a294»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:482 «3f2690b71e67d7d4»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:484 «3f2690b71e67d7d4»",
           "reconstruction/src/units/seismic/seismic-unit.ts:65 «a3f5d5da552e2733»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:67 «7f665a2964cdce66»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:243 «0f7bc64f0b86acb0»",
           "reconstruction/src/units/flood/flood-unit.ts:313 «db818200ef8649bd»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:399 «0661a8bf0d125d0a»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:880 «6334142030400210»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:887 «6334142030400210»",
           "reconstruction/src/domains/eew/eew.ts:583 «3ec78c2aad9e3950»"
         ]
       },

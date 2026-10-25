@@ -68,15 +68,19 @@ type FloodCandidate = Readonly<{
   infoRank: number; cancelled: boolean; title: string; areaName: string; headline: string | null; kinds: readonly FloodKindGroup[];
   times: readonly string[]; stations: readonly FloodStation[]; truncated: boolean;
 }>;
-type ParseResult = Readonly<{ kind: "accepted"; candidate: FloodCandidate }>
+// diagnostics は受けた報の読めなかった所（P3-EF-AC13、H51 の B）。
+type ParseResult = Readonly<{ kind: "accepted"; candidate: FloodCandidate; diagnostics: readonly DiagnosticDetails[] }>
   | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
 
 // Q-ENUM.priorityRule の順に最初の一 RejectionReason を返す。拒否の subject は EventID を読めた後だけ subject。
 function parseFlood(material: DecodedMaterial): ParseResult {
   const common = validateSemanticEnvelope(material);
   if (common.kind === "rejected") return { kind: "rejected", subject: "", reason: common.reason, diagnostic: common.diagnostic };
-  const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason,
-    diagnostic: { level: "WARN", component: "flood", reason, inputId: material.inputId, unit: "U-R" } });
+  const diagnostic = (reason: RejectionReason): DiagnosticDetails => ({ level: "WARN", component: "flood", reason, inputId: material.inputId, unit: "U-R" });
+  const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason, diagnostic: diagnostic(reason) });
+  // H51 の B（P3-EF-AC13）: 読めない所は報を断らず、所ごとに WARN を 1 件残す。
+  const warnings = new Map<string, "requiredStructureMissing" | "requiredStructureInvalid">();
+  const warn = (site: string, reason: "requiredStructureMissing" | "requiredStructureInvalid") => { if (!warnings.has(site)) warnings.set(site, reason); };
 
   // Q-ENUM.identity: Head/EventID（P3-C11-SUBJECTS=A）と Serial（必須）。
   const head = children(material.xml, "Head")[0] ?? null;
@@ -86,11 +90,12 @@ function parseFlood(material: DecodedMaterial): ParseResult {
   if (eventIds.length !== 1 || eventId == null || !validEventId(eventId) || !validHeadType(material.headType)) return reject("identityInvalid");
   const { headType } = material;
   const subject = `${material.operation}/${headType}/${eventId}`;
-  const serialRaw = material.serialRaw.trim();
-  if (serialRaw === "") return reject("identityMissing", subject);
+  // P3-EF-AC13 (5): Serial の欠け・形の外は空にして受ける（新旧に Serial を使わない、K7）。
+  let serialRaw = material.serialRaw.trim();
+  if (serialRaw === "") warn("serial", "requiredStructureMissing");
+  else if (!validSerial(serialRaw)) { warn("serial", "requiredStructureInvalid"); serialRaw = ""; }
   // 保存する ReportRef の byte の上限（Q-ENUM.identity、C8 の Q-C8-IMPL-AMEND(a)）。
-  if (!validSerial(serialRaw) || material.reportDateTimeRaw.length > LIMITS.reportDateTime
-    || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
+  if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
 
   // 存在を全部確かめてから妥当性を見る（Q-ENUM.priorityRule）。
   let missing = false, invalid = false, truncated = false;
@@ -98,12 +103,12 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     if (value.length > limit) truncated = true;
     return cut(value, limit);
   };
-  // 1 個の非空 scalar の名前を読む。無いか空は missing、重複・子要素・制御文字は invalid。
-  const name = (parent: XmlElement | null, tag: string): string | null => {
+  // 1 個の非空 scalar の名前を読む。読めなければ null で、無いか空は欠け、重複・子要素・制御文字は形の外の WARN（H51 の B）。
+  const name = (parent: XmlElement | null, tag: string, site: string): string | null => {
     const nodes = children(parent, tag);
     const text = nodes.length === 0 ? null : scalar(nodes[0]);
-    if (nodes.length === 0 || text === "") { missing = true; return null; }
-    if (nodes.length > 1 || text == null || !validName(text)) { invalid = true; return null; }
+    if (nodes.length === 0 || text === "") { warn(site, "requiredStructureMissing"); return null; }
+    if (nodes.length > 1 || text == null || !validName(text)) { warn(site, "requiredStructureInvalid"); return null; }
     return text;
   };
   const titles = children(head, "Title");
@@ -136,7 +141,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     const zoneName = children(zoneArea, "Name")[0];
     if (zoneName != null) {
       const value = scalar(zoneName);
-      if (value == null || !validName(value)) invalid = true;
+      if (value == null || !validName(value)) warn("areaName", "requiredStructureInvalid");
       else areaName = bound(value, BOUNDS.areaName);
     }
 
@@ -153,7 +158,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
       if (kindNodes.length !== 1 || areasNodes.length !== 1) invalid = true;
       const codes = children(kindNodes[0] ?? null, "Code");
       const code = codes.length === 0 ? null : scalar(codes[0]);
-      const kindName = kindNodes.length === 1 ? name(kindNodes[0], "Name") : null;
+      const kindName = kindNodes.length === 1 ? name(kindNodes[0], "Name", "kindName") : null;
       if (kindNodes.length === 1 && (codes.length === 0 || code === "")) missing = true;
       // 子要素を持つ Code（scalar が null）も報ごと拒む。その group だけを落とすと残りの解除の group で現況を消す（品質レビュー P2）。
       else if (codes.length > 1 || codes.length === 1 && (code == null || !validKindCode(code) || kindCodes.has(code))) invalid = true;
@@ -164,13 +169,14 @@ function parseFlood(material: DecodedMaterial): ParseResult {
       for (const area of areas) {
         const riverCodeNodes = children(area, "Code");
         const riverCode = riverCodeNodes.length === 0 ? null : scalar(riverCodeNodes[0]);
-        const riverName = name(area, "Name");
+        const riverName = name(area, "Name", "riverName");
         if (riverCodeNodes.length === 0 || riverCode === "") { missing = true; continue; }
         if (riverCodeNodes.length > 1 || riverCode == null || !validRiverCode(riverCode) || riverCodes.has(riverCode)) { invalid = true; continue; }
         riverCodes.add(riverCode);
-        if (riverName != null) rivers.push({ code: riverCode, name: bound(riverName, BOUNDS.name) });
+        // 名前の読めない河川も code で残す（除くと通知の比べの鍵が河川の code から group の code へ替わり、上昇と読んで鳴らす）。
+        rivers.push({ code: riverCode, name: riverName == null ? "" : bound(riverName, BOUNDS.name) });
       }
-      if (kindName != null && code != null) groups.push({ group: { code, name: bound(kindName, BOUNDS.name), level: levelOf(code), rivers }, order: groups.length });
+      if (kindNodes.length === 1 && code != null) groups.push({ group: { code, name: bound(kindName ?? "", BOUNDS.name), level: levelOf(code), rivers }, order: groups.length });
     }
     // P3-C11-BOUNDS=B: group は段階の低い方（0、2、…、null は 3 の順位）から、同じ段は電文順の後ろから捨てる。河川は電文順の後ろから。
     const groupRank = (level: FloodKindGroup["level"]) => level ?? 3;
@@ -189,19 +195,22 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     // P3-C11-STATIONS=A: 水位・流量情報の series（times は電文順で i=0 が現況）。
     const body = children(material.xml, "Body")[0] ?? null;
     const seriesInfos = children(body, "MeteorologicalInfos").filter((node) => attribute(node, "type") === SERIES);
-    if (seriesInfos.length > 1) invalid = true;
+    // 観測所の値（series と観測所）は所属だけの一覧で、読めない所は除いて読み続ける（H51 の B、設計メモ §13 の統合担当の読み）。
+    const seriesWarn = (reason: "requiredStructureMissing" | "requiredStructureInvalid") => warn("series", reason);
+    if (seriesInfos.length > 1) seriesWarn("requiredStructureInvalid");
     const timeSeries = children(seriesInfos[0] ?? null, "TimeSeriesInfo");
-    if (seriesInfos.length === 1 && timeSeries.length === 0) missing = true;
-    if (timeSeries.length > 1) invalid = true;
+    if (seriesInfos.length === 1 && timeSeries.length === 0) seriesWarn("requiredStructureMissing");
+    if (timeSeries.length > 1) seriesWarn("requiredStructureInvalid");
     const timeIndex = new Map<string, number>();
     const defines = children(children(timeSeries[0] ?? null, "TimeDefines")[0] ?? null, "TimeDefine");
-    if (timeSeries.length === 1 && defines.length === 0) missing = true;
+    if (timeSeries.length === 1 && defines.length === 0) seriesWarn("requiredStructureMissing");
+    // 読めない時刻から後は読まない。飛ばして詰めると予測の値が現況（i=0）の位置へ繰り上がり、上昇の通知を作る（H51 の B の位置の意味）。
     for (const define of defines) {
       const timeId = attribute(define, "timeId");
       const dateTimes = children(define, "DateTime");
       const dateTime = dateTimes.length === 0 ? null : scalar(dateTimes[0]);
-      if (timeId == null || timeId === "" || dateTimes.length === 0 || dateTime === "") { missing = true; continue; }
-      if (timeIndex.has(timeId) || dateTimes.length > 1 || dateTime == null || !validTime(dateTime)) { invalid = true; continue; }
+      if (timeId == null || timeId === "" || dateTimes.length === 0 || dateTime === "") { seriesWarn("requiredStructureMissing"); break; }
+      if (timeIndex.has(timeId) || dateTimes.length > 1 || dateTime == null || !validTime(dateTime)) { seriesWarn("requiredStructureInvalid"); break; }
       timeIndex.set(timeId, times.length);
       times.push(dateTime);
     }
@@ -212,32 +221,32 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     const series = new Map<string, Series>();
     for (const item of children(timeSeries[0] ?? null, "Item")) {
       const stationNodes = children(item, "Station");
-      if (stationNodes.length !== 1) { if (stationNodes.length === 0) missing = true; else invalid = true; continue; }
+      if (stationNodes.length !== 1) { seriesWarn(stationNodes.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid"); continue; }
       const codeNodes = children(stationNodes[0], "Code");
       const code = codeNodes.length === 0 ? null : scalar(codeNodes[0]);
-      const stationName = name(stationNodes[0], "Name");
-      if (codeNodes.length === 0 || code === "") { missing = true; continue; }
-      if (codeNodes.length > 1 || code == null) { invalid = true; continue; }
+      const stationName = name(stationNodes[0], "Name", "series");
+      if (codeNodes.length === 0 || code === "") { seriesWarn("requiredStructureMissing"); continue; }
+      if (codeNodes.length > 1 || code == null) { seriesWarn("requiredStructureInvalid"); continue; }
       const key = `${code}\n${stationName}`;
-      if (series.has(key)) invalid = true;
+      if (series.has(key)) seriesWarn("requiredStructureInvalid");
       const parts = children(item, "Kind").flatMap((kind) => children(kind, "Property"))
         .flatMap((property) => [...children(property, "WaterLevelPart"), ...children(property, "DischargePart")]);
-      if (parts.length !== 1) { if (parts.length === 0) missing = true; else invalid = true; continue; }
+      if (parts.length !== 1) { seriesWarn(parts.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid"); continue; }
       const read: Series = { discharge: localName(parts[0]) === "DischargePart", values: times.map(() => null), levels: times.map(() => null) };
       const seen = new Set<string>();
       for (const element of children(parts[0])) {
         const type = attribute(element, "type"), refId = attribute(element, "refID");
         const value = scalar(element);
         const at = refId == null ? undefined : timeIndex.get(refId);
-        if (type == null || refId == null || value == null || at == null || seen.has(`${refId}\n${type}`)) { invalid = true; continue; }
+        if (type == null || refId == null || value == null || at == null || seen.has(`${refId}\n${type}`)) { seriesWarn("requiredStructureInvalid"); continue; }
         seen.add(`${refId}\n${type}`);
         if (type === "レベル") {
-          if (value !== "" && !/^\d$/.test(value)) invalid = true;
+          if (value !== "" && !/^\d$/.test(value)) seriesWarn("requiredStructureInvalid");
           else if (at < read.levels.length) read.levels[at] = pointLevel(value);
         } else if (type === "水位" || type === "流量") {
-          if (value !== "" && !validValue(value)) invalid = true;
+          if (value !== "" && !validValue(value)) seriesWarn("requiredStructureInvalid");
           else if (at < read.values.length) read.values[at] = value === "" ? null : Number(value);
-        } else invalid = true;
+        } else seriesWarn("requiredStructureInvalid");
       }
       if (stationName != null) series.set(key, read);
     }
@@ -246,26 +255,28 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     const parts = children(body, "AdditionalInfo").flatMap((node) => children(node, "FloodForecastAddition"))
       .flatMap((node) => children(node, "HydrometricStationPart"));
     const riverByName = new Map<string, string>();
-    for (const group of kinds) for (const river of group.rivers) if (!riverByName.has(river.name)) riverByName.set(river.name, river.code);
+    for (const group of kinds) for (const river of group.rivers) if (river.name !== "" && !riverByName.has(river.name)) riverByName.set(river.name, river.code);
     const seenStations = new Set<string>();
     const built: { station: FloodStation; order: number }[] = [];
     for (const part of parts) {
+      // 読めない観測所は除き、truncated で一部を出していないことを残す。
+      const drop = (reason: "requiredStructureMissing" | "requiredStructureInvalid") => { warn("station", reason); truncated = true; };
       const areas = children(part, "Area");
-      if (areas.length !== 1) { if (areas.length === 0) missing = true; else invalid = true; continue; }
+      if (areas.length !== 1) { drop(areas.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid"); continue; }
       const codeNodes = children(areas[0], "Code");
       const code = codeNodes.length === 0 ? null : scalar(codeNodes[0]);
-      const stationName = name(areas[0], "Name");
-      if (codeNodes.length === 0 || code === "") { missing = true; continue; }
-      if (codeNodes.length > 1 || code == null || !validStationCode(code) || seenStations.has(`${code}\n${stationName}`)) { invalid = true; continue; }
+      const stationName = name(areas[0], "Name", "station");
+      if (codeNodes.length === 0 || code === "") { drop("requiredStructureMissing"); continue; }
+      if (codeNodes.length > 1 || code == null || !validStationCode(code) || seenStations.has(`${code}\n${stationName}`)) { drop("requiredStructureInvalid"); continue; }
       seenStations.add(`${code}\n${stationName}`);
       const criteriaNodes = children(part, "Criteria");
-      if (criteriaNodes.length > 1) invalid = true;
+      if (criteriaNodes.length > 1) warn("station", "requiredStructureInvalid");
       const criteria: { -readonly [K in keyof FloodCriteria]: number | null } = { level1: null, level2: null, level3: null, level4: null, level4Plan: null };
       let dischargeCriteria = false;
       for (const element of children(criteriaNodes[0] ?? null)) {
         if (localName(element) === "Discharge") dischargeCriteria = true;
         const value = scalar(element);
-        if (value == null || value !== "" && !validValue(value)) { invalid = true; continue; }
+        if (value == null || value !== "" && !validValue(value)) { warn("station", "requiredStructureInvalid"); continue; }
         const slot = CRITERIA.find(([, pattern]) => pattern.test(attribute(element, "type") ?? ""))?.[0];
         if (slot != null && criteria[slot] == null && value !== "" && attribute(element, "condition") !== "無効") criteria[slot] = Number(value);
       }
@@ -278,7 +289,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
         const river = text == null ? undefined : riverByName.get(cut(text.split("\n")[0].trim(), BOUNDS.name));
         if (river != null) linked.add(river);
       }
-      if (stationName == null) continue;
+      if (stationName == null) { truncated = true; continue; }
       if (stationName.length > BOUNDS.stationName) { truncated = true; continue; }
       const found = series.get(`${code}\n${stationName}`);
       built.push({ order: built.length, station: { code, name: stationName, riverCodes: [...linked],
@@ -294,7 +305,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
   }
   if (missing) return reject("requiredStructureMissing", subject);
   if (invalid || infoRank == null || titleText == null) return reject("requiredStructureInvalid", subject);
-  return { kind: "accepted", candidate: { operation: material.operation, headType, eventId, subject,
+  return { kind: "accepted", diagnostics: [...warnings.values()].map(diagnostic), candidate: { operation: material.operation, headType, eventId, subject,
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: headType, subject,
       reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(titleText, BOUNDS.title), areaName, headline,

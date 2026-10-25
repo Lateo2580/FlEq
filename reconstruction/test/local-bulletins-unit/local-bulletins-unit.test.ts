@@ -60,17 +60,12 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const base = emptyState();
     const long = (count: number) => "あ".repeat(count);
     const cases: readonly [label: string, name: string, transform: (xml: string) => string, reason: string][] = [
-      ["office missing (heat)", HEAT, office(""), "requiredStructureMissing"],
-      ["office 25 units (heat)", HEAT, office(long(25)), "requiredStructureInvalid"],
-      ["office control (heat)", HEAT, office("熊谷\t気象台"), "requiredStructureInvalid"],
       ["office missing (tornado)", N50, office(""), "identityMissing"],
       ["office slash (tornado)", N50, office("長崎/気象台"), "identityInvalid"],
       ["office 25 units (tornado)", N50, office(long(25)), "identityInvalid"],
       ["EventID missing", HEAT, eventId(""), "identityMissing"],
       ["EventID 65 units", HEAT, eventId("A".repeat(65)), "identityInvalid"],
       ["EventID control", HEAT, eventId("JP\tTC1"), "identityInvalid"],
-      ["Serial not digits", HEAT, serial("1a"), "identityInvalid"],
-      ["Serial 11 digits", HEAT, serial("12345678901"), "identityInvalid"],
       ["ReportDateTime raw 50 chars", HEAT, at("2024-08-11T05:00:00.1234567890123456789012345+09:00"), "identityInvalid"],
       ["Head/Title missing (heat)", HEAT, (xml) => xml.replace(/(<Head[^>]*>\s*)<Title>[^<]*<\/Title>/, "$1"), "requiredStructureMissing"],
       ["Head/Title missing (tornado)", N50, (xml) => xml.replace(/(<Head[^>]*>\s*)<Title>[^<]*<\/Title>/, "$1"), "identityMissing"],
@@ -79,12 +74,8 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       ["heat TargetDateTime missing", HEAT, (xml) => xml.replace(/<TargetDateTime>[^<]*<\/TargetDateTime>/, ""), "requiredStructureMissing"],
       ["heat TargetDateTime not a time", HEAT, replaceTag("TargetDateTime", "未定"), "requiredStructureInvalid"],
       ["tornado Kind 0", N50, infos({ [MUNICIPALITY]: "<Item><Areas><Area><Name>市</Name><Code>1</Code></Area></Areas></Item>" }), "requiredStructureInvalid"],
-      ["tornado Area/Code not digits", N50, infos({ [MUNICIPALITY]: areaItem("42x", "市") }), "requiredStructureInvalid"],
-      ["tornado name control", N50, infos({ [MUNICIPALITY]: areaItem("420", "市\t町") }), "requiredStructureInvalid"],
-      ["tornado ValidDateTime not a time", N50, replaceTag("ValidDateTime", "夕方"), "requiredStructureInvalid"],
       ["VPAW51 TargetArea/Code missing", "72_01_01_190327_VPAW51", (xml) => xml.replace(/(<TargetArea[^>]*>[\s\S]*?)<Code>[^<]*<\/Code>/, "$1"), "identityMissing"],
       ["VPAW51 TargetArea/Code not digits", "72_01_01_190327_VPAW51", (xml) => xml.replace(/(<TargetArea[^>]*>[\s\S]*?<Code>)[^<]*(<\/Code>)/, "$1ab$2"), "identityInvalid"],
-      ["transient Area/Code not digits", "85_01_01_250630_VPFJ51", (xml) => xml.replace(/<Code>130010<\/Code>/, "<Code>13a</Code>"), "requiredStructureInvalid"],
     ];
     for (const [label, name, transform, reason] of cases) {
       const step = send(base, name, transform);
@@ -183,14 +174,13 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const pastValid = send(emptyState(), N50, compose(infos({ [MUNICIPALITY]: noneItem("420", "市") }), replaceTag("ValidDateTime", "2013-07-26T09:00:00+09:00")));
     expect(recordOf(pastValid.state, NAGASAKI)?.effective).toBe("ended");
 
-    // 区域 129 の報は 128 に切り、通知の本文の数は切る前（129）。ValidDateTime が +36 時間を超える報は +36 時間に切り詰め、ReportDateTime 以前は拒否。
+    // 区域 129 の報は 128 に切り、通知の本文の数は切る前（129）。ValidDateTime が +36 時間を超える報は +36 時間に切り詰める。
     const many = Array.from({ length: 129 }, (_, index) => areaItem(String(1000 + index), `市${index}`)).join("");
     const wide = send(emptyState(), N50, infos({ [MUNICIPALITY]: many }));
     expect(recordOf(wide.state, NAGASAKI)).toMatchObject({ truncated: true });
     expect([wide.state.tornado[0].effective === "active" ? wide.state.tornado[0].areas.length : 0, wide.intents[0].payload.body]).toEqual([128, "発表中 129地域 / 有効期限 10:30"]);
     const longValid = send(emptyState(), N50, replaceTag("ValidDateTime", "2013-07-30T09:20:00+09:00"));
     expect(recordOf(longValid.state, NAGASAKI)).toMatchObject({ activeUntil: ms("2013-07-26T09:20:00+09:00") + hours(36) });
-    expect(reasonOf(send(emptyState(), N50, replaceTag("ValidDateTime", "2013-07-26T09:20:00+09:00")))).toBe("requiredStructureInvalid");
     // 有効期限の 1 ms 前は残り、到来で expired（無音、P3-EF-AC07 (1)）。ValidDateTime の無い報は +1 時間、記録は +36 時間で除く。
     const edge = send(emptyState(), N50).state;
     expect(tick(edge, ms("2013-07-26T10:30:00+09:00") - 1).state.tornado).toBe(edge.tornado);
@@ -211,13 +201,9 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const latePair = sendAs(first.state, N50, "VPHW51", replaceTag("ValidDateTime", "2013-07-26T09:30:00+09:00"), ms("2013-07-26T09:40:00+09:00"));
     expect([recordOf(latePair.state, NAGASAKI)?.effective, latePair.decisions[0].decision, latePair.intents, latePair.state.intents.filter((item) => item.disposition === "superseded")])
       .toEqual(["expired", "changed", [], []]);
-    // Head/Headline の無い非取消の報は requiredStructureMissing。
-    expect(reasonOf(send(emptyState(), N50, (xml) => xml.replace(/<Headline>[\s\S]*?<\/Headline>/, "")))).toBe("requiredStructureMissing");
-    // Body/Warning の Item に Area が無くても拒否せず、その Item は区域を出さない（区域を 1 つも取れなければ areas 空・truncated）。Area の形の外は invalid。
+    // Body/Warning の Item に Area が無くても拒否せず、その Item は区域を出さない（区域を 1 つも取れなければ areas 空・truncated）。
     const noArea = (xml: string) => xml.replace(/<Name>なし<\/Name>\s*<Code>0<\/Code>\s*<Status>なし<\/Status>\s*<\/Kind>\s*<Area>[\s\S]*?<\/Area>/, "<Name>竜巻注意情報</Name><Code>1</Code><Status>発表</Status></Kind>");
     expect(send(emptyState(), "synthetic_VPHW50_tokyo_release", noArea).state.tornado[0]).toMatchObject({ effective: "active", areas: [], truncated: true });
-    expect(reasonOf(send(emptyState(), "synthetic_VPHW50_tokyo_release", (xml) => xml.replace("<Code>130010</Code>", "<Code>13x</Code>").replace(/<Name>なし<\/Name>\s*<Code>0<\/Code>\s*<Status>なし<\/Status>/,
-      "<Name>竜巻注意情報</Name><Code>1</Code><Status>発表</Status>")))).toBe("requiredStructureInvalid");
     // Headline に竜巻の Information があれば Item が 0 個でも Body は読まない（Item が無ければ requiredStructureMissing）。
     const emptyInformation = (xml: string) => xml.replace(/<Headline>\s*<Text \/>\s*<\/Headline>/, '<Headline><Text /><Information type="竜巻注意情報（発表細分）"></Information></Headline>')
       .replace(/<Name>なし<\/Name>\s*<Code>0<\/Code>\s*<Status>なし<\/Status>/, "<Name>竜巻注意情報</Name><Code>1</Code><Status>発表</Status>");
@@ -262,8 +248,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(reasonOf(window("2024-08-11T00:00:00+09:00", "2024-08-12T20:00:00+09:00"))).toBe("changed");
     expect(reasonOf(window("2024-08-10T23:59:59+09:00", "2024-08-12T20:00:00+09:00"))).toBe("requiredStructureInvalid");
     expect(reasonOf(window("2024-08-11T00:00:00+09:00", "2024-08-10T10:00:00+09:00"))).toBe("requiredStructureInvalid");
-    // EditorialOffice の欠落した取消は拒否。64 単位を超える Title の地域名は切り詰めの前に引く。
-    expect(reasonOf(send(emptyState(), "synthetic_VPFT50_cancel", office("")))).toBe("requiredStructureMissing");
+    // 64 単位を超える Title の地域名は切り詰めの前に引く。
     const longTitle = `${"北".repeat(70)}熱中症警戒アラート`;
     const cut = send(emptyState(), HEAT, headTitle(longTitle)).state.heat[0];
     expect(cut).toMatchObject({ effective: "active", areaName: "北".repeat(24), truncated: true });

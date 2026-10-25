@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "b117d77a234640203a68f72e9d090249ce6d14bb",
-    "sha256": "5d37cac2cf7689e620ddb346944c2eab89ad0d0120137d43cf8ced0d5318c52f",
+    "sha256": "6f722e0521438b0c8455edb3414636aca69d14ad1573d7c88a2ea454708a6759",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -256,13 +256,13 @@
           "reconstruction/src/units/tsunami/tsunami-unit.ts:231 «9f38751af6226203»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:241 «27ee60c18155c859»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:269 «33b6c1d1890320dc»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:600 «e956c4e220c862de»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:602 «e956c4e220c862de»",
           "reconstruction/src/units/volcano/volcano-unit.ts:163 «dbcffbfa7834c13a»",
           "reconstruction/src/units/landslide/landslide-unit.ts:102 «a21bc597eb9220e7»",
           "reconstruction/src/units/flood/flood-unit.ts:108 «c3fdb4da492ae472»",
           "reconstruction/src/units/volcano/volcano-unit.ts:174 «809996ba80032871»",
           "reconstruction/src/units/volcano/volcano-unit.ts:190 «899e44a57ae48411»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:940 «6700bf4f0886c1a2»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:941 «6700bf4f0886c1a2»",
           "reconstruction/src/units/landslide/landslide-unit.ts:111 «cafff1643f57f709»",
           "reconstruction/src/units/flood/flood-unit.ts:117 «cafff1643f57f709»",
           "reconstruction/contracts/p3-tsunami-unit.json:94 «70ee38749b4aedd6»",
@@ -282,9 +282,9 @@
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:605 «231c191bd77922c5»",
           "reconstruction/src/units/volcano/volcano-unit.ts:608 «1f84fd59c083cd6b»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:895 «15ba9cf67c2cb520»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:951 «379e066bb9e1e4c3»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1034 «3b54901203444d8f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:896 «15ba9cf67c2cb520»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:952 «379e066bb9e1e4c3»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1035 «3b54901203444d8f»",
           "reconstruction/src/units/landslide/landslide-unit.ts:290 «126ccce35fbf7edf»",
           "reconstruction/src/units/landslide/landslide-unit.ts:298 «49ff7142814b80f5»",
           "reconstruction/src/units/landslide/landslide-unit.ts:331 «9ee851f159aa71c4»",
@@ -358,10 +358,10 @@
         "id": "P3-OPCAP-AC06",
         "requirement": "既存試験の期待値の変更（起草時の試作で確かめた全部、4件）: (1) volcano-unit.test.tsのP3-C9-T05の自身の退去（:366）、(2) landslide-unit.test.tsのP3-C10-T04の自身の退去（:237）、(3) flood-unit.test.tsのP3-C11-T04の自身の退去（:290）のdecisionを[\"changed\", \"semantic\"]から[\"changed\", \"revisionOnly\"]へ。理由: AC02(1)（D-SELF-OUTCOME）。記録は残らず表示も変わらない。stateの参照・診断・intentsの期待値は変えない。(4) landslide-unit.test.tsのP3-C10-T03の遅着の解除（:199、K3のT05が足したassert）の「acceptedのsubjectのtransitionが[\"ended\"]」を「acceptedのsubjectsが空」へ。理由: AC02(2)。最終の状態に記録が無い。入力の変更は無い。これ以外の期待値・入力の変更が要ると分かったら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。",
         "evidenceRefs": [
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:372 «b7c7d47534d3c902»",
-          "reconstruction/test/landslide-unit/landslide-unit.test.ts:251 «d339680a79160886»",
-          "reconstruction/test/landslide-unit/landslide-unit.test.ts:205 «bdd3743b4117bf5b»",
-          "reconstruction/test/flood-unit/flood-unit.test.ts:296 «d285b9b009b4e998»"
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:370 «b7c7d47534d3c902»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:250 «d339680a79160886»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:204 «bdd3743b4117bf5b»",
+          "reconstruction/test/flood-unit/flood-unit.test.ts:287 «d285b9b009b4e998»"
         ]
       },
       {

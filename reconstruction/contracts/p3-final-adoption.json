@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "13c0da0b0ea6b7da30805a88a5f86c8274a59f54356a342cc5419e880bedcbd4",
+    "sha256": "3c0d8ca33d66926ed18214c216327fa5cc45de8c45ce0e2b622d30977f2a655f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -252,8 +252,8 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:189 «73e4e4286c5cc146»",
           "reconstruction/src/units/volcano/volcano-unit.ts:170 «dce1f66a9d48f994»",
           "reconstruction/src/units/volcano/volcano-unit.ts:604 «1c7bd61623f0d3f0»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:939 «717009dac27148eb»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:990 «5ff3e954504ea98f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:940 «717009dac27148eb»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:991 «5ff3e954504ea98f»",
           "reconstruction/src/units/landslide/landslide-unit.ts:288 «e8afc5291a8206af»",
           "reconstruction/contracts/p3-landslide-unit.json:88 «c629cbaaa6776c3c»",
           "reconstruction/contracts/p3-seismic-unit.json:76 «d6d84cf6a5680502»",
@@ -278,8 +278,8 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:575 «e15dbf781382eb37»",
           "reconstruction/src/units/volcano/volcano-unit.ts:619 «5018fadb9c916b68»",
           "reconstruction/src/units/volcano/volcano-unit.ts:621 «267a3eafb416ee8e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:999 «60fa9c92ea0997ab»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1000 «8afd096e772f7b47»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1000 «60fa9c92ea0997ab»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1001 «8afd096e772f7b47»",
           "reconstruction/contracts/p2-shared-runtime.json:189 «92f0f28d2bb03980»",
           "reconstruction/contracts/p2-shared-runtime.json:191 «198ceb18bc69f2b0»",
           "reconstruction/contracts/p3-order-plan.md:370 «231992515371a332»",
@@ -304,9 +304,9 @@
         "requirement": "F06の閉鎖（P3-X-C6、D-WITHDRAW=A。D-OUTCOME=Aから一意）。U-Vで到着の時点で期限を過ぎた採用（dueAt）が前のactiveの記録を置き換えるとき、新しい通知を作らず、そのsubjectのpendingを全部（両channel）supersededにする（取消の置換と同じ、P3-C9-REPLACEMENT=A）。警報・噴火・降灰・解説で同じ（定時の降灰を外す理由はD-WITHDRAWのA）。原因は受信の「!kept || dueAt(next, now)」の早い戻り（volcano-unit.ts:571、噴火・降灰にも同じ行）がapplied.cancelledへの登録より前にあること（同じ文の行が4つあるのでanchorは直前の:569で引く）。海上の部分だけの取消は警報がactiveのまま残るので当たらない。入力: 45_01_01_200522_VFVO50のReportDateTimeをnow−32日にした報を時計now（2026-01-01T10:00:00+09:00）で受け（pending desktop・sound）、synthetic_VFVO50_cancelのReportDateTimeをnow−31日にした取消をnow＋1秒で受ける。警報の記録は回収されて無く、pendingは0、intentsは空、acceptedは[{accepted, semantic, subjects: []}]、decisionはchanged/semantic・currentEstablished null。修正前の観測（alertsは空・pending desktop 179,000 ms・sound 59,000 msが残る）の反転を正式試験で示す。噴火（期限の有るactive）は境界の窓の1行で確かめる: F.o1のReportDateTimeをnow−1日＋60秒にした報をnowで受け（validUntilはnow＋60秒、pending 2）、now−1日＋90秒にした続報をnow＋150秒で受けると、pendingとintentsが空。U-Q・U-Nの取消は今も到着の時点の期限によらず撤回している（変えない）。",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:95 «ee67c3c47e745e7e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:662 «4875690aef7ec765»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:667 «fa298f72575b1598»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:877 «2636c80e8ecb6cdc»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:663 «4875690aef7ec765»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:668 «fa298f72575b1598»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:878 «2636c80e8ecb6cdc»",
           "reconstruction/src/units/volcano/volcano-unit.ts:491 «4113d9919aea2674»",
           "reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573»",
           "reconstruction/contracts/p3-volcano-unit.json:248 «782a63e4c50a5c02»",
@@ -327,8 +327,8 @@
           "reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f»",
           "reconstruction/contracts/p3-landslide-unit.json:273 «d16910d13705f145»",
           "reconstruction/contracts/p3-landslide-unit.json:12 «c73b1961f3ef092e»",
-          "reconstruction/test/landslide-unit/landslide-unit.test.ts:197 «f08931c457090c2d»",
-          "reconstruction/test/landslide-unit/landslide-unit.test.ts:201 «4b2698ca2b3fa0ef»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:196 «f08931c457090c2d»",
+          "reconstruction/test/landslide-unit/landslide-unit.test.ts:200 «4b2698ca2b3fa0ef»",
           "reconstruction/contracts/p3-order-plan.md:348 «2aa034878016ecd6»"
         ]
       },
@@ -358,11 +358,11 @@
         "id": "P3-FINAL-AC07",
         "requirement": "既存試験の期待値の変更（起草時の試作で確かめた全部）: volcano-unit.test.tsのP3-C9-T03の到着の時点で期限を過ぎた噴火の報（:227〜:230、空のstateにF.o1を報の時刻＋1日＋1 msで受ける）のdecisionを[\"changed\", \"semantic\"]から[\"changed\", \"revisionOnly\"]へ。理由: AC02(3)。記録はexpiredで残り表示に出ない（displayChangesは今も空）ので、公開の意味は変わっていない。expired・intents・displayChanges・同じ版の再送のduplicateの期待値は変えない。入力の変更（期待値は変えない）: volcano-unit.test.tsのP3-C9-T05のpendingのbyteの境界（:394〜:396）は、probeのsendと測るsendに固定のinputIdを渡す。inputIdはintentのsourceに入りbyteを決めるが、今はvolcano-fixture.ts:23のmodule共有の連番で決まり、T03・T04のsendが足されると--sequence.shuffleの順（seed 1791610033643で再現）で桁が繰り上がり境界がずれて落ちる。これ以外の期待値・入力の変更が要ると分かったら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。",
         "evidenceRefs": [
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:231 «e31f61135a3984de»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:234 «5544e8d1c2c65abc»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:418 «0e7d2cdb8575c9ed»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:419 «0b7dd40e4e5f885e»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:420 «cd260d60968f4d97»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:229 «e31f61135a3984de»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:232 «5544e8d1c2c65abc»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:416 «0e7d2cdb8575c9ed»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:417 «0b7dd40e4e5f885e»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:418 «cd260d60968f4d97»",
           "reconstruction/test/volcano-unit/volcano-fixture.ts:23 «43c3ae04f996b725»"
         ]
       },

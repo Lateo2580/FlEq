@@ -101,11 +101,6 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
       // 存在が妥当性より先（Q-ENUM.priorityRule）。
       [vtse41({ at: "2099-01-01T09:00:00+09:00", areas: [area("31"), area("312")] }).replace("<Code>51</Code></Kind></Category></Item></Forecast>",
         "</Kind></Category></Item></Forecast>"), "VTSE41", "requiredStructureMissing"],
-      [fixtureXml("32-39_11_09_250206_VTSE41").replace(">10</jmx_eb:TsunamiHeight>", ">高い</jmx_eb:TsunamiHeight>"), "VTSE41", "requiredStructureInvalid"],
-      [observation({ at: "2099-01-01T09:00:00+09:00", serial: 1, stations: [{ code: "21001" }] }).replace("<Serial>1</Serial>", "<Serial></Serial>"),
-        "VTSE51", "identityMissing"],
-      [observation({ at: "2099-01-01T09:00:00+09:00", serial: 1, stations: [{ code: "21001" }] }).replace("<Serial>1</Serial>", "<Serial>0</Serial>"),
-        "VTSE51", "identityInvalid"],
       [observation({ at: "2099-01-01T09:00:00+09:00", serial: 1, stations: [{ code: "21001" }] }).replace("<Code>21001</Code>", ""), "VTSE51",
         "requiredStructureMissing"],
       [observation({ at: "2099-01-01T09:00:00+09:00", serial: 1, stations: [{ code: "21001" }, { code: "21001" }] }), "VTSE51", "requiredStructureInvalid"],

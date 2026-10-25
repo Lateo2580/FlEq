@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "36ab8dc9b816bb428d3d161409fdf70aeb24db85c6ebb844f6f38bf046accab9",
+    "sha256": "00885fc6883beba43b73e7af578532b4fcbc7d931a674153218c84110b6fcce7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -35,7 +35,7 @@
         "provisional": "A",
         "ruling": "作者裁定A（2026-10-12朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（ValidDateTime、無ければReportDateTime＋1時間でended、記憶は36時間）だけを読む",
         "reason": "spec:398のM09は「有効期限」を持つ。旧築の表示はValidDateTimeで消し、無ければ元報の時刻＋1時間（src/engine/display/standby-state-store.ts:2425 «284adc818f5c5001»）、区域が0の報と取消で消した（src/engine/display/standby-state-store.ts:2414 «f44362cb8508c57b»）。fixture 3本のValidDateTimeは元報の時刻の62〜72分後。実配信の採取（統合担当が2026-10-11に集計。~/dev/fleq-corpus-p0/20260923-capacity、採取日2025-08-10・09-05・2026-01-11・02-08・06-26・09-21、重複0、dmdataの非EEW電文）では竜巻310通の全部がValidDateTimeを持ち、ReportDateTime＋67〜75分。EventIDは310/310が空、InfoTypeは310/310が発表で、訂正・取消・解除（区域が全部なし）の実物は0。Bは電文の形が変わったときに竜巻の報を丸ごと落とす（fail-dark）。Cは1時間で切れる情報を36時間見せる。Aの代償: ValidDateTimeの無い報は1時間で消える（その1時間は推測の値）",
-        "common": "どの案でも: activeの報（activeのItemを持つ報）でValidDateTimeがsourceのReportDateTime以前ならrequiredStructureInvalid（区域が全部「なし」の解除の報とendedへの遅着ではValidDateTimeを確かめない）。ValidDateTimeがReportDateTime＋36時間を超える報はactiveUntilをReportDateTime＋36時間（retainUntil）に切り詰める（有効期限の値を広げない、P3-X-C2の「保持GCが有効なactiveを先に消す」を起こさない）。decodeはReportDateTime＜activeUntil≦retainUntilを確かめる（ValidDateTimeは保存しない）"
+        "common": "どの案でも: activeの報（activeのItemを持つ報）でValidDateTimeがsourceのReportDateTime以前なら、WARNを出してValidDateTimeの無い報と同じに受け取る（P3-EF-AC13 (7)。区域が全部「なし」の解除の報とendedへの遅着ではValidDateTimeを確かめない）。ValidDateTimeがReportDateTime＋36時間を超える報はactiveUntilをReportDateTime＋36時間（retainUntil）に切り詰める（有効期限の値を広げない、P3-X-C2の「保持GCが有効なactiveを先に消す」を起こさない）。decodeはReportDateTime＜activeUntil≦retainUntilを確かめる（ValidDateTimeは保存しない）"
       },
       {
         "id": "P3-C13-HEAT-EXPIRY",
@@ -342,26 +342,26 @@
       {
         "id": "Q-ENUM",
         "status": "frozen（統合担当が起草で確定。2026-10-12夜の発注前点検で、合成4本（synthetic_VPHW50_tokyo_*）を足してもfamilyTableの形が変わらないことを確かめた）",
-        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、identityの存在→identityの妥当性→Serialの妥当性→ReportDateTime・InfoTypeのrawの長さと受信のinputIdの形→必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはstate全体と参照を変えず、diagnosticだけを返す。拒否のsubjectはidentityを読めた後なら`${operation}/…`、読めなければ空文字",
-        "identity": "竜巻: Control/EditorialOfficeが無いか空ならidentityMissing、2個以上・子要素を持つ・trimした値が24単位を超える・制御文字か孤立したサロゲートを含む・「/」を含む（P3-C13-TORNADO-SUBJECT=Aの鍵の区切り）ならidentityInvalid。P3-C13-TORNADO-SUBJECT=AならHead/Titleも鍵で、64単位を超える・制御文字か孤立したサロゲートを含むならidentityInvalid（無ければrequiredStructureMissingより先にidentityMissing）。熱中症とVPAW51以外のtransient: Head/EventIDが無いか空ならidentityMissing、2個以上・子要素を持つ・trimした値が64単位を超える・制御文字か孤立したサロゲートを含む・最初の文字が「_」（系列が空）ならidentityInvalid（系列は最初の「_」より前、P3-C13-TRANSIENT-FAMILIES）。VPAW51: Body/TargetArea/Codeが無いか空ならidentityMissing、数字だけの8 byte以下でなければidentityInvalid。P3-C13-VPAW51-SUBJECT=AならHead/Titleも竜巻と同じ形で確かめる。Serialは任意（空要素は欠落）で、あれば10桁以下の数字列（外れればidentityInvalid）。ReportDateTimeのrawが40文字を超えるかA1の時刻の形でない報、InfoTypeのrawが8文字を超える報、受信のinputIdが64文字を超えるか「\"」と「\\」を除く印字可能なASCII以外を含む報はidentityInvalid（C11・C12と同じ形。受理とdecodeで同じ）",
+        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、identityの存在→identityの妥当性→ReportDateTime・InfoTypeのrawの長さと受信のinputIdの形→必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはstate全体と参照を変えず、diagnosticだけを返す。拒否のsubjectはidentityを読めた後なら`${operation}/…`、読めなければ空文字",
+        "identity": "竜巻: Control/EditorialOfficeが無いか空ならidentityMissing、2個以上・子要素を持つ・trimした値が24単位を超える・制御文字か孤立したサロゲートを含む・「/」を含む（P3-C13-TORNADO-SUBJECT=Aの鍵の区切り）ならidentityInvalid。P3-C13-TORNADO-SUBJECT=AならHead/Titleも鍵で、64単位を超える・制御文字か孤立したサロゲートを含むならidentityInvalid（無ければrequiredStructureMissingより先にidentityMissing）。熱中症とVPAW51以外のtransient: Head/EventIDが無いか空ならidentityMissing、2個以上・子要素を持つ・trimした値が64単位を超える・制御文字か孤立したサロゲートを含む・最初の文字が「_」（系列が空）ならidentityInvalid（系列は最初の「_」より前、P3-C13-TRANSIENT-FAMILIES）。VPAW51: Body/TargetArea/Codeが無いか空ならidentityMissing、数字だけの8 byte以下でなければidentityInvalid。P3-C13-VPAW51-SUBJECT=AならHead/Titleも竜巻と同じ形で確かめる。Serialは任意（空要素は欠落）で、あれば10桁以下の数字列（外れれば空にしてWARNを1件出し、報を受け取る。P3-EF-AC13 (5)）。ReportDateTimeのrawが40文字を超えるかA1の時刻の形でない報、InfoTypeのrawが8文字を超える報、受信のinputIdが64文字を超えるか「\"」と「\\」を除く印字可能なASCII以外を含む報はidentityInvalid（C11・C12と同じ形。受理とdecodeで同じ）",
         "familyTable": [
           {
             "family": "VPHW50・VPHW51（tornado）",
-            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個。非取消で、Head/Headline 1個、typeが「竜巻注意情報（」で始まるHeadlineのInformationかBody/WarningにItemが1個以上（どちらにも無ければrequiredStructureMissing、P3-C13-TORNADO-FACTS）、その各ItemはKind 1個以上（各KindはName・Codeを0か1個のscalar）とAreas 0か1個（各AreaはCode 1個（数字だけ8 byte以下）とName 1個（非空scalar））。Head/ValidDateTimeは0か1個でA1の時刻の形。activeの報ではReportDateTimeより後（P3-C13-TORNADO-EXPIRY.common）",
+            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個。非取消で、Head/Headline 1個（無いか読めなければ見出しは空でWARN、P3-EF-AC13）、typeが「竜巻注意情報（」で始まるHeadlineのInformationかBody/WarningにItemが1個以上（どちらにも無ければrequiredStructureMissing、P3-C13-TORNADO-FACTS）、その各ItemはKind 1個以上（各KindはName・Codeを0か1個のscalar）とAreas 0か1個（各AreaはCode 1個（数字だけ8 byte以下）とName 1個（非空scalar））。Head/ValidDateTimeは0か1個でA1の時刻の形。activeの報ではReportDateTimeより後（P3-C13-TORNADO-EXPIRY.common。外れればWARNを出してValidDateTimeの無い報と同じ、P3-EF-AC13 (7)）",
             "legalMissing": "取消はHeadline・Body・ValidDateTimeを読まない。Headline/Text（無ければ空文字）、ValidDateTime（P3-C13-TORNADO-EXPIRY）、表に無いtypeのInformationの区域は欠落してよい。EventID、TargetDateTime、InfoKindは読まず、形も確かめない。Bodyは、Headlineに竜巻のInformationが無い非取消の報だけ、Body/Warning（typeが「竜巻注意情報（」で始まる）のItemのKindと区域（Area 0か1個。0個のItemは区域を出さない（P3-C13-TORNADO-FACTSのAreaの欠落、区域を1つも取れなければareas空・truncated）、2個以上はrequiredStructureInvalid。CodeとNameはHeadlineと同じ形。配送時に統合担当がFACTSと文面を揃えた）を読む。ほかの報ではBodyを読まず、形も確かめない",
-            "invalid": "Kindが0個、Area・Nameの形の外、名前・titleの制御文字か孤立したサロゲート、headlineの改行以外の制御文字、ValidDateTimeの形の外、子要素を持つscalar（requiredStructureInvalid）。区域の延べの上限を超えた分は拒否せず捨てる（P3-C13-BOUNDS）"
+            "invalid": "Kindが0個、titleの制御文字か孤立したサロゲート、子要素を持つscalar（requiredStructureInvalid）。区域（AreaのCode・Name）の形の外はその区域を除いてtruncated（通知の地域数は除いた区域も数える）、headlineの形の外は空、ValidDateTimeの形の外は無い報と同じにし、WARNを1件出して受け取る（P3-EF-AC13、H51のB）。区域の延べの上限を超えた分は拒否せず捨てる（P3-C13-BOUNDS）"
           },
           {
             "family": "VPFT50（heat）",
-            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個。Control/EditorialOfficeが1個の非空scalarで24単位以下（取消でも確かめる。無ければrequiredStructureMissing、2個以上・子要素・25単位以上・制御文字か孤立したサロゲートはrequiredStructureInvalid。C12のQ-C12-IMPL-AMEND(6)と同じ。保存は非取消のactiveだけ）。非取消でHead/TargetDateTimeが1個でA1の時刻の形、その対象日の終わりがReportDateTime＜対象日の終わり≦ReportDateTime＋48時間（P3-C13-HEAT-EXPIRY=A）",
+            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個。Control/EditorialOfficeが1個の非空scalarで24単位以下（取消でも確かめ、読めなければ空にしてWARNを1件出して受け取る、P3-EF-AC13。保存は非取消のactiveだけ）。非取消でHead/TargetDateTimeが1個でA1の時刻の形、その対象日の終わりがReportDateTime＜対象日の終わり≦ReportDateTime＋48時間（P3-C13-HEAT-EXPIRY=A）",
             "legalMissing": "取消はTargetDateTime・Headline・Bodyを読まない。Headline/Text（無ければ空文字）、Titleから地域名を引けないこと（areaName null）、Body・Notice・Comment（空・欠落とも）は合法",
             "invalid": "非取消でTargetDateTimeが無い（requiredStructureMissing）・形の外か対象日の終わりが上の範囲の外（requiredStructureInvalid）、titleの制御文字、子要素を持つscalar、EditorialOfficeの形の外"
           },
           {
             "family": "VXSE56・VXSE60・VZSE40・VPAW51・VPZI50・VPCI50・VPZJ51・VPCJ51・VPFJ51・VMCJ53・VMCJ54・VMCJ55（transient）",
-            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個。Control/EditorialOfficeが1個の非空scalarで24単位以下（取消でも確かめる。無ければrequiredStructureMissing、形の外はrequiredStructureInvalid。保存は非取消のactiveの事実だけで、メモリの上にしか置かない）",
+            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個。Control/EditorialOfficeが1個の非空scalarで24単位以下（取消でも確かめ、読めなければ空にしてWARNを1件出して受け取る、P3-EF-AC13。保存は非取消のactiveの事実だけで、メモリの上にしか置かない）",
             "legalMissing": "取消はHeadline・Bodyを読まない（VPAW51の取消はBody/TargetAreaが要る）。Headline/Text（無ければ空文字）、区域、情報タグは欠落してよい。Bodyの本文・観測・Property（synthetic__vpfj51_property_multiなど）は読まず、形も確かめない",
-            "invalid": "名前・titleの制御文字か孤立したサロゲート、headlineの改行以外の制御文字、Area/Codeが数字8 byte以下でない、子要素を持つscalar（requiredStructureInvalid）。区域・tagの上限を超えた分は捨てる"
+            "invalid": "titleの制御文字か孤立したサロゲート、子要素を持つscalar（requiredStructureInvalid）。区域の名前・Area/Codeの形の外はその区域を除いてtruncated（Headlineに読める区域もCodeとNameのそろった形の外の区域も無い報だけBody/TargetAreaを読む）、Areasの2個目は読まない、headlineの形の外は空、tagの形の外は除き、WARNを1件出して受け取る（P3-EF-AC13、H51のB）。区域・tagの上限を超えた分は捨てる"
           }
         ],
         "revisionOrder": "subjectごとにP3-VERSION-MATERIAL-001のcompareVersion（VPZJ51・VPCJ51・VPFJ51・VMCJ53〜55はHead/ReportDateTimeを先に比べ、同じならControl/DateTime。竜巻・熱中症とほかのtransientはControl/DateTimeだけ。InfoTypeの順位とSerialは使わない、P3-VM-AC02・AC03）で比べる（K1のD-ORDER=A・D-MISSING=A〔reconstruction/contracts/p3-revision-order.json:12 «f8ea97e05b054bcf»〕を置き換えた）。VPHW50とVPHW51は同じsubjectの1つの系列とし、同じ報（P3-C13-TORNADO-PAIR=A）の対はVPHW50＜VPHW51の順位で決める。同じ比べる時刻で正規化したInfoTypeが同じで、見える記録なら公開事実も同じならduplicate（見えない記録〔記憶・証拠〕は事実を持たないのでInfoTypeだけで見る）。同じ比べる時刻の取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。それ以外で違えば先着を保ってstale＋WARN診断localBulletinsRevisionConflictとし、そのsubjectに未確認の印を付ける（P3-VM-AC04）。比べる時刻の欠けた報はP3-VM-D-MISSING=A。取消以前の版はstale。初報を受けていないsubjectの訂正は新しい報として採る。版の比較は遅着の判定（P3-C13-RETENTION.lateRule）より先に行い、stale・duplicate・食い違いのreasonを保つ（K6のP3-LIFE-AC03(1)と同じ順）。P3-VM-AC09(16)により統合担当が改訂（U-MはQ-VM-PRECHECK-2Bの統合担当の決定で(16)に含めた）",

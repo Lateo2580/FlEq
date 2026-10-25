@@ -476,6 +476,10 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   };
 }
 
+// 受けた報の読めなかった所の WARN を先に置く（P3-EF-AC13 (2)）。
+function warned(result: Result, diagnostics: readonly DiagnosticDetails[]): Result {
+  return diagnostics.length === 0 ? result : { ...result, step: { ...result.step, diagnostics: [...diagnostics, ...result.step.diagnostics] } };
+}
 function receive(state: State, input: Extract<LocalBulletinsInput, { kind: "receive" }>): Result {
   const parsed = parseLocalBulletins(input.material);
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
@@ -486,9 +490,9 @@ function receive(state: State, input: Extract<LocalBulletinsInput, { kind: "rece
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
   const basis = input.basis ?? "verified";
   switch (candidate.slice) {
-    case "tornado": return receiveWith(tornadoLane, state, candidate, input.clock, basis);
-    case "heat": return receiveWith(heatLane, state, candidate, input.clock, basis);
-    case "transient": return receiveWith(transientLane, state, candidate, input.clock, basis);
+    case "tornado": return warned(receiveWith(tornadoLane, state, candidate, input.clock, basis), parsed.diagnostics);
+    case "heat": return warned(receiveWith(heatLane, state, candidate, input.clock, basis), parsed.diagnostics);
+    case "transient": return warned(receiveWith(transientLane, state, candidate, input.clock, basis), parsed.diagnostics);
     default: { const missing: never = candidate; throw new Error(`local bulletins candidate ${String(missing)} is not handled`); }
   }
 }
@@ -728,7 +732,8 @@ function reportRef(value: unknown, subject: string, parts: SubjectParts): Report
 }
 function textRecord(row: Fields): Text | null {
   return typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
-    || !validHeadline(row.headline) || !boundedName(row.editorialOffice, BOUNDS.office) ? null
+    // 読めなかった官署は空で受ける（P3-EF-AC13）。竜巻の官署は subject との一致で確かめる。
+    || !validHeadline(row.headline) || !bounded(row.editorialOffice, BOUNDS.office) || row.editorialOffice !== "" && !validName(row.editorialOffice) ? null
     : { title: row.title, headline: row.headline, editorialOffice: row.editorialOffice, truncated: row.truncated };
 }
 function tornadoAreaRecord(value: unknown): TornadoArea | null {

@@ -363,6 +363,10 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
   };
 }
 
+// 受けた報の読めなかった所の WARN を先に置く（P3-EF-AC13 (2)）。
+function warned(result: Result, diagnostics: readonly DiagnosticDetails[]): Result {
+  return diagnostics.length === 0 ? result : { ...result, step: { ...result.step, diagnostics: [...diagnostics, ...result.step.diagnostics] } };
+}
 function receive(state: FloodUnitState, input: Extract<FloodInput, { kind: "receive" }>): Result {
   const parsed = parseFlood(input.material);
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
@@ -371,7 +375,7 @@ function receive(state: FloodUnitState, input: Extract<FloodInput, { kind: "rece
   // Q-NOTICE.recovery・P3-C11-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
-  return receiveCandidate(state, candidate, input.clock, input.basis ?? "verified");
+  return warned(receiveCandidate(state, candidate, input.clock, input.basis ?? "verified"), parsed.diagnostics);
 }
 
 // ---- 期限（I-U-R.deadlines。到来分だけを回収する） ----
@@ -566,7 +570,8 @@ function reportRef(value: unknown, subject: string): ReportRef | null {
   const ref = readReportRef(value);
   const parts = subjectParts(subject);
   return ref == null || parts == null || ref.family !== parts.headType || ref.subject !== subject || parts.operation !== ref.operation
-    || !validReportDateTime(ref.reportDateTimeRaw) || !validSerial(ref.serialRaw)
+    // 読めなかった Serial は空で保存する（P3-EF-AC13 (5)、Q-EF-PRECHECK-2 (a)）。
+    || !validReportDateTime(ref.reportDateTimeRaw) || ref.serialRaw !== "" && !validSerial(ref.serialRaw)
     || infoRankOf(ref.infoTypeRaw) == null ? null : ref;
 }
 // 受理と同じ上限（group 16・河川の延べ 32・code の形と重複・level と code の一致・rivers が空の group は truncated のときだけ）。
@@ -577,12 +582,15 @@ function kindsRecord(value: unknown, truncated: boolean): FloodKindGroup[] | nul
     const row = record(entry);
     const rivers = list(row?.rivers, (river): FloodRiver | null => {
       const item = record(river);
-      if (item == null || !isText(item.code) || !validRiverCode(item.code) || codes.has(item.code) || !boundedName(item.name, BOUNDS.name)) return null;
+      // 名前の読めない河川は空の名前で受ける（P3-EF-AC13）。
+      if (item == null || !isText(item.code) || !validRiverCode(item.code) || codes.has(item.code) || !bounded(item.name, BOUNDS.name)
+        || item.name !== "" && !validName(item.name)) return null;
       codes.add(item.code);
       return { code: item.code, name: item.name };
     }, LIMITS.rivers);
     if (row == null || rivers == null || rivers.length === 0 && !truncated || !isText(row.code) || !validKindCode(row.code)
-      || !boundedName(row.name, BOUNDS.name) || row.level !== levelOf(row.code)) return null;
+      // 名前の読めない Kind は空の名前で受ける（P3-EF-AC13）。
+      || !bounded(row.name, BOUNDS.name) || row.name !== "" && !validName(row.name) || row.level !== levelOf(row.code)) return null;
     total += rivers.length;
     return { code: row.code, name: row.name, level: levelOf(row.code), rivers };
   }, LIMITS.groups);

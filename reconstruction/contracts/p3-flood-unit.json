@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "d42ae9858e1a2b454fdecef157d4ed97593f7bcdd2fee274b236f6d6939e9fa8",
+    "sha256": "85209b096b5f533900af3919bc84ef292f80e14a0e6fe526ba1250d035ccf08a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -295,14 +295,14 @@
       {
         "id": "Q-ENUM",
         "status": "frozen（統合担当が起草で確定）",
-        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventIDの存在→EventIDの妥当性→Serialの存在→Serialの妥当性→ReportDateTime・InfoTypeのrawの長さと受信のinputIdの長さ→必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはcurrents・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す。拒否のsubjectはEventIDを読めた後なら`${operation}/${headType}/${eventId}`、読めなければ空文字（C9のQ-C9-IMPL-AMEND(7)）",
-        "identity": "Head/EventIDが無いか空ならidentityMissing、2個以上・子要素を持つ・trimした値が40文字を超える・印字可能なASCII（0x21〜0x7E）以外を含むならidentityInvalid。Serialは必須（旧築のflood方針もallowMissingSerialを持たない）で、無いか空ならidentityMissing、10桁以下の数字列でなければidentityInvalid（比較は数として）。ReportDateTimeのrawが40文字・InfoTypeのrawが8文字を超える報と、受信のinputIdが64文字を超えるか「\"」と「\\」を除く印字可能なASCII以外を含む報はidentityInvalid（C8のQ-C8-IMPL-AMEND(a)）",
+        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventIDの存在→EventIDの妥当性→ReportDateTime・InfoTypeのrawの長さと受信のinputIdの長さ→必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはcurrents・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す。拒否のsubjectはEventIDを読めた後なら`${operation}/${headType}/${eventId}`、読めなければ空文字（C9のQ-C9-IMPL-AMEND(7)）",
+        "identity": "Head/EventIDが無いか空ならidentityMissing、2個以上・子要素を持つ・trimした値が40文字を超える・印字可能なASCII（0x21〜0x7E）以外を含むならidentityInvalid。Serialは識別に入れず（新旧に使わない、K7）、無いか空か10桁以下の数字列でなければserialRawを空の文字列にしてWARNの診断を1件出し（requiredStructureMissing・requiredStructureInvalid）、報を受け取る（P3-EF-AC13 (5)）。保存の読み戻しは空か10桁以下の数字列。ReportDateTimeのrawが40文字・InfoTypeのrawが8文字を超える報と、受信のinputIdが64文字を超えるか「\"」と「\\」を除く印字可能なASCII以外を含む報はidentityInvalid（C8のQ-C8-IMPL-AMEND(a)）",
         "familyTable": [
           {
             "family": "VXKO50〜VXKO89・VXSU50〜VXSU59",
             "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個（ほかはrequiredStructureInvalid）。非取消で「（河川）」で終わるtypeのInformationがあれば、それは1個でItemが1個以上。各ItemはKind 1個（Code 1個は2桁の数字、Name 1個は非空scalar）とAreas 1個（Area 1個以上。各AreaはCode 1個（数字だけ、16 byte以下）とName 1個（非空scalar））。同じ報でKind/Codeと河川のcodeは重複しない。「（予報区域）」か「（発表区間）」で終わるtypeの最初のInformationの最初のArea/Nameは、あれば非空scalar。MeteorologicalInfos（type「水位・流量情報」）は0か1個で、あればTimeSeriesInfo 1個、TimeDefinesのTimeDefineは1個以上でtimeId属性が重複せず、DateTimeは`YYYY-MM-DDThh:mm:ss±hh:mm`の25文字。Itemは各々Station 1個（Code 1個とName 1個）と、Kind/Propertyの下にWaterLevelPartかDischargePartを1個持ち、要素はtypeが水位・流量・レベルのどれかでrefIDがTimeDefineのtimeIdにある。同じ（Station/Code, Station/Name）のItemと、同じItemで同じrefID・同じtypeの要素は重複しない。HydrometricStationPartは各々Area 1個（Code 1個は数字だけ、20 byte以下、Name 1個は非空scalar）で、（Code, Name）は重複しない。Criteriaは0か1個。値（水位・流量・基準）は空か`-?[0-9]{1,6}(\\.[0-9]{1,3})?`、レベルは空か1桁の数字",
             "legalMissing": "取消はBodyとHeadlineを読まない（無くてよい）。Head/Headline、「（河川）」のInformation（無ければkinds空、P3-C11-UNKNOWN）、「（予報区域）」「（発表区間）」のInformation（無ければareaNameは空文字）、Body/MeteorologicalInfos（無ければtimesは空でvaluesも空）、HydrometricStationPart（無ければstationsは空）、ChargeSection（無ければriverCodesは空）、Criteria（無ければ全部null）は欠落してよい。HydrometricStationPartに対応するseriesのItemが無い観測所のvalues・levelsはtimesと同じ長さのnull。HydrometricStationPartに無いseriesのItemは読まない。府県予報区等のInformation、Body/Warning、雨量情報、氾濫水の予報、OfficeInfo、Notice、TargetDateTime、点のcondition・unitは読まず、形も確かめない（Criteriaのconditionが「無効」の要素はnull）",
-            "invalid": "Kind/Codeの重複、ItemのKind・Areasが1個でない、Kind/Codeが2桁の数字でない、河川・観測所のcodeが数字でない・長さの外・重複、名前（河川・観測所・Kind・areaName）が空か制御文字（U+0000〜U+001F、U+007F）か孤立したサロゲートを含む、水位・流量情報が2個以上、TimeDefineのtimeIdの重複・DateTimeの形の外、refIDがtimeIdに無い、seriesのItem・要素の重複、値・レベルの形の外、子要素を持つscalar（requiredStructureInvalid）。group・河川・観測所・点・ChargeSectionの上限を超えた分は拒否せず捨てる（P3-C11-BOUNDS=B）"
+            "invalid": "Kind/Codeの重複、ItemのKind・Areasが1個でない、Kind/Codeが2桁の数字でない、河川・観測所のcodeが数字でない・長さの外・重複、子要素を持つscalar（requiredStructureInvalid）。名前（河川・観測所・Kind・areaName）、水位・流量情報、観測所と基準の読めない所は報を断らず、WARNを1件出して受け取る（河川はcodeで残して名前は空、Kindの名前とareaNameは空、読めないTimeDefineから後の時刻は読まない、読めない観測所・値・基準は除くかnull。P3-EF-AC13、H51のB）。group・河川・観測所・点・ChargeSectionの上限を超えた分は拒否せず捨てる（P3-C11-BOUNDS=B）"
           }
         ],
         "codeTable": "Kind/CodeはXMLの文字列（子要素の無い要素の直下textのtrim）で引く: 10はlevel 0（解除）、20・21・22はレベル2（氾濫注意情報・レベル２氾濫注意報、22は警報解除）、30・31はレベル3（氾濫警戒情報・レベル３氾濫警報）、40・41はレベル4（氾濫危険情報・レベル４氾濫危険警報）、51・53はレベル5（レベル５氾濫特別警報・氾濫発生情報、53は氾濫水の予報）。表に無い2桁のcodeはlevel null（旧築types.ts:2735の表に22を足し、unknownをnullにしたもの。実配信の138本のcodeは10・20・21・22・30・31・40・41・51、fixtureに53）。点のレベルは0〜5を数とし、ほかの1桁（fixtureの9、未計算）はnull",

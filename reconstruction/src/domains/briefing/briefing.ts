@@ -46,7 +46,8 @@ type BriefingCandidate = Readonly<{
   infoRank: number; cancelled: boolean; title: string; headline: string; editorialOffice: string; items: readonly BriefingItem[];
   observations: readonly BriefingObservation[]; areas: readonly BriefingArea[]; truncated: boolean;
 }>;
-type ParseResult = Readonly<{ kind: "accepted"; candidate: BriefingCandidate }>
+// diagnostics は受けた報の読めなかった所（P3-EF-AC13、H51 の B）。
+type ParseResult = Readonly<{ kind: "accepted"; candidate: BriefingCandidate; diagnostics: readonly DiagnosticDetails[] }>
   | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
 
 const PARTS = [["EventPart", "event"], ["PrecipitationPart", "precipitation"], ["SnowfallDepthPart", "snowfall"]] as const;
@@ -56,8 +57,12 @@ const VALUE_TAG = { precipitation: "Precipitation", snowfall: "SnowfallDepth" } 
 function parseBriefing(material: DecodedMaterial): ParseResult {
   const common = validateSemanticEnvelope(material);
   if (common.kind === "rejected") return { kind: "rejected", subject: "", reason: common.reason, diagnostic: common.diagnostic };
-  const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason,
-    diagnostic: { level: "WARN", component: "briefing", reason, inputId: material.inputId, unit: "U-B" } });
+  const diagnostic = (reason: RejectionReason): DiagnosticDetails => ({ level: "WARN", component: "briefing", reason, inputId: material.inputId, unit: "U-B" });
+  const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason, diagnostic: diagnostic(reason) });
+  // H51 の B（P3-EF-AC13）: 読めない所は報を断らず、所ごとに WARN を 1 件残す。
+  type Unreadable = "requiredStructureMissing" | "requiredStructureInvalid";
+  const warnings = new Map<string, Unreadable>();
+  const warn = (site: string, reason: Unreadable) => { if (!warnings.has(site)) warnings.set(site, reason); };
 
   // Q-ENUM.identity: Head/EventID の系列（P3-C12-SUBJECTS=A）と Serial（必須）。
   const head = children(material.xml, "Head")[0] ?? null;
@@ -71,11 +76,12 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
   // P3-EF-AC09 (1): VPOA50 は報ごと（EventID の全体）。VPBS50 の取消は情報タグを読まないので全体で当て、記録雨の記録が無ければ記録の無い取消になる。
   const whole = headType === "VPOA50" || infoRankOf(material.infoTypeRaw) === 3;
   const subject = `${material.operation}/${headType}/${whole ? eventId : prefix}`;
-  const serialRaw = material.serialRaw.trim();
-  if (serialRaw === "") return reject("identityMissing", subject);
+  // P3-EF-AC13 (5): Serial の欠け・形の外は空にして受ける（新旧に Serial を使わない、K7）。
+  let serialRaw = material.serialRaw.trim();
+  if (serialRaw === "") warn("serial", "requiredStructureMissing");
+  else if (!validSerial(serialRaw)) { warn("serial", "requiredStructureInvalid"); serialRaw = ""; }
   // 保存する ReportRef の byte の上限（Q-ENUM.identity、C11 と同じ文字の形）。
-  if (!validSerial(serialRaw) || material.reportDateTimeRaw.length > 40 || material.infoTypeRaw.length > 8)
-    return reject("identityInvalid", subject);
+  if (material.reportDateTimeRaw.length > 40 || material.infoTypeRaw.length > 8) return reject("identityInvalid", subject);
 
   // 存在を全部確かめてから妥当性を見る（Q-ENUM.priorityRule）。
   let missing = false, invalid = false, truncated = false;
@@ -83,20 +89,27 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
     if (value.length > limit) truncated = true;
     return cut(value, limit);
   };
+  // 読めない値は null。site のある読み取りは報を断らず WARN（H51 の B）、無いものは報を断る。
+  const fail = (reason: Unreadable, site?: string): null => {
+    if (site != null) warn(site, reason);
+    else if (reason === "requiredStructureMissing") missing = true;
+    else invalid = true;
+    return null;
+  };
   // 1 個の非空 scalar の名前を読む。無いか空は missing、重複・子要素・制御文字は invalid。
-  const name = (parent: XmlElement | null, tag: string): string | null => {
+  const name = (parent: XmlElement | null, tag: string, site?: string): string | null => {
     const nodes = children(parent, tag);
     const text = nodes.length === 0 ? null : scalar(nodes[0]);
-    if (nodes.length === 0 || text === "") { missing = true; return null; }
-    if (nodes.length > 1 || text == null || !validName(text)) { invalid = true; return null; }
+    if (nodes.length === 0 || text === "") return fail("requiredStructureMissing", site);
+    if (nodes.length > 1 || text == null || !validName(text)) return fail("requiredStructureInvalid", site);
     return text;
   };
   // 区域・地点の Code は数字だけ 8 byte 以下（切らない）。
-  const code = (parent: XmlElement): string | null => {
+  const code = (parent: XmlElement, site?: string): string | null => {
     const nodes = children(parent, "Code");
     const text = nodes.length === 0 ? null : scalar(nodes[0]);
-    if (nodes.length === 0 || text === "") { missing = true; return null; }
-    if (nodes.length > 1 || text == null || !validCode(text)) { invalid = true; return null; }
+    if (nodes.length === 0 || text === "") return fail("requiredStructureMissing", site);
+    if (nodes.length > 1 || text == null || !validCode(text)) return fail("requiredStructureInvalid", site);
     return text;
   };
   const areasOf = (parent: XmlElement | null): BriefingArea[] => children(parent, "Area").flatMap((area) => {
@@ -117,7 +130,7 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
   let headline = "", editorialOffice = "";
   let items: BriefingItem[] = [], observations: BriefingObservation[] = [], areas: BriefingArea[] = [];
   // Control/EditorialOffice は取消でも有無と形を確かめる（Q-ENUM.familyTable.required、統合担当の決定）。取消は事実を持たないので保存しない。
-  const office = name(children(material.xml, "Control")[0] ?? null, "EditorialOffice");
+  const office = name(children(material.xml, "Control")[0] ?? null, "EditorialOffice", "editorialOffice");
   // 取消は Body と Headline を読まない（Q-ENUM.familyTable.legalMissing）。
   if (!cancelled) {
     const headlines = children(head, "Headline");
@@ -135,8 +148,10 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
         const kinds = children(item, "Kind"), conditions = children(kinds[0] ?? null, "Condition"), areaNodes = children(item, "Areas");
         if (kinds.length !== 1 || conditions.length > 1 || areaNodes.length > 1) invalid = true;
         const raw = conditions.length === 0 ? null : scalar(conditions[0]);
-        if (conditions.length !== 0 && (raw == null || !validName(raw))) invalid = true;
-        const condition = raw == null || raw === "" ? null : bound(raw, BOUNDS.condition);
+        // 読めない Condition は null（種別 unknown、H51 の B）。
+        const readable = conditions.length === 0 || raw != null && validName(raw);
+        if (!readable) warn("condition", "requiredStructureInvalid");
+        const condition = !readable || raw == null || raw === "" ? null : bound(raw, BOUNDS.condition);
         read.push({ kind: kindOf(condition), condition, areas: areasOf(areaNodes[0] ?? null) });
       }
       // P3-C12-BOUNDS=A: item 4・区域の延べ 16 を超えた分は電文順の後ろから捨てる。区域の無い予測の item は除く（P3-C12-REPLACE.common）。
@@ -149,42 +164,42 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
         return item.kind === "linearRainPredicted" && kept.length === 0 ? [] : [{ ...item, areas: kept }];
       });
 
-      // Body の観測実況（EventPart・PrecipitationPart・SnowfallDepthPart だけ）。
+      // Body の観測実況（EventPart・PrecipitationPart・SnowfallDepthPart だけ）。観測実況は所属だけの一覧で、読めない観測は捨てて
+      // truncated にする（H51 の B、設計メモ §13 の統合担当の読み）。
+      const drop = () => { warn("observation", "requiredStructureInvalid"); truncated = true; };
       const bodies = children(material.xml, "Body");
-      if (bodies.length > 1) invalid = true;
+      if (bodies.length > 1) warn("observation", "requiredStructureInvalid");
       const observationItems = children(bodies[0] ?? null, "MeteorologicalInfos").flatMap((node) => children(node, "MeteorologicalInfo"))
         .flatMap((node) => children(node, "Item"));
       for (const item of observationItems) {
         const places = [...children(item, "Area"), ...children(item, "Station")];
-        if (places.length !== 1) { invalid = true; continue; }
-        const areaCode = code(places[0]), areaName = name(places[0], "Name");
+        if (places.length !== 1) { drop(); continue; }
+        const areaCode = code(places[0], "observation"), areaName = name(places[0], "Name", "observation");
         for (const property of children(item, "Kind").flatMap((node) => children(node, "Property"))) {
           const typeNodes = children(property, "Type");
           const propertyType = typeNodes.length === 1 ? scalar(typeNodes[0]) : null;
           for (const [tag, part] of PARTS) {
             const nodes = children(property, tag);
-            if (nodes.length > 1) invalid = true;
+            if (nodes.length > 1) { drop(); continue; }
             if (nodes.length !== 1) continue;
             // event の値は Event の中、雨・雪は要素（jmx_eb:Precipitation・SnowfallDepth）と Part の Time。
             const values = children(nodes[0], part === "event" ? "Event" : VALUE_TAG[part]);
-            if (values.length > 1) invalid = true;
             const element = values[0] ?? null;
             const names = part === "event" ? children(element, "EventName") : [];
             const eventName = names.length === 0 ? null : scalar(names[0]);
-            if (names.length > 1 || names.length === 1 && eventName == null) invalid = true;
             const times = children(part === "event" ? element : nodes[0], "Time");
             const time = times.length === 0 ? "" : scalar(times[0]);
-            if (times.length > 1 || time == null || time !== "" && !validTime(time)) invalid = true;
             const valueText = part === "event" || element == null ? "" : scalar(element);
-            if (valueText == null || valueText !== "" && !validValue(valueText)) invalid = true;
             const unit = part === "event" || element == null ? null : attribute(element, "unit");
-            if (unit != null && unit !== "" && !validUnit(unit)) invalid = true;
+            if (values.length > 1 || names.length > 1 || names.length === 1 && eventName == null
+              || times.length > 1 || time == null || time !== "" && !validTime(time)
+              || valueText == null || valueText !== "" && !validValue(valueText) || unit != null && unit !== "" && !validUnit(unit)) { drop(); continue; }
             // label は EventName か type 属性。無ければ Property/Type。どれも無い観測はその観測だけを捨てて truncated にする（type は
             // legalMissing、C9〜C11 の fail-bright の先例、統合担当の決定）。
             const labelText = (part === "event" ? eventName : element == null ? null : attribute(element, "type")) || propertyType;
             if (labelText == null || labelText === "") { truncated = true; continue; }
-            if (!validName(labelText)) invalid = true;
-            if (areaCode == null || areaName == null || !validName(labelText) || valueText == null || time == null) continue;
+            if (!validName(labelText)) { drop(); continue; }
+            if (areaCode == null || areaName == null) { truncated = true; continue; }
             const value = valueText === "" ? null : Number(valueText);
             const condition = part === "event" || element == null ? null : attribute(element, "condition");
             observations.push({ part, areaCode, areaName: bound(areaName, BOUNDS.name), label: bound(labelText, BOUNDS.name), value,
@@ -219,7 +234,7 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
   // 情報タグの item が 1 件以上で全部記録雨の VPBS50 も報ごと（EventID の頭の「K」では見分けない）。
   const series = whole || items.length !== 0 && items.every((item) => item.kind === "recordRain") ? eventId : prefix;
   const adopted = `${material.operation}/${headType}/${series}`;
-  return { kind: "accepted", candidate: { operation: material.operation, headType, series, eventId, subject: adopted,
+  return { kind: "accepted", diagnostics: [...warnings.values()].map(diagnostic), candidate: { operation: material.operation, headType, series, eventId, subject: adopted,
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: headType, subject: adopted,
       reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(title, BOUNDS.title), headline, editorialOffice,

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "0d271ae071a22e14a0a192b9f17320e9b44e3cbb",
-    "sha256": "e0a975c73e5a82edf5a7559d7662acfda7af847a27e320d77e32feda16a5cf59",
+    "sha256": "3a252417fa1f8816b33569030b1b48c48745a7b76db4e5429946c49aa4a922a1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -248,12 +248,12 @@
       {
         "id": "Q-ENUM",
         "status": "frozen（統合担当が起草で確定）",
-        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、官署の存在→官署の妥当性→Serial妥当性（存在するときだけ）→ReportDateTime・InfoTypeのrawの長さと受信のinputIdの長さ→必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはcurrents・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す。拒否のsubjectは官署を読めた後なら`${operation}/VPWW56/${office}`、読めなければ空文字（C9のQ-C9-IMPL-AMEND(7)）",
-        "identity": "Controlが1つでEditorialOfficeが無いか空ならidentityMissing、Controlかその子のEditorialOfficeが2個以上・子要素を持つ・trimした長さが64 UTF-16単位を超える・制御文字（U+0000〜U+001F、U+007F）を含むならidentityInvalid。EventIDは読まない（VPWW56は空、バックログの調査「VPWW56はEventID全件空」）。Serialは空を合法とし（旧築allowMissingSerial）、あれば10桁以下の数字列でなければidentityInvalid（比較は数として）。ReportDateTimeのrawが40文字・InfoTypeのrawが8文字を超える報と、受信のinputIdが64文字を超える報はidentityInvalid（C8のQ-C8-IMPL-AMEND(a)）",
+        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、官署の存在→官署の妥当性→ReportDateTime・InfoTypeのrawの長さと受信のinputIdの長さ→必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはcurrents・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す。拒否のsubjectは官署を読めた後なら`${operation}/VPWW56/${office}`、読めなければ空文字（C9のQ-C9-IMPL-AMEND(7)）",
+        "identity": "Controlが1つでEditorialOfficeが無いか空ならidentityMissing、Controlかその子のEditorialOfficeが2個以上・子要素を持つ・trimした長さが64 UTF-16単位を超える・制御文字（U+0000〜U+001F、U+007F）を含むならidentityInvalid。EventIDは読まない（VPWW56は空、バックログの調査「VPWW56はEventID全件空」）。Serialは空を合法とし（旧築allowMissingSerial）、あれば10桁以下の数字列でなければ空にしてWARNを1件出し、報を受け取る（P3-EF-AC13 (5)、新旧に使わない K7）。ReportDateTimeのrawが40文字・InfoTypeのrawが8文字を超える報と、受信のinputIdが64文字を超える報はidentityInvalid（C8のQ-C8-IMPL-AMEND(a)）",
         "familyTable": [
           {
             "family": "VPWW56",
-            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個（ほかはrequiredStructureInvalid）。非取消ではBodyが1個、Body/Warning（type「気象警報・注意報（市町村等）」）が1個でItemが1〜256個。各ItemはArea 1個とそのCode 1個（数字だけ、16 byte以下、同じWarningで重複なし）と、Kind 1個（統合担当の決定。実配信の425本の16,924 Itemは全部Kindが1個）。KindはStatus 1個（Q-ENUM.statuses）で、「発表警報・注意報はなし」以外はCode 1個（2桁の数字）とName 1個（非空scalar）",
+            "required": "Head/Titleが1個の非空scalar、Head/InfoTypeが発表・訂正・取消のどれか1個（ほかはrequiredStructureInvalid）。非取消ではBodyが1個、Body/Warning（type「気象警報・注意報（市町村等）」）が1個でItemが1〜256個。各ItemはArea 1個とそのCode 1個（数字だけ、16 byte以下、同じWarningで重複なし）と、Kind 1個（統合担当の決定。実配信の425本の16,924 Itemは全部Kindが1個）。KindはStatus 1個（Q-ENUM.statuses）で、「発表警報・注意報はなし」以外はCode 1個（2桁の数字）とName 1個（非空scalar。Nameが読めなければgroupの名前を空にしてWARN、P3-EF-AC13。Status・Codeの外れは拒否のまま、H51のC）",
             "legalMissing": "取消はBody/Warningが無いか空でよい（読まない）。Head/Headline/Textは欠落してよい（通知のbodyだけに使う）。市町村等以外のWarning（府県予報区等・一次細分区域等・市町村等をまとめた地域等）は読まず、形も確かめない。Kind/LastKind・Property・ChangeStatusは読まない",
             "invalid": "非取消のItemのKindが1個でない（0個も2個以上もrequiredStructureInvalid。受理の区域の延べとdecode・容量の延べ256を同じにする）、Statusの語彙の外、Codeが2桁の数字でない、Area/Codeの重複、Itemが256を超える、activeのKind/Codeの種類が8を超える、子要素を持つscalar（requiredStructureInvalid）"
           }

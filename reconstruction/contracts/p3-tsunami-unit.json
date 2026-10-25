@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "d9a165b176deed599973052036d64a0338d9e1511bb246413978bf7d7538b790",
+    "sha256": "19c9f6c9ac3b96789d9d0c94bed27cdc89fcbb14188f5284db666c0b9e5c4005",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -64,7 +64,7 @@
       },
       {
         "id": "P3-C5-OBS-MERGE",
-        "A": "観測はstation codeで合成する。同じ報（Head/ReportDateTime・Serial・InfoTypeが同じ、P3-VM-D-SAME-REPORT=A）でない新しい版（P3-VERSION-MATERIAL-001のcompareVersion。記録の比べる用のControl/DateTimeで比べ、InfoTypeの順位とSerialは使わない）は載ったstationだけを上書きし、載らないstationを保つ。InfoTypeの違う組（発表と訂正・取消）は同じ報にせずcompareVersionで比べ、同じControl/DateTimeの取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。訂正は新しい版として採り、VTSE52のEstimationは訂正の分で丸ごと置き換える。同じ報の発表fragmentは非重複stationを和集合にする（allowlistはVTSE51/52だけ）。同じ報で同じstationの値が違うstationが一つでもあれば、入力全体をunchanged(stale)にし（部分合成しない）、WARN診断tsunamiRevisionConflictを残し、系列に未確認の印を付ける（P3-VM-AC03・AC04、Q-REV、可換性保証の外）。同じ報のfragmentの比較基準は採ったfragmentのControl/DateTimeの最大で、本文が同じか部分集合でも食い違いが無く大きいControl/DateTimeを持てばその値だけを更新して保存する（通知しない）。古い版はstale。VTSE52のEstimationは新しい版で丸ごと置き換え、同じ報のfragmentはArea/Codeで和集合（食い違いは同じ規則）。P3-VM-AC09(4)により統合担当が改訂",
+        "A": "観測はstation codeで合成する。同じ報（Head/ReportDateTime・Serial・InfoTypeが同じで、Serialが読めた報どうし。P3-VM-D-SAME-REPORT=A、P3-EF-AC13 (5)）でない新しい版（P3-VERSION-MATERIAL-001のcompareVersion。記録の比べる用のControl/DateTimeで比べ、InfoTypeの順位とSerialは使わない）は載ったstationだけを上書きし、載らないstationを保つ。InfoTypeの違う組（発表と訂正・取消）は同じ報にせずcompareVersionで比べ、同じControl/DateTimeの取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。訂正は新しい版として採り、VTSE52のEstimationは訂正の分で丸ごと置き換える。同じ報の発表fragmentは非重複stationを和集合にする（allowlistはVTSE51/52だけ）。同じ報で同じstationの値が違うstationが一つでもあれば、入力全体をunchanged(stale)にし（部分合成しない）、WARN診断tsunamiRevisionConflictを残し、系列に未確認の印を付ける（P3-VM-AC03・AC04、Q-REV、可換性保証の外）。同じ報のfragmentの比較基準は採ったfragmentのControl/DateTimeの最大で、本文が同じか部分集合でも食い違いが無く大きいControl/DateTimeを持てばその値だけを更新して保存する（通知しない）。古い版はstale。VTSE52のEstimationは新しい版で丸ごと置き換え、同じ報のfragmentはArea/Codeで和集合（食い違いは同じ規則）。P3-VM-AC09(4)により統合担当が改訂",
         "B": "新しいrevisionで全stationを置き換える",
         "recommended": "A",
         "provisional": "A",
@@ -229,20 +229,20 @@
       {
         "id": "Q-ENUM",
         "status": "frozen（表外Kind・Area/Code欠落はP3-C5-KIND-ENUM=B、作者裁定 2026-10-06）",
-        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性（14桁の数字）→Serial（VTSE51/52だけ: 存在→正整数）→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはforecasts/observations/intents/persistenceを含むstate全体と参照を変えず、diagnosticだけを返す",
+        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性（14桁の数字）→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはforecasts/observations/intents/persistenceを含むstate全体と参照を変えず、diagnosticだけを返す",
         "familyTable": [
           {
             "family": "VTSE41",
             "legalMissing": "取消はBodyがTextだけでよい（38-39_03_01）。Serialは空でよく、順序に使わない。FirstHeight・MaxHeightは区域ごとに欠落可。LastKindは読まない。P3-C5-KIND-ENUM=Bにより表外のKind CodeとArea/Codeの欠落を合法とする（unknown・unkeyedAreas）",
             "required": "非取消ではBody/Tsunami/Forecast/Itemが1件以上、各ItemにArea/Name・Category/Kind/Code・Kind/Name。Area/Codeがあれば3桁の数字で報の中で重複しない",
-            "invalid": "Area/Codeの重複・3桁でない値、存在するTsunamiHeightの値が数値・NaN・範囲表記に射影できない",
+            "invalid": "Area/Codeの重複・3桁でない値。存在するTsunamiHeightの値が数値・NaN・範囲表記に射影できない・FirstHeight/MaxHeightが2個以上・高さ・時刻・Conditionが文字列として読めない報は、その値をnullにしてWARNを1件出して受け取る（P3-EF-AC13、H51のB）。Category/Kind/Code・Kind/Nameの欠けは拒否のまま（H51のC）",
             "kindTable": "52・53→majorWarning、51→warning、62→advisory、71・72・73→forecast、50・60→released、00→none。表外はunknown（P3-C5-KIND-ENUM=B）"
           },
           {
             "family": "VTSE51",
-            "legalMissing": "取消はBodyがTextだけでよい（38-39_03_03）。Body/Tsunami/Forecastは読まない（警報の区分の出典はVTSE41だけ）。各StationのFirstHeight・MaxHeightの子は欠落可（観測中など）。非取消で Body/Tsunami/Observation の無い報は合法とし、state・watermark を変えず unchanged（reason=noChange）で返す。intent・outcome・診断は出さない。区分の出典は VTSE41 だけ（統合担当の決定 2026-10-08。32-39_11_03・38-39_02_02 の「各地の満潮時刻・津波到達予想時刻に関する情報」）",
+            "legalMissing": "取消はBodyがTextだけでよい（38-39_03_03）。Body/Tsunami/Forecastは読まない（警報の区分の出典はVTSE41だけ）。各StationのFirstHeight・MaxHeightの子は欠落可（観測中など）。非取消で Body/Tsunami/Observation の無い報は合法とし、state・watermark を変えず unchanged（reason=noChange）で返す。intent・outcomeは出さない（診断は読めなかった所のWARNだけ、P3-EF-AC13 (2)）。区分の出典は VTSE41 だけ（統合担当の決定 2026-10-08。32-39_11_03・38-39_02_02 の「各地の満潮時刻・津波到達予想時刻に関する情報」）",
             "required": "非取消ではBody/Tsunamiがあり、Observationがあれば Item が1件以上、各Item/StationにCode（空でない）とName",
-            "invalid": "報の中で同じStation/Codeが二度出る、存在するTsunamiHeightの値が射影できない"
+            "invalid": "報の中で同じStation/Codeが二度出る。存在するTsunamiHeightの値が射影できない・Station/Areaや高さの子が2個以上・値が文字列として読めない報と、VTSE51/52のSerialの欠け・正整数でない報は、その値をnull（Serialは空）にしてWARNを1件出して受け取る（P3-EF-AC13、H51のB）"
           },
           {
             "family": "VTSE52",
@@ -251,7 +251,7 @@
             "invalid": "VTSE51と同じ。Estimation/ItemがあればArea/Code（空でない、報の中で重複しない）を要する"
           }
         ],
-        "revisionOrder": "VTSE41はP3-VERSION-MATERIAL-001のcompareVersion（Control/DateTimeで比べ、InfoTypeの順位とSerialは使わない、P3-VM-AC02・AC03）で比べる。同じControl/DateTimeで内容（InfoTypeを含む）が同じならduplicate。同じControl/DateTimeの取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。それ以外で内容が違えば先着を保ってstale＋WARN診断tsunamiRevisionConflictとし、系列に未確認の印を付ける（P3-VM-AC04、Q-REV）。Control/DateTimeの欠けた報はP3-VM-D-MISSING=A。VTSE51/52は同じ報（Head/ReportDateTime・Serial・InfoType）をP3-C5-OBS-MERGEで合成し、同じ報でない組は採ったfragmentのControl/DateTimeの最大とcompareVersionで比べる。取消以前のrevisionはstaleで、取消したsubjectを戻さない（O01）。取消より新しいrevisionの発表・訂正は新しい報として採用し、直前を全区域none（観測はstationsなし）としてsubjectをactiveに戻す（気象庁が同じEventIDで出し直した報を捨てない）。P3-VM-AC09(4)により統合担当が改訂",
+        "revisionOrder": "VTSE41はP3-VERSION-MATERIAL-001のcompareVersion（Control/DateTimeで比べ、InfoTypeの順位とSerialは使わない、P3-VM-AC02・AC03）で比べる。同じControl/DateTimeで内容（InfoTypeを含む）が同じならduplicate。同じControl/DateTimeの取消は取消でない報より優先する（作者裁定2026-10-21昼、P3-VM-D-SAMETIMEを取消についてだけ改めた）。それ以外で内容が違えば先着を保ってstale＋WARN診断tsunamiRevisionConflictとし、系列に未確認の印を付ける（P3-VM-AC04、Q-REV）。Control/DateTimeの欠けた報はP3-VM-D-MISSING=A。VTSE51/52は同じ報（Head/ReportDateTime・Serial・InfoType、Serialが読めた報どうし、P3-EF-AC13 (5)）をP3-C5-OBS-MERGEで合成し、同じ報でない組は採ったfragmentのControl/DateTimeの最大とcompareVersionで比べる。取消以前のrevisionはstaleで、取消したsubjectを戻さない（O01）。取消より新しいrevisionの発表・訂正は新しい報として採用し、直前を全区域none（観測はstationsなし）としてsubjectをactiveに戻す（気象庁が同じEventIDで出し直した報を捨てない）。P3-VM-AC09(4)により統合担当が改訂",
         "diagnosticReasons": "既存のDiagnosticReason（p2-shared-runtime.types.ts:246〜:250）に同じrevisionの食い違いと津波の容量退去に当たるものが無いので、tsunamiRevisionConflictとtsunamiCapacityEvictedの2つだけを足す（persistent-diagnostic-sink.tsの一覧にも足す）"
       },
       {

@@ -624,9 +624,10 @@ function place<T extends Shown>(applied: Applied, values: readonly T[], store: (
 
 // ---- 受信（P3-C9-SUBJECTS=A。一入力の変更は一回の参照交換で確定する） ----
 
+// P3-EF-AC13 (6): 結び付く相手が 0 件か 2 件以上の取消は受け取り、手元の記録を変えずに WARN を出す（H51 の B）。
 function noTarget(applied: Applied, candidate: VolcanoCandidate): Applied {
-  applied.decisions.push({ subject: "", operation: candidate.operation, decision: "rejected", reason: "identityMissing" });
-  applied.diagnostics.push({ level: "WARN", component: "volcano", reason: "identityMissing", inputId: candidate.source.inputId, unit: "U-V" });
+  applied.decisions.push({ subject: "", operation: candidate.operation, decision: "unchanged", reason: "noChange" });
+  applied.diagnostics.push(missingDiagnostic(candidate));
   return applied;
 }
 // 火山コードの無い取消は、その slice の記録のうち eventId が一致する記録が一つだけのとき結び付く（P3-C9-CANCEL-SCOPE=A の (2)）。
@@ -1048,10 +1049,12 @@ function receive(state: VolcanoUnitState, input: Extract<VolcanoInput, { kind: "
     : candidate.slice === "ashfall" ? receiveAshfall(state, candidate, input.clock, verified)
     : candidate.slice === "scheduled" ? receiveScheduled(state, candidate, input.clock, verified)
     : receiveBulletin(state, candidate, now, verified);
-  // 識別できない取消の拒否は state 全体を変えない（rejected）。
-  if (applied.decisions.some((item) => item.decision === "rejected")) return { changes: [], step: { ...idle(state),
-    decisions: applied.decisions, diagnostics: applied.diagnostics } };
-  return finish(state, applied, input.clock, basis);
+  // 相手の無い取消（noTarget、subject が空の決定）は state 全体を変えない。
+  if (applied.decisions.some((item) => item.subject === "")) return { changes: [], step: { ...idle(state),
+    decisions: applied.decisions, diagnostics: [...parsed.diagnostics, ...applied.diagnostics] } };
+  const result = finish(state, applied, input.clock, basis);
+  // 受けた報の読めなかった所の WARN を先に置く（P3-EF-AC13 (2)）。
+  return parsed.diagnostics.length === 0 ? result : { ...result, step: { ...result.step, diagnostics: [...parsed.diagnostics, ...result.step.diagnostics] } };
 }
 
 // ---- 期限（I-U-V.deadlines。到来分だけを回収・flush する） ----

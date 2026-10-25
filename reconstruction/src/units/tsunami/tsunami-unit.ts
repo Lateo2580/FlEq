@@ -463,7 +463,9 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
 // ---- VTSE51/52（P3-C5-OBS-MERGE=A、P3-C5-OBS-LIFETIME=A） ----
 
 function sameRevision(left: TsunamiStation["revision"], right: TsunamiStation["revision"]): boolean {
-  return Date.parse(left.reportDateTimeRaw) === Date.parse(right.reportDateTimeRaw) && Number(left.serialRaw) === Number(right.serialRaw)
+  // P3-EF-AC13 (5): 同じ版の足し合わせは Serial が読めた報どうしだけ（Number("") は 0 で、空どうしが一致してしまう）。
+  return Date.parse(left.reportDateTimeRaw) === Date.parse(right.reportDateTimeRaw) && left.serialRaw !== "" && right.serialRaw !== ""
+    && Number(left.serialRaw) === Number(right.serialRaw)
     && left.infoTypeRaw.trim() === right.infoTypeRaw.trim();
 }
 
@@ -816,6 +818,10 @@ function restore(state: TsunamiUnitState, persisted: PersistedTsunamiUnit, clock
     diagnostics } };
 }
 
+// 受けた報の読めなかった所の WARN を先に置く（P3-EF-AC13 (2)）。
+function warned(result: Result, diagnostics: readonly DiagnosticDetails[]): Result {
+  return diagnostics.length === 0 ? result : { ...result, step: { ...result.step, diagnostics: [...diagnostics, ...result.step.diagnostics] } };
+}
 function receive(state: TsunamiUnitState, input: Extract<TsunamiInput, { kind: "receive" }>): Result {
   const parsed = parseTsunami(input.material);
   const noChange = (subject: string, operation: Operation): Result => ({ changes: [], step: { ...idle(state),
@@ -823,14 +829,15 @@ function receive(state: TsunamiUnitState, input: Extract<TsunamiInput, { kind: "
   switch (parsed.kind) {
     case "rejected": return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
       operation: input.material.operation, decision: "rejected", reason: parsed.reason }], diagnostics: [parsed.diagnostic] } };
-    // Q-ENUM の VTSE51.legalMissing: 観測の無い報は state・watermark を変えず、intent・outcome・診断を出さない。
-    case "noObservation": return noChange(parsed.subject, parsed.operation);
+    // Q-ENUM の VTSE51.legalMissing: 観測の無い報は state・watermark を変えず、intent・outcome を出さない（診断は読めなかった所だけ）。
+    case "noObservation": return warned(noChange(parsed.subject, parsed.operation), parsed.diagnostics);
     case "accepted": {
       const { candidate } = parsed;
       // Q-NOTICE.recovery: origin=recovery は C16 の候補採用まで state に適用しない。
       if (candidate.source.origin === "recovery") return noChange(candidate.subject, candidate.operation);
       const basis = input.basis ?? "verified";
-      return candidate.kind === "forecast" ? receiveForecast(state, candidate, input.clock, basis) : receiveObservation(state, candidate, input.clock, basis);
+      return warned(candidate.kind === "forecast" ? receiveForecast(state, candidate, input.clock, basis)
+        : receiveObservation(state, candidate, input.clock, basis), parsed.diagnostics);
     }
     default: { const missing: never = parsed; throw new Error(`tsunami parse result ${String(missing)} is not handled`); }
   }
@@ -1015,7 +1022,8 @@ function observationSubject(value: unknown): TsunamiObservationSubject | null {
     || effective == null || !text(row.eventId) || !/^\d{14}$/.test(row.eventId) || !text(row.controlDateTimeRaw)
     || controlDateTimeOf(row.controlDateTimeRaw) !== row.controlDateTimeRaw
     // reducer は serialRaw を数として比べる（Q-ENUM.priorityRule の Serial: 正整数）。
-    || !/^[1-9]\d*$/.test(source.serialRaw.trim()) || !Number.isSafeInteger(Number(source.serialRaw))
+    // 読めなかった Serial は空で保存する（P3-EF-AC13 (5)、Q-EF-PRECHECK-2 (a)）。
+    || source.serialRaw !== "" && (!/^[1-9]\d*$/.test(source.serialRaw.trim()) || !Number.isSafeInteger(Number(source.serialRaw)))
     || row.subject !== `${operation}/tsunamiObservation:${family}/${row.eventId}` || source.subject !== row.subject
     || source.operation !== operation || source.family !== family || !finiteOrNull(row.validUntil) || !finiteOrNull(row.retainUntil)
     || !unique(stations.map((item) => item.code)) || !unique(estimations.map((item) => item.areaCode))

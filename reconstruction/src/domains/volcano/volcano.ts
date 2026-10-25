@@ -88,6 +88,14 @@ function leaf(parent: XmlElement | null, name: string): string | null {
   if (found.length > 1 || found.length === 1 && children(found[0]).length !== 0) invalid();
   return found.length === 0 ? null : scalar(found[0]);
 }
+// H51 の B（P3-EF-AC13）: 読めない所は報を断らず、所ごとに WARN を 1 件残す。
+type Warn = (site: string, reason: "requiredStructureMissing" | "requiredStructureInvalid") => void;
+// leaf の読めない値（2 個以上か子要素あり）を null にして WARN を添える。
+function softLeaf(parent: XmlElement | null, name: string, warn: Warn, site: string): string | null {
+  const found = children(parent, name);
+  if (found.length > 1 || found.length === 1 && children(found[0]).length !== 0) { warn(site, "requiredStructureInvalid"); return null; }
+  return found.length === 0 ? null : scalar(found[0]);
+}
 
 // ---- 候補 ----
 
@@ -117,7 +125,8 @@ type VolcanoCandidate = CandidateBase & (
   | Readonly<{ slice: "scheduled"; volcanoName: string | null; topAshName: string | null }>
   | Readonly<{ slice: "bulletin"; facts: BulletinFacts | null; entries: readonly VolcanoEntry[] }>
 );
-type ParseResult = Readonly<{ kind: "accepted"; candidate: VolcanoCandidate }>
+// diagnostics は受けた報の読めなかった所（P3-EF-AC13、H51 の B）。
+type ParseResult = Readonly<{ kind: "accepted"; candidate: VolcanoCandidate; diagnostics: readonly DiagnosticDetails[] }>
   | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
 
 function diagnostic(material: DecodedMaterial, reason: RejectionReason): DiagnosticDetails {
@@ -145,39 +154,40 @@ function present(item: XmlElement, area: XmlElement | undefined): XmlElement {
   if (area == null || !code(area) || !children(item, "Kind").some((kind) => code(kind))) missing();
   return area!;
 }
-function kindOf(item: XmlElement, bound: (value: string | null, limit: number) => string | null): VolcanoKind {
+function kindOf(item: XmlElement, bound: (value: string | null, limit: number) => string | null, warn: Warn): VolcanoKind {
   const kind = children(item, "Kind");
   if (kind.length === 0) missing();
   if (kind.length > 1) invalid();
   const code = blank(leaf(kind[0], "Code"));
   if (code == null) return missing();
   if (!asciiCode(code, LIMITS.code)) invalid();
-  return { code, name: bound(leaf(kind[0], "Name") ?? "", BOUNDS.kindName)!,
+  return { code, name: bound(softLeaf(kind[0], "Name", warn, "name") ?? "", BOUNDS.kindName)!,
     condition: bound(blank(leaf(kind[0], "Condition")), BOUNDS.condition) };
 }
 // 対象市町村・対象海上予報区: Kind の名前ごとの Area/Code（I-U-V.bounds の件数で切る）。
 function areaGroups(body: XmlElement | null, part: string, groupLimit: number, codeLimit: number,
-  bound: (value: string | null, limit: number) => string | null, mark: () => void): Readonly<{ groups: VolcanoAreaGroup[]; codes: string[] }> {
+  bound: (value: string | null, limit: number) => string | null, mark: () => void, warn: Warn): Readonly<{ groups: VolcanoAreaGroup[]; codes: string[] }> {
   const groups: VolcanoAreaGroup[] = [], kinds: string[] = [];
   let total = 0;
   for (const item of typed(body, "VolcanoInfo", part).flatMap((info) => children(info, "Item"))) {
     const kind = first(item, "Kind");
-    const kindCode = kind == null ? null : blank(leaf(kind, "Code"));
+    // 対象の一覧は所属だけなので、形の外の code は除いて読み続ける（H51 の B）。
+    const kindCode = kind == null ? null : blank(softLeaf(kind, "Code", warn, part));
     if (kindCode != null) {
-      if (!asciiCode(kindCode, LIMITS.code)) invalid();
-      kinds.push(kindCode);
+      if (asciiCode(kindCode, LIMITS.code)) kinds.push(kindCode);
+      else warn(part, "requiredStructureInvalid");
     }
     const codes: string[] = [];
     for (const area of children(item, "Areas").flatMap((areas) => children(areas, "Area"))) {
-      const code = blank(leaf(area, "Code"));
+      const code = blank(softLeaf(area, "Code", warn, part));
       if (code == null) continue;
-      if (!asciiCode(code, LIMITS.areaCode)) invalid();
+      if (!asciiCode(code, LIMITS.areaCode)) { warn(part, "requiredStructureInvalid"); continue; }
       if (total >= codeLimit) { mark(); continue; }
       codes.push(code);
       total++;
     }
     if (groups.length >= groupLimit) { mark(); continue; }
-    groups.push({ kindName: bound(kind == null ? "" : leaf(kind, "Name") ?? "", BOUNDS.areaKind)!, codes });
+    groups.push({ kindName: bound(kind == null ? "" : softLeaf(kind, "Name", warn, "name") ?? "", BOUNDS.areaKind)!, codes });
   }
   return { groups, codes: kinds };
 }
@@ -274,12 +284,17 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
   if (family == null) return reject("requiredStructureInvalid");
   const eventId = material.eventIdRaw.trim();
   if (eventId === "") return reject("identityMissing");
-  const serialRaw = material.serialRaw.trim();
+  let serialRaw = material.serialRaw.trim();
   if (!validEventId(eventId)) return reject("identityInvalid");
   const op = material.operation;
   if (family === "VFVO52" || family === "VFVO56") subject = `${op}/volcano:eruption/${eventId}`;
   if (family === "VFVO51" || family === "VFVO60" || family === "VZVO40") subject = `${op}/${family}/${eventId}`;
-  if (!validSerial(serialRaw)) return reject("identityInvalid");
+  const warnings = new Map<string, "requiredStructureMissing" | "requiredStructureInvalid">();
+  const warn: Warn = (site, reason) => { if (!warnings.has(site)) warnings.set(site, reason); };
+  const accepted = (candidate: VolcanoCandidate): ParseResult =>
+    ({ kind: "accepted", candidate, diagnostics: [...warnings.values()].map((reason) => diagnostic(material, reason)) });
+  // P3-EF-AC13 (5): 形の外の Serial は空にして受ける（新旧に Serial を使わない、K7）。
+  if (!validSerial(serialRaw)) { warn("serial", "requiredStructureInvalid"); serialRaw = ""; }
   const identified = (code: string): string => {
     subject = family === "VFVO53" ? `${op}/VFVO53/${code}` : family === "VFVO54" || family === "VFVO55" ? `${op}/volcano:ashfall/${code}`
       : family === "VFVO50" || isMarine(family) ? `${op}/volcano:alert/${code}` : subject;
@@ -312,8 +327,12 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
     const base = (volcanoCode: string | null) => ({ operation: material.operation, family, eventId, source, reportDateTimeMs, infoRank,
       cancelled, volcanoCode, title });
     if (cancelled) {
+      // 読めない火山コードは null にして記録の eventId で結び付ける（P3-C9-CANCEL-SCOPE、H51 の B）。
       const area = items.flatMap(volcanoAreas)[0];
-      const volcanoCode = area == null ? null : identified(volcanoCodeOf(area));
+      const raw = area == null ? null : blank(softLeaf(area, "Code", warn, "cancelVolcano"));
+      if (area != null && raw == null) warn("cancelVolcano", "requiredStructureMissing");
+      if (raw != null && !validVolcanoCode(raw)) warn("cancelVolcano", "requiredStructureInvalid");
+      const volcanoCode = raw != null && validVolcanoCode(raw) ? identified(raw) : null;
       const reduced = { ...base(volcanoCode), truncated };
       if (family === "VFVO50" || isMarine(family)) return accepted({ ...reduced, slice: "alert", facts: null });
       if (family === "VFVO52" || family === "VFVO56") return accepted({ ...reduced, slice: "eruption", facts: null });
@@ -325,16 +344,18 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
       const item = typed(body, "VolcanoInfo", "対象火山").flatMap((info) => children(info, "Item"))[0] ?? missing();
       const area = present(item, volcanoAreas(item)[0]);
       const volcanoCode = identified(volcanoCodeOf(area));
-      const kind = kindOf(item, bound);
+      const kind = kindOf(item, bound, warn);
+      // 前の警戒レベル・座標は付随の値で、読めなければ null（H51 の B）。
       const last = children(item, "LastKind");
-      if (last.length > 1) invalid();
-      const lastCode = last.length === 0 ? null : blank(leaf(last[0], "Code"));
-      if (lastCode != null && !asciiCode(lastCode, LIMITS.code)) invalid();
-      const coordinate = blank(leaf(area, "Coordinate"));
-      const municipalities = areaGroups(body, "対象市町村等", LIMITS.municipalityGroups, LIMITS.municipalityCodes, bound, mark);
-      const marine = areaGroups(body, "対象海上予報区", LIMITS.marineGroups, LIMITS.marineCodes, bound, mark);
-      const facts: AlertFacts = { volcanoName: bound(leaf(area, "Name") ?? "", BOUNDS.volcanoName)!, kind,
-        lastKind: lastCode == null ? null : { code: lastCode, name: bound(leaf(last[0], "Name") ?? "", BOUNDS.kindName)! },
+      if (last.length > 1) warn("lastKind", "requiredStructureInvalid");
+      const readCode = last.length === 1 ? blank(softLeaf(last[0], "Code", warn, "lastKind")) : null;
+      if (readCode != null && !asciiCode(readCode, LIMITS.code)) warn("lastKind", "requiredStructureInvalid");
+      const lastCode = readCode != null && asciiCode(readCode, LIMITS.code) ? readCode : null;
+      const coordinate = blank(softLeaf(area, "Coordinate", warn, "coordinate"));
+      const municipalities = areaGroups(body, "対象市町村等", LIMITS.municipalityGroups, LIMITS.municipalityCodes, bound, mark, warn);
+      const marine = areaGroups(body, "対象海上予報区", LIMITS.marineGroups, LIMITS.marineCodes, bound, mark, warn);
+      const facts: AlertFacts = { volcanoName: bound(softLeaf(area, "Name", warn, "name") ?? "", BOUNDS.volcanoName)!, kind,
+        lastKind: lastCode == null ? null : { code: lastCode, name: bound(softLeaf(last[0], "Name", warn, "name") ?? "", BOUNDS.kindName)! },
         headline: headline(), municipalities: municipalities.groups, marineAreas: marine.groups,
         coordinate: coordinate != null && asciiCode(coordinate, LIMITS.coordinate) ? coordinate : null, marineCodes: marine.codes,
         activity: cut(blank(text(content, "VolcanoActivity")) ?? "", BOUNDS.activity) || null,
@@ -345,9 +366,10 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
       const item = items[0] ?? missing();
       const area = present(item, volcanoAreas(item)[0]);
       const volcanoCode = identified(volcanoCodeOf(area));
-      const kind = kindOf(item, bound);
-      const eventTime = blank(text(first(item, "EventTime"), "EventDateTime"));
-      if (eventTime != null && !asciiCode(eventTime, LIMITS.eventDateTime)) invalid();
+      const kind = kindOf(item, bound, warn);
+      const readTime = blank(text(first(item, "EventTime"), "EventDateTime"));
+      if (readTime != null && !asciiCode(readTime, LIMITS.eventDateTime)) warn("eventTime", "requiredStructureInvalid");
+      const eventTime = readTime != null && asciiCode(readTime, LIMITS.eventDateTime) ? readTime : null;
       const plume = first(first(body, "VolcanoObservation"), "ColorPlume");
       const values = plume == null ? null : leafValues(material);
       const valueOf = (name: string): MaterialValue => {
@@ -356,11 +378,14 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
       };
       const municipalities = typed(body, "VolcanoInfo", "対象市町村等").flatMap((info) => children(info, "Item"))
         .flatMap((entry) => children(entry, "Areas")).flatMap((areas) => children(areas, "Area"))
-        .flatMap((entry) => { const code = blank(leaf(entry, "Code")); return code == null ? [] : [code]; });
-      if (municipalities.some((code) => !asciiCode(code, LIMITS.areaCode))) invalid();
+        .flatMap((entry) => {
+          const code = blank(softLeaf(entry, "Code", warn, "対象市町村等"));
+          if (code != null && !asciiCode(code, LIMITS.areaCode)) warn("対象市町村等", "requiredStructureInvalid");
+          return code == null || !asciiCode(code, LIMITS.areaCode) ? [] : [code];
+        });
       if (municipalities.length > LIMITS.eruptionAreas) mark();
       const direction = blank(text(plume, "PlumeDirection"));
-      const facts: EruptionFacts = { volcanoName: bound(leaf(area, "Name") ?? "", BOUNDS.volcanoName)!,
+      const facts: EruptionFacts = { volcanoName: bound(softLeaf(area, "Name", warn, "name") ?? "", BOUNDS.volcanoName)!,
         phenomenon: { code: kind.code, name: bound(kind.name, BOUNDS.phenomenon)! }, eventDateTimeRaw: eventTime,
         craterName: bound(blank(text(area, "CraterName")), BOUNDS.crater), plumeAboveCrater: valueOf("PlumeHeightAboveCrater"),
         plumeAboveSeaLevel: valueOf("PlumeHeightAboveSeaLevel"), plumeDirection: bound(direction, BOUNDS.direction),
@@ -372,7 +397,7 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
       if (areas.length === 0 || family !== "VFVO53" && children(first(body, "AshInfos"), "AshInfo").length === 0) missing();
       const volcanoCode = identified(volcanoCodeOf(areas[0]));
       if (areas.some((area) => volcanoCodeOf(area) !== volcanoCode)) invalid();
-      const volcanoName = bound(leaf(areas[0], "Name") ?? "", BOUNDS.volcanoName)!;
+      const volcanoName = bound(softLeaf(areas[0], "Name", warn, "name") ?? "", BOUNDS.volcanoName)!;
       if (family === "VFVO53") {
         // 最も重い降灰の区分名（通知の body、旧築 buildAshfallSummary）。AshInfos は欠落してよい。
         const kinds = children(first(body, "AshInfos"), "AshInfo").flatMap((info) => children(info, "Item"))
@@ -392,33 +417,40 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
     let count = 0;
     if (family === "VFVO51") for (const item of typed(first(head, "Headline"), "Information", "対象火山").flatMap((info) => children(info, "Item"))) {
       for (const area of volcanoAreas(item)) {
-        if (++count > LIMITS.entries) invalid();
+        // 上限を超えた火山は読まない（解説の対象の一覧は所属だけ、H51 の B）。
+        if (++count > LIMITS.entries) { warn("entries", "requiredStructureInvalid"); mark(); continue; }
         const before: boolean = truncated;
         truncated = false;
-        const kind = kindOf(item, bound);
+        const kind = kindOf(item, bound, warn);
         const volcanoCode = volcanoCodeOf(area);
-        const volcanoName = bound(leaf(area, "Name") ?? "", BOUNDS.volcanoName)!;
+        const volcanoName = bound(softLeaf(area, "Name", warn, "name") ?? "", BOUNDS.volcanoName)!;
         // 同じ報の中で同じ火山が二度出たら電文順の最後を採る（旧築 volcano-route-handler.ts の同一 subject）。
         entries.delete(volcanoCode);
         entries.set(volcanoCode, { volcanoCode, volcanoName, kind, truncated });
         truncated = before;
       }
     }
-    const codes = family === "VFVO51" ? [...entries.keys()] : items.flatMap(volcanoAreas).map(volcanoCodeOf);
+    // 解説の対象の火山コードの読めない火山は除く（H51 の B）。火山名は先頭の火山コードと同じ火山から引いて組を崩さない。
+    const read = family === "VFVO51" ? [] : items.flatMap(volcanoAreas).flatMap((area) => {
+      const code = blank(softLeaf(area, "Code", warn, "bulletinVolcano"));
+      if (code == null || !validVolcanoCode(code)) warn("bulletinVolcano", code == null ? "requiredStructureMissing" : "requiredStructureInvalid");
+      return code != null && validVolcanoCode(code) ? [{ area, code }] : [];
+    });
+    const codes = family === "VFVO51" ? [...entries.keys()] : read.map((item) => item.code);
+    const named = family === "VFVO51" ? items.flatMap(volcanoAreas) : read.map((item) => item.area);
     if (codes.length > LIMITS.bulletinVolcanoes) mark();
     const infoKind = text(head, "InfoKind") ?? "";
     const facts: BulletinFacts = { title: bound(rawTitle, BOUNDS.title)!, headline: headline(),
       volcanoCodes: codes.slice(0, LIMITS.bulletinVolcanoes), extraordinary: rawTitle.includes("臨時") || infoKind.includes("臨時"),
       text: bound(blank(text(content, "VolcanoActivity")) ?? blank(text(body, "Text")), BOUNDS.text),
       nextAdvisory: bound(blank(text(content, "NextAdvisory")), BOUNDS.nextAdvisory),
-      volcanoName: items.flatMap(volcanoAreas).map((area) => cut(leaf(area, "Name") ?? "", BOUNDS.volcanoName))[0] ?? null };
+      volcanoName: named.map((area) => cut(softLeaf(area, "Name", warn, "name") ?? "", BOUNDS.volcanoName))[0] ?? null };
     return accepted({ ...base(codes[0] ?? null), truncated, slice: "bulletin", facts, entries: [...entries.values()] });
   } catch (error) {
     if (error instanceof Rejected) return reject(error.reason);
     throw error;
   }
 }
-const accepted = (candidate: VolcanoCandidate): ParseResult => ({ kind: "accepted", candidate });
 
 export { ASH, ASH_ORDER, BOUNDS, FAMILIES, INFO_RANK, LIMITS, asciiCode, isMarine, parseVolcano, validEventId, validSerial,
   validVolcanoCode };

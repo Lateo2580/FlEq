@@ -341,6 +341,10 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   };
 }
 
+// 受けた報の読めなかった所の WARN を先に置く（P3-EF-AC13 (2)）。
+function warned(result: Result, diagnostics: readonly DiagnosticDetails[]): Result {
+  return diagnostics.length === 0 ? result : { ...result, step: { ...result.step, diagnostics: [...diagnostics, ...result.step.diagnostics] } };
+}
 function receive(state: LandslideUnitState, input: Extract<LandslideInput, { kind: "receive" }>): Result {
   const parsed = parseLandslide(input.material);
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
@@ -349,7 +353,7 @@ function receive(state: LandslideUnitState, input: Extract<LandslideInput, { kin
   // Q-NOTICE.recovery・P3-C10-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
-  return receiveCandidate(state, candidate, input.clock, input.basis ?? "verified");
+  return warned(receiveCandidate(state, candidate, input.clock, input.basis ?? "verified"), parsed.diagnostics);
 }
 
 // ---- 期限（I-U-L.deadlines。到来分だけを回収する） ----

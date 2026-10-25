@@ -559,3 +559,8 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
 - §3.3 の U-N の形（:227）: U-N の期限切れの形は「effective expired・source（最終更新）・通知の印を持つ記憶の記録」で、現況も情報も同じ（P3-NS-AC04 の (6)）。情報は表示 7 日で記憶に移り、ReportDateTime＋30 日で除く（P3-NS-D-INFO-MEMORY=A）。現況と情報の expired の記憶も未確認の印 unconfirmed を持てる（記憶に移った後の時刻の無い報の held で印が付きうる。統合担当の決定、Q-NS-IMPL-1）。
 - §12 の field の名（:500）: 現況に足した移りの時刻は warningUntil（ReportDateTime＋7 日）で、warningUntil を持つ現況の validUntil は＋14 日（P3-NS-AC03）。
 - §13 の B の受け方（:512）: Serial の形の外は断らず serialRaw を空にして受け WARN identityInvalid、InfoSerial/Name の 2 個以上と子要素は name を null にして受け WARN requiredStructureInvalid（P3-NS-AC07）。EarthquakeInfo・InfoSerial・Code の 2 個以上と子要素は今どおり断る（C）。
+
+## 20. K10 の発注 2 の配送で変わる読み（2026-10-25 統合担当、`P3-EXPIRY-FORM-001` の P3-EF-AC13）
+
+- §13 の K10 の行（:510）の U-T の予報区の Kind/Code・Name の欠け（「型に unknown があり順位は警報と同じ」）は、発注 2 で C（拒否のまま）にした（P3-EF-AC13 の (8)）。unknown で受けると、大津波警報 → 読めない報 → 大津波警報の列で次の正しい報を「引上げ」と読んで critical で鳴らすため。K10 の各所の B/C の表は発注 2 の実装の表（B 32・C 7、P3-EXPIRY-FORM-001 の Q-EF-IMPL-2）。
+- 受け取った読めない値が、次の報との比べ（欄・鍵・観測の最大・同じ版）をずらして余分に鳴る族は、発注 2 では直さず、K14 で読めなかった所の印を保存するときに比べから外して直す（2026-10-25 作者裁定、P3-EXPIRY-FORM-001 の Q-EF-RESIDUAL-AUTHOR-2）。区域や名前が空のまま出る報は、K14 の印を使って CLI とディスプレイで読めなかった旨を併記する（作者の要望）。

@@ -77,7 +77,6 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       [event(""), "identityMissing"], [event("   "), "identityMissing"], [event("30 6"), "identityInvalid"],
       [event("30/6"), "identityInvalid"], [event("a".repeat(65)), "identityInvalid"],
       [xml.replaceAll("<Code>306</Code>", `<Code>${"3".repeat(17)}</Code>`), "identityInvalid"],
-      [replaceTag("Serial", "1a")(xml), "identityInvalid"], [replaceTag("Serial", "12345678901")(xml), "identityInvalid"],
       // 小数秒で 40 文字を超える ReportDateTime と、8 文字を超える InfoType の raw（保存する ReportRef の上限、Q-ENUM.identity）。
       [retime("2020-05-22T13:03:00.0000000000000000+09:00")(xml), "identityInvalid"],
       [replaceTag("InfoType", "発表        ")(xml), "identityInvalid"], [replaceTag("InfoType", "不明")(xml), "requiredStructureInvalid"],
@@ -86,7 +85,6 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       [xml.replaceAll("<Code>13</Code>", "<Code>123456789</Code>"), `requiredStructureInvalid ${ALERT}`],
       // 存在が妥当性より先（Q-ENUM.priorityRule）: Kind の重複より火山コードの欠落。
       [xml.replaceAll("<Code>13</Code>", "<Code>13</Code><Code>13</Code>").replaceAll("<Code>306</Code>", ""), "requiredStructureMissing"],
-      [fixtureXml(F.b350).replace(/(<Areas codeType="火山名">)\s*<Area>[\s\S]*?<\/Area>/, `$1${areas}`), "requiredStructureInvalid normal/VFVO51/350", "VFVO51"],
       [replaceTag("InfoType", "不明")(fixtureXml(F.o1)), "requiredStructureInvalid normal/volcano:eruption/20200522144900_306", "VFVO52"],
     ];
     expect(cases.map(([source, , headType]) => reject(source, headType))).toEqual(cases.map(([, reason]) => reason));

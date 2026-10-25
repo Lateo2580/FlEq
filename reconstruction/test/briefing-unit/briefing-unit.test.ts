@@ -67,15 +67,10 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     const ids = (value: string) => xml.replace("<EventID>KJPTK202608221709</EventID>", value);
     const tag = (edit: (part: string) => string) => (source: string) => source.replace(/<Information type="情報タグ">[\s\S]*?<\/Information>/, edit);
     const kind = /<Kind>\s*<Name>情報タグ<\/Name>[\s\S]*?<\/Kind>/;
-    const area = /<Area codeType="気象・地震・火山情報／市町村等">[\s\S]*?<\/Area>/;
-    const precipitation = '<jmx_eb:Precipitation condition="約" description="約１００ミリ" type="前１時間解析雨量" unit="mm">100</jmx_eb:Precipitation>';
-    const withUnit = (unit: string) => body((part) => part.replace(precipitation, precipitation.replace('unit="mm"', `unit="${unit}"`)));
     const cases: [string, string, string?][] = [
       [ids(""), "identityMissing"], [ids("<EventID> </EventID>"), "identityMissing"],
       [ids("<EventID>KJPTK202608221709_1</EventID><EventID>KJPTK202608221709_2</EventID>"), "identityInvalid"],
       [eventId("K".repeat(41))(xml), "identityInvalid"], [eventId("ＫＪＰ")(xml), "identityInvalid"], [eventId("_202608221709")(xml), "identityInvalid"],
-      [xml.replace("<Serial>1</Serial>", ""), `identityMissing ${K}`], [serial("1a")(xml), `identityInvalid ${K}`],
-      [serial("12345678901")(xml), `identityInvalid ${K}`],
       [retime("2026-08-22T17:09:00.0000000000000000+09:00")(xml), `identityInvalid ${K}`],
       [replaceTag("InfoType", "発表        ")(xml), `identityInvalid ${K}`],
       [xml.replace("<Title>東京都気象防災速報（記録的短時間大雨）</Title>", ""), `requiredStructureMissing ${K}`],
@@ -86,13 +81,6 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
       [tag((part) => part.replace("<Code>130010</Code>", "<Code>130010000</Code>"))(xml), `requiredStructureInvalid ${K}`],
       [tag((part) => part.replace("<Name>東京地方</Name>", "<Name>東京\u007f地方</Name>"))(xml), `requiredStructureInvalid ${K}`],
       [xml.replace("１７時、東京都北区", "１７時、\t東京都北区"), `requiredStructureInvalid ${K}`],
-      [body((part) => part.replace(">100</jmx_eb:Precipitation>", ">100.1234</jmx_eb:Precipitation>"))(xml), `requiredStructureInvalid ${K}`],
-      [body((part) => part.replace("<Time>2026-08-22T17:00:00+09:00</Time>", "<Time>2026-08-22T17:00:00Z</Time>"))(xml), `requiredStructureInvalid ${K}`],
-      [body((part) => part.replace(area, ""))(xml), `requiredStructureInvalid ${K}`],
-      [body((part) => part.replace(area, (value) => `${value}<Station><Name>北</Name><Code>44132</Code></Station>`))(xml), `requiredStructureInvalid ${K}`],
-      [withUnit("m".repeat(9))(xml), `requiredStructureInvalid ${K}`], [withUnit("m\u007fm")(xml), `requiredStructureInvalid ${K}`],
-      // 取消でも Control/EditorialOffice の有無と形を確かめる（Q-ENUM.familyTable.required、統合担当の決定）。
-      [cancelOf("2")(xml).replace("<EditorialOffice>気象庁本庁</EditorialOffice>", ""), `requiredStructureMissing ${K}`],
       // 存在が妥当性より先（Q-ENUM.priorityRule）: Kind の 2 個より区域の code の欠落。
       [tag((part) => part.replace(kind, (value) => value + value).replace("<Code>130010</Code>", ""))(xml), `requiredStructureMissing ${K}`],
       [record.replace(/<Information type="記録的短時間大雨情報（発表細分）">[\s\S]*?<\/Information>/, ""), `requiredStructureInvalid ${P}`, "VPOA50"],
