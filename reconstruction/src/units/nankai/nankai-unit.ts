@@ -220,7 +220,7 @@ function evictOne(information: readonly NankaiInformation[], now: number, incomi
 // ---- 通知（questionResolutions[Q-NOTICE]） ----
 
 const PREFIX: Readonly<Record<Operation, string>> = { normal: "", training: "【訓練】", test: "【試験】" };
-// P3-C8-NOTICE-LEVELS=B（作者裁定）: 報自身の InfoSerial/Code で決める。調査中（111〜113）は普通の音（H12、P3-NS-AC05）。
+// P3-C8-NOTICE-LEVELS=B（作者裁定）: 報自身の InfoSerial/Code で決める。調査中（111〜113）は普通の音（H12、P3-NS-AC05）。例外は採った現況が今見える形で巨大地震注意のときの warning（P3-NN-AC01）。
 const CODE_LEVEL: ReadonlyMap<string, Level> = new Map([["120", "critical"], ["130", "warning"], ["111", "normal"], ["112", "normal"],
   ["113", "normal"], ["210", "warning"], ["219", "warning"], ["190", "info"], ["200", "info"]]);
 function levelOf(candidate: NankaiCandidate): Level {
@@ -228,8 +228,8 @@ function levelOf(candidate: NankaiCandidate): Level {
   const code = candidate.facts.infoSerial?.code;
   return code == null ? "warning" : CODE_LEVEL.get(code) ?? "warning";
 }
-// at は取り消した記録の ReportDateTime（P3-NL-AC10）。advisory は到着の時点で warningUntil を過ぎた巨大地震警戒で、巨大地震注意の段で鳴らす
-// （作者裁定 2026-10-25）。
+// at は取り消した記録の ReportDateTime（P3-NL-AC10）。advisory は採った現況が今見える形で巨大地震注意のときで、報の code によらず巨大地震注意の段で
+// 鳴らす（作者裁定 2026-10-25、P3-UNIT-N-NOTICE-001）。
 function payloadOf(candidate: NankaiCandidate, at: string | null, advisory = false): NankaiNotificationPayload {
   const prefix = PREFIX[candidate.operation], { title, headline, text } = candidate.facts;
   if (candidate.cancelled) {
@@ -396,8 +396,8 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   // 訂正は、通知する系列の候補が今見える形を持つ（事実の無い候補は報の表示の期限の内）ときに作る。
   const notified = nextCurrent ?? nextInfo;
   const correctionShown = notified?.effective === "active" ? shownAt(notified, now, basis) != null : !due;
-  // 到着の時点で warningUntil を過ぎた巨大地震警戒は、同じ reduce の回収で巨大地震注意として出るので、その段で鳴らす（awaiting では移さない）。
-  const advisory = basis !== "awaiting" && nextCurrent != null && stepsAt(nextCurrent) <= now;
+  // 音の段は、今の時刻で期限を当てた後に見える現況の status で決める（巨大地震注意なら warning。移った段を引き継いだ版の更新も含む。awaiting では新しく移さない、P3-NN-AC01）。
+  const shownCurrent = nextCurrent == null ? null : shownAt(nextCurrent, now, basis), advisory = shownCurrent != null && "status" in shownCurrent && shownCurrent.status === "megaquakeAdvisory";
   // 到着の時点で表示の期限を過ぎた記録の無い情報 subject は配列へ入れない（足せば記憶として 30 日残る、P3-NS-AC04 (3)）。同じ reduce で回収される記録のために他の記録を退去しない
   // （P3-FINAL-AC01）。training/test の報で退去できる記録が無ければ、受けた情報 subject を残さない（自身の退去、P3-OPCAP-N-AC02）。
   // 通知の判定が自身の退去を見るので、置き場はその前に決める。

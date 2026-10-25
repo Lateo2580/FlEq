@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "be9efd017661d345093b0f0aeaf7fe41e9c94b12",
-    "sha256": "c8cb35d9f1859c1cc8be41e994f2a0fe16cb147819ec66bb6ee33f47ba311a3a",
+    "sha256": "65f6839788837df1d92f8ba0da12091ac8f4ad20c28b34201878c012e696683f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -73,6 +73,14 @@
         "closed": "(1) 分岐と未決: decisionBranches は P3-NN-D-HELD-ADVISORY の 1 本で ruling は作者裁定 A。契約の全文で「起草案」「承認待ち」「未裁定」「仮の形」「確認待ち」「待ち」は 0 件。unresolvedQuestions は Q-NN-BASE（integrator、実装の着手）の 1 件だけ (2) anchor: check-contract（HEAD 3e3c63df）は exit 0、本契約は PASS で、WARN は本契約と P3-RECOVERY-001 の baseOid unassigned の 2 行だけ。起草の be9efd01 から HEAD までに allowedPaths の nankai-unit.ts・nankai-unit.test.ts と p3-nankai-unit.types.ts は変わっていない（git diff --stat be9efd01 3e3c63df が空）。K10 の発注 2 は U-N を触らず、本契約と同時に nankai-unit.ts を編集する契約は無い (3) 他の契約が引く行: nankai-unit.ts を 77 件、nankai-unit.test.ts を 9 件、p3-nankai-unit.types.ts を 7 件（本契約を除く追跡済みの契約の json・md）。本契約が変える 5 行（nankai-unit.ts の :223・:231・:232・:399・:400）を引く他の契約と sequences.json の anchor は 0 件。AC01 は行の数を変えない（853 行）ので、他の契約の anchor は動かない見込み (4) 気象庁の資料: 改訂の見張り（repo の外の ~/dev/fleq-vault-archive/jma-docs-watch/check.sh）は同日 SAME（Q-EF-PRECHECK-2 の点検で回した）。電文の意味に頼る文の reason は Q-NN-JMA と decisionBranches の照合にある (5) 作者の承認: 残存リスク (2)(3) は Q-NN-AUTHOR で承認済み",
         "remaining": "なし（baseOid は Q-NN-BASE で割り当てた）",
         "reason": "発注前点検"
+      },
+      {
+        "id": "Q-NN-IMPL-1",
+        "status": "closed",
+        "source": "統合担当の配送（2026-10-25 夜、base 049b5f7f、ブランチ k13n-deliver。実装の patch r1 を b4879bd0 の上に当てた。前例は K13 の Q-NS-IMPL-1）",
+        "closed": "AC01・AC02 と試験 P3-NN-T01〜T03 を 1 回で配送した（実装の patch r1、2 file。nankai-unit.ts は 5 行の書き換えで行の数は 853 のまま、試験は it 3 つ）。直しを外すと T01・T02 だけが落ちる（実装担当と契約適合 Opus がそれぞれ確かめた）。レビュー: 品質 ヘルツ（Astra high、新しい thread 01a172d8、read-only）は r1 条件付き GO（P1・P2 なし。条件は書き込める環境での試験の実走で、統合担当の Mac mini のゲートで満たした）。契約適合 Opus は r1 GO（P3 2 件はどちらも配送の commit の当て漏れの注意で、本 commit で当てた）。ゲート（統合担当、r1 の木、Mac mini）: tsc 3 本 rc=0、新築の vitest 83 file 通過・8 skip・868 件通過・24 skip、shuffle 同じ件数、check-manifest・check-sequences rc=0、check-contract は本契約の nankai-unit.ts の anchor だけ FAIL（本 commit で付け直した）。配送の commit（統合担当）: AC03 の (1)〜(4) を当て（(5)〜(7) は変えない）、本契約が引く nankai-unit.ts の 5 行と (1)〜(4) で書き換えた行の anchor を付け直し、改訂した契約の sha256 を作り直した",
+        "remaining": "なし",
+        "reason": "配送の記録"
       }
     ],
     "operationContract": {
@@ -195,24 +203,24 @@
           "reconstruction/src/units/nankai/nankai-unit.ts:80 «89415dcad87ba7fe»",
           "reconstruction/src/units/nankai/nankai-unit.ts:172 «5b4507476d1e6107»",
           "reconstruction/src/units/nankai/nankai-unit.ts:173 «2e27635ef9c33300»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:223 «e6ba2a0300d3c162»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:223 «124eefeed2db6df8»",
           "reconstruction/src/units/nankai/nankai-unit.ts:224 «db5bb22b2a8a98b0»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:231 «c5a3f658165ad630»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:232 «8d6b421c01209b44»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:231 «b6085937daf728b8»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:232 «af777a3a1e8c18a3»",
           "reconstruction/src/units/nankai/nankai-unit.ts:242 «60ae618a33602d5e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:378 «f8fa899c41ba5f9f»",
           "reconstruction/src/units/nankai/nankai-unit.ts:381 «4bd28cf66514da6c»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:399 «2656e0b3dd04c234»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:400 «4b502b96e3adc51d»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:399 «193f2c977b92ad8c»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:400 «d8a8b529461d5313»",
           "reconstruction/src/units/nankai/nankai-unit.ts:418 «7de84256f9d6e3ab»",
           "reconstruction/src/units/nankai/nankai-unit.ts:419 «ef1ae8723d070038»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:395 «53fecb3d2e5e9a33»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:951 «5b25c404ae2502a1»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:977 «2060e664ed7205e8»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:999 «1ceacd611d80a5fe»",
-          "reconstruction/contracts/p3-unit-n-series.json:347 «98ff3ee78c8d076b»",
-          "reconstruction/contracts/p3-unit-n-series.json:376 «c1e1e94b3a02fab5»",
-          "reconstruction/contracts/p3-unit-n-series.json:614 «7e08cf43f24b5fe6»",
+          "reconstruction/contracts/p3-unit-n-series.json:347 «c03d261b26d19aa0»",
+          "reconstruction/contracts/p3-unit-n-series.json:376 «b716634f4db938f2»",
+          "reconstruction/contracts/p3-unit-n-series.json:614 «4895a3613fe808b4»",
           "reconstruction/contracts/p3-unit-n-series.json:115 «012a49bc3ab0a8a1»"
         ]
       },
@@ -229,7 +237,7 @@
           "reconstruction/src/units/nankai/nankai-unit.ts:501 «a081da5261c58b4e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:511 «ab15f23842dd5e18»",
           "reconstruction/src/units/nankai/nankai-unit.ts:527 «9a846e4354b57200»",
-          "reconstruction/contracts/p3-unit-n-series.json:347 «98ff3ee78c8d076b»",
+          "reconstruction/contracts/p3-unit-n-series.json:347 «c03d261b26d19aa0»",
           "reconstruction/contracts/p3-expiry-form.json:470 «9eaf7466225a3a83»",
           "reconstruction/contracts/p3-expiry-form.json:506 «4dbadb186d8661a9»"
         ]
@@ -238,11 +246,11 @@
         "id": "P3-NN-AC03",
         "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方にし、書き換えた行を anchor で引く契約は同じ commit で付け直す）: (1) p3-unit-n-series.json:376（P3-NS-AC05）の「（到着の時点で warningUntil を過ぎた 120 は warning、作者裁定 2026-10-25、AC03 の (8)）」を「（現況を採る報は、採った現況が今見える形で巨大地震注意なら warning。到着の時点で warningUntil を過ぎた 120 と、移った段を引き継いだ版の更新の両方、作者裁定 2026-10-25、AC03 の (8)、P3-UNIT-N-NOTICE-001）」にする (2) p3-unit-n-series.json:347（P3-NS-AC03）の (4) の末尾に「手元の注意に保留の印があっても引き継ぎ、採った記録は保留の印を持たない（P3-UNIT-N-NOTICE-001 の P3-NN-AC02、作者裁定 2026-10-25）」を、(8) の末尾に「版の更新の段も採った現況の今見える status で決める（P3-UNIT-N-NOTICE-001 の P3-NN-AC01）」を足す (3) p3-unit-n-series.json:614（残存リスク）の (18) と (19) の末尾に「【P3-UNIT-N-NOTICE-001 で解消（配送の commit）】」を足す（文は消さない） (4) docs/specs/reconstruction-p0-contracts.md:3039（H12）の「（到着の時点で warningUntil を過ぎた 120 は warning、作者裁定 2026-10-25、P3-NS-AC03 の (8)）」を「（採った現況が今見える形で巨大地震注意なら warning、作者裁定 2026-10-25、P3-NS-AC03 の (8)、`P3-UNIT-N-NOTICE-001`）」にし、この行を引く p3-unit-n-series.json の anchor を付け直す (5) p3-nankai-unit.json:192（Q-NOTICE の level、P3-C8-NOTICE-LEVELS=B）は変えない（sequences.json が anchor で引くので、変えると全契約の sequencesSha256 が動く。改訂は K13 の P3-NS-AC05 の側で読み、本契約の AC01 がそれを改める） (6) p3-expiry-form.json は変えない。P3-EF-AC02 の (4) と新しい版の当たり方は Q-NN-K10 で閉じた (7) p3-order-plan.md は変えない（K10〜K13 の契約の表の行は無い）。p3-unit-n-series.json の Q-NS-IMPL-1（:115）の「小さな契約に起こす」も変えない (8) (1)〜(4) で書き換えた行は本契約の evidenceRefs も anchor で引いているので、本契約の anchor も同じ commit で付け直す。改訂した契約と本契約の meta.sha256 を作り直す。sequences.json は変えないので sequencesSha256 は動かない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-unit-n-series.json:376 «c1e1e94b3a02fab5»",
-          "reconstruction/contracts/p3-unit-n-series.json:347 «98ff3ee78c8d076b»",
-          "reconstruction/contracts/p3-unit-n-series.json:614 «7e08cf43f24b5fe6»",
+          "reconstruction/contracts/p3-unit-n-series.json:376 «b716634f4db938f2»",
+          "reconstruction/contracts/p3-unit-n-series.json:347 «c03d261b26d19aa0»",
+          "reconstruction/contracts/p3-unit-n-series.json:614 «4895a3613fe808b4»",
           "reconstruction/contracts/p3-unit-n-series.json:115 «012a49bc3ab0a8a1»",
-          "docs/specs/reconstruction-p0-contracts.md:3039 «50d5f857f6ba4fbf»",
+          "docs/specs/reconstruction-p0-contracts.md:3039 «633872662ef67f1c»",
           "reconstruction/contracts/p3-nankai-unit.json:192 «97cfb28afb01bed0»",
           "reconstruction/contracts/p3-expiry-form.json:470 «9eaf7466225a3a83»",
           "reconstruction/contracts/p3-order-plan.md:440 «fffed09dc78a8a4e»",

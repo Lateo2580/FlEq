@@ -1011,6 +1011,89 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     }
   });
 
+  // P3-UNIT-N-NOTICE-001 の共通部: 74_01_04（120）を T からの経過で、時計の根拠つきで受ける・期限を当てる・復元する。
+  const T = at("2020-05-12T16:28:00+09:00"), BASES = ["verified", "unverified", "awaiting"] as const;
+  const receiveAt = (state: NankaiUnitState, transform: ((xml: string) => string) | undefined, ms: number, basis: WallBasis) =>
+    reduceNankaiUnit(state, { kind: "receive", material: decodeFixture(F.warning, transform), clock: clock(T + ms), basis });
+  const tickAt = (state: NankaiUnitState, ms: number, basis: WallBasis) => reduceNankaiUnit(state, { kind: "deadline", clock: clock(T + ms), basis });
+  const restoreAt = (state: NankaiUnitState, ms: number, basis: WallBasis) => reduceNankaiUnit(emptyState(), { kind: "restore",
+    persisted: nankaiUnitCodec.encode(state), clock: clock(T + ms), basis }).state;
+  const notices = (step: NankaiUnitStep) => step.intents.map((item) => `${item.channel}:${item.transition}:${item.payload.level}`);
+  const held = (value: NankaiCurrent | NankaiInformation | undefined) => value?.effective === "active" && value.expiryPending === true;
+  const ringing = (transition: string, level: string) => [`desktop:${transition}:${level}`, `sound:${transition}:${level}`];
+
+  // regression（K13 の残存リスク (18)、ヘルツの r5 の反例）: 巨大地震注意として出ている 120 へ、同じ ReportDateTime で見出しだけ替えた非訂正の版は
+  // 巨大地震注意の段で鳴る（修正前は critical）。7 日の手前は今どおり巨大地震警戒の段（契約境界）。
+  it("P3-NN-T01 regression / P3-NN-AC01: a headline change on a shown advisory 120 rings at the advisory level on every basis", () => {
+    const changed = (xml: string) => sentLater(xml.replace(/(<Headline>\s*<Text>)[\s\S]*?(<\/Text>)/, "$1追加の防災上の注意事項$2"));
+    const normal = delivered(receiveAt(emptyState(), undefined, 0, "verified"), T);
+    const late = delivered(receiveAt(emptyState(), undefined, 8 * DAY, "verified"), T + 8 * DAY);
+    const moved = tickAt(normal, 7 * DAY, "verified").state;
+    for (const basis of BASES) {
+      for (const [label, state, ms] of [["late", late, 8 * DAY + 1_000], ["moved", moved, 8 * DAY],
+        ["restored", restoreAt(late, 8 * DAY, basis), 8 * DAY + 1_000]] as const) {
+        const step = receiveAt(state, changed, ms, basis);
+        expect([status(state), status(step.state), notices(step)], `${basis} ${label}`)
+          .toEqual(["megaquakeAdvisory", "megaquakeAdvisory", ringing("updated", "warning")]);
+      }
+      const early = receiveAt(normal, changed, 3 * DAY, basis);
+      expect([status(early.state), notices(early)], `${basis} before 7 d`).toEqual(["megaquakeWarning", ringing("updated", "critical")]);
+    }
+  });
+
+  // regression（K13 の残存リスク (19)）と作者裁定 P3-NN-D-HELD-ADVISORY=A の受入: 保留の巨大地震注意は、時計が戻った awaiting の間に届いた同じ報の
+  // 新しい版で保留の印の無い巨大地震注意として戻り、巨大地震注意の段で 1 回鳴り、14 日目まで出る（修正前は critical）。
+  it("P3-NN-T02 regression / P3-NN-AC01,AC02: a version update brings back a held advisory at the advisory level until 14 d", () => {
+    const normal = delivered(receiveAt(emptyState(), undefined, 0, "verified"), T);
+    const stepped = tickAt(normal, 8 * DAY, "unverified").state;
+    const pendingAll = tickAt(stepped, 15 * DAY, "unverified").state;
+    expect([status(pendingAll), held(currentOf(pendingAll))]).toEqual(["megaquakeAdvisory", true]);
+    const back = receiveAt(restoreAt(pendingAll, 9 * DAY, "awaiting"), sentLater, 9 * DAY + 1_000, "awaiting");
+    expect([status(back.state), held(currentOf(back.state)), toNankaiView(back.state).currents.map((item) => item.status), notices(back)])
+      .toEqual(["megaquakeAdvisory", false, ["megaquakeAdvisory"], ringing("activated", "warning")]);
+    const checked = tickAt(back.state, 9 * DAY + 2_000, "verified");
+    expect([status(checked.state), checked.intents]).toEqual(["megaquakeAdvisory", []]);
+    const end = tickAt(checked.state, 14 * DAY, "verified");
+    expect([status(end.state), end.intents]).toEqual(["expired", []]);
+    // 対照 (1): 時計が戻らない（validUntil を過ぎた）awaiting では鳴らないが、保留の外れた記録が awaiting の間だけ出る（P3-NN-AC02 (4)、残存リスク (1)）。
+    const ahead = receiveAt(restoreAt(pendingAll, 15 * DAY, "awaiting"), sentLater, 15 * DAY + 1_000, "awaiting");
+    expect([status(ahead.state), held(currentOf(ahead.state)), toNankaiView(ahead.state).currents.map((item) => item.status), ahead.intents])
+      .toEqual(["megaquakeAdvisory", false, ["megaquakeAdvisory"], []]);
+    // 対照 (2)（同じ根の別の列）: 注意へ移っただけで情報 subject に保留の印がある state を、時計が戻った T＋2 日に復元する。
+    expect([status(stepped), held(currentOf(stepped)), held(infoOf(stepped, "normal/VYSE50/20200512162800"))]).toEqual(["megaquakeAdvisory", false, true]);
+    for (const basis of ["awaiting", "verified"] as const) {
+      const step = receiveAt(restoreAt(stepped, 2 * DAY, basis), sentLater, 2 * DAY + 1_000, basis);
+      expect([status(step.state), notices(step)], basis).toEqual(["megaquakeAdvisory", ringing("updated", "warning")]);
+    }
+  });
+
+  // contractBoundary（P3-NN-AC01 (3)）: 段が変わらない側のうち、既存の試験（:951・:977・:999・:395）に無い basis の行。
+  it("P3-NN-T03 contractBoundary / P3-NN-AC01 (3): a late first 120, a version-only 120, a late cancel and a correction keep their levels on each basis", () => {
+    const normal = delivered(receiveAt(emptyState(), undefined, 0, "verified"), T);
+    const moved = tickAt(normal, 7 * DAY, "verified").state;
+    const late = delivered(receiveAt(emptyState(), undefined, 8 * DAY, "verified"), T + 8 * DAY);
+    const unheard = tickAt(receiveAt(emptyState(), undefined, 0, "verified").state, 7 * DAY, "verified").state;
+    // (i) 7〜14 日目に初めて届いた 120: unverified は巨大地震注意の段、awaiting は巨大地震警戒の段（K13 の残存リスク (17)）。
+    const first = (basis: WallBasis) => { const step = receiveAt(emptyState(), undefined, 8 * DAY, basis); return [status(step.state), notices(step)]; };
+    expect(first("unverified")).toEqual(["megaquakeAdvisory", ringing("activated", "warning")]);
+    expect(first("awaiting")).toEqual(["megaquakeWarning", ringing("activated", "critical")]);
+    for (const basis of ["unverified", "awaiting"] as const) {
+      // (ii) Control/DateTime だけ新しい版は鳴らない。
+      expect([receiveAt(late, sentLater, 8 * DAY + 1_000, basis).intents, receiveAt(moved, sentLater, 8 * DAY, basis).intents], basis).toEqual([[], []]);
+    }
+    // (iii) awaiting の 14 日＋1 ms の取消: 印の証拠（配送済み）があれば鳴り、無ければ鳴らない（決定 D1）。
+    const ms = 14 * DAY + 1;
+    const cancel = (state: NankaiUnitState) => notices(receiveAt(state, (xml) => replaceTag("DateTime", new Date(T + ms).toISOString())(
+      retime(iso(T + ms))(replaceTag("InfoType", "取消")(xml))), ms, "awaiting"));
+    expect([cancel(late), cancel(moved), cancel(unheard)]).toEqual([ringing("cancelled", "cancel"), ringing("cancelled", "cancel"), []]);
+    // (iv) 移った巨大地震注意への訂正は引き継がないので、awaiting では巨大地震警戒の段（ヘルツの品質レビューの P3）。
+    for (const [basis, expected, level] of [["verified", "megaquakeAdvisory", "warning"], ["unverified", "megaquakeAdvisory", "warning"],
+      ["awaiting", "megaquakeWarning", "critical"]] as const) {
+      const step = receiveAt(moved, (xml) => sentLater(replaceTag("InfoType", "訂正")(xml)), 8 * DAY, basis);
+      expect([status(step.state), notices(step)], basis).toEqual([expected, ringing("updated", level)]);
+    }
+  });
+
   // contractBoundary（P3-NS-T06、H51 の B）: Serial の形の外と InfoSerial/Name の読めない報は断らずに受けて WARN を添える。Code の 2 個以上は今どおり断る。
   it("P3-NS-T06 contractBoundary / P3-NS-AC07: an unreadable Serial or InfoSerial/Name is accepted with a WARN, two Codes are still rejected", () => {
     for (const [name, serial, subject] of [[F.c1, "abc", "normal/VYSE51/20200512163800"], [F.warning, "0", "normal/VYSE50/20200512162800"],
