@@ -12,6 +12,7 @@ import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagn
 import { sealSelfHash } from "../../src/measurement/eew-e01/frozen";
 import { linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { executionPlaces, runtimeUnits } from "../../src/runtime/unit-coverage";
+import { seismicUnitCodec } from "../../src/units/seismic/seismic-unit";
 import { envelope, harnessedRoot, places, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import type { Scenario } from "./scenario";
@@ -87,6 +88,8 @@ class ObservationTable {
   readonly losses: Loss[] = [];
   readonly rejections: Rejection[] = [];
   readonly evictions: { atMs: number; unit: RuntimeUnitId; count: number }[] = [];
+  // P3-QC-AC12 (2): U-Q の観測点の畳み（seismicStationsFolded）の count。退去にも容量の欠けにも数えない。
+  readonly folds: { atMs: number; count: number }[] = [];
   readonly usage = new Map<string, Usage>();
   readonly marks: Partial<Record<RuntimeUnitId, number>> = {};
   private readonly outcomes = new Map<string, Outcome>();
@@ -165,6 +168,8 @@ class ObservationTable {
       for (const [id, value, limit] of count(next)) this.record(id, value, limit, atMs);
       if (marks != null) this.marks[unit] = marks(next).length;
     }
+    const folded = taken.diagnostics.filter((item) => item.reason === "seismicStationsFolded");
+    if (unit === "U-Q" && folded.length !== 0) this.folds.push({ atMs, count: folded.reduce((sum, item) => sum + (item.count ?? 1), 0) });
     const evicted = taken.diagnostics.filter((item) => EVICTION[item.reason] === unit);
     if (evicted.length === 0) return;
     this.evictions.push({ atMs, unit, count: evicted.reduce((sum, item) => sum + (item.count ?? 1), 0) });
@@ -185,7 +190,8 @@ class ObservationTable {
 
 // ---- 1 段目の流し手（P3-DC-CLOCK、AC03・AC04・AC06） ----
 
-const BYTE_LIMITS: Readonly<Partial<Record<RuntimeUnitId, number>>> = { "U-E": 262_144, "U-T": 4_194_304, "U-Q": 4_194_304, "U-N": 294_912,
+// P3-QC-AC12 (1): U-Q は codec の器（P3-QC-AC05）。
+const BYTE_LIMITS: Readonly<Partial<Record<RuntimeUnitId, number>>> = { "U-E": 262_144, "U-T": 4_194_304, "U-Q": seismicUnitCodec.maxEnvelopeBytes, "U-N": 294_912,
   "U-W": 16_777_216, "U-F": 33_554_432 };
 const DOMAIN_KEYS = ["eew", "weatherCurrent", "weatherTimeseries", "tsunami", "earthquake", "nankai", "volcano", "landslide", "flood",
   "briefing", "localBulletins", "typhoon"] as const satisfies readonly (keyof DisplaySnapshot["current"])[];
@@ -536,7 +542,7 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     rejections: table.rejections.filter((item) => item.unit !== "U-E"), eewRejections: table.rejections.filter((item) => item.unit === "U-E").length,
     // 未解消の拒否の状態の時系列・最大・終わりの値。
     unresolved, unresolvedMax, unresolvedFinal,
-    evictions: { total: evictions, series: table.evictions.filter((item) => item.unit !== "U-E") },
+    evictions: { total: evictions, series: table.evictions.filter((item) => item.unit !== "U-E") }, folds: table.folds,
     losses: table.losses.filter((item) => item.unit !== "U-E"), eewLosses: { all: table.losses.filter((item) => item.unit === "U-E").length,
       counted: countedLosses.filter((item) => item.unit === "U-E").length }, quakeEventLosses: { all: quakeEvents(table.losses), counted: quakeEvents(countedLosses) },
     realInvalid, summaries, summaryTransitions: transitions, checkpoints, expectations,

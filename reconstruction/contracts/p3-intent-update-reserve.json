@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "b77781a608f27013ff16b54fe330b111a664038a14046a99a64aa98e5c919c8e",
+    "sha256": "cde503f01dac87eb6531c1ed5c490885db173651687e768d71670852dc3800bd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -247,8 +247,8 @@
         "requirement": "intentを含む世代の計量も予約込み（P3-IUR-GENERATION=A、P3-IUR-RES-02）: U-T・U-QのgenerationBytes（受理のfitとdecodeが共有）、U-WのreservedGenerationBytes（受理のfitNormalByByte）・encodedValue・persistedValue、U-Fのmeasure（受理のfits・evict、encode・decodeが共有）に、pendingの予約の和を足す。退去の手順・順・capacityExceededの条件は変えず、数える値だけが変わる。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte。K7の発注2aの後の器は5,270,185 byte）はdecodeが受けたまま（予約はpendingの131,072の内側）。U-E・U-Nの世代は変えない。無いと: 世代の上限の手前（最大5,376 byte以内）のstateが配送の更新で上限を越え、U-T・U-Qはdecodeが、U-W・U-Fはencodeが拒否する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-tsunami-unit.json:265 «7002f82c2f44eaff»",
-          "reconstruction/contracts/p3-seismic-unit.json:305 «e7f8c1963dbeeace»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «fb6c17c8f1ed8eb9»"
+          "reconstruction/contracts/p3-seismic-unit.json:305 «302b643645673991»",
+          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»"
         ]
       },
       {
@@ -277,8 +277,8 @@
           "reconstruction/contracts/p2-notification-delivery.json:464 «4fba6740a3879e38»",
           "reconstruction/contracts/p3-tsunami-unit.json:207 «d31b9ee92b979154»",
           "reconstruction/contracts/p3-tsunami-unit.json:265 «7002f82c2f44eaff»",
-          "reconstruction/contracts/p3-seismic-unit.json:305 «e7f8c1963dbeeace»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «fb6c17c8f1ed8eb9»"
+          "reconstruction/contracts/p3-seismic-unit.json:305 «302b643645673991»",
+          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»"
         ]
       },
       {

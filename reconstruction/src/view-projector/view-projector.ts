@@ -321,7 +321,8 @@ function seismicTally(value: RuntimeDisplaySubject | null): Tally | null {
   const tally = emptyTally(operation);
   tally.bytes = utf8(current) + value.subjects.reduce((sum, item) => sum + utf8(item), 0);
   const event = "sources" in current;
-  if (event) tally.active = 1;
+  // P3-QC-AC07 (4): 取り消した地震の一覧の印（cancelledSummary）は active に数えない。
+  if (event && current.cancelledSummary == null) tally.active = 1;
   // event は印の family の数によらず記録 1 つで 1（P3-CC-AC03(5)）。
   if (current.unavailable != null) count(tally.unavailable, "capacityExceeded", 1);
   for (const item of current.intensity?.items ?? [])

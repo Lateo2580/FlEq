@@ -48,7 +48,7 @@ const diagnosticReasons = [
   "mailboxLimitViolation", "shutdownStarted", "shutdownUnsavedUnits", "diagnosticSinkFailed",
   "diagnosticQueueOverflow", "snapshotNoticeCapacityExceeded", "snapshotCommonBudgetExceeded",
   "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted", "eewCapacityEvicted", "tsunamiRevisionConflict", "tsunamiCapacityEvicted",
-  "seismicRevisionConflict", "seismicCapacityEvicted", "nankaiRevisionConflict", "nankaiCapacityEvicted",
+  "seismicRevisionConflict", "seismicCapacityEvicted", "seismicStationsFolded", "nankaiRevisionConflict", "nankaiCapacityEvicted",
   "volcanoRevisionConflict", "volcanoCapacityEvicted", "landslideRevisionConflict", "landslideCapacityEvicted",
   "floodRevisionConflict", "floodCapacityEvicted",
   "briefingRevisionConflict", "briefingCapacityEvicted",

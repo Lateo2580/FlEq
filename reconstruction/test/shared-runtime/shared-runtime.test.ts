@@ -54,7 +54,7 @@ const clock = { wallTimeMs: 1_780_650_000_001, monotonicMs: 12 } as const;
 const savedProgress: PersistenceStatus = Object.freeze({ kind: "saved", currentGeneration: 1, savedGeneration: 1,
   savedCapturedAt: 10, savedAckAt: 20, dirtySince: null });
 
-const noHistory = { dayKey: null, count: 0, maxInt: null, countedEventIds: [], recent: [] } as const;
+const noHistory = { dayKey: null, count: 0, maxInt: null, counted: [], recent: [] } as const;
 function initialState(progress: PersistenceStatus = savedProgress): RuntimeState {
   const baseline = fixtureState({}, {}, "run");
   return {
@@ -72,7 +72,7 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
       // add their rows only).
       "U-T": { schemaVersion: "p3-tsunami-unit-v5", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: savedProgress },
-      "U-Q": { schemaVersion: "p3-seismic-unit-v4", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
+      "U-Q": { schemaVersion: "p3-seismic-unit-v5", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
         normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: savedProgress },
       "U-N": { schemaVersion: "p3-nankai-unit-v5", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
       "U-V": { schemaVersion: "p3-volcano-unit-v5", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],

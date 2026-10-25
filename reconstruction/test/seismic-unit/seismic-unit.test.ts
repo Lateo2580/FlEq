@@ -28,11 +28,13 @@ const F = {
   s62: P75("VXSE62_20260728162718_f9786edc27df"), s61: P75("VXSE61_20260728162718_d7e630bbb653"),
 } as const;
 const HOUR = 3_600_000;
-// seismic-unit.ts の HOLD_GROWTH・HOLD_FACTS_BYTES・RESERVE_BYTES（P3-VM-AC08・P3-NL-D-CAPACITY=A）。器は 4 MiB＋同時最大状態の
-// Control/DateTime と印の分＋HOLD_GROWTH＋通知の印（寄与 512×4・長周期 256）＋失敗の印−外した終端 intent の予算 131,072。
+// seismic-unit.ts の HOLD_GROWTH・RESERVE_BYTES（P3-VM-AC08・P3-NL-D-CAPACITY=A）。器は 4 MiB＋同時最大状態の
+// Control/DateTime と印の分＋HOLD_GROWTH＋通知の印（寄与 512×4・長周期 256）＋失敗の印−外した終端 intent の予算 131,072
+// ＋P3-UNIT-Q-CAPACITY-001 の増え（cancelledSummary 512×372・counted 3×2048×4・記憶の guard 768×50、P3-QC-AC05）。
 const MARK = noticeMarkBytes("notice"), CONTRIBUTION_MARKS = 512 * 4 * MARK, NOTICE_GROWTH = CONTRIBUTION_MARKS + 256 * MARK;
-const HOLD_GROWTH = seismicUnitCodec.maxEnvelopeBytes! - 4_194_304 - 121_513 - NOTICE_GROWTH - FAILURE_MARKS_MAX_BYTES + 131_072;
-const HOLD_FACTS_BYTES = 2_574_775 + HOLD_GROWTH + CONTRIBUTION_MARKS, RESERVE_BYTES = 1_470_281 + NOTICE_GROWTH;
+const MEMORY_GROWTH = 512 * 372 + 3 * 2048 * 4 + 768 * 50;
+const HOLD_GROWTH = seismicUnitCodec.maxEnvelopeBytes! - 4_194_304 - 121_513 - NOTICE_GROWTH - FAILURE_MARKS_MAX_BYTES + 131_072 - MEMORY_GROWTH;
+const RESERVE_BYTES = 1_470_281 + NOTICE_GROWTH + MEMORY_GROWTH;
 const ORIGIN = Date.parse("2026-07-28T16:27:00+09:00");
 const decision = (step: SeismicUnitStep) => step.decisions[0];
 const eventOf = (state: SeismicUnitState, eventId = EVENT, operation: Operation = "normal") =>
@@ -94,19 +96,14 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       // 「"」と「\」は JSON のエスケープで byte が増えるので EventID に許さない（I-U-Q.capacityReserve）。
       [quake({ eventId: 'a"b' }), "VXSE53", "identityInvalid"],
       [quake({ eventId: "a\\b" }), "VXSE53", "identityInvalid"],
-      [quake().replace("<Serial>1</Serial>", "<Serial>0</Serial>"), "VXSE53", "identityInvalid"],
-      [quake().replace("<Serial>1</Serial>", "<Serial>12345678901</Serial>"), "VXSE53", "identityInvalid"],
+      // Serial の形の外・Magnitude と OriginTime の欠け・Observation の無い Intensity（Earthquake あり）・Name の欠けは受ける（P3-QC-T06）。
       [quake().replace(/<Earthquake>[\s\S]*<\/Intensity>/, ""), "VXSE53", "requiredStructureMissing"],
-      [quake().replace(/<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/, ""), "VXSE53", "requiredStructureMissing"],
-      [quake().replace("<Observation>", "<Other>").replace("</Observation>", "</Other>"), "VXSE53", "requiredStructureMissing"],
       [fixtureXml(F.s51d).replace(/<Intensity>[\s\S]*<\/Intensity>/, ""), "VXSE51", "requiredStructureMissing"],
-      [fixtureXml(F.s51d).replace("<Name>熊本県</Name>", ""), "VXSE51", "requiredStructureMissing"],
       [fixtureXml(F.s51d).replace("<Code>743</Code><MaxInt>", "<Code>741</Code><MaxInt>"), "VXSE51", "requiredStructureInvalid"],
       [quake({ city: city(station("9900101") + station("9900101")) }), "VXSE53", "requiredStructureInvalid"],
-      // 存在が妥当性より先（Q-ENUM.priorityRule）。
+      // P3-QC-AC09 (4): Name の欠けは断らないので、同じ報の code の重複で断る。
       [quake({ city: city(station("9900101") + station("9900101") + "<IntensityStation><Code>9900102</Code><Int>1</Int></IntensityStation>") }),
-        "VXSE53", "requiredStructureMissing"],
-      [fixtureXml("32-35_04_03_240613_VXSE52").replace(/<OriginTime>[^<]*<\/OriginTime>/, ""), "VXSE52", "requiredStructureMissing"],
+        "VXSE53", "requiredStructureInvalid"],
       [fixtureXml("selected_xml/78_01_01_240613_VXSE62").replace("<MaxLgInt>3</MaxLgInt>", ""), "VXSE62", "requiredStructureMissing"],
       [quake().replace("<InfoType>発表</InfoType>", "<InfoType>不明</InfoType>"), "VXSE53", "requiredStructureInvalid"],
     ];
@@ -243,11 +240,13 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(cancel.state.earthquakes).toBe(quake.earthquakes);
     expect(toSeismicView(cancel.state).longPeriods).toEqual([]);
     expect(cancel.intents.map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
-    // 36 時間で回収し、event の期限（24 時間）を変えない。
+    // 36 時間で期限切れの記憶にし（P3-QC-AC08）、event の期限（24 時間）を変えない。
     const reported = Date.parse("2026-07-28T16:37:00+09:00");
+    const effectives = (state: SeismicUnitState) => [state.earthquakes.map((item) => item.contributions.map((entry) => entry.effective)),
+      state.longPeriods.map((item) => item.effective)];
     const day = reduceSeismicUnit(adopted.state, { kind: "deadline", clock: clock(reported + 24 * HOUR) }).state;
-    expect([day.earthquakes, day.longPeriods.length]).toEqual([[], 1]);
-    expect(reduceSeismicUnit(day, { kind: "deadline", clock: clock(reported + 36 * HOUR) }).state.longPeriods).toEqual([]);
+    expect(effectives(day)).toEqual([[["expired"]], ["active"]]);
+    expect(effectives(reduceSeismicUnit(day, { kind: "deadline", clock: clock(reported + 36 * HOUR) }).state)).toEqual([[], ["expired"]]);
     // 78_01_01 と合成の特殊値: 階級 3 は critical、未入電の階級は normal、Earthquake の無い報の震源は null。
     expect(levels(send(emptyState(), "selected_xml/78_01_01_240613_VXSE62"))).toEqual(["desktop:critical", "sound:critical"]);
     const special = send(emptyState(), "synthetic_phase4a_VXSE62_special");
@@ -255,10 +254,10 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       items: [{ level: "pref", code: "99", maxLgInt: { kind: "fromTo" } }, { level: "area", code: "990" }, { level: "area", code: "991" },
         { level: "area", code: "992", maxLgInt: { kind: "missing" } }] } });
     expect(levels(special)).toEqual(["desktop:normal", "sound:normal"]);
-    // 階級 1〜2 は warning（Q-NOTICE.level）。
-    for (const lg of ["1", "2"]) expect(levels(send(emptyState(), "synthetic_phase4a_VXSE62_special", (xml) => xml.replace(
-      '<MaxLgInt condition="未入電" description="最大長周期階級未入電"/>', `<MaxLgInt>${lg}</MaxLgInt>`))), lg)
-      .toEqual(["desktop:warning", "sound:warning"]);
+    // 階級 1 は warning、2 は critical（Q-NOTICE.level、P3-QC-AC06 (2)）。
+    for (const [lg, level] of [["1", "warning"], ["2", "critical"]]) expect(levels(send(emptyState(), "synthetic_phase4a_VXSE62_special",
+      (xml) => xml.replace('<MaxLgInt condition="未入電" description="最大長周期階級未入電"/>', `<MaxLgInt>${lg}</MaxLgInt>`))), lg)
+      .toEqual([`desktop:${level}`, `sound:${level}`]);
   });
 
   // acceptance: 強震保持・intensityScale・当日履歴（AC04）。
@@ -300,18 +299,18 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const big = eventOf(send(emptyState(), F.s53b).state)!.contributions[0].intensity!.items;
     expect(big.find((item) => item.name === "嘉島町")!.maxInt).toMatchObject({ kind: "range", bound: "lower", value: 5 });
     expect(big.find((item) => item.name === "宇城市小川町＊")!.maxInt).toMatchObject({ kind: "range", bound: "lower", value: 5 });
-    // 通知の段階: 全体 MaxInt の missing・empty・表に無い text は normal、unknown は info、range の upper 5 は 5強で warning。
+    // 通知の段階: 全体 MaxInt の missing・empty・表に無い text は normal、unknown は info、range の upper 5 は 5強で critical（P3-QC-AC06）。
     const level = (maxInt: string) => levels(receive(emptyState(), decodeXml(vxse53({ at: "2099-01-01T09:00:00+09:00", maxInt }), "VXSE53"),
       clock(Date.parse("2099-01-01T09:00:00+09:00"))))[0];
     expect(["", "8弱", "不明", "5強以下", "3", "4"].map(level))
-      .toEqual(["desktop:normal", "desktop:normal", "desktop:info", "desktop:warning", "desktop:normal", "desktop:warning"]);
+      .toEqual(["desktop:normal", "desktop:normal", "desktop:info", "desktop:critical", "desktop:normal", "desktop:warning"]);
 
     // 当日履歴（P3-C7-DAILY=A・P3-C7-DAILY-BASIS=B）。
     const day = (state: SeismicUnitState) => state.daily.normal;
     const series = chain([F.s51a, F.s53a, F.s53b]);
-    expect(day(series[2].state)).toMatchObject({ dayKey: "2026-07-28", count: 1, countedEventIds: [EVENT], maxInt: { value: 7 } });
+    expect(day(series[2].state)).toMatchObject({ dayKey: "2026-07-28", count: 1, counted: [[EVENT, 9]], maxInt: { value: 7 } });
     expect(day(series[2].state).recent.map((item) => item.eventId)).toEqual([EVENT]);
-    // 取消で減らさない。range だけの地震は数えない。
+    // VXSE51 の寄与が残る event の VXSE53 だけの取消では減らさない（P3-QC-AC07 (1)）。range だけの地震は数えない。
     const cancelled = send(series[2].state, "synthetic_VXSE53_cancel");
     expect(day(cancelled.state)).toMatchObject({ count: 1, maxInt: { value: 7 } });
     expect(day(send(emptyState(), "synthetic_phase4a_VXSE51_special").state)).toMatchObject({ count: 0, maxInt: null });
@@ -332,7 +331,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(day(send(emptyState(), F.s51a).state).recent).toMatchObject([{ originTimeRaw: "2026-07-28T16:27:00+09:00" }]);
     const noOrigin = send(emptyState(), "synthetic_phase4a_VXSE53_special");
     expect(day(noOrigin.state).recent).toMatchObject([{ originTimeRaw: null, reportDateTimeRaw: "2026-08-01T21:00:30+09:00" }]);
-    // 同じ EventID の続報で件数を足さない。recent の 6 行目は落ち、countedEventIds の 2049 件目は集合に足さずに数える。
+    // 同じ EventID の続報で件数を足さない。recent の 6 行目は落ち、counted の 2049 件目は組に足さずに数える。
     let state = emptyState();
     for (let index = 0; index < 6; index++)
       state = receive(state, report(`2026080200000${index}`, "2026-08-02T00:10:00+09:00", "2026-08-02T00:05:00+09:00"),
@@ -344,13 +343,13 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       "20260802000001"]);
     const ids = Array.from({ length: 2048 }, (_, index) => `full-${index}`);
     const full: SeismicUnitState = { ...emptyState(), daily: { ...emptyState().daily, normal: { dayKey: "2026-08-02", count: 2048, maxInt: null,
-      countedEventIds: ids, recent: [] } } };
+      counted: ids.map((id) => [id, 3] as const), recent: [] } } };
     const beyond = receive(full, report("20260802000099", "2026-08-02T00:10:00+09:00", "2026-08-02T00:05:00+09:00"),
       clock(Date.parse("2026-08-02T00:10:00+09:00"))).state;
-    expect([day(beyond).count, day(beyond).countedEventIds.length]).toEqual([2049, 2048]);
+    expect([day(beyond).count, day(beyond).counted.length]).toEqual([2049, 2048]);
     // 時計の JST 0 時で空へ戻す。
     const reset = reduceSeismicUnit(series[2].state, { kind: "deadline", clock: clock(Date.parse("2026-07-29T00:00:00+09:00")) }).state;
-    expect(day(reset)).toEqual({ dayKey: null, count: 0, maxInt: null, countedEventIds: [], recent: [] });
+    expect(day(reset)).toEqual({ dayKey: null, count: 0, maxInt: null, counted: [], recent: [] });
     expect(reset.contentRevision).toBe(series[2].state.contentRevision + 1);
   });
 
@@ -411,13 +410,13 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(refused.intents[0].payload.title).toMatch(/^【訓練】【処理できていません】.+（\d{2}:\d{2} 発表）$/);
     expect([refused.outcomes, refused.displayChanges]).toEqual([[], []]);
     expect(refused.diagnostics.map((item) => item.reason)).toEqual(["capacityRejected"]);
-    // 退去の順: (1) retainUntil を過ぎたもの → (2) training/test → (3) 最古の normal。強震保持と取消記憶は件数の超過でも後回し。
-    const hold = { originTimeRaw: iso(0), until: now + HOUR, establishedBy: { family: "VXSE53", reportDateTimeRaw: iso(0), serialRaw: "1",
-      infoTypeRaw: "発表" } };
+    // 退去の順: (1) retainUntil を過ぎたもの → (2) training/test → (3) 最古の守らない normal。守る地震と取消記憶は件数の超過でも後回し
+    // （P3-QC-AC02 (4)。強震保持は守る線に置き換えた、P3-QC-AC01 (4)）。
+    const guard = { guard: { from: now - HOUR, on: 1 as const } };
     const memory = (index: number) => clone(index, { contributions: seed.contributions.map((item) => ({ ...retime(item, clone(index).eventId,
       "normal", (1000 - index) * 1000), effective: "cancelled" as const, targetDateTimeRaw: null, title: "", headline: null, hypocenter: null,
       intensity: null, tsunamiComment: null })) });
-    let state = withEvents([clone(0, { strongHold: { ...hold, originTimeRaw: iso(0) } }), memory(1), clone(2, { retainUntil: now }),
+    let state = withEvents([clone(0, guard), memory(1), clone(2, { retainUntil: now }),
       clone(3, { operation: "training" }), ...Array.from({ length: 508 }, (_, index) => clone(index + 10))]);
     const evicted: string[] = [];
     for (const eventId of ["N0002", "N0003", "N0004"]) {
@@ -426,44 +425,22 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       evicted.push(...[...before].filter((key) => !state.earthquakes.some((item) => `${item.operation}/${item.eventId}` === key)));
     }
     expect(evicted).toEqual([`normal/${clone(2).eventId}`, `training/${clone(3).eventId}`, `normal/${clone(10).eventId}`]);
-    // 件数が満杯で事実の event が強震保持だけなら、最古の取消記憶だけの event を退去して新しい取消を受ける。
-    const holds = withEvents([memory(1), memory(2), ...Array.from({ length: 510 }, (_, index) => clone(index + 10, { strongHold: hold }))]);
+    // 件数が満杯で事実の event が守る地震だけなら、最古の取消記憶だけの event を退去して新しい取消を受ける。
+    const holds = withEvents([memory(1), memory(2), ...Array.from({ length: 510 }, (_, index) => clone(index + 10, guard))]);
     const cancel = receive(holds, decodeXml(vxse53({ eventId: "N0005", at: iso(0), infoType: "取消" }), "VXSE53"), at);
     expect(decision(cancel).decision).toBe("changed");
     expect(cancel.state.earthquakes.some((item) => item.eventId === memory(1).eventId)).toBe(false);
     // 退去した event に遅れて届いた続報は、取消記憶が無いので新しく採用される。
     const lateFollow = decodeXml(vxse53({ eventId: memory(1).eventId, at: iso((1000 - 1) * 1000) }), "VXSE53");
     expect(decision(receive(cancel.state, lateFollow, at))).toMatchObject({ decision: "changed" });
-    // 強震保持の event は事実の合計が 2,574,775 byte 以下なら退去しない（件数の超過で候補が尽きれば capacityExceeded）。
-    const onlyHolds = withEvents(Array.from({ length: 512 }, (_, index) => clone(index, { strongHold: hold })));
+    // 守らない報のためには守る地震を退去しない（件数の超過で候補が尽きれば capacityExceeded、P3-QC-D-SMALL-PUSH=B）。
+    const onlyHolds = withEvents(Array.from({ length: 512 }, (_, index) => clone(index, guard)));
     expect(decision(receive(onlyHolds, quake("N0006"), at)).decision).toBe("capacityExceeded");
-    // 件数が満杯で事実の event が強震保持だけなら、新しい地震（取消でない報）も最古の取消記憶だけの event を退去して入る（(4)）。
+    // 件数が満杯で事実の event が守る地震だけなら、新しい地震（取消でない報）も最古の取消記憶だけの event を退去して入る（(4)）。
     const quakeIn = receive(holds, quake("N0012"), at);
     expect(decision(quakeIn).decision).toBe("changed");
     expect(quakeIn.state.earthquakes.some((item) => item.eventId === memory(1).eventId)).toBe(false);
-    expect(quakeIn.state.earthquakes.filter((item) => item.strongHold != null)).toHaveLength(510);
-    // 実不具合の再発防止（K7 発注 2a の見直し P2）: 旧い形（Control/DateTime と未確認の印の無い形）で事実が 2,574,775 byte いっぱいの強震保持
-    // 512 件は、全寄与に Control/DateTime・未確認の印・容量不足の印を足した新しい形でも、513 件目で退去されない（P3-VM-AC08、作者裁定 2026-10-21 午後）。
-    const k7Shape = (event: EarthquakeEvent): EarthquakeEvent => {
-      const sources = event.contributions.map((item) => ({ ...item.source, inputId: "i".repeat(64), controlDateTimeRaw: "2099-01-01T08:59:59+09:00" }));
-      return { ...event, contributions: event.contributions.map((item, index) => ({ ...item, source: sources[index],
-        unconfirmed: { ...sources[index], serialRaw: "9".repeat(10) } })),
-      unavailable: sources.map((source) => ({ reason: "capacityExceeded" as const, source: { ...source, serialRaw: "9".repeat(10) } })) };
-    };
-    const oldBytes = (event: EarthquakeEvent) => Buffer.byteLength(JSON.stringify(event).replace(/,"unconfirmed":\{[^}]*\}/g, "")
-      .replace(/,"controlDateTimeRaw":"[^"]*"/g, ""));
-    // 4 family の寄与（事実は小さくして予算の内に 512 件を入れる）の全部に、読み戻しの上限の inputId の印を付ける。
-    const fourFamilies = (event: EarthquakeEvent): EarthquakeEvent => ({ ...event, contributions: (["VXSE51", "VXSE52", "VXSE53", "VXSE61"] as const)
-      .map((family) => ({ ...event.contributions[0], family, source: { ...event.contributions[0].source, family, origin: "recovery" as const,
-        subject: `normal/${family}/${event.eventId}`, serialRaw: "9".repeat(10) }, headline: null, hypocenter: null, intensity: null, tsunamiComment: null })) });
-    const shaped = Array.from({ length: 512 }, (_, index) => k7Shape(fourFamilies(clone(index, { strongHold: hold }))));
-    const room = 2_574_775 - shaped.reduce((sum, item) => sum + oldBytes(item), 0);
-    shaped[511] = { ...shaped[511], contributions: shaped[511].contributions.map((item, index) => index === 0
-      ? { ...item, title: item.title + "x".repeat(room) } : item) };
-    expect(shaped.reduce((sum, item) => sum + oldBytes(item), 0)).toBe(2_574_775);
-    const fullHolds = receive(withEvents(shaped), quake("N0014"), at);
-    expect([decision(fullHolds).decision, fullHolds.state.earthquakes.length]).toEqual(["capacityExceeded", 512]);
-
+    expect(quakeIn.state.earthquakes.filter((item) => item.guard?.on === 1)).toHaveLength(510);
     // 長周期 255/256/257。
     // 長周期も小さい合成の報（synthetic_phase4a_VXSE62_special）で数える（f9786edc27df の 256 件は 4 MiB を超える）。
     const lpSeed = send(emptyState(), "synthetic_phase4a_VXSE62_special").state.longPeriods[0];
@@ -492,22 +469,16 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       fill.push(heavy(index));
       probe = next;
     }
+    // P3-QC-AC02 (1): 退去の前に、守らない記録の観測点を古い順に畳む（最古の長周期は観測点を持たない）。
     const byBytes = receive(probe, decodeFixture(F.s53b, (xml) => replaceTag("EventID", "N0008")(xml).replace(/2026-07-28T16:35:00\+09:00/g, iso(0))), at);
     expect(decision(byBytes).decision).toBe("changed");
-    expect(byBytes.state.longPeriods).toEqual([]);
-    expect(byBytes.state.earthquakes.some((item) => item.eventId === heavy(1).eventId)).toBe(false);
+    expect(byBytes.diagnostics.map((item) => item.reason)).toEqual(["seismicStationsFolded"]);
+    expect(byBytes.state.earthquakes.find((item) => item.eventId === heavy(1).eventId)?.contributions.find((item) => item.family === "VXSE53"))
+      .toMatchObject({ folded: expect.stringMatching(/^[0-9a-f]{16}$/) });
     // normal の事実だけで超えるなら capacityExceeded（training の受理は normal を退去させない）。
     const trainingGiant = decodeFixture(F.s53b, (xml) => replaceTag("EventID", "N0009")(xml).replace(/2026-07-28T16:35:00\+09:00/g, iso(0))
       .replace("<Status>通常</Status>", "<Status>訓練</Status>"));
     expect(decision(receive(probe, trainingGiant, at)).decision).toBe("capacityExceeded");
-    // (5): 強震保持の event の事実の合計が HOLD_FACTS_BYTES を超え byte も超えるときは、最古の強震保持の event を退去する。
-    const holdGiants = withEvents(Array.from({ length: fill.length }, (_, index) => clone(index + 1, { strongHold: hold }, giant)));
-    const pressed = receive(holdGiants, decodeFixture(F.s53b, (xml) => replaceTag("EventID", "N0013")(xml)
-      .replace(/2026-07-28T16:35:00\+09:00/g, iso(0))), at);
-    expect(decision(pressed).decision).toBe("changed");
-    expect(pressed.diagnostics[0]).toMatchObject({ reason: "seismicCapacityEvicted", count: 1 });
-    expect(pressed.state.earthquakes.some((item) => item.eventId === clone(1).eventId)).toBe(false);
-
     // P3-C7-CAPACITY-BUDGET=A の同時最大状態: 取消記憶だけの event 505＋最大の実例の event 7＋その長周期 7＋取消記憶だけの長周期 249
     // ＋当日履歴 3 operation の上限＋intent の上限。decode が受け、+1 件は件数の超過で training の取消記憶を退去する。
     const budget = budgetState(now);
@@ -589,14 +560,14 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       ["cancelled long period keeps facts", { ...value, longPeriods: [{ ...lp, effective: "cancelled" }] }],
       ["duplicate long period", { ...value, longPeriods: [lp, lp] }],
       // 取消記憶だけの記録の byte は文字列長の上限から決まる。上限の外の長さ（inputId）で I-U-Q.capacityReserve を超えた保存物。
-      ["reserve exceeded", { ...value, earthquakes: many(512, (index) => ({ ...eventN(index), contributions: [{ ...cancelled,
+      ["reserve exceeded", { ...value, earthquakes: many(512, (index) => ({ ...eventN(index), guard: { ...(quake.guard as Row), on: 0 }, contributions: [{ ...cancelled,
         source: { ...(cancelled.source as Row), inputId: "x".repeat(3_100), subject: `normal/${String(cancelled.family)}/E${index}` } }] })) }],
       ["strongHold until", withQuake({ strongHold: hold == null ? null : { ...hold, until: Number(hold.until) + 1 } })],
       ["recent > 5", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, recent: many(6, () => (value.daily.normal.recent as Row[])[0]) } } }],
       ["recent string limit", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, recent: [{ ...(value.daily.normal.recent as Row[])[0],
         hypocenterName: "x".repeat(65) }] } } }],
-      ["countedEventIds > 2048", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, countedEventIds: many(2049, (index) => `c${index}`) } } }],
-      ["countedEventIds duplicate", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, countedEventIds: [EVENT, EVENT] } } }],
+      ["counted > 2048", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, counted: many(2049, (index) => [`c${index}`, 1]) } } }],
+      ["counted duplicate", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, counted: [[EVENT, 9], [EVENT, 9]] } } }],
       ["intent of another unit", { ...value, intents: [{ ...value.intents[0], unit: "U-T" }] }],
       ["intent subject form", { ...value, intents: [{ ...value.intents[0], subject: "normal/VTSE41/20110311144640",
         source: { ...(value.intents[0].source as Row), subject: "normal/VTSE41/20110311144640" } }] }],
@@ -696,17 +667,17 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
   // acceptance: Q-NOTICE の地震分（AC08）。
   it("P3-C7-T07 acceptance / AC08: opportunities, level formula, replacement, body, capacity, intentUpdate, training, recovery", () => {
     const series = chain([F.s51a, F.s51b, F.s51c, F.s51d, F.s53a, F.s53b, F.s62, F.s61]);
-    // 報自身の震度で決める: 震度速報・震源震度情報は warning、20:30 の VXSE61 は normal、長周期階級 4 は critical。
-    expect(series.map((step) => levels(step)[0])).toEqual([...Array(6).fill("desktop:warning"), "desktop:critical", "desktop:normal"]);
+    // 報自身の震度で決める: 震度 7 の震度速報・震源震度情報は critical（P3-QC-AC06）、20:30 の VXSE61 は normal、長周期階級 4 は critical。
+    expect(series.map((step) => levels(step)[0])).toEqual([...Array(7).fill("desktop:critical"), "desktop:normal"]);
     expect(series[7].intents.map((item) => [item.payload.title, item.payload.body]))
       .toEqual([["顕著な地震の震源要素更新のお知らせ", "熊本県熊本地方 / M7.1"], ["顕著な地震の震源要素更新のお知らせ", "熊本県熊本地方 / M7.1"]]);
     expect(series[5].intents[0].payload.body).toBe("熊本県熊本地方 / M7.1 / 最大震度7");
     expect(series[6].intents[0].payload.body).toBe("熊本県熊本地方 / 長周期階級4 / 最大震度7");
     expect(series[0].intents.map((item) => [item.expiresAt - item.createdAt, item.nextAttemptAt - item.createdAt]))
       .toEqual([[180_000, 0], [60_000, 0]]);
-    // 震度の無い VXSE52 は normal。5 弱以上未入電は warning。
+    // 震度の無い VXSE52 は normal。5 弱以上未入電は critical（range lower 5、P3-QC-AC06）。
     expect(levels(send(emptyState(), "32-35_04_03_240613_VXSE52"))).toEqual(["desktop:normal", "sound:normal"]);
-    expect(levels(send(emptyState(), "synthetic_phase4a_VXSE51_special"))).toEqual(["desktop:warning", "sound:warning"]);
+    expect(levels(send(emptyState(), "synthetic_phase4a_VXSE51_special"))).toEqual(["desktop:critical", "sound:critical"]);
     expect(send(emptyState(), "synthetic_phase4a_VXSE51_special").intents[0].payload.body).toBe("最大震度5弱以上");
     // revisionOnly・duplicate・stale では作らない。訂正は事実が同じでも作る。
     const first53 = send(emptyState(), F.s53a).state;
@@ -716,7 +687,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const sameFacts = send(first53, F.s53a, (xml) => sentLater(xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")));
     expect(decision(sameFacts)).toMatchObject({ decision: "changed", change: "revisionOnly" });
     expect(sameFacts.intents.map((item) => [item.payload.level, item.payload.title, item.payload.body.startsWith("訂正: ")]))
-      .toEqual([["warning", "[訂正] 震源・震度情報", true], ["warning", "[訂正] 震源・震度情報", true]]);
+      .toEqual([["critical", "[訂正] 震源・震度情報", true], ["critical", "[訂正] 震源・震度情報", true]]);
     // 取消: active だった family だけ。未受信の取消は作らない。
     expect(send(emptyState(), "synthetic_VXSE53_cancel").intents).toEqual([]);
     const cancel = send(series[5].state, "synthetic_VXSE53_cancel");
@@ -762,19 +733,22 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     // 復元直後の続報は復元した state との差で決める（同じ報は duplicate で鳴らさない）。
     const restored = reduceSeismicUnit(emptyState(), { kind: "restore", persisted: seismicUnitCodec.encode(first53), clock: clock(reported + 1) }).state;
     expect(send(restored, F.s53a).intents).toEqual([]);
-    expect(levels(send(restored, F.s53b))).toEqual(["desktop:warning", "sound:warning"]);
+    expect(levels(send(restored, F.s53b))).toEqual(["desktop:critical", "sound:critical"]);
   });
 
   // corpusHistory: expectedDecisions の 14 step・O07:1〜4・E13（AC10）。
   it("P3-C7-T09 corpusHistory / AC10: O01:49-55, O02:26-38, O07:1-5 and the E13 population", () => {
     const o01 = replay("O01", 49, 55);
-    // :52 の訂正は強震保持を保ち until を延ばさない。:53 の取消は同じ subject の pending を両 channel とも置き換え、強震保持を外す。
+    // :52 の訂正は強震保持を保ち until を延ばさない（震度 7 の訂正は critical、P3-QC-AC06）。:53 の取消は同じ subject の pending を
+    // 両 channel とも置き換え、強震保持を外す。
     expect(eventOf(o01[3].state)!.strongHold).toEqual(eventOf(o01[1].state)!.strongHold);
-    expect(o01[3].intents.map((item) => [item.payload.level, item.payload.title])).toEqual([["warning", "[訂正] 震源・震度情報"],
-      ["warning", "[訂正] 震源・震度情報"]]);
+    expect(o01[3].intents.map((item) => [item.payload.level, item.payload.title])).toEqual([["critical", "[訂正] 震源・震度情報"],
+      ["critical", "[訂正] 震源・震度情報"]]);
     expect(pending(o01[4].state).map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
-    expect([eventOf(o01[4].state)!.strongHold, toSeismicView(o01[4].state).earthquakes]).toEqual([null, []]);
-    expect(o01[4].state.daily.normal).toMatchObject({ count: 1, maxInt: { value: 7 } });
+    // P3-QC-AC07: 全部の寄与が取消になった地震は取消の印を付けて一覧に残り、その日の件数から引いて最大震度を数え直す。
+    expect(eventOf(o01[4].state)!.strongHold).toBeNull();
+    expect(toSeismicView(o01[4].state).earthquakes).toMatchObject([{ sources: [], cancelledSummary: { hypocenterName: "熊本県熊本地方" } }]);
+    expect(o01[4].state.daily.normal).toMatchObject({ count: 0, maxInt: null, counted: [] });
     expect(o01[2].state.daily.normal.count).toBe(1);
     const o02 = replay("O02", 26, 38);
     expect(o02[12].intents.map((item) => item.payload.level)).toEqual(["normal", "normal"]);
@@ -801,9 +775,9 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       const after = reduceSeismicUnit(step.state, { kind: "deadline", clock: clock(Date.parse(material.reportDateTimeRaw) + 1) }).state;
       groups[decision(step).decision === "changed" ? "changed" : "rejected"].push(id);
     }
-    // synthetic_phase4a_VXSE61_special は Magnitude を持たず、Q-ENUM の VXSE61.required（VXSE52 の必須構造）で拒否する。
-    expect(groups.rejected).toEqual(["test__fixtures__synthetic_phase4a_VXSE61_special"]);
-    expect(groups.changed).toHaveLength(37);
+    // synthetic_phase4a_VXSE61_special は Magnitude を持たないが、設計メモ §13 の欠けとして受ける（P3-QC-AC09 (3)）。
+    expect(groups.rejected).toEqual([]);
+    expect(groups.changed).toHaveLength(38);
   });
 
   // contractBoundary: 期限の境界（P3-C7-SEM-01・02、I-U-Q.deadlines、AC02〜AC04）。
@@ -817,13 +791,17 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     // 当日履歴の 0 時は 24 時間の前に来るので、event だけを見る。
     expect(dayBefore.state.earthquakes).toBe(reduceSeismicUnit(quiet, { kind: "deadline", clock: clock(Date.parse("2010-01-26T00:00:00+09:00")) }).state.earthquakes);
     expect(dayBefore.state.earthquakes).toEqual(quiet.earthquakes);
+    // P3-QC-AC08: 24 時間で期限切れの記憶になり（view から消え、通知しない）、さらに 6 時間で記憶ごと消える（P3-QC-T05 が境界を見る）。
     const gone = reduceSeismicUnit(quiet, { kind: "deadline", clock: clock(reported + 24 * HOUR) });
-    expect(gone.state.earthquakes).toEqual([]);
+    expect(gone.state.earthquakes.map((item) => item.contributions.map((entry) => entry.effective))).toEqual([["expired"]]);
     expect([gone.intents, gone.displayChanges.map((item) => item.after)]).toEqual([[], [null]]);
+    expect(reduceSeismicUnit(gone.state, { kind: "deadline", clock: clock(reported + 30 * HOUR) }).state.earthquakes).toEqual([]);
     const lg = send(emptyState(), "selected_xml/78_01_01_240613_VXSE62").state;
     const lgAt = Date.parse("2020-11-21T02:33:10+09:00");
-    expect(reduceSeismicUnit(lg, { kind: "deadline", clock: clock(lgAt + 36 * HOUR - 60_000) }).state.longPeriods).toHaveLength(1);
-    expect(reduceSeismicUnit(lg, { kind: "deadline", clock: clock(lgAt + 36 * HOUR) }).state.longPeriods).toEqual([]);
+    expect(reduceSeismicUnit(lg, { kind: "deadline", clock: clock(lgAt + 36 * HOUR - 60_000) }).state.longPeriods.map((item) => item.effective))
+      .toEqual(["active"]);
+    expect(reduceSeismicUnit(lg, { kind: "deadline", clock: clock(lgAt + 36 * HOUR) }).state.longPeriods.map((item) => item.effective))
+      .toEqual(["expired"]);
     // 到着の時点で期限を過ぎた報は採用して同じ reduce で回収する（view に載らず通知もしない）。当日履歴には入る。
     const overdue = send(emptyState(), "32-35_04_04_240613_VXSE53", undefined, reported + 25 * HOUR);
     expect(decision(overdue)).toMatchObject({ decision: "changed" });
@@ -921,15 +899,16 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
   const generation = (state: SeismicUnitState) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v4", unit: "U-Q", generation: 0,
     capturedAt: 0, payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + LOSS_TALLY_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
-  // 世代を器の上限 − slack にする。normal の受理は普通は退去で収まるので、退去の候補にならない記録だけで埋める: 事実が HOLD_FACTS_BYTES
-  // ちょうどの強震保持の event、取消記憶だけの記録（長周期は通知の印つき）と当日履歴（予約の内、crowd）、他の系統の pending（終端記録は
-  // P3-NL-AC05 で無くなった）。
+  // 世代を器の上限 − slack にする。normal の受理は普通は退去で収まるので、退去の候補にならない記録だけで埋める: 観測点を持たない守る地震
+  // （guard の on 1、P3-QC-D-SMALL-PUSH=B で守らない報のためには退去しない）、取消記憶だけの記録（長周期は通知の印つき）と当日履歴（予約の内、crowd）、
+  // 他の系統の pending（終端記録は P3-NL-AC05 で無くなった）。
   const pad = (now: number) => {
     const iso = new Date(now).toISOString();
     const source = (family: string, eventId: string, extra: Partial<EarthquakeContribution["source"]> = {}) => ({ inputId: "pad",
       origin: "replay" as const, operation: "normal" as const, family, subject: `normal/${family}/${eventId}`, reportDateTimeRaw: iso,
       controlDateTimeRaw: iso, serialRaw: "1", infoTypeRaw: "発表", ...extra });
     const hold = (headline: string): EarthquakeEvent => ({ eventId: "99990101000001", operation: "normal", retainUntil: now + 24 * HOUR,
+      guard: { from: now, on: 1 },
       strongHold: { originTimeRaw: iso, until: now + 12 * HOUR, establishedBy: { family: "VXSE53", reportDateTimeRaw: iso, serialRaw: "1",
         infoTypeRaw: "発表" } },
       contributions: [{ family: "VXSE52", source: source("VXSE52", "99990101000001"), effective: "active", targetDateTimeRaw: iso, title: "pad",
@@ -939,7 +918,9 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
       channel: "desktop", payload: { domain: "earthquake-eew", level: "normal", title: "pad", body }, createdAt: now, expiresAt: now + HOUR,
       nextAttemptAt: now, attempts: 0, configRevision: "test", disposition, lastAttempt: null, replayed: false, priorityGroup: "other" as const });
     const holdSize = (headline: string) => Buffer.byteLength(JSON.stringify(hold(headline)));
-    return { held: hold("x".repeat(HOLD_FACTS_BYTES - holdSize(""))), pending: intent("U-Q:pad:pending", "pending", "x".repeat(124_000)) };
+    // 大きさは K11 の前の強震保持の事実の予算（HOLD_FACTS_BYTES）に、器を広げた MEMORY_GROWTH を足したもの。
+    const size = 2_574_775 + HOLD_GROWTH + CONTRIBUTION_MARKS + MEMORY_GROWTH;
+    return { held: hold("x".repeat(size - holdSize(""))), pending: intent("U-Q:pad:pending", "pending", "x".repeat(124_000)) };
   };
   // 予約の側（取消記憶だけの event・長周期と training・test の当日履歴）は、読み戻しの上限（inputId 64 文字、P3-VM-AC08）の内の記録で埋め、
   // 最後に inputId を削って世代を max − slack ちょうどにする。件数は上限の内に収め、続く受信で件数の退去が起きないようにする。
@@ -985,7 +966,8 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
   const refused53 = () => {
     const adopted = receive(emptyState(), s52(), atOf(T52));
     expect(decision(adopted).decision).toBe("changed");
-    return { adopted: adopted.state, refused: receive(crowd(adopted.state, 20_000, Date.parse(T53)), s53(), atOf(T53)) };
+    // P3-QC-AC03: 守らない target は畳んでから入るかを見るので、slack は畳んだ VXSE53（約 15 KB）より小さくする。
+    return { adopted: adopted.state, refused: receive(crowd(adopted.state, 10_000, Date.parse(T53)), s53(), atOf(T53)) };
   };
 
   it("P3-CC-T13 acceptance / AC03・AC04・AC10: a VXSE53 refused by bytes marks its family, warns, and stamps the VXSE52 desktop title", () => {
@@ -1040,8 +1022,9 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     const { refused } = refused53();
     const base: SeismicUnitState = { ...refused.state, earthquakes: refused.state.earthquakes.filter((item) => item.eventId !== QUAKE) };
     // 長周期の critical（階級 4）の新しい報（F.s62 をこの地震へ移した境界入力）。見出しを伸ばして byte の上限で拒否させる。
+    // 階級 4 は守る報なので、発生時刻をこの地震（詰め物の守る地震より前）に移し、詰め物を第 6 段で消せないようにする（P3-QC-AC02 (1) の (6)）。
     const lg = () => decodeFixture(F.s62, (xml) => replaceTag("EventID", QUAKE)(xml)
-      .replace(/2026-07-28T16:37:00\+09:00/g, "2010-01-25T16:20:00+09:00")
+      .replace(/2026-07-28T16:37:00\+09:00/g, "2010-01-25T16:20:00+09:00").replace(/2026-07-28T16:27:00\+09:00/g, "2010-01-25T16:15:00+09:00")
       .replace(/<Headline>\s*<Text>/, `<Headline><Text>${"長".repeat(10_000)}`));
     const promoted = receive(base, lg(), atOf(T53, 60_000));
     expect(decision(promoted).decision).toBe("capacityExceeded");
@@ -1155,16 +1138,18 @@ function budgetState(now: number): SeismicUnitState {
     return { ...realEvent, eventId, strongHold: null, retainUntil: now + HOUR, contributions: realEvent.contributions.map((item) => ({ ...item,
       source: source("normal", item.family, eventId, "発表"), unconfirmed: source("normal", item.family, eventId, "訂正") })) };
   };
+  // training の記録は守りの欄を持たない（P3-QC-AC01 (5)）。normal の長周期は同じ EventID の event と同じ from を持つ。
+  const { guard: _guard, ...unguarded } = realLp;
   const lp = (index: number, memory: boolean): LongPeriodSubject => {
     const eventId = id40(memory ? "m" : "r", index), operation: Operation = memory ? "training" : "normal";
-    const base: LongPeriodSubject = { ...realLp, eventId, operation, subject: `${operation}/VXSE62/${eventId}`,
+    const base: LongPeriodSubject = { ...memory ? unguarded : realLp, eventId, operation, subject: `${operation}/VXSE62/${eventId}`,
       source: source(operation, "VXSE62", eventId, memory ? "取消" : "発表"), retainUntil: now + HOUR,
       ...memory ? {} : { unconfirmed: source(operation, "VXSE62", eventId, "訂正") } };
     return memory ? { ...base, effective: "cancelled", title: "", headline: null, hypocenter: null, intensity: null } : base;
   };
   const text = (length: number) => ({ kind: "text" as const, value: wide(length), raw: wide(length) });
   const history = (prefix: string): SeismicDailyHistory => ({ dayKey: new Date(now + 32_400_000).toISOString().slice(0, 10), count: 9_999,
-    maxInt: text(32), countedEventIds: Array.from({ length: 2048 }, (_, index) => id40(prefix, index)),
+    maxInt: text(32), counted: Array.from({ length: 2048 }, (_, index) => [id40(prefix, index), 9] as const),
     recent: Array.from({ length: 5 }, (_, index) => ({ eventId: id40(prefix, index), originTimeRaw: wide(40), reportDateTimeRaw: "2099-01-01T08:59:59+09:00",
       hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false })) });
   const intent = (index: number): SeismicIntent => {

@@ -10,6 +10,7 @@ import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { linkedUnitTable } from "../../src/runtime/composition-root";
 import { initialUnits } from "../../src/runtime/owner-runtime";
+import { seismicUnitCodec } from "../../src/units/seismic/seismic-unit";
 import { shiftTimestamps } from "../eew-e01/frames.mjs";
 import { envelope, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
@@ -77,6 +78,23 @@ describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
     expect(listOf(result, "losses")).toEqual([{ subject: "normal/VXSE52/20260701000000", unit: "U-Q", operation: "normal",
       atMs: base + 512 * 2_000, inputId: "input-513", reason: "seismicCapacityEvicted", deadlineMs: base + DAY, counted: true }]);
     expect(recordOf(recordOf(result["evictions"])["total"])["U-Q"]).toBe(1);
+  }, 180_000);
+
+  // P3-QC-T08（P3-UNIT-Q-CAPACITY-001 の AC12）: U-Q の byte の上限は codec の器。畳みの診断は時刻ごとの count で結果に残り、退去と欠けに入らない。
+  it("P3-QC-T08 contractBoundary / P3-QC-AC12: the U-Q byte limit is the codec's and folds are their own column", async () => {
+    const at = Date.parse("2026-07-01T00:00:00+09:00");
+    const unit = linkedUnitTable["U-Q"];
+    // 器を埋めずに畳みの step を作るため、受信の結果に診断だけを足す（道具の数え方の境界、P3-QC-AC12 (2)）。
+    const units: UnitTable = { ...linkedUnitTable, "U-Q": { ...unit, reduce: (state, input) => {
+      const step = unit.reduce(state, input);
+      return input.kind !== "receive" ? step : { ...step, diagnostics: [...step.diagnostics,
+        { level: "INFO" as const, component: "seismic", reason: "seismicStationsFolded" as const, unit: "U-Q" as const, count: 2 }] };
+    } } };
+    const { result } = await runStage1(ready("QC-T08", [frame(at, "VXSE53", variant("32-35_04_04_240613_VXSE53", at))], at + MINUTE, [], [at + 30_000]),
+      { units });
+    expect(limit(result, "U-Q.bytes")?.["limit"]).toBe(seismicUnitCodec.maxEnvelopeBytes);
+    expect([result["folds"], recordOf(recordOf(result["evictions"])["total"])["U-Q"], listOf(result, "losses")])
+      .toEqual([[{ atMs: at, count: 2 }], undefined, []]);
   }, 180_000);
 
   it("P3-DC-T02 acceptance / AC01・AC03・AC04: the small R2 runs 30 h, expires observations on the grid and seals the same body twice", async () => {

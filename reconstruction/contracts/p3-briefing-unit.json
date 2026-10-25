@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "36ef3a8699d92fe74310bd9819d64a660d92946a1978e4e381d066f335235517",
+    "sha256": "5a0bdb3d232d07bbe6b4f302e1a66b9bf3a141df240a6e0d927af72c6e6e82d0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -1076,8 +1076,8 @@
           "reconstruction/contracts/p2-snapshot-sse.types.ts:51 «45d531fd83f0c3c0»",
           "reconstruction/src/runtime/composition-root.ts:211 «9ed0037a4a82959a»",
           "src/engine/display/standby-persistence.ts:315 «ef0460f67661ea53»",
-          "reconstruction/src/view-projector/view-projector.ts:912 «0f29de6d3afeedc3»",
-          "reconstruction/src/view-projector/view-projector.ts:914 «c42a191089542248»"
+          "reconstruction/src/view-projector/view-projector.ts:913 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:915 «c42a191089542248»"
         ]
       },
       {

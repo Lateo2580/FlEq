@@ -14,7 +14,7 @@ const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGen
   savedAckAt: null, dirtySince: null };
 
 function emptyState(): SeismicUnitState {
-  return { schemaVersion: "p3-seismic-unit-v4", contentRevision: 0, earthquakes: [], longPeriods: [], daily: emptyDaily, intents: [],
+  return { schemaVersion: "p3-seismic-unit-v5", contentRevision: 0, earthquakes: [], longPeriods: [], daily: emptyDaily, intents: [],
     failureMarks: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {

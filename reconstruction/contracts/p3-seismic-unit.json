@@ -1,15 +1,15 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "daef45f5ca4bc4608e0865b3a62d5d0272a5b8802194dda9b459189eae27c961",
+    "sha256": "a64e5f17a8d531151d1597f93a0ce2878e21f11112c47a9a5dfce0b4726290d4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
         "id": "P3-C7-NOTICE-LEVELS",
-        "A": "旧築の式を保ち、段階はその報自身の震度で決める（level-helpers.ts:280〜:289・:314〜:322）。地震（VXSE51/52/53/61）: 取消はcancel、報の全体MaxIntがunknownならinfo、報の全体MaxIntのsafety rank（I-U-Q.intensityScale）が震度4以上ならwarning、それ以外（震度を持たないVXSE52/61を含む）はnormal。長周期（VXSE62）: 報の最大長周期地震動階級が3以上はcritical、1以上はwarning、それ以外（unknownを含む）はnormal、取消はcancel。通知の機会はQ-NOTICE.generationTableの4つ",
+        "A": "旧築の式を保ち、段階はその報自身の震度で決める（level-helpers.ts:280〜:289・:314〜:322）。地震（VXSE51/52/53/61）: 取消はcancel、報の全体MaxIntがunknownならinfo、報の全体MaxIntのsafety rank（I-U-Q.intensityScale）が震度4以上ならwarning、それ以外（震度を持たないVXSE52/61を含む）はnormal。長周期（VXSE62）: 報の最大長周期地震動階級が3以上はcritical、1以上はwarning、それ以外（unknownを含む）はnormal、取消はcancel。通知の機会はQ-NOTICE.generationTableの4つ（P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消→報自身の全体 MaxInt が 5 弱以上か全体 MaxLgInt の階級が 2 以上なら critical→全体 MaxInt が unknown なら info→震度 4 は warning。長周期は階級 2 以上 critical・1 warning。P3-QC-AC06）",
         "B": "地震の段階をeventが導いた震度（P3-C7-INTENSITY-CARRYで決まる全体MaxInt）で決める。式はAと同じで、入力が報自身の震度でなくeventの震度になる。長周期はAと同じ",
         "recommended": "A",
         "provisional": "A",
@@ -37,7 +37,7 @@
       },
       {
         "id": "P3-C7-CANCEL-SCOPE",
-        "A": "取消は報のfamilyの寄与だけをcancelled（事実を捨ててsourceだけ残す）にする。同じEventIDの他のfamilyの寄与・長周期subject・他のEventIDの強震保持は変えない。全寄与がcancelledになったeventはviewに載らない",
+        "A": "取消は報のfamilyの寄与だけをcancelled（事実を捨ててsourceだけ残す）にする。同じEventIDの他のfamilyの寄与・長周期subject・他のEventIDの強震保持は変えない。全寄与がcancelledになったeventはviewに載らない（P3-UNIT-Q-CAPACITY-001 で改訂: P3-QC-D-CANCEL-LIST の裁定、P3-QC-AC07 の (4)）",
         "B": "旧築どおり、どのfamilyの取消でもevent全体を取り消す",
         "recommended": "A",
         "provisional": "A",
@@ -64,7 +64,7 @@
       },
       {
         "id": "P3-C7-RETENTION",
-        "A": "eventはretainUntil=最新の採用報のReportDateTime+24時間で、到来したら寄与・保持・watermarkごと回収する（旧築の地震のwatermark 24時間、revision-family-registry.ts:155・:211）。長周期subjectは同じく+36時間（spec:571、revision-family-registry.ts:506）。強震保持はuntil=eventの発生時刻（I-U-Q.originTime）+12時間（quake-extreme-store.ts:34）。期限はすべて元報の絶対時刻から計算し、再起動・再受信で延ばさない。回収（記録と失敗の印）と強震保持の解除・当日の切替えは入力の根拠が verified のときだけ（P3-EF-AC04）",
+        "A": "eventはretainUntil=最新の採用報のReportDateTime+24時間で、到来したら寄与・保持・watermarkごと回収する（旧築の地震のwatermark 24時間、revision-family-registry.ts:155・:211）。長周期subjectは同じく+36時間（spec:571、revision-family-registry.ts:506）。強震保持はuntil=eventの発生時刻（I-U-Q.originTime）+12時間（quake-extreme-store.ts:34）。期限はすべて元報の絶対時刻から計算し、再起動・再受信で延ばさない。回収（記録と失敗の印）と強震保持の解除・当日の切替えは入力の根拠が verified のときだけ（P3-EF-AC04）（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）",
         "B": "旧築どおり受信時刻から数える",
         "recommended": "A",
         "provisional": "A",
@@ -73,7 +73,7 @@
       },
       {
         "id": "P3-C7-CAPACITY",
-        "A": "上限は4つ: event 512（三区分合算、spec:570）、長周期subject 256（spec:571）、通知pending 128件・128 KiB（spec:981）、4 MiB/世代（spec:475、予算はP3-C7-CAPACITY-BUDGET。K7の発注2aで5,270,185 byte、作者裁定2026-10-21昼・午後）。退去できない記録（取消記憶だけのevent・長周期subjectと当日履歴）は件数と文字列長の上限から最大1,357,385 byte（K7の発注2aで1,470,281）、intentは最大262,144 byte（I-U-Q.capacityReserve）。件数の超過（eventの513件目、長周期の257件目）とbyteの超過（4 MiB）では、eventの採用にも長周期の採用にも同じ手順を使う。候補は超過量を実際に減らすものに限り、件数の超過なら同じ種類（event／長周期）だけ、byteの超過ならeventと長周期の両方から、次の順に必要数だけ退去する: (1)retainUntilを過ぎたもの（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2)training/test (3)normalのうち強震保持の無いeventと、activeの長周期subjectを、最新の採用報が古い順に（eventと長周期を一つの順に並べる） (4)件数の超過では最古の取消記憶だけのevent・長周期subject (5)強震保持のあるeventの事実の合計が4 MiB−1,357,385−262,144＝2,574,775 byte（K7の発注2aで強震保持512件の全部の寄与の印の最悪の分954,368を足して3,529,143）を超えるときだけ、その超過分の強震保持のeventを古い順に。byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。候補が足りなければcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で確定し、確定した退去だけを診断seismicCapacityEvicted（count）で返す",
+        "A": "上限は4つ: event 512（三区分合算、spec:570）、長周期subject 256（spec:571）、通知pending 128件・128 KiB（spec:981）、4 MiB/世代（spec:475、予算はP3-C7-CAPACITY-BUDGET。K7の発注2aで5,270,185 byte、作者裁定2026-10-21昼・午後）。退去できない記録（取消記憶だけのevent・長周期subjectと当日履歴）は件数と文字列長の上限から最大1,357,385 byte（K7の発注2aで1,470,281）、intentは最大262,144 byte（I-U-Q.capacityReserve）。件数の超過（eventの513件目、長周期の257件目）とbyteの超過（4 MiB）では、eventの採用にも長周期の採用にも同じ手順を使う。候補は超過量を実際に減らすものに限り、件数の超過なら同じ種類（event／長周期）だけ、byteの超過ならeventと長周期の両方から、次の順に必要数だけ退去する: (1)retainUntilを過ぎたもの（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2)training/test (3)normalのうち強震保持の無いeventと、activeの長周期subjectを、最新の採用報が古い順に（eventと長周期を一つの順に並べる） (4)件数の超過では最古の取消記憶だけのevent・長周期subject (5)強震保持のあるeventの事実の合計が4 MiB−1,357,385−262,144＝2,574,775 byte（K7の発注2aで強震保持512件の全部の寄与の印の最悪の分954,368を足して3,529,143）を超えるときだけ、その超過分の強震保持のeventを古い順に。byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。候補が足りなければcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で確定し、確定した退去だけを診断seismicCapacityEvicted（count）で返す（P3-UNIT-Q-CAPACITY-001 で改訂: 退去と畳みの順は P3-QC-AC02、強震保持の事実の予算は守る線と guard〔P3-QC-AC01〕に置き換えて外した。器と RESERVE の値は P3-QC-AC05、保証は N_guard〔P3-QC-AC04〕）",
         "B": "上限で新しい地震を拒否する（capacityExceeded）",
         "recommended": "A",
         "provisional": "A",
@@ -82,7 +82,7 @@
       },
       {
         "id": "P3-C7-CAPACITY-BUDGET",
-        "A": "4 MiB（spec:475）のまま、U-Qの同時最大状態を「件数の上限512件のうち取消記憶だけのevent 505件（505×1,833＝925,665）＋最大の実例のevent 7件（7×321,803＝2,252,621）＋その7件それぞれの長周期subject（7×17,643＝123,501）＋取消記憶だけの長周期subject 249件（249×530＝131,970）＋当日履歴3 operationの上限（3×94,403＝283,209）＋intentの上限262,144 ＝ 3,979,110 byte（EventID 40 byteの最悪の値、Q-C7-IMPL-AMEND）」と定義し、これを通すことを検収する（spec:470）。退去は4 MiBを超えたときに始まる。最大の実例のeventなら8件目で超えうる（最悪の場合の下限。実際の地震の多くは中規模の約39 KBか小規模の約2 KBなので、もっと多く載る）。超えたらP3-C7-CAPACITYの手順で古い地震の事実から退去する〔K7 P3-VERSION-MATERIAL-001の発注2a（作者裁定2026-10-21昼・午後、Q-VM-IMPL-2A）: 器5,270,185 byte〔4 MiB＋同時最大状態のControl/DateTimeと印の分121,513＋強震保持512件の全部の寄与の印の最悪の分954,368〕、強震保持の事実の予算3,529,143、退去できない記録の上限1,470,281（ReportRefごとのControl/DateTime 49 byte）。取消記憶だけのeventは2,029、長周期は579 byte。退去は器を超えたときに始まる〕",
+        "A": "4 MiB（spec:475）のまま、U-Qの同時最大状態を「件数の上限512件のうち取消記憶だけのevent 505件（505×1,833＝925,665）＋最大の実例のevent 7件（7×321,803＝2,252,621）＋その7件それぞれの長周期subject（7×17,643＝123,501）＋取消記憶だけの長周期subject 249件（249×530＝131,970）＋当日履歴3 operationの上限（3×94,403＝283,209）＋intentの上限262,144 ＝ 3,979,110 byte（EventID 40 byteの最悪の値、Q-C7-IMPL-AMEND）」と定義し、これを通すことを検収する（spec:470）。退去は4 MiBを超えたときに始まる。最大の実例のeventなら8件目で超えうる（最悪の場合の下限。実際の地震の多くは中規模の約39 KBか小規模の約2 KBなので、もっと多く載る）。超えたらP3-C7-CAPACITYの手順で古い地震の事実から退去する〔K7 P3-VERSION-MATERIAL-001の発注2a（作者裁定2026-10-21昼・午後、Q-VM-IMPL-2A）: 器5,270,185 byte〔4 MiB＋同時最大状態のControl/DateTimeと印の分121,513＋強震保持512件の全部の寄与の印の最悪の分954,368〕、強震保持の事実の予算3,529,143、退去できない記録の上限1,470,281（ReportRefごとのControl/DateTime 49 byte）。取消記憶だけのeventは2,029、長周期は579 byte。退去は器を超えたときに始まる〕（P3-UNIT-Q-CAPACITY-001 で改訂: 退去と畳みの順は P3-QC-AC02、強震保持の事実の予算は守る線と guard〔P3-QC-AC01〕に置き換えて外した。器と RESERVE の値は P3-QC-AC05、保証は N_guard〔P3-QC-AC04〕）",
         "B": "4 MiBのまま、IntensityStation（震度観測点）を状態に持たない。最大の実例のVXSE53の寄与が311,264→99,686 byteになり、最大の実例のevent（VXSE51＋VXSE53＋VXSE61）が約109,700 byteで約21件載る。観測点ごとの震度は、受信後も表示に使えない",
         "C": "予算を16 MiB（U-Wと同じ）に上げる。最大の実例のeventが約46件載る。代償は、urgentでのcheckpoint encodeと保存の時間とPiの書込量（台帳70）が最大4倍になること。A10の参考測定で最大U-W（16 MiB級）のencode中にEEWが148ms待った（計画:64）のに対し、AC12の見直しの目安はMacで約40ms",
         "recommended": "A",
@@ -92,12 +92,12 @@
       },
       {
         "id": "P3-C7-DAILY",
-        "A": "当日地震履歴はoperationごとに1つ（SeismicDailyHistory）。日の基準はP3-C7-DAILY-BASIS=B（作者裁定 2026-10-09、旧築どおり）。dayKeyは受信時刻（採用したClockReading.wallTimeMs）のJST暦日。件数は全体の震度が既知の段階（I-U-Q.intensityScale。rangeは含めない、旧築daily-quake-counter.ts:57）の報を採用したeventを、発生日を問わずdayKeyの日に1件と数え、最大震度はそのrankの最大、取消で減らさない（旧築daily-quake-counter.ts:60〜:80）。recentは新しい順に最大5行（constants.ts:6）で、eventの発生日（I-U-Q.originTime、nullならその報のReportDateTime）がdayKeyと同じときだけ入れる（旧築daily-quake-counter.ts:85・:183〜:186）。23時59分発生・0時1分着の報は翌日（受信日）の件数と最大震度に入り、recentには入らない（件数とrecentの食い違いは旧築と同じ）。countedEventIdsは最大2048件。2048件を超えた日は、それ以後の新しいEventIDを集合に足さずに数える（同じEventIDの続報で数え直しうる）。recentの文字列は上限で切り詰める（SeismicRecentQuake の注記）。日付が変わる時刻（時計の次のJST 0時）をnextDeadlineに載せ、到来したら件数・最大震度・countedEventIds・recentを空の当日へ戻す。同じ報の読み直し: 旧築は版の比較を通った報だけを数えるので、同じ日のうちはcountedEventIdsで数え直さず、日を跨いで読み直した報が版の比較を通ると読み直した日の件数と最大震度に入り直し、recentには発生日が違うので入らない（再起動のrestoreは同じ日の保存だけを戻す、daily-quake-counter.ts:143〜:157）。新築も同じ向きで、再起動・replayで読み直した報はwatermark（P3-C7-RETENTIONのReportDateTime+24時間）の間はduplicate・staleになって当日履歴を変えず、watermarkの回収の後に読み直して採用された報（到着の時点で期限を過ぎ、同じreduceで回収される報を含む）は受信した日の件数と最大震度に入る。U-QはREST回復の対象外（P3-C7-N2）",
+        "A": "当日地震履歴はoperationごとに1つ（SeismicDailyHistory）。日の基準はP3-C7-DAILY-BASIS=B（作者裁定 2026-10-09、旧築どおり）。dayKeyは受信時刻（採用したClockReading.wallTimeMs）のJST暦日。件数は全体の震度が既知の段階（I-U-Q.intensityScale。rangeは含めない、旧築daily-quake-counter.ts:57）の報を採用したeventを、発生日を問わずdayKeyの日に1件と数え、最大震度はそのrankの最大、取消で減らさない（P3-UNIT-Q-CAPACITY-001 で改訂、H18: 全寄与が取消になった地震を件数から引く。最大震度は P3-QC-D-DAILY-MAX の裁定、P3-QC-AC07）（旧築daily-quake-counter.ts:60〜:80）。recentは新しい順に最大5行（constants.ts:6）で、eventの発生日（I-U-Q.originTime、nullならその報のReportDateTime）がdayKeyと同じときだけ入れる（旧築daily-quake-counter.ts:85・:183〜:186）。23時59分発生・0時1分着の報は翌日（受信日）の件数と最大震度に入り、recentには入らない（件数とrecentの食い違いは旧築と同じ）。countedEventIdsは最大2048件。2048件を超えた日は、それ以後の新しいEventIDを集合に足さずに数える（同じEventIDの続報で数え直しうる）。recentの文字列は上限で切り詰める（SeismicRecentQuake の注記）。日付が変わる時刻（時計の次のJST 0時）をnextDeadlineに載せ、到来したら件数・最大震度・countedEventIds・recentを空の当日へ戻す。同じ報の読み直し: 旧築は版の比較を通った報だけを数えるので、同じ日のうちはcountedEventIdsで数え直さず、日を跨いで読み直した報が版の比較を通ると読み直した日の件数と最大震度に入り直し、recentには発生日が違うので入らない（再起動のrestoreは同じ日の保存だけを戻す、daily-quake-counter.ts:143〜:157）。新築も同じ向きで、再起動・replayで読み直した報はwatermark（P3-C7-RETENTIONのReportDateTime+24時間）の間はduplicate・staleになって当日履歴を変えず、watermarkの回収の後に読み直して採用された報（到着の時点で期限を過ぎ、同じreduceで回収される報を含む）は受信した日の件数と最大震度に入る。U-QはREST回復の対象外（P3-C7-N2）",
         "B": "旧築どおりcountedEventIdsは上限なし、区分を混ぜる",
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が起草で確定（台帳60: 履歴の深さの上限と容量の上限を同じdecisionに束ねない）。日の基準はP3-C7-DAILY-BASIS=B（作者裁定 2026-10-09）",
-        "reason": "recentの5行とcountedEventIdsの2048件は深さの上限で、超えた分は決まった規則で落とし、capacityExceededにしない。2048の根拠: 24時間保持のevent上限512の4倍で、日の途中でeventが退去・期限切れになっても同じ日の数え直しを起こしにくくする幅。byteは1件43 byte（EventID 40文字＋引用符・区切り）×2048＝88,064 byte/operationで、I-U-Q.capacityReserveに入れた。旧築は上限なし"
+        "reason": "recentの5行とcountedEventIdsの2048件は深さの上限で、超えた分は決まった規則で落とし、capacityExceededにしない。2048の根拠: 24時間保持のevent上限512の4倍で、日の途中でeventが退去・期限切れになっても同じ日の数え直しを起こしにくくする幅。byteは1件43 byte（P3-QC-D-DAILY-MAX=A で [EventID, 段階] の組の 47 byte）（EventID 40文字＋引用符・区切り）×2048＝88,064 byte/operationで、I-U-Q.capacityReserveに入れた。旧築は上限なし"
       },
       {
         "id": "P3-C7-DAILY-BASIS",
@@ -110,7 +110,7 @@
       },
       {
         "id": "P3-C7-VALUE-UNKNOWN",
-        "A": "震度・長周期階級・規模・深さの値はP1のMaterialValue（震度・階級はSeismicIntensityValue）のまま保存し（書き換えない）、段階とsafety rankはI-U-Q.intensityScaleの表だけで決める。表に無い値は既知の段階として扱わない。報全体は拒否しない。拒否するのはQ-ENUM.familyTableの必須構造の欠落と、同じ階層の区域・観測点のcodeの重複だけ",
+        "A": "震度・長周期階級・規模・深さの値はP1のMaterialValue（震度・階級はSeismicIntensityValue）のまま保存し（書き換えない）、段階とsafety rankはI-U-Q.intensityScaleの表だけで決める。表に無い値は既知の段階として扱わない。報全体は拒否しない。拒否するのはQ-ENUM.familyTableの必須構造の欠落と、同じ階層の区域・観測点のcodeの重複だけ（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）",
         "B": "射影できない値を含む報をrequiredStructureInvalidで拒否する",
         "recommended": "A",
         "provisional": "A",
@@ -218,7 +218,7 @@
             "trainingTestChannels": []
           }
         ],
-        "level": "P3-C7-NOTICE-LEVELS=A（作者裁定 2026-10-09）: 地震はその報自身の全体MaxIntで決め（eventの事実では決めない）、取消cancel、全体MaxIntがunknown（P1のkind=unknown）ならinfo、I-U-Q.intensityScaleのsafety rankが震度4以上ならwarning、それ以外normal（震度の無い報、全体MaxIntのmissing・empty・表に無いtextを含む。旧築level-helpers.ts:282〜:288）。長周期は報自身の最大長周期地震動階級で決め、safety rank 3以上critical、1以上warning、それ以外（unknownを含む）normal、取消cancel。訂正は同じ式",
+        "level": "P3-C7-NOTICE-LEVELS=A（作者裁定 2026-10-09）: 地震はその報自身の全体MaxIntで決め（eventの事実では決めない）、取消cancel、全体MaxIntがunknown（P1のkind=unknown）ならinfo、I-U-Q.intensityScaleのsafety rankが震度4以上ならwarning、それ以外normal（震度の無い報、全体MaxIntのmissing・empty・表に無いtextを含む。旧築level-helpers.ts:282〜:288）。長周期は報自身の最大長周期地震動階級で決め、safety rank 3以上critical、1以上warning、それ以外（unknownを含む）normal、取消cancel。訂正は同じ式（P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消→報自身の全体 MaxInt が 5 弱以上か全体 MaxLgInt の階級が 2 以上なら critical→全体 MaxInt が unknown なら info→震度 4 は warning。長周期は階級 2 以上 critical・1 warning。P3-QC-AC06）",
         "overlap": "一つの採用報は各channel最大1 intent",
         "emergencyGroup": "U-Qのintentは全部A7の群other（P3-C7-NOTICE-GROUP=A）。criticalの長周期でもEEW・津波緊急を追い越さない",
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
@@ -235,15 +235,15 @@
         "status": "frozen（旧築の実コードから。作者へ出す見え方の根拠。挙動はコードを読んだ範囲で、旧築を実走して確かめてはいない）",
         "items": [
           "通知の機会: 旧築は受理した地震・長周期の報ごとにdesktop＋soundを出す（message-router.ts:521〜:529→notifier.ts:417・:511）。新築は公開事実の変わった採用・訂正・取消の前にactiveだったfamilyの取消だけ。事実の同じ新しい報（遅れて届いた古いVXSE51を含む）と、未受信・取消済みの事象の取消では鳴らさない（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
-          "段階: P3-C7-NOTICE-LEVELS=Aなら旧築と同じ式（level-helpers.ts:280〜:289・:314〜:322）。音源は旧築の5段階でなく、分野別根音表の地震・EEW（sound-design-system.md:46）",
+          "段階: P3-C7-NOTICE-LEVELS=Aなら旧築と同じ式（level-helpers.ts:280〜:289・:314〜:322）。音源は旧築の5段階でなく、分野別根音表の地震・EEW（sound-design-system.md:46）。P3-UNIT-Q-CAPACITY-001 で改訂（H08、Q-QC-LEGACY の (1)）: 旧築の地震の音は震度 4 以上で warning、critical は無い（level-helpers.ts:288）。新築は震度 5 弱以上と長周期階級 2 以上で critical",
           "優先: 旧築には優先群が無く、受理の順に鳴らす。新築のU-Qはotherの群で、EEWと津波緊急の後になる（P3-C7-NOTICE-GROUP）",
           "版の比較と取消の範囲（P3-C7-SUBJECT・P3-C7-CANCEL-SCOPE）: 旧築はVXSE51/52/53/61を一つのwatermarkで比べ（revision-family-registry.ts:205〜:213、includeType: false）、どのfamilyの取消もevent全体を取り消す。同じ16:31でSerialが片方だけ空（VXSE51は空、VXSE53は1）だと比べられず（telegram-revision-gate.ts:439でunordered。比較の入力はtelegram-meta.ts:254〜:258）、後から届いたVXSE53をinvalidRevisionで黙って捨てる（telegram-revision-gate.ts:829〜:841・:913、process-transient-foundation.ts:84。統合担当のレビューで確認）。新築はfamilyごとに比べるのでVXSE51とVXSE53は比べず、同じfamilyの中で片方だけSerialが空なら同じrevisionとして扱う",
           "1つのfamilyだけの取消（P3-C7-CANCEL-SCOPE）: expected:O01:53（16:36のVXSE53の取消）をVXSE51の寄与もあるevent（T02の実系列）に当てると、取消の後も同じEventIDのVXSE51の震度7と強震保持が残る。旧築はevent全体が消える",
           "震度の持ち越しと強震保持（P3-C7-INTENSITY-CARRY）: 旧築はVXSE53の後のVXSE52・VXSE61で最新地震の震度と震度7保持を外す（quake-observation-merge.ts:83・:85、quake-extreme-store.ts:309〜:319）。Aでは外さない。旧築はOriginTimeが変わると保持の残り時間を数え直し（quake-extreme-store.ts:325・:368〜:387）、保持を市町村込みの最大や上端のあるrangeからも作る（project-event.ts:388〜:407）。新築は全体MaxIntが既知の段階の7のときだけ作り、untilは発生時刻（I-U-Q.originTime）が変わったときだけ計算し直す",
           "強震保持の始まり: 新築はVXSE51（発生時刻はHead/TargetDateTimeの16:27）の16:28の採用で強震保持を作る。旧築はOriginTimeが無いと保持を作らず（quake-extreme-store.ts:350、from-earthquake.ts:237）、VXSE53が届いてから始まる（corpusの例では16:31のVXSE53が捨てられるので16:35）",
-          "保持の基準（P3-C7-RETENTION）: 旧築の地震のwatermarkは受理時刻から24時間、長周期は受理時刻から36時間（revision-family-registry.ts:155・:211・:506）、震度7保持はOriginTimeから12時間。新築は元報の時刻（ReportDateTime・発生時刻）から",
-          "当日地震履歴（P3-C7-DAILY・P3-C7-DAILY-BASIS=B）: 日の基準は旧築と同じで、件数・最大震度は受信時刻の日、recentは発生時刻の日（daily-quake-counter.ts:55〜:105・:183〜:186）。件数を全体MaxIntが既知の段階のときだけ数えるのも旧築（同:57）と同じ。旧築との差は、operationごとの履歴（旧築は訓練・試験も同じ履歴）とcountedEventIdsの2048件の上限（旧築は上限なし）だけ。同じ報を読み直したときの振る舞いはP3-C7-DAILYの末尾（旧築と同じ向き）",
-          "容量（P3-C7-CAPACITY）: 旧築は512件で最古のactiveのwatermarkを退去し取消記憶を守る（telegram-revision-gate.ts:1384）。新築も同じ順に加え、4 MiBのbyte上限、取消記憶の予約、強震保持の生きているeventの保護、training/testを先に退去",
+          "保持の基準（P3-C7-RETENTION）: 旧築の地震のwatermarkは受理時刻から24時間、長周期は受理時刻から36時間（revision-family-registry.ts:155・:211・:506）、震度7保持はOriginTimeから12時間。新築は元報の時刻（ReportDateTime・発生時刻）から。P3-UNIT-Q-CAPACITY-001 で改訂（H23、Q-QC-LEGACY の (4)）: 旧築は watermark の後の記憶が無い。新築は最後の報から 24 時間で期限切れの記憶にし、6 時間残す",
+          "当日地震履歴（P3-C7-DAILY・P3-C7-DAILY-BASIS=B）: 日の基準は旧築と同じで、件数・最大震度は受信時刻の日、recentは発生時刻の日（daily-quake-counter.ts:55〜:105・:183〜:186）。件数を全体MaxIntが既知の段階のときだけ数えるのも旧築（同:57）と同じ。旧築との差は、operationごとの履歴（旧築は訓練・試験も同じ履歴）とcountedEventIdsの2048件の上限（旧築は上限なし）だけ。同じ報を読み直したときの振る舞いはP3-C7-DAILYの末尾（旧築と同じ向き）。P3-UNIT-Q-CAPACITY-001 で改訂（H18、Q-QC-LEGACY の (2)）: 旧築は取消を数えず、数えた件数を取消で減らさない（daily-quake-counter.ts:60）。新築は取消で件数を減らし、最大震度も数え直す（P3-QC-D-DAILY-MAX=A）",
+          "容量（P3-C7-CAPACITY）: 旧築は512件で最古のactiveのwatermarkを退去し取消記憶を守る（telegram-revision-gate.ts:1384）。新築も同じ順に加え、4 MiBのbyte上限、取消記憶の予約、強震保持の生きているeventの保護、training/testを先に退去。P3-UNIT-Q-CAPACITY-001 で改訂（Q-QC-LEGACY の (3)）: 旧築は byte の上限も観測点の畳みも無い。新築は器（byte）の超過で観測点を畳み、守る線の地震を最後まで残す",
           "訓練: 旧築は既定で訓練報が届かず、届けば通常と同じdesktop＋sound。新築も本番では届かず、届けばdesktopだけ（P3-C7-TRAINING）",
           "VXSE47: 旧築に処理が無く購読もしていない。新築もnotPorted（P3-C7-VXSE47）",
           "長周期の段階と本文: 旧築の長周期はunknownでnormal（level-helpers.ts:314〜:322）、部品が無ければ本文がTitleに落ちる（notifier.ts:511〜:533）。新築も同じ（unknownがinfoになるのは地震だけ）",
@@ -253,25 +253,25 @@
       {
         "id": "Q-ENUM",
         "status": "frozen",
-        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性→Serial妥当性（存在するときだけ）→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはearthquakes・longPeriods・daily・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す",
+        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性→Serial妥当性（存在するときだけ）→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはearthquakes・longPeriods・daily・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）",
         "identity": "EventIDは前後の空白を除いて空ならidentityMissing。印字可能なASCII（0x21〜0x7E）以外か「/」「\"」「\\」を含む、または40 byteを超えるならidentityInvalid（subjectの区切りを壊さず、取消記憶のbyteの上限を件数から決めるため。「\"」「\\」はJSONのエスケープでbyteが増えるので除く。40 byteはQ-C7-IMPL-AMEND(2)、文字の除外は同(4)。expected:O02:27のsynthetic-phase4a-vxse53とexpected:O02:38のP0-ZEROのように14桁でないEventIDも合法）。Serialは全familyで空を合法とし（旧築allowMissingSerial）、あれば10桁以下の正整数でなければidentityInvalid",
         "familyTable": [
           {
             "family": "VXSE51",
             "legalMissing": "取消はBodyがTextだけでよい（32-35_10_01）。Body/Earthquakeは無く、発生時刻はHead/TargetDateTime（I-U-Q.originTime）。Pref・AreaのCodeは欠落してよい（名前で表示し鍵にしない）",
-            "required": "非取消ではBody/Intensity/Observationがあり、Pref・AreaごとにName",
+            "required": "非取消ではBody/Intensity/Observationがあり、Pref・AreaごとにName（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）",
             "invalid": "同じ階層の区域codeが報の中で重複する"
           },
           {
             "family": "VXSE52",
             "legalMissing": "取消はBodyがTextだけでよい（32-35_06_02）。Coordinateの深さは欠落してよい（missing、0にしない）。MagnitudeのNaNはunknown（33_12_01、synthetic_phase5a_magnitude_unknown）",
-            "required": "非取消ではBody/EarthquakeにOriginTime、Hypocenter/Area/Name、Magnitude",
+            "required": "非取消ではBody/EarthquakeにOriginTime、Hypocenter/Area/Name、Magnitude（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）",
             "invalid": "なし（座標・深さ・規模の値は射影できなければunknown、P3-C7-VALUE-UNKNOWN）。深さの数値とdescriptionの範囲の食い違いは数値を採りdepthConflict=true（synthetic_phase5a_depth_range_conflict、旧築と同じ）"
           },
           {
             "family": "VXSE53",
             "legalMissing": "VXSE52と同じ。Body/Intensityは無くてよい（遠地地震、32-35_01_03_100514）。Body/Commentsは無くてよい（津波の有無はnullで、「なし」にしない）。CityのMaxIntが無くConditionだけ「震度５弱以上未入電」の市町村（bf35e8ea1825の嘉島町）は合法で、I-U-Q.intensityScaleの規則でmaxIntをrange（lower 5、5弱以上）に畳む。非取消でもBody/Earthquakeは無くてよい（synthetic_phase4a_VXSE53_special。expected:O02:27がこの報の採用を固定している）。そのとき震源・規模はnullで、発生時刻はI-U-Q.originTimeの規則で決める",
-            "required": "非取消ではBody/EarthquakeかBody/Intensityの少なくとも一方。Body/EarthquakeがあればVXSE52の必須構造。Intensityがあれば Observation と Pref・Area・City・IntensityStationごとにName",
+            "required": "非取消ではBody/EarthquakeかBody/Intensityの少なくとも一方。Body/EarthquakeがあればVXSE52の必須構造。Intensityがあれば Observation と Pref・Area・City・IntensityStationごとにName（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）",
             "invalid": "同じ階層の区域・観測点のcodeが報の中で重複する"
           },
           {
@@ -300,14 +300,14 @@
         "longPeriodSemantics": "VXSE62は報ごとにsubjectの事実を置き換える。長周期地震動階級は震度と別の値で、震度のrankと比べ・混ぜない（spec:392の非対象）。同じEventIDのeventとはviewで関連付けるだけで、互いの寄与・取消・期限を変えない",
         "strongHold": "eventが導いた全体MaxIntが既知の段階の7（rank 9、I-U-Q.intensityScale）になった採用で作り、until=その時点のeventの発生時刻（I-U-Q.originTime）+12時間。発生時刻がnullのeventでは作らない（旧築もOriginTimeが無いと作らない、quake-extreme-store.ts:350）。外れるのは、untilの到来、eventが導いた全体MaxIntが既知の段階で7未満になったとき、震度を持つactiveの寄与が無くなったとき（取消）、の3つだけ。eventが導く震度は最も新しい寄与から決まるので、遅れて届いた古い報では外れない。rangeのlower・unknown・empty・表に無い値では外れない（expected:O07:5）。新しい報で延長しない。発生時刻が変わったとき（VXSE61の訂正など）だけuntilを計算し直す",
         "daily": "P3-C7-DAILY=A",
-        "deadlines": "nextDeadlineは、eventと長周期subjectのretainUntil、強震保持のuntil、当日履歴のあるoperationの次のJST 0時、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（event 512・長周期256の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
-        "persisted": "PersistedSeismicUnitはschemaVersion p3-seismic-unit-v4（P3-NOTICE-LEDGER-001で上げた版、P3-NL-AC15の(1)。前の版は捨ててよい版）、earthquakes、longPeriods、daily、intents（pendingだけ、P3-NL-AC05）、failureMarks（失敗の印、P3-NL-AC02の(6)）。系列の記録は印notice?を持つ（P3-NL-AC02）。contentRevision・persistenceは保存しない",
-        "decode": "codecは一つ（seismicUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、event≤512、長周期subject≤256、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、EventIDが印字可能なASCII（「/」「\"」「\\」を除く）で40 byte以下、ReportRefのSerialが空か10桁以下の正整数・ReportDateTimeが25文字以下・InfoTypeが発表・訂正・取消のいずれか（どれもtrim済みの値）、eventのoperation・EventIDの重複なし、eventの寄与のfamilyの重複なし、cancelledの寄与とcancelledの長周期subjectは事実を持たずtitleが空文字、長周期subjectの重複なし、取消記憶だけのeventと長周期subjectと当日履歴の合計がI-U-Q.capacityReserveの上限以内、strongHoldのuntilがstrongHold.originTimeRaw+12時間と一致、当日履歴のrecent≤5で各行の文字列が上限以内・countedEventIds≤2048・countedEventIdsの重複なし、intentのunitがU-QでsubjectがU-Qのfamily subjectの形であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）",
-        "view": "SeismicUnitViewはactiveの寄与を持つeventとactiveの長周期subjectだけを載せ、当日履歴を載せる。EarthquakeEventViewのintensity.itemsはIntensityStation（観測点）を含まない（都道府県・細分区域・市町村は載せる）。観測点の全件はstateの寄与とcheckpointに残し、事実の変化・強震保持・当日履歴は観測点を含む事実で決める（Q-C7-IMPL-AMEND）。SubjectOutcomeはfamilyのsubjectごとに作り、factsにeventの公開事実（EarthquakeEventView。subjectはeventの鍵`${operation}/earthquake/${eventId}`）と、変わったfield（hypocenter・intensity・tsunamiComment・strongHold）を載せる。RuntimeDisplaySubjectにunit U-Qの行（current: EarthquakeEventView | LongPeriodSubject | null。subjectはeventの鍵か長周期のsubject）を足す。津波の有無はtsunamiCommentFamilyとともに載せ、VXSE51由来を評価と読ませない。unavailable・未保存・再起動の空を「地震なし」に読み替えない",
+        "deadlines": "nextDeadlineは、eventと長周期subjectのretainUntil、強震保持のuntil、当日履歴のあるoperationの次のJST 0時、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（event 512・長周期256の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）",
+        "persisted": "PersistedSeismicUnitはschemaVersion p3-seismic-unit-v5（P3-UNIT-Q-CAPACITY-001で上げた版、P3-QC-AC10の(1)。前の版は捨ててよい版）、earthquakes、longPeriods、daily、intents（pendingだけ、P3-NL-AC05）、failureMarks（失敗の印、P3-NL-AC02の(6)）。記録は guard（normal だけ）と folded（観測点を畳んだ記録だけ）、event は cancelledSummary（取消記憶だけの event）、当日履歴は countedEventIds に替えて counted（[EventID, 段階] の組）を持つ（P3-UNIT-Q-CAPACITY-001 の P3-QC-AC10）。系列の記録は印notice?を持つ（P3-NL-AC02）。contentRevision・persistenceは保存しない",
+        "decode": "codecは一つ（seismicUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、event≤512、長周期subject≤256、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、EventIDが印字可能なASCII（「/」「\"」「\\」を除く）で40 byte以下、ReportRefのSerialが空か10桁以下の正整数・ReportDateTimeが25文字以下・InfoTypeが発表・訂正・取消のいずれか（どれもtrim済みの値）、eventのoperation・EventIDの重複なし、eventの寄与のfamilyの重複なし、cancelledの寄与とcancelledの長周期subjectは事実を持たずtitleが空文字、長周期subjectの重複なし、取消記憶だけのeventと長周期subjectと当日履歴の合計がI-U-Q.capacityReserveの上限以内、strongHoldのuntilがstrongHold.originTimeRaw+12時間と一致、当日履歴のrecent≤5で各行の文字列が上限以内・countedEventIds≤2048・countedEventIdsの重複なし、intentのunitがU-QでsubjectがU-Qのfamily subjectの形であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）（P3-UNIT-Q-CAPACITY-001 で改訂: 版 v5。effective は active・cancelled・expired〔expired は cancelled と同じく事実を持たず title が空文字〕、folded・guard・cancelledSummary・counted の形と上限を確かめ、countedEventIds の検査は counted に替えた、P3-QC-AC10 の (2)）",
+        "view": "SeismicUnitViewはactiveの寄与を持つeventとactiveの長周期subjectだけを載せ（P3-UNIT-Q-CAPACITY-001 で改訂: P3-QC-D-CANCEL-LIST の裁定、P3-QC-AC07 の (4)。取消記憶だけの event は cancelledSummary を付けて載せ、active に数えない）、当日履歴を載せる。EarthquakeEventViewのintensity.itemsはIntensityStation（観測点）を含まない（都道府県・細分区域・市町村は載せる）。観測点の全件はstateの寄与とcheckpointに残し、事実の変化・強震保持・当日履歴は観測点を含む事実で決める（Q-C7-IMPL-AMEND）。SubjectOutcomeはfamilyのsubjectごとに作り、factsにeventの公開事実（EarthquakeEventView。subjectはeventの鍵`${operation}/earthquake/${eventId}`）と、変わったfield（hypocenter・intensity・tsunamiComment・strongHold）を載せる。RuntimeDisplaySubjectにunit U-Qの行（current: EarthquakeEventView | LongPeriodSubject | null。subjectはeventの鍵か長周期のsubject）を足す。津波の有無はtsunamiCommentFamilyとともに載せ、VXSE51由来を評価と読ませない。unavailable・未保存・再起動の空を「地震なし」に読み替えない",
         "confirmationScope": "U-Qは確認scopeを作らない（P3-C7-N2）。shared-runtime.tsのaddedScopesにU-Qで空を返す分岐を足す。confirmationScopeLimitは512（eventの上限と同じ。使われない）",
         "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-Q、executionPlacesにU-Q=urgent（P3-C7-PLACE）、coverage表のVXSE51/52/53/61/62をready＋U-Q、VXSE47はnotPortedのまま理由を替える（P3-C7-VXSE47）。UnitModule<「U-Q」>はpersistence durable、terminalIntents kind intents（P3-NOTICE-LEDGER-001でUnitModuleから消した、P3-NL-AC05の(3)）、reclaimDeadlineBeforeReceive true",
-        "computation": "容量はevent・寄与・長周期subject・intentごとのencode byteをWeakMapでその値に結び付けて加算する（weather-timeseries-unit.ts・weather-current-unit.ts・tsunami-unit.tsの先例）。eventの検索は受信1回につきoperation・EventID→eventのMapを1回作るか配列に結び付けたcacheで引き、素朴なfindを入れ子にしない。公開事実の導出は対象eventの寄与（最大4件）だけを見る。当日履歴のcountedEventIdsはSetを配列に結び付けたcacheで引く。nextDeadlineの最小値もsubject配列に結び付けたcacheで持つ。受信1回でstate全体・intent全体を直列化しない",
-        "capacityReserve": "台帳41の読み替え: U-Qは拒否・診断をstateに保存しない（診断はstepの出力、admissionの記録はruntime）ので予約の対象が無く、取消記憶の予約に読み替えた。退去できない記録の上限は件数と文字列長の上限から決まる式で、512×1,833（取消記憶だけのevent: 4 familyのcancelledの寄与、EventID 40 byte・Serial 10桁・inputIdはhost.tsのinput-N形式22文字・ReportDateTime 25文字・operation=training）＋256×530（取消記憶だけの長周期subject）＋3×94,403（当日履歴: countedEventIds 2048×43＋recent 5×1,206＋309。recentの1行の1,206 byteはSeismicRecentQuakeの文字列の上限をJSONで1文字3 byteの文字で埋め、ReportDateTimeを25文字にした値）＝938,496＋135,680＋283,209＝1,357,385 byte（C7実装の実測。JSONに書いた後のbyteで、エスケープを含む最悪の値。EventIDは「\"」「\\」を含まず、Serialはtrimした値（validSerialで10桁以内）を保存し、ReportDateTimeは25文字を超えれば拒否するので1文字1 byte。fitは予約を超える採用をcapacityExceededにし、decodeと同じ境界を守る。Q-C7-IMPL-AMEND）。intentの上限は262,144 byte＝pending 131,072（spec:981）＋終端記録131,072（終端記録はexpiresAtの最大180秒まで残る。180秒に両channelで128件、1件1,024 byte以下の見積りで、超える分はQ-NOTICE.capacityのとおり最古の終端記録から期限前に回収する）。超えることは件数・文字列長の上限と回収の規則から起きず、decodeで超えた保存物はunavailable。事実を持つ寄与・subjectは残りの2,574,775 byte以上を使い、P3-C7-CAPACITYの手順で事実の側から退去する。K7の発注2aの後（作者裁定2026-10-21午後、Q-VM-IMPL-2A）: ReportRef（512×4＋256件）ごとのControl/DateTime 49 byteを足して退去できない記録の上限は1,470,281（512×2,029＋256×579＋283,209）、強震保持の事実の予算は2,574,775＋954,368（強震保持512件の全部の寄与の印の最悪の分）＝3,529,143（P3-NOTICE-LEDGER-001で改訂: 終端記録の予算131,072を外し、intentの上限はpending 131,072だけになった〔P3-NL-AC05〕。退去できない記録の上限は寄与と長周期の印〔2,304×102＝235,008〕を足して1,705,289〔RESERVE_BYTES〕、強震保持の事実の予算は寄与の印〔2,048×102＝208,896〕を足して3,738,039〔HOLD_FACTS_BYTES〕、器は失敗の印233を足して5,374,354〔P3-C7-RES-01、P3-NL-D-CAPACITY=A〕）",
+        "computation": "容量はevent・寄与・長周期subject・intentごとのencode byteをWeakMapでその値に結び付けて加算する（weather-timeseries-unit.ts・weather-current-unit.ts・tsunami-unit.tsの先例）。eventの検索は受信1回につきoperation・EventID→eventのMapを1回作るか配列に結び付けたcacheで引き、素朴なfindを入れ子にしない。公開事実の導出は対象eventの寄与（最大4件）だけを見る。当日履歴のcountedEventIdsはSetを配列に結び付けたcacheで引く。nextDeadlineの最小値もsubject配列に結び付けたcacheで持つ。受信1回でstate全体・intent全体を直列化しない（P3-UNIT-Q-CAPACITY-001 で改訂: 観測点の畳みは記録の byte の加算値から外した観測点の分を引いて数え、印 folded は外した要素の列の JSON の sha256 の先頭 16 桁、P3-QC-AC03）",
+        "capacityReserve": "台帳41の読み替え: U-Qは拒否・診断をstateに保存しない（診断はstepの出力、admissionの記録はruntime）ので予約の対象が無く、取消記憶の予約に読み替えた。退去できない記録の上限は件数と文字列長の上限から決まる式で、512×1,833（取消記憶だけのevent: 4 familyのcancelledの寄与、EventID 40 byte・Serial 10桁・inputIdはhost.tsのinput-N形式22文字・ReportDateTime 25文字・operation=training）＋256×530（取消記憶だけの長周期subject）＋3×94,403（当日履歴: countedEventIds 2048×43＋recent 5×1,206＋309。recentの1行の1,206 byteはSeismicRecentQuakeの文字列の上限をJSONで1文字3 byteの文字で埋め、ReportDateTimeを25文字にした値）＝938,496＋135,680＋283,209＝1,357,385 byte（C7実装の実測。JSONに書いた後のbyteで、エスケープを含む最悪の値。EventIDは「\"」「\\」を含まず、Serialはtrimした値（validSerialで10桁以内）を保存し、ReportDateTimeは25文字を超えれば拒否するので1文字1 byte。fitは予約を超える採用をcapacityExceededにし、decodeと同じ境界を守る。Q-C7-IMPL-AMEND）。intentの上限は262,144 byte＝pending 131,072（spec:981）＋終端記録131,072（終端記録はexpiresAtの最大180秒まで残る。180秒に両channelで128件、1件1,024 byte以下の見積りで、超える分はQ-NOTICE.capacityのとおり最古の終端記録から期限前に回収する）。超えることは件数・文字列長の上限と回収の規則から起きず、decodeで超えた保存物はunavailable。事実を持つ寄与・subjectは残りの2,574,775 byte以上を使い、P3-C7-CAPACITYの手順で事実の側から退去する。K7の発注2aの後（作者裁定2026-10-21午後、Q-VM-IMPL-2A）: ReportRef（512×4＋256件）ごとのControl/DateTime 49 byteを足して退去できない記録の上限は1,470,281（512×2,029＋256×579＋283,209）、強震保持の事実の予算は2,574,775＋954,368（強震保持512件の全部の寄与の印の最悪の分）＝3,529,143（P3-NOTICE-LEDGER-001で改訂: 終端記録の予算131,072を外し、intentの上限はpending 131,072だけになった〔P3-NL-AC05〕。退去できない記録の上限は寄与と長周期の印〔2,304×102＝235,008〕を足して1,705,289〔RESERVE_BYTES〕、強震保持の事実の予算は寄与の印〔2,048×102＝208,896〕を足して3,738,039〔HOLD_FACTS_BYTES〕、器は失敗の印233を足して5,374,354〔P3-C7-RES-01、P3-NL-D-CAPACITY=A〕）（P3-UNIT-Q-CAPACITY-001 で改訂、P3-QC-AC05: 退去できない記録の上限に cancelledSummary 512×372＝190,464・counted の組の増え 4×3×2,048＝24,576・記憶の guard 768×50＝38,400 を足して RESERVE_BYTES 1,958,729、器は同じ分を足して 5,627,794〔P3-C7-RES-01〕。HOLD_FACTS_BYTES は守る線に置き換えて外した。値は実装の上界の試験で見積もりどおり、Q-QC-IMPL-1）",
         "capacityMeasurement": "測り方（2026-10-08、Mac、起草時の測定スクリプトはrepo外）: 2d1696daをtscでbuildしたreconstruction/distのingestXmlData→decodeMaterial→classifyMaterialでfixtureを読み、types.tsのEarthquakeContributionの形（Pref/Area/City/IntensityStationをitemsに一列、値はP1のMaterialValue、sourceのinputIdは36文字、緯度・経度・深さはnumberで近似）に組み、JSON.stringifyのUTF-8 byteを数えた。結果: VXSE53 bf35e8ea1825は311,264 byte（観測点なし99,686、市町村・観測点なし15,769）、VXSE53 99e82c812e72は254,908、VXSE51 059a2b392646は8,967、VXSE61 d7e630bbb653は1,091、VXSE62 f9786edc27dfは17,553、中規模のVXSE53 32-35_04_04は38,046、小さいVXSE51・VXSE52・VXSE53は約1,000。最大の実例のevent（VXSE51＋VXSE53＋VXSE61）は321,322 byte。実装後に同じfixtureで実際のencode byteを測り直し、この値と10%以上違えばP3-C7-CAPACITY-BUDGETの数を直して報告する。C7実装の実測（inputId 22文字）: VXSE53 bf35e8ea1825の寄与は311,496 byte、最大の実例のeventは321,856 byte（契約の値と1%以内、Q-C7-IMPL-AMEND）"
       },
       {
@@ -628,7 +628,7 @@
         "target": "earthquake event (contributions, watermarks and strong hold)",
         "limit": 24,
         "unit": "hours from the latest adopted ReportDateTime",
-        "rule": "P3-C7-RETENTION=A。到来で回収し、通知しない",
+        "rule": "P3-C7-RETENTION=A。到来で回収し、通知しない（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）",
         "source": "旧築revision-family-registry.ts:155・:211"
       },
       {
@@ -636,7 +636,7 @@
         "target": "long-period subject (VXSE62)",
         "limit": 36,
         "unit": "hours from the latest adopted ReportDateTime",
-        "rule": "P3-C7-RETENTION=A",
+        "rule": "P3-C7-RETENTION=A（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）",
         "source": "spec:571"
       },
       {
@@ -679,7 +679,7 @@
         "target": "earthquake events (active and cancelled watermarks)",
         "limit": 512,
         "unit": "events, normal/training/test combined",
-        "source": "spec:570、P3-C7-CAPACITY"
+        "source": "spec:570、P3-C7-CAPACITY（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）"
       },
       {
         "id": "P3-C7-RET-02",
@@ -697,7 +697,7 @@
       },
       {
         "id": "P3-C7-RET-04",
-        "target": "daily history counted EventIDs",
+        "target": "daily history counted EventIDs（[EventID, 段階] の組、P3-QC-D-DAILY-MAX=A）",
         "limit": 2048,
         "unit": "EventIDs per operation",
         "source": "P3-C7-DAILY（無いと当日の集合が上限なく積み上がる。旧築は上限なし）"
@@ -719,10 +719,10 @@
       {
         "id": "P3-C7-RES-01",
         "target": "U-Q encoded generation",
-        "limit": 5374354,
+        "limit": 5627794,
         "unit": "UTF-8 bytes",
         "scope": "earthquakes, longPeriods, daily and intents; counted as a sum of per-event, per-subject and per-intent encodings. Watermark-only records and daily history are bounded by count and string length to 1,357,385 bytes (1,470,281 after K7 order 2a, 1,705,289 after P3-NOTICE-LEDGER-001 with the contribution and long-period notice marks) and intents to 262,144 bytes (131,072 after P3-NOTICE-LEDGER-001: pending only, the terminal budget was removed, P3-NL-AC05) (I-U-Q.capacityReserve, ledger 41)",
-        "source": "spec:475。K7の発注2aで4 MiB＋121,513＋954,368に広げた（作者裁定2026-10-21昼・午後、Q-VM-IMPL-2A）。K8で印（2,304×102）と失敗の印（233）を足し、終端の予算131,072を引いた（P3-NL-D-CAPACITY=A、作者裁定2026-10-22、P3-NOTICE-LEDGER-001）"
+        "source": "spec:475。K7の発注2aで4 MiB＋121,513＋954,368に広げた（作者裁定2026-10-21昼・午後、Q-VM-IMPL-2A）。K8で印（2,304×102）と失敗の印（233）を足し、終端の予算131,072を引いた（P3-NL-D-CAPACITY=A、作者裁定2026-10-22、P3-NOTICE-LEDGER-001）。P3-UNIT-Q-CAPACITY-001で退去できない記録の増え253,440（cancelledSummary・counted・記憶のguard）を足した（P3-QC-AC05、Q-QC-DECIDED の (1)）"
       },
       {
         "id": "P3-C7-RES-02",
@@ -737,9 +737,9 @@
       "U-Q"
     ],
     "persistedFields": [
-      "event: eventId・operation・contributions（familyごとにsource・effective・targetDateTimeRaw・title・headline・hypocenter・intensity・tsunamiComment。cancelledはsourceだけで、titleは空文字）・strongHold・retainUntil",
-      "長周期subject: subject・eventId・operation・source・effective・title・headline・hypocenter・intensity（activeだけ）・retainUntil",
-      "当日履歴（operationごと）: dayKey・count・maxInt・countedEventIds・recent",
+      "event: eventId・operation・contributions（familyごとにsource・effective・targetDateTimeRaw・title・headline・hypocenter・intensity・tsunamiComment。cancelled・expiredはsourceだけで、titleは空文字。foldedは畳んだ寄与だけ）・strongHold・retainUntil・guard（normalだけ）・cancelledSummary（取消記憶だけのevent）（P3-UNIT-Q-CAPACITY-001、P3-QC-AC10）",
+      "長周期subject: subject・eventId・operation・source・effective・title・headline・hypocenter・intensity（activeだけ）・retainUntil・folded・guard（P3-UNIT-Q-CAPACITY-001、P3-QC-AC10）",
+      "当日履歴（operationごと）: dayKey・count・maxInt・counted（[EventID, 段階] の組、P3-UNIT-Q-CAPACITY-001 の P3-QC-D-DAILY-MAX=A）・recent",
       "intent: pendingの全fieldと元のcreatedAt/expiresAt、系列の印（P3-NL-AC02。終端のintentは残さない、P3-NOTICE-LEDGER-001）"
     ],
     "nonPersistedFields": [
@@ -796,7 +796,7 @@
       },
       {
         "id": "P3-C7-AC04",
-        "requirement": "強震保持と当日履歴: I-U-Q.strongHold（P3-C7-INTENSITY-CARRY=A。eventが導いた震度が7未満になったとき・震度を持つactiveの寄与が無くなったとき・untilの到来だけで外れ、VXSE52/61・遅れて届いた古い報・unknownの続報では外れず、untilを延ばさない）と、P3-C7-DAILY=A・P3-C7-DAILY-BASIS=B（件数・最大震度は受信時刻のJST暦日、recentは発生時刻のJST暦日、既知の段階の震度を持つeventを1件、取消で減らさない、recent 5行、countedEventIds 2048件、時計のJST 0時で空へ戻す）。震度の段階はI-U-Q.intensityScaleの1つの表で決める",
+        "requirement": "強震保持と当日履歴: I-U-Q.strongHold（P3-C7-INTENSITY-CARRY=A。eventが導いた震度が7未満になったとき・震度を持つactiveの寄与が無くなったとき・untilの到来だけで外れ、VXSE52/61・遅れて届いた古い報・unknownの続報では外れず、untilを延ばさない）と、P3-C7-DAILY=A・P3-C7-DAILY-BASIS=B（件数・最大震度は受信時刻のJST暦日、recentは発生時刻のJST暦日、既知の段階の震度を持つeventを1件、取消で減らさない（P3-UNIT-Q-CAPACITY-001 で改訂、H18: 全寄与が取消になった地震を件数から引く。最大震度は P3-QC-D-DAILY-MAX の裁定、P3-QC-AC07）、recent 5行、countedEventIds 2048件、時計のJST 0時で空へ戻す）。震度の段階はI-U-Q.intensityScaleの1つの表で決める",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:570 «410f982df8a2372d»",
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
@@ -812,7 +812,7 @@
       },
       {
         "id": "P3-C7-AC05",
-        "requirement": "容量と受信1回の費用: P3-C7-CAPACITY=A（event 512、長周期256、4 MiB（K7の発注2aで5,270,185 byte）、退去できない記録の上限1,357,385 byte（K7の発注2aで1,470,281）、eventと長周期の採用に同じ退去手順（byte超過では長周期も候補）、件数が満杯のときの最古の取消記憶だけの記録の退去、強震保持と取消記憶とnormalの保護、capacityExceededのstate・nextDeadline不変）と、P3-C7-CAPACITY-BUDGET=Aの同時最大状態（3,979,110 byte。K7の発注2aの後はControl/DateTimeと印を含めて器の内）を通す（spec:470）。当日履歴の深さの上限（recent 5・countedEventIds 2048）は容量の上限と別の規則で、capacityExceededにしない（台帳60）。最大正常と+1の境界入力（Q-LIMIT）で確かめる。容量はI-U-Q.computationどおりevent・寄与・subject・intent単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）",
+        "requirement": "容量と受信1回の費用: P3-C7-CAPACITY=A（event 512、長周期256、4 MiB（K7の発注2aで5,270,185 byte）、退去できない記録の上限1,357,385 byte（K7の発注2aで1,470,281）、eventと長周期の採用に同じ退去手順（byte超過では長周期も候補）、件数が満杯のときの最古の取消記憶だけの記録の退去、強震保持と取消記憶とnormalの保護、capacityExceededのstate・nextDeadline不変）と、P3-C7-CAPACITY-BUDGET=Aの同時最大状態（3,979,110 byte。K7の発注2aの後はControl/DateTimeと印を含めて器の内）を通す（spec:470）。当日履歴の深さの上限（recent 5・countedEventIds 2048）は容量の上限と別の規則で、capacityExceededにしない（台帳60）。最大正常と+1の境界入力（Q-LIMIT）で確かめる。容量はI-U-Q.computationどおりevent・寄与・subject・intent単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）（P3-UNIT-Q-CAPACITY-001 で改訂: 器 5,627,794・RESERVE 1,958,729、強震保持の事実の予算を外して守る線と畳みの順にした、P3-QC-AC01〜AC05）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:475 «37212c339ccbf4a3»",
           "docs/specs/reconstruction-p0-contracts.md:570 «410f982df8a2372d»",
@@ -823,7 +823,7 @@
       },
       {
         "id": "P3-C7-AC06",
-        "requirement": "保存と復元: PersistedSeismicUnitと唯一のcodec（schemaVersion p3-seismic-unit-v3）、I-U-Q.persisted・I-U-Q.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC7に旧データ移行は無い（P3-C7-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報は復元したstateとの差で決める（O07）",
+        "requirement": "保存と復元: PersistedSeismicUnitと唯一のcodec（schemaVersion p3-seismic-unit-v5、P3-UNIT-Q-CAPACITY-001で上げた版、P3-QC-AC10の(1)）、I-U-Q.persisted・I-U-Q.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC7に旧データ移行は無い（P3-C7-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報は復元したstateとの差で決める（O07）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:475 «37212c339ccbf4a3»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
@@ -832,7 +832,7 @@
       },
       {
         "id": "P3-C7-AC07",
-        "requirement": "view・outcome・snapshot: SeismicUnitView（観測点を載せない。Q-C7-IMPL-AMEND）、familyのsubjectごとのSubjectOutcome（factsにeventの公開事実）、RuntimeDisplaySubjectのU-Q行（subjectはeventの鍵）、addedScopesのU-Qの空（P3-C7-N2）、snapshotのdomain earthquake（P3-C7-SNAPSHOT=A）を同じ採用結果から作る。activeの寄与の無いeventを載せず、unavailable・未保存・再起動の空を「地震なし」に読み替えない。津波の有無はVXSE52/53の新しい方から取り、どちらも無いときだけVXSE51から取ってtsunamiCommentFamily=VXSE51として評価と区別し、VXSE61からは取らない。欠落を「なし」にしない",
+        "requirement": "view・outcome・snapshot: SeismicUnitView（観測点を載せない。Q-C7-IMPL-AMEND）、familyのsubjectごとのSubjectOutcome（factsにeventの公開事実）、RuntimeDisplaySubjectのU-Q行（subjectはeventの鍵）、addedScopesのU-Qの空（P3-C7-N2）、snapshotのdomain earthquake（P3-C7-SNAPSHOT=A）を同じ採用結果から作る。activeの寄与の無いeventを載せず（取消記憶だけの event は cancelledSummary を付けて載せ active に数えない、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC07 の (4)）、unavailable・未保存・再起動の空を「地震なし」に読み替えない。津波の有無はVXSE52/53の新しい方から取り、どちらも無いときだけVXSE51から取ってtsunamiCommentFamily=VXSE51として評価と区別し、VXSE61からは取らない。欠落を「なし」にしない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1431 «f2dbd48c2d6aef10»",
           "docs/specs/reconstruction-p0-contracts.md:1466 «08938ea11d651b63»",
@@ -970,7 +970,7 @@
         "referenceIds": [
           "P3-C7-AC08"
         ],
-        "behavior": "Q-NOTICEの各機会とlevelの式（報自身の震度で決め、eventの震度では決めない: 20:30のVXSE61はnormal。震度4以上warning、3以下normal、震度の無いVXSE52/61はnormal、全体unknownはinfo、5弱以上未入電はwarning、長周期階級3以上critical・1以上warning・unknownはnormal、取消cancel）、revisionOnlyで作らない、訂正は事実が同じでも作る、activeでなかった取消で作らない、置換（同じevent・系統・channel。VXSE53の取消がpendingのVXSE51の通知を消さない）、bodyが報自身の事実から組まれること、満杯での扱い、intentUpdate、training/testのdesktopだけ、recovery未適用、復元直後の続報"
+        "behavior": "Q-NOTICEの各機会とlevelの式（報自身の震度で決め、eventの震度では決めない: 20:30のVXSE61はnormal。P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消cancel、全体MaxIntが5弱以上〔5弱以上未入電を含む〕か全体MaxLgIntの階級が2以上ならcritical、全体unknownはinfo、震度4はwarning、3以下と震度の無いVXSE52/61はnormal、長周期は階級2以上critical・1 warning・unknownはnormal、P3-QC-AC06）、revisionOnlyで作らない、訂正は事実が同じでも作る、activeでなかった取消で作らない、置換（同じevent・系統・channel。VXSE53の取消がpendingのVXSE51の通知を消さない）、bodyが報自身の事実から組まれること、満杯での扱い、intentUpdate、training/testのdesktopだけ、recovery未適用、復元直後の続報"
       },
       {
         "testId": "P3-C7-T08",
@@ -1004,7 +1004,7 @@
           "P3-C7-AC03",
           "P3-C7-AC04"
         ],
-        "behavior": "期限の境界: eventの23時間59分と24時間、長周期の35時間59分と36時間、到着の時点で期限を過ぎた報の採用と同じreduceでの回収、期限が到来していないdeadline入力で同じstate参照と空の結果"
+        "behavior": "期限の境界（P3-UNIT-Q-CAPACITY-001 で改訂、P3-QC-AC08）: eventの23時間59分と24時間（期限切れの記憶への変換）と29時間59分と30時間（記憶の終わり）、長周期の35時間59分と36時間（記憶への変換）と41時間59分と42時間（記憶の終わり）、到着の時点で期限を過ぎた報の採用と同じreduceでの回収、期限が到来していないdeadline入力で同じstate参照と空の結果"
       }
     ],
     "requiredCommands": [

@@ -68,12 +68,13 @@ export type SeismicIntensityObservation = Readonly<{
 export type SeismicTsunamiComment = Readonly<{ codes: readonly string[]; text: string | null }>;
 
 // family ごとの最新の採用報。source が family の watermark と取消記憶を兼ねる。cancelled は事実を捨てて source だけ残し、
-// title は空文字、ほかは null（取消記憶の byte の上限を件数から決めるため、P3-C7-CAPACITY）。
+// title は空文字、ほかは null（取消記憶の byte の上限を件数から決めるため、P3-C7-CAPACITY）。expired は期限切れの記憶で、cancelled と
+// 同じ形（P3-QC-AC08、H23）。folded は器の都合で観測点を外した印で、外した要素の列の JSON の sha256 の先頭 16 桁（P3-QC-AC03）。
 // targetDateTimeRaw は Head/TargetDateTime。Body に OriginTime の無い VXSE51 の発生時刻に使う（I-U-Q.originTime）。
 export type EarthquakeContribution = Readonly<{
   family: EarthquakeFamily;
   source: ReportRef;
-  effective: "active" | "cancelled";
+  effective: "active" | "cancelled" | "expired";
   targetDateTimeRaw: string | null;
   title: string;
   headline: string | null;
@@ -81,7 +82,16 @@ export type EarthquakeContribution = Readonly<{
   intensity: SeismicIntensityObservation | null;
   tsunamiComment: SeismicTsunamiComment | null; unconfirmed?: ReportRef; // P3-VM-AC04: family の系列の未確認の印。active の寄与だけが鍵を持つ
   notice?: NoticeMark; // P3-NL-AC02: family の系列の通知の印（寄与と同じに生き、取消記憶にも残る）。表示には出さない
+  folded?: string;
 }>;
+
+// P3-QC-AC01 (2): 守りの欄（normal の記録だけ）。from は operation・EventID ごとに 1 つの守りの起点（event と長周期で同じ、記録を作る
+// 採用で決めて動かさない）。on は自分の記録の根拠の bit（1: event の全体 MaxInt が 5 弱以上、2: 自分の全体 MaxLgInt の階級が 2 以上）。
+// 守るかは保存せず、同じ operation・EventID の active の記録の on から導く。
+export type SeismicGuard = Readonly<{ from: number; on: 0 | 1 | 2 | 3 }>;
+
+// P3-QC-AC07 (4): 全部の寄与が取消になった event の一覧の印（取消の前の公開事実の震源名と発生時刻）。
+export type CancelledSummary = Readonly<{ hypocenterName: string | null; originTimeRaw: string | null }>;
 
 // 強震保持の根拠（event が導いた全体の震度が既知の段階の 7、event の発生時刻から 12 時間。旧築 QUAKE_EXTREME_HOLD_MS）。
 export type StrongShakingHold = Readonly<{
@@ -99,16 +109,18 @@ export type EarthquakeEvent = Readonly<{
   retainUntil: number;
   // P3-CC-AC03: 容量で入らなかった報の印（family ごとに 1 つ、1〜4 件）。visible な event だけが鍵を持つ。
   unavailable?: readonly SubjectUnavailable[];
+  guard?: SeismicGuard;
+  cancelledSummary?: CancelledSummary;
 }>;
 
 // VXSE62。subject = `${operation}/VXSE62/${eventId}`。retainUntil = 最新の採用報の ReportDateTime + 36 時間。
-// cancelled は寄与と同じく事実を持たない（title は空文字、headline・hypocenter・intensity は null）。
+// cancelled・expired は寄与と同じく事実を持たない（title は空文字、headline・hypocenter・intensity は null）。
 export type LongPeriodSubject = Readonly<{
   subject: string;
   eventId: string;
   operation: Operation;
   source: ReportRef;
-  effective: "active" | "cancelled";
+  effective: "active" | "cancelled" | "expired";
   title: string;
   headline: string | null;
   hypocenter: SeismicHypocenter | null;
@@ -117,10 +129,13 @@ export type LongPeriodSubject = Readonly<{
   // P3-CC-AC03: 容量で入らなかった報の印。active の記録だけが鍵を持つ。
   unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。active の記録だけが鍵を持つ
   notice?: NoticeMark; // P3-NL-AC02: 通知の印（記録と同じに生きる）。表示には出さない
+  folded?: string;
+  guard?: SeismicGuard;
 }>;
 
 // 当日地震履歴（operation ごと。日の基準は P3-C7-DAILY-BASIS）。件数と最大震度は全体の震度が既知の段階（I-U-Q.intensityScale）の
-// event だけを数え、取消で減らさない。recent は新しい順に最大 5 行、countedEventIds は最大 2048 件（P3-C7-DAILY）。
+// event だけを数える。全部の寄与が取消になった地震は件数から引き、最大震度を数え直す（P3-QC-AC07、H18）。recent は新しい順に最大 5 行、
+// counted は数えた [EventID, 段階（I-U-Q.intensityScale の rank）] の組で最大 2048 組（P3-C7-DAILY、P3-QC-D-DAILY-MAX=A）。
 // 文字列の上限（P3-C7-DAILY）: originTimeRaw・reportDateTimeRaw は 40 文字を超えたら null、hypocenterName は 64 文字に切り詰め、
 // magnitude・maxInt の raw と value は 32 文字に切り詰める。1 行の最大は 1,206 byte（JSON で 1 文字 3 byte、ReportDateTime 25 文字、I-U-Q.capacityReserve）。
 export type SeismicRecentQuake = Readonly<{
@@ -137,7 +152,7 @@ export type SeismicDailyHistory = Readonly<{
   dayKey: string | null;
   count: number;
   maxInt: MaterialValue | null;
-  countedEventIds: readonly string[];
+  counted: readonly (readonly [eventId: string, stage: number])[];
   recent: readonly SeismicRecentQuake[];
 }>;
 
@@ -152,7 +167,7 @@ export type SeismicNotificationPayload = Readonly<{
 export type SeismicIntent = NotificationIntent & Readonly<{ payload: SeismicNotificationPayload }>;
 
 export type SeismicUnitState = Readonly<{
-  schemaVersion: "p3-seismic-unit-v4";
+  schemaVersion: "p3-seismic-unit-v5";
   contentRevision: number;
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
@@ -164,7 +179,7 @@ export type SeismicUnitState = Readonly<{
 }>;
 
 export type PersistedSeismicUnit = Readonly<{
-  schemaVersion: "p3-seismic-unit-v4";
+  schemaVersion: "p3-seismic-unit-v5";
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
@@ -188,9 +203,11 @@ export type EarthquakeEventView = Readonly<{
   strongHold: StrongShakingHold | null;
   // event の印の写し（P3-CC-AC03）。
   unavailable?: readonly SubjectUnavailable[];
+  // P3-QC-AC07 (4): 取り消した地震の印。持つ view は事実が null で sources が空（active に数えない）。
+  cancelledSummary?: CancelledSummary;
 }>;
 
-// active な event と長周期 subject だけを載せる。取消済みの寄与だけになった event は載せない。
+// active な event と長周期 subject と、cancelledSummary を持つ取り消した地震を載せる（P3-QC-AC07 (4)）。
 export type SeismicUnitView = SharedUnitView & Readonly<{
   unit: "U-Q";
   earthquakes: readonly EarthquakeEventView[];
@@ -224,5 +241,5 @@ export type SeismicUnitStep = Readonly<{
 }>;
 
 export type SeismicUnitCodec = UnitCodec<SeismicUnitState, PersistedSeismicUnit> & Readonly<{
-  schemaVersion: "p3-seismic-unit-v4";
+  schemaVersion: "p3-seismic-unit-v5";
 }>;

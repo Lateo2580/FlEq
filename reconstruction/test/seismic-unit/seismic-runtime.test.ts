@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 import type { ClockReading, NotificationIntent } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { selectNotificationAttempt } from "../../src/notification-delivery/notification-delivery";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
+import { initialUnits } from "../../src/runtime/owner-runtime";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { envelope, harnessedRoot, manualAdapter, park, startHarness, submit } from "../execution-split/owner-harness";
@@ -64,6 +66,20 @@ let inputSequence = 0;
 function report(h: Harness, file: string, now: ClockReading, headType = "VXSE53") {
   return submit(h, envelope(h.root.state.runId, headType, `${file.split("/").at(-1)}#${++inputSequence}`, readFileSync(`test/fixtures/${file}.xml`), now, inputSequence));
 }
+
+// P3-QC-T07（P3-UNIT-Q-CAPACITY-001 の AC13 (4)）: envelope の losses に観測点の畳み（seismicStationsFolded）の行を持つ U-Q の世代を保存し、
+// 読み戻せる（H39 の U-Q の行）。
+it("P3-QC-T07 contractBoundary / P3-QC-AC13 (4): a U-Q generation with a seismicStationsFolded loss row saves and restores", async () => {
+  const files = new MemoryFiles(), now = { wallTimeMs: Date.parse("2026-07-28T16:40:00+09:00"), monotonicMs: 1 };
+  const coordinator = new CheckpointCoordinator("qc-t07", linkedUnitCodecs, files, () => now, () => {});
+  const state = initialUnits["U-Q"];
+  const losses = [{ reason: "seismicStationsFolded" as const, count: 18, lastAt: now.wallTimeMs }];
+  const captured = coordinator.capture("U-Q", state, 1, "qc-t07", { inputIds: ["input-1"], retryReason: "notRetry" }, null, losses);
+  const output = await coordinator.executeCheckpoint(captured.request!, "qc-t07", ["input-1"], "notRetry");
+  coordinator.ended(output.result, false);
+  const restored = coordinator.restoreUnit("U-Q");
+  expect(restored.kind === "restored" ? restored.envelope.losses : restored.kind).toEqual(losses);
+});
 
 describe("P3-UNIT-Q-001 U-Q through the composition root", () => {
   // contractBoundary: A7 の群（P3-C7-NOTICE-GROUP=A）。U-Q の critical は other で、津波緊急を中断せず EEW・津波緊急の後に選ばれる。
@@ -158,7 +174,9 @@ describe("P3-UNIT-Q-001 U-Q through the composition root", () => {
     expect(afterCancel.persistence.currentGeneration).toBeGreaterThan(beforeCancel);
     // 試行中の発表の intent は superseded になり、A7 がその試行を止める。
     expect(runningAdapter.aborts).toHaveLength(2);
-    expect(view(failed).earthquakes).toEqual([]);
+    // P3-QC-AC07 (4): 取り消した地震は事実を持たず、取消の印（震源名・発生時刻）を付けて一覧に残る。
+    expect(view(failed).earthquakes).toMatchObject([{ sources: [], hypocenter: null,
+      cancelledSummary: { hypocenterName: "熊本県熊本地方", originTimeRaw: "2026-07-28T16:27:00+09:00" } }]);
     // P3-NL-AC05 (1): 置き換えた intent は intents から外れる（結果は系列の印に残る）。
     expect(afterCancel.intents.filter((item) => issued.includes(item.id))).toEqual([]);
 
@@ -206,7 +224,7 @@ describe("P3-UNIT-Q-001 U-Q through the composition root", () => {
     expect(second.unit("U-Q").intents.filter((item) => !known.has(item.id))).toEqual([]);
     await report(second, "synthetic_VXSE53_correction", tick(1_000));
     expect(second.unit("U-Q").intents.filter((item) => !known.has(item.id)).map((item) => [item.payload.level, item.payload.title]))
-      .toEqual([["warning", "[訂正] 震源・震度情報"], ["warning", "[訂正] 震源・震度情報"]]);
+      .toEqual([["critical", "[訂正] 震源・震度情報"], ["critical", "[訂正] 震源・震度情報"]]);
     expect(second.failures).toEqual([]);
 
     // U-E・U-T・U-Q の同時 dirty: urgent の 3 unit は別々の書込み権を持つ（P3-C7-WRITE-RIGHT、P3-UNIT-WRITE-RIGHT-001）。

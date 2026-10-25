@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "f944834be0d422970f13f9ac5ddfc95e5aee295e4e400e69f0ebfa466ab49d8c",
+    "sha256": "571bb27047374a959fb040946e7a2ecf87dab57cc4f37a7a265c354104629d0a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
     "decisionBranches": [
       {
@@ -270,8 +270,8 @@
           "reconstruction/src/view-projector/view-projector.ts:100 «77f8e976959cd365»",
           "reconstruction/src/view-projector/view-projector.ts:271 «f0e7469dff70429b»",
           "reconstruction/src/view-projector/view-projector.ts:272 «87c1ddda6a811cf6»",
-          "reconstruction/src/view-projector/view-projector.ts:542 «86e1c3a30390cc30»",
-          "reconstruction/src/view-projector/view-projector.ts:642 «9b605ed058616c2a»",
+          "reconstruction/src/view-projector/view-projector.ts:543 «86e1c3a30390cc30»",
+          "reconstruction/src/view-projector/view-projector.ts:643 «9b605ed058616c2a»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:516 «dd60944ba8d3b141»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:517 «c145e1c4c106b10d»",
           "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
@@ -335,7 +335,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-disaster-capacity.json:57 «44782daabce1f4b5»",
           "reconstruction/contracts/p3-disaster-capacity.json:704 «d2a50e29fe30ea49»",
-          "reconstruction/test/disaster/runner.ts:484 «f7e985c22367465f»",
+          "reconstruction/test/disaster/runner.ts:490 «f7e985c22367465f»",
           "reconstruction/test/disaster/scenario.ts:112 «c9c643316263b5a4»"
         ]
       },
@@ -344,7 +344,7 @@
         "requirement": "受信経路の計算量（Q-WS-COST、AGENTS.md）: 読み飛ばしと切り詰めは今の走査の中で要素ごとに定数の判定だけを足し、全件×全件の走査・state全体やsubject全体のJSON.stringifyを足さない。外の階層の範囲のperiodの数は祖先から渡す1つの真偽と、系列ごとの範囲のtimeIdの集合だけで数える（範囲のperiodを後から走査し直さない）。要約の規則はoperationの行ごとに定数の手間。U-Yの(1)(2)は、残さない時刻でDateTimeのtypeだけを読み（今の:301と同じ）、(7)は止めた時間帯から後と値を数えるだけで読まない",
         "evidenceRefs": [
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:246 «2ca242e71af35dbc»",
-          "reconstruction/src/view-projector/view-projector.ts:642 «9b605ed058616c2a»",
+          "reconstruction/src/view-projector/view-projector.ts:643 «9b605ed058616c2a»",
           "reconstruction/src/domains/typhoon/typhoon.ts:306 «9a4724e251648b1d»",
           "reconstruction/src/domains/typhoon/typhoon.ts:385 «e3f3980d7e67bc16»"
         ]
@@ -385,7 +385,7 @@
         "evidenceRefs": [
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:84 «77930c433792cec1»",
           "reconstruction/src/domains/typhoon/typhoon.ts:454 «f35fcf322d69470e»",
-          "reconstruction/src/view-projector/view-projector.ts:940 «76d9e0e79209d6c9»"
+          "reconstruction/src/view-projector/view-projector.ts:941 «76d9e0e79209d6c9»"
         ]
       },
       {

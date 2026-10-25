@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "20a333d905218be09f1d8aa99ae2184818b4ce07da1269862783a3476f1e71b3",
+    "sha256": "f23c6ecf5a98358196ddcca97fb196d1a447b588beb69c29585fe089066d7602",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3134 «5e826dd4265997f1»",
     "decisionBranches": [
       {
@@ -418,7 +418,7 @@
           "reconstruction/src/decode-material/decode-material.ts:476 «76071c296440ae12»",
           "reconstruction/src/units/eew/eew-unit.ts:44 «d724b0576b748700»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:902 «c54e90427dfcf389»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1036 «c54e90427dfcf389»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1316 «c54e90427dfcf389»",
           "reconstruction/src/units/nankai/nankai-unit.ts:692 «c54e90427dfcf389»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1314 «a9edac1936c9c251»",
           "reconstruction/src/units/landslide/landslide-unit.ts:525 «5e595b3cb9e6ca03»",
@@ -437,7 +437,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3134 «5e826dd4265997f1»",
           "docs/specs/reconstruction-p0-contracts.md:3147 «a19260d1cf0d4046»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:596 «ca5b13d448917d11»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:815 «ca5b13d448917d11»",
           "docs/specs/reconstruction-p0-contracts.md:3201 «61d7594e40aecdac»",
           "reconstruction/contracts/p3-order-plan.md:515 «701af1e7733def87»",
           "docs/specs/reconstruction-p0-contracts.md:3140 «ee9f06747736e457»"
@@ -447,7 +447,7 @@
         "id": "P3-VM-AC03",
         "requirement": "【発注 2a は U-E・U-T・U-Q・U-N・U-V、2b は U-L・U-R・U-B・U-M・U-Y・U-W・U-F】比べ方の置き換え: 各 unit の版の比較（seismic-unit.ts:518、nankai-unit.ts:127、volcano-unit.ts:183、landslide-unit.ts:117、tsunami-unit.ts:290 と観測の :436、flood-unit.ts:124、briefing-unit.ts:184、local-bulletins-unit.ts:366、typhoon-unit.ts:347、eew.ts:406 の Serial の stale、weather-current.ts:593 の同時刻、weather-timeseries-unit.ts:191）を AC02 の compareVersion に置き換える。比べる単位（系列）は今の watermark の単位のまま（U-V は subject×陸上／海上。陸上と海上の間で共有の kind・level を比べるときも compareVersion を使い、同じ Head/ReportDateTime で kind が食い違う組は Control/DateTime の後の方を採ったうえで今の volcanoRevisionConflict の WARN 診断を残す〔気象庁は 2 つの独立した情報単位の間の順を定めておらず、同時刻の食い違いは運用上の想定外のため。残存リスク (2)〕、U-Q は event の寄与の family ごと、U-T の観測は subject、ほかは subject）で、subject の鍵は変えない。older は今どおり stale。same で中身が同じなら今どおり duplicate。same で中身が違えば（取消かどうかが食い違う組は取消を採る。作者裁定 2026-10-21 昼、Q-VM-IMPL-2A。U-E では Serial の例外より先）、先に確定していた版を残し、その系列に未確認の印（AC04）を付け、今の食い違いの WARN 診断（seismicRevisionConflict など、U-W は今の freshness の monitor の unknown）を残す。undecidable（P3-VM-D-MISSING）は報を断らない。手元の版があれば版を残し（採らず、通知しない）、その系列に未確認の印を付け、WARN 診断（reason は今の欠けの requiredStructureMissing を使い、新しい reason を足さない）を出す。手元の版が無ければ、採って出し通知の規則どおりに鳴らす（WARN 診断を添える。P3-VM-D-MISSING=A、2026-10-20 作者裁定）。同じ報の組（P3-VM-D-SAME-REPORT=A）: 津波観測の fragment（Head/ReportDateTime・Serial・InfoType が同じ。tsunami-unit.ts:418 の今の鍵と同じ）は今の合成（tsunami-unit.ts:461 の同じ版の判定を「同じ報」の判定に読み替え、同じ報の中で値が食い違う fragment は今どおり手元の版を残して採らず（tsunami-unit.ts:429 の stale と tsunamiRevisionConflict）、加えて系列に未確認の印を付ける（H51 の「同じ時刻で中身が違う」）。InfoType の違う組は同じ報にせず、今の InfoType の順位（tsunami-unit.ts:436 の higher）を使わずに compareVersion で比べる。観測の記録に比べる用の Control/DateTime（採った同じ報の fragment の最大、P3-VM-D-SAME-REPORT=A）を持って保存し、別の報との比べに使う。同じ報の fragment が、内容が同じか手元の部分集合で今は duplicate になる報（tsunami-unit.ts:483）でも、食い違いが無く、より大きい Control/DateTime を持てば、比べる用の Control/DateTime だけを更新して保存する（通知を作らず、未確認の印も外さない）。無いと、本文の同じ fragment の着く順で基準が変わり、後の別の報の新旧が順で変わる。同じ報の追加の fragment の採用では未確認の印を外さない）、竜巻の対（Head/ReportDateTime・Serial・InfoType が同じ）は今の head の順、降灰 VFVO54/55（Head/ReportDateTime と InfoType が同じ）は VFVO55 を採る。U-E は gate の Serial の比べを compareVersion に替え、compareVersion が same なら Serial の大きい方を newer、小さい方を older とし（P3-VM-D-SAMETIME=A の EEW の例外）、同じ版の予測の比べ（predictionKey）は Serial も同じときに行う。U-E の採用・stale・duplicate・未確認の印の付け外し（AC04）は、すべてこの例外を当てた後の判定を使う。Serial は U-E・U-R・U-B の今の値の検査（必須・数値）を残し、事実（第 N 報）としての表示も残す。無いと: H14 の「報番号を使わない」が満たせず、台帳 91（serial 37 の取消が serial 42 の後に届いて stale）が直らない",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:596 «ca5b13d448917d11»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:815 «ca5b13d448917d11»",
           "reconstruction/src/units/nankai/nankai-unit.ts:309 «2388a2da51638bf7»",
           "reconstruction/src/units/volcano/volcano-unit.ts:393 «991c56106aab071d»",
           "reconstruction/src/units/landslide/landslide-unit.ts:123 «843ba9a46877eeee»",
@@ -461,7 +461,7 @@
           "reconstruction/src/domains/eew/eew.ts:473 «9db3aa10ed859c05»",
           "reconstruction/src/domains/weather-current/weather-current.ts:593 «63571d9e910c4524»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:220 «0c4bf4cc6f7ce2d9»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:554 «888e9532923608c2»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:756 «888e9532923608c2»",
           "reconstruction/contracts/p3-persist-premises.md:63 «80b3b4d07acc2533»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:521 «bdb7633bb66e721b»",
           "docs/specs/reconstruction-p0-contracts.md:3201 «61d7594e40aecdac»",
@@ -579,7 +579,7 @@
           "reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e»",
           "reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d»",
           "reconstruction/contracts/p3-typhoon-unit.json:361 «44ca7c3a684a854a»",
-          "reconstruction/contracts/p3-seismic-unit.json:304 «fd1874797a53d271»",
+          "reconstruction/contracts/p3-seismic-unit.json:304 «22e37753670cc27f»",
           "reconstruction/contracts/p3-tsunami-unit.json:254 «7330780c51c21425»"
         ]
       }

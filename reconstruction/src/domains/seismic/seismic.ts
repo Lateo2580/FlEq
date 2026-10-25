@@ -138,8 +138,11 @@ function walk(observation: XmlElement, visit: (node: XmlElement, level: Level, p
   step(observation, 0, null);
 }
 
-function observationPresent(observation: XmlElement): void {
-  walk(observation, (node) => { if (children(node, "Name").length === 0) missing(); return null; });
+// P3-QC-AC09 (4): 区域・観測点の Name の欠けは断らず、name を空文字にして WARN を添える（設計メモ §13）。
+function namesMissing(observation: XmlElement): boolean {
+  let absent = false;
+  walk(observation, (node) => { if (children(node, "Name").length === 0) absent = true; return null; });
+  return absent;
 }
 
 const UNREPORTED_CITY = "震度5弱以上未入電";
@@ -167,9 +170,10 @@ function observationOf(observation: XmlElement, values: Values): SeismicIntensit
     lgCategory: blank(text(observation, "LgCategory")), items };
 }
 
-function earthquakePresent(earthquake: XmlElement): void {
-  if (first(earthquake, "OriginTime") == null || first(first(first(earthquake, "Hypocenter"), "Area"), "Name") == null
-    || first(earthquake, "Magnitude") == null) missing();
+// P3-QC-AC09 (3): OriginTime・震源名・Magnitude の欠けは断らず、値を null・missing のまま受けて WARN を添える（設計メモ §13）。
+function earthquakeIncomplete(earthquake: XmlElement): boolean {
+  return first(earthquake, "OriginTime") == null || first(first(first(earthquake, "Hypocenter"), "Area"), "Name") == null
+    || first(earthquake, "Magnitude") == null;
 }
 
 const COORDINATE = /^([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)?\/$/;
@@ -220,7 +224,8 @@ type EarthquakeCandidate = Common & Readonly<{ kind: "earthquake"; family: Earth
 type LongPeriodCandidate = Common & Readonly<{ kind: "longPeriod"; family: "VXSE62";
   hypocenter: SeismicHypocenter | null; intensity: SeismicIntensityObservation | null }>;
 type SeismicCandidate = EarthquakeCandidate | LongPeriodCandidate;
-type ParseResult = Readonly<{ kind: "accepted"; candidate: SeismicCandidate }>
+// diagnostics は採用に添える WARN（P3-QC-AC09 の §13 の 4 か所）。
+type ParseResult = Readonly<{ kind: "accepted"; candidate: SeismicCandidate; diagnostics: readonly DiagnosticDetails[] }>
   | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
 
 function diagnostic(material: DecodedMaterial, reason: RejectionReason): DiagnosticDetails {
@@ -240,8 +245,12 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
   if (family == null) return reject("requiredStructureInvalid");
   const eventId = material.eventIdRaw.trim();
   if (eventId === "") return reject("identityMissing");
-  const serialRaw = material.serialRaw.trim();
-  if (!validEventId(eventId) || !validSerial(serialRaw)) return reject("identityInvalid");
+  // P3-QC-AC09 (1): Serial の形の外は断らず空文字にして WARN を添える（新旧は Control/DateTime で比べる）。EventID は識別なので断る。
+  if (!validEventId(eventId)) return reject("identityInvalid");
+  const warnings = new Set<"requiredStructureMissing" | "requiredStructureInvalid">();
+  const trimmed = material.serialRaw.trim();
+  const serialRaw = validSerial(trimmed) ? trimmed : "";
+  if (serialRaw !== trimmed) warnings.add("requiredStructureInvalid");
   const subject = `${material.operation}/${family}/${eventId}`;
   const infoTypeRaw = material.infoTypeRaw.trim();
   const infoRank = INFO_RANK.get(infoTypeRaw);
@@ -254,15 +263,17 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
   const title = text(head, "Title") || text(first(material.xml, "Control"), "Title") || family;
   const base = { operation: material.operation, eventId, subject, source, reportDateTimeMs: common.envelope.reportDateTimeMs,
     infoRank, cancelled, title, headline: blank(text(first(head, "Headline"), "Text")) };
+  const accepted = (candidate: SeismicCandidate): ParseResult =>
+    ({ kind: "accepted", candidate, diagnostics: [...warnings].map((reason) => diagnostic(material, reason)) });
   try {
     const bodies = children(material.xml, "Body");
     if (bodies.length === 0) return missing();
     const body = bodies[0];
     // 取消は Body が Text だけでよい（32-35_10_01・32-35_06_02・32-35_06_10）。事実を持たない。
-    if (cancelled) return { kind: "accepted", candidate: family === "VXSE62"
+    if (cancelled) return accepted(family === "VXSE62"
       ? { ...base, kind: "longPeriod", family, hypocenter: null, intensity: null }
       : { ...base, kind: "earthquake", family, contribution: { family, source, effective: "cancelled", targetDateTimeRaw: null,
-        title: "", headline: null, hypocenter: null, intensity: null, tsunamiComment: null } } };
+        title: "", headline: null, hypocenter: null, intensity: null, tsunamiComment: null } });
     const earthquake = first(body, "Earthquake");
     const intensity = first(body, "Intensity");
     const observation = first(intensity, "Observation");
@@ -270,20 +281,21 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
     if (family === "VXSE51" || family === "VXSE62") { if (observation == null) missing(); }
     else if (family === "VXSE53") {
       if (earthquake == null && intensity == null) missing();
-      if (intensity != null && observation == null) missing();
+      // P3-QC-AC09 (2): Earthquake があれば Observation の無い Intensity は intensity を null にして受ける。
+      if (intensity != null && observation == null) { if (earthquake == null) missing(); warnings.add("requiredStructureMissing"); }
     } else if (earthquake == null) missing();
     if (family === "VXSE62" && first(observation, "MaxLgInt") == null) missing();
-    if (earthquake != null && family !== "VXSE51") earthquakePresent(earthquake);
-    if (observation != null) observationPresent(observation);
+    if (earthquake != null && family !== "VXSE51" && earthquakeIncomplete(earthquake)) warnings.add("requiredStructureMissing");
+    if (observation != null && namesMissing(observation)) warnings.add("requiredStructureMissing");
     const values = leafValues(material);
     const hypocenter = earthquake == null || family === "VXSE51" ? null : hypocenterOf(earthquake, values);
     const observed = observation == null ? null : observationOf(observation, values);
-    if (family === "VXSE62") return { kind: "accepted", candidate: { ...base, kind: "longPeriod", family, hypocenter, intensity: observed } };
-    return { kind: "accepted", candidate: { ...base, kind: "earthquake", family, contribution: { family, source, effective: "active",
+    if (family === "VXSE62") return accepted({ ...base, kind: "longPeriod", family, hypocenter, intensity: observed });
+    return accepted({ ...base, kind: "earthquake", family, contribution: { family, source, effective: "active",
       targetDateTimeRaw: text(head, "TargetDateTime"), title, headline: base.headline, hypocenter,
       intensity: family === "VXSE52" || family === "VXSE61" ? null : observed,
       // VXSE61 は FreeFormComment だけなので津波の有無に使わない（I-U-Q.earthquakeSemantics）。
-      tsunamiComment: family === "VXSE61" ? null : tsunamiCommentOf(body) } } };
+      tsunamiComment: family === "VXSE61" ? null : tsunamiCommentOf(body) } });
   } catch (error) {
     if (error instanceof Rejected) return reject(error.reason, subject);
     throw error;

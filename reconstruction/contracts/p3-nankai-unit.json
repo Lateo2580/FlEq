@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "a9b21ce3c0e066acda48cf5b74f9fecb2bac09b1f4f17aa8fe8a6baff0003ec7",
+    "sha256": "8681a865b1531fd8293f6e9dae760dc70e60f1b13a6855de1ed0a3da6cceca0d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -751,7 +751,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1472 «5bbe65daadf9a2ed»",
           "reconstruction/contracts/p3-seismic-unit.json:148 «52525ff82a60caa3»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:914 «c42a191089542248»",
+          "reconstruction/src/view-projector/view-projector.ts:915 «c42a191089542248»",
           "src/engine/display/standby-state-store.ts:3203 «7af6c560b641723c»"
         ]
       },

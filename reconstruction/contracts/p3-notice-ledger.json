@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "e45241715fe0f755a2e4f8b72a4cdfd04ea85825414789913b68de0835ea1516",
+    "sha256": "00e989b899a7ef057bf478d9daad7bb77e06d30b8262ed445c18df9c9ed270e4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -500,7 +500,7 @@
           "reconstruction/contracts/p3-unit-table.types.ts:30 «247e5eb77fe63e12»",
           "reconstruction/src/runtime/owner-runtime.ts:435 «1bb3f6cd2b8f47c5»",
           "reconstruction/src/units/eew/eew-unit.ts:342 «973323028dc564f5»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:50 «e03057af8e6a011b»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:58 «e03057af8e6a011b»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:50 «e03057af8e6a011b»",
           "reconstruction/contracts/p3-unit-table.json:262 «44c584515eccf09a»"
         ]
@@ -609,7 +609,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3043 «25cb6d35dc4ddee7»",
           "reconstruction/src/domains/eew/eew.ts:620 «90c93f2cfd91be75»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:371 «766fd07f63db2e36»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:511 «766fd07f63db2e36»",
           "reconstruction/contracts/p2-eew-unit.json:191 «095cf6adda999792»",
           "reconstruction/contracts/p3-currency-coverage.json:34 «77264aaea2922beb»",
           "reconstruction/contracts/p3-order-plan.md:442 «13b37fbd2c0f1292»",
@@ -666,7 +666,7 @@
       },
       {
         "id": "P3-NL-AC14",
-        "requirement": "【発注 1 は欄、発注 2 は数え方】H39 の件数の欄（spec:3066・16.2.6、作者裁定 §7 の 3）: (1) 置き場: CheckpointEnvelope に losses を足す（K7 の inputBoundary と同じく、owner が capture で書き、復元で読む。unit の payload には足さない。無いと: unit の reduce と codec を 12 回開けて数えることになり、数える担い手が unit ごとに散る）。欄の無い旧い envelope は空として読む（K7 の inputBoundary と同じ） (2) 形: { reason, count, lastAt }[]。reason ごとに 1 行（設計メモ :300 の「分野・理由ごと」。分野は envelope の unit。operation は分けない: 診断の行は operation を持たず、退去は引き金の入力と別の operation の記録を外しうる）。count は安全な整数で飽和させ、lastAt は最後に足したときの手元の wall (3) 数える理由（閉集合）: 通知の notificationExpired・notificationExpiredClockUnverified（K9、§14 の (b)）・notificationCapacityEvicted・notificationOutcomeUnknown（新）、印の noticeMarkEvicted（新）、情報の capacityRejected と各 unit の容量の退去（eewCapacityEvicted・weatherCurrentCapacityEvicted・tsunamiCapacityEvicted ほか 9 語）。新しい 2 語を DiagnosticReason（p2-shared-runtime.types.ts:299）と persistent-diagnostic-sink の表に足す（無いと: 通知したか不明・印を捨てた件数が、ふつうの期限切れと見分けられない） (4) 数え方: owner は unit の採用の結果の診断（reason・unit・count、count が無ければ 1）と、採用した NotificationIntentUpdate の lossReason（AC06 の (1)）を数える。publisher が出す診断（reclaimExpired の notificationExpired、composition-root.ts:1076）は main の診断の行のままで、owner は lossReason の側でだけ数える（二重に数えない） (5) 保存（ヘルツ r1 の 7）: losses の変化は永続状態の変更で、unit の state が変わらない入力（例: 保存済みの unit が容量で報を断っただけ）でも、owner はその unit の世代を進めて dirty にし、その入力の ID を世代の入力 ID の記録（owner-host の ledger）に帰属させ、capture の後の変更（postCaptureDirtySince）として扱う。同じ入力で unit が世代を進めたときは、その世代に含めて別の世代を作らない。owner は unit の state の persistence（currentGeneration・dirtySince）を進め、domain の中身と contentRevision は変えない。generationInputIds にその unit の key を必ず置く（key が無いと P3-OLB-AC02 で unit がその run では保存しない集合に入る）。今の容量の拒否で世代が進んだときの帰属（owner-runtime.ts:366、P3-CC-AC10(9)）と同じ扱いで、正常採用の根拠にはしない。無いと: 断っただけの入力の件数が保存されず、再起動で消える (6) 保持: 行は lastAt＋24 時間（置き値、§7 の 3）を過ぎたら capture と復元のときに外す (7) 上界: unit ごとの理由（最大 7）の行で、envelope の上限に LOSS_TALLY_MAX_BYTES（INPUT_BOUNDARY_MAX_BYTES と同じ作り方、checkpoint.ts:641）を足す (8) 数えない欠けの行き先（outOfScope）: mailbox・host が断った入力（mailboxRejected*）は unit が決まる前の欠けで、取り直しの境界の穴（K7 の oldestHole、C16 が埋める）。読めなかった EEW・津波（H43）は K14、照合できないまま時間がたった EEW の「…は未確認」（H28）は C16。画面へ送る口・件数の分からない欠けを 0 件と出さないこと（spec:3151〜:3155）は段 4",
+        "requirement": "【発注 1 は欄、発注 2 は数え方】H39 の件数の欄（spec:3066・16.2.6、作者裁定 §7 の 3）: (1) 置き場: CheckpointEnvelope に losses を足す（K7 の inputBoundary と同じく、owner が capture で書き、復元で読む。unit の payload には足さない。無いと: unit の reduce と codec を 12 回開けて数えることになり、数える担い手が unit ごとに散る）。欄の無い旧い envelope は空として読む（K7 の inputBoundary と同じ） (2) 形: { reason, count, lastAt }[]。reason ごとに 1 行（設計メモ :300 の「分野・理由ごと」。分野は envelope の unit。operation は分けない: 診断の行は operation を持たず、退去は引き金の入力と別の operation の記録を外しうる）。count は安全な整数で飽和させ、lastAt は最後に足したときの手元の wall (3) 数える理由（閉集合）: 通知の notificationExpired・notificationExpiredClockUnverified（K9、§14 の (b)）・notificationCapacityEvicted・notificationOutcomeUnknown（新）、印の noticeMarkEvicted（新）、情報の capacityRejected と各 unit の容量の退去（eewCapacityEvicted・weatherCurrentCapacityEvicted・tsunamiCapacityEvicted ほか 9 語）、U-Q の seismicStationsFolded（P3-UNIT-Q-CAPACITY-001 の P3-QC-AC03）。新しい 2 語を DiagnosticReason（p2-shared-runtime.types.ts:299）と persistent-diagnostic-sink の表に足す（無いと: 通知したか不明・印を捨てた件数が、ふつうの期限切れと見分けられない） (4) 数え方: owner は unit の採用の結果の診断（reason・unit・count、count が無ければ 1）と、採用した NotificationIntentUpdate の lossReason（AC06 の (1)）を数える。publisher が出す診断（reclaimExpired の notificationExpired、composition-root.ts:1076）は main の診断の行のままで、owner は lossReason の側でだけ数える（二重に数えない） (5) 保存（ヘルツ r1 の 7）: losses の変化は永続状態の変更で、unit の state が変わらない入力（例: 保存済みの unit が容量で報を断っただけ）でも、owner はその unit の世代を進めて dirty にし、その入力の ID を世代の入力 ID の記録（owner-host の ledger）に帰属させ、capture の後の変更（postCaptureDirtySince）として扱う。同じ入力で unit が世代を進めたときは、その世代に含めて別の世代を作らない。owner は unit の state の persistence（currentGeneration・dirtySince）を進め、domain の中身と contentRevision は変えない。generationInputIds にその unit の key を必ず置く（key が無いと P3-OLB-AC02 で unit がその run では保存しない集合に入る）。今の容量の拒否で世代が進んだときの帰属（owner-runtime.ts:366、P3-CC-AC10(9)）と同じ扱いで、正常採用の根拠にはしない。無いと: 断っただけの入力の件数が保存されず、再起動で消える (6) 保持: 行は lastAt＋24 時間（置き値、§7 の 3）を過ぎたら capture と復元のときに外す (7) 上界: unit ごとの理由（最大 7）の行で、envelope の上限に LOSS_TALLY_MAX_BYTES（INPUT_BOUNDARY_MAX_BYTES と同じ作り方、checkpoint.ts:641）を足す (8) 数えない欠けの行き先（outOfScope）: mailbox・host が断った入力（mailboxRejected*）は unit が決まる前の欠けで、取り直しの境界の穴（K7 の oldestHole、C16 が埋める）。読めなかった EEW・津波（H43）は K14、照合できないまま時間がたった EEW の「…は未確認」（H28）は C16。画面へ送る口・件数の分からない欠けを 0 件と出さないこと（spec:3151〜:3155）は段 4",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3066 «35e93a2c45a24cc6»",
           "docs/specs/reconstruction-p0-contracts.md:3151 «84071cfa5cd47632»",
@@ -678,7 +678,7 @@
           "reconstruction/contracts/p3-persist-premises.md:214 «fa51e4fd14c08277»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:318 «350627aa0c8c0b86»",
           "reconstruction/src/checkpoint/checkpoint.ts:641 «7cd2ed82d8fa4c92»",
-          "reconstruction/src/checkpoint/checkpoint.ts:690 «271e5d5c4145cb60»",
+          "reconstruction/src/checkpoint/checkpoint.ts:692 «271e5d5c4145cb60»",
           "reconstruction/src/runtime/composition-root.ts:1082 «d8901fa45e61695f»",
           "reconstruction/contracts/p3-persist-premises.md:525 «7bf1ba3fc9c8ec7d»",
           "reconstruction/src/runtime/owner-runtime.ts:398 «63adcad8d045ce86»",
@@ -694,7 +694,7 @@
           "reconstruction/contracts/p3-persist-premises.md:436 «f9154f6ac083aed7»",
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:32 «632cae790ef4aa0a»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:50 «e03057af8e6a011b»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:58 «e03057af8e6a011b»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:50 «e03057af8e6a011b»",
           "reconstruction/src/units/eew/eew-unit.ts:20 «851723a90699d3cd»"
         ]

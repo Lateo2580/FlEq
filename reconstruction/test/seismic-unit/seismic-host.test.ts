@@ -251,8 +251,45 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 urgent interference
     console.info("P3-C7-AC12", JSON.stringify({ runs, results: m.results }));
   }, 900_000);
 
+  // P3-QC-AC11 (3)（P3-UNIT-Q-CAPACITY-001）: 器いっぱいに畳める観測点を持つ守らない記録（最大の実例の VXSE53 を震度 4 にした 17 件）の
+  // state に、観測点で器の大きさに近い守らない VXSE53（観測点 30,000）を受け、両方の側の観測点を畳む受信と、その最中に投入した EEW の待ち。
+  // 試行ごとに空の host で組む（畳んだ記録は観測点が戻るまで畳まれないため）。対象処理の区間は work の投入から work の処理の終わりまで。
+  it("measures the widest fold of U-Q stations on urgent and the EEW waits behind it", async () => {
+    const foldRuns = Number(process.env.FLEQ_C7_AC12_FOLD_RUNS ?? 4);
+    const s53 = text("telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825").replace(/(<\/CodeDefine>\s*<MaxInt>)7(<\/MaxInt>)/, "$14$2");
+    const stations = Array.from({ length: 30_000 }, (_, index) => {
+      const code = String(9_000_000 + index);
+      return `<IntensityStation><Name>観測点${code}</Name><Code>${code}</Code><Int>4</Int></IntensityStation>`;
+    }).join("");
+    const wide = (eventId: string) => vxse53({ eventId, at: "2026-07-28T16:39:00+09:00", origin: "2026-07-28T16:38:00+09:00", maxInt: "4",
+      city: `<City><Name>合成市</Name><Code>9900100</Code><MaxInt>4</MaxInt>${stations}</City>` });
+    const rows: Record<string, number | null>[] = [];
+    let results: Record<string, unknown> = {};
+    for (let trial = 0; trial < foldRuns; trial++) {
+      const observations: P2HostObservation[] = [];
+      const h = await host(observations);
+      const m = measurer(observations);
+      let sequence = 0;
+      for (let index = 0; index < 17; index++) {
+        const sent = `input-${++sequence}`;
+        await h.sender.send([frame("VXSE53", withEvent(s53, `W53${trial}${String(index).padStart(10, "0")}`))]);
+        await until(() => m.processingOf(sent) != null);
+      }
+      const work = `input-${++sequence}`, eew = `input-${++sequence}`;
+      const [workAt, injectedAt] = await h.sender.send([frame("VXSE53", wide(`WIDE${trial}`)), frame("VXSE45", withEvent(eewBody, String(20240301000000 + trial)))]);
+      await until(() => marker(observations, "T2", eew) != null && m.processingOf(work) != null, 120_000);
+      const done = m.processingOf(work)!, arrival = owners.arrivals.get(work)!;
+      rows.push(m.row(eew, injectedAt, { start: workAt, end: done.endedMonotonicMs }, { workBusyMs: done.endedMonotonicMs - done.startedMonotonicMs,
+        decodeMs: arrival.decodeEnded - arrival.decodeStarted, reduceMs: arrival.raised == null ? null : arrival.raised - arrival.decodeEnded }));
+      if (trial === foldRuns - 1) { m.record("widestFold", rows, Math.ceil(foldRuns / 2)); results = m.results; }
+      await h.stop();
+    }
+    console.info("P3-QC-AC11-FOLD", JSON.stringify({ runs: foldRuns, rows, results }));
+  }, 900_000);
+
   // (4) 一括の期限回収（event 512・長周期 256 が同じ時刻に期限）: 空の state の host で組み、urgent へ期限の要求を送った瞬間に EEW を
-  // 投入する。対象処理の区間は期限の要求の送出から期限の処理の返信（deadlineDone）まで。
+  // 投入する。対象処理の区間は期限の要求の送出から期限の処理の返信（deadlineDone）まで。P3-QC-AC11 (3): K11 からは期限切れの記憶への
+  // 一括の変換（P3-QC-AC08）を測る。
   it("measures the bulk deadline of 512 events and 256 long-period subjects and the EEW wait behind it", async () => {
     const observations: P2HostObservation[] = [];
     const h = await host(observations);

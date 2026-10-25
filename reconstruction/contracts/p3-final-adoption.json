@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "46fa946218960241e93c22ab3841a546c78ddc1623345a0fe0529f85dfcfcf2e",
+    "sha256": "408c98ef6506fa1eb17fa056f9e19a6668aca0c50434273a022399e39ba7b5bd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -240,10 +240,10 @@
         "id": "P3-FINAL-AC01",
         "requirement": "最終採用の順（P3-X-C3・P3-X-C5の時間の軸）。U-Q・U-N・U-Vの受信で、記録の無いsubjectへ採用する記録が到着の時点で期限を過ぎている（受理の時計で、U-Qはevent・長周期のretainUntil、U-Nは情報subjectのretainUntil、U-Vは記録のactiveの期限（警報のactiveは無期限、噴火のvalidUntil・降灰のforecastEndsAt、inactiveはretainUntil）が時計以下）とき: (1) その記録が同じreduceの回収で消える（retainUntilが時計以下）なら配列へ入れない。件数・byteの超過の判定と退去は入れない配列で行い、ほかの記録を退去しない（U-LのP3-C10-CAPACITYの「到着の時点で期限を過ぎた報は退去を起こさない」と同じ規則）。(2) U-Vで記録の期限は来ていない（expiredとして残る）がsliceが満杯なら足さない（退去を起こさない）。空きがあれば今どおりexpiredの記録として残す（同じ版の再送はduplicate）。U-VのVFVO51の火山entry（警報）も同じ（警報のinactiveの記録は期限と保持が同じなので(1)だけが当たる）。(3) 記録のあるsubjectへの採用、到着の時点で期限の来ていない記録、退去の順・件数・byteの予算は今のまま。(4) (1)(2)で足さない報はwatermarkを残さない（足しても同じreduceで消えるので最終の状態は今と同じ）。同じ版・古い版の再送も到着の時点で期限を過ぎているので、activeにならず鳴らない。(5) 保存の世代はP3-X-C3: 保存の射影（U-Q: earthquakes・longPeriods・daily・intents、U-N: currents・intents・証拠、U-V: persistedChanged）が変わらなければ進めない。U-Qのadmitは置換も新しいintentも無いとき元の配列を返す（U-N・U-L・U-Vのadmitと同じ形。終端記録の上限は次にintentsを変えるadmitか期限で揃う）。U-Qの当日履歴が変われば保存する（F05のVXSE51は件数が増えるので+1）。回収のあるreduceで世代が2つ進むことはある（+1に揃えない）。",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:708 «63c2344c19805b4c»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:478 «a07bf5c5c6288191»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:718 «56605176b2e04572»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:421 «feb9c28eb9e81f5e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:951 «63c2344c19805b4c»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:629 «a2a495903d753d78»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:966 «56605176b2e04572»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:561 «feb9c28eb9e81f5e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:392 «df213ae392390cd9»",
           "reconstruction/src/units/nankai/nankai-unit.ts:395 «78f971ce5e2b3841»",
           "reconstruction/src/units/nankai/nankai-unit.ts:396 «04ccd69e96e4cee6»",
@@ -256,7 +256,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:990 «5ff3e954504ea98f»",
           "reconstruction/src/units/landslide/landslide-unit.ts:288 «e8afc5291a8206af»",
           "reconstruction/contracts/p3-landslide-unit.json:88 «c629cbaaa6776c3c»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «e4c4192b078d52e1»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «d6d84cf6a5680502»",
           "reconstruction/contracts/p3-nankai-unit.json:93 «72e93326386be917»",
           "reconstruction/contracts/p3-volcano-unit.json:132 «d394c1e950002e94»",
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
@@ -267,10 +267,10 @@
         "id": "P3-FINAL-AC02",
         "requirement": "結果の時制（D-OUTCOME=A、D-VANISHEDの裁定案A）。U-Q・U-N・U-Vの受信のdecisions・accepted・displayChangesは、同じreduceの期限の正規化（collect）の後の状態で決める: (1) accepted.subjectsには、その入力が触れたsubjectのうち最終の状態に記録が残るものを、その最終の記録で載せる（例: U-Vの噴火・降灰がexpiredになればtransition expired、U-Nの現況がexpiredになればexpired）。最終の状態に記録の無いsubject（AC01で足さなかった、または回収された）は載せない。acceptedは採用のあった入力では出す（subjectsは空もある）。U-Vは今の「subjectsが空ならacceptedを出さない」を「changedのdecisionがあれば出す」に替える。(2) changed.currentEstablishedは、最終の状態にそのsubjectの記録が無ければnull（p2-shared-runtime.jsonのQ-R20-CLEARのevidence）。expired・cancelled・endedの記録が残るなら今どおり今回の報の根拠を載せる。(3) decision.changeとaccepted.changeは最終の表示の変化で決める: 前の記録がactiveで最終にactiveが無い（消えた・expired）か、最終のactiveの事実が変わればsemantic、前も最終もactiveでなければrevisionOnly。退去があれば今どおりsemantic。U-Qの当日履歴の変化はchangeを変えない（今どおり）。(4) 回収で消えた新しい記録はdisplayChangesに出さない（今もまとめで出ない）。(5) U-Nの証拠だけの記録（K2）は表示・結果に出ない記録で、最終の記録が証拠だけなら「記録が無い」と同じ（Q-FINAL-EVIDENCE）。(6) 回収の無い受信、unchanged・rejected・capacityExceeded、deadline・restore・intentUpdate・shutdownの結果は変えない。(7) U-Lは本体を変えない（D-L-OUTCOMEの裁定案C、K3の間はAと同じ）。trainingの自己退去（受けた記録を残さない）の結果はK4。",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:711 «74cbc9399b0c6925»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:723 «ba94236780a0c93a»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:735 «a215031c287565b6»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:737 «a0e35eb00c585a48»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:959 «74cbc9399b0c6925»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:971 «ba94236780a0c93a»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:982 «a215031c287565b6»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:984 «a0e35eb00c585a48»",
           "reconstruction/src/units/nankai/nankai-unit.ts:346 «f6b2a70cafbf10da»",
           "reconstruction/src/units/nankai/nankai-unit.ts:476 «597e438042e5ca47»",
           "reconstruction/src/units/nankai/nankai-unit.ts:477 «7a828c7612ad7005»",
@@ -291,10 +291,10 @@
         "id": "P3-FINAL-AC03",
         "requirement": "F05・F16の閉鎖（監査の入力をそのまま回帰試験にする）。時計t=2026-01-01T10:00:00+09:00で、(a) U-Q: 32-35_08_03_100915_VXSE51のEventIDを1〜512・ReportDateTimeをtにした報で512件の満杯にし、EventID 513・ReportDateTimeをt−25時間にした報をtで受ける。(b) U-Q: selected_xmlの78_01_01_240613_VXSE62で256件にし、257件目をt−37時間で受ける。(c) U-N: selected_xmlの75_01_01_200512_VYSE51で64件にし、65件目をt−8日で受ける。(d) U-V: 43_01_01_200522_VFVO52で128件にし、129件目をt−3日（記録の期限も過ぎる）とt−36時間（activeの期限だけ過ぎる）で受ける。どれも、受けた後の配列は受ける前と同じ（件数512・256・64・128、受けた記録は無い）、decisionはchanged/revisionOnly・currentEstablished null、outcomesは[{accepted, revisionOnly, subjects: []}]、intents・displayChanges・diagnosticsは空。保存の世代は(a)だけ+1（当日履歴の件数）で(b)(c)(d)は変わらない。(e) U-Vの空のsliceにt−36時間の報を受けると、記録はexpiredで残り、acceptedのsubjectはtransition expired、currentEstablishedは今回の報（VFVO52）、changeはrevisionOnly。修正前の観測（件数−1・accepted active・currentEstablishedあり）の反転を正式試験で示し、未追跡の監査scriptに依存しない。",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:708 «63c2344c19805b4c»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:951 «63c2344c19805b4c»",
           "reconstruction/src/units/nankai/nankai-unit.ts:396 «04ccd69e96e4cee6»",
           "reconstruction/src/units/volcano/volcano-unit.ts:189 «73e4e4286c5cc146»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:735 «a215031c287565b6»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:982 «a215031c287565b6»",
           "reconstruction/src/units/nankai/nankai-unit.ts:346 «f6b2a70cafbf10da»",
           "reconstruction/src/units/volcano/volcano-unit.ts:575 «e15dbf781382eb37»"
         ]
@@ -310,10 +310,10 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:491 «4113d9919aea2674»",
           "reconstruction/contracts/p3-volcano-unit.json:150 «e947bd30f53ef573»",
           "reconstruction/contracts/p3-volcano-unit.json:248 «782a63e4c50a5c02»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:686 «c050c5f77e6e1ce5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:926 «c050c5f77e6e1ce5»",
           "reconstruction/src/units/nankai/nankai-unit.ts:418 «9bfdcabc21e21ff9»",
           "reconstruction/src/units/nankai/nankai-unit.ts:405 «63d3284dc34c9486»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:629 «b735881eff8eabae»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:858 «b735881eff8eabae»",
           "reconstruction/contracts/p3-order-plan.md:368 «125e18c065822856»"
         ]
       },
@@ -337,10 +337,10 @@
         "requirement": "既存条文の読み替え（旧契約の本文は変えない）。(1) U-Q: P3-C7-RETENTIONのreasonと期限の試験の振る舞い（p3-seismic-unit.json:72・:1007）の「到着の時点で期限を過ぎた報は、採用してwatermarkを進め、同じreduceで回収する」は、記録の無いsubjectなら配列へ入れない（最終の状態は同じ、AC01(1)(4)）と読む。P3-C7-CAPACITY=A（:76）に「到着の時点で期限を過ぎた新しい記録は件数・byteの超過の判定に入れず、退去を起こさない」を足す。Q-NOTICE.capacity（:228）の「終端記録の合計が131,072 byteを超える分は…expiresAtの前に回収する」とI-U-Q.capacityReserve（:310）の終端記録の上限は、AC01(5)によりadmitが置換も新しいintentも無いとき元の配列を返すので、超過分の回収が次にintentsを変えるadmitかexpiresAtまで遅れると読む（U-Qのdecodeは終端記録の合計を検査しない。超過分も世代のbyte予算の計量に入る）。(2) U-N: P3-C8-RETENTION=A（p3-nankai-unit.json:84）・AC（:716）・T（:858）を(1)と同じに読む。P3-C8-CAPACITY=Aの情報系列の65件目の規則（:93）に同じ一文を足す。(3) U-V: P3-C9-RETENTION=A（p3-volcano-unit.json:105）を(1)と同じに読み、P3-C9-CAPACITY=A（:132）にAC01(1)(2)を足す。P3-C9-REPLACEMENT=A（:150）に「到着の時点で期限を過ぎた採用が前のactiveの記録を置き換えるとき、新しいintentを作らずそのsubjectの全pendingをsupersededにする」を足し、generationTableのexpiry（:248）の「通知しない」は新しい通知についての文と読む。(4) U-L: AC05。(5) 計画§9のP3-X-C3/C6の境界例（p3-order-plan.md:370）はAC02・AC04で満たす。(6) K2のAC01(5)（証拠だけの記録の退去・回収の順）は変えない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-seismic-unit.json:72 «dad13f72955b6839»",
-          "reconstruction/contracts/p3-seismic-unit.json:1007 «f79a11a900f40259»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «e4c4192b078d52e1»",
+          "reconstruction/contracts/p3-seismic-unit.json:1007 «a561ed4e064feda2»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «d6d84cf6a5680502»",
           "reconstruction/contracts/p3-seismic-unit.json:228 «6d9cc710a984a7cb»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «fb6c17c8f1ed8eb9»",
+          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»",
           "reconstruction/contracts/p3-nankai-unit.json:84 «68e39a37d05ee2b5»",
           "reconstruction/contracts/p3-nankai-unit.json:716 «a146d716e540ab58»",
           "reconstruction/contracts/p3-nankai-unit.json:858 «33e3d8a5efa9e433»",

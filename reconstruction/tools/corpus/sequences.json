@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -1028,7 +1028,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-seismic-unit.json:290 «804f1d1c60babb58» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-seismic-unit.json:194 «95a9ce1b29076de8» Q-NOTICE correction",
-            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VXSE53_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -1046,9 +1046,9 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-seismic-unit.json:290 «804f1d1c60babb58» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-seismic-unit.json:205 «7799442b4fd08340» Q-NOTICE cancellation",
-            "L1: reconstruction/contracts/p3-seismic-unit.json:40 «9f2ed44e0a1cb3ed» P3-C7-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:40 «5d8e8b6985ec454b» P3-C7-CANCEL-SCOPE=A",
             "L1: reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1» P3-C7-REPLACEMENT=A",
-            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VXSE53_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -2963,10 +2963,10 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:2763 «c7aa1eb5711e93c1»",
             "L1: reconstruction/contracts/p3-seismic-unit.json:257 «6a870f9ac1d4615f» Q-ENUM identity",
-            "L1: reconstruction/contracts/p3-seismic-unit.json:113 «b55cce45140c2af1» P3-C7-VALUE-UNKNOWN=A",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:113 «f73e9d93f6b1bc06» P3-C7-VALUE-UNKNOWN=A",
             "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
             "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VXSE53_station_values.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -4848,7 +4848,7 @@
             "L1: reconstruction/contracts/p3-seismic-unit.json:301 «87b8d0e7a1df3f45» I-U-Q.strongHold（作者裁定 INTENSITY-CARRY=A）",
             "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
             "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VXSE53_intensity_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -13586,13 +13586,13 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-seismic-unit.json:290 «804f1d1c60babb58» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-seismic-unit.json:194 «95a9ce1b29076de8» Q-NOTICE correction",
-        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VXSE53_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
       "checks": [
         "同じrevision（16:35・Serial2）の訂正はInfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。VXSE53の寄与を置き換え、宇城市不知火町＊の震度だけ6+→6-。全体の最大震度7は変わらず、強震保持は保ちuntilを延ばさない。",
-        "同revision訂正は受理・通知判定。通知: correction（事実が同じでも作る）、normalなのでdesktop＋sound、level=warning（報自身の全体MaxInt 7、P3-C7-NOTICE-LEVELS=A）。題は「[訂正] 震源・震度情報」。",
+        "同revision訂正は受理・通知判定。通知: correction（事実が同じでも作る）、normalなのでdesktop＋sound、level=critical（H08: 報自身の全体MaxInt 7が5弱以上、P3-C7-NOTICE-LEVELS=AをP3-UNIT-Q-CAPACITY-001のP3-QC-AC06で改訂）。題は「[訂正] 震源・震度情報」。",
         "当日履歴: 同じEventIDなので件数を足さない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -13628,16 +13628,16 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-seismic-unit.json:290 «804f1d1c60babb58» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-seismic-unit.json:205 «7799442b4fd08340» Q-NOTICE cancellation",
-        "L1: reconstruction/contracts/p3-seismic-unit.json:40 «9f2ed44e0a1cb3ed» P3-C7-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:40 «5d8e8b6985ec454b» P3-C7-CANCEL-SCOPE=A",
         "L1: reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1» P3-C7-REPLACEMENT=A",
-        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VXSE53_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
       "checks": [
-        "対象観測寄与だけ取消、別EventIDの危険保持を消さない（P3-C7-CANCEL-SCOPE=A）。この系列には同じEventIDの他familyの寄与が無いので、eventはviewに載らなくなり、震度を持つactiveの寄与が無くなるので強震保持も外れる（I-U-Q.strongHold）。",
+        "対象観測寄与だけ取消、別EventIDの危険保持を消さない（P3-C7-CANCEL-SCOPE=A）。この系列には同じEventIDの他familyの寄与が無いので、全寄与が取消になったeventは取消の印cancelledSummary（取消の前の震源名・発生時刻）を付けて地震の一覧に残り（activeに数えない、P3-UNIT-Q-CAPACITY-001のP3-QC-D-CANCEL-LIST=A・P3-QC-AC07の(4)）、震度を持つactiveの寄与が無くなるので強震保持も外れる（I-U-Q.strongHold）。",
         "通知: cancellation（取消の前にVXSE53のsubjectがactive）、desktop＋sound、level=cancel。同じsubjectのpendingは両channelともsupersededにする（P3-C7-REPLACEMENT=A）。",
-        "当日履歴: 取消で件数・最大震度を減らさない。",
+        "当日履歴: 全寄与が取消になったので件数から1を引き、最大震度をその日に数えた取消でない地震の段階で数え直す（H18、P3-UNIT-Q-CAPACITY-001のP3-QC-AC07・P3-QC-D-DAILY-MAX=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -14886,10 +14886,10 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:2763 «c7aa1eb5711e93c1»",
         "L1: reconstruction/contracts/p3-seismic-unit.json:257 «6a870f9ac1d4615f» Q-ENUM identity",
-        "L1: reconstruction/contracts/p3-seismic-unit.json:113 «b55cce45140c2af1» P3-C7-VALUE-UNKNOWN=A",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:113 «f73e9d93f6b1bc06» P3-C7-VALUE-UNKNOWN=A",
         "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
         "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VXSE53_station_values.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -18076,7 +18076,7 @@
         "L1: reconstruction/contracts/p3-seismic-unit.json:301 «87b8d0e7a1df3f45» I-U-Q.strongHold（作者裁定 INTENSITY-CARRY=A）",
         "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
         "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VXSE53_intensity_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,

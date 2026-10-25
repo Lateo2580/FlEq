@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "a40eeeb0df9facca8060d7fffe76866084c47821747afde1cb43230ef1739fc7",
+    "sha256": "83a8c64dd06b4fe9cf83867723b1b390eea151bb4847da3587327930535c8a25",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
+    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -132,6 +132,14 @@
         "closed": "baseOid を本点検の commit 165f45b2fc6c498ab30bb3deab42d9f780c856d3 に割り当てた。requiredEvidence の 4 つは Q-QC-PRECHECK にある: anchor のずれ 0 件（(3)、check-contract exit 0）、decisionBranches の ruling は 4 件とも作者裁定で『起草案』『待ち』の字は 0 件（(1)）、K10 の発注 1 が配送済み（96ff2d07・6609865c）で U-Q の入力の basis を使え、期限切れの形と記憶の長さは K10 の P3-EF-D-EXPIRED-MEMORY とそろう（(0) の (a)）、allowedPaths の file の行を引く他の契約の参照 219 件（(4)）",
         "remaining": "なし",
         "reason": "unresolvedQuestions の Q-QC-BASE（実装の着手）を閉じる"
+      },
+      {
+        "id": "Q-QC-IMPL-1",
+        "status": "closed",
+        "source": "統合担当の配送（2026-10-25、base 165f45b2、ブランチ k11-order。前例は K10 の Q-EF-IMPL-1）",
+        "closed": "AC01〜AC14 と試験 P3-QC-T01〜T09 を 1 回で配送した（実装の patch r2、16 file。試験 reconstruction/test/seismic-unit/seismic-capacity.test.ts を足した）。レビューの経過: 品質 ヘルツ（Astra high、新しい thread、read-only）は r1 NO-GO（fit の remove で最後の記録を外すとき区切りの 1 byte を引き、器 L＋1 の state を採って再起動で読み戻せない。前からある不具合）→r2 GO。契約適合 Opus は r1 条件付き GO（容量で退去した地震の取消で今日の件数と最大震度が減らない）→r2 条件付き GO（直しの条件なし）。統合担当の決定: (a) VXSE53 の MaxLgInt の枝は残す（Q-QC-PRECHECK の (0)(f)） (b) AC07 の (2) の「偽から真」は前の記録が無い場合（容量で退去した、期限の記憶を回収した）を含むと読む（残存リスク (24)） (c) AC07 の (4) の cancelledSummary は前の記録のある採用に限り、記録の無い取消には付けない（震源名も時刻も無い印を出さない）。作者裁定（2026-10-25）: AC11 の (3) の待ちは受け入れる。測定（MacBook、観測点 30,000 の VXSE53 約 4.89 MB、5 試行、EEW の投入から T2 までの最大／中央 ms）: 本契約は空 211／203・余裕あり 213／203・畳みが要る 247／239、本契約の前（165f45b2）は 237／227・206／195・198／197。延びたのは畳みが要る場面の約 +42 ms（reduce の差 +43）だけで、本契約の前は守らない古い地震 16 件を丸ごと消していたのを 18 件とも残す。40 ms の線は本契約の前から越えていて、待ちの根（urgent の thread に U-E・U-T・U-Q が同居）は構造的欠陥台帳 100 として別の契約で直す。Pi では測っていない。元の記録は repo の外の ~/dev/fleq-vault-archive/k11-unit-q-capacity-20261025/impl-1/compare-k11.txt・compare-base.txt。器の実測（P3-QC-AC04・AC05）: L 5,627,794・RESERVE 1,958,729（見積もりどおり）、S 340,097・S_f 118,162・T_f 110,800・G 3,425,244・N_guard 10・N_keep 28。上限いっぱいの記憶の state は RESERVE に 11,257 byte の余り（inputId が 22 文字のとき。64 文字だと 90,119 byte はみ出す。AC05 の (4) の見積もりとの差）。既存の試験（Q-QC-EXISTING-TESTS を閉じる、実装の報告）: 消した 2 本は P3-C7-T05 の中の holdGiants（強震保持の事実が HOLD_FACTS_BYTES を越えたら最古の強震保持を退去）と P3-VM-AC08 の k7Shape（旧い形で事実が 2,574,775 byte いっぱいの強震保持 512 件）で、強震保持の事実の予算と第 5 段の打ち切りを外したので対象が無い（P3-QC-AC01 の (4)）。代わりに守るのは P3-QC-T01（守らない記録を畳み、最古の守る地震を退去）・P3-QC-T02 の (2)（N_keep＋1 件で最古の守る地震が消える）・P3-C7-T05 の onlyHolds（守る地震 512 件＋守らない報で capacityExceeded）・P3-VM-T05（印の増えの上界）。期待を変えたもの: §13 の 4 か所の拒否→採用と WARN（P3-C7-T01、E13 の母集団の synthetic_phase4a_VXSE61_special）、長周期と event の期限の回収→期限切れの記憶（P3-C7-T03・T11）、5 弱以上の level warning→critical（P3-C7-T04・T07・T09 の O01:52・seismic-runtime の訂正）、取消で件数・最大震度を減らす（P3-C7-T04・T09 の O01:53）と取消の一覧の印（T09・seismic-runtime の P3-C7-T10）、countedEventIds→counted（P3-C7-T06・fixture）、器の定数と同時最大状態（P3-C7-T05）、U-Q の P3-CC の 8 本の詰め物を守る地震に替え slack を 20,000→10,000 に（期待は変えない）、P3-CC-T17 の境界入力の発生時刻、版の字 v4→v5。r2 で実不具合の試験 P3-QC-T02 の regression（最後の記録の退去の区切り）と P3-QC-T04 の regression（退去の後の取消の数え直し）を足した。一覧は repo の外の同じ impl-1/existing-tests.md。ゲート: 実装の木で tsc 3 本・vitest 855 passed／24 skipped・shuffle とも rc=0（実装担当とレビュー 2 本が MacBook で）。配送の木での vitest と CI の run の ID は統合担当が後で書き足す。配送の commit（統合担当）: AC14 の (1)〜(6)・(9)・(10) に加え、Q-QC-PRECHECK の (5) で main で別にとした (7) spec と (8) 設計メモも同じ commit で当てた（spec §16 の H08・H18・H23・H35・H36、設計メモの §18）。他の契約と sequences.json の anchor を付け直し、全契約の sequencesSha256 と改訂した契約の sha256 を作り直した",
+        "remaining": "Q-QC-MEASURE（配送の後に N1・N2・N3 を測って作者へ）と Q-QC-H36。配送の木での vitest と CI の run の ID",
+        "reason": "配送の記録。本契約のほかの行は Q-QC-PRECHECK の (0) の読みで読む"
       }
     ],
     "operationContract": {
@@ -218,6 +226,8 @@
       "reconstruction/contracts/p3-seismic-unit.types.ts#EarthquakeContribution",
       "reconstruction/contracts/p3-seismic-unit.types.ts#LongPeriodSubject",
       "reconstruction/contracts/p3-seismic-unit.types.ts#EarthquakeEvent",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#SeismicGuard",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#CancelledSummary",
       "reconstruction/contracts/p3-seismic-unit.types.ts#EarthquakeEventView",
       "reconstruction/contracts/p3-seismic-unit.types.ts#SeismicDailyHistory",
       "reconstruction/contracts/p3-seismic-unit.types.ts#SeismicUnitView",
@@ -348,9 +358,9 @@
           "reconstruction/contracts/p3-persist-premises.md:384 «b31598aec01f008f»",
           "reconstruction/contracts/p3-persist-premises.md:262 «3b01d87726b3ad30»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
-          "docs/specs/reconstruction-p0-contracts.md:3062 «cc1733acc95f480b»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:52 «353539cc40465f84»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:494 «fcd8b9106481c6e1»",
+          "docs/specs/reconstruction-p0-contracts.md:3062 «78dec9004c9496aa»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:61 «04b5e98ae1630102»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:637 «4550121a84059a8f»",
           "reconstruction/contracts/p3-seismic-unit.json:298 «fe843e506b18c741»"
         ]
       },
@@ -362,12 +372,12 @@
           "reconstruction/contracts/p3-persist-premises.md:265 «056aac105c2fef5b»",
           "reconstruction/contracts/p3-persist-premises.md:266 «dfc7cff63767ab46»",
           "reconstruction/contracts/p3-persist-premises.md:387 «75dc1fda22982fcd»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:451 «fa3f937a6ec00264»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:452 «b7c92f4b2af5d170»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:479 «ffea937367a1b1a4»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:573 «474523cecfc414f6»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:765 «4a1a7a1d25193b34»",
-          "reconstruction/contracts/p3-currency-coverage.json:431 «5eb4af71c61fa9ce»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:659 «05763e314fcd9fc5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:643 «6a59a402161e8896»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:662 «ea8d6da6d7e5bf3f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:775 «9379000288c0b994»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1013 «70a64289aaf69c2d»",
+          "reconstruction/contracts/p3-currency-coverage.json:431 «26d09c4135af20b9»"
         ]
       },
       {
@@ -376,9 +386,9 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:406 «bf5612e2a207109f»",
           "reconstruction/contracts/p3-persist-premises.md:408 «166e4756485b6b36»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:218 «3458e4d4e2aa9395»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:239 «3458e4d4e2aa9395»",
           "docs/specs/reconstruction-p0-contracts.md:3066 «35e93a2c45a24cc6»",
-          "reconstruction/contracts/p3-notice-ledger.json:669 «03296f4de7483157»",
+          "reconstruction/contracts/p3-notice-ledger.json:669 «14540d27ce534388»",
           "reconstruction/contracts/p3-seismic-unit.json:194 «95a9ce1b29076de8»"
         ]
       },
@@ -401,19 +411,19 @@
           "reconstruction/contracts/p3-persist-premises.md:321 «ce49b308a6174a68»",
           "reconstruction/contracts/p3-order-plan.md:556 «88c712cf529c65ed»",
           "reconstruction/contracts/p3-order-plan.md:558 «73c4395164a3713f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:49 «4383702f23ce23b7»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1228 «9fa877ffaf38bd44»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:57 «504cfec80a7ac9f7»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1555 «9fa877ffaf38bd44»"
         ]
       },
       {
         "id": "P3-QC-AC06",
         "requirement": "H08（spec:3035）: (1) 地震の報（VXSE51/52/53/61）の level は次の順で最初に当たるもの（r1、D2）: 取消なら cancel → 報自身の全体 MaxInt の safety rank が 5 以上か報自身の全体 MaxLgInt の階級（lgRank）が 2 以上なら critical → 報自身の全体 MaxInt が unknown なら info → safety rank が 4 なら warning → それ以外 normal（P3-C7-NOTICE-LEVELS=A の「報自身の値」のまま）。全体 MaxInt が unknown で全体 MaxLgInt が 2 の VXSE53 は critical (2) 長周期（VXSE62）: 取消は cancel、全体 MaxLgInt の階級が 2 以上なら critical、1 なら warning、それ以外 normal (3) 群は今どおり other（P3-C7-NOTICE-GROUP=A）。critical の U-Q の通知は保存 ack の待ちが最長 1 秒（P3-NL-DLV-01）で、EEW・津波緊急を追い越さない (4) 容量の拒否の失敗警報の段（D-FAILNOTICE=A の「warning 以上」）は式を変えず、5 弱以上の拒否は critical の失敗警報になる 【気象庁の資料との照合（2026-10-25、Q-QC-JMA）】値の範囲は MaxInt 1〜7（manual/地震火山関連_解説資料.txt:5297）、MaxLgInt 0〜4（manual/地震火山関連_解説資料.txt:5938）。VXSE52 と VXSE61 の内容部は Earthquake・Text・Comments で Intensity を持たない（manual/地震火山関連_解説資料.txt:4978・:5076・:5082、:5664・:5737・:5743）。VXSE53 の MaxLgInt は資料に記述なし。どの段階をどの音にするかは資料に記述なし（H08）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3035 «51b1ca54fc260f4a»",
-          "reconstruction/contracts/p3-seismic-unit.json:12 «7120b1490c8760e9»",
-          "reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:358 «a125e6aa2843ba86»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:363 «8490a6e6e35b6b82»",
+          "docs/specs/reconstruction-p0-contracts.md:3035 «cffe9b9877228250»",
+          "reconstruction/contracts/p3-seismic-unit.json:12 «6414c1e18a42d0ba»",
+          "reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:497 «836d766c19ad2d52»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:503 «8490a6e6e35b6b82»",
           "reconstruction/contracts/p3-notice-ledger.json:304 «53e23ab43883d1e3»"
         ]
       },
@@ -421,24 +431,24 @@
         "id": "P3-QC-AC07",
         "requirement": "H18（spec:3045、設計メモ :268）: (1) 終端の判定（r1、D7）: 「取り消された地震」は、event の寄与が全部 effective cancelled のこと（allCancelled）。active の寄与か expired の寄与が 1 つでもあれば当たらない（例: 51 が期限切れ・53 が取消の event は、51 の報が取り消されていないので当たらない）。件数を引く条件・cancelledSummary を作る条件・decode の許す条件は、どれもこの 1 つの判定を使う (2) 件数: ある採用で allCancelled が偽から真になり、その EventID がその operation の当日の数えた集合にあれば、集合から外して件数を 1 減らす。後で取消でない新しい版が採られて allCancelled でなくなれば、今どおりもう一度数える。2048 件を越えて集合に入れずに数えた EventID の取消は引けない (3) 最大震度（P3-QC-D-DAILY-MAX=A）: 当日の数えた EventID を [EventID, 段階] の組の配列 counted にし、(2) で件数を引くとき、最大震度もその日に数えた取消でない地震の段階の中で数え直す（段階の表記 STAGE_LABEL の text で持つ）。2048 件を越えて数えた日は最大震度を下げない (4) 一覧（P3-QC-D-CANCEL-LIST=A）: 取消記憶だけの event を地震の一覧に取消の印 cancelledSummary を付けて残す（取消記憶と同じ期限まで。震源名は 64 文字で切り、発生時刻は 40 文字を越えれば null、cut・boundTime）。cancelledSummary は (2) と同じ採用で付け、中身は採用の前の公開事実の震源名・発生時刻（期限切れの記憶から取消になったときは事実が無いので両方 null）。allCancelled でなくなる採用で外す。画面へ届く道（r1、D10）: view の earthquakes に、active の event と cancelledSummary を持つ event を並べ、後者は事実を null・印 cancelledSummary を持つ EarthquakeEventView にする。取消になった採用の displayChanges は、after をその EarthquakeEventView の RuntimeDisplaySubject（current はその view、subjects は空で active に数えない）にする。確認の subjects（SubjectOutcome）は今どおり active の寄与だけ。snapshot は SeismicUnitView を今の形のまま運び（domain earthquake）、view-projector の U-Q の行は cancelledSummary を持つ view を active に数えない（activeCount に足さない。今は \"sources\" in current だけで 1 にする、view-projector.ts の U-Q の tally。P3-C7-SNAPSHOT の件数は active の event で数える。r7）。取消の描画と見分けは段 4・P4 (5) 今日の地震の一覧（recent）の取消の印は今どおり (6) expected:O01:53 の checks の「eventはviewに載らなくなり」「取消で件数・最大震度を減らさない」は本契約の形に改める（P3-QC-AC14 の (6)） 【気象庁の資料との照合（2026-10-25、Q-QC-JMA）】取消は「独立した情報単位」全体を取り消し、種類（情報名称）ごとに取消電文が出る（manual/地震火山関連_解説資料.txt:2050〜:2058。地震の独立した情報単位は情報名称・運用種別・地震識別番号の組、manual/地震火山関連_解説資料.txt:1749〜:1752、jma-2026-head-control-list.txt:194）ので、event の全 family が取消になって初めて地震全体の取消になる。取消の報は Earthquake・Intensity を持たない（manual/地震火山関連_解説資料.txt:4868・:5128・:5272〜:5273）。件数・最大震度・一覧の扱いは資料に記述なし",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3045 «eebf877ad73d9670»",
+          "docs/specs/reconstruction-p0-contracts.md:3045 «c6d2c2b60f7ef757»",
           "reconstruction/contracts/p3-persist-premises.md:268 «552fb20e493cab11»",
-          "reconstruction/contracts/p3-seismic-unit.json:40 «9f2ed44e0a1cb3ed»",
-          "reconstruction/contracts/p3-seismic-unit.json:95 «66976ab805a6ba5e»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:293 «edf112cd5e151d1f»",
+          "reconstruction/contracts/p3-seismic-unit.json:40 «5d8e8b6985ec454b»",
+          "reconstruction/contracts/p3-seismic-unit.json:95 «c419416bf6380b24»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:434 «bff83e12b1de22ae»",
           "src/engine/messages/daily-quake-counter.ts:60 «946667da9de79247»",
-          "reconstruction/src/view-projector/view-projector.ts:324 «aa78930a63774245»"
+          "reconstruction/src/view-projector/view-projector.ts:325 «f8ade7bb60c20f4e»"
         ]
       },
       {
         "id": "P3-QC-AC08",
         "requirement": "H23（spec:3050、設計メモ :227）: (1) event の retainUntil（最後の報＋24 時間）が来たら、記録ごと消さず、active の寄与を effective \"expired\" にして事実を捨てる（取消の寄与と同じく source・notice だけを残し、title は空文字、ほかは null。unconfirmed・unavailable・folded は外す。unconfirmed を期限で外すのは K7 が期限での解除を認めているため〔r2、D12〕。その後の undecidable で付く印は (4) の表のとおり容量の検査で扱う）。event の strongHold を外し、guard は on を 0 にして from を残す（r1 の O8・r2 の D11。decode の不変条件として active の寄与の無い記録は strongHold・unavailable を持たず、guard の on は 0）。event の retainUntil を6 時間（P3-QC-D-EXPIRED-MEMORY=A）先に延ばし、そこで記憶ごと消す。長周期も同じ（effective \"expired\"、最後の報＋36 時間で記憶に）。取消記憶だけの event・長周期は今どおり retainUntil で消す。時計を確かめるまで記憶への変換と記憶の回収を止める条件は、長さとは別に、先に配送される K10 が入れる。本契約はその条件の下で変換する（設計メモ :524、P3-CK-AC08 の (6)。Q-QC-DECIDED の (5)） (2) 期限切れの理由と最終更新の時刻: 理由は effective \"expired\"、最終更新の時刻はその寄与・長周期の source.reportDateTimeRaw（新しい欄を足さない。U-T の期限切れの観測と同じ形、K10 とそろえる、Q-QC-DECIDED の (5)）。期限の入力の step の outcome（deadlineApplied）に、期限切れにした寄与と長周期の SubjectOutcome（transition \"expired\"、source は最終更新の報）を載せる。通知は今どおり作らない（Q-NOTICE.generationTable の expiry） (3) 期限切れの記憶は view に載せない（見せ方は P4。H17 は段 4） (4) 記憶への報の遷移（r1、D4。受けた報を expired の寄与・長周期の source と K7 の compareVersion で比べる）: | 比べた結果 | 受けた報が取消でない | 受けた報が取消 | same | duplicate（記憶は事実を持たないので中身を比べない） | 採用して cancelled にする（同じ時刻の取消は取消でない報に勝つ、作者裁定 2026-10-21 昼。duplicate で遮らない）。H19 の取消の通知は印の証拠で決める | older | stale | stale | newer | 採用し、寄与は active に戻る（event は生きている記録に戻り retainUntil を最後の報＋24 時間で数え直す） | 採用して cancelled（H19 の取消の通知は印の証拠で決める） | undecidable（比べる時刻を欠く報） | K7 どおり手元の版を残して未確認の印を付ける（held）。印の byte は RESERVE に数え、越えれば印を置かず unit の未確認へ寄せる（今の holdVersion の fit） | 同じ | (5) 通知の印は記憶と同じに生きる（§7 の 1(c)）。記憶の間に届いた取消は、印の証拠が possible か unknown なら通知する（P3-NL-AC09、H19） (6) 当日履歴と期限の最小の cache は今どおり。期限切れにした変化は displayChanges（view から消える）に出る 【気象庁の資料との照合（2026-10-25、Q-QC-JMA）】地震の報は失効時刻を持たない（manual/地震火山関連_解説資料.txt:227〜:228）ので、24 時間・36 時間・6 時間は資料に記述なし。記憶への報の比べは Control/DateTime（manual/地震火山関連_解説資料.txt:118〜:120・:272〜:273）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3050 «d5bc6c3891d50bdb»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «0d940f5a05840db9»",
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
-          "reconstruction/contracts/p3-seismic-unit.json:67 «0493a280354f47e3»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:840 «3cce335e151b5b58»"
+          "reconstruction/contracts/p3-seismic-unit.json:67 «daf91d68a98a2560»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1109 «e85cf715bf3ed3e2»"
         ]
       },
       {
@@ -447,10 +457,10 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:511 «10526fc76eff78d1»",
           "reconstruction/contracts/p3-persist-premises.md:516 «eeb3c59348dfc086»",
-          "reconstruction/src/domains/seismic/seismic.ts:244 «89e8e68bf3f13d43»",
-          "reconstruction/src/domains/seismic/seismic.ts:273 «f4c8a78b7d115117»",
-          "reconstruction/src/domains/seismic/seismic.ts:171 «6123abbc7aad4262»",
-          "reconstruction/src/domains/seismic/seismic.ts:142 «f14474fc4c8541b7»",
+          "reconstruction/src/domains/seismic/seismic.ts:249 «4287166c96973b73»",
+          "reconstruction/src/domains/seismic/seismic.ts:285 «30ca81b341d48dc9»",
+          "reconstruction/src/domains/seismic/seismic.ts:175 «9bda2a00d921db4e»",
+          "reconstruction/src/domains/seismic/seismic.ts:144 «fcd806d5678f768f»",
           "docs/specs/reconstruction-p0-contracts.md:3204 «f55bbe1dc71546b1»"
         ]
       },
@@ -460,10 +470,10 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:309 «072a7927898ff921»",
           "reconstruction/contracts/p3-persist-premises.md:438 «0b572eb74bd511a1»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1236 «b7832be744e8d073»",
-          "reconstruction/contracts/p3-seismic-unit.json:304 «fd1874797a53d271»",
-          "reconstruction/contracts/p3-seismic-unit.json:305 «e7f8c1963dbeeace»",
-          "reconstruction/src/runtime/owner-runtime.ts:78 «76831e586f6ab255»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1563 «290746b83e6b9f3e»",
+          "reconstruction/contracts/p3-seismic-unit.json:304 «22e37753670cc27f»",
+          "reconstruction/contracts/p3-seismic-unit.json:305 «302b643645673991»",
+          "reconstruction/src/runtime/owner-runtime.ts:78 «2b783e1399ea047d»"
         ]
       },
       {
@@ -472,7 +482,7 @@
         "evidenceRefs": [
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
           "reconstruction/contracts/p3-persist-premises.md:304 «ff677893feced6d1»",
-          "reconstruction/contracts/p3-seismic-unit.json:815 «fafcc99b4d9ec786»"
+          "reconstruction/contracts/p3-seismic-unit.json:815 «a2f385f725e7a055»"
         ]
       },
       {
@@ -480,9 +490,9 @@
         "requirement": "災害の日の道具の読み（P3-DISASTER-CAPACITY-001、期待例は変えない、設計メモ :309）: (1) reconstruction/test/disaster/runner.ts の BYTE_LIMITS の U-Q を seismicUnitCodec.maxEnvelopeBytes にする（今は 4,194,304 のままで、使用率を 125.6% と出す未確認の不整合、p3-order-plan.md:559） (2) 退去の件数の表と別に、U-Q の seismicStationsFolded の count を時刻ごとに数えて結果に書く（退去にも容量の欠けにも数えない） (3) 試験は道具の今の試験（reconstruction/test/disaster/）に境界例を 1 本足す",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:559 «036a201be6bf98eb»",
-          "reconstruction/test/disaster/runner.ts:188 «1317de372038bcd2»",
-          "reconstruction/test/disaster/runner.ts:31 «0549d7e3c3222352»",
-          "reconstruction/contracts/p3-disaster-capacity.json:406 «a28685260c459864»"
+          "reconstruction/test/disaster/runner.ts:194 «b67f7948980756a4»",
+          "reconstruction/test/disaster/runner.ts:32 «0549d7e3c3222352»",
+          "reconstruction/contracts/p3-disaster-capacity.json:406 «cc1ced338be85089»"
         ]
       },
       {
@@ -490,8 +500,8 @@
         "requirement": "影響の範囲（最小）: (1) 公開の型の変更は p3-seismic-unit.types.ts（EarthquakeContribution と LongPeriodSubject の effective に \"expired\" と folded?、EarthquakeEvent と LongPeriodSubject の guard?、EarthquakeEvent と EarthquakeEventView の cancelledSummary?、SeismicDailyHistory の counted〔P3-QC-D-DAILY-MAX=A〕、schemaVersion v5）と、p2-shared-runtime.types.ts の DiagnosticReason と LossReason の union に seismicStationsFolded の 1 語（r1、D9）だけ (2) 足すものは「無いと何が壊れるか」を成果物に 1 行で書く。新しい helper は作らず、cut・boundTime・knownStage・safetyRank・lgRank・STAGE_LABEL・factsOf・indexOf・shownBytes・listBytes・compareVersion と今の fit の段の作りを使う (3) U-Q 以外の unit の reduce・codec・版は変えない (4) H39 の保存と読み戻しの境界: envelope の losses に seismicStationsFolded の行を持つ U-Q の世代の encode→decode と、LOSS_TALLY_MAX_BYTES が変わらないこと（7 語の最長の組に入らない）を確かめる",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:74 «89e1a77f78dbf9da»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:499 «d8b01b9d228e59a5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:86 «89e1a77f78dbf9da»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:597 «c3904969d4614e9c»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:542 «5664a1747994b0b2»"
         ]
       },
@@ -499,17 +509,17 @@
         "id": "P3-QC-AC14",
         "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方を優先する）: (1) P3-UNIT-Q-001: (a) P3-C7-NOTICE-LEVELS の A（:12）と Q-NOTICE.level（:221）に「（P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消→報自身の全体 MaxInt が 5 弱以上か全体 MaxLgInt の階級が 2 以上なら critical→全体 MaxInt が unknown なら info→震度 4 は warning。長周期は階級 2 以上 critical・1 warning。P3-QC-AC06）」を足し、P3-C7-T07 の behavior の level の式の行を同じ形に替える (b) P3-C7-CAPACITY の A（:76）と P3-C7-CAPACITY-BUDGET の A（:85）に「（P3-UNIT-Q-CAPACITY-001 で改訂: 退去と畳みの順は P3-QC-AC02、強震保持の事実の予算は守る線と guard〔P3-QC-AC01〕に置き換えて外した。器と RESERVE の値は P3-QC-AC05、保証は N_guard〔P3-QC-AC04〕）」を足す (c) P3-C7-CANCEL-SCOPE の A（:40）の「全寄与がcancelledになったeventはviewに載らない」と I-U-Q.view（:306）に「（P3-UNIT-Q-CAPACITY-001 で改訂: P3-QC-D-CANCEL-LIST の裁定、P3-QC-AC07 の (4)）」を足す (d) P3-C7-DAILY の A（:95）と P3-C7-AC04（:799）の「取消で減らさない」に「（P3-UNIT-Q-CAPACITY-001 で改訂、H18: 全寄与が取消になった地震を件数から引く。最大震度は P3-QC-D-DAILY-MAX の裁定、P3-QC-AC07）」を足し、P3-C7-DAILY の reason（:100）の「1件43 byte」に「（P3-QC-D-DAILY-MAX=A で [EventID, 段階] の組の 47 byte）」を、P3-C7-RET-04 の target に「（[EventID, 段階] の組、P3-QC-D-DAILY-MAX=A）」を添える (e) P3-C7-RETENTION の A（:67）と P3-C7-SEM-01・SEM-02・RET-01、I-U-Q.deadlines（:303）に「（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）」を足し、P3-C7-T11 の behavior の「eventの23時間59分と24時間」「長周期の35時間59分と36時間」の境界を「記憶への変換と記憶の終わり」に替える (f) P3-C7-VALUE-UNKNOWN の A（:113）の「拒否するのはQ-ENUM.familyTableの必須構造の欠落と…だけ」と Q-ENUM.priorityRule（:256）・familyTable に「（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）」を足す (g) P3-C7-LEGACY-DIFF の段階（:238）・保持の基準（:244）・当日地震履歴（:245）・容量（:246）の行に Q-QC-LEGACY の (1)〜(4) を足す (h) I-U-Q.capacityReserve（:310）・decode（:305）・persisted（:304）・computation（:309、畳みの byte の引き算と指紋）、P3-C7-RES-01 の limit（:722）、persistedFields、P3-C7-AC05（:815）・AC06・AC07 に、版 v5・欄・値（P3-QC-AC05・AC10）を添える (2) P3-NOTICE-LEDGER-001: P3-NL-AC14 の (3)（:669）の閉集合に「U-Q の seismicStationsFolded（P3-UNIT-Q-CAPACITY-001 の P3-QC-AC03）」を足す (3) P2-SHARED-RUNTIME-001: DiagnosticReason と LossReason（p2-shared-runtime.types.ts:542）の型の境界の AC と試験の閉集合に seismicStationsFolded を足す (4) P3-DISASTER-CAPACITY-001: P3-DC-AC04（:406）の (1) の「U-Q 4 MiB」を「U-Q は seismicUnitCodec.maxEnvelopeBytes」に、(3) に「U-Q の観測点の畳み（seismicStationsFolded）は退去と別の列」を足し、P3-DC-OPTIONS（:87）の U-Q の世代の行に「P3-UNIT-Q-CAPACITY-001 で D（観測点の畳み）と守る線を入れた」を添える。期待例は変えない (5) P3-CURRENCY-COVERAGE-001: P3-CC-AC03 の「退去の適格性は採用と同じ」に「（U-Q の印だけの fit は第 6 段に入らない、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC02 の (1) の (8)）」を足す。ほかの本文は変えない（U-Q の拒否は 1 件で器を越える報・RESERVE を越える採用と、P3-QC-D-SMALL-PUSH=B で第 5 段までに収まらない守らない報と、同じ EventID の記録だけで器を越える守る報・より新しい守る地震を消さなければ入らない古い守る地震の遅い報〔P3-QC-AC02 の (1) の (7)〕に狭まる。失敗警報は H08 で critical になりうる）。読みを配送の記録に書く (6) sequences.json: expected:O01:52 の checks の「level=warning」を「level=critical（H08）」に、expected:O01:53 の checks の「eventはviewに載らなくなり」「取消で件数・最大震度を減らさない」を裁定の形に改め、sequences の meta.sha256 と全契約の meta.sequencesSha256 を付け直す（K8 の配送の前例） (7) spec §16 の H08・H18・H23・H35・H36 の運ぶ契約の欄に本契約の ID を足す（H36 は「未充足」と書き添える）。統合担当が main で別に行う (8) 設計メモに新しい節を足し、:264 の N_guard の値（実装の数え直しと Q-QC-MEASURE）、:267 の件数の読み（Q-QC-DISASTER の (5)）、:309・:438 の変える契約、K10 との合流と期限切れの形のそろえ（Q-QC-DECIDED の (5)）、§7 の 1(c) の地震の記憶の長さ（P3-QC-D-EXPIRED-MEMORY）を書く。§0〜§16 の行は書き換えない (9) 他の契約が引く行: 変える file（seismic-unit.ts・seismic.ts・p3-seismic-unit.types.ts・p2-shared-runtime.types.ts・owner-runtime.ts・checkpoint.ts・persistent-diagnostic-sink.ts・runner.ts）の行を anchor で引く他の契約と sequences の basisRefs は、発注前点検で数え、動いた行は配送の commit で付け直す（本文は書き換えない） (10) 配送の commit で本契約の publicTypes の行を足した型に合わせる（起草の時点では folded・guard・cancelledSummary・counted はまだ無い）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-seismic-unit.json:12 «7120b1490c8760e9»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «e4c4192b078d52e1»",
-          "reconstruction/contracts/p3-seismic-unit.json:85 «3bb1fc5be23783c7»",
-          "reconstruction/contracts/p3-seismic-unit.json:238 «6341c59f142d7080»",
-          "reconstruction/contracts/p3-seismic-unit.json:246 «1e2b03b3815d5c6f»",
-          "reconstruction/contracts/p3-seismic-unit.json:303 «9c3501fbca9c53b8»",
-          "reconstruction/contracts/p3-seismic-unit.json:309 «e9f632fd7af447ac»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «fb6c17c8f1ed8eb9»",
-          "reconstruction/contracts/p3-seismic-unit.json:722 «0c8909a23e00dff4»",
-          "reconstruction/contracts/p3-notice-ledger.json:669 «03296f4de7483157»",
-          "reconstruction/contracts/p3-disaster-capacity.json:87 «9e8b334707f79fa0»",
+          "reconstruction/contracts/p3-seismic-unit.json:12 «6414c1e18a42d0ba»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «d6d84cf6a5680502»",
+          "reconstruction/contracts/p3-seismic-unit.json:85 «85f38138f68ddce1»",
+          "reconstruction/contracts/p3-seismic-unit.json:238 «a40033dc8bd9e780»",
+          "reconstruction/contracts/p3-seismic-unit.json:246 «334ea8e90e3c1d00»",
+          "reconstruction/contracts/p3-seismic-unit.json:303 «c40a0d7d166e74ac»",
+          "reconstruction/contracts/p3-seismic-unit.json:309 «42251c3710913a67»",
+          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»",
+          "reconstruction/contracts/p3-seismic-unit.json:722 «166f6d10622dfbb0»",
+          "reconstruction/contracts/p3-notice-ledger.json:669 «14540d27ce534388»",
+          "reconstruction/contracts/p3-disaster-capacity.json:87 «1a62d99d7c466e13»",
           "reconstruction/contracts/p3-persist-premises.md:347 «3362aa8218ae44a7»"
         ]
       }
@@ -664,20 +674,9 @@
       "足した仕組み（守る線の判定と guard、fit の段、folded と指紋、expired、cancelledSummary、counted、診断の 1 語）ごとに『無いと何が壊れるか』を 1 行。消したもの（HOLD_FACTS_BYTES と退去の第 5 段の打ち切り、§13 の 4 か所の拒否）の一覧",
       "追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行。期待値を変えた既存の試験と sequences の step の名前と理由（Q-QC-EXISTING-TESTS、変える前に報告）",
       "上界の値（L・E・RESERVE・S・S_f・T_f・G・N_guard・N_keep）を実際の encode で数えた値と式、見積もりとの差。P3-QC-AC11 の所要と EEW の待ち（Mac）。§13 の 4 か所の旧築の扱い（Q-QC-LEGACY の (5)）",
-      "残存リスク（2026-10-25 作者承認済み、Q-QC-AUTHOR）: (1) 器が埋まった日、守らない古い地震の観測点ごとの震度が先に外れ（新しく届いた守らない地震も古い順の最後に含む）、さらに足りなければ守らない古い地震が記録ごと消える。今の新築は観測点を外さず古い地震を丸ごと消す。今の画面は観測点を出さないので見え方は変わらず、P4 の詳細で観測点が出なくなる（作者裁定 §7 の 5） (2) 守る地震が N_keep（見積もり 26〜31 件、最大の実例の大きさで）を越えた日に新しい守る報が届くと、古い守る地震が 24 時間より前に記録ごと消える（同じ EventID の event と長周期をまとめて。守らない報のためには消さない、(17)）。古い守る地震の遅い報は、より新しい守る地震を押し出さず、器が足りなければ断られる（「処理できていません」、r7）。今の新築では震度 7 の地震は予算の内で守られ、越えると新しい報が「処理できていません」になる（作者裁定 §7 の 2 の推奨） (3) 守る線を 5 弱に広げたので、震度 5 弱〜6 強の地震が多い日は、古い震度 7 の地震も新しい 5 弱の地震と同じく古い順に畳まれ・消える。今の新築は震度 7 だけを守り、5 弱〜6 強を先に消す (4) 消えた地震に遅れて続報が来ると新しく採られて鳴りうる。遅れた取消は印が無いので鳴らない（H19、p3-order-plan.md:568、P3-C7-CAPACITY の承認済みの代償と同じ） (5) 守る期間は最初に採った報の発生時刻（I-U-Q.originTime。震度速報 VXSE51 は Head の TargetDateTime を発生時刻に使う）から 24 時間で、発生時刻も TargetDateTime も読めない報で始まったときだけ、その報の時刻から数える（その分遅く始まり、長く守る）。最後の報から 24 時間までの残りの間（遅い VXSE61 の後など）は守らない地震として扱う (6) H08: 震度 5 弱以上・長周期階級 2 以上の地震の報は最も重い音で鳴る（旧築と今の新築は警報の音）。最も重い音は保存の ack の待ちが最長 1 秒で打ち切られる（P3-NL-DLV-01）ので、保存が遅い日に鳴った直後に再起動すると同じ報が二重に鳴りうる（H48 が許す二重）。地震の通知は今どおり「その他」の群で、最も重い音でも EEW と試行中の津波緊急を追い越さない (7) H08 は報自身の値で決める（P3-C7-NOTICE-LEVELS=A）ので、震度 5 弱の地震の後の震源だけの報（VXSE52・61）は普通の音。地震の報の長周期階級 2 以上（震度 4 以下の遠い地震を含む）も最も重い音になる (8) H18: 取消で今日の件数が減る（旧築と今の新築は減らない）。1 日に 2048 件を越えて数えた日の、越えた後の地震の取消は引けない (9) 期限切れの記憶: 地震は最後の報の 24 時間後に画面から消え、さらに 6 時間（P3-QC-D-EXPIRED-MEMORY=A）記憶に残る。その間に届いた取消は、元の報を通知していれば鳴る（今は記録が無く鳴らない、H19）。記憶は事実を捨てているので、その取消の通知に震源名は出ない（報の種類と時刻だけ、H16・P3-NL-AC10、r7）。記憶は件数 512 を使う (10) §13 の 4 か所: 今は断っている報（Serial の形の外、観測の無い Intensity、発生時刻・震源名・規模の欠け、区域・観測点の名前の欠け）を受け取り、読めた所を表示し鳴らす。読めない所の印は K14 まで出ない（震源名の無いカード、名前の空の観測点が印なしで出る） (11) N_guard・N_keep は最大の実例の大きさで数えた見積もりで、それより大きい地震（全国の観測点を持つ巨大地震）では守れる数が減る。N1・N2 で器に収まるかは配送の後に測る（Q-QC-MEASURE）。守らない余震の欠けで N1・N2 は今どおり不合格の見込み（Q-QC-DISASTER） (12) 畳みで byte が空くと件数 512 が先に効きうる（N2 で約 750 event の見込み）。その日は守らない地震が件数で押し出される（H36 は未充足、Q-QC-H36） (13) 器が満杯の日の受信 1 回で観測点をまとめて畳むと、その間 EEW の処理が待ちうる（P3-QC-AC11 で測る。約 40 ms を越えたら配送の前に作者へ） (14) 器を本契約が足す分（約 5%、253,440 byte、見積もり）だけ広げるので、地震の保存の encode とその後ろに並ぶ EEW の保存の待ちがその分延びうる（Q-QC-DECIDED の (1)、前例どおり） (15) 取り消した地震が取消の印を付けて一覧に最後の報から 24 時間残る（P3-QC-D-CANCEL-LIST=A。件数の超過の日はそれより早く消えうる） (16) 取消で今日の最大震度も数え直す（旧築と今の新築は下げない）。1 日に 2048 件を越えて数えた日は最大震度を下げない（P3-QC-D-DAILY-MAX=A） (17) 大きな地震が N_keep を越えて続いた日、新しい小さな地震（守らない報）は第 5 段までで器が足りなければカードに出ず「処理できていません」の印になる。失敗の知らせはその報の段が warning 以上のときだけ鳴る（P3-QC-AC06 の (4)）。§7 の 2 の「新しい報は必ず入る」から外れるのはこのときと、(2) の古い守る地震の遅い報と、(22) のときだけ（P3-QC-D-SMALL-PUSH=B） (18) 守りは unknown・欠けの続報では外れず、起点は最初に採った報で決めて動かない（D11、r3）ので、続報が全部 unknown のまま実際には小さかった地震も、発生から 24 時間守られて器を使う (19) 同じ EventID の event と長周期は互いを守るので、震度の低い event（長周期だけ階級 2）や階級の低い長周期も守る地震の器を使う (20) 器の都合で観測点を畳むと、地震のカードは残っていても H39 の欠けの件数が増える（Q-QC-DECIDED の (7)） (21) 件数の超過の日は期限切れの記憶を先に退去するので、その地震の遅い取消は鳴らず、同じ報の受け直しを抑える証拠も早く失う (22) 同じ地震（EventID）の event と長周期を畳んだ合計が、器から退去できない部分を引いた残り（見積もり: L 5,627,794−RESERVE 1,958,729−E 約 1,400−PENDING 131,072−FAILURE 233＝約 3,536,360 byte）を越える地震では、その地震の新しい守る報が「処理できていません」になる（P3-QC-AC02 の (1) の (7)）。最大の実例を畳んだ大きさ S_f（110,460〜128,110）の約 27〜32 倍で、N_keep の見積もり 26〜31 件分の守る地震を 1 つの地震で持つ大きさにあたるので、実例の大きさでは起きない見込み (23) 同じ地震でも EventID が一貫しないことがある（震度速報と地震情報・長周期地震動に関する観測情報の間など、気象庁の資料、Q-QC-JMA）。守る単位は EventID なので、分かれた EventID の記録は互いを守らず、片方の大きさで他方は守られない"
+      "残存リスク（2026-10-25 作者承認済み、Q-QC-AUTHOR）: (1) 器が埋まった日、守らない古い地震の観測点ごとの震度が先に外れ（新しく届いた守らない地震も古い順の最後に含む）、さらに足りなければ守らない古い地震が記録ごと消える。今の新築は観測点を外さず古い地震を丸ごと消す。今の画面は観測点を出さないので見え方は変わらず、P4 の詳細で観測点が出なくなる（作者裁定 §7 の 5） (2) 守る地震が N_keep（見積もり 26〜31 件、最大の実例の大きさで）を越えた日に新しい守る報が届くと、古い守る地震が 24 時間より前に記録ごと消える（同じ EventID の event と長周期をまとめて。守らない報のためには消さない、(17)）。古い守る地震の遅い報は、より新しい守る地震を押し出さず、器が足りなければ断られる（「処理できていません」、r7）。今の新築では震度 7 の地震は予算の内で守られ、越えると新しい報が「処理できていません」になる（作者裁定 §7 の 2 の推奨） (3) 守る線を 5 弱に広げたので、震度 5 弱〜6 強の地震が多い日は、古い震度 7 の地震も新しい 5 弱の地震と同じく古い順に畳まれ・消える。今の新築は震度 7 だけを守り、5 弱〜6 強を先に消す (4) 消えた地震に遅れて続報が来ると新しく採られて鳴りうる。遅れた取消は印が無いので鳴らない（H19、p3-order-plan.md:568、P3-C7-CAPACITY の承認済みの代償と同じ） (5) 守る期間は最初に採った報の発生時刻（I-U-Q.originTime。震度速報 VXSE51 は Head の TargetDateTime を発生時刻に使う）から 24 時間で、発生時刻も TargetDateTime も読めない報で始まったときだけ、その報の時刻から数える（その分遅く始まり、長く守る）。最後の報から 24 時間までの残りの間（遅い VXSE61 の後など）は守らない地震として扱う (6) H08: 震度 5 弱以上・長周期階級 2 以上の地震の報は最も重い音で鳴る（旧築と今の新築は警報の音）。最も重い音は保存の ack の待ちが最長 1 秒で打ち切られる（P3-NL-DLV-01）ので、保存が遅い日に鳴った直後に再起動すると同じ報が二重に鳴りうる（H48 が許す二重）。地震の通知は今どおり「その他」の群で、最も重い音でも EEW と試行中の津波緊急を追い越さない (7) H08 は報自身の値で決める（P3-C7-NOTICE-LEVELS=A）ので、震度 5 弱の地震の後の震源だけの報（VXSE52・61）は普通の音。地震の報の長周期階級 2 以上（震度 4 以下の遠い地震を含む）も最も重い音になる (8) H18: 取消で今日の件数が減る（旧築と今の新築は減らない）。1 日に 2048 件を越えて数えた日の、越えた後の地震の取消は引けない (9) 期限切れの記憶: 地震は最後の報の 24 時間後に画面から消え、さらに 6 時間（P3-QC-D-EXPIRED-MEMORY=A）記憶に残る。その間に届いた取消は、元の報を通知していれば鳴る（今は記録が無く鳴らない、H19）。記憶は事実を捨てているので、その取消の通知に震源名は出ない（報の種類と時刻だけ、H16・P3-NL-AC10、r7）。記憶は件数 512 を使う (10) §13 の 4 か所: 今は断っている報（Serial の形の外、観測の無い Intensity、発生時刻・震源名・規模の欠け、区域・観測点の名前の欠け）を受け取り、読めた所を表示し鳴らす。読めない所の印は K14 まで出ない（震源名の無いカード、名前の空の観測点が印なしで出る） (11) N_guard・N_keep は最大の実例の大きさで数えた見積もりで、それより大きい地震（全国の観測点を持つ巨大地震）では守れる数が減る。N1・N2 で器に収まるかは配送の後に測る（Q-QC-MEASURE）。守らない余震の欠けで N1・N2 は今どおり不合格の見込み（Q-QC-DISASTER） (12) 畳みで byte が空くと件数 512 が先に効きうる（N2 で約 750 event の見込み）。その日は守らない地震が件数で押し出される（H36 は未充足、Q-QC-H36） (13) 器が満杯の日の受信 1 回で観測点をまとめて畳むと、その間 EEW の処理が待ちうる（P3-QC-AC11 で測る。約 40 ms を越えたら配送の前に作者へ） (14) 器を本契約が足す分（約 5%、253,440 byte、見積もり）だけ広げるので、地震の保存の encode とその後ろに並ぶ EEW の保存の待ちがその分延びうる（Q-QC-DECIDED の (1)、前例どおり） (15) 取り消した地震が取消の印を付けて一覧に最後の報から 24 時間残る（P3-QC-D-CANCEL-LIST=A。件数の超過の日はそれより早く消えうる） (16) 取消で今日の最大震度も数え直す（旧築と今の新築は下げない）。1 日に 2048 件を越えて数えた日は最大震度を下げない（P3-QC-D-DAILY-MAX=A） (17) 大きな地震が N_keep を越えて続いた日、新しい小さな地震（守らない報）は第 5 段までで器が足りなければカードに出ず「処理できていません」の印になる。失敗の知らせはその報の段が warning 以上のときだけ鳴る（P3-QC-AC06 の (4)）。§7 の 2 の「新しい報は必ず入る」から外れるのはこのときと、(2) の古い守る地震の遅い報と、(22) のときだけ（P3-QC-D-SMALL-PUSH=B） (18) 守りは unknown・欠けの続報では外れず、起点は最初に採った報で決めて動かない（D11、r3）ので、続報が全部 unknown のまま実際には小さかった地震も、発生から 24 時間守られて器を使う (19) 同じ EventID の event と長周期は互いを守るので、震度の低い event（長周期だけ階級 2）や階級の低い長周期も守る地震の器を使う (20) 器の都合で観測点を畳むと、地震のカードは残っていても H39 の欠けの件数が増える（Q-QC-DECIDED の (7)） (21) 件数の超過の日は期限切れの記憶を先に退去するので、その地震の遅い取消は鳴らず、同じ報の受け直しを抑える証拠も早く失う (22) 同じ地震（EventID）の event と長周期を畳んだ合計が、器から退去できない部分を引いた残り（見積もり: L 5,627,794−RESERVE 1,958,729−E 約 1,400−PENDING 131,072−FAILURE 233＝約 3,536,360 byte）を越える地震では、その地震の新しい守る報が「処理できていません」になる（P3-QC-AC02 の (1) の (7)）。最大の実例を畳んだ大きさ S_f（110,460〜128,110）の約 27〜32 倍で、N_keep の見積もり 26〜31 件分の守る地震を 1 つの地震で持つ大きさにあたるので、実例の大きさでは起きない見込み (23) 同じ地震でも EventID が一貫しないことがある（震度速報と地震情報・長周期地震動に関する観測情報の間など、気象庁の資料、Q-QC-JMA）。守る単位は EventID なので、分かれた EventID の記録は互いを守らず、片方の大きさで他方は守られない (24) 器が溢れて地震の記録が退去された日に、その地震の一部の報だけの取消（VXSE51 だけなど）が届くと、取り消されていない地震も今日の件数から引かれる（記録が無いので全体か一部かを見分けられない。r1 では逆に全体の取消でも引かなかった。どちらでも溢れた日の 1 件分）（2026-10-25 作者承認済み、Q-QC-IMPL-1）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-QC-EXISTING-TESTS",
-        "owner": "implementer",
-        "blocks": [
-          "期待値を変える既存の試験の変更"
-        ],
-        "resolveBy": "実装の途中、変える前に報告",
-        "requiredEvidence": [
-          "期待値が変わる既存の試験と sequences の step の名前と理由。起草時の見込み: (a) P3-C7-T01 の Serial「0」・11 桁、Magnitude の欠け、Observation の無い Intensity、VXSE51 の Name の欠け、VXSE52 の OriginTime の欠け、Name の無い観測点と code の重複の行（拒否から採用へ。重複の行は requiredStructureInvalid に変わる） (b) P3-C7-T04 の当日履歴（取消で減らさない）と強震保持の容量の行 (c) P3-VM-T05（HOLD_GROWTH／512 の強震保持の増え） (d) P3-C7-T05 の退去の順と同時最大状態（HOLD_FACTS_BYTES） (e) P3-C7-T07 の level の式（5 弱以上の warning→critical、5弱以上未入電、長周期の階級 2） (f) P3-C7-T09 の O01:52（level）・:53（view と件数） (g) P3-C7-T11 の 24 時間・36 時間の回収（期限切れの記憶へ） (h) P3-CC-T13 ほか、byte の超過の拒否を作る U-Q の試験（畳みと守る線で採用に変わりうる） (i) DiagnosticReason の閉集合を数える試験（1 語増える） (j) 災害の日の道具の試験（BYTE_LIMITS） (k) seismic-runtime.test.ts の synthetic_VXSE53_correction（MaxInt 7）の訂正の通知を warning と期待する行（H08 で critical に変わる。O01:52 と同じ理由、r7）"
-        ]
-      },
       {
         "id": "Q-QC-MEASURE",
         "owner": "integrator",

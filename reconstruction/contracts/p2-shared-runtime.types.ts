@@ -299,8 +299,8 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted" | "eewHorizonStale" | "hostClockAhead" | "hostClockBehind" | "hostClockUnverified"
   // P3-TSUNAMI-UNIT-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-T capacity eviction.
   | "tsunamiRevisionConflict" | "tsunamiCapacityEvicted"
-  // P3-UNIT-Q-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-Q capacity eviction.
-  | "seismicRevisionConflict" | "seismicCapacityEvicted"
+  // P3-UNIT-Q-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-Q capacity eviction. P3-QC-AC03 (6): 器の都合で観測点を畳んだ記録の数。
+  | "seismicRevisionConflict" | "seismicCapacityEvicted" | "seismicStationsFolded"
   // P3-UNIT-N-001 Q-ENUM.diagnosticReasons: a same-revision conflict and an information-series eviction.
   | "nankaiRevisionConflict" | "nankaiCapacityEvicted"
   // P3-UNIT-V-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-V capacity eviction.
@@ -540,7 +540,7 @@ export type CheckpointEnvelope = Readonly<{
 
 // P3-NL-AC14 (2)(3): unit の落とした件数（reason ごとに 1 行、operation は分けない）。count は安全な整数で飽和、lastAt は最後に足した手元の wall。
 export type LossReason = NotificationLossReason | "notificationCapacityEvicted" | "noticeMarkEvicted" | "capacityRejected"
-  | "eewCapacityEvicted" | "weatherCurrentCapacityEvicted" | "tsunamiCapacityEvicted" | "seismicCapacityEvicted" | "nankaiCapacityEvicted"
+  | "eewCapacityEvicted" | "weatherCurrentCapacityEvicted" | "tsunamiCapacityEvicted" | "seismicCapacityEvicted" | "seismicStationsFolded" | "nankaiCapacityEvicted"
   | "volcanoCapacityEvicted" | "landslideCapacityEvicted" | "floodCapacityEvicted" | "briefingCapacityEvicted" | "localBulletinsCapacityEvicted"
   | "typhoonCapacityEvicted";
 export type LossTally = Readonly<{ reason: LossReason; count: number; lastAt: number }>;

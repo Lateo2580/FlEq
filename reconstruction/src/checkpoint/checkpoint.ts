@@ -642,7 +642,8 @@ const INPUT_BOUNDARY_MAX_BYTES = encoder.encode(`,"inputBoundary":${JSON.stringi
   receivedAt: { wallTimeMs: -0.0000012345678901234567, basis: "unverified" }, dmdataTime: -0.0000012345678901234567,
   dmdataId: "\"".repeat(128), oldestHole: "disconnected" })}`).byteLength;
 
-// P3-NL-AC14 (3): 数える理由の閉集合。unit の行に出るのは通知の 4 語・容量の拒否・その unit の容量の退去と、U-E だけ印の退去。
+// P3-NL-AC14 (3): 数える理由の閉集合。unit の行に出るのは通知の 4 語・容量の拒否・その unit の容量の退去と、U-E だけ印の退去、U-Q だけ
+// 観測点の畳み（P3-QC-AC03 (6)）。
 const NOTICE_LOSSES: readonly LossReason[] = ["notificationExpired", "notificationExpiredClockUnverified", "notificationCapacityEvicted",
   "notificationOutcomeUnknown", "capacityRejected"];
 const UNIT_EVICTION: Readonly<Partial<Record<UnitId, LossReason>>> = { "U-E": "eewCapacityEvicted", "U-W": "weatherCurrentCapacityEvicted",
@@ -651,11 +652,12 @@ const UNIT_EVICTION: Readonly<Partial<Record<UnitId, LossReason>>> = { "U-E": "e
   "U-Y": "typhoonCapacityEvicted" };
 function lossReasons(unit: UnitId): readonly LossReason[] {
   const eviction = UNIT_EVICTION[unit];
-  return [...NOTICE_LOSSES, ...unit === "U-E" ? ["noticeMarkEvicted" as const] : [], ...eviction == null ? [] : [eviction]];
+  return [...NOTICE_LOSSES, ...unit === "U-E" ? ["noticeMarkEvicted" as const] : [], ...eviction == null ? [] : [eviction],
+    ...unit === "U-Q" ? ["seismicStationsFolded" as const] : []];
 }
 // P3-NL-AC14 (7): envelope に losses が足す byte の最大（INPUT_BOUNDARY_MAX_BYTES と同じ作り方）。最長の形は、閉集合の長い順の 7 語（unit の
 // 行の最大）に、count が安全な整数の最長 16 桁、lastAt が有限な数の JSON の最長 25 文字。
-const LOSS_TALLY_MAX_BYTES = encoder.encode(`,"losses":${JSON.stringify([...new Set([...NOTICE_LOSSES, "noticeMarkEvicted",
+const LOSS_TALLY_MAX_BYTES = encoder.encode(`,"losses":${JSON.stringify([...new Set([...NOTICE_LOSSES, "noticeMarkEvicted", "seismicStationsFolded",
   ...Object.values(UNIT_EVICTION)])].sort((left, right) => right.length - left.length).slice(0, 7)
   .map((reason) => ({ reason, count: Number.MAX_SAFE_INTEGER, lastAt: -0.0000012345678901234567 })))}`).byteLength;
 // P3-NL-RET-03（置き値）: 行は lastAt＋24 時間を過ぎたら capture と復元のときに外す。
