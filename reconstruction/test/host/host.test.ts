@@ -21,8 +21,8 @@ import type { CompositionOptions } from "../../src/runtime/composition-root";
 
 // channelsDown: 前回の起動の通知を pending のまま保存するため、probe で両 channel を使えなくする（P3-CK-T01）。
 const hook = vi.hoisted(() => ({ probeGate: null as Promise<void> | null, channelsDown: false }));
-// AC11(f): the real owner threads (TEST-PATH (3)). Only the stall test holds the owners' replies away from the host;
-// by default every reply passes straight through.
+// AC11(f): 本物の owner の thread（TEST-PATH (3)）。返信を host から止めるのは stall の試験と、溢れを決め打ちにする容量の拒否の試験だけで、
+// 既定ではどの返信もそのまま通す。
 const owners = vi.hoisted(() => ({ hold: false, held: [] as (() => void)[], live: new Set<{ terminate(): Promise<number> }>(), workerData: [] as unknown[],
   // restart の試験が 2 台目の owner の復元結果（U-E の保存世代）を読む。
   restored: [] as { unit: string; persistence: { savedGeneration: number | null }; pendingIntents?: readonly unknown[] }[] }));
@@ -320,9 +320,14 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
     const observations: P2HostObservation[] = [];
     const host = await start(server.url, dirs, observations);
     await until(() => server.sockets.length === 1);
-    // 130 small frames in one burst fill the 120-item normal lane; a frame arriving after that is rejected by itemLimit.
-    // The burst may reach the host over several turns, so the pump can take a few items first (CI saw 121 accepted).
+    // 130 small frames fill the 120-item normal lane; a frame arriving after that is rejected by itemLimit.
+    // burst は複数の turn に分かれて届くことがあり、その間に owner が捌くと 120 件に届かず溢れない（CI で 8 秒切れ）。owner の返信を
+    // 止めて溢れを決め打ちにし、host が自分の接続を切った（server 側の close）ところで返信を流す。
+    owners.hold = true;
     for (let index = 0; index < 130; index++) server.sockets[0].send(junk());
+    await until(() => server.sockets[0].readyState === 3);
+    owners.hold = false;
+    for (const deliver of owners.held.splice(0)) deliver();
     await until(() => server.sockets.length === 2);
     const decodedBeforeReconnect = observations.filter((o) => o.kind === "decode").length;
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes('"component":"host"'));
