@@ -639,7 +639,7 @@ export type InputBoundary = Readonly<{
 
 // P3-UM-AC01（K14、H51）: 記録の中の読めなかった所の印。site は domain の warn の所の名（unit ごとの閉じた語）。compare は
 // 「比べから外す」1 つの値の欄の比べの値の digest（16 hex、fragmentKey と同じ作り、P3-UM-AC04）。compareKeys は一覧の欄の比べの
-// 要素の鍵の集合（64 件まで）。scope は印の効く範囲（U-F の区分不明の範囲、区域の code など。128 byte まで）。raw は欠片（boundedString）。
+// 要素の鍵の集合（128 件まで）。scope は印の効く範囲（U-F の区分不明の範囲、区域の code など。128 byte まで）。raw は欠片（boundedString）。
 export type UnreadablePart = Readonly<{
   site: string;
   reason: "requiredStructureMissing" | "requiredStructureInvalid";
@@ -648,12 +648,12 @@ export type UnreadablePart = Readonly<{
   compareKeys?: readonly string[];
   raw: string | null;
 }>;
-// rawDropped: 器の都合で原文（欠片と見出し文）を外した印（P3-UM-AC03、H39 の unreadableDropped に数える）。partsCut: 16 件を越えた所を省いた印。
+// rawDropped・partsCut は外した履歴の旗（原文を器の都合で外した、16 件を越えた所を省いた）。版の置換まで持ち越す（P3-UM-AC01 (3)）。
 export type UnreadableMark = Readonly<{ parts: readonly UnreadablePart[]; headline: string | null; rawDropped?: true; partsCut?: true }>;
 
 // P3-UM-AC08（K14、H43）: 報の全体が読めなかった電文のカード。owner が振り分け先の unit の envelope に書く（K8 の losses と同じ置き場）。
 // count は知らない種類を headType ごとにまとめた件数（ほかは 1）。raw は展開した本文の先頭（16,384 byte）で、rawCut は切った印、
-// rawDropped は器の都合で原文を外した印（raw は null）。areas は U-Y の確率の報の地域ごとの 5 日積算（読めない地域は null）。
+// rawDropped は器の都合で原文と areas を外した印（raw は null、rawCut とは独立）。areas は U-Y の確率の報の地域ごとの 5 日積算（読めない地域は null）。
 export type UnreadableCardKind = "unknownType" | "unreadable" | "unidentified";
 export type UnreadableCard = Readonly<{
   kind: UnreadableCardKind;
