@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "ac1fdc36ddeda18487ffa0780516ff4fb635d5c453486dd5e63782516b9d0e85",
+    "sha256": "0be5a8b7d6631783b208e7fad17bd474da7d61388c9a53c17d613d43d3840a68",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -36,7 +36,7 @@
       },
       {
         "id": "P3-C3A-CLOCK",
-        "A": "時計を2つに分け、混ぜない。業務の時刻（受理の適用・期限・dirtySince・capturedAt・ackAt・mailboxの完了照合）は、要求に載せたpublisherの注入時計に送出からの実経過を足した値で、受理はdecode後の実際の適用時刻（P2と同じ）。要求が固定の判断時刻を持つときはそれをそのまま使う（通知結果の更新はcompletedAt、終了の打切りはcutoff。P2と同じ）。計測の時刻（T2・decode・processing・checkpointの各段）はpublisherの実単調時計（performance.now()の基準）へ換算し、注入時計のoffsetを足さない（P2-A10-AC03と同じ）",
+        "A": "時計を2つに分け、混ぜない。業務の時刻（受理の適用・期限・dirtySince・capturedAt・ackAt・mailboxの完了照合）は、要求に載せたpublisherの注入時計に送出からの実経過を足した値で、受理はdecode後の実際の適用時刻（P2と同じ）。要求が固定の判断時刻を持つときはそれをそのまま使う（通知結果の更新はcompletedAt、終了の打切りはcutoff。P2と同じ）。計測の時刻（T2・decode・processing・checkpointの各段）はpublisherの実単調時計（performance.now()の基準）へ換算し、注入時計のoffsetを足さない（P2-A10-AC03と同じ）。要求は送った時点の時計の根拠 basis も運び、owner は外挿しない（P3-EF-AC01）",
         "B": "受理の時計を送出時のpublisherの値に固定し、owner内の経過を業務判定に使わない",
         "recommended": "A",
         "provisional": "A",
@@ -72,7 +72,7 @@
       },
       {
         "id": "P3-C3A-DEADLINES",
-        "A": "各ownerは自分のunitの期限だけを、自分の要求（入力・期限・終了）の処理時に適用する。publisherは既存の1秒tickでownerごとにdeadline要求を送る（未完了は1件まで、AC15）。parser入力の完了で他unitの期限を適用する現行の経路（d07d5ac7のshared-runtime.tsでparser完了時のapplyDeadlines(他unit)）は持ち越さない",
+        "A": "各ownerは自分のunitの期限だけを、自分の要求（入力・期限・終了）の処理時に適用する。publisherは既存の1秒tickでownerごとにdeadline要求を送る（未完了は1件まで、AC15）。parser入力の完了で他unitの期限を適用する現行の経路（d07d5ac7のshared-runtime.tsでparser完了時のapplyDeadlines(他unit)）は持ち越さない（根拠が verified に替わった最初の要求と verified での復元では、owner は到来の判定を通さず unit ごとに 1 回 deadline を当てる、P3-EF-AC02 の (7)）",
         "B": "parser入力の完了ごとにpublisherが他の全ownerへdeadline要求を送る（AC15の上限の内側で合流する）",
         "recommended": "A",
         "provisional": "A",
@@ -595,7 +595,7 @@
       },
       {
         "id": "P3-C3A-AC02",
-        "requirement": "境界を越える値と時刻（台帳38、実行境界メモ§2、P3-C3A-CLOCK）: threadをまたぐのはOwnerStartData・OwnerRequest・OwnerReplyだけで、構造化複製できる素のデータに限り（関数・class instance・共有の可変参照を持たない）、各kindのfieldは型の定義どおりに限る。DecodedMaterial・XML node・unit stateの本体・CheckpointRequest（envelopeのpayload）・保存bytesは載せない（RES-06）。ParserMailboxItemはpublisher→ownerへ入力1件につき1回渡り、transferを使うならbyteOffset 0で全長を占めるArrayBufferだけを渡す。時刻は3つを分け、混ぜない（P3-C3A-CLOCK）: (1) 受信時刻＝WS受信callbackの壁時計（item.receivedAt、従来どおり）(2) 業務の時刻＝受理・期限・capture・ack・dirtySince・mailboxの完了照合の時刻で、要求のSentClockからclock＋（共有の実時計の現在値−sharedMs）として外挿する。ただし要求が固定の判断時刻を持つときは外挿せずそのまま使う: intentUpdateのdecisionClock（通知結果の更新は結果のcompletedAt、選択の更新は選択時の時計。unit入力のclockとしてP2と同じに渡し、期限前に完了した成功は後で届いてもdeliveredになる）、finalizeのcutoff。capturedAtは実際にcaptureした時刻、ackAtはdirectory syncの完了後にackを決めた時刻 (3) 計測の時刻＝T2・decode・processingのmarks・CheckpointMeasurementの各段で、共有の実時計の現在値−publisherTimeOriginMsとしてpublisherの実単調時計（performance.now()）の基準へ換算し、注入時計のoffsetを足さない。publisherのT0・T1・T3・T4も同じ実単調時計。注入時計は実時間と同じ速さで進むとみなし、送出後の注入時計の飛びは次の要求から効く（この限界を成果物に書く）。ownerは自分のperformance.now()を他threadの値と直接比べない",
+        "requirement": "境界を越える値と時刻（台帳38、実行境界メモ§2、P3-C3A-CLOCK）: threadをまたぐのはOwnerStartData・OwnerRequest・OwnerReplyだけで、構造化複製できる素のデータに限り（関数・class instance・共有の可変参照を持たない）、各kindのfieldは型の定義どおり（SentClock の basis を含む）に限る。DecodedMaterial・XML node・unit stateの本体・CheckpointRequest（envelopeのpayload）・保存bytesは載せない（RES-06）。ParserMailboxItemはpublisher→ownerへ入力1件につき1回渡り、transferを使うならbyteOffset 0で全長を占めるArrayBufferだけを渡す。時刻は3つを分け、混ぜない（P3-C3A-CLOCK）: (1) 受信時刻＝WS受信callbackの壁時計（item.receivedAt、従来どおり）(2) 業務の時刻＝受理・期限・capture・ack・dirtySince・mailboxの完了照合の時刻で、要求のSentClockからclock＋（共有の実時計の現在値−sharedMs）として外挿する。ただし要求が固定の判断時刻を持つときは外挿せずそのまま使う: intentUpdateのdecisionClock（通知結果の更新は結果のcompletedAt、選択の更新は選択時の時計。unit入力のclockとしてP2と同じに渡し、期限前に完了した成功は後で届いてもdeliveredになる）、finalizeのcutoff。capturedAtは実際にcaptureした時刻、ackAtはdirectory syncの完了後にackを決めた時刻 (3) 計測の時刻＝T2・decode・processingのmarks・CheckpointMeasurementの各段で、共有の実時計の現在値−publisherTimeOriginMsとしてpublisherの実単調時計（performance.now()）の基準へ換算し、注入時計のoffsetを足さない。publisherのT0・T1・T3・T4も同じ実単調時計。注入時計は実時間と同じ速さで進むとみなし、送出後の注入時計の飛びは次の要求から効く（この限界を成果物に書く）。ownerは自分のperformance.now()を他threadの値と直接比べない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-boundary.md:23 «778675a95e83f912»",
           "reconstruction/contracts/p3-execution-boundary.md:24 «7c66f6ded18dfbab»",

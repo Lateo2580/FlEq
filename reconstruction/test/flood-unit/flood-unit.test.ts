@@ -224,13 +224,15 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     const idle = tick(first.state, T0 + 30_000);
     expect([idle.decisions, idle.intents, idle.outcomes, idle.displayChanges, idle.diagnostics]).toEqual([[], [], [], [], []]);
     expect(idle.state).toBe(first.state);
-    // 35 時間 59 分では残り、36 時間で active を除き、同じ reduce で desktop だけの期限切れを 1 件作る（P3-C11-ACTIVE-EXPIRY=D）。
+    // 35 時間 59 分では残り、36 時間で active を expired の記憶（元報 +42 時間）に移し、同じ reduce で desktop だけの期限切れを 1 件作る
+    // （P3-C11-ACTIVE-EXPIRY=D・P3-EF-AC05）。
     const kept = tick(first.state, T0 + RETAIN - 60_000);
     expect(recordOf(kept.state)?.effective).toBe("active");
     const expired = tick(kept.state, T0 + RETAIN);
     const notice = (step: FloodUnitStep) => step.intents.map((item) => [item.channel, item.transition, item.payload.level, item.payload.title,
       item.payload.body]);
-    expect([expired.state.currents, notice(expired), expired.displayChanges.map((item) => [item.subject, item.after])]).toEqual([[],
+    expect([expired.state.currents.map((item) => [item.subject, item.effective, item.retainUntil]), notice(expired),
+      expired.displayChanges.map((item) => [item.subject, item.after])]).toEqual([[[SUBJECT, "expired", T0 + RETAIN + 6 * HOUR]],
       [["desktop", "expired", "info", "[期限切れ] ○○川上流氾濫警戒情報", "○○川上流の洪水予報は36時間続報がなく、現況を確認できません"]], [[SUBJECT, null]]]);
     expect(pending(expired.state)).toEqual(expired.intents);
     // areaName が空の本文、training/test の前置き、復元の後の期限切れの回収。
@@ -243,9 +245,10 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     expect(notice(tick(restored.state, T0 + RETAIN + 2)).map((item) => item[1])).toEqual(["expired"]);
     // ended・cancelled の回収では作らない。
     expect(tick(follow(first.state, rivers([group("10")])).state, T0 + 30 * 60_000 + RETAIN).intents).toEqual([]);
-    // 取消の記憶（12:00 の取消）は黙って除き、同じ時刻までに期限の来た 123456789013（10:00 の active）だけが期限切れを作る。
+    // 取消の記憶（12:00 の取消）は黙って除き、同じ時刻までに期限の来た 123456789013（10:00 の active）だけが期限切れを作って記憶に移る。
     const forgotten = tick(cancelled.state, T0 + 3 * HOUR + RETAIN);
-    expect([forgotten.state.currents, forgotten.intents.map((item) => item.subject)]).toEqual([[], ["normal/VXKO50/123456789013"]]);
+    expect([forgotten.state.currents.map((item) => [item.subject, item.effective]), forgotten.intents.map((item) => item.subject)])
+      .toEqual([[["normal/VXKO50/123456789013", "expired"]], ["normal/VXKO50/123456789013"]]);
     // 解除・取消の記憶が 36 時間で消えた後に遅れて届いた古い発表（受理の時点で ReportDateTime+39 時間）は stale で鳴らない。
     const late = send(forgotten.state, F.sample, undefined, T0 + 3 * HOUR + RETAIN + 60_000);
     expect([shape(late), late.intents, late.displayChanges]).toEqual([[[SUBJECT, "unchanged", "stale"]], [], []]);
@@ -648,7 +651,7 @@ function budgetState(bounded: boolean): FloodUnitState {
       measurement: "waterLevel", criteria: { level1: Number(number), level2: Number(number), level3: Number(number), level4: Number(number),
         level4Plan: Number(number) }, values: Array.from({ length: 40 }, () => Number(number)), levels: Array.from({ length: 40 }, () => null) }));
     return { ...base, effective: "active", title: wide(128), areaName: kanji(64), kinds, times: Array.from({ length: 40 }, () => "2019-05-27T09:00:00+09:00"),
-      stations, basisReportDateTimeRaw: reportDateTimeRaw, truncated: true };
+      stations, basisReportDateTimeRaw: reportDateTimeRaw, truncated: true, expiryPending: true }; // P3-EF-AC10 (2): 期限切れの保留の印も持つ
   });
   const intentBase = send(emptyState(), F.sample).intents[0];
   const sized = (index: number, disposition: FloodIntent["disposition"]): FloodIntent => ({ ...intentBase, id: `${intentBase.id}:${index}`,

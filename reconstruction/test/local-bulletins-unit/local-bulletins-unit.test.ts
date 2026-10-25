@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
@@ -124,12 +126,14 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(send(emptyState(), N50).intents.map((item) => item.payload.body)).toEqual(["発表中 24地域 / 有効期限 10:30", "発表中 24地域 / 有効期限 10:30"]);
     expect(send(emptyState(), N50, (xml) => xml.replace(/<ValidDateTime>[^<]*<\/ValidDateTime>/, "")).intents[0].payload.body).toBe("発表中 24地域");
 
-    // 同じ版の対（P3-C13-TORNADO-PAIR=A）: 50→51 は 51 の事実へ置き換え・通知は 1 件だけ・食い違いの診断 0、51→50 は 50 が stale。
+    // 同じ版の対（P3-C13-TORNADO-PAIR=A）: 50→51 は 51 の事実へ置き換え・食い違いの診断 0、51→50 は 50 が stale。目撃の無い 50 の後に目撃の 51 が
+    // 来たら warning を channel ごとに作り、50 の pending を置き換える（P3-EF-AC07 (4)）。
     const same51 = (xml: string) => retime("2009-08-10T07:38:00+09:00")(xml);
     const first50 = send(emptyState(), T50);
     const then51 = sendAs(first50.state, T51, "VPHW51", compose(same51, serial("2"), (xml) => xml.replace(/<ValidDateTime>[^<]*<\/ValidDateTime>/, "<ValidDateTime>2009-08-10T08:40:00+09:00</ValidDateTime>")));
     expect(then51.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
-    expect([then51.intents, then51.diagnostics, pendingOf(then51.state, TOKYO).length]).toEqual([[], [], 2]);
+    expect([then51.intents.map((item) => [item.channel, item.payload.level]), then51.diagnostics, pendingOf(then51.state, TOKYO).length])
+      .toEqual([[["desktop", "warning"], ["sound", "warning"]], [], 2]);
     expect(recordOf(then51.state, TOKYO)).toMatchObject({ sighted: true, source: { family: "VPHW51" } });
     const reverse = sendAs(then51.state, T50, "VPHW50", compose(same51, serial("2")));
     expect([reasonOf(reverse), reverse.diagnostics, reverse.state]).toEqual(["stale", [], then51.state]);
@@ -146,7 +150,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     // Head/ReportDateTime・Serial・InfoType（Control/DateTime を見ない、P3-VM-D-SAME-REPORT=A）。
     const correct = (type: string) => compose(same51, control("2009-08-10T07:39:00+09:00"), serial("3"), infoType("訂正"), (xml: string) => xml + `<!-- ${type} -->`);
     const c50 = sendAs(first50.state, T50, "VPHW50", correct("a")), c51 = sendAs(c50.state, T51, "VPHW51", correct("b"));
-    expect([c50.intents.length, c51.intents.length]).toEqual([2, 0]);
+    expect([c50.intents.length, c51.intents.length]).toEqual([2, 2]);
     const d51 = sendAs(first51.state, T51, "VPHW51", correct("c")), d50 = sendAs(d51.state, T50, "VPHW50", correct("d"));
     expect([d51.intents.length, reasonOf(d50)]).toEqual([2, "stale"]);
 
@@ -157,7 +161,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const renamed = send(send(emptyState(), N50).state, N50, compose(headTitle("長崎県気象防災速報（竜巻注意）"), at("2013-07-26T09:40:00+09:00"),
       replaceTag("ValidDateTime", "2013-07-26T11:30:00+09:00")));
     expect(renamed.state.tornado.map((item) => item.subject)).toEqual([NAGASAKI, "normal/tornado/長崎地方気象台/長崎県気象防災速報（竜巻注意）"]);
-    expect(tick(renamed.state, ms("2013-07-26T10:30:00+09:00")).state.tornado.map((item) => item.effective)).toEqual(["ended", "active"]);
+    expect(tick(renamed.state, ms("2013-07-26T10:30:00+09:00")).state.tornado.map((item) => item.effective)).toEqual(["expired", "active"]);
     // 気象庁本庁の伊豆諸島の 3 つの Title は別の記録、同じ官署の別の府県予報区の題名も別の記録。
     let island = emptyState();
     for (const title of ["東京都（伊豆諸島北部）竜巻注意情報", "東京都（伊豆諸島南部）竜巻注意情報", "東京都（伊豆諸島）竜巻注意情報", "神奈川県竜巻注意情報"])
@@ -187,12 +191,12 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const longValid = send(emptyState(), N50, replaceTag("ValidDateTime", "2013-07-30T09:20:00+09:00"));
     expect(recordOf(longValid.state, NAGASAKI)).toMatchObject({ activeUntil: ms("2013-07-26T09:20:00+09:00") + hours(36) });
     expect(reasonOf(send(emptyState(), N50, replaceTag("ValidDateTime", "2013-07-26T09:20:00+09:00")))).toBe("requiredStructureInvalid");
-    // 有効期限の 1 ms 前は残り、到来で ended（無音）。ValidDateTime の無い報は +1 時間、記録は +36 時間で除く。
+    // 有効期限の 1 ms 前は残り、到来で expired（無音、P3-EF-AC07 (1)）。ValidDateTime の無い報は +1 時間、記録は +36 時間で除く。
     const edge = send(emptyState(), N50).state;
     expect(tick(edge, ms("2013-07-26T10:30:00+09:00") - 1).state.tornado).toBe(edge.tornado);
-    expect(tick(edge, ms("2013-07-26T10:30:00+09:00")).state.tornado[0].effective).toBe("ended");
+    expect(tick(edge, ms("2013-07-26T10:30:00+09:00")).state.tornado[0].effective).toBe("expired");
     const noValid = send(emptyState(), N50, (xml) => xml.replace(/<ValidDateTime>[^<]*<\/ValidDateTime>/, "")).state;
-    expect([tick(noValid, ms("2013-07-26T10:20:00+09:00") - 1).state.tornado[0].effective, tick(noValid, ms("2013-07-26T10:20:00+09:00")).state.tornado[0].effective]).toEqual(["active", "ended"]);
+    expect([tick(noValid, ms("2013-07-26T10:20:00+09:00") - 1).state.tornado[0].effective, tick(noValid, ms("2013-07-26T10:20:00+09:00")).state.tornado[0].effective]).toEqual(["active", "expired"]);
     expect(tick(edge, ms("2013-07-26T09:20:00+09:00") + hours(36)).state.tornado).toEqual([]);
     // activeUntil＝retainUntil（ValidDateTime が +36 時間以上）の active は、先に見えなくなる変化（changed/semantic・deadlineApplied）を出してから除く。
     const atRetain = tick(longValid.state, ms("2013-07-26T09:20:00+09:00") + hours(36));
@@ -206,7 +210,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const first = send(emptyState(), N50);
     const latePair = sendAs(first.state, N50, "VPHW51", replaceTag("ValidDateTime", "2013-07-26T09:30:00+09:00"), ms("2013-07-26T09:40:00+09:00"));
     expect([recordOf(latePair.state, NAGASAKI)?.effective, latePair.decisions[0].decision, latePair.intents, latePair.state.intents.filter((item) => item.disposition === "superseded")])
-      .toEqual(["ended", "changed", [], []]);
+      .toEqual(["expired", "changed", [], []]);
     // Head/Headline の無い非取消の報は requiredStructureMissing。
     expect(reasonOf(send(emptyState(), N50, (xml) => xml.replace(/<Headline>[\s\S]*?<\/Headline>/, "")))).toBe("requiredStructureMissing");
     // Body/Warning の Item に Area が無くても拒否せず、その Item は区域を出さない（区域を 1 つも取れなければ areas 空・truncated）。Area の形の外は invalid。
@@ -378,12 +382,13 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const lateMemory = receive(base.state, decodeFixture(HEAT, compose(eventId("JPTC240099"), retime("2024-08-11T04:00:00+09:00"), replaceTag("TargetDateTime", "2024-08-11T04:00:00+09:00"))),
       clock(ms("2024-08-11T04:00:00+09:00") + 3 * 24 * hours(1) + 60_000));
     expect([reasonOf(lateMemory), lateMemory.state]).toEqual(["stale", base.state]);
-    // 遅着(2): 竜巻の有効期限の後・36 時間の内側の新しい版は記憶としてだけ採り、前の active を ended にして pending を 0 にする（changed/semantic、通知 0）。
+    // 遅着(2): 竜巻の有効期限の後・36 時間の内側の新しい版は期限切れの記憶としてだけ採り、前の active を expired にして pending を 0 にする
+    // （changed/semantic、通知 0、P3-EF-AC05 (5)）。
     const nagasaki = send(emptyState(), N50);
     const late = compose(serial("2"), at("2013-07-26T10:35:00+09:00"), replaceTag("ValidDateTime", "2013-07-26T10:50:00+09:00"));
     const lateNew = receive(nagasaki.state, decodeFixture(N50, late), clock(ms("2013-07-26T10:55:00+09:00")));
     expect([recordOf(lateNew.state, NAGASAKI)?.effective, pendingOf(lateNew.state, NAGASAKI), lateNew.intents, lateNew.decisions[0]]).toMatchObject([
-      "ended", [], [], { decision: "changed", change: "semantic" }]);
+      "expired", [], [], { decision: "changed", change: "semantic" }]);
     expect(toLocalBulletinsView(lateNew.state).tornado).toEqual([]);
     expect(lateNew.displayChanges).toHaveLength(1);
     // 前が記憶（ended）なら revisionOnly。
@@ -610,7 +615,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const restoreAt = (time: number) => reduceLocalBulletinsUnit(fresh, { kind: "restore", persisted, clock: clock(time, time) });
     const rows: readonly [label: string, time: number, generation: number, displays: number, kinds: readonly string[]][] = [
       ["no deadline yet", T0 + 600_000, 7, 1, ["active"]],
-      ["visible deadline passed", ms("2013-07-26T10:30:00+09:00"), 8, 0, ["ended"]],
+      ["visible deadline passed", ms("2013-07-26T10:30:00+09:00"), 8, 0, ["expired"]],
       ["retainUntil passed", T0 + hours(36), 8, 0, []],
     ];
     for (const [label, time, generation, displays, kinds] of rows) {
@@ -634,12 +639,12 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       item.payload.body]);
     const both = (transition: string, domain: string, level: string, title: string, body: string) => [["desktop", transition, domain, level, title, body],
       ["sound", transition, domain, level, title, body]];
-    // 竜巻の新しい active（warning）・目撃・公開事実の変わった続報（updated）・同じ続報（作らない）・解除・取消。
+    // 竜巻の新しい active（目撃が無いので normal、H13）・目撃・公開事実の変わった続報（updated）・同じ続報（作らない）・解除・取消。
     const first = send(emptyState(), N50);
-    expect(shape(first)).toEqual(both("activated", "weather", "warning", "長崎県竜巻注意情報", "発表中 24地域 / 有効期限 10:30"));
+    expect(shape(first)).toEqual(both("activated", "weather", "normal", "長崎県竜巻注意情報", "発表中 24地域 / 有効期限 10:30"));
     expect(first.intents.map((item) => item.expiresAt - item.createdAt)).toEqual([180_000, 60_000]);
     const followUp = send(first.state, N50, compose(serial("2"), at("2013-07-26T09:30:00+09:00"), replaceTag("ValidDateTime", "2013-07-26T11:00:00+09:00")));
-    expect(shape(followUp)).toEqual(both("updated", "weather", "warning", "長崎県竜巻注意情報", "発表中 24地域 / 有効期限 11:00"));
+    expect(shape(followUp)).toEqual(both("updated", "weather", "normal", "長崎県竜巻注意情報", "発表中 24地域 / 有効期限 11:00"));
     expect(pendingOf(followUp.state, NAGASAKI).filter((item) => item.createdAt === ms("2013-07-26T09:30:00+09:00"))).toHaveLength(2);
     // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
     expect(followUp.state.intents).toHaveLength(2);
@@ -672,7 +677,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(send(emptyState(), "synthetic_VPHW50_tokyo_release", releaseXml).intents).toEqual([]);
     expect(send(cancel.state, "synthetic_VPHW50_tokyo_release", releaseXml).intents).toEqual([]);
     // training/test は desktop だけ（接頭辞【訓練】・【試験】）。
-    expect(shape(send(emptyState(), N50, status("訓練")))).toEqual([["desktop", "activated", "weather", "warning", "【訓練】長崎県竜巻注意情報", "発表中 24地域 / 有効期限 10:30"]]);
+    expect(shape(send(emptyState(), N50, status("訓練")))).toEqual([["desktop", "activated", "weather", "normal", "【訓練】長崎県竜巻注意情報", "発表中 24地域 / 有効期限 10:30"]]);
     expect(shape(send(emptyState(), HEAT, status("試験")))[0].slice(0, 5)).toEqual(["desktop", "activated", "weather", "warning", "【試験】埼玉県熱中症警戒アラート"]);
     // 復元直後の続報は復元した記録との差で updated（同じ報は作らない）。
     const restored = reduceLocalBulletinsUnit(emptyState(), { kind: "restore", clock: clock(T0), persisted: localBulletinsUnitCodec.encode(first.state) });
@@ -710,14 +715,14 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       const subject = `training/tornado/${officeName}/${title}`;
       return { subject, operation: "training", source: source(subject, "VPHW51", index), unconfirmed: mark(subject, "VPHW51"), retainUntil: REPORT + hours(36), effective: "active", activeUntil: REPORT + hours(36),
         title, headline: repeat("文", 384), editorialOffice: officeName, sighted: true, truncated: true,
-        areas: Array.from({ length: 128 }, () => ({ layer: "municipalityGroup", code: "12345678", name: repeat("名", 24) })) };
+        areas: Array.from({ length: 128 }, () => ({ layer: "municipalityGroup", code: "12345678", name: repeat("名", 24) })), expiryPending: true };
     });
     const heatReport = Date.parse("2024-08-11T05:00:00+09:00");
     const heat = Array.from({ length: 256 }, (_, index) => {
       const subject = `training/VPFT50/${repeat("E", 60)}${String(index).padStart(4, "0")}`;
       return { subject, operation: "training", source: { ...source(subject, "VPFT50", index), reportDateTimeRaw: "2024-08-11T05:00:00+09:00" }, unconfirmed: mark(subject, "VPFT50"), retainUntil: heatReport + 72 * hours(1),
         effective: "active", activeUntil: Date.parse("2024-08-12T00:00:00+09:00"), targetDate: "2024-08-11", title: repeat("題", 64), headline: repeat("文", 384),
-        editorialOffice: repeat("官", 24), areaName: repeat("域", 24), truncated: true };
+        editorialOffice: repeat("官", 24), areaName: repeat("域", 24), truncated: true, expiryPending: true };
     });
     const families: readonly [family: string, headType: string, count: number, length: number][] = [["seismicText", "VXSE56", 256, 36 * hours(1)],
       ["earlyWeather", "VPAW51", 128, 7 * 24 * hours(1)], ["climateInfo", "VPCI50", 128, 30 * 24 * hours(1)], ["weatherExplanation", "VMCJ55", 256, 36 * hours(1)]];
@@ -743,9 +748,11 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       intents.push(next);
     }
     const pendingCount = intents.length;
-    // P3-NL-AC15 (2): 全部の記録に最長の通知の印。
+    // P3-NL-AC15 (2): 全部の記録に最長の通知の印。竜巻の印は目撃の fragment の鍵（SIGHTED）も持つ（P3-EF-AC14 (19)）。
     const notice = { version: "0".repeat(16), kinds: ["report", "cancel", "expiry"] as const, evidence: "unattempted" as const };
-    const maximum = { schemaVersion: "p3-local-bulletins-unit-v5", tornado: tornado.map((item) => ({ ...item, notice })), heat: heat.map((item) => ({ ...item, notice })),
+    const SIGHTED = createHash("sha256").update("sighted").digest("hex").slice(0, 16), sightedBytes = Buffer.byteLength(`,"fragments":["${SIGHTED}"]`);
+    const maximum = { schemaVersion: "p3-local-bulletins-unit-v6", tornado: tornado.map((item) => ({ ...item, notice: { ...notice, fragments: [SIGHTED] } })),
+      heat: heat.map((item) => ({ ...item, notice })),
       transient: transient.map((item) => ({ ...item, notice })), intents };
     const decoded = localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify(maximum)) as JsonValue);
     expect(decoded.kind).toBe("restored");
@@ -774,7 +781,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
       expect([slice, localBulletinsUnitCodec.decode(JSON.parse(json) as JsonValue).kind]).toEqual([slice, "restored"]);
       return count * (Buffer.byteLength(json) - unmarked(json));
     });
-    expect(marks.reduce((sum, item) => sum + item, 0) + (128 + 256 + 768) * noticeMarkBytes("notice"))
+    expect(marks.reduce((sum, item) => sum + item, 0) + (128 + 256 + 768) * noticeMarkBytes("notice") + 128 * sightedBytes)
       .toBeLessThanOrEqual(localBulletinsUnitCodec.maxEnvelopeBytes! - 4_194_304 + 98_304);
     // (i) 竜巻の続報（最大の記録を新しい版で置き換える）。(ii) 熱中症の取消。(iii) transient の新しい報による退去。(iv) intentUpdate で attempts・nextAttemptAt の桁を伸ばす。
     // (v) 期限処理（見える期限・retainUntil の一括の到来）。(vi) restore 入力。

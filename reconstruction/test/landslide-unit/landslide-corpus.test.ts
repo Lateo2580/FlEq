@@ -9,7 +9,7 @@ import { landslideUnitCodec, reduceLandslideUnit, toLandslideView } from "../../
 import { clock, decodeFixture, emptyState, receive } from "./landslide-fixture";
 
 // sequences.json の effective の語彙（解除は released）。
-const EFFECTIVE = { ended: "released", cancelled: "cancelled" } as const;
+const EFFECTIVE = { ended: "released", cancelled: "cancelled", expired: "expired" } as const;
 
 describe("P3-UNIT-L-001 U-L corpus history", () => {
   // corpusHistory: expectedDecisions の 10 step と制御 step、E13（AC09）。

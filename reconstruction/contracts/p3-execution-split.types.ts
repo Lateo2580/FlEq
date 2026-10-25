@@ -14,7 +14,7 @@ import type {
   RuntimePublishedOutcome,
   RuntimeRestoration,
   RuntimeUnitId,
-  RuntimeUnitView,
+  RuntimeUnitView, WallBasis,
 } from "./p2-shared-runtime.types";
 
 // P3-EXECUTION-SPLIT-001 (C3a). D-P3-1: the publisher is Node main; three resident worker_threads own the units.
@@ -46,7 +46,7 @@ export type WriteCounts = Readonly<Record<"checkpoint" | "tmp" | "diagnosticLog"
 // (intentUpdate.decisionClock, finalize.cutoff) is used as is and never extrapolated.
 // Measured time (T2, decode, processing marks, CheckpointMeasurement): the publisher's real monotonic clock,
 // sharedNow - publisherTimeOriginMs, with no injected offset (P2-A10-AC03: measurements use Node's real monotonic clock).
-export type SentClock = Readonly<{ clock: ClockReading; sharedMs: number }>;
+export type SentClock = Readonly<{ clock: ClockReading; sharedMs: number; basis: WallBasis }>; // P3-EF-AC01: clock と同じ時点の時計の根拠（外挿しない）
 
 export type ParserEnvelope = Extract<MailboxEnvelope, Readonly<{ payload: Readonly<{ kind: "parser" }> }>>;
 

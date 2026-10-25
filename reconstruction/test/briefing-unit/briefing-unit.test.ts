@@ -10,9 +10,19 @@ import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { briefingUnitCodec, reduceBriefingUnit, toBriefingView } from "../../src/units/briefing/briefing-unit";
 import {
-  clock, control, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, iso, observations, rainItem, receive, replaceTag, retime, send, serial, status,
-  tags, tick, withoutHeadline,
+  clock, control, decodeFixture as decodeFixtureRaw, decodeXml, emptyState, eventId, fixtureXml as fixtureXmlRaw, iso, observations, rainItem, receive,
+  replaceTag, retime, send as sendRaw, serial, status, tags, tick, withoutHeadline,
 } from "./briefing-fixture";
+
+// P3-EF-AC09 (1) で記録雨（VPOA50 と情報タグが記録雨の VPBS50）は報ごと（EventID の全体）の subject になった。この file は系列の状態機械
+// （版・取消・alias・相関・期限・容量）を見るので、fixture の EventID を「_」より前に揃え、同じ EventID の続報として送る（報ごとの subject と
+// その対応は briefing-corpus と P3-EF-T06 が見る）。
+const asSeries = (xml: string) => xml.replace(/<EventID>([^<_]+)_[^<]*<\/EventID>/, "<EventID>$1</EventID>");
+const fixtureXml = (name: string) => asSeries(fixtureXmlRaw(name));
+const decodeFixture = (name: string, transform: (xml: string) => string = (xml) => xml, inputId?: string) =>
+  decodeFixtureRaw(name, (xml) => transform(asSeries(xml)), inputId);
+const send = (state: BriefingUnitState, name: string, transform: (xml: string) => string = (xml) => xml, now?: number, monotonicMs?: number) =>
+  sendRaw(state, name, (xml) => transform(asSeries(xml)), now, monotonicMs);
 
 const HOUR = 3_600_000, SHORT = 2 * HOUR, LONG = 3 * HOUR;
 const F = { k1: "phase6b_VPBS50_KJPTK202608221709_202608221709", k2: "phase6b_VPBS50_KJPTK202608221709_202608221717",
@@ -54,7 +64,7 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
       return result.decision === "rejected" ? `${result.reason} ${result.subject}`.trim() : result.decision;
     };
     const xml = fixtureXml(F.k1), record = fixtureXml(F.oa1);
-    const ids = (value: string) => xml.replace("<EventID>KJPTK202608221709_202608221709</EventID>", value);
+    const ids = (value: string) => xml.replace("<EventID>KJPTK202608221709</EventID>", value);
     const tag = (edit: (part: string) => string) => (source: string) => source.replace(/<Information type="情報タグ">[\s\S]*?<\/Information>/, edit);
     const kind = /<Kind>\s*<Name>情報タグ<\/Name>[\s\S]*?<\/Kind>/;
     const area = /<Area codeType="気象・地震・火山情報／市町村等">[\s\S]*?<\/Area>/;
@@ -183,7 +193,7 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     const withOther = send(third, F.tc, undefined, T0 + HOUR).state;
     const cancelled = send(withOther, F.kcancel, undefined, T0 + HOUR);
     expect([shape(cancelled), recordOf(cancelled.state)]).toEqual([[[K, "changed", "semantic"]], { subject: K, operation: "normal",
-      headType: "VPBS50", series: "KJPTK202608221709", source: expect.objectContaining({ infoTypeRaw: "取消" }),
+      headType: "VPBS50", series: "KJPTK202608221709", eventId: "KJPTK202608221709", source: expect.objectContaining({ infoTypeRaw: "取消" }),
       retainUntil: at("2026-08-22T17:27:00+09:00") + LONG, effective: "cancelled", notice: expect.objectContaining({ kinds: ["cancel"] }) }]); // P3-NL-AC02 (2)
     expect(recordOf(cancelled.state, "normal/VPOA50/JPTC202608221709")).toBe(recordOf(withOther, "normal/VPOA50/JPTC202608221709"));
     // 取消以前の版は stale で復活しない。取消より新しい発表は active に戻す（activated）。
@@ -202,11 +212,14 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     expect([shape(held), held.decisions[0].decision === "changed" && held.decisions[0].currentEstablished?.family]).toEqual([
       [[P, "changed", "revisionOnly"]], "VPOA50"]);
 
-    // 期限（P3-C12-TTL=B）: 予測だけの記録は 3 時間、ほかは 2 時間、記憶は 3 時間。1 ms 前は残り、到来で黙って除く。
+    // 期限（P3-C12-TTL=B）: 予測だけの記録は 3 時間、ほかは 2 時間、記憶は 3 時間。1 ms 前は残る。到来で見える記録は事実を持たない expired の記憶
+    // （元報＋9 時間、P3-EF-AC05 (2)(3)）に移り、取消の記憶は黙って除く。
     const lifetimes = [send(emptyState(), F.yjpna).state, send(emptyState(), F.hjpna).state, memory.state];
     const ends = [at("2026-08-27T04:48:00+09:00") + LONG, at("2026-08-27T02:58:00+09:00") + SHORT, at("2026-08-22T17:27:00+09:00") + LONG];
-    expect(lifetimes.map((state, index) => [tick(state, ends[index] - 1).state.currents.length, tick(state, ends[index]).state.currents,
-      tick(state, ends[index]).intents.length])).toEqual([[1, [], 0], [1, [], 0], [1, [], 0]]);
+    const memoryUntil = [at("2026-08-27T04:48:00+09:00") + 9 * HOUR, at("2026-08-27T02:58:00+09:00") + 9 * HOUR];
+    expect(lifetimes.map((state, index) => [tick(state, ends[index] - 1).state.currents.length, tick(state, ends[index]).state.currents.map((item) =>
+      [item.effective, item.retainUntil]), tick(state, ends[index]).intents.length])).toEqual([[1, [["expired", memoryUntil[0]]], 0],
+      [1, [["expired", memoryUntil[1]]], 0], [1, [], 0]]);
     // 期限の来ていない deadline 入力は同じ state 参照と空の結果。
     const idle = tick(first.state, T0 + 30_000);
     expect([idle.decisions, idle.intents, idle.outcomes, idle.displayChanges, idle.diagnostics, idle.state === first.state]).toEqual([[], [], [], [],
@@ -271,11 +284,11 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     expect([effective(shutdown.state, P), shutdown.intents]).toEqual(["released", []]);
     const restored = reduceBriefingUnit(emptyState(), { kind: "restore", persisted: briefingUnitCodec.encode(held.state), clock: clock(T0 + 1_000) });
     expect([effective(restored.state, P), restored.intents]).toEqual(["released", []]);
-    // aliased の続報: 対応報が active なら aliased のまま revisionOnly、対応報が期限で消えていれば held に戻る（新しい holdUntil）。
+    // aliased の続報: 対応報が active なら aliased のまま revisionOnly、対応報が期限で見えなくなっていれば held に戻る（新しい holdUntil）。
     const aliasedFollow = send(paired.state, F.oa2, undefined, at("2026-08-22T17:17:00+09:00"));
     expect([shape(aliasedFollow), effective(aliasedFollow.state, P)]).toEqual([[[P, "changed", "revisionOnly"]], "aliased"]);
     const lapsed = tick(paired.state, T0 + SHORT).state;
-    expect([effective(lapsed), effective(lapsed, P)]).toEqual([null, "aliased"]);
+    expect([effective(lapsed), effective(lapsed, P)]).toEqual(["expired", "aliased"]);
     const reheld = send(lapsed, F.oa2, (xml) => retime("2026-08-22T19:10:00+09:00")(xml), T0 + SHORT + 60_000);
     expect(recordOf(reheld.state, P)).toMatchObject({ effective: "held", holdUntil: T0 + SHORT + 120_000 });
     // 対応する VPBS50 の取消で aliased の VPOA50 を無音で released（P3-C12-COUNTERPART-CANCEL=B）。取消は他の subject へ波及しない。
@@ -377,7 +390,8 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
       realIntent: one(template), counts: [real.currents.length, real.intents.length, bound.intents.length] }));
     for (const item of [real, bound]) expect(roundTrip(item).kind).toBe("restored");
     expect(Math.max(...sizes)).toBeLessThanOrEqual(2_097_152);
-    expect(sizes[1] + 293).toBeLessThanOrEqual(1_785_440);
+    // 引き継いだ印（,"inherited":true）は 40 文字の系列とは同時に持てないので、記録ごとに足して上界にする（P3-EF-AC09・AC10）。
+    expect(sizes[1] + 256 * INHERITED_MARK_BYTES + 293).toBeLessThanOrEqual(1_785_440);
 
     // 保持上限付近で、受信 1 回は記録単位の加算だけ（state・配列・既存の記録を直列化しない）。
     receive(real, report("N9"), clock(now));
@@ -695,8 +709,9 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
         { p: "aliased", deadline: T0 + SHORT, advanced: false }],
       ["shutdown", held, reduceBriefingUnit(held, { kind: "shutdown", clock: clock(T0 + 1_000) }), { p: "released", deadline: T0 + SHORT, advanced: true }],
       ["counterpart cancel", quiet, send(quiet, F.k1, cancelOf("2"), T0 + 201_000), { p: "released", deadline: T0 + 261_000, advanced: true }],
+      // released の期限を過ぎていれば除かず expired の記憶（元報＋9 時間）にする（P3-EF-AC09 (2) の例外）。
       ["counterpart cancel after the released lifetime", quiet, send(quiet, F.k1, cancelOf("2"), T0 + SHORT),
-        { p: null, deadline: T0 + SHORT + 60_000, advanced: true }],
+        { p: "expired", deadline: T0 + SHORT + 60_000, advanced: true }],
       ["aliased follow-up without the counterpart", lapsed, send(lapsed, F.oa2, undefined, T0 + SHORT + 60_000),
         { p: "held", deadline: T0 + SHORT + 120_000, advanced: true }],
     ];
@@ -717,19 +732,20 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     const t = at("2026-08-27T04:48:00+09:00");
     const late = (xml: string) => serial("2")(retime("2026-08-27T05:18:00+09:00")(xml));
     const withoutTags = (xml: string) => xml.replace(/<Information type="情報タグ">[\s\S]*?<\/Information>/, "");
-    // LATE-INVERSION: 予測だけの報（3 時間）を t+2h44m で受け、60 秒後に items の空の新しい版（t+30 分、2 時間）を受けると前の記録が消える。
+    // LATE-INVERSION: 予測だけの報（3 時間）を t+2h44m で受け、60 秒後に items の空の新しい版（t+30 分、2 時間）を受けると、採った報の記録は
+    // expired の記憶になる（P3-EF-AC05 (5)）。
     const forecast = send(send(emptyState(), F.yjpna, undefined, t + 164 * 60_000).state, F.yjpnb, undefined, t + 164 * 60_000);
     expect(pending(forecast.state, KANAZAWA_Y)).toHaveLength(2);
     const inverted = send(forecast.state, F.yjpnb, (xml) => late(withoutTags(xml)), t + 165 * 60_000);
     expect([effective(inverted.state, KANAZAWA_Y), inverted.intents, pending(inverted.state, KANAZAWA_Y), shape(inverted), inverted.decisions[0],
-      inverted.outcomes, inverted.state.persistence.currentGeneration - forecast.state.persistence.currentGeneration]).toEqual([null, [], [],
+      inverted.outcomes, inverted.state.persistence.currentGeneration - forecast.state.persistence.currentGeneration]).toEqual(["expired", [], [],
       [[KANAZAWA_Y, "changed", "semantic"]], expect.objectContaining({ currentEstablished: null }), [{ kind: "accepted", change: "semantic", subjects: [] }], 1]);
     // 前の記録が取消の記憶なら unchanged/stale で記憶は残る。新しい版が発生を含んでも、他の subject の予測は区域を除かれない。
     const memory = send(emptyState(), F.yjpnb, cancelOf("1"), t + 164 * 60_000);
     const kept = send(memory.state, F.yjpnb, (xml) => late(withoutTags(xml)), t + 165 * 60_000);
     expect([shape(kept), effective(kept.state, KANAZAWA_Y)]).toEqual([[[KANAZAWA_Y, "unchanged", "stale"]], "cancelled"]);
     const observed = send(forecast.state, F.yjpnb, (xml) => late(tags([{ condition: "線状降水帯発生", areas: [{ code: "160010" }] }])(xml)), t + 165 * 60_000);
-    expect([effective(observed.state, KANAZAWA_Y), areasOf(recordOf(observed.state, "normal/VPBS50/YJPNA202608270448"))]).toEqual([null,
+    expect([effective(observed.state, KANAZAWA_Y), areasOf(recordOf(observed.state, "normal/VPBS50/YJPNA202608270448"))]).toEqual(["expired",
       [["linearRainPredicted", ["160010", "160020"]]]]);
     // REPLACE-PENDING: 予測（pending）の 30 秒後に同じ区域を全部覆う発生 → replaced で pending 0。一部の区域だけなら active のまま pending も残る。
     const predicted = send(emptyState(), F.yjpnb, undefined, t);
@@ -764,15 +780,18 @@ function subjectRecord(seed: BriefingCurrent, now: number, index: number,
   const operation = patch.operation ?? "normal", series = `S${String(index).padStart(3, "0")}`, subject = `${operation}/VPBS50/${series}`;
   const reported = now - (600 - index) * 1_000;
   const source = { ...seed.source, operation, subject, reportDateTimeRaw: iso(reported) };
-  const base = { subject, operation, headType: "VPBS50" as const, series, source };
+  const base = { subject, operation, headType: "VPBS50" as const, series, eventId: series, source };
   return patch.memory ? { ...base, retainUntil: reported + LONG, effective: "cancelled" }
     : seed.effective === "active" ? { ...seed, ...base, retainUntil: patch.retainUntil ?? reported + SHORT } : seed;
 }
-// I-U-B.capacityReserve の上界の形の記録: 制御文字と孤立したサロゲートを拒むので文字列は 1 単位 3 byte、系列は 40 文字の「\」、
+// I-U-B.capacityReserve の上界の形の記録: 制御文字と孤立したサロゲートを拒むので文字列は 1 単位 3 byte、系列は JSON で全部 2 byte になる
+// 40 文字（「\」32 個と、index を 2 進で書いた「"」「\」8 個。256 件で一意）、
 // ReportDateTime は A1 の形の 40 文字、InfoType は trim で消える U+000B 6 個＋2 文字、inputId 64 文字、operation は training。
+const INHERITED_MARK_BYTES = Buffer.byteLength(',"inherited":true');
 function boundRecord(headType: "VPBS50" | "VPOA50", index: number): BriefingCurrent {
   const kanji = (length: number) => "雨".repeat(length);
-  const series = `${"\\".repeat(36)}${String(index).padStart(4, "0")}`, subject = `training/${headType}/${series}`;
+  const bits = Array.from({ length: 8 }, (_, at) => (index >> at) & 1 ? "\"" : "\\").join("");
+  const series = `${"\\".repeat(32)}${bits}`, subject = `training/${headType}/${series}`;
   const reportDateTimeRaw = "9999-12-31T23:59:59.99999999999999-23:59";
   // 読み戻しが受ける上限いっぱいの source と未確認の印（P3-VM-AC08）。
   const source = { inputId: "i".repeat(64), origin: "recovery" as const, operation: "training" as const, family: headType, subject, reportDateTimeRaw,
@@ -783,8 +802,11 @@ function boundRecord(headType: "VPBS50" | "VPOA50", index: number): BriefingCurr
   // P3-NL-AC15 (2): 最長の通知の印も持つ。
   if (headType === "VPOA50") return { subject, operation: "training", headType, series, source, unconfirmed, notice: LONGEST_NOTICE,
     retainUntil: Date.parse(reportDateTimeRaw) + SHORT, effective: "held", holdUntil: -1.2345678901234567e-300, ...text, areas: areas(16, 0) };
-  return { subject, operation: "training", headType, series, source, unconfirmed, notice: LONGEST_NOTICE, retainUntil: Date.parse(reportDateTimeRaw) + SHORT,
-    effective: "active", ...text,
+  // P3-EF-AC10 (2): 見える記録の上界は期限切れの保留の印も持つ。
+  // P3-EF-AC09: EventID の全体は系列と同じ 40 文字（JSON で 80 byte）。引き継いだ印は系列と違う EventID を要るので、上界には印の分を
+  // 足し算で入れる（INHERITED_MARK_BYTES）。
+  return { subject, operation: "training", headType, series, eventId: series, source, unconfirmed, notice: LONGEST_NOTICE,
+    retainUntil: Date.parse(reportDateTimeRaw) + SHORT, effective: "active", expiryPending: true, ...text,
     items: Array.from({ length: 4 }, (_, at) => ({ kind: "unknown" as const, condition: kanji(16), areas: areas(4, at * 4) })),
     observations: Array.from({ length: 8 }, (_, at) => ({ part: "precipitation" as const, areaCode: String(10_000_000 + at), areaName: kanji(16),
       label: kanji(16), value: -123456.789, unit: kanji(8), approximation: "atLeast" as const, time: "2026-08-22T17:00:00+09:00" })) };
@@ -793,10 +815,11 @@ function boundRecord(headType: "VPBS50" | "VPOA50", index: number): BriefingCurr
 // 上限の長さの記録で満たす。どちらも pending と終端記録を byte の上限まで詰める。
 function budgetState(bounded: boolean): BriefingUnitState {
   const sample = send(emptyState(), F.sample).state.currents[0];
+  if (sample.headType !== "VPBS50") throw new Error("VPBS50 sample");
   const currents = Array.from({ length: 256 }, (_, index): BriefingCurrent => {
     if (bounded) return boundRecord("VPBS50", index);
     const series = `JPTE${String(index).padStart(12, "0")}`, subject = `normal/VPBS50/${series}`;
-    return { ...sample, subject, series, source: { ...sample.source, subject, inputId: "i".repeat(36) } };
+    return { ...sample, subject, series, eventId: series, source: { ...sample.source, subject, inputId: "i".repeat(36) } };
   });
   const intentBase = send(emptyState(), F.k1).intents[0];
   const sized = (index: number, disposition: BriefingIntent["disposition"]): BriefingIntent => ({ ...intentBase, id: `${intentBase.id}:${index}`,

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "7e9340465d52a7ebb116783a7aa89317a557c97450593b0dc73082f724c97f6b",
+    "sha256": "aead030170e003b95fad004e3fe68d4229deb731ee852e278ce7b486209bb561",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -64,7 +64,7 @@
       },
       {
         "id": "P3-C7-RETENTION",
-        "A": "eventはretainUntil=最新の採用報のReportDateTime+24時間で、到来したら寄与・保持・watermarkごと回収する（旧築の地震のwatermark 24時間、revision-family-registry.ts:155・:211）。長周期subjectは同じく+36時間（spec:571、revision-family-registry.ts:506）。強震保持はuntil=eventの発生時刻（I-U-Q.originTime）+12時間（quake-extreme-store.ts:34）。期限はすべて元報の絶対時刻から計算し、再起動・再受信で延ばさない",
+        "A": "eventはretainUntil=最新の採用報のReportDateTime+24時間で、到来したら寄与・保持・watermarkごと回収する（旧築の地震のwatermark 24時間、revision-family-registry.ts:155・:211）。長周期subjectは同じく+36時間（spec:571、revision-family-registry.ts:506）。強震保持はuntil=eventの発生時刻（I-U-Q.originTime）+12時間（quake-extreme-store.ts:34）。期限はすべて元報の絶対時刻から計算し、再起動・再受信で延ばさない。回収（記録と失敗の印）と強震保持の解除・当日の切替えは入力の根拠が verified のときだけ（P3-EF-AC04）",
         "B": "旧築どおり受信時刻から数える",
         "recommended": "A",
         "provisional": "A",
@@ -73,7 +73,7 @@
       },
       {
         "id": "P3-C7-CAPACITY",
-        "A": "上限は4つ: event 512（三区分合算、spec:570）、長周期subject 256（spec:571）、通知pending 128件・128 KiB（spec:981）、4 MiB/世代（spec:475、予算はP3-C7-CAPACITY-BUDGET。K7の発注2aで5,270,185 byte、作者裁定2026-10-21昼・午後）。退去できない記録（取消記憶だけのevent・長周期subjectと当日履歴）は件数と文字列長の上限から最大1,357,385 byte（K7の発注2aで1,470,281）、intentは最大262,144 byte（I-U-Q.capacityReserve）。件数の超過（eventの513件目、長周期の257件目）とbyteの超過（4 MiB）では、eventの採用にも長周期の採用にも同じ手順を使う。候補は超過量を実際に減らすものに限り、件数の超過なら同じ種類（event／長周期）だけ、byteの超過ならeventと長周期の両方から、次の順に必要数だけ退去する: (1)retainUntilを過ぎたもの (2)training/test (3)normalのうち強震保持の無いeventと、activeの長周期subjectを、最新の採用報が古い順に（eventと長周期を一つの順に並べる） (4)件数の超過では最古の取消記憶だけのevent・長周期subject (5)強震保持のあるeventの事実の合計が4 MiB−1,357,385−262,144＝2,574,775 byte（K7の発注2aで強震保持512件の全部の寄与の印の最悪の分954,368を足して3,529,143）を超えるときだけ、その超過分の強震保持のeventを古い順に。byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。候補が足りなければcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で確定し、確定した退去だけを診断seismicCapacityEvicted（count）で返す",
+        "A": "上限は4つ: event 512（三区分合算、spec:570）、長周期subject 256（spec:571）、通知pending 128件・128 KiB（spec:981）、4 MiB/世代（spec:475、予算はP3-C7-CAPACITY-BUDGET。K7の発注2aで5,270,185 byte、作者裁定2026-10-21昼・午後）。退去できない記録（取消記憶だけのevent・長周期subjectと当日履歴）は件数と文字列長の上限から最大1,357,385 byte（K7の発注2aで1,470,281）、intentは最大262,144 byte（I-U-Q.capacityReserve）。件数の超過（eventの513件目、長周期の257件目）とbyteの超過（4 MiB）では、eventの採用にも長周期の採用にも同じ手順を使う。候補は超過量を実際に減らすものに限り、件数の超過なら同じ種類（event／長周期）だけ、byteの超過ならeventと長周期の両方から、次の順に必要数だけ退去する: (1)retainUntilを過ぎたもの（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2)training/test (3)normalのうち強震保持の無いeventと、activeの長周期subjectを、最新の採用報が古い順に（eventと長周期を一つの順に並べる） (4)件数の超過では最古の取消記憶だけのevent・長周期subject (5)強震保持のあるeventの事実の合計が4 MiB−1,357,385−262,144＝2,574,775 byte（K7の発注2aで強震保持512件の全部の寄与の印の最悪の分954,368を足して3,529,143）を超えるときだけ、その超過分の強震保持のeventを古い順に。byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。候補が足りなければcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で確定し、確定した退去だけを診断seismicCapacityEvicted（count）で返す",
         "B": "上限で新しい地震を拒否する（capacityExceeded）",
         "recommended": "A",
         "provisional": "A",
@@ -901,7 +901,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:1163 «cee278b81108e897»"
+          "reconstruction/src/runtime/composition-root.ts:1164 «cee278b81108e897»"
         ]
       },
       {

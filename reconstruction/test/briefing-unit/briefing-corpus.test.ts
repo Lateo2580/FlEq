@@ -14,7 +14,9 @@ const pendingOf = (state: BriefingUnitState, subject: string) => state.intents.f
 describe("P3-UNIT-B-001 U-B corpus history", () => {
   // corpusHistory: expectedDecisions の 22 step と制御 step、E13（AC09）。
   it("P3-C12-T09 corpusHistory / AC09: the 22 expected steps, the restart/save/advanceClock steps and the E13 population", () => {
-    const KJPTK = "normal/VPBS50/KJPTK202608221709", JPTK = "normal/VPOA50/JPTK202608221709", JPTC = "normal/VPOA50/JPTC202608221709";
+    // 記録雨は報ごとの subject（EventID の全体、P3-EF-AC09 (1)）。
+    const KJPTK = "normal/VPBS50/KJPTK202608221709_202608221709", K1727 = "normal/VPBS50/KJPTK202608221709_202608221727";
+    const JPTK = "normal/VPOA50/JPTK202608221709_202608221709", JPTC = "normal/VPOA50/JPTC202608221709_202608221709";
     const o01 = replay("O01", 89, 96);
     // :94 の訂正は事実が同じでも鳴り（[訂正]・「訂正: 」）、:95 の取消は cancel で鳴り、その subject の pending を全部置き換える。
     expect(o01[5].intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body.startsWith("訂正: ")])).toEqual([
@@ -22,8 +24,8 @@ describe("P3-UNIT-B-001 U-B corpus history", () => {
     expect(o01[6].intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body])).toEqual([
       ["cancelled", "cancel", "[取消] 東京都気象防災速報（記録的短時間大雨）（17:27 発表）", "17:27 発表の東京都気象防災速報（記録的短時間大雨）を取り消しました"],
       ["cancelled", "cancel", "[取消] 東京都気象防災速報（記録的短時間大雨）（17:27 発表）", "17:27 発表の東京都気象防災速報（記録的短時間大雨）を取り消しました"]]);
-    expect(pendingOf(o01[6].state, KJPTK).map((item) => item.transition)).toEqual(["cancelled", "cancelled"]);
-    expect(recordOf(o01[6].state, KJPTK)?.retainUntil).toBe(Date.parse("2026-08-22T20:27:00+09:00"));
+    expect(pendingOf(o01[6].state, K1727).map((item) => item.transition)).toEqual(["cancelled", "cancelled"]);
+    expect(recordOf(o01[6].state, K1727)?.retainUntil).toBe(Date.parse("2026-08-22T20:27:00+09:00"));
 
     replay("O02", 44, 44);
 
@@ -59,22 +61,26 @@ describe("P3-UNIT-B-001 U-B corpus history", () => {
     expect(pendingOf(o07[4].state, KJPTK).map((item) => [item.createdAt, item.expiresAt])).toEqual(
       pendingOf(o07[1].state, KJPTK).map((item) => [item.createdAt, item.expiresAt]));
     expect(o07[4].state.persistence.currentGeneration).toBe(o07[3].state.persistence.currentGeneration + 1);
-    // :69 は復元した記録との差で updated、JPTC は変わらない。:70 の取消は KJPTK・JPTC を変えない。
-    expect(o07[5].intents.map((item) => item.transition)).toEqual(["updated", "updated"]);
+    // :69 は報ごとの別の subject への発表で activated、JPTC は変わらない。:70 の取消は KJPTK・JPTC を変えない。
+    expect(o07[5].intents.map((item) => item.transition)).toEqual(["activated", "activated"]);
     expect(recordOf(o07[6].state, KJPTK)).toBe(recordOf(o07[5].state, KJPTK));
     expect(recordOf(o07[6].state, JPTC)).toBe(recordOf(o07[5].state, JPTC));
 
     const o08 = replay("O08", 14, 21);
     expect(recordOf(o08[1].state, JPTK)).toMatchObject({ effective: "held", holdUntil: 1787386200001 });
     expect(recordOf(o08[5].state, JPTC)).toMatchObject({ effective: "held", holdUntil: 1787386200002 });
-    // :16・:18 の逆行は同じ参照、:17 の到来で release（「対応電文未確認」）、:20 は窓から 60 秒以後なので無音、:21 で 2 件とも回収。
+    // :16・:18 の逆行は同じ参照、:17 の到来で release（「対応電文未確認」）、:20 は窓から 60 秒以後なので無音、:21 で 2 件とも期限切れの記憶
+    // （元報＋9 時間、P3-EF-AC05 (2)(3)）。
     expect(o08[2].state).toBe(o08[1].state);
     expect(o08[3].intents.map((item) => [item.channel, item.transition, item.payload.level, item.payload.title])).toEqual([
       ["desktop", "activated", "warning", "東京都記録的短時間大雨情報（対応電文未確認）"], ["sound", "activated", "warning", "東京都記録的短時間大雨情報（対応電文未確認）"]]);
     expect(toBriefingView(o08[3].state).currents.map((item) => item.subject)).toEqual([JPTK]);
     expect(o08[4].state).toBe(o08[3].state);
     expect([recordOf(o08[6].state, JPTC)?.effective, o08[6].intents]).toEqual(["released", []]);
-    expect([o08[7].state.currents, o08[7].state.intents, o08[7].intents, o08[7].nextDeadline]).toEqual([[], [], [], null]);
+    const memoryUntil = Date.parse("2026-08-23T02:09:00+09:00");
+    expect([o08[7].state.currents.map((item) => [item.subject, item.effective, item.retainUntil]), o08[7].state.intents, o08[7].intents,
+      o08[7].nextDeadline]).toEqual([[[JPTK, "expired", memoryUntil], [JPTC, "expired", memoryUntil]], [], [],
+      { wallTimeMs: memoryUntil, monotonicMs: null }]);
 
     // E13: fixtureIds の全 fixture を各 fixture の時刻の時計で受け、期限処理の後も残る恒常的な unavailable は U-B に無い。
     const rejected: string[] = [];
@@ -91,7 +97,8 @@ describe("P3-UNIT-B-001 U-B corpus history", () => {
 
 // sequences.json の effective の語彙（VPBS50・VPOA50 の取消は cancelled、期限で除かれた記録は expired。held・released・aliased・
 // replaced は expectations の checks で照らし、effective は null）。
-const EFFECTIVE = { active: { kind: "active" }, cancelled: { kind: "inactive", cause: { kind: "cancelled" } } } as const;
+const EFFECTIVE = { active: { kind: "active" }, cancelled: { kind: "inactive", cause: { kind: "cancelled" } },
+  expired: { kind: "inactive", cause: { kind: "expired" } } } as const;
 
 // sequences.json の履歴 oracle（expected:<seq>:<position>）を step ごとに照合する。save と restart は codec を通す。
 function replay(sequenceId: string, from: number, to: number): BriefingUnitStep[] {
@@ -147,7 +154,8 @@ function replay(sequenceId: string, from: number, to: number): BriefingUnitStep[
         expect({ reportDateTimeRaw: found?.source.reportDateTimeRaw, serialRaw: found?.source.serialRaw, infoTypeRaw: found?.source.infoTypeRaw },
           `${label} ${subject.subject}`).toEqual(subject.revision);
     if (expected.effective != null) expect(found == null ? { kind: "inactive", cause: { kind: "expired" } }
-      : found.effective === "active" || found.effective === "cancelled" ? EFFECTIVE[found.effective] : found.effective, label).toEqual(expected.effective);
+      : found.effective === "active" || found.effective === "cancelled" || found.effective === "expired" ? EFFECTIVE[found.effective] : found.effective,
+    label).toEqual(expected.effective);
     if (expected.intents != null) expect(result.intents.length > 0, label).toBe(expected.intents);
     if (expected.notices != null) expect(result.intents.length > 0, label).toBe(expected.notices);
     state = result.state;

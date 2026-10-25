@@ -2,7 +2,7 @@ import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boun
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   NoticeMark,
   NotificationIntent,
@@ -98,6 +98,7 @@ type VolcanoEruptionFacts = Readonly<{
   municipalities: readonly string[];
   truncated: boolean;
   validUntil: number;
+  expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に validUntil が来た印（view から外し、事実と通知の印は残す）
 }>;
 export type VolcanoEruption = VolcanoRecordBase & (
   | (Readonly<{ volcanoCode: string }> & VolcanoEruptionFacts)
@@ -124,6 +125,7 @@ type VolcanoAshfallFacts = Readonly<{
   groups: readonly VolcanoAshfallGroup[];
   omittedGroupCount: number;
   truncated: boolean;
+  expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に予報の終わりが来た印
 }>;
 export type VolcanoAshfall = VolcanoRecordBase & Readonly<{ volcanoCode: string }> & (
   | VolcanoAshfallFacts
@@ -167,7 +169,8 @@ type VolcanoBulletinHeading = Readonly<{
   truncated: boolean;
 }>;
 export type VolcanoBulletin = VolcanoBulletinBase & (
-  | (VolcanoBulletinHeading & Readonly<{ text: string | null; nextAdvisory: string | null }>)
+  | (VolcanoBulletinHeading & Readonly<{ text: string | null; nextAdvisory: string | null;
+    expiryPending?: true }>) // P3-EF-AC02 (2): 時計を確かめる前に retainUntil が来た解説の印（view から外し、verified で除く）
   | Readonly<{ effective: "cancelled" }>
 );
 // view・snapshot には見出しだけを載せる（本文を外す、P3-C9-SNAPSHOT）。
@@ -196,7 +199,7 @@ export type VolcanoNotificationPayload = Readonly<{
 export type VolcanoIntent = NotificationIntent & Readonly<{ payload: VolcanoNotificationPayload }>;
 
 export type VolcanoUnitState = Readonly<{
-  schemaVersion: "p3-volcano-unit-v4";
+  schemaVersion: "p3-volcano-unit-v5";
   contentRevision: number;
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
@@ -212,7 +215,7 @@ export type VolcanoUnitState = Readonly<{
 }>;
 
 export type PersistedVolcanoUnit = Readonly<{
-  schemaVersion: "p3-volcano-unit-v4";
+  schemaVersion: "p3-volcano-unit-v5";
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
   ashfalls: readonly VolcanoAshfall[];
@@ -231,14 +234,14 @@ export type VolcanoUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type VolcanoInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedVolcanoUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedVolcanoUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
   // 復旧不足の明示解決（P3-C9-SHORTFALL）。CLI の volcanorepair からの結線は C18。
   | Readonly<{ kind: "shortfallResolution"; id: string; action: "acceptCurrent" | "clearCurrent" | "acknowledgeDomainLoss"; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type VolcanoUnitStep = Readonly<{
   state: VolcanoUnitState;
@@ -258,5 +261,5 @@ export type VolcanoUnitStep = Readonly<{
 }>;
 
 export type VolcanoUnitCodec = UnitCodec<VolcanoUnitState, PersistedVolcanoUnit> & Readonly<{
-  schemaVersion: "p3-volcano-unit-v4";
+  schemaVersion: "p3-volcano-unit-v5";
 }>;

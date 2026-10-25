@@ -2,7 +2,7 @@ import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   NoticeMark,
   NotificationIntent,
@@ -36,6 +36,7 @@ type NankaiCurrentFacts = Readonly<{
   headline: string | null;
   truncated: boolean;
   validUntil: number;
+  expiryPending?: true; // P3-EF-AC04・AC05 (1): 時計を確かめる前に validUntil が来た印（view から外し、事実と通知の印は残す）
 }>;
 
 // 現況。subject = `${operation}/${line}/current`、operation と系統ごとに 1 件。source は系統の watermark と取消記憶を兼ね、
@@ -111,7 +112,7 @@ export type NankaiNotificationPayload = Readonly<{
 export type NankaiIntent = NotificationIntent & Readonly<{ payload: NankaiNotificationPayload }>;
 
 export type NankaiUnitState = Readonly<{
-  schemaVersion: "p3-nankai-unit-v4";
+  schemaVersion: "p3-nankai-unit-v5";
   contentRevision: number;
   currents: readonly NankaiCurrent[];
   // N: 事実は保存しない。復元の後は証拠だけの記録から始まる（spec:512、P3-AUTH-AC01）。
@@ -122,7 +123,7 @@ export type NankaiUnitState = Readonly<{
 }>;
 
 export type PersistedNankaiUnit = Readonly<{
-  schemaVersion: "p3-nankai-unit-v4";
+  schemaVersion: "p3-nankai-unit-v5";
   currents: readonly NankaiCurrent[];
   intents: readonly NankaiIntent[];
   // 64 件以下・subject の重複なし。鍵の無い保存物は invalid（旧保存は版で捨てる、P3-VM-AC08）。
@@ -138,12 +139,12 @@ export type NankaiUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type NankaiInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedNankaiUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedNankaiUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type NankaiUnitStep = Readonly<{
   state: NankaiUnitState;
@@ -164,5 +165,5 @@ export type NankaiUnitStep = Readonly<{
 }>;
 
 export type NankaiUnitCodec = UnitCodec<NankaiUnitState, PersistedNankaiUnit> & Readonly<{
-  schemaVersion: "p3-nankai-unit-v4";
+  schemaVersion: "p3-nankai-unit-v5";
 }>;

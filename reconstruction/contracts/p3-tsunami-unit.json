@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "182621470531617640dc819850c3d3c1c29b755b1384df45fa3477826071fc88",
+    "sha256": "a6d9f6e962231f6fb316ab7fd27bfa35a810320573d75d885890f6e4ce791255",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -91,7 +91,7 @@
       },
       {
         "id": "P3-C5-CAPACITY",
-        "A": "上限は4つ: VTSE41 subject 512（三区分合算、旧築maxSubjects 512）、観測subject familyごと512（三区分合算）、station familyごと1024（三区分合算、spec:575）、4 MiB/世代。どれかを超える受理には同じ退去手順を使う: 退去候補は超過量を実際に減らすsubjectだけに限り、(1)retainUntilを過ぎた非active (2)最古の非active（stationsを持つforecastEndedを含む） (3)training/testのactiveを、R14と同じ最古順で必要数だけ。station超過の候補は同じfamilyのstationsを持つ観測subjectだけ、件数超過の候補は同じ種類（VTSE41／同じfamilyの観測）だけ、byte超過は全subject。normalのactiveだけで超えるならcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で原子的に確定し、確定した退去だけを診断tsunamiCapacityEvicted（count）で返す",
+        "A": "上限は4つ: VTSE41 subject 512（三区分合算、旧築maxSubjects 512）、観測subject familyごと512（三区分合算）、station familyごと1024（三区分合算、spec:575）、4 MiB/世代。どれかを超える受理には同じ退去手順を使う: 退去候補は超過量を実際に減らすsubjectだけに限り、(1)retainUntilを過ぎた非active（入力の根拠が verified のときだけ） (2)最古の非active（stationsを持つforecastEndedを含む） (3)training/testのactiveを、R14と同じ最古順で必要数だけ。station超過の候補は同じfamilyのstationsを持つ観測subjectだけ、件数超過の候補は同じ種類（VTSE41／同じfamilyの観測）だけ、byte超過は全subject。normalのactiveだけで超えるならcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で原子的に確定し、確定した退去だけを診断tsunamiCapacityEvicted（count）で返す。受理と復元の境界で見える観測の記録ごとに 21 byte を予約し、器は 4,698,345（P3-EF-AC06 の (3)）",
         "B": "旧築どおり上限で最終更新の古いstationを黙って落とす",
         "recommended": "A",
         "provisional": "A",
@@ -261,7 +261,7 @@
         "forecastSemantics": "VTSE41の発表・訂正はsubjectの区域集合を報の区域集合で置き換える（報に無い区域はnone）。effectiveは注意報以上（unknownを含む）の区域が一つでもあればactive、無ければreleased。releasedも報の区域（予報・解除）を保ち、areas=[]にするのはcancelledだけ。区域ごとの変化はTsunamiTransitionRecordで返す（P3-C5-TRANSITION-BASIS=A）。transitionは前がnone/releasedで後がforecast以上のとき、subjectが前にactiveでなければissued、activeならexpanded。両方forecast以上で順位が上がればupgraded、下がればdowngraded、前がforecast以上で後がnone/releasedならreleased（前も後もnone/releasedなら変化に数えない）。unkeyedAreasのkindCodeも表の区分（表外はunknown）でeffectiveと残った区分の段階には数えるが、TsunamiTransitionRecord・escalation・§7.5の系列の判定には入れない",
         "observationSemantics": "P3-C5-OBS-MERGE=A・P3-C5-OBS-LIFETIME=A。VTSE51とVTSE52はwatermark・station・取消を互いに共有しない。観測の取消はそのsubjectだけをcancelled（stationsを捨ててwatermarkだけ）にする。VTSE41の取消は観測を取り消さないが、P3-C5-OBS-LIFETIMEによりforecastEndedにする",
         "deadlines": "nextDeadlineは、activeの観測のvalidUntil、非activeのsubjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す",
-        "persisted": "PersistedTsunamiUnitはschemaVersion p3-tsunami-unit-v4（P3-NOTICE-LEDGER-001で上げた版、P3-NL-AC15の(1)。v1〜v3は捨ててよい版）、forecasts、observations、intents（pendingだけ、P3-NL-AC05）、failureMarks（失敗の印、P3-NL-AC02の(6)）。予報・観測の記録は印notice?を持つ（観測はfragmentの鍵16件まで、P3-NL-AC02・AC03）。contentRevision・persistenceは保存しない",
+        "persisted": "PersistedTsunamiUnitはschemaVersion p3-tsunami-unit-v5（P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)。v1〜v4は捨ててよい版）、forecasts、observations、intents（pendingだけ、P3-NL-AC05）、failureMarks（失敗の印、P3-NL-AC02の(6)）。予報・観測の記録は印notice?を持つ（観測はfragmentの鍵16件まで、P3-NL-AC02・AC03）。contentRevision・persistenceは保存しない",
         "decode": "codecは一つ（tsunamiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、VTSE41 subject≤512、観測subject familyごと≤512、station familyごと≤1024（三区分合算）、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、subjectの重複なし、区域code・station codeの重複なし、areaClassとkindCodeの一致（Q-ENUMの表）、effectiveとareas/stationsの形（cancelled・expiredは空）、intentのunitがU-TでsubjectがU-Tのsubject形式（I-U-T.subjects）であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）",
         "view": "TsunamiUnitViewはactiveのforecasts/observationsだけを載せ（forecastEnded・expiredの観測、releasedのVTSE41は載せない）、SubjectOutcome.factsにareaTransitions（TsunamiTransitionRecordの配列）とseries（TsunamiReportSeries）を載せる。RuntimeDisplaySubjectにunit U-Tの行（current: TsunamiForecastSubject | TsunamiObservationSubject | null）を足す",
         "confirmationScope": "ConfirmationScopeは新しい行を作らず、U-Eの行をunit: \"U-E\" | \"U-T\"、kind \"event\"、eventIdに広げて使う（shared-runtime.ts:89の検証も同じく広げる）。U-Tのscopeは常態を確立したVTSE41の採用からだけ出す（観測はREST回復の対象外でscopeにしない、P3-C5-N2）。confirmationScopeLimitは512（VTSE41の上限と一致）",
@@ -708,7 +708,7 @@
         "target": "active tsunami observation subject",
         "limit": 24,
         "unit": "hours from the latest adopted ReportDateTime",
-        "rule": "P3-C5-OBS-LIFETIME=A。VTSE41の非active化によるforecastEndedが先なら先に適用",
+        "rule": "P3-C5-OBS-LIFETIME=A。VTSE41の非active化によるforecastEndedが先なら先に適用。失効は確かめる前は保留の印で観測点を持ち、確かめた時計で expired に移して観測点を捨てる（P3-EF-AC06）",
         "source": "M04「familyごとの期限」、spec:393"
       },
       {
@@ -787,8 +787,8 @@
       {
         "id": "P3-C5-RES-01",
         "target": "U-T encoded generation",
-        "limit": 4676841,
-        "unit": "UTF-8 bytes; after P3-NOTICE-LEDGER-001 the limit adds the worst-case notice marks (forecasts 512×102, observations 1,024×420 with 16 fragment keys) and the failure marks (233 bytes), P3-NL-D-CAPACITY=A",
+        "limit": 4698345,
+        "unit": "UTF-8 bytes; after P3-NOTICE-LEDGER-001 the limit adds the worst-case notice marks (forecasts 512×102, observations 1,024×420 with 16 fragment keys) and the failure marks (233 bytes), P3-NL-D-CAPACITY=A; P3-EXPIRY-FORM-001 adds 21 bytes per visible observation reserved for the expiry-pending mark (1,024×21, P3-EF-AC10 (5))",
         "scope": "forecasts, observations and intents; counted as a sum of per-subject and per-intent encodings",
         "source": "spec:476"
       },
@@ -869,7 +869,7 @@
       },
       {
         "id": "P3-C5-AC05",
-        "requirement": "保存と復元: PersistedTsunamiUnitと唯一のcodec（schemaVersion p3-tsunami-unit-v3）、I-U-T.persisted・I-U-T.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC5に旧データ移行は無い（P3-C5-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る",
+        "requirement": "保存と復元: PersistedTsunamiUnitと唯一のcodec（schemaVersion p3-tsunami-unit-v5、P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)）、I-U-T.persisted・I-U-T.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC5に旧データ移行は無い（P3-C5-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
@@ -914,7 +914,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1089 «7d583246228571ea»",
           "docs/specs/reconstruction-p0-contracts.md:1092 «50f730793bf26903»",
           "docs/specs/reconstruction-p0-contracts.md:1098 «623c7cfd74054e54»",
-          "reconstruction/src/host/host.ts:329 «5c0ae1a90804b159»",
+          "reconstruction/src/host/host.ts:330 «5c0ae1a90804b159»",
           "reconstruction/src/mailbox/mailbox.ts:48 «09594f159c8c0552»"
         ]
       },
@@ -963,7 +963,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:72 «4a65d89f48f565e0»",
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
-          "reconstruction/src/runtime/composition-root.ts:1163 «cee278b81108e897»",
+          "reconstruction/src/runtime/composition-root.ts:1164 «cee278b81108e897»",
           "reconstruction/contracts/p2-notification-delivery.types.ts:46 «c19db469a893ebf1»"
         ]
       },

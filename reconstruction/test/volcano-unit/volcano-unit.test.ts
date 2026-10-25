@@ -44,7 +44,7 @@ const roundTrip = (state: VolcanoUnitState) => volcanoUnitCodec.decode(JSON.pars
 const tick = (state: VolcanoUnitState, wallTimeMs: number, monotonicMs = 0) =>
   reduceVolcanoUnit(state, { kind: "deadline", clock: clock(wallTimeMs, monotonicMs) });
 // 保存 1 世代の byte（checkpoint envelope の JSON＋generation/capturedAt の 62 byte の予約）と、pending の配送予約を足した値（P3-CODEC-RES-01）。
-const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v4", unit: "U-V",
+const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v5", unit: "U-V",
   generation: 0, capturedAt: 0, payload: volcanoUnitCodec.encode(state), sha256: "0".repeat(64) })) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
 const reserved = (state: VolcanoUnitState) => generation(state) + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
 const emptyOwner = (now: ReturnType<typeof clock>) => restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" },
@@ -433,7 +433,11 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect(roundTrip(grown.state).kind).toBe("restored");
 
     // I-U-V.capacityMeasurement の同時最大状態（実例の最大）と、上限の文字列での上界。どちらも encode でき 4,194,304 byte 以下で decode が受ける。
-    const real = budgetState(false), bound = budgetState(true);
+    // P3-EF-AC10 (2): 上界は噴火・降灰の active に期限切れの保留の印（expiryPending）も持つ。
+    const real = budgetState(false), unmarked = budgetState(true);
+    const bound: VolcanoUnitState = { ...unmarked,
+      eruptions: unmarked.eruptions.map((item) => item.effective === "active" ? { ...item, expiryPending: true as const } : item),
+      ashfalls: unmarked.ashfalls.map((item) => item.effective === "active" ? { ...item, expiryPending: true as const } : item) };
     const sizes = [real, bound].map((item) => Buffer.byteLength(JSON.stringify(volcanoUnitCodec.encode(item))));
     const one = (value: object) => Buffer.byteLength(JSON.stringify(value));
     console.info("P3-C9 capacity", JSON.stringify({ realPayload: sizes[0], contractReal: 696_093, boundPayload: sizes[1], contractBound: 3_829_597,
@@ -441,7 +445,7 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
       realMarine: one(alertOf(send(emptyState(), F.marine).state, "506")!), realEruption: one(send(emptyState(), F.plume).state.eruptions[0]),
       realFlash: one(send(emptyState(), F.e1).state.eruptions[0]), realAshfall: one(send(emptyState(), F.rapid).state.ashfalls[0]),
       realDetail: one(send(emptyState(), F.detail).state.ashfalls[0]), realIntent: one(send(emptyState(), F.a306).intents[0]),
-      boundAlert: one(bound.alerts[0]), boundEruption: one(bound.eruptions[0]), boundAshfall: one(bound.ashfalls[0]),
+      boundAlert: one(bound.alerts[0]), boundEruption: one(bound.eruptions[0]), boundAshfall: one(bound.ashfalls[0]), unmarkedPayload: Buffer.byteLength(JSON.stringify(volcanoUnitCodec.encode(unmarked))),
       boundShortfall: one(bound.shortfalls[0]), counts: [real.intents.length, bound.intents.length] }));
     for (const item of [real, bound]) expect(roundTrip(item).kind).toBe("restored");
     expect(Math.max(...sizes)).toBeLessThanOrEqual(4_194_304);

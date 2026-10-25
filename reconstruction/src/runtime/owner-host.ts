@@ -9,7 +9,7 @@ import type {
 } from "../../contracts/p3-execution-split.types";
 import type {
   CheckpointResult, ClockReading, DiagnosticEvent, NotificationIntent, RestoreUnitResult, RuntimeUnitId,
-  RuntimeUnitStates, RuntimeUnitView,
+  RuntimeUnitStates, RuntimeUnitView, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
 import { CheckpointCoordinator } from "../checkpoint/checkpoint";
 import type { CheckpointFileSystem, CodecMap } from "../checkpoint/checkpoint";
@@ -61,6 +61,8 @@ class OwnerHost {
   private readonly reported: Partial<Record<RuntimeUnitId, readonly NotificationIntent[]>> = {};
   private readonly diagnostics: DiagnosticEvent[] = [];
   private base: SentClock | null = null;
+  // P3-EF-AC02 (7): restore・input・deadline の直前の要求の根拠（保存しない。起動後の最初の restore は直前が verified でないと数える）。
+  private lastBasis: WallBasis | null = null;
   // P3-C4-WRITE-COUNT: 測定の印があるときだけ、注入された filesystem を数える包みで使う（印が無ければ包みも counter も作らない）。
   private readonly writeCounts: WriteCounters | null;
   private readonly fileSystem: CheckpointFileSystem;
@@ -79,8 +81,11 @@ class OwnerHost {
   }
 
   handle(request: OwnerRequest): void {
-    this.base = { clock: request.clock, sharedMs: request.sharedMs };
-    if (request.kind === "restore") { this.restore(request.runId); return; }
+    this.base = { clock: request.clock, sharedMs: request.sharedMs, basis: request.basis };
+    // 根拠の切替えは結果を返して期限を当てる restore・input・deadline の要求だけで数える（detail などは直前の根拠を書き換えない）。
+    const switched = (request.kind === "restore" || request.kind === "input" || request.kind === "deadline")
+      && this.switchedToVerified(request.basis);
+    if (request.kind === "restore") { this.restore(request.runId, switched); return; }
     const state = this.state;
     if (state == null) throw new Error("owner has not restored");
     if (state.finalized && request.kind !== "checkpointGrant") throw new Error("owner is finalized");
@@ -97,8 +102,9 @@ class OwnerHost {
         const decodeEnded = this.measured();
         const clock = this.business();
         let generationRaisedMs: number | null = null;
-        const step = this.apply(receiveOwner(state, { runId: envelope.runId, inputId: item.inputId, result }, clock, this.options.units,
-          this.options.start.measured ? () => { generationRaisedMs = this.measured(); } : undefined));
+        const forced = switched ? this.apply(deadlineOwner(state, clock, this.options.units, request.basis, true)) : null;
+        const step = this.apply(receiveOwner(this.state!, { runId: envelope.runId, inputId: item.inputId, result }, clock, this.options.units,
+          this.options.start.measured ? () => { generationRaisedMs = this.measured(); } : undefined, request.basis));
         const marks = result.kind === "decoded" ? result.material.marks : noMarks;
         this.options.reply({ kind: "inputDone", settlement: { kind: "parser", messageId: envelope.messageId,
           runId: envelope.runId, encodedByteLength: item.encodedByteLength, startedMonotonicMs: started.monotonicMs,
@@ -109,11 +115,11 @@ class OwnerHost {
           xmlParseEndedMonotonicMs: this.threadToMeasured(parseTimes?.endedMs) },
         heap: this.options.start.measured && this.options.start.inputHeap ? threadHeap() : null,
         inputGenerations: this.options.start.measured ? this.inputGenerations(step, item.inputId) : null, generationRaisedMs,
-        output: this.output([step]) });
+        output: this.output(forced == null ? [step] : [forced, step]) });
         return;
       }
       case "deadline": {
-        const step = this.apply(deadlineOwner(state, this.business(), this.options.units));
+        const step = this.apply(deadlineOwner(state, this.business(), this.options.units, request.basis, switched));
         this.options.reply({ kind: "deadlineDone", heap: this.options.start.measured ? threadHeap() : null, output: this.output([step]) });
         return;
       }
@@ -125,17 +131,23 @@ class OwnerHost {
       }
       case "checkpointGrant": this.grant(request); return;
       case "shutdownInput": {
-        const step = this.apply(shutdownInputOwner(state, this.business(), this.options.units));
+        const step = this.apply(shutdownInputOwner(state, this.business(), this.options.units, request.basis));
         this.options.reply({ kind: "shutdownInputDone", output: this.output([step]) });
         return;
       }
       case "finalize": {
-        const step = this.apply(finalizeOwner(state, request.cutoff, this.options.units));
+        const step = this.apply(finalizeOwner(state, request.cutoff, this.options.units, request.basis));
         this.options.reply({ kind: "finalizeDone", appliedThrough: request.cutoff, output: this.output([step]) });
         return;
       }
       case "detail": this.options.reply({ kind: "detailDone", response: detailOwner(state, request.detail) }); return; default: { const unknown: never = request; throw new Error(`unknown owner request ${String(unknown)}`); }
     }
+  }
+
+  private switchedToVerified(basis: WallBasis): boolean {
+    const switched = basis === "verified" && this.lastBasis !== "verified";
+    this.lastBasis = basis;
+    return switched;
   }
 
   // Business time: the publisher's injected clock at post plus the real time since (P3-C3A-CLOCK A).
@@ -162,7 +174,7 @@ class OwnerHost {
     return ms == null ? null : ms + performance.timeOrigin - this.options.start.publisherTimeOriginMs;
   }
 
-  private restore(runId: string): void {
+  private restore(runId: string, switched: boolean): void {
     if (this.state != null) throw new Error("owner already restored");
     const clock = this.business();
     const { codecs, start } = this.options;
@@ -173,8 +185,9 @@ class OwnerHost {
       (event) => { this.diagnostics.push(event); });
     const restored: Partial<Record<RuntimeUnitId, RestoreUnitResult>> = {};
     for (const unit of this.own) restored[unit] = this.checkpoint.restoreUnit(unit);
-    const first = restoreOwner({ runId, place: this.options.start.place, clock, restored }, this.options.units, this.options.codecs);
-    const deadline = deadlineOwner(first.state, clock, this.options.units);
+    const basis = this.base!.basis;
+    const first = restoreOwner({ runId, place: this.options.start.place, clock, basis, restored }, this.options.units, this.options.codecs);
+    const deadline = deadlineOwner(first.state, clock, this.options.units, basis, switched);
     this.state = deadline.state;
     for (const unit of this.own) {
       const entry = restored[unit]!;

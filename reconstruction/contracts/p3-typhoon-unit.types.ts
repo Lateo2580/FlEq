@@ -2,7 +2,7 @@ import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   NoticeMark,
   NotificationIntent,
@@ -83,6 +83,7 @@ export type TyphoonAnalysisRecord = Common & (
       name: TyphoonName;
       frames: readonly TyphoonFrame[];
       truncated: boolean;
+      expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に activeUntil が来た印（view から外し、事実と通知の印は残す）
     }>
   // terminal は台風消滅・発生取消の報で終わった記録（P3-C14-TERMINAL が確率の採否に使う）、expired は期限で終わった記録。
   | Readonly<{ effective: "ended"; endCause: "terminal" | "expired" }>
@@ -118,6 +119,7 @@ export type TyphoonProbabilityRecord = Common & (
       prefectures: readonly TyphoonPrefecture[];
       areas: readonly TyphoonProbabilityArea[];
       truncated: boolean;
+      expiryPending?: true; // P3-EF-AC05 (1): 同上
     }>
   | Readonly<{ effective: "zero" }>
   | Readonly<{ effective: "ended"; endCause: "terminal" | "expired" }>
@@ -135,7 +137,7 @@ export type TyphoonNotificationPayload = Readonly<{
 export type TyphoonIntent = NotificationIntent & Readonly<{ payload: TyphoonNotificationPayload }>;
 
 export type TyphoonUnitState = Readonly<{
-  schemaVersion: "p3-typhoon-unit-v5";
+  schemaVersion: "p3-typhoon-unit-v6";
   contentRevision: number;
   analysis: readonly TyphoonAnalysisRecord[];
   probability: readonly TyphoonProbabilityRecord[];
@@ -145,7 +147,7 @@ export type TyphoonUnitState = Readonly<{
 }>;
 
 export type PersistedTyphoonUnit = Readonly<{
-  schemaVersion: "p3-typhoon-unit-v5";
+  schemaVersion: "p3-typhoon-unit-v6";
   analysis: readonly TyphoonAnalysisRecord[];
   probability: readonly TyphoonProbabilityRecord[];
   intents: readonly TyphoonIntent[];
@@ -159,13 +161,13 @@ export type TyphoonUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type TyphoonInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedTyphoonUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedTyphoonUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
   // 閉じる batch・相関待ちを持たないので、終了入力は同じ state を返す（spec:884）。
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type TyphoonUnitStep = Readonly<{
   state: TyphoonUnitState;
@@ -185,5 +187,5 @@ export type TyphoonUnitStep = Readonly<{
 }>;
 
 export type TyphoonUnitCodec = UnitCodec<TyphoonUnitState, PersistedTyphoonUnit> & Readonly<{
-  schemaVersion: "p3-typhoon-unit-v5";
+  schemaVersion: "p3-typhoon-unit-v6";
 }>;

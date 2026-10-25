@@ -68,20 +68,20 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       "U-E": { schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [], persistence: progress },
       "U-W": { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
         tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: progress },
-      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v5", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
+      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v6", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
       // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
       // add their rows only).
-      "U-T": { schemaVersion: "p3-tsunami-unit-v4", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: savedProgress },
+      "U-T": { schemaVersion: "p3-tsunami-unit-v5", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: savedProgress },
       "U-Q": { schemaVersion: "p3-seismic-unit-v4", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
         normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: savedProgress },
-      "U-N": { schemaVersion: "p3-nankai-unit-v4", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
-      "U-V": { schemaVersion: "p3-volcano-unit-v4", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+      "U-N": { schemaVersion: "p3-nankai-unit-v5", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
+      "U-V": { schemaVersion: "p3-volcano-unit-v5", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
         scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: savedProgress },
-      "U-L": { schemaVersion: "p3-landslide-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-R": { schemaVersion: "p3-flood-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-B": { schemaVersion: "p3-briefing-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
-      "U-M": { schemaVersion: "p3-local-bulletins-unit-v5", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: savedProgress },
-      "U-Y": { schemaVersion: "p3-typhoon-unit-v5", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: savedProgress },
+      "U-L": { schemaVersion: "p3-landslide-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-R": { schemaVersion: "p3-flood-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-B": { schemaVersion: "p3-briefing-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
+      "U-M": { schemaVersion: "p3-local-bulletins-unit-v6", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: savedProgress },
+      "U-Y": { schemaVersion: "p3-typhoon-unit-v6", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: savedProgress },
     },
     checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null, "U-V": null, "U-L": null,
       "U-R": null, "U-B": null, "U-M": null, "U-Y": null },
@@ -698,8 +698,8 @@ describe("P2 shared runtime", () => {
     const frozen = freeze(pending);
     const [urgent, weatherCurrent, deferred] = places.map((place) =>
       deadlineOwner(ownerFixture(place, frozen), at(10), units(calls)));
-    expect(eew.mock.calls).toEqual([[initial.units["U-E"], { kind: "deadline", clock: at(10) }]]);
-    expect(weather.mock.calls).toEqual([[initial.units["U-W"], { kind: "deadline", clock: at(10) }]]);
+    expect(eew.mock.calls).toEqual([[initial.units["U-E"], { kind: "deadline", clock: at(10), basis: "verified" }]]);
+    expect(weather.mock.calls).toEqual([[initial.units["U-W"], { kind: "deadline", clock: at(10), basis: "verified" }]]);
     expect(series).not.toHaveBeenCalled();
     expect({ ...urgent.state.deadlines, ...weatherCurrent.state.deadlines, ...deferred.state.deadlines })
       .toEqual({ ...pending.deadlines, "U-E": null, "U-W": null });

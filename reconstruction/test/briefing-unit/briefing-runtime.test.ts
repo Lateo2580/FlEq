@@ -68,7 +68,8 @@ let inputSequence = 0;
 function report(h: Harness, xml: string, now: ClockReading, headType = "VPBS50") {
   return submit(h, envelope(h.root.state.runId, headType, `briefing#${++inputSequence}`, Buffer.from(xml), now, inputSequence));
 }
-const text = (file: string) => readFileSync(`test/fixtures/${file}.xml`, "utf8");
+// 記録雨は報ごとの subject（P3-EF-AC09 (1)）なので、系列の続報として送る試験は EventID を「_」より前に揃える（briefing-unit.test.ts と同じ）。
+const text = (file: string) => readFileSync(`test/fixtures/${file}.xml`, "utf8").replace(/<EventID>([^<_]+)_[^<]*<\/EventID>/, "<EventID>$1</EventID>");
 const cancel = (xml: string) => serial("2")(replaceTag("InfoType", "取消")(xml));
 
 describe("P3-UNIT-B-001 U-B through the composition root", () => {
@@ -136,13 +137,13 @@ describe("P3-UNIT-B-001 U-B through the composition root", () => {
     expect(record.current.briefing.items[0]).toMatchObject({ informationType: "briefing", activeCount: 1, highestSeverity: "specialWarning",
       areaCounts: {}, unknownCode: {}, updatedAt: T0 });
     // held の VPOA50 は載らず、予測だけ・unknown・items 空の記録は warning と unknownCode に数える。
-    const held = projected(await send(text(OA1).replace("JPTK202608221709_202608221709", "JPTC202608221709_202608221709"), "VPOA50", T0 + 2, 3)).snapshot;
+    const held = projected(await send(text(OA1).replace("<EventID>JPTK202608221709</EventID>", "<EventID>JPTC202608221709</EventID>"), "VPOA50", T0 + 2, 3)).snapshot;
     expect(held.current.briefing.items[0]).toMatchObject({ activeCount: 1 });
     const kinds = projected(await send(tags([{ condition: "線状降水帯直前", areas: [{ code: "170020" }] }, { condition: "謎の現象", areas: [] }])(eventId(
       "YJPXX202608221710_202608221710")(text(K1))), "VPBS50", T0 + 3, 4)).snapshot;
     expect(kinds.current.briefing.items[0]).toMatchObject({ activeCount: 2, highestSeverity: "specialWarning", unknownCode: { unknown: 1 } });
     const empty = projected(await send(text(K1).replace(/<Information type="情報タグ">[\s\S]*?<\/Information>/, "").replace(
-      "KJPTK202608221709_202608221709", "KJPXX202608221711_202608221711"), "VPBS50", T0 + 4, 5)).snapshot;
+      "<EventID>KJPTK202608221709</EventID>", "<EventID>KJPXX202608221711_202608221711</EventID>"), "VPBS50", T0 + 4, 5)).snapshot;
     expect(empty.current.briefing.items[0]).toMatchObject({ activeCount: 3, unknownCode: { unknown: 1, empty: 1 } });
     // 取消で記録が view から消える（cancelled を載せない）。
     const cancelled = projected(await send(cancel(text(K1)), "VPBS50", T0 + 5, 6)).snapshot;
@@ -260,7 +261,7 @@ describe("P3-UNIT-B-001 U-B through the composition root", () => {
     now = { wallTimeMs: T0 + 1, monotonicMs: 1 };
     await startHarness(first, "c12-run1", now, false);
     await report(first, text(K1), now);
-    await report(first, text(OA1).replace("JPTK202608221709_202608221709", "JPTC202608221709_202608221709"), tick(1), "VPOA50");
+    await report(first, text(OA1).replace("<EventID>JPTK202608221709</EventID>", "<EventID>JPTC202608221709</EventID>"), tick(1), "VPOA50");
     expect(first.unit("U-B").currents.map((item) => item.effective)).toEqual(["active", "held"]);
     const pendingBefore = first.unit("U-B").intents.filter((item) => item.disposition === "pending");
     const summary = await first.root.shutdownRuntime(inputSequence, tick(1));

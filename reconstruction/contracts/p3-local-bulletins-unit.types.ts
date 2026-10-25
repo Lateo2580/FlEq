@@ -2,7 +2,7 @@ import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   NoticeMark,
   NotificationIntent,
@@ -50,8 +50,10 @@ export type TornadoCurrent = Common & (
       sighted: boolean;
       areas: readonly TornadoArea[];
       truncated: boolean;
+      expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に activeUntil が来た印（view から外し、事実と通知の印は残す）
     }>
-  | Readonly<{ effective: "ended" | "cancelled" }>
+  // expired は activeUntil の到来の記憶、ended は区域が全部「なし」の報（通常の解除）の記憶（P3-EF-AC07 (1)）。
+  | Readonly<{ effective: "ended" | "cancelled" | "expired" }>
 );
 
 // subject = `${operation}/VPFT50/${EventID}`（P3-C13-HEAT-SUBJECT）。active は対象日（P3-C13-HEAT-EXPIRY=A: Head/TargetDateTime の
@@ -68,6 +70,7 @@ export type HeatCurrent = Common & (
       // 切り詰める前の Head/Title から引いた対象地域の名前（例: 埼玉県）。引けなければ null で、報は拒否しない。
       areaName: string | null;
       truncated: boolean;
+      expiryPending?: true; // P3-EF-AC05 (1): 同上
     }>
   | Readonly<{ effective: "ended" | "cancelled" }>
 );
@@ -91,6 +94,7 @@ export type TransientCurrent = Common & Readonly<{ family: TransientFamily }> & 
       // 情報タグの Condition を空白で分けた語（weatherExplanation だけ）。
       tags: readonly string[];
       truncated: boolean;
+      expiryPending?: true; // P3-EF-AC05 (1): 同上（active は保存しないので印は run の中だけ）
     }>
   | Readonly<{ effective: "evidence" | "cancelled" }>
 );
@@ -108,7 +112,7 @@ export type LocalBulletinsNotificationPayload = Readonly<{
 export type LocalBulletinsIntent = NotificationIntent & Readonly<{ payload: LocalBulletinsNotificationPayload }>;
 
 export type LocalBulletinsUnitState = Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v5";
+  schemaVersion: "p3-local-bulletins-unit-v6";
   contentRevision: number;
   tornado: readonly TornadoCurrent[];
   heat: readonly HeatCurrent[];
@@ -119,7 +123,7 @@ export type LocalBulletinsUnitState = Readonly<{
 }>;
 
 export type PersistedLocalBulletinsUnit = Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v5";
+  schemaVersion: "p3-local-bulletins-unit-v6";
   tornado: readonly TornadoCurrent[];
   heat: readonly HeatCurrent[];
   transient: readonly PersistedTransientCurrent[];
@@ -135,13 +139,13 @@ export type LocalBulletinsUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type LocalBulletinsInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedLocalBulletinsUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedLocalBulletinsUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
   // 閉じる batch・相関待ちを持たないので、終了入力は同じ state を返す（spec:884）。
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type LocalBulletinsUnitStep = Readonly<{
   state: LocalBulletinsUnitState;
@@ -161,5 +165,5 @@ export type LocalBulletinsUnitStep = Readonly<{
 }>;
 
 export type LocalBulletinsUnitCodec = UnitCodec<LocalBulletinsUnitState, PersistedLocalBulletinsUnit> & Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v5";
+  schemaVersion: "p3-local-bulletins-unit-v6";
 }>;

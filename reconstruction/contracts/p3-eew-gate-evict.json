@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "52e67527d946b00f7290c64a671bc0c014ad3745417d92d18d6814c11b489fff",
+    "sha256": "435b0ee8fc5c9a4015622cc7896564ced559cc083e4153567501b1b27289e25f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -226,7 +226,7 @@
           "reconstruction/src/domains/eew/eew.ts:362 «a9f9a4e43769a0aa»",
           "reconstruction/src/domains/eew/eew.ts:611 «7c8f0a00cd7cc8aa»",
           "reconstruction/src/domains/eew/eew.ts:613 «295c160aab9d48a2»",
-          "reconstruction/src/units/eew/eew-unit.ts:298 «bc9a6b0d231d49e7»"
+          "reconstruction/src/units/eew/eew-unit.ts:300 «bc9a6b0d231d49e7»"
         ]
       },
       {
@@ -244,8 +244,8 @@
         "requirement": "診断・保存・型（P3-EVICT-D-DIAG=A）:退去の診断は既存のINFO eewCapacityEvicted（unit \"U-E\"、count＝その受理で退去した件数）で、normalの退去も同じ1件に数える。診断に新しいreason・field・型を足さない。時計の後退の記憶（AC01(7)）はEewUnitStateの非保存のoptional field evictedNormalReportMs（familyごとの数値）1つで、codec（encode・decode）・保存の形・schemaVersionは変えない。restoreの後は不在（退去なし）から始まる。そのstaleは既存のeewHorizonStaleで出す。capacityExceededの形（P2-A4-AC06の専用decision、reason/changeなし）とeewHorizonStaleの出し方（P3-LIFE-AC03(2)）は変えない。PersistedEewUnit・schemaVersion p2-eew-unit-v3（P3-VERSION-MATERIAL-001で上げた版、P3-VM-AC09(17)）・codecは変えず、保存の形が変わらないので旧データの移行と復元の試験の組は要らない（AC02 B8）。",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:728 «6e3a13e6daba7887»",
-          "reconstruction/contracts/p2-eew-unit.json:434 «d0a6bd848f75d6fe»",
-          "reconstruction/src/units/eew/eew-unit.ts:298 «bc9a6b0d231d49e7»"
+          "reconstruction/contracts/p2-eew-unit.json:434 «634ff0769180b233»",
+          "reconstruction/src/units/eew/eew-unit.ts:300 «bc9a6b0d231d49e7»"
         ]
       },
       {
@@ -255,7 +255,7 @@
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:385 «0d3eb29d55867383»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:107 «60103d416c14b931»",
           "reconstruction/contracts/p2-eew-unit.json:360 «85c850dde0d58f7e»",
-          "reconstruction/contracts/p2-eew-unit.json:434 «d0a6bd848f75d6fe»",
+          "reconstruction/contracts/p2-eew-unit.json:434 «634ff0769180b233»",
           "reconstruction/contracts/p2-eew-unit.json:48 «c5b1522329bece54»",
           "reconstruction/contracts/p3-operation-capacity-n.json:36 «be43026345f83292»"
         ]

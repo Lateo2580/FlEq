@@ -13,7 +13,7 @@ import manifest from "../../tools/corpus/manifest.json";
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null,
   savedAckAt: null, dirtySince: null };
 function emptyState(): NankaiUnitState {
-  return { schemaVersion: "p3-nankai-unit-v4", contentRevision: 0, currents: [], information: [], intents: [], persistence: saved };
+  return { schemaVersion: "p3-nankai-unit-v5", contentRevision: 0, currents: [], information: [], intents: [], persistence: saved };
 }
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {
   return { wallTimeMs, monotonicMs };

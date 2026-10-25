@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject,
-  RuntimeUnitDeadline, SubjectOutcome,
+  RuntimeUnitDeadline, SubjectOutcome, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   NankaiCurrent, NankaiCurrentLine, NankaiCurrentStatus, NankaiEvidence, NankaiInfoSerial, NankaiInformation, NankaiInformationView, NankaiInput,
@@ -19,10 +19,11 @@ import {
   applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
+import { cachedMin } from "../expiry";
 
 // P3-UNIT-N-001（C8、I-U-N）: U-N の現況・情報系列・通知・容量・codec・射影。
 
-const SCHEMA = "p3-nankai-unit-v4" as const;
+const SCHEMA = "p3-nankai-unit-v5" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const LINES = ["nankai", "VYSE60"] as const;
 // P3-C8-CAPACITY=A・P3-C8-RES-01・RET-01〜04。世代の上限は P3-AUTH-D-N-BUDGET=A（K2、当初 256 KiB）。
@@ -54,7 +55,9 @@ const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTime
 const versionOf = (value: Shown): VersionRef => value.effective === "evidence" ? { family: value.family, reportDateTimeRaw: "",
   controlDateTimeRaw: value.evidence.controlDateTimeRaw, serialRaw: value.evidence.serialRaw } : value.source;
 const msOf = (value: Shown): number => value.effective === "evidence" ? value.evidence.reportDateTimeMs : reportMs(value.source);
-const visible = (value: Shown | null): value is ActiveCurrent | ActiveInformation => value?.effective === "active";
+// 期限切れの保留の印のある現況は見えない記録として扱う（P3-EF-AC04）。
+const visible = (value: Shown | null): value is ActiveCurrent | ActiveInformation => value?.effective === "active"
+  && !(isCurrent(value) && value.expiryPending === true);
 
 // ---- byte の加算（I-U-N.computation。受信 1 回で state 全体を直列化しない） ----
 
@@ -88,6 +91,10 @@ function minOf<T extends object>(values: readonly T[], at: (value: T) => number)
   return min;
 }
 const currentDeadline = (value: NankaiCurrent) => value.effective === "active" ? Math.min(value.validUntil, value.retainUntil) : value.retainUntil;
+// P3-EF-AC11 (2): 根拠で当てない種類を比べないよう、表示の期限・回収の期限・保留の現況を別々に持つ（nextDeadline は上の全部の最小）。
+const displayMin = cachedMin<NankaiCurrent>((item) => visible(item) && item.effective === "active" ? item.validUntil : Infinity);
+const recallMin = cachedMin<NankaiCurrent>((item) => item.retainUntil);
+const pendingMin = cachedMin<NankaiCurrent>((item) => item.effective === "active" && item.expiryPending === true ? item.validUntil : Infinity);
 function deadlineAt(state: NankaiUnitState): number {
   return Math.min(minOf(state.currents, currentDeadline), minOf(state.information, (item) => item.retainUntil),
     minOf(state.intents, (item) => item.expiresAt));
@@ -121,7 +128,7 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
 
 // P3-VM-AC03: 系統と情報 subject ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
 // 通知の印（P3-NL-AC02）も中身の比べに入れない。
-const withoutSource = (value: Shown) => ({ ...value, source: null, unconfirmed: null, notice: null });
+const withoutSource = (value: Shown) => ({ ...value, source: null, unconfirmed: null, notice: null, expiryPending: null });
 
 // ---- 現況（I-U-N.currentSemantics） ----
 
@@ -191,8 +198,9 @@ function informationFacts(value: FactInformation | null): Readonly<Record<string
 // 1 件退去する。受ける報が training/test なら normal の記録（証拠だけの記録を含む）は (1)〜(3) とも候補にせず、候補が無ければ null
 // （受けた記録自身を残さない）。
 // ponytail: 64 件の一回の走査（上限は INFORMATION_LIMIT と復元の空で効く）。
-function evictOne(information: readonly NankaiInformation[], now: number, incoming: Operation): NankaiInformation | null {
-  const tier = (item: NankaiInformation) => item.retainUntil <= now ? 0 : item.operation !== "normal" ? 1 : 2;
+// 第 1 段は受けた入力の根拠が verified のときだけ（P3-EF-AC03）。
+function evictOne(information: readonly NankaiInformation[], now: number, incoming: Operation, verified: boolean): NankaiInformation | null {
+  const tier = (item: NankaiInformation) => verified && item.retainUntil <= now ? 0 : item.operation !== "normal" ? 1 : 2;
   let worst: NankaiInformation | null = null;
   for (const item of information) {
     if (item.operation === "normal" && incoming !== "normal") continue;
@@ -326,7 +334,7 @@ function holdState(state: NankaiUnitState, clock: ClockReading, subject: string,
     persistence: currents === state.currents ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
 }
 
-function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, clock: ClockReading): Result {
+function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, clock: ClockReading, basis: WallBasis): Result {
   const now = clock.wallTimeMs;
   const currentIndex = indexOf(state.currents, candidate.currentSubject);
   const current = currentIndex == null ? null : state.currents[currentIndex];
@@ -385,7 +393,7 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   let evicted: NankaiInformation | null = null;
   let self = false;
   if (information.length > INFORMATION_LIMIT) {
-    evicted = evictOne(state.information, now, candidate.operation);
+    evicted = evictOne(state.information, now, candidate.operation, basis === "verified");
     const gone = evicted;
     if (gone == null) { self = true; information = state.information; } else information = information.filter((item) => item !== gone);
   }
@@ -430,7 +438,7 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   // 情報系列の変化は証拠が変わるので保存世代を進める。回収する reduce では回収の後の証拠で比べる（P3-AUTH-AC01(5)・P3-X-C3）。
   const persisted = currents !== state.currents || notices.intents !== state.intents || !collecting && information !== state.information;
   const adopted: NankaiUnitState = { ...draft, persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
-  const collected = collecting ? collect(adopted, clock, state.information) : null;
+  const collected = collecting ? collect(adopted, clock, basis, state.information) : null;
   const next = collected?.state ?? adopted;
   const changes: Change[] = [];
   if (nextCurrent != null && !currentDue) changes.push([current, nextCurrent]);
@@ -477,38 +485,53 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
 const sameItems = (left: readonly object[], right: readonly object[]) => left === right
   || left.length === right.length && left.every((item, at) => item === right[at]);
 // base は情報系列の変化を比べる前の並び（受信と同じ reduce の回収では受信の前の並び）。
+// 時計の根拠ごとに（P3-EF-AC02・AC04）、awaiting は何も当てない。unverified は validUntil の来た現況に保留の印を付けるだけ。verified は
+// validUntil の来た現況と保留の現況（時計によらず）を expired にし、現況・情報の retainUntil と intent を回収する。
 // ponytail: 現況 6・情報 64 の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
-function collect(state: NankaiUnitState, clock: ClockReading, base = state.information): Readonly<{ state: NankaiUnitState;
+function collect(state: NankaiUnitState, clock: ClockReading, basis: WallBasis, base = state.information): Readonly<{ state: NankaiUnitState;
   changes: readonly Change[]; expiredIntents: number }> {
-  const now = clock.wallTimeMs;
-  if (deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0 };
+  const now = clock.wallTimeMs, verified = basis === "verified";
+  const none = { state, changes: [], expiredIntents: 0 };
+  const shows = basis !== "awaiting" && displayMin(state.currents) <= now;
+  const recalls = verified && (recallMin(state.currents) <= now || pendingMin(state.currents) !== Infinity);
+  const informationDue = verified && minOf(state.information, (item) => item.retainUntil) <= now;
+  const intentsDue = verified && minOf(state.intents, (item) => item.expiresAt) <= now;
+  if (!shows && !recalls && !informationDue && !intentsDue && sameItems(state.information, base)) return none;
   const changes: Change[] = [];
-  const currents = minOf(state.currents, currentDeadline) > now ? state.currents : state.currents.flatMap((item): NankaiCurrent[] => {
-    if (item.retainUntil <= now) { changes.push([item, null]); return []; }
-    if (item.effective !== "active" || item.validUntil > now) return [item];
+  const currents = !shows && !recalls ? state.currents : state.currents.flatMap((item): NankaiCurrent[] => {
+    if (verified && item.retainUntil <= now) { changes.push([item, null]); return []; }
+    if (item.effective !== "active" || item.expiryPending !== true && item.validUntil > now) return [item];
+    if (!verified) {
+      if (item.expiryPending === true) return [item];
+      const marked: NankaiCurrent = { ...item, expiryPending: true };
+      changes.push([item, marked]);
+      return [marked];
+    }
     // (6): validUntil の到来で expired（事実を捨てる。通知しない、P3-C8-CURRENT-EXPIRY=A）。
-    const base = { subject: item.subject, operation: item.operation, eventId: item.eventId, source: item.source, retainUntil: item.retainUntil };
-    const after: NankaiCurrent = item.line === "VYSE60" ? { ...base, line: "VYSE60", effective: "expired" }
-      : { ...base, line: "nankai", effective: "expired" };
+    const kept = { subject: item.subject, operation: item.operation, eventId: item.eventId, source: item.source, retainUntil: item.retainUntil,
+      ...item.notice == null ? {} : { notice: item.notice } };
+    const after: NankaiCurrent = item.line === "VYSE60" ? { ...kept, line: "VYSE60", effective: "expired" }
+      : { ...kept, line: "nankai", effective: "expired" };
     changes.push([item, after]);
     return [after];
   });
-  const information = minOf(state.information, (item) => item.retainUntil) > now ? state.information
+  const information = !informationDue ? state.information
     : state.information.filter((item) => {
       if (item.retainUntil > now) return true;
       changes.push([item, null]);
       return false;
     });
-  const intents = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
+  const intents = !intentsDue ? state.intents : state.intents.filter((item) => item.expiresAt > now);
   const expiredIntents = state.intents.length - intents.length;
-  const persisted = currents !== state.currents || intents !== state.intents || !sameItems(information, base);
-  return { state: { ...state, currents, information, intents,
+  const persisted = changes.some(([before]) => before != null && isCurrent(before)) || intents !== state.intents || !sameItems(information, base);
+  if (changes.length === 0 && intents === state.intents && information === state.information && !persisted) return none;
+  return { state: { ...state, currents: changes.length === 0 ? state.currents : currents, information, intents,
     persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence }, changes, expiredIntents };
 }
 
-function deadlineStep(state: NankaiUnitState, clock: ClockReading, shutdown: boolean): Result {
-  const applied = collect(state, clock);
-  const subjects = applied.changes.flatMap(([before, after]) => after == null || !visible(before) || after.effective === "evidence" ? []
+function deadlineStep(state: NankaiUnitState, clock: ClockReading, basis: WallBasis, shutdown: boolean): Result {
+  const applied = collect(state, clock, basis);
+  const subjects = applied.changes.flatMap(([before, after]) => after == null || !visible(before) || after.effective === "evidence" || after.effective === "active" ? []
     : [outcomeOf(after, ["effective"])]);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "nankai",
     reason: "notificationExpired", unit: "U-N", count: applied.expiredIntents }];
@@ -564,7 +587,7 @@ function intentUpdate(state: NankaiUnitState, input: Extract<NankaiInput, { kind
       source: item.source, facts: { intentId: item.id, channel: item.channel }, changedFields: ["intents"] }] })) } };
 }
 
-function restore(state: NankaiUnitState, persisted: PersistedNankaiUnit, clock: ClockReading): Result {
+function restore(state: NankaiUnitState, persisted: PersistedNankaiUnit, clock: ClockReading, basis: WallBasis): Result {
   const decoded = nankaiUnitCodec.decode(persisted);
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "nankai",
@@ -574,7 +597,7 @@ function restore(state: NankaiUnitState, persisted: PersistedNankaiUnit, clock: 
   const restored = restoreStarted(decoded.state.intents);
   const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
     intents: restored.intents, persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
-  const applied = collect(base, clock);
+  const applied = collect(base, clock, basis);
   const active = applied.state.currents.filter(visible);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "nankai",
     reason: "notificationExpired", unit: "U-N", count: applied.expiredIntents }];
@@ -592,15 +615,15 @@ function receive(state: NankaiUnitState, input: Extract<NankaiInput, { kind: "re
   // Q-NOTICE.recovery・P3-C8-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
-  return receiveCandidate(state, candidate, input.clock);
+  return receiveCandidate(state, candidate, input.clock, input.basis ?? "verified");
 }
 
 function reduceCore(state: NankaiUnitState, input: NankaiInput): Result {
   switch (input.kind) {
-    case "restore": return restore(state, input.persisted, input.clock);
+    case "restore": return restore(state, input.persisted, input.clock, input.basis ?? "verified");
     case "intentUpdate": return intentUpdate(state, input);
-    case "deadline": return deadlineStep(state, input.clock, false);
-    case "shutdown": return deadlineStep(state, input.clock, true);
+    case "deadline": return deadlineStep(state, input.clock, input.basis ?? "verified", false);
+    case "shutdown": return deadlineStep(state, input.clock, input.basis ?? "verified", true);
     case "receive": return receive(state, input);
     default: { const missing: never = input; throw new Error(`nankai input ${String(missing)} is not handled`); }
   }
@@ -629,7 +652,7 @@ function reduceNankaiUnit(state: NankaiUnitState, input: NankaiInput): NankaiUni
 }
 
 function toNankaiView(state: NankaiUnitState): NankaiUnitView {
-  const currents = state.currents.filter((item): item is ActiveCurrent => item.effective === "active");
+  const currents = state.currents.filter((item): item is ActiveCurrent => item.effective === "active" && item.expiryPending !== true);
   const shownInformation = state.information.filter((item): item is ActiveInformation => item.effective === "active");
   const subjects = [...currents, ...shownInformation].map(shownOutcome);
   return { unit: "U-N", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
@@ -677,7 +700,7 @@ function infoSerial(value: unknown): NankaiInfoSerial | null | "invalid" {
   const row = record(value);
   return row == null || !bounded(row.code, BOUNDS.code) || !boundedOrNull(row.name, BOUNDS.name) ? "invalid" : { code: row.code, name: row.name };
 }
-const FACT_KEYS = ["status", "infoSerial", "title", "headline", "truncated", "validUntil"] as const;
+const FACT_KEYS = ["status", "infoSerial", "title", "headline", "truncated", "validUntil", "expiryPending"] as const;
 function currentRecord(value: unknown): NankaiCurrent | null {
   const row = record(value);
   const operation = operationOf(row?.operation), line = lineOf(row?.line), source = reportRef(row?.source);
@@ -699,9 +722,10 @@ function currentRecord(value: unknown): NankaiCurrent | null {
   }
   const serial = infoSerial(row.infoSerial);
   if (serial === "invalid" || !bounded(row.title, BOUNDS.title) || !boundedOrNull(row.headline, BOUNDS.headline)
-    || typeof row.truncated !== "boolean" || row.validUntil !== reportMs(source) + CURRENT_VALID_MS) return null;
+    || typeof row.truncated !== "boolean" || row.validUntil !== reportMs(source) + CURRENT_VALID_MS
+    || "expiryPending" in row && row.expiryPending !== true) return null;
   const facts = { effective: "active" as const, infoSerial: serial, title: row.title, headline: row.headline, truncated: row.truncated,
-    validUntil: row.validUntil };
+    validUntil: row.validUntil, ...row.expiryPending === true ? { expiryPending: true as const } : {} };
   if (line === "VYSE60") return row.status === "subsequentAdvisory" ? { ...base, line, status: row.status, ...facts } : null;
   const status = STATUSES.nankai.find((item): item is NankaiCurrentStatus => item === row.status);
   return status == null ? null : { ...base, line, status, ...facts };
@@ -774,12 +798,12 @@ function persisted(value: unknown): Decoded | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const nankaiUnitCodec: NankaiUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 情報の事実・contentRevision・persistence は保存しない（I-U-N.persisted、spec:512 の N）。証拠は保存する（P3-AUTH-AC01）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents, evidence: state.information.map(evidenceOf) }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v4 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v5 payload" }
       : { kind: "restored", state: { schemaVersion: SCHEMA, ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

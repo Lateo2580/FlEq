@@ -2,7 +2,7 @@ import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boun
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   FailureMark,
   NoticeMark,
@@ -199,12 +199,12 @@ export type SeismicUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type SeismicInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedSeismicUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedSeismicUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type SeismicUnitStep = Readonly<{
   state: SeismicUnitState;

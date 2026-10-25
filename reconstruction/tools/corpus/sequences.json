@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -858,7 +858,7 @@
           "expectedRef": "expected:O01:42",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -877,7 +877,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/synthetic_VXKO50_correction.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -895,7 +895,7 @@
           "expectedRef": "expected:O01:44",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/synthetic_VXKO50_code31.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -914,7 +914,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L1: reconstruction/contracts/p3-flood-unit.json:153 «dfa411a7eb692cab» P3-C11-REPLACEMENT=A",
@@ -1526,7 +1526,7 @@
           "expectedRef": "expected:O01:81",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
             "L1: reconstruction/contracts/p3-landslide-unit.json:43 «ac7dbb2bffd2f033» P3-C10-SUBJECTS=A",
             "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
@@ -1546,7 +1546,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
             "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
             "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
@@ -1632,7 +1632,7 @@
           "expectedRef": "expected:O01:87",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:50 «927dcf0821fb895f» P3-C11-SUBJECTS=A",
             "L1: reconstruction/contracts/p3-flood-unit.json:68 «bea92bfd2f4f1d0d» P3-C11-STATIONS=A",
             "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
@@ -1653,7 +1653,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/16_00_02_260603_VXKO70_kozagawa_overflow.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
@@ -1687,7 +1687,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
@@ -1708,7 +1708,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
@@ -1727,7 +1727,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221727.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
@@ -1761,7 +1761,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:297 «bf769cf910f712a7» Q-NOTICE correction",
             "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPBS50_KJPTK_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -2745,7 +2745,7 @@
           "expectedRef": "expected:O02:24",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -2765,7 +2765,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:402 «daf0a793689748d4»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
             "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
             "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -3572,8 +3572,8 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -3610,8 +3610,8 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -3720,7 +3720,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:93 «5b37b5ac0820b06e» P3-C12-REPLACE=B（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:238 «08377eedb8d2d26a» P3-C12-REPLACE-PENDING=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/replay/VPBS50_HJPNB202608270458.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -3755,7 +3755,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
             "L1: reconstruction/contracts/p3-landslide-unit.json:61 «df713ec539f267d2» P3-C10-ACTIVE-STATUS=A",
             "L1: reconstruction/contracts/p3-landslide-unit.json:52 «b0f7693ceac39793» P3-C10-AREAS=A",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
             "L1: reconstruction/contracts/p3-landslide-unit.json:180 «c3186f0189b273d1» Q-NOTICE inactiveAdoption",
             "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L2: test/fixtures/18_00_01_260603_VPWW56_kagawa_release.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
@@ -3790,8 +3790,8 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -3828,8 +3828,8 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -5364,7 +5364,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
             "L1: reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab» Q-NOTICE restart",
-            "L1: reconstruction/contracts/p3-nankai-unit.json:255 «5a6e7001bdccc647» I-U-N.persisted"
+            "L1: reconstruction/contracts/p3-nankai-unit.json:255 «f175b5c3ad840bed» I-U-N.persisted"
           ]
         },
         {
@@ -5449,7 +5449,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
             "L1: reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A"
+            "L1: reconstruction/contracts/p3-nankai-unit.json:84 «68e39a37d05ee2b5» P3-C8-RETENTION=A"
           ]
         },
         {
@@ -5465,7 +5465,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:84 «68e39a37d05ee2b5» P3-C8-RETENTION=A",
             "L1: reconstruction/contracts/p3-nankai-unit.json:187 «d4e358cef8a12114» Q-NOTICE expiry"
           ]
         },
@@ -5496,7 +5496,7 @@
           "expectedRef": "expected:O07:46",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
             "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
@@ -5514,7 +5514,7 @@
           "expectedRef": "expected:O07:47",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «b01eb2a38c63a8e7» I-U-L persisted"
+            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «d16910d13705f145» I-U-L persisted"
           ]
         },
         {
@@ -5584,7 +5584,7 @@
           "expectedRef": "expected:O07:51",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «b01eb2a38c63a8e7» I-U-L persisted"
+            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «d16910d13705f145» I-U-L persisted"
           ]
         },
         {
@@ -5647,7 +5647,7 @@
           "expectedRef": "expected:O07:55",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
@@ -5665,7 +5665,7 @@
           "expectedRef": "expected:O07:56",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/synthetic_VXKO50_code31.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -5683,7 +5683,7 @@
           "expectedRef": "expected:O07:57",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4» U-Rの保存するもの",
-            "L1: reconstruction/contracts/p3-flood-unit.json:319 «504e6d4547eb742b» I-U-R persisted"
+            "L1: reconstruction/contracts/p3-flood-unit.json:319 «f0716b6c961d5827» I-U-R persisted"
           ]
         },
         {
@@ -5715,7 +5715,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
             "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -5733,7 +5733,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
             "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
             "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
@@ -5820,7 +5820,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -5840,8 +5840,8 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L2: test/fixtures/phase6b_VPOA50_JPTC202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -5857,7 +5857,7 @@
           "expectedRef": "expected:O07:67",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73» U-Bの保存するもの",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:383 «667dc977b6bb4feb» I-U-B persisted"
+            "L1: reconstruction/contracts/p3-briefing-unit.json:383 «8af0c40132bd271c» I-U-B persisted"
           ]
         },
         {
@@ -5890,7 +5890,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-briefing-unit.json:329 «461d6efb5708bfe7» Q-NOTICE restart",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -5909,7 +5909,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
             "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -5958,7 +5958,7 @@
           "expectedRef": "expected:O07:73",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2a874d226ec1f565» I-U-Y persisted"
           ]
         },
         {
@@ -6010,7 +6010,7 @@
           "expectedRef": "expected:O07:76",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2a874d226ec1f565» I-U-Y persisted"
           ]
         },
         {
@@ -6093,7 +6093,7 @@
           "expectedRef": "expected:O07:81",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
+            "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2a874d226ec1f565» I-U-Y persisted"
           ]
         },
         {
@@ -6367,8 +6367,8 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -6518,7 +6518,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:273 «ffab5729a134da6e» Q-NOTICE tornadoRelease",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPHW50_tokyo_release.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -6536,7 +6536,7 @@
           "expectedRef": "expected:O08:25",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
           ]
         },
@@ -6568,7 +6568,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/19_03_01_130906_VPHW50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -6586,7 +6586,7 @@
           "expectedRef": "expected:O08:28",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）"
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）"
           ]
         },
         {
@@ -6601,7 +6601,7 @@
           "expectedRef": "expected:O08:29",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:376 «d34cddca3db4e7f4» I-U-M currentSemantics",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
           ]
@@ -6618,7 +6618,7 @@
           "expectedRef": "expected:O08:30",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
           ]
         }
@@ -13222,7 +13222,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -13262,7 +13262,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/synthetic_VXKO50_correction.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -13300,7 +13300,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/synthetic_VXKO50_code31.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -13339,7 +13339,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L1: reconstruction/contracts/p3-flood-unit.json:153 «dfa411a7eb692cab» P3-C11-REPLACEMENT=A",
@@ -14469,7 +14469,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -14510,7 +14510,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:402 «daf0a793689748d4»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
         "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
         "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -15710,8 +15710,8 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -15786,8 +15786,8 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -16011,7 +16011,7 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:93 «5b37b5ac0820b06e» P3-C12-REPLACE=B（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:238 «08377eedb8d2d26a» P3-C12-REPLACE-PENDING=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/replay/VPBS50_HJPNB202608270458.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -19009,8 +19009,8 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -24005,7 +24005,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
         "L1: reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab» Q-NOTICE restart",
-        "L1: reconstruction/contracts/p3-nankai-unit.json:255 «5a6e7001bdccc647» I-U-N.persisted"
+        "L1: reconstruction/contracts/p3-nankai-unit.json:255 «f175b5c3ad840bed» I-U-N.persisted"
       ],
       "input": {
         "required": "直前にsaveしたU-Nだけから復元、時計16:33:00。",
@@ -24163,7 +24163,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
         "L1: reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A"
+        "L1: reconstruction/contracts/p3-nankai-unit.json:84 «68e39a37d05ee2b5» P3-C8-RETENTION=A"
       ],
       "input": {
         "required": "直前にsaveしたU-Nだけから復元、時計2020-05-19T16:27:59.999+09:00（validUntilの1 ms前）。",
@@ -24191,7 +24191,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:84 «68e39a37d05ee2b5» P3-C8-RETENTION=A",
         "L1: reconstruction/contracts/p3-nankai-unit.json:187 «d4e358cef8a12114» Q-NOTICE expiry"
       ],
       "input": {
@@ -24250,7 +24250,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
         "L1: reconstruction/contracts/p3-landslide-unit.json:43 «ac7dbb2bffd2f033» P3-C10-SUBJECTS=A",
         "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
@@ -24291,7 +24291,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
         "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
         "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
@@ -24471,7 +24471,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:50 «927dcf0821fb895f» P3-C11-SUBJECTS=A",
         "L1: reconstruction/contracts/p3-flood-unit.json:68 «bea92bfd2f4f1d0d» P3-C11-STATIONS=A",
         "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
@@ -24513,7 +24513,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/16_00_02_260603_VXKO70_kozagawa_overflow.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
@@ -24579,7 +24579,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
         "L1: reconstruction/contracts/p3-landslide-unit.json:61 «df713ec539f267d2» P3-C10-ACTIVE-STATUS=A",
         "L1: reconstruction/contracts/p3-landslide-unit.json:52 «b0f7693ceac39793» P3-C10-AREAS=A",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
         "L1: reconstruction/contracts/p3-landslide-unit.json:180 «c3186f0189b273d1» Q-NOTICE inactiveAdoption",
         "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L2: test/fixtures/18_00_01_260603_VPWW56_kagawa_release.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
@@ -24641,7 +24641,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
         "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
@@ -24666,7 +24666,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «b01eb2a38c63a8e7» I-U-L persisted"
+        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «d16910d13705f145» I-U-L persisted"
       ],
       "input": {
         "required": "U-Lの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -24793,7 +24793,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «b01eb2a38c63a8e7» I-U-L persisted"
+        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «d16910d13705f145» I-U-L persisted"
       ],
       "input": {
         "required": "取消の後のU-Lの世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -24913,7 +24913,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
@@ -24952,7 +24952,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/synthetic_VXKO50_code31.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -24976,7 +24976,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4» U-Rの保存するもの",
-        "L1: reconstruction/contracts/p3-flood-unit.json:319 «504e6d4547eb742b» I-U-R persisted"
+        "L1: reconstruction/contracts/p3-flood-unit.json:319 «f0716b6c961d5827» I-U-R persisted"
       ],
       "input": {
         "required": "U-Rの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -25036,7 +25036,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
         "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -25074,7 +25074,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-flood-unit.json:309 «5a597ffa2531577e» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «289b6853dec88e54» I-U-R currentSemantics",
         "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
         "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L1: reconstruction/contracts/p3-flood-unit.json:273 «f3777583b9c54155» Q-NOTICE restart",
@@ -25246,7 +25246,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
@@ -25287,7 +25287,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
@@ -25326,7 +25326,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221727.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
@@ -25399,7 +25399,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:297 «bf769cf910f712a7» Q-NOTICE correction",
         "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPBS50_KJPTK_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -25541,7 +25541,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -25579,8 +25579,8 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L2: test/fixtures/phase6b_VPOA50_JPTC202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -25601,7 +25601,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73» U-Bの保存するもの",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:383 «667dc977b6bb4feb» I-U-B persisted"
+        "L1: reconstruction/contracts/p3-briefing-unit.json:383 «8af0c40132bd271c» I-U-B persisted"
       ],
       "input": {
         "required": "U-Bの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -25663,7 +25663,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-briefing-unit.json:329 «461d6efb5708bfe7» Q-NOTICE restart",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221717.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -25706,7 +25706,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
         "L2: test/fixtures/synthetic_VPOA50_JPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -25787,7 +25787,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2a874d226ec1f565» I-U-Y persisted"
       ],
       "input": {
         "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -25873,7 +25873,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2a874d226ec1f565» I-U-Y persisted"
       ],
       "input": {
         "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -26011,7 +26011,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:483 «c68e945e24ebfc4a» §4.2 U-Yの保存するもの",
-        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «f45e7c30cfadfcb6» I-U-Y persisted"
+        "L1: reconstruction/contracts/p3-typhoon-unit.json:373 «2a874d226ec1f565» I-U-Y persisted"
       ],
       "input": {
         "required": "U-Yの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
@@ -27474,7 +27474,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:273 «ffab5729a134da6e» Q-NOTICE tornadoRelease",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPHW50_tokyo_release.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -27503,7 +27503,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
       ],
       "input": {
@@ -27563,7 +27563,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/19_03_01_130906_VPHW50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -27589,7 +27589,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）"
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）"
       ],
       "input": {
         "required": "入力停止、時計を有効期限の1 ms前（2013-07-26T10:29:59.999+09:00）へ。",
@@ -27619,7 +27619,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:376 «d34cddca3db4e7f4» I-U-M currentSemantics",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
       ],
@@ -27648,7 +27648,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1784 «8e80f76842b785f6» O08",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «d5558dd12c94ca43» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:307 «1150f07e31a93509» Q-NOTICE silent"
       ],
       "input": {
@@ -27892,8 +27892,8 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L2: test/fixtures/phase6b_VPOA50_JPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -27972,8 +27972,8 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «a9a35a21e5609b5f» P3-C12-ALIAS=A",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «a7bd2d8e1dbd521f» I-U-B currentSemantics",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
         "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"

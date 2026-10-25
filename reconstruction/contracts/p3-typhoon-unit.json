@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "b36c174c7f196b25f66ca2bbfb8359eb2ad2f025de2a55f3322ba077d8965ada",
+    "sha256": "13c3332a32d4462827d0dd5dcaad6cd64ffbfbd5273cc82fa7672d7b77a0ee93",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -16,7 +16,7 @@
         "provisional": "A",
         "ruling": "作者裁定A（2026-10-13朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（解析・確率ともsourceのReportDateTime＋12時間で見えなくし、記憶は7日）だけを読む",
         "reason": "解析の発表は1〜3時間ごと、確率は6時間ごと（dmdataの電文の説明 https://dmdata.jp/docs/telegrams/we02670/ と we02691/ の生HTML、気象庁 配信資料に関する仕様 No.11902・No.11903、R4.3.30）。実配信の採取（起草者が2026-10-13に集計。~/dev/fleq-corpus-p0/20260923-capacity の x-2025-08-10・09-05・2026-01-11・02-08・06-03・06-26・09-21 の telegrams.json で format=xml の報、originalId を持つ JSON 版は除く、重複0。ほかに ~/dev/fleq-corpus-p0/20260916-VPTA50 の2通。dmdataの非EEW電文）では同じTC番号の解析の間隔は全部1時間か3時間（106通、Serialの差は100/100が1）、確率は03・09・15・21時の観測に対する4通/日。Aの12時間は解析の定時の4回、確率の2回の欠けまで記録を見せる。旧築の表示は解析をReportDateTime＋1日（src/engine/display/standby-state-store.ts:2498 «ec23191ba677967d»のapplyTyphoon）、確率を最後の時間帯の終わり（基点＋120時間、src/engine/display/project-typhoon-probability.ts:239 «e6c61785a9eb5757»）で消した。Aの代償: 受信が12時間以上止まると（U-YはREST回復の対象外、P3-C14-N2）、生きている台風が次の報（最長3時間後）まで消える。Bの代償: 台風消滅の報を取りこぼすと、消えた台風が最長24時間、確率は最長5日見える（P3-C14-TERMINAL=Aでも消滅の報を落としたときは止められない）。Cの代償: 解析を最長5日見せる。fixture 76_01_01（気象庁のサンプル）はReportDateTime 2021-03-19・TargetDateTime 2020-09-30で、B・Cでは自身の受理の時点で期限切れ（遅着の記憶だけ）になる",
-        "common": "どの案でも期限はsourceの時刻から絶対の長さで数え、再受信・再起動で延ばさない（spec:2213）。見える期限は記憶の期限を超えない"
+        "common": "どの案でも期限はsourceの時刻から絶対の長さで数え、再受信・再起動で延ばさない（spec:2213）。見える期限は記憶の期限を超えない。解析・確率の期限切れ（ended）への移行は確かめる前は保留の印、回収（retainUntil で除く）は入力の根拠が verified のときだけ（P3-EF-AC02・AC05）"
       },
       {
         "id": "P3-C14-TERMINAL",
@@ -151,7 +151,7 @@
       },
       {
         "id": "P3-C14-CAPACITY",
-        "A": "件数はslice（解析・確率）ごとに数え、一方の満杯が他方を退去しない。記録の無いsubjectの報で上限を超えるとき、同じsliceの入力の前の配列から1件を退去して受け、診断typhoonCapacityEvicted（count）を返す。受ける報がnormalなら (1) retainUntilを過ぎた記録 (2) 記憶（ended・cancelled・zero） (3) training/testの見える記録 (4) normalの見える記録、の順に、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。training/testの報の候補はtraining/testの記録だけ（P3-C14-EVICT-OPERATION）。遅着の報は退去を起こさない。capacityExceededを返さない。自身を退去した報（P3-C14-EVICT-OPERATION(2)）は、台風消滅の解析でもP3-C14-TERMINALの確率の終わらせを起こさない（stateの参照と保存世代を変えない規則が先、配送時に統合担当が補った、Q-C14-IMPL-AMEND）",
+        "A": "件数はslice（解析・確率）ごとに数え、一方の満杯が他方を退去しない。記録の無いsubjectの報で上限を超えるとき、同じsliceの入力の前の配列から1件を退去して受け、診断typhoonCapacityEvicted（count）を返す。受ける報がnormalなら (1) retainUntilを過ぎた記録（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2) 記憶（ended・cancelled・zero） (3) training/testの見える記録 (4) normalの見える記録、の順に、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。training/testの報の候補はtraining/testの記録だけ（P3-C14-EVICT-OPERATION）。遅着の報は退去を起こさない。capacityExceededを返さない。自身を退去した報（P3-C14-EVICT-OPERATION(2)）は、台風消滅の解析でもP3-C14-TERMINALの確率の終わらせを起こさない（stateの参照と保存世代を変えない規則が先、配送時に統合担当が補った、Q-C14-IMPL-AMEND）",
         "B": "新しいsubjectをcapacityExceededで拒否する",
         "recommended": "A",
         "provisional": "A",
@@ -370,7 +370,7 @@
         "currentSemantics": "(1) 発表・訂正の採用: 事実を組み（I-U-Y.boundsで切る）、記録を置き換える（前の報の時刻・地域を残さない）。解析の終わりの報はended（terminal、P3-C14-LIFECYCLE）、確率の全ゼロの報はzero（P3-C14-ZERO） (2) 取消はP3-C14-CANCEL-SCOPE (3) 遅着はP3-C14-RETENTION.lateRule (4) 期限: 見える記録はactiveUntilでended（expired）、全記録はretainUntilで除く。到来の処理は無音 (5) changeは最終の表示の変化で決める（K3のD-OUTCOME=A）: 見える記録の出入りか公開事実の変化か退去があればsemantic、ほかはrevisionOnly（連続ゼロ、記憶だけの取消、記憶への遅着） (6) 期限の到来で見えなくなるときはdeadline入力でchanged/semantic",
         "bounds": "P3-C14-BOUNDS。fixtureの最大: 時刻14、location 14、地域375（1以上は273）、府県予報区等64。fixtureでは切り詰めは起きない",
         "deadlines": "nextDeadlineのwallTimeMsは、見える記録のactiveUntil、全記録のretainUntil、intentのexpiresAtの最小。上限のある一括の回収（全subjectの同時の期限、最大128記録）だけを許し、件数と計測値を報告する",
-        "persisted": "PersistedTyphoonUnitはschemaVersion p3-typhoon-unit-v5（P3-NOTICE-LEDGER-001で上げた版、P3-NL-AC15の(1)。前の版は捨ててよい版）、analysis（active・ended・cancelled）、probability（active・zero・ended・cancelled）、intents（pendingだけ、P3-NL-AC05）。系列の記録は印notice?を持つ（P3-NL-AC02）。contentRevision・persistenceは保存しない。保存の射影が変わる入力だけ保存世代を進める（P3-X-C3）。unchanged・rejected・遅着のstale、新しいintentが容量で外れただけの受理、training/testの報が自分自身を退去しただけの受理（採用した取消でpendingが変わったときを除く）では進めない",
+        "persisted": "PersistedTyphoonUnitはschemaVersion p3-typhoon-unit-v6（P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)。前の版は捨ててよい版）、analysis（active・ended・cancelled）、probability（active・zero・ended・cancelled）、intents（pendingだけ、P3-NL-AC05）。系列の記録は印notice?を持つ（P3-NL-AC02）。contentRevision・persistenceは保存しない。保存の射影が変わる入力だけ保存世代を進める（P3-X-C3）。unchanged・rejected・遅着のstale、新しいintentが容量で外れただけの受理、training/testの報が自分自身を退去しただけの受理（採用した取消でpendingが変わったときを除く）では進めない",
         "decode": "codecは一つ（typhoonUnitCodec）。decodeは受理と同じ上限で全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、sliceごとの件数の上限とsubjectの重複なし、subjectがsliceの形でoperation・EventIDと一致、ReportRefの文字列の形とsource.familyがsliceの型（VPTW60〜65かVPTA50〜55）・source.subjectが記録のsubject、retainUntil＝sourceのReportDateTime＋7日、activeUntilがP3-C14-EXPIRYの式（=A、sourceのReportDateTime＋12時間）、時刻・地域・軸・名前・数値がI-U-Y.boundsの内側（地域・府県予報区等のcodeは数字6桁、緯度経度は小数1桁で範囲の内側、hoursは時刻の種類と合う0〜120、府県予報区等96・地域384）、記録の時刻のfield（validTime・baseTime）がNumber.isSafeIntegerかつ|t|≦8.64e15、intentの時刻（createdAt・expiresAt・nextAttemptAt）は他のunitと同じくfiniteで、ownerの小数の時計が入る。byteはdelivery-growthの予約（25文字）と「pendingの実byte＋予約＋終端記録」の上限で数える（配送時に統合担当が補った、Q-C14-IMPL-AMEND）、確率のareasのdailyが5個・peakSlot＜slotCount・maxFiveDayがareasのdaily[4]の最大・prefecturesがareasの府県予報区等のcodeをちょうど覆う、areas・prefecturesがcodeの昇順（P3-C14-PROB-FACTS、配送時に統合担当が補った、Q-C14-IMPL-AMEND）、zero・ended・cancelledは事実を持たない、pending≤128件かつ「pendingの実byte＋予約」≤131,072、「pendingの実byte＋予約＋終端記録」≤229,376（予約はdeliveryGrowth）、encode後の世代≤8,388,608 byte、intentのunitがU-YでsubjectがI-U-Y.subjectsの形（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "view": "TyphoonUnitViewは見える記録（active）だけを載せる。SubjectOutcomeはsubjectごとに作り、factsに公開事実と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Yの行を足す。unavailable・未保存・再起動の空を「台風なし」に読み替えない。予報円・暴風域の描画と解析・確率の結合の見せ方は作らない（P4、R50）",
         "confirmationScope": "U-Yは確認scopeを作らない（P3-C14-N2）。shared-runtime.tsのaddedScopesにU-Yで空を返す分岐を足す",
@@ -1066,7 +1066,7 @@
       },
       {
         "id": "P3-C14-AC07",
-        "requirement": "保存と復元とview: PersistedTyphoonUnitと唯一のcodec（p3-typhoon-unit-v4）、I-U-Y.persisted・decodeの検査とunavailable。restore入力はI-U-Y.restore。TyphoonUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-Y行、addedScopesのU-Yの空、snapshotのdomain typhoon（P3-C14-SNAPSHOT）を同じ採用結果から作り、ended・cancelled・zeroを載せない。実装後に、解析64・確率64 subjectの状態で(a) domainのbyteと65,536、(b) snapshot全体と1,048,576を分けて報告し、domainが65,536を超えるsubjectの数を作者とP4へ渡す",
+        "requirement": "保存と復元とview: PersistedTyphoonUnitと唯一のcodec（p3-typhoon-unit-v6、P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)）、I-U-Y.persisted・decodeの検査とunavailable。restore入力はI-U-Y.restore。TyphoonUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-Y行、addedScopesのU-Yの空、snapshotのdomain typhoon（P3-C14-SNAPSHOT）を同じ採用結果から作り、ended・cancelled・zeroを載せない。実装後に、解析64・確率64 subjectの状態で(a) domainのbyteと65,536、(b) snapshot全体と1,048,576を分けて報告し、domainが65,536を超えるsubjectの数を作者とP4へ渡す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",

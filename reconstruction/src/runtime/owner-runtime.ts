@@ -24,7 +24,7 @@ import type {
   RuntimeUnitSteps,
   RuntimeUnitView,
   RuntimeViews,
-  SemanticEnvelopeResult,
+  SemanticEnvelopeResult, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
 import type { CodecMap } from "../checkpoint/checkpoint";
 import { keptLosses, lossReasons } from "../checkpoint/checkpoint";
@@ -73,18 +73,18 @@ const initialUnits: RuntimeUnitStates = {
   "U-E": { schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [], persistence: cleanPersistence },
   "U-W": { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
-  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v5", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
-  "U-T": { schemaVersion: "p3-tsunami-unit-v4", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
+  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v6", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
+  "U-T": { schemaVersion: "p3-tsunami-unit-v5", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
   "U-Q": { schemaVersion: "p3-seismic-unit-v4", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: cleanPersistence },
-  "U-N": { schemaVersion: "p3-nankai-unit-v4", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
-  "U-V": { schemaVersion: "p3-volcano-unit-v4", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+  "U-N": { schemaVersion: "p3-nankai-unit-v5", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
+  "U-V": { schemaVersion: "p3-volcano-unit-v5", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: cleanPersistence },
-  "U-L": { schemaVersion: "p3-landslide-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-R": { schemaVersion: "p3-flood-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-B": { schemaVersion: "p3-briefing-unit-v5", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-M": { schemaVersion: "p3-local-bulletins-unit-v5", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
-  "U-Y": { schemaVersion: "p3-typhoon-unit-v5", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
+  "U-L": { schemaVersion: "p3-landslide-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-R": { schemaVersion: "p3-flood-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-B": { schemaVersion: "p3-briefing-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-M": { schemaVersion: "p3-local-bulletins-unit-v6", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
+  "U-Y": { schemaVersion: "p3-typhoon-unit-v6", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
 };
 
 const placeUnits = (place: ExecutionPlace): readonly RuntimeUnitId[] =>
@@ -198,7 +198,8 @@ function raised(persistence: PersistenceStatus, monotonicMs: number): Persistenc
 }
 
 // One owner request: its reducer calls, then the changes it must report, in the order they happened.
-function session(start: OwnerState, units: UnitTable, clock: ClockReading | null) {
+// basis は unit の receive・deadline・restore・shutdown の入力へ運ぶ要求の時計の根拠（P3-EF-AC01 (3)(4)、保存しない）。
+function session(start: OwnerState, units: UnitTable, clock: ClockReading | null, basis: WallBasis = "verified") {
   let next = start;
   const changedUnits: RuntimeUnitId[] = [];
   const generationInputIds: Partial<Record<RuntimeUnitId, readonly string[]>> = {};
@@ -254,13 +255,15 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
     step.diagnostics.forEach(diagnose);
     return step;
   };
-  const applyDeadlines = (targets: readonly RuntimeUnitId[]) => {
+  // force: 根拠が verified に替わった要求で、到来の判定を通さず unit ごとに 1 回当てる（P3-EF-AC02 (7)。時計が後ろへ直っても保留の記録を回収する）。
+  // 期限を何も持たない unit（nextDeadline が null）は当てるものが無いので送らない。
+  const applyDeadlines = (targets: readonly RuntimeUnitId[], force = false) => {
     if (clock == null || next.finalized) return;
     for (const unit of targets) {
       const deadline = next.deadlines[unit];
-      if (deadline != null && (deadline.wallTimeMs != null && clock.wallTimeMs >= deadline.wallTimeMs
+      if (deadline != null && (force || deadline.wallTimeMs != null && clock.wallTimeMs >= deadline.wallTimeMs
         || deadline.monotonicMs != null && clock.monotonicMs >= deadline.monotonicMs))
-        reduceUnit(unit, { kind: "deadline", clock });
+        reduceUnit(unit, { kind: "deadline", clock, basis });
     }
   };
   const setPersistence = (unit: RuntimeUnitId, persistence: PersistenceStatus) => {
@@ -304,7 +307,7 @@ function checkClock(clock: ClockReading): void {
 
 // 起動時の owner の unit の復元（owner ごとの P2-A3-AC09）。各 unit の restore は 1 回だけで、復元した persistence を合成しない。view は
 // 復元と期限を当てた後に ownerViews が射影する。
-function restoreOwner(input: Readonly<{ runId: string; place: ExecutionPlace; clock: ClockReading;
+function restoreOwner(input: Readonly<{ runId: string; place: ExecutionPlace; clock: ClockReading; basis?: WallBasis;
   restored: Readonly<Partial<Record<RuntimeUnitId, RestoreUnitResult>>> }>,
 units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ restoration: Partial<RuntimeRestoration> }> {
   const own = placeUnits(input.place);
@@ -313,7 +316,7 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
   const pick = <T>(value: (unit: RuntimeUnitId) => T) => Object.fromEntries(own.map((unit) => [unit, value(unit)]));
   const start: OwnerState = { runId: input.runId, place: input.place, units: pick((unit) => initialUnits[unit]),
     deadlines: pick(() => null), checkpointAttempts: {}, losses: {}, accepting: true, finalized: false };
-  const work = session(start, units, input.clock);
+  const work = session(start, units, input.clock, input.basis);
   const restoration: Partial<Record<RuntimeUnitId, RuntimeRestoration[RuntimeUnitId]>> = {};
   const restoreUnit = <K extends RuntimeUnitId>(unit: K) => {
     const restored = input.restored[unit]!;
@@ -334,7 +337,7 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
     // 唯一の `as`: CodecMap は JsonValue で型付けされ、state と保存の payload はこの unit 自身の codec が作った。K が generic なので
     // ここでは job 全体が相関した union から外れ、unit・state・入力の対応は目で確かめる。
     const step = runUnitJob(units, { unit, state: seeded,
-      input: { kind: "restore", persisted: codec.encode(seeded), clock: input.clock } } as UnitJob);
+      input: { kind: "restore", persisted: codec.encode(seeded), clock: input.clock, basis: input.basis ?? "verified" } } as UnitJob);
     // P3-NL-AC14 (4)(5) の読み（Q-NL-PRECHECK-2 (1)(i)）: 復元の診断（通知したか不明）も数え、件数だけが変われば世代を進める。
     const losses = addLosses(kept, unit, step.diagnostics, input.clock.wallTimeMs) ?? kept;
     const unitState = losses !== kept && step.state.persistence.currentGeneration <= envelope.generation
@@ -359,10 +362,10 @@ function ownerViews(state: OwnerState, units: UnitTable): readonly RuntimeUnitVi
 }
 
 // Deadline request: the owner applies its own units' due deadlines (P3-C3A-DEADLINES).
-function deadlineOwner(state: OwnerState, clock: ClockReading, units: UnitTable): OwnerStep {
+function deadlineOwner(state: OwnerState, clock: ClockReading, units: UnitTable, basis: WallBasis = "verified", force = false): OwnerStep {
   checkClock(clock);
-  const work = session(state, units, clock);
-  work.applyDeadlines(placeUnits(state.place));
+  const work = session(state, units, clock, basis);
+  work.applyDeadlines(placeUnits(state.place), force);
   return work.finish();
 }
 
@@ -375,9 +378,9 @@ function routedUnit(state: OwnerState, completion: ParserCompletion): RuntimeUni
 
 // parser の入力 1 件: 振り分け、受信、またはちょうど 1 件の診断（P3-UNIT-TABLE-001、P3-C3A-NONREADY）。
 function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: ClockReading, units: UnitTable,
-  beforeProjection?: () => void): OwnerStep {
+  beforeProjection?: () => void, basis: WallBasis = "verified"): OwnerStep {
   checkClock(clock);
-  const work = session(state, units, clock);
+  const work = session(state, units, clock, basis);
   if (completion.runId !== state.runId || state.finalized) return work.finish(true, beforeProjection);
   const unit = routedUnit(state, completion);
   const route = completion.result.kind === "decoded" ? classifyHeadType(completion.result.material.headType) : null;
@@ -389,7 +392,7 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
   // （A1 freshnessException）。
   if (unit != null && completion.result.kind === "decoded") {
     const generationBeforeReceive = ownUnit(work.state, unit).persistence.currentGeneration, lossesBefore = work.state.losses[unit];
-    const received = work.reduceUnit(unit, { kind: "receive", material: completion.result.material, clock });
+    const received = work.reduceUnit(unit, { kind: "receive", material: completion.result.material, clock, basis });
     // 容量の拒否でも失敗警報と title の書き換えで世代が進めば、その世代に帰属させる（P3-CC-AC10(9)、正常採用の扱いにはしない）。
     // U-E の採らない取消が取消の intent と印を足した世代、件数だけが変わった世代も同じ（P3-NL-AC04 (5)・AC14 (5)）。
     if (ownUnit(work.state, unit).persistence.currentGeneration > generationBeforeReceive
@@ -505,18 +508,18 @@ function checkpointResultOwner(state: OwnerState, result: CheckpointResult, unit
 }
 
 // spec §5.9 step 3: each unit's declared shutdown input; later parser inputs are not applied.
-function shutdownInputOwner(state: OwnerState, clock: ClockReading, units: UnitTable): OwnerStep {
+function shutdownInputOwner(state: OwnerState, clock: ClockReading, units: UnitTable, basis: WallBasis = "verified"): OwnerStep {
   checkClock(clock);
-  const work = session(state, units, clock);
-  for (const unit of placeUnits(state.place)) work.reduceUnit(unit, { kind: "shutdown", clock });
+  const work = session(state, units, clock, basis);
+  for (const unit of placeUnits(state.place)) work.reduceUnit(unit, { kind: "shutdown", clock, basis });
   work.state = { ...work.state, accepting: false };
   return work.finish();
 }
 
 // spec §5.9 step 4: deadlines up to cutoff apply, later ones are evaluated at the next start.
-function finalizeOwner(state: OwnerState, cutoff: ClockReading, units: UnitTable): OwnerStep {
+function finalizeOwner(state: OwnerState, cutoff: ClockReading, units: UnitTable, basis: WallBasis = "verified"): OwnerStep {
   checkClock(cutoff);
-  const work = session(state, units, cutoff);
+  const work = session(state, units, cutoff, basis);
   work.applyDeadlines(placeUnits(state.place));
   work.state = { ...work.state, finalized: true };
   return work.finish();

@@ -9,7 +9,7 @@ import { floodUnitCodec, reduceFloodUnit, toFloodView } from "../../src/units/fl
 import { clock, decodeFixture, emptyState, receive } from "./flood-fixture";
 
 // sequences.json の effective の語彙（解除は released、期限で除かれた記録は expired）。
-const EFFECTIVE = { ended: "released", cancelled: "cancelled" } as const;
+const EFFECTIVE = { ended: "released", cancelled: "cancelled", expired: "expired" } as const;
 
 describe("P3-UNIT-R-001 U-R corpus history", () => {
   // corpusHistory: expectedDecisions の 18 step と制御 step、E13（AC09）。
@@ -43,7 +43,9 @@ describe("P3-UNIT-R-001 U-R corpus history", () => {
     expect(o07[4].intents).toEqual([]);
     expect(o07[8].intents.map((item) => [item.channel, item.transition, item.payload.level, item.payload.title, item.payload.body])).toEqual([
       ["desktop", "expired", "info", "[期限切れ] ○○川上流レベル３氾濫警報（継続）", "○○川上流の洪水予報は36時間続報がなく、現況を確認できません"]]);
-    expect(o07[8].state.currents).toEqual([]);
+    // :62 の active は expired の記憶（元報＋42 時間＝2019-05-29T04:00+09:00、P3-EF-AC05 (2)(3)）に移る。
+    expect(o07[8].state.currents.map((item) => [item.subject, item.effective, item.retainUntil])).toEqual([
+      ["normal/VXKO50/123456789013", "expired", Date.parse("2019-05-29T04:00:00+09:00")]]);
     expect(o07[9].state).toBe(o07[8].state);
 
     // E13: fixtureIds の全正常 fixture を各 fixture の時刻の時計で受け、期限処理の後も残る恒常的な unavailable は U-R に無い。

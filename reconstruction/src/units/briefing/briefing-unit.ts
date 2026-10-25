@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome,
+  SubjectOutcome, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   BriefingArea, BriefingCurrent, BriefingInput, BriefingIntent, BriefingItem, BriefingKind, BriefingNotificationPayload, BriefingObservation,
@@ -14,20 +14,23 @@ import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } fr
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, LIMITS, kindOf, parseBriefing, validCode, validHeadline, validSeries, validUnit } from "../../domains/briefing/briefing";
 import type { BriefingCandidate } from "../../domains/briefing/briefing";
-import { cut, infoRankOf, validName, validReportDateTime, validSerial, validTime, validValue } from "../../domains/flood/flood";
+import { cut, infoRankOf, validEventId, validName, validReportDateTime, validSerial, validTime, validValue } from "../../domains/flood/flood";
 import {
   applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
+import { cachedMin } from "../expiry";
 
 // P3-UNIT-B-001（C12、I-U-B）: U-B の系列の current・予測の置換・alias・通知・容量・codec・射影。
 
-const SCHEMA = "p3-briefing-unit-v5" as const;
+const SCHEMA = "p3-briefing-unit-v6" as const;
 // P3-C12-BOUNDS=A・P3-C12-RES-01・RET-01〜04。
 const CURRENT_LIMIT = 256, GENERATION_LIMIT = 2_097_152;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C12-TTL=B（SEM-01・02、元報の ReportDateTime から）と相関の窓（SEM-03、受理の時計から）。
 const SHORT_MS = 7_200_000, LONG_MS = 10_800_000, HOLD_MS = 60_000;
+// 期限切れの記憶は元報から 9 時間に固定（表示の期限 3 時間＋6 時間。どちらの表示の期限だったかの欄を持たない、P3-EF-AC05 (3) の D9）。
+const EXPIRED_MS = 32_400_000;
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
 const NOTICE_BOUNDS = { title: 160, body: 512 } as const;
 const UNCONFIRMED = "（対応電文未確認）";
@@ -38,19 +41,24 @@ type InternalStep = Omit<BriefingUnitStep, "displayChanges" | "confirmationEvide
 type Decision = BriefingUnitStep["decisions"][number];
 type Change = readonly [before: BriefingCurrent | null, after: BriefingCurrent | null];
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
-type Base = Readonly<{ subject: string; operation: Operation; series: string; source: ReportRef; unconfirmed?: ReportRef; notice?: NoticeMark }>;
+// eventId と inherited は VPBS50 の記録だけが持つ（VPOA50 は系列が EventID の全体）。VPOA50 の記録を組むときは外す（vpoa50Of）。
+type Base = Readonly<{ subject: string; operation: Operation; series: string; eventId: string; inherited?: true; source: ReportRef;
+  unconfirmed?: ReportRef; notice?: NoticeMark }>;
 type Text = Readonly<{ title: string; headline: string; editorialOffice: string; truncated: boolean }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
-// view に載るのは VPBS50 の active と VPOA50 の released だけ（I-U-B.view）。
-const visible = (value: BriefingCurrent | null): value is Visible => value?.effective === "active" || value?.effective === "released";
+// view に載るのは VPBS50 の active と VPOA50 の released だけ（I-U-B.view）。保留の印のある記録は見えない（P3-EF-AC02 (2)）。
+const shownKind = (value: BriefingCurrent | null): value is Visible => value?.effective === "active" || value?.effective === "released";
+const visible = (value: BriefingCurrent | null): value is Visible => shownKind(value) && value.expiryPending !== true;
 const predicted = (item: BriefingItem) => item.kind === "linearRainPredicted";
 
 // ---- 記録の組み立て（retainUntil は P3-C12-TTL=B の等式。decode も同じ関数で確かめる） ----
 
 // 未確認の印は系列の版の採用（取消を含む）と記録の回収でだけ外れ、他の系列の作用（置換・alias）と held の解放では残る（P3-VM-AC04）。
 // 通知の印は記録と同じに生きる（P3-NL-AC02 (4)）。
-const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, series: value.series, source: value.source,
+const baseOf = (value: BriefingCurrent): Base => ({ subject: value.subject, operation: value.operation, series: value.series,
+  eventId: value.headType === "VPBS50" ? value.eventId : value.series,
+  ...value.headType === "VPBS50" && value.inherited === true ? { inherited: true } : {}, source: value.source,
   ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed }, ...value.notice == null ? {} : { notice: value.notice } });
 const textOf = (value: Text): Text => ({ title: value.title, headline: value.headline, editorialOffice: value.editorialOffice,
   truncated: value.truncated });
@@ -59,15 +67,27 @@ function activeOf(base: Base, text: Text, items: readonly BriefingItem[], observ
   const longer = items.length !== 0 && items.every(predicted);
   return { ...base, headType: "VPBS50", retainUntil: after(base, longer ? LONG_MS : SHORT_MS), effective: "active", ...text, items, observations };
 }
+const vpoa50Of = ({ eventId: _eventId, inherited: _inherited, ...base }: Base) => base;
+// 全部記録雨の VPBS50（items が 1 件以上で全部 recordRain）が系列の subject にあるのは、訂正で系列の記録を引き継いだときだけ（retarget）。
+const allRecordRain = (items: readonly BriefingItem[]) => items.length !== 0 && items.every((item) => item.kind === "recordRain");
 function memoryOf(base: Base, headType: "VPBS50" | "VPOA50", effective: "replaced" | "cancelled"): BriefingCurrent {
-  return headType === "VPOA50" ? { ...base, headType, retainUntil: after(base, LONG_MS), effective: "cancelled" }
+  return headType === "VPOA50" ? { ...vpoa50Of(base), headType, retainUntil: after(base, LONG_MS), effective: "cancelled" }
     : { ...base, headType, retainUntil: after(base, LONG_MS), effective };
 }
 function recordRainOf(base: Base, text: Text, areas: readonly BriefingArea[], effective: "released" | "aliased"): BriefingCurrent {
-  return { ...base, headType: "VPOA50", retainUntil: after(base, effective === "aliased" ? LONG_MS : SHORT_MS), effective, ...text, areas };
+  return { ...vpoa50Of(base), headType: "VPOA50", retainUntil: after(base, effective === "aliased" ? LONG_MS : SHORT_MS), effective, ...text, areas };
 }
 function heldOf(base: Base, text: Text, areas: readonly BriefingArea[], holdUntil: number): BriefingCurrent {
-  return { ...base, headType: "VPOA50", retainUntil: after(base, SHORT_MS), effective: "held", holdUntil, ...text, areas };
+  return { ...vpoa50Of(base), headType: "VPOA50", retainUntil: after(base, SHORT_MS), effective: "held", holdUntil, ...text, areas };
+}
+function expiredOf(base: Base, headType: "VPBS50" | "VPOA50"): BriefingCurrent {
+  return headType === "VPOA50" ? { ...vpoa50Of(base), headType, retainUntil: after(base, EXPIRED_MS), effective: "expired" }
+    : { ...base, headType, retainUntil: after(base, EXPIRED_MS), effective: "expired" };
+}
+// 表示の期限の来た見える記録の形（P3-EF-AC02・AC05 (5)）: verified は記憶、unverified は保留の印、awaiting はそのまま。
+function lapsed(value: Visible, basis: WallBasis): BriefingCurrent {
+  return basis === "verified" ? expiredOf(baseOf(value), value.headType) : basis === "awaiting" || value.expiryPending === true ? value
+    : { ...value, expiryPending: true };
 }
 
 // ---- byte の加算（I-U-B.computation。受信 1 回で state 全体を直列化しない） ----
@@ -90,15 +110,16 @@ function generationBytes(value: PersistedBriefingUnit): number {
 
 // ---- 期限（I-U-B.deadlines: retainUntil・held の holdUntil・intent の expiresAt の最小） ----
 
-const deadlineCache = new WeakMap<readonly object[], number>();
-function minOf<T extends object>(values: readonly T[], at: (value: T) => number): number {
-  let min = deadlineCache.get(values);
-  if (min == null) { min = values.reduce((least, item) => Math.min(least, at(item)), Infinity); deadlineCache.set(values, min); }
-  return min;
-}
 const recordDeadline = (item: BriefingCurrent) => item.effective === "held" ? Math.min(item.retainUntil, item.holdUntil) : item.retainUntil;
-const deadlineAt = (state: BriefingUnitState): number =>
-  Math.min(minOf(state.currents, recordDeadline), minOf(state.intents, (item) => item.expiresAt));
+// P3-EF-AC11 (2): 根拠で当てない種類を比べないよう、表示の期限・相関の窓・回収の期限・保留の記録・intent の期限を別々に持つ。nextDeadline は
+// 根拠によらず全部の最小（保留の記録は元の表示の期限）。
+const recordMin = cachedMin<BriefingCurrent>(recordDeadline);
+const displayMin = cachedMin<BriefingCurrent>((item) => visible(item) ? item.retainUntil : Infinity);
+const holdMin = cachedMin<BriefingCurrent>((item) => item.effective === "held" ? item.holdUntil : Infinity);
+const recallMin = cachedMin<BriefingCurrent>((item) => shownKind(item) ? Infinity : item.retainUntil);
+const pendingMin = cachedMin<BriefingCurrent>((item) => shownKind(item) && item.expiryPending === true ? item.retainUntil : Infinity);
+const intentMin = cachedMin<BriefingIntent>((item) => item.expiresAt);
+const deadlineAt = (state: BriefingUnitState): number => Math.min(recordMin(state.currents), intentMin(state.intents));
 function nextDeadline(state: BriefingUnitState): RuntimeUnitDeadline | null {
   const at = deadlineAt(state);
   return at === Infinity ? null : { wallTimeMs: at, monotonicMs: null };
@@ -125,7 +146,8 @@ function indexOf(values: readonly BriefingCurrent[]): Index {
     const subjects = new Map<string, number>(), observed = new Map<string, number>(), predictedAt = new Map<string, number[]>();
     values.forEach((item, at) => {
       subjects.set(item.subject, at);
-      if (item.effective !== "active") return;
+      // 保留の印のある記録は見えないので、置換の発生・予測に数えない。
+      if (item.effective !== "active" || item.expiryPending === true) return;
       for (const code of codesOf(item.items, "linearRainObserved")) observed.set(`${item.operation}|${code}`, (observed.get(`${item.operation}|${code}`) ?? 0) + 1);
       for (const code of codesOf(item.items, "linearRainPredicted")) {
         const key = `${item.operation}|${code}`;
@@ -139,17 +161,23 @@ function indexOf(values: readonly BriefingCurrent[]): Index {
   }
   return index;
 }
-// P3-C12-ALIAS=A: VPOA50 の系列 s と VPBS50 の系列「K」＋s を同じ運用区分の中でだけ結ぶ。
-const ALIAS_SERIES = /^JP[A-Z]{2}\d{12}$/;
-const counterpartOf = (operation: Operation, series: string) => ALIAS_SERIES.test(series) ? `${operation}/VPBS50/K${series}` : null;
-const aliasOf = (operation: Operation, series: string) => {
-  const found = /^K(JP[A-Z]{2}\d{12})$/.exec(series);
-  return found == null ? null : `${operation}/VPOA50/${found[1]}`;
-};
 function recordAt(values: readonly BriefingCurrent[], subject: string | null): Readonly<{ at: number; value: BriefingCurrent }> | null {
   const at = subject == null ? undefined : indexOf(values).subjects.get(subject);
   return at == null ? null : { at, value: values[at] };
 }
+// P3-C12-ALIAS=A・P3-EF-AC09 (2): VPBS50 の EventID の全体が「K」＋VPOA50 の全体か、両者が一致するとき、同じ運用区分の中でだけ結ぶ。
+// 引くのは記録の EventID の全体で、全体の subject の記録か、系列の subject にあって EventID の全体が一致する記録（retarget で引き継いだ記録）。
+function reportAt(values: readonly BriefingCurrent[], operation: Operation, eventId: string) {
+  for (const subject of [`${operation}/VPBS50/${eventId}`, `${operation}/VPBS50/${eventId.split("_")[0]}`]) {
+    const found = recordAt(values, subject);
+    if (found?.value.headType === "VPBS50" && found.value.eventId === eventId) return found;
+  }
+  return null;
+}
+const counterpartOf = (values: readonly BriefingCurrent[], operation: Operation, eventId: string) =>
+  reportAt(values, operation, `K${eventId}`) ?? reportAt(values, operation, eventId);
+const aliasOf = (values: readonly BriefingCurrent[], operation: Operation, eventId: string) =>
+  (eventId.startsWith("K") ? recordAt(values, `${operation}/VPOA50/${eventId.slice(1)}`) : null) ?? recordAt(values, `${operation}/VPOA50/${eventId}`);
 // 予測の item から covered な区域を除き、区域が 0 になった item を除く（P3-C12-REPLACE.common）。
 function withoutAreas(items: readonly BriefingItem[], covered: (code: string) => boolean): readonly BriefingItem[] {
   let removed = false;
@@ -167,9 +195,10 @@ function withoutAreas(items: readonly BriefingItem[], covered: (code: string) =>
 // (3) training/test の生きた記録 (4) normal の生きた記録、それぞれ ReportDateTime の古い順で退去する。受ける報が training/test なら
 // normal の記録は (1)〜(4) とも候補にせず、候補が無ければ null（受けた記録自身を退去する）。
 // ponytail: 満杯の 256 件の素朴な線形の走査（上限は CURRENT_LIMIT で、保持と decode の両方で効く。台帳 47 の例外）。
-function evictOne(values: readonly BriefingCurrent[], now: number, incoming: Operation): BriefingCurrent | null {
-  const live = (item: BriefingCurrent) => item.effective === "active" || item.effective === "held" || item.effective === "released";
-  const tier = (item: BriefingCurrent) => item.retainUntil <= now ? 0 : !live(item) ? 1 : item.operation !== "normal" ? 2 : 3;
+// 第 1 段は受けた入力の根拠が verified のときだけ。保留の印のある記録は記憶の段に入る（P3-EF-AC03）。
+function evictOne(values: readonly BriefingCurrent[], now: number, incoming: Operation, verified: boolean): BriefingCurrent | null {
+  const live = (item: BriefingCurrent) => visible(item) || item.effective === "held";
+  const tier = (item: BriefingCurrent) => verified && item.retainUntil <= now ? 0 : !live(item) ? 1 : item.operation !== "normal" ? 2 : 3;
   let worst: BriefingCurrent | null = null;
   for (const item of values) {
     if (item.operation === "normal" && incoming !== "normal") continue;
@@ -187,7 +216,8 @@ function evictOne(values: readonly BriefingCurrent[], now: number, incoming: Ope
 function judge(existing: BriefingCurrent | null, next: BriefingCurrent, candidate: BriefingCandidate) {
   return stepVersion(existing == null ? null : { version: existing.source, source: existing.source, cancelled: existing.effective === "cancelled" },
     existing?.unconfirmed ?? null, candidate.source, () => existing != null && existing.source.infoTypeRaw.trim() === candidate.source.infoTypeRaw.trim()
-    && changed(existing, next).length === 0, candidate.cancelled);
+    // 期限切れの記憶は事実を持たないので InfoType だけで見る（Q-EF-PRECHECK (0)(b)、U-M と同じ）。
+    && (existing.effective === "expired" || changed(existing, next).length === 0), candidate.cancelled);
 }
 
 // 公開事実（Q-ENUM.revisionOrder の重複の判定と、I-U-B.currentSemantics(6) の見える記録の変化）。
@@ -203,22 +233,25 @@ function changed(before: BriefingCurrent | null, value: BriefingCurrent | null):
 // 報が作る自分の記録。予測の採用では発生の記録のある区域を最初から除き（P3-C12-REPLACE=B、時刻を比べない）、VPOA50 は対応報が
 // active なら aliased、released の続報は released、それ以外は held（holdUntil は最初の値のまま、P3-C12-VPOA.holdRules (4)）。
 function nextOf(candidate: BriefingCandidate, existing: BriefingCurrent | null, values: readonly BriefingCurrent[], now: number): BriefingCurrent {
-  const base: Base = { subject: candidate.subject, operation: candidate.operation, series: candidate.series, source: candidate.source };
+  // P3-EF-AC09 (1): 訂正で記録雨から系列の記録を引き継いだ印。系列の報（全体で当たらない報）の上書きと取消で外れる。
+  const inherited = !candidate.cancelled && candidate.headType === "VPBS50" && candidate.series !== candidate.eventId && allRecordRain(candidate.items);
+  const base: Base = { subject: candidate.subject, operation: candidate.operation, series: candidate.series, eventId: candidate.eventId,
+    ...inherited ? { inherited: true } : {}, source: candidate.source };
   if (candidate.cancelled) return memoryOf(base, candidate.headType, "cancelled");
   const text: Text = { title: candidate.title, headline: candidate.headline, editorialOffice: candidate.editorialOffice,
     truncated: candidate.truncated };
   if (candidate.headType === "VPBS50") {
     const index = indexOf(values);
     // 置き換える前の版自身の発生は数えず、この報の発生は数える。
-    const own = existing?.effective === "active" ? codesOf(existing.items, "linearRainObserved") : new Set<string>();
+    const own = existing?.effective === "active" && existing.expiryPending !== true ? codesOf(existing.items, "linearRainObserved") : new Set<string>();
     const fresh = codesOf(candidate.items, "linearRainObserved");
     const items = withoutAreas(candidate.items, (code) => fresh.has(code)
       || (index.observed.get(`${candidate.operation}|${code}`) ?? 0) - (own.has(code) ? 1 : 0) > 0);
     return candidate.items.length !== 0 && items.length === 0 ? memoryOf(base, "VPBS50", "replaced")
       : activeOf(base, text, items, candidate.observations);
   }
-  if (recordAt(values, counterpartOf(candidate.operation, candidate.series))?.value.effective === "active")
-    return recordRainOf(base, text, candidate.areas, "aliased");
+  const counterpart = counterpartOf(values, candidate.operation, candidate.eventId)?.value ?? null;
+  if (counterpart?.effective === "active" && visible(counterpart)) return recordRainOf(base, text, candidate.areas, "aliased");
   if (existing?.effective === "released") return recordRainOf(base, text, candidate.areas, "released");
   return heldOf(base, text, candidate.areas, existing?.effective === "held" ? existing.holdUntil : now + HOLD_MS);
 }
@@ -332,7 +365,7 @@ function displaySubject(value: BriefingCurrent): Extract<RuntimeDisplaySubject, 
 
 // ---- 受信（P3-C12-PARAMETERS.adoptionOutcome の順。一入力の変更は一回の参照交換で確定する、spec:616） ----
 
-function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate, clock: ClockReading): Result {
+function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate, clock: ClockReading, basis: WallBasis): Result {
   const now = clock.wallTimeMs;
   const { subject, operation } = candidate;
   const found = recordAt(state.currents, subject);
@@ -358,14 +391,18 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
     ({ changes, step: { ...idle(kept), decisions: [{ subject, operation, decision: "changed", reason: null, change, currentEstablished: null }],
       outcomes: [{ kind: "accepted", change, subjects: [] }], diagnostics } });
   // P3-C12-TTL.lateRule（版の比較の後）: 受理の時点で自分の記録の retainUntil を過ぎた報は state を変えない。前の見える記録より新しい
-  // 版なら採用して同じ reduce で回収し、前の記録を消してその pending を撤回する（P3-C12-LATE-INVERSION=A、他の subject へ作用しない）。
+  // 版なら採用し、前の記録の pending を撤回する（P3-C12-LATE-INVERSION=A、他の subject へ作用しない）。採った報の記録は期限切れの形にし
+  // （P3-EF-AC05 (5)）、見えない記録の回収は verified のときだけ。鳴らさない。
   if (next.retainUntil <= now) {
     if (found == null || !visible(found.value)) return unchanged("stale");
     withdrawn.add(subject);
     const notices = admit(state.intents, [], withdrawn);
-    const result = { ...state, currents: state.currents.filter((_, at) => at !== found.at), intents: notices.intents,
-      persistence: dirty(state.persistence, clock.monotonicMs) };
-    return vanished([], result, [[found.value, null]], "semantic");
+    const late = visible(next) ? lapsed(next, basis) : next;
+    const kept = basis === "verified" && late.retainUntil <= now ? null : late;
+    const result = { ...state, currents: kept == null ? state.currents.filter((_, at) => at !== found.at)
+      : state.currents.map((item, at) => at === found.at ? kept : item), intents: notices.intents,
+    persistence: dirty(state.persistence, clock.monotonicMs) };
+    return vanished([], result, [[found.value, kept]], "semantic");
   }
 
   // P3-C12-CAPACITY=A・P3-C12-EVICT-OPERATION: 退去は入力の前の配列から 1 件を決め、作用は残った記録に当てる。
@@ -373,7 +410,7 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   let evicted: BriefingCurrent | null = null;
   const evictedDiagnostic: DiagnosticDetails = { level: "INFO", component: "briefing", reason: "briefingCapacityEvicted", unit: "U-B", count: 1 };
   if (found == null && values.length >= CURRENT_LIMIT) {
-    evicted = evictOne(values, now, operation);
+    evicted = evictOne(values, now, operation, basis === "verified");
     // training/test の報で退去できる記録が無ければ、受けた記録自身を退去する（currents の参照を変えない、通知しない）。採用した取消は
     // その subject の pending を置き換え、intents が変わったときだけ保存世代を進める。
     if (evicted == null) {
@@ -408,18 +445,20 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
       if (items.length === 0) withdrawn.add(target.subject);
       edits.set(at, items.length === 0 ? memoryOf(baseOf(target), "VPBS50", "replaced") : activeOf(baseOf(target), textOf(target), items, target.observations));
     }
-    const alias = recordAt(values, aliasOf(operation, candidate.series));
-    if (alias != null && (alias.value.effective === "held" || alias.value.effective === "released")) {
+    const alias = aliasOf(values, operation, candidate.eventId);
+    if (alias != null && (alias.value.effective === "held" || alias.value.effective === "released" && visible(alias.value))) {
       edits.set(alias.at, recordRainOf(baseOf(alias.value), textOf(alias.value), alias.value.areas, "aliased"));
       withdrawn.add(alias.value.subject);
     }
   }
   if (candidate.cancelled && candidate.headType === "VPBS50") {
-    // 対応報の取消で aliased の VPOA50 を無音で released にし、retainUntil を 2 時間へ付け替える（過ぎていれば除く）。
-    const alias = recordAt(values, aliasOf(operation, candidate.series));
+    // 対応報の取消で aliased の VPOA50 を無音で released にし、retainUntil を 2 時間へ付け替える。過ぎていれば除かず期限切れの形にする
+    // （P3-EF-AC09 (2) の例外、AC05 (5)。記憶の期限も過ぎていれば verified で回収する）。
+    const alias = aliasOf(values, operation, candidate.eventId);
     if (alias?.value.effective === "aliased") {
       const released = recordRainOf(baseOf(alias.value), textOf(alias.value), alias.value.areas, "released");
-      edits.set(alias.at, released.retainUntil <= now ? null : released);
+      const late = released.retainUntil <= now && visible(released) ? lapsed(released, basis) : released;
+      edits.set(alias.at, basis === "verified" && late.retainUntil <= now ? null : late);
     }
   }
   if (own != null) edits.set(own, next);
@@ -471,32 +510,54 @@ function receive(state: BriefingUnitState, input: Extract<BriefingInput, { kind:
   // Q-NOTICE.recovery・P3-C12-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
-  return receiveCandidate(state, candidate, input.clock);
+  return receiveCandidate(state, retarget(candidate, state.currents), input.clock, input.basis ?? "verified");
+}
+
+// P3-EF-AC09 (1): 訂正で情報タグの組が替わっても記録を動かさない（無いと元の記録が残って 2 枚になる）。系列の報は、同じ運用区分に同じ
+// EventID の全体を subject とする記録があればそれを引き継ぐ。EventID の全体で当たる報（全部記録雨・取消）は、全体の記録が無く、「_」より前の
+// 系列の記録の EventID の全体が一致すればそれを引き継ぐ（時刻は比べない）。取消が系列の記録に当たるのは、訂正で引き継いだ印のある記録だけ
+// （「_」のある取消は記録雨の記録が無ければ記録の無い取消、H19）。
+function retarget(candidate: BriefingCandidate, values: readonly BriefingCurrent[]): BriefingCandidate {
+  if (candidate.headType !== "VPBS50") return candidate;
+  const whole = `${candidate.operation}/VPBS50/${candidate.eventId}`;
+  if (candidate.series !== candidate.eventId) return recordAt(values, whole) == null ? candidate
+    : { ...candidate, series: candidate.eventId, subject: whole, source: { ...candidate.source, subject: whole } };
+  const found = recordAt(values, whole) == null ? reportAt(values, candidate.operation, candidate.eventId) : null;
+  return found == null || found.value.subject === whole || candidate.cancelled && !(found.value.headType === "VPBS50" && found.value.inherited === true)
+    ? candidate
+    : { ...candidate, series: found.value.series, subject: found.value.subject, source: { ...candidate.source, subject: found.value.subject } };
 }
 
 // ---- 期限（I-U-B.deadlines。到来分だけを回収・移行する） ----
 
-// retainUntil の到来で記録を黙って除き、holdUntil の到来で held を released にする（P3-C12-VPOA=A）。通知は期限処理の時刻が
-// holdUntil+60 秒より前のときだけ（holdRules (2)）。restore・終了入力（silent）は held を全部無音で released にする（holdRules (3)(5)）。
+// holdUntil の到来で held を released にし（P3-C12-VPOA=A）、表示の期限の来た見える記録と、記録の回収は時計の根拠ごとに当てる（P3-EF-AC02:
+// awaiting は何も当てない、unverified は保留の印だけ、verified は記憶への移行〔保留の記録は時計によらず〕と retainUntil・intent の回収）。
+// 解放の通知は期限処理の時刻が holdUntil+60 秒より前で、見える記録になるときだけ（holdRules (2)）。restore・終了入力（silent）は held を
+// 全部無音で released にする（holdRules (3)(5)。期限ではないので根拠によらない）。
 // ponytail: 256 subject の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
-function collect(state: BriefingUnitState, clock: ClockReading, silent: boolean): Readonly<{ state: BriefingUnitState; changes: readonly Change[];
-  expiredIntents: number; intents: readonly BriefingIntent[]; dropped: number }> {
-  const now = clock.wallTimeMs;
-  const held = silent && state.currents.some((item) => item.effective === "held");
-  if (!held && deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0, intents: [], dropped: 0 };
+function collect(state: BriefingUnitState, clock: ClockReading, basis: WallBasis, silent: boolean): Readonly<{ state: BriefingUnitState;
+  changes: readonly Change[]; expiredIntents: number; intents: readonly BriefingIntent[]; dropped: number }> {
+  const now = clock.wallTimeMs, verified = basis === "verified", applies = basis !== "awaiting";
+  const held = silent && holdMin(state.currents) !== Infinity;
+  const touches = held || applies && (displayMin(state.currents) <= now || holdMin(state.currents) <= now)
+    || verified && (recallMin(state.currents) <= now || pendingMin(state.currents) !== Infinity);
+  if (!touches && !(verified && intentMin(state.intents) <= now)) return { state, changes: [], expiredIntents: 0, intents: [], dropped: 0 };
   const changes: Change[] = [];
   const released: BriefingIntent[] = [];
-  const currents = !held && minOf(state.currents, recordDeadline) > now ? state.currents : state.currents.flatMap((item) => {
-    if (item.retainUntil <= now) { changes.push([item, null]); return []; }
-    if (item.effective !== "held" || !silent && item.holdUntil > now) return [item];
-    const value = recordRainOf(baseOf(item), textOf(item), item.areas, "released");
-    changes.push([item, value]);
-    if (!silent && now < item.holdUntil + HOLD_MS && visible(value))
-      released.push(...intentsFor(value, "activated", payloadOf(value.operation, "VPOA50", "warning", value.title, bodyOf(value), "plain"),
-        now, value.notice, versionDigest(value.source)));
-    return [value];
+  const currents = !touches ? state.currents : state.currents.flatMap((item) => {
+    if (verified && !shownKind(item) && item.retainUntil <= now) { changes.push([item, null]); return []; }
+    let value: BriefingCurrent = item;
+    if (item.effective === "held" && (silent || applies && item.holdUntil <= now)) value = recordRainOf(baseOf(item), textOf(item), item.areas, "released");
+    if (applies && shownKind(value) && (value.expiryPending === true || value.retainUntil <= now)) value = lapsed(value, basis);
+    const kept = verified && value.effective === "expired" && value.retainUntil <= now ? null : value;
+    if (kept === item) return [item];
+    changes.push([item, kept]);
+    if (item.effective === "held" && kept != null && !silent && now < item.holdUntil + HOLD_MS && visible(kept))
+      released.push(...intentsFor(kept, "activated", payloadOf(kept.operation, "VPOA50", "warning", kept.title, bodyOf(kept), "plain"),
+        now, kept.notice, versionDigest(kept.source)));
+    return kept == null ? [] : [kept];
   });
-  const remaining = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
+  const remaining = !verified || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
   const expiredIntents = state.intents.length - remaining.length;
   const notices = admit(remaining, released, new Set());
   const persisted = changes.length !== 0 || notices.intents !== state.intents;
@@ -508,8 +569,8 @@ function collect(state: BriefingUnitState, clock: ClockReading, silent: boolean)
     persistence: dirty(state.persistence, clock.monotonicMs) } : state, changes: settled, expiredIntents, intents: notices.admitted, dropped: notices.dropped };
 }
 
-function deadlineStep(state: BriefingUnitState, clock: ClockReading, shutdown: boolean): Result {
-  const applied = collect(state, clock, shutdown);
+function deadlineStep(state: BriefingUnitState, clock: ClockReading, basis: WallBasis, shutdown: boolean): Result {
+  const applied = collect(state, clock, basis, shutdown);
   const diagnostics: DiagnosticDetails[] = [];
   if (applied.expiredIntents !== 0) diagnostics.push({ level: "INFO", component: "briefing", reason: "notificationExpired", unit: "U-B",
     count: applied.expiredIntents });
@@ -566,7 +627,7 @@ function intentUpdate(state: BriefingUnitState, input: Extract<BriefingInput, { 
 
 // Q-NOTICE.restart: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。先に retainUntil を過ぎた記録を除き、残る held を
 // 無音で released にする（相関待ちを再開しない、P3-C12-AC16）。どちらかが起きれば保存世代を進める。
-function restore(state: BriefingUnitState, persisted: PersistedBriefingUnit, clock: ClockReading): Result {
+function restore(state: BriefingUnitState, persisted: PersistedBriefingUnit, clock: ClockReading, basis: WallBasis): Result {
   const decoded = briefingUnitCodec.decode(persisted);
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "briefing",
@@ -575,7 +636,7 @@ function restore(state: BriefingUnitState, persisted: PersistedBriefingUnit, clo
   const restored = restoreStarted(decoded.state.intents);
   const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
     intents: restored.intents, persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
-  const applied = collect(base, clock, true);
+  const applied = collect(base, clock, basis, true);
   const active = applied.state.currents.filter(visible);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "briefing",
     reason: "notificationExpired", unit: "U-B", count: applied.expiredIntents }];
@@ -587,10 +648,10 @@ function restore(state: BriefingUnitState, persisted: PersistedBriefingUnit, clo
 
 function reduceCore(state: BriefingUnitState, input: BriefingInput): Result {
   switch (input.kind) {
-    case "restore": return restore(state, input.persisted, input.clock);
+    case "restore": return restore(state, input.persisted, input.clock, input.basis ?? "verified");
     case "intentUpdate": return intentUpdate(state, input);
-    case "deadline": return deadlineStep(state, input.clock, false);
-    case "shutdown": return deadlineStep(state, input.clock, true);
+    case "deadline": return deadlineStep(state, input.clock, input.basis ?? "verified", false);
+    case "shutdown": return deadlineStep(state, input.clock, input.basis ?? "verified", true);
     case "receive": return receive(state, input);
     default: { const missing: never = input; throw new Error(`briefing input ${String(missing)} is not handled`); }
   }
@@ -699,11 +760,12 @@ function textRecord(row: Fields): Text | null {
     : { title: row.title, headline: row.headline, editorialOffice: row.editorialOffice, truncated: row.truncated };
 }
 // 枝ごとに持ってよい事実の field（types.ts の判別共用体）。ほかの枝の field を持つ保存物は拒む。
-const FACT_KEYS = ["title", "headline", "editorialOffice", "truncated", "items", "observations", "areas", "holdUntil"] as const;
+// 保留の印は表示の期限を持つ見える記録（VPBS50 の active と VPOA50 の released）にだけ置ける（P3-EF-AC14 (20)）。
+const FACT_KEYS = ["title", "headline", "editorialOffice", "truncated", "items", "observations", "areas", "holdUntil", "expiryPending"] as const;
 const BRANCH_KEYS: Readonly<Record<string, readonly string[]>> = {
-  "VPBS50/active": ["title", "headline", "editorialOffice", "truncated", "items", "observations"],
+  "VPBS50/active": ["title", "headline", "editorialOffice", "truncated", "items", "observations", "expiryPending"],
   "VPOA50/held": ["title", "headline", "editorialOffice", "truncated", "areas", "holdUntil"],
-  "VPOA50/released": ["title", "headline", "editorialOffice", "truncated", "areas"],
+  "VPOA50/released": ["title", "headline", "editorialOffice", "truncated", "areas", "expiryPending"],
   "VPOA50/aliased": ["title", "headline", "editorialOffice", "truncated", "areas"],
 };
 function currentRecord(value: unknown): BriefingCurrent | null {
@@ -719,18 +781,27 @@ function currentRecord(value: unknown): BriefingCurrent | null {
   // P3-VM-AC04: 印は同じ系列（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject) : undefined;
   const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
-  if (mark === null || notice === null) return null;
-  const base: Base = { subject: row.subject, operation, series: parts.series, source, ...mark == null ? {} : { unconfirmed: mark },
-    ...notice == null ? {} : { notice } };
+  if (mark === null || notice === null || "expiryPending" in row && row.expiryPending !== true) return null;
+  // VPBS50 の EventID の全体は受理と同じ文字と長さで、系列はその全体か「_」より前。VPOA50 は欄を持たない（系列が全体）。
+  const eventId = parts.headType === "VPOA50" ? "eventId" in row ? null : parts.series
+    : isText(row.eventId) && validEventId(row.eventId) && (row.eventId === parts.series || row.eventId.split("_")[0] === parts.series) ? row.eventId : null;
+  // 引き継いだ印は VPBS50 の系列の subject（EventID の全体と違う系列）の記録だけが持て、値は true だけ。active なら全部記録雨。
+  const inherited = !("inherited" in row) ? false : row.inherited === true && parts.headType === "VPBS50" && eventId !== parts.series
+    && (row.effective !== "active" || allRecordRain(itemsRecord(row.items) ?? [])) ? true : null;
+  if (eventId == null || inherited == null) return null;
+  const base: Base = { subject: row.subject, operation, series: parts.series, eventId, ...inherited ? { inherited: true } : {}, source,
+    ...mark == null ? {} : { unconfirmed: mark }, ...notice == null ? {} : { notice } };
   const text = textRecord(row);
   let built: BriefingCurrent | null = null;
   if (parts.headType === "VPBS50") {
     if (row.effective === "replaced" || row.effective === "cancelled") built = memoryOf(base, "VPBS50", row.effective);
+    else if (row.effective === "expired") built = expiredOf(base, "VPBS50");
     else if (row.effective === "active") {
       const items = itemsRecord(row.items), observations = list(row.observations, observationRecord, LIMITS.observations);
       if (text != null && items != null && observations != null) built = activeOf(base, text, items, observations);
     }
   } else if (row.effective === "cancelled") built = memoryOf(base, "VPOA50", "cancelled");
+  else if (row.effective === "expired") built = expiredOf(base, "VPOA50");
   else {
     const areas = list(row.areas, areaRecord, LIMITS.areas);
     if (text != null && areas != null) {
@@ -738,8 +809,9 @@ function currentRecord(value: unknown): BriefingCurrent | null {
       else if (row.effective === "released" || row.effective === "aliased") built = recordRainOf(base, text, areas, row.effective);
     }
   }
-  // retainUntil は source の ReportDateTime と枝・種別の等式（P3-C12-TTL=B）。
-  return built != null && row.retainUntil === built.retainUntil ? built : null;
+  // retainUntil は source の ReportDateTime と枝・種別の等式（P3-C12-TTL=B。記憶は元報＋9 時間、P3-EF-AC14 (20)）。保留の印のある記録は印の無い同じ枝の等式。
+  return built == null || row.retainUntil !== built.retainUntil ? null : row.expiryPending !== true ? built
+    : shownKind(built) ? { ...built, expiryPending: true } : null;
 }
 const LEVEL_SET: readonly Level[] = ["warning", "critical", "cancel"];
 function intentRecord(value: unknown): BriefingIntent | null {
@@ -777,12 +849,12 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const briefingUnitCodec: BriefingUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2", "p3-briefing-unit-v3", "p3-briefing-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2", "p3-briefing-unit-v3", "p3-briefing-unit-v4", "p3-briefing-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-B.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v5 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v6 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

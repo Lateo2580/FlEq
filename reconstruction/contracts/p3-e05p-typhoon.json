@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f130ed396687593783f92e10757ef9863dea0bc2",
-    "sha256": "80ad929a0e12c291cbc9f1a1ac6585d4d8c42061b116daf360b47f262c3e6139",
+    "sha256": "575622aed201fe10658eea17806beb3988b5005ed8e53d35af1604dc48a8a5d8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -235,8 +235,8 @@
           "reconstruction/tools/corpus/manifest.json:119 «060d5a2a2261a1df»",
           "reconstruction/src/runtime/unit-coverage.ts:104 «06e36402492e327e»",
           "reconstruction/src/runtime/unit-coverage.ts:17 «edddd5a2cb786e2f»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:129 «ff1294857dea68be»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:346 «3ca4da5b4c8b2813»"
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:136 «ff1294857dea68be»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:353 «3ca4da5b4c8b2813»"
         ]
       },
       {
@@ -254,12 +254,12 @@
           "reconstruction/test/eew-e01/windows.mjs:376 «68d53429d2b6b533»",
           "reconstruction/test/eew-e01/windows.mjs:66 «af38932c183dd774»",
           "reconstruction/test/eew-e01/run.mjs:185 «06aa343e02e70e4d»",
-          "reconstruction/src/host/host.ts:184 «8eccbc77af0cc99f»",
-          "reconstruction/src/host/host.ts:425 «ba91bbb19edb0fe5»",
-          "reconstruction/src/host/host.ts:340 «4e59b32fa47cec3d»",
+          "reconstruction/src/host/host.ts:185 «8eccbc77af0cc99f»",
+          "reconstruction/src/host/host.ts:426 «ba91bbb19edb0fe5»",
+          "reconstruction/src/host/host.ts:341 «4e59b32fa47cec3d»",
           "reconstruction/src/host/host.ts:164 «b747b81e2514721e»",
           "reconstruction/src/host/host.ts:165 «e110b2548c865519»",
-          "reconstruction/src/runtime/composition-root.ts:1865 «89d351c384d4c301»",
+          "reconstruction/src/runtime/composition-root.ts:1866 «89d351c384d4c301»",
           "reconstruction/contracts/p3-typhoon-unit.json:435 «35816c13f4204db8»"
         ]
       },
@@ -288,9 +288,9 @@
           "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-e05-P-run3.json:12 «0364eb2db61367f9»",
           "reconstruction/contracts/p3-typhoon-unit.json:442 «f64d9d1d8ff57f0e»",
           "reconstruction/src/host/host.ts:158 «cb154e750655ef9b»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:319 «4fbc5b688efa9382»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:322 «eade375e6c78af85»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:326 «c595a873948e788f»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:326 «4fbc5b688efa9382»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:329 «eade375e6c78af85»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:333 «c595a873948e788f»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:192 «8bcbf7e48fb4aded»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:204 «8b82d2ac7ac2977f»",
           "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:210 «0894e34cc4b5ac2e»",
@@ -312,8 +312,8 @@
         "requirement": "凍結の前の短い予備（統合担当、Mac mini。予備は未確認で、合否に使わない）: --preliminary --aux e05y-P-run1 --e02-count 330（測定の開始から330秒で、上乗せの3通〔300〜304秒〕と305,612msのVPWS50の山の平らを含む。既定の60では上乗せに届かない）で確かめる。(a) AC02(6)と同じ期待の集合（予定時刻が測定の窓の中にある上乗せの入力。1周目の3通）について、AC02(6)の①〜⑤が全部通り、診断のjsonl（hostのdirのdiagnostics/）にそのinputIdのWARNが無い (b) 確率の報の入力ごとの待ち・処理・decodeが結果に出る (c) 最大RSSとその時刻、上乗せの後の山の区間ごとの最大（AC05(2)）が結果に出る。前提が外れたら凍結せず作者へ報告する（計画§4.3のNO-GOの扱い）",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/windows.mjs:323 «78045dc3d8f5cae9»",
-          "reconstruction/src/host/host.ts:184 «8eccbc77af0cc99f»",
-          "reconstruction/src/runtime/composition-root.ts:1865 «89d351c384d4c301»",
+          "reconstruction/src/host/host.ts:185 «8eccbc77af0cc99f»",
+          "reconstruction/src/runtime/composition-root.ts:1866 «89d351c384d4c301»",
           "reconstruction/test/eew-e01/run.mjs:1707 «adc008712a5092a6»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-wyl-e05p.json:158 «b9e1362e4009ebe0»"
         ]

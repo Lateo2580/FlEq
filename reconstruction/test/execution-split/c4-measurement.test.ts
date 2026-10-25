@@ -29,8 +29,8 @@ describe("P3-C4-T03 contractBoundary / AC04(1): the full parse span of an owner 
       fileSystem: nodeCheckpointFileSystem(), sharedNow: () => performance.timeOrigin + performance.now(),
       reply: (reply) => { replies.push(reply); }, fail: (error) => { throw error; } });
       const at = { wallTimeMs: 1_751_270_000_000, monotonicMs: performance.now() };
-      owner.handle({ kind: "restore", runId: "t03", clock: at, sharedMs: performance.timeOrigin + performance.now() });
-      owner.handle({ kind: "input", clock: at, sharedMs: performance.timeOrigin + performance.now(),
+      owner.handle({ kind: "restore", runId: "t03", clock: at, sharedMs: performance.timeOrigin + performance.now(), basis: "verified" });
+      owner.handle({ kind: "input", clock: at, sharedMs: performance.timeOrigin + performance.now(), basis: "verified",
         envelope: envelope("t03", "VPWS50", "vpws50", vpws50, at) });
       const done = replies.at(-1);
       if (done?.kind !== "inputDone" || done.decode == null) throw new Error("inputDone with decode expected");

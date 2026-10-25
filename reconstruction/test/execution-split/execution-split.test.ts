@@ -93,12 +93,12 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     await h.settle();
     expect(await granted(h)).toHaveLength(1);
     const requestKeys: Readonly<Record<OwnerRequest["kind"], readonly string[]>> = {
-      restore: ["clock", "kind", "runId", "sharedMs"], input: ["clock", "envelope", "kind", "sharedMs"],
-      deadline: ["clock", "kind", "sharedMs"],
-      intentUpdate: ["clock", "decisionClock", "kind", "requestId", "sharedMs", "unit", "updates"],
-      checkpointGrant: ["clock", "grantId", "inputBoundary", "kind", "mode", "retryReason", "sharedMs", "unit"],
-      shutdownInput: ["clock", "kind", "sharedMs"], finalize: ["clock", "cutoff", "kind", "sharedMs"],
-      detail: ["clock", "detail", "kind", "sharedMs"],
+      restore: ["basis", "clock", "kind", "runId", "sharedMs"], input: ["basis", "clock", "envelope", "kind", "sharedMs"],
+      deadline: ["basis", "clock", "kind", "sharedMs"],
+      intentUpdate: ["basis", "clock", "decisionClock", "kind", "requestId", "sharedMs", "unit", "updates"],
+      checkpointGrant: ["basis", "clock", "grantId", "inputBoundary", "kind", "mode", "retryReason", "sharedMs", "unit"],
+      shutdownInput: ["basis", "clock", "kind", "sharedMs"], finalize: ["basis", "clock", "cutoff", "kind", "sharedMs"],
+      detail: ["basis", "clock", "detail", "kind", "sharedMs"],
     };
     const replyKeys: Readonly<Record<OwnerReply["kind"], readonly string[]>> = {
       restored: ["kind", "output", "units"], inputDone: ["decode", "generationRaisedMs", "heap", "inputGenerations", "kind", "marks", "output", "processingStartedMs", "settlement"],

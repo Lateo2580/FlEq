@@ -503,8 +503,9 @@ function reduceWeatherCurrentCore(state: WeatherCurrentUnitState,
       reason: "capacityRejected", unit: "U-W", inputId: input.material.inputId }] };
 }
 
+// P3-EF-AC04: U-W の期限は intent の壁時計の失効だけで、入力の根拠が verified のときだけ当てる。
 function restore(state: WeatherCurrentUnitState, value: PersistedWeatherCurrentUnit,
-  clock: ClockReading): InternalStep {
+  clock: ClockReading, verified: boolean): InternalStep {
   const decoded = weatherCurrentUnitCodec.decode(value);
   if (decoded.kind === "invalid") return {
     state, nextDeadline: nextWeatherCurrentDeadline(state),
@@ -521,8 +522,8 @@ function restore(state: WeatherCurrentUnitState, value: PersistedWeatherCurrentU
     partials: decoded.state.partials.map(previous),
     histories: decoded.state.histories.map((history) => ({ ...history, reports: history.reports.map(previous) })),
   };
-  const applied = expireIntents(base, clock.wallTimeMs, clock.monotonicMs);
-  const active = applied.state.intents.filter((item) => item.disposition === "pending" && item.expiresAt > clock.wallTimeMs);
+  const applied = verified ? expireIntents(base, clock.wallTimeMs, clock.monotonicMs) : { state: base };
+  const active = applied.state.intents.filter((item) => item.disposition === "pending" && (!verified || item.expiresAt > clock.wallTimeMs));
   return { state: applied.state, nextDeadline: nextWeatherCurrentDeadline(applied.state), decisions: [], intents: active,
     outcomes: [{ kind: "recoveryApplied", scope: ["U-W"],
       coverage: [...Object.values(applied.state.national), ...applied.state.partials]
@@ -578,10 +579,11 @@ function intentUpdate(state: WeatherCurrentUnitState,
 
 function reduceCore(state: WeatherCurrentUnitState, input: WeatherCurrentInput, touched: CurrentChange): InternalStep {
   if (input.kind === "receive") return reduceWeatherCurrentCore(state, input, touched);
-  if (input.kind === "restore") return restore(state, input.persisted, input.clock);
+  if (input.kind === "restore") return restore(state, input.persisted, input.clock, (input.basis ?? "verified") === "verified");
   if (input.kind === "coverageConfirmed") return coverageConfirmed(state, input);
   if (input.kind === "intentUpdate") return intentUpdate(state, input);
-  const applied = expireIntents(state, input.clock.wallTimeMs, input.clock.monotonicMs);
+  const applied = (input.basis ?? "verified") === "verified" ? expireIntents(state, input.clock.wallTimeMs, input.clock.monotonicMs)
+    : { state, expired: [] };
   if (input.kind === "deadline" && applied.expired.length === 0) return noChange(state);
   const subjects = applied.expired.map((item) => subject(item, item.disposition === "pending" ? "expired" : item.disposition));
   return { state: applied.state, nextDeadline: nextWeatherCurrentDeadline(applied.state),

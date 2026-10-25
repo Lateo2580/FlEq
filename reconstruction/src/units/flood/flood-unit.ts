@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome,
+  SubjectOutcome, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   FloodCriteria, FloodCurrent, FloodInput, FloodIntent, FloodKindGroup, FloodNotificationPayload, FloodRiver, FloodStation, FloodUnitCodec,
@@ -21,10 +21,11 @@ import {
   applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
+import { cachedMin } from "../expiry";
 
 // P3-UNIT-R-001（C11、I-U-R）: U-R の EventID の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-flood-unit-v5" as const;
+const SCHEMA = "p3-flood-unit-v6" as const;
 // P3-C11-CAPACITY=A・P3-C11-RES-01（P3-C11-BOUNDS=B）・RET-01〜04。
 const CURRENT_LIMIT = 512;
 // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器は 16 MiB に、全記録が読み戻しの上限いっぱいの未確認の印を持つ最悪の場合の分を足す（印の無い上界は
@@ -36,7 +37,7 @@ const MARK_GROWTH = CURRENT_LIMIT * new TextEncoder().encode(`,"unconfirmed":${J
 const GENERATION_LIMIT = 16_777_216 + MARK_GROWTH;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C11-SEM-01・02（元報の ReportDateTime からの絶対の長さ、P3-C11-RETENTION=A・P3-C11-ACTIVE-EXPIRY=D）。
-const RETAIN_MS = 129_600_000;
+const RETAIN_MS = 129_600_000, EXPIRED_RETAIN_MS = 151_200_000; // 記憶は表示の期限＋6 時間（P3-EF-D-EXPIRED-MEMORY=A）
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
 const NOTICE_BOUNDS = { title: 160, body: 512 } as const;
 
@@ -48,7 +49,8 @@ type Change = readonly [before: FloodCurrent | null, after: FloodCurrent | null]
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
-const visible = (value: FloodCurrent | null): value is Active => value?.effective === "active";
+// 保留の印のある active は見えない記録として扱う（P3-EF-AC02 (2)）。
+const visible = (value: FloodCurrent | null): value is Active => value?.effective === "active" && value.expiryPending !== true;
 
 // ---- byte の加算（I-U-R.computation。受信 1 回で state 全体を直列化しない） ----
 
@@ -70,14 +72,14 @@ function generationBytes(value: PersistedFloodUnit): number {
 
 // ---- 期限（I-U-R.deadlines） ----
 
-const deadlineCache = new WeakMap<readonly object[], number>();
-function minOf<T extends object>(values: readonly T[], at: (value: T) => number): number {
-  let min = deadlineCache.get(values);
-  if (min == null) { min = values.reduce((least, item) => Math.min(least, at(item)), Infinity); deadlineCache.set(values, min); }
-  return min;
-}
-const deadlineAt = (state: FloodUnitState): number =>
-  Math.min(minOf(state.currents, (item) => item.retainUntil), minOf(state.intents, (item) => item.expiresAt));
+// P3-EF-AC11 (2): 根拠で当てない種類を比べないよう、表示の期限・回収の期限・保留の記録・intent の期限を別々に持つ。nextDeadline は
+// 根拠によらず全部の最小（保留の記録は元の表示の期限）。
+const displayMin = cachedMin<FloodCurrent>((item) => visible(item) ? item.retainUntil : Infinity);
+const recallMin = cachedMin<FloodCurrent>((item) => item.effective !== "active" ? item.retainUntil : Infinity);
+const pendingMin = cachedMin<FloodCurrent>((item) => item.effective === "active" && item.expiryPending === true ? item.retainUntil : Infinity);
+const retainMin = cachedMin<FloodCurrent>((item) => item.retainUntil);
+const intentMin = cachedMin<FloodIntent>((item) => item.expiresAt);
+const deadlineAt = (state: FloodUnitState): number => Math.min(retainMin(state.currents), intentMin(state.intents));
 function nextDeadline(state: FloodUnitState): RuntimeUnitDeadline | null {
   const at = deadlineAt(state);
   return at === Infinity ? null : { wallTimeMs: at, monotonicMs: null };
@@ -107,8 +109,9 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
 // ReportDateTime の古い順で退去する。受ける報が training/test なら normal の記録は (1)〜(4) とも候補にせず、候補が無ければ null
 // （受けた記録自身を退去する）。
 // ponytail: 満杯の 512 件の素朴な線形の走査（上限は CURRENT_LIMIT で、保持と decode の両方で効く。台帳 47 の例外）。
-function evictOne(values: readonly FloodCurrent[], now: number, incoming: Operation): FloodCurrent | null {
-  const tier = (item: FloodCurrent) => item.retainUntil <= now ? 0 : item.effective !== "active" ? 1 : item.operation !== "normal" ? 2 : 3;
+// 第 1 段は受けた入力の根拠が verified のときだけ。保留の印のある記録は見えない記録の段に入る（P3-EF-AC03）。
+function evictOne(values: readonly FloodCurrent[], now: number, incoming: Operation, verified: boolean): FloodCurrent | null {
+  const tier = (item: FloodCurrent) => verified && item.retainUntil <= now ? 0 : !visible(item) ? 1 : item.operation !== "normal" ? 2 : 3;
   let worst: FloodCurrent | null = null;
   for (const item of values) {
     if (item.operation === "normal" && incoming !== "normal") continue;
@@ -126,7 +129,8 @@ function evictOne(values: readonly FloodCurrent[], now: number, incoming: Operat
 function judge(existing: FloodCurrent | null, built: FloodCurrent, candidate: FloodCandidate) {
   return stepVersion(existing == null ? null : { version: existing.source, source: existing.source, cancelled: existing.effective === "cancelled" },
     existing?.unconfirmed ?? null, candidate.source, () => existing != null && existing.source.infoTypeRaw.trim() === candidate.source.infoTypeRaw.trim()
-    && changed(existing, built, FACTS).length === 0, candidate.cancelled);
+    // 期限切れの記憶は事実を持たないので InfoType だけで見る（Q-EF-PRECHECK (0)(b)、U-M と同じ）。
+    && (existing.effective === "expired" || changed(existing, built, FACTS).length === 0), candidate.cancelled);
 }
 
 // ---- EventID の current（I-U-R.currentSemantics） ----
@@ -276,7 +280,7 @@ function displaySubject(value: FloodCurrent): Extract<RuntimeDisplaySubject, Rea
 
 // ---- 受信（P3-C11-SUBJECTS=A。一入力は EventID の subject を 1 つだけ変え、一回の参照交換で確定する） ----
 
-function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, clock: ClockReading): Result {
+function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, clock: ClockReading, basis: WallBasis): Result {
   const now = clock.wallTimeMs;
   const { subject, operation } = candidate;
   const unchanged = (reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = []): Result => ({ changes: [],
@@ -307,7 +311,7 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
   let currents: readonly FloodCurrent[];
   let evicted: FloodCurrent | null = null;
   if (index == null && state.currents.length >= CURRENT_LIMIT) {
-    evicted = evictOne(state.currents, now, operation);
+    evicted = evictOne(state.currents, now, operation, basis === "verified");
     // training/test の報で退去できる記録が無ければ、受けた記録自身を退去する（currents の参照を変えない、通知しない）。採用した取消は
     // その subject の pending を置き換え、intents が変わったときだけ保存世代を進める（C10 の Q-C10-IMPL-AMEND(5)）。記録を残さないので
     // accepted に載せず currentEstablished も null（D-VANISHED=A、P3-OPCAP-AC02）。
@@ -367,7 +371,7 @@ function receive(state: FloodUnitState, input: Extract<FloodInput, { kind: "rece
   // Q-NOTICE.recovery・P3-C11-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
-  return receiveCandidate(state, candidate, input.clock);
+  return receiveCandidate(state, candidate, input.clock, input.basis ?? "verified");
 }
 
 // ---- 期限（I-U-R.deadlines。到来分だけを回収する） ----
@@ -378,31 +382,46 @@ function expiryPayload(value: Active): FloodNotificationPayload {
   return { domain: "weather", level: "info", title: cut(`${prefix}[期限切れ] ${value.title}`, NOTICE_BOUNDS.title),
     body: cut(`${value.areaName === "" ? "この" : `${value.areaName}の`}洪水予報は36時間続報がなく、現況を確認できません`, NOTICE_BOUNDS.body) };
 }
+// 期限切れの記憶（P3-EF-AC05 (2)(3)）: 事実を捨て、識別・source・印を残す。
+function expiredOf(item: Active): FloodCurrent {
+  return { subject: item.subject, operation: item.operation, headType: item.headType, eventId: item.eventId, source: item.source,
+    ...item.unconfirmed == null ? {} : { unconfirmed: item.unconfirmed }, ...item.notice == null ? {} : { notice: item.notice },
+    retainUntil: reportMs(item.source) + EXPIRED_RETAIN_MS, effective: "expired" };
+}
+// 根拠ごとの当て方（P3-EF-AC02）: awaiting は何も当てない。unverified は表示の期限の来た記録に保留の印を付けるだけ。verified は表示の
+// 期限の来た記録と保留の記録（時計によらず）を記憶に移し、retainUntil の来た記録と intent を回収する。
 // ponytail: 512 subject の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
-function collect(state: FloodUnitState, clock: ClockReading): Readonly<{ state: FloodUnitState; changes: readonly Change[];
+function collect(state: FloodUnitState, clock: ClockReading, basis: WallBasis): Readonly<{ state: FloodUnitState; changes: readonly Change[];
   expiredIntents: number; intents: readonly FloodIntent[]; dropped: number }> {
-  const now = clock.wallTimeMs;
-  if (deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0, intents: [], dropped: 0 };
+  const now = clock.wallTimeMs, verified = basis === "verified";
+  const shows = basis !== "awaiting" && displayMin(state.currents) <= now;
+  const recalls = verified && (recallMin(state.currents) <= now || pendingMin(state.currents) !== Infinity);
+  if (!shows && !recalls && !(verified && intentMin(state.intents) <= now))
+    return { state, changes: [], expiredIntents: 0, intents: [], dropped: 0 };
   const changes: Change[] = [];
   const expiry: FloodIntent[] = [];
-  // 期限の通知の記録は同じ回収で消えるので、印もそこで消える（P3-NL-AC02 (4)）。
-  const currents = minOf(state.currents, (item) => item.retainUntil) > now ? state.currents : state.currents.filter((item) => {
-    if (item.retainUntil > now) return true;
-    changes.push([item, null]);
-    if (visible(item)) expiry.push(...intentsFor(item, "expired", expiryPayload(item), now, ["desktop"], item.notice, versionDigest(item.source)));
-    return false;
+  const currents = !shows && !recalls ? state.currents : state.currents.flatMap((item): FloodCurrent[] => {
+    let after: FloodCurrent | null = item;
+    if (item.effective === "active" && (item.expiryPending === true || item.retainUntil <= now)) {
+      // P3-C11-ACTIVE-EXPIRY=D・P3-EF-AC05 (4): 見える記録が見えなくなるときだけ desktop の期限切れを 1 件作る（保留の記録を記憶へ移すときは作らない）。
+      if (visible(item)) expiry.push(...intentsFor(item, "expired", expiryPayload(item), now, ["desktop"], item.notice, versionDigest(item.source)));
+      after = verified ? expiredOf(item) : item.expiryPending === true ? item : { ...item, expiryPending: true };
+    }
+    if (verified && after.effective !== "active" && after.retainUntil <= now) after = null;
+    if (after !== item) changes.push([item, after]);
+    return after == null ? [] : [after];
   });
-  const remaining = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
+  const remaining = !verified || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
   const expiredIntents = state.intents.length - remaining.length;
   const notices = admit(remaining, expiry, null);
-  const persisted = currents !== state.currents || notices.intents !== state.intents;
-  return { state: { ...state, currents, intents: notices.intents,
-    persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence },
+  const persisted = changes.length !== 0 || notices.intents !== state.intents;
+  return { state: persisted ? { ...state, currents: changes.length === 0 ? state.currents : currents, intents: notices.intents,
+    persistence: dirty(state.persistence, clock.monotonicMs) } : state,
   changes, expiredIntents, intents: notices.admitted, dropped: notices.dropped };
 }
 
-function deadlineStep(state: FloodUnitState, clock: ClockReading, shutdown: boolean): Result {
-  const applied = collect(state, clock);
+function deadlineStep(state: FloodUnitState, clock: ClockReading, basis: WallBasis, shutdown: boolean): Result {
+  const applied = collect(state, clock, basis);
   const diagnostics: DiagnosticDetails[] = [];
   if (applied.expiredIntents !== 0) diagnostics.push({ level: "INFO", component: "flood", reason: "notificationExpired", unit: "U-R",
     count: applied.expiredIntents });
@@ -476,8 +495,8 @@ function reduceCore(state: FloodUnitState, input: FloodInput): Result {
   switch (input.kind) {
     case "restore": return restore(state, input.persisted, input.clock);
     case "intentUpdate": return intentUpdate(state, input);
-    case "deadline": return deadlineStep(state, input.clock, false);
-    case "shutdown": return deadlineStep(state, input.clock, true);
+    case "deadline": return deadlineStep(state, input.clock, input.basis ?? "verified", false);
+    case "shutdown": return deadlineStep(state, input.clock, input.basis ?? "verified", true);
     case "receive": return receive(state, input);
     default: { const missing: never = input; throw new Error(`flood input ${String(missing)} is not handled`); }
   }
@@ -598,7 +617,7 @@ function stationRecord(value: unknown, points: number, riverCodes: ReadonlySet<s
   return { code: row.code, name: row.name, riverCodes: links, measurement: row.measurement, criteria, values: values.map((item) => item.value),
     levels: levels.map((item) => item.level) };
 }
-const FACT_KEYS = ["title", "areaName", "kinds", "times", "stations", "basisReportDateTimeRaw", "truncated"];
+const FACT_KEYS = ["title", "areaName", "kinds", "times", "stations", "basisReportDateTimeRaw", "truncated", "expiryPending"];
 function currentRecord(value: unknown): FloodCurrent | null {
   const row = record(value);
   const operation = operationOf(row?.operation);
@@ -606,7 +625,8 @@ function currentRecord(value: unknown): FloodCurrent | null {
   if (row == null || operation == null || parts == null || !isText(row.subject) || parts.operation !== operation || row.headType !== parts.headType
     || row.eventId !== parts.eventId) return null;
   const source = reportRef(row.source, row.subject);
-  if (source == null || row.retainUntil !== reportMs(source) + RETAIN_MS) return null;
+  // 記憶は元報＋42 時間、ほかは effective によらず＋36 時間の等式（P3-EF-AC14 (20)）。
+  if (source == null || row.retainUntil !== reportMs(source) + (row.effective === "expired" ? EXPIRED_RETAIN_MS : RETAIN_MS)) return null;
   // P3-VM-AC04: 印は同じ EventID（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject) : undefined;
   const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
@@ -616,11 +636,12 @@ function currentRecord(value: unknown): FloodCurrent | null {
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
     if (FACT_KEYS.some((key) => key in row)) return null;
-    return row.effective === "ended" || row.effective === "cancelled" ? { ...base, effective: row.effective } : null;
+    return row.effective === "ended" || row.effective === "cancelled" || row.effective === "expired" ? { ...base, effective: row.effective } : null;
   }
   if (typeof row.truncated !== "boolean" || !bounded(row.title, BOUNDS.title) || loneSurrogate(row.title)
     || !bounded(row.areaName, BOUNDS.areaName) || row.areaName !== "" && !validName(row.areaName)
-    || row.basisReportDateTimeRaw !== null && !(isText(row.basisReportDateTimeRaw) && validReportDateTime(row.basisReportDateTimeRaw))) return null;
+    || row.basisReportDateTimeRaw !== null && !(isText(row.basisReportDateTimeRaw) && validReportDateTime(row.basisReportDateTimeRaw))
+    || "expiryPending" in row && row.expiryPending !== true) return null;
   const kinds = kindsRecord(row.kinds, row.truncated);
   const times = list(row.times, (item) => isText(item) && validTime(item) ? item : null, LIMITS.points);
   if (kinds == null || times == null) return null;
@@ -628,7 +649,7 @@ function currentRecord(value: unknown): FloodCurrent | null {
   const stations = list(row.stations, (item) => stationRecord(item, times.length, rivers), LIMITS.stations);
   if (stations == null || new Set(stations.map((item) => `${item.code}\n${item.name}`)).size !== stations.length) return null;
   return { ...base, effective: "active", title: row.title, areaName: row.areaName, kinds, times, stations,
-    basisReportDateTimeRaw: row.basisReportDateTimeRaw, truncated: row.truncated };
+    basisReportDateTimeRaw: row.basisReportDateTimeRaw, truncated: row.truncated, ...row.expiryPending === true ? { expiryPending: true } : {} };
 }
 const LEVEL_SET: readonly Level[] = ["info", "normal", "warning", "critical", "cancel"];
 function intentRecord(value: unknown): FloodIntent | null {
@@ -666,12 +687,12 @@ function persisted(value: unknown): PersistedFloodUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const floodUnitCodec: FloodUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2", "p3-flood-unit-v3", "p3-flood-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2", "p3-flood-unit-v3", "p3-flood-unit-v4", "p3-flood-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-R.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-flood-unit-v5 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-flood-unit-v6 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

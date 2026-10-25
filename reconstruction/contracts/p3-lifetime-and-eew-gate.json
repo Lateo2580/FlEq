@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "9d438ec3ca19999b1108b4fbb7fea945c1931d4ea1f1153e5382603c5b06e923",
+    "sha256": "076e9bdf1b8290c2494040e88ef222344fb7cc4380c6d571f213b85019e77833",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -300,7 +300,7 @@
           "reconstruction/src/domains/eew/eew.ts:552 «66224699b9d11746»",
           "reconstruction/src/domains/eew/eew.ts:583 «3ec78c2aad9e3950»",
           "reconstruction/src/domains/eew/eew.ts:607 «8cf8503515b3efc1»",
-          "reconstruction/src/units/eew/eew-unit.ts:235 «7ae59fc1e10c624b»",
+          "reconstruction/src/units/eew/eew-unit.ts:237 «49e8a8bf60caf9d6»",
           "reconstruction/contracts/p2-eew-unit.json:210 «2e7bdfdff97cc1af»",
           "reconstruction/contracts/p2-eew-unit.json:216 «a6ef516b8c0c2b17»"
         ]
@@ -320,8 +320,8 @@
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:475 «d55b2c8e4e9e70d2»",
           "reconstruction/src/runtime/owner-runtime.ts:112 «4b4c6774cb5a4b56»",
-          "reconstruction/src/runtime/owner-runtime.ts:386 «63380813ee47301c»",
-          "reconstruction/src/units/eew/eew-unit.ts:340 «973323028dc564f5»",
+          "reconstruction/src/runtime/owner-runtime.ts:389 «63380813ee47301c»",
+          "reconstruction/src/units/eew/eew-unit.ts:342 «973323028dc564f5»",
           "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»"
         ]
       },
@@ -341,9 +341,9 @@
         "id": "P3-LIFE-AC05",
         "requirement": "F11（U-Fの保持期限）: 受信でsubjectを採用するとき、retainUntil＝max(ReportDateTime＋604,800,000, 採用したsubjectのvalidUntil ?? −∞)とする（容量でunavailableを採用する場合はvalidUntil=nullなのでReportDateTime＋7日）。81_09_01_260605_VPWP50の全DurationをP10Dにした報は、validUntil＝retainUntil＝最終periodの終わりとなり、ReportDateTime＋7日のdeadlineでもactiveのままsubjectとgateが残る。validUntil−1ではactive、validUntilちょうどのdeadlineでは既存の規則どおりdecision changed/semantic・outcome deadlineApplied（effective noActiveItems）を出し、同じ手順の中でsubjectとgateを回収する（期限が一致するときもvalidUntilの失効を先に処理し、有効期間の後に7日を足さない）。validUntilがReportDateTime＋7日より前の報（実fixtureの3時間〜67時間の系列）は従来どおり（validUntilでnoActiveItems、ReportDateTime＋7日で回収）。各段階でencode→JSON→decodeがrestoredになる。",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:184 «3fb0aecb382221e9»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:100 «11b74f30e3b16bd1»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:95 «b8c3e551199a6047»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:212 «3fb0aecb382221e9»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:129 «e87e8dd009d4cb60»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:120 «e0a4a54ab3ca5140»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:235 «fe37dd1ffd636ef5»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:343 «c65d86bdce25607b»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:634 «fadca38e32211ea4»"
@@ -353,19 +353,19 @@
         "id": "P3-LIFE-AC06",
         "requirement": "U-Fの式の統一と既存の範囲: (1) receive・deadline（collect）・decodeで同じ式を使う。decodeのsubjectRowはretainUntilがReportDateTime＋7日と一致する、またはvalidUntil≠nullかつmax(ReportDateTime＋7日, validUntil)と一致する場合だけ受ける。前者は旧式で保存したsubject（validUntil＞ReportDateTime＋7日の旧値を含む）をそのまま読み、新式へ引き上げない。schemaの移行は無い。(2) 日時の上限は既存の範囲に合わせる: ReportDateTimeは既存のreportDateTimeの検証、validUntilは既存のinspect（TimeDefineの開始＋Durationが有限のDate）の範囲のままで狭めない。retainUntilはその範囲の有限numberで、JSONの往復で変わらない。(3) 未来skew: U-Fは既存どおりReportDateTimeを拒否せず生値で式に使う（decodeが式を再計算するため受信時刻で切り詰めない）。(4) 容量: 既存の512 subject・32 MiB・unavailable・capacityExceededの規則と退去順位を変えない。長いvalidUntilはsubjectの占有を延ばすが、同じ官署の次の報が採用されれば置き換わる。",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:359 «99bf89b958a06d85»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:15 «aa1dcb742dc64f1c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:387 «99bf89b958a06d85»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:17 «24da389b1664ffbd»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:180 «ef82cd515267e875»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:358 «79cdbbfa9ad21414»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «0a1ea73f12cf49eb»"
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «1440f1087455b453»"
         ]
       },
       {
         "id": "P3-LIFE-AC07",
         "requirement": "F14の保証範囲（D-HORIZON=A、条文だけ）: (1) U-E: 再受理horizonは10分（SEM-02）。gate（24時間）のある間は旧版の復活を防ぐ。gateの期限回収・容量退去・再起動（A1でgate非保存）の後は、horizon内（報の起点から10分未満）の旧報が新規subjectとして再び採用されうる（同じ版の再通知を含む）。(2) U-F: 新規受理で作るactiveはvalidUntilがwallより後のperiodを持つ報に限られる（既存のinspectと採用の規則）。保持期限がvalidUntil以上なので、有効中の旧報の復活は同じsubjectのgateが防ぐ。U-FはDurableでtrainingの容量退去の後だけ保証外。(3) U-T（津波予報のactive）・U-V（噴火警報のactive）など期限で消えないactiveを持つunitの再受理horizonは無制限とする。取消・版の記憶が保持される期間・容量・保存の範囲でのみ旧報の復活を防ぎ、期限GC・normal同士の容量退去・非永続stateの再起動の後に届いた古報は新規として受け入れうる。これは作者承認の残存リスクであり、この契約ではT/Vのコードを変えない。C12以降の新規unitは計画§9のパラメータ表のLifetime行でhorizonを明示する。",
         "evidenceRefs": [
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:384 «43b73be19bcd20e0»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:92 «ee67c3c47e745e7e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:400 «43b73be19bcd20e0»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:95 «ee67c3c47e745e7e»",
           "reconstruction/contracts/p3-order-plan.md:379 «d7ffea3ecccbb72d»",
           "docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»"
         ]
@@ -374,7 +374,7 @@
         "id": "P3-LIFE-AC08",
         "requirement": "延長しない・再起動A1: (1) U-Eのduplicate・stale・rejected・capacityExceeded・recoveryの未適用はstateを同一参照で返し（horizonの外と容量で採らない取消は、current・gateを変えずに取消のintentと印だけを足す、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）、current/gateの期限を変えない。(2) restoreは従来どおりcurrent・gateを空で始め（P2-A4-AC08）、保存からcurrent/gateを作らない。再起動後の保証は報の起点からの10分のhorizonだけ（印のあるEventIDは、印の版より古い報をstaleにし、遅い取消を採る、P3-NL-AC04）（AC07(1)）。(3) U-Fの復元はdecodeした期限をそのまま使い、collectで到来済みの期限を適用する（P2-A6-SEM-01）。再送（同じReportRef）はduplicateでretainUntilを変えない。",
         "evidenceRefs": [
-          "reconstruction/src/units/eew/eew-unit.ts:298 «bc9a6b0d231d49e7»",
+          "reconstruction/src/units/eew/eew-unit.ts:300 «bc9a6b0d231d49e7»",
           "reconstruction/contracts/p2-eew-unit.json:373 «7b6f64a3974ca83e»",
           "reconstruction/contracts/p2-eew-unit.json:374 «3c39bc5d436ef7a6»",
           "docs/specs/reconstruction-p0-contracts.md:474 «33206d8dd5ed3dee»"
@@ -384,7 +384,7 @@
         "id": "P3-LIFE-AC09",
         "requirement": "既存条文の読み替え（旧契約の本文は変えない）: (1) P2-A4-AC06の「15秒の絶対TTL、familyごと三区分合算512 subject、取消・終端・shutdown」へcurrentの10分・gateの24時間の期限とdeadlineでの回収を足して読む。512の上限とRES-02の退去規則・capacityExceededの形は変えない（24時間内に512件を超えるnormal EventIDは従来どおりcapacityExceeded）。(2) P2-A4-AC02の「current失効」はSEM-01の失効を指す（retainedPredictionも除く）。(3) Q-NOTICE.duplicateCorrectionの「予測震度」の比較は、currentが無くgateがある場合はgateの比較材料で行う（AC04）。(4) Q-NOTICE.latchRules.lifetimeのlatchは印としてgateと別の寿命（P3-NOTICE-LEDGER-001のP3-NL-AC04の(6)）。evidenceUnknownUntilは復元の10分だけ（前は「最後のowner退去」とevidenceUnknownUntilの「回収」にgateの期限回収を含めた、AC01）。(5) P2-WEATHER-TIMESERIES-UNIT-001のP2-A6-RET-02（7日）とstorageRule「retainUntilはsubjectの最新採用報のReportDateTime＋7日」をP3-LIFE-RET-02の式へ、P2-A6-AC04の「7日retention」とcodecの検査をAC06へ読み替える。P2-A6-SEM-01（activeは原報のperiodで評価、7日をactive期限へ流用しない、復元で延長しない）は維持する。(6) P2-A4-AC10（R20）: 期限による失効・horizonのstaleはcurrentEstablished=nullで、根拠を作らない。",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-eew-unit.json:434 «d0a6bd848f75d6fe»",
+          "reconstruction/contracts/p2-eew-unit.json:434 «634ff0769180b233»",
           "reconstruction/contracts/p2-eew-unit.json:401 «b966e6e6ad5a6baa»",
           "reconstruction/contracts/p2-eew-unit.json:218 «10cebe06fb6251af»",
           "reconstruction/contracts/p2-eew-unit.json:210 «2e7bdfdff97cc1af»",
@@ -410,7 +410,7 @@
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:607 «8cf8503515b3efc1»",
           "reconstruction/src/domains/eew/eew.ts:362 «a9f9a4e43769a0aa»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:100 «11b74f30e3b16bd1»"
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:129 «e87e8dd009d4cb60»"
         ]
       },
       {
@@ -429,9 +429,9 @@
         "id": "P3-LIFE-AC13",
         "requirement": "起動時の時計チェック（残存リスク(3)の条件、作者裁定2026-10-10）: (1) 比べる相手はdmdata WebSocket v2のstart frameのtime（サーバーがstartを送った時刻のISO 8601文字列。旧築の型src/types.ts WsStartMessage.timeが同じ仕様を写している）。host.tsは接続ごとに最初に届くstartをすでに小frameの経路で解析しており、AC13の診断は新しい通信を足さない。時計の確かめのためのREST（GET /socket?status=open）とDateヘッダの読みはP3-CLOCK-CHECK-001が足す。(2) 形の正しいstart（P3-C2-START-RECORDの判定、timeの有無で変えない）を受けるたびに1回、skew＝startを受けたときのclock().wallTimeMs − Date.parse(time) を測る。timeは「YYYY-MM-DDThh:mm:ss(.小数)?(Z|±hh:mm)」でDate.parseが有限のときだけ使う。|skew|≧300,000 msならERROR、60,000≦|skew|＜300,000ならWARN、＜60,000なら診断なし。reasonはskew＞0でhostClockAhead、skew＜0でhostClockBehind、component=\"host\"、count・durationMsは付けない（host.tsの既存の診断の流儀。同じ診断の繰り返しはsinkのcountが数える）。timeが無い・形が違う・Date.parseが有限でないときはWARN hostClockUnverifiedを1件。(3) 数値の根拠: 60秒はP3-LIFE-D-SKEWの起点の詰め（未来の報を受信時刻へ寄せる）が効き始め、版の時刻の比較がずれ始める目安。300秒はhorizon（600秒）の半分で、進みがEEWを捨てうる手前。往復と片道の遅れ（通常1秒未満）とtimeの秒の丸めはこの幅に含める。(4) ずれを見つけても受信・EEWの判定・接続を止めず、時刻を補正しない。startのtimeはP3-CLOCK-CHECK-001の確かめの物差しにもなる（時計は補正しない）。出口は既存の診断のsink（保存する診断の記録）だけで、ディスプレイに新しい要素を作らない。測るのはstartの制御frameの処理の中で、受信経路（dataの投入）に入れない。(5) 再接続ごとに同じ判定を行う（費用はstart 1件ごとの定数）。",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:277 «9eab77f7d9fbc5e7»",
-          "reconstruction/src/host/host.ts:280 «1b1c46f5a7c98e4f»",
-          "reconstruction/src/host/host.ts:225 «2b486aba370f5fa1»",
+          "reconstruction/src/host/host.ts:278 «9eab77f7d9fbc5e7»",
+          "reconstruction/src/host/host.ts:281 «1b1c46f5a7c98e4f»",
+          "reconstruction/src/host/host.ts:226 «2b486aba370f5fa1»",
           "reconstruction/src/host/host.ts:51 «d550290865b3dfa7»",
           "src/types.ts:576 «0ce12d8cfc86ded5»",
           "reconstruction/contracts/p3-dmdata-connect.json:368 «86f8fbca391f7688»",

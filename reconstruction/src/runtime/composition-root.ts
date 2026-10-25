@@ -104,12 +104,13 @@ type NotificationCalls = Readonly<{
 
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
 // A request before the publisher stamps it with its SentClock.
-type OwnerRequestBody = OwnerRequest extends infer R ? R extends unknown ? Omit<R, "clock" | "sharedMs"> : never : never;
+type OwnerRequestBody = OwnerRequest extends infer R ? R extends unknown ? Omit<R, "clock" | "sharedMs" | "basis"> : never : never;
 
 type CompositionOptions = Readonly<{
   // P3-C3A: the one way a request reaches an owner. The host posts it to the owner's thread.
   send: (place: ExecutionPlace, request: OwnerRequest) => void;
   clock?: () => ClockReading; wallBasis?: (at: ClockReading) => WallBasis; // P3-CK-AC02: 締切の印を反映した通知用の根拠（省略は "verified"）
+  contentBasis?: (at: ClockReading) => WallBasis; // P3-EF-AC01: unit の期限へ運ぶ生の確かめの状態（省略は "verified"）
   // performance.timeOrigin + performance.now(), the real clock every thread shares (P3-C3A-CLOCK).
   sharedNow?: () => number;
   diagnosticFileSystem?: DiagnosticFileSystem;
@@ -431,7 +432,7 @@ class RuntimeCompositionRoot {
   constructor(configInput: AppConfig, codecs: CodecMap<RuntimeUnitStates>, options: CompositionOptions) {
     const config = validateAppConfig(configInput);
     this.sendRequest = options.send;
-    this.clock = options.clock ?? systemClock; this.wallBasis = options.wallBasis ?? (() => "verified");
+    this.clock = options.clock ?? systemClock; this.wallBasis = options.wallBasis ?? (() => "verified"); this.contentBasis = options.contentBasis ?? (() => "verified");
     this.sharedNow = options.sharedNow ?? sharedClock;
     this.units = options.units ?? linkedUnitTable;
     this.shutdownHooks = options.shutdownHooks ?? {};
@@ -483,7 +484,7 @@ class RuntimeCompositionRoot {
     if (monitor.stopped) return;
     const slot = this.slotOf(request);
     if (slot != null) monitor.sent[slot] = clock.monotonicMs;
-    this.sendRequest(place, { ...request, clock, sharedMs: this.sharedNow() });
+    this.sendRequest(place, { ...request, clock, sharedMs: this.sharedNow(), basis: this.contentBasis(clock) });
   }
 
   private slotOf(request: OwnerRequestBody): MonitorSlot | null {
@@ -1747,7 +1748,7 @@ class RuntimeCompositionRoot {
   }
 
   // ---- 時計の確かめ（P3-CLOCK-CHECK-001）: 前回の起動から戻った pending の intent を、host が手元の時計を確かめるまで保留する。 ----
-  private readonly wallBasis: (at: ClockReading) => WallBasis;
+  private readonly wallBasis: (at: ClockReading) => WallBasis; private readonly contentBasis: (at: ClockReading) => WallBasis;
   // P3-CK-AC03 (1): startRuntime で戻った pending の intent の鍵。後に生まれた intent は入らないので、件数は復元した pending を越えない。
   private readonly restoredKeys = new Set<string>();
 

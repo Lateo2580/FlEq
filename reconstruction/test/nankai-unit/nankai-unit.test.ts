@@ -535,7 +535,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
   // 証拠 64 件（subject 80 字・最長の安全な整数の時刻・Serial 10 桁・取消）と通知の予算（pending の実 byte＋予約 131,072）を足しても内側。
   // P3-VM-AC08: 上界に Control/DateTime（40 文字）と現況ごとの未確認の印（decoder の許す最長の ReportRef）を足して数え直す。
   // P3-NL-AC15 (2): 全記録に最長の通知の印を足し、終端記録の予算 98,304 は外す。
-  it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents with marks, 64 evidence records and the whole notice budget stay within 280,060 bytes", () => {
+  // P3-EF-AC10 (2): active の現況は期限切れの保留の印（21 byte）も持つ（上界 280,060 → 280,186）。
+  it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents with marks, 64 evidence records and the whole notice budget stay within 280,186 bytes", () => {
     const wide = (length: number) => "\u0001".repeat(length);
     const time40 = "2020-05-22T15:00:00.00000000000000+09:00";
     const currents = budgetState(true).currents.map((item): NankaiCurrent => {
@@ -543,7 +544,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       const mark = item.effective === "cancelled" || item.effective === "expired" ? {}
         : { unconfirmed: { ...source, reportDateTimeRaw: time40, serialRaw: "1234567890", infoTypeRaw: "取消" } };
       return "title" in item ? { ...item, source, ...mark, notice: LONGEST_NOTICE, title: wide(128), headline: wide(512),
-        infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) } } : { ...item, source, ...mark, notice: LONGEST_NOTICE };
+        infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) }, expiryPending: true } : { ...item, source, ...mark, notice: LONGEST_NOTICE };
     });
     const evidence = Array.from({ length: 64 }, (_, index): NankaiInformation => {
       const eventId = String(index).padStart(64, "E"), subject = `training/VYSE51/${eventId}`, reportDateTimeMs = -9_007_199_254_740_991;
@@ -553,12 +554,12 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     });
     const state: NankaiUnitState = { ...emptyState(), currents, information: evidence };
     expect(roundTrip(state).kind).toBe("restored");
-    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v4", unit: "U-N", generation: 0, capturedAt: 0,
+    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v5", unit: "U-N", generation: 0, capturedAt: 0,
       payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
     console.info("P3-CODEC U-N bound", JSON.stringify({ currents: currents.length, evidence: evidence.length, envelope,
       bound: envelope + 62 - 2 + 131_072 }));
     // 空の intents 配列（2 byte）を通知の予算 131,072 で置き換え、generation と capturedAt の 62 byte と inputBoundary の最大（P3-VM-AC06）を予約する。
-    expect(envelope + 62 - 2 + 131_072).toBeLessThanOrEqual(280_060);
+    expect(envelope + 62 - 2 + 131_072).toBeLessThanOrEqual(280_186);
   });
 
   // contractBoundary: E22 の U-N は対象外（P3-C8-N2、AC13）。

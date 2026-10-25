@@ -178,7 +178,7 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     const idle = tick(first.state, T0 + 30_000);
     expect([idle.state, idle.decisions, idle.outcomes, idle.displayChanges, idle.diagnostics]).toEqual([first.state, [], [], [], []]);
     expect(idle.state).toBe(first.state);
-    // inactive は元報 +6 時間、active は +48 時間で黙って除く（通知しない）。
+    // inactive は元報 +6 時間で黙って除き、active は +48 時間で事実を持たない expired の記憶（元報 +54 時間）に移す（通知しない、P3-EF-AC05）。
     const ending = follow(first.state, released(), "2020-06-22T23:00:01+09:00").state;
     const end = T0 + 1_000 + 6 * HOUR;
     expect(recordOf(tick(ending, end - 60_000).state)?.effective).toBe("ended");
@@ -186,8 +186,8 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     const kept = tick(first.state, T0 + 48 * HOUR - 60_000);
     expect(recordOf(kept.state)?.effective).toBe("active");
     const expired = tick(kept.state, T0 + 48 * HOUR);
-    expect([expired.state.currents, expired.intents, expired.outcomes, expired.displayChanges.map((item) => [item.subject, item.after])])
-      .toEqual([[], [], [], [[SUBJECT, null]]]);
+    expect([expired.state.currents.map((item) => [item.subject, item.effective, item.retainUntil]), expired.intents, expired.outcomes,
+      expired.displayChanges.map((item) => [item.subject, item.after])]).toEqual([[[SUBJECT, "expired", T0 + 54 * HOUR]], [], [], [[SUBJECT, null]]]);
     // 取消の記憶が 6 時間で消えた後に遅れて届いた古い発表（受理の時点で ReportDateTime+6 時間 1 分）は active にならず鳴らない。
     const forgotten = tick(cancelled.state, T0 + 6 * HOUR).state;
     expect(forgotten.currents).toEqual([]);
@@ -594,7 +594,8 @@ function budgetState(bounded: boolean): LandslideUnitState {
       areas: Array.from({ length: 32 }, area) }))
       : seed.kinds.map((group, at) => ({ ...group, areas: Array.from({ length: at < 2 ? 1 : (index < 44 ? 28 : 27) - 2 }, area) }));
     // P3-NL-AC15 (2): 上界は最長の通知の印も持つ。
-    return { ...seed, subject, operation, office: name, source, ...bounded ? { unconfirmed: { ...source }, notice: LONGEST_NOTICE } : {},
+    // P3-EF-AC10 (2): 上界は期限切れの保留の印（expiryPending）も持つ。
+    return { ...seed, subject, operation, office: name, source, ...bounded ? { unconfirmed: { ...source }, notice: LONGEST_NOTICE, expiryPending: true } : {},
       retainUntil: Date.parse(reportDateTimeRaw) + 48 * HOUR,
       title: bounded ? wide(128) : seed.title, kinds };
   });

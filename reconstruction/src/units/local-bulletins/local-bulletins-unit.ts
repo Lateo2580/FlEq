@@ -1,9 +1,10 @@
+import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome,
+  SubjectOutcome, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   HeatCurrent, LocalBulletinsInput, LocalBulletinsIntent, LocalBulletinsNotificationPayload, LocalBulletinsUnitCodec, LocalBulletinsUnitState,
@@ -29,7 +30,7 @@ import {
 // P3-UNIT-M-001（C13、I-U-M）: 三つの slice（tornado・heat・transient）の current・版・遅着・退去・通知・容量・codec・射影。
 // 三つの slice は件数の上限と退去を別々に持つ（無いと解説の多発が竜巻の記録を退去する、I-U-M.slices）。
 
-const SCHEMA = "p3-local-bulletins-unit-v5" as const;
+const SCHEMA = "p3-local-bulletins-unit-v6" as const;
 // P3-C13-BOUNDS=A・P3-C13-RES-01・RET-05。
 const TRANSIENT_TOTAL = Object.values(TRANSIENT_LIMIT).reduce((sum, value) => sum + value, 0);
 // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器は 4 MiB に、全 slice の全記録が読み戻しの上限いっぱいの未確認の印を持つ最悪の場合の分を足す（印の無い
@@ -41,7 +42,10 @@ const markBytes = (subject: string) => new TextEncoder().encode(`,"unconfirmed":
 const MARK_GROWTH = TORNADO_LIMIT * markBytes(`training/tornado/${WIDE.repeat(BOUNDS.office)}/${WIDE.repeat(BOUNDS.title)}`)
   + HEAT_LIMIT * markBytes(`training/VPFT50/${WIDE.repeat(BOUNDS.eventId)}`) + TRANSIENT_TOTAL * markBytes(`training/VPAW51/${"9".repeat(8)}/${WIDE.repeat(BOUNDS.title)}`);
 // P3-NL-D-CAPACITY=A: 通知の印（竜巻・熱中症・短命の全記録）の最悪の分を足し、外した終端 intent の予算（98,304、P3-NL-AC05 (2)）を引く。
-const NOTICE_GROWTH = (TORNADO_LIMIT + HEAT_LIMIT + TRANSIENT_TOTAL) * noticeMarkBytes("notice");
+// 竜巻の印は目撃の fragment の鍵 1 件（SIGHTED）を持ちうる（P3-EF-AC14 (19)、Q-EF-SIGHTING の 33 byte）。
+const SIGHTED = createHash("sha256").update("sighted").digest("hex").slice(0, 16);
+const SIGHTED_BYTES = new TextEncoder().encode(`,"fragments":${JSON.stringify([SIGHTED])}`).byteLength;
+const NOTICE_GROWTH = (TORNADO_LIMIT + HEAT_LIMIT + TRANSIENT_TOTAL) * noticeMarkBytes("notice") + TORNADO_LIMIT * SIGHTED_BYTES;
 const GENERATION_LIMIT = 4_194_304 + MARK_GROWTH + NOTICE_GROWTH - 98_304;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
@@ -60,9 +64,9 @@ type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 type State = LocalBulletinsUnitState;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
-// view に載るのは active だけ（I-U-M.view）。
+// view に載るのは active だけ（I-U-M.view）。期限切れの保留の印のある記録は見えない（P3-EF-AC02 (2)）。
 function visible<T extends Rec>(value: T | null): value is Extract<T, Readonly<{ effective: "active" }>> {
-  return value?.effective === "active";
+  return value?.effective === "active" && value.expiryPending !== true;
 }
 const hhmm = (ms: number) => new Date(ms + JST).toISOString().slice(11, 16);
 
@@ -101,6 +105,12 @@ function deadlineOf(item: Rec): number {
 }
 const deadlineAt = (state: State): number => Math.min(recordMin(state.tornado), recordMin(state.heat), recordMin(state.transient),
   intentMin(state.intents));
+// P3-EF-AC11 (2): 根拠で当てない種類を比べないよう、見える期限・回収の期限・保留の記録を別々に持つ（nextDeadline は recordMin）。
+const displayCache = new WeakMap<readonly Rec[], number>(), recallCache = new WeakMap<readonly Rec[], number>(), pendingCache = new WeakMap<readonly Rec[], number>();
+const displayMin = (values: readonly Rec[]) => cachedMin(displayCache, values, (item) => visible(item) ? deadlineOf(item) : Infinity);
+const recallMin = (values: readonly Rec[]) => cachedMin(recallCache, values, (item) => item.effective === "active" ? Infinity : item.retainUntil);
+const pendingMin = (values: readonly Rec[]) => cachedMin(pendingCache, values, (item) => item.effective === "active" && item.expiryPending === true
+  ? deadlineOf(item) : Infinity);
 function nextDeadline(state: State): RuntimeUnitDeadline | null {
   const at = deadlineAt(state);
   return at === Infinity ? null : { wallTimeMs: at, monotonicMs: null };
@@ -133,8 +143,9 @@ function indexOf(values: readonly Rec[]): Index {
 // (4) normal の見える記録、それぞれ ReportDateTime の古い順（同じなら subject の辞書順）で同じ枠の中から退去する。受ける報が training/test なら
 // normal の記録は候補にせず、候補が無ければ null（受けた記録自身を退去する）。
 // ponytail: 満杯の枠の素朴な線形の走査（上限は件数の上限で、保持と decode の両方で効く。台帳 47 の例外）。
-function evictOne<T extends Rec>(values: readonly T[], bucket: string, now: number, incoming: Operation): T | null {
-  const tier = (item: Rec) => item.retainUntil <= now ? 0 : !visible(item) ? 1 : item.operation !== "normal" ? 2 : 3;
+// 第 1 段は受けた入力の根拠が verified のときだけ（P3-EF-AC03）。
+function evictOne<T extends Rec>(values: readonly T[], bucket: string, now: number, incoming: Operation, verified: boolean): T | null {
+  const tier = (item: Rec) => verified && item.retainUntil <= now ? 0 : !visible(item) ? 1 : item.operation !== "normal" ? 2 : 3;
   let worst: T | null = null;
   for (const item of values) {
     if (bucketOf(item) !== bucket || item.operation === "normal" && incoming !== "normal") continue;
@@ -172,11 +183,11 @@ const baseOf = (value: Base): Base => ({ subject: value.subject, operation: valu
 const textOf = (value: Text): Text => ({ title: value.title, headline: value.headline, editorialOffice: value.editorialOffice, truncated: value.truncated });
 const retain = (base: Base, ms: number) => reportMs(base.source) + ms;
 
-const tornadoMemory = (base: Base, effective: "ended" | "cancelled"): TornadoCurrent => ({ ...base, retainUntil: retain(base, TORNADO_RETAIN), effective });
-const tornadoActive = (base: Base, text: Text, activeUntil: number, sighted: boolean, areas: readonly TornadoArea[]): TornadoCurrent =>
+const tornadoMemory = (base: Base, effective: "ended" | "cancelled" | "expired"): TornadoCurrent => ({ ...base, retainUntil: retain(base, TORNADO_RETAIN), effective });
+const tornadoActive = (base: Base, text: Text, activeUntil: number, sighted: boolean, areas: readonly TornadoArea[]): Extract<TornadoCurrent, { effective: "active" }> =>
   ({ ...base, retainUntil: retain(base, TORNADO_RETAIN), effective: "active", activeUntil, ...text, sighted, areas });
 const heatMemory = (base: Base, effective: "ended" | "cancelled"): HeatCurrent => ({ ...base, retainUntil: retain(base, HEAT_RETAIN), effective });
-const heatActive = (base: Base, text: Text, activeUntil: number, targetDate: string, areaName: string | null): HeatCurrent =>
+const heatActive = (base: Base, text: Text, activeUntil: number, targetDate: string, areaName: string | null): Extract<HeatCurrent, { effective: "active" }> =>
   ({ ...base, retainUntil: retain(base, HEAT_RETAIN), effective: "active", activeUntil, targetDate, ...text, areaName });
 const transientMemory = (base: Base, family: TransientFamily, effective: "evidence" | "cancelled"): PersistedTransientCurrent =>
   ({ ...base, family, retainUntil: retain(base, TRANSIENT_RETAIN[family]), effective });
@@ -203,12 +214,13 @@ function payloadOf(domain: Domain, operation: Operation, level: Level, title: st
 }
 const dateText = (targetDate: string) => `${Number(targetDate.slice(5, 7))}月${Number(targetDate.slice(8, 10))}日`;
 // P3-NL-AC01: ID は世代番号を含まない。系列の印に同じ版の鍵と種類があれば作らない。
+// fragment は目撃の竜巻の採用だけが持つ SIGHTED（P3-EF-AC07 (3)。目撃の無い採用の印の後に目撃が立てば作る）。
 function intentsFor(source: Readonly<{ subject: string; operation: Operation; source: ReportRef }>, transition: LocalBulletinsIntent["transition"],
-  payload: LocalBulletinsNotificationPayload, now: number, mark: NoticeMark | undefined, version: string): LocalBulletinsIntent[] {
-  if (noticed(mark, version, noticeKind(transition))) return [];
+  payload: LocalBulletinsNotificationPayload, now: number, mark: NoticeMark | undefined, version: string, fragment?: string): LocalBulletinsIntent[] {
+  if (noticed(mark, version, noticeKind(transition), fragment)) return [];
   // P3-C13-TRAINING=A: training/test は desktop だけ。
   const channels = source.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  return channels.map((channel) => ({ id: noticeId("U-M", source.subject, "", source.source, transition, channel), unit: "U-M",
+  return channels.map((channel) => ({ id: noticeId("U-M", source.subject, "", source.source, transition, channel, fragment), unit: "U-M",
     subject: source.subject, operation: source.operation, source: source.source, transition, channel, payload, createdAt: now,
     expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
     ...freshState("U-M", source.operation) }));
@@ -280,7 +292,8 @@ type Lane<T extends Rec, C extends LocalBulletinsCandidate> = Readonly<{
   write: (state: State, values: readonly T[]) => State;
   limit: (candidate: C) => number;
   bucket: (candidate: C) => string;
-  build: (candidate: C, now: number) => Built<T>;
+  // basis は表示の期限を過ぎてから採る報の形を決める（竜巻だけ、P3-EF-AC05 (5)）。重複の判定は省略（verified の形）。
+  build: (candidate: C, now: number, basis?: WallBasis) => Built<T>;
   expire: (item: T) => T;
   // 見えなくなる移行が保存の射影を変えるか（transient は変えない、P3-C13-TRANSIENT-EVIDENCE=A）。
   expireIsPersisted: boolean;
@@ -293,19 +306,23 @@ const tornadoLane: Lane<TornadoCurrent, TornadoCandidate> = {
   write: (state, values) => ({ ...state, tornado: values }),
   limit: () => TORNADO_LIMIT,
   bucket: () => "",
-  build(candidate, now) {
+  build(candidate, now, basis = "verified") {
     const base = { subject: candidate.subject, operation: candidate.operation, source: candidate.source };
     if (candidate.cancelled) return { record: tornadoMemory(base, "cancelled"), late: false };
     if (candidate.release) return { record: tornadoMemory(base, "ended"), late: false };
     const limit = retain(base, TORNADO_RETAIN);
     // P3-C13-TORNADO-EXPIRY=A: ValidDateTime（無ければ +1 時間）を +36 時間に切り詰める。
     const activeUntil = Math.min(candidate.validMs ?? candidate.reportDateTimeMs + TORNADO_DEFAULT_VALID, limit);
-    if (activeUntil <= now) return { record: tornadoMemory(base, "ended"), late: true };
-    return { record: tornadoActive(base, textOf(candidate), activeUntil, candidate.sighted, candidate.areas), late: false };
+    const active = tornadoActive(base, textOf(candidate), activeUntil, candidate.sighted, candidate.areas);
+    // 遅着は期限切れの形で採る（P3-EF-AC05 (5)。verified は記憶、unverified は保留の印、awaiting は見えるまま）。
+    if (activeUntil <= now) return { record: basis === "verified" ? tornadoMemory(base, "expired")
+      : basis === "unverified" ? { ...active, expiryPending: true } : active, late: true };
+    return { record: active, late: false };
   },
-  expire: (item) => tornadoMemory(baseOf(item), "ended"),
+  expire: (item) => tornadoMemory(baseOf(item), "expired"),
   expireIsPersisted: true,
-  style: () => ({ domain: "weather", level: "warning" }),
+  // H13（P3-EF-AC07 (2)）: 目撃の無い竜巻の採用は普通の音、目撃は警報の音。
+  style: (candidate) => ({ domain: "weather", level: candidate.sighted ? "warning" : "normal" }),
   body(candidate, record) {
     const parts = [...record.effective === "active" && "sighted" in record && record.sighted ? ["目撃情報あり"] : [],
       ...candidate.noticeAreas > 0 ? [`発表中 ${candidate.noticeAreas}地域`] : [], ...candidate.validMs != null ? [`有効期限 ${hhmm(candidate.validMs)}`] : []];
@@ -345,20 +362,23 @@ const transientLane: Lane<TransientCurrent, TransientCandidate> = {
   body: (_candidate, record) => record.headline.split(/\r?\n/)[0].trim(),
 };
 
-function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lane<T, C>, state: State, candidate: C, clock: ClockReading): Result {
+function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lane<T, C>, state: State, candidate: C, clock: ClockReading,
+  basis: WallBasis): Result {
   const now = clock.wallTimeMs;
   const { subject, operation } = candidate;
   const values = lane.read(state);
   const index = indexOf(values);
   const at = index.subjects.get(subject);
   const existing = at == null ? null : values[at];
-  const built = lane.build(candidate, now);
+  const built = lane.build(candidate, now, basis);
   const unchanged = (reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = [], kept = state): Result => ({ changes: [],
     step: { ...idle(kept), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
   const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "localBulletins", inputId: candidate.source.inputId, unit: "U-M",
     reason: missing ? "requiredStructureMissing" : "localBulletinsRevisionConflict" });
   const pairLate = existing != null && samePair(candidate, existing.source);
   if (pairLate && candidate.headType !== "VPHW51") return unchanged("stale");
+  // P3-EF-AC07 (5): 同じ報の対の後着は、記憶を見える状態に戻さず通知も作らない（保留の印のある記録は事実だけ置き換え、印を保つ）。
+  if (pairLate && existing.effective !== "active" && built.record.effective === "active") return unchanged("stale");
   // 取消以前の版は stale で、取消した subject を戻さない。同じ版は、正規化した InfoType が同じで、見える記録なら事実も同じなら duplicate・違えば
   // 先着を保って印を付ける（P3-VM-AC04）。見えない記録（記憶・証拠）は事実を持たないので InfoType だけで見る（復元で証拠になった後も同じ結果）。
   // 重複の判定は遅着の判定より先なので、時計に依らない記録（見える期限の前の形）と比べる。印は保存の byte に入るが、上界が器の内側なので fit を要さない（P3-VM-AC08）。
@@ -373,7 +393,9 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
         persistence: dirty(state.persistence, clock.monotonicMs) });
   }
   const mark = version == null ? existing?.unconfirmed : version.mark;
-  const unmarked = mark == null ? built.record : { ...built.record, unconfirmed: mark };
+  const lapsed = pairLate && existing?.effective === "active" && existing.expiryPending === true && built.record.effective === "active"
+    ? { ...built.record, expiryPending: true as const } : built.record;
+  const unmarked = mark == null ? lapsed : { ...lapsed, unconfirmed: mark };
   // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。
   let next: T = existing?.notice == null ? unmarked : { ...unmarked, notice: existing.notice };
   // P3-C13-RETENTION.lateRule（版の比較の後）: (1) 記憶の期限を過ぎた報は state を変えない。(3) 見える期限を過ぎた報で、subject に記録が無く
@@ -389,7 +411,7 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   const evictedDiagnostic: DiagnosticDetails = { level: "INFO", component: "localBulletins", reason: "localBulletinsCapacityEvicted", unit: "U-M", count: 1 };
   let kept = values;
   if (full) {
-    evicted = evictOne(values, bucket, now, operation);
+    evicted = evictOne(values, bucket, now, operation, basis === "verified");
     // training/test の報で退去できる記録が無ければ、受けた記録自身を退去する（slice の参照を変えない、通知しない）。採用した取消は
     // その subject の pending を置き換え、intents が変わったときだけ保存世代を進める。
     if (evicted == null) {
@@ -409,25 +431,30 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   const release = candidate.slice === "tornado" && candidate.release && !candidate.cancelled;
   const style = lane.style(candidate);
   let payload: LocalBulletinsNotificationPayload | null = null;
-  if (!pairLate) {
+  // 目撃の採用の照合の鍵（P3-EF-AC07 (3)）。同じ報の対の後着で目撃が立ち、記録が見えるときは warning を 1 件作る（(4)、照合で重ねない）。
+  const fragment = !candidate.cancelled && visible(next) && "sighted" in next && next.sighted ? SIGHTED : undefined;
+  if (pairLate) {
+    if (was && fragment != null && visible(next) && existing != null && "sighted" in existing && existing.sighted === false)
+      payload = payloadOf(style.domain, operation, style.level, next.title, lane.body(candidate, next), "plain");
+  } else {
     // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
     if (candidate.cancelled) {
       if (existing != null && (was || heard(existing.notice)))
         payload = payloadOf(style.domain, operation, "cancel", candidate.title, "", "cancel", existing.source.reportDateTimeRaw);
     }
     else if (release) { if (was) payload = payloadOf(style.domain, operation, "info", candidate.title, "", "release"); }
-    else if (visible(next) && (correction || !was || changed(existing, next).length !== 0))
+    else if (visible(next) && !built.late && (correction || !was || changed(existing, next).length !== 0))
       payload = payloadOf(style.domain, operation, style.level, next.title, lane.body(candidate, next), correction ? "correction" : "plain");
   }
   const transition = candidate.cancelled ? "cancelled" as const : release ? "released" as const : correction || was ? "updated" as const : "activated" as const;
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const digest = payload == null ? "" : versionDigest(candidate.source);
-  const fresh = payload == null ? [] : intentsFor(candidate, transition, payload, now, existing?.notice, digest);
+  const fresh = payload == null ? [] : intentsFor(candidate, transition, payload, now, existing?.notice, digest, fragment);
   const notices = admit(state.intents, fresh, withdrawn);
   // P3-NL-AC02 (3): admit を通った版と種類を系列の印に足す（全 channel が断られた版は入れない）。
   if (notices.admitted.length !== 0) {
     const plain = next;
-    next = { ...plain, notice: markNotice(plain.notice, digest, noticeKind(transition)) };
+    next = { ...plain, notice: markNotice(plain.notice, digest, noticeKind(transition), fragment) };
     slice = slice.map((item) => item === plain ? next : item);
   }
   const result: State = { ...lane.write(state, slice), intents: notices.intents,
@@ -457,26 +484,36 @@ function receive(state: State, input: Extract<LocalBulletinsInput, { kind: "rece
   // Q-NOTICE.recovery・P3-C13-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
+  const basis = input.basis ?? "verified";
   switch (candidate.slice) {
-    case "tornado": return receiveWith(tornadoLane, state, candidate, input.clock);
-    case "heat": return receiveWith(heatLane, state, candidate, input.clock);
-    case "transient": return receiveWith(transientLane, state, candidate, input.clock);
+    case "tornado": return receiveWith(tornadoLane, state, candidate, input.clock, basis);
+    case "heat": return receiveWith(heatLane, state, candidate, input.clock, basis);
+    case "transient": return receiveWith(transientLane, state, candidate, input.clock, basis);
     default: { const missing: never = candidate; throw new Error(`local bulletins candidate ${String(missing)} is not handled`); }
   }
 }
 
 // ---- 期限（I-U-M.deadlines。到来分だけを移行・回収する。到来の処理は無音） ----
 
-// retainUntil の到来で記録を除き、見える期限の到来で active を ended・evidence にする。
+// 時計の根拠ごとに（P3-EF-AC02）、unverified は見える期限の来た active に保留の印を付けるだけ。verified は見える期限の来た active と保留の記録
+// （時計によらず）を記憶（竜巻は expired、熱中症は ended、短命は evidence）に移し、retainUntil の到来で記録を除く。awaiting は collect が止める。
 // ponytail: 全 subject の同時の期限だけが一括の回収になる（上限は件数の上限で、保持と decode の両方で効く）。
-function sweep<T extends Rec>(values: readonly T[], now: number, expire: (item: T) => T, expireIsPersisted: boolean):
+function sweep<T extends Rec>(values: readonly T[], now: number, verified: boolean, expire: (item: T) => T, expireIsPersisted: boolean):
   Readonly<{ values: readonly T[]; changes: readonly Change[]; persisted: boolean }> {
-  if (recordMin(values) > now) return { values, changes: [], persisted: false };
+  if (displayMin(values) > now && !(verified && (recallMin(values) <= now || pendingMin(values) !== Infinity)))
+    return { values, changes: [], persisted: false };
   const changes: Change[] = [];
   let persisted = false;
   const next = values.flatMap((item) => {
-    // 見える期限と retainUntil が同時に来た active も、先に ended・evidence に移して見えなくなる変化（decision・outcome）を残してから除く。
-    if (item.effective === "active" && deadlineOf(item) <= now) {
+    if (item.effective === "active" && (item.expiryPending === true || deadlineOf(item) <= now)) {
+      if (!verified) {
+        if (item.expiryPending === true) return [item];
+        const marked: T = { ...item, expiryPending: true };
+        changes.push([item, marked]);
+        persisted ||= expireIsPersisted;
+        return [marked];
+      }
+      // 見える期限と retainUntil が同時に来た active も、先に記憶に移して見えなくなる変化（decision・outcome）を残してから除く。
       const moved = expire(item);
       changes.push([item, moved]);
       persisted ||= expireIsPersisted;
@@ -485,31 +522,36 @@ function sweep<T extends Rec>(values: readonly T[], now: number, expire: (item: 
       persisted = true;
       return [];
     }
-    if (item.retainUntil <= now) { changes.push([item, null]); persisted = true; return []; }
+    if (verified && item.retainUntil <= now) { changes.push([item, null]); persisted = true; return []; }
     return [item];
   });
   return { values: next, changes, persisted };
 }
 
-function collect(state: State, clock: ClockReading, withIntents: boolean): Readonly<{ state: State; changes: readonly Change[]; expiredIntents: number }> {
-  const now = clock.wallTimeMs;
-  if (deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0 };
-  const tornado = sweep(state.tornado, now, tornadoLane.expire, tornadoLane.expireIsPersisted), heat = sweep(state.heat, now, heatLane.expire, heatLane.expireIsPersisted);
-  const transient = sweep(state.transient, now, transientLane.expire, transientLane.expireIsPersisted);
-  const intents = !withIntents || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
+function collect(state: State, clock: ClockReading, basis: WallBasis, withIntents: boolean): Readonly<{ state: State; changes: readonly Change[];
+  expiredIntents: number }> {
+  const now = clock.wallTimeMs, verified = basis === "verified";
+  const none = { state, changes: [], expiredIntents: 0 };
+  if (basis === "awaiting" || deadlineAt(state) > now && !(verified && [state.tornado, state.heat, state.transient].some((values) => pendingMin(values) !== Infinity)))
+    return none;
+  const tornado = sweep(state.tornado, now, verified, tornadoLane.expire, tornadoLane.expireIsPersisted);
+  const heat = sweep(state.heat, now, verified, heatLane.expire, heatLane.expireIsPersisted);
+  const transient = sweep(state.transient, now, verified, transientLane.expire, transientLane.expireIsPersisted);
+  const intents = !withIntents || !verified || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
   const expiredIntents = state.intents.length - intents.length;
+  if (tornado.changes.length === 0 && heat.changes.length === 0 && transient.changes.length === 0 && intents === state.intents) return none;
   const persisted = tornado.persisted || heat.persisted || transient.persisted || intents !== state.intents;
   const moved: State = { ...state, tornado: tornado.values, heat: heat.values, transient: transient.values, intents };
   return { state: persisted ? { ...moved, persistence: dirty(state.persistence, clock.monotonicMs) } : moved,
     changes: [...tornado.changes, ...heat.changes, ...transient.changes], expiredIntents };
 }
 
-function deadlineStep(state: State, clock: ClockReading): Result {
-  const applied = collect(state, clock, true);
+function deadlineStep(state: State, clock: ClockReading, basis: WallBasis): Result {
+  const applied = collect(state, clock, basis, true);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "localBulletins", reason: "notificationExpired",
     unit: "U-M", count: applied.expiredIntents }];
-  // 見えなくなる移行だけが changed/semantic（O08:4・O08:29）。除去は無音。
-  const ended = applied.changes.flatMap(([before, after]) => visible(before) && after != null && !visible(after) ? [after] : []);
+  // 見えなくなる移行だけが changed/semantic（O08:4・O08:29）。除去は無音。保留の印を付けた移行は記録の事実が残るので outcome に載せない。
+  const ended = applied.changes.flatMap(([before, after]) => visible(before) && after != null && after.effective !== "active" ? [after] : []);
   return { changes: applied.changes, step: { ...idle(applied.state),
     decisions: ended.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
       change: "semantic" as const, currentEstablished: null })),
@@ -568,7 +610,7 @@ function intentUpdate(state: State, input: Extract<LocalBulletinsInput, { kind: 
 // Q-NOTICE.restart・I-U-M.restore: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。先に retainUntil を過ぎた記録を除き、
 // 残る竜巻・熱中症の active のうち見える期限を過ぎたものを無音で ended にする。どちらかが起きれば保存世代を進める。
 // intent の期限切れの回収は復元の後の最初の期限処理で行う。
-function restore(state: State, persisted: PersistedLocalBulletinsUnit, clock: ClockReading): Result {
+function restore(state: State, persisted: PersistedLocalBulletinsUnit, clock: ClockReading, basis: WallBasis): Result {
   const decoded = localBulletinsUnitCodec.decode(persisted);
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "localBulletins",
@@ -578,7 +620,7 @@ function restore(state: State, persisted: PersistedLocalBulletinsUnit, clock: Cl
   const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
     intents: restored.intents, contentRevision: state.contentRevision,
     persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
-  const applied = collect(base, clock, false);
+  const applied = collect(base, clock, basis, false);
   const active = [...applied.state.tornado, ...applied.state.heat, ...applied.state.transient].filter(visible);
   return { changes: active.map((item): Change => [null, item]), step: { ...idle(applied.state),
     outcomes: [{ kind: "recoveryApplied", scope: ["U-M"], coverage: active.map((item) => item.subject), subjects: [] }],
@@ -588,9 +630,9 @@ function restore(state: State, persisted: PersistedLocalBulletinsUnit, clock: Cl
 
 function reduceCore(state: State, input: LocalBulletinsInput): Result {
   switch (input.kind) {
-    case "restore": return restore(state, input.persisted, input.clock);
+    case "restore": return restore(state, input.persisted, input.clock, input.basis ?? "verified");
     case "intentUpdate": return intentUpdate(state, input);
-    case "deadline": return deadlineStep(state, input.clock);
+    case "deadline": return deadlineStep(state, input.clock, input.basis ?? "verified");
     // 閉じる batch・相関待ちを持たないので、終了入力は同じ state を返す（types.ts の LocalBulletinsInput）。
     case "shutdown": return { changes: [], step: { ...idle(state), outcomes: [{ kind: "batchCompleted", reason: "shutdown", subjects: [] }] } };
     case "receive": return receive(state, input);
@@ -696,20 +738,22 @@ function tornadoAreaRecord(value: unknown): TornadoArea | null {
     : { layer, code: row.code, name: row.name };
 }
 // 枝ごとに持ってよい事実の field（types.ts の判別共用体）。ほかの枝の field を持つ保存物は拒む。
-const FACT_KEYS = ["activeUntil", "targetDate", "title", "headline", "editorialOffice", "truncated", "sighted", "areas", "areaName", "visibleUntil", "tags"] as const;
+const FACT_KEYS = ["activeUntil", "targetDate", "title", "headline", "editorialOffice", "truncated", "sighted", "areas", "areaName", "visibleUntil", "tags",
+  "expiryPending"] as const;
 const BRANCH_KEYS: Readonly<Record<string, readonly string[]>> = {
-  "tornado/active": ["activeUntil", "title", "headline", "editorialOffice", "truncated", "sighted", "areas"],
-  "heat/active": ["activeUntil", "targetDate", "title", "headline", "editorialOffice", "truncated", "areaName"],
+  "tornado/active": ["activeUntil", "title", "headline", "editorialOffice", "truncated", "sighted", "areas", "expiryPending"],
+  "heat/active": ["activeUntil", "targetDate", "title", "headline", "editorialOffice", "truncated", "areaName", "expiryPending"],
 };
 function tornadoRecord(row: Fields, base: Base, parts: Extract<SubjectParts, { slice: "tornado" }>): TornadoCurrent | null {
-  if (row.effective === "ended" || row.effective === "cancelled") return tornadoMemory(base, row.effective);
+  if (row.effective === "ended" || row.effective === "cancelled" || row.effective === "expired") return tornadoMemory(base, row.effective);
   const text = textRecord(row);
   const areas = list(row.areas, tornadoAreaRecord, LIMITS.tornadoAreas);
   const start = reportMs(base.source);
   // activeUntil は ReportDateTime ＜ activeUntil ≦ retainUntil（ValidDateTime は保存しないので範囲、P3-C13-TORNADO-EXPIRY.common）。
   if (row.effective !== "active" || text == null || areas == null || typeof row.sighted !== "boolean" || !finite(row.activeUntil)
     || row.activeUntil <= start || row.activeUntil > start + TORNADO_RETAIN || text.title !== parts.title || text.editorialOffice !== parts.office) return null;
-  return tornadoActive(base, text, row.activeUntil, row.sighted, areas);
+  const active = tornadoActive(base, text, row.activeUntil, row.sighted, areas);
+  return row.expiryPending === true ? { ...active, expiryPending: true } : active;
 }
 function heatRecord(row: Fields, base: Base): HeatCurrent | null {
   if (row.effective === "ended" || row.effective === "cancelled") return heatMemory(base, row.effective);
@@ -720,7 +764,8 @@ function heatRecord(row: Fields, base: Base): HeatCurrent | null {
   // activeUntil は対象日の終わりと等しく、ReportDateTime ＜ activeUntil ≦ ReportDateTime ＋ 48 時間（P3-C13-HEAT-EXPIRY=A）。
   if (row.effective !== "active" || text == null || !isText(row.targetDate) || end == null || areaName === undefined || row.activeUntil !== end
     || end <= start || end > start + HEAT_TARGET_WINDOW) return null;
-  return heatActive(base, text, end, row.targetDate, areaName);
+  const active = heatActive(base, text, end, row.targetDate, areaName);
+  return row.expiryPending === true ? { ...active, expiryPending: true } : active;
 }
 function transientRecord(row: Fields, base: Base, family: TransientFamily): PersistedTransientCurrent | null {
   return row.effective === "evidence" || row.effective === "cancelled" ? transientMemory(base, family, row.effective) : null;
@@ -737,8 +782,10 @@ function headOf(value: unknown): Head | null {
   if (FACT_KEYS.some((key) => key in row && !allowed.includes(key))) return null;
   // P3-VM-AC04: 印は同じ subject・operation の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject, parts) : undefined;
-  const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
-  return mark === null || notice === null ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source,
+  // 竜巻の印だけが目撃の fragment の鍵（SIGHTED）を持てる（P3-EF-AC14 (19)）。保留の印の値は true だけ。
+  const notice = "notice" in row ? readNoticeMark(row.notice, parts.slice === "tornado") : undefined;
+  if (notice?.fragments != null && notice.fragments.some((item) => item !== SIGHTED)) return null;
+  return mark === null || notice === null || "expiryPending" in row && row.expiryPending !== true ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source,
     ...mark == null ? {} : { unconfirmed: mark }, ...notice == null ? {} : { notice } } };
 }
 function tornadoCurrent(value: unknown): TornadoCurrent | null {
@@ -811,12 +858,12 @@ function evidenceOf(item: TransientCurrent): PersistedTransientCurrent {
   return found;
 }
 const localBulletinsUnitCodec: LocalBulletinsUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1", "p3-local-bulletins-unit-v2", "p3-local-bulletins-unit-v3", "p3-local-bulletins-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1", "p3-local-bulletins-unit-v2", "p3-local-bulletins-unit-v3", "p3-local-bulletins-unit-v4", "p3-local-bulletins-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-M.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, tornado: state.tornado, heat: state.heat, transient: state.transient.map(evidenceOf), intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v5 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v6 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

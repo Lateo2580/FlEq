@@ -23,8 +23,8 @@ const validCode = (value: string): boolean => /^\d{1,8}$/.test(value);
 // headline は改行だけを許し、ほかの制御文字と孤立したサロゲートを拒む（I-U-B.bounds）。
 const validHeadline = (value: string): boolean => !/[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f]/.test(value) && !loneSurrogate(value);
 const validUnit = (value: string): boolean => value.length <= BOUNDS.unit && !/[\u0000-\u001f\u007f]/.test(value) && !loneSurrogate(value);
-// 系列は EventID の最初の「_」より前なので「_」を含まない（P3-C12-SUBJECTS=A）。
-const validSeries = (value: string): boolean => /^[\x21-\x5e\x60-\x7e]{1,40}$/.test(value);
+// 系列は EventID の最初の「_」より前か、記録的短時間大雨では EventID の全体（P3-C12-SUBJECTS=A・P3-EF-AC09 (1)）。先頭は「_」でない。
+const validSeries = (value: string): boolean => /^[\x21-\x5e\x60-\x7e][\x21-\x7e]{0,39}$/.test(value);
 
 // ---- XML の読み取り（domains/flood・landslide と同じ写し。共有化は統合担当が決める、AC12） ----
 
@@ -42,7 +42,7 @@ const attribute = (node: XmlElement, name: string): string | null => node.attrib
 // ---- 候補 ----
 
 type BriefingCandidate = Readonly<{
-  operation: Operation; headType: "VPBS50" | "VPOA50"; series: string; subject: string; source: ReportRef; reportDateTimeMs: number;
+  operation: Operation; headType: "VPBS50" | "VPOA50"; series: string; eventId: string; subject: string; source: ReportRef; reportDateTimeMs: number;
   infoRank: number; cancelled: boolean; title: string; headline: string; editorialOffice: string; items: readonly BriefingItem[];
   observations: readonly BriefingObservation[]; areas: readonly BriefingArea[]; truncated: boolean;
 }>;
@@ -67,8 +67,10 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
   const headType = material.headType === "VPBS50" || material.headType === "VPOA50" ? material.headType : null;
   if (eventIds.length !== 1 || eventId == null || !validEventId(eventId) || eventId.startsWith("_") || headType == null)
     return reject("identityInvalid");
-  const series = eventId.split("_")[0];
-  const subject = `${material.operation}/${headType}/${series}`;
+  const prefix = eventId.split("_")[0];
+  // P3-EF-AC09 (1): VPOA50 は報ごと（EventID の全体）。VPBS50 の取消は情報タグを読まないので全体で当て、記録雨の記録が無ければ記録の無い取消になる。
+  const whole = headType === "VPOA50" || infoRankOf(material.infoTypeRaw) === 3;
+  const subject = `${material.operation}/${headType}/${whole ? eventId : prefix}`;
   const serialRaw = material.serialRaw.trim();
   if (serialRaw === "") return reject("identityMissing", subject);
   // 保存する ReportRef の byte の上限（Q-ENUM.identity、C11 と同じ文字の形）。
@@ -214,8 +216,11 @@ function parseBriefing(material: DecodedMaterial): ParseResult {
   }
   if (missing) return reject("requiredStructureMissing", subject);
   if (invalid || infoRank == null || title == null) return reject("requiredStructureInvalid", subject);
-  return { kind: "accepted", candidate: { operation: material.operation, headType, series, subject,
-    source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: headType, subject,
+  // 情報タグの item が 1 件以上で全部記録雨の VPBS50 も報ごと（EventID の頭の「K」では見分けない）。
+  const series = whole || items.length !== 0 && items.every((item) => item.kind === "recordRain") ? eventId : prefix;
+  const adopted = `${material.operation}/${headType}/${series}`;
+  return { kind: "accepted", candidate: { operation: material.operation, headType, series, eventId, subject: adopted,
+    source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: headType, subject: adopted,
       reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(title, BOUNDS.title), headline, editorialOffice,
     items, observations, areas, truncated } };

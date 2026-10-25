@@ -13,6 +13,7 @@ import { classifyMaterial, decodeMaterial } from "../../src/decode-material/deco
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { callsWith } from "../unit-table/linked-calls";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
+import { PENDING_MARK_BYTES } from "../../src/units/expiry";
 import { checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { reduceWeatherTimeseriesUnit, timeseriesPublicSubject, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
@@ -25,7 +26,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
 function empty(): WeatherTimeseriesUnitState {
-  return { schemaVersion: "p2-weather-timeseries-unit-v5", contentRevision: 0, subjects: [], gates: [], intents: [],
+  return { schemaVersion: "p2-weather-timeseries-unit-v6", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -49,11 +50,15 @@ function receive(state: WeatherTimeseriesUnitState, material: DecodedMaterial, w
   return reduceWeatherTimeseriesUnit(state, { kind: "receive", material, clock: clock(wallTimeMs) });
 }
 function first(state: WeatherTimeseriesUnitState): WeatherTimeseriesSubject { return state.subjects[0]; }
+// U-F の器（33,565,184）と、印の無い active の subject ごとの期限切れの保留の印の予約（P3-EF-AC10 (5)）。targetBytes は予約込みの計量。
+const LIMIT = weatherTimeseriesUnitCodec.maxEnvelopeBytes!;
+const marksOf = (state: Pick<WeatherTimeseriesUnitState, "subjects">) =>
+  PENDING_MARK_BYTES * state.subjects.filter((item) => item.effective === "active" && item.expiryPending !== true).length;
 function inflated(state: WeatherTimeseriesUnitState, targetBytes: number): WeatherTimeseriesUnitState {
   const item = first(state), at = item.areas[0].name!;
   const payload = weatherTimeseriesUnitCodec.encode(state);
   const base = serializedEnvelope({ schemaVersion: state.schemaVersion, unit: "U-F", generation: 0,
-    capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
+    capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + marksOf(state);
   const added = targetBytes - base;
   if (added < 0) throw new Error("target is below base size");
   return { ...state, subjects: state.subjects.map((subject, position) => position === 0
@@ -225,12 +230,13 @@ describe("P2-A6 weather timeseries", () => {
     const activeValue = weatherTimeseriesUnitCodec.encode(receive(empty(), fixture(unknown)).state), [subject] = activeValue.subjects;
     const wire = (length: number) => ({ ...activeValue, intents: [notice("a", "")],
       subjects: [{ ...subject, strings: [...subject.strings.slice(0, -1), `${subject.strings.at(-1)!}${"x".repeat(length)}`] }] });
-    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v5", unit: "U-F", generation: 0,
+    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v6", unit: "U-F", generation: 0,
       capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
-    const length = 33_554_432 - generation(0);
-    expect(generation(length)).toBe(33_554_432);
-    expect(weatherTimeseriesUnitCodec.decode(wire(length)).kind).toBe("invalid");
-    expect(weatherTimeseriesUnitCodec.decode(wire(length - growth)).kind).toBe("restored");
+    expect(LIMIT).toBe(33_565_184);
+    const length = LIMIT - generation(0), marks = marksOf(activeValue);
+    expect(generation(length)).toBe(LIMIT);
+    expect(weatherTimeseriesUnitCodec.decode(wire(length - growth - marks + 1)).kind).toBe("invalid");
+    expect(weatherTimeseriesUnitCodec.decode(wire(length - growth - marks)).kind).toBe("restored");
     for (const patch of [{ attempts: Number.MAX_SAFE_INTEGER + 1 }, { attempts: -1 }, { attempts: 0.5 }, { nextAttemptAt: Infinity },
       { nextAttemptAt: "soon" }, { nextAttemptAt: null }])
       expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [{ ...notice("a", ""), ...patch }] }).kind, JSON.stringify(patch)).toBe("invalid");
@@ -528,14 +534,14 @@ describe("P2-A6 weather timeseries", () => {
   it("T03/T06 enforces 32 MiB immediately below, at, and above the reserved boundary", () => {
     const material = fixture("81_09_01_260605_VPWP50");
     const state = receive(empty(), material, Date.parse(material.reportDateTimeRaw)).state;
-    for (const target of [33_554_431, 33_554_432, 33_554_433]) {
+    for (const target of [LIMIT - 1, LIMIT, LIMIT + 1]) {
       const value = inflated(state, target);
-      if (target <= 33_554_432) {
+      if (target <= LIMIT) {
         const payload = weatherTimeseriesUnitCodec.encode(value);
         const actual = serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-F", generation: 1,
           capturedAt: Date.parse(material.reportDateTimeRaw), payload, sha256: "0".repeat(64) }).byteLength;
         expect(actual).toBeLessThanOrEqual(target);
-        expect(target - actual).toBe(62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES - (String(1).length - 1)
+        expect(target - actual).toBe(62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + marksOf(value) - (String(1).length - 1)
           - (String(Date.parse(material.reportDateTimeRaw)).length - 1));
       } else expect(() => weatherTimeseriesUnitCodec.encode(value)).toThrow();
     }
@@ -548,7 +554,7 @@ describe("P2-A6 weather timeseries", () => {
       source: { ...first(seed).source!, subject: "normal/VPWP50/blocker" } };
     const blockerBase: WeatherTimeseriesUnitState = { ...seed, subjects: [blockerItem],
       gates: [{ subject: blockerItem.subject, operation: "normal", source: blockerItem.source! }] };
-    const blocker = inflated(blockerBase, 33_554_432 - 1_000);
+    const blocker = inflated(blockerBase, LIMIT - 1_000);
     const unavailable = receive(blocker, fixture(unknown));
     expect(unavailable.decisions[0]).toMatchObject({ decision: "changed", change: "semantic", currentEstablished: null });
     expect(unavailable.state.subjects.find((item) => item.subject === "normal/VPWP50/稚内地方気象台")?.effective).toBe("unavailable");
@@ -575,7 +581,7 @@ describe("P2-A6 weather timeseries", () => {
       await h?.root.diagnostics.flush();
       rmSync(directory, { recursive: true, force: true });
     }
-    const full = inflated(blockerBase, 33_554_432);
+    const full = inflated(blockerBase, LIMIT);
     const refused = receive(full, fixture(unknown));
     expect(refused.decisions[0].decision).toBe("capacityExceeded");
     expect(refused.state.subjects).toHaveLength(1);
@@ -593,7 +599,7 @@ describe("P2-A6 weather timeseries", () => {
       .replace("<EditorialOffice>長野地方気象台</EditorialOffice>", "<EditorialOffice>稚内地方気象台</EditorialOffice>")
       .replace("<ReportDateTime>2026-06-06T05:00:00+09:00</ReportDateTime>", "<ReportDateTime>2026-06-05T18:00:00+09:00</ReportDateTime>"));
     const rejected = (inputId: string) => [{ level: "WARN", component: "weather-timeseries", reason: "capacityRejected", unit: "U-F", inputId }];
-    const marked = receive(inflated(base, 33_554_432 - 1_500), newer, DATE + 3_600_000);
+    const marked = receive(inflated(base, LIMIT - 1_500), newer, DATE + 3_600_000);
     expect(marked.state.subjects.find((item) => item.subject === old.subject)?.effective).toBe("unavailable");
     expect(marked.diagnostics).toEqual(rejected(newer.inputId));
     // 513 件目の normal の subject は印も入らず最終段で拒否する。
@@ -626,7 +632,7 @@ describe("P2-A6 weather timeseries", () => {
       .replace("<ReportDateTime>2026-06-06T05:00:00+09:00</ReportDateTime>",
         "<ReportDateTime>2026-06-05T18:00:00+09:00</ReportDateTime>"));
     for (const [remaining, keep] of [[1_500, true], [1, false]] as const) {
-      const state = inflated(base, 33_554_432 - remaining);
+      const state = inflated(base, LIMIT - remaining);
       const applied = receive(state, newer, DATE + 3_600_000);
       expect(applied.decisions[0]).toMatchObject({ decision: "changed", currentEstablished: null });
       const current = applied.state.subjects.find((item) => item.subject === old.subject)!;

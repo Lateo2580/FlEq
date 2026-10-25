@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "82577897415f4ef8a4f3e58f66f17f72e01ae7bc9017671932f058be549be842",
+    "sha256": "9c802d2bb388644cf6c678533af6f2dac45fd366e43f7b40f7e0e8d834b9a785",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -387,7 +387,7 @@
       },
       {
         "id": "P2-A5-AC05",
-        "requirement": "toWeatherCurrentView、intent、PublishedOutcomeの4種unionを同じ採用結果から作り、FreshnessRecordをoperation/family/subject/affectedScopeへ束縛する",
+        "requirement": "toWeatherCurrentView、intent（壁時計の失効は入力の根拠が verified のときだけ、P3-EXPIRY-FORM-001 の P3-EF-AC02）、PublishedOutcomeの4種unionを同じ採用結果から作り、FreshnessRecordをoperation/family/subject/affectedScopeへ束縛する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:611 «ea6c1d20c1ab3b38»",
           "docs/specs/reconstruction-p0-contracts.md:1192 «aefcb1a8a916571c»",

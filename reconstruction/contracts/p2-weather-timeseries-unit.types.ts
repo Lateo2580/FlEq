@@ -2,7 +2,7 @@ import type { DecodedMaterial, MaterialValue, Operation, XmlAttribute } from "./
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   NotificationIntent,
   NotificationIntentUpdate,
@@ -80,6 +80,10 @@ export type WeatherTimeseriesSubject = WeatherTimeseriesSnapshot & Readonly<{
   // Active expiry follows the report periods; retention is a separate collection boundary.
   validUntil: number | null;
   retainUntil: number;
+  // P3-EF-AC04・AC05 (6): expiryPending は時計を確かめる前に validUntil が来た active（表示は期限切れ、事実は残す）、lapsed は validUntil の到来で
+  // 移った noActiveItems（報が「なし」の noActiveItems と保存の上で見分ける）。
+  expiryPending?: true;
+  lapsed?: true;
 }>;
 
 export type WeatherTimeseriesGate = Readonly<{
@@ -89,7 +93,7 @@ export type WeatherTimeseriesGate = Readonly<{
 }>;
 
 export type WeatherTimeseriesUnitState = Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v5";
+  schemaVersion: "p2-weather-timeseries-unit-v6";
   contentRevision: number;
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
@@ -98,7 +102,7 @@ export type WeatherTimeseriesUnitState = Readonly<{
 }>;
 
 export type PersistedWeatherTimeseriesUnit = Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v5";
+  schemaVersion: "p2-weather-timeseries-unit-v6";
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
   intents: readonly NotificationIntent[];
@@ -175,12 +179,12 @@ export type WeatherTimeseriesDetailResponse =
   | WeatherTimeseriesDetailError;
 
 export type WeatherTimeseriesInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedWeatherTimeseriesUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedWeatherTimeseriesUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type WeatherTimeseriesUnitStep = Readonly<{
   state: WeatherTimeseriesUnitState;
@@ -200,5 +204,5 @@ export type WeatherTimeseriesUnitStep = Readonly<{
 }>;
 
 export type WeatherTimeseriesUnitCodec = UnitCodec<WeatherTimeseriesUnitState, PersistedWeatherTimeseriesUnit> & Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v5";
+  schemaVersion: "p2-weather-timeseries-unit-v6";
 }>;

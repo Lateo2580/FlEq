@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "494c205a706ab773dcd0fa75759173ccfd2e3485615f0783de06722440fe4c18",
+    "sha256": "9d3790923748701054163ef26538c62c4a0c129c25b4f1edf9fbc45331eb5501",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -332,7 +332,7 @@
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
           "docs/specs/reconstruction-p0-contracts.md:3062 «cc1733acc95f480b»",
           "reconstruction/src/units/seismic/seismic-unit.ts:52 «353539cc40465f84»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:492 «fcd8b9106481c6e1»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:494 «fcd8b9106481c6e1»",
           "reconstruction/contracts/p3-seismic-unit.json:298 «fe843e506b18c741»"
         ]
       },
@@ -344,11 +344,11 @@
           "reconstruction/contracts/p3-persist-premises.md:265 «056aac105c2fef5b»",
           "reconstruction/contracts/p3-persist-premises.md:266 «dfc7cff63767ab46»",
           "reconstruction/contracts/p3-persist-premises.md:387 «75dc1fda22982fcd»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:450 «fa3f937a6ec00264»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:451 «b7c92f4b2af5d170»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:478 «ffea937367a1b1a4»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:571 «eaf3a7b893d1e357»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:763 «4a1a7a1d25193b34»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:451 «fa3f937a6ec00264»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:452 «b7c92f4b2af5d170»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:479 «ffea937367a1b1a4»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:573 «474523cecfc414f6»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:765 «4a1a7a1d25193b34»",
           "reconstruction/contracts/p3-currency-coverage.json:431 «5eb4af71c61fa9ce»"
         ]
       },
@@ -384,7 +384,7 @@
           "reconstruction/contracts/p3-order-plan.md:556 «88c712cf529c65ed»",
           "reconstruction/contracts/p3-order-plan.md:558 «73c4395164a3713f»",
           "reconstruction/src/units/seismic/seismic-unit.ts:49 «4383702f23ce23b7»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1220 «9fa877ffaf38bd44»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1228 «9fa877ffaf38bd44»"
         ]
       },
       {
@@ -394,8 +394,8 @@
           "docs/specs/reconstruction-p0-contracts.md:3035 «51b1ca54fc260f4a»",
           "reconstruction/contracts/p3-seismic-unit.json:12 «7120b1490c8760e9»",
           "reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:357 «a125e6aa2843ba86»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:362 «8490a6e6e35b6b82»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:358 «a125e6aa2843ba86»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:363 «8490a6e6e35b6b82»",
           "reconstruction/contracts/p3-notice-ledger.json:304 «53e23ab43883d1e3»"
         ]
       },
@@ -407,7 +407,7 @@
           "reconstruction/contracts/p3-persist-premises.md:268 «552fb20e493cab11»",
           "reconstruction/contracts/p3-seismic-unit.json:40 «9f2ed44e0a1cb3ed»",
           "reconstruction/contracts/p3-seismic-unit.json:95 «66976ab805a6ba5e»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:292 «edf112cd5e151d1f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:293 «edf112cd5e151d1f»",
           "src/engine/messages/daily-quake-counter.ts:60 «946667da9de79247»",
           "reconstruction/src/view-projector/view-projector.ts:324 «aa78930a63774245»"
         ]
@@ -419,8 +419,8 @@
           "docs/specs/reconstruction-p0-contracts.md:3050 «ac88c9eb75863b62»",
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
-          "reconstruction/contracts/p3-seismic-unit.json:67 «990f273fd83a57a3»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:835 «3cce335e151b5b58»"
+          "reconstruction/contracts/p3-seismic-unit.json:67 «0493a280354f47e3»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:840 «3cce335e151b5b58»"
         ]
       },
       {
@@ -442,7 +442,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:309 «072a7927898ff921»",
           "reconstruction/contracts/p3-persist-premises.md:438 «0b572eb74bd511a1»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1228 «b7832be744e8d073»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1236 «b7832be744e8d073»",
           "reconstruction/contracts/p3-seismic-unit.json:304 «fd1874797a53d271»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «e7f8c1963dbeeace»",
           "reconstruction/src/runtime/owner-runtime.ts:78 «76831e586f6ab255»"
@@ -473,7 +473,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
           "reconstruction/src/units/seismic/seismic-unit.ts:74 «89e1a77f78dbf9da»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:497 «d8b01b9d228e59a5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:499 «d8b01b9d228e59a5»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:542 «5664a1747994b0b2»"
         ]
       },
@@ -482,7 +482,7 @@
         "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方を優先する）: (1) P3-UNIT-Q-001: (a) P3-C7-NOTICE-LEVELS の A（:12）と Q-NOTICE.level（:221）に「（P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消→報自身の全体 MaxInt が 5 弱以上か全体 MaxLgInt の階級が 2 以上なら critical→全体 MaxInt が unknown なら info→震度 4 は warning。長周期は階級 2 以上 critical・1 warning。P3-QC-AC06）」を足し、P3-C7-T07 の behavior の level の式の行を同じ形に替える (b) P3-C7-CAPACITY の A（:76）と P3-C7-CAPACITY-BUDGET の A（:85）に「（P3-UNIT-Q-CAPACITY-001 で改訂: 退去と畳みの順は P3-QC-AC02、強震保持の事実の予算は守る線と guard〔P3-QC-AC01〕に置き換えて外した。器と RESERVE の値は P3-QC-AC05、保証は N_guard〔P3-QC-AC04〕）」を足す (c) P3-C7-CANCEL-SCOPE の A（:40）の「全寄与がcancelledになったeventはviewに載らない」と I-U-Q.view（:306）に「（P3-UNIT-Q-CAPACITY-001 で改訂: P3-QC-D-CANCEL-LIST の裁定、P3-QC-AC07 の (4)）」を足す (d) P3-C7-DAILY の A（:95）と P3-C7-AC04（:799）の「取消で減らさない」に「（P3-UNIT-Q-CAPACITY-001 で改訂、H18: 全寄与が取消になった地震を件数から引く。最大震度は P3-QC-D-DAILY-MAX の裁定、P3-QC-AC07）」を足し、P3-C7-DAILY の reason（:100）の「1件43 byte」に「（P3-QC-D-DAILY-MAX=A で [EventID, 段階] の組の 47 byte）」を、P3-C7-RET-04 の target に「（[EventID, 段階] の組、P3-QC-D-DAILY-MAX=A）」を添える (e) P3-C7-RETENTION の A（:67）と P3-C7-SEM-01・SEM-02・RET-01、I-U-Q.deadlines（:303）に「（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）」を足し、P3-C7-T11 の behavior の「eventの23時間59分と24時間」「長周期の35時間59分と36時間」の境界を「記憶への変換と記憶の終わり」に替える (f) P3-C7-VALUE-UNKNOWN の A（:113）の「拒否するのはQ-ENUM.familyTableの必須構造の欠落と…だけ」と Q-ENUM.priorityRule（:256）・familyTable に「（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）」を足す (g) P3-C7-LEGACY-DIFF の段階（:238）・保持の基準（:244）・当日地震履歴（:245）・容量（:246）の行に Q-QC-LEGACY の (1)〜(4) を足す (h) I-U-Q.capacityReserve（:310）・decode（:305）・persisted（:304）・computation（:309、畳みの byte の引き算と指紋）、P3-C7-RES-01 の limit（:722）、persistedFields、P3-C7-AC05（:815）・AC06・AC07 に、版 v5・欄・値（P3-QC-AC05・AC10）を添える (2) P3-NOTICE-LEDGER-001: P3-NL-AC14 の (3)（:669）の閉集合に「U-Q の seismicStationsFolded（P3-UNIT-Q-CAPACITY-001 の P3-QC-AC03）」を足す (3) P2-SHARED-RUNTIME-001: DiagnosticReason と LossReason（p2-shared-runtime.types.ts:542）の型の境界の AC と試験の閉集合に seismicStationsFolded を足す (4) P3-DISASTER-CAPACITY-001: P3-DC-AC04（:406）の (1) の「U-Q 4 MiB」を「U-Q は seismicUnitCodec.maxEnvelopeBytes」に、(3) に「U-Q の観測点の畳み（seismicStationsFolded）は退去と別の列」を足し、P3-DC-OPTIONS（:87）の U-Q の世代の行に「P3-UNIT-Q-CAPACITY-001 で D（観測点の畳み）と守る線を入れた」を添える。期待例は変えない (5) P3-CURRENCY-COVERAGE-001: P3-CC-AC03 の「退去の適格性は採用と同じ」に「（U-Q の印だけの fit は第 6 段に入らない、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC02 の (1) の (8)）」を足す。ほかの本文は変えない（U-Q の拒否は 1 件で器を越える報・RESERVE を越える採用と、P3-QC-D-SMALL-PUSH=B で第 5 段までに収まらない守らない報と、同じ EventID の記録だけで器を越える守る報・より新しい守る地震を消さなければ入らない古い守る地震の遅い報〔P3-QC-AC02 の (1) の (7)〕に狭まる。失敗警報は H08 で critical になりうる）。読みを配送の記録に書く (6) sequences.json: expected:O01:52 の checks の「level=warning」を「level=critical（H08）」に、expected:O01:53 の checks の「eventはviewに載らなくなり」「取消で件数・最大震度を減らさない」を裁定の形に改め、sequences の meta.sha256 と全契約の meta.sequencesSha256 を付け直す（K8 の配送の前例） (7) spec §16 の H08・H18・H23・H35・H36 の運ぶ契約の欄に本契約の ID を足す（H36 は「未充足」と書き添える）。統合担当が main で別に行う (8) 設計メモに新しい節を足し、:264 の N_guard の値（実装の数え直しと Q-QC-MEASURE）、:267 の件数の読み（Q-QC-DISASTER の (5)）、:309・:438 の変える契約、K10 との合流と期限切れの形のそろえ（Q-QC-DECIDED の (5)）、§7 の 1(c) の地震の記憶の長さ（P3-QC-D-EXPIRED-MEMORY）を書く。§0〜§16 の行は書き換えない (9) 他の契約が引く行: 変える file（seismic-unit.ts・seismic.ts・p3-seismic-unit.types.ts・p2-shared-runtime.types.ts・owner-runtime.ts・checkpoint.ts・persistent-diagnostic-sink.ts・runner.ts）の行を anchor で引く他の契約と sequences の basisRefs は、発注前点検で数え、動いた行は配送の commit で付け直す（本文は書き換えない） (10) 配送の commit で本契約の publicTypes の行を足した型に合わせる（起草の時点では folded・guard・cancelledSummary・counted はまだ無い）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-seismic-unit.json:12 «7120b1490c8760e9»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «edfc93a93ac7766f»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «e4c4192b078d52e1»",
           "reconstruction/contracts/p3-seismic-unit.json:85 «3bb1fc5be23783c7»",
           "reconstruction/contracts/p3-seismic-unit.json:238 «6341c59f142d7080»",
           "reconstruction/contracts/p3-seismic-unit.json:246 «1e2b03b3815d5c6f»",

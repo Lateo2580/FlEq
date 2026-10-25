@@ -162,7 +162,8 @@ const raisedBy = (intents: readonly NotificationIntent[], evidence: (item: Notif
     return level == null || eventId == null ? [] : [[`${item.operation}/${eventId}`, { operation: item.operation, eventId, evidence: level }] as const];
   }));
 
-function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReading): InternalStep {
+// P3-EF-AC04: intent の壁時計の失効と印の回収は入力の根拠が verified のときだけ（current・gate の寿命は EEW の閉じ方の契約のまま）。
+function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReading, verified: boolean): InternalStep {
   const decoded = eewUnitCodec.decode(value);
   if (decoded.kind === "invalid") return {
     state, nextDeadline: nextEewDeadline(state),
@@ -176,8 +177,8 @@ function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReadi
     notices: raiseNotices(decoded.state.notices, raisedBy(restored.started, () => "unknown")),
     persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs),
     evidenceUnknownUntil: Math.max(state.evidenceUnknownUntil ?? 0, clock.wallTimeMs + 600_000) };
-  const applied = expire(base, clock);
-  const active = applied.state.intents.filter((item) => item.expiresAt > clock.wallTimeMs);
+  const applied = verified ? expire(base, clock) : { state: base, expired: [] };
+  const active = verified ? applied.state.intents.filter((item) => item.expiresAt > clock.wallTimeMs) : applied.state.intents;
   const diagnostics: InternalStep["diagnostics"][number][] = applied.expired.length === 0 ? [] : [{ level: "INFO", component: "eew",
     reason: "notificationExpired", unit: "U-E", count: applied.expired.length }];
   if (restored.started.length !== 0) diagnostics.push({ level: "INFO", component: "eew", reason: "notificationOutcomeUnknown",
@@ -230,14 +231,15 @@ function intentUpdate(state: EewUnitState,
 function reduceCore(state: EewUnitState, input: EewInput,
   changed: (before: EewUnitState["current"][number] | null, after: EewUnitState["current"][number] | null) => void): InternalStep {
   if (input.kind === "receive") return reduceEewCore(state, input, changed);
-  if (input.kind === "restore") return restore(state, input.persisted, input.clock);
+  if (input.kind === "restore") return restore(state, input.persisted, input.clock, (input.basis ?? "verified") === "verified");
   if (input.kind === "intentUpdate") return intentUpdate(state, input);
-  const applied = expire(state, input.clock);
+  const verified = (input.basis ?? "verified") === "verified";
+  const applied = verified ? expire(state, input.clock) : { state, expired: [] };
   // P3-LIFE-AC01: current・gate の期限は deadline 入力でだけ回収する（shutdown では延長も回収もしない）。P3-NL-AC04 (6): retainUntil を
   // 過ぎた印も期限の入力で外す。
   const lifetime = input.kind === "deadline" ? reclaimEewLifetime(applied.state, input.clock.wallTimeMs, changed)
     : { state: applied.state, expired: [] };
-  const notices = input.kind === "deadline" && lifetime.state.notices.some((item) => item.retainUntil <= input.clock.wallTimeMs)
+  const notices = input.kind === "deadline" && verified && lifetime.state.notices.some((item) => item.retainUntil <= input.clock.wallTimeMs)
     ? lifetime.state.notices.filter((item) => item.retainUntil > input.clock.wallTimeMs) : lifetime.state.notices;
   const reclaimed: EewUnitState = notices === lifetime.state.notices ? lifetime.state
     : { ...lifetime.state, notices, persistence: applied.state === state ? dirty(state.persistence, input.clock.monotonicMs) : lifetime.state.persistence };

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "374e1a2b74d78016dea69a5f4be4b63dc2650ea369df27e5f1f834dcee8407d5",
+    "sha256": "2754defaed4e91750ae98f96565c8051e436db660ba0e9d0699a6c76d6f4864d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -81,7 +81,7 @@
       },
       {
         "id": "P3-C8-RETENTION",
-        "A": "期限はすべて元報のReportDateTimeから、7×86,400,000 msのような絶対の長さで数える（JSTの暦日を使わない）: 現況のactiveは+7日（旧築standby-state-store.ts:115・:2403）、現況のwatermarkは+30日（旧築revision-family-registry.ts:154）、情報subjectは+7日（新しい選択）。再起動・再受信で延ばさない。到着の時点で期限を過ぎた報は採用してwatermarkを進め、同じreduceで回収する（viewに載らず鳴らない）",
+        "A": "期限はすべて元報のReportDateTimeから、7×86,400,000 msのような絶対の長さで数える（JSTの暦日を使わない）: 現況のactiveは+7日（旧築standby-state-store.ts:115・:2403）、現況のwatermarkは+30日（旧築revision-family-registry.ts:154）、情報subjectは+7日（新しい選択）。再起動・再受信で延ばさない。到着の時点で期限を過ぎた報は採用してwatermarkを進め、同じreduceで回収する（viewに載らず鳴らない）。現況の expired は確かめる前は保留の印、回収は入力の根拠が verified のときだけ（P3-EF-AC04・AC05）",
         "B": "受信時刻から数える",
         "recommended": "A",
         "provisional": "A",
@@ -90,7 +90,7 @@
       },
       {
         "id": "P3-C8-CAPACITY",
-        "A": "保存の1世代は256 KiB（262,144 byte、spec:477）。現況は系統×運用区分で最大6件（1件の上限4,718 byte、I-U-N.bounds）、pending intentは128件・131,072 byte（spec:981）、終端記録は合計98,304 byteまで（超える分は最古の終端記録から期限前に回収。P3-NOTICE-LEDGER-001で外した、終端の結果は系列の印に置き換え、P3-NL-AC05）。同時最大状態の上界は258,489 byteで、件数・文字列の上限と回収の規則から予算を超えない。情報系列（N、保存しない）は最大64 subject（三区分合算）で、65件目は (1) retainUntilを過ぎたもの (2) training/test (3) normalの最古（ReportDateTime順）から1件退去して受け、確定した退去だけを診断nankaiCapacityEvicted（count）で返す。U-NはcapacityExceededを返さない",
+        "A": "保存の1世代は256 KiB（262,144 byte、spec:477）。現況は系統×運用区分で最大6件（1件の上限4,718 byte、I-U-N.bounds）、pending intentは128件・131,072 byte（spec:981）、終端記録は合計98,304 byteまで（超える分は最古の終端記録から期限前に回収。P3-NOTICE-LEDGER-001で外した、終端の結果は系列の印に置き換え、P3-NL-AC05）。同時最大状態の上界は258,489 byteで、件数・文字列の上限と回収の規則から予算を超えない。情報系列（N、保存しない）は最大64 subject（三区分合算）で、65件目は (1) retainUntilを過ぎたもの（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2) training/test (3) normalの最古（ReportDateTime順）から1件退去して受け、確定した退去だけを診断nankaiCapacityEvicted（count）で返す。U-NはcapacityExceededを返さない",
         "B": "情報系列の65件目をcapacityExceededで拒否する",
         "recommended": "A",
         "provisional": "A",
@@ -252,7 +252,7 @@
         "informationSemantics": "情報subjectは採用報ごとに事実（infoKind・infoSerial・title・headline・text・nextAdvisory）を置き換える。retainUntil=ReportDateTime+7日の到来で除く（通知しない）。取消はP3-C8-CANCEL-SCOPE。現況を変える報は、現況が採用したときだけ情報subjectを変える（P3-C8-SUBJECTS）",
         "bounds": "文字列の上限（UTF-16の長さ）: title 128、headline 512、text 4,096、nextAdvisory 512、infoKind 64、infoSerial.code 8、infoSerial.name 32。超えたら切り詰めてtruncated=true（corpusの最大はtitle 19、headline 176、text 1,431、nextAdvisory 102文字で、切り詰めは起きない）。現況の1件のencodeの上限は4,718 byte（全ての文字列が上限で、JSONで6 byteになる文字のとき。EventID 64 byte、inputId 64文字、ReportDateTime 40文字、Serial 10桁）",
         "deadlines": "nextDeadlineは、activeの現況のvalidUntil、現況のretainUntil、情報subjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（現況6・情報64の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
-        "persisted": "PersistedNankaiUnitはschemaVersion p3-nankai-unit-v4（P3-NOTICE-LEDGER-001で上げた版、P3-NL-AC15の(1)。前の版は捨ててよい版）、currents、intents（pendingだけ、P3-NL-AC05）。系列の記録は印notice?を持つ（P3-NL-AC02）。information・contentRevision・persistenceは保存しない（spec:512の情報系列N）",
+        "persisted": "PersistedNankaiUnitはschemaVersion p3-nankai-unit-v5（P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)。前の版は捨ててよい版）、currents、intents（pendingだけ、P3-NL-AC05）。系列の記録は印notice?を持つ（P3-NL-AC02）。information・contentRevision・persistenceは保存しない（spec:512の情報系列N）",
         "decode": "codecは一つ（nankaiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、現況≤6件で運用区分・系統の重複なし、subjectが`${operation}/${line}/current`の形で運用区分・系統と一致、EventIDがQ-ENUM.identityの文字（印字可能なASCIIで「/」「\"」「\\」を除く）で64 byte以下、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）、active以外の現況は事実のfield（status・infoSerial・title・headline・truncated・validUntil）を持たない（types.tsの判別共用体）、activeの現況はstatusが系統の表にありvalidUntil=sourceのReportDateTime+7日、retainUntil=sourceのReportDateTime+30日、I-U-N.boundsの文字列の上限、pending≤128件かつ≤131072 byte、終端記録の合計≤98,304 byte、encode後の世代≤262,144 byte、intentのunitがU-NでsubjectがU-Nの現況か情報subjectの形であること（stateに残っているsubjectとの一致は求めない。情報系列は復元で空になるため）。終端記録は単独の98,304 byteでなく、pendingとの合計（≤229,376 byte）で確かめる（配送の更新で終端にした記録は回収しない、Q-C8-IMPL-AMEND(1)）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "view": "NankaiUnitViewはactiveの現況と、activeの情報subjectの見出し（NankaiInformationView。本文のtext・nextAdvisoryを外す、P3-C8-SNAPSHOT）だけを載せる。SubjectOutcomeは現況と情報subjectごとに作り、factsに公開事実（情報は見出しだけ）と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Nの行（current: NankaiCurrent | NankaiInformationView | null）を足す。unavailable・未保存・再起動の空を「現況なし」に読み替えない。viewとdisplay subjectのSubjectOutcomeのfactsは識別のfield（eventId・effective・lineかfamily）だけで、公開事実と変わったfieldは採用のoutcome（PublishedOutcome）に載せる（U-QのI-U-Q.viewと同じ、Q-C8-IMPL-AMEND(d)）",
         "confirmationScope": "U-Nは確認scopeを作らない（P3-C8-N2）。shared-runtime.tsのaddedScopesにU-Nで空を返す分岐を足す",
@@ -736,7 +736,7 @@
       },
       {
         "id": "P3-C8-AC05",
-        "requirement": "保存と復元: PersistedNankaiUnitと唯一のcodec（schemaVersion p3-nankai-unit-v3）、I-U-N.persisted・I-U-N.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。情報系列は保存せず、復元の後は空。新設schemaなのでC8に旧データ移行は無い（P3-C8-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報は復元した現況との差で決める（O07）",
+        "requirement": "保存と復元: PersistedNankaiUnitと唯一のcodec（schemaVersion p3-nankai-unit-v5、P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)）、I-U-N.persisted・I-U-N.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。情報系列は保存せず、復元の後は空。新設schemaなのでC8に旧データ移行は無い（P3-C8-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報は復元した現況との差で決める（O07）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4»",
           "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
@@ -805,7 +805,7 @@
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
-          "reconstruction/src/runtime/composition-root.ts:1431 «4b3e06f0acf52345»",
+          "reconstruction/src/runtime/composition-root.ts:1432 «4b3e06f0acf52345»",
           "reconstruction/contracts/p3-execution-boundary.md:12 «664a6f4b27d9fc87»",
           "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -818,7 +818,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:214 «75cf2512443da992»"
+          "reconstruction/src/runtime/composition-root.ts:215 «75cf2512443da992»"
         ]
       },
       {

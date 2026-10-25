@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "444de1a7cb8a90ecc7cfe150e91d742936508cae",
-    "sha256": "a1f31e6b793c5ac282cf7edc19e7f39246ea1a952471e1251b898c30137dd64d",
+    "sha256": "93df5e3f330f05690733a9e05a29369079c35d9785fec39ea9c0136b47677bdb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -298,11 +298,11 @@
           "reconstruction/test/eew-e01/windows.mjs:445 «3b8fee10d566f286»",
           "reconstruction/test/eew-e01/windows.mjs:454 «0dbc3151972de33f»",
           "reconstruction/src/runtime/owner-host.ts:44 «2eff9992cf005cbd»",
-          "reconstruction/src/runtime/owner-host.ts:110 «c5a56e6dd335f94f»",
-          "reconstruction/src/runtime/owner-host.ts:117 «a36e13e3cdc3b833»",
+          "reconstruction/src/runtime/owner-host.ts:116 «c5a56e6dd335f94f»",
+          "reconstruction/src/runtime/owner-host.ts:123 «a36e13e3cdc3b833»",
           "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json:397 «228d1f5b6eb24d59»",
           "reconstruction/test/eew-e01/probe-preload.mjs:85 «91469e7116f209bd»",
-          "reconstruction/src/host/host.ts:184 «8eccbc77af0cc99f»",
+          "reconstruction/src/host/host.ts:185 «8eccbc77af0cc99f»",
           "reconstruction/test/eew-e01/run.mjs:171 «c90fda14b518a2ae»",
           "reconstruction/test/eew-e01/windows.mjs:927 «ad88bc23b721bcc8»",
           "reconstruction/contracts/p3-e05p-classify.json:111 «65aa39594f59cdc0»",
@@ -351,7 +351,7 @@
           "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-ownerHeap-run1.json:169 «70f71f432b49159c»",
           "reconstruction/contracts/p3-e05p-typhoon.json:284 «4eba5b5216b75213»",
           "reconstruction/src/host/host.ts:158 «cb154e750655ef9b»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:299 «0bce41e8e8220b18»"
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:306 «0bce41e8e8220b18»"
         ]
       },
       {

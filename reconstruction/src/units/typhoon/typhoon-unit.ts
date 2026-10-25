@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome,
+  SubjectOutcome, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedTyphoonUnit, TyphoonAnalysisRecord, TyphoonFrame, TyphoonFrameKind, TyphoonInput, TyphoonIntent, TyphoonName, TyphoonNotificationPayload,
@@ -24,7 +24,7 @@ import {
 // P3-UNIT-Y-001（C14、I-U-Y）: 二つの slice（analysis・probability）の current・版・遅着・退去・通知・容量・codec・射影。
 // 二つの slice は件数の上限と退去を別々に持つ（無いと訓練の確率の多発が解析の記録を退去する、I-U-Y.slices）。
 
-const SCHEMA = "p3-typhoon-unit-v5" as const;
+const SCHEMA = "p3-typhoon-unit-v6" as const;
 // P3-C14-RES-01・RET-04。
 const GENERATION_LIMIT = 8_388_608;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
@@ -44,9 +44,9 @@ type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 type State = TyphoonUnitState;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
-// view に載るのは active だけ（I-U-Y.view）。
+// view に載るのは active だけ（I-U-Y.view）。期限切れの保留の印のある記録は見えない（P3-EF-AC02 (2)）。
 function visible<T extends Rec>(value: T | null): value is Extract<T, Readonly<{ effective: "active" }>> {
-  return value?.effective === "active";
+  return value?.effective === "active" && value.expiryPending !== true;
 }
 
 // ---- byte の加算（I-U-Y.computation。受信 1 回で state 全体を直列化しない） ----
@@ -79,6 +79,12 @@ const recordMinCache = new WeakMap<readonly Rec[], number>(), intentMinCache = n
 const recordMin = (values: readonly Rec[]) => cachedMin(recordMinCache, values, deadlineOf);
 const intentMin = (values: readonly TyphoonIntent[]) => cachedMin(intentMinCache, values, (item) => item.expiresAt);
 const deadlineOf = (item: Rec): number => item.effective === "active" ? item.activeUntil : item.retainUntil;
+// P3-EF-AC11 (2): 根拠で当てない種類を比べないよう、表示の期限・回収の期限・保留の記録を別々に持つ（nextDeadline は recordMin）。
+const displayCache = new WeakMap<readonly Rec[], number>(), recallCache = new WeakMap<readonly Rec[], number>(), pendingCache = new WeakMap<readonly Rec[], number>();
+const displayMin = (values: readonly Rec[]) => cachedMin(displayCache, values, (item) => visible(item) ? item.activeUntil : Infinity);
+const recallMin = (values: readonly Rec[]) => cachedMin(recallCache, values, (item) => item.effective === "active" ? Infinity : item.retainUntil);
+const pendingMin = (values: readonly Rec[]) => cachedMin(pendingCache, values, (item) => item.effective === "active" && item.expiryPending === true
+  ? item.activeUntil : Infinity);
 const deadlineAt = (state: State): number => Math.min(recordMin(state.analysis), recordMin(state.probability), intentMin(state.intents));
 function nextDeadline(state: State): RuntimeUnitDeadline | null {
   const at = deadlineAt(state);
@@ -114,8 +120,9 @@ const find = <T extends Rec>(values: readonly T[], subject: string): T | null =>
 // (4) normal の見える記録、それぞれ ReportDateTime の古い順（同じなら subject の辞書順）で同じ slice の中から退去する。受ける報が training/test なら
 // normal の記録は候補にせず、候補が無ければ null（受けた記録自身を退去する）。
 // ponytail: 満杯の slice の素朴な線形の走査（上限 64 は保持と decode の両方で効く。台帳 47 の例外）。
-function evictOne<T extends Rec>(values: readonly T[], now: number, incoming: Operation): T | null {
-  const tier = (item: Rec) => item.retainUntil <= now ? 0 : !visible(item) ? 1 : item.operation !== "normal" ? 2 : 3;
+// 第 1 段は受けた入力の根拠が verified のときだけ（P3-EF-AC03）。
+function evictOne<T extends Rec>(values: readonly T[], now: number, incoming: Operation, verified: boolean): T | null {
+  const tier = (item: Rec) => verified && item.retainUntil <= now ? 0 : !visible(item) ? 1 : item.operation !== "normal" ? 2 : 3;
   let worst: T | null = null;
   for (const item of values) {
     if (item.operation === "normal" && incoming !== "normal") continue;
@@ -330,7 +337,7 @@ const probabilityLane: Lane<Probability, ProbabilityCandidate> = {
 const unchangedStep = (state: State, subject: string, operation: Operation, reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = []): Result =>
   ({ changes: [], step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
 
-function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>, state: State, candidate: C, clock: ClockReading): Result {
+function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>, state: State, candidate: C, clock: ClockReading, basis: WallBasis): Result {
   const now = clock.wallTimeMs;
   const { subject, operation } = candidate;
   const values = lane.read(state);
@@ -367,7 +374,7 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
   const evictedDiagnostic: DiagnosticDetails = { level: "INFO", component: "typhoon", reason: "typhoonCapacityEvicted", unit: "U-Y", count: 1 };
   let kept = values;
   if (full) {
-    evicted = evictOne(values, now, operation);
+    evicted = evictOne(values, now, operation, basis === "verified");
     // training/test の報で退去できる記録が無ければ、受けた記録自身を退去する（slice の参照を変えない、通知しない）。採用した取消は
     // その subject の pending を置き換え、intents が変わったときだけ保存世代を進める。
     if (evicted == null) {
@@ -440,49 +447,61 @@ function receive(state: State, input: Extract<TyphoonInput, { kind: "receive" }>
   // Q-NOTICE.recovery・P3-C14-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
-  return candidate.slice === "analysis" ? receiveWith(analysisLane, state, candidate, input.clock) : receiveWith(probabilityLane, state, candidate, input.clock);
+  const basis = input.basis ?? "verified";
+  return candidate.slice === "analysis" ? receiveWith(analysisLane, state, candidate, input.clock, basis)
+    : receiveWith(probabilityLane, state, candidate, input.clock, basis);
 }
 
 // ---- 期限（I-U-Y.deadlines。到来分だけを移行・回収する。到来の処理は無音） ----
 
-// retainUntil の到来で記録を除き、見える期限の到来で active を ended にする。
+// 時計の根拠ごとに（P3-EF-AC02）、unverified は見える期限の来た active に保留の印を付けるだけ。verified は見える期限の来た active と保留の記録
+// （時計によらず）を ended にし、retainUntil の到来で記録を除く。awaiting は呼ばない（collect が同じ参照を返す）。
 // ponytail: 全 subject の同時の期限だけが一括の回収になる（上限は件数の上限 64 で、保持と decode の両方で効く）。
-function sweep<T extends Rec>(values: readonly T[], now: number, expire: (item: T) => T): Readonly<{ values: readonly T[]; changes: readonly Change[] }> {
-  if (recordMin(values) > now) return { values, changes: [] };
+function sweep<T extends Rec>(values: readonly T[], now: number, verified: boolean, expire: (item: T) => T):
+  Readonly<{ values: readonly T[]; changes: readonly Change[] }> {
+  if (displayMin(values) > now && !(verified && (recallMin(values) <= now || pendingMin(values) !== Infinity))) return { values, changes: [] };
   const changes: Change[] = [];
   const next = values.flatMap((item) => {
-    // 見える期限と retainUntil が同時に来た active も、先に ended に移して見えなくなる変化（decision・outcome）を残してから除く。
-    if (item.effective === "active" && deadlineOf(item) <= now) {
+    if (item.effective === "active" && (item.expiryPending === true || deadlineOf(item) <= now)) {
+      if (!verified) {
+        if (item.expiryPending === true) return [item];
+        const marked: T = { ...item, expiryPending: true };
+        changes.push([item, marked]);
+        return [marked];
+      }
+      // 見える期限と retainUntil が同時に来た active も、先に ended に移して見えなくなる変化（decision・outcome）を残してから除く。
       const moved = expire(item);
       changes.push([item, moved]);
       if (moved.retainUntil > now) return [moved];
       changes.push([moved, null]);
       return [];
     }
-    if (item.retainUntil <= now) { changes.push([item, null]); return []; }
+    if (verified && item.retainUntil <= now) { changes.push([item, null]); return []; }
     return [item];
   });
   return { values: next, changes };
 }
 
-function collect(state: State, clock: ClockReading, withIntents: boolean): Readonly<{ state: State; changes: readonly Change[]; expiredIntents: number }> {
-  const now = clock.wallTimeMs;
-  if (deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0 };
-  const analysis = sweep(state.analysis, now, analysisLane.expire), probability = sweep(state.probability, now, probabilityLane.expire);
-  const intents = !withIntents || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
+function collect(state: State, clock: ClockReading, basis: WallBasis, withIntents: boolean): Readonly<{ state: State; changes: readonly Change[];
+  expiredIntents: number }> {
+  const now = clock.wallTimeMs, verified = basis === "verified";
+  if (basis === "awaiting" || deadlineAt(state) > now && !(verified && (pendingMin(state.analysis) !== Infinity || pendingMin(state.probability) !== Infinity)))
+    return { state, changes: [], expiredIntents: 0 };
+  const analysis = sweep(state.analysis, now, verified, analysisLane.expire), probability = sweep(state.probability, now, verified, probabilityLane.expire);
+  const intents = !withIntents || !verified || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
   const expiredIntents = state.intents.length - intents.length;
   const persisted = analysis.changes.length !== 0 || probability.changes.length !== 0 || intents !== state.intents;
-  const moved: State = { ...state, analysis: analysis.values, probability: probability.values, intents };
-  return { state: persisted ? { ...moved, persistence: dirty(state.persistence, clock.monotonicMs) } : moved,
+  if (!persisted) return { state, changes: [], expiredIntents: 0 };
+  return { state: { ...state, analysis: analysis.values, probability: probability.values, intents, persistence: dirty(state.persistence, clock.monotonicMs) },
     changes: [...analysis.changes, ...probability.changes], expiredIntents };
 }
 
-function deadlineStep(state: State, clock: ClockReading): Result {
-  const applied = collect(state, clock, true);
+function deadlineStep(state: State, clock: ClockReading, basis: WallBasis): Result {
+  const applied = collect(state, clock, basis, true);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "typhoon", reason: "notificationExpired",
     unit: "U-Y", count: applied.expiredIntents }];
-  // 見えなくなる移行だけが changed/semantic（O08:4・O08:29）。除去は無音。
-  const ended = applied.changes.flatMap(([before, after]) => visible(before) && after != null && !visible(after) ? [after] : []);
+  // 見えなくなる移行だけが changed/semantic（O08:4・O08:29）。除去は無音。保留の印を付けた移行は記録の事実が残るので outcome に載せない。
+  const ended = applied.changes.flatMap(([before, after]) => visible(before) && after != null && after.effective !== "active" ? [after] : []);
   return { changes: applied.changes, step: { ...idle(applied.state),
     decisions: ended.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
       change: "semantic" as const, currentEstablished: null })),
@@ -541,7 +560,7 @@ function intentUpdate(state: State, input: Extract<TyphoonInput, { kind: "intent
 // Q-NOTICE.restart・I-U-Y.restore: 復元で intent を作らず、pending は元の createdAt/expiresAt のまま戻る。先に retainUntil を過ぎた記録を除き、
 // 残る active のうち見える期限を過ぎたものを無音で ended にする。どちらかが起きれば保存世代を進める。
 // intent の期限切れの回収は復元の後の最初の期限処理で行う。
-function restore(state: State, persisted: PersistedTyphoonUnit, clock: ClockReading): Result {
+function restore(state: State, persisted: PersistedTyphoonUnit, clock: ClockReading, basis: WallBasis): Result {
   const decoded = typhoonUnitCodec.decode(persisted);
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "typhoon",
@@ -551,7 +570,7 @@ function restore(state: State, persisted: PersistedTyphoonUnit, clock: ClockRead
   const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
     intents: restored.intents, contentRevision: state.contentRevision,
     persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
-  const applied = collect(base, clock, false);
+  const applied = collect(base, clock, basis, false);
   const active = [...applied.state.analysis, ...applied.state.probability].filter(visible);
   return { changes: active.map((item): Change => [null, item]), step: { ...idle(applied.state),
     outcomes: [{ kind: "recoveryApplied", scope: ["U-Y"], coverage: active.map((item) => item.subject), subjects: [] }],
@@ -561,9 +580,9 @@ function restore(state: State, persisted: PersistedTyphoonUnit, clock: ClockRead
 
 function reduceCore(state: State, input: TyphoonInput): Result {
   switch (input.kind) {
-    case "restore": return restore(state, input.persisted, input.clock);
+    case "restore": return restore(state, input.persisted, input.clock, input.basis ?? "verified");
     case "intentUpdate": return intentUpdate(state, input);
-    case "deadline": return deadlineStep(state, input.clock);
+    case "deadline": return deadlineStep(state, input.clock, input.basis ?? "verified");
     // 閉じる batch・相関待ちを持たないので、終了入力は同じ state を返す（types.ts の TyphoonInput）。
     case "shutdown": return { changes: [], step: { ...idle(state), outcomes: [{ kind: "batchCompleted", reason: "shutdown", subjects: [] }] } };
     case "receive": return receive(state, input);
@@ -709,10 +728,11 @@ function areaRecord(slots: number): (value: unknown) => TyphoonProbabilityArea |
 const ascending = (codes: readonly string[]): boolean => codes.every((code, index) => index === 0 || codes[index - 1] < code);
 
 // 枝ごとに持ってよい事実の field（types.ts の判別共用体）。ほかの枝の field を持つ保存物は拒む。
-const FACT_KEYS = ["activeUntil", "baseTime", "title", "name", "frames", "truncated", "slotCount", "maxFiveDay", "prefectures", "areas", "endCause"] as const;
+const FACT_KEYS = ["activeUntil", "baseTime", "title", "name", "frames", "truncated", "slotCount", "maxFiveDay", "prefectures", "areas", "endCause",
+  "expiryPending"] as const;
 const BRANCH_KEYS: Readonly<Record<string, readonly string[]>> = {
-  "analysis/active": ["activeUntil", "baseTime", "title", "name", "frames", "truncated"],
-  "probability/active": ["activeUntil", "baseTime", "slotCount", "title", "name", "maxFiveDay", "prefectures", "areas", "truncated"],
+  "analysis/active": ["activeUntil", "baseTime", "title", "name", "frames", "truncated", "expiryPending"],
+  "probability/active": ["activeUntil", "baseTime", "slotCount", "title", "name", "maxFiveDay", "prefectures", "areas", "truncated", "expiryPending"],
   "analysis/ended": ["endCause"], "probability/ended": ["endCause"],
 };
 type Head = Readonly<{ row: Fields; parts: SubjectParts; base: Base }>;
@@ -727,7 +747,8 @@ function headOf(value: unknown, slice: "analysis" | "probability"): Head | null 
   // P3-VM-AC04: 印は同じ subject・operation の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed, row.subject, parts) : undefined;
   const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
-  return mark === null || notice === null ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source,
+  // P3-EF-AC05 (1): 保留の印の値は true だけ（置ける枝は BRANCH_KEYS が active に限る）。
+  return mark === null || notice === null || "expiryPending" in row && row.expiryPending !== true ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source,
     ...mark == null ? {} : { unconfirmed: mark }, ...notice == null ? {} : { notice } } };
 }
 // 記憶（cancelled・ended）の枝。active でないときだけ呼ぶ。
@@ -745,7 +766,8 @@ function analysisRecord(value: unknown): Analysis | null {
     // 実況の時刻がちょうど 1 個。activeUntil は ReportDateTime ＋ 12 時間（P3-C14-EXPIRY=A）。
     if (frames != null && name != null && frames.filter((frame) => frame.kind === "analysis").length === 1 && instant(row.baseTime) && boundedName(row.title, BOUNDS.title)
       && typeof row.truncated === "boolean" && row.activeUntil === visibleOf(base))
-      built = analysisActive(base, { baseTime: row.baseTime, title: row.title, name, frames, truncated: row.truncated });
+      built = { ...analysisActive(base, { baseTime: row.baseTime, title: row.title, name, frames, truncated: row.truncated }),
+        ...row.expiryPending === true ? { expiryPending: true } : {} };
   } else built = memoryRecord(row, base);
   return built != null && row.retainUntil === built.retainUntil ? built : null;
 }
@@ -766,7 +788,8 @@ function probabilityRecord(value: unknown): Probability | null {
       && typeof row.truncated === "boolean" && row.activeUntil === visibleOf(base) && ascending(areas.map((area) => area.code))
       && ascending(prefectures.map((item) => item.code)) && row.maxFiveDay === Math.max(...areas.map((area) => area.daily[4])) && whole(row.maxFiveDay, 100)
       && row.maxFiveDay >= 1 && isDeepStrictEqual(prefectures.map((item) => item.code), [...new Set(areas.map((area) => area.prefectureCode))].sort()))
-      built = probabilityActive(base, { baseTime: row.baseTime, slotCount, title: row.title, name, maxFiveDay: row.maxFiveDay, prefectures, areas, truncated: row.truncated });
+      built = { ...probabilityActive(base, { baseTime: row.baseTime, slotCount, title: row.title, name, maxFiveDay: row.maxFiveDay, prefectures, areas,
+        truncated: row.truncated }), ...row.expiryPending === true ? { expiryPending: true } : {} };
   } else built = row.effective === "zero" ? zeroRecord(base) : memoryRecord(row, base);
   return built != null && row.retainUntil === built.retainUntil ? built : null;
 }
@@ -811,12 +834,12 @@ function persisted(value: unknown): PersistedTyphoonUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const typhoonUnitCodec: TyphoonUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1", "p3-typhoon-unit-v2", "p3-typhoon-unit-v3", "p3-typhoon-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1", "p3-typhoon-unit-v2", "p3-typhoon-unit-v3", "p3-typhoon-unit-v4", "p3-typhoon-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-Y.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, analysis: state.analysis, probability: state.probability, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v5 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v6 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
-    "sha256": "92f86eb7bc70672971bcccaf504e7d367d7ebe563446e1277dc0d565c4e5bace",
+    "sha256": "f122a4bf8248a3e230859c10a4febe381470221703dd7d81373ba5c6f45d2a1a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -268,7 +268,7 @@
           "reconstruction/test/eew-e01/host-launcher.mjs:50 «08ab9549273fd798»",
           "reconstruction/test/eew-e01/host-launcher.mjs:57 «2edccdb967d3bc9e»",
           "reconstruction/src/runtime/owner-host.ts:44 «2eff9992cf005cbd»",
-          "reconstruction/src/host/host.ts:425 «ba91bbb19edb0fe5»",
+          "reconstruction/src/host/host.ts:426 «ba91bbb19edb0fe5»",
           "reconstruction/src/host/host.ts:156 «70eb76efbc89dd53»",
           "reconstruction/src/runtime/unit-coverage.ts:16 «58338bff75f92aac»"
         ]
@@ -340,7 +340,7 @@
           "reconstruction/contracts/p3-weather-light-step2.json:488 «b084586081363297»",
           "reconstruction/contracts/p3-measure-harness.json:11 «e9ca342feffa0c5b»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:17 «4a382cabfdfbbf4d»",
-          "reconstruction/contracts/p3-measure-harness.json:4 «1ac8becc398b4b81»",
+          "reconstruction/contracts/p3-measure-harness.json:4 «62cc21d5d6d346b2»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:169 «97a134ad9cb5b784»"
         ]
       },

@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util"; import { createHash } from "node:crypto";
 
-import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
+import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome, WallBasis } from "../../../contracts/p2-shared-runtime.types";
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
@@ -9,10 +9,12 @@ import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
+import { PENDING_MARK_BYTES, cachedMin } from "../expiry";
 
-const SCHEMA = "p2-weather-timeseries-unit-v5" as const;
+const SCHEMA = "p2-weather-timeseries-unit-v6" as const;
 type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
-const LIMIT = 33_554_432, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
+// P3-EF-AC10 (5): 器は入力なしで付く期限切れの保留の印の最悪の分（512×21）だけ広げる（33,565,184）。
+const LIMIT = 33_554_432 + 512 * PENDING_MARK_BYTES, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
 const encoder = new TextEncoder();
 const cache = new WeakMap<object, number>();
 const subjectDeadlineCache = new WeakMap<WeatherTimeseriesUnitState["subjects"], number>();
@@ -38,7 +40,22 @@ function measure(subjects: readonly WeatherTimeseriesSubject[], gates: readonly 
   if (!Number.isSafeInteger(generation) || generation < 0 || !Number.isFinite(capturedAt)
     || JSON.stringify(generation).length > 32 || JSON.stringify(capturedAt).length > 32)
     throw new RangeError("invalid U-F checkpoint generation or capture time");
-  return emptyEnvelopeBytes + 62 + arrayBytes(subjects) + arrayBytes(gates) + arrayBytes(intents, (item) => bytes(item) + (item.disposition === "pending" ? deliveryGrowth(item) : 0));
+  // P3-EF-AC10 (5): 印の無い active の subject ごとに保留の印の分を予約する（受理の fits と decode が同じ式。退去した subject の予約は数え直しで外れる）。
+  return emptyEnvelopeBytes + 62 + arrayBytes(subjects, (item) => bytes(item) + (shows(item) ? PENDING_MARK_BYTES : 0)) + arrayBytes(gates)
+    + arrayBytes(intents, (item) => bytes(item) + (item.disposition === "pending" ? deliveryGrowth(item) : 0));
+}
+const shows = (item: WeatherTimeseriesSubject) => item.effective === "active" && item.expiryPending !== true;
+// P3-EF-AC11 (2): 根拠で当てない種類を比べないよう、表示の期限・回収の期限・保留の subject を別々に持つ（nextDeadline は subjectDeadline）。
+const displayMin = cachedMin<WeatherTimeseriesSubject>((item) => shows(item) ? item.validUntil ?? Infinity : Infinity);
+const recallMin = cachedMin<WeatherTimeseriesSubject>((item) => item.retainUntil);
+const pendingMin = cachedMin<WeatherTimeseriesSubject>((item) => item.expiryPending === true ? item.validUntil ?? 0 : Infinity);
+// 表示の上の形（P3-EF-AC04）: 保留の印のある subject は期限切れと同じ noActiveItems に見せる（事実は記憶へ移すまで残す）。
+const shownCache = new WeakMap<WeatherTimeseriesSubject, WeatherTimeseriesSubject>();
+function shownSubject(item: WeatherTimeseriesSubject): WeatherTimeseriesSubject {
+  if (item.expiryPending !== true) return item;
+  let found = shownCache.get(item);
+  if (found == null) { found = { ...item, ...EMPTY, effective: "noActiveItems", validUntil: null }; shownCache.set(item, found); }
+  return found;
 }
 function dirty(persistence: PersistenceStatus, monotonicMs: number): PersistenceStatus {
   const progress = { ...persistence, currentGeneration: persistence.currentGeneration + 1,
@@ -64,11 +81,12 @@ function deadline(state: WeatherTimeseriesUnitState): RuntimeUnitDeadline | null
 function step(state: WeatherTimeseriesUnitState): InternalStep {
   return { state, nextDeadline: deadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [] };
 }
-function outcome(item: WeatherTimeseriesSubject, changedFields: readonly string[]): SubjectOutcome {
+function outcome(original: WeatherTimeseriesSubject, changedFields: readonly string[]): SubjectOutcome {
   // A8-COST: the public outcome of an unchanged subject is reused, so a view rebuild never rescans its periods.
   const reusable = changedFields.length === 0;
-  const cached = reusable ? outcomeCache.get(item) : undefined;
+  const cached = reusable ? outcomeCache.get(original) : undefined;
   if (cached != null) return cached;
+  const item = shownSubject(original);
   const known = item.periods.flatMap((row) => {
     const value = item.values[row[10]];
     return value.kind === "significancy" && value.name.kind !== "empty" && value.name.kind !== "missing" && value.code.kind === "text"
@@ -78,38 +96,48 @@ function outcome(item: WeatherTimeseriesSubject, changedFields: readonly string[
     transition: item.effective, severity: null, source: item.source,
     facts: { effective: item.effective, periodCount: item.periods.length,
       knownMaxCode: known.length === 0 ? null : known.sort().at(-1)! }, changedFields };
-  if (reusable) outcomeCache.set(item, result);
+  if (reusable) outcomeCache.set(original, result);
   return result;
 }
-function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotonicMs: number, change: CurrentChange): {
+// 時計の根拠ごとに（P3-EF-AC02・AC04）、awaiting は何も当てない。unverified は validUntil の来た active に保留の印を付けるだけ。verified は
+// validUntil の来た active と保留の subject（時計によらず）を noActiveItems＋lapsed に移し、retainUntil と intent を回収する。
+function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotonicMs: number, change: CurrentChange, basis: WallBasis): {
   state: WeatherTimeseriesUnitState; outcomes: WeatherTimeseriesUnitStep["outcomes"];
   decisions: WeatherTimeseriesUnitStep["decisions"] } {
+  const none = { state, decisions: [], outcomes: [] };
+  const verified = basis === "verified";
+  if (basis === "awaiting") return none;
   const expired: WeatherTimeseriesSubject[] = [];
   const retained: WeatherTimeseriesSubject[] = [];
-  let removed = false;
+  let removed = false, marked = false;
   // A8-COST: a cached subject deadline still ahead means no subject expires; skip the subject scan.
   // P3-LIFE-AC05: validUntil と retainUntil が一致するときは validUntil の失効を回収より先に出す。
   // retainUntil が先に過ぎた回収は従来どおり結果を出さない（P2-A8-T06）。
-  if (subjectDeadline(state.subjects) <= wallTimeMs) for (const item of state.subjects) {
-    let kept = item;
-    if (item.validUntil != null && item.validUntil <= wallTimeMs
-      && (item.retainUntil > wallTimeMs || item.validUntil === item.retainUntil)) {
-      kept = { ...item, ...EMPTY, effective: "noActiveItems" as const, validUntil: null };
-      change(item, kept); expired.push(kept);
+  if (displayMin(state.subjects) <= wallTimeMs || verified && (recallMin(state.subjects) <= wallTimeMs || pendingMin(state.subjects) !== Infinity))
+    for (const item of state.subjects) {
+      let kept = item;
+      const pending = item.expiryPending === true;
+      if (item.validUntil != null && (pending || item.validUntil <= wallTimeMs)) {
+        if (!verified) {
+          if (!pending) { kept = { ...item, expiryPending: true }; change(item, kept); marked = true; }
+        } else if (item.retainUntil > wallTimeMs || item.validUntil === item.retainUntil) {
+          const { expiryPending: _pending, ...rest } = item;
+          kept = { ...rest, ...EMPTY, effective: "noActiveItems" as const, validUntil: null, lapsed: true };
+          change(item, kept); expired.push(kept);
+        }
+      }
+      if (verified && item.retainUntil <= wallTimeMs) { removed = true; change(kept, null); continue; }
+      retained.push(kept);
     }
-    if (item.retainUntil <= wallTimeMs) { removed = true; change(kept, null); continue; }
-    retained.push(kept);
-  }
-  const expiredIntents = state.intents.filter((item) => item.expiresAt <= wallTimeMs);
-  if (!removed && expired.length === 0 && expiredIntents.length === 0)
-    return { state, decisions: [], outcomes: [] };
+  const expiredIntents = verified ? state.intents.filter((item) => item.expiresAt <= wallTimeMs) : [];
+  if (!removed && !marked && expired.length === 0 && expiredIntents.length === 0) return none;
   // Intent-only collection keeps the subjects reference so the deadline cache stays valid.
   // gates ⊆ subjects (replace, capacity eviction and persisted() keep it), so only removal orphans a gate.
-  const subjects = removed || expired.length !== 0 ? retained : state.subjects;
+  const subjects = removed || marked || expired.length !== 0 ? retained : state.subjects;
   const keys = removed ? new Set(subjects.map((item) => item.subject)) : null;
   const next = { ...state, subjects,
     gates: keys == null ? state.gates : state.gates.filter((item) => keys.has(item.subject)),
-    intents: state.intents.filter((item) => item.expiresAt > wallTimeMs),
+    intents: expiredIntents.length === 0 ? state.intents : state.intents.filter((item) => item.expiresAt > wallTimeMs),
     persistence: dirty(state.persistence, monotonicMs) };
   return { state: next,
     decisions: expired.map((item) => ({ subject: item.subject, operation: item.operation,
@@ -171,7 +199,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     decisions: [{ subject: checked.subject, operation: input.material.operation, decision: "rejected", reason: checked.reason }],
     diagnostics: [checked.diagnostic] };
   const candidate = checked.candidate, { source } = candidate, notes = checked.diagnostics;
-  const collected = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs, changed);
+  const collected = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs, changed, input.basis ?? "verified");
   const base = collected.state;
   const previous = base.subjects.find((item) => item.subject === source.subject);
   const gate = base.gates.find((item) => item.subject === source.subject);
@@ -358,7 +386,10 @@ function subjectRow(value: unknown): value is WeatherTimeseriesSubject {
     && (source === null || item.retainUntil === Date.parse(String(source.reportDateTimeRaw)) + RETAIN
       || item.retainUntil === retainUntil(Date.parse(String(source.reportDateTimeRaw)), item.validUntil))
     && (item.effective !== "unavailable" || item.unavailableReason != null
-      && Array.isArray(item.periods) && item.periods.length === 0);
+      && Array.isArray(item.periods) && item.periods.length === 0)
+    // P3-EF-AC05 (1)(6): 保留の印は active にだけ、lapsed は noActiveItems にだけ置け、値は true だけ。
+    && (!("expiryPending" in item) || item.expiryPending === true && item.effective === "active")
+    && (!("lapsed" in item) || item.lapsed === true && item.effective === "noActiveItems");
 }
 function gateRow(value: unknown): value is WeatherTimeseriesGate {
   const gate = object(value), source = object(gate?.source);
@@ -400,7 +431,7 @@ function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   return measure(subjects, gates, intents, 0, 0) <= LIMIT ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3", "p2-weather-timeseries-unit-v4"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3", "p2-weather-timeseries-unit-v4", "p2-weather-timeseries-unit-v5"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = persisted({ schemaVersion: SCHEMA, subjects: state.subjects, gates: state.gates, intents: state.intents });
     if (value == null) throw new Error("invalid U-F checkpoint payload");
@@ -408,7 +439,7 @@ const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
   },
   decode(payload: JsonValue) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v5 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v6 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
         savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } };
   },
@@ -424,7 +455,7 @@ function reduceCore(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesI
     const restored = restoreStarted(decoded.state.intents);
     const base = { ...decoded.state, intents: restored.intents,
       persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, input.clock.monotonicMs) };
-    const applied = collect(base, input.clock.wallTimeMs, input.clock.monotonicMs, () => {});
+    const applied = collect(base, input.clock.wallTimeMs, input.clock.monotonicMs, () => {}, input.basis ?? "verified");
     for (const item of applied.state.subjects) changed(null, item);
     return { ...step(applied.state), outcomes: [{ kind: "recoveryApplied", scope: ["U-F"],
       coverage: applied.state.subjects.map((item) => item.subject), subjects: [] }],
@@ -457,7 +488,7 @@ function reduceCore(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesI
         operation: item.operation, informationType: item.source.infoTypeRaw, transition: item.disposition,
         severity: null, source: item.source, facts: { intentId: item.id }, changedFields: ["intents"] }] })) };
   }
-  const applied = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs, changed);
+  const applied = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs, changed, input.basis ?? "verified");
   if (input.kind === "deadline") return { ...step(applied.state), decisions: applied.decisions, outcomes: applied.outcomes };
   return { ...step(applied.state), outcomes: [{ kind: "batchCompleted", reason: "shutdown", subjects: [] }] };
 }
@@ -468,9 +499,10 @@ const publicCache = new WeakMap<WeatherTimeseriesSubject, WeatherTimeseriesPubli
 const revisionOf = new WeakMap<WeatherTimeseriesSubject, number>();
 // view-projector.ts の TIMESERIES_SEVERITY の鍵と同じ集合（Q-VALUES.knownCodes）。ずれると要約の件数が変わるので揃えて保つ。
 const KNOWN_CODES: ReadonlySet<string> = new Set(["00", "01", "11", "20", "21", "22", "30", "31", "41", "50", "51"]);
-function publicSubject(item: WeatherTimeseriesSubject): WeatherTimeseriesPublicSubject {
-  const cached = publicCache.get(item);
+function publicSubject(original: WeatherTimeseriesSubject): WeatherTimeseriesPublicSubject {
+  const cached = publicCache.get(original);
   if (cached != null) return cached;
+  const item = shownSubject(original);
   const areaCodes = new Set<string>(), known = new Set<string>();
   const unknownCode = { unknown: 0, missing: 0, empty: 0 };
   // 要約が数えるのは active の subject だけ（P2-A8-SUMMARY）。
@@ -487,11 +519,11 @@ function publicSubject(item: WeatherTimeseriesSubject): WeatherTimeseriesPublicS
   const result: WeatherTimeseriesPublicSubject = { subject: item.subject, operation: item.operation,
     office: item.subject.slice(`${item.operation}/VPWP50/`.length),
     id: createHash("sha256").update(JSON.stringify(["U-F", item.operation, item.subject]), "utf8").digest("hex"),
-    revision: String(revisionOf.get(item) ?? 0), source: item.source, effective: item.effective,
+    revision: String(revisionOf.get(original) ?? 0), source: item.source, effective: item.effective,
     unavailableReason: item.unavailableReason, validUntil: item.validUntil,
     areaCodes: [...areaCodes].sort(), knownCodes: [...known].sort(), unknownCode,
     periodCount: item.periods.length, lastKnownPeriodCount: item.lastKnown?.periods.length ?? null };
-  publicCache.set(item, result);
+  publicCache.set(original, result);
   return result;
 }
 function displaySubject(item: WeatherTimeseriesSubject): Extract<RuntimeDisplaySubject, { unit: "U-F" }> {
@@ -500,7 +532,7 @@ function displaySubject(item: WeatherTimeseriesSubject): Extract<RuntimeDisplayS
 }
 function toWeatherTimeseriesView(state: WeatherTimeseriesUnitState): WeatherTimeseriesUnitView {
   return { unit: "U-F", semanticRevision: state.subjects.map((item) =>
-    `${item.subject}:${item.source?.reportDateTimeRaw ?? ""}:${item.source?.serialRaw ?? ""}:${item.source?.infoTypeRaw ?? ""}:${item.effective}`)
+    `${item.subject}:${item.source?.reportDateTimeRaw ?? ""}:${item.source?.serialRaw ?? ""}:${item.source?.infoTypeRaw ?? ""}:${shownSubject(item).effective}`)
     .sort().join("|"), contentRevision: String(state.contentRevision), series: state.subjects.map(publicSubject),
     subjects: state.subjects.map((item) => outcome(item, [])) };
 }
@@ -587,7 +619,7 @@ function weatherTimeseriesDetail(state: WeatherTimeseriesUnitState, request: Wea
   if (item == null) return versionChanged(null);
   const { revision } = publicSubject(item);
   if (request.revision !== revision) return versionChanged(revision);
-  const snapshot = request.part === "current" ? item : item.lastKnown;
+  const snapshot = request.part === "current" ? shownSubject(item) : item.lastKnown;
   const count = snapshot?.periods.length ?? 0;
   const pageCount = pageOf(count, PERIOD_PAGE);
   if (pageCount == null) return invalid;

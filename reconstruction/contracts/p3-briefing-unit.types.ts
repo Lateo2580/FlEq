@@ -2,7 +2,7 @@ import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   NoticeMark,
   NotificationIntent,
@@ -18,8 +18,8 @@ import type {
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-B-001 (C12, I-U-B). 府県気象防災速報（M17、VPBS50）と記録的短時間大雨情報（VPOA50）。
-// 系列（EventID の最初の「_」より前、P3-C12-SUBJECTS=A、作者裁定）ごとの current（D）だけを持つ。
-// 系列の続報は同じ記録を置き換える。VPOA50 は対応する VPBS50 の系列（先頭に「K」）と alias で結ぶ（P3-C12-ALIAS）。
+// 系列（EventID の最初の「_」より前、P3-C12-SUBJECTS=A、作者裁定）ごとの current（D）だけを持つ。記録的短時間大雨（VPOA50 と、情報タグが
+// 全部記録雨の VPBS50）は報ごとで、系列の欄に EventID の全体を持つ（P3-EF-AC09 (1)）。VPOA50 は対応する VPBS50 と alias で結ぶ（P3-C12-ALIAS・P3-EF-AC09 (2)）。
 
 // 情報タグの Condition を NFKC で引く表（P3-C12-KINDS）。表に無い Condition と Condition の無い Kind は unknown（fail-bright）。
 export type BriefingKind = "linearRainObserved" | "linearRainPredicted" | "recordRain" | "shortSnow" | "unknown";
@@ -71,13 +71,17 @@ type BriefingText = Readonly<{
 }>;
 
 // replaced は予測の区域が全部発生に除かれた記録（P3-C12-REPLACE=B: 発生の記録がある間、時刻の前後によらず除く）。事実を持たず、view に載せず、通知しない。
-export type BriefingReportCurrent = BriefingCommon & Readonly<{ headType: "VPBS50" }> & (
+// eventId はいま持っている報の EventID の全体（採用・続報・訂正・取消で書き換える）。series はその全体か「_」より前。対応報（VPOA50）との結びと、
+// 系列の subject に引き継いだ記録への訂正・取消は、この欄で引く（P3-EF-AC09 (1)(2)）。
+// inherited は訂正（全部記録雨）で系列の subject の記録を引き継いだ印。系列の報の上書き・取消で外れ、印のある記録にだけ取消が系列の subject で当たる。
+export type BriefingReportCurrent = BriefingCommon & Readonly<{ headType: "VPBS50"; eventId: string; inherited?: true }> & (
   | (BriefingText & Readonly<{
       effective: "active";
       items: readonly BriefingItem[];
       observations: readonly BriefingObservation[];
+      expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に表示の期限が来た印
     }>)
-  | Readonly<{ effective: "replaced" | "cancelled" }>
+  | Readonly<{ effective: "replaced" | "cancelled" | "expired" }> // expired: 期限切れの記憶（P3-EF-AC05、元報＋9 時間）
 );
 
 // VPOA50 の系列（P3-C12-VPOA=A）。held は対応する VPBS50 を待つ間（holdUntil は受理の時刻 + 60,000 ms、
@@ -87,9 +91,9 @@ export type BriefingReportCurrent = BriefingCommon & Readonly<{ headType: "VPBS5
 // 除いてから held を全部無音で released にし、変化があれば保存世代を進める（P3-C12-AC16）。
 export type BriefingRecordRainCurrent = BriefingCommon & Readonly<{ headType: "VPOA50" }> & (
   | (BriefingText & Readonly<{ effective: "held"; holdUntil: number; areas: readonly BriefingArea[] }>)
-  | (BriefingText & Readonly<{ effective: "released"; areas: readonly BriefingArea[] }>)
+  | (BriefingText & Readonly<{ effective: "released"; areas: readonly BriefingArea[]; expiryPending?: true }>)
   | (BriefingText & Readonly<{ effective: "aliased"; areas: readonly BriefingArea[] }>)
-  | Readonly<{ effective: "cancelled" }>
+  | Readonly<{ effective: "cancelled" | "expired" }>
 );
 
 export type BriefingCurrent = BriefingReportCurrent | BriefingRecordRainCurrent;
@@ -105,7 +109,7 @@ export type BriefingNotificationPayload = Readonly<{
 export type BriefingIntent = NotificationIntent & Readonly<{ payload: BriefingNotificationPayload }>;
 
 export type BriefingUnitState = Readonly<{
-  schemaVersion: "p3-briefing-unit-v5";
+  schemaVersion: "p3-briefing-unit-v6";
   contentRevision: number;
   currents: readonly BriefingCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -114,7 +118,7 @@ export type BriefingUnitState = Readonly<{
 }>;
 
 export type PersistedBriefingUnit = Readonly<{
-  schemaVersion: "p3-briefing-unit-v5";
+  schemaVersion: "p3-briefing-unit-v6";
   currents: readonly BriefingCurrent[];
   intents: readonly BriefingIntent[];
 }>;
@@ -129,13 +133,13 @@ export type BriefingUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type BriefingInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedBriefingUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedBriefingUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
   // spec:884 の終了入力。held を無音で released にして相関待ちを閉じる（対応を確定させない）。
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type BriefingUnitStep = Readonly<{
   state: BriefingUnitState;
@@ -157,5 +161,5 @@ export type BriefingUnitStep = Readonly<{
 }>;
 
 export type BriefingUnitCodec = UnitCodec<BriefingUnitState, PersistedBriefingUnit> & Readonly<{
-  schemaVersion: "p3-briefing-unit-v5";
+  schemaVersion: "p3-briefing-unit-v6";
 }>;

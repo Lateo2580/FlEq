@@ -10,6 +10,7 @@ import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
 import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
+import { PENDING_MARK_BYTES } from "../../src/units/expiry";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { capturedOwner, checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { selectNotificationAttempt } from "../../src/notification-delivery/notification-delivery";
@@ -393,11 +394,14 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（P3-IUR-AC02）。終端記録は無くなった（P3-NL-AC05）ので予報の区域名で埋める。
     const withPad = (pad: number) => ({ ...value, intents: [value.intents[0]], forecasts: [{ ...value.forecasts[0],
       areas: [{ ...area0, name: `${String(area0.name)}${"x".repeat(pad)}` }, ...(value.forecasts[0].areas as unknown[]).slice(1)] }, ...value.forecasts.slice(1)] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v4", unit: "U-T", generation: 0, capturedAt: 0,
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v5", unit: "U-T", generation: 0, capturedAt: 0,
       payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
     const generationPad = tsunamiUnitCodec.maxEnvelopeBytes! - generation(0);
     expect(generation(generationPad)).toBe(tsunamiUnitCodec.maxEnvelopeBytes!);
-    expect(tsunamiUnitCodec.decode(withPad(generationPad - deliveryGrowth(value.intents[0] as unknown as TsunamiIntent)) as JsonValue).kind).toBe("restored");
+    // 印の無い active の観測ごとの期限切れの保留の印の予約（P3-EF-AC10 (5)）も上限に数える。
+    const marks = PENDING_MARK_BYTES * value.observations.filter((item) => item.effective === "active").length;
+    expect(tsunamiUnitCodec.decode(withPad(generationPad - deliveryGrowth(value.intents[0] as unknown as TsunamiIntent) - marks) as JsonValue).kind).toBe("restored");
+    expect(tsunamiUnitCodec.decode(withPad(generationPad - deliveryGrowth(value.intents[0] as unknown as TsunamiIntent) - marks + 1) as JsonValue).kind).toBe("invalid");
     const invalid: [string, unknown][] = [
       ["schemaVersion", { ...value, schemaVersion: "p3-tsunami-unit-v0" }],
       ["VTSE41 > 512", { ...value, forecasts: Array.from({ length: 513 }, (_, index) => ({ ...value.forecasts[0],
@@ -664,7 +668,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     ({ code: String(100 + index), name: `区域${index}`, kind }));
   const report = (minute: number, list = areas(1), options: { infoType?: "発表" | "訂正" | "取消"; eventId?: string } = {}) =>
     decodeXml(vtse41({ at: raw(minute), areas: list, ...options }), "VTSE41");
-  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v4", unit: "U-T", generation: 0,
+  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v5", unit: "U-T", generation: 0,
     capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + LOSS_TALLY_MAX_BYTES + state.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   // 世代を器 − slack にする別の EventID の normal の active な予報。normal の active は退去の候補にならないので、slack を越える増分は
@@ -931,17 +935,17 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
       const host = (table: UnitTable, fileSystem: CheckpointFileSystem) => new OwnerHost({ start: { place: "urgent",
         stateDirectory: join(directory, "state"), publisherTimeOriginMs: 0, measured: false, inputHeap: false }, units: table,
         codecs: linkedUnitCodecs, fileSystem, sharedNow: () => 1, reply: (reply) => { replies.push(reply); }, fail: (error) => { throw error; } });
-      const input = (inputId: string, minute: number, xml: string) => ({ kind: "input" as const, clock: at(minute), sharedMs: 1,
+      const input = (inputId: string, minute: number, xml: string) => ({ kind: "input" as const, clock: at(minute), sharedMs: 1, basis: "verified" as const,
         envelope: envelope("run", "VTSE41", inputId, Buffer.from(xml), at(minute)) });
       const owner = host(units, parked);
-      owner.handle({ kind: "restore", runId: "run", clock: at(0), sharedMs: 1 });
+      owner.handle({ kind: "restore", runId: "run", clock: at(0), sharedMs: 1, basis: "verified" });
       owner.handle(input("seed", 1, vtse41({ at: raw(0), areas: areas(1) })));
-      owner.handle({ kind: "checkpointGrant", grantId: "save-g", unit: "U-T", mode: "save", retryReason: "notRetry", inputBoundary: null, clock: at(1), sharedMs: 1 });
+      owner.handle({ kind: "checkpointGrant", grantId: "save-g", unit: "U-T", mode: "save", retryReason: "notRetry", inputBoundary: null, clock: at(1), sharedMs: 1, basis: "verified" });
       owner.handle(input("reject", 3, vtse41({ eventId: "20990101000012", at: raw(3), areas: areas(300, "51") })));
       release();
       const saves = () => replies.flatMap((reply) => reply.kind === "checkpointDone" ? [reply] : []);
       await vi.waitFor(() => expect(saves()).toHaveLength(1));
-      owner.handle({ kind: "checkpointGrant", grantId: "save-g1", unit: "U-T", mode: "save", retryReason: "notRetry", inputBoundary: null, clock: at(3), sharedMs: 1 });
+      owner.handle({ kind: "checkpointGrant", grantId: "save-g1", unit: "U-T", mode: "save", retryReason: "notRetry", inputBoundary: null, clock: at(3), sharedMs: 1, basis: "verified" });
       await vi.waitFor(() => expect(saves()).toHaveLength(2));
       const [saveG, saveG1] = saves();
       expect([saveG.result?.kind, saveG.result?.generation, saveG1.result?.kind, saveG1.result?.generation]).toEqual(["acknowledged", 1, "acknowledged", 2]);
@@ -949,7 +953,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
       expect(saveG1.measurements.map((item) => item.inputIds)).toEqual(saveG1.measurements.map(() => ["reject"]));
       // G+1 の保存から復元すると失敗警報が pending のまま戻る（音 60 秒の期限の内）。
       replies.length = 0;
-      host(linkedUnitTable, files).handle({ kind: "restore", runId: "run-2", clock: { wallTimeMs: at(3).wallTimeMs + 30_000, monotonicMs: 0 }, sharedMs: 1 });
+      host(linkedUnitTable, files).handle({ kind: "restore", runId: "run-2", clock: { wallTimeMs: at(3).wallTimeMs + 30_000, monotonicMs: 0 }, sharedMs: 1, basis: "verified" });
       await vi.waitFor(() => expect(replies[0]?.kind).toBe("restored"));
       const restored = replies[0];
       if (restored.kind !== "restored") throw new Error("restored expected");
@@ -989,7 +993,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
       { reason: "notificationExpiredClockUnverified", count: 2, lastAt: at(4).wallTimeMs }];
     expect([expired.adopted, expired.state.losses["U-T"]]).toEqual([true, losses]);
     const back = restoreOwner({ runId: "run-2", place: "urgent", clock: at(5), restored: { "U-E": { kind: "empty" }, "U-Q": { kind: "empty" },
-      "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-T": { kind: "restored", envelope: { schemaVersion: "p3-tsunami-unit-v4", unit: "U-T",
+      "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-T": { kind: "restored", envelope: { schemaVersion: "p3-tsunami-unit-v5", unit: "U-T",
         generation: 3, capturedAt: at(4).wallTimeMs, payload: tsunamiUnitCodec.encode(expired.state.units["U-T"]!) as JsonValue,
         losses: expired.state.losses["U-T"], sha256: "0".repeat(64) }, slot: "A" } } }, linkedUnitTable, linkedUnitCodecs);
     expect(back.state.losses["U-T"]).toEqual(losses);

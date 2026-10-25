@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome,
+  SubjectOutcome, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   LandslideCurrent, LandslideInput, LandslideIntent, LandslideKindGroup, LandslideNotificationPayload, LandslideUnitCodec,
@@ -20,16 +20,17 @@ import {
   applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
+import { cachedMin } from "../expiry";
 
 // P3-UNIT-L-001（C10、I-U-L）: U-L の官署の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-landslide-unit-v5" as const;
+const SCHEMA = "p3-landslide-unit-v6" as const;
 // P3-C10-CAPACITY=A・P3-C10-RES-01・RET-01〜04。
 const CURRENT_LIMIT = 128, GENERATION_LIMIT = 2_097_152;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C10-SEM-01・02（元報の ReportDateTime からの絶対の長さ、P3-C10-RETENTION=A・P3-C10-ACTIVE-EXPIRY=C）。
 const HOUR_MS = 3_600_000;
-const ACTIVE_RETAIN_MS = 48 * HOUR_MS, INACTIVE_RETAIN_MS = 6 * HOUR_MS;
+const ACTIVE_RETAIN_MS = 48 * HOUR_MS, INACTIVE_RETAIN_MS = 6 * HOUR_MS, EXPIRED_RETAIN_MS = 54 * HOUR_MS; // 記憶は表示の期限＋6 時間（P3-EF-D-EXPIRED-MEMORY=A）
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
 const NOTICE_BOUNDS = { title: 160, body: 512 } as const;
 
@@ -41,7 +42,8 @@ type Change = readonly [before: LandslideCurrent | null, after: LandslideCurrent
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
-const visible = (value: LandslideCurrent | null): value is Active => value?.effective === "active";
+// 保留の印のある active は見えない記録として扱う（P3-EF-AC02 (2)）。
+const visible = (value: LandslideCurrent | null): value is Active => value?.effective === "active" && value.expiryPending !== true;
 
 // ---- byte の加算（I-U-L.computation。受信 1 回で state 全体を直列化しない） ----
 
@@ -63,14 +65,15 @@ function generationBytes(value: PersistedLandslideUnit): number {
 
 // ---- 期限（I-U-L.deadlines） ----
 
-const deadlineCache = new WeakMap<readonly object[], number>();
-function minOf<T extends object>(values: readonly T[], at: (value: T) => number): number {
-  let min = deadlineCache.get(values);
-  if (min == null) { min = values.reduce((least, item) => Math.min(least, at(item)), Infinity); deadlineCache.set(values, min); }
-  return min;
-}
+// P3-EF-AC11 (2): 根拠で当てない種類を比べないよう、表示の期限・回収の期限・保留の記録・intent の期限を別々に持つ。
+const displayMin = cachedMin<LandslideCurrent>((item) => visible(item) ? item.retainUntil : Infinity);
+const recallMin = cachedMin<LandslideCurrent>((item) => item.effective !== "active" ? item.retainUntil : Infinity);
+const pendingMin = cachedMin<LandslideCurrent>((item) => item.effective === "active" && item.expiryPending === true ? item.retainUntil : Infinity);
+const intentMin = cachedMin<LandslideIntent>((item) => item.expiresAt);
+// nextDeadline は根拠によらず全部の期限の最小（保留の記録は元の表示の期限、P3-EF-AC11 (2)）。
+const retainMin = cachedMin<LandslideCurrent>((item) => item.retainUntil);
 const deadlineAt = (state: LandslideUnitState): number =>
-  Math.min(minOf(state.currents, (item) => item.retainUntil), minOf(state.intents, (item) => item.expiresAt));
+  Math.min(retainMin(state.currents), intentMin(state.intents));
 function nextDeadline(state: LandslideUnitState): RuntimeUnitDeadline | null {
   const at = deadlineAt(state);
   return at === Infinity ? null : { wallTimeMs: at, monotonicMs: null };
@@ -100,8 +103,9 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
 // ReportDateTime の古い順で退去する。受ける報が training/test なら normal の記録は (1)〜(4) とも候補にせず、候補が無ければ null
 // （受けた記録自身を退去する）。
 // ponytail: 満杯の 128 件の素朴な線形の走査（上限は CURRENT_LIMIT で、保持と decode の両方で効く。台帳 47 の例外）。
-function evictOne(values: readonly LandslideCurrent[], now: number, incoming: Operation): LandslideCurrent | null {
-  const tier = (item: LandslideCurrent) => item.retainUntil <= now ? 0 : item.effective !== "active" ? 1 : item.operation !== "normal" ? 2 : 3;
+// 第 1 段は受けた入力の根拠が verified のときだけ。保留の印のある記録は見えない記録の段に入る（P3-EF-AC03）。
+function evictOne(values: readonly LandslideCurrent[], now: number, incoming: Operation, verified: boolean): LandslideCurrent | null {
+  const tier = (item: LandslideCurrent) => verified && item.retainUntil <= now ? 0 : !visible(item) ? 1 : item.operation !== "normal" ? 2 : 3;
   let worst: LandslideCurrent | null = null;
   for (const item of values) {
     if (item.operation === "normal" && incoming !== "normal") continue;
@@ -119,7 +123,8 @@ function evictOne(values: readonly LandslideCurrent[], now: number, incoming: Op
 function judge(existing: LandslideCurrent | null, built: LandslideCurrent, candidate: LandslideCandidate) {
   return stepVersion(existing == null ? null : { version: existing.source, source: existing.source, cancelled: existing.effective === "cancelled" },
     existing?.unconfirmed ?? null, candidate.source, () => existing != null && existing.source.infoTypeRaw === candidate.source.infoTypeRaw
-    && changed(existing, built).length === 0, candidate.cancelled);
+    // 期限切れの記憶は事実を持たないので InfoType だけで見る（Q-EF-PRECHECK (0)(b)、U-M と同じ）。
+    && (existing.effective === "expired" || changed(existing, built).length === 0), candidate.cancelled);
 }
 
 // ---- 官署の current（I-U-L.currentSemantics） ----
@@ -247,7 +252,7 @@ function displaySubject(value: LandslideCurrent): Extract<RuntimeDisplaySubject,
 
 // ---- 受信（P3-C10-SUBJECTS=A。一入力は官署の subject を 1 つだけ変え、一回の参照交換で確定する） ----
 
-function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandidate, clock: ClockReading): Result {
+function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandidate, clock: ClockReading, basis: WallBasis): Result {
   const now = clock.wallTimeMs;
   const { subject, operation } = candidate;
   const index = indexOf(state.currents, subject);
@@ -288,7 +293,7 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   let currents: readonly LandslideCurrent[];
   let evicted: LandslideCurrent | null = null;
   if (index == null && state.currents.length >= CURRENT_LIMIT) {
-    evicted = evictOne(state.currents, now, operation);
+    evicted = evictOne(state.currents, now, operation, basis === "verified");
     // training/test の報で退去できる記録が無ければ、受けた記録自身を退去する（currents の参照を変えない、通知しない）。
     if (evicted == null) return { changes: [], step: { ...idle(unkept()), decisions: [decided("revisionOnly", false)],
       outcomes: [accepted("revisionOnly", false)],
@@ -323,7 +328,7 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   const adopted: LandslideUnitState = { ...state, currents, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
   // 到着の時点で期限を過ぎた記録は採用して watermark を進め、同じ reduce で回収する（P3-C10-RETENTION=A）。
-  const collected = deadlineAt(adopted) <= now ? collect(adopted, clock) : null;
+  const collected = deadlineAt(adopted) <= now ? collect(adopted, clock, basis) : null;
   const result = collected?.state ?? adopted;
   const diagnostics: DiagnosticDetails[] = version.missing ? [warn(true)] : [];
   if (evicted != null) diagnostics.push({ level: "INFO", component: "landslide", reason: "landslideCapacityEvicted", unit: "U-L", count: 1 });
@@ -344,32 +349,46 @@ function receive(state: LandslideUnitState, input: Extract<LandslideInput, { kin
   // Q-NOTICE.recovery・P3-C10-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
-  return receiveCandidate(state, candidate, input.clock);
+  return receiveCandidate(state, candidate, input.clock, input.basis ?? "verified");
 }
 
 // ---- 期限（I-U-L.deadlines。到来分だけを回収する） ----
 
-// ponytail: 128 官署の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
-function collect(state: LandslideUnitState, clock: ClockReading): Readonly<{ state: LandslideUnitState; changes: readonly Change[];
-  expiredIntents: number }> {
-  const now = clock.wallTimeMs;
-  if (deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0 };
-  const changes: Change[] = [];
-  // P3-C10-ACTIVE-EXPIRY=C: active も inactive も retainUntil の到来で黙って除く（通知しない）。
-  const currents = minOf(state.currents, (item) => item.retainUntil) > now ? state.currents : state.currents.filter((item) => {
-    if (item.retainUntil > now) return true;
-    changes.push([item, null]);
-    return false;
-  });
-  const intents = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
-  const expiredIntents = state.intents.length - intents.length;
-  const persisted = currents !== state.currents || intents !== state.intents;
-  return { state: { ...state, currents, intents, persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence },
-    changes, expiredIntents };
+// 期限切れの記憶（P3-EF-AC05 (2)(3)）: 事実を捨て、識別・source・印を残す。
+function expiredOf(item: Active): LandslideCurrent {
+  return { subject: item.subject, operation: item.operation, office: item.office, source: item.source,
+    ...item.unconfirmed == null ? {} : { unconfirmed: item.unconfirmed }, ...item.notice == null ? {} : { notice: item.notice },
+    retainUntil: reportMs(item.source) + EXPIRED_RETAIN_MS, effective: "expired" };
 }
 
-function deadlineStep(state: LandslideUnitState, clock: ClockReading, shutdown: boolean): Result {
-  const applied = collect(state, clock);
+// 根拠ごとの当て方（P3-EF-AC02）: awaiting は何も当てない。unverified は表示の期限の来た記録に保留の印を付けるだけ。verified は表示の
+// 期限の来た記録と保留の記録（時計によらず）を記憶に移し、retainUntil の来た記録と intent を回収する。
+// ponytail: 128 官署の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
+function collect(state: LandslideUnitState, clock: ClockReading, basis: WallBasis): Readonly<{ state: LandslideUnitState; changes: readonly Change[];
+  expiredIntents: number }> {
+  const now = clock.wallTimeMs, verified = basis === "verified";
+  const shows = basis !== "awaiting" && displayMin(state.currents) <= now;
+  const recalls = verified && (recallMin(state.currents) <= now || pendingMin(state.currents) !== Infinity);
+  if (!shows && !recalls && !(verified && intentMin(state.intents) <= now)) return { state, changes: [], expiredIntents: 0 };
+  const changes: Change[] = [];
+  // P3-C10-ACTIVE-EXPIRY=C: 表示の期限切れも回収も通知しない。
+  const currents = !shows && !recalls ? state.currents : state.currents.flatMap((item): LandslideCurrent[] => {
+    let after: LandslideCurrent | null = item;
+    if (item.effective === "active" && (item.expiryPending === true || item.retainUntil <= now))
+      after = verified ? expiredOf(item) : item.expiryPending === true ? item : { ...item, expiryPending: true };
+    if (verified && after.effective !== "active" && after.retainUntil <= now) after = null;
+    if (after !== item) changes.push([item, after]);
+    return after == null ? [] : [after];
+  });
+  const intents = !verified || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
+  const expiredIntents = state.intents.length - intents.length;
+  const persisted = changes.length !== 0 || intents !== state.intents;
+  return { state: persisted ? { ...state, currents: changes.length === 0 ? state.currents : currents, intents,
+    persistence: dirty(state.persistence, clock.monotonicMs) } : state, changes, expiredIntents };
+}
+
+function deadlineStep(state: LandslideUnitState, clock: ClockReading, basis: WallBasis, shutdown: boolean): Result {
+  const applied = collect(state, clock, basis);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "landslide",
     reason: "notificationExpired", unit: "U-L", count: applied.expiredIntents }];
   return { changes: applied.changes, step: { ...idle(applied.state),
@@ -418,7 +437,7 @@ function intentUpdate(state: LandslideUnitState, input: Extract<LandslideInput, 
       source: item.source, facts: { intentId: item.id, channel: item.channel }, changedFields: ["intents"] }] })) } };
 }
 
-function restore(state: LandslideUnitState, persisted: PersistedLandslideUnit, clock: ClockReading): Result {
+function restore(state: LandslideUnitState, persisted: PersistedLandslideUnit, clock: ClockReading, basis: WallBasis): Result {
   const decoded = landslideUnitCodec.decode(persisted);
   if (decoded.kind === "invalid") return { changes: [], step: { ...idle(state), decisions: [{ subject: "", operation: "normal",
     decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "landslide",
@@ -428,7 +447,7 @@ function restore(state: LandslideUnitState, persisted: PersistedLandslideUnit, c
   const restored = restoreStarted(decoded.state.intents);
   const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
     intents: restored.intents, persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
-  const applied = collect(base, clock);
+  const applied = collect(base, clock, basis);
   const active = applied.state.currents.filter(visible);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "landslide",
     reason: "notificationExpired", unit: "U-L", count: applied.expiredIntents }];
@@ -440,10 +459,10 @@ function restore(state: LandslideUnitState, persisted: PersistedLandslideUnit, c
 
 function reduceCore(state: LandslideUnitState, input: LandslideInput): Result {
   switch (input.kind) {
-    case "restore": return restore(state, input.persisted, input.clock);
+    case "restore": return restore(state, input.persisted, input.clock, input.basis ?? "verified");
     case "intentUpdate": return intentUpdate(state, input);
-    case "deadline": return deadlineStep(state, input.clock, false);
-    case "shutdown": return deadlineStep(state, input.clock, true);
+    case "deadline": return deadlineStep(state, input.clock, input.basis ?? "verified", false);
+    case "shutdown": return deadlineStep(state, input.clock, input.basis ?? "verified", true);
     case "receive": return receive(state, input);
     default: { const missing: never = input; throw new Error(`landslide input ${String(missing)} is not handled`); }
   }
@@ -523,7 +542,7 @@ function kindsRecord(value: unknown): LandslideKindGroup[] | null {
     || groups.some((item, at) => at > 0 && groupOrder(groups[at - 1], item) >= 0)) return null;
   return groups;
 }
-const FACT_KEYS = ["title", "kinds", "truncated"];
+const FACT_KEYS = ["title", "kinds", "truncated", "expiryPending"];
 function currentRecord(value: unknown): LandslideCurrent | null {
   const row = record(value);
   const operation = operationOf(row?.operation);
@@ -539,13 +558,17 @@ function currentRecord(value: unknown): LandslideCurrent | null {
     ...notice == null ? {} : { notice } };
   if (row.effective !== "active") {
     // active 以外は事実を持たない（types.ts の判別共用体）。
-    if (FACT_KEYS.some((key) => key in row) || row.retainUntil !== reportMs(source) + INACTIVE_RETAIN_MS) return null;
-    return row.effective === "ended" || row.effective === "cancelled" ? { ...base, retainUntil: row.retainUntil, effective: row.effective } : null;
+    // 記憶は元報＋54 時間、ended・cancelled は＋6 時間の等式（P3-EF-AC14 (20)）。
+    if (FACT_KEYS.some((key) => key in row)
+      || row.retainUntil !== reportMs(source) + (row.effective === "expired" ? EXPIRED_RETAIN_MS : INACTIVE_RETAIN_MS)) return null;
+    return row.effective === "ended" || row.effective === "cancelled" || row.effective === "expired"
+      ? { ...base, retainUntil: row.retainUntil, effective: row.effective } : null;
   }
   const kinds = kindsRecord(row.kinds);
   if (kinds == null || !bounded(row.title, BOUNDS.title) || typeof row.truncated !== "boolean"
-    || row.retainUntil !== reportMs(source) + ACTIVE_RETAIN_MS) return null;
-  return { ...base, retainUntil: row.retainUntil, effective: "active", title: row.title, kinds, truncated: row.truncated };
+    || row.retainUntil !== reportMs(source) + ACTIVE_RETAIN_MS || "expiryPending" in row && row.expiryPending !== true) return null;
+  return { ...base, retainUntil: row.retainUntil, effective: "active", title: row.title, kinds, truncated: row.truncated,
+    ...row.expiryPending === true ? { expiryPending: true } : {} };
 }
 const LEVEL_SET: readonly Level[] = ["info", "normal", "warning", "critical", "cancel"];
 function intentRecord(value: unknown): LandslideIntent | null {
@@ -583,12 +606,12 @@ function persisted(value: unknown): PersistedLandslideUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const landslideUnitCodec: LandslideUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-landslide-unit-v1", "p3-landslide-unit-v2", "p3-landslide-unit-v3", "p3-landslide-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-landslide-unit-v1", "p3-landslide-unit-v2", "p3-landslide-unit-v3", "p3-landslide-unit-v4", "p3-landslide-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-L.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-landslide-unit-v5 payload" }
+    return value == null ? { kind: "invalid", reason: "invalid p3-landslide-unit-v6 payload" }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

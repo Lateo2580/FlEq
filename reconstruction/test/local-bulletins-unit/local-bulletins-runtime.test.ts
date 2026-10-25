@@ -258,7 +258,7 @@ describe("P3-UNIT-M-001 U-M through the composition root", () => {
     await report(secondRun, xmlOf(FJ, retime("2013-07-26T09:20:00+09:00")), tick(1), "VPFJ51");
     expect(secondRun.unit("U-M").intents.filter((item) => !known.has(item.id))).toEqual([]);
     await report(secondRun, xmlOf(N50, serial("2"), retime("2013-07-26T09:22:00+09:00"), replaceTag("ValidDateTime", "2013-07-26T11:00:00+09:00")), tick(1), "VPHW50");
-    expect(secondRun.unit("U-M").intents.filter((item) => !known.has(item.id)).map((item) => [item.payload.level, item.transition])).toEqual([["warning", "updated"], ["warning", "updated"]]);
+    expect(secondRun.unit("U-M").intents.filter((item) => !known.has(item.id)).map((item) => [item.payload.level, item.transition])).toEqual([["normal", "updated"], ["normal", "updated"]]);
     await report(secondRun, xmlOf(FJ, serial("8"), retime("2013-07-26T09:23:00+09:00")), tick(1), "VPFJ51");
     expect(secondRun.unit("U-M").transient.map((item) => item.effective)).toEqual(["active"]);
     expect(secondRun.failures).toEqual([]);

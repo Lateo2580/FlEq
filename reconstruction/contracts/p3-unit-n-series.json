@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "6eafc8d4104b43b6f40ef1fd7132f4a8a5d39ab70451d6378102c00a848ae534",
+    "sha256": "a72acfa154427558d1b7f4ed02a624bdc5afd5ed6c8ebecfecdbcfbd4414ed85",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -299,11 +299,11 @@
           "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
           "reconstruction/contracts/p3-persist-premises.md:20 «26bffafeb63439f5»",
           "reconstruction/contracts/p3-persist-premises.md:286 «9c966db4adfba699»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:762 «95f2766703f13cc4»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:779 «e96937f8a2394003»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:583 «1392939e8bd74b6b»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:504 «b02c4f99ed1b499d»",
-          "reconstruction/contracts/p3-nankai-unit.types.ts:117 «4ba47b262d802774»"
+          "reconstruction/src/units/nankai/nankai-unit.ts:786 «95f2766703f13cc4»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:803 «e96937f8a2394003»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:606 «1392939e8bd74b6b»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:526 «6a2959238001f414»",
+          "reconstruction/contracts/p3-nankai-unit.types.ts:118 «4ba47b262d802774»"
         ]
       },
       {
@@ -311,9 +311,9 @@
         "requirement": "情報系列の未確認の印の保存（計画 :554、K7 の Q-VM-IMPL-2A の読み替え (i) を閉じる）: (1) 情報 subject の unconfirmed（P3-VM-AC04）を保存して復元する。holdState は情報の印でも保存世代を進める（nankai-unit.ts:317 の注記と、保存世代を進めるかの :326 の分岐を直す。types.ts:75 の注記も直す） (2) 印の付け外しは K7 の規則（version.ts の stepVersion・nextMark）のまま。expired の記憶に移るときに印を外す（現況の expired と同じ。Q-VM-IMPL-2A の (ii)「期限で消えた記録は印を持たない」）。取消の記録に付いた時刻の無い報の印は、現況と同じく保存する (3) 再起動の後も、印の付いた系列は先着の版を確定した版として出さない（未確認のまま） 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】版は Control/DateTime（発信時刻、秒値まで有効、manual/地震火山関連_解説資料.txt:118〜:120・:272〜:273）。同じ Control/DateTime で中身の違う報の扱い（未確認の印）は資料に記述なし（K7 の規則）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:554 «7e54c379d775076a»",
-          "reconstruction/contracts/p3-nankai-unit.types.ts:75 «cc2be7ff6be819cb»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:317 «665bec9b190c30cd»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:326 «2d8c704604d1030f»",
+          "reconstruction/contracts/p3-nankai-unit.types.ts:76 «cc2be7ff6be819cb»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:325 «665bec9b190c30cd»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:334 «2d8c704604d1030f»",
           "reconstruction/contracts/p3-version-material.json:161 «5b9c3d5813d8cd57»"
         ]
       },
@@ -325,9 +325,9 @@
           "reconstruction/contracts/p3-persist-premises.md:500 «575400be18e2ddb5»",
           "reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069»",
           "reconstruction/contracts/p3-nankai-unit.json:38 «708092eea9459375»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:33 «34295f7048718d13»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:90 «15758ae61f834ccc»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:306 «24e6a28be452f8f5»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:34 «34295f7048718d13»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:93 «15758ae61f834ccc»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:314 «24e6a28be452f8f5»",
           "src/engine/display/standby-state-store.ts:2403 «688a975560aa9fe3»"
         ]
       },
@@ -339,11 +339,11 @@
           "reconstruction/contracts/p3-persist-premises.md:226 «147b7db281483a3d»",
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:169 «4e8d9e62184c457e»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:379 «631cd0a196608ead»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:490 «6811547ee118f414»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:497 «53c8510ab6a27485»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:85 «40a7593fb4aafef3»"
+          "reconstruction/src/units/nankai/nankai-unit.ts:176 «4e8d9e62184c457e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:387 «631cd0a196608ead»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:511 «7785d8899b0a03c9»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:519 «53c8510ab6a27485»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:88 «40a7593fb4aafef3»"
         ]
       },
       {
@@ -351,8 +351,8 @@
         "requirement": "H12 の音（spec:3039）: 段階の表（CODE_LEVEL、nankai-unit.ts:210・:211）の 111・112・113 を normal にする。120 の critical、130 の warning は今どおり（H12 の「のまま」）。210・219 の warning、190・200 の info、InfoSerial の無い報（VYSE60 を含む）と表に無い code の warning、取消の cancel は変えない。訂正も同じ表。training/test は今どおり desktop だけ、A7 の群は今どおり other。鳴り方: 調査中（74_01_01〜03）は地震・EEW の normal（単音 C5、sound-design-system.md の分野別根音表） 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】code の意味は地震関連情報番号のコード表（code/地震火山関連コード表.txt:8214〜:8216 の 111〜113 調査中、:8217 の 120 巨大地震警戒、:8218 の 130 巨大地震注意、:8219 の 190 調査終了、:8220 の 200 定例解説、:8221・:8222 の 210・219 臨時解説〔次回も臨時解説／次回は定例解説〕）。InfoSerial は 0 回か 1 回（manual/地震火山関連_解説資料.txt:6218）、VYSE60 の EarthquakeInfo は InfoSerial を持たない（manual/地震火山関連_解説資料.txt:6264〜:6275）。どの code を何の音で鳴らすかは資料に記述なし（H12）。「訂正も同じ表」の訂正は、運用整理表が VYSE50・51・52・60 の InfoType を「発表/取消」とする（jma-2026-head-control-list.txt:142・:145・:156）ので、実配信に無い場合への備え",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3039 «67fc617e917d9443»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:210 «9b48a5b02c5ebbf9»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:211 «caac024db48c3248»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:218 «9b48a5b02c5ebbf9»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:219 «caac024db48c3248»",
           "reconstruction/contracts/p3-nankai-unit.json:34 «2d40ba3042690f99»",
           "docs/specs/sound-design-system.md:46 «cbd92a61248d4886»",
           "src/engine/presentation/level-helpers.ts:311 «353366078841131c»"
@@ -363,9 +363,9 @@
         "requirement": "器・上界・受信の費用（設計メモ §4.6、AGENTS.md）: (1) U-N の 1 世代の上限（GENERATION_LIMIT と maxEnvelopeBytes）を 2,621,440 byte にする（P3-NS-RES-01）。件数（現況 6・情報 64・pending 128 件・131,072 byte）と文字列の上限（I-U-N.bounds）は変えない (2) 解析の上界（Q-NS-BYTES の式、6 byte の文字と ReportDateTime の予約を含む 2,334,223）が上限の内側であることを式で示し、試験は合法な大きな状態の保存→復元で確かめる（P3-NS-T04、P3-CODEC-T02 を置き換える）。解析の上界が上限を越えたら実装を止めて報告する (3) decode は今どおり、世代の byte を記録ごとの encode byte の加算で数えて上限と比べる (4) 受信 1 回の費用は P3-NS-RES-02（Q-NS-COST）。受信の経路で state 全体・情報 64 件の全体を直列化せず、全件×全件の走査をしない (5) 情報 64 件の 65 件目の退去の順（P3-C8-CAPACITY=A を改める。上ほど先に失う）: (i) retainUntil を過ぎた記録 (ii) training/test の記録（古い順） (iii) normal の expired の記憶（古い順） (iv) normal の記録の最古（統合担当の決定 D2、K11 の順と揃える）。最後まで残るのは normal の active の情報の新しいもの。受ける報が training/test なら normal の記録（記憶を含む）を候補にせず、training/test の記録だけから (i)(ii) の順で選び、候補が無ければ受けた記録を残さない（P3-OPCAP-N-AC01・AC02 のまま）。退去は nankaiCapacityEvicted と H39 の数え方（P3-NL-AC14）のまま。現況 6 件は退去しない。pending は今の A7 の順。世代の byte は静的上界が上限の内なので受信では断らない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:286 «9c966db4adfba699»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:29 «f376055a27fbf976»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:195 «08fc4464ec0fd60f»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:770 «3eae670a7b0c94bf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:30 «f376055a27fbf976»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:203 «ef79d57b0eaca793»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:794 «3eae670a7b0c94bf»",
           "AGENTS.md"
         ]
       },
@@ -386,8 +386,8 @@
         "id": "P3-NS-AC08",
         "requirement": "版と保存→復元と corpus（作者裁定「P5 の前は初期化してよい」、P3-VM-AC05、統合担当の決定 D3）: (1) schemaVersion を p3-nankai-unit-v5 にし、discardableSchemaVersions に v4 を足す（v1〜v4）。旧い形を読む移行は作らない。版の文字列は types.ts・nankai-unit.ts・owner-runtime.ts の初期の state の表（:80）・試験（nankai-fixture.ts:16・nankai-unit.test.ts:556・shared-runtime.test.ts:77）を同じ行の中で替える (2) 新しい形の保存→復元の試験（P3-NS-T01）と、v4 の保存物が捨ててよい版になること（P3-NS-T04）を残す（P3-X-C4） (3) sequences.json の 9 step の期待を実装の patch で直す（step の数と位置は変えない。replay の試験が effective の欄を読むので、直さないとゲートが赤になる）: O01:69 の checks の level を normal（H12）に、O01:70 の「validUntil=16:28+7日」を warningUntil（＋7 日）と validUntil（＋14 日）に、O07:37・:42 の「情報系列は保存しない」、O07:38 の「情報系列は空から始まる」、O07:39 の「情報系列は復元で空なので」を全文の保存と復元に、O07:41 の validUntil を warningUntil と validUntil に、O07:43 の「validUntilの1 ms前」を warningUntil の 1 ms 前に、O07:44 の effective を active にし checks を「status は megaquakeAdvisory、通知なし（P3-NS-D-STEPDOWN-NOTICE=A）。巨大地震注意へ移る」に。sequences.json の meta.sha256 が変わり、全契約の sequencesSha256 と sha256 が check-contract で FAIL になるのは想定内で、配送の commit で統合担当が付け直す (4) 既存の試験の nankai-unit.test.ts:64・:65 の Serial「0」と 11 桁の行は、P3-NS-AC07 で受ける報になる（期待を accepted と WARN identityInvalid に替える。Q-NS-EXISTING-TESTS (k)）",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:777 «18ad626b0a925db4»",
-          "reconstruction/src/runtime/owner-runtime.ts:80 «56d58ceb3064bcc2»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:801 «bf8c843fc17511bf»",
+          "reconstruction/src/runtime/owner-runtime.ts:80 «1a037c6d8801e470»",
           "reconstruction/contracts/p3-order-plan.md:503 «4226852a4ae2323b»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:64 «2faf939675b09f7d»",
           "reconstruction/tools/corpus/sequences.json#expected:O07:44",
@@ -410,7 +410,7 @@
           "reconstruction/contracts/p3-persist-premises.md:524 «d6034014bda2abef»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
-          "reconstruction/contracts/p3-notice-ledger.json:443 «e770a96450993840»",
+          "reconstruction/contracts/p3-notice-ledger.json:443 «b174143b7ab59cea»",
           "src/engine/display/standby-persistence.ts:756 «f66b938527ed523c»"
         ]
       },
@@ -418,9 +418,9 @@
         "id": "P3-NS-AC11",
         "requirement": "最小実装・最小テスト: (1) 足す仕組みは、現況の warningUntil 1 欄、情報の validUntil 1 欄と expired の変種 1 つ、退去の段 1 つ（normal の expired の記憶）だけ。K10 が先に合流していれば、表示だけの期限切れの形は K10 のものを使う（AC10 の (1)）。消すものは、証拠だけの変種（NankaiEvidence・evidenceRecord・evidenceOf と cache・unknownInfo・judge と versionOf の証拠の分岐）、collect の base の比べ（sameItems）、holdState の「情報の印は保存しない」分岐。ほかの型・層・helper・設定を足さない。足した仕組みごとに無いと何が壊れるかを 1 行 (2) 試験は testMapping の P3-NS-T01〜T07 に限る（既存の試験の期待値の変更は Q-NS-EXISTING-TESTS で変える前に報告）。新しい fixture file を足さない（境界の報は試験の中で作る） (3) reconstruction のゲート一式（tsc 3 本・vitest・shuffle・checker 3 本）を通す",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:729 «f832a42825afdb9d»",
-          "reconstruction/contracts/p3-nankai-unit.types.ts:85 «642930f057c0c6ad»",
-          "reconstruction/contracts/p3-nankai-unit.types.ts:98 «bc3382728e98539e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:753 «f832a42825afdb9d»",
+          "reconstruction/contracts/p3-nankai-unit.types.ts:86 «642930f057c0c6ad»",
+          "reconstruction/contracts/p3-nankai-unit.types.ts:99 «bc3382728e98539e»",
           "AGENTS.md"
         ]
       },
@@ -433,7 +433,7 @@
           "reconstruction/contracts/p3-nankai-unit.json:187 «d4e358cef8a12114»",
           "reconstruction/contracts/p3-nankai-unit.json:202 «9a2a5ccd8f1adfab»",
           "reconstruction/contracts/p3-nankai-unit.json:244 «bfc71a8b711fa13d»",
-          "reconstruction/contracts/p3-nankai-unit.json:255 «5a6e7001bdccc647»",
+          "reconstruction/contracts/p3-nankai-unit.json:255 «f175b5c3ad840bed»",
           "reconstruction/contracts/p3-authority-evidence.json:12 «43b639408d6e8ea1»",
           "reconstruction/contracts/p3-authority-evidence.json:255 «22ec592c44f8b40b»",
           "docs/specs/reconstruction-p0-contracts.md:477 «526bd33cd4e41ee4»",

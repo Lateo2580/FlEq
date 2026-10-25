@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "bcd3f4072efbd2a8de07d48305b82d3c32f56dd9061272e06d1ed57dee5b53cc",
+    "sha256": "085f29e6e51285793318321c7a5000942dbf3013169e68bfcbe6f2221f5a3ea7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -28,7 +28,7 @@
       },
       {
         "id": "P3-C13-TORNADO-EXPIRY",
-        "A": "activeの記録はHead/ValidDateTime（無ければsourceのReportDateTime＋1時間）の到来でendedにする（無音、view・通知なし）。区域が全部「なし」（Kind/Codeが0かKind/Nameが「なし」）の報はendedとして採る（通常の解除）。ended・cancelledの記憶と、activeから移ったendedはsourceのReportDateTime＋36時間（spec:576）で除く",
+        "A": "activeの記録はHead/ValidDateTime（無ければsourceのReportDateTime＋1時間）の到来で expired の記憶にする（解除は ended、P3-EF-AC07。無音、view・通知なし）。区域が全部「なし」（Kind/Codeが0かKind/Nameが「なし」）の報はendedとして採る（通常の解除）。ended・cancelledの記憶と、activeから移ったexpired（P3-EF-AC07）はsourceのReportDateTime＋36時間（spec:576）で除く",
         "B": "Aのうち、ValidDateTimeの無い発表をrequiredStructureMissingで拒否する（予報の時刻を推測しない）",
         "C": "ValidDateTimeを使わず、activeをsourceのReportDateTime＋36時間まで残す（旧築のgateのactiveRetentionMs、src/engine/messages/revision-family-registry.ts:407 «57d3ca8944c1babd»）",
         "recommended": "A",
@@ -54,7 +54,7 @@
         "C": "見える長さを記憶の長さと同じにする（期限を1つにする）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定A（2026-10-12朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（見える長さはReportDateTime＋3時間、記憶はfamilyごとの長さ）だけを読む",
+        "ruling": "作者裁定A（2026-10-12朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（見える長さはReportDateTime＋3時間、記憶はfamilyごとの長さ）だけを読む。分岐 P3-EF-D-TRANSIENT-VALID（P3-EXPIRY-FORM-001）の作者裁定（2026-10-25、A: 3 時間のまま）",
         "reason": "spec:407のM18は「family固定期限」で、値をspecは持たない。旧築の表示はテロップの寿命で、優先度lowは受信から180分（src/engine/display/constants.ts:54 «57746ecc5f20141f»）、記憶はgateの保持の長さ（seismicText・weatherExplanation 36時間、earlyWeather 7日 src/engine/messages/revision-family-registry.ts:238 «492530a967d2f6a7»、climateInfo 30日 src/engine/messages/revision-family-registry.ts:247 «142b9c2dbf344e55»）。Aは見える長さを旧築の180分に揃え、起点を受信から元報の時刻へ変える（spec:2213）。Bは早期天候・天候情報を数日見せる（VPZI50のfixtureはValidDateTimeまで11日）。Cは30日の天候情報を30日見せる。どの案でも型は同じで、visibleUntilの式だけを差し替える"
       },
       {
@@ -69,7 +69,7 @@
       },
       {
         "id": "P3-C13-NOTICE-LEVELS",
-        "A": "旧築の音を移す: 竜巻のactiveの採用（目撃を含む）はwarning、竜巻の区域が全部「なし」の報（通常の解除）はinfo、熱中症はwarning、seismicTextはinfo、weatherExplanation・earlyWeather・climateInfoはnormal、取消はcancel",
+        "A": "旧築の音を移す: 竜巻の active の採用は normal、目撃は warning（H13、P3-EF-AC07）、竜巻の区域が全部「なし」の報（通常の解除）はinfo、熱中症はwarning、seismicTextはinfo、weatherExplanation・earlyWeather・climateInfoはnormal、取消はcancel",
         "B": "Aのうち竜巻の目撃（sighted）と熱中症の特別警戒アラート（special）をcriticalにする",
         "C": "Aのうちtransient（解説）は通知を作らない（表示だけ）",
         "recommended": "A",
@@ -125,7 +125,7 @@
       },
       {
         "id": "P3-C13-TORNADO-PAIR",
-        "A": "VPHW50とVPHW51を同じsubjectの1つの系列とし、版の比較の最後にheadTypeの順位（VPHW50＜VPHW51）を足す: 同じ報（Head/ReportDateTime・Serial・InfoTypeが同じ、P3-VM-D-SAME-REPORT=A。P3-VM-AC09(5)により統合担当が改訂）の対では、50の後の51は新しい版として採り、51の後の50はstale（食い違いの診断を出さない）。同じ報の対の採用（50→51）は表示を51の事実に置き換えるが、通知は作らない（対は1つの報として1回だけ鳴らす。Q-NOTICE.generationTable）。sightedはsightingの層があるか、Head/Headline/Textが「【目撃情報あり】」で始まるとき（headTypeでは決めない）。同じ報の対の後着（50→51）は、通知の生成（semanticAdoption・correction・cancellation・tornadoRelease）からも撤回（P3-C13-REPLACEMENTの取消と遅着の撤回）からも外す（50の取消・訂正・解除の通知を51が撤回せず、二重にも作らない）",
+        "A": "VPHW50とVPHW51を同じsubjectの1つの系列とし、版の比較の最後にheadTypeの順位（VPHW50＜VPHW51）を足す: 同じ報（Head/ReportDateTime・Serial・InfoTypeが同じ、P3-VM-D-SAME-REPORT=A。P3-VM-AC09(5)により統合担当が改訂）の対では、50の後の51は新しい版として採り、51の後の50はstale（食い違いの診断を出さない）。同じ報の対の採用（50→51）は表示を51の事実に置き換えるが、通知は作らない（sighted が false から true に替わり記録が見える後着は warning を 1 件、照合は目撃の鍵 SIGHTED、P3-EF-AC07 の (3)(4)。期限切れの記録を見える状態に戻さない、(5)）（対は1つの報として1回だけ鳴らす。Q-NOTICE.generationTable）。sightedはsightingの層があるか、Head/Headline/Textが「【目撃情報あり】」で始まるとき（headTypeでは決めない）。同じ報の対の後着（50→51）は、通知の生成（semanticAdoption・correction・cancellation・tornadoRelease）からも撤回（P3-C13-REPLACEMENTの取消と遅着の撤回）からも外す（50の取消・訂正・解除の通知を51が撤回せず、二重にも作らない）",
         "B": "VPHW50をcoverage表でignored（理由「VPHW51と常に対で内容が同じ」）にし、VPHW51だけを受ける",
         "C": "今の起草の形: 同じ版の50と51は事実が同じならduplicate、違えば先着を保ってstale＋localBulletinsRevisionConflict。sightedはheadTypeがVPHW51かsightingの層があるとき",
         "recommended": "A",
@@ -180,7 +180,7 @@
       },
       {
         "id": "P3-C13-RETENTION",
-        "A": "期限はsourceのReportDateTimeから絶対の長さで数える（竜巻の有効期限はValidDateTime、熱中症は対象日の終わり）。再起動・再受信で延ばさない。遅着の規則（lateRule）: 版の比較（Q-ENUM.revisionOrder）の後に、(1) 受理の時点でその報が作る記録のretainUntil（記憶の期限）を過ぎた報はunchanged/staleでstateを変えない（退去を起こさない） (2) 記憶の期限の内側で、見える期限（竜巻のactiveUntil・熱中症の対象日の終わり・transientのvisibleUntil）を過ぎた報は、記憶としてだけ採る（竜巻・熱中症はended、transientはevidence。sourceとretainUntilを進め、viewに載せず通知しない）。前の記録が見える（active）ならそれを終わらせ、そのsubjectのpendingを全部supersededにする（D-WITHDRAW=A）。decisionはchanged（前が見えればsemantic、ほかはrevisionOnly） (3) (2)の報のsubjectに記録が無く、そのslice（family）が上限まで埋まっているときは記録を作らずunchanged/staleで返す（退去も自身の退去もしない。遅着の報は退去を起こさない、K3のP3-FINAL-AC01の時間の軸）。上限の内側なら記憶の記録を作る（revisionOnly）",
+        "A": "期限はsourceのReportDateTimeから絶対の長さで数える（竜巻の有効期限はValidDateTime、熱中症は対象日の終わり）。再起動・再受信で延ばさない。遅着の規則（lateRule）: 版の比較（Q-ENUM.revisionOrder）の後に、(1) 受理の時点でその報が作る記録のretainUntil（記憶の期限）を過ぎた報はunchanged/staleでstateを変えない（退去を起こさない） (2) 記憶の期限の内側で、見える期限（竜巻のactiveUntil・熱中症の対象日の終わり・transientのvisibleUntil）を過ぎた報は、記憶としてだけ採る（竜巻は expired〔P3-EF-AC07〕、熱中症はended、transientはevidence。sourceとretainUntilを進め、viewに載せず通知しない）。前の記録が見える（active）ならそれを終わらせ、そのsubjectのpendingを全部supersededにする（D-WITHDRAW=A）。decisionはchanged（前が見えればsemantic、ほかはrevisionOnly） (3) (2)の報のsubjectに記録が無く、そのslice（family）が上限まで埋まっているときは記録を作らずunchanged/staleで返す（退去も自身の退去もしない。遅着の報は退去を起こさない、K3のP3-FINAL-AC01の時間の軸）。上限の内側なら記憶の記録を作る（revisionOnly）",
         "B": "旧築どおり受信の時刻から数え、続報で延ばす",
         "recommended": "A",
         "provisional": "A",
@@ -198,7 +198,7 @@
       },
       {
         "id": "P3-C13-CAPACITY",
-        "A": "件数の上限はslice（竜巻・熱中症）とtransientのfamilyごとに別々に数え、一つの満杯が他の記録を退去しない。記録の無いsubjectの報で上限を超えるとき、同じslice（family）の入力の前の配列から1件を退去して受け、診断localBulletinsCapacityEvicted（count）を返す。受ける報がnormalなら(1) retainUntilを過ぎた記録 (2) 記憶（ended・cancelled・evidence） (3) training/testの見える記録 (4) normalの見える記録、の順に、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がtraining/testなら候補はtraining/testの記録だけ（P3-C13-EVICT-OPERATION）。遅着の報は退去を起こさない。capacityExceededを返さない",
+        "A": "件数の上限はslice（竜巻・熱中症）とtransientのfamilyごとに別々に数え、一つの満杯が他の記録を退去しない。記録の無いsubjectの報で上限を超えるとき、同じslice（family）の入力の前の配列から1件を退去して受け、診断localBulletinsCapacityEvicted（count）を返す。受ける報がnormalなら(1) retainUntilを過ぎた記録（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2) 記憶（ended・cancelled・evidence） (3) training/testの見える記録 (4) normalの見える記録、の順に、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がtraining/testなら候補はtraining/testの記録だけ（P3-C13-EVICT-OPERATION）。遅着の報は退去を起こさない。capacityExceededを返さない",
         "B": "新しいsubjectをcapacityExceededで拒否する",
         "recommended": "A",
         "provisional": "A",
@@ -376,7 +376,7 @@
         "currentSemantics": "(1) 発表・訂正の採用: 事実を組み（I-U-M.boundsで切る）、記録を置き換える（前の報の区域・tagを残さない）。竜巻の区域が全部「なし」ならended（tornadoRelease） (2) 取消はP3-C13-CANCEL-SCOPE (3) 遅着はP3-C13-RETENTION.lateRule（版の比較の後） (4) 期限: 竜巻はactiveUntilでended、熱中症は対象日の終わりでended、transientはvisibleUntilでevidence、全部retainUntilで除く。到来の処理は無音 (5) changeは最終の表示の変化で決める（K3のD-OUTCOME=A・Q-FINAL-CHANGE）: 見える記録の出入りか公開事実の変化か退去があればsemantic、ほかはrevisionOnly（記憶だけの取消、記憶への遅着の採用で前が見えなかったとき） (6) 期限の到来で見えなくなるとき（O08:4）はdeadline入力でchanged/semantic",
         "bounds": "文字列の上限（UTF-16の単位。超えたらコードポイントの境界で切り詰めてtruncated=true。切る位置がサロゲートの組の間なら1単位短く切る）: title 64、headline 384、名前（区域・地域・tag）24。identityの文字列は切らない（EditorialOfficeは24単位・EventIDは64単位、鍵に入れるHead/Title（竜巻・VPAW51のA）は64単位を超えればidentityInvalid。鍵に入れたtitleは切り詰めが起きない）。制御文字と孤立したサロゲートは拒む（headlineは改行だけを許す）。ReportDateTime・InfoTypeのrawはtrimせずに持つ。ASCIIに限る値: 区域のcode 8 byte（数字だけ）。件数の上限はP3-C13-BOUNDS: 竜巻の区域の延べ128（電文順の後ろから捨てる）、transientの区域16・tag 16。fixtureの最大: 竜巻の区域の延べ61、headline 165、title 27、名前14、EventID 25、EditorialOffice 7、transientの区域3・tag 7。fixtureでは切り詰めは起きない",
         "deadlines": "nextDeadlineのwallTimeMsは、見える記録の期限（竜巻activeUntil・熱中症の対象日の終わり・transient visibleUntil）、全記録のretainUntil、intentのexpiresAtの最小。到来分だけを移行・回収する。見える期限はretainUntilを超えない（竜巻は切り詰め、熱中症は式で≦、transientは3時間＜記憶の長さ）。到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（全subjectの同時の期限、最大1,152記録）だけを許し、件数と計測値を報告する（AGENTS.md「受信経路の計算量」）",
-        "persisted": "PersistedLocalBulletinsUnitはschemaVersion p3-local-bulletins-unit-v5（P3-NOTICE-LEDGER-001で上げた版、P3-NL-AC15の(1)。前の版は捨ててよい版）、tornado・heat（active・ended・cancelled）、transient（evidence・cancelled。activeはevidenceとして書く、P3-C13-TRANSIENT-EVIDENCE=A）、intents（pendingだけ、P3-NL-AC05）。系列の記録は印notice?を持つ（P3-NL-AC02）。contentRevision・persistenceは保存しない。保存の射影（tornado・heat・transientの証拠・intents）が変わる入力だけ保存世代を進める（P3-X-C3）。restore入力はI-U-M.restore。transientのactiveからevidenceへの移行は射影を変えないので進めない。unchanged・rejected・遅着のstale、新しいintentが容量で外れただけの受理、training/testの報が自分自身を退去しただけの受理（採用した取消でpendingが変わったときを除く）では進めない",
+        "persisted": "PersistedLocalBulletinsUnitはschemaVersion p3-local-bulletins-unit-v6（P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)。前の版は捨ててよい版）、tornado・heat（active・ended・cancelled）、transient（evidence・cancelled。activeはevidenceとして書く、P3-C13-TRANSIENT-EVIDENCE=A）、intents（pendingだけ、P3-NL-AC05）。系列の記録は印notice?を持つ（P3-NL-AC02）。contentRevision・persistenceは保存しない。保存の射影（tornado・heat・transientの証拠・intents）が変わる入力だけ保存世代を進める（P3-X-C3）。restore入力はI-U-M.restore。transientのactiveからevidenceへの移行は射影を変えないので進めない。unchanged・rejected・遅着のstale、新しいintentが容量で外れただけの受理、training/testの報が自分自身を退去しただけの受理（採用した取消でpendingが変わったときを除く）では進めない",
         "decode": "codecは一つ（localBulletinsUnitCodec）。decodeは受理と同じ上限で次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、sliceごと・familyごとの件数の上限と、slice内でsubjectの重複なし、subjectがsliceの形でoperation・headType・identityと一致、ReportRefの文字列（Q-ENUM.identityの形）とsource.familyがsliceの型・source.subjectが記録のsubject、retainUntil＝sourceのReportDateTime＋sliceの記憶の長さ（transientはfamilyの長さ）、竜巻のactiveUntilがsourceのReportDateTime＜activeUntil≦retainUntil（ValidDateTimeは保存しないので等式でなく範囲、P3-C13-TORNADO-EXPIRY.common）、熱中症のactiveUntil＝targetDateのJSTの翌日0時≦retainUntilで、targetDateがP3-C13-HEAT-EXPIRY=Aの式に合う（sourceのReportDateTime＜activeUntil≦ReportDateTime＋48時間。TargetDateTimeは保存しないので範囲で確かめる）、transientはevidenceかcancelledだけ（activeは保存しない）、名前と文字列がI-U-M.boundsの内側、区域のlayerが表の値、pending≤128件かつ「pendingの実byte＋予約」≤131,072、「pendingの実byte＋予約＋終端記録」≤229,376（予約はdeliveryGrowth）、encode後の世代≤4,194,304 byte（K7の発注2bの後の器は4,885,760〔4 MiB＋全記録が読み戻しの上限いっぱいの未確認の印を持つ最悪の分691,456〕、作者裁定2026-10-21夜、Q-VM-IMPL-2B）、intentのunitがU-MでsubjectがI-U-M.subjectsの形（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "view": "LocalBulletinsUnitViewは見える記録だけを載せる。SubjectOutcomeはsubjectごとに作り、factsに公開事実と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Mの行（currentはviewに載る枝かnull）を足す。unavailable・未保存・再起動の空を「竜巻・熱中症なし」に読み替えない。カードの並べ方・区域の層の選び方・県名の付け方は作らない（P4）",
         "confirmationScope": "U-Mは確認scopeを作らない（P3-C13-N2）。shared-runtime.tsのaddedScopesにU-Mで空を返す分岐を足す",
@@ -887,7 +887,7 @@
         "target": "active tornado record",
         "limit": "Head/ValidDateTime capped at ReportDateTime + 36 hours; ReportDateTime + 1 hour when absent (P3-C13-TORNADO-EXPIRY, draft)",
         "unit": "absolute time from the report",
-        "rule": "到来でendedにし、通知しない。受理の時点で過ぎている報はP3-C13-RETENTION.lateRule(2)",
+        "rule": "到来で expired の記憶にし（解除は ended、P3-EF-AC07）、通知しない。受理の時点で過ぎている報はP3-C13-RETENTION.lateRule(2)",
         "source": "spec:398、旧築standby-state-store.ts:2425"
       },
       {
@@ -1143,7 +1143,7 @@
       },
       {
         "id": "P3-C13-AC07",
-        "requirement": "保存と復元とview: PersistedLocalBulletinsUnitと唯一のcodec（p3-local-bulletins-unit-v4）、I-U-M.persisted・decodeの検査（受理と同じ上限を全部、復元境界でも効かせる）とunavailable。新設schemaなので移行は無い。restore入力はI-U-M.restore: retainUntil≦時計の記録を除き、見える期限≦時計の竜巻・熱中症のactiveを無音でendedにし、どちらかが起きたときだけ保存世代を進め、displayChangesは復元した見える記録だけ、intents 0、nextDeadlineは残った期限の最小。復元でintentを作らず、pendingは元の期限で戻る。LocalBulletinsUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-M行、addedScopesのU-Mの空、snapshotのdomain localBulletins（P3-C13-SNAPSHOT）を同じ採用結果から作り、ended・cancelled・evidenceを載せない。実装後に、竜巻128・熱中症256 subjectの状態で(a) domainのbyteと65,536の比較、(b) snapshot全体のbyteと1,048,576の比較を分けて報告し、domainが65,536を超えるsubjectの数を作者とP4へ渡す",
+        "requirement": "保存と復元とview: PersistedLocalBulletinsUnitと唯一のcodec（p3-local-bulletins-unit-v6、P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)）、I-U-M.persisted・decodeの検査（受理と同じ上限を全部、復元境界でも効かせる）とunavailable。新設schemaなので移行は無い。restore入力はI-U-M.restore: retainUntil≦時計の記録を除き、見える期限≦時計の竜巻・熱中症のactiveを無音でendedにし、どちらかが起きたときだけ保存世代を進め、displayChangesは復元した見える記録だけ、intents 0、nextDeadlineは残った期限の最小。復元でintentを作らず、pendingは元の期限で戻る。LocalBulletinsUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-M行、addedScopesのU-Mの空、snapshotのdomain localBulletins（P3-C13-SNAPSHOT）を同じ採用結果から作り、ended・cancelled・evidenceを載せない。実装後に、竜巻128・熱中症256 subjectの状態で(a) domainのbyteと65,536の比較、(b) snapshot全体のbyteと1,048,576の比較を分けて報告し、domainが65,536を超えるsubjectの数を作者とP4へ渡す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",

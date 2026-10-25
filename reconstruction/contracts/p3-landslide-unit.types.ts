@@ -2,7 +2,7 @@ import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   NoticeMark,
   NotificationIntent,
@@ -38,6 +38,7 @@ type LandslideCurrentFacts = Readonly<{
   title: string;
   kinds: readonly LandslideKindGroup[];
   truncated: boolean;
+  expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に表示の期限が来た印（view から外し、事実と通知の印は残す）
 }>;
 
 // 官署の current。subject = `${operation}/VPWW56/${office}`。office は Control/EditorialOffice（P3-C10-SUBJECTS）。
@@ -53,7 +54,7 @@ export type LandslideCurrent = Readonly<{
   retainUntil: number;
 }> & (
   | LandslideCurrentFacts
-  | Readonly<{ effective: "ended" | "cancelled" }>
+  | Readonly<{ effective: "ended" | "cancelled" | "expired" }> // expired: 期限切れの記憶（P3-EF-AC05 (2)(3)、retainUntil は元報＋54 時間）
 );
 
 // 気象の音（sound-design-system.md の分野別根音表）。A7 の群は unit で決まり、U-L は other（P3-C10-NOTICE-GROUP）。
@@ -67,7 +68,7 @@ export type LandslideNotificationPayload = Readonly<{
 export type LandslideIntent = NotificationIntent & Readonly<{ payload: LandslideNotificationPayload }>;
 
 export type LandslideUnitState = Readonly<{
-  schemaVersion: "p3-landslide-unit-v5";
+  schemaVersion: "p3-landslide-unit-v6";
   contentRevision: number;
   currents: readonly LandslideCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -76,7 +77,7 @@ export type LandslideUnitState = Readonly<{
 }>;
 
 export type PersistedLandslideUnit = Readonly<{
-  schemaVersion: "p3-landslide-unit-v5";
+  schemaVersion: "p3-landslide-unit-v6";
   currents: readonly LandslideCurrent[];
   intents: readonly LandslideIntent[];
 }>;
@@ -88,12 +89,12 @@ export type LandslideUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type LandslideInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedLandslideUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedLandslideUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type LandslideUnitStep = Readonly<{
   state: LandslideUnitState;
@@ -113,5 +114,5 @@ export type LandslideUnitStep = Readonly<{
 }>;
 
 export type LandslideUnitCodec = UnitCodec<LandslideUnitState, PersistedLandslideUnit> & Readonly<{
-  schemaVersion: "p3-landslide-unit-v5";
+  schemaVersion: "p3-landslide-unit-v6";
 }>;

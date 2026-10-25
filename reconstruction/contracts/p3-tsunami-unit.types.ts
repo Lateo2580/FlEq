@@ -2,7 +2,7 @@ import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boun
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   FailureMark,
   NoticeMark,
@@ -108,6 +108,7 @@ export type TsunamiObservationSubject = Readonly<{
   validUntil: number | null;
   retainUntil: number | null; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。印のある記録だけが鍵を持つ
   notice?: NoticeMark; // P3-NL-AC02・AC03: 通知の印（fragment の鍵を持つ）。表示には出さない
+  expiryPending?: true; // P3-EF-AC06 (1): 時計を確かめる前に validUntil が来た active の観測の印（観測点と推定区域は残し、view から外す）
 }>;
 
 // Both channels carry the same owner-generated payload; A7 maps domain/level to the sound and the priority group.
@@ -121,7 +122,7 @@ export type TsunamiNotificationPayload = Readonly<{
 export type TsunamiIntent = NotificationIntent & Readonly<{ payload: TsunamiNotificationPayload }>;
 
 export type TsunamiUnitState = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v4";
+  schemaVersion: "p3-tsunami-unit-v5";
   contentRevision: number;
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
@@ -132,7 +133,7 @@ export type TsunamiUnitState = Readonly<{
 }>;
 
 export type PersistedTsunamiUnit = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v4";
+  schemaVersion: "p3-tsunami-unit-v5";
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
   intents: readonly TsunamiIntent[];
@@ -147,12 +148,12 @@ export type TsunamiUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type TsunamiInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedTsunamiUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedTsunamiUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type TsunamiUnitStep = Readonly<{
   state: TsunamiUnitState;
@@ -172,5 +173,5 @@ export type TsunamiUnitStep = Readonly<{
 }>;
 
 export type TsunamiUnitCodec = UnitCodec<TsunamiUnitState, PersistedTsunamiUnit> & Readonly<{
-  schemaVersion: "p3-tsunami-unit-v4";
+  schemaVersion: "p3-tsunami-unit-v5";
 }>;

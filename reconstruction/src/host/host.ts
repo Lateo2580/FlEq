@@ -173,6 +173,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       legacyStateDirectory: `${resolve(config.stateDirectory)}.legacy`, diagnosticDirectory: config.diagnosticDirectory },
     linkedUnitCodecs, {
       send: (place, request) => workers.get(place)!.postMessage(request), clock, wallBasis: (at) => { const basis = wallBasis(at); return deadlineMissed ? "unverified" : basis; }, measure: config.observe == null ? undefined : emit,
+      contentBasis: wallBasis, // P3-EF-AC01: 締切の印を反映しない生の状態
       display: { publish: server.publish, setWorker: server.setWorker,
         onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }) },
       onMeasurements: (measurements) => { for (const measurement of measurements) emit({ kind: "checkpoint", measurement }); },

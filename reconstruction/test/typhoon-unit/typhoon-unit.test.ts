@@ -713,8 +713,12 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
   // contractBoundary: 最大の保存状態からの閉包（P3-X-C4、I-U-Y.capacityReserve）。保存物を XML でなく JSON で直接組み、
   // 各文字列・配列・数値を decode の上限の最長の形にする（時刻は Date の範囲 ±8.64e15 の内側の最長、報の時刻は 15 桁）。
   it("P3-C14-T13 contractBoundary / AC15: from the largest decodable state every operation re-encodes and re-decodes within the generation budget", () => {
-    const BOUND = 7_294_879; // P3-VM-AC08: 2a の Control/DateTime と 2b の未確認の印の分を足した静的上界（Q-VM-PRECHECK-2B の (5)）
-    const { payload, reportMs, EDGE, pendingTotal, pendingList, eventIdOf } = maximumPayload();
+    // P3-VM-AC08: 2a の Control/DateTime と 2b の未確認の印の分を足した静的上界（Q-VM-PRECHECK-2B の (5)）に、見える記録 128 件の期限切れの保留の印
+    // （21 byte、P3-EF-AC10 (2)）を足す。
+    const BOUND = 7_294_879 + 128 * 21;
+    const { payload: unmarked, reportMs, EDGE, pendingTotal, pendingList, eventIdOf } = maximumPayload();
+    const payload = { ...unmarked, analysis: unmarked.analysis.map((item) => ({ ...item, expiryPending: true })),
+      probability: unmarked.probability.map((item) => ({ ...item, expiryPending: true })) };
     expect(pendingTotal(pendingList)).toBe(131_072);
     const restored = typhoonUnitCodec.decode(JSON.parse(JSON.stringify(payload)));
     expect(restored.kind).toBe("restored");

@@ -2,7 +2,7 @@ import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
-  ClockReading,
+  ClockReading, WallBasis,
   DiagnosticDetails,
   NoticeMark,
   NotificationIntent,
@@ -69,6 +69,7 @@ type FloodCurrentFacts = Readonly<{
   stations: readonly FloodStation[];
   basisReportDateTimeRaw: string | null;
   truncated: boolean;
+  expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に表示の期限が来た印（view から外し、事実と通知の印は残す）
 }>;
 
 // EventID の current。subject = `${operation}/${headType}/${eventId}`（P3-C11-SUBJECTS）。
@@ -85,7 +86,7 @@ export type FloodCurrent = Readonly<{
   retainUntil: number;
 }> & (
   | FloodCurrentFacts
-  | Readonly<{ effective: "ended" | "cancelled" }>
+  | Readonly<{ effective: "ended" | "cancelled" | "expired" }> // expired: 期限切れの記憶（P3-EF-AC05、retainUntil は元報＋42 時間）
 );
 
 // 気象の音（sound-design-system.md の分野別根音表）。A7 の群は unit で決まり、U-R は other（P3-C11-NOTICE-GROUP）。
@@ -99,7 +100,7 @@ export type FloodNotificationPayload = Readonly<{
 export type FloodIntent = NotificationIntent & Readonly<{ payload: FloodNotificationPayload }>;
 
 export type FloodUnitState = Readonly<{
-  schemaVersion: "p3-flood-unit-v5";
+  schemaVersion: "p3-flood-unit-v6";
   contentRevision: number;
   currents: readonly FloodCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -108,7 +109,7 @@ export type FloodUnitState = Readonly<{
 }>;
 
 export type PersistedFloodUnit = Readonly<{
-  schemaVersion: "p3-flood-unit-v5";
+  schemaVersion: "p3-flood-unit-v6";
   currents: readonly FloodCurrent[];
   intents: readonly FloodIntent[];
 }>;
@@ -120,12 +121,12 @@ export type FloodUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type FloodInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "restore"; persisted: PersistedFloodUnit; clock: ClockReading }>
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  | Readonly<{ kind: "restore"; persisted: PersistedFloodUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
 
 export type FloodUnitStep = Readonly<{
   state: FloodUnitState;
@@ -145,5 +146,5 @@ export type FloodUnitStep = Readonly<{
 }>;
 
 export type FloodUnitCodec = UnitCodec<FloodUnitState, PersistedFloodUnit> & Readonly<{
-  schemaVersion: "p3-flood-unit-v5";
+  schemaVersion: "p3-flood-unit-v6";
 }>;

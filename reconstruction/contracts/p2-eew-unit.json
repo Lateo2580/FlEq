@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "0852d6f52af7a4b87a5048f6c89ce6a41b6af5c0ec2044a8a48901c43063f566",
+    "sha256": "fbe758b6de44956f6155cd8735d36ff2c6a625fc74449f1f7e438f8ff255bb51",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -431,7 +431,7 @@
       },
       {
         "id": "P2-A4-AC06",
-        "requirement": "15秒の絶対TTL、familyごと三区分合算512 subject、取消・終端・shutdownを適用し、取消済み/置換済み/期限切れintentを再生せず期限を延長しない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）。合算上限でnormalを新規受理する際はRES-02のtraining/test最古subjectを必要数だけ先に退去候補とし、normalだけで上限を超える場合はcapacityExceeded（取消は採らずに取消のintentだけを作る、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）。training/test流入でもnormalを保護する。容量退去そのものをunavailable・取消として扱わず、確定した退去だけをDiagnosticDetails.reason=eewCapacityEvictedと既存fieldのunit/count等で記録する。受理不能なら退去診断も確定せずstateを不変にする容量不受理はEewUnitStep.decisionsのA4専用{ decision: \"capacityExceeded\", subject, operation }で返し、reason/changeは追加しない（rejectionはP3-CURRENCY-COVERAGE-001で除いた。stateは不変のまま、confirmationEvidenceに負の証拠source=capacityExceeded〔U-E/operationのunit scope〕、diagnosticsにWARN capacityRejectedを1行返す。U-Eは印も失敗警報も持たない、P3-CC-AC02・AC07・Q-CC-UE、配送のcommitでP3-CC-AC09により統合担当が改訂）。構造不正のrejected、unchanged、changed、eewCapacityEvicted診断で代用しない。入力のsubject/operationを保持し、state参照とnextDeadlineを維持、intents/outcomesは空、退去診断は生成しない（容量の拒否の診断capacityRejectedだけを出す）。",
+        "requirement": "15秒の絶対TTL（印の回収と intent の壁時計の失効は入力の根拠が verified のときだけ、P3-EXPIRY-FORM-001 の P3-EF-AC04）、familyごと三区分合算512 subject、取消・終端・shutdownを適用し、取消済み/置換済み/期限切れintentを再生せず期限を延長しない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）。合算上限でnormalを新規受理する際はRES-02のtraining/test最古subjectを必要数だけ先に退去候補とし、normalだけで上限を超える場合はcapacityExceeded（取消は採らずに取消のintentだけを作る、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）。training/test流入でもnormalを保護する。容量退去そのものをunavailable・取消として扱わず、確定した退去だけをDiagnosticDetails.reason=eewCapacityEvictedと既存fieldのunit/count等で記録する。受理不能なら退去診断も確定せずstateを不変にする容量不受理はEewUnitStep.decisionsのA4専用{ decision: \"capacityExceeded\", subject, operation }で返し、reason/changeは追加しない（rejectionはP3-CURRENCY-COVERAGE-001で除いた。stateは不変のまま、confirmationEvidenceに負の証拠source=capacityExceeded〔U-E/operationのunit scope〕、diagnosticsにWARN capacityRejectedを1行返す。U-Eは印も失敗警報も持たない、P3-CC-AC02・AC07・Q-CC-UE、配送のcommitでP3-CC-AC09により統合担当が改訂）。構造不正のrejected、unchanged、changed、eewCapacityEvicted診断で代用しない。入力のsubject/operationを保持し、state参照とnextDeadlineを維持、intents/outcomesは空、退去診断は生成しない（容量の拒否の診断capacityRejectedだけを出す）。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:569 «e5e9f04bfdb8aa36»",
           "docs/specs/reconstruction-p0-contracts.md:972 «2c559aeb22305c9f»",
@@ -449,7 +449,7 @@
       },
       {
         "id": "P2-A4-AC08",
-        "requirement": "O07:15-18で復元後active EEWは0、期限内pending intentだけを元期限で再試行し、復元直後の続報を新しいcurrentとして処理する",
+        "requirement": "O07:15-18で復元後active EEWは0、期限内pending intentだけを元期限で再試行し（復元の根拠が awaiting の間、unit は intent を失効させない。P3-EF-AC04）、復元直後の続報を新しいcurrentとして処理する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»",
           "docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",

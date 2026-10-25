@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "30b026aa8a52e869683b0be1160d51159270860ec1a2eef0228ebe74e09536e1",
+    "sha256": "adc2dcedaf10cd432e0d1d60e999f8acbfe93784cc078c336d7cb820f0ad55d7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "730d5b02cfc43badab4de24b9e73152e6a24a5753c027452bdcaa8062ea4a17c",
+    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -227,7 +227,7 @@
         "requirement": "U-VのGENERATION_LIMITとdecodeの世代検査を5,242,880 byteへ揃え、既存generationBytesと62 byteの予約を維持する。受信、deadlineStepのbatch flush、shutdown、shortfallResolution、restore後のcollect、intentUpdateの最終候補についてgenerationBytes＋pendingのdeliveryGrowthの和を上限と比較する。配送予約込み静的上界4,753,484 byteによりdecoderを通るstateから合法な受信・期限・配送更新で超過は起きず、更新intentのowner照合も保持できる。検査は実装の誤りによる上界の破れに対する守りである。超過時は入力前のstateそのもの（persistence・contentRevision・batchを含む）と元のnextDeadlineを返し、候補の変更・intent・outcome・displayChanges・confirmationEvidenceを一切出さない。decisionは1件だけ {subject:\"\", operation:\"normal\", decision:\"rejected\", reason:\"requiredStructureInvalid\"}（unit全体の不整合を示す既存の復元拒否と同じ形）。診断も1件だけ {level:\"ERROR\", component:\"volcanoGenerationLimit\", unit:\"U-V\", reason:\"requiredStructureInvalid\", count:1} とし、componentで通常の入力不正と識別する。capacityExceededは返さず、byteを理由とする退去を行わない。record byte cacheと線形の和を使い、全state再直列化・合計差分の帳簿は足さない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:75 «369b997230539d12»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:78 «369b997230539d12»",
           "reconstruction/src/notification-delivery/delivery-growth.ts:10 «d0b7db8c1f4b8e3d»",
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:57 «5c81f7bf815c513f»",
@@ -238,7 +238,7 @@
         "id": "P3-CODEC-AC03",
         "requirement": "静的上界の再計算: identityTextのEventID/火山コードは1 byte/単位（64/16）、asciiCodeのkind/area/ash code・shortfall.idは引用符またはバックスラッシュで2 byte/単位（8/16/64）、boundedのvolcanoName/Kind名/condition/headline/areaKind/phenomenon/crater/direction/MaterialValue.rawとtext.value/ashName/areaName/inputIdは制御文字または孤立サロゲートで6 byte/単位。coordinateとeventDateTimeRawはasciiCodeで2 byte/単位（40）。ReportDateTimeRawはDate.parse条件つき40単位だが安全側で6 byte/単位、Serialは数字10字、InfoTypeは固定語、originはrecovery、operationはtraining、有限numberはJSON最長25 byte。nullより値ありの形、警報の両source・landKind・128+32 area code、噴火の128 code、降灰の8群×3 top codeを採る。これらでRES-04/05の各record・envelope・予約を足す。U-Vは4,753,484（5 MiBまで489,396余裕）、U-Nは261,214（256 KiBまで930余裕）。この上界は世代のbyte検査自体に依存せず、件数・fieldの値域・通知容量から得るので、5 MiBのdecodeを通るstateから受信・期限・配送更新がこれらを保つ限り、配送予約を使い切っても世代上限の内側に収まる。旧3,867,485を上界として再利用しない。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-volcano-unit.json:132 «8a68dfefcede7fcd»",
+          "reconstruction/contracts/p3-volcano-unit.json:132 «d394c1e950002e94»",
           "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
           "reconstruction/test/volcano-unit/volcano-unit.test.ts:435 «401ece40cbfc8ff4»"
         ]
@@ -248,7 +248,7 @@
         "requirement": "F15: Headlineなし・TextがBMP「あ」79字＋😀のVYSE50をU-Nへ投入する。従来のtext.slice(0,80)は末尾D83Dを作る。Textから切り出す部分を80 UTF-16単位以内でサロゲート対を割らずwell-formedにし、通知全bodyには80単位の上限を置かない。Headlineは既存bound→cutで対を割らない。codecがrestoredでも文字境界の合格とはしない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-nankai-unit.json:199 «03304c3de6d7ff60»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:225 «3b04b00a449c0acf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:233 «3b04b00a449c0acf»",
           "reconstruction/src/domains/nankai/nankai.ts:57 «d8c08b2391f4edd9»"
         ]
       },
@@ -270,7 +270,7 @@
         "requirement": "新たな型・helper・cacheごとに「無いと何が壊れるか」を1行で示す。既存bytes()のrecord byte cacheとgenerationBytesの線形和を使う。合計差分の帳簿、将来用の抽象、受信1回の全件×全件、全stateのJSON化を足さない。既存試験の期待変更は事前に理由を報告する。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:1052 «352e4d34ea000f28»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:65 «c1abbbb4993dfe08»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:68 «c1abbbb4993dfe08»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
       },
