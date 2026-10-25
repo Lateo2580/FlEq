@@ -636,3 +636,34 @@ export type InputBoundary = Readonly<{
   dmdataId: string | null;
   oldestHole: InputHole | null;
 }>;
+
+// P3-UM-AC01（K14、H51）: 記録の中の読めなかった所の印。site は domain の warn の所の名（unit ごとの閉じた語）。compare は
+// 「比べから外す」欄の比べの値の digest（16 hex、fragmentKey と同じ作り、P3-UM-AC04）。scope は印の効く範囲（U-F の区分不明の範囲、
+// 区域の code など。128 byte まで）。raw は欠片（boundedString で切る）。
+export type UnreadablePart = Readonly<{
+  site: string;
+  reason: "requiredStructureMissing" | "requiredStructureInvalid";
+  scope?: string;
+  compare?: string;
+  raw: string | null;
+}>;
+// rawDropped: 器の都合で原文（欠片と見出し文）を外した印（P3-UM-AC03、H39 の unreadableDropped に数える）。partsCut: 16 件を越えた所を省いた印。
+export type UnreadableMark = Readonly<{ parts: readonly UnreadablePart[]; headline: string | null; rawDropped?: true; partsCut?: true }>;
+
+// P3-UM-AC08（K14、H43）: 報の全体が読めなかった電文のカード。owner が振り分け先の unit の envelope に書く（K8 の losses と同じ置き場）。
+// count は知らない種類を headType ごとにまとめた件数（ほかは 1）。raw は展開した本文の先頭（16,384 byte）で、rawCut は切った印。
+export type UnreadableCardKind = "unknownType" | "unreadable" | "unidentified";
+export type UnreadableCard = Readonly<{
+  kind: UnreadableCardKind;
+  inputId: string;
+  headType: string;
+  operation: Operation | null;
+  receivedAt: number;
+  reason: DiagnosticReason;
+  title: string | null;
+  headline: string | null;
+  reportDateTimeRaw: string | null;
+  raw: string | null;
+  rawCut: boolean;
+  count: number;
+}>;
