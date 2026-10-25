@@ -1,0 +1,360 @@
+{
+  "meta": {
+    "draftedFromOid": "be9efd017661d345093b0f0aeaf7fe41e9c94b12",
+    "sha256": "14c423c2d559c47f06b7c60686d9ecaf3d186364977f48ec0173f7f8b16389d5",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-NN-D-HELD-ADVISORY",
+        "A": "保留の印（expiryPending）の付いた巨大地震注意（7 日目に移った 120 の現況）へ、同じ報（EventID・family・warningUntil が同じ）の訂正でない新しい版が届いたら、awaiting でも巨大地震注意として採り、保留の印を持たない記録にする（新しい版を、時計への疑いで付けた保留を外す証拠として使う）。画面に巨大地震注意が戻り、warning で 1 回鳴る（AC01 の段）。題と本文は報のまま。時計を確かめた後も validUntil（ReportDateTime＋14 日）まで出る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定（2026-10-25、ご主人）A",
+        "reason": "利用者から見た違い: 時計を確かめていない間（unverified）に手元の時計が 7 日以上先へ進んでいると、巨大地震注意に保留の印が付いて画面から消える。その状態で保存して再起動し、時計の読みが戻った（実時刻が発表から 7〜14 日の内）awaiting の間に同じ 120 の版の更新が届いたとき、A では画面に巨大地震注意が戻って warning で 1 回鳴り、14 日目まで出る。今のコードは状態は A と同じで、音だけが critical（K13 の残存リスク (19)）。選ばなかった案: awaiting では保留の印も引き継いで出さず鳴らさない（時計を確かめたとき K10 の規則で期限切れになり、巨大地震注意が 14 日目より早く消える）。根拠: 同じ報の新しい版は、気象庁がその報を出し続けている外からの証拠で、手元の時計への疑いより強い。K10 も新しい版の採用は今の規則のまま（P3-EF-AC05 の (8)）で、戻さないのは同じ版と同じ報の対の後着（P3-EF-AC02 の (4)・AC07 の (5)）。【気象庁の資料との照合（2026-10-25、Q-NN-JMA）】版の新旧は Control/DateTime で見る（manual/地震火山関連_解説資料.txt:272〜:273、Control/DateTime は発信時システム時刻、jma-2026-head-control-list.txt:142）。7 日目の移りと保留は資料に記述なし（作者裁定と K10）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-NN-SOURCE",
+        "status": "closed",
+        "resolution": "原因（be9efd01 のコード読解と、起草の写しでの再現）。音の段は payloadOf（nankai-unit.ts:242）で決まり、引数 advisory が偽なら報自身の code の表（:224、120 は critical）を引く。advisory は :400 で basis !== \"awaiting\" && stepsAt(nextCurrent) <= now と決まり、stepsAt（:80）は status が megaquakeWarning のときだけ warningUntil を返す。:378〜:381 は同じ報の訂正でない新しい版を採るとき、手元ですでに移った段（megaquakeAdvisory）を引き継ぐ（K13 の決定 (c)）。引き継いだ後の nextCurrent は stepsAt が Infinity なので advisory が偽になり、画面は巨大地震注意なのに critical で鳴る。(18) の列（74_01_04、T＝2020-05-12 16:28 JST）: T＋8 日に初めて受けて warning で鳴り同じ reduce で注意へ移る → 配送 → T＋8 日＋1 秒に同じ ReportDateTime・Control/DateTime が 1 秒新しく見出しだけ違う非訂正の版 → :389〜:395 で見出しの差 → critical（updated）。7 日目に普通に移った 120（moved）、保存→復元の後、awaiting でも同じく critical（実測、残存リスクの文より広い）。(19) の列: T に受けて配送 → unverified（読み T＋8 日）の期限の入力で注意へ移る（:501・:527）→ unverified（読み T＋15 日）で現況に保留の印（:511〜:516、status は注意のまま）→ 保存して実時刻 T＋9 日に awaiting で復元（何も当てない、画面に出ない、:52）→ 同じ 120 の Control/DateTime だけ新しい版 → :378〜:381 が保留を見ずに注意を引き継ぎ、新しい記録は保留の印を持たない → 手元は見えず候補は見えるので全項目の差（:392）→ activated・critical。時計が戻らない対照（実時刻 T＋15 日の復元）は候補も validUntil を過ぎて見えず鳴らない。同じ根の別の列: 注意へ移っただけで情報 subject に保留の印（unverified の読み T＋8 日）→ 実時刻 T＋2 日に awaiting または verified で復元 → 版だけの更新で情報 subject が見える形に戻り（verified の復元では記憶から採り直し）、通知の subject は現況（:419）で critical（updated）。r5 の品質レビュー（ヘルツ）の (18) の反例は repo の外の控え（~/dev/fleq-vault-archive/k13-unit-n-series-20261025/k13-1r.review-q/r5/reconstruction/test/nankai-unit/r5-review.test.ts の最初の 2 本）。(19) の散文の判定は控えに無く、K13 の残存リスクの文から列を組み直した",
+        "source": "起草時の調べ（2026-10-25、~/dev/fleq-k13n-draft/.draft/survey.md・probe-18-19.test.ts）"
+      },
+      {
+        "id": "Q-NN-SHAPE",
+        "status": "closed",
+        "resolution": "直し方（作者の方向「level を採った現況の status から決める」、K13 の Q-NS-IMPL-1）: 採った現況（nextCurrent）を今の時刻で期限を当てた後の見える形（shownAt、:171〜:174）に通し、その status が megaquakeAdvisory なら warning、ほかは今どおり報自身の code の表。生の nextCurrent.status ではなく shownAt を使うのは、7〜14 日目に初めて届いた 120 が回収の前は megaquakeWarning なので、生の status では critical に戻り作者裁定 (15) を壊すため。shownAt は awaiting で新しく移さないので (17) も変わらない。status が megaquakeAdvisory になる現況は 120（移った段か引き継ぎ）と 130 だけで、130 は表でも warning。調査中・VYSE60・ended・取消・情報 subject だけの通知は今の段のまま（取消は payloadOf の先頭で cancel を返す）。足す仕組みは無い（shownAt を音の段にも使うだけ。無いと (18)(19) の critical が残る）。行の数を変えない: :399 の注記 1 行と :400 の式 1 行、:231〜:232 の注記 2 行の中で書く（起草の写しは const shownCurrent = …, advisory = shownCurrent != null && \"status\" in shownCurrent && shownCurrent.status === \"megaquakeAdvisory\" の 1 行で tsc を通した）。:223 の注記（P3-C8-NOTICE-LEVELS=B: 報自身の InfoSerial/Code で決める）に、1 行のまま例外を書き足す。ほかの契約と sequences.json はこれらの行（:223・:231・:232・:399・:400）を引いていない（be9efd01 で grep）。状態の規則（:378〜:381 の引き継ぎ、shownAt、collect）・型・保存の形・版（p3-nankai-unit-v6）は変えない",
+        "source": "K13 の Q-NS-IMPL-1（作者の決定）・起草時の調べ"
+      },
+      {
+        "id": "Q-NN-K10",
+        "status": "closed",
+        "resolution": "K10（P3-EXPIRY-FORM-001）との当たり方（統合担当の確認〔2026-10-25〕で閉じた読み。保留の印は期限切れを当てていない状態で、Control/DateTime の新しい版は同じ版でない）: (1) P3-EF-AC02 の (4)（一度当てた表示の期限切れは、根拠が替わっても、同じ版・同じ報の対の後着を受けても戻さない）は、同じ版（同じ Control/DateTime）と同じ報の対の後着（U-M の VPHW50/51、AC07 の (5)）に当たる。Control/DateTime の新しい版は当たらず、P3-EF-AC05 の (8)（遅着の規則と版の比べ方は今のまま）で今どおり採り、採った記録は保留の印を持たない。P3-NN-D-HELD-ADVISORY=A はこの読みの上に乗る（今のコードも同じ振る舞いで、変わるのは音の段だけ）。(2) awaiting は何も当てない（P3-EF-AC02 の (1)）ので、validUntil を過ぎた巨大地震注意の記録に版の更新が届くと、保留の外れた記録が awaiting の間だけ見える（visible は validUntil を見ない、:52）。P3-EF-AC02 の (5) の「表示の期限を過ぎてから採る報は鳴らないまま最長 30 秒見えうる」（Q-EF-AWAITING、K10 の残存リスク (1)）と同じ形で、本契約の残存リスク (1)。(3) 保留の印の付け方・回収・verified での記憶への移り（P3-EF-AC02 の (2)(3)）は変えない",
+        "source": "p3-expiry-form.json の P3-EF-AC02・AC05・AC07、起草時の調べ、統合担当の確認（2026-10-25）"
+      },
+      {
+        "id": "Q-NN-JMA",
+        "status": "closed",
+        "resolution": "気象庁の資料との照合（p3-order-plan.md:576、資料は repo の外の ~/research/fleq-jma-premises/sources/ を読むだけ。2026-10-25 の版）: (1) 南海トラフ地震臨時情報（VYSE50）の InfoType は「発表/取消」で訂正を挙げない、Control/DateTime は発信時システム時刻、ReportDateTime は発表日時分（jma-2026-head-control-list.txt:142）。ReportDateTime は分値まで有効（manual/地震火山関連_解説資料.txt:196〜:198） (2) EventID は原則、発表する情報ごとに任意の識別番号を割り振り（manual/地震火山関連_解説資料.txt:2128）、臨時情報の Serial は常に空要素（同 :2145）。最新の情報は Control/DateTime で探す（同 :272〜:273） (3) 同じ ReportDateTime・同じ EventID で、Control/DateTime だけ新しい非訂正の版（見出しを変えたものを含む）が来るかは資料に記述なし。資料の運用（報ごとに新しい EventID、訂正は運用しない）からは来る見込みが無く、(18) の直しは来たときの備え。同じ報の再送（中身が同じ）で Control/DateTime が替わりうるかも資料に記述なし（発信時システム時刻とだけある） (4) code 120 は巨大地震警戒、130 は巨大地震注意（code/地震火山関連コード表.txt:8217・:8218）。7 日目の移りと、どの code・段階を何の音で鳴らすかは資料に記述なし（作者裁定 2026-10-21 の判断 1、H12）",
+        "source": "起草時の照合（2026-10-25）"
+      },
+      {
+        "id": "Q-NN-AUTHOR",
+        "status": "closed",
+        "resolution": "作者裁定（2026-10-25、ご主人）: (19) は P3-NN-D-HELD-ADVISORY=A（版の更新で巨大地震注意が画面に戻り、warning で 1 回鳴る。同じ報の新しい版を保留を外す証拠として使う）。A の副作用（時計が戻らないまま awaiting で復元して版の更新を受けると、鳴らないが期限切れの巨大地震注意が awaiting の間だけ出る）は残存リスクとして書く（今のコードでも起きている、K13 の (17) と同じ awaiting の決まりの側）。(18) は分岐なし（K13 の Q-NS-IMPL-1 の作者の決定の方向どおり）",
+        "source": "作者裁定 2026-10-25"
+      },
+      {
+        "id": "Q-NN-REVIEW-Q",
+        "status": "closed",
+        "resolution": "品質レビュー（2026-10-25、ヘルツ、Astra high、新しい thread、read-only、thread 01a17288-6cae-7420-b5b0-71d737e4356b）: r1 GO（P1・P2 なし）。P3 1 件（移った巨大地震注意への 120 の訂正 × 3 basis の対照が試験に無い）を P3-NN-T03 の (iv) に入れた。期待は起草の写しで実測した（verified・unverified は megaquakeAdvisory・warning、awaiting は megaquakeWarning・critical、直す前と同じ）",
+        "source": "ヘルツの品質レビュー（2026-10-25）"
+      },
+      {
+        "id": "Q-NN-PROTOTYPE",
+        "status": "closed",
+        "resolution": "起草の写し（~/dev/fleq-k13n-draft/.draft、be9efd01）: nankai-unit.ts の :231〜:232 と :399〜:400 だけを替えた写し（行の数 853 のまま）で、tsc（reconstruction/tsconfig.json を継いだ noEmit）が通り、5 場面の前後の試し（probe-18-19.test.ts）で変わるのは (18)(19) と同じ根の列だけ（critical → warning）、ほかの場面は前後で同じ。既存の nankai-unit.test.ts の U-N の import を写しへ向けた写しは 30/30 通過（期待値の変更 0）。ただし composition-root・owner-runtime を通る部分は本物の unit を使うので直しを通していない。nankai-runtime・nankai-host・shuffle は回していない。実行の Node は v26.12.1（20/22/24 はこの環境に無い）",
+        "source": "起草時の試作（2026-10-25）"
+      },
+      {
+        "id": "Q-NN-AUTHOR",
+        "status": "closed",
+        "source": "作者承認（2026-10-25 夕、ご主人「2 件とも承認」）",
+        "closed": "残存リスク (2)（戻るときの通知の題と本文は元の 120 の報のまま、K13 の (15) と同じ）と (3)（同じ ReportDateTime・同じ EventID の非訂正の新しい版は資料に記述が無い）を承認。(1) は P3-NN-D-HELD-ADVISORY の裁定で A の副作用として示した",
+        "reason": "残存リスクの作者の承認"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal/training/test の区分は P3-UNIT-N-001 の operationContract のまま。音の段の決め方は区分によらず同じで、training/test は今どおり desktop だけ（P3-C8-TRAINING=A）。区分ごとの現況・情報・intent の分離は変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UNIT-N-NOTICE-001",
+    "mode": "implementation",
+    "objective": "K13（P3-UNIT-N-SERIES-001）の残存リスク (18)(19) を消す。U-N の通知の音の段を、採った現況を今の時刻で期限を当てた後の見える形の status で決め（巨大地震注意なら warning）、画面に巨大地震注意が出ているのに critical で鳴る列をなくす。保留の巨大地震注意への同じ報の版の更新は、作者裁定（2026-10-25）A のとおり巨大地震注意として画面に戻し、warning で 1 回鳴らす。状態の規則・保存の形・版は変えない。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-unit-n-notice.json",
+      "reconstruction/contracts/p3-unit-n-series.json",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p3-expiry-form.json",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/src/units/notice-mark.ts",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/test/nankai-unit/nankai-fixture.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "test/fixtures/selected_xml/74_01_04_200512_VYSE50.xml",
+      "test/fixtures/synthetic_VYSE50_cancel.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts",
+      "reconstruction/contracts/p3-unit-n-notice.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-unit-n-notice.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M05"
+    ],
+    "integrationContractIds": [
+      "I-U-N"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-N-SERIES-001",
+      "P3-UNIT-N-001",
+      "P3-EXPIRY-FORM-001",
+      "P3-NOTICE-LEDGER-001",
+      "P2-SHARED-RUNTIME-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiNotificationPayload",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitStep"
+    ],
+    "publicFunctions": [
+      "reduceNankaiUnit(state, input)・toNankaiView(state)・nankaiUnitCodec・nankaiUnit（reconstruction/src/units/nankai/nankai-unit.ts）の名前・入力・型は変えない。変わるのは現況を採る報の intent の payload.level だけ"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない。新しい共有 module を足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
+      "test__fixtures__synthetic_VYSE50_cancel"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-NN-RES-01",
+        "target": "U-N の受信 hot path",
+        "limit": "受信 1 回につき shownAt の呼び出し 1 回（記録 1 件の定数の比べ）を足すだけ。全件の走査・全件×全件・state 全体の直列化は 0",
+        "unit": "1 受信",
+        "scope": "通知を作るかの判定（P3-NS-AC04 の (3)）と期限の回収は今のまま",
+        "source": "AGENTS.md 受信経路の計算量・K13 の P3-NS-RES-02"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-N"
+    ],
+    "persistedFields": [
+      "保存 schema（p3-nankai-unit-v6）・field・decode の検査は変えない。移行は無い（intent の payload.level の値の集合も今のまま）"
+    ],
+    "nonPersistedFields": [
+      "新しい非保存の field・cache を足さない（見える現況は reduce の中の一時の値）"
+    ],
+    "outOfScope": [
+      "状態の規則: 同じ報の版の更新で移った段を引き継ぐ条件（:378〜:381）、shownAt、collect、保留の印の付け方と回収（K10）。P3-NN-AC02 は今の状態の振る舞いを契約に書き留めるだけで、製品の変更は AC01 の段だけ",
+      "K13 の残存リスク (17)（awaiting の間に 7〜14 日目の 120 を初めて受けると critical）と、移る前に保留の印が付いた巨大地震警戒を awaiting で復元して版の更新を受けると 7〜14 日目に警戒・critical で出る列（どちらも K10 の awaiting の決まりの側。音と画面はそろっている）",
+      "verified の復元で記憶に移った現況へ版の更新が届くと巨大地震注意として戻り warning で鳴る列（K13 の残存リスク (13) と K10 の P3-EF-AC05 の (8) の側）",
+      "ほかの unit の音の段（P3-C7・C5・C13 の NOTICE-LEVELS）と、p3-nankai-unit.json の P3-C8-NOTICE-LEVELS=B の本文（AC03 の (5)）",
+      "実装担当による spec 本文・計画本文・他の契約本文の変更（AC03 は統合担当が配送の commit で当てる）",
+      "P3-NS-AC09 の測り方の直し（K13 の Q-NS-AC09）",
+      "起草の写し（~/dev/fleq-k13n-draft/.draft）を製品・契約の成果物として commit すること"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-NN-AC01",
+        "requirement": "音の段を見える現況で決める（K13 の残存リスク (18)(19) の根、Q-NN-SOURCE・Q-NN-SHAPE）: (1) 現況を採る報（nextCurrent がある報）の通知の level は、採った現況を今の時刻で期限を当てた後の見える形（shownAt）に通し、その status が megaquakeAdvisory なら warning（130 の段）、そうでなければ今どおり報自身の InfoSerial/Code の表（P3-C8-NOTICE-LEVELS=B、P3-NS-AC05）で決める。取消は今どおり cancel。現況を採らない報（情報 subject だけの通知）は今どおり表で決める (2) これで消えるもの: (a) 7〜14 日目に巨大地震注意として出ている 120 の現況（7〜14 日目に初めて採ったもの、7 日目に普通に移ったもの、その保存→復元の後のどれも）へ、同じ ReportDateTime・同じ EventID の訂正でない新しい版で見出しなどの事実が替わって通知するとき、verified・unverified・awaiting のどれでも warning（今は critical） (b) (19) と同じ根の列: 保留の印のある巨大地震注意へ版の更新が届いたとき（AC02）と、注意へ移っただけで情報 subject に保留の印が付いた後の復元で情報 subject が見える形に戻るとき、warning（今は critical） (3) 変えないもの: 7〜14 日目に初めて届いた 120 は verified・unverified で warning 1 回（作者裁定 (15)、P3-NS-AC03 の (8)）、awaiting で critical（K13 の残存リスク (17)、shownAt は awaiting で新しく移さない）。7 日の手前の 120 は critical、130 は warning、111〜113 は normal（H12）、210・219 は warning、190・200 は info、取消は cancel。訂正は引き継がない（:378）ので今どおり（7〜14 日目は verified・unverified で warning、awaiting で critical）。通知を作るか（P3-NS-AC04 の (3) の shownAt の比べ）・transition・題と本文・ID・置換・容量は変えない。Control/DateTime だけ新しい版は今どおり鳴らない。14 日＋1 ms の取消は今どおり、元の報の表示の長さか D1 の印の証拠で鳴る (4) 書き方: 行の数を変えない（:399・:400 の 2 行と :231・:232 の 2 行の中で書き、:223 の注記は 1 行のまま例外を足す）。行の数が変わるなら止めて、足した行とほかの契約の anchor への影響を統合担当へ報告する。保存の形・版（p3-nankai-unit-v6）・型・公開の関数は変えない (5) 受信経路の計算量: 受信 1 回につき shownAt の呼び出し 1 回（記録 1 件の定数の比べ）を足すだけ。全件の走査・状態の直列化を足さない (6) 既存の試験の期待値は変えない（nankai-unit.test.ts:951・:977・:999 の P3-NS-T02 regression と :395 の P3-C8-T06 の level の表）。変える必要が分かったら、変える前に差と理由を統合担当へ報告する（AGENTS.md）",
+        "evidenceRefs": [
+          "reconstruction/src/units/nankai/nankai-unit.ts:80 «89415dcad87ba7fe»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:172 «5b4507476d1e6107»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:173 «2e27635ef9c33300»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:223 «e6ba2a0300d3c162»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:224 «db5bb22b2a8a98b0»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:231 «c5a3f658165ad630»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:232 «8d6b421c01209b44»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:242 «60ae618a33602d5e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:378 «f8fa899c41ba5f9f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:381 «4bd28cf66514da6c»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:399 «2656e0b3dd04c234»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:400 «4b502b96e3adc51d»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:418 «7de84256f9d6e3ab»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:419 «ef1ae8723d070038»",
+          "reconstruction/test/nankai-unit/nankai-unit.test.ts:395 «53fecb3d2e5e9a33»",
+          "reconstruction/test/nankai-unit/nankai-unit.test.ts:951 «5b25c404ae2502a1»",
+          "reconstruction/test/nankai-unit/nankai-unit.test.ts:977 «2060e664ed7205e8»",
+          "reconstruction/test/nankai-unit/nankai-unit.test.ts:999 «1ceacd611d80a5fe»",
+          "reconstruction/contracts/p3-unit-n-series.json:347 «98ff3ee78c8d076b»",
+          "reconstruction/contracts/p3-unit-n-series.json:376 «c1e1e94b3a02fab5»",
+          "reconstruction/contracts/p3-unit-n-series.json:614 «7e08cf43f24b5fe6»",
+          "reconstruction/contracts/p3-unit-n-series.json:115 «012a49bc3ab0a8a1»"
+        ]
+      },
+      {
+        "id": "P3-NN-AC02",
+        "requirement": "保留の巨大地震注意への同じ報の版の更新（P3-NN-D-HELD-ADVISORY=A、作者裁定 2026-10-25、Q-NN-K10）: (1) 手元の現況が南海トラフの系統の active・status megaquakeAdvisory・warningUntil あり・保留の印（expiryPending）ありのとき、訂正でない同じ報（EventID・family・warningUntil が同じ）の新しい版（Control/DateTime が新しい）は、時計の根拠（awaiting を含む）によらず megaquakeAdvisory として採り、採った記録は保留の印を持たない（P3-NS-AC03 の (4) の引き継ぎは保留の印のある注意にも当たる。:378〜:381 は今もこの形で、状態の規則は変えない） (2) 手元は保留で見えず、採った記録は見えるので、通知を作る（P3-NS-AC04 の (3)）。transition は activated（手元が見えないため、:423）、level は AC01 で warning、題と本文は報のまま（K13 の残存リスク (15)）。同じ版の再受信は今どおり duplicate で鳴らない (3) 時計を確かめた後（verified の期限の入力）は、採った記録に保留の印が無いので、validUntil（ReportDateTime＋14 日）の到来まで巨大地震注意として出る (4) 時計が戻らないまま（validUntil を過ぎた時刻の）awaiting で版の更新を受けると、通知は作らない（採った記録も shownAt で見えない、P3-NS-AC04 の (3)）が、保留の外れた記録が awaiting の間だけ画面に出る（visible は validUntil を見ず、awaiting は回収しない、P3-EF-AC02 の (1)）。次の verified の期限の入力で expired になる。残存リスク (1) (5) 保留の印のある巨大地震警戒（移る前に保留が付いたもの）への版の更新と、verified の復元で記憶に移った現況への版の更新は、今どおり（新しい版として採る。awaiting では警戒・critical、verified では注意・warning）で本契約では変えない（outOfScope）",
+        "evidenceRefs": [
+          "reconstruction/src/units/nankai/nankai-unit.ts:52 «e78bb12f2fff1eaf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:125 «7a337cdd4eac0026»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:378 «f8fa899c41ba5f9f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:379 «9afaf198f3441c39»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:392 «9451ca3dbd5056b5»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:423 «9e972dadb282e175»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:501 «a081da5261c58b4e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:511 «ab15f23842dd5e18»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:527 «9a846e4354b57200»",
+          "reconstruction/contracts/p3-unit-n-series.json:347 «98ff3ee78c8d076b»",
+          "reconstruction/contracts/p3-expiry-form.json:455 «9eaf7466225a3a83»",
+          "reconstruction/contracts/p3-expiry-form.json:491 «4dbadb186d8661a9»"
+        ]
+      },
+      {
+        "id": "P3-NN-AC03",
+        "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方にし、書き換えた行を anchor で引く契約は同じ commit で付け直す）: (1) p3-unit-n-series.json:376（P3-NS-AC05）の「（到着の時点で warningUntil を過ぎた 120 は warning、作者裁定 2026-10-25、AC03 の (8)）」を「（現況を採る報は、採った現況が今見える形で巨大地震注意なら warning。到着の時点で warningUntil を過ぎた 120 と、移った段を引き継いだ版の更新の両方、作者裁定 2026-10-25、AC03 の (8)、P3-UNIT-N-NOTICE-001）」にする (2) p3-unit-n-series.json:347（P3-NS-AC03）の (4) の末尾に「手元の注意に保留の印があっても引き継ぎ、採った記録は保留の印を持たない（P3-UNIT-N-NOTICE-001 の P3-NN-AC02、作者裁定 2026-10-25）」を、(8) の末尾に「版の更新の段も採った現況の今見える status で決める（P3-UNIT-N-NOTICE-001 の P3-NN-AC01）」を足す (3) p3-unit-n-series.json:614（残存リスク）の (18) と (19) の末尾に「【P3-UNIT-N-NOTICE-001 で解消（配送の commit）】」を足す（文は消さない） (4) docs/specs/reconstruction-p0-contracts.md:3039（H12）の「（到着の時点で warningUntil を過ぎた 120 は warning、作者裁定 2026-10-25、P3-NS-AC03 の (8)）」を「（採った現況が今見える形で巨大地震注意なら warning、作者裁定 2026-10-25、P3-NS-AC03 の (8)、`P3-UNIT-N-NOTICE-001`）」にし、この行を引く p3-unit-n-series.json の anchor を付け直す (5) p3-nankai-unit.json:192（Q-NOTICE の level、P3-C8-NOTICE-LEVELS=B）は変えない（sequences.json が anchor で引くので、変えると全契約の sequencesSha256 が動く。改訂は K13 の P3-NS-AC05 の側で読み、本契約の AC01 がそれを改める） (6) p3-expiry-form.json は変えない。P3-EF-AC02 の (4) と新しい版の当たり方は Q-NN-K10 で閉じた (7) p3-order-plan.md は変えない（K10〜K13 の契約の表の行は無い）。p3-unit-n-series.json の Q-NS-IMPL-1（:115）の「小さな契約に起こす」も変えない (8) (1)〜(4) で書き換えた行は本契約の evidenceRefs も anchor で引いているので、本契約の anchor も同じ commit で付け直す。改訂した契約と本契約の meta.sha256 を作り直す。sequences.json は変えないので sequencesSha256 は動かない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-unit-n-series.json:376 «c1e1e94b3a02fab5»",
+          "reconstruction/contracts/p3-unit-n-series.json:347 «98ff3ee78c8d076b»",
+          "reconstruction/contracts/p3-unit-n-series.json:614 «7e08cf43f24b5fe6»",
+          "reconstruction/contracts/p3-unit-n-series.json:115 «012a49bc3ab0a8a1»",
+          "docs/specs/reconstruction-p0-contracts.md:3039 «50d5f857f6ba4fbf»",
+          "reconstruction/contracts/p3-nankai-unit.json:192 «97cfb28afb01bed0»",
+          "reconstruction/contracts/p3-expiry-form.json:455 «9eaf7466225a3a83»",
+          "reconstruction/contracts/p3-order-plan.md:440 «fffed09dc78a8a4e»",
+          "reconstruction/contracts/p3-order-plan.md:576 «de6c3ebd4339d117»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-NN-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-NN-AC01"
+        ],
+        "behavior": "実不具合（K13 の残存リスク (18)、ヘルツの r5 の反例）。nankai-unit.test.ts に新しい it を 1 つ: 74_01_04（120、T＝ReportDateTime）を (a) T＋8 日に初めて受けて配送した state (b) T に受けて配送し T＋7 日の期限の入力で移った state (c) (a) を encode→restore（T＋8 日、同じ basis）した state のそれぞれに、Control/DateTime を 1 秒進めて Headline の Text だけ替えた非訂正の版を、verified・unverified・awaiting で受ける。status は megaquakeAdvisory のまま、intents は desktop・sound とも transition updated・level warning（直す前は critical）。対照: T に受けて配送した state に同じ版を T＋3 日に受けると megaquakeWarning のまま critical（7 日の手前の境界、3 basis）"
+      },
+      {
+        "testId": "P3-NN-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-NN-AC01",
+          "P3-NN-AC02"
+        ],
+        "behavior": "実不具合（K13 の残存リスク (19)）と作者裁定 A の受入。nankai-unit.test.ts に新しい it を 1 つ: T に受けて配送した 120 に、unverified の期限の入力を読み T＋8 日（注意へ移る）と T＋15 日（現況に保留の印、status は注意のまま）で当て、encode→restore を実時刻 T＋9 日・awaiting で行い、Control/DateTime だけ 1 秒新しい同じ 120 を awaiting で受ける。採った現況は megaquakeAdvisory・保留の印なし、toNankaiView の currents に出る、intents は transition activated・level warning（直す前は critical）。続けて verified の期限の入力（T＋9 日＋2 秒）で注意のまま、T＋14 日で expired（intent 0）。対照 (1): 同じ state を実時刻 T＋15 日・awaiting で復元して同じ版を受けると intents は空（AC02 の (4)、採った記録は保留の印を持たず awaiting の間は view に出る、を assert）。対照 (2)（同じ根の別の列）: unverified の読み T＋8 日だけを当てた state（現況は注意、情報 subject に保留の印）を実時刻 T＋2 日に awaiting と verified で復元して同じ版を受けると、status は注意のまま、intents は transition updated・level warning（直す前は critical）"
+      },
+      {
+        "testId": "P3-NN-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-NN-AC01"
+        ],
+        "behavior": "段が変わらない側の境界（AC01 の (3)）。既存の試験で当たる行（nankai-unit.test.ts:951 の verified の遅れた 120・Control/DateTime だけの版・取消、:977 の verified・unverified・復元の Control/DateTime だけの版と 14 日＋1 ms の取消、:999 の awaiting の復元の後の版だけの更新、:395 の level の表）は期待を変えずに通し、足さない。新しい it を 1 つにして足すのは basis の軸で欠けている行だけ: (i) T＋8 日に初めて届いた 120 は unverified で megaquakeAdvisory・warning 1 回、awaiting で megaquakeWarning・critical（K13 の残存リスク (17)） (ii) T＋8 日に届いて配送した 120 と 7 日目に移った 120 への Control/DateTime だけ 1 秒新しい版は、unverified・awaiting（復元なし）で intents が空 (iii) 14 日＋1 ms の取消は awaiting で、D1 の印（配送済み）のある遅れた 120・移った 120 は cancel、配送していない移った 120 は intents が空 (iv) 7 日目に移った巨大地震注意（T に受けて配送し T＋7 日の期限の入力で移した state）へ、InfoType を訂正にして Control/DateTime を 1 秒進めた 120 を T＋8 日に受けると、訂正は引き継がない（:378）ので verified・unverified は megaquakeAdvisory・updated・warning、awaiting は megaquakeWarning・updated・critical（shownAt は awaiting で移さない、AC01 の (3)。直す前と同じ。ヘルツの品質レビューの P3）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（新しい fixture file を足さない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07 の参照（sequences.json は変えない）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約と anchor。本契約の evidence の行（nankai-unit.ts の :223・:231・:232・:399・:400）が直しで替わる FAIL は想定内で、実装担当が本契約の anchor と自己 digest を同期する。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査と reconstruction/dist/ の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "C6 の runner が使う dist の生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "正式回帰と既存試験（期待値の変更 0）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順序依存の検出"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由。",
+      "nankai-unit.ts の行の数が 853 のままであること（変わったら足した行と、ほかの契約の anchor への影響）。足した仕組みは無い見込み（あれば『無いと何が壊れるか』を 1 行）。",
+      "追加した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行（T01・T02 は実不具合、T03 は契約境界）。T01・T02 が直す前の製品で落ちること（critical）を確かめた結果。既存の試験の期待値の変更は 0 件の見込みで、変える必要があれば変える前に差と理由を報告する。",
+      "規模の見積もり（起草の写しから）: 製品の TS は 1 file・5 行の書き換え（:223・:231・:232・:399・:400、行の数は同じ）、試験は 1 file・新しい it 3 つ。0.25 人日。実績と差があれば理由を書く。",
+      "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
+      "残存リスク（(1) は作者裁定 P3-NN-D-HELD-ADVISORY=A で示した副作用、(2)(3) は 2026-10-25 作者承認済み、Q-NN-AUTHOR）: (1) 時計が戻らないまま（validUntil を過ぎた時刻の）awaiting で復元し、保留の巨大地震注意へ同じ報の版の更新が届くと、鳴らないが保留の外れた期限切れの巨大地震注意が awaiting の間だけ画面に出て、次の verified の期限の入力で消える（今のコードでも起きている。K13 の残存リスク (17) と同じ awaiting の決まりの側で、K10 の P3-EF-AC02 の (5) の「表示の期限を過ぎてから採る報は鳴らないまま最長 30 秒見えうる」と同じ形。作者裁定 2026-10-25、P3-NN-D-HELD-ADVISORY=A の副作用、P3-NN-AC02 の (4)） (2) 保留の巨大地震注意が版の更新で戻るときの通知は transition activated で、題と本文は元の 120 の報（巨大地震警戒の題）のまま。区分の札と題の食い違いの描き方は P4（K13 の残存リスク (15) と同じ） (3) 同じ ReportDateTime・同じ EventID の非訂正の新しい版は気象庁の資料に記述が無く（Q-NN-JMA）、(18) の直しは実配信で来る見込みの無い入力への備え。実配信の頻度は未集計"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-NN-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "implementation"
+        ],
+        "resolveBy": "発注前点検で baseOid を割り当てる。nankai-unit.ts と nankai-unit.test.ts が他の契約（K10 の発注 2 など）と同時に編集されないことと、本契約の evidence の anchor が base で合うことを確かめる",
+        "requiredEvidence": [
+          "git rev-parse HEAD と git status --porcelain",
+          "check-contract で本契約が PASS（baseOid の WARN が消える）"
+        ]
+      }
+    ]
+  }
+}
