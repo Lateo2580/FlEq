@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "26dba87d3af888667e96530ebc04f66ebcbba5e5d4b1aa230cd8834d14a36431",
+    "sha256": "36ab8dc9b816bb428d3d161409fdf70aeb24db85c6ebb844f6f38bf046accab9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
+    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -65,7 +65,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定A（2026-10-12朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（受理の証拠だけを保存し、表示の事実は保存しない）だけを読む",
-        "reason": "横断不変条件P3-X-C1は将来の受理の証拠を表示から分ける（reconstruction/contracts/p3-order-plan.md:363 «8fe2a1f116ce15af»）。K2はU-Nの説明だけの情報系列（spec上はN）に最小の版・取消の証拠を保存させた（reconstruction/contracts/p3-authority-evidence.json:12 «43b639408d6e8ea1»）。Aはそれと同じ形で、spec:482の「永続currentを作らない」を守る（事実は保存しない）。保存の量: 証拠1件は実際の形で357〜431 byte、合法最大844 byte（I-U-M.capacityReserve）。表示の事実は最大で1件5,221 byte、768件で4,009,728 byteになり、Cは4 MiBの予算を超えうる（spec:482の予算の改訂が要る）。Bは版・取消の記憶が再起動で消える（spec:536は地震・速報の取消記憶を捨てないとし、解説は名指ししていない）。Aの代償: 再起動の後、3時間の見える時間の残りの解説は見えなくなる（再受信しても重複で出し直さない）"
+        "reason": "横断不変条件P3-X-C1は将来の受理の証拠を表示から分ける（reconstruction/contracts/p3-order-plan.md:363 «8fe2a1f116ce15af»）。K2はU-Nの説明だけの情報系列（spec上はN）に最小の版・取消の証拠を保存させた（reconstruction/contracts/p3-authority-evidence.json:12 «ef4de939314c29a3»）。Aはそれと同じ形で、spec:482の「永続currentを作らない」を守る（事実は保存しない）。保存の量: 証拠1件は実際の形で357〜431 byte、合法最大844 byte（I-U-M.capacityReserve）。表示の事実は最大で1件5,221 byte、768件で4,009,728 byteになり、Cは4 MiBの予算を超えうる（spec:482の予算の改訂が要る）。Bは版・取消の記憶が再起動で消える（spec:536は地震・速報の取消記憶を捨てないとし、解説は名指ししていない）。Aの代償: 再起動の後、3時間の見える時間の残りの解説は見えなくなる（再受信しても重複で出し直さない）"
       },
       {
         "id": "P3-C13-NOTICE-LEVELS",
@@ -1108,7 +1108,7 @@
           "src/engine/messages/revision-family-registry.ts:238 «492530a967d2f6a7»",
           "src/engine/messages/revision-family-registry.ts:247 «142b9c2dbf344e55»",
           "src/engine/display/constants.ts:54 «57746ecc5f20141f»",
-          "reconstruction/contracts/p3-authority-evidence.json:12 «43b639408d6e8ea1»",
+          "reconstruction/contracts/p3-authority-evidence.json:12 «ef4de939314c29a3»",
           "reconstruction/contracts/p3-order-plan.md:363 «8fe2a1f116ce15af»"
         ]
       },

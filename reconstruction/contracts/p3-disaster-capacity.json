@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "dca37b7290c0cd718916ee418627b36a269b4503a87951281b5f0282d9d69473",
+    "sha256": "589c8bc0dabdb8333c772049844320116fbcec8b74a416dbf0eb5d474238dcd3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
+    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -408,7 +408,7 @@
           "reconstruction/src/domains/eew/eew.ts:552 «66224699b9d11746»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:32 «632cae790ef4aa0a»",
           "reconstruction/src/units/seismic/seismic-unit.ts:57 «504cfec80a7ac9f7»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:30 «f376055a27fbf976»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:30 «2f54a6a3ec656174»",
           "reconstruction/src/domains/weather-current/weather-current.ts:664 «7dfd56fda32b885c»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:44 «3ad4bf7c6588ba31»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:17 «24da389b1664ffbd»",

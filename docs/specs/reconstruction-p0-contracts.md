@@ -474,7 +474,7 @@ byte 予算は**開始値**だ。P1〜P3 で最大正常入力・同時最大状
 | U-E `eew` | EEW | 期限付き intent、EventID ごとの通知の印（配送済み／失効の記録の代わり、`P3-NOTICE-LEDGER-001` の P3-NL-AC04） | active EEW、予測保持 latch、実行中 gate | 2 MiB（2026-10-22 `P3-NOTICE-LEDGER-001` で印 2,048 件の分を足した、P3-NL-AC04 の (8)。当初 256 KiB） |
 | U-Q `seismic` | 地震・長周期 | 有効観測、出典、取消記憶、強震保持の根拠、必要な当日履歴、intent | 描画 path、カード配置、別地図 snapshot | 4 MiB（器は K7・K8 の作者裁定で広げた 5,374,354 byte、`P3-UNIT-Q-001` の P3-C7-RES-01） |
 | U-T `tsunami` | 津波警報・観測 | EventID 別警報、区域状態、VTSE51/52 の独立観測系列、station記憶、取消、intent | 表示用複製、復旧用 REST queue | 4 MiB（器は 2026-10-22 の作者裁定 P3-NL-D-CAPACITY=A で印の分を足し、`P3-EXPIRY-FORM-001` で期限の印の予約〔1,024×21〕を足した 4,698,345 byte、P3-C5-RES-01） |
-| U-N `nankai` | 南海トラフ | 現況、現況更新の出典・取消記憶、intent | 説明だけの報の永続 current | 288 KiB（2026-10-10 作者裁定 P3-AUTH-D-N-BUDGET=A、K2。当初 256 KiB） |
+| U-N `nankai` | 南海トラフ | 現況、現況更新の出典・取消記憶、intent、情報系列（全文、`P3-UNIT-N-SERIES-001`） | 説明だけの報の永続 current | 2.5 MiB（`P3-UNIT-N-SERIES-001`、2,621,440 byte。前は 288 KiB〔2026-10-10 作者裁定 P3-AUTH-D-N-BUDGET=A、K2〕、当初 256 KiB） |
 | U-W `weather-current` | VPWS50、VPWW55/57–61、VPNO50終了 | 全国 base、partial、現象所有情報、履歴、watermark、区域終了 tombstone、intent | 別 standby／promotion current | 16 MiB |
 | U-L `landslide` | VPWW56 | 官署×type の current・gate・取消・期限・intent | 全国一括の権威ある union | 2 MiB |
 | U-F `weather-timeseries` | VPWP50 | period、subject revision、正常 empty、unavailable根拠、取消、期限、intent | カード幅に合わせた切捨て state | 32 MiB（器は `P3-EXPIRY-FORM-001` で期限の印の予約を足した 33,565,184 byte、P2-A6-RES-01） |
@@ -509,7 +509,7 @@ RC には21 route がある。以下は全21 route を網羅し、意味の異�
 | `tsunami` / VTSE51 | M04 | U-T | D | VTSE51のfamily watermarkとstation item、訂正・取消、観測値 | RF:715–743 |
 | `tsunami` / VTSE52 | M04 | U-T | D | VTSE52の独立family watermarkとstation item、訂正・取消 | RF:715–743 |
 | `nankaiTrough` / 現況を更新するVYSE50/51/52/60 | M05 | U-N | D | `nankai:current`、出典EventID、取消・終了、intent | RC:177、RF:451–460、PM:506–514 |
-| `nankaiTrough` / 説明だけの同型電文 | M05 | U-N | 情報系列N、intent D | 情報subjectだけ。現況を更新しない | RF:462–478、PM:516–520 |
+| `nankaiTrough` / 説明だけの同型電文 | M05 | U-N | 情報系列D（`P3-UNIT-N-SERIES-001`）、intent D | 情報subjectだけ。現況を更新しない | RF:462–478、PM:516–520 |
 | `weather` / VPWS50 | M06 | U-W | D | 全国base、履歴2、gate、partialとの合成、取消復元、intent | RC:183、RF:769–790 |
 | `weather` / VPWW55/57/58/59/60/61 | M06 | U-W | D | type×官署partial、履歴8、所有現象、code00、取消復元 | `weather-stream-key.ts:5–28`、`vpws50-state.ts:997–1012` |
 | `weather` / VPWW56 | M07 | U-L | D | type×官署だけを clear、gate、期限。ほかの官署を維持 | RF:793–820 |
@@ -3036,7 +3036,7 @@ Q6として、最終的なviewport、DPR、zoom、画面サイズ、視聴距離
 | H09 | 津波注意報も警報の音にする（16.2.1 のしきい値と合わせて決める）。大津波警報への引上げは最も重い音、観測の報は最も軽い音で 1 回のまま。通知の固定優先群の「津波緊急」は音の段から切り離して判定する（下の注）。 | —（:951※ は群の判定を切り離せば本文どおり） | `P3-TSUNAMI-UNIT-001` P3-C5-NOTICE-LEVELS と通知の優先順の導出、`P2-NOTIFICATION-DELIVERY-001` P2-A7-IR03 の津波緊急の判定、`P3-NOTICE-LEDGER-001`（P3-NL-AC11） |
 | H10 | 「今すぐ避難！」のような呼びかけの文言は出さない。重さは色と点滅で見せ、文字は電文の事実（区域、到達予想、高さ）だけにする。 | :22、:51、:415、:431、:1326、:1600、:1626、:1865、:2777、:1332※、:1852※ | P4（`P3-TSUNAMI-E01-001` は帯を作らないので変えない） |
 | H11 | 気象は危険警報（L4）で通知、特別警報（L5）で通知と音を出す。危険度が上がったお知らせを作らない決まりは見直す。 | :2325†（`notify` の既定は C18 で決める） | C20、画面のお知らせも作るなら `P2-SNAPSHOT-SSE-001` P2-A8-NOTICE と Q-NOTICE-UX |
-| H12 | 南海トラフの調査中は普通の音にする。巨大地震警戒は最も重い音、巨大地震注意は警報の音のまま。 | — | `P3-UNIT-N-001` P3-C8-NOTICE-LEVELS |
+| H12 | 南海トラフの調査中は普通の音にする。巨大地震警戒は最も重い音、巨大地震注意は警報の音のまま。 | — | `P3-UNIT-N-001` P3-C8-NOTICE-LEVELS、`P3-UNIT-N-SERIES-001` の P3-NS-AC05（到着の時点で warningUntil を過ぎた 120 は warning、作者裁定 2026-10-25、P3-NS-AC03 の (8)） |
 | H13 | 竜巻注意情報は普通の音、目撃情報があれば警報の音にする。 | — | `P3-UNIT-M-001` P3-C13-NOTICE-LEVELS（目撃の判定は P3-C13-TORNADO-PAIR のまま）、`P3-EXPIRY-FORM-001` の P3-EF-AC07 |
 | H14 | 新旧は種類ごとに気象庁の資料が書く発表時刻で比べ、報番号は使わない（16.2.5）。EEW も同じ。種類別の比較時刻に加え、同時刻のときの Control/DateTime まで一致し、中身の違う 2 通は「未確認」とし、最後に確定した情報を残す。 | :63 | `P3-REVISION-ORDER-001` の後継の横断修正（新規）、`P2-EEW-UNIT-001` と `P3-LIFETIME-AND-EEW-GATE-001` P3-LIFE-D-LATE（報番号の比べ）、`P2-WEATHER-CURRENT-UNIT-001`（同時刻の後着）、全 unit の codec |
 | H15 | 続報と訂正で変わった項目を示す。訂正の通知もどこが変わったかを示す。 | — | P4、通知の本文にも書くなら各 unit の payloadRules |
@@ -3047,14 +3047,14 @@ Q6として、最終的なviewport、DPR、zoom、画面サイズ、視聴距離
 | H20 | EEW は最終報から 2 分、最後の報から 10 分で閉じる。EEW が続く間に同じ地震の震度速報が届いたら、EEW は閉じず、反対側の列に震度速報を出す。閉じたあとの震度速報は通常のカードとして残る。EEW と震度速報は運用区分（通常・訓練・試験）と地震識別番号で結び付け、正しく読めた震度速報の発表と訂正だけを使う。EEW の取消の知らせは止めない。 | — | `P3-LIFETIME-AND-EEW-GATE-001` P3-LIFE-D-EEW（最終報から 2 分を足す）、`P2-EEW-UNIT-001`（最終報で current を除く所）、P4 |
 | H21 | 緊急カードは「右は緊急の列、左はそれ以外の列」に統一する（暫定。細かい配置は P4 で詰める）。 | :1865、:1597※、:1332※、:1852※、:1601†、:1615†、:1617†、:1619†、:1624†（§8.7.2・§8.7.3 の配置） | P4 |
 | H22 | 起動と再接続のたびに津波の電文を取り直す。終わるまで津波の欄に「取り直し中」の札を出す。 | — | C16、`P3-TSUNAMI-UNIT-001` P3-C5-N2、P4（札） |
-| H23 | 期限で消すときは、理由と最終更新の時刻を全分野で同じ形で出す。何時間で消すかは電文の有効期限を使い、有効期限の無い種類だけこちらで決める。 | :735※ | `P3-UNIT-L-001` P3-C10-ACTIVE-EXPIRY、`P3-UNIT-Y-001` P3-C14-EXPIRY、`P3-UNIT-N-001` P3-C8-CURRENT-EXPIRY、`P3-UNIT-M-001` P3-C13-TORNADO-EXPIRY、`P3-UNIT-V-001`（噴火の期限）、`P3-EXPIRY-FORM-001`（期限切れの保留と記憶、U-T・U-F・U-M の形、時計の根拠ごとの当て方。短命の解説〔M18〕は見える長さを有効期限にしない、分岐 P3-EF-D-TRANSIENT-VALID=A。VTSE41 の若干の海面変動だけの予報の有効期限は P4 で決める、作者裁定 2026-10-25）、`P3-UNIT-Q-CAPACITY-001` の P3-QC-AC08（U-Q の期限切れの記憶）、P4 |
+| H23 | 期限で消すときは、理由と最終更新の時刻を全分野で同じ形で出す。何時間で消すかは電文の有効期限を使い、有効期限の無い種類だけこちらで決める。 | :735※ | `P3-UNIT-L-001` P3-C10-ACTIVE-EXPIRY、`P3-UNIT-Y-001` P3-C14-EXPIRY、`P3-UNIT-N-001` P3-C8-CURRENT-EXPIRY、`P3-UNIT-M-001` P3-C13-TORNADO-EXPIRY、`P3-UNIT-V-001`（噴火の期限）、`P3-EXPIRY-FORM-001`（期限切れの保留と記憶、U-T・U-F・U-M の形、時計の根拠ごとの当て方。短命の解説〔M18〕は見える長さを有効期限にしない、分岐 P3-EF-D-TRANSIENT-VALID=A。VTSE41 の若干の海面変動だけの予報の有効期限は P4 で決める、作者裁定 2026-10-25）、`P3-UNIT-Q-CAPACITY-001` の P3-QC-AC08（U-Q の期限切れの記憶）、`P3-UNIT-N-SERIES-001` の P3-NS-AC03・AC04（巨大地震警戒の二段と情報の期限切れの記憶）、P4 |
 | H24 | 切れている間は「切断中・再接続を試行中／最終受信 HH:MM」を目立たせ、繋がり直したら消す。CLI では 1 回の切断に 1 回デスクトップ通知を出す（16.2.4）。 | — | C19、`P3-DMDATA-CONNECT-001` P3-C2-RECOVERY、P4 |
 | H25 | 何度か接続が切れたら、「回線が不安定です」の 1 つの知らせにまとめる。 | — | C19、P4、回数を view に載せるなら `P3-DMDATA-CONNECT-001` |
 | H26 | 切れていた間と止まっていた間の電文を、一覧に出る全分野で取り直す。dmdata への負担は 3 つで抑える（16.2.3）。 | — | C16、`P3-DMDATA-CONNECT-001` P3-C2-RETRY（繋ぎ直す間隔）、各 unit の N2（P3-C7-N2〜P3-C14-N2） |
 | H27 | 取り直しで拾った、いまも有効な引上げは、軽い音を 1 回鳴らし（どの段かは C16 で決める）、発表時刻と、取り直しで拾った情報だと分かる表示を大きく出す。大津波警報と津波警報は、その種類のいつもの音で鳴らす（大津波警報への引上げは最も重い音、津波警報は警報の音）。途中の報は鳴らさない。既存の pending・送信済み・送信したか不明の記録と照合し、同じ引上げの通知を重ねない。何と比べた引上げかと、照合に使う同一性と記録期間は未定（C16 で決める）。 | :674、:991、:2220、:2224※ | C16、各 unit の recovery の通知（`P3-TSUNAMI-UNIT-001` ほか）、`P3-NOTICE-LEDGER-001`（P3-NL-AC13） |
 | H28 | 切れていた間の EEW は出し直さず、「緊急地震速報 HH:MM–HH:MM は未確認」と控えめに出す。EEW の一覧と照合できたら消し、照合できないまま時間がたったら時計の横から外して H39 のまとめへ移す。履歴にも残す。 | — | C16（外すまでの時間も決める） |
 | H29 | 一度も繋がらないときは、繋がらない理由（ネット、API キー）と対処の手引きを出す。 | — | `P3-DMDATA-CONNECT-001` P3-C2-RETRY（理由を接続の状態に載せる）、C19、P4 |
-| H30 | 南海トラフの情報の一覧も、再起動の後に戻す。 | :394※、:477※、:512※ | `P3-UNIT-N-001` P3-C8-SUBJECTS（情報系列を保存する。永続 schema の移行と 288 KiB の見直し） |
+| H30 | 南海トラフの情報の一覧も、再起動の後に戻す。 | :394※、:477※、:512※ | `P3-UNIT-N-001` P3-C8-SUBJECTS（情報系列を保存する。永続 schema の移行と 288 KiB の見直し）、`P3-UNIT-N-SERIES-001` の P3-NS-AC01 |
 | H31 | 分野ごとに、止まっていた間がどうなったか（取り直し中、取り直し済み、取り直せなかった）を文言で出す。 | — | C16、`P2-SHARED-RUNTIME-001` P2-A1-CONFIRMATION、P4 |
 | H32 | 停電中の受信は保証しない。電源が戻って起動したら、止まっていた間のダイジェストを出す（16.2.3）。 | — | C16、P4 |
 | H33 | 再起動の後、画面にカードが無い EEW は鳴らさない。 | :997※、:999※ | `P2-CHECKPOINT-SHUTDOWN-001` P2-A3-AC01、`P2-EEW-UNIT-001`、`P3-LIFETIME-AND-EEW-GATE-001`（H48 とは別に、復元した EEW の intent の配送可否を current の有無で制限する） |

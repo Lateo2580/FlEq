@@ -28,7 +28,7 @@ export type NankaiCurrentStatus = "investigating" | "megaquakeWarning" | "megaqu
 export type NankaiInfoSerial = Readonly<{ code: string; name: string | null }>;
 
 // active の現況の事実。文字列の上限（I-U-N.bounds）: title 128 文字、headline 512 文字。超えたら切り詰めて truncated=true。
-// validUntil は source の ReportDateTime + 7×86,400,000 ms（P3-C8-RETENTION、JST の暦日は使わない）。
+// validUntil は source の ReportDateTime + 7×86,400,000 ms（P3-C8-RETENTION、JST の暦日は使わない）。warningUntil を持つ現況は +14 日（P3-NS-AC03）。
 type NankaiCurrentFacts = Readonly<{
   effective: "active";
   infoSerial: NankaiInfoSerial | null;
@@ -52,7 +52,8 @@ export type NankaiCurrent = Readonly<{
   retainUntil: number; unconfirmed?: ReportRef; // P3-VM-AC04: 系統の未確認の印。取消・期限で事実の消えた現況には無い
   notice?: NoticeMark; // P3-NL-AC02: 系統の通知の印（記録と同じに生きる）。表示には出さない
 }> & (
-  | (Readonly<{ line: "nankai"; status: NankaiCurrentStatus }> & NankaiCurrentFacts)
+  // P3-NS-AC03: warningUntil（ReportDateTime + 7 日）は巨大地震警戒の現況だけが持ち、巨大地震注意へ移った後も残す。
+  | (Readonly<{ line: "nankai"; status: NankaiCurrentStatus; warningUntil?: number }> & NankaiCurrentFacts)
   | (Readonly<{ line: "VYSE60"; status: "subsequentAdvisory" }> & NankaiCurrentFacts)
   | Readonly<{ line: "nankai"; effective: "ended" | "cancelled" | "expired" }>
   | Readonly<{ line: "VYSE60"; effective: "cancelled" | "expired" }>
@@ -60,20 +61,20 @@ export type NankaiCurrent = Readonly<{
 
 export type NankaiCurrentLine = NankaiCurrent["line"];
 
-// 情報系列（N、事実は保存しない）。subject = `${operation}/${family}/${eventId}`。採用した全ての報が入る
-// （現況を変える報は、現況が採用したときだけ）。cancelled は事実を捨てて source だけ残し、view に載らない。
-// 文字列の上限（I-U-N.bounds）: title 128、headline 512、text 4,096、nextAdvisory 512、infoKind 64 文字。
-// retainUntil は ReportDateTime + 7×86,400,000 ms（P3-C8-RETENTION）。
-type NankaiInformationIdentity = Readonly<{
+// 情報系列（全文を保存する、P3-NS-AC01）。subject = `${operation}/${family}/${eventId}`。採用した全ての報が入る
+// （現況を変える報は、現況が採用したときだけ）。cancelled と expired（表示の期限の後の記憶、P3-NS-AC04）は事実を捨てて source だけ残し、
+// view に載らない。文字列の上限（I-U-N.bounds）: title 128、headline 512、text 4,096、nextAdvisory 512、infoKind 64 文字。
+// validUntil は ReportDateTime + 7 日（P3-NS-SEM-03）、retainUntil は + 30 日（P3-NS-SEM-04）。
+type NankaiInformationBase = Readonly<{
   subject: string;
   family: NankaiReportFamily;
   eventId: string;
   operation: Operation;
+  source: ReportRef;
   retainUntil: number;
-  // P3-NL-AC02 (2): 情報系列の通知の印。情報の本文は保存しないが、印は証拠と一緒に保存する。表示には出さない。
-  notice?: NoticeMark;
+  unconfirmed?: ReportRef; // P3-VM-AC04・P3-NS-AC02: 情報 subject の未確認の印（保存する）
+  notice?: NoticeMark; // P3-NL-AC02 (2): 情報系列の通知の印（記録と同じに生きる）。表示には出さない
 }>;
-type NankaiInformationBase = NankaiInformationIdentity & Readonly<{ source: ReportRef; unconfirmed?: ReportRef }>; // P3-VM-AC04: 情報系列の印は事実と同じく保存しない（spec:512 の N。保存すると上界が予算を越える、AC08）
 type NankaiInformationHeading = Readonly<{
   effective: "active";
   infoKind: string | null;
@@ -81,22 +82,13 @@ type NankaiInformationHeading = Readonly<{
   title: string;
   headline: string | null;
   truncated: boolean;
+  validUntil: number;
+  expiryPending?: true; // P3-EF-AC02 (2)・Q-NS-PRECHECK (0)(c): 時計を確かめる前に validUntil が来た印（view から外し、本文と印は残す）
 }>;
-// 受理の証拠（P3-AUTH-AC01）: 情報 subject の版の比較に要るものだけ。保存し、復元で証拠だけの情報 subject に戻る。
-export type NankaiEvidence = Readonly<{
-  subject: string;
-  reportDateTimeMs: number;
-  serialRaw: string;
-  infoTypeRaw: string; controlDateTimeRaw: string; // P3-VM-AC01: 比べる材料の Control/DateTime
-  notice?: NoticeMark; // P3-NL-AC02 (2): 保存の形だけが持つ（記録の notice の写し）
-}>;
-// evidence は復元した証拠だけの記録で、事実も source も持たず view・outcome・表示の変化に出ない。
-export type NankaiInformation =
-  | (NankaiInformationBase & (
-    | (NankaiInformationHeading & Readonly<{ text: string | null; nextAdvisory: string | null }>)
-    | Readonly<{ effective: "cancelled" }>
-  ))
-  | (NankaiInformationIdentity & Readonly<{ effective: "evidence"; evidence: NankaiEvidence }>);
+export type NankaiInformation = NankaiInformationBase & (
+  | (NankaiInformationHeading & Readonly<{ text: string | null; nextAdvisory: string | null }>)
+  | Readonly<{ effective: "cancelled" | "expired" }>
+);
 
 // view・snapshot に載せる情報は見出しだけ（本文の text・nextAdvisory を外す。snapshot の予算、P3-C8-SNAPSHOT）。
 export type NankaiInformationView = NankaiInformationBase & NankaiInformationHeading;
@@ -112,10 +104,9 @@ export type NankaiNotificationPayload = Readonly<{
 export type NankaiIntent = NotificationIntent & Readonly<{ payload: NankaiNotificationPayload }>;
 
 export type NankaiUnitState = Readonly<{
-  schemaVersion: "p3-nankai-unit-v5";
+  schemaVersion: "p3-nankai-unit-v6";
   contentRevision: number;
   currents: readonly NankaiCurrent[];
-  // N: 事実は保存しない。復元の後は証拠だけの記録から始まる（spec:512、P3-AUTH-AC01）。
   information: readonly NankaiInformation[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly NankaiIntent[];
@@ -123,11 +114,11 @@ export type NankaiUnitState = Readonly<{
 }>;
 
 export type PersistedNankaiUnit = Readonly<{
-  schemaVersion: "p3-nankai-unit-v5";
+  schemaVersion: "p3-nankai-unit-v6";
   currents: readonly NankaiCurrent[];
   intents: readonly NankaiIntent[];
-  // 64 件以下・subject の重複なし。鍵の無い保存物は invalid（旧保存は版で捨てる、P3-VM-AC08）。
-  evidence: readonly NankaiEvidence[];
+  // 64 件以下・subject の重複なし（P3-NS-AC01）。鍵の無い保存物は invalid（旧保存は版で捨てる、P3-NS-AC08）。
+  information: readonly NankaiInformation[];
 }>;
 
 // active の現況と active の情報の見出しだけを載せる。VYSE60（北海道・三陸沖後発地震注意情報）は南海トラフの現況を
@@ -165,5 +156,5 @@ export type NankaiUnitStep = Readonly<{
 }>;
 
 export type NankaiUnitCodec = UnitCodec<NankaiUnitState, PersistedNankaiUnit> & Readonly<{
-  schemaVersion: "p3-nankai-unit-v5";
+  schemaVersion: "p3-nankai-unit-v6";
 }>;

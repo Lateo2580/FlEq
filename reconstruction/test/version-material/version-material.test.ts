@@ -175,9 +175,9 @@ describe("P3-VERSION-MATERIAL-001 発注 2a", () => {
     expect([outcome(newer.decisions[0]), family(newer.state).unconfirmed]).toEqual(["changed", undefined]);
   });
 
-  // regression（K7 発注 2a のレビュー）: 中身の比べに InfoType を入れる（同じ時刻・同じ観測値の訂正は未確認）。U-N は再起動の後の証拠だけの
-  // 情報 subject では現況の版で判定し、保存の証拠の時刻の値を時刻の文字列に戻さない。
-  it("P3-VM-T03 regression / AC03,AC04: a same-time correction of equal values is marked, and U-N judges its current behind evidence", () => {
+  // regression（K7 発注 2a のレビュー）: 中身の比べに InfoType を入れる（同じ時刻・同じ観測値の訂正は未確認）。U-N は再起動の後も保存した情報
+  // subject の版で判定する（P3-NS-AC01）。
+  it("P3-VM-T03 regression / AC03,AC04: a same-time correction of equal values is marked, and U-N judges its current after a restart", () => {
     const tsunami = (state: TsunamiUnitState, material: DecodedMaterial) => reduceTsunamiUnit(state, { kind: "receive", material,
       clock: { wallTimeMs: Date.parse("2099-01-01T09:00:00+09:00"), monotonicMs: 0 } });
     const at = "2099-01-01T09:00:00+09:00", stations = [{ code: "21001", height: "1.0" }];
@@ -195,13 +195,12 @@ describe("P3-VERSION-MATERIAL-001 発注 2a", () => {
       if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
       return reduceNankaiUnit(initialUnits["U-N"], { kind: "restore", persisted: nankaiUnitCodec.encode(decoded.state), clock: clockAt(advisory) }).state;
     };
-    const saved = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(nankai(initialUnits["U-N"], advisory).state))) as { evidence: Record<string, unknown>[] };
-    const restored = restore(saved as unknown as JsonValue);
+    const saved = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(nankai(initialUnits["U-N"], advisory).state))) as JsonValue;
+    const restored = restore(saved);
     const other = fixture(N, "VYSE50", (xml) => xml.replace(/<Headline>\s*<Text>[^<]*/, "<Headline><Text>別の見出し"));
     const held = nankai(restored, other);
     expect([held.decisions.map(outcome), held.state.currents[0].unconfirmed?.inputId]).toEqual([["stale", "stale"], other.inputId]);
-    const far = restore({ ...saved, evidence: saved.evidence.map((item) => ({ ...item, reportDateTimeMs: Number.MAX_SAFE_INTEGER })) } as unknown as JsonValue);
-    expect(nankai(far, advisory).decisions.map(outcome)).toEqual(["duplicate", "duplicate"]);
+    expect(nankai(restored, advisory).decisions.map(outcome)).toEqual(["duplicate", "duplicate"]);
   });
 
   // corpusHistory: 同じ報の組の今の出方を保つ（P3-VM-D-SAME-REPORT=A）。降灰の速報と詳細は volcano-unit.test.ts の P3-ORDER-T02、

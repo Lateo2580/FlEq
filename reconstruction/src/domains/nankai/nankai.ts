@@ -75,7 +75,8 @@ type NankaiCandidate = Readonly<{
   currentSubject: string; subject: string; source: ReportRef; reportDateTimeMs: number; infoRank: number; cancelled: boolean;
   effect: NankaiCurrentStatus | "subsequentAdvisory" | "end" | null; facts: NankaiFacts;
 }>;
-type ParseResult = Readonly<{ kind: "accepted"; candidate: NankaiCandidate }>
+// diagnostics は受けた報の読めなかった所（P3-NS-AC07、H51 の B）。
+type ParseResult = Readonly<{ kind: "accepted"; candidate: NankaiCandidate; diagnostics: readonly DiagnosticDetails[] }>
   | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
 
 function diagnostic(material: DecodedMaterial, reason: RejectionReason): DiagnosticDetails {
@@ -99,8 +100,11 @@ function parseNankai(material: DecodedMaterial): ParseResult {
   if (family == null) return reject("requiredStructureInvalid");
   const eventId = material.eventIdRaw.trim();
   if (eventId === "") return reject("identityMissing");
-  const serialRaw = material.serialRaw.trim();
-  if (!validEventId(eventId) || !validSerial(serialRaw)) return reject("identityInvalid");
+  if (!validEventId(eventId)) return reject("identityInvalid");
+  // P3-NS-AC07 (1): 形の外の Serial は空にして受ける。U-N の新旧は Control/DateTime だけで比べ、通知の印の鍵にも入らない。
+  const diagnostics: DiagnosticDetails[] = [];
+  let serialRaw = material.serialRaw.trim();
+  if (!validSerial(serialRaw)) { serialRaw = ""; diagnostics.push(diagnostic(material, "identityInvalid")); }
   const subject = `${material.operation}/${family}/${eventId}`;
   // 保存する ReportRef の byte の上限（Q-ENUM.identity）。inputId は host が作る値だが、上限を受理と decode で揃える。
   if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
@@ -123,7 +127,7 @@ function parseNankai(material: DecodedMaterial): ParseResult {
   try {
     const body = first(material.xml, "Body");
     // 取消は Body が Text だけでよい（74_03_01）。事実を持たない。
-    if (cancelled) return { kind: "accepted", candidate: { operation: material.operation, family, line, eventId,
+    if (cancelled) return { kind: "accepted", diagnostics, candidate: { operation: material.operation, family, line, eventId,
       currentSubject: `${material.operation}/${line}/current`, subject, source, reportDateTimeMs: common.envelope.reportDateTimeMs,
       infoRank, cancelled, effect: null,
       facts: { infoKind: null, infoSerial: null, title, headline, text: null, nextAdvisory: null, truncated, headingTruncated: truncated } } };
@@ -133,15 +137,20 @@ function parseNankai(material: DecodedMaterial): ParseResult {
     if (infos.length > 1) invalid();
     const info = infos[0];
     const serial = single(info, "InfoSerial", false);
-    const codeNode = single(serial, "Code", true), nameNode = single(serial, "Name", true);
+    const codeNode = single(serial, "Code", true);
     const code = codeNode == null ? null : blank(scalar(codeNode));
-    const infoSerial = code == null ? null : { code: bound(code, BOUNDS.code)!, name: bound(nameNode == null ? null : blank(scalar(nameNode)), BOUNDS.name) };
+    // P3-NS-AC07 (2): Name の 2 個以上と子要素は name を null にして受ける（Code は現況と音を決めるので今どおり断る）。
+    const names = children(serial, "Name");
+    const nameUnread = names.length > 1 || names.length === 1 && children(names[0]).length !== 0;
+    if (nameUnread) diagnostics.push(diagnostic(material, "requiredStructureInvalid"));
+    const name = names.length === 0 || nameUnread ? null : blank(scalar(names[0]));
+    const infoSerial = code == null ? null : { code: bound(code, BOUNDS.code)!, name: bound(name, BOUNDS.name) };
     const headingTruncated = truncated;
     // P3-C8-VYSE60=A: VYSE60 は InfoSerial によらず後発地震注意の系統を active にする。
     const effect = family === "VYSE60" ? "subsequentAdvisory" as const : infoSerial == null ? null : CODE_EFFECT.get(infoSerial.code) ?? null;
     const facts = { infoKind: bound(blank(text(info, "InfoKind")), BOUNDS.infoKind), infoSerial, title, headline,
       text: bound(blank(text(info, "Text")), BOUNDS.text), nextAdvisory: bound(blank(text(body, "NextAdvisory")), BOUNDS.nextAdvisory) };
-    return { kind: "accepted", candidate: { operation: material.operation, family, line, eventId,
+    return { kind: "accepted", diagnostics, candidate: { operation: material.operation, family, line, eventId,
       currentSubject: `${material.operation}/${line}/current`, subject, source, reportDateTimeMs: common.envelope.reportDateTimeMs,
       infoRank, cancelled, effect, facts: { ...facts, truncated, headingTruncated } } };
   } catch (error) {

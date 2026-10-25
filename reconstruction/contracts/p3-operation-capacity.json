@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "b117d77a234640203a68f72e9d090249ce6d14bb",
-    "sha256": "3f5ea6245c7800db176a47e35cafff4f33ec6fcd02d3e39fe127fc849206019e",
+    "sha256": "5d37cac2cf7689e620ddb346944c2eab89ad0d0120137d43cf8ced0d5318c52f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
+    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -293,7 +293,7 @@
           "reconstruction/contracts/p3-final-adoption.json:41 «4a88e87a68db3280»",
           "reconstruction/contracts/p3-final-adoption.json:44 «f8fbec304d91cf5b»",
           "reconstruction/contracts/p3-final-adoption.json:58 «e5bdfce24f1ce39c»",
-          "reconstruction/contracts/p3-final-adoption.json:268 «1f764a4407ab71be»",
+          "reconstruction/contracts/p3-final-adoption.json:268 «94c616cbc54402c5»",
           "reconstruction/contracts/p3-final-adoption.json:322 «7922790fe40b6814»",
           "reconstruction/contracts/p2-shared-runtime.json:189 «92f0f28d2bb03980»"
         ]
@@ -344,7 +344,7 @@
           "reconstruction/contracts/p3-flood-unit.json:319 «f0716b6c961d5827»",
           "reconstruction/contracts/p3-flood-unit.json:384 «85bb90d02582a4f6»",
           "reconstruction/contracts/p3-flood-unit.json:996 «378eb3245c2eadfe»",
-          "reconstruction/contracts/p3-final-adoption.json:241 «743912693175cd64»",
+          "reconstruction/contracts/p3-final-adoption.json:241 «f9e50dde6c89fab1»",
           "reconstruction/contracts/p3-final-adoption.json:322 «7922790fe40b6814»",
           "reconstruction/contracts/p3-final-adoption.json:428 «dbb957933255793a»",
           "reconstruction/contracts/p2-weather-current-unit.json:39 «7f2ae36e32f02124»",

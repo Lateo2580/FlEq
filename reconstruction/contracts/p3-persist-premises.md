@@ -552,3 +552,10 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
 - §3.5 の K11 の行（:309）と §8 の表の K11 の行（:438）: 変える契約は `P3-UNIT-Q-001` に加えて `P3-NOTICE-LEDGER-001`（H39 の閉集合）・`P2-SHARED-RUNTIME-001`（DiagnosticReason と LossReason）・`P3-DISASTER-CAPACITY-001`（器の読みと畳みの列）・`P3-CURRENCY-COVERAGE-001`（印だけの fit）と sequences.json の O01:52・:53（P3-QC-AC14 の (1)〜(6)）。版は v5。
 - K10 との合流（Q-QC-DECIDED の (5)）: K10 → K11 の直列。期限切れの形（effective "expired"、最終更新の時刻は source の ReportDateTime、事実を捨てる）と記憶の長さは K10 の P3-EF-D-EXPIRED-MEMORY=A とそろえ、記憶への変換・回収・第 1 段・守る線の 24 時間の判定は入力の根拠が verified のときだけ当てる。U-Q は保留の印を持たない（K10 が collect を丸ごと止める形、Q-QC-PRECHECK の (0)(a)）。
 - §7 の 1(c) の地震の記録を持つ期間: 期限切れの記憶が印を持ったまま 6 時間残るので、event は最後の報の 30 時間後まで、長周期は 42 時間後まで（P3-QC-D-EXPIRED-MEMORY=A）。
+
+## 19. K13 の配送で変わる読み（2026-10-25 統合担当、`P3-UNIT-N-SERIES-001` の AC12 の (6)）
+
+- §4.6 の上界と予算（:284〜:286）: 情報系列 64 件を全文で保存する A を入れた。U-N の 1 世代は 2,621,440 byte（2.5 MiB、P3-NS-RES-01）で、上界の式は 2,335,693 byte（Q-NS-BYTES の 2,334,223 に現況と情報の保留の印を足した値、Q-NS-PRECHECK の (7)。P3-NS-T04 が合法な大きな状態の encode で確かめる）。:284 の「最小の証拠だけを保存」は P3-NS-AC01 で全文の記録に置き換えた。
+- §3.3 の U-N の形（:227）: U-N の期限切れの形は「effective expired・source（最終更新）・通知の印を持つ記憶の記録」で、現況も情報も同じ（P3-NS-AC04 の (6)）。情報は表示 7 日で記憶に移り、ReportDateTime＋30 日で除く（P3-NS-D-INFO-MEMORY=A）。現況と情報の expired の記憶も未確認の印 unconfirmed を持てる（記憶に移った後の時刻の無い報の held で印が付きうる。統合担当の決定、Q-NS-IMPL-1）。
+- §12 の field の名（:500）: 現況に足した移りの時刻は warningUntil（ReportDateTime＋7 日）で、warningUntil を持つ現況の validUntil は＋14 日（P3-NS-AC03）。
+- §13 の B の受け方（:512）: Serial の形の外は断らず serialRaw を空にして受け WARN identityInvalid、InfoSerial/Name の 2 個以上と子要素は name を null にして受け WARN requiredStructureInvalid（P3-NS-AC07）。EarthquakeInfo・InfoSerial・Code の 2 個以上と子要素は今どおり断る（C）。

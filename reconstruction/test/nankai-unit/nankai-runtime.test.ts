@@ -219,7 +219,7 @@ describe("P3-UNIT-N-001 U-N through the composition root", () => {
       dirtySince: followAt.monotonicMs });
     expect(view(acking).currents[0].source.reportDateTimeRaw).toBe("2020-05-12T16:34:00+09:00");
 
-    // 通常終了と復元直後の続報: 復元した現況との差で決め、同じ報を再び鳴らさない。情報系列は空から始まる。
+    // 通常終了と復元直後の続報: 同じ報を再び鳴らさない。情報系列の一覧も戻る（P3-NS-T01 の runtime 側、P3-NS-AC01 (3)）。
     const files = new MemoryFiles();
     const first = wired(files);
     now = { wallTimeMs: Date.parse("2020-05-12T16:28:00+09:00") + 1, monotonicMs: 1 };
@@ -233,7 +233,8 @@ describe("P3-UNIT-N-001 U-N through the composition root", () => {
     await startHarness(second, "c8-run2", tick(1), false);
     expect(second.root.state.restoration["U-N"]).toEqual({ kind: "restored" });
     expect(view(second).currents.map((item) => [item.subject, item.status])).toEqual([["normal/nankai/current", "megaquakeWarning"]]);
-    expect(view(second).information).toEqual([]);
+    expect(view(second).information.map((item) => [item.subject, item.title])).toEqual(view(first).information.map((item) => [item.subject, item.title]));
+    expect(view(second).information).toHaveLength(1);
     expect(second.unit("U-N").intents.filter((item) => item.disposition === "pending").map((item) => [item.id, item.createdAt, item.expiresAt]))
       .toEqual(pendingBefore.filter((item) => item.expiresAt > now.wallTimeMs).map((item) => [item.id, item.createdAt, item.expiresAt]));
     const known = new Set(second.unit("U-N").intents.map((item) => item.id));

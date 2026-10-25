@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "ac4a07dbd83fe794cb82beec92b960b58de00256034f9d5b39358de2fce13b6e",
+    "sha256": "69cf38d0c8f8af44326bb63f139ba578be3e9f3495c750c0193abd46cbecee50",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
+    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -467,7 +467,7 @@
           "reconstruction/src/units/typhoon/typhoon-unit.ts:125 «b1171cdbc536fec5»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:148 «b1171cdbc536fec5»",
           "reconstruction/src/units/seismic/seismic-unit.ts:635 «b2ad6b113563b871»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:203 «ef79d57b0eaca793»"
+          "reconstruction/src/units/nankai/nankai-unit.ts:208 «a8bc17e7f3c9d6f1»"
         ]
       },
       {
@@ -483,7 +483,7 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:417 «e7310a321d102451»",
           "reconstruction/src/units/seismic/seismic-unit.ts:646 «0f330453657d599a»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:502 «1960813bbac61402»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:508 «014d27c72af291f5»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:129 «e87e8dd009d4cb60»",
           "reconstruction/contracts/p3-persist-premises.md:347 «3362aa8218ae44a7»"
         ]
@@ -496,7 +496,7 @@
           "reconstruction/contracts/p3-persist-premises.md:223 «973ddc0f21f6d14e»",
           "reconstruction/contracts/p3-persist-premises.md:226 «147b7db281483a3d»",
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
-          "docs/specs/reconstruction-p0-contracts.md:3050 «0d940f5a05840db9»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «91b2a9c9fb01efa9»",
           "reconstruction/src/units/landslide/landslide-unit.ts:33 «b8e0977854b76ac8»",
           "reconstruction/src/units/landslide/landslide-unit.ts:146 «add4e8f0b318c21b»",
           "reconstruction/src/units/flood/flood-unit.ts:40 «8cae21c0e018054d»",
@@ -546,7 +546,7 @@
         "requirement": "【発注 1】電文の有効期限を使う種類（H23 の後半、設計メモ :464、統合担当 D10、Q-EF-VALID）: (1) 竜巻（VPHW50/51）は今どおり Head/ValidDateTime（P3-C13-TORNADO-EXPIRY=A） (2) 降灰予報（VFVO53/54/55）は本文の予報の終わり forecastEndsAt のまま（corpus の 3 通で Head/ValidDateTime と一致）。読む仕組みを足さない (3) 津波（VTSE41）: K10 では Head/ValidDateTime を読まず、U-T の予報に期限の決まりを足さない（作者裁定 2026-10-25。予報だけの報〔区域が全部 Kind/Code 71〜73、tsunami.ts:17〕は今の新築でも released で画面に出ないので、出すかどうかと何時まで出すかは P4 で決める）。U-T の観測の期限処理（AC06）は本契約のまま (4) VPAW51・VPZI50・VPCI50 は今のまま元報から 3 時間で、Head/ValidDateTime を使わない（作者裁定 P3-EF-D-TRANSIENT-VALID=A。H23 の行への書き足しは AC14 の (15)） (5) ほかの種類は気象庁の表で ValidDateTime を使わない（Q-EF-VALID の (B)）ので、今のこちらで決めた長さのまま 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】失効時刻の意味は jma-2022-xml-format-v1_3.txt:787〜:789・jma-2013-xml-guide.txt:411〜:417。(1) 竜巻は manual/竜巻注意情報_解説資料.txt:95〜:96 (2) 降灰予報の失効時刻は基点時刻から定時 18 時間・速報 1 時間・詳細概ね 6 時間（manual/地震火山関連_解説資料.txt:235〜:237、jma-2026-head-control-list.txt:133） (3) VTSE41 は若干の海面変動だけが残る報に失効時刻を記載する（manual/地震火山関連_解説資料.txt:228〜:231、jma-2026-head-control-list.txt:96） (4) VPAW51 は発表時刻の 5 日後（manual/早期天候情報_解説資料.txt:98〜:100）、天候情報は梅雨の天候情報には出現しない（manual/天候情報_解説資料.txt:82〜:85、jma-2026-head-control-list.txt:73） (5) 種類ごとの ValidDateTime の有無は Q-EF-VALID（通番と file の行の対応も同じ所）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:464 «b462d769c42d01c0»",
-          "docs/specs/reconstruction-p0-contracts.md:3050 «0d940f5a05840db9»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «91b2a9c9fb01efa9»",
           "reconstruction/src/domains/tsunami/tsunami.ts:17 «2dc41861cb53db5d»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:28 «7bb740ba02fdda43»",
           "reconstruction/contracts/p3-local-bulletins-unit.json:51 «a1e07e726fee81f0»",
@@ -683,7 +683,7 @@
           "reconstruction/contracts/p2-weather-timeseries-unit.json:366 «d33338c4a6107c8e»",
           "reconstruction/contracts/p3-notice-ledger.json:430 «58092c37f1d9bb2f»",
           "reconstruction/contracts/p3-notice-ledger.json:343 «f24393fc6ddd69fb»",
-          "docs/specs/reconstruction-p0-contracts.md:3050 «0d940f5a05840db9»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «91b2a9c9fb01efa9»",
           "docs/specs/reconstruction-p0-contracts.md:3040 «ba206b716e5e079a»",
           "docs/specs/reconstruction-p0-contracts.md:3069 «aba7105eeb5f4071»",
           "docs/specs/reconstruction-p0-contracts.md:476 «01a369f8dd1834b4»",

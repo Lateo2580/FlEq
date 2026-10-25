@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "00e989b899a7ef057bf478d9daad7bb77e06d30b8262ed445c18df9c9ed270e4",
+    "sha256": "ce74b877fb926545df954b58c8961e682879a8027c0d6b796ac9e34c8c97a138",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
+    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -440,7 +440,7 @@
       },
       {
         "id": "P3-NL-AC02",
-        "requirement": "【発注 1】印の形・置き場・保持（設計メモ §2.4、§7 の 1(c)）: (1) 形: NoticeMark = { version: 版の鍵（versionKey）の sha256 の先頭 16 桁（16 進の小文字）, kinds: (\"report\"｜\"cancel\"｜\"expiry\")[]（その版で作った種類、重複なし、この順）, evidence: \"unattempted\"｜\"possible\"｜\"unknown\"（EewNotificationLatch.deliveryEvidence と同じ値域。その系列の通知が外へ出たかの証拠）, fragments?: string[]（U-T の観測と竜巻の目撃、AC03・P3-EXPIRY-FORM-001 の Q-EF-SIGHTING） }。p2-shared-runtime.types.ts に置く。版の鍵を digest にするのは上界を 16 文字に縛るため（無いと: 読めない時刻の生値を 2 つ持つ種類で 1 件の上界が 2 倍、Q-NL-BYTES） (2) 置き場: K7 の未確認の印（unconfirmed）と同じ系列の記録に notice?（U-V の海上は marineNotice?）を 1 項目足す。印が無ければ欄を書かない。U-N の情報系列は保存する証拠の記録に持つ（情報の本文は保存しないが、印は保存する）。U-E は AC04。U-W・U-F は通知を作らないので持たない (3) 更新: intent を採用した（admit を通った）とき、その系列の印の version が新しい版なら {version: 新しい版, kinds: [種類]}、同じ版なら種類を足す。evidence は下げない（unattempted → possible・unknown の向きだけ）。試行の開始（AC06 の lastAttempt \"started\" の採用）と delivered の採用で possible、復元の started（AC08）で unknown。後から容量の退去で外れた intent の版と種類も印に残す（H39 に数える）。admit で全 channel が断られた版は印に入れない（その run の中では、同じ版の受け直しは重複で、通知を作り直さない（旧築と同じ。再起動の後や記録の退去の後は、記録で比べて採るので作られうる）） (4) 保持: 印は系列の記録と同じに生き、記録が期限・容量の退去・回収で消えると一緒に消える（作者裁定 §7 の 1(c)「その情報を覚えている間」）。記録の期限と回収の形は K10・K11・K13 の領分で、本契約は変えない (5) codec は印を項目ごとに確かめて組み立てる（version は 16 桁の 16 進、kinds は 1〜3 件の決まった順、fragments は U-T の観測と竜巻の目撃だけで 16 件以下の 16 桁の 16 進）。形の外は invalid (6) 失敗の印（U-T・U-Q、unit×operation ごと）: { operation, level, until }（最後に作った失敗警報の段階と expiresAt）。P3-CC-D-FAILNOTICE の「同じ unit×operation の失敗警報（pending か終端記録）が同じか重い段階なら鳴らさない」の終端記録の代わりに、until まで同じか軽い段階の失敗警報を作らない。until を過ぎた失敗の印は期限の入力で外す。無いと: 終端の intent を外したとき、鳴り終えた直後の同じ段階の拒否で失敗警報が鳴り直す",
+        "requirement": "【発注 1】印の形・置き場・保持（設計メモ §2.4、§7 の 1(c)）: (1) 形: NoticeMark = { version: 版の鍵（versionKey）の sha256 の先頭 16 桁（16 進の小文字）, kinds: (\"report\"｜\"cancel\"｜\"expiry\")[]（その版で作った種類、重複なし、この順）, evidence: \"unattempted\"｜\"possible\"｜\"unknown\"（EewNotificationLatch.deliveryEvidence と同じ値域。その系列の通知が外へ出たかの証拠）, fragments?: string[]（U-T の観測と竜巻の目撃、AC03・P3-EXPIRY-FORM-001 の Q-EF-SIGHTING） }。p2-shared-runtime.types.ts に置く。版の鍵を digest にするのは上界を 16 文字に縛るため（無いと: 読めない時刻の生値を 2 つ持つ種類で 1 件の上界が 2 倍、Q-NL-BYTES） (2) 置き場: K7 の未確認の印（unconfirmed）と同じ系列の記録に notice?（U-V の海上は marineNotice?）を 1 項目足す。印が無ければ欄を書かない。U-N の情報系列は情報 subject の記録に持つ（P3-UNIT-N-SERIES-001 で全文を保存）。U-E は AC04。U-W・U-F は通知を作らないので持たない (3) 更新: intent を採用した（admit を通った）とき、その系列の印の version が新しい版なら {version: 新しい版, kinds: [種類]}、同じ版なら種類を足す。evidence は下げない（unattempted → possible・unknown の向きだけ）。試行の開始（AC06 の lastAttempt \"started\" の採用）と delivered の採用で possible、復元の started（AC08）で unknown。後から容量の退去で外れた intent の版と種類も印に残す（H39 に数える）。admit で全 channel が断られた版は印に入れない（その run の中では、同じ版の受け直しは重複で、通知を作り直さない（旧築と同じ。再起動の後や記録の退去の後は、記録で比べて採るので作られうる）） (4) 保持: 印は系列の記録と同じに生き、記録が期限・容量の退去・回収で消えると一緒に消える（作者裁定 §7 の 1(c)「その情報を覚えている間」）。記録の期限と回収の形は K10・K11・K13 の領分で、本契約は変えない (5) codec は印を項目ごとに確かめて組み立てる（version は 16 桁の 16 進、kinds は 1〜3 件の決まった順、fragments は U-T の観測と竜巻の目撃だけで 16 件以下の 16 桁の 16 進）。形の外は invalid (6) 失敗の印（U-T・U-Q、unit×operation ごと）: { operation, level, until }（最後に作った失敗警報の段階と expiresAt）。P3-CC-D-FAILNOTICE の「同じ unit×operation の失敗警報（pending か終端記録）が同じか重い段階なら鳴らさない」の終端記録の代わりに、until まで同じか軽い段階の失敗警報を作らない。until を過ぎた失敗の印は期限の入力で外す。無いと: 終端の intent を外したとき、鳴り終えた直後の同じ段階の拒否で失敗警報が鳴り直す",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:127 «7bab8a9355ae9e90»",
           "reconstruction/contracts/p3-persist-premises.md:128 «f1d4b5d6501fb72c»",
@@ -783,7 +783,7 @@
           "reconstruction/contracts/p3-intent-update-reserve.json:226 «632bcd30b0f528e6»",
           "reconstruction/contracts/p3-intent-update-reserve.json:229 «b5525e150442d0c4»",
           "reconstruction/contracts/p3-operation-capacity-n.json:155 «ffe025beeb676462»",
-          "reconstruction/contracts/p3-nankai-unit.json:93 «72e93326386be917»",
+          "reconstruction/contracts/p3-nankai-unit.json:93 «8166573f87e82ae0»",
           "reconstruction/contracts/p3-currency-coverage.json:784 «7f1b5680b71dc2d8»",
           "reconstruction/contracts/p3-briefing-unit.json:967 «0f93095f8e61c694»",
           "reconstruction/contracts/p3-flood-unit.json:780 «0f93095f8e61c694»",

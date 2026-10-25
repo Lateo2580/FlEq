@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "9bc74f01ddf063ecbabe4b304e8525dfae69d3edd55fdaa74201e4386f588ca2",
+    "sha256": "90e3b48f70f0cac2d0df2c5fffddfb7609bda9174a5472cc8e10488ae5bbc201",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
+    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -191,7 +191,7 @@
         "target": "U-Nのdecoder形状の静的上界（256 KiB検査より前）",
         "limit": 261214,
         "unit": "JSON UTF-8 byte、envelopeと配送予約込み",
-        "scope": "現況1件の上界5,257 byte×6＝31,542。通知のpending実byte＋deliveryGrowth＋終端≤229,376で全intents配列の実byteもこれ以下。空envelope231＋generation/capturedAt予約62−空配列4＋現況配列の括弧2・区切り5＝296。総計31,542＋229,376＋296＝261,214、262,144との差930。現況はVYSE60の最長status、64単位EventID、inputIdと各bounded fieldの6 byte/単位、時刻数値25 byteを用いた保守的上界。保存しないinformationは含めない。 実測の突合: 3 operation×2 lineの合成active現況6件（inputIdは制御文字64単位、title/headline/infoSerialは各上限）のdecodeはrestored、intents空のserializedEnvelopeは30,395 byte。",
+        "scope": "現況1件の上界5,257 byte×6＝31,542。通知のpending実byte＋deliveryGrowth＋終端≤229,376で全intents配列の実byteもこれ以下。空envelope231＋generation/capturedAt予約62−空配列4＋現況配列の括弧2・区切り5＝296。総計31,542＋229,376＋296＝261,214、262,144との差930。現況はVYSE60の最長status、64単位EventID、inputIdと各bounded fieldの6 byte/単位、時刻数値25 byteを用いた保守的上界。保存しないinformationは含めない。（P3-UNIT-N-SERIES-001 で情報系列を全文で保存し、上界と上限は P3-NS-RES-01・P3-NS-T04） 実測の突合: 3 operation×2 lineの合成active現況6件（inputIdは制御文字64単位、title/headline/infoSerialは各上限）のdecodeはrestored、intents空のserializedEnvelopeは30,395 byte。",
         "source": "I-U-N.capacityReserve/capacityMeasurement・P3-C8-RES-01"
       }
     ],
@@ -248,7 +248,7 @@
         "requirement": "F15: Headlineなし・TextがBMP「あ」79字＋😀のVYSE50をU-Nへ投入する。従来のtext.slice(0,80)は末尾D83Dを作る。Textから切り出す部分を80 UTF-16単位以内でサロゲート対を割らずwell-formedにし、通知全bodyには80単位の上限を置かない。Headlineは既存bound→cutで対を割らない。codecがrestoredでも文字境界の合格とはしない。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-nankai-unit.json:199 «03304c3de6d7ff60»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:233 «3b04b00a449c0acf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:240 «3b04b00a449c0acf»",
           "reconstruction/src/domains/nankai/nankai.ts:57 «d8c08b2391f4edd9»"
         ]
       },
@@ -262,7 +262,7 @@
           "reconstruction/contracts/p3-volcano-unit.json:1052 «352e4d34ea000f28»",
           "reconstruction/contracts/p3-volcano-unit.json:1219 «252254da7d2c4eff»",
           "reconstruction/contracts/p3-nankai-unit.json:199 «03304c3de6d7ff60»",
-          "reconstruction/contracts/p3-nankai-unit.json:261 «235a708afe8880ce»"
+          "reconstruction/contracts/p3-nankai-unit.json:261 «b9c59fc6f865cb42»"
         ]
       },
       {
@@ -311,7 +311,7 @@
           "P3-CODEC-AC02",
           "P3-CODEC-AC03"
         ],
-        "behavior": "RES-04/05の最大形を用い、合法な受信・deadline batch flush・intentUpdate後の配送予約込み世代が5 MiB内で復元でき、配送更新intentがowner照合に残ることを確認する。守りの検査にはcodecを通る最大形と区別した上限ちょうど/超過の合成stateを使う（5 MiB境界は合法最大形からは到達不能）。超過時はAC02で固定したdecision/診断、入力前state同一・副作用なし・byte退去なしを表形式の境界試験で見る。U-Nの上界261,214 byteも照合する。"
+        "behavior": "RES-04/05の最大形を用い、合法な受信・deadline batch flush・intentUpdate後の配送予約込み世代が5 MiB内で復元でき、配送更新intentがowner照合に残ることを確認する。守りの検査にはcodecを通る最大形と区別した上限ちょうど/超過の合成stateを使う（5 MiB境界は合法最大形からは到達不能）。超過時はAC02で固定したdecision/診断、入力前state同一・副作用なし・byte退去なしを表形式の境界試験で見る。U-Nの上界261,214 byteも照合する。（P3-UNIT-N-SERIES-001 で P3-NS-T04 に置き換えた）"
       },
       {
         "testId": "P3-CODEC-T03",

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "2a7c78b7029dfe83d4eeb4c0d5f6f1b314eb8536",
-    "sha256": "80dda6f7f8c6b0dc1fcc70d8a036ef8c0be4632ed5a82e31494e6d5a1f944f0e",
+    "sha256": "99bc34026705b4c9251c034ed93e1c23ee1370b294db2370ce9230e622ea8ca9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "abefd59b8bcd8b6bb76209dafb72b9736f665faf256f729b0ae128ab7faabd01",
+    "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -217,8 +217,8 @@
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:721 «5921a579315c0f2a»",
           "reconstruction/src/units/seismic/seismic-unit.ts:815 «ca5b13d448917d11»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:129 «2553156216d6983a»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:309 «2388a2da51638bf7»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:122 «2553156216d6983a»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:316 «991c56106aab071d»",
           "reconstruction/src/units/volcano/volcano-unit.ts:196 «cf9c0f808dfbcf55»",
           "reconstruction/src/units/volcano/volcano-unit.ts:393 «991c56106aab071d»",
           "reconstruction/src/units/volcano/volcano-unit.ts:387 «afe39e4d4fa95d54»",
@@ -232,7 +232,7 @@
         "requirement": "F02の閉鎖（監査の三報をそのまま回帰試験にする）: unitごとにaudit-verify/core.cjsのF02と同じ入力で、Q＝32-35_08_03_100915_VXSE51、N＝74_01_04_200512_VYSE50、V＝43_01_01_200522_VFVO52（噴火subject）、L＝15_16_01_241031_VPWW56のReportDateTime（N・LはTargetDateTimeも）をt−60秒にした初報を受け、A＝Serial 2・発表、B＝Serial空・訂正、C＝Serial 1・取消をどれもReportDateTime＝t・時計tで受ける。6順列（ABC・ACB・BAC・BCA・CAB・CBA）のすべてで、最終のrecord（Qは地震eventのVXSE51の寄与、Nは系統の現況、Vは噴火、Lは官署）はeffective=cancelled、sourceのserialRaw「1」・infoTypeRaw「取消」、pendingの通知は取消のdesktopとsoundの2件（transition cancelled、同じsubjectの旧pendingはsuperseded）で、6順列の最終が一致する。各手順の前に、その時点の保存物（encode→JSON）をrestore入力で戻す（restoreの前のstateのpersistenceは保存世代を引き継ぐ。owner-runtimeの復元と同じ）6順列でも同じ最終になる。各最終のencode→JSON→decodeはrestored。途中のdecisionは到着順で違ってよい（先着した版が後で上書き・取消される）。修正前の観測（cancelled 2通り・active 4通り）の反転を正式試験で示し、未追跡の監査scriptに依存しない。〔P3-VM-AC09(1)により統合担当が改訂: F02の三報は同じControl/DateTimeなので、P3-VM-AC03と作者裁定2026-10-21昼（同じ秒の取消は訂正と発表より優先）で6順列とも取消で終わり、上の期待はそのまま成り立つ。取消の採用で系列の未確認の印は外れる（Q-VM-IMPL-2Aの読み替え(ii)）〕",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:815 «ca5b13d448917d11»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:309 «2388a2da51638bf7»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:316 «991c56106aab071d»",
           "reconstruction/src/units/volcano/volcano-unit.ts:393 «991c56106aab071d»",
           "reconstruction/src/units/landslide/landslide-unit.ts:260 «6038e3991f074863»",
           "reconstruction/src/decode-material/decode-material.ts:478 «e7ff21641a768c49»"
@@ -243,14 +243,14 @@
         "requirement": "境界（同じ時刻tで、unitごとに上のfixtureを使う。比較できる2報は両方の到着順で同じ勝者、同じ版は既存の規則で先着）: (a) InfoTypeが違えばSerialを見ない: 発表 Serial 9と訂正 Serial 1は訂正が勝つ（旧は発表が勝つ）。訂正 Serial空と取消 Serial 1は取消。(b) InfoTypeが同じで数値のSerialだけ違う: 大きいSerialが勝ち、小さい方の後着はunchanged/stale（診断なし）。(c) InfoTypeが同じで欠落と数値（D-MISSING=A）: 数値の報が勝つ（後着なら採用、先着なら欠落の後着がstale）。旧は同じ版で先着のduplicate・食い違い。(d) 欠落同士・InfoTypeが同じ: 同じ版で、事実が同じならduplicate、違えば先着を保ってstale＋unitのRevisionConflict。これは既存の振る舞いで、既存試験（LのP3-C10-T03、Qのseismic-unit.test.tsの同じrevisionの食い違い、Nのnankai-unit.test.tsの同じrevisionの食い違い、Vのexpected:O01:17の67_01_01と67_01_02）が受け入れているので、T02には足さない。V・Lでは「01」と「1」も同じ版（Q・NのvalidSerialは先頭0をidentityInvalidで拒否するので、この行はV・Lだけ）。(e) U-Nの系統の現況でEventIDの違う2報（Serial 2と1、事実が違う）: Serialを比べず同じ版で、両方の順で先着を保ちnankaiRevisionConflict（既存）。(f) U-V（D-SCOPE=B）: 45_01_01（VFVO50、Serial空）と44_01_01（VFVO51、Serial 13）を同じReportDateTimeにして火山306に当てると、50→51ではVFVO50を保ちVFVO51の火山entryはP3-C9-VFVO51-ATOMIC=Aで全部stale＋volcanoRevisionConflict、51→50ではVFVO51を保ちVFVO50がstale＋volcanoRevisionConflict（今と同じ）。降灰のVFVO54とVFVO55は同時刻・同InfoTypeならSerialによらずVFVO55（66_01_02のReportDateTimeを66_01_03の2021-05-14T12:51:00+09:00に合わせ、Serialを5に、66_01_03をSerial 1にして、時計もその時刻: 両順ともVFVO55。旧はVFVO54。66_01_02を任意の時刻へ動かすと予報の期間の検査でrequiredStructureInvalidになるので、時刻は66_01_03に合わせる）。(g) 時刻が違えば時刻だけで決まる（既存）。〔P3-VM-AC09(1)により統合担当が改訂: (a)〜(f)はP3-VERSION-MATERIAL-001のP3-VM-AC03・AC04で置き換えた。同じControl/DateTimeの2報はSerialとInfoTypeの順位で決めず、到着順によらない: 取消は取消でない報に勝ち、InfoTypeと事実が同じならduplicate（Serialだけ違う組と「01」と「1」もduplicate）、違えば先着を保ってstale＋unitのRevisionConflictと系列の未確認の印。(g)は同じ（比べる時刻で決まる）〕",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:816 «58091ba96bfe78e5»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:312 «9a55485ff8b540fd»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:139 «b9f35ee8a39ce41d»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:318 «5e508b52be4c9970»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:133 «b9f35ee8a39ce41d»",
           "reconstruction/src/units/volcano/volcano-unit.ts:330 «103b3818fcc0d7d8»",
           "reconstruction/src/units/volcano/volcano-unit.ts:903 «1f79d53059304ab0»",
           "reconstruction/src/units/landslide/landslide-unit.ts:264 «bc430b5ab35af311»",
           "reconstruction/test/landslide-unit/landslide-unit.test.ts:157 «1b1c845eee1163d4»",
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:854 «9c3c11847056966a»",
-          "reconstruction/test/nankai-unit/nankai-unit.test.ts:150 «c4d8df60945ee861»",
+          "reconstruction/test/nankai-unit/nankai-unit.test.ts:143 «c4d8df60945ee861»",
           "reconstruction/src/domains/seismic/seismic.ts:62 «c200b4f7c1ed4c6e»",
           "reconstruction/src/domains/nankai/nankai.ts:30 «c200b4f7c1ed4c6e»",
           "reconstruction/src/domains/volcano/volcano.ts:44 «4abe9007fd270be8»",
@@ -267,7 +267,7 @@
           "reconstruction/contracts/p3-volcano-unit.json:346 «3daecd7c92af885e»",
           "reconstruction/src/units/seismic/seismic-unit.ts:213 «8d7cc9a0cd44d1a4»",
           "reconstruction/src/units/volcano/volcano-unit.ts:61 «60917f2273da25b8»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:139 «b9f35ee8a39ce41d»"
+          "reconstruction/src/units/nankai/nankai-unit.ts:133 «b9f35ee8a39ce41d»"
         ]
       },
       {
@@ -276,7 +276,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-seismic-unit.json:290 «804f1d1c60babb58»",
           "reconstruction/contracts/p3-seismic-unit.json:240 «21be8883fcd7a64b»",
-          "reconstruction/contracts/p3-nankai-unit.json:244 «bfc71a8b711fa13d»",
+          "reconstruction/contracts/p3-nankai-unit.json:244 «5647f0742282f3cd»",
           "reconstruction/contracts/p3-nankai-unit.json:217 «912e376caf755f81»",
           "reconstruction/contracts/p3-volcano-unit.json:334 «a7aadc822ee9cd23»",
           "reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6»",
@@ -286,12 +286,12 @@
       },
       {
         "id": "P3-ORDER-AC06",
-        "requirement": "保存・復元と計算量: 保存schema・field・decodeの検査は変えない（ReportRefはserialRaw・infoTypeRawをすでに保存し、decodeがvalidSerialとInfoTypeの語彙を確かめている）。移行は無い。復元の後の比較は保存したwatermark（sourceのReportRef）だけで決まり、AC02の復元を挟んだ6順列で確かめる。U-Nの情報系列は保存しないので、復元の後に情報subjectの側の証拠が無くなる点はK2（F03）の範囲で、K1は系統の現況のwatermarkで同じ最終になることだけを受け入れる。比較は1回O(1)で、呼び出しの回数・走査・state全体の直列化を足さない（AGENTS.mdの受信経路の計算量）。新しい型・field・helper・設定・診断のreasonを足さない（無いと壊れるものが無い）。",
+        "requirement": "保存・復元と計算量: 保存schema・field・decodeの検査は変えない（ReportRefはserialRaw・infoTypeRawをすでに保存し、decodeがvalidSerialとInfoTypeの語彙を確かめている）。移行は無い。復元の後の比較は保存したwatermark（sourceのReportRef）だけで決まり、AC02の復元を挟んだ6順列で確かめる。U-Nの情報系列は保存しないので（P3-UNIT-N-SERIES-001 で保存する）、復元の後に情報subjectの側の証拠が無くなる点はK2（F03）の範囲で、K1は系統の現況のwatermarkで同じ最終になることだけを受け入れる。比較は1回O(1)で、呼び出しの回数・走査・state全体の直列化を足さない（AGENTS.mdの受信経路の計算量）。新しい型・field・helper・設定・診断のreasonを足さない（無いと壊れるものが無い）。",
         "evidenceRefs": [
           "reconstruction/src/decode-material/decode-material.ts:478 «e7ff21641a768c49»",
           "reconstruction/src/domains/volcano/volcano.ts:44 «4abe9007fd270be8»",
           "reconstruction/src/domains/seismic/seismic.ts:63 «389dd467c1670ab7»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:309 «2388a2da51638bf7»"
+          "reconstruction/src/units/nankai/nankai-unit.ts:316 «991c56106aab071d»"
         ]
       },
       {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { LONGEST_NOTICE, expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
-import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
+import type { JsonValue, ReportRef, WallBasis } from "../../contracts/p2-shared-runtime.types";
 import type { NankaiCurrent, NankaiInformation, NankaiIntent, NankaiUnitState, NankaiUnitStep } from "../../contracts/p3-nankai-unit.types";
 import contract from "../../contracts/p3-nankai-unit.json";
 import corpus from "../../tools/corpus/sequences.json";
@@ -35,12 +35,7 @@ const status = (state: NankaiUnitState, subject = NANKAI) => {
   return value == null ? null : value.effective === "active" ? value.status : value.effective;
 };
 const roundTrip = (state: NankaiUnitState) => nankaiUnitCodec.decode(JSON.parse(JSON.stringify(nankaiUnitCodec.encode(state))) as JsonValue);
-// 復元で戻る証拠だけの情報 subject（P3-AUTH-AC01(2)）。
-// P3-NL-AC02 (2): 情報の本文は保存しないが、印は保存する証拠の記録に持つ。
-const evidenceOnly = (item: NankaiInformation): NankaiInformation => item.effective === "evidence" ? item : { subject: item.subject,
-  family: item.family, eventId: item.eventId, operation: item.operation, retainUntil: item.retainUntil, effective: "evidence",
-  evidence: { subject: item.subject, reportDateTimeMs: Date.parse(item.source.reportDateTimeRaw), serialRaw: item.source.serialRaw,
-    infoTypeRaw: item.source.infoTypeRaw, controlDateTimeRaw: item.source.controlDateTimeRaw }, ...item.notice == null ? {} : { notice: item.notice } };
+const iso = (ms: number) => new Date(ms + 32_400_000).toISOString().replace(".000Z", "+09:00");
 
 describe("P3-UNIT-N-001 U-N reducer", () => {
   // contractBoundary: Q-ENUM の順と原子性、合法の縮退、coverage と実行場所（AC01）。
@@ -61,8 +56,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const cases: [string, string][] = [
       [event(""), "identityMissing"], [event("   "), "identityMissing"], [event("2020 0512"), "identityInvalid"],
       [event("2020/0512"), "identityInvalid"], [event("a".repeat(65)), "identityInvalid"], [event('a"b'), "identityInvalid"],
-      [event("a\\b"), "identityInvalid"], [replaceTag("Serial", "0")(xml), "identityInvalid"],
-      [replaceTag("Serial", "12345678901")(xml), "identityInvalid"],
+      [event("a\\b"), "identityInvalid"],
       // 小数秒で 40 文字を超える ReportDateTime と、8 文字を超える InfoType の raw（保存する ReportRef の上限、Q-ENUM.identity）。
       [retime("2020-05-12T16:28:00.0000000000000000+09:00")(xml), "identityInvalid"],
       [replaceTag("InfoType", "発表        ")(xml), "identityInvalid"],
@@ -115,8 +109,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(ended.intents.map((item) => [item.transition, item.payload.level])).toEqual([["released", "info"], ["released", "info"]]);
     // VYSE51 の第 1〜3 号は同じ EventID の情報 subject の revision で並び、現況と系統の watermark を変えない。
     expect(series.slice(7, 10).map((step) => {
-      const info = infoOf(step.state, "normal/VYSE51/20200512163800");
-      return info?.effective === "evidence" ? null : info?.source.serialRaw;
+      return infoOf(step.state, "normal/VYSE51/20200512163800")?.source.serialRaw;
     })).toEqual(["1", "2", "3"]);
     expect(currentOf(series[10].state)).toBe(currentOf(series[5].state));
     // 巨大地震注意の最中の調査中は情報だけで、系統の watermark を進めない（16:35 の調査中の後も 16:34 の注意を採用する）。
@@ -176,7 +169,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(shape(send(cancelled.state, F.advisory))[0]).toEqual([NANKAI, "unchanged", "stale"]);
     const again = send(cancelled.state, F.advisory, retime("2020-05-12T16:40:00+09:00"));
     expect([status(again.state), infoOf(again.state, "normal/VYSE50/20200512163200")?.effective]).toEqual(["megaquakeAdvisory", "active"]);
-    // 期限: 現況 7 日、watermark 30 日、情報 7 日（元報の時刻から）。到来していない deadline は同じ state 参照と空の結果。
+    // 期限: 現況 7 日、watermark 30 日、情報の表示 7 日（元報の時刻から。記憶は P3-NS-T03）。到来していない deadline は同じ state 参照と空の結果。
     const reported = at("2020-05-12T16:32:00+09:00");
     const quiet = reduceNankaiUnit(advisory, { kind: "deadline", clock: clock(reported + 180_000) }).state;
     const tick = (state: NankaiUnitState, ms: number) => reduceNankaiUnit(state, { kind: "deadline", clock: clock(reported + ms) });
@@ -184,7 +177,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(before.state).toBe(quiet);
     expect([before.decisions, before.outcomes, before.displayChanges, before.intents, before.diagnostics]).toEqual([[], [], [], [], []]);
     const expired = tick(quiet, 7 * DAY);
-    expect([status(expired.state), expired.state.information, expired.intents]).toEqual(["expired", [], []]);
+    expect([status(expired.state), expired.state.information.map((item) => item.effective), expired.intents]).toEqual(["expired", ["expired"], []]);
     expect(expired.displayChanges.map((item) => [item.subject, item.after])).toEqual([[NANKAI, null], ["normal/VYSE50/20200512163200", null]]);
     expect(currentOf(tick(expired.state, 30 * DAY - 60_000).state)).toBeDefined();
     expect(tick(expired.state, 30 * DAY).state.currents).toEqual([]);
@@ -193,14 +186,14 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect([status(overdue.state), overdue.state.information, overdue.intents, overdue.displayChanges]).toEqual(["expired", [], [], []]);
     expect(shape(send(overdue.state, F.advisory, undefined, reported + 8 * DAY))[0]).toEqual([NANKAI, "unchanged", "duplicate"]);
   });
-  // 監査 F04 の U-N（P3-OPCAP-N-AC01・AC02）: 復元の後でも training の報は normal の取消の証拠を退去せず、取消より古い報は stale のまま。
+  // 監査 F04 の U-N（P3-OPCAP-N-AC01・AC02）: 復元の後でも training の報は normal の取消の記録を退去せず、取消より古い報は stale のまま。
   it("P3-OPCAP-N-T01 regression / P3-OPCAP-N-AC01,AC02: a training report never evicts a normal cancel's evidence", () => {
     const now = at("2020-05-12T17:00:00+09:00");
     let state = send(emptyState(), F.cancel, undefined, now).state;
     for (let index = 0; index < 63; index++)
       state = send(state, F.regular, replaceTag("EventID", `N${String(index).padStart(13, "0")}`), now).state;
     const restored = reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(state), clock: clock(now) }).state;
-    expect([restored.information.length, restored.information.every((item) => item.effective === "evidence")]).toEqual([64, true]);
+    expect([restored.information.length, restored.information]).toEqual([64, state.information]);
     const training = send(restored, F.regular, (xml) => xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"), now);
     expect(training.state.information).toBe(restored.information);
     expect([shape(training).at(-1), training.decisions.at(-1), training.outcomes, training.intents, training.diagnostics]).toEqual([
@@ -320,9 +313,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const state = chain([F.inv1, F.warning, F.c1]).at(-1)!.state;
     const withVyse60 = send(state, F.vyse60, undefined, at("2020-05-12T16:40:00+09:00")).state;
     const payload = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(withVyse60))) as JsonValue;
-    expect(Object.keys(payload as object).sort()).toEqual(["currents", "evidence", "intents", "schemaVersion"]);
+    expect(Object.keys(payload as object).sort()).toEqual(["currents", "information", "intents", "schemaVersion"]);
     expect(nankaiUnitCodec.decode(payload)).toEqual({ kind: "restored", state: { ...withVyse60, contentRevision: 0,
-      information: withVyse60.information.map(evidenceOnly),
       persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } });
     type Row = Record<string, unknown>;
     const value = payload as { currents: Row[]; intents: Row[] };
@@ -372,7 +364,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     for (const [name, patch] of [["attempts 1000", { attempts: 1000 }], ["nextAttemptAt fraction", { nextAttemptAt: Number(intent.nextAttemptAt) + 0.123456 }],
       ["nextAttemptAt negative", { nextAttemptAt: -0.0000018927186924017318 }], ["attempts max safe", { attempts: Number.MAX_SAFE_INTEGER }]] as const)
       expect(nankaiUnitCodec.decode({ ...value, intents: [{ ...intent, ...patch }] } as JsonValue).kind, name).toBe("restored");
-    // 情報系列は復元で空なので、情報 subject の intent が state に無いことは unavailable の理由にしない。
+    // 記録の無い系列の intent（退去・回収で記録が消えた系列）は unavailable の理由にしない。
     expect(nankaiUnitCodec.decode({ ...value, currents: [], intents: value.intents.filter((item) => item.subject !== NANKAI) } as JsonValue).kind)
       .toBe("restored");
 
@@ -395,8 +387,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(restored.intents).toEqual([]);
     expect(restored.state.intents).toEqual(state.intents.filter((item) => item.expiresAt > restoredAt));
     expect(restored.state.intents.length).toBeGreaterThan(0);
-    expect(restored.state.information).toEqual(state.information.map(evidenceOnly));
-    expect(restored.outcomes).toMatchObject([{ kind: "recoveryApplied", scope: ["U-N"], coverage: [NANKAI] }]);
+    expect(restored.state.information).toEqual(state.information);
+    expect(restored.outcomes).toMatchObject([{ kind: "recoveryApplied", scope: ["U-N"], coverage: [NANKAI, ...state.information.map((item) => item.subject)] }]);
   });
 
   // acceptance: Q-NOTICE の南海トラフ分（AC07）。
@@ -404,8 +396,13 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     // 報自身の InfoSerial/Code で決める（P3-C8-NOTICE-LEVELS=B）。
     const level = (code: string | null) => levels(send(emptyState(), F.advisory, (xml) => code == null
       ? xml.replace(/<InfoSerial[\s\S]*<\/InfoSerial>/, "") : xml.replace("<Code>130</Code>", `<Code>${code}</Code>`)))[0];
+    // P3-NS-T05（H12）: 調査中（111〜113）は普通の音。111 への訂正も同じ表。
     expect(["120", "130", "111", "112", "113", "210", "219", "190", "200", "999", null].map(level)).toEqual(["desktop:critical",
-      ...Array(6).fill("desktop:warning"), "desktop:info", "desktop:info", "desktop:warning", "desktop:warning"]);
+      "desktop:warning", ...Array(3).fill("desktop:normal"), "desktop:warning", "desktop:warning", "desktop:info", "desktop:info", "desktop:warning",
+      "desktop:warning"]);
+    expect(levels(send(send(emptyState(), F.inv1).state, F.inv1, (xml) => sentLater(replaceTag("InfoType", "訂正")(xml))))).toEqual(["desktop:normal", "sound:normal"]);
+    // corpus 履歴: 実の 74_01_01〜03（111〜113）をそのまま受けても普通の音。
+    expect([F.inv1, F.inv2, F.inv3].map((name) => levels(send(emptyState(), name)))).toEqual(Array(3).fill(["desktop:normal", "sound:normal"]));
     expect(levels(send(emptyState(), F.vyse60))).toEqual(["desktop:warning", "sound:warning"]);
     const advisory = send(emptyState(), F.advisory);
     expect(levels(send(advisory.state, F.cancel))).toEqual(["desktop:cancel", "sound:cancel"]);
@@ -443,7 +440,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(updated.decisions).toMatchObject([{ decision: "changed", change: "deliveryOnly" }]);
     expect(reduceNankaiUnit(updated.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: { ...desktop, attempts: 1,
       nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null } }).state).toBe(updated.state);
-    // 復元直後の続報は復元した現況との差で決める（同じ報は duplicate で鳴らさない。情報系列は空から始まる）。
+    // 復元直後の同じ報は duplicate で鳴らさない（情報系列は保存したとおりに戻る、P3-NS-AC01 (3)）。
     const restored = reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(advisory.state),
       clock: clock(desktop.createdAt + 1) }).state;
     expect(send(restored, F.advisory).intents).toEqual([]);
@@ -515,12 +512,13 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const advisory = send(emptyState(), F.advisory).state;
     const toUnknown = send(advisory, F.advisory, (xml) => sentLater(replaceTag("InfoType", "訂正")(xml).replace("<Code>130</Code>", "<Code>999</Code>")));
     expect([status(toUnknown.state), toUnknown.intents.map((item) => item.transition)]).toEqual(["ended", ["updated", "updated"]]);
-    // 情報系列だけの変化（revisionOnly・期限の回収）でも証拠が変わるので保存世代を進める（P3-AUTH-AC01(5)、K2 前は進めなかった）。
+    // 情報系列だけの変化（revisionOnly・表示の期限）でも保存世代を進める（P3-NS-AC01 (4)、K2 前は進めなかった）。
     const c1 = send(emptyState(), F.c1);
     const revisionOnly = send({ ...c1.state, intents: [] }, F.c1, (xml) => retime("2020-05-12T16:39:00+09:00")(replaceTag("Serial", "2")(xml)));
     expect(revisionOnly.state.persistence.currentGeneration).toBe(c1.state.persistence.currentGeneration + 1);
     const gone = reduceNankaiUnit({ ...c1.state, intents: [] }, { kind: "deadline", clock: clock(at("2020-05-12T16:38:00+09:00") + 7 * DAY) });
-    expect([gone.state.information, gone.state.persistence.currentGeneration]).toEqual([[], c1.state.persistence.currentGeneration + 1]);
+    expect([gone.state.information.map((item) => item.effective), gone.state.persistence.currentGeneration])
+      .toEqual([["expired"], c1.state.persistence.currentGeneration + 1]);
   });
 
   // 実不具合の再発防止（F15、P3-CODEC-AC04）: Headline の無い報で Text から切り出す本文がサロゲートの対を割らない（body 全体には 80 単位の上限を置かない）。
@@ -531,35 +529,87 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     expect(roundTrip(step.state).kind).toBe("restored");
   });
 
-  // contractBoundary（P3-CODEC-AC03・RES-05、P3-AUTH-RES-01）: 現況 6 件の上限の形（inputId・title・headline・infoSerial を制御文字で上限まで）に
-  // 証拠 64 件（subject 80 字・最長の安全な整数の時刻・Serial 10 桁・取消）と通知の予算（pending の実 byte＋予約 131,072）を足しても内側。
-  // P3-VM-AC08: 上界に Control/DateTime（40 文字）と現況ごとの未確認の印（decoder の許す最長の ReportRef）を足して数え直す。
-  // P3-NL-AC15 (2): 全記録に最長の通知の印を足し、終端記録の予算 98,304 は外す。
-  // P3-EF-AC10 (2): active の現況は期限切れの保留の印（21 byte）も持つ（上界 280,060 → 280,186）。
-  it("P3-CODEC-T02 contractBoundary / AC03: six bounded currents with marks, 64 evidence records and the whole notice budget stay within 280,186 bytes", () => {
-    const wide = (length: number) => "\u0001".repeat(length);
-    const time40 = "2020-05-22T15:00:00.00000000000000+09:00";
-    const currents = budgetState(true).currents.map((item): NankaiCurrent => {
-      const source = { ...item.source, inputId: "i".repeat(64), controlDateTimeRaw: time40 };
-      const mark = item.effective === "cancelled" || item.effective === "expired" ? {}
-        : { unconfirmed: { ...source, reportDateTimeRaw: time40, serialRaw: "1234567890", infoTypeRaw: "取消" } };
-      return "title" in item ? { ...item, source, ...mark, notice: LONGEST_NOTICE, title: wide(128), headline: wide(512),
-        infoSerial: { code: item.infoSerial?.code ?? "0", name: wide(32) }, expiryPending: true } : { ...item, source, ...mark, notice: LONGEST_NOTICE };
-    });
-    const evidence = Array.from({ length: 64 }, (_, index): NankaiInformation => {
-      const eventId = String(index).padStart(64, "E"), subject = `training/VYSE51/${eventId}`, reportDateTimeMs = -9_007_199_254_740_991;
-      return { subject, family: "VYSE51", eventId, operation: "training", retainUntil: reportDateTimeMs + 7 * DAY, effective: "evidence", notice: LONGEST_NOTICE,
-        evidence: { subject, reportDateTimeMs, serialRaw: "1234567890", infoTypeRaw: "取消",
-          controlDateTimeRaw: "2020-05-22T15:00:00.00000000000000+09:00" } };
-    });
-    const state: NankaiUnitState = { ...emptyState(), currents, information: evidence };
-    expect(roundTrip(state).kind).toBe("restored");
-    const envelope = Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v5", unit: "U-N", generation: 0, capturedAt: 0,
-      payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
-    console.info("P3-CODEC U-N bound", JSON.stringify({ currents: currents.length, evidence: evidence.length, envelope,
-      bound: envelope + 62 - 2 + 131_072 }));
-    // 空の intents 配列（2 byte）を通知の予算 131,072 で置き換え、generation と capturedAt の 62 byte と inputBoundary の最大（P3-VM-AC06）を予約する。
-    expect(envelope + 62 - 2 + 131_072).toBeLessThanOrEqual(280_186);
+  // contractBoundary（P3-NS-T04、P3-NS-AC06 (2)、P3-CODEC-T02 を置き換える）: 現況 6 件（line nankai の 3 件だけ warningUntil）・情報 64 件（重ならない
+  // subject 80 字）に未確認の印・最長の通知の印・保留の印を付け、文字列を上限の長さで埋めた世代に pending の予算 131,072 を足しても 2,621,440 byte 以下。
+  // 合法な状態は 3 byte の文字・40 文字の ASCII の時刻。解析の上界（Q-NS-BYTES）は同じ形を JSON で 6 byte になる文字で埋め、ReportDateTime を
+  // 40 単位×6 byte と数える予約（ReportRef ごとに 200 byte）を足す。
+  it("P3-NS-T04 contractBoundary / P3-NS-AC01,AC03,AC06,AC08: decode rejections, the legal large generation and the analytic bound within 2,621,440 bytes", () => {
+    const time40 = "2020-05-12T16:28:00.00000000000000+09:00", reported = Date.parse(time40);
+    const budget = budgetState(true);
+    const build = (char: string, origin: "replay" | "recovery", infoType: string): NankaiUnitState => {
+      const wide = (length: number) => char.repeat(length);
+      const currents = budget.currents.map((item): NankaiCurrent => {
+        if (item.effective !== "active") throw new Error("the bounded currents are active");
+        const source = { ...item.source, origin, inputId: "i".repeat(64), controlDateTimeRaw: time40, infoTypeRaw: infoType };
+        return { ...item, source, unconfirmed: { ...source, serialRaw: "1234567890", infoTypeRaw: "取消" }, notice: LONGEST_NOTICE, expiryPending: true,
+          title: wide(128), headline: wide(512), infoSerial: { code: wide(8), name: wide(32) } };
+      });
+      const information = Array.from({ length: 64 }, (_, index): NankaiInformation => {
+        const eventId = String(index).padStart(64, "E"), subject = `training/VYSE51/${eventId}`;
+        const source: ReportRef = { inputId: "i".repeat(64), origin, operation: "training", family: "VYSE51", subject, reportDateTimeRaw: time40,
+          controlDateTimeRaw: time40, serialRaw: "1234567890", infoTypeRaw: infoType };
+        return { subject, family: "VYSE51", eventId, operation: "training", source, retainUntil: reported + 30 * DAY,
+          unconfirmed: { ...source, infoTypeRaw: "取消" }, notice: LONGEST_NOTICE, effective: "active", infoKind: wide(64),
+          infoSerial: { code: wide(8), name: wide(32) }, title: wide(128), headline: wide(512), truncated: true, text: wide(4_096),
+          nextAdvisory: wide(512), validUntil: reported + 7 * DAY, expiryPending: true };
+      });
+      return { ...emptyState(), currents, information };
+    };
+    // 空の intents 配列（2 byte）を通知の予算 131,072 で置き換え、generation と capturedAt の 62 byte と inputBoundary・losses の最大を予約する。
+    const generation = (state: NankaiUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v6", unit: "U-N", generation: 0,
+      capturedAt: 0, payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + 62 - 2 + 131_072;
+    const legal = build("震", "replay", "発表"), bound = build("\u0001", "recovery", "取消");
+    expect(bound.currents.filter((item) => "warningUntil" in item)).toHaveLength(3);
+    for (const state of [legal, bound]) {
+      const full = { ...state, intents: budget.intents };
+      const restored = roundTrip(full);
+      if (restored.kind !== "restored") throw new Error("the large generation does not decode");
+      expect([restored.state.currents, restored.state.information, restored.state.intents]).toEqual([full.currents, full.information, full.intents]);
+    }
+    const refs = (bound.currents.length + bound.information.length) * 2;
+    const sizes = { legal: generation(legal), bound: generation(bound) + refs * 200, contractBound: 2_335_693, limit: 2_621_440 };
+    console.info("P3-NS-T04 U-N generation", JSON.stringify(sizes));
+    expect(Math.max(sizes.legal, sizes.bound)).toBeLessThanOrEqual(2_621_440);
+    expect(nankaiUnitCodec.discardableSchemaVersions).toEqual(["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4",
+      "p3-nankai-unit-v5"]);
+
+    // decode の拒否の表（invalid）と、受ける形。
+    type Row = Record<string, unknown>;
+    const base = send(chain([F.warning, F.c1]).at(-1)!.state, F.vyse60, undefined, at("2020-05-12T16:40:00+09:00")).state;
+    const payload = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(base))) as { schemaVersion: string; currents: Row[]; information: Row[]; intents: Row[] };
+    const [warning, vyse60] = payload.currents;
+    const info = payload.information.find((item) => item.family === "VYSE51")!;
+    const { infoKind: _kind, infoSerial: _serial, title: _title, headline: _headline, truncated: _truncated, text: _text, nextAdvisory: _next,
+      validUntil: _valid, effective: _effective, ...memory } = info;
+    const { warningUntil: _warningUntil, ...unwarned } = warning;
+    const currents = (row: Row) => ({ ...payload, currents: [row, vyse60] });
+    const information = (row: Row) => ({ ...payload, information: [row] });
+    const sourceOf = info.source as Row;
+    const many = Array.from({ length: 65 }, (_, index) => ({ ...info, eventId: `K${index}`, subject: `normal/VYSE51/K${index}`,
+      source: { ...sourceOf, subject: `normal/VYSE51/K${index}` } }));
+    const invalid: [string, unknown][] = [
+      ["megaquakeWarning without warningUntil", currents(unwarned)],
+      ["warningUntil off the formula", currents({ ...warning, warningUntil: Number(warning.warningUntil) + 1 })],
+      ["validUntil of a warned current is +7 d", currents({ ...warning, validUntil: Number(warning.validUntil) - 7 * DAY })],
+      ["warningUntil on investigating", currents({ ...warning, status: "investigating" })],
+      ["warningUntil on VYSE60", { ...payload, currents: [warning, { ...vyse60, warningUntil: Number(vyse60.validUntil) }] }],
+      ["warningUntil on an expired current", currents({ ...memory, line: "nankai", effective: "expired", subject: warning.subject, eventId: warning.eventId,
+        source: warning.source, retainUntil: warning.retainUntil, warningUntil: warning.warningUntil })],
+      ["expired information with facts", information({ ...memory, effective: "expired", title: "x" })],
+      ["cancelled information with text", information({ ...memory, effective: "cancelled", text: "x" })],
+      ["active information validUntil", information({ ...info, validUntil: Number(info.validUntil) + 1 })],
+      ["information retainUntil", information({ ...memory, effective: "expired", retainUntil: Number(info.retainUntil) + 1 })],
+      ["unconfirmed of another subject", information({ ...info, unconfirmed: { ...sourceOf, subject: "normal/VYSE51/OTHER" } })],
+      ["text over 4096", information({ ...info, text: "x".repeat(4_097) })],
+      ["65 information", { ...payload, information: many }],
+      ["the evidence key", { schemaVersion: payload.schemaVersion, currents: payload.currents, intents: payload.intents, evidence: payload.information }],
+      ["v5", { ...payload, schemaVersion: "p3-nankai-unit-v5" }],
+    ];
+    for (const [name, candidate] of invalid) expect(nankaiUnitCodec.decode(candidate as JsonValue).kind, name).toBe("invalid");
+    for (const [name, candidate] of [["megaquakeAdvisory with warningUntil", currents({ ...warning, status: "megaquakeAdvisory" })],
+      ["expired memory", information({ ...memory, effective: "expired" })], ["cancelled", information({ ...memory, effective: "cancelled" })],
+      ["64 information", { ...payload, information: many.slice(0, 64) }]] as const)
+      expect(nankaiUnitCodec.decode(candidate as JsonValue).kind, name).toBe("restored");
   });
 
   // contractBoundary: E22 の U-N は対象外（P3-C8-N2、AC13）。
@@ -593,14 +643,16 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const o07 = replay("O07", 35, 44);
     // :38 の復元は intent を作らず、:36 の pending を元の期限で戻す。:39 の取消は復元した現況を取り消し、その pending を置き換える。
     expect(o07[3].state.intents.map((item) => [item.channel, item.expiresAt])).toEqual(o07[1].state.intents.map((item) => [item.channel, item.expiresAt]));
-    expect(o07[3].state.information).toEqual(o07[2].state.information.map(evidenceOnly));
+    expect(o07[3].state.information).toEqual(o07[2].state.information);
     // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
     expect(o07[4].state.intents.filter((item) => item.subject === NANKAI && item.transition === "activated")).toEqual([]);
     expect(infoOf(o07[4].state, "normal/VYSE50/20200512163200")).toMatchObject({ effective: "cancelled" });
-    // :43 は validUntil の 1 ms 前で active、:44 の到来で expired。通知しない。
-    expect(currentOf(o07[8].state)).toMatchObject({ effective: "active", validUntil: at("2020-05-19T16:28:00+09:00") });
-    expect(currentOf(o07[9].state)).toMatchObject({ effective: "expired", retainUntil: at("2020-06-11T16:28:00+09:00") });
+    // P3-NS-T07: :43 は warningUntil の 1 ms 前で巨大地震警戒、:44 の到来で巨大地震注意へ移る（active のまま）。通知しない。
+    expect(currentOf(o07[8].state)).toMatchObject({ effective: "active", status: "megaquakeWarning", warningUntil: at("2020-05-19T16:28:00+09:00"),
+      validUntil: at("2020-05-26T16:28:00+09:00") });
+    expect(currentOf(o07[9].state)).toMatchObject({ effective: "active", status: "megaquakeAdvisory", retainUntil: at("2020-06-11T16:28:00+09:00") });
     expect(o07[9].intents).toEqual([]);
+    expect(o01[1].intents.map((item) => item.payload.level)).toEqual(["normal", "normal"]);
 
     // E13: fixtureIds の全正常 fixture を各 fixture の時刻の時計で受け、期限処理の後も残る恒常的な unavailable は U-N に無い。
     const groups: Record<string, string[]> = { changed: [], rejected: [] };
@@ -703,27 +755,28 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       return [verdict(step), step.intents.length]; })).toEqual([[["duplicate"], 0], [["duplicate"], 0]]);
   });
 
-  // contractBoundary（P3-AUTH-AC06）: 証拠の decode の不正は invalid。鍵の無い payload（移行 A1 の旧保存の形）も invalid（旧保存は版で捨てる、
-  // P3-VM-AC08・AC09(6)）。
-  it("P3-AUTH-T05 contractBoundary / AC06: malformed evidence and a payload without the evidence key are invalid", () => {
+  // contractBoundary（P3-AUTH-AC06、P3-NS-T04 の残り）: 情報 subject の記録の decode の不正は invalid。information の鍵の無い payload も invalid
+  // （旧い形は版で捨てる、P3-NS-AC08）。
+  it("P3-AUTH-T05 contractBoundary / AC06: malformed information records and a payload without the information key are invalid", () => {
     const state = chain([F.warning, F.c1, F.regular]).at(-1)!.state;
-    const payload = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(state))) as { evidence: Record<string, unknown>[] };
-    const { evidence: _evidence, ...legacy } = payload;
-    const [first] = payload.evidence;
-    const many = Array.from({ length: 65 }, (_, index) => ({ ...first, subject: `normal/VYSE51/K${index}` }));
+    const payload = JSON.parse(JSON.stringify(nankaiUnitCodec.encode(state))) as { information: Record<string, unknown>[] };
+    const { information: _information, ...legacy } = payload;
+    const first = payload.information.find((item) => item.family === "VYSE51")!;
+    const source = first.source as Record<string, unknown>;
+    const named = (subject: string) => ({ ...first, subject, eventId: subject.split("/")[2], source: { ...source, subject } });
     const invalid: [string, unknown][] = [
-      ["65 records", { ...payload, evidence: many }],
-      ["duplicate subject", { ...payload, evidence: [first, first] }],
-      ["subject form", { ...payload, evidence: [{ ...first, subject: "normal/VXSE53/K1" }] }],
-      ["subject without an EventID", { ...payload, evidence: [{ ...first, subject: "normal/VYSE51" }] }],
-      ["Serial", { ...payload, evidence: [{ ...first, serialRaw: "0" }] }],
-      ["InfoType", { ...payload, evidence: [{ ...first, infoTypeRaw: "不明" }] }],
-      ["time not an integer", { ...payload, evidence: [{ ...first, reportDateTimeMs: 1.5 }] }],
-      ["evidence not a list", { ...payload, evidence: null }],
-      ["no evidence key", legacy],
-      ["Control/DateTime not a string", { ...payload, evidence: [{ ...first, controlDateTimeRaw: 1 }] }],
+      ["duplicate subject", { ...payload, information: [first, first] }],
+      ["subject form", { ...payload, information: [named("normal/VXSE53/K1")] }],
+      ["subject without an EventID", { ...payload, information: [{ ...first, subject: "normal/VYSE51", source: { ...source, subject: "normal/VYSE51" } }] }],
+      ["Serial", { ...payload, information: [{ ...first, source: { ...source, serialRaw: "0" } }] }],
+      ["InfoType", { ...payload, information: [{ ...first, source: { ...source, infoTypeRaw: "不明" } }] }],
+      ["time not an integer", { ...payload, information: [{ ...first, validUntil: 1.5 }] }],
+      ["information not a list", { ...payload, information: null }],
+      ["no information key", legacy],
+      ["Control/DateTime not a string", { ...payload, information: [{ ...first, source: { ...source, controlDateTimeRaw: 1 } }] }],
     ];
-    expect(nankaiUnitCodec.decode({ ...payload, evidence: many.slice(0, 64) } as JsonValue).kind).toBe("restored");
+    expect(nankaiUnitCodec.decode({ ...payload, information: Array.from({ length: 64 }, (_, index) => named(`normal/VYSE51/K${index}`)) } as JsonValue).kind)
+      .toBe("restored");
     for (const [name, candidate] of invalid) expect(nankaiUnitCodec.decode(candidate as JsonValue).kind, name).toBe("invalid");
   });
 
@@ -743,6 +796,242 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     // 記録の無い現況への 31 日前の VYSE50 も足さず、保存世代を進めない（AC01(5)、品質レビュー P2-3）。
     const lone = receive(emptyState(), decodeFixture(F.inv1, replaceTag("ReportDateTime", iso(t - 31 * DAY))), clock(t));
     expect([lone.state.currents, lone.state.information, lone.state.persistence]).toEqual([[], [], emptyState().persistence]);
+  });
+
+  // acceptance（P3-NS-T01、H30）: 情報系列の全文と未確認の印を保存して戻し、一覧が再起動の前と同じになる。同じ報の受け直しは鳴らない。
+  it("P3-NS-T01 acceptance / P3-NS-AC01,AC02,AC08: the information series and its unconfirmed mark survive save and restore, and a resend is a duplicate", () => {
+    const C = "normal/VYSE51/20200512163800";
+    const state = chain([F.advisory, F.c1, F.c2, F.c3]).at(-1)!.state;
+    const conflict = send(state, F.c3, (xml) => xml.replace(/<Headline>\s*<Text>[^<]*/, "<Headline><Text>別の見出し"));
+    expect([shape(conflict), infoOf(conflict.state, C)?.unconfirmed?.inputId, conflict.state.persistence.currentGeneration])
+      .toEqual([[[C, "unchanged", "stale"]], conflict.diagnostics[0].inputId, state.persistence.currentGeneration + 1]);
+    const decoded = roundTrip(conflict.state);
+    if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+    const restored = reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(decoded.state),
+      clock: clock(at("2020-05-12T16:43:00+09:00")) });
+    expect(restored.state.information).toEqual(conflict.state.information);
+    expect(toNankaiView(restored.state).information).toEqual(toNankaiView(conflict.state).information);
+    expect([restored.intents, restored.displayChanges.map((item) => item.subject)])
+      .toEqual([[], [NANKAI, ...conflict.state.information.map((item) => item.subject)]]);
+    const again = send(restored.state, F.c3);
+    expect([shape(again), again.intents]).toEqual([[[C, "unchanged", "duplicate"]], []]);
+  });
+
+  // acceptance（P3-NS-T02、作者裁定 2026-10-21 朝の判断 1）: 巨大地震警戒は 7 日で巨大地震注意へ移り、14 日で expired。どの経路でも通知しない
+  // （P3-NS-D-STEPDOWN-NOTICE=A）。
+  it("P3-NS-T02 acceptance / P3-NS-AC03: the megaquake warning steps down at 7 d and expires at 14 d without a notice on every path", () => {
+    const t = at("2020-05-12T16:28:00+09:00"), W = "normal/VYSE50/20200512162800";
+    const issued = send(emptyState(), F.warning);
+    expect(currentOf(issued.state)).toMatchObject({ status: "megaquakeWarning", warningUntil: t + 7 * DAY, validUntil: t + 14 * DAY });
+    // pending の intent の expiresAt も期限の候補なので、配送で片付けた後の nextDeadline が t+7 日。
+    expect(issued.nextDeadline?.wallTimeMs).toBe(t + 60_000);
+    const settled = reduceNankaiUnit(issued.state, { kind: "intentUpdate", clock: clock(t), intentUpdate: issued.intents.map((item) => ({ id: item.id,
+      attempts: 1, nextAttemptAt: t, disposition: "delivered" as const, lastAttempt: null, replayed: false, expiresAt: item.expiresAt, lossReason: null })) });
+    expect(settled.nextDeadline?.wallTimeMs).toBe(t + 7 * DAY);
+    const tick = (state: NankaiUnitState, ms: number) => reduceNankaiUnit(state, { kind: "deadline", clock: clock(t + ms) });
+    expect(tick(settled.state, 7 * DAY - 1).state).toBe(settled.state);
+    const stepped = tick(settled.state, 7 * DAY);
+    const before = currentOf(settled.state);
+    expect(currentOf(stepped.state)).toEqual({ ...before, status: "megaquakeAdvisory" });
+    expect([stepped.intents, stepped.state.persistence.currentGeneration, stepped.displayChanges.map((item) => [item.subject, item.after == null])])
+      .toEqual([[], settled.state.persistence.currentGeneration + 1, [[NANKAI, false], [W, true]]]);
+    expect(stepped.outcomes).toMatchObject([{ kind: "deadlineApplied", subjects: [{ subject: NANKAI, transition: "active", changedFields: ["status"] },
+      { subject: W, transition: "expired", changedFields: ["effective"] }] }]);
+    expect(stepped.nextDeadline?.wallTimeMs).toBe(t + 14 * DAY);
+    const repeat = tick(stepped.state, 7 * DAY);
+    expect([repeat.state, repeat.outcomes, repeat.displayChanges, repeat.intents]).toEqual([stepped.state, [], [], []]);
+    expect(repeat.state).toBe(stepped.state);
+    // 復元の回収: 7 日を越えた復元は移り、14 日を越えた復元は移らずに直接 expired。awaiting で保留した期限も verified の後に移り、intent は 0。
+    const restoreAt = (ms: number, basis?: WallBasis) => reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(settled.state),
+      clock: clock(t + ms), basis });
+    expect([status(restoreAt(7 * DAY + 1).state), restoreAt(7 * DAY + 1).intents, status(restoreAt(14 * DAY + 1).state)])
+      .toEqual(["megaquakeAdvisory", [], "expired"]);
+    const held = restoreAt(7 * DAY + 1, "awaiting");
+    const applied = reduceNankaiUnit(held.state, { kind: "deadline", clock: clock(t + 7 * DAY + 2), basis: "verified" });
+    expect([status(held.state), status(applied.state), applied.intents]).toEqual(["megaquakeWarning", "megaquakeAdvisory", []]);
+    // 移った現況への同じ 120 の再送は duplicate（印なし・intent 0）。移った state の保存→復元の後と、情報 subject の退去の後も同じ。
+    const late = (state: NankaiUnitState) => send(state, F.warning, undefined, t + 8 * DAY);
+    const evicted = { ...stepped.state, information: stepped.state.information.filter((item) => item.subject !== W) };
+    for (const [label, state] of [["direct", stepped.state], ["restored", restartAt(stepped.state, t + 8 * DAY)], ["evicted", evicted]] as const) {
+      const step = late(state);
+      expect([shape(step), currentOf(step.state)?.unconfirmed, step.intents], label).toEqual([[[NANKAI, "unchanged", "duplicate"],
+        [W, "unchanged", "duplicate"]], undefined, []]);
+    }
+    // 移った後の調査中（別の EventID の 111）は現況を置き換えず、情報 subject だけが activated（level normal）。
+    const investigating = send(stepped.state, F.inv1, retime(iso(t + 8 * DAY)));
+    expect([status(investigating.state), investigating.intents.map((item) => [item.subject, item.transition, item.payload.level])])
+      .toEqual(["megaquakeAdvisory", [["normal/VYSE50/20200512162000", "activated", "normal"], ["normal/VYSE50/20200512162000", "activated", "normal"]]]);
+    expect([status(tick(stepped.state, 14 * DAY - 1).state), status(tick(stepped.state, 14 * DAY).state), tick(stepped.state, 14 * DAY).intents])
+      .toEqual(["megaquakeAdvisory", "expired", []]);
+    // 130 は warningUntil を持たず 7 日で expired。120 を置き換えた別の EventID の 130 は、その報から 7 日（二段を引き継がない）。
+    const advisory = send(emptyState(), F.advisory), reported = at("2020-05-12T16:32:00+09:00");
+    expect([currentOf(advisory.state), status(reduceNankaiUnit(advisory.state, { kind: "deadline", clock: clock(reported + 7 * DAY) }).state)])
+      .toEqual([expect.not.objectContaining({ warningUntil: expect.anything() }), "expired"]);
+    const replaced = currentOf(send(settled.state, F.advisory, retime(iso(t + 3 * DAY))).state);
+    expect([replaced?.effective === "active" && replaced.status, replaced && "warningUntil" in replaced, replaced?.effective === "active" && replaced.validUntil])
+      .toEqual(["megaquakeAdvisory", false, t + 10 * DAY]);
+  });
+
+  // P3-NS-T03 の共通部: 75_01_01 を t に受け、通知を配送で片付けると印の証拠が possible になる。取消は報の family・EventID・時刻を替えて作る。
+  const T03 = at("2020-05-12T16:38:00+09:00"), C1 = "normal/VYSE51/20200512163800";
+  const delivered = (step: NankaiUnitStep, now: number) => reduceNankaiUnit(step.state, { kind: "intentUpdate", clock: clock(now),
+    intentUpdate: step.intents.map((item) => ({ id: item.id, attempts: 1, nextAttemptAt: now, disposition: "delivered" as const, lastAttempt: null,
+      replayed: false, expiresAt: item.expiresAt, lossReason: null })) }).state;
+  const cancelAt = (state: NankaiUnitState, eventId: string, headType: string, ms: number) => receive(state, decodeXml(
+    replaceTag("DateTime", new Date(ms).toISOString())(retime(iso(ms))(replaceTag("EventID", eventId)(fixtureXml(F.cancel)))), headType), clock(ms));
+
+  // acceptance（P3-NS-T03、P3-NS-AC04 (1)(2)(4)(5)）: 情報は表示の期限で expired の記憶になり（本文と未確認の印を捨てる）、同じ報は duplicate、
+  // 記憶の取消は印の証拠で鳴り、取消の記録は取消の時刻＋30 日・記憶は＋30 日で消える。
+  it("P3-NS-T03 acceptance / P3-NS-AC04: the information memory, its late cancel by the notice evidence and the 30 d end", () => {
+    const issued = send(emptyState(), F.c1);
+    // 同じ時刻の別の見出しで未確認の印を付けてから期限を迎える。
+    const marked = send(issued.state, F.c1, (xml) => xml.replace(/<Headline>\s*<Text>[^<]*/, "<Headline><Text>別の見出し"));
+    expect(infoOf(marked.state, C1)?.unconfirmed).toBeDefined();
+    const tick = (state: NankaiUnitState, ms: number) => reduceNankaiUnit(state, { kind: "deadline", clock: clock(T03 + ms) });
+    for (const [evidence, state] of [["possible", delivered({ ...issued, state: marked.state }, T03)], ["unattempted", marked.state]] as const) {
+      const memory = tick(state, 7 * DAY);
+      const record = infoOf(memory.state, C1);
+      expect([record?.effective, record?.unconfirmed, record?.notice?.evidence, toNankaiView(memory.state).information], evidence)
+        .toEqual(["expired", undefined, evidence, []]);
+      expect(memory.outcomes, evidence).toMatchObject([{ kind: "deadlineApplied", subjects: [{ subject: C1, transition: "expired",
+        source: { inputId: infoOf(state, C1)?.source.inputId } }] }]);
+      expect(Object.keys(nankaiUnitCodec.encode(memory.state).information[0] ?? {}).sort(), evidence)
+        .toEqual(["effective", "eventId", "family", "notice", "operation", "retainUntil", "source", "subject"]);
+      const resend = send(memory.state, F.c1, undefined, T03 + 10 * DAY);
+      expect([shape(resend), resend.intents], evidence).toEqual([[[C1, "unchanged", "duplicate"]], []]);
+      const cancel = cancelAt(memory.state, "20200512163800", "VYSE51", T03 + 10 * DAY);
+      expect([infoOf(cancel.state, C1)?.effective, levels(cancel)], evidence).toEqual(["cancelled", evidence === "possible" ? ["desktop:cancel", "sound:cancel"] : []]);
+      expect([infoOf(tick(cancel.state, 40 * DAY - 1).state, C1)?.effective, infoOf(tick(cancel.state, 40 * DAY).state, C1)], evidence).toEqual(["cancelled", undefined]);
+      expect([infoOf(tick(memory.state, 30 * DAY - 1).state, C1)?.effective, infoOf(tick(memory.state, 30 * DAY).state, C1)], evidence).toEqual(["expired", undefined]);
+    }
+  });
+
+  // acceptance（P3-NS-T03、P3-NS-AC04 (7)、統合担当の決定 D1）: 通知した 130 の現況は期限切れの後も印を持ち、保存と復元を挟んだ取消で鳴る。
+  it("P3-NS-T03 acceptance / P3-NS-AC04 (7): an expired current keeps its notice mark and its cancel after a restart is notified", () => {
+    const t5 = at("2020-05-12T16:32:00+09:00");
+    const lapsed = reduceNankaiUnit(delivered(send(emptyState(), F.advisory), t5), { kind: "deadline", clock: clock(t5 + 7 * DAY) }).state;
+    expect([status(lapsed), currentOf(lapsed)?.notice?.evidence]).toEqual(["expired", "possible"]);
+    const late = cancelAt(restartAt(lapsed, t5 + 10 * DAY), "20200512163200", "VYSE50", t5 + 10 * DAY);
+    expect([status(late.state), late.intents.map((item) => [item.subject, item.payload.level])]).toEqual(["cancelled",
+      [[NANKAI, "cancel"], [NANKAI, "cancel"]]]);
+  });
+
+  // contractBoundary（P3-NS-T03、P3-NS-AC06 (5)、統合担当の決定 D2）: 64 件の退去は training/test → normal の記憶 → normal の最古。
+  // normal だけで 64 件のときの training の報は、受けた記録を残さない。
+  it("P3-NS-T03 contractBoundary / P3-NS-AC06 (5): the 65th information evicts training, then the oldest normal memory, never a normal active", () => {
+    const seed = infoOf(send(emptyState(), F.c1).state, C1);
+    if (seed?.effective !== "active") throw new Error("the seed information is not active");
+    // index の小さいほど古い。
+    const make = (index: number, operation: Operation, effective: "active" | "expired"): NankaiInformation => {
+      const eventId = `M${String(index).padStart(13, "0")}`, subject = `${operation}/VYSE51/${eventId}`, reported = T03 - (100 - index) * 60_000;
+      const source = { ...seed.source, operation, subject, reportDateTimeRaw: iso(reported) };
+      return effective === "active" ? { ...seed, subject, eventId, operation, source, validUntil: reported + 7 * DAY, retainUntil: reported + 30 * DAY }
+        : { subject, family: "VYSE51", eventId, operation, source, retainUntil: reported + 30 * DAY, effective: "expired" };
+    };
+    const report = (eventId: string, status = "通常") => decodeFixture(F.regular, (xml) => retime(iso(T03))(replaceTag("EventID", eventId)(xml))
+      .replace("<Status>通常</Status>", `<Status>${status}</Status>`));
+    let state: NankaiUnitState = { ...emptyState(), information: Array.from({ length: 64 }, (_, index) =>
+      make(index, index === 0 ? "training" : "normal", index >= 1 && index <= 10 ? "expired" : "active")) };
+    const evictedSubjects: string[] = [];
+    for (const eventId of ["N0001", "N0002"]) {
+      const before = state.information.map((item) => item.subject);
+      state = receive(state, report(eventId), clock(T03)).state;
+      evictedSubjects.push(...before.filter((subject) => !state.information.some((item) => item.subject === subject)));
+    }
+    expect(evictedSubjects).toEqual([make(0, "training", "active").subject, make(1, "normal", "expired").subject]);
+    expect(state.information.filter((item) => item.effective === "active" && item.operation === "normal")).toHaveLength(53 + 2);
+    const normals: NankaiUnitState = { ...emptyState(), information: Array.from({ length: 64 }, (_, index) => make(index, "normal", index < 10 ? "expired" : "active")) };
+    const drill = receive(normals, report("T0001", "訓練"), clock(T03));
+    expect([drill.state.information, drill.diagnostics]).toEqual([normals.information, [{ level: "INFO", component: "nankai",
+      reason: "nankaiCapacityEvicted", unit: "U-N", count: 1 }]]);
+  });
+
+  // regression（K13 r2・r3 のレビュー、作者裁定 2026-10-25）: 発表から 7〜14 日の間に初めて届いた 120 は巨大地震注意として出るので、巨大地震注意の
+  // 段で 1 回鳴らす。修正前は情報の表示の期限で通知を止め、intent 0 だった。7 日の手前は今どおり巨大地震警戒の段（契約境界）。
+  it("P3-NS-T02 regression / P3-NS-AC03: a first 120 between 7 d and 14 d rings once at the advisory level, before 7 d at the warning level", () => {
+    const t = at("2020-05-12T16:28:00+09:00");
+    const late = send(emptyState(), F.warning, undefined, t + 8 * DAY);
+    expect([status(late.state), late.state.information, late.intents.map((item) => [item.subject, item.payload.level])])
+      .toEqual(["megaquakeAdvisory", [], [[NANKAI, "warning"], [NANKAI, "warning"]]]);
+    expect(send(late.state, F.warning, undefined, t + 9 * DAY).intents).toEqual([]);
+    // 実不具合（K13 r3 のレビュー）: 配送の後に Control/DateTime だけ新しい同じ 120 は版だけの更新で、通知しない（修正前は移る前の status の差で
+    // warning が 2 件増えた）。
+    const follow = send(delivered(late, t + 8 * DAY), F.warning, sentLater, t + 8 * DAY + 1_000);
+    expect([status(follow.state), follow.decisions.map((item) => item.decision === "changed" && item.change), follow.intents])
+      .toEqual(["megaquakeAdvisory", ["revisionOnly", "revisionOnly"], []]);
+    // 見えている巨大地震注意の取消は鳴る（H19、統合担当の決定）: (i) 遅れて届いた 120 (ii) 7 日目に移った 120。(iii) 14 日を過ぎた取消は、印に
+    // 通知の証拠が無ければ鳴らない（証拠があれば決定 D1 で鳴る、下の owner の期限の処理の試験）。
+    const cancelLevels = (state: NankaiUnitState, ms: number) => levels(cancelAt(state, "20200512162800", "VYSE50", t + ms));
+    const moved = reduceNankaiUnit(delivered(send(emptyState(), F.warning), t), { kind: "deadline", clock: clock(t + 7 * DAY) }).state;
+    const unheard = reduceNankaiUnit(send(emptyState(), F.warning).state, { kind: "deadline", clock: clock(t + 7 * DAY) }).state;
+    expect([status(moved), cancelLevels(delivered(late, t + 8 * DAY), 9 * DAY), cancelLevels(moved, 9 * DAY), cancelLevels(unheard, 14 * DAY + 1)])
+      .toEqual(["megaquakeAdvisory", ["desktop:cancel", "sound:cancel"], ["desktop:cancel", "sound:cancel"], []]);
+    const early = send(emptyState(), F.warning, undefined, t + 6.9 * DAY);
+    expect([status(early.state), levels(early)]).toEqual(["megaquakeWarning", ["desktop:critical", "sound:critical"]]);
+    expect(send(emptyState(), F.warning, undefined, t + 14 * DAY).intents).toEqual([]);
+  });
+
+  // regression（K13 r4 のレビュー、統合担当の決定 2026-10-25）: 通知の判定は期限を当てた後の見える形で比べるので、受信の前に owner の期限の処理を
+  // 通しても（afterTick）通さなくても（direct）同じ結果で、時計の根拠（verified・unverified）と復元の後でも同じ。(a) 普通に届いて通知した 120 は、8 日目に Control/DateTime だけ
+  // 新しい同じ報で鳴らない (b) 8 日目に届いて配送した 120 の 14 日＋1 ms の取消は、期限切れの現況の印の証拠で鳴る（決定 D1）。
+  it("P3-NS-T02 regression / P3-NS-AC03,AC04 (7): the notice decision is the same with the owner's deadline before receive, on each basis and after a restore", () => {
+    const t = at("2020-05-12T16:28:00+09:00");
+    // [direct, afterTick] の intent の level。
+    const owner = (state: NankaiUnitState, material: ReturnType<typeof decodeFixture>, ms: number, basis: WallBasis) => {
+      const input = { kind: "receive" as const, material, clock: clock(t + ms), basis };
+      const reclaimed = reduceNankaiUnit(state, { kind: "deadline", clock: clock(t + ms), basis }).state;
+      return [reduceNankaiUnit(state, input), reduceNankaiUnit(reclaimed, input)].map(levels);
+    };
+    const cancelMaterial = (ms: number) => decodeFixture(F.warning, (xml) => replaceTag("DateTime", new Date(t + ms).toISOString())(
+      retime(iso(t + ms))(replaceTag("InfoType", "取消")(xml))));
+    for (const [label, basis, restored] of [["verified", "verified", false], ["unverified", "unverified", false], ["restored", "verified", true]] as const) {
+      const prepare = (state: NankaiUnitState, ms: number) => restored ? restartAt(state, t + ms) : state;
+      const normal = delivered(send(emptyState(), F.warning), t);
+      expect(owner(prepare(normal, 8 * DAY), decodeFixture(F.warning, sentLater), 8 * DAY, basis), `${label} (a)`).toEqual([[], []]);
+      const late = delivered(send(emptyState(), F.warning, undefined, t + 8 * DAY), t + 8 * DAY);
+      expect(owner(prepare(late, 14 * DAY + 1), cancelMaterial(14 * DAY + 1), 14 * DAY + 1, basis), `${label} (b)`)
+        .toEqual(Array(2).fill(["desktop:cancel", "sound:cancel"]));
+    }
+  });
+
+  // regression（K13 r5 のレビュー、統合担当の決定 2026-10-25）: awaiting で復元した巨大地震注意は、同じ 120 の Control/DateTime だけ新しい版で
+  // 警戒へ戻らず鳴らない（修正前は critical を再配送した）。+8 日に届いた 120 と、普通に届いて 7 日目に移った 120 の両方。
+  it("P3-NS-T02 regression / P3-NS-AC03: a restored advisory stays the advisory and silent for a version-only 120 while awaiting", () => {
+    const t = at("2020-05-12T16:28:00+09:00");
+    const late = delivered(send(emptyState(), F.warning, undefined, t + 8 * DAY), t + 8 * DAY);
+    const moved = reduceNankaiUnit(delivered(send(emptyState(), F.warning), t), { kind: "deadline", clock: clock(t + 7 * DAY) }).state;
+    for (const [label, state] of [["late", late], ["moved", moved]] as const) {
+      const decoded = roundTrip(state);
+      if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+      const restored = reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(decoded.state), clock: clock(t + 8 * DAY),
+        basis: "awaiting" }).state;
+      const follow = reduceNankaiUnit(restored, { kind: "receive", material: decodeFixture(F.warning, sentLater), clock: clock(t + 8 * DAY + 1_000),
+        basis: "awaiting" });
+      expect([status(restored), status(follow.state), follow.intents], label).toEqual(["megaquakeAdvisory", "megaquakeAdvisory", []]);
+    }
+  });
+
+  // contractBoundary（P3-NS-T06、H51 の B）: Serial の形の外と InfoSerial/Name の読めない報は断らずに受けて WARN を添える。Code の 2 個以上は今どおり断る。
+  it("P3-NS-T06 contractBoundary / P3-NS-AC07: an unreadable Serial or InfoSerial/Name is accepted with a WARN, two Codes are still rejected", () => {
+    for (const [name, serial, subject] of [[F.c1, "abc", "normal/VYSE51/20200512163800"], [F.warning, "0", "normal/VYSE50/20200512162800"],
+      [F.warning, "12345678901", "normal/VYSE50/20200512162800"]] as const) {
+      const step = send(emptyState(), name, replaceTag("Serial", serial));
+      expect([step.decisions.map((item) => item.decision), infoOf(step.state, subject)?.source.serialRaw, step.intents.length], serial)
+        .toEqual([step.decisions.map(() => "changed"), "", 2]);
+      expect(step.diagnostics, serial).toMatchObject([{ level: "WARN", component: "nankai", reason: "identityInvalid", unit: "U-N" }]);
+    }
+    for (const unread of ["<Name>巨大地震注意</Name><Name>別名</Name>", "<Name><Ruby>巨大地震注意</Ruby></Name>"]) {
+      const step = send(emptyState(), F.advisory, (xml) => xml.replace("<Name>巨大地震注意</Name>", unread));
+      const current = currentOf(step.state);
+      expect([status(step.state), current?.effective === "active" && current.infoSerial, levels(step)], unread)
+        .toEqual(["megaquakeAdvisory", { code: "130", name: null }, ["desktop:warning", "sound:warning"]]);
+      expect(step.diagnostics, unread).toMatchObject([{ level: "WARN", component: "nankai", reason: "requiredStructureInvalid", unit: "U-N" }]);
+    }
+    const base = emptyState();
+    const twoCodes = receive(base, decodeFixture(F.advisory, (xml) => xml.replace("<Code>130</Code>", "<Code>130</Code><Code>130</Code>")),
+      clock(at("2020-05-12T16:32:00+09:00")));
+    expect([twoCodes.state, twoCodes.decisions.map((item) => item.decision === "rejected" && item.reason)]).toEqual([base, ["requiredStructureInvalid"]]);
+    expect(twoCodes.state).toBe(base);
   });
 });
 
@@ -794,7 +1083,7 @@ function replay(sequenceId: string, from: number, to: number): NankaiUnitStep[] 
       // stale の報の revision は報自身のもので、保存した記録には入らない。
       if (made.decision === "rejected" || made.decision === "unchanged" && made.reason === "stale") break;
       const record = subject.subject.endsWith("/current") ? currentOf(result.state, subject.subject) : infoOf(result.state, subject.subject);
-      if (record == null || record.effective === "evidence") throw new Error(`${label} ${subject.subject} has no source`);
+      if (record == null) throw new Error(`${label} ${subject.subject} has no source`);
       const source = record.source;
       expect({ reportDateTimeRaw: source.reportDateTimeRaw, serialRaw: source.serialRaw, infoTypeRaw: source.infoTypeRaw },
         `${label} ${subject.subject}`).toEqual(subject.revision);
