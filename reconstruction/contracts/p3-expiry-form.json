@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "060b0d196c7cc9dd77fdab1ce869020d0b09e22303587493621415c38da70459",
+    "sha256": "0d9448fd941e959a044877b39c2944240bd410a2024f57d147fdc8b7219d3680",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "e371410685e766260009a059d1e0bac6deca41cf5477fd815a0a266d1d0eb9ae",
@@ -191,8 +191,16 @@
         "status": "closed",
         "source": "統合担当の発注前点検（発注 2、2026-10-25、HEAD be9efd01＝main。発注 1 の配送 96ff2d07・6609865c、K11 の配送 dfffa761、K13 の配送 be9efd01 の後。前例は Q-EF-PRECHECK と Q-VM-PRECHECK-2A）",
         "closed": "(0) 発注 2 の読み（本文の行は書き換えない）: (a) 保存の読み戻し: AC13 の (5) で Serial の欠けた・形の外の報を受け取ると、今の codec はその ReportRef を復元で捨てる（tsunami-unit.ts:1018 は正の整数だけ、flood-unit.ts:569・briefing-unit.ts:721 は flood.ts:26 の validSerial で空を通さない、volcano-unit.ts:1318・:1496、landslide-unit.ts:529。空を通すのは local-bulletins-unit.ts:724 だけ）。受け取って出した報が再起動で消えるので、統合担当の決定で、読めない Serial は serialRaw を空の文字列にして保存し、6 unit の読み戻しは local-bulletins-unit.ts:724 と同じ形（空か validSerial）で通す。形の外の文字列は保存しない（保存の上限と読み戻しの形を増やさない） (b) 新旧と足し合わせ: 新旧に Serial を使わない（K7）。U-T の観測の同じ版の足し合わせ（tsunami-unit.ts:466 の sameRevision。Number(\"\") が 0 なので空どうしが一致する）は、両方の serialRaw が空でないときだけにする（AC13 の (5)）。U-M の比べ（local-bulletins.ts:161・:166、空を -1）は今のまま (c) 同じ if の長さの上限: landslide.ts:83・flood.ts:92・briefing.ts:77・local-bulletins.ts:138 は Serial の検査と ReportDateTime・InfoType の長さの上限が同じ if にある。受け取りに変えるのは Serial の検査だけで、長さの上限（保存する ReportRef の byte の上限）は拒否のまま残す（Q-EF-H51-SITES の「Serial ほか」の「ほか」は拒否のまま） (d) U-B の拒否のときの仮の subject（briefing.ts:73）と受け取りの subject（:220・:221）の作り方の違いは発注 1 からの形で、発注 2 では変えない（受け取った報は受け取りの subject を使う） (e) AC13 の (4) の「U-L の null は 3 の直後」は表示の並べ方（landslide.ts:30）の文言で、音の比べ（landslide-unit.ts:154〜:158）では 3 と同じ順位。どちらも今のまま (f) 版: 今の版は U-T・U-V が v5、U-L・U-R・U-B・U-M が v6（各 unit の SCHEMA の行、owner-runtime.ts:77〜:86 の初期 state の表、契約の型）。発注 2 で型に値を足した unit だけ 1 つ上げる（Q-EF-SPLIT）。(a) の読み戻しの緩めは旧い保存も通るので、それだけでは版を上げない。test/eew-e01/tsunami.mjs:82 の p3-tsunami-unit-v4 は発注 1 の替え忘れ（Q-VM-PRECHECK-2A の (a) の形で、同じ行の中で今の版に替える）で、発注 2 で直す (1) 分岐と未決: decisionBranches の ruling は 2 件とも作者裁定 A。「起草案」「承認待ち」「未裁定」「仮の形」「確認待ち」は Q-EF-PRECHECK の (1) の引用の中だけで、実質 0 件。unresolvedQuestions は Q-EF-EXISTING-TESTS（implementer、(g) が発注 2）と Q-EF-UB-COUNT（integrator、本契約の閉鎖だけを止める）の 2 件で、発注 2 の着手を止めるのは baseOid の割当だけ (2) anchor: check-contract・check-manifest・check-sequences（HEAD be9efd01 に Q-NS-IMPL-1 の書き足しを当てた木）は exit 0、FAIL 0、WARN は P3-RECOVERY-001 の baseOid unassigned の 1 行だけで、本契約は PASS。Q-EF-H51-SITES の行（4dad6cb5）を行の中身で be9efd01 へ写した: 6 本の domain で動いたのは briefing.ts（+2）だけ、volcano-unit.ts の noTarget の :630・:730・:772 は今 :645・:745・:787。当たらない行は 0、動いた行は 41（対応表は repo の外の ~/dev/fleq-vault-archive/k10-expiry-form-20261025/precheck-2/report.md の (2)）。AC13 の evidenceRefs は発注 1 の配送で付け直し済み (3) 他の契約が引く行（本契約を除く追跡済みの契約の json・md と docs/specs）: 発注 2 が触りうる file（domain 6・unit 6・その型 6・6 分野の試験 29 file）を «» 付きで 181 件、地の文で 229 件（地の文は正規表現で数えた推定で、少なめに出る）。«» の多い file は tsunami-unit.ts 59・volcano-unit.ts 54・landslide-unit.ts 23・flood-unit.ts 15、試験 17。domain を «» で引く 6 件はどれも site より前で、validSerial の定義（landslide.ts:24 を 1 件、volcano.ts:44 を 2 件、P3-REVISION-ORDER-001）を変えると中身で外れる。版の字の行を «» で引くのは volcano-unit.ts:28（P3-AUTHORITY-EVIDENCE-001）の 1 件。中身の変わる行は配送で差分で当たる行へ付け直す（AC14 の (18) の形）。本契約の json と test/expiry-form/ の行を引く anchor は 0 件 (4) corpus と既存の試験: sequences.json で 6 unit の電文を rejected と期待するのは O02:56（VPHW50、local-bulletins.ts:247 の requiredStructureMissing）の 1 件で、35 か所に入らないので期待は変わらない。発注 2 は sequences.json を書き換えない見込みなので、本点検の commit は main に push してよい（Q-EF-PRECHECK の (8) の理由が無い）。既存の試験で 6 分野の rejected・requiredStructureMissing・requiredStructureInvalid を期待する行は 143 行で、35 か所に当たる case は 54（静的に読んだ。Q-EF-EXISTING-TESTS の (g) の候補。目立つのは volcano-corpus.test.ts:67 の取消の相手が無い報、local-bulletins-unit.test.ts:193 の ValidDateTime、volcano-unit.test.ts:266・:267 の降灰の上限） (5) 発注 1 との食い違い: (0) の (a) のほかは無い（竜巻の ValidDateTime、noTarget、U-B の eventId・inherited、保存しない印、取消の相手が 2 件の扱いを読んだ）",
-        "remaining": "baseOid の割当（発注 2）。発注文に (0) の (a)〜(f) を写す",
+        "remaining": "発注文に (0) の (a)〜(f) を写す（baseOid の割当は Q-EF-BASE-2 で閉じた）",
         "reason": "発注 2（AC13・T08）の発注前点検"
+      },
+      {
+        "id": "Q-EF-BASE-2",
+        "status": "closed",
+        "source": "統合担当の割当（2026-10-25、発注前点検の commit bf42eacb、ブランチ k10-2-precheck。前例は Q-EF-BASE）",
+        "closed": "発注 2（AC13・T08）の baseOid を発注前点検の commit bf42eacb36c11ad69205adbd4edcb096b1f55fbc に割り当てた（発注 1 の 3d89989c から替えた）。requiredEvidence は Q-EF-PRECHECK-2 にある: anchor のずれ 0 件と checker 3 本 exit 0（(2)）、decisionBranches の ruling は 2 件とも作者裁定（(1)）、発注 2 が触りうる file を引く他の契約の参照 «» 181 件・地の文 229 件（(3)）",
+        "remaining": "なし",
+        "reason": "Q-EF-PRECHECK-2 の remaining の baseOid の割当を閉じる"
       }
     ],
     "operationContract": {
@@ -204,7 +212,7 @@
     "contractId": "P3-EXPIRY-FORM-001",
     "mode": "implementation",
     "objective": "期限の分け方と期限切れの形（spec §16 の H23・H13・H42 の unit の側、設計メモ p3-persist-premises.md §3 と作者裁定 §7 の 4・8、K9 の申し送り P3-CK-AC08 の (6)、2026-10-22 の統合担当の決定 D1〜D10）。時計の根拠の状態（awaiting・unverified・verified）を publisher から owner と 12 unit の入力へ運び、確かめるまでは期限を当てず（復元した中身も）、確かめられない間は表示の期限切れだけを保留の印で当てて事実・通知の印・記録の回収（記憶への移行・記録ごと消す・退去の第 1 段・失敗の印）を止める。U-L・U-R・U-B は期限で記録ごと消さず期限切れの記憶に移し、U-F は期限切れを「なし」と見分け、U-M の竜巻の期限は解除と見分ける。竜巻注意情報は目撃が無ければ普通の音（H13）。記録的短時間大雨は報ごとに 1 件（作者裁定の判断 2）。電文の有効期限を使う種類を確定する。設計メモ §13 の報を丸ごと断る 35 か所を受け取りに変える（発注 2）。再開の並べ方の段 3（K8・K9 の後、K11・K12・K13・③ の前）",
-    "baseOid": "3d89989ce0865996b697a1424e7961925d31a766",
+    "baseOid": "bf42eacb36c11ad69205adbd4edcb096b1f55fbc",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
