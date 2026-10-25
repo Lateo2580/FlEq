@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "be9efd017661d345093b0f0aeaf7fe41e9c94b12",
-    "sha256": "e627abcdcfc28b6cc75f0a4d111b2fe49623f5df4399c6a407f6de0ae51bc746",
+    "sha256": "c8cb35d9f1859c1cc8be41e994f2a0fe16cb147819ec66bb6ee33f47ba311a3a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -71,7 +71,7 @@
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-25 夜、HEAD 3e3c63df＝main。本契約は be9efd01 から起草され 0dba1249 で入った。K10 の発注 2 の配送 3e3c63df の後。前例は K13 の Q-NS-PRECHECK と K10 の Q-EF-PRECHECK-2）",
         "closed": "(1) 分岐と未決: decisionBranches は P3-NN-D-HELD-ADVISORY の 1 本で ruling は作者裁定 A。契約の全文で「起草案」「承認待ち」「未裁定」「仮の形」「確認待ち」「待ち」は 0 件。unresolvedQuestions は Q-NN-BASE（integrator、実装の着手）の 1 件だけ (2) anchor: check-contract（HEAD 3e3c63df）は exit 0、本契約は PASS で、WARN は本契約と P3-RECOVERY-001 の baseOid unassigned の 2 行だけ。起草の be9efd01 から HEAD までに allowedPaths の nankai-unit.ts・nankai-unit.test.ts と p3-nankai-unit.types.ts は変わっていない（git diff --stat be9efd01 3e3c63df が空）。K10 の発注 2 は U-N を触らず、本契約と同時に nankai-unit.ts を編集する契約は無い (3) 他の契約が引く行: nankai-unit.ts を 77 件、nankai-unit.test.ts を 9 件、p3-nankai-unit.types.ts を 7 件（本契約を除く追跡済みの契約の json・md）。本契約が変える 5 行（nankai-unit.ts の :223・:231・:232・:399・:400）を引く他の契約と sequences.json の anchor は 0 件。AC01 は行の数を変えない（853 行）ので、他の契約の anchor は動かない見込み (4) 気象庁の資料: 改訂の見張り（repo の外の ~/dev/fleq-vault-archive/jma-docs-watch/check.sh）は同日 SAME（Q-EF-PRECHECK-2 の点検で回した）。電文の意味に頼る文の reason は Q-NN-JMA と decisionBranches の照合にある (5) 作者の承認: 残存リスク (2)(3) は Q-NN-AUTHOR で承認済み",
-        "remaining": "baseOid の割当（Q-NN-BASE）",
+        "remaining": "なし（baseOid は Q-NN-BASE で割り当てた）",
         "reason": "発注前点検"
       }
     ],
@@ -84,7 +84,7 @@
     "contractId": "P3-UNIT-N-NOTICE-001",
     "mode": "implementation",
     "objective": "K13（P3-UNIT-N-SERIES-001）の残存リスク (18)(19) を消す。U-N の通知の音の段を、採った現況を今の時刻で期限を当てた後の見える形の status で決め（巨大地震注意なら warning）、画面に巨大地震注意が出ているのに critical で鳴る列をなくす。保留の巨大地震注意への同じ報の版の更新は、作者裁定（2026-10-25）A のとおり巨大地震注意として画面に戻し、warning で 1 回鳴らす。状態の規則・保存の形・版は変えない。",
-    "baseOid": "unassigned",
+    "baseOid": "049b5f7f117df58e78c37587837dc108010cf31a",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -350,19 +350,6 @@
       "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
       "残存リスク（(1) は作者裁定 P3-NN-D-HELD-ADVISORY=A で示した副作用、(2)(3) は 2026-10-25 作者承認済み、Q-NN-AUTHOR）: (1) 時計が戻らないまま（validUntil を過ぎた時刻の）awaiting で復元し、保留の巨大地震注意へ同じ報の版の更新が届くと、鳴らないが保留の外れた期限切れの巨大地震注意が awaiting の間だけ画面に出て、次の verified の期限の入力で消える（今のコードでも起きている。K13 の残存リスク (17) と同じ awaiting の決まりの側で、K10 の P3-EF-AC02 の (5) の「表示の期限を過ぎてから採る報は鳴らないまま最長 30 秒見えうる」と同じ形。作者裁定 2026-10-25、P3-NN-D-HELD-ADVISORY=A の副作用、P3-NN-AC02 の (4)） (2) 保留の巨大地震注意が版の更新で戻るときの通知は transition activated で、題と本文は元の 120 の報（巨大地震警戒の題）のまま。区分の札と題の食い違いの描き方は P4（K13 の残存リスク (15) と同じ） (3) 同じ ReportDateTime・同じ EventID の非訂正の新しい版は気象庁の資料に記述が無く（Q-NN-JMA）、(18) の直しは実配信で来る見込みの無い入力への備え。実配信の頻度は未集計"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-NN-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "implementation"
-        ],
-        "resolveBy": "発注前点検で baseOid を割り当てる。nankai-unit.ts と nankai-unit.test.ts が他の契約（K10 の発注 2 など）と同時に編集されないことと、本契約の evidence の anchor が base で合うことを確かめる",
-        "requiredEvidence": [
-          "git rev-parse HEAD と git status --porcelain",
-          "check-contract で本契約が PASS（baseOid の WARN が消える）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
