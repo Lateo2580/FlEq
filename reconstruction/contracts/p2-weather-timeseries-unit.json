@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "d525dc6fd4cfdea68dd8537b3306235d5f3e7ce21af7380acb473c06d93e747b",
+    "sha256": "0627317eaa691ec3bc868f2d1c0ca688b7bc1025c5427d22a27abb9019b4d211",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
+    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -427,7 +427,7 @@
         "id": "P2-A6-AC04",
         "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v6（P3-EXPIRY-FORM-001で上げた版。subjectに期限切れの保留の印expiryPending?とlapsed?を足した、P3-EF-AC10の(1)。v5はP3-NOTICE-LEDGER-001でintentの型にlastAttempt・replayed・priorityGroupを足した版）の唯一のcodecを用い、7日retention・512 subject合計・32MiB境界を守る。storageRuleの配列行と共有表をstate・保存・lastKnownに共用し、区域CodeとSignificancy Codeは文字列のまま自己完結してdecodeする。全indexをsnapshot内で解決し、範囲外・未解決ならcodecが拒否する。lastKnownにも独立した辞書・時間表を持たせる。O02:14の全periodと値集合を欠落なく保持する（familyTableのlegalMissingOrEmptyの(a)(b)とinvalidの外の階層の規則〔P3-WEATHER-SHAPE-001〕で読み飛ばす要素はperiodにしない）。Q-PERIODはclosed。容量計量はQ-ENUM.capacityRule.byteAccountingに従い、受信時に変化したsubjectだけ再計量し、envelope込みの実checkpoint byteを過少判定しない P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する（P3-NOTICE-LEDGER-001の後は終端のintentを残さず、保存するのはpendingだけ、P3-NL-AC05）。",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+          "docs/specs/reconstruction-p0-contracts.md:480 «e273af3ebdc97e5c»",
           "docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
           "docs/specs/reconstruction-p0-contracts.md:610 «2b0711de60ba1b88»"
         ]

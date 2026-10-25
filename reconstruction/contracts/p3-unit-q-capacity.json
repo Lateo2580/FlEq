@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "9d3790923748701054163ef26538c62c4a0c129c25b4f1edf9fbc45331eb5501",
+    "sha256": "777bd5cf0f9e6d5f8f2ea36449766462c6545882e133a8c379137e9d908e0c0a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
+    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -416,7 +416,7 @@
         "id": "P3-QC-AC08",
         "requirement": "H23（spec:3050、設計メモ :227）: (1) event の retainUntil（最後の報＋24 時間）が来たら、記録ごと消さず、active の寄与を effective \"expired\" にして事実を捨てる（取消の寄与と同じく source・notice だけを残し、title は空文字、ほかは null。unconfirmed・unavailable・folded は外す。unconfirmed を期限で外すのは K7 が期限での解除を認めているため〔r2、D12〕。その後の undecidable で付く印は (4) の表のとおり容量の検査で扱う）。event の strongHold を外し、guard は on を 0 にして from を残す（r1 の O8・r2 の D11。decode の不変条件として active の寄与の無い記録は strongHold・unavailable を持たず、guard の on は 0）。event の retainUntil を6 時間（P3-QC-D-EXPIRED-MEMORY=A）先に延ばし、そこで記憶ごと消す。長周期も同じ（effective \"expired\"、最後の報＋36 時間で記憶に）。取消記憶だけの event・長周期は今どおり retainUntil で消す。時計を確かめるまで記憶への変換と記憶の回収を止める条件は、長さとは別に、先に配送される K10 が入れる。本契約はその条件の下で変換する（設計メモ :524、P3-CK-AC08 の (6)。Q-QC-DECIDED の (5)） (2) 期限切れの理由と最終更新の時刻: 理由は effective \"expired\"、最終更新の時刻はその寄与・長周期の source.reportDateTimeRaw（新しい欄を足さない。U-T の期限切れの観測と同じ形、K10 とそろえる、Q-QC-DECIDED の (5)）。期限の入力の step の outcome（deadlineApplied）に、期限切れにした寄与と長周期の SubjectOutcome（transition \"expired\"、source は最終更新の報）を載せる。通知は今どおり作らない（Q-NOTICE.generationTable の expiry） (3) 期限切れの記憶は view に載せない（見せ方は P4。H17 は段 4） (4) 記憶への報の遷移（r1、D4。受けた報を expired の寄与・長周期の source と K7 の compareVersion で比べる）: | 比べた結果 | 受けた報が取消でない | 受けた報が取消 | same | duplicate（記憶は事実を持たないので中身を比べない） | 採用して cancelled にする（同じ時刻の取消は取消でない報に勝つ、作者裁定 2026-10-21 昼。duplicate で遮らない）。H19 の取消の通知は印の証拠で決める | older | stale | stale | newer | 採用し、寄与は active に戻る（event は生きている記録に戻り retainUntil を最後の報＋24 時間で数え直す） | 採用して cancelled（H19 の取消の通知は印の証拠で決める） | undecidable（比べる時刻を欠く報） | K7 どおり手元の版を残して未確認の印を付ける（held）。印の byte は RESERVE に数え、越えれば印を置かず unit の未確認へ寄せる（今の holdVersion の fit） | 同じ | (5) 通知の印は記憶と同じに生きる（§7 の 1(c)）。記憶の間に届いた取消は、印の証拠が possible か unknown なら通知する（P3-NL-AC09、H19） (6) 当日履歴と期限の最小の cache は今どおり。期限切れにした変化は displayChanges（view から消える）に出る 【気象庁の資料との照合（2026-10-25、Q-QC-JMA）】地震の報は失効時刻を持たない（manual/地震火山関連_解説資料.txt:227〜:228）ので、24 時間・36 時間・6 時間は資料に記述なし。記憶への報の比べは Control/DateTime（manual/地震火山関連_解説資料.txt:118〜:120・:272〜:273）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3050 «ac88c9eb75863b62»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «d5bc6c3891d50bdb»",
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
           "reconstruction/contracts/p3-seismic-unit.json:67 «0493a280354f47e3»",

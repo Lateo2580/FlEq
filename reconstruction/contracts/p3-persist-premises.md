@@ -539,3 +539,8 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
 - 同じ行の「変える契約」には P2-CHECKPOINT-SHUTDOWN（A3-AC10・AC11）、P2-SHARED-RUNTIME（R45）、P3-EXECUTION-SPLIT（C3A-NOTIFY-ADOPT・AC07・AC09）、P3-CURRENCY-COVERAGE（失敗警報の判定）、P3-CLOCK-CHECK（AC08 の (5)）、P3-RECOVERY（Q の :215）が加わった。「版を上げる」は発注 1 で済み、発注 2 は保存の形を変えないので版を上げない（Q-NL-PRECHECK-2 の (1)(h)）。
 - §2.4 の H48 の例外（:134）の「障害の間だけ EEW（U-E）・津波（U-T）・payload.level が critical の通知は ack を待たずに出し、ほかは出さずに期限で落として H39 に数える」は、2026-10-22 の作者裁定で「保存の障害の間はすべての通知を待たずに出す。待ちの上限は EEW・津波・critical が 1 秒、ほかは 10 秒（checkpoint の 10 秒の監視と同じ値で、止まった保存を障害に含める）」と読む（P3-NL-AC07 の (3)）。同じ行の例外の条件「終了の段で最終保存を過ぎた後」は、停止の段では新しい試行を始めないので要らない（P3-NL-AC07 の (6)(c)）。
 - §2.4 の H09（:137）の「publisher の判定（`notification-delivery.ts:19〜25`）はそれを読むだけ」は、`group()` が `intent.priorityGroup` を返す形になり、群を作るのは `notice-mark.ts` の `priorityGroupOf` だけになった。
+
+## 17. K10 の発注 1 の配送で変わる読み（2026-10-25 統合担当、`P3-EXPIRY-FORM-001` の AC14 の (17)）
+
+- §3.5 の K10 の行（:237）と §8 の表の K10 の行（:437）: 版を上げるのは L・R・B・T・V・Y・M・N・F の 9 unit（P3-EF-AC10 の (1)）で、U-W・U-E・U-Q は入力の型だけが変わり版を上げない。変える契約は P3-EF-AC14 の (1)〜(14) と (19)（`P3-CLOCK-CHECK-001`・`P3-EXECUTION-SPLIT-001`・`P2-SHARED-RUNTIME-001`・`P3-UNIT-L-001`・`P3-UNIT-R-001`・`P3-UNIT-B-001`・`P3-TSUNAMI-UNIT-001`・`P3-UNIT-M-001`・`P3-UNIT-V-001`・`P3-UNIT-Y-001`・`P2-EEW-UNIT-001`・`P3-UNIT-Q-001`・`P3-UNIT-N-001`・`P2-WEATHER-CURRENT-UNIT-001`・`P2-WEATHER-TIMESERIES-UNIT-001`・`P3-NOTICE-LEDGER-001`）。U-Q・U-N・U-E は根拠の当て方だけで、期限切れの形は K11・K13・EEW の閉じ方のまま（Q-EF-SCOPE）。
+- §5 の段 3 の順（:347・:444）: K11・K13 は K10 の後（seismic-unit.ts・nankai-unit.ts の期限と退去の関数を両方が触る）。③ は U-W の期限を K10 が触らないので起草は待たず、入力の型の合流だけ K10 の後。K12 は U-T の同じ関数を触るので K10 の後（Q-EF-SCOPE）。

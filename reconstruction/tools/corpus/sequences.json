@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
+    "sha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -2589,7 +2589,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
             "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:480 «e273af3ebdc97e5c»",
             "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
           ]
         },
@@ -2606,7 +2606,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
             "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:480 «e273af3ebdc97e5c»",
             "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
           ]
         },
@@ -2623,7 +2623,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
             "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:480 «e273af3ebdc97e5c»",
             "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
           ]
         },
@@ -5216,7 +5216,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:29",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249» §4.2 U-T",
+            "L1: docs/specs/reconstruction-p0-contracts.md:476 «01a369f8dd1834b4» §4.2 U-T",
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
           ]
         },
@@ -5265,7 +5265,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O07:32",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249» §4.2 U-T",
+            "L1: docs/specs/reconstruction-p0-contracts.md:476 «01a369f8dd1834b4» §4.2 U-T",
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
           ]
         },
@@ -14149,7 +14149,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
         "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:480 «e273af3ebdc97e5c»",
         "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
       ],
       "input": {
@@ -14187,7 +14187,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
         "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:480 «e273af3ebdc97e5c»",
         "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
       ],
       "input": {
@@ -14226,7 +14226,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
         "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:480 «e273af3ebdc97e5c»",
         "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
       ],
       "input": {
@@ -23058,7 +23058,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249» §4.2 U-T",
+        "L1: docs/specs/reconstruction-p0-contracts.md:476 «01a369f8dd1834b4» §4.2 U-T",
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
       ],
       "input": {
@@ -23140,7 +23140,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249» §4.2 U-T",
+        "L1: docs/specs/reconstruction-p0-contracts.md:476 «01a369f8dd1834b4» §4.2 U-T",
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
       ],
       "input": {

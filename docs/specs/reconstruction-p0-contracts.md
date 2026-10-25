@@ -473,11 +473,11 @@ byte 予算は**開始値**だ。P1〜P3 で最大正常入力・同時最大状
 |---|---|---|---|---:|
 | U-E `eew` | EEW | 期限付き intent、EventID ごとの通知の印（配送済み／失効の記録の代わり、`P3-NOTICE-LEDGER-001` の P3-NL-AC04） | active EEW、予測保持 latch、実行中 gate | 2 MiB（2026-10-22 `P3-NOTICE-LEDGER-001` で印 2,048 件の分を足した、P3-NL-AC04 の (8)。当初 256 KiB） |
 | U-Q `seismic` | 地震・長周期 | 有効観測、出典、取消記憶、強震保持の根拠、必要な当日履歴、intent | 描画 path、カード配置、別地図 snapshot | 4 MiB（器は K7・K8 の作者裁定で広げた 5,374,354 byte、`P3-UNIT-Q-001` の P3-C7-RES-01） |
-| U-T `tsunami` | 津波警報・観測 | EventID 別警報、区域状態、VTSE51/52 の独立観測系列、station記憶、取消、intent | 表示用複製、復旧用 REST queue | 4 MiB（器は 2026-10-22 の作者裁定 P3-NL-D-CAPACITY=A で印の分を足した 4,676,841 byte、P3-C5-RES-01） |
+| U-T `tsunami` | 津波警報・観測 | EventID 別警報、区域状態、VTSE51/52 の独立観測系列、station記憶、取消、intent | 表示用複製、復旧用 REST queue | 4 MiB（器は 2026-10-22 の作者裁定 P3-NL-D-CAPACITY=A で印の分を足し、`P3-EXPIRY-FORM-001` で期限の印の予約〔1,024×21〕を足した 4,698,345 byte、P3-C5-RES-01） |
 | U-N `nankai` | 南海トラフ | 現況、現況更新の出典・取消記憶、intent | 説明だけの報の永続 current | 288 KiB（2026-10-10 作者裁定 P3-AUTH-D-N-BUDGET=A、K2。当初 256 KiB） |
 | U-W `weather-current` | VPWS50、VPWW55/57–61、VPNO50終了 | 全国 base、partial、現象所有情報、履歴、watermark、区域終了 tombstone、intent | 別 standby／promotion current | 16 MiB |
 | U-L `landslide` | VPWW56 | 官署×type の current・gate・取消・期限・intent | 全国一括の権威ある union | 2 MiB |
-| U-F `weather-timeseries` | VPWP50 | period、subject revision、正常 empty、unavailable根拠、取消、期限、intent | カード幅に合わせた切捨て state | 32 MiB |
+| U-F `weather-timeseries` | VPWP50 | period、subject revision、正常 empty、unavailable根拠、取消、期限、intent | カード幅に合わせた切捨て state | 32 MiB（器は `P3-EXPIRY-FORM-001` で期限の印の予約を足した 33,565,184 byte、P2-A6-RES-01） |
 | U-B `briefing` | VPBS50/VPOA50 | 復元が必要な速報 lifecycle、予測置換・取消・alias記憶、出典、intent | 相関待ち timer、raw原文、一般 holdback queue | 2 MiB |
 | U-M `local-and-bulletins` | 竜巻・熱中症・各種短命情報 | tornado/heat の意味状態・取消・期限、通知対象の intent | 早期天候・気候・解説・raw の永続 current | 4 MiB（器は K7・K8 の作者裁定で印の分を足した 4,904,960 byte、P3-C13-RES-01） |
 | U-Y `typhoon` | 台風解析・確率 | 独立 slice、各 revision・期限・取消、連続ゼロ判定、intent | formatter 別の台風 cache | 8 MiB |
@@ -3037,7 +3037,7 @@ Q6として、最終的なviewport、DPR、zoom、画面サイズ、視聴距離
 | H10 | 「今すぐ避難！」のような呼びかけの文言は出さない。重さは色と点滅で見せ、文字は電文の事実（区域、到達予想、高さ）だけにする。 | :22、:51、:415、:431、:1326、:1600、:1626、:1865、:2777、:1332※、:1852※ | P4（`P3-TSUNAMI-E01-001` は帯を作らないので変えない） |
 | H11 | 気象は危険警報（L4）で通知、特別警報（L5）で通知と音を出す。危険度が上がったお知らせを作らない決まりは見直す。 | :2325†（`notify` の既定は C18 で決める） | C20、画面のお知らせも作るなら `P2-SNAPSHOT-SSE-001` P2-A8-NOTICE と Q-NOTICE-UX |
 | H12 | 南海トラフの調査中は普通の音にする。巨大地震警戒は最も重い音、巨大地震注意は警報の音のまま。 | — | `P3-UNIT-N-001` P3-C8-NOTICE-LEVELS |
-| H13 | 竜巻注意情報は普通の音、目撃情報があれば警報の音にする。 | — | `P3-UNIT-M-001` P3-C13-NOTICE-LEVELS（目撃の判定は P3-C13-TORNADO-PAIR のまま） |
+| H13 | 竜巻注意情報は普通の音、目撃情報があれば警報の音にする。 | — | `P3-UNIT-M-001` P3-C13-NOTICE-LEVELS（目撃の判定は P3-C13-TORNADO-PAIR のまま）、`P3-EXPIRY-FORM-001` の P3-EF-AC07 |
 | H14 | 新旧は種類ごとに気象庁の資料が書く発表時刻で比べ、報番号は使わない（16.2.5）。EEW も同じ。種類別の比較時刻に加え、同時刻のときの Control/DateTime まで一致し、中身の違う 2 通は「未確認」とし、最後に確定した情報を残す。 | :63 | `P3-REVISION-ORDER-001` の後継の横断修正（新規）、`P2-EEW-UNIT-001` と `P3-LIFETIME-AND-EEW-GATE-001` P3-LIFE-D-LATE（報番号の比べ）、`P2-WEATHER-CURRENT-UNIT-001`（同時刻の後着）、全 unit の codec |
 | H15 | 続報と訂正で変わった項目を示す。訂正の通知もどこが変わったかを示す。 | — | P4、通知の本文にも書くなら各 unit の payloadRules |
 | H16 | 取消には何を取り消したかを書く（例「震度速報を取消」）。取消の見出しと通知に震源名と発表時刻を入れる。 | — | `P2-EEW-UNIT-001` Q-NOTICE.payloadRules（取消の title と body）、`P3-UNIT-Q-001` ほか各 unit の取消の payload、`P3-NOTICE-LEDGER-001`（P3-NL-AC10） |
@@ -3047,7 +3047,7 @@ Q6として、最終的なviewport、DPR、zoom、画面サイズ、視聴距離
 | H20 | EEW は最終報から 2 分、最後の報から 10 分で閉じる。EEW が続く間に同じ地震の震度速報が届いたら、EEW は閉じず、反対側の列に震度速報を出す。閉じたあとの震度速報は通常のカードとして残る。EEW と震度速報は運用区分（通常・訓練・試験）と地震識別番号で結び付け、正しく読めた震度速報の発表と訂正だけを使う。EEW の取消の知らせは止めない。 | — | `P3-LIFETIME-AND-EEW-GATE-001` P3-LIFE-D-EEW（最終報から 2 分を足す）、`P2-EEW-UNIT-001`（最終報で current を除く所）、P4 |
 | H21 | 緊急カードは「右は緊急の列、左はそれ以外の列」に統一する（暫定。細かい配置は P4 で詰める）。 | :1865、:1597※、:1332※、:1852※、:1601†、:1615†、:1617†、:1619†、:1624†（§8.7.2・§8.7.3 の配置） | P4 |
 | H22 | 起動と再接続のたびに津波の電文を取り直す。終わるまで津波の欄に「取り直し中」の札を出す。 | — | C16、`P3-TSUNAMI-UNIT-001` P3-C5-N2、P4（札） |
-| H23 | 期限で消すときは、理由と最終更新の時刻を全分野で同じ形で出す。何時間で消すかは電文の有効期限を使い、有効期限の無い種類だけこちらで決める。 | :735※ | `P3-UNIT-L-001` P3-C10-ACTIVE-EXPIRY、`P3-UNIT-Y-001` P3-C14-EXPIRY、`P3-UNIT-N-001` P3-C8-CURRENT-EXPIRY、`P3-UNIT-M-001` P3-C13-TORNADO-EXPIRY、`P3-UNIT-V-001`（噴火の期限）、P4 |
+| H23 | 期限で消すときは、理由と最終更新の時刻を全分野で同じ形で出す。何時間で消すかは電文の有効期限を使い、有効期限の無い種類だけこちらで決める。 | :735※ | `P3-UNIT-L-001` P3-C10-ACTIVE-EXPIRY、`P3-UNIT-Y-001` P3-C14-EXPIRY、`P3-UNIT-N-001` P3-C8-CURRENT-EXPIRY、`P3-UNIT-M-001` P3-C13-TORNADO-EXPIRY、`P3-UNIT-V-001`（噴火の期限）、`P3-EXPIRY-FORM-001`（期限切れの保留と記憶、U-T・U-F・U-M の形、時計の根拠ごとの当て方。短命の解説〔M18〕は見える長さを有効期限にしない、分岐 P3-EF-D-TRANSIENT-VALID=A。VTSE41 の若干の海面変動だけの予報の有効期限は P4 で決める、作者裁定 2026-10-25）、P4 |
 | H24 | 切れている間は「切断中・再接続を試行中／最終受信 HH:MM」を目立たせ、繋がり直したら消す。CLI では 1 回の切断に 1 回デスクトップ通知を出す（16.2.4）。 | — | C19、`P3-DMDATA-CONNECT-001` P3-C2-RECOVERY、P4 |
 | H25 | 何度か接続が切れたら、「回線が不安定です」の 1 つの知らせにまとめる。 | — | C19、P4、回数を view に載せるなら `P3-DMDATA-CONNECT-001` |
 | H26 | 切れていた間と止まっていた間の電文を、一覧に出る全分野で取り直す。dmdata への負担は 3 つで抑える（16.2.3）。 | — | C16、`P3-DMDATA-CONNECT-001` P3-C2-RETRY（繋ぎ直す間隔）、各 unit の N2（P3-C7-N2〜P3-C14-N2） |
@@ -3066,7 +3066,7 @@ Q6として、最終的なviewport、DPR、zoom、画面サイズ、視聴距離
 | H39 | 落としたもの、押し出したもの、取りこぼしたもの、通知したか不明なものを 1 か所にまとめ、分野と件数だけを出す（16.2.6）。 | :1411※、:989※ | `P2-SNAPSHOT-SSE-001` P2-A8-NOTICE（件数を wire に載せる）、`P2-EEW-UNIT-001` Q-NOTICE.capacity、各 unit の退去、P4、`P3-NOTICE-LEDGER-001`（P3-NL-AC14） |
 | H40 | 全部のカードに更新時刻を出す。 | —（§8.5.3 の表に P4 で足す） | P4 |
 | H41 | 繋がっているのに来ないことに気付けるようにする。分野ごとに、前に確かめた境界から dmdata の一覧をたどって突き合わせ、差があればその分野に「鮮度の疑い」を出す（16.2.3）。 | :1192※ | C16、`P2-WEATHER-CURRENT-UNIT-001` P2-A5-SEM-01 |
-| H42 | 手元の時計に頼らない。新旧は電文どうし、期限は接続先の時刻で直した時刻、待ち時間は戻らない時計で数える。直す仕組みができるまで、起動時の時計の点検（2026-10-10 の承認）は撤回しない。補正の根拠が未取得・無効・再補正のときの期限評価と公開の順序は、変更の契約で確定する（オフライン起動を含む）。 | :811、:2215 | `P3-CLOCK-CHECK-001`（host が接続先の時刻で時計を確かめ、確かめるまで前回の通知を鳴らさない。`P3-LIFETIME-AND-EEW-GATE-001` の AC13 と残存リスク (3)、`P2-NOTIFICATION-DELIVERY-001` の通知の期限、`P2-SHARED-RUNTIME-001`、`P3-VERSION-MATERIAL-001`、`P3-DMDATA-CONNECT-001` を改める。時計の供給は無くなり、host の確かめだけになる）、P3-LIFE-D-SKEW は EEW の閉じ方の契約（分岐 P3-CK-D-UNVERIFIED-EEW）、`P3-UNIT-B-001`・`P3-UNIT-M-001`・`P3-UNIT-Y-001` の時計の残存リスク（案 1 で変わらない） |
+| H42 | 手元の時計に頼らない。新旧は電文どうし、期限は接続先の時刻で直した時刻、待ち時間は戻らない時計で数える。直す仕組みができるまで、起動時の時計の点検（2026-10-10 の承認）は撤回しない。補正の根拠が未取得・無効・再補正のときの期限評価と公開の順序は、変更の契約で確定する（オフライン起動を含む）。 | :811、:2215 | `P3-CLOCK-CHECK-001`（host が接続先の時刻で時計を確かめ、確かめるまで前回の通知を鳴らさない。`P3-LIFETIME-AND-EEW-GATE-001` の AC13 と残存リスク (3)、`P2-NOTIFICATION-DELIVERY-001` の通知の期限、`P2-SHARED-RUNTIME-001`、`P3-VERSION-MATERIAL-001`、`P3-DMDATA-CONNECT-001` を改める。時計の供給は無くなり、host の確かめだけになる）、P3-LIFE-D-SKEW は EEW の閉じ方の契約（分岐 P3-CK-D-UNVERIFIED-EEW）、`P3-UNIT-B-001`・`P3-UNIT-M-001`・`P3-UNIT-Y-001` の時計の残存リスク（案 1 で変わらない）、unit の期限処理は `P3-EXPIRY-FORM-001` |
 | H43 | 読めなかった電文も画面に出す。「知らない種類」「知っているが読めない」「種類も分からない」を分け、取れた情報（種類の名前や表題、取れなければ種類のコードと受信時刻）を出す。EEW と津波が読めなかったときは H39 のまとめにも載せる。 | :527※ | `P3-UNIT-TABLE-001` P3-C0-RUNTIME-DISTINCTION、`P3-UNIT-M-001` P3-C13-RAW（作者裁定を覆す）、P4 |
 | H44 | 実際の気象時系列の電文の約半分を「形の誤り」として断るのは誤りとして直す。形が少し変わっても消えない読み方にし、意味の分からない危険度を「警報なし」に読み替えない。 | — | `P3-WEATHER-SHAPE-001`（`P2-WEATHER-TIMESERIES-UNIT-001`、`P3-UNIT-Y-001`、`P2-SNAPSHOT-SSE-001`、`P2-SHARED-RUNTIME-001` を改める） |
 | H45 | 保存失敗の表示は、試作の画面では出さず、P4 の本番の画面で出す。 | :780† | P4（`P2-CHROME-EEW-001` には 2026-10-18 に書いた） |

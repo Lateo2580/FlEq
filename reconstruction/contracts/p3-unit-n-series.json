@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "a72acfa154427558d1b7f4ed02a624bdc5afd5ed6c8ebecfecdbcfbd4414ed85",
+    "sha256": "3838d6afa8dccec93f1dda8110587e4ddbd7507378d01d1ac245f421b061569b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
+    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -335,7 +335,7 @@
         "id": "P3-NS-AC04",
         "requirement": "情報の期限の形（H23、設計メモ :226・:227）: (1) active の情報 subject は validUntil（＝ReportDateTime＋7 日。120 の報の情報も同じ、統合担当の決定 D4。残存リスク (6)）の到来で expired の記憶になる: 本文・見出しの事実と未確認の印を捨て、subject・family・eventId・operation・source（最終更新の報。その ReportDateTime が最終更新の時刻）・通知の印・retainUntil を残す。view・一覧に載らない。deadlineApplied の outcome に transition expired と source を載せる（現況の expired と同じ形）。通知しない (2) 記録は retainUntil の到来で除く。長さは ReportDateTime＋30 日（P3-NS-D-INFO-MEMORY=A、作者裁定 2026-10-22）。cancelled の記録も同じ式（取消の報の ReportDateTime から） (3) 到着の時点で表示の期限を過ぎた報: 記録のある subject では採って同じ reduce で記憶にし（通知しない。今の due の規則〔nankai-unit.ts:379〕を表示の期限で読む）、記録の無い subject には入れない（P3-FINAL-AC01 を改める、AC12 の (11)） (4) 記憶の同じ版の受け直しは事実を比べずに duplicate（今の expired の規則）、記憶より古い報は stale、新しい版は採用して、表示の期限の内なら active に戻し通知の規則どおり (5) 記憶の系列の取消は採って cancelled にし、印の証拠が possible か unknown なら通知する（H19、P3-NL-AC09 のまま） (6) H23 の「全分野で同じ形」: U-N の形は「effective expired・source（最終更新）・通知の印を持つ記憶の記録」で、現況の expired と同じ。K10 が他の分野で別の欄に決めたら、U-N を揃える改訂は K10 が出す（AC10） (7) 統合担当の決定 D1: 期限切れの現況（expired）も通知の印を持ち続ける（今の collect が expired の現況を作るときに印を落とす所、nankai-unit.ts:490 を直す）。通知した現況が期限切れの後に取り消されたら、印の証拠で取消を通知する（H19、保存と復元を挟んでも同じ） (8) 期限の評価: 情報 subject の期限は 1 つの式で引く（active は validUntil と retainUntil の早い方、ほかは retainUntil。現況の currentDeadline と同じ形）。minOf の cache（nankai-unit.ts:84〜:89）は配列だけを鍵にするので、同じ情報の配列に validUntil と retainUntil の 2 つの式で cache を引かない（AC03 の (5) と同じく、deadlineAt と collect の早い return が同じ式で決まる） 【気象庁の資料との照合（2026-10-25、Q-NS-JMA）】VYSE50〜52・60 は失効時刻（ValidDateTime）を持たない（manual/地震火山関連_解説資料.txt:227〜:228、jma-2026-head-control-list.txt:142・:145・:156）ので、表示の期限と記憶の長さは資料に記述なし（H23 の「無い種類だけこちらで決める」）。取消は「独立した情報単位」全体を取り消す（manual/地震火山関連_解説資料.txt:2050〜:2052）。取消の報は EarthquakeInfo と NextAdvisory を持たない（manual/地震火山関連_解説資料.txt:6210・:6244）ので、取消の記録は事実を持たない。取消の Serial は直前の最新の情報番号で、番号は更新しない（manual/地震火山関連_解説資料.txt:2080・:265）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3050 «ac88c9eb75863b62»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «d5bc6c3891d50bdb»",
           "reconstruction/contracts/p3-persist-premises.md:226 «147b7db281483a3d»",
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "a6d9f6e962231f6fb316ab7fd27bfa35a810320573d75d885890f6e4ce791255",
+    "sha256": "685d42d435aae398a0f41049d0482b42cf54adaf4a8e59a0076743de0ec355e1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "d2c88c64312066cce6d2567e4cf12b866fa8ca229421dddd73e5e1496e8e3c40",
+    "sequencesSha256": "14b15d0e8082897c3a98c7a772097ebf62db0de89e27a9e573dc5680ee6c45a5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -862,7 +862,7 @@
         "id": "P3-C5-AC04",
         "requirement": "容量: P3-C5-CAPACITY=A。4つの上限（VTSE41 subject 512、観測subject familyごと512、station familyごと1024、4 MiB/世代）に同じ退去手順を使い、候補は超過量を実際に減らすsubjectに限る。normalのactiveだけで超えるときのcapacityExceeded（state・nextDeadline不変、intents/outcomes空、退去診断なし）。容量はI-U-T.computationどおりsubject・station単位のencode byteの加算で数え、受信1回でstate全体を直列化・全件×全件の走査をしない（AGENTS.md「受信経路の計算量」）。最大正常と+1の境界入力（Q-LIMIT）で確かめる",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249»",
+          "docs/specs/reconstruction-p0-contracts.md:476 «01a369f8dd1834b4»",
           "docs/specs/reconstruction-p0-contracts.md:575 «fd672d3dc14c0599»",
           "src/engine/messages/tsunami-state.ts:35 «3c43556f2545b40f»"
         ]
@@ -871,7 +871,7 @@
         "id": "P3-C5-AC05",
         "requirement": "保存と復元: PersistedTsunamiUnitと唯一のcodec（schemaVersion p3-tsunami-unit-v5、P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)）、I-U-T.persisted・I-U-T.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。新設schemaなのでC5に旧データ移行は無い（P3-C5-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:476 «2a68081756c5e249»",
+          "docs/specs/reconstruction-p0-contracts.md:476 «01a369f8dd1834b4»",
           "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
           "docs/specs/reconstruction-p0-contracts.md:596 «c20d709bf6f86046»"
         ]
