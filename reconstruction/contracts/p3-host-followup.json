@@ -1,0 +1,340 @@
+{
+  "meta": {
+    "draftedFromOid": "3bf28220324183175ffc82e04420a6ccef24ef6e",
+    "sha256": "db53597df4ca268e5bf886faa1e8840aee876d3e0665883205a905efc5e28386",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-HF-D-LOCAL",
+        "A": "local-bulletins-fixture.ts の bulkReports の 6 か所の replaceTag(\"ReportDateTime\", at) を同じ fixture の retime(at)（Control/DateTime も同じ時刻にする）に替える。行は増えない",
+        "B": "fixture は変えず、local-bulletins-host.test.ts の bulk の試験の中で、bulkReports の各報の Control/DateTime をその報の ReportDateTime へ置き換える小さな関数を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当の決め（2026-10-26）A",
+        "reason": "試験の直しの置き場の選択で、画面と音は変わらない。A は bulkReports 自身が同じ fixture の :43 の規則（P3-VM-AC03）に外れていた所を直す根の直しで、bulkReports の「全 slice・family の記録が同じ時刻に期限に来る最大の入力」という役目を繰り返しの投入でも保つ。bulkReports を使うもう一つの試験（local-bulletins-unit.test.ts:811）は空の state へ一度だけ入れて件数を数えるので、起草の写しで直した後も 12 passed（Q-HF-PROBE）。P3-VERSION-MATERIAL-001 が引く local-bulletins-fixture.ts:16 は行がずれない。B の利点: fixture を触らず、nankai の前例（P3-UNIT-N-MEASURE-002 の outOfScope「fixture は変えない」）とそろう。nankai が fixture を変えなかったのは retime を unit 試験が広く使うからで、bulkReports は使い手が 2 つ"
+      },
+      {
+        "id": "P3-HF-D-GUARD",
+        "A": "続報が採られなかったら測定を止める: 各行に notAdopted（その試行の work の入力のうち、入力に帰属した世代の上昇＝generationRaised の観測が無い件数）を足し、1 行でも 0 でなければ「continuation not adopted」で止める（今の overlapped の不成立と同じ止め方）。local の bulk は既存の recordsAdopted が投入の件数に届かなければ止める。volcano の区間 (4) は定時の降灰（VFVO53）を数えない",
+        "B": "数えて報告するだけ: notAdopted の列を足して summary に出すが、止めない",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当の決め（2026-10-26）A",
+        "reason": "再発の防ぎ方の選択で、画面と音は変わらない。B は今回の見逃しをそのまま残す形: local の bulk は recordsAdopted を報告に出していたが、2 回目以降の 256 は summary の max・median（1152）に隠れて誰も気づかなかった（Q-HF-SOURCE (c)）。A の数え方は起草の写しで stepVersion の判定と突き合わせ、volcano の区間 (1)〜(3)・tsunami・local の bulk で一致した。VFVO53 は採っても世代が入力に帰属しないので、数えると直した後でも止まる（Q-HF-PROBE、128 件中 122 件）。A の代償: VFVO53 の続報が採られなくなっても止まらない（残存リスク (3)）。B の利点: 帰属の条件（owner-runtime.ts）が後で変わっても測定が止まらない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-HF-SOURCE",
+        "status": "closed",
+        "resolution": "原因（host-held の調べ ~/dev/fleq-host-held/.diag と、起草の写しでの再現）: 3 本の host 試験は続報の報の時刻（Head/ReportDateTime）だけを替え、Control/DateTime（電文の最初の DateTime）を動かさない。VFVO50〜54・VTSE41・VPHW50・VPFT50・VXSE56・VPCI50・VPAW51 は HEAD_THEN_CONTROL に入らず（version.ts、P3-VM-D-TABLE=A）、新旧を Control/DateTime だけで比べるので、送信の時刻が同じ続報は中身が同じなら duplicate、違えば held になり採られない。(a) volcano: host 試験は decodeFixture を通らないので、volcano-fixture.ts の followHead（Control/DateTime を報の時刻の差だけ進める）が掛からない。区間 (1) maxVfvo51 は最初の 1 件だけ採られ、残りは duplicate（Serial だけ違い、中身は同じと判定）。区間 (2) maxVolcanoEncode と区間 (3) の VFVO52 はすべて held、区間 (3) の VXSE53 の later も held（VXSE53 も Control/DateTime だけで比べる）。区間 (4) の一括は 2 回目以降、同じ火山コードの降灰 128 が held、警報 128・定時 128 が duplicate で、採られたのは EventID を回ごとに替える噴火 128・解説 64 の 192/576 だけ。区間 (3) は起草の写しの base（3bf28220）で 0/4 overlapped、host-held の調べで 1/3 overlapped で止まった（続報から権が出ないので、EEW の投入が対象の区間に入らない） (b) tsunami: maxCheckpointEncode の giant() は同じ EventID の続報の報の時刻だけを替え、続報はすべて duplicate。work の後に encode が起きず、EEW の T0→T2 は最大 0.12 ms（待たない経路）。encode の列は setup の 14 件の値だった (c) local-bulletins: bulkReports（local-bulletins-fixture.ts）は replaceTag(\"ReportDateTime\") だけを使い、同じ fixture の :43 の規則（報の時刻を替えるときは Control/DateTime も同じ時刻にする）に外れる。bulk の 2 回目以降は VPFJ51 の 256 件（HEAD_THEN_CONTROL に入り、報の時刻で比べるので採られる）だけが採られ、ほかの 896 件は duplicate。前の回の記録は期限で除かれているので、2 回目以降の一括の期限回収は 1,152 記録でなく 256 記録だった。試験の報告の recordsAdopted は 2 回目以降 256 を出していたが、summary の max・median（1152）に隠れた",
+        "source": "host-held の調べ（~/dev/fleq-host-held/.diag の volcano.log・tsunami.log・local-bulletins.log と version.dist.diff・owner-host.dist.diff）と、起草の写しの before-*.log（~/dev/fleq-host-followup/.draft。配送のときに統合担当が ~/dev/fleq-vault-archive/ の控えへ写す）"
+      },
+      {
+        "id": "Q-HF-PROBE",
+        "status": "closed",
+        "resolution": "起草の写し（~/dev/fleq-host-followup、base 3bf28220）で直し（.draft/probe.diff、4 file +33/−15）を当て、dist の version.js の stepVersion に判定を書く行を足して（host-held の version.dist.diff）、runs を絞って 1 回ずつ走らせた（Mac、--maxWorkers=2、TMPDIR は作業の木の中）。判定は入力ごとに数えた（EEW を除く）。volcano（FLEQ_C9_AC13_RUNS=4・BULK_RUNS=3）: 直す前は区間 (1) adopt 1・duplicate 3、区間 (2) held 4、区間 (3) VXSE53 held 4・VFVO52 held 4 で区間 (3) が 0/4 overlapped で rc=1、区間 (4) は 1 回目 576/576、2・3 回目 192/576（降灰 held 128、警報 duplicate 128、定時 duplicate 128）。直した後は全区間・全回 adopt（区間 (1) 4/4、(2) 4/4、(3) 8/8、(4) 576/576×3）。longest は約 2.1 s で通り、区間 (1) busyMs max 8.88・median 7.46 ms、workBusyMs max 7.08、reduceMs max 2.78、injectToT2 max 8.94 ms。区間 (2) は 3/4 overlapped、encodeMs max 2.16 ms、encodeBytes 1,506,788、injectToT2 max 2.19 ms。区間 (3) は 4/4 overlapped、grants 2、grantGapMs max 11.40・median 11.25 ms、quakeEncodeMs max 7.86 ms、volcanoEncodeMs max 2.19 ms、injectToT2 max 2.27 ms（U-Q と U-V の権は同じ reevaluate でまとめて出ない、P3-UNIT-N-MEASURE-002 の残存リスク (1) と同じ形）。区間 (4) の deadlineMs は直す前 5.40・1.96・1.98 ms、直した後 5.42・5.93・5.30 ms（2 回目以降も 576 記録の回収になった）。tsunami（FLEQ_C5_AC13_RUNS=4）: 直す前は maxCheckpointEncode の続報 4/4 duplicate、直した後は 4/4 adopt。maxCheckpointEncode の busyMs max 8.14 → 21.15 ms、eewT0ToT2 max 0.12 → 6.12 ms（EEW が U-T の encode の後ろで待つようになった）。maxVtse41・maxVtse51 は直す前から adopt（EventID を替える）。local-bulletins（-t bulk、FLEQ_C13_AC12_BULK_RUNS=3）: 直す前は recordsAdopted 1152・256・256（stepVersion の判定でも 2・3 回目は VPFJ51 の 256 だけ adopt）、deadlineMs 2.88・0.64・0.47 ms。直した後は 1152・1152・1152（判定も全件 adopt）、deadlineMs 3.91・4.76・4.13 ms、EEW の injectToT2 max 1.37 ms。fixture の直しの影響: bulkReports を使うほかの試験は local-bulletins-unit.test.ts:811（空の state から一度だけ受けて件数を数える）で、直した後も 12 passed。AC03 の数え方の確かめ: 入力に帰属した世代の上昇（host の generationRaised の観測、owner-runtime.ts の帰属の条件）は、volcano の区間 (1)〜(3)、tsunami、local の bulk で stepVersion の adopt と一致した。volcano の区間 (4) の定時の降灰（VFVO53）だけは、1 回目（前の版が無く 128 件とも adopt）でも 122/128 件に世代が帰属しない（通知を出さない採用は帰属の条件の intents・losses・changed に当たらない）。VFVO53 を除いた 448 件は 3 回とも 0 件の取りこぼし（BULK_RUNS=3 で rc=0）",
+        "source": "起草の写しの実走の記録（~/dev/fleq-host-followup/.draft の probe.diff・before-*・after-*・after2-volcano-bulk.out・probe2-volcano.out・after-local-unit.out。配送のときに統合担当が ~/dev/fleq-vault-archive/ の控えへ写す）"
+      },
+      {
+        "id": "Q-HF-SCOPE",
+        "status": "closed",
+        "resolution": "P3-UNIT-N-MEASURE-002 の outOfScope が未確認として送った「ほかの host 試験の続報も held かもしれない」の答え: host-held の調べで、landslide・flood・briefing・typhoon の host 試験の続報はすべて adopt（held・duplicate 0）。seismic は区間の VXSE53 の続報 4 件が held で、P3-SEISMIC-PLACE-001 の実装で直す。nankai は P3-UNIT-N-MEASURE-002 で直す。残る volcano・tsunami・local-bulletins を本契約で直す。tsunami の maxVtse41・maxVtse51 と local の longest の試験（区間ごとに EventID か報の時刻と Control/DateTime を fixture の retime で替える）は adopt で、範囲に入れない",
+        "source": "host-held の調べの batch.status と各 *.log（stepVersion の判定）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "試験だけの直しで、運用区分の扱いは変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-HOST-FOLLOWUP-001",
+    "mode": "implementation",
+    "objective": "volcano・tsunami・local-bulletins の host 試験の続報が、Control/DateTime を進めないので held か duplicate になり、採用の経路を測っていなかった不整合を直す（Q-HF-SOURCE）。続報の Control/DateTime も報の時刻へ進めて採用の経路に乗せ、測定の報告に採用の件数を含めて、続報が採られなければ測定を止める（P3-HF-D-GUARD）。試験だけの直しで、src は変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-host-followup.json",
+      "reconstruction/contracts/p3-unit-n-measure-2.json",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-local-bulletins-unit.json",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/test/volcano-unit/volcano-host.test.ts",
+      "reconstruction/test/volcano-unit/volcano-fixture.ts",
+      "reconstruction/test/tsunami-unit/tsunami-host.test.ts",
+      "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts",
+      "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts",
+      "reconstruction/test/local-bulletins-unit/local-bulletins-unit.test.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/volcano-unit/volcano-host.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-host.test.ts",
+      "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts",
+      "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts",
+      "reconstruction/contracts/p3-host-followup.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-host-followup.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M04",
+      "M09",
+      "M10",
+      "M14",
+      "M15",
+      "M16",
+      "M18"
+    ],
+    "integrationContractIds": [
+      "I-U-V",
+      "I-U-T",
+      "I-U-M"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-V-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-M-001",
+      "P3-UNIT-N-MEASURE-002"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-e01.types.ts#P2HostObservation"
+    ],
+    "publicFunctions": [
+      "src の公開の名前・入力・型は変えない。volcano-fixture.ts・tsunami-fixture.ts は変えない。local-bulletins-fixture.ts は bulkReports の中の時刻の付け方だけを変え、export は変えない（P3-HF-D-LOCAL=A の場合）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない。新しい共有 module・helper file を足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__43_01_01_200522_VFVO52",
+      "test__fixtures__66_01_02_210514_VFVO54",
+      "test__fixtures__66_01_01_210517_VFVO53",
+      "test__fixtures__44_02_01_200522_VFVO51",
+      "test__fixtures__44_01_01_151008_VFVO51",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825",
+      "test__fixtures__32-39_12_02_250206_VTSE41",
+      "test__fixtures__32-39_11_10_250206_VTSE51",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__19_03_01_130906_VPHW50",
+      "test__fixtures__57_03_01_240401_VPFT50",
+      "test__fixtures__32-35_09_01_191111_VXSE56",
+      "test__fixtures__85_01_01_250630_VPFJ51",
+      "test__fixtures__30_01_01_100915_VPCI50",
+      "test__fixtures__72_01_01_190327_VPAW51"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "保存 schema・field・decode の検査は変えない（試験だけの直し）"
+    ],
+    "nonPersistedFields": [],
+    "outOfScope": [
+      "reconstruction/src の全部（版の比べ方 version.ts、owner-runtime.ts の世代の帰属、定時の降灰の採用が世代を入力に帰属させないこと）",
+      "volcano-fixture.ts の retime の形と export（unit 試験は decodeFixture の followHead で Control/DateTime を進めている。host 試験の中で followHead を当てる）",
+      "tsunami-fixture.ts（maxCheckpointEncode の giant() は host 試験の中の関数）",
+      "volcano の区間 (3) で U-Q と U-V の権がまとめて出ないこと（起草の写しで grantGapMs 約 11 ms）の診断と直し。値は報告する（P3-UNIT-N-MEASURE-002 の残存リスク (1) と同じ形）",
+      "tsunami の maxVtse41・maxVtse51、local-bulletins の longest の試験（続報は直す前から adopt、Q-HF-SCOPE）",
+      "nankai（P3-UNIT-N-MEASURE-002）と seismic（P3-SEISMIC-PLACE-001）の host 試験",
+      "Pi での測定（段 4）",
+      "起草の写し（~/dev/fleq-host-followup/.draft）を製品・契約の成果物として commit すること。dist の stepVersion に判定を書く行を足すのは確かめのためだけで、commit しない"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-HF-AC01",
+        "requirement": "続報を採用の経路に乗せる（Q-HF-SOURCE）: (1) volcano-host.test.ts は fixture の followHead を import し、host 試験の中の retime を「fixture の retime の後に followHead で Control/DateTime を同じだけ進める」1 行の関数にする（setup の警報・噴火・降灰、区間 (1) の全国の VFVO51、区間 (2)(3) の噴火、区間 (4) の 5 種の組み立てに当たる）。区間 (3) の VXSE53 の later は followHead(s53, …) で包み、Control/DateTime を 07:35:28Z から 08 時台へ進める (2) tsunami-host.test.ts の giant() は、ReportDateTime の置き換えに続けて最初の DateTime（Control/DateTime）を同じ時刻（2099-01-01T00:mm:00Z）へ置き換える (3) local-bulletins は P3-HF-D-LOCAL の決めに従う（A なら bulkReports の 6 か所を retime(at) に替える） (4) 変えないもの: 各区間の窓・overlapped の判定・required・既存の row の列、deliveryDelayMs、runs の既定値。足す理由: 無いと続報が held か duplicate になり、volcano の区間 (1)(2) と tsunami の maxCheckpointEncode は却下の経路を測り、volcano の区間 (3) は overlapped が足りずに止まり、両方の bulk は 2 回目以降に小さな回収を測る",
+        "evidenceRefs": [
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:9 «062efb00594a5c7e»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:203 «c90729a0c52b9234»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:258 «8774a5d8f40ade69»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:278 «76161c1bcc159b8d»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:294 «708fb7852dfdaa76»",
+          "reconstruction/test/volcano-unit/volcano-fixture.ts:40 «0c0e385628c79a8a»",
+          "reconstruction/test/volcano-unit/volcano-fixture.ts:56 «8a3dd55af56e934a»",
+          "reconstruction/test/volcano-unit/volcano-fixture.ts:62 «aff5e99df39f82bd»",
+          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:221 «ae0fbe9dedf292cd»",
+          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:228 «a19990f6e9fb1060»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:43 «d3b0627fdab0426d»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:45 «fc2f798f9c4e992a»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:73 «6241960970d5489d»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:78 «aa3edb3e69e5a215»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-unit.test.ts:811 «18be5e9b75a5319a»",
+          "reconstruction/src/contracts-revision/version.ts:7 «b4114cd2e4a71493»",
+          "reconstruction/src/contracts-revision/version.ts:95 «112023bdd228c955»",
+          "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»"
+        ]
+      },
+      {
+        "id": "P3-HF-AC02",
+        "requirement": "Mac の報告（直した後）: volcano（FLEQ_C9_AC13=1、2 試験）と tsunami（FLEQ_C5_AC13=1、-t P3-C5-AC13）を各 5 回、local-bulletins の bulk（FLEQ_C13_AC12=1、-t \"bulk deadline\"）を 3 回走らせ（runs・bulk runs は既定値。高負荷なので Mac mini で回してよく、回した機械を書く）、各回の rc と、区間ごとの overlappedCount/tried と主な列の max・median を出す。volcano は区間 (1) の workBusyMs・decodeMs・reduceMs・injectToT2、区間 (2) の encodeMs・encodeBytes・injectToT2、区間 (3) の grantGapMs・quakeEncodeMs・volcanoEncodeMs・injectToT2、区間 (4) の deadlineMs・injectToT2。tsunami は maxCheckpointEncode の busyMs・eewT0ToT2 と encode。local は deadlineMs・injectToT2・recordsAdopted。各値を、引いている原文の値（p3-volcano-unit.json の Q-C9-IMPL-AMEND (10)、p3-local-bulletins-unit.json の残存リスク (21) と Q の (4)）と並べる。続報が採られたことは AC03 の列（全回 0）で示し、1 回は dist の stepVersion に判定を書く行を足して（commit しない、Q-HF-PROBE の方法）区間ごとの adopt の件数を数え、AC03 の列と一致することを確かめる。どの値も約 40 ms を越えたら配送の前に作者へ報告する",
+        "evidenceRefs": [
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:191 «858dc2e34b48b7fa»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:365 «b20d14c648dddbb9»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:337 «4c30ccd004880ff3»",
+          "reconstruction/src/runtime/owner-runtime.ts:398 «63adcad8d045ce86»",
+          "reconstruction/src/runtime/owner-runtime.ts:400 «7820be847bd9d157»",
+          "reconstruction/src/runtime/composition-root.ts:1863 «a8e36100fe204f8f»"
+        ]
+      },
+      {
+        "id": "P3-HF-AC03",
+        "requirement": "再発を防ぐ形（P3-HF-D-GUARD の決めに従う。A の場合）: (1) volcano-host.test.ts に、入力と unit を受けて generationRaised の観測があれば 1 を返す 1 行の関数を足し、各区間の行に notAdopted を足す（区間 (1)(2) は work の U-V、区間 (3) は quake の U-Q と volcano の U-V、区間 (4) は定時の降灰 VFVO53 を除く 448 件の U-V）。measurer の record で、1 行でも notAdopted が 0 でなければ「${name}: continuation not adopted」で止める（overlapped の不成立の止め方と同じ） (2) tsunami-host.test.ts の trial の行に notAdopted（work の U-T）を足し、collect で同じ形で止める (3) local-bulletins-host.test.ts の bulk は、既存の adopted（recordsAdopted）が投入の件数に届かなければ止める (4) VFVO53 を数えない理由を 1 行のコメントで書く。足す理由: 無いと続報が採られていなくても測定が通り、却下の経路の値が報告に載る（今回、local の recordsAdopted は 2 回目以降 256 を出していたが summary に隠れた）",
+        "evidenceRefs": [
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:191 «858dc2e34b48b7fa»",
+          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:209 «7e1015464cedeb74»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:337 «4c30ccd004880ff3»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:338 «1479198c609faf03»",
+          "reconstruction/src/runtime/owner-runtime.ts:398 «63adcad8d045ce86»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C9-AC13 measures the longest U-V work（区間 (1)〜(3)）と bulk deadline（区間 (4)）",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-HF-AC01",
+          "P3-HF-AC02",
+          "P3-HF-AC03"
+        ],
+        "behavior": "実不具合（Q-HF-SOURCE (a)）。既存の report 試験（describe.runIf FLEQ_C9_AC13）の時刻の付け方を直し、notAdopted で止める。新しい it・試験 file は足さない。直す前は区間 (3) が 0/4 overlapped で rc=1。通常のゲートでは走らない"
+      },
+      {
+        "testId": "P3-C5-AC13 measures the longest urgent work（maxCheckpointEncode）",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-HF-AC01",
+          "P3-HF-AC02",
+          "P3-HF-AC03"
+        ],
+        "behavior": "実不具合（Q-HF-SOURCE (b)）。giant() の Control/DateTime を進め、notAdopted で止める。通常のゲート（FLEQ_C5_AC13 なし）では走らない"
+      },
+      {
+        "testId": "P3-C13-AC12 measures the bulk deadline of 1,152 records",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-HF-AC01",
+          "P3-HF-AC02",
+          "P3-HF-AC03"
+        ],
+        "behavior": "実不具合（Q-HF-SOURCE (c)）。bulkReports の時刻の付け方を直し、recordsAdopted が投入の件数に届かなければ止める。通常のゲート（FLEQ_C13_AC12 なし）では走らない。bulkReports を使う local-bulletins-unit.test.ts:811 の期待値は変えない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（新しい fixture file を足さない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07 の参照（sequences.json は変えない）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約と anchor。本契約が引く volcano-host.test.ts・tsunami-host.test.ts・local-bulletins-host.test.ts の行が直しでずれる・替わる FAIL は想定内で、統合担当が配送で anchor と自己 digest を同期する。ほかの契約は 3 file の行を引いていない（起草時に grep で 0 件。P3-VERSION-MATERIAL-001 が引く local-bulletins-fixture.ts:16 は行がずれない）。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査と reconstruction/dist/ の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "C6 の runner が使う dist の生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "正式回帰（report 試験は skip のまま、local-bulletins-unit.test.ts の bulk の件数を含めて期待値の変更 0）"
+      },
+      {
+        "command": "FLEQ_C9_AC13=1 ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 reconstruction/test/volcano-unit/volcano-host.test.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/volcano-unit/volcano-host.test.ts",
+        "stage": "implementation",
+        "purpose": "P3-HF-AC02 の volcano の報告。5 回。TMPDIR を作業の木の中に向ける（host 試験は mkdtemp を使う）"
+      },
+      {
+        "command": "FLEQ_C5_AC13=1 ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 reconstruction/test/tsunami-unit/tsunami-host.test.ts -t P3-C5-AC13",
+        "cwd": ".",
+        "target": "reconstruction/test/tsunami-unit/tsunami-host.test.ts",
+        "stage": "implementation",
+        "purpose": "P3-HF-AC02 の tsunami の報告。5 回。TMPDIR を作業の木の中に向ける"
+      },
+      {
+        "command": "FLEQ_C13_AC12=1 ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts -t \"bulk deadline\"",
+        "cwd": ".",
+        "target": "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts",
+        "stage": "implementation",
+        "purpose": "P3-HF-AC02 の local-bulletins の bulk の報告。3 回（1 回約 10 分）。TMPDIR を作業の木の中に向ける"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由。",
+      "P3-HF-AC02 の報告（各回の rc と機械、区間ごとの overlappedCount/tried と主な列の max・median、原文の値との並べ、1 回の stepVersion の判定の件数と AC03 の列の一致）。",
+      "足した仕組み: volcano の時刻を付ける 1 行の関数と採用を数える 1 行の関数、tsunami の Control/DateTime の置き換え 1 つ、各試験の notAdopted の列と止める 1 行（無いと続報が held・duplicate のまま測定が通る、P3-HF-AC01・AC03）。新しい it・helper file は無い。試験は既存の report 試験の直しで、実不具合の再発防止に当たる。",
+      "規模の見積もり（起草の写しから）: 試験 4 file、+33 行・−15 行の見込み（起草の写しの .draft/probe.diff、出発点にしてよい）。0.2 人日（実走の待ちを除く）。実績と差があれば理由を書く。",
+      "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
+      "配送で統合担当が当てる原文の改訂: (1) p3-volcano-unit.json:390 の Q-C9-IMPL-AMEND (10) の値（全国の VFVO51 の最大の待ち 8.16 ms、encode 2.20 ms、まとめ出し 9.91 ms、一括の期限回収 4.06 ms）に、却下の経路の値だったこと（区間 (1) は最初の 1 件の後 duplicate、区間 (2)(3) は held、区間 (4) は 2 回目以降 192/576 の回収）と本契約の値を並べる。同じ値を引く :1135 の AC13 の「まとめ出し」に、区間 (3) の 2 つの権は grantGapMs 約 11 ms 離れて出たと書く (2) p3-local-bulletins-unit.json:449 の残存リスク (21) の「1,152記録の一括の期限でも最大4.26 ms」と :514 の (4) の「EEWの待ちは最大4.26 ms、一括の期限回収は7.4 ms」に、2 回目以降は 256 記録の回収だったことと本契約の値を並べる (3) p3-tsunami-unit.json は AC13 の値を本文に持たない（起草時に grep で 0 件）。C5 の配送の記録（作業ノート）の maxCheckpointEncode の値に、続報が duplicate で EEW が encode を待たない経路の値（eewT0ToT2 最大 0.12 ms 程度）だったと注を足す (4) p3-unit-n-measure-2.json の outOfScope の「ほかの host 試験の続報…未確認」と原文の改訂 (3) のやりたいことリストの項に、Q-HF-SCOPE の答え（landslide・flood・briefing・typhoon は adopt、volcano・tsunami・local は本契約、seismic は P3-SEISMIC-PLACE-001）を足し、やりたいことリストの項を完了へ送る (5) やりたいことリストと構造的欠陥台帳の「権がまとめて出ない」（P3-UNIT-N-MEASURE-002 の残存リスク (1)）に volcano の区間 (3) も同じ形だったと足す (6) 本契約が引く 3 file の anchor を付け直し、本契約の sha256 を作り直す",
+      "残存リスク（作者承認の前、起草案）: (1) volcano の区間 (3) でも U-Q と U-V の権がまとめて出ない（起草の写しで grantGapMs 約 11 ms）。C9 の AC13 が置く「まとめ出し」の前提は測った形で成り立たず、EEW は U-Q の encode の後に最大約 11 ms 待ちうる（約 40 ms より小さい）。直しと診断は範囲の外で、P3-UNIT-N-MEASURE-002 の残存リスク (1) の送り先へ足す (2) 続報の Control/DateTime は host の時計より先になる。volcano の区間 (3) の later は 17 時台（host の時計の 16:40 起点より最大約 40 分先）、tsunami は 2099 年（報の時刻もすでに 2099 年）。今の受理は未来の送信時刻を断らないので採られるが、後の契約で未来の時刻を断るようになると、この試験の続報は断られる。その時は AC03 の止める形で気づける (3) volcano の区間 (4) の定時の降灰（VFVO53）は AC03 で数えない。VFVO53 の続報だけが採られなくなっても測定は止まらない（2026-10-26 の起草の写しでは 3 回とも 128/128 adopt）。帰属の条件（owner-runtime.ts）が変われば数えられるようになる (4) 直した後の値は前の値から変わる: tsunami の maxCheckpointEncode の EEW の待ちは最大 0.12 → 6.12 ms、volcano の区間 (4) の 2 回目以降の回収は約 2 → 約 5〜6 ms、local の bulk の 2 回目以降は約 0.5〜0.6 → 約 4〜5 ms（起草の写しの runs を絞った値）。答え（約 40 ms より十分小さい）は変わらない見込みで、AC02 の正式の値で確かめる。画面と音は変わらない（試験だけの直し）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
