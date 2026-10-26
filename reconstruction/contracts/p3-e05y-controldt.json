@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fdaf4589b3ccc8b0afed7d1db13c98470d491f72",
-    "sha256": "6fc0c0e20bd9c30daa43f8d7ea319e9415cc7db7c3f5dbed7a7a8bb6dfd05682",
+    "sha256": "f02af74737f76e0ab7c7c15e80f839cfd414f247ab854f07f3722b9aa5abda36",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -55,7 +55,7 @@
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-27 朝、HEAD 2cd688db、main 36dc0f7c の上、前例は Q-NM2-PRECHECK）",
         "closed": "(1) 分岐 P3-E05YD-D-PLACE は統合担当の決め B で確定、起草案の字句は 0 件 (2) check-contract exit 0 (3) allowedPaths の windows.mjs と p3.test.ts は 36dc0f7c の上で本契約の他に変える commit は無い。未 push の台帳 100（l100-impl 32642c02）は p3.test.ts を変える（+22/−4）が、配送の順 (b) で本契約の後に rebase する。host-followup・mailbox-control の branch はどちらの file も変えない (4) src・frames.mjs・version.ts は outOfScope",
-        "remaining": "なし（baseOid は Q-E05YD-BASE で割り当てる）",
+        "remaining": "なし（baseOid は d929e35b に割り当てた）",
         "reason": "発注前点検を記録する"
       }
     ],
@@ -68,7 +68,7 @@
     "contractId": "P3-E05Y-CONTROLDT-001",
     "mode": "implementation",
     "objective": "E05 の上乗せの窓（e05y-P、同じ pump の e05s-y）で、台風の確率の報 76_01_03_260602_VPTA50 が held（typhoonRevisionConflict）になり採られない不整合を、runner の側で直す（Q-E05YD-SOURCE）。上乗せの 3 通は、報告時刻の平行移動の後に Control/DateTime（電文の最初の DateTime）も送った時刻の秒へ置き、03 を採用の経路に乗せる。e05y-P の上乗せの確かめ（P3-E05Y-AC02(6)）を成り立たせ、P3-SP-AC10 (2) の e05y-P を測れるようにする。測定の道具だけの直しで、src・frames.mjs・E05Y_LOAD・凍結の manifest は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "d929e35be2da466e6f66cc17926cf1a285ba9cfe",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -286,19 +286,6 @@
       "配送で統合担当が当てる原文の改訂（『P3-E05Y-CONTROLDT-001 で…』の注記の形）: (1) TYPHOON（p3-e05p-typhoon.json）: AC01（:221）の『fixture の bytes を書き換える規則を足さない』と outOfScope（:212）の『報告時刻の平行移動だけを使う』に、上乗せの 3 通は Control/DateTime も送った時刻の秒へ置くと足す。AC02（:244）の (6)④ と Q-E05Y-REVIEW1（:70）の (1) に、generationRaised は採用の証拠にならず、採用は typhoonRevisionConflict 0 件で見ると足す（台帳 §102）。AC07（:312）の (a) に、10-21 の f47975f1 の後は 03 が held で (a) が通らなかったと足す (2) SPLIT（p3-e05y-split.json）: :64 の『変えないもの: TYPHOON の上乗せ（E05Y_LOAD…）』に、E05Y_LOAD は変えず frame の Control/DateTime の規則だけが変わり、e05s-y にも効くと足す。AC01（:262）の e05s-y の上乗せにも同じ注 (3) 台帳 100 へ申し送る（本契約の配送では p3-seismic-place.json を触らない。統合担当が台帳 100 の rebase のときに当てる）: AC10（:435）の (2) e05y-P と Q-SP-E05（:578）に、e05y-P の上乗せの確かめは本契約の直しが前提で、本契約の AC03 は 3 本の構成で測った、と足す (4) やりたいことリストと構造的欠陥台帳 §102（統合担当が書く）: 『runner の時刻の平行移動が Control/DateTime の順を潰す』を族の 2 件目として足す。やりたいことリストへ『負荷 P・N の中の同じ subject の別 fixture も、送った秒の差と Control/DateTime の先行の差が打ち消し合うと held になりうる（未確認）』を送る (5) 本契約の配送の tree で、改訂した TYPHOON・SPLIT の sha256 と、本契約が引く windows.mjs:37 の anchor と本契約の自己 digest を作り直す",
       "残存リスク: 作者に聞くものは無い（Q-E05YD-AUTHOR）。統合担当の決めとして書く事実: 測定の中の 3 通は Control/DateTime と ReportDateTime が同じ秒になる（例 02 は 2026-10-27T03:05:02Z＝12:05:02 JST、03 は 03:05:04Z＝12:05:04 JST）。実配信では Control/DateTime が ReportDateTime より約 2 分前になる（76_01_03 は Control 2026-06-02T06:53:04Z＝15:53:04 JST、ReportDateTime 15:55:00 JST）。版の比べは version.ts の compareVersion で Control/DateTime の差だけで決まり（VPTA50 は HEAD_THEN_CONTROL に無い）、ReportDateTime との差は使わない。どちらでも 03 は 02 より新しく採られるので、画面の出る・出ないは変わらない。src は変えないので、画面と音も変わらない。最大 RSS が上限に近い件（p3-dyl-e05y-20261014 は 374.5〜380.6 MiB）は AC03 の測定で確かめるので、承認の残存リスクに数えない"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-E05YD-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "発注前点検で（分岐 P3-E05YD-D-PLACE は統合担当の決め B で確定済み）",
-        "requiredEvidence": [
-          "baseOid の割当と、その base で本契約の evidence の anchor が合うこと（check-contract exit 0）",
-          "配送の順（統合担当の決め 2026-10-27、(b)）: 本契約を先に main へ入れ、台帳 100（P3-SEISMIC-PLACE-001、未 push の l100-impl）は本契約の後に rebase する。dependsOnContractIds に P3-SEISMIC-PLACE-001 を入れないのはこの順のため"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
