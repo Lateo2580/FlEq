@@ -50,10 +50,8 @@ type Attempt = {
   retryReason: CheckpointMeasurement["retryReason"];
   capturedAt: number;
   phase: "reserved" | "running" | "ended";
-  failedStage?: CheckpointMeasurement["stage"];
   renamed?: boolean;
   fileSynced?: boolean;
-  acknowledged?: boolean;
   bytes?: Uint8Array; // The one serialization of request.envelope (AC03); never added to the shared CheckpointRequest.
 };
 
@@ -297,7 +295,6 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
             byteLength, "succeeded", runId, attempt));
           // The attempt's ack overrides whatever a restoreUnit() during the sync left in memory.
           this.knowledge.set(request.unit, { slot: existing.slot, generation: request.generation, sha256: request.envelope.sha256 });
-          attempt.acknowledged = true;
           return { result: { kind: "acknowledged", attemptId: request.attemptId, unit: request.unit,
             generation: request.generation, ackAt: this.readClock().wallTimeMs,
             encodedByteLength: byteLength }, measurements };
@@ -345,11 +342,9 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       measurements.push(this.measurement(request, stage, started, ended, 0, "succeeded", runId, attempt));
       // The save is complete at directory sync; no read-back (the OS cache proves no durability).
       this.knowledge.set(request.unit, { slot, generation: request.generation, sha256: request.envelope.sha256 });
-      attempt.acknowledged = true;
       return { result: { kind: "acknowledged", attemptId: request.attemptId, unit: request.unit,
         generation: request.generation, ackAt: this.readClock().wallTimeMs, encodedByteLength: bytes.byteLength }, measurements };
     } catch (error) {
-      attempt.failedStage = stage;
       if (writable != null) try { await writable.close(); } catch { /* the original stage owns the result */ }
       const now = this.readClock();
       measurements.push(this.measurement(request, stage, stageStarted, now.monotonicMs,
@@ -413,10 +408,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       if (verified.kind !== "restored" || verified.envelope.sha256 !== attempt.request.envelope.sha256)
         throw new Error("uncertain checkpoint changed during reconciliation");
       measure("succeeded");
-      attempt.acknowledged = true;
       return { result: { ...identity, kind: "acknowledged", ackAt: this.readClock().wallTimeMs }, measurements };
     } catch (error) {
-      attempt.failedStage = stage;
       this.knowledge.delete(unit); // AC02(4): only a successful reconciliation keeps the memory restoreUnit just set.
       measure("failed");
       return { result: stage === "directorySync"

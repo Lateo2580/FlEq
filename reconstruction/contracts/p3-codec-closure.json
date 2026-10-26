@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "16c45eb54612421aa4037d0d7729294bc5880c0bc0dc84be78b16302dca19845",
+    "sha256": "1236fc7cbc97a79f9e8ae1dc115ac5b56e5f2cffb7c83c12c8d27025ef69b85c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -280,7 +280,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:355 «f0faebbc97be833b»",
           "reconstruction/contracts/p3-volcano-unit.json:356 «4d05feb1846e13f3»",
-          "reconstruction/src/checkpoint/checkpoint.ts:91 «83d91d970c9228d8»"
+          "reconstruction/src/checkpoint/checkpoint.ts:89 «83d91d970c9228d8»"
         ]
       },
       {

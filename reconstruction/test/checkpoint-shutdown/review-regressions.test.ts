@@ -187,7 +187,7 @@ const grants = (h: Harness) => h.sent.flatMap(({ request }) => request.kind === 
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
-it("R25 regression / AC02,AC05: a forged result reply cannot bypass durability validation", async () => {
+it("R25 + R02 regression / AC02,AC04,AC05: a forged result reply cannot bypass durability validation or free the running writer", async () => {
   const h = await harness();
   const gate = deferred();
   h.fault.writeGate = gate.promise;
@@ -209,9 +209,11 @@ it("R25 regression / AC02,AC05: a forged result reply cannot bypass durability v
   const before = grants(h.h).length;
   await h.root.driveCheckpoint();
   expect(grants(h.h)).toHaveLength(before);
+  expect(h.root.state.mirror["U-F"].persistence.kind).toBe("pending");
   gate.resolve();
   await running;
   expect(h.root.state.mirror["U-F"].persistence.kind).toBe("saved");
+  expect(h.fault.opens).toBe(1);
   expect(h.h.owners.get("deferred")!["state"]!.checkpointAttempts).toEqual({});
   await h.update(dirty(1, true));
   expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
@@ -546,17 +548,7 @@ it("R01 regression / AC02,AC08: uncertain needs exact hash and successful sync; 
   await h.grant();
   expect(h.root.state.mirror["U-F"].persistence).toMatchObject({ kind: "failed", savedGeneration: null });
 
-  // P3-C1: a steady save has no post-rename verify, so the uncertain-then-reconcile property is shown via directory sync.
-  const verify = await harness();
-  verify.fault.directorySync = true;
-  const reconcileVerify = verify.holdReconcile();
-  await verify.update(dirty());
-  expect((await verify.grant()).map((reply) => reply.result?.kind)).toEqual(["uncertain"]);
-  verify.fault.directorySync = false;
-  reconcileVerify();
-  await verify.grant();
-  expect(verify.root.state.mirror["U-F"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
-
+  // 照合が成功して saved になる側は R15 と checkpoint.test.ts の P2-A3-T02 が検収する。
   // The same-generation confirm read (spec:843) failing after directory sync is still uncertain (stage ack).
   const confirm = await harness();
   confirm.bytes.set(join(confirm.config.stateDirectory, "U-F-A.json"),
@@ -568,10 +560,10 @@ it("R01 regression / AC02,AC08: uncertain needs exact hash and successful sync; 
   await confirm.update(dirty());
   expect((await confirm.grant()).map((reply) => reply.result)).toMatchObject([{ kind: "uncertain", stage: "ack" }]);
   expect(confirm.fault.opens).toBe(0);
-  await Promise.all([h.root.diagnostics.flush(), verify.root.diagnostics.flush(), confirm.root.diagnostics.flush()]);
+  await Promise.all([h.root.diagnostics.flush(), confirm.root.diagnostics.flush()]);
 });
 
-it("R02 regression / AC04: a running attempt cannot execute twice or relinquish its writer before it ends", async () => {
+it("R02 regression / AC04: a running attempt cannot execute twice", async () => {
   // TEST-PATH (1): the owner-side coordinator refuses a second execution of the running attempt.
   const direct = await harness();
   const gate = deferred();
@@ -582,26 +574,8 @@ it("R02 regression / AC04: a running attempt cannot execute twice or relinquish 
   await expect(coordinator.executeCheckpoint(captured.request!, "review", ids.inputIds, "notRetry")).rejects.toThrow(/already executed/);
   gate.resolve();
   await executing;
-
-  // The owner replies only when the write has ended, so the right stays held until then.
-  const h = await harness();
-  const held = deferred();
-  h.fault.writeGate = held.promise;
-  // U-F's input saves at once (P3-UWR-AC03) and its write waits; U-W becomes dirty after it (AC10(7)).
-  await h.update(dirty(1));
-  const running = h.start();
-  await vi.waitFor(() => expect(h.fault.opens).toBe(1));
-  const before = grants(h.h).length;
-  void h.root.driveCheckpoint();
-  expect(grants(h.h)).toHaveLength(before);
-  expect(h.root.state.mirror["U-F"].persistence.kind).toBe("pending");
-  held.resolve();
-  await running;
-  expect(h.root.state.mirror["U-F"].persistence.kind).toBe("saved");
-  expect(h.fault.opens).toBe(1);
-  await h.update(dirty(1, true));
-  expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
-  await Promise.all([direct.root.diagnostics.flush(), h.root.diagnostics.flush()]);
+  // 書込みが終わるまで権を手放さない側は R25 が検収する。
+  await direct.root.diagnostics.flush();
 });
 
 it("R03 regression / AC08: a BOM cannot be stripped before the full-byte hash check", async () => {
@@ -1029,7 +1003,7 @@ it("R15 regression / AC05: reconciliation stages are measured once with the orig
   h.fault.directorySync = false;
   h.setTime(h.root.checkpoint.retryAfter("U-F")!);
   await h.grant();
-  expect(h.root.state.mirror["U-F"].persistence.kind).toBe("saved");
+  expect(h.root.state.mirror["U-F"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
   const measured = h.measurements.slice(before);
   expect(measured.map((measurement) => measurement.stage)).toEqual(["verify", "directorySync", "verify", "directorySync", "verify"]);
   expect(h.measurements.filter((measurement) => measurement.stage === "directorySync")).toHaveLength(h.fault.syncs);

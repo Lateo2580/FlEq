@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "40ac4e2ce5761b0ddaa758a5d2d410cd23fc5e3e42c980082b454229c081d847",
+    "sha256": "6bc3505a980fbeb0ada64869719defd1f246437f825465d27803c4f2b3e5d676",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -65,10 +65,10 @@
         "source": "起草時のコード読解（e68cd434）",
         "closed": "今の入口: checkpoint は slot の schemaVersion が codec と違えば unknownSchema（checkpoint.ts:450）、両方が読めなければ unavailable を返す（:173）。片方だけ読めればその slot を復元し（:182）、次の保存はその反対側へ書く（:293）。owner の復元は empty・unavailable の unit を初期状態のまま始め（owner-runtime.ts:288）、envelope の schemaVersion が codec と違えば例外（:291）。owner-host は unavailable の unit をその run では保存しない集合に入れる（owner-host.ts:57・:181）ので、版を上げた unit は旧い slot が残り続け、起動のたびに unavailable で二度と保存されない。P2-A3-AC09 は「未知 schema の slot を空 state で自動上書きしない」と定める",
         "evidenceRefs": [
-          "reconstruction/src/checkpoint/checkpoint.ts:467 «b6fdb65e4e225b7d»",
-          "reconstruction/src/checkpoint/checkpoint.ts:188 «0d7a23c67d3bc8ee»",
-          "reconstruction/src/checkpoint/checkpoint.ts:197 «8cb7a21761e99aaa»",
-          "reconstruction/src/checkpoint/checkpoint.ts:310 «d8c8c47fe3547576»",
+          "reconstruction/src/checkpoint/checkpoint.ts:460 «b6fdb65e4e225b7d»",
+          "reconstruction/src/checkpoint/checkpoint.ts:186 «0d7a23c67d3bc8ee»",
+          "reconstruction/src/checkpoint/checkpoint.ts:195 «8cb7a21761e99aaa»",
+          "reconstruction/src/checkpoint/checkpoint.ts:307 «d8c8c47fe3547576»",
           "reconstruction/src/runtime/owner-runtime.ts:323 «6d697a491431e3be»",
           "reconstruction/src/runtime/owner-runtime.ts:326 «890b0a8cddc63328»",
           "reconstruction/src/runtime/owner-host.ts:57 «c8c61640df663994»",
@@ -486,16 +486,16 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:549 «433c0e87dd508191»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:284 «82644f1fe52bdd0c»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:46 «29080c296cf7796d»",
-          "reconstruction/src/checkpoint/checkpoint.ts:467 «b6fdb65e4e225b7d»",
-          "reconstruction/src/checkpoint/checkpoint.ts:187 «54580fbdf7227547»",
-          "reconstruction/src/checkpoint/checkpoint.ts:197 «8cb7a21761e99aaa»",
-          "reconstruction/src/checkpoint/checkpoint.ts:310 «d8c8c47fe3547576»",
+          "reconstruction/src/checkpoint/checkpoint.ts:460 «b6fdb65e4e225b7d»",
+          "reconstruction/src/checkpoint/checkpoint.ts:185 «54580fbdf7227547»",
+          "reconstruction/src/checkpoint/checkpoint.ts:195 «8cb7a21761e99aaa»",
+          "reconstruction/src/checkpoint/checkpoint.ts:307 «d8c8c47fe3547576»",
           "reconstruction/src/runtime/owner-host.ts:194 «50d2ca18fd95e5e1»",
           "reconstruction/src/runtime/owner-runtime.ts:326 «890b0a8cddc63328»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»",
           "reconstruction/contracts/p3-persist-premises.md:68 «b9ae66e7aeebf460»",
           "reconstruction/contracts/p3-persist-premises.md:73 «32ecbbdb103e9932»",
-          "reconstruction/src/checkpoint/checkpoint.ts:173 «564a91036c15104a»"
+          "reconstruction/src/checkpoint/checkpoint.ts:171 «564a91036c15104a»"
         ]
       },
       {
@@ -505,15 +505,15 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:531 «f12e9fac05b61c06»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:79 «99b3625fa58c7268»",
           "reconstruction/src/ingress/ingress.ts:75 «d7375b3115968dbf»",
-          "reconstruction/src/checkpoint/checkpoint.ts:95 «d392fb1e4066cd2b»",
-          "reconstruction/src/checkpoint/checkpoint.ts:499 «04f79d8eb1684e76»",
+          "reconstruction/src/checkpoint/checkpoint.ts:93 «d392fb1e4066cd2b»",
+          "reconstruction/src/checkpoint/checkpoint.ts:492 «04f79d8eb1684e76»",
           "reconstruction/src/runtime/owner-host.ts:235 «f1e29b8991e7caad»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:340 «6efa363eddf72f79»",
           "reconstruction/contracts/p3-persist-premises.md:144 «2ceab1141412b0f6»",
           "reconstruction/contracts/p3-execution-split.types.ts:68 «40f7c160c2f5af7e»",
           "reconstruction/contracts/p3-execution-split.types.ts:101 «a896029bd79113b7»",
           "reconstruction/src/runtime/composition-root.ts:1449 «6f4ddb1bb79ac527»",
-          "reconstruction/src/checkpoint/checkpoint.ts:482 «f2df4d892cf6c2da»",
+          "reconstruction/src/checkpoint/checkpoint.ts:475 «f2df4d892cf6c2da»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:406 «442242ac46bb58a3»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:583 «91775f59fc97dbc2»"
         ]

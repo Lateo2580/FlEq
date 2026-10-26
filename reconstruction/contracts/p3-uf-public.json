@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "682f497f847b31808c4eadec62ea23602a33aa0c6edb91bcab5d087b15627a66",
+    "sha256": "ca07ec0ff755b83c0751ad54bead01e246f75b015dfcb3f217c21e2a53472e40",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -379,7 +379,7 @@
           "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
           "reconstruction/contracts/p2-snapshot-sse.json:71 «d45898e10bcf5810»",
           "reconstruction/contracts/p2-snapshot-sse.json:82 «19c19a28d4635611»",
-          "reconstruction/src/view-projector/view-projector.ts:852 «23bf5264c679f8a7»"
+          "reconstruction/src/view-projector/view-projector.ts:843 «23bf5264c679f8a7»"
         ]
       },
       {
@@ -412,12 +412,12 @@
         "id": "P3-UFP-AC04",
         "requirement": "publisherの射影（view-projector.ts）はU-Fの公開形式だけを読み、要約とnoticeを変えない: timeseriesTallyはperiodを走査せず、effective・unavailableReason・source・areaCodes・knownCodes・unknownCodeから寄与を作る（knownCodesはTIMESERIES_SEVERITYで階級へ写す。階級の表はprojectorに残す）。normalの公開の制限の間の寄与（hidden: unknownCodeと時刻を残し、件数・階級・区域を0）も今と同じ（hiddenの枝はP3-CURRENCY-COVERAGE-001で制限ごと除いた）。tally.bytesは公開形式とSubjectOutcomeのJSONのbyte（要素ごと）。weatherState・weatherSource・fixedBytesは今の式のまま公開形式を読む。同じ入力でU-Fの要約のitems（3行）とU-Fのnotice（targetId・kind・source）がbaseの値と一致する（P2-A8-SUMMARY・P2-A8-NOTICEを変えない。照合の列はP3-UFP-T02）。projectorの内部のseverityRefsの件数はperiodの数からCodeの数に変わる（highestは有無だけを見るので公開の値は同じ）",
         "evidenceRefs": [
-          "reconstruction/src/view-projector/view-projector.ts:257 «bd8060918ea5975f»",
-          "reconstruction/src/view-projector/view-projector.ts:271 «f0e7469dff70429b»",
-          "reconstruction/src/view-projector/view-projector.ts:481 «d0e85de22743f47e»",
-          "reconstruction/src/view-projector/view-projector.ts:726 «ce95a1aeba411059»",
-          "reconstruction/src/view-projector/view-projector.ts:734 «7221b37da2786add»",
-          "reconstruction/src/view-projector/view-projector.ts:652 «109de0786aaf447e»",
+          "reconstruction/src/view-projector/view-projector.ts:256 «bd8060918ea5975f»",
+          "reconstruction/src/view-projector/view-projector.ts:270 «f0e7469dff70429b»",
+          "reconstruction/src/view-projector/view-projector.ts:480 «d0e85de22743f47e»",
+          "reconstruction/src/view-projector/view-projector.ts:717 «ce95a1aeba411059»",
+          "reconstruction/src/view-projector/view-projector.ts:725 «7221b37da2786add»",
+          "reconstruction/src/view-projector/view-projector.ts:651 «109de0786aaf447e»",
           "reconstruction/contracts/p2-snapshot-sse.json:68 «62080629b06dab7a»",
           "reconstruction/contracts/p2-snapshot-sse.json:84 «2364292c7a2bcba1»",
           "reconstruction/contracts/p2-snapshot-sse.json:97 «d83b94ddc6e18681»"
@@ -427,8 +427,8 @@
         "id": "P3-UFP-AC05",
         "requirement": "U-Fの平常の大きいstateが他分野を要約に落とさない（監査A3の反例、Pro §8.3の無関係な詳細の非干渉）: P3-UFP-AC03 (b)のstateと、地震3件（32-35_01_03_240613_VXSE53のEventIDだけを試験の中で替えた3件。1件では分野が65,536 byteに届かない: 発注前点検でbaseのU-Qのviewが1件25,630 byte、3件75,950 byte、Q-UFP-PRECHECK）・津波（32-39_11_11_250206_VTSE41、viewは16,070 byte）・EEW（77_01_01_240613_VXSE45、viewは1,465 byte。K6のhorizonに入るよう報時刻を試験の時計へずらす）を、ほかの分野が空の状態から射影すると、snapshotの地震の分野がfullのまま。判別するのは地震だけ: 要約に落ちるのは64 KiBを越える分野だけで、津波とEEWの分野は65,536 byteを越えないので同席させるだけ（判別に使わない）。地震の分野のbyteが65,536を越えることは試験の中でも前提として確かめる。U-FのviewのbyteがP3-UFP-AC03のV以下で、snapshotのU-Fの分野のbyteはV＋4,096（分野のwrapperと要約の3行の分）以下（配送のcommitでP3-UFP-AC09により統合担当が読み方を追記）。baseで同じ組み立てを走らせると地震がsummaryになることを成果物に貼る（試験はbaseでは落ちる）。U-Wのviewによる超過は本ACの対象外（Q-UFP-UW-VIEW）",
         "evidenceRefs": [
-          "reconstruction/src/view-projector/view-projector.ts:913 «0f29de6d3afeedc3»",
-          "reconstruction/src/view-projector/view-projector.ts:915 «c42a191089542248»",
+          "reconstruction/src/view-projector/view-projector.ts:904 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:906 «c42a191089542248»",
           "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»",
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
           "reconstruction/contracts/p2-snapshot-sse.json:351 «3ab506b00c209b63»"
@@ -441,7 +441,7 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:157 «847ff8144f4d8bac»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:262 «f058e3a180f89e0c»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:592 «a486380631b6e9d0»",
-          "reconstruction/src/view-projector/view-projector.ts:770 «25d8f1daebd55d26»",
+          "reconstruction/src/view-projector/view-projector.ts:761 «25d8f1daebd55d26»",
           "reconstruction/src/runtime/composition-root.ts:574 «445a2eeb56638c45»",
           "reconstruction/contracts/p2-snapshot-sse.json:87 «5272dd4ae4de33c9»",
           "docs/specs/reconstruction-p0-contracts.md:1233 «22620e62c3946a2e»",

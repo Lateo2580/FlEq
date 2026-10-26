@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0d271ae071a22e14a0a192b9f17320e9b44e3cbb",
-    "sha256": "8c72883e99522072886d9c9c2a80b6384bf3d382d70da151077fc25c345c17d5",
+    "sha256": "83342af0d5eb9f379f666f5678cbe807710e117cbcd8aa1a77dcb9a7de3f21fb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -689,7 +689,7 @@
           "docs/specs/reconstruction-p0-contracts.md:599 «f0c2a2fedd6f32c0»",
           "docs/specs/reconstruction-p0-contracts.md:534 «92491768609ba6ce»",
           "reconstruction/contracts/p2-snapshot-sse.json:67 «a3f1c965a1d09c56»",
-          "reconstruction/src/view-projector/view-projector.ts:103 «850f0318c98a7301»",
+          "reconstruction/src/view-projector/view-projector.ts:102 «850f0318c98a7301»",
           "reconstruction/src/domains/weather-current/weather-current.ts:35 «3a1f6e3168d4afc3»",
           "test/fixtures/15_16_01_241031_VPWW56.xml:308 «2567a3af87a62e16»",
           "src/dmdata/weather-warning-level.ts:107 «ee52073a9225e6a0»"
@@ -740,8 +740,8 @@
         "requirement": "view・outcome・snapshot: LandslideUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-L行、addedScopesのU-Lの空（P3-C10-N2）、snapshotのdomain landslide（P3-C10-SNAPSHOT=A、highestSeverityはWEATHER_SEVERITY、区域はmunicipality）を同じ採用結果から作る。active以外の記録を載せず、unavailable・未保存・再起動の空を「警報なし」に読み替えない。U-Lだけが変わった入力でもsnapshotが出し直される（view-projectorの比較・domainの列・byteの合計にU-Lが入る）。実装後に、I-U-L.capacityMeasurementの同時最大状態（64官署・1,772区域）でdomain landslideのUTF-8 byteとfull/summaryの判定を測って報告し、summaryに落ちたら配送の前に作者へ報告する",
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
-          "reconstruction/src/view-projector/view-projector.ts:91 «ee0a6e3cbb07eb66»",
+          "reconstruction/src/view-projector/view-projector.ts:58 «e28c24c638ff52fe»",
+          "reconstruction/src/view-projector/view-projector.ts:90 «ee0a6e3cbb07eb66»",
           "reconstruction/contracts/p2-snapshot-sse.json:67 «a3f1c965a1d09c56»",
           "reconstruction/src/runtime/composition-root.ts:211 «9ed0037a4a82959a»",
           "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»"

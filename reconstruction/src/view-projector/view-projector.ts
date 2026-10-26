@@ -37,7 +37,6 @@ const DOMAIN_BUDGET = 65_536;
 const COMMON_BUDGET = 65_536;
 const STRING_BYTES = 256;
 const NOTICE_ITEMS = 64;
-const NOTICE_BYTES = 131_072;
 const OFFICE_BYTES = 256;
 // Same marker as A1 boundedString, so a reason already cut upstream reads the same.
 const TRUNCATED_MARKER = "[truncated:fieldLimit]";
@@ -702,17 +701,9 @@ function priority(item: VisibleNotice): number {
 }
 
 function selectNotices(values: readonly VisibleNotice[]): Readonly<{ notices: readonly VisibleNotice[]; excluded: number }> {
-  const sorted = [...values].sort(byExpiry);
-  if (sorted.length <= NOTICE_ITEMS && utf8(sorted) <= NOTICE_BYTES) return { notices: sorted, excluded: 0 };
-  const ranked = [...values].sort((left, right) => priority(left) - priority(right) || byExpiry(left, right));
-  const kept: VisibleNotice[] = [];
-  let size = 2;
-  for (const item of ranked) {
-    const width = utf8(item) + (kept.length === 0 ? 0 : 1);
-    if (kept.length === NOTICE_ITEMS || size + width > NOTICE_BYTES) break;
-    kept.push(item);
-    size += width;
-  }
+  // 件数だけで選ぶ。64 件の最大でも 128,065 byte ≤ 131,072 で byte の上限には届かない（P2-A8-NOTICE.bound）。
+  if (values.length <= NOTICE_ITEMS) return { notices: [...values].sort(byExpiry), excluded: 0 };
+  const kept = [...values].sort((left, right) => priority(left) - priority(right) || byExpiry(left, right)).slice(0, NOTICE_ITEMS);
   return { notices: kept.sort(byExpiry), excluded: values.length - kept.length };
 }
 

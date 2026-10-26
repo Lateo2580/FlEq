@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "523ef23b5d7c52480299916e03e54fa504bc49aae61ef08d387487e4e4baf4e1",
+    "sha256": "032c04a83df11f9ec7a20d52700b3c87de3b5798e6d7c660385d315810e44fe9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -85,7 +85,7 @@
         "invalidate": "TTLより先に意味上の失効を適用する。U-Eの同eventの採用取消または終端はfamilyをまたいで対応noticeを全て除去する。同stepで失効と生成条件が競合したら失効を優先する。新しい取消noticeはP2対象外。U-Wは同targetのunavailableが正常採用/有効な包含確認によって全て解消した時、U-Fは正常採用active/noActiveItems/cancelledで利用不能が解消した時に旧noticeを除去する。scopeの一部しか回復していなければ残す。対象の削除/退去でも回収し、次報が同一family継続中なら別family一件退去だけでevent noticeを消さない。期限/回復による削除はoutcomeが無くてもdisplayChangesから反映する。",
         "ttl": "採用したClockReading.wallTimeMsをnowMsとしU-E=nowMs+15000、U-W/U-F=nowMs+60000。nowMs>=expiresAtで回収する。固定textはeewNew=緊急地震速報を確認、eewWarning=緊急地震速報が警報に変わりました、U-W unavailable=気象警報の現況を確認できません、U-F unavailable=気象時系列情報を確認できません。A3が次expiresAtを既存tickへ予約する(実配線はA8配送後)。",
         "source": "DisplayNoticeSourceはid(hex64)、既知family(6 ASCII)、office、officeTruncated、reportTimeだけ。生のReportRef/inputId/subject/raw時刻はwireに出さない。officeはunitの検証済み官署名を使い、無ければnull。Unicode scalar単位の先頭最長prefixでUTF-8<=256 bytesに切り詰め、除去があればofficeTruncated=true、なければfalse。孤立surrogateはU+FFFDへ正規化してから計量。省略記号を加えない。reportTimeは検証済みepoch msまたはnull(Date範囲)。切詰めは表示専用でidentity/coverageには使わない。",
-        "selection": "期限/意味失効/置換後、64件か配列JSON 131072 bytesを超える時だけ、normalをtraining/testより先、normal内ではU-Eを他unitより先、その後expiresAt降順→idのASCII辞書順。trainingとtestの間には追加順位を付けない。順序prefixを件数/byteが収まるまで採用、除外件数をsnapshotNoticeCapacityExceededで診断する。容量以下は既存のexpiresAt降順→id順。優先はnoticeだけで分野summary選択へ持ち込まない。",
+        "selection": "期限/意味失効/置換後、64件か配列JSON 131072 bytesを超える時だけ、normalをtraining/testより先、normal内ではU-Eを他unitより先、その後expiresAt降順→idのASCII辞書順。trainingとtestの間には追加順位を付けない。順序prefixを件数/byteが収まるまで採用、除外件数をsnapshotNoticeCapacityExceededで診断する。容量以下は既存のexpiresAt降順→id順。優先はnoticeだけで分野summary選択へ持ち込まない。（2026-10-26 P2 の削減監査: byte の枠は bound により件数の枠 64 で常に満たされるので、実装は件数だけで選ぶ。bound に効く上限〔office・text・日時〕を変える契約は bound を検算し直す）",
         "bound": "最大noticeは2000 UTF-8 JSON bytes。導出: 値が空のtext/officeを除く全fieldの最大ASCII骨格416 + 固定text最大48 + office最大256*6=1536 =2000。骨格はid/targetId/source.id各64、family6、unit3、kind11、operation8、両日時17文字、booleanは長いfalseを含む。最長text/最長kind/最長officeの同時成立を仮定した保守上界。64件配列は2+64*2000+63=128065<=131072。したがって合法noticeのbyte枠は件数枠64で常に満たせる。多byte原文/長いsubjectはhash/切詰め後の上界を増やさない。",
         "clock": "nowMsと新規生成するexpiresAt=nowMs+TTLはNumber.isIntegerかつ-8640000000000000以上8640000000000000以下を必須とする。nowMsを先に検査し、TTL加算後も同じ範囲を検査する。小数/NaN/Infinity/範囲外、または加算後の範囲超過は公開をreason=snapshotClockInvalidでrejectedとする。丸め/clamp/現在時計の読み直しはしない。このreasonはSnapshotProjectionResultの拒否理由だけで、共有DiagnosticReasonへ任意値を追加せず時計拒否自体のdiagnosticsは[]。内部の意味delta/件数/意味上のnotice失効は採用する。nowMs自体が不正なら時間による回収と新規notice生成を行わず既存有効形式のnoticeを引き継ぐ。nowMsが正しく期限加算だけ不正なら既存noticeの期限回収は行い、範囲超過となる新規noticeだけ生成しない。生成不能なnoticeを後の時計で作り直してTTLを延ばさず、時計不正を正常公開に見せない。その他の正しく生成済みnoticeは公開拒否でもP2-A8-PUBLICATIONどおり保持する。"
       },

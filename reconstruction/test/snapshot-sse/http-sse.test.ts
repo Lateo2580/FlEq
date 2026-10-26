@@ -243,17 +243,6 @@ describe("P2-A8-T05 / AC07 and P2-A8-T06 / AC13 on the HTTP side", () => {
     expect(markers).toEqual([{ point: "T4", clock: "node", monotonicMs: expect.any(Number),
       version: { streamId: "stream", semanticRevision: result.snapshot.semanticRevision, sequence: 2 } }]);
   });
-
-  it("P2-A8-T06 / AC13: a publish serializes the snapshot once, whatever the number of clients", async () => {
-    const server = await serve();
-    const clients = await Promise.all(Array.from({ length: 3 }, () => open(server.port)));
-    const snapshot = large(1);
-    const stringify = vi.spyOn(JSON, "stringify");
-    server.publish(snapshot);
-    expect(stringify.mock.calls.filter(([value]) => value === snapshot)).toHaveLength(1);
-    stringify.mockRestore();
-    await until(() => clients.every((client) => client.frames.length === 1));
-  });
 });
 
 describe("P2-A8-T08 contractBoundary (AC15)", () => {
@@ -297,7 +286,7 @@ describe("P2-A8-T08 contractBoundary (AC15)", () => {
     expect((await raw(plain.port, "/chrome-eew/app-1.js")).status).toBe(404);
   });
 
-  it("P2-A8-T08: onSerialize reports the single publish serialization without a second JSON.stringify", async () => {
+  it("P2-A8-T06 / AC13 + P2-A8-T08: a publish to several clients serializes once and onSerialize reports it without a second JSON.stringify", async () => {
     const observed: unknown[] = [];
     const server = await startDisplayServer({ host: "127.0.0.1", port: 0, worker: healthy,
       onSerialize: (observation) => observed.push(observation) });
