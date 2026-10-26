@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3bf28220324183175ffc82e04420a6ccef24ef6e",
-    "sha256": "cda5cf0e1811d2c9a90f8e1c49df68355cf8e676f0f9599ed8aac9d83d35b807",
+    "sha256": "3caa3d64f19554edc5f5baa2aecb287a6eb0949be096674a5217b114130cafca",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -44,6 +44,14 @@
         "status": "closed",
         "resolution": "P3-UNIT-N-MEASURE-002 の outOfScope が未確認として送った「ほかの host 試験の続報も held かもしれない」の答え: host-held の調べで、landslide・flood・briefing・typhoon の host 試験の続報はすべて adopt（held・duplicate 0）。seismic は区間の VXSE53 の続報 4 件が held で、P3-SEISMIC-PLACE-001 の実装で直す。nankai は P3-UNIT-N-MEASURE-002 で直す。残る volcano・tsunami・local-bulletins を本契約で直す。tsunami の maxVtse41・maxVtse51 と local の longest の試験（区間ごとに EventID か報の時刻と Control/DateTime を fixture の retime で替える）は adopt で、範囲に入れない",
         "source": "host-held の調べの batch.status と各 *.log（stepVersion の判定）"
+      },
+      {
+        "id": "Q-HF-AUTHOR",
+        "status": "closed",
+        "source": "作者承認（2026-10-26 夜、ご主人。試験だけの話で画面と音は変わらないと伝えて「4 件とも承認」）",
+        "closed": "残存リスク (1)〜(4) を承認",
+        "remaining": "なし",
+        "reason": "残存リスクの作者承認を記録する"
       }
     ],
     "operationContract": {
@@ -333,7 +341,7 @@
       "規模の見積もり（起草の写しから）: 試験 4 file、+33 行・−15 行の見込み（起草の写しの .draft/probe.diff、出発点にしてよい）。0.2 人日（実走の待ちを除く）。実績と差があれば理由を書く。",
       "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
       "配送で統合担当が当てる原文の改訂: (1) p3-volcano-unit.json:390 の Q-C9-IMPL-AMEND (10) の値（全国の VFVO51 の最大の待ち 8.16 ms、encode 2.20 ms、まとめ出し 9.91 ms、一括の期限回収 4.06 ms）に、却下の経路の値だったこと（区間 (1) は最初の 1 件の後 duplicate、区間 (2)(3) は held、区間 (4) は 2 回目以降 192/576 の回収）と本契約の値を並べ、P3-UNIT-N-MEASURE-002 の配送（fdaf4589）が同じ (10) の末尾に足した【…P3-HOST-FOLLOWUP で確かめる】の印を、この答え（却下の経路の値だった、本契約の値）に置き換える。AC13 の文（:1136、:1135 は id の行）と、「reevaluate は各 unit の checkpointGrant をまとめて post する」と前提を言い切る :362 の「同時dirtyの権のまとめ出し」に、区間 (3) の 2 つの権は grantGapMs 約 11 ms 離れて出た（同じ reevaluate でまとめて出ない）と書く (2) p3-local-bulletins-unit.json:449 の残存リスク (21) の「1,152記録の一括の期限でも最大4.26 ms」と :514 の (4) の「EEWの待ちは最大4.26 ms、一括の期限回収は7.4 ms」に、2 回目以降は 256 記録の回収だったことと本契約の値を並べる (3) p3-tsunami-unit.json は AC13 の値を本文に持たない（起草時に grep で 0 件）。C5 の配送の記録（作業ノート）の maxCheckpointEncode の値に、続報が duplicate で EEW が encode を待たない経路の値（eewT0ToT2 最大 0.12 ms 程度）だったと注を足す (4) p3-unit-n-measure-2.json の outOfScope の「ほかの host 試験の続報…未確認」と原文の改訂 (3) のやりたいことリストの項に、Q-HF-SCOPE の答え（landslide・flood・briefing・typhoon は adopt、volcano・tsunami・local は本契約、seismic は P3-SEISMIC-PLACE-001）を足し、やりたいことリストの項を完了へ送る (5) やりたいことリストと構造的欠陥台帳の「権がまとめて出ない」（P3-UNIT-N-MEASURE-002 の残存リスク (1)）に volcano の区間 (3) も同じ形だったと足す。構造的欠陥台帳 §102（host 試験の続報が Control/DateTime を進めず held になる）に、volcano・tsunami・local-bulletins は本契約で解消と記す (6) p3-local-bulletins-unit.json:427 の「(25) として挙がった一括の期限の件数の注記は、直しで 1,152 記録をそろえて測れたので消えた」に、そろえて測れたのは各回の 1 回目だけで、2 回目以降は 256 記録だった（本契約で 1,152 記録になった）と注を足す (7) 本契約が引く 3 file の anchor を付け直し、本契約の sha256 を作り直す",
-      "残存リスク（作者承認の前、起草案）: (1) volcano の区間 (3) でも U-Q と U-V の権がまとめて出ない（起草の写しで grantGapMs 約 11 ms）。C9 の AC13 が置く「まとめ出し」の前提は測った形で成り立たない。2 つの権の間で urgent は空くので、EEW の待ちの上限は encode 1 回分で、EEW は区間 (3) で U-Q の encode の後ろに最大約 8 ms 待ちうる（U-Q の encode 最大 7.86 ms、測った injectToT2 は最大 2.27 ms。P3-UNIT-N-MEASURE-002 の残存リスク (1) の「最大約 9 ms」と同じ読み方。約 40 ms より小さい）。直しと診断は範囲の外で、P3-UNIT-N-MEASURE-002 の残存リスク (1) の送り先へ足す (2) 続報の Control/DateTime は host の時計より先になる。volcano の区間 (3) の later は 17 時台（host の時計の 16:40 起点より最大約 40 分先）、tsunami は 2099 年（報の時刻もすでに 2099 年）。今の受理は未来の送信時刻を断らないので採られるが、後の契約で未来の時刻を断るようになると、この試験の続報は断られる。その時は AC03 の止める形で気づける (3) volcano の区間 (4) の定時の降灰（VFVO53）は AC03 で数えない。例: 後の直しで定時の続報の Control/DateTime がまた進まなくなると、区間 (4) の 2 回目（due の約 30 s 前に 576 件を送る）で定時 128 件が duplicate になり、期限の回収は 448 記録になるが、測定は止まらずに通る（2026-10-26 の起草の写しでは 3 回とも 128/128 adopt）。数えられるようになるのは、定時を保存する系列に替えるか（volcano-unit.ts の finish、I-U-V.persisted）、採用の数え方を世代の帰属でなく判定にするとき (4) 直した後の値は前の値から変わる: tsunami の maxCheckpointEncode の EEW の待ちは最大 0.12 → 6.12 ms、volcano の区間 (4) の 2 回目以降の回収は約 2 → 約 5〜6 ms、local の bulk の 2 回目以降は約 0.5〜0.6 → 約 4〜5 ms（起草の写しの runs を絞った値）。答え（約 40 ms より十分小さい）は変わらない見込みで、AC02 の正式の値で確かめる。画面と音は変わらない（試験だけの直し）"
+      "残存リスク（(1)〜(4) は 2026-10-26 作者承認済み、Q-HF-AUTHOR）: (1) volcano の区間 (3) でも U-Q と U-V の権がまとめて出ない（起草の写しで grantGapMs 約 11 ms）。C9 の AC13 が置く「まとめ出し」の前提は測った形で成り立たない。2 つの権の間で urgent は空くので、EEW の待ちの上限は encode 1 回分で、EEW は区間 (3) で U-Q の encode の後ろに最大約 8 ms 待ちうる（U-Q の encode 最大 7.86 ms、測った injectToT2 は最大 2.27 ms。P3-UNIT-N-MEASURE-002 の残存リスク (1) の「最大約 9 ms」と同じ読み方。約 40 ms より小さい）。直しと診断は範囲の外で、P3-UNIT-N-MEASURE-002 の残存リスク (1) の送り先へ足す (2) 続報の Control/DateTime は host の時計より先になる。volcano の区間 (3) の later は 17 時台（host の時計の 16:40 起点より最大約 40 分先）、tsunami は 2099 年（報の時刻もすでに 2099 年）。今の受理は未来の送信時刻を断らないので採られるが、後の契約で未来の時刻を断るようになると、この試験の続報は断られる。その時は AC03 の止める形で気づける (3) volcano の区間 (4) の定時の降灰（VFVO53）は AC03 で数えない。例: 後の直しで定時の続報の Control/DateTime がまた進まなくなると、区間 (4) の 2 回目（due の約 30 s 前に 576 件を送る）で定時 128 件が duplicate になり、期限の回収は 448 記録になるが、測定は止まらずに通る（2026-10-26 の起草の写しでは 3 回とも 128/128 adopt）。数えられるようになるのは、定時を保存する系列に替えるか（volcano-unit.ts の finish、I-U-V.persisted）、採用の数え方を世代の帰属でなく判定にするとき (4) 直した後の値は前の値から変わる: tsunami の maxCheckpointEncode の EEW の待ちは最大 0.12 → 6.12 ms、volcano の区間 (4) の 2 回目以降の回収は約 2 → 約 5〜6 ms、local の bulk の 2 回目以降は約 0.5〜0.6 → 約 4〜5 ms（起草の写しの runs を絞った値）。答え（約 40 ms より十分小さい）は変わらない見込みで、AC02 の正式の値で確かめる。画面と音は変わらない（試験だけの直し）"
     ],
     "unresolvedQuestions": []
   }
