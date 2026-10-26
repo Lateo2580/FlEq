@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f549505b92bc7371bbe242ced013bd203ffe0d17",
-    "sha256": "73bf4b1318c2d28a1864b8861fc05a6f85d1fcdb3261e7b66d1b07a13b60b0be",
+    "sha256": "825ef285df011c2469924ed23721e38b900f128932e0e270d9ee84d8dfce7902",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -43,7 +43,7 @@
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-26 夕、HEAD 26513981、前例は Q-NM-PRECHECK）",
         "closed": "(1) 分岐 P3-NM2-D-DELAY は統合担当の決め A で確定、起草案の字句は残存リスクの見出しの承認前の印だけで、承認で外した (2) check-contract exit 0（main の上に rebase して確かめた） (3) allowedPaths の nankai-host.test.ts は P3-UNIT-N-MEASURE-001 の配送 f549505b の後に変わっておらず、同じ file を触る起草中・実装中の契約は無い（P3-SEISMIC-PLACE-001 の実装は seismic の試験、K14 発注 2 は nankai-host.test.ts を範囲に持たない） (4) src は outOfScope",
-        "remaining": "なし（baseOid は Q-NM2-BASE で割り当てる）",
+        "remaining": "なし（baseOid は 5bad2856 に割り当てた）",
         "reason": "発注前点検を記録する"
       }
     ],
@@ -56,7 +56,7 @@
     "contractId": "P3-UNIT-N-MEASURE-002",
     "mode": "implementation",
     "objective": "nankai-host.test.ts の続報が held で採られていなかった不整合を直す（Q-NM2-SOURCE）。続報と setup の VYSE51 の 2〜3 周目、区間 (3) の VXSE53 の later で、Control/DateTime も報の時刻へ進め、続報を採用の経路に乗せる。区間 (1) maxVyse60 を採用の経路の値にし、区間 (2)(3) の権を続報から起こして約 60.7 s の崖を試験の経路から外し、区間 (3) を通す（P3-UNIT-N-MEASURE-001 の残存リスク (2)）。試験だけの直しで、src は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "5bad28569592b868004eabcda4ea827eee269ed6",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -252,18 +252,6 @@
       "配送で統合担当が当てる原文の改訂: (1) P3-UNIT-N-MEASURE-001 の残存リスク (2)（約 60.7 s の崖と区間 (3) の止まり）に【P3-UNIT-N-MEASURE-002 で解消】と原因（続報の held と、pending の TTL 60 s の一斉の失効）を足す。同契約の Q-NM-SOURCE の「続報が世代を上げない理由は診断していない」に原因を足す。同契約の Q-NM-IMPL の数字（区間 (2) の待ちと busyMs）に本契約の値を並べる（残存リスク (4)） (2) K13（p3-unit-n-series.json）の P3-NS-AC09 の文の「VYSE60 の続報が U-N の世代を上げない」に原因（Control/DateTime が同じで held）を足し、区間 (1) maxVyse60 の値はこれまで却下の経路の値だったと書く。C9（p3-volcano-unit.json）の :64・:362・:1136 が比べる値として引く「C8 の AC11 の最大 8.74 ms」に、held の経路の試験（続報が採られていない）で測った値だと注を足す。C8（p3-nankai-unit.json）の :268・:803 の「reevaluate が U-Q・U-N の権をまとめて post する」前提に、本契約の区間 (3) では 2 つの権が grantGapMs 約 9 ms 離れて出た（Q-NM2-PROBE）と書く (3) やりたいことリストの「区間 (3) の止まり」と「VYSE60 の続報が世代を上げない」の 2 件を完了へ送る。やりたいことリストと構造的欠陥台帳（統合担当が書く）へ残存リスク (1)（権がまとめて出ない、C8・C9 の両方の前提）を送る。やりたいことリストへ「ほかの host 試験（volcano・landslide・flood）の続報も Control/DateTime が同じで held かもしれない、C9 の AC13 の値も却下の経路の値かもしれない」を送る (4) 両契約が引く nankai-host.test.ts の anchor を付け直し、改訂した契約の sha256 を作り直す",
       "残存リスク（(1)〜(4) は 2026-10-26 作者承認済み、Q-NM2-AUTHOR）: (1) 区間 (3) で U-Q と U-N の権がまとめて出ない（grantGapMs が U-Q の encode の長さに近い、Q-NM2-PROBE）。C8（P3-C8-AC11、p3-nankai-unit.json の :268・:803）と C9（p3-volcano-unit.json の AC13 の「まとめ出し」）の両方が置く「まとめ出し」の前提は測った形では成り立たず、EEW は区間 (3) で U-Q の encode の後ろに最大約 9 ms 待つ（約 40 ms より小さい）。直しと診断は範囲の外で、やりたいことリストと構造的欠陥台帳（統合担当が書く）へ送る (2) 続報の Control/DateTime は host の時計より最大約 10 分先（区間 (3) の start＋600 s〜）になる。今の受理は未来の送信時刻を断らないので採られるが、後の契約で未来の時刻を断るようになると、この試験の続報は断られる (3) P3-NM2-D-DELAY=A では pending は試験の間配送されずに残る。longest の試験は約 2.1 s で終わるので 60 s の TTL の失効に届かないが、runs を大きくして 60 s を越えると pending が失効して区間 (2)(3) の encode の状態が小さくなる（権は続報から出るので止まりはしない見込み、未確認） (4) 区間 (2) の AC09 の数字は変わる（EEW の待ち max 0.31〜0.38 ms → 0.96〜1.10 ms、上限 busyMs max 1.42〜1.60 ms → 1.12〜1.35 ms）。答え（約 40 ms より十分小さい）は変わらない。P3-UNIT-N-MEASURE-001 の Q-NM-IMPL と K13 の P3-NS-AC09 の数字に、本契約の値を並べる（原文の改訂の (1)(2)）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-NM2-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "P3-NM2-D-DELAY の決めの後、発注前点検で",
-        "requiredEvidence": [
-          "baseOid の割当と、その base で本契約の evidence の anchor が合うこと（check-contract exit 0）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
