@@ -21,7 +21,9 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
-import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
+import {
+  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, UNREAD_TEXT, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll, unreadableMarkBytes,
+} from "../unreadable";
 
 // P3-UNIT-L-001（C10、I-U-L）: U-L の官署の current・通知・容量・codec・射影。
 
@@ -139,6 +141,13 @@ function changed(before: LandslideCurrent | null, after: LandslideCurrent): stri
     : Object.getOwnPropertyDescriptor(value, field)?.value ?? null;
   return FIELDS.filter((field) => !isDeepStrictEqual(read(before, field), read(after, field)));
 }
+// P3-UM-AC04 (3): 種別の名前の読めない版の前後は、通知を作るかの判定だけ kinds の要素の name を除いて比べる（Q-UM-PRECHECK-2 (8)(d)）。
+const markOf = (value: LandslideCurrent | null) => value?.effective === "active" ? value.unreadable : undefined;
+function noticeChanged(before: LandslideCurrent | null, after: LandslideCurrent, fields: readonly string[]): boolean {
+  if (!hasPart(markOf(before), "kindName") && !hasPart(markOf(after), "kindName")) return fields.length !== 0;
+  const kinds = (value: LandslideCurrent | null) => value?.effective === "active" ? value.kinds.map(({ name: _name, ...rest }) => rest) : null;
+  return fields.some((field) => field !== "kinds") || !isDeepStrictEqual(kinds(before), kinds(after));
+}
 function currentOf(candidate: LandslideCandidate, existing: LandslideCurrent | null, now: number): LandslideCurrent {
   const base = { subject: candidate.subject, operation: candidate.operation, office: candidate.office, source: candidate.source };
   const inactive = (effective: "ended" | "cancelled"): LandslideCurrent =>
@@ -181,7 +190,9 @@ function payloadOf(candidate: LandslideCandidate, after: LandslideCurrent, level
     return { domain: "weather", level: "cancel", title: cut(prefix + text.title, NOTICE_BOUNDS.title), body: cut(text.body, NOTICE_BOUNDS.body) };
   }
   const correction = candidate.infoRank === 2;
-  const groups = visible(after) ? after.kinds.map((group) => `${group.name} ${group.areas.length}地域`) : [];
+  // P3-UM-AC07: 読めなかった種別の名前（空）は「（読めず）」。記録の値は空のまま。
+  const groups = visible(after) ? after.kinds.map((group) => `${group.name === "" && hasPart(after.unreadable, "kindName") ? UNREAD_TEXT : group.name} `
+    + `${group.areas.length}地域`) : [];
   const body = groups.length === 0 ? candidate.headline ?? candidate.title : [...groups, ...candidate.headline == null ? [] : [candidate.headline]].join(" / ");
   return { domain: "weather", level, title: cut(prefix + (correction ? `[訂正] ${candidate.title}` : candidate.title), NOTICE_BOUNDS.title),
     body: cut(correction ? `訂正: ${body}` : body, NOTICE_BOUNDS.body) };
@@ -312,7 +323,8 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   // 期限で回収される報・記憶だけの取消・endedの記録への解除では作らない。
   const correction = candidate.infoRank === 2;
   // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
-  const notify = !due && (candidate.cancelled ? visible(existing) || heard(existing?.notice) : correction || (visible(next) ? !visible(existing) || fields.length !== 0
+  const notify = !due && (candidate.cancelled ? visible(existing) || heard(existing?.notice) : correction || (visible(next) ? !visible(existing)
+    || noticeChanged(existing, next, fields)
     : visible(existing) || candidate.released && (existing == null || existing.effective === "cancelled")));
   const transition = candidate.cancelled ? "cancelled" as const : correction ? "updated" as const
     : visible(next) ? visible(existing) ? "updated" as const : "activated" as const : "released" as const;
@@ -334,12 +346,7 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   const stripped: Change[] = [];
   if (fit != null) {
     const own = next;
-    currents = currents.map((item) => {
-      const after = stripRaw(item, fit);
-      if (item === own) next = after;
-      else if (after !== item) stripped.push([item, after]);
-      return after;
-    });
+    currents = stripAll(currents, fit, (item, after) => { if (item === own) next = after; else stripped.push([item, after]); });
   }
   const adopted: LandslideUnitState = { ...state, currents, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
@@ -565,7 +572,6 @@ function kindsRecord(value: unknown): LandslideKindGroup[] | null {
   return groups;
 }
 const FACT_KEYS = ["title", "kinds", "truncated", "expiryPending", "unreadable"];
-// P3-UM-AC01 (2): 印の site の表（LandslideUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "kindName"] satisfies readonly LandslideUnreadableSite[]);
 function currentRecord(value: unknown): LandslideCurrent | null {
   const row = record(value);
@@ -624,7 +630,6 @@ function persisted(value: unknown): PersistedLandslideUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedLandslideUnit = { schemaVersion: SCHEMA, currents, intents };
-  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(currents) > RAW_BUDGET) return null;
   return result;

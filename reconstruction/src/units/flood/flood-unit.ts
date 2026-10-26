@@ -22,11 +22,14 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
-import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, inheritMark, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
+import {
+  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, UNREAD_TEXT, droppedIn, fitRawBudget, inheritMark, hasPart, rawTotal, readUnreadableMark, stripAll,
+  unreadableMarkBytes,
+} from "../unreadable";
 
 // P3-UNIT-R-001（C11、I-U-R）: U-R の EventID の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-flood-unit-v7" as const;
+const SCHEMA = "p3-flood-unit-v8" as const;
 // P3-C11-CAPACITY=A・P3-C11-RES-01（P3-C11-BOUNDS=B）・RET-01〜04。
 const CURRENT_LIMIT = 512;
 // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器は 16 MiB に、全記録が読み戻しの上限いっぱいの未確認の印を持つ最悪の場合の分を足す（印の無い上界は
@@ -162,12 +165,16 @@ function currentOf(candidate: FloodCandidate, existing: FloodCurrent | null): Fl
   if (candidate.kinds.length === 0 && visible(existing))
     return { ...base, effective: "active", title: existing.title, areaName: existing.areaName, kinds: existing.kinds, times: existing.times,
       stations: existing.stations, basisReportDateTimeRaw: existing.basisReportDateTimeRaw ?? existing.source.reportDateTimeRaw,
-      truncated: existing.truncated, ...keptMark(existing.unreadable, candidate.unreadable) };
+      truncated: existing.truncated, ...keptMark(existing.unreadable, candidate.unreadable),
+      ...existing.observedCompare == null ? {} : { observedCompare: existing.observedCompare } };
   // P3-C11-ACTIVE-LEVEL=A: level が 0 でない group（表に無い code を含む）が 1 つでもあれば active、全部 0 なら ended。
   if (candidate.kinds.length !== 0 && candidate.kinds.every((group) => group.level === 0)) return { ...base, effective: "ended" };
+  // P3-UM-AC05 (1): 現況の観測レベルの最大を確定できない版は、比べの観測の最大を前の記録の値以上に保つ。
+  const observed = candidate.stations.reduce((max, station) => Math.max(max, station.levels[0] ?? -1), -1);
   return { ...base, effective: "active", title: candidate.title, areaName: candidate.areaName, kinds: candidate.kinds, times: candidate.times,
     stations: candidate.stations, basisReportDateTimeRaw: null, truncated: candidate.truncated,
-    ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
+    ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable },
+    ...candidate.observedUnknown ? { observedCompare: Math.max(observed, visible(existing) ? compareMax(existing) : -1) } : {} };
 }
 
 // ---- 通知（questionResolutions[Q-NOTICE]） ----
@@ -189,6 +196,8 @@ function riverLevels(value: Active): Map<string, FloodKindGroup["level"]> {
   return levels;
 }
 const observedMax = (value: Active): number => value.stations.reduce((max, station) => Math.max(max, station.levels[0] ?? -1), -1);
+// 上昇の比べの相手（AC05 (2)）。
+const compareMax = (value: Active): number => value.observedCompare ?? observedMax(value);
 // 採用前の記録と比べた機会と段階（P3-C11-NOTICE-LEVELS=E）。changed は河川の段階が変わったか観測の最大が 2 以上へ上がったか。
 function noticeOf(before: FloodCurrent | null, after: Active): Readonly<{ changed: boolean; level: Level }> {
   if (after.kinds.length === 0) return visible(before) ? { changed: false, level: "normal" } : { changed: true, level: "warning" };
@@ -202,7 +211,7 @@ function noticeOf(before: FloodCurrent | null, after: Active): Readonly<{ change
     if (value !== 0 && (old === undefined ? -Infinity : rankOf(old)) < rankOf(value)) level = louder(level, SOUND.get(value) ?? "warning");
   }
   const observed = observedMax(after);
-  if (observed >= 2 && observed > (visible(before) ? observedMax(before) : -1)) level = louder(level, SOUND.get(observed) ?? null);
+  if (observed >= 2 && observed > (visible(before) ? compareMax(before) : -1)) level = louder(level, SOUND.get(observed) ?? null);
   return { changed: rivers || level != null, level: level ?? "normal" };
 }
 // 題は operationPrefix＋訂正・取消の前置き＋Head/Title。本文は Headline、無ければ group ごとの河川名、それも無ければ題。
@@ -214,8 +223,10 @@ function payloadOf(candidate: FloodCandidate, after: FloodCurrent, level: Level,
     return { domain: "weather", level: "cancel", title: cut(prefix + text.title, NOTICE_BOUNDS.title), body: cut(text.body, NOTICE_BOUNDS.body) };
   }
   const correction = candidate.infoRank === 2;
-  const groups = visible(after) ? after.kinds.map((group) => [group.name, group.rivers.map((river) => river.name).join("・")]
-    .filter((part) => part !== "").join(" ")).join(" / ") : "";
+  // P3-UM-AC07: 読めなかった種別名・河川名（空）は「（読めず）」。記録の値は空のまま。
+  const named = (value: string, site: "kindName" | "riverName") => value === "" && visible(after) && hasPart(after.unreadable, site) ? UNREAD_TEXT : value;
+  const groups = visible(after) ? after.kinds.map((group) => [named(group.name, "kindName"), group.rivers.map((river) => named(river.name, "riverName"))
+    .join("・")].filter((part) => part !== "").join(" ")).join(" / ") : "";
   const body = candidate.headline ?? (groups !== "" ? groups : candidate.title);
   return { domain: "weather", level, title: cut(prefix + (correction ? `[訂正] ${candidate.title}` : candidate.title), NOTICE_BOUNDS.title),
     body: cut(correction ? `訂正: ${body}` : body, NOTICE_BOUNDS.body) };
@@ -367,12 +378,7 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
   const stripped: Change[] = [];
   if (fit != null) {
     const own = next;
-    currents = currents.map((item) => {
-      const after = stripRaw(item, fit);
-      if (item === own) next = after;
-      else if (after !== item) stripped.push([item, after]);
-      return after;
-    });
+    currents = stripAll(currents, fit, (item, after) => { if (item === own) next = after; else stripped.push([item, after]); });
   }
   const result: FloodUnitState = { ...state, currents, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
@@ -651,8 +657,8 @@ function stationRecord(value: unknown, points: number, riverCodes: ReadonlySet<s
   return { code: row.code, name: row.name, riverCodes: links, measurement: row.measurement, criteria, values: values.map((item) => item.value),
     levels: levels.map((item) => item.level) };
 }
-const FACT_KEYS = ["title", "areaName", "kinds", "times", "stations", "basisReportDateTimeRaw", "truncated", "expiryPending", "unreadable"];
-// P3-UM-AC01 (2): 印の site の表（FloodUnreadableSite）。
+const FACT_KEYS = ["title", "areaName", "kinds", "times", "stations", "basisReportDateTimeRaw", "truncated", "expiryPending", "unreadable",
+  "observedCompare"];
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "areaName", "kindName", "riverName", "series", "station"] satisfies readonly FloodUnreadableSite[]);
 function currentRecord(value: unknown): FloodCurrent | null {
   const row = record(value);
@@ -677,7 +683,9 @@ function currentRecord(value: unknown): FloodCurrent | null {
   if (typeof row.truncated !== "boolean" || !bounded(row.title, BOUNDS.title) || loneSurrogate(row.title)
     || !bounded(row.areaName, BOUNDS.areaName) || row.areaName !== "" && !validName(row.areaName)
     || row.basisReportDateTimeRaw !== null && !(isText(row.basisReportDateTimeRaw) && validReportDateTime(row.basisReportDateTimeRaw))
-    || "expiryPending" in row && row.expiryPending !== true) return null;
+    || "expiryPending" in row && row.expiryPending !== true
+    // P3-UM-AC05 (3)・Q-UM-PRECHECK-2 (8)(e): 比べの観測の最大は -1〜5 の整数。
+    || "observedCompare" in row && !(Number.isInteger(row.observedCompare) && Number(row.observedCompare) >= -1 && Number(row.observedCompare) <= 5)) return null;
   const unreadable = "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES) : undefined;
   if (unreadable === null) return null;
   const kinds = kindsRecord(row.kinds, row.truncated);
@@ -688,7 +696,7 @@ function currentRecord(value: unknown): FloodCurrent | null {
   if (stations == null || new Set(stations.map((item) => `${item.code}\n${item.name}`)).size !== stations.length) return null;
   return { ...base, effective: "active", title: row.title, areaName: row.areaName, kinds, times, stations,
     basisReportDateTimeRaw: row.basisReportDateTimeRaw, truncated: row.truncated, ...row.expiryPending === true ? { expiryPending: true } : {},
-    ...unreadable == null ? {} : { unreadable } };
+    ...unreadable == null ? {} : { unreadable }, ...typeof row.observedCompare === "number" ? { observedCompare: row.observedCompare } : {} };
 }
 const LEVEL_SET: readonly Level[] = ["info", "normal", "warning", "critical", "cancel"];
 function intentRecord(value: unknown): FloodIntent | null {
@@ -719,7 +727,6 @@ function persisted(value: unknown): PersistedFloodUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedFloodUnit = { schemaVersion: SCHEMA, currents, intents };
-  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(currents) > RAW_BUDGET) return null;
   return result;
@@ -728,7 +735,7 @@ function persisted(value: unknown): PersistedFloodUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const floodUnitCodec: FloodUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2", "p3-flood-unit-v3", "p3-flood-unit-v4", "p3-flood-unit-v5", "p3-flood-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-flood-unit-v1", "p3-flood-unit-v2", "p3-flood-unit-v3", "p3-flood-unit-v4", "p3-flood-unit-v5", "p3-flood-unit-v6", "p3-flood-unit-v7"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-R.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {

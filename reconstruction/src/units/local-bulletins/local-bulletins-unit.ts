@@ -27,7 +27,8 @@ import {
   restoreStarted, shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import {
-  LOCAL_BULLETINS_CARDS_MAX_BYTES, RAW_BUDGET, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes,
+  LOCAL_BULLETINS_CARDS_MAX_BYTES, RAW_BUDGET, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll,
+  UNREAD_TEXT, unreadableMarkBytes,
 } from "../unreadable";
 
 // P3-UNIT-M-001（C13、I-U-M）: 三つの slice（tornado・heat・transient）の current・版・遅着・退去・通知・容量・codec・射影。
@@ -175,9 +176,25 @@ function samePair(candidate: LocalBulletinsCandidate, source: ReportRef): boolea
 
 // 公開事実（Q-NOTICE.generationTable: title・headline・sighted・areas・activeUntil／targetDate・areaName／tags。重複の判定と見える記録の変化）。editorialOffice は入れない。
 const FACTS = ["effective", "title", "headline", "sighted", "areas", "activeUntil", "targetDate", "areaName", "tags"] as const;
+const read = (record: Rec | null, field: string): unknown => record == null ? null : Object.getOwnPropertyDescriptor(record, field)?.value ?? null;
 function changed(before: Rec | null, value: Rec | null): string[] {
-  const read = (record: Rec | null, field: string): unknown => record == null ? null : Object.getOwnPropertyDescriptor(record, field)?.value ?? null;
   return FACTS.filter((field) => !isDeepStrictEqual(read(before, field), read(value, field)));
+}
+// P3-UM-AC04: 通知を作るかの判定の比べ（ほかの使い道は changed のまま、Q-UM-PRECHECK-2 (8)(d)）。(i) headline（竜巻は sighted を含めて、
+// AC04 (5)）と activeUntil（ValidDateTime） (ii) areas・tags。mark は compare・compareKeys を書いた今の版の印。
+const COMPARED: ReadonlySet<string> = new Set(["headline", "sighted", "activeUntil", "areas", "tags"]);
+const markOf = (value: Rec | null) => value != null && "unreadable" in value ? value.unreadable : undefined;
+const listOf = (value: Rec | null, field: string): readonly unknown[] => {
+  const found = read(value, field);
+  return Array.isArray(found) ? found : [];
+};
+function noticeChange(before: Rec | null, after: Rec): Readonly<{ changed: boolean; mark: UnreadableMark | undefined }> {
+  const headline = (value: Rec | null) => ({ headline: read(value, "headline"), sighted: read(value, "sighted") });
+  const compared = compareColumns(markOf(before), markOf(after), [{ keys: [["headline"]], before: headline(before), after: headline(after) },
+    { keys: [["validDateTime"]], before: read(before, "activeUntil"), after: read(after, "activeUntil") },
+    { list: "area", before: listOf(before, "areas"), after: listOf(after, "areas") }, { list: "tag", before: listOf(before, "tags"), after: listOf(after, "tags") }]);
+  return { changed: compared.changed || FACTS.some((field) => !COMPARED.has(field) && !isDeepStrictEqual(read(before, field), read(after, field))),
+    mark: compared.mark };
 }
 
 // ---- 記録の組み立て（retainUntil は元報の ReportDateTime からの等式。decode も同じ関数で確かめる） ----
@@ -333,8 +350,11 @@ const tornadoLane: Lane<TornadoCurrent, TornadoCandidate> = {
   // H13（P3-EF-AC07 (2)）: 目撃の無い竜巻の採用は普通の音、目撃は警報の音。
   style: (candidate) => ({ domain: "weather", level: candidate.sighted ? "warning" : "normal" }),
   body(candidate, record) {
+    // P3-UM-AC06: 区域が全部読めない報は地域の所に「（読めず）」を添える（地域の数は読めない区域も数えた値、一部だけ読めない報は変えない）。
+    const unread = candidate.areas.length === 0 && hasPart(candidate.unreadable ?? undefined, "area") ? UNREAD_TEXT : "";
     const parts = [...record.effective === "active" && "sighted" in record && record.sighted ? ["目撃情報あり"] : [],
-      ...candidate.noticeAreas > 0 ? [`発表中 ${candidate.noticeAreas}地域`] : [], ...candidate.validMs != null ? [`有効期限 ${hhmm(candidate.validMs)}`] : []];
+      ...candidate.noticeAreas > 0 ? [`発表中 ${candidate.noticeAreas}地域${unread}`] : unread === "" ? [] : [`発表中 ${unread}`],
+      ...candidate.validMs != null ? [`有効期限 ${hhmm(candidate.validMs)}`] : []];
     return parts.join(" / ");
   },
 };
@@ -379,7 +399,10 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   const index = indexOf(values);
   const at = index.subjects.get(subject);
   const existing = at == null ? null : values[at];
-  const built = lane.build(candidate, now, basis);
+  const first = lane.build(candidate, now, basis);
+  // P3-UM-AC04: 通知の判定の比べ。compare・compareKeys は候補の印に書いて記録へ移す。
+  const compared = noticeChange(existing, first.record);
+  const built = compared.mark == null || compared.mark === markOf(first.record) ? first : lane.build({ ...candidate, unreadable: compared.mark }, now, basis);
   const unchanged = (reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = [], kept = state): Result => ({ changes: [],
     step: { ...idle(kept), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
   const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "localBulletins", inputId: candidate.source.inputId, unit: "U-M",
@@ -452,7 +475,7 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
         payload = payloadOf(style.domain, operation, "cancel", candidate.title, "", "cancel", existing.source.reportDateTimeRaw);
     }
     else if (release) { if (was) payload = payloadOf(style.domain, operation, "info", candidate.title, "", "release"); }
-    else if (visible(next) && !built.late && (correction || !was || changed(existing, next).length !== 0))
+    else if (visible(next) && !built.late && (correction || !was || compared.changed))
       payload = payloadOf(style.domain, operation, style.level, next.title, lane.body(candidate, next), correction ? "correction" : "plain");
   }
   const transition = candidate.cancelled ? "cancelled" as const : release ? "released" as const : correction || was ? "updated" as const : "activated" as const;
@@ -475,11 +498,7 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   const stripped: Change[] = [];
   if (fit != null) {
     const own: Rec = next;
-    const strip = <R extends Rec>(values: readonly R[]): readonly R[] => values.map((item) => {
-      const after = stripRaw(item, fit);
-      if (after !== item && item.subject !== own.subject) stripped.push([item, after]);
-      return after;
-    });
+    const strip = <R extends Rec>(values: readonly R[]) => stripAll(values, fit, (item, after) => { if (item.subject !== own.subject) stripped.push([item, after]); });
     result = { ...result, tornado: strip(result.tornado), heat: strip(result.heat), transient: strip(result.transient) };
     const values = lane.read(result);
     next = values[indexOf(values).subjects.get(subject) ?? -1] ?? next;
@@ -757,10 +776,11 @@ function reportRef(value: unknown, subject: string, parts: SubjectParts): Report
     : parts.slice === "heat" ? ref.family === "VPFT50" ? ref.family : null : ref.family === subject.split("/")[1] ? ref.family : null;
   return family == null ? null : ref;
 }
-// P3-UM-AC01 (2): 印の site の表（LocalBulletinsUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "editorialOffice", "headline", "area", "validDateTime", "tag"] satisfies readonly LocalBulletinsUnreadableSite[]);
+// P3-UM-AC04 (2): compareKeys を持てる一覧の欄の site。
+const LIST_SITES: ReadonlySet<string> = new Set(["area", "tag"] satisfies readonly LocalBulletinsUnreadableSite[]);
 function textRecord(row: Fields): Text | null {
-  const unreadable = "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES) : undefined;
+  const unreadable = "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES, LIST_SITES) : undefined;
   return unreadable === null || typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
     // 読めなかった官署は空で受ける（P3-EF-AC13）。竜巻の官署は subject との一致で確かめる。
     || !validHeadline(row.headline) || !bounded(row.editorialOffice, BOUNDS.office) || row.editorialOffice !== "" && !validName(row.editorialOffice) ? null
@@ -877,7 +897,6 @@ function persisted(value: unknown): PersistedLocalBulletinsUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedLocalBulletinsUnit = { schemaVersion: SCHEMA, tornado, heat, transient, intents };
-  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(tornado, heat) > RAW_BUDGET) return null;
   return result;

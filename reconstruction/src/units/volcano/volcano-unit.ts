@@ -22,7 +22,11 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
-import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
+import {
+  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, UNREAD_TEXT, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll,
+  unreadableMarkBytes,
+} from "../unreadable";
+import type { CompareColumn } from "../unreadable";
 
 // P3-UNIT-V-001（C9、I-U-V）: U-V の三 slice・定時・batch・解説・復旧不足・通知・容量・codec・射影。
 
@@ -236,6 +240,45 @@ function changed(before: Shown | null, after: Shown | null, fields: readonly str
 }
 const fieldsOf = (value: Shown): readonly string[] => isAlert(value) ? ALERT_FIELDS : isBulletin(value) ? BULLETIN_FIELDS
   : "topAshName" in value ? SCHEDULED_FIELDS : value.subject.includes("/volcano:eruption/") ? ERUPTION_FIELDS : ASHFALL_FIELDS;
+
+// P3-UM-AC04: 通知を作るかの判定の比べ（ほかの使い道は changed のまま、Q-UM-PRECHECK-2 (8)(d)）。名前の欄は (name, scope) で分ける
+// （(8)(b)）。(i) は ONE、(ii) は LIST、kind・phenomenon は name だけを (name, kind) の欄にして残りは今の比べ。(iii) 区域の種別名
+// （scope「area:」）が前後どちらかの印にあれば、一覧の要素から kindName を除いて鍵を作る。警報は採った側（陸上か海上）の印で比べる。
+const ONE: Readonly<Record<string, Extract<CompareColumn, Readonly<{ keys: unknown }>>["keys"]>> = {
+  volcanoName: [["name", "volcano"]], coordinate: [["coordinate"]], lastKind: [["lastKind"], ["name", "lastKind"]], eventDateTimeRaw: [["eventTime"]] };
+const LIST: Readonly<Record<string, string>> = { municipalities: "対象市町村等", marineAreas: "対象海上予報区", volcanoCodes: "bulletinVolcano" };
+const areaKind = (scope: string | undefined) => scope?.startsWith("area:") === true;
+const sideMark = (value: Shown | null, marine: boolean): UnreadableMark | undefined => value == null || value.effective !== "active" ? undefined
+  : isAlert(value) ? marine ? value.marineUnreadable : value.unreadable : "unreadable" in value ? value.unreadable : undefined;
+const without = (value: unknown, key: string): unknown => value != null && typeof value === "object" && key in value ? { ...value, [key]: null } : value;
+const nameOf = (value: unknown): unknown => value != null && typeof value === "object" && "name" in value ? value.name : null;
+function noticeChange<T extends Shown>(before: T | null, after: T, marine = false): Readonly<{ changed: boolean; after: T }> {
+  const shown = (value: T | null) => value != null && value.effective === "active" && !pending(value) ? value : null;
+  const read = (value: T | null, field: string): unknown => value == null ? null : Object.getOwnPropertyDescriptor(value, field)?.value ?? null;
+  const left = shown(before), right = shown(after);
+  if (left == null && right == null) return { changed: false, after };
+  const was = sideMark(left, marine), now = sideMark(right, marine);
+  const inner = hasPart(was, "name", areaKind) || hasPart(now, "name", areaKind);
+  const items = (value: unknown): readonly unknown[] => !Array.isArray(value) ? [] : inner ? value.map((item) => without(item, "kindName")) : value;
+  const columns: CompareColumn[] = [];
+  let changed = false;
+  for (const field of fieldsOf(after)) {
+    const one = ONE[field], list = LIST[field], l = read(left, field), r = read(right, field);
+    if (one != null) columns.push({ keys: one, before: l, after: r });
+    else if (list != null) columns.push({ list, before: items(l), after: items(r) });
+    else if (field === "kind" || field === "phenomenon") {
+      columns.push({ keys: [["name", "kind"]], before: nameOf(l), after: nameOf(r) });
+      changed ||= !isDeepStrictEqual(without(l, "name"), without(r, "name"));
+    } else changed ||= !isDeepStrictEqual(l, r);
+  }
+  const compared = compareColumns(was, now, columns);
+  const mark = compared.mark;
+  return { changed: changed || compared.changed, after: mark == null || mark === now ? after
+    : isAlert(after) && marine ? { ...after, marineUnreadable: mark } : { ...after, unreadable: mark } };
+}
+// P3-UM-AC07: 通知の本文の読めなかった名前（空）は「（読めず）」（報の印の (name, scope) の part で見分ける）。記録の値は空のまま。
+const named = (value: string | null, mark: UnreadableMark | null, scope: string): string | null =>
+  value === "" && hasPart(mark ?? undefined, "name", (item) => item === scope) ? UNREAD_TEXT : value;
 
 const inactive = (value: VolcanoAlert | null): "ended" | "cancelled" => value?.effective === "cancelled" ? "cancelled" : "ended";
 type AlertVerdict = Readonly<{ kind: "adopt"; next: VolcanoAlert; conflict: boolean; missing: boolean }>
@@ -618,7 +661,7 @@ function liveShortfalls(list: readonly VolcanoShortfall[], candidate: VolcanoCan
 
 // 記録 1 件の採用を Applied へ積む（slice の差し替え・退去・変化・outcome・decision）。self の退去では記録を残さない。
 function place<T extends Shown>(applied: Applied, values: readonly T[], store: (values: readonly T[]) => VolcanoUnitState, before: T | null,
-  after: T, candidate: VolcanoCandidate, now: number, extra: Readonly<Record<string, JsonValue>> = {}): Readonly<{ fields: string[]; kept: boolean }> {
+  after: T, candidate: VolcanoCandidate, now: number, extra: Readonly<Record<string, JsonValue>> = {}): boolean {
   const placed = upsert(values, after, isBulletin(after) ? BULLETIN_LIMIT : SLICE_LIMIT, now, applied.verified);
   if (placed.dropped || placed.self) {
     // 足さなかった記録・自身を退去した記録は accepted に載せず currentEstablished も null（D-VANISHED=A、P3-OPCAP-AC02）。
@@ -626,7 +669,7 @@ function place<T extends Shown>(applied: Applied, values: readonly T[], store: (
     if (placed.self) applied.selfEvicted++;
     applied.decisions.push({ subject: after.subject, operation: candidate.operation, decision: "changed", reason: null, change: "revisionOnly",
       currentEstablished: null });
-    return { fields: [], kept: false };
+    return false;
   }
   const fields = changed(before, after, fieldsOf(after));
   const semantic = fields.length !== 0 || candidate.cancelled && before?.effective === "active";
@@ -637,7 +680,7 @@ function place<T extends Shown>(applied: Applied, values: readonly T[], store: (
   applied.subjects.push(outcomeOf(after, fields, extra));
   applied.semantic ||= semantic || placed.evicted != null;
   decide(applied, candidate, after.subject, { kind: "adopt" }, semantic);
-  return { fields, kept: true };
+  return true;
 }
 
 // ---- 受信（P3-C9-SUBJECTS=A。一入力の変更は一回の参照交換で確定する） ----
@@ -674,9 +717,10 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
   }
   if (verdict.conflict) applied.diagnostics.push(conflictDiagnostic(candidate));
   if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
-  const next = verdict.next;
+  const compared = noticeChange(existing, verdict.next, isMarine(candidate.family));
+  const next = compared.after;
   const facts = candidate.facts;
-  const { fields, kept } = place(applied, applied.state.alerts, (alerts) => ({ ...applied.state, alerts }), existing, next, candidate, now, facts == null ? {}
+  const kept = place(applied, applied.state.alerts, (alerts) => ({ ...applied.state, alerts }), existing, next, candidate, now, facts == null ? {}
     : { volcanoActivity: facts.activity, volcanoPrevention: facts.prevention });
   applied.state = { ...applied.state, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "alert", code) };
   const before = existing?.effective === "active" ? existing : null;
@@ -703,7 +747,7 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
   const inactiveAdoption = before == null && next.effective !== "active" && !activeKind(kind) && (existing == null
     || ["newer", "same"].includes(compareVersion((isMarine(candidate.family) ? existing.source : existing.marineSource) ?? null, candidate.source)));
   const correction = candidate.infoRank === 2;
-  if (!correction && fields.length === 0 && !inactiveAdoption) return applied;
+  if (!correction && !compared.changed && !inactiveAdoption) return applied;
   const releasing = /解除|引下げ/.test(kind.condition ?? "");
   const transition = correction ? "updated" : next.effective === "active" ? before == null ? "activated" : "updated"
     : before != null || releasing ? "released" : "updated";
@@ -711,7 +755,8 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
     : inactiveAdoption ? releasing ? "normal" : "info" : alertLevel(kind, before);
   const name = next.effective === "active" ? next.volcanoName : facts!.volcanoName;
   const lv = /^1[1-5]$/.test(kind.code) ? `Lv${Number(kind.code) - 10}` : null;
-  applied.notice = noticeOf(candidate, subject, transition, level, join([name, lv, kind.name]));
+  applied.notice = noticeOf(candidate, subject, transition, level, join([named(name, candidate.unreadable, "volcano"), lv,
+    named(kind.name, candidate.unreadable, "kind")]));
   return applied;
 }
 // P3-C9-NOTICE-LEVELS=C の VFVO50 の段階。
@@ -733,9 +778,10 @@ function receiveEruption(state: VolcanoUnitState, candidate: Candidate<"eruption
     if (verdict.held != null) hold(applied, candidate, state.eruptions, (eruptions) => ({ ...applied.state, eruptions }), subject, verdict.held);
     return applied;
   }
-  const next = verdict.next;
+  const compared = noticeChange(existing, verdict.next);
+  const next = compared.after;
   if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
-  const { fields, kept } = place(applied, applied.state.eruptions, (eruptions) => ({ ...applied.state, eruptions }), existing, next, candidate, now);
+  const kept = place(applied, applied.state.eruptions, (eruptions) => ({ ...applied.state, eruptions }), existing, next, candidate, now);
   applied.state = { ...applied.state, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "eruption", next.volcanoCode) };
   const before = existing?.effective === "active" && !pending(existing) ? existing : null;
   if (!kept) return applied;
@@ -746,14 +792,14 @@ function receiveEruption(state: VolcanoUnitState, candidate: Candidate<"eruption
     if (cancelled != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
     return applied;
   }
-  if (candidate.infoRank !== 2 && fields.length === 0) return applied;
+  if (candidate.infoRank !== 2 && !compared.changed) return applied;
   const facts = candidate.facts!;
   const plume = facts.plumeAboveCrater;
   const strong = facts.phenomenon.code === "51" || facts.phenomenon.code === "56"
     || (plume.kind === "number" || plume.kind === "range" && plume.bound === "lower") && plume.value >= 3_000;
   const level = candidate.family === "VFVO56" ? "critical" : strong ? "normal" : "info";
   applied.notice = noticeOf(candidate, subject, candidate.infoRank === 2 || before != null ? "updated" : "activated", level,
-    join([facts.volcanoName, facts.phenomenon.name, plumeText(plume)]));
+    join([named(facts.volcanoName, candidate.unreadable, "volcano"), named(facts.phenomenon.name, candidate.unreadable, "kind"), plumeText(plume)]));
   return applied;
 }
 
@@ -771,7 +817,8 @@ function receiveAshfall(state: VolcanoUnitState, candidate: Candidate<"ashfall">
     if (verdict.held != null) hold(applied, candidate, state.ashfalls, (ashfalls) => ({ ...applied.state, ashfalls }), subject, verdict.held);
     return applied;
   }
-  const next = verdict.next;
+  const compared = noticeChange(existing, verdict.next);
+  const next = compared.after;
   if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
   // P3-C9-BATCH=A: 採用した VFVO54/55 の前に、同じ運用区分の待機中の batch を通知無しで flush する（interrupted）。stale・duplicate の
   // 再送では flush しない（古い再送で新しい定時の通知を消さない、Q-C9-IMPL-AMEND(6)）。
@@ -780,7 +827,7 @@ function receiveAshfall(state: VolcanoUnitState, candidate: Candidate<"ashfall">
     applied.state = interrupted.state;
     applied.outcomes.push(interrupted.outcome);
   }
-  const { fields, kept } = place(applied, applied.state.ashfalls, (ashfalls) => ({ ...applied.state, ashfalls }), existing, next, candidate, now);
+  const kept = place(applied, applied.state.ashfalls, (ashfalls) => ({ ...applied.state, ashfalls }), existing, next, candidate, now);
   applied.state = { ...applied.state, shortfalls: liveShortfalls(applied.state.shortfalls, candidate, "ashfall", code) };
   const before = existing?.effective === "active" && !pending(existing) ? existing : null;
   if (!kept) return applied;
@@ -791,11 +838,11 @@ function receiveAshfall(state: VolcanoUnitState, candidate: Candidate<"ashfall">
     if (cancelled != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
     return applied;
   }
-  if (candidate.infoRank !== 2 && fields.length === 0) return applied;
+  if (candidate.infoRank !== 2 && !compared.changed) return applied;
   const facts = candidate.facts!;
   applied.notice = noticeOf(candidate, subject, candidate.infoRank === 2 || before != null ? "updated" : "activated",
     candidate.family === "VFVO54" ? "warning" : "normal",
-    join([facts.volcanoName, `降灰予報（${candidate.family === "VFVO54" ? "速報" : "詳細"}）`, facts.groups[0]?.ashName ?? null]));
+    join([named(facts.volcanoName, candidate.unreadable, "volcano"), `降灰予報（${candidate.family === "VFVO54" ? "速報" : "詳細"}）`, facts.groups[0]?.ashName ?? null]));
   return applied;
 }
 
@@ -827,7 +874,7 @@ function receiveScheduled(state: VolcanoUnitState, candidate: Candidate<"schedul
     applied.outcomes.push(flushed.outcome);
     applied.notice = flushed.notice;
   }
-  const { kept } = place(applied, applied.state.scheduledAshfalls, (scheduledAshfalls) => ({ ...applied.state, scheduledAshfalls }), existing, next,
+  const kept = place(applied, applied.state.scheduledAshfalls, (scheduledAshfalls) => ({ ...applied.state, scheduledAshfalls }), existing, next,
     candidate, now);
   if (candidate.cancelled) {
     // 取消は batch から対象を外す（P3-C9-BATCH=A）。batch に入っていたか記録が active なら取消を通知する。
@@ -889,19 +936,21 @@ function receiveBulletin(state: VolcanoUnitState, candidate: Candidate<"bulletin
     decide(applied, candidate, subject, verdict);
     if (verdict.held != null) hold(applied, candidate, state.bulletins, (bulletins) => ({ ...applied.state, bulletins }), subject, verdict.held);
   } else {
-    const next = verdict.next;
+    const compared = noticeChange(existing, verdict.next);
+    const next = compared.after;
     if (verdict.missing) applied.diagnostics.push(missingDiagnostic(candidate));
-    const { fields, kept } = place(applied, applied.state.bulletins, (bulletins) => ({ ...applied.state, bulletins }), existing, next, candidate, now);
+    const kept = place(applied, applied.state.bulletins, (bulletins) => ({ ...applied.state, bulletins }), existing, next, candidate, now);
     const before = existing?.effective === "active" && !pending(existing) ? existing : null;
     if (kept && !dueAt(next, now)) {
       if (candidate.cancelled) {
         applied.cancelled.add(subject);
         const cancelled = cancelledOf(existing, existing?.source ?? null, existing?.notice);
         if (cancelled != null) notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
-      } else if (candidate.infoRank === 2 || fields.length !== 0) {
+      } else if (candidate.infoRank === 2 || compared.changed) {
         const facts = candidate.facts!;
         const level = candidate.family === "VFVO51" && facts.extraordinary ? "normal" : "info";
-        const summary = candidate.family === "VFVO60" ? `${facts.volcanoName ?? ""} 推定噴煙流向報`.trim() : facts.headline ?? candidate.title;
+        const summary = candidate.family === "VFVO60" ? `${named(facts.volcanoName, candidate.unreadable, "volcano") ?? ""} 推定噴煙流向報`.trim()
+          : facts.headline ?? candidate.title;
         notice = noticeOf(candidate, subject, candidate.infoRank === 2 || before != null ? "updated" : "activated", level, summary);
       }
     } else if (kept && before != null) applied.cancelled.add(subject);
@@ -1010,14 +1059,9 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading, 
   const fit = fitRawBudget<Shown>(rawTotal(slices.alerts, slices.eruptions, slices.ashfalls, slices.bulletins), RAW_BUDGET,
     () => [...slices.alerts, ...slices.eruptions, ...slices.ashfalls, ...slices.bulletins], (item) => [recordMs(item), item.subject]);
   if (fit != null) {
-    const pairs: Change[] = [];
-    const strip = <R extends Shown>(values: readonly R[]): readonly R[] => values.map((item) => {
-      const after = stripRaw(item, fit);
-      if (after !== item) pairs.push([item, after]);
-      return after;
-    });
-    adopted = { ...adopted, alerts: strip(adopted.alerts), eruptions: strip(adopted.eruptions), ashfalls: strip(adopted.ashfalls),
-      bulletins: strip(adopted.bulletins) };
+    const pairs: Change[] = [], push = (before: Shown, after: Shown) => { pairs.push([before, after]); };
+    adopted = { ...adopted, alerts: stripAll(adopted.alerts, fit, push), eruptions: stripAll(adopted.eruptions, fit, push),
+      ashfalls: stripAll(adopted.ashfalls, fit, push), bulletins: stripAll(adopted.bulletins, fit, push) };
     const fitted = adopted, touched = new Set(applied.changes.flatMap(([, after]) => after == null ? [] : [after.subject]));
     applied.changes = [...applied.changes.map(([before, after]): Change => [before, after == null ? after : noticeRecord(fitted, after)]),
       ...pairs.filter(([before]) => !touched.has(before!.subject))];
@@ -1397,13 +1441,14 @@ const ERUPTION_FACT_KEYS = ["volcanoName", "flash", "phenomenon", "eventDateTime
   "plumeDirection", "headline", "municipalities", "truncated", "validUntil", "expiryPending", "unreadable"];
 const ASHFALL_FACT_KEYS = ["volcanoName", "variant", "headline", "forecastStartsAt", "forecastEndsAt", "groups", "omittedGroupCount", "truncated",
   "expiryPending", "unreadable"];
-// P3-UM-AC01 (2): 印の site の表（VolcanoUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "cancelVolcano", "lastKind", "coordinate", "name", "eventTime", "対象市町村等",
   "対象海上予報区", "entries", "bulletinVolcano"] satisfies readonly VolcanoUnreadableSite[]);
+// P3-UM-AC04 (2): compareKeys を持てる一覧の欄の site（保存する警報・噴火の一覧。解説は保存しない）。
+const LIST_SITES: ReadonlySet<string> = new Set(["対象市町村等", "対象海上予報区"] satisfies readonly VolcanoUnreadableSite[]);
 // 印の読み戻し（欄が無ければ {}、形の外は null）。key はその記録で印を持てる欄。
 function unreadableOf(row: Fields, key: "unreadable" | "marineUnreadable", allowed = true): Readonly<{ unreadable?: UnreadableMark }> | null {
   if (!(key in row)) return {};
-  const mark = allowed ? readUnreadableMark(row[key], UNREADABLE_SITES) : null;
+  const mark = allowed ? readUnreadableMark(row[key], UNREADABLE_SITES, LIST_SITES) : null;
   return mark == null ? null : { unreadable: mark };
 }
 // P3-EF-AC05 (1): 保留の印は active の噴火・降灰にだけ置け、値は true だけ。
@@ -1590,7 +1635,6 @@ function persisted(value: unknown): PersistedVolcanoUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedVolcanoUnit = { schemaVersion: SCHEMA, alerts, eruptions, ashfalls, shortfalls, intents };
-  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(alerts, eruptions, ashfalls) > RAW_BUDGET) return null;
   return result;

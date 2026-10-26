@@ -92,10 +92,12 @@ function leaf(parent: XmlElement | null, name: string): string | null {
 // H51 の B（P3-EF-AC13）: 読めない所は報を断らず、所ごとに WARN を 1 件残す。node は読めなかった要素か親（P3-UM-AC02 (1) の欠片）。
 type Warn = (site: VolcanoUnreadableSite, reason: "requiredStructureMissing" | "requiredStructureInvalid", node: XmlElement | null, scope?: string) => void;
 // leaf の読めない値（2 個以上か子要素あり）を null にして WARN を添える。
-function softLeaf(parent: XmlElement | null, name: string, warn: Warn, site: VolcanoUnreadableSite): string | null {
+// 名前（site name）の scope は欄の名（Q-UM-PRECHECK-2 (8)(b)）: volcano・kind・lastKind、区域の種別名は「area:種別 code」、VFVO51 の火山 entry は
+// 「volcano:火山 code」「kind:火山 code」。
+function softLeaf(parent: XmlElement | null, name: string, warn: Warn, site: VolcanoUnreadableSite, scope?: string): string | null {
   const found = children(parent, name);
   if (found.length > 1 || found.length === 1 && children(found[0]).length !== 0) {
-    warn(site, "requiredStructureInvalid", found.length > 1 ? parent : found[0]);
+    warn(site, "requiredStructureInvalid", found.length > 1 ? parent : found[0], scope);
     return null;
   }
   return found.length === 0 ? null : scalar(found[0]);
@@ -160,14 +162,14 @@ function present(item: XmlElement, area: XmlElement | undefined): XmlElement {
   if (area == null || !code(area) || !children(item, "Kind").some((kind) => code(kind))) missing();
   return area!;
 }
-function kindOf(item: XmlElement, bound: (value: string | null, limit: number) => string | null, warn: Warn): VolcanoKind {
+function kindOf(item: XmlElement, bound: (value: string | null, limit: number) => string | null, warn: Warn, scope = "kind"): VolcanoKind {
   const kind = children(item, "Kind");
   if (kind.length === 0) missing();
   if (kind.length > 1) invalid();
   const code = blank(leaf(kind[0], "Code"));
   if (code == null) return missing();
   if (!asciiCode(code, LIMITS.code)) invalid();
-  return { code, name: bound(softLeaf(kind[0], "Name", warn, "name") ?? "", BOUNDS.kindName)!,
+  return { code, name: bound(softLeaf(kind[0], "Name", warn, "name", scope) ?? "", BOUNDS.kindName)!,
     condition: bound(blank(leaf(kind[0], "Condition")), BOUNDS.condition) };
 }
 // 対象市町村・対象海上予報区: Kind の名前ごとの Area/Code（I-U-V.bounds の件数で切る）。
@@ -193,7 +195,7 @@ function areaGroups(body: XmlElement | null, part: "対象市町村等" | "対�
       total++;
     }
     if (groups.length >= groupLimit) { mark(); continue; }
-    groups.push({ kindName: bound(kind == null ? "" : softLeaf(kind, "Name", warn, "name") ?? "", BOUNDS.areaKind)!, codes });
+    groups.push({ kindName: bound(kind == null ? "" : softLeaf(kind, "Name", warn, "name", `area:${kindCode ?? ""}`) ?? "", BOUNDS.areaKind)!, codes });
   }
   return { groups, codes: kinds };
 }
@@ -365,8 +367,8 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
       const coordinate = blank(softLeaf(area, "Coordinate", warn, "coordinate"));
       const municipalities = areaGroups(body, "対象市町村等", LIMITS.municipalityGroups, LIMITS.municipalityCodes, bound, mark, warn);
       const marine = areaGroups(body, "対象海上予報区", LIMITS.marineGroups, LIMITS.marineCodes, bound, mark, warn);
-      const facts: AlertFacts = { volcanoName: bound(softLeaf(area, "Name", warn, "name") ?? "", BOUNDS.volcanoName)!, kind,
-        lastKind: lastCode == null ? null : { code: lastCode, name: bound(softLeaf(last[0], "Name", warn, "name") ?? "", BOUNDS.kindName)! },
+      const facts: AlertFacts = { volcanoName: bound(softLeaf(area, "Name", warn, "name", "volcano") ?? "", BOUNDS.volcanoName)!, kind,
+        lastKind: lastCode == null ? null : { code: lastCode, name: bound(softLeaf(last[0], "Name", warn, "name", "lastKind") ?? "", BOUNDS.kindName)! },
         headline: headline(), municipalities: municipalities.groups, marineAreas: marine.groups,
         coordinate: coordinate != null && asciiCode(coordinate, LIMITS.coordinate) ? coordinate : null, marineCodes: marine.codes,
         activity: cut(blank(text(content, "VolcanoActivity")) ?? "", BOUNDS.activity) || null,
@@ -396,7 +398,7 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
         });
       if (municipalities.length > LIMITS.eruptionAreas) mark();
       const direction = blank(text(plume, "PlumeDirection"));
-      const facts: EruptionFacts = { volcanoName: bound(softLeaf(area, "Name", warn, "name") ?? "", BOUNDS.volcanoName)!,
+      const facts: EruptionFacts = { volcanoName: bound(softLeaf(area, "Name", warn, "name", "volcano") ?? "", BOUNDS.volcanoName)!,
         phenomenon: { code: kind.code, name: bound(kind.name, BOUNDS.phenomenon)! }, eventDateTimeRaw: eventTime,
         craterName: bound(blank(text(area, "CraterName")), BOUNDS.crater), plumeAboveCrater: valueOf("PlumeHeightAboveCrater"),
         plumeAboveSeaLevel: valueOf("PlumeHeightAboveSeaLevel"), plumeDirection: bound(direction, BOUNDS.direction),
@@ -408,7 +410,7 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
       if (areas.length === 0 || family !== "VFVO53" && children(first(body, "AshInfos"), "AshInfo").length === 0) missing();
       const volcanoCode = identified(volcanoCodeOf(areas[0]));
       if (areas.some((area) => volcanoCodeOf(area) !== volcanoCode)) invalid();
-      const volcanoName = bound(softLeaf(areas[0], "Name", warn, "name") ?? "", BOUNDS.volcanoName)!;
+      const volcanoName = bound(softLeaf(areas[0], "Name", warn, "name", "volcano") ?? "", BOUNDS.volcanoName)!;
       if (family === "VFVO53") {
         // 最も重い降灰の区分名（通知の body、旧築 buildAshfallSummary）。AshInfos は欠落してよい。
         const kinds = children(first(body, "AshInfos"), "AshInfo").flatMap((info) => children(info, "Item"))
@@ -432,9 +434,9 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
         if (++count > LIMITS.entries) { warn("entries", "requiredStructureInvalid", area); mark(); continue; }
         const before: boolean = truncated;
         truncated = false;
-        const kind = kindOf(item, bound, warn);
+        const kind = kindOf(item, bound, warn, `kind:${text(area, "Code") ?? ""}`);
         const volcanoCode = volcanoCodeOf(area);
-        const volcanoName = bound(softLeaf(area, "Name", warn, "name") ?? "", BOUNDS.volcanoName)!;
+        const volcanoName = bound(softLeaf(area, "Name", warn, "name", `volcano:${volcanoCode}`) ?? "", BOUNDS.volcanoName)!;
         // 同じ報の中で同じ火山が二度出たら電文順の最後を採る（旧築 volcano-route-handler.ts の同一 subject）。
         entries.delete(volcanoCode);
         entries.set(volcanoCode, { volcanoCode, volcanoName, kind, truncated });
@@ -455,7 +457,7 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
       volcanoCodes: codes.slice(0, LIMITS.bulletinVolcanoes), extraordinary: rawTitle.includes("臨時") || infoKind.includes("臨時"),
       text: bound(blank(text(content, "VolcanoActivity")) ?? blank(text(body, "Text")), BOUNDS.text),
       nextAdvisory: bound(blank(text(content, "NextAdvisory")), BOUNDS.nextAdvisory),
-      volcanoName: named.map((area) => cut(softLeaf(area, "Name", warn, "name") ?? "", BOUNDS.volcanoName))[0] ?? null };
+      volcanoName: named.map((area) => cut(softLeaf(area, "Name", warn, "name", "volcano") ?? "", BOUNDS.volcanoName))[0] ?? null };
     return accepted({ ...base(codes[0] ?? null), truncated, slice: "bulletin", facts, entries: [...entries.values()] });
   } catch (error) {
     if (error instanceof Rejected) return reject(error.reason);

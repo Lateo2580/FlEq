@@ -81,7 +81,7 @@ const initialUnits: RuntimeUnitStates = {
   "U-V": { schemaVersion: "p3-volcano-unit-v6", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: cleanPersistence },
   "U-L": { schemaVersion: "p3-landslide-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-R": { schemaVersion: "p3-flood-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-R": { schemaVersion: "p3-flood-unit-v8", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
   "U-B": { schemaVersion: "p3-briefing-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
   "U-M": { schemaVersion: "p3-local-bulletins-unit-v7", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
   "U-Y": { schemaVersion: "p3-typhoon-unit-v7", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },

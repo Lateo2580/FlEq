@@ -395,11 +395,13 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     for (const item of [real, bound]) expect(roundTrip(item).kind).toBe("restored");
     expect(Math.max(...sizes)).toBeLessThanOrEqual(floodUnitCodec.maxEnvelopeBytes!);
     // P3-UM-AC03 (6)・RES-09: 全部の記録に読み戻しの上限いっぱいの印と予算いっぱいの原文を足した上界も、広げた器の内で decode が受ける。
-    expect(roundTrip({ ...bound, currents: withLongestMarks(bound.currents, "riverName", 0, 131_072, (item) => item.effective === "active") }).kind)
+    // P3-UM-AC05: 比べの観測の最大（JSON で最長の -1）も全部の active の記録に持たせる（器は据え置き、Q-UM-PRECHECK-2 (5)）。
+    const compared: FloodUnitState = { ...bound, currents: bound.currents.map((item) => item.effective === "active" ? { ...item, observedCompare: -1 } : item) };
+    expect(roundTrip({ ...compared, currents: withLongestMarks(compared.currents, "riverName", [], 131_072, (item) => item.effective === "active") }).kind)
       .toBe("restored");
     // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器を広げた量は印の分だけ。印を外した上界は 16 MiB の内側で、印 1 つは広げた量の 1/512 以下。
     const markGrowth = floodUnitCodec.maxEnvelopeBytes! - 16_777_216;
-    expect([Buffer.byteLength(JSON.stringify(floodUnitCodec.encode(bound)).replace(/,"unconfirmed":\{[^}]*\}/g, "")) <= 16_777_216,
+    expect([Buffer.byteLength(JSON.stringify(floodUnitCodec.encode(compared)).replace(/,"unconfirmed":\{[^}]*\}/g, "")) <= 16_777_216,
       one(bound.currents[0]) - one({ ...bound.currents[0], unconfirmed: undefined }) <= markGrowth / 512]).toEqual([true, true]);
 
     // 保持上限付近で、受信 1 回は記録単位の加算だけ（state・配列・既存の記録を直列化しない）。

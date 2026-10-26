@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { promises as fileSystem } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,7 +15,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { initialUnits, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { briefingUnitCodec, toBriefingView } from "../../src/units/briefing/briefing-unit";
-import { floodUnitCodec, reduceFloodUnit, toFloodView } from "../../src/units/flood/flood-unit";
+import { floodUnitCodec, toFloodView } from "../../src/units/flood/flood-unit";
 import { landslideUnitCodec, reduceLandslideUnit, toLandslideView } from "../../src/units/landslide/landslide-unit";
 import { localBulletinsUnitCodec, toLocalBulletinsView } from "../../src/units/local-bulletins/local-bulletins-unit";
 import { nankaiUnitCodec, toNankaiView } from "../../src/units/nankai/nankai-unit";
@@ -143,7 +144,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const restored = floodUnitCodec.decode(json(floodUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.currents : null).toEqual(broken.state.currents);
     expectView(toFloodView(broken.state).currents[0], mark!);
-    await discardsPrevious("U-R", "p3-flood-unit-v6");
+    await discardsPrevious("U-R", "p3-flood-unit-v7");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-M keeps the headline mark of a tornado report", async () => {
@@ -164,8 +165,10 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
       /(<VolcanoInfo type="噴火警報・予報（対象火山）">[\s\S]*?)<Name>浅間山<\/Name>/, "$1<Name><x/>浅間山</Name>"));
     const record = broken.state.alerts[0];
     const mark = record.effective === "active" ? record.unreadable : undefined;
+    // 名前の warn は scope で欄を分け、前の記録の無い版の compare は null の digest（発注 2、P3-UM-AC04 (1)・Q-UM-PRECHECK-2 (8)(b)）。
     expect([mark?.parts, record.effective === "active" ? record.marineUnreadable : null]).toEqual([
-      [{ site: "name", reason: "requiredStructureInvalid", raw: "<Name><x></x>浅間山</Name>" }], undefined]);
+      [{ site: "name", reason: "requiredStructureInvalid", scope: "volcano", compare: createHash("sha256").update("null").digest("hex").slice(0, 16),
+        raw: "<Name><x></x>浅間山</Name>" }], undefined]);
     const restored = volcanoUnitCodec.decode(json(volcanoUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.alerts : null).toEqual(broken.state.alerts);
     expectView(toVolcanoView(broken.state).alerts[0], mark!);
@@ -230,10 +233,16 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     await discardsPrevious("U-T", "p3-tsunami-unit-v5");
   });
 
-  it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-F keeps the Kind scope mark and its fragment", async () => {
-    const broken = ufReceive(ufMaterial(UF, (xml) => xml.replace("<Kind>", "<Kind><Remark>x</Remark>")));
+  // acceptance: P3-UM-T15（AC15・AC02）も同じ入力で。Kind の範囲の区分不明は scope にその Kind の範囲を書き、WARN は今どおり 1 件。
+  it("P3-UM-T01・P3-UM-T09・P3-UM-T15 acceptance / AC01,AC16,AC10,AC15,AC02: U-F keeps the Kind scope mark and its fragment", async () => {
+    const xml = Y.fixtureXml(UF);
+    const firstKind = /<Kind>[\s\S]*?<\/Kind>/.exec(xml)![0];
+    const area = /<Area>\s*<Name>[^<]*<\/Name>\s*<Code>([^<]*)<\/Code>/.exec(xml.slice(xml.indexOf("<TimeSeriesInfo>")))![1];
+    const types = [...firstKind.matchAll(/<Type>([^<]*)<\/Type>/g)].map((match) => match[1]).join(",");
+    const broken = ufReceive(ufMaterial(UF, (source) => source.replace("<Kind>", "<Kind><Remark>x</Remark>")));
     const mark = broken.state.subjects[0].unreadable;
-    expect(mark?.parts.map((part) => [part.site, part.raw])).toEqual([["Kind", "<Remark>x</Remark>"]]);
+    expect([mark?.parts, broken.diagnostics.map((item) => item.reason)]).toEqual([[{ site: "Kind", reason: "requiredStructureInvalid",
+      scope: `${area}/${types}`, raw: "<Remark>x</Remark>" }], ["weatherTimeseriesScopeUnclear"]]);
     const restored = weatherTimeseriesUnitCodec.decode(json(weatherTimeseriesUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.subjects : null).toEqual(broken.state.subjects);
     expectView(toWeatherTimeseriesView(broken.state).series[0], mark!);
@@ -241,8 +250,9 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     await discardsPrevious("U-F", "p2-weather-timeseries-unit-v6");
   });
 
-  // contractBoundary: P3-UM-T02（AC03）。U-R の原文の予算の境界、外す順、H39 の数え方、保存→復元の合計。
-  it("P3-UM-T02 contractBoundary / AC03: the oldest raw goes first just over the budget, is counted once and the total survives restore", () => {
+  // contractBoundary: P3-UM-T02（AC03）。U-R の原文の予算の境界、外す順、H39 の数え方、保存→復元の合計。P3-UM-T21（AC17）: 予算を越える
+  // 受信 1 回で state と記録の配列を直列化しない。
+  it("P3-UM-T02・P3-UM-T21 contractBoundary / AC03,AC17: the oldest raw goes first just over the budget, is counted once and the total survives restore", () => {
     const BUDGET = 131_072, PREFIX = 82_000_000_000;
     const send = (state: FloodUnitState, index: number, length: number) => R.receive(state, floodReport(PREFIX, index, length), floodAt(index));
     // 長さ 1 の値の記録の原文の byte から、値の長さに比例しない分を引く（空の値は合法で印が付かない）。
@@ -257,7 +267,13 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     expect([floodTotal(exact.state), exact.diagnostics.some((item) => item.reason === "unreadableDropped"),
       exact.state.currents.some((item) => item.effective === "active" && item.unreadable?.rawDropped === true)]).toEqual([BUDGET, false, false]);
     // 1 byte 越えると最も古い記録（0 番）の原文が外れ、印は残る。
-    const over = send(state, next, fill + 1);
+    const spy = vi.spyOn(JSON, "stringify");
+    let over: ReturnType<typeof send>;
+    try {
+      over = send(state, next, fill + 1);
+      expect(spy.mock.calls.filter(([value]) => value === state || value === state.currents || value === over.state || value === over.state.currents))
+        .toEqual([]);
+    } finally { spy.mockRestore(); }
     const oldest = over.state.currents.find((item) => item.eventId === String(PREFIX));
     expect(oldest?.effective === "active" ? [oldest.unreadable?.rawDropped, oldest.unreadable?.parts.map((part) => [part.site, part.raw]),
       oldest.unreadable?.headline] : null).toEqual([true, [["series", null]], null]);
@@ -321,7 +337,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     expect(restored.kind === "restored" ? restored.state.observations[0].unreadable : null).toEqual(markA);
 
     // codec は表の外の site・17 件の part・16 hex でない compare・128 byte を越える scope・1,538 byte を越える raw・(site, scope) の重複・
-    // 129 件の compareKeys・true でない旗・余分な鍵を読まない。
+    // 一覧の欄の外の compareKeys（U-L は一覧の欄を持たない、発注 2）・129 件の compareKeys・true でない旗・余分な鍵を読まない。
     const landslide = L.send(L.emptyState(), "15_16_01_241031_VPWW56", (xml) => xml.replace(
       /(<Warning type="気象警報・注意報（市町村等）">[\s\S]*?<Item>\s*<Kind>\s*)<Name>[^<]*<\/Name>/, "$1")).state;
     type Payload = { currents: ({ unreadable: Readonly<{ parts: readonly Readonly<Record<string, unknown>>[] }> } & Record<string, unknown>)[] };
@@ -340,7 +356,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
       parts([{ ...part, compareKeys: keys(128) }]), parts([{ ...part, compareKeys: keys(129) }]),
       withMark({ ...mark, rawDropped: false }), withMark({ ...mark, extra: 1 }), withMark({ ...mark, rawDropped: true, partsCut: true }),
     ].map((value) => landslideUnitCodec.decode(value).kind)).toEqual(["invalid", "invalid", "restored", "restored", "invalid", "restored", "invalid",
-      "invalid", "invalid", "restored", "invalid", "invalid", "invalid", "restored"]);
+      "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "restored"]);
   });
 
   // regression: r1 ヘルツ P2-1（AC01 (6)）。10:00 の観測所 x の水位が形の外の報の後、10:01 の「（河川）」の無い報は前の事実を引き継ぐので、
@@ -406,7 +422,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
   });
 
   // regression: r1 ヘルツ P3-3（AC01 (4)(6)）。127 文字の観測点 code の印は scope が 126 文字に切れるので、引き継ぎも切った形で照合する。
-  // 先頭 126 文字が同じ別の観測点が残れば、その scope の part は残す（消すより残す向き）。
+  // 先頭 126 文字が同じ観測点がこの版で更新されたら、その scope の part は引き継がない（発注 2、Q-UM-PRECHECK-2 (8)(f)）。
   it("P3-UM-T03 regression / AC01: a 127-character station code keeps its mark when a newer version adds another station", () => {
     const at = "2099-01-01T10:00:00+09:00", at2 = "2099-01-01T10:10:00+09:00", prefix = "1".repeat(126);
     const send = (state: ReturnType<typeof T.emptyState>, xml: string) => {
@@ -420,22 +436,10 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     expect(mark?.parts.map((part) => [part.site, part.scope, part.raw])).toEqual([["station", prefix, "<Sensor><x></x></Sensor>"]]);
     const added = send(first, T.observation({ at: at2, serial: 2, stations: [{ code: "99999" }] }));
     expect(added.observations[0].unreadable).toEqual(mark);
-    // 先頭が同じ code b が残り a だけ更新された版でも、scope の part は残る。
+    // 先頭が同じ code b が残り a だけ更新された版では、a の古い欠片を残さない。
     const pair = broken([`${prefix}a`, `${prefix}b`]);
     const updated = send(pair, T.observation({ at: at2, serial: 2, stations: [{ code: `${prefix}a`, condition: "第１波到達" }] }));
-    expect(updated.observations[0].unreadable?.parts.map((part) => part.scope)).toEqual([prefix]);
-  });
-
-  // acceptance: P3-UM-T15（AC15・AC02）。Kind の範囲の区分不明は scope にその Kind の範囲を書き、WARN は今どおり 1 件。
-  it("P3-UM-T15 acceptance / AC15,AC02: an unknown child in a Kind marks that Kind's scope with its fragment", () => {
-    const xml = Y.fixtureXml(UF);
-    const firstKind = /<Kind>[\s\S]*?<\/Kind>/.exec(xml)![0];
-    const area = /<Area>\s*<Name>[^<]*<\/Name>\s*<Code>([^<]*)<\/Code>/.exec(xml.slice(xml.indexOf("<TimeSeriesInfo>")))![1];
-    const types = [...firstKind.matchAll(/<Type>([^<]*)<\/Type>/g)].map((match) => match[1]).join(",");
-    const step = ufReceive(ufMaterial(UF, (source) => source.replace("<Kind>", "<Kind><Remark>x</Remark>")));
-    expect(step.state.subjects[0].unreadable?.parts).toEqual([{ site: "Kind", reason: "requiredStructureInvalid", scope: `${area}/${types}`,
-      raw: "<Remark>x</Remark>" }]);
-    expect(step.diagnostics.map((item) => item.reason)).toEqual(["weatherTimeseriesScopeUnclear"]);
+    expect(updated.observations[0].unreadable).toBeUndefined();
   });
 
   // acceptance: P3-UM-T16（AC15、P3-UM-D-ADDITION-MARK）。付加事項は原文の part（site addition、scope は Type）で、view の一覧に出さない。
@@ -476,21 +480,5 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     expect(record.effective === "active" ? [record.truncated, record.slotCount, record.unreadable?.parts] : null).toEqual([true, 64,
       [{ site: "slot", reason: "requiredStructureInvalid", raw: `<TimeDefine timeId="65"><DateTime>${Y.iso(Date.parse("2026-05-31T09:00:00+09:00") + 64 * 3 * 3_600_000)}`
         + "</DateTime><Duration>PT3H</Duration></TimeDefine>" }]]);
-  });
-
-  // contractBoundary: P3-UM-T21（AC17）の U-R。原文の予算を越えて外す受信 1 回で、state を JSON.stringify に渡さない。
-  it("P3-UM-T21 contractBoundary / AC17: a receive at the full raw budget never serializes the U-R state", () => {
-    const PREFIX = 83_000_000_000;
-    let state = R.emptyState();
-    for (let index = 0; index < 100; index++) state = reduceFloodUnit(state, { kind: "receive", material: floodReport(PREFIX, index, 1_400), clock: floodAt(index) }).state;
-    expect(state.currents.some((item) => item.effective === "active" && item.unreadable?.rawDropped === true)).toBe(true);
-    const material = floodReport(PREFIX, 100, 1_400);
-    const spy = vi.spyOn(JSON, "stringify");
-    try {
-      const step = reduceFloodUnit(state, { kind: "receive", material, clock: floodAt(100) });
-      expect(step.diagnostics.some((item) => item.reason === "unreadableDropped")).toBe(true);
-      expect(spy.mock.calls.filter(([value]) => value === state || value === state.currents || value === step.state || value === step.state.currents))
-        .toEqual([]);
-    } finally { spy.mockRestore(); }
   });
 });

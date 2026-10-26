@@ -556,7 +556,7 @@ describe("P2-A6 weather timeseries", () => {
     });
     const before = inflated({ ...small, subjects, gates: subjects.map((item) => ({ subject: item.subject, operation: item.operation, source: item.source! })) },
       LIMIT - 512 * unreadableMarkBytes("unreadable") - 1_048_576 - UNREADABLE_CARDS_MAX_BYTES);
-    const marked = { ...before, subjects: withLongestMarks(before.subjects, "MeteorologicalInfos", 0, 1_048_576) };
+    const marked = { ...before, subjects: withLongestMarks(before.subjects, "MeteorologicalInfos", [], 1_048_576) };
     const payload = weatherTimeseriesUnitCodec.encode(marked);
     const bytes = serializedEnvelope({ schemaVersion: marked.schemaVersion, unit: "U-F", generation: 0, capturedAt: 0, payload, sha256: "0".repeat(64) })
       .byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + marksOf(marked);

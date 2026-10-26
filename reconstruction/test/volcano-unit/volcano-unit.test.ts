@@ -815,10 +815,10 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     // P3-UM-AC03 (6)・RES-09: decoder の形の最大の全部の記録に読み戻しの上限いっぱいの印（警報は陸と海の 2 つで一覧の欄 2 つ、噴火は 1 つ、
     // 降灰は 0）と予算いっぱいの原文を足した上界も、広げた器の内で decode が受ける。
     const max = f08State(128, false, true), active = (item: { effective: string }) => item.effective === "active";
-    const landMarked = withLongestMarks(max.alerts, "対象海上予報区", 2, 131_072, (item) => active(item) && item.source != null);
-    const marked: VolcanoUnitState = { ...max, alerts: withLongestMarks(landMarked, "対象海上予報区", 2, 0, (item) => active(item) && item.marineSource != null,
-      "marineUnreadable"), eruptions: withLongestMarks(max.eruptions, "対象海上予報区", 1, 0, active),
-    ashfalls: withLongestMarks(max.ashfalls, "対象海上予報区", 0, 0, active) };
+    const landMarked = withLongestMarks(max.alerts, "対象海上予報区", ["対象市町村等", "対象海上予報区"], 131_072, (item) => active(item) && item.source != null);
+    const marked: VolcanoUnitState = { ...max, alerts: withLongestMarks(landMarked, "対象海上予報区", ["対象市町村等", "対象海上予報区"], 0, (item) => active(item) && item.marineSource != null,
+      "marineUnreadable"), eruptions: withLongestMarks(max.eruptions, "対象海上予報区", ["対象市町村等"], 0, active),
+    ashfalls: withLongestMarks(max.ashfalls, "対象海上予報区", [], 0, active) };
     expect([roundTrip(marked).kind, reserved(marked) <= volcanoUnitCodec.maxEnvelopeBytes!]).toEqual(["restored", true]);
 
     // 上限ちょうどは採り、1 byte 超えると入力前の state のまま rejected/requiredStructureInvalid と ERROR の診断 1 件だけを返す。

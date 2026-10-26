@@ -22,7 +22,8 @@ import {
 } from "../notice-mark";
 import { PENDING_MARK_BYTES, cachedMin } from "../expiry";
 import {
-  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, fitScope, inheritMark, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes,
+  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, fitScope, inheritMark, hasPart, rawTotal, readUnreadableMark, stripAll,
+  unreadableMarkBytes,
 } from "../unreadable";
 
 // P3-TSUNAMI-UNIT-001（C5、I-U-T）: U-T の意味・通知・容量・codec・射影。
@@ -510,10 +511,15 @@ function receiveObservation(state: TsunamiUnitState, candidate: ObservationCandi
   const wasActive = visible(existing);
   const forecast = state.forecasts.find((item) => item.operation === candidate.operation && item.eventId === candidate.eventId);
   // P3-NL-AC02 (2)(4)・AC03: 印は記録へ引き継ぐ。fragment の鍵は受けた fragment そのものの中身から作り、取消は持たない。
+  // 観測点は sameStation と同じく revision を除いた形で鍵にする（P3-UM-AC04 (4)）。
   const kept = existing?.notice == null ? {} : { notice: existing.notice };
   const notice = { mark: existing?.notice, version: versionDigest(candidate.source), ...candidate.cancelled ? {}
-    : { fragment: fragmentKey(candidate.stations.map((item) => [item.code, item] as const),
+    : { fragment: fragmentKey(candidate.stations.map((item) => [item.code, { ...item, revision: null }] as const),
       candidate.estimations.map((item) => [item.areaCode, item] as const)) } };
+  // P3-UM-AC04 (4): Serial の読めない版の前後は、中身の鍵が前の版の印の鍵と同じなら通知しない（Serial だけ違う同じ中身の報）。
+  // 前の版が見える観測（base）のときだけ（取消・失効の後に印の鍵が残っていても、新しく見える観測は鳴らす）。
+  const repeated = base != null && (hasPart(candidate.unreadable ?? undefined, "serial") || hasPart(existing?.unreadable, "serial")) && notice.fragment != null
+    && existing?.notice?.fragments?.includes(notice.fragment) === true;
   let next: TsunamiObservationSubject;
   let touched = existing == null || existing.effective !== "active" && existing.effective !== "forecastEnded", late = false;
   if (equal && existing?.effective === "cancelled") {
@@ -576,7 +582,7 @@ function receiveObservation(state: TsunamiUnitState, candidate: ObservationCandi
   const fresh = next.source !== candidate.source ? [] : candidate.cancelled
     ? cancel != null ? intentsFor(candidate.source, "cancelled", payloadOf(candidate.operation, "cancel", cancel.title, cancel.body, false),
       now, notice) : []
-    : visible(next) && !late ? intentsFor(candidate.source, wasActive ? "updated" : "activated", payloadOf(candidate.operation,
+    : visible(next) && !late && !repeated ? intentsFor(candidate.source, wasActive ? "updated" : "activated", payloadOf(candidate.operation,
       "info", title, [candidate.stations.slice(0, 3).map((item) => item.name).join(", "), candidate.headline ?? ""]
         .filter((part) => part !== "").join(" / ") || title, candidate.infoRank === 2), now, notice) : [];
   const observations = index < 0 ? [...state.observations, next] : state.observations.map((item, at) => at === index ? next : item);
@@ -591,16 +597,23 @@ function receiveObservation(state: TsunamiUnitState, candidate: ObservationCandi
 function observationUnreadable(base: TsunamiObservationSubject | null, stations: readonly TsunamiStation[], estimations: readonly TsunamiEstimation[],
   incoming: UnreadableMark | null): Readonly<{ unreadable?: UnreadableMark }> {
   const previous = base?.unreadable;
-  const oldStations = new Set(base?.stations ?? []), oldEstimations = new Set(base?.estimations ?? []);
-  // scope は code を fitScope で切った形なので、照合も同じ形で引く（r1 ヘルツ P3-3: 127 文字の code の印が消えた）。先頭が同じ別の code の
-  // 要素が 1 つでも残れば引き継ぐ（消すより残す向き、残存リスク (2) と同じ二重の向き）。
-  const keptStations = new Set(stations.flatMap((item) => oldStations.has(item) ? [fitScope(item.code)] : []));
-  const keptAreas = new Set(estimations.flatMap((item) => oldEstimations.has(item) ? [fitScope(item.areaCode)] : []));
+  // scope は code を fitScope で切った形なので、照合も同じ形で引く（r1 ヘルツ P3-3: 127 文字の code の印が消えた）。同じ fitScope の値の
+  // 要素がこの版で更新・削除されたら、その scope は引き継がない（Q-UM-PRECHECK-2 (8)(f): 先頭が同じ別の code の交互の更新で古い欠片が残らない）。
+  const keptStations = keptScopes(base?.stations ?? [], stations, (item) => item.code);
+  const keptAreas = keptScopes(base?.estimations ?? [], estimations, (item) => item.areaCode);
   if (previous == null || keptStations.size + keptAreas.size === 0) return incoming == null ? {} : { unreadable: incoming };
   const inherited = previous.parts.filter((part) => part.scope != null
     && (part.site === "station" ? keptStations.has(part.scope) : part.site === "estimation" && keptAreas.has(part.scope)));
   const unreadable = inheritMark(previous, inherited, incoming);
   return unreadable == null ? {} : { unreadable };
+}
+
+function keptScopes<T>(before: readonly T[], after: readonly T[], code: (item: T) => string): Set<string> {
+  const old = new Set(before), present = new Set(after), kept = new Set<string>(), touched = new Set<string>();
+  for (const item of after) (old.has(item) ? kept : touched).add(fitScope(code(item)));
+  for (const item of before) if (!present.has(item)) touched.add(fitScope(code(item)));
+  for (const scope of touched) kept.delete(scope);
+  return kept;
 }
 
 // 採用の共通部: 通知の収容、容量の退去、保存世代を一回の参照交換で確定する。
@@ -630,14 +643,9 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
   const raw = fitRawBudget<Subject>(rawTotal(slices.forecasts, slices.observations), RAW_BUDGET, () => [...slices.forecasts, ...slices.observations],
     (item) => [Date.parse(item.source.reportDateTimeRaw), item.subject]);
   if (raw != null) {
-    const pairs: Change[] = [];
-    const strip = <T extends Subject>(values: readonly T[]): readonly T[] => values.map((item) => {
-      const after = stripRaw(item, raw);
-      if (after !== item) pairs.push([item, after]);
-      return after;
-    });
-    forecasts = strip(forecasts);
-    observations = strip(observations);
+    const pairs: Change[] = [], push = (before: Subject, after: Subject) => { pairs.push([before, after]); };
+    forecasts = stripAll(forecasts, raw, push);
+    observations = stripAll(observations, raw, push);
     const touched = new Map(pairs);
     changes = [...changes.map(([before, after]): Change => [before, after == null ? after : touched.get(after) ?? after]),
       ...pairs.filter(([item]) => !changes.some(([, after]) => after === item))];
@@ -1011,7 +1019,7 @@ function unconfirmedOf(row: Fields, subject: string, operation: Operation): Repo
   const mark = reportRef(row.unconfirmed);
   return mark == null || mark.subject !== subject || mark.operation !== operation ? "invalid" : mark;
 }
-// P3-UM-AC01 (2)(6): 印の site の表（TsunamiUnreadableSite）。印は事実を持つ記録だけが持つ（欄が無ければ {}、形の外は null）。
+// P3-UM-AC01 (6): 印は事実を持つ記録だけが持つ（欄が無ければ {}、形の外は null）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "forecastHeight", "station", "estimation"] satisfies readonly TsunamiUnreadableSite[]);
 function unreadableOf(row: Fields, allowed: boolean): Readonly<{ unreadable?: UnreadableMark }> | null {
   if (!("unreadable" in row)) return {};
@@ -1130,7 +1138,6 @@ function persisted(value: unknown): PersistedTsunamiUnit | null {
     const own = observations.filter((item) => item.family === family);
     if (own.length > OBSERVATION_LIMIT || own.reduce((sum, item) => sum + item.stations.length, 0) > STATION_LIMIT) return null;
   }
-  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
   if (intents.length > PENDING_ITEMS || listBytes(intents) + reserve(intents) > PENDING_BYTES
     || generationBytes(forecasts, observations, intents, failureMarks) > GENERATION_LIMIT || rawTotal(forecasts, observations) > RAW_BUDGET) return null;
   return { schemaVersion: SCHEMA, forecasts, observations, intents, failureMarks };

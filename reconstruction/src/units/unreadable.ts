@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
+
 import type { XmlElement } from "../../contracts/p1-parser-boundary.types";
 import type { UnreadableMark, UnreadableMarkView, UnreadablePart } from "../../contracts/p2-shared-runtime.types";
 import { boundedString } from "../runtime/runtime-diagnostic";
@@ -194,10 +197,17 @@ function droppedIn<T extends Marked>(plan: RawPlan<T> | null, records: readonly 
   if (plan == null || plan.newly.size === 0) return 0;
   return records.reduce((sum, item) => dropped(item) && plan.newly.has(plan.subjectOf(item)) ? sum + 1 : sum, 0);
 }
-// 計画どおりに 1 つの記録の原文を外す（計画に無い記録はそのまま）。
 function stripRaw<T extends Marked>(record: T, plan: Pick<RawPlan, "modes"> | null): T {
   const mode = plan?.modes.get(record);
   return mode == null ? record : stripRecord(record, mode);
+}
+// 外した記録の組（前, 後）は stripped で受け取る（表示の変化に足すため）。
+function stripAll<T extends Marked>(values: readonly T[], plan: Pick<RawPlan, "modes">, stripped: (before: T, after: T) => void): readonly T[] {
+  return values.map((item) => {
+    const after = stripRaw(item, plan);
+    if (after !== item) stripped(item, after);
+    return after;
+  });
 }
 
 // ---- codec（AC16 (3)(a)(c)） ----
@@ -207,6 +217,7 @@ const record = (value: unknown): Fields | null =>
   value != null && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 const PART_KEYS = new Set(["site", "reason", "scope", "compare", "compareKeys", "raw"]);
 const MARK_KEYS = new Set(["parts", "headline", "rawDropped", "partsCut"]);
+const NO_SITES: ReadonlySet<string> = new Set();
 const rawText = (value: unknown): value is string | null => value === null || typeof value === "string" && jsonBytes(value) <= RAW_BYTES;
 function readPart(value: unknown, sites: ReadonlySet<string>): UnreadablePart | null {
   const row = record(value);
@@ -221,20 +232,82 @@ function readPart(value: unknown, sites: ReadonlySet<string>): UnreadablePart | 
     ...Array.isArray(compareKeys) ? { compareKeys: [...compareKeys] } : {}, raw: row.raw };
 }
 // 形の外は null（その記録と保存は invalid）。rawDropped・partsCut は履歴の旗で、raw や part の数との組み合わせは見ない（AC16 (3)(b)）。
-function readUnreadableMark(value: unknown, sites: ReadonlySet<string>): UnreadableMark | null {
+// compareKeys は一覧の欄の site（listSites）の part だけが、site ごとに 1 件まで持てる（器の式の数え方、Q-UM-PRECHECK-2 (8)(a)）。
+function readUnreadableMark(value: unknown, sites: ReadonlySet<string>, listSites = NO_SITES): UnreadableMark | null {
   const row = record(value);
   if (row == null || Object.keys(row).some((key) => !MARK_KEYS.has(key)) || !Array.isArray(row.parts) || row.parts.length > PART_LIMIT
     || !rawText(row.headline) || row.rawDropped !== undefined && row.rawDropped !== true || row.partsCut !== undefined && row.partsCut !== true) return null;
-  const parts: UnreadablePart[] = [], seen = new Set<string>();
+  const parts: UnreadablePart[] = [], seen = new Set<string>(), keyed = new Set<string>();
   for (const item of row.parts) {
     const part = readPart(item, sites);
     const key = part == null ? "" : part.scope == null ? part.site : `${part.site}\u0000${part.scope}`;
-    if (part == null || seen.has(key)) return null;
+    if (part == null || seen.has(key) || part.compareKeys != null && (!listSites.has(part.site) || keyed.has(part.site))) return null;
     seen.add(key);
+    if (part.compareKeys != null) keyed.add(part.site);
     parts.push(part);
   }
   return { parts, headline: row.headline, ...row.rawDropped === true ? { rawDropped: true } : {}, ...row.partsCut === true ? { partsCut: true } : {} };
 }
+
+// ---- 比べから外す（AC04、P3-UM-D-COMPARE=A。使うのは通知を作るかの判定だけ、Q-UM-PRECHECK-2 (8)(d)） ----
+
+// 欄の値の digest（notice-mark.ts の fragmentKey と同じ作り、AC04 (1)）。
+const valueKey = (value: unknown): string => createHash("sha256").update(JSON.stringify(value) ?? "null").digest("hex").slice(0, 16);
+// (i) 1 つの値の欄は keys のどれかの part が今の版の印にあれば読めない欄。(ii) 一覧の欄は list の site の part があれば読めない要素のある版。
+type CompareColumn = Readonly<{ keys: readonly (readonly [site: string, scope?: string])[]; before: unknown; after: unknown }>
+  | Readonly<{ list: string; before: readonly unknown[]; after: readonly unknown[] }>;
+const partOf = (mark: UnreadableMark | undefined, site: string, scope?: string) =>
+  mark?.parts.find((part) => part.site === site && part.scope === scope);
+// 欄ごとに通知の比べの変化を決め、今の版の印（after）に compare と compareKeys を書いて返す。印の無い前後は今の比べ（isDeepStrictEqual）のまま。
+// compareKeys は一覧の site ごとに印に残った最初の part 1 件だけが持つ（Q-UM-PRECHECK-2 (8)(a)）。その site の part が 16 件の上限で全部
+// 外れた版は読めた版として比べる（鳴る側）。
+function compareColumns(before: UnreadableMark | undefined, after: UnreadableMark | undefined, columns: readonly CompareColumn[]):
+  Readonly<{ changed: boolean; mark: UnreadableMark | undefined }> {
+  if (before == null && after == null) return { changed: columns.some((column) => !isDeepStrictEqual(column.before, column.after)), mark: after };
+  let changed = false;
+  const compares = new Map<string, string>(), keys = new Map<string, readonly string[] | null>();
+  for (const column of columns) {
+    if ("list" in column) {
+      const previous = before?.parts.find((part) => part.site === column.list);
+      const current = after?.parts.find((part) => part.site === column.list);
+      // 前の版が鍵の上限を越えた（part はあるが鍵が無い）なら、この版は読めても読めなくても変化（AC04 (2)）。
+      const lost = previous != null && previous.compareKeys == null;
+      const base = new Set(previous == null ? column.before.map(valueKey) : previous.compareKeys ?? []);
+      if (current != null) {
+        // 読めない要素のある版: 読めた要素が比べの集合に無いときだけ変化。なくなった要素は数えない。
+        const read = column.after.map(valueKey);
+        changed ||= lost || read.some((key) => !base.has(key));
+        const union = new Set([...base, ...read]);
+        keys.set(column.list, union.size > KEYS_LIMIT ? null : [...union]);
+      } else if (previous != null) {
+        const read = new Set(column.after.map(valueKey));
+        changed ||= lost || read.size !== base.size || [...read].some((key) => !base.has(key));
+      } else changed ||= !isDeepStrictEqual(column.before, column.after);
+      continue;
+    }
+    const compare = column.keys.map(([site, scope]) => partOf(before, site, scope)?.compare).find((item) => item != null);
+    const unread = column.keys.filter(([site, scope]) => partOf(after, site, scope) != null);
+    if (unread.length !== 0) for (const [site, scope] of unread) compares.set(`${site}\u0000${scope ?? ""}`, compare ?? valueKey(column.before));
+    else changed ||= compare != null ? valueKey(column.after) !== compare : !isDeepStrictEqual(column.before, column.after);
+  }
+  if (after == null || compares.size === 0 && keys.size === 0) return { changed, mark: after };
+  const listed = new Set<string>();
+  const parts = after.parts.map((part): UnreadablePart => {
+    const compare = compares.get(`${part.site}\u0000${part.scope ?? ""}`);
+    const first = keys.has(part.site) && !listed.has(part.site);
+    if (first) listed.add(part.site);
+    if (compare == null && !first) return part;
+    const { compareKeys: _keys, ...plain } = part;
+    const listKeys = first ? keys.get(part.site) : part.compareKeys;
+    return { ...plain, ...compare == null ? {} : { compare }, ...listKeys == null ? {} : { compareKeys: listKeys } };
+  });
+  return { changed, mark: { ...after, parts } };
+}
+// P3-UM-AC06 (2)・AC07: 通知の本文の読めない名前・区域の所に入れる字（気象庁の「不明」と区別する、作者裁定 ②）。
+const UNREAD_TEXT = "（読めず）";
+// 印にその site（scope が指定されればその scope）の part があるか。
+const hasPart = (mark: UnreadableMark | undefined, site: string, scope?: (value: string | undefined) => boolean): boolean =>
+  mark?.parts.some((part) => part.site === site && (scope == null || scope(part.scope))) === true;
 
 // ---- view（AC10、P3-UM-D-VIEW） ----
 
@@ -270,8 +343,8 @@ const LOCAL_BULLETINS_CARDS_MAX_BYTES = 16 * UNREADABLE_CARD_BYTES + 131_072;
 const TYPHOON_CARDS_MAX_BYTES = UNREADABLE_CARDS_MAX_BYTES + 8 * 24_576;
 
 export {
-  ADDITION_SITE, LOCAL_BULLETINS_CARDS_MAX_BYTES, RAW_BUDGET, TYPHOON_CARDS_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, WEATHER_TIMESERIES_RAW_BUDGET,
-  droppedIn, fitRawBudget, fitScope, inheritMark, markRawBytes, markView, rawTotal, rawTotalBy, readUnreadableMark, recordRawBytes, rewriteXml, stripRaw,
-  unreadableMarkBytes, unreadableNotes,
+  ADDITION_SITE, LOCAL_BULLETINS_CARDS_MAX_BYTES, RAW_BUDGET, TYPHOON_CARDS_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, UNREAD_TEXT, WEATHER_TIMESERIES_RAW_BUDGET,
+  compareColumns, droppedIn, fitRawBudget, fitScope, inheritMark, markRawBytes, markView, hasPart, rawTotal, rawTotalBy, readUnreadableMark, recordRawBytes,
+  rewriteXml, stripAll, stripRaw, unreadableMarkBytes, unreadableNotes,
 };
-export type { RawPlan, Unreadable };
+export type { CompareColumn, RawPlan, Unreadable };

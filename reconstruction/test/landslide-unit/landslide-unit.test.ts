@@ -325,7 +325,7 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     for (const item of [real, bound]) expect(roundTrip(item).kind).toBe("restored");
     expect(Math.max(...sizes)).toBeLessThanOrEqual(2_097_152);
     // P3-UM-AC03 (6)・RES-09: 全部の記録に読み戻しの上限いっぱいの印と予算いっぱいの原文を足した上界も、広げた器の内で decode が受ける。
-    expect(roundTrip({ ...bound, currents: withLongestMarks(bound.currents, "kindName", 0, 131_072) }).kind).toBe("restored");
+    expect(roundTrip({ ...bound, currents: withLongestMarks(bound.currents, "kindName", [], 131_072) }).kind).toBe("restored");
 
     // 保持上限付近で、受信 1 回は記録単位の加算だけ（state・配列・既存の記録を直列化しない）。
     const near = { ...real };

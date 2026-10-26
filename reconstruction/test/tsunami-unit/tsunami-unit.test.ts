@@ -387,7 +387,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const decodeOf = (state: TsunamiUnitState) => tsunamiUnitCodec.decode(JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(state))) as JsonValue).kind;
     expect([gen(padded(atLimit)), decodeOf(padded(atLimit)), decodeOf(padded(atLimit + 1))]).toEqual([limit, "restored", "invalid"]);
     const before = atLimit - (512 + 512 * 2) * unreadableMarkBytes("unreadable") - 131_072 - UNREADABLE_CARDS_MAX_BYTES;
-    const marked = padded(before, withLongestMarks(records, "forecastHeight", 0, 131_072), withLongestMarks(allObservations, "forecastHeight", 0, 0));
+    const marked = padded(before, withLongestMarks(records, "forecastHeight", [], 131_072), withLongestMarks(allObservations, "forecastHeight", [], 0));
     console.info("P3-UM-AC03 (6) U-T", JSON.stringify({ marked: gen(marked), limit, cards: UNREADABLE_CARDS_MAX_BYTES }));
     expect([gen(marked) <= limit - UNREADABLE_CARDS_MAX_BYTES, decodeOf(marked)]).toEqual([true, "restored"]);
   });

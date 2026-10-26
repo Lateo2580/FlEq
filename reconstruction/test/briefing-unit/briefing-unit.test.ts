@@ -381,7 +381,7 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     expect(Math.max(...sizes)).toBeLessThanOrEqual(2_097_152);
     // P3-UM-AC03 (6)・RES-09: 事実を持つ全部の記録に読み戻しの上限いっぱいの印（一覧の欄 observations の 1 つ）と予算いっぱいの原文を足した
     // 上界も、広げた器の内で decode が受ける。
-    expect(roundTrip({ ...bound, currents: withLongestMarks(bound.currents, "editorialOffice", 1, 131_072, (item) => "title" in item) }).kind)
+    expect(roundTrip({ ...bound, currents: withLongestMarks(bound.currents, "editorialOffice", ["observation"], 131_072, (item) => "title" in item) }).kind)
       .toBe("restored");
     // 引き継いだ印（,"inherited":true）は 40 文字の系列とは同時に持てないので、記録ごとに足して上界にする（P3-EF-AC09・AC10）。
     expect(sizes[1] + 256 * INHERITED_MARK_BYTES + 293).toBeLessThanOrEqual(1_785_440);

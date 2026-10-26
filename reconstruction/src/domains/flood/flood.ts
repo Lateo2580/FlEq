@@ -68,6 +68,8 @@ type FloodCandidate = Readonly<{
   operation: Operation; headType: string; eventId: string; subject: string; source: ReportRef; reportDateTimeMs: number;
   infoRank: number; cancelled: boolean; title: string; areaName: string; headline: string | null; kinds: readonly FloodKindGroup[];
   times: readonly string[]; stations: readonly FloodStation[]; truncated: boolean; unreadable: UnreadableMark | null;
+  // P3-UM-AC05 (1)（保存しない）: 現況の観測レベルの最大を確定できない版（観測所を丸ごと除いたか、現況のレベル・時刻が読めない）。
+  observedUnknown: boolean;
 }>;
 // diagnostics は受けた報の読めなかった所（P3-EF-AC13、H51 の B）。
 type ParseResult = Readonly<{ kind: "accepted"; candidate: FloodCandidate; diagnostics: readonly DiagnosticDetails[] }>
@@ -106,7 +108,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
   if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
 
   // 存在を全部確かめてから妥当性を見る（Q-ENUM.priorityRule）。
-  let missing = false, invalid = false, truncated = false;
+  let missing = false, invalid = false, truncated = false, observedUnknown = false;
   const bound = (value: string, limit: number): string => {
     if (value.length > limit) truncated = true;
     return cut(value, limit);
@@ -208,19 +210,24 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     const seriesWarn = (reason: Unreadable, node: XmlElement | null, scope?: string) => warn("series", reason, node, scope);
     if (seriesInfos.length > 1) seriesWarn("requiredStructureInvalid", body);
     const timeSeries = children(seriesInfos[0] ?? null, "TimeSeriesInfo");
-    if (seriesInfos.length === 1 && timeSeries.length === 0) seriesWarn("requiredStructureMissing", seriesInfos[0]);
+    if (seriesInfos.length === 1 && timeSeries.length === 0) { seriesWarn("requiredStructureMissing", seriesInfos[0]); observedUnknown = true; }
     if (timeSeries.length > 1) seriesWarn("requiredStructureInvalid", seriesInfos[0]);
     const timeIndex = new Map<string, number>();
     const timeDefines = children(timeSeries[0] ?? null, "TimeDefines")[0] ?? null;
     const defines = children(timeDefines, "TimeDefine");
-    if (timeSeries.length === 1 && defines.length === 0) seriesWarn("requiredStructureMissing", timeDefines ?? timeSeries[0]);
+    if (timeSeries.length === 1 && defines.length === 0) { seriesWarn("requiredStructureMissing", timeDefines ?? timeSeries[0]); observedUnknown = true; }
     // 読めない時刻から後は読まない。飛ばして詰めると予測の値が現況（i=0）の位置へ繰り上がり、上昇の通知を作る（H51 の B の位置の意味）。
+    // P3-UM-AC08: TimeDefine の part の scope は読めなかった最初の時刻の位置（0 始まり）。
+    const timeWarn = (reason: Unreadable, define: XmlElement) => {
+      seriesWarn(reason, define, String(times.length));
+      if (times.length === 0) observedUnknown = true;
+    };
     for (const define of defines) {
       const timeId = attribute(define, "timeId");
       const dateTimes = children(define, "DateTime");
       const dateTime = dateTimes.length === 0 ? null : scalar(dateTimes[0]);
-      if (timeId == null || timeId === "" || dateTimes.length === 0 || dateTime === "") { seriesWarn("requiredStructureMissing", define); break; }
-      if (timeIndex.has(timeId) || dateTimes.length > 1 || dateTime == null || !validTime(dateTime)) { seriesWarn("requiredStructureInvalid", define); break; }
+      if (timeId == null || timeId === "" || dateTimes.length === 0 || dateTime === "") { timeWarn("requiredStructureMissing", define); break; }
+      if (timeIndex.has(timeId) || dateTimes.length > 1 || dateTime == null || !validTime(dateTime)) { timeWarn("requiredStructureInvalid", define); break; }
       timeIndex.set(timeId, times.length);
       times.push(dateTime);
     }
@@ -229,30 +236,38 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     // seriesの Item は（Station/Code, Station/Name）で引く。Map で 1 回結び付ける（I-U-R.computation）。
     type Series = { discharge: boolean; values: (number | null)[]; levels: FloodStation["levels"][number][] };
     const series = new Map<string, Series>();
+    // 観測所の series を丸ごと読めない Item は、その観測所の現況のレベルも読めない（AC05 (1)）。
+    const lost = (reason: Unreadable, node: XmlElement, scope?: string) => { seriesWarn(reason, node, scope); observedUnknown = true; };
     for (const item of children(timeSeries[0] ?? null, "Item")) {
       const stationNodes = children(item, "Station");
-      if (stationNodes.length !== 1) { seriesWarn(stationNodes.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid", item); continue; }
+      if (stationNodes.length !== 1) { lost(stationNodes.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid", item); continue; }
       const codeNodes = children(stationNodes[0], "Code");
       const code = codeNodes.length === 0 ? null : scalar(codeNodes[0]);
       const scope = code == null || code === "" ? undefined : code;
       const stationName = name(stationNodes[0], "Name", "series", scope);
-      if (codeNodes.length === 0 || code === "") { seriesWarn("requiredStructureMissing", stationNodes[0]); continue; }
-      if (codeNodes.length > 1 || code == null) { seriesWarn("requiredStructureInvalid", stationNodes[0]); continue; }
+      if (stationName == null) observedUnknown = true;
+      if (codeNodes.length === 0 || code === "") { lost("requiredStructureMissing", stationNodes[0]); continue; }
+      if (codeNodes.length > 1 || code == null) { lost("requiredStructureInvalid", stationNodes[0]); continue; }
       const key = `${code}\n${stationName}`;
       if (series.has(key)) seriesWarn("requiredStructureInvalid", item, scope);
       const parts = children(item, "Kind").flatMap((kind) => children(kind, "Property"))
         .flatMap((property) => [...children(property, "WaterLevelPart"), ...children(property, "DischargePart")]);
-      if (parts.length !== 1) { seriesWarn(parts.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid", item, scope); continue; }
+      if (parts.length !== 1) { lost(parts.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid", item, scope); continue; }
       const read: Series = { discharge: localName(parts[0]) === "DischargePart", values: times.map(() => null), levels: times.map(() => null) };
       const seen = new Set<string>();
       for (const element of children(parts[0])) {
         const type = attribute(element, "type"), refId = attribute(element, "refID");
         const value = scalar(element);
         const at = refId == null ? undefined : timeIndex.get(refId);
-        if (type == null || refId == null || value == null || at == null || seen.has(`${refId}\n${type}`)) { seriesWarn("requiredStructureInvalid", element, scope); continue; }
+        if (type == null || refId == null || value == null || at == null || seen.has(`${refId}\n${type}`)) {
+          // 水位・流量の値だけが読めないときと、同じ時刻の重ね（先の値を読んだ）は現況のレベルを確定できる（AC05 (1)）。
+          if (at === 0 && type !== "水位" && type !== "流量" && !seen.has(`${refId}\n${type}`)) observedUnknown = true;
+          seriesWarn("requiredStructureInvalid", element, scope);
+          continue;
+        }
         seen.add(`${refId}\n${type}`);
         if (type === "レベル") {
-          if (value !== "" && !/^\d$/.test(value)) seriesWarn("requiredStructureInvalid", element, scope);
+          if (value !== "" && !/^\d$/.test(value)) { seriesWarn("requiredStructureInvalid", element, scope); if (at === 0) observedUnknown = true; }
           else if (at < read.levels.length) read.levels[at] = pointLevel(value);
         } else if (type === "水位" || type === "流量") {
           if (value !== "" && !validValue(value)) seriesWarn("requiredStructureInvalid", element, scope);
@@ -272,7 +287,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     for (const part of parts) {
       // 読めない観測所は除き、truncated で一部を出していないことを残す。
       // station の part の scope は観測所の Code（読めた所だけ、AC01 (4)）。
-      const drop = (reason: Unreadable, node: XmlElement, scope?: string) => { warn("station", reason, node, scope); truncated = true; };
+      const drop = (reason: Unreadable, node: XmlElement, scope?: string) => { warn("station", reason, node, scope); truncated = true; observedUnknown = true; };
       const areas = children(part, "Area");
       if (areas.length !== 1) { drop(areas.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid", part); continue; }
       const codeNodes = children(areas[0], "Code");
@@ -302,7 +317,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
         const river = text == null ? undefined : riverByName.get(cut(text.split("\n")[0].trim(), BOUNDS.name));
         if (river != null) linked.add(river);
       }
-      if (stationName == null) { truncated = true; continue; }
+      if (stationName == null) { truncated = true; observedUnknown = true; continue; }
       if (stationName.length > BOUNDS.stationName) { truncated = true; continue; }
       const found = series.get(`${code}\n${stationName}`);
       built.push({ order: built.length, station: { code, name: stationName, riverCodes: [...linked],
@@ -322,7 +337,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: headType, subject,
       reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(titleText, BOUNDS.title), areaName, headline,
-    kinds, times, stations, truncated, unreadable: notes.mark(material.xml) } };
+    kinds, times, stations, truncated, unreadable: notes.mark(material.xml), observedUnknown } };
 }
 
 export { BOUNDS, INFO_RANK, LIMITS, cut, infoRankOf, levelOf, loneSurrogate, parseFlood, validEventId, validHeadType, validKindCode, validName,

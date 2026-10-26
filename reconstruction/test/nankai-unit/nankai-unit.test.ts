@@ -572,8 +572,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     console.info("P3-NS-T04 U-N generation", JSON.stringify(sizes));
     expect(Math.max(sizes.legal, sizes.bound)).toBeLessThanOrEqual(2_621_440);
     // P3-UM-AC03 (6)・RES-09: 現況と情報の全部の記録に読み戻しの上限いっぱいの印と予算いっぱいの原文を足した上界も、広げた器の内で decode が受ける。
-    const marked = { ...bound, intents: budget.intents, currents: withLongestMarks(bound.currents, "infoName", 0, 131_072),
-      information: withLongestMarks(bound.information, "infoName", 0, 0) };
+    const marked = { ...bound, intents: budget.intents, currents: withLongestMarks(bound.currents, "infoName", [], 131_072),
+      information: withLongestMarks(bound.information, "infoName", [], 0) };
     expect(roundTrip(marked).kind).toBe("restored");
     expect(nankaiUnitCodec.discardableSchemaVersions).toEqual(["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4",
       "p3-nankai-unit-v5", "p3-nankai-unit-v6"]);

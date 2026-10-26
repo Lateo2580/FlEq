@@ -756,7 +756,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     // 足した上界も、広げた器の内で decode が受ける（transient の active は保存しない）。
     const active = (item: { effective: string }) => item.effective === "active";
     const markedMaximum = localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify({ ...maximum,
-      tornado: withLongestMarks(maximum.tornado, "editorialOffice", 2, 131_072, active), heat: withLongestMarks(maximum.heat, "editorialOffice", 2, 0, active) })) as JsonValue);
+      tornado: withLongestMarks(maximum.tornado, "editorialOffice", ["area", "tag"], 131_072, active), heat: withLongestMarks(maximum.heat, "editorialOffice", ["area", "tag"], 0, active) })) as JsonValue);
     expect(markedMaximum.kind === "restored" ? generationBytes(localBulletinsUnitCodec.encode(markedMaximum.state)) <= GENERATION_STATIC_BOUND : markedMaximum)
       .toBe(true);
     // P3-VM-AC08（作者裁定 2026-10-21 夜）・P3-NL-D-CAPACITY=A: 器を広げた量は未確認の印と通知の印の分（外した終端記録の 98,304 を引く）。印を

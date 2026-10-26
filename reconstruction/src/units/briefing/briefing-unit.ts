@@ -20,7 +20,9 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
-import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
+import {
+  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll, unreadableMarkBytes,
+} from "../unreadable";
 
 // P3-UNIT-B-001（C12、I-U-B）: U-B の系列の current・予測の置換・alias・通知・容量・codec・射影。
 
@@ -226,10 +228,27 @@ function judge(existing: BriefingCurrent | null, next: BriefingCurrent, candidat
 
 // 公開事実（Q-ENUM.revisionOrder の重複の判定と、I-U-B.currentSemantics(6) の見える記録の変化）。
 const FACTS = ["effective", "title", "headline", "editorialOffice", "items", "observations", "areas"] as const;
+const read = (record: BriefingCurrent | null, field: string): unknown => record == null ? null
+  : Object.getOwnPropertyDescriptor(record, field)?.value ?? null;
 function changed(before: BriefingCurrent | null, value: BriefingCurrent | null): string[] {
-  const read = (record: BriefingCurrent | null, field: string): unknown => record == null ? null
-    : Object.getOwnPropertyDescriptor(record, field)?.value ?? null;
   return FACTS.filter((field) => !isDeepStrictEqual(read(before, field), read(value, field)));
+}
+// P3-UM-AC04: 通知を作るかの判定の比べ（ほかの使い道は changed のまま、Q-UM-PRECHECK-2 (8)(d)）。(i) editorialOffice (ii) observations
+// (iii) items の condition（kind は condition から決まるので一緒に除く）。after は compare・compareKeys を書いた記録。
+const markOf = (value: BriefingCurrent | null) => value != null && "unreadable" in value ? value.unreadable : undefined;
+const reportOf = (value: BriefingCurrent | null) => value?.headType === "VPBS50" && value.effective === "active" ? value : null;
+function noticeChange(before: BriefingCurrent | null, after: BriefingCurrent): Readonly<{ changed: boolean; after: BriefingCurrent }> {
+  const was = markOf(before), now = markOf(after);
+  const inner = hasPart(was, "condition") || hasPart(now, "condition");
+  const items = (value: BriefingCurrent | null) => inner ? reportOf(value)?.items.map(({ condition: _condition, kind: _kind, ...rest }) => rest) ?? null
+    : read(value, "items");
+  const compared = compareColumns(was, now, [{ keys: [["editorialOffice"]], before: read(before, "editorialOffice"), after: read(after, "editorialOffice") },
+    { list: "observation", before: reportOf(before)?.observations ?? [], after: reportOf(after)?.observations ?? [] },
+    { keys: [], before: items(before), after: items(after) }]);
+  const plain = FACTS.some((field) => field !== "editorialOffice" && field !== "observations" && field !== "items"
+    && !isDeepStrictEqual(read(before, field), read(after, field)));
+  return { changed: plain || compared.changed,
+    after: compared.mark == null || compared.mark === now || !("title" in after) ? after : { ...after, unreadable: compared.mark } };
 }
 
 // ---- 系列の current（I-U-B.currentSemantics(1)(3)(4)） ----
@@ -432,6 +451,9 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
     if (next.retainUntil <= now) return unchanged("stale");
     values = remaining;
   }
+  // P3-UM-AC04: 通知の判定の比べ。compare・compareKeys は自分の記録の印に書く。
+  const compared = noticeChange(existing, next);
+  next = compared.after;
 
   // 置換・alias・対応報の取消（P3-C12-REPLACE=B・P3-C12-ALIAS=A・P3-C12-COUNTERPART-CANCEL=B）。edits は values の位置ごとの新しい記録（null は除く）。
   const own = found == null ? undefined : indexOf(values).subjects.get(subject);
@@ -476,7 +498,7 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
   const payload = candidate.cancelled ? existing != null && (visible(existing) || heard(existing.notice))
     ? payloadOf(operation, candidate.headType, "cancel", candidate.title, "", "cancel", existing.source.reportDateTimeRaw) : null
-    : visible(next) && (correction || !visible(existing) || changed(existing, next).length !== 0)
+    : visible(next) && (correction || !visible(existing) || compared.changed)
       ? payloadOf(operation, candidate.headType, "warning", next.title, bodyOf(next), correction ? "correction" : "plain") : null;
   const transition = candidate.cancelled ? "cancelled" as const : correction || visible(existing) ? "updated" as const : "activated" as const;
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
@@ -485,15 +507,14 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   const marked = markAdmitted(currents, notices.admitted);
   // P3-UM-AC03 (3): 原文の合計が予算を越えたら古い記録の原文から外す（印は残る）。外した記録の view も変わるので表示の変化に足す。
   const fit = fitRawBudget(rawTotal(marked), RAW_BUDGET, () => marked, rawKey);
-  const settled = fit == null ? marked : marked.map((item) => stripRaw(item, fit));
+  const after = new Map<BriefingCurrent, BriefingCurrent>();
+  const settled = fit == null ? marked : stripAll(marked, fit, (item, stripped) => { after.set(item, stripped); });
   const result: BriefingUnitState = { ...state, currents: settled, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
 
   // change は最終の表示の変化で決める（I-U-B.currentSemantics(6)）。accepted は触れた subject のうち最終の状態に記録が残るもの。
   // 自分の記録は印を足した後の state の記録（表示の変化の after を state に揃える）。
   const ownAfter = settled === currents ? next : settled[indexOf(settled).subjects.get(subject) ?? -1] ?? next;
-  // 外した記録の after は settled の同じ位置の記録（edits の記録も settled に入っている）。
-  const after = new Map(fit == null ? [] : marked.flatMap((item, at) => item === settled[at] ? [] : [[item, settled[at]] as const]));
   const settle = (value: BriefingCurrent | null) => value == null ? null : after.get(value) ?? value;
   const touched: Change[] = [[existing, ownAfter], ...[...edits].filter(([at]) => at !== own).map(([at, value]): Change => [values[at], settle(value)])];
   const editedValues = new Set(edits.values());
@@ -773,10 +794,11 @@ function observationRecord(value: unknown): BriefingObservation | null {
     || !isText(row.areaCode) || !validCode(row.areaCode) || !boundedName(row.areaName, BOUNDS.name) || !boundedName(row.label, BOUNDS.name)) return null;
   return { part, areaCode: row.areaCode, areaName: row.areaName, label: row.label, value: measured, unit, approximation, time };
 }
-// P3-UM-AC01 (2): 印の site の表（BriefingUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "editorialOffice", "condition", "observation"] satisfies readonly BriefingUnreadableSite[]);
+// P3-UM-AC04 (2): compareKeys を持てる一覧の欄の site。
+const LIST_SITES: ReadonlySet<string> = new Set(["observation"] satisfies readonly BriefingUnreadableSite[]);
 function textRecord(row: Fields): Text | null {
-  const unreadable = "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES) : undefined;
+  const unreadable = "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES, LIST_SITES) : undefined;
   return unreadable === null || typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
     // 読めなかった官署は空で受ける（P3-EF-AC13）。
     || !validHeadline(row.headline) || !bounded(row.editorialOffice, BOUNDS.office) || row.editorialOffice !== "" && !validName(row.editorialOffice) ? null
@@ -865,7 +887,6 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedBriefingUnit = { schemaVersion: SCHEMA, currents, intents };
-  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(currents) > RAW_BUDGET) return null;
   return result;

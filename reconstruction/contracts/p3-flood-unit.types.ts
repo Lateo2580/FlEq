@@ -76,6 +76,7 @@ type FloodCurrentFacts = Readonly<{
   truncated: boolean;
   expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に表示の期限が来た印（view から外し、事実と通知の印は残す）
   unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は FloodUnreadableSite）。印の無い記録は欄を書かない
+  observedCompare?: number; // P3-UM-AC05: 現況の観測レベルの最大を確定できない版の比べの観測の最大（-1〜5）。確定できた版は欄を書かない
 }>;
 
 // EventID の current。subject = `${operation}/${headType}/${eventId}`（P3-C11-SUBJECTS）。
@@ -106,7 +107,7 @@ export type FloodNotificationPayload = Readonly<{
 export type FloodIntent = NotificationIntent & Readonly<{ payload: FloodNotificationPayload }>;
 
 export type FloodUnitState = Readonly<{
-  schemaVersion: "p3-flood-unit-v7";
+  schemaVersion: "p3-flood-unit-v8";
   contentRevision: number;
   currents: readonly FloodCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -115,7 +116,7 @@ export type FloodUnitState = Readonly<{
 }>;
 
 export type PersistedFloodUnit = Readonly<{
-  schemaVersion: "p3-flood-unit-v7";
+  schemaVersion: "p3-flood-unit-v8";
   currents: readonly FloodCurrent[];
   intents: readonly FloodIntent[];
 }>;
@@ -152,5 +153,5 @@ export type FloodUnitStep = Readonly<{
 }>;
 
 export type FloodUnitCodec = UnitCodec<FloodUnitState, PersistedFloodUnit> & Readonly<{
-  schemaVersion: "p3-flood-unit-v7";
+  schemaVersion: "p3-flood-unit-v8";
 }>;

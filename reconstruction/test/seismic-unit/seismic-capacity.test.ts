@@ -425,7 +425,7 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
       "32-35_03_02_240613_VXSE61", "synthetic_phase4a_VXSE62_special"].map((file, index) => report(file, now + index * MINUTE, "S")));
     const four = eventOf(small, "S")!, slp = longOf(small, "S")!;
     expect(four.contributions.map((item) => item.family).sort()).toEqual(["VXSE51", "VXSE52", "VXSE53", "VXSE61"]);
-    const marks = longestMarks(512 * 4 + 256, "hypocenter", 0, 131_072);
+    const marks = longestMarks(512 * 4 + 256, "hypocenter", [], 131_072);
     const bounded = (length: number, marked: boolean): SeismicUnitState => {
       const id = (k: number) => `B${String(k).padStart(4, "0")}`;
       const earthquakes = Array.from({ length: 512 }, (_, k): EarthquakeEvent => ({ ...four, eventId: id(k),
