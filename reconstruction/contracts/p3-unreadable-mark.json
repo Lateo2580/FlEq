@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "8e40fb44aff5c0ddeb5706909d15938fb1fed932cbda9652380aebaab11d3a4e",
+    "sha256": "53813784268ca41340d1f03e38f60b913620fa52725721476d2bd0c19fb74ecd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -29,12 +29,12 @@
       },
       {
         "id": "P3-UM-D-ADDITION-MARK",
-        "A": "U-F の付加事項（P3-WS-D-ADDITION=A で読み飛ばす Addition の要素、診断なし）は、記録の印の part（site addition）として持つ。scope は Property の Type で、1 つの記録に 1 Type 1 件（区域ごとではない）。欠片はその Type の Addition の要素を書き直して順につなげ、boundedString（1,536 byte）で切る。残す順位は区分不明・skipped・bodyOther・duplicateValue の part より下で、part の 16 件と原文の予算のどちらでも addition から先に外す。「読めない所あり」の印としては view に出さない（H51 の表の 1 行目の「小さな印」を付加事項には出さない案。view は原文がある旨だけを渡す）",
+        "A": "U-F の付加事項（P3-WS-D-ADDITION=A で読み飛ばす Addition の要素、診断なし）は、記録の印の part（site addition）として持つ。scope は Property の Type で、1 つの記録に 1 Type 1 件（区域ごとではない）。欠片はその Type の Addition の要素を書き直して順につなげ、boundedString で切る（JSON にした長さ、引用符を含めて 1,538 byte まで）。残す順位は区分不明・skipped・bodyOther・duplicateValue の part より下で、part の 16 件と原文の予算のどちらでも addition から先に外す。「読めない所あり」の印としては view に出さない（H51 の表の 1 行目の「小さな印」を付加事項には出さない案。view は原文がある旨だけを渡す）",
         "B": "付加事項も他の読めない所と同じ印として view に出す",
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定（2026-10-26、ご主人）A",
-        "reason": "利用者から見た違い（場面: 05:00 の警戒・注意事項時系列情報で、雷の注意報級の時間帯に付加事項「竜巻」が付いている）: A では雷の欄は「注意報級」と出て、読めない所の合図は出ない。折り畳みを開くと付加事項の原文（「竜巻」）が読める（P4）。B では W1 の 3 日で約 6 割の報に「読めない所あり」の合図が付き、合図がほぼ常に出て、本当に読めない所（知らない子要素の区分不明など）と見分けにくくなる。付加事項は「知らない欄」ではなく「知っていて読まない欄」（H44 の申し送り）。A は H51 の表の 1 行目の小さな印を付加事項にだけ出さない案で、原文は 1 行目のとおり畳んで持つ。どちらでも、雷の欄の 1 つの Type に「竜巻」「突風」が付けば欠片は 1 件にまとまる（区域ごとに増えない）。1 Type の要素をつなげて 1 件にするので、どの区域（Item）の付加事項かは欠片の中の文字列でしか分からず、1,536 byte で切った後ろの区域の分は分からなくなりうる。付加事項の原文は多い（W1 の 3 日で 3,142・9,629・4,425 個）ので、U-F の原文の予算は 1,048,576 byte にする（P3-UM-RES-01）"
+        "reason": "利用者から見た違い（場面: 05:00 の警戒・注意事項時系列情報で、雷の注意報級の時間帯に付加事項「竜巻」が付いている）: A では雷の欄は「注意報級」と出て、読めない所の合図は出ない。折り畳みを開くと付加事項の原文（「竜巻」）が読める（P4）。B では W1 の 3 日で約 6 割の報に「読めない所あり」の合図が付き、合図がほぼ常に出て、本当に読めない所（知らない子要素の区分不明など）と見分けにくくなる。付加事項は「知らない欄」ではなく「知っていて読まない欄」（H44 の申し送り）。A は H51 の表の 1 行目の小さな印を付加事項にだけ出さない案で、原文は 1 行目のとおり畳んで持つ。どちらでも、雷の欄の 1 つの Type に「竜巻」「突風」が付けば欠片は 1 件にまとまる（区域ごとに増えない）。1 Type の要素をつなげて 1 件にするので、どの区域（Item）の付加事項かは欠片の中の文字列でしか分からず、1,538 byte で切った後ろの区域の分は分からなくなりうる。付加事項の原文は多い（W1 の 3 日で 3,142・9,629・4,425 個）ので、U-F の原文の予算は 1,048,576 byte にする（P3-UM-RES-01）"
       },
       {
         "id": "P3-UM-D-CARD-LIFE",
@@ -58,12 +58,12 @@
       {
         "id": "P3-UM-D-UNDECIDED-RAW",
         "A": "H51 の表の 4 行目（手元の情報との突き合わせで決められない: 同じ時刻で中身が違う、取消の相手が決まらないなど）は、K7 の「決められなかった」の印（記録の unconfirmed?: ReportRef、候補の報の ReportRef）のままにし、候補の原文も見出し文も持たない",
-        "B": "候補の ReportRef に、候補の報の見出し文（Head/Headline/Text、1,536 byte まで）だけを添える（原文の予算に数える）",
-        "C": "候補の報の原文（16,384 byte で切る）を、記録の原文と同じ予算の内で持つ",
+        "B": "候補の ReportRef に、候補の報の見出し文（Head/Headline/Text、JSON にした長さで 1,538 byte まで）だけを添える（原文の予算に数える）",
+        "C": "候補の報の原文（JSON にした長さ 16,384 byte で切る）を、記録の原文と同じ予算の内で持つ",
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定（2026-10-26、ご主人）A",
-        "reason": "利用者から見た違い（場面: 13:00 の土砂災害警戒情報と同じ Control/DateTime で中身の違う報が 13:00:30 に届いた）: A では画面は 13:00 の報のまま「決められなかった」の印が付き、折り畳みを開いても候補の報の時刻と種類しか見えない。B では候補の報の見出し文も読める。C では候補の報の本文も読める。A の理由: 候補は読めている報なので、読めない所の欠片と違い報の全体になる（報の p50 3,843 byte・最大 4.5 MB）。記録ごとに持つと原文の予算を候補だけで使い切りうる。K7 の印は記録の欄としてもう保存されている（再起動しても残る）。B は見出し文だけなので 1 記録 1,536 byte で収まる。作者は、A が H51 の表の 4 行目（畳むもの: 原文と手元の候補）から外れることを承知の上で A を選んだ（2026-10-26）"
+        "reason": "利用者から見た違い（場面: 13:00 の土砂災害警戒情報と同じ Control/DateTime で中身の違う報が 13:00:30 に届いた）: A では画面は 13:00 の報のまま「決められなかった」の印が付き、折り畳みを開いても候補の報の時刻と種類しか見えない。B では候補の報の見出し文も読める。C では候補の報の本文も読める。A の理由: 候補は読めている報なので、読めない所の欠片と違い報の全体になる（報の p50 3,843 byte・最大 4.5 MB）。記録ごとに持つと原文の予算を候補だけで使い切りうる。K7 の印は記録の欄としてもう保存されている（再起動しても残る）。B は見出し文だけなので 1 記録 1,538 byte で収まる。作者は、A が H51 の表の 4 行目（畳むもの: 原文と手元の候補）から外れることを承知の上で A を選んだ（2026-10-26）"
       },
       {
         "id": "P3-UM-D-TYPHOON-UNKNOWN",
@@ -104,7 +104,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当の起草で確定。H51 の「器が足りないときは、原文を中身より先に消し、印を残し、H39 に数える」の形。画面の中身は変わらない（原文は折り畳み）",
-        "reason": "最悪の場合（全記録に 16 の欠片を 1,536 byte ずつ）を器に予約すると、U-R・U-F は 512 記録×約 26 KiB＝約 13 MiB 広がる。予算にすれば器の広がりは unit ごとに印の上界＋予算で閉じる"
+        "reason": "最悪の場合（全記録に 16 の欠片を 1,538 byte ずつ）を器に予約すると、U-R・U-F は 512 記録×約 26 KiB＝約 13 MiB 広がる。予算にすれば器の広がりは unit ごとに印の上界＋予算で閉じる"
       },
       {
         "id": "P3-UM-D-VIEW",
@@ -152,9 +152,17 @@
         "id": "Q-UM-BYTES",
         "status": "closed",
         "source": "起草の見積もり（実装で数え直す）",
-        "closed": "(1) part 1 件（原文を除く）の JSON の最大: site 32 文字・reason 24 文字・scope 128 byte・compare 16 hex と鍵の名・区切りで約 260 byte。一覧の欄の part は compareKeys（16 hex を 128 件、約 2,430 byte）が足される。記録 1 件の印の最大＝16×260＋（一覧の欄の site の数）×2,430＋見出し文と旗の欄の約 80 byte。U-F は一覧の欄の part を持たないので 1 subject 約 4,240 byte、512 subject で約 2.17 MB＋原文の予算 1,048,576 byte＝約 3.2 MB（器 33,565,184 byte の約 10%）。U-M は areas・tags の 2 つで記録 1 件約 9,100 byte、U-V は municipalities・marineAreas・volcanoCodes の 3 つで約 11,500 byte、U-B は observations で約 6,700 byte（記録の上限を掛けた値は実装の静的上界の試験で数える） (2) 原文: 欠片 1 つと見出し文はそれぞれ boundedString の 1,536 byte まで（JSON にした長さ）。unit ごとに 131,072 byte（U-F は付加事項の原文が多いので 1,048,576 byte）の予算。数え方は AC03 の (1) (3) カード: 1 枚の固定の欄（inputId 64・headType 16・題と見出し文 1,536 ずつ・ReportDateTime 40・理由・時刻）約 3,400 byte。原文（16,384 byte まで）は envelope ごとの原文の予算 65,536 byte（U-M 131,072 byte）の内で数え、越えたら古いカードから原文を外す（rawDropped）。U-Y の areas は予算の外で、1 枚 24,576 byte まで（corpus の最大 375 地域・19,468 byte、JSON にした配列の UTF-8 の長さ）。UNREADABLE_CARDS_MAX_BYTES＝枚数×3,400＋原文の予算（U-M 約 186 KB、ほか約 93 KB）に、U-Y だけ 8 枚×24,576＝196,608 byte を足して約 290 KB（U-Y の器 8,388,608 byte の約 2.3%） (4) 急ぐ側の worker（U-E・U-T・U-Q・U-N・U-V）の保存 1 回は、カードと原文が満ちた最悪で各 unit 約 0.3〜0.6 MB 大きくなる（未測。段 4 で測る）",
-        "remaining": "実装の静的上界の試験で数え直す（artifactRequirements の 4 つ目）",
+        "closed": "(1) part 1 件（原文を除く）の JSON の最大は実測 256 byte（site 32 文字・reason・scope は JSON 長 128 byte・compare 16 hex）。一覧の欄の part は compareKeys（16 hex を 128 件）で 2,448 byte 足される。実測の印 1 件（16 part、欄名込み）は一覧の欄 0 個 4,186・1 個 6,634・2 個 9,082・3 個 11,530 byte。U-M は areas・tags の 2 つ、U-V は municipalities・marineAreas・volcanoCodes の 3 つ、U-B は observations の 1 つ、ほかは 0 個（U-L の kinds の name は (iii) で一覧の鍵を持たない）。記録の上限を掛けた値は (4) と P3-UM-RES-09 (2) 原文: 欠片 1 つと見出し文はそれぞれ boundedString の出力で、JSON にした長さ（引用符を含む）で 1,538 byte まで。unit ごとに 131,072 byte（U-F は付加事項の原文が多いので 1,048,576 byte）の予算。数え方は AC03 の (1) (3) カード: 1 枚の固定の欄（inputId 64・headType 16・題と見出し文 1,538 ずつ・ReportDateTime 40・理由・時刻）は実測 3,438 byte。原文（JSON にした長さ、引用符を含めて 16,384 byte まで）は envelope ごとの原文の予算 65,536 byte（U-M 131,072 byte）の内で数え、越えたら古いカードから原文を外す（rawDropped）。U-Y の areas は予算の外で、1 枚 24,576 byte まで（corpus の最大 375 地域・19,468 byte、JSON にした配列の UTF-8 の長さ）。UNREADABLE_CARDS_MAX_BYTES＝枚数×3,438＋原文の予算で、U-M 186,080 byte（16 枚）、ほか 93,040 byte。U-Y だけ 8 枚×24,576＝196,608 byte を足して 289,648 byte (4) 器（2026-10-26 の測定、.draft/bytes/measure.ts、MacBook）: 起草の「急ぐ側の worker の保存 1 回が各 unit 約 0.3〜0.6 MB 大きくなる」は 10〜30 倍の誤りだった。式「記録の上限×印 1 件＋原文の予算＋カード」の増分と広げた器は P3-UM-RES-09。上限いっぱいの最悪の保存 1 回の byte と encode の時間（中央／最大）は U-T 4,720,809→11,307,071 byte（14／17 ms→28／31 ms）、U-Q 5,655,171→15,447,065（16／17→47／50）、U-N 2,633,493→3,100,671（9／10→10／10）、U-V 5,268,477→7,654,931（18／20→24／25）、U-E 2,106,615→2,150,544（6／7→7／7）、U-M 4,932,867→15,556,505（14／17→49／52）、U-R 17,123,913→19,435,999（52／58→58／60）、U-F 33,780,938→37,010,528（106／120→112／114）、U-L 2,106,615→2,815,885、U-B 2,106,615→3,976,845。U-Y は記録の上限 128（typhoon.ts の LIMITS.subjects 64×2 slice）で＋956,528 byte（測定の道具は U-Y の記録数を 0 で数えたので、式で数えた）",
+        "remaining": "実装の静的上界の試験で数え直す（artifactRequirements の 4 つ目）。Pi での時間は段 4",
         "reason": "器の上限は作者の方向（2026-10-21）で撤回せず、印の分だけ広げる（K7・K8 の前例）"
+      },
+      {
+        "id": "Q-UM-CONTAINERS",
+        "status": "closed",
+        "source": "作者裁定（2026-10-26 昼、ご主人。統合担当の判断カード「K14 の保存の上限」）",
+        "closed": "案 A「保存の上限を式どおりに広げる」（P3-UM-RES-09）。選ばなかった案: B（印・原文・カードに細目の予算を作る）は、予算ごとに外す順位と旗が増え、r1〜r4 で旗の境界を突かれた族を作り直す。C（器を据え置き、器を越えたら古い記録を押し出す）は、印が多い日に中身（事実）が印に押し出され、H51 の「器が足りないときは原文を中身より先に消す」の向きと逆になる",
+        "remaining": "器の最終の大きさは段 4 で Pi の時間を測って決め直す（後の作業で解消する見込みの (d)）",
+        "reason": "測定で起草の見積もりが 10〜30 倍小さかったため（Q-UM-BYTES の (4)）"
       },
       {
         "id": "Q-UM-COST",
@@ -169,14 +177,14 @@
         "status": "closed",
         "source": "作者裁定（2026-10-26 朝、ご主人。統合担当の中継）",
         "closed": "(1) 作者に戻した分岐 6 件（P3-UM-D-CARD-SOUND・P3-UM-D-COMPARE・P3-UM-D-ADDITION-MARK・P3-UM-D-CARD-LIFE・P3-UM-D-UNCONFIRMED・P3-UM-D-UNDECIDED-RAW）はすべて推奨 A。UNDECIDED-RAW の A は H51 の表の 4 行目から外れることを承知の上で選んだ (2) レビュー r3 の残り 3 件（ヘルツの B: 鍵の上限を越えた版の次は変化として鳴らす、ヘルツの C: 観測の最大の引き継ぎを観測所の外れ・現況の時刻・現況のレベルに絞る、Opus の P2: U-Y の areas を原文の予算の外に置き器を足す）はすべて直す（r3 で AC04 (2)・AC05 (1)・AC11 (4)(9)・AC16 (3)・Q-UM-BYTES (3) に当てた）",
-        "remaining": "なし（残存リスク (1)〜(21) は 2026-10-26 に作者承認、Q-UM-AUTHOR）",
+        "remaining": "なし（残存リスクは (1)〜(17)・(19)〜(21) が 2026-10-26 に作者承認、Q-UM-AUTHOR。(18) は Q-UM-AUTHOR-18）",
         "reason": "作者の裁定の記録"
       },
       {
         "id": "Q-UM-AUTHOR",
         "status": "closed",
         "source": "作者承認（2026-10-26、ご主人「残存リスクについては承認します」）",
-        "closed": "残存リスク (1)〜(21)（artifactRequirements の残存リスクの項）を承認（読めない所を挟んだ版で鳴らない (1)(2)(3)(11)、読めない EEW・津波の通知の期限の内は鳴らさず期限の後の受け直しは鳴る (4)、読めない VTSE41 は大津波警報でも warning (12)、operation の読めない EEW・津波は本番として鳴る (13) を含む）。分岐 6 件は Q-UM-AUTHOR-R3",
+        "closed": "残存リスク (1)〜(17)・(19)〜(21)（artifactRequirements の残存リスクの項）の 20 件を承認。(18) は承認の後に数字の誤りが見つかり（Q-UM-BYTES の (4)、起草の 0.3〜0.6 MB は 10〜30 倍の誤り）、直した値で作者に聞き直す（Q-UM-AUTHOR-18）（読めない所を挟んだ版で鳴らない (1)(2)(3)(11)、読めない EEW・津波の通知の期限の内は鳴らさず期限の後の受け直しは鳴る (4)、読めない VTSE41 は大津波警報でも warning (12)、operation の読めない EEW・津波は本番として鳴る (13) を含む）。分岐 6 件は Q-UM-AUTHOR-R3",
         "remaining": "なし",
         "reason": "unresolvedQuestions の Q-UM-AUTHOR（発注 1 の発注前点検の前）を閉じる"
       },
@@ -360,8 +368,8 @@
       {
         "id": "P3-UM-RES-02",
         "target": "欠片 1 つ・見出し文 1 つ",
-        "limit": 1536,
-        "unit": "byte（boundedString）",
+        "limit": 1538,
+        "unit": "byte（JSON にした UTF-8 の長さ、引用符を含む。boundedString の出力）",
         "source": "runtime-diagnostic.ts の boundedString"
       },
       {
@@ -375,7 +383,7 @@
         "id": "P3-UM-RES-04",
         "target": "カードの原文",
         "limit": 16384,
-        "unit": "byte",
+        "unit": "byte（JSON にした UTF-8 の長さ、引用符を含む）",
         "source": "AC11 の (3)（置き値、報の p50 3,843・p90 29,820）"
       },
       {
@@ -405,6 +413,14 @@
         "limit": "全件×全件・state 全体の直列化 0。予算を越えたときだけ記録の線形の選び",
         "unit": "1 受信",
         "source": "AGENTS.md 受信経路の計算量、AC17"
+      },
+      {
+        "id": "P3-UM-RES-09",
+        "target": "各 unit の保存 1 世代の器（maxEnvelopeBytes、GENERATION_LIMIT）",
+        "limit": "U-T 4,698,345→11,352,153（＋6,653,808）、U-Q 5,627,794→15,496,450（＋9,868,656）、U-N 2,621,440→3,138,572（＋517,132）、U-V 5,242,880→7,680,752（＋2,437,872）、U-L 2,097,152→2,857,072（＋759,920）、U-R 17,019,904→19,387,248（＋2,367,344）、U-B 2,097,152→4,019,568（＋1,922,416）、U-M 4,909,184→15,688,800（＋10,779,616）、U-F 33,565,184→36,850,032（＋3,284,848）、U-Y 8,388,608→9,345,136（＋956,528）、U-E 2,097,152→2,190,192（＋93,040）、U-W 16,777,216→16,870,256（＋93,040）",
+        "unit": "byte。今の器＋記録の上限×印 1 件＋原文の予算＋カード（AC03 の (6)、Q-UM-BYTES の (4)）",
+        "scope": "式の項は U-T: 1536×4,186＋131,072＋93,040（予報 512＋観測 512×2）、U-Q: 2304×4,186＋131,072＋93,040（event 512×4＋長周期 256）、U-N: 70×4,186＋131,072＋93,040（現況 6＋情報 64）、U-V: 192×11,530＋131,072＋93,040（slice 128＋解説 64、一覧の欄 3）、U-L: 128×4,186＋131,072＋93,040（記録 128）、U-R: 512×4,186＋131,072＋93,040（記録 512）、U-B: 256×6,634＋131,072＋93,040（記録 256、一覧の欄 1）、U-M: 1152×9,082＋131,072＋186,080（tornado 128＋heat 256＋transient 768、一覧の欄 2、カード 16 枚）、U-F: 512×4,186＋1,048,576＋93,040（subject 512）、U-Y: 128×4,186＋131,072＋289,648（analysis 64＋probability 64（typhoon.ts の LIMITS.subjects）、カード 8 枚に areas）、U-E: 0×0＋0＋93,040（印なし、カード 8 枚）、U-W: 0×0＋0＋93,040（印なし（③）、カード 8 枚）",
+        "source": "作者裁定（2026-10-26 昼、ご主人）A「保存の上限を式どおりに広げる」、Q-UM-CONTAINERS。測定は .draft/bytes/measure.ts（MacBook）"
       }
     ],
     "workDeadline": null,
@@ -447,7 +463,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-UM-AC01",
-        "requirement": "【発注 1】印の形（H51 の表の 1・2 行目、設計メモ §10）。場面: 16:00 に噴火警報（VFVO50）が届き、火山名だけ読めない。今は記録に何も残らず WARN の診断だけ。直した後は記録に印（site name、reason requiredStructureMissing、欠片、見出し文）が付き、再起動しても残る。16:30 に火山名の読める続報が来ると印は消える。(1) 10 unit（U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-F・U-Y）の見える記録に unreadable?: UnreadableMark を足す（p2-shared-runtime.types.ts の UnreadableMark・UnreadablePart）。印の無い記録は欄を書かない (2) part は domain の warn の所 1 つ（site と reason）。site は unit ごとの閉じた語で、今の domain の warn の名をそのまま使う（U-Q・U-N は site 名を足す: U-Q は serial・intensity・hypocenter・name、U-N は serial・infoName。U-F は Q-WS-LEVELS の階層の名と addition・skipped・duplicateValue・bodyOther、U-Y は truncated の所の名）。site の表を unit の types に置き、codec は表の外の site を読まない (3) 1 つの記録の part は (site, scope) の組で 1 件、16 件まで。越えたら残す順位（U-F は区分不明・skipped・bodyOther・duplicateValue ＞ addition、ほかは domain の warn の順）の低い所から省き partsCut を付ける。partsCut と rawDropped は外した履歴の旗で、記録が版で丸ごと置き換わるまで持ち越し、要素ごとの引き継ぎ（(6)）では外さない。新しい原文の有無とは独立。丸ごとの置き換えかは引き継ぐ旧い要素の数で決める: 新しい記録の要素のうち、合成で前の記録の要素をそのまま残したもの（U-T の観測では、入力に無い code の観測点に加え、同じ報の fragment で同じ revision・同じ中身として continue し前の要素を残した観測点と、足し合わせで残った推定区域。tsunami-unit.ts の観測点の Map と推定区域の合わせ）を数え、0 件のときだけ丸ごとの置き換えとして旗を外す。入力の code の有無では数えない（同じ報の fragment が前の観測点を全部含んでも、前の要素が残れば旗は残る） (4) scope は印の効く範囲: U-F の区分不明の範囲、区域・観測所・観測点・地域の code。128 byte まで (5) U-V の陸と海の版は別の印（unconfirmed と marineUnconfirmed の前例）: unreadable と marineUnreadable (6) 印は記録と一緒に生まれ、一緒に消える（H51 の「持つ期間は中身と同じ」）。新しい版の採用では、scope の無い part（Serial・見出しなど報の単位）はその版の part に置き換える。前の版から引き継ぐ要素（U-T の観測の観測点と推定区域。tsunami-unit.ts で前の記録の観測点を Map に残して新しい版に引き継ぐ）に結び付く part（scope がその code）は要素と一緒に引き継ぎ、その版がその要素を更新・削除したときだけ置き換えるか外す。取消・期限切れの記憶に移るときは印を外す（記憶は事実を持たない、K10 の P3-EF-D-EXPIRED-MEMORY） (7) H51 の表の 4 行目（決められない所）は K7 の unconfirmed の印のまま（P3-UM-D-UNDECIDED-RAW の推奨の形）。候補の原文と見出し文は持たない",
+        "requirement": "【発注 1】印の形（H51 の表の 1・2 行目、設計メモ §10）。場面: 16:00 に噴火警報（VFVO50）が届き、火山名だけ読めない。今は記録に何も残らず WARN の診断だけ。直した後は記録に印（site name、reason requiredStructureMissing、欠片、見出し文）が付き、再起動しても残る。16:30 に火山名の読める続報が来ると印は消える。(1) 10 unit（U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-F・U-Y）の見える記録に unreadable?: UnreadableMark を足す（p2-shared-runtime.types.ts の UnreadableMark・UnreadablePart）。印の無い記録は欄を書かない (2) part は domain の warn の所 1 つ（site と reason）。site は unit ごとの閉じた語で、今の domain の warn の名をそのまま使う（U-Q・U-N は site 名を足す: U-Q は serial・intensity・hypocenter・name、U-N は serial・infoName。U-F は Q-WS-LEVELS の階層の名と addition・skipped・duplicateValue・bodyOther、U-Y は truncated の所の名）。site の表を unit の types に置き、codec は表の外の site を読まない (3) 1 つの記録の part は (site, scope) の組で 1 件、16 件まで。越えたら残す順位（U-F は区分不明・skipped・bodyOther・duplicateValue ＞ addition、ほかは domain の warn の順）の低い所から省き partsCut を付ける。partsCut と rawDropped は外した履歴の旗で、記録が版で丸ごと置き換わるまで持ち越し、要素ごとの引き継ぎ（(6)）では外さない。新しい原文の有無とは独立。丸ごとの置き換えかは引き継ぐ旧い要素の数で決める: 新しい記録の要素のうち、合成で前の記録の要素をそのまま残したもの（U-T の観測では、入力に無い code の観測点に加え、同じ報の fragment で同じ revision・同じ中身として continue し前の要素を残した観測点と、足し合わせで残った推定区域。tsunami-unit.ts の観測点の Map と推定区域の合わせ）を数え、0 件のときだけ丸ごとの置き換えとして旗を外す。入力の code の有無では数えない（同じ報の fragment が前の観測点を全部含んでも、前の要素が残れば旗は残る） (4) scope は印の効く範囲: U-F の区分不明の範囲、区域・観測所・観測点・地域の code。JSON にした UTF-8 の長さ（引用符を含む）で 128 byte まで (5) U-V の陸と海の版は別の印（unconfirmed と marineUnconfirmed の前例）: unreadable と marineUnreadable (6) 印は記録と一緒に生まれ、一緒に消える（H51 の「持つ期間は中身と同じ」）。新しい版の採用では、scope の無い part（Serial・見出しなど報の単位）はその版の part に置き換える。前の版から引き継ぐ要素（U-T の観測の観測点と推定区域。tsunami-unit.ts で前の記録の観測点を Map に残して新しい版に引き継ぐ）に結び付く part（scope がその code）は要素と一緒に引き継ぎ、その版がその要素を更新・削除したときだけ置き換えるか外す。取消・期限切れの記憶に移るときは印を外す（記憶は事実を持たない、K10 の P3-EF-D-EXPIRED-MEMORY） (7) H51 の表の 4 行目（決められない所）は K7 の unconfirmed の印のまま（P3-UM-D-UNDECIDED-RAW の推奨の形）。候補の原文と見出し文は持たない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3189 «9b7107e07278fcf1»",
           "docs/specs/reconstruction-p0-contracts.md:3198 «ffd9f937e6ba47d1»",
@@ -464,7 +480,7 @@
       },
       {
         "id": "P3-UM-AC02",
-        "requirement": "【発注 1】欠片と見出し文の取り方。場面: 08:00 の指定河川洪水予報で 1 つの観測所の Item の水位の値が形の外。直した後は、印の part の raw にその観測所の要素を書き直した文字列（1,536 byte まで）が入り、見出し文（Head/Headline/Text）が印に入る。(1) domain の warn は読めなかった要素（無ければその親）を一緒に受け取り、part の raw にその部分木を正規形で書き直した文字列を入れる（P3-UM-D-RAW-FORM）。要素の欠け（requiredStructureMissing）は親の要素を欠片にする (2) 欠片 1 つと見出し文は boundedString（runtime-diagnostic.ts、JSON にした 1,536 byte で切り [truncated:fieldLimit] を付ける）で切る。新しい切り方を作らない (3) 見出し文は Head/Headline/Text（Q-UM-JMA の (1)）。印の付く記録だけが見出し文を持つ (4) 書き直しの関数は 1 つ（XmlElement → 文字列、上限の byte を越えたら打ち切る）。無いと: 欠片を持てない (5) U-F の範囲の区分不明は、Q-WS-LEVELS の階層ごとに読み飛ばした知らない子か地の文を欠片にし、scope にその範囲（階層の名と、その範囲の Item の区域の code・Kind の Property の Type など）を書く（H44 の WARN weatherTimeseriesScopeUnclear は今どおり 1 件出す） (6) U-Y の truncated は、落とした所（軸・時刻・節・時間帯・地域）ごとに最初の 1 つを欠片にする（U-Y の truncated: boolean は今のまま）",
+        "requirement": "【発注 1】欠片と見出し文の取り方。場面: 08:00 の指定河川洪水予報で 1 つの観測所の Item の水位の値が形の外。直した後は、印の part の raw にその観測所の要素を書き直した文字列（JSON にした長さで 1,538 byte まで）が入り、見出し文（Head/Headline/Text）が印に入る。(1) domain の warn は読めなかった要素（無ければその親）を一緒に受け取り、part の raw にその部分木を正規形で書き直した文字列を入れる（P3-UM-D-RAW-FORM）。要素の欠け（requiredStructureMissing）は親の要素を欠片にする (2) 欠片 1 つと見出し文は boundedString（runtime-diagnostic.ts、JSON にした中身の長さ 1,536 byte で切り [truncated:fieldLimit] を付ける）で切る。数える上限は JSON にした UTF-8 の長さ（引用符を含む）で 1,538 byte（日本語 512 文字は 1,538、511 文字まで入る）。新しい切り方を作らない (3) 見出し文は Head/Headline/Text（Q-UM-JMA の (1)）。印の付く記録だけが見出し文を持つ (4) 書き直しの関数は 1 つ（XmlElement → 文字列、上限の byte を越えたら打ち切る）。無いと: 欠片を持てない (5) U-F の範囲の区分不明は、Q-WS-LEVELS の階層ごとに読み飛ばした知らない子か地の文を欠片にし、scope にその範囲（階層の名と、その範囲の Item の区域の code・Kind の Property の Type など）を書く（H44 の WARN weatherTimeseriesScopeUnclear は今どおり 1 件出す） (6) U-Y の truncated は、落とした所（軸・時刻・節・時間帯・地域）ごとに最初の 1 つを欠片にする（U-Y の truncated: boolean は今のまま）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3206 «ffbdbd33020c1047»",
           "reconstruction/src/runtime/runtime-diagnostic.ts:13 «11ae9bddf7c10bd5»",
@@ -475,7 +491,7 @@
       },
       {
         "id": "P3-UM-AC03",
-        "requirement": "【発注 1】原文の器（P3-UM-D-RAW-BUDGET、H51 の「器が足りないとき」）。場面: 大雨の日の 18:00 までに U-R の 90 本の記録に読めない所が付き、原文の合計が 131,072 byte に届いた。18:05 の読めない報を採ると、06:00 の最も古い記録の原文が外れ（印は残り、rawDropped）、H39 の unreadableDropped が 1 増える。(1) 原文の byte の数え方は 1 つ: part の raw と見出し文の、null でない文字列ごとの JSON.stringify(その文字列) の UTF-8 の長さ（引用符とエスケープを含む）の和。null は 0。空文字は 2（引用符）。受信と復元で同じ関数を使う (2) unit ごとの合計を予算（U-F 1,048,576 byte、ほか 131,072 byte、置き値）までにする。合計は記録ごとの原文の byte の加算で数え（state の非保存の欄、復元のとき (1) の関数で 1 回数え直す）、受信 1 回で state 全体を直列化しない (3) 採用で合計が予算を越えたら、原文を持つ記録（raw か見出し文が null でないもの、今受けた記録を含む）を source の ReportDateTime の古い順（同じなら subject の順）に 1 回並べ、その順に原文（全部の part の raw と見出し文）を null にして rawDropped を付け、予算の内に入ったら止める。U-F は、まず addition の part の原文だけを同じ順に外し、それでも越えたら残りの原文を外す。原文が全部 null の記録は並べないので、選び直さない (4) 外した記録の数を H39 の件数に 1 記録 1 件で数える: LossReason と DiagnosticReason に unreadableDropped を 1 語足し（P3-NL-AC14 の閉集合と persistent-diagnostic-sink.ts の理由の表に足す）、owner が今の数え方（採用の結果の診断）で数える (5) 残す順位: 中身（事実）＞印＞新しい記録の原文＞古い記録の原文（U-F は addition の原文がほかの原文より先） (6) 器の上界: 各 unit の静的上界に「記録の上限×印の上界（原文を除く）＋予算」を足す。器を広げた値を契約に書き戻す（artifactRequirements の 4 つ目）",
+        "requirement": "【発注 1】原文の器（P3-UM-D-RAW-BUDGET、H51 の「器が足りないとき」）。場面: 大雨の日の 18:00 までに U-R の 90 本の記録に読めない所が付き、原文の合計が 131,072 byte に届いた。18:05 の読めない報を採ると、06:00 の最も古い記録の原文が外れ（印は残り、rawDropped）、H39 の unreadableDropped が 1 増える。(1) 原文の byte の数え方は 1 つ: part の raw と見出し文の、null でない文字列ごとの JSON.stringify(その文字列) の UTF-8 の長さ（引用符とエスケープを含む）の和。null は 0。空文字は 2（引用符）。受信と復元で同じ関数を使う (2) unit ごとの合計を予算（U-F 1,048,576 byte、ほか 131,072 byte、置き値）までにする。合計は記録ごとの原文の byte の加算で数え（state の非保存の欄、復元のとき (1) の関数で 1 回数え直す）、受信 1 回で state 全体を直列化しない (3) 採用で合計が予算を越えたら、原文を持つ記録（raw か見出し文が null でないもの、今受けた記録を含む）を source の ReportDateTime の古い順（同じなら subject の順）に 1 回並べ、その順に原文（全部の part の raw と見出し文）を null にして rawDropped を付け、予算の内に入ったら止める。U-F は、まず addition の part の原文だけを同じ順に外し、それでも越えたら残りの原文を外す。原文が全部 null の記録は並べないので、選び直さない (4) 外した記録の数を H39 の件数に 1 記録 1 件で数える: LossReason と DiagnosticReason に unreadableDropped を 1 語足し（P3-NL-AC14 の閉集合と persistent-diagnostic-sink.ts の理由の表に足す）、owner が今の数え方（採用の結果の診断）で数える (5) 残す順位: 中身（事実）＞印＞新しい記録の原文＞古い記録の原文（U-F は addition の原文がほかの原文より先） (6) 器の上界: 各 unit の器（maxEnvelopeBytes）を「今の器＋記録の上限×印 1 件の最大＋原文の予算＋カード」に広げる（作者裁定 2026-10-26 昼の A、値は P3-UM-RES-09）。実装は静的上界の試験（expiry-form-capacity.test.ts・weather-timeseries-unit.test.ts・nankai-unit.test.ts・eew-unit.test.ts・landslide-unit.test.ts ほか器の値を持つ試験）の値を同じ式で直し、実装の数えが RES-09 と違えば報告する（artifactRequirements の 4 つ目）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3208 «5894cfeab89468ed»",
           "reconstruction/contracts/p3-persist-premises.md:478 «4ca109c06a17cc8d»",
@@ -558,7 +574,7 @@
       },
       {
         "id": "P3-UM-AC11",
-        "requirement": "【発注 3】H43 の「読めなかった電文」のカード（spec の H43、計画の H51 の節、P3-UM-D-CARD-PLACE・P3-UM-D-IGNORED・P3-UM-D-CARD-LIFE の推奨の形）。場面: 10:00 に XML の壊れた気象警報（VPWW55、振り分け先は U-W）、10:01 に知らない種類 VZZZ99 を 2 通、10:02 に読めない土砂災害警戒情報が届く。今は診断の 1 行ずつだけ。直した後は、U-W の envelope に unidentified 1 枚、U-M の envelope に unknownType 1 枚（count 2）、U-L の envelope に unreadable 1 枚ができ、再起動しても 24 時間残る。(1) カードの種類: unit が decision rejected を返した入力（RejectionReason の 7 語、共通の封筒の検査を含む）は unreadable（知っているが読めない）、parser が断った入力は unidentified（種類も分からない）、振り分けの routeUnlisted・routeNotPorted は unknownType（知らない種類）。ignored・stale・duplicate・capacityExceeded はカードにしない（headType が ignored なら parser の拒否もカードにしない） (2) 置き場: owner が振り分け先の unit の CheckpointEnvelope の unreadable?: readonly UnreadableCard[] に書く。unit の無い入力は deferred の owner の U-M の envelope。parser が断った入力の振り分け先は item の headType の placeOfHeadType と classifyHeadType で決める (3) 中身: inputId・headType・operation（決まらなければ null）・受信時刻（item の receivedAt。ParserCompletion に足す）・理由・Head/Title・Head/Headline/Text・ReportDateTime の生値（あれば）・原文（木の正規形か、parser が断った報は展開した本文の先頭。16,384 byte で切り rawCut）。知らない種類は headType ごとに 1 枚で、count を足し、題・見出し文・原文は最後の報に替える (4) 上限と外す順（H51 の「原文を中身より先に」）: カードの原文は envelope ごとに 65,536 byte（U-M は 131,072 byte、置き値、AC03 の (1) と同じ数え方）まで。越えたら受信時刻の古いカードから原文を外し（raw を null、rawDropped）、それでも枚数が 8 枚（U-M は 16 枚）を越えたら受信時刻の最も古いカードを外す。外した原文と外したカードは H39 の unreadableDropped に 1 件ずつ数える。カードは受信時刻＋24 時間（置き値）を過ぎたら capture と復元のときに外す（H39 には数えない） (5) H39: カードを作るたびに LossReason・DiagnosticReason に足す unreadableReport を 1 件数える（unit ごと、知らない種類は U-M）。原文を切ったカード（rawCut）は unreadableDropped にも 1 件数える。rawCut（受けたときに切った履歴）と rawDropped（後で外した履歴）は独立で、切ったカードの原文を後で外せば両方が真になる (6) 保存: カードの変化は losses と同じく永続状態の変更で、owner はその unit の世代を進める（P3-NL-AC14 の (5) の形）。欄の無い envelope は空として読む。envelope の上限に UNREADABLE_CARDS_MAX_BYTES を足す (7) P1: ParserDiagnostic に expandedText?: string（展開した本文が UTF-8 で読めたときの先頭 16,384 byte、XML の検査で断った報だけ）を足し、ParserCompletion（owner の内部の型）に item の headType と receivedAt を足す (8) view: unit の view にカードを全部渡す（P3-UM-D-VIEW）。原文の本文は渡さない (9) U-Y の確率の報を確率の値の形の外か重なる地域で断ったときは、unit がカードの areas（地域ごとの code・名前・5 日積算の値、読めない地域は null）を返し、owner がカードに載せる（AC14）。areas はカードの原文の予算の外に置き、1 枚 384 件・24,576 byte（JSON にした配列の UTF-8 の長さ）まで。corpus の最大は 375 地域・19,468 byte（76_01_01〜03 VPTA50、値が 3 桁のとき）。越える報は、残す順位「不明（null）の地域＞5 日積算の高い地域＞低い地域」で 384 件・24,576 byte に収まるまで選び、選んだ地域を AC14 の (2) の並び（高い順、null は最後）に並べる（表示の並びは変えない）。落とした地域のある報はH39 の unreadableDropped に 1 件数える。areas は枚数の上限でカードごと外れるときだけ消える（原文を外すときは残す）",
+        "requirement": "【発注 3】H43 の「読めなかった電文」のカード（spec の H43、計画の H51 の節、P3-UM-D-CARD-PLACE・P3-UM-D-IGNORED・P3-UM-D-CARD-LIFE の推奨の形）。場面: 10:00 に XML の壊れた気象警報（VPWW55、振り分け先は U-W）、10:01 に知らない種類 VZZZ99 を 2 通、10:02 に読めない土砂災害警戒情報が届く。今は診断の 1 行ずつだけ。直した後は、U-W の envelope に unidentified 1 枚、U-M の envelope に unknownType 1 枚（count 2）、U-L の envelope に unreadable 1 枚ができ、再起動しても 24 時間残る。(1) カードの種類: unit が decision rejected を返した入力（RejectionReason の 7 語、共通の封筒の検査を含む）は unreadable（知っているが読めない）、parser が断った入力は unidentified（種類も分からない）、振り分けの routeUnlisted・routeNotPorted は unknownType（知らない種類）。ignored・stale・duplicate・capacityExceeded はカードにしない（headType が ignored なら parser の拒否もカードにしない） (2) 置き場: owner が振り分け先の unit の CheckpointEnvelope の unreadable?: readonly UnreadableCard[] に書く。unit の無い入力は deferred の owner の U-M の envelope。parser が断った入力の振り分け先は item の headType の placeOfHeadType と classifyHeadType で決める (3) 中身: inputId・headType・operation（決まらなければ null）・受信時刻（item の receivedAt。ParserCompletion に足す）・理由・Head/Title・Head/Headline/Text・ReportDateTime の生値（あれば）・原文（木の正規形か、parser が断った報は展開した本文の先頭。JSON にした UTF-8 の長さ〔引用符を含む〕16,384 byte で切り rawCut。切り方は boundedString と同じで、上限を引数にする〔無いと: 原文の byte で切ると制御文字だけの原文は JSON で 98,306 byte になり、受けた直後に envelope の予算 65,536 を越えて rawDropped になる〕）。知らない種類は headType ごとに 1 枚で、count を足し、題・見出し文・原文は最後の報に替える (4) 上限と外す順（H51 の「原文を中身より先に」）: カードの原文は envelope ごとに 65,536 byte（U-M は 131,072 byte、置き値、AC03 の (1) と同じ数え方）まで。越えたら受信時刻の古いカードから原文を外し（raw を null、rawDropped）、それでも枚数が 8 枚（U-M は 16 枚）を越えたら受信時刻の最も古いカードを外す。外した原文と外したカードは H39 の unreadableDropped に 1 件ずつ数える。カードは受信時刻＋24 時間（置き値）を過ぎたら capture と復元のときに外す（H39 には数えない） (5) H39: カードを作るたびに LossReason・DiagnosticReason に足す unreadableReport を 1 件数える（unit ごと、知らない種類は U-M）。原文を切ったカード（rawCut）は unreadableDropped にも 1 件数える。rawCut（受けたときに切った履歴）と rawDropped（後で外した履歴）は独立で、切ったカードの原文を後で外せば両方が真になる (6) 保存: カードの変化は losses と同じく永続状態の変更で、owner はその unit の世代を進める（P3-NL-AC14 の (5) の形）。欄の無い envelope は空として読む。envelope の上限に UNREADABLE_CARDS_MAX_BYTES を足す (7) P1: ParserDiagnostic に expandedText?: string（展開した本文が UTF-8 で読めたときの先頭。カードの原文と同じく JSON にした長さで 16,384 byte まで、XML の検査で断った報だけ）を足し、ParserCompletion（owner の内部の型）に item の headType と receivedAt を足す (8) view: unit の view にカードを全部渡す（P3-UM-D-VIEW）。原文の本文は渡さない (9) U-Y の確率の報を確率の値の形の外か重なる地域で断ったときは、unit がカードの areas（地域ごとの code・名前・5 日積算の値、読めない地域は null）を返し、owner がカードに載せる（AC14）。areas はカードの原文の予算の外に置き、1 枚 384 件・24,576 byte（JSON にした配列の UTF-8 の長さ）まで。corpus の最大は 375 地域・19,468 byte（76_01_01〜03 VPTA50、値が 3 桁のとき）。越える報は、残す順位「不明（null）の地域＞5 日積算の高い地域＞低い地域」で 384 件・24,576 byte に収まるまで選び、選んだ地域を AC14 の (2) の並び（高い順、null は最後）に並べる（表示の並びは変えない）。落とした地域のある報はH39 の unreadableDropped に 1 件数える。areas は枚数の上限でカードごと外れるときだけ消える（原文を外すときは残す）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3070 «a70f749f339575cc»",
           "docs/specs/reconstruction-p0-contracts.md:3200 «0cde590e28ae6b53»",
@@ -625,7 +641,7 @@
       },
       {
         "id": "P3-UM-AC16",
-        "requirement": "【発注 1】版と保存→復元（作者裁定「P5 の前は初期化してよい」、新しい形の保存→復元の試験は残す）。場面: 発注 1 を入れた最初の起動で、10 unit の前の版の保存は初期状態から始まり、最初の保存で上書きされる。20:00 に印の付いた記録を保存して 20:05 に再起動すると、印と原文が戻る。(1) 記録の形を変える 10 unit の schemaVersion を 1 つ上げ（U-T・U-Q・U-V は v6、U-N・U-L・U-R・U-B・U-M・U-F・U-Y は v7）、前の版を捨ててよい旧い版の一覧に足す（K7 の入口）。発注 2 で U-R（observedCompare、v8）、発注 3 で U-E（読めない報の印、v5）・U-T（読めない報の印、v7）を上げる (2) 旧い形は読まずに初期化する。新築の旧い形を読む移行は作らない (3) 不変条件を、作るときと復元のとき（codec・envelope の読み戻し）の両方で確かめる。復元で外れたら invalid: (a) part の site が unit の表の内、reason が 2 語、scope は 128 byte まで、compare は 16 hex、compareKeys は 16 hex の重複の無い 128 件まで、raw は boundedString の長さまで、part は 16 件まで、(site, scope) の重複なし (b) カード: kind unknownType は reason が routeUnlisted か routeNotPorted で count は 1 以上の安全な整数、kind unreadable は reason が RejectionReason の 7 語で count 1、kind unidentified は reason が ParserDiagnosticReason で count 1。rawDropped なら raw は null（rawCut と areas は独立で、組み合わせを検査しない）。areas は 384 件・24,576 byte まで。印の rawDropped・partsCut は履歴の旗で、raw や part の数との組み合わせを検査しない。areas は U-Y の envelope の unreadable のカードだけ (c) 原文の合計（AC03 の (1)）が予算の内。全体を as で言い換えない（AGENTS.md の読み戻し） (4) envelope の unreadable は欄の無い envelope を空として読み、上限と形を checkpoint の読み戻しで確かめる（losses と同じ作り）",
+        "requirement": "【発注 1】版と保存→復元（作者裁定「P5 の前は初期化してよい」、新しい形の保存→復元の試験は残す）。場面: 発注 1 を入れた最初の起動で、10 unit の前の版の保存は初期状態から始まり、最初の保存で上書きされる。20:00 に印の付いた記録を保存して 20:05 に再起動すると、印と原文が戻る。(1) 記録の形を変える 10 unit の schemaVersion を 1 つ上げ（U-T・U-Q・U-V は v6、U-N・U-L・U-R・U-B・U-M・U-F・U-Y は v7）、前の版を捨ててよい旧い版の一覧に足す（K7 の入口）。発注 2 で U-R（observedCompare、v8）、発注 3 で U-E（読めない報の印、v5）・U-T（読めない報の印、v7）を上げる (2) 旧い形は読まずに初期化する。新築の旧い形を読む移行は作らない (3) 不変条件を、作るときと復元のとき（codec・envelope の読み戻し）の両方で確かめる。復元で外れたら invalid: (a) part の site が unit の表の内、reason が 2 語、scope は JSON にした長さ（引用符を含む）で 128 byte まで、compare は 16 hex、compareKeys は 16 hex の重複の無い 128 件まで、raw は JSON にした長さ（引用符を含む）で 1,538 byte まで、part は 16 件まで、(site, scope) の重複なし (b) カード: kind unknownType は reason が routeUnlisted か routeNotPorted で count は 1 以上の安全な整数、kind unreadable は reason が RejectionReason の 7 語で count 1、kind unidentified は reason が ParserDiagnosticReason で count 1。rawDropped なら raw は null（rawCut と areas は独立で、組み合わせを検査しない）。areas は 384 件・24,576 byte まで。印の rawDropped・partsCut は履歴の旗で、raw や part の数との組み合わせを検査しない。areas は U-Y の envelope の unreadable のカードだけ (c) 原文の合計（AC03 の (1)）が予算の内。全体を as で言い換えない（AGENTS.md の読み戻し） (4) envelope の unreadable は欄の無い envelope を空として読み、上限と形を checkpoint の読み戻しで確かめる（losses と同じ作り）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:501 «3b4f6a0bcd7043d2»",
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
@@ -642,7 +658,7 @@
       },
       {
         "id": "P3-UM-AC18",
-        "requirement": "【統合担当、配送のたびに】原文の改訂（実装担当は変えない）: (1) P3-UNIT-M-001 の P3-C13-RAW の ruling に「spec の H43（2026-10-20 の H51）で覆した。U-M の envelope は unit の決まらない入力の原文つきのカードを持つ（P3-UNREADABLE-MARK-001 の P3-UM-D-CARD-PLACE）」を添える (2) P3-UNIT-TABLE-001 の P3-C0-RUNTIME-DISTINCTION に、routeUnlisted・routeNotPorted と parser の拒否がカードになること (3) P3-NOTICE-LEDGER-001 の P3-NL-AC03 の (1)（fragment の鍵は受けた fragment そのものの中身）に「観測点は revision を除いた形で鍵を作る（P3-UNREADABLE-MARK-001 の AC04 の (4)）。鍵と、鍵を含む intent の ID が変わる」を添える。P3-NL-AC14 の (3) の閉集合に unreadableReport・unreadableDropped、(7) の「unit ごとの理由（最大 7）」を「最大 9」に、(8) の「読めなかった EEW・津波（H43）は K14」を「P3-UNREADABLE-MARK-001 の AC11・AC12」に (4) P3-CURRENCY-COVERAGE-001 に unreadableReport の負の証拠（AC13） (5) P1-PARSER-BOUNDARY-001 に expandedText (6) P2-CHECKPOINT-SHUTDOWN-001 に envelope の unreadable (7) P3-WEATHER-SHAPE-001 の Q-WS-REJECTIONS・Q-WS-IMPL の remaining と残存リスク (1)・(5)・(6)・(11)〜(13)、P3-UNIT-Y-001 の (19)(20)、P3-EXPIRY-FORM-001 の残存リスク (13) と (a)〜(f) に、閉じた AC を添える。P3-EXPIRY-FORM-001 の P3-EF-AC13 の (6)（取消の相手が 0 件か 2 件以上は WARN だけ）に「2 件以上は AC19 で印を付ける」を添える (8) spec の H43 の行の契約の列に P3-UNREADABLE-MARK-001 を足す (9) 設計メモに §21 の配送の読みを足す (10) P2-SNAPSHOT-SSE-001 の UnconfirmedReason の件数に unreadableReport が入ること",
+        "requirement": "【統合担当、配送のたびに】原文の改訂（実装担当は変えない）: (1) P3-UNIT-M-001 の P3-C13-RAW の ruling に「spec の H43（2026-10-20 の H51）で覆した。U-M の envelope は unit の決まらない入力の原文つきのカードを持つ（P3-UNREADABLE-MARK-001 の P3-UM-D-CARD-PLACE）」を添える (2) P3-UNIT-TABLE-001 の P3-C0-RUNTIME-DISTINCTION に、routeUnlisted・routeNotPorted と parser の拒否がカードになること (3) P3-NOTICE-LEDGER-001 の P3-NL-AC03 の (1)（fragment の鍵は受けた fragment そのものの中身）に「観測点は revision を除いた形で鍵を作る（P3-UNREADABLE-MARK-001 の AC04 の (4)）。鍵と、鍵を含む intent の ID が変わる」を添える。P3-NL-AC14 の (3) の閉集合に unreadableReport・unreadableDropped、(7) の「unit ごとの理由（最大 7）」を「最大 9」に、(8) の「読めなかった EEW・津波（H43）は K14」を「P3-UNREADABLE-MARK-001 の AC11・AC12」に (4) P3-CURRENCY-COVERAGE-001 に unreadableReport の負の証拠（AC13） (5) P1-PARSER-BOUNDARY-001 に expandedText (6) P2-CHECKPOINT-SHUTDOWN-001 に envelope の unreadable (7) P3-WEATHER-SHAPE-001 の Q-WS-REJECTIONS・Q-WS-IMPL の remaining と残存リスク (1)・(5)・(6)・(11)〜(13)、P3-UNIT-Y-001 の (19)(20)、P3-EXPIRY-FORM-001 の残存リスク (13) と (a)〜(f) に、閉じた AC を添える。P3-EXPIRY-FORM-001 の P3-EF-AC13 の (6)（取消の相手が 0 件か 2 件以上は WARN だけ）に「2 件以上は AC19 で印を付ける」を添える (8) spec の H43 の行の契約の列に P3-UNREADABLE-MARK-001 を足す (9) 設計メモに §21 の配送の読みを足す (10) P2-SNAPSHOT-SSE-001 の UnconfirmedReason の件数に unreadableReport が入ること (11) 器の上限の改訂（作者裁定 2026-10-26 昼の A、値は P3-UM-RES-09）: 器の値を条文・resourceLimits に持つ unit 契約の該当の項に「P3-UNREADABLE-MARK-001 の RES-09 で広げた」を添える。P3-TSUNAMI-UNIT-001 の P3-C5-CAPACITY、P3-UNIT-Q-001 の P3-C7-AC05・I-U-Q、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC05・P3-QC-RES-01、P3-UNIT-N-001 の P3-C8-AC04・P3-C8-RES-01・P3-C8-CAPACITY・I-U-N、P3-UNIT-N-SERIES-001 の P3-NS-AC06、P3-UNIT-L-001 の P3-C10-AC04・I-U-L、P3-UNIT-B-001 の P3-C12-AC05・P3-C12-AC15・I-U-B・P3-C12-PARAMETERS、P3-UNIT-R-001 の P3-C11-AC04・I-U-R、P2-EEW-UNIT-001 の P2-A4-AC04・Q-NOTICE、P3-UNIT-Y-001 の P3-C14-AC06・P3-C14-AC15・I-U-Y・P3-C14-PARAMETERS、P3-UNIT-M-001 の P3-C13-AC06・P3-C13-AC15・P3-C13-RES-01・P3-C13-BOUNDS・I-U-M・P3-C13-PARAMETERS、P2-WEATHER-CURRENT-UNIT-001 の P2-A5-RES-01、P2-WEATHER-TIMESERIES-UNIT-001 と P3-UNIT-V-001 は器の値を codec の定数としてだけ持つ（契約の文に値が無い）。配送の記録の値（P3-EXPIRY-FORM-001・P3-VERSION-MATERIAL-001・P3-AUTHORITY-EVIDENCE-001・P3-CODEC-CLOSURE-001・P3-NOTICE-LEDGER-001 の Q-…-IMPL など）は記録なので書き換えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-local-bulletins-unit.json:99 «5f1ed2a31c3669df»",
           "reconstruction/contracts/p3-notice-ledger.json:668 «b17bb409ee5ceec7»",
@@ -685,7 +701,7 @@
           "P3-UM-AC01",
           "P3-UM-AC16"
         ],
-        "behavior": "契約境界（発注 1）。part 16 件ちょうどと 17 件目（partsCut）、欠片の 1,536 byte の境界（boundedString の印）、codec が表の外の site・17 件の part・16 hex でない compare を invalid にすること。partsCut の記録に、観測点の引き継ぎで part が 15 件になっても partsCut が残ること。10:00 の VTSE51 A（観測点 x1〜x17、各 Sensor が形の外で 16 part＋partsCut）→ 10:01 の同じ報の fragment B（x1〜x17 を Sensor を省いて含み、新しい y を足す）で、前の x が残るので partsCut が残ること（入力の code で数えると外れる）"
+        "behavior": "契約境界（発注 1）。part 16 件ちょうどと 17 件目（partsCut）、欠片の JSON 長 1,538 byte の境界（boundedString の印、日本語 511 文字と 512 文字）、codec が表の外の site・17 件の part・16 hex でない compare を invalid にすること。partsCut の記録に、観測点の引き継ぎで part が 15 件になっても partsCut が残ること。10:00 の VTSE51 A（観測点 x1〜x17、各 Sensor が形の外で 16 part＋partsCut）→ 10:01 の同じ報の fragment B（x1〜x17 を Sensor を省いて含み、新しい y を足す）で、前の x が残るので partsCut が残ること（入力の code で数えると外れる）"
       },
       {
         "testId": "P3-UM-T04",
@@ -908,10 +924,21 @@
       "足した仕組み（UnreadableMark と site の表、欠片の書き直しの関数、原文の byte の数え方と非保存の合計、比べの digest と compareKeys、observedCompare、envelope の unreadable、UnitInput の読めなかった報の変種、UnreadableNoticeMark、unreadableReport の負の証拠、expandedText、カードの areas）ごとに「無いと何が壊れるか」を 1 行",
       "【発注 2】通知の判定に届く道の表（site → file:行 → 欄 → (i)〜(iv) のどれで直したか → A → B → C の列で直す前と後に鳴る回数）。Phase 0 の表（Q-UM-SURVEY の (5)）と違う行があれば理由を 1 行。追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行。期待値を変えた既存の試験の名前と理由（変える前に報告）",
       "版を上げた unit の静的上界の試験の新しい値と器（Q-UM-BYTES の見積もりとの差、器を広げた値）。UNREADABLE_CARDS_MAX_BYTES の値",
-      "残存リスク（(1)〜(21) は 2026-10-26 作者承認済み、Q-UM-AUTHOR）。【今の新築より鳴らなくなる・出なくなる】 (1) 一覧の欄（区域・市町村・観測・tag）に読めない要素のある版では、なくなった要素を変化に数えないので、その版で本当に区域が減っても鳴らず、次の読めた版で鳴る。次の版が来なければ鳴らない (2) U-R で観測所が外れたか現況のレベル・時刻が読めない版の後は、比べの観測の最大が前の値以上に保たれるので、本当に下がってから同じ値に戻った上昇は鳴らない。正しい報の現況のレベルが空・9 の観測所を挟んだ「−1 からの上昇」の warning は今どおり鳴る（K10 の (b) の括弧の分は直さない。鳴らないか二重かなら二重の向き） (3) 1 つの値の欄が読めない版では、その版でその欄が本当に変わっていても鳴らない（読めないので分からない）。次の読めた版で前の読めた値と違えば鳴る (4) 読めない EEW・津波のカードは、同じ unit・operation の前の読めない報の通知の期限の内（EEW 15 秒、ほか最長 180 秒）なら鳴らない（カードは足す、段が上がれば鳴る）。何で同じ報と見なすかは持たない（dmdataId や本文の digest で分けても、数秒ごとの壊れた続報には窓が要るため）ので、別の壊れた報でも窓の内なら鳴らず、窓の外で同じ壊れた報を受け直すともう一度鳴る (5) 読めない報のほかの種類（地震・南海トラフ・火山・気象など）はカードと H39 だけで鳴らない（作者裁定 ①） (6) ignored の種類は、壊れていてもカードにしない (7) 原文の予算（unit ごと 131,072 byte、U-F は 1,048,576 byte）を越えると古い記録の原文から外れる（印は残る）。カードの原文は 16,384 byte で切れ（報の p90 は 29,820 byte）、envelope ごとの原文 65,536 byte（U-M 131,072 byte）を越えると古いカードの原文から外れ、8 枚（U-M 16 枚）を越えると古いカードが外れ、24 時間で消える。同じ壊れた報を受け直す（取り直しを含む）たびにカードが 1 枚増える（同じ報かを見ない）ので、受け直しが続くと古いカードが早く押し出される。知らない種類は headType ごとに最後の報の原文だけ残る。どれも H39 の unreadableDropped に数える（24 時間で消えるカードは数えない） (8) 1 つの記録の印は 16 件までで、後の所は省かれる（partsCut） (9) 火山コードの無い取消で eventId に当たる記録が 0 件のときは、手元に記録が無いので画面に何も残らない（WARN だけ。今と同じ） (10) U-V の海上予報区の Kind の code「31」が読めない VFSV は段が warning から normal に下がる（K10 の発注 2 からの振る舞い、notice-scan。本契約では変えない） (11) 一覧の要素の中の名前（種別の名前・kindName・condition）が読めない版の前後では、その名前の変化に鳴らない 【そのほか、鳴る・出るが変わる】 (12) 読めない VTSE41 は中身が大津波警報でも warning で鳴る。読めない津波注意報の解除でも warning・津波緊急の群で鳴り、ほかの通知に割り込む（P3-UM-D-CARD-SOUND の A） (13) operation の読めない（parser が断った）EEW・津波は本番として鳴る。訓練の報でも本番の音になりうる (14) 一覧の比べの鍵が 128 件を越える版（持ち越した鍵と読めた鍵の和が 129 件以上。corpus の 1 つの一覧の最大は 112、竜巻の区域は 76）の次の版は、中身が同じでもその欄を変化として 1 回鳴る（鳴らないか二重かなら二重の向き） (15) 読めない報で U-L などの slot が未確認（unreadableReport）になると、取り直し（C16）が入るまでは再起動まで消えない（P3-UM-D-UNCONFIRMED の A、capacityExceeded と同じ） (16) 原文は正規形の書き直しで、属性の順・空白・実体参照が電文の byte と違いうる (17) 台風の確率の値の読めない報は断るので、画面の確率は次の読める報まで前の報のまま（数時間古い）。U-Y のカード 8 枚・24 時間の内は、カードを開くと地域ごとの値と「不明」が見える（既決 B）。385 地域以上の報は値の低い地域から落ちる（corpus の最大は 375） (18) 急ぐ側の worker（U-E・U-T・U-Q・U-N・U-V）の保存 1 回が、印・原文・カードの分だけ大きくなる（最悪で各 unit 約 0.3〜0.6 MB、未測。EEW の保存の待ちは最長 1 秒で打ち切る、P3-NL-AC07） (19) U-M で ValidDateTime の読めない報は表示の期限が報＋1 時間になり、期限切れの後に同じ中身の正しい報が来ると activated で鳴る（K10 の発注 2 からの振る舞い、notice-scan。本契約では変えない） 【旧築と比べて変わる】 (20) 旧築は読めない報を見出しだけの短命の表示（保持 11 分、通知しない）にする（src/engine/messages/revision-family-registry.ts の raw）。新築はカードを 24 時間持ち、EEW・津波は鳴る (21) 旧築は空の名前を空のまま出す。新築は通知の本文に「（読めず）」と出す",
+      "残存リスク（(1)〜(17)・(19)〜(21) は 2026-10-26 作者承認済み、Q-UM-AUTHOR。(18) は数字を直したので作者に聞き直す、Q-UM-AUTHOR-18）。【今の新築より鳴らなくなる・出なくなる】 (1) 一覧の欄（区域・市町村・観測・tag）に読めない要素のある版では、なくなった要素を変化に数えないので、その版で本当に区域が減っても鳴らず、次の読めた版で鳴る。次の版が来なければ鳴らない (2) U-R で観測所が外れたか現況のレベル・時刻が読めない版の後は、比べの観測の最大が前の値以上に保たれるので、本当に下がってから同じ値に戻った上昇は鳴らない。正しい報の現況のレベルが空・9 の観測所を挟んだ「−1 からの上昇」の warning は今どおり鳴る（K10 の (b) の括弧の分は直さない。鳴らないか二重かなら二重の向き） (3) 1 つの値の欄が読めない版では、その版でその欄が本当に変わっていても鳴らない（読めないので分からない）。次の読めた版で前の読めた値と違えば鳴る (4) 読めない EEW・津波のカードは、同じ unit・operation の前の読めない報の通知の期限の内（EEW 15 秒、ほか最長 180 秒）なら鳴らない（カードは足す、段が上がれば鳴る）。何で同じ報と見なすかは持たない（dmdataId や本文の digest で分けても、数秒ごとの壊れた続報には窓が要るため）ので、別の壊れた報でも窓の内なら鳴らず、窓の外で同じ壊れた報を受け直すともう一度鳴る (5) 読めない報のほかの種類（地震・南海トラフ・火山・気象など）はカードと H39 だけで鳴らない（作者裁定 ①） (6) ignored の種類は、壊れていてもカードにしない (7) 原文の予算（unit ごと 131,072 byte、U-F は 1,048,576 byte）を越えると古い記録の原文から外れる（印は残る）。カードの原文は JSON にした長さ 16,384 byte で切れ（報の p90 は 29,820 byte。制御文字や引用符の多い原文はもっと短く切れる）、envelope ごとの原文 65,536 byte（U-M 131,072 byte）を越えると古いカードの原文から外れ、8 枚（U-M 16 枚）を越えると古いカードが外れ、24 時間で消える。同じ壊れた報を受け直す（取り直しを含む）たびにカードが 1 枚増える（同じ報かを見ない）ので、受け直しが続くと古いカードが早く押し出される。知らない種類は headType ごとに最後の報の原文だけ残る。どれも H39 の unreadableDropped に数える（24 時間で消えるカードは数えない） (8) 1 つの記録の印は 16 件までで、後の所は省かれる（partsCut） (9) 火山コードの無い取消で eventId に当たる記録が 0 件のときは、手元に記録が無いので画面に何も残らない（WARN だけ。今と同じ） (10) U-V の海上予報区の Kind の code「31」が読めない VFSV は段が warning から normal に下がる（K10 の発注 2 からの振る舞い、notice-scan。本契約では変えない） (11) 一覧の要素の中の名前（種別の名前・kindName・condition）が読めない版の前後では、その名前の変化に鳴らない 【そのほか、鳴る・出るが変わる】 (12) 読めない VTSE41 は中身が大津波警報でも warning で鳴る。読めない津波注意報の解除でも warning・津波緊急の群で鳴り、ほかの通知に割り込む（P3-UM-D-CARD-SOUND の A） (13) operation の読めない（parser が断った）EEW・津波は本番として鳴る。訓練の報でも本番の音になりうる (14) 一覧の比べの鍵が 128 件を越える版（持ち越した鍵と読めた鍵の和が 129 件以上。corpus の 1 つの一覧の最大は 112、竜巻の区域は 76）の次の版は、中身が同じでもその欄を変化として 1 回鳴る（鳴らないか二重かなら二重の向き） (15) 読めない報で U-L などの slot が未確認（unreadableReport）になると、取り直し（C16）が入るまでは再起動まで消えない（P3-UM-D-UNCONFIRMED の A、capacityExceeded と同じ） (16) 原文は正規形の書き直しで、属性の順・空白・実体参照が電文の byte と違いうる (17) 台風の確率の値の読めない報は断るので、画面の確率は次の読める報まで前の報のまま（数時間古い）。U-Y のカード 8 枚・24 時間の内は、カードを開くと地域ごとの値と「不明」が見える（既決 B）。385 地域以上の報は値の低い地域から落ちる（corpus の最大は 375） (18) 急ぐ側の worker（U-E・U-T・U-Q・U-N・U-V）の保存 1 回が、印・原文・カードの分だけ大きくなる。上限いっぱいの最悪で U-T 4.72→11.31 MB（encode 中央 14→28 ms）、U-Q 5.66→15.45 MB（16→47 ms）、U-N 2.63→3.10 MB（9→10 ms）、U-V 5.27→7.65 MB（18→24 ms）、U-E 2.11→2.15 MB（6→7 ms）（MacBook で測定、Pi は未測）。普段の日は実際の中身の大きさで、上限に近づくのは全記録に印が付く日だけ。EEW の保存の待ちは最長 1 秒で打ち切る（P3-NL-AC07）。器の最終の大きさは段 4 で Pi の時間を測って決め直す（後の作業で解消する見込みの (d)） (19) U-M で ValidDateTime の読めない報は表示の期限が報＋1 時間になり、期限切れの後に同じ中身の正しい報が来ると activated で鳴る（K10 の発注 2 からの振る舞い、notice-scan。本契約では変えない） 【旧築と比べて変わる】 (20) 旧築は読めない報を見出しだけの短命の表示（保持 11 分、通知しない）にする（src/engine/messages/revision-family-registry.ts の raw）。新築はカードを 24 時間持ち、EEW・津波は鳴る (21) 旧築は空の名前を空のまま出す。新築は通知の本文に「（読めず）」と出す",
       "【後の作業で解消する見込み（残存リスクに数えない）】 (a) 原文の本文の画面への受け渡しと描画、印・カードの見せ方（P4） (b) 印・カードの snapshot・wire の形と大きさ（段 4） (c) U-W・U-E の記録の印（③・EEW の閉じ方の契約が本契約の形を使う） (d) 器の最終の大きさ（段 4 で速さを測って決め直す、2026-10-21 の作者の方向） (e) H39 の件数の画面への口（段 4）"
     ],
     "unresolvedQuestions": [
+      {
+        "id": "Q-UM-AUTHOR-18",
+        "owner": "user",
+        "blocks": [
+          "発注 1 の発注前点検"
+        ],
+        "resolveBy": "発注 1 の発注前点検の前",
+        "requiredEvidence": [
+          "残存リスク (18)（急ぐ側の worker の保存 1 回の大きさと時間、測定で直した値）の作者の承認"
+        ]
+      },
       {
         "id": "Q-UM-BASE",
         "owner": "integrator",
