@@ -3,11 +3,11 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome, WallBasis,
+  SubjectOutcome, UnreadableMark, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
-  BriefingArea, BriefingCurrent, BriefingInput, BriefingIntent, BriefingItem, BriefingKind, BriefingNotificationPayload, BriefingObservation,
-  BriefingUnitCodec, BriefingUnitState, BriefingUnitStep, BriefingUnitView, PersistedBriefingUnit,
+  BriefingArea, BriefingCurrent, BriefingInput, BriefingRecordRainCurrent, BriefingReportCurrent, BriefingIntent, BriefingItem, BriefingKind, BriefingNotificationPayload, BriefingObservation,
+  BriefingUnitCodec, BriefingUnitState, BriefingUnitStep, BriefingUnitView, BriefingUnreadableSite, PersistedBriefingUnit,
 } from "../../../contracts/p3-briefing-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
@@ -20,12 +20,14 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
+import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
 
 // P3-UNIT-B-001（C12、I-U-B）: U-B の系列の current・予測の置換・alias・通知・容量・codec・射影。
 
-const SCHEMA = "p3-briefing-unit-v6" as const;
-// P3-C12-BOUNDS=A・P3-C12-RES-01・RET-01〜04。
-const CURRENT_LIMIT = 256, GENERATION_LIMIT = 2_097_152;
+const SCHEMA = "p3-briefing-unit-v7" as const;
+// P3-C12-BOUNDS=A・P3-C12-RES-01・RET-01〜04。P3-UM-RES-09: 器は記録の上限×印 1 件（一覧の欄 observations の 1 つ）＋原文の予算＋カードの分だけ広げる。
+const CURRENT_LIMIT = 256;
+const GENERATION_LIMIT = 2_097_152 + CURRENT_LIMIT * unreadableMarkBytes("unreadable", 1) + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C12-TTL=B（SEM-01・02、元報の ReportDateTime から）と相関の窓（SEM-03、受理の時計から）。
 const SHORT_MS = 7_200_000, LONG_MS = 10_800_000, HOLD_MS = 60_000;
@@ -35,7 +37,7 @@ const TTL = { desktop: 180_000, sound: 60_000 } as const;
 const NOTICE_BOUNDS = { title: 160, body: 512 } as const;
 const UNCONFIRMED = "（対応電文未確認）";
 
-type Visible = BriefingUnitView["currents"][number];
+type Visible = Extract<BriefingReportCurrent, Readonly<{ effective: "active" }>> | Extract<BriefingRecordRainCurrent, Readonly<{ effective: "released" }>>;
 type Level = BriefingNotificationPayload["level"];
 type InternalStep = Omit<BriefingUnitStep, "displayChanges" | "confirmationEvidence">;
 type Decision = BriefingUnitStep["decisions"][number];
@@ -44,9 +46,11 @@ type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 // eventId と inherited は VPBS50 の記録だけが持つ（VPOA50 は系列が EventID の全体）。VPOA50 の記録を組むときは外す（vpoa50Of）。
 type Base = Readonly<{ subject: string; operation: Operation; series: string; eventId: string; inherited?: true; source: ReportRef;
   unconfirmed?: ReportRef; notice?: NoticeMark }>;
-type Text = Readonly<{ title: string; headline: string; editorialOffice: string; truncated: boolean }>;
+type Text = Readonly<{ title: string; headline: string; editorialOffice: string; truncated: boolean; unreadable?: UnreadableMark }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
+// P3-UM-AC03 (3): 原文を外す順は source の ReportDateTime の古い順（同じなら subject の順）。
+const rawKey = (item: BriefingCurrent): readonly [number, string] => [reportMs(item.source), item.subject];
 // view に載るのは VPBS50 の active と VPOA50 の released だけ（I-U-B.view）。保留の印のある記録は見えない（P3-EF-AC02 (2)）。
 const shownKind = (value: BriefingCurrent | null): value is Visible => value?.effective === "active" || value?.effective === "released";
 const visible = (value: BriefingCurrent | null): value is Visible => shownKind(value) && value.expiryPending !== true;
@@ -61,7 +65,7 @@ const baseOf = (value: BriefingCurrent): Base => ({ subject: value.subject, oper
   ...value.headType === "VPBS50" && value.inherited === true ? { inherited: true } : {}, source: value.source,
   ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed }, ...value.notice == null ? {} : { notice: value.notice } });
 const textOf = (value: Text): Text => ({ title: value.title, headline: value.headline, editorialOffice: value.editorialOffice,
-  truncated: value.truncated });
+  truncated: value.truncated, ...value.unreadable == null ? {} : { unreadable: value.unreadable } });
 const after = (base: Base, ms: number) => reportMs(base.source) + ms;
 function activeOf(base: Base, text: Text, items: readonly BriefingItem[], observations: readonly BriefingObservation[]): BriefingCurrent {
   const longer = items.length !== 0 && items.every(predicted);
@@ -239,7 +243,7 @@ function nextOf(candidate: BriefingCandidate, existing: BriefingCurrent | null, 
     ...inherited ? { inherited: true } : {}, source: candidate.source };
   if (candidate.cancelled) return memoryOf(base, candidate.headType, "cancelled");
   const text: Text = { title: candidate.title, headline: candidate.headline, editorialOffice: candidate.editorialOffice,
-    truncated: candidate.truncated };
+    truncated: candidate.truncated, ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
   if (candidate.headType === "VPBS50") {
     const index = indexOf(values);
     // 置き換える前の版自身の発生は数えず、この報の発生は数える。
@@ -479,13 +483,21 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   const fresh = payload == null ? [] : intentsFor(candidate, transition, payload, now, existing?.notice, versionDigest(candidate.source));
   const notices = admit(state.intents, fresh, withdrawn);
   const marked = markAdmitted(currents, notices.admitted);
-  const result: BriefingUnitState = { ...state, currents: marked, intents: notices.intents,
+  // P3-UM-AC03 (3): 原文の合計が予算を越えたら古い記録の原文から外す（印は残る）。外した記録の view も変わるので表示の変化に足す。
+  const fit = fitRawBudget(rawTotal(marked), RAW_BUDGET, () => marked, rawKey);
+  const settled = fit == null ? marked : marked.map((item) => stripRaw(item, fit));
+  const result: BriefingUnitState = { ...state, currents: settled, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
 
   // change は最終の表示の変化で決める（I-U-B.currentSemantics(6)）。accepted は触れた subject のうち最終の状態に記録が残るもの。
   // 自分の記録は印を足した後の state の記録（表示の変化の after を state に揃える）。
-  const ownAfter = marked === currents ? next : marked[indexOf(marked).subjects.get(subject) ?? -1] ?? next;
-  const touched: Change[] = [[existing, ownAfter], ...[...edits].filter(([at]) => at !== own).map(([at, value]): Change => [values[at], value])];
+  const ownAfter = settled === currents ? next : settled[indexOf(settled).subjects.get(subject) ?? -1] ?? next;
+  // 外した記録の after は settled の同じ位置の記録（edits の記録も settled に入っている）。
+  const after = new Map(fit == null ? [] : marked.flatMap((item, at) => item === settled[at] ? [] : [[item, settled[at]] as const]));
+  const settle = (value: BriefingCurrent | null) => value == null ? null : after.get(value) ?? value;
+  const touched: Change[] = [[existing, ownAfter], ...[...edits].filter(([at]) => at !== own).map(([at, value]): Change => [values[at], settle(value)])];
+  const editedValues = new Set(edits.values());
+  const stripped: Change[] = [...after].filter(([item]) => item.subject !== subject && !editedValues.has(item));
   const shownChange = ([before, value]: Change) => visible(before) !== visible(value) || visible(before) && changed(before, value).length !== 0;
   const change = evicted != null || touched.some(shownChange) ? "semantic" as const : "revisionOnly" as const;
   const decision: Decision = { subject, operation, decision: "changed", reason: null, change,
@@ -494,8 +506,10 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   if (evicted != null) diagnostics.push(evictedDiagnostic);
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "briefing", reason: "notificationCapacityEvicted", unit: "U-B",
     count: notices.dropped });
+  const dropped = droppedIn(fit, settled);
+  if (dropped !== 0) diagnostics.push({ level: "INFO", component: "briefing", reason: "unreadableDropped", unit: "U-B", count: dropped });
   return {
-    changes: [...evicted == null ? [] : [[evicted, null] as const], ...touched],
+    changes: [...evicted == null ? [] : [[evicted, null] as const], ...touched, ...stripped],
     step: { state: result, nextDeadline: nextDeadline(result), decisions: [decision], intents: notices.admitted,
       outcomes: [{ kind: "accepted", change, subjects: touched.flatMap(([before, value]) => value == null ? [] : [outcomeOf(value, changed(before, value))]) }],
       diagnostics },
@@ -759,20 +773,23 @@ function observationRecord(value: unknown): BriefingObservation | null {
     || !isText(row.areaCode) || !validCode(row.areaCode) || !boundedName(row.areaName, BOUNDS.name) || !boundedName(row.label, BOUNDS.name)) return null;
   return { part, areaCode: row.areaCode, areaName: row.areaName, label: row.label, value: measured, unit, approximation, time };
 }
+// P3-UM-AC01 (2): 印の site の表（BriefingUnreadableSite）。
+const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "editorialOffice", "condition", "observation"] satisfies readonly BriefingUnreadableSite[]);
 function textRecord(row: Fields): Text | null {
-  return typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
+  const unreadable = "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES) : undefined;
+  return unreadable === null || typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
     // 読めなかった官署は空で受ける（P3-EF-AC13）。
     || !validHeadline(row.headline) || !bounded(row.editorialOffice, BOUNDS.office) || row.editorialOffice !== "" && !validName(row.editorialOffice) ? null
-    : { title: row.title, headline: row.headline, editorialOffice: row.editorialOffice, truncated: row.truncated };
+    : { title: row.title, headline: row.headline, editorialOffice: row.editorialOffice, truncated: row.truncated, ...unreadable == null ? {} : { unreadable } };
 }
 // 枝ごとに持ってよい事実の field（types.ts の判別共用体）。ほかの枝の field を持つ保存物は拒む。
 // 保留の印は表示の期限を持つ見える記録（VPBS50 の active と VPOA50 の released）にだけ置ける（P3-EF-AC14 (20)）。
-const FACT_KEYS = ["title", "headline", "editorialOffice", "truncated", "items", "observations", "areas", "holdUntil", "expiryPending"] as const;
+const FACT_KEYS = ["title", "headline", "editorialOffice", "truncated", "unreadable", "items", "observations", "areas", "holdUntil", "expiryPending"] as const;
 const BRANCH_KEYS: Readonly<Record<string, readonly string[]>> = {
-  "VPBS50/active": ["title", "headline", "editorialOffice", "truncated", "items", "observations", "expiryPending"],
-  "VPOA50/held": ["title", "headline", "editorialOffice", "truncated", "areas", "holdUntil"],
-  "VPOA50/released": ["title", "headline", "editorialOffice", "truncated", "areas", "expiryPending"],
-  "VPOA50/aliased": ["title", "headline", "editorialOffice", "truncated", "areas"],
+  "VPBS50/active": ["title", "headline", "editorialOffice", "truncated", "unreadable", "items", "observations", "expiryPending"],
+  "VPOA50/held": ["title", "headline", "editorialOffice", "truncated", "unreadable", "areas", "holdUntil"],
+  "VPOA50/released": ["title", "headline", "editorialOffice", "truncated", "unreadable", "areas", "expiryPending"],
+  "VPOA50/aliased": ["title", "headline", "editorialOffice", "truncated", "unreadable", "areas"],
 };
 function currentRecord(value: unknown): BriefingCurrent | null {
   const row = record(value);
@@ -848,19 +865,21 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedBriefingUnit = { schemaVersion: SCHEMA, currents, intents };
-  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
+  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
+    || rawTotal(currents) > RAW_BUDGET) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const briefingUnitCodec: BriefingUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2", "p3-briefing-unit-v3", "p3-briefing-unit-v4", "p3-briefing-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2", "p3-briefing-unit-v3", "p3-briefing-unit-v4", "p3-briefing-unit-v5", "p3-briefing-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-B.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-briefing-unit-v6 payload" }
+    return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

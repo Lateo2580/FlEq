@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { withLongestMarks } from "../unreadable-mark/longest-mark";
 
 import { LONGEST_NOTICE, expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
@@ -556,7 +557,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       return { ...emptyState(), currents, information };
     };
     // 空の intents 配列（2 byte）を通知の予算 131,072 で置き換え、generation と capturedAt の 62 byte と inputBoundary・losses の最大を予約する。
-    const generation = (state: NankaiUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v6", unit: "U-N", generation: 0,
+    const generation = (state: NankaiUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v7", unit: "U-N", generation: 0,
       capturedAt: 0, payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + 62 - 2 + 131_072;
     const legal = build("震", "replay", "発表"), bound = build("\u0001", "recovery", "取消");
     expect(bound.currents.filter((item) => "warningUntil" in item)).toHaveLength(3);
@@ -570,8 +571,12 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const sizes = { legal: generation(legal), bound: generation(bound) + refs * 200, contractBound: 2_335_693, limit: 2_621_440 };
     console.info("P3-NS-T04 U-N generation", JSON.stringify(sizes));
     expect(Math.max(sizes.legal, sizes.bound)).toBeLessThanOrEqual(2_621_440);
+    // P3-UM-AC03 (6)・RES-09: 現況と情報の全部の記録に読み戻しの上限いっぱいの印と予算いっぱいの原文を足した上界も、広げた器の内で decode が受ける。
+    const marked = { ...bound, intents: budget.intents, currents: withLongestMarks(bound.currents, "infoName", 0, 131_072),
+      information: withLongestMarks(bound.information, "infoName", 0, 0) };
+    expect(roundTrip(marked).kind).toBe("restored");
     expect(nankaiUnitCodec.discardableSchemaVersions).toEqual(["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4",
-      "p3-nankai-unit-v5"]);
+      "p3-nankai-unit-v5", "p3-nankai-unit-v6"]);
 
     // decode の拒否の表（invalid）と、受ける形。
     type Row = Record<string, unknown>;

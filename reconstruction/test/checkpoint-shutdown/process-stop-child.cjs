@@ -19,7 +19,7 @@ const fileSystem = { ...real,
   rename: async (from, to) => { await park("beforeRename"); return real.rename(from, to); },
   syncDirectory: async (path) => { await park("beforeSyncDirectory"); return real.syncDirectory(path); },
 };
-const codec = { schemaVersion: "p2-weather-timeseries-unit-v6", encode: (state) => state.value,
+const codec = { schemaVersion: "p2-weather-timeseries-unit-v7", encode: (state) => state.value,
   decode: (payload) => ({ kind: "restored", state: { value: payload } }) };
 const clock = () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() });
 const coordinator = new CheckpointCoordinator(directory, { "U-F": codec }, fileSystem, clock, () => {});

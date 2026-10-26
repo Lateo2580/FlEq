@@ -4,13 +4,13 @@ import { isDeepStrictEqual } from "node:util";
 import type { MaterialValue, Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, WallBasis, DiagnosticDetails, FailureMark, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject,
-  RuntimeUnitDeadline, SubjectOutcome, SubjectUnavailable,
+  RuntimeUnitDeadline, SubjectOutcome, SubjectUnavailable, UnreadableMark,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   CancelledSummary, EarthquakeContribution, EarthquakeEvent, EarthquakeEventView, EarthquakeFamily, LongPeriodSubject, PersistedSeismicUnit,
   SeismicDailyHistory, SeismicGuard, SeismicHypocenter, SeismicInput, SeismicIntensityItem, SeismicIntensityObservation, SeismicIntensityValue,
   SeismicIntent, SeismicNotificationPayload, SeismicRecentQuake, SeismicTsunamiComment, SeismicUnitCodec, SeismicUnitState,
-  SeismicUnitStep, SeismicUnitView, StrongShakingHold,
+  SeismicUnitStep, SeismicUnitView, SeismicUnreadableSite, StrongShakingHold,
 } from "../../../contracts/p3-seismic-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
@@ -25,10 +25,14 @@ import {
   raiseEvidence, readFailureMarks, readIntentState, readNoticeMark, restoreStarted, shown, updateEvidence,
   versionDigest,
 } from "../notice-mark";
+import {
+  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, markView, rawTotal, rawTotalBy, readUnreadableMark, recordRawBytes, stripRaw, unreadableMarkBytes,
+} from "../unreadable";
+import type { RawPlan } from "../unreadable";
 
 // P3-UNIT-Q-001（C7、I-U-Q）: U-Q の意味・当日履歴・通知・容量・codec・射影。
 
-const SCHEMA = "p3-seismic-unit-v5" as const;
+const SCHEMA = "p3-seismic-unit-v6" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 // P3-C7-CAPACITY=A・P3-C7-RES-01・RET-01〜05。
 const EVENT_LIMIT = 512, LONG_PERIOD_LIMIT = 256;
@@ -54,7 +58,9 @@ const GUARD_BYTES = sizeOf(`,"guard":${JSON.stringify({ from: -0.000001234567890
 const MEMORY_GROWTH = EVENT_LIMIT * SUMMARY_BYTES + OPERATIONS.length * COUNTED_LIMIT * (sizeOf('["",9]') - sizeOf('""'))
   + (EVENT_LIMIT + LONG_PERIOD_LIMIT) * GUARD_BYTES;
 // 4 MiB に、同時最大状態の Control/DateTime と印の分（121,513）と強震保持の増え分を足す。Q-QC-DECIDED (1): 退去できない記録の増えと同じ分だけ広げる。
-const GENERATION_LIMIT = 4_194_304 + 121_513 + HOLD_GROWTH + NOTICE_GROWTH + FAILURE_MARKS_MAX_BYTES - 131_072 + MEMORY_GROWTH;
+// P3-UM-RES-09: 読めない所の印（寄与 512×4 と長周期 256 の全部）・原文の予算・カードの分も足す。
+const GENERATION_LIMIT = 4_194_304 + 121_513 + HOLD_GROWTH + NOTICE_GROWTH + FAILURE_MARKS_MAX_BYTES - 131_072 + MEMORY_GROWTH
+  + (EVENT_LIMIT * EARTHQUAKE_FAMILIES.length + LONG_PERIOD_LIMIT) * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // I-U-Q.capacityReserve: 取消・期限切れの記憶だけの記録と当日履歴の上限。P3-VM-AC08: 取消記憶の ReportRef（512×4＋256 件）に
 // controlDateTimeRaw の 49 byte を足した予約。
@@ -250,8 +256,11 @@ function eventView(event: EarthquakeEvent): EarthquakeEventView {
     intensity = { ...facts.intensity, items: facts.intensity.items.filter((item) => VIEW_LEVELS.has(item.level)) };
     shownIntensity.set(facts.intensity, intensity);
   }
+  // P3-UM-AC10: active の寄与の印を family の順に写す（原文の本文は渡さない）。
+  const marks = event.contributions.flatMap((item) => item.effective === "active" && item.unreadable != null
+    ? [{ family: item.family, ...markView(item.unreadable) }] : []);
   view = { ...facts, intensity, ...event.unavailable == null ? {} : { unavailable: event.unavailable },
-    ...event.cancelledSummary == null ? {} : { cancelledSummary: event.cancelledSummary } };
+    ...event.cancelledSummary == null ? {} : { cancelledSummary: event.cancelledSummary }, ...marks.length === 0 ? {} : { unreadableView: marks } };
   viewCache.set(event, view);
   return view;
 }
@@ -695,6 +704,12 @@ function contributionOutcome(event: EarthquakeEvent, item: EarthquakeContributio
     transition: item.effective, severity: null, source: item.source,
     facts: { eventId: event.eventId, family: item.family, effective: item.effective }, changedFields: [] };
 }
+// 採用の outcome の事実は記録のまま。読めない所の印だけ原文の本文を外した view の形にする（P3-UM-D-VIEW）。
+function shownFacts(value: LongPeriodSubject): Readonly<Record<string, JsonValue>> {
+  if (value.unreadable == null) return value;
+  const { unreadable, ...rest } = value;
+  return { ...rest, unreadableView: markView(unreadable) };
+}
 function longPeriodOutcome(value: LongPeriodSubject, facts: Readonly<Record<string, JsonValue>> | null = null,
   changedFields: readonly string[] = []): SubjectOutcome {
   return { subject: value.subject, operation: value.operation, informationType: value.source.infoTypeRaw, transition: value.effective,
@@ -721,14 +736,15 @@ function displaySubject(value: Shown): Extract<RuntimeDisplaySubject, Readonly<{
 // P3-VM-AC03: family の系列ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
 const sameReportKind = (left: ReportRef, right: ReportRef): boolean => left.infoTypeRaw.trim() === right.infoTypeRaw.trim();
 // 通知の印（P3-NL-AC02）は中身の比べに入れない。
-// 畳んだ印（P3-QC-AC03）も中身の比べに入れない（観測点の列は指紋で比べる）。
-const withoutSource = ({ unconfirmed: _mark, notice: _notice, folded: _folded, ...value }: EarthquakeContribution | LongPeriodSubject) =>
+// 畳んだ印（P3-QC-AC03）も中身の比べに入れない（観測点の列は指紋で比べる）。読めない所の印（P3-UM-AC01）も入れない（原文の予算で
+// 原文を外した寄与を同じ版の再送で食い違いにしない）。
+const withoutSource = ({ unconfirmed: _mark, notice: _notice, folded: _folded, unreadable: _unreadable, ...value }: EarthquakeContribution | LongPeriodSubject) =>
   ({ ...value, source: null });
 // 印の鍵ごと外す（undefined の鍵を残すと isDeepStrictEqual と保存の形が変わる）。
 const eventWithoutMarks = ({ unavailable: _marks, ...rest }: EarthquakeEvent): EarthquakeEvent => rest;
 // 守りの欄と畳んだ印は長周期の事実でない（P3-QC-AC01・AC03）。
-const longPeriodWithoutMarks = ({ unavailable: _mark, unconfirmed: _unconfirmed, notice: _notice, guard: _guard, folded: _folded, ...rest }:
-  LongPeriodSubject): LongPeriodSubject => rest;
+const longPeriodWithoutMarks = ({ unavailable: _mark, unconfirmed: _unconfirmed, notice: _notice, guard: _guard, folded: _folded,
+  unreadable: _unreadable, ...rest }: LongPeriodSubject): LongPeriodSubject => rest;
 // P3-CC-D-PENDING=A・D-FAILNOTICE=A の文面の時刻（報の ReportDateTime を JST の HH:MM に）。
 const jstClock = (raw: string): string => new Date(Date.parse(raw) + JST_MS).toISOString().slice(11, 16);
 const FAIL_BODY = "容量の上限のため、この報を処理できていません。";
@@ -876,7 +892,8 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
     source: candidate.source, effective: candidate.cancelled ? "cancelled" : "active", title: candidate.cancelled ? "" : candidate.title,
     headline: candidate.cancelled ? null : candidate.headline, hypocenter: candidate.hypocenter, intensity: candidate.intensity,
     // P3-QC-AC08 (4): receiveEarthquake と同じく、記憶に届いた取消は記憶の期限まで残す。
-    retainUntil: Math.max(candidate.reportDateTimeMs + LONG_PERIOD_RETAIN_MS, candidate.cancelled && existing != null ? existing.retainUntil : -Infinity) };
+    retainUntil: Math.max(candidate.reportDateTimeMs + LONG_PERIOD_RETAIN_MS, candidate.cancelled && existing != null ? existing.retainUntil : -Infinity),
+    ...candidate.cancelled || candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
   // P3-QC-AC08 (4)・AC03 (3)(b): receiveEarthquake と同じ比べ方。
   const version = stepVersion(existing == null ? null : { version: existing.source, source: existing.source,
     cancelled: existing.effective === "cancelled" }, existing?.unconfirmed ?? null, candidate.source, () => existing != null
@@ -914,7 +931,7 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
     existing == null ? null : { at: existing.source.reportDateTimeRaw, name: existing.hypocenter?.name ?? null }) : [];
   const result = adopt(state, candidate, clock, basis, { earthquakes: state.earthquakes, longPeriods: replaceAt(state.longPeriods, index, next),
     daily: state.daily, fresh, semantic, changes: [[existing, next]], target: next, missing: version.missing, version: notice.version,
-    outcome: longPeriodOutcome(next, next, semantic ? ["longPeriod"] : []) });
+    outcome: longPeriodOutcome(next, shownFacts(next), semantic ? ["longPeriod"] : []) });
   return lost && result.uncovered == null ? { ...result, uncovered: true } : result;
 }
 
@@ -945,6 +962,18 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
   const due = target.retainUntil <= clock.wallTimeMs;
   const [before] = changes[0];
   const fresh = due && before == null;
+  // P3-UM-AC03 (3): 原文の合計（寄与と長周期の和）が予算を越えたら古い記録の原文から外す（印は残る）。器の退去（fit）より先に当てる。
+  const raw = fresh ? null : rawPlan(earthquakes, longPeriods);
+  if (raw != null) {
+    const pairs: Change[] = [], original = target;
+    const strip = <T extends Shown>(item: T, after: T): T => { if (after !== item) pairs.push([item, after]); return after; };
+    earthquakes = earthquakes.map((item) => strip(item, stripEvent(item, raw)));
+    longPeriods = longPeriods.map((item) => strip(item, stripRaw(item, raw)));
+    target = pairs.find(([item]) => item === original)?.[1] ?? original;
+    const own = target;
+    changes = [...changes.map(([prior, after]): Change => [prior, after === original ? own : after]),
+      ...pairs.filter(([item]) => item !== original)];
+  }
   // (0)(a): 受けた報 1 件の byte（event は受けた family の寄与）。
   const received = isEvent(target) ? target.contributions.reduce((sum, item) => item.family === candidate.family ? sum + bytes(item) : sum, 0)
     : shownBytes(target);
@@ -975,6 +1004,8 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
   diagnostics.push(...planDiagnostics(fitted));
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "notificationCapacityEvicted",
     unit: "U-Q", count: notices.dropped });
+  const dropped = droppedIn(raw, [...next.earthquakes.flatMap((item) => item.contributions), ...next.longPeriods]);
+  if (dropped !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "unreadableDropped", unit: "U-Q", count: dropped });
   return {
     changes: [...fresh ? [] : changes, ...planChanges(fitted), ...collected?.changes ?? []],
     step: { state: next, nextDeadline: nextDeadline(next),
@@ -984,6 +1015,17 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
       outcomes: [{ kind: "accepted", change, subjects: due ? [] : [proposal.outcome] }],
       diagnostics },
   };
+}
+
+// P3-UM-AC03 (3): 原文の予算の計画。原文を持つのは寄与と長周期の記録で、外す順は報の ReportDateTime の古い順（同じなら subject の順）。
+const eventRawBytes = (item: EarthquakeEvent): number => item.contributions.reduce((sum, entry) => sum + recordRawBytes(entry), 0);
+function rawPlan(earthquakes: readonly EarthquakeEvent[], longPeriods: readonly LongPeriodSubject[]): RawPlan<EarthquakeContribution | LongPeriodSubject> | null {
+  return fitRawBudget<EarthquakeContribution | LongPeriodSubject>(rawTotalBy(earthquakes, eventRawBytes) + rawTotal(longPeriods), RAW_BUDGET,
+    () => [...earthquakes.flatMap((item) => item.contributions), ...longPeriods], (item) => [reportMs(item.source), item.source.subject]);
+}
+function stripEvent(item: EarthquakeEvent, plan: Pick<RawPlan, "modes">): EarthquakeEvent {
+  const contributions = item.contributions.map((entry) => stripRaw(entry, plan));
+  return contributions.every((entry, at) => entry === item.contributions[at]) ? item : { ...item, contributions };
 }
 
 // 容量の拒否（P3-CC-AC03・AC04・AC10）。印 → 失敗警報 → 系統の desktop の title の書き換えの順に、前の段を確定した state へ当てる。
@@ -1394,6 +1436,13 @@ function guardFor(row: Fields, operation: Operation, active: boolean): Readonly<
   const guard = guardRow(row.guard);
   return guard == null || !active && guard.on !== 0 ? null : { guard };
 }
+// P3-UM-AC01 (2)(6): 印は active の記録だけが持ち、site は SeismicUnreadableSite の表の内（欄が無ければ {}、形の外は null）。
+const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "intensity", "hypocenter", "name"] satisfies readonly SeismicUnreadableSite[]);
+function unreadableOf(row: Fields, effective: string): Readonly<{ unreadable?: UnreadableMark }> | null {
+  if (!("unreadable" in row)) return {};
+  const mark = effective === "active" ? readUnreadableMark(row.unreadable, UNREADABLE_SITES) : null;
+  return mark == null ? null : { unreadable: mark };
+}
 function contribution(value: unknown): EarthquakeContribution | null {
   const row = record(value);
   const family = familyOf(row?.family), source = reportRef(row?.source);
@@ -1408,12 +1457,12 @@ function contribution(value: unknown): EarthquakeContribution | null {
   // P3-VM-AC04: 未確認の印は同じ family の系列（subject・operation）の報（取消の後の時刻の無い報の印も残る）。
   const mark = "unconfirmed" in row ? reportRef(row.unconfirmed) : undefined;
   const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
-  const folded = foldedOf(row, effective, facts.intensity);
-  if (mark === null || notice === null || folded === null || mark != null && (mark.subject !== source.subject || mark.operation !== source.operation))
-    return null;
+  const folded = foldedOf(row, effective, facts.intensity), unreadable = unreadableOf(row, effective);
+  if (mark === null || notice === null || folded === null || unreadable === null
+    || mark != null && (mark.subject !== source.subject || mark.operation !== source.operation)) return null;
   return { family, source, effective, targetDateTimeRaw: row.targetDateTimeRaw, title: row.title, headline: row.headline,
     hypocenter: facts.hypocenter, intensity: facts.intensity, tsunamiComment: facts.comment, ...mark == null ? {} : { unconfirmed: mark },
-    ...notice == null ? {} : { notice }, ...folded == null ? {} : { folded } };
+    ...notice == null ? {} : { notice }, ...folded == null ? {} : { folded }, ...unreadable };
 }
 function strongHold(value: unknown): StrongShakingHold | null | "invalid" {
   if (value === null) return null;
@@ -1476,11 +1525,12 @@ function longPeriod(value: unknown): LongPeriodSubject | null {
   const unconfirmed = "unconfirmed" in row ? reportRef(row.unconfirmed) : undefined;
   const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
   const folded = foldedOf(row, effective, facts.intensity), guard = guardFor(row, operation, effective === "active");
-  if (unconfirmed === null || notice === null || folded === null || guard == null || unconfirmed != null && (unconfirmed.subject !== row.subject
+  const unreadable = unreadableOf(row, effective);
+  if (unconfirmed === null || notice === null || folded === null || guard == null || unreadable === null || unconfirmed != null && (unconfirmed.subject !== row.subject
     || unconfirmed.operation !== operation)) return null;
   return { subject: row.subject, eventId: row.eventId, operation, source, effective, title: row.title, headline: row.headline,
     hypocenter: facts.hypocenter, intensity: facts.intensity, retainUntil: row.retainUntil, ...mark == null ? {} : { unavailable: mark },
-    ...unconfirmed == null ? {} : { unconfirmed }, ...notice == null ? {} : { notice }, ...folded == null ? {} : { folded }, ...guard };
+    ...unconfirmed == null ? {} : { unconfirmed }, ...notice == null ? {} : { notice }, ...folded == null ? {} : { folded }, ...guard, ...unreadable };
 }
 // 当日履歴の文字列の上限（SeismicRecentQuake の注記）。
 function boundedValue(value: MaterialValue): boolean {
@@ -1551,8 +1601,10 @@ function persisted(value: unknown): PersistedSeismicUnit | null {
   if (longPeriods.some((entry) => entry.guard != null && (froms.get(eventKey(entry.operation, entry.eventId)) ?? entry.guard.from) !== entry.guard.from))
     return null;
   const daily = { normal, training, test };
+  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
   if (intents.length > PENDING_ITEMS || listBytes(intents, bytes) + reserve(intents) > PENDING_BYTES || reservedBytes(earthquakes, longPeriods, daily) > RESERVE_BYTES
-    || generationBytes(earthquakes, longPeriods, daily, intents, failureMarks) > GENERATION_LIMIT) return null;
+    || generationBytes(earthquakes, longPeriods, daily, intents, failureMarks) > GENERATION_LIMIT
+    || rawTotalBy(earthquakes, eventRawBytes) + rawTotal(longPeriods) > RAW_BUDGET) return null;
   return { schemaVersion: SCHEMA, earthquakes, longPeriods, daily, intents, failureMarks };
 }
 
@@ -1560,7 +1612,7 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const emptyDaily: Daily = { normal: EMPTY_HISTORY, training: EMPTY_HISTORY, test: EMPTY_HISTORY };
 const seismicUnitCodec: SeismicUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-seismic-unit-v1", "p3-seismic-unit-v2", "p3-seismic-unit-v3", "p3-seismic-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-seismic-unit-v1", "p3-seismic-unit-v2", "p3-seismic-unit-v3", "p3-seismic-unit-v4", "p3-seismic-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // state は reducer が上限の内側で作るので、encode は保存 field だけを並べる（contentRevision・persistence は保存しない）。
   encode: (state) => ({ schemaVersion: SCHEMA, earthquakes: state.earthquakes, longPeriods: state.longPeriods, daily: state.daily,
     intents: state.intents, failureMarks: state.failureMarks }),

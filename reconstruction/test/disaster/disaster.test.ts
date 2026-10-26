@@ -367,7 +367,9 @@ const X_EVENT = "20260601000000";
 function nearTsunamiLimit() {
   const unit = linkedUnitTable["U-T"];
   const base = Date.parse("2026-06-01T00:00:00+09:00");
-  const full = variant("32-39_12_02_250206_VTSE41", base);
+  // P3-UM-RES-09 で U-T の器が 11 MB に広がり、corpus の形の予報（1 件 20 KB）では件数の上限 512 が先に効くので、予報区の名前を伸ばして
+  // 世代の上限が先に効く大きさ（1 件 27 KB）にする。
+  const full = variant("32-39_12_02_250206_VTSE41", base).replace(/(<Area>\s*<Name>)/g, `$1${"波".repeat(40)}`);
   const body = full.indexOf("<Body");
   const single = full.slice(0, body) + full.slice(body).replace(/(<\/CodeDefine>\s*<Item>[\s\S]*?<\/Item>)[\s\S]*?(\s*<\/Forecast>)/, "$1$2");
   const at = (xml: string, atMs: number, eventId: string) => shiftTimestamps(xml, atMs - base).replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`);

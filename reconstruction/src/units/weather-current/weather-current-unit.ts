@@ -38,10 +38,12 @@ import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
+import { UNREADABLE_CARDS_MAX_BYTES } from "../unreadable";
 
 const SCHEMA = "p2-weather-current-unit-v5" as const;
 type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
-const GENERATION_BYTES = 16 * 1024 * 1024;
+// P3-UM-RES-09: 読めない報のカード 8 枚の分を足す（U-W の記録の印は ③。カードを envelope に書くのは発注 3）。
+const GENERATION_BYTES = 16 * 1024 * 1024 + UNREADABLE_CARDS_MAX_BYTES;
 const encoder = new TextEncoder();
 const operations = ["normal", "training", "test"] as const;
 // A1 AC09 / spec 5.6: restored references stay unconfirmed until their own report is adopted.

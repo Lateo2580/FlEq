@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "8e6f1db87a76630dc41b125474c10d3763d2f018a9b65060595627fb0c731bb3",
+    "sha256": "ebd648f4061870c1af4eb6f0add3747fc24845ebd1ebc46cdec6bd703ed5b945",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -273,7 +273,7 @@
         "target": "U-Fの公開形式の1鍵（viewの要素2つ〔公開形式とSubjectOutcome〕とsemanticRevisionの1 subject分）",
         "limit": 1510,
         "unit": "UTF-8 JSON bytes per key, plus 10 bytes per area code (A(k)), under the premises in scope",
-        "scope": "上界の宣言で、切り詰めの上限ではない。式: b(k)≤1,119＋6×J(office)＋2×J(inputId)＋3×J(reportDateTimeRaw)＋3×J(serialRaw)＋4×J(infoTypeRaw)＋Σ_a(J(a)＋3)。JはJSONのescape込みのUTF-8 byte数（引用符を除く）、aは区域Code。1,119は文字列の欄を空にして数値を最大の桁・enumを最長の値にした固定部（id 64・revision 16桁・operation/VPWP50/の16 byteを含む）。前提（実配信の範囲）: 官署名≤33 byte・inputId≤22文字（input-と安全な整数）・reportDateTimeRaw≤29文字（ISO 8601、小数秒3桁まで）・SerialはASCIIの数字8桁以下（J≤8 byte。『あ』8文字なら1,544 byteで前提の外）・InfoTypeは発表・訂正・取消・区域Code 7桁で、どれもescapeの増分0。このとき1,496＋10×A(k)≤1,510＋10×A(k)。前提の外: liveの文字列はP1のtextの上限16,384文字（JSONで最大98,304 byte）、restoreは32 MiBの世代の中で任意の長さを許すので、1鍵はその長さに比例して伸びる。periodの数・辞書・lastKnownには比例しない。U-Fのview V≤512＋Σ_k b(k)。実例の範囲（normal 58官署、A(k)≤81〔fixtureの最大、81_09_01 長野。Q-PERIOD.measurementの851通では確かめていない〕）で135,072以下",
+        "scope": "上界の宣言で、切り詰めの上限ではない。式: b(k)≤1,119＋6×J(office)＋2×J(inputId)＋3×J(reportDateTimeRaw)＋3×J(serialRaw)＋4×J(infoTypeRaw)＋Σ_a(J(a)＋3)。JはJSONのescape込みのUTF-8 byte数（引用符を除く）、aは区域Code。1,119は文字列の欄を空にして数値を最大の桁・enumを最長の値にした固定部（id 64・revision 16桁・operation/VPWP50/の16 byteを含む）。前提（実配信の範囲）: 官署名≤33 byte・inputId≤22文字（input-と安全な整数）・reportDateTimeRaw≤29文字（ISO 8601、小数秒3桁まで）・SerialはASCIIの数字8桁以下（J≤8 byte。『あ』8文字なら1,544 byteで前提の外）・InfoTypeは発表・訂正・取消・区域Code 7桁で、どれもescapeの増分0。このとき1,496＋10×A(k)≤1,510＋10×A(k)。前提の外: liveの文字列はP1のtextの上限16,384文字（JSONで最大98,304 byte）、restoreは32 MiBの世代の中で任意の長さを許すので、1鍵はその長さに比例して伸びる。periodの数・辞書・lastKnownには比例しない。U-Fのview V≤512＋Σ_k b(k)。実例の範囲（normal 58官署、A(k)≤81〔fixtureの最大、81_09_01 長野。Q-PERIOD.measurementの851通では確かめていない〕）で135,072以下（今の器は U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "source": "P3-UFP-AC03"
       },
       {
@@ -366,11 +366,11 @@
         "id": "P3-UFP-AC01",
         "requirement": "公開形式（Q-UFP-SHAPE・Q-UFP-PATHS）: U-Fのownerからpublisherへ出る値のうちviewとdisplayChangesを公開形式に限る。(1) toWeatherTimeseriesViewのseriesの要素をWeatherTimeseriesPublicSubjectにする（WeatherTimeseriesUnitView.seriesの型を変える。semanticRevision・contentRevision・admission・subjectsは今のまま）(2) reduceWeatherTimeseriesUnitのdisplayChanges、normalDisplaySubjects（P3-CURRENCY-COVERAGE-001で除いた）、restoreのdisplayChangesのRuntimeDisplaySubjectのcurrentを同じ公開形式にする（RuntimeDisplaySubjectのU-Fのcurrentの型を変える）。同じsubjectのobjectからは同じ公開形式のobjectを返す（WeakMap。無いと: viewを作り直すたびに全subjectのperiodを走査し直す）(3) 公開形式の欄はQ-UFP-SHAPEのものだけ。effective=activeのsubjectでは、areaCodesは全periodの区域Code（空文字を除く）の集合、knownCodesはSignificancyのperiodのうちName・Codeがmissing・emptyでなくCodeがtextでQ-VALUES.knownCodesに入るもののCodeの集合、unknownCodeはSignificancyのperiodをP2-A8-SUMMARY.unknownの規則（missing→empty→unknown、既知の表に無いCodeはunknown）で数えた件数。activeでないsubjectはareaCodes・knownCodesを空、unknownCodeを全部0にする（P2-A8-SUMMARYはactiveだけを数える）。periodCountはperiodsの長さ、lastKnownPeriodCountはlastKnownのperiodsの長さ（lastKnownが無ければnull）、idとrevisionはQ-UFP-REVISION、officeはsubjectのoperation/VPWP50/の後の文字列全体（今のRuntimeDisplaySubject.officeと同じ）(4) outcomes・confirmationEvidence・pendingIntents・diagnosticsは変えない",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:536 «f15f687b3b579095»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:531 «c0bebdd928e5447c»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:459 «7c6629abf6687429»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:85 «c16260c56aed133b»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:135 «f79e08d469fb2238»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:563 «f15f687b3b579095»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:558 «c0bebdd928e5447c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:485 «7c6629abf6687429»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:93 «c16260c56aed133b»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:146 «f79e08d469fb2238»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:213 «22fdd95c5ad1b6ab»",
           "reconstruction/src/runtime/owner-host.ts:323 «e0baf553a81410c8»",
           "reconstruction/src/runtime/owner-host.ts:325 «910631e381d4aaba»",
@@ -386,24 +386,24 @@
         "id": "P3-UFP-AC02",
         "requirement": "同じ入力でownerのstateと保存内容が変わらない（Pro §7.4、Q-UFP-SCHEMA）: 試験の固定の入力列（U-Fのfixture 13本、validUntilの後の期限とrestoreの往復を挟む）で、各stepのcodecのencodeのsha256・decisions・outcomes・intents・nextDeadlineがbase（本契約のbaseOid）の値と一致する。同じ官署・報時刻・Serial・InfoTypeを持つfixture（high_severity・unknown_code・criteria_periodなど）は官署名か報時刻を替えて送り、各stepが狙った採否（changed・stale・duplicate・rejected）になったことを試験の前提として確かめる（同じ鍵でduplicateに落ちて比較が空振りするのを防ぐ）。baseの値は実装の前にbaseで同じ試験を走らせて試験に書く。reduceWeatherTimeseriesCore・collect・evict・replace・fits・measure・persisted・codec・withoutNormalとWeatherTimeseriesUnitState・PersistedWeatherTimeseriesUnit・schemaVersionはdiffで変えない（periodMeaningは返す値を変えない。戻り値の型の注記だけ可）。永続schemaを変える必要が出たら実装を止めてblockedを報告する",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:14 «0d2408f99a1d13dc»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:17 «24da389b1664ffbd»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:220 «0c4bf4cc6f7ce2d9»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:17 «1bf3da5c083273e8»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:22 «1cf52d92e0ca7cdd»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:229 «0c4bf4cc6f7ce2d9»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:156 «537767c42d8ef412»",
           "AGENTS.md:26 «2c223bbb66635b53»"
         ]
       },
       {
         "id": "P3-UFP-AC03",
-        "requirement": "公開形式のbyteの上界（鍵の数×1鍵の上界、P3-UFP-RES-01）: 1鍵の上界b(k)＝公開形式のJSONのbyte＋同じsubjectのSubjectOutcomeのJSONのbyte＋semanticRevisionの1 subject分＋区切り。文字列の欄は全部を数える: subject（公開形式・その出典・SubjectOutcome・その出典・semanticRevisionの5回、官署名はofficeと合わせて6回）・inputId（2回）・reportDateTimeRaw（3回）・serialRaw（3回）・infoTypeRaw（4回）・区域Code（1回ずつ）。前提はbyteで書く（SerialはASCIIの数字8桁以下）。式と前提はRES-01のscope（JSONのescape、inputId、liveのP1の上限とrestoreが許す範囲を含む）。前提の中でb(k)≤1,510＋10×A(k)、U-Fのview V≤512＋Σ_k b(k)。実例の範囲（normal 58官署、A(k)≤81）でV≤135,072 byte。官署58×operation 3＝174鍵でも約0.40 MB、合法の鍵の数512でA(k)＝81なら約1.19 MBで、鍵の数と文字列の長さに比例するだけ（今はU-Fのstate全体、平常15.6〜15.8 MB・合法32 MiBが載る）。ownerの1つの返信のU-FのviewsとdisplayChangesの部分はV＋Σ_{差分のsubject}2×(1,560＋10×A(k)) byte以下（前提の中、before・afterのRuntimeDisplaySubject。restoreはafterだけ。outcomesは本契約で変えず、今の形で有界）。試験で (a) 前提の最長の値と、前提を外れた長い文字列（小数秒2,000桁の報時刻など）で組んだ公開形式が式以下 (b) 実fixtureのsubjectを官署名だけ替えて組んだ平常の大きさのstate（保存の計量B≥15,638,202、Q-PERIOD.measurementの山の最小）で、restoreの返信と1官署の受信の返信のU-FのviewsとdisplayChangesの部分（JSONにしたbyte）が式以下、を確かめ、Bと返信のbyteと比を成果物に書く。計算量（AGENTS.mdの受信経路の計算量）: 公開形式のために、受信・期限の処理でU-Fのstate・view・subjectの全体をJSONにして数える計量を足さず、変わっていないsubjectのperiodを走査し直さない。既存の保存の容量の計量（fits→measure→bytesが、変わったsubjectを1回直列化するP2-A6の差分計量）は変えない（P3-UFP-AC02）。viewを組み立てるときの全subjectの列挙とsemanticRevisionのsortは今どおり残る（P2-A8-COSTの限定の例外）",
+        "requirement": "公開形式のbyteの上界（鍵の数×1鍵の上界、P3-UFP-RES-01）: 1鍵の上界b(k)＝公開形式のJSONのbyte＋同じsubjectのSubjectOutcomeのJSONのbyte＋semanticRevisionの1 subject分＋区切り。文字列の欄は全部を数える: subject（公開形式・その出典・SubjectOutcome・その出典・semanticRevisionの5回、官署名はofficeと合わせて6回）・inputId（2回）・reportDateTimeRaw（3回）・serialRaw（3回）・infoTypeRaw（4回）・区域Code（1回ずつ）。前提はbyteで書く（SerialはASCIIの数字8桁以下）。式と前提はRES-01のscope（JSONのescape、inputId、liveのP1の上限とrestoreが許す範囲を含む）。前提の中でb(k)≤1,510＋10×A(k)、U-Fのview V≤512＋Σ_k b(k)。実例の範囲（normal 58官署、A(k)≤81）でV≤135,072 byte。官署58×operation 3＝174鍵でも約0.40 MB、合法の鍵の数512でA(k)＝81なら約1.19 MBで、鍵の数と文字列の長さに比例するだけ（今はU-Fのstate全体、平常15.6〜15.8 MB・合法32 MiBが載る）。ownerの1つの返信のU-FのviewsとdisplayChangesの部分はV＋Σ_{差分のsubject}2×(1,560＋10×A(k)) byte以下（前提の中、before・afterのRuntimeDisplaySubject。restoreはafterだけ。outcomesは本契約で変えず、今の形で有界）。試験で (a) 前提の最長の値と、前提を外れた長い文字列（小数秒2,000桁の報時刻など）で組んだ公開形式が式以下 (b) 実fixtureのsubjectを官署名だけ替えて組んだ平常の大きさのstate（保存の計量B≥15,638,202、Q-PERIOD.measurementの山の最小）で、restoreの返信と1官署の受信の返信のU-FのviewsとdisplayChangesの部分（JSONにしたbyte）が式以下、を確かめ、Bと返信のbyteと比を成果物に書く。計算量（AGENTS.mdの受信経路の計算量）: 公開形式のために、受信・期限の処理でU-Fのstate・view・subjectの全体をJSONにして数える計量を足さず、変わっていないsubjectのperiodを走査し直さない。既存の保存の容量の計量（fits→measure→bytesが、変わったsubjectを1回直列化するP2-A6の差分計量）は変えない（P3-UFP-AC02）。viewを組み立てるときの全subjectの列挙とsemanticRevisionのsortは今どおり残る（P2-A8-COSTの限定の例外）（今の器は U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-weather-timeseries-unit.json:212 «83f3cb19f390beb0»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:206 «f9c69abb104ab19a»",
           "reconstruction/src/decode-material/decode-material.ts:25 «ac5797a85aaedf39»",
           "reconstruction/src/runtime/owner-runtime.ts:102 «2b9e3cf835889edf»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:326 «67874315c95a7f0f»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:26 «c1abbbb4993dfe08»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:534 «6f5c686600311853»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:346 «67874315c95a7f0f»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:32 «c1abbbb4993dfe08»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:561 «6f5c686600311853»",
           "reconstruction/contracts/p2-snapshot-sse.json:99 «6f7a0d72bfa4c6d2»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
@@ -438,9 +438,9 @@
         "id": "P3-UFP-AC06",
         "requirement": "詳細の口のownerの側（P3-UFP-D-DETAIL-SCREEN=A）:U-Fのunitのfileに純粋な関数weatherTimeseriesDetailを置く（stateを変えない、期限を当てない、dirtyにしない）。要求WeatherTimeseriesDetailRequestは索引{ part: index, revision, page }か時系列{ part: current|lastKnown, id, revision, page }（streamIdはpublisherが照合して外す）。(1) 索引（Q-UFP-INDEX）: revisionはU-Fのviewの内容版（ownerがprojectViewと同じ式で渡す。P3-CURRENCY-COVERAGE-001でunitの内容版の10進の文字列になった）。違えばversionChangedと今の内容版。1ページ32件（normalの公開の制限の間にnormalを載せない分岐はP3-CURRENCY-COVERAGE-001で除いた） (2) 時系列: idで見えるsubject（走査はsubjectの数512以下）を探し、無ければversionChanged（revisionはnull）。revisionが今のrevision（Q-UFP-REVISION）と違えばversionChangedと今のrevision。旧版を作り直さない (3) part＝lastKnownでlastKnownが無ければperiod 0件のページ (4) pageは0以上pageCount未満の整数（時系列はmax(1, ceil(n/64))、索引はmax(1, ceil(件数/32))）。外れはinvalidRequest (5) 時系列の行はQ-UFP-PAGEの形で[64p, 64p+64)の行だけを解決し、予約4,096 byteを引いた61,440 byteを越える行は{ index, reason: pageBudget }にする。subject全体・snapshot全体をJSONにしない (6) 応答WeatherTimeseriesDetailResponseは、索引のok { kind, part: index, revision, page, pageCount, subjectCount, entries }、時系列のok { kind, part, id, revision, page, pageCount, periodCount, periods: { index, period }[], omitted: { index, reason }[] }、誤り{ kind: error, reason: invalidRequest|versionChanged|busy|unavailable|timeout, revision }。誤りの本文はstreamIdを足して256 byte以下、okは65,536 byte以下。型はp2-weather-timeseries-unit.types.tsに置き、spec §7.10のDomainDetailPageのU-Fの分として凍結する（periodはperiodMeaningの戻り値と同じ中身の名前付きtuple）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:149 «847ff8144f4d8bac»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:245 «f058e3a180f89e0c»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:565 «a486380631b6e9d0»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:157 «847ff8144f4d8bac»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:262 «f058e3a180f89e0c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:592 «a486380631b6e9d0»",
           "reconstruction/src/view-projector/view-projector.ts:770 «25d8f1daebd55d26»",
           "reconstruction/src/runtime/composition-root.ts:574 «445a2eeb56638c45»",
           "reconstruction/contracts/p2-snapshot-sse.json:87 «5272dd4ae4de33c9»",

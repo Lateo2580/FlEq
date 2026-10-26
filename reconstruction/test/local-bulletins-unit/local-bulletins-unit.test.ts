@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { describe, expect, it, vi } from "vitest";
+import { withLongestMarks } from "../unreadable-mark/longest-mark";
 
 import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
@@ -736,7 +737,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     // P3-NL-AC15 (2): 全部の記録に最長の通知の印。竜巻の印は目撃の fragment の鍵（SIGHTED）も持つ（P3-EF-AC14 (19)）。
     const notice = { version: "0".repeat(16), kinds: ["report", "cancel", "expiry"] as const, evidence: "unattempted" as const };
     const SIGHTED = createHash("sha256").update("sighted").digest("hex").slice(0, 16), sightedBytes = Buffer.byteLength(`,"fragments":["${SIGHTED}"]`);
-    const maximum = { schemaVersion: "p3-local-bulletins-unit-v6", tornado: tornado.map((item) => ({ ...item, notice: { ...notice, fragments: [SIGHTED] } })),
+    const maximum = { schemaVersion: "p3-local-bulletins-unit-v7", tornado: tornado.map((item) => ({ ...item, notice: { ...notice, fragments: [SIGHTED] } })),
       heat: heat.map((item) => ({ ...item, notice })),
       transient: transient.map((item) => ({ ...item, notice })), intents };
     const decoded = localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify(maximum)) as JsonValue);
@@ -751,6 +752,13 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const GENERATION_STATIC_BOUND = localBulletinsUnitCodec.maxEnvelopeBytes!;
     const unmarked = (json: string) => Buffer.byteLength(json.replace(/,"(?:unconfirmed|notice)":\{[^}]*\}/g, ""));
     expect(generationBytes(localBulletinsUnitCodec.encode(decoded.state))).toBeLessThanOrEqual(GENERATION_STATIC_BOUND);
+    // P3-UM-AC03 (6)・RES-09: 保存する active の全部の記録に読み戻しの上限いっぱいの印（一覧の欄 areas・tags の 2 つ）と予算いっぱいの原文を
+    // 足した上界も、広げた器の内で decode が受ける（transient の active は保存しない）。
+    const active = (item: { effective: string }) => item.effective === "active";
+    const markedMaximum = localBulletinsUnitCodec.decode(JSON.parse(JSON.stringify({ ...maximum,
+      tornado: withLongestMarks(maximum.tornado, "editorialOffice", 2, 131_072, active), heat: withLongestMarks(maximum.heat, "editorialOffice", 2, 0, active) })) as JsonValue);
+    expect(markedMaximum.kind === "restored" ? generationBytes(localBulletinsUnitCodec.encode(markedMaximum.state)) <= GENERATION_STATIC_BOUND : markedMaximum)
+      .toBe(true);
     // P3-VM-AC08（作者裁定 2026-10-21 夜）・P3-NL-D-CAPACITY=A: 器を広げた量は未確認の印と通知の印の分（外した終端記録の 98,304 を引く）。印を
     // 外した最大の状態は 4 MiB−98,304 の内側で、各 slice の受理が受ける最長の subject（1 単位 3 byte）の記録に上限いっぱいの未確認の印を付けて
     // encode した印の byte を件数の上限に掛けた和と、通知の印の上界の和が、広げた量の内側。

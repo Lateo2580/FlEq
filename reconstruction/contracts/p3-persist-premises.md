@@ -572,3 +572,8 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
 - §8 の表の H43 の行（:451）の「履歴まで残すなら別の置き場」: カードは owner が振り分け先の unit の envelope に書く（K8 の losses と同じ置き場、P3-UM-D-CARD-PLACE）。unit の無い入力は U-M の envelope。台風の確率の報は既決どおり断り、カードに地域ごとの値と「不明」を載せる（P3-UM-AC14）。
 - §13 の C（:505）: unit が `decision: "rejected"` を返した入力と parser の拒否と知らない種類が、全部カードの入力になる（C の所を unit ごとに数え直さない）。
 - §20 の「比べから外して直す」（:566）: 1 つの値の欄は前の読めた値の digest で比べ、一覧の欄は要素ごとの鍵の集合で比べ、U-T の観測は revision を除いた中身の fragment の鍵で比べる（P3-UM-D-COMPARE、作者裁定 2026-10-26 A）。
+- 発注 1 の配送で変わる読み（2026-10-26 統合担当、`P3-UNREADABLE-MARK-001` の AC18 の (9)、Q-UM-IMPL-1）:
+  - 器（:571 の「記録の上限×印の上界＋予算」）: 器は「今の器＋記録の上限×印 1 件＋原文の予算＋カード」で、カードの分（unit ごとに 93,040 byte、U-M は 186,080、U-Y は 289,648）と、印を持たない U-E・U-W の器も発注 1 で広げた（P3-UM-RES-09、Q-UM-PRECHECK の (7) の (b)）。印 1 件の byte は実装の値（unreadable.ts の unreadableMarkBytes。記録の中の先頭の「,」を数えるので見積もりより 1 byte 多い）。U-M の transient 768 件は保存しないので過大で安全側のまま残し、器の最終の大きさは段 4 で決め直す。
+  - 原文の合計（:570 の「unit ごとの予算の内で持つ」）: 合計は state の欄に置かず、配列ごとの WeakMap に覚えて、復元では同じ関数で数え直す（P3-UM-AC03 の (2)）。H39 の unreadableDropped は、回収・容量の退去・記憶への移し・拒否による巻き戻しを全部終えた、返す state に残った記録だけを数える（P3-UM-AC03 の (4)）。unreadableDropped は印を持つ 10 unit の行だけに出て、losses の unit の行は U-Q で 8 語になった（P3-NL-AC14 の (7)）。
+  - 版: U-L・U-R・U-B・U-M・U-N・U-Y・U-F は v7、U-T・U-Q・U-V は v6 に上げ、前の版の保存は初期化する（P3-UM-AC16 の (1)）。U-E・U-W の版は変えない。
+  - view: 印は記録の鍵を unreadableView・marineUnreadableView に替えて渡し、原文の本文は渡さない。U-F の付加事項だけの印は parts が空で addition が立つので、鍵があることを「読めない所あり」と読まない（P3-UM-AC10 の (5)）。

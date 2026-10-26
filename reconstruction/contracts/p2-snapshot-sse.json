@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "0b8e2ba68b90d53a5113f0d7f6711b29c1ee5a428632c428dc1a6e83452e2278",
+    "sha256": "523ef23b5d7c52480299916e03e54fa504bc49aae61ef08d387487e4e4baf4e1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -354,7 +354,7 @@
       {
         "id": "P2-A8-RES-07",
         "target": "upstream legal state boundary used for capacity acceptance",
-        "limit": "U-E 512 (operation,subject) per family; U-W 1 national current per operation + 2 national history, 128 partial subjects + 8 history per stream, encoded B<=16777216; U-F 512 operation/subjects and encoded B<=33554432",
+        "limit": "U-E 512 (operation,subject) per family; U-W 1 national current per operation + 2 national history, 128 partial subjects + 8 history per stream, encoded B<=16777216; U-F 512 operation/subjects and encoded B<=33554432（今の器は U-W 16,870,256・U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "unit": "upper input retention, not full-view JSON bytes",
         "scope": "U-Eは2family×512=1024 current/gateまで、U-Wの現行はnational3+partial128=131件(別のunavailable/freshnessも16MiB保持予算に従う)、U-Fは512 subject。U-Eのdurable262144はintent/deliveryだけでfull viewの上限ではない。保存Bをfull JSONと同一視しない。これらの合法最大からP2-A8-SUMMARYの固定3行へ集約するためsummaryはU-E1632/U-W3525/U-F2301 byte以下。fullはsubject/要素byteの加算で計量しRES-01/06の超過条件でだけ縮退する。",
         "source": "reconstruction/contracts/p2-eew-unit.json:332,355; reconstruction/contracts/p2-weather-current-unit.json:290,297,304,311,320; reconstruction/contracts/p2-weather-timeseries-unit.json:348,364"

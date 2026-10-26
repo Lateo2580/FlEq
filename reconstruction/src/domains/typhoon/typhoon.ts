@@ -1,10 +1,12 @@
 import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
-import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
+import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
-  TyphoonFrame, TyphoonFrameKind, TyphoonName, TyphoonPoint, TyphoonPrefecture, TyphoonProbabilityArea, TyphoonWindArea, TyphoonWindAxis,
+  TyphoonFrame, TyphoonFrameKind, TyphoonName, TyphoonPoint, TyphoonPrefecture, TyphoonProbabilityArea, TyphoonUnreadableSite, TyphoonWindArea,
+  TyphoonWindAxis,
 } from "../../../contracts/p3-typhoon-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
 import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "../flood/flood"; import { controlDateTimeOf } from "../../contracts-revision/version";
+import { unreadableNotes } from "../../units/unreadable";
 
 // P3-UNIT-Y-001 の adapter: VPTW60〜65・VPTA50〜55 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 // 値の形の検査（cut・validName・validSerial ほか）は U-R と同じ規則なので domains/flood の export を使い、XML の読み取りだけを写す（AC13）。
@@ -46,7 +48,7 @@ const attribute = (node: XmlElement, name: string): string | null => node.attrib
 
 type Base = Readonly<{
   operation: Operation; subject: string; eventId: string; source: ReportRef; reportDateTimeMs: number; infoRank: number; cancelled: boolean;
-  title: string; name: TyphoonName; truncated: boolean;
+  title: string; name: TyphoonName; truncated: boolean; unreadable: UnreadableMark | null;
 }>;
 type AnalysisCandidate = Base & Readonly<{
   slice: "analysis"; headType: AnalysisHeadType; baseTime: number; frames: readonly TyphoonFrame[];
@@ -65,6 +67,8 @@ type ParseResult = Readonly<{ kind: "accepted"; candidate: TyphoonCandidate }>
 
 // 読み取りで見つけた不備の記録（Q-ENUM.priorityRule: 欠落が妥当性より先に報告される）。
 type Found = { missing: boolean; invalid: boolean; truncated: boolean };
+// P3-UM-AC02 (6)・AC15 (5): 落とした所（軸・時刻・節・時間帯・地域）ごとに最初の 1 つを印の part と欠片にする。
+type Drop = (site: TyphoonUnreadableSite, node: XmlElement | null) => void;
 
 const bound = (found: Found, value: string, limit: number): string => {
   if (value.length > limit) found.truncated = true;
@@ -111,12 +115,13 @@ function nameOf(part: XmlElement | null, found: Found): TyphoonName {
     number: number != null && /^\d{4}$/.test(number) ? number : null, remark: optional(part, "Remark", found, BOUNDS.remark) };
 }
 
-function windArea(part: XmlElement, found: Found): TyphoonWindArea {
+function windArea(part: XmlElement, found: Found, drop: Drop): TyphoonWindArea {
   const speed = children(part, "WindSpeed").find((node) => attribute(node, "unit") === "m/s");
   const axes: TyphoonWindAxis[] = [];
-  const nodes = children(children(children(part, "Circle")[0] ?? null, "Axes")[0] ?? null, "Axis");
+  const axesNode = children(children(part, "Circle")[0] ?? null, "Axes")[0] ?? null;
+  const nodes = children(axesNode, "Axis");
   // P3-WS-D-TYPHOON (5): 一部の軸だけを残すと、残らない向きで域を小さく描きうるので、軸を持たず閾値だけを残す。
-  if (nodes.length > LIMITS.axes) found.truncated = true;
+  if (nodes.length > LIMITS.axes) { found.truncated = true; drop("axis", axesNode); }
   else for (const axis of nodes) {
     const direction = optional(axis, "Direction", found, BOUNDS.direction);
     const radius = children(axis, "Radius").find((node) => attribute(node, "unit") === "km");
@@ -131,7 +136,7 @@ const FRAME_LABEL = /^(推定|予報|延長予報) ?(\d{1,3})時間後$/;
 const labelOf = (info: XmlElement): string => halfWidth(attribute(children(info, "DateTime")[0] ?? info, "type") ?? "");
 
 // 1 時刻（MeteorologicalInfo 1 個）。名前は実況の時刻の呼称だけを返す。now は全部の時刻で数えた実況か（P3-WS-D-TYPHOON (3)）。
-function parseFrame(info: XmlElement, now: boolean, report: Found): Readonly<{ frame: TyphoonFrame; name: TyphoonName | null; remark: string | null }> | null {
+function parseFrame(info: XmlElement, now: boolean, report: Found, drop: Drop): Readonly<{ frame: TyphoonFrame; name: TyphoonName | null; remark: string | null }> | null {
   const stamps = children(info, "DateTime");
   const label = stamps.length === 1 ? halfWidth(attribute(stamps[0], "type") ?? "") : "";
   const stamp = stamps.length === 1 ? scalar(stamps[0]) : null;
@@ -142,7 +147,7 @@ function parseFrame(info: XmlElement, now: boolean, report: Found): Readonly<{ f
   if (stamps.length !== 1 || items.length !== 1 || stamp == null || !validReportDateTime(stamp) || kind == null
     || kind === "estimate" && hours !== 1 || (kind === "forecast" || kind === "extendedForecast") && (hours < 3 || hours > 120)) {
     // P3-WS-D-TYPHOON (3): 時刻として読めない実況でない時刻は落とす。実況は解析の芯なので今どおり拒否。
-    if (!now) report.truncated = true;
+    if (!now) { report.truncated = true; drop("frame", info); }
     else if (stamps.length === 0 || items.length === 0) report.missing = true;
     else report.invalid = true;
     return null;
@@ -202,7 +207,7 @@ function parseFrame(info: XmlElement, now: boolean, report: Found): Readonly<{ f
     const nodes = children(windProperty, "WarningAreaPart").filter((node) => attribute(node, "type") === type);
     // 域を null にすると暴風域なしと見分けられないので、同じ type の域の 2 個以上は報ごと拒否する（Q-WS-REJECTIONS）。
     if (nodes.length > 1) report.invalid = true;
-    return nodes.length === 0 ? null : windArea(nodes[0], found);
+    return nodes.length === 0 ? null : windArea(nodes[0], found, drop);
   };
   const frame: TyphoonFrame = {
     kind, hours, validTime: Date.parse(stamp),
@@ -213,7 +218,7 @@ function parseFrame(info: XmlElement, now: boolean, report: Found): Readonly<{ f
     pressureHpa: pressure == null ? null : whole(scalar(pressure), 9999, found), maxWindMs: windOf("最大風速"), maxGustMs: windOf("最大瞬間風速"),
     storm: areaOf("暴風域"), gale: areaOf("強風域"), stormWarning: areaOf("暴風警戒域"),
   };
-  if (found.invalid || found.truncated) report.truncated = true;
+  if (found.invalid || found.truncated) { report.truncated = true; if (found.invalid) drop("frame", info); }
   return { frame, name, remark };
 }
 
@@ -261,6 +266,8 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
 
   // ---- 必須構造（存在を全部確かめてから妥当性を見る） ----
   const found: Found = { missing: false, invalid: false, truncated: false };
+  const notes = unreadableNotes();
+  const drop: Drop = (site, node) => notes.note(site, "requiredStructureInvalid", node);
   const titles = children(head, "Title");
   const titleText = titles.length === 1 ? scalar(titles[0]) : null;
   if (titles.length === 0 || titleText === "") found.missing = true;
@@ -281,7 +288,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
   let baseTime = 0;
   let name: TyphoonName = { name: null, nameKana: null, number: null, remark: null };
   const base = (): Base => ({ operation, subject, eventId: idText, source, reportDateTimeMs: reportMs, infoRank: infoRank ?? 0, cancelled, title,
-    name, truncated: found.truncated });
+    name, truncated: found.truncated, unreadable: notes.mark(material.xml) });
   if (cancelled) {
     if (found.missing || found.invalid || infoRank == null) return fail();
     return analysisType != null ? { kind: "accepted", candidate: { ...base(), slice: "analysis", headType: analysisType, baseTime, frames: [], terminal: false } }
@@ -312,9 +319,9 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     // 落とした時刻と残さない時刻は type のほかを読まない。
     let room = LIMITS.frames - nowCount;
     const kept = nodes.filter((_, at) => labels[at] === "実況" || (labels[at] === "" || FRAME_LABEL.test(labels[at])) && room-- > 0);
-    if (kept.length < nodes.length) found.truncated = true;
+    if (kept.length < nodes.length) { found.truncated = true; drop("frame", nodes.find((node) => !kept.includes(node)) ?? null); }
     for (const node of kept) {
-      const read = parseFrame(node, labelOf(node) === "実況", found);
+      const read = parseFrame(node, labelOf(node) === "実況", found, drop);
       if (read == null) continue;
       frames.push(read.frame);
       if (read.frame.kind === "analysis") {
@@ -338,7 +345,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     const day = /^台風の暴風域に入る確率（(\d)日積算）$/.exec(type);
     if (type === "台風呼称") named = node;
     // P3-WS-D-TYPHOON (6): 知らない節と 1〜5 日の外の節は落とす（その地域は集合の照合に入らない）。同じ日の節の 2 個以上は今どおり拒否。
-    else if (day == null || Number(day[1]) < 1 || Number(day[1]) > 5) found.truncated = dropped = true;
+    else if (day == null || Number(day[1]) < 1 || Number(day[1]) > 5) { found.truncated = dropped = true; drop("section", node); }
     else if (sections.has(Number(day[1]))) found.invalid = true;
     else sections.set(Number(day[1]), node);
   }
@@ -348,7 +355,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     // 台風呼称の節の欄の不備も (4) と同じく欄を null にして truncated にする。
     const own: Found = { missing: false, invalid: false, truncated: false };
     name = nameOf(part, own);
-    if (own.invalid || own.truncated) found.truncated = true;
+    if (own.invalid || own.truncated) { found.truncated = true; if (own.invalid) drop("section", named); }
   }
   const series = infos == null ? null : only(infos, "TimeSeriesInfo", found);
 
@@ -357,7 +364,10 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
   const areaTable = new Map<string, AreaRead>();
   const prefectureNames = new Map<string, string>();
   let itemsSeen = 0;
-  const remember = (area: AreaRead): void => {
+  // 地域の Item（落とした地域の欠片に使う、最初に見た Item）。
+  const areaItems = new Map<string, XmlElement>();
+  const remember = (area: AreaRead, item: XmlElement): void => {
+    if (!areaItems.has(area.code)) areaItems.set(area.code, item);
     const known = prefectureNames.get(area.prefectureCode);
     if (known != null && known !== area.prefecture) found.invalid = true;
     prefectureNames.set(area.prefectureCode, area.prefecture);
@@ -374,7 +384,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
       if (area == null || probability == null) continue;
       if (values.has(area.code)) found.invalid = true;
       values.set(area.code, readPercent(probability, found));
-      remember(area);
+      remember(area, item);
     }
   }
 
@@ -390,7 +400,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
       || Date.parse(text) !== baseTime + slotCount * SLOT) break;
     slotCount++;
   }
-  if (slotCount < defines.length) found.truncated = dropped = true;
+  if (slotCount < defines.length) { found.truncated = dropped = true; drop("slot", defines[slotCount]); }
   // 最初の時間帯で止まる報は今どおり拒否する（slotCount の 0 は保存の形に無い）。
   if (defines.length > 0 && slotCount === 0) {
     if (children(defines[0], "DateTime").length === 0 || children(defines[0], "Duration").length === 0) found.missing = true;
@@ -412,7 +422,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
       if (value > peak) { peak = value; slot = index; }
     });
     peaks.set(area.code, { peak, slot });
-    remember(area);
+    remember(area, item);
   }
   const total = areaTable.size;
   if (itemsSeen === 0) found.missing = true;
@@ -437,8 +447,8 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
   const taken: Kept[] = [], covered = new Set<string>();
   let truncated = found.truncated;
   for (const area of order) {
-    if (taken.length >= LIMITS.areas) { truncated = true; break; }
-    if (!covered.has(area.prefectureCode) && covered.size >= LIMITS.prefectures) { truncated = true; continue; }
+    if (taken.length >= LIMITS.areas) { truncated = true; drop("area", areaItems.get(area.code) ?? null); break; }
+    if (!covered.has(area.prefectureCode) && covered.size >= LIMITS.prefectures) { truncated = true; drop("area", areaItems.get(area.code) ?? null); continue; }
     covered.add(area.prefectureCode);
     taken.push(area);
   }

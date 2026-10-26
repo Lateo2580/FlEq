@@ -15,6 +15,8 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-B-001 (C12, I-U-B). 府県気象防災速報（M17、VPBS50）と記録的短時間大雨情報（VPOA50）。
@@ -63,12 +65,17 @@ type BriefingCommon = Readonly<{
   retainUntil: number;
 }>;
 
+// unreadable は読めなかった所の印（P3-UM-AC01、site は BriefingUnreadableSite）。事実と一緒に置換・alias・解放へ移り、記憶では外れる。
 type BriefingText = Readonly<{
   title: string;
   headline: string;
   editorialOffice: string;
   truncated: boolean;
+  unreadable?: UnreadableMark;
 }>;
+
+// P3-UM-AC01 (2): 印の site の表（domain の warn の所の名）。codec は表の外の site を読まない。
+export type BriefingUnreadableSite = "serial" | "editorialOffice" | "condition" | "observation";
 
 // replaced は予測の区域が全部発生に除かれた記録（P3-C12-REPLACE=B: 発生の記録がある間、時刻の前後によらず除く）。事実を持たず、view に載せず、通知しない。
 // eventId はいま持っている報の EventID の全体（採用・続報・訂正・取消で書き換える）。series はその全体か「_」より前。対応報（VPOA50）との結びと、
@@ -109,7 +116,7 @@ export type BriefingNotificationPayload = Readonly<{
 export type BriefingIntent = NotificationIntent & Readonly<{ payload: BriefingNotificationPayload }>;
 
 export type BriefingUnitState = Readonly<{
-  schemaVersion: "p3-briefing-unit-v6";
+  schemaVersion: "p3-briefing-unit-v7";
   contentRevision: number;
   currents: readonly BriefingCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -118,7 +125,7 @@ export type BriefingUnitState = Readonly<{
 }>;
 
 export type PersistedBriefingUnit = Readonly<{
-  schemaVersion: "p3-briefing-unit-v6";
+  schemaVersion: "p3-briefing-unit-v7";
   currents: readonly BriefingCurrent[];
   intents: readonly BriefingIntent[];
 }>;
@@ -126,10 +133,10 @@ export type PersistedBriefingUnit = Readonly<{
 // active の VPBS50 と released の VPOA50 だけを載せる。区域の地図・カードの並べ方は作らない（P4）。
 export type BriefingUnitView = SharedUnitView & Readonly<{
   unit: "U-B";
-  currents: readonly (
+  currents: readonly MarkViewed<
     | Extract<BriefingReportCurrent, Readonly<{ effective: "active" }>>
     | Extract<BriefingRecordRainCurrent, Readonly<{ effective: "released" }>>
-  )[];
+  >[];
 }>;
 
 export type BriefingInput =
@@ -161,5 +168,5 @@ export type BriefingUnitStep = Readonly<{
 }>;
 
 export type BriefingUnitCodec = UnitCodec<BriefingUnitState, PersistedBriefingUnit> & Readonly<{
-  schemaVersion: "p3-briefing-unit-v6";
+  schemaVersion: "p3-briefing-unit-v7";
 }>;

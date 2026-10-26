@@ -15,6 +15,8 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-V-001 (C9, I-U-V). 火山（M14 警報・M15 噴火・M16 降灰と短命情報）。三 slice（D）と、保存しない
@@ -31,6 +33,10 @@ export type VolcanoReportFamily =
 export type VolcanoKind = Readonly<{ code: string; name: string; condition: string | null }>;
 // 対象市町村・対象海上予報区は Kind の名前ごとに code だけを持つ（名前は P4 の GIS と outcome の facts から。I-U-V.bounds）。
 export type VolcanoAreaGroup = Readonly<{ kindName: string; codes: readonly string[] }>;
+
+// P3-UM-AC01 (2): 印の site の表（domain の warn の所の名）。codec は表の外の site を読まない。
+export type VolcanoUnreadableSite = "serial" | "cancelVolcano" | "lastKind" | "coordinate" | "name" | "eventTime" | "対象市町村等" | "対象海上予報区"
+  | "entries" | "bulletinVolcano";
 
 // 記録の共通部。source は subject の watermark と出典を兼ねる（その subject を変えた最新の採用報）。
 // retainUntil は記録を除く時刻（source の ReportDateTime から、P3-C9-RETENTION）。
@@ -57,6 +63,9 @@ type VolcanoAlertFacts = Readonly<{
   marineAreas: readonly VolcanoAreaGroup[];
   coordinate: string | null;
   truncated: boolean;
+  // P3-UM-AC01 (5): 読めなかった所の印は陸上（source の報）と海上（marineSource の報）で別（unconfirmed と marineUnconfirmed の前例）。
+  unreadable?: UnreadableMark;
+  marineUnreadable?: UnreadableMark;
 }>;
 // 警報だけは watermark を family ごとに持つ（P3-C9-MARINE=A）: source は VFVO50・VFVO51、marineSource は VFSV。
 // 少なくとも一方は非 null で、retainUntil は新しい方の ReportDateTime から数える。
@@ -99,6 +108,7 @@ type VolcanoEruptionFacts = Readonly<{
   truncated: boolean;
   validUntil: number;
   expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に validUntil が来た印（view から外し、事実と通知の印は残す）
+  unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は VolcanoUnreadableSite）。印の無い記録は欄を書かない
 }>;
 export type VolcanoEruption = VolcanoRecordBase & (
   | (Readonly<{ volcanoCode: string }> & VolcanoEruptionFacts)
@@ -126,6 +136,7 @@ type VolcanoAshfallFacts = Readonly<{
   omittedGroupCount: number;
   truncated: boolean;
   expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に予報の終わりが来た印
+  unreadable?: UnreadableMark; // P3-UM-AC01: 同上
 }>;
 export type VolcanoAshfall = VolcanoRecordBase & Readonly<{ volcanoCode: string }> & (
   | VolcanoAshfallFacts
@@ -167,6 +178,7 @@ type VolcanoBulletinHeading = Readonly<{
   volcanoCodes: readonly string[];
   extraordinary: boolean;
   truncated: boolean;
+  unreadable?: UnreadableMark; // P3-UM-AC01: 同上（解説と同じく保存しない）
 }>;
 export type VolcanoBulletin = VolcanoBulletinBase & (
   | (VolcanoBulletinHeading & Readonly<{ text: string | null; nextAdvisory: string | null;
@@ -174,7 +186,7 @@ export type VolcanoBulletin = VolcanoBulletinBase & (
   | Readonly<{ effective: "cancelled" }>
 );
 // view・snapshot には見出しだけを載せる（本文を外す、P3-C9-SNAPSHOT）。
-export type VolcanoBulletinView = VolcanoBulletinBase & VolcanoBulletinHeading;
+export type VolcanoBulletinView = MarkViewed<VolcanoBulletinBase & VolcanoBulletinHeading>;
 
 // 復旧不足（D、spec:484「取消・復旧不足」、P3-C9-SHORTFALL）。作るのは移行（C15）だけで、live の受理では作らない。
 export type VolcanoShortfall = Readonly<{
@@ -199,7 +211,7 @@ export type VolcanoNotificationPayload = Readonly<{
 export type VolcanoIntent = NotificationIntent & Readonly<{ payload: VolcanoNotificationPayload }>;
 
 export type VolcanoUnitState = Readonly<{
-  schemaVersion: "p3-volcano-unit-v5";
+  schemaVersion: "p3-volcano-unit-v6";
   contentRevision: number;
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
@@ -215,7 +227,7 @@ export type VolcanoUnitState = Readonly<{
 }>;
 
 export type PersistedVolcanoUnit = Readonly<{
-  schemaVersion: "p3-volcano-unit-v5";
+  schemaVersion: "p3-volcano-unit-v6";
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
   ashfalls: readonly VolcanoAshfall[];
@@ -226,9 +238,9 @@ export type PersistedVolcanoUnit = Readonly<{
 // active の三 slice、解説の見出し、復旧不足を載せる。unavailable・復旧不足を「警報なし」に読み替えない。
 export type VolcanoUnitView = SharedUnitView & Readonly<{
   unit: "U-V";
-  alerts: readonly Extract<VolcanoAlert, Readonly<{ effective: "active" }>>[];
-  eruptions: readonly Extract<VolcanoEruption, Readonly<{ effective: "active" }>>[];
-  ashfalls: readonly Extract<VolcanoAshfall, Readonly<{ effective: "active" }>>[];
+  alerts: readonly MarkViewed<Extract<VolcanoAlert, Readonly<{ effective: "active" }>>>[];
+  eruptions: readonly MarkViewed<Extract<VolcanoEruption, Readonly<{ effective: "active" }>>>[];
+  ashfalls: readonly MarkViewed<Extract<VolcanoAshfall, Readonly<{ effective: "active" }>>>[];
   bulletins: readonly VolcanoBulletinView[];
   shortfalls: readonly VolcanoShortfall[];
 }>;
@@ -261,5 +273,5 @@ export type VolcanoUnitStep = Readonly<{
 }>;
 
 export type VolcanoUnitCodec = UnitCodec<VolcanoUnitState, PersistedVolcanoUnit> & Readonly<{
-  schemaVersion: "p3-volcano-unit-v5";
+  schemaVersion: "p3-volcano-unit-v6";
 }>;

@@ -14,10 +14,12 @@ import { dirty, expiredOutcome, nextEewDeadline, noticeAt, reclaimEewLifetime, r
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted, strongerEvidence, updateEvidence } from "../notice-mark";
+import { UNREADABLE_CARDS_MAX_BYTES } from "../unreadable";
 
 const SCHEMA = "p2-eew-unit-v4" as const;
 // P3-NL-AC04 (8)（置き値）: 2,048 件の印の上界と pending（予約込み 128 KiB）と H39 の欄と envelope・inputBoundary の上限を 64 KiB の倍数に切り上げる。
-const GENERATION_BYTES = 2_097_152;
+// P3-UM-RES-09: 読めない報のカード 8 枚の分を足す（U-E の記録は印を持たない。カードを envelope に書くのは発注 3）。
+const GENERATION_BYTES = 2_097_152 + UNREADABLE_CARDS_MAX_BYTES;
 const INTENT_BYTES = 128 * 1024;
 const NOTICE_LIMIT = 2_048;
 const encoder = new TextEncoder();

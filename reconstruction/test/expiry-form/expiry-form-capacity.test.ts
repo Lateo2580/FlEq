@@ -7,6 +7,7 @@ import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } fr
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { initialUnits } from "../../src/runtime/owner-runtime";
 import { PENDING_MARK_BYTES } from "../../src/units/expiry";
+import { unreadableMarkBytes } from "../../src/units/unreadable";
 import { reduceTsunamiUnit, tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
 import { reduceWeatherTimeseriesUnit, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import * as T from "../tsunami-unit/tsunami-fixture";
@@ -52,7 +53,8 @@ const roundTrips = <S, P>(codec: Readonly<{ encode: (state: S) => P; decode: (pa
 describe("P3-EF-T09 contractBoundary / AC04,AC06,AC10: the 21-byte reserve at the U-T and U-F boundaries", () => {
   it("U-T: at 4,698,345 bytes the observation goes pending and expired without a receive, saves and restores; one eviction frees its reserve", () => {
     const LIMIT = tsunamiUnitCodec.maxEnvelopeBytes!;
-    expect(LIMIT).toBe(4_698_345);
+    // P3-UM-RES-09: 前の器＋記録の上限（予報 512・観測 512×2）×印 1 件＋原文の予算＋カード。
+    expect(LIMIT).toBe(4_698_345 + 1536 * unreadableMarkBytes("unreadable") + 131_072 + 93_040);
     const forecastAt = Date.parse("2011-03-11T14:49:00+09:00"), observedAt = Date.parse("2011-03-11T15:01:00+09:00");
     const forecast = reduceTsunamiUnit(initialUnits["U-T"], { kind: "receive", clock: clock(forecastAt + 1),
       material: T.decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41") }).state;
@@ -91,7 +93,8 @@ describe("P3-EF-T09 contractBoundary / AC04,AC06,AC10: the 21-byte reserve at th
 
   it("U-F: at 33,565,184 bytes the subjects go pending and lapse without a receive, save and restore; one eviction is enough", () => {
     const LIMIT = weatherTimeseriesUnitCodec.maxEnvelopeBytes!;
-    expect(LIMIT).toBe(33_565_184);
+    // P3-UM-RES-09: 前の器＋subject 512×印 1 件＋原文の予算（U-F は 1 MiB）＋カード。
+    expect(LIMIT).toBe(33_565_184 + 512 * unreadableMarkBytes("unreadable") + 1_048_576 + 93_040);
     const xml = T.fixtureXml("81_02_01_260605_VPWP50_high_severity");
     const report = Date.parse("2026-06-05T17:00:00+09:00");
     const receive = (state: WeatherTimeseriesUnitState, body: string, at: number, inputId: string) => reduceWeatherTimeseriesUnit(state,

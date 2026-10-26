@@ -314,7 +314,7 @@ describe.runIf(process.env.FLEQ_C14_AC12 === "1")("P3-C14-AC12 deferred interfer
       return { max: Math.round(values.at(-1)! * 100) / 100, median: Math.round(values[Math.floor(values.length / 2)] * 100) / 100 };
     };
     let generation = 0;
-    const encode = time(() => hashEnvelope({ schemaVersion: "p3-typhoon-unit-v6", unit: "U-Y", generation: ++generation, capturedAt: generation, payload: typhoonUnitCodec.encode(state) }));
+    const encode = time(() => hashEnvelope({ schemaVersion: "p3-typhoon-unit-v7", unit: "U-Y", generation: ++generation, capturedAt: generation, payload: typhoonUnitCodec.encode(state) }));
     const view = time(() => toTyphoonView(state));
     const text = JSON.stringify(typhoonUnitCodec.encode(state));
     const decode = time(() => typhoonUnitCodec.decode(JSON.parse(text)));

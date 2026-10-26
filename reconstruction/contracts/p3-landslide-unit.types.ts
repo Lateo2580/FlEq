@@ -15,6 +15,8 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-L-001 (C10, I-U-L). 土砂災害の警報・注意報（M07、VPWW56 = 気象警報・注意報（Ｒ０６）（土砂））。
@@ -39,7 +41,11 @@ type LandslideCurrentFacts = Readonly<{
   kinds: readonly LandslideKindGroup[];
   truncated: boolean;
   expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に表示の期限が来た印（view から外し、事実と通知の印は残す）
+  unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は LandslideUnreadableSite）。印の無い記録は欄を書かない
 }>;
+
+// P3-UM-AC01 (2): 印の site の表（domain の warn の所の名）。codec は表の外の site を読まない。
+export type LandslideUnreadableSite = "serial" | "kindName";
 
 // 官署の current。subject = `${operation}/VPWW56/${office}`。office は Control/EditorialOffice（P3-C10-SUBJECTS）。
 // source は subject の watermark と出典を兼ねる（その subject を変えた最新の採用報。解除・取消を含む）。
@@ -68,7 +74,7 @@ export type LandslideNotificationPayload = Readonly<{
 export type LandslideIntent = NotificationIntent & Readonly<{ payload: LandslideNotificationPayload }>;
 
 export type LandslideUnitState = Readonly<{
-  schemaVersion: "p3-landslide-unit-v6";
+  schemaVersion: "p3-landslide-unit-v7";
   contentRevision: number;
   currents: readonly LandslideCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -77,7 +83,7 @@ export type LandslideUnitState = Readonly<{
 }>;
 
 export type PersistedLandslideUnit = Readonly<{
-  schemaVersion: "p3-landslide-unit-v6";
+  schemaVersion: "p3-landslide-unit-v7";
   currents: readonly LandslideCurrent[];
   intents: readonly LandslideIntent[];
 }>;
@@ -85,7 +91,7 @@ export type PersistedLandslideUnit = Readonly<{
 // active の current だけを載せる。全国の union（VPWS50 の土砂の区域との合成）は作らない（spec:479 の保存しないもの）。
 export type LandslideUnitView = SharedUnitView & Readonly<{
   unit: "U-L";
-  currents: readonly Extract<LandslideCurrent, Readonly<{ effective: "active" }>>[];
+  currents: readonly MarkViewed<Extract<LandslideCurrent, Readonly<{ effective: "active" }>>>[];
 }>;
 
 export type LandslideInput =
@@ -114,5 +120,5 @@ export type LandslideUnitStep = Readonly<{
 }>;
 
 export type LandslideUnitCodec = UnitCodec<LandslideUnitState, PersistedLandslideUnit> & Readonly<{
-  schemaVersion: "p3-landslide-unit-v6";
+  schemaVersion: "p3-landslide-unit-v7";
 }>;

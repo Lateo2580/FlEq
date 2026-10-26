@@ -6,6 +6,8 @@ import type { EarthquakeEvent, LongPeriodSubject, SeismicUnitState, SeismicUnitS
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, lossReasons, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { FAILURE_MARKS_MAX_BYTES, noticeMarkBytes } from "../../src/units/notice-mark";
+import { UNREADABLE_CARDS_MAX_BYTES, unreadableMarkBytes } from "../../src/units/unreadable";
+import { longestMarks } from "../unreadable-mark/longest-mark";
 import { reduceSeismicUnit, seismicUnitCodec, toSeismicView } from "../../src/units/seismic/seismic-unit";
 import { shiftTimestamps } from "../eew-e01/frames.mjs";
 import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, sentLater, vxse53 } from "./seismic-fixture";
@@ -33,7 +35,7 @@ const step = (state: SeismicUnitState, material: DecodedMaterial, basis: WallBas
 
 // seismic-unit.ts の世代の数え方（envelope・inputBoundary と losses の最大・世代の桁の 62・pending の配送の予約）。
 function generation(state: SeismicUnitState): number {
-  return serializedEnvelope({ schemaVersion: "p3-seismic-unit-v5", unit: "U-Q", generation: 0, capturedAt: 0,
+  return serializedEnvelope({ schemaVersion: "p3-seismic-unit-v6", unit: "U-Q", generation: 0, capturedAt: 0,
     payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + LOSS_TALLY_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
 }
@@ -53,9 +55,14 @@ function cities(bytes: number): string {
   return Array.from({ length: Math.ceil(bytes / 1_130) }, (_, index) =>
     `<City><Name>${"x".repeat(1_000)}</Name><Code>98${String(index).padStart(5, "0")}</Code><MaxInt>1</MaxInt></City>`).join("");
 }
-const widened = (bytes: number) => (xml: string) => {
+// 名前 16,000 文字の「\」の市町村（JSON で 1 文字 2 byte）を、名前の文字数が count に届くまで並べる。
+function escapedCities(count: number): string {
+  return Array.from({ length: Math.ceil(count / 16_000) }, (_, index) =>
+    `<City><Name>${"\\".repeat(16_000)}</Name><Code>97${String(index).padStart(5, "0")}</Code><MaxInt>1</MaxInt></City>`).join("");
+}
+const widened = (bytes: number, make: (bytes: number) => string = cities) => (xml: string) => {
   const at = xml.indexOf("</Area>", xml.indexOf("<Intensity>"));
-  return bytes === 0 ? xml : `${xml.slice(0, at)}${cities(bytes)}${xml.slice(at)}`;
+  return bytes === 0 ? xml : `${xml.slice(0, at)}${make(bytes)}${xml.slice(at)}`;
 };
 // 最初の観測点の震度を 1 つ替える（観測点の列の指紋が変わる）。
 const station = (xml: string) => xml.replace(/(<IntensityStation>[\s\S]*?<Int>)([^<]*)(<\/Int>)/, (_, head: string, value: string, tail: string) =>
@@ -176,8 +183,10 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     // training の受理は normal を畳まない。
     const training = pressed(world, quake("20260801000601", T + 60 * MINUTE, { maxInt: "3", operation: "訓練" }), 1, PAD_AT);
     expect([decision(training.step).decision, training.step.state.longPeriods]).toEqual(["capacityExceeded", training.before.longPeriods]);
-    // 1 件で器を越える報は何も畳まず退去せず断る（(0)(a)）。
-    const huge = step(world, quake("20260801000701", T + 60 * MINUTE, { big: L }));
+    // 1 件で器を越える報は何も畳まず退去せず断る（(0)(a)）。P3-UM-RES-09 で器が入力の上限（8 MiB）を越えたので、JSON で 2 byte になる
+    // 「\」の名前の市町村で記録を器より大きくする。
+    const huge = step(world, decodeXml(widened(L / 2 + 16_000, escapedCities)(vxse53({ eventId: "20260801000701", at: iso(T + 60 * MINUTE),
+      origin: iso(T + 60 * MINUTE), maxInt: "5-", city: CITY })), "VXSE53"));
     expect([decision(huge).decision, reasons(huge), huge.state.longPeriods]).toEqual(["capacityExceeded", ["capacityRejected"], world.longPeriods]);
 
     // 畳んだ寄与の比べ方（P3-QC-AC03 (3)）。詰め物を外して器に余りのある state で受ける。
@@ -222,7 +231,9 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const old = decodeFixture(BIG62, (xml) => xml.replace(/<IntensityStation\b[^>]*>[\s\S]*?<\/IntensityStation>/g, "")
       .replace(/<MaxLgInt>4<\/MaxLgInt>/g, "<MaxLgInt>1</MaxLgInt>"));
     const now = Date.parse(old.reportDateTimeRaw) + 1_000;
-    const base = feed(emptyState(), old);
+    // P3-UM-RES-09 で広げた器の分は、退去も畳みもできない詰め物で埋める（前の器のときと同じ余りで境界を見る。入力は 8 MiB まで）。
+    const filled = feed(emptyState(), old);
+    const base = { ...filled, earthquakes: [...filled.earthquakes, pad(L - 5_627_794, now)] };
     // 観測点を持たない大きな VXSE53（畳めない市町村の名前で byte を合わせる）。inputId は固定する（実行の順で桁が変わると byte がずれる）。
     const big = (bytes: number) => decodeXml(vxse53({ eventId: "NEW", at: iso(now), maxInt: "3", city: Array.from({ length: 500 }, (_, index) =>
       `<City><Name>${"x".repeat(Math.min(12_000, Math.max(0, bytes - index * 12_000)))}</Name><Code>${1_000_000 + index}</Code><MaxInt>3</MaxInt></City>`)
@@ -327,7 +338,8 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
   it("P3-QC-T02 contractBoundary / P3-QC-AC02・AC04・AC05: L, RESERVE, S, S_f, T_f, N_guard, N_keep and the cases at their bounds", () => {
     const MARK = noticeMarkBytes("notice"), NOTICE_GROWTH = 512 * 4 * MARK + 256 * MARK;
     const RESERVE = 1_470_281 + NOTICE_GROWTH + 512 * 372 + 3 * 2048 * 4 + 768 * 50;
-    expect([L, RESERVE]).toEqual([5_627_794, 1_958_729]);
+    // P3-UM-RES-09: 前の器＋記録の上限（寄与 512×4＋長周期 256）×印 1 件＋原文の予算＋カード。
+    expect([L, RESERVE]).toEqual([5_627_794 + 2304 * unreadableMarkBytes("unreadable") + 131_072 + 93_040, 1_958_729]);
     // N_guard の式（P3-QC-AC04 (1)）。S は最大の実例の守る地震（VXSE51＋53＋61 の event と VXSE62）の観測点つき、S_f は畳んだ後、
     // T_f は最大の実例を守らない報として受けて畳んだ後（event 1 件）。
     const EVENT = "20260728162718";
@@ -386,9 +398,11 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     expect(pushed.diagnostics).toContainEqual({ level: "INFO", component: "seismic", reason: "seismicCapacityEvicted", unit: "U-Q", count: 2 });
 
     // (3) 同じ EventID の記録だけで器を越える守る報（r5）: 市町村を足した長周期と、同じ EventID の守る event を畳んでも L を越える。
-    const lpZ = report(BIG62, now, "Z", widened(2_900_000));
+    // 市町村の名前は JSON で 2 byte の「\」（P3-UM-RES-09 で広げた器を、入力の上限 8 MiB の報 2 つで越える）。
+    const lpZ = report(BIG62, now, "Z", widened(L / 4 + 16_000, escapedCities));
     const zWorld = feed(emptyState(), lpZ);
-    const zEvent = quake("Z", now + MINUTE, { big: 2_900_000 });
+    const zEvent = decodeXml(widened(L / 4 + 16_000, escapedCities)(vxse53({ eventId: "Z", at: iso(now + MINUTE), origin: iso(now + MINUTE),
+      maxInt: "5-", city: CITY })), "VXSE53");
     const refused = step(zWorld, zEvent);
     expect([decision(refused).decision, refused.state.longPeriods, reasons(refused)]).toEqual(["capacityExceeded", zWorld.longPeriods, ["capacityRejected"]]);
 
@@ -403,6 +417,30 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const over = { ...memory, earthquakes: memory.earthquakes.map((item, index) => index < escapes
       ? { ...item, cancelledSummary: { hypocenterName: "\u0001".repeat(64), originTimeRaw: item.cancelledSummary!.originTimeRaw } } : item) };
     expect([reserve(over) > RESERVE, roundTrip(over).kind]).toEqual([true, "invalid"]);
+
+    // P3-UM-AC03 (6)・RES-09: 記録の上限（寄与 512×4・長周期 256）の全部に読み戻しの上限いっぱいの印と予算いっぱいの原文を足すと、
+    // 前の器（印・原文・カードの項の前）ちょうどの state も、器からカードの項を除いた内で decode が受ける。
+    // 小さい実例の 4 family の寄与と長周期（詰め物は最初の地震の VXSE52 の見出し）。
+    const small = feed(emptyState(), ...["32-35_01_01_260824_VXSE51", "32-35_04_03_240613_VXSE52", "32-35_01_03_100514_VXSE53",
+      "32-35_03_02_240613_VXSE61", "synthetic_phase4a_VXSE62_special"].map((file, index) => report(file, now + index * MINUTE, "S")));
+    const four = eventOf(small, "S")!, slp = longOf(small, "S")!;
+    expect(four.contributions.map((item) => item.family).sort()).toEqual(["VXSE51", "VXSE52", "VXSE53", "VXSE61"]);
+    const marks = longestMarks(512 * 4 + 256, "hypocenter", 0, 131_072);
+    const bounded = (length: number, marked: boolean): SeismicUnitState => {
+      const id = (k: number) => `B${String(k).padStart(4, "0")}`;
+      const earthquakes = Array.from({ length: 512 }, (_, k): EarthquakeEvent => ({ ...four, eventId: id(k),
+        contributions: four.contributions.map((item, index) => ({ ...tag(item, item.family, id(k)),
+          ...k === 0 && item.family === "VXSE52" ? { headline: "x".repeat(length) } : {}, ...marked ? { unreadable: marks[k * 4 + index] } : {} })) }));
+      const longPeriods = Array.from({ length: 256 }, (_, k): LongPeriodSubject => ({ ...slp, eventId: id(k), subject: `normal/VXSE62/${id(k)}`,
+        source: { ...slp.source, subject: `normal/VXSE62/${id(k)}` }, ...marked ? { unreadable: marks[2048 + k] } : {} }));
+      return { ...emptyState(), earthquakes, longPeriods };
+    };
+    const atLimit = L - generation(bounded(0, false));
+    expect([generation(bounded(atLimit, false)), roundTrip(bounded(atLimit, false)).kind, roundTrip(bounded(atLimit + 1, false)).kind])
+      .toEqual([L, "restored", "invalid"]);
+    const marked = bounded(atLimit - 2304 * unreadableMarkBytes("unreadable") - 131_072 - UNREADABLE_CARDS_MAX_BYTES, true);
+    console.info("P3-UM-AC03 (6) U-Q", JSON.stringify({ marked: generation(marked), limit: L, cards: UNREADABLE_CARDS_MAX_BYTES }));
+    expect([generation(marked) <= L - UNREADABLE_CARDS_MAX_BYTES, roundTrip(marked).kind]).toEqual([true, "restored"]);
   });
 
   it("P3-QC-T04 acceptance / P3-QC-AC07・AC10: the whole cancel leaves a marked card, leaves today's count and recomputes the maximum", () => {
@@ -523,8 +561,8 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
       return [result.state.earthquakes.map((item) => [item.eventId, isFolded(item)]), result.state.longPeriods.map((item) => [item.eventId, isFolded(item)])]; };
     expect(order(restored.state)).toEqual(order(state));
     expect(seismicUnitCodec.discardableSchemaVersions).toContain("p3-seismic-unit-v4");
-    // H39: U-Q の行は 7 語（畳みの 1 語を含む）で、losses の上界は変わらない（721 byte、7 語の最長の組）。
-    expect([lossReasons("U-Q").length, lossReasons("U-Q").includes("seismicStationsFolded"), LOSS_TALLY_MAX_BYTES]).toEqual([7, true, 721]);
+    // H39: U-Q の行は 8 語（畳みの 1 語と P3-UM-AC03 (4) の原文の外しを含む）で、losses の上界は 8 語の最長の組（817 byte）。
+    expect([lossReasons("U-Q").length, lossReasons("U-Q").includes("seismicStationsFolded"), LOSS_TALLY_MAX_BYTES]).toEqual([8, true, 817]);
 
     type Row = Record<string, unknown>;
     const value = JSON.parse(JSON.stringify(seismicUnitCodec.encode(state))) as { earthquakes: Row[]; longPeriods: Row[]; daily: Record<Operation, Row> };

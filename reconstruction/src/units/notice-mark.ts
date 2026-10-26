@@ -3,10 +3,11 @@ import { createHash } from "node:crypto";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { NotificationPriorityGroup } from "../../contracts/p2-notification-delivery.types";
 import type {
-  FailureMark, NoticeEvidence, NoticeKind, NoticeMark, NotificationIntent, NotificationIntentUpdate, UnitId,
+  FailureMark, NoticeEvidence, NoticeKind, NoticeMark, NotificationIntent, NotificationIntentUpdate, MarkViewed, UnitId, UnreadableMark,
 } from "../../contracts/p2-shared-runtime.types";
 import { versionKey } from "../contracts-revision/version";
 import type { VersionRef } from "../contracts-revision/version";
+import { markView } from "./unreadable";
 
 // P3-NOTICE-LEDGER-001（K8）: 通知の ID・印の照合と更新・intent の新しい欄の読み戻しの正本。無いと 10 unit が同じ規則と codec の
 // 検査を別々に持ち、規則の直しが 10 か所に散る（P3-VM-AC02 の version.ts と同じ理由）。
@@ -156,12 +157,15 @@ function readNoticeMark(value: unknown, fragmentsAllowed = false): NoticeMark | 
 // 印は配送の記録で、表示（view と表示の変化）には出さない。無いと表示の変化の前後と view の byte が印の変化（証拠の更新）で
 // 食い違い、snapshot の件数・byte の差分の計量が合わなくなる。印の無い記録は同じ参照を返す。
 // 判別共用体の記録（U-N の現況など）でも型を保つよう、印の鍵を外した形を共用体の各型ごとに返す（実装はその鍵だけを外す）。
-type Shown<T> = T extends unknown ? Omit<T, "notice" | "marineNotice"> : never;
-function shown<T extends Readonly<{ notice?: NoticeMark; marineNotice?: NoticeMark }>>(record: T): Shown<T>;
-function shown(record: Readonly<{ notice?: NoticeMark; marineNotice?: NoticeMark }>): object {
-  if (record.notice == null && record.marineNotice == null) return record;
-  const { notice: _notice, marineNotice: _marine, ...rest } = record;
-  return rest;
+// 読めない所の印（P3-UM-AC10）は原文の本文を外した view の形（鍵 unreadableView）に置き換える（原文は snapshot の予算に入らない、P3-UM-D-VIEW）。
+type Shown<T> = T extends unknown ? MarkViewed<Omit<T, "notice" | "marineNotice">> : never;
+type Marks = Readonly<{ notice?: NoticeMark; marineNotice?: NoticeMark; unreadable?: UnreadableMark; marineUnreadable?: UnreadableMark }>;
+function shown<T extends Marks>(record: T): Shown<T>;
+function shown(record: Marks): object {
+  if (record.notice == null && record.marineNotice == null && record.unreadable == null && record.marineUnreadable == null) return record;
+  const { notice: _notice, marineNotice: _marine, unreadable, marineUnreadable, ...rest } = record;
+  return { ...rest, ...unreadable == null ? {} : { unreadableView: markView(unreadable) },
+    ...marineUnreadable == null ? {} : { marineUnreadableView: markView(marineUnreadable) } };
 }
 
 // 印 1 件の上界（キーの ,"<key>": を含む JSON UTF-8）。上界の式に系列の数を掛けて足す（P3-NL-AC15 (2)）。

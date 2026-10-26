@@ -15,11 +15,16 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-M-001 (C13, I-U-M). 竜巻注意情報（M09、VPHW50/51）・熱中症警戒アラート（M10、VPFT50）・短命の解説情報（M18）。
 // 三つの slice は件数の上限と退去を別々に持ち、一つの slice の満杯が他の slice の記録を退去しない（I-U-M.slices）。
 // 一入力が変えるのは自分の slice の自分の subject だけで、subject をまたぐ作用（置換・alias）は無い。
+
+// P3-UM-AC01 (2): 印の site の表（domain の warn の所の名）。codec は表の外の site を読まない。
+export type LocalBulletinsUnreadableSite = "serial" | "editorialOffice" | "headline" | "area" | "validDateTime" | "tag";
 
 type Common = Readonly<{
   subject: string;
@@ -51,6 +56,7 @@ export type TornadoCurrent = Common & (
       areas: readonly TornadoArea[];
       truncated: boolean;
       expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に activeUntil が来た印（view から外し、事実と通知の印は残す）
+      unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は LocalBulletinsUnreadableSite）。印の無い記録は欄を書かない
     }>
   // expired は activeUntil の到来の記憶、ended は区域が全部「なし」の報（通常の解除）の記憶（P3-EF-AC07 (1)）。
   | Readonly<{ effective: "ended" | "cancelled" | "expired" }>
@@ -71,6 +77,7 @@ export type HeatCurrent = Common & (
       areaName: string | null;
       truncated: boolean;
       expiryPending?: true; // P3-EF-AC05 (1): 同上
+      unreadable?: UnreadableMark; // P3-UM-AC01: 同上
     }>
   | Readonly<{ effective: "ended" | "cancelled" }>
 );
@@ -95,6 +102,7 @@ export type TransientCurrent = Common & Readonly<{ family: TransientFamily }> & 
       tags: readonly string[];
       truncated: boolean;
       expiryPending?: true; // P3-EF-AC05 (1): 同上（active は保存しないので印は run の中だけ）
+      unreadable?: UnreadableMark; // P3-UM-AC01: 同上（active は保存しないので印も run の中だけ）
     }>
   | Readonly<{ effective: "evidence" | "cancelled" }>
 );
@@ -112,7 +120,7 @@ export type LocalBulletinsNotificationPayload = Readonly<{
 export type LocalBulletinsIntent = NotificationIntent & Readonly<{ payload: LocalBulletinsNotificationPayload }>;
 
 export type LocalBulletinsUnitState = Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v6";
+  schemaVersion: "p3-local-bulletins-unit-v7";
   contentRevision: number;
   tornado: readonly TornadoCurrent[];
   heat: readonly HeatCurrent[];
@@ -123,7 +131,7 @@ export type LocalBulletinsUnitState = Readonly<{
 }>;
 
 export type PersistedLocalBulletinsUnit = Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v6";
+  schemaVersion: "p3-local-bulletins-unit-v7";
   tornado: readonly TornadoCurrent[];
   heat: readonly HeatCurrent[];
   transient: readonly PersistedTransientCurrent[];
@@ -133,9 +141,9 @@ export type PersistedLocalBulletinsUnit = Readonly<{
 // active の記録だけを載せる。カードの並べ方・地図の区域の選び方は作らない（P4）。
 export type LocalBulletinsUnitView = SharedUnitView & Readonly<{
   unit: "U-M";
-  tornado: readonly Extract<TornadoCurrent, Readonly<{ effective: "active" }>>[];
-  heat: readonly Extract<HeatCurrent, Readonly<{ effective: "active" }>>[];
-  transient: readonly Extract<TransientCurrent, Readonly<{ effective: "active" }>>[];
+  tornado: readonly MarkViewed<Extract<TornadoCurrent, Readonly<{ effective: "active" }>>>[];
+  heat: readonly MarkViewed<Extract<HeatCurrent, Readonly<{ effective: "active" }>>>[];
+  transient: readonly MarkViewed<Extract<TransientCurrent, Readonly<{ effective: "active" }>>>[];
 }>;
 
 export type LocalBulletinsInput =
@@ -165,5 +173,5 @@ export type LocalBulletinsUnitStep = Readonly<{
 }>;
 
 export type LocalBulletinsUnitCodec = UnitCodec<LocalBulletinsUnitState, PersistedLocalBulletinsUnit> & Readonly<{
-  schemaVersion: "p3-local-bulletins-unit-v6";
+  schemaVersion: "p3-local-bulletins-unit-v7";
 }>;

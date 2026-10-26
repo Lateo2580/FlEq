@@ -1,8 +1,11 @@
 import type { DecodedMaterial, MaterialValue, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
-import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
-import type { WeatherTimeseriesCompoundField, WeatherTimeseriesSnapshot, WeatherTimeseriesValue } from "../../../contracts/p2-weather-timeseries-unit.types";
+import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
+import type {
+  WeatherTimeseriesCompoundField, WeatherTimeseriesSnapshot, WeatherTimeseriesUnreadableSite, WeatherTimeseriesValue,
+} from "../../../contracts/p2-weather-timeseries-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
+import { unreadableNotes } from "../../units/unreadable";
 
 const TYPE = "量的予想時系列（市町村等）";
 const PARTS = new Set(["SignificancyPart", "PrecipitationPart", "WindDirectionPart", "WindSpeedPart",
@@ -10,8 +13,9 @@ const PARTS = new Set(["SignificancyPart", "PrecipitationPart", "WindDirectionPa
 // P3-WS-AC01: 値の名前。これに無い Base・Local の子は、period として欠けなく読めるときだけ値にする（P3-WS-D-ADDITION）。
 const VALUES: ReadonlySet<string> = new Set(["PeakTime", "CriteriaPeriod", ...[...PARTS].map((name) => name.slice(0, -"Part".length))]);
 const CODES = new Set(["00", "01", "11", "20", "21", "22", "30", "31", "41", "50", "51"]);
+// unreadable は読めなかった所・読み飛ばした所・付加事項の印（P3-UM-AC15）。
 type Candidate = Readonly<{ source: ReportRef; reportDateTimeMs: number; cancelled: boolean;
-  snapshot: WeatherTimeseriesSnapshot; validUntil: number | null }>;
+  snapshot: WeatherTimeseriesSnapshot; validUntil: number | null; unreadable: UnreadableMark | null }>;
 // diagnostics は受理した報の読み飛ばしの診断（P3-WS-AC02）。unit の receive がそのまま step へ写す。
 type Result = Readonly<{ kind: "accepted"; candidate: Candidate; diagnostics: readonly DiagnosticDetails[] }> | Readonly<{
   kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
@@ -36,11 +40,14 @@ function field(parent: XmlElement | null, name: string): { value: string | null;
 function attr(node: XmlElement, name: string): string[] {
   return node.attributes.filter((item) => item.name === name).map((item) => item.value);
 }
-function nonemptyText(node: XmlElement): boolean {
-  return node.children.some((part) => part.kind === "text" && part.value.trim() !== "");
+// 空白でない地の文（無ければ null）。
+function ownText(node: XmlElement): string | null {
+  const text = node.children.flatMap((part) => part.kind === "text" ? [part.value] : []).join("").trim();
+  return text === "" ? null : text;
 }
-// 表に無い子要素か空白でない地の文を持つ（Q-WS-LEVELS の外の階層の知らないもの）。
-const foreign = (node: XmlElement, known: readonly string[]): boolean => nonemptyText(node) || children(node).some((child) => !known.includes(localName(child)));
+// 表に無い最初の子要素か空白でない地の文（Q-WS-LEVELS の外の階層の知らないもの。P3-UM-AC02 (5) の欠片）。無ければ null。
+const foreign = (node: XmlElement, known: readonly string[]): XmlElement | string | null =>
+  children(node).find((child) => !known.includes(localName(child))) ?? ownText(node);
 function timestamp(raw: string): number | null {
   const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/);
   if (match == null) return null;
@@ -111,16 +118,28 @@ function inspect(material: DecodedMaterial): Result {
   // P3-WS-AC10/Q-WS-LEVELS: 外の階層の知らないものは読まずに残りを読む。outer はそれが報に 1 つでもあったか（WARN の count は報の period の数）。
   // skipped は値の階層で読み飛ばした要素と地の文の数（P3-WS-AC02、付加事項は数えない）。
   let outer = false, skipped = 0;
-  const note = (own: boolean): boolean => { if (own) outer = true; return own; };
+  // P3-UM-AC15: 区分不明（site は階層の名、scope はその範囲）・読み飛ばし・付加事項を印の part にする。診断の数え方は変えない。
+  const marks = unreadableNotes();
+  const mark = (site: WeatherTimeseriesUnreadableSite, part: XmlElement | string | null, scope?: string): boolean => {
+    if (part != null) marks.note(site, "requiredStructureInvalid", part, scope);
+    return part != null;
+  };
+  const note = (site: WeatherTimeseriesUnreadableSite, part: XmlElement | string | null, scope?: string): boolean => {
+    const own = mark(site, part, scope);
+    if (own) outer = true;
+    return own;
+  };
   const validBody = bodies.length === 1;
-  if (validBody) note(nonemptyText(bodies[0]));
+  if (validBody) note("Body", ownText(bodies[0]));
+  // P3-UM-AC15 (4): Body の直下の MeteorologicalInfos 以外の子は区分不明にせず、小さな印にする（今どおり読まない）。
+  if (validBody) mark("bodyOther", children(bodies[0]).find((child) => localName(child) !== "MeteorologicalInfos") ?? null);
   if (validBody && containers.length === 0) missing = true;
   const validContainers = new Set<number>();
   if (validBody) containers.forEach((node, position) => {
     const types = attr(node, "type");
     if (types.length === 0 || types.length === 1 && types[0].trim() === "") missing = true;
     else if (types.length !== 1 || types[0] !== TYPE) invalid = true;
-    else if (validInfoType) { validContainers.add(position); note(foreign(node, ["TimeSeriesInfo"])); }
+    else if (validInfoType) { validContainers.add(position); note("MeteorologicalInfos", foreign(node, ["TimeSeriesInfo"]), String(position)); }
   });
   const read = (parent: XmlElement, name: string): string | null => {
     const result = field(parent, name);
@@ -162,8 +181,8 @@ function inspect(material: DecodedMaterial): Result {
     if (!validContainers.has(position)) continue;
     const timeContainers = children(seriesNode, "TimeDefines"), timeContainer = timeContainers[0] ?? null;
     // TimeSeriesInfo・TimeDefines・TimeDefine の直下の知らないものも外の階層（Q-WS-LEVELS）。
-    note(foreign(seriesNode, ["TimeDefines", "Item"]));
-    if (timeContainers.length === 1) note(foreign(timeContainers[0], ["TimeDefine"]));
+    note("TimeSeriesInfo", foreign(seriesNode, ["TimeDefines", "Item"]), `${position}/${index}`);
+    if (timeContainers.length === 1) note("TimeDefines", foreign(timeContainers[0], ["TimeDefine"]), `${position}/${index}`);
     if (timeContainers.length === 0) missing = true;
     if (timeContainers.length > 1) invalid = true;
     const timeNodes = timeContainers.length > 1 ? [] : children(timeContainer, "TimeDefine"), itemNodes = children(seriesNode, "Item");
@@ -171,7 +190,7 @@ function inspect(material: DecodedMaterial): Result {
     const times: WeatherTimeseriesSnapshot["series"][number]["timeDefines"][number][] = [];
     const byId = new Map<string, number>();
     for (const time of timeNodes) {
-      note(foreign(time, ["DateTime", "Duration", "Name"]));
+      note("TimeDefine", foreign(time, ["DateTime", "Duration", "Name"]), `${position}/${index}/${attr(time, "timeId")[0] ?? ""}`);
       const ids = attr(time, "timeId"), dateRaw = read(time, "DateTime"), durationRaw = read(time, "Duration");
       if (ids.length === 0 || ids[0].trim() === "") missing = true;
       if (ids.length !== 1 || byId.has(ids[0])) invalid = true;
@@ -186,13 +205,15 @@ function inspect(material: DecodedMaterial): Result {
     const seen = new Set<string>();
     for (const item of itemNodes) {
       // 知らないものだけの範囲（その階層に読み飛ばしたものがあって必須の子が欠ける）は missing にしない（Q-WS-LEVELS）。
-      const area = children(item, "Area")[0], ownItem = note(foreign(item, ["Kind", "Area"]));
-      note(foreign(area, ["Name", "Code"]));
+      const area = children(item, "Area")[0], areaCode = scalar(children(area, "Code")[0]) ?? "";
+      const ownItem = note("Item", foreign(item, ["Kind", "Area"]), areaCode);
+      note("Area", foreign(area, ["Name", "Code"]), areaCode);
       const areaIndex = shared(areaTable, areaKeys, { code: intern(scalar(children(area, "Code")[0]) ?? ""), name: optional(area, "Name") });
       const kindNodes = children(item, "Kind");
       if (kindNodes.length === 0 && !ownItem) missing = true;
       for (const kind of kindNodes) {
-        const ownKind = note(foreign(kind, ["Status", "DateTime", "Property"]));
+        const kindScope = `${areaCode}/${children(kind, "Property").map((property) => scalar(children(property, "Type")[0] ?? property) ?? "").join(",")}`;
+        const ownKind = note("Kind", foreign(kind, ["Status", "DateTime", "Property"]), kindScope);
         const date = children(kind, "DateTime");
         if (date.length > 1 || date.length === 1 && (scalar(date[0]) == null || attr(date[0], "type").length > 1)) invalid = true;
         const kindIndex = shared(kinds, kindKeys, { status: optional(kind, "Status"),
@@ -201,15 +222,17 @@ function inspect(material: DecodedMaterial): Result {
         const properties = children(kind, "Property");
         if (properties.length === 0 && !ownKind) missing = true;
         for (const property of properties) {
-          const ownProperty = note(foreign(property, ["Type", "CriteriaPeriod", ...PARTS]));
           const type = read(property, "Type"), parts = children(property).filter((node) => PARTS.has(localName(node)));
+          const ownProperty = note("Property", foreign(property, ["Type", "CriteriaPeriod", ...PARTS]), `${areaCode}/${type ?? ""}`);
           if (parts.length === 0 && children(property, "CriteriaPeriod").length === 0 && !ownProperty) missing = true;
           const keyOf = (node: XmlElement, placement: string, localIndex: number | null): string => JSON.stringify([position, index,
             scalar(children(area, "Code")[0]), type, placement, localIndex == null ? null : locals[localIndex], node.name,
             attr(node, "type")[0] ?? null, attr(node, "refID")[0] ?? null]);
-          // P3-WS-D-ADDITION の (b): 値の名前でない要素は、period として欠けなく読めるときだけ値にする。
-          const readable = (node: XmlElement, placement: string, localIndex: number | null): boolean => attr(node, "refID").length === 1
-            && byId.has(attr(node, "refID")[0]) && attr(node, "type").length <= 1 && children(node).length === 0 && !seen.has(keyOf(node, placement, localIndex));
+          // P3-WS-D-ADDITION の (b): 値の名前でない要素は、period として欠けなく読めるときだけ値にする。同じ鍵の period が既にあるだけで読めない
+          // 2 つ目は duplicateValue、ほかは skipped の印（P3-UM-AC15 (2)(b)・(3)、scope は Property の Type）。
+          const formed = (node: XmlElement): boolean => attr(node, "refID").length === 1
+            && byId.has(attr(node, "refID")[0]) && attr(node, "type").length <= 1 && children(node).length === 0;
+          const readable = (node: XmlElement, placement: string, localIndex: number | null): boolean => formed(node) && !seen.has(keyOf(node, placement, localIndex));
           const add = (node: XmlElement, placement: string, localIndex: number | null) => {
             const refs = attr(node, "refID");
             if (refs.length === 0 || refs[0].trim() === "") missing = true;
@@ -223,7 +246,8 @@ function inspect(material: DecodedMaterial): Result {
             seen.add(key);
             const value = compound(node, leaves);
             // Significancy の Name・Code の他の子は外の階層の知らないもの（Q-WS-LEVELS）。
-            if (localName(node) === "Significancy") note(children(node).some((child) => !["Name", "Code"].includes(localName(child))));
+            if (localName(node) === "Significancy") note("Significancy", children(node).find((child) => !["Name", "Code"].includes(localName(child))) ?? null,
+              `${areaCode}/${type ?? ""}/${refs[0] ?? ""}`);
             // Name・Code の 2 個以上・子を持つものは今どおり拒否。
             if (localName(node) === "Significancy" && (["Name", "Code"].some((name) => children(node, name).length > 1)
               || children(node).some((child) => ["Name", "Code"].includes(localName(child)) && scalar(child) == null))) invalid = true;
@@ -235,27 +259,30 @@ function inspect(material: DecodedMaterial): Result {
             if (time != null) validUntil = Math.max(validUntil ?? -Infinity, times[time].endMs);
           };
           for (const part of parts) {
-            const ownPart = note(foreign(part, ["Base"]));
+            const ownPart = note("Part", foreign(part, ["Base"]), `${areaCode}/${type ?? ""}/${localName(part)}`);
             const bases = children(part, "Base");
             if (bases.length === 0 && !ownPart) missing = true;
             if (bases.length > 1) invalid = true;
             for (const base of bases) {
-              if (nonemptyText(base)) skipped++;
+              if (mark("skipped", ownText(base), type ?? "")) skipped++;
               const visit = (parent: XmlElement, localIndex: number | null) => {
                 const placement = part.name + "/Base" + (localIndex == null ? "" : "/Local");
                 for (const node of children(parent).filter((child) => localName(child) !== "Local"
                   && (localIndex == null || !["Code", "AreaName", "Name"].includes(localName(child))))) {
-                  // 付加事項（Addition）は数えずに読み飛ばす（P3-WS-D-ADDITION の (a)）。判定は表に何も足す前に行う。
-                  if (localName(node) === "Addition") continue;
-                  if (!VALUES.has(localName(node)) && !readable(node, placement, localIndex)) skipped++;
-                  else add(node, placement, localIndex);
+                  // 付加事項（Addition）は数えずに読み飛ばし、原文を Type ごとの印の part に残す（P3-WS-D-ADDITION の (a)、P3-UM-D-ADDITION-MARK）。
+                  // 判定は表に何も足す前に行う。
+                  if (localName(node) === "Addition") { mark("addition", node, type ?? ""); continue; }
+                  if (!VALUES.has(localName(node)) && !readable(node, placement, localIndex)) {
+                    mark(formed(node) ? "duplicateValue" : "skipped", node, type ?? "");
+                    skipped++;
+                  } else add(node, placement, localIndex);
                 }
               };
               visit(base, null);
               children(base, "Local").forEach((local, localPosition) => {
                 const areaName = children(local, "AreaName")[0] ?? null;
                 if (areaName != null && attr(areaName, "code").length > 1) { invalid = true; return; }
-                if (nonemptyText(local)) skipped++;
+                if (mark("skipped", ownText(local), type ?? "")) skipped++;
                 const code = optional(local, "Code"), areaNameCode = areaName == null ? null : attr(areaName, "code").length === 1
                   ? intern(attr(areaName, "code")[0]) : null;
                 const name = optional(local, "Name"), areaNameValue = optional(local, "AreaName");
@@ -282,7 +309,7 @@ function inspect(material: DecodedMaterial): Result {
     count: number): DiagnosticDetails => ({ level, component: "weather-timeseries", reason, inputId: material.inputId, unit: "U-F", count });
   return { kind: "accepted", candidate: { source, reportDateTimeMs: common.envelope.reportDateTimeMs,
     cancelled: infoType.value === "取消", snapshot: periods.length === 0 ? EMPTY
-      : { strings, attributes, values, series, areas: areaTable, locals, kinds, periods }, validUntil },
+      : { strings, attributes, values, series, areas: areaTable, locals, kinds, periods }, validUntil, unreadable: marks.mark(material.xml) },
   diagnostics: [...skipped > 0 ? [diagnostic("INFO", "weatherTimeseriesElementSkipped", skipped)] : [],
     ...outer ? [diagnostic("WARN", "weatherTimeseriesScopeUnclear", periods.length)] : []] };
 }

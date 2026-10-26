@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util"; import { createHash } from "node:crypto";
 
 import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome, WallBasis } from "../../../contracts/p2-shared-runtime.types";
-import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
+import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot, WeatherTimeseriesUnreadableSite,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
@@ -10,11 +10,17 @@ import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeser
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
 import { PENDING_MARK_BYTES, cachedMin } from "../expiry";
+import {
+  UNREADABLE_CARDS_MAX_BYTES, WEATHER_TIMESERIES_RAW_BUDGET, droppedIn, fitRawBudget, markView, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes,
+} from "../unreadable";
 
-const SCHEMA = "p2-weather-timeseries-unit-v6" as const;
+const SCHEMA = "p2-weather-timeseries-unit-v7" as const;
 type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
-// P3-EF-AC10 (5): 器は入力なしで付く期限切れの保留の印の最悪の分（512×21）だけ広げる（33,565,184）。
-const LIMIT = 33_554_432 + 512 * PENDING_MARK_BYTES, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
+// P3-EF-AC10 (5): 器は入力なしで付く期限切れの保留の印の最悪の分（512×21）だけ広げる（33,565,184）。P3-UM-RES-09: 読めない所の印・
+// 原文の予算（付加事項の原文が多いので 1 MiB）・カードの分も足す。
+const SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
+const LIMIT = 33_554_432 + 512 * PENDING_MARK_BYTES + SUBJECT_LIMIT * unreadableMarkBytes("unreadable") + WEATHER_TIMESERIES_RAW_BUDGET
+  + UNREADABLE_CARDS_MAX_BYTES;
 const encoder = new TextEncoder();
 const cache = new WeakMap<object, number>();
 const subjectDeadlineCache = new WeakMap<WeatherTimeseriesUnitState["subjects"], number>();
@@ -49,12 +55,14 @@ const shows = (item: WeatherTimeseriesSubject) => item.effective === "active" &&
 const displayMin = cachedMin<WeatherTimeseriesSubject>((item) => shows(item) ? item.validUntil ?? Infinity : Infinity);
 const recallMin = cachedMin<WeatherTimeseriesSubject>((item) => item.retainUntil);
 const pendingMin = cachedMin<WeatherTimeseriesSubject>((item) => item.expiryPending === true ? item.validUntil ?? 0 : Infinity);
+// P3-UM-AC01 (6): 読めない所の印は事実と一緒に生きる（active でなくなる形では外す）。
+const withoutMark = ({ unreadable: _mark, ...rest }: WeatherTimeseriesSubject): WeatherTimeseriesSubject => rest;
 // 表示の上の形（P3-EF-AC04）: 保留の印のある subject は期限切れと同じ noActiveItems に見せる（事実は記憶へ移すまで残す）。
 const shownCache = new WeakMap<WeatherTimeseriesSubject, WeatherTimeseriesSubject>();
 function shownSubject(item: WeatherTimeseriesSubject): WeatherTimeseriesSubject {
   if (item.expiryPending !== true) return item;
   let found = shownCache.get(item);
-  if (found == null) { found = { ...item, ...EMPTY, effective: "noActiveItems", validUntil: null }; shownCache.set(item, found); }
+  if (found == null) { found = { ...withoutMark(item), ...EMPTY, effective: "noActiveItems", validUntil: null }; shownCache.set(item, found); }
   return found;
 }
 function dirty(persistence: PersistenceStatus, monotonicMs: number): PersistenceStatus {
@@ -121,7 +129,7 @@ function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotoni
         if (!verified) {
           if (!pending) { kept = { ...item, expiryPending: true }; change(item, kept); marked = true; }
         } else if (item.retainUntil > wallTimeMs || item.validUntil === item.retainUntil) {
-          const { expiryPending: _pending, ...rest } = item;
+          const { expiryPending: _pending, ...rest } = withoutMark(item);
           kept = { ...rest, ...EMPTY, effective: "noActiveItems" as const, validUntil: null, lapsed: true };
           change(item, kept); expired.push(kept);
         }
@@ -205,11 +213,12 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
   const gate = base.gates.find((item) => item.subject === source.subject);
   const snapshot = candidate.cancelled || candidate.validUntil == null || candidate.validUntil <= input.clock.wallTimeMs
     ? EMPTY : candidate.snapshot;
+  const effective = candidate.cancelled ? "cancelled" as const : snapshot.periods.length === 0 ? "noActiveItems" as const : "active" as const;
   const normal: WeatherTimeseriesSubject = { ...snapshot, subject: source.subject, operation: source.operation, source,
-    effective: candidate.cancelled ? "cancelled" : snapshot.periods.length === 0 ? "noActiveItems" : "active",
-    unavailableReason: null, lastKnown: null, affectedScope: "subject",
+    effective, unavailableReason: null, lastKnown: null, affectedScope: "subject",
     validUntil: snapshot.periods.length === 0 ? null : candidate.validUntil,
-    retainUntil: retainUntil(candidate.reportDateTimeMs, snapshot.periods.length === 0 ? null : candidate.validUntil) };
+    retainUntil: retainUntil(candidate.reportDateTimeMs, snapshot.periods.length === 0 ? null : candidate.validUntil),
+    ...effective !== "active" || candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
   // 予報の意味が同じか（表の並びの違いは同じ、P2-A3 の periodMeaning）。採用の change と同じ版の中身の比べに使う。
   const sameMeaning = () => previous != null && previous.effective === normal.effective && previous.validUntil === normal.validUntil
     && previous.periods.length === normal.periods.length && previous.periods.every((row, index) =>
@@ -238,6 +247,14 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
   const change = sameMeaning() ? "revisionOnly" as const : "semantic" as const;
   const changedFields = change === "revisionOnly" ? ["source", "retainUntil"] : ["source", "effective", "periods", "validUntil", "retainUntil"];
   let proposed = replace(base, normal, changed, version.mark);
+  // P3-UM-AC03 (3): 原文の合計が予算を越えたら古い subject の原文から外す（付加事項の原文を先に、印は残る）。器の退去より先に当てる。
+  const raw = fitRawBudget(rawTotal(proposed.subjects), WEATHER_TIMESERIES_RAW_BUDGET, () => proposed.subjects,
+    (item) => [Date.parse(item.source?.reportDateTimeRaw ?? ""), item.subject], true);
+  if (raw != null) proposed = { ...proposed, subjects: proposed.subjects.map((item) => {
+    const after = stripRaw(item, raw);
+    if (after !== item) changed(item, after);
+    return after;
+  }) };
   const generation = state.persistence.currentGeneration + 1;
   if (!fits(proposed, generation, input.clock.wallTimeMs)) {
     proposed = evict(proposed, source.subject, generation, input.clock.wallTimeMs, changed);
@@ -260,7 +277,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
           series: previous.series, areas: previous.areas, locals: previous.locals, kinds: previous.kinds,
           periods: previous.periods };
     // 無いと normal の retainUntil（長い validUntil）を引き継ぎ、decode が拒否する保存物ができる（P3-LIFE-T04）。
-    adopted = { ...normal, ...EMPTY, effective: "unavailable", unavailableReason: "capacityExceeded",
+    adopted = { ...withoutMark(normal), ...EMPTY, effective: "unavailable", unavailableReason: "capacityExceeded",
       validUntil: null, retainUntil: retainUntil(candidate.reportDateTimeMs, null), lastKnown };
     proposed = replace(proposed, adopted, changed, version.mark);
     established = null;
@@ -275,6 +292,8 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
   if (!fits(proposed, generation, input.clock.wallTimeMs)) return { ...step(state),
     decisions: [{ subject: source.subject, operation: source.operation, decision: "capacityExceeded" }], diagnostics: rejected };
   proposed = { ...proposed, persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  // P3-UM-AC03 (4): 外した原文は確定した state に残った記録だけ数える（拒否で戻した仮の state の分は数えない）。
+  const dropped = droppedIn(raw, proposed.subjects);
   const finalFields = established == null ? ["source", "effective", "periods", "validUntil", "retainUntil",
     "unavailableReason", "lastKnown", "affectedScope"] : changedFields;
   const deadlineOutcomes: PublishedOutcome[] = [];
@@ -287,7 +306,8 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     decision: "changed", reason: null, change: established == null ? "semantic" : change,
     currentEstablished: established }],
     outcomes: [...deadlineOutcomes, { kind: "accepted", change: established == null ? "semantic" : change,
-      subjects: [outcome(adopted, finalFields)] }], diagnostics: rejected };
+      subjects: [outcome(adopted, finalFields)] }], diagnostics: dropped === 0 ? rejected
+      : [...rejected, { level: "INFO", component: "weather-timeseries", reason: "unreadableDropped", unit: "U-F", count: dropped }] };
 }
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -368,6 +388,9 @@ function json(value: unknown): value is JsonValue {
   const row = object(value);
   return row != null && Object.values(row).every(json);
 }
+// P3-UM-AC01 (2): 印の site の表（WeatherTimeseriesUnreadableSite）。
+const UNREADABLE_SITES: ReadonlySet<string> = new Set(["Body", "MeteorologicalInfos", "TimeSeriesInfo", "TimeDefines", "TimeDefine", "Item", "Area",
+  "Kind", "Property", "Part", "Significancy", "skipped", "duplicateValue", "bodyOther", "addition"] satisfies readonly WeatherTimeseriesUnreadableSite[]);
 // 要素は確かめたまま使う（measure が object の同一性で byte を cache するので、作り直すと encode のたびに全要素を直列化し直す、P3-IUR-AC06）。
 function subjectRow(value: unknown): value is WeatherTimeseriesSubject {
   const item = object(value), source = object(item?.source);
@@ -389,6 +412,8 @@ function subjectRow(value: unknown): value is WeatherTimeseriesSubject {
       && Array.isArray(item.periods) && item.periods.length === 0)
     // P3-EF-AC05 (1)(6): 保留の印は active にだけ、lapsed は noActiveItems にだけ置け、値は true だけ。
     && (!("expiryPending" in item) || item.expiryPending === true && item.effective === "active")
+    // P3-UM-AC16 (3)(a): 読めない所の印は active にだけ置け、形は表の内。
+    && (!("unreadable" in item) || item.effective === "active" && readUnreadableMark(item.unreadable, UNREADABLE_SITES) != null)
     && (!("lapsed" in item) || item.lapsed === true && item.effective === "noActiveItems");
 }
 function gateRow(value: unknown): value is WeatherTimeseriesGate {
@@ -428,10 +453,11 @@ function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   const value: PersistedWeatherTimeseriesUnit = { schemaVersion: SCHEMA, subjects, gates, intents };
   const pending = intents.filter((item) => item.disposition === "pending");
   if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength + reserve(pending) > 131_072) return null;
-  return measure(subjects, gates, intents, 0, 0) <= LIMIT ? value : null;
+  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
+  return measure(subjects, gates, intents, 0, 0) <= LIMIT && rawTotal(subjects) <= WEATHER_TIMESERIES_RAW_BUDGET ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3", "p2-weather-timeseries-unit-v4", "p2-weather-timeseries-unit-v5"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3", "p2-weather-timeseries-unit-v4", "p2-weather-timeseries-unit-v5", "p2-weather-timeseries-unit-v6"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = persisted({ schemaVersion: SCHEMA, subjects: state.subjects, gates: state.gates, intents: state.intents });
     if (value == null) throw new Error("invalid U-F checkpoint payload");
@@ -439,7 +465,7 @@ const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
   },
   decode(payload: JsonValue) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v6 payload" }
+    return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
         savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } };
   },
@@ -522,7 +548,8 @@ function publicSubject(original: WeatherTimeseriesSubject): WeatherTimeseriesPub
     revision: String(revisionOf.get(original) ?? 0), source: item.source, effective: item.effective,
     unavailableReason: item.unavailableReason, validUntil: item.validUntil,
     areaCodes: [...areaCodes].sort(), knownCodes: [...known].sort(), unknownCode,
-    periodCount: item.periods.length, lastKnownPeriodCount: item.lastKnown?.periods.length ?? null };
+    periodCount: item.periods.length, lastKnownPeriodCount: item.lastKnown?.periods.length ?? null,
+    ...item.effective !== "active" || item.unreadable == null ? {} : { unreadableView: markView(item.unreadable) } };
   publicCache.set(original, result);
   return result;
 }

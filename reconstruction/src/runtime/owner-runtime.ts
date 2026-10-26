@@ -73,18 +73,18 @@ const initialUnits: RuntimeUnitStates = {
   "U-E": { schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [], persistence: cleanPersistence },
   "U-W": { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
-  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v6", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
-  "U-T": { schemaVersion: "p3-tsunami-unit-v5", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
-  "U-Q": { schemaVersion: "p3-seismic-unit-v5", contentRevision: 0, earthquakes: [], longPeriods: [],
+  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v7", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
+  "U-T": { schemaVersion: "p3-tsunami-unit-v6", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
+  "U-Q": { schemaVersion: "p3-seismic-unit-v6", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: cleanPersistence },
-  "U-N": { schemaVersion: "p3-nankai-unit-v6", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
-  "U-V": { schemaVersion: "p3-volcano-unit-v5", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+  "U-N": { schemaVersion: "p3-nankai-unit-v7", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
+  "U-V": { schemaVersion: "p3-volcano-unit-v6", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: cleanPersistence },
-  "U-L": { schemaVersion: "p3-landslide-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-R": { schemaVersion: "p3-flood-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-B": { schemaVersion: "p3-briefing-unit-v6", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-M": { schemaVersion: "p3-local-bulletins-unit-v6", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
-  "U-Y": { schemaVersion: "p3-typhoon-unit-v6", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
+  "U-L": { schemaVersion: "p3-landslide-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-R": { schemaVersion: "p3-flood-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-B": { schemaVersion: "p3-briefing-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-M": { schemaVersion: "p3-local-bulletins-unit-v7", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
+  "U-Y": { schemaVersion: "p3-typhoon-unit-v7", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
 };
 
 const placeUnits = (place: ExecutionPlace): readonly RuntimeUnitId[] =>
@@ -177,7 +177,7 @@ function projectView<K extends RuntimeUnitId>(state: OwnerState, units: UnitTabl
 }
 
 // P3-NL-AC14 (2)(3)(4): 理由ごとの行に件数を足す（閉集合の外・別の unit の行は数えない）。count は安全な整数で飽和させ、lastAt は足した時の
-// 手元の wall。何も足さなければ null。ponytail: 行は unit ごとに最大 7（P3-NL-RES-04）なので行の探索は線形。
+// 手元の wall。何も足さなければ null。ponytail: 行は unit ごとに最大 8（P3-NL-RES-04、P3-UM-AC03 (4) で 1 語増えた）なので行の探索は線形。
 function addLosses(rows: readonly LossTally[] | undefined, unit: RuntimeUnitId,
   items: readonly Readonly<{ reason: string; unit?: string; count?: number }>[], at: number): readonly LossTally[] | null {
   let next: LossTally[] | null = null;

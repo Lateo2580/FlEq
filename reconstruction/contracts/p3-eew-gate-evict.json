@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "4bdb3527e92b76f6e6a2849aadfb070098358a7d0bb6ca2c7c8318a204bbf20c",
+    "sha256": "82c56e76249c3fcdbea39b1115d243ba85e2a7b5e77c6df1b5c5f7a1884a8ab1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -226,7 +226,7 @@
           "reconstruction/src/domains/eew/eew.ts:362 «a9f9a4e43769a0aa»",
           "reconstruction/src/domains/eew/eew.ts:611 «7c8f0a00cd7cc8aa»",
           "reconstruction/src/domains/eew/eew.ts:613 «295c160aab9d48a2»",
-          "reconstruction/src/units/eew/eew-unit.ts:300 «bc9a6b0d231d49e7»"
+          "reconstruction/src/units/eew/eew-unit.ts:302 «bc9a6b0d231d49e7»"
         ]
       },
       {
@@ -245,7 +245,7 @@
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:728 «6e3a13e6daba7887»",
           "reconstruction/contracts/p2-eew-unit.json:434 «634ff0769180b233»",
-          "reconstruction/src/units/eew/eew-unit.ts:300 «bc9a6b0d231d49e7»"
+          "reconstruction/src/units/eew/eew-unit.ts:302 «bc9a6b0d231d49e7»"
         ]
       },
       {
@@ -273,7 +273,7 @@
         "id": "P3-EVICT-AC07",
         "requirement": "既存試験の変更（変える前に差と理由を統合担当へ報告する）: 起草の試作でreconstructionのvitestは1件だけ落ちた。P3-LIFE-T01の最初のretainUntilの1 ms前の新しいEventIDは、512 gateが全部最終報で報時刻＋10分を過ぎ、currentもpendingも無いので、capacityExceededからchanged（最古のgate、EventID 20260101000000を退去、eewCapacityEvicted count 1、gate 512のまま）へ変わる。その行の期待値だけをこれに変え、T01の残り（retainUntilちょうどの回収、90日後の0件）は変えずに同じstateから続ける。P2-A4-T06-R14のnormalだけ512件への新規normalのcapacityExceededは、gateの報時刻と時計の差が1 msで若いので変わらない（試作で緑）。ここに挙げていない期待値の変更が要る試験が出たら、変えずに止めて差と理由を報告する（AGENTS.md）。vitestの外のchrome-eewのsmokeのS_CAPACITY（smoke.mjs）は報時刻から31秒の時計で513件を入れるので変わらない（読んで確かめた。実走はしていない）。P3-MEASURE-HARNESS-001（MH、1871540bでは未配送）のP3-MH-T01の最後の句「充填の開始＋600,000msのdeadlineの後、同じ時計の新しい通常のEventIDはcapacityExceeded」は本契約の後は成り立たない（付け直した充填のEEWの報時刻は全部充填の開始の秒で(a)を満たし、currentはそのdeadlineで回収され、intentは15秒で掃けるので、最古のgateを退去してchangedになる）。baseOidの時点でMHが配送済みならその1行も本契約の期待値の変更に含める（allowedPathsへMH-T01の試験ファイルを足す改訂はQ-EVICT-BASEで統合担当が行う）。未配送ならMH側の改訂として統合担当が送る（Q-EVICT-BASE）。統合担当の決定（2026-10-11）: MHは40d040c0で配送済みなので、reconstruction/test/eew-e01/frames.test.tsのP3-MH-T01の最後の期待（付け直した充填の失効の後の新しい通常のEventIDのdecision）をcapacityExceededからchanged（最古のgateを退去、eewCapacityEvicted count 1、gate 512のまま）へ変える。その試験のほかの期待（充填の512・stale 0、失効でcurrent 0・gate 512、2024年の時刻はeewHorizonStale）は変えない。MHのAC08(a)（凍結の前のMac miniの予備の「失効の後も新しい通常のEventIDはcapacityExceeded」）は、本契約の配送の後に走らせる予備ではchangedと読み替える（統合担当が予備の記録に書く）。",
         "evidenceRefs": [
-          "reconstruction/test/eew-unit/eew-unit.test.ts:1476 «2b057236a59006f4»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1477 «2b057236a59006f4»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:676 «9c8d75df1c63772a»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:742 «4821b8442df7266c»"
         ]

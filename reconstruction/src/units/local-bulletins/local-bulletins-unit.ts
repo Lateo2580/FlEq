@@ -4,12 +4,12 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome, WallBasis,
+  SubjectOutcome, UnreadableMark, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   HeatCurrent, LocalBulletinsInput, LocalBulletinsIntent, LocalBulletinsNotificationPayload, LocalBulletinsUnitCodec, LocalBulletinsUnitState,
   LocalBulletinsUnitStep, LocalBulletinsUnitView, PersistedLocalBulletinsUnit, PersistedTransientCurrent, TornadoArea, TornadoAreaLayer, TornadoCurrent,
-  TransientArea, TransientCurrent, TransientFamily,
+  LocalBulletinsUnreadableSite, TransientArea, TransientCurrent, TransientFamily,
 } from "../../../contracts/p3-local-bulletins-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, readReportRef, stepVersion } from "../../contracts-revision/version";
@@ -26,11 +26,14 @@ import {
   applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed, raiseEvidence, readIntentState, readNoticeMark,
   restoreStarted, shown, updateEvidence, versionDigest,
 } from "../notice-mark";
+import {
+  LOCAL_BULLETINS_CARDS_MAX_BYTES, RAW_BUDGET, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes,
+} from "../unreadable";
 
 // P3-UNIT-M-001（C13、I-U-M）: 三つの slice（tornado・heat・transient）の current・版・遅着・退去・通知・容量・codec・射影。
 // 三つの slice は件数の上限と退去を別々に持つ（無いと解説の多発が竜巻の記録を退去する、I-U-M.slices）。
 
-const SCHEMA = "p3-local-bulletins-unit-v6" as const;
+const SCHEMA = "p3-local-bulletins-unit-v7" as const;
 // P3-C13-BOUNDS=A・P3-C13-RES-01・RET-05。
 const TRANSIENT_TOTAL = Object.values(TRANSIENT_LIMIT).reduce((sum, value) => sum + value, 0);
 // P3-VM-AC08（作者裁定 2026-10-21 夜）: 器は 4 MiB に、全 slice の全記録が読み戻しの上限いっぱいの未確認の印を持つ最悪の場合の分を足す（印の無い
@@ -46,7 +49,9 @@ const MARK_GROWTH = TORNADO_LIMIT * markBytes(`training/tornado/${WIDE.repeat(BO
 const SIGHTED = createHash("sha256").update("sighted").digest("hex").slice(0, 16);
 const SIGHTED_BYTES = new TextEncoder().encode(`,"fragments":${JSON.stringify([SIGHTED])}`).byteLength;
 const NOTICE_GROWTH = (TORNADO_LIMIT + HEAT_LIMIT + TRANSIENT_TOTAL) * noticeMarkBytes("notice") + TORNADO_LIMIT * SIGHTED_BYTES;
-const GENERATION_LIMIT = 4_194_304 + MARK_GROWTH + NOTICE_GROWTH - 98_304;
+// P3-UM-RES-09: 読めない所の印（一覧の欄 areas・tags の 2 つ、全 slice の記録）・原文の予算・カード 16 枚の分も足す。
+const GENERATION_LIMIT = 4_194_304 + MARK_GROWTH + NOTICE_GROWTH - 98_304
+  + (TORNADO_LIMIT + HEAT_LIMIT + TRANSIENT_TOTAL) * unreadableMarkBytes("unreadable", 2) + RAW_BUDGET + LOCAL_BULLETINS_CARDS_MAX_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
 const NOTICE_BOUNDS = { title: 160, body: 512 } as const;
@@ -64,6 +69,8 @@ type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 type State = LocalBulletinsUnitState;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
+// P3-UM-AC03 (3): 原文を外す順は source の ReportDateTime の古い順（同じなら subject の順）。
+const rawKey = (item: Rec): readonly [number, string] => [reportMs(item.source), item.subject];
 // view に載るのは active だけ（I-U-M.view）。期限切れの保留の印のある記録は見えない（P3-EF-AC02 (2)）。
 function visible<T extends Rec>(value: T | null): value is Extract<T, Readonly<{ effective: "active" }>> {
   return value?.effective === "active" && value.expiryPending !== true;
@@ -176,11 +183,13 @@ function changed(before: Rec | null, value: Rec | null): string[] {
 // ---- 記録の組み立て（retainUntil は元報の ReportDateTime からの等式。decode も同じ関数で確かめる） ----
 
 type Base = Readonly<{ subject: string; operation: Operation; source: ReportRef; unconfirmed?: ReportRef; notice?: NoticeMark }>;
-type Text = Readonly<{ title: string; headline: string; editorialOffice: string; truncated: boolean }>;
+type Text = Readonly<{ title: string; headline: string; editorialOffice: string; truncated: boolean; unreadable?: UnreadableMark }>;
 // 未確認の印は記録が state から消えるまで持つ（見える期限で記憶・証拠になっても、保存の証拠の形でも残す、P3-VM-AC04）。通知の印も同じ（P3-NL-AC02 (4)）。
 const baseOf = (value: Base): Base => ({ subject: value.subject, operation: value.operation, source: value.source,
   ...value.unconfirmed == null ? {} : { unconfirmed: value.unconfirmed }, ...value.notice == null ? {} : { notice: value.notice } });
-const textOf = (value: Text): Text => ({ title: value.title, headline: value.headline, editorialOffice: value.editorialOffice, truncated: value.truncated });
+// P3-UM-AC01: 印は事実と一緒に記録へ移る（候補の印は null で無し）。
+const textOf = (value: Omit<Text, "unreadable"> & Readonly<{ unreadable?: UnreadableMark | null }>): Text => ({ title: value.title, headline: value.headline,
+  editorialOffice: value.editorialOffice, truncated: value.truncated, ...value.unreadable == null ? {} : { unreadable: value.unreadable } });
 const retain = (base: Base, ms: number) => reportMs(base.source) + ms;
 
 const tornadoMemory = (base: Base, effective: "ended" | "cancelled" | "expired"): TornadoCurrent => ({ ...base, retainUntil: retain(base, TORNADO_RETAIN), effective });
@@ -457,8 +466,24 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
     next = { ...plain, notice: markNotice(plain.notice, digest, noticeKind(transition), fragment) };
     slice = slice.map((item) => item === plain ? next : item);
   }
-  const result: State = { ...lane.write(state, slice), intents: notices.intents,
+  let result: State = { ...lane.write(state, slice), intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
+  // P3-UM-AC03 (3): 原文の合計（三つの slice の和）が予算を越えたら古い記録の原文から外す（印は残る）。外した記録の view も変わるので表示の変化に足す。
+  const slices = result;
+  const fit = fitRawBudget<Rec>(rawTotal(slices.tornado, slices.heat, slices.transient), RAW_BUDGET,
+    () => [...slices.tornado, ...slices.heat, ...slices.transient], rawKey);
+  const stripped: Change[] = [];
+  if (fit != null) {
+    const own: Rec = next;
+    const strip = <R extends Rec>(values: readonly R[]): readonly R[] => values.map((item) => {
+      const after = stripRaw(item, fit);
+      if (after !== item && item.subject !== own.subject) stripped.push([item, after]);
+      return after;
+    });
+    result = { ...result, tornado: strip(result.tornado), heat: strip(result.heat), transient: strip(result.transient) };
+    const values = lane.read(result);
+    next = values[indexOf(values).subjects.get(subject) ?? -1] ?? next;
+  }
 
   // change は最終の表示の変化で決める（I-U-M.currentSemantics(5)）。accepted は最終の状態に残る subject（今回の記録）。
   const shownChange = was !== now_ || was && changed(existing, next).length !== 0;
@@ -468,9 +493,11 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   const diagnostics: DiagnosticDetails[] = version?.missing === true ? [warn(true)] : [];
   if (evicted != null) diagnostics.push(evictedDiagnostic);
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "localBulletins", reason: "notificationCapacityEvicted", unit: "U-M", count: notices.dropped });
+  const dropped = droppedIn(fit, [...result.tornado, ...result.heat, ...result.transient]);
+  if (dropped !== 0) diagnostics.push({ level: "INFO", component: "localBulletins", reason: "unreadableDropped", unit: "U-M", count: dropped });
   const replaced: Change = existing == null ? [null, next] : [existing, next];
   return {
-    changes: [...evicted == null ? [] : [[evicted, null] satisfies Change], replaced],
+    changes: [...evicted == null ? [] : [[evicted, null] satisfies Change], ...stripped, replaced],
     step: { state: result, nextDeadline: nextDeadline(result), decisions: [decision], intents: notices.admitted,
       outcomes: [{ kind: "accepted", change: kind, subjects: [outcomeOf(next, changed(existing, next))] }], diagnostics },
   };
@@ -730,11 +757,14 @@ function reportRef(value: unknown, subject: string, parts: SubjectParts): Report
     : parts.slice === "heat" ? ref.family === "VPFT50" ? ref.family : null : ref.family === subject.split("/")[1] ? ref.family : null;
   return family == null ? null : ref;
 }
+// P3-UM-AC01 (2): 印の site の表（LocalBulletinsUnreadableSite）。
+const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "editorialOffice", "headline", "area", "validDateTime", "tag"] satisfies readonly LocalBulletinsUnreadableSite[]);
 function textRecord(row: Fields): Text | null {
-  return typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
+  const unreadable = "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES) : undefined;
+  return unreadable === null || typeof row.truncated !== "boolean" || !boundedName(row.title, BOUNDS.title) || !bounded(row.headline, BOUNDS.headline)
     // 読めなかった官署は空で受ける（P3-EF-AC13）。竜巻の官署は subject との一致で確かめる。
     || !validHeadline(row.headline) || !bounded(row.editorialOffice, BOUNDS.office) || row.editorialOffice !== "" && !validName(row.editorialOffice) ? null
-    : { title: row.title, headline: row.headline, editorialOffice: row.editorialOffice, truncated: row.truncated };
+    : { title: row.title, headline: row.headline, editorialOffice: row.editorialOffice, truncated: row.truncated, ...unreadable == null ? {} : { unreadable } };
 }
 function tornadoAreaRecord(value: unknown): TornadoArea | null {
   const row = record(value);
@@ -744,10 +774,10 @@ function tornadoAreaRecord(value: unknown): TornadoArea | null {
 }
 // 枝ごとに持ってよい事実の field（types.ts の判別共用体）。ほかの枝の field を持つ保存物は拒む。
 const FACT_KEYS = ["activeUntil", "targetDate", "title", "headline", "editorialOffice", "truncated", "sighted", "areas", "areaName", "visibleUntil", "tags",
-  "expiryPending"] as const;
+  "expiryPending", "unreadable"] as const;
 const BRANCH_KEYS: Readonly<Record<string, readonly string[]>> = {
-  "tornado/active": ["activeUntil", "title", "headline", "editorialOffice", "truncated", "sighted", "areas", "expiryPending"],
-  "heat/active": ["activeUntil", "targetDate", "title", "headline", "editorialOffice", "truncated", "areaName", "expiryPending"],
+  "tornado/active": ["activeUntil", "title", "headline", "editorialOffice", "truncated", "sighted", "areas", "expiryPending", "unreadable"],
+  "heat/active": ["activeUntil", "targetDate", "title", "headline", "editorialOffice", "truncated", "areaName", "expiryPending", "unreadable"],
 };
 function tornadoRecord(row: Fields, base: Base, parts: Extract<SubjectParts, { slice: "tornado" }>): TornadoCurrent | null {
   if (row.effective === "ended" || row.effective === "cancelled" || row.effective === "expired") return tornadoMemory(base, row.effective);
@@ -847,7 +877,9 @@ function persisted(value: unknown): PersistedLocalBulletinsUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedLocalBulletinsUnit = { schemaVersion: SCHEMA, tornado, heat, transient, intents };
-  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
+  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
+    || rawTotal(tornado, heat) > RAW_BUDGET) return null;
   return result;
 }
 
@@ -863,12 +895,12 @@ function evidenceOf(item: TransientCurrent): PersistedTransientCurrent {
   return found;
 }
 const localBulletinsUnitCodec: LocalBulletinsUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1", "p3-local-bulletins-unit-v2", "p3-local-bulletins-unit-v3", "p3-local-bulletins-unit-v4", "p3-local-bulletins-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1", "p3-local-bulletins-unit-v2", "p3-local-bulletins-unit-v3", "p3-local-bulletins-unit-v4", "p3-local-bulletins-unit-v5", "p3-local-bulletins-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-M.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, tornado: state.tornado, heat: state.heat, transient: state.transient.map(evidenceOf), intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-local-bulletins-unit-v6 payload" }
+    return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

@@ -3,12 +3,12 @@ import { isDeepStrictEqual } from "node:util";
 import type { MaterialValue, Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject,
-  RuntimeUnitDeadline, SubjectOutcome, WallBasis,
+  RuntimeUnitDeadline, SubjectOutcome, UnreadableMark, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedVolcanoUnit, VolcanoAlert, VolcanoAlertFamily, VolcanoAreaGroup, VolcanoAshfall, VolcanoAshfallBatch, VolcanoAshfallGroup,
   VolcanoBulletin, VolcanoBulletinView, VolcanoEruption, VolcanoInput, VolcanoIntent, VolcanoKind, VolcanoNotificationPayload,
-  VolcanoScheduledAshfall, VolcanoShortfall, VolcanoUnitCodec, VolcanoUnitState, VolcanoUnitStep, VolcanoUnitView,
+  VolcanoScheduledAshfall, VolcanoShortfall, VolcanoUnitCodec, VolcanoUnitState, VolcanoUnitStep, VolcanoUnitView, VolcanoUnreadableSite,
 } from "../../../contracts/p3-volcano-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
@@ -22,12 +22,17 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
+import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
 
 // P3-UNIT-V-001（C9、I-U-V）: U-V の三 slice・定時・batch・解説・復旧不足・通知・容量・codec・射影。
 
-const SCHEMA = "p3-volcano-unit-v5" as const;
+const SCHEMA = "p3-volcano-unit-v6" as const;
 // P3-C9-CAPACITY=A・P3-C9-RES-01・RET-01〜06。世代の上限は P3-CODEC-D-LIMIT=A（K5、当初 4 MiB）。
-const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20, GENERATION_LIMIT = 5_242_880;
+const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20;
+// P3-UM-RES-09: 器は保存する記録の印（警報は陸と海の 2 つで一覧の欄 municipalities・marineAreas、噴火は municipalities、降灰は欄なし）と
+// 原文の予算とカードの分だけ広げる。解説は保存しないので数えない。
+const GENERATION_LIMIT = 5_242_880 + SLICE_LIMIT * (unreadableMarkBytes("unreadable", 2) + unreadableMarkBytes("marineUnreadable", 2))
+  + SLICE_LIMIT * unreadableMarkBytes("unreadable", 1) + SLICE_LIMIT * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C9-SEM-01〜07（元報の ReportDateTime からの絶対の長さ、P3-C9-RETENTION=A。batch は単調時計）。
 const DAY_MS = 86_400_000;
@@ -198,9 +203,9 @@ function upsert<T extends Shown>(values: readonly T[], value: T, limit: number, 
 const sameAshfallReport = (ref: ReportRef, source: ReportRef): boolean => ref.family !== source.family
   && [ref.family, source.family].every((family) => family === "VFVO54" || family === "VFVO55")
   && reportMs(ref) === reportMs(source) && ref.infoTypeRaw === source.infoTypeRaw;
-// 通知の印（P3-NL-AC02）も中身の比べに入れない。
+// 通知の印（P3-NL-AC02）も中身の比べに入れない。読めない所の印（P3-UM-AC01）も入れない（原文の予算で原文を外した記録を同じ版の再送で食い違いにしない）。
 const withoutSource = (value: Shown) => ({ ...value, source: null, marineSource: null, retainUntil: 0, unconfirmed: null, marineUnconfirmed: null,
-  notice: null, marineNotice: null, expiryPending: null });
+  notice: null, marineNotice: null, expiryPending: null, unreadable: null, marineUnreadable: null });
 type Held = Readonly<{ mark: ReportRef | null; missing: boolean }>;
 
 // ---- 警報（I-U-V.alertSemantics、P3-C9-ALERT-ACTIVE=A・P3-C9-MARINE=A） ----
@@ -253,6 +258,14 @@ function alertBase(candidate: VolcanoCandidate, subject: string, code: string, e
     retainUntil, ...existing?.notice == null ? {} : { notice: existing.notice },
     ...existing?.marineNotice == null ? {} : { marineNotice: existing.marineNotice } };
 }
+// P3-UM-AC01 (5)(6): 採用した側（陸上か海上）の印はその報の印に置き換え、もう一方の側の印は保つ。active でない記録は印を持たない。
+function alertUnreadable(next: VolcanoAlert, marine: boolean, own: UnreadableMark | null, existing: VolcanoAlert | null): VolcanoAlert {
+  if (next.effective !== "active") return next;
+  const { unreadable: _land, marineUnreadable: _sea, ...rest } = next;
+  const other = existing?.effective === "active" ? marine ? existing.unreadable : existing.marineUnreadable : undefined;
+  const land = marine ? other : own ?? undefined, sea = marine ? own ?? undefined : other;
+  return { ...rest, ...land == null ? {} : { unreadable: land }, ...sea == null ? {} : { marineUnreadable: sea } };
+}
 // 一つの警報の報（VFVO50・VFSV・VFVO51 の火山 entry）を記録に当てる。版は自分の family の watermark とだけ比べ、kind は
 // 別の family と比べて新しいときだけ取る（同じ版で kind が違えば先着を保って食い違い、P3-C9-MARINE=A）。
 function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, subject: string, code: string,
@@ -273,8 +286,8 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
     // 警報全体が取消になる採用では両側の印を外す（系列の情報が取消で消えた、AC04 の (b) の (ii)）。
     const whole = next.effective === "cancelled", kept = whole ? null : (marine ? existing?.unconfirmed : existing?.marineUnconfirmed) ?? null;
     const ownMark = whole ? null : version.mark, land = marine ? kept : ownMark, sea = marine ? ownMark : kept;
-    return { kind: "adopt", conflict, missing: version.missing,
-      next: { ...rest, ...land == null ? {} : { unconfirmed: land }, ...sea == null ? {} : { marineUnconfirmed: sea } } };
+    return { kind: "adopt", conflict, missing: version.missing, next: alertUnreadable({ ...rest, ...land == null ? {} : { unconfirmed: land },
+      ...sea == null ? {} : { marineUnconfirmed: sea } }, marine, candidate.cancelled ? null : candidate.unreadable, existing) };
   };
   const before = existing?.effective === "active" ? existing : null;
   const kind = entry?.kind ?? facts?.kind ?? null;
@@ -341,14 +354,14 @@ function eruptionOf(candidate: Candidate<"eruption">, existing: VolcanoEruption 
     retainUntil: ms + ERUPTION_RETAIN_MS };
   if (candidate.facts == null) return { ...base, volcanoCode: candidate.volcanoCode ?? existing?.volcanoCode ?? null, effective: "cancelled" };
   return { ...base, volcanoCode: candidate.volcanoCode!, effective: "active", ...candidate.facts, flash: candidate.family === "VFVO56",
-    truncated: candidate.truncated, validUntil: ms + ERUPTION_VALID_MS };
+    truncated: candidate.truncated, validUntil: ms + ERUPTION_VALID_MS, ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
 }
 function ashfallOf(candidate: Candidate<"ashfall">, subject: string, code: string): VolcanoAshfall {
   const base = { subject, operation: candidate.operation, eventId: candidate.eventId, source: { ...candidate.source, subject },
     retainUntil: candidate.reportDateTimeMs + ASHFALL_RETAIN_MS, volcanoCode: code };
   if (candidate.facts == null) return { ...base, effective: "cancelled" };
   return { ...base, effective: "active", variant: candidate.family === "VFVO55" ? "VFVO55" : "VFVO54", ...candidate.facts,
-    truncated: candidate.truncated };
+    truncated: candidate.truncated, ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
 }
 function scheduledOf(candidate: Candidate<"scheduled">, subject: string, code: string, existing: VolcanoScheduledAshfall | null):
   VolcanoScheduledAshfall {
@@ -364,15 +377,16 @@ function bulletinOf(candidate: Candidate<"bulletin">): VolcanoBulletin {
     retainUntil: candidate.reportDateTimeMs + SHORT_RETAIN_MS };
   if (candidate.facts == null) return { ...base, effective: "cancelled" };
   const { title, headline, volcanoCodes, extraordinary, text, nextAdvisory } = candidate.facts;
-  return { ...base, effective: "active", title, headline, volcanoCodes, extraordinary, truncated: candidate.truncated, text, nextAdvisory };
+  return { ...base, effective: "active", title, headline, volcanoCodes, extraordinary, truncated: candidate.truncated, text, nextAdvisory,
+    ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
 }
 // view・snapshot には見出しだけを載せる（P3-C9-SNAPSHOT=A）。
 const headingCache = new WeakMap<ActiveBulletin, VolcanoBulletinView>();
 function headingOf(value: ActiveBulletin): VolcanoBulletinView {
   let found = headingCache.get(value);
   if (found == null) {
-    const { text: _text, nextAdvisory: _next, notice: _notice, ...heading } = value;
-    found = heading;
+    const { text: _text, nextAdvisory: _next, ...heading } = value;
+    found = shown(heading);
     headingCache.set(value, found);
   }
   return found;
@@ -519,9 +533,13 @@ function factsOf(value: Shown): Readonly<Record<string, JsonValue>> {
     : { family: value.family, eventId: value.eventId, effective: value.effective };
   if (value.effective !== "active") return { eventId: value.eventId, effective: value.effective, volcanoCode: value.volcanoCode };
   // 通知の印（P3-NL-AC02）は outcome の事実に出さない。
-  if (isAlert(value)) { const { source: _source, marineSource: _marine, notice: _notice, marineNotice: _sea, ...rest } = value; return rest; }
+  // 読めない所の印（P3-UM-AC01）も出さない（原文の本文を outcome に載せない、P3-UM-D-VIEW）。
+  if (isAlert(value)) { const { source: _source, marineSource: _marine, notice: _notice, marineNotice: _sea, unreadable: _land, marineUnreadable: _marineMark,
+    ...rest } = value; return rest; }
   const { source: _source, notice: _notice, ...rest } = value;
-  return rest;
+  if (!("unreadable" in rest)) return rest;
+  const { unreadable: _mark, ...facts } = rest;
+  return facts;
 }
 const headingFacts = ({ source: _source, ...rest }: VolcanoBulletinView): Readonly<Record<string, JsonValue>> => rest;
 function outcomeOf(value: Shown, changedFields: readonly string[] = [], extra: Readonly<Record<string, JsonValue>> = {}): SubjectOutcome {
@@ -985,7 +1003,25 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading, 
     : remark(applied.state, notice.subject, marine, (mark) => markNotice(mark, version, noticeKind(notice.transition)));
   if (marked !== applied.state) applied.changes = applied.changes.map(([before, after]) => [before, after == null || after.subject !== notice?.subject
     ? after : noticeRecord(marked, after)]);
-  const adopted: VolcanoUnitState = { ...marked, intents: notices.intents };
+  let adopted: VolcanoUnitState = { ...marked, intents: notices.intents };
+  // P3-UM-AC03 (3): 原文の合計（三 slice と解説の和）が予算を越えたら古い記録の原文から外す（印は残る）。外した記録の view も変わるので
+  // 表示の変化に足す（この入力で触れた記録は after を外した記録に揃える）。
+  const slices = adopted;
+  const fit = fitRawBudget<Shown>(rawTotal(slices.alerts, slices.eruptions, slices.ashfalls, slices.bulletins), RAW_BUDGET,
+    () => [...slices.alerts, ...slices.eruptions, ...slices.ashfalls, ...slices.bulletins], (item) => [recordMs(item), item.subject]);
+  if (fit != null) {
+    const pairs: Change[] = [];
+    const strip = <R extends Shown>(values: readonly R[]): readonly R[] => values.map((item) => {
+      const after = stripRaw(item, fit);
+      if (after !== item) pairs.push([item, after]);
+      return after;
+    });
+    adopted = { ...adopted, alerts: strip(adopted.alerts), eruptions: strip(adopted.eruptions), ashfalls: strip(adopted.ashfalls),
+      bulletins: strip(adopted.bulletins) };
+    const fitted = adopted, touched = new Set(applied.changes.flatMap(([, after]) => after == null ? [] : [after.subject]));
+    applied.changes = [...applied.changes.map(([before, after]): Change => [before, after == null ? after : noticeRecord(fitted, after)]),
+      ...pairs.filter(([before]) => !touched.has(before!.subject))];
+  }
   // 保存しない系列（定時・batch・解説）だけの変化では保存世代を進めない（I-U-V.persisted）。
   const stamped = { ...adopted, persistence: persistedChanged(state, adopted) ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
   const collected = deadlineAt(stamped) <= now ? collect(stamped, clock, basis) : null;
@@ -996,6 +1032,8 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading, 
     unit: "U-V", count: applied.evicted + applied.selfEvicted });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "volcano", reason: "notificationCapacityEvicted", unit: "U-V",
     count: notices.dropped });
+  const dropped = droppedIn(fit, [...next.alerts, ...next.eruptions, ...next.ashfalls, ...next.bulletins]);
+  if (dropped !== 0) diagnostics.push({ level: "INFO", component: "volcano", reason: "unreadableDropped", unit: "U-V", count: dropped });
   const outcomes: PublishedOutcome[] = [...applied.outcomes];
   if (applied.decisions.some((item) => item.decision === "changed"))
     outcomes.push({ kind: "accepted", change: applied.semantic ? "semantic" : "revisionOnly", subjects: applied.subjects });
@@ -1353,11 +1391,21 @@ function materialRecord(value: unknown): MaterialValue | null {
     return { kind: "range", bound: row.bound, value: row.value, raw: row.raw };
   return null;
 }
-const ALERT_FACT_KEYS = ["volcanoName", "kind", "lastKind", "level", "headline", "municipalities", "marineAreas", "coordinate", "truncated"];
+const ALERT_FACT_KEYS = ["volcanoName", "kind", "lastKind", "level", "headline", "municipalities", "marineAreas", "coordinate", "truncated",
+  "unreadable", "marineUnreadable"];
 const ERUPTION_FACT_KEYS = ["volcanoName", "flash", "phenomenon", "eventDateTimeRaw", "craterName", "plumeAboveCrater", "plumeAboveSeaLevel",
-  "plumeDirection", "headline", "municipalities", "truncated", "validUntil", "expiryPending"];
+  "plumeDirection", "headline", "municipalities", "truncated", "validUntil", "expiryPending", "unreadable"];
 const ASHFALL_FACT_KEYS = ["volcanoName", "variant", "headline", "forecastStartsAt", "forecastEndsAt", "groups", "omittedGroupCount", "truncated",
-  "expiryPending"];
+  "expiryPending", "unreadable"];
+// P3-UM-AC01 (2): 印の site の表（VolcanoUnreadableSite）。
+const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "cancelVolcano", "lastKind", "coordinate", "name", "eventTime", "対象市町村等",
+  "対象海上予報区", "entries", "bulletinVolcano"] satisfies readonly VolcanoUnreadableSite[]);
+// 印の読み戻し（欄が無ければ {}、形の外は null）。key はその記録で印を持てる欄。
+function unreadableOf(row: Fields, key: "unreadable" | "marineUnreadable", allowed = true): Readonly<{ unreadable?: UnreadableMark }> | null {
+  if (!(key in row)) return {};
+  const mark = allowed ? readUnreadableMark(row[key], UNREADABLE_SITES) : null;
+  return mark == null ? null : { unreadable: mark };
+}
 // P3-EF-AC05 (1): 保留の印は active の噴火・降灰にだけ置け、値は true だけ。
 const pendingOf = (row: Readonly<Record<string, unknown>>): Readonly<{ expiryPending?: true }> | null => !("expiryPending" in row) ? {}
   : row.expiryPending === true ? { expiryPending: true } : null;
@@ -1404,11 +1452,15 @@ function alertRecord(value: unknown): VolcanoAlert | null {
   const municipalities = groupsRecord(row.municipalities, LIMITS.municipalityGroups, LIMITS.municipalityCodes);
   const marineAreas = groupsRecord(row.marineAreas, LIMITS.marineGroups, LIMITS.marineCodes);
   const level = kind == null ? undefined : levelOf(kind.code);
+  // P3-UM-AC01 (5): 陸上・海上の印も、その側の版がある側だけが持つ。
+  const landUnreadable = unreadableOf(row, "unreadable", source != null), seaUnreadable = unreadableOf(row, "marineUnreadable", marineSource != null);
   if (kind == null || !activeKind(kind) || row.level !== level || level === undefined || lastKind === undefined || municipalities == null
     || marineAreas == null || !bounded(row.volcanoName, BOUNDS.volcanoName) || !boundedOrNull(row.headline, BOUNDS.headline)
-    || !(row.coordinate === null || ascii(row.coordinate, LIMITS.coordinate)) || typeof row.truncated !== "boolean") return null;
+    || !(row.coordinate === null || ascii(row.coordinate, LIMITS.coordinate)) || typeof row.truncated !== "boolean"
+    || landUnreadable == null || seaUnreadable == null) return null;
   return { ...base, effective: "active", volcanoName: row.volcanoName, kind, lastKind, level, headline: row.headline, municipalities,
-    marineAreas, coordinate: row.coordinate, truncated: row.truncated };
+    marineAreas, coordinate: row.coordinate, truncated: row.truncated, ...landUnreadable,
+    ...seaUnreadable.unreadable == null ? {} : { marineUnreadable: seaUnreadable.unreadable } };
 }
 function eruptionRecord(value: unknown): VolcanoEruption | null {
   const row = record(value);
@@ -1436,12 +1488,12 @@ function eruptionRecord(value: unknown): VolcanoEruption | null {
     || !(row.eventDateTimeRaw === null || ascii(row.eventDateTimeRaw, LIMITS.eventDateTime)) || !boundedOrNull(row.craterName, BOUNDS.crater)
     || !boundedOrNull(row.plumeDirection, BOUNDS.direction) || !boundedOrNull(row.headline, BOUNDS.headline)
     || typeof row.truncated !== "boolean" || row.validUntil !== reportMs(source) + ERUPTION_VALID_MS) return null;
-  const lapsed = pendingOf(row);
-  if (lapsed == null) return null;
+  const lapsed = pendingOf(row), unreadable = unreadableOf(row, "unreadable");
+  if (lapsed == null || unreadable == null) return null;
   return { ...base, volcanoCode: row.volcanoCode, effective: "active", volcanoName: row.volcanoName, flash: row.flash,
     phenomenon: { code: phenomenon.code, name: phenomenon.name }, eventDateTimeRaw: row.eventDateTimeRaw, craterName: row.craterName,
     plumeAboveCrater: crater, plumeAboveSeaLevel: seaLevel, plumeDirection: row.plumeDirection, headline: row.headline, municipalities,
-    truncated: row.truncated, validUntil: row.validUntil, ...lapsed };
+    truncated: row.truncated, validUntil: row.validUntil, ...lapsed, ...unreadable };
 }
 function ashGroupRecord(value: unknown, startsAt: number, endsAt: number): VolcanoAshfallGroup | null {
   const row = record(value);
@@ -1483,10 +1535,10 @@ function ashfallRecord(value: unknown): VolcanoAshfall | null {
   const groups = list(row.groups, (entry) => ashGroupRecord(entry, starts, ends), ASH.groups);
   if (groups == null || (row.variant !== "VFVO54" && row.variant !== "VFVO55") || !bounded(row.volcanoName, BOUNDS.volcanoName)
     || !boundedOrNull(row.headline, BOUNDS.headline) || !count(row.omittedGroupCount) || typeof row.truncated !== "boolean") return null;
-  const lapsed = pendingOf(row);
-  if (lapsed == null) return null;
+  const lapsed = pendingOf(row), unreadable = unreadableOf(row, "unreadable");
+  if (lapsed == null || unreadable == null) return null;
   return { ...base, effective: "active", volcanoName: row.volcanoName, variant: row.variant, headline: row.headline, forecastStartsAt: starts,
-    forecastEndsAt: ends, groups, omittedGroupCount: row.omittedGroupCount, truncated: row.truncated, ...lapsed };
+    forecastEndsAt: ends, groups, omittedGroupCount: row.omittedGroupCount, truncated: row.truncated, ...lapsed, ...unreadable };
 }
 const SHORTFALL_REASONS = ["provenanceMissing", "sliceCorrupt", "gateCorrupt", "operationUnknown", "terminalQuarantine"] as const;
 function shortfallRecord(value: unknown): VolcanoShortfall | null {
@@ -1538,20 +1590,22 @@ function persisted(value: unknown): PersistedVolcanoUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedVolcanoUnit = { schemaVersion: SCHEMA, alerts, eruptions, ashfalls, shortfalls, intents };
-  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
+  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
+    || rawTotal(alerts, eruptions, ashfalls) > RAW_BUDGET) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const volcanoUnitCodec: VolcanoUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1", "p3-volcano-unit-v2", "p3-volcano-unit-v3", "p3-volcano-unit-v4"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1", "p3-volcano-unit-v2", "p3-volcano-unit-v3", "p3-volcano-unit-v4", "p3-volcano-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 定時・batch・解説・contentRevision・persistence は保存しない（I-U-V.persisted、spec:484・:504 の N）。
   encode: (state) => ({ schemaVersion: SCHEMA, alerts: state.alerts, eruptions: state.eruptions, ashfalls: state.ashfalls,
     shortfalls: state.shortfalls, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-volcano-unit-v5 payload" }
+    return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
       : { kind: "restored", state: { ...value, contentRevision: 0, scheduledAshfalls: [], batch: null, bulletins: [],
         persistence: cleanPersistence } };
   },

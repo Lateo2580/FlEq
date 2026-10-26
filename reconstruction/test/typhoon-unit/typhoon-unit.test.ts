@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { withLongestMarks } from "../unreadable-mark/longest-mark";
 
 import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
@@ -727,6 +728,11 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     const measured = generationBytes(typhoonUnitCodec.encode(maximum));
     console.info("P3-C14-AC15 largest decodable generation bytes", measured, "static bound", BOUND, "margin to 8 MiB", 8_388_608 - measured);
     expect(measured).toBeLessThanOrEqual(BOUND);
+    // P3-UM-AC03 (6)・RES-09: 解析・確率の全部の記録に読み戻しの上限いっぱいの印と予算いっぱいの原文を足した上界も、広げた器の内で decode が受ける。
+    const markedPayload = { ...payload, analysis: withLongestMarks(payload.analysis, "section", 0, 131_072), probability: withLongestMarks(payload.probability, "section", 0, 0) };
+    const markedState = typhoonUnitCodec.decode(JSON.parse(JSON.stringify(markedPayload)));
+    expect(markedState.kind === "restored" ? generationBytes(typhoonUnitCodec.encode(markedState.state)) <= typhoonUnitCodec.maxEnvelopeBytes! : markedState)
+      .toBe(true);
     const closes = (label: string, next: TyphoonUnitState) => {
       const encoded = JSON.parse(JSON.stringify(typhoonUnitCodec.encode(next))) as JsonValue;
       expect([label, typhoonUnitCodec.decode(encoded).kind], label).toEqual([label, "restored"]);

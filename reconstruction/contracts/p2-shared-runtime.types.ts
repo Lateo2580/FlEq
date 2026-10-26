@@ -211,17 +211,17 @@ export type RuntimeDisplaySubject = Readonly<{
   | Readonly<{ unit: "U-W"; current: WeatherCurrentSnapshot | null;
       unavailable: WeatherCurrentUnitState["unavailable"]; freshness: readonly FreshnessRecord[] }>
   | Readonly<{ unit: "U-F"; current: WeatherTimeseriesPublicSubject | null }>
-  | Readonly<{ unit: "U-T"; current: TsunamiForecastSubject | TsunamiObservationSubject | null }>
+  | Readonly<{ unit: "U-T"; current: MarkViewed<TsunamiForecastSubject | TsunamiObservationSubject> | null }>
   // I-U-Q.view: subject は event の鍵か長周期の subject。
-  | Readonly<{ unit: "U-Q"; current: EarthquakeEventView | LongPeriodSubject | null }>
+  | Readonly<{ unit: "U-Q"; current: EarthquakeEventView | MarkViewed<LongPeriodSubject> | null }>
   // I-U-N.view: subject は系統の現況か情報 subject（情報は見出しだけ）。
-  | Readonly<{ unit: "U-N"; current: NankaiCurrent | NankaiInformationView | null }>
+  | Readonly<{ unit: "U-N"; current: MarkViewed<NankaiCurrent> | NankaiInformationView | null }>
   // I-U-V.view: subject は三 slice の記録か解説 subject（解説は見出しだけ）。
-  | Readonly<{ unit: "U-V"; current: VolcanoAlert | VolcanoEruption | VolcanoAshfall | VolcanoBulletinView | null }>
+  | Readonly<{ unit: "U-V"; current: MarkViewed<VolcanoAlert | VolcanoEruption | VolcanoAshfall> | VolcanoBulletinView | null }>
   // I-U-L.view: subject は官署の current（active だけ）。
-  | Readonly<{ unit: "U-L"; current: Extract<LandslideCurrent, Readonly<{ effective: "active" }>> | null }>
+  | Readonly<{ unit: "U-L"; current: MarkViewed<Extract<LandslideCurrent, Readonly<{ effective: "active" }>>> | null }>
   // I-U-R.view: subject は EventID の current（active だけ）。
-  | Readonly<{ unit: "U-R"; current: Extract<FloodCurrent, Readonly<{ effective: "active" }>> | null }>
+  | Readonly<{ unit: "U-R"; current: MarkViewed<Extract<FloodCurrent, Readonly<{ effective: "active" }>>> | null }>
   // I-U-B.view: subject は系列の current（VPBS50 の active・VPOA50 の released だけ）。
   | Readonly<{ unit: "U-B"; current: BriefingUnitView["currents"][number] | null }>
   // I-U-M.view: subject は三 slice の記録（active だけ）。
@@ -320,8 +320,8 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "notificationOutcomeUnknown" | "noticeMarkEvicted"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate"
-  // P3-CC-AC07: one per input a unit could not make current because of its capacity. P3-WS-AC02: U-F が受理した報の読み飛ばし（INFO）と外の階層の知らない子（WARN）を報ごとに 1 件。
-  | "capacityRejected" | "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear";
+  // P3-CC-AC07: one per input a unit could not make current because of its capacity. P3-WS-AC02: U-F が受理した報の読み飛ばし（INFO）と外の階層の知らない子（WARN）を報ごとに 1 件。P3-UM-AC03 (4): 原文を外した記録の数。
+  | "capacityRejected" | "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear" | "unreadableDropped";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;
@@ -542,7 +542,7 @@ export type CheckpointEnvelope = Readonly<{
 export type LossReason = NotificationLossReason | "notificationCapacityEvicted" | "noticeMarkEvicted" | "capacityRejected"
   | "eewCapacityEvicted" | "weatherCurrentCapacityEvicted" | "tsunamiCapacityEvicted" | "seismicCapacityEvicted" | "seismicStationsFolded" | "nankaiCapacityEvicted"
   | "volcanoCapacityEvicted" | "landslideCapacityEvicted" | "floodCapacityEvicted" | "briefingCapacityEvicted" | "localBulletinsCapacityEvicted"
-  | "typhoonCapacityEvicted";
+  | "typhoonCapacityEvicted" | "unreadableDropped";
 export type LossTally = Readonly<{ reason: LossReason; count: number; lastAt: number }>;
 
 // Unit reducers own codecs; A3 calls them at capture/restore, not on idle ticks.
@@ -674,3 +674,16 @@ export type UnreadableCard = Readonly<{
 
 // P3-UM-AC12: 読めない EEW・津波の通知を重ねない印（U-E・U-T、unit×operation ごとに 1 つ）。FailureMark と違い info を持てる。
 export type UnreadableNoticeMark = Readonly<{ operation: Operation; level: "info" | "normal" | "warning" | "critical"; until: number }>;
+
+// P3-UM-AC10（P3-UM-D-VIEW）: view に渡す印。原文の本文は渡さず有無だけ。U-F の付加事項（site addition）は一覧に入れず、原文の有無を addition に。
+export type UnreadableMarkView = Readonly<{
+  parts: readonly Readonly<{ site: string; scope?: string; raw: boolean }>[];
+  headline: boolean;
+  addition?: true;
+  rawDropped?: true;
+  partsCut?: true;
+}>;
+// 記録の型の印を view の形に置き換えた型（各 unit の view の currents が使う、notice-mark.ts の shown が作る）。view の印は鍵を
+// unreadableView・marineUnreadableView に替える（記録の型を受ける表示の関数〔chrome-eew の pure.ts〕へそのまま渡せるように）。
+export type MarkViewed<T> = T extends unknown ? Omit<T, "unreadable" | "marineUnreadable">
+  & Readonly<{ [K in Extract<keyof T, "unreadable" | "marineUnreadable"> as `${K}View`]?: UnreadableMarkView }> : never;

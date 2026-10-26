@@ -1,7 +1,10 @@
 import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
-import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
-import type { TornadoArea, TornadoAreaLayer, TransientArea, TransientFamily } from "../../../contracts/p3-local-bulletins-unit.types";
+import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
+import type {
+  LocalBulletinsUnreadableSite, TornadoArea, TornadoAreaLayer, TransientArea, TransientFamily,
+} from "../../../contracts/p3-local-bulletins-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
+import { unreadableNotes } from "../../units/unreadable";
 import { validCode, validHeadline } from "../briefing/briefing";
 import { cut, infoRankOf, loneSurrogate, validName, validReportDateTime, validSerial } from "../flood/flood"; import { controlDateTimeOf } from "../../contracts-revision/version";
 
@@ -66,7 +69,7 @@ const attribute = (node: XmlElement, name: string): string | null => node.attrib
 
 type Base = Readonly<{
   operation: Operation; subject: string; source: ReportRef; reportDateTimeMs: number; infoRank: number; cancelled: boolean;
-  title: string; headline: string; editorialOffice: string; truncated: boolean;
+  title: string; headline: string; editorialOffice: string; truncated: boolean; unreadable: UnreadableMark | null;
 }>;
 type TornadoCandidate = Base & Readonly<{
   slice: "tornado"; headType: TornadoHeadType;
@@ -101,8 +104,13 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
   const diagnostic = (reason: RejectionReason): DiagnosticDetails => ({ level: "WARN", component: "localBulletins", reason, inputId: material.inputId, unit: "U-M" });
   const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason, diagnostic: diagnostic(reason) });
   // H51 の B（P3-EF-AC13）: 読めない所は報を断らず、所ごとに WARN を 1 件残す。
+  // P3-UM-AC01 (2): 同じ所を印の part にもする（WARN は所ごとに 1 件のまま、part は (site, scope) ごと）。node は読めなかった要素か親。
   const warnings = new Map<string, "requiredStructureMissing" | "requiredStructureInvalid">();
-  const warn = (site: string, reason: "requiredStructureMissing" | "requiredStructureInvalid") => { if (!warnings.has(site)) warnings.set(site, reason); };
+  const notes = unreadableNotes();
+  const warn = (site: LocalBulletinsUnreadableSite, reason: "requiredStructureMissing" | "requiredStructureInvalid", node: XmlElement | null, scope?: string) => {
+    if (!warnings.has(site)) warnings.set(site, reason);
+    notes.note(site, reason, node, scope);
+  };
 
   const headType = material.headType;
   const tornadoType: TornadoHeadType | null = headType === "VPHW50" || headType === "VPHW51" ? headType : null;
@@ -139,7 +147,7 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
   if (subject === "") return reject("identityInvalid");
   // Serial は任意で、あれば 10 桁以下の数字列。形の外は空にして受ける（P3-EF-AC13 (5)、新旧に Serial を使わない K7）。
   let serialRaw = material.serialRaw.trim();
-  if (serialRaw !== "" && !validSerial(serialRaw)) { warn("serial", "requiredStructureInvalid"); serialRaw = ""; }
+  if (serialRaw !== "" && !validSerial(serialRaw)) { warn("serial", "requiredStructureInvalid", children(head, "Serial")[0] ?? head); serialRaw = ""; }
   // 保存する ReportRef の byte の上限（Q-ENUM.identity）。
   if (!validReportDateTime(material.reportDateTimeRaw) || material.infoTypeRaw.length > 8) return reject("identityInvalid", subject);
 
@@ -166,8 +174,9 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
   // Control/EditorialOffice は取消でも有無と形を確かめる。竜巻は identity で確かめ済み。ほかは表示だけなので読めなければ空（H51 の B）。
   let editorialOffice = "";
   if (tornadoType == null) {
-    if (office.state === "missing") warn("editorialOffice", "requiredStructureMissing");
-    else if (office.state === "invalid" || !validOffice(office.value)) warn("editorialOffice", "requiredStructureInvalid");
+    const officeNode = children(control, "EditorialOffice")[0] ?? control;
+    if (office.state === "missing") warn("editorialOffice", "requiredStructureMissing", officeNode);
+    else if (office.state === "invalid" || !validOffice(office.value)) warn("editorialOffice", "requiredStructureInvalid", officeNode);
     else editorialOffice = office.value;
   } else if (office.state === "ok") editorialOffice = office.value;
 
@@ -179,11 +188,12 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
   let headline = "", headlineRaw = "";
   const headlines = children(head, "Headline");
   // 竜巻の非取消は Head/Headline を持つ（Q-ENUM.familyTable）。見出しは表示だけで、区域は Body/Warning からも読めるので、読めなければ空（H51 の B）。
-  if (!cancelled && tornadoType != null && headlines.length === 0) warn("headline", "requiredStructureMissing");
+  if (!cancelled && tornadoType != null && headlines.length === 0) warn("headline", "requiredStructureMissing", head);
   if (!cancelled) {
     const texts = children(headlines[0] ?? null, "Text");
     const text = texts.length === 0 ? "" : scalar(texts[0]);
-    if (headlines.length > 1 || texts.length > 1 || text == null || !validHeadline(text)) warn("headline", "requiredStructureInvalid");
+    if (headlines.length > 1 || texts.length > 1 || text == null || !validHeadline(text))
+      warn("headline", "requiredStructureInvalid", headlines.length === 1 ? headlines[0] : head);
     else { headlineRaw = text; headline = bound(text, BOUNDS.headline); }
   }
   const finish = (candidate: LocalBulletinsCandidate): ParseResult => missing ? reject("requiredStructureMissing", subject)
@@ -191,7 +201,8 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
     : { kind: "accepted", candidate, diagnostics: [...warnings.values()].map(diagnostic) };
   const titleText = title ?? "";
   // truncated は最後の finish の時点の値（Title の切り詰めを先に評価する）。
-  const shared = () => { const cutTitle = bound(titleText, BOUNDS.title); return { ...base, title: cutTitle, headline, editorialOffice, truncated }; };
+  const shared = () => { const cutTitle = bound(titleText, BOUNDS.title);
+    return { ...base, title: cutTitle, headline, editorialOffice, truncated, unreadable: notes.mark(material.xml) }; };
 
   // 区域の Code は数字だけ 8 byte 以下（切らない）、Name は 24 単位に切る。
   // 欠落は竜巻なら必須の欠落、transient なら区域の欠落（合法、Q-ENUM.familyTable）。形の外は invalid。
@@ -200,7 +211,8 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
     if (code.state === "missing" || label.state === "missing") { missing ||= !optional; return null; }
     // 区域は所属だけの一覧で、形の外の区域は除いて truncated にする（H51 の B）。
     if (code.state === "invalid" || !validCode(code.value) || label.state === "invalid" || !validName(label.value)) {
-      warn("area", "requiredStructureInvalid");
+      // part の scope は読めた区域の Code（AC01 (4)）。
+      warn("area", "requiredStructureInvalid", parent, code.state === "ok" && validCode(code.value) ? code.value : undefined);
       truncated = true;
       return null;
     }
@@ -214,7 +226,8 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
       const valids = children(head, "ValidDateTime");
       const validText = valids.length === 0 ? "" : scalar(valids[0]);
       // P3-EF-AC13 (7): 読めない ValidDateTime は WARN を出し、ValidDateTime の無い報と同じに受ける（H51）。
-      if (valids.length > 1 || validText == null || validText !== "" && !validReportDateTime(validText)) warn("validDateTime", "requiredStructureInvalid");
+      if (valids.length > 1 || validText == null || validText !== "" && !validReportDateTime(validText))
+        warn("validDateTime", "requiredStructureInvalid", valids.length === 1 ? valids[0] : head);
       else if (validText !== "") validMs = Date.parse(validText);
       // Item の読み取り。Kind は 1 個以上（各 Kind の Name・Code は 0 か 1 個の scalar）。Kind/Code が「0」か Kind/Name が「なし」ならなし。
       const itemActive = (item: XmlElement): boolean => {
@@ -262,7 +275,7 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
       if (entries.length === 0) missing = true;
       const active = entries.some((entry) => entry.active);
       release = !active;
-      if (active && validMs != null && validMs <= reportMs) { warn("validDateTime", "requiredStructureInvalid"); validMs = null; }
+      if (active && validMs != null && validMs <= reportMs) { warn("validDateTime", "requiredStructureInvalid", children(head, "ValidDateTime")[0] ?? head); validMs = null; }
       if (active) {
         const counts = new Map<TornadoAreaLayer, number>();
         for (const entry of entries) {
@@ -316,7 +329,7 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
     for (const information of children(headlines[0] ?? null, "Information"))
       for (const item of children(information, "Item")) {
         const areaNodes = children(item, "Areas");
-        if (areaNodes.length > 1) warn("area", "requiredStructureInvalid");
+        if (areaNodes.length > 1) warn("area", "requiredStructureInvalid", item);
         for (const node of children(areaNodes[0] ?? null, "Area")) {
           const place = areaOf(node, true);
           if (place != null) fromHeadline.push(place);
@@ -329,7 +342,7 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
           for (const condition of children(kind, "Condition")) {
             const text = scalar(condition);
             // 読めない tag は除く（H51 の B）。
-            if (text == null || /[\u0000-\u0008\u000e-\u001f\u007f]/.test(text) || loneSurrogate(text)) { warn("tag", "requiredStructureInvalid"); continue; }
+            if (text == null || /[\u0000-\u0008\u000e-\u001f\u007f]/.test(text) || loneSurrogate(text)) { warn("tag", "requiredStructureInvalid", condition); continue; }
             for (const word of text.split(/\s+/)) if (word !== "") tags.push(word);
           }
         }

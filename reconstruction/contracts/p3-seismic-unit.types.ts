@@ -17,6 +17,9 @@ import type {
   SubjectUnavailable,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
+  UnreadableMarkView,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-Q-001 (C7, I-U-Q). 地震（M02）は operation・EventID ごとの event に family ごとの寄与を持ち、
@@ -83,7 +86,11 @@ export type EarthquakeContribution = Readonly<{
   tsunamiComment: SeismicTsunamiComment | null; unconfirmed?: ReportRef; // P3-VM-AC04: family の系列の未確認の印。active の寄与だけが鍵を持つ
   notice?: NoticeMark; // P3-NL-AC02: family の系列の通知の印（寄与と同じに生き、取消記憶にも残る）。表示には出さない
   folded?: string;
+  unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は SeismicUnreadableSite）。active の寄与だけが持つ
 }>;
+
+// P3-UM-AC01 (2): 印の site の表（domain の warn の所の名。U-Q は K14 で足した名）。codec は表の外の site を読まない。
+export type SeismicUnreadableSite = "serial" | "intensity" | "hypocenter" | "name";
 
 // P3-QC-AC01 (2): 守りの欄（normal の記録だけ）。from は operation・EventID ごとに 1 つの守りの起点（event と長周期で同じ、記録を作る
 // 採用で決めて動かさない）。on は自分の記録の根拠の bit（1: event の全体 MaxInt が 5 弱以上、2: 自分の全体 MaxLgInt の階級が 2 以上）。
@@ -131,6 +138,7 @@ export type LongPeriodSubject = Readonly<{
   notice?: NoticeMark; // P3-NL-AC02: 通知の印（記録と同じに生きる）。表示には出さない
   folded?: string;
   guard?: SeismicGuard;
+  unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印。active の記録だけが持つ
 }>;
 
 // 当日地震履歴（operation ごと。日の基準は P3-C7-DAILY-BASIS）。件数と最大震度は全体の震度が既知の段階（I-U-Q.intensityScale）の
@@ -167,7 +175,7 @@ export type SeismicNotificationPayload = Readonly<{
 export type SeismicIntent = NotificationIntent & Readonly<{ payload: SeismicNotificationPayload }>;
 
 export type SeismicUnitState = Readonly<{
-  schemaVersion: "p3-seismic-unit-v5";
+  schemaVersion: "p3-seismic-unit-v6";
   contentRevision: number;
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
@@ -179,7 +187,7 @@ export type SeismicUnitState = Readonly<{
 }>;
 
 export type PersistedSeismicUnit = Readonly<{
-  schemaVersion: "p3-seismic-unit-v5";
+  schemaVersion: "p3-seismic-unit-v6";
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
@@ -205,13 +213,15 @@ export type EarthquakeEventView = Readonly<{
   unavailable?: readonly SubjectUnavailable[];
   // P3-QC-AC07 (4): 取り消した地震の印。持つ view は事実が null で sources が空（active に数えない）。
   cancelledSummary?: CancelledSummary;
+  // P3-UM-AC10: active の寄与の読めなかった所の印（family の順）。印のある寄与が無ければ欄を書かない。
+  unreadableView?: readonly (Readonly<{ family: EarthquakeFamily }> & UnreadableMarkView)[];
 }>;
 
 // active な event と長周期 subject と、cancelledSummary を持つ取り消した地震を載せる（P3-QC-AC07 (4)）。
 export type SeismicUnitView = SharedUnitView & Readonly<{
   unit: "U-Q";
   earthquakes: readonly EarthquakeEventView[];
-  longPeriods: readonly LongPeriodSubject[];
+  longPeriods: readonly MarkViewed<LongPeriodSubject>[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
 }>;
 
@@ -241,5 +251,5 @@ export type SeismicUnitStep = Readonly<{
 }>;
 
 export type SeismicUnitCodec = UnitCodec<SeismicUnitState, PersistedSeismicUnit> & Readonly<{
-  schemaVersion: "p3-seismic-unit-v5";
+  schemaVersion: "p3-seismic-unit-v6";
 }>;

@@ -1,7 +1,8 @@
 import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
-import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
-import type { LandslideKindGroup } from "../../../contracts/p3-landslide-unit.types";
+import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
+import type { LandslideKindGroup, LandslideUnreadableSite } from "../../../contracts/p3-landslide-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
+import { unreadableNotes } from "../../units/unreadable";
 
 // P3-UNIT-L-001 の adapter: VPWW56 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -44,6 +45,11 @@ function scalar(node: XmlElement): string | null {
     part.kind === "text").map((part) => part.value).join("").trim() : null;
 }
 // 切り詰めでサロゲートの対を割らない（割ると JSON で \uXXXX の 6 byte になり、I-U-L.capacityReserve の最悪の byte を超える）。
+// P3-UM-AC02 (1): Serial の欠片は Head/Serial（無ければ Head）。
+function serialNode(root: XmlElement): XmlElement | null {
+  const head = children(root, "Head")[0] ?? null;
+  return children(head, "Serial")[0] ?? head;
+}
 function cut(value: string, limit: number): string {
   if (value.length <= limit) return value;
   const head = value.slice(0, limit);
@@ -53,11 +59,11 @@ function cut(value: string, limit: number): string {
 // ---- 候補 ----
 
 // kinds は active の Kind/Code ごとの group（types.ts の順）。released は Status「解除」の区域を持つか（Q-NOTICE の inactiveAdoption）。
-// areaNames は採用時の outcome の facts だけに載せる区域の名前（保存しない、P3-C10-AREAS=A）。
+// areaNames は採用時の outcome の facts だけに載せる区域の名前（保存しない、P3-C10-AREAS=A）。unreadable は読めなかった所の印（P3-UM-AC01）。
 type LandslideCandidate = Readonly<{
   operation: Operation; office: string; subject: string; source: ReportRef; reportDateTimeMs: number; infoRank: number;
   cancelled: boolean; title: string; headline: string | null; kinds: readonly LandslideKindGroup[]; released: boolean;
-  truncated: boolean; areaNames: Readonly<Record<string, string>>;
+  truncated: boolean; areaNames: Readonly<Record<string, string>>; unreadable: UnreadableMark | null;
 }>;
 // diagnostics は受けた報の読めなかった所（P3-EF-AC13、H51 の B）。
 type ParseResult = Readonly<{ kind: "accepted"; candidate: LandslideCandidate; diagnostics: readonly DiagnosticDetails[] }>
@@ -70,8 +76,13 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
   const diagnostic = (reason: RejectionReason): DiagnosticDetails => ({ level: "WARN", component: "landslide", reason, inputId: material.inputId, unit: "U-L" });
   const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason, diagnostic: diagnostic(reason) });
   // H51 の B（P3-EF-AC13）: 読めない所は報を断らず、所ごとに WARN を 1 件残す。
+  // P3-UM-AC01 (2): 同じ所を印の part にもする（WARN は所ごとに 1 件のまま、part は (site, scope) ごと）。
   const warnings = new Map<string, "requiredStructureMissing" | "requiredStructureInvalid">();
-  const warn = (site: string, reason: "requiredStructureMissing" | "requiredStructureInvalid") => { if (!warnings.has(site)) warnings.set(site, reason); };
+  const notes = unreadableNotes();
+  const warn = (site: LandslideUnreadableSite, reason: "requiredStructureMissing" | "requiredStructureInvalid", node: XmlElement | null, scope?: string) => {
+    if (!warnings.has(site)) warnings.set(site, reason);
+    notes.note(site, reason, node, scope);
+  };
 
   // Q-ENUM.identity: Control/EditorialOffice（P3-C10-SUBJECTS=A）。
   const controls = children(material.xml, "Control");
@@ -84,7 +95,7 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
   const subject = `${material.operation}/${FAMILY}/${office}`;
   // P3-EF-AC13 (5): 形の外の Serial は空にして受ける（新旧に Serial を使わない、K7）。
   let serialRaw = material.serialRaw.trim();
-  if (!validSerial(serialRaw)) { warn("serial", "requiredStructureInvalid"); serialRaw = ""; }
+  if (!validSerial(serialRaw)) { warn("serial", "requiredStructureInvalid", serialNode(material.xml)); serialRaw = ""; }
   // 保存する ReportRef の byte の上限（Q-ENUM.identity、C8 の Q-C8-IMPL-AMEND(a)）。
   if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
 
@@ -147,8 +158,8 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
       if (kindCodes.length === 0 || kindCode === "") { missing = true; continue; }
       if (kindCodes.length > 1 || kindCode == null || !validKindCode(kindCode)) { invalid = true; continue; }
       // Kind/Name は表示だけで、区分は Code で読める（H51 の B）。Status・Code は区域の警報級の値なので拒否のまま（C）。
-      if (names.length === 0 || name === "") warn("kindName", "requiredStructureMissing");
-      else if (names.length > 1 || name == null) warn("kindName", "requiredStructureInvalid");
+      if (names.length === 0 || name === "") warn("kindName", "requiredStructureMissing", kind, code ?? undefined);
+      else if (names.length > 1 || name == null) warn("kindName", "requiredStructureInvalid", names.length > 1 ? kind : names[0], code ?? undefined);
       const label = names.length === 1 && name != null ? name : "";
       if (status === RELEASED) released = true;
       // P3-C10-ACTIVE-STATUS=A: 「解除」「発表警報・注意報はなし」と code 00 は inactive。
@@ -172,7 +183,8 @@ function parseLandslide(material: DecodedMaterial): ParseResult {
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: FAMILY, subject,
       reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(titleText, BOUNDS.title),
-    headline: headline == null || headline === "" ? null : cut(headline, BOUNDS.headline), kinds, released, truncated, areaNames } };
+    headline: headline == null || headline === "" ? null : cut(headline, BOUNDS.headline), kinds, released, truncated, areaNames,
+    unreadable: notes.mark(material.xml) } };
 }
 
 export { BOUNDS, FAMILY, INFO_RANK, LIMITS, cut, groupOrder, levelOf, parseLandslide, validAreaCode, validKindCode, validOffice, validSerial };

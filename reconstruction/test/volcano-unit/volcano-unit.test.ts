@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
+import { withLongestMarks } from "../unreadable-mark/longest-mark";
 
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
@@ -44,7 +45,7 @@ const roundTrip = (state: VolcanoUnitState) => volcanoUnitCodec.decode(JSON.pars
 const tick = (state: VolcanoUnitState, wallTimeMs: number, monotonicMs = 0) =>
   reduceVolcanoUnit(state, { kind: "deadline", clock: clock(wallTimeMs, monotonicMs) });
 // 保存 1 世代の byte（checkpoint envelope の JSON＋generation/capturedAt の 62 byte の予約）と、pending の配送予約を足した値（P3-CODEC-RES-01）。
-const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v5", unit: "U-V",
+const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v6", unit: "U-V",
   generation: 0, capturedAt: 0, payload: volcanoUnitCodec.encode(state), sha256: "0".repeat(64) })) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
 const reserved = (state: VolcanoUnitState) => generation(state) + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
 const emptyOwner = (now: ReturnType<typeof clock>) => restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" },
@@ -811,9 +812,18 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     // K2 の family ごとの identity（64 字×2）を足した上界（P3-AUTH-RES-02）4,774,476 に、K7 の Control/DateTime と系列ごとの未確認の印
     // （decoder の最大で印 512 件 364,416 byte、印の外の Control/DateTime 41,700 byte）を足した 5,180,592（P3-VM-AC08、5 MiB まで 62,288）。
     expect(Math.max(...sizes)).toBeLessThanOrEqual(5_180_592);
+    // P3-UM-AC03 (6)・RES-09: decoder の形の最大の全部の記録に読み戻しの上限いっぱいの印（警報は陸と海の 2 つで一覧の欄 2 つ、噴火は 1 つ、
+    // 降灰は 0）と予算いっぱいの原文を足した上界も、広げた器の内で decode が受ける。
+    const max = f08State(128, false, true), active = (item: { effective: string }) => item.effective === "active";
+    const landMarked = withLongestMarks(max.alerts, "対象海上予報区", 2, 131_072, (item) => active(item) && item.source != null);
+    const marked: VolcanoUnitState = { ...max, alerts: withLongestMarks(landMarked, "対象海上予報区", 2, 0, (item) => active(item) && item.marineSource != null,
+      "marineUnreadable"), eruptions: withLongestMarks(max.eruptions, "対象海上予報区", 1, 0, active),
+    ashfalls: withLongestMarks(max.ashfalls, "対象海上予報区", 0, 0, active) };
+    expect([roundTrip(marked).kind, reserved(marked) <= volcanoUnitCodec.maxEnvelopeBytes!]).toEqual(["restored", true]);
 
     // 上限ちょうどは採り、1 byte 超えると入力前の state のまま rejected/requiredStructureInvalid と ERROR の診断 1 件だけを返す。
-    const LIMIT = 5_242_880, DAY_MS = 86_400_000;
+    // 器は codec の値（P3-UM-RES-09 で 5 MiB から印・原文の予算・カードの分を広げた）。
+    const LIMIT = volcanoUnitCodec.maxEnvelopeBytes!, DAY_MS = 86_400_000;
     const sample = send(emptyState(), F.a306).state.alerts[0];
     if (sample.effective !== "active") throw new Error("inactive sample");
     const withHeavy = (base: VolcanoUnitState, headline: number): VolcanoUnitState => ({ ...base, alerts: [...base.alerts, { ...sample,

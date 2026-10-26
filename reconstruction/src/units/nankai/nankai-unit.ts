@@ -3,12 +3,12 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject,
-  RuntimeUnitDeadline, SubjectOutcome, WallBasis,
+  RuntimeUnitDeadline, SubjectOutcome, UnreadableMark, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   NankaiCurrent, NankaiCurrentLine, NankaiCurrentStatus, NankaiInfoSerial, NankaiInformation, NankaiInformationView, NankaiInput,
   NankaiIntent, NankaiNotificationPayload, NankaiReportFamily, NankaiUnitCodec, NankaiUnitState, NankaiUnitStep, NankaiUnitView,
-  PersistedNankaiUnit,
+  NankaiUnreadableSite, PersistedNankaiUnit,
 } from "../../../contracts/p3-nankai-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { nextMark, readReportRef, stepVersion } from "../../contracts-revision/version";
@@ -20,14 +20,17 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
+import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
 
 // P3-UNIT-N-001（C8、I-U-N）: U-N の現況・情報系列・通知・容量・codec・射影。
 
-const SCHEMA = "p3-nankai-unit-v6" as const;
+const SCHEMA = "p3-nankai-unit-v7" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const LINES = ["nankai", "VYSE60"] as const;
 // P3-C8-CAPACITY=A・P3-C8-RET-01〜04。世代の上限は P3-NS-RES-01（情報系列の全文を含む 2.5 MiB、設計メモ §4.6）。
-const CURRENT_LIMIT = 6, INFORMATION_LIMIT = 64, GENERATION_LIMIT = 2_621_440;
+const CURRENT_LIMIT = 6, INFORMATION_LIMIT = 64;
+// P3-UM-RES-09: 器は現況と情報の印・原文の予算・カードの分だけ広げる。
+const GENERATION_LIMIT = 2_621_440 + (CURRENT_LIMIT + INFORMATION_LIMIT) * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C8-SEM-01・02・05 と P3-NS-SEM-01〜04（元報の ReportDateTime からの絶対の長さ、P3-C8-RETENTION=A）。
 const DAY_MS = 86_400_000;
@@ -122,8 +125,9 @@ function replaceAt<T>(values: readonly T[], index: number | undefined, value: T)
 // P3-VM-AC03: 系統と情報 subject ごとに compareVersion で比べる（報番号・InfoType の順位は使わない）。同じ版の中身には InfoType を含める。
 // 通知の印（P3-NL-AC02）も中身の比べに入れない。P3-NS-AC03 (7): 版から導く期限（validUntil・warningUntil）は比べず、warningUntil を持つ
 // 現況の status は巨大地震警戒と読む（時間で移った状態を報の中身の差にしない）。
+// 読めない所の印（P3-UM-AC01）も比べない（原文の予算で原文を外した記録を同じ版の再送で食い違いにしない）。
 const withoutSource = (value: Shown) => ({ ...value, source: null, unconfirmed: null, notice: null, expiryPending: null, validUntil: null,
-  warningUntil: null, ..."warningUntil" in value ? { status: "megaquakeWarning" } : {} });
+  warningUntil: null, unreadable: null, ..."warningUntil" in value ? { status: "megaquakeWarning" } : {} });
 
 // ---- 現況（I-U-N.currentSemantics） ----
 
@@ -145,7 +149,8 @@ function currentOf(candidate: NankaiCandidate): NankaiCurrent {
   if (candidate.cancelled) return candidate.line === "VYSE60" ? { ...base, line: "VYSE60", effective: "cancelled" }
     : { ...base, line: "nankai", effective: "cancelled" };
   const facts = { effective: "active" as const, infoSerial: candidate.facts.infoSerial, title: candidate.facts.title,
-    headline: candidate.facts.headline, truncated: candidate.facts.headingTruncated, validUntil: candidate.reportDateTimeMs + CURRENT_VALID_MS };
+    headline: candidate.facts.headline, truncated: candidate.facts.headingTruncated, validUntil: candidate.reportDateTimeMs + CURRENT_VALID_MS,
+    ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
   if (candidate.line === "VYSE60") return { ...base, line: "VYSE60", status: "subsequentAdvisory", ...facts };
   // P3-NS-AC03 (1): 巨大地震警戒（120 の発表と 120 への訂正）は 7 日で巨大地震注意へ移り、14 日で expired。
   if (effect === "megaquakeWarning") return { ...base, line: "nankai", status: effect, ...facts,
@@ -181,15 +186,15 @@ function informationOf(candidate: NankaiCandidate): NankaiInformation {
   if (candidate.cancelled) return { ...base, effective: "cancelled" };
   const { infoKind, infoSerial, title, headline, text, nextAdvisory, truncated } = candidate.facts;
   return { ...base, effective: "active", infoKind, infoSerial, title, headline, truncated, text, nextAdvisory,
-    validUntil: candidate.reportDateTimeMs + INFORMATION_VALID_MS };
+    validUntil: candidate.reportDateTimeMs + INFORMATION_VALID_MS, ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
 }
 // view・snapshot には見出しだけを載せる（P3-C8-SNAPSHOT=A）。
 const headingCache = new WeakMap<ActiveInformation, NankaiInformationView>();
 function headingOf(value: ActiveInformation): NankaiInformationView {
   let found = headingCache.get(value);
   if (found == null) {
-    const { text: _text, nextAdvisory: _next, notice: _notice, ...heading } = value;
-    found = heading;
+    const { text: _text, nextAdvisory: _next, ...heading } = value;
+    found = shown(heading);
     headingCache.set(value, found);
   }
   return found;
@@ -447,13 +452,31 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   const collecting = deadlineAt(draft) <= now;
   // 情報系列の変化も全部保存世代を進める（P3-NS-AC01 (4)）。
   const persisted = currents !== state.currents || notices.intents !== state.intents || information !== state.information;
-  const adopted: NankaiUnitState = { ...draft, persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
+  let adopted: NankaiUnitState = { ...draft, persistence: persisted ? dirty(state.persistence, clock.monotonicMs) : state.persistence };
+  // P3-UM-AC03 (3): 原文の合計（現況と情報の和）が予算を越えたら古い記録の原文から外す（印は残る）。外した記録の view も変わるので表示の変化に足す。
+  const slices = adopted;
+  const fit = fitRawBudget<Shown>(rawTotal(slices.currents, slices.information), RAW_BUDGET, () => [...slices.currents, ...slices.information],
+    (item) => [reportMs(item.source), item.subject]);
+  const stripped: Change[] = [];
+  if (fit != null) {
+    const ownCurrent = nextCurrent, ownInfo = nextInfo;
+    const strip = <T extends Shown>(values: readonly T[], own: T | null, keep: (after: T) => void): readonly T[] => values.map((item) => {
+      const after = stripRaw(item, fit);
+      if (after === item) return item;
+      if (item === own) keep(after);
+      else stripped.push([item, after]);
+      return after;
+    });
+    adopted = { ...adopted, currents: strip(adopted.currents, ownCurrent, (after) => { nextCurrent = after; }),
+      information: strip(adopted.information, ownInfo, (after) => { nextInfo = after; }) };
+  }
   const collected = collecting ? collect(adopted, clock, basis) : null;
   const next = collected?.state ?? adopted;
   const changes: Change[] = [];
   if (nextCurrent != null && !currentDue) changes.push([current, nextCurrent]);
   if (nextInfo != null && !freshDue && !self) changes.push([info, nextInfo]);
   if (evicted != null) changes.push([evicted, null]);
+  changes.push(...stripped);
   // 結果は回収の後の記録で決める（D-OUTCOME=A・D-VANISHED=A、P3-FINAL-AC02）。最終の記録が無ければ accepted に載せず
   // currentEstablished も null。索引は回収のある reduce だけで引く（P3-FINAL-RES-01）。
   const settled = (before: Shown | null, proposed: Shown | null, added: boolean, values: readonly Shown[], fields: readonly string[]) => {
@@ -469,6 +492,8 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   if (evicted != null || self) diagnostics.push({ level: "INFO", component: "nankai", reason: "nankaiCapacityEvicted", unit: "U-N", count: 1 });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "nankai", reason: "notificationCapacityEvicted",
     unit: "U-N", count: notices.dropped });
+  const dropped = droppedIn(fit, [...next.currents, ...next.information]);
+  if (dropped !== 0) diagnostics.push({ level: "INFO", component: "nankai", reason: "unreadableDropped", unit: "U-N", count: dropped });
   if ([currentVerdict, infoVerdict].some((item) => item?.kind === "adopt" && item.missing))
     diagnostics.push(heldDiagnostic(candidate, true));
   const decisions: Decision[] = [];
@@ -731,7 +756,14 @@ function infoSerial(value: unknown): NankaiInfoSerial | null | "invalid" {
   const row = record(value);
   return row == null || !bounded(row.code, BOUNDS.code) || !boundedOrNull(row.name, BOUNDS.name) ? "invalid" : { code: row.code, name: row.name };
 }
-const FACT_KEYS = ["status", "infoSerial", "title", "headline", "truncated", "validUntil", "expiryPending", "warningUntil"] as const;
+const FACT_KEYS = ["status", "infoSerial", "title", "headline", "truncated", "validUntil", "expiryPending", "warningUntil", "unreadable"] as const;
+// P3-UM-AC01 (2): 印の site の表（NankaiUnreadableSite）。欄が無ければ {}、形の外は null。
+const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "infoName"] satisfies readonly NankaiUnreadableSite[]);
+function unreadableOf(row: Fields): Readonly<{ unreadable?: UnreadableMark }> | null {
+  if (!("unreadable" in row)) return {};
+  const mark = readUnreadableMark(row.unreadable, UNREADABLE_SITES);
+  return mark == null ? null : { unreadable: mark };
+}
 function currentRecord(value: unknown): NankaiCurrent | null {
   const row = record(value);
   const operation = operationOf(row?.operation), line = lineOf(row?.line), source = reportRef(row?.source);
@@ -751,15 +783,15 @@ function currentRecord(value: unknown): NankaiCurrent | null {
     if (line === "VYSE60") return row.effective === "cancelled" || row.effective === "expired" ? { ...base, line, effective: row.effective } : null;
     return row.effective === "ended" || row.effective === "cancelled" || row.effective === "expired" ? { ...base, line, effective: row.effective } : null;
   }
-  const serial = infoSerial(row.infoSerial);
+  const serial = infoSerial(row.infoSerial), unreadable = unreadableOf(row);
   // P3-NS-AC03 (6): 巨大地震警戒は warningUntil（+7 日）を必ず持ち validUntil は +14 日。巨大地震注意は移った後だけ持ち、ほかは持たない。
   const warned = line === "nankai" && (row.status === "megaquakeWarning" || row.status === "megaquakeAdvisory" && "warningUntil" in row);
-  if (serial === "invalid" || !bounded(row.title, BOUNDS.title) || !boundedOrNull(row.headline, BOUNDS.headline)
+  if (serial === "invalid" || unreadable == null || !bounded(row.title, BOUNDS.title) || !boundedOrNull(row.headline, BOUNDS.headline)
     || typeof row.truncated !== "boolean" || row.validUntil !== reportMs(source) + (warned ? WARNING_VALID_MS : CURRENT_VALID_MS)
     || (warned ? row.warningUntil !== reportMs(source) + WARNING_STEP_MS : "warningUntil" in row)
     || "expiryPending" in row && row.expiryPending !== true) return null;
   const facts = { effective: "active" as const, infoSerial: serial, title: row.title, headline: row.headline, truncated: row.truncated,
-    validUntil: row.validUntil, ...row.expiryPending === true ? { expiryPending: true as const } : {} };
+    validUntil: row.validUntil, ...row.expiryPending === true ? { expiryPending: true as const } : {}, ...unreadable };
   if (line === "VYSE60") return row.status === "subsequentAdvisory" ? { ...base, line, status: row.status, ...facts } : null;
   const status = STATUSES.nankai.find((item): item is NankaiCurrentStatus => item === row.status);
   return status == null ? null : { ...base, line, status, ...facts, ...warned ? { warningUntil: reportMs(source) + WARNING_STEP_MS } : {} };
@@ -783,7 +815,8 @@ function intentRecord(value: unknown): NankaiIntent | null {
     expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
     disposition: "pending", ...fields };
 }
-const INFORMATION_FACT_KEYS = ["infoKind", "infoSerial", "title", "headline", "truncated", "text", "nextAdvisory", "validUntil", "expiryPending"] as const;
+const INFORMATION_FACT_KEYS = ["infoKind", "infoSerial", "title", "headline", "truncated", "text", "nextAdvisory", "validUntil", "expiryPending",
+  "unreadable"] as const;
 // P3-NS-AC01 (2): 情報 subject の記録を項目ごとに確かめて組み立てる。印は同じ subject・operation の報（P3-NS-AC02）。
 function informationRecord(value: unknown): NankaiInformation | null {
   const row = record(value);
@@ -800,14 +833,14 @@ function informationRecord(value: unknown): NankaiInformation | null {
     if (INFORMATION_FACT_KEYS.some((key) => key in row)) return null;
     return row.effective === "cancelled" || row.effective === "expired" ? { ...base, effective: row.effective } : null;
   }
-  const serial = infoSerial(row.infoSerial);
-  if (serial === "invalid" || !boundedOrNull(row.infoKind, BOUNDS.infoKind) || !bounded(row.title, BOUNDS.title)
+  const serial = infoSerial(row.infoSerial), unreadable = unreadableOf(row);
+  if (serial === "invalid" || unreadable == null || !boundedOrNull(row.infoKind, BOUNDS.infoKind) || !bounded(row.title, BOUNDS.title)
     || !boundedOrNull(row.headline, BOUNDS.headline) || !boundedOrNull(row.text, BOUNDS.text) || !boundedOrNull(row.nextAdvisory, BOUNDS.nextAdvisory)
     || typeof row.truncated !== "boolean" || row.validUntil !== reportMs(source) + INFORMATION_VALID_MS
     || "expiryPending" in row && row.expiryPending !== true) return null;
   return { ...base, effective: "active", infoKind: row.infoKind, infoSerial: serial, title: row.title, headline: row.headline,
     truncated: row.truncated, text: row.text, nextAdvisory: row.nextAdvisory, validUntil: row.validUntil,
-    ...row.expiryPending === true ? { expiryPending: true as const } : {} };
+    ...row.expiryPending === true ? { expiryPending: true as const } : {}, ...unreadable };
 }
 type Decoded = Readonly<{ currents: readonly NankaiCurrent[]; intents: readonly NankaiIntent[]; information: readonly NankaiInformation[] }>;
 function persisted(value: unknown): Decoded | null {
@@ -822,20 +855,21 @@ function persisted(value: unknown): Decoded | null {
     || new Set(intents.map((entry) => entry.id)).size !== intents.length) return null;
   // 受理と同じ式（実 byte＋配送の更新の予約）で数える（Q-C8-IMPL-AMEND(7)(8)）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES
-    || generationBytes(currents, intents, information) > GENERATION_LIMIT) return null;
+    || generationBytes(currents, intents, information) > GENERATION_LIMIT || rawTotal(currents, information) > RAW_BUDGET) return null;
   return { currents, intents, information };
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const nankaiUnitCodec: NankaiUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4", "p3-nankai-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）・P3-NS-AC08: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4", "p3-nankai-unit-v5", "p3-nankai-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）・P3-NS-AC08: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-N.persisted）。情報系列は全文を保存する（P3-NS-AC01、H30）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents, information: state.information }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-nankai-unit-v6 payload" }
+    return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
       : { kind: "restored", state: { schemaVersion: SCHEMA, ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

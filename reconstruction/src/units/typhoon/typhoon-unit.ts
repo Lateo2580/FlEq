@@ -3,12 +3,12 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome, WallBasis,
+  SubjectOutcome, UnreadableMark, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedTyphoonUnit, TyphoonAnalysisRecord, TyphoonFrame, TyphoonFrameKind, TyphoonInput, TyphoonIntent, TyphoonName, TyphoonNotificationPayload,
   TyphoonPoint, TyphoonPrefecture, TyphoonProbabilityArea, TyphoonProbabilityRecord, TyphoonUnitCodec, TyphoonUnitState, TyphoonUnitStep, TyphoonUnitView,
-  TyphoonWindArea, TyphoonWindAxis,
+  TyphoonUnreadableSite, TyphoonWindArea, TyphoonWindAxis,
 } from "../../../contracts/p3-typhoon-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
@@ -20,13 +20,14 @@ import {
   applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
+import { RAW_BUDGET, TYPHOON_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
 
 // P3-UNIT-Y-001（C14、I-U-Y）: 二つの slice（analysis・probability）の current・版・遅着・退去・通知・容量・codec・射影。
 // 二つの slice は件数の上限と退去を別々に持つ（無いと訓練の確率の多発が解析の記録を退去する、I-U-Y.slices）。
 
-const SCHEMA = "p3-typhoon-unit-v6" as const;
-// P3-C14-RES-01・RET-04。
-const GENERATION_LIMIT = 8_388_608;
+const SCHEMA = "p3-typhoon-unit-v7" as const;
+// P3-C14-RES-01・RET-04。P3-UM-RES-09: 器は記録の上限（解析 64＋確率 64）×印 1 件＋原文の予算＋カード（地域の一覧つき）の分だけ広げる。
+const GENERATION_LIMIT = 8_388_608 + 2 * LIMITS.subjects * unreadableMarkBytes("unreadable") + RAW_BUDGET + TYPHOON_CARDS_MAX_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 const TTL = { desktop: 180_000, sound: 60_000 } as const;
 const NOTICE_BOUNDS = { title: 160, body: 512 } as const;
@@ -154,13 +155,16 @@ const visibleOf = (base: Base) => reportMs(base.source) + VISIBLE;
 const cancelledRecord = (base: Base): Analysis & Probability => ({ ...base, retainUntil: retainOf(base), effective: "cancelled" });
 const endedRecord = (base: Base, endCause: "terminal" | "expired"): Analysis & Probability => ({ ...base, retainUntil: retainOf(base), effective: "ended", endCause });
 const zeroRecord = (base: Base): Probability => ({ ...base, retainUntil: retainOf(base), effective: "zero" });
-const analysisActive = (base: Base, fact: Readonly<{ baseTime: number; title: string; name: TyphoonName; frames: readonly TyphoonFrame[]; truncated: boolean }>): Analysis =>
+// unreadable は読めなかった所の印（P3-UM-AC01、候補の null は無し）。
+type Marked = Readonly<{ unreadable?: UnreadableMark | null }>;
+const markOf = (fact: Marked) => fact.unreadable == null ? {} : { unreadable: fact.unreadable };
+const analysisActive = (base: Base, fact: Readonly<{ baseTime: number; title: string; name: TyphoonName; frames: readonly TyphoonFrame[]; truncated: boolean }> & Marked): Analysis =>
   ({ ...base, retainUntil: retainOf(base), effective: "active", activeUntil: visibleOf(base), baseTime: fact.baseTime, title: fact.title, name: fact.name,
-    frames: fact.frames, truncated: fact.truncated });
+    frames: fact.frames, truncated: fact.truncated, ...markOf(fact) });
 const probabilityActive = (base: Base, fact: Readonly<{ baseTime: number; slotCount: number; title: string; name: TyphoonName; maxFiveDay: number;
-  prefectures: readonly TyphoonPrefecture[]; areas: readonly TyphoonProbabilityArea[]; truncated: boolean }>): Probability =>
+  prefectures: readonly TyphoonPrefecture[]; areas: readonly TyphoonProbabilityArea[]; truncated: boolean }> & Marked): Probability =>
   ({ ...base, retainUntil: retainOf(base), effective: "active", activeUntil: visibleOf(base), baseTime: fact.baseTime, slotCount: fact.slotCount, title: fact.title,
-    name: fact.name, maxFiveDay: fact.maxFiveDay, prefectures: fact.prefectures, areas: fact.areas, truncated: fact.truncated });
+    name: fact.name, maxFiveDay: fact.maxFiveDay, prefectures: fact.prefectures, areas: fact.areas, truncated: fact.truncated, ...markOf(fact) });
 
 // ---- 通知（questionResolutions[Q-NOTICE]） ----
 
@@ -418,8 +422,24 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
     next = { ...plain, notice: markNotice(plain.notice, digest, noticeKind(notice.transition)) };
     written = lane.write(written, lane.read(written).map((item) => item === plain ? next : item));
   }
-  const result: State = { ...written, intents: notices.intents,
+  let result: State = { ...written, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
+  // P3-UM-AC03 (3): 原文の合計（二つの slice の和）が予算を越えたら古い記録の原文から外す（印は残る）。外した記録の view も変わるので表示の変化に足す。
+  const slices = result;
+  const fit = fitRawBudget<Rec>(rawTotal(slices.analysis, slices.probability), RAW_BUDGET, () => [...slices.analysis, ...slices.probability],
+    (item) => [reportMs(item.source), item.subject]);
+  const stripped: Change[] = [];
+  if (fit != null) {
+    const own: Rec = next;
+    const strip = <R extends Rec>(values: readonly R[]): readonly R[] => values.map((item) => {
+      const after = stripRaw(item, fit);
+      if (after !== item && item.subject !== own.subject) stripped.push([item, after]);
+      return after;
+    });
+    result = { ...result, analysis: strip(result.analysis), probability: strip(result.probability) };
+    const values = lane.read(result);
+    next = values.find((item) => item.subject === subject) ?? next;
+  }
 
   // change は最終の表示の変化で決める（I-U-Y.currentSemantics(5)）。accepted は最終の状態に残る subject（今回の記録）。
   const shownChange = was !== now_ || was && changed(existing, next).length !== 0;
@@ -430,9 +450,11 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
   const diagnostics: DiagnosticDetails[] = version.missing ? [warn(true)] : [];
   if (evicted != null) diagnostics.push(evictedDiagnostic);
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "typhoon", reason: "notificationCapacityEvicted", unit: "U-Y", count: notices.dropped });
+  const dropped = droppedIn(fit, [...result.analysis, ...result.probability]);
+  if (dropped !== 0) diagnostics.push({ level: "INFO", component: "typhoon", reason: "unreadableDropped", unit: "U-Y", count: dropped });
   const replaced: Change = existing == null ? [null, next] : [existing, next];
   return {
-    changes: [...evicted == null ? [] : [[evicted, null] satisfies Change], replaced, ...changes],
+    changes: [...evicted == null ? [] : [[evicted, null] satisfies Change], replaced, ...changes, ...stripped],
     step: { state: result, nextDeadline: nextDeadline(result), decisions, intents: notices.admitted,
       outcomes: [{ kind: "accepted", change: endedProbability == null ? kind : "semantic", subjects: [outcomeOf(next, changed(existing, next)),
         ...endedProbability == null ? [] : [outcomeOf(endedProbability, ["effective"])]] }], diagnostics },
@@ -729,10 +751,10 @@ const ascending = (codes: readonly string[]): boolean => codes.every((code, inde
 
 // 枝ごとに持ってよい事実の field（types.ts の判別共用体）。ほかの枝の field を持つ保存物は拒む。
 const FACT_KEYS = ["activeUntil", "baseTime", "title", "name", "frames", "truncated", "slotCount", "maxFiveDay", "prefectures", "areas", "endCause",
-  "expiryPending"] as const;
+  "expiryPending", "unreadable"] as const;
 const BRANCH_KEYS: Readonly<Record<string, readonly string[]>> = {
-  "analysis/active": ["activeUntil", "baseTime", "title", "name", "frames", "truncated", "expiryPending"],
-  "probability/active": ["activeUntil", "baseTime", "slotCount", "title", "name", "maxFiveDay", "prefectures", "areas", "truncated", "expiryPending"],
+  "analysis/active": ["activeUntil", "baseTime", "title", "name", "frames", "truncated", "expiryPending", "unreadable"],
+  "probability/active": ["activeUntil", "baseTime", "slotCount", "title", "name", "maxFiveDay", "prefectures", "areas", "truncated", "expiryPending", "unreadable"],
   "analysis/ended": ["endCause"], "probability/ended": ["endCause"],
 };
 type Head = Readonly<{ row: Fields; parts: SubjectParts; base: Base }>;
@@ -751,6 +773,9 @@ function headOf(value: unknown, slice: "analysis" | "probability"): Head | null 
   return mark === null || notice === null || "expiryPending" in row && row.expiryPending !== true ? null : { row, parts, base: { subject: row.subject, operation: parts.operation, source,
     ...mark == null ? {} : { unconfirmed: mark }, ...notice == null ? {} : { notice } } };
 }
+// P3-UM-AC01 (2): 印の site の表（TyphoonUnreadableSite）。欄が無ければ undefined、形の外は null。
+const UNREADABLE_SITES: ReadonlySet<string> = new Set(["axis", "frame", "section", "slot", "area"] satisfies readonly TyphoonUnreadableSite[]);
+const unreadableOf = (row: Fields): UnreadableMark | null | undefined => "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES) : undefined;
 // 記憶（cancelled・ended）の枝。active でないときだけ呼ぶ。
 function memoryRecord(row: Fields, base: Base): (Analysis & Probability) | null {
   if (row.effective === "cancelled") return cancelledRecord(base);
@@ -762,11 +787,11 @@ function analysisRecord(value: unknown): Analysis | null {
   const { row, base } = head;
   let built: Analysis | null = null;
   if (row.effective === "active") {
-    const frames = list(row.frames, frameRecord, LIMITS.frames), name = nameRecord(row.name);
+    const frames = list(row.frames, frameRecord, LIMITS.frames), name = nameRecord(row.name), unreadable = unreadableOf(row);
     // 実況の時刻がちょうど 1 個。activeUntil は ReportDateTime ＋ 12 時間（P3-C14-EXPIRY=A）。
-    if (frames != null && name != null && frames.filter((frame) => frame.kind === "analysis").length === 1 && instant(row.baseTime) && boundedName(row.title, BOUNDS.title)
-      && typeof row.truncated === "boolean" && row.activeUntil === visibleOf(base))
-      built = { ...analysisActive(base, { baseTime: row.baseTime, title: row.title, name, frames, truncated: row.truncated }),
+    if (frames != null && name != null && unreadable !== null && frames.filter((frame) => frame.kind === "analysis").length === 1 && instant(row.baseTime)
+      && boundedName(row.title, BOUNDS.title) && typeof row.truncated === "boolean" && row.activeUntil === visibleOf(base))
+      built = { ...analysisActive(base, { baseTime: row.baseTime, title: row.title, name, frames, truncated: row.truncated, unreadable }),
         ...row.expiryPending === true ? { expiryPending: true } : {} };
   } else built = memoryRecord(row, base);
   return built != null && row.retainUntil === built.retainUntil ? built : null;
@@ -783,13 +808,14 @@ function probabilityRecord(value: unknown): Probability | null {
       const item = record(entry);
       return item != null && isText(item.code) && validCode6(item.code) && boundedName(item.name, BOUNDS.areaName) ? { code: item.code, name: item.name } : null;
     }, LIMITS.prefectures);
-    const name = nameRecord(row.name);
-    if (slotCount != null && areas != null && areas.length !== 0 && prefectures != null && name != null && instant(row.baseTime) && boundedName(row.title, BOUNDS.title)
+    const name = nameRecord(row.name), unreadable = unreadableOf(row);
+    if (slotCount != null && areas != null && areas.length !== 0 && prefectures != null && name != null && unreadable !== null && instant(row.baseTime)
+      && boundedName(row.title, BOUNDS.title)
       && typeof row.truncated === "boolean" && row.activeUntil === visibleOf(base) && ascending(areas.map((area) => area.code))
       && ascending(prefectures.map((item) => item.code)) && row.maxFiveDay === Math.max(...areas.map((area) => area.daily[4])) && whole(row.maxFiveDay, 100)
       && row.maxFiveDay >= 1 && isDeepStrictEqual(prefectures.map((item) => item.code), [...new Set(areas.map((area) => area.prefectureCode))].sort()))
       built = { ...probabilityActive(base, { baseTime: row.baseTime, slotCount, title: row.title, name, maxFiveDay: row.maxFiveDay, prefectures, areas,
-        truncated: row.truncated }), ...row.expiryPending === true ? { expiryPending: true } : {} };
+        truncated: row.truncated, unreadable }), ...row.expiryPending === true ? { expiryPending: true } : {} };
   } else built = row.effective === "zero" ? zeroRecord(base) : memoryRecord(row, base);
   return built != null && row.retainUntil === built.retainUntil ? built : null;
 }
@@ -827,19 +853,21 @@ function persisted(value: unknown): PersistedTyphoonUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedTyphoonUnit = { schemaVersion: SCHEMA, analysis, probability, intents };
-  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
+  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
+    || rawTotal(analysis, probability) > RAW_BUDGET) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const typhoonUnitCodec: TyphoonUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1", "p3-typhoon-unit-v2", "p3-typhoon-unit-v3", "p3-typhoon-unit-v4", "p3-typhoon-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-typhoon-unit-v1", "p3-typhoon-unit-v2", "p3-typhoon-unit-v3", "p3-typhoon-unit-v4", "p3-typhoon-unit-v5", "p3-typhoon-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-Y.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, analysis: state.analysis, probability: state.probability, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-typhoon-unit-v6 payload" }
+    return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };

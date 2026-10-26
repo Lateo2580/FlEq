@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "5473cc6e98295167a0790aa0be8ae9616d4a3a4e04fc7821b24c4e0b6722e275",
+    "sha256": "6bcf7990133244098d79b5adbde203a7a81c67b44064f0cffff3cdd6132c50e2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -90,7 +90,7 @@
       },
       {
         "id": "P3-C8-CAPACITY",
-        "A": "保存の1世代は256 KiB（262,144 byte、spec:477）。現況は系統×運用区分で最大6件（1件の上限4,718 byte、I-U-N.bounds）、pending intentは128件・131,072 byte（spec:981）、終端記録は合計98,304 byteまで（超える分は最古の終端記録から期限前に回収。P3-NOTICE-LEDGER-001で外した、終端の結果は系列の印に置き換え、P3-NL-AC05）。同時最大状態の上界は258,489 byteで、件数・文字列の上限と回収の規則から予算を超えない。情報系列（N、保存しない）は最大64 subject（三区分合算）で、65件目は (1) retainUntilを過ぎたもの（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2) training/test (3) normalの最古（ReportDateTime順）から1件退去して受け、確定した退去だけを診断nankaiCapacityEvicted（count）で返す。U-NはcapacityExceededを返さない（P3-UNIT-N-SERIES-001 で改訂: 1 世代は 2,621,440 byte〔P3-NS-RES-01〕で情報系列も全文で保存する。65 件目の退去は retainUntil を過ぎたもの→training/test→normal の expired の記憶→normal の最古、P3-NS-AC06 の (5)）",
+        "A": "保存の1世代は256 KiB（262,144 byte、spec:477）。現況は系統×運用区分で最大6件（1件の上限4,718 byte、I-U-N.bounds）、pending intentは128件・131,072 byte（spec:981）、終端記録は合計98,304 byteまで（超える分は最古の終端記録から期限前に回収。P3-NOTICE-LEDGER-001で外した、終端の結果は系列の印に置き換え、P3-NL-AC05）。同時最大状態の上界は258,489 byteで、件数・文字列の上限と回収の規則から予算を超えない。情報系列（N、保存しない）は最大64 subject（三区分合算）で、65件目は (1) retainUntilを過ぎたもの（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2) training/test (3) normalの最古（ReportDateTime順）から1件退去して受け、確定した退去だけを診断nankaiCapacityEvicted（count）で返す。U-NはcapacityExceededを返さない（P3-UNIT-N-SERIES-001 で改訂: 1 世代は 2,621,440 byte〔P3-NS-RES-01〕で情報系列も全文で保存する。65 件目の退去は retainUntil を過ぎたもの→training/test→normal の expired の記憶→normal の最古、P3-NS-AC06 の (5)）（今の器は U-N 3,138,642 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "B": "情報系列の65件目をcapacityExceededで拒否する",
         "recommended": "A",
         "provisional": "A",
@@ -253,7 +253,7 @@
         "bounds": "文字列の上限（UTF-16の長さ）: title 128、headline 512、text 4,096、nextAdvisory 512、infoKind 64、infoSerial.code 8、infoSerial.name 32。超えたら切り詰めてtruncated=true（corpusの最大はtitle 19、headline 176、text 1,431、nextAdvisory 102文字で、切り詰めは起きない）。現況の1件のencodeの上限は4,718 byte（全ての文字列が上限で、JSONで6 byteになる文字のとき。EventID 64 byte、inputId 64文字、ReportDateTime 40文字、Serial 10桁）",
         "deadlines": "nextDeadlineは、activeの現況のvalidUntil、現況のretainUntil、情報subjectのretainUntil（P3-UNIT-N-SERIES-001 で改訂: active の情報は validUntil と retainUntil の早い方、巨大地震警戒の現況は warningUntil も、P3-NS-AC03 の (5)・AC04 の (8)）、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（現況6・情報64の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
         "persisted": "PersistedNankaiUnitはschemaVersion p3-nankai-unit-v6（P3-UNIT-N-SERIES-001で上げた版、P3-NS-AC08の(1)。前の版は捨ててよい版）、currents、intents（pendingだけ、P3-NL-AC05）。系列の記録は印notice?を持つ（P3-NL-AC02）。contentRevision・persistenceは保存しない。情報系列（information）は全文で保存する（P3-UNIT-N-SERIES-001 の P3-NS-AC01・AC02。前は spec:512 の情報系列N で保存しなかった）",
-        "decode": "codecは一つ（nankaiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、現況≤6件で運用区分・系統の重複なし、subjectが`${operation}/${line}/current`の形で運用区分・系統と一致、EventIDがQ-ENUM.identityの文字（印字可能なASCIIで「/」「\"」「\\」を除く）で64 byte以下、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）、active以外の現況は事実のfield（status・infoSerial・title・headline・truncated・validUntil）を持たない（types.tsの判別共用体）、activeの現況はstatusが系統の表にありvalidUntil=sourceのReportDateTime+7日、retainUntil=sourceのReportDateTime+30日、I-U-N.boundsの文字列の上限、pending≤128件かつ≤131072 byte、終端記録の合計≤98,304 byte、encode後の世代≤262,144 byte、intentのunitがU-NでsubjectがU-Nの現況か情報subjectの形であること（stateに残っているsubjectとの一致は求めない。情報系列は復元で空になるため）。終端記録は単独の98,304 byteでなく、pendingとの合計（≤229,376 byte）で確かめる（配送の更新で終端にした記録は回収しない、Q-C8-IMPL-AMEND(1)）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）（P3-UNIT-N-SERIES-001 で改訂: 情報系列を保存するので情報 subject を項目ごとに確かめ〔P3-NS-AC01 の (2)〕、warningUntil の等式〔P3-NS-AC03 の (6)〕と世代 2,621,440 byte〔P3-NS-RES-01〕を確かめる）",
+        "decode": "codecは一つ（nankaiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、現況≤6件で運用区分・系統の重複なし、subjectが`${operation}/${line}/current`の形で運用区分・系統と一致、EventIDがQ-ENUM.identityの文字（印字可能なASCIIで「/」「\"」「\\」を除く）で64 byte以下、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）、active以外の現況は事実のfield（status・infoSerial・title・headline・truncated・validUntil）を持たない（types.tsの判別共用体）、activeの現況はstatusが系統の表にありvalidUntil=sourceのReportDateTime+7日、retainUntil=sourceのReportDateTime+30日、I-U-N.boundsの文字列の上限、pending≤128件かつ≤131072 byte、終端記録の合計≤98,304 byte、encode後の世代≤262,144 byte、intentのunitがU-NでsubjectがU-Nの現況か情報subjectの形であること（stateに残っているsubjectとの一致は求めない。情報系列は復元で空になるため）。終端記録は単独の98,304 byteでなく、pendingとの合計（≤229,376 byte）で確かめる（配送の更新で終端にした記録は回収しない、Q-C8-IMPL-AMEND(1)）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）（P3-UNIT-N-SERIES-001 で改訂: 情報系列を保存するので情報 subject を項目ごとに確かめ〔P3-NS-AC01 の (2)〕、warningUntil の等式〔P3-NS-AC03 の (6)〕と世代 2,621,440 byte〔P3-NS-RES-01〕を確かめる）（今の器は U-N 3,138,642 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "view": "NankaiUnitViewはactiveの現況と、activeの情報subjectの見出し（NankaiInformationView。本文のtext・nextAdvisoryを外す、P3-C8-SNAPSHOT）だけを載せる。SubjectOutcomeは現況と情報subjectごとに作り、factsに公開事実（情報は見出しだけ）と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Nの行（current: NankaiCurrent | NankaiInformationView | null）を足す。unavailable・未保存・再起動の空を「現況なし」に読み替えない。viewとdisplay subjectのSubjectOutcomeのfactsは識別のfield（eventId・effective・lineかfamily）だけで、公開事実と変わったfieldは採用のoutcome（PublishedOutcome）に載せる（U-QのI-U-Q.viewと同じ、Q-C8-IMPL-AMEND(d)）",
         "confirmationScope": "U-Nは確認scopeを作らない（P3-C8-N2）。shared-runtime.tsのaddedScopesにU-Nで空を返す分岐を足す",
         "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-N、executionPlacesにU-N=urgent（P3-C8-PLACE）、coverage表のVYSE50/51/52/60をready＋U-N。UnitModule<「U-N」>はpersistence durable、terminalIntents kind intents（P3-NOTICE-LEDGER-001でUnitModuleから消した、P3-NL-AC05の(3)）、reclaimDeadlineBeforeReceive true",
@@ -647,7 +647,7 @@
         "target": "U-N encoded generation",
         "limit": 262144,
         "unit": "UTF-8 bytes",
-        "scope": "currents and intents; counted as a sum of per-current and per-intent encodings. The upper bound from count and string limits is 258,489 bytes (I-U-N.capacityReserve). Replaced by P3-UNIT-N-SERIES-001 P3-NS-RES-01 (2,621,440 bytes, the information series persisted in full)",
+        "scope": "currents and intents; counted as a sum of per-current and per-intent encodings. The upper bound from count and string limits is 258,489 bytes (I-U-N.capacityReserve). Replaced by P3-UNIT-N-SERIES-001 P3-NS-RES-01 (2,621,440 bytes, the information series persisted in full)（今の器は U-N 3,138,642 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "source": "spec:477"
       },
       {
@@ -726,7 +726,7 @@
       },
       {
         "id": "P3-C8-AC04",
-        "requirement": "容量と受信1回の費用: P3-C8-CAPACITY=A（現況6件、情報64件と65件目の退去の順・nankaiCapacityEvicted、pending 128件・131,072 byte、終端記録98,304 byte、1世代262,144 byte）とI-U-N.capacityMeasurementの同時最大状態（234,927 byte、上界258,489 byte）を通す（spec:470）。capacityExceededを返さない。最大正常と+1の境界入力（Q-LIMIT）で確かめる。容量はI-U-N.computationどおり記録単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）（P3-UNIT-N-SERIES-001 で改訂: 1 世代 2,621,440 byte〔P3-NS-RES-01〕、65 件目の退去の順は P3-NS-AC06 の (5)）",
+        "requirement": "容量と受信1回の費用: P3-C8-CAPACITY=A（現況6件、情報64件と65件目の退去の順・nankaiCapacityEvicted、pending 128件・131,072 byte、終端記録98,304 byte、1世代262,144 byte）とI-U-N.capacityMeasurementの同時最大状態（234,927 byte、上界258,489 byte）を通す（spec:470）。capacityExceededを返さない。最大正常と+1の境界入力（Q-LIMIT）で確かめる。容量はI-U-N.computationどおり記録単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）（P3-UNIT-N-SERIES-001 で改訂: 1 世代 2,621,440 byte〔P3-NS-RES-01〕、65 件目の退去の順は P3-NS-AC06 の (5)）（今の器は U-N 3,138,642 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
           "docs/specs/reconstruction-p0-contracts.md:477 «ccaa9bd541ce098b»",

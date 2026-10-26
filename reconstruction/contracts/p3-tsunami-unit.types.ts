@@ -17,6 +17,8 @@ import type {
   SubjectUnavailable,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
 } from "./p2-shared-runtime.types";
 
 // P3-TSUNAMI-UNIT-001 (C5, I-U-T). Category/Kind/Code table (questionResolutions[Q-ENUM]):
@@ -70,7 +72,11 @@ export type TsunamiForecastSubject = Readonly<{
   // P3-CC-AC03: 容量で更新できなかった報。印のある active の記録だけが鍵を持つ。
   unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。印のある記録だけが鍵を持つ
   notice?: NoticeMark; // P3-NL-AC02: 通知の印（記録と同じに生きる）。印のある記録だけが鍵を持ち、表示には出さない
+  unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は TsunamiUnreadableSite）。取消の記録は持たない
 }>;
+
+// P3-UM-AC01 (2): 印の site の表（domain の warn の所の名）。codec は表の外の site を読まない。
+export type TsunamiUnreadableSite = "serial" | "forecastHeight" | "station" | "estimation";
 
 export type TsunamiObservationFamily = "VTSE51" | "VTSE52";
 
@@ -109,6 +115,8 @@ export type TsunamiObservationSubject = Readonly<{
   retainUntil: number | null; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。印のある記録だけが鍵を持つ
   notice?: NoticeMark; // P3-NL-AC02・AC03: 通知の印（fragment の鍵を持つ）。表示には出さない
   expiryPending?: true; // P3-EF-AC06 (1): 時計を確かめる前に validUntil が来た active の観測の印（観測点と推定区域は残し、view から外す）
+  // P3-UM-AC01 (3)(6): 読めなかった所の印。観測点・推定区域の part（scope はその code）は要素と一緒に次の版へ引き継ぐ。取消・期限切れは持たない。
+  unreadable?: UnreadableMark;
 }>;
 
 // Both channels carry the same owner-generated payload; A7 maps domain/level to the sound and the priority group.
@@ -122,7 +130,7 @@ export type TsunamiNotificationPayload = Readonly<{
 export type TsunamiIntent = NotificationIntent & Readonly<{ payload: TsunamiNotificationPayload }>;
 
 export type TsunamiUnitState = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v5";
+  schemaVersion: "p3-tsunami-unit-v6";
   contentRevision: number;
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
@@ -133,7 +141,7 @@ export type TsunamiUnitState = Readonly<{
 }>;
 
 export type PersistedTsunamiUnit = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v5";
+  schemaVersion: "p3-tsunami-unit-v6";
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
   intents: readonly TsunamiIntent[];
@@ -143,8 +151,8 @@ export type PersistedTsunamiUnit = Readonly<{
 // Active subjects only; inactive watermarks stay in the state.
 export type TsunamiUnitView = SharedUnitView & Readonly<{
   unit: "U-T";
-  forecasts: readonly TsunamiForecastSubject[];
-  observations: readonly TsunamiObservationSubject[];
+  forecasts: readonly MarkViewed<TsunamiForecastSubject>[];
+  observations: readonly MarkViewed<TsunamiObservationSubject>[];
 }>;
 
 export type TsunamiInput =
@@ -173,5 +181,5 @@ export type TsunamiUnitStep = Readonly<{
 }>;
 
 export type TsunamiUnitCodec = UnitCodec<TsunamiUnitState, PersistedTsunamiUnit> & Readonly<{
-  schemaVersion: "p3-tsunami-unit-v5";
+  schemaVersion: "p3-tsunami-unit-v6";
 }>;

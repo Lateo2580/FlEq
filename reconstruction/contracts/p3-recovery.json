@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "50307652907064171cfa4ce3ceeabc4565d3d92bd24c32265cd7216460eefd6e",
+    "sha256": "384d177f99364eac1e088c6a7201c316e824a2c9051e27a18a70bf7cc9437c0d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -593,7 +593,7 @@
           "reconstruction/contracts/p3-tsunami-unit.json:307 «36849f4e316bf8a8»",
           "reconstruction/contracts/p3-volcano-unit.json:176 «08f94de362cd913d»",
           "reconstruction/contracts/p3-seismic-unit.json:166 «824fb5c0849bb244»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:837 «086efc15d89bde4b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:882 «086efc15d89bde4b»",
           "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
           "reconstruction/contracts/p3-order-plan.md:451 «15b50525f89de42e»"
         ]

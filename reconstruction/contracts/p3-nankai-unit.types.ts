@@ -15,6 +15,8 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-N-001 (C8, I-U-N). 南海トラフ（M05）。現況（D、spec:511）と情報系列（N、spec:512）を分ける。
@@ -37,7 +39,11 @@ type NankaiCurrentFacts = Readonly<{
   truncated: boolean;
   validUntil: number;
   expiryPending?: true; // P3-EF-AC04・AC05 (1): 時計を確かめる前に validUntil が来た印（view から外し、事実と通知の印は残す）
+  unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は NankaiUnreadableSite）。印の無い記録は欄を書かない
 }>;
+
+// P3-UM-AC01 (2): 印の site の表（U-N は K14 で足した名）。codec は表の外の site を読まない。
+export type NankaiUnreadableSite = "serial" | "infoName";
 
 // 現況。subject = `${operation}/${line}/current`、operation と系統ごとに 1 件。source は系統の watermark と取消記憶を兼ね、
 // 現況を変えた最新の採用報（調査終了・取消を含む）で、source.family は報の headType、source.subject は現況の subject。
@@ -84,6 +90,7 @@ type NankaiInformationHeading = Readonly<{
   truncated: boolean;
   validUntil: number;
   expiryPending?: true; // P3-EF-AC02 (2)・Q-NS-PRECHECK (0)(c): 時計を確かめる前に validUntil が来た印（view から外し、本文と印は残す）
+  unreadable?: UnreadableMark; // P3-UM-AC01: 同上
 }>;
 export type NankaiInformation = NankaiInformationBase & (
   | (NankaiInformationHeading & Readonly<{ text: string | null; nextAdvisory: string | null }>)
@@ -91,7 +98,7 @@ export type NankaiInformation = NankaiInformationBase & (
 );
 
 // view・snapshot に載せる情報は見出しだけ（本文の text・nextAdvisory を外す。snapshot の予算、P3-C8-SNAPSHOT）。
-export type NankaiInformationView = NankaiInformationBase & NankaiInformationHeading;
+export type NankaiInformationView = MarkViewed<NankaiInformationBase & NankaiInformationHeading>;
 
 // 地震・EEW の音（sound-design-system.md の分野別根音表）。A7 の群は unit で決まり、U-N は other（P3-C7-NOTICE-GROUP）。
 export type NankaiNotificationPayload = Readonly<{
@@ -104,7 +111,7 @@ export type NankaiNotificationPayload = Readonly<{
 export type NankaiIntent = NotificationIntent & Readonly<{ payload: NankaiNotificationPayload }>;
 
 export type NankaiUnitState = Readonly<{
-  schemaVersion: "p3-nankai-unit-v6";
+  schemaVersion: "p3-nankai-unit-v7";
   contentRevision: number;
   currents: readonly NankaiCurrent[];
   information: readonly NankaiInformation[];
@@ -114,7 +121,7 @@ export type NankaiUnitState = Readonly<{
 }>;
 
 export type PersistedNankaiUnit = Readonly<{
-  schemaVersion: "p3-nankai-unit-v6";
+  schemaVersion: "p3-nankai-unit-v7";
   currents: readonly NankaiCurrent[];
   intents: readonly NankaiIntent[];
   // 64 件以下・subject の重複なし（P3-NS-AC01）。鍵の無い保存物は invalid（旧保存は版で捨てる、P3-NS-AC08）。
@@ -125,7 +132,7 @@ export type PersistedNankaiUnit = Readonly<{
 // 上書きしない別の系統（P3-C8-VYSE60=A）。
 export type NankaiUnitView = SharedUnitView & Readonly<{
   unit: "U-N";
-  currents: readonly Extract<NankaiCurrent, Readonly<{ effective: "active" }>>[];
+  currents: readonly MarkViewed<Extract<NankaiCurrent, Readonly<{ effective: "active" }>>>[];
   information: readonly NankaiInformationView[];
 }>;
 
@@ -156,5 +163,5 @@ export type NankaiUnitStep = Readonly<{
 }>;
 
 export type NankaiUnitCodec = UnitCodec<NankaiUnitState, PersistedNankaiUnit> & Readonly<{
-  schemaVersion: "p3-nankai-unit-v6";
+  schemaVersion: "p3-nankai-unit-v7";
 }>;

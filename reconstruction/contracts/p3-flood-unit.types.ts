@@ -15,6 +15,8 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-R-001 (C11, I-U-R). 指定河川洪水予報（M13、VXKO50〜89）と水位周知河川に関する情報（VXSU50〜59）。
@@ -60,6 +62,9 @@ export type FloodStation = Readonly<{
 // active の事実。kinds が空なのは河川の段階を一度も読めていない記録（P3-C11-UNKNOWN）。
 // basisReportDateTimeRaw は、最新の採用報が河川の段階を持たず前の事実を保ったときの、その事実を出した報の ReportDateTime の raw。
 // 最新の報から事実を作ったときは null。
+// P3-UM-AC01 (2): 印の site の表（domain の warn の所の名）。codec は表の外の site を読まない。
+export type FloodUnreadableSite = "serial" | "areaName" | "kindName" | "riverName" | "series" | "station";
+
 type FloodCurrentFacts = Readonly<{
   effective: "active";
   title: string;
@@ -70,6 +75,7 @@ type FloodCurrentFacts = Readonly<{
   basisReportDateTimeRaw: string | null;
   truncated: boolean;
   expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に表示の期限が来た印（view から外し、事実と通知の印は残す）
+  unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は FloodUnreadableSite）。印の無い記録は欄を書かない
 }>;
 
 // EventID の current。subject = `${operation}/${headType}/${eventId}`（P3-C11-SUBJECTS）。
@@ -100,7 +106,7 @@ export type FloodNotificationPayload = Readonly<{
 export type FloodIntent = NotificationIntent & Readonly<{ payload: FloodNotificationPayload }>;
 
 export type FloodUnitState = Readonly<{
-  schemaVersion: "p3-flood-unit-v6";
+  schemaVersion: "p3-flood-unit-v7";
   contentRevision: number;
   currents: readonly FloodCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -109,7 +115,7 @@ export type FloodUnitState = Readonly<{
 }>;
 
 export type PersistedFloodUnit = Readonly<{
-  schemaVersion: "p3-flood-unit-v6";
+  schemaVersion: "p3-flood-unit-v7";
   currents: readonly FloodCurrent[];
   intents: readonly FloodIntent[];
 }>;
@@ -117,7 +123,7 @@ export type PersistedFloodUnit = Readonly<{
 // active の current だけを載せる。表示用の観測所の複製や河川ごとの代表観測所は作らない（spec:485 の保存しないもの、P4）。
 export type FloodUnitView = SharedUnitView & Readonly<{
   unit: "U-R";
-  currents: readonly Extract<FloodCurrent, Readonly<{ effective: "active" }>>[];
+  currents: readonly MarkViewed<Extract<FloodCurrent, Readonly<{ effective: "active" }>>>[];
 }>;
 
 export type FloodInput =
@@ -146,5 +152,5 @@ export type FloodUnitStep = Readonly<{
 }>;
 
 export type FloodUnitCodec = UnitCodec<FloodUnitState, PersistedFloodUnit> & Readonly<{
-  schemaVersion: "p3-flood-unit-v6";
+  schemaVersion: "p3-flood-unit-v7";
 }>;

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "42d8782dd7664858542e184d6bcd6d2ed7822450de831b1dd852e4dadf2869a3",
+    "sha256": "748fd36f84b2d1ac6274a73dfe68d93609315bbaa27cd14c1058b8d3fb620b8b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -73,7 +73,7 @@
       },
       {
         "id": "P3-C7-CAPACITY",
-        "A": "上限は4つ: event 512（三区分合算、spec:570）、長周期subject 256（spec:571）、通知pending 128件・128 KiB（spec:981）、4 MiB/世代（spec:475、予算はP3-C7-CAPACITY-BUDGET。K7の発注2aで5,270,185 byte、作者裁定2026-10-21昼・午後）。退去できない記録（取消記憶だけのevent・長周期subjectと当日履歴）は件数と文字列長の上限から最大1,357,385 byte（K7の発注2aで1,470,281）、intentは最大262,144 byte（I-U-Q.capacityReserve）。件数の超過（eventの513件目、長周期の257件目）とbyteの超過（4 MiB）では、eventの採用にも長周期の採用にも同じ手順を使う。候補は超過量を実際に減らすものに限り、件数の超過なら同じ種類（event／長周期）だけ、byteの超過ならeventと長周期の両方から、次の順に必要数だけ退去する: (1)retainUntilを過ぎたもの（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2)training/test (3)normalのうち強震保持の無いeventと、activeの長周期subjectを、最新の採用報が古い順に（eventと長周期を一つの順に並べる） (4)件数の超過では最古の取消記憶だけのevent・長周期subject (5)強震保持のあるeventの事実の合計が4 MiB−1,357,385−262,144＝2,574,775 byte（K7の発注2aで強震保持512件の全部の寄与の印の最悪の分954,368を足して3,529,143）を超えるときだけ、その超過分の強震保持のeventを古い順に。byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。候補が足りなければcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で確定し、確定した退去だけを診断seismicCapacityEvicted（count）で返す（P3-UNIT-Q-CAPACITY-001 で改訂: 退去と畳みの順は P3-QC-AC02、強震保持の事実の予算は守る線と guard〔P3-QC-AC01〕に置き換えて外した。器と RESERVE の値は P3-QC-AC05、保証は N_guard〔P3-QC-AC04〕）",
+        "A": "上限は4つ: event 512（三区分合算、spec:570）、長周期subject 256（spec:571）、通知pending 128件・128 KiB（spec:981）、4 MiB/世代（spec:475、予算はP3-C7-CAPACITY-BUDGET。K7の発注2aで5,270,185 byte、作者裁定2026-10-21昼・午後）。退去できない記録（取消記憶だけのevent・長周期subjectと当日履歴）は件数と文字列長の上限から最大1,357,385 byte（K7の発注2aで1,470,281）、intentは最大262,144 byte（I-U-Q.capacityReserve）。件数の超過（eventの513件目、長周期の257件目）とbyteの超過（4 MiB）では、eventの採用にも長周期の採用にも同じ手順を使う。候補は超過量を実際に減らすものに限り、件数の超過なら同じ種類（event／長周期）だけ、byteの超過ならeventと長周期の両方から、次の順に必要数だけ退去する: (1)retainUntilを過ぎたもの（受けた入力の根拠が verified のときだけ、P3-EF-AC03） (2)training/test (3)normalのうち強震保持の無いeventと、activeの長周期subjectを、最新の採用報が古い順に（eventと長周期を一つの順に並べる） (4)件数の超過では最古の取消記憶だけのevent・長周期subject (5)強震保持のあるeventの事実の合計が4 MiB−1,357,385−262,144＝2,574,775 byte（K7の発注2aで強震保持512件の全部の寄与の印の最悪の分954,368を足して3,529,143）を超えるときだけ、その超過分の強震保持のeventを古い順に。byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。候補が足りなければcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で確定し、確定した退去だけを診断seismicCapacityEvicted（count）で返す（P3-UNIT-Q-CAPACITY-001 で改訂: 退去と畳みの順は P3-QC-AC02、強震保持の事実の予算は守る線と guard〔P3-QC-AC01〕に置き換えて外した。器と RESERVE の値は P3-QC-AC05、保証は N_guard〔P3-QC-AC04〕）（今の器は U-Q 15,498,754 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "B": "上限で新しい地震を拒否する（capacityExceeded）",
         "recommended": "A",
         "provisional": "A",
@@ -302,7 +302,7 @@
         "daily": "P3-C7-DAILY=A",
         "deadlines": "nextDeadlineは、eventと長周期subjectのretainUntil、強震保持のuntil、当日履歴のあるoperationの次のJST 0時、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（event 512・長周期256の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）",
         "persisted": "PersistedSeismicUnitはschemaVersion p3-seismic-unit-v5（P3-UNIT-Q-CAPACITY-001で上げた版、P3-QC-AC10の(1)。前の版は捨ててよい版）、earthquakes、longPeriods、daily、intents（pendingだけ、P3-NL-AC05）、failureMarks（失敗の印、P3-NL-AC02の(6)）。記録は guard（normal だけ）と folded（観測点を畳んだ記録だけ）、event は cancelledSummary（取消記憶だけの event）、当日履歴は countedEventIds に替えて counted（[EventID, 段階] の組）を持つ（P3-UNIT-Q-CAPACITY-001 の P3-QC-AC10）。系列の記録は印notice?を持つ（P3-NL-AC02）。contentRevision・persistenceは保存しない",
-        "decode": "codecは一つ（seismicUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、event≤512、長周期subject≤256、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、EventIDが印字可能なASCII（「/」「\"」「\\」を除く）で40 byte以下、ReportRefのSerialが空か10桁以下の正整数・ReportDateTimeが25文字以下・InfoTypeが発表・訂正・取消のいずれか（どれもtrim済みの値）、eventのoperation・EventIDの重複なし、eventの寄与のfamilyの重複なし、cancelledの寄与とcancelledの長周期subjectは事実を持たずtitleが空文字、長周期subjectの重複なし、取消記憶だけのeventと長周期subjectと当日履歴の合計がI-U-Q.capacityReserveの上限以内、strongHoldのuntilがstrongHold.originTimeRaw+12時間と一致、当日履歴のrecent≤5で各行の文字列が上限以内・countedEventIds≤2048・countedEventIdsの重複なし、intentのunitがU-QでsubjectがU-Qのfamily subjectの形であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）（P3-UNIT-Q-CAPACITY-001 で改訂: 版 v5。effective は active・cancelled・expired〔expired は cancelled と同じく事実を持たず title が空文字〕、folded・guard・cancelledSummary・counted の形と上限を確かめ、countedEventIds の検査は counted に替えた、P3-QC-AC10 の (2)）",
+        "decode": "codecは一つ（seismicUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、event≤512、長周期subject≤256、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、EventIDが印字可能なASCII（「/」「\"」「\\」を除く）で40 byte以下、ReportRefのSerialが空か10桁以下の正整数・ReportDateTimeが25文字以下・InfoTypeが発表・訂正・取消のいずれか（どれもtrim済みの値）、eventのoperation・EventIDの重複なし、eventの寄与のfamilyの重複なし、cancelledの寄与とcancelledの長周期subjectは事実を持たずtitleが空文字、長周期subjectの重複なし、取消記憶だけのeventと長周期subjectと当日履歴の合計がI-U-Q.capacityReserveの上限以内、strongHoldのuntilがstrongHold.originTimeRaw+12時間と一致、当日履歴のrecent≤5で各行の文字列が上限以内・countedEventIds≤2048・countedEventIdsの重複なし、intentのunitがU-QでsubjectがU-Qのfamily subjectの形であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）（P3-UNIT-Q-CAPACITY-001 で改訂: 版 v5。effective は active・cancelled・expired〔expired は cancelled と同じく事実を持たず title が空文字〕、folded・guard・cancelledSummary・counted の形と上限を確かめ、countedEventIds の検査は counted に替えた、P3-QC-AC10 の (2)）（今の器は U-Q 15,498,754 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "view": "SeismicUnitViewはactiveの寄与を持つeventとactiveの長周期subjectだけを載せ（P3-UNIT-Q-CAPACITY-001 で改訂: P3-QC-D-CANCEL-LIST の裁定、P3-QC-AC07 の (4)。取消記憶だけの event は cancelledSummary を付けて載せ、active に数えない）、当日履歴を載せる。EarthquakeEventViewのintensity.itemsはIntensityStation（観測点）を含まない（都道府県・細分区域・市町村は載せる）。観測点の全件はstateの寄与とcheckpointに残し、事実の変化・強震保持・当日履歴は観測点を含む事実で決める（Q-C7-IMPL-AMEND）。SubjectOutcomeはfamilyのsubjectごとに作り、factsにeventの公開事実（EarthquakeEventView。subjectはeventの鍵`${operation}/earthquake/${eventId}`）と、変わったfield（hypocenter・intensity・tsunamiComment・strongHold）を載せる。RuntimeDisplaySubjectにunit U-Qの行（current: EarthquakeEventView | LongPeriodSubject | null。subjectはeventの鍵か長周期のsubject）を足す。津波の有無はtsunamiCommentFamilyとともに載せ、VXSE51由来を評価と読ませない。unavailable・未保存・再起動の空を「地震なし」に読み替えない",
         "confirmationScope": "U-Qは確認scopeを作らない（P3-C7-N2）。shared-runtime.tsのaddedScopesにU-Qで空を返す分岐を足す。confirmationScopeLimitは512（eventの上限と同じ。使われない）",
         "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-Q、executionPlacesにU-Q=urgent（P3-C7-PLACE）、coverage表のVXSE51/52/53/61/62をready＋U-Q、VXSE47はnotPortedのまま理由を替える（P3-C7-VXSE47）。UnitModule<「U-Q」>はpersistence durable、terminalIntents kind intents（P3-NOTICE-LEDGER-001でUnitModuleから消した、P3-NL-AC05の(3)）、reclaimDeadlineBeforeReceive true",
@@ -719,8 +719,8 @@
       {
         "id": "P3-C7-RES-01",
         "target": "U-Q encoded generation",
-        "limit": 5627794,
-        "unit": "UTF-8 bytes",
+        "limit": 15498754,
+        "unit": "UTF-8 bytes; 5,627,794 から、P3-UNREADABLE-MARK-001 の RES-09 で広げた（記録の上限×読めない所の印 1 件＋原文の予算＋カード、P3-UM-AC03 の (6)）",
         "scope": "earthquakes, longPeriods, daily and intents; counted as a sum of per-event, per-subject and per-intent encodings. Watermark-only records and daily history are bounded by count and string length to 1,357,385 bytes (1,470,281 after K7 order 2a, 1,705,289 after P3-NOTICE-LEDGER-001 with the contribution and long-period notice marks) and intents to 262,144 bytes (131,072 after P3-NOTICE-LEDGER-001: pending only, the terminal budget was removed, P3-NL-AC05) (I-U-Q.capacityReserve, ledger 41)",
         "source": "spec:475。K7の発注2aで4 MiB＋121,513＋954,368に広げた（作者裁定2026-10-21昼・午後、Q-VM-IMPL-2A）。K8で印（2,304×102）と失敗の印（233）を足し、終端の予算131,072を引いた（P3-NL-D-CAPACITY=A、作者裁定2026-10-22、P3-NOTICE-LEDGER-001）。P3-UNIT-Q-CAPACITY-001で退去できない記録の増え253,440（cancelledSummary・counted・記憶のguard）を足した（P3-QC-AC05、Q-QC-DECIDED の (1)）"
       },
@@ -812,7 +812,7 @@
       },
       {
         "id": "P3-C7-AC05",
-        "requirement": "容量と受信1回の費用: P3-C7-CAPACITY=A（event 512、長周期256、4 MiB（K7の発注2aで5,270,185 byte）、退去できない記録の上限1,357,385 byte（K7の発注2aで1,470,281）、eventと長周期の採用に同じ退去手順（byte超過では長周期も候補）、件数が満杯のときの最古の取消記憶だけの記録の退去、強震保持と取消記憶とnormalの保護、capacityExceededのstate・nextDeadline不変）と、P3-C7-CAPACITY-BUDGET=Aの同時最大状態（3,979,110 byte。K7の発注2aの後はControl/DateTimeと印を含めて器の内）を通す（spec:470）。当日履歴の深さの上限（recent 5・countedEventIds 2048）は容量の上限と別の規則で、capacityExceededにしない（台帳60）。最大正常と+1の境界入力（Q-LIMIT）で確かめる。容量はI-U-Q.computationどおりevent・寄与・subject・intent単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）（P3-UNIT-Q-CAPACITY-001 で改訂: 器 5,627,794・RESERVE 1,958,729、強震保持の事実の予算を外して守る線と畳みの順にした、P3-QC-AC01〜AC05）",
+        "requirement": "容量と受信1回の費用: P3-C7-CAPACITY=A（event 512、長周期256、4 MiB（K7の発注2aで5,270,185 byte）、退去できない記録の上限1,357,385 byte（K7の発注2aで1,470,281）、eventと長周期の採用に同じ退去手順（byte超過では長周期も候補）、件数が満杯のときの最古の取消記憶だけの記録の退去、強震保持と取消記憶とnormalの保護、capacityExceededのstate・nextDeadline不変）と、P3-C7-CAPACITY-BUDGET=Aの同時最大状態（3,979,110 byte。K7の発注2aの後はControl/DateTimeと印を含めて器の内）を通す（spec:470）。当日履歴の深さの上限（recent 5・countedEventIds 2048）は容量の上限と別の規則で、capacityExceededにしない（台帳60）。最大正常と+1の境界入力（Q-LIMIT）で確かめる。容量はI-U-Q.computationどおりevent・寄与・subject・intent単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）（P3-UNIT-Q-CAPACITY-001 で改訂: 器 5,627,794・RESERVE 1,958,729、強震保持の事実の予算を外して守る線と畳みの順にした、P3-QC-AC01〜AC05）（今の器は U-Q 15,498,754 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:475 «37212c339ccbf4a3»",
           "docs/specs/reconstruction-p0-contracts.md:570 «410f982df8a2372d»",
@@ -858,7 +858,7 @@
         "requirement": "優先群（P3-C7-NOTICE-GROUP=A）: A7のgroup()をintent.unit=「U-E」でnormalEewにする。U-Qのintent（criticalの長周期を含む）はotherで、試行中の津波緊急・EEWを中断せず、EEW・津波緊急の後に選ばれる。U-EのintentのnormalEewと既存のA7の試験の期待は変わらない（P3-NOTICE-LEDGER-001の後は、群をownerがintentを作るときにpriorityGroupへ付け〔notice-mark.tsのpriorityGroupOf〕、A7のgroup()はそれを読むだけ、P3-NL-AC11の(2)(3)）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
-          "reconstruction/src/units/notice-mark.ts:98 «33e8294945bda7e8»",
+          "reconstruction/src/units/notice-mark.ts:99 «33e8294945bda7e8»",
           "docs/specs/sound-design-system.md:46 «cbd92a61248d4886»"
         ]
       },
@@ -954,7 +954,7 @@
         "referenceIds": [
           "P3-C7-AC05"
         ],
-        "behavior": "eventの511/512/513、長周期の255/256/257、P3-C7-CAPACITY-BUDGET=Aの同時最大状態（取消記憶だけのevent 505件＋最大の実例のevent 7件とその長周期7件＋取消記憶だけの長周期249件＋当日履歴とintentの上限＝3,979,110 byte。K7の発注2aの後はControl/DateTimeと印を含めて器5,270,185 byteの内）と+1件で、退去の候補（超過量を減らすものだけ）・順・強震保持とnormalの保護・capacityExceededの不変条件を確かめる。byteの超過で長周期の事実も候補になること。件数が満杯（512件）で新しいEventIDの取消と新しい地震が来たとき、強震保持の無い事実のeventが無ければ最古の取消記憶だけのeventを退去して受けること、その退去したeventの遅れた続報が新しく採用されること。保持上限付近で受信1回のencodeがevent・寄与単位の加算だけであること（全体の直列化0）。境界入力は試験内で作る: eventは32-35_04_04のEventIDを替え、byteはbf35e8ea1825の寄与を複製して作る"
+        "behavior": "eventの511/512/513、長周期の255/256/257、P3-C7-CAPACITY-BUDGET=Aの同時最大状態（取消記憶だけのevent 505件＋最大の実例のevent 7件とその長周期7件＋取消記憶だけの長周期249件＋当日履歴とintentの上限＝3,979,110 byte。K7の発注2aの後はControl/DateTimeと印を含めて器5,270,185 byteの内）と+1件で、退去の候補（超過量を減らすものだけ）・順・強震保持とnormalの保護・capacityExceededの不変条件を確かめる。byteの超過で長周期の事実も候補になること。件数が満杯（512件）で新しいEventIDの取消と新しい地震が来たとき、強震保持の無い事実のeventが無ければ最古の取消記憶だけのeventを退去して受けること、その退去したeventの遅れた続報が新しく採用されること。保持上限付近で受信1回のencodeがevent・寄与単位の加算だけであること（全体の直列化0）。境界入力は試験内で作る: eventは32-35_04_04のEventIDを替え、byteはbf35e8ea1825の寄与を複製して作る（今の器は U-Q 15,498,754 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "testId": "P3-C7-T06",

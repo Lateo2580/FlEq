@@ -1,11 +1,12 @@
 import type { DecodedMaterial, MaterialValue, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
-import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
+import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
   EarthquakeContribution, EarthquakeFamily, SeismicHypocenter, SeismicIntensityItem, SeismicIntensityObservation,
-  SeismicIntensityValue, SeismicTsunamiComment,
+  SeismicIntensityValue, SeismicTsunamiComment, SeismicUnreadableSite,
 } from "../../../contracts/p3-seismic-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, jsonText } from "../../contracts-revision/version";
+import { unreadableNotes } from "../../units/unreadable";
 
 // P3-UNIT-Q-001 の adapter: VXSE51/52/53/61/62 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -138,11 +139,15 @@ function walk(observation: XmlElement, visit: (node: XmlElement, level: Level, p
   step(observation, 0, null);
 }
 
-// P3-QC-AC09 (4): 区域・観測点の Name の欠けは断らず、name を空文字にして WARN を添える（設計メモ §13）。
-function namesMissing(observation: XmlElement): boolean {
-  let absent = false;
-  walk(observation, (node) => { if (children(node, "Name").length === 0) absent = true; return null; });
-  return absent;
+// P3-QC-AC09 (4): 区域・観測点の Name の欠けは断らず、name を空文字にして WARN を添える（設計メモ §13）。欠けた要素ごとに absent を呼ぶ
+// （P3-UM-AC01 の part、scope はその要素の Code）。
+function namesMissing(observation: XmlElement, absent: (node: XmlElement, code: string | null) => void): boolean {
+  let found = false;
+  walk(observation, (node) => {
+    if (children(node, "Name").length === 0) { found = true; absent(node, blank(text(node, "Code"))); }
+    return null;
+  });
+  return found;
 }
 
 const UNREPORTED_CITY = "震度5弱以上未入電";
@@ -218,12 +223,15 @@ function tsunamiCommentOf(body: XmlElement): SeismicTsunamiComment | null {
 
 // ---- 候補 ----
 
+// unreadable は読めなかった所の印（P3-UM-AC01）。地震の報は寄与にも同じ印を持たせる。
 type Common = Readonly<{ operation: Operation; eventId: string; subject: string; source: ReportRef; reportDateTimeMs: number;
-  infoRank: number; cancelled: boolean; title: string; headline: string | null }>;
+  infoRank: number; cancelled: boolean; title: string; headline: string | null; unreadable: UnreadableMark | null }>;
 type EarthquakeCandidate = Common & Readonly<{ kind: "earthquake"; family: EarthquakeFamily; contribution: EarthquakeContribution }>;
 type LongPeriodCandidate = Common & Readonly<{ kind: "longPeriod"; family: "VXSE62";
   hypocenter: SeismicHypocenter | null; intensity: SeismicIntensityObservation | null }>;
 type SeismicCandidate = EarthquakeCandidate | LongPeriodCandidate;
+// 印を付ける前の候補（accepted が最後に印を足す）。
+type Unmarked<T> = T extends unknown ? Omit<T, "unreadable"> : never;
 // diagnostics は採用に添える WARN（P3-QC-AC09 の §13 の 4 か所）。
 type ParseResult = Readonly<{ kind: "accepted"; candidate: SeismicCandidate; diagnostics: readonly DiagnosticDetails[] }>
   | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
@@ -247,10 +255,15 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
   if (eventId === "") return reject("identityMissing");
   // P3-QC-AC09 (1): Serial の形の外は断らず空文字にして WARN を添える（新旧は Control/DateTime で比べる）。EventID は識別なので断る。
   if (!validEventId(eventId)) return reject("identityInvalid");
+  // P3-UM-AC01 (2): WARN は理由ごとに 1 件のまま、印の part は site（serial・intensity・hypocenter・name）と scope ごとに足す。
   const warnings = new Set<"requiredStructureMissing" | "requiredStructureInvalid">();
+  const notes = unreadableNotes();
   const trimmed = material.serialRaw.trim();
   const serialRaw = validSerial(trimmed) ? trimmed : "";
-  if (serialRaw !== trimmed) warnings.add("requiredStructureInvalid");
+  if (serialRaw !== trimmed) {
+    warnings.add("requiredStructureInvalid");
+    notes.note("serial" satisfies SeismicUnreadableSite, "requiredStructureInvalid", first(first(material.xml, "Head"), "Serial"));
+  }
   const subject = `${material.operation}/${family}/${eventId}`;
   const infoTypeRaw = material.infoTypeRaw.trim();
   const infoRank = INFO_RANK.get(infoTypeRaw);
@@ -263,8 +276,13 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
   const title = text(head, "Title") || text(first(material.xml, "Control"), "Title") || family;
   const base = { operation: material.operation, eventId, subject, source, reportDateTimeMs: common.envelope.reportDateTimeMs,
     infoRank, cancelled, title, headline: blank(text(first(head, "Headline"), "Text")) };
-  const accepted = (candidate: SeismicCandidate): ParseResult =>
-    ({ kind: "accepted", candidate, diagnostics: [...warnings].map((reason) => diagnostic(material, reason)) });
+  // 地震の報の寄与は active のときだけ印を持つ（取消の寄与は事実を持たない）。
+  const accepted = (candidate: Unmarked<SeismicCandidate>): ParseResult => {
+    const unreadable = notes.mark(material.xml);
+    const marked = candidate.kind === "earthquake" && unreadable != null && candidate.contribution.effective === "active"
+      ? { ...candidate, contribution: { ...candidate.contribution, unreadable } } : candidate;
+    return { kind: "accepted", candidate: { ...marked, unreadable }, diagnostics: [...warnings].map((reason) => diagnostic(material, reason)) };
+  };
   try {
     const bodies = children(material.xml, "Body");
     if (bodies.length === 0) return missing();
@@ -282,11 +300,19 @@ function parseSeismic(material: DecodedMaterial): ParseResult {
     else if (family === "VXSE53") {
       if (earthquake == null && intensity == null) missing();
       // P3-QC-AC09 (2): Earthquake があれば Observation の無い Intensity は intensity を null にして受ける。
-      if (intensity != null && observation == null) { if (earthquake == null) missing(); warnings.add("requiredStructureMissing"); }
+      if (intensity != null && observation == null) {
+        if (earthquake == null) missing();
+        warnings.add("requiredStructureMissing");
+        notes.note("intensity" satisfies SeismicUnreadableSite, "requiredStructureMissing", intensity);
+      }
     } else if (earthquake == null) missing();
     if (family === "VXSE62" && first(observation, "MaxLgInt") == null) missing();
-    if (earthquake != null && family !== "VXSE51" && earthquakeIncomplete(earthquake)) warnings.add("requiredStructureMissing");
-    if (observation != null && namesMissing(observation)) warnings.add("requiredStructureMissing");
+    if (earthquake != null && family !== "VXSE51" && earthquakeIncomplete(earthquake)) {
+      warnings.add("requiredStructureMissing");
+      notes.note("hypocenter" satisfies SeismicUnreadableSite, "requiredStructureMissing", earthquake);
+    }
+    if (observation != null && namesMissing(observation, (node, code) =>
+      notes.note("name" satisfies SeismicUnreadableSite, "requiredStructureMissing", node, code ?? undefined))) warnings.add("requiredStructureMissing");
     const values = leafValues(material);
     const hypocenter = earthquake == null || family === "VXSE51" ? null : hypocenterOf(earthquake, values);
     const observed = observation == null ? null : observationOf(observation, values);

@@ -1,7 +1,10 @@
 import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
-import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
-import type { NankaiCurrentLine, NankaiCurrentStatus, NankaiInfoSerial, NankaiReportFamily } from "../../../contracts/p3-nankai-unit.types";
+import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
+import type {
+  NankaiCurrentLine, NankaiCurrentStatus, NankaiInfoSerial, NankaiReportFamily, NankaiUnreadableSite,
+} from "../../../contracts/p3-nankai-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
+import { unreadableNotes } from "../../units/unreadable";
 
 // P3-UNIT-N-001 の adapter: VYSE50/51/52/60 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -69,11 +72,11 @@ const invalid = (): never => { throw new Rejected("requiredStructureInvalid"); }
 // headingTruncated は現況に残す見出し（title・headline・infoSerial）の切り詰め、truncated は情報 subject の全 field の切り詰め。
 type NankaiFacts = Readonly<{ infoKind: string | null; infoSerial: NankaiInfoSerial | null; title: string; headline: string | null;
   text: string | null; nextAdvisory: string | null; truncated: boolean; headingTruncated: boolean }>;
-// effect は報が現況に何を求めるか（P3-C8-CODE-TABLE=A・P3-C8-VYSE60=A）。null は現況に効かない code。
+// effect は報が現況に何を求めるか（P3-C8-CODE-TABLE=A・P3-C8-VYSE60=A）。null は現況に効かない code。unreadable は読めなかった所の印（P3-UM-AC01）。
 type NankaiCandidate = Readonly<{
   operation: Operation; family: NankaiReportFamily; line: NankaiCurrentLine; eventId: string;
   currentSubject: string; subject: string; source: ReportRef; reportDateTimeMs: number; infoRank: number; cancelled: boolean;
-  effect: NankaiCurrentStatus | "subsequentAdvisory" | "end" | null; facts: NankaiFacts;
+  effect: NankaiCurrentStatus | "subsequentAdvisory" | "end" | null; facts: NankaiFacts; unreadable: UnreadableMark | null;
 }>;
 // diagnostics は受けた報の読めなかった所（P3-NS-AC07、H51 の B）。
 type ParseResult = Readonly<{ kind: "accepted"; candidate: NankaiCandidate; diagnostics: readonly DiagnosticDetails[] }>
@@ -102,9 +105,12 @@ function parseNankai(material: DecodedMaterial): ParseResult {
   if (eventId === "") return reject("identityMissing");
   if (!validEventId(eventId)) return reject("identityInvalid");
   // P3-NS-AC07 (1): 形の外の Serial は空にして受ける。U-N の新旧は Control/DateTime だけで比べ、通知の印の鍵にも入らない。
+  // P3-UM-AC01 (2): 読めない所は印の part にもする（U-N は K14 で site 名 serial・infoName を足した）。
   const diagnostics: DiagnosticDetails[] = [];
+  const notes = unreadableNotes();
+  const note = (site: NankaiUnreadableSite, node: XmlElement | null) => notes.note(site, "requiredStructureInvalid", node);
   let serialRaw = material.serialRaw.trim();
-  if (!validSerial(serialRaw)) { serialRaw = ""; diagnostics.push(diagnostic(material, "identityInvalid")); }
+  if (!validSerial(serialRaw)) { serialRaw = ""; diagnostics.push(diagnostic(material, "identityInvalid")); note("serial", first(first(material.xml, "Head"), "Serial")); }
   const subject = `${material.operation}/${family}/${eventId}`;
   // 保存する ReportRef の byte の上限（Q-ENUM.identity）。inputId は host が作る値だが、上限を受理と decode で揃える。
   if (material.reportDateTimeRaw.length > LIMITS.reportDateTime || material.infoTypeRaw.length > LIMITS.infoType) return reject("identityInvalid", subject);
@@ -130,7 +136,8 @@ function parseNankai(material: DecodedMaterial): ParseResult {
     if (cancelled) return { kind: "accepted", diagnostics, candidate: { operation: material.operation, family, line, eventId,
       currentSubject: `${material.operation}/${line}/current`, subject, source, reportDateTimeMs: common.envelope.reportDateTimeMs,
       infoRank, cancelled, effect: null,
-      facts: { infoKind: null, infoSerial: null, title, headline, text: null, nextAdvisory: null, truncated, headingTruncated: truncated } } };
+      facts: { infoKind: null, infoSerial: null, title, headline, text: null, nextAdvisory: null, truncated, headingTruncated: truncated },
+      unreadable: notes.mark(material.xml) } };
     // 存在を全部確かめてから妥当性を見る（Q-ENUM.priorityRule）。
     const infos = children(body, "EarthquakeInfo");
     if (infos.length === 0) missing();
@@ -142,7 +149,7 @@ function parseNankai(material: DecodedMaterial): ParseResult {
     // P3-NS-AC07 (2): Name の 2 個以上と子要素は name を null にして受ける（Code は現況と音を決めるので今どおり断る）。
     const names = children(serial, "Name");
     const nameUnread = names.length > 1 || names.length === 1 && children(names[0]).length !== 0;
-    if (nameUnread) diagnostics.push(diagnostic(material, "requiredStructureInvalid"));
+    if (nameUnread) { diagnostics.push(diagnostic(material, "requiredStructureInvalid")); note("infoName", names.length > 1 ? serial : names[0]); }
     const name = names.length === 0 || nameUnread ? null : blank(scalar(names[0]));
     const infoSerial = code == null ? null : { code: bound(code, BOUNDS.code)!, name: bound(name, BOUNDS.name) };
     const headingTruncated = truncated;
@@ -152,7 +159,7 @@ function parseNankai(material: DecodedMaterial): ParseResult {
       text: bound(blank(text(info, "Text")), BOUNDS.text), nextAdvisory: bound(blank(text(body, "NextAdvisory")), BOUNDS.nextAdvisory) };
     return { kind: "accepted", diagnostics, candidate: { operation: material.operation, family, line, eventId,
       currentSubject: `${material.operation}/${line}/current`, subject, source, reportDateTimeMs: common.envelope.reportDateTimeMs,
-      infoRank, cancelled, effect, facts: { ...facts, truncated, headingTruncated } } };
+      infoRank, cancelled, effect, facts: { ...facts, truncated, headingTruncated }, unreadable: notes.mark(material.xml) } };
   } catch (error) {
     if (error instanceof Rejected) return reject(error.reason, subject);
     throw error;

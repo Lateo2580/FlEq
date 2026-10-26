@@ -14,6 +14,8 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
+  UnreadableMark,
+  UnreadableMarkView,
 } from "./p2-shared-runtime.types";
 
 export type WeatherTimeseriesUnavailableReason =
@@ -84,7 +86,14 @@ export type WeatherTimeseriesSubject = WeatherTimeseriesSnapshot & Readonly<{
   // 移った noActiveItems（報が「なし」の noActiveItems と保存の上で見分ける）。
   expiryPending?: true;
   lapsed?: true;
+  // P3-UM-AC01・AC15: 読めなかった所の印（site は WeatherTimeseriesUnreadableSite）。active の subject だけが持ち、印の無い subject は欄を書かない。
+  unreadable?: UnreadableMark;
 }>;
+
+// P3-UM-AC01 (2)・AC15: 印の site の表。Q-WS-LEVELS の階層の名（区分不明）と、値の階層の読み飛ばし（skipped・duplicateValue）、
+// Body の直下の MeteorologicalInfos 以外の子（bodyOther）、付加事項（addition、view の一覧に出さない）。
+export type WeatherTimeseriesUnreadableSite = "Body" | "MeteorologicalInfos" | "TimeSeriesInfo" | "TimeDefines" | "TimeDefine" | "Item" | "Area"
+  | "Kind" | "Property" | "Part" | "Significancy" | "skipped" | "duplicateValue" | "bodyOther" | "addition";
 
 export type WeatherTimeseriesGate = Readonly<{
   subject: string;
@@ -93,7 +102,7 @@ export type WeatherTimeseriesGate = Readonly<{
 }>;
 
 export type WeatherTimeseriesUnitState = Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v6";
+  schemaVersion: "p2-weather-timeseries-unit-v7";
   contentRevision: number;
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
@@ -102,7 +111,7 @@ export type WeatherTimeseriesUnitState = Readonly<{
 }>;
 
 export type PersistedWeatherTimeseriesUnit = Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v6";
+  schemaVersion: "p2-weather-timeseries-unit-v7";
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
   intents: readonly NotificationIntent[];
@@ -128,6 +137,8 @@ export type WeatherTimeseriesPublicSubject = Readonly<{
   unknownCode: Readonly<{ unknown: number; missing: number; empty: number }>;
   periodCount: number;
   lastKnownPeriodCount: number | null;
+  // P3-UM-AC10: active の subject の読めなかった所の印（原文の本文は渡さない）。印の無い subject は欄を書かない。
+  unreadableView?: UnreadableMarkView;
 }>;
 
 export type WeatherTimeseriesUnitView = SharedUnitView & Readonly<{
@@ -204,5 +215,5 @@ export type WeatherTimeseriesUnitStep = Readonly<{
 }>;
 
 export type WeatherTimeseriesUnitCodec = UnitCodec<WeatherTimeseriesUnitState, PersistedWeatherTimeseriesUnit> & Readonly<{
-  schemaVersion: "p2-weather-timeseries-unit-v6";
+  schemaVersion: "p2-weather-timeseries-unit-v7";
 }>;

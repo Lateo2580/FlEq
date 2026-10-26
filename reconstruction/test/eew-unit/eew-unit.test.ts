@@ -854,7 +854,8 @@ describe("P2 EEW unit", () => {
     const formula = 2_048 * markBytes + 131_072 + LOSS_TALLY_MAX_BYTES + INPUT_BOUNDARY_MAX_BYTES
       + Buffer.byteLength(JSON.stringify({ ...fullEnvelope, payload: { ...fullPayload, intents: [], notices: [] } }));
     expect(Buffer.byteLength(JSON.stringify(fullEnvelope)) + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES).toBeLessThanOrEqual(formula);
-    expect(formula).toBeLessThanOrEqual(2_097_152);
+    // P3-UM-RES-09: 器は 2,097,152 にカード 8 枚の分（93,040）を足した値（カードを envelope に書くのは発注 3）。
+    expect(formula + 93_040).toBeLessThanOrEqual(eewUnitCodec.maxEnvelopeBytes!);
     expect(eewUnitCodec.decode(JSON.parse(JSON.stringify(fullPayload))).kind).toBe("restored");
     expect(eewUnitCodec.decode({ ...fullPayload, notices: [...fullPayload.notices, longest(2_048)] }).kind).toBe("invalid");
     for (const count of [127, 128, 129]) {

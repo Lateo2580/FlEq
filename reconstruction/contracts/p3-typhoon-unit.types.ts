@@ -15,6 +15,8 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
+  MarkViewed,
+  UnreadableMark,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-Y-001 (C14, I-U-Y). 台風解析・予報情報（M11、VPTW60〜65）と台風の暴風域に入る確率（M12、VPTA50〜55）。
@@ -71,6 +73,9 @@ export type TyphoonFrame = Readonly<{
   stormWarning: TyphoonWindArea | null;
 }>;
 
+// P3-UM-AC02 (6)・AC15 (5): 印の site の表（truncated で落とした所: 軸・時刻・節・時間帯・地域）。codec は表の外の site を読まない。
+export type TyphoonUnreadableSite = "axis" | "frame" | "section" | "slot" | "area";
+
 // subject = `${operation}/typhoonAnalysis/${EventID}`。active は activeUntil（P3-C14-EXPIRY）の到来か、
 // 台風消滅・発生取消の報（P3-C14-LIFECYCLE）で ended になり、記憶として retainUntil（ReportDateTime + 7 日、spec:578）まで残る。
 export type TyphoonAnalysisRecord = Common & (
@@ -84,6 +89,7 @@ export type TyphoonAnalysisRecord = Common & (
       frames: readonly TyphoonFrame[];
       truncated: boolean;
       expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に activeUntil が来た印（view から外し、事実と通知の印は残す）
+      unreadable?: UnreadableMark; // P3-UM-AC01・AC15 (5): 落とした所の印（site は TyphoonUnreadableSite）。印の無い記録は欄を書かない
     }>
   // terminal は台風消滅・発生取消の報で終わった記録（P3-C14-TERMINAL が確率の採否に使う）、expired は期限で終わった記録。
   | Readonly<{ effective: "ended"; endCause: "terminal" | "expired" }>
@@ -120,6 +126,7 @@ export type TyphoonProbabilityRecord = Common & (
       areas: readonly TyphoonProbabilityArea[];
       truncated: boolean;
       expiryPending?: true; // P3-EF-AC05 (1): 同上
+      unreadable?: UnreadableMark; // P3-UM-AC01・AC15 (5): 同上
     }>
   | Readonly<{ effective: "zero" }>
   | Readonly<{ effective: "ended"; endCause: "terminal" | "expired" }>
@@ -137,7 +144,7 @@ export type TyphoonNotificationPayload = Readonly<{
 export type TyphoonIntent = NotificationIntent & Readonly<{ payload: TyphoonNotificationPayload }>;
 
 export type TyphoonUnitState = Readonly<{
-  schemaVersion: "p3-typhoon-unit-v6";
+  schemaVersion: "p3-typhoon-unit-v7";
   contentRevision: number;
   analysis: readonly TyphoonAnalysisRecord[];
   probability: readonly TyphoonProbabilityRecord[];
@@ -147,7 +154,7 @@ export type TyphoonUnitState = Readonly<{
 }>;
 
 export type PersistedTyphoonUnit = Readonly<{
-  schemaVersion: "p3-typhoon-unit-v6";
+  schemaVersion: "p3-typhoon-unit-v7";
   analysis: readonly TyphoonAnalysisRecord[];
   probability: readonly TyphoonProbabilityRecord[];
   intents: readonly TyphoonIntent[];
@@ -156,8 +163,8 @@ export type PersistedTyphoonUnit = Readonly<{
 // active の記録だけを載せる。予報円・暴風域の描画と解析・確率の結合の見せ方は作らない（P4、R50）。
 export type TyphoonUnitView = SharedUnitView & Readonly<{
   unit: "U-Y";
-  analysis: readonly Extract<TyphoonAnalysisRecord, Readonly<{ effective: "active" }>>[];
-  probability: readonly Extract<TyphoonProbabilityRecord, Readonly<{ effective: "active" }>>[];
+  analysis: readonly MarkViewed<Extract<TyphoonAnalysisRecord, Readonly<{ effective: "active" }>>>[];
+  probability: readonly MarkViewed<Extract<TyphoonProbabilityRecord, Readonly<{ effective: "active" }>>>[];
 }>;
 
 export type TyphoonInput =
@@ -187,5 +194,5 @@ export type TyphoonUnitStep = Readonly<{
 }>;
 
 export type TyphoonUnitCodec = UnitCodec<TyphoonUnitState, PersistedTyphoonUnit> & Readonly<{
-  schemaVersion: "p3-typhoon-unit-v6";
+  schemaVersion: "p3-typhoon-unit-v7";
 }>;

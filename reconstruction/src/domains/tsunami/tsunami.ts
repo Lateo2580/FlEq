@@ -1,13 +1,14 @@
 import { isDeepStrictEqual } from "node:util";
 
 import type { DecodedMaterial, MaterialValue, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
-import type { DiagnosticDetails, RejectionReason, ReportRef } from "../../../contracts/p2-shared-runtime.types";
+import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
   TsunamiAreaClass, TsunamiEstimation, TsunamiForecastArea, TsunamiHeight, TsunamiObservationFamily, TsunamiStation,
-  TsunamiUnkeyedArea,
+  TsunamiUnkeyedArea, TsunamiUnreadableSite,
 } from "../../../contracts/p3-tsunami-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
+import { unreadableNotes } from "../../units/unreadable";
 
 // P3-TSUNAMI-UNIT-001 の adapter: VTSE41/51/52 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -24,8 +25,9 @@ const AREA_RANK: Readonly<Record<TsunamiAreaClass, number>> = {
 const INFO_RANK: ReadonlyMap<string, number> = new Map([["発表", 1], ["訂正", 2], ["取消", 3]]);
 
 type Revision = Pick<ReportRef, "reportDateTimeRaw" | "serialRaw" | "infoTypeRaw">;
+// unreadable は読めなかった所の印（P3-UM-AC01）。
 type Common = Readonly<{ operation: Operation; eventId: string; subject: string; source: ReportRef; reportDateTimeMs: number;
-  infoRank: number; cancelled: boolean; headline: string | null; title: string | null }>;
+  infoRank: number; cancelled: boolean; headline: string | null; title: string | null; unreadable: UnreadableMark | null }>;
 type ForecastCandidate = Common & Readonly<{ kind: "forecast"; family: "VTSE41";
   areas: readonly TsunamiForecastArea[]; unkeyedAreas: readonly TsunamiUnkeyedArea[] }>;
 type ObservationCandidate = Common & Readonly<{ kind: "observation"; family: TsunamiObservationFamily;
@@ -70,17 +72,19 @@ function single(parent: XmlElement | null, name: string): XmlElement {
   return found.length === 0 ? missing() : found.length !== 1 ? invalid() : found[0];
 }
 const blank = (value: string | null): string | null => value == null || value === "" ? null : value;
-// H51 の B（P3-EF-AC13）: 読めない所は報を断らず null にし、所ごとに WARN を 1 件残す。
-type Warn = (site: string, reason: "requiredStructureMissing" | "requiredStructureInvalid") => void;
-function soft(parent: XmlElement | null, name: string, warn: Warn, site: string): string | null {
+// H51 の B（P3-EF-AC13）: 読めない所は報を断らず null にし、所ごとに WARN を 1 件残す。node は読めなかった要素か親、scope は予報区・観測点・
+// 推定区域の code（P3-UM-AC01 (2)(4)）。
+type Warn = (site: TsunamiUnreadableSite, reason: "requiredStructureMissing" | "requiredStructureInvalid", node: XmlElement | null, scope?: string) => void;
+function soft(parent: XmlElement | null, name: string, warn: Warn, site: TsunamiUnreadableSite, scope?: string): string | null {
   const value = optionalText(parent, name);
   if (value !== "invalid") return value;
-  warn(site, "requiredStructureInvalid");
+  const found = children(parent, name);
+  warn(site, "requiredStructureInvalid", found.length === 1 ? found[0] : parent, scope);
   return null;
 }
-function one(parent: XmlElement | null, name: string, warn: Warn, site: string): XmlElement | null {
+function one(parent: XmlElement | null, name: string, warn: Warn, site: TsunamiUnreadableSite, scope?: string): XmlElement | null {
   const found = children(parent, name);
-  if (found.length > 1) warn(site, "requiredStructureInvalid");
+  if (found.length > 1) warn(site, "requiredStructureInvalid", parent, scope);
   return found.length === 1 ? found[0] : null;
 }
 
@@ -97,12 +101,13 @@ function leafValues(material: DecodedMaterial): ReadonlyMap<XmlElement, Material
   return new Map(leaves.map((leaf, index) => [leaf, values[index]]));
 }
 
-function height(node: XmlElement | null, values: ReadonlyMap<XmlElement, MaterialValue>, warn: Warn, site: string): TsunamiHeight | null {
+function height(node: XmlElement | null, values: ReadonlyMap<XmlElement, MaterialValue>, warn: Warn, site: TsunamiUnreadableSite,
+  scope?: string): TsunamiHeight | null {
   if (node == null) return null;
   const value = values.get(node);
   // 値は数値・NaN（unknown）・範囲表記だけを合法とする（Q-ENUM.invalid）。
   if (value == null || value.kind !== "number" && value.kind !== "unknown" && value.kind !== "range") {
-    warn(site, "requiredStructureInvalid");
+    warn(site, "requiredStructureInvalid", node, scope);
     return null;
   }
   return { value, condition: attribute(node, "condition"), description: attribute(node, "description") };
@@ -120,15 +125,16 @@ function forecastArea(item: XmlElement, values: ReadonlyMap<XmlElement, Material
   if (name == null || kindCode == null || kindName == null) return missing();
   const code = text(area, "Code");
   if (code != null && !/^\d{3}$/.test(code)) return invalid();
-  const first = one(item, "FirstHeight", warn, "forecastHeight");
-  const max = one(item, "MaxHeight", warn, "forecastHeight");
-  const node = one(max, "TsunamiHeight", warn, "forecastHeight");
-  const condition = soft(max, "Condition", warn, "forecastHeight");
-  const measured = height(node, values, warn, "forecastHeight");
+  const scope = code ?? undefined;
+  const first = one(item, "FirstHeight", warn, "forecastHeight", scope);
+  const max = one(item, "MaxHeight", warn, "forecastHeight", scope);
+  const node = one(max, "TsunamiHeight", warn, "forecastHeight", scope);
+  const condition = soft(max, "Condition", warn, "forecastHeight", scope);
+  const measured = height(node, values, warn, "forecastHeight", scope);
   const maxHeight: TsunamiHeight | null = measured != null ? { ...measured, condition: attribute(node!, "condition") ?? condition }
     : condition == null ? null : { value: { kind: "missing" }, condition, description: null };
   return { code, area: { name, areaClass: KIND_CLASS.get(kindCode) ?? "unknown", kindCode, kindName,
-    firstHeight: { arrivalTimeRaw: soft(first, "ArrivalTime", warn, "forecastHeight"), condition: soft(first, "Condition", warn, "forecastHeight") },
+    firstHeight: { arrivalTimeRaw: soft(first, "ArrivalTime", warn, "forecastHeight", scope), condition: soft(first, "Condition", warn, "forecastHeight", scope) },
     maxHeight } };
 }
 
@@ -162,16 +168,16 @@ function station(item: XmlElement, node: XmlElement, revision: Revision,
   if (code == null || name == null) return missing();
   if (code === "") return invalid();
   const site = "station";
-  const area = one(item, "Area", warn, site);
-  const first = one(node, "FirstHeight", warn, site);
-  const max = one(node, "MaxHeight", warn, site);
+  const area = one(item, "Area", warn, site, code);
+  const first = one(node, "FirstHeight", warn, site, code);
+  const max = one(node, "MaxHeight", warn, site, code);
   return {
-    code, name, areaCode: blank(soft(area, "Code", warn, site)), areaName: blank(soft(area, "Name", warn, site)),
-    sensor: soft(node, "Sensor", warn, site),
-    firstHeight: { arrivalTimeRaw: soft(first, "ArrivalTime", warn, site), initial: soft(first, "Initial", warn, site),
-      condition: soft(first, "Condition", warn, site) },
-    maxHeight: { dateTimeRaw: soft(max, "DateTime", warn, site), condition: soft(max, "Condition", warn, site),
-      height: height(one(max, "TsunamiHeight", warn, site), values, warn, site) },
+    code, name, areaCode: blank(soft(area, "Code", warn, site, code)), areaName: blank(soft(area, "Name", warn, site, code)),
+    sensor: soft(node, "Sensor", warn, site, code),
+    firstHeight: { arrivalTimeRaw: soft(first, "ArrivalTime", warn, site, code), initial: soft(first, "Initial", warn, site, code),
+      condition: soft(first, "Condition", warn, site, code) },
+    maxHeight: { dateTimeRaw: soft(max, "DateTime", warn, site, code), condition: soft(max, "Condition", warn, site, code),
+      height: height(one(max, "TsunamiHeight", warn, site, code), values, warn, site, code) },
     revision,
   };
 }
@@ -201,11 +207,12 @@ function observationBody(body: XmlElement, family: TsunamiObservationFamily, rev
     if (code == null || code === "" || areas.has(code)) return invalid();
     areas.add(code);
     const site = "estimation";
-    const first = one(item, "FirstHeight", warn, site);
-    const max = one(item, "MaxHeight", warn, site);
-    estimations.push({ areaCode: code, areaName: soft(area[0], "Name", warn, site) ?? "",
-      firstHeight: { arrivalTimeRaw: soft(first, "ArrivalTime", warn, site), condition: soft(first, "Condition", warn, site) },
-      maxHeight: { condition: soft(max, "Condition", warn, site), height: height(one(max, "TsunamiHeight", warn, site), values, warn, site) } });
+    const first = one(item, "FirstHeight", warn, site, code);
+    const max = one(item, "MaxHeight", warn, site, code);
+    estimations.push({ areaCode: code, areaName: soft(area[0], "Name", warn, site, code) ?? "",
+      firstHeight: { arrivalTimeRaw: soft(first, "ArrivalTime", warn, site, code), condition: soft(first, "Condition", warn, site, code) },
+      maxHeight: { condition: soft(max, "Condition", warn, site, code),
+        height: height(one(max, "TsunamiHeight", warn, site, code), values, warn, site, code) } });
   }
   return { stations, estimations };
 }
@@ -228,15 +235,20 @@ function parseTsunami(material: DecodedMaterial): ParseResult {
   const head = children(material.xml, "Head")[0] ?? null;
   const eventNodes = children(head, "EventID");
   if (!/^\d{14}$/.test(eventId) || eventNodes.length !== 1 || scalar(eventNodes[0]) !== eventId) return reject("identityInvalid");
+  // P3-UM-AC01 (2): 同じ所を印の part にもする（WARN は所ごとに 1 件のまま、part は (site, scope) ごと）。
   const warnings = new Map<string, "requiredStructureMissing" | "requiredStructureInvalid">();
-  const warn: Warn = (site, reason) => { if (!warnings.has(site)) warnings.set(site, reason); };
+  const notes = unreadableNotes();
+  const warn: Warn = (site, reason, node, scope) => {
+    if (!warnings.has(site)) warnings.set(site, reason);
+    notes.note(site, reason, node, scope);
+  };
   const report = () => [...warnings.values()].map((reason) => diagnostic(material, reason));
   // P3-EF-AC13 (5): 観測の Serial の欠け・形の外は空にして受ける（新旧に Serial を使わない、K7）。
   let serialRaw = material.serialRaw;
   if (family !== "VTSE41") {
-    const raw = serialRaw.trim();
-    if (raw === "") warn("serial", "requiredStructureMissing");
-    else if (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw))) warn("serial", "requiredStructureInvalid");
+    const raw = serialRaw.trim(), serialNode = children(head, "Serial")[0] ?? head;
+    if (raw === "") warn("serial", "requiredStructureMissing", serialNode);
+    else if (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw))) warn("serial", "requiredStructureInvalid", serialNode);
     if (warnings.has("serial")) serialRaw = "";
   }
   const subject = family === "VTSE41" ? `${material.operation}/VTSE41/${eventId}`
@@ -257,19 +269,21 @@ function parseTsunami(material: DecodedMaterial): ParseResult {
     // 取消は Body が Text だけでよい（38-39_03_01・38-39_03_03）。
     const body = single(material.xml, "Body");
     if (cancelled) return { kind: "accepted", diagnostics: report(), candidate: family === "VTSE41"
-      ? { ...base, headline, kind: "forecast", family, areas: [], unkeyedAreas: [] }
-      : { ...base, headline, kind: "observation", family, stations: [], estimations: [] } };
+      ? { ...base, headline, kind: "forecast", family, areas: [], unkeyedAreas: [], unreadable: notes.mark(material.xml) }
+      : { ...base, headline, kind: "observation", family, stations: [], estimations: [], unreadable: notes.mark(material.xml) } };
     // Q-ENUM の VTSE51.legalMissing: Observation の無い報（満潮時刻・到達予想時刻の情報）は合法で、state を変えない。
     if (family === "VTSE51" && children(single(body, "Tsunami"), "Observation").length === 0)
       return { kind: "noObservation", subject, operation: material.operation, diagnostics: report() };
     const values = leafValues(material);
     if (family === "VTSE41") {
       const forecast = forecastBody(body, values, warn);
-      return { kind: "accepted", diagnostics: report(), candidate: { ...base, headline, kind: "forecast", family, ...forecast } };
+      return { kind: "accepted", diagnostics: report(), candidate: { ...base, headline, kind: "forecast", family, ...forecast,
+        unreadable: notes.mark(material.xml) } };
     }
     const revision = { reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw: material.infoTypeRaw };
     const observed = observationBody(body, family, revision, values, warn);
-    return { kind: "accepted", diagnostics: report(), candidate: { ...base, headline, kind: "observation", family, ...observed } };
+    return { kind: "accepted", diagnostics: report(), candidate: { ...base, headline, kind: "observation", family, ...observed,
+      unreadable: notes.mark(material.xml) } };
   } catch (error) {
     if (error instanceof Rejected) return reject(error.reason, subject);
     throw error;

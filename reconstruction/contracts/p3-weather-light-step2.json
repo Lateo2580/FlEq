@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "27a4d43b8c12ca6d1167bcc238669d13df5ff505",
-    "sha256": "7e3573c017fa8aa379b51ffbbcb79e823d39c22f663b9b236d6f28a1a00ccdbd",
+    "sha256": "7a054b06a57b82981a665fc247b5e988da3c6b4d15b0a80d4682b59c03a56d11",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -309,7 +309,7 @@
           "reconstruction/contracts/p1-parser-boundary.json:545 «4cae89a4f5209c86»",
           "reconstruction/contracts/p1-parser-boundary.json:556 «229a70c4a87b4736»",
           "reconstruction/contracts/p1-parser-boundary.json:46 «75d66f66d664fec3»",
-          "reconstruction/contracts/p3-weather-light-step1.json:282 «f008634089375993»"
+          "reconstruction/contracts/p3-weather-light-step1.json:282 «338a5938dcee9644»"
         ]
       },
       {
@@ -324,7 +324,7 @@
         "id": "P3-WL2-AC06",
         "requirement": "旧と新の比較（D-WL2-EQUIVALENCE=Aの(1)）: 使い捨ての比較の道具を、baseOidで作ったreconstruction/distと変更後のreconstruction/distに同じ入力で当て、差が0件であることを示す。(1) decodeMaterial: AC02のcorpus全件、AC03の境界の入力の全部、段1のAC06(1)の入力の組で、結果のkind・拒否の理由・ParserDiagnostic・materialの全項目（marksの所要時間を除く）・parseTimesの有無 (2) U-W: 段1のAC06(2)の入力と状態の組（Q-WL2-IMPL-AMENDの(4): reconstruction/test/weather-current-unit/の試験の全行を、decodeMaterialを旧新にした2回で走らせ、入出力をhashで記録して全件一致を示す形を含む）で、各受理のdecisions・diagnostics・intents・outcomes・displayChanges・confirmationEvidenceとstate（persistenceを含む） (3) encode: 段1のAC06(3)の各状態のencodeの出力のJSON（文字列として一致）と投げる・投げないの別、decode(encode)の状態。あわせてclassifyMaterialの結果（materialValues・fields）をcorpus全件とAC03の受理の側で比べる（tsunami・eew・weather-timeseriesは葉の順で値を引くため）。比べるときは旧も新も必ず両方を走らせ、片方の結果を他方へ写さない。snapshotのrestoredAtのsymbolはdescriptionで揃える（段1と同じ）。無いと: 木の差がdomainの判定・保存に届くかを、domainの試験の当たっていない所で確かめられない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-weather-light-step1.json:282 «f008634089375993»"
+          "reconstruction/contracts/p3-weather-light-step1.json:282 «338a5938dcee9644»"
         ]
       },
       {

@@ -14,6 +14,8 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { callsWith } from "../unit-table/linked-calls";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { PENDING_MARK_BYTES } from "../../src/units/expiry";
+import { UNREADABLE_CARDS_MAX_BYTES, unreadableMarkBytes } from "../../src/units/unreadable";
+import { withLongestMarks } from "../unreadable-mark/longest-mark";
 import { checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { reduceWeatherTimeseriesUnit, timeseriesPublicSubject, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
@@ -26,7 +28,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
 function empty(): WeatherTimeseriesUnitState {
-  return { schemaVersion: "p2-weather-timeseries-unit-v6", contentRevision: 0, subjects: [], gates: [], intents: [],
+  return { schemaVersion: "p2-weather-timeseries-unit-v7", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -230,9 +232,9 @@ describe("P2-A6 weather timeseries", () => {
     const activeValue = weatherTimeseriesUnitCodec.encode(receive(empty(), fixture(unknown)).state), [subject] = activeValue.subjects;
     const wire = (length: number) => ({ ...activeValue, intents: [notice("a", "")],
       subjects: [{ ...subject, strings: [...subject.strings.slice(0, -1), `${subject.strings.at(-1)!}${"x".repeat(length)}`] }] });
-    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v6", unit: "U-F", generation: 0,
+    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v7", unit: "U-F", generation: 0,
       capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
-    expect(LIMIT).toBe(33_565_184);
+    expect(LIMIT).toBe(33_565_184 + 512 * unreadableMarkBytes("unreadable") + 1_048_576 + 93_040); // P3-UM-RES-09
     const length = LIMIT - generation(0), marks = marksOf(activeValue);
     expect(generation(length)).toBe(LIMIT);
     expect(weatherTimeseriesUnitCodec.decode(wire(length - growth - marks + 1)).kind).toBe("invalid");
@@ -545,6 +547,22 @@ describe("P2-A6 weather timeseries", () => {
           - (String(Date.parse(material.reportDateTimeRaw)).length - 1));
       } else expect(() => weatherTimeseriesUnitCodec.encode(value)).toThrow();
     }
+    // P3-UM-AC03 (6)・RES-09: 記録の上限（subject 512）の全部に読み戻しの上限いっぱいの印と予算いっぱいの原文を足すと、
+    // 前の器（印・原文・カードの項の前）ちょうどの state も、器からカードの項を除いた内で decode が受ける。
+    const small = receive(empty(), fixture(unknown)).state, seed = first(small);
+    const subjects = Array.from({ length: 512 }, (_, index) => {
+      const subject = `normal/VPWP50/office${index}`;
+      return { ...seed, subject, source: { ...seed.source!, subject } };
+    });
+    const before = inflated({ ...small, subjects, gates: subjects.map((item) => ({ subject: item.subject, operation: item.operation, source: item.source! })) },
+      LIMIT - 512 * unreadableMarkBytes("unreadable") - 1_048_576 - UNREADABLE_CARDS_MAX_BYTES);
+    const marked = { ...before, subjects: withLongestMarks(before.subjects, "MeteorologicalInfos", 0, 1_048_576) };
+    const payload = weatherTimeseriesUnitCodec.encode(marked);
+    const bytes = serializedEnvelope({ schemaVersion: marked.schemaVersion, unit: "U-F", generation: 0, capturedAt: 0, payload, sha256: "0".repeat(64) })
+      .byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + marksOf(marked);
+    console.info("P3-UM-AC03 (6) U-F", JSON.stringify({ marked: bytes, limit: LIMIT, cards: UNREADABLE_CARDS_MAX_BYTES }));
+    expect([bytes <= LIMIT - UNREADABLE_CARDS_MAX_BYTES, weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify(payload))).kind])
+      .toEqual([true, "restored"]);
   });
 
   // T06/T07: a large normal peer forces a valid newer report into unavailable without evicting normal.
@@ -665,7 +683,7 @@ describe("P2-A6 weather timeseries", () => {
 
   // T06/AC10: target operation is protected; expiry precedes lastKnown capture; stage four rolls expiry back.
   it("T06 protects training/test targets and captures lastKnown after expiry", () => {
-    const limit = 33_554_432;
+    const limit = LIMIT - 512 * PENDING_MARK_BYTES; // 器から保留の印の予約を除いた値（P3-UM-RES-09 の前は 32 MiB）
     const seed = receive(empty(), fixture(unknown)).state, blockerOld = first(seed);
     const blocker = first(receive(empty(), fixture(unknown, (xml) => xml.replaceAll("稚内地方気象台", "blocker")
       .replaceAll("<DateTime>2026-06-05T", "<DateTime>2026-06-06T"))).state);
@@ -903,7 +921,7 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-F retention", () => {
     const seed = receive(empty(), fixture(unknown)).state;
     const blockerItem = { ...first(seed), subject: "normal/VPWP50/blocker", source: { ...first(seed).source!, subject: "normal/VPWP50/blocker" } };
     const blocker = inflated({ ...seed, subjects: [blockerItem],
-      gates: [{ subject: blockerItem.subject, operation: "normal", source: blockerItem.source! }] }, 33_554_432 - 1_000);
+      gates: [{ subject: blockerItem.subject, operation: "normal", source: blockerItem.source! }] }, LIMIT - 512 * PENDING_MARK_BYTES - 1_000);
     // 時計は blocker の validUntil より前（DATE）。報時刻より後の時計だと blocker が先に失効して容量が空く。
     const pressed = receive(blocker, material).state;
     const unavailable = pressed.subjects.find((item) => item.subject === first(adopted).subject);
@@ -919,7 +937,8 @@ describe("P3-WEATHER-SHAPE-001 U-F reading", () => {
     const material = fixture(name, transform);
     return receive(empty(), material, Date.parse(material.reportDateTimeRaw));
   };
-  const json = (result: ReturnType<typeof receive>) => JSON.stringify(first(result.state));
+  // 読めない所の印（P3-UM-AC15）は比べない（印は unreadable-mark.test.ts の P3-UM-T15・T16）。
+  const json = (result: ReturnType<typeof receive>) => JSON.stringify({ ...first(result.state), unreadable: undefined });
   const plainBig = json(atReport(big)), plainLocal = json(atReport(localArea));
   const significancyBase = /(<SignificancyPart>\s*<Base>)/;
 

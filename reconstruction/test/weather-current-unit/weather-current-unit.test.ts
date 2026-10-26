@@ -26,6 +26,8 @@ import { envelope, harnessedRoot, startHarness, submit } from "../execution-spli
 import type { Harness } from "../execution-split/owner-harness";
 
 const NOW = 1_800_000_000_000;
+// 器（P3-UM-RES-09 で 16 MiB からカードの分を広げた codec の値）。
+const LIMIT = weatherCurrentUnitCodec.maxEnvelopeBytes!;
 
 function emptyState(): WeatherCurrentUnitState {
   return { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [],
@@ -479,7 +481,7 @@ describe("P2 weather-current unit", () => {
     const size = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
     const padded = (length: number): WeatherCurrentUnitState => ({ ...marked, national: { ...marked.national, normal: { ...filler, phenomena: { padding: "x".repeat(length) } } } });
-    const full = padded(16 * 1024 * 1024 - 1_800 - size(padded(0)));
+    const full = padded(LIMIT - 1_800 - size(padded(0)));
     const step = receive(full, decodeFixture(vpws50, "VPWS50", training("官署B", (xml) => atTime(xml, "2026-09-06T10:05:00+09:00", "2")), "other-office"));
     const restored = weatherCurrentUnitCodec.decode(JSON.parse(JSON.stringify(weatherCurrentUnitCodec.encode(step.state))));
     expect([marked.unconfirmed.map((item) => item.inputId), step.state.national.training?.subject, step.state.unavailable.map((item) => [item.subject, item.reason]),
@@ -722,7 +724,7 @@ describe("P2 weather-current unit", () => {
       generation: value.persistence.currentGeneration, capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
     }).byteLength;
     const base: WeatherCurrentUnitState = { ...emptyState(), national: { normal: { ...current, phenomena: { padding: "" } } }, histories: [history] };
-    const full = { ...base, national: { normal: { ...current, phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(base) - 100) } } } };
+    const full = { ...base, national: { normal: { ...current, phenomena: { padding: "x".repeat(LIMIT - envelopeSize(base) - 100) } } } };
     const candidate = decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after", "VPWS50", (xml) => bodyWarning(xml), "byte-new");
     const byBytes = receive(full, candidate);
     expect(byBytes.state.unavailable).toEqual([expect.objectContaining({ reason: "capacityExceeded" })]);
@@ -822,10 +824,10 @@ describe("P2 weather-current unit", () => {
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
     }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
-    const padding = 16 * 1024 * 1024 - envelopeSize(near) - 100;
+    const padding = LIMIT - envelopeSize(near) - 100;
     const nearLimit = { ...near, national: { ...near.national,
       training: { ...near.national.training, phenomena: { padding: "x".repeat(padding) } } } };
-    expect(envelopeSize(nearLimit)).toBe(16 * 1024 * 1024 - 100);
+    expect(envelopeSize(nearLimit)).toBe(LIMIT - 100);
     for (const material of [candidate, decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after",
       "VPWS50", (xml) => replaceBodyStatus(atTime(bodyWarning(xml), "2031-01-01T00:00:00+09:00"), "未知"), "near-invalid")]) {
       const refusedMonitor = receive(nearLimit, material);
@@ -843,7 +845,7 @@ describe("P2 weather-current unit", () => {
     const refusedBase: WeatherCurrentUnitState = { ...emptyState(), national: {
       training: { ...trainingBase, phenomena: { padding: "" } } }, partials: protectedPartials };
     const refusedFull = { ...refusedBase, national: {
-      training: { ...trainingBase, phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(refusedBase) - 100) } } } };
+      training: { ...trainingBase, phenomena: { padding: "x".repeat(LIMIT - envelopeSize(refusedBase) - 100) } } } };
     const refusedStep = receive(refusedFull, partialMaterial);
     expect(refusedStep.state).toBe(refusedFull);
     const established = receive(emptyState(), partialMaterial).decisions[0];
@@ -854,20 +856,20 @@ describe("P2 weather-current unit", () => {
       reason: "capacityRejected", unit: "U-W", inputId: partialMaterial.inputId }]);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(refusedStep.state)).kind).toBe("restored");
     expect(refusedFull.national.training).toBeDefined();
-    expect(envelopeSize(refusedFull)).toBe(16 * 1024 * 1024 - 100);
+    expect(envelopeSize(refusedFull)).toBe(LIMIT - 100);
 
     // Third review R2: an unsavable lastKnown is dropped so the unavailable record still persists.
     const normalBase: WeatherCurrentUnitState = { ...emptyState(),
       national: { normal: { ...current, phenomena: { padding: "" } } }, histories: [fullNormalHistory] };
     const normalFull = { ...normalBase, national: { normal: { ...current,
-      phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(normalBase) - 100) } } } };
+      phenomena: { padding: "x".repeat(LIMIT - envelopeSize(normalBase) - 100) } } } };
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(normalFull)).kind).toBe("restored");
     const droppedStep = receive(normalFull, candidate);
     expect(droppedStep.state.unavailable).toEqual([expect.objectContaining({
       reason: "capacityExceeded", lastKnown: null })]);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(droppedStep.state)).kind).toBe("restored");
-    expect(envelopeSize(droppedStep.state)).toBeLessThanOrEqual(16 * 1024 * 1024);
-    expect(envelopeSize(normalFull)).toBe(16 * 1024 * 1024 - 100);
+    expect(envelopeSize(droppedStep.state)).toBeLessThanOrEqual(LIMIT);
+    expect(envelopeSize(normalFull)).toBe(LIMIT - 100);
 
     // Final scoped regression: equal restored subjects remain isolated by operation.
     const sharedNormal = { ...current, subject: "s", source: { ...current.source, subject: "s" } };
@@ -887,8 +889,8 @@ describe("P2 weather-current unit", () => {
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(cancelledShared.state)).kind).toBe("restored");
 
     const sharedFull = { ...shared, national: { ...shared.national, training: { ...sharedTraining,
-      phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(shared) - 100) } } } };
-    expect(envelopeSize(sharedFull)).toBe(16_777_116);
+      phenomena: { padding: "x".repeat(LIMIT - envelopeSize(shared) - 100) } } } };
+    expect(envelopeSize(sharedFull)).toBe(LIMIT - 100);
     const admittedShared = receive(sharedFull, candidate);
     expect(admittedShared.decisions[0]).toMatchObject({ decision: "changed", operation: "normal", subject: "s" });
     expect(Object.keys(admittedShared.state.national)).toEqual(["normal"]);
@@ -897,7 +899,7 @@ describe("P2 weather-current unit", () => {
     expect(admittedShared.state.unavailable).toEqual([]);
     expect(admittedShared.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",
       reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
-    expect(envelopeSize(admittedShared.state)).toBeLessThanOrEqual(16 * 1024 * 1024);
+    expect(envelopeSize(admittedShared.state)).toBeLessThanOrEqual(LIMIT);
   });
 
   // 監査 F10（P3-OPCAP-AC04）: 16 MiB 近くを training が占める復元可能な state でも、normal の終了（VPNO50）と取消は training を退去して採用する。
@@ -913,8 +915,8 @@ describe("P2 weather-current unit", () => {
     const training = { ...snapshot("training", "VPWS50", "気象庁", "2026-09-06T09:00:00+09:00", "F10-training"), phenomena: { padding: "" } };
     const base: WeatherCurrentUnitState = { ...first, partials: [{ ...partial, phenomena: { [level5[0]]: level5[1] } }], ownership: {},
       national: { training } };
-    const full = { ...base, national: { training: { ...training, phenomena: { padding: "x".repeat(16 * 1024 * 1024 - 32 - envelopeSize(base)) } } } };
-    expect([envelopeSize(full), weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(full)).kind]).toEqual([16 * 1024 * 1024 - 32, "restored"]);
+    const full = { ...base, national: { training: { ...training, phenomena: { padding: "x".repeat(LIMIT - 32 - envelopeSize(base)) } } } };
+    expect([envelopeSize(full), weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(full)).kind]).toEqual([LIMIT - 32, "restored"]);
     const ended = receive(full, decodeFixture("18_00_01_260830_VPNO50_switch", "VPNO50"));
     expect(ended.decisions).toEqual([expect.objectContaining({ decision: "changed", change: "semantic", operation: "normal" })]);
     expect([ended.state.national.training, ended.state.tombstones.length, ended.state.unavailable]).toEqual([undefined, 1, []]);
@@ -988,12 +990,12 @@ describe("P2 weather-current unit", () => {
     }).byteLength;
     const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
-    const padding = 16 * 1024 * 1024 - actualBytes(accepted.state) - unused;
+    const padding = LIMIT - actualBytes(accepted.state) - unused;
     const withPadding = (length: number) => ({ ...base,
       partials: [{ ...partial, phenomena: { [paddingKey]: prefix + "x".repeat(length) } }] });
     const exact = receive(withPadding(padding), candidate);
     expect(exact.decisions[0].decision).toBe("changed");
-    expect(actualBytes(exact.state) + unused).toBe(16 * 1024 * 1024);
+    expect(actualBytes(exact.state) + unused).toBe(LIMIT);
     const over = receive(withPadding(padding + 1), candidate);
     expect(over.state.national.normal).toBeUndefined();
 
@@ -1015,7 +1017,7 @@ describe("P2 weather-current unit", () => {
     expect(evicted.state.histories).toEqual([]);
     expect(evicted.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",
       reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
-    expect(actualBytes(evicted.state) + unused).toBe(16 * 1024 * 1024 - 1);
+    expect(actualBytes(evicted.state) + unused).toBe(LIMIT - 1);
   });
 
   it("P2-A5-T10 contractBoundary / AC12: canonical unavailable scope roundtrips and office containment is exact", () => {
@@ -1115,10 +1117,10 @@ describe("P2 weather-current unit", () => {
     expect(accepted.state.histories.flatMap((item) => item.reports)).toHaveLength(1);
     const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
-    const padding = 16 * 1024 * 1024 - actualBytes(accepted.state) - unused;
+    const padding = LIMIT - actualBytes(accepted.state) - unused;
     const exact = receive(withPadding(padding), candidate);
     expect(exact.state.national.normal?.source.inputId).toBe(candidate.inputId);
-    expect(actualBytes(exact.state) + unused).toBe(16 * 1024 * 1024);
+    expect(actualBytes(exact.state) + unused).toBe(LIMIT);
     const over = receive(withPadding(padding + 1), candidate);
     expect(over.state.national.normal?.source.inputId).not.toBe(candidate.inputId);
   });
@@ -1131,8 +1133,8 @@ describe("P2 weather-current unit", () => {
     const payloadBytes = (value: WeatherCurrentUnitState) => Buffer.byteLength(JSON.stringify(weatherCurrentUnitCodec.encode(value)));
     const empty = weatherCurrentUnitCodec.encode(emptyState()); // P3-VM-AC06: 上界は payload の外の envelope と境界の予約込み
     const outside = serializedEnvelope({ schemaVersion: empty.schemaVersion, unit: "U-W", generation: 0, capturedAt: 0, payload: empty, sha256: "0".repeat(64) }).byteLength - Buffer.byteLength(JSON.stringify(empty)) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
-    const length = 16 * 1024 * 1024 - outside - payloadBytes(padded(0));
-    expect(payloadBytes(padded(length))).toBe(16 * 1024 * 1024 - outside);
+    const length = LIMIT - outside - payloadBytes(padded(0));
+    expect(payloadBytes(padded(length))).toBe(LIMIT - outside);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(padded(length))).kind).toBe("restored");
     expect(() => weatherCurrentUnitCodec.encode(padded(length + 1))).toThrow(message);
 
@@ -1159,8 +1161,8 @@ describe("P2 weather-current unit", () => {
         JSON.stringify(patch)).toBe("invalid");
     const withIntent = (extra: number) => ({ ...padded(extra), intents: intents(1) });
     const wire = (extra: number) => ({ ...weatherCurrentUnitCodec.encode(padded(extra)), intents: intents(1) });
-    const wireLength = 16 * 1024 * 1024 - outside - Buffer.byteLength(JSON.stringify(wire(0)));
-    expect(Buffer.byteLength(JSON.stringify(wire(wireLength)))).toBe(16 * 1024 * 1024 - outside);
+    const wireLength = LIMIT - outside - Buffer.byteLength(JSON.stringify(wire(0)));
+    expect(Buffer.byteLength(JSON.stringify(wire(wireLength)))).toBe(LIMIT - outside);
     expect(weatherCurrentUnitCodec.decode(wire(wireLength)).kind).toBe("invalid");
     expect(() => weatherCurrentUnitCodec.encode(withIntent(wireLength))).toThrow(message);
     const inside = wireLength - deliveryGrowth(pendingIntent());

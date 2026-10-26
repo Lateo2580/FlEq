@@ -7,7 +7,7 @@ import type {
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   LandslideCurrent, LandslideInput, LandslideIntent, LandslideKindGroup, LandslideNotificationPayload, LandslideUnitCodec,
-  LandslideUnitState, LandslideUnitStep, LandslideUnitView, PersistedLandslideUnit,
+  LandslideUnitState, LandslideUnitStep, LandslideUnitView, LandslideUnreadableSite, PersistedLandslideUnit,
 } from "../../../contracts/p3-landslide-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version"; import { validReportDateTime } from "../../domains/flood/flood";
@@ -21,12 +21,14 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
+import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
 
 // P3-UNIT-L-001（C10、I-U-L）: U-L の官署の current・通知・容量・codec・射影。
 
-const SCHEMA = "p3-landslide-unit-v6" as const;
-// P3-C10-CAPACITY=A・P3-C10-RES-01・RET-01〜04。
-const CURRENT_LIMIT = 128, GENERATION_LIMIT = 2_097_152;
+const SCHEMA = "p3-landslide-unit-v7" as const;
+// P3-C10-CAPACITY=A・P3-C10-RES-01・RET-01〜04。P3-UM-RES-09: 器は記録の上限×印 1 件＋原文の予算＋カードの分だけ広げる。
+const CURRENT_LIMIT = 128;
+const GENERATION_LIMIT = 2_097_152 + CURRENT_LIMIT * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C10-SEM-01・02（元報の ReportDateTime からの絶対の長さ、P3-C10-RETENTION=A・P3-C10-ACTIVE-EXPIRY=C）。
 const HOUR_MS = 3_600_000;
@@ -42,6 +44,8 @@ type Change = readonly [before: LandslideCurrent | null, after: LandslideCurrent
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
+// P3-UM-AC03 (3): 原文を外す順は source の ReportDateTime の古い順（同じなら subject の順）。
+const rawKey = (item: LandslideCurrent): readonly [number, string] => [reportMs(item.source), item.subject];
 // 保留の印のある active は見えない記録として扱う（P3-EF-AC02 (2)）。
 const visible = (value: LandslideCurrent | null): value is Active => value?.effective === "active" && value.expiryPending !== true;
 
@@ -145,7 +149,7 @@ function currentOf(candidate: LandslideCandidate, existing: LandslideCurrent | n
   // （P3-C10-ACTIVE-EXPIRY=C、同じ reduce で回収する）。
   if (candidate.kinds.length === 0 || existing == null && candidate.reportDateTimeMs + INACTIVE_RETAIN_MS <= now) return inactive("ended");
   return { ...base, retainUntil: candidate.reportDateTimeMs + ACTIVE_RETAIN_MS, effective: "active", title: candidate.title,
-    kinds: candidate.kinds, truncated: candidate.truncated };
+    kinds: candidate.kinds, truncated: candidate.truncated, ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
 }
 
 // ---- 通知（questionResolutions[Q-NOTICE]） ----
@@ -325,6 +329,18 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
     next = { ...unmarked, notice: markNotice(unmarked.notice, digest, noticeKind(transition)) };
     currents = currents.map((item) => item === unmarked ? next : item);
   }
+  // P3-UM-AC03 (3): 原文の合計が予算を越えたら古い記録の原文から外す（印は残る）。
+  const fit = fitRawBudget(rawTotal(currents), RAW_BUDGET, () => currents, rawKey);
+  const stripped: Change[] = [];
+  if (fit != null) {
+    const own = next;
+    currents = currents.map((item) => {
+      const after = stripRaw(item, fit);
+      if (item === own) next = after;
+      else if (after !== item) stripped.push([item, after]);
+      return after;
+    });
+  }
   const adopted: LandslideUnitState = { ...state, currents, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
   // 到着の時点で期限を過ぎた記録は採用して watermark を進め、同じ reduce で回収する（P3-C10-RETENTION=A）。
@@ -334,8 +350,10 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   if (evicted != null) diagnostics.push({ level: "INFO", component: "landslide", reason: "landslideCapacityEvicted", unit: "U-L", count: 1 });
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "landslide", reason: "notificationCapacityEvicted", unit: "U-L",
     count: notices.dropped });
+  const dropped = droppedIn(fit, result.currents);
+  if (dropped !== 0) diagnostics.push({ level: "INFO", component: "landslide", reason: "unreadableDropped", unit: "U-L", count: dropped });
   return {
-    changes: [...evicted == null ? [] : [[evicted, null] as const], [existing, next], ...collected?.changes ?? []],
+    changes: [...evicted == null ? [] : [[evicted, null] as const], ...stripped, [existing, next], ...collected?.changes ?? []],
     step: { state: result, nextDeadline: nextDeadline(result), decisions: [decided(change, !due)], intents: notices.admitted,
       outcomes: [accepted(change, !due)], diagnostics },
   };
@@ -546,7 +564,9 @@ function kindsRecord(value: unknown): LandslideKindGroup[] | null {
     || groups.some((item, at) => at > 0 && groupOrder(groups[at - 1], item) >= 0)) return null;
   return groups;
 }
-const FACT_KEYS = ["title", "kinds", "truncated", "expiryPending"];
+const FACT_KEYS = ["title", "kinds", "truncated", "expiryPending", "unreadable"];
+// P3-UM-AC01 (2): 印の site の表（LandslideUnreadableSite）。
+const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "kindName"] satisfies readonly LandslideUnreadableSite[]);
 function currentRecord(value: unknown): LandslideCurrent | null {
   const row = record(value);
   const operation = operationOf(row?.operation);
@@ -569,10 +589,11 @@ function currentRecord(value: unknown): LandslideCurrent | null {
       ? { ...base, retainUntil: row.retainUntil, effective: row.effective } : null;
   }
   const kinds = kindsRecord(row.kinds);
-  if (kinds == null || !bounded(row.title, BOUNDS.title) || typeof row.truncated !== "boolean"
+  const unreadable = "unreadable" in row ? readUnreadableMark(row.unreadable, UNREADABLE_SITES) : undefined;
+  if (kinds == null || unreadable === null || !bounded(row.title, BOUNDS.title) || typeof row.truncated !== "boolean"
     || row.retainUntil !== reportMs(source) + ACTIVE_RETAIN_MS || "expiryPending" in row && row.expiryPending !== true) return null;
   return { ...base, retainUntil: row.retainUntil, effective: "active", title: row.title, kinds, truncated: row.truncated,
-    ...row.expiryPending === true ? { expiryPending: true } : {} };
+    ...row.expiryPending === true ? { expiryPending: true } : {}, ...unreadable == null ? {} : { unreadable } };
 }
 const LEVEL_SET: readonly Level[] = ["info", "normal", "warning", "critical", "cancel"];
 function intentRecord(value: unknown): LandslideIntent | null {
@@ -603,19 +624,21 @@ function persisted(value: unknown): PersistedLandslideUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedLandslideUnit = { schemaVersion: SCHEMA, currents, intents };
-  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT) return null;
+  // P3-UM-AC16 (3)(c): 原文の合計（AC03 (1) の数え方）が予算の内。
+  if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
+    || rawTotal(currents) > RAW_BUDGET) return null;
   return result;
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const landslideUnitCodec: LandslideUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-landslide-unit-v1", "p3-landslide-unit-v2", "p3-landslide-unit-v3", "p3-landslide-unit-v4", "p3-landslide-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-landslide-unit-v1", "p3-landslide-unit-v2", "p3-landslide-unit-v3", "p3-landslide-unit-v4", "p3-landslide-unit-v5", "p3-landslide-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-L.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p3-landslide-unit-v6 payload" }
+    return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };
