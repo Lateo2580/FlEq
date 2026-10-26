@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "40c7f12dbda5f8dabe9bfa5f31fa05c37be339869b3cf4a4db2ac383d12c3892",
+    "sha256": "ac0360f63aebee3dcd60c9a5d9a977219e3fd0822728744eadd5fc506bebbd9c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -15,11 +15,10 @@
         "provisional": "B",
         "ruling": "統合担当の決め（2026-10-26）B",
         "reason": "試験だけの選択で画面と音は変わらないので統合担当が決めた（2026-10-26）。K13 の Q-NS-AC09 が求めるのは U-N の encode の最中の EEW の待ち（区間 (2)）だけで、区間 (3) は P3-C8-AC11 の別の数字。区間 (3) の止まりは base 235457ea でも同じ所（:298 の until、試行 10）で起き、K13 の記録には無い（区間 (2) の throw で届いていなかった）。根因は未診断で、A では契約の大きさが読めない。B でも P3-NM-AC02 で区間 (2) の数字は出る。選ばなかった案 A の利点: FLEQ_C8_AC11=1 の試験が緑に戻り、末尾の P3-C8-AC11 の行がそろう"
-      }
-    ,
+      },
       {
         "id": "P3-NM-D-UPPER-BOUND",
-        "A": "AC09 の EEW の待ちは、row の waitBehindEncodeMs（encode の終わり − EEW の要求を urgent へ送った時刻、負なら 0）で実測を出し、実際に重なった件数が少なければ「EEW の待ちの上限は encodeMs（起草の 5 回で max 2.14 ms）で、約 40 ms より十分小さい」という上限で答える。投入を前倒しして重ねにいく形は採らない",
+        "A": "AC09 の EEW の待ちは、row の waitBehindEncodeMs（encode の終わり − EEW の要求を urgent へ送った時刻、負なら 0）で実測を出し、実際に重なった件数が少なければ「EEW の待ちの上限 encodeMs（＋権の送出から encode の始まりまでの数十 µs。厳密な上限は busyMs〔権の送出→encode の終わり〕なので、busyMs の max を並べる）で、約 40 ms より十分小さい」という上限で答える（起草の 5 回で encodeMs の max 2.14 ms・busyMs の max 2.17 ms）。encode の後の write・fsync・rename は checkpoint.ts で await の非同期の file 操作なので、urgent の thread を塞がず EEW の待ちに入らない。投入を前倒しして重ねにいく形は採らない",
         "B": "配送の完了の hook で投入を前倒しして、EEW が urgent に届く時刻を encode の最中に寄せ、実際の重なりを増やす",
         "recommended": "A",
         "provisional": "A",
@@ -45,6 +44,14 @@
         "status": "closed",
         "resolution": "推奨の直し（P3-NM-AC01・AC02）を起草の写しの試験に当てて 5 回走らせた（Mac、FLEQ_C8_AC11=1、-t \"longest U-N\"、--maxWorkers=2、runs 20）。maxNankaiEncode は 5 回とも 20/20 overlapped。全試行の max（5 回の範囲）: injectToT0 0.91〜1.55 ms、t0ToT2 0.40〜0.68 ms、injectToT2 1.41〜2.23 ms、busyMs（権の送出→encode の終わり）1.31〜2.17 ms、encodeMs 1.29〜2.14 ms。median: injectToT2 1.11〜1.40 ms、encodeMs 1.05〜1.26 ms。encodeBytes は max 1,144,186〜1,144,203、median 1,118,697〜1,118,720（配送の完了で pending が減るので試行ごとに約 2.8 KB ずつ減る）。約 40 ms に対して十分に小さい。5 回とも試験の全体は rc=1: 区間 (3) の until が試行 10 で condition not reached。base 235457ea でも、区間 (2) の required を 0 にして先へ進めると同じ所で止まる（残存リスク (2)）。r1（レビュー r0 の P1 の後、ac09-probe-r1.diff、waitBehindEncodeMs と slackMs を足して 5 回）: 5 回とも 20/20 overlapped、rc=1（区間 (3)）。waitBehindEncodeMs の max 0.30〜0.79 ms・median 0.20〜0.28 ms（5 回の範囲。median が 0 より大きいので各回 20 件中 10 件以上は EEW の要求が encode の終わりより前に urgent へ送られ、実際に待った。正確な件数は raw の行が区間 (3) の止まりで出ないので数えていない）。slackMs の median 1.05〜1.10 ms、max 1.24〜1.81 ms。encodeMs の max 1.27〜1.86 ms。投入は窓の始まりのすぐ後に落ちる（busyMs と slackMs の median の差で約 0.05〜0.06 ms）",
         "source": "起草の写しの実走の記録（ac09-probe.diff・probe-1.out〜probe-5.out・base-phase3.out、r1 は ac09-probe-r1.diff・probe-r1-1.out〜probe-r1-5.out。配送のときに統合担当が ~/dev/fleq-vault-archive/ の控えへ写し、この source を控えの場所に直す）"
+      },
+      {
+        "id": "Q-NM-AUTHOR",
+        "status": "closed",
+        "source": "作者承認（2026-10-26 夕、ご主人。試験の測り方の話で画面と音は変わらないと伝えて「承認する」）",
+        "closed": "残存リスク (1)〜(3)（artifactRequirements の残存リスクの項）を承認（測る時間の幅が約 1.1〜1.9 ms で上限で答えうる (1)、区間 (3) が約 60.7 s で止まり FLEQ_C8_AC11=1 の試験全体は赤のまま (2)、host の状態が約 1.14 MB で T04 の状態とは違う (3)）",
+        "remaining": "なし",
+        "reason": "残存リスクの作者承認を記録する"
       }
     ],
     "operationContract": {
@@ -138,7 +145,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-NM-AC01",
-        "requirement": "区間 (2) の投入の時点（Q-NM-SOURCE）: (1) postMessage の mock（今は区間 (4) のために urgent の deadline の送出で onUrgentDeadline を呼ぶ）に、urgent へ checkpointGrant を送った瞬間に呼ぶ hook を足し、その要求の unit と送出の時刻（posted に積んだのと同じ値）を引数で渡す（推奨。posted の末尾を読み直さない）。posted の記録にも unit を持たせる (2) 区間 (2) の各試行は、hook を置いてから VYSE60 の続報を送り、unit が U-N の最初の権で、別 thread の投入側へ EEW を 1 件渡す（区間 (4) の onUrgentDeadline と同じ形）。窓の始まりはその権の送出の時刻（hook の引数）、終わりはその後に始まった U-N の encode の終わり。U-N 以外の unit の権では投入しない (3) 変えないもの: overlapped の判定（投入時刻が [始まり, 終わり) に入るか）、required（ceil(runs/2)）、row の列（injectToT0・t0ToT2・injectToT2・busyMs・sendDelayAfterFreeMs・encodeMs・encodeBytes）、setup と deliveryDelayMs (4) 区間 (2) の注記の「続報で保存させ」は成り立っていない（setup の後の VYSE60 の続報は U-N の世代を上げず、権は deliveryDelayMs=2000 の配送の完了ごとの reevaluate から出る、Q-NM-SOURCE）。注記を実際の振る舞いに合わせ、続報を送るのは保存の引き金ではなく区間 (1)・(3) と同じ入力の形で試行を進めるためだと 1 行書く (5) 区間 (2) の row に 2 列を足す: waitBehindEncodeMs = max(0, encode の終わり − EEW の要求を urgent へ送った時刻)（posted の EEW の入力 ID の行）と、slackMs = encode の終わり − injectedAt（P3-NM-D-UPPER-BOUND）。hook を足す理由: 無いと EEW の投入が権の送出より約 1.9 秒早く、0/20 overlapped で測定が成り立たない",
+        "requirement": "区間 (2) の投入の時点（Q-NM-SOURCE）: (1) postMessage の mock（今は区間 (4) のために urgent の deadline の送出で onUrgentDeadline を呼ぶ）に、urgent へ checkpointGrant を送った瞬間に呼ぶ hook を足し、その要求の unit と送出の時刻（posted に積んだのと同じ値）を引数で渡す（推奨。posted の末尾を読み直さない）。posted の記録にも unit を持たせる (2) 区間 (2) の各試行は、hook を置いてから VYSE60 の続報を送り、unit が U-N の最初の権で、別 thread の投入側へ EEW を 1 件渡す（区間 (4) の onUrgentDeadline と同じ形）。窓の始まりはその権の送出の時刻（hook の引数）、終わりはその後に始まった U-N の encode の終わり。U-N 以外の unit の権では投入しない (3) 変えないもの: overlapped の判定（投入時刻が [始まり, 終わり) に入るか）、required（ceil(runs/2)）、row の列（injectToT0・t0ToT2・injectToT2・busyMs・sendDelayAfterFreeMs・encodeMs・encodeBytes）、setup と deliveryDelayMs (4) 区間 (2) の注記の「続報で保存させ」は成り立っていない（setup の後の VYSE60 の続報は U-N の世代を上げず、権は deliveryDelayMs=2000 の配送の完了ごとの reevaluate から出る、Q-NM-SOURCE）。注記を実際の振る舞いに合わせ、続報を送るのは保存の引き金ではなく区間 (1)・(3) と同じ入力の形で試行を進めるためだと 1 行書く (5) 区間 (2) の row に 2 列を足す: waitBehindEncodeMs = max(0, encode の終わり − EEW の要求を urgent へ送った時刻)（posted のうち place が urgent で、入力 ID が EEW の行。見つからないときは null にして集計から外す。null が 1 件でも出たら「median が 0 より大きいので 20 件中 10 件以上が重なった」の読みは使わず、waitBehindEncodeMs が 0 より大きい件数を数えて報告する）と、slackMs = encode の終わり − injectedAt（P3-NM-D-UPPER-BOUND）。hook を足す理由: 無いと EEW の投入が権の送出より約 1.9 秒早く、0/20 overlapped で測定が成り立たない",
         "evidenceRefs": [
           "reconstruction/test/nankai-unit/nankai-host.test.ts:42 «4f5b54463a0843d6»",
           "reconstruction/test/nankai-unit/nankai-host.test.ts:235 «978f53234c76af45»",
@@ -163,7 +170,7 @@
       },
       {
         "id": "P3-NM-AC03",
-        "requirement": "Mac の報告（P3-NS-AC09 の形、Q-NS-AC09 の requiredEvidence）: FLEQ_C8_AC11=1 で nankai-host.test.ts の \"longest U-N\" を 5 回走らせ、各回の maxNankaiEncode の overlappedCount/tried と、injectToT0・t0ToT2・injectToT2・busyMs・encodeMs・encodeBytes・waitBehindEncodeMs・slackMs の max・median を出す。EEW の待ちは waitBehindEncodeMs の実測と、上限 encodeMs の max で答える（P3-NM-D-UPPER-BOUND）。encodeBytes は host 試験が組む状態の値で、P3-NS-T04 の状態とは別（P3-NS-T04 の console の値を並べて書く）。最大が約 40 ms を越えたら配送の前に作者へ報告する。U-Q の合法最大の encode の最中の値（C7 の AC12）と並べる。各回の試験の全体の rc と、赤ならどの区間で止まったか（P3-NM-D-PHASE3=B では区間 (3) で rc=1 の見込み）",
+        "requirement": "Mac の報告（P3-NS-AC09 の形、Q-NS-AC09 の requiredEvidence）: FLEQ_C8_AC11=1 で nankai-host.test.ts の \"longest U-N\" を 5 回走らせ、各回の maxNankaiEncode の overlappedCount/tried と、injectToT0・t0ToT2・injectToT2・busyMs・encodeMs・encodeBytes・waitBehindEncodeMs・slackMs の max・median を出す。EEW の待ちは waitBehindEncodeMs の実測と、上限 encodeMs（＋権の送出から encode の始まりまでの数十 µs。厳密な上限は busyMs〔権の送出→encode の終わり〕なので、busyMs の max を並べる）で答える（P3-NM-D-UPPER-BOUND。encode の後の write・fsync・rename は await の非同期で EEW を塞がない）。encodeBytes は host 試験が組む状態の値で、P3-NS-T04 の状態とは別（P3-NS-T04 の console の値を並べて書く）。最大が約 40 ms を越えたら配送の前に作者へ報告する。U-Q の合法最大の encode の最中の値（C7 の AC12）と並べる。各回の試験の全体の rc と、赤ならどの区間で止まったか（P3-NM-D-PHASE3=B では区間 (3) で rc=1 の見込み）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-unit-n-series.json:423 «dcc7b75bde50fb7f»",
           "reconstruction/contracts/p3-unit-n-series.json:618 «c18716c4eedb96da»",
@@ -258,12 +265,12 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由。",
-      "P3-NM-AC03 の報告（5 回の overlappedCount/tried・max・median、waitBehindEncodeMs と上限 encodeMs、encodeBytes と P3-NS-T04 の値、U-Q の C7 の AC12 の値、各回の rc と止まった区間）。",
+      "P3-NM-AC03 の報告（5 回の overlappedCount/tried・max・median、waitBehindEncodeMs と上限（encodeMs と busyMs の max）、encodeBytes と P3-NS-T04 の値、U-Q の C7 の AC12 の値、各回の rc と止まった区間）。",
       "足した仕組みは hook 1 つ（onUrgentGrant）と posted の unit の欄、区間 (2) の row の 2 列、区間ごとの出力 1 行。それぞれ『無いと何が壊れるか』は P3-NM-AC01 の (4)・(5)〔P3-NM-D-UPPER-BOUND〕と P3-NM-AC02。新しい it・helper file は無い。試験は既存の report 試験の区間 (2) の書き換えで、受入条件（P3-NS-AC09）に当たる。",
       "規模の見積もり（起草の写しから）: 試験 1 file、+29 行・−12 行の見込み（起草の写しの ac09-probe-r1.diff。r0 の ac09-probe.diff は AC01 の (4)〔注記〕が未反映で、r1 で反映した。配送のときに統合担当が ~/dev/fleq-vault-archive/ の控えへ写す。出発点にしてよい）。0.1 人日。実績と差があれば理由を書く。",
       "配送で統合担当が当てる原文の改訂: (1) K13（p3-unit-n-series.json）の Q-NS-IMPL-1 の remaining を、(18)(19) は P3-UNIT-N-NOTICE-001 で解消済み・Q-NS-AC09 は本契約に、と改める (2) K13 の Q-NS-AC09 を閉じ、P3-NM-AC03 の 5 回の報告を当てる (3) K13 の P3-NS-AC09 と Q-NS-IMPL-1 の「測り方の側の不整合」の文に、原因（EEW は U-N の書込み権より約 1.9 秒早く投入されていた。区間 (2) の注記「続報で保存させ」は成り立たず、権は配送の完了から出る、Q-NM-SOURCE）を足す。AC09 の「P3-NS-T04 の状態」の encode は、host 試験の状態（約 1.14 MB、解析の上界 2,334,223 byte の約半分）の値と P3-NS-T04 の値を並べて書く形で代える (4) やりたいことリストへ 2 つ送る（診断は本契約でしない）: 区間 (3) の止まり（残存リスク (2)）と、setup の後の VYSE60 の続報が U-N の世代を上げないこと（Q-NM-SOURCE） (5) Q-NM-SOURCE・Q-NM-PROBE の source を ~/dev/fleq-vault-archive/ の控えの場所に直す",
       "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
-      "残存リスク（作者承認の前）: (1) 窓（権の送出→U-N の encode の終わり）は約 1.1〜1.9 ms で、投入は窓の始まりのすぐ後（約 0.05〜0.06 ms）に落ちる（Q-NM-PROBE）。overlapped は構造上ほぼ成り立つので、EEW の実際の待ちは waitBehindEncodeMs で見る。encode が速い機械では実際に重なる件数が減りうる。そのときは上限 encodeMs で答える（P3-NM-D-UPPER-BOUND） (2) 1 つの観測（原因は未診断）: U-N の権は、setup の後は配送の完了（setup で残した deliveryDelayMs=2000）ごとに約 2 秒おきに出て（続報は世代を上げない、Q-NM-SOURCE）、試験の開始から約 60.7 s で止まる。base の 5 本と probe の診断の 1 本のどれでも、U-N の最後の権は monotonic で 60.73〜60.77 s、encode の bytes は約 1,064,5xx から約 1,019,07x に落ち、その後は U-Q の権だけが出る。runs 20 では区間 (3) の試行 10 の until で condition not reached になり（base でも同じ）、FLEQ_C8_AC11=1 の試験の全体は赤のまま（P3-NM-D-PHASE3=B、統合担当の決め）。止まるのは試行の数ではなく時刻で決まっている見込みで、runs を約 29 以上にすると区間 (2) の hook の待ち（30 秒）でも止まる見込み（区間 (2) は 1 試行約 2 秒）。末尾の P3-C8-AC11 の行は出ず、区間 (1)・(2) の数字は P3-NM-AC02 の行で出る。やりたいことリストへ送る (3) host 試験が組む状態は約 1.14 MB（3 byte の文字、pending の減りで試行ごとに減る）で、P3-NS-T04 の合法な大きな状態や解析の上界 2,334,223 byte とは同じでない。encode の所要は大きさにほぼ比例する見込み（未測定）"
+      "残存リスク（(1)〜(3) は 2026-10-26 作者承認済み、Q-NM-AUTHOR）: (1) 窓（権の送出→U-N の encode の終わり）は約 1.1〜1.9 ms で、投入は窓の始まりのすぐ後（約 0.05〜0.06 ms）に落ちる（Q-NM-PROBE）。overlapped は構造上ほぼ成り立つので、EEW の実際の待ちは waitBehindEncodeMs で見る。encode が速い機械では実際に重なる件数が減りうる。そのときは上限（encodeMs、厳密には busyMs の max）で答える（P3-NM-D-UPPER-BOUND） (2) 1 つの観測（原因は未診断）: U-N の権は、setup の後は配送の完了（setup で残した deliveryDelayMs=2000）ごとに約 2 秒おきに出て（続報は世代を上げない、Q-NM-SOURCE）、試験の開始から約 60.7 s で止まる。base の 5 本と probe の診断の 1 本のどれでも、U-N の最後の権は monotonic で 60.73〜60.77 s、encode の bytes は約 1,064,5xx から約 1,019,07x に落ち、その後は U-Q の権だけが出る。runs 20 では区間 (3) の試行 10 の until で condition not reached になり（base でも同じ）、FLEQ_C8_AC11=1 の試験の全体は赤のまま（P3-NM-D-PHASE3=B、統合担当の決め）。止まるのは試行の数ではなく時刻で決まっている見込みで、runs を約 29 以上にすると区間 (2) の hook の待ち（30 秒）でも止まる見込み（区間 (2) は 1 試行約 2 秒）。末尾の P3-C8-AC11 の行は出ず、区間 (1)・(2) の数字は P3-NM-AC02 の行で出る。やりたいことリストへ送る (3) host 試験が組む状態は約 1.14 MB（3 byte の文字、pending の減りで試行ごとに減る）で、P3-NS-T04 の合法な大きな状態や解析の上界 2,334,223 byte とは同じでない。encode の所要は大きさにほぼ比例する見込み（未測定）"
     ],
     "unresolvedQuestions": [
       {
