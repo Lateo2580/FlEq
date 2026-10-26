@@ -1,0 +1,288 @@
+{
+  "meta": {
+    "draftedFromOid": "fdaf4589b3ccc8b0afed7d1db13c98470d491f72",
+    "sha256": "ec99788ba15058b03cd41835a2fc4d87bad5d03b9059a704d5e37a847e577f14",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-E05YD-D-PLACE",
+        "A": "送る時刻を変える: E05Y_LOAD の offset を動かし、03 を 02 から 3 秒以上離す（03 を 305,121 ms へ、または 01・02 を前へ）。平行移動の後の Control/DateTime は『送った秒−114 s（02）』『送った秒−116 s（03）』なので、2 秒の間隔では同じになり、3 秒以上で 03 が newer になる",
+        "B": "送る時刻は変えず、上乗せの 3 通だけ、報告時刻の平行移動の後に Control/DateTime（電文の最初の DateTime）を送った時刻の秒（UTC の Z 表記）へ置く。windows.mjs の replayPump の送る行で、上乗せの印（event.extra）の付いた event だけ別の関数で frame を作る",
+        "recommended": "B",
+        "provisional": "B",
+        "ruling": "起草案 B（統合担当の決め待ち）",
+        "reason": "A は作者裁定 P3-E05Y-PLACE=A の offset 300,121・302,121・304,121 ms そのものを変える。E05Y_LOAD の sha256 80223ada… は凍結の manifest 3 本の condition の文（manifest-dyl-e05y.json:410・manifest-e05y.json:408・manifest-e05s.json:410）、TYPHOON の AC01、SPLIT の :64、p3.test.ts の P3-E05Y-T02 の ruled の定数に入っていて、全部に波及する。3 秒の間隔は送りの遅れで秒の切り捨てが 2 秒に戻りうる（02 の遅れが 03 より大きいとき）。4 秒以上にするには 03 を 305,612 ms の VPWS50 の後ろへ出すか 01・02 を前へ出すしかなく、『確率の報の処理の後と VPWS50 の山が重なる』配置（PLACE=A の理由）が変わる。B は E05Y_LOAD・peakOffsetMs 305_612・凍結の manifest・frames.mjs を変えず、frame の 1 行（Control/DateTime）だけが変わる（Q-E05YD-PROBE）。上乗せの 3 通の Control/DateTime は送った秒どうしで 2 秒ずつ進み、02 の遅れが 1,000 ms 以下（P3-E05Y-AC02(6)③）なら 03 は newer になる。03 だけを進める形より、3 通に同じ規則を当てる方が小さく、P3-UNIT-N-MEASURE-002 の AC01（Control/DateTime も報の時刻へ進める）と同じ形になる。Control/DateTime は送った時刻を越えないので、未来の時刻にならない（P3-UNIT-N-MEASURE-002 の残存リスク (2) は起きない）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-E05YD-SOURCE",
+        "status": "closed",
+        "resolution": "原因（Mac mini の子の確かめと、統合担当・起草での行の読み）: e05y-P の上乗せは E05Y_LOAD（windows.mjs:907〜908）で、周の中の 300.121 s に 76_01_01（TC2001）、302.121 s に 76_01_02（TC2606、Serial 41）、304.121 s に 76_01_03（TC2606、Serial 87）を送る。runner は weatherXml（frames.mjs:109〜111）で、ReportDateTime を送った時刻（host.wallSec、秒で切り捨て）に合わせて全時刻を同じ量だけずらす。fixture の Control/DateTime は ReportDateTime から 02 が −114 s、03 が −116 s 前なので、2 秒あとに送る 03 の Control/DateTime は 02 と同じ秒になる。VPTA50 は version.ts の HEAD_THEN_CONTROL に無く、Control/DateTime だけで比べる（compareVersion）ので same になり、中身が違うので stepVersion は held を返す。typhoon-unit.ts は 03 を採らず、WARN typhoonRevisionConflict を出す（:352）。held の入力には世代が付かないので、overlayScan の確かめ ④（generationRaised、windows.mjs:971）が欠け、e05yOutcome は overlayIncomplete（:981）で窓を未確認にする。10-21 の f47975f1（P3-VERSION-MATERIAL-001 発注 2b、急がない 7 unit を Control/DateTime で比べ始めた）より前の p3-dyl-e05y-20261014 では 3 通とも採られ、3 run とも確かめが通っていた（checked 6・missing 0、最大 RSS 374.5・362.3・380.6 MiB）。今は main（fdaf4589）でも 4 本の構成（台帳 100）でも、e05y-P の 3 run がどれも overlayIncomplete で、結果が未確認になる（p3-sp-e05base-20261026・p3-sp-e05-20261026）。同じ族の直しは P3-UNIT-N-MEASURE-002（nankai-host 試験の続報）で、構造的欠陥台帳 §102 の族",
+        "source": "Mac mini の子の確かめ（p3-sp-e05base-20261026・p3-sp-e05-20261026 の aux-e05y-P-run1〜3）、evidence/windows/p3-dyl-e05y-20261014/results/aux-e05y-P-run1〜3.json、起草での行の読み（fdaf4589）"
+      },
+      {
+        "id": "Q-E05YD-PROBE",
+        "status": "closed",
+        "resolution": "起草の写し（MacBook、数秒の node 実行、frames.mjs の export だけを使う）: 送った秒を W・W+2 s・W+4 s として 3 通の frame を作り gunzip して比べた。今の規則では Control/DateTime が 01 は W−31 s、02 と 03 はどちらも W−112 s 相当の同じ秒（例 03:03:08Z と 03:03:08Z）。B の規則では 01・02・03 が W・W+2 s・W+4 s（例 03:05:00Z・03:05:02Z・03:05:04Z）で ReportDateTime と同じ秒になり、03 は 02 より newer。今の規則の frame との差は 3 通とも 1 行（Control/DateTime）だけ。replayLoad で作り直した E05Y_LOAD の sha256 は 80223ada6a536fda21f25e2a1a084e4fd73f2f92f3091f01251d2e1522921b10 で、凍結の manifest の condition に書いた値と同じ（B は E05Y_LOAD を変えない）。U-Y への投入・E05 の窓・vitest は回していない",
+        "source": "起草の写しの probe（~/dev/fleq-e05y-overlay/.draft の probe.mjs・loadsha.mjs、出力は標準出力だけ。成果物ではない）"
+      },
+      {
+        "id": "Q-E05YD-RIPPLE",
+        "status": "closed",
+        "resolution": "B の波及を行で確かめた（fdaf4589）: (1) frames.mjs は変えない。run.mjs の preflight は frames.mjs の sha256 を initial-state の rulesSource と照らし（run.mjs:1462、initial-state.json:176）、変えると全窓が止まる。B の関数は windows.mjs に置き、frames.mjs の export（dataFrame・fixtureText・shiftTimestamps、windows.mjs:17 で import 済み）だけを使う (2) windows.mjs の行を引く契約は 5 本（分類の窓 P3-E05P-CLASSIFY-001・MH P3-MEASURE-HARNESS-001・WL2 P3-WEATHER-LIGHT-STEP2-001・TYPHOON・SPLIT）で、引かれる行は 29〜1172。:37（replayPump の送る行）はどの契約も引かない。新しい関数を file の末尾（今の 1177 行の後）に置けば、どの契約の行もずれない。:36 と :29 は TYPHOON が引くので変えない (3) E05Y_LOAD・E05Y.peakOffsetMs 305_612・overlayScan の確かめは変えない。凍結の manifest（manifest-dyl-e05y・manifest-e05y・manifest-e05s）は書き換えない (4) 契約の digest: runner は manifest の contractSha256 の鍵の契約を全部、今の text と照らす（run.mjs:1653）。原文の改訂で TYPHOON・SPLIT・SEISMIC-PLACE の meta.sha256 が変わると、TYPHOON の鍵を持つ既存の manifest 3 本（dyl-e05y 21 本・e05y 20 本・e05s 21 本の鍵）はこの照合を通らない。測り直しは新しい manifestId の凍結で行う（P3-E05Y-AC05(1)① の『本契約の改訂と新しい manifestId で測り直す』どおり、P3-SP-AC10 も新しい窓 ID）。p3.test.ts の T01（P3-E05Y-T01・P3-E05S-T01）は今の契約の text から manifest を作るので、改訂で落ちない (5) 製品への波及: windows.mjs は runner で、reconstruction/src から import されない（git grep 0 件）。版の比べ方（version.ts）・U-Y（typhoon-unit.ts）・旧築（src/）は変えないので、画面と音は変わらない。変わるのは測定の窓の中で U-Y が 03 を採ること（10-14 の測定と同じ姿に戻る）",
+        "source": "起草での行の読み（fdaf4589）と git grep"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "測定の道具だけの直しで、製品の入力と operation の扱いは変えない。上乗せの 3 通は通常の報（Control/Status＝通常）のまま"
+    }
+  },
+  "contract": {
+    "contractId": "P3-E05Y-CONTROLDT-001",
+    "mode": "implementation",
+    "objective": "E05 の上乗せの窓（e05y-P、同じ pump の e05s-y）で、台風の確率の報 76_01_03_260602_VPTA50 が held（typhoonRevisionConflict）になり採られない不整合を、runner の側で直す（Q-E05YD-SOURCE）。上乗せの 3 通は、報告時刻の平行移動の後に Control/DateTime（電文の最初の DateTime）も送った時刻の秒へ置き、03 を採用の経路に乗せる。e05y-P の上乗せの確かめ（P3-E05Y-AC02(6)）を成り立たせ、P3-SP-AC10 (2) の e05y-P を測れるようにする。測定の道具だけの直しで、src・frames.mjs・E05Y_LOAD・凍結の manifest は変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-e05y-controldt.json",
+      "reconstruction/contracts/p3-e05p-typhoon.json",
+      "reconstruction/contracts/p3-e05y-split.json",
+      "reconstruction/contracts/p3-unit-n-measure-2.json",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/src/units/typhoon/typhoon-unit.ts",
+      "reconstruction/test/eew-e01/windows.mjs",
+      "reconstruction/test/eew-e01/frames.mjs",
+      "reconstruction/test/eew-e01/run.mjs",
+      "reconstruction/test/eew-e01/p3.test.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/eew-e01/windows.mjs",
+      "reconstruction/test/eew-e01/p3.test.ts",
+      "reconstruction/contracts/p3-e05y-controldt.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-e05y-controldt.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04",
+      "M11"
+    ],
+    "integrationContractIds": [
+      "I-U-Y"
+    ],
+    "dependsOnContractIds": [
+      "P3-E05P-TYPHOON-001",
+      "P3-E05Y-SPLIT-001",
+      "P3-UNIT-N-MEASURE-002"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3E01Manifest"
+    ],
+    "publicFunctions": [
+      "windows.mjs の export と replayPump(load, send, wallNow, startHr, extra) の形は変えない。足すのは export しない関数 1 つ（上乗せの frame を作る。名前は実装が決める）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（windows.mjs が既に import している frames.mjs の export と node の標準）。package.json・package-lock.json を変えない。新しい module・helper file を足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__76_01_01_200630_VPTA50",
+      "test__fixtures__76_01_02_260531_VPTA50",
+      "test__fixtures__76_01_03_260602_VPTA50"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "保存 schema・field・decode の検査は変えない（測定の道具だけの直し）"
+    ],
+    "nonPersistedFields": [],
+    "outOfScope": [
+      "reconstruction/src の全部（版の比べ方 version.ts、U-Y の受理、世代の帰属）と旧築の src/",
+      "frames.mjs（initial-state の rulesSource が sha256 を縛る）と run.mjs・frozen.ts・draft.mjs・aux-measures.mjs",
+      "E05Y_LOAD（fixture・順・offset・durationMs）・E05Y の定数・overlayScan と e05yOutcome・e05sOutcome の確かめの規則、凍結の manifest と initial-state・trial-setup・版付き結果の書き換え",
+      "負荷 P・N の frame（上乗せでない event は weatherFrame のまま）。負荷の中の別の fixture どうしが同じ秒の Control/DateTime で held になっていないかは未確認（原文の改訂の (4) でやりたいことリストへ送る）",
+      "E05 の上限と summarizeE05 の規則。越えたときの次の手は P3-SP-AC10 (4) と TYPHOON の AC05(3) のまま",
+      "Pi での測定（C22）",
+      "起草の写し（~/dev/fleq-e05y-overlay/.draft）を成果物として commit すること"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-E05YD-AC01",
+        "requirement": "上乗せの frame（Q-E05YD-SOURCE、分岐 P3-E05YD-D-PLACE=B の場合）: (1) windows.mjs の replayPump の送る行（:37）を、event.extra が真のときだけ上乗せの関数で frame を作る形にする（同じ 1 行の中で、行の数は変えない） (2) 上乗せの関数は file の末尾（今の 1177 行の後）に 1 つ置く: fixture の XML を、ReportDateTime を送った時刻（replayPump の wallNow、e05yPump では host.wallSec）へ全時刻ずらす（frames.mjs の weatherXml と同じ式、shiftTimestamps）。そのあと最初の <DateTime>（Control/DateTime）を送った時刻の秒の UTC の Z 表記（YYYY-MM-DDThh:mm:ssZ）へ置き換え、dataFrame で包む。frames.mjs は変えない (3) 変えないもの: E05Y_LOAD（sha256 80223ada…）、E05Y.peakOffsetMs、確かめの規則、上乗せでない event の frame、第 5 引数が無いときの replayPump（E01・E02 の窓と run.mjs）。windows.mjs の 828 行までの行の数と、どの契約かが引く行（29・36・50・…・1172）の中身 (4) 足す理由: 無いと 02 と 03 の Control/DateTime が同じ秒になる。Control/DateTime だけで比べる VPTA50 の 03 が held になり、e05y-P・e05s-y の 3 run がどれも overlayIncomplete で未確認になる",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/windows.mjs:37 «32b5ac289388f462»",
+          "reconstruction/test/eew-e01/windows.mjs:17 «38320cb5bd5fa224»",
+          "reconstruction/test/eew-e01/windows.mjs:907 «d5263f06054d4de3»",
+          "reconstruction/test/eew-e01/frames.mjs:111 «f2449f595eb3794e»",
+          "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
+          "reconstruction/test/eew-e01/run.mjs:1462 «a2841edb4b327383»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json:176 «5781dfab7bc1c34d»",
+          "reconstruction/src/contracts-revision/version.ts:7 «b4114cd2e4a71493»",
+          "reconstruction/src/contracts-revision/version.ts:37 «42dc0b2827ff21d0»",
+          "test/fixtures/76_01_02_260531_VPTA50.xml:5 «c7d6f25ea9c4764a»",
+          "test/fixtures/76_01_03_260602_VPTA50.xml:5 «3eec93ab1f0f54cc»"
+        ]
+      },
+      {
+        "id": "P3-E05YD-AC02",
+        "requirement": "再発の試験（実不具合）: p3.test.ts の末尾に it を 1 つ足す（引かれている行をずらさない）。replayPump を負荷 P と E05Y_LOAD で作る。wallNow は整数秒（ms の端数なし）から始めて呼ばれるたびに 1,000 ms 進む値を返す関数にし（端数があると shiftTimestamps が ReportDateTime に端数を残し、秒で切った Control/DateTime と合わない。本番の host.wallSec も整数秒）、startHr を 1 周より前にして 1 回呼ぶ。上乗せの 3 frame を gunzip して、各 frame の最初の DateTime が ReportDateTime と同じ時刻であることと、3 通の Control/DateTime が送った順に狭義に増えることを確かめる。直す前の規則では ReportDateTime との差が −31・−114・−116 s で落ちる。偽の時計は使わない（wallNow は引数）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/p3.test.ts:547 «5045906eeb4eede6»",
+          "reconstruction/test/eew-e01/windows.mjs:37 «32b5ac289388f462»"
+        ]
+      },
+      {
+        "id": "P3-E05YD-AC03",
+        "requirement": "Mac mini の測定（統合担当、配送のとき）: 直した runner で e05y-P を 3 run（e05y-P-run1〜3）測る。build は P3-SP-AC10 (2) の構成。原文の改訂で TYPHOON・SPLIT・SEISMIC-PLACE の meta.sha256 が変わるので、新しい manifestId で凍結し直す（run.mjs:1653 の照合）。condition に『上乗せの 3 通の Control/DateTime は送った時刻の秒（P3-E05Y-CONTROLDT-001）』の 1 文を足す。成り立つ条件: (1) 3 run とも aux-e05y-P-run<k>.json の確かめ（P3-E05Y-AC02(6) の①〜⑤）が passed・reason null・missing 0 (2) 採用の確かめ: 3 run とも、host の dir の diagnostics/*.jsonl に、上乗せで送った inputId の typhoonRevisionConflict（typhoon-unit.ts:352、held のときだけ出る）が 0 件。④ の generationRaised は確かめに残すが、採用の証拠に数えない（台帳 §102） (3) 生の E05（summarizeE05、load P）が 3 run とも Pass（最大 RSS 400 MiB 以下）。報告: run ごとの最大 RSS とその時刻、上乗せの各入力の待ち・処理・decode、typhoonRevisionConflict の件数を、p3-dyl-e05y-20261014（3 通とも採用、374.5・362.3・380.6 MiB）と並べる。(1)(2) が欠ければ配送せず、欠けた inputId と項目を持って戻す。(3) が上限を越えたら P3-SP-AC10 (4) の扱い（配送しない、作者へ戻す）。測る窓では同じ機械で他のゲートを走らせない",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/windows.mjs:981 «8bae41b32adbf572»",
+          "reconstruction/test/eew-e01/windows.mjs:971 «9738341eb4d8adb1»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:352 «3936ae665dc52fc1»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:56 «e24509fda64c228c»",
+          "reconstruction/test/eew-e01/run.mjs:1653 «7f7ba6cc08f0cb6f»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/manifest-dyl-e05y.json:410 «a31ef8ca10a62699»",
+          "reconstruction/contracts/p3-seismic-place.json:435 «ecd01fd9a36029ad»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-E05YD-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-E05YD-AC01",
+          "P3-E05YD-AC02"
+        ],
+        "behavior": "実不具合（Q-E05YD-SOURCE）。上乗せの 3 frame の Control/DateTime が ReportDateTime と同じ時刻で、送った順に狭義に増える。直す前は 02 と 03 が同じ秒で、ReportDateTime との差が −31・−114・−116 s"
+      },
+      {
+        "testId": "P3-E05YD-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-E05YD-AC01"
+        ],
+        "behavior": "既存の P3-E05Y-T02（上乗せの列の順と offset、frame は見ない）と新築の全試験を、期待値と入力を変えずに通す。shuffle でも緑"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（fixture を足さない・変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09 の参照（sequences.json は変えない）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約と anchor。windows.mjs:37 と p3.test.ts の末尾の変更で、ほかの契約の FAIL が出ないこと（出たら行がずれている）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査と reconstruction/dist/ の生成（windows.mjs が dist を import する）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "runner が使う chrome-eew の dist の生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全試験（期待値の変更 0）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順序依存の検出"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由。",
+      "足した仕組みは上乗せの frame を作る関数 1 つ（無いと 03 が held になる、P3-E05YD-AC01）と試験の it 1 つ（実不具合の再発防止、P3-E05YD-AC02）。新しい file・export は無い。",
+      "規模の見積もり: windows.mjs +6 行・1 行の書き換え、p3.test.ts +15 行前後。0.1 人日。実績と差があれば理由を書く。",
+      "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
+      "配送で統合担当が当てる原文の改訂（『P3-E05Y-CONTROLDT-001 で…』の注記の形）: (1) TYPHOON（p3-e05p-typhoon.json）: AC01（:221）の『fixture の bytes を書き換える規則を足さない』と outOfScope（:212）の『報告時刻の平行移動だけを使う』に、上乗せの 3 通は Control/DateTime も送った時刻の秒へ置くと足す。AC02（:244）の (6)④ と Q-E05Y-REVIEW1（:70）の (1) に、generationRaised は採用の証拠にならず、採用は typhoonRevisionConflict 0 件で見ると足す（台帳 §102）。AC07（:312）の (a) に、10-21 の f47975f1 の後は 03 が held で (a) が通らなかったと足す (2) SPLIT（p3-e05y-split.json）: :64 の『変えないもの: TYPHOON の上乗せ（E05Y_LOAD…）』に、E05Y_LOAD は変えず frame の Control/DateTime の規則だけが変わり、e05s-y にも効くと足す。AC01（:262）の e05s-y の上乗せにも同じ注 (3) SEISMIC-PLACE（p3-seismic-place.json）: AC10（:435）の (2) e05y-P と Q-SP-E05（:578）に、e05y-P は本契約の配送の後に新しい manifestId で測る（本契約の AC03）と足す (4) やりたいことリストと構造的欠陥台帳 §102（統合担当が書く）: 『runner の時刻の平行移動が Control/DateTime の順を潰す』を族の 2 件目として足す。やりたいことリストへ『負荷 P・N の中の同じ subject の別 fixture も、送った秒の差と Control/DateTime の先行の差が打ち消し合うと held になりうる（未確認）』を送る (5) 改訂した契約の sha256 と、本契約が引く p3-seismic-place.json:435 の anchor と本契約の自己 digest を作り直す",
+      "残存リスク（作者に聞く、Q-E05YD-AUTHOR）: (1) 測定の中の 3 通は、Control/DateTime と ReportDateTime が同じ秒になる。実配信では Control/DateTime が ReportDateTime より約 2 分前の時刻になる（76_01_03 は 06:53:04Z と 15:55 JST）。場面: 実配信で 6 月 2 日 15:53 に 03 が届くと、U-Y は 5 月 31 日 09:53 の 02 より新しいとして採る。測定の中では 02 を 12:05:02、03 を 12:05:04 の Control/DateTime で送り、同じく 03 を採る。版の比べ方は時刻の順だけを見るので、採るかどうかは実配信と同じになる、という読みでよいか。旧築（Pi で動いている src/）にも新築の src にも手を入れないので、画面と音には関係しない (2) 03 が採られると、測定の窓の中で U-Y は毎周 TC2606 の確率を 02 から 03 へ置き換える。10-14 の測定（最大 RSS 374.5〜380.6 MiB、上限 400 MiB）と同じ姿に戻るが、4 本の構成でこの姿を測るのは初めてで、上限との余裕は約 20 MiB。越えたら P3-SP-AC10 (4) どおり配送を止めて戻す、でよいか。画面と音は変わらない（測定の道具の直しで、src は変えない）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-E05YD-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "P3-E05YD-D-PLACE の決めの後、発注前点検で",
+        "requiredEvidence": [
+          "baseOid の割当と、その base で本契約の evidence の anchor が合うこと（check-contract exit 0）"
+        ]
+      },
+      {
+        "id": "Q-E05YD-AUTHOR",
+        "owner": "user",
+        "blocks": [
+          "配送"
+        ],
+        "resolveBy": "配送の前",
+        "requiredEvidence": [
+          "残存リスク (1)(2) の作者の承認"
+        ]
+      }
+    ]
+  }
+}
