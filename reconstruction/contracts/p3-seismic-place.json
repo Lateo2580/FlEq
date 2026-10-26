@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "9eb43d7264ba37ce794d4be5a2b3b5786d704735594e392a3a73dc3b46d64407",
+    "sha256": "2ffec12b73396d2452e2570730f236a889d6c0532ae3bbcab39692243aaa4a93",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -14,7 +14,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定（2026-10-26、ご主人）A。D-P3-1（worker 3 本、2026-10-01）と、U-Q を urgent に置いた 2026-10-09 の作者裁定（P3-C7-PLACE＝A・「置き場所は urgent のまま、軽くして配送の前に測り直す」）をこの裁定が覆す（Q-SP-RULING、原文の改訂は AC09 の (4)(6)）",
-        "reason": "利用者から見た違い。場面 1（EEW の待ち）: 14:46:50.000 に観測点 30,000 の VXSE53（約 4.89 MB）が届き、14:46:50.010 に EEW の続報（VXSE45）が届く。B（今）では EEW の処理は VXSE53 の解凍・XML parse・reduce が終わるまで始まらず、投入→T2 は MacBook の中央で約 0.2 秒（203 ms、K11 の測定）。Pi は Mac の約 6.3 倍遅い（計画:239）ので約 1.3 秒と見込む（推測、Pi では測っていない）。EEW の 250 ms の出発（spec:164）と、大津波警報・津波警報も同じ 250 ms（spec:1104、IR05=A）を Pi で越える見込み。A では EEW は urgent で直ちに処理され、VXSE53 は seismic で並行に進む。場面 2（音と画面の順）: 14:49:00.000 に大きな VXSE53、14:49:00.050 に津波注意報（VTSE41）が届く。B（今）では VXSE53 が先に処理を始めて約 0.2 秒後に終わり、地震の音が先に鳴る。注意報の音は同じ群（other）なので割り込まず、地震の音の後に鳴る。画面も地震の更新が先。A では注意報は 14:49:00.050 に urgent で始まって先に終わるので、注意報の音と画面が先、地震の音はその後になる（Pi では差が約 1 秒に広がる、推測）。津波警報・大津波警報（群 normalTsunamiEmergency）なら B でも A でも警報の音が先に聞こえ、違いは B で地震の音が鳴り始めてから割り込みで止まり、警報の後に 1 回鳴り直すこと（notification-delivery.ts の higherPriority と鳴り直し）。A の代償: 常駐 worker が 1 本増え、空の owner 1 本で process の RSS が MacBook で約 15 MiB 増える（Q-SP-RSS）。E05-N の最後の正式値は 270.8〜278.2 MiB で上限 300 MiB なので、余りは約 7〜14 MiB になる（AC08 で測り直す）。退けた案: 台帳の案 A（decode を thread の外へ）は parse 済み tree を thread の間で渡さない約束（p3-execution-boundary.md §2、転送 212 ms）と衝突し、reduce と U-Q の encode は urgent に残る。案 C（キューの優先）は mailbox が既に EEW 候補を先に選んでいて、始まった処理は追い越せないので効かない。案 D（EEW だけの場所）は U-T を U-Q と同じ場所に残すと津波警報が VXSE53 を待ち（IR05=A に反する）、U-T も分けると worker が 5 本になる。U-Q を deferred か weatherCurrent に置く案は P3-C7-PLACE で退けた（震度速報が気象の解凍・保存の後ろで秒単位で遅れる）。音の順を受信順に並べ直す仕組みを publisher に足す案は、先に終わった津波の音を待たせ、仕組みが増える"
+        "reason": "利用者から見た違い。場面 1（EEW の待ち）: 14:46:50.000 に観測点 30,000 の VXSE53（約 4.89 MB）が届き、14:46:50.010 に EEW の続報（VXSE45）が届く。B（今）では EEW の処理は VXSE53 の解凍・XML parse・reduce が終わるまで始まらず、投入→T2 の中央は 203 ms（MacBook（M5）・各 5 試行の K11 の実装の担い手の測定（p3-unit-q-capacity.json の作者裁定の行、元の記録は repo の外 ~/dev/fleq-k11-1/.impl/compare-k11.txt・compare-base.txt））。Pi は約 1.3 秒と推計する（203 ms に計画:239 の Mac・Pi の速度差 6.3 倍〔VPWS50 の単発測定〕を掛けた値。Pi では測っていない）。EEW の 250 ms の出発（spec:164）と、大津波警報・津波警報も同じ 250 ms（spec:1104、IR05=A）を Pi で越える見込み。A では EEW は urgent で直ちに処理され、VXSE53 は seismic で並行に進む。場面 2（音と画面の順）: 14:49:00.000 に大きな VXSE53、14:49:00.050 に津波注意報（VTSE41）が届く。B（今）では VXSE53 が先に処理を始めて約 0.2 秒後に終わり、地震の音が先に鳴る。注意報の音は同じ群（other）なので割り込まず、地震の音の後に鳴る。画面も地震の更新が先。A では注意報は 14:49:00.050 に urgent で始まって先に終わるので、注意報の音と画面が先、地震の音はその後になる（Pi では差が約 1 秒に広がる、推計）。南海トラフの臨時情報（U-N）と噴火警報（U-V）も群 other（notice-mark.ts:97〜99）なので同じく順が変わる（残存リスク (1)）。旧築は 1 本の thread で受信順に処理して鳴らすので、A は旧築とも順が違いうる。津波警報・大津波警報（群 normalTsunamiEmergency）なら B でも A でも警報の音が先に聞こえ、違いは B で地震の音が鳴り始めてから割り込みで止まり、警報の後に 1 回鳴り直すこと（notification-delivery.ts の higherPriority と鳴り直し）。A の代償: 常駐 worker が 1 本増え、空の owner 1 本で process の RSS が MacBook で約 15 MiB 増える（Q-SP-RSS）。E05-P の最新の Pass（p3-dyl-e05y-20261014）は E05-P 354.6〜364.1 MiB・e05y-P 362.3〜380.6 MiB で、上限 400 MiB への余りは約 19 MiB。E05-N の最後の正式値 270.8〜278.2 MiB（上限 300）は p3-c4-formal-20261007（U-T・U-Q・U-N・U-V が urgent に入る前）の値なので、今の N の余り（約 7〜14 MiB）は古い基線からの推計。作者はこれを聞いたうえで A を選び、配送の前に Mac mini で 4 本の構成の E05 を測ることにした（Q-SP-RULING、AC10）。退けた案: 台帳の案 A（decode を thread の外へ）は parse 済み tree を thread の間で渡さない約束（p3-execution-boundary.md §2、転送 212 ms）と衝突し、reduce と U-Q の encode は urgent に残る。案 C（キューの優先）は mailbox が既に EEW 候補を先に選んでいて、始まった処理は追い越せないので効かない。案 D（EEW だけの場所）は U-T を U-Q と同じ場所に残すと津波警報が VXSE53 を待ち（IR05=A に反する）、U-T も分けると worker が 5 本になる。U-Q を deferred か weatherCurrent に置く案は P3-C7-PLACE で退けた（震度速報が気象の解凍・保存の後ろで秒単位で遅れる）。音の順を受信順に並べ直す仕組みを publisher に足す案は、先に終わった津波の音を待たせ、仕組みが増える"
       },
       {
         "id": "P3-SP-D-MEMBERS",
@@ -22,7 +22,7 @@
         "B": "U-Q・U-N・U-V を seismic へ移し、urgent を U-E・U-T だけにする",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当の起草で確定（P3-SP-D-PLACE=A のとき）。U-N・U-V の置き場は画面と音の出る順を変えない範囲の選択で、変える理由（大きい入力）が無い",
+        "ruling": "統合担当の起草で確定（P3-SP-D-PLACE=A のとき）。U-N・U-V を urgent に残しても seismic へ移しても、U-Q との間の音と画面の順は変わる（U-N・U-V も群 other、notice-mark.ts:97〜99。残存リスク (1)、作者は承知のうえで A を選んだ）。残すか移すかは入力の大きさで決める",
         "reason": "corpus の最大の電文は U-Q 209,928 byte（VXSE53、合法の上界は観測点 30,000 で約 4.89 MB）、U-V 45,368 byte（VFVO51）、U-T 42,920 byte（VTSE51）、U-N 8,992 byte（VYSE60）。待ちを生む大きさの入力は U-Q だけで、B は U-N の巨大地震警戒・U-V の噴火警報を VXSE53 の後ろに並べ直すことになる。B の利点（urgent の非中断処理がさらに短い）は U-N・U-V の入力が数十 KB 以下なので小さい"
       },
       {
@@ -36,28 +36,28 @@
       },
       {
         "id": "P3-SP-D-YOUNG",
-        "A": "seismic の worker は urgent と同じく若い世代を縛らずに立て（host.ts の resourceLimits を付けない）、E05-N・E05-P で確かめる。越えたら原因を分けて作者へ報告し、次の手の候補は weatherCurrent・deferred と同じ maxYoungGenerationSizeMb 12",
+        "A": "seismic の worker は urgent と同じく若い世代を縛らずに立て（host.ts の resourceLimits を付けない）、E05-N・E05-P で確かめる。越えたら配送せず作者へ戻し（AC10）、次の手の候補は weatherCurrent・deferred と同じ maxYoungGenerationSizeMb 12",
         "B": "初めから maxYoungGenerationSizeMb 12 で縛る",
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当の起草で確定。K11 の器と所要は縛らない urgent で測った値で、A は U-Q の処理の速さを今と同じに保つ",
-        "reason": "B は 4.89 MB の VXSE53 の解凍・parse で回収が増え、震度速報の処理が延びうる（weatherCurrent・deferred を縛ったのは E05-P の山を下げるためで、J2・S1V の測定の裏付けがある）。U-Q には同じ測定がまだ無い。A の代償は RSS の山が縛った場合より高くなりうることで、AC08 の (4) で測る"
+        "reason": "B は 4.89 MB の VXSE53 の解凍・parse で回収が増え、震度速報の処理が延びうる（weatherCurrent・deferred を縛ったのは E05-P の山を下げるためで、J2・S1V の測定の裏付けがある）。U-Q には同じ測定がまだ無い。A の代償は RSS の山が縛った場合より高くなりうることで、AC08 の (4) で測る。災害の日には気象の大きな処理（weatherCurrent の最大 VPWS50、deferred の e05y-P の山）と seismic の観測点 30,000 の VXSE53 が重なりうるので、その重なりを E05 の新しい負荷条件として AC10 の (3) に置く"
       },
       {
         "id": "P3-SP-D-POPULATION",
-        "A": "E01 の runner に衝突の母集団 maxVxse53ReceivedThenEew・maxVxse53ReceivedThenTsunami を足し、新しい manifest ID で測る。凍結した manifest と版付き結果は書き換えない",
+        "A": "E01 の runner に衝突の母集団 maxVxse53ReceivedThenEew・maxVxse53ReceivedThenTsunami を足し、新しい manifest ID で測る。scope は formal、origin は injectorSend（投入側の実送信）、終点は T6（実 paint）、成立条件は sentBeforeLargeFrameIngested（EEW・津波の実送信の上界が VXSE53 の T1 より前）。凍結した manifest と版付き結果は書き換えない",
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当の起草で確定（p3-execution-boundary.md §6 の『衝突試験は新しい母集団 ID にする』の形）",
-        "reason": "既存の衝突の母集団は最大 VPWS50 の受信直後の EEW（draft.mjs の maxVpws50ReceivedThenEew）だけで、台帳 100 の入力（観測点 30,000 の VXSE53）を含まない。津波も E01 の対象（IR05=A）で、U-T は urgent に残るので同じ形で確かめる"
+        "reason": "既存の衝突の母集団は最大 VPWS50 の受信直後の EEW（draft.mjs の maxVpws50ReceivedThenEew）だけで、台帳 100 の入力（観測点 30,000 の VXSE53）を含まない。津波も E01 の対象（IR05=A）で、U-T は urgent に残るので同じ形で確かめる。runner の既定（draft.mjs の buildP3Manifest）では衝突の母集団は collisionVerdict=A で scope reference・origin T0 になり、受信の前の待ちが起点の外に出るので、本契約の 2 母集団は既定に頼らず上の値に固定する。津波の解除・降格の系列は測らない: 同じ urgent の経路を通り VXSE53 との関係も発令と同じで、E01 は発令と解除・降格を混ぜない（spec の E01）ので、待ちの害が大きい発令だけで足りる"
       }
     ],
     "questionResolutions": [
       {
         "id": "Q-SP-RULING",
         "status": "closed",
-        "source": "作者裁定（2026-10-26 昼、ご主人）",
-        "closed": "P3-SP-D-PLACE は A（U-Q を 4 本目の常駐 worker seismic へ移す）。D-P3-1（計画 §5、worker 3 本、2026-10-01）と 2026-10-09 の作者裁定（U-Q の置き場所は urgent のまま、P3-C7-PLACE＝A）を覆す。場面 2 の音と画面の順の変化は残存リスク (1) として承認を別に求める（Q-SP-AUTHOR）",
+        "source": "作者裁定（2026-10-26 昼、ご主人。r1 のレビューの後、前提の訂正を聞いたうえでの確認を含む）",
+        "closed": "P3-SP-D-PLACE は A（U-Q を 4 本目の常駐 worker seismic へ移す）。D-P3-1（計画 §5、worker 3 本、2026-10-01）と 2026-10-09 の作者裁定（U-Q の置き場所は urgent のまま、P3-C7-PLACE＝A）を覆す。場面 2 の音と画面の順の変化は残存リスク (1) として承認を別に求める（Q-SP-AUTHOR）。r1 の後の確認（同日昼）: U-N・U-V の音と画面の順も変わること（notice-mark.ts:97〜99）と、E05-N の余りの数が U-T・U-Q・U-N・U-V を入れる前の基線からの推計であること（E05-P の余りは約 19 MiB）を聞いたうえで、A のままとし『先に測る』を選んだ。実装の配送の前に Mac mini で 4 本の構成の E05-N・E05-P（e05y-P を含む）を測り、上限（N 300 MiB、P 400 MiB）を越えたら配送せず作者へ戻す（候補として seismic の若い世代に 12 MB の縛りを掛ける案などを持っていく）。報告したので閉鎖、にはしない（AC10・Q-SP-E05）。spec §7.6 に入る根拠は E01 の形の未達ではなく、この作者裁定で先に進めること（E01 の形の値は AC08 で取る）",
         "remaining": "残存リスク (1)〜(6) の承認（Q-SP-AUTHOR）",
         "reason": "作者へ戻した分岐の裁定の記録"
       },
@@ -73,7 +73,7 @@
         "id": "Q-SP-ORDER",
         "status": "closed",
         "source": "起草の前の確かめ 1（U-T と U-Q をまたぐ順序の約束）",
-        "closed": "約束は無い。(1) mailbox の順序領域は headType ごと（mailbox.ts:66〜:75 の blockedByEarlier、P2-A2-CLASSIFICATION〔p2-mailbox.json:371〕）。VTSE41 と VXSE53 は今も互いを拘束しない (2) P3-C3A-AC08（p3-execution-split.json:674）は順序を『同じ順序領域の入力の順』『owner 内の適用順』『publisher の公開順＝返信を受けた順』に分け、owner の間の途中の snapshot の列を求めない (3) 版の比べ（P3-REVISION-ORDER-001・P3-VERSION-MATERIAL-001）は unit の中だけ (4) U-Q の津波の付加文は自分の報の中の値（seismic-unit.ts:231）で、U-T の state を読まない (5) 戸口で順が漏れる所は通知の選び（notification-delivery.ts）: 群の順（:23 の rank）→ expiresAt → createdAt で選び、同じ群の音は鳴っている音に割り込まない（:66 は上位の群だけ）。U-Q の intent は群 other、U-T は警報以上への発令・引上げ・区域拡大だけ normalTsunamiEmergency で、注意報などは other（notice-mark.ts:96）。U-Q・U-T とも音の TTL は 60 秒で、createdAt は処理した時刻。したがって場所を分けると、同じ群の音と画面の更新の順が『受信順』から『処理の終わった順』に変わりうる（P3-SP-D-PLACE の場面 2、作者へ）",
+        "closed": "約束は無い。(1) mailbox の順序領域は headType ごと（mailbox.ts:66〜:75 の blockedByEarlier、P2-A2-CLASSIFICATION〔p2-mailbox.json:371〕）。VTSE41 と VXSE53 は今も互いを拘束しない (2) P3-C3A-AC08（p3-execution-split.json:674）は順序を『同じ順序領域の入力の順』『owner 内の適用順』『publisher の公開順＝返信を受けた順』に分け、owner の間の途中の snapshot の列を求めない (3) 版の比べ（P3-REVISION-ORDER-001・P3-VERSION-MATERIAL-001）は unit の中だけ (4) U-Q の津波の付加文は自分の報の中の値（seismic-unit.ts:231）で、U-T の state を読まない (5) 戸口で順が漏れる所は通知の選び（notification-delivery.ts）: 群の順（:23 の rank）→ expiresAt → createdAt で選び、同じ群の音は鳴っている音に割り込まない（:66 は上位の群だけ）。U-Q・U-N・U-V の intent は群 other、U-T は警報以上への発令・引上げ・区域拡大だけ normalTsunamiEmergency で、注意報などは other（notice-mark.ts:96〜99）。U-Q・U-T とも音の TTL は 60 秒で、createdAt は処理した時刻。したがって場所を分けると、同じ群の音と画面の更新の順が『受信順』から『処理の終わった順』に変わりうる（P3-SP-D-PLACE の場面 2、作者へ）",
         "remaining": "なし",
         "reason": "画面と音の出る順が変わる選択だけを作者へ戻すため"
       },
@@ -89,15 +89,15 @@
         "id": "Q-SP-RSS",
         "status": "closed",
         "source": "起草の前の確かめ 3（worker を 1 本足したときの RSS の増分）。probe は起草の作業場所の .draft/rss-probe.mjs（実装は変えない、commit しない）",
-        "closed": "MacBook（Mac17,2・Apple M5、Node v26.12.1 arm64）で、build した reconstruction/dist の owner-worker.js を今の host と同じ workerData・resourceLimits で urgent・weatherCurrent・deferred の順に立て、4 本目（urgent の形、縛り無し）を足した。各 1.5 秒の静まりの後の process RSS の増分を 5 process で測った: 4 本目 14.7・14.9・15.2・15.2・15.0 MiB（中央 15.0）。参考に 1〜3 本目は 17.9〜18.4・15.7〜16.3・15.5〜16.0 MiB。owner は restore を受けない空の状態（thread と module の固定費だけ）で、U-Q の state は urgent から移るので二重には持たない。E05 の最後の正式の記録（p3-e01-reaccept.json の F の aux-e05）は N 270.8〜278.2 MiB（上限 300）。Mac mini・Pi では測っていない",
-        "remaining": "Mac mini と Pi での E05-N・E05-P（AC08 の (4)）",
+        "closed": "MacBook（Mac17,2・Apple M5、Node v26.12.1 arm64）で、build した reconstruction/dist の owner-worker.js を今の host と同じ workerData・resourceLimits で urgent・weatherCurrent・deferred の順に立て、4 本目（urgent の形、縛り無し）を足した。各 1.5 秒の静まりの後の process RSS の増分を 5 process で測った: 4 本目 14.7・14.9・15.2・15.2・15.0 MiB（中央 15.0）。参考に 1〜3 本目は 17.9〜18.4・15.7〜16.3・15.5〜16.0 MiB。owner は restore を受けない空の状態（thread と module の固定費だけ）で、U-Q の state は urgent から移るので二重には持たない。E05 の基線: E05-N の最後の正式値は 270.8〜278.2 MiB（上限 300、p3-c4-formal-20261007。U-T・U-Q・U-N・U-V が urgent に入る前）で、今の N の余りは分からない（約 7〜14 MiB は推計）。E05-P の最新の Pass（evidence/windows/p3-dyl-e05y-20261014 の aux-e05-P・aux-e05y-P の .e05.maxRssBytes）は E05-P 354.6〜364.1 MiB・e05y-P 362.3〜380.6 MiB で、上限 400 への余りは約 19 MiB。Mac mini・Pi では測っていない",
+        "remaining": "Mac mini の 4 本の構成の E05-N・E05-P・e05y-P と重なりの条件（AC10、配送の前）と Pi（AC08 の (3) の範囲外。Pi の E05 は C22）",
         "reason": "P3-SP-D-PLACE の代償の数"
       },
       {
         "id": "Q-SP-SITES",
         "status": "closed",
         "source": "起草のコード読み（HEAD 235457ea）",
-        "closed": "場所の名前を持つ所: (1) 型 ExecutionPlace（p3-execution-split.types.ts:26）(2) executionPlaces（unit-coverage.ts:16、鍵付きの Record で unit の足し忘れは型が止める）(3) host が owner を立てる一覧（host.ts:156 の直書き。足し忘れは型が止めない）(4) composition-root の Record<ExecutionPlace,…> 2 か所（:387 の monitors、:403 の outstanding。足し忘れは型が止める）と、場所の一覧 places（:90、unit の表から作る）(5) 留保の条件（:845 の place === \"urgent\"）(6) 測定の道具の thread 名の直書き（test/eew-e01 の ac15.mjs の AC15_OWNERS、aux-measures.mjs の threads と E12_THREADS、aux-measures.d.mts の PerThread、p3.test.ts の places、test/execution-split/owner-harness.ts の places）。mailbox（:82）と書込み権の選び（composition-root.ts:1435）は場所で引くだけで、名前を持たない。checkpoint の置き場は unit で決まり、場所によらない",
+        "closed": "場所の名前を持つ所: (1) 型 ExecutionPlace（p3-execution-split.types.ts:26）(2) executionPlaces（unit-coverage.ts:16、鍵付きの Record で unit の足し忘れは型が止める）(3) host が owner を立てる一覧（host.ts:156 の直書き。足し忘れは型が止めない）(4) composition-root の Record<ExecutionPlace,…> 2 か所（:387 の monitors、:403 の outstanding。足し忘れは型が止める）と、場所の一覧 places（:90、unit の表から作る）(5) 留保の条件（:845 の place === \"urgent\"）(6) 測定の道具の thread 名の直書き（test/eew-e01 の ac15.mjs の AC15_OWNERS、aux-measures.mjs の threads と E12_THREADS、aux-measures.d.mts の PerThread、p3.test.ts の places、test/execution-split/owner-harness.ts の places）と、手で owner の Map を組む所（test/chrome-eew/smoke.mjs:109、test/integration/private-eew.mjs:212、test/shared-runtime/shared-runtime.test.ts:116、test/eew-e01/aux-measures.mjs:247 の OWNER_UNITS）(7) host.ts:158 の resourceLimits の三項（urgent 以外に maxYoungGenerationSizeMb 12 を付ける。直さないと seismic に縛りが付き D-YOUNG＝A に反する）。mailbox（:82）と書込み権の選び（composition-root.ts:1435）は場所で引くだけで、名前を持たない。checkpoint の置き場は unit で決まり、場所によらない",
         "remaining": "なし",
         "reason": "AC02・AC08 の範囲"
       }
@@ -110,7 +110,7 @@
   "contract": {
     "contractId": "P3-SEISMIC-PLACE-001",
     "mode": "implementation",
-    "objective": "構造的欠陥台帳 100 を直す。新築では urgent の常駐 worker に U-E・U-T・U-Q・U-N・U-V が同居し、観測点の多い VXSE53（観測点 30,000 で約 4.89 MB）の解凍・XML parse・reduce と U-Q の保存の間、EEW と津波の入力が待つ（MacBook で EEW の投入→T2 の中央 203 ms、Pi は数倍の見込み）。待ちの主因が XML parse であることを先に確かめ（AC01、spec §7.6）、作者裁定 P3-SP-D-PLACE＝A のとき U-Q を 4 本目の常駐 worker（実行場所 seismic）へ移して、EEW・津波の処理を U-Q の処理から切り離す。U-Q の状態の規則・保存の形・mailbox の上限・通知の選びは変えない。E01 の形の測定（Mac mini と Pi）と E05 の測り直しで確かめる",
+    "objective": "構造的欠陥台帳 100 を直す。新築では urgent の常駐 worker に U-E・U-T・U-Q・U-N・U-V が同居し、観測点の多い VXSE53（観測点 30,000 で約 4.89 MB）の解凍・XML parse・reduce と U-Q の保存の間、EEW と津波の入力が待つ（MacBook で EEW の投入→T2 の中央 203 ms、Pi は約 1.3 秒と推計）。§7.6 には E01 の形の未達ではなく作者裁定 P3-SP-D-PLACE＝A（2026-10-26）で入り、待ちの主因が XML parse であることを先に確かめて（AC01）、 U-Q を 4 本目の常駐 worker（実行場所 seismic）へ移して、EEW・津波の処理を U-Q の処理から切り離す。U-Q の状態の規則・保存の形・mailbox の上限・通知の選びは変えない。配送の前に Mac mini で 4 本の構成の E05 を測り（AC10）、配送の後に E01 の形（Mac mini と Pi）で確かめる",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -211,7 +211,7 @@
         "target": "Node プロセスの RSS（worker を含む）",
         "limit": "E05: N 最大≤300 MiB、P 最大≤400 MiB（暫定、spec の E05）。4 本目の空の owner の固定費は MacBook で約 15 MiB（Q-SP-RSS）",
         "unit": "MiB",
-        "scope": "AC08 の (4) で Mac mini の 4 本の構成で測る",
+        "scope": "AC10 で配送の前に Mac mini の 4 本の構成で測る。越えたら配送しない",
         "source": "spec §9.9 E05、Q-SP-RSS"
       },
       {
@@ -247,26 +247,28 @@
       "mailbox の上限・固定優先順・順序領域・予約枠の変更",
       "worker の自動再起動（spec に無い、計画:61）",
       "凍結した manifest・版付き結果（reconstruction/test/eew-e01/evidence/ の既存の file）の書換え",
-      "AC08 の正式の測定と Pi の予備確認の実走（統合担当）。実装担当は runner の母集団の追加と試験まで",
       "実装担当による spec 本文・計画本文・他の契約本文の変更（AC09 は統合担当が配送の commit で当てる）",
-      "起草の写し（~/dev/fleq-l100-draft/.draft）を製品・契約の成果物として commit すること"
+      "起草の写し（~/dev/fleq-l100-draft/.draft）を製品・契約の成果物として commit すること",
+      "AC08・AC10 の測定と Pi の予備確認の実走（統合担当）。実装担当は runner の母集団の追加と試験まで"
     ],
     "acceptanceChecks": [
       {
         "id": "P3-SP-AC01",
-        "requirement": "前提の帰属（spec §7.6、Q-SP-CAUSE。AC02 以降の前に、base のまま行う）: 観測点 30,000 の VXSE53（試験の中で bf35e8ea1825 の観測点を増やして組む、約 4.89 MB。K11 の測定と同じ形）と corpus の最大 bf35e8ea1825 を urgent が処理する間に投入した EEW（77_01_01 の VXSE45）について、seismic-host.test.ts の P3-C7-AC12 の報告（FLEQ_C7_AC12=1）を使い、Mac で各 5 試行以上: VXSE53 の非中断処理を (a) 解凍・XML parse・展開（inputDone の decode の startedMonotonicMs〜endedMonotonicMs）(b) reduce（decode の終わり〜inputDone の generationRaisedMs）(c) view の生成と返信の複製（generationRaisedMs〜publisher が inputDone を受けた時刻）(d) U-Q の checkpoint encode（同じ回に権が出たとき、checkpointDone の CheckpointMeasurement）に分けた所要の中央・最大と、EEW の投入→T0・T0→T2 の中央・最大を報告する。どれも observe を渡した host（measured）で今ある印から取れ、owner の印を足さない。(a) が 4 つの中で最大なら AC02 へ進む。(c) か (d) が最大なら spec:1164（encode・射影が主因なら worker の追加を解決にしない）により、(b) が最大なら spec §7.6 が worker の分離を XML parse の場合だけに認めるので、どちらも実装を止めて blocked と報告する（統合担当が作者へ戻す）。台帳 100 の数（decode 74〜113 ms、投入→T2 の中央 203 ms）は区分を分けていない",
+        "requirement": "前提の帰属（spec §7.6、Q-SP-CAUSE。AC02 以降の前に、base のまま行う）。§7.6 に入るのは E01 の形の未達が確かめられたからではなく、作者裁定 P3-SP-D-PLACE＝A（2026-10-26）で先に進めるため（Q-SP-RULING）。この AC は §7.6 の『XML parse が主因の場合だけ』を確かめる。入力: 観測点 30,000 の VXSE53（試験の中で bf35e8ea1825 の観測点を増やして組む、約 4.89 MB。K11 の測定と同じ形）と corpus の最大 bf35e8ea1825。それぞれを urgent が処理する間に EEW（77_01_01 の VXSE45）を投入し、seismic-host.test.ts の P3-C7-AC12 の報告（FLEQ_C7_AC12=1、observe を渡した measured の host）で Mac で各 5 試行以上取る。VXSE53 の非中断処理を次に分け、各区分の中央と最大を報告する: (a1) 解凍・展開（inputDone の decode.startedMonotonicMs〜xmlParseStartedMonotonicMs）(a2) XML parse（xmlParseStartedMonotonicMs〜xmlParseEndedMonotonicMs）(a3) 取り出し（xmlParseEndedMonotonicMs〜decode.endedMonotonicMs）(b) reduce（decode の終わり〜generationRaisedMs）(c) view の生成と返信の複製（generationRaisedMs〜T3。publisher の側の待ちを含む上界で、owner の所要と分けない）(d) U-Q の checkpoint encode（同じ報告の最大の U-Q の encode の場面の CheckpointMeasurement。VXSE53 の試行と同じ回に権が出るのを待たない）。あわせて EEW の投入→T0・T0→T2 の中央・最大。どれも今ある印から取り、owner に印を足さない。判定は中央の値で行う: 2 つの入力の両方で (a2) が 6 区分の中で最大なら AC02 へ進む。次のどれかなら実装を止めて blocked と報告する（統合担当が作者へ戻す）: (c) か (d) が最大（spec:1164、encode・射影が主因なら worker の追加を解決にしない）、(a1)・(a3)・(b) が最大（spec は認める場合を XML parse に限るので止める。spec の文ではなく起草の保守的な読み）、2 つの入力で最大の区分が違う、どれかの区分が欠測。台帳 100 の数（decode 74〜113 ms、投入→T2 の中央 203 ms）は MacBook（M5）・各 5 試行の K11 の実装の担い手の測定（p3-unit-q-capacity.json の作者裁定の行、元の記録は repo の外 ~/dev/fleq-k11-1/.impl/compare-k11.txt・compare-base.txt） で、区分を分けていない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
           "docs/specs/reconstruction-p0-contracts.md:1158 «792e3c57ff9fba43»",
           "docs/specs/reconstruction-p0-contracts.md:1164 «a0005fcda1372f26»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:186 «1c4336b498d0d26f»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:257 «f8307b96c979e627»",
-          "reconstruction/contracts/p3-execution-split.types.ts:114 «d6087e79a6adc62c»"
+          "reconstruction/contracts/p3-execution-split.types.ts:108 «ce8ee391abccd16c»",
+          "reconstruction/contracts/p3-execution-split.types.ts:114 «d6087e79a6adc62c»",
+          "reconstruction/contracts/p3-unit-q-capacity.json:140 «bbba3cbe37ebf810»"
         ]
       },
       {
         "id": "P3-SP-AC02",
-        "requirement": "実行場所（P3-SP-D-PLACE=A・D-MEMBERS=A）: (1) ExecutionPlace に \"seismic\" を足し、executionPlaces の U-Q を seismic にする。ほかの unit の場所は変えない。placeOfHeadType は VXSE51・52・53・61・62 で seismic、VXSE43・45 と VTSE41・51・52 で urgent、ready でない headType（VXSE47 の notPorted を含む）で今どおり deferred (2) host は ExecutionPlace のすべてに 1 本ずつ常駐 owner を立てる（4 本）。立てる一覧は型で網羅を確かめるか、composition-root の places から取る（無いと: 一覧に足し忘れた場所の入力が owner の無いまま mailbox に残る）(3) composition-root の Record<ExecutionPlace,…>（monitors・outstanding）に seismic の行を足す（足し忘れは型が止める）(4) 型と owner-worker.ts の『three』の注釈を直す。新しい型・層・設定・helper は足さない",
+        "requirement": "実行場所（P3-SP-D-PLACE=A・D-MEMBERS=A）: (1) ExecutionPlace に \"seismic\" を足し、executionPlaces の U-Q を seismic にする。ほかの unit の場所は変えない。placeOfHeadType は VXSE51・52・53・61・62 で seismic、VXSE43・45 と VTSE41・51・52 で urgent、ready でない headType（VXSE47 の notPorted を含む）で今どおり deferred (2) host は ExecutionPlace のすべてに 1 本ずつ常駐 owner を立てる（4 本）。立てる一覧は型で網羅を確かめるか、composition-root の places から取る（無いと: 一覧に足し忘れた場所の入力が owner の無いまま mailbox に残る）(3) composition-root の Record<ExecutionPlace,…>（monitors・outstanding）に seismic の行を足す（足し忘れは型が止める）(4) host.ts:158 の resourceLimits の三項（今は urgent 以外に maxYoungGenerationSizeMb 12）を、urgent と seismic には付けない形にする（無いと: seismic に縛りが付き D-YOUNG＝A に反する）(5) 試験と測定の道具で場所の一覧を直書きする所（Q-SP-SITES の (6)）に seismic を足す (6) 型と owner-worker.ts の『three』の注釈を直す。新しい型・層・設定・helper は足さない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-split.types.ts:26 «e615bbb0ba1e970f»",
           "reconstruction/src/runtime/unit-coverage.ts:16 «58338bff75f92aac»",
@@ -274,19 +276,23 @@
           "reconstruction/src/runtime/composition-root.ts:90 «2d5b35efab2a1aaa»",
           "reconstruction/src/runtime/composition-root.ts:387 «11d57d256dd88ee9»",
           "reconstruction/src/runtime/composition-root.ts:403 «034cb9048279acda»",
-          "reconstruction/src/runtime/owner-worker.ts:7 «e2fcf8594c695af4»"
+          "reconstruction/src/runtime/owner-worker.ts:7 «e2fcf8594c695af4»",
+          "reconstruction/src/host/host.ts:158 «cb154e750655ef9b»"
         ]
       },
       {
         "id": "P3-SP-AC03",
-        "requirement": "投入の独立（Q-SP-MAILBOX）: (1) seismic の通常 data の in-flight は 1 件で、urgent の in-flight と別。VXSE53 が seismic で処理中でも、pending の EEW・津波の入力は urgent へ直ちに送る (2) mailbox の件数・byte の上限（全体 128 件・16 MiB、通常 120 件・14 MiB、予約 8 件・2 MiB）は全体で 1 つのまま。固定優先順と順序領域（headType）は変えない (3) 同じ headType の入力は同じ場所なので、同じ operation／family／subject の順は今どおり保たれ、parse の終わった順で採用しない",
+        "requirement": "受理した入力の処理の独立（Q-SP-MAILBOX）: (1) seismic の通常 data の in-flight は 1 件で、urgent の in-flight と別。VXSE53 が seismic で処理中でも、受理して pending の EEW・津波の入力は urgent へ直ちに送る (2) mailbox の件数・byte の上限（全体 128 件・16 MiB、通常 120 件・14 MiB、予約 8 件・2 MiB）は全体で 1 つのまま。固定優先順と順序領域（headType）は変えない (3) 同じ headType の入力は同じ場所なので、同じ operation／family／subject の順は今どおり保たれ、parse の終わった順で採用しない (4) 受信の継続は本契約で約束しない: 通常枠が満ちて enqueue が拒否されると、host は接続を切り、mailbox の pending と in-flight が空になるまで繋ぎ直さない（今の背圧、変えない。残存リスク (6)）",
         "evidenceRefs": [
           "reconstruction/src/mailbox/mailbox.ts:11 «9ebe12b5426e415b»",
           "reconstruction/src/mailbox/mailbox.ts:82 «85ebd56c783ce1a5»",
           "reconstruction/src/mailbox/mailbox.ts:66 «0f49933a6e91e07b»",
           "reconstruction/contracts/p3-execution-boundary.md:39 «7c8fc4b78954915b»",
           "reconstruction/contracts/p3-execution-boundary.md:40 «0a382771625566cf»",
-          "docs/specs/reconstruction-p0-contracts.md:1159 «da4be88413248f62»"
+          "docs/specs/reconstruction-p0-contracts.md:1159 «da4be88413248f62»",
+          "reconstruction/src/mailbox/mailbox.ts:114 «ba64d73d3b4385e1»",
+          "reconstruction/src/host/host.ts:256 «62853b0fea215cc1»",
+          "reconstruction/src/host/host.ts:334 «ebafe9ce4f4258a4»"
         ]
       },
       {
@@ -300,10 +306,12 @@
       },
       {
         "id": "P3-SP-AC05",
-        "requirement": "停止と終了: (1) seismic の owner も停止監視（stalled・unresponsive）の対象 (2) seismic の owner の失敗は U-Q だけを止め、urgent・weatherCurrent・deferred の入力・保存・通知は続く（今の場所ごとの ownerFailed の扱いのまま） (3) 通常終了は seismic の in-flight の完了・終了入力・最終保存の ack を待って worker を閉じる（spec §5.9 の順）。終了の段と期限は変えない",
+        "requirement": "停止と終了: (1) seismic の owner も停止監視（stalled・unresponsive）の対象 (2) 通常の運転の間、seismic の owner の失敗は U-Q だけを止め、urgent・weatherCurrent・deferred の入力・保存・通知は続く（今の場所ごとの ownerFailed の扱いのまま） (3) 終了の時は (2) に限らない: seismic が U-Q の書込み権を持ったまま止まると、その権は戻らず、後の終了要求の最終保存の段は止まった owner の権を見て直ちに終わる。その間に dirty になった U-E などの最終世代も保存されない（今の振る舞い、変えない。残存リスク (5)） (4) 通常終了は seismic の in-flight の完了・終了入力・最終保存の ack を待って worker を閉じる（spec §5.9 の順）。終了の段と期限は変えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-boundary.md:45 «851fe48544a19964»",
-          "reconstruction/contracts/p3-execution-boundary.md:47 «03fb41f056642dd7»"
+          "reconstruction/contracts/p3-execution-boundary.md:47 «03fb41f056642dd7»",
+          "reconstruction/src/runtime/composition-root.ts:641 «a1412aced808ae03»",
+          "reconstruction/src/runtime/composition-root.ts:1505 «24539ca107c89289»"
         ]
       },
       {
@@ -316,7 +324,7 @@
       },
       {
         "id": "P3-SP-AC07",
-        "requirement": "干渉の報告（実装担当、Mac、P3-C7-AC12 の形）: AC01 と同じ 2 つの VXSE53、最大の U-Q の encode、一括の期限回収（event 512・長周期 256）のそれぞれの最中に投入した EEW（VXSE45）と津波（VTSE41）の投入→T0・T0→T2 の中央・最大を、移した後で報告する（各 5 試行以上、AC01 と同じ機械）。EEW・津波の待ちの最大が約 40 ms（計画:239、E01 の 250 ms を Mac・Pi の速度差 6.3 倍で割った値）を越えたら、配送の前に作者へ報告する。正式の E01 ではない",
+        "requirement": "干渉の報告（実装担当、Mac、P3-C7-AC12 の形）: AC01 と同じ 2 つの VXSE53、最大の U-Q の encode、一括の期限回収（event 512・長周期 256）のそれぞれの最中に投入した EEW（VXSE45）と津波（VTSE41）の投入→T0・T0→T2・T2→T4（publisher の射影と SSE への受け渡しの待ち）の中央・最大を、移した後で報告する（各 5 試行以上、AC01 と同じ機械）。EEW・津波の T0→T2 の最大が約 40 ms を越えたら、配送の前に作者へ報告する。約 40 ms は E01 の 250 ms を計画:239 の Mac・Pi の速度差 6.3 倍で割った値（250÷6.3≒39.7）で、合格条件ではなく作者へ報告する引き金。正式の E01 ではない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
           "reconstruction/contracts/p3-seismic-unit.json:886 «b9bf87b0d318d90c»",
@@ -325,20 +333,21 @@
       },
       {
         "id": "P3-SP-AC08",
-        "requirement": "E01 の形の測定と E05（統合担当、配送の後、P3-SP-D-POPULATION・D-YOUNG）: (1) E01 の runner に衝突の母集団 maxVxse53ReceivedThenEew（観測点 30,000 の VXSE53 の受信直後の EEW）と maxVxse53ReceivedThenTsunami（同じ直後の津波警報の発令）を、maxVpws50ReceivedThenEew と同じ形で足す（実装担当が runner に足し、記録と判定の関数の試験を通す）。新しい manifest ID で測り、凍結した manifest と版付き結果は書き換えない (2) Mac mini: warm-up 100＋1,000 標本×3 run、各 run の p99≤250 ms・欠落 0（spec:164・:1104・E01） (3) Pi: 計画 §4.5（D-P3-7）の予備確認（30 件程度×3 回。100 件未満は『観測最大』と書き、Pass と呼ばない） (4) E05-N・E05-P を Mac mini で 4 本の構成で測り直す（N 最大≤300 MiB、P 最大≤400 MiB）。越えたら thread ごとに分けて作者へ報告する（次の手の候補は seismic の若い世代の上限 12 MB）。測る窓の前に本契約の baseOid から配送の commit までを build し、同じ機械で他のゲートを走らせない",
+        "requirement": "E01 の形の測定（統合担当、配送の後、P3-SP-D-POPULATION）: (1) 実装担当が E01 の runner に衝突の母集団 maxVxse53ReceivedThenEew（観測点 30,000 の VXSE53 の frame を送った直後に間を空けず EEW を送る）と maxVxse53ReceivedThenTsunami（同じ直後に津波警報の発令の VTSE41）を足し、記録と判定の関数の試験を通す。2 母集団の値は既定に頼らず固定する: scope formal、origin injectorSend、終点 T6、成立条件 sentBeforeLargeFrameIngested（EEW・津波の実送信の上界〔host 時計〕が VXSE53 の T1 より前）、負荷 N、周期と停止条件は maxVpws50ReceivedThenEew と同じ式。新しい manifest ID で測り、凍結した manifest と版付き結果は書き換えない (2) Mac mini: warm-up 100＋1,000 標本×3 run、各 run の p99≤250 ms・欠落 0（spec:164・:1104・E01） (3) Pi: 計画 §4.5（D-P3-7）の予備確認（30 件程度×3 回。100 件未満は『観測最大』と書き、Pass と呼ばない。Mac の倍率を合否の根拠にしない） (4) 移す前の値をこの 2 母集団で取らない理由: spec:1166 の『同じ母集団で再測定』は、待ちを見つけた測り方（AC01 と AC07 の T2 の報告、同じ機械・同じ入力）の前後の比べで満たす。この 2 母集団は前後の比べではなく 250 ms の絶対の受入で、移す前の構成で Fail することは台帳 100 の T2 の値から分かっている",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/draft.mjs:279 «e31c924f1167ce7e»",
+          "reconstruction/test/eew-e01/draft.mjs:333 «d2258a4f323637f2»",
           "reconstruction/contracts/p3-execution-boundary.md:52 «5cd6dd495481068d»",
           "docs/specs/reconstruction-p0-contracts.md:164 «26e49e9d1be69077»",
           "docs/specs/reconstruction-p0-contracts.md:1104 «b93e705ab7397a04»",
+          "docs/specs/reconstruction-p0-contracts.md:1166 «2ec7537d8e462a83»",
           "docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
-          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
           "reconstruction/contracts/p3-order-plan.md:180 «fc36c5b7dbf65275»"
         ]
       },
       {
         "id": "P3-SP-AC09",
-        "requirement": "統合担当が原文を改訂する項（配送の commit で当てる。実装担当は変えない）: (1) spec:156『P3 で §7.1 の 3 本へ移した』に『P3-SEISMIC-PLACE-001 で U-Q の 4 本目を足した』を足す (2) spec:1027 の行を『常駐 engine worker 4本 | urgent（U-E・U-T・U-N・U-V）・seismic（U-Q）・weatherCurrent（U-W）・deferred（…）』に改める (3) spec:1164『§7.1 の 3 本を超える worker』を『§7.1 の 4 本を超える worker』に改め、4 本目は XML parse の帰属（本契約の AC01）で足したことを添える (4) 計画:198 の D-P3-1 の行に〔作者裁定 P3-SP-D-PLACE＝A（2026-10-26）がこの裁定を覆し、P3-SEISMIC-PLACE-001 で 4 本に改訂〕を足す (5) 実行境界メモ:12 の『急ぐ unit の worker』の行を U-E・U-T・U-N・U-V にし、『U-Q の worker | U-Q』の行を足す (6) p3-seismic-unit.json の P3-C7-PLACE（:48 の項）の ruling と P3-C7-INTERFERENCE（:314 の項）・Q-C7-IMPL-AMEND（:335 の項）の『置き場所は urgent のまま』（2026-10-09 の作者裁定）に〔作者裁定 P3-SP-D-PLACE＝A（2026-10-26）がこの裁定を覆し、P3-SEISMIC-PLACE-001 で U-Q は seismic へ移した〕を足す (7) 設計メモ:100 と :466 の『urgent の owner／worker は U-E・U-T・U-Q・U-N・U-V』を U-Q を除いた形にし、:466 の U-Q の行は AC04 の (3) で解消と書く。:153 の『U-E の保存の ack が、同じ urgent の worker の U-Q〔4 MiB〕・U-N の encode の後ろに並ぶか』から U-Q を除く (8) 配送の後に偽になる要件・規則の本文に〔P3-SEISMIC-PLACE-001 で U-Q は seismic へ移した〕を添える: p3-seismic-unit.json の I-U-Q.runtimeRows（:308『executionPlaces に U-Q=urgent』）・P3-C7-WRITE-RIGHT（:322『U-E・U-T・U-Q は同じ urgent の実行場所』）・単位入力と coverage の受入（:765）・その試験の behavior（:924『→U-Q・urgent』）、p3-nankai-unit.json の干渉の report（:268『urgent の owner に U-E・U-T・U-Q・U-N の checkpointGrant をまとめて post』）と書込み権の rule（:273）、p3-volcano-unit.json の report（:362）と rule（:367『urgent の unit 数は 5、checkpointGrant は 5 件まで』→ 4）、p3-notice-ledger.json の分岐の reason（:26『U-T・U-Q は EEW と同じ urgent の worker で保存』）と残りの測定（:1008『同じ urgent の worker で U-Q・U-N の encode の後ろ』）。変えないもの: 他の unit 契約の置き場の分岐（p3-briefing-unit.json・p3-flood-unit.json・p3-landslide-unit.json・p3-nankai-unit.json・p3-volcano-unit.json の『urgent（…U-Q…と同じ owner）』）は起草の時点の状態の記述なので書き換えない。改訂で行が動いた契約の anchor は統合担当が同じ commit で付け直し、check-contract を通す。構造的欠陥台帳 §100（repo の外）に配送と測定の結果を追記する",
+        "requirement": "統合担当が原文を改訂する項（配送の commit で当てる。実装担当は変えない）: (1) spec:156『P3 で §7.1 の 3 本へ移した』に『P3-SEISMIC-PLACE-001 で U-Q の 4 本目を足した』を足す (2) spec:1027 の行を『常駐 engine worker 4本 | urgent（U-E・U-T・U-N・U-V）・seismic（U-Q）・weatherCurrent（U-W）・deferred（…）』に改める (3) spec:1164『§7.1 の 3 本を超える worker』を『§7.1 の 4 本を超える worker』に改め、4 本目は XML parse の帰属（本契約の AC01）で足したことを添える (4) 計画:198 の D-P3-1 の行に〔作者裁定 P3-SP-D-PLACE＝A（2026-10-26）がこの裁定を覆し、P3-SEISMIC-PLACE-001 で 4 本に改訂〕を足す (5) 実行境界メモ:12 の『急ぐ unit の worker』の行を U-E・U-T・U-N・U-V にし、『U-Q の worker | U-Q』の行を足す (6) p3-seismic-unit.json の P3-C7-PLACE（:48 の項）の ruling と P3-C7-INTERFERENCE（:314 の項）・Q-C7-IMPL-AMEND（:335 の項）の『置き場所は urgent のまま』（2026-10-09 の作者裁定）に〔作者裁定 P3-SP-D-PLACE＝A（2026-10-26）がこの裁定を覆し、P3-SEISMIC-PLACE-001 で U-Q は seismic へ移した〕を足す (7) 設計メモ:100 と :466 の『urgent の owner／worker は U-E・U-T・U-Q・U-N・U-V』を U-Q を除いた形にし、:466 の U-Q の行は AC04 の (3) で解消と書く。:153 の『U-E の保存の ack が、同じ urgent の worker の U-Q〔4 MiB〕・U-N の encode の後ろに並ぶか』から U-Q を除く (8) 配送の後に偽になる要件・規則の本文に〔P3-SEISMIC-PLACE-001 で U-Q は seismic へ移した〕を添える: p3-seismic-unit.json の I-U-Q.runtimeRows（:308『executionPlaces に U-Q=urgent』）・P3-C7-WRITE-RIGHT（:322『U-E・U-T・U-Q は同じ urgent の実行場所』）・単位入力と coverage の受入（:765）・その試験の behavior（:924『→U-Q・urgent』）、p3-nankai-unit.json の干渉の report（:268『urgent の owner に U-E・U-T・U-Q・U-N の checkpointGrant をまとめて post』）と書込み権の rule（:273）、p3-volcano-unit.json の report（:362）と rule（:367『urgent の unit 数は 5、checkpointGrant は 5 件まで』→ 4）、p3-notice-ledger.json の分岐の reason（:26『U-T・U-Q は EEW と同じ urgent の worker で保存』）と残りの測定（:1008『同じ urgent の worker で U-Q・U-N の encode の後ろ』） (9) 実行の境界の上限・監視・終了の条文の『3 本』『最大 3 件』を 4 に改め〔P3-SEISMIC-PLACE-001 で 4 本〕を添える: p3-execution-split.json の P3-C3A-RES-05（:508 の項、limit 3→4）・P3-C3A-RES-01（:479『at most 3 in total』）・AC01（:582『owner を 3 本（urgent・weatherCurrent・deferred）だけ作り』に seismic を足す）・AC03（:612『最大 3 件』）・startP2Host の publicFunctions（:412『owner 3 本の生成』）・終了の最小結線（:685）・試験の behavior（:774・:806『dist の owner 3 本』）、D-P3-1 の写し（:12）と objective（:302）には注記だけ。p3-execution-lifecycle.json の P3-C3B-RES-01（:393 の項、limit 3→4）・RES-02（:405『同じ閾値を owner 3 本に』）・RES-03（:413『起動時の 3 本だけ』）・自動再起動の分岐の A（:21）・DisplayWorkerView の分岐の A（:30）・:114 の closed・:329 の publicFunctions・AC01（:457）・通常終了（:492）・E08 の再検収（:530）・受信前回収（:561）・試験の behavior（:539・:599・:608・:625）。p2-mailbox.json の :323『at most 3 in total』と :517『最大 3 件』。測定の規則として今も使う条文: p3-e01-reaccept.json の :75（thread ごとの writeCount、owner 3 本と publisher）・:205・:690（E05 の thread ごとの heap）、p3-e05p-classify.json の :262・:278（probe-preload の thread） (10) (4)(6) の改訂は、作者裁定 P3-SP-D-PLACE＝A が D-P3-1（worker 3 本）と 2026-10-09 の U-Q を urgent に置いた作者裁定を覆したことの記録として書く。変えないもの: 他の unit 契約の置き場の分岐（p3-briefing-unit.json・p3-flood-unit.json・p3-landslide-unit.json・p3-nankai-unit.json・p3-volcano-unit.json の『urgent（…U-Q…と同じ owner）』）は起草の時点の状態の記述なので書き換えない。過去の測定・配送の記録（p3-e01-reaccept.json の :170・:191・:198・:316・:806・:954、p3-e05p-classify.json の :111・:122、p3-execution-split.json の :921・:926・:943、p3-execution-lifecycle.json の :716、p3-owner-young-limit.json の分岐の B、p3-tsunami-unit.json の D-P3-1 の ruling）も、その時の 3 本の構成の記述なので書き換えない。改訂で行が動いた契約の anchor は統合担当が同じ commit で付け直し、check-contract を通す。構造的欠陥台帳 §100（repo の外）に配送と測定の結果を追記する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:156 «5ff6459c3e9830f6»",
           "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
@@ -360,7 +369,30 @@
           "reconstruction/contracts/p3-volcano-unit.json:362 «25128e0320361f07»",
           "reconstruction/contracts/p3-volcano-unit.json:367 «2f77aa3377b612bf»",
           "reconstruction/contracts/p3-notice-ledger.json:26 «7d9eabd31fb00a81»",
-          "reconstruction/contracts/p3-notice-ledger.json:1008 «b2c9fb5c2c5a854a»"
+          "reconstruction/contracts/p3-notice-ledger.json:1008 «b2c9fb5c2c5a854a»",
+          "reconstruction/contracts/p3-execution-split.json:508 «dbc10c7b8c869bcd»",
+          "reconstruction/contracts/p3-execution-split.json:479 «d7b484c0bf20e235»",
+          "reconstruction/contracts/p3-execution-split.json:582 «95288d317a76854f»",
+          "reconstruction/contracts/p3-execution-split.json:612 «6f4532d744904cf9»",
+          "reconstruction/contracts/p3-execution-split.json:412 «c942df31864c3561»",
+          "reconstruction/contracts/p3-execution-split.json:685 «e275f52678b07e0e»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:393 «192989f8c96cf20a»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:405 «25d87599ad68b0cb»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:413 «e2730c4c24ead264»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:21 «359c48946570b4ef»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:457 «3a43d29227291df2»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:625 «290dc2b489809d58»",
+          "reconstruction/contracts/p2-mailbox.json:323 «f815dab459b11765»",
+          "reconstruction/contracts/p2-mailbox.json:517 «e49466a6ecb16654»"
+        ]
+      },
+      {
+        "id": "P3-SP-AC10",
+        "requirement": "配送の前の E05（統合担当、作者の決め 2026-10-26 昼、Q-SP-RULING・Q-SP-E05）: 実装のレビューの後・配送の前に、Mac mini で 4 本の構成（D-YOUNG＝A、seismic は縛らない）の build で次を測る。(1) E05-N（N 最大≤300 MiB） (2) E05-P と e05y-P（P 最大≤400 MiB。既存の窓の形のまま、新しい窓 ID） (3) 重なりの条件（新しい負荷条件として記録する）: P 負荷の窓の中で、weatherCurrent の最大 VPWS50 の処理または deferred の e05y-P の山と、seismic の観測点 30,000 の VXSE53 の処理と、urgent の EEW が重なる時刻を作り、その区間の RSS の最大を取る（上限は P と同じ 400 MiB） (4) どれかが上限を越えたら配送しない。thread ごとの heap の分けと、次の手の候補（seismic の若い世代に 12 MB の縛り〔D-YOUNG の B〕など）を持って作者へ戻す。報告したことで本契約を閉じない。測る窓では同じ機械で他のゲートを走らせない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
+          "reconstruction/src/host/host.ts:158 «cb154e750655ef9b»",
+          "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»"
         ]
       }
     ],
@@ -388,7 +420,7 @@
         "referenceIds": [
           "P3-SP-AC05"
         ],
-        "behavior": "execution-lifecycle の既存の owner 失敗の試験の形で、seismic の owner を失敗させても urgent の VXSE45 の入力が採用され、U-Q だけが停止に数えられることを見る。既存の試験が場所の一覧で回していれば、seismic の行が加わるだけで新しい it は足さない"
+        "behavior": "execution-lifecycle の既存の owner 失敗・終了の試験の形で 2 つを見る。(1) 通常の運転: seismic の owner を失敗させても urgent の VXSE45 の入力が採用され、U-Q だけが停止に数えられる (2) 終了の波及（今の振る舞いを書き留める）: seismic が U-Q の書込み権を持ったまま失敗し、その後 VXSE45 で U-E が dirty になってから終了を要求すると、最終保存の段が直ちに終わり U-E の最終世代が保存されない。既存の試験が場所の一覧で回していれば (1) は seismic の行が加わるだけで、(2) は既存の『停止した owner が権を持つと段を終える』試験（P3-C3B-AC03）に seismic の場面を 1 つ足す"
       }
     ],
     "requiredCommands": [
@@ -465,13 +497,13 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由。",
-      "AC01 の帰属の表（base、Mac の機種と Node の版、試行数、(a)〜(d) の中央・最大、EEW の投入→T0・T0→T2）と、進んだか止めたか。止めたときはそこまでの成果物だけを返し blocked と書く。",
-      "AC07 の干渉の表（移した後、AC01 と同じ機械）。約 40 ms を越えた項目があれば配送の前に作者へ報告する旨。",
+      "AC01 の帰属の表（base、Mac の機種と Node の版、試行数、2 つの入力それぞれの (a1)(a2)(a3)(b)(c)(d) の中央・最大、EEW の投入→T0・T0→T2）と、進んだか止めたか。止めたときはそこまでの成果物だけを返し blocked と書く。",
+      "AC07 の干渉の表（移した後、AC01 と同じ機械、T0→T2 と T2→T4）。約 40 ms を越えた項目があれば配送の前に作者へ報告する旨（合格条件ではない）。",
       "足した仕組みは無い見込み（場所の値 1 つと一覧の行だけ）。あれば『無いと何が壊れるか』を 1 行。",
       "追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行（T01・T03 は契約境界、T02 は受入条件）。既存の試験の期待値の変更は場所の名前と owner・thread の数・一覧だけの見込みで、それ以外は変える前に差と理由を報告する（Q-SP-EXISTING-TESTS）。",
       "規模の見積もり（起草のコード読みから）: 製品の TS は 5 file・約 15 行（型 1・unit-coverage 1・host の一覧と resourceLimits の条件・composition-root の 2 つの Record と留保の条件・注釈 2）、試験は場所の名前の置換と T02 の it 1 つ、測定の道具の thread 名の一覧 5 か所と母集団 2 つ。1 人日（AC01・AC07 の測定を含む）。実績と差があれば理由を書く。",
       "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
-      "残存リスク（P3-SP-D-PLACE＝A は作者裁定済み〔Q-SP-RULING〕、下の (1)〜(6) は作者の承認待ち、Q-SP-AUTHOR）: (1) 同じ群（other）の音と画面の更新の順が、受信順から処理の終わった順に変わる（P3-SP-D-PLACE の場面 2）。大きな VXSE53 の直後に届いた津波注意報が、地震より先に鳴り・出る。差は Mac で約 0.2 秒、Pi で約 1 秒（推測） (2) 常駐 worker が 1 本増え、RSS が約 15 MiB 増える（MacBook の空の owner、Q-SP-RSS）。E05-N の余りは約 7〜14 MiB で、Mac mini・Pi の値は AC08 まで分からない (3) urgent には U-T・U-V の大きな報（VTSE51・52 の全観測点、大きな VFVO）が残り、その最中の EEW の待ちは本契約で測らない (4) Pi の数（約 1.3 秒の待ち、差 約 1 秒）は Mac の測定に速度差 6.3 倍（計画:239）を掛けた推測で、AC08 の (3) までは確かめていない (5) seismic の owner が止まると U-Q だけが止まる（今は urgent ごと止まる）。止まった間の地震の報は今と同じく拒否に数える (6) VXSE47（notPorted、候補 U-Q）を後で移すとき、場所は unit に従い seismic になる。"
+      "残存リスク（P3-SP-D-PLACE＝A は作者裁定済み〔Q-SP-RULING〕。下の (1)〜(6) は作者の承認待ち、Q-SP-AUTHOR）: (1) 同じ群（other）の音と画面の更新の順が、受信順から処理の終わった順に変わる（U-T の注意報、U-N、U-V。notice-mark.ts:97〜99）。場面: 14:49:00.000 に大きな VXSE53、.050 に津波注意報 → 今は地震の音と画面が先、A では注意報が先。14:50:00.000 に大きな VXSE53、.040 に南海トラフ地震臨時情報（VYSE50、巨大地震注意）→ A では臨時情報の音と画面が先、地震が後。噴火警報（VFVO50）も同じ。差は Mac で約 0.2 秒、Pi で約 1 秒（推計）。旧築は 1 本の thread で受信順に鳴らすので、旧築とも順が違いうる。作者は承知のうえで A を選んだ (2) 常駐 worker が 1 本増え、RSS が約 15 MiB 増える（MacBook の空の owner、Q-SP-RSS）。E05-N の今の余りは分からず（約 7〜14 MiB は U-T・U-Q・U-N・U-V を入れる前の基線からの推計）、E05-P の余りは約 19 MiB。配送の前に AC10 で測り、越えたら配送しない (3) urgent には U-T・U-V の大きな報が残る。場面: 14:46:50.000 に沿岸 191 点の VTSE51（津波観測に関する情報、合法の上界）が urgent で処理中に .005 に EEW の続報が届くと、EEW はその処理を待ち、画面の EEW のカードの更新がその分遅れる。所要は測っていない（corpus の最大は VTSE51 43 KB・VFVO51 45 KB） (4) seismic の owner が止まると U-Q だけが止まる（今は urgent ごと止まり EEW も止まる）。場面: 15:00:00 に seismic が例外で止まると、以後の VXSE51・53 は受け付けずに拒否に数え、画面の地震のカードは止まる直前のまま（新しい震度・震源が出ない）で、worker の状態の表示（DisplayWorkerView）が stopped になる。EEW・津波・南海・火山は出続ける。戻すには人がプロセスを再起動する（自動再起動は無い） (5) seismic が U-Q の書込み権を持ったまま止まると、終了の時に他の unit の最終保存も打ち切られる（今の振る舞いで、weatherCurrent・deferred が止まったときも同じ）。場面: 15:00:00.000 に U-Q の保存の権が seismic へ出て .010 に seismic が止まり、.020 に EEW の続報で U-E が dirty になり、15:00:05 に人がプロセスを止めると、最終保存の段は直ちに終わり、その EEW の最新の版は保存されない。次の起動の画面はその前の保存の版から戻る (6) 受信の継続は約束しない（AC03 の (4)）。場面: 14:46:50 に seismic が 4.89 MB の VXSE53 を処理中に、同じ大きさの VXSE53 が続けて届いて通常枠 14 MiB を越えると、host は接続を切り、mailbox が空になるまで繋ぎ直さない。その間に出た EEW は受信できず、画面の EEW のカードは繋ぎ直すまで更新されない（切れていた間の報の扱いは今の接続回復のまま）（今の背圧と同じで、in-flight の枠が 1 つ増えた分だけ満ちやすい）。承認に出さない注記: Pi の数（約 1.3 秒の待ち、差 約 1 秒）は推計で、AC08 の (3) で確かめる。VXSE47（notPorted、候補 U-Q）を後で移すとき、場所は unit に従い seismic になる。"
     ],
     "unresolvedQuestions": [
       {
@@ -507,7 +539,7 @@
         "resolveBy": "実装の最初（base のまま）",
         "requiredEvidence": [
           "AC01 の帰属の表",
-          "(a) 解凍・XML parse・展開が最大の区分であること。そうでなければ blocked の報告"
+          "2 つの入力の両方で (a2) XML parse が最大の区分であること。そうでなければ blocked の報告"
         ]
       },
       {
@@ -522,6 +554,18 @@
         ]
       },
       {
+        "id": "Q-SP-E05",
+        "owner": "integrator",
+        "blocks": [
+          "配送"
+        ],
+        "resolveBy": "実装のレビューの後・配送の前",
+        "requiredEvidence": [
+          "AC10 の (1)〜(3) の結果（Mac mini、4 本の構成、新しい窓 ID）",
+          "上限を越えたときは作者の裁定（配送しない、次の手の候補つき）"
+        ]
+      },
+      {
         "id": "Q-SP-MEASURE",
         "owner": "integrator",
         "blocks": [
@@ -531,7 +575,6 @@
         "requiredEvidence": [
           "AC08 の (2) Mac mini の E01 の 2 母集団の結果",
           "AC08 の (3) Pi の予備確認の観測最大",
-          "AC08 の (4) E05-N・E05-P の結果（越えたら thread ごとの分け）",
           "構造的欠陥台帳 §100 への追記"
         ]
       }
