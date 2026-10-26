@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fdaf4589b3ccc8b0afed7d1db13c98470d491f72",
-    "sha256": "cd908f8a9165c977d7c3707ebd8395665a58baea9fc7fdf17dc4f6173c14c0ff",
+    "sha256": "6fc0c0e20bd9c30daa43f8d7ea319e9415cc7db7c3f5dbed7a7a8bb6dfd05682",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -41,6 +41,22 @@
         "status": "closed",
         "resolution": "B の波及を行で確かめた（fdaf4589）: (1) frames.mjs は変えない。run.mjs の preflight は frames.mjs の sha256 を initial-state の rulesSource と照らし（run.mjs:1462、initial-state.json:176）、変えると全窓が止まる。B の関数は windows.mjs に置き、frames.mjs の export（dataFrame・fixtureText・shiftTimestamps、windows.mjs:17 で import 済み）だけを使う (2) windows.mjs の行を引く契約は 5 本（分類の窓 P3-E05P-CLASSIFY-001・MH P3-MEASURE-HARNESS-001・WL2 P3-WEATHER-LIGHT-STEP2-001・TYPHOON・SPLIT）で、引かれる行は 29〜1172。:37（replayPump の送る行）はどの契約も引かない。新しい関数を file の末尾（今の 1177 行の後）に置けば、どの契約の行もずれない。:36 と :29 は TYPHOON が引くので変えない (3) E05Y_LOAD・E05Y.peakOffsetMs 305_612・overlayScan の確かめは変えない。凍結の manifest（manifest-dyl-e05y・manifest-e05y・manifest-e05s）は書き換えない (4) 契約の digest: runner は manifest の contractSha256 の鍵の契約を全部、今の text と照らす（run.mjs:1653）。TYPHOON の鍵を持つ既存の manifest 3 本は、fdaf4589 の時点ですでに今の text とずれていて、この照合を通らない: TYPHOON の鍵は manifest-dyl-e05y が 39f19ff8…、manifest-e05y と manifest-e05s が 0837e718… で、今の p3-e05p-typhoon.json の meta.sha256 は 09908436…。SPLIT の鍵は manifest-e05s が f2b9e5a6… で、今の p3-e05y-split.json は 4211b539…（36dc0f7c の上でも同じ値）。だから測り直しは新しい manifestId の凍結で行う（P3-E05Y-AC05(1)① の『本契約の改訂と新しい manifestId で測り直す』どおり、P3-SP-AC10 も新しい窓 ID）。p3.test.ts の T01（P3-E05Y-T01・P3-E05S-T01）は今の契約の text から manifest を作るので、改訂で落ちない (5) 製品への波及: windows.mjs は runner で、reconstruction/src から import されない（git grep 0 件）。版の比べ方（version.ts）・U-Y（typhoon-unit.ts）・旧築（src/）は変えないので、画面と音は変わらない。変わるのは測定の窓の中で U-Y が 03 を採ること（10-14 の測定と同じ姿に戻る）",
         "source": "起草での行の読み（fdaf4589）と git grep"
+      },
+      {
+        "id": "Q-E05YD-RULING",
+        "status": "closed",
+        "source": "作者裁定（2026-10-27 朝、ご主人。判断カード「台帳 100 の配送を止めた理由と、測定の道具の直し」で、画面と音は変わらないと伝えて「A でお願いします」）",
+        "closed": "本契約の実装・測定・配送を進める（判断カードの A）",
+        "remaining": "なし",
+        "reason": "作者の裁定を記録する"
+      },
+      {
+        "id": "Q-E05YD-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-27 朝、HEAD 2cd688db、main 36dc0f7c の上、前例は Q-NM2-PRECHECK）",
+        "closed": "(1) 分岐 P3-E05YD-D-PLACE は統合担当の決め B で確定、起草案の字句は 0 件 (2) check-contract exit 0 (3) allowedPaths の windows.mjs と p3.test.ts は 36dc0f7c の上で本契約の他に変える commit は無い。未 push の台帳 100（l100-impl 32642c02）は p3.test.ts を変える（+22/−4）が、配送の順 (b) で本契約の後に rebase する。host-followup・mailbox-control の branch はどちらの file も変えない (4) src・frames.mjs・version.ts は outOfScope",
+        "remaining": "なし（baseOid は Q-E05YD-BASE で割り当てる）",
+        "reason": "発注前点検を記録する"
       }
     ],
     "operationContract": {
