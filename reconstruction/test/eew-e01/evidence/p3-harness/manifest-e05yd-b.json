@@ -1,0 +1,501 @@
+{
+  "schemaVersion": "p3-e01-manifest-v1",
+  "manifestId": "p3-e05yd-20261027b",
+  "manifestSha256": "264a92586a6db07213c9ddac476ca712fcb0d6152d177fa1c5a1a2e87d25a4a6",
+  "contractSha256": {
+    "P3-E01-REACCEPT-001": "7ac2699e022cc6f14a7984867ceaa6a255acf14cb253a47a4b89ef9c780f4687",
+    "P3-EXECUTION-LIFECYCLE-001": "e84589341f1a592695b0c4df52cec87d21eb70a3ca4828e4e1b92ad94666ce69",
+    "P3-EXECUTION-SPLIT-001": "4b67c402a13bca3ecdf1ade29392d77eb05c4248edbc135c069bc5e795163cea",
+    "P3-DMDATA-CONNECT-001": "f01b9ee92395fd929721a27a484b38363821c8d1d9f22cbf3b403a2c65cc4ba4",
+    "P3-CHECKPOINT-STEP1-001": "bcd6ed377fecb7de3eea85e6f0f910e83d3c607acad4aac5d067d061d8e3c9d2",
+    "P3-UNIT-TABLE-001": "fefaad4db3bc3ceef577ae26be3b65be12fd5bda5fd7be5ee3eee92e4afc5472",
+    "P2-EEW-E01-001": "e20955098b9b6a9bd03e11d9709976bb4e5742e4dc5295c82eb028865f18b61c",
+    "P2-CHROME-EEW-001": "3d2ad4347f1497e2dfa0100e6b8108a7bd99138de5464192bdc3ec0a8e5f52d7",
+    "P2-SNAPSHOT-SSE-001": "032c04a83df11f9ec7a20d52700b3c87de3b5798e6d7c660385d315810e44fe9",
+    "P2-CHECKPOINT-SHUTDOWN-001": "ee6f6fe7fcb361f605bacc0ea3d043499be4bd05c54feb8f4802c254ea2f80de",
+    "P1-PARSER-BOUNDARY-001": "392533673324837e5b7a6d6d975ada97b01002f751225266ea21932130e8cf63",
+    "P3-MEASURE-HARNESS-001": "b6eee41c6277439fa79d51d00728714446795151cad6cbbecd4c4194cac2e5f8",
+    "P3-UNIT-WRITE-RIGHT-001": "c5868cdeb94a8aa14f9075c585c0195306bbd786602fefd20dfe1298ab142b29",
+    "P3-LIFETIME-AND-EEW-GATE-001": "bd44a245ae185adc930d4afefc34ca18100cf3a7f2709968ca42f09ebf701ba6",
+    "P3-TSUNAMI-E01-001": "e07bb60472e9e4ce1f6a95aabd2288371c6d6fd3d7a91d85064a689cf5e59d0b",
+    "P3-WEATHER-LIGHT-002": "7a054b06a57b82981a665fc247b5e988da3c6b4d15b0a80d4682b59c03a56d11",
+    "P3-EEW-GATE-EVICT-001": "82c56e76249c3fcdbea39b1115d243ba85e2a7b5e77c6df1b5c5f7a1884a8ab1",
+    "P3-XML-TREE-COMPACT-001": "43e68430e962563d8bd33ebc789cf29f65e0ae42e48d73cc44c3fff938193e89",
+    "P3-OWNER-YOUNG-LIMIT-001": "9a230c5baf9e1241d27ecceb889f5005d782195bd87a809d724db654633e0488",
+    "P3-E05P-TYPHOON-001": "10dcd162b5a02631cd6679e2b173acf0de100632698fb08ab6a56253ebe628db",
+    "P3-OWNER-YOUNG-LIMIT-002": "3e7ce77580e716b0b56dd9e72b0facfc1164582921efe5e8b1671010bf16335d"
+  },
+  "trialSetupRef": "reconstruction/test/eew-e01/evidence/p3-harness/trial-setup.json",
+  "trialSetupSha256": "b035448a8ce70b930f55b74ff28581d3a9f0b3d324db36f1ca7368ebded51e2a",
+  "smokeConditionsSha256": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9",
+  "smokeConditionDifferences": [
+    "chrome.version: smoke 154.0.8037.58 / manifest 155.0.8059.82",
+    "a10-p2-20260930b からの差 chrome.version: 154.0.8037.92 / 155.0.8059.39",
+    "a10-p2-20260930b からの差 nodeVersion: v22.23.2 / v22.23.3",
+    "a10-p2-20260930b からの差 device: Apple M5 x10, 32GiB / Apple M2 x8, 8GiB",
+    "p3-c4-formal-20261007 からの差 chrome.version: 154.0.8037.98 / 155.0.8059.39",
+    "p3-wyl-e05p-20261012 からの差: 契約の鍵 P3-E05P-TYPHOON-001 を足し、全部の鍵を 841b748e の契約から取り直した（C13・C14 の発注前点検と corpus の更新で既存の 19 本の digest も変わった）。同じ corpus の更新で sequences.json の digest が変わったので o09Subset.sequencesSha256 も取り直した（O09 の列は変わらない）。上乗せの窓（e05y-P-run1〜3、確率の報 VPTA50 を 1 周に 3 通）を足し、C13（P3-UNIT-M-001）・C14（P3-UNIT-Y-001）の配送と上乗せの窓の実装（841b748e）の後の版で測る。機械の値は同じ",
+    "p3-e05y-20261013 からの差: 契約の鍵 P3-OWNER-YOUNG-LIMIT-002 を足し、全部の鍵を c8cc8614 の契約から取り直した（P3-E05P-TYPHOON-001 は状態の記入と host.ts の行の anchor の同期で digest が変わり、ほかの 20 本は変わらない）。sequences.json の digest は変わらず、o09Subset はそのまま。窓（e02-P-run1〜3 と e05y-P-run1〜3 を交互）と条件は同じで、deferred の owner thread の若い世代も 12MiB に縛った後（c8cc8614、D-DYL-E05P、Q-DYL-E05P）の版で測り直す。機械の値は同じ",
+    "p3-dyl-e05y-20261014 からの差: P3-E05Y-CONTROLDT-001（上乗せの 3 通の Control/DateTime を送った秒へ置く、AC03）の測り直し。main 36dc0f7c に本契約と配送の原文の改訂（TYPHOON・SPLIT）を当てた 6d484889（3 本の構成、台帳 100 は入れない）で、全部の鍵をその契約から取り直し、corpus の更新で sequences.json の digest が変わったので o09Subset.sequencesSha256 も取り直した（O09 の列の位置は変わらない）。窓は e05y-P-run1〜3 だけ。Chrome は 155.0.8059.82 に上がった。機械はほかは同じ"
+  ],
+  "measuredSseClients": 1,
+  "notificationProbe": {
+    "desktop": "idle",
+    "sound": "idle"
+  },
+  "loads": {
+    "N": {
+      "id": "N",
+      "fixtureRefs": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__81_01_04_251222_VPWP50",
+        "test__fixtures__10_05_05_200826_VPTW61"
+      ],
+      "ordering": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__81_01_04_251222_VPWP50",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__10_05_05_200826_VPTW61",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_18_01_250630_VPWS50"
+      ],
+      "offsetsMs": [
+        89002,
+        320884,
+        564324,
+        578526,
+        656908,
+        1254877,
+        1595335,
+        1865301,
+        1936127,
+        1936136,
+        1991695,
+        2056120,
+        2089093,
+        2141040,
+        2227748,
+        2237382,
+        2248770,
+        2457518,
+        2681649,
+        2773497,
+        3056118
+      ],
+      "durationMs": 3600000,
+      "sha256": "b80855334399c2daa2ad25f8d12eb6d5f91aa07fe3a55c418c69802624fa96b6"
+    },
+    "P": {
+      "id": "P",
+      "fixtureRefs": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__81_01_04_251222_VPWP50",
+        "test__fixtures__10_05_05_200826_VPTW61"
+      ],
+      "ordering": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__85_01_01_250630_VPFJ51",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_01_241031_VPWW56",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__81_01_04_251222_VPWP50",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_16_07_250825_VPWW61",
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__10_05_05_200826_VPTW61",
+        "test__fixtures__15_17_01_251222_VPWW55",
+        "test__fixtures__15_18_01_250630_VPWS50"
+      ],
+      "offsetsMs": [
+        8900,
+        32088,
+        56432,
+        57853,
+        65691,
+        125488,
+        159534,
+        186530,
+        193613,
+        193614,
+        199170,
+        205612,
+        208909,
+        214104,
+        222775,
+        223738,
+        224877,
+        245752,
+        268165,
+        277350,
+        305612
+      ],
+      "durationMs": 360000,
+      "sha256": "3c03e5e3af2b8869f1bced7032fb94ac9fa5bdfa120fa6a289ad34aa173714a0"
+    },
+    "C": {
+      "id": "C",
+      "fixtureRefs": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+        "test__fixtures__15_16_02_251222_VPWW57",
+        "test__fixtures__37_01_01_240613_VXSE43",
+        "test__fixtures__37_01_03_240613_VXSE43"
+      ],
+      "ordering": [
+        "test__fixtures__15_18_01_250630_VPWS50",
+        "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+        "test__fixtures__15_16_02_251222_VPWW57",
+        "test__fixtures__37_01_01_240613_VXSE43",
+        "test__fixtures__37_01_01_240613_VXSE43",
+        "test__fixtures__37_01_03_240613_VXSE43",
+        "test__fixtures__81_02_01_260605_VPWP50_high_severity"
+      ],
+      "offsetsMs": [
+        0,
+        5000,
+        10000,
+        20000,
+        25000,
+        30000,
+        40000
+      ],
+      "durationMs": 60000,
+      "sha256": "9838917551a5c61789186c7b3e755328c4cd74bc27fab2994c4f5f3a2bd74812"
+    }
+  },
+  "warmupPerRun": 100,
+  "samplesPerRun": 1000,
+  "runCount": 3,
+  "missingAfterMs": 10000,
+  "callbackDeadlineAfterInjectionMs": 10000,
+  "quantile": "nearestRank",
+  "clockProbeEveryMs": 30000,
+  "maxClockIntervalWidthMs": 5,
+  "health": {
+    "loads": [
+      "N",
+      "P"
+    ],
+    "requestEveryMs": 1000,
+    "requestTimeoutMs": 5000,
+    "minSamplesPerRun": 1000,
+    "runCount": 3
+  },
+  "chrome": {
+    "version": "155.0.8059.82",
+    "foregroundTab": true,
+    "viewportCssPx": [
+      1440,
+      900
+    ],
+    "dpr": 2,
+    "motion": "full"
+  },
+  "nodeVersion": "v22.23.3",
+  "osVersion": "27.0.0 arm64",
+  "device": "Apple M2 x8, 8GiB",
+  "geometrySha256": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f",
+  "fixtureSha256": {
+    "test__fixtures__10_05_05_200826_VPTW61": "a94348c1256487a09734456300eb2d21a0e80376ed237015f73f8fcbd808951a",
+    "test__fixtures__15_16_01_241031_VPWW56": "65f7d65759f8aa51e4ce68ec782db60a9ed8ee3fa642355eb5f78645d4cc14f6",
+    "test__fixtures__15_16_02_251222_VPWW57": "1da9236f048e72354f03a6cacecf59a10e0375ce3a589cfd2bc8c87681766cef",
+    "test__fixtures__15_16_07_250825_VPWW61": "30e9c8ac1c7c6e53f646d57b7897361ec88bcbf469e6bc0847e8a65f2626baa5",
+    "test__fixtures__15_17_01_251222_VPWW55": "3200ae7ba06dd194c3731a6bf3fc9a594a4dcc122890a8c011180c65ed645c30",
+    "test__fixtures__15_18_01_250630_VPWS50": "4730b26b18e285be6b6141b1140aa5c2f81ce32907571bdd17e80525e3746981",
+    "test__fixtures__37_01_01_240613_VXSE43": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0",
+    "test__fixtures__37_01_03_240613_VXSE43": "b075dab492ed0369c8dca5203bb9b273a71dd8cdeed4be37a84de00e557fcafc",
+    "test__fixtures__77_01_01_240613_VXSE45": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575",
+    "test__fixtures__81_01_04_251222_VPWP50": "937dbaa1c74e1e182527ea52690ca75a60f1bd674e6ac6dbe97436e55af7bc1a",
+    "test__fixtures__81_02_01_260605_VPWP50_high_severity": "eb4e312044555db07c3e215a93fcda4961845cdb7b2b85f3c7e0461d0f160ccd",
+    "test__fixtures__81_09_01_260605_VPWP50": "f4614dc206b143ef3a9997fecf1ebffaef2f4f9b3000ddd2df0de522bc8cad4b",
+    "test__fixtures__85_01_01_250630_VPFJ51": "76016d81ec4c69dcfc10001c38e428f4da9028b3c4bc970527f44bb265b7ed2f"
+  },
+  "inheritsManifestId": "a10-p2-20260930b",
+  "populations": {
+    "fixedBacklog": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 1370,
+      "trigger": "population=fixedBacklog; spec=§7.5-1; a10=fixedBacklog(formal); r61=P2限定E01 の正式対象; plan=p3-order-plan.md:155; periodMs=1370; 続報方式（同じ EventID の VXSE43 を Serial+1・予測 A/B 交互）を通常負荷 N の再生と同時に投入する; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
+      "stateRef": "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json#populations.fixedBacklog",
+      "stateSha256": "5b1aefdc6a9d1931d26fa9dad757f24e81e72c144b16014beb97eaac62665b74",
+      "establishment": {
+        "kind": "none"
+      },
+      "origin": "T0",
+      "forecast": {
+        "subjects": 1,
+        "encodedBytes": 61113,
+        "saveCondition": "run 開始時に VPWP50 81_01_04 を 1 件入れ、以後 U-F は変更しない（保存は最初の tick で 1 回）",
+        "deadlineCondition": "U-F の validUntil は報告から 49 時間後で、測定中に期限は来ない",
+        "allowed": {
+          "maxSubjects": 2,
+          "maxEncodedBytes": 131072
+        }
+      },
+      "stopCondition": {
+        "maxAttempts": 1200,
+        "maxDurationMs": 2061024
+      },
+      "triggerLeadMs": null
+    },
+    "maxVpws50ParseStarted": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=maxVpws50ParseStarted; spec=§7.5-2; a10=maxVpws50DecodeStarted(reference、起点を full parse 開始に替える); r61=除外4条件の1; plan=p3-order-plan.md:155; periodMs=3000; 最大 VPWS50 15_18_01 を送った 1ms 後に EEW を送り、T0 が full parse 開始（P3-C4-PARSE-MARK）の 0〜5ms 後かつ parse 中なら成立; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
+      "stateRef": "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json#populations.maxVpws50DecodeStarted",
+      "stateSha256": "5b1aefdc6a9d1931d26fa9dad757f24e81e72c144b16014beb97eaac62665b74",
+      "establishment": {
+        "kind": "startOffset",
+        "targetOffsetMs": 1,
+        "acceptedOffsetRangeMs": [
+          0,
+          5
+        ],
+        "span": "population"
+      },
+      "origin": "T0",
+      "forecast": null,
+      "stopCondition": {
+        "maxAttempts": 2081,
+        "maxDurationMs": 7810605
+      },
+      "triggerLeadMs": null
+    },
+    "maxWeatherCheckpointEncodeStarted": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=maxWeatherCheckpointEncodeStarted; spec=§7.5-3; a10=maxWeatherCheckpointEncodeStarted(reference); r61=除外4条件の2; plan=p3-order-plan.md:155; periodMs=3000; VPWW55 を引き金に予測した tick の U-W encode 開始の 1ms 後に EEW を送り、T0 が encode 開始の 0〜5ms 後かつ encode 中なら成立; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
+      "stateRef": "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json#populations.maxWeatherCheckpointEncodeStarted",
+      "stateSha256": "5b1aefdc6a9d1931d26fa9dad757f24e81e72c144b16014beb97eaac62665b74",
+      "establishment": {
+        "kind": "startOffset",
+        "targetOffsetMs": 1,
+        "acceptedOffsetRangeMs": [
+          0,
+          5
+        ],
+        "span": "population"
+      },
+      "origin": "T0",
+      "forecast": null,
+      "stopCondition": {
+        "maxAttempts": 1348,
+        "maxDurationMs": 5118719
+      },
+      "triggerLeadMs": 600
+    },
+    "maxForecastCheckpointSave": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=maxForecastCheckpointSave; spec=§7.5-3(保存); a10=maxForecastCheckpointSave(reference); r61=除外4条件の3; plan=p3-order-plan.md:155; periodMs=3000; VPWP50 81_09_01 を引き金に予測した tick の U-F 保存（encode 開始〜最後の段の終わり）の開始 1ms 後に EEW を送る; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
+      "stateRef": "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json#populations.maxForecastCheckpointSave",
+      "stateSha256": "5b1aefdc6a9d1931d26fa9dad757f24e81e72c144b16014beb97eaac62665b74",
+      "establishment": {
+        "kind": "startOffset",
+        "targetOffsetMs": 1,
+        "acceptedOffsetRangeMs": [
+          0,
+          5
+        ],
+        "span": "population"
+      },
+      "origin": "T0",
+      "forecast": null,
+      "stopCondition": {
+        "maxAttempts": 1424,
+        "maxDurationMs": 5349652
+      },
+      "triggerLeadMs": 600
+    },
+    "forecastDeadlineOverlap": {
+      "scope": "formal",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=forecastDeadlineOverlap; spec=§7.5-3(期限処理); a10=forecastDeadlineOverlap(reference); r61=除外4条件の4; plan=p3-order-plan.md:155; periodMs=3000; validUntil を狙う tick の 1 つ前の tick に VPWP50 81_01_04 を置き、狙う tick の期限回収で起きた U-F の保存の試行全体（encode 開始〜write 完了、span encodeThroughWrite）の開始 1ms 後に EEW を送り、T0 が開始の 0〜5ms 後かつ保存の試行中なら成立。代わりの条件として Q-C4-ALT-CONDITION で 2026-10-07 に固定（元の条件の U-F encode の開始は、期限処理の encode が約 0.3ms で T0 が encode 中に入らず、Mac mini の予備で成立 8.6%）; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
+      "stateRef": "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json#populations.forecastDeadlineOverlap",
+      "stateSha256": "5b1aefdc6a9d1931d26fa9dad757f24e81e72c144b16014beb97eaac62665b74",
+      "establishment": {
+        "kind": "startOffset",
+        "targetOffsetMs": 1,
+        "acceptedOffsetRangeMs": [
+          0,
+          5
+        ],
+        "span": "encodeThroughWrite"
+      },
+      "origin": "T0",
+      "forecast": null,
+      "stopCondition": {
+        "maxAttempts": 1793,
+        "maxDurationMs": 9134516
+      },
+      "triggerLeadMs": 2400
+    },
+    "maxVpws50ReceivedThenEew": {
+      "scope": "reference",
+      "load": "N",
+      "periodMs": 3000,
+      "trigger": "population=maxVpws50ReceivedThenEew; spec=なし(R57 の作者裁定から来た衝突試験); a10=なし(初期状態は maxVpws50DecodeStarted を継承); r61=なし; plan=p3-order-plan.md:155; periodMs=3000; 同じ WS で最大 VPWS50 の frame を送った直後に間を空けず EEW を送り、EEW の実送信の上界（host 時計）が VPWS50 の T1 より前なら成立; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
+      "stateRef": "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json#populations.maxVpws50DecodeStarted",
+      "stateSha256": "5b1aefdc6a9d1931d26fa9dad757f24e81e72c144b16014beb97eaac62665b74",
+      "establishment": {
+        "kind": "sentBeforeLargeFrameIngested"
+      },
+      "origin": "T0",
+      "forecast": null,
+      "stopCondition": {
+        "maxAttempts": 1205,
+        "maxDurationMs": 4525223
+      },
+      "triggerLeadMs": null
+    }
+  },
+  "liveness": {
+    "pingEveryMs": 20000,
+    "maxFrameGapMs": 90000
+  },
+  "auxiliary": {
+    "E03": {
+      "loads": [
+        "N"
+      ],
+      "minSamplesPerRun": 1000,
+      "runCount": 3,
+      "condition": "N を再生しながら VPWS50 15_18_01 を 1200ms 周期で warm-up 20＋1000 件（initial-state の e03Series）。時刻は投入予定の host 壁時計へ平行移動。T2→dispatch 完了 p99≤1 秒、T1→T2 は別計数",
+      "sharesWindowWith": null,
+      "intervalMs": null
+    },
+    "E05": {
+      "loads": [
+        "N",
+        "P"
+      ],
+      "minSamplesPerRun": null,
+      "runCount": 3,
+      "condition": "E02 と同じ窓。launcher の mem 行を 1 秒ごと。上限 N 300MiB・P 400MiB。上乗せの窓（P3-E05P-TYPHOON-001）: 負荷 P の 1 周 360,000ms ごとに確率の報 VPTA50 を 3 通（76_01_01・76_01_02・76_01_03）を offset 300,121・302,121・304,121ms に足し、負荷の列に offset の順に混ぜて送る（窓 e05y-P-run1〜3、3 run）。窓は e02-P-run1〜3 と交互に 3 run ずつ（e02-P-run1・e05y-P-run1・e02-P-run2・e05y-P-run2・e02-P-run3・e05y-P-run3）。上乗せの窓の E02 は報告だけで判定しない。上乗せは loads に入らないのでここに残す: ReplayLoad P-typhoon（windows.mjs の E05Y_LOAD）の sha256 80223ada6a536fda21f25e2a1a084e4fd73f2f92f3091f01251d2e1522921b10、fixture の sha256（corpus の manifest）は 76_01_01_200630_VPTA50 28a3d4aebea47cf494f54b870facb808c87e62425cbb1dea0b39a293d498aa6e・76_01_02_260531_VPTA50 ccc1c45de6d7818066591b1fd63d8b08835adebd129e0bbfc64bb2f59ba0c442・76_01_03_260602_VPTA50 1f7aa65893ce78a43e7fde7330b579d0cc078d1b2e041737ae4b63810d3c5b1d。上乗せの 3 通は windows.mjs の overlayFrame で作り、平行移動の後に Control/DateTime を送った時刻の秒（Z）へ置く（P3-E05Y-CONTROLDT-001）。overlayFrame は frames.mjs の rulesSource の hash の外にある",
+      "sharesWindowWith": "E02（同じ窓の mem 行）",
+      "intervalMs": null
+    },
+    "E06": {
+      "loads": [
+        "C"
+      ],
+      "minSamplesPerRun": null,
+      "runCount": 1,
+      "condition": "保持上限ちょうど（nearCapacity cycleC）から C を 65 周期（initial-state の cycleC）。warm-up 5 周期、定常開始（6 周期目の最初の入力の T0）から 60 分を 10 分 × 6 窓。RSS・heapUsed は mem 行（10 秒）、FD は lsof -n -P -p を 60 秒ごと。閾値は置かず報告。spec §9.9 の 3 式の判定はこの C の 65 周期の窓で行う。超過したときの原因の分類（--expose-gc 後の RSS・数時間の窓など、台帳61）は、条件（GC の時点・長さ・負荷）を決めた別の窓を新しい manifestId で統合担当が発注して行い、この manifest には含めない。超過の原因が未分類のあいだは E06 を Pass と呼ばない（AC06）",
+      "sharesWindowWith": null,
+      "intervalMs": null
+    },
+    "E07": {
+      "loads": [
+        "N",
+        "C"
+      ],
+      "minSamplesPerRun": null,
+      "runCount": 1,
+      "sharesWindowWith": null,
+      "condition": "P3-C3B-E07-WINDOW=A のとき: N と C の各 60 分。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定 5 秒、入力停止から 10 秒以内に入力 mailbox の pending・in-flight が 0、C の warm-up 後の周期末 backlog の件数・byte が前周期末以下。窓の中で owner が停止・unresponsive なら Fail（工程 2 で窓を作る）",
+      "intervalMs": null
+    },
+    "E12": {
+      "loads": [],
+      "minSamplesPerRun": null,
+      "runCount": 3,
+      "condition": "小型 VXSE45 77_01_01 を 200 件・200ms（Serial +1）、大型 VPWP50 81_09_01 を 30 件・2 秒、最大 VPWS50 15_18_01 を 30 件・2 秒（weather は k 番目の全時刻を基準の壁時計 + k × 周期へ平行移動、frames.mjs e12Frames）。class ごとに旧新を別実行、空状態、同じ Node 22、--heap-prof。旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない",
+      "sharesWindowWith": null,
+      "intervalMs": null
+    },
+    "E15": {
+      "loads": [
+        "P",
+        "C"
+      ],
+      "minSamplesPerRun": null,
+      "runCount": null,
+      "sharesWindowWith": "E02-P・E05-P・AC15・E06（A10 と同じ保持上限の窓）",
+      "condition": "write の帰属不能 0（thread ごとの write 別計数と CheckpointMeasurement・診断 record の帰属が区分ごとに一致）、保存と診断の write の別計数、保存前段の同期区間の占有、verify 段の読んだ bytes の別計数（encode・write へ足さない）。write 別計数は工程 2 で入る",
+      "intervalMs": null
+    },
+    "E14": {
+      "loads": [
+        "P"
+      ],
+      "minSamplesPerRun": 60,
+      "runCount": 1,
+      "sharesWindowWith": null,
+      "intervalMs": 20000,
+      "condition": "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す（VXSE45 は訂正、通知の backend は silent、前の束の保存を待たない）。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）"
+    },
+    "ownerHeap": {
+      "loads": [
+        "N"
+      ],
+      "minSamplesPerRun": 100,
+      "runCount": 1,
+      "sharesWindowWith": null,
+      "condition": "P3-C4-OWNER-HEAP=B': E03 と同じ最大 VPWS50 の入力・初期状態で、inputDone の返信ごとの owner の heap（大型処理の直後の値）を取る補助窓。E01・E03・衝突の窓では inputDone に heap を載せない",
+      "intervalMs": null
+    }
+  },
+  "o09Subset": {
+    "sequenceId": "O09",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "positions": [
+      1,
+      2,
+      11,
+      12
+    ]
+  },
+  "machines": {
+    "formal": "Mac mini（Apple M2 8 コア〔P4＋E4〕・8GiB・Mac14,3、macOS 27.0.1〔26A434〕。独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d。凍結から正式測定まで Chrome の自動更新を止める）。E01 ほか正式の窓の通知は real backend で、窓の前に出力をミュートする（osascript -e 'set volume with output muted'。backend の spawn・close は製品のまま）",
+    "gate": "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）",
+    "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）"
+  },
+  "judgmentPlaces": {
+    "E01": "Pi backend＋実接続経路＋Mac mini の Chrome（P5）。C4 の Mac mini の結果は e01:93 の再検収と E01 の正式再検収（R61）の判定",
+    "E02": "Pi（P5）",
+    "E03": "Pi（P5）。Mac は回帰検出、Pi 予備確認は P3-C4-PI-E03",
+    "E05": "Pi（P5）",
+    "E06": "Pi（P5）",
+    "E07": "Pi（P5）",
+    "E14": "Pi（P5）",
+    "E15": "Pi（P5）"
+  }
+}
