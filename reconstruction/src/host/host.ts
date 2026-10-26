@@ -14,7 +14,7 @@ import { ingestXmlData } from "../ingress/ingress";
 import type { ParsedFrame } from "../ingress/ingress";
 import { resolveRepoPath } from "../notification-delivery/adapter";
 import type { ExecutionPlace, OwnerReply, OwnerStartData } from "../../contracts/p3-execution-split.types";
-import { RuntimeCompositionRoot, linkedUnitCodecs } from "../runtime/composition-root";
+import { RuntimeCompositionRoot, linkedUnitCodecs, places } from "../runtime/composition-root";
 import { completeDiagnostic } from "../runtime/runtime-diagnostic";
 import { closeSocket, listSockets, startSocket } from "./dmdata-rest";
 
@@ -97,7 +97,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     onSerialize: ({ version, bytes, durationMs }) => emit({ kind: "publishSerialization", displayVersion: version, bytes, durationMs }), detail: (request) => root.requestDetail(request),
   });
 
-  // P3-C3A-AC01: three resident owner threads (dist worker entry), created once here, never per input or request.
+  // P3-C3A-AC01: one resident owner thread per execution place (dist worker entry), created once here, never per input or request.
   const workers = new Map<ExecutionPlace, Worker>();
   let root: RuntimeCompositionRoot;
   // From the worker close stage (and on a failed start) an owner's exit is expected and is not a failure (P3-C3B).
@@ -153,9 +153,10 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   let startAsked: ClockReading | null = null;
   try {
     const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
-    for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
+    // P3-SP-AC02 (2): root と同じ一覧で立てる（足し忘れた場所の入力は owner の無いまま mailbox に残る）。
+    for (const place of places) {
       const worker = new Worker(entry, { workerData: { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: performance.timeOrigin,
-        measured: config.observe != null, inputHeap: config.observe != null && config.measureInputHeap === true } satisfies OwnerStartData, ...(place === "urgent" ? {} : { resourceLimits: { maxYoungGenerationSizeMb: 12 } }) }); // weatherCurrent は E05-P の山の若い世代の広がり（J2、P3-WYL-RES-01、作者裁定 D-WYL-NEXT）、deferred は e05y-P の山の区間の heap の枠の広がり（S1V、P3-DYL-RES-01、作者裁定 D-DYL-NEXT）なので縛る。urgent は回収の増えを EEW・津波に持ち込まないよう縛らない。古い世代は縛らない
+        measured: config.observe != null, inputHeap: config.observe != null && config.measureInputHeap === true } satisfies OwnerStartData, ...(place === "urgent" || place === "seismic" ? {} : { resourceLimits: { maxYoungGenerationSizeMb: 12 } }) }); // weatherCurrent は E05-P の山の若い世代の広がり（J2、P3-WYL-RES-01、作者裁定 D-WYL-NEXT）、deferred は e05y-P の山の区間の heap の枠の広がり（S1V、P3-DYL-RES-01、作者裁定 D-DYL-NEXT）なので縛る。urgent は回収の増えを EEW・津波に持ち込まないよう縛らない。seismic は震度速報の処理を延ばさないよう縛らない（P3-SP-D-YOUNG=A）。古い世代は縛らない
       workers.set(place, worker);
       worker.on("message", (reply: OwnerReply) => {
         // AC13: T2 and decode are the owner's times, so they are observed before the reply is projected (T3).

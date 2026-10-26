@@ -860,7 +860,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
   });
 });
 
-describe("P3-C3A host with the three dist owner threads (TEST-PATH (3))", () => {
+describe("P3-C3A host with the dist owner threads (TEST-PATH (3))", () => {
   const fixtureText = (name: string) => readFileSync(`test/fixtures/${name}.xml`, "utf8");
   const marker = (observations: readonly P2HostObservation[], point: "T0" | "T1" | "T2", inputId: string) =>
     observations.flatMap((o) => o.kind === "marker" && o.point === point && "inputId" in o && o.inputId === inputId ? [o.monotonicMs] : [])[0];
@@ -877,11 +877,15 @@ describe("P3-C3A host with the three dist owner threads (TEST-PATH (3))", () => 
     const reduces = (["U-E", "U-W", "U-F"] as const).flatMap((unit) =>
       [vi.spyOn(linkedUnitTable[unit], "reduce"), vi.spyOn(linkedUnitTable[unit], "toView")]);
     decodes.count = 0;
+    owners.workerData.length = 0;
     const server = await localServer();
     const observations: P2HostObservation[] = [];
     const dirs = await directories();
     const host = await start(server.url, dirs, observations);
-    expect(owners.live.size).toBe(3);
+    // P3-SP-T01: 立つ owner は 4 本で、場所は ExecutionPlace の全部。
+    expect(owners.live.size).toBe(4);
+    expect(owners.workerData.map((data) => /"place":"(\w+)"/.exec(JSON.stringify(data))?.[1]).sort())
+      .toEqual(["deferred", "seismic", "urgent", "weatherCurrent"]);
     const stream = await events(host.displayPort);
     await until(() => server.sockets.length === 1);
     server.sockets[0].send(dataFrame("VPWS50", fixtureText("15_18_01_250630_VPWS50")));
@@ -1038,8 +1042,8 @@ describe("P3-C4-T11 contractBoundary / AC13(4): the ownerHeap rows (P3-C4-OWNER-
     owners.workerData.length = 0;
     const host = await startP2Host({ wsUrl: server.url, ...await directories(), displayPort: 0, clock, measureInputHeap: true, observe: null });
     cleanups.push(() => host.stop().then(() => {}, () => {}));
-    expect(owners.workerData.map((data) => JSON.stringify(data).includes('"inputHeap":true'))).toEqual([false, false, false]);
-    expect(owners.workerData.map((data) => JSON.stringify(data).includes('"measured":false'))).toEqual([true, true, true]);
+    expect(owners.workerData.map((data) => JSON.stringify(data).includes('"inputHeap":true'))).toEqual([false, false, false, false]);
+    expect(owners.workerData.map((data) => JSON.stringify(data).includes('"measured":false'))).toEqual([true, true, true, true]);
     await host.stop();
   });
 });

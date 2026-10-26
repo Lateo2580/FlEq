@@ -9,9 +9,11 @@ import type {
   EewReferencePopulation,
   EewTrialSetup,
 } from "../../../contracts/p2-eew-e01.types";
-import type { P3E01Manifest, P3EewEstablishment, P3EewPopulation, P3EewPopulationCondition } from "../../../contracts/p3-e01-reaccept.types";
 import type {
-  ChromeTsunamiMarkerDetail, P3TsunamiCondition, P3TsunamiE01Manifest, P3TsunamiEstablishment, P3TsunamiPopulation, P3TsunamiPopulationCondition,
+  P3E01Manifest, P3EewEstablishment, P3EewPopulation, P3EewPopulationCondition, P3SeismicCollisionPopulation,
+} from "../../../contracts/p3-e01-reaccept.types";
+import type {
+  ChromeTsunamiMarkerDetail, P3TsunamiCollisionPopulation, P3TsunamiCondition, P3TsunamiE01Manifest, P3TsunamiEstablishment, P3TsunamiPopulation, P3TsunamiPopulationCondition,
   P3TsunamiSeries, P3TsunamiSmokeConditions, P3TsunamiTransitionTemplate,
 } from "../../../contracts/p3-tsunami-e01.types";
 import type { TsunamiAreaClass, TsunamiAreaTransition } from "../../../contracts/p3-tsunami-unit.types";
@@ -213,7 +215,9 @@ function verifyFrozenManifest(input: Readonly<{
 
 const P3_POPULATIONS: readonly P3EewPopulation[] = ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted",
   "maxForecastCheckpointSave", "forecastDeadlineOverlap", "maxVpws50ReceivedThenEew"];
-const LEAD_POPULATIONS: ReadonlySet<P3EewPopulation> = new Set(["maxWeatherCheckpointEncodeStarted", "maxForecastCheckpointSave", "forecastDeadlineOverlap"]);
+// P3-SP-D-POPULATION=A: 台帳 100 の衝突の参考の母集団。凍結した 6 母集団と分けて manifest の collisionPopulations に置く。
+const SEISMIC_COLLISION_POPULATIONS: readonly P3SeismicCollisionPopulation[] = ["maxVxse53ReceivedThenEew"];
+const LEAD_POPULATIONS: ReadonlySet<string> = new Set(["maxWeatherCheckpointEncodeStarted", "maxForecastCheckpointSave", "forecastDeadlineOverlap"]);
 const P3_ESTABLISHMENT: Readonly<Record<P3EewPopulation, P3EewEstablishment["kind"]>> = {
   fixedBacklog: "none", maxVpws50ParseStarted: "startOffset", maxWeatherCheckpointEncodeStarted: "startOffset",
   maxForecastCheckpointSave: "startOffset", forecastDeadlineOverlap: "startOffset", maxVpws50ReceivedThenEew: "sentBeforeLargeFrameIngested",
@@ -355,7 +359,9 @@ function readSharedP3(m: Json) {
   };
 }
 function readP3Manifest(v: unknown): P3E01Manifest {
-  const m = exactKeys(v, MANIFEST_KEYS, "manifest");
+  // collisionPopulations は載せた manifest だけが持つ（無い manifest は今の鍵の集合のまま、P3-SP-AC08 (1)）。
+  const collision = Object.hasOwn(obj(v, "manifest"), "collisionPopulations");
+  const m = exactKeys(v, collision ? [...MANIFEST_KEYS, "collisionPopulations"] : MANIFEST_KEYS, "manifest");
   const populations = exactKeys(m["populations"], P3_POPULATIONS, "manifest.populations");
   const auxiliary = exactKeys(m["auxiliary"], ["E03", "E05", "E06", "E07", "E12", "E14", "E15", "ownerHeap"], "manifest.auxiliary");
   const places = exactKeys(m["judgmentPlaces"], ["E01", "E02", "E03", "E05", "E06", "E07", "E14", "E15"], "manifest.judgmentPlaces");
@@ -370,6 +376,8 @@ function readP3Manifest(v: unknown): P3E01Manifest {
     populations: { fixedBacklog: population("fixedBacklog"), maxVpws50ParseStarted: population("maxVpws50ParseStarted"),
       maxWeatherCheckpointEncodeStarted: population("maxWeatherCheckpointEncodeStarted"), maxForecastCheckpointSave: population("maxForecastCheckpointSave"),
       forecastDeadlineOverlap: population("forecastDeadlineOverlap"), maxVpws50ReceivedThenEew: population("maxVpws50ReceivedThenEew") },
+    ...(collision ? { collisionPopulations: { maxVxse53ReceivedThenEew: readCondition(exactKeys(m["collisionPopulations"], SEISMIC_COLLISION_POPULATIONS,
+      "manifest.collisionPopulations")["maxVxse53ReceivedThenEew"], "population maxVxse53ReceivedThenEew") } } : {}),
     auxiliary: { E03: aux("E03"), E05: aux("E05"), E06: aux("E06"), E07: aux("E07"), E12: aux("E12"), E14: aux("E14"), E15: aux("E15"), ownerHeap: aux("ownerHeap") },
     judgmentPlaces: { E01: place("E01"), E02: place("E02"), E03: place("E03"), E05: place("E05"), E06: place("E06"), E07: place("E07"), E14: place("E14"), E15: place("E15") },
     o09Subset: { sequenceId: exactly(o09["sequenceId"], "O09", "o09Subset positions must be steps of O09"),
@@ -419,20 +427,24 @@ function verifyFrozenP3Manifest(input: Readonly<{
   verifyContractHashes(m.contractSha256, input.contractTexts);
 
   need(Object.keys(m.populations).length === P3_POPULATIONS.length, "populations must be exactly the six");
-  for (const key of P3_POPULATIONS) {
-    const p = m.populations[key];
+  need(m.collisionPopulations == null || Object.hasOwn(m.contractSha256, "P3-SEISMIC-PLACE-001"), "contractSha256 lacks P3-SEISMIC-PLACE-001 (collisionPopulations)");
+  const conditions: readonly (readonly [string, P3EewPopulationCondition, P3EewEstablishment["kind"]])[] = [
+    ...P3_POPULATIONS.map((key) => [key, m.populations[key], P3_ESTABLISHMENT[key]] as const),
+    ...SEISMIC_COLLISION_POPULATIONS.flatMap((key) => m.collisionPopulations == null ? [] : [[key, m.collisionPopulations[key], "sentBeforeLargeFrameIngested"] as const])];
+  for (const [key, p, kind] of conditions) {
     need(p != null && Object.hasOwn(m.loads, p.load) && Number.isFinite(p.periodMs) && p.periodMs > 0 && nonEmpty(p.trigger), `population ${key}`);
     const state = /#populations\.(.+)$/.exec(p.stateRef)?.[1];
     need(p.stateRef === `${t.initialStateRef}#populations.${state}` && state != null && Object.hasOwn(states, state) && p.stateSha256 === t.initialStateSha256,
       `population ${key} state is not the inherited initial state`);
     const e = p.establishment;
-    need(e.kind === P3_ESTABLISHMENT[key] && (e.kind !== "startOffset" || (e.targetOffsetMs === 1 && e.acceptedOffsetRangeMs[0] === 0 && e.acceptedOffsetRangeMs[1] === 5
+    need(e.kind === kind && (e.kind !== "startOffset" || (e.targetOffsetMs === 1 && e.acceptedOffsetRangeMs[0] === 0 && e.acceptedOffsetRangeMs[1] === 5
       && (e.span === "population" || (e.span === "encodeThroughWrite" && key === "forecastDeadlineOverlap")))), `population ${key} establishment`);
     // P3-C4-AC13(1): lead は保存・期限回収の母集団だけ。
     need(LEAD_POPULATIONS.has(key) ? typeof p.triggerLeadMs === "number" && Number.isFinite(p.triggerLeadMs) && p.triggerLeadMs > 0 : p.triggerLeadMs === null,
       `population ${key} triggerLeadMs`);
     const scopeOrigin = `${p.scope}/${p.origin}`;
-    need(key === "maxVpws50ReceivedThenEew" ? ["reference/T0", "formal/injectorSend"].includes(scopeOrigin) : scopeOrigin === "formal/T0", `population ${key} scope/origin`);
+    need(key === "maxVpws50ReceivedThenEew" ? ["reference/T0", "formal/injectorSend"].includes(scopeOrigin)
+      : scopeOrigin === (kind === "sentBeforeLargeFrameIngested" ? "reference/T0" : "formal/T0"), `population ${key} scope/origin`);
     need(key === "fixedBacklog" ? p.forecast != null && forecastWithinAllowance({ formal: { forecast: p.forecast } }, p.forecast)
       && nonEmpty(p.forecast.saveCondition) && nonEmpty(p.forecast.deadlineCondition) : p.forecast == null, `population ${key} forecast`);
     const s = p.stopCondition;
@@ -459,7 +471,9 @@ function verifyFrozenP3Manifest(input: Readonly<{
 
 // ── P3-TSUNAMI-E01-001（C6）: 津波の manifest の凍結境界（AC10）。C4 の凍結 manifest を継ぎ、5 つの template と 8 母集団の条件を足す ──
 const P3_TSUNAMI_SERIES: readonly P3TsunamiSeries[] = ["escalation", "deescalation"];
-const P3_TSUNAMI_CONDITIONS: readonly P3TsunamiCondition[] = ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"];
+const P3_TSUNAMI_CONDITIONS: readonly Exclude<P3TsunamiCondition, "maxVxse53Received">[] = ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"];
+// P3-SP-D-POPULATION=A: 衝突の参考の母集団（collisionPopulations）。発令系の issued だけを回す。
+const P3_TSUNAMI_COLLISION_POPULATIONS: readonly P3TsunamiCollisionPopulation[] = ["escalation:maxVxse53Received"];
 const P3_TSUNAMI_POPULATIONS: readonly P3TsunamiPopulation[] = P3_TSUNAMI_SERIES.flatMap((series) =>
   P3_TSUNAMI_CONDITIONS.map((condition): P3TsunamiPopulation => `${series}:${condition}`));
 // P3-C5-E01-SERIES の系列の中の遷移（試行ごとにこの順で回す）。
@@ -471,11 +485,11 @@ const AREA_CLASSES: readonly TsunamiAreaClass[] = ["majorWarning", "warning", "a
 // P3-C6-CONDITIONS=A: 条件ごとの成立の種類と、継ぐ C4 の母集団（EEW 同時は通常 backlog の負荷）。
 const TSUNAMI_ESTABLISHMENT: Readonly<Record<P3TsunamiCondition, P3TsunamiEstablishment["kind"]>> = {
   fixedBacklog: "primeSettled", maxVpws50ParseStarted: "primeSettledStartOffset", maxWeatherCheckpointEncodeStarted: "primeSettledStartOffset",
-  eewTogether: "primeSettledEewOrder",
+  eewTogether: "primeSettledEewOrder", maxVxse53Received: "primeSettledSentBeforeLargeFrameIngested",
 };
 const TSUNAMI_INHERITS: Readonly<Record<P3TsunamiCondition, P3TsunamiPopulationCondition["inheritsC4Population"]>> = {
   fixedBacklog: "fixedBacklog", maxVpws50ParseStarted: "maxVpws50ParseStarted", maxWeatherCheckpointEncodeStarted: "maxWeatherCheckpointEncodeStarted",
-  eewTogether: "fixedBacklog",
+  eewTogether: "fixedBacklog", maxVxse53Received: "fixedBacklog",
 };
 const EVENT_ID = /^\d{14}$/;
 
@@ -508,7 +522,8 @@ function readEventIds(v: unknown, what: string): P3TsunamiPopulationCondition["t
   return { warmup: text(o["warmup"], `${what}.warmup`), formalByRun: [formal[0]!, formal[1]!, formal[2]!] };
 }
 function readTsunamiEstablishment(v: unknown, what: string): P3TsunamiEstablishment {
-  const kind = oneOf(obj(v, `${what}.establishment`)["kind"], ["primeSettled", "primeSettledStartOffset", "primeSettledEewOrder"], `${what}.establishment.kind`);
+  const kind = oneOf(obj(v, `${what}.establishment`)["kind"], ["primeSettled", "primeSettledStartOffset", "primeSettledEewOrder", "primeSettledSentBeforeLargeFrameIngested"],
+    `${what}.establishment.kind`);
   const o = exactKeys(v, kind === "primeSettledStartOffset" ? ["kind", "startOffset"] : ["kind"], `${what} establishment`);
   if (kind !== "primeSettledStartOffset") return { kind };
   const startOffset = readEstablishment(o["startOffset"], what);
@@ -524,7 +539,7 @@ function readTsunamiCondition(v: unknown, what: string): P3TsunamiPopulationCond
     trigger: text(o["trigger"], `${what}.trigger`), stateRef: text(o["stateRef"], `${what}.stateRef`), stateSha256: text(o["stateSha256"], `${what}.stateSha256`),
     stopCondition: { maxAttempts: count(stop["maxAttempts"], `${what}.stopCondition.maxAttempts`), maxDurationMs: count(stop["maxDurationMs"], `${what}.stopCondition.maxDurationMs`) },
     triggerLeadMs: countOrNull(o["triggerLeadMs"], `${what}.triggerLeadMs`), series: oneOf(o["series"], P3_TSUNAMI_SERIES, `${what}.series`),
-    condition: oneOf(o["condition"], P3_TSUNAMI_CONDITIONS, `${what}.condition`),
+    condition: oneOf(o["condition"], [...P3_TSUNAMI_CONDITIONS, "maxVxse53Received"], `${what}.condition`),
     inheritsC4Population: oneOf(o["inheritsC4Population"], ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted"], `${what}.inheritsC4Population`),
     transitions: list(o["transitions"], (x, w) => oneOf(x, TRANSITIONS, w), `${what}.transitions`), establishment: readTsunamiEstablishment(o["establishment"], what),
     primeLeadMs: count(o["primeLeadMs"], `${what}.primeLeadMs`), tsunamiEventIds: readEventIds(o["tsunamiEventIds"], `${what}.tsunamiEventIds`),
@@ -534,7 +549,9 @@ function readTsunamiCondition(v: unknown, what: string): P3TsunamiPopulationCond
 const TSUNAMI_MANIFEST_KEYS = [...MANIFEST_KEYS.filter((k) => k !== "auxiliary"), "templates", "coastSha256", "smokeConditionsRef", "differencesFromC4",
   "capacityExpectation"];
 function readP3TsunamiManifest(v: unknown): P3TsunamiE01Manifest {
-  const m = exactKeys(v, TSUNAMI_MANIFEST_KEYS, "manifest");
+  // collisionPopulations は載せた manifest だけが持つ（P3-SP-AC08 (1)）。
+  const collision = Object.hasOwn(obj(v, "manifest"), "collisionPopulations");
+  const m = exactKeys(v, collision ? [...TSUNAMI_MANIFEST_KEYS, "collisionPopulations"] : TSUNAMI_MANIFEST_KEYS, "manifest");
   const populations = exactKeys(m["populations"], P3_TSUNAMI_POPULATIONS, "manifest.populations");
   const places = exactKeys(m["judgmentPlaces"], ["E01"], "manifest.judgmentPlaces");
   const o09 = exactKeys(m["o09Subset"], ["sequenceId", "sequencesSha256", "positions"], "o09Subset");
@@ -549,6 +566,8 @@ function readP3TsunamiManifest(v: unknown): P3TsunamiE01Manifest {
       "escalation:maxWeatherCheckpointEncodeStarted": population("escalation:maxWeatherCheckpointEncodeStarted"), "escalation:eewTogether": population("escalation:eewTogether"),
       "deescalation:fixedBacklog": population("deescalation:fixedBacklog"), "deescalation:maxVpws50ParseStarted": population("deescalation:maxVpws50ParseStarted"),
       "deescalation:maxWeatherCheckpointEncodeStarted": population("deescalation:maxWeatherCheckpointEncodeStarted"), "deescalation:eewTogether": population("deescalation:eewTogether") },
+    ...(collision ? { collisionPopulations: { "escalation:maxVxse53Received": readTsunamiCondition(exactKeys(m["collisionPopulations"], P3_TSUNAMI_COLLISION_POPULATIONS,
+      "manifest.collisionPopulations")["escalation:maxVxse53Received"], "population escalation:maxVxse53Received") } } : {}),
     coastSha256: text(m["coastSha256"], "coastSha256"), smokeConditionsRef: text(m["smokeConditionsRef"], "smokeConditionsRef"),
     differencesFromC4: list(m["differencesFromC4"], (x, w) => {
       const d = exactKeys(x, ["path", "c4", "c6", "reason"], w);
@@ -636,10 +655,14 @@ function verifyFrozenP3TsunamiManifest(input: Readonly<{
 
   const eventIds: string[] = [];
   const differs = new Set(m.differencesFromC4.map((d) => d.path));
-  for (const key of P3_TSUNAMI_POPULATIONS) {
-    const p = m.populations[key];
-    need(`${p.series}:${p.condition}` === key && p.scope === "formal", `population ${key}`);
-    need(JSON.stringify(p.transitions) === JSON.stringify(SERIES_TRANSITIONS[p.series]), `population ${key} transitions`);
+  need(m.collisionPopulations == null || Object.hasOwn(m.contractSha256, "P3-SEISMIC-PLACE-001"), "contractSha256 lacks P3-SEISMIC-PLACE-001 (collisionPopulations)");
+  const conditions: readonly (readonly [string, P3TsunamiPopulationCondition, boolean])[] = [
+    ...P3_TSUNAMI_POPULATIONS.map((key) => [key, m.populations[key], false] as const),
+    ...P3_TSUNAMI_COLLISION_POPULATIONS.flatMap((key) => m.collisionPopulations == null ? [] : [[key, m.collisionPopulations[key], true] as const])];
+  for (const [key, p, collision] of conditions) {
+    // 衝突の参考の母集団は scope reference で発令系の issued だけ（P3-SP-D-POPULATION=A）。ほかは正式で系列の遷移の全部。
+    need(`${p.series}:${p.condition}` === key && p.scope === (collision ? "reference" : "formal"), `population ${key}`);
+    need(JSON.stringify(p.transitions) === JSON.stringify(collision ? ["issued"] : SERIES_TRANSITIONS[p.series]), `population ${key} transitions`);
     need(p.inheritsC4Population === TSUNAMI_INHERITS[p.condition], `population ${key} inheritsC4Population`);
     const c4p = obj(c4Populations[p.inheritsC4Population], `inherited population ${p.inheritsC4Population}`);
     need(p.load === c4p["load"] && p.stateRef === c4p["stateRef"] && p.stateSha256 === c4p["stateSha256"], `population ${key} load/state differ from ${c4Id}`);
@@ -718,5 +741,5 @@ function tsunamiMarkerDetail(detail: Record<string, unknown>, displayVersion: Di
   return { name: "fleq:p3:tsunami:T6-candidate", displayVersion, operation, subject, present, cardMarkerId, coastMarkerId, areas: painted };
 }
 
-export { ZERO_HASH, HARNESS_TRIAL_SETUP, nonEmpty, REFERENCE_POPULATIONS, P3_POPULATIONS, P3_TSUNAMI_POPULATIONS, SERIES_TRANSITIONS, verifyFrozenP3Manifest,
+export { ZERO_HASH, HARNESS_TRIAL_SETUP, nonEmpty, REFERENCE_POPULATIONS, P3_POPULATIONS, P3_TSUNAMI_POPULATIONS, P3_TSUNAMI_COLLISION_POPULATIONS, SEISMIC_COLLISION_POPULATIONS, SERIES_TRANSITIONS, verifyFrozenP3Manifest,
   verifyFrozenP3TsunamiManifest, verifyTsunamiSmokeConditions, sha256Hex, readSelfHashed, sealSelfHash, verifyChromeSmokeConditions, verifyFrozenManifest, forecastWithinAllowance, parseChromeMarkerDetail };

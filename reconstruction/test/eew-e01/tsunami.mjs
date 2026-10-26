@@ -114,7 +114,7 @@ const SERIES = ["escalation", "deescalation"];
 const CONDITIONS = ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"];
 const SERIES_TRANSITIONS = { escalation: ["issued", "upgraded", "expanded"], deescalation: ["released", "downgraded"] };
 const INHERITS = { fixedBacklog: "fixedBacklog", maxVpws50ParseStarted: "maxVpws50ParseStarted", maxWeatherCheckpointEncodeStarted: "maxWeatherCheckpointEncodeStarted",
-  eewTogether: "fixedBacklog" };
+  eewTogether: "fixedBacklog", maxVxse53Received: "fixedBacklog" };
 // 母集団 ID ↔ spec§7.5 の系列と条件 ↔ C4 の母集団 ↔ O09 の位置 ↔ 計画の行（AC01 の対応表）。trigger の文字列に入れて manifest の hash に固定する。
 const O09_ROWS = { escalation: { fixedBacklog: "23・32・41", maxVpws50ParseStarted: "24・33・42", maxWeatherCheckpointEncodeStarted: "25・34・43", eewTogether: "26・35・44" },
   deescalation: { fixedBacklog: "50・59", maxVpws50ParseStarted: "51・60", maxWeatherCheckpointEncodeStarted: "52・61", eewTogether: "53・62" } };
@@ -123,7 +123,11 @@ const HOW = {
   maxVpws50ParseStarted: "prime の primeLeadMs 後に最大 VPWS50 15_18_01（引き金）を送り、C4 と同じ自己較正（P3-C4-AC13(7)）で full parse 開始の 1ms 後に target を送る（prime は target の予測時刻ではなく引き金の送信の primeLeadMs 前。差は parse 開始までの数 ms で、differencesFromC4 の primeTiming）",
   maxWeatherCheckpointEncodeStarted: "prime の primeLeadMs 後に VPWW55（引き金）を送り、直近 10 試行の「引き金を含む U-W の encode 開始 − 実送信」の中央値（無い間は triggerLeadMs）の 1ms 後に target を送る（UWR の後の版の較正、Q-C6-IMPL-AMEND (10)。C4 は 1 秒の tick の予測）",
   eewTogether: "prime の primeLeadMs 後に VXSE45（窓ごとに 1 つの EventID、Serial+1・予想 A/B 交互）を送り、間を空けずに同じ WS で target を送る",
+  maxVxse53Received: "prime の primeLeadMs 後に観測点 30,000 の VXSE53（run.mjs の stations30k）を送り、間を空けずに同じ WS で target を送る。target の実送信の上界（host 時計）が VXSE53 の T1 より前なら成立",
 };
+// P3-SP-D-POPULATION=A（P3-SEISMIC-PLACE-001 の AC08 (1)）: 衝突の参考の母集団。8 母集団と分けて collisionPopulations に置き、発令系の issued だけを回す。
+const COLLISION = { key: "escalation:maxVxse53Received", series: "escalation", condition: "maxVxse53Received", index: 8, transitions: ["issued"],
+  fixture: "telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825" };
 export const O09_POSITIONS = [13, 14, 15, 16, 17, 18, 23, 24, 25, 26, 32, 33, 34, 35, 41, 42, 43, 44, 50, 51, 52, 53, 59, 60, 61, 62];
 // 窓の EventID（14 桁）: 2026100906 + 種別（1 津波・2 EEW）+ 母集団の番号 + 区分（0 warm-up・1 正式）+ run（warm-up は 0）。
 export const windowEventId = (kind, populationIndex, phase, run) => `2026100906${kind}${populationIndex}${phase === "warmup" ? 0 : 1}${phase === "warmup" ? 0 : run}`;
@@ -147,21 +151,23 @@ export function stopFromPreliminary({ successes, trials, msPerAttempt }) {
 }
 
 // stop か preliminary の無い母集団の stopCondition は C4 の凍結値の試行数を仮に置く（凍結の前に preliminary で決める）。
+// seismicCollision は P3-SEISMIC-PLACE-001 の衝突の参考の母集団（collisionPopulations）を載せる新しい manifest にする。
 export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersion, device, primeLeadMs = {}, periodMs = {}, triggerLeadMs = {}, stop = {}, preliminary = {},
+  seismicCollision = false,
   smokeText = readFileSync(join(REPO, TSUNAMI_SMOKE_FILE), "utf8") }) {
   const c4Text = readFileSync(join(REPO, C4_MANIFEST), "utf8");
   const c4 = JSON.parse(c4Text);
   const smoke = JSON.parse(smokeText);
-  const contracts = contractTextsFor("P3-TSUNAMI-E01-001");
+  const contracts = { ...contractTextsFor("P3-TSUNAMI-E01-001"), ...(seismicCollision ? contractTextsFor("P3-SEISMIC-PLACE-001") : {}) };
   const templates = buildTemplates();
   const { schemaVersion: _s, manifestId: _i, manifestSha256: _h, inheritsManifestId: _p, populations: c4Populations, auxiliary: _a, o09Subset: _o,
     judgmentPlaces: _j, smokeConditionDifferences: _d, contractSha256: _c, smokeConditionsSha256: _sc, ...common } = c4;
   const differencesFromC4 = [{ path: "trial", c4: "1 試行 = EEW の続報 1 報", c6: "1 試行 = prime（初期状態へ置き換える報）→ target（標本）の 2 報",
     reason: "P3-C6-TRIAL-RESET=A。各試行を既知の初期状態から始める" }];
   const populations = {};
-  SERIES.forEach((series, s) => CONDITIONS.forEach((condition, c) => {
+  const collisionPopulations = {};
+  const add = (series, condition, index, collision) => {
     const key = `${series}:${condition}`;
-    const index = s * CONDITIONS.length + c;
     const inherited = c4Populations[INHERITS[condition]];
     const period = periodMs[key] ?? DEFAULT_PERIOD_MS;
     const lead = condition === "maxWeatherCheckpointEncodeStarted" ? triggerLeadMs[key] ?? ENCODE_DELAY_FALLBACK_MS : null;
@@ -182,20 +188,26 @@ export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersi
     }
     const maxAttempts = stop[key]?.maxAttempts ?? measured?.maxAttempts ?? inherited.stopCondition.maxAttempts;
     const ids = (kind) => ({ warmup: windowEventId(kind, index, "warmup", 0), formalByRun: [1, 2, 3].map((run) => windowEventId(kind, index, "formal", run)) });
-    populations[key] = {
-      scope: "formal", load: inherited.load, periodMs: period,
-      trigger: `population=${key}; spec=§7.5 ${series === "escalation" ? "発令系" : "解除系"}×${condition}; c4=${INHERITS[condition]}（p3-c4-formal-20261007）; `
+    const transitions = collision ? COLLISION.transitions : SERIES_TRANSITIONS[series];
+    (collision ? collisionPopulations : populations)[key] = {
+      scope: collision ? "reference" : "formal", load: inherited.load, periodMs: period,
+      trigger: collision ? `population=${key}; 契約=P3-SEISMIC-PLACE-001 の maxVxse53ReceivedThenTsunami（P3-SP-D-POPULATION=A、参考）; c4=${INHERITS[condition]}（p3-c4-formal-20261007）; `
+        + `transitions=${transitions.join("→")}; ${HOW[condition]}`
+        : `population=${key}; spec=§7.5 ${series === "escalation" ? "発令系" : "解除系"}×${condition}; c4=${INHERITS[condition]}（p3-c4-formal-20261007）; `
         + `o09=${O09_ROWS[series][condition]}; plan=p3-order-plan.md:203; transitions=${SERIES_TRANSITIONS[series].join("→")}（試行ごとに順に回す）; ${HOW[condition]}`,
       stateRef: inherited.stateRef, stateSha256: inherited.stateSha256,
       stopCondition: { maxAttempts, maxDurationMs: stop[key]?.maxDurationMs ?? measured?.maxDurationMs ?? Math.ceil((60_000 + period * maxAttempts) * 1.25) },
-      triggerLeadMs: lead, series, condition, inheritsC4Population: INHERITS[condition], transitions: SERIES_TRANSITIONS[series],
+      triggerLeadMs: lead, series, condition, inheritsC4Population: INHERITS[condition], transitions,
       establishment: condition === "fixedBacklog" ? { kind: "primeSettled" } : condition === "eewTogether" ? { kind: "primeSettledEewOrder" }
-        : { kind: "primeSettledStartOffset", startOffset: inherited.establishment },
+        : collision ? { kind: "primeSettledSentBeforeLargeFrameIngested" } : { kind: "primeSettledStartOffset", startOffset: inherited.establishment },
       primeLeadMs: primeLeadMs[key] ?? DEFAULT_PRIME_LEAD_MS, tsunamiEventIds: ids(1), eewEventIds: condition === "eewTogether" ? ids(2) : null,
     };
-  }));
+  };
+  SERIES.forEach((series, s) => CONDITIONS.forEach((condition, c) => add(series, condition, s * CONDITIONS.length + c, false)));
+  if (seismicCollision) add(COLLISION.series, COLLISION.condition, COLLISION.index, true);
   const fixtureSha256 = { ...c4.fixtureSha256 };
   for (const name of [...new Set(Object.values(TEMPLATE_FIXTURES).flatMap((t) => [t.prime, t.target])), VXSE45_FIXTURE]) fixtureSha256[fixtureId(name)] = sha256Hex(fixtureText(name));
+  if (seismicCollision) fixtureSha256[fixtureId(COLLISION.fixture)] = sha256Hex(fixtureText(COLLISION.fixture));
   const smokeConditionDifferences = smoke.chrome.version === chromeVersion ? [] : [`chrome.version: smoke ${smoke.chrome.version} / manifest ${chromeVersion}`];
   for (const [field, was, now] of [["chrome.version", c4.chrome.version, chromeVersion], ["nodeVersion", c4.nodeVersion, nodeVersion], ["osVersion", c4.osVersion, osVersion], ["device", c4.device, device]]) {
     if (was !== now) differencesFromC4.push({ path: field, c4: was, c6: now, reason: "機械の実値（凍結時に Mac mini の値で置き直す）" });
@@ -204,7 +216,7 @@ export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersi
     schemaVersion: "p3-tsunami-e01-manifest-v1", manifestId: id, manifestSha256: "0".repeat(64), ...common,
     contractSha256: Object.fromEntries(Object.entries(contracts).map(([cid, text]) => [cid, JSON.parse(text).meta.sha256])),
     smokeConditionsSha256: smoke.conditionsSha256, smokeConditionDifferences, chrome: { ...c4.chrome, version: chromeVersion }, nodeVersion, osVersion, device,
-    fixtureSha256, inheritsManifestId: c4.manifestId, templates, populations, coastSha256: sha256Hex(canonicalCoastJson()), smokeConditionsRef: TSUNAMI_SMOKE_FILE,
+    fixtureSha256, inheritsManifestId: c4.manifestId, templates, populations, ...(seismicCollision ? { collisionPopulations } : {}), coastSha256: sha256Hex(canonicalCoastJson()), smokeConditionsRef: TSUNAMI_SMOKE_FILE,
     differencesFromC4,
     capacityExpectation: { status: "expectationOnly", inheritor: "P4 capacity contract",
       text: "P3-C5-E01-SERIES の capacityExpectation（期待値だけ、測定は P4 の容量契約、D-P3-6）: 他分野の縮退中（U-W が summary）は U-T を通常の full で配送し、T6 は通常と同じ。U-T 自身の意図的な予算超過では §8.1 の最小事実（運用区分・最高区分・大津波警報の有無と区域数）、緊急配置、省略表示、旧表示の除去を T6 の期待値とする（spec:1332）。通常合法最大での予報区別警報区分の配送欠落 0（E13a）は P4" },

@@ -12,6 +12,7 @@ import {
   RuntimeCompositionRoot, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem,
 } from "../../src/runtime/composition-root";
 import type { CompositionOptions, NotificationCalls } from "../../src/runtime/composition-root";
+import { places } from "../../src/runtime/composition-root";
 import { OwnerHost } from "../../src/runtime/owner-host";
 import { executionPlaces } from "../../src/runtime/unit-coverage";
 
@@ -27,8 +28,6 @@ type Owners = Readonly<{
   inputHeap?: boolean;
 }>;
 type Held = (place: ExecutionPlace, reply: OwnerReply) => boolean;
-
-const places = ["urgent", "weatherCurrent", "deferred"] as const satisfies readonly ExecutionPlace[];
 
 // P3-UWR-AC10(8): owner の checkpoint I/O の呼出しのうち、まだ終わっていないもの。settle() はそれが全部終わるまで待つ。試験が
 // 意図して止める呼出しは、その fake の中で park(gate) を同期の部分で呼んで登録し、gate が解けるまでは待たない。無いと、即時の

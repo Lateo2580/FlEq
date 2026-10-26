@@ -279,6 +279,12 @@ const P3_TABLE = {
   maxVpws50ReceivedThenEew: { spec: "なし(R57 の作者裁定から来た衝突試験)", a10: "なし(初期状態は maxVpws50DecodeStarted を継承)", r61: "なし", state: "maxVpws50DecodeStarted", periodMs: Q.refPeriodMs,
     how: "同じ WS で最大 VPWS50 の frame を送った直後に間を空けず EEW を送り、EEW の実送信の上界（host 時計）が VPWS50 の T1 より前なら成立" },
 };
+// P3-SP-D-POPULATION=A（P3-SEISMIC-PLACE-001 の AC08 (1)）: 台帳 100 の衝突の参考の母集団。凍結した 6 母集団と分けて collisionPopulations に置く。
+const SEISMIC_COLLISION_TABLE = {
+  maxVxse53ReceivedThenEew: { spec: "なし(台帳 100 の作者裁定 P3-SP-D-PLACE＝A から来た衝突試験)", a10: "なし(初期状態は fixedBacklog を継承)", r61: "なし", state: "fixedBacklog",
+    periodMs: Q.refPeriodMs, how: "同じ WS で観測点 30,000 の VXSE53（bf35e8ea1825 の各観測点の後ろに Code だけ替えた写しを足す、run.mjs の stations30k）の frame を送った直後に間を空けず EEW を送り、EEW の実送信の上界（host 時計）が VXSE53 の T1 より前なら成立" },
+};
+const SEISMIC_COLLISION_FIXTURE = "telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825";
 
 // P3-MH-SETUP-PATH=A: 測定の harness の 1 組（evidence/p3-harness/）。A10 の initial-state の populations・nWindow と leaveRoomForP の room を
 // 写し（N の窓の private corpus を読まない）、recipe は今の frames.mjs の規則（rulesSource）で作り直す。trial-setup は A10 のものに ref・hash と
@@ -303,7 +309,8 @@ export function buildHarnessSetup() {
 // E14 は 30 束・20 秒）。lead（triggerLeadMs）は P3-MH-AC03(4) の読み替えで、較正の予測が無い最初の 10 試行が使う「引き金（期限回収は狙う tick）
 // から対象の encode 開始までの遅れ」。既定の値は C4 の lead のままで、凍結の値は予備で決める。
 export const DEFAULT_LEAD_MS = { maxWeatherCheckpointEncodeStarted: 600, maxForecastCheckpointSave: 600, forecastDeadlineOverlap: 2400 };
-export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, device, collisionVerdict = "A", stop = {}, establishmentRate = 0.5,
+// seismicCollision は P3-SEISMIC-PLACE-001 の衝突の参考の母集団（collisionPopulations）を載せる新しい manifest にする。
+export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, device, collisionVerdict = "A", seismicCollision = false, stop = {}, establishmentRate = 0.5,
   lead = {}, deadlineSpan = "population", o09Positions = [], e14 = { bundles: 30, intervalMs: 20_000 }, ownerHeapSamples = 100,
   // P3-MH-AC05(6): trial-setup の ref。既定は A10 の 1 組、HARNESS_TRIAL_SETUP.ref で harness の 1 組（その trial-setup が指す initial-state を使う）。
   trialSetup: trialSetupRef = null,
@@ -322,22 +329,25 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
   const smokeText = readFileSync(join(REPO, SMOKE_FILE), "utf8");
   const smoke = JSON.parse(smokeText);
   // harness の 1 組は P3-MEASURE-HARNESS-001 とその依存（K6・UWR・WL2 など、P3-MH-AC05(3) の最低限）も載せる（frozen.ts が求める）。
-  const contracts = { ...contractTextsFor("P3-E01-REACCEPT-001"), ...(harness ? contractTextsFor("P3-MEASURE-HARNESS-001") : {}) };
+  const contracts = { ...contractTextsFor("P3-E01-REACCEPT-001"), ...(harness ? contractTextsFor("P3-MEASURE-HARNESS-001") : {}),
+    ...(seismicCollision ? contractTextsFor("P3-SEISMIC-PLACE-001") : {}) };
   const { schemaVersion: _schema, manifestId: _id, manifestSha256: _hash, formal, reference: _reference, auxiliary, ...common } = a10;
-  const populations = Object.fromEntries(Object.entries(P3_TABLE).map(([key, row]) => {
-    const collision = key === "maxVpws50ReceivedThenEew";
+  const conditionOf = ([key, row]) => {
+    const seismic = Object.hasOwn(SEISMIC_COLLISION_TABLE, key);
+    const collision = key === "maxVpws50ReceivedThenEew" || seismic;
     const establishment = key === "fixedBacklog" ? { kind: "none" } : collision ? { kind: "sentBeforeLargeFrameIngested" }
       : { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5], span: key === "forecastDeadlineOverlap" ? deadlineSpan : "population" };
     const maxAttempts = stop[key]?.maxAttempts ?? 100 + Math.ceil(1000 / (establishment.kind === "none" ? 1 : establishmentRate));
     return [key, {
-      scope: collision && collisionVerdict === "A" ? "reference" : "formal", load: "N", periodMs: row.periodMs,
+      scope: seismic || (collision && collisionVerdict === "A") ? "reference" : "formal", load: "N", periodMs: row.periodMs,
       trigger: `population=${key}; spec=${row.spec}; a10=${row.a10}; r61=${row.r61}; plan=p3-order-plan.md:155; periodMs=${row.periodMs}; ${row.how}; ${Q.paintEvidence}`,
       stateRef: `${trialSetup.initialStateRef}#populations.${row.state}`, stateSha256: trialSetup.initialStateSha256, establishment,
-      origin: collision && collisionVerdict === "B" ? "injectorSend" : "T0", forecast: key === "fixedBacklog" ? formal.forecast : null,
+      origin: collision && !seismic && collisionVerdict === "B" ? "injectorSend" : "T0", forecast: key === "fixedBacklog" ? formal.forecast : null,
       stopCondition: { maxAttempts, maxDurationMs: stop[key]?.maxDurationMs ?? maxAttempts * row.periodMs * 2 },
       triggerLeadMs: Object.hasOwn(DEFAULT_LEAD_MS, key) ? lead[key] ?? DEFAULT_LEAD_MS[key] : null,
     }];
-  }));
+  };
+  const populations = Object.fromEntries(Object.entries(P3_TABLE).map(conditionOf));
   const differences = [];
   if (smoke.chrome.version !== chromeVersion) differences.push(`chrome.version: smoke ${smoke.chrome.version} / manifest ${chromeVersion}`);
   for (const [field, was, now] of [["chrome.version", a10.chrome.version, chromeVersion], ["nodeVersion", a10.nodeVersion, nodeVersion], ["osVersion", a10.osVersion, osVersion], ["device", a10.device, device]]) {
@@ -348,7 +358,11 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
     contractSha256: Object.fromEntries(Object.entries(contracts).map(([cid, text]) => [cid, JSON.parse(text).meta.sha256])),
     trialSetupRef: ref, trialSetupSha256: sha256Hex(trialSetupText),
     smokeConditionDifferences: differences, chrome: { ...a10.chrome, version: chromeVersion }, nodeVersion, osVersion, device,
+    // 鍵は fixtureId（runner の frozenInputs が鍵から fixture の path を戻す）。
+    ...(seismicCollision ? { fixtureSha256: { ...common.fixtureSha256,
+      [fixtureId(SEISMIC_COLLISION_FIXTURE)]: sha256Hex(fixtureText(SEISMIC_COLLISION_FIXTURE)) } } : {}),
     inheritsManifestId: a10.manifestId, populations,
+    ...(seismicCollision ? { collisionPopulations: Object.fromEntries(Object.entries(SEISMIC_COLLISION_TABLE).map(conditionOf)) } : {}),
     liveness: { pingEveryMs: 20000, maxFrameGapMs: 90000 },
     auxiliary: Object.fromEntries(Object.entries({
       E03: { ...auxiliary.E03, sharesWindowWith: null }, E05: { ...auxiliary.E05, sharesWindowWith: "E02（同じ窓の mem 行）" },
@@ -402,7 +416,7 @@ if (process.argv[1] != null && import.meta.filename === realpathSync(process.arg
     const { chromeVersion } = await import("./chrome.mjs");
     const built = buildP3Manifest({ id: String(args.get("id")), chromeVersion: await chromeVersion(), nodeVersion: await run(NODE22, ["-p", "process.version"]),
       osVersion: `${release()} ${arch()}`, device: `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB`,
-      collisionVerdict: String(args.get("collision-verdict") ?? "A") });
+      collisionVerdict: String(args.get("collision-verdict") ?? "A"), seismicCollision: args.has("seismic-collision") });
     const out = args.has("out") ? String(args.get("out")) : join(REPO, EVIDENCE, "p3/manifest.draft.json");
     writeFileSync(out, built.manifestText);
     console.log(JSON.stringify({ written: out, manifestId: built.manifest.manifestId, manifestSha256: built.manifest.manifestSha256 }));

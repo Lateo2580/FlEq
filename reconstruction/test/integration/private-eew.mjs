@@ -199,17 +199,17 @@ async function main() {
   try {
     // Both imports follow instrumentation: composition-root itself imports the adapter.
     const { runNotificationAttempt, abortNotificationAttempt } = require("../../dist/src/notification-delivery/adapter.js");
-    const { RuntimeCompositionRoot, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } =
+    const { RuntimeCompositionRoot, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem, places } =
       require("../../dist/src/runtime/composition-root.js");
     const { OwnerHost } = require("../../dist/src/runtime/owner-host.js");
-    // Test-side in-process wiring (not the product placement; the host runs three owner threads): the same request/reply
+    // Test-side in-process wiring (not the product placement; the host runs one owner thread per place): the same request/reply
     // boundary, a turn later and cloned, so this script can read the U-E owner's state directly as evidence.
     const sharedNow = () => performance.timeOrigin + performance.now();
     const owners = new Map();
     const send = (place, request) => setImmediate(() => {
       try { owners.get(place).handle(structuredClone(request)); } catch (error) { root.ownerFailed(place, error); }
     });
-    for (const place of ["urgent", "weatherCurrent", "deferred"])
+    for (const place of places)
       owners.set(place, new OwnerHost({ start: { place, stateDirectory: join(directory, "state"),
         publisherTimeOriginMs: performance.timeOrigin }, units: linkedUnitTable, codecs: linkedUnitCodecs,
       fileSystem: nodeCheckpointFileSystem(), sharedNow,

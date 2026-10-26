@@ -13,7 +13,7 @@ const coveredUnits: CoversAllUnits<typeof runtimeUnits> = runtimeUnits;
 // tell which in-flight slot an input uses and urgent and non-urgent units would share an owner. Keyed: a new
 // unit without its row fails to compile.
 const executionPlaces: Readonly<Record<RuntimeUnitId, ExecutionPlace>> = {
-  "U-E": "urgent", "U-W": "weatherCurrent", "U-F": "deferred", "U-T": "urgent", "U-Q": "urgent", "U-N": "urgent", "U-V": "urgent",
+  "U-E": "urgent", "U-W": "weatherCurrent", "U-F": "deferred", "U-T": "urgent", "U-Q": "seismic", "U-N": "urgent", "U-V": "urgent",
   "U-L": "deferred", "U-R": "deferred", "U-B": "deferred", "U-M": "deferred", "U-Y": "deferred",
 };
 

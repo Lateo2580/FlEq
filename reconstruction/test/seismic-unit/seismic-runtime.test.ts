@@ -193,7 +193,7 @@ describe("P3-UNIT-Q-001 U-Q through the composition root", () => {
       readFileSync(`test/fixtures/${S53B}.xml`), followAt, inputSequence));
     acking.root.pump();
     await acking.settle();
-    expect(acking.owners.get("urgent")!["state"]!.checkpointAttempts["U-Q"]).toMatchObject({ generation: 1,
+    expect(acking.owners.get("seismic")!["state"]!.checkpointAttempts["U-Q"]).toMatchObject({ generation: 1,
       postCaptureDirtySince: followAt.monotonicMs });
     acking.holdRequests((_place, request) => request.kind === "checkpointGrant");
     open();

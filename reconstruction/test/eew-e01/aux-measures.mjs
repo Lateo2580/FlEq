@@ -244,7 +244,7 @@ export const E15_BLOCKED = [
   "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）",
 ];
 
-const OWNER_UNITS = { urgent: ["U-E"], weatherCurrent: ["U-W"], deferred: ["U-F"] };
+const OWNER_UNITS = { urgent: ["U-E"], weatherCurrent: ["U-W"], deferred: ["U-F"], seismic: ["U-Q"] };
 const ZERO = { count: 0, bytes: 0 };
 // E15 の write の帰属（P3-C4-AC05・P3-C4-WRITE-COUNT）: host が停止時に出す thread ごとの writeCount を、包みと独立した記録に照らす。
 // owner の tmp は自分の unit の write 段の CheckpointMeasurement の回数と byte、publisher の diagnosticLog は診断 dir の jsonl の
@@ -253,7 +253,7 @@ const ZERO = { count: 0, bytes: 0 };
 // status: 行が揃わないか confirmed が false の thread があれば未確認（counter が信用できない）、照合が合わなければ Fail、
 // 照合できない区分（unverified・診断 dir が読めない）があれば未確認、それ以外は null（報告）。
 export function writeAttribution(rows, measurements, diagnosticLog, summaryWrites) {
-  const threads = ["urgent", "weatherCurrent", "deferred", "publisher"];
+  const threads = ["urgent", "weatherCurrent", "deferred", "seismic", "publisher"];
   const complete = threads.every((t) => rows.filter((r) => r.thread === t).length === 1);
   const unattributed = [];
   const unverified = [];
@@ -479,11 +479,12 @@ export function bracketMem(records, startMs, endMs) {
   return { before: pick(before, startMs), after: pick(after, endMs) };
 }
 
-// E12 の新側（P3-C4 工程2d）: XML の処理の大半は owner の thread にあるので、publisher だけでなく owner 3 本も thread ごとに GC と heap の
+// E12 の新側（P3-C4 工程2d）: XML の処理の大半は owner の thread にあるので、publisher だけでなく owner の全部も thread ごとに GC と heap の
 // 前後を出す。heap は publisher が mem 行、owner が ownerHeap の行（deadlineDone ごと、P3-C4-OWNER-HEAP=B'）。GC は thread ごとの probe
 // （probe-preload.mjs）で、owner の probe が無いか、replay の終わりより前に書かれたもの（以後の GC が欠けうる）なら、その thread は未確認。
 // どれかの thread が未確認なら新側は未確認。RSS は process 全体なので thread ごとに足し合わせない。
-export const E12_THREADS = ["publisher", "urgent", "weatherCurrent", "deferred"];
+// seismic は c4 の表に行が無いので、E05C の基線の差（D_start・D_late）は null（未確認）になる（Q-SP-PRECHECK (7)(b)）。
+export const E12_THREADS = ["publisher", "urgent", "weatherCurrent", "deferred", "seismic"];
 export function summarizeE12New(records, probes, { startMs, endMs }) {
   const ownerRows = (place) => records.flatMap((r) => (r.t === "obs" && r.o.kind === "ownerHeap" && r.o.place === place
     ? [{ t: "mem", perfNowMs: r.o.monotonicMs, heapUsed: r.o.heapUsedBytes }] : []));
@@ -510,7 +511,7 @@ async function waitRecords(read, ready, { timeoutMs, pollMs = 200 }) {
 // 完了で 1 行）が count 件になれば true。
 export const waitInputsDone = (read, count, { timeoutMs = 60_000, pollMs = 200 } = {}) =>
   waitRecords(read, (records) => records.filter((r) => r.t === "obs" && r.o.kind === "processing").length >= count, { timeoutMs, pollMs });
-// E12 の新側の前値: owner の heap は deadlineDone（1 秒の tick）の返信からしか出ないので、owner 3 本の ownerHeap の行が出てから再生を始める
+// E12 の新側の前値: owner の heap は deadlineDone（1 秒の tick）の返信からしか出ないので、owner の全部の ownerHeap の行が出てから再生を始める
 // （P3-C4 工程2d。接続の直後に始めると、小型の窓で owner の開始前の行が無い）。
 export const waitOwnerHeaps = (read, { timeoutMs = 10_000, pollMs = 100 } = {}) => waitRecords(read, (records) => {
   const places = new Set(records.flatMap((r) => (r.t === "obs" && r.o.kind === "ownerHeap" ? [r.o.place] : [])));
@@ -540,7 +541,7 @@ const countUpTo = (rows, t, strict = false) => {
   while (lo < hi) { const mid = (lo + hi) >> 1; if (strict ? rows[mid].atMs < t : rows[mid].atMs <= t) lo = mid + 1; else hi = mid; }
   return lo;
 };
-// 時刻 t の成分（4 thread それぞれの t 以前の最新の行から）。行の無い thread があれば null。
+// 時刻 t の成分（E12_THREADS のそれぞれの t 以前の最新の行から）。行の無い thread があれば null。
 function partsAt(mem, t, rss) {
   const latest = E12_THREADS.map((p) => mem[p][countUpTo(mem[p], t) - 1] ?? null);
   if (latest.includes(null)) return null;
@@ -556,7 +557,7 @@ const tally = (peaks) => {
   return counts;
 };
 
-// AC03(2) の 1 つの山。GC の run は始まりの後の最初の閾値の GC（4 thread の forcedGc の行）で g と r を出す。
+// AC03(2) の 1 つの山。GC の run は始まりの後の最初の閾値の GC（E12_THREADS の forcedGc の行）で g と r を出す。
 function e05cPeak(peak, { pub, mem, forced, gcRun }) {
   const { start, top, end } = peak;
   let floor = null;
@@ -584,7 +585,7 @@ function e05cPeak(peak, { pub, mem, forced, gcRun }) {
     const before = rows.reduce((a, f) => a + f.before.heapUsed, 0);
     const afterRegular = rows.reduce((a, f) => a + f.afterRegular.heapUsed, 0);
     g = (before - afterRegular) / Math.max(before - atFloor.U, MiB);
-    // r は 4 thread 目の last-resort の終わりから 2,000ms 以内の最小の rss で見る（通常の GC の後の rss は rRegular として報告だけ、AC02）。
+    // r は最後の thread の last-resort の終わりから 2,000ms 以内の最小の rss で見る（通常の GC の後の rss は rRegular として報告だけ、AC02）。
     const den = request.before.rss - floor.rss;
     const lastEndMs = rows.reduce((a, f) => Math.max(a, f.endMs), -Infinity);
     let minRss = null;

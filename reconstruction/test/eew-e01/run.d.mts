@@ -77,6 +77,7 @@ export function tsunamiStateBreaks(input: {
 }): { stateBreaks: Record<"tsunamiCapacityEvicted" | "tsunamiCapacityExceeded" | "eewCapacityExceeded" | "tsunamiRevisionConflict" | "staleTarget", number> | null;
   stateBreaksIncomplete: string[] };
 // 試行の対象の区間（host の時計）。span "encodeThroughWrite" は保存の試行全体（encode 開始〜write 完了）。
+export function stations30k(xml: string): string;
 export function trialTarget(population: string, trial: { trigger?: { inputId: string | null; injectedHrMs: number | null; predictedTickHostMs?: number | null; calibrated?: boolean } | null },
   host: { decode: Map<string, unknown>; t1: Map<string, number>; t2: Map<string, number>; processing: readonly { inputId: string }[]; raised: Map<string, number>;
     checkpoints: readonly { unit: string; stage: string; attemptId: string; generation: number; startedMonotonicMs: number; endedMonotonicMs: number; inputIds?: readonly string[] }[] },

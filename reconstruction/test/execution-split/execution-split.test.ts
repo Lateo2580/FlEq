@@ -995,7 +995,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     const later = h.sent.slice(sent);
     expect(later.filter(({ place }) => place === "weatherCurrent")).toEqual([]);
     expect(later.filter(({ request }) => request.kind === "input" || request.kind === "deadline")
-      .map(({ place, request }) => [place, request.kind])).toEqual([["urgent", "input"], ["urgent", "deadline"], ["deferred", "deadline"]]);
+      .map(({ place, request }) => [place, request.kind])).toEqual([["urgent", "input"], ["urgent", "deadline"], ["deferred", "deadline"],
+      ["seismic", "deadline"]]);
     await h.root.diagnostics.flush();
   });
 });

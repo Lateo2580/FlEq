@@ -7,6 +7,7 @@
 //   --windows <id,...>: 前回 Blocked（または未実施）の窓だけを再実行する。結果は上書きせず -attempt<k> を付ける。
 // --preliminary: A10 の凍結物を継承した案（draft.mjs の buildP3Manifest）で各母集団 1 run を走らせ、結果の status は必ず「未確認」。
 //   --warmup <n>（20）・--samples <n>（100）・--max-attempts <n>・--max-minutes <n>・--only <母集団,...>・--collision-verdict A|B・--runs-root <dir>
+//   --seismic-collision（P3-SEISMIC-PLACE-001 の衝突の参考の母集団 maxVxse53ReceivedThenEew を草案の collisionPopulations に載せる）
 //   --deadline-alternative: 母集団 5 の対象を Q-C4-ALT-CONDITION の候補（期限回収で起きた U-F 保存の encode 開始〜write 完了）にして成立率を見る
 //   --save-lead-ms <n>（600）・--deadline-lead-ms <n>（2400）: 3 つの保存母集団の較正の予測が無い最初の 10 試行で、引き金（期限回収は狙う tick）から
 //     EEW までの遅れの代わりに使う値（P3-MH-AC03(4)。予備で求めて渡す。負荷と periodMs は変えない）。この 3 つは予備の案の manifest（triggerLeadMs・
@@ -53,7 +54,8 @@ const RUNS_ROOT = join(homedir(), "dev/fleq-a10-runs");
 const EVIDENCE_DIR = join(REPO, "reconstruction/test/eew-e01/evidence");
 const T6C = "fleq:p2:eew:T6-candidate";
 const TSUNAMI_SCHEMA = "p3-tsunami-e01-manifest-v1";
-const POP_CODE = { fixedBacklog: 0, maxVpws50ParseStarted: 1, maxWeatherCheckpointEncodeStarted: 2, maxForecastCheckpointSave: 3, forecastDeadlineOverlap: 4, maxVpws50ReceivedThenEew: 5 };
+const POP_CODE = { fixedBacklog: 0, maxVpws50ParseStarted: 1, maxWeatherCheckpointEncodeStarted: 2, maxForecastCheckpointSave: 3, forecastDeadlineOverlap: 4, maxVpws50ReceivedThenEew: 5,
+  maxVxse53ReceivedThenEew: 6 };
 const BLOCK = 100; // trace は 100 試行ごとに区切る
 const UF_SMALL_VALID_AFTER_REPORT_MS = 49 * 3_600_000; // 81_01_04 系の validUntil は報告時刻の 49 時間後（Phase 0 で実測）
 // 母集団 5 の引き金は 81_01_04 の EditorialOffice だけを替え、負荷 N・P の VPWP50（81_01_04、稚内）と U-F の subject を分ける。同じ subject だと、
@@ -548,6 +550,9 @@ async function measureRun(spec, ctx, label, dir, status) {
     const eewFrame = eewEventId == null ? null : dataFrame("VXSE45", Buffer.from(vxse45Variant({ eventId: eewEventId, serial: ++eewSerial,
       variant: eewSerial % 2 === 1 ? "A" : "B", reportAtMs: wallNow() })));
     const vpwsFrame = tsu.inherits === "maxVpws50ParseStarted" ? weatherFrame("15_18_01_250630_VPWS50", "VPWS50", wallNow()) : null;
+    // 衝突の参考の母集団（P3-SP-D-POPULATION=A）: target の直前に同じ WS で送る観測点 30,000 の VXSE53。
+    const collision = tsu.condition === "maxVxse53Received";
+    const wideFrame = collision ? wideVxse53Frame(k, wallNow()) : null;
     await idleUntil(due);
     host.refresh();
     const marksBefore = await tsunamiMarkCount();
@@ -608,6 +613,10 @@ async function measureRun(spec, ctx, label, dir, status) {
         trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs };
         await spinUntil(calibratedSendAt(trigger, predicted, spec.targetOffsetMs));
       }
+      if (wideFrame != null) {
+        const t = dataSend(wideFrame, "VXSE53", "trigger", { trial: k });
+        trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs };
+      }
       sent = sendTarget();
     }
     const trial = { ...base, inputId: sent.seq == null ? `notInjected-${k}` : `input-${sent.seq}`, injectedHrMs: sent.injectedHrMs, prime, trigger };
@@ -659,10 +668,12 @@ async function measureRun(spec, ctx, label, dir, status) {
       const replyMs = recent.processing.find((p) => p.inputId === prime?.inputId)?.endedMonotonicMs ?? null;
       const corr = latestCorrespondence();
       const paintHostMs = painted == null || corr == null ? null : { lowerMs: painted.paintedMs - corr.offsetUpperMs, upperMs: painted.paintedMs - corr.offsetLowerMs };
-      const offset = tsu.establishment.kind === "primeSettledStartOffset";
-      trial.target = offset ? trialTarget(tsu.inherits, trial, recent, oh.lo, "population") : null;
+      // 衝突の対象は VXSE53 の T1（C4 の衝突と同じ trialTarget）。
+      const offset = tsu.establishment.kind === "primeSettledStartOffset" || collision;
+      trial.target = offset ? trialTarget(collision ? "maxVxse53ReceivedThenEew" : tsu.inherits, trial, recent, oh.lo, "population") : null;
       const eewInputDoneMs = trial.eew == null ? null : recent.processing.find((p) => p.inputId === trial.eew.inputId)?.endedMonotonicMs ?? null;
-      trial.establishment = establishTsunamiTrial({ establishment: tsu.establishment, t0Ms, prime: { paintRequired, paintHostMs, replyMs, ackMs }, target: trial.target, eewInputDoneMs });
+      trial.establishment = establishTsunamiTrial({ establishment: tsu.establishment, t0Ms, prime: { paintRequired, paintHostMs, replyMs, ackMs }, target: trial.target, eewInputDoneMs,
+        injectorSendHostMs: sent.injectedHrMs == null || oh.lo == null ? null : { lowerMs: sent.injectedHrMs + oh.lo, upperMs: sent.injectedHrMs + oh.hi } });
       trial.primeObserved = { generation: generation ?? null, ackMs, replyMs, paintHostMs };
       const complete = t0Ms != null && ackMs != null && (paintRequired ? true : replyMs != null) && (!offset || trial.target != null)
         && (trial.eew == null || eewInputDoneMs != null);
@@ -734,7 +745,9 @@ async function measureRun(spec, ctx, label, dir, status) {
     const variant = serial % 2 === 1 ? "A" : "B";
     // 投入の瞬間に frame の組み立てで遅れないよう、待つ前に作る（報告時刻は host 時計の今の秒）。
     const frame = dataFrame("VXSE43", Buffer.from(eewVariant({ eventId, serial, variant, reportAtMs: wallNow() })));
-    const vpwsFrame = VPWS50_TRIGGERED.has(population) ? weatherFrame("15_18_01_250630_VPWS50", "VPWS50", wallNow()) : null;
+    // 衝突・parse の引き金の大きな frame（maxVxse53ReceivedThenEew は観測点 30,000 の VXSE53、P3-SP-D-POPULATION=A）。
+    const large = VPWS50_TRIGGERED.has(population) ? { frame: weatherFrame("15_18_01_250630_VPWS50", "VPWS50", wallNow()), headType: "VPWS50" }
+      : population === "maxVxse53ReceivedThenEew" ? { frame: wideVxse53Frame(k, wallNow()), headType: "VXSE53" } : null;
     await idleUntil(due);
     host.refresh();
     const before = page == null ? 0 : await markCount();
@@ -755,11 +768,11 @@ async function measureRun(spec, ctx, label, dir, status) {
     };
     if (population === "fixedBacklog") {
       sent = sendEew();
-    } else if (vpwsFrame != null) {
+    } else if (large != null) {
       // 衝突は同じ WS で間を空けずに続ける。母集団 2 の予測値は引き金を送る前に作る（送った後に作ると spin の精度を食う）。
       let predicted = null;
       if (population === "maxVpws50ParseStarted") { scanParseStarts(); updateOh(); predicted = predictParseDelay(trials, scan.parseStarts, oh.lo); }
-      const t = dataSend(vpwsFrame, "VPWS50", "trigger", { trial: k });
+      const t = dataSend(large.frame, large.headType, "trigger", { trial: k });
       trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs };
       // 母集団 2 の「開始」は parse 開始（P3-C4-PARSE-MARK）で、worker の展開（TextDecoder まで）の後なので、引き金の実送信から直近 10 試行の
       // 「parse 開始 − 引き金の実送信」の中央値＋targetOffsetMs の時刻に送る（AC13(7)）。予測値が無い間（最初の 10 試行）は実送信＋targetOffsetMs。
@@ -1040,6 +1053,24 @@ export function recentMedian(trials, valueOf, count = 10) {
 }
 
 const VPWS50_TRIGGERED = new Set(["maxVpws50ParseStarted", "maxVpws50ReceivedThenEew"]);
+// P3-SP-AC01・AC08 (1): 最大の実例 bf35e8ea1825（観測点 1,248）の各観測点の後ろに Code だけ替えた写しを足し、観測点 30,000 の VXSE53 にする
+// （seismic-host.test.ts の AC01・AC07 の測定と衝突の母集団 maxVxse53ReceivedThenEew が同じ形を使う）。
+export function stations30k(xml) {
+  const station = /<IntensityStation>.*?<\/IntensityStation>/g;
+  const count = xml.match(station)?.length ?? 0, extra = 30_000 - count;
+  let index = 0, added = 0;
+  return xml.replace(station, (line) => line + Array.from({ length: Math.floor(extra / count) + (index++ < extra % count ? 1 : 0) },
+    () => "\n" + line.replace(/<Code>\d+<\/Code>/, `<Code>${8_000_000 + added++}</Code>`)).join(""));
+}
+let wideVxse53 = null;
+// 衝突の試行ごとの観測点 30,000 の VXSE53。全時刻を今へ動かし、Serial を試行ごとに進めて同じ event の新しい版として採用させる（event を
+// 増やして U-Q の器を積み増さない）。
+function wideVxse53Frame(attemptIndex, atWallMs) {
+  wideVxse53 ??= stations30k(fixtureText("telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825").toString("utf8"));
+  const xml = shiftTimestamps(wideVxse53, atWallMs - Date.parse(/<ReportDateTime>([^<]+)</.exec(wideVxse53)[1]))
+    .replace(/<Serial>\d+<\/Serial>/, `<Serial>${attemptIndex + 3}</Serial>`);
+  return dataFrame("VXSE53", Buffer.from(xml));
+}
 
 // AC08 の前景の条件（P3-C4 工程2d）。blur と visibilitychange はページを開いたときから壁時計の時刻付きで貯め続ける（投入の後に記録を
 // 始めると、投入から開始の evaluate が届くまでの blur を落とす。工程2d の再確認 T2）。投入の直後に visibility・focus・motion を取り、
@@ -1082,13 +1113,13 @@ export function trialConditionDeviation(state, motion, events = [], sentWallMs =
 // 窓 1 本の条件。lead と対象の区間は manifest の母集団の条件から読む（P3-C4-AC13(1)。正式も予備も同じで、予備の --save-lead-ms などは
 // 予備の案の manifest に入る）。
 export function populationSpec(manifest, population, run, warmup, count, stop) {
-  const c = manifest.populations[population];
+  const c = manifest.populations[population] ?? manifest.collisionPopulations?.[population];
   // 津波の parse 直後・encode 直後は C4 の startOffset を入れ子に持つ（P3TsunamiEstablishment）。
   const offset = c.establishment.kind === "startOffset" ? c.establishment : c.establishment.kind === "primeSettledStartOffset" ? c.establishment.startOffset : null;
   return { population, run, warmup, count, periodMs: c.periodMs, targetOffsetMs: offset?.targetOffsetMs ?? 0,
     establishment: c.establishment, forecast: c.forecast ?? null, stop, load: c.load, stateKey: /#populations\.(.+)$/.exec(c.stateRef)[1],
     leadMs: c.triggerLeadMs, span: offset?.span ?? "population",
-    tsunami: c.series == null ? null : { series: c.series, inherits: c.inheritsC4Population, transitions: c.transitions, establishment: c.establishment,
+    tsunami: c.series == null ? null : { series: c.series, condition: c.condition, inherits: c.inheritsC4Population, transitions: c.transitions, establishment: c.establishment,
       primeLeadMs: c.primeLeadMs, eventIds: c.tsunamiEventIds, eewEventIds: c.eewEventIds } };
 }
 
@@ -1105,7 +1136,7 @@ export function trialTarget(population, trial, host, ohLo, span = "population") 
     const d = host.decode.get(id);
     return d?.parseStartMs == null || d.parseEndMs == null ? null : { startMs: d.parseStartMs, endMs: d.parseEndMs };
   }
-  if (population === "maxVpws50ReceivedThenEew") {
+  if (population === "maxVpws50ReceivedThenEew" || population === "maxVxse53ReceivedThenEew") {
     const t1 = host.t1.get(id);
     return t1 == null ? null : { startMs: t1, endMs: t1 };
   }
@@ -1543,7 +1574,7 @@ function frozenInputs(manifest, trialSetup, initialStateText) {
 
 // 予備測定だけのオプション。--manifest と併用すると記録先（evidence-scratch）や条件が変わり、正式窓の再実行制限を迂回できるので拒否する。
 // --node は正式でも許す（P3-MH-AC05(5)。preflight が渡した Node の版を manifest の nodeVersion と照らすので条件は変わらない）。
-const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|runs-root|collision-verdict|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms|tsunami|prime-lead-ms|e14-tsunami)$/;
+const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|runs-root|collision-verdict|seismic-collision|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms|tsunami|prime-lead-ms|e14-tsunami)$/;
 
 // 引数を読み、組み合わせの誤りをここで拒否する（子を起動する前）。
 export function parseArgs(argv) {
@@ -1611,9 +1642,10 @@ async function main(argv) {
   if (preliminary && args.has("tsunami")) {
     // 津波の予備（AC08）: C4 の凍結 manifest を継ぐ草案（tsunami.mjs）。primeLeadMs だけを引数で変えられる（予備で固定する値）。
     const lead = args.has("prime-lead-ms") ? Number(args.get("prime-lead-ms")) : null;
-    const keys = ["escalation", "deescalation"].flatMap((s) => ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"].map((c) => `${s}:${c}`));
+    const keys = [...["escalation", "deescalation"].flatMap((s) => ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"].map((c) => `${s}:${c}`)),
+      "escalation:maxVxse53Received"];
     draft = buildP3TsunamiManifest({ id: `p3-c6-prelim-${stamp}`, chromeVersion: await chromeVersion(), nodeVersion, osVersion: `${release()} ${arch()}`, device: deviceOf(),
-      primeLeadMs: lead == null ? {} : Object.fromEntries(keys.map((k) => [k, lead])) });
+      primeLeadMs: lead == null ? {} : Object.fromEntries(keys.map((k) => [k, lead])), seismicCollision: args.has("seismic-collision") });
     manifest = draft.manifest;
     const c4 = JSON.parse(draft.c4Text);
     const trialSetupText = readFileSync(join(REPO, c4.trialSetupRef), "utf8");
@@ -1625,7 +1657,7 @@ async function main(argv) {
     // P3-MH-AC05(6)。窓が読む ctx.initialState もその initial-state）。backend 単独は Chrome を測らない。
     draft = buildP3Manifest({ id: `p3-prelim-${stamp}`, chromeVersion: backendOnly ? BACKEND_ONLY_CHROME : await chromeVersion(), nodeVersion, trialSetup: HARNESS_TRIAL_SETUP.ref,
       osVersion: `${release()} ${arch()}`, device: deviceOf(),
-      collisionVerdict: String(args.get("collision-verdict") ?? "A"), establishmentRate: num("establishment-rate", 0.5),
+      collisionVerdict: String(args.get("collision-verdict") ?? "A"), seismicCollision: args.has("seismic-collision"), establishmentRate: num("establishment-rate", 0.5),
       lead: { maxWeatherCheckpointEncodeStarted: num("save-lead-ms", DEFAULT_LEAD_MS.maxWeatherCheckpointEncodeStarted),
         maxForecastCheckpointSave: num("save-lead-ms", DEFAULT_LEAD_MS.maxForecastCheckpointSave), forecastDeadlineOverlap: num("deadline-lead-ms", DEFAULT_LEAD_MS.forecastDeadlineOverlap) },
       deadlineSpan: args.has("deadline-alternative") ? "encodeThroughWrite" : "population" });
@@ -1668,8 +1700,8 @@ async function main(argv) {
   // --max-minutes）だけを絞る。periodMs と負荷の再生時刻は変えない（AC08）。
   const specOf = (population, run, warmup, count, stop) => populationSpec(manifest, population, run, warmup, count, stop);
   const plan = { warmup: num("warmup", 20), samples: num("samples", 100) };
-  const specs = Object.keys(manifest.populations).flatMap((population) => {
-    const c = manifest.populations[population];
+  const specs = [...Object.keys(manifest.populations), ...Object.keys(manifest.collisionPopulations ?? {})].flatMap((population) => {
+    const c = manifest.populations[population] ?? manifest.collisionPopulations[population];
     if (preliminary) {
       const maxAttempts = num("max-attempts", plan.warmup + plan.samples * (c.establishment.kind === "none" ? 1 : 4));
       return [specOf(population, 1, plan.warmup, plan.samples, { maxAttempts, maxDurationMs: num("max-minutes", Math.ceil((maxAttempts * c.periodMs * 2) / 60_000) + 5) * 60_000 })];

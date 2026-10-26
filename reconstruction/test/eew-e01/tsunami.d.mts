@@ -16,7 +16,7 @@ export function templateFixtureTexts(): Record<string, string>;
 export function buildTsunamiSmokeConditions(chromeVersion: string): string;
 export function buildP3TsunamiManifest(input: { id: string; chromeVersion: string; nodeVersion: string; osVersion: string; device: string;
   primeLeadMs?: Partial<Record<string, number>>; periodMs?: Partial<Record<string, number>>; triggerLeadMs?: Partial<Record<string, number>>;
-  stop?: Partial<Record<string, { maxAttempts: number; maxDurationMs: number }>>; smokeText?: string }): {
+  stop?: Partial<Record<string, { maxAttempts: number; maxDurationMs: number }>>; smokeText?: string; seismicCollision?: boolean }): {
   manifest: P3TsunamiE01Manifest; manifestText: string; c4Text: string; smokeText: string; contractTexts: Record<string, string>; coastJsonText: string;
   sequencesText: string; fixtureTexts: Record<string, string> };
 // AC08・Q-C6-IMPL-AMEND (11): 予備の成立数・試行数・1 試行の所要から窓の stopCondition。

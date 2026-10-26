@@ -7,7 +7,7 @@ export function contractTextsOf(ids: readonly string[], all?: Record<string, str
 export function buildHarnessSetup(): { initialStateText: string; trialSetupText: string };
 export function buildP3Manifest(input: {
   id: string; chromeVersion: string; nodeVersion: string; osVersion: string; device: string;
-  collisionVerdict?: "A" | "B"; stop?: Partial<Record<string, { maxAttempts: number; maxDurationMs: number }>>; establishmentRate?: number;
+  collisionVerdict?: "A" | "B"; seismicCollision?: boolean; stop?: Partial<Record<string, { maxAttempts: number; maxDurationMs: number }>>; establishmentRate?: number;
   lead?: Partial<Record<string, number>>; deadlineSpan?: "population" | "encodeThroughWrite"; o09Positions?: readonly number[];
   e14?: { bundles: number; intervalMs: number }; ownerHeapSamples?: number; trialSetup?: string | null;
 }): { manifest: P3E01Manifest; manifestText: string; trialSetupText: string; initialStateText: string; smokeText: string; contractTexts: Record<string, string>; a10Text: string;

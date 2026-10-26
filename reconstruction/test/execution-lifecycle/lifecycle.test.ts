@@ -439,6 +439,25 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
       expect(realMs, holder).toBeLessThan(4_000);
       expect(saved(l), holder).toEqual([]);
     }
+    // (5) の seismic（P3-SP-T03 (2)、残存リスク (5)）: seismic が U-Q の権を持ったまま止まると、drain の段で採用した U-E の版だけが
+    // 保存されない。running の段で採用した U-E の前の版は保存済み。code 2。
+    {
+      const driver = fixtureDriver();
+      const l = await lifecycle({ runtimeCalls: driver.calls }, { ...stringCodecs, "U-Q": stringCodec("U-Q") });
+      await driver.update(l.h, dirtyState(undefined, ["U-E"]), l.now);
+      expect(l.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
+      l.h.hold((place, reply) => place === "seismic" && reply.kind === "checkpointDone");
+      await driver.update(l.h, fixtureState({ "U-Q": "quake" }, { "U-Q": pending(20) }, "run"), l.now);
+      expect(l.root.checkpoint.grantOf("U-Q")?.unit).toBe("U-Q");
+      l.root.ownerFailed("seismic", new Error("owner thread exited (code 1)"));
+      driver.queue(l.h, fixtureState({ "U-E": "eew-2" }, { "U-E": { ...l.root.state.mirror["U-E"].persistence, kind: "pending",
+        currentGeneration: 2, dirtySince: 30 } }, "run"), l.now);
+      const { summary, realMs } = await shutdown(l);
+      expect(summary.code).toBe(2);
+      expect(summary.reasons).toEqual(["finalCheckpoint:failed:ownerStopped", "finalCheckpoint:unsavedUnits"]);
+      expect(realMs).toBeLessThan(4_000);
+      expect(l.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "pending", currentGeneration: 2, savedGeneration: 1 });
+    }
     // (6) The drain takes 6 s (urgent's input held); deferred was idle with nothing unanswered, so it is not left out.
     {
       const driver = fixtureDriver();
@@ -460,7 +479,22 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     }
   });
 
-  it("P3-C3B-T06 acceptance / AC05: E08 with three owners: 1,000 fixed-clock ticks do no content work", async () => {
+  it("P3-SP-T03 contractBoundary / AC05: a stopped seismic owner stops U-Q only; the EEW is still adopted", async () => {
+    const l = await lifecycle();
+    l.root.ownerFailed("seismic", new Error("owner thread exited (code 1)"));
+    const from = l.h.sent.length, before = l.root.state.mirror["U-E"].view;
+    await submit(l.h, envelope("run", "VXSE43", "eew", vxse43(), l.now, 10));
+    expect(l.h.delivered.some(({ place, reply }) => place === "urgent" && reply.kind === "inputDone" && reply.settlement.inputId === "eew"))
+      .toBe(true);
+    expect(l.root.state.mirror["U-E"].view).not.toBe(before);
+    expect([l.root.refuseInput("quake", "VXSE53", l.now), l.root.refuseInput("eew-2", "VXSE45", l.now)]).toEqual([true, false]);
+    expect(sentTo(l, "seismic", from)).toEqual([]);
+    expect(l.events().filter((event) => event.reason === "ownerStopped").map((event) => event.component))
+      .toEqual(["owner.seismic", "owner.seismic"]);
+    await l.root.diagnostics.flush();
+  });
+
+  it("P3-C3B-T06 acceptance / AC05: E08 with every owner: 1,000 fixed-clock ticks do no content work", async () => {
     const l = await lifecycle();
     const fixed = 1_000;
     await l.tick(fixed);
@@ -490,8 +524,8 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     const replies = l.h.delivered.slice(delivered).map(({ reply }) => reply.kind);
     // The values crossing the boundary, counted apart: one deadline request and its reply per owner and tick. Inside the
     // owner the only copy is the harness's boundary copy of each reply.
-    expect([requests.length, requests.every((kind) => kind === "deadline")]).toEqual([3_000, true]);
-    expect([replies.length, replies.every((kind) => kind === "deadlineDone")]).toEqual([3_000, true]);
+    expect([requests.length, requests.every((kind) => kind === "deadline")]).toEqual([4_000, true]);
+    expect([replies.length, replies.every((kind) => kind === "deadlineDone")]).toEqual([4_000, true]);
     expect(inOwner).toEqual({ active: false, clone: replies.length, stringify: 0, parse: 0 });
     expect(changes).toBe(0);
     expect(l.published).toHaveLength(published);

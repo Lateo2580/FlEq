@@ -14,7 +14,7 @@ import WebSocket from "ws";
 import { startDisplayServer } from "../../dist/src/http-sse/http-sse.js";
 import { ingestXmlData } from "../../dist/src/ingress/ingress.js";
 import {
-  RuntimeCompositionRoot, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem, snapshotInput,
+  RuntimeCompositionRoot, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem, places, snapshotInput,
 } from "../../dist/src/runtime/composition-root.js";
 import { OwnerHost } from "../../dist/src/runtime/owner-host.js";
 import { projectSnapshot } from "../../dist/src/view-projector/view-projector.js";
@@ -106,7 +106,7 @@ async function runtime(streamId, materials) {
     send: (place, request) => queueMicrotask(() => owners.get(place).handle(structuredClone(request))),
     notificationAdapter: { run: () => new Promise(() => {}), abort: async () => ({}) },
   });
-  for (const place of ["urgent", "weatherCurrent", "deferred"]) owners.set(place, new OwnerHost({
+  for (const place of places) owners.set(place, new OwnerHost({
     start: { place, stateDirectory: join(directory, "state"), publisherTimeOriginMs: 0 },
     units: linkedUnitTable, codecs: linkedUnitCodecs, fileSystem: nodeCheckpointFileSystem(), sharedNow: () => NOW,
     reply: (reply) => queueMicrotask(() => {

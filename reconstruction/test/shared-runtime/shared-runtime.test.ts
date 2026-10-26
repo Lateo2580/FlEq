@@ -113,7 +113,7 @@ function parserInput(result: ParserMailboxResult, runId = "run"): Extract<Runtim
 }
 
 // TEST-PATH (1): owner core inputs.
-const places = ["urgent", "weatherCurrent", "deferred"] as const satisfies readonly ExecutionPlace[];
+const places = ["urgent", "weatherCurrent", "deferred", "seismic"] as const satisfies readonly ExecutionPlace[];
 const completion = (result: ParserMailboxResult, runId = "run"): ParserCompletion => ({ runId,
   inputId: result.kind === "decoded" ? result.material.inputId : result.diagnostic.inputId, result });
 const units = (stubs: StubCalls = {}) => callsWith(stubs).units;
@@ -534,7 +534,7 @@ describe("P2 shared runtime", () => {
       return step;
     });
     expect(ownerSteps.map((step) => step.diagnostics.map((entry) => entry.reason))).toEqual([
-      ["routeNotPorted"], ["routeNotPorted"], [], ["reportDateTimeMissing"], ["xmlInvalid"], [], [], [], [],
+      ["routeNotPorted"], ["routeNotPorted"], [], ["reportDateTimeMissing"], ["xmlInvalid"], [], [], [], [], [],
     ]);
     // Diagnostic string byte accounting is allowed; state serialization is not.
     expect(stringify.mock.calls.every(([value]) => typeof value === "string")).toBe(true);
@@ -545,7 +545,7 @@ describe("P2 shared runtime", () => {
 
   it("P2-A1-T03 corpusHistory / AC03: O02:8 and O02:10 reject in fixed priority without state change", () => {
     const inspect = vi.fn();
-    const urgent = savedOwner("urgent", inspect);
+    const seismic = savedOwner("seismic", inspect);
     const headMissing = fixture("test/fixtures/81_05_01_260605_VPWP50_head_missing.xml", "VPWP50");
     const invalidDate = fixture("test/fixtures/telegram-foundation/invalid-report-datetime.xml", "VXSE51");
     expect(validateSemanticEnvelope(headMissing)).toMatchObject({ kind: "rejected", reason: "headMissing" });
@@ -554,10 +554,10 @@ describe("P2 shared runtime", () => {
     expect(validateSemanticEnvelope({ ...headMissing, reportDateTimeRaw: "not-a-date" })).toMatchObject({ kind: "rejected", reason: "headMissing" });
     expect(validateSemanticEnvelope({ ...valid, reportDateTimeRaw: "" })).toMatchObject({ kind: "rejected", reason: "reportDateTimeMissing" });
     // O02:8 (VPWP50) is routed to U-F, whose receive owns its runtime rejection (A6 AC01). O02:10 (VXSE51) is routed to
-    // U-Q on the urgent owner since P3-C7, which rejects it with the same common check.
+    // U-Q on the seismic owner since P3-SEISMIC-PLACE-001, which rejects it with the same common check.
     for (const material of [invalidDate]) {
-      const step = receiveOwner(urgent, completion({ kind: "decoded", material }), clock, units());
-      expect(step.state).toBe(urgent);
+      const step = receiveOwner(seismic, completion({ kind: "decoded", material }), clock, units());
+      expect(step.state).toBe(seismic);
       expect(step.changedUnits).toEqual([]);
       expect(step.diagnostics).toHaveLength(1);
     }
@@ -696,18 +696,18 @@ describe("P2 shared runtime", () => {
       toWeatherCurrentView: toView };
     // Each owner applies only its own units' due deadlines on its deadline request (P3-C3A-DEADLINES).
     const frozen = freeze(pending);
-    const [urgent, weatherCurrent, deferred] = places.map((place) =>
+    const [urgent, weatherCurrent, deferred, seismic] = places.map((place) =>
       deadlineOwner(ownerFixture(place, frozen), at(10), units(calls)));
     expect(eew.mock.calls).toEqual([[initial.units["U-E"], { kind: "deadline", clock: at(10), basis: "verified" }]]);
     expect(weather.mock.calls).toEqual([[initial.units["U-W"], { kind: "deadline", clock: at(10), basis: "verified" }]]);
     expect(series).not.toHaveBeenCalled();
-    expect({ ...urgent.state.deadlines, ...weatherCurrent.state.deadlines, ...deferred.state.deadlines })
+    expect({ ...urgent.state.deadlines, ...weatherCurrent.state.deadlines, ...deferred.state.deadlines, ...seismic.state.deadlines })
       .toEqual({ ...pending.deadlines, "U-E": null, "U-W": null });
     expect(urgent.state.units["U-E"]).toBe(initial.units["U-E"]);
     expect(deferred.state.units["U-F"]).toBe(initial.units["U-F"]);
     expect(weatherCurrent.state.units["U-W"]?.freshness).toBe(initial.units["U-W"].freshness);
     expect(weatherCurrent.outcomes[0]).toEqual({ unit: "U-W", outcome });
-    expect([urgent, weatherCurrent, deferred].flatMap((step) => step.views)).toEqual([]);
+    expect([urgent, weatherCurrent, deferred, seismic].flatMap((step) => step.views)).toEqual([]);
     expect(toView).not.toHaveBeenCalled();
     for (const step of [urgent, weatherCurrent, deferred])
       expect(deadlineOwner(step.state, at(10), units(calls)).state).toBe(step.state);

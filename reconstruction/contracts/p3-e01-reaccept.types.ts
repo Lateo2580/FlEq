@@ -19,6 +19,11 @@ export type P3EewPopulation =
   | "forecastDeadlineOverlap"
   | "maxVpws50ReceivedThenEew";
 
+// P3-SEISMIC-PLACE-001（P3-SP-D-POPULATION=A）: 台帳 100 の衝突の参考の母集団（観測点 30,000 の VXSE53 の frame の直後に EEW）。凍結した
+// 6 母集団の型と鍵の一覧は変えず、これを載せる新しい manifest の collisionPopulations でだけ求める（凍結した manifest は今の検証のまま通る）。
+export type P3SeismicCollisionPopulation = "maxVxse53ReceivedThenEew";
+export type P3E01Population = P3EewPopulation | P3SeismicCollisionPopulation;
+
 // How the runner decides, right after each trial, that the trial established its population's condition.
 // Only established trials get a formal sampleIndex (P3-C4-AC03).
 export type P3EewEstablishment =
@@ -59,6 +64,8 @@ export type P3E01Manifest = Readonly<
     // A10's results under this manifest are never rewritten (plan §3.2).
     inheritsManifestId: "a10-p2-20260930b";
     populations: Readonly<Record<P3EewPopulation, P3EewPopulationCondition>>;
+    // scope reference・origin T0・成立条件 sentBeforeLargeFrameIngested だけ（P3-C4-COLLISION-VERDICT=A の形）。無い manifest は 6 母集団だけ。
+    collisionPopulations?: Readonly<Record<P3SeismicCollisionPopulation, P3EewPopulationCondition>>;
     // P3-C4-RUNNER-LIVENESS (Q-C2-RUNNER-LIVENESS): without pings, a window with a frame gap of 90 s or more
     // reconnects mid-window (A10's load N: 597,969 ms within one replay, 632,884 ms across the wrap).
     liveness: Readonly<{ pingEveryMs: 20000; maxFrameGapMs: 90000 }>;
@@ -83,7 +90,7 @@ export type P3E01Manifest = Readonly<
 >;
 
 export type P3EewTraceSample = Readonly<
-  Omit<EewTraceSample, "schemaVersion" | "population"> & { schemaVersion: "p3-eew-trace-v1"; population: P3EewPopulation }
+  Omit<EewTraceSample, "schemaVersion" | "population"> & { schemaVersion: "p3-eew-trace-v1"; population: P3E01Population }
 >;
 
 // attemptIndex numbers every trial of the window, warm-up included. Warm-up trials get sampleIndex 0〜99 in order
@@ -92,7 +99,7 @@ export type P3EewTraceSample = Readonly<
 // injectionFailures, and never block Pass (spec:1133: reported with the reason).
 export type P3EewInjectionRecord = Readonly<
   Omit<EewInjectionRecord, "population" | "outcome" | "sampleIndex"> & {
-    population: P3EewPopulation;
+    population: P3E01Population;
     attemptIndex: number;
     sampleIndex: number | null;
     outcome: EewInjectionRecord["outcome"] | "overlapNotEstablished";
@@ -105,7 +112,7 @@ export type P3EewInjectionRecord = Readonly<
 export type P3EewRunResult = Readonly<
   Omit<EewMeasurementRunResult, "schemaVersion" | "population"> & {
     schemaVersion: "p3-eew-e01-result-v1";
-    population: P3EewPopulation;
+    population: P3E01Population;
     attempts: number;
     overlapNotEstablished: number;
     injectedToT6P50LowerMs: number | null;

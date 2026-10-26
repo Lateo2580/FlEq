@@ -4,8 +4,8 @@ import type { OwnerRequest, OwnerStartData } from "../../contracts/p3-execution-
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem, sharedClock } from "./composition-root";
 import { OwnerHost } from "./owner-host";
 
-// P3-C3A-AC01: the entry of one resident owner thread (dist/src/runtime/owner-worker.js). The host starts three,
-// one per execution place; requests and replies cross by structured clone over the thread's port.
+// P3-C3A-AC01: the entry of one resident owner thread (dist/src/runtime/owner-worker.js). The host starts one
+// per execution place (four, P3-SP-AC02); requests and replies cross by structured clone over the thread's port.
 const port = parentPort;
 if (port == null) throw new Error("owner-worker runs only as a worker thread");
 const start: OwnerStartData = workerData;

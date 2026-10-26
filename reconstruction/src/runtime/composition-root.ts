@@ -384,7 +384,7 @@ class RuntimeCompositionRoot {
   // An owner that stopped before startRuntime completed rejects it (P3-C3A-AC01); later stops are per owner (C3b AC02).
   private startFailure: { place: ExecutionPlace; cause: unknown } | null = null;
   private readonly monitors: Record<ExecutionPlace, OwnerMonitor> = {
-    urgent: ownerMonitor(), weatherCurrent: ownerMonitor(), deferred: ownerMonitor() };
+    urgent: ownerMonitor(), seismic: ownerMonitor(), weatherCurrent: ownerMonitor(), deferred: ownerMonitor() };
   // P3-C3B-FINALIZE-UNHEALTHY (A): owners unresponsive when side-effect finalization began; left out of (2) and (4).
   private readonly unhealthy = new Set<ExecutionPlace>();
   // P3-C3B-AC08: an input waiting for its unit's held expiry update to be sent first (at most one per place).
@@ -400,8 +400,8 @@ class RuntimeCompositionRoot {
   private requestSequence = 0;
   // P3-C3A-RES-09: the requests each owner has not answered yet, by kind.
   private readonly outstanding: Record<ExecutionPlace, { deadline: boolean; shutdownInput: boolean }> = {
-    urgent: { deadline: false, shutdownInput: false }, weatherCurrent: { deadline: false, shutdownInput: false },
-    deferred: { deadline: false, shutdownInput: false } };
+    urgent: { deadline: false, shutdownInput: false }, seismic: { deadline: false, shutdownInput: false },
+    weatherCurrent: { deadline: false, shutdownInput: false }, deferred: { deadline: false, shutdownInput: false } };
   private readonly inFlightInputs = new Map<ExecutionPlace, ParserEnvelope>();
   private readonly intentRequests = new Map<string, IntentRequest>();
   private readonly inFlightKeys = new Set<string>();
@@ -689,7 +689,7 @@ class RuntimeCompositionRoot {
     return { stalledMs: stalledMs >= RESPONSE_MS ? stalledMs : null, unresponsiveMs: unresponsiveMs >= RESPONSE_MS ? unresponsiveMs : null };
   }
 
-  // P3-C3B-AC01 / WORKER-VIEW (A): the tick's judgement of the three owners and the mailbox as one worker view, worst
+  // P3-C3B-AC01 / WORKER-VIEW (A): the tick's judgement of the owners and the mailbox as one worker view, worst
   // first (stopped > unresponsive > stalled > healthy). One WARN per state entry; nothing is judged after stop().
   monitorOwners(clock: ClockReading = this.clock()): DisplayWorkerView {
     if (this.state.shutdown.stage !== "running") return this.snapshotWorker;
@@ -839,10 +839,10 @@ class RuntimeCompositionRoot {
     return this.heldUpdates.some((update) => executionPlaces[update.unit] === place) || saving;
   }
 
-  // P3-UWR-AC04: 自分の実行場所の unit の権が出ている間だけ留保する（他 unit の権は見ない）。urgent と running の外では留保しない
-  // （spec §7.5、P3-UWR-AC07）。上限は置いた時から 1,000 ms（P3-UWR-HOLD-LIMIT=A）。満了しても権は回収しない（P3-UWR-AC05）。
+  // P3-UWR-AC04: 自分の実行場所の unit の権が出ている間だけ留保する（他 unit の権は見ない）。urgent・seismic と running の外では留保しない
+  // （spec §7.5、P3-UWR-AC07。seismic は震度速報を U-Q の保存の後ろで遅らせないため、P3-SP-D-SAVE-HOLD=A）。上限は置いた時から 1,000 ms（P3-UWR-HOLD-LIMIT=A）。満了しても権は回収しない（P3-UWR-AC05）。
   private ownSaveHold(place: ExecutionPlace, nowMs: number): boolean {
-    const own = place === "urgent" || this.state.shutdown.stage !== "running" ? []
+    const own = place === "urgent" || place === "seismic" || this.state.shutdown.stage !== "running" ? []
       : placeUnits(place).flatMap((unit) => this.checkpoint.grantOf(unit)?.grantId ?? []);
     const spent = this.holdSpent.get(place);
     if (spent != null && spent.some((grantId) => own.includes(grantId))) return false;
@@ -1887,5 +1887,5 @@ function reflectUnsaved(measuring: Measuring, mirror: RuntimeMirror, deltas: rea
 }
 
 export { RuntimeCompositionRoot, countedCheckpointFileSystem, linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem,
-  nodeDiagnosticFileSystem, sharedClock, snapshotInput, writeCounters };
+  nodeDiagnosticFileSystem, places, sharedClock, snapshotInput, writeCounters };
 export type { CompositionOptions, NotificationCalls, ProjectedStep, PublisherInput, ShutdownHooks, WriteCounters };

@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import type { P3TsunamiE01Manifest, P3TsunamiInjectionRecord, P3TsunamiPopulation, P3TsunamiTraceSample } from "../../contracts/p3-tsunami-e01.types";
+import type {
+  P3TsunamiCollisionPopulation, P3TsunamiE01Manifest, P3TsunamiInjectionRecord, P3TsunamiPopulation, P3TsunamiTraceSample,
+} from "../../contracts/p3-tsunami-e01.types";
 import type { TsunamiAreaTransition, TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import { buildTsunamiPaint } from "../../src/display/chrome-eew/pure";
 import { P3_TSUNAMI_POPULATIONS, sealSelfHash, verifyFrozenP3TsunamiManifest } from "../../src/measurement/eew-e01/frozen";
@@ -24,9 +26,9 @@ const T6T = "fleq:p3:tsunami:T6-candidate";
 
 // ── 判定（T01: AC01・AC02） ──
 // 母集団 pop の 1 run（warm-up 100 + 正式 1000）。遷移は系列の中で順に回す。latency(k, transition) は正式内の 0 始まり index の [L, U]。
-function tsunamiRun(manifest: P3TsunamiE01Manifest, pop: P3TsunamiPopulation, run: 1 | 2 | 3,
+function tsunamiRun(manifest: P3TsunamiE01Manifest, pop: P3TsunamiPopulation | P3TsunamiCollisionPopulation, run: 1 | 2 | 3,
   latency: (k: number, transition: TsunamiAreaTransition) => [number, number] = () => [100, 103]) {
-  const transitions = manifest.populations[pop].transitions;
+  const transitions = (pop === "escalation:maxVxse53Received" ? manifest.collisionPopulations?.[pop] : manifest.populations[pop])?.transitions ?? [];
   const samples: P3TsunamiTraceSample[] = [];
   const injections: P3TsunamiInjectionRecord[] = [];
   for (let index = 0; index < 1100; index++) {
@@ -235,6 +237,28 @@ describe("P3-C6-T06 freezing the tsunami manifest (AC10)", () => {
     refuses((m) => { m["populations"]["deescalation:eewTogether"].eewEventIds = null; }, /eewEventIds/);
     refuses((m) => { m["populations"]["deescalation:fixedBacklog"].tsunamiEventIds.warmup = m["populations"]["escalation:fixedBacklog"].tsunamiEventIds.warmup; }, /EventIDs/);
     refuses((m) => { m["populations"]["escalation:fixedBacklog"].transitions = ["released", "downgraded"]; }, /transitions/);
+  });
+
+  // P3-SEISMIC-PLACE-001 の AC08 (1): 衝突の参考の母集団は collisionPopulations を載せた manifest でだけ求め、reference の issued だけを通す。
+  // 成立は target の実送信の上界が VXSE53 の T1 より前（そうでなければ largeFrameOrder）。判定は runs に出して verdict に入れない。
+  it("P3-SP-AC08 contractBoundary: the seismic collision population verifies only as reference issued, establishes before the VXSE53 T1 and stays out of the verdict", () => {
+    const c = buildP3TsunamiManifest({ id: "p3-c6-test-seismic", ...machine, seismicCollision: true });
+    const verify = (manifestText: string) => verifyFrozenP3TsunamiManifest({ ...inputs(manifestText), contractTexts: c.contractTexts, fixtureTexts: c.fixtureTexts });
+    const { manifest } = verify(c.manifestText);
+    expect(manifest.collisionPopulations?.["escalation:maxVxse53Received"]).toMatchObject({ scope: "reference", transitions: ["issued"],
+      inheritsC4Population: "fixedBacklog", establishment: { kind: "primeSettledSentBeforeLargeFrameIngested" } });
+    const formal = JSON.parse(c.manifestText);
+    formal.collisionPopulations["escalation:maxVxse53Received"].scope = "formal";
+    expect(() => verify(sealSelfHash(`${JSON.stringify({ ...formal, manifestSha256: "0".repeat(64) }, null, 2)}\n`, "manifestSha256"))).toThrow(/population escalation:maxVxse53Received/);
+    const sent = (upperMs: number) => establishTsunamiTrial({ establishment: { kind: "primeSettledSentBeforeLargeFrameIngested" }, t0Ms: 1000,
+      prime: { paintRequired: true, paintHostMs: { lowerMs: 900, upperMs: 902 }, replyMs: 850, ackMs: 950 }, target: { startMs: 600, endMs: 600 }, eewInputDoneMs: null,
+      injectorSendHostMs: { lowerMs: upperMs - 0.02, upperMs } });
+    expect([sent(599.9), sent(600)]).toEqual([{ established: true }, { established: false, reason: "largeFrameOrder" }]);
+    const collision = tsunamiRun(manifest, "escalation:maxVxse53Received", 1);
+    const judged = summarizeP3TsunamiE01(manifest, collision.samples, collision.injections,
+      [{ population: "escalation:maxVxse53Received", run: 1, stateBreaks: noBreaks }]);
+    expect(judged.runs.find((r) => r.population === "escalation:maxVxse53Received")).toMatchObject({ scope: "reference", status: "Pass", samples: 1000 });
+    expect(Object.keys(judged.verdict.populations)).not.toContain("escalation:maxVxse53Received");
   });
 });
 

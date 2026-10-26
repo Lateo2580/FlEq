@@ -17,13 +17,15 @@ import type {
   RuntimeUnitView, WallBasis,
 } from "./p2-shared-runtime.types";
 
-// P3-EXECUTION-SPLIT-001 (C3a). D-P3-1: the publisher is Node main; three resident worker_threads own the units.
+// P3-EXECUTION-SPLIT-001 (C3a). D-P3-1: the publisher is Node main; resident worker_threads own the units, one per place
+// (four since P3-SEISMIC-PLACE-001).
 // Every value below crosses a thread by structured clone: plain data only, no function, class instance or shared
 // mutable reference (p3-execution-boundary.md §2). No parse tree, canonical unit state or checkpoint bytes appear here.
 
 // One place per unit, kept as one column next to the unit list (P3-C3A-PLACE-COLUMN). Urgent and non-urgent units
 // never share a place. An input whose headType is not ready (ignored / notPorted / unlisted) is decoded in "deferred".
-export type ExecutionPlace = "urgent" | "weatherCurrent" | "deferred";
+// seismic は U-Q だけの場所（P3-SP-D-PLACE=A、台帳 100）: 観測点の多い VXSE53 の処理と U-Q の保存で EEW・津波を待たせない。
+export type ExecutionPlace = "urgent" | "seismic" | "weatherCurrent" | "deferred";
 
 // workerData of one owner thread. publisherTimeOriginMs is the publisher's performance.timeOrigin.
 // measured は測定の印（host の config.observe != null、P3-C4-AC04）。印があるときだけ owner は full parse と書込み権の着手の

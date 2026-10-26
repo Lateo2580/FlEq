@@ -19,8 +19,8 @@ import type { Harness } from "./owner-harness";
 // P3-UNIT-WRITE-RIGHT-001: TEST-PATH (2) with the fixture driver's stub reducers on a memory file system whose file sync
 // can be held per unit, and an injected clock.
 const at = (ms: number): ClockReading => ({ wallTimeMs: 1_800_000_000_000 + ms, monotonicMs: ms });
-const codecs = { "U-E": stringCodec("U-E"), "U-W": stringCodec("U-W"), "U-F": stringCodec("U-F") };
-const units = ["U-E", "U-W", "U-F"] as const;
+const codecs = { "U-E": stringCodec("U-E"), "U-W": stringCodec("U-W"), "U-F": stringCodec("U-F"), "U-Q": stringCodec("U-Q") };
+const units = ["U-E", "U-W", "U-F", "U-Q"] as const;
 
 const directories: string[] = [];
 afterEach(() => {
@@ -526,5 +526,38 @@ describe("P3-UNIT-WRITE-RIGHT-001 (TEST-PATH (2))", () => {
     expect(marked.done.map((reply) => reply.generationRaisedMs)).toEqual([row.ownerMonotonicMs]);
     const plain = await run(false);
     expect(plain.done.map((reply) => reply.generationRaisedMs)).toEqual([null]);
+  });
+});
+
+describe("P3-SEISMIC-PLACE-001 (TEST-PATH (2))", () => {
+  it("P3-SP-T02 acceptance / AC03,AC04: a VXSE53 in flight on seismic neither delays the EEW nor its right, and U-Q's own right holds no VXSE53", async () => {
+    const r = await runtime();
+    // seismic の VXSE53 の返信を止めて、seismic の in-flight を 1 件残す。その間の期限の返信で U-Q を dirty にする。
+    const held = r.h.hold((place, reply) => place === "seismic" && reply.kind === "inputDone");
+    r.queue("U-Q", 1);
+    await r.h.settle();
+    r.driver.queue(r.h, r.raised("U-Q", 2), r.now, { "U-Q": ["U-Q-2"] });
+    r.root.tick(r.now);
+    await r.h.settle();
+    expect(r.root.state.mirror["U-Q"].persistence).toMatchObject({ kind: "pending", currentGeneration: 2 });
+    // EEW は urgent へ直ちに送られて採用され、U-E の権は出て保存される。U-Q の権は seismic の処理中なので出ない。
+    const from = r.grants().length;
+    await r.raise("U-E", 1);
+    expect(r.inputsTo("urgent").map(({ request }) => request.kind === "input" ? request.envelope.messageId : null)).toEqual(["U-E-1"]);
+    expect(r.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
+    expect(r.grants().slice(from).map((grant) => grant.unit)).toEqual(["U-E"]);
+    // 返信を放すと U-Q の権が出る。その権が出ている間（保存の file sync を止める）の VXSE53 は留保せず seismic へ送る（P3-SP-D-SAVE-HOLD=A）。
+    const releaseQuake = r.files.hold("U-Q");
+    held();
+    r.h.release();
+    await r.h.settle();
+    expect(r.root.checkpoint.grantOf("U-Q")?.mode).toBe("save");
+    r.queue("U-Q", 3);
+    await r.h.settle();
+    expect([r.delayed(), r.inputsTo("seismic").at(-1)?.request]).toMatchObject([0, { kind: "input", envelope: { messageId: "U-Q-3" } }]);
+    expect(r.root.checkpoint.grantOf("U-Q")?.mode).toBe("save");
+    releaseQuake();
+    await r.h.settle();
+    await r.root.diagnostics.flush();
   });
 });

@@ -127,18 +127,18 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
 
     for (const headType of ["VXSE51", "VXSE52", "VXSE53", "VXSE61", "VXSE62"]) {
       expect(classifyHeadType(headType)).toEqual({ status: "ready", unit: "U-Q" });
-      expect(placeOfHeadType(headType)).toBe("urgent");
+      expect(placeOfHeadType(headType)).toBe("seismic");
     }
+    for (const headType of ["VXSE45", "VTSE41"]) expect(placeOfHeadType(headType), headType).toBe("urgent");
     expect(classifyHeadType("VXSE47")).toMatchObject({ status: "notPorted", candidate: "U-Q", reason: expect.stringMatching(/^C7で確認/) });
-    // 一入力は U-Q だけへ届き、U-E・U-T の state は同じ参照のまま。
-    const owner = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+    // 一入力は U-Q だけへ届き、seismic の owner は U-Q だけを持つ（P3-SP-D-MEMBERS=A）。
+    const owner = restoreOwner({ runId: "run", place: "seismic", clock: now, restored: { "U-Q": { kind: "empty" } } },
+      linkedUnitTable, linkedUnitCodecs).state;
     const material = decodeFixture(F.s53a);
     const routed = receiveOwner(owner, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },
       clock(Date.parse(material.reportDateTimeRaw)), linkedUnitTable);
     expect(routed.changedUnits).toEqual(["U-Q"]);
-    expect([routed.state.units["U-E"], routed.state.units["U-T"]]).toEqual([owner.units["U-E"], owner.units["U-T"]]);
-    expect(routed.state.units["U-E"]).toBe(owner.units["U-E"]);
+    expect(Object.keys(routed.state.units)).toEqual(["U-Q"]);
   });
 
   // acceptance: I-U-Q.earthquakeSemantics と Q-ENUM.revisionOrder、view（AC02・AC07）。

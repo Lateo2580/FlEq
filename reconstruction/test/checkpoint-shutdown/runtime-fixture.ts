@@ -184,15 +184,15 @@ function fixtureDriver() {
 
 // TEST-PATH (1): the state of one owner, cut from a whole-runtime fixture, for calling the owner core directly.
 function ownerFixture(place: ExecutionPlace, whole: RuntimeState = fixtureState()): OwnerState {
-  const unit = place === "urgent" ? "U-E" as const : place === "weatherCurrent" ? "U-W" as const : "U-F" as const;
-  // urgent owns U-E, U-T, U-Q, U-N and U-V (P3-C5-PLACE=A, P3-C7-PLACE=A, P3-C8-PLACE=A, P3-C9-PLACE=A); each keeps its own
-  // deadline and attempt slots.
-  const units = unit === "U-E" ? { "U-E": whole.units["U-E"], "U-T": whole.units["U-T"], "U-Q": whole.units["U-Q"], "U-N": whole.units["U-N"],
-    "U-V": whole.units["U-V"] }
-    : unit === "U-W" ? { "U-W": whole.units["U-W"] } : { "U-F": whole.units["U-F"], "U-L": whole.units["U-L"],
+  // urgent owns U-E, U-T, U-N and U-V (P3-C5-PLACE=A, P3-C8-PLACE=A, P3-C9-PLACE=A), seismic owns U-Q (P3-SP-D-PLACE=A); each keeps
+  // its own deadline and attempt slots.
+  const units = place === "urgent" ? { "U-E": whole.units["U-E"], "U-T": whole.units["U-T"], "U-N": whole.units["U-N"], "U-V": whole.units["U-V"] }
+    : place === "seismic" ? { "U-Q": whole.units["U-Q"] }
+    : place === "weatherCurrent" ? { "U-W": whole.units["U-W"] } : { "U-F": whole.units["U-F"], "U-L": whole.units["U-L"],
       "U-R": whole.units["U-R"], "U-B": whole.units["U-B"], "U-M": whole.units["U-M"], "U-Y": whole.units["U-Y"] };
   // deferred owns U-F, U-L, U-R, U-B, U-M and U-Y (P3-C10-PLACE=A, P3-C11-PLACE=A, P3-C12-PLACE=A, P3-C13-PLACE=A, P3-C14-PLACE=A).
-  const own = unit === "U-E" ? ["U-E", "U-T", "U-Q", "U-N", "U-V"] as const : unit === "U-F" ? ["U-F", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const : [unit];
+  const own = place === "urgent" ? ["U-E", "U-T", "U-N", "U-V"] as const : place === "seismic" ? ["U-Q"] as const
+    : place === "weatherCurrent" ? ["U-W"] as const : ["U-F", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const;
   const pick = <T>(value: (unit: RuntimeUnitId) => T | undefined) => Object.fromEntries(own.flatMap((item) => {
     const found = value(item);
     return found == null ? [] : [[item, found]];

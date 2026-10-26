@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import type { CheckpointMeasurement, EewTraceSample } from "../../contracts/p2-eew-e01.types";
-import type { P3E01Manifest, P3EewInjectionRecord, P3EewPopulation, P3EewTraceSample } from "../../contracts/p3-e01-reaccept.types";
+import type { P3E01Manifest, P3E01Population, P3EewInjectionRecord, P3EewPopulation, P3EewTraceSample } from "../../contracts/p3-e01-reaccept.types";
 import { HARNESS_TRIAL_SETUP, sealSelfHash, verifyFrozenP3Manifest } from "../../src/measurement/eew-e01/frozen";
 import { establishTrial, summarizeP3E01 } from "../../src/measurement/eew-e01/judge";
 import { checkpointWindows } from "./ac15.mjs";
@@ -25,7 +25,7 @@ const machine = { chromeVersion: "154.0.8037.92", nodeVersion: "v22.23.2", osVer
 const built = (collisionVerdict: "A" | "B" = "A") => buildP3Manifest({ id: "p3-test", collisionVerdict, ...machine, o09Positions: [2, 12] });
 
 // 母集団 pop の 1 run（warm-up 100 + 正式 1000）。latency(k) は正式内の 0 始まり index の [L, U]。
-function p3Run(pop: P3EewPopulation, run: 1 | 2 | 3, latency: (k: number) => [number, number], patchInjection: (i: P3EewInjectionRecord) => P3EewInjectionRecord = (i) => i) {
+function p3Run(pop: P3E01Population, run: 1 | 2 | 3, latency: (k: number) => [number, number], patchInjection: (i: P3EewInjectionRecord) => P3EewInjectionRecord = (i) => i) {
   const samples: P3EewTraceSample[] = [];
   const injections: P3EewInjectionRecord[] = [];
   for (let index = 0; index < 1100; index++) {
@@ -226,6 +226,20 @@ describe("P3-C4-T09 frozen conditions read by the runner (AC13(1)(2)(7))", () =>
     patch(m);
     return sealSelfHash(`${JSON.stringify(m, null, 2)}\n`, "manifestSha256");
   };
+
+  // P3-SEISMIC-PLACE-001 の AC08 (1): 衝突の参考の母集団は collisionPopulations を載せた manifest でだけ求め、reference・T0 だけを通し、
+  // 判定は runs に出して verdict に入れない（無い manifest は上の it のまま通る）。
+  it("P3-SP-AC08 contractBoundary: the seismic collision population verifies only as reference/T0 and is judged outside the verdict", () => {
+    const b = buildP3Manifest({ id: "p3-test-seismic", ...machine, o09Positions: [2, 12], seismicCollision: true });
+    const { manifest } = verify(b.manifestText, b);
+    expect(manifest.collisionPopulations?.maxVxse53ReceivedThenEew).toMatchObject({ scope: "reference", origin: "T0", establishment: { kind: "sentBeforeLargeFrameIngested" } });
+    const formal = JSON.parse(b.manifestText) as { collisionPopulations: Record<string, { scope: string }> };
+    formal.collisionPopulations["maxVxse53ReceivedThenEew"].scope = "formal";
+    expect(() => verify(sealSelfHash(`${JSON.stringify(formal, null, 2)}\n`, "manifestSha256"), b)).toThrow("scope/origin");
+    const judged = judge(manifest, [p3Run("maxVxse53ReceivedThenEew", 1, () => [240, 242])]);
+    expect(judged.runs.find((r) => r.population === "maxVxse53ReceivedThenEew")).toMatchObject({ scope: "reference", status: "Pass", samples: 1000 });
+    expect(Object.keys(judged.verdict.populations)).not.toContain("maxVxse53ReceivedThenEew");
+  });
 
   it("the runner takes the lead and the span of population 5 from the manifest; the freeze refuses a misplaced span or lead and an O09 subset not of these sequences", () => {
     const b = buildP3Manifest({ id: "p3-test", ...machine, lead: { forecastDeadlineOverlap: 1234 }, deadlineSpan: "encodeThroughWrite", o09Positions: [2, 12] });
@@ -599,7 +613,8 @@ describe("P3-E05S-T02 the peak and floor rows, the per-thread values and the unc
     const pubRss = (at: number) => (at === 112_000 ? 500 : at === 104_000 || at === 106_000 ? 400 : at === 80_000 || at === 90_000 ? 290 : at === 65_000 ? 100 : 300) * MiB;
     const row = (place: string, atMs: number) => ({ k: "mem", place, atMs, rss: pubRss(atMs), heapUsed: atMs, heapTotal: atMs * 1.5, external: atMs / 10, arrayBuffers: atMs / 50 });
     const series = (place: string, offsetMs: number) => Array.from({ length: 276 }, (_, i) => row(place, 60_000 + 200 * i + offsetMs));
-    const rows = { publisher: series("publisher", 0), urgent: series("urgent", -150), weatherCurrent: series("weatherCurrent", -150), deferred: series("deferred", -150) };
+    const rows = { publisher: series("publisher", 0), urgent: series("urgent", -150), weatherCurrent: series("weatherCurrent", -150), deferred: series("deferred", -150),
+      seismic: series("seismic", -150) };
     const span = { fromHostMs: 100_000, toHostMs: 110_000 };
     type Options = NonNullable<Parameters<typeof windows.e05sSplit>[2]>;
     const split = (r: Parameters<typeof windows.e05sSplit>[0] = rows, options: Options = {}, s: { fromHostMs: number; toHostMs: number | null } = span) => windows.e05sSplit(r, [s],
@@ -607,7 +622,7 @@ describe("P3-E05S-T02 the peak and floor rows, the per-thread values and the unc
     // 処理の始まりが採った行の時刻ちょうど（103,850）なら busy にしない（(行の時刻, t] の左は開く）。
     const base = split();
     expect(base).toMatchObject({ status: "ok", peak: { atMs: 104_000, rss: 400 * MiB }, floor: { atMs: 90_000, rss: 290 * MiB }, gBytes: 0, peakAttribution: null,
-      eBytes: 110 * MiB, residual: { peak: 400 * MiB - 664_880, floor: 290 * MiB - 575_280, delta: 110 * MiB - 89_600 } });
+      eBytes: 110 * MiB, residual: { peak: 400 * MiB - 831_040, floor: 290 * MiB - 719_040, delta: 110 * MiB - 112_000 } });
     expect([base.threads.publisher.peak, base.threads.deferred.peak, base.threads.urgent.floor, base.threads.deferred.delta]).toMatchObject([{ atMs: 104_000, ageMs: 0 },
       { atMs: 103_850, ageMs: 150, U: 103_850, V: 51_925, X: 10_385, A: 2_077 }, { atMs: 89_850, ageMs: 150, U: 89_850 }, { U: 14_000, V: 7_000, X: 1_400, A: 280 }]);
     // t_p の行を 103,000（古さ 1,000ms）にすると ok、102,999（1,001ms）にすると stale。deferred の行なら deferredStatus も同じ（処理の始まりは置かない）。

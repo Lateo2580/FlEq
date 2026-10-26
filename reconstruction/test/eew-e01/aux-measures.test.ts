@@ -120,7 +120,8 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     const grant = obs({ kind: "checkpointGrant", runId: "r", grantId: "g1", unit: "U-W", attemptIds: ["U-W-a"], dirtyObservedMonotonicMs: -5,
       grantSentMonotonicMs: -3, ownerStartedMonotonicMs: -1, doneReceivedMonotonicMs: 4 });
     const log = { bytes: 120, lines: 2 };
-    const base = [marker("T0", "input-1", 0), cp("U-W", "encode", 900, 0), cp("U-W", "write", 900, 2), row("urgent", counts()), row("deferred", counts())];
+    const base = [marker("T0", "input-1", 0), cp("U-W", "encode", 900, 0), cp("U-W", "write", 900, 2), row("urgent", counts()), row("deferred", counts()),
+      row("seismic", counts())];
     const owners = (weather = counts({ count: 1, bytes: 900 }), confirmed = true) => [...base, row("weatherCurrent", weather, confirmed)];
     const publisher = (tmp = zero) => row("publisher", counts(tmp, { count: 2, bytes: 120 }));
     const matched = aux.summarizeE15([...owners(), publisher(), grant], { diagnosticLog: log });
@@ -324,9 +325,9 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     const mem = (perfNowMs: number, heapUsed: number) => ({ t: "mem", perfNowMs, rss: 0, heapUsed, external: 0 });
     const heap = (place: string, monotonicMs: number, heapUsedBytes: number) => obs({ kind: "ownerHeap", runId: "r", place, replyKind: "deadlineDone", inputId: null,
       monotonicMs, heapUsedBytes, externalBytes: 0 });
-    const records = [mem(90, 10), mem(210, 20), ...["urgent", "weatherCurrent", "deferred"].flatMap((p) => [heap(p, 95, 100), heap(p, 205, 150)])];
+    const records = [mem(90, 10), mem(210, 20), ...["urgent", "weatherCurrent", "deferred", "seismic"].flatMap((p) => [heap(p, 95, 100), heap(p, 205, 150)])];
     const probe = (writtenAtMs: number) => ({ gc: [{ startMs: 150, durationMs: 2 }], writtenAtMs });
-    const all = { publisher: probe(300), urgent: probe(300), weatherCurrent: probe(300), deferred: probe(300) };
+    const all = { publisher: probe(300), urgent: probe(300), weatherCurrent: probe(300), deferred: probe(300), seismic: probe(300) };
     const done = aux.summarizeE12New(records, all, { startMs: 100, endMs: 200 });
     expect([done.status, done.threads.weatherCurrent.heapUsedDelta, done.threads.publisher.heapUsedDelta]).toEqual([null, 50, 10]);
     expect(aux.summarizeE12New(records, { ...all, deferred: null }, { startMs: 100, endMs: 200 }).threads.deferred).toMatchObject({ status: "未確認", reason: "probeMissing" });
@@ -347,7 +348,7 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     const heap = (place: string) => obs({ kind: "ownerHeap", runId: "r", place, replyKind: "deadlineDone", inputId: null, monotonicMs: 1, heapUsedBytes: 1, externalBytes: 0 });
     const rows: HostRecord[] = [heap("urgent"), heap("weatherCurrent")];
     expect(await aux.waitOwnerHeaps(() => rows, { timeoutMs: 40, pollMs: 5 })).toBe(false);
-    setTimeout(() => rows.push(heap("deferred")), 20);
+    setTimeout(() => rows.push(heap("deferred"), heap("seismic")), 20);
     expect(await aux.waitOwnerHeaps(() => rows, { timeoutMs: 2_000, pollMs: 5 })).toBe(true);
   });
 
@@ -402,7 +403,7 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
 // 山 k は 30 秒ごとに 4 秒（閾値 380・rearm 330MiB）。weatherCurrent の heapUsed を u、heapTotal を u+v 増やし、rss を u+v+xo 上げる。
 // GC の run は始まりの行の直後に閾値の GC を受け、通常の GC で freed の heapUsed が戻り（rss は戻らない）、last-resort の後に rss が returned 戻る。
 describe("P3-E05C-T01 the classification table of the E05-P peaks (AC03)", () => {
-  const THREADS = ["publisher", "urgent", "weatherCurrent", "deferred"] as const;
+  const THREADS = ["publisher", "urgent", "weatherCurrent", "deferred", "seismic"] as const;
   type Shape = { u?: number; v?: number; xo?: number; freed?: number; returned?: number; stale?: boolean };
   const options = { thresholdBytes: 380 * MiB, rearmBelowBytes: 330 * MiB, measureFromMs: 0, measureToMs: Infinity,
     c4: { start: { publisher: 21.8 * MiB, urgent: 8.9 * MiB, weatherCurrent: 14.5 * MiB, deferred: 9.6 * MiB },
@@ -463,7 +464,7 @@ describe("P3-E05C-T01 the classification table of the E05-P peaks (AC03)", () =>
 
   it("the phase and baseline GCs give S, D_start, D_late and Grow per thread and the judgements ①〜④ (AC03(4))", () => {
     // thread ごとの [L_pre, L_post, 300 秒以後の基準の GC の後の値の中央値]（MiB）。300 秒より前の基準の GC（100MiB）は入れない。
-    const values = { publisher: [21, 22, 22.5], urgent: [25, 30, 30], weatherCurrent: [15, 55, 60], deferred: [10, 12, 25] };
+    const values = { publisher: [21, 22, 22.5], urgent: [25, 30, 30], weatherCurrent: [15, 55, 60], deferred: [10, 12, 25], seismic: [10, 10, 10] };
     const gcRow = (place: string, id: number, reason: "phase" | "baseline", at: number, heapUsed: number, delayMs = 0): E05cRow => ({ k: "forcedGc", place, id, reason,
       requestedAtMs: at, startMs: at + delayMs, endMs: at + delayMs + 10, before: usage(300, heapUsed), afterRegular: usage(300, heapUsed), afterLastResort: usage(300, heapUsed) });
     const build = (postDelayMs: Record<string, number> = {}) => Object.fromEntries(Object.entries(values).map(([place, [pre, post, late]]) => [place, [
@@ -471,7 +472,9 @@ describe("P3-E05C-T01 the classification table of the E05-P peaks (AC03)", () =>
       gcRow(place, 4, "baseline", 300_000, late - 0.5), gcRow(place, 5, "baseline", 360_000, late), gcRow(place, 6, "baseline", 420_000, late + 0.5)]]));
     const { baseline } = aux.classifyE05cRun(build(), { ...options, measureToMs: 1_000_000, gcRun: true, phaseMissing: [[], []] });
     expect(Object.fromEntries(Object.entries(baseline?.threads ?? {}).map(([p, t]) => [p, t.judgement])))
-      .toEqual({ publisher: ["①"], urgent: ["③"], weatherCurrent: ["②"], deferred: ["①", "④"] });
+      .toEqual({ publisher: ["①"], urgent: ["③"], weatherCurrent: ["②"], deferred: ["①", "④"], seismic: null });
+    // c4 の表に行の無い seismic は D_start・D_late が出ず未確認（Q-SP-PRECHECK (7)(b)）。
+    expect(baseline?.threads.seismic).toMatchObject({ S: 0, dStart: null, dLate: null });
     expect(baseline?.threads.weatherCurrent).toMatchObject({ S: 40 * MiB, gLate: 60 * MiB, grow: 5 * MiB });
     expect(baseline?.threads.deferred.dLate).toBeCloseTo(15 * MiB);
     expect(baseline?.threads.urgent.gcs.map((g) => [g.id, g.reason, g.requestedAtMs, g.heapUsed])).toEqual([[1, "phase", -60_000, 25 * MiB], [2, "phase", -1000, 30 * MiB],

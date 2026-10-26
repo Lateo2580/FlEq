@@ -365,7 +365,7 @@ export function assembleTsunamiTrials({ population, run, trials, host, chromeByV
     if (tr.index == null) {
       // 理由は establishTsunamiTrial の 3 つと、前景の条件逸脱（C4 と同じ conditionDeviation、Q-C6-IMPL-AMEND）。理由ごとの数の和が不成立の数になる。
       const reason = tr.establishment?.reason;
-      if (!["primeNotSettled", "startOffset", "eewOrder", "conditionDeviation"].includes(reason)) throw new Error(`trial ${tr.attemptIndex}: not-established reason ${reason}`);
+      if (!["primeNotSettled", "startOffset", "eewOrder", "conditionDeviation", "largeFrameOrder"].includes(reason)) throw new Error(`trial ${tr.attemptIndex}: not-established reason ${reason}`);
       injections.push({ ...record, outcome: "overlapNotEstablished", notEstablishedReason: reason });
       continue;
     }

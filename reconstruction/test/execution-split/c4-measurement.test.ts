@@ -90,7 +90,7 @@ async function measuredRuntime(measured = true, clock?: () => ClockReading) {
   const directory = join(tmpdir(), "fleq-c4-t05-virtual");
   const h = harnessedRoot({ appName: "p2", legacyAppName: "v2", stateDirectory: join(directory, "state"),
     legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "diagnostics") },
-  { "U-E": stringCodec("U-E"), "U-W": stringCodec("U-W"), "U-F": stringCodec("U-F") }, {
+  { "U-E": stringCodec("U-E"), "U-W": stringCodec("U-W"), "U-F": stringCodec("U-F"), "U-Q": stringCodec("U-Q") }, {
     ...(clock == null ? {} : { clock }),
     notificationAdapter: recordingNotificationAdapter(), checkpointFileSystem: files.checkpoint, diagnosticFileSystem: files.diagnostic,
     runtimeCalls: driver.calls, owners: { measured }, onMeasurements: (batch) => { measurements.push(...batch); },
@@ -104,8 +104,8 @@ async function measuredRuntime(measured = true, clock?: () => ClockReading) {
 
 const pending = (generation: number, dirtySince: number): PersistenceStatus => ({ kind: "pending", currentGeneration: generation,
   savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince });
-const dirtyAll = () => fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series" },
-  { "U-E": pending(1, 0), "U-W": pending(1, 1), "U-F": pending(1, 2) }, "t05");
+const dirtyAll = () => fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series", "U-Q": "quake" },
+  { "U-E": pending(1, 0), "U-W": pending(1, 1), "U-F": pending(1, 2), "U-Q": pending(1, 3) }, "t05");
 const dirtySeries = () => fixtureState({ "U-F": "series" }, { "U-F": pending(1, 0) }, "t05");
 
 // 期限の来た権が無くなるまで権を出す（返信はすべて届ける）。
@@ -133,7 +133,8 @@ describe("P3-C4-T05 contractBoundary / AC04, AC05: E14 and E15 observations on f
     await h.root.shutdownRuntime(0, h.clock());
 
     const counts = rows(observed);
-    expect(counts.map((row) => [row.thread, row.confirmed])).toEqual([["urgent", true], ["weatherCurrent", true], ["deferred", true], ["publisher", true]]);
+    expect(counts.map((row) => [row.thread, row.confirmed])).toEqual([["urgent", true], ["weatherCurrent", true], ["deferred", true], ["seismic", true],
+      ["publisher", true]]);
     for (const row of counts.filter((item) => item.thread !== "publisher")) {
       const writes = measurements.filter((m) => m.stage === "write" && ownedBy(row.thread, m));
       expect(writes.length, row.thread).toBeGreaterThan(0);
@@ -194,7 +195,7 @@ describe("P3-C4-T05 contractBoundary / AC04, AC05: E14 and E15 observations on f
     const summary = await h.root.shutdownRuntime(0, h.clock());
     expect(summary.reasons).not.toContain("finalCheckpoint:deadlineExceeded");
     expect(rows(observed).map((row) => [row.thread, row.confirmed]))
-      .toEqual([["urgent", true], ["weatherCurrent", true], ["deferred", false], ["publisher", true]]);
+      .toEqual([["urgent", true], ["weatherCurrent", true], ["deferred", false], ["seismic", true], ["publisher", true]]);
   });
 
   it("(4) the held reply answered during the stop, with the final save and the exit done, is confirmed with its write", async () => {

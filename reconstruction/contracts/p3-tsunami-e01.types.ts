@@ -8,10 +8,14 @@ import type { TsunamiAreaClass, TsunamiAreaTransition } from "./p3-tsunami-unit.
 export type P3TsunamiSeries = "escalation" | "deescalation";
 
 // The four conditions measured in P3 (plan:73). Capacity degradation (spec:1137) is expectation-only (D-P3-6, P4).
-export type P3TsunamiCondition = "fixedBacklog" | "maxVpws50ParseStarted" | "maxWeatherCheckpointEncodeStarted" | "eewTogether";
+// maxVxse53Received（P3-SEISMIC-PLACE-001 の AC08 (1)）は衝突の参考の条件で、collisionPopulations の母集団だけが持つ。
+export type P3TsunamiCondition = "fixedBacklog" | "maxVpws50ParseStarted" | "maxWeatherCheckpointEncodeStarted" | "eewTogether" | "maxVxse53Received";
 
 // P3-C6-POP-SHAPE=A (author ruling 2026-10-09): one population per series × condition; transitions inside a series run round-robin.
-export type P3TsunamiPopulation = `${P3TsunamiSeries}:${P3TsunamiCondition}`;
+export type P3TsunamiPopulation = `${P3TsunamiSeries}:${Exclude<P3TsunamiCondition, "maxVxse53Received">}`;
+// P3-SP-D-POPULATION=A: 契約の maxVxse53ReceivedThenTsunami（観測点 30,000 の VXSE53 の frame の直後に津波警報の発令）。8 母集団の型と鍵は変えず、
+// これを載せる新しい manifest の collisionPopulations でだけ求める。発令系の issued だけを回す。
+export type P3TsunamiCollisionPopulation = "escalation:maxVxse53Received";
 
 // One trial = the prime report (resets the subject to the transition's known initial state, never sampled)
 // followed by the target report (the sample). Both come from the frozen template; the runner only advances
@@ -39,7 +43,9 @@ export type P3TsunamiEstablishment =
   | Readonly<{ kind: "primeSettled" }>
   | Readonly<{ kind: "primeSettledStartOffset"; startOffset: Extract<P3EewEstablishment, { kind: "startOffset" }> }>
   // eewTogether: the VXSE45 frame is sent first and the VTSE41 T0 is at or before that VXSE45's inputDone (P3-C6-EEW-ORDER=A).
-  | Readonly<{ kind: "primeSettledEewOrder" }>;
+  | Readonly<{ kind: "primeSettledEewOrder" }>
+  // maxVxse53Received: C4 の sentBeforeLargeFrameIngested と同じ（target の実送信の上界が VXSE53 の T1 より前）。
+  | Readonly<{ kind: "primeSettledSentBeforeLargeFrameIngested" }>;
 
 export type P3TsunamiPopulationCondition = Readonly<
   Omit<P3EewPopulationCondition, "establishment" | "origin" | "forecast"> & {
@@ -62,11 +68,13 @@ export type P3TsunamiPopulationCondition = Readonly<
 >;
 
 export type P3TsunamiE01Manifest = Readonly<
-  Omit<P3E01Manifest, "schemaVersion" | "inheritsManifestId" | "populations" | "auxiliary" | "o09Subset" | "judgmentPlaces"> & {
+  Omit<P3E01Manifest, "schemaVersion" | "inheritsManifestId" | "populations" | "collisionPopulations" | "auxiliary" | "o09Subset" | "judgmentPlaces"> & {
     schemaVersion: "p3-tsunami-e01-manifest-v1";
     inheritsManifestId: "p3-c4-formal-20261007";
     templates: readonly P3TsunamiTransitionTemplate[];
     populations: Readonly<Record<P3TsunamiPopulation, P3TsunamiPopulationCondition>>;
+    // scope reference・inheritsC4Population fixedBacklog・成立 primeSettledSentBeforeLargeFrameIngested だけ。無い manifest は 8 母集団だけ。
+    collisionPopulations?: Readonly<Record<P3TsunamiCollisionPopulation, P3TsunamiPopulationCondition>>;
     // The coast asset hash sits beside the inherited EEW geometry hash (spec:1117 地図資材 hash).
     coastSha256: string;
     // C6's own smoke conditions (P3TsunamiSmokeConditions); the inherited smokeConditionsSha256 field holds the hash of
@@ -131,28 +139,29 @@ export type P3TsunamiSmokeConditions = Readonly<{
 export type P3TsunamiTraceSample = Readonly<
   Omit<EewTraceSample, "schemaVersion" | "population"> & {
     schemaVersion: "p3-tsunami-trace-v1";
-    population: P3TsunamiPopulation;
+    population: P3TsunamiPopulation | P3TsunamiCollisionPopulation;
     transition: TsunamiAreaTransition;
   }
 >;
 export type P3TsunamiInjectionRecord = Readonly<
   Omit<P3EewInjectionRecord, "population"> & {
-    population: P3TsunamiPopulation;
+    population: P3TsunamiPopulation | P3TsunamiCollisionPopulation;
     transition: TsunamiAreaTransition;
     // Set only for overlapNotEstablished (P3-C6-AC06(3)); conditionDeviation is C4's foreground deviation (Q-C6-IMPL-AMEND).
-    notEstablishedReason: "primeNotSettled" | "startOffset" | "eewOrder" | "conditionDeviation" | null;
+    // largeFrameOrder は衝突の参考の母集団（target の実送信が VXSE53 の T1 より前でない）。
+    notEstablishedReason: "primeNotSettled" | "startOffset" | "eewOrder" | "conditionDeviation" | "largeFrameOrder" | null;
   }
 >;
 
 export type P3TsunamiRunResult = Readonly<
   Omit<EewMeasurementRunResult, "schemaVersion" | "population"> & {
     schemaVersion: "p3-tsunami-e01-result-v1";
-    population: P3TsunamiPopulation;
+    population: P3TsunamiPopulation | P3TsunamiCollisionPopulation;
     attempts: number;
     // C4's meaning: every formal trial that did not establish its condition. Split by reason (the reasons sum to the total),
     // never mixed with injectionFailures.
     overlapNotEstablished: number;
-    overlapNotEstablishedByReason: Readonly<Record<"primeNotSettled" | "startOffset" | "eewOrder" | "conditionDeviation", number>>;
+    overlapNotEstablishedByReason: Readonly<Record<"primeNotSettled" | "startOffset" | "eewOrder" | "conditionDeviation" | "largeFrameOrder", number>>;
     // Any of these makes the window 未確認 (the known initial state broke): U-T eviction, U-T/U-E capacityExceeded,
     // tsunamiRevisionConflict and stale target reports. null: the runner left no record of the window (also 未確認, Q-C6-IMPL-AMEND).
     stateBreaks: Readonly<Record<"tsunamiCapacityEvicted" | "tsunamiCapacityExceeded" | "eewCapacityExceeded" | "tsunamiRevisionConflict" | "staleTarget", number>> | null;
