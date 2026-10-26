@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "fa7b5cb62122a194492a3cc14d30f1f397ee3eeebdcc3121d219ab6f6987e1c9",
+    "sha256": "ff57f22237950dd2ee8a8b8a8db95b04b5d8c6f416992d16817e34899d58d941",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -58,7 +58,7 @@
         "status": "closed",
         "source": "作者裁定（2026-10-26 昼、ご主人。r1 のレビューの後、前提の訂正を聞いたうえでの確認を含む）",
         "closed": "P3-SP-D-PLACE は A（U-Q を 4 本目の常駐 worker seismic へ移す）。D-P3-1（計画 §5、worker 3 本、2026-10-01）と 2026-10-09 の作者裁定（U-Q の置き場所は urgent のまま、P3-C7-PLACE＝A）を覆す。場面 2 の音と画面の順の変化は残存リスク (1) として承認を別に求める（Q-SP-AUTHOR）。r1 の後の確認（同日昼）: U-N・U-V の音と画面の順も変わること（notice-mark.ts:97〜99）と、E05-N の余りの数が U-T・U-Q・U-N・U-V を入れる前の基線からの推計であること（E05-P の余りは約 19 MiB）を聞いたうえで、A のままとし『先に測る』を選んだ。実装の配送の前に Mac mini で 4 本の構成の E05-N・E05-P（e05y-P を含む）を測り、上限（N 300 MiB、P 400 MiB）を越えたら配送せず作者へ戻す（候補として seismic の若い世代に 12 MB の縛りを掛ける案などを持っていく）。報告したので閉鎖、にはしない（AC10・Q-SP-E05）。spec §7.6 に入る根拠は E01 の形の未達ではなく、この作者裁定で先に進めること（E01 の形の値は AC08 で取る）",
-        "remaining": "残存リスク (1)〜(6) の承認（Q-SP-AUTHOR）",
+        "remaining": "なし（残存リスク (1)〜(6) は 2026-10-26 に作者承認、Q-SP-AUTHOR）",
         "reason": "作者へ戻した分岐の裁定の記録"
       },
       {
@@ -100,6 +100,14 @@
         "closed": "場所の名前を持つ所: (1) 型 ExecutionPlace（p3-execution-split.types.ts:26）(2) executionPlaces（unit-coverage.ts:16、鍵付きの Record で unit の足し忘れは型が止める）(3) host が owner を立てる一覧（host.ts:156 の直書き。足し忘れは型が止めない）(4) composition-root の Record<ExecutionPlace,…> 2 か所（:387 の monitors、:403 の outstanding。足し忘れは型が止める）と、場所の一覧 places（:90、unit の表から作る）(5) 留保の条件（:845 の place === \"urgent\"）(6) 測定の道具の thread 名の直書き（test/eew-e01 の ac15.mjs の AC15_OWNERS、aux-measures.mjs の threads と E12_THREADS、aux-measures.d.mts の PerThread、p3.test.ts の places、test/execution-split/owner-harness.ts の places）と、手で owner の Map を組む所（test/chrome-eew/smoke.mjs:109、test/integration/private-eew.mjs:212、test/shared-runtime/shared-runtime.test.ts:116、test/eew-e01/aux-measures.mjs:247 の OWNER_UNITS）(7) host.ts:158 の resourceLimits の三項（urgent 以外に maxYoungGenerationSizeMb 12 を付ける。直さないと seismic に縛りが付き D-YOUNG＝A に反する）。mailbox（:82）と書込み権の選び（composition-root.ts:1435）は場所で引くだけで、名前を持たない。checkpoint の置き場は unit で決まり、場所によらない",
         "remaining": "なし",
         "reason": "AC02・AC08 の範囲"
+      },
+      {
+        "id": "Q-SP-AUTHOR",
+        "status": "closed",
+        "source": "作者承認（2026-10-26 午後、ご主人「残存リスクはすべてOKです」）",
+        "closed": "残存リスク (1)〜(6)（artifactRequirements の残存リスクの項）を承認（同じ群 other の音と画面の順が処理の終わった順に変わる (1)、RSS が約 15 MiB 増え E05-P の余りが約 4 MiB の見込み (2)、seismic が止まると地震のカードが止まったまま (4) を含む）",
+        "remaining": "なし",
+        "reason": "unresolvedQuestions の Q-SP-AUTHOR を閉じる"
       }
     ],
     "operationContract": {
@@ -532,21 +540,9 @@
       "追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行（T01・T03 は契約境界、T02 は受入条件）。既存の試験の期待値の変更は場所の名前と owner・thread の数・一覧だけの見込みで、それ以外は変える前に差と理由を報告する（Q-SP-EXISTING-TESTS）。",
       "規模の見積もり（起草のコード読みから）: 製品の TS は 5 file・約 15 行（型 1・unit-coverage 1・host の一覧と resourceLimits の条件・composition-root の 2 つの Record と留保の条件・注釈 2）、試験は場所の名前の置換と T02 の it 1 つ、測定の道具の thread 名の一覧 5 か所と母集団 2 つ。1 人日（AC01・AC07 の測定を含む）。実績と差があれば理由を書く。",
       "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
-      "残存リスク（P3-SP-D-PLACE＝A は作者裁定済み〔Q-SP-RULING〕。下の (1)〜(6) は作者の承認待ち、Q-SP-AUTHOR）: (1) 同じ群（other）の音と画面の更新の順が、受信順から処理の終わった順に変わる（U-T の注意報、U-N、U-V。notice-mark.ts:97〜99）。場面: 14:49:00.000 に大きな VXSE53、.050 に津波注意報 → 今は地震の音と画面が先、A では注意報が先。14:50:00.000 に大きな VXSE53、.040 に南海トラフ地震臨時情報（VYSE50、巨大地震注意）→ A では臨時情報の音と画面が先、地震が後。噴火警報（VFVO50）も同じ。差は Mac で約 0.2 秒、Pi で約 1 秒（推計）。旧築は 1 本の thread で受信順に鳴らすので、旧築とも順が違いうる。作者は承知のうえで A を選んだ (2) 常駐 worker が 1 本増え、RSS が約 15 MiB 増える（MacBook の空の owner、Q-SP-RSS）。E05-N の今の余りは分からず（約 7〜14 MiB は U-T・U-Q・U-N・U-V を入れる前の基線からの推計）、E05-P の余りは約 19 MiB。配送の前に AC10 で測り、越えたら配送しない。旧築は worker を持たない 1 本の thread なので、この増分は新築だけのもの (3) urgent には U-T・U-V の大きな報が残る。場面: 14:46:50.000 に沿岸 191 点（コード表の沿岸の潮位観測点の数、P3-DISASTER-CAPACITY-001 の〔上界〕）の VTSE51（津波観測に関する情報）が urgent で処理中に .005 に EEW の続報が届くと、EEW はその処理を待ち、画面の EEW のカードの更新がその分遅れる。所要は測っていない（corpus の最大は VTSE51 43 KB・VFVO51 45 KB）。旧築も 1 本の thread なので同じ待ちが起きる (4) seismic の owner が止まると U-Q だけが止まる（今は urgent ごと止まり EEW も止まる）。場面: 15:00:00 に seismic が例外で止まると、以後の VXSE51・53 は受け付けずに拒否に数え、画面の地震のカードは止まる直前のまま（新しい震度・震源が出ない）で、worker の状態の表示（DisplayWorkerView）が stopped になる。EEW・津波・南海・火山は出続ける。戻すには人がプロセスを再起動する（自動再起動は無い）。旧築には owner ごとに止まる仕組みが無い（処理は 1 本の thread） (5) seismic が U-Q の書込み権を持ったまま止まると、終了の時に他の unit の最終保存も打ち切られる（今の振る舞いで、weatherCurrent・deferred が止まったときも同じ）。場面: 15:00:00.000 に U-Q の保存の権が seismic へ出て .010 に seismic が止まる。15:00:05.000 に人が終了を要求し、その後の drain の段の 15:00:05.010 に EEW の続報を採用して U-E が dirty になると、最終保存の段は直ちに終わり、その EEW の版だけが保存されない（終了の要求より前に採用した版は、終了の処理が先に始めた保存を待つので、要求の後に保存が終わっても保存済み、composition-root.ts:1545・:1570。それより前の版は通常の運転で unit ごとの権により保存済み、composition-root.ts:1432〜1438）。終了は code 2（P3-C3B-AC03）。次の起動の画面はその 1 つ前の版から戻る (6) 受信の継続は約束しない（AC03 の (4)）。mailbox が数える byte は frame の本文（gzip・base64 済み、encodedByteLength）で、展開した XML ではない。観測点 30,000 の VXSE53 の 4.89 MB は展開した XML の大きさと読み（bf35e8ea1825 の観測点 1 つが約 108 byte で、30,000 点で約 3.2 MB に字下げなどが加わる。記録は repo の外で未確認）、frame は約 0.8 MB と推計する（bf35e8ea1825 の gzip・base64 の比 0.168）。どの枠が先に尽きるかは入力の構成しだいで、gzip・base64 はすべての入力に要るわけではない（ingress.ts は encoding utf-8・compression null も受ける）。場面（byte の側）: 14:46:50 から seismic が frame 約 800,000 byte の VXSE53 を処理している間に同じ大きさの VXSE53 が続けて受理されると、通常枠の 18 件で 14,400,000 byte になり、19 件目の追加が 14 MiB（14,680,064 byte）を越えて byte で拒否される。場面（件数の側）: 小さい報が多い日に、受理した通常の入力が 120 件ある所へ 121 件目を足すと件数で拒否される。どちらでも host は接続を切り、mailbox の pending と in-flight が空になるまで繋ぎ直さない。その間に出た EEW は受信できず、画面の EEW のカードは繋ぎ直すまで更新されない（切れていた間の報の扱いは今の接続回復のまま）。これは今の背圧と同じで（spec:1085、有限の queue は任意の burst の無欠落を約束しない）、mailbox は in-flight も件数と byte に数えるので、場所が 1 つ増えると在処理の 1 件分だけ通常枠の残りが減りうる。承認に出さない注記: Pi の数（約 1.3 秒の待ち、差 約 1 秒）は推計で、AC08 の (3) で確かめる。VXSE47（notPorted、候補 U-Q）を後で移すとき、場所は unit に従い seismic になる。"
+      "残存リスク（P3-SP-D-PLACE＝A は作者裁定済み〔Q-SP-RULING〕。下の (1)〜(6) は 2026-10-26 作者承認済み、Q-SP-AUTHOR）: (1) 同じ群（other）の音と画面の更新の順が、受信順から処理の終わった順に変わる（U-T の注意報、U-N、U-V。notice-mark.ts:97〜99）。場面: 14:49:00.000 に大きな VXSE53、.050 に津波注意報 → 今は地震の音と画面が先、A では注意報が先。14:50:00.000 に大きな VXSE53、.040 に南海トラフ地震臨時情報（VYSE50、巨大地震注意）→ A では臨時情報の音と画面が先、地震が後。噴火警報（VFVO50）も同じ。差は Mac で約 0.2 秒、Pi で約 1 秒（推計）。旧築は 1 本の thread で受信順に鳴らすので、旧築とも順が違いうる。作者は承知のうえで A を選んだ (2) 常駐 worker が 1 本増え、RSS が約 15 MiB 増える（MacBook の空の owner、Q-SP-RSS）。E05-N の今の余りは分からず（約 7〜14 MiB は U-T・U-Q・U-N・U-V を入れる前の基線からの推計）、E05-P の余りは約 19 MiB。配送の前に AC10 で測り、越えたら配送しない。旧築は worker を持たない 1 本の thread なので、この増分は新築だけのもの (3) urgent には U-T・U-V の大きな報が残る。場面: 14:46:50.000 に沿岸 191 点（コード表の沿岸の潮位観測点の数、P3-DISASTER-CAPACITY-001 の〔上界〕）の VTSE51（津波観測に関する情報）が urgent で処理中に .005 に EEW の続報が届くと、EEW はその処理を待ち、画面の EEW のカードの更新がその分遅れる。所要は測っていない（corpus の最大は VTSE51 43 KB・VFVO51 45 KB）。旧築も 1 本の thread なので同じ待ちが起きる (4) seismic の owner が止まると U-Q だけが止まる（今は urgent ごと止まり EEW も止まる）。場面: 15:00:00 に seismic が例外で止まると、以後の VXSE51・53 は受け付けずに拒否に数え、画面の地震のカードは止まる直前のまま（新しい震度・震源が出ない）で、worker の状態の表示（DisplayWorkerView）が stopped になる。EEW・津波・南海・火山は出続ける。戻すには人がプロセスを再起動する（自動再起動は無い）。旧築には owner ごとに止まる仕組みが無い（処理は 1 本の thread） (5) seismic が U-Q の書込み権を持ったまま止まると、終了の時に他の unit の最終保存も打ち切られる（今の振る舞いで、weatherCurrent・deferred が止まったときも同じ）。場面: 15:00:00.000 に U-Q の保存の権が seismic へ出て .010 に seismic が止まる。15:00:05.000 に人が終了を要求し、その後の drain の段の 15:00:05.010 に EEW の続報を採用して U-E が dirty になると、最終保存の段は直ちに終わり、その EEW の版だけが保存されない（終了の要求より前に採用した版は、終了の処理が先に始めた保存を待つので、要求の後に保存が終わっても保存済み、composition-root.ts:1545・:1570。それより前の版は通常の運転で unit ごとの権により保存済み、composition-root.ts:1432〜1438）。終了は code 2（P3-C3B-AC03）。次の起動の画面はその 1 つ前の版から戻る (6) 受信の継続は約束しない（AC03 の (4)）。mailbox が数える byte は frame の本文（gzip・base64 済み、encodedByteLength）で、展開した XML ではない。観測点 30,000 の VXSE53 の 4.89 MB は展開した XML の大きさと読み（bf35e8ea1825 の観測点 1 つが約 108 byte で、30,000 点で約 3.2 MB に字下げなどが加わる。記録は repo の外で未確認）、frame は約 0.8 MB と推計する（bf35e8ea1825 の gzip・base64 の比 0.168）。どの枠が先に尽きるかは入力の構成しだいで、gzip・base64 はすべての入力に要るわけではない（ingress.ts は encoding utf-8・compression null も受ける）。場面（byte の側）: 14:46:50 から seismic が frame 約 800,000 byte の VXSE53 を処理している間に同じ大きさの VXSE53 が続けて受理されると、通常枠の 18 件で 14,400,000 byte になり、19 件目の追加が 14 MiB（14,680,064 byte）を越えて byte で拒否される。場面（件数の側）: 小さい報が多い日に、受理した通常の入力が 120 件ある所へ 121 件目を足すと件数で拒否される。どちらでも host は接続を切り、mailbox の pending と in-flight が空になるまで繋ぎ直さない。その間に出た EEW は受信できず、画面の EEW のカードは繋ぎ直すまで更新されない（切れていた間の報の扱いは今の接続回復のまま）。これは今の背圧と同じで（spec:1085、有限の queue は任意の burst の無欠落を約束しない）、mailbox は in-flight も件数と byte に数えるので、場所が 1 つ増えると在処理の 1 件分だけ通常枠の残りが減りうる。承認に出さない注記: Pi の数（約 1.3 秒の待ち、差 約 1 秒）は推計で、AC08 の (3) で確かめる。VXSE47（notPorted、候補 U-Q）を後で移すとき、場所は unit に従い seismic になる。"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-SP-AUTHOR",
-        "owner": "user",
-        "blocks": [
-          "発注前点検",
-          "実装の着手"
-        ],
-        "resolveBy": "発注前点検の前",
-        "requiredEvidence": [
-          "残存リスク (1)〜(6) の作者の承認"
-        ]
-      },
       {
         "id": "Q-SP-BASE",
         "owner": "integrator",
