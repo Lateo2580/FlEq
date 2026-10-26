@@ -452,7 +452,7 @@
       },
       {
         "id": "P3-NL-AC03",
-        "requirement": "【発注 1】U-T の観測の fragment の鍵（設計メモ §2.4・§5、Q-NL-FRAGMENT-CORPUS）: (1) 観測（VTSE51/52）の intent の ID と照合に fragment の鍵を足す。鍵は受けた fragment そのものの中身から作る: 載った観測点を code の順に [code, 値]、推定区域を areaCode の順に [areaCode, 値] に並べた列の JSON の sha256 の先頭 16 桁。受ける直前の state との差分からは作らない（差分だと推定区域だけを足す 2 つの fragment がどちらも観測点の差分が空になり、後の通知を潰す） (2) 照合: 同じ版の鍵で、印の fragments に同じ鍵があれば作らない。新しい鍵なら作り、fragments に足す。版が変われば fragments は新しい版の 1 件から始める (3) fragments は系列ごと・版ごとに 16 件まで（置き値、設計メモ §2.4）。越えたら最古の鍵から捨てる。捨てた fragment を受け直しても、その観測点と推定区域が state に残っていれば値が同じなので変化が無く、通知は作られない（今の同じ版・同じ値の continue） (4) 同じ版の同じ code・areaCode に違う値が来たときの今の扱い（hold と未確認の印、tsunami-unit.ts:479・:498、K7）は変えない (5) 取消（観測の取消）は fragment の鍵を持たない",
+        "requirement": "【発注 1】U-T の観測の fragment の鍵（設計メモ §2.4・§5、Q-NL-FRAGMENT-CORPUS）: (1) 観測（VTSE51/52）の intent の ID と照合に fragment の鍵を足す。鍵は受けた fragment そのものの中身から作る: 載った観測点を code の順に [code, 値]、推定区域を areaCode の順に [areaCode, 値] に並べた列の JSON の sha256 の先頭 16 桁。受ける直前の state との差分からは作らない（差分だと推定区域だけを足す 2 つの fragment がどちらも観測点の差分が空になり、後の通知を潰す）。観測点は revision を除いた形で鍵を作る（P3-UNREADABLE-MARK-001 の AC04 の (4)。鍵と、鍵を含む intent の ID が変わる） (2) 照合: 同じ版の鍵で、印の fragments に同じ鍵があれば作らない。新しい鍵なら作り、fragments に足す。版が変われば fragments は新しい版の 1 件から始める (3) fragments は系列ごと・版ごとに 16 件まで（置き値、設計メモ §2.4）。越えたら最古の鍵から捨てる。捨てた fragment を受け直しても、その観測点と推定区域が state に残っていれば値が同じなので変化が無く、通知は作られない（今の同じ版・同じ値の continue） (4) 同じ版の同じ code・areaCode に違う値が来たときの今の扱い（hold と未確認の印、tsunami-unit.ts:479・:498、K7）は変えない (5) 取消（観測の取消）は fragment の鍵を持たない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:129 «4b5e6465fdb8ebdc»",
           "reconstruction/contracts/p3-persist-premises.md:334 «0c6a877b41bfeaf2»",
