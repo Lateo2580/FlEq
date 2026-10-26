@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "67f6d7bfb45050b5ff5ae587c13147c6b86305361659431248e991711451b5e3",
+    "sha256": "bcd6ed377fecb7de3eea85e6f0f910e83d3c607acad4aac5d067d061d8e3c9d2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -210,7 +210,7 @@
         "id": "P3-C1-RES-04",
         "target": "checkpoint writer（P2-A3-RES-02を変えない）",
         "limit": 1,
-        "unit": "in-flight attempt total",
+        "unit": "in-flight attempt per persistence unit（P3-UNIT-WRITE-RIGHT-001のRES-01で改訂。前はtotal）",
         "scope": "stopped-unconfirmed I/O retains ownership",
         "source": "§5.8"
       }
@@ -241,7 +241,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-C1-AC01",
-        "requirement": "定常保存の読み直し0: 単位の記憶が有効な間、確認済みackまでの executeCheckpoint は fileSystem.readFile を1回も呼ばない。restoreUnit・latestValidSlot・書込後のverify読込みを定常経路から外す。書込先は記憶した有効slotの反対側（空ならA）、同じtmp→file sync→close→rename→directory syncの完了でacknowledgedを返し、記憶を書いたslot・世代・sha256へ進める。記憶はプロセス内だけで持ち、単位ごと（unitをkeyにした1つのMap）に置く。単位をまたぐ状態は既存の全体writer予約1件だけとし、C0の unit 表以外に単位の直書き列を足さない（C3aがworkerごとに分けられるように）",
+        "requirement": "定常保存の読み直し0: 単位の記憶が有効な間、確認済みackまでの executeCheckpoint は fileSystem.readFile を1回も呼ばない。restoreUnit・latestValidSlot・書込後のverify読込みを定常経路から外す。書込先は記憶した有効slotの反対側（空ならA）、同じtmp→file sync→close→rename→directory syncの完了でacknowledgedを返し、記憶を書いたslot・世代・sha256へ進める。記憶はプロセス内だけで持ち、単位ごと（unitをkeyにした1つのMap）に置く。単位をまたぐ状態は書込み権の予約のMap 1つ（unitごとに1件。P3-UNIT-WRITE-RIGHT-001のAC10(1)で全体writer予約1件から改訂）だけとし、C0の unit 表以外に単位の直書き列を足さない（C3aがworkerごとに分けられるように）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:58 «1a2012439510aafc»",
           "docs/specs/reconstruction-p0-contracts.md:808 «6f567d2a46e4bf30»",

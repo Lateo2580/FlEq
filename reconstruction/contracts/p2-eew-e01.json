@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "0a8659f013df532c072303fd18c3ea63307c8afed42588a9f5edfab3b1ba9ce1",
+    "sha256": "e20955098b9b6a9bd03e11d9709976bb4e5742e4dc5295c82eb028865f18b61c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -531,7 +531,7 @@
       },
       {
         "id": "P2-A10-AC13",
-        "requirement": "R60の健全性写像: hostの1秒周期でroot.tick()（A3既存、drainDiagnosticsを含み停止の事後記録は診断へ）→mailbox.recordWorkerResponse(now)→mailbox.isStalled(now)とmailbox.stats(now)の順に呼び、DisplayWorkerViewへ写す。shutdown完了=stopped、isStalled=true（A2 P2-A2-AC05のstalled述語を読むだけの口。発報はしない）=stalled、それ以外=healthy。lastProgressAt/lastResponseAtはstatsの値。host側に別の判定式を作らない。isStalledはA2契約の追実装項目としてA10がmailbox.tsへ足し、共有型は変えない。P2にengine workerがないため生存応答はtick自身であり、スレッドが塞がっている間の判定・表示・独立監視は保証しない（P2でunresponsiveは表示されず、塞がりは診断ログとE01/E02の測定で見る）。スレッドが空いている間は閾値到達からtick周期1秒以内に表示・/healthzへ反映し、worker stateが変わったtickでは既存のheartbeat()を即時に呼ぶ（15秒周期を待たない）。composition-root.tsの「終了時以外を一律healthy」を置き換える（累積レビューP1-1）。lastInputAtはWS受信callback入口の壁時計で、ingress拒否・mailbox拒否を含む全受信で更新する（A8 AC11、累積レビューP2-4前半）。停止→回復の公開状態と拒否入力のlastInputAt更新を結線試験で確認する",
+        "requirement": "R60の健全性写像: hostの1秒周期でroot.tick()（A3既存、drainDiagnosticsを含み停止の事後記録は診断へ）→mailbox.recordWorkerResponse(now)→mailbox.isStalled(now)とmailbox.stats(now)の順に呼び、DisplayWorkerViewへ写す。shutdown完了=stopped、isStalled=true（A2 P2-A2-AC05のstalled述語を読むだけの口。発報はしない）=stalled、それ以外=healthy。lastProgressAt/lastResponseAtはstatsの値。host側に別の判定式を作らない。isStalledはA2契約の追実装項目としてA10がmailbox.tsへ足し、共有型は変えない。P2にengine workerがないため生存応答はtick自身であり、スレッドが塞がっている間の判定・表示・独立監視は保証しない（P2でunresponsiveは表示されず、塞がりは診断ログとE01/E02の測定で見る）。スレッドが空いている間は閾値到達からtick周期1秒以内に表示・/healthzへ反映し、worker stateが変わったtickでは既存のheartbeat()を即時に呼ぶ（15秒周期を待たない）。composition-root.tsの「終了時以外を一律healthy」を置き換える（累積レビューP1-1）。lastInputAtはWS受信callback入口の壁時計で、ingress拒否・mailbox拒否を含む全受信で更新する（A8 AC11、累積レビューP2-4前半）。停止→回復の公開状態と拒否入力のlastInputAt更新を結線試験で確認する（tick自身を生存応答とする写像はC3bでP3-C3B-AC01に置換。mailbox.isStalledを最悪値の入力の1つとして読むこと・状態が変わったtickでの即時heartbeat・lastInputAtの更新規則・終了完了でstoppedは保つ。P3-C3B-P2-CLAUSES）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1190 «174d8e21c85706f2»",
           "docs/specs/reconstruction-p0-contracts.md:1198 «45d7a5dc731dd19b»",

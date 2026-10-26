@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "142f0c716a21a490fe124d77d7cc6231f82b6a98c1b3eed160a5e87c3ea9baa3",
+    "sha256": "ee6f6fe7fcb361f605bacc0ea3d043499be4bd05c54feb8f4802c254ea2f80de",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -22,7 +22,7 @@
         "B": "複数writer、outbox DBまたは差分journalを追加する",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "spec§4.4/§5.8により A",
+        "ruling": "spec§4.4/§5.8により A。2026-10-08のD-P3-2=B（作者裁定）で、全体writer 1件をunitごとの書込み権1件へ改めた（runningの間は他unitの保存を待たない。通常終了の最終保存の段は1つずつのまま。P3-UNIT-WRITE-RIGHT-001のAC10(1)・RES-01で改訂）",
         "reason": "停止未確認I/Oへの重複writeを防ぎ、最小状態で公平性を守る"
       },
       {
@@ -293,7 +293,7 @@
         "id": "P2-A3-RES-02",
         "target": "checkpoint writer",
         "limit": 1,
-        "unit": "in-flight attempt total",
+        "unit": "in-flight attempt per persistence unit（P3-UNIT-WRITE-RIGHT-001のRES-01で改訂。前はtotal）",
         "scope": "stopped-unconfirmed I/O retains ownership",
         "source": "§5.8"
       },
@@ -387,7 +387,7 @@
       },
       {
         "id": "P2-A3-AC04",
-        "requirement": "E14: 試行可能な最古dirtySinceを選び、正常単位を3秒以内にackし、終了済み失敗を1/2/4/8/10秒未満で再試行せず、単位固有失敗で他単位を飢餓にしない",
+        "requirement": "E14: unitごとの書込み権で、各unitの中で試行可能な保存か照合を選び（P3-UNIT-WRITE-RIGHT-001のAC10(1)で改訂。前はunitをまたいで試行可能な最古dirtySinceを選ぶ）、正常単位を3秒以内にackし、終了済み失敗を1/2/4/8/10秒未満で再試行せず、単位固有失敗で他単位を飢餓にしない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
           "docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
@@ -408,7 +408,7 @@
       },
       {
         "id": "P2-A3-AC06",
-        "requirement": "E20: 入力停止→mailbox収束→batch終了→副作用固定→全最終世代ack→worker終了の順と段階上限を守り、保存未確認のcode 0を0にする",
+        "requirement": "E20: 入力停止→mailbox収束→batch終了→副作用固定→全最終世代ack→worker終了の順と段階上限を守り、保存未確認のcode 0を0にする（停止扱いのownerの除外・最終保存の段の即時終了・その時点の単位でのE20の再検収はC3bでP3-C3B-AC03に置換。段の順序・段階上限・code 3→2→4・保存未確認のcode 0は0を保つ。P3-C3B-P2-CLAUSES）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:880 «f7b928f646165ca5»",
           "docs/specs/reconstruction-p0-contracts.md:889 «b5001a1d03d84568»",

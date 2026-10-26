@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "3369c010e5fa4091ead8f5f9d566abdb7f7831840f097a5a1666eb3eb8790061",
+    "sha256": "e84589341f1a592695b0c4df52cec87d21eb70a3ca4828e4e1b92ad94666ce69",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -76,7 +76,7 @@
         "B": "ownerのthreadのexitを操作の終了とみなして権を解放し、止まったunitを以後grantしない（spec:872の改訂が要る）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、。Bを選ぶならspecの改訂なので作者裁定）",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、。Bを選ぶならspecの改訂なので作者裁定）。2026-10-08のD-P3-2=B（作者裁定）で書込み権がunitごとになり、runningの間に止まるのはそのunitの保存だけになった（他unitはそれぞれの権で保存を続け、保存障害の診断はそのunitに出る。通常終了の最終保存の段はAC03のまま。P3-UNIT-WRITE-RIGHT-001のAC10(4)で改訂）",
         "reason": "worker_threadsのexitは、libuvのthread poolで実行中のfs操作（write・fsync・rename）の終了を保証しない。Bはその操作と他unitの書込みを重ねうる。Aの代償: ownerが書込みの区間（Macで数十ms）に落ちたときだけ、再起動まで全unitが保存されず、終了はcode 2になる"
       },
       {
@@ -394,7 +394,7 @@
         "target": "owner monitoring records in the publisher",
         "limit": 3,
         "unit": "fixed-size records, one per execution place",
-        "scope": "最後の返信の時刻、未完了要求の送出時刻の固定の枠（種類ごと。P3-C3A-RES-09のownerあたり最大9からcheckpointGrantの1を除いた8に、P3-UF-PUBLIC-001のdetail〔deferredだけが使う〕を足した9。返信は順不同になりうるので、最古はこの枠の最小で取る）、停止済みの印、未処理件数（停止時にmailboxから外した件数）、拒否した入力の件数、発報済みの印だけ。この固定の枠の外に要求ごとの履歴やqueueを持たない。C3aの未完了の記録はownerと種類ごとの有無だけで時刻を持たない（outstandingのdeadline・shutdownInput［composition-root.ts:286］、inFlightInputs［:289、input］、intentRequests［:290、channel×slotの4枠］、finalizationのfixed［:298、finalize］）。この9枠に送出時刻を持たせる（detailの枠はP3-UF-PUBLIC-001で改訂）",
+        "scope": "最後の返信の時刻、未完了要求の送出時刻の固定の枠（種類ごと。P3-C3A-RES-09のownerあたり8＋そのownerのunit数からcheckpointGrantの分を除いた8に、P3-UF-PUBLIC-001のdetail〔deferredだけが使う〕を足した9。返信は順不同になりうるので、最古はこの枠の最小で取る）、停止済みの印、未処理件数（停止時にmailboxから外した件数）、拒否した入力の件数、発報済みの印だけ。この固定の枠の外に要求ごとの履歴やqueueを持たない。C3aの未完了の記録はownerと種類ごとの有無だけで時刻を持たない（outstandingのdeadline・shutdownInput［composition-root.ts:286］、inFlightInputs［:289、input］、intentRequests［:290、channel×slotの4枠］、finalizationのfixed［:298、finalize］）。この9枠に送出時刻を持たせる（detailの枠はP3-UF-PUBLIC-001で改訂）",
         "source": "spec:1185「既存のmain・worker・SSEに有界な進捗値を持たせ、新しい監視プロセスは作らない」"
       },
       {
@@ -468,7 +468,7 @@
           "reconstruction/contracts/p3-order-plan.md:248 «6e469cc97e6514dd»",
           "reconstruction/contracts/p3-order-plan.md:258 «beaf047ac7f9d773»",
           "reconstruction/contracts/p3-execution-split.json:75 «c7d7824e8a3cb37d»",
-          "reconstruction/contracts/p2-eew-e01.json:534 «a623d04abe9a255f»"
+          "reconstruction/contracts/p2-eew-e01.json:534 «3129f12ec78ea755»"
         ]
       },
       {
@@ -483,7 +483,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1031 «69127c89f41d3c74»",
           "reconstruction/contracts/p3-execution-split.json:120 «0bb382c58c354ab3»",
           "reconstruction/contracts/p3-execution-split.json:125 «fdd9d5a7caafe7de»",
-          "reconstruction/contracts/p3-execution-split.json:696 «071fcc22aacd7309»",
+          "reconstruction/contracts/p3-execution-split.json:696 «7074531dd8c0c3a7»",
           "reconstruction/contracts/p3-execution-split.json:566 «8745b8028259f722»"
         ]
       },
@@ -505,7 +505,7 @@
           "docs/specs/reconstruction-p0-contracts.md:898 «8ec453fc247f2c24»",
           "docs/specs/reconstruction-p0-contracts.md:900 «0ee1ac317cc5543a»",
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»",
-          "reconstruction/contracts/p3-execution-split.json:685 «e275f52678b07e0e»",
+          "reconstruction/contracts/p3-execution-split.json:685 «01bbf43432707189»",
           "reconstruction/contracts/p3-execution-split.json:129 «d4a38fc7de1d9806»",
           "reconstruction/contracts/p3-execution-split.json:134 «1c84f3b0ce68dac9»",
           "reconstruction/contracts/p3-dmdata-connect.json:289 «0a0c074748c205de»",
@@ -520,7 +520,7 @@
           "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
           "docs/specs/reconstruction-p0-contracts.md:2082 «74aa393600c9b74b»",
           "docs/specs/reconstruction-p0-contracts.md:1200 «28de3474a5f6cfe6»",
-          "reconstruction/contracts/p3-execution-split.json:543 «51c60c820f5920f9»",
+          "reconstruction/contracts/p3-execution-split.json:543 «66a186e5a1a6f39f»",
           "reconstruction/contracts/p3-order-plan.md:40 «c4be59ca24a3e392»",
           "reconstruction/contracts/p3-order-plan.md:191 «60a0dd184764ac57»"
         ]
@@ -539,7 +539,7 @@
         "requirement": "再検収と既存試験: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。C3a配送後の試験は期待値を変えずに通す。期待値を変えてよい理由は次の5つだけ（(a)〜(d)の対象は271db561で、(e)は6321e1e0で実測した）: (a) P3-C3A-T10（execution-split.test.ts:926、ownerFailedで例外、以後どのownerへも要求を送らない）を、例外を投げずにstoppedになり、以後そのownerにだけ要求を送らない期待へ。host.test.ts:935のP3-C3A-T10（ownerFailedを差し替え、stop()の外のexitが届き、stop()のexitは届かない）は、予期されたexitをendOwners以後に限る読み替え（publicFunctionsのstartP2Host）でも期待値を変えずに通る見込み (b) host.test.tsのstall試験（:312。C3aでもhost.test.tsに残り、本物のowner 3本のWorker.emitを差し替えて全ownerの全返信を保留する［:22〜:38］。入力はVPWW57でweatherCurrentへ行く）: 全返信の保留なので、weatherCurrentのownerはAC01でstalledとunresponsiveの両方になり、heartbeatの列は[\"stalled\"]から[\"unresponsive\"]へ（:326）、[\"stalled\", \"healthy\"]から[\"unresponsive\", \"healthy\"]へ（:334）、/healthzの値はstalledからunresponsiveへ（:329）変わる。診断の検査（:328）はmailboxStalledを含むことだけなので変えない（実際には既存のcomponent mailboxの分に、owner.weatherCurrentとowner.weatherCurrent.responseの各1件と、どのownerも5秒返信しないのでmailbox.workerの1件が加わる）。この試験はT01(4)（stalledだけ）を受け持たない (c) P2-A10-AC13の写像のうち、tick自身を生存応答とする前提の箇所（271db561では(b)のほかに該当する期待値は見つからない。integration/notification-wiring.test.ts:254は試験側でrecordWorkerResponseを呼ぶだけで期待値に関わらない） (d) P2-A3-T06のworker停止の場合で、本物のownerの停止によってcodeと要約の理由が変わる箇所（271db561のintegration/shutdown.test.ts:41の5つの場合［通常・未保存・mailboxの残り・batchの失敗・closeWorkerの失敗］にownerの停止は無く、該当は見つからない。worker停止の場合はT05(3)で新しく確かめる） (e) INTENT-RECLAIM=A（AC08）で、C3aのD3が変えた期待をD3の前へ戻す2試験: shared-runtime.test.ts:959（ownerへの最初の要求が128件のexpiredの更新で、受信がその後。新しいeventのintentはdesktop・soundの2件、firstReportNotifiedはtrue、deliveryRecordsはexpiredの128件）と:985（続報の受信より先に旧intent 2件がexpiredで回収され、走行中の試行はcause expiredで止まり、deliveryRecordsの2件はsupersededでなくexpired）。ほかに、入力の直前の回収で要求の順序・件数が変わる試験は、その入力のunitの期限切れintentが受信より先に回収されることだけが理由の場合に限る。変更前に該当試験の一覧を実測で確定して理由とともに報告する。これ以外の理由で期待値の変更が要る試験、またはallowedPathsの外の試験の変更が要る場合はblockedとして報告する（P3-NOTICE-LEDGER-001の後はdeliveryRecordsが無く、U-Eの終端のintentはintentsから外れて結果はEventIDの印に残る。(e)の2試験は終端の更新でintentsから外れることで確かめる、P3-NL-AC05）",
         "evidenceRefs": [
           "AGENTS.md:26 «2c223bbb66635b53»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «5690e4b254967e23»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «b7e8914d276157dd»",
           "reconstruction/contracts/p2-mailbox.json:391 «36d8bc7abbfa21f7»",
           "reconstruction/tools/corpus/sequences.json#expected:O07:16",
           "reconstruction/tools/corpus/sequences.json#expected:O10:35",
@@ -563,7 +563,7 @@
           "docs/specs/reconstruction-p0-contracts.md:989 «203b7c52af102513»",
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
           "reconstruction/contracts/p3-execution-split.json:674 «9e81bd7fad2794cd»",
-          "reconstruction/contracts/p3-execution-split.json:705 «8342e8bedb330d9a»",
+          "reconstruction/contracts/p3-execution-split.json:705 «bb993c8bb3e52411»",
           "reconstruction/contracts/p3-execution-split.json:159 «5d0f618a2c1b3a6b»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
@@ -614,7 +614,7 @@
           "P3-C3B-AC02",
           "P3-C3B-AC04"
         ],
-        "behavior": "helperで確かめる。(1) U-Fの通知予約の返信待ちにdeferredのownerが停止すると、予約が無効化されてchannelが空き、同じchannelでU-Eのintentが選ばれて実行される。U-Fのpending intentは以後選ばれない (2) U-Fの通知のadapterが起動済みのときにdeferredが停止すると、試行はadapterの完了まで続いてからchannelが空き、結果はどのownerにも送られず、WARN ownerStopped（component notification）が1行入る (3) deferredが書込み権を持たないときに停止すると、U-Fにはgrantされず、U-Wは3秒以内に保存される (4) deferredがcheckpointDoneを返す前に停止すると、権は解放されず、U-Wはgrantされず、checkpointOverdue・checkpointUncertainが示される（DEAD-WRITE-RIGHT=A）(5) errorの後にexitが来ても停止の処理と診断は1回で、停止後に届いた返信はmirrorに採用されない (6) deferredのpending 3件とin-flight 1件がある状態で停止すると、mailboxからその4件が外れ、cancelledが3増え、completedは増えず、high-waterと違反回数は変わらず、ownerの記録の未処理件数が4、停止済みのownerへの要求は以後0件 (7) HUNG-PLACE-INPUT=Aの場合、deferredがunresponsiveの間のVPWP50はenqueueされず、healthyに戻った後は受け付けられ、拒否の診断は最初の1件と件数の1件"
+        "behavior": "helperで確かめる。(1) U-Fの通知予約の返信待ちにdeferredのownerが停止すると、予約が無効化されてchannelが空き、同じchannelでU-Eのintentが選ばれて実行される。U-Fのpending intentは以後選ばれない (2) U-Fの通知のadapterが起動済みのときにdeferredが停止すると、試行はadapterの完了まで続いてからchannelが空き、結果はどのownerにも送られず、WARN ownerStopped（component notification）が1行入る (3) deferredが書込み権を持たないときに停止すると、U-Fにはgrantされず、U-Wは3秒以内に保存される (4) deferredがcheckpointDoneを返す前に停止すると、権は解放されず、U-Wは自分の権でgrantされ保存され、U-FのcheckpointOverdue・checkpointUncertainが示される（DEAD-WRITE-RIGHT=A。U-Wの扱いはP3-UNIT-WRITE-RIGHT-001のAC10(4)で改訂）(5) errorの後にexitが来ても停止の処理と診断は1回で、停止後に届いた返信はmirrorに採用されない (6) deferredのpending 3件とin-flight 1件がある状態で停止すると、mailboxからその4件が外れ、cancelledが3増え、completedは増えず、high-waterと違反回数は変わらず、ownerの記録の未処理件数が4、停止済みのownerへの要求は以後0件 (7) HUNG-PLACE-INPUT=Aの場合、deferredがunresponsiveの間のVPWP50はenqueueされず、healthyに戻った後は受け付けられ、拒否の診断は最初の1件と件数の1件"
       },
       {
         "testId": "P3-C3B-T05",
@@ -714,7 +714,7 @@
       "1実装のinterface・registry・factory・監視用のthread・process・timer・再起動の仕組み・ownerごとのmailboxを作らない。新しい状態の判別はswitchで網羅する",
       "既存の.types.tsの被引用行を動かさない: p2-shared-runtime.types.tsの:65より前に行を挿入・削除しない（ownerStoppedはInfrastructureDiagnosticReasonの末尾に足す）。p3-execution-split.types.tsは変えない。変える必要が出たら変えずにblockedで報告する",
       "Piで確かめる性質（C4のPi予備確認 第1段で確かめる。本契約は書くだけ）: ① ownerが塞がってからunresponsiveの表示までの時間（5秒＋1 tick以内）② 大型処理中（VPWS50で約2.4秒）のownerがstalled・unresponsiveにならない ③ 終了の段ごとの所要と、最終保存が10秒以内に終わること（U-E・U-W・U-Fの同時dirty）④ owner 3本のexitが5秒以内",
-      "残存リスクとして書く: worker_threadsのterminateは同期のsyscallで塞がったthreadを止められないので、そのthreadはexitせずcode 4として残りうる。P3-C3B-WORKER-VIEW=Aの間は、止まっていない分野にも「更新未確認の最終情報」が出る。P3-C3B-DEAD-WRITE-RIGHT=Aでは、書込みの区間にownerが落ちると再起動まで全unitが保存されない。P3-C3B-AUTO-RESTART=Aでは、止まった分野は人が再起動するまで更新されない。P3-C3B-HUNG-PLACE-INPUT=Bが選ばれた場合は、exitしないまま塞がったownerの入力が通常枠を埋めると§7.3で自分の接続ごと止まり、EEWも止まる（=Aでは、塞がっている間のその分野の入力を失う。正当に5秒を超えて処理しているowner［Piで大きいVPWS50］でも後続電文は失われ、C16まで回復しない。stalledだけの場合［inputDoneの消失などでin-flight枠が塞がる］はAでも守らず、pendingが溜まってBと同じ道をたどる）。入力の処理中に塞がったownerがあると、終了の収束の段は10秒待ってcode 3になる",
+      "残存リスクとして書く: worker_threadsのterminateは同期のsyscallで塞がったthreadを止められないので、そのthreadはexitせずcode 4として残りうる。P3-C3B-WORKER-VIEW=Aの間は、止まっていない分野にも「更新未確認の最終情報」が出る。P3-C3B-DEAD-WRITE-RIGHT=Aでは、書込みの区間にownerが落ちると再起動までそのownerのunitが保存されず、通常終了の最終保存の段は開始時に終わって他unitも最終保存されずcode 2になる（P3-UNIT-WRITE-RIGHT-001のAC10(4)で改訂。前は再起動まで全unitが保存されない）。P3-C3B-AUTO-RESTART=Aでは、止まった分野は人が再起動するまで更新されない。P3-C3B-HUNG-PLACE-INPUT=Bが選ばれた場合は、exitしないまま塞がったownerの入力が通常枠を埋めると§7.3で自分の接続ごと止まり、EEWも止まる（=Aでは、塞がっている間のその分野の入力を失う。正当に5秒を超えて処理しているowner［Piで大きいVPWS50］でも後続電文は失われ、C16まで回復しない。stalledだけの場合［inputDoneの消失などでin-flight枠が塞がる］はAでも守らず、pendingが溜まってBと同じ道をたどる）。入力の処理中に塞がったownerがあると、終了の収束の段は10秒待ってcode 3になる",
       "既存試験の期待値を変えた試験ごとに、変更前後の期待値とAC06の理由（a〜d）を1行で報告する",
       "spec本文・計画・P2契約・C3a契約の改訂は実装者が行わない（統合担当が合流のcommitで行う。P3-C3B-P2-CLAUSES・P3-C3B-SPEC-1190、計画§3.2の同期はP3-C3B-OWNER）",
       "追補 C3B-CLOSE: 例外の分岐（無いと、closeWorkerが期限の直前に終わったときにstop()が「final shutdown summary could not be persisted」の例外で終わり、期限内にcode付きで返るという約束が破れる）。追加・変更した試験はT09（契約境界）だけで、既存の試験の期待値は変えない"
