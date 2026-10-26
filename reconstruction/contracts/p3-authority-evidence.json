@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4e8e3ab8b58b7cbf8fe7c653767d6633cb51fe2",
-    "sha256": "8f509f62407df358d1e28698d2dea045845b5fd871b15baab10b37277c176d6e",
+    "sha256": "915b37ef126c9fb2cf8b4dd5b4447722429da2c403b26c32a6cdba2a1733bcce",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -285,14 +285,14 @@
         "id": "P3-AUTH-AC03",
         "requirement": "U-Vのfamilyごとの取消のidentity（D-EVIDENCE=A）: (1) VolcanoAlertにlandEventId（sourceと組、VFVO50・VFVO51の側）とmarineEventId（marineSourceと組、VFSVの側）を足す。null（その側が無いか、旧保存で分からない）でなければsource・marineSourceが非null。(2) 書き方: VFVO50の報（取消を含む）はlandEventIdを報のEventIDにする。VFSVの報（取消を含む）はmarineEventIdを報のEventIDにし、landEventIdを保つ。VFVO51のentryは既存の記録にlandEventIdがあれば保ち、無ければ報のEventID（今のeventIdの規則のland側の写し）。(3) 火山コードの無い取消（P3-C9-CANCEL-SCOPE=Aの(2)）は、警報sliceではVFVO50の取消をlandEventIdで、VFSVの取消をmarineEventIdで、運用区分ごとに一致する記録が1つだけのとき結び付ける（eventMatchesの鍵をfamilyの側ごとにする）。噴火・降灰・定時は今のeventIdのまま。(4) 表示・outcomeのeventId（記録の最新の書き手のEventID）は今の規則のまま変えない。(5) 取消の効き方はP3-AUTH-D-LAND-CANCEL=AによりP3-C9-MARINE=Aのまま: VFVO50の取消は警報全体をcancelled、marineSource・marineEventIdは記録に残る。clearCurrent（shortfallの解決）でendedにするときもidentityを保つ。",
         "evidenceRefs": [
-          "reconstruction/src/units/volcano/volcano-unit.ts:150 «563fc06041606774»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:154 «33dfada096768ace»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:257 «d7cb8a9d170d69ce»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:304 «027881b3274601ad»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:656 «71d1e5d6acccf04c»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:663 «709a512117afd511»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:314 «44d45d65bf78673b»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1233 «a5cd6f76762c505f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:154 «563fc06041606774»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:158 «33dfada096768ace»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:309 «d7cb8a9d170d69ce»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:369 «027881b3274601ad»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:722 «71d1e5d6acccf04c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:729 «709a512117afd511»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:379 «44d45d65bf78673b»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1301 «a5cd6f76762c505f»",
           "reconstruction/contracts/p3-volcano-unit.types.ts:76 «0939fb8dbfe1e419»",
           "reconstruction/contracts/p3-volcano-unit.json:96 «a23cec5f9c0eabb9»",
           "reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6»",
@@ -303,9 +303,9 @@
         "id": "P3-AUTH-AC04",
         "requirement": "F07の閉鎖: 45_01_01_200522_VFVO50のReportDateTimeを2026-01-01T10:00:00+09:00・EventIDをAにした報（land A）、46_01_01_170103_VFSViiのCode 506を306・ReportDateTimeを10:00:01・EventIDをBにした報（VFSV50として投入、marine B）、synthetic_VFVO50_cancelのReportDateTimeを10:00:02・EventIDをAにした火山コードの無い取消を、各報の時刻の時計で順に受ける（audit-verify/core.cjsのF07と同じ入力）。取消はrejected/identityMissingでなく火山306の警報に結び付き、D-LAND-CANCEL=Aによりchanged/semantic・effective cancelled、landEventId A・marineEventId B・marineSource（10:00:01）が残り、取消のdesktop・soundのpendingが出る。逆の順（marine B→land A→EventID Bの火山コードの無いVFSVの取消）も結び付く。取消の前に復元を挟んでも同じ。取消の後に届くmarine Bより古いVFSVはstale。修正前の観測（cancel rejected/identityMissing・after active）の反転を正式試験で示す。",
         "evidenceRefs": [
-          "reconstruction/src/units/volcano/volcano-unit.ts:656 «71d1e5d6acccf04c»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:150 «563fc06041606774»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:257 «d7cb8a9d170d69ce»"
+          "reconstruction/src/units/volcano/volcano-unit.ts:722 «71d1e5d6acccf04c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:154 «563fc06041606774»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:309 «d7cb8a9d170d69ce»"
         ]
       },
       {
@@ -334,8 +334,8 @@
           "reconstruction/src/units/nankai/nankai-unit.ts:33 «5799687c870a8850»",
           "reconstruction/src/units/nankai/nankai-unit.ts:27 «1e38c71fd6572e83»",
           "reconstruction/contracts/p3-nankai-unit.types.ts:123 «6354aa850ef74bba»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1440 «5f59bc69aea62f5e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:29 «aa72e930a9d34ac6»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1510 «5f59bc69aea62f5e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:33 «aa72e930a9d34ac6»",
           "reconstruction/src/checkpoint/checkpoint.ts:460 «b6fdb65e4e225b7d»",
           "reconstruction/src/runtime/owner-runtime.ts:326 «890b0a8cddc63328»",
           "reconstruction/contracts/p3-codec-closure.json:182 «da66206c5b29e26f»",

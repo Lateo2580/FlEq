@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "79cf8fe05744dd0b1d56d60499853b24882292985ddd2f5984941eae10ce9f46",
+    "sha256": "d29b6c0111c37def001cfd4764c25ef04f4f4ddf550aa7b3a1ede9c92fd2b316",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -531,7 +531,7 @@
           "reconstruction/src/domains/tsunami/tsunami.ts:241 «5cfd2282665cdb60»",
           "reconstruction/src/domains/seismic/seismic.ts:259 «eff97ba994e8fd97»",
           "reconstruction/src/domains/nankai/nankai.ts:152 «1361e44ec328c280»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:491 «3f2690b71e67d7d4»"
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:492 «3f2690b71e67d7d4»"
         ]
       },
       {
@@ -562,16 +562,16 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
           "reconstruction/contracts/p3-persist-premises.md:566 «fc0d5c3170fbef2c»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:228 «a2a95e8398a8a65e»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:177 «c93ef20a73f10513»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:224 «2e15b935659e2c2f»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:136 «bbb08c4757751e03»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:472 «794a7a625a173a1c»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:230 «a2a95e8398a8a65e»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:178 «c93ef20a73f10513»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:228 «2e15b935659e2c2f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:138 «bbb08c4757751e03»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:473 «794a7a625a173a1c»",
           "reconstruction/src/units/notice-mark.ts:29 «1db3690dcdbad86b»",
           "reconstruction/src/domains/tsunami/tsunami.ts:294 «0916385f8744bf2b»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:515 «39931a7aed71e9b7»",
-          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:291 «08d42274fd8e8bd6»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:171 «00bb6c08dd35ca4a»"
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:517 «aefd1b4fa7b5aaf3»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:295 «08d42274fd8e8bd6»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:172 «00bb6c08dd35ca4a»"
         ]
       },
       {
@@ -579,10 +579,10 @@
         "requirement": "【発注 2】K10 の残存リスク (b) を消す（U-R の観測の最大、作者裁定 2026-10-25）。場面 1: 09:00 の報 A は観測所 s が現況のレベル 3、10:00 の報 B は現況の時刻（か値）が読めない、11:00 の報 C は s が 3。場面 2: A（唯一の観測所 s がレベル 3）→ B（s の区域の Code が読めず flood.ts で s を丸ごと除き stations が空）→ C（s が 3）。今はどちらも C を「−1 から 3 への上昇」と読み warning で鳴る。直した後は C は鳴らない。C が 4 なら鳴る。B の後に保存→復元しても同じ。(1) FloodCurrent に observedCompare?: number（比べの観測の最大）を足す。現況の観測レベルの最大を確定できない版、つまり観測所が丸ごと外れた版（印に site station の part がある）と、現況のレベルか現況の時刻に読めない印（WARN が出た所、site series の part で scope がその観測所の code と時刻の位置 0、または TimeDefine の位置 0）がある観測所を持つ版では、observedCompare＝max（その版の observedMax, 前の記録の observedCompare ?? 前の記録の observedMax）。どれにも当たらない版は欄を書かない。levels[0] が null かどうかでは決めない: 正規の欠測（空のレベル・レベル 9。flood.ts は WARN を出さずに null にする）は今の比べ方（読めた値だけの最大）のまま。場面 5: 09:00 s=3・t 空 → 10:00 s=2・t 空 → 11:00 s=3 は C で warning（今どおり）。予測の時刻だけ・基準値だけ・水位や流量の数字だけが読めない版は含めない（flood-unit.ts の observedMax と noticeOf の上昇はレベル levels[0] だけを使い水位・流量の値を使わない。flood.ts は後ろの時刻が読めないと break しても現況を残し、水位・流量の値が読めなくてもレベルは別に読む）。場面 3: A 現況 3 → B 現況 2（3 番目の予測の時刻だけ不正）→ C 現況 3 は今どおり C で warning。場面 4: 09:00 現況 3 → 10:00 現況 2・水位の数字だけ不正 → 11:00 現況 3 は C で warning (2) 上昇の判定（flood-unit.ts の noticeOf）は、前の記録の observedCompare ?? observedMax と比べる (3) observedCompare は保存し、codec が確かめる（-1〜5 の整数） (4) 変えないもの: riverLevels の鍵（河川の code、K10 r3）、段（SOUND の表）、表示の値",
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
-          "reconstruction/src/units/flood/flood-unit.ts:191 «c12df257153e5be7»",
-          "reconstruction/src/units/flood/flood-unit.ts:205 «fe00db2f05057898»",
-          "reconstruction/src/domains/flood/flood.ts:208 «50cc74007748fbea»",
-          "reconstruction/src/domains/flood/flood.ts:275 «3b349df7911afb3c»"
+          "reconstruction/src/units/flood/flood-unit.ts:198 «c12df257153e5be7»",
+          "reconstruction/src/units/flood/flood-unit.ts:214 «d0ad64d52d99a014»",
+          "reconstruction/src/domains/flood/flood.ts:210 «50cc74007748fbea»",
+          "reconstruction/src/domains/flood/flood.ts:293 «71688b19a0252b64»"
         ]
       },
       {
@@ -590,7 +590,7 @@
         "requirement": "【発注 2】K10 の残存リスク (c) を消す（竜巻で区域が全部読めない報、作者裁定 ②、本文の文面は 2026-10-26 夕の作者裁定 B）。場面: 15:00 に竜巻注意情報が届き、Body の区域が全部読めない（local-bulletins.ts の area の warn）。今は区域が空・truncated の発表中で出て、通知の本文は地域の数（「発表中 53地域」）だけで、読めなかったことが分からない。直した後は、本文に名前を読めなかった区域の数が添えられ（「発表中 53地域（うち 53 地域は名前を読めず）」）、記録の印（site area）が view に渡る（画面の併記は P4）。(1) 竜巻の通知の本文は地域の数で出て空欄が無いので、数の後ろに名前を読めなかった区域の数を添える（作者裁定 2026-10-26 夕の B）: 「発表中 N地域（うち M 地域は名前を読めず）」。N は読めない区域も数えた地域の数、M はそのうち名前を読めなかった数（数える層は今どおり最も細かい層）。全部読めない報も一部だけ読めない報も同じ形（例「発表中 24地域（うち 24 地域は名前を読めず）」）。数える層が無く区域の印だけがある報は「発表中 （区域を読めず）」。読めない区域の無い報の本文は今と同じ。印は view に渡る (2) 気象庁の「不明」（電文の文言）と区別するため、文字は「（読めず）」に固定する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
-          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:212 «506ae7a3110895f8»"
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:213 «506ae7a3110895f8»"
         ]
       },
       {
@@ -598,9 +598,9 @@
         "requirement": "【発注 2】K10 の残存リスク (d) を消す（U-R・U-L の種別の名前と U-R の河川名、作者裁定 ②）。場面: 08:00 に指定河川洪水予報が届き、河川の名前と種別の名前が読めない（flood.ts の名前の warn）。今は空の名前のまま通知の本文に出る（例「 氾濫警戒情報」）。直した後は「（読めず） 氾濫警戒情報」のように空欄に「（読めず）」が入る。U-L の種別の名前（landslide.ts の kindName）も同じ。(1) 通知の題と本文を作る所で、印に part のある名前の欄が空なら「（読めず）」を入れる。対象は U-R の areaName・kind の名前・河川の名前、U-L の kinds の要素の name、U-V の volcanoName・kind の name、U-B の editorialOffice、U-M の editorialOffice（本文に出る所だけ）。U-R の areaName（36 時間続報の無いときの本文は、空なら今どおり「この洪水予報」）と U-B・U-M の editorialOffice は今の通知の本文に出ないので入れる所が無い（印は view に渡る）。U-V の VFVO53 の batch の通知（1 件の単発の形と 2 件以上の「{件数}火山: …」）でも、読めなかった火山名は「（読めず）」 (2) 記録の値は空のまま（「（読めず）」を保存しない。view と P4 は印で見分ける）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
-          "reconstruction/src/domains/flood/flood.ts:118 «8231727d6a0c49e4»",
+          "reconstruction/src/domains/flood/flood.ts:120 «8231727d6a0c49e4»",
           "reconstruction/src/domains/landslide/landslide.ts:161 «a3edebd0230ebb70»",
-          "reconstruction/src/domains/volcano/volcano.ts:447 «b847227ef921d224»"
+          "reconstruction/src/domains/volcano/volcano.ts:451 «b847227ef921d224»"
         ]
       },
       {
@@ -608,7 +608,7 @@
         "requirement": "【発注 2】K10 の残存リスク (e) を消す（U-R の TimeDefine が途中で読めない、作者裁定 ③）。場面: 12:00 の指定河川洪水予報で 3 つ目の時刻の TimeDefine が読めない。今はそこから後の予測が出ないまま、読めなかったことが記録に残らない。直した後は、記録の印（site series、scope は読めなかった最初の時刻の位置）と欠片が付き、view に渡る。空欄の無い所なので通知の本文は変えない（作者裁定 ② は空欄の所だけ。見せ方は P4）。予測値を現況の位置へ動かさない今の読み（K10 r2）は変えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
-          "reconstruction/src/domains/flood/flood.ts:208 «50cc74007748fbea»"
+          "reconstruction/src/domains/flood/flood.ts:210 «50cc74007748fbea»"
         ]
       },
       {
@@ -655,9 +655,9 @@
         "requirement": "【発注 3】カードの音（作者裁定 ①、P3-UM-D-CARD-SOUND の推奨の形）。場面: 12:00:05 に XML の壊れた VXSE43 が届く（parser が断る）。今は診断の 1 行だけで何も鳴らない。直した後は U-E の envelope にカード（unidentified）ができ、critical で 1 回鳴り、デスクトップに「緊急地震速報（読めない報）を受信 12:00」が出る。12:00:08 に 2 通目の壊れた VXSE43 が来るとカードは 2 枚になるが、1 通目の通知の期限の内なので鳴らない。(1) 振り分け先が U-E か U-T のカード（unreadable・unidentified）だけ、owner がその unit に「読めなかった報」の入力（UnitInput に 1 つ足す変種。カードの headType・operation・受信時刻・inputId を運ぶ）を 1 件渡し、unit が intent を作る。ほかの unit・知らない種類は鳴らさない (2) 段と群: VXSE43 critical、VXSE45 warning、VTSE41 warning・normalTsunamiEmergency、VTSE51・VTSE52 info・other。U-E の normal は normalEew (3) operation が決まらない報は normal として扱う。training・test は desktop だけ (4) 重ねない印: U-E・U-T の state に UnreadableNoticeMark（operation・level〔info・normal・warning・critical〕・until、p2-shared-runtime.types.ts）を operation ごとに 1 つ持ち、until の内で段が上がらなければ鳴らさない。重ねないのは時間の窓だけで、何で同じ報と見なすかは持たない。材料は無いわけではない（WS の受信は dmdataId を持ち〔REST・replay は null〕、本文の digest も作れる）が、壊れた EEW の続報は数秒ごとに別の報として届くので、同じ報かで分けても窓は要る。窓だけで受け直しと続報の両方を止められるので、照合の欄を足さない。窓は作った intent の expiresAt の最大（EEW 15 秒、ほかは sound 60 秒・desktop 180 秒）。窓の外で同じ壊れた報を受け直すと、もう一度鳴る。FailureMark（warning・critical だけ）は使わない (5) ID: 固定の subject は ${operation}/unreadable。ReportRef の無い入力（parser が断った報）もあるので、intent の ID は inputId から作る（U-E:${operation}/unreadable:${inputId}:${channel} の形、unit ごとに頭を替える） (6) カードの通知は取消の対象にしない（取消の intent を作らない。鳴った事実は戻さない） (7) 題: 「緊急地震速報（読めない報）を受信」「津波の情報（読めない報）を受信」に訓練・試験の接頭を付ける。本文: 受信時刻（JST の HH:MM）と「内容を読めませんでした」 (8) U-E は印の欄を足すので版を上げる（AC16） (9) 読めなかった報の入力は、カードを作った入力と同じ世代に入れる（別の世代を作らない、P3-NL-AC14 の (5) の形）。unit が断った報（unreadable）は、unit の reduce が rejected を返した同じ owner の step で渡す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3203 «93c483439e896f3b»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:702 «a9ed49615a27bef6»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:710 «a9ed49615a27bef6»",
           "reconstruction/src/domains/eew/eew.ts:686 «663bbf2595dbc195»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:163 «3ef2ea279992a950»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:164 «3ef2ea279992a950»",
           "reconstruction/contracts/p3-notice-ledger.json:621 «bab4f6ed15b5f888»",
           "reconstruction/contracts/p3-notice-ledger.json:550 «2f3344fbe3367192»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:676 «29a02dba8a622535»"
@@ -727,7 +727,7 @@
         "requirement": "【発注 3】H51 の表の 4 行目「取消の相手が決まらない」（U-V、設計メモ §13 の :510、K10 の P3-EF-AC13 の (6) は WARN だけ）。場面: 10:00 と 10:05 に同じ EventID の降灰予報が別の火山で 2 件あり、10:30 に火山コードの無い取消（eventId だけ）が届く。今は 2 件に結び付かないので手元を変えず WARN だけ。直した後も手元の 2 件は変えないが、2 件それぞれに「決められなかった」の印（K7 の unconfirmed の形、値は取消の報の ReportRef。海上の警報は marineUnconfirmed）が付き、view に出る。新しい版の採用で外れる（K7 のまま）。(1) volcano-unit.ts の noTarget で、eventId に当たる記録が 2 件以上なら、その全部に印を付けて保存世代を進める。通知は作らない。印の ReportRef は記録ごとに組み立てる: 取消の報の source（volcano.ts は subject を空で作る）の subject をその記録の subject に替え、family は取消の報のまま。復元の reportRef（volcano-unit.ts）は記録の subject との一致を確かめるので、この形で保存→復元できる (2) 当たる記録が 0 件の取消は手元に記録が無いので印を付ける所が無く、今どおり WARN だけ（残存リスク） (3) 候補の原文は P3-UM-D-UNDECIDED-RAW の決めに従う（推奨 A では持たない）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3201 «61d7594e40aecdac»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:646 «16acd069102a1804»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:712 «16acd069102a1804»",
           "reconstruction/contracts/p3-expiry-form.json:647 «0d6f4c9ad57f03a7»"
         ]
       }

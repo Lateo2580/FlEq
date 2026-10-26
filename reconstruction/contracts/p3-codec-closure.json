@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "1236fc7cbc97a79f9e8ae1dc115ac5b56e5f2cffb7c83c12c8d27025ef69b85c",
+    "sha256": "e7d33f4726d09f227a47bfec801eef29fd32ddbb2515cb2cc2f3ba8655cf34eb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -227,7 +227,7 @@
         "requirement": "U-VのGENERATION_LIMITとdecodeの世代検査を5,242,880 byteへ揃え、既存generationBytesと62 byteの予約を維持する。受信、deadlineStepのbatch flush、shutdown、shortfallResolution、restore後のcollect、intentUpdateの最終候補についてgenerationBytes＋pendingのdeliveryGrowthの和を上限と比較する。配送予約込み静的上界4,753,484 byteによりdecoderを通るstateから合法な受信・期限・配送更新で超過は起きず、更新intentのowner照合も保持できる。検査は実装の誤りによる上界の破れに対する守りである。超過時は入力前のstateそのもの（persistence・contentRevision・batchを含む）と元のnextDeadlineを返し、候補の変更・intent・outcome・displayChanges・confirmationEvidenceを一切出さない。decisionは1件だけ {subject:\"\", operation:\"normal\", decision:\"rejected\", reason:\"requiredStructureInvalid\"}（unit全体の不整合を示す既存の復元拒否と同じ形）。診断も1件だけ {level:\"ERROR\", component:\"volcanoGenerationLimit\", unit:\"U-V\", reason:\"requiredStructureInvalid\", count:1} とし、componentで通常の入力不正と識別する。capacityExceededは返さず、byteを理由とする退去を行わない。record byte cacheと線形の和を使い、全state再直列化・合計差分の帳簿は足さない。（今の器は U-V 9,178,224 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:939 «dd698f6a680a6a1e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:83 «369b997230539d12»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:87 «369b997230539d12»",
           "reconstruction/src/notification-delivery/delivery-growth.ts:10 «d0b7db8c1f4b8e3d»",
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:57 «5c81f7bf815c513f»",
@@ -270,7 +270,7 @@
         "requirement": "新たな型・helper・cacheごとに「無いと何が壊れるか」を1行で示す。既存bytes()のrecord byte cacheとgenerationBytesの線形和を使う。合計差分の帳簿、将来用の抽象、受信1回の全件×全件、全stateのJSON化を足さない。既存試験の期待変更は事前に理由を報告する。",
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:1052 «25e0e953a96039bf»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:73 «c1abbbb4993dfe08»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:77 «c1abbbb4993dfe08»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
       },

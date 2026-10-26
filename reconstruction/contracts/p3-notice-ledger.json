@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "22e662ec81301f524cfab1813a0562790ce6cf5f9e4901e0fd2fd2eb778eb082",
+    "sha256": "58a6e86036b61685c32246ea32a1b2114eb9bcf8be59e142ab93c7075009a1b0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -433,7 +433,7 @@
           "docs/specs/reconstruction-p0-contracts.md:939 «32900f157e487ce5»",
           "reconstruction/contracts/p3-persist-premises.md:128 «f1d4b5d6501fb72c»",
           "reconstruction/contracts/p3-version-material.json:436 «eaf4faf9773d4348»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:185 «877a7762aebc71de»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:186 «877a7762aebc71de»",
           "reconstruction/src/domains/eew/eew.ts:502 «f331e6a98870edd9»",
           "reconstruction/contracts/p3-recovery.json:573 «d3a653c4b2b5681a»"
         ]
@@ -458,8 +458,8 @@
           "reconstruction/contracts/p3-persist-premises.md:334 «0c6a877b41bfeaf2»",
           "reconstruction/contracts/p3-persist-premises.md:342 «c0e8cca6c03cf72d»",
           "reconstruction/contracts/p3-persist-premises.md:462 «43d8621e7a99e0e0»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:530 «bdb7633bb66e721b»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:549 «98d63d2c0e791dbd»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:536 «bdb7633bb66e721b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:555 «98d63d2c0e791dbd»",
           "reconstruction/contracts/p3-version-material.json:746 «809ea2fcefa35918»"
         ]
       },
@@ -501,7 +501,7 @@
           "reconstruction/src/runtime/owner-runtime.ts:435 «1bb3f6cd2b8f47c5»",
           "reconstruction/src/units/eew/eew-unit.ts:344 «973323028dc564f5»",
           "reconstruction/src/units/seismic/seismic-unit.ts:64 «e03057af8e6a011b»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:55 «e03057af8e6a011b»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:56 «e03057af8e6a011b»",
           "reconstruction/contracts/p3-unit-table.json:262 «44c584515eccf09a»"
         ]
       },
@@ -587,7 +587,7 @@
           "reconstruction/contracts/p3-clock-check.json:342 «d7b2e0b0082c7aeb»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:359 «118f0bc1fa574d7b»",
           "reconstruction/contracts/p2-notification-delivery.json:91 «53cff9917d12bece»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:855 «238f48b50821379d»"
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:863 «238f48b50821379d»"
         ]
       },
       {
@@ -596,8 +596,8 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3046 «d827c421cada4e9c»",
           "reconstruction/contracts/p3-persist-premises.md:131 «2c43d0b85d261f1c»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:439 «c035559a7276e8ea»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:576 «6e539e4282e6f9cb»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:440 «c035559a7276e8ea»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:582 «6e539e4282e6f9cb»",
           "reconstruction/src/domains/eew/eew.ts:613 «295c160aab9d48a2»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "src/engine/notification/notifier.ts:389 «8a01b0958c1cd6b3»"
@@ -628,9 +628,9 @@
           "reconstruction/contracts/p3-persist-premises.md:137 «5b22eecf281c5d15»",
           "reconstruction/contracts/p3-persist-premises.md:330 «408f530cbf7982fe»",
           "reconstruction/contracts/p3-tsunami-unit.json:11 «10c1cc61e2fcb5e8»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:162 «76f9ccfdb32529b0»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:166 «256db0e2f8cba821»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:706 «255c31f8e0275a9d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:163 «76f9ccfdb32529b0»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:167 «256db0e2f8cba821»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:714 «255c31f8e0275a9d»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "reconstruction/src/units/notice-mark.ts:100 «085550b0cc032fbb»",
           "reconstruction/contracts/p2-notification-delivery.types.ts:10 «8e994c0d4bf50f4b»",
@@ -693,9 +693,9 @@
           "reconstruction/contracts/p3-persist-premises.md:162 «9b7cbec44c1a9ece»",
           "reconstruction/contracts/p3-persist-premises.md:436 «f9154f6ac083aed7»",
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:36 «632cae790ef4aa0a»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:37 «632cae790ef4aa0a»",
           "reconstruction/src/units/seismic/seismic-unit.ts:64 «e03057af8e6a011b»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:55 «e03057af8e6a011b»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:56 «e03057af8e6a011b»",
           "reconstruction/src/units/eew/eew-unit.ts:22 «00295ab2ac3e2d56»"
         ]
       },

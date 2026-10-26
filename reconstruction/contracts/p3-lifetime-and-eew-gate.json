@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "fc9c96809c2c4bfbffa2edf3301fd5b9e9d951be5f3495efb355c925d8398e92",
+    "sha256": "bd44a245ae185adc930d4afefc34ca18100cf3a7f2709968ca42f09ebf701ba6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -364,8 +364,8 @@
         "id": "P3-LIFE-AC07",
         "requirement": "F14の保証範囲（D-HORIZON=A、条文だけ）: (1) U-E: 再受理horizonは10分（SEM-02）。gate（24時間）のある間は旧版の復活を防ぐ。gateの期限回収・容量退去・再起動（A1でgate非保存）の後は、horizon内（報の起点から10分未満）の旧報が新規subjectとして再び採用されうる（同じ版の再通知を含む）。(2) U-F: 新規受理で作るactiveはvalidUntilがwallより後のperiodを持つ報に限られる（既存のinspectと採用の規則）。保持期限がvalidUntil以上なので、有効中の旧報の復活は同じsubjectのgateが防ぐ。U-FはDurableでtrainingの容量退去の後だけ保証外。(3) U-T（津波予報のactive）・U-V（噴火警報のactive）など期限で消えないactiveを持つunitの再受理horizonは無制限とする。取消・版の記憶が保持される期間・容量・保存の範囲でのみ旧報の復活を防ぎ、期限GC・normal同士の容量退去・非永続stateの再起動の後に届いた古報は新規として受け入れうる。これは作者承認の残存リスクであり、この契約ではT/Vのコードを変えない。C12以降の新規unitは計画§9のパラメータ表のLifetime行でhorizonを明示する。",
         "evidenceRefs": [
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:406 «6849f19804edf168»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:100 «ee67c3c47e745e7e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:407 «6849f19804edf168»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:104 «ee67c3c47e745e7e»",
           "reconstruction/contracts/p3-order-plan.md:379 «d7ffea3ecccbb72d»",
           "docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»"
         ]
