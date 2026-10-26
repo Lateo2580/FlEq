@@ -150,6 +150,8 @@ export type VolcanoScheduledAshfall = VolcanoRecordBase & Readonly<{
   volcanoName: string;
   // 最も重い降灰の区分名（通知の body、旧築 buildAshfallSummary）。
   topAshName: string | null;
+  // P3-UM-AC07: 火山名が読めなかった印（part (name, volcano) だけ、原文は持たない）。batch の通知の本文の「（読めず）」に使う。保存しない
+  unreadable?: UnreadableMark;
 }>;
 
 // VFVO53 の待機 batch（N、spec:582）。鍵は運用区分と ReportDateTime。quiet・maxWait は単調時計で数える（時計の逆行で止まらない）。

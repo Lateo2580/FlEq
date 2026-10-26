@@ -296,8 +296,14 @@ function shownOutcome(value: FloodCurrent): SubjectOutcome {
   }
   return found;
 }
+// 比べの観測の最大（P3-UM-AC05）は通知の判定の値で、表示には出さない（r1 Opus P3。印の compare も view に出さない）。
+function viewed(value: Active) {
+  if (value.observedCompare == null) return shown(value);
+  const { observedCompare: _compare, ...rest } = value;
+  return shown<Active>(rest);
+}
 function displaySubject(value: FloodCurrent): Extract<RuntimeDisplaySubject, Readonly<{ unit: "U-R" }>> {
-  return { unit: "U-R", operation: value.operation, subject: value.subject, office: null, current: visible(value) ? shown(value) : null,
+  return { unit: "U-R", operation: value.operation, subject: value.subject, office: null, current: visible(value) ? viewed(value) : null,
     subjects: [shownOutcome(value)] };
 }
 
@@ -565,7 +571,7 @@ function toFloodView(state: FloodUnitState): FloodUnitView {
   const subjects = currents.map(shownOutcome);
   return { unit: "U-R", semanticRevision: subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
     + `${item.source?.serialRaw}:${item.source?.infoTypeRaw}`).sort().join("|"),
-  contentRevision: String(state.contentRevision), subjects, currents: currents.map((item) => shown(item)) };
+  contentRevision: String(state.contentRevision), subjects, currents: currents.map(viewed) };
 }
 
 // ---- codec（I-U-R.persisted・I-U-R.decode、唯一の FloodUnitCodec。受理と同じ上限を確かめる） ----
@@ -659,6 +665,7 @@ function stationRecord(value: unknown, points: number, riverCodes: ReadonlySet<s
 }
 const FACT_KEYS = ["title", "areaName", "kinds", "times", "stations", "basisReportDateTimeRaw", "truncated", "expiryPending", "unreadable",
   "observedCompare"];
+// P3-UM-AC01 (2)（FloodUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "areaName", "kindName", "riverName", "series", "station"] satisfies readonly FloodUnreadableSite[]);
 function currentRecord(value: unknown): FloodCurrent | null {
   const row = record(value);
@@ -727,6 +734,7 @@ function persisted(value: unknown): PersistedFloodUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedFloodUnit = { schemaVersion: SCHEMA, currents, intents };
+  // P3-UM-AC16 (3)(c)（AC03 (1) の数え方）。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(currents) > RAW_BUDGET) return null;
   return result;

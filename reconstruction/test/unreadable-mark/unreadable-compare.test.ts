@@ -9,6 +9,7 @@ import type { TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import type { VolcanoUnitState } from "../../contracts/p3-volcano-unit.types";
 import { briefingUnitCodec } from "../../src/units/briefing/briefing-unit";
 import { floodUnitCodec, toFloodView } from "../../src/units/flood/flood-unit";
+import { reduceVolcanoUnit } from "../../src/units/volcano/volcano-unit";
 import { compareColumns } from "../../src/units/unreadable";
 import * as B from "../briefing-unit/briefing-fixture";
 import * as R from "../flood-unit/flood-fixture";
@@ -207,12 +208,12 @@ describe("P3-UNREADABLE-MARK-001 order 2", () => {
   it("P3-UM-T08 acceptance / AC06,AC07: unreadable names and areas read （読めず） in the notification body", () => {
     const tornado = M.send(M.emptyState(), "19_01_01_091210_VPHW50", allAreas);
     const record = tornado.state.tornado[0];
+    // 作者裁定（2026-10-26 夜）の B: 読めなかった区域の数を添える（全部読めない報も同じ形）。
     expect([tornado.intents[0].payload.body, record.effective === "active" ? record.areas : null])
-      .toEqual(["発表中 53地域（読めず） / 有効期限 08:40", []]);
-    // 一部の区域だけ読めない報の本文は今と同じ。
-    const whole = M.send(M.emptyState(), "19_01_01_091210_VPHW50").intents[0].payload.body;
-    expect(M.send(M.emptyState(), "19_01_01_091210_VPHW50", (xml) => xml.replace("<Code>130010</Code>", "<Code>x</Code>")).intents[0].payload.body)
-      .toBe(whole);
+      .toEqual(["発表中 53地域（うち 53 地域は名前を読めず） / 有効期限 08:40", []]);
+    const two = M.send(M.emptyState(), "19_01_01_091210_VPHW50", (xml) => xml.replace(/<Code>(13101\d{2})<\/Code>/, "<Code>x$1</Code>")
+      .replace(/<Code>(13102\d{2})<\/Code>/, "<Code>x$1</Code>"));
+    expect(two.intents[0].payload.body).toBe("発表中 53地域（うち 2 地域は名前を読めず） / 有効期限 08:40");
 
     const headless = (xml: string) => xml.replace(/(<Headline>\s*)<Text>[^<]*<\/Text>/, "$1");
     const flood = R.send(R.emptyState(), "synthetic_VXKO50_code31", (xml) => headless(R.rivers([{ code: "31", name: "<x/>", rivers: [{ code: "1234567890",
@@ -237,5 +238,55 @@ describe("P3-UNREADABLE-MARK-001 order 2", () => {
       .toEqual([true, 2]);
     expect(toFloodView(broken.state).currents[0]).toMatchObject({ unreadableView: { parts: expect.arrayContaining([{ site: "series", scope: "2", raw: true }]) } });
     expect(broken.intents[0].payload.body).toBe(R.send(R.emptyState(), "synthetic_VXKO50_code31", list).intents[0].payload.body);
+    // 比べの観測の最大（AC05）は view に出さない（r1 Opus P3）。
+    const unknown = R.send(R.emptyState(), "synthetic_VXKO50_code31", (xml) => brokenTime(0)(list(xml))).state;
+    const current = unknown.currents[0];
+    expect([current.effective === "active" ? current.observedCompare : null, toFloodView(unknown).currents[0]]).toEqual([-1,
+      expect.not.objectContaining({ observedCompare: expect.anything() })]);
+  });
+
+  // regression: r1 ヘルツ P2-1・P2-3（U-R）。知らない type の要素の不正は現況を確定でき、現況のレベルの参照の欠けは確定できない。
+  it("P3-UM-T07 regression / AC05 (r1): an unknown auxiliary element keeps the rise and a level without its reference holds the maximum", () => {
+    const a = "27000000000000001";
+    const s3 = stationList([station(a, "3", "3", "3", "3")]), s2 = stationList([station(a, "2", "2", "2", "2")]);
+    const auxiliary = (xml: string) => xml.replace("<WaterLevelPart>", '<WaterLevelPart><jmx_eb:WaterLevel type="補助" refID="1"><x/></jmx_eb:WaterLevel>');
+    expect(chainR([s3, (xml) => auxiliary(s2(xml)), s3])).toEqual(["warning", null, "warning"]);
+    const unreferenced = (xml: string) => xml.replace('type="レベル" refID="1"', 'type="レベル"');
+    expect(chainR([s3, (xml) => unreferenced(s3(xml)), s3])).toEqual(["warning", null, null]);
+  });
+
+  // regression: r1 ヘルツ P2-2（U-V）。区域の 4 市町村の 1 つが読めない版は、残りの市町村を新しい要素として鳴らさない。
+  it("P3-UM-T04 regression / AC04 (2) (r1): one unreadable municipality code does not ring the area group", () => {
+    const code = (xml: string) => xml.replace(/(<VolcanoInfo type="噴火警報・予報（対象市町村等）">[\s\S]*?)<Code>2020800<\/Code>/, "$1<Code><x/></Code>");
+    expect(chainV([(xml) => xml, code, code, (xml) => xml])).toEqual([2, 0, 0, 0]);
+  });
+
+  // regression: r1 ヘルツ P2-4・Opus P2-1（U-V）。VFVO51 の同じ区分の継続は、前の陸の印の火山名の比べの値を消さない。
+  it("P3-UM-T04 regression / AC04 (1) (r1): a VFVO51 continuation keeps the land compare of the volcano name", () => {
+    let state: VolcanoUnitState = V.emptyState();
+    const counts = [(xml: string) => xml, brokenVolcano].map((edit, index) => {
+      const step = V.send(state, "synthetic_VFVO50_continuation", (xml) => edit(V.retime(rIso(V_START + index * 600_000))(xml)));
+      state = step.state;
+      return step.intents.length;
+    });
+    // 44_01_01 の浅間山はレベル２なので、その Item の区分をレベル３（A・B と同じ区分の継続）にした写し。
+    const level3 = (xml: string) => xml.replace("<Kind>\n<Name>レベル２（火口周辺規制）</Name>\n<Code>12</Code>",
+      "<Kind>\n<Name>レベル３（入山規制）</Name>\n<Code>13</Code>");
+    const bulletin = V.send(state, "44_01_01_151008_VFVO51", (xml) => level3(V.retime(rIso(V_START + 2 * 600_000))(xml)));
+    state = bulletin.state;
+    const after = V.send(state, "synthetic_VFVO50_continuation", V.retime(rIso(V_START + 3 * 600_000)));
+    expect([...counts, after.intents.length]).toEqual([2, 0, 0]);
+  });
+
+  // regression: r1 Opus P2-2（U-V の定時の batch）。読めなかった火山名は本文で「（読めず）」になる。
+  it("P3-UM-T08 regression / AC07 (r1): the VFVO53 batch body reads （読めず） for an unreadable volcano name", () => {
+    const t0 = Date.parse("2021-05-17T14:00:00+09:00");
+    const names = (code: string, name: string) => (xml: string) => xml.replaceAll("<Code>506</Code>", `<Code>${code}</Code>`)
+      .replaceAll("<Name>桜島</Name>", `<Name>${name}</Name>`);
+    let state: VolcanoUnitState = V.emptyState();
+    for (const [index, edit] of [names("506", "桜島"), names("306", "<x/>浅間山"), names("507", "霧島山")].entries())
+      state = V.receive(state, V.decodeFixture("66_01_01_210517_VFVO53", edit), V.clock(t0 + index * 1_000, index * 1_000)).state;
+    const flushed = reduceVolcanoUnit(state, { kind: "deadline", clock: V.clock(t0 + 10_000, 10_000) });
+    expect(flushed.intents.map((item) => item.payload.body)).toEqual(Array(2).fill("3火山: 桜島、（読めず）、霧島山"));
   });
 });

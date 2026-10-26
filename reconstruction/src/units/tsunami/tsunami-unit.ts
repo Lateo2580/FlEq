@@ -1019,7 +1019,7 @@ function unconfirmedOf(row: Fields, subject: string, operation: Operation): Repo
   const mark = reportRef(row.unconfirmed);
   return mark == null || mark.subject !== subject || mark.operation !== operation ? "invalid" : mark;
 }
-// P3-UM-AC01 (6): 印は事実を持つ記録だけが持つ（欄が無ければ {}、形の外は null）。
+// P3-UM-AC01 (2)（TsunamiUnreadableSite）・(6): 印は事実を持つ記録だけが持つ（欄が無ければ {}、形の外は null）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "forecastHeight", "station", "estimation"] satisfies readonly TsunamiUnreadableSite[]);
 function unreadableOf(row: Fields, allowed: boolean): Readonly<{ unreadable?: UnreadableMark }> | null {
   if (!("unreadable" in row)) return {};
@@ -1138,6 +1138,7 @@ function persisted(value: unknown): PersistedTsunamiUnit | null {
     const own = observations.filter((item) => item.family === family);
     if (own.length > OBSERVATION_LIMIT || own.reduce((sum, item) => sum + item.stations.length, 0) > STATION_LIMIT) return null;
   }
+  // P3-UM-AC16 (3)(c)（AC03 (1) の数え方）。
   if (intents.length > PENDING_ITEMS || listBytes(intents) + reserve(intents) > PENDING_BYTES
     || generationBytes(forecasts, observations, intents, failureMarks) > GENERATION_LIMIT || rawTotal(forecasts, observations) > RAW_BUDGET) return null;
   return { schemaVersion: SCHEMA, forecasts, observations, intents, failureMarks };

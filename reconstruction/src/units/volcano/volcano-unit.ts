@@ -23,7 +23,7 @@ import {
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
 import {
-  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, UNREAD_TEXT, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll,
+  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, UNREAD_TEXT, compareColumns, droppedIn, fitRawBudget, hasPart, inheritMark, rawTotal, readUnreadableMark, stripAll,
   unreadableMarkBytes,
 } from "../unreadable";
 import type { CompareColumn } from "../unreadable";
@@ -259,7 +259,13 @@ function noticeChange<T extends Shown>(before: T | null, after: T, marine = fals
   if (left == null && right == null) return { changed: false, after };
   const was = sideMark(left, marine), now = sideMark(right, marine);
   const inner = hasPart(was, "name", areaKind) || hasPart(now, "name", areaKind);
-  const items = (value: unknown): readonly unknown[] => !Array.isArray(value) ? [] : inner ? value.map((item) => without(item, "kindName")) : value;
+  // 区域の一覧は市町村（code）ごとの要素に開いて鍵を作る（1 つの code が読めない版で区域の全体を新しい要素にしない、r1 ヘルツ P2-2）。
+  // code の無い区域は code null の 1 要素。噴火の一覧は code の文字列のまま。
+  const items = (value: unknown): readonly unknown[] => !Array.isArray(value) ? [] : value.flatMap((item: unknown) => {
+    if (item == null || typeof item !== "object" || !("codes" in item) || !Array.isArray(item.codes)) return [item];
+    const kindName = inner || !("kindName" in item) ? null : item.kindName;
+    return item.codes.length === 0 ? [{ kindName, code: null }] : item.codes.map((code: unknown) => ({ kindName, code }));
+  });
   const columns: CompareColumn[] = [];
   let changed = false;
   for (const field of fieldsOf(after)) {
@@ -302,11 +308,16 @@ function alertBase(candidate: VolcanoCandidate, subject: string, code: string, e
     ...existing?.marineNotice == null ? {} : { marineNotice: existing.marineNotice } };
 }
 // P3-UM-AC01 (5)(6): 採用した側（陸上か海上）の印はその報の印に置き換え、もう一方の側の印は保つ。active でない記録は印を持たない。
-function alertUnreadable(next: VolcanoAlert, marine: boolean, own: UnreadableMark | null, existing: VolcanoAlert | null): VolcanoAlert {
+// VFVO51 の火山 entry は前の記録の名前の事実を保つので、前の陸の印の名前の part（記録の欄の scope、compare ごと）を引き継ぐ
+// （r1 ヘルツ P2-4・Opus P2-1: 置き換えると比べの値が消え、次の VFVO50 で一度余分に鳴る）。
+function alertUnreadable(next: VolcanoAlert, marine: boolean, own: UnreadableMark | null, existing: VolcanoAlert | null, entry = false): VolcanoAlert {
   if (next.effective !== "active") return next;
   const { unreadable: _land, marineUnreadable: _sea, ...rest } = next;
   const other = existing?.effective === "active" ? marine ? existing.unreadable : existing.marineUnreadable : undefined;
-  const land = marine ? other : own ?? undefined, sea = marine ? own ?? undefined : other;
+  const previous = entry && existing?.effective === "active" ? existing.unreadable : undefined;
+  const names = previous?.parts.filter((part) => part.site === "name" && !/^(volcano|kind):/.test(part.scope ?? "")) ?? [];
+  const kept = previous == null || names.length === 0 ? own ?? undefined : inheritMark(previous, names, own);
+  const land = marine ? other : kept, sea = marine ? own ?? undefined : other;
   return { ...rest, ...land == null ? {} : { unreadable: land }, ...sea == null ? {} : { marineUnreadable: sea } };
 }
 // 一つの警報の報（VFVO50・VFSV・VFVO51 の火山 entry）を記録に当てる。版は自分の family の watermark とだけ比べ、kind は
@@ -330,7 +341,7 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
     const whole = next.effective === "cancelled", kept = whole ? null : (marine ? existing?.unconfirmed : existing?.marineUnconfirmed) ?? null;
     const ownMark = whole ? null : version.mark, land = marine ? kept : ownMark, sea = marine ? ownMark : kept;
     return { kind: "adopt", conflict, missing: version.missing, next: alertUnreadable({ ...rest, ...land == null ? {} : { unconfirmed: land },
-      ...sea == null ? {} : { marineUnconfirmed: sea } }, marine, candidate.cancelled ? null : candidate.unreadable, existing) };
+      ...sea == null ? {} : { marineUnconfirmed: sea } }, marine, candidate.cancelled ? null : candidate.unreadable, existing, entry != null) };
   };
   const before = existing?.effective === "active" ? existing : null;
   const kind = entry?.kind ?? facts?.kind ?? null;
@@ -408,10 +419,11 @@ function ashfallOf(candidate: Candidate<"ashfall">, subject: string, code: strin
 }
 function scheduledOf(candidate: Candidate<"scheduled">, subject: string, code: string, existing: VolcanoScheduledAshfall | null):
   VolcanoScheduledAshfall {
+  const name = candidate.unreadable?.parts.find((part) => part.site === "name" && part.scope === "volcano");
   return { subject, operation: candidate.operation, eventId: candidate.eventId, source: { ...candidate.source, subject },
     retainUntil: candidate.reportDateTimeMs + SHORT_RETAIN_MS, volcanoCode: code, effective: candidate.cancelled ? "cancelled" : "active",
     volcanoName: candidate.volcanoName ?? existing?.volcanoName ?? "", topAshName: candidate.cancelled ? existing?.topAshName ?? null
-      : candidate.topAshName };
+      : candidate.topAshName, ...name == null || candidate.cancelled ? {} : { unreadable: { parts: [{ ...name, raw: null }], headline: null } } };
 }
 function bulletinOf(candidate: Candidate<"bulletin">): VolcanoBulletin {
   const family: VolcanoBulletin["family"] = candidate.family === "VFVO60" ? "VFVO60" : candidate.family === "VZVO40" ? "VZVO40" : "VFVO51";
@@ -918,8 +930,9 @@ function flushBatch(state: VolcanoUnitState, reason: "deadline" | "interrupted" 
   const last = items.at(-1)!;
   const subject = `${batch.operation}/VFVO53/batch`;
   // batch の中身が 1 件ならその報の単発の形（旧築 volcano-vfvo53-aggregator.ts の flush）、2 件以上は「{件数}火山: 先頭 3 火山 +残り」。
-  const names = items.map((item) => item.volcanoName);
-  const body = items.length === 1 ? join([last.volcanoName, "降灰予報（定時）", last.topAshName])
+  // P3-UM-AC07（r1 Opus P2-2）: 読めなかった火山名は「（読めず）」。
+  const names = items.map((item) => named(item.volcanoName, item.unreadable ?? null, "volcano"));
+  const body = items.length === 1 ? join([names[0], "降灰予報（定時）", last.topAshName])
     : `${items.length}火山: ${names.slice(0, 3).join("、")}${items.length > 3 ? ` +${items.length - 3}` : ""}`;
   return { state: next, outcome, notice: { subject, series: "", operation: batch.operation, source: { ...last.source, subject }, transition: "activated",
     payload: { domain: "volcano", level: "info", title: `${PREFIX[batch.operation]}降灰予報（定時）`, body } } };
@@ -1441,6 +1454,7 @@ const ERUPTION_FACT_KEYS = ["volcanoName", "flash", "phenomenon", "eventDateTime
   "plumeDirection", "headline", "municipalities", "truncated", "validUntil", "expiryPending", "unreadable"];
 const ASHFALL_FACT_KEYS = ["volcanoName", "variant", "headline", "forecastStartsAt", "forecastEndsAt", "groups", "omittedGroupCount", "truncated",
   "expiryPending", "unreadable"];
+// P3-UM-AC01 (2)（VolcanoUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "cancelVolcano", "lastKind", "coordinate", "name", "eventTime", "対象市町村等",
   "対象海上予報区", "entries", "bulletinVolcano"] satisfies readonly VolcanoUnreadableSite[]);
 // P3-UM-AC04 (2): compareKeys を持てる一覧の欄の site（保存する警報・噴火の一覧。解説は保存しない）。
@@ -1635,6 +1649,7 @@ function persisted(value: unknown): PersistedVolcanoUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedVolcanoUnit = { schemaVersion: SCHEMA, alerts, eruptions, ashfalls, shortfalls, intents };
+  // P3-UM-AC16 (3)(c)（AC03 (1) の数え方）。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(alerts, eruptions, ashfalls) > RAW_BUDGET) return null;
   return result;

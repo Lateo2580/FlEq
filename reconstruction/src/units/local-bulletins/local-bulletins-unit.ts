@@ -28,7 +28,7 @@ import {
 } from "../notice-mark";
 import {
   LOCAL_BULLETINS_CARDS_MAX_BYTES, RAW_BUDGET, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll,
-  UNREAD_TEXT, unreadableMarkBytes,
+  unreadableMarkBytes,
 } from "../unreadable";
 
 // P3-UNIT-M-001（C13、I-U-M）: 三つの slice（tornado・heat・transient）の current・版・遅着・退去・通知・容量・codec・射影。
@@ -350,10 +350,12 @@ const tornadoLane: Lane<TornadoCurrent, TornadoCandidate> = {
   // H13（P3-EF-AC07 (2)）: 目撃の無い竜巻の採用は普通の音、目撃は警報の音。
   style: (candidate) => ({ domain: "weather", level: candidate.sighted ? "warning" : "normal" }),
   body(candidate, record) {
-    // P3-UM-AC06: 区域が全部読めない報は地域の所に「（読めず）」を添える（地域の数は読めない区域も数えた値、一部だけ読めない報は変えない）。
-    const unread = candidate.areas.length === 0 && hasPart(candidate.unreadable ?? undefined, "area") ? UNREAD_TEXT : "";
+    // P3-UM-AC06（作者裁定 2026-10-26 夜の B）: 地域の数は読めない区域も数えた値で、そのうち名前を読めなかった数を添える（全部読めない報も
+    // 同じ形）。数えた層が無く区域の印だけがある報は「発表中 （区域を読めず）」。
+    const unread = candidate.noticeUnread > 0 ? `（うち ${candidate.noticeUnread} 地域は名前を読めず）` : "";
     const parts = [...record.effective === "active" && "sighted" in record && record.sighted ? ["目撃情報あり"] : [],
-      ...candidate.noticeAreas > 0 ? [`発表中 ${candidate.noticeAreas}地域${unread}`] : unread === "" ? [] : [`発表中 ${unread}`],
+      ...candidate.noticeAreas > 0 ? [`発表中 ${candidate.noticeAreas}地域${unread}`]
+        : hasPart(candidate.unreadable ?? undefined, "area") ? ["発表中 （区域を読めず）"] : [],
       ...candidate.validMs != null ? [`有効期限 ${hhmm(candidate.validMs)}`] : []];
     return parts.join(" / ");
   },
@@ -776,6 +778,7 @@ function reportRef(value: unknown, subject: string, parts: SubjectParts): Report
     : parts.slice === "heat" ? ref.family === "VPFT50" ? ref.family : null : ref.family === subject.split("/")[1] ? ref.family : null;
   return family == null ? null : ref;
 }
+// P3-UM-AC01 (2)（LocalBulletinsUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "editorialOffice", "headline", "area", "validDateTime", "tag"] satisfies readonly LocalBulletinsUnreadableSite[]);
 // P3-UM-AC04 (2): compareKeys を持てる一覧の欄の site。
 const LIST_SITES: ReadonlySet<string> = new Set(["area", "tag"] satisfies readonly LocalBulletinsUnreadableSite[]);
@@ -897,6 +900,7 @@ function persisted(value: unknown): PersistedLocalBulletinsUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedLocalBulletinsUnit = { schemaVersion: SCHEMA, tornado, heat, transient, intents };
+  // P3-UM-AC16 (3)(c)（AC03 (1) の数え方）。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(tornado, heat) > RAW_BUDGET) return null;
   return result;

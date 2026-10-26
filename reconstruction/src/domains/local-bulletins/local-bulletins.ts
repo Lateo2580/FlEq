@@ -76,7 +76,8 @@ type TornadoCandidate = Base & Readonly<{
   // 区域が全部「なし」の通常の解除（P3-C13-TORNADO-FACTS）。
   release: boolean; sighted: boolean; areas: readonly TornadoArea[];
   // ValidDateTime の値（通知の「有効期限」に電文の値を出す）と、通知の「発表中 N地域」の数（切る前の最も細かい層）。
-  validMs: number | null; noticeAreas: number;
+  // noticeUnread はその層の区域のうち読めなかった数（P3-UM-AC06、作者裁定 2026-10-26 夜の B）。
+  validMs: number | null; noticeAreas: number; noticeUnread: number;
 }>;
 type HeatCandidate = Base & Readonly<{ slice: "heat"; headType: "VPFT50"; targetDate: string; areaName: string | null; activeUntil: number }>;
 type TransientCandidate = Base & Readonly<{
@@ -220,7 +221,7 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
   };
 
   if (tornadoType != null) {
-    let release = false, sighted = false, validMs: number | null = null, noticeAreas = 0;
+    let release = false, sighted = false, validMs: number | null = null, noticeAreas = 0, noticeUnread = 0;
     let areas: TornadoArea[] = [];
     if (!cancelled) {
       const valids = children(head, "ValidDateTime");
@@ -277,21 +278,25 @@ function parseLocalBulletins(material: DecodedMaterial): ParseResult {
       release = !active;
       if (active && validMs != null && validMs <= reportMs) { warn("validDateTime", "requiredStructureInvalid", children(head, "ValidDateTime")[0] ?? head); validMs = null; }
       if (active) {
-        const counts = new Map<TornadoAreaLayer, number>();
+        const counts = new Map<TornadoAreaLayer, number>(), unread = new Map<TornadoAreaLayer, number>();
         for (const entry of entries) {
           if (!entry.active) continue;
           if (entry.layer == null) { if (entry.places.length !== 0) truncated = true; continue; }
           counts.set(entry.layer, (counts.get(entry.layer) ?? 0) + entry.total);
+          unread.set(entry.layer, (unread.get(entry.layer) ?? 0) + entry.total - entry.places.length);
           for (const place of entry.places) areas.push({ layer: entry.layer, code: place.code, name: bound(place.name, BOUNDS.name) });
           if (entry.layer === "sighting" && entry.places.length !== 0) sighted = true;
         }
         if (areas.length === 0) truncated = true;
-        noticeAreas = AREA_LAYER_ORDER.map((layer) => counts.get(layer) ?? 0).find((value) => value > 0) ?? 0;
+        const layer = AREA_LAYER_ORDER.find((item) => (counts.get(item) ?? 0) > 0);
+        noticeAreas = layer == null ? 0 : counts.get(layer)!;
+        noticeUnread = layer == null ? 0 : unread.get(layer) ?? 0;
         if (areas.length > LIMITS.tornadoAreas) { truncated = true; areas = areas.slice(0, LIMITS.tornadoAreas); }
         sighted = sighted || headlineRaw.startsWith(SIGHTED_MARK);
       }
     }
-    return finish({ ...shared(), slice: "tornado", headType: tornadoType, release, sighted, areas: release || cancelled ? [] : areas, validMs, noticeAreas });
+    return finish({ ...shared(), slice: "tornado", headType: tornadoType, release, sighted, areas: release || cancelled ? [] : areas, validMs, noticeAreas,
+      noticeUnread });
   }
 
   if (headType === "VPFT50") {

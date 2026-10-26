@@ -572,6 +572,7 @@ function kindsRecord(value: unknown): LandslideKindGroup[] | null {
   return groups;
 }
 const FACT_KEYS = ["title", "kinds", "truncated", "expiryPending", "unreadable"];
+// P3-UM-AC01 (2)（LandslideUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "kindName"] satisfies readonly LandslideUnreadableSite[]);
 function currentRecord(value: unknown): LandslideCurrent | null {
   const row = record(value);
@@ -630,6 +631,7 @@ function persisted(value: unknown): PersistedLandslideUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedLandslideUnit = { schemaVersion: SCHEMA, currents, intents };
+  // P3-UM-AC16 (3)(c)（AC03 (1) の数え方）。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(currents) > RAW_BUDGET) return null;
   return result;

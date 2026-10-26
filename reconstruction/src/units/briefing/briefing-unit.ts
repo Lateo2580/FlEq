@@ -794,6 +794,7 @@ function observationRecord(value: unknown): BriefingObservation | null {
     || !isText(row.areaCode) || !validCode(row.areaCode) || !boundedName(row.areaName, BOUNDS.name) || !boundedName(row.label, BOUNDS.name)) return null;
   return { part, areaCode: row.areaCode, areaName: row.areaName, label: row.label, value: measured, unit, approximation, time };
 }
+// P3-UM-AC01 (2)（BriefingUnreadableSite）。
 const UNREADABLE_SITES: ReadonlySet<string> = new Set(["serial", "editorialOffice", "condition", "observation"] satisfies readonly BriefingUnreadableSite[]);
 // P3-UM-AC04 (2): compareKeys を持てる一覧の欄の site。
 const LIST_SITES: ReadonlySet<string> = new Set(["observation"] satisfies readonly BriefingUnreadableSite[]);
@@ -887,6 +888,7 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
   // 受理と同じ式（実 byte＋配送の更新の予約、deliveryGrowth）。保存する intent は pending だけ（P3-NL-AC05）。
   const pendingBytes = listBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   const result: PersistedBriefingUnit = { schemaVersion: SCHEMA, currents, intents };
+  // P3-UM-AC16 (3)(c)（AC03 (1) の数え方）。
   if (intents.length > PENDING_ITEMS || pendingBytes > PENDING_BYTES || generationBytes(result) > GENERATION_LIMIT
     || rawTotal(currents) > RAW_BUDGET) return null;
   return result;

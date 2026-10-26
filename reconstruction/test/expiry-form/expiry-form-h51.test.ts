@@ -121,7 +121,9 @@ describe("P3-EXPIRY-FORM-001 reports with unreadable parts (H51)", () => {
     const mFull = M.send(M.emptyState(), "19_03_01_130906_VPHW50");
     const mArea = M.send(M.emptyState(), "19_03_01_130906_VPHW50", (xml) => xml.replace(/<Information type="竜巻注意情報（市町村等）">[\s\S]*?<\/Information>/,
       (part) => part.replace(/<Code>(\d{6,})<\/Code>/g, "<Code>$1x</Code>")));
-    expect([shape(mArea), mArea.intents.map((item) => item.payload.body)]).toEqual([[["changed"], [INVALID]], mFull.intents.map((item) => item.payload.body)]);
+    // 読めなかった区域の数を添える（P3-UNREADABLE-MARK-001 の AC06、作者裁定 2026-10-26 夜の B）。
+    expect([shape(mArea), mArea.intents.map((item) => item.payload.body)]).toEqual([[["changed"], [INVALID]], mFull.intents.map((item) =>
+      item.payload.body.replace("発表中 24地域", "発表中 24地域（うち 24 地域は名前を読めず）"))]);
     const mOffice = M.send(M.emptyState(), "57_03_01_240401_VPFT50", M.office(""));
     expect([shape(mOffice), mOffice.state.heat.map((item) => "editorialOffice" in item ? item.editorialOffice : null)]).toEqual([[["changed"], [MISSING]], [""]]);
 

@@ -255,25 +255,28 @@ function parseFlood(material: DecodedMaterial): ParseResult {
       if (parts.length !== 1) { lost(parts.length === 0 ? "requiredStructureMissing" : "requiredStructureInvalid", item, scope); continue; }
       const read: Series = { discharge: localName(parts[0]) === "DischargePart", values: times.map(() => null), levels: times.map(() => null) };
       const seen = new Set<string>();
+      // AC05 (1): 現況のレベルを確定できないのは、レベルの要素が読めず（時刻の参照が解決できないものを含む）、現況の位置のレベルを
+      // 読めなかったときだけ。水位・流量・知らない type の要素だけの不正と、正規の空・9 は含めない（r1 ヘルツ P2-1・P2-3）。
+      let levelLost = false, levelRead = false;
       for (const element of children(parts[0])) {
         const type = attribute(element, "type"), refId = attribute(element, "refID");
         const value = scalar(element);
         const at = refId == null ? undefined : timeIndex.get(refId);
         if (type == null || refId == null || value == null || at == null || seen.has(`${refId}\n${type}`)) {
-          // 水位・流量の値だけが読めないときと、同じ時刻の重ね（先の値を読んだ）は現況のレベルを確定できる（AC05 (1)）。
-          if (at === 0 && type !== "水位" && type !== "流量" && !seen.has(`${refId}\n${type}`)) observedUnknown = true;
+          if (type === "レベル" && (at === 0 || at == null) && !seen.has(`${refId}\n${type}`)) levelLost = true;
           seriesWarn("requiredStructureInvalid", element, scope);
           continue;
         }
         seen.add(`${refId}\n${type}`);
         if (type === "レベル") {
-          if (value !== "" && !/^\d$/.test(value)) { seriesWarn("requiredStructureInvalid", element, scope); if (at === 0) observedUnknown = true; }
-          else if (at < read.levels.length) read.levels[at] = pointLevel(value);
+          if (value !== "" && !/^\d$/.test(value)) { seriesWarn("requiredStructureInvalid", element, scope); if (at === 0) levelLost = true; }
+          else if (at < read.levels.length) { read.levels[at] = pointLevel(value); if (at === 0) levelRead = true; }
         } else if (type === "水位" || type === "流量") {
           if (value !== "" && !validValue(value)) seriesWarn("requiredStructureInvalid", element, scope);
           else if (at < read.values.length) read.values[at] = value === "" ? null : Number(value);
         } else seriesWarn("requiredStructureInvalid", element, scope);
       }
+      if (levelLost && !levelRead) observedUnknown = true;
       if (stationName != null) series.set(key, read);
     }
 
