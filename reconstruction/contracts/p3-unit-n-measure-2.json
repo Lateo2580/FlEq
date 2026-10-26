@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "draftedFromOid": "f549505b92bc7371bbe242ced013bd203ffe0d17",
+    "sha256": "c3408547b3a3514c732e09fc48a078647394373c4ba4b8b8a6fde695eb3a3074",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-NM2-D-DELAY",
+        "A": "setup の deliveryDelayMs=2000 を残す。配送の完了を遅らせて U-N の pending（sound・desktop の intent）を満たしたまま測るので、区間 (2)(3) の encode は pending を含む大きな状態の値になる",
+        "B": "deliveryDelayMs=2000 を外す。pending はすぐ配送されて減り、U-N の状態は小さくなる。60 s の TTL の失効（sound 60,000 ms）とも関わらない",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当の決め（2026-10-26）A",
+        "reason": "試験の測り方の選択で、画面と音は変わらない。deliveryDelayMs の役目は、合法な大きな U-N（pending を含む）の encode を測ること（P3-C8-AC11 の Q-C8-IMPL-AMEND(6)）。外すと区間 (2) が測る状態が小さくなり、AC09 が見る「大きな状態の encode」から離れる。約 60.7 s の崖（setup で作った U-N の sound の pending が TTL 60,000 ms で一斉に失効し、配送の完了が来なくなって権が出なくなる）は、続報が権を起こすようになると試験の経路から外れる（起草の写しで試験の全体が約 2.1 s で終わる、Q-NM2-PROBE）。B の利点: 試験が 60 s を越えて長引いても、TTL の失効と配送の完了の時刻に左右されない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-NM2-SOURCE",
+        "status": "closed",
+        "resolution": "原因（diag-un の診断と、起草の写しでの host の再現）: nankai-host.test.ts の続報（区間 (1) の work の VYSE60、区間 (2) と (3) の VYSE60、区間 (3) の VXSE53 の later、setup の VYSE51 の 2〜3 周目）は、retime（nankai-fixture.ts）で ReportDateTime と TargetDateTime だけを替え、Control/DateTime を動かさない。VYSE50/51/60 と VXSE53 は HEAD_THEN_CONTROL に入らず（version.ts、P3-VM-D-TABLE=A）、新旧を Control/DateTime だけで比べるので、送信の時刻が同じで中身が違う続報は held（nankaiRevisionConflict）になり採られない。最初の held だけ世代が上がるが、owner-runtime.ts の帰属の条件（intent・losses・changed か capacityExceeded の判定）に当たらず、その入力に世代が付かない。その結果: (a) 区間 (1) maxVyse60 の workBusyMs・reduceMs は採用の経路でなく却下の経路の値だった (b) 区間 (2) の権は続報からでなく、setup で残した deliveryDelayMs=2000 の配送の完了ごとに出ていた（P3-UNIT-N-MEASURE-001 の Q-NM-SOURCE） (c) 区間 (3) の grantGapMs と「まとめ出し」は測れていなかった (d) setup の「置き換えた pending が終端記録を満たす」も成り立たず、未確認の印が 63 件付いていた (e) 約 60.7 s の崖は、setup で作った U-N の sound の pending（TTL 60,000 ms、nankai-unit.ts）が 60 s で一斉に失効し（reclaimExpired、composition-root.ts）、配送の完了が来なくなって U-N の権が出なくなるため",
+        "source": "diag-un の記録（~/dev/fleq-diag-un/.diag の unit-diag1.txt・host-gen.txt・host-expire.txt と各 diff。配送のときに統合担当が ~/dev/fleq-vault-archive/ の控えへ写す）"
+      },
+      {
+        "id": "Q-NM2-PROBE",
+        "status": "closed",
+        "resolution": "起草の写しで直し（m002-probe.diff、+10/−5）を当て、FLEQ_C8_AC11=1 で nankai-host.test.ts を区間 (1)〜(4) とも 5 回走らせた（Mac、--maxWorkers=2、runs 20・bulk 10）。5 回とも rc=0（2 tests passed）。longest の試験は約 2.1 s で終わる（直す前は区間 (3) の約 60.7 s で止まっていた）。bulk は約 210 s。採用の確かめ（1 回、m002-diag.out）: host の generationRaised で U-N は区間 (1) の終わりに 184 件・最後は input-205（直す前は 81 件のうち U-N の最後が setup の input-71）、区間 (2) の後に 204 件（20 試行の続報がそれぞれ世代を上げた）、区間 (3) の後に U-N 224 件・U-Q 32 件（later の VXSE53 も採られた）。5 回の値（max は 5 回の範囲、median も同じ）: 区間 (1) maxVyse60 は 20/20、workBusyMs max 0.77〜1.67・median 0.60〜0.72 ms、reduceMs max 0.11〜0.22・median 0.05〜0.07 ms、injectToT2 max 1.66〜2.90 ms。区間 (2) maxNankaiEncode は 20/20、実際に待った件数 19〜20/20・null 0、waitBehindEncodeMs max 0.96〜1.10・median 0.79〜0.87 ms、encodeMs max 1.10〜1.31 ms、busyMs max 1.12〜1.35 ms、encodeBytes 約 1,114,18x〜1,114,19x で試行の間で一定（P3-UNIT-N-MEASURE-001 の Q-NM-IMPL では待ち max 0.31〜0.38・median 0.18〜0.24 ms、busyMs max 1.42〜1.60 ms、encodeBytes は配送で減る約 1.14 MB。続報が採られて EEW が encode の始まりの近くで urgent へ届くようになり、待ちが長くなった）。区間 (3) batchedGrantsQuakeAndNankai は 19〜20/20 で止まらず通る。grantGapMs max 9.51〜10.35・median 8.53〜9.48 ms、quakeEncodeMs max 8.52〜9.15・median 7.64〜8.45 ms、nankaiEncodeMs max 0.98〜1.39 ms、injectToT2 max 1.09〜9.23 ms。grantGapMs が U-Q の encode の長さに近いので、U-Q と U-N の権は同じ reevaluate でまとめて出ていない（U-Q の encode の後に U-N の権が出る）。区間 (4) bulkDeadline6And64 は 10/10、deadlineMs max 1.42〜2.09 ms、injectToT2 max 0.55〜1.44 ms。どの値も約 40 ms より十分小さい",
+        "source": "起草の写しの実走の記録（~/dev/fleq-ac09-draft/.draft の m002-probe.diff・m002-diag.out・m002-run-1.out〜m002-run-5.out。配送のときに統合担当が ~/dev/fleq-vault-archive/ の控えへ写す）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "試験だけの直しで、運用区分の扱いは変えない（host 試験の setup は今どおり通常・訓練・試験の 3 区分の現況を組む）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UNIT-N-MEASURE-002",
+    "mode": "implementation",
+    "objective": "nankai-host.test.ts の続報が held で採られていなかった不整合を直す（Q-NM2-SOURCE）。続報と setup の VYSE51 の 2〜3 周目、区間 (3) の VXSE53 の later で、Control/DateTime も報の時刻へ進め、続報を採用の経路に乗せる。区間 (1) maxVyse60 を採用の経路の値にし、区間 (2)(3) の権を続報から起こして約 60.7 s の崖を試験の経路から外し、区間 (3) を通す（P3-UNIT-N-MEASURE-001 の残存リスク (2)）。試験だけの直しで、src は変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-unit-n-measure-2.json",
+      "reconstruction/contracts/p3-unit-n-measure.json",
+      "reconstruction/contracts/p3-unit-n-series.json",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/test/nankai-unit/nankai-host.test.ts",
+      "reconstruction/test/nankai-unit/nankai-fixture.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/nankai-unit/nankai-host.test.ts",
+      "reconstruction/contracts/p3-unit-n-measure-2.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-unit-n-measure-2.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M05"
+    ],
+    "integrationContractIds": [
+      "I-U-N"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-N-MEASURE-001",
+      "P3-UNIT-N-SERIES-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-e01.types.ts#P2HostObservation"
+    ],
+    "publicFunctions": [
+      "src の公開の名前・入力・型と nankai-fixture.ts の export は変えない。変わるのは nankai-host.test.ts の中の電文の時刻の付け方だけ"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない。新しい共有 module・helper file を足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__selected_xml__80_01_01_240821_VYSE60",
+      "test__fixtures__selected_xml__74_01_05_200512_VYSE50",
+      "test__fixtures__selected_xml__75_01_01_200512_VYSE51",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "保存 schema・field・decode の検査は変えない（試験だけの直し）"
+    ],
+    "nonPersistedFields": [],
+    "outOfScope": [
+      "reconstruction/src の全部（版の比べ方 version.ts、owner-runtime.ts の世代の帰属、pending の TTL と回収）",
+      "nankai-fixture.ts の retime の形と export（unit の試験が使う。host 試験の中で Control/DateTime も替える）",
+      "区間 (3) で U-Q と U-N の権がまとめて出ないこと（起草の写しで grantGapMs が U-Q の encode の長さに近い）の診断と直し。値は報告する",
+      "区間 (2) の hook・row の列・P3-NM-WAIT（P3-UNIT-N-MEASURE-001 のまま）",
+      "Pi での測定（段 4）",
+      "起草の写し（~/dev/fleq-ac09-draft/.draft）を製品・契約の成果物として commit すること"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-NM2-AC01",
+        "requirement": "続報を採用の経路に乗せる（Q-NM2-SOURCE）: (1) nankai-host.test.ts の中で、報の時刻を替える所は Control/DateTime（電文の最初の DateTime）も同じ時刻（UTC の Z 表記）へ進める。当てる所: bounded（setup の現況 6 件と VYSE51 160 件、区間 (4) の一括の期限回収）、区間 (1)・(2)・(3) の VYSE60 の続報、区間 (3) の VXSE53 の later（17 時台の報の時刻に合わせて Control/DateTime を 08 時台の Z へ） (2) 形は host 試験の中の 1 つの小さな関数（retime の後に Control/DateTime を置き換える）で、nankai-fixture.ts は変えない (3) 変えないもの: 各区間の窓・overlapped の判定・required・row の列、deliveryDelayMs（P3-NM2-D-DELAY=A の場合）。足す理由: 無いと続報が held になり、区間 (1) は却下の経路を測り、区間 (2)(3) の権は配送の完了からしか出ず、約 60.7 s で区間 (3) が止まる",
+        "evidenceRefs": [
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:209 «816dd4239a443e78»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:242 «8ff9ab8c2ca46bc5»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:254 «449bd3614626003b»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:282 «1898d261f0ecde53»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:304 «708fb7852dfdaa76»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:311 «71611ba9ffa61dd1»",
+          "reconstruction/test/nankai-unit/nankai-fixture.ts:61 «077f97e8058f2465»",
+          "reconstruction/src/contracts-revision/version.ts:6 «dc9a3530fe5d43c2»",
+          "reconstruction/src/contracts-revision/version.ts:7 «b4114cd2e4a71493»",
+          "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
+          "reconstruction/src/runtime/owner-runtime.ts:398 «63adcad8d045ce86»",
+          "reconstruction/src/runtime/owner-runtime.ts:400 «7820be847bd9d157»"
+        ]
+      },
+      {
+        "id": "P3-NM2-AC02",
+        "requirement": "Mac の報告: FLEQ_C8_AC11=1 で nankai-host.test.ts を 5 回走らせ（区間 (1)〜(4) とも）、各回の rc と、区間ごとの overlappedCount/tried と主な列の max・median を出す。区間 (1) maxVyse60 は workBusyMs・decodeMs・reduceMs（採用の経路の値になったこと。host の generationRaised で、区間 (1) の続報が U-N の世代を上げたことを 1 回確かめる）、区間 (2) maxNankaiEncode は P3-UNIT-N-MEASURE-001 の AC03 の列（waitBehindEncodeMs・encodeMs・busyMs・encodeBytes と P3-NM-WAIT）で、前の値（Q-NM-IMPL）から変わったかを並べる、区間 (3) は止まらず通ることと grantGapMs・quakeEncodeMs・nankaiEncodeMs・injectToT2、区間 (4) は deadlineMs と injectToT2。どの値も約 40 ms を越えたら配送の前に作者へ報告する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-unit-n-measure.json:65 «9c85c09a2cb3fc47»",
+          "reconstruction/contracts/p3-unit-n-measure.json:290 «ef67bf2c231b4d81»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:243 «978f53234c76af45»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:39 «25e9f619037a5045»",
+          "reconstruction/src/runtime/composition-root.ts:1082 «d8901fa45e61695f»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C8-AC11 measures the longest U-N work（区間 (1)〜(3)）と bulk deadline（区間 (4)）",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-NM2-AC01",
+          "P3-NM2-AC02"
+        ],
+        "behavior": "実不具合（Q-NM2-SOURCE）。既存の report 試験（describe.runIf FLEQ_C8_AC11）の電文の時刻の付け方を直す。新しい it・試験 file は足さない。直す前は続報が held で、区間 (3) が約 60.7 s で止まり rc=1。直した後は起草の写しで 5 回とも rc=0（Q-NM2-PROBE）。通常のゲート（FLEQ_C8_AC11 なし）では走らない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（新しい fixture file を足さない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07 の参照（sequences.json は変えない）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約と anchor。本契約と P3-UNIT-N-MEASURE-001 が引く nankai-host.test.ts の行が直しでずれる・替わる FAIL は想定内で、統合担当が配送で両契約の anchor と自己 digest を同期する。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査と reconstruction/dist/ の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "C6 の runner が使う dist の生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "正式回帰（report 試験は skip のまま、ほかの期待値の変更 0）"
+      },
+      {
+        "command": "FLEQ_C8_AC11=1 ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 reconstruction/test/nankai-unit/nankai-host.test.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/nankai-unit/nankai-host.test.ts",
+        "stage": "implementation",
+        "purpose": "P3-NM2-AC02 の Mac の報告。5 回。TMPDIR を作業の木の中に向ける（host 試験は mkdtemp を使う）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由。",
+      "P3-NM2-AC02 の報告（5 回の rc、区間ごとの overlappedCount/tried と主な列の max・median、区間 (1) の続報が世代を上げた確かめ、区間 (2) の前の値との比べ、区間 (3) の grantGapMs）。",
+      "足した仕組みは時刻を付ける小さな関数 1 つ（無いと続報が held になる、P3-NM2-AC01）。新しい it・helper file は無い。試験は既存の report 試験の直しで、実不具合の再発防止に当たる。",
+      "規模の見積もり（起草の写しから）: 試験 1 file、+10 行・−5 行の見込み（起草の写しの m002-probe.diff、出発点にしてよい）。0.1 人日。実績と差があれば理由を書く。",
+      "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
+      "配送で統合担当が当てる原文の改訂: (1) P3-UNIT-N-MEASURE-001 の残存リスク (2)（約 60.7 s の崖と区間 (3) の止まり）に【P3-UNIT-N-MEASURE-002 で解消】と原因（続報の held と、pending の TTL 60 s の一斉の失効）を足す。同契約の Q-NM-SOURCE の「続報が世代を上げない理由は診断していない」に原因を足す (2) K13（p3-unit-n-series.json）の P3-NS-AC09 の文の「VYSE60 の続報が U-N の世代を上げない」に原因（Control/DateTime が同じで held）を足し、区間 (1) maxVyse60 の値はこれまで却下の経路の値だったと書く。C8 の AC11 の maxVyse60 の値の記録は契約の中に見つからない（ほかに記録があれば同じ注を足す） (3) やりたいことリストの「区間 (3) の止まり」と「VYSE60 の続報が世代を上げない」の 2 件を完了へ送る (4) 両契約が引く nankai-host.test.ts の anchor を付け直し、改訂した契約の sha256 を作り直す",
+      "残存リスク（起草案、作者承認の前）: (1) 区間 (3) で U-Q と U-N の権がまとめて出ない（grantGapMs が U-Q の encode の長さに近い、Q-NM2-PROBE）。P3-C8-AC11 の「まとめ出し」の前提は測った形では成り立たず、EEW は区間 (3) で U-Q の encode の後ろに最大約 9 ms 待つ（約 40 ms より小さい）。直しと診断は範囲の外で、やりたいことリストへ送る (2) 続報の Control/DateTime は host の時計より最大約 10 分先（区間 (3) の start＋600 s〜）になる。今の受理は未来の送信時刻を断らないので採られるが、後の契約で未来の時刻を断るようになると、この試験の続報は断られる (3) P3-NM2-D-DELAY=A では pending は試験の間配送されずに残る。longest の試験は約 2.1 s で終わるので 60 s の TTL の失効に届かないが、runs を大きくして 60 s を越えると pending が失効して区間 (2)(3) の encode の状態が小さくなる（権は続報から出るので止まりはしない見込み、未確認） (4) 区間 (2) の AC09 の数字は変わる（EEW の待ち max 0.31〜0.38 ms → 0.96〜1.10 ms、上限 busyMs max 1.42〜1.60 ms → 1.12〜1.35 ms）。答え（約 40 ms より十分小さい）は変わらない。P3-UNIT-N-MEASURE-001 の Q-NM-IMPL と K13 の P3-NS-AC09 の数字に、本契約の値を並べる（原文の改訂の (1)(2)）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-NM2-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "P3-NM2-D-DELAY の決めの後、発注前点検で",
+        "requiredEvidence": [
+          "baseOid の割当と、その base で本契約の evidence の anchor が合うこと（check-contract exit 0）"
+        ]
+      }
+    ]
+  }
+}
