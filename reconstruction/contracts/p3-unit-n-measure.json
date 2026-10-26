@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "e6e8326d5989b850d38e689488df5fec72ab4d31031988a98eed7af2cb2bb95f",
+    "sha256": "e6c36465dbe60864b5e3697bbfe447673babee4c17b38e57a4ba84f09c10e231",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -58,7 +58,7 @@
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-26 夕、HEAD 911bfd25、main 4ce51531 の上。前例は Q-NN-PRECHECK）",
         "closed": "(1) 分岐と未決: P3-NM-D-PHASE3＝B・P3-NM-D-UPPER-BOUND＝A はどちらも統合担当の決めで確定。「起草案」「承認待ち」は 0 件。unresolvedQuestions は Q-NM-BASE だけ。残存リスク (1)〜(3) は作者承認済み（Q-NM-AUTHOR） (2) anchor: check-contract exit 0（K14 発注 1 の配送 4ce51531 の後に rebase して確かめた）、本契約は PASS (3) 同時の編集: allowedPaths の nankai-host.test.ts は C8 の配送 0ed0c626 から変わっておらず、本契約の起草の基点 235457ea から HEAD までにも変わらない。同じ file を触る起草中・発注中の契約は無い（P3-SEISMIC-PLACE-001 は seismic の試験、K14 発注 2・3 は nankai-host.test.ts を範囲に持たない） (4) src は outOfScope で、試験の作業ツリーだけの直し",
-        "remaining": "なし（baseOid は Q-NM-BASE で割り当てる）",
+        "remaining": "なし（baseOid は Q-NM-BASE で a71775af に割り当てた）",
         "reason": "発注前点検を記録する"
       }
     ],
@@ -71,7 +71,7 @@
     "contractId": "P3-UNIT-N-MEASURE-001",
     "mode": "implementation",
     "objective": "K13（P3-UNIT-N-SERIES-001）の P3-NS-AC09（U-N の encode の最中に投入した EEW の待ち）の測り方を直す（Q-NS-AC09）。区間 (2) は work の返信の後に EEW を投入するが、U-N の書込み権は配送の完了の後に約 2 秒遅れて出るので、EEW が先に済み 0/20 overlapped になる。urgent へ U-N の書込み権を送った瞬間に EEW を投入する形（区間 (4) の onUrgentDeadline と同じ形）に替え、権を U-N に絞る。成り立った区間の数字はその場で出す。試験だけの直しで、src と AC09 の文言は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "a71775af232c54f33d295abab770b972eccb0c8e",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -280,18 +280,6 @@
       "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
       "残存リスク（(1)〜(3) は 2026-10-26 作者承認済み、Q-NM-AUTHOR）: (1) 窓（権の送出→U-N の encode の終わり）は約 1.1〜1.9 ms で、投入は窓の始まりのすぐ後（約 0.05〜0.06 ms）に落ちる（Q-NM-PROBE）。overlapped は構造上ほぼ成り立つので、EEW の実際の待ちは waitBehindEncodeMs で見る。encode が速い機械では実際に重なる件数が減りうる。そのときは上限（encodeMs、厳密には busyMs の max）で答える（P3-NM-D-UPPER-BOUND） (2) 1 つの観測（原因は未診断）: U-N の権は、setup の後は配送の完了（setup で残した deliveryDelayMs=2000）ごとに約 2 秒おきに出て（続報は世代を上げない、Q-NM-SOURCE）、試験の開始から約 60.7 s で止まる。base の 5 本と probe の診断の 1 本のどれでも、U-N の最後の権は monotonic で 60.73〜60.77 s、encode の bytes は約 1,064,5xx から約 1,019,07x に落ち、その後は U-Q の権だけが出る。runs 20 では区間 (3) の試行 10 の until で condition not reached になり（base でも同じ）、FLEQ_C8_AC11=1 の試験の全体は赤のまま（P3-NM-D-PHASE3=B、統合担当の決め）。止まるのは試行の数ではなく時刻で決まっている見込みで、runs を約 29 以上にすると区間 (2) の hook の待ち（30 秒）でも止まる見込み（区間 (2) は 1 試行約 2 秒）。末尾の P3-C8-AC11 の行は出ず、区間 (1)・(2) の数字は P3-NM-AC02 の行で出る。やりたいことリストへ送る (3) host 試験が組む状態は約 1.14 MB（3 byte の文字、pending の減りで試行ごとに減る）で、P3-NS-T04 の合法な大きな状態や解析の上界 2,334,223 byte とは同じでない。encode の所要は大きさにほぼ比例する見込み（未測定）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-NM-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "発注前点検で（P3-NM-D-PHASE3 は 2026-10-26 に統合担当が B と決めた）",
-        "requiredEvidence": [
-          "baseOid の割当と、その base で nankai-host.test.ts の本契約の evidence の anchor が合うこと（check-contract exit 0）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
