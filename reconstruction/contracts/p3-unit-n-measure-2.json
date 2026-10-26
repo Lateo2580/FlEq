@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f549505b92bc7371bbe242ced013bd203ffe0d17",
-    "sha256": "825ef285df011c2469924ed23721e38b900f128932e0e270d9ee84d8dfce7902",
+    "sha256": "3ec301e83a0e3f3410ba43f5340e8f641e8b969f9e0249ad98bb4615d57f2baf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -45,6 +45,14 @@
         "closed": "(1) 分岐 P3-NM2-D-DELAY は統合担当の決め A で確定、起草案の字句は残存リスクの見出しの承認前の印だけで、承認で外した (2) check-contract exit 0（main の上に rebase して確かめた） (3) allowedPaths の nankai-host.test.ts は P3-UNIT-N-MEASURE-001 の配送 f549505b の後に変わっておらず、同じ file を触る起草中・実装中の契約は無い（P3-SEISMIC-PLACE-001 の実装は seismic の試験、K14 発注 2 は nankai-host.test.ts を範囲に持たない） (4) src は outOfScope",
         "remaining": "なし（baseOid は 5bad2856 に割り当てた）",
         "reason": "発注前点検を記録する"
+      },
+      {
+        "id": "Q-NM2-IMPL",
+        "status": "closed",
+        "source": "統合担当の配送（2026-10-26、base 5bad2856、HEAD 3bf28220 の上。実装の patch は控え ~/dev/fleq-vault-archive/m002-20261026/ の m002-impl-all.patch。記録は同じ控えの m002-*.diff・m002-*.out・i2-run-1.out〜i2-run-5.out・du-base.out・du-impl.out。前例は P3-UNIT-N-MEASURE-001 の Q-NM-IMPL）",
+        "closed": "AC01・AC02 を 1 回で配送した（変えたのは reconstruction/test/nankai-unit/nankai-host.test.ts だけ、+13/−8 行。src は変えていない）。Mac の 5 回（FLEQ_C8_AC11=1、区間 (1)〜(4)、--maxWorkers=2、runs 20・bulk 10）: 5 回とも rc=0。区間 (1) maxVyse60 は 20/20、workBusyMs max 0.82〜1.03・median 0.62〜0.67 ms、reduceMs max 0.12〜0.18・median 0.05〜0.06 ms（採用の経路）。区間 (2) maxNankaiEncode は 20/20、実際に待った件数 20/20・null 0、waitBehindEncodeMs max 0.92〜1.42・median 0.79〜0.88 ms、encodeMs max 1.03〜1.69 ms、busyMs max 1.05〜1.76 ms。区間 (3) batchedGrantsQuakeAndNankai は 20/20 で止まらず通る、grantGapMs max 9.52〜10.31・median 8.66〜9.06 ms、quakeEncodeMs max 8.48〜9.29 ms、injectToT2 max 1.02〜9.76 ms。区間 (4) bulkDeadline6And64 は 10/10、deadlineMs max 1.05〜1.74 ms。どの値も約 40 ms より十分小さい。世代の件数（host の generationRaised。一時の出力で数え、試験からは外した。5 回とも同じ）: 区間 (1) の後 U-N 184・U-Q 0、(2) の後 U-N 204（続報 20 件がそれぞれ +1）、(3) の後 U-N 224・U-Q 32（setup 12 と later の VXSE53 20）、(4) の host で U-N 680。未確認の印（Q-NM2-SOURCE の (d)、レビュー P3-2）: 保存された U-N の世代（state の U-N-A・U-N-B）の unconfirmed の数は、直す前の試験（区間 (2) の後）で 65、直した後（区間 (3) の後）で 0（1 回ずつ）。setup の注記を今の振る舞いに合わせた。「置き換えた pending が終端記録を満たす」は数えていない。ゲート（実装担当、Mac）: tsc 3 本 rc=0、新築の vitest（--maxWorkers=2）84 file 通過・8 skip・889 件通過・24 skip、check-manifest・check-sequences rc=0、git diff --check rc=0、check-contract は本契約と P3-UNIT-N-MEASURE-001 の nankai-host.test.ts の anchor のずれで FAIL → 付け直して rc=0。レビュー: 契約の Opus は条件付き GO（P2 2・P3 3）→ 直し、実装の Opus は GO（P3 2）。契約と違う形: (a) anchor の付け直しで、書き換えた 4 行（bounded と区間 (1)(2)(3) の VYSE60）は stamp を使う新しい行へ向けた (b) vitest の 889 件（前の 890 から 1 本減）は P2 の削減によるもので本契約の差ではない (c) AC01 の列挙に無い差: 区間 (2) の注記 2 行（続報が採られて権を起こす、レビュー P3-1）と setup の注記 1 行（2〜3 周目も採られ未確認の印が付かない、レビュー P3-2）を今の振る舞いに書き直した。配送の commit（統合担当）: 原文の改訂の (1)(2)(4) を P3-UNIT-N-MEASURE-001・K13（p3-unit-n-series.json）・C8（p3-nankai-unit.json）・C9（p3-volcano-unit.json）に「P3-UNIT-N-MEASURE-002 で…」の注記の形で当て、引かれる行の anchor を付け直し、改訂した契約の sha256 を作り直した。(3) のやりたいことリストと構造的欠陥台帳は統合担当が書く",
+        "remaining": "なし",
+        "reason": "配送の記録"
       }
     ],
     "operationContract": {
@@ -141,12 +149,12 @@
         "id": "P3-NM2-AC01",
         "requirement": "続報を採用の経路に乗せる（Q-NM2-SOURCE）: (1) nankai-host.test.ts の中で、報の時刻を替える所は Control/DateTime（電文の最初の DateTime）も同じ時刻（UTC の Z 表記）へ進める。当てる所: bounded（setup の現況 6 件と VYSE51 160 件、区間 (4) の一括の期限回収）、区間 (1)・(2)・(3) の VYSE60 の続報、区間 (3) の VXSE53 の later（17 時台の報の時刻に合わせて Control/DateTime を 08 時台の Z へ） (2) 形は host 試験の中の 1 つの小さな関数（retime の後に Control/DateTime を置き換える）で、nankai-fixture.ts は変えない (3) 変えないもの: 各区間の窓・overlapped の判定・required・row の列、deliveryDelayMs（P3-NM2-D-DELAY=A の場合）。足す理由: 無いと続報が held になり、区間 (1) は却下の経路を測り、区間 (2)(3) の権は配送の完了からしか出ず、約 60.7 s で区間 (3) が止まる",
         "evidenceRefs": [
-          "reconstruction/test/nankai-unit/nankai-host.test.ts:209 «816dd4239a443e78»",
-          "reconstruction/test/nankai-unit/nankai-host.test.ts:242 «8ff9ab8c2ca46bc5»",
-          "reconstruction/test/nankai-unit/nankai-host.test.ts:254 «449bd3614626003b»",
-          "reconstruction/test/nankai-unit/nankai-host.test.ts:282 «1898d261f0ecde53»",
-          "reconstruction/test/nankai-unit/nankai-host.test.ts:304 «708fb7852dfdaa76»",
-          "reconstruction/test/nankai-unit/nankai-host.test.ts:311 «71611ba9ffa61dd1»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:213 «71b77c43f97df0f6»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:246 «b65fb3b9b06a86ba»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:258 «365bd49fcd548e40»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:286 «e95616d7c140178f»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:308 «708fb7852dfdaa76»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:316 «8db3067d78ea81e2»",
           "reconstruction/test/nankai-unit/nankai-fixture.ts:61 «077f97e8058f2465»",
           "reconstruction/src/contracts-revision/version.ts:6 «dc9a3530fe5d43c2»",
           "reconstruction/src/contracts-revision/version.ts:7 «b4114cd2e4a71493»",
@@ -160,8 +168,8 @@
         "requirement": "Mac の報告: FLEQ_C8_AC11=1 で nankai-host.test.ts を 5 回走らせ（区間 (1)〜(4) とも）、各回の rc と、区間ごとの overlappedCount/tried と主な列の max・median を出す。区間 (1) maxVyse60 は workBusyMs・decodeMs・reduceMs（採用の経路の値になったこと。host の generationRaised で、区間 (1) の続報が U-N の世代を上げたこと、区間 (3) の later の VXSE53 が U-Q の世代を上げたことを 1 回確かめる。later は固定の文字列の置き換えなので、ずれると採られないまま通る）、区間 (2) maxNankaiEncode は P3-UNIT-N-MEASURE-001 の AC03 の列（waitBehindEncodeMs・encodeMs・busyMs・encodeBytes と P3-NM-WAIT）で、前の値（Q-NM-IMPL）から変わったかを並べる、区間 (3) は止まらず通ることと grantGapMs・quakeEncodeMs・nankaiEncodeMs・injectToT2、区間 (4) は deadlineMs と injectToT2。どの値も約 40 ms を越えたら配送の前に作者へ報告する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-unit-n-measure.json:65 «9c85c09a2cb3fc47»",
-          "reconstruction/contracts/p3-unit-n-measure.json:290 «ef67bf2c231b4d81»",
-          "reconstruction/test/nankai-unit/nankai-host.test.ts:243 «978f53234c76af45»",
+          "reconstruction/contracts/p3-unit-n-measure.json:290 «d7ddc110d09b0b44»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:247 «978f53234c76af45»",
           "reconstruction/src/units/nankai/nankai-unit.ts:39 «25e9f619037a5045»",
           "reconstruction/src/runtime/composition-root.ts:1082 «d8901fa45e61695f»"
         ]

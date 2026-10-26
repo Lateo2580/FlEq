@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "039e6706377b458c19a6eeb8d62425c88639b15210ea56ff41ed532aebfb8bb7",
+    "sha256": "b0691c3d1c74bf7547267d3863509a94d0d5ac8a2c10991f82259cf463163fc6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -265,7 +265,7 @@
         "id": "P3-C8-INTERFERENCE",
         "status": "frozen（台帳63、計画:79の共通条文）",
         "longestUninterrupted": "urgentでU-Nが足す非中断処理: 最大のVYSE（corpusの80_01_01_240821_VYSE60、8,992 byte）の解凍・XML parse・reduce、合法最大（I-U-N.capacityReserve）のU-Nのcheckpoint encode、現況6・情報64の同時の期限回収、合法最大でのtoView",
-        "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。正式E01ではない。Macの待ちの最大が約40ms（E01の250msをMac・Piの速度差の約6.3倍で割った値、計画:239）を超えたら、配送の前に作者へ報告し、P3-C8-PLACEを見直す。U-N同居後のEEWの正式な再測定は、spec:1129の後半「P5は最終構成で1〜4を再測定する」とC22のPiでの短い確認（計画:87）に送る。あわせて、urgentが入力を処理している間にU-E・U-T・U-Q・U-Nの書込み権が出ない時間と、受信前回収（P3-C3B-INTENT-RECLAIM）でU-Nの保留中のintent更新がEEW入力の送出を遅らせた回数と遅れを報告する（P3-C7-INTERFERENCEと同じ）。同時dirtyの権のまとめ出し: composition-root.tsのreevaluate（:1289〜:1297）はurgentのownerにU-E・U-T・U-Q・U-NのcheckpointGrantをまとめてpostするので、U-Qの合法最大のencodeとU-Nのencodeを続けた最中に投入したEEWの待ちの最大を報告する。C7のAC12（P3-UNIT-Q-001 Q-C7-IMPL-AMEND(6)、段2の後の測り直し）は、最大VXSE53の最中のEEWの投入→T2が中央値19.88・最大29.64 ms、U-Qのencodeの最中が最大8.82 msで、約40 msまで約10 ms"
+        "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。正式E01ではない。Macの待ちの最大が約40ms（E01の250msをMac・Piの速度差の約6.3倍で割った値、計画:239）を超えたら、配送の前に作者へ報告し、P3-C8-PLACEを見直す。U-N同居後のEEWの正式な再測定は、spec:1129の後半「P5は最終構成で1〜4を再測定する」とC22のPiでの短い確認（計画:87）に送る。あわせて、urgentが入力を処理している間にU-E・U-T・U-Q・U-Nの書込み権が出ない時間と、受信前回収（P3-C3B-INTENT-RECLAIM）でU-Nの保留中のintent更新がEEW入力の送出を遅らせた回数と遅れを報告する（P3-C7-INTERFERENCEと同じ）。同時dirtyの権のまとめ出し: composition-root.tsのreevaluate（:1289〜:1297）はurgentのownerにU-E・U-T・U-Q・U-NのcheckpointGrantをまとめてpostするので、U-Qの合法最大のencodeとU-Nのencodeを続けた最中に投入したEEWの待ちの最大を報告する。C7のAC12（P3-UNIT-Q-001 Q-C7-IMPL-AMEND(6)、段2の後の測り直し）は、最大VXSE53の最中のEEWの投入→T2が中央値19.88・最大29.64 ms、U-Qのencodeの最中が最大8.82 msで、約40 msまで約10 ms【P3-UNIT-N-MEASURE-002（2026-10-26、Q-NM2-IMPL）: 続報を採る形で測ると、区間 (3) で U-Q と U-N の権はまとめて出ず、grantGapMs 約 9 ms（median 8.66〜9.06 ms、U-Q の encode の長さに近い）離れて出た。EEW は U-Q の encode の後ろに最大約 9.8 ms 待つ】"
       },
       {
         "id": "P3-C8-WRITE-RIGHT",
@@ -800,7 +800,7 @@
       },
       {
         "id": "P3-C8-AC11",
-        "requirement": "urgentでの干渉の報告（台帳63、P3-C8-INTERFERENCE）: urgentでU-Nが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではない。Macの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C8-PLACEを見直す。U-N同居後のEEWの正式な再測定はspec:1129の後半とC22（計画:87）であることを報告に明記する。書込み権の出ない時間と受信前回収の遅れも報告する。同時dirtyの権のまとめ出しの最中のEEW（reevaluateがU-Q・U-T・U-E・U-NのcheckpointGrantを続けてpostし、U-Qの合法最大のencodeとU-Nのencodeが続く間に投入したEEW）の待ちの最大も報告する。C7のAC12（段2の後の測り直し、最大VXSE53の最中のEEWの投入→T2の最大29.64 ms）と並べて報告に書く",
+        "requirement": "urgentでの干渉の報告（台帳63、P3-C8-INTERFERENCE）: urgentでU-Nが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではない。Macの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C8-PLACEを見直す。U-N同居後のEEWの正式な再測定はspec:1129の後半とC22（計画:87）であることを報告に明記する。書込み権の出ない時間と受信前回収の遅れも報告する。同時dirtyの権のまとめ出しの最中のEEW（reevaluateがU-Q・U-T・U-E・U-NのcheckpointGrantを続けてpostし、U-Qの合法最大のencodeとU-Nのencodeが続く間に投入したEEW）の待ちの最大も報告する。C7のAC12（段2の後の測り直し、最大VXSE53の最中のEEWの投入→T2の最大29.64 ms）と並べて報告に書く【P3-UNIT-N-MEASURE-002（2026-10-26、Q-NM2-IMPL）: 続報を採る形で測ると、区間 (3) で U-Q と U-N の権はまとめて出ず、grantGapMs 約 9 ms（median 8.66〜9.06 ms、U-Q の encode の長さに近い）離れて出た。EEW は U-Q の encode の後ろに最大約 9.8 ms 待つ】",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",

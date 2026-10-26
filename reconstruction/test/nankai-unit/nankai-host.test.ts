@@ -163,6 +163,10 @@ const withEvent = (xml: string, eventId: string) => xml.replace(/<EventID>[^<]*<
 const marker = (observations: readonly P2HostObservation[], point: "T0" | "T1" | "T2", inputId: string) =>
   observations.flatMap((o) => o.kind === "marker" && o.point === point && "inputId" in o && o.inputId === inputId ? [o.monotonicMs] : [])[0];
 const iso = (ms: number) => new Date(ms + 32_400_000).toISOString().replace(".000Z", "+09:00");
+// 報の時刻と送信の時刻（Control/DateTime、最初の DateTime）を同じ時刻へ替える。VYSE・VXSE53 の新旧は Control/DateTime だけで決まるので、
+// 送信の時刻が同じまま中身を替えた続報は held になり採られない（P3-VM-D-TABLE=A）。
+const stamp = (at: number) => (xml: string) => retime(iso(at))(xml)
+  .replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(at).toISOString().replace(".000Z", "Z")}</DateTime>`);
 
 function summary(rows: readonly Record<string, number | null>[]): Record<string, { max: number; median: number } | null> {
   const keys = Object.keys(rows[0] ?? {});
@@ -206,7 +210,7 @@ function measurer(observations: P2HostObservation[]) {
 // 上限の長さの見出し・本文（3 byte の文字、I-U-N.bounds）を持つ VYSE。EventID と時刻を替えて使う。
 function bounded(name: string, eventId: string, at: number, code: string | null): string {
   const wide = (length: number) => "震".repeat(length);
-  let xml = retime(iso(at))(replaceTag("EventID", eventId)(fixtureXml(name)))
+  let xml = stamp(at)(replaceTag("EventID", eventId)(fixtureXml(name)))
     .replace(/(<Head[^>]*>\s*)<Title>[^<]*<\/Title>/, `$1<Title>${wide(128)}</Title>`)
     .replace(/<Headline>\s*<Text>[\s\S]*?<\/Text>/, `<Headline><Text>${wide(512)}</Text>`)
     .replace(/(<EarthquakeInfo[^>]*>\s*<InfoKind>)[^<]*(<\/InfoKind>\s*)/, `$1${wide(64)}$2`)
@@ -239,7 +243,7 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
     const status = (xml: string, value: string) => xml.replace("<Status>通常</Status>", `<Status>${value}</Status>`);
     await sendAll(["通常", "訓練", "試験"].flatMap((value) => [frame("VYSE50", status(bounded("74_01_05_200512_VYSE50", "E".repeat(64), start, null), value)),
       frame("VYSE60", status(bounded("80_01_01_240821_VYSE60", "F".repeat(64), start, null), value))]));
-    // 64 subject を見出しを替えながら繰り返す: 情報 64 件、pending は byte の上限、置き換えた pending が終端記録を満たす。
+    // 64 subject を見出しと送信の時刻を進めながら繰り返す（2〜3 周目も採られ、未確認の印は付かない）: 情報 64 件、pending は byte の上限、置き換えた pending が終端記録を満たす。
     owners.deliveryDelayMs = 2_000;
     await sendAll(Array.from({ length: 160 }, (_, index) => frame("VYSE51", bounded("75_01_01_200512_VYSE51",
       `C${String(index % 64).padStart(63, "0")}`, start + index * 1000, "210").replace(/(<Headline><Text>)震{4}/, `$1${String(index).padStart(4, "0")}`))));
@@ -251,7 +255,7 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
       const rows: Record<string, number | null>[] = [];
       for (let index = 0; index < runs; index++) {
         const work = `input-${++sequence}`, eew = `input-${++sequence}`;
-        const xml = retime(iso(start + 200_000 + index * 1000))(withEvent(vyse60, "F".repeat(64)));
+        const xml = stamp(start + 200_000 + index * 1000)(withEvent(vyse60, "F".repeat(64)));
         const [workAt, injectedAt] = await h.sender.send([frame("VYSE60", xml), eewFrame()]);
         await until(() => marker(observations, "T2", eew) != null && m.processingOf(work) != null);
         const done = m.processingOf(work)!;
@@ -265,8 +269,8 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
     }
 
     // (2) 合法最大の U-N の保存の encode: urgent へ U-N の書込み権を送った瞬間に EEW を投入する。対象処理の区間は権の送出から U-N の encode の終わりまで。
-    // setup の後の続報は U-N の世代を上げず、権は setup で残した配送の遅れの完了ごとに約 2 秒おきに出る（返信の後に投入すると EEW が先に済む、Q-NM-SOURCE）。
-    // 続報は保存の引き金ではなく、区間 (1)・(3) と同じ入力の形で試行を進めるために送る。
+    // 続報は送信の時刻も進めるので採られて U-N の世代を上げ、その返信の後に権が出る（P3-NM2-AC01）。返信の後に投入すると EEW が
+    // urgent へ届く前に encode が済みうるので、権の送出の瞬間に投入する（Q-NM-SOURCE）。
     const encodes = (unit: string) => observations.flatMap((o) => o.kind === "checkpoint" && o.measurement.unit === unit && o.measurement.stage === "encode"
       ? [{ start: o.measurement.startedMonotonicMs, end: o.measurement.endedMonotonicMs, bytes: o.measurement.bytes }] : []);
     {
@@ -279,7 +283,7 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
           if (injected != null || unit !== "U-N") return;
           injected = h.sender.send([eewFrame()]).then((at) => [granted, ...at]);
         };
-        await h.sender.send([frame("VYSE60", retime(iso(start + 400_000 + index * 1000))(withEvent(vyse60, "F".repeat(64))))]);
+        await h.sender.send([frame("VYSE60", stamp(start + 400_000 + index * 1000)(withEvent(vyse60, "F".repeat(64))))]);
         await until(() => injected != null, 30_000);
         const [granted, injectedAt] = await injected!;
         owners.onUrgentGrant = null;
@@ -302,13 +306,14 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
     const s53 = text("telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825");
     for (let index = 0; index < 12; index++) await sendAll([frame("VXSE53", withEvent(s53, `F53${String(index).padStart(11, "0")}`))]);
     const later = (minute: number) => s53.replace(/2026-07-28T16:35:00\+09:00/g, `2026-07-28T17:${String(minute).padStart(2, "0")}:00+09:00`)
-      .replace("<Serial>2</Serial>", `<Serial>${minute + 3}</Serial>`);
+      .replace("<Serial>2</Serial>", `<Serial>${minute + 3}</Serial>`)
+      .replace("<DateTime>2026-07-28T07:35:28Z</DateTime>", `<DateTime>2026-07-28T08:${String(minute).padStart(2, "0")}:28Z</DateTime>`);
     {
       const rows: Record<string, number | null>[] = [];
       for (let index = 0; index < runs; index++) {
         const quake = `input-${++sequence}`, nankai = `input-${++sequence}`, eew = `input-${++sequence}`;
         await h.sender.send([frame("VXSE53", withEvent(later(index), "F5300000000000")),
-          frame("VYSE60", retime(iso(start + 600_000 + index * 1000))(withEvent(vyse60, "F".repeat(64))))]);
+          frame("VYSE60", stamp(start + 600_000 + index * 1000)(withEvent(vyse60, "F".repeat(64))))]);
         await until(() => owners.arrivals.has(quake) && owners.arrivals.has(nankai));
         // 2 つの返信の順と権の送出の順は owner の進み方で決まるので、最初の返信から数える。
         const arrivedAt = Math.min(owners.arrivals.get(quake)!.at, owners.arrivals.get(nankai)!.at);

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "1226517b5ef20c39a8d5e0ab2ee9235841af41f8397d65d3ffe830d2780d612f",
+    "sha256": "abb6f7a6617adda35edefa72dcc210af0d73a7d56203cab9dc12c5888e6c2e19",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -421,9 +421,9 @@
       },
       {
         "id": "P3-NS-AC09",
-        "requirement": "urgent の干渉の報告（P3-C8-AC11・P3-C8-INTERFERENCE の形、P3-C8-PLACE=A）: 合法な大きな状態（P3-NS-T04 の状態。解析の上界ではない）の U-N の encode の所要と、その最中に投入した EEW の投入→T0・T0→T2 の待ちを Mac で報告する（試行数・最大・中央値）。最大が約 40 ms を越えたら配送の前に作者へ報告し、P3-C8-PLACE と器（P3-NS-RES-01）を見直す。U-Q の合法最大の encode の最中の値（C7 の AC12）と並べて書く。Pi での保存 1 回の時間と EEW の待ちは段 4（作者の方向 2026-10-21）。配送の時点では測定が成り立たなかった（FLEQ_C8_AC11=1 の host 試験が maxNankaiEncode で 0/20 overlapped。K13 の前の 625c4f7b でも同じで、測り方の側の不整合）。測り方の直しは Q-NS-AC09。【P3-UNIT-N-MEASURE-001 で閉じた（2026-10-26、Q-NM-IMPL）】原因: 試験は work の返信の後に EEW を投入していたが、setup の後の VYSE60 の続報は U-N の世代を上げず、U-N の書込み権は配送の完了ごとに約 2 秒おきに出るので、EEW の投入は U-N の書込み権の約 1.9 秒前に済んでいた（同契約の Q-NM-SOURCE）。直した測り方（権の送出の瞬間に投入）で Mac 5 回: 区間 (2) は 20/20 overlapped、実際に encode の後ろで待った件数 18〜20/20、EEW の待ち（waitBehindEncodeMs）は max 0.31〜0.38 ms、上限は busyMs の max 1.42〜1.60 ms（encodeMs の max 1.39〜1.57 ms）で約 40 ms より十分小さい。「P3-NS-T04 の状態」の encode は、host 試験が組む状態（約 1.14 MB、解析の上界 2,334,223 byte の約半分）の値と P3-NS-T04 の値を並べて書く形で代えた。区間 (3) の止まりと「VYSE60 の続報が U-N の世代を上げない」はやりたいことリストへ送った",
+        "requirement": "urgent の干渉の報告（P3-C8-AC11・P3-C8-INTERFERENCE の形、P3-C8-PLACE=A）: 合法な大きな状態（P3-NS-T04 の状態。解析の上界ではない）の U-N の encode の所要と、その最中に投入した EEW の投入→T0・T0→T2 の待ちを Mac で報告する（試行数・最大・中央値）。最大が約 40 ms を越えたら配送の前に作者へ報告し、P3-C8-PLACE と器（P3-NS-RES-01）を見直す。U-Q の合法最大の encode の最中の値（C7 の AC12）と並べて書く。Pi での保存 1 回の時間と EEW の待ちは段 4（作者の方向 2026-10-21）。配送の時点では測定が成り立たなかった（FLEQ_C8_AC11=1 の host 試験が maxNankaiEncode で 0/20 overlapped。K13 の前の 625c4f7b でも同じで、測り方の側の不整合）。測り方の直しは Q-NS-AC09。【P3-UNIT-N-MEASURE-001 で閉じた（2026-10-26、Q-NM-IMPL）】原因: 試験は work の返信の後に EEW を投入していたが、setup の後の VYSE60 の続報は U-N の世代を上げず、U-N の書込み権は配送の完了ごとに約 2 秒おきに出るので、EEW の投入は U-N の書込み権の約 1.9 秒前に済んでいた（同契約の Q-NM-SOURCE）。直した測り方（権の送出の瞬間に投入）で Mac 5 回: 区間 (2) は 20/20 overlapped、実際に encode の後ろで待った件数 18〜20/20、EEW の待ち（waitBehindEncodeMs）は max 0.31〜0.38 ms、上限は busyMs の max 1.42〜1.60 ms（encodeMs の max 1.39〜1.57 ms）で約 40 ms より十分小さい。「P3-NS-T04 の状態」の encode は、host 試験が組む状態（約 1.14 MB、解析の上界 2,334,223 byte の約半分）の値と P3-NS-T04 の値を並べて書く形で代えた。区間 (3) の止まりと「VYSE60 の続報が U-N の世代を上げない」はやりたいことリストへ送った【P3-UNIT-N-MEASURE-002（2026-10-26、Q-NM2-IMPL）: 続報が U-N の世代を上げなかった原因は、Control/DateTime が同じで held（nankaiRevisionConflict）になること。区間 (1) maxVyse60 の値はこれまで却下の経路の値だった。続報を採る形の値: 区間 (1) の workBusyMs max 0.82〜1.03 ms、区間 (2) の EEW の待ち max 0.92〜1.42 ms・上限 busyMs max 1.05〜1.76 ms】",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-nankai-unit.json:803 «3dd833d01981eb3d»",
+          "reconstruction/contracts/p3-nankai-unit.json:803 «733cffdf41c3ff55»",
           "reconstruction/src/runtime/unit-coverage.ts:16 «58338bff75f92aac»",
           "reconstruction/contracts/p3-order-plan.md:547 «6210004ba3292953»"
         ]
