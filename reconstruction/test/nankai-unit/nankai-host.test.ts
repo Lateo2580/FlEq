@@ -13,12 +13,14 @@ import { fixtureXml, replaceTag, retime } from "./nankai-fixture";
 // 測り方は P3-C7-AC12（Q-C7-IMPL-AMEND(6)）と同じ: 投入側は別 thread、全試行を raw と全体の集計に残し、重なりは投入時刻と対象処理の区間で分ける。
 // 投入側（dmdata の代わりの WS server）は別 thread に置き、publisher の thread が塞がっても投入の時刻がずれないようにする。
 const owners = vi.hoisted(() => ({ live: new Set<{ terminate(): Promise<number> }>(),
-  posted: [] as { place: string; kind: string; inputId: string | null; at: number }[],
+  posted: [] as { place: string; kind: string; inputId: string | null; unit: string | null; at: number }[],
   // urgent の返信が publisher の thread に届いた時刻（複製の復元の後）。inputDone は入力 ID で、deadlineDone は届いた順。
   arrivals: new Map<string, { at: number; decodeStarted: number; decodeEnded: number; raised: number | null }>(),
   deadlineDone: [] as number[],
   // urgent へ期限の要求を送った瞬間に呼ぶ（一括回収の最中に EEW を投入するため）。
   onUrgentDeadline: null as (() => void) | null,
+  // urgent へ書込み権を送った瞬間に unit と送出の時刻を渡して呼ぶ（U-N の encode の最中に EEW を投入するため、P3-NS-AC09）。
+  onUrgentGrant: null as ((unit: string | null, at: number) => void) | null,
   // 配送の完了を遅らせて pending を満たす（合法最大の U-N の encode を測る、Q-C8-IMPL-AMEND(6)）。
   deliveryDelayMs: 0 }));
 vi.mock("node:worker_threads", async (importOriginal) => {
@@ -37,9 +39,12 @@ vi.mock("node:worker_threads", async (importOriginal) => {
       const kind = request != null && "kind" in request && typeof request.kind === "string" ? request.kind : "unknown";
       const envelope = request != null && "envelope" in request && request.envelope != null && typeof request.envelope === "object"
         && "messageId" in request.envelope && typeof request.envelope.messageId === "string" ? request.envelope.messageId : null;
-      owners.posted.push({ place: this.place, kind, inputId: envelope, at: performance.now() });
+      const unit = request != null && "unit" in request && typeof request.unit === "string" ? request.unit : null;
+      const at = performance.now();
+      owners.posted.push({ place: this.place, kind, inputId: envelope, unit, at });
       super.postMessage(value, transfer);
       if (this.place === "urgent" && kind === "deadline") owners.onUrgentDeadline?.();
+      if (this.place === "urgent" && kind === "checkpointGrant") owners.onUrgentGrant?.(unit, at);
     }
     override emit(event: string | symbol, ...args: unknown[]): boolean {
       const reply = args[0];
@@ -84,6 +89,7 @@ afterEach(async () => {
   owners.arrivals.clear();
   owners.deadlineDone.length = 0;
   owners.onUrgentDeadline = null;
+  owners.onUrgentGrant = null;
   owners.deliveryDelayMs = 0;
 });
 async function until(condition: () => boolean, milliseconds = 60_000): Promise<void> {
@@ -191,6 +197,8 @@ function measurer(observations: P2HostObservation[]) {
     results[name] = { all: summary(rows), overlapped: summary(overlapped), overlappedCount: overlapped.length, tried: rows.length,
       delayedEewSends: rows.filter((item) => (item.sendDelayAfterFreeMs ?? 0) > 1).length };
     raw[name] = rows;
+    // 後の区間が止まっても、成り立った区間の数字は残す（P3-NM-AC02）。
+    console.info("P3-C8-AC11-SECTION", name, JSON.stringify(results[name]));
   };
   return { processingOf, row, record, results, raw };
 }
@@ -256,25 +264,37 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
       m.record("maxVyse60", rows, Math.ceil(runs / 2));
     }
 
-    // (2) 合法最大の U-N の保存の encode: 続報で保存させ、work の返信が届いた後に EEW を投入する。対象処理の区間は urgent へ書込み権を
-    // 送ってから U-N の encode が終わるまで。
+    // (2) 合法最大の U-N の保存の encode: urgent へ U-N の書込み権を送った瞬間に EEW を投入する。対象処理の区間は権の送出から U-N の encode の終わりまで。
+    // setup の後の続報は U-N の世代を上げず、権は setup で残した配送の遅れの完了ごとに約 2 秒おきに出る（返信の後に投入すると EEW が先に済む、Q-NM-SOURCE）。
+    // 続報は保存の引き金ではなく、区間 (1)・(3) と同じ入力の形で試行を進めるために送る。
     const encodes = (unit: string) => observations.flatMap((o) => o.kind === "checkpoint" && o.measurement.unit === unit && o.measurement.stage === "encode"
       ? [{ start: o.measurement.startedMonotonicMs, end: o.measurement.endedMonotonicMs, bytes: o.measurement.bytes }] : []);
     {
       const rows: Record<string, number | null>[] = [];
       for (let index = 0; index < runs; index++) {
-        const work = `input-${++sequence}`, eew = `input-${++sequence}`;
+        sequence++; // work（VYSE60 の続報）の入力 ID
+        const eew = `input-${++sequence}`;
+        let injected: Promise<readonly number[]> | null = null;
+        owners.onUrgentGrant = (unit, granted) => {
+          if (injected != null || unit !== "U-N") return;
+          injected = h.sender.send([eewFrame()]).then((at) => [granted, ...at]);
+        };
         await h.sender.send([frame("VYSE60", retime(iso(start + 400_000 + index * 1000))(withEvent(vyse60, "F".repeat(64))))]);
-        await until(() => owners.arrivals.has(work));
-        const arrivedAt = owners.arrivals.get(work)!.at;
-        const [injectedAt] = await h.sender.send([eewFrame()]);
-        const grantOf = () => owners.posted.find((item) => item.place === "urgent" && item.kind === "checkpointGrant" && item.at >= arrivedAt);
-        const encodeOf = () => { const grant = grantOf(); return grant == null ? undefined : encodes("U-N").find((item) => item.start >= grant.at); };
+        await until(() => injected != null, 30_000);
+        const [granted, injectedAt] = await injected!;
+        owners.onUrgentGrant = null;
+        const encodeOf = () => encodes("U-N").find((item) => item.start >= granted);
         await until(() => marker(observations, "T2", eew) != null && encodeOf() != null);
-        const granted = grantOf()!.at, encode = encodeOf()!;
-        rows.push(m.row(eew, injectedAt, { start: granted, end: encode.end }, { encodeMs: encode.end - encode.start, encodeBytes: encode.bytes }));
+        const encode = encodeOf()!;
+        // 投入の時刻が窓に入っても、EEW が urgent へ届くのが encode の後なら待ちは 0。待ちは encode の終わりと EEW を urgent へ送った時刻の差で見る。
+        const eewPosted = owners.posted.find((item) => item.place === "urgent" && item.inputId === eew)?.at ?? null;
+        rows.push(m.row(eew, injectedAt, { start: granted, end: encode.end }, { encodeMs: encode.end - encode.start, encodeBytes: encode.bytes,
+          slackMs: encode.end - injectedAt, waitBehindEncodeMs: eewPosted == null ? null : Math.max(0, encode.end - eewPosted) }));
       }
       m.record("maxNankaiEncode", rows, Math.ceil(runs / 2));
+      // 実際に encode の後ろで待った件数と、EEW の urgent への送出が見つからない件数（P3-NM-AC01 (5)、median の読みに頼らない）。
+      console.info("P3-NM-WAIT", JSON.stringify({ waited: rows.filter((row) => (row.waitBehindEncodeMs ?? 0) > 0).length,
+        missing: rows.filter((row) => row.waitBehindEncodeMs == null).length, tried: rows.length }));
     }
 
     // (3) 同時 dirty の権のまとめ出し: U-Q を 4 MiB 近くまで積み、U-Q と U-N の続報を続けて送る。両方の返信の後に reevaluate が

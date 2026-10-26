@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "4ddd2364aae25d25c77a2a8d32c52203adbf902c4e97b70938c13428539fe93b",
+    "sha256": "1226517b5ef20c39a8d5e0ab2ee9235841af41f8397d65d3ffe830d2780d612f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -113,7 +113,7 @@
         "status": "closed",
         "source": "統合担当の配送（2026-10-25、base 625c4f7b、ブランチ k13-order。実装の patch r5 を dfffa761 の上に 3-way で当てた。前例は K11 の Q-QC-IMPL-1）",
         "closed": "AC01〜AC12 と試験 P3-NS-T01〜T07 を 1 回で配送した（実装の patch r5、10 file）。レビューの経過: 品質 ヘルツ（Astra high、新しい thread、read-only）は r1 GO（P3）→r2 NO-GO（遅れた 120 の版だけの更新で再通知）→r3 NO-GO（情報の記憶があると再通知、14 日後の取消が期限の処理の順で変わる）→r4 NO-GO（awaiting で復元した注意が警戒に戻る）→r5 NO-GO（残存リスク (18)(19)）。契約適合 Opus は r1 条件付き GO（7〜14 日後に初めて届いた 120 が出るのに鳴らない）→r2 条件付き GO→r3・r4 は途中で r4・r5 に置き換え→r5（配送で本文に足す文の一覧。AC01 の (3)、AC03 の (4)(8)、AC04 の (3)(7)、AC05、persistedFields として当てた）。作者裁定（2026-10-25）: 7〜14 日後に初めて届いた 120 は巨大地震注意と同じ warning の段で 1 回鳴らす（題と本文は報のまま、残存リスク (15)）。r4 の後に「1 回だけ直し、NO-GO なら残存リスクで配送」（r5 の残りは残存リスク (18)(19)。直しは、level を採った現況の status から決める形で、K10 の発注 2 の点検のときに小さな契約に起こす）。awaiting の間の 7〜14 日目の 120 は統合担当の読みで残存リスク (17)。統合担当の決定: (a) 取消は、見えている間は元の報＋表示の長さ、過ぎた後は D1 の印の証拠で鳴らす（D1 どおり、14 日を過ぎても印があれば鳴る） (b) 通知の判定は、今の時刻で期限を当てた後の見える形（shownAt）で手元と候補をそろえて比べる (c) 同じ報の版だけの更新では、手元の移った段（注意）を引き継ぐ (d) 130 の期限切れの後に 111 の版だけの更新で現況が調査中に替わると鳴る（画面の現況が替わるため） (e) 情報と現況の expired の記憶も unconfirmed を持てる（時刻の無い報の held で記憶に印が付きうる。断ると保存→復元が unavailable になる。persistedFields） (f) 使われていない ACTIVE_STATUSES・currentSemantic・infoSemantic を消した。AC09 の EEW の待ちの測定は成り立たなかった（FLEQ_C8_AC11=1 の host 試験が maxNankaiEncode で 0/20 overlapped。K13 の前の 625c4f7b でも同じ 0/20 で、測り方の側の不整合）。測り方の直しは Q-NS-AC09 に申し送る。既存の試験の期待値の変更（Q-NS-EXISTING-TESTS を閉じる、実装の報告の (a)〜(n)、base 625c4f7b）: 情報系列の evidenceOnly の写しを保存前の全文と同じに（P3-C8-T08 の O07:38、P3-C8-T05 の payload の鍵 information と restore の coverage、P3-OPCAP-N-T01 の 64 件、nankai-runtime の P3-C8-T09 の再起動の後の一覧〔(n)、起草の見込みの外〕、AC01）。O07:43・:44 を warningUntil の 1 ms 前の巨大地震警戒と、移った巨大地震注意に（AC03）。111〜113 の level を warning から normal に（P3-C8-T06 の表、H12・AC05）。情報の 7 日で information が空になる期待を expired の記憶 1 件に（P3-C8-T03 と P3-C8-T06 の regression、AC04）。上界 280,186 の試験を P3-NS-T04（2,621,440）に置き換え（P3-CODEC-T02、AC06）。P3-AUTH-T05 の evidence に当てた拒否の行を payload.information に当て、P3-AUTH-T01 は型だけ。P3-VM-T03 の evidence の鍵の行を外して information の鍵で duplicate を見る。Serial「0」と 11 桁を拒否から accepted と WARN identityInvalid に（P3-C8-T01 から P3-NS-T06 へ、AC07）。版の字 v5→v6、P3-C8-T04 の info() の記録に validUntil（期待は同じ）。ゲート: 実装の木で tsc 3 本・vitest 851 passed／23 skipped・shuffle とも rc=0。配送の木（be9efd01 と同じ内容）では、sequences.json を読む試験と seismic・nankai の試験の 18 file（2 skip）・207 件（5 skip）を MacBook で回して rc=0。CI run 40171227231（be9efd01、全 job success）。配送の commit（統合担当）: AC12 の (1)〜(4)・(7)・(9)〜(12) に加え、Q-NS-PRECHECK で main で別にとした (5) spec（§4.2・§4.3 の U-N の行、§16 の H12・H23・H30）と (6) 設計メモ（§19）も同じ commit で当てた。(8) は P3-DISASTER-CAPACITY-001 への申し送り（本契約では変えない、残存リスク (14)）。sequences.json の 9 step（AC08 の (3)）は実装の patch のまま。他の契約と sequences.json の anchor を付け直し、全契約の sequencesSha256 と改訂した契約の sha256 を作り直した",
-        "remaining": "Q-NS-AC09（測り方の直し）。残存リスク (18)(19) を消す小さな契約（K10 の発注 2 の点検と同じ時に起こす）",
+        "remaining": "なし。残存リスク (18)(19) は P3-UNIT-N-NOTICE-001 で解消した（f11cade4）。Q-NS-AC09（測り方の直し）は P3-UNIT-N-MEASURE-001 で閉じた（2026-10-26、同契約の Q-NM-IMPL。unresolvedQuestions から外した）",
         "reason": "配送の記録。本契約のほかの行は Q-NS-PRECHECK の (0) の読みで読む"
       }
     ],
@@ -421,7 +421,7 @@
       },
       {
         "id": "P3-NS-AC09",
-        "requirement": "urgent の干渉の報告（P3-C8-AC11・P3-C8-INTERFERENCE の形、P3-C8-PLACE=A）: 合法な大きな状態（P3-NS-T04 の状態。解析の上界ではない）の U-N の encode の所要と、その最中に投入した EEW の投入→T0・T0→T2 の待ちを Mac で報告する（試行数・最大・中央値）。最大が約 40 ms を越えたら配送の前に作者へ報告し、P3-C8-PLACE と器（P3-NS-RES-01）を見直す。U-Q の合法最大の encode の最中の値（C7 の AC12）と並べて書く。Pi での保存 1 回の時間と EEW の待ちは段 4（作者の方向 2026-10-21）。配送の時点では測定が成り立たなかった（FLEQ_C8_AC11=1 の host 試験が maxNankaiEncode で 0/20 overlapped。K13 の前の 625c4f7b でも同じで、測り方の側の不整合）。測り方の直しは Q-NS-AC09",
+        "requirement": "urgent の干渉の報告（P3-C8-AC11・P3-C8-INTERFERENCE の形、P3-C8-PLACE=A）: 合法な大きな状態（P3-NS-T04 の状態。解析の上界ではない）の U-N の encode の所要と、その最中に投入した EEW の投入→T0・T0→T2 の待ちを Mac で報告する（試行数・最大・中央値）。最大が約 40 ms を越えたら配送の前に作者へ報告し、P3-C8-PLACE と器（P3-NS-RES-01）を見直す。U-Q の合法最大の encode の最中の値（C7 の AC12）と並べて書く。Pi での保存 1 回の時間と EEW の待ちは段 4（作者の方向 2026-10-21）。配送の時点では測定が成り立たなかった（FLEQ_C8_AC11=1 の host 試験が maxNankaiEncode で 0/20 overlapped。K13 の前の 625c4f7b でも同じで、測り方の側の不整合）。測り方の直しは Q-NS-AC09。【P3-UNIT-N-MEASURE-001 で閉じた（2026-10-26、Q-NM-IMPL）】原因: 試験は work の返信の後に EEW を投入していたが、setup の後の VYSE60 の続報は U-N の世代を上げず、U-N の書込み権は配送の完了ごとに約 2 秒おきに出るので、EEW の投入は U-N の書込み権の約 1.9 秒前に済んでいた（同契約の Q-NM-SOURCE）。直した測り方（権の送出の瞬間に投入）で Mac 5 回: 区間 (2) は 20/20 overlapped、実際に encode の後ろで待った件数 18〜20/20、EEW の待ち（waitBehindEncodeMs）は max 0.31〜0.38 ms、上限は busyMs の max 1.42〜1.60 ms（encodeMs の max 1.39〜1.57 ms）で約 40 ms より十分小さい。「P3-NS-T04 の状態」の encode は、host 試験が組む状態（約 1.14 MB、解析の上界 2,334,223 byte の約半分）の値と P3-NS-T04 の値を並べて書く形で代えた。区間 (3) の止まりと「VYSE60 の続報が U-N の世代を上げない」はやりたいことリストへ送った",
         "evidenceRefs": [
           "reconstruction/contracts/p3-nankai-unit.json:803 «3dd833d01981eb3d»",
           "reconstruction/src/runtime/unit-coverage.ts:16 «58338bff75f92aac»",
@@ -610,21 +610,9 @@
       "足した仕組み（warningUntil、情報の validUntil と expired の変種、退去の段）ごとに『無いと何が壊れるか』を 1 行。消したもの（証拠だけの変種と cache・分岐、collect の base の比べ、情報の印を保存しない分岐）の一覧",
       "追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行。期待値を変えた既存の試験の名前と理由（Q-NS-EXISTING-TESTS、変える前に報告）",
       "合法な大きな状態の実測の値（P3-NS-T04 の console）と、解析の上界 2,334,223（Q-NS-BYTES）の数え直しの値。解析の上界が 10% 以上違えば理由",
-      "P3-NS-AC09 の干渉の報告（Mac、試行数・最大・中央値、U-Q の encode の最中の値と並べて）",
+      "P3-NS-AC09 の干渉の報告（Mac、試行数・最大・中央値、U-Q の encode の最中の値と並べて）。【P3-UNIT-N-MEASURE-001 の Q-NM-IMPL で報告した（2026-10-26）】",
       "残存リスク（(1)〜(16) は 2026-10-25 作者承認済み、Q-NS-AUTHOR。(17) は同日の統合担当の読み、(18)(19) は同日の作者の決定による、Q-NS-IMPL-1）: (1)【今の新築との差】調査中（111〜113）の通知の音が軽くなる（短三和音 2 回の warning から単音の normal、H12）。鳴らなくなるわけではない。訂正の報も同じ (2)【今の新築との差】巨大地震警戒の発表から 7〜14 日の間に届いた調査中（111〜113）の報は、現況を「調査中」に替えない（移った後の巨大地震注意は、報で作られた巨大地震注意と同じく調査中で置き換えない、I-U-N.currentSemantics の (2)）。今の新築では 7 日で現況が消えるので、その報で現況が「調査中」になる。情報 subject と通知は出る (3)【決定 D4 で残すもの】巨大地震警戒（120）を別の報の巨大地震注意（130）が置き換えると、現況はその 130 の報から 7 日で消え、元の 120 の 14 日目より早く巨大地震注意が終わりうる（災害の日の N2 の並び〔reconstruction/test/disaster/synth.ts:626〜:633〕では 120 が t0＋2 時間・＋14 時間、130 が t0＋7 日で、終わりは t0＋14 日）。120 の 14 日目まで残す形を望むなら、作者の裁定で後の契約にする (4)【今の新築との差】器が埋まった日の退去は training/test が先で normal の記憶が後（統合担当の決定 D2）なので、normal の記憶（表示の期限から 30 日まで）が残る代わりに訓練・試験の情報が先に一覧から消える。normal の記録だけで 64 件が埋まった日に訓練・試験の情報を受けても残らない（training/test の報は normal を退去させない）。今の新築では 7 日で記録が消えるので、記憶の分だけ起きやすい。64 件は情報 subject（family×EventID）の数で、実配信で届く見込みは無い (5)【今の新築との差・増える側】遅い取消が鳴る側に増える: 表示の期限から記憶の終わりまでの情報の取消（分岐 P3-NS-D-INFO-MEMORY）と、期限切れの現況の取消（30 日まで、統合担当の決定 D1）が、元の報を通知していれば鳴る（H19）。Serial の形の外の報と InfoSerial/Name の読めない報が、断られずに表示され鳴る（H51 の B）。読めなかった所の印は K14 まで出ない (6)【今の新築との差・増える側】再起動の後も情報の一覧（本文を含む）が戻る（H30）。巨大地震警戒は 7 日で消えず、さらに 7 日「巨大地震注意」として残る。【決定 D4 で残すもの】120 の報の情報 subject は 7 日で記憶に移るので、7〜14 日目の巨大地震注意は本文（次回の発表の予定を含む）を出せる記録を持たない（現況は title と headline だけ）。120 の情報を 14 日残す形を望むなら、作者の裁定で後の契約にする (7)【旧築との差】調査中の音: 旧築は 120 以外を warning で鳴らす（src/engine/presentation/level-helpers.ts:311）、表示の段階も warning（同 :240）。新築は normal（H12） (8)【旧築との差】巨大地震警戒: 旧築は報の時刻から 7 日で現況を消す（src/engine/display/standby-state-store.ts:115・:2403）。新築は 7 日で巨大地震注意へ移し、14 日で消す（作者裁定。政府の期間より約 2 時間長い、計画 :539） (9)【旧築との差】情報の一覧: 旧築は情報を保存しない（src/engine/messages/revision-family-registry.ts:477 の durable false）ので再起動で消え、同じ情報の報を受け直すと新しく採用して鳴りうる。新築は戻り、受け直しても鳴らない。旧築は取り除いた情報の記録を 30 日・256 件覚えておく（tombstoneRetentionMs、同 :154・:477）。新築は表示 7 日・記憶 30 日・64 件（容量で退去） (10)【旧築との差】InfoSerial/Name: 旧築は Name を緩く読み、読めなければ InfoSerial ごと持たない（src/dmdata/telegram-parser.ts:1193〜:1196）。新築は code を残して name を null にする (11) 器の上界は見積もり（ReportDateTime を含め 6 byte の文字で上限いっぱいの 2,334,223 byte）。実装の試験で数え直し、2,621,440 を越えれば止めて報告する（器は広げない） (12) urgent の worker で、U-N の合法最大の encode が今の約 12 倍（見積もりで約 0.19 MB から約 2.33 MB）になり、その間に届いた EEW の処理が待つ（実例の最大は世代で約 0.5 MB の見込み。U-Q の合法最大 5.27 MB より小さい）。Mac の測定（AC09）で約 40 ms を越えたら配送の前に作者へ報告する。Pi は段 4 (13) 時計を確かめていない間に手元の時計が進んでいると、巨大地震警戒が早く巨大地震注意へ移り、確かめた後も戻らない（K10 の残存リスク (3) と同じ形、P3-EF-AC02。情報の記憶への移りと記録の除去は確かめるまで待つ）【2026-10-25 統合担当の読み（K10 の残存リスク (3) の作者承認と同じ原則）】 (14) 災害の日の道具の BYTE_LIMITS は U-N を 294,912 のまま持つ（reconstruction/test/disaster/runner.ts:188）ので、U-N.bytes がそれを越えると使用率を 100% 超で出す（判定は変わらない。U-Q と同じ未確認の不整合、道具の契約で扱う） (15) 7〜14 日の「巨大地震注意」は電文の無い状態で、title・headline は元の巨大地震警戒の報のまま（status だけが替わる）。区分の札と題が食い違って見えない描き方は P4 (16) 64 件の退去で消えた情報の古い報が後から届くと、新しく採用されて鳴りうる（P3-C8-CAPACITY の承認済みの代償と同じ。記憶も退去で消える） (17) awaiting の間に 7〜14 日目の 120 を初めて受けると、巨大地震警戒として critical で鳴り、verified の後に音なしで注意へ移る（2026-10-25 統合担当の読み、K10 の awaiting の決まりどおり、Q-NS-IMPL-1） (18) 7〜14 日目に初めて採った 120 に、同じ ReportDateTime で見出しなどを変えた非訂正の版が届くと、注意のまま critical で鳴る（気象庁の運用で同じ発表時刻の非訂正の見出しの変更は来ない見込み、資料に記述なし）（2026-10-25 作者の決定〔1 回だけ直し、NO-GO なら残存リスクで配送〕による、Q-NS-IMPL-1）【P3-UNIT-N-NOTICE-001 で解消（配送の commit）】 (19) unverified で時計が先に進んで保留になった注意を、awaiting で復元した後に同じ 120 の版だけの更新を受けると、注意として出るのに critical で鳴る（2026-10-25 作者の決定〔1 回だけ直し、NO-GO なら残存リスクで配送〕による、Q-NS-IMPL-1）【P3-UNIT-N-NOTICE-001 で解消（配送の commit）】（今の器は U-N 3,138,642 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-NS-AC09",
-        "owner": "integrator",
-        "blocks": [
-          "本契約の閉鎖"
-        ],
-        "resolveBy": "測り方を直した後（段 4 の前）。結果を作者に出す",
-        "requiredEvidence": [
-          "P3-NS-AC09 の測り方の直し: FLEQ_C8_AC11=1 の host 試験が maxNankaiEncode の最中に EEW を重ねられず 0/20 overlapped（K13 の前の 625c4f7b でも同じ）。直した測り方で、U-N の合法な大きな状態の encode の所要と、その最中に投入した EEW の投入→T0・T0→T2 の待ち（試行数・最大・中央値）を Mac で報告し、約 40 ms を越えたら作者へ（P3-NS-AC09・残存リスク (12)）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
