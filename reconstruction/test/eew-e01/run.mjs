@@ -1062,11 +1062,12 @@ export function stations30k(xml) {
   return xml.replace(station, (line) => line + Array.from({ length: Math.floor(extra / count) + (index++ < extra % count ? 1 : 0) },
     () => "\n" + line.replace(/<Code>\d+<\/Code>/, `<Code>${8_000_000 + added++}</Code>`)).join(""));
 }
+const WIDE_VXSE53_FIXTURE = "telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825";
 let wideVxse53 = null;
 // 衝突の試行ごとの観測点 30,000 の VXSE53。全時刻を今へ動かし、Serial を試行ごとに進めて同じ event の新しい版として採用させる（event を
 // 増やして U-Q の器を積み増さない）。
 function wideVxse53Frame(attemptIndex, atWallMs) {
-  wideVxse53 ??= stations30k(fixtureText("telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825").toString("utf8"));
+  wideVxse53 ??= stations30k(fixtureText(WIDE_VXSE53_FIXTURE).toString("utf8"));
   const xml = shiftTimestamps(wideVxse53, atWallMs - Date.parse(/<ReportDateTime>([^<]+)</.exec(wideVxse53)[1]))
     .replace(/<Serial>\d+<\/Serial>/, `<Serial>${attemptIndex + 3}</Serial>`);
   return dataFrame("VXSE53", Buffer.from(xml));
@@ -1559,7 +1560,9 @@ function frozenInputs(manifest, trialSetup, initialStateText) {
   if (sha256Hex(initialStateText) !== trialSetup.initialStateSha256) throw new Error("initial-state hash does not match trialSetup.initialStateSha256");
   const populations = JSON.parse(initialStateText).populations;
   // 充填・C・E03・AC15・E12・N の fixture も含め、manifest に固定した全 fixture の bytes を照合する。
-  const names = new Set([...TRIGGER_AND_EEW_FIXTURES, ...Object.keys(manifest.fixtureSha256).map((id) => id.replace("test__fixtures__", ""))]);
+  // 衝突の母集団（collisionPopulations）を載せた manifest は、その VXSE53 の hash が無ければ走らせない（P3-SP-AC08 (1)）。
+  const names = new Set([...TRIGGER_AND_EEW_FIXTURES, ...(manifest.collisionPopulations == null ? [] : [WIDE_VXSE53_FIXTURE]),
+    ...Object.keys(manifest.fixtureSha256).map((id) => id.replace("test__fixtures__", ""))]);
   const initial = {};
   for (const [population, list] of Object.entries(populations)) {
     initial[population] = list.map((entry) => entry.fixture.replace("test__fixtures__", ""));

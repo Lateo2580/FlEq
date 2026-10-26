@@ -250,6 +250,9 @@ describe("P3-C6-T06 freezing the tsunami manifest (AC10)", () => {
     const formal = JSON.parse(c.manifestText);
     formal.collisionPopulations["escalation:maxVxse53Received"].scope = "formal";
     expect(() => verify(sealSelfHash(`${JSON.stringify({ ...formal, manifestSha256: "0".repeat(64) }, null, 2)}\n`, "manifestSha256"))).toThrow(/population escalation:maxVxse53Received/);
+    const unpinned = JSON.parse(c.manifestText);
+    delete unpinned.fixtureSha256["test__fixtures__telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825"];
+    expect(() => verify(sealSelfHash(`${JSON.stringify({ ...unpinned, manifestSha256: "0".repeat(64) }, null, 2)}\n`, "manifestSha256"))).toThrow(/fixtureSha256 lacks the collision VXSE53/);
     const sent = (upperMs: number) => establishTsunamiTrial({ establishment: { kind: "primeSettledSentBeforeLargeFrameIngested" }, t0Ms: 1000,
       prime: { paintRequired: true, paintHostMs: { lowerMs: 900, upperMs: 902 }, replyMs: 850, ackMs: 950 }, target: { startMs: 600, endMs: 600 }, eewInputDoneMs: null,
       injectorSendHostMs: { lowerMs: upperMs - 0.02, upperMs } });

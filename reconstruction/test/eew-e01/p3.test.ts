@@ -236,6 +236,9 @@ describe("P3-C4-T09 frozen conditions read by the runner (AC13(1)(2)(7))", () =>
     const formal = JSON.parse(b.manifestText) as { collisionPopulations: Record<string, { scope: string }> };
     formal.collisionPopulations["maxVxse53ReceivedThenEew"].scope = "formal";
     expect(() => verify(sealSelfHash(`${JSON.stringify(formal, null, 2)}\n`, "manifestSha256"), b)).toThrow("scope/origin");
+    const unpinned = JSON.parse(b.manifestText) as { fixtureSha256: Record<string, string> };
+    delete unpinned.fixtureSha256["test__fixtures__telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825"];
+    expect(() => verify(sealSelfHash(`${JSON.stringify(unpinned, null, 2)}\n`, "manifestSha256"), b)).toThrow("fixtureSha256 lacks the collision VXSE53");
     const judged = judge(manifest, [p3Run("maxVxse53ReceivedThenEew", 1, () => [240, 242])]);
     expect(judged.runs.find((r) => r.population === "maxVxse53ReceivedThenEew")).toMatchObject({ scope: "reference", status: "Pass", samples: 1000 });
     expect(Object.keys(judged.verdict.populations)).not.toContain("maxVxse53ReceivedThenEew");

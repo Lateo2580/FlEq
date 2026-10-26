@@ -217,6 +217,8 @@ const P3_POPULATIONS: readonly P3EewPopulation[] = ["fixedBacklog", "maxVpws50Pa
   "maxForecastCheckpointSave", "forecastDeadlineOverlap", "maxVpws50ReceivedThenEew"];
 // P3-SP-D-POPULATION=A: 台帳 100 の衝突の参考の母集団。凍結した 6 母集団と分けて manifest の collisionPopulations に置く。
 const SEISMIC_COLLISION_POPULATIONS: readonly P3SeismicCollisionPopulation[] = ["maxVxse53ReceivedThenEew"];
+// 衝突の母集団が読む VXSE53（観測点 30,000 の元）。collisionPopulations を載せた manifest だけが hash を必須にし、runner が bytes を照合する。
+const SEISMIC_COLLISION_FIXTURE_ID = "test__fixtures__telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825";
 const LEAD_POPULATIONS: ReadonlySet<string> = new Set(["maxWeatherCheckpointEncodeStarted", "maxForecastCheckpointSave", "forecastDeadlineOverlap"]);
 const P3_ESTABLISHMENT: Readonly<Record<P3EewPopulation, P3EewEstablishment["kind"]>> = {
   fixedBacklog: "none", maxVpws50ParseStarted: "startOffset", maxWeatherCheckpointEncodeStarted: "startOffset",
@@ -428,6 +430,7 @@ function verifyFrozenP3Manifest(input: Readonly<{
 
   need(Object.keys(m.populations).length === P3_POPULATIONS.length, "populations must be exactly the six");
   need(m.collisionPopulations == null || Object.hasOwn(m.contractSha256, "P3-SEISMIC-PLACE-001"), "contractSha256 lacks P3-SEISMIC-PLACE-001 (collisionPopulations)");
+  need(m.collisionPopulations == null || isHex(m.fixtureSha256[SEISMIC_COLLISION_FIXTURE_ID]), "fixtureSha256 lacks the collision VXSE53 (collisionPopulations)");
   const conditions: readonly (readonly [string, P3EewPopulationCondition, P3EewEstablishment["kind"]])[] = [
     ...P3_POPULATIONS.map((key) => [key, m.populations[key], P3_ESTABLISHMENT[key]] as const),
     ...SEISMIC_COLLISION_POPULATIONS.flatMap((key) => m.collisionPopulations == null ? [] : [[key, m.collisionPopulations[key], "sentBeforeLargeFrameIngested"] as const])];
@@ -656,6 +659,7 @@ function verifyFrozenP3TsunamiManifest(input: Readonly<{
   const eventIds: string[] = [];
   const differs = new Set(m.differencesFromC4.map((d) => d.path));
   need(m.collisionPopulations == null || Object.hasOwn(m.contractSha256, "P3-SEISMIC-PLACE-001"), "contractSha256 lacks P3-SEISMIC-PLACE-001 (collisionPopulations)");
+  need(m.collisionPopulations == null || isHex(m.fixtureSha256[SEISMIC_COLLISION_FIXTURE_ID]), "fixtureSha256 lacks the collision VXSE53 (collisionPopulations)");
   const conditions: readonly (readonly [string, P3TsunamiPopulationCondition, boolean])[] = [
     ...P3_TSUNAMI_POPULATIONS.map((key) => [key, m.populations[key], false] as const),
     ...P3_TSUNAMI_COLLISION_POPULATIONS.flatMap((key) => m.collisionPopulations == null ? [] : [[key, m.collisionPopulations[key], true] as const])];

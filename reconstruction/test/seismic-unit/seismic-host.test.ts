@@ -11,7 +11,7 @@ import { startP2Host } from "../../src/host/host";
 import { executionPlaces } from "../../src/runtime/unit-coverage";
 import { shiftTimestamps } from "../eew-e01/frames.mjs";
 import { stations30k } from "../eew-e01/run.mjs";
-import { vxse53 } from "./seismic-fixture";
+import { clock as fixtureClock, decodeXml, emptyState, receive, sentLater, vxse53 } from "./seismic-fixture";
 
 // P3-C7-AC12（台帳 63、P3-C7-INTERFERENCE）: U-Q の最も長い非中断処理と、その最中に投入した EEW・津波の待ち。Mac での報告用で、
 // 正式 E01 ではない（U-Q 同居後の EEW の正式な再測定は spec:1129 の後半の P5 の最終構成と C22）。通常の試験からは走らせない。
@@ -279,9 +279,16 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       return input;
     };
     for (let index = 0; index < 12; index++) await pile(index);
+    // 続報は報時刻・Serial と一緒に Control/DateTime も同じだけ進める（VXSE53 の新旧は Control/DateTime で決まる、P3-VM-AC03。進めないと
+    // 版の衝突で held になり、採用の経路を測らない）。送った続報は最後に reducer で採用（changed）を確かめる。
     let minute = 0;
-    const later = () => s53.replace(/2026-07-28T16:35:00\+09:00/g, `2026-07-28T${String(17 + Math.floor(minute / 60)).padStart(2, "0")}:${
-      String(minute % 60).padStart(2, "0")}:00+09:00`).replace("<Serial>2</Serial>", `<Serial>${++minute + 2}</Serial>`);
+    const followUps: string[] = [];
+    const later = () => {
+      const at = `2026-07-28T${String(17 + Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}:00+09:00`;
+      const xml = s53.replace(/2026-07-28T16:35:00\+09:00/g, at).replace("<Serial>2</Serial>", `<Serial>${++minute + 2}</Serial>`);
+      followUps.push(sentLater(xml, (Date.parse(at) - Date.parse("2026-07-28T16:35:00+09:00")) / 1000));
+      return followUps.at(-1)!;
+    };
     const encodes = () => observations.flatMap((o) => o.kind === "checkpoint" && o.measurement.unit === "U-Q" && o.measurement.stage === "encode"
       ? [{ start: o.measurement.startedMonotonicMs, end: o.measurement.endedMonotonicMs, bytes: o.measurement.bytes }] : []);
     const behindEncode = async (name: string) => {
@@ -321,6 +328,16 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
     }
     await behindEncode("fullCheckpointEncode");
     await h.stop();
+    // 続報の採用: 同じ event の最初の報から、送った続報の順に reducer へ通す（owner の中の判定は見えないので、同じ XML と同じ壁時計で確かめる）。
+    let quake = receive(emptyState(), decodeXml(withEvent(s53, "F5300000000000"), "VXSE53"), fixtureClock(clock().wallTimeMs)).state;
+    const followDecisions = followUps.map((xml) => {
+      const step = receive(quake, decodeXml(withEvent(xml, "F5300000000000"), "VXSE53"), fixtureClock(clock().wallTimeMs));
+      quake = step.state;
+      return step.decisions.find((d) => d.subject === "normal/VXSE53/F5300000000000")?.decision ?? "none";
+    });
+    const adopted = followDecisions.filter((d) => d === "changed").length;
+    console.info("P3-C7-AC12-FOLLOW", JSON.stringify({ followUps: followUps.length, adopted, decisions: [...new Set(followDecisions)] }));
+    if (adopted !== followUps.length) throw new Error(`follow-ups not adopted: ${adopted}/${followUps.length}`);
     console.info("P3-C7-AC12-RAW", JSON.stringify(m.raw));
     console.info("P3-C7-AC12", JSON.stringify({ runs, seismicPlace, largestEncodeBytes: largest, results: m.results }));
   }, 900_000);
