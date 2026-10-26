@@ -34,7 +34,7 @@ export function replayPump(load, send, wallNow, startHr = hrMs(), extra = null) 
       const cycle = Math.floor(next / events.length);
       const event = events[next % events.length];
       if (startHr + cycle * load.durationMs + event.offsetMs > hrMs()) return;
-      send(weatherFrame(event.name, event.headType, wallNow()), event);
+      send((event.extra ? overlayFrame : weatherFrame)(event.name, event.headType, wallNow()), event);
       next += 1;
     }
   };
@@ -1174,4 +1174,11 @@ export function e05sSplit(rows, spans, { starts = [], mem = [], fromMs = null, t
       residual: { ...O, delta: O.peak == null || O.floor == null ? null : O.peak - O.floor },
       memMax: memMax == null ? null : { rssBytes: memMax.rss, atHostMs: memMax.perfNowMs }, gBytes, peakAttribution: gBytes > 0 ? "未確定（取り逃し）" : null };
   }) };
+}
+
+// P3-E05Y-CONTROLDT-001: 上乗せの 3 通は平行移動の後に Control/DateTime も送った時刻の秒へ置く。無いと 02 と 03 が同じ秒になり、VPTA50 の 03 が held（typhoonRevisionConflict）になる。
+function overlayFrame(name, headType, atWallMs) {
+  const xml = fixtureText(name).toString("utf8");
+  const moved = shiftTimestamps(xml, atWallMs - Date.parse(/<ReportDateTime>([^<]+)</.exec(xml)[1]));
+  return dataFrame(headType, Buffer.from(moved.replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(atWallMs).toISOString().slice(0, 19)}Z</DateTime>`)));
 }

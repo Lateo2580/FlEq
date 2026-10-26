@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fdaf4589b3ccc8b0afed7d1db13c98470d491f72",
-    "sha256": "f02af74737f76e0ab7c7c15e80f839cfd414f247ab854f07f3722b9aa5abda36",
+    "sha256": "fdc528b7f3b3704fdeee7d6b6ec24f88000c034d2acbea88f2408d63196726eb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -155,7 +155,7 @@
         "id": "P3-E05YD-AC01",
         "requirement": "上乗せの frame（Q-E05YD-SOURCE、分岐 P3-E05YD-D-PLACE=B）: (1) windows.mjs の replayPump の送る行（:37）を、event.extra が真のときだけ overlayFrame で frame を作る形にする（同じ 1 行の中で、行の数は変えない） (2) overlayFrame(name, headType, atWallMs) は file の末尾（今の 1177 行の後）に 1 つ置く: fixture の XML を、ReportDateTime を送った時刻（replayPump の wallNow、e05yPump では host.wallSec）へ全時刻ずらす（frames.mjs の weatherXml と同じ式、shiftTimestamps）。そのあと最初の <DateTime>（Control/DateTime）を送った時刻の秒の UTC の Z 表記（YYYY-MM-DDThh:mm:ssZ）へ置き換え、dataFrame で包む。frames.mjs は変えない (3) 変えないもの: E05Y_LOAD（sha256 80223ada…）、E05Y.peakOffsetMs、確かめの規則、上乗せでない event の frame、第 5 引数が無いときの replayPump（E01・E02 の窓と run.mjs）。windows.mjs のうち、どの契約かが引く最大の行（今は SPLIT の 1172、36dc0f7c で確かめた）までの行の数と、どの契約かが引く行（29・36・50・…・1172）の中身 (4) 足す理由: 無いと 02 と 03 の Control/DateTime が同じ秒になる。Control/DateTime だけで比べる VPTA50 の 03 が held になり、e05y-P・e05s-y の 3 run がどれも overlayIncomplete で未確認になる",
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/windows.mjs:37 «32b5ac289388f462»",
+          "reconstruction/test/eew-e01/windows.mjs:37 «a5847e316899b17b»",
           "reconstruction/test/eew-e01/windows.mjs:17 «38320cb5bd5fa224»",
           "reconstruction/test/eew-e01/windows.mjs:907 «d5263f06054d4de3»",
           "reconstruction/test/eew-e01/frames.mjs:111 «f2449f595eb3794e»",
@@ -173,7 +173,7 @@
         "requirement": "再発の試験（実不具合）: p3.test.ts の末尾に it を 1 つ足す（引かれている行をずらさない）。replayPump を負荷 P と E05Y_LOAD で作る。wallNow は整数秒（ms の端数なし）から始めて呼ばれるたびに 1,000 ms 進む値を返す関数にし（端数があると shiftTimestamps が ReportDateTime に端数を残し、秒で切った Control/DateTime と合わない。本番の host.wallSec も整数秒）、startHr を 1 周より前にして 1 回呼ぶ。上乗せの 3 frame を gunzip して、各 frame の最初の DateTime が ReportDateTime と同じ時刻であることと、3 通の Control/DateTime が送った順に狭義に増えることを確かめる。直す前の規則では ReportDateTime との差が −31・−114・−116 s で落ちる。偽の時計は使わない（wallNow は引数）",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/p3.test.ts:547 «5045906eeb4eede6»",
-          "reconstruction/test/eew-e01/windows.mjs:37 «32b5ac289388f462»"
+          "reconstruction/test/eew-e01/windows.mjs:37 «a5847e316899b17b»"
         ]
       },
       {

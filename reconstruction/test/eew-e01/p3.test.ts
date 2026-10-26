@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir } from "node:os"; import { gunzipSync } from "node:zlib";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
@@ -636,5 +636,27 @@ describe("P3-E05S-T02 the peak and floor rows, the per-thread values and the unc
       .toEqual(["rowsMissing", "rowsMissing", "noPeakEnd", "stale"]);
     // mem 行の区間の最大が t_p の rss より 1 byte 高いだけで、取り逃しの印が付き、status は ok のまま。
     expect(split(rows, { mem: [{ perfNowMs: 105_000, rss: 400 * MiB + 1 }] })).toMatchObject({ status: "ok", gBytes: 1, peakAttribution: "未確定（取り逃し）" });
+  });
+});
+
+// P3-E05YD-T01（実不具合の再発防止）: 上乗せの 3 frame の Control/DateTime は ReportDateTime と同じ時刻で、送った順に狭義に増える。直す前は 02 と 03 が同じ秒になり 03 が held になった。
+describe("P3-E05YD-T01 the overlay frames carry the send second in Control/DateTime (AC02)", () => {
+  it("the three overlay frames have Control/DateTime equal to ReportDateTime and strictly increasing in send order", () => {
+    const { P } = built().manifest.loads;
+    const [replayPump, overlay]: unknown[] = [Reflect.get(windows, "replayPump"), Reflect.get(windows, "E05Y_LOAD")];
+    if (typeof replayPump !== "function") throw new Error("windows.mjs exports no replayPump");
+    const bodies: string[] = [];
+    let wall = 1_800_000_000_000;
+    const step: unknown = replayPump(P, (frame: string, event: { extra?: boolean }) => {
+      if (event.extra) bodies.push(gunzipSync(Buffer.from(JSON.parse(frame).body, "base64")).toString("utf8"));
+    }, () => (wall += 1000), Number(process.hrtime.bigint()) / 1e6 - P.durationMs - 100, overlay);
+    if (typeof step !== "function") throw new Error("replayPump returned no pump");
+    step();
+    const first = (xml: string, tag: string) => Date.parse(new RegExp(`<${tag}>([^<]+)<`).exec(xml)![1]);
+    expect(bodies).toHaveLength(3);
+    expect(bodies.map((x) => first(x, "DateTime") - first(x, "ReportDateTime"))).toEqual([0, 0, 0]);
+    const control = bodies.map((x) => first(x, "DateTime"));
+    expect(control[0]).toBeLessThan(control[1]);
+    expect(control[1]).toBeLessThan(control[2]);
   });
 });
