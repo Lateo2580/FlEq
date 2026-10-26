@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "c5868cdeb94a8aa14f9075c585c0195306bbd786602fefd20dfe1298ab142b29",
+    "sha256": "b9b1878548a5e056f6c0cd8faa76cd50141c9e5441006bda39c303468c9830e8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -370,7 +370,7 @@
         "id": "P3-UWR-AC07",
         "requirement": "終了処理の約束は変えない（統合担当の裁定 2026-10-08。本契約が解くのはrunningの間の順番待ち［台帳64］で、終了をunitごとに切り分けると共通のcutoff・遅いackの採用・P3-C3A-AC09・FINALIZE-TIMEOUT・T13の作り直しになり範囲が倍になるため）: 本契約が足すのは、shutdownRuntimeがmailboxDrainの段へ移る処理の中で、自分の保存中の留保（AC04）を能動的に解くことだけ（hostはstop()の最初にtickを止める、host.ts:438。保留中の期限切れの更新による遅延は今のまま）。留保した入力はmailboxのin-flightに数えたままでdrainの完了条件から落とさず、mailboxDrainの後の段では送らない（Y1）。quiet・副作用の固定・最終保存の段・停止扱いのownerの扱いは、P3-C3A-AC09・P3-C3A-FINALIZE-TIMEOUT=A・P3-C3B-AC03・P3-C3A-T13・P3-C3B-T05の(5)（lifecycle.test.ts:385の期待を含む）のまま。unitごとの権のMapは、最終保存の段では今の挙動を保つ最小の形で使う: どれかの権を停止扱いのownerが持てば段を開始時に終え、そうでなければ権を1つずつ、今と同じ選択の順で渡す。quietは、生きているownerの権が全部返るまで静かとしない（今の単一の権の扱いをunitごとに広げただけ）。段が移った後に届いた返信・遅いcheckpointDoneは、入力の送出も通常の保存も再開しない（AC03の再評価はrunningだけ）。無いと: 留保した入力がtickの無いdrainで段の期限まで送られずに残る",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-execution-lifecycle.json:492 «36d43d9a19268162»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:492 «88ceaad2469d2f8d»",
           "reconstruction/contracts/p3-execution-split.json:865 «3e17ec57f91371c6»",
           "reconstruction/contracts/p3-execution-split.json:129 «d4a38fc7de1d9806»"
         ]
@@ -398,7 +398,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-split.json:636 «030aa868c8894f85»",
           "reconstruction/contracts/p3-execution-split.json:749 «2ecd09e717542803»",
-          "reconstruction/contracts/p3-execution-split.json:806 «ede13a77effc9bb0»",
+          "reconstruction/contracts/p3-execution-split.json:806 «50c134c23815195d»",
           "reconstruction/contracts/p3-execution-split.json:832 «ded95a13874353d3»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:390 «b939d8ce6d1b8258»",
           "reconstruction/contracts/p3-execution-lifecycle.json:75 «c998c8d30f543159»",

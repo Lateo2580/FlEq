@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "4dcb699c54d86b56220b43eacb065130d30bcde7a740a1bc0da4009503a46055",
+    "sha256": "f452e41f0c7c7e04d33eb4c7e19357c32741f84df177312ad67c0f11268169ff",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -650,7 +650,7 @@
         "requirement": "【RA】境界を進める入力と未解決の列: (1) origin=recovery の入力は、publisher が境界を測る unit ごとの未解決の列（K7、段 2 のメモ §2.4）に入れない。取り直しは穴を埋める側で、穴そのものではない。(2) 採用（P3-REC-AC07）の後に、owner の採用の返信を受けた publisher が、その unit の穴 b〜d のうち、今回の辿りで覆った区間（起点から、一覧を引き始めた時点の dmdata 側の時刻まで）を解決にする。そのための publisher の入力を 1 種類足す（composition-root の PublisherInput に 1 つ。無いと、取り直しが済んでも境界が穴を越えず、毎回同じ起点から取り直す）。中身は unit・runId・覆った区間の終わり（dmdata 側の時刻と電文 id）。(3) 取り直しの間に live で受けた入力は、今までどおり未解決の列で処理を待つ。覆った区間より後に開いた穴は解決にしない。(4) 量の上限・未充足で取り終えなかった unit は、穴を解決にしない（次のきっかけで同じ起点から）。(5) 解決にした位置は、自分の受信時刻が null で dmdata 側の時刻か電文 id を持つ境界として、次の書込み権で envelope に入る（両方 null の境界は無い、メモ §2.4）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
-          "reconstruction/src/host/host.ts:332 «78ed7c65133feaf5»",
+          "reconstruction/src/host/host.ts:333 «78ed7c65133feaf5»",
           "reconstruction/src/runtime/composition-root.ts:141 «3a377e064ab358c4»"
         ]
       }

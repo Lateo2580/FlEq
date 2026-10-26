@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "bd44a245ae185adc930d4afefc34ca18100cf3a7f2709968ca42f09ebf701ba6",
+    "sha256": "0201caf8b71a0854f659001e2b85ac128fd99ff9c98bb5f65f28cd7a521768fa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -400,7 +400,7 @@
           "reconstruction/test/eew-unit/eew-unit.test.ts:260 «1b826d79e0291953»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:1318 «edd94ff0606b3b76»",
           "reconstruction/test/snapshot-sse/cost.test.ts:17 «64414e21afe6bcb9»",
-          "reconstruction/test/eew-e01/aux-measures.test.ts:290 «4eca9a2dc8e471f2»",
+          "reconstruction/test/eew-e01/aux-measures.test.ts:291 «4eca9a2dc8e471f2»",
           "reconstruction/test/eew-e01/frames.mjs:138 «093a41fe5ebc308b»"
         ]
       },
@@ -429,9 +429,9 @@
         "id": "P3-LIFE-AC13",
         "requirement": "起動時の時計チェック（残存リスク(3)の条件、作者裁定2026-10-10）: (1) 比べる相手はdmdata WebSocket v2のstart frameのtime（サーバーがstartを送った時刻のISO 8601文字列。旧築の型src/types.ts WsStartMessage.timeが同じ仕様を写している）。host.tsは接続ごとに最初に届くstartをすでに小frameの経路で解析しており、AC13の診断は新しい通信を足さない。時計の確かめのためのREST（GET /socket?status=open）とDateヘッダの読みはP3-CLOCK-CHECK-001が足す。(2) 形の正しいstart（P3-C2-START-RECORDの判定、timeの有無で変えない）を受けるたびに1回、skew＝startを受けたときのclock().wallTimeMs − Date.parse(time) を測る。timeは「YYYY-MM-DDThh:mm:ss(.小数)?(Z|±hh:mm)」でDate.parseが有限のときだけ使う。|skew|≧300,000 msならERROR、60,000≦|skew|＜300,000ならWARN、＜60,000なら診断なし。reasonはskew＞0でhostClockAhead、skew＜0でhostClockBehind、component=\"host\"、count・durationMsは付けない（host.tsの既存の診断の流儀。同じ診断の繰り返しはsinkのcountが数える）。timeが無い・形が違う・Date.parseが有限でないときはWARN hostClockUnverifiedを1件。(3) 数値の根拠: 60秒はP3-LIFE-D-SKEWの起点の詰め（未来の報を受信時刻へ寄せる）が効き始め、版の時刻の比較がずれ始める目安。300秒はhorizon（600秒）の半分で、進みがEEWを捨てうる手前。往復と片道の遅れ（通常1秒未満）とtimeの秒の丸めはこの幅に含める。(4) ずれを見つけても受信・EEWの判定・接続を止めず、時刻を補正しない。startのtimeはP3-CLOCK-CHECK-001の確かめの物差しにもなる（時計は補正しない）。出口は既存の診断のsink（保存する診断の記録）だけで、ディスプレイに新しい要素を作らない。測るのはstartの制御frameの処理の中で、受信経路（dataの投入）に入れない。(5) 再接続ごとに同じ判定を行う（費用はstart 1件ごとの定数）。",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:278 «9eab77f7d9fbc5e7»",
-          "reconstruction/src/host/host.ts:281 «1b1c46f5a7c98e4f»",
-          "reconstruction/src/host/host.ts:226 «2b486aba370f5fa1»",
+          "reconstruction/src/host/host.ts:279 «9eab77f7d9fbc5e7»",
+          "reconstruction/src/host/host.ts:282 «1b1c46f5a7c98e4f»",
+          "reconstruction/src/host/host.ts:227 «2b486aba370f5fa1»",
           "reconstruction/src/host/host.ts:51 «d550290865b3dfa7»",
           "src/types.ts:576 «0ce12d8cfc86ded5»",
           "reconstruction/contracts/p3-dmdata-connect.json:368 «86f8fbca391f7688»",

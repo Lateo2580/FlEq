@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0d271ae071a22e14a0a192b9f17320e9b44e3cbb",
-    "sha256": "83342af0d5eb9f379f666f5678cbe807710e117cbcd8aa1a77dcb9a7de3f21fb",
+    "sha256": "e5caa079d48d75d842c66d4581f3307e836f8da8a6ae1cf6f4fcc3976f9903a8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -801,11 +801,11 @@
         "requirement": "deferredでの干渉の報告（台帳63、P3-C10-INTERFERENCE）: U-Lが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ち、同居するU-Fとの待ち合いをMacで報告する。正式E01ではない。EEWの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C10-PLACEを見直す",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
-          "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
+          "reconstruction/contracts/p3-order-plan.md:198 «1b569de66cbf27e2»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
           "reconstruction/contracts/p3-order-plan.md:87 «77d166f46b4ef4e7»",
-          "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»"
+          "docs/specs/reconstruction-p0-contracts.md:1027 «889556cd43760151»"
         ]
       },
       {

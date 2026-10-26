@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "241712f0913df27a98fd473e61e840cfc3f6fc580d0b4f31f64fbf9c01591a74",
+    "sha256": "332ee0d8ac77dd9fa856d423aecc45dcbfa9673d4d833d317fd58ac24ca2dd4e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -359,12 +359,12 @@
         "id": "P3-C9-INTERFERENCE",
         "status": "frozen（台帳63、計画:79の共通条文。P3-C9-PLACE=A、統合担当が発注前点検で確定）",
         "longestUninterrupted": "urgentでU-Vが足す非中断処理: 最大の火山電文（44_01_01の全国のVFVO51、45,368 byte、火山entry 112）の解凍・XML parse・reduce、合法最大（I-U-V.capacityReserve、3,867,485 byte）のU-Vのcheckpoint encode、三slice各128・定時128・解説64の同時の期限回収、合法最大でのtoView",
-        "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。正式E01ではない。Macの待ちの最大が約40ms（E01の250msをMac・Piの速度差の約6.3倍で割った値、計画:239）を超えたら、配送の前に作者へ報告し、P3-C9-PLACEを見直す。U-V同居後のEEWの正式な再測定は、spec:1129の後半「P5は最終構成で1〜4を再測定する」とC22のPiでの短い確認（計画:87）に送る。あわせて、urgentが入力を処理している間にurgentのunitの書込み権が出ない時間と、受信前回収（P3-C3B-INTENT-RECLAIM）でU-Vの保留中のintent更新がEEW入力の送出を遅らせた回数と遅れを報告する。同時dirtyの権のまとめ出し: composition-root.tsのreevaluateはurgentのownerに各unitのcheckpointGrantをまとめてpostするので、U-Qの合法最大のencodeとU-Vの合法最大のencodeを続けた最中に投入したEEWの待ちの最大を報告する。C7のAC12（段2の後の測り直し、最大VXSE53の最中のEEWの投入→T2の最大29.64 ms）とC8のAC11（最大8.74 ms）と並べて報告に書く【P3-UNIT-N-MEASURE-002（2026-10-26）: C8 の AC11 の最大 8.74 ms は、続報が held で採られない形の試験（却下の経路）で測った値。続報を採る形の値は同契約の Q-NM2-IMPL】"
+        "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。正式E01ではない。Macの待ちの最大が約40ms（E01の250msをMac・Piの速度差の約6.3倍で割った値、計画:239）を超えたら、配送の前に作者へ報告し、P3-C9-PLACEを見直す。U-V同居後のEEWの正式な再測定は、spec:1129の後半「P5は最終構成で1〜4を再測定する」とC22のPiでの短い確認（計画:87）に送る。あわせて、urgentが入力を処理している間にurgentのunitの書込み権が出ない時間と、受信前回収（P3-C3B-INTENT-RECLAIM）でU-Vの保留中のintent更新がEEW入力の送出を遅らせた回数と遅れを報告する。同時dirtyの権のまとめ出し: composition-root.tsのreevaluateはurgentのownerに各unitのcheckpointGrantをまとめてpostするので、U-Qの合法最大のencodeとU-Vの合法最大のencodeを続けた最中に投入したEEWの待ちの最大を報告する〔P3-SEISMIC-PLACE-001 で U-Q は seismic へ移した〕。C7のAC12（段2の後の測り直し、最大VXSE53の最中のEEWの投入→T2の最大29.64 ms）とC8のAC11（最大8.74 ms）と並べて報告に書く【P3-UNIT-N-MEASURE-002（2026-10-26）: C8 の AC11 の最大 8.74 ms は、続報が held で採られない形の試験（却下の経路）で測った値。続報を採る形の値は同契約の Q-NM2-IMPL】"
       },
       {
         "id": "P3-C9-WRITE-RIGHT",
         "status": "frozen（P3-UNIT-WRITE-RIGHT-001配送 54a63c25 とC7・C8の合流の後の形）",
-        "rule": "U-VをP3-C8-WRITE-RIGHTと同じ読み替えで入れる: 書込み権はunitごとに1件で、同じ実行場所のunitは別々の権を持つ。その実行場所が入力を処理している間はどのunitにも権を出さない。P3-C9-PLACE=Aでurgentのunit数は5（U-E・U-T・U-Q・U-N・U-V）、checkpointGrantは5件まで。U-Vの保存中も同じ実行場所の入力を送る"
+        "rule": "U-VをP3-C8-WRITE-RIGHTと同じ読み替えで入れる: 書込み権はunitごとに1件で、同じ実行場所のunitは別々の権を持つ。その実行場所が入力を処理している間はどのunitにも権を出さない。P3-C9-PLACE=Aでurgentのunit数は5（U-E・U-T・U-Q・U-N・U-V）、checkpointGrantは5件まで〔P3-SEISMIC-PLACE-001 で U-Q は seismic へ移し、urgent の unit 数は 4、checkpointGrant は 4 件まで〕。U-Vの保存中も同じ実行場所の入力を送る"
       },
       {
         "id": "P3-C9-MIGRATION",
@@ -1136,12 +1136,12 @@
         "requirement": "urgentでの干渉の報告（台帳63、P3-C9-INTERFERENCE）: urgentでU-Vが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではない。Macの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C9-PLACEを見直す。U-V同居後のEEWの正式な再測定はspec:1129の後半とC22（計画:87）であることを報告に明記する。書込み権の出ない時間・受信前回収の遅れ・同時dirtyの権のまとめ出しの最中のEEWの待ちも報告し、C7のAC12（最大29.64 ms）・C8のAC11（最大8.74 ms）の値と並べる【P3-UNIT-N-MEASURE-002（2026-10-26）: C8 の AC11 の最大 8.74 ms は、続報が held で採られない形の試験（却下の経路）で測った値。続報を採る形の値は同契約の Q-NM2-IMPL】",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
-          "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
+          "reconstruction/contracts/p3-order-plan.md:198 «1b569de66cbf27e2»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
           "reconstruction/contracts/p3-order-plan.md:87 «77d166f46b4ef4e7»",
-          "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
-          "reconstruction/contracts/p3-execution-boundary.md:12 «664a6f4b27d9fc87»"
+          "docs/specs/reconstruction-p0-contracts.md:1027 «889556cd43760151»",
+          "reconstruction/contracts/p3-execution-boundary.md:12 «0591a1d3f867cb13»"
         ]
       },
       {

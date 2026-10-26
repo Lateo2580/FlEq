@@ -97,7 +97,7 @@ K7 `P3-VERSION-MATERIAL-001`（仮）の 1 本。変える契約: `P1-PARSER-BOU
 - 配送は保存の完了を待たずに外へ出す（spec:949 の手順 2「緊急通知を fsync 待ちにしない」、`src/notification-delivery/notification-delivery.ts`）。復元した pending は元の期限内なら再試行する（`tsunami-unit.ts:686` のコメント Q-NOTICE.restart）。「送り始めたが結果を保存できていない」と「送っていないと確定した失敗」を保存の上で区別していない（どちらも attempts>0）。
 - 取り直しの経路: U-T は `origin=recovery` の報を C16 の候補採用まで state に入れない（`tsunami-unit.ts:706〜707`）。保存の境界を表す値は無い（ingress は dmdata の電文 id を保持しない、`src/ingress/ingress.ts`）。owner の世代ごとの入力 ID の記録は unit ごとに 4,096 世代で古い項目を捨て（`src/runtime/owner-host.ts:265〜270`、P3-OLB-AC04）、checkpoint は新しい slot が壊れていれば古い世代の slot を復元する（`checkpoint.ts:157〜184`）。mailbox は優先度で後着を先に渡す（`src/mailbox/mailbox.ts:121〜`、`host.ts:291〜295` の eewCandidate・tsunamiCandidate、P2-A2-AC03）ので、owner が処理した順は受信の順と一致しない。
 - U-E の gate は family ごと 512 で、報時刻＋10 分を過ぎた normal の gate を退去して新しい EventID を受ける（`eew.ts:455〜475`、P3-EVICT-AC03）。24 時間の間には 512 を超える EventID の gate が入れ替わりうる。
-- 保存が返らないとき: 書込み権を出してから 10 秒たつと `checkpointUncertain` の診断を出すだけで、persistence は uncertain にならない（`checkpoint.ts:526〜532`、P3-UWR-AC01）。保存の ack は成功で savedGeneration を進め、その後の変更があれば persistence は pending に戻る（`owner-runtime.ts:447〜452`）。urgent の owner は U-E・U-T・U-Q・U-N・U-V を同じ worker で持つ（`src/runtime/unit-coverage.ts:16`）。
+- 保存が返らないとき: 書込み権を出してから 10 秒たつと `checkpointUncertain` の診断を出すだけで、persistence は uncertain にならない（`checkpoint.ts:526〜532`、P3-UWR-AC01）。保存の ack は成功で savedGeneration を進め、その後の変更があれば persistence は pending に戻る（`owner-runtime.ts:447〜452`）。urgent の owner は U-E・U-T・U-N・U-V を同じ worker で持つ（`src/runtime/unit-coverage.ts:16`。U-Q は P3-SEISMIC-PLACE-001 で seismic の worker へ移した）。
 
 ### 2.2 §16 からの要求
 
@@ -150,7 +150,7 @@ K7 `P3-VERSION-MATERIAL-001`（仮）の 1 本。変える契約: `P1-PARSER-BOU
 - 印の照合は subject 1 件の参照と、その中の系列の参照。今の unit は subject を配列で持つので受信 1 回 O(subject 数)（上限 512）。全件×全件の走査は作らない。保存の ack を待つ判定は publisher の mirror の `savedGeneration` との比較 1 回。
 - 欠け（残す順位の高い順に書く）:
   1. 保存失敗・結果不明・停止の間と、保存の待ちを 1 秒（置き値）で打ち切った場合の EEW・津波・最も重い音は、ack を待たずに出る。鳴った後にその試行の記録を保存する前に再起動すると、起動後に二重に鳴りうる。H48 が許す二重はこの場合だけ（打ち切りの分は §7 の 7 で作者に出す）。
-  2. 平時は保存の ack を待つ分だけ全部の通知が遅れる。EEW・津波・critical は最長 1 秒（置き値）待って出る。ほかは ack まで待つ（Pi での保存の時間は未測。U-W の 16 MiB の保存は別の owner なので EEW の待ちに入らない。U-E の保存の ack が、同じ urgent の worker の U-Q〔4 MiB〕・U-N の encode の後ろに並ぶかは未確認、§9）。
+  2. 平時は保存の ack を待つ分だけ全部の通知が遅れる。EEW・津波・critical は最長 1 秒（置き値）待って出る。ほかは ack まで待つ（Pi での保存の時間は未測。U-W の 16 MiB の保存は別の owner なので EEW の待ちに入らない。U-E の保存の ack が、同じ urgent の worker の U-N の encode の後ろに並ぶかは未確認、§9。U-Q は P3-SEISMIC-PLACE-001 で seismic の worker へ移した）。
   3. 例外でない通知は、保存が失敗している間は鳴らずに期限で落ち、H39 に数える。
   4. 容量の退去で subject と一緒に印も消える。退去した subject に遅れて来た古い報は新しく採用され鳴りうる（P3-C7-CAPACITY の承認済みの代償と同じ）。§4 の守る範囲では印を最後まで残す。
   5. 送り始めて結果を保存できなかった通知は、実際には届いていなくても出し直さない（「通知したか不明」として H39 に数える）。
@@ -463,7 +463,7 @@ K10 が U-T・U-W の期限処理を触るので、K12 と ③ は K10 の後に
 - U-W の鍵の family の数（6 か 7）と官署の数（58 は U-F の実測、Q-LIM-A1-OFFICES で未測）。
 - ValidDateTime を持つ種類の全体（corpus の範囲で 7 種類）。気象庁の XML の仕様で種類ごとに確かめるのは K10 の起草。
 - dmdata の start の `time` の精度と、往復 2 秒・再補正 1 秒・食い違い 1 時間・待ち 30 秒（どれも置き値）。
-- 保存の ack を待つ配送の遅れ（Pi での U-E・U-T の owner の保存の時間）。保存の ack は unit ごと（書込み権は unit ごと、`P3-UNIT-WRITE-RIGHT-001`）だが、urgent の worker は U-E・U-T・U-Q・U-N・U-V を 1 つの thread で持つ（`unit-coverage.ts:16`）ので、EEW の保存の encode が同じ worker の U-Q（4 MiB）・U-N の encode の後ろに並ぶか、並ぶならどれだけ待つかは未確認。
+- 保存の ack を待つ配送の遅れ（Pi での U-E・U-T の owner の保存の時間）。保存の ack は unit ごと（書込み権は unit ごと、`P3-UNIT-WRITE-RIGHT-001`）だが、urgent の worker は U-E・U-T・U-N・U-V を 1 つの thread で持つ（`unit-coverage.ts:16`）ので、EEW の保存の encode が同じ worker の U-N の encode の後ろに並ぶか、並ぶならどれだけ待つかは未確認。U-Q の encode の後ろに並ぶ分は、P3-SEISMIC-PLACE-001 で U-Q を seismic の worker へ移して解消した（P3-SP-AC04 の (3)）。
 - U-E の印の件数（24 時間に通常運用の EventID がいくつ来るか）。上限 2,048 と U-E の世代の上限 512 KiB は置き値と見積もり。
 - 取り直しの境界を dmdata の一覧の何で辿れるか（C16）。WS の電文に dmdata 側の時刻が載るか（C16 の Q-REC-ID-MATCH）。
 - 保存の待ちを打ち切る 1 秒（置き値）を短くするか。spec:956 の初回 1 秒の目標は保存の待ちを含むので、1 秒では目標を使い切る。Pi での U-E・U-T の保存の時間を測ってから K8 で決める。

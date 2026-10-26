@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "ca07ec0ff755b83c0751ad54bead01e246f75b015dfcb3f217c21e2a53472e40",
+    "sha256": "f0a031204c6d6136dff53ac760db82bab2a1f226c90b6063c1c7aad0eb4b1727",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -374,8 +374,8 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:213 «22fdd95c5ad1b6ab»",
           "reconstruction/src/runtime/owner-host.ts:323 «e0baf553a81410c8»",
           "reconstruction/src/runtime/owner-host.ts:325 «910631e381d4aaba»",
-          "reconstruction/contracts/p3-execution-split.types.ts:82 «db886ce098cc40c8»",
-          "reconstruction/contracts/p3-execution-boundary.md:24 «7c66f6ded18dfbab»",
+          "reconstruction/contracts/p3-execution-split.types.ts:84 «db886ce098cc40c8»",
+          "reconstruction/contracts/p3-execution-boundary.md:25 «7c66f6ded18dfbab»",
           "reconstruction/contracts/p2-snapshot-sse.json:64 «f560477b65f5ae9d»",
           "reconstruction/contracts/p2-snapshot-sse.json:71 «d45898e10bcf5810»",
           "reconstruction/contracts/p2-snapshot-sse.json:82 «19c19a28d4635611»",
@@ -463,7 +463,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1280 «8008034665199229»",
           "docs/specs/reconstruction-p0-contracts.md:1286 «56110e613036ac27»",
           "docs/specs/reconstruction-p0-contracts.md:1288 «e5ce19b30d03f206»",
-          "reconstruction/contracts/p3-execution-split.types.ts:56 «0264a87b13c087be»",
+          "reconstruction/contracts/p3-execution-split.types.ts:58 «0264a87b13c087be»",
           "reconstruction/contracts/p3-execution-split.json:543 «66a186e5a1a6f39f»",
           "reconstruction/contracts/p3-execution-lifecycle.json:397 «d22f954d6f3ba6cb»",
           "reconstruction/src/runtime/composition-root.ts:160 «03945f9ae218aaba»",
@@ -484,7 +484,7 @@
         "evidenceRefs": [
           "reconstruction/src/http-sse/http-sse.ts:204 «c7e6d9bcec8c25b6»",
           "reconstruction/src/host/host.ts:91 «d5b5451ba219958c»",
-          "reconstruction/src/host/host.ts:177 «e7dcd7bca34dc4b8»",
+          "reconstruction/src/host/host.ts:178 «e7dcd7bca34dc4b8»",
           "docs/specs/reconstruction-p0-contracts.md:1273 «70a78ec97aee3f74»",
           "docs/specs/reconstruction-p0-contracts.md:1278 «919fba1f20a47f31»",
           "docs/specs/reconstruction-p0-contracts.md:1281 «ec12dd2ecfa47a0c»",
@@ -511,10 +511,10 @@
           "docs/specs/reconstruction-p0-contracts.md:1338 «f322402351ad4c15»",
           "docs/specs/reconstruction-p0-contracts.md:374 «3d97fc566f9a85bb»",
           "docs/specs/reconstruction-p0-contracts.md:380 «7c7c3fff5c4a6e89»",
-          "reconstruction/contracts/p3-execution-boundary.md:23 «778675a95e83f912»",
+          "reconstruction/contracts/p3-execution-boundary.md:24 «778675a95e83f912»",
           "reconstruction/contracts/p3-execution-split.json:749 «2ecd09e717542803»",
           "reconstruction/contracts/p3-execution-split.json:175 «7482f5e2279ce9ab»",
-          "reconstruction/contracts/p3-execution-lifecycle.json:457 «3a43d29227291df2»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:457 «7ece19e7da1b66b3»",
           "reconstruction/contracts/p3-execution-lifecycle.json:476 «577e9c05091a9b44»",
           "reconstruction/contracts/p3-order-plan.md:230 «9343844d7ce400ed»",
           "reconstruction/contracts/p3-order-plan.md:231 «d50b01ca53cff3d6»",
@@ -522,7 +522,7 @@
           "reconstruction/contracts/p2-snapshot-sse.types.ts:109 «0088a403888d3213»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:122 «b3e9f347a1400fbd»",
           "reconstruction/src/display/chrome-eew/pure.ts:396 «b391641f14fddcf2»",
-          "reconstruction/src/measurement/eew-e01/frozen.ts:169 «97a134ad9cb5b784»"
+          "reconstruction/src/measurement/eew-e01/frozen.ts:171 «97a134ad9cb5b784»"
         ]
       }
     ],

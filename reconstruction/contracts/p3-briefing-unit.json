@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "b7b0ae90d51cd5f120fd2437a1a7ec3d66272f729e5d635851606cb568f52f91",
+    "sha256": "60a0692c50c6d83788ebbd539de2ee96b9ed80fc8ae31b4f76d061d62657018f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -1145,11 +1145,11 @@
         "requirement": "deferredでの干渉の報告（台帳63、P3-C12-INTERFERENCE）: U-Bが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ち、同居するU-F・U-L・U-Rとの待ち合いをMacで報告する。正式E01ではない。EEWの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C12-PLACEを見直す。改訂1（K6の後）: 計測の入力はP3-C12-INTERFERENCE.measurementInputsに従う（EEWと各unitの報の時刻を時計へ寄せ、各入力がchangedであることを結果に含める。旧E01/C4の充填harnessは使わない）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
-          "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
+          "reconstruction/contracts/p3-order-plan.md:198 «1b569de66cbf27e2»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
           "reconstruction/contracts/p3-order-plan.md:87 «77d166f46b4ef4e7»",
-          "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
+          "docs/specs/reconstruction-p0-contracts.md:1027 «889556cd43760151»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:318 «81bb6f82d45d58a1»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:71 «58db32ca2f469b92»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:558 «5381e7ef5b71152e»"

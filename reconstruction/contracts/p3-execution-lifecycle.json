@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "e84589341f1a592695b0c4df52cec87d21eb70a3ca4828e4e1b92ad94666ce69",
+    "sha256": "b835f253399cb45783156faab9fbc4053f1d0117e7f15cff846d9f376e56e3b2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -18,7 +18,7 @@
       },
       {
         "id": "P3-C3B-AUTO-RESTART",
-        "A": "自動再起動しない。止まったownerは、人がプロセスを再起動する（通常終了→起動、checkpointからの復元）まで停止のまま。owner 3本の上限と再生成しない規則（P3-C3A-RES-05）を保つ",
+        "A": "自動再起動しない。止まったownerは、人がプロセスを再起動する（通常終了→起動、checkpointからの復元）まで停止のまま。owner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の上限と再生成しない規則（P3-C3A-RES-05）を保つ",
         "B": "止まったownerを、その実行場所のunitの最後のcheckpointから自動で再生成する（spec:1200の改訂が要る）",
         "recommended": "A",
         "provisional": "A",
@@ -27,7 +27,7 @@
       },
       {
         "id": "P3-C3B-WORKER-VIEW",
-        "A": "DisplayWorkerViewの型とwireは変えない。stateはowner 3本とmailboxの判定の最悪値（stopped＞unresponsive＞stalled＞healthy）。lastProgressAtMonotonicMsは現行どおりmailboxのstatsのlastProgressMonotonicMs。lastResponseAtMonotonicMsは最悪の状態にあるownerの最後の返信の時刻（同じ状態のownerが複数なら、その中で最も古い時刻。3本ともhealthyなら3本で最も古い時刻）。表示はchrome-eewの既存の規則（worker≠healthyで「更新未確認の最終情報」）のまま",
+        "A": "DisplayWorkerViewの型とwireは変えない。stateはowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕とmailboxの判定の最悪値（stopped＞unresponsive＞stalled＞healthy）。lastProgressAtMonotonicMsは現行どおりmailboxのstatsのlastProgressMonotonicMs。lastResponseAtMonotonicMsは最悪の状態にあるownerの最後の返信の時刻（同じ状態のownerが複数なら、その中で最も古い時刻。4本ともhealthyなら4本で最も古い時刻）。表示はchrome-eewの既存の規則（worker≠healthyで「更新未確認の最終情報」）のまま",
         "B": "snapshot・heartbeat・/healthzに実行場所ごとの状態を載せ、止まったownerの分野だけに更新未確認を出す（p2-snapshot-sse.types.ts・view-projector・http-sse・chrome-eewの変更）",
         "recommended": "A",
         "provisional": "A",
@@ -111,7 +111,7 @@
       {
         "id": "P3-C3B-DEP-C3A",
         "status": "closed",
-        "closed": "C3a（P3-EXECUTION-SPLIT-001）の凍結物を前提に書く: ExecutionPlace・OwnerRequest・OwnerReply（p3-execution-split.types.ts、本契約で変えない）、RuntimeCompositionRootの送出関数・receive・ownerFailed、owner 3本の常駐（P3-C3A-RES-05）、tickごとのdeadline要求（P3-C3A-DEADLINES）、owner宛て要求の上限（P3-C3A-RES-09）、終了の(1)〜(4)（P3-C3A-AC09）。作者裁定は次のとおり引き継ぐ: P3-C3A-OWNER-FAILURE=Aは期限がC3bの配送までで、本契約のP3-C3B-OWNER-STOPで置き換える。P3-C3A-FINALIZE-TIMEOUT=A（段の絶対期限で打ち切り、期限後の固定の確認を使わない）は保ち、すでに応答の無いownerの扱いだけをP3-C3B-FINALIZE-UNHEALTHYで改める",
+        "closed": "C3a（P3-EXECUTION-SPLIT-001）の凍結物を前提に書く: ExecutionPlace・OwnerRequest・OwnerReply（p3-execution-split.types.ts、本契約で変えない）、RuntimeCompositionRootの送出関数・receive・ownerFailed、owner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の常駐（P3-C3A-RES-05）、tickごとのdeadline要求（P3-C3A-DEADLINES）、owner宛て要求の上限（P3-C3A-RES-09）、終了の(1)〜(4)（P3-C3A-AC09）。作者裁定は次のとおり引き継ぐ: P3-C3A-OWNER-FAILURE=Aは期限がC3bの配送までで、本契約のP3-C3B-OWNER-STOPで置き換える。P3-C3A-FINALIZE-TIMEOUT=A（段の絶対期限で打ち切り、期限後の固定の確認を使わない）は保ち、すでに応答の無いownerの扱いだけをP3-C3B-FINALIZE-UNHEALTHYで改める",
         "remaining": "なし（C3aは271db561で配送済み。実装のfile:lineはQ-C3B-C3A-BASEで読み替えた）",
         "reason": "計画§3.1（C3a → C3b）、§3.2（host.ts・composition-root.tsはC3a → C3bの順）"
       },
@@ -326,7 +326,7 @@
     "publicFunctions": [
       "startP2Host(config: P2HostConfig)（C3a配送後のsignatureのまま。起動完了の前にownerが落ちたときのrejectとowner threadの後始末はC3aのまま［startRuntimeのuntilのreject、host.ts:156〜:161］。起動完了の後のownerの停止ではrejectもthrowもしない。C3aはstop()の開始でownersStoppingを立て［host.ts:414］、終了の段の途中のexitを無視しerrorを投げる［C3aの残存リスクL3］。本契約では予期されたexitをendOwners［closeWorkerの段、host.ts:106〜:109］以後に限り、それより前のerror・exitはstop()の途中でもownerFailedへ渡す［AC03の「どの段でも」］）",
       "RuntimeCompositionRoot#ownerFailed(place: ExecutionPlace, cause: unknown): void（名前と引数はC3aのまま。C3aの戻り値はnever［composition-root.ts:473、例外を投げる］で、hostのwrapper［host.ts:112〜:114］が起動完了の後に投げ直す。本契約は戻り値をvoidにし、例外を投げずにそのownerを停止済みにする。同じplaceの2回目は何もしない。C3aの単一のfailure［composition-root.ts:282］が止めていた送出［:361］・受信［:449］・pump［:513］・tick［:561］・driveCheckpoint［:928］・until［:373］・shutdownRuntimeの例外［:1078］は、停止済みのownerに関わる分だけに絞る。起動完了の前の停止は、C3aどおりstartRuntimeのuntil［:391］をrejectする）",
-      "RuntimeCompositionRoot: tickごとにowner 3本の記録とmailbox.isStalledからDisplayWorkerViewを返すメソッド1つ（名前は実装が決めて成果物に書く）。hostのtickはこれを既存のsetWorker(view)へ渡し、変わったときだけheartbeat()を即時に呼ぶ。stop()の後は呼ばない。置き換えるのはhostのtickの写像（host.ts:371〜:378。tickごとのmailbox.recordWorkerResponseとisStalledだけのview）で、RuntimeCompositionRoot#setWorker（composition-root.ts:615）はstateが変わったときtrueを返す",
+      "RuntimeCompositionRoot: tickごとにowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の記録とmailbox.isStalledからDisplayWorkerViewを返すメソッド1つ（名前は実装が決めて成果物に書く）。hostのtickはこれを既存のsetWorker(view)へ渡し、変わったときだけheartbeat()を即時に呼ぶ。stop()の後は呼ばない。置き換えるのはhostのtickの写像（host.ts:371〜:378。tickごとのmailbox.recordWorkerResponseとisStalledだけのview）で、RuntimeCompositionRoot#setWorker（composition-root.ts:615）はstateが変わったときtrueを返す",
       "Mailbox: 実行場所1つのpendingとin-flightを1回の走査で外すメソッド1つ（名前は実装が決める。pendingはcancelledに数え、in-flightはcompletedにもcancelledにも数えない。外したpending・in-flightの件数を返す）。isStalled(nowMonotonicMs)とdrainDiagnosticsの述語は変えない。entryはenqueueでplaceを持ち（mailbox.ts:24・:109）、pendingは配列（:80）、in-flightは実行場所ごとのMap（:82）。completedを変えないので、inputDoneの採否（composition-root.ts:539〜:542、completedの増加で決める）はそのままで、外したin-flightに遅れて届く完了は解放せず採用されない",
       "InfrastructureDiagnosticReasonに\"ownerStopped\"を1つ足す（末尾はp2-shared-runtime.types.ts:242。C3aのownerReplyLateはDiagnosticReasonの末尾［:248］。persistent-diagnostic-sink.tsのreason一覧［:40〜:56］にも足す）",
       "persistent-diagnostic-sink.tsの終了要約のreasonの許可パターン（C3a配送後も:281）に failed:ownerStopped を足す（mailboxDrainとfinalCheckpointの段で使う）"
@@ -392,8 +392,8 @@
       {
         "id": "P3-C3B-RES-01",
         "target": "owner monitoring records in the publisher",
-        "limit": 3,
-        "unit": "fixed-size records, one per execution place",
+        "limit": 4,
+        "unit": "fixed-size records, one per execution place〔P3-SEISMIC-PLACE-001 で 4 本〕",
         "scope": "最後の返信の時刻、未完了要求の送出時刻の固定の枠（種類ごと。P3-C3A-RES-09のownerあたり8＋そのownerのunit数からcheckpointGrantの分を除いた8に、P3-UF-PUBLIC-001のdetail〔deferredだけが使う〕を足した9。返信は順不同になりうるので、最古はこの枠の最小で取る）、停止済みの印、未処理件数（停止時にmailboxから外した件数）、拒否した入力の件数、発報済みの印だけ。この固定の枠の外に要求ごとの履歴やqueueを持たない。C3aの未完了の記録はownerと種類ごとの有無だけで時刻を持たない（outstandingのdeadline・shutdownInput［composition-root.ts:286］、inFlightInputs［:289、input］、intentRequests［:290、channel×slotの4枠］、finalizationのfixed［:298、finalize］）。この9枠に送出時刻を持たせる（detailの枠はP3-UF-PUBLIC-001で改訂）",
         "source": "spec:1185「既存のmain・worker・SSEに有界な進捗値を持たせ、新しい監視プロセスは作らない」"
       },
@@ -402,7 +402,7 @@
         "target": "stall and response thresholds",
         "limit": 5,
         "unit": "seconds, judged on the existing 1 s tick; the idle probe is the per-tick deadline request (1 s)",
-        "scope": "spec:1204の暫定値をこの値で固定する。同じ閾値をowner 3本に当てる",
+        "scope": "spec:1204の暫定値をこの値で固定する。同じ閾値をowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕に当てる",
         "source": "spec:1190、spec:1191、spec:1204"
       },
       {
@@ -410,7 +410,7 @@
         "target": "owner restarts",
         "limit": 0,
         "unit": "re-created owner threads during one process lifetime",
-        "scope": "P3-C3B-AUTO-RESTART=Aの場合。owner threadは起動時の3本だけ（P3-C3A-RES-05）",
+        "scope": "P3-C3B-AUTO-RESTART=Aの場合。owner threadは起動時の4本〔P3-SEISMIC-PLACE-001 で 4 本〕だけ（P3-C3A-RES-05）",
         "source": "spec:1200"
       },
       {
@@ -454,7 +454,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-C3B-AC01",
-        "requirement": "ownerごとの停止監視（spec:1190〜1191、P3-C3B-PROBE・WORKER-VIEW）: publisherはowner 3本それぞれに固定の小さい記録（RES-01）を持ち、既存の1秒tickで判定する（時刻はhostの注入時計のmonotonicMs、P2と同じ）。stalled: そのownerの最古の未完了要求（checkpointGrantを除く。送出時刻は種類ごとの固定の枠［RES-01］に持ち、その最小を取る。返信は順不同になりうる）の送出から5秒以上経つ。unresponsive: そのownerに未完了要求（checkpointGrantを除く）があり、max(最後の返信, 最古の未完了要求の送出)から5秒以上どの返信も無い。idleのownerにもtickごとのdeadline要求（P3-C3A-DEADLINES）が届くので、その返信が1秒周期の進捗応答になる。これで「返信は来るが特定の要求が終わらない」はstalledだけ、「threadが黙った」は両方（表示はunresponsive）になる。deferredのownerのdetail（P3-UF-PUBLIC-001で改訂）の未完了もこの2つの述語に入る。checkpointGrantはどちらの述語にも数えない（I/Oの遅延は§5.8の10秒監視［checkpointUncertain］の担当）。平常時はtickごとにdeadlineが届くので、塞がったownerはdeadlineの未完了で検出でき、stop()の後にdeadlineの送出が止まっても、checkpointのI/O中の健全なownerを終了の段で外さない。stoppedはAC02。表示のDisplayWorkerViewはowner 3本の判定とmailbox.isStalled（stalledとして）の最悪値（stopped＞unresponsive＞stalled＞healthy）とし、時刻はP3-C3B-WORKER-VIEWのA（lastProgressAtはmailboxのlastProgressMonotonicMs、lastResponseAtは最悪のownerの最後の返信）、終了完了でstoppedにする既存の規則は変えない。mailbox.isStalledを残す理由: owner がすべてidleなのにpendingが振り分けられない、というpublisher側の滞留はownerの記録に現れず、mailboxの述語にしか出ない（停止済みの実行場所の項目はAC02でmailboxから外すので、この述語が停止で張り付くことは無い）。状態が変わったtickで既存のheartbeat()を即時に呼び、/healthzへ同じtickで、snapshotへ次のtickの射影で反映する（DLV-01）。healthyへ戻すのはそのownerの実際の返信だけで、SSEのheartbeat送出・WSの受信・tick自身では戻さない（spec:1198）。C2のWS生存監視とは互いの応答を判定の根拠にしない（実行境界メモ§5）。診断は状態に入ったときに1回だけ、WARN mailboxStalled（componentはstalledがowner.<place>、unresponsiveがowner.<place>.response、durationMs付き）を入れ、healthyへ戻った後は再発報できる（RES-04）。stop()の後はtickでの状態判定と発報をしない（終了の段の開始時の除外判定は、AC03でこの述語をその時点の記録に1回だけ当てる）。P2-A10-AC13の写像（tickでのrecordWorkerResponse）はこれで置き換え、mailboxのrecordWorkerResponseはownerの返信を受けたときに呼ぶ。新しい監視のthread・process・timerを足さない（spec:1185）",
+        "requirement": "ownerごとの停止監視（spec:1190〜1191、P3-C3B-PROBE・WORKER-VIEW）: publisherはowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕それぞれに固定の小さい記録（RES-01）を持ち、既存の1秒tickで判定する（時刻はhostの注入時計のmonotonicMs、P2と同じ）。stalled: そのownerの最古の未完了要求（checkpointGrantを除く。送出時刻は種類ごとの固定の枠［RES-01］に持ち、その最小を取る。返信は順不同になりうる）の送出から5秒以上経つ。unresponsive: そのownerに未完了要求（checkpointGrantを除く）があり、max(最後の返信, 最古の未完了要求の送出)から5秒以上どの返信も無い。idleのownerにもtickごとのdeadline要求（P3-C3A-DEADLINES）が届くので、その返信が1秒周期の進捗応答になる。これで「返信は来るが特定の要求が終わらない」はstalledだけ、「threadが黙った」は両方（表示はunresponsive）になる。deferredのownerのdetail（P3-UF-PUBLIC-001で改訂）の未完了もこの2つの述語に入る。checkpointGrantはどちらの述語にも数えない（I/Oの遅延は§5.8の10秒監視［checkpointUncertain］の担当）。平常時はtickごとにdeadlineが届くので、塞がったownerはdeadlineの未完了で検出でき、stop()の後にdeadlineの送出が止まっても、checkpointのI/O中の健全なownerを終了の段で外さない。stoppedはAC02。表示のDisplayWorkerViewはowner 4本の判定とmailbox.isStalled（stalledとして）の最悪値（stopped＞unresponsive＞stalled＞healthy）とし、時刻はP3-C3B-WORKER-VIEWのA（lastProgressAtはmailboxのlastProgressMonotonicMs、lastResponseAtは最悪のownerの最後の返信）、終了完了でstoppedにする既存の規則は変えない。mailbox.isStalledを残す理由: owner がすべてidleなのにpendingが振り分けられない、というpublisher側の滞留はownerの記録に現れず、mailboxの述語にしか出ない（停止済みの実行場所の項目はAC02でmailboxから外すので、この述語が停止で張り付くことは無い）。状態が変わったtickで既存のheartbeat()を即時に呼び、/healthzへ同じtickで、snapshotへ次のtickの射影で反映する（DLV-01）。healthyへ戻すのはそのownerの実際の返信だけで、SSEのheartbeat送出・WSの受信・tick自身では戻さない（spec:1198）。C2のWS生存監視とは互いの応答を判定の根拠にしない（実行境界メモ§5）。診断は状態に入ったときに1回だけ、WARN mailboxStalled（componentはstalledがowner.<place>、unresponsiveがowner.<place>.response、durationMs付き）を入れ、healthyへ戻った後は再発報できる（RES-04）。stop()の後はtickでの状態判定と発報をしない（終了の段の開始時の除外判定は、AC03でこの述語をその時点の記録に1回だけ当てる）。P2-A10-AC13の写像（tickでのrecordWorkerResponse）はこれで置き換え、mailboxのrecordWorkerResponseはownerの返信を受けたときに呼ぶ。新しい監視のthread・process・timerを足さない（spec:1185）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1183 «6ed64babfc8a45df»",
           "docs/specs/reconstruction-p0-contracts.md:1185 «3ffa1a2a4f822e9c»",
@@ -462,8 +462,8 @@
           "docs/specs/reconstruction-p0-contracts.md:1191 «e214e88096eaa2ba»",
           "docs/specs/reconstruction-p0-contracts.md:1198 «45d7a5dc731dd19b»",
           "docs/specs/reconstruction-p0-contracts.md:1204 «ecac160837b1b82d»",
-          "reconstruction/contracts/p3-execution-boundary.md:45 «851fe48544a19964»",
-          "reconstruction/contracts/p3-execution-boundary.md:46 «9c1d497c188dae5d»",
+          "reconstruction/contracts/p3-execution-boundary.md:46 «851fe48544a19964»",
+          "reconstruction/contracts/p3-execution-boundary.md:47 «9c1d497c188dae5d»",
           "reconstruction/contracts/p3-order-plan.md:33 «ddf3ab45709aa2a4»",
           "reconstruction/contracts/p3-order-plan.md:248 «6e469cc97e6514dd»",
           "reconstruction/contracts/p3-order-plan.md:258 «beaf047ac7f9d773»",
@@ -489,7 +489,7 @@
       },
       {
         "id": "P3-C3B-AC03",
-        "requirement": "通常終了の順序・世代・code・期限（spec§5.9、E20のうちU-E・U-W・U-Fの単位。全単位はC22）: stop()の起点とC2の並行片付け（P3-C2-RES-07）は変えない。段は、入力受付終了→mailbox収束（生きている実行場所のin-flightの完了）→batch終了（各ownerへshutdownInput）→副作用固定（P3-C3A-AC09の(1)〜(4)とFINALIZE-TIMEOUT=A）→最終保存（固定済みownerのunitだけを、書込み権で1つずつ、retryAfterを待たずに）→終了要約の記録→owner 3本の終了（terminateしてexitを確かめる）の順で、各段の開始上限（DLV-02）を守り、前段の超過を後段へ足さない。「停止扱いのowner」は、停止済みのowner（どの段でも、停止を受けた時点で以後の待ちから外す）と、FINALIZE-UNHEALTHY=Aで副作用固定の段の開始時にunresponsiveだったowner（AC01の述語をその時点の記録に1回だけ当てる。stop()の後はtickで判定しないので、収束の段の間idleで要求の無かったownerはunresponsiveにならない）。停止扱いのownerにはshutdownInput・finalizeを送らず、(2)・(4)の待ちの対象から外して未固定とし、そのunitをunsavedUnitsに数える。最終保存の段（応答の無いownerの側はFINALIZE-UNHEALTHY=Aの場合）: 書込み権が停止扱いのownerにある間は他unitへgrantできないので、段を開始時に待たずに終え、結果はfailed（reason ownerStopped）、全対象unitをunsavedUnitsに数える（code 2）。収束の段: 停止済みのownerの未処理件数（停止時にmailboxから外したpendingとin-flight）が1以上なら、段の結果はfailed（reason ownerStopped）でcode 3とする。外したpendingとin-flightの件数は、以後に記録するすべての段のpendingのmailboxPending・mailboxInFlightにそれぞれ足す（要約のpendingInputs・inFlightInputsは最後に記録した段の値から取るので、外した件数がそのまま要約に出る。収束の段では既存のmailboxDrain:remainingInputsも付く）。code 0にしない場合を隠さない: 未固定のownerのunitはunsavedUnitsで、各unitの最終世代の確認はownerがcheckpointDoneで返したpersistence（C3aのAC06）で行う。要約を記録してからownerを終了し、終了処理の上限（5秒）までにexitしないthreadはworkersに数えてcode 4。複数の理由は3→2→4で選び、要約に全理由を残す（spec:900）。persistent-diagnostic-sink.tsの要約のreason許可パターン（:281）にfailed:ownerStoppedを足し、ディスク上のshutdown-summary.jsonにもその理由が残る（shutdown incompleteに潰れない）。stop()が返った後に、exitを確かめていないowner threadを黙って残さない（残ったら要約に数え、残存リスクに書く）。C3a配送後の実体での読み替え: C3aはmailboxDrainの結果を観測した直後に各ownerへshutdownInputを送る（composition-root.ts:1096〜:1099）ので、副作用固定の段の開始時の判定（FINALIZE-UNHEALTHY=Aの場合）はその送出の前に同じ時計（observedAt）で当て、外したownerにはshutdownInputも送らない。(2)の待ちはquiet()（:978〜:981）、(4)はfinalizeOwners（:985〜:1001）、最終保存はsaveFinalGenerations（:947〜:962。権の待ちは:950〜:952）、段の結果の上書きは既存のbatchFailedと同じ場所（:1088）、pendingへの加算は:1089〜:1090。外したownerの以後の返信は、C3aのlate()・countLate（:480〜:491）と同じく採用せずownerReplyLateに数え、現在のgrantIdに一致するcheckpointDoneは書込み権の解放にだけ使う（C3aのAC09のまま）。workersはC3aのまま、closeWorkerの段が期限内に終われば0、終わらなければ1で、owner 3本を1つに数える（:1035・:1073）",
+        "requirement": "通常終了の順序・世代・code・期限（spec§5.9、E20のうちU-E・U-W・U-Fの単位。全単位はC22）: stop()の起点とC2の並行片付け（P3-C2-RES-07）は変えない。段は、入力受付終了→mailbox収束（生きている実行場所のin-flightの完了）→batch終了（各ownerへshutdownInput）→副作用固定（P3-C3A-AC09の(1)〜(4)とFINALIZE-TIMEOUT=A）→最終保存（固定済みownerのunitだけを、書込み権で1つずつ、retryAfterを待たずに）→終了要約の記録→owner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の終了（terminateしてexitを確かめる）の順で、各段の開始上限（DLV-02）を守り、前段の超過を後段へ足さない。「停止扱いのowner」は、停止済みのowner（どの段でも、停止を受けた時点で以後の待ちから外す）と、FINALIZE-UNHEALTHY=Aで副作用固定の段の開始時にunresponsiveだったowner（AC01の述語をその時点の記録に1回だけ当てる。stop()の後はtickで判定しないので、収束の段の間idleで要求の無かったownerはunresponsiveにならない）。停止扱いのownerにはshutdownInput・finalizeを送らず、(2)・(4)の待ちの対象から外して未固定とし、そのunitをunsavedUnitsに数える。最終保存の段（応答の無いownerの側はFINALIZE-UNHEALTHY=Aの場合）: 書込み権が停止扱いのownerにある間は他unitへgrantできないので、段を開始時に待たずに終え、結果はfailed（reason ownerStopped）、全対象unitをunsavedUnitsに数える（code 2）。収束の段: 停止済みのownerの未処理件数（停止時にmailboxから外したpendingとin-flight）が1以上なら、段の結果はfailed（reason ownerStopped）でcode 3とする。外したpendingとin-flightの件数は、以後に記録するすべての段のpendingのmailboxPending・mailboxInFlightにそれぞれ足す（要約のpendingInputs・inFlightInputsは最後に記録した段の値から取るので、外した件数がそのまま要約に出る。収束の段では既存のmailboxDrain:remainingInputsも付く）。code 0にしない場合を隠さない: 未固定のownerのunitはunsavedUnitsで、各unitの最終世代の確認はownerがcheckpointDoneで返したpersistence（C3aのAC06）で行う。要約を記録してからownerを終了し、終了処理の上限（5秒）までにexitしないthreadはworkersに数えてcode 4。複数の理由は3→2→4で選び、要約に全理由を残す（spec:900）。persistent-diagnostic-sink.tsの要約のreason許可パターン（:281）にfailed:ownerStoppedを足し、ディスク上のshutdown-summary.jsonにもその理由が残る（shutdown incompleteに潰れない）。stop()が返った後に、exitを確かめていないowner threadを黙って残さない（残ったら要約に数え、残存リスクに書く）。C3a配送後の実体での読み替え: C3aはmailboxDrainの結果を観測した直後に各ownerへshutdownInputを送る（composition-root.ts:1096〜:1099）ので、副作用固定の段の開始時の判定（FINALIZE-UNHEALTHY=Aの場合）はその送出の前に同じ時計（observedAt）で当て、外したownerにはshutdownInputも送らない。(2)の待ちはquiet()（:978〜:981）、(4)はfinalizeOwners（:985〜:1001）、最終保存はsaveFinalGenerations（:947〜:962。権の待ちは:950〜:952）、段の結果の上書きは既存のbatchFailedと同じ場所（:1088）、pendingへの加算は:1089〜:1090。外したownerの以後の返信は、C3aのlate()・countLate（:480〜:491）と同じく採用せずownerReplyLateに数え、現在のgrantIdに一致するcheckpointDoneは書込み権の解放にだけ使う（C3aのAC09のまま）。workersはC3aのまま、closeWorkerの段が期限内に終われば0、終わらなければ1で、owner 4本を1つに数える（:1035・:1073）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:880 «f7b928f646165ca5»",
           "docs/specs/reconstruction-p0-contracts.md:882 «bfff8478f1442e2a»",
@@ -505,11 +505,11 @@
           "docs/specs/reconstruction-p0-contracts.md:898 «8ec453fc247f2c24»",
           "docs/specs/reconstruction-p0-contracts.md:900 «0ee1ac317cc5543a»",
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»",
-          "reconstruction/contracts/p3-execution-split.json:685 «01bbf43432707189»",
+          "reconstruction/contracts/p3-execution-split.json:685 «1ab394f0d4c773d9»",
           "reconstruction/contracts/p3-execution-split.json:129 «d4a38fc7de1d9806»",
           "reconstruction/contracts/p3-execution-split.json:134 «1c84f3b0ce68dac9»",
           "reconstruction/contracts/p3-dmdata-connect.json:289 «0a0c074748c205de»",
-          "reconstruction/contracts/p3-execution-boundary.md:47 «03fb41f056642dd7»",
+          "reconstruction/contracts/p3-execution-boundary.md:48 «03fb41f056642dd7»",
           "reconstruction/contracts/p3-order-plan.md:61 «90cd4b030c735359»"
         ]
       },
@@ -527,7 +527,7 @@
       },
       {
         "id": "P3-C3B-AC05",
-        "requirement": "E08（無変化tick）の再検収: 保存済みでintent・batch・I/Oが無く期限未到達の状態で、固定時計のtickを1,000回回すと、ownerの中のcanonical stateのclone・変更検出の直列化・JSON roundtripが0、publisherの内容snapshotの生成とcheckpointの書込みが0、worker状態は変わらずheartbeatの即時送出も0。境界を越える値（tickごとのdeadline要求とその返信、owner 3本ぶん）は別に数えて報告する。停止監視の判定はtickごとにownerあたり定数回の比較だけで、直列化・複製・走査を足さない",
+        "requirement": "E08（無変化tick）の再検収: 保存済みでintent・batch・I/Oが無く期限未到達の状態で、固定時計のtickを1,000回回すと、ownerの中のcanonical stateのclone・変更検出の直列化・JSON roundtripが0、publisherの内容snapshotの生成とcheckpointの書込みが0、worker状態は変わらずheartbeatの即時送出も0。境界を越える値（tickごとのdeadline要求とその返信、owner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕ぶん）は別に数えて報告する。停止監視の判定はtickごとにownerあたり定数回の比較だけで、直列化・複製・走査を足さない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
@@ -536,7 +536,7 @@
       },
       {
         "id": "P3-C3B-AC06",
-        "requirement": "再検収と既存試験: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。C3a配送後の試験は期待値を変えずに通す。期待値を変えてよい理由は次の5つだけ（(a)〜(d)の対象は271db561で、(e)は6321e1e0で実測した）: (a) P3-C3A-T10（execution-split.test.ts:926、ownerFailedで例外、以後どのownerへも要求を送らない）を、例外を投げずにstoppedになり、以後そのownerにだけ要求を送らない期待へ。host.test.ts:935のP3-C3A-T10（ownerFailedを差し替え、stop()の外のexitが届き、stop()のexitは届かない）は、予期されたexitをendOwners以後に限る読み替え（publicFunctionsのstartP2Host）でも期待値を変えずに通る見込み (b) host.test.tsのstall試験（:312。C3aでもhost.test.tsに残り、本物のowner 3本のWorker.emitを差し替えて全ownerの全返信を保留する［:22〜:38］。入力はVPWW57でweatherCurrentへ行く）: 全返信の保留なので、weatherCurrentのownerはAC01でstalledとunresponsiveの両方になり、heartbeatの列は[\"stalled\"]から[\"unresponsive\"]へ（:326）、[\"stalled\", \"healthy\"]から[\"unresponsive\", \"healthy\"]へ（:334）、/healthzの値はstalledからunresponsiveへ（:329）変わる。診断の検査（:328）はmailboxStalledを含むことだけなので変えない（実際には既存のcomponent mailboxの分に、owner.weatherCurrentとowner.weatherCurrent.responseの各1件と、どのownerも5秒返信しないのでmailbox.workerの1件が加わる）。この試験はT01(4)（stalledだけ）を受け持たない (c) P2-A10-AC13の写像のうち、tick自身を生存応答とする前提の箇所（271db561では(b)のほかに該当する期待値は見つからない。integration/notification-wiring.test.ts:254は試験側でrecordWorkerResponseを呼ぶだけで期待値に関わらない） (d) P2-A3-T06のworker停止の場合で、本物のownerの停止によってcodeと要約の理由が変わる箇所（271db561のintegration/shutdown.test.ts:41の5つの場合［通常・未保存・mailboxの残り・batchの失敗・closeWorkerの失敗］にownerの停止は無く、該当は見つからない。worker停止の場合はT05(3)で新しく確かめる） (e) INTENT-RECLAIM=A（AC08）で、C3aのD3が変えた期待をD3の前へ戻す2試験: shared-runtime.test.ts:959（ownerへの最初の要求が128件のexpiredの更新で、受信がその後。新しいeventのintentはdesktop・soundの2件、firstReportNotifiedはtrue、deliveryRecordsはexpiredの128件）と:985（続報の受信より先に旧intent 2件がexpiredで回収され、走行中の試行はcause expiredで止まり、deliveryRecordsの2件はsupersededでなくexpired）。ほかに、入力の直前の回収で要求の順序・件数が変わる試験は、その入力のunitの期限切れintentが受信より先に回収されることだけが理由の場合に限る。変更前に該当試験の一覧を実測で確定して理由とともに報告する。これ以外の理由で期待値の変更が要る試験、またはallowedPathsの外の試験の変更が要る場合はblockedとして報告する（P3-NOTICE-LEDGER-001の後はdeliveryRecordsが無く、U-Eの終端のintentはintentsから外れて結果はEventIDの印に残る。(e)の2試験は終端の更新でintentsから外れることで確かめる、P3-NL-AC05）",
+        "requirement": "再検収と既存試験: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。C3a配送後の試験は期待値を変えずに通す。期待値を変えてよい理由は次の5つだけ（(a)〜(d)の対象は271db561で、(e)は6321e1e0で実測した）: (a) P3-C3A-T10（execution-split.test.ts:926、ownerFailedで例外、以後どのownerへも要求を送らない）を、例外を投げずにstoppedになり、以後そのownerにだけ要求を送らない期待へ。host.test.ts:935のP3-C3A-T10（ownerFailedを差し替え、stop()の外のexitが届き、stop()のexitは届かない）は、予期されたexitをendOwners以後に限る読み替え（publicFunctionsのstartP2Host）でも期待値を変えずに通る見込み (b) host.test.tsのstall試験（:312。C3aでもhost.test.tsに残り、本物のowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕のWorker.emitを差し替えて全ownerの全返信を保留する［:22〜:38］。入力はVPWW57でweatherCurrentへ行く）: 全返信の保留なので、weatherCurrentのownerはAC01でstalledとunresponsiveの両方になり、heartbeatの列は[\"stalled\"]から[\"unresponsive\"]へ（:326）、[\"stalled\", \"healthy\"]から[\"unresponsive\", \"healthy\"]へ（:334）、/healthzの値はstalledからunresponsiveへ（:329）変わる。診断の検査（:328）はmailboxStalledを含むことだけなので変えない（実際には既存のcomponent mailboxの分に、owner.weatherCurrentとowner.weatherCurrent.responseの各1件と、どのownerも5秒返信しないのでmailbox.workerの1件が加わる）。この試験はT01(4)（stalledだけ）を受け持たない (c) P2-A10-AC13の写像のうち、tick自身を生存応答とする前提の箇所（271db561では(b)のほかに該当する期待値は見つからない。integration/notification-wiring.test.ts:254は試験側でrecordWorkerResponseを呼ぶだけで期待値に関わらない） (d) P2-A3-T06のworker停止の場合で、本物のownerの停止によってcodeと要約の理由が変わる箇所（271db561のintegration/shutdown.test.ts:41の5つの場合［通常・未保存・mailboxの残り・batchの失敗・closeWorkerの失敗］にownerの停止は無く、該当は見つからない。worker停止の場合はT05(3)で新しく確かめる） (e) INTENT-RECLAIM=A（AC08）で、C3aのD3が変えた期待をD3の前へ戻す2試験: shared-runtime.test.ts:959（ownerへの最初の要求が128件のexpiredの更新で、受信がその後。新しいeventのintentはdesktop・soundの2件、firstReportNotifiedはtrue、deliveryRecordsはexpiredの128件）と:985（続報の受信より先に旧intent 2件がexpiredで回収され、走行中の試行はcause expiredで止まり、deliveryRecordsの2件はsupersededでなくexpired）。ほかに、入力の直前の回収で要求の順序・件数が変わる試験は、その入力のunitの期限切れintentが受信より先に回収されることだけが理由の場合に限る。変更前に該当試験の一覧を実測で確定して理由とともに報告する。これ以外の理由で期待値の変更が要る試験、またはallowedPathsの外の試験の変更が要る場合はblockedとして報告する（P3-NOTICE-LEDGER-001の後はdeliveryRecordsが無く、U-Eの終端のintentはintentsから外れて結果はEventIDの印に残る。(e)の2試験は終端の更新でintentsから外れることで確かめる、P3-NL-AC05）",
         "evidenceRefs": [
           "AGENTS.md:26 «2c223bbb66635b53»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «b7e8914d276157dd»",
@@ -558,7 +558,7 @@
       },
       {
         "id": "P3-C3B-AC08",
-        "requirement": "入力の直前の通知期限の回収（P3-C3B-INTENT-RECLAIM=A、作者要望）: 製品の見え方は、壁時計が遅れていても、期限切れの通知予約が新しい地震の通知を妨げないこと（spec:989の「満杯時は期限切れを先に回収する」をowner 3本の配置で守る）。publisherはparser入力をownerへ送る直前に、その入力の実行場所のunitのpending intentのうちwallまたはmonotonicで期限を過ぎたもの（送出中の更新と予約のintentは除く。reclaimExpiredと同じ判定）をexpiredの更新として先に送り、ownerはその更新を受信より先に適用する。その更新が更新枠の使用中で保留されたら、その実行場所の保留中の更新が送出されるまでその入力の送出を遅らせる（mailboxのin-flightのまま。AC01の未完了要求の送出時刻は実際の送出で記録する。停止したownerの実行場所の遅らせた入力はAC02でin-flightとして外す）。期限を過ぎたintentが無ければ要求を足さない。tickごとの回収（入力が無くても1秒以内）、試行開始時の期限の照合、他unitの期限を入力の到着で前倒ししないこと（P3-C3A-DEADLINES=A）は変えない。owner・unit・OwnerRequest・OwnerReplyの型とP3-C3A-RES-09の要求の上限は変えない。費用はAC07のとおり、入力1件につきそのunitのpending intent（最大128件）の1回の走査。C3aのAC11(c)のD3（通知期限の受信前回収をしない）を本ACで置き換える（P3-C3B-P2-CLAUSES）",
+        "requirement": "入力の直前の通知期限の回収（P3-C3B-INTENT-RECLAIM=A、作者要望）: 製品の見え方は、壁時計が遅れていても、期限切れの通知予約が新しい地震の通知を妨げないこと（spec:989の「満杯時は期限切れを先に回収する」をowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の配置で守る）。publisherはparser入力をownerへ送る直前に、その入力の実行場所のunitのpending intentのうちwallまたはmonotonicで期限を過ぎたもの（送出中の更新と予約のintentは除く。reclaimExpiredと同じ判定）をexpiredの更新として先に送り、ownerはその更新を受信より先に適用する。その更新が更新枠の使用中で保留されたら、その実行場所の保留中の更新が送出されるまでその入力の送出を遅らせる（mailboxのin-flightのまま。AC01の未完了要求の送出時刻は実際の送出で記録する。停止したownerの実行場所の遅らせた入力はAC02でin-flightとして外す）。期限を過ぎたintentが無ければ要求を足さない。tickごとの回収（入力が無くても1秒以内）、試行開始時の期限の照合、他unitの期限を入力の到着で前倒ししないこと（P3-C3A-DEADLINES=A）は変えない。owner・unit・OwnerRequest・OwnerReplyの型とP3-C3A-RES-09の要求の上限は変えない。費用はAC07のとおり、入力1件につきそのunitのpending intent（最大128件）の1回の走査。C3aのAC11(c)のD3（通知期限の受信前回収をしない）を本ACで置き換える（P3-C3B-P2-CLAUSES）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:989 «203b7c52af102513»",
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
@@ -596,7 +596,7 @@
         "referenceIds": [
           "P3-C3B-AC01"
         ],
-        "behavior": "止めたworkerでの検出（計画:61）。tsc後のdistのowner 3本を使うstartP2Hostで、試験側のnode:worker_threadsのvi.mockが、deferredのWorkerだけをtest/execution-lifecycle/の試験用のwrapper entryで生成する（製品に注入口を足さない）。SharedArrayBufferはdeferredのWorkerのworkerDataに1 keyを足して渡し、wrapper entryは本物のowner entryを読み込む前にそのkeyをworkerDataから消し（postMessageで渡すとownerのlistenerにも届き、未知のkindとしてownerが落ちる）、parentPortへ受信のlistenerを1つ足す。試験がSharedArrayBufferに印を立てると、次の受信でそのlistenerがAtomics.waitによりownerのthreadを実際に塞ぐ。setInterval・clearIntervalだけを偽にし（setTimeoutは本物）、注入時計を1 tickに1秒ずつ進め、塞いでいないownerのdeadlineDoneが届くのを待ってから次のtickへ進む。塞いで5 tick後に/healthzとheartbeatがunresponsiveになり、owner由来のWARNはowner.deferredとowner.deferred.responseだけ（mailboxの述語の分［component mailbox］は別に出てよい）で、その間のVXSE43は/snapshotに出る（ownerのthreadが塞がっている間もpublisherのtickが回る）。印を戻してAtomics.notifyで塞がりを解くと、ownerの返信でhealthyに戻る。stop()の後にowner threadが0"
+        "behavior": "止めたworkerでの検出（計画:61）。tsc後のdistのowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕を使うstartP2Hostで、試験側のnode:worker_threadsのvi.mockが、deferredのWorkerだけをtest/execution-lifecycle/の試験用のwrapper entryで生成する（製品に注入口を足さない）。SharedArrayBufferはdeferredのWorkerのworkerDataに1 keyを足して渡し、wrapper entryは本物のowner entryを読み込む前にそのkeyをworkerDataから消し（postMessageで渡すとownerのlistenerにも届き、未知のkindとしてownerが落ちる）、parentPortへ受信のlistenerを1つ足す。試験がSharedArrayBufferに印を立てると、次の受信でそのlistenerがAtomics.waitによりownerのthreadを実際に塞ぐ。setInterval・clearIntervalだけを偽にし（setTimeoutは本物）、注入時計を1 tickに1秒ずつ進め、塞いでいないownerのdeadlineDoneが届くのを待ってから次のtickへ進む。塞いで5 tick後に/healthzとheartbeatがunresponsiveになり、owner由来のWARNはowner.deferredとowner.deferred.responseだけ（mailboxの述語の分［component mailbox］は別に出てよい）で、その間のVXSE43は/snapshotに出る（ownerのthreadが塞がっている間もpublisherのtickが回る）。印を戻してAtomics.notifyで塞がりを解くと、ownerの返信でhealthyに戻る。stop()の後にowner threadが0"
       },
       {
         "testId": "P3-C3B-T03",
@@ -605,7 +605,7 @@
           "P3-C3B-AC02",
           "P3-C3B-AC03"
         ],
-        "behavior": "distのowner 3本で、setInterval・clearIntervalだけを偽にし（setTimeoutは本物）、注入時計を1 tickに1秒ずつ進める。vi.mockの包みでVPWP50のinputDoneを保留してから、包みが握ったdeferredのWorkerをterminateする（本物の停止で、in-flightが必ず1件ある）。プロセスは例外で止まらず、snapshot・heartbeat・/healthzのworkerがstoppedになり、ERROR ownerStopped（count 1）が1件入る。その後のVXSE43は/snapshotに出て、次のVPWP50はmailboxに入らずWARN ownerStopped（component owner.deferred、inputId付き）が1件残り、件数の行は出ず、U-Fのviewは停止前のまま。stop()の要約はcode 3で、stageResultsはmailboxDrainだけがfailed（ownerStopped）、他の段はcompletedでdeadlineExceededが0、inFlightInputsが1・pendingInputsが0、reasonsにmailboxDrain:failed:ownerStopped・mailboxDrain:remainingInputs・finalCheckpoint:unsavedUnitsが残る。ディスク上のshutdown-summary.jsonのreasonsにも同じ理由が残る（shutdown incompleteに潰れない）。stop()の後にowner threadが0"
+        "behavior": "distのowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕で、setInterval・clearIntervalだけを偽にし（setTimeoutは本物）、注入時計を1 tickに1秒ずつ進める。vi.mockの包みでVPWP50のinputDoneを保留してから、包みが握ったdeferredのWorkerをterminateする（本物の停止で、in-flightが必ず1件ある）。プロセスは例外で止まらず、snapshot・heartbeat・/healthzのworkerがstoppedになり、ERROR ownerStopped（count 1）が1件入る。その後のVXSE43は/snapshotに出て、次のVPWP50はmailboxに入らずWARN ownerStopped（component owner.deferred、inputId付き）が1件残り、件数の行は出ず、U-Fのviewは停止前のまま。stop()の要約はcode 3で、stageResultsはmailboxDrainだけがfailed（ownerStopped）、他の段はcompletedでdeadlineExceededが0、inFlightInputsが1・pendingInputsが0、reasonsにmailboxDrain:failed:ownerStopped・mailboxDrain:remainingInputs・finalCheckpoint:unsavedUnitsが残る。ディスク上のshutdown-summary.jsonのreasonsにも同じ理由が残る（shutdown incompleteに潰れない）。stop()の後にowner threadが0"
       },
       {
         "testId": "P3-C3B-T04",
@@ -622,7 +622,7 @@
         "referenceIds": [
           "P3-C3B-AC03"
         ],
-        "behavior": "helperと注入時計で、spec:2072の終了の場合を確かめる。(1) 通常: 段の順のとおりに進み、全unitの最終世代のackの後に要約を記録し、その後でowner 3本がexitする。code 0 (2) 保存不能（U-Wの最終保存がENOSPC）: code 2、U-EとU-Fは保存される (3) worker停止: 終了前にdeferredが停止（in-flightあり）。収束の段はそのin-flightを待たずにfailed（ownerStopped）、deferredへshutdownInput・finalizeが送られず、code 3、reasonsにunsavedUnitsも残る (4) 終了の開始時にweatherCurrentがunresponsive（deadline要求の処理中に塞がり、in-flightの入力も書込み権も無い）: FINALIZE-UNHEALTHY=Aでは(2)・(4)の待ちから外れ、U-EとU-Fは最終保存され、U-Wは未保存でcode 2、副作用固定の段は5秒を待たない（=Bなら(2)で段の期限5秒を待ち、段はdeadlineExceeded、全unit未保存でcode 2） (5) 書込み権を持ったままdeferredが停止する: 最終保存の段は開始時に終わってfailed（ownerStopped）、全unitが未保存でcode 2、段の上限10秒を待たない。書込み権を持ったままweatherCurrentが応答しない場合も同じ（=Aの場合。=Bなら最終保存の段は書込み権を待って10秒でdeadlineExceeded、全unit未保存でcode 2） (6) 収束の段が6秒かかり（urgentのin-flightの保留）、その間idleで要求の無かったdeferredは、副作用固定の段の開始時に除外されず、最終保存される (7) 終了中の遅いack・batch残存は既存P2-A3-T06の期待のまま。各段は開始上限を超えるとdeadlineExceededになり、前段の超過を後段に足さない。ownerのexitを5秒より長く保留するとcode 4でreasonsにremainingWorkers"
+        "behavior": "helperと注入時計で、spec:2072の終了の場合を確かめる。(1) 通常: 段の順のとおりに進み、全unitの最終世代のackの後に要約を記録し、その後でowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕がexitする。code 0 (2) 保存不能（U-Wの最終保存がENOSPC）: code 2、U-EとU-Fは保存される (3) worker停止: 終了前にdeferredが停止（in-flightあり）。収束の段はそのin-flightを待たずにfailed（ownerStopped）、deferredへshutdownInput・finalizeが送られず、code 3、reasonsにunsavedUnitsも残る (4) 終了の開始時にweatherCurrentがunresponsive（deadline要求の処理中に塞がり、in-flightの入力も書込み権も無い）: FINALIZE-UNHEALTHY=Aでは(2)・(4)の待ちから外れ、U-EとU-Fは最終保存され、U-Wは未保存でcode 2、副作用固定の段は5秒を待たない（=Bなら(2)で段の期限5秒を待ち、段はdeadlineExceeded、全unit未保存でcode 2） (5) 書込み権を持ったままdeferredが停止する: 最終保存の段は開始時に終わってfailed（ownerStopped）、全unitが未保存でcode 2、段の上限10秒を待たない。書込み権を持ったままweatherCurrentが応答しない場合も同じ（=Aの場合。=Bなら最終保存の段は書込み権を待って10秒でdeadlineExceeded、全unit未保存でcode 2） (6) 収束の段が6秒かかり（urgentのin-flightの保留）、その間idleで要求の無かったdeferredは、副作用固定の段の開始時に除外されず、最終保存される (7) 終了中の遅いack・batch残存は既存P2-A3-T06の期待のまま。各段は開始上限を超えるとdeadlineExceededになり、前段の超過を後段に足さない。ownerのexitを5秒より長く保留するとcode 4でreasonsにremainingWorkers"
       },
       {
         "testId": "P3-C3B-T06",

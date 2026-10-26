@@ -9,7 +9,8 @@
 | 実行場所 | 持つもの |
 |---|---|
 | publisher（Node main） | 接続（C2）・振り分け・mailbox・snapshot・SSE・通知 adapter・健康状態。checkpoint の書込み権の配分と、各 worker の停止監視（C3b） |
-| 急ぐ unit の worker | U-E。以後の急ぐ unit の置き場は各 unit 契約で決め、急がない unit と同居させない |
+| 急ぐ unit の worker | U-E・U-T・U-N・U-V。以後の急ぐ unit の置き場は各 unit 契約で決め、急がない unit と同居させない |
+| U-Q の worker | U-Q（実行場所 seismic。作者裁定 P3-SP-D-PLACE＝A〔2026-10-26〕、P3-SEISMIC-PLACE-001） |
 | U-W の worker | U-W |
 | 急がない unit の worker | U-F と以後の急がない unit |
 

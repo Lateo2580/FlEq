@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "acc965daf443ca4dfddd49bbf2d567fe29d6822090cc96a0e0692f8a188b2314",
+    "sha256": "c50eb5d3e050165fc36177e5a8b149cabc649cd46d003886924b1e4184ed2548",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -914,7 +914,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1089 «7d583246228571ea»",
           "docs/specs/reconstruction-p0-contracts.md:1092 «50f730793bf26903»",
           "docs/specs/reconstruction-p0-contracts.md:1098 «623c7cfd74054e54»",
-          "reconstruction/src/host/host.ts:330 «5c0ae1a90804b159»",
+          "reconstruction/src/host/host.ts:331 «5c0ae1a90804b159»",
           "reconstruction/src/mailbox/mailbox.ts:48 «09594f159c8c0552»"
         ]
       },
@@ -953,7 +953,7 @@
         "requirement": "urgentでの干渉の報告（台帳63、計画:79の共通条文）: urgentで最も長い非中断処理（最大VTSE41・最大VTSE51のdecode＋reduce、最大U-Tのcheckpoint encode）の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではなく、Piの確認はC6。U-T同居後のEEWの正式E01はC4の結果を流用せず、spec:1129の母集団4（P4/P5）まで無いことを報告に明記する。あわせて、P3-C5-WRITE-RIGHTの(2)（urgentが入力を処理している間にU-E・U-Tの権が出ない時間）と(6)（受信前回収で、U-Tの保留中のintent更新がurgentのEEW入力の送出を遅らせた回数と遅れ）もMacで報告する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
-          "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
+          "reconstruction/contracts/p3-order-plan.md:198 «1b569de66cbf27e2»",
           "docs/specs/reconstruction-p0-contracts.md:1129 «bd2f411aa451df51»"
         ]
       },

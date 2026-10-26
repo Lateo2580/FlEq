@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "58a6e86036b61685c32246ea32a1b2114eb9bcf8be59e142ab93c7075009a1b0",
+    "sha256": "5ea28b7369dbbdc4552582e770c83cfb370f8e18d9c7abd9ec4a9f8adc435bb2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -23,7 +23,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定（2026-10-22、ご主人）: A（U-Q・U-M・U-T の器を印の分だけ広げる）",
-        "reason": "利用者から見た違い: B では、大きな地震・津波が続いた日に保存の器が埋まると、古い地震（U-Q）・古い地域の短い情報（U-M）・古い津波の観測点（U-T）が、印の分（地震は器の約 2%、津波は最悪で約 1 割）だけ今より早く画面から消える。A では消える時期は今と同じで、その日の保存が同じ分だけ大きくなる。U-T・U-Q は EEW と同じ urgent の worker（unit-coverage.ts:16）で保存するので、その encode が長くなり、EEW の保存の待ちがその分延びうる（Pi では未測。EEW の待ちは最長 1 秒で打ち切る、AC07）。ふだんの日の画面と音はどちらでも変わらない。推奨の理由: 作者は K7 で同じ問いに「器を印の分だけ広げ、最悪の場合まで守る」と裁定した（p3-order-plan.md:556 の U-Q、:558 の U-R・U-M）。§7 の 2 の作者裁定は EEW と津波を全部守る範囲に入れた（p3-persist-premises.md:384）。§4.4 の「U-T の 4 MiB の byte は変えない」（:274）は、印の分を知る前に観測点の上限について統合担当が出した推奨で、A に決まったので、K12 はこの器から始める。終端 intent の予算（TERMINAL_BYTES 98,304〜131,072）を外す unit（U-N・U-V・U-L・U-R・U-B）は器が空くが縮めない（縮めると上界の試験の値だけが変わり、得るものが無い）"
+        "reason": "利用者から見た違い: B では、大きな地震・津波が続いた日に保存の器が埋まると、古い地震（U-Q）・古い地域の短い情報（U-M）・古い津波の観測点（U-T）が、印の分（地震は器の約 2%、津波は最悪で約 1 割）だけ今より早く画面から消える。A では消える時期は今と同じで、その日の保存が同じ分だけ大きくなる。U-T・U-Q は EEW と同じ urgent の worker（unit-coverage.ts:16。〔P3-SEISMIC-PLACE-001 で U-Q は seismic へ移した〕）で保存するので、その encode が長くなり、EEW の保存の待ちがその分延びうる（Pi では未測。EEW の待ちは最長 1 秒で打ち切る、AC07）。ふだんの日の画面と音はどちらでも変わらない。推奨の理由: 作者は K7 で同じ問いに「器を印の分だけ広げ、最悪の場合まで守る」と裁定した（p3-order-plan.md:556 の U-Q、:558 の U-R・U-M）。§7 の 2 の作者裁定は EEW と津波を全部守る範囲に入れた（p3-persist-premises.md:384）。§4.4 の「U-T の 4 MiB の byte は変えない」（:274）は、印の分を知る前に観測点の上限について統合担当が出した推奨で、A に決まったので、K12 はこの器から始める。終端 intent の予算（TERMINAL_BYTES 98,304〜131,072）を外す unit（U-N・U-V・U-L・U-R・U-B）は器が空くが縮めない（縮めると上界の試験の値だけが変わり、得るものが無い）"
       },
       {
         "id": "P3-NL-D-CANCEL-EPICENTER",
@@ -564,7 +564,7 @@
           "reconstruction/src/runtime/composition-root.ts:1287 «1b64bc661b7d9952»",
           "reconstruction/src/runtime/composition-root.ts:1551 «d0c6b666cf0da5ef»",
           "reconstruction/src/runtime/composition-root.ts:1560 «5f3fb69d10113811»",
-          "reconstruction/contracts/p3-execution-split.json:685 «01bbf43432707189»",
+          "reconstruction/contracts/p3-execution-split.json:685 «1ab394f0d4c773d9»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:457 «d78d3e35ad31be60»",
           "reconstruction/src/checkpoint/checkpoint.ts:530 «cc329d3ed1170794»",
           "reconstruction/src/checkpoint/checkpoint.ts:545 «68cf5e887e2364da»",
@@ -704,7 +704,7 @@
         "requirement": "受信経路の計算量（AGENTS.md、Q-NL-COST）: 照合は受信した系列の印 1 件の参照と O(1) の比較。版の鍵の digest は受理 1 回に 1 回。fragment の鍵は受けた fragment の大きさに比例。U-E の印は EventID の Map で引き、2,048 件を越える採用と、採らずに通知だけする取消の印の追加（AC04 の (5)、印が満杯の日）だけ、捨てる印を線形に 1 回探す（上限のある稀な一括処理、上限 2,048）。印の byte は記録ごとの加算で数え、state 全体の JSON 化を足さない。保存 ack の判定は予約ごとに mirror との比較 1 回。H39 の欄は診断の行の数だけの加算",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:128 «f1d4b5d6501fb72c»",
-          "reconstruction/src/runtime/unit-coverage.ts:16 «58338bff75f92aac»"
+          "reconstruction/src/runtime/unit-coverage.ts:16 «d322b87ac6931d20»"
         ]
       },
       {
@@ -766,7 +766,7 @@
           "reconstruction/contracts/p3-eew-gate-evict.json:219 «e50c23af5cc04e51»",
           "reconstruction/contracts/p3-execution-split.json:101 «190e19f50d0dfb4c»",
           "reconstruction/contracts/p3-execution-split.json:661 «2a18ac2c08cf011c»",
-          "reconstruction/contracts/p3-execution-split.json:685 «01bbf43432707189»",
+          "reconstruction/contracts/p3-execution-split.json:685 «1ab394f0d4c773d9»",
           "reconstruction/contracts/p2-notification-delivery.json:124 «d06358d395cf76e1»",
           "reconstruction/contracts/p2-notification-delivery.json:481 «61b61e180de1814d»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «7c601648697d31b3»",
@@ -1005,7 +1005,7 @@
         ],
         "resolveBy": "配送の後（Pi の実測）。配送の記録で作者に報告する",
         "requiredEvidence": [
-          "Pi での U-E・U-T の保存の ack までの時間と、同じ urgent の worker で U-Q・U-N の encode の後ろに並ぶときの待ち（設計メモ §9 :469、§7 の 7 の「K8 の配送の段で Pi の遅れを測って報告する」）",
+          "Pi での U-E・U-T の保存の ack までの時間と、同じ urgent の worker で U-Q・U-N の encode の後ろに並ぶときの待ち〔P3-SEISMIC-PLACE-001 で U-Q は seismic へ移した〕（設計メモ §9 :469、§7 の 7 の「K8 の配送の段で Pi の遅れを測って報告する」）",
           "1 秒（置き値）を短くするかの判断材料"
         ]
       },

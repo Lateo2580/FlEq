@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "86ffc006db506379b1ff3babefe1aa0e615fb7eb88933ac0a214f5b776c9a5fe",
+    "sha256": "3f2aeb018ae526b2a8dc4e35957868e50bc81bf607c9754d7894415f1966185f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -453,10 +453,10 @@
         "id": "P3-EF-AC01",
         "requirement": "【発注 1】根拠の状態の受け渡し（K9 の申し送り P3-CK-AC08 の (6)、設計メモ §14 の :524、Q-EF-BASIS-SHAPE）: (1) SentClock（p3-execution-split.types.ts:49）に basis: WallBasis を足し、publisher は post（composition-root.ts:486）で、その要求の clock と同じ時点の根拠を入れる (2) 根拠は CompositionOptions に足す contentBasis?: (at: ClockReading) => WallBasis から読む（省略は \"verified\"）。host は締切の印を反映しない生の確かめの状態（host.ts:129 の wallBasis、保存の境界の basis と同じ）を渡す（host.ts:175 の隣）。通知用の options.wallBasis は使わない（無いと: 起動から 30 秒の内に確かめられなかった run では、後で確かめても run の終わりまで \"unverified\" のままで回収できない） (3) owner-host は要求ごとに base（owner-host.ts:82）に basis を持ち、その要求で作る unit の入力に入れる。時計と違って外挿しない（送った時点の根拠のまま。替わった根拠は次の要求で効き、毎秒の期限要求〔composition-root.ts:914〕があるので遅れは最長 1 tick） (4) 12 unit の入力の型の receive・deadline・restore・shutdown に basis?: WallBasis を足す（省略は \"verified\"。owner-runtime は必ず入れる。finalize の期限は finalize の要求の basis）。intentUpdate には足さない (5) ClockReading・RuntimeUnitDeadline・envelope は変えない（basis は保存しない）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-execution-split.types.ts:49 «95bc0cc1bcd4e648»",
+          "reconstruction/contracts/p3-execution-split.types.ts:51 «95bc0cc1bcd4e648»",
           "reconstruction/src/runtime/composition-root.ts:487 «3224ac866c2cf7a7»",
           "reconstruction/src/host/host.ts:129 «f45693862d044177»",
-          "reconstruction/src/host/host.ts:175 «9befb93275c9ab3e»",
+          "reconstruction/src/host/host.ts:176 «9befb93275c9ab3e»",
           "reconstruction/src/runtime/owner-host.ts:84 «29c77770d392345a»",
           "reconstruction/src/runtime/composition-root.ts:915 «8ae52d9d693e7af3»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:628 «63409c8d5e8c3c17»",
@@ -479,7 +479,7 @@
           "reconstruction/src/runtime/owner-host.ts:190 «5107377988c560af»",
           "reconstruction/src/runtime/owner-runtime.ts:266 «8c7fa7bd91e521b7»",
           "reconstruction/src/runtime/owner-runtime.ts:260 «111a3fe1026e5e73»",
-          "reconstruction/contracts/p3-execution-split.types.ts:126 «e39000aa100184bc»",
+          "reconstruction/contracts/p3-execution-split.types.ts:128 «e39000aa100184bc»",
           "reconstruction/src/runtime/owner-host.ts:143 «95b43a894c5d3f14»",
           "reconstruction/src/units/flood/flood-unit.ts:318 «b6870a370007c3eb»",
           "reconstruction/contracts/p3-clock-check.json:278 «a44ef459ba494e84»"
@@ -639,7 +639,7 @@
         "id": "P3-EF-AC12",
         "requirement": "最小実装・最小テスト: (1) 足す仕組みは、SentClock の basis、CompositionOptions の contentBasis、unit の入力の basis、9 unit の保留の印 expiryPending、U-L・U-R・U-B の expired の記憶の枝、U-F の lapsed、U-M の竜巻の expired と SIGHTED の鍵、U-B の記録雨の subject の形と VPBS50 の記録の eventId・inherited（Q-EF-IMPL-1）、U-V の解説の expiryPending（保存しない）、U-T・U-F の 21 byte の予約、owner-host の直前の要求の根拠（AC02 の (7)）だけ。ほかの型・層・helper・設定・timer を足さない。unit ごとの表示の期限切れと回収は今の collect の中で分ける（共通の helper を足すなら notice-mark.ts と同じく 1 か所に置き、無いと何が壊れるかを 1 行） (2) 試験は testMapping の P3-EF-T01〜T10 に限る。新しい fixture file を足さない（変えた報は試験の中で inline に作る） (3) reconstruction のゲート一式（tsc 3 本・vitest・shuffle・checker 3 本）を通す",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-execution-split.types.ts:49 «95bc0cc1bcd4e648»",
+          "reconstruction/contracts/p3-execution-split.types.ts:51 «95bc0cc1bcd4e648»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:348 «820081ba808211c1»"
         ]
       },

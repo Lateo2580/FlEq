@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "444de1a7cb8a90ecc7cfe150e91d742936508cae",
-    "sha256": "c5a96cc436cb8a3ab3a2b4319e4e9beb1e1f7930af5d443d6415b9ade0cf2188",
+    "sha256": "e8120ec8b0b7fb913135b96d9ee33d685b558d6c6c4ca17130d4e6ea69ddb591",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -272,9 +272,9 @@
           "reconstruction/test/eew-e01/windows.mjs:853 «c8ddee6221b2749b»",
           "reconstruction/test/eew-e01/windows.mjs:920 «9fdf399673b3bbe9»",
           "reconstruction/test/eew-e01/windows.mjs:931 «f2150d22da331800»",
-          "reconstruction/test/eew-e01/p3.test.ts:527 «faa0101f7009913f»",
-          "reconstruction/test/eew-e01/p3.test.ts:540 «f2f67f0ac211fdbb»",
-          "reconstruction/test/eew-e01/run.mjs:202 «4c433595b5674dc8»"
+          "reconstruction/test/eew-e01/p3.test.ts:544 «faa0101f7009913f»",
+          "reconstruction/test/eew-e01/p3.test.ts:557 «f2f67f0ac211fdbb»",
+          "reconstruction/test/eew-e01/run.mjs:204 «4c433595b5674dc8»"
         ]
       },
       {
@@ -285,8 +285,8 @@
           "reconstruction/test/eew-e01/probe-preload.mjs:81 «ef852d3cdb783aa6»",
           "reconstruction/test/eew-e01/probe-preload.mjs:146 «902608b1c11eeca6»",
           "reconstruction/test/eew-e01/probe-preload.mjs:148 «226186f47d027b88»",
-          "reconstruction/test/eew-e01/aux-measures.mjs:549 «9ab3243df5ce8308»",
-          "reconstruction/test/eew-e01/aux-measures.mjs:550 «e40c7e7d4046f079»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:550 «9ab3243df5ce8308»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:551 «e40c7e7d4046f079»",
           "reconstruction/test/eew-e01/windows.mjs:50 «a95cbd5d70e061ec»",
           "reconstruction/test/eew-e01/windows.mjs:884 «343cd93a4923709c»",
           "reconstruction/test/eew-e01/windows.mjs:891 «97e2dc4414c399eb»",
@@ -302,8 +302,8 @@
           "reconstruction/src/runtime/owner-host.ts:123 «a36e13e3cdc3b833»",
           "reconstruction/test/eew-e01/evidence/p3-harness/initial-state.json:397 «228d1f5b6eb24d59»",
           "reconstruction/test/eew-e01/probe-preload.mjs:85 «91469e7116f209bd»",
-          "reconstruction/src/host/host.ts:185 «8eccbc77af0cc99f»",
-          "reconstruction/test/eew-e01/run.mjs:171 «c90fda14b518a2ae»",
+          "reconstruction/src/host/host.ts:186 «8eccbc77af0cc99f»",
+          "reconstruction/test/eew-e01/run.mjs:173 «c90fda14b518a2ae»",
           "reconstruction/test/eew-e01/windows.mjs:927 «ad88bc23b721bcc8»",
           "reconstruction/contracts/p3-e05p-classify.json:111 «65aa39594f59cdc0»",
           "reconstruction/test/eew-e01/windows.mjs:1089 «ef177aff8ba5a40a»",
@@ -350,7 +350,7 @@
           "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-ownerHeap-run1.json:14 «cf3338851aa56f20»",
           "reconstruction/test/eew-e01/evidence/windows/p3-wyl-e05p-20261012/results/aux-ownerHeap-run1.json:169 «70f71f432b49159c»",
           "reconstruction/contracts/p3-e05p-typhoon.json:284 «4eba5b5216b75213»",
-          "reconstruction/src/host/host.ts:158 «cb154e750655ef9b»",
+          "reconstruction/src/host/host.ts:159 «ad74a6b1612d26c0»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:310 «0bce41e8e8220b18»"
         ]
       },
@@ -367,10 +367,10 @@
         "id": "P3-E05S-AC07",
         "requirement": "凍結の前の短い予備（統合担当、Mac mini。予備は未確認で、合否にも分類の結論にも使わない）: --preliminary --aux e05s-p-run1,e05s-y-run1 --e02-count 330 --notification real（測定の開始から330秒で、周0の区間〔約300〜321秒〕を含む。予備の通知の既定はsilentなので、正式と同じreal backendを明記する。出力はミュート）で確かめる。(a) 両方の窓で4 threadの行があり、publisherの最後の行とownerのwrittenが測定の終わりに届く（AC02(7)） (b) e05s-yで、周0の上乗せ3通についてP3-E05Y-AC02(6)の①〜⑤が全部通り、診断のjsonl（hostのdirのdiagnostics/）にそのinputIdのWARNが無い。e05s-pで上乗せの送出が0件 (c) 両方の窓で周0の区間が出て、t_pとt_fの行と古さ・busyの印・deferredStatus・gと取り逃しの印が結果にある。周0の区間のdeferredStatusがokでなければ、凍結をいったん止めて作者へ戻す。戻す内容は、okでない区間ごとに、原因の種類（busy・stale・rowsMissing・noPeakEnd）、そのthread、山（t_p）か床（t_f）か、原因のイベント（処理のinputIdとheadType、またはGCの種類と時刻）に固定する。同じ条件のまま凍結へ進むのは、『正式の区間もS0（未確認）になりうることを了承した、続行の裁定』を作者裁定として本契約のquestionResolutionsに記録した後だけ。deferredStatusがokで、ほかのthreadだけがbusy等で区間のstatusが非okなら、凍結へ進んでよい（その事実〔thread・山か床か・原因のイベント〕は報告する。作者裁定B、Q-E05S-PRELIM1） (d) 粗い動作の確認（残存リスク(13)の一括承認で作者が承認した値、Q-E05S-AUTHOR）: e05s-yの周0の区間のmem行の最大RSSが[367.2, 437.5]MiB（TYPHOONの正式の周0の区間の最大387.2〜407.5MiBの下に20・上に30。P3-E05C-PRELIM-BOUNDSと同じ幅）に入り、両方の窓のE02のp99が7.4ms（TYPHOONの正式の6窓の失効の前のp99の最大3.72ms×2）以下。この線は窓が大きく外れていないことを見るだけで、分類できるかの確かめではない。分類できるかは正式の窓で、AC02(4)(5)の標本の条件（busy・staleが無い）と、AC05(3)の比較元で分類が変わらず、取り逃しの未確定が無いことで確かめる（予備の対照は1つなので(3)は見られない）。(a)(b)(d)の前提が外れたら凍結せず作者へ報告する（計画§4.3のNO-GOの扱い）",
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/run.mjs:1707 «adc008712a5092a6»",
+          "reconstruction/test/eew-e01/run.mjs:1742 «adc008712a5092a6»",
           "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05y-P-run3.json:137 «800e3564d6680905»",
           "reconstruction/test/eew-e01/evidence/windows/p3-e05y-20261013/results/aux-e05-P-run3.json:404 «8ccedf5453507440»",
-          "reconstruction/test/eew-e01/run.mjs:1561 «18a541ffa699a1f9»"
+          "reconstruction/test/eew-e01/run.mjs:1595 «18a541ffa699a1f9»"
         ]
       }
     ],

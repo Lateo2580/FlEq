@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "51126c12b78f8f6b01195eb34b351f2d921dc8ebf0fc2c1d4b767a84deea357a",
+    "sha256": "0ca9f3bc7e07fece08283b956d208500eaaaf8d68f3b5a0a6daa5aec0eda2724",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -358,7 +358,7 @@
         "evidenceRefs": [
           "reconstruction/tools/corpus/rest-acquisition-plan.md:14 «0635a379cd998b36»",
           "reconstruction/tools/corpus/rest-acquisition-plan.md:105 «9246e0ccbfd9be76»",
-          "reconstruction/test/execution-split/owner-harness.ts:223 «200f1519f14186b0»",
+          "reconstruction/test/execution-split/owner-harness.ts:222 «200f1519f14186b0»",
           "reconstruction/src/runtime/unit-coverage.ts:36 «42405ed0619f5257»",
           "reconstruction/src/runtime/unit-coverage.ts:37 «4c96b3a5f6fb6ab2»"
         ]
@@ -378,10 +378,10 @@
         "id": "P3-DC-AC03",
         "requirement": "1段目の流し手（P3-DC-CLOCK）: (1) owner-harnessのharnessedRootに、仮想時計（clock）・観測の表（runtimeCalls.units）・displayのpublish（snapshotを受ける）・onMeasurements（保存のencodeのbytes）・必ず成功するメモリの保存のfile system・診断のfile system（fake）・即時にdeliveredを返す通知のadapterを渡してcomposition rootを作り、startHarnessで起動する。保存の失敗か再試行の予定が1件でも出たらblocked（checkpointFailed）で止める。製品のsetTimeout・clearTimeoutはfake timersにして仮想時計と同じ時刻で発火させ、timerのcallbackが呼んだtickもその時刻でsettleを終えてから先へ進む (2) tickはrunの始まりからの1秒の格子でだけ呼び、呼ぶたびにsettleまで待つ。何も来ない格子は飛ばしてよく、次のtickは次のframe・ownerのstateの期限・fake timersの次の満了のうち最も早い時刻以上の最初の格子（保存がすべて成功している前提。保存の再試行の時刻は飛ばし先に入れない）。frameは途中の格子を済ませてから時刻順にsubmitで入れてsettleまで待ち、入力の前にtickを足さない（受信の直前の回収は製品の規則のまま） (3) 1筋書き1 run、空のstateから始める（W2・N3は筋書きの中で前の日を流して作る） (4) 外部の採取物と大きい筋書きは、vitestのdescribe.runIf(process.env.FLEQ_DISASTER === \"1\")の口から、FLEQ_DISASTER_SCENARIO・FLEQ_DISASTER_DATA・FLEQ_DISASTER_DIGEST・FLEQ_DISASTER_OUTで走らせる。その試験のtimeoutはP3-DC-RES-01に余裕を足した値にし、予算を越えたら流し手が自分で止めてblocked（timeBudget）の結果のfileを書いてから終える（vitestのtimeoutで落ちて結果が無い状態にしない）。製品のsrcとowner-harness.tsは変えない。無いと: tickの期限要求が未返信のまま時計だけが進んで間の期限処理が省かれ、また8日の筋書きを1秒ごとに回すと所要が予算を越える",
         "evidenceRefs": [
-          "reconstruction/test/execution-split/owner-harness.ts:77 «3ac72961d4286306»",
-          "reconstruction/test/execution-split/owner-harness.ts:214 «080b090c4cb3ca1a»",
-          "reconstruction/test/execution-split/owner-harness.ts:234 «fd7c80ca051f2f9d»",
-          "reconstruction/test/execution-split/owner-harness.ts:73 «92d485f6dffa61d6»",
+          "reconstruction/test/execution-split/owner-harness.ts:76 «3ac72961d4286306»",
+          "reconstruction/test/execution-split/owner-harness.ts:213 «080b090c4cb3ca1a»",
+          "reconstruction/test/execution-split/owner-harness.ts:233 «fd7c80ca051f2f9d»",
+          "reconstruction/test/execution-split/owner-harness.ts:72 «92d485f6dffa61d6»",
           "reconstruction/src/runtime/composition-root.ts:897 «58f0aecdcdb34121»",
           "reconstruction/src/runtime/composition-root.ts:898 «39f404990b4c2ef9»",
           "reconstruction/src/runtime/composition-root.ts:899 «71f3e73d73b564c2»",
@@ -414,12 +414,12 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:22 «1cf52d92e0ca7cdd»",
           "reconstruction/src/runtime/composition-root.ts:127 «9a24c78389b3cc16»",
           "reconstruction/src/runtime/composition-root.ts:1489 «90b8604c422c63fa»",
-          "reconstruction/contracts/p3-execution-split.types.ts:95 «a2f6e82ae720f68e»",
+          "reconstruction/contracts/p3-execution-split.types.ts:97 «a2f6e82ae720f68e»",
           "reconstruction/src/domains/weather-current/weather-current.ts:477 «08eda6d3c0cd84ce»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:280 «fb853f496e34fbb6»",
           "reconstruction/src/view-projector/view-projector.ts:904 «0f29de6d3afeedc3»",
           "reconstruction/src/view-projector/view-projector.ts:906 «c42a191089542248»",
-          "reconstruction/src/measurement/eew-e01/frozen.ts:722 «64ef77c780d16b32»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:749 «64ef77c780d16b32»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:189 «49bd7937eeae2033»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:262 «f058e3a180f89e0c»"
         ]
@@ -428,7 +428,7 @@
         "id": "P3-DC-AC05",
         "requirement": "照合（P3-DC-ORACLE、D2=A）: 正しい現況を作り直さない。(1) 観測の表でlinkedUnitTableの12 unitのreduceを結果を変えずに包み、stepごとに数える (2) 容量の欠け: stepのdiagnosticsに容量の退去のreason（P3-DC-ORACLE (3)の表）があるとき、そのunitのtoViewを前のstateとstep.stateで作り、全unit共通のUnitView.subjectsのsubjectが前にあって後に無いものを候補にする。候補のうち、後のstateの記録（intentと終端記録の欄を除く）にsubjectかsource.subjectがその値の要素が無いものだけを、subject・unit・運用区分・退去の時刻・入力・reason・本来の期限とともに容量の欠けとして記録し、後で期限が来ても消さない（後のstateに記録が残る解除・forecastEnded・取消は欠けではない）。normalで本来の期限が無いか退去の時刻より後のものを欠けに数える。容量の欠け0は、保存した現況全体（記憶・非active・非normal）が欠けていない保証ではない (3) 合成のframeの入力の結果を、採用・容量の拒否・不正に分ける。容量の拒否（decisionのcapacityExceeded、またはchangedでU-W・U-Fのunavailableの印）は入力単位の拒否として数えて後続を流し、筋書きをFailにする。不正（reduceが無い、容量以外のrejected、明示していないunchanged）だけを測定不成立（blocked、inputNotAdopted）としてrunを止める。実電文の不正は数えて報告する (4) 終わりの状態はP3-DC-SCENARIOSの手書きの期待例だけを、その時刻のstateとviewで確かめる。外れたら欠け。無いと: 区切りの間に退去して後で期限も過ぎた地震を見逃し、正しい解除や製品の正しい保持（津波の観測点の累積、U-Fの7日の回収）を欠けと誤り、測りたい容量の拒否で測定が止まり、合成の電文が不正のまま負荷不足を測ったことに気づかない",
         "evidenceRefs": [
-          "reconstruction/test/execution-split/owner-harness.ts:263 «bebbf0ef2ede7d75»",
+          "reconstruction/test/execution-split/owner-harness.ts:262 «bebbf0ef2ede7d75»",
           "reconstruction/contracts/p3-unit-table.types.ts:26 «4a372479f4cdc901»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:192 «a763b418a1d2365e»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:299 «6937a8c8bda3acaa»",

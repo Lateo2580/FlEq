@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "513fa6ef0c555909e79e1c558e8911f553980fee",
-    "sha256": "23f9b4ab90c5cc7325aeecf2a0ee75118d1fcf41e3fdd965160996b40cf6fd12",
+    "sha256": "c8a4bb9bf860e6de702b591b800fad6d2db6d06e317293c6096622f4c5a9b7e0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -241,14 +241,14 @@
         "requirement": "確かめの規則（host、Q-CK-RULER、作者裁定の案A）: (1) 確かめ: hostは、形の正しいstart（P3-C2-AC05の判定）のtimeがP3-LIFE-AC13の形の検査を通るときと、RESTの確かめ（(2)）の応答にDateがあるときに、Q-CK-RULERのS・G・dで1回確かめる。要求の直前にmonotonic Rとwall Wrを読み、受けた瞬間のMとWmで (Wm−Wr)−(M−R)＞1,000 ms（置き値。R〜Mの間の休止かwallの飛び）のもの、G＝max(M−R, Wm−Wr)（秒の小数が無ければ＋1,000 ms）が5,000 msを越えるもの、時刻の読めないものは確かめにしない。P3-LIFE-AC13の診断は今どおり (2) RESTの確かめ（{ dmdata }の構成だけ。尋ねる頻度は作者裁定「下げる」、回数は統合担当の決め・置き値）: hostの1秒のtick（host.ts:402）の中で、状態が\"verified\"でなく、RESTの確かめの途中でなく、停止中でないときだけ、listSockets(apiKey, \"open\", halt.signal)を1回呼ぶ。起動の30秒の間はT0＋15,000 ms以後に最大1回、30秒の後は、起動の30秒の締切（T0＋30,000 ms）と最後の確かめの問い合わせの遅いほうから600,000 ms以後に1回（10分に最大1回）。数えるのは接続の試行の外の、\"waiting\"と対でないlistSockets(\"open\")だけ（接続の試行の中の対の呼び出し、host.ts:328は別）。\"verified\"の間は呼ばない。結果は確かめにだけ使い、接続の処理には使わない。失敗・Dateが無い・401/403は確かめにならず、診断も足さない。停止（ヘルツr7のP2）: 応答待ちのRESTの確かめのPromiseは、接続の片付けの待ち合わせ（host.ts:431の進行中の接続の試みと並べて待つ。停止要求＋30秒の期限とhalt.signalの打ち切りは今のまま、p3-dmdata-connect.json:289）に含め、決着してからstop()が返る。停止を始めた後に届いた結果は確かめに数えず、次の問い合わせも通知の試行の開始も起こさない (3) 根拠の状態: 最新の確かめが合ったなら\"verified\"。そうでなければ、hostが見た最新の読み（hostの読みと、options.wallBasisに渡された時計のうちmonotonicの最大）が T0＋30,000 ms（T0はstartRuntimeに渡したclock()のmonotonic、host.ts:162）より前なら\"awaiting\"、以後は\"unverified\"。締切の前の合わない確かめは\"awaiting\"のまま（停電の後のPiは、NTPが直した後のRESTの確かめで合いうる）。\"verified\"は次の確かめ（再接続のstartかREST）で合わなければ替わる。確かめと確かめの間に手元の時計が飛んでも、次の確かめまで\"verified\"のまま（残存リスク(2)）。後の読みで物差しを外挿しない (4) hostは時計を差し替えない: 自分の中の時計の使い方とcomposition rootのoptions.clockは今のconfig.clockのまま。options.wallBasisに(3)を渡す (5) 締切の印（ヘルツr5のP2-4・r6のP2）: hostは、見た最新の読みのmonotonicがT0＋30,000 ms以上になったとき、Mが T0＋30,000 msより前の合う確かめが一度も無ければ締切の印を立て、runの終わりまで下ろさない。印は確かめのM（受けた時）で決め、評価の時刻によらない。composition rootへは options.clockDeadlineMissed?: () => boolean で渡す（省略はfalse）。読む順: publisherは1つの判定で、まずoptions.wallBasis(その時の時計)を呼び（hostが今の観測で締切の履歴を更新する）、次にclockDeadlineMissed()を読み、印を状態より先に見る。publisherが過去の時計（結果のcompletedAtなど）を渡しても、hostの見た最新の読みは戻らず、確かめの履歴も遡って変わらない。無いと: 締切の後に来た確かめで、30秒までに確かめられなかった前回の通知を鳴らす (6) 根拠の3場面（H42）の扱い: 未取得（確かめがまだ、オフライン）は\"awaiting\"から締切で\"unverified\"、無効（合わない・読めない）も同じ、再確認（後の確かめで合う）は\"verified\"に戻るが、それまでに手元の時計で出した期限切れと捨てた通知は戻さない（§7の8）。期限の評価はどの場面でも手元の時計で行う。公開の順序: 状態は確かめのときに替わり、替わった後の最初のpublisherの評価（受信・結果・1秒のtick、composition-root.ts:902の期限要求の直後）と次のframeの受信の材料から効く。新しいtimerと要求の種類を足さない（RESTの確かめは今あるtickと今あるlistSockets）",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:76 «8a9c488c14cd0659»",
-          "reconstruction/src/host/host.ts:175 «9befb93275c9ab3e»",
-          "reconstruction/src/host/host.ts:194 «931e6937468352cc»",
-          "reconstruction/src/host/host.ts:292 «e2f8e9bb145b6578»",
-          "reconstruction/src/host/host.ts:302 «8e840de57295db06»",
-          "reconstruction/src/host/host.ts:347 «24867b05127ea4bf»",
-          "reconstruction/src/host/host.ts:382 «e139b65525bc1d0e»",
-          "reconstruction/src/host/host.ts:403 «99d0301e5b61f93b»",
-          "reconstruction/src/host/host.ts:462 «c1d6a32b12c6ecc5»",
+          "reconstruction/src/host/host.ts:176 «9befb93275c9ab3e»",
+          "reconstruction/src/host/host.ts:195 «931e6937468352cc»",
+          "reconstruction/src/host/host.ts:293 «e2f8e9bb145b6578»",
+          "reconstruction/src/host/host.ts:303 «8e840de57295db06»",
+          "reconstruction/src/host/host.ts:348 «24867b05127ea4bf»",
+          "reconstruction/src/host/host.ts:383 «e139b65525bc1d0e»",
+          "reconstruction/src/host/host.ts:404 «99d0301e5b61f93b»",
+          "reconstruction/src/host/host.ts:463 «c1d6a32b12c6ecc5»",
           "reconstruction/src/host/dmdata-rest.ts:57 «8528c5831f89e6ed»",
           "reconstruction/src/host/dmdata-rest.ts:80 «b0f4cd2e077efab7»",
           "reconstruction/src/runtime/composition-root.ts:915 «8ae52d9d693e7af3»",
@@ -256,9 +256,9 @@
           "reconstruction/contracts/p3-persist-premises.md:400 «84a5747c84adc8cb»",
           "reconstruction/contracts/p3-persist-premises.md:426 «2da899c097a9e079»",
           "reconstruction/src/domains/eew/eew.ts:504 «e304c0a864cd1d0b»",
-          "reconstruction/src/host/host.ts:492 «9b98adf06aff1701»",
+          "reconstruction/src/host/host.ts:493 «9b98adf06aff1701»",
           "reconstruction/contracts/p3-dmdata-connect.json:289 «0a0c074748c205de»",
-          "reconstruction/src/host/host.ts:365 «d8770b1e9f36d4c7»"
+          "reconstruction/src/host/host.ts:366 «d8770b1e9f36d4c7»"
         ]
       },
       {
@@ -303,8 +303,8 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-version-material.json:102 «359d871d22a3869c»",
           "reconstruction/contracts/p3-version-material.json:503 «3f18faa75959f963»",
-          "reconstruction/src/host/host.ts:292 «e2f8e9bb145b6578»",
-          "reconstruction/src/host/host.ts:321 «1769f2d76c5f0cf3»",
+          "reconstruction/src/host/host.ts:293 «e2f8e9bb145b6578»",
+          "reconstruction/src/host/host.ts:322 «1769f2d76c5f0cf3»",
           "reconstruction/contracts/p3-persist-premises.md:144 «2ceab1141412b0f6»"
         ]
       },
@@ -324,7 +324,7 @@
         "id": "P3-CK-AC06",
         "requirement": "受信経路の計算量（AGENTS.md、Q-CK-COST）: 根拠の状態の判定は読み1回に定数で、clock()を呼ぶ回数を増やさない（frameのentryの読みとpublisherの評価の読みを使う）。確かめはstart 1件とRESTの応答1件ごとに定数。RESTの確かめは起動の30秒に最大1回、以後は\"verified\"でない間だけ10分に最大1回。保留の集合の参照は選択と回収のたびにintentごとに1回（全件×全件にしない）。state全体のJSON化を足さない",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:292 «e2f8e9bb145b6578»",
+          "reconstruction/src/host/host.ts:293 «e2f8e9bb145b6578»",
           "reconstruction/src/runtime/composition-root.ts:1000 «1313f91067b382e4»",
           "reconstruction/src/runtime/composition-root.ts:1138 «fbd11fd1af8bd6ec»"
         ]
