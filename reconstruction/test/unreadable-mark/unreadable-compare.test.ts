@@ -9,7 +9,7 @@ import type { TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import type { VolcanoUnitState } from "../../contracts/p3-volcano-unit.types";
 import { briefingUnitCodec } from "../../src/units/briefing/briefing-unit";
 import { floodUnitCodec, toFloodView } from "../../src/units/flood/flood-unit";
-import { reduceVolcanoUnit } from "../../src/units/volcano/volcano-unit";
+import { reduceVolcanoUnit, volcanoUnitCodec } from "../../src/units/volcano/volcano-unit";
 import { compareColumns } from "../../src/units/unreadable";
 import * as B from "../briefing-unit/briefing-fixture";
 import * as R from "../flood-unit/flood-fixture";
@@ -111,6 +111,21 @@ function chainV(edits: readonly ((xml: string) => string)[]): number[] {
   return edits.map((edit, index) => {
     const step = V.send(state, "synthetic_VFVO50_continuation", (xml) => edit(V.retime(rIso(V_START + index * 600_000))(xml)));
     state = step.state;
+    return step.intents.length;
+  });
+}
+
+// U-V の i 番目の報（fixture と写しの組、時刻は i で進む）。restoreAfter の報の後に encode→restore する。
+function chainVolcano(reports: readonly (readonly [string, (xml: string) => string])[], restoreAfter = -1): number[] {
+  let state: VolcanoUnitState = V.emptyState();
+  return reports.map(([name, edit], index) => {
+    const step = V.send(state, name, (xml) => edit(V.retime(rIso(V_START + index * 600_000))(xml)));
+    state = step.state;
+    if (index === restoreAfter) {
+      const restored = volcanoUnitCodec.decode(JSON.parse(JSON.stringify(volcanoUnitCodec.encode(state))) as JsonValue);
+      if (restored.kind !== "restored") throw new Error(restored.reason);
+      state = restored.state;
+    }
     return step.intents.length;
   });
 }
@@ -288,5 +303,27 @@ describe("P3-UNREADABLE-MARK-001 order 2", () => {
       state = V.receive(state, V.decodeFixture("66_01_01_210517_VFVO53", edit), V.clock(t0 + index * 1_000, index * 1_000)).state;
     const flushed = reduceVolcanoUnit(state, { kind: "deadline", clock: V.clock(t0 + 10_000, 10_000) });
     expect(flushed.intents.map((item) => item.payload.body)).toEqual(Array(2).fill("3火山: 桜島、（読めず）、霧島山"));
+  });
+
+  // regression: r2 ヘルツ P2-A（U-V）。区分の変わる VFVO51 は kind を置き換えるので、前の版の kind 名の比べの値を引き継がない。
+  // 列: 10:00 VFVO50（レベル３）→ 10:10 同じ報で kind 名だけ読めない → 10:20 VFVO51（レベル２、解説の通知は鳴る）→ 保存→復元 →
+  // 10:30 VFVO50（直前と同じ公開事実）は鳴らない。
+  it("P3-UM-T04 regression / AC04 (1) (r2): a VFVO51 that replaces the kind does not keep the old kind compare", () => {
+    const facts = (xml: string) => xml
+      .replace(/(<VolcanoInfo type="噴火警報・予報（対象火山）">\s*<Item>\s*<Kind>\s*)<Name>レベル３（入山規制）<\/Name>\s*<Code>13<\/Code>/,
+        "$1<Name>レベル２（火口周辺規制）</Name><Code>12</Code>")
+      .replace(/(<VolcanoInfo type="噴火警報・予報（対象火山）">[\s\S]*?)<LastKind>[\s\S]*?<\/LastKind>/, "$1")
+      .replace(/(<Headline>\s*)<Text>[\s\S]*?<\/Text>/, "$1")
+      .replace(/<VolcanoInfo type="噴火警報・予報（対象市町村等）">[\s\S]*?<\/VolcanoInfo>/, "");
+    expect(chainVolcano([["synthetic_VFVO50_continuation", (xml) => xml], ["synthetic_VFVO50_continuation", inBody("対象火山", "レベル３（入山規制）",
+      "<x/>レベル３（入山規制）")], ["44_01_01_151008_VFVO51", (xml) => xml], ["synthetic_VFVO50_continuation", facts]], 2)).toEqual([2, 0, 2, 0]);
+  });
+
+  // regression: r2 ヘルツ P2-B（U-V）。区域の code が全部読めない版は、空になった区域を新しい要素（code null）として数えない。
+  it("P3-UM-T04 regression / AC04 (2) (r2): an area group whose codes are all unreadable is not a new element", () => {
+    const codes = (xml: string) => xml.replace(/<VolcanoInfo type="噴火警報・予報（対象市町村等）">[\s\S]*?<\/VolcanoInfo>/,
+      (part) => part.replace(/<Code>\d{7}<\/Code>/g, "<Code><x/></Code>"));
+    expect(chainVolcano([["synthetic_VFVO50_continuation", (xml) => xml], ["synthetic_VFVO50_continuation", codes],
+      ["synthetic_VFVO50_continuation", (xml) => xml]], 1)).toEqual([2, 0, 0]);
   });
 });

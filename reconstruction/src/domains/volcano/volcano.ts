@@ -186,10 +186,12 @@ function areaGroups(body: XmlElement | null, part: "対象市町村等" | "対�
       else warn(part, "requiredStructureInvalid", kind);
     }
     const codes: string[] = [];
+    // 読めない code の part の scope は区域（Item）の一覧の中の位置。code が全部読めず空になった区域を、正しく空の区域と見分ける（P3-UM-AC04 (2)）。
+    const at = String(groups.length);
     for (const area of children(item, "Areas").flatMap((areas) => children(areas, "Area"))) {
-      const code = blank(softLeaf(area, "Code", warn, part));
+      const code = blank(softLeaf(area, "Code", warn, part, at));
       if (code == null) continue;
-      if (!asciiCode(code, LIMITS.areaCode)) { warn(part, "requiredStructureInvalid", area); continue; }
+      if (!asciiCode(code, LIMITS.areaCode)) { warn(part, "requiredStructureInvalid", area, at); continue; }
       if (total >= codeLimit) { mark(); continue; }
       codes.push(code);
       total++;

@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { MaterialValue, Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject,
-  RuntimeUnitDeadline, SubjectOutcome, UnreadableMark, WallBasis,
+  RuntimeUnitDeadline, SubjectOutcome, UnreadableMark, UnreadablePart, WallBasis,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedVolcanoUnit, VolcanoAlert, VolcanoAlertFamily, VolcanoAreaGroup, VolcanoAshfall, VolcanoAshfallBatch, VolcanoAshfallGroup,
@@ -260,18 +260,21 @@ function noticeChange<T extends Shown>(before: T | null, after: T, marine = fals
   const was = sideMark(left, marine), now = sideMark(right, marine);
   const inner = hasPart(was, "name", areaKind) || hasPart(now, "name", areaKind);
   // 区域の一覧は市町村（code）ごとの要素に開いて鍵を作る（1 つの code が読めない版で区域の全体を新しい要素にしない、r1 ヘルツ P2-2）。
-  // code の無い区域は code null の 1 要素。噴火の一覧は code の文字列のまま。
-  const items = (value: unknown): readonly unknown[] => !Array.isArray(value) ? [] : value.flatMap((item: unknown) => {
-    if (item == null || typeof item !== "object" || !("codes" in item) || !Array.isArray(item.codes)) return [item];
-    const kindName = inner || !("kindName" in item) ? null : item.kindName;
-    return item.codes.length === 0 ? [{ kindName, code: null }] : item.codes.map((code: unknown) => ({ kindName, code }));
-  });
+  // code の無い区域は code null の 1 要素。ただし code が全部読めずに空になった区域（その位置の scope の part が印にある）は読めた要素に
+  // 数えない（r2 ヘルツ P2-B）。噴火の一覧は code の文字列のまま。
+  const items = (value: unknown, list: string, mark: UnreadableMark | undefined): readonly unknown[] => !Array.isArray(value) ? []
+    : value.flatMap((item: unknown, index) => {
+      if (item == null || typeof item !== "object" || !("codes" in item) || !Array.isArray(item.codes)) return [item];
+      const kindName = inner || !("kindName" in item) ? null : item.kindName;
+      if (item.codes.length !== 0) return item.codes.map((code: unknown) => ({ kindName, code }));
+      return hasPart(mark, list, (scope) => scope === String(index)) ? [] : [{ kindName, code: null }];
+    });
   const columns: CompareColumn[] = [];
   let changed = false;
   for (const field of fieldsOf(after)) {
     const one = ONE[field], list = LIST[field], l = read(left, field), r = read(right, field);
     if (one != null) columns.push({ keys: one, before: l, after: r });
-    else if (list != null) columns.push({ list, before: items(l), after: items(r) });
+    else if (list != null) columns.push({ list, before: items(l, list, was), after: items(r, list, now) });
     else if (field === "kind" || field === "phenomenon") {
       columns.push({ keys: [["name", "kind"]], before: nameOf(l), after: nameOf(r) });
       changed ||= !isDeepStrictEqual(without(l, "name"), without(r, "name"));
@@ -307,16 +310,24 @@ function alertBase(candidate: VolcanoCandidate, subject: string, code: string, e
     retainUntil, ...existing?.notice == null ? {} : { notice: existing.notice },
     ...existing?.marineNotice == null ? {} : { marineNotice: existing.marineNotice } };
 }
+// 比べの欄（noticeChange の ONE・LIST・kind）の part か。一覧の欄は区域の種別名（scope「area:」）の part も含む。
+function partOfField(field: string, part: UnreadablePart): boolean {
+  const one = field === "kind" ? [["name", "kind"] as const] : ONE[field], list = LIST[field];
+  return one?.some(([site, scope]) => part.site === site && part.scope === scope) === true
+    || list != null && (part.site === list || part.site === "name" && areaKind(part.scope));
+}
 // P3-UM-AC01 (5)(6): 採用した側（陸上か海上）の印はその報の印に置き換え、もう一方の側の印は保つ。active でない記録は印を持たない。
-// VFVO51 の火山 entry は前の記録の名前の事実を保つので、前の陸の印の名前の part（記録の欄の scope、compare ごと）を引き継ぐ
-// （r1 ヘルツ P2-4・Opus P2-1: 置き換えると比べの値が消え、次の VFVO50 で一度余分に鳴る）。
+// VFVO51 の火山 entry は前の記録の事実の一部を持ち越すので、持ち越した欄の part だけを前の陸の印から compare ごと引き継ぐ。置き換えた
+// kind・消した lastKind・headline・municipalities の part はこの報の印に任せる（r1 ヘルツ P2-4・Opus P2-1、r2 ヘルツ P2-A）。持ち越す欄は
+// judgeAlert の entry の組み立てのとおり: 同じ区分の継続（kind も前の記録のまま）は全部、区分の変化は火山名・海上の区域・座標だけ。
 function alertUnreadable(next: VolcanoAlert, marine: boolean, own: UnreadableMark | null, existing: VolcanoAlert | null, entry = false): VolcanoAlert {
   if (next.effective !== "active") return next;
   const { unreadable: _land, marineUnreadable: _sea, ...rest } = next;
   const other = existing?.effective === "active" ? marine ? existing.unreadable : existing.marineUnreadable : undefined;
-  const previous = entry && existing?.effective === "active" ? existing.unreadable : undefined;
-  const names = previous?.parts.filter((part) => part.site === "name" && !/^(volcano|kind):/.test(part.scope ?? "")) ?? [];
-  const kept = previous == null || names.length === 0 ? own ?? undefined : inheritMark(previous, names, own);
+  const before = entry && existing?.effective === "active" ? existing : null;
+  const carried: readonly string[] = before == null ? [] : next.kind === before.kind ? ALERT_FIELDS : ["volcanoName", "marineAreas", "coordinate"];
+  const parts = before?.unreadable?.parts.filter((part) => carried.some((field) => partOfField(field, part))) ?? [];
+  const kept = before?.unreadable == null || parts.length === 0 ? own ?? undefined : inheritMark(before.unreadable, parts, own);
   const land = marine ? other : kept, sea = marine ? own ?? undefined : other;
   return { ...rest, ...land == null ? {} : { unreadable: land }, ...sea == null ? {} : { marineUnreadable: sea } };
 }
