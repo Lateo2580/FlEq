@@ -1024,7 +1024,7 @@ rollback は旧側を先に有効化し、新側を止める順序を基本と�
 | 実行場所 | 責務 |
 |---|---|
 | Node main（公開担当） | 接続、軽いcontrol frame、実行場所への振り分け、mailbox、workerが返すviewからのsnapshot射影、HTTP/SSE、通知adapter、checkpoint書込み権の配分、小さい端末出力、health |
-| 常駐 engine worker 4本 | urgent（U-E・U-T・U-N・U-V）・seismic（U-Q）・weatherCurrent（U-W）・deferred（U-Fなど急がないunitと、readyでないheadTypeの入力）。各workerが自分のunitのdecode・展開・XML parse、意味状態、reducer、期限処理、view生成、checkpoint encodeと書込みを行う |
+| 常駐 engine worker 4本 | urgent（急ぐ unit: U-E・U-T・U-N・U-V）・seismic（急ぐ unit のうち U-Q）・weatherCurrent（U-W）・deferred（U-Fなど急がないunitと、readyでないheadTypeの入力）。各workerが自分のunitのdecode・展開・XML parse、意味状態、reducer、期限処理、view生成、checkpoint encodeと書込みを行う |
 | 非同期I/O | checkpoint、ログ、採用したexport。完了はtyped入力へ戻す |
 | 開発機Chrome | 完全snapshotの受信、scene、地図・カード描画 |
 
@@ -1161,11 +1161,11 @@ P2 は EEW の最小実描画経路、P3 は津波の最小実描画経路、P4/
 - parse 待ち結果にも件数・byte 上限を設ける。
 - control・期限・保存 ack の進行を保ち、汎用 worker pool へ拡大しない。
 
-checkpoint encode・射影・整形・転送が主因なら、§7.1 の 4 本を超える worker の追加を解決としない（4 本目の seismic〔U-Q〕は作者裁定 P3-SP-D-PLACE＝A〔2026-10-26〕で足した。観測点 30,000 の VXSE53 の非中断処理は XML parse と reduce がほぼ半分ずつで、どちらも U-Q の worker の中にあり、移せば両方とも urgent から外れる。上の「XML parse が主因の場合だけ」の裁定とは別の作者裁定で、P3-SEISMIC-PLACE-001 の AC01・Q-SP-CAUSE）。不要な全量処理の除去、既存の枝共有、必要なページだけの射影、非中断処理量の縮小を先に比較する。新たな worker・journal・coordinator を必須化しない。
+checkpoint encode・射影・整形・転送が主因なら、§7.1 の 4 本を超える worker の追加を解決としない（4 本目は本節の末尾の別の作者裁定で足した）。不要な全量処理の除去、既存の枝共有、必要なページだけの射影、非中断処理量の縮小を先に比較する。新たな worker・journal・coordinator を必須化しない。
 
 採用した最小修正後も §7.5 の同じ母集団で再測定する。parse 対策後に encode 直後の未達が残れば、B 採用だけでは不合格だ。成立する最小案がない場合は当該 P2 契約を **Blocked** とし、原因・未達量・試した対策を残す。津波経路を閉じる P3 でも同じ判断を適用する。
 
-条件付き B 移行そのものは裁定済みであり、parse 起因の根拠が出た後に A/B を未決へ戻さない。異なる原因の解決案や目標変更を、この裁定に含めて承認済みとは扱わない。
+条件付き B 移行そのものは裁定済みであり、parse 起因の根拠が出た後に A/B を未決へ戻さない。異なる原因の解決案や目標変更を、この裁定に含めて承認済みとは扱わない。4 本目の seismic〔U-Q〕は、この裁定とは別の作者裁定 P3-SP-D-PLACE＝A〔2026-10-26〕で足した。観測点 30,000 の VXSE53 の非中断処理は XML parse と reduce がほぼ半分ずつで、どちらも U-Q の worker の中にあり、移せば両方とも urgent から外れる（P3-SEISMIC-PLACE-001 の AC01・Q-SP-CAUSE）。
 
 ### 7.7 その他の性能ゲート
 

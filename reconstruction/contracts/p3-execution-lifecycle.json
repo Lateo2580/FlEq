@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "b835f253399cb45783156faab9fbc4053f1d0117e7f15cff846d9f376e56e3b2",
+    "sha256": "d966e074ea83a6ff20b055f28202e883f2ebc0810a5bb0a2d2f344971e0d3224",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -18,7 +18,7 @@
       },
       {
         "id": "P3-C3B-AUTO-RESTART",
-        "A": "自動再起動しない。止まったownerは、人がプロセスを再起動する（通常終了→起動、checkpointからの復元）まで停止のまま。owner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の上限と再生成しない規則（P3-C3A-RES-05）を保つ",
+        "A": "自動再起動しない。止まったownerは、人がプロセスを再起動する（通常終了→起動、checkpointからの復元）まで停止のまま。owner 3本〔P3-SEISMIC-PLACE-001 で 4 本〕の上限と再生成しない規則（P3-C3A-RES-05）を保つ",
         "B": "止まったownerを、その実行場所のunitの最後のcheckpointから自動で再生成する（spec:1200の改訂が要る）",
         "recommended": "A",
         "provisional": "A",
@@ -27,7 +27,7 @@
       },
       {
         "id": "P3-C3B-WORKER-VIEW",
-        "A": "DisplayWorkerViewの型とwireは変えない。stateはowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕とmailboxの判定の最悪値（stopped＞unresponsive＞stalled＞healthy）。lastProgressAtMonotonicMsは現行どおりmailboxのstatsのlastProgressMonotonicMs。lastResponseAtMonotonicMsは最悪の状態にあるownerの最後の返信の時刻（同じ状態のownerが複数なら、その中で最も古い時刻。4本ともhealthyなら4本で最も古い時刻）。表示はchrome-eewの既存の規則（worker≠healthyで「更新未確認の最終情報」）のまま",
+        "A": "DisplayWorkerViewの型とwireは変えない。stateはowner 3本〔P3-SEISMIC-PLACE-001 で 4 本〕とmailboxの判定の最悪値（stopped＞unresponsive＞stalled＞healthy）。lastProgressAtMonotonicMsは現行どおりmailboxのstatsのlastProgressMonotonicMs。lastResponseAtMonotonicMsは最悪の状態にあるownerの最後の返信の時刻（同じ状態のownerが複数なら、その中で最も古い時刻。3本ともhealthyなら3本で最も古い時刻）。表示はchrome-eewの既存の規則（worker≠healthyで「更新未確認の最終情報」）のまま",
         "B": "snapshot・heartbeat・/healthzに実行場所ごとの状態を載せ、止まったownerの分野だけに更新未確認を出す（p2-snapshot-sse.types.ts・view-projector・http-sse・chrome-eewの変更）",
         "recommended": "A",
         "provisional": "A",
@@ -111,7 +111,7 @@
       {
         "id": "P3-C3B-DEP-C3A",
         "status": "closed",
-        "closed": "C3a（P3-EXECUTION-SPLIT-001）の凍結物を前提に書く: ExecutionPlace・OwnerRequest・OwnerReply（p3-execution-split.types.ts、本契約で変えない）、RuntimeCompositionRootの送出関数・receive・ownerFailed、owner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の常駐（P3-C3A-RES-05）、tickごとのdeadline要求（P3-C3A-DEADLINES）、owner宛て要求の上限（P3-C3A-RES-09）、終了の(1)〜(4)（P3-C3A-AC09）。作者裁定は次のとおり引き継ぐ: P3-C3A-OWNER-FAILURE=Aは期限がC3bの配送までで、本契約のP3-C3B-OWNER-STOPで置き換える。P3-C3A-FINALIZE-TIMEOUT=A（段の絶対期限で打ち切り、期限後の固定の確認を使わない）は保ち、すでに応答の無いownerの扱いだけをP3-C3B-FINALIZE-UNHEALTHYで改める",
+        "closed": "C3a（P3-EXECUTION-SPLIT-001）の凍結物を前提に書く: ExecutionPlace・OwnerRequest・OwnerReply（p3-execution-split.types.ts、本契約で変えない）、RuntimeCompositionRootの送出関数・receive・ownerFailed、owner 3本〔P3-SEISMIC-PLACE-001 で 4 本〕の常駐（P3-C3A-RES-05）、tickごとのdeadline要求（P3-C3A-DEADLINES）、owner宛て要求の上限（P3-C3A-RES-09）、終了の(1)〜(4)（P3-C3A-AC09）。作者裁定は次のとおり引き継ぐ: P3-C3A-OWNER-FAILURE=Aは期限がC3bの配送までで、本契約のP3-C3B-OWNER-STOPで置き換える。P3-C3A-FINALIZE-TIMEOUT=A（段の絶対期限で打ち切り、期限後の固定の確認を使わない）は保ち、すでに応答の無いownerの扱いだけをP3-C3B-FINALIZE-UNHEALTHYで改める",
         "remaining": "なし（C3aは271db561で配送済み。実装のfile:lineはQ-C3B-C3A-BASEで読み替えた）",
         "reason": "計画§3.1（C3a → C3b）、§3.2（host.ts・composition-root.tsはC3a → C3bの順）"
       },

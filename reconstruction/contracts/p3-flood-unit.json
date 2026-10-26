@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "55725b5874c4df3ff77053ea596a8740fbb202b4357bc5d7f32b3c2c36de2bbd",
+    "sha256": "33f33235a639a2a662f021b53b7af0433779601204ee2c90832f9d6d2e0d8b7c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -939,7 +939,7 @@
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
           "reconstruction/contracts/p3-order-plan.md:87 «77d166f46b4ef4e7»",
-          "docs/specs/reconstruction-p0-contracts.md:1027 «889556cd43760151»"
+          "docs/specs/reconstruction-p0-contracts.md:1027 «0d96b44aa295f022»"
         ]
       },
       {

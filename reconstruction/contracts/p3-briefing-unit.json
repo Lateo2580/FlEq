@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "60a0692c50c6d83788ebbd539de2ee96b9ed80fc8ae31b4f76d061d62657018f",
+    "sha256": "307c1fd9a3a9b60b4e80250ac6fb5135ca3f068f466051bb04518e0f13572d19",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -1149,7 +1149,7 @@
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
           "reconstruction/contracts/p3-order-plan.md:87 «77d166f46b4ef4e7»",
-          "docs/specs/reconstruction-p0-contracts.md:1027 «889556cd43760151»",
+          "docs/specs/reconstruction-p0-contracts.md:1027 «0d96b44aa295f022»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:318 «81bb6f82d45d58a1»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:71 «58db32ca2f469b92»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:558 «5381e7ef5b71152e»"
