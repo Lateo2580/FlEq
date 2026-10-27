@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "7c3cee9a6021622ae3868952b7b437387b15fbaf15e08ea738fe20b859004822",
+    "sha256": "cc59849742606b87c425453ab71d48a33d2e9f43f089addd1469498736a2e660",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -427,7 +427,7 @@
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-27、main 67bde59d。点検メモ .rec-precheck/gap.md と probe.md は未追跡）",
         "closed": "(1) 当てたもの: 点検メモ gap.md の必須 N1〜N14 を全部当てた（N1 AC05・allowedPaths の ingress.ts、N2 AC19・P3-REC-D-HOLE-AFTER-START・checkpoint.ts、N3 AC03 の (2)、N4 AC01・dmdata-rest.ts、N5 AC12・AC15・D-UNIT-ENTRANCE・Q-REC-INVENTORY、N6 AC02・AC08・Q-REC-PENDING-P2、N7 AC09 の (1)、N8 AC05 の (a)〜(c)、N9 AC02 の起点、N10 AC14、N11 AC13 の (3)・AC12、N12 AC07・AC16・D-CANDIDATE-PLACE、N13 AC06、N14 dependsOnContractIds・Q-REC-AUTHOR と Q-REC-STAGE3 の移動・D-SPLIT・Q-REC-SPLIT・publicFunctions・統合担当の分岐の確定）。推奨 M1〜M8 も全部当てた（M1 AC09 の (2)、M2 AC02 の (2)、M3 D-COALESCE・AC11、M4 AC09 の (3)、M5 AC03 の (5)・D-URGENT-BODY、M6 AC12・allowedPaths の unit の行、M7 allowedPaths の型の行、M8 artifactRequirements）。任意の O1 は D-RECEIVED-AT の ruling に P4 への申し送りとして書き、O2（REST の Date で時計を確かめる）は当てない（使わなくても困らない）。実 API の probe（要求 28 回）で Q-REC-LIST-RETENTION・Q-REC-LIST-QUERY・Q-REC-EEW-LIST・Q-REC-ID-MATCH を閉じ、RES-02・RES-03 を見直し、RES-05 を足した (2) 分岐: 統合担当の分岐は D-SPLIT・CANDIDATE-PLACE・UNIT-ENTRANCE・RECEIVED-AT・LIST-QUERY・COALESCE を確定し、D-EEW-LIST・D-HOLE-AFTER-START を足して確定した。作者の未決は D-FRESHNESS-TRIGGER・URGENT-BODY・VOLCANO-SCOPE・QN-RECOVERY・BODY-BUDGET の 5 本で、どれも発注 1 を止めない (3) anchor: 他の契約が本契約の行を anchor で引く 6 か所を付け直した（p3-notice-ledger.json の AC10 を引く 3 か所を :791、Q-REC-PENDING-P2 の 2 行を :275・:310、p3-version-material.json の Q-REC-ID-MATCH を :397。AC10 は【RA】を【発注 3】に替えたので anchor も作り直した）。p3-version-material.json の P3-VM-AC の本文が anchor 無しで引く outOfScope の U-E の行は :684 に直し、その行を p3-notice-ledger.json が anchor で引くので、その 1 か所も付け直した。p3-version-material.json の Q-VM-PRECHECK・Q-VM-PRECHECK-2A の記録の :481 は過去の base の記録なので直さない。3 つの契約の sha256 を作り直した (4) 発注 1 で変える既存の file の行を他の契約が引く数（2026-10-27 夜、rec-r1 e0e5854d で contracts/*.json を数えた。参照の総数／anchor つき）: host.ts 154／69、composition-root.ts 191／93、view-projector.ts 85／61、p2-shared-runtime.types.ts 69／45、run.mjs 102／57、host.test.ts 55／42、shared-runtime.ts 24／11、p2-snapshot-sse.types.ts 20／16、persistent-diagnostic-sink.ts 20／10、dmdata-rest.ts 10／7、decode-material.ts 7／4、ingress.ts 4／3、chrome-eew/tsunami.test.ts 3／1、display-wiring.test.ts 1／1、startup.test.ts・pure.test.ts 0。統合担当の決め: 新しい処理は src/recovery/ に置き、既存の file では行の中の置き換えか、引かれている最後の行より後への追加を先に選ぶ。真ん中への挿入が要るときは許し、実装の成果物に file ごとの行の増減を書かせ、配送で統合担当が anchor を付け直す（行を動かさないために処理をねじ曲げない）。run.mjs は :939 の行の中だけ（測定の凍結の rulesSource は frames.mjs だけで run.mjs は入らない。harness の 2 契約が 76 か所引く） (5) 作者の未決は r2 で D-DIGEST-BUDGET を足して 6 本（Q-REC-AUTHOR-2）。DIGEST-BUDGET はどの発注も止めず、発注 1 は推奨 A の置き値（RES-06）で進める。残り 5 本は発注 2・3 だけを止める (6) 起草のレビュー: r1 は Opus（契約適合）条件付き GO・ヘルツ（Astra high、thread 01a17d86）NO-GO、r2 で 13 件を当て Opus GO・ヘルツ条件付き GO、r3（e0e5854d）で残り 5 件を当てた（Q-REC-REVIEW-R1）。契約に「起草案」の語は 0 件",
-        "remaining": "発注 1 の baseOid の割当（統合担当、本点検の commit へ）。作者の分岐 6 本（Q-REC-AUTHOR-2）は発注 1 を止めない",
+        "remaining": "なし（発注 1 の baseOid は 954f8285 に割り当てた）。作者の分岐 6 本（Q-REC-AUTHOR-2）と発注 2・3 の点検は残る",
         "reason": "段 3（K7・K8・K9）の配送後の実物と、実 API の probe の事実で本契約を改訂した"
       },
       {
@@ -448,7 +448,7 @@
     "contractId": "P3-RECOVERY-001",
     "mode": "implementation",
     "objective": "切れていた間と止まっていた間の電文を dmdata の REST（電文の一覧と本文）で取り直し、spec §10.5 の候補状態を一回の採用で unit へ入れる（C16、計画 §2.1）。spec §16 の H04・H22・H26・H27・H28・H31・H32・H41 を運ぶ。履歴の再構築と live の受理は公開と通知の条件を分け、途中公開 0・新規履歴通知 0・live 上書き 0・期限延長 0 を守る。1 契約を 3 回に分けて発注する（P3-REC-D-SPLIT=A、Q-REC-SPLIT）: 発注 1 は一覧の歩き方・負担・起動時のダイジェスト（H32）、発注 2 は EEW の札（H28）と鮮度の疑い（H41）、発注 3 は本文の取得・候補・採用・各 unit の N2・H27・進み具合。段 2 で決まった形は段 2 のメモ改訂 4 から引き（Q-REC-PENDING-P2）、段 3 の K7（P3-VERSION-MATERIAL-001）・K8（P3-NOTICE-LEDGER-001）・K9（P3-CLOCK-CHECK-001）と K10（P3-EXPIRY-FORM-001）は配送済みで、その実物に合わせた（Q-REC-STAGE3）。発注 3 は K14（P3-UNREADABLE-MARK-001）の発注 3 の配送も待つ。条文の【発注 n】が振り分け",
-    "baseOid": "unassigned",
+    "baseOid": "954f82853bd581f315eb80e059b168bace80aed2",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
