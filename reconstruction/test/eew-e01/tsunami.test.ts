@@ -8,7 +8,7 @@ import type {
 } from "../../contracts/p3-tsunami-e01.types";
 import type { TsunamiAreaTransition, TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import { buildTsunamiPaint } from "../../src/display/chrome-eew/pure";
-import { P3_TSUNAMI_POPULATIONS, sealSelfHash, verifyFrozenP3TsunamiManifest } from "../../src/measurement/eew-e01/frozen";
+import { HARNESS_TRIAL_SETUP, P3_TSUNAMI_POPULATIONS, sealSelfHash, verifyFrozenP3TsunamiManifest } from "../../src/measurement/eew-e01/frozen";
 import { establishTsunamiTrial, summarizeP3TsunamiE01, transitionQuotas } from "../../src/measurement/eew-e01/judge";
 import { toTsunamiView } from "../../src/units/tsunami/tsunami-unit";
 import { analyzeTrace, assembleTsunamiTrials, buildHostIndex, candidateKey } from "./analysis.mjs";
@@ -209,8 +209,8 @@ describe("P3-C6-T06 freezing the tsunami manifest (AC10)", () => {
   const b = built();
   const inputs = (manifestText = b.manifestText, patch: Partial<Parameters<typeof verifyFrozenP3TsunamiManifest>[0]> = {}) => ({ manifestText, smokeConditionsText: b.smokeText,
     sequencesText: b.sequencesText, coastJsonText: b.coastJsonText, fixtureTexts: b.fixtureTexts, contractTexts: b.contractTexts, inherited: { manifestText: b.c4Text }, ...patch });
-  const reseal = (mutate: (m: Record<string, any>) => void) => {
-    const m = JSON.parse(b.manifestText);
+  const reseal = (mutate: (m: Record<string, any>) => void, text = b.manifestText) => {
+    const m = JSON.parse(text);
     mutate(m);
     return sealSelfHash(`${JSON.stringify({ ...m, manifestSha256: "0".repeat(64) }, null, 2)}\n`, "manifestSha256");
   };
@@ -262,6 +262,31 @@ describe("P3-C6-T06 freezing the tsunami manifest (AC10)", () => {
       [{ population: "escalation:maxVxse53Received", run: 1, stateBreaks: noBreaks }]);
     expect(judged.runs.find((r) => r.population === "escalation:maxVxse53Received")).toMatchObject({ scope: "reference", status: "Pass", samples: 1000 });
     expect(Object.keys(judged.verdict.populations)).not.toContain("escalation:maxVxse53Received");
+  });
+
+  // P3-TH-AC01・AC02: harness の 1 組で凍結した C4 形の manifest（manifest-sp-e01.json）を継ぐ。c4Text はその継承元の text。
+  const harness = (seismicCollision: boolean) => buildP3TsunamiManifest({ id: `p3-th-test-${seismicCollision ? "seismic" : "plain"}`, ...machine, seismicCollision,
+    inheritsManifestId: "p3-sp-e01-20261027" });
+  const verifyHarness = (h: ReturnType<typeof harness>, manifestText = h.manifestText, inheritedText = h.c4Text) => verifyFrozenP3TsunamiManifest({ ...inputs(manifestText),
+    contractTexts: h.contractTexts, fixtureTexts: h.fixtureTexts, inherited: { manifestText: inheritedText } });
+  it("P3-TH-T01 a tsunami manifest that inherits the harness pair verifies", () => {
+    for (const seismicCollision of [false, true]) {
+      const { manifest } = verifyHarness(harness(seismicCollision));
+      expect([manifest.inheritsManifestId, manifest.trialSetupRef, Object.hasOwn(manifest.contractSha256, "P3-MEASURE-HARNESS-001")])
+        .toEqual(["p3-sp-e01-20261027", HARNESS_TRIAL_SETUP.ref, true]);
+      // seismicCollision なしでも継承元の EEW の collisionPopulations は漏れない（P3-TH-AC02 (2)）。
+      const conditions = [...Object.values(manifest.populations), ...Object.values(manifest.collisionPopulations ?? {})];
+      expect(conditions).toHaveLength(seismicCollision ? 9 : 8);
+      expect(conditions.filter((p) => !p.trigger.includes("（p3-sp-e01-20261027）"))).toEqual([]);
+    }
+  });
+
+  it("P3-TH-T02 the harness inheritance needs P3-MEASURE-HARNESS-001 and a known inherited manifest", () => {
+    const h = harness(false);
+    expect(() => verifyHarness(h, reseal((m) => { delete m["contractSha256"]["P3-MEASURE-HARNESS-001"]; }, h.manifestText))).toThrow(/lacks P3-MEASURE-HARNESS-001/);
+    expect(() => verifyHarness(h, reseal((m) => { m["inheritsManifestId"] = "p3-other-20261027"; }, h.manifestText))).toThrow(/inheritsManifestId must be one of/);
+    // 照合で比べない欄を変えて自己 hash を付け直した継承元は、表の manifestSha256 で止まる。
+    expect(() => verifyHarness(h, h.manifestText, reseal((m) => { m["device"] = "tampered"; }, h.c4Text))).toThrow(/inherited manifestSha256 differs/);
   });
 });
 

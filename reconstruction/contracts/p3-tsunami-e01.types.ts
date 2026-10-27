@@ -70,7 +70,7 @@ export type P3TsunamiPopulationCondition = Readonly<
 export type P3TsunamiE01Manifest = Readonly<
   Omit<P3E01Manifest, "schemaVersion" | "inheritsManifestId" | "populations" | "collisionPopulations" | "auxiliary" | "o09Subset" | "judgmentPlaces"> & {
     schemaVersion: "p3-tsunami-e01-manifest-v1";
-    inheritsManifestId: "p3-c4-formal-20261007";
+    inheritsManifestId: "p3-c4-formal-20261007" | "p3-sp-e01-20261027";
     templates: readonly P3TsunamiTransitionTemplate[];
     populations: Readonly<Record<P3TsunamiPopulation, P3TsunamiPopulationCondition>>;
     // scope reference・inheritsC4Population fixedBacklog・成立 primeSettledSentBeforeLargeFrameIngested だけ。無い manifest は 8 母集団だけ。

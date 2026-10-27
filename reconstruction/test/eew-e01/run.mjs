@@ -46,7 +46,7 @@ import { auxWindows, e02Verdict, hostReportsOf, replayPump, seal, sealAux } from
 
 import { canonicalCoastJson } from "../../dist/chrome-eew/src/display/chrome-eew/coast.js";
 import { classifyEewCause, establishTrial, establishTsunamiTrial, quantiles, summarizeP3E01, summarizeP3TsunamiE01, transitionQuotas } from "../../dist/src/measurement/eew-e01/judge.js";
-import { HARNESS_TRIAL_SETUP, ZERO_HASH, forecastWithinAllowance, sealSelfHash, verifyFrozenP3Manifest, verifyFrozenP3TsunamiManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
+import { HARNESS_TRIAL_SETUP, TSUNAMI_INHERITED_MANIFESTS, ZERO_HASH, forecastWithinAllowance, sealSelfHash, verifyFrozenP3Manifest, verifyFrozenP3TsunamiManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
 import { placeOfHeadType } from "../../dist/src/runtime/unit-coverage.js";
 
 const NODE22 = "/opt/homebrew/opt/node@22/bin/node";
@@ -1643,12 +1643,12 @@ async function main(argv) {
   let draft = null;
   const only = args.has("only") ? String(args.get("only")).split(",") : null;
   if (preliminary && args.has("tsunami")) {
-    // 津波の予備（AC08）: C4 の凍結 manifest を継ぐ草案（tsunami.mjs）。primeLeadMs だけを引数で変えられる（予備で固定する値）。
+    // 津波の予備（AC08）: harness の 1 組で凍結した C4 形の manifest（表の C4 でない 1 行、P3-TH-AC02 (5)）を継ぐ草案（tsunami.mjs）。primeLeadMs だけを引数で変えられる（予備で固定する値）。
     const lead = args.has("prime-lead-ms") ? Number(args.get("prime-lead-ms")) : null;
     const keys = [...["escalation", "deescalation"].flatMap((s) => ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"].map((c) => `${s}:${c}`)),
       "escalation:maxVxse53Received"];
     draft = buildP3TsunamiManifest({ id: `p3-c6-prelim-${stamp}`, chromeVersion: await chromeVersion(), nodeVersion, osVersion: `${release()} ${arch()}`, device: deviceOf(),
-      primeLeadMs: lead == null ? {} : Object.fromEntries(keys.map((k) => [k, lead])), seismicCollision: args.has("seismic-collision") });
+      primeLeadMs: lead == null ? {} : Object.fromEntries(keys.map((k) => [k, lead])), seismicCollision: args.has("seismic-collision"), inheritsManifestId: Object.keys(TSUNAMI_INHERITED_MANIFESTS).find((k) => TSUNAMI_INHERITED_MANIFESTS[k].path !== C4_MANIFEST) });
     manifest = draft.manifest;
     const c4 = JSON.parse(draft.c4Text);
     const trialSetupText = readFileSync(join(REPO, c4.trialSetupRef), "utf8");
@@ -1677,7 +1677,7 @@ async function main(argv) {
       // P3-C6-AC10: 津波の凍結 manifest。trialSetup は継承した C4 の凍結 manifest と同じ（verifyFrozenP3TsunamiManifest が ref と hash を照合する）。
       const verified = verifyFrozenP3TsunamiManifest({ manifestText, smokeConditionsText: readFileSync(join(REPO, m0.smokeConditionsRef), "utf8"),
         sequencesText: readFileSync(join(REPO, SEQUENCES_FILE), "utf8"), coastJsonText: canonicalCoastJson(), fixtureTexts: templateFixtureTexts(),
-        contractTexts: contractTextsOf(Object.keys(m0.contractSha256 ?? {})), inherited: { manifestText: readFileSync(join(REPO, C4_MANIFEST), "utf8") } });
+        contractTexts: contractTextsOf(Object.keys(m0.contractSha256 ?? {})), inherited: { manifestText: readFileSync(join(REPO, TSUNAMI_INHERITED_MANIFESTS[m0.inheritsManifestId]?.path ?? C4_MANIFEST), "utf8") } });
       if (sha256Hex(trialSetupText) !== verified.manifest.trialSetupSha256) throw new Error("trialSetup bytes differ from trialSetupSha256");
       manifest = verified.manifest;
       trialSetup = JSON.parse(trialSetupText);

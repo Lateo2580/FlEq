@@ -563,7 +563,7 @@ function readP3TsunamiManifest(v: unknown): P3TsunamiE01Manifest {
   return {
     ...readSharedP3(m),
     schemaVersion: exactly(m["schemaVersion"], "p3-tsunami-e01-manifest-v1", "manifest schemaVersion"),
-    inheritsManifestId: exactly(m["inheritsManifestId"], "p3-c4-formal-20261007", "inheritsManifestId does not name the inherited manifest"),
+    inheritsManifestId: oneOf(m["inheritsManifestId"], TSUNAMI_INHERITED_IDS, "inheritsManifestId"),
     templates: list(m["templates"], readTemplate, "templates", 5),
     populations: { "escalation:fixedBacklog": population("escalation:fixedBacklog"), "escalation:maxVpws50ParseStarted": population("escalation:maxVpws50ParseStarted"),
       "escalation:maxWeatherCheckpointEncodeStarted": population("escalation:maxWeatherCheckpointEncodeStarted"), "escalation:eewTogether": population("escalation:eewTogether"),
@@ -601,7 +601,7 @@ function verifyTsunamiSmokeConditions(textValue: string): P3TsunamiSmokeConditio
   return smoke;
 }
 
-// P3-C6-AC10: 自己 hash・使用契約・継承する C4 の凍結 manifest（負荷・初期状態・trialSetup・fixture・geometry・条件）・template の body hash・
+// P3-C6-AC10: 自己 hash・使用契約・継承元（C4 か harness の 1 組で凍結した C4 形）の凍結 manifest（負荷・初期状態・trialSetup・fixture・geometry・条件）・template の body hash・
 // coastSha256・C6 の smoke 条件・o09Subset を照らし、8 母集団の形（系列と遷移・成立の種類・EventID）を確かめる。A10・C4 の検査は変えない。
 // fixtureTexts は template の body（corpus の synthetic fixture）の保存 text（fixture id → text）。
 function verifyFrozenP3TsunamiManifest(input: Readonly<{
@@ -616,7 +616,7 @@ function verifyFrozenP3TsunamiManifest(input: Readonly<{
   const raw = readSelfHashed(input.manifestText, "manifestSha256");
   const m = readP3TsunamiManifest(raw);
   verifyCommon(m);
-  // 継承元（C4 の凍結 manifest）は照合に使う項目だけを保存の形のまま読む。
+  // 継承元（C4 か harness の 1 組で凍結した C4 形の凍結 manifest）は照合に使う項目だけを保存の形のまま読む。
   const c4 = obj(readSelfHashed(input.inherited.manifestText, "manifestSha256"), "inherited manifest");
   const c4Id = text(c4["manifestId"], "inherited manifestId");
   need(c4Id === m.inheritsManifestId, "inheritsManifestId does not name the inherited manifest");
@@ -624,6 +624,10 @@ function verifyFrozenP3TsunamiManifest(input: Readonly<{
   const c4Loads = obj(c4["loads"], "inherited loads");
   for (const id of LOADS) need(JSON.stringify(rawLoads[id]) === JSON.stringify(c4Loads[id]), `load ${id} differs from ${c4Id}`);
   need(m.trialSetupRef === c4["trialSetupRef"] && m.trialSetupSha256 === c4["trialSetupSha256"], `trialSetup differs from ${c4Id}`);
+  // P3-TH-AC01 (2): 継承元の bytes は表で固める（自己 hash を付け直した継承元を通さない）。harness の 1 組を継ぐなら規則の版の契約を載せる（verifyFrozenP3Manifest と同じ理由）。
+  need(c4["manifestSha256"] === TSUNAMI_INHERITED_MANIFESTS[m.inheritsManifestId].manifestSha256, `inherited manifestSha256 differs from TSUNAMI_INHERITED_MANIFESTS (${c4Id})`);
+  need(!(m.trialSetupRef === HARNESS_TRIAL_SETUP.ref && m.trialSetupSha256 === HARNESS_TRIAL_SETUP.sha256) || Object.hasOwn(m.contractSha256, "P3-MEASURE-HARNESS-001"),
+    "contractSha256 lacks P3-MEASURE-HARNESS-001 (the harness trial setup)");
   need(m.geometrySha256 === c4["geometrySha256"], `geometrySha256 differs from ${c4Id}`);
   need(Object.entries(textRecord(c4["fixtureSha256"], "inherited fixtureSha256")).every(([id, h]) => m.fixtureSha256[id] === h), `fixtureSha256 differs from ${c4Id}`);
   const c4Populations = obj(c4["populations"], "inherited populations");
@@ -694,6 +698,16 @@ function verifyFrozenP3TsunamiManifest(input: Readonly<{
   return { manifest: m, smoke };
 }
 
+// P3-TH-D-LOOKUP=B: 津波の manifest が継いでよい凍結 manifest はこれだけ（id → path と自己 hash）。鍵は as const の tuple で oneOf に渡す
+// （Object.keys は string を返し、型の union に入らない）。
+const TSUNAMI_INHERITED_IDS = ["p3-c4-formal-20261007", "p3-sp-e01-20261027"] as const;
+const TSUNAMI_INHERITED_MANIFESTS: Readonly<Record<P3TsunamiE01Manifest["inheritsManifestId"], { path: string; manifestSha256: string }>> = {
+  "p3-c4-formal-20261007": { path: "reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    manifestSha256: "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c" },
+  "p3-sp-e01-20261027": { path: "reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json",
+    manifestSha256: "6d31c288a971dccf8c053c1bb93f8679581775e6ca622f049a2825ed914e3f9c" },
+};
+
 // U-F の件数・byte が許容範囲を外れた試行は正式標本から除かず別条件として記録し、その run の正式 Pass を主張しない（AC01）。
 // 試行ごとの観測は型に入力が無いので、run の Pass を落とす処理は runner が持つ。
 function forecastWithinAllowance(
@@ -745,5 +759,5 @@ function tsunamiMarkerDetail(detail: Record<string, unknown>, displayVersion: Di
   return { name: "fleq:p3:tsunami:T6-candidate", displayVersion, operation, subject, present, cardMarkerId, coastMarkerId, areas: painted };
 }
 
-export { ZERO_HASH, HARNESS_TRIAL_SETUP, nonEmpty, REFERENCE_POPULATIONS, P3_POPULATIONS, P3_TSUNAMI_POPULATIONS, P3_TSUNAMI_COLLISION_POPULATIONS, SEISMIC_COLLISION_POPULATIONS, SERIES_TRANSITIONS, verifyFrozenP3Manifest,
+export { ZERO_HASH, HARNESS_TRIAL_SETUP, TSUNAMI_INHERITED_MANIFESTS, nonEmpty, REFERENCE_POPULATIONS, P3_POPULATIONS, P3_TSUNAMI_POPULATIONS, P3_TSUNAMI_COLLISION_POPULATIONS, SEISMIC_COLLISION_POPULATIONS, SERIES_TRANSITIONS, verifyFrozenP3Manifest,
   verifyFrozenP3TsunamiManifest, verifyTsunamiSmokeConditions, sha256Hex, readSelfHashed, sealSelfHash, verifyChromeSmokeConditions, verifyFrozenManifest, forecastWithinAllowance, parseChromeMarkerDetail };

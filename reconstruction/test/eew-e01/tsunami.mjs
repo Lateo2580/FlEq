@@ -17,7 +17,7 @@ import { canonicalGeometryJson } from "../../dist/chrome-eew/src/display/chrome-
 import { buildTsunamiPaint } from "../../dist/chrome-eew/src/display/chrome-eew/pure.js";
 import { decodeMaterial } from "../../dist/src/decode-material/decode-material.js";
 import { ingestXmlData } from "../../dist/src/ingress/ingress.js";
-import { sealSelfHash } from "../../dist/src/measurement/eew-e01/frozen.js";
+import { HARNESS_TRIAL_SETUP, TSUNAMI_INHERITED_MANIFESTS, sealSelfHash } from "../../dist/src/measurement/eew-e01/frozen.js";
 import { reduceTsunamiUnit, toTsunamiView } from "../../dist/src/units/tsunami/tsunami-unit.js";
 
 export const C4_MANIFEST = "reconstruction/test/eew-e01/evidence/p3/manifest.json";
@@ -154,13 +154,17 @@ export function stopFromPreliminary({ successes, trials, msPerAttempt }) {
 // seismicCollision は P3-SEISMIC-PLACE-001 の衝突の参考の母集団（collisionPopulations）を載せる新しい manifest にする。
 export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersion, device, primeLeadMs = {}, periodMs = {}, triggerLeadMs = {}, stop = {}, preliminary = {},
   seismicCollision = false,
+  // P3-TH-D-INHERIT=A: 継承元（TSUNAMI_INHERITED_MANIFESTS の id）。c4Text・differencesFromC4 の「C4」はこの継承元と読む。
+  inheritsManifestId = "p3-c4-formal-20261007",
   smokeText = readFileSync(join(REPO, TSUNAMI_SMOKE_FILE), "utf8") }) {
-  const c4Text = readFileSync(join(REPO, C4_MANIFEST), "utf8");
+  const c4Text = readFileSync(join(REPO, TSUNAMI_INHERITED_MANIFESTS[inheritsManifestId].path), "utf8");
   const c4 = JSON.parse(c4Text);
   const smoke = JSON.parse(smokeText);
-  const contracts = { ...contractTextsFor("P3-TSUNAMI-E01-001"), ...(seismicCollision ? contractTextsFor("P3-SEISMIC-PLACE-001") : {}) };
+  const contracts = { ...contractTextsFor("P3-TSUNAMI-E01-001"), ...(c4.trialSetupRef === HARNESS_TRIAL_SETUP.ref ? contractTextsFor("P3-MEASURE-HARNESS-001") : {}),
+    ...(seismicCollision ? contractTextsFor("P3-SEISMIC-PLACE-001") : {}) };
   const templates = buildTemplates();
-  const { schemaVersion: _s, manifestId: _i, manifestSha256: _h, inheritsManifestId: _p, populations: c4Populations, auxiliary: _a, o09Subset: _o,
+  // 継承元の EEW の collisionPopulations は外す（津波の衝突は seismicCollision で自分のものを置く）。
+  const { schemaVersion: _s, manifestId: _i, manifestSha256: _h, inheritsManifestId: _p, populations: c4Populations, collisionPopulations: _cp, auxiliary: _a, o09Subset: _o,
     judgmentPlaces: _j, smokeConditionDifferences: _d, contractSha256: _c, smokeConditionsSha256: _sc, ...common } = c4;
   const differencesFromC4 = [{ path: "trial", c4: "1 試行 = EEW の続報 1 報", c6: "1 試行 = prime（初期状態へ置き換える報）→ target（標本）の 2 報",
     reason: "P3-C6-TRIAL-RESET=A。各試行を既知の初期状態から始める" }];
@@ -191,9 +195,9 @@ export function buildP3TsunamiManifest({ id, chromeVersion, nodeVersion, osVersi
     const transitions = collision ? COLLISION.transitions : SERIES_TRANSITIONS[series];
     (collision ? collisionPopulations : populations)[key] = {
       scope: collision ? "reference" : "formal", load: inherited.load, periodMs: period,
-      trigger: collision ? `population=${key}; 契約=P3-SEISMIC-PLACE-001 の maxVxse53ReceivedThenTsunami（P3-SP-D-POPULATION=A、参考）; c4=${INHERITS[condition]}（p3-c4-formal-20261007）; `
+      trigger: collision ? `population=${key}; 契約=P3-SEISMIC-PLACE-001 の maxVxse53ReceivedThenTsunami（P3-SP-D-POPULATION=A、参考）; c4=${INHERITS[condition]}（${c4.manifestId}）; `
         + `transitions=${transitions.join("→")}; ${HOW[condition]}`
-        : `population=${key}; spec=§7.5 ${series === "escalation" ? "発令系" : "解除系"}×${condition}; c4=${INHERITS[condition]}（p3-c4-formal-20261007）; `
+        : `population=${key}; spec=§7.5 ${series === "escalation" ? "発令系" : "解除系"}×${condition}; c4=${INHERITS[condition]}（${c4.manifestId}）; `
         + `o09=${O09_ROWS[series][condition]}; plan=p3-order-plan.md:203; transitions=${SERIES_TRANSITIONS[series].join("→")}（試行ごとに順に回す）; ${HOW[condition]}`,
       stateRef: inherited.stateRef, stateSha256: inherited.stateSha256,
       stopCondition: { maxAttempts, maxDurationMs: stop[key]?.maxDurationMs ?? measured?.maxDurationMs ?? Math.ceil((60_000 + period * maxAttempts) * 1.25) },
@@ -255,7 +259,9 @@ if (process.argv[1] != null && import.meta.filename === realpathSync(process.arg
     const { execFileSync } = await import("node:child_process");
     const values = args.has("values") ? JSON.parse(readFileSync(String(args.get("values")), "utf8")) : {};
     const { machine = {}, ...rest } = values;
-    const built = buildP3TsunamiManifest({ ...rest, id: String(args.get("id")), chromeVersion: machine.chromeVersion ?? await chromeVersion(),
+    // P3-TH-AC02 (5): 草案は harness の継承元（表の C4 でない 1 行）で組む。
+    const built = buildP3TsunamiManifest({ ...rest, id: String(args.get("id")),
+      inheritsManifestId: Object.keys(TSUNAMI_INHERITED_MANIFESTS).find((k) => TSUNAMI_INHERITED_MANIFESTS[k].path !== C4_MANIFEST), chromeVersion:machine.chromeVersion ?? await chromeVersion(),
       nodeVersion: machine.nodeVersion ?? execFileSync("/opt/homebrew/opt/node@22/bin/node", ["-p", "process.version"], { encoding: "utf8" }).trim(),
       osVersion: machine.osVersion ?? `${release()} ${arch()}`, device: machine.device ?? `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB` });
     const out = args.has("out") ? String(args.get("out")) : join(REPO, TSUNAMI_EVIDENCE, "manifest.draft.json");
