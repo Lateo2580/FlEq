@@ -1,0 +1,90 @@
+{
+  "id": "e01-maxVxse53ReceivedThenEew-run1",
+  "attempt": 2,
+  "manifestId": "p3-sp-e01-20261027",
+  "manifestSha256": "6d31c288a971dccf8c053c1bb93f8679581775e6ca622f049a2825ed914e3f9c",
+  "rawDir": "/Users/tallplain/dev/fleq-sp-meas-mm/tmp/home/dev/fleq-a10-runs/p3-sp-e01-20261027/e01-maxVxse53ReceivedThenEew-run1-attempt2",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json --windows e01-maxVxse53ReceivedThenEew-run1 --node /Users/tallplain/dev/fleq-sp-meas-mm/tmp/nodebin/node",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json --windows e01-maxVxse53ReceivedThenEew-run1 --node /Users/tallplain/dev/fleq-sp-meas-mm/tmp/nodebin/node",
+    "caffeinate -dims -w 6847",
+    "/Users/tallplain/dev/fleq-sp-meas-mm/tmp/nodebin/node /Users/tallplain/dev/fleq-sp-meas-mm/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-sp-meas-mm/tmp/home/dev/fleq-a10-runs/p3-sp-e01-20261027/e01-maxVxse53ReceivedThenEew-run1-attempt2/host-config.json"
+  ],
+  "startedAt": "2026-10-27T04:27:32.539Z",
+  "preflight": {
+    "checkedAt": "2026-10-27T04:27:32.514Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "156.0.8078.48",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "15a790bb55598a7678f5e9432dfc3a4f719ec91d",
+    "gitStatusPorcelain": "?? reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json\n?? reconstruction/test/eew-e01/evidence/p3-tsunami/manifest-sp-e01t.json\n?? reconstruction/test/eew-e01/evidence/windows/p3-sp-e01-20261027/\n",
+    "distSha256": "6b4d8488b7495fe8563f9569af4a326e1e3f0164b6f1195b8281ee42087614ce",
+    "runnerSha256": "0a1a043e5aa5a6e77f90c73c3c44bd66777d6c5f1c4ffebbec477cdc24888fab",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Blocked",
+  "reason": "Page.navigate: no CDP response within 30000 ms",
+  "error": "Error: Page.navigate: no CDP response within 30000 ms\n    at Timeout.<anonymous> (file:///Users/tallplain/dev/fleq-sp-meas-mm/reconstruction/test/eew-e01/chrome.mjs:49:57)\n    at listOnTimeout (node:internal/timers:585:17)\n    at process.processTimers (node:internal/timers:521:7)",
+  "childExit": null,
+  "lastProgress": {
+    "phase": "measure",
+    "hostExit": null,
+    "hostError": null,
+    "trialsStarted": 0,
+    "total": 1100,
+    "liveness": [
+      {
+        "pings": 1,
+        "maxFrameGapMs": 0
+      }
+    ]
+  },
+  "resultFiles": [],
+  "liveness": {
+    "pings": 1,
+    "maxFrameGapMs": 15741.89445900917
+  },
+  "hostClock": {
+    "hostClockUnverified": 0,
+    "hostClockAhead": 0,
+    "hostClockBehind": 0
+  },
+  "finishedAt": "2026-10-27T04:28:08.290Z",
+  "raw": [
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 140,
+      "sha256": "d598e6a28fd782096b25bbd44d1f73a860f5e5eda9e652a3fcc63059b1a3e112"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1740,
+      "sha256": "fbe74e873891d68862ee26e2ab4eb43a4a9e24429e7696a653c5c959bfa8ccb7"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 624,
+      "sha256": "474364328d8ba0ebc0820077dcb9e9f4587481c4fe9d0b70b4ff27c31bd5ddf9"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 47115,
+      "sha256": "e7c0ee71efcd71ce94f056cba99237088d80c69dce4b2bca0d85fe4b1d66ef35"
+    },
+    {
+      "file": "run-aborted.json",
+      "bytes": 577,
+      "sha256": "27526575c0eaee3af89c63cf8e8b891ffa7bdbf5b172b3a92f88502976a8019e"
+    }
+  ],
+  "orphans": []
+}

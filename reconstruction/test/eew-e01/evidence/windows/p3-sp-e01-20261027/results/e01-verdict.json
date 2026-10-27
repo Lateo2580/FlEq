@@ -1,0 +1,36 @@
+{
+  "verdict": {
+    "label": "P3 E01",
+    "status": "未確認",
+    "populations": {
+      "fixedBacklog": "未確認",
+      "maxVpws50ParseStarted": "未確認",
+      "maxWeatherCheckpointEncodeStarted": "未確認",
+      "maxForecastCheckpointSave": "未確認",
+      "forecastDeadlineOverlap": "未確認",
+      "maxVpws50ReceivedThenEew": "reference"
+    },
+    "evidenceRefs": []
+  },
+  "cause": {
+    "cause": "none",
+    "decision": "notEvaluated",
+    "evidenceRefs": [],
+    "attemptedFixes": []
+  },
+  "runs": [
+    {
+      "id": "e01-maxVxse53ReceivedThenEew-run1",
+      "attempt": 3,
+      "status": "Pass",
+      "durationMs": 3305378.898874998,
+      "paintWithoutScreenshot": 518
+    }
+  ],
+  "finishedAt": "2026-10-27T05:41:02.009Z",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json --windows e01-maxVxse53ReceivedThenEew-run1 --node /Users/tallplain/dev/fleq-sp-meas-mm/tmp/nodebin/node",
+    "caffeinate -dims -w 7423"
+  ],
+  "notification": "real"
+}

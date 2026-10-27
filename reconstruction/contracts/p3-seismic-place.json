@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "ee22c30652d9f4c1e6c55597556a77f25f9e50e21f9f7233a00e6b4d15c17b5d",
+    "sha256": "7e9b2790da55a3178565ac658dabb1ec38d8377ef9b2083ecb2d4abd72b46916",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -156,6 +156,14 @@
         "closed": "AC10 の (1)(2) は上限の内側で、配送する。窓は 2 つの manifest で凍結した: p3-sp-e05y-20261027（manifest-sp-e05y.json、manifestSha256 e13abd22…、e05y-P の 3 run）と p3-sp-e05np-20261027（manifest-sp-e05np.json、manifestSha256 25b47a36…、E05-N・E05-P の 3 run ずつ）。どちらも condition は P3-E05Y-CONTROLDT-001 の p3-e05yd-20261027b と同じ文に 4 本の構成の注記を添え、contractSha256 の 21 本は efd27382 と本 commit の契約に一致する（本契約は鍵に無い）。preflight は 9 run とも gitHead efd27382・runnerSha256 0a1a043e…（本契約が runner の .mjs を変えるので p3-e05yd-20261027b の 0ff7d8de… とは違う）。時刻（UTC）: e05y-P 00:07:08〜01:00:24、E05-N 01:11:33〜02:01:35、E05-P 02:01:37〜02:54:51。runner は 9 回とも rc 0、窓は 9 run とも Pass（attempt 1）、欠けたサンプル 0、host の stderr を含む出力で diagnosticQueueOverflow・diagnosticSinkFailed は 0 行。最大 RSS（MiB、今回／載せ替えの前の L100 p3-sp-e05-20261026／3 本の構成）: (1) E05-N 184.1・177.0・177.4／178.3・182.7・189.1、上限 300 との余りは最小 115.9。(2) E05-P 368.0・383.7・363.2／366.5・367.5・366.7、余りは最小 16.3。e05y-P 387.4・381.5・375.9／394.9・377.2・386.2（3 通目が held の未確認）／370.6・362.0・361.4（p3-e05yd-20261027b）、余りは最小 12.6。e05y-P は 3 run とも aux が passed・reason null・checked 6・missing 0、上乗せの 6 入力の typhoonRevisionConflict は 0 件。e05y-P の山は run1 が周 1（666.6 秒）、run2・run3 が周 0 の上乗せの直後（306 秒）で、3 本の構成では 3 run とも周 1 だった。上乗せの各入力の待ちは 0.11〜0.23 ms で 3 本の構成と同じ。残存リスク (2) の E05-P の余り『約 19 MiB』の推計に対し、実測の余りは E05-P 16.3・e05y-P 12.6 MiB。(3) 重なりの試行は未確認: 3 つの処理が重なる試行を組む道具が無く（Q-SP-PRECHECK の (6)、E05 の道具に VXSE53 が 0 件）、試行数 0・成立 0。3 本の構成での同じ窓も測っていない。(3) は配送の可否に使わない。(4) は該当しない（上限を越えた run は無い）。測る窓では同じ機械で他のゲートを走らせていない（ゲートは e05y-P と E05-N の間に回した）。Q-SP-IMPL の remaining の『c4 の表に seismic の基線の行を足してから測る』は足していない: c4 の表を読むのは E05C の分類の窓の gc の mode だけで、AC10 の (1)(2) の窓は c4 を読まない。足すのは gc の窓を 4 本の構成で回すとき（P3-E05P-CLASSIFY-001 の側）に別で行う",
         "remaining": "(3) の重なりの試行（道具を組む契約が要る。やりたいことリストへ）。c4 の表の seismic の行（gc の窓を 4 本の構成で回すとき）",
         "reason": "配送の前の関門（AC10）"
+      },
+      {
+        "id": "Q-SP-MEASURE",
+        "status": "closed",
+        "source": "統合担当（2026-10-27 午後。Mac mini は 15a790bb の checkout・node v22.23.3 の wrapper・Chrome 156.0.8078.48、Pi は 15a790bb の archive）",
+        "closed": "AC08 の (2) Mac mini: EEW の衝突の母集団 maxVxse53ReceivedThenEew は manifest p3-sp-e01-20261027（manifest-sp-e01.json、manifestSha256 6d31c288…、予備 100/100・1 試行 3,050.8 ms から stopCondition は maxAttempts 1,243・maxDurationMs 4,815,142。6 母集団の stop・lead などは p3-c4-formal-20261007 から写した）の窓 e01-maxVxse53ReceivedThenEew-run1 の attempt3 で測り、参考の判定は Pass（成立 1,000／試行 1,100、標本 1,000、欠落 0、04:45:17〜05:41:01 UTC、通知は real）。T0→T6 は p50 上界 33.39 ms・p99 上界 50.04 ms・最大の上界 51.05 ms で、250 ms（spec:164・:1104）の内側。実送信→T0 は p50 2.25 ms・p99 2.94 ms・最大 5.96 ms、実送信→T6 の p99 上界は 52.36 ms。preflight は gitHead 15a790bb・runnerSha256 0a1a043e…・distSha256 6b4d8488…。attempt1・2 は Blocked（Page.navigate の応答が 30,000 ms 来ない）で、raw の置き場を移すために HOME を差し替えたのが原因だった（件数を絞った予備で、差し替えると同じ timeout、実の HOME なら Pass）。attempt3 は runner の既定の置き場に raw を書いた。2 つの記録は消さずに窓の dir に置いた。条件の逸脱（統合担当の決め）: 測定の前後とも画面はロック中で、hasFocus false が 1,100 試行の全部、visibilityState は visible（conditionDeviation が全試行で null）。ロック中に描画が間引かれていないことは確かめていないが、p99 上界は 200 ms に届かず、ロックを外して測り直す基準（p99 上界 200 ms 超）に当たらない。津波の衝突の母集団 maxVxse53ReceivedThenTsunami（runner の鍵 escalation:maxVxse53Received）は予備だけ（予備・未確認）: manifest p3-sp-e01t-20261027（manifestSha256 77ea17c2…）の予備 100 試行で成立 100/100・1 試行 3,059.8 ms、T0→T6 の p99 上界 35.18 ms、実送信→T0 は p50 2.28 ms・p99 3.38 ms・最大 3.65 ms。正式窓は run.mjs の preflightCheck で止まった（frames.mjs sha256 differs from initial-state rulesSource）。津波の manifest は C4 の凍結 manifest の trial-setup を継ぎ、その initial-state が古い frames.mjs の hash を持つので、今の main では津波の正式窓を始められない（本契約の変更と関わらない道具の穴、構造的欠陥台帳 103）。津波の manifest は repo に入れない。AC08 の (3) Pi（計画 §4.5 の予備確認、15a790bb の archive、EEW の衝突の母集団 30 件×3 回）: 90 件とも EEW の T4 が VXSE53 の処理の終わりより先に届いた（VXSE53 の処理は中央 約 1.19 秒）。観測最大（100 件未満なので Pass と呼ばない）: 実送信→T2 の上界 90.2 ms（中央 2.7〜3.1 ms）、T0→T4 21.9 ms（中央 8.7〜9.5 ms）、host の VmRSS 574.7 MiB（観測点 30,000 の VXSE53 を続けて送る条件）、thread 15。SD の fileSync に 1.18 秒が 1 回あった。計画 §4.5 の 5 つの確かめは再現しなかった。津波は Pi で回せる道具が無く（--tsunami --backend-only が chromeVersion の取得で ENOENT）未確認。測定の前後とも旧築は running。記録は Pi の ~/p3-bench/sp-stage1（repo の外）。objective と残存リスクの Pi の推計（EEW の待ち 約 1.3 秒、順の差 約 1 秒）: 移した後の EEW は VXSE53 を待たず、VXSE53 の処理の中央 約 1.19 秒は残存リスク (1) の順の差の推計に近い。補助の観測（AC08 の判定の外）: 同じ窓の aux で E15 が Fail と出た。deferred の thread の tmp の書込み 13 件・143,174 byte のうち aux が unit へ帰したのは U-F の 2 件・122,682 byte だけで、残りの 11 件・20,492 byte は U-M 4 件・7,415 byte、U-L 6 件・12,282 byte、U-Y 1 件・795 byte の和と件数・byte とも一致する。aux-measures.mjs の OWNER_UNITS が deferred に U-F だけを持つ道具の穴で、製品の書込みの異常ではない。同じ aux で U-Q の encode は 3,304 回・17,141,996,659 byte（1 回あたり約 5.19 MB、観測点 30,000 の VXSE53 の保存）だった",
+        "remaining": "津波の衝突の母集団の正式窓（Mac mini）と Pi での津波の予備確認（どちらも道具の穴、構造的欠陥台帳 103、直すかは作者に聞く）。aux-measures.mjs の OWNER_UNITS の deferred の欠け（やりたいことリストへ）。ロック中の描画の間引きの有無",
+        "reason": "本契約の閉鎖（AC08 の (2)(3)）"
       }
     ],
     "operationContract": {
@@ -593,20 +601,6 @@
       "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
       "残存リスク（P3-SP-D-PLACE＝A は作者裁定済み〔Q-SP-RULING〕。下の (1)〜(6) は 2026-10-26 作者承認済み、Q-SP-AUTHOR）: (1) 同じ群（other）の音と画面の更新の順が、受信順から処理の終わった順に変わる（U-T の注意報、U-N、U-V。notice-mark.ts:97〜:100）。場面: 14:49:00.000 に大きな VXSE53、.050 に津波注意報 → 今は地震の音と画面が先、A では注意報が先。14:50:00.000 に大きな VXSE53、.040 に南海トラフ地震臨時情報（VYSE50、巨大地震注意）→ A では臨時情報の音と画面が先、地震が後。噴火警報（VFVO50）も同じ。差は Mac で約 0.2 秒、Pi で約 1 秒（推計）。旧築は 1 本の thread で受信順に鳴らすので、旧築とも順が違いうる。作者は承知のうえで A を選んだ (2) 常駐 worker が 1 本増え、RSS が約 15 MiB 増える（MacBook の空の owner、Q-SP-RSS）。E05-N の今の余りは分からず（約 7〜14 MiB は U-T・U-Q・U-N・U-V を入れる前の基線からの推計）、E05-P の余りは約 19 MiB。配送の前に AC10 で測り、越えたら配送しない。旧築は worker を持たない 1 本の thread なので、この増分は新築だけのもの (3) urgent には U-T・U-V の大きな報が残る。場面: 14:46:50.000 に沿岸 191 点（コード表の沿岸の潮位観測点の数、P3-DISASTER-CAPACITY-001 の〔上界〕）の VTSE51（津波観測に関する情報）が urgent で処理中に .005 に EEW の続報が届くと、EEW はその処理を待ち、画面の EEW のカードの更新がその分遅れる。所要は測っていない（corpus の最大は VTSE51 43 KB・VFVO51 45 KB）。旧築も 1 本の thread なので同じ待ちが起きる (4) seismic の owner が止まると U-Q だけが止まる（今は urgent ごと止まり EEW も止まる）。場面: 15:00:00 に seismic が例外で止まると、以後の VXSE51・53 は受け付けずに拒否に数え、画面の地震のカードは止まる直前のまま（新しい震度・震源が出ない）で、worker の状態の表示（DisplayWorkerView）が stopped になる。EEW・津波・南海・火山は出続ける。戻すには人がプロセスを再起動する（自動再起動は無い）。旧築には owner ごとに止まる仕組みが無い（処理は 1 本の thread） (5) seismic が U-Q の書込み権を持ったまま止まると、終了の時に他の unit の最終保存も打ち切られる（今の振る舞いで、weatherCurrent・deferred が止まったときも同じ）。場面: 15:00:00.000 に U-Q の保存の権が seismic へ出て .010 に seismic が止まる。15:00:05.000 に人が終了を要求し、その後の drain の段の 15:00:05.010 に EEW の続報を採用して U-E が dirty になると、最終保存の段は直ちに終わり、その EEW の版だけが保存されない（終了の要求より前に採用した版は、終了の処理が先に始めた保存を待つので、要求の後に保存が終わっても保存済み、composition-root.ts:1545・:1570。それより前の版は通常の運転で unit ごとの権により保存済み、composition-root.ts:1432〜1438）。終了は code 2（P3-C3B-AC03）。次の起動の画面はその 1 つ前の版から戻る (6) 受信の継続は約束しない（AC03 の (4)）。mailbox が数える byte は frame の本文（gzip・base64 済み、encodedByteLength）で、展開した XML ではない。観測点 30,000 の VXSE53 の 4.89 MB は展開した XML の大きさと読み（bf35e8ea1825 の観測点 1 つが約 108 byte で、30,000 点で約 3.2 MB に字下げなどが加わる。記録は repo の外で未確認）、frame は約 0.8 MB と推計する（bf35e8ea1825 の gzip・base64 の比 0.168）〔実装の実測（Q-SP-IMPL）: 試験の中で組んだ観測点 30,000 の VXSE53 は XML 3,337,188 byte・frame 3,369,064 byte。frame は compression null で gzip・base64 されておらず、本物の frame とは形が違う。AC01 の (a1) 解凍・展開と投入→T0 はこの形の値で、本物の frame では (a1) に gzip の展開が加わり、publisher が解く frame の JSON は小さくなる〕。どの枠が先に尽きるかは入力の構成しだいで、gzip・base64 はすべての入力に要るわけではない（ingress.ts は encoding utf-8・compression null も受ける）。場面（byte の側）: 14:46:50 から seismic が frame 約 800,000 byte の VXSE53 を処理している間に同じ大きさの VXSE53 が続けて受理されると、通常枠の 18 件で 14,400,000 byte になり、19 件目の追加が 14 MiB（14,680,064 byte）を越えて byte で拒否される。場面（件数の側）: 小さい報が多い日に、受理した通常の入力が 120 件ある所へ 121 件目を足すと件数で拒否される。どちらでも host は接続を切り、mailbox の pending と in-flight が空になるまで繋ぎ直さない。その間に出た EEW は受信できず、画面の EEW のカードは繋ぎ直すまで更新されない（切れていた間の報の扱いは今の接続回復のまま）。これは今の背圧と同じで（spec:1085、有限の queue は任意の burst の無欠落を約束しない）、mailbox は in-flight も件数と byte に数えるので、場所が 1 つ増えると在処理の 1 件分だけ通常枠の残りが減りうる。承認に出さない注記: Pi の数（約 1.3 秒の待ち、差 約 1 秒）は推計で、AC08 の (3) で確かめる。VXSE47（notPorted、候補 U-Q）を後で移すとき、場所は unit に従い seismic になる。"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-SP-MEASURE",
-        "owner": "integrator",
-        "blocks": [
-          "本契約の閉鎖"
-        ],
-        "resolveBy": "配送の後",
-        "requiredEvidence": [
-          "AC08 の (2) Mac mini の E01 の 2 母集団の結果",
-          "AC08 の (3) Pi の予備確認の観測最大",
-          "構造的欠陥台帳 §100 への追記"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
