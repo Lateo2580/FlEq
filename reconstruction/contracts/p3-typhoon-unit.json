@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "2c2479e1d07ca4a5ed9e18b2708b63693a4df56f861dad933320e5258f951ee5",
+    "sha256": "e7a9492bd41bbba4b3e913582bfca6452a1961cfe2f750fb6e8ee3038d8a8710",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -65,7 +65,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が発注前点検で確定（2026-10-13、Q-C14-PRECHECK）: A（deferred）。起草の読みを変える材料は無い。根拠: spec:1027はdeferredを「U-Fなど急がないunitと、readyでないheadTypeの入力」とし、D-P3-1は急ぐunitと急がないunitを同居させない（reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»）。U-Yの通知の群はother（P3-C14-NOTICE-GROUP）で、EEW・津波緊急より先には選ばれない。AC12の待ちの線は、EEW（urgent）が約40 ms（E01の250 msを計画:239の速度差約6.3倍で割った値、C12・C13と同じ）で、超えたら配送の前に作者へ報告しPLACEを見直す。U-Yの待ちとU-Yの後ろの待ちは約160 ms（C12の(18)・C13の(21)の実測の線）で、超過はP3-C14-INTERFERENCE-OVER=A（作者裁定）により残存リスク(14)として承認済み、PiはC22へ。C10〜C13のPLACEと同じ読み",
-        "reason": "今のVPTW60〜65・VPTA50〜55はnotPortedで、すでにdeferredで解凍・XML parseされている（spec:1027）。起草者が2026-10-13にMacで測った（reconstruction/distのdecodeMaterial、12回）: 1,849,665 byteのVPTA50（76_01_02）の解凍の手前からdecodeの終わりまで中央値36.1 ms・最大39.5 ms（76_01_01は中央値37.9・最大58.9 ms）、XML node 118,642（上限320,000）、生きた木は1通あたり8.8 MiB。57,369 byteのVPTW60は中央値1.1 ms・2,260 node。Pi（約6.3倍、計画:239）では確率の報のdecodeが約230 ms。deferredの最長はVPWP50（C13の実測で後ろの待ち最大161 ms、reconstruction/contracts/p3-local-bulletins-unit.json:449 «4b8064615c84a074»）で、確率の報はそれより短い見込み。Bの代償: U-Wの重い処理（VPWS50）と台風を同じ列に並べ、E05-PとU-Wの待ちに台風の1.85 MBが加わる"
+        "reason": "今のVPTW60〜65・VPTA50〜55はnotPortedで、すでにdeferredで解凍・XML parseされている（spec:1027）。起草者が2026-10-13にMacで測った（reconstruction/distのdecodeMaterial、12回）: 1,849,665 byteのVPTA50（76_01_02）の解凍の手前からdecodeの終わりまで中央値36.1 ms・最大39.5 ms（76_01_01は中央値37.9・最大58.9 ms）、XML node 118,642（上限320,000）、生きた木は1通あたり8.8 MiB。57,369 byteのVPTW60は中央値1.1 ms・2,260 node。Pi（約6.3倍、計画:239）では確率の報のdecodeが約230 ms。deferredの最長はVPWP50（C13の実測で後ろの待ち最大161 ms、reconstruction/contracts/p3-local-bulletins-unit.json:449 «6226c642f75397d8»）で、確率の報はそれより短い見込み。Bの代償: U-Wの重い処理（VPWS50）と台風を同じ列に並べ、E05-PとU-Wの待ちに台風の1.85 MBが加わる"
       },
       {
         "id": "P3-C14-INTERFERENCE-OVER",
@@ -75,7 +75,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定A（2026-10-13朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（deferredのまま、約160 msの超過は残存リスク(14)として承認し、PiはC22へ）だけを読む",
-        "reason": "計画:79は配置先のworkerの最長の非中断処理とその間の待ちを報告に求め、C13は線（約160 ms）を超えたら作者へ報告するとした。確率の報はdecodeだけでMacの中央値36〜38 ms・最大59 ms（起草者の計測、P3-C14-PLACE.reason）で、reduceを足すと数十ms。C13の実測では最大のVPWP50の後ろの竜巻注意情報（VPHW51）の待ちがMacで最大161.0 ms（reconstruction/contracts/p3-local-bulletins-unit.json:449 «4b8064615c84a074»）なので、同じ位置の確率の報の待ちはその値にdecodeの差を足した値になり、線をほぼ確実に超える。確率の報は1台風で1日4通で、待つのは天気・気象の急がない報だけ（EEW・津波・地震はurgent）。Aの代償: Piでは確率の報1通で同居のunitが数百ms待ちうる（推定、C22で確かめる）。B・Cの代償は各案の文のとおりで、Bは計画の作者裁定D-P3-1の変更、CはU-Wの待ちを増やす"
+        "reason": "計画:79は配置先のworkerの最長の非中断処理とその間の待ちを報告に求め、C13は線（約160 ms）を超えたら作者へ報告するとした。確率の報はdecodeだけでMacの中央値36〜38 ms・最大59 ms（起草者の計測、P3-C14-PLACE.reason）で、reduceを足すと数十ms。C13の実測では最大のVPWP50の後ろの竜巻注意情報（VPHW51）の待ちがMacで最大161.0 ms（reconstruction/contracts/p3-local-bulletins-unit.json:449 «6226c642f75397d8»）なので、同じ位置の確率の報の待ちはその値にdecodeの差を足した値になり、線をほぼ確実に超える。確率の報は1台風で1日4通で、待つのは天気・気象の急がない報だけ（EEW・津波・地震はurgent）。Aの代償: Piでは確率の報1通で同居のunitが数百ms待ちうる（推定、C22で確かめる）。B・Cの代償は各案の文のとおりで、Bは計画の作者裁定D-P3-1の変更、CはU-Wの待ちを増やす"
       },
       {
         "id": "P3-C14-SUBJECT",

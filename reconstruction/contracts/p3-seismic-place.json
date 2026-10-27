@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "7e9b2790da55a3178565ac658dabb1ec38d8377ef9b2083ecb2d4abd72b46916",
+    "sha256": "40d0d3800d96417cb3df91acbac9280b395e5257e04d6b587662fa786868272f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -97,7 +97,7 @@
         "id": "Q-SP-SITES",
         "status": "closed",
         "source": "起草のコード読み（HEAD 235457ea）",
-        "closed": "場所の名前を持つ所: (1) 型 ExecutionPlace（p3-execution-split.types.ts:26）(2) executionPlaces（unit-coverage.ts:16、鍵付きの Record で unit の足し忘れは型が止める）(3) host が owner を立てる一覧（host.ts:156 の直書き。足し忘れは型が止めない）(4) composition-root の Record<ExecutionPlace,…> 2 か所（:387 の monitors、:403 の outstanding。足し忘れは型が止める）と、場所の一覧 places（:90、unit の表から作る）(5) 留保の条件（:845 の place === \"urgent\"）(6) 測定の道具の thread 名の直書き（test/eew-e01 の ac15.mjs の AC15_OWNERS、aux-measures.mjs の threads と E12_THREADS、aux-measures.d.mts の PerThread、p3.test.ts の places、test/execution-split/owner-harness.ts の places）と、手で owner の Map を組む所（test/chrome-eew/smoke.mjs:109、test/integration/private-eew.mjs:212、test/shared-runtime/shared-runtime.test.ts:116、test/eew-e01/aux-measures.mjs:247 の OWNER_UNITS）(7) host.ts:158 の resourceLimits の三項（urgent 以外に maxYoungGenerationSizeMb 12 を付ける。直さないと seismic に縛りが付き D-YOUNG＝A に反する）。mailbox（:82）と書込み権の選び（composition-root.ts:1435）は場所で引くだけで、名前を持たない。checkpoint の置き場は unit で決まり、場所によらない",
+        "closed": "場所の名前を持つ所: (1) 型 ExecutionPlace（p3-execution-split.types.ts:26）(2) executionPlaces（unit-coverage.ts:16、鍵付きの Record で unit の足し忘れは型が止める）(3) host が owner を立てる一覧（host.ts:156 の直書き。足し忘れは型が止めない）(4) composition-root の Record<ExecutionPlace,…> 2 か所（:387 の monitors、:403 の outstanding。足し忘れは型が止める）と、場所の一覧 places（:90、unit の表から作る）(5) 留保の条件（:845 の place === \"urgent\"）(6) 測定の道具の thread 名の直書き（test/eew-e01 の ac15.mjs の AC15_OWNERS、aux-measures.mjs の threads と E12_THREADS、aux-measures.d.mts の PerThread、p3.test.ts の places、test/execution-split/owner-harness.ts の places）と、手で owner の Map を組む所（test/chrome-eew/smoke.mjs:109、test/integration/private-eew.mjs:212、test/shared-runtime/shared-runtime.test.ts:116、test/eew-e01/aux-measures.mjs:247 の OWNER_UNITS）(7) host.ts:158 の resourceLimits の三項（urgent 以外に maxYoungGenerationSizeMb 12 を付ける。直さないと seismic に縛りが付き D-YOUNG＝A に反する）。mailbox（:82）と書込み権の選び（composition-root.ts:1435）は場所で引くだけで、名前を持たない。checkpoint の置き場は unit で決まり、場所によらない【P3-HOST-FOLLOWUP-001（2026-10-27） の注: volcano・nankai の host 試験（volcano-host.test.ts・nankai-host.test.ts）の区間 (3) の到着の記録（inputDone を urgent の返信だけから記録する）を拾っていなかった。U-Q が seismic へ移ると U-Q の返信が記録されず区間 (3) が止まった（P3-HOST-FOLLOWUP-001 の Q-HF-PRECHECK (4)(a)、同契約の P3-HF-AC04 で直した）】",
         "remaining": "なし",
         "reason": "AC02・AC08 の範囲"
       },
@@ -456,9 +456,9 @@
           "reconstruction/contracts/p3-seismic-unit.json:322 «1cf2f2dd1b980ba0»",
           "reconstruction/contracts/p3-seismic-unit.json:765 «d520396f2defcadf»",
           "reconstruction/contracts/p3-seismic-unit.json:924 «dd63c49f3392adf7»",
-          "reconstruction/contracts/p3-nankai-unit.json:268 «9936416b9ce524f9»",
+          "reconstruction/contracts/p3-nankai-unit.json:268 «b12ee7e7f9e198cd»",
           "reconstruction/contracts/p3-nankai-unit.json:273 «dc9020456430a533»",
-          "reconstruction/contracts/p3-volcano-unit.json:362 «24ce1cac0c4ab0d4»",
+          "reconstruction/contracts/p3-volcano-unit.json:362 «03f66de632d67bde»",
           "reconstruction/contracts/p3-volcano-unit.json:367 «643b36b6792936fe»",
           "reconstruction/contracts/p3-notice-ledger.json:26 «16af81a399eb6ec1»",
           "reconstruction/contracts/p3-notice-ledger.json:1008 «b1d63d9489447697»",
