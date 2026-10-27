@@ -335,6 +335,7 @@ describe.runIf(process.env.FLEQ_C13_AC12 === "1")("P3-C13-AC12 deferred interfer
         await until(() => m.processingOf(last) != null);
       }
       const adopted = Array.from({ length: frames.length }, (_, index) => raised(observations, `input-${sequence - frames.length + 1 + index}`, "U-M")).reduce<number>((sum, item) => sum + item, 0);
+      if (adopted !== frames.length) throw new Error(`bulk records were not adopted (${adopted}/${frames.length})`);
       if (clock().wallTimeMs >= due) throw new Error("bulk records were not built before their deadline");
       const eew = `input-${++sequence}`;
       let doneBefore = 0;

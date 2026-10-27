@@ -48,8 +48,8 @@ vi.mock("node:worker_threads", async (importOriginal) => {
     }
     override emit(event: string | symbol, ...args: unknown[]): boolean {
       const reply = args[0];
-      if (event === "message" && this.place === "urgent" && reply != null && typeof reply === "object" && "kind" in reply) {
-        if (reply.kind === "deadlineDone") owners.deadlineDone.push(performance.now());
+      if (event === "message" && (this.place === "urgent" || this.place === "seismic") && reply != null && typeof reply === "object" && "kind" in reply) {
+        if (reply.kind === "deadlineDone" && this.place === "urgent") owners.deadlineDone.push(performance.now());
         if (reply.kind === "inputDone" && "settlement" in reply && "decode" in reply && "generationRaisedMs" in reply) {
           const settlement = reply.settlement as { inputId: string };
           const decode = reply.decode as { startedMonotonicMs: number; endedMonotonicMs: number };
@@ -301,34 +301,34 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
         missing: rows.filter((row) => row.waitBehindEncodeMs == null).length, tried: rows.length }));
     }
 
-    // (3) 同時 dirty の権のまとめ出し: U-Q を 4 MiB 近くまで積み、U-Q と U-N の続報を続けて送る。両方の返信の後に reevaluate が
-    // U-Q・U-N の権を続けて送る。対象処理の区間は最初の権の送出から U-Q と U-N の encode の遅い方の終わりまで。
+    // (3) 同時 dirty の権: U-Q を 4 MiB 近くまで積み、U-Q と U-N の続報を続けて送る。U-Q は seismic なので、EEW を待たせうるのは urgent の
+    // U-N の encode だけ。対象処理の区間は U-N の権の送出からその encode の終わりまで。grantGapMs・quakeEncodeMs は参考（P3-HF-AC04）。
     const s53 = text("telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825");
     for (let index = 0; index < 12; index++) await sendAll([frame("VXSE53", withEvent(s53, `F53${String(index).padStart(11, "0")}`))]);
     const later = (minute: number) => s53.replace(/2026-07-28T16:35:00\+09:00/g, `2026-07-28T17:${String(minute).padStart(2, "0")}:00+09:00`)
       .replace("<Serial>2</Serial>", `<Serial>${minute + 3}</Serial>`)
       .replace("<DateTime>2026-07-28T07:35:28Z</DateTime>", `<DateTime>2026-07-28T08:${String(minute).padStart(2, "0")}:28Z</DateTime>`);
-    {
-      const rows: Record<string, number | null>[] = [];
+    { let injected: Promise<readonly number[]> | null = null;
+      const rows: Record<string, number | null>[] = []; owners.onUrgentGrant = (unit, granted) => { if (injected == null && unit === "U-N") injected = h.sender.send([eewFrame()]).then((at) => [granted, ...at]); };
       for (let index = 0; index < runs; index++) {
-        const quake = `input-${++sequence}`, nankai = `input-${++sequence}`, eew = `input-${++sequence}`;
+        const quake = `input-${++sequence}`, nankai = `input-${++sequence}`, eew = `input-${++sequence}`; injected = null;
         await h.sender.send([frame("VXSE53", withEvent(later(index), "F5300000000000")),
           frame("VYSE60", stamp(start + 600_000 + index * 1000)(withEvent(vyse60, "F".repeat(64))))]);
         await until(() => owners.arrivals.has(quake) && owners.arrivals.has(nankai));
-        // 2 つの返信の順と権の送出の順は owner の進み方で決まるので、最初の返信から数える。
+        await until(() => injected != null); // urgent を塞ぐのは U-N の encode だけ（U-Q は seismic）なので、EEW は U-N の権の送出の瞬間に投入する（区間 (2) と同じ）。
         const arrivedAt = Math.min(owners.arrivals.get(quake)!.at, owners.arrivals.get(nankai)!.at);
-        const [injectedAt] = await h.sender.send([eewFrame()]);
-        const grants = () => owners.posted.filter((item) => item.place === "urgent" && item.kind === "checkpointGrant" && item.at >= arrivedAt);
-        const after = (unit: string) => { const first = grants()[0]; return first == null ? undefined : encodes(unit).find((item) => item.start >= first.at); };
+        const [nankaiGrant, injectedAt] = await injected!;
+        const grantOf = (unit: string) => owners.posted.find((item) => item.kind === "checkpointGrant" && item.unit === unit && item.place === (unit === "U-Q" ? "seismic" : "urgent") && item.at >= arrivedAt);
+        const after = (unit: string) => { const grant = grantOf(unit); return grant == null ? undefined : encodes(unit).find((item) => item.start >= grant.at); };
         await until(() => marker(observations, "T2", eew) != null && after("U-Q") != null && after("U-N") != null);
         const q = after("U-Q")!, n = after("U-N")!;
-        const grantBefore = (at: number) => grants().filter((item) => item.at <= at).at(-1)!.at;
-        rows.push(m.row(eew, injectedAt, { start: grants()[0].at, end: Math.max(q.end, n.end) }, { grants: grants().filter((item) => item.at <= Math.max(q.end, n.end)).length,
+        const quakeGrant = grantOf("U-Q")!.at;
+        rows.push(m.row(eew, injectedAt, { start: nankaiGrant, end: n.end }, { grants: owners.posted.filter((item) => item.place === "urgent" && item.kind === "checkpointGrant" && item.at >= nankaiGrant && item.at <= n.end).length,
           // 0 に近ければ U-Q と U-N の権が同じ reevaluate でまとめて出た。
-          grantGapMs: Math.abs(grantBefore(q.start) - grantBefore(n.start)),
+          grantGapMs: Math.abs(quakeGrant - nankaiGrant),
           quakeEncodeMs: q.end - q.start, nankaiEncodeMs: n.end - n.start, quakeBytes: q.bytes, nankaiBytes: n.bytes }));
       }
-      m.record("batchedGrantsQuakeAndNankai", rows, Math.ceil(runs / 2));
+      owners.onUrgentGrant = null; m.record("batchedGrantsQuakeAndNankai", rows, Math.ceil(runs / 2));
     }
     await h.stop();
     console.info("P3-C8-AC11-RAW", JSON.stringify(m.raw));

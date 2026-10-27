@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3bf28220324183175ffc82e04420a6ccef24ef6e",
-    "sha256": "4ab642da50906f529dabccf0b871d298f8617621c1e12c0b0c55969ea68a97d7",
+    "sha256": "4ec36263e12a7d0c18655d73cb5b1872973a6f5c6cb77d5c8c62a5acd368b9c4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -204,20 +204,20 @@
         "id": "P3-HF-AC01",
         "requirement": "続報を採用の経路に乗せる（Q-HF-SOURCE）: (1) volcano-host.test.ts は fixture の followHead を import し、host 試験の中の retime を「fixture の retime の後に followHead で Control/DateTime を同じだけ進める」1 行の関数にする（setup の警報・噴火・降灰、区間 (1) の全国の VFVO51、区間 (2)(3) の噴火、区間 (4) の 5 種の組み立てに当たる）。区間 (3) の VXSE53 の later は followHead(s53, …) で包み、Control/DateTime を 07:35:28Z から 08 時台へ進める（VXSE53 は seismic の U-Q で処理される。到着の記録と権の絞りは P3-HF-AC04） (2) tsunami-host.test.ts の giant() は、ReportDateTime の置き換えに続けて最初の DateTime（Control/DateTime）を同じ時刻（2099-01-01T00:mm:00Z）へ置き換える (3) local-bulletins は P3-HF-D-LOCAL の決めに従う（A なら bulkReports の 6 か所を retime(at) に替える） (4) 変えないもの: 各区間の窓・overlapped の判定・required・既存の row の列、deliveryDelayMs、runs の既定値。足す理由: 無いと続報が held か duplicate になり、volcano の区間 (1)(2) と tsunami の maxCheckpointEncode は却下の経路を測り、volcano の区間 (3) は overlapped が足りずに止まり、両方の bulk は 2 回目以降に小さな回収を測る",
         "evidenceRefs": [
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:9 «062efb00594a5c7e»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:203 «c90729a0c52b9234»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:258 «8774a5d8f40ade69»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:278 «76161c1bcc159b8d»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:294 «708fb7852dfdaa76»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:9 «bd4fc814f0bdc51e»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:213 «c90729a0c52b9234»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:268 «8774a5d8f40ade69»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:289 «76161c1bcc159b8d»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:307 «eaa3b802caccc59b»",
           "reconstruction/test/volcano-unit/volcano-fixture.ts:40 «0c0e385628c79a8a»",
           "reconstruction/test/volcano-unit/volcano-fixture.ts:56 «8a3dd55af56e934a»",
           "reconstruction/test/volcano-unit/volcano-fixture.ts:62 «aff5e99df39f82bd»",
-          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:221 «ae0fbe9dedf292cd»",
-          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:228 «a19990f6e9fb1060»",
+          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:224 «4f35abdf0c78be25»",
+          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:233 «a19990f6e9fb1060»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:43 «d3b0627fdab0426d»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:45 «fc2f798f9c4e992a»",
-          "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:73 «6241960970d5489d»",
-          "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:78 «aa3edb3e69e5a215»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:73 «9f318c005eefa4a9»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:78 «716416f93ea7d102»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-unit.test.ts:811 «18be5e9b75a5319a»",
           "reconstruction/src/contracts-revision/version.ts:7 «b4114cd2e4a71493»",
           "reconstruction/src/contracts-revision/version.ts:95 «112023bdd228c955»",
@@ -228,8 +228,8 @@
         "id": "P3-HF-AC02",
         "requirement": "Mac の報告（直した後）: volcano（FLEQ_C9_AC13=1、2 試験）・tsunami（FLEQ_C5_AC13=1、-t P3-C5-AC13）・nankai の区間 (1)〜(3)（FLEQ_C8_AC11=1、-t \"longest U-N work\"）を各 5 回、local-bulletins の bulk（FLEQ_C13_AC12=1、-t \"bulk deadline\"）を 3 回走らせ（runs・bulk runs は既定値。高負荷なので Mac mini で回してよく、回した機械を書く）、各回の rc と、区間ごとの overlappedCount/tried と主な列の max・median を出す。volcano は区間 (1) の workBusyMs・decodeMs・reduceMs・injectToT2、区間 (2) の encodeMs・encodeBytes・injectToT2、区間 (3) の volcanoEncodeMs・injectToT2 と参考の grantGapMs・quakeEncodeMs（P3-HF-AC04 の (3) の読み）、区間 (4) の deadlineMs・injectToT2。tsunami は maxCheckpointEncode の busyMs・eewT0ToT2 と encode。local は deadlineMs・injectToT2・recordsAdopted。nankai は区間 (3) が止まらず通ることと、区間 (3) の overlappedCount/tried・nankaiEncodeMs・injectToT2 と参考の grantGapMs・quakeEncodeMs（区間 (1)(2) は rc だけ）。各値を、引いている原文の値（p3-volcano-unit.json の Q-C9-IMPL-AMEND (10)、p3-local-bulletins-unit.json の残存リスク (21) と Q の (4)、nankai の区間 (3) は p3-unit-n-measure-2.json の Q-NM2-IMPL の U-Q が urgent にいた時の値）と並べる。続報が採られたことは AC03 の列（全回 0）で示し、1 回は dist の stepVersion に判定を書く行を足して区間ごとの adopt の件数を数え、AC03 の列と一致することを確かめる。区間 (3) の各試行で n.start ≥ nankaiGrant かつ nankaiGrant ≥ arrivedAt（volcano は U-V の encode の始まりと volcanoGrant で同じ）であることを 1 回確かめて件数を書く（nankai :247 の deliveryDelayMs で前の区間の古い権が混ざっていないかの確かめ。止める判定は足さない）。手順（Q-HF-PROBE の方法、host-held の version.dist.diff の写し）: reconstruction/dist は gitignore で tsc が作り直すので、tsc --project reconstruction/tsconfig.json の後に reconstruction/dist/src/contracts-revision/version.js を書き換える。function stepVersion(current, mark, candidate, sameContent, ends) の名を stepVersionInner に替え、その後に同じ引数の function stepVersion を足して、r = stepVersionInner(…) を返す前に、環境変数 FLEQ_DIAG_VERSION_LOG があればそのファイルへ JSON 1 行（kind: r.kind、fam: candidate.family、id: candidate.inputId、subj: String(candidate.subject).slice(0, 40)、curCtl・curRdt: current の version の controlDateTimeRaw・reportDateTimeRaw か null、ctl・rdt: candidate の同じ 2 欄）を require(\"node:fs\").appendFileSync で足す。FLEQ_DIAG_VERSION_LOG を付けて走らせ、入力ごとに判定をまとめて（入力 1 件が複数の subject を判定する VFVO51 は全部 adopt のときだけ adopt、EEW を除く）数える。測った後に tsc --project reconstruction/tsconfig.json をもう一度走らせて dist を戻す。commit しない。既定の runs で AC03 の判定が止めたら、stepVersion の判定でその入力が adopt かを先に確かめ、止める判定は緩めずに統合担当へ報告する。どの値も約 40 ms を越えたら配送の前に作者へ報告する",
         "evidenceRefs": [
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:191 «858dc2e34b48b7fa»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:365 «b20d14c648dddbb9»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:201 «858dc2e34b48b7fa»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:387 «b20d14c648dddbb9»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:337 «4c30ccd004880ff3»",
           "reconstruction/src/runtime/owner-runtime.ts:398 «63adcad8d045ce86»",
           "reconstruction/src/runtime/owner-runtime.ts:400 «7820be847bd9d157»",
@@ -240,10 +240,10 @@
         "id": "P3-HF-AC03",
         "requirement": "再発を防ぐ形（P3-HF-D-GUARD の決めに従う。A の場合）: (1) volcano-host.test.ts に、入力と unit を受けて generationRaised の観測があれば 1 を返す 1 行の関数を足し、各区間の行に notAdopted を足す（区間 (1)(2) は work の U-V、区間 (3) は quake の U-Q（seismic の返信。P3-HF-AC04 の (1) で記録する）と volcano の U-V、区間 (4) は frames の 384〜511 番の定時の降灰 VFVO53 を除く 448 件の U-V）。measurer の record で、overlapped の不成立より先に、1 行でも notAdopted が 0 でなければ「${name}: continuation not adopted」で止める（止め方は overlapped と同じ。先に見ないと、続報が採られないせいで重ならなかった時に原因の違う止め方になる） (2) tsunami-host.test.ts の trial の行に notAdopted（work の U-T）を足し、collect で同じ形で止める。止める判定は collect の 3 つ（maxVtse41・maxVtse51・maxCheckpointEncode）すべてに掛かる（maxVtse41・maxVtse51 の続報は直す前から EventID を替えて adopt で、起草の写しで 4/4） (3) local-bulletins-host.test.ts の bulk は、既存の adopted（recordsAdopted）が投入の件数に届かなければ止める (4) VFVO53 を数えない理由（保存しない系列なので採っても世代が入力に帰属しない）を 1 行のコメントで書く。足す理由: 無いと続報が採られていなくても測定が通り、却下の経路の値が報告に載る（今回、local の recordsAdopted は 2 回目以降 256 を出していたが summary に隠れた）",
         "evidenceRefs": [
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:191 «858dc2e34b48b7fa»",
-          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:209 «7e1015464cedeb74»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:201 «858dc2e34b48b7fa»",
+          "reconstruction/test/tsunami-unit/tsunami-host.test.ts:211 «7e1015464cedeb74»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:337 «4c30ccd004880ff3»",
-          "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:338 «1479198c609faf03»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:339 «1479198c609faf03»",
           "reconstruction/src/runtime/owner-runtime.ts:398 «63adcad8d045ce86»"
         ]
       },
@@ -252,11 +252,11 @@
         "requirement": "区間 (3) を今の構成で測る（P3-HF-D-SEISMIC。P3-SEISMIC-PLACE-001 で U-Q は seismic、U-V・U-N は urgent。unit-coverage.ts:16）: (1) volcano-host.test.ts と nankai-host.test.ts の Worker の emit で、inputDone の到着（owners.arrivals）を urgent と seismic の両方の返信から記録する（volcano :46・nankai :51 の place の条件に seismic を足す）。deadlineDone は urgent の返信だけを数えたまま（区間 (4) の一括の期限回収に seismic の期限の返信を混ぜない。volcano :47・nankai :52 の行の中で place を urgent に絞る） (2) 権は unit で引く: posted の checkpointGrant を unit と、その unit の place（U-Q は seismic、U-V・U-N は urgent）で絞り、各 unit の encode はその unit の権より後の最初の encode とする。volcano の posted は unit を持たないので、nankai の :42・:44 と同じく request の unit を posted に足す（volcano :16 の型と :40 の push の行の中） (3) 区間の読み: EEW（urgent）を待たせうるのは urgent の U-V・U-N の encode だけなので、対象処理の区間（overlapped の判定）は U-V（nankai は U-N）の権の送出からその encode の終わりまでにする。grantGapMs は U-Q の権と U-V・U-N の権の送出の間隔（同じ reevaluate でまとめて出たかの参考。0 に近ければまとめて出た）、quakeEncodeMs は seismic の U-Q の encode で EEW を待たせない参考の値、grants は区間の中で urgent に出た権の数。区間 (3) の頭のコメント（volcano :291、nankai :304〜:305）を同じ読みに書き換える (4) 行の数を変えない: nankai-host.test.ts は他の契約が 17 件の anchor で引く（P3-UNIT-N-MEASURE-001 の :46・:200・:247・:271・:282・:283・:294・:298・:323・:335、P3-UNIT-N-MEASURE-002 の :213・:246・:247・:258・:286・:308・:316）ので、:51・:52・:304・:305・:311・:312・:314・:318・:320〜:322・:325・:326・:328・:331 の行の中だけを置き換え、:317（到着の until。本契約が引く）・:323（T2 の until）・:324・:327・:329 と引かれている行は変えない。形（起草の写しで確かめた。Q-HF-PRECHECK の (7)）: :311 を { let injected: Promise<readonly number[]> | null = null; にし、:312 の末尾に owners.onUrgentGrant = (unit, granted) => { if (injected == null && unit === \"U-N\") injected = h.sender.send([eewFrame()]).then((at) => [granted, ...at]); }; を、:314 の末尾に injected = null; を足す。:318 は await until(() => injected != null); と投入の理由のコメント、:320 は const [nankaiGrant, injectedAt] = await injected!;、:321 は const grantOf = (unit: string) => owners.posted.find((item) => item.kind === \"checkpointGrant\" && item.unit === unit && item.place === (unit === \"U-Q\" ? \"seismic\" : \"urgent\") && item.at >= arrivedAt);、:322 は const after = (unit: string) => { const grant = grantOf(unit); return grant == null ? undefined : encodes(unit).find((item) => item.start >= grant.at); };、:325 は const quakeGrant = grantOf(\"U-Q\")!.at;、:326 は区間を { start: nankaiGrant, end: n.end }、grants を urgent の checkpointGrant のうち [nankaiGrant, n.end] の件数に、:328 は grantGapMs: Math.abs(quakeGrant - nankaiGrant)、:331 の頭に owners.onUrgentGrant = null; を置く。組み替えの許可: この形で収まらないときは :318〜:322 と :325〜:334 の中で行を足し引きしてよいが、:316・:317・:323・:335 の行番号と中身を保つ（足した行は同じ区間の中で減らす）。volcano は行を足してよい（volcano-host.test.ts の行を引く他の契約は 0 件で、本契約の anchor は配送で付け直す）。volcano には nankai の :23・:47・:92 と同じ onUrgentGrant を足し、:17 のコメント（urgent の返信だけを記録すると書く）を seismic の返信も記録すると直してよい (5) EEW の投入（条件 (b)）: EEW は U-V（nankai は U-N）の権を urgent へ送った瞬間に投入する。nankai は既存の onUrgentGrant（:23・:47）を使い、区間 (2) と同じ形にする。返信の後に投入する今の形では、urgent を塞ぐのが U-V・U-N の短い encode（約 1〜2 ms）だけになったので、EEW が届く前に encode が終わり、区間 (3) は 0/20 overlapped で止まる（Q-HF-PRECHECK の (7)） (6) 変えないもの: 区間 (1)(2)(4) の窓と判定、required、runs の既定値、nankai の続報の時刻の付け方（:308 で Control/DateTime を進め済み、P3-UNIT-N-MEASURE-002）。nankai には AC03 の notAdopted の止める判定を足さない。足す理由: 無いと U-Q の返信が記録されず、区間 (3) は volcano :302・nankai :317 の until が 60 秒で「condition not reached」を投げて測定が止まる（Q-HF-PRECHECK (4)(a)）",
         "evidenceRefs": [
           "reconstruction/src/runtime/unit-coverage.ts:16 «d322b87ac6931d20»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:16 «a65dd82c7aec564c»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:40 «d0c3c5e10e73739d»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:291 «b1d7f4a32dbfd67d»",
-          "reconstruction/test/volcano-unit/volcano-host.test.ts:302 «dfa9dd3baea6b3a9»",
-          "reconstruction/test/nankai-unit/nankai-host.test.ts:304 «21d00a5830f37738»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:16 «c031f12cfe682304»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:42 «9583dc5c61819f30»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:303 «894b54a4a393c12d»",
+          "reconstruction/test/volcano-unit/volcano-host.test.ts:318 «bf940df9e21092ea»",
+          "reconstruction/test/nankai-unit/nankai-host.test.ts:304 «1505ea84376beb9a»",
           "reconstruction/test/nankai-unit/nankai-host.test.ts:317 «acc4ba18b14f17a4»"
         ]
       }

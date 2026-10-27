@@ -6,19 +6,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import { startP2Host } from "../../src/host/host";
-import { fixtureXml, replaceTag, retime } from "./volcano-fixture";
+import { fixtureXml, followHead, replaceTag, retime as retimeHead } from "./volcano-fixture";
 
 // P3-C9-AC13（台帳 63、P3-C9-INTERFERENCE）: urgent で U-V が足す最も長い非中断処理と、その最中に投入した EEW の待ち。Mac での報告用で、
 // 正式 E01 ではない（U-V 同居後の EEW の正式な再測定は spec:1129 の後半の P5 の最終構成と C22）。通常の試験からは走らせない。
 // 測り方は P3-C7-AC12（Q-C7-IMPL-AMEND(6)）と同じ: 投入側は別 thread、全試行を raw と全体の集計に残し、重なりは投入時刻と対象処理の区間で分ける。
 // 投入側（dmdata の代わりの WS server）は別 thread に置き、publisher の thread が塞がっても投入の時刻がずれないようにする。
 const owners = vi.hoisted(() => ({ live: new Set<{ terminate(): Promise<number> }>(),
-  posted: [] as { place: string; kind: string; inputId: string | null; at: number }[],
-  // urgent の返信が publisher の thread に届いた時刻（複製の復元の後）。inputDone は入力 ID で、deadlineDone は届いた順。
+  posted: [] as { place: string; kind: string; inputId: string | null; unit: string | null; at: number }[],
+  // urgent と seismic（U-Q）の返信が publisher の thread に届いた時刻（複製の復元の後）。inputDone は入力 ID で、deadlineDone は urgent の届いた順。
   arrivals: new Map<string, { at: number; decodeStarted: number; decodeEnded: number; raised: number | null }>(),
   deadlineDone: [] as number[],
   // urgent へ期限の要求を送った瞬間に呼ぶ（一括回収の最中に EEW を投入するため）。
   onUrgentDeadline: null as (() => void) | null,
+  // urgent へ書込み権を送った瞬間に呼ぶ（区間 (3) の EEW の投入）。
+  onUrgentGrant: null as ((unit: string | null, at: number) => void) | null,
   // 配送の完了を遅らせて pending を満たす（合法最大に近い U-V の encode を測る）。
   deliveryDelayMs: 0 }));
 vi.mock("node:worker_threads", async (importOriginal) => {
@@ -37,14 +39,15 @@ vi.mock("node:worker_threads", async (importOriginal) => {
       const kind = request != null && "kind" in request && typeof request.kind === "string" ? request.kind : "unknown";
       const envelope = request != null && "envelope" in request && request.envelope != null && typeof request.envelope === "object"
         && "messageId" in request.envelope && typeof request.envelope.messageId === "string" ? request.envelope.messageId : null;
-      owners.posted.push({ place: this.place, kind, inputId: envelope, at: performance.now() });
+      owners.posted.push({ place: this.place, kind, inputId: envelope, unit: request != null && "unit" in request && typeof request.unit === "string" ? request.unit : null, at: performance.now() });
       super.postMessage(value, transfer);
       if (this.place === "urgent" && kind === "deadline") owners.onUrgentDeadline?.();
+      if (this.place === "urgent" && kind === "checkpointGrant") owners.onUrgentGrant?.(owners.posted.at(-1)!.unit, owners.posted.at(-1)!.at);
     }
     override emit(event: string | symbol, ...args: unknown[]): boolean {
       const reply = args[0];
-      if (event === "message" && this.place === "urgent" && reply != null && typeof reply === "object" && "kind" in reply) {
-        if (reply.kind === "deadlineDone") owners.deadlineDone.push(performance.now());
+      if (event === "message" && (this.place === "urgent" || this.place === "seismic") && reply != null && typeof reply === "object" && "kind" in reply) {
+        if (reply.kind === "deadlineDone" && this.place === "urgent") owners.deadlineDone.push(performance.now());
         if (reply.kind === "inputDone" && "settlement" in reply && "decode" in reply && "generationRaisedMs" in reply) {
           const settlement = reply.settlement as { inputId: string };
           const decode = reply.decode as { startedMonotonicMs: number; endedMonotonicMs: number };
@@ -84,6 +87,7 @@ afterEach(async () => {
   owners.arrivals.clear();
   owners.deadlineDone.length = 0;
   owners.onUrgentDeadline = null;
+  owners.onUrgentGrant = null;
   owners.deliveryDelayMs = 0;
 });
 async function until(condition: () => boolean, milliseconds = 60_000): Promise<void> {
@@ -158,6 +162,11 @@ const withEvent = (xml: string, eventId: string) => xml.replace(/<EventID>[^<]*<
 const marker = (observations: readonly P2HostObservation[], point: "T0" | "T1" | "T2", inputId: string) =>
   observations.flatMap((o) => o.kind === "marker" && o.point === point && "inputId" in o && o.inputId === inputId ? [o.monotonicMs] : [])[0];
 const iso = (ms: number) => new Date(ms + 32_400_000).toISOString().replace(".000Z", "+09:00");
+// host は decodeFixture を通らないので、報の時刻を替えた続報は Control/DateTime も同じだけ進める（P3-VM-AC03、無いと続報は held か duplicate）。
+const retime = (at: string) => (xml: string) => followHead(xml, retimeHead(at)(xml));
+// 続報が採られたか（入力に帰属した世代の上昇、held・duplicate では出ない）。
+const adopted = (observations: readonly P2HostObservation[], inputId: string, unit: string) =>
+  observations.some((o) => o.kind === "generationRaised" && o.inputId === inputId && o.unit === unit) ? 1 : 0;
 
 function summary(rows: readonly Record<string, number | null>[]): Record<string, { max: number; median: number } | null> {
   const keys = Object.keys(rows[0] ?? {});
@@ -188,6 +197,7 @@ function measurer(observations: P2HostObservation[]) {
   // 重なった試行が required 件に届かなければ測定不成立（数字を出さずに止める）。
   const record = (name: string, rows: readonly Record<string, number | null>[], required: number) => {
     const overlapped = rows.filter((item) => item.overlapped === 1);
+    if (rows.some((item) => (item.notAdopted ?? 0) > 0)) throw new Error(`${name}: continuation not adopted`);
     if (overlapped.length < required) throw new Error(`${name}: measurement not established (${overlapped.length}/${rows.length} overlapped)`);
     results[name] = { all: summary(rows), overlapped: summary(overlapped), overlappedCount: overlapped.length, tried: rows.length,
       delayedEewSends: rows.filter((item) => (item.sendDelayAfterFreeMs ?? 0) > 1).length };
@@ -263,7 +273,8 @@ describe.runIf(process.env.FLEQ_C9_AC13 === "1")("P3-C9-AC13 urgent interference
         rows.push(m.row(eew, injectedAt, { start: workAt, end: done.endedMonotonicMs }, {
           workBusyMs: done.endedMonotonicMs - done.startedMonotonicMs, decodeMs: arrival.decodeEnded - arrival.decodeStarted,
           reduceMs: arrival.raised == null ? null : arrival.raised - arrival.decodeEnded,
-          viewAndPostMs: arrival.raised == null ? null : arrival.at - arrival.raised, publisherMs: done.endedMonotonicMs - arrival.at }));
+          viewAndPostMs: arrival.raised == null ? null : arrival.at - arrival.raised, publisherMs: done.endedMonotonicMs - arrival.at,
+          notAdopted: 1 - adopted(observations, work, "U-V") }));
       }
       m.record("maxVfvo51", rows, Math.ceil(runs / 2));
     }
@@ -283,34 +294,42 @@ describe.runIf(process.env.FLEQ_C9_AC13 === "1")("P3-C9-AC13 urgent interference
         const encodeOf = () => { const grant = grantOf(); return grant == null ? undefined : encodes("U-V").find((item) => item.start >= grant.at); };
         await until(() => marker(observations, "T2", eew) != null && encodeOf() != null);
         const granted = grantOf()!.at, encode = encodeOf()!;
-        rows.push(m.row(eew, injectedAt, { start: granted, end: encode.end }, { encodeMs: encode.end - encode.start, encodeBytes: encode.bytes }));
+        rows.push(m.row(eew, injectedAt, { start: granted, end: encode.end }, { encodeMs: encode.end - encode.start, encodeBytes: encode.bytes,
+          notAdopted: 1 - adopted(observations, work, "U-V") }));
       }
       m.record("maxVolcanoEncode", rows, Math.ceil(runs / 2));
     }
 
-    // (3) 同時 dirty の権のまとめ出し: U-Q を 4 MiB 近くまで積み、U-Q と U-V の続報を続けて送る。
+    // (3) 同時 dirty の権: U-Q を 4 MiB 近くまで積み、U-Q と U-V の続報を続けて送る。U-Q は seismic なので、EEW を待たせうるのは urgent の
+    // U-V の encode だけ。対象処理の区間は U-V の権の送出からその encode の終わりまで。grantGapMs・quakeEncodeMs は参考（P3-HF-AC04）。
     const s53 = text("telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825");
     for (let index = 0; index < 12; index++) await sendAll([frame("VXSE53", withEvent(s53, `F53${String(index).padStart(11, "0")}`))]);
-    const later = (minute: number) => s53.replace(/2026-07-28T16:35:00\+09:00/g, `2026-07-28T17:${String(minute).padStart(2, "0")}:00+09:00`)
-      .replace("<Serial>2</Serial>", `<Serial>${minute + 3}</Serial>`);
+    const later = (minute: number) => followHead(s53, s53.replace(/2026-07-28T16:35:00\+09:00/g, `2026-07-28T17:${String(minute).padStart(2, "0")}:00+09:00`)
+      .replace("<Serial>2</Serial>", `<Serial>${minute + 3}</Serial>`));
     {
+      let injected: Promise<readonly number[]> | null = null;
       const rows: Record<string, number | null>[] = [];
+      owners.onUrgentGrant = (unit, granted) => { if (injected == null && unit === "U-V") injected = h.sender.send([eewFrame()]).then((at) => [granted, ...at]); };
       for (let index = 0; index < runs; index++) {
         const quake = `input-${++sequence}`, volcano = `input-${++sequence}`, eew = `input-${++sequence}`;
+        injected = null;
         await h.sender.send([frame("VXSE53", withEvent(later(index), "F5300000000000")),
           frame("VFVO52", eruptionXml(eventOf("A", index % 128), start + 600_000 + index * 1000))]);
-        await until(() => owners.arrivals.has(quake) && owners.arrivals.has(volcano));
+        await until(() => owners.arrivals.has(quake) && owners.arrivals.has(volcano) && injected != null);
         const arrivedAt = Math.min(owners.arrivals.get(quake)!.at, owners.arrivals.get(volcano)!.at);
-        const [injectedAt] = await h.sender.send([eewFrame()]);
-        const grants = () => owners.posted.filter((item) => item.place === "urgent" && item.kind === "checkpointGrant" && item.at >= arrivedAt);
-        const after = (unit: string) => { const first = grants()[0]; return first == null ? undefined : encodes(unit).find((item) => item.start >= first.at); };
+        // urgent を塞ぐのは U-V の encode だけ（U-Q は seismic）なので、EEW は U-V の権の送出の瞬間に投入する。
+        const [volcanoGrant, injectedAt] = await injected!;
+        const grantOf = (unit: string) => owners.posted.find((item) => item.kind === "checkpointGrant" && item.unit === unit && item.place === (unit === "U-Q" ? "seismic" : "urgent") && item.at >= arrivedAt);
+        const after = (unit: string) => { const grant = grantOf(unit); return grant == null ? undefined : encodes(unit).find((item) => item.start >= grant.at); };
         await until(() => marker(observations, "T2", eew) != null && after("U-Q") != null && after("U-V") != null);
         const q = after("U-Q")!, v = after("U-V")!;
-        const grantBefore = (at: number) => grants().filter((item) => item.at <= at).at(-1)!.at;
-        rows.push(m.row(eew, injectedAt, { start: grants()[0].at, end: Math.max(q.end, v.end) }, {
-          grants: grants().filter((item) => item.at <= Math.max(q.end, v.end)).length, grantGapMs: Math.abs(grantBefore(q.start) - grantBefore(v.start)),
-          quakeEncodeMs: q.end - q.start, volcanoEncodeMs: v.end - v.start, quakeBytes: q.bytes, volcanoBytes: v.bytes }));
+        const quakeGrant = grantOf("U-Q")!.at;
+        rows.push(m.row(eew, injectedAt, { start: volcanoGrant, end: v.end }, {
+          grants: owners.posted.filter((item) => item.place === "urgent" && item.kind === "checkpointGrant" && item.at >= volcanoGrant && item.at <= v.end).length, grantGapMs: Math.abs(quakeGrant - volcanoGrant),
+          quakeEncodeMs: q.end - q.start, volcanoEncodeMs: v.end - v.start, quakeBytes: q.bytes, volcanoBytes: v.bytes,
+          notAdopted: 2 - adopted(observations, quake, "U-Q") - adopted(observations, volcano, "U-V") }));
       }
+      owners.onUrgentGrant = null;
       m.record("batchedGrantsQuakeAndVolcano", rows, Math.ceil(runs / 2));
     }
     await h.stop();
@@ -360,7 +379,10 @@ describe.runIf(process.env.FLEQ_C9_AC13 === "1")("P3-C9-AC13 urgent interference
       owners.onUrgentDeadline = null;
       await until(() => marker(observations, "T2", eew) != null && owners.deadlineDone.length > doneBefore);
       const deadlineDone = owners.deadlineDone[doneBefore];
-      rows.push(m.row(eew, injectedAt, { start: deadlinePosted, end: deadlineDone }, { deadlineMs: deadlineDone - deadlinePosted }));
+      rows.push(m.row(eew, injectedAt, { start: deadlinePosted, end: deadlineDone }, { deadlineMs: deadlineDone - deadlinePosted,
+        // 定時の降灰（VFVO53）は採っても通知の出ない入力に世代が帰属しないので数えない（起草の写しで 128 件中 122 件、P3-HF-D-GUARD）。
+        notAdopted: frames.filter((item, index) => !item.includes('"type":"VFVO53"')
+          && adopted(observations, `input-${sequence - frames.length + index}`, "U-V") === 0).length }));
     }
     m.record("bulkDeadline", rows, Math.ceil(bulkRuns / 2));
     await h.stop();

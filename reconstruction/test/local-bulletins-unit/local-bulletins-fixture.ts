@@ -70,12 +70,12 @@ function bulkReports(due: number): readonly Readonly<{ headType: string; xml: st
   const many = (count: number, headType: string, name: string, retain: number, make: (index: number, at: string) => (xml: string) => string) =>
     Array.from({ length: count }, (_, index) => ({ headType, xml: make(index, iso(due - retain))(fixtureXml(name)) }));
   return [
-    ...many(128, "VPHW50", "19_03_01_130906_VPHW50", 36 * HOUR, (index, at) => compose(headTitle(`第${pad(index)}府県竜巻注意情報`), replaceTag("ReportDateTime", at), replaceTag("ValidDateTime", iso(due)))),
-    ...many(256, "VPFT50", "57_03_01_240401_VPFT50", 72 * HOUR, (index, at) => compose(eventId(`JPTC24${pad(index)}`), replaceTag("ReportDateTime", at), replaceTag("TargetDateTime", at))),
-    ...many(256, "VXSE56", "32-35_09_01_191111_VXSE56", 36 * HOUR, (index, at) => compose(eventId(`S${pad(index)}`), replaceTag("ReportDateTime", at))),
-    ...many(256, "VPFJ51", "85_01_01_250630_VPFJ51", 36 * HOUR, (index, at) => compose(eventId(`JPTK23${pad(index)}`), replaceTag("ReportDateTime", at))),
-    ...many(128, "VPCI50", "30_01_01_100915_VPCI50", 30 * DAY, (index, at) => compose(eventId(`C${pad(index)}`), replaceTag("ReportDateTime", at))),
-    ...many(128, "VPAW51", "72_01_01_190327_VPAW51", 7 * DAY, (index, at) => compose(headTitle(`高温に関する早期天候情報（${pad(index)}）`), replaceTag("ReportDateTime", at))),
+    ...many(128, "VPHW50", "19_03_01_130906_VPHW50", 36 * HOUR, (index, at) => compose(headTitle(`第${pad(index)}府県竜巻注意情報`), retime(at), replaceTag("ValidDateTime", iso(due)))),
+    ...many(256, "VPFT50", "57_03_01_240401_VPFT50", 72 * HOUR, (index, at) => compose(eventId(`JPTC24${pad(index)}`), retime(at), replaceTag("TargetDateTime", at))),
+    ...many(256, "VXSE56", "32-35_09_01_191111_VXSE56", 36 * HOUR, (index, at) => compose(eventId(`S${pad(index)}`), retime(at))),
+    ...many(256, "VPFJ51", "85_01_01_250630_VPFJ51", 36 * HOUR, (index, at) => compose(eventId(`JPTK23${pad(index)}`), retime(at))),
+    ...many(128, "VPCI50", "30_01_01_100915_VPCI50", 30 * DAY, (index, at) => compose(eventId(`C${pad(index)}`), retime(at))),
+    ...many(128, "VPAW51", "72_01_01_190327_VPAW51", 7 * DAY, (index, at) => compose(headTitle(`高温に関する早期天候情報（${pad(index)}）`), retime(at))),
   ];
 }
 

@@ -197,7 +197,9 @@ describe.runIf(process.env.FLEQ_C5_AC13 === "1")("P3-C5-AC13 urgent interference
         busyMs: done.endedMonotonicMs - done.startedMonotonicMs,
         eewT0ToT1: marker(observations, "T1", eew)! - marker(observations, "T0", eew)!,
         eewT0ToT2: marker(observations, "T2", eew)! - marker(observations, "T0", eew)!,
-        sendDelayAfterFreeMs: Math.max(0, (postedAt(eew) ?? free) - free) };
+        sendDelayAfterFreeMs: Math.max(0, (postedAt(eew) ?? free) - free),
+        // 続報が採られたか（入力に帰属した世代の上昇、held・duplicate では出ない）。
+        notAdopted: observations.some((o) => o.kind === "generationRaised" && o.inputId === work && o.unit === "U-T") ? 0 : 1 };
     };
     const vtse41 = text("32-39_12_02_250206_VTSE41").replace("<Status>訓練</Status>", "<Status>通常</Status>");
     const vtse51 = text("32-39_11_10_250206_VTSE51");
@@ -207,6 +209,7 @@ describe.runIf(process.env.FLEQ_C5_AC13 === "1")("P3-C5-AC13 urgent interference
     const collect = async (name: string, make: (index: number) => [string, string], afterWork = false) => {
       const rows = [];
       for (let index = 0; index < runs; index++) rows.push(await trial(...make(index), afterWork));
+      if (rows.some((row) => row.notAdopted > 0)) throw new Error(`${name}: continuation not adopted`);
       results[name] = summary(rows);
       delayed[name] = rows.filter((row) => row.sendDelayAfterFreeMs > 1).length;
     };
@@ -218,7 +221,9 @@ describe.runIf(process.env.FLEQ_C5_AC13 === "1")("P3-C5-AC13 urgent interference
     const giant = (eventId: string, minute: number) => vtse41.replace(/<Body[\s\S]*<\/Body>/, `<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/">`
       + `<Tsunami><Forecast>${Array.from({ length: 1000 }, (_, code) => area(code)).join("")}</Forecast></Tsunami></Body>`)
       .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`)
-      .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>2099-01-01T09:${String(minute).padStart(2, "0")}:00+09:00</ReportDateTime>`);
+      .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>2099-01-01T09:${String(minute).padStart(2, "0")}:00+09:00</ReportDateTime>`)
+      // 続報は Control/DateTime（最初の DateTime）も報の時刻へ進める（P3-VM-AC03、無いと続報は duplicate か held）。
+      .replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>2099-01-01T00:${String(minute).padStart(2, "0")}:00Z</DateTime>`);
     // VTSE41 は予約枠（8 件）を使うので、1 件ずつ処理を待って送る。
     for (let index = 0; index < 14; index++) {
       h.send(frame("VTSE41", giant(String(20990101000100 + index), 0)));
