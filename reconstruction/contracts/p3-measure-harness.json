@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "012aebe9684304d4d5b0f7b2cc31378dc278f6a1a9ceeca75652887d5876654c",
+    "sha256": "7cf02e237ceb8f180b94b29b4b20c9d9342fc772d0a9808bf6f4bef78d936a9c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -34,7 +34,7 @@
         "C": "A10のinitial-state・trial-setupを書き換える",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が発注前点検で確定（2026-10-11、Q-MH-PRECHECK）: A。e51b06e9で実コードを読み直した。(1) P3のmanifestの照合はtrialSetupをA10の凍結manifestの値と文字列で比べ（frozen.ts:403）、津波のmanifestはC4の値と比べる（frozen.ts:595）。C4・C6・e7440188のE05-Pの凍結manifestはA10のtrialSetupSha256を持つので、C（A10の1組の書換え）はそれらの照合を全部壊す (2) BはP3E01Manifestの型（p3-e01-reaccept.types.ts）を変えるのでoutOfScopeの「契約の型」に当たる (3) Aは型を変えずに入る: harnessの1組はtrialSetupRef・trialSetupSha256の欄に書け、verifyTrialSetup（frozen.ts）はschemaVersion・clock.monotonicOrigin・手順の非空・checkpointの欄だけを見るので同じ検査を通る。populationsのstateRef・stateSha256は自分のtrial-setupが指すinitial-stateに結ぶ今の検査（frozen.ts:417）のままで、呼び出し側（run.mjs・p3.test.ts）はinheritedのinitialStateTextにそのinitial-stateを渡す。依存の向きはframes.mjs→initial-state（rulesSource）→trial-setup（initialStateSha256）→frozen.tsの定数で循環しない (4) frames.mjsを変えるとA10の1組はpreflightのrulesSourceの照合（run.mjs:1389）を通らなくなる。P3の測り直しはharnessの1組で走るので困らないが、津波の照合（frozen.ts:595、本契約で変えない）はC4の1組＝A10の1組に縛られたままなので、新しい津波のmanifest（P3-C6-AC09のPi予備を含む）は本契約の後はpreflightで止まる。別機械のharnessの契約が津波の照合もharnessの1組へ開く（残存リスク(9)の後続、Q-MH-PRECHECK）",
+        "ruling": "統合担当が発注前点検で確定（2026-10-11、Q-MH-PRECHECK）: A。e51b06e9で実コードを読み直した。(1) P3のmanifestの照合はtrialSetupをA10の凍結manifestの値と文字列で比べ（frozen.ts:403）、津波のmanifestはC4の値と比べる（frozen.ts:595）。C4・C6・e7440188のE05-Pの凍結manifestはA10のtrialSetupSha256を持つので、C（A10の1組の書換え）はそれらの照合を全部壊す (2) BはP3E01Manifestの型（p3-e01-reaccept.types.ts）を変えるのでoutOfScopeの「契約の型」に当たる (3) Aは型を変えずに入る: harnessの1組はtrialSetupRef・trialSetupSha256の欄に書け、verifyTrialSetup（frozen.ts）はschemaVersion・clock.monotonicOrigin・手順の非空・checkpointの欄だけを見るので同じ検査を通る。populationsのstateRef・stateSha256は自分のtrial-setupが指すinitial-stateに結ぶ今の検査（frozen.ts:417）のままで、呼び出し側（run.mjs・p3.test.ts）はinheritedのinitialStateTextにそのinitial-stateを渡す。依存の向きはframes.mjs→initial-state（rulesSource）→trial-setup（initialStateSha256）→frozen.tsの定数で循環しない (4) frames.mjsを変えるとA10の1組はpreflightのrulesSourceの照合（run.mjs:1389）を通らなくなる。P3の測り直しはharnessの1組で走るので困らないが、津波の照合（frozen.ts:595、本契約で変えない）はC4の1組＝A10の1組に縛られたままなので、新しい津波のmanifest（P3-C6-AC09のPi予備を含む）は本契約の後はpreflightで止まる。別機械のharnessの契約が津波の照合もharnessの1組へ開く（残存リスク(9)の後続、Q-MH-PRECHECK）【P3-TSUNAMI-HARNESS-001（2026-10-27）で、津波の照合を harness の 1 組へ開く部分は、別機械の harness の契約でなく P3-TSUNAMI-HARNESS-001 が引き受けた（Pi の第 2 段と P3-C6-AC09 は別機械の harness の契約に残る）】",
         "reason": "frozen.tsのverifyFrozenP3ManifestはtrialSetupをA10と同一に縛り、run.mjsのpreflightはframes.mjsのsha256をinitial-stateのrulesSourceと照らす。frames.mjsを変えるとA10のinitial-stateのままでは全窓がpreflightで止まる。Bは契約の型（contracts/p3-e01-reaccept.types.ts）の改訂が要り本契約の範囲を越える。CはA10・C4・C6の凍結物の参照先を壊す"
       }
     ],
@@ -351,7 +351,7 @@
           "reconstruction/src/measurement/eew-e01/frozen.ts:626 «32aa3d6045a6de3f»",
           "reconstruction/test/eew-e01/run.mjs:1494 «a2841edb4b327383»",
           "reconstruction/test/eew-e01/run.mjs:1688 «7f7ba6cc08f0cb6f»",
-          "reconstruction/test/eew-e01/run.mjs:1680 «653eac1bdc5aea7f»",
+          "reconstruction/test/eew-e01/run.mjs:1680 «365d8e984e10e105»",
           "reconstruction/test/eew-e01/draft.mjs:61 «7410598606e49d12»",
           "reconstruction/test/eew-e01/run.mjs:1486 «9523242860f8db0a»",
           "reconstruction/test/eew-e01/run.mjs:1487 «b7f9f4a05757734c»",
@@ -374,7 +374,7 @@
           "reconstruction/contracts/p3-weather-light-step2.json:500 «2147993e6823d492»",
           "reconstruction/contracts/p3-unit-write-right.json:541 «6639f170960948c3»",
           "reconstruction/contracts/p3-tsunami-e01.json:563 «8e9e495871ec85b9»",
-          "reconstruction/contracts/p3-tsunami-e01.json:578 «26ee32a5311d9a06»",
+          "reconstruction/contracts/p3-tsunami-e01.json:578 «da21a56fd09d98a5»",
           "reconstruction/contracts/p3-e01-reaccept.json:745 «9beb1ed747d10836»",
           "reconstruction/contracts/p3-e01-reaccept.json:757 «de3ea7ee502cd62f»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:234 «ee57ddbb85e54f08»",
@@ -528,7 +528,7 @@
       "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: U-Eの報時刻の付け直し（AC01）、startのtime（AC01(4)）、充填のeewHorizonStaleの確かめ（AC01(5)）、満杯の状態の作り方（AC02、裁定の案）、3つの保存母集団の較正とtickの位相（AC03）、E14のowner側の区間（AC04）、harnessのtrial-setupの1組と照合の集合とbackend単独のpreflight（AC05）",
       "入力を変えた既存試験（AC07の3件）の試験名・変えた入力・理由の表。期待値は変えない",
       "工程の成果物（統合担当が実走して記録する）: AC08の予備の記録、3つの測り直しの凍結manifest（AC06(1)(2)(4)）、版付き結果、作者への報告",
-      "残存リスク（作者承認 2026-10-11朝、ご主人、(1)〜(10)の全部。Q-MH-AUTHOR）: (1) 充填のEEW 1,024件は報時刻が同じなので、失効は1回の期限入力でまとめて起きる（実際の発表では起きない最悪の形）。P3-MH-FULL-STATEがB・DならこのことがE02-P・E05-Pの窓に入る (2) U-W・U-Fの充填はwallOrigin（2026-06-05T18:00+09:00）に依存したまま（P3-MH-RETIME-SCOPE=A）。wallOriginを変える版ではU-Fの充填の付け直しが要る (3) Dでは、P窓の失効の後とC窓・E14はC4より小さい状態（充填のcurrent 0）で測る。E02-P・E05-Pの失効の後の値と、E06・E07-C・E14の値は、C4とは状態の定義が違い1対1に比べない（P窓は失効の前の値を比べる）。C窓では周期の続報が作るcurrentが周期0〜9で約10件まで増え、warm-up（継いだ5周期）の後の定常の区間の最初の5周期にこの増加が入る（E06・E07-Cの傾きと周期末の保持に小さく正に効く） (4) 3つの保存母集団の値はUWRの後の保存の始まりに合わせた条件で、C4（UWRの前、tickの予測）の値と同じ指標と呼ばない。forecastDeadlineOverlapではsnapshotのnoticeの満了で1秒の格子の外のdeadline要求が出うるので、その試行は不成立として数える（標本にならない） (5) AC15・E06・E12は入力を付け直すが本契約では測り直さない。AC15のΔNはU-Eのcurrentの数（activeCount）を使い、AC15の窓（1充填あたり約21分）の途中でK6の失効が起きるので、AC15の判定の前提はK6の後に崩れている（後続の契約で見直す） (6) PiのE03の窓はChromeを確かめない（backend単独） (7) 凍結manifestは契約のself digestを固定するので、凍結から測定の終わりまでに載せた契約のfileを変えると照合で止まる。C4・C6の凍結manifestは今すでに通らない（C4は11本、C6は9本の契約のhashとO09のsequencesSha256） (8) P3-MH-FULL-STATEをAにした場合、窓の中のEEWの入力がC4の0件から約1,900件（E02-P）に増える (9) P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段（第2段はPi backend＋Mac miniのChrome）は、本契約の後も走らせられない。別機械のharness（hostをPiで起動、ChromeはMac、別機械の時計の往復対応）は別の契約が要り、作者裁定（残りは全部この後）はこの2つについて閉じない (10) E12の新側の報時刻は基準時刻＋atMsで、旧側の所要の分だけhostの壁時計より前になる（600秒の内なら採用は変わらない）"
+      "残存リスク（作者承認 2026-10-11朝、ご主人、(1)〜(10)の全部。Q-MH-AUTHOR）: (1) 充填のEEW 1,024件は報時刻が同じなので、失効は1回の期限入力でまとめて起きる（実際の発表では起きない最悪の形）。P3-MH-FULL-STATEがB・DならこのことがE02-P・E05-Pの窓に入る (2) U-W・U-Fの充填はwallOrigin（2026-06-05T18:00+09:00）に依存したまま（P3-MH-RETIME-SCOPE=A）。wallOriginを変える版ではU-Fの充填の付け直しが要る (3) Dでは、P窓の失効の後とC窓・E14はC4より小さい状態（充填のcurrent 0）で測る。E02-P・E05-Pの失効の後の値と、E06・E07-C・E14の値は、C4とは状態の定義が違い1対1に比べない（P窓は失効の前の値を比べる）。C窓では周期の続報が作るcurrentが周期0〜9で約10件まで増え、warm-up（継いだ5周期）の後の定常の区間の最初の5周期にこの増加が入る（E06・E07-Cの傾きと周期末の保持に小さく正に効く） (4) 3つの保存母集団の値はUWRの後の保存の始まりに合わせた条件で、C4（UWRの前、tickの予測）の値と同じ指標と呼ばない。forecastDeadlineOverlapではsnapshotのnoticeの満了で1秒の格子の外のdeadline要求が出うるので、その試行は不成立として数える（標本にならない） (5) AC15・E06・E12は入力を付け直すが本契約では測り直さない。AC15のΔNはU-Eのcurrentの数（activeCount）を使い、AC15の窓（1充填あたり約21分）の途中でK6の失効が起きるので、AC15の判定の前提はK6の後に崩れている（後続の契約で見直す） (6) PiのE03の窓はChromeを確かめない（backend単独） (7) 凍結manifestは契約のself digestを固定するので、凍結から測定の終わりまでに載せた契約のfileを変えると照合で止まる。C4・C6の凍結manifestは今すでに通らない（C4は11本、C6は9本の契約のhashとO09のsequencesSha256） (8) P3-MH-FULL-STATEをAにした場合、窓の中のEEWの入力がC4の0件から約1,900件（E02-P）に増える (9) P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段（第2段はPi backend＋Mac miniのChrome）は、本契約の後も走らせられない。別機械のharness（hostをPiで起動、ChromeはMac、別機械の時計の往復対応）は別の契約が要り、作者裁定（残りは全部この後）はこの2つについて閉じない【P3-TSUNAMI-HARNESS-001（2026-10-27）で、津波の照合を harness の 1 組へ開く部分は、別機械の harness の契約でなく P3-TSUNAMI-HARNESS-001 が引き受けた（Pi の第 2 段と P3-C6-AC09 は別機械の harness の契約に残る）】 (10) E12の新側の報時刻は基準時刻＋atMsで、旧側の所要の分だけhostの壁時計より前になる（600秒の内なら採用は変わらない）"
     ],
     "unresolvedQuestions": [
       {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "0ca9f3bc7e07fece08283b956d208500eaaaf8d68f3b5a0a6daa5aec0eda2724",
+    "sha256": "99f3f9e0a8b28f7f9e1dbc6f5356762d55d49d2319342a4ea4bc823c8fa51a97",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -419,7 +419,7 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:280 «fb853f496e34fbb6»",
           "reconstruction/src/view-projector/view-projector.ts:904 «0f29de6d3afeedc3»",
           "reconstruction/src/view-projector/view-projector.ts:906 «c42a191089542248»",
-          "reconstruction/src/measurement/eew-e01/frozen.ts:749 «64ef77c780d16b32»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:763 «64ef77c780d16b32»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:189 «49bd7937eeae2033»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:262 «f058e3a180f89e0c»"
         ]

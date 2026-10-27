@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "02d2eed5def59bd2ace7e4025df91165bb301649",
-    "sha256": "cf048932cef5cc8c33de0ef5c62d22b3f2147b535dcd92d1b427ee135f2b6a27",
+    "sha256": "75c9fd9ae020676c84bb0b45b5b609ea15baf433d7f46820f1aee0f25f580a11",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -41,6 +41,14 @@
         "closed": "(1) 分岐: P3-TH-D-INHERIT=A・P3-TH-D-LOOKUP=B はどちらも統合担当の確定の ruling を持ち、契約に『起草案』の語は 0 件。画面の出方を変える分岐は無いので作者裁定は要らない (2) 起草のレビュー r0（Opus、read-only、e3a49d87）は条件付き GO で P1 0 件。P2 2 件（frozen.ts:566 の oneOf の型、run.mjs の import の行）と P3 6 件を 3517fbc3 で当てた。統合担当の決めで、継承元の表の各行に manifestSha256 を持たせて継承元の bytes を固め、起草の残存リスク (1)（継承元を書き換えて自己 hash を付け直すと通る）を範囲内で消した。表の 2 つの値は実物の manifestSha256（evidence/p3/manifest.json 3edb1aae…、evidence/p3-harness/manifest-sp-e01.json 6d31c288…）と一致を確かめた。残る残存リスクは測定の条件の書き方・名前・凍結から窓の終わりまでの順序だけで、直す予定の無い製品の欠けは無いので作者の承認は要らない (3) 変える file の行を引く他の契約（3517fbc3 で contracts/*.json を数えた）: frozen.ts 13 行（:171〜:626 と :749）、tsunami.mjs 2 行（:82・:146）、run.mjs 38 行（:52〜:1813）、p3-tsunami-e01.types.ts・tsunami.test.ts・tsunami.d.mts は 0 行。AC01 (3)・AC02 (7) の縛り（frozen.ts は :626 より前の行の数を変えない、tsunami.mjs は :155 より後と import の行の中だけ、run.mjs は行の中の置き換えだけ）でどれも動かない。中身が変わるのは run.mjs:1680（P3-MEASURE-HARNESS-001）、行がずれるのは frozen.ts:749（P3-DISASTER-CAPACITY-001）で、配送で付け直す想定どおり (4) 依存: P3-TSUNAMI-E01-001・P3-MEASURE-HARNESS-001・P3-SEISMIC-PLACE-001 は main に配送済み (5) check-contract は rc 0・FAIL 0（WARN は baseOid 未割当の P3-RECOVERY-001 と本契約）",
         "remaining": "なし（baseOid は fcdc5479 に割り当てた）",
         "reason": "発注前点検"
+      },
+      {
+        "id": "Q-TH-IMPL",
+        "status": "closed",
+        "source": "統合担当の配送（2026-10-27 夜、branch tsunami-harness。実装は baseOid fcdc5479 の木で行い、0f26b661〔baseOid の割当〕の上へ載せ替えた。前例は P3-HOST-FOLLOWUP-001 の Q-HF-IMPL）",
+        "closed": "commit: e4da6912（実装、レビュー前。branch th-impl の c327d4c3 を載せ替えた、衝突なし）と本 commit（配送の原文の改訂と記録）。実装（6 file、+66/−20）: types.ts:73 を 2 つの id の union に、frozen.ts:566 を as const の tuple TSUNAMI_INHERITED_IDS の oneOf に、:626 の後に継承元の自己 hash を表と比べる行と harness の鍵を求める行を足し、表 TSUNAMI_INHERITED_MANIFESTS を関数の後に置いた（export は表だけ）。tsunami.mjs は buildP3TsunamiManifest に inheritsManifestId（既定は C4）を足し、継承元の collisionPopulations を外し、harness の継承元なら P3-MEASURE-HARNESS-001 を contractSha256 に載せ、trigger の id を継承元から作る。--draft と予備（run.mjs:1651）は表の C4 でない 1 行を引き、正式（run.mjs:1680）は manifest の inheritsManifestId で表を引く。frozen.ts の :626 より前と run.mjs の行の数は変えていない。試験は T06 の中に T01（受入）・T02（契約境界: P3-MEASURE-HARNESS-001 の欠け、表に無い id、自己 hash を付け直した継承元）を足し、既存の T06 の 3 試験の期待値は変えていない。レビュー（同じ未コミットの patch に並行、~/dev/fleq-th-rev）: 契約適合 Opus は GO（P1・P2 0。P3 2 件: 予備は継承元の bytes も規則の版も照らさない〔preflight を通らない元からの性質、構造的欠陥台帳 103 に記録〕、p3-weather-light-step2.json の本文の frozen.ts:369 が元から :377 にずれている〔本文の参照で check-contract の外、記録だけ〕）。品質 ヘルツ（Astra high、新しい read-only の thread 01a17cf8-87a4-74a2-bfcb-57066a16ce80）は条件付き GO で指摘 0（条件は書き込める環境で tsunami.test.ts が通ること。sandbox で一時ディレクトリが作れず未実行。統合担当が 24/24 rc 0 で満たした。T01・T02 と同じ確かめをメモリ上で回し、旧コードでは期待どおりに止まらないことも示した）。配送の項 (6): 凍結済みの p3-c6-formal-20261009 は、61f05dde の契約の text と sequences、今の manifest・C4 の manifest・C6 の smoke 条件、継承元は表の C4 の path で、実装の後の verifyFrozenP3TsunamiManifest を通った（manifestId p3-c6-formal-20261009、inheritsManifestId p3-c4-formal-20261007、rc 0）。ゲート（MacBook、配送の木、--maxWorkers=2）13 本 rc 0: tsc 3 本、reconstruction の vitest 910 passed／25 skipped と shuffle 同数、check-manifest・check-sequences・check-contract（PASS 68、FAIL 0、WARN は P3-RECOVERY-001 の baseOid だけ）、root の build、npm test 6,837 passed／3 skipped と test:shuffle 同数、typecheck:test（初回は worktree に display/node_modules を写し忘れて svelte が解決できず rc 1、写して rc 0）、git diff --check。原文の改訂: (1) p3-tsunami-e01.json の P3-C6-AC10 に継承元の注 (2) p3-measure-harness.json の P3-MH-SETUP-PATH の ruling (4) と残存リスク (9) に、津波の照合を開く部分は本契約が引き受けたと注 (3) p3-order-plan.md の末尾に節『津波の E01 の継承元の追随（2026-10-27）』 (4) 構造的欠陥台帳 103 とやりたいことリスト（作業ノート） (5) anchor の付け直し: 本契約 12 件（行だけ 3、中身 9）、P3-DISASTER-CAPACITY-001 1 件（frozen.ts:749→763）、P3-MEASURE-HARNESS-001 2 件（run.mjs:1680、p3-tsunami-e01.json の改訂の行）、P3-E05P-CLASSIFY-001 1 件（p3-measure-harness.json の meta.sha256 の行を引く連鎖）。sha256 を作り直した契約は本契約・P3-TSUNAMI-E01-001・P3-MEASURE-HARNESS-001・P3-DISASTER-CAPACITY-001・P3-E05P-CLASSIFY-001。meta の起草・点検の記録の中の行番号（decisionBranches・Q-TH-SOURCE・Q-TH-PRECHECK）は、その時点の事実の記録なので直していない",
+        "remaining": "Mac mini の実走（Q-TH-MEASURE、P3-TH-AC05）",
+        "reason": "配送の記録"
       }
     ],
     "operationContract": {
@@ -177,41 +185,41 @@
         "id": "P3-TH-AC01",
         "requirement": "照合を harness の継承元へ開く（P3-TH-D-INHERIT=A）: (1) p3-tsunami-e01.types.ts:73 の inheritsManifestId と frozen.ts:566 の readP3TsunamiManifest の読みを、P3-TH-D-LOOKUP=B の表 TSUNAMI_INHERITED_MANIFESTS の 2 つの id（\"p3-c4-formal-20261007\"・\"p3-sp-e01-20261027\"）に広げる。types.ts:73 は 2 つの id の union にする。frozen.ts は鍵の tuple を HARNESS_TRIAL_SETUP と同じ書き方の as const の定数（例 TSUNAMI_INHERITED_IDS）で置き、:566 の oneOf にはそれを渡す（oneOf〔frozen.ts:272〕は渡した配列の要素の型 T を返すので、Object.keys(表) を渡すと string になり union に入らない）。表は Readonly<Record<P3TsunamiE01Manifest[\"inheritsManifestId\"], { path: string; manifestSha256: string }>> の型にし、各行に継承元の path と manifestSha256 を置く（C4: reconstruction/test/eew-e01/evidence/p3/manifest.json・3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c、harness: reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json・6d31c288a971dccf8c053c1bb93f8679581775e6ca622f049a2825ed914e3f9c。どちらも起草時の file の値） (2) verifyFrozenP3TsunamiManifest は、継承元の trialSetupRef・trialSetupSha256 が HARNESS_TRIAL_SETUP（frozen.ts:392）の ref・sha256 と同じなら、津波の manifest の contractSha256 に P3-MEASURE-HARNESS-001 を求め、無ければ『contractSha256 lacks P3-MEASURE-HARNESS-001 (the harness trial setup)』で止める（frozen.ts:420・:422 と同じ形。津波の manifest の trialSetup は :626 で継承元と同一に縛られるので、継承元で見ても manifest で見ても同じ）。あわせて、渡された継承元の text の自己 hash（readSelfHashed で読んだ manifestSha256）が、表で m.inheritsManifestId を引いた行の manifestSha256 と同じことを求め、違えば止める（統合担当の追加の決め。C4 の行は今の evidence/p3/manifest.json の値で固めるので p3-c6-formal-20261009 は通り続ける） (3) 変えないもの: :622 の継承元の id の一致、:626 の trialSetup の同一、loads・geometry・fixture・母集団の load/stateRef/stateSha256・establishment の比べ、periodMs・triggerLeadMs の differencesFromC4 の検査、A10・C4 形の verifyFrozenP3Manifest。:626 は P3-MEASURE-HARNESS-001 が引くので行と中身を変えず、frozen.ts の :626 より前の行の数を変えない（:566 は行の中の置き換え。鍵の tuple と表は verifyFrozenP3TsunamiManifest の後に置き、表だけを HARNESS_TRIAL_SETUP と同じく export する（tuple は export しない）。(2) の 2 つの照合の行は :626 の後に足す）。:604・:619 の注の『C4』は『継承元（C4 か harness の 1 組で凍結した C4 形）』と読める形に行の中で直してよい。足す理由: 無いと harness 継承の津波の manifest は readP3TsunamiManifest の literal で止まり（frozen.ts:566）、開くだけで鍵を求めなければ、規則の版を固めずに harness の 1 組で凍結できてしまう（frozen.ts の HARNESS_TRIAL_SETUP の注と同じ理由）。継承元の manifestSha256 を表と比べないと、継承元の file を書き換えて自己 hash を付け直した text でも照合を通る",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-tsunami-e01.types.ts:73 «b04d54462073b61e»",
+          "reconstruction/contracts/p3-tsunami-e01.types.ts:73 «a1eb23a159c8b938»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:272 «676866d29ebd6e17»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:392 «8ca79181b4632720»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:420 «69f22ad4482ac204»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:422 «55710ba64a9bccd1»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:557 «89a6e346b09aa59b»",
-          "reconstruction/src/measurement/eew-e01/frozen.ts:566 «5b2381d817db1abf»",
+          "reconstruction/src/measurement/eew-e01/frozen.ts:566 «a9c5465187c88cd3»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:607 «81653fe4851a5063»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:622 «43161296596b4458»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:626 «32aa3d6045a6de3f»",
-          "reconstruction/src/measurement/eew-e01/frozen.ts:672 «d57f30db33a2c4f7»"
+          "reconstruction/src/measurement/eew-e01/frozen.ts:676 «d57f30db33a2c4f7»"
         ]
       },
       {
         "id": "P3-TH-AC02",
-        "requirement": "草案と runner を継承元に合わせる: (1) buildP3TsunamiManifest（tsunami.mjs:155）に継承元を選ぶ引数を 1 つ足し（inheritsManifestId、既定 \"p3-c4-formal-20261007\"）、:158 は TSUNAMI_INHERITED_MANIFESTS でその id を引いた行の path の file を読む。既定を C4 のままにして、既存の T06 の試験（tsunami.test.ts:208）を期待値を変えずに通す（draft.mjs の buildP3Manifest が既定を A10 の 1 組に残した P3-MH-AC05(6) と同じ） (2) :163 の分解に collisionPopulations を足して外す（manifest-sp-e01.json:385 の EEW の衝突の母集団が津波の manifest に漏れないように。津波の衝突は :219 で自分の collisionPopulations を後から置く） (3) :161 の contractSha256 の組み立てに、継承元の trialSetupRef が HARNESS_TRIAL_SETUP.ref なら contractTextsFor(\"P3-MEASURE-HARNESS-001\") を足す（draft.mjs:332 と同じ形） (4) :194・:196 の trigger の『（p3-c4-formal-20261007）』を継承元の manifestId から作る (5) CLI の --draft（tsunami.mjs:254）と予備（run.mjs:1645〜1658、:1650 の buildP3TsunamiManifest の呼び出し）は harness の継承元 p3-sp-e01-20261027 で組む。harness の継承元の id は新しい export の定数を作らず表から引く（表の C4 でない 1 行。2 つの入口とも同じ引き方）。:1646 の注の『C4 の凍結 manifest を継ぐ』を行の中で直す。run.mjs:1653 の draft.c4Text は継承元の text として読み、名前は変えない (6) 正式（run.mjs:1673〜1685）は :1680 の C4_MANIFEST を、manifest の継承元で引いた path に替える（表を m0.inheritsManifestId で引いた行の path。表に無い id は readP3TsunamiManifest の oneOf で止まるので、引けないときは C4_MANIFEST を渡してよい） (7) 行の数: tsunami.mjs は :146 より前の行の数を変えず、:82（P3-EXPIRY-FORM-001・P3-UNREADABLE-MARK-001・P3-VERSION-MATERIAL-001 が引く）と :146（P3-MEASURE-HARNESS-001 が引く）の中身を変えない。run.mjs は行の数を変えず、:49 の import の行の中に表を足すのと、:1650・:1680 と注の行の中の置き換えだけにする（:1680 は P3-MEASURE-HARNESS-001 が引くので配送で付け直す。:1628・:1688・:1742・:1747・:1768・:1813 は他の契約が引く）。tsunami.mjs の import（:20）は行の中で足す (8) tsunami.d.mts の buildP3TsunamiManifest の入力の型に (1) の引数を足す。足す理由: 無いと予備は古い規則の initial-state で黙って走り（台帳 103 と同じ根）、正式は継承元を C4 で読んで照合で止まり、trigger は実際の継承元と違う id を hash に固める",
+        "requirement": "草案と runner を継承元に合わせる: (1) buildP3TsunamiManifest（tsunami.mjs:155）に継承元を選ぶ引数を 1 つ足し（inheritsManifestId、既定 \"p3-c4-formal-20261007\"）、:160 は TSUNAMI_INHERITED_MANIFESTS でその id を引いた行の path の file を読む。既定を C4 のままにして、既存の T06 の試験（tsunami.test.ts:208）を期待値を変えずに通す（draft.mjs の buildP3Manifest が既定を A10 の 1 組に残した P3-MH-AC05(6) と同じ） (2) :167 の分解に collisionPopulations を足して外す（manifest-sp-e01.json:385 の EEW の衝突の母集団が津波の manifest に漏れないように。津波の衝突は :223 で自分の collisionPopulations を後から置く） (3) :163 の contractSha256 の組み立てに、継承元の trialSetupRef が HARNESS_TRIAL_SETUP.ref なら contractTextsFor(\"P3-MEASURE-HARNESS-001\") を足す（draft.mjs:332 と同じ形） (4) :198・:200 の trigger の『（p3-c4-formal-20261007）』を継承元の manifestId から作る (5) CLI の --draft（tsunami.mjs:258）と予備（run.mjs:1645〜1658、:1650 の buildP3TsunamiManifest の呼び出し）は harness の継承元 p3-sp-e01-20261027 で組む。harness の継承元の id は新しい export の定数を作らず表から引く（表の C4 でない 1 行。2 つの入口とも同じ引き方）。:1646 の注の『C4 の凍結 manifest を継ぐ』を行の中で直す。run.mjs:1653 の draft.c4Text は継承元の text として読み、名前は変えない (6) 正式（run.mjs:1673〜1685）は :1680 の C4_MANIFEST を、manifest の継承元で引いた path に替える（表を m0.inheritsManifestId で引いた行の path。表に無い id は readP3TsunamiManifest の oneOf で止まるので、引けないときは C4_MANIFEST を渡してよい） (7) 行の数: tsunami.mjs は :146 より前の行の数を変えず、:82（P3-EXPIRY-FORM-001・P3-UNREADABLE-MARK-001・P3-VERSION-MATERIAL-001 が引く）と :146（P3-MEASURE-HARNESS-001 が引く）の中身を変えない。run.mjs は行の数を変えず、:49 の import の行の中に表を足すのと、:1650・:1680 と注の行の中の置き換えだけにする（:1680 は P3-MEASURE-HARNESS-001 が引くので配送で付け直す。:1628・:1688・:1742・:1747・:1768・:1813 は他の契約が引く）。tsunami.mjs の import（:20）は行の中で足す (8) tsunami.d.mts の buildP3TsunamiManifest の入力の型に (1) の引数を足す。足す理由: 無いと予備は古い規則の initial-state で黙って走り（台帳 103 と同じ根）、正式は継承元を C4 で読んで照合で止まり、trigger は実際の継承元と違う id を hash に固める",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/tsunami.mjs:23 «05651e3c9537adff»",
           "reconstruction/test/eew-e01/tsunami.mjs:82 «ffb2c8c762d068bf»",
           "reconstruction/test/eew-e01/tsunami.mjs:116 «a92ee487316bc98a»",
           "reconstruction/test/eew-e01/tsunami.mjs:155 «20341d79d07392f9»",
-          "reconstruction/test/eew-e01/tsunami.mjs:158 «861ec7e27341db18»",
-          "reconstruction/test/eew-e01/tsunami.mjs:161 «8869d3f936301e84»",
-          "reconstruction/test/eew-e01/tsunami.mjs:163 «dc5423b2ae744d54»",
-          "reconstruction/test/eew-e01/tsunami.mjs:194 «3b9175226c03d984»",
-          "reconstruction/test/eew-e01/tsunami.mjs:196 «c7217939cc4d7cf2»",
-          "reconstruction/test/eew-e01/tsunami.mjs:219 «f07bc3e8a32ef677»",
-          "reconstruction/test/eew-e01/tsunami.mjs:254 «e20c40846897d23d»",
+          "reconstruction/test/eew-e01/tsunami.mjs:160 «8e191743cd4ea450»",
+          "reconstruction/test/eew-e01/tsunami.mjs:163 «ff7ac54343005834»",
+          "reconstruction/test/eew-e01/tsunami.mjs:167 «f7ea1ef9d63b1efb»",
+          "reconstruction/test/eew-e01/tsunami.mjs:198 «ebc3bcf67d9cde53»",
+          "reconstruction/test/eew-e01/tsunami.mjs:200 «e60a96116187730b»",
+          "reconstruction/test/eew-e01/tsunami.mjs:223 «f07bc3e8a32ef677»",
+          "reconstruction/test/eew-e01/tsunami.mjs:258 «e20c40846897d23d»",
           "reconstruction/test/eew-e01/tsunami.d.mts:17 «e914374acd98b56e»",
           "reconstruction/test/eew-e01/draft.mjs:332 «4705894a6800a1ce»",
-          "reconstruction/test/eew-e01/run.mjs:49 «806a33c6ce53bdfb»",
+          "reconstruction/test/eew-e01/run.mjs:49 «2c43874cc8bf0b6f»",
           "reconstruction/test/eew-e01/run.mjs:1645 «d2b628e5e9acfce0»",
           "reconstruction/test/eew-e01/run.mjs:1650 «176fa3e713c5a166»",
           "reconstruction/test/eew-e01/run.mjs:1653 «df073dcf52eeef6d»",
-          "reconstruction/test/eew-e01/run.mjs:1680 «653eac1bdc5aea7f»",
+          "reconstruction/test/eew-e01/run.mjs:1680 «365d8e984e10e105»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json:385 «dd3cf251cde1c92a»"
         ]
       },

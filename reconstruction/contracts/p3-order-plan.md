@@ -577,3 +577,9 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 - P4 の最初の契約の起草の前に 1 回: 資料の側から読み通す。電文ごとの解説資料から、項目・値の形・InfoType の運用を並べ、新築の parser と unit が扱っているかを表にする。分野（unit）ごとに分けて回す。契約の reason から資料へたどる向きでは、契約に書いていない項目を拾えないため。食い違いは台帳 97 に足し、旧築に効くものはバックログへ送る。
 - 資料の版: 気象庁の技術資料のページ（https://xml.kishou.go.jp/tec_material.html ）の一式を正とし、dmdata の写しは補助にする。ファイル名に日付が入るので、ページのリンクの一覧を前の控えと比べて改訂を知る。2026-10-25 の時点では 2026-10-20 の控え（repo の外 ~/dev/fleq-vault-archive/jma-docs-20261020/）と全部同じ。行を引く文字起こしは repo の外 ~/research/fleq-jma-premises/sources/。全内容出力スタイルシートは、気象庁が「システムに直接組み込む等の方法でご利用になることは避けていただき、電文処理の参考資料としてお使い下さい」としているので、読んで照合に使うだけにする（repo に入れない・製品やテストの道具から読み込まない・変換して写さない）。
 - 資料の改訂の見張り: 発注前点検のたびと上の読み通しの前に、repo の外の ~/dev/fleq-vault-archive/jma-docs-watch/check.sh を回す（技術資料のページのリンクの一覧と、その年度の更新情報〔R08revise.html など〕を控えと比べる。exit 0 は同じ、1 は変わった）。変わっていたら、新しい日付のフォルダに資料を落とし、改訂された資料の文字起こしの差分だけを、その電文に頼る契約の reason と実装に当てる。当て終えてから --accept で控えを進める。控えは 2026-10-25 に作った（リンクの一覧は 2026-10-20 の控えと同じ、更新情報の最新は 2026-10-19 のコード表の更新で、その版は控えに入っている）。
+
+### 津波の E01 の継承元の追随（2026-10-27）
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| `P3-TSUNAMI-HARNESS-001` | 台帳103: 津波の E01 の正式窓が今の main で起動できない穴（継承元の C4 の凍結 manifest が A10 の組の古い規則の initial-state を指し、preflightCheck の rulesSource で止まる）を、津波の manifest の継承元を harness の 1 組で凍結した C4 形の manifest からも選べるようにして直す（P3-TH-D-INHERIT=A）。照合は C4 形の側（P3-MEASURE-HARNESS-001）に倣い、harness 継承なら P3-MEASURE-HARNESS-001 の hash を求める。予備も harness の継承元で組み、trigger の継承元の id を継承元から取る。C4 を継いだ既存の凍結物は書き換えず照合を通り続ける。配送の後に Mac mini で harness 継承の津波の manifest を凍結し、衝突の参考の母集団 maxVxse53ReceivedThenTsunami の正式窓で P3-SEISMIC-PLACE-001 の AC08 (2) の津波の値を取る | P3-TSUNAMI-E01-001・P3-MEASURE-HARNESS-001・P3-SEISMIC-PLACE-001 の配送 | 配送（2026-10-27 夜）。Mac mini の実走 Q-TH-MEASURE は配送の後 |
