@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "02d2eed5def59bd2ace7e4025df91165bb301649",
-    "sha256": "75c9fd9ae020676c84bb0b45b5b609ea15baf433d7f46820f1aee0f25f580a11",
+    "sha256": "a5b7dc11e6be57617437b96c20fe74783bae95da4b37be00d04175f0eb50dd62",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -49,6 +49,22 @@
         "closed": "commit: e4da6912（実装、レビュー前。branch th-impl の c327d4c3 を載せ替えた、衝突なし）と本 commit（配送の原文の改訂と記録）。実装（6 file、+66/−20）: types.ts:73 を 2 つの id の union に、frozen.ts:566 を as const の tuple TSUNAMI_INHERITED_IDS の oneOf に、:626 の後に継承元の自己 hash を表と比べる行と harness の鍵を求める行を足し、表 TSUNAMI_INHERITED_MANIFESTS を関数の後に置いた（export は表だけ）。tsunami.mjs は buildP3TsunamiManifest に inheritsManifestId（既定は C4）を足し、継承元の collisionPopulations を外し、harness の継承元なら P3-MEASURE-HARNESS-001 を contractSha256 に載せ、trigger の id を継承元から作る。--draft と予備（run.mjs:1651）は表の C4 でない 1 行を引き、正式（run.mjs:1680）は manifest の inheritsManifestId で表を引く。frozen.ts の :626 より前と run.mjs の行の数は変えていない。試験は T06 の中に T01（受入）・T02（契約境界: P3-MEASURE-HARNESS-001 の欠け、表に無い id、自己 hash を付け直した継承元）を足し、既存の T06 の 3 試験の期待値は変えていない。レビュー（同じ未コミットの patch に並行、~/dev/fleq-th-rev）: 契約適合 Opus は GO（P1・P2 0。P3 2 件: 予備は継承元の bytes も規則の版も照らさない〔preflight を通らない元からの性質、構造的欠陥台帳 103 に記録〕、p3-weather-light-step2.json の本文の frozen.ts:369 が元から :377 にずれている〔本文の参照で check-contract の外、記録だけ〕）。品質 ヘルツ（Astra high、新しい read-only の thread 01a17cf8-87a4-74a2-bfcb-57066a16ce80）は条件付き GO で指摘 0（条件は書き込める環境で tsunami.test.ts が通ること。sandbox で一時ディレクトリが作れず未実行。統合担当が 24/24 rc 0 で満たした。T01・T02 と同じ確かめをメモリ上で回し、旧コードでは期待どおりに止まらないことも示した）。配送の項 (6): 凍結済みの p3-c6-formal-20261009 は、61f05dde の契約の text と sequences、今の manifest・C4 の manifest・C6 の smoke 条件、継承元は表の C4 の path で、実装の後の verifyFrozenP3TsunamiManifest を通った（manifestId p3-c6-formal-20261009、inheritsManifestId p3-c4-formal-20261007、rc 0）。ゲート（MacBook、配送の木、--maxWorkers=2）13 本 rc 0: tsc 3 本、reconstruction の vitest 910 passed／25 skipped と shuffle 同数、check-manifest・check-sequences・check-contract（PASS 68、FAIL 0、WARN は P3-RECOVERY-001 の baseOid だけ）、root の build、npm test 6,837 passed／3 skipped と test:shuffle 同数、typecheck:test（初回は worktree に display/node_modules を写し忘れて svelte が解決できず rc 1、写して rc 0）、git diff --check。原文の改訂: (1) p3-tsunami-e01.json の P3-C6-AC10 に継承元の注 (2) p3-measure-harness.json の P3-MH-SETUP-PATH の ruling (4) と残存リスク (9) に、津波の照合を開く部分は本契約が引き受けたと注 (3) p3-order-plan.md の末尾に節『津波の E01 の継承元の追随（2026-10-27）』 (4) 構造的欠陥台帳 103 とやりたいことリスト（作業ノート） (5) anchor の付け直し: 本契約 12 件（行だけ 3、中身 9）、P3-DISASTER-CAPACITY-001 1 件（frozen.ts:749→763）、P3-MEASURE-HARNESS-001 2 件（run.mjs:1680、p3-tsunami-e01.json の改訂の行）、P3-E05P-CLASSIFY-001 1 件（p3-measure-harness.json の meta.sha256 の行を引く連鎖）。sha256 を作り直した契約は本契約・P3-TSUNAMI-E01-001・P3-MEASURE-HARNESS-001・P3-DISASTER-CAPACITY-001・P3-E05P-CLASSIFY-001。meta の起草・点検の記録の中の行番号（decisionBranches・Q-TH-SOURCE・Q-TH-PRECHECK）は、その時点の事実の記録なので直していない",
         "remaining": "Mac mini の実走（Q-TH-MEASURE、P3-TH-AC05）",
         "reason": "配送の記録"
+      },
+      {
+        "id": "Q-TH-BASE",
+        "status": "closed",
+        "source": "統合担当（2026-10-27 夜）",
+        "closed": "baseOid は発注前点検の commit fcdc5479 に 0f26b661 で割り当てた（Q-TH-PRECHECK）。分岐 P3-TH-D-INHERIT=A・P3-TH-D-LOOKUP=B と継承元 p3-sp-e01-20261027 は点検の前に確定した",
+        "remaining": "なし",
+        "reason": "baseOid の割当"
+      },
+      {
+        "id": "Q-TH-MEASURE",
+        "status": "closed",
+        "source": "統合担当の Mac mini の実走（2026-10-27 夜。worktree ~/dev/fleq-th-meas は main b2a3a88f、node v22.23.3 の wrapper、Chrome 156.0.8078.48、Apple M2 x8・8GiB）",
+        "closed": "(1) 予備（harness の継承元、--preliminary --tsunami --seismic-collision --only escalation:maxVxse53Received、warm-up 20＋100、通知は silent、11:13:19〜11:19:32 UTC）: 成立 100／100、1 試行 3,060.5 ms、参考の判定 Pass、T0→T6 の上界 p99 46.9 ms・実送信→T0 の p99 3.66 ms (2) 凍結: tsunami.mjs --draft で manifest p3-th-e01t-20261027（evidence/p3-tsunami/manifest-th-e01t.json、manifestSha256 c3ae6e01f1003199a40c32fe7f5037228960229502cb62c8b95e51f5f5550946、継承元 p3-sp-e01-20261027、draft-values.json から写したのは primeLeadMs・triggerLeadMs・8 母集団の preliminary だけで machine は Mac mini の実値、衝突の母集団の stopCondition は maxAttempts 1,243・maxDurationMs 4,830,265）を作り、1bf8f4ed で commit した (3) 正式の起動の確認: verifyFrozenP3TsunamiManifest と preflightCheck（rulesSource は frames.mjs 81743f3d… で一致、gitStatusPorcelain 空、distSha256 216392397feb…・runnerSha256 1496714861c2…）を通り、窓が始まった（台帳 103 で止まっていた所） (4) 窓 e01-escalation:maxVxse53Received-run1（manifest p3-th-e01t-20261027、manifestSha256 c3ae6e01…、Mac mini、gitHead 1bf8f4ed、11:21:47〜12:18:26 UTC）は参考の判定 Pass: 標本 1,000（試行 1,101、欠落 0、trace の欠け 0、投入の失敗 0、成立しなかった 1 件は largeFrameOrder）、T0→T6 の上界 p50 41.78・p95 54.12・p99 59.87・最大 60.63 ms（250 ms の内側、spec:164・:1104）、実送信→T0 は p50 2.46・p99 6.53・最大 11.33 ms。津波の状態の崩れ（容量の退去・版の衝突・容量超過・古い target）0。通知は real。記録は evidence/windows/p3-th-e01t-20261027/（results の result-reference-escalation:maxVxse53Received-run1.json と e01-verdict.json。e01-verdict の 8 母集団の『未確認』は回していないため）。条件の逸脱: 送信の時点で Chrome の document.hasFocus() が false（focusLostAtSend 1,101／1,101、chromeActivation は activated。画面のロックは外れていた〔IOConsoleLocked No〕。昼の EEW の正式窓 p3-sp-e01-20261027 も同じ）。paintWithoutScreenshot は 726（昼の EEW の窓は 518、A10 の MacBook は 7〜199）で、判定は描画の記録で決まるので Pass は動かないが、フォーカスとの関わりは未確認（作業ノートのやりたいことリスト）。(5) 凍結から窓の終わりまで、manifest の contractSha256 の鍵の契約は変えていない",
+        "remaining": "なし。津波の 8 母集団の正式窓の測り直しはしない（outOfScope、C6 の判定は p3-c6-formal-20261009 のまま）。Pi の津波は別機械の harness の契約へ",
+        "reason": "配送の後の実走（P3-TH-AC05）"
       }
     ],
     "operationContract": {
@@ -251,7 +267,7 @@
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json:3 «3477dd021a5efed8»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e01.json:27 «5cce79d7200c55ee»",
           "reconstruction/contracts/p3-seismic-place.json:161 «fb746d56c51f19e5»",
-          "reconstruction/contracts/p3-seismic-place.json:164 «60dc5cdc1ead2214»"
+          "reconstruction/contracts/p3-seismic-place.json:164 «3f9af2b5f746d33a»"
         ]
       }
     ],
@@ -363,31 +379,6 @@
       "配送で統合担当が当てる原文の改訂（凍結の前に当てる。P3-TH-AC05 (5)）: (1) p3-tsunami-e01.json の P3-C6-AC10 の『継承するC4の凍結manifest（inheritsManifestId p3-c4-formal-20261007）』に、本契約で harness の 1 組で凍結した C4 形の manifest も継承元にできるようになったと注を足す (2) p3-measure-harness.json の P3-MH-SETUP-PATH の ruling (4) と残存リスク (9) に、津波の照合を harness の 1 組へ開く部分は別機械の harness の契約でなく本契約が引き受けたと注を足す (3) p3-order-plan.md の『測定harnessの追随』の表（P3-MEASURE-HARNESS-001 の行、:395）の続きとして、ファイルの末尾に節を足して本契約の行の表を置く（統合担当の確定 2026-10-27。:395 より後の行を引く所は 10 契約・延べ 50 件（行は :416〜:576 の 25 種類。うち «» 付きの 28 件は check-contract で FAIL になり、残りは本文の行番号が黙ってずれる）で、:395 の後に 1 行足すと全部ずれるので、末尾に置いてずれを 0 にする） (4) 構造的欠陥台帳 103 とやりたいことリスト（repo の外）に、穴 0（継承元）を本契約で直したこと、穴 1〜3 は残ること (5) 本契約と他の契約の anchor を付け直し、sha256 を作り直す (6) 凍結済みの p3-c6-formal-20261009（evidence/p3-tsunami/manifest.json）が実装の後の verifyFrozenP3TsunamiManifest を通り続けることを 1 回確かめて記録する: manifest・C4 の manifest（evidence/p3/manifest.json）・C6 の smoke 条件は今の file、契約の text と sequences.json は凍結した commit 61f05dde のもの（git show 61f05dde:<path>。adoption.mjs:195 の verifiedAt と同じ形。今の tree の契約では contract hash で止まる、Q-TH-SOURCE (3)）、coast は canonicalCoastJson()、fixture は templateFixtureTexts()、継承元は表の C4 の path。manifestId が p3-c6-formal-20261009 であることを確かめる。",
       "残存リスク: (1) 凍結した津波の manifest は契約の text の hash を持ち、run.mjs は今の tree の契約で照らすので、凍結から窓の終わりまで鍵の契約を変えると起動で止まる（P3-TH-AC05 (5) の順で避ける） (2) harness 継承の津波の窓の EEW の初期状態は harness の initial-state（P3-MEASURE-HARNESS-001 で付け直した規則）で、C6 の正式（p3-c6-formal-20261009、古い規則）や Q-SP-MEASURE の予備（35.18 ms）とは条件が違う。値を並べるときは条件の違いを書く (3) differencesFromC4・inheritsC4Population・c4Text の名前は C4 のままで、harness 継承では『継承元』の意味になる"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-TH-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "発注前点検の後",
-        "requiredEvidence": [
-          "P3-TH-D-LOOKUP=B と継承元 manifest-sp-e01.json（p3-sp-e01-20261027）は統合担当が確定済み（2026-10-27）。発注前点検で decisionBranches の全部が ruling を持つことを確かめる",
-          "baseOid の割当と、その時点で本契約の anchor のずれが 0 件であること、check-contract FAIL 0"
-        ]
-      },
-      {
-        "id": "Q-TH-MEASURE",
-        "owner": "integrator",
-        "blocks": [
-          "本契約の閉鎖"
-        ],
-        "resolveBy": "配送の後の Mac mini の実走（P3-TH-AC05）",
-        "requiredEvidence": [
-          "harness 継承の予備の成立数・試行・1 試行の所要と、凍結した manifest の id・path・manifestSha256",
-          "正式の起動の確認（verifyFrozenP3TsunamiManifest と preflightCheck の rulesSource）の通過と、e01-escalation:maxVxse53Received-run1 の参考の判定と T0→T6・実送信→T0 の値"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }

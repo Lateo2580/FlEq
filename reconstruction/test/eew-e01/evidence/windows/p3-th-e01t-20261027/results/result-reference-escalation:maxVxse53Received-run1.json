@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "p3-tsunami-e01-result-v1",
+  "manifestId": "p3-th-e01t-20261027",
+  "manifestSha256": "c3ae6e01f1003199a40c32fe7f5037228960229502cb62c8b95e51f5f5550946",
+  "resultSha256": "8f1d6508b1d6da9b785680865c4924195261be0f180fb6e90e7b29a334c35d3a",
+  "population": "escalation:maxVxse53Received",
+  "scope": "reference",
+  "run": 1,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "attempts": 1101,
+  "overlapNotEstablished": 1,
+  "overlapNotEstablishedByReason": {
+    "primeNotSettled": 0,
+    "startOffset": 0,
+    "eewOrder": 0,
+    "conditionDeviation": 0,
+    "largeFrameOrder": 1
+  },
+  "stateBreaks": {
+    "tsunamiCapacityEvicted": 0,
+    "tsunamiRevisionConflict": 0,
+    "tsunamiCapacityExceeded": 0,
+    "staleTarget": 0,
+    "eewCapacityExceeded": 0
+  },
+  "byTransition": {
+    "issued": {
+      "expected": 1000,
+      "samples": 1000,
+      "missing": 0,
+      "p50UpperMs": 41.78474996928126,
+      "p95UpperMs": 54.115082988422365,
+      "p99UpperMs": 59.8687079901807,
+      "maxUpperMs": 60.62662501204759
+    }
+  },
+  "injectedToT0P50Ms": 2.463291972875595,
+  "injectedToT0P99Ms": 6.526208996772766,
+  "injectedToT0MaxMs": 11.32549998164177,
+  "p50LowerMs": 41.2680409877561,
+  "p50UpperMs": 41.78474996928126,
+  "p95LowerMs": 53.63495701281354,
+  "p95UpperMs": 54.115082988422365,
+  "p99LowerMs": 59.37091599879786,
+  "p99UpperMs": 59.8687079901807,
+  "maxLowerMs": 60.17016601432115,
+  "maxUpperMs": 60.62662501204759,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/p3-th-e01t-20261027/e01-escalation:maxVxse53Received-run1.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-th-e01t-20261027/e01-escalation:maxVxse53Received-run1/run-record.json",
+    "/Users/tallplain/dev/fleq-a10-runs/p3-th-e01t-20261027/e01-escalation:maxVxse53Received-run1/e01-assembled.json"
+  ]
+}
