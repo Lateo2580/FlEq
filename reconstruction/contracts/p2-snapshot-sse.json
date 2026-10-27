@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "032c04a83df11f9ec7a20d52700b3c87de3b5798e6d7c660385d315810e44fe9",
+    "sha256": "80ceedefafddb687fff6f6557d2b429f55e20cb9536c678c578aa2dd23a55533",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -59,7 +59,7 @@
         "id": "P2-A8-SUMMARY",
         "status": "closed",
         "reason": "P2-A8-AC02/Q-LIMIT: operation別の固定集計行と理由別件数が無いと、activeと併存する利用不能・未確認・未知値・鮮度疑いがsummaryで消える。",
-        "rows": "各分野はnormal/training/testの順に必ず3行、各行は当該operationだけを集計する。informationTypeはU-E=eew、U-W=weather-warning、U-F=weather-warning-timeseriesの固定1種/分野。発表/訂正/取消を表すSubjectOutcome.informationTypeを使用しない。family/官署/未知Codeで行を増やさない。fullとsummaryの共通itemsを同じ値・参照で渡す。restorationはsnapshot.recoveryの三unit mapだけが正本でsummary時にも省略しない。",
+        "rows": "各分野はnormal/training/testの順に必ず3行、各行は当該operationだけを集計する。informationTypeはU-E=eew、U-W=weather-warning、U-F=weather-warning-timeseriesの固定1種/分野。発表/訂正/取消を表すSubjectOutcome.informationTypeを使用しない。family/官署/未知Codeで行を増やさない。fullとsummaryの共通itemsを同じ値・参照で渡す。restorationはsnapshot.recovery.restoration（P3-RECOVERY-001の発注1で起動時のダイジェストsnapshot.recovery.digestと並べた、P3-REC-AC15）の三unit mapだけが正本でsummary時にも省略しない。",
         "counts": "activeCountはU-Eの非終端currentを(operation,EventID)でfamily横断dedup、U-WはCode!=00の現行現象(未知Codeを含む)を一つ以上持つ(operation,subject)、U-Fはeffective=activeの(operation,subject)の数。unavailableはU-Wの保持unavailable record/U-Fのeffective=unavailable subjectをreason別(capacityExceeded/historyUnavailable/coverageIncomplete)に1ずつ数え、U-T・U-Qは印（SubjectUnavailable）のある記録1つにつきcapacityExceededへ1を足す（印のある記録も今どおりactive・重大度・区域に数える。U-Qのeventは印のfamilyの数によらず1。P3-CC-AC03(5)、配送のcommitでP3-CC-AC09により統合担当が改訂）。activeとunavailableの重複帰属を排除しない。（admission.capacityExceededはP3-CURRENCY-COVERAGE-001で廃止。）unconfirmedはA1-CONFIRMATIONのwhole marker各1と未確認scope各1を理由別に数える（理由に容量の拒否capacityExceededを含む、P3-CC-AC02(4)）。freshnessはU-WのfreshnessSuspect=true recordをreason別に各1(7 RejectionReasonとstale)、他unitは{}。零件のreason keyは省略、正数のkeyの存在が理由の種類を示す。件数は全て0..MAX_SAFE_INTEGERの整数、合計は当該mapの和で求める。 （A1 Q-R20-CLEARのnormal公開maskによる除外はP3-CURRENCY-COVERAGE-001で廃止。配送のcommitでP3-CC-AC09により統合担当が改訂）",
         "unknown": "unknownCodeは現在activeなU-Wの現象Code要素/U-FのSignificancy複合値periodを1個ずつ、missing→empty→unknownの優先で一理由に数える。U-FはNameかCodeがmissing/emptyなら対応理由、そうでなければQ-VALUES.knownCodes外のCodeがunknown。U-Wは既知表外Codeがunknown(合法入力のmissing/emptyは0)。U-Eは{}。重複periodもそれぞれ一値、辞書の一値を参照するperiodは参照回数分数える。lastKnown・履歴・無効periodは集計しない。",
         "severity": {
@@ -472,7 +472,7 @@
       },
       {
         "id": "P2-A8-AC11",
-        "requirement": "R42: P2-A1-CONFIRMATIONを正本として各operationのstate/confirmedAtと理由別未確認件数を射影する。snapshot.recovery=RuntimeRestorationをそのまま写し、保存復元成功と現在充足を混同しない。connection.disconnectedAtは最後の切断観測壁時計(初回null)、lastInputAtは採否を問わない最後の入力受信壁時計。再接続でdisconnectedAtを消さない。restored/empty/U-E非保存currentも未確認で起動し、restore由来recoveryApplied.coverage・部分新報・heartbeatで全体確認しないことをassert。理由: spec:814の部分確認を全体確認へ昇格させない。 lastInputAt（受信地点の壁時計、拒否を含む）とworker状態の製品供給はA10 host（P2-A10-AC13）が行い、それまで本条とAC04の製品経路は未検収として追跡する（累積レビューP1-1・P2-4前半）。",
+        "requirement": "R42: P2-A1-CONFIRMATIONを正本として各operationのstate/confirmedAtと理由別未確認件数を射影する。snapshot.recovery.restoration=RuntimeRestorationをそのまま写し（P3-RECOVERY-001の発注1でDisplayRecoveryViewを{ restoration, digest }にした。digestは起動時の一覧の頭のダイジェストRecoveryDigestViewで、辿らない起動ではnull〔P3-REC-AC15〕。SnapshotProjectionInputのrecoveryDigestBytesは作るときに1回だけ数えたdigestのbyteで、projectorは共通のbyteにそれを足すだけでdigestを直列化せず、変更の検出ではdigestを参照で比べる〔P3-REC-AC16〕。P3-REC-AC15・AC16により統合担当が改訂）、保存復元成功と現在充足を混同しない。connection.disconnectedAtは最後の切断観測壁時計(初回null)、lastInputAtは採否を問わない最後の入力受信壁時計。再接続でdisconnectedAtを消さない。restored/empty/U-E非保存currentも未確認で起動し、restore由来recoveryApplied.coverage・部分新報・heartbeatで全体確認しないことをassert。理由: spec:814の部分確認を全体確認へ昇格させない。 lastInputAt（受信地点の壁時計、拒否を含む）とworker状態の製品供給はA10 host（P2-A10-AC13）が行い、それまで本条とAC04の製品経路は未検収として追跡する（累積レビューP1-1・P2-4前半）。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:814 «36a8d3470f32874a»"
         ]

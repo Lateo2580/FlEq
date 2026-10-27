@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "513fa6ef0c555909e79e1c558e8911f553980fee",
-    "sha256": "c8a4bb9bf860e6de702b591b800fad6d2db6d06e317293c6096622f4c5a9b7e0",
+    "sha256": "24339057184f98cc87624536cebd6d0e2b3f3066199cc5d04f43ac4984322ccc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -249,7 +249,7 @@
           "reconstruction/src/host/host.ts:383 «e139b65525bc1d0e»",
           "reconstruction/src/host/host.ts:404 «99d0301e5b61f93b»",
           "reconstruction/src/host/host.ts:463 «c1d6a32b12c6ecc5»",
-          "reconstruction/src/host/dmdata-rest.ts:57 «8528c5831f89e6ed»",
+          "reconstruction/src/host/dmdata-rest.ts:57 «dbc47f5d931a4e06»",
           "reconstruction/src/host/dmdata-rest.ts:80 «b0f4cd2e077efab7»",
           "reconstruction/src/runtime/composition-root.ts:915 «8ae52d9d693e7af3»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «dddd02e05041ae59»",
@@ -270,7 +270,7 @@
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:57 «a73d90197abd348b»",
           "reconstruction/src/runtime/composition-root.ts:112 «66a5ce463650a081»",
           "reconstruction/contracts/p3-persist-premises.md:218 «b364d46ff1cc01fd»",
-          "reconstruction/src/host/dmdata-rest.ts:57 «8528c5831f89e6ed»",
+          "reconstruction/src/host/dmdata-rest.ts:57 «dbc47f5d931a4e06»",
           "reconstruction/src/host/dmdata-rest.ts:80 «b0f4cd2e077efab7»"
         ]
       },

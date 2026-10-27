@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "2a2ed0d22c9c128d248f298b6e93d20dbe2a6fd0b6871cee1da387aacc2c8807",
+    "sha256": "db38bb7d26e2d2ee975930e93129aafd6293056a25f3e604ad57361112fa026a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -391,7 +391,7 @@
           "reconstruction/src/runtime/owner-runtime.ts:318 «f375a7f4933565fd»",
           "reconstruction/src/runtime/owner-host.ts:308 «fcf4513dab347f8f»",
           "reconstruction/src/runtime/shared-runtime.ts:61 «d8f5f2aa6b1ef5e2»",
-          "reconstruction/src/runtime/composition-root.ts:227 «450e7fbdc518f735»",
+          "reconstruction/src/runtime/composition-root.ts:227 «d0ffd3ec089d3697»",
           "reconstruction/src/runtime/composition-root.ts:542 «06a61e7d499203ac»",
           "reconstruction/src/runtime/composition-root.ts:1001 «fb5cb2221f2fb5e6»",
           "reconstruction/src/view-projector/view-projector.ts:285 «f7871bc3b24b07a6»",
@@ -564,7 +564,7 @@
           "reconstruction/contracts/p2-shared-runtime.json:224 «1be09f8b065871bd»",
           "reconstruction/contracts/p2-shared-runtime.json:234 «1ae8618b6fd2bc69»",
           "reconstruction/contracts/p2-shared-runtime.json:477 «fb2a4455b06ab674»",
-          "reconstruction/contracts/p2-shared-runtime.json:522 «3612e27f2acb15c5»",
+          "reconstruction/contracts/p2-shared-runtime.json:522 «a47e35d15b12e5a7»",
           "reconstruction/contracts/p2-shared-runtime.json:556 «f8cc888a4757e3fb»",
           "reconstruction/contracts/p2-shared-runtime.json:624 «8a614be9fd04bc94»",
           "reconstruction/contracts/p2-snapshot-sse.json:63 «fab35175ef0fb678»",

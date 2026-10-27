@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "cc59849742606b87c425453ab71d48a33d2e9f43f089addd1469498736a2e660",
+    "sha256": "34ffe9e23f69e13808e9d8ff9c1679e3d3aa0204d932fb51303abdfeae9edd3b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -437,6 +437,14 @@
         "closed": "発注 1 に効くもの: (1) R1 一覧の 401/403 を host の dmdataAuthRejected へ渡すと live の WebSocket が止まる → P3-REC-AC03 の (3)・AC02 の (6)・D-LIST-QUERY・allowedPaths の host.ts の行 (2) R2 ダイジェストが共通の 65,536 byte を越えると snapshot 全体が断られる → RES-06・AC15・P3-REC-D-DIGEST-BUDGET（作者へ）・T08 (3) ヘルツ 2 射影のたびに digest を直列化する → AC16・allowedPaths の view-projector.ts の行 (4) ヘルツ 3 境界が古いと 7 日より前でページを使い切る → AC02 の (2)(3)・AC15・publicFunctions の walkStart・T07。restoration unavailable も 7 日、初めての起動・empty・根拠なしでも 7 日分と印 → AC02 の (2)・AC15 (5) R3 DisplayRecoveryView の旧い形を引く既存の試験 → allowedPaths の試験の行 (6) 運用区分の写しは ingress の判定 1 か所 → AC01・allowedPaths の ingress.ts の行・publicFunctions (7) 停止での打ち切り、429 が期限を越えたとき、ページ送りと pooling の間隔 → AC03 の (3)(6)・D-COALESCE・RES-05・Q-REC-LIST-QUERY の remaining。発注 2・3 に効くもの: (8) eewWindowUnverified の窓の両端 → AC14 (9) UNCONFIRMED_KEYS と P2-A8-SUMMARY の上界 → AC13 の (3) (10) 本文の論理の件数と HTTP の試行 → AC03 の (7)・RES-03 (11) 本文の枠 5 分 40 回 → RES-05・RES-03・D-BODY-BUDGET・deliveryDeadlines (12) 移管の記載と H39 の wire の申し送り → AC09 の (1)・outOfScope (13) H28 の照合の手段 → D-EEW-LIST の reason。未実装・未実測で発注 3 のレビューで確かめるもの: 保存 ack と候補の採用の合成（AC07）、owner の停止と回復の返信の接続（D-COALESCE・AC11 の ownerStopped）、実 API の一覧の順序と WS の id の照合（Q-REC-ID-MATCH）。r2 の再レビュー（2026-10-27）: 契約適合 Opus＝GO、品質 ヘルツ Astra high＝条件付き GO（r1 の指摘はすべて ADDRESSED）。r3 で当てた 5 件: (a) 一覧の歩き専用の AbortController（AC03 の (6)・publicFunctions の walkList・allowedPaths の host.ts の行） (b) RES-06 の検算の条件と 2 つの数（23,055・45,583、保守 49,443）と、予約が発注 2・3 への条件であること (c) config.dmdata が無い起動では辿らず digest は null（AC02 の (6)・AC15 の (3)） (d) allowedPaths の p2-snapshot-sse.json の行の【発注 2】に P2-A8-SUMMARY の bound の文 (e) 本項の未実装・未実測の 1 行",
         "remaining": "P3-REC-D-DIGEST-BUDGET の作者の裁定（Q-REC-AUTHOR-2）",
         "reason": "ヘルツが OK とした観点（不変条件 6 本・発注 1 の本番の呼び手・本文と mailbox の枠と ingress の本文の側を発注 3 へ送った判断・T01・T07・T08 の対象）は崩していない"
+      },
+      {
+        "id": "Q-REC-IMPL-1",
+        "status": "closed",
+        "source": "統合担当の配送（2026-10-27 夜、branch rec-r1。実装は baseOid 954f8285 の木で行った。前例は P3-HOST-FOLLOWUP-001 の Q-HF-IMPL）",
+        "closed": "commit: 2b717404（実装、base 954f8285）と本 commit（配送の原文の改訂と記録）。レビュー: 契約適合 Opus は r0 条件付き GO → r1 GO → r2 GO。直した 7 か所を 1 か所ずつ戻すと、狙った試験が 1 本ずつ落ちることを確かめた。品質 ヘルツ（Astra high、新しい thread 01a17dbb、read-only）は r0 NO-GO（P2: 再試行の合計 30 秒を越える。試行の中の要求に exchange の 15 秒の timeout しか効かない）→ r1 NO-GO（タイマーが走る前の境目）→ r2 GO。30 秒の正本を歩きの時計の経過時間にし、要求の前と応答の後で比べる形にした（publicFunctions の walkList の now）。ゲート（Mac mini、実装の木）: check-manifest・check-sequences・tsc 3 本・新築の vitest 924 件通過と shuffle・旧築の build・root の npm test 6,837 件通過・typecheck:test が rc 0。check-contract は他の契約の anchor のずれだけで落ち、本 commit で付け直して rc 0。統合担当の裁定 3 つ（レビューの指摘の当て方）: (1) 境界の dmdataId の item を見つけたら、その受信時刻より古い頭を、どの束で見つけたかを問わずその unit の全部の束から除く（その受信時刻を unit のダイジェストの下限にする。walkList の結果 UnitWalkResult.heads の段） (2) beforeWindow は、余白を引いた境界由来の下限が起動時刻 − 7 日より前のときに立てる（起点が分からないときも立てる、P3-REC-AC15 の (1)） (3) host の walkList(...).then の受け手が投げたときは WARN の診断だけにする（接続には触れない）。残存: (a) RES-04 の 500 件は RES-06 の 16,384 byte の枠の下では効かず、見出しは 150 件ほどで byte の枠に先に当たる（P3-REC-D-DIGEST-BUDGET の裁定の材料） (b) 一覧のページに形の壊れた item が 1 件でもあると、そのページを failed にする（その unit は fetchFailed） (c) composition-root.ts の先頭の import を 1 行に詰めた（他の契約が引く行を動かさないため） (d) ページの上限（RES-02）は HTTP の試行の回数で数える保守側の読み（再試行も dmdata の枠を使うため）。export の表: familyFor（decode-material.ts）・operationOf（ingress.ts）は P1 の runtime の export の表（p1-parser-boundary.json の publicFunctions）に足した。rowsByHeadType（unit-coverage.ts）は、unit-coverage.ts の export を全部並べる表を持つ契約が無い（P3-UNIT-TABLE-001・P3-SEISMIC-PLACE-001 の publicFunctions は関数を 1〜3 個だけ挙げる）ので、本契約の allowedPaths にだけ書いた。3 つとも export { … } の形で、P1-T04（p1-parser-boundary.test.ts）はこの形を数えないので試験は変えない。原文の改訂: (1) p2-snapshot-sse.json の P2-A8-AC11 と P2-A8-SUMMARY.rows を recovery.restoration・recovery.digest の形にし、SnapshotProjectionInput の recoveryDigestBytes と変更の検出で digest を参照で比べること（P3-REC-AC16）を AC11 に足した (2) p2-shared-runtime.json の DiagnosticReason の数: 型の実物は足す前 96 種・足した後 99 種で、元の 53 種は型の実物と合っていなかった（53 に 3 を足した 56 ではなく 99 にした） (3) p1-parser-boundary.json の publicFunctions に familyFor・operationOf (4) p3-version-material.json の理由の文に、DisplayRecoveryView が { restoration, digest } になった注 (5) 本契約の allowedPaths に unit-coverage.ts、publicFunctions の walkList（now）・startupPlan・walkDiagnostics・型 WalkStart・Restored を実物に合わせ、Q-REC-BASE に発注 3 の点検の 2 行を足した。anchor: 実装でずれた他の契約の 8 か所（行が動いただけ 4: P3-E05P-TYPHOON-001・P3-HOST-FOLLOWUP-001 の composition-root.ts、P3-VERSION-MATERIAL-001・本契約の ingress.ts。中身が変わった行 4: P3-CLOCK-CHECK-001 の dmdata-rest.ts:57〔2 か所〕、P3-CURRENCY-COVERAGE-001 の composition-root.ts:227、P3-WEATHER-SHAPE-001 の p2-shared-runtime.types.ts:324、本契約の p2-snapshot-sse.types.ts:49〔2 か所〕。引く条文は今の行で成り立つ）。原文の改訂で中身が変わった行を引く 3 か所（P2-CHROME-EEW-001・P2-EEW-E01-001 が引く p2-snapshot-sse.json:475〔P2-A8-AC11〕、P3-CURRENCY-COVERAGE-001 が引く p2-shared-runtime.json:522〔E23〕）、本項などの行の追加で :825 が :836 へ動いた P3-NOTICE-LEDGER-001 の 3 か所を付け直し、p3-version-material.json:436 の本文の p3-recovery.json:716（anchor 無し）を :727 にして、その行を引く P3-NOTICE-LEDGER-001 の 1 か所も付け直した（anchor 18 件・10 契約）。他の契約が引く本契約の :288・:323・:410 は動いていない。p3-version-material.json の Q-VM-PRECHECK などの古い記録が anchor 無しで引く p3-recovery.json:481 は点検の時点の記録なので変えない。実 API の辿り: 別に記録",
+        "remaining": "実 API の辿りの記録（統合担当が後で足す）。発注 2・3 の点検（Q-REC-BASE）と作者の分岐 6 本（Q-REC-AUTHOR-2）は残る",
+        "reason": "配送の記録"
       }
     ],
     "operationContract": {
@@ -491,6 +499,7 @@
       "reconstruction/src/host/host.ts（【発注 1】起動の後に一覧の辿りとダイジェストを起こす呼び出しと、停止の開始で abort する一覧の歩き専用の AbortController を 1 つ持ち、停止で歩きを打ち切って結果を捨てる所だけ。既存の halt は変えない〔一覧の 401/403 は接続へ渡さない、P3-REC-AC03 の (3)〕。【発注 2】切断の始まりと繋がり直しの時刻を publisher へ渡す所だけ。【発注 3】再接続〔穴 c〕と断った入力〔穴 b〕で取り直しを起こす呼び出しだけ。同上）",
       "reconstruction/src/ingress/ingress.ts（【発注 1】WS の枝の control.status から運用区分への写し〔statuses の表〕を module の関数にして export するだけ〔ListHead.operation と 1 か所で共有〕。【発注 3】kind rest の入力に一覧の item の head.test・control.status・id を載せ、既存の根拠の検査へ通すだけ。IngressInput の rest の型に 3 つの欄〔発注前点検 N1〕。同上）",
       "reconstruction/src/decode-material/decode-material.ts（【発注 1】familyFor を export するだけ。束を購読している区分の型だけで作るため〔P3-REC-AC02 の (6)〕。同上）",
+      "reconstruction/src/runtime/unit-coverage.ts（【発注 1】:175 の export 行に rowsByHeadType を足すだけ。束を unit 表の ready の型から作るため〔P3-REC-AC02 の (6)〕。行は足さない。統合担当の許可〔2026-10-27、発注 1 の実装中〕。同上）",
       "reconstruction/src/mailbox/mailbox.ts と reconstruction/contracts/p2-mailbox.json（【発注 3】REST 本文の枠だけ。同じ commit で契約を改訂〔発注前点検 N3〕。同上）",
       "reconstruction/src/checkpoint/checkpoint.ts（【発注 3】InputBoundaries の穴の解決と、取り直しを始めた後に開いた最古の穴の 1 件だけ〔P3-REC-D-HOLE-AFTER-START、発注前点検 N2〕。同上）",
       "reconstruction/contracts/p3-execution-split.types.ts・reconstruction/contracts/p3-execution-split.json と reconstruction/src/runtime/owner-host.ts・owner-runtime.ts・owner-worker.ts（【発注 3】owner の取り直しの要求と返信だけ。P3-C3A-AC15 の未回答の表に 1 種類。同上）",
@@ -578,8 +587,10 @@
       "exchange(method, path, apiKey, signal, body?)（reconstruction/src/host/dmdata-rest.ts。【発注 1】export するだけで引数は変えない。answered に retryAfter: number | null〔Retry-After の秒を ms にしたもの。無い・読めなければ null〕を足す。【発注 3】host 名・path の接頭辞・Accept・本文上限の引数と、answered の contentType を足す）",
       "ListHead・ListQuery・ListPage・UnitWalk・UnitWalkResult・RecoveryDigestView（reconstruction/contracts/p3-recovery.types.ts、新設、【発注 1】）。ListHead = { id: string; unit: RuntimeUnitId; headType: string; receivedAtMs: number; operation: Operation〔ingress の運用区分の写しの関数で作る〕; title: string; headline: string | null; reportDateTime: string | null; infoType: string | null }。UnitWalkResult = { unit; kind: \"listed\"; heads: readonly ListHead[] } ｜ { unit; kind: \"unsatisfied\"; reason: \"recoveryLimit\" | \"fetchFailed\" | \"authRejected\"; listedPages: number }",
       "listTelegramPage(apiKey: string, query: ListQuery, signal: AbortSignal): Promise<ListPage>（reconstruction/src/recovery/、【発注 1】）。ListQuery = { types: readonly string[]〔1〜5〕; cursorToken: string | null }（【発注 2】で { classification: string; cursorToken } を足す）。ListPage = { kind: \"ok\"; heads: readonly ListHead[]; nextToken: string | null; nextPooling: string | null } ｜ { kind: \"failed\" } ｜ { kind: \"authRejected\" } ｜ { kind: \"throttled\"; retryAfterMs: number | null }。item は境界で項目ごとに確かめて組み立て、head.type が束に無い item と head.test が true の item は捨てる。401/403 は authRejected で返すだけで、host の接続には触れない",
-      "walkStart(boundary: InputBoundary | null, restoration: \"restored\" | \"empty\" | \"unavailable\", startupWallMs: number): Readonly<{ fetchFromMs: number; digestAfterMs: number; stopAtId: string | null; beforeWindow: boolean }>（reconstruction/src/recovery/、【発注 1】）。P3-REC-AC02 の (2)(3): 境界由来の下限（dmdataTime なら −60 秒、根拠 \"verified\" の受信時刻なら −10 分）と startupWallMs − 7 日の大きい方を fetchFromMs、余白を除いた境界の時刻（同じく 7 日で切る）を digestAfterMs とし、境界由来の下限が無い（null・empty・unavailable・根拠なし）か 7 日で切ったとき beforeWindow を true にする。発注 3 で 7 日を unit ごとの N2 の窓に替える",
-      "walkList(apiKey: string, plan: readonly UnitWalk[], signal: AbortSignal): Promise<readonly UnitWalkResult[]>（reconstruction/src/recovery/、【発注 1】）。plan は P3-REC-D-ORDER-AND-LIMIT=A の unit の順で、購読している区分の型だけの束で作り（familyFor）、UnitWalk = { unit; bundles: readonly (readonly string[])[]; fetchFromMs: number; stopAtId: string | null }。ページの上限（RES-02）・間隔（RES-05）・429・401/403・再試行（P3-REC-AC03）をこの中で数える。signal は host の停止の開始で abort する一覧の歩き専用の AbortController の signal（既存の halt ではない、P3-REC-AC03 の (6)）",
+      "walkStart(boundary: InputBoundary | null, restoration: \"restored\" | \"empty\" | \"unavailable\", startupWallMs: number): WalkStart（reconstruction/src/recovery/recovery.ts、【発注 1】。型 WalkStart = Readonly<{ fetchFromMs: number; digestAfterMs: number; stopAtId: string | null; beforeWindow: boolean }> は recovery.ts に置いて export type する）。P3-REC-AC02 の (2)(3): 境界由来の下限（dmdataTime なら −60 秒、根拠 \"verified\" の受信時刻なら −10 分）と startupWallMs − 7 日の大きい方を fetchFromMs、余白を除いた境界の時刻（同じく 7 日で切る）を digestAfterMs とし、境界由来の下限が無い（null・empty・unavailable・根拠なし）か 7 日で切ったとき beforeWindow を true にする。発注 3 で 7 日を unit ごとの N2 の窓に替える",
+      "walkList(apiKey: string, plan: readonly UnitWalk[], signal: AbortSignal, now: () => number): Promise<readonly UnitWalkResult[]>（reconstruction/src/recovery/recovery.ts、【発注 1】）。now は歩きの時計（host の時計の monotonic）で、再試行の合計 30 秒（P3-REC-AC03）の正本はこの経過時間（要求の前と応答の後で比べる。timer の abort は早く切るための手段）。plan は P3-REC-D-ORDER-AND-LIMIT=A の unit の順で、購読している区分の型だけの束で作り（familyFor）、UnitWalk = { unit; bundles: readonly (readonly string[])[]; fetchFromMs: number; stopAtId: string | null }。ページの上限（RES-02）・間隔（RES-05）・429・401/403・再試行（P3-REC-AC03）をこの中で数える。signal は host の停止の開始で abort する一覧の歩き専用の AbortController の signal（既存の halt ではない、P3-REC-AC03 の (6)）",
+      "startupPlan(classifications: readonly DmdataClassification[], restored: Readonly<Partial<Record<RuntimeUnitId, Restored>>>, startupWallMs: number): Readonly<{ plan: readonly UnitWalk[]; starts: Readonly<Partial<Record<RuntimeUnitId, WalkStart>>> }> | null（reconstruction/src/recovery/recovery.ts、【発注 1】。P3-REC-D-ORDER-AND-LIMIT=A の unit の順に、unit 表の ready の型のうち購読している区分〔familyFor〕の型だけで束を作り、型を 1 つも持たない unit は入れない。どの unit も入らなければ null。型 Restored = Readonly<{ restoration: \"restored\" | \"empty\" | \"unavailable\"; boundary: InputBoundary | null }> は recovery.ts に置いて export type する）",
+      "walkDiagnostics(results: readonly UnitWalkResult[]): readonly DiagnosticDetails[]（reconstruction/src/recovery/recovery.ts、【発注 1】。辿れなかった unit ごとの WARN recoveryFetchFailed・recoveryLimit と、401/403 の WARN recoveryAuthRejected を 1 回の辿りに 1 件。API キーと応答本文は載せない、P3-REC-AC03・AC04）",
       "buildDigest(results: readonly UnitWalkResult[], starts: Readonly<Partial<Record<RuntimeUnitId, ReturnType<typeof walkStart>>>>): Readonly<{ digest: RecoveryDigestView; utf8Bytes: number }>（reconstruction/src/recovery/、【発注 1】。H32、RES-04・RES-06。utf8Bytes は作るときに 1 回だけ数えた digest の JSON の byte で、snapshot に出す欄にはせず projector へ一緒に渡す）",
       "DisplayRecoveryView = Readonly<{ restoration: RuntimeRestoration; digest: RecoveryDigestView | null }>（p2-snapshot-sse.types.ts の改訂、【発注 1】。【発注 2】で H28 の札、【発注 3】で unit ごとの進み具合の欄を足す）",
       "発注 2・3 の関数（突き合わせ・EEW の窓・本文の取得・owner の取り直しの要求・unit の入口・境界を進める入力）の名前と signature は、各発注の発注前点検で書く"
@@ -778,7 +789,7 @@
           "docs/specs/reconstruction-p0-contracts.md:2212 «eaf85396e8b36645»",
           "reconstruction/src/ingress/ingress.ts:12 «73a6b066b5a8a308»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:3 «0df43bf3db657b76»",
-          "reconstruction/src/ingress/ingress.ts:71 «fc348f6c77de8ee0»"
+          "reconstruction/src/ingress/ingress.ts:70 «fc348f6c77de8ee0»"
         ]
       },
       {
@@ -833,7 +844,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3049 «8768d257f2c06915»",
           "docs/specs/reconstruction-p0-contracts.md:3058 «d05d1d848452ec2e»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:49 «91fc4c6b8e623b3c»"
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:49 «91ed5371b421fed1»"
         ]
       },
       {
@@ -876,7 +887,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3059 «de603c487f88ebc8»",
           "docs/specs/reconstruction-p0-contracts.md:3124 «006740d745ab7866»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:49 «91fc4c6b8e623b3c»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:49 «91ed5371b421fed1»",
           "reconstruction/src/view-projector/view-projector.ts:901 «8d23273e69aee141»"
         ]
       },
@@ -1100,7 +1111,9 @@
         "requiredEvidence": [
           "発注ごとの baseOid の割当と、その時点で本契約の anchor のずれが 0 件であること",
           "発注 2・3 は前の発注の配送の後に点検し直すこと（Q-VM-PRECHECK-2A の形）",
-          "発注 3 は P3-UNREADABLE-MARK-001 の発注 3（unreadableReport）の配送の後であること（P3-REC-AC09 の (2)）"
+          "発注 3 は P3-UNREADABLE-MARK-001 の発注 3（unreadableReport）の配送の後であること（P3-REC-AC09 の (2)）",
+          "発注 3 の点検で、境界の id による絞りが walkList の結果（UnitWalkResult.heads）の段にあり、本文の取得の範囲にも効くことを見直す（発注 1 のレビュー Opus P3）",
+          "429 で打ち切った後の『次はその時刻より前に起こさない』は発注 1 に次の辿りが無いので作っていない。発注 3 のきっかけで作る"
         ]
       },
       {

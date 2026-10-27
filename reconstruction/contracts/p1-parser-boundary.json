@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d9990053b44496fd54fa6995148e2a04a5a9c9a3",
-    "sha256": "392533673324837e5b7a6d6d975ada97b01002f751225266ea21932130e8cf63",
+    "sha256": "7912ca4351138760d92168af6466a7b73864f198e15f7e718ac476a5b2a758ea",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -139,9 +139,9 @@
     "publicFunctions": [
       "resolveOperation(OperationEvidence): OperationResolution",
       "decodeMaterial(ParserMailboxItem): ParserMailboxResult（P3-VERSION-MATERIAL-001: DecodedMaterialにControl/DateTimeのcontrolDateTimeRaw〔AC01〕、ParserMailboxItemにdmdataの電文のdmdataId〔AC06〕を足した。P3-VM-AC09(9)により統合担当が改訂）",
-      "classifyMaterial(DecodedMaterial): route/family/material metadata",
+      "classifyMaterial(DecodedMaterial): route/family/material metadata（P3-RECOVERY-001の発注1: 区分の判定familyFor(headType: string): stringをdecode-material.tsからexport { … }の形で足した。取り直しの束を購読している区分の型だけで作るため、P3-REC-AC02(6)。P1-T04はexport { … }の形を数えないので試験は変えない）",
       "recordParserDiagnostic(ParserDiagnostic): void",
-      "ingestXmlData(IngressInput): accepted{item: ParserMailboxItem} | rejected{diagnostic: ParserDiagnostic}",
+      "ingestXmlData(IngressInput): accepted{item: ParserMailboxItem} | rejected{diagnostic: ParserDiagnostic}（P3-RECOVERY-001の発注1: control.statusから運用区分への写しoperationOf(status: unknown): Operation | undefinedをingress.tsからexport { … }の形で足した。WSの枝と一覧の頭ListHead.operationが共有する1か所、P3-REC-AC01。P1-T04は数えない）",
       "parserLimits: B04 の byte・構造上限（RES-05〜07 と Q-LIMIT 採用値）",
       "parserMailboxLimits: B05 型境界の件数・byte 上限（RES-01〜04）"
     ],
