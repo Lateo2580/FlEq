@@ -136,7 +136,7 @@ describe("P3-UNIT-V-001 U-V through the composition root", () => {
     // 取消で浅間山の警報が載らなくなる（草津白根山は残る）。復元は U-V の行で別に載る（空・unavailable を「警報なし」に読み替えない材料）。
     const cancelled = await send(CANCEL, "VFVO50", "2020-05-22T14:55:01+09:00", 6);
     expect(cancelled.current.volcano.items[0]).toMatchObject({ activeCount: 1 });
-    expect(projection.snapshot!.recovery["U-V"]).toEqual({ kind: "empty" });
+    expect(projection.snapshot!.recovery.restoration["U-V"]).toEqual({ kind: "empty" });
 
     // 三 slice 各 128 件（3 区分）と解説 64 件。
     const changes: RuntimeDisplayChange[] = [];

@@ -61,7 +61,7 @@ const diagnosticReasons = [
   "dmdataSocketStartFailed", "dmdataSocketStartUncertain", "dmdataSocketCloseFailed", "dmdataAuthRejected",
   "dmdataErrorFrame", "connectionLivenessExpired", "ownerStopped",
   "eewHorizonStale", "hostClockAhead", "hostClockBehind", "hostClockUnverified", "capacityRejected",
-  "weatherTimeseriesElementSkipped", "weatherTimeseriesScopeUnclear", "unreadableDropped",
+  "weatherTimeseriesElementSkipped", "weatherTimeseriesScopeUnclear", "unreadableDropped", "recoveryFetchFailed", "recoveryLimit", "recoveryAuthRejected",
 ] satisfies readonly DiagnosticReason[];
 
 function lineFor(source: DiagnosticEvent, occurrences = 1): QueueEntry {

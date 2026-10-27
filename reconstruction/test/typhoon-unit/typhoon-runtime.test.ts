@@ -139,7 +139,7 @@ describe("P3-UNIT-Y-001 U-Y through the composition root", () => {
     expect({ ...alone.current, typhoon: null }).toEqual({ ...first.snapshot.current, typhoon: null });
     expect(alone.current.typhoon).not.toEqual(first.snapshot.current.typhoon);
     expect(record.current.typhoon.items[0]).toMatchObject({ informationType: "typhoon", activeCount: 1, highestSeverity: null, areaCounts: {}, unknownCode: {} });
-    expect(projection.snapshot!.recovery["U-Y"]).toEqual({ kind: "empty" });
+    expect(projection.snapshot!.recovery.restoration["U-Y"]).toEqual({ kind: "empty" });
     // 猛烈な＝danger、非常に強い＝warning、超大型＝warning。確率の active は数えるが重さは付けない。取消で view から消える。
     const severe = projected(await sendTo(analysis("2", "2026-05-31T09:50:00+09:00", { intensity: "猛烈な", eventId: "TC2607" }), "VPTW60", T0 + 3_000_000, 3)).snapshot;
     expect(severe.current.typhoon.items[0]).toMatchObject({ activeCount: 2, highestSeverity: "danger" });

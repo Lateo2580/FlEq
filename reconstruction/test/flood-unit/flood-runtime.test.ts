@@ -149,7 +149,7 @@ describe("P3-UNIT-R-001 U-R through the composition root", () => {
       "2019-05-27T09:20:01+09:00", 5)).snapshot;
     expect(ended.current.flood.delivery === "full" && ended.current.flood.view.currents).toEqual([]);
     expect(ended.current.flood.items.every((item) => item.activeCount === 0)).toBe(true);
-    expect(projection.snapshot!.recovery["U-R"]).toEqual({ kind: "empty" });
+    expect(projection.snapshot!.recovery.restoration["U-R"]).toEqual({ kind: "empty" });
 
     // 実配信の最大の日に近い状態（10 EventID、実配信の古座川の記録の形）と、512 subject を実配信の最大の記録の形（観測所 10・点 22・
     // 河川 7）で満たした状態。domain flood の byte を分野の予算 65,536 と、snapshot 全体の byte を 1 MiB と比べて記録する。

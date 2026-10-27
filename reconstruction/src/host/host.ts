@@ -16,7 +16,7 @@ import { resolveRepoPath } from "../notification-delivery/adapter";
 import type { ExecutionPlace, OwnerReply, OwnerStartData } from "../../contracts/p3-execution-split.types";
 import { RuntimeCompositionRoot, linkedUnitCodecs, places } from "../runtime/composition-root";
 import { completeDiagnostic } from "../runtime/runtime-diagnostic";
-import { closeSocket, listSockets, startSocket } from "./dmdata-rest";
+import { closeSocket, listSockets, startSocket } from "./dmdata-rest"; import { startupPlan, walkList } from "../recovery/recovery";
 
 // P2-A10-AC12 (R63): provisional fixed interval for a normal disconnect or handshake failure. No backoff, no setting.
 const RECONNECT_MS = 5_000;
@@ -505,9 +505,13 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     if (recorded.kind === "dropped" && recorded.reason === "sinkUnavailable") process.stderr.write("fleq host: dmdata socket close failed\n");
   }
 
+  // P3-REC-AC03 (6): 一覧の歩きだけを停止の開始で打ち切る。halt は接続の後始末（DELETE）用で停止の開始では abort しないので、歩きには使わない。
+  const walking = new AbortController();
+
   const stop = (): Promise<ShutdownSummary> => stopping ??= (async () => {
     // The stop request is the origin of the overall shutdown limit; the cleanup runs beside shutdownRuntime, not before it.
     const requested = clock();
+    walking.abort();
     const requestedReal = performance.now();
     clearInterval(tickTimer);
     if (reconnectTimer != null) clearTimeout(reconnectTimer);
@@ -537,6 +541,14 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   void root.probeNotificationChannels().then((channels) => {
     if (stopping == null) root.dispatch({ kind: "notificationProbeCompleted", channels, clock: clock() });
   });
+
+  // P3-REC-AC15・AC02 (6): 起動時の一覧の辿り（穴 d）。接続を待たずに始める。{ wsUrl } と telegram.* の無い購読では辿らず digest は null。
+  // 一覧の 401/403 は辿りの側だけで止まり、接続（dmdataAuthRejected）へは渡さない（P3-REC-AC03 (3)）。
+  const walk = config.dmdata == null ? null : startupPlan(config.dmdata.classifications, root.restoredBoundaries, clock().wallTimeMs);
+  if (config.dmdata != null && walk != null) void walkList(config.dmdata.apiKey, walk.plan, walking.signal, () => clock().monotonicMs).then((results) => {
+    // 停止を始めた後に揃った結果は公開しない（P3-REC-AC03 (6)）。
+    if (stopping == null) root.showRecoveryDigest(results, walk.starts, clock());
+  }).catch(() => { if (stopping == null) note("WARN", "recoveryFetchFailed"); }); // 辿りの失敗は診断だけにし、live の受信を止めない
 
   const first = await startAttempt();
   // { wsUrl } rejects on any initial failure (P2-A10-AC12); { dmdata } only where retrying cannot help (P3-C2-RETRY).

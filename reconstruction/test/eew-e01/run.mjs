@@ -936,7 +936,7 @@ async function measureRun(spec, ctx, label, dir, status) {
       eewReference: assembled.eewReference ?? [], blocks }),
       warmupRelease, eewReference: assembled.eewReference ?? [],
       // AC08 ③: C4 の初期状態（U-T の保存が無い）から起動したとき、最初の snapshot の U-T の回復状態。
-      recoveryUT: firstSnapshot?.recovery?.["U-T"] ?? null }),
+      recoveryUT: firstSnapshot?.recovery?.restoration?.["U-T"] ?? null }),
     hostClockOffsetSpreadMs: hostIndex.ohHi - hostIndex.ohLo, hostMemMax: hostIndex.mem.reduce((m, l) => Math.max(m, l.rss ?? 0), 0),
     publishSerialization: hostIndex.publishes.length,
     checkpoints: hostIndex.checkpoints.map((c) => ({ unit: c.unit, stage: c.stage, attemptId: c.attemptId, startMs: c.startedMonotonicMs, endMs: c.endedMonotonicMs, bytes: c.bytes, outcome: c.outcome })) };

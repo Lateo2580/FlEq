@@ -127,7 +127,7 @@ describe("P3-UNIT-N-001 U-N through the composition root", () => {
     // 取消で現況と情報が載らなくなる。復元は U-N の行で別に載る（空・unavailable を「現況なし」に読み替えない材料）。
     const cancelled = await send(CANCEL, "2020-05-12T16:33:01+09:00", 3);
     expect(cancelled.current.nankai.items[0]).toMatchObject({ activeCount: 0 });
-    expect(projection.snapshot!.recovery["U-N"]).toEqual({ kind: "empty" });
+    expect(projection.snapshot!.recovery.restoration["U-N"]).toEqual({ kind: "empty" });
 
     // 合法最大: 上限の長さの見出しの情報 64 件と現況 6 件（2 系統 × 3 区分）。
     const changes: RuntimeDisplayChange[] = [];

@@ -23,7 +23,7 @@ import type { LandslideUnitView } from "./p3-landslide-unit.types";
 import type { FloodUnitView } from "./p3-flood-unit.types";
 import type { BriefingUnitView } from "./p3-briefing-unit.types";
 import type { LocalBulletinsUnitView } from "./p3-local-bulletins-unit.types";
-import type { TyphoonUnitView } from "./p3-typhoon-unit.types";
+import type { TyphoonUnitView } from "./p3-typhoon-unit.types"; import type { RecoveryDigestView } from "./p3-recovery.types";
 
 export type DisplayVersion = Readonly<{
   streamId: string;
@@ -45,8 +45,8 @@ export type DisplayWorkerView = Readonly<{
   lastResponseAtMonotonicMs: number | null;
 }>;
 
-// P2-A8-AC11: durable restoration is independent of current confirmation.
-export type DisplayRecoveryView = RuntimeRestoration;
+// P2-A8-AC11: durable restoration is independent of current confirmation. digest は起動時の一覧の頭（P3-REC-AC15、辿らない起動では null）。
+export type DisplayRecoveryView = Readonly<{ restoration: RuntimeRestoration; digest: RecoveryDigestView | null }>;
 
 export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide" | "flood" | "briefing" | "local-bulletins" | "typhoon";
 export type DisplaySeverity = "none" | "below" | "forecast" | "advisory" | "warning" | "danger" | "specialWarning";
@@ -141,7 +141,7 @@ export type SnapshotProjectionInput = Readonly<{
   connection: DisplayConnectionView;
   worker: DisplayWorkerView;
   persistence: Readonly<Partial<Record<UnitId, PersistenceStatus>>>;
-  recovery: DisplayRecoveryView;
+  recovery: DisplayRecoveryView; recoveryDigestBytes: number; // P3-REC-AC16: 作るときに数えた digest の byte（digest が null なら 0）。projector は digest を直列化しない
   confirmation: RuntimeConfirmation;
   notificationChannels: NotificationDeliveryState["channels"];
   channelProbeComplete: boolean;

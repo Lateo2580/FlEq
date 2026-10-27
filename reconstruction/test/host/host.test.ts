@@ -392,7 +392,7 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
     owners.restored.length = 0;
     const second = await start(server.url, dirs);
     const restored = await snapshot(second.displayPort);
-    expect(restored.recovery["U-E"].kind).toBe("restored");
+    expect(restored.recovery.restoration["U-E"].kind).toBe("restored");
     // 復元直後は通知の期限で deadlineOwner が世代を進めうるので、currentGeneration は比べない。
     expect(owners.restored.find((unit) => unit.unit === "U-E")?.persistence.savedGeneration).toBe(saved?.savedGeneration);
     expect(restored.current.eew.items.length).toBeGreaterThan(0);

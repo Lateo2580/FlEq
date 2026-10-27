@@ -172,5 +172,5 @@ function placeOfHeadType(headType: string): ExecutionPlace {
   return row?.status === "ready" ? executionPlaces[row.unit] : "deferred";
 }
 
-export { classifyHeadType, executionPlaces, placeOfHeadType, runtimeUnits };
+export { classifyHeadType, executionPlaces, placeOfHeadType, rowsByHeadType, runtimeUnits };
 export type { CoversAllUnits };

@@ -148,7 +148,7 @@ describe("P3-UNIT-B-001 U-B through the composition root", () => {
     // 取消で記録が view から消える（cancelled を載せない）。
     const cancelled = projected(await send(cancel(text(K1)), "VPBS50", T0 + 5, 6)).snapshot;
     expect(cancelled.current.briefing.delivery === "full" && cancelled.current.briefing.view.currents.map((item) => item.subject).includes(K)).toBe(false);
-    expect(projection.snapshot!.recovery["U-B"]).toEqual({ kind: "empty" });
+    expect(projection.snapshot!.recovery.restoration["U-B"]).toEqual({ kind: "empty" });
     // highestSeverity と unknownCode を P3-C12-SNAPSHOT=A の表の全部の行で照らす（1 行に 1 記録の state を射影する）。
     const tag = (condition: string) => tags([{ condition, areas: [{ code: "130010" }] }]);
     const severityRows: readonly (readonly [string, string, string, number | null, string | null, Readonly<Record<string, number>>])[] = [

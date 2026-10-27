@@ -488,3 +488,5 @@ export function decodeMaterial(item: ParserMailboxItem,
 }
 
 export const parserLimits = { inputBytes: MAX_INPUT_BYTES, expandedBytes: MAX_EXPANDED_BYTES, ...limits } as const;
+// P3-REC-AC02 (6): 取り直しの束を購読している区分の型だけで作るため、区分の判定をここ 1 か所から引く。
+export { familyFor };

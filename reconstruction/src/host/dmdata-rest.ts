@@ -20,7 +20,7 @@ type SocketStartResult = Readonly<{ kind: "ok"; id: number; url: string; protoco
   | RestRefusal | Readonly<{ kind: "uncertain" }>;
 
 // notSent: failed before the request was handed to the OS. lost: handed over, but no complete answer.
-type Exchange = Readonly<{ kind: "notSent" }> | Readonly<{ kind: "lost" }> | Readonly<{ kind: "answered"; status: number; text: string; date: string | null }>;
+type Exchange = Readonly<{ kind: "notSent" }> | Readonly<{ kind: "lost" }> | Readonly<{ kind: "answered"; status: number; text: string; date: string | null; retryAfter: number | null }>;
 
 // signal: the caller's hard stop (the host's stop limit, P3-C2-RES-07). Aborted, the request is destroyed or never sent.
 function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: string, signal: AbortSignal | undefined,
@@ -54,7 +54,7 @@ function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: strin
           // A body over the limit is never read whole, so it is no answer.
           if (bytes > BODY_LIMIT_BYTES) lost(); else chunks.push(chunk);
         });
-        response.on("end", () => end({ kind: "answered", status: response.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8"), date: response.headers.date ?? null }));
+        response.on("end", () => end({ kind: "answered", status: response.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8"), date: response.headers.date ?? null, retryAfter: retryAfterMs(response.headers["retry-after"]) }));
         response.on("error", lost);
         response.on("close", lost);
       });
@@ -121,5 +121,10 @@ async function startSocket(subscription: DmdataSubscription, signal?: AbortSigna
   return { kind: "ok", id, url, protocol };
 }
 
-export { closeSocket, listSockets, startSocket };
+// P3-REC-AC03 (3): Retry-After の秒の形だけを ms にする。日付の形・無い・読めないは null（倍々の待ちに回る）。
+function retryAfterMs(value: string | undefined): number | null {
+  return value != null && /^\d{1,9}$/.test(value.trim()) ? Number(value.trim()) * 1000 : null;
+}
+
+export { closeSocket, exchange, listSockets, startSocket };
 export type { DmdataSocket, SocketCloseResult, SocketListResult, SocketStartResult };

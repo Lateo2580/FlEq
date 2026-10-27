@@ -53,8 +53,7 @@ export function ingestXmlData(input: IngressInput):
     const status = object(object(message.xmlReport).control).status;
     const observed = (v: unknown): string | boolean | null => typeof v === "boolean" ? v : typeof v === "string" ? v.slice(0, 256) : null;
     sources.headTest = head.test === undefined ? { kind: "missing" } : typeof head.test === "boolean" ? { kind: "provided", value: head.test } : { kind: "invalid", observed: observed(head.test) };
-    const statuses = new Map<string, Operation>([["通常", "normal"], ["訓練", "training"], ["試験", "test"], ["normal", "normal"], ["training", "training"], ["test", "test"]]);
-    const normalized = typeof status === "string" ? statuses.get(status) : undefined;
+    const normalized = operationOf(status);
     sources.envelopeStatus = status === undefined
       ? (message.format === "xml" || message.format === "json" ? { kind: "missing" } : { kind: "notProvided" })
       : normalized == null ? { kind: "invalid", observed: observed(status) } : { kind: "provided", value: normalized };
@@ -75,3 +74,11 @@ export function ingestXmlData(input: IngressInput):
   const item: ParserMailboxItem = { inputId: input.inputId, inputSequence: input.inputSequence, receivedAt: input.receivedAt, origin: input.origin, dmdataId, headType, encoding, compression, encodedBody, encodedByteLength: encodedBody.byteLength, headTest: sources.headTest, envelopeStatus: sources.envelopeStatus };
   return { kind: "accepted", item, ingressJsonMs };
 }
+
+// control.status から運用区分への写しの正本（WS の枝と一覧の頭が共有する、P3-REC-AC01）。写せない値は undefined。
+const statuses = new Map<string, Operation>([["通常", "normal"], ["訓練", "training"], ["試験", "test"], ["normal", "normal"], ["training", "training"], ["test", "test"]]);
+function operationOf(status: unknown): Operation | undefined {
+  return typeof status === "string" ? statuses.get(status) : undefined;
+}
+
+export { operationOf };

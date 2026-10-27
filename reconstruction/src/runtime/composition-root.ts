@@ -68,7 +68,7 @@ import {
   validateProbe, verifyCoverage,
 } from "./shared-runtime";
 import type { MirrorUnit, PublisherState, RuntimeMirror } from "./shared-runtime";
-import { executionPlaces, placeOfHeadType, runtimeUnits } from "./unit-coverage";
+import { executionPlaces, placeOfHeadType, runtimeUnits } from "./unit-coverage"; import { buildDigest, walkDiagnostics } from "../recovery/recovery"; import type { Restored, WalkStart } from "../recovery/recovery"; import type { UnitWalkResult } from "../../contracts/p3-recovery.types";
 
 // A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F, C5 U-T, C7 U-Q, C8 U-N, C9 U-V, C10 U-L, C11 U-R, C12 U-B, C13 U-M, C14 U-Y). Notification (A7) links here on delivery.
 // P3-UNIT-TABLE-001: the one table of unit functions. A unit lane adds its row here and nowhere else.
@@ -205,7 +205,7 @@ function viewOf(unit: MirrorUnit) { return unit.view; }
 
 // The one A1 state -> A8 input mapping; connection/worker come from the caller.
 function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
-  connection: DisplayConnectionView, worker: DisplayWorkerView): SnapshotProjectionInput {
+  connection: DisplayConnectionView, worker: DisplayWorkerView, digest: ReturnType<typeof buildDigest> | null = null): SnapshotProjectionInput {
   const { state } = step;
   const date = new Date(nowMs);
   const eew = viewOf(state.mirror["U-E"]), weatherCurrent = viewOf(state.mirror["U-W"]), weatherTimeseries = viewOf(state.mirror["U-F"]);
@@ -224,7 +224,7 @@ function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
       "U-N": state.mirror["U-N"].persistence, "U-V": state.mirror["U-V"].persistence,
       "U-L": state.mirror["U-L"].persistence, "U-R": state.mirror["U-R"].persistence, "U-B": state.mirror["U-B"].persistence, "U-M": state.mirror["U-M"].persistence,
       "U-Y": state.mirror["U-Y"].persistence },
-    recovery: state.restoration, confirmation: state.confirmation,
+    recovery: { restoration: state.restoration, digest: digest?.digest ?? null }, recoveryDigestBytes: digest?.utf8Bytes ?? 0, confirmation: state.confirmation,
     notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
     eew, weatherCurrent, weatherTimeseries, tsunami, earthquake, nankai, volcano, landslide, flood, briefing, localBulletins, typhoon, outcomes: step.outcomes, displayChanges: step.displayChanges,
   };
@@ -930,7 +930,7 @@ class RuntimeCompositionRoot {
     const stopped = state.shutdown.stage === "completed";
     const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs,
-      this.connectionView(state), worker), this.projection);
+      this.connectionView(state), worker, this.recoveryDigest), this.projection);
     this.projection = result.state;
     for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
     const display = this.display;
@@ -1835,6 +1835,25 @@ class RuntimeCompositionRoot {
     if (this.clock().monotonicMs >= entry.due) { this.settleDetail(entry, { kind: "error", reason: "timeout", revision: null }); this.sendDetail(); return; }
     this.detailInFlight = entry;
     this.post("deferred", { kind: "detail", detail: entry.request });
+  }
+
+  // ---- 起動時の辿りとダイジェスト（P3-RECOVERY-001【発注 1】）。digest は run の中だけで持ち、次の起動で作り直す（P3-REC-AC15 (4)）。 ----
+  private recoveryDigest: ReturnType<typeof buildDigest> | null = null;
+
+  // P3-REC-AC02: 起動時の起点は owner の restored の返信の境界（InputBoundaries の今の位置は止まっていた間を覆わない、発注前点検 N9）。
+  get restoredBoundaries(): Readonly<Partial<Record<RuntimeUnitId, Restored>>> {
+    const result: Partial<Record<RuntimeUnitId, Restored>> = {};
+    for (const reply of this.restored.values()) for (const unit of reply.units)
+      result[unit.unit] = { restoration: unit.restoration.kind, boundary: unit.inputBoundary };
+    return result;
+  }
+
+  // P3-REC-AC15: 辿りの結果をダイジェストにして snapshot へ載せ、辿れなかった unit を診断に残す（AC03 (4)・AC04）。
+  showRecoveryDigest(results: readonly UnitWalkResult[], starts: Readonly<Partial<Record<RuntimeUnitId, WalkStart>>>, clock: ClockReading): void {
+    const { runId } = this.state;
+    for (const details of walkDiagnostics(results)) this.enqueueDiagnostic(completeDiagnostic(details, clock, runId));
+    this.recoveryDigest = buildDigest(results, starts);
+    this.project([], [], clock);
   }
 }
 

@@ -320,8 +320,8 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "notificationOutcomeUnknown" | "noticeMarkEvicted"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate"
-  // P3-CC-AC07: one per input a unit could not make current because of its capacity. P3-WS-AC02: U-F が受理した報の読み飛ばし（INFO）と外の階層の知らない子（WARN）を報ごとに 1 件。P3-UM-AC03 (4): 原文を外した記録の数。
-  | "capacityRejected" | "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear" | "unreadableDropped";
+  // P3-CC-AC07: one per input a unit could not make current because of its capacity. P3-WS-AC02: U-F が受理した報の読み飛ばし（INFO）と外の階層の知らない子（WARN）を報ごとに 1 件。P3-UM-AC03 (4): 原文を外した記録の数。P3-REC-AC03・AC04: 取り直しの一覧の失敗と量の上限（unit ごと）、401/403（1 回の辿りに 1 件）。
+  | "capacityRejected" | "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear" | "unreadableDropped" | "recoveryFetchFailed" | "recoveryLimit" | "recoveryAuthRejected";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;

@@ -751,7 +751,7 @@ function comparable(snapshot: DisplaySnapshot): string {
   const domain = (value: DisplayDomainView<AnyView>) => value.delivery === "full"
     ? [value.contentRevision, "full", value.items] : value;
   return JSON.stringify([snapshot.streamId, snapshot.semanticRevision, snapshot.connection, snapshot.worker,
-    snapshot.persistence, snapshot.recovery, snapshot.channels, domain(snapshot.current.eew),
+    snapshot.persistence, snapshot.recovery.restoration, snapshot.channels, domain(snapshot.current.eew), // digest は参照で比べる（P3-REC-AC16）
     domain(snapshot.current.weatherCurrent), domain(snapshot.current.weatherTimeseries), domain(snapshot.current.tsunami),
     domain(snapshot.current.earthquake), domain(snapshot.current.nankai),
     domain(snapshot.current.volcano), domain(snapshot.current.landslide), domain(snapshot.current.flood),
@@ -895,8 +895,8 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
       localBulletins: localBulletins.projection.full, typhoon: typhoon.projection.full },
     notices: selected.notices,
   };
-  const shellBytes = utf8({ ...shell, current: { eew: 0, weatherCurrent: 0, weatherTimeseries: 0, tsunami: 0, earthquake: 0, nankai: 0,
-    volcano: 0, landslide: 0, flood: 0, briefing: 0, localBulletins: 0, typhoon: 0 } }) - 12;
+  const shellBytes = utf8({ ...shell, recovery: { ...shell.recovery, digest: null }, current: { eew: 0, weatherCurrent: 0, weatherTimeseries: 0, tsunami: 0, earthquake: 0, nankai: 0,
+    volcano: 0, landslide: 0, flood: 0, briefing: 0, localBulletins: 0, typhoon: 0 } }) - 12 + (shell.recovery.digest == null ? 0 : input.recoveryDigestBytes - 4); // P3-REC-AC16: "null" の 4 byte を数えた digest の byte に替える
   const commonBytes = shellBytes - utf8(selected.notices);
   if (commonBytes > COMMON_BUDGET) return { kind: "rejected", state: state(published), reason: "snapshotCommonBudgetExceeded",
     diagnostics: [...diagnostics, { level: "WARN", component: "view-projector", reason: "snapshotCommonBudgetExceeded", count: commonBytes }] };
@@ -924,7 +924,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     + domainBytes(snapshot.current.briefing, briefing.projection)
     + domainBytes(snapshot.current.localBulletins, localBulletins.projection)
     + domainBytes(snapshot.current.typhoon, typhoon.projection);
-  if (published != null && comparable(published) === comparable(snapshot))
+  if (published != null && published.recovery.digest === snapshot.recovery.digest && comparable(published) === comparable(snapshot))
     return { kind: "unchanged", state: state(published), diagnostics };
   return { kind: "projected", state: state(snapshot), snapshot, utf8Bytes, diagnostics };
 }

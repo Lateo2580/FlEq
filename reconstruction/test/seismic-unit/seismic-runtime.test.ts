@@ -142,7 +142,7 @@ describe("P3-UNIT-Q-001 U-Q through the composition root", () => {
     const cancelled = await send("synthetic_VXSE53_cancel", "VXSE53", "2026-07-28T16:38:00+09:00", 4);
     expect(cancelled.items[0]).toMatchObject({ activeCount: 0 });
     // 復元・確認は U-Q の行で別に載る（空・unavailable を「地震なし」に読み替えない材料）。
-    expect(projection.snapshot!.recovery["U-Q"]).toEqual({ kind: "empty" });
+    expect(projection.snapshot!.recovery.restoration["U-Q"]).toEqual({ kind: "empty" });
   });
 
   // acceptance: §13.3 の保存失敗中の取消・古い ack・通常終了・復元直後の続報、U-E・U-T・U-Q の同時 dirty（AC11）。

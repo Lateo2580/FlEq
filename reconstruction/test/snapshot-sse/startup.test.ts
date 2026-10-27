@@ -67,7 +67,7 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
     const first = projected(projectSnapshot(projectionInput(started, at), null));
     expectConsistent(first.state, first.snapshot, first.utf8Bytes);
     // Startup/restoration never creates a new notice.
-    expect(first.snapshot).toMatchObject({ sequence: 1, recovery: started.state.restoration,
+    expect(first.snapshot).toMatchObject({ sequence: 1, recovery: { restoration: started.state.restoration, digest: null },
       channels: { desktop: "checking", sound: "checking" }, notices: [] });
     for (const key of keys) {
       expect(first.snapshot.current[key].delivery).toBe("full");

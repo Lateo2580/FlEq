@@ -148,7 +148,7 @@ describe("P3-UNIT-L-001 U-L through the composition root", () => {
       "2020-06-22T23:20:01+09:00", 5)).snapshot;
     expect(ended.current.landslide.delivery === "full" && ended.current.landslide.view.currents).toEqual([]);
     expect(ended.current.landslide.items.every((item) => item.activeCount === 0)).toBe(true);
-    expect(projection.snapshot!.recovery["U-L"]).toEqual({ kind: "empty" });
+    expect(projection.snapshot!.recovery.restoration["U-L"]).toEqual({ kind: "empty" });
 
     // 同時最大状態: 全国の市町村等 1,772 区域を 64 官署に 15_16_01 の形（49×1・09×1・29×残り）で配る。
     const changes: RuntimeDisplayChange[] = [];

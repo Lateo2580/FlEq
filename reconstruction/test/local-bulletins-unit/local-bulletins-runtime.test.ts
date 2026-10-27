@@ -139,7 +139,7 @@ describe("P3-UNIT-M-001 U-M through the composition root", () => {
     expect({ ...alone.current, localBulletins: null }).toEqual({ ...first.snapshot.current, localBulletins: null });
     expect(alone.current.localBulletins).not.toEqual(first.snapshot.current.localBulletins);
     expect(record.current.localBulletins.items[0]).toMatchObject({ informationType: "local-bulletins", activeCount: 1, highestSeverity: "warning", areaCounts: {}, unknownCode: {} });
-    expect(projection.snapshot!.recovery["U-M"]).toEqual({ kind: "empty" });
+    expect(projection.snapshot!.recovery.restoration["U-M"]).toEqual({ kind: "empty" });
     // 目撃は specialWarning、熱中症は warning、解説（transient）は数えるが重大度は付けない。取消で view から消える。
     const sighted = projected(await sendTo(xmlOf(T51, retime("2013-07-26T09:21:00+09:00"), replaceTag("ValidDateTime", "2013-07-26T10:30:00+09:00")), "VPHW51", T0 + 61_000, 3)).snapshot;
     expect(sighted.current.localBulletins.items[0]).toMatchObject({ activeCount: 2, highestSeverity: "specialWarning" });
