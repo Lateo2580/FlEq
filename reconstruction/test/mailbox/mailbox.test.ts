@@ -4,7 +4,7 @@ import { MessageChannel } from "node:worker_threads";
 import { describe, expect, it } from "vitest";
 
 import type { ParserMailboxItem, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
-import type { MailboxCompletion, MailboxControl, MailboxEnvelope } from "../../contracts/p2-shared-runtime.types";
+import type { MailboxCompletion, MailboxEnvelope } from "../../contracts/p2-shared-runtime.types";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { Mailbox } from "../../src/mailbox/mailbox";
 
@@ -26,27 +26,18 @@ function parserEnvelope(mailboxItem: ParserMailboxItem, priorityReason: "eewCand
   };
 }
 
-function controlEnvelope(messageId: string, control: MailboxControl, enqueuedMonotonicMs: number): MailboxEnvelope {
-  return { messageId, runId: "run", t0MonotonicMs: enqueuedMonotonicMs, enqueuedMonotonicMs,
-    priorityReason: "control", payload: { kind: "control", control } };
-}
-
 const parserResult = { kind: "rejected", diagnostic: {
   inputId: "unused", reason: "xmlInvalid", encodedByteLength: 0, expandedByteLength: null,
   operation: { kind: "undetermined", sources: {} },
 } } satisfies ParserMailboxResult;
 
 function completion(envelope: MailboxEnvelope, startedMonotonicMs: number, completedMonotonicMs: number): MailboxCompletion {
-  const encodedByteLength = envelope.payload.kind === "parser" ? envelope.payload.item.encodedByteLength
-    : new TextEncoder().encode(JSON.stringify(envelope.payload)).byteLength;
-  return envelope.payload.kind === "parser" ? {
-    kind: "parser", messageId: envelope.messageId, runId: envelope.runId, encodedByteLength,
+  return {
+    kind: "parser", messageId: envelope.messageId, runId: envelope.runId,
+    encodedByteLength: envelope.payload.item.encodedByteLength,
     startedMonotonicMs, completedMonotonicMs, inputId: envelope.payload.item.inputId,
     inputSequence: envelope.payload.item.inputSequence,
     result: { ...parserResult, diagnostic: { ...parserResult.diagnostic, inputId: envelope.payload.item.inputId } },
-  } : {
-    kind: "control", messageId: envelope.messageId, runId: envelope.runId, encodedByteLength,
-    startedMonotonicMs, completedMonotonicMs, control: envelope.payload.control,
   };
 }
 
@@ -151,40 +142,9 @@ describe("P2 mailbox", () => {
         for (const id of ["running", "pending", "absent"])
           expect(mailbox.cancel(id, 3)).toEqual(beforeNoOp);
         expect(mailbox.stats(3)).toMatchObject({ cancelled: 1, inFlightItems: 1, lastProgressMonotonicMs: 1 });
-        const control = controlEnvelope("control", { kind: "deadline", clock: { wallTimeMs: 0, monotonicMs: 4 } }, 4);
-        mailbox.enqueue(control);
-        const beforeCancel = mailbox.stats(4);
-        expect(mailbox.cancel("control", 4)).toEqual(beforeCancel);
-        expect(mailbox.takeNext(4)).toBe(control);
-        const inFlight = mailbox.stats(4);
-        expect(mailbox.cancel("control", 4)).toEqual(inFlight);
-        mailbox.complete(completion(control, 4, 5));
         expect(mailbox.complete(completion(running, 1, 6))).toMatchObject({ pendingItems: 0, pendingBytes: 0,
-          inFlightItems: 0, inFlightBytes: 0, completed: 2, cancelled: 1, limitViolations: 0 });
+          inFlightItems: 0, inFlightBytes: 0, completed: 1, cancelled: 1, limitViolations: 0 });
       }
-      // A real UTF-8 control payload shares reservation bytes with emergency data.
-      const mailbox = new Mailbox();
-      const ack = controlEnvelope("保存ack", { kind: "checkpointResult", clock: { wallTimeMs: 0, monotonicMs: 0 },
-        result: { kind: "acknowledged", attemptId: "保存", unit: "U-E", generation: 1, ackAt: 0, encodedByteLength: 1 } }, 0);
-      const ackBytes = new TextEncoder().encode(JSON.stringify(ack.payload)).byteLength;
-      const data = parserEnvelope(item("data", 0, "VXSE45", 2 * 1024 * 1024 - ackBytes), "eewCandidate");
-      mailbox.enqueue(data);
-      expect(mailbox.takeNext(1)).toBe(data);
-      expect(mailbox.enqueue(ack)).toMatchObject({ kind: "accepted", stats: { pendingBytes: ackBytes,
-        inFlightBytes: 2 * 1024 * 1024 - ackBytes, highWaterBytes: 2 * 1024 * 1024 } });
-      expect(mailbox.takeNext(2)).toBe(ack);
-      const beforeTransfer = mailbox.stats(2);
-      expect(beforeTransfer).toMatchObject({ pendingItems: 0, pendingBytes: 0,
-        inFlightItems: 2, inFlightBytes: 2 * 1024 * 1024, inFlightControlMessageIds: ["保存ack"] });
-      const delivered = once(port2, "message");
-      port1.postMessage(ack);
-      expect((await delivered)[0]).toEqual(ack);
-      expect(mailbox.stats(2)).toEqual(beforeTransfer);
-      expect(mailbox.complete(completion(ack, 2, 3))).toMatchObject({ inFlightItems: 1,
-        inFlightBytes: 2 * 1024 * 1024 - ackBytes, completed: 1, limitViolations: 0 });
-      expect(mailbox.complete(completion(data, 1, 4))).toMatchObject({
-        pendingItems: 0, pendingBytes: 0, inFlightItems: 0, inFlightBytes: 0,
-        completed: 2, highWaterItems: 2, highWaterBytes: 2 * 1024 * 1024, limitViolations: 0 });
     } finally {
       port1.close();
       port2.close();
@@ -202,17 +162,12 @@ describe("P2 mailbox", () => {
     expect(mailbox.beginDrain(6_001).accepting).toBe(false);
     expect(mailbox.enqueue(parserEnvelope(item("late", 3, "VPWS50", 1), "normal", 6_002)))
       .toMatchObject({ kind: "rejected", reason: "draining", stats: { lastArrivalMonotonicMs: 6_002 } });
-    const control = controlEnvelope("drain-control", { kind: "deadline",
-      clock: { wallTimeMs: 0, monotonicMs: 6_003 } }, 6_003);
-    expect(mailbox.enqueue(control).kind).toBe("accepted");
-    expect(mailbox.takeNext(6_003)).toBe(control);
-    mailbox.complete(completion(control, 6_003, 6_004));
     const pending = mailbox.takeNext(15_999);
     if (pending == null) throw new Error("pending item missing");
     expect(mailbox.complete(completion(pending, 15_999, 16_000))).toMatchObject({ pendingItems: 0, inFlightItems: 0 });
   });
 
-  it("P2-A2-T03 contractBoundary / AC03: control and fixed priority in a known-operation synthetic sequence", () => {
+  it("P2-A2-T03 contractBoundary / AC03: fixed priority in a known-operation synthetic sequence", () => {
     const mailbox = new Mailbox();
     // P3-C5: VTSE41 now runs in urgent; a deferred headType keeps the "another place is free" case (AC11(a)).
     const earlierDeferred = parserEnvelope(item("deferred-old", 0, "VPWP50", 1), "normal");
@@ -220,17 +175,9 @@ describe("P2 mailbox", () => {
     const laterTsunami = parserEnvelope(item("tsunami-new", 2, "VTSE41", 1), "tsunamiCandidate");
     const eew = parserEnvelope(item("eew", 3, "VXSE45", 1), "eewCandidate");
     const training = parserEnvelope(item("training", 4, "VXSE45", 1, "training"), "eewCandidate");
-    const deadline = controlEnvelope("deadline", { kind: "deadline", clock: { wallTimeMs: 0, monotonicMs: 10 } }, 5);
-    for (const envelope of [earlierDeferred, normal, laterTsunami, eew, training, deadline]) mailbox.enqueue(envelope);
+    for (const envelope of [earlierDeferred, normal, laterTsunami, eew, training]) mailbox.enqueue(envelope);
 
-    expect(mailbox.takeNext(10)).toBe(deadline);
-    mailbox.complete(completion(deadline, 10, 11));
     expect(mailbox.takeNext(12)).toBe(eew);
-    const shutdown = controlEnvelope("shutdown", { kind: "shutdownRequested", acceptedThroughSequence: 4,
-      clock: { wallTimeMs: 0, monotonicMs: 13 } }, 13);
-    mailbox.enqueue(shutdown);
-    expect(mailbox.takeNext(13)).toBe(shutdown);
-    mailbox.complete(completion(shutdown, 13, 14));
     // AC11(a) (P3-C3A-RES-01): the EEW owner is busy, but the deferred place is free, so its VPWP50 is taken.
     expect(mailbox.takeNext(14)).toBe(earlierDeferred);
     mailbox.complete(completion(earlierDeferred, 14, 15));
@@ -337,26 +284,22 @@ describe("P2 mailbox", () => {
       priorityReason: "eewCandidate", payload: { kind: "parser", item: { inputId: mailboxItem.inputId } } });
   });
 
-  it("P2-A2-T05 regression / AC05: completion before the actual dispatch cannot release data or control", () => {
-    for (const envelope of [
-      parserEnvelope(item("parser", 0, "VPWS50", 1), "normal"),
-      controlEnvelope("control", { kind: "deadline", clock: { wallTimeMs: 0, monotonicMs: 0 } }, 0),
-    ]) {
-      const mailbox = new Mailbox();
-      mailbox.enqueue(envelope);
-      expect(mailbox.takeNext(1_000)).toBe(envelope);
-      expect(mailbox.takeNext(1_000)).toBeNull();
-      const before = mailbox.stats(1_000);
-      for (const [started, completed] of [[0, 1], [999, 1_001], [1_000, 999]]) {
-        mailbox.complete(completion(envelope, started, completed));
-        expect(mailbox.stats(1_000)).toEqual(before);
-      }
-      const done = completion(envelope, 1_000, 1_001);
-      expect(mailbox.complete(done)).toMatchObject({
-        inFlightItems: 0, inFlightBytes: 0, completed: 1, lastProgressMonotonicMs: 1_001 });
-      const completed = mailbox.stats(1_001);
-      expect(mailbox.complete(structuredClone(done))).toEqual(completed);
+  it("P2-A2-T05 regression / AC05: completion before the actual dispatch cannot release data", () => {
+    const envelope = parserEnvelope(item("parser", 0, "VPWS50", 1), "normal");
+    const mailbox = new Mailbox();
+    mailbox.enqueue(envelope);
+    expect(mailbox.takeNext(1_000)).toBe(envelope);
+    expect(mailbox.takeNext(1_000)).toBeNull();
+    const before = mailbox.stats(1_000);
+    for (const [started, completed] of [[0, 1], [999, 1_001], [1_000, 999]]) {
+      mailbox.complete(completion(envelope, started, completed));
+      expect(mailbox.stats(1_000)).toEqual(before);
     }
+    const done = completion(envelope, 1_000, 1_001);
+    expect(mailbox.complete(done)).toMatchObject({
+      inFlightItems: 0, inFlightBytes: 0, completed: 1, lastProgressMonotonicMs: 1_001 });
+    const completed = mailbox.stats(1_001);
+    expect(mailbox.complete(structuredClone(done))).toEqual(completed);
   });
 
   it("P2-A2-T03 corpusHistory / AC03: maximum O09 input remains in-flight while the EEW candidate waits", () => {
@@ -374,7 +317,7 @@ describe("P2 mailbox", () => {
     expect(mailbox.stats(5)).toMatchObject({ inFlightItems: 0, inFlightMessageIds: [] });
   });
 
-  it("P2-A2-T05 contractBoundary / AC05: read-only ages, deadline origin and separate arrival/response/progress", () => {
+  it("P2-A2-T05 contractBoundary / AC05: read-only ages and separate arrival/response/progress", () => {
     const mailbox = new Mailbox();
     mailbox.enqueue(parserEnvelope(item("stuck-0", 0, "VPWS50", 1), "normal", 0));
     for (let second = 1; second <= 5; second += 1) {
@@ -400,20 +343,18 @@ describe("P2 mailbox", () => {
     worker.recordWorkerResponse(0);
     expect(worker.stats(5_000)).toMatchObject({ lastWorkerResponseMonotonicMs: 0, lastProgressMonotonicMs: null,
       pendingItems: 0, inFlightItems: 0 });
-    const deadlines = new Mailbox();
-    deadlines.enqueue(controlEnvelope("only-deadline", { kind: "deadline",
-      clock: { wallTimeMs: 10, monotonicMs: 2_000 } }, 1_000));
-    expect(deadlines.stats(5_000)).toMatchObject({ lastProgressMonotonicMs: 1_000,
-      nextDeadlineMonotonicMs: 2_000, oldestIncompleteAgeMs: 4_000 });
-    deadlines.enqueue(parserEnvelope(item("later", 1, "VPWS50", 1), "normal", 7_000));
-    const later = deadlines.stats(7_000);
+    const readOnly = new Mailbox();
+    readOnly.enqueue(parserEnvelope(item("first", 0, "VPWS50", 1), "normal", 1_000));
+    expect(readOnly.stats(5_000)).toMatchObject({ lastProgressMonotonicMs: 1_000, oldestIncompleteAgeMs: 4_000 });
+    readOnly.enqueue(parserEnvelope(item("later", 1, "VPWS50", 1), "normal", 7_000));
+    const later = readOnly.stats(7_000);
     expect(later).toMatchObject({ lastProgressMonotonicMs: 1_000, lastArrivalMonotonicMs: 7_000,
-      nextDeadlineMonotonicMs: 2_000, oldestPendingAgeMs: 6_000, oldestIncompleteAgeMs: 6_000 });
+      oldestPendingAgeMs: 6_000, oldestIncompleteAgeMs: 6_000 });
     expect(7_000 - later.lastProgressMonotonicMs!).toBe(6_000);
-    deadlines.stats(20_000);
-    expect(deadlines.stats(7_000)).toEqual(later);
-    expect(deadlines.recordWorkerResponse(7_000)).toEqual({ ...later, lastWorkerResponseMonotonicMs: 7_000 });
-    expect(deadlines.drainDiagnostics(7_000)).toEqual([
+    readOnly.stats(20_000);
+    expect(readOnly.stats(7_000)).toEqual(later);
+    expect(readOnly.recordWorkerResponse(7_000)).toEqual({ ...later, lastWorkerResponseMonotonicMs: 7_000 });
+    expect(readOnly.drainDiagnostics(7_000)).toEqual([
       { level: "WARN", component: "mailbox", reason: "mailboxStalled", count: 1, durationMs: 6_000 },
     ]);
   });
@@ -491,33 +432,21 @@ describe("P2 mailbox", () => {
     expect(mailbox.drainDiagnostics(24_000)).toEqual([stopped("mailbox.worker", 5_000)]);
     expect(mailbox.drainDiagnostics(24_001)).toEqual([]);
 
-    // Control progress never resets the independent worker response origin or latch.
-    const controls = new Mailbox();
-    const first = controlEnvelope("first", { kind: "deadline", clock: { wallTimeMs: 0, monotonicMs: 0 } }, 0);
-    controls.enqueue(first);
-    controls.recordWorkerResponse(0);
-    expect(controls.takeNext(4_000)).toBe(first);
-    controls.complete(completion(first, 4_000, 4_000));
-    expect(controls.drainDiagnostics(4_999)).toEqual([]);
-    expect(controls.drainDiagnostics(5_000)).toEqual([stopped("mailbox.worker", 5_000)]);
-    const second = controlEnvelope("second", { kind: "deadline", clock: { wallTimeMs: 5_001, monotonicMs: 5_001 } }, 5_001);
-    controls.enqueue(second);
-    expect(controls.takeNext(5_001)).toBe(second);
-    controls.complete(completion(second, 5_001, 5_001));
-    expect(controls.drainDiagnostics(5_001)).toEqual([]);
-    expect(controls.drainDiagnostics(10_001)).toEqual([]);
+    // Processing progress never resets the independent worker response origin or latch.
+    const progressed = new Mailbox();
+    const first = parserEnvelope(item("first", 0, "VPWS50", 1), "normal", 0);
+    progressed.enqueue(first);
+    progressed.recordWorkerResponse(0);
+    expect(progressed.takeNext(4_000)).toBe(first);
+    progressed.complete(completion(first, 4_000, 4_000));
+    expect(progressed.drainDiagnostics(4_999)).toEqual([]);
+    expect(progressed.drainDiagnostics(5_000)).toEqual([stopped("mailbox.worker", 5_000)]);
 
     const notStarted = new Mailbox();
     notStarted.recordWorkerResponse(0);
     expect(notStarted.takeNext(20_000)).toBeNull();
     notStarted.cancel("absent", 20_000);
     expect(notStarted.drainDiagnostics(20_000)).toEqual([]);
-    const deadline = new Mailbox();
-    deadline.enqueue(controlEnvelope("deadline", { kind: "deadline", clock: { wallTimeMs: 2_000, monotonicMs: 2_000 } }, 1_000));
-    deadline.recordWorkerResponse(6_000);
-    expect(deadline.drainDiagnostics(6_999)).toEqual([]);
-    expect(deadline.drainDiagnostics(7_000)).toEqual([stopped("mailbox", 5_000)]);
-    expect(deadline.drainDiagnostics(7_001)).toEqual([]);
 
     // Even a rejected first arrival starts monitoring; older responses cannot predate that origin.
     const rejected = new Mailbox();

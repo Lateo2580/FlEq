@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6e152f854c4e2545d3a7fddd1a4a0bec964e60be",
-    "sha256": "d55525b285719d530d27168754b85b3fbbd51a9828cd0838e48cd03c8cf4f84c",
+    "sha256": "b176a09cd59c14970f98f950bb943123d262002a4e83bf46ae8536ea290971c8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -180,8 +180,8 @@
         "id": "P3-MC-AC04",
         "requirement": "残すもの（変えない）: (1) 上限 RES-01〜RES-08 の数値と、合計・通常枠・予約枠の 3 つの計数（予約枠は 8 件・2 MiB のまま、使うのは operation が normal と確定または未確認の EEW 候補・津波候補だけ） (2) 固定優先順 EEW 候補→津波候補→その他と、確認済み training／test を緊急候補より上にしないこと、P2-A2-CLASSIFICATION の判定表と同じ headType の先行の拘束 (3) 実行場所ごとの in-flight 1 件と、ParserSettlement の識別子での照合 (4) cancel・removePlace・beginDrain の後の拒否・診断 64 件と overflow の要約 (5) stalled（未完了 item があり進捗起点から 5,000 ms）と unresponsive（応答起点から 5,000 ms）の述語と発報・解除の規則。進捗は takeNext の成功と対応する complete だけで進み、応答起点を動かさない (6) host の背圧（拒否で WS を切り、mailbox の待ちが空になってから再接続）。既存試験の期待値は、control を使う部分を除いて変えない",
         "evidenceRefs": [
-          "reconstruction/src/mailbox/mailbox.ts:15 «5821cfbc66285ebb»",
-          "reconstruction/src/mailbox/mailbox.ts:16 «aa7620792632ab4e»",
+          "reconstruction/src/mailbox/mailbox.ts:14 «5821cfbc66285ebb»",
+          "reconstruction/src/mailbox/mailbox.ts:15 «aa7620792632ab4e»",
           "reconstruction/contracts/p2-mailbox.json:371 «c733a6b3f82aefb8»",
           "reconstruction/contracts/p2-mailbox.json:391 «36d8bc7abbfa21f7»"
         ]

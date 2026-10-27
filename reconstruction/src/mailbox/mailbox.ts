@@ -1,6 +1,5 @@
 import type {
   DiagnosticDetails,
-  MailboxCompletion,
   MailboxEnqueueResult,
   MailboxEnvelope,
   MailboxStats,
@@ -20,28 +19,18 @@ type Entry = {
   readonly envelope: MailboxEnvelope;
   readonly bytes: number;
   readonly allocation: "normal" | "reserved";
-  // P3-C3A-AC03: decided at enqueue from headType (null for control items).
-  readonly place: ExecutionPlace | null;
+  // P3-C3A-AC03: decided at enqueue from headType.
+  readonly place: ExecutionPlace;
   dispatchedAt: number | null;
 };
 
-const encoder = new TextEncoder();
-
 function allocation(envelope: MailboxEnvelope): Entry["allocation"] {
-  if (envelope.payload.kind === "control") return "reserved";
   const classification = operation(envelope);
   return envelope.priorityReason !== "normal" && (classification === "normal" || classification === "unknown")
     ? "reserved" : "normal";
 }
 
-function encodedBytes(envelope: MailboxEnvelope): number {
-  return envelope.payload.kind === "parser"
-    ? envelope.payload.item.encodedByteLength
-    : encoder.encode(JSON.stringify(envelope.payload)).byteLength;
-}
-
 function priority(entry: Entry): number {
-  if (entry.envelope.payload.kind === "control") return 0;
   const classification = operation(entry.envelope);
   if (classification !== "normal" && classification !== "unknown") return 3;
   if (entry.envelope.priorityReason === "eewCandidate") return 1;
@@ -51,7 +40,6 @@ function priority(entry: Entry): number {
 
 function operation(envelope: MailboxEnvelope): "normal" | "training" | "test" | "nonNormal" | "unknown" {
   // P2-A2-CLASSIFICATION table: scheduling only, not P1's final operation resolution.
-  if (envelope.payload.kind !== "parser") return "unknown";
   const { headTest, envelopeStatus } = envelope.payload.item;
   if (headTest.kind === "missing" || headTest.kind === "invalid"
     || envelopeStatus.kind === "missing" || envelopeStatus.kind === "invalid") return "unknown";
@@ -67,7 +55,6 @@ function operation(envelope: MailboxEnvelope): "normal" | "training" | "test" | 
 // earlier is unknown and the later normal, or both share a known operation (not nonNormal). `seen` holds the
 // operations met so far per headType, so one forward pass decides every entry (P3-C3A-RES-08).
 function blockedByEarlier(seen: ReadonlyMap<string, ReadonlySet<string>>, envelope: MailboxEnvelope): boolean {
-  if (envelope.payload.kind !== "parser") return false;
   const earlier = seen.get(envelope.payload.item.headType);
   if (earlier == null) return false;
   const current = operation(envelope);
@@ -80,7 +67,6 @@ class Mailbox {
   private readonly pending: Entry[] = [];
   // P3-C3A-RES-01: at most one normal data item in flight per execution place.
   private readonly parserInFlight = new Map<ExecutionPlace, Entry>();
-  private readonly controlsInFlight: Entry[] = [];
   private lastProgress: number | null = null;
   private initialProgress: number | null = null;
   private lastArrival: number | null = null;
@@ -100,13 +86,13 @@ class Mailbox {
   enqueue(envelope: MailboxEnvelope): MailboxEnqueueResult {
     this.lastArrival = envelope.enqueuedMonotonicMs;
     this.initialProgress ??= this.lastArrival;
-    if (!this.accepting && envelope.payload.kind === "parser") return this.reject("draining", envelope.enqueuedMonotonicMs);
+    if (!this.accepting) return this.reject("draining", envelope.enqueuedMonotonicMs);
 
-    const bytes = encodedBytes(envelope);
+    const bytes = envelope.payload.item.encodedByteLength;
     if (!Number.isSafeInteger(bytes) || bytes < 0) return this.reject("byteLimit", envelope.enqueuedMonotonicMs);
     const all = this.entries();
     const entry: Entry = { envelope, bytes, allocation: allocation(envelope), dispatchedAt: null,
-      place: envelope.payload.kind === "parser" ? placeOfHeadType(envelope.payload.item.headType) : null };
+      place: placeOfHeadType(envelope.payload.item.headType) };
     const lane = all.filter((candidate) => candidate.allocation === entry.allocation);
     const laneItemLimit = entry.allocation === "normal" ? NORMAL_ITEM_LIMIT : RESERVED_ITEM_LIMIT;
     const laneByteLimit = entry.allocation === "normal" ? NORMAL_BYTE_LIMIT : RESERVED_BYTE_LIMIT;
@@ -126,13 +112,11 @@ class Mailbox {
     for (let index = 0; index < this.pending.length; index += 1) {
       const entry = this.pending[index];
       const { envelope } = entry;
-      const eligible = entry.place == null || !this.parserInFlight.has(entry.place) && !blockedByEarlier(seen, envelope);
-      if (envelope.payload.kind === "parser") {
-        const { headType } = envelope.payload.item;
-        const operations = seen.get(headType) ?? new Set<string>();
-        operations.add(operation(envelope));
-        seen.set(headType, operations);
-      }
+      const eligible = !this.parserInFlight.has(entry.place) && !blockedByEarlier(seen, envelope);
+      const { headType } = envelope.payload.item;
+      const operations = seen.get(headType) ?? new Set<string>();
+      operations.add(operation(envelope));
+      seen.set(headType, operations);
       if (!eligible) continue;
       const candidatePriority = priority(entry);
       if (candidatePriority < selectedPriority) {
@@ -144,16 +128,15 @@ class Mailbox {
 
     const [entry] = this.pending.splice(selected, 1);
     entry.dispatchedAt = nowMonotonicMs;
-    if (entry.place != null) this.parserInFlight.set(entry.place, entry);
-    else this.controlsInFlight.push(entry);
+    this.parserInFlight.set(entry.place, entry);
     this.lastProgress = Math.max(this.lastProgress ?? nowMonotonicMs, nowMonotonicMs);
     this.stalledReported = false;
     this.checkLimits();
     return entry.envelope;
   }
 
-  // A parser input settles by identity only (P3-C3A-AC03); a whole MailboxCompletion is accepted as it is.
-  complete(completion: ParserSettlement | Extract<MailboxCompletion, { kind: "control" }>): MailboxStats {
+  // A parser input settles by identity only (P3-C3A-AC03).
+  complete(completion: ParserSettlement): MailboxStats {
     const now = Number.isFinite(completion.completedMonotonicMs)
       ? completion.completedMonotonicMs
       : this.lastProgress ?? this.lastArrival ?? 0;
@@ -161,25 +144,15 @@ class Mailbox {
       || !Number.isFinite(completion.completedMonotonicMs)
       || completion.completedMonotonicMs < completion.startedMonotonicMs) return this.stats(now);
 
-    if (completion.kind === "parser") {
-      // A mismatched or repeated completion releases no place.
-      const entry = [...this.parserInFlight.values()].find((candidate) => candidate.envelope.payload.kind === "parser"
-        && candidate.envelope.messageId === completion.messageId
-        && candidate.envelope.runId === completion.runId
-        && candidate.envelope.payload.item.inputId === completion.inputId
-        && candidate.envelope.payload.item.inputSequence === completion.inputSequence
-        && candidate.bytes === completion.encodedByteLength
-        && candidate.dispatchedAt != null && completion.startedMonotonicMs >= candidate.dispatchedAt);
-      if (entry?.place == null) return this.stats(now);
-      this.parserInFlight.delete(entry.place);
-    } else {
-      const index = this.controlsInFlight.findIndex((entry) => entry.envelope.messageId === completion.messageId
-        && entry.envelope.runId === completion.runId
-        && entry.bytes === completion.encodedByteLength
-        && entry.dispatchedAt != null && completion.startedMonotonicMs >= entry.dispatchedAt);
-      if (index < 0) return this.stats(now);
-      this.controlsInFlight.splice(index, 1);
-    }
+    // A mismatched or repeated completion releases no place.
+    const entry = [...this.parserInFlight.values()].find((candidate) => candidate.envelope.messageId === completion.messageId
+      && candidate.envelope.runId === completion.runId
+      && candidate.envelope.payload.item.inputId === completion.inputId
+      && candidate.envelope.payload.item.inputSequence === completion.inputSequence
+      && candidate.bytes === completion.encodedByteLength
+      && candidate.dispatchedAt != null && completion.startedMonotonicMs >= candidate.dispatchedAt);
+    if (entry == null) return this.stats(now);
+    this.parserInFlight.delete(entry.place);
     this.completed += 1;
     this.lastProgress = Math.max(this.lastProgress ?? completion.completedMonotonicMs, completion.completedMonotonicMs);
     this.stalledReported = false;
@@ -188,8 +161,7 @@ class Mailbox {
   }
 
   cancel(inputId: string, nowMonotonicMs: number): MailboxStats {
-    const index = this.pending.findIndex(({ envelope }) => envelope.payload.kind === "parser"
-      && envelope.payload.item.inputId === inputId);
+    const index = this.pending.findIndex(({ envelope }) => envelope.payload.item.inputId === inputId);
     if (index < 0) return this.stats(nowMonotonicMs);
     this.pending.splice(index, 1);
     this.cancelled += 1;
@@ -218,24 +190,20 @@ class Mailbox {
 
   stats(nowMonotonicMs: number): MailboxStats {
     const pendingBytes = this.bytes(this.pending);
-    const inFlight = [...this.parserInFlight.values(), ...this.controlsInFlight];
+    const inFlight = [...this.parserInFlight.values()];
     const all = [...this.pending, ...inFlight];
     const pendingOldest = this.oldest(this.pending, nowMonotonicMs);
     const incompleteOldest = this.oldest(all, nowMonotonicMs);
-    const deadlines = all.flatMap((entry) => entry.envelope.payload.kind === "control"
-      && entry.envelope.payload.control.kind === "deadline" ? [entry.envelope.payload.control.clock.monotonicMs] : []);
     return {
       accepting: this.accepting,
       pendingItems: this.pending.length,
       pendingBytes,
       inFlightItems: inFlight.length,
       inFlightBytes: this.bytes(inFlight),
-      inFlightMessageIds: [...this.parserInFlight.values()].map((entry) => entry.envelope.messageId),
-      inFlightControlMessageIds: this.controlsInFlight.map((entry) => entry.envelope.messageId),
+      inFlightMessageIds: inFlight.map((entry) => entry.envelope.messageId),
       lastProgressMonotonicMs: this.lastProgress ?? this.initialProgress,
       lastArrivalMonotonicMs: this.lastArrival,
       lastWorkerResponseMonotonicMs: this.lastWorkerResponse,
-      nextDeadlineMonotonicMs: deadlines.length === 0 ? null : Math.min(...deadlines),
       highWaterItems: this.highWaterItems,
       highWaterBytes: this.highWaterBytes,
       oldestPendingAgeMs: pendingOldest,
@@ -286,13 +254,8 @@ class Mailbox {
   // AC05 stalled predicate shared by drainDiagnostics (reports) and isStalled (read-only).
   private stalledDurationMs(nowMonotonicMs: number): number | null {
     if (this.initialProgress == null) return null;
-    const all = this.entries();
-    if (all.length === 0) return null;
-    let progress = Math.max(this.initialProgress, this.lastProgress ?? this.initialProgress);
-    if (all.every(({ envelope }) => envelope.payload.kind === "control"
-      && envelope.payload.control.kind === "deadline")) {
-      progress = Math.max(progress, this.stats(nowMonotonicMs).nextDeadlineMonotonicMs!);
-    }
+    if (this.entries().length === 0) return null;
+    const progress = Math.max(this.initialProgress, this.lastProgress ?? this.initialProgress);
     return nowMonotonicMs - progress >= 5_000 ? nowMonotonicMs - progress : null;
   }
 
@@ -308,7 +271,7 @@ class Mailbox {
 
   private entries(): Entry[] {
     // ponytail: the declared 128-item ceiling makes a scan safer than mirrored counters.
-    return [...this.pending, ...this.parserInFlight.values(), ...this.controlsInFlight];
+    return [...this.pending, ...this.parserInFlight.values()];
   }
 
   private bytes(entries: readonly Entry[]): number {

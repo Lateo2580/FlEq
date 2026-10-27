@@ -14,7 +14,7 @@ import type { ShutdownHooks } from "../../src/runtime/composition-root";
 import * as ownerRuntime from "../../src/runtime/owner-runtime";
 import * as sharedRuntime from "../../src/runtime/shared-runtime";
 import { executionPlaces } from "../../src/runtime/unit-coverage";
-import { harnessedRoot, park, startHarness } from "../execution-split/owner-harness";
+import { envelope, harnessedRoot, park, startHarness, unitBodies } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import { fixtureState, fixtureDriver, stringCodec, recordingNotificationAdapter } from "./runtime-fixture";
 
@@ -455,10 +455,7 @@ it("B03 contractBoundary / AC07: the 1-second tick completes silent mailbox diag
   const h = await harness();
   const runId = h.root.state.runId;
   const drain = vi.spyOn(h.root.mailbox, "drainDiagnostics");
-  for (let i = 0; i < 200; i += 1) h.root.mailbox.enqueue({
-    messageId: String(i), runId, t0MonotonicMs: 0, enqueuedMonotonicMs: 0, priorityReason: "control",
-    payload: { kind: "control", control: { kind: "shutdownRequested", acceptedThroughSequence: i, clock: h.clock() } },
-  });
+  for (let i = 0; i < 200; i += 1) h.root.mailbox.enqueue(envelope(runId, "VPWW57", String(i), unitBodies["U-W"].body, h.clock(), i + 1));
   for (let second = 0; second <= 6; second += 1) {
     h.setTime(second * 1_000);
     h.root.tick(h.clock());

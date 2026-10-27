@@ -337,11 +337,6 @@ export type DiagnosticDetails = Readonly<{
 
 export type DiagnosticEvent = DiagnosticDetails & Readonly<{ timestamp: number; runId: string }>;
 
-export type MailboxControl =
-  | Readonly<{ kind: "deadline"; clock: ClockReading }>
-  | Readonly<{ kind: "checkpointResult"; result: CheckpointResult; clock: ClockReading }>
-  | Readonly<{ kind: "shutdownRequested"; acceptedThroughSequence: number; clock: ClockReading }>;
-
 export type RuntimeInput =
   | Readonly<{ kind: "startup"; runId: string; clock: ClockReading; restored: Readonly<Record<RuntimeUnitId, RestoreUnitResult>>;
       notificationChannels: Readonly<Record<"desktop" | "sound", Extract<NotificationDeliveryState["channels"]["desktop"], { kind: "idle" }>>> }>
@@ -478,7 +473,7 @@ export type RuntimeStep<UnitStates extends RuntimeUnitStates = RuntimeUnitStates
   diagnostics: readonly DiagnosticEvent[];
 }>;
 
-export type MailboxPriorityReason = "control" | "eewCandidate" | "tsunamiCandidate" | "normal";
+export type MailboxPriorityReason = "eewCandidate" | "tsunamiCandidate" | "normal";
 
 export type MailboxEnvelope = Readonly<{
   messageId: string;
@@ -486,8 +481,7 @@ export type MailboxEnvelope = Readonly<{
   t0MonotonicMs: number;
   enqueuedMonotonicMs: number;
 }> & (
-  | Readonly<{ payload: Readonly<{ kind: "parser"; item: ParserMailboxItem }>; priorityReason: Exclude<MailboxPriorityReason, "control"> }>
-  | Readonly<{ payload: Readonly<{ kind: "control"; control: MailboxControl }>; priorityReason: "control" }>
+  | Readonly<{ payload: Readonly<{ kind: "parser"; item: ParserMailboxItem }>; priorityReason: MailboxPriorityReason }>
 );
 
 export type MailboxCompletion = Readonly<{
@@ -498,7 +492,6 @@ export type MailboxCompletion = Readonly<{
   completedMonotonicMs: number;
 }> & (
   | Readonly<{ kind: "parser"; inputId: string; inputSequence: number; result: ParserMailboxResult }>
-  | Readonly<{ kind: "control"; control: MailboxControl }>
 );
 
 export type MailboxStats = Readonly<{
@@ -508,11 +501,9 @@ export type MailboxStats = Readonly<{
   inFlightItems: number;
   inFlightBytes: number;
   inFlightMessageIds: readonly string[];
-  inFlightControlMessageIds: readonly string[];
   lastProgressMonotonicMs: number | null;
   lastArrivalMonotonicMs: number | null;
   lastWorkerResponseMonotonicMs: number | null;
-  nextDeadlineMonotonicMs: number | null;
   highWaterItems: number;
   highWaterBytes: number;
   oldestPendingAgeMs: number | null;

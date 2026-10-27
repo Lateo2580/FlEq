@@ -11,7 +11,6 @@ import type {
   CurrentConfirmationEvidence,
   RuntimeConfirmation,
   DiagnosticDetails,
-  MailboxControl,
   RuntimeInput,
   RuntimeState,
   PersistenceStatus,
@@ -138,13 +137,6 @@ function fixture(path: string, headType: string): DecodedMaterial {
 // routeのない入力の代表。VXSE51 は U-Q（P3-C7）、VXSE56 は U-M（P3-C13）、VPTW60 は U-Y（P3-C14）で ready になったので、notPorted のまま残る U-B の VPBS51 にする。
 const valid = fixture("test/fixtures/82_01_01_260324_VPBS50.xml", "VPBS51");
 
-
-function controlInput(control: MailboxControl): RuntimeInput {
-  return { kind: "mailboxCompleted", clock: control.clock, completion: {
-    kind: "control", messageId: "control", runId: "run", encodedByteLength: 0,
-    startedMonotonicMs: 1, completedMonotonicMs: 2, control,
-  } };
-}
 
 function savedState(inspect: () => void) {
   const initial = initialState();
