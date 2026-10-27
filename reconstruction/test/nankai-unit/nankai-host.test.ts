@@ -308,10 +308,10 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
     const later = (minute: number) => s53.replace(/2026-07-28T16:35:00\+09:00/g, `2026-07-28T17:${String(minute).padStart(2, "0")}:00+09:00`)
       .replace("<Serial>2</Serial>", `<Serial>${minute + 3}</Serial>`)
       .replace("<DateTime>2026-07-28T07:35:28Z</DateTime>", `<DateTime>2026-07-28T08:${String(minute).padStart(2, "0")}:28Z</DateTime>`);
-    { let injected: Promise<readonly number[]> | null = null;
-      const rows: Record<string, number | null>[] = []; owners.onUrgentGrant = (unit, granted) => { if (injected == null && unit === "U-N") injected = h.sender.send([eewFrame()]).then((at) => [granted, ...at]); };
+    { let injected: Promise<readonly number[]> | null = null, target: string | null = null;
+      const rows: Record<string, number | null>[] = []; owners.onUrgentGrant = (unit, granted) => { if (injected == null && unit === "U-N" && target != null && owners.arrivals.has(target)) injected = h.sender.send([eewFrame()]).then((at) => [granted, ...at]); };
       for (let index = 0; index < runs; index++) {
-        const quake = `input-${++sequence}`, nankai = `input-${++sequence}`, eew = `input-${++sequence}`; injected = null;
+        const quake = `input-${++sequence}`, nankai = `input-${++sequence}`, eew = `input-${++sequence}`; injected = null; target = nankai;
         await h.sender.send([frame("VXSE53", withEvent(later(index), "F5300000000000")),
           frame("VYSE60", stamp(start + 600_000 + index * 1000)(withEvent(vyse60, "F".repeat(64))))]);
         await until(() => owners.arrivals.has(quake) && owners.arrivals.has(nankai));
@@ -319,7 +319,7 @@ describe.runIf(process.env.FLEQ_C8_AC11 === "1")("P3-C8-AC11 urgent interference
         const arrivedAt = Math.min(owners.arrivals.get(quake)!.at, owners.arrivals.get(nankai)!.at);
         const [nankaiGrant, injectedAt] = await injected!;
         const grantOf = (unit: string) => owners.posted.find((item) => item.kind === "checkpointGrant" && item.unit === unit && item.place === (unit === "U-Q" ? "seismic" : "urgent") && item.at >= arrivedAt);
-        const after = (unit: string) => { const grant = grantOf(unit); return grant == null ? undefined : encodes(unit).find((item) => item.start >= grant.at); };
+        const after = (unit: string) => { const grant = unit === "U-N" ? nankaiGrant : grantOf(unit)?.at; return grant == null ? undefined : encodes(unit).find((item) => item.start >= grant); };
         await until(() => marker(observations, "T2", eew) != null && after("U-Q") != null && after("U-N") != null);
         const q = after("U-Q")!, n = after("U-N")!;
         const quakeGrant = grantOf("U-Q")!.at;
