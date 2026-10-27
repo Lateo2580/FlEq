@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "4281f71e00c5c5fba3df178ddc0c91bd4e3e659c7a5fa02bfa2a0a9c6e559c29",
+    "sha256": "1c3a4537597c7a678e554077dc005c44216e901eee9848f3e1116206f6472098",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -805,7 +805,7 @@
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p3-order-plan.md:198 «1b569de66cbf27e2»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
-          "reconstruction/src/runtime/composition-root.ts:1432 «4b3e06f0acf52345»",
+          "reconstruction/src/runtime/composition-root.ts:1460 «4b3e06f0acf52345»",
           "reconstruction/contracts/p3-execution-boundary.md:12 «0591a1d3f867cb13»",
           "docs/specs/reconstruction-p0-contracts.md:1027 «0d96b44aa295f022»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -818,7 +818,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:215 «75cf2512443da992»"
+          "reconstruction/src/runtime/composition-root.ts:222 «75cf2512443da992»"
         ]
       },
       {

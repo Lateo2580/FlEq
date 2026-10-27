@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6e152f854c4e2545d3a7fddd1a4a0bec964e60be",
-    "sha256": "d74b6cd8ed89fe1bb5606c44ef4cdaa8adef0048c9bb295d9a683bfdaa6b0a25",
+    "sha256": "05b0ded36a984311300ee1ef56d8c1625e60bba120de85fbadbdd486baec678b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -161,7 +161,7 @@
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:328 «5b89989a2cbeec6d»",
           "reconstruction/src/host/host.ts:335 «ebafe9ce4f4258a4»",
-          "reconstruction/src/runtime/composition-root.ts:809 «74a333b1aa9739cc»",
+          "reconstruction/src/runtime/composition-root.ts:830 «74a333b1aa9739cc»",
           "reconstruction/contracts/p3-execution-split.json:749 «2ecd09e717542803»",
           "reconstruction/contracts/p3-execution-split.json:544 «e7a0bbad7a76496a»",
           "reconstruction/contracts/p3-execution-boundary.md:24 «778675a95e83f912»"
@@ -207,7 +207,7 @@
         "requirement": "画面と音は変わらない: 製品の mailbox には control が入らないので（P3-MC-AC01）、消すのは一度も通らない分岐と、常に空配列・null だった 2 つの欄だけ。parser の入力の受理・拒否・取り出しの順・in-flight・停止の診断は同じ入力で同じになる。測定の出力（host.ts の observeMailbox）は消す 2 欄を出していない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:328 «5b89989a2cbeec6d»",
-          "reconstruction/src/runtime/composition-root.ts:809 «74a333b1aa9739cc»"
+          "reconstruction/src/runtime/composition-root.ts:830 «74a333b1aa9739cc»"
         ]
       }
     ],

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f549505b92bc7371bbe242ced013bd203ffe0d17",
-    "sha256": "797ed21e8db644f2b6c0fbfe503cd8d3952a92a959f197284ff551a0e111f514",
+    "sha256": "e296fdf027c8397065fe5e165276910f7361e9b8af950a04399b128e7e500af3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -171,7 +171,7 @@
           "reconstruction/contracts/p3-unit-n-measure.json:290 «d7ddc110d09b0b44»",
           "reconstruction/test/nankai-unit/nankai-host.test.ts:247 «978f53234c76af45»",
           "reconstruction/src/units/nankai/nankai-unit.ts:39 «25e9f619037a5045»",
-          "reconstruction/src/runtime/composition-root.ts:1082 «d8901fa45e61695f»"
+          "reconstruction/src/runtime/composition-root.ts:1110 «d8901fa45e61695f»"
         ]
       }
     ],

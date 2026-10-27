@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "2c7f2996dd7242ea1ba8537ff07311f45034d389c1cb8b45585b409493a3c0c2",
+    "sha256": "d6fde7b1b0e45671fbd7bb911a53aa6265b722bb821752b72fe6afe810e74d1e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -170,8 +170,8 @@
           "reconstruction/test/nankai-unit/nankai-host.test.ts:283 «f2e70d6096ae9198»",
           "reconstruction/test/nankai-unit/nankai-host.test.ts:294 «3a8200464fc0c202»",
           "reconstruction/test/nankai-unit/nankai-host.test.ts:298 «96565fcfa7a78c5c»",
-          "reconstruction/src/runtime/composition-root.ts:890 «6ce06413a549c6e2»",
-          "reconstruction/src/runtime/composition-root.ts:1449 «6f4ddb1bb79ac527»",
+          "reconstruction/src/runtime/composition-root.ts:911 «6ce06413a549c6e2»",
+          "reconstruction/src/runtime/composition-root.ts:1477 «6f4ddb1bb79ac527»",
           "reconstruction/contracts/p3-unit-n-series.json:423 «dcc7b75bde50fb7f»",
           "reconstruction/contracts/p3-unit-n-series.json:116 «786417eadddc3896»"
         ]

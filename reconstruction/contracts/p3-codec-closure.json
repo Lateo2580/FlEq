@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "e7d33f4726d09f227a47bfec801eef29fd32ddbb2515cb2cc2f3ba8655cf34eb",
+    "sha256": "5504f114d73a6b377e67ab8573cb60e06c87aadc816e44fb459f0421303b7cbf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -231,7 +231,7 @@
           "reconstruction/src/notification-delivery/delivery-growth.ts:10 «d0b7db8c1f4b8e3d»",
           "reconstruction/contracts/p3-order-plan.md:79 «5e837c0a19dee094»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:57 «5c81f7bf815c513f»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:326 «de991f366dd4a01c»"
+          "reconstruction/contracts/p2-shared-runtime.types.ts:327 «de991f366dd4a01c»"
         ]
       },
       {

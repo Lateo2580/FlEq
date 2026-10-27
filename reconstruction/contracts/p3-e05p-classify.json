@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
-    "sha256": "ab36d19832fa9d10e4b1875afc4b9a4809d90916f017cf2a5d0ed43945a84e4c",
+    "sha256": "a8fde7f4cd5d26c6d2fee622d7f62fe0fc6f9393d36a4ad17c34e60f4031e705",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -268,7 +268,7 @@
           "reconstruction/test/eew-e01/host-launcher.mjs:50 «08ab9549273fd798»",
           "reconstruction/test/eew-e01/host-launcher.mjs:57 «2edccdb967d3bc9e»",
           "reconstruction/src/runtime/owner-host.ts:44 «2eff9992cf005cbd»",
-          "reconstruction/src/host/host.ts:427 «ba91bbb19edb0fe5»",
+          "reconstruction/src/host/host.ts:428 «ba91bbb19edb0fe5»",
           "reconstruction/src/host/host.ts:157 «f377e03d3ca8f763»",
           "reconstruction/src/runtime/unit-coverage.ts:16 «d322b87ac6931d20»"
         ]
@@ -340,7 +340,7 @@
           "reconstruction/contracts/p3-weather-light-step2.json:488 «b084586081363297»",
           "reconstruction/contracts/p3-measure-harness.json:11 «e9ca342feffa0c5b»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:17 «4a382cabfdfbbf4d»",
-          "reconstruction/contracts/p3-measure-harness.json:4 «59f540ebd5601334»",
+          "reconstruction/contracts/p3-measure-harness.json:4 «e52285398881ebd9»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:171 «97a134ad9cb5b784»"
         ]
       },

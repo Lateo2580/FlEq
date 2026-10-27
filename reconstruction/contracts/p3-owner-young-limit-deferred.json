@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aa6c95b749fa1e21ebc64e1a2200e6068a206986",
-    "sha256": "688e5599ffceb8655316f5efa166f324c14598c426f9086f8d2f6e556bcb81d2",
+    "sha256": "ee28bd68a6653028f3dd763460968a0e1e35648d82f94b7e9072d1454d029b86",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -237,7 +237,7 @@
           "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
           "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
           "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
-          "reconstruction/src/runtime/composition-root.ts:681 «b7bc8ff6372f700f»"
+          "reconstruction/src/runtime/composition-root.ts:702 «b7bc8ff6372f700f»"
         ]
       }
     ],

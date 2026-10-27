@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "d889856fd334b22d22f7ce4e87a44380cfad28adaa03e6fdf6044afb7748b55d",
+    "sha256": "2fb97f3fb47eddd1ce231712d55c587dc5d3279fc005cf16687b7c5c3ae0123b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -526,8 +526,8 @@
           "docs/specs/reconstruction-p0-contracts.md:3199 «f54703b68869368a»",
           "docs/specs/reconstruction-p0-contracts.md:3207 «b0f1a9039a75b4b3»",
           "reconstruction/contracts/p3-persist-premises.md:477 «8e3f74c072aa9abf»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:634 «373d08a5ead2dba4»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:643 «5e2f707521600608»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:638 «373d08a5ead2dba4»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:647 «5e2f707521600608»",
           "reconstruction/src/domains/tsunami/tsunami.ts:241 «5cfd2282665cdb60»",
           "reconstruction/src/domains/seismic/seismic.ts:259 «eff97ba994e8fd97»",
           "reconstruction/src/domains/nankai/nankai.ts:152 «1361e44ec328c280»",
@@ -551,7 +551,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3208 «5894cfeab89468ed»",
           "reconstruction/contracts/p3-persist-premises.md:478 «4ca109c06a17cc8d»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:533 «5664a1747994b0b2»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:537 «5664a1747994b0b2»",
           "reconstruction/contracts/p3-notice-ledger.json:668 «b17bb409ee5ceec7»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:40 «ee6e9f22b3f840e0»"
         ]
@@ -637,7 +637,7 @@
           "reconstruction/contracts/p3-order-plan.md:512 «0d95b7e3a8770861»",
           "reconstruction/contracts/p3-local-bulletins-unit.json:99 «5f1ed2a31c3669df»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:50 «6bf3336831967ab9»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:528 «b8044f8d3a19e354»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:532 «b8044f8d3a19e354»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:111 «71159d1b0269b8c5»",
           "reconstruction/src/runtime/owner-runtime.ts:66 «81239dfa2b8b1d9b»",
           "reconstruction/src/runtime/owner-host.ts:101 «e5c6ca9226d91002»",
@@ -646,8 +646,8 @@
           "reconstruction/src/runtime/owner-runtime.ts:395 «086aacea002303f4»",
           "reconstruction/src/runtime/unit-coverage.ts:34 «08652939a585bdad»",
           "reconstruction/src/runtime/unit-coverage.ts:172 «0344f1d6e2b14fc3»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:649 «df718dfd6c9952b8»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:648 «81a47aafe578541d»"
+          "reconstruction/contracts/p2-shared-runtime.types.ts:653 «df718dfd6c9952b8»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:652 «81a47aafe578541d»"
         ]
       },
       {
@@ -660,7 +660,7 @@
           "reconstruction/src/units/tsunami/tsunami-unit.ts:164 «3ef2ea279992a950»",
           "reconstruction/contracts/p3-notice-ledger.json:621 «bab4f6ed15b5f888»",
           "reconstruction/contracts/p3-notice-ledger.json:550 «2f3344fbe3367192»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:667 «29a02dba8a622535»"
+          "reconstruction/contracts/p2-shared-runtime.types.ts:671 «29a02dba8a622535»"
         ]
       },
       {
@@ -668,9 +668,9 @@
         "requirement": "【発注 3】UnconfirmedReason に unreadableReport を足す（計画の H51 の節、P3-UM-D-UNCONFIRMED の推奨の形）。場面: 14:10 に土砂災害警戒情報の報が読めずに断られた（前の報は 13:00）。今は土砂の欄の確認の状態は変わらない。直した後は U-L の normal の slot の whole が unreadableReport になり、画面のまとめ（DisplaySummaryItem.unconfirmed）に件数 1 が出る。(1) owner は、振り分け先の unit と operation が決まるカード（kind unreadable、operation が null でない）を作るとき、OwnerOutput.confirmationEvidence に負の証拠 { source: \"unreadableReport\", scopes: [{ unit, operation, kind: \"unit\" }] } を載せる（CurrentConfirmationEvidence に変種を 1 つ足す） (2) publisher の扱いは capacityExceeded と同じ（P3-CURRENCY-COVERAGE-001 の Q-CC-SLOT の (2)〜(5)）。whole が capacityExceeded なら上書きしない。coverageVerified だけで消える (3) A8 の UNCONFIRMED_KEYS（view-projector.ts）に unreadableReport を足す (4) 決められない所（K7 の印）は記録ごとの印のままで、slot は変えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:513 «1d21c7deaaa0ab61»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:405 «5ab73ea985d624b7»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:409 «9aa97dbbb5949d52»",
           "reconstruction/contracts/p3-currency-coverage.json:66 «c5079c1f356b9217»",
-          "reconstruction/src/view-projector/view-projector.ts:85 «52ce496c68b00912»"
+          "reconstruction/src/view-projector/view-projector.ts:85 «44350cf250878dad»"
         ]
       },
       {
@@ -701,7 +701,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:501 «3b4f6a0bcd7043d2»",
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:528 «b8044f8d3a19e354»"
+          "reconstruction/contracts/p2-shared-runtime.types.ts:532 «b8044f8d3a19e354»"
         ]
       },
       {

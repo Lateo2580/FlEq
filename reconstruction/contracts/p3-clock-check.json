@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "513fa6ef0c555909e79e1c558e8911f553980fee",
-    "sha256": "24339057184f98cc87624536cebd6d0e2b3f3066199cc5d04f43ac4984322ccc",
+    "sha256": "414f1d5a27db140a6d587ea20ddf709f3badec877f3f00a6bdfc53daa7817d6f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -244,21 +244,21 @@
           "reconstruction/src/host/host.ts:176 «9befb93275c9ab3e»",
           "reconstruction/src/host/host.ts:195 «931e6937468352cc»",
           "reconstruction/src/host/host.ts:293 «e2f8e9bb145b6578»",
-          "reconstruction/src/host/host.ts:303 «8e840de57295db06»",
-          "reconstruction/src/host/host.ts:348 «24867b05127ea4bf»",
-          "reconstruction/src/host/host.ts:383 «e139b65525bc1d0e»",
-          "reconstruction/src/host/host.ts:404 «99d0301e5b61f93b»",
-          "reconstruction/src/host/host.ts:463 «c1d6a32b12c6ecc5»",
+          "reconstruction/src/host/host.ts:303 «d3f9f559ebe2eb0a»",
+          "reconstruction/src/host/host.ts:349 «24867b05127ea4bf»",
+          "reconstruction/src/host/host.ts:384 «e139b65525bc1d0e»",
+          "reconstruction/src/host/host.ts:405 «99d0301e5b61f93b»",
+          "reconstruction/src/host/host.ts:464 «c1d6a32b12c6ecc5»",
           "reconstruction/src/host/dmdata-rest.ts:57 «dbc47f5d931a4e06»",
           "reconstruction/src/host/dmdata-rest.ts:80 «b0f4cd2e077efab7»",
-          "reconstruction/src/runtime/composition-root.ts:915 «8ae52d9d693e7af3»",
+          "reconstruction/src/runtime/composition-root.ts:936 «8ae52d9d693e7af3»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:430 «dddd02e05041ae59»",
           "reconstruction/contracts/p3-persist-premises.md:400 «84a5747c84adc8cb»",
           "reconstruction/contracts/p3-persist-premises.md:426 «2da899c097a9e079»",
           "reconstruction/src/domains/eew/eew.ts:504 «e304c0a864cd1d0b»",
-          "reconstruction/src/host/host.ts:493 «9b98adf06aff1701»",
+          "reconstruction/src/host/host.ts:494 «9b98adf06aff1701»",
           "reconstruction/contracts/p3-dmdata-connect.json:289 «0a0c074748c205de»",
-          "reconstruction/src/host/host.ts:366 «d8770b1e9f36d4c7»"
+          "reconstruction/src/host/host.ts:367 «d8770b1e9f36d4c7»"
         ]
       },
       {
@@ -268,7 +268,7 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:39 «dcb5bc098b61e45f»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:318 «350627aa0c8c0b86»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:57 «a73d90197abd348b»",
-          "reconstruction/src/runtime/composition-root.ts:112 «66a5ce463650a081»",
+          "reconstruction/src/runtime/composition-root.ts:118 «66a5ce463650a081»",
           "reconstruction/contracts/p3-persist-premises.md:218 «b364d46ff1cc01fd»",
           "reconstruction/src/host/dmdata-rest.ts:57 «dbc47f5d931a4e06»",
           "reconstruction/src/host/dmdata-rest.ts:80 «b0f4cd2e077efab7»"
@@ -278,15 +278,15 @@
         "id": "P3-CK-AC03",
         "requirement": "前回の起動から持ち越した未送信の通知（publisher、作者裁定 §7の4）: (1) 印: startRuntimeでmirrorに戻ったpendingのintentに「復元由来」の印を付け（publisherの中の集合）、そのintentがpendingでなくなる（配送・失効・取消・削除）まで持つ。startRuntimeの後に生まれたintentには付けない（時計未確認の間に受けた新しい通知は今どおり鳴る）。K8のstartedが入るまでは今の復元の再試行の対象と同じ（startedの無いものに限るのはK8）。K8の後はstartedの無いものだけ（startedのpendingはunitが復元で外して通知したか不明にする、P3-NOTICE-LEDGER-001のP3-NL-AC08） (2) publisherはT0も30,000 msも持たず、hostの根拠の状態（options.wallBasis(その時の時計)）にだけ従う。印のあるものについて状態を見るのは、各評価（reclaimExpiredとselectDelivery）と、予約の返事から試行を始める直前（composition-root.ts:1223）。P3-CK-AC01の(5)の順でoptions.wallBasisを呼んだ後に締切の印（options.clockDeadlineMissed()）を読み、立っていれば状態より先にそれを見て\"unverified\"と同じに扱う。\"awaiting\"なら保留する（新しい選択に渡さず、表の行を作らず、wallと表のどちらでも回収せず、予約の返事が来ても試行を始めない。一度\"verified\"で進めた後に\"awaiting\"へ戻っても保留し直す、ヘルツr4のP1-1）。保留は新しい選択と予約の返事からの試行の開始にだけ当て、channelでrunning・stoppingの試行のintentはdeliveryStateのintentsから外さず、表の行も消さず、結果の照合を今どおり行う（外すとA7が所有元の無い試行としてsupersededで止め、鳴り終えた通知を確かめた後にもう一度鳴らしうる、notification-delivery.ts:62、ヘルツr5のP1-2）。結果が確定した後の再試行に保留を当てる。\"verified\"なら印の無いintentと同じに扱う（表の行が無ければ、その評価の確かめたwallで今の式〔composition-root.ts:1131・:1132〕が作る。回収もその評価の手元のwallと表で今どおり当てる）。\"unverified\"なら試行を始めず、鳴らさずexpiredにする（今の回収と同じintentUpdateの経路で、unitごとにINFO notificationExpiredClockUnverified〔component runtime、unit、count〕を1件。H39のまとめはK8） (3) 停止: finalizeOwnersが状態を変える要求を止める前（composition-root.ts:1424）に、予約・更新の返信待ちを待って反映し、その後も印があり試行中でなく、その時の状態が\"verified\"でない（\"awaiting\"・\"unverified\"、または締切の印が立っている）ものを全部、(2)の\"unverified\"と同じにexpiredにしてownerへ送り、採用を待ってから止める（停止の間に30秒を越えた場合を含む、ヘルツr5のP1-1）。最終保存はその後なので、次の起動で待ちがやり直しにならない（ヘルツr4のP1-4）。試行中のものは今どおり停止のcutoffで扱う (4) expiredにしたものは戻さない（§7の8） (5) wallBasisを省略した構成（\"verified\"）では、印があっても今と同じに振る舞う (6) 担い手: publisherの側（前回の通知の選択・試行の開始・回収・停止）はK9がcomposition rootで持つ。unitの側（復元とdeadline入力で、前回の起動から復元した中身と通知に当てる期限切れ・回収。12 unit全部、例 eew-unit.ts:144）は、unitが復元の中で当てるのでcomposition rootでは止められず、K10が持つ（P3-CK-AC08の(6)）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:529 «75f7fbe098d5d486»",
-          "reconstruction/src/runtime/composition-root.ts:1000 «1313f91067b382e4»",
-          "reconstruction/src/runtime/composition-root.ts:1088 «b9d28f2077571b5d»",
-          "reconstruction/src/runtime/composition-root.ts:1138 «fbd11fd1af8bd6ec»",
-          "reconstruction/src/runtime/composition-root.ts:1157 «d7749d8fbe7d1c6e»",
-          "reconstruction/src/runtime/composition-root.ts:1158 «c1316ed7219f7ac9»",
-          "reconstruction/src/runtime/composition-root.ts:1228 «f29b91e09636769b»",
-          "reconstruction/src/runtime/composition-root.ts:1278 «5aa98a558d5d1c22»",
-          "reconstruction/src/runtime/composition-root.ts:1568 «d640dda1e6000b11»",
+          "reconstruction/src/runtime/composition-root.ts:537 «75f7fbe098d5d486»",
+          "reconstruction/src/runtime/composition-root.ts:1028 «1313f91067b382e4»",
+          "reconstruction/src/runtime/composition-root.ts:1116 «b9d28f2077571b5d»",
+          "reconstruction/src/runtime/composition-root.ts:1166 «fbd11fd1af8bd6ec»",
+          "reconstruction/src/runtime/composition-root.ts:1185 «d7749d8fbe7d1c6e»",
+          "reconstruction/src/runtime/composition-root.ts:1186 «c1316ed7219f7ac9»",
+          "reconstruction/src/runtime/composition-root.ts:1256 «f29b91e09636769b»",
+          "reconstruction/src/runtime/composition-root.ts:1306 «5aa98a558d5d1c22»",
+          "reconstruction/src/runtime/composition-root.ts:1596 «d640dda1e6000b11»",
           "reconstruction/contracts/p2-notification-delivery.json:91 «53cff9917d12bece»",
           "reconstruction/contracts/p2-notification-delivery.json:92 «aedd6eb1dde09275»",
           "reconstruction/contracts/p3-persist-premises.md:212 «ce417493105359bb»",
@@ -325,8 +325,8 @@
         "requirement": "受信経路の計算量（AGENTS.md、Q-CK-COST）: 根拠の状態の判定は読み1回に定数で、clock()を呼ぶ回数を増やさない（frameのentryの読みとpublisherの評価の読みを使う）。確かめはstart 1件とRESTの応答1件ごとに定数。RESTの確かめは起動の30秒に最大1回、以後は\"verified\"でない間だけ10分に最大1回。保留の集合の参照は選択と回収のたびにintentごとに1回（全件×全件にしない）。state全体のJSON化を足さない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:293 «e2f8e9bb145b6578»",
-          "reconstruction/src/runtime/composition-root.ts:1000 «1313f91067b382e4»",
-          "reconstruction/src/runtime/composition-root.ts:1138 «fbd11fd1af8bd6ec»"
+          "reconstruction/src/runtime/composition-root.ts:1028 «1313f91067b382e4»",
+          "reconstruction/src/runtime/composition-root.ts:1166 «fbd11fd1af8bd6ec»"
         ]
       },
       {
@@ -334,7 +334,7 @@
         "requirement": "最小実装・最小テスト: (1) 足す仕組みは、hostの確かめ（startとRESTの応答で1回比べる関数1つと、最新の確かめの結果・締切の履歴の変数）、tickの中のRESTの確かめ、listSocketsのdate、WallBasisの型1つとoptions.wallBasis、締切の印とoptions.clockDeadlineMissed、前回の通知の保留の集合1つ、診断の理由1語だけ。ほかの型・層・helper・設定・timerを足さない。足した仕組みごとに無いと何が壊れるかを1行 (2) 試験はtestMappingのP3-CK-T01・T02に限る。新しいfixture fileを足さない (3) reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:76 «8a9c488c14cd0659»",
-          "reconstruction/src/runtime/composition-root.ts:112 «66a5ce463650a081»"
+          "reconstruction/src/runtime/composition-root.ts:118 «66a5ce463650a081»"
         ]
       },
       {
