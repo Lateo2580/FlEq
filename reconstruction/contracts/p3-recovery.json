@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "8d3671c88ea0adf5c9c4fbf4298c9843bc115de7e6a69e7237a172fdcc013d6a",
+    "sha256": "4e779d5503b56fbab9e25f4c9b980b980b19cb6e9da521d0a4953337b0a0d2de",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -209,7 +209,7 @@
         "B": "取り直しを起こさない。その分野に「鮮度の疑い」の印が付いたまま、次の切断か再起動の取り直しまで残る",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者へ）",
+        "status": "確定（作者の裁定、2026-10-28 朝。判断カード、推奨どおり）", "ruling": "A（作者の裁定、2026-10-28 朝）",
         "blocks": "発注 3 の P3-REC-AC13 の (4)（疑いの外し方のうち取り直しを起こす所）と、発注 3 のきっかけ。発注 1・2 は止めない（発注 2 の時点では取り直しが無く、A でも B でも発注 2 のコードは同じ。2026-10-28 発注 2 の点検で移した）",
         "ifNotChosen": "B では、繋がったまま一部の報だけ届かなかったとき（2026-08-30 からの 8 日間、全国の気象警報が更新されなかった実例）、見落とした警報は画面に出ず、その分野の「鮮度の疑い」の印が次の切断か再起動まで（数日続きうる）残る。A では、見落とした警報を取り直しで画面に出し、いまも有効な引上げなら軽い音（info）が 1 回鳴りうる。疑いは取り直しが済めば消える",
         "reason": "spec 16.2.3 は「確認が取れた分野を通常の表示に戻す（H04）のも、この突き合わせで行う」と書き、差が見つかったときの扱いを書いていない。差はいまのきっかけ（起動・再接続・断った入力）に当たらないので、B では疑いを消す手段が切断と再起動しかない。推奨の理由: 疑いの印は「何か足りない」を示すだけで中身を出さない。足りない報は一覧に id があり、取り直しの仕組みで取れる。要求は 1 回の取り直しの分（短ければ一覧 29 回と本文の数件）で、最短の間隔で 1 分に 1 回までに抑える"
@@ -222,7 +222,7 @@
         "C": "測らずに今の形",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者へ）",
+        "status": "確定（作者の裁定、2026-10-28 朝。判断カード、推奨どおり）", "ruling": "A（作者の裁定、2026-10-28 朝）",
         "blocks": "発注 3 の閉鎖（測りの結果で形を決める）。発注 1・2 は止めない",
         "ifNotChosen": "C では、津波・火山の取り直しの本文を処理している最中に EEW が届くと、その 1 件が終わるまで EEW の画面と音が遅れる（遅れの長さは未測）。B では遅れは無くなるが、EEW が続いている間（大地震の直後）は津波の取り直しが止まり、切れていた間の津波の報の確認がその分遅れる",
         "reason": "mailbox の in-flight は実行場所ごとに 1 件（mailbox.ts の parserInFlight）で、U-E・U-T・U-N・U-V は urgent に同居する（unit-coverage.ts の executionPlaces）。取り直しの本文は live の後に取り出す（AC03 の (2)）が、取り出した 1 件の処理中は次の live を待たせる。処理が短ければ害は無く、長ければ B の止め方が要る。どちらかは測るまで分からない（発注前点検 M5）"
@@ -234,7 +234,7 @@
         "B": "火山ごとに確かめる。取り直しで取れなかった火山だけに「未確認」が残る",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者へ）",
+        "status": "確定（作者の裁定、2026-10-28 朝。判断カード、推奨どおり）", "ruling": "A（作者の裁定、2026-10-28 朝）",
         "blocks": "発注 3 の AC12 の U-V の範囲。発注 1・2 は止めない",
         "ifNotChosen": "B では、取り直しが途中で止まったとき、取れた火山のカードは通常の表示に戻り、取れなかった火山だけが「未確認」のまま残る。A では同じとき全部の火山のカードが「未確認」のまま残る。B は確認の記録を火山ごとに持つ形（確認の scope を VFVO50・VFVO54/55 の subject ごとに足す）を加える",
         "reason": "P3-UNIT-V-001 の P3-C9-N2 の reason が「C16 の起草時に、VFVO50・VFVO54/55 の subject の確認 scope を足すかを決め直す」と送った。推奨の理由: ORDER-AND-LIMIT=A が「途中まで取れた unit を部分的に確認済みにしない」とした（spec:2222）ことと揃う。U-V は順の 2 番目で、量の上限で途中まで取れて止まる場面は少ない"
@@ -246,7 +246,7 @@
         "B": "取り直さない（P3-C7-N2・P3-C8-N2 のとおり）",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者へ）",
+        "status": "確定（作者の裁定、2026-10-28 朝。判断カード、推奨どおり）", "ruling": "A（作者の裁定、2026-10-28 朝）",
         "blocks": "発注 3 の AC12（U-Q・U-N の範囲）。発注 1 のダイジェストは U-Q・U-N の見出しも含める（どちらでも一覧の頭は H32 に出る）ので止めない",
         "ifNotChosen": "B では、切断の間に出た震度速報・震源・震度に関する情報や南海トラフ地震臨時情報は、繋がり直しても画面のカードに出ない（再起動ならダイジェストに見出しだけ出る）。地震と南海トラフのカードは「未確認」のまま次の報まで残る。A では、それらがカードに出て、いまも有効な南海トラフの情報の引上げなら軽い音（info）が 1 回鳴りうる",
         "reason": "P3-C7-N2・P3-C8-N2 は spec:2205（現行で確かめられるのは津波と火山の履歴取得）による統合担当の起草で「REST 回復の対象外」とした。後の spec H26・16.2.3（「一覧に出る全分野」「§10.5 の範囲を広げる」）と作者裁定 ORDER-AND-LIMIT=A の順は U-Q・U-N を含むので、食い違いを作者に念押しする。推奨の理由: 新しい裁定と H26 に揃える。順は U-Q・U-N を 3・4 番目に置き、量の上限で落ちる前に取れる"
@@ -259,7 +259,7 @@
         "C": "100 件まで（最短 12.5 分）",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者へ）",
+        "status": "確定（作者の裁定、2026-10-28 朝。判断カード、推奨どおり）", "ruling": "A（作者の裁定、2026-10-28 朝）",
         "blocks": "発注 3 の RES-03。発注 1・2 は止めない",
         "ifNotChosen": "B では、長い停止の後、順の後ろの分野（地域の短い情報・台風など）が「取り直し中」のまま最長 125 分続く。C では、長い停止の後に気象の分野が「取り直せなかった（量の上限）」になりやすく、その分野のカードは次の切断か再起動まで「未確認」のまま残る（P3-REC-D-FRESHNESS-TRIGGER=A なら、10 分ごとの突き合わせで差が見つかった分野だけ取り直す）。どの案でも、短い切断（数分）の取り直しは本文数件で終わり、出方は変わらない",
         "reason": "docs のレートリミット: 本文（data.api.dmdata.jp/v1/:id）は 5 分に 50 回で、同じ id の短い再要求も避ける。新築はそのうち 5 分 40 回（7.5 秒に 1 件）だけを使い、10 回分を同じ回線の他の取得（旧築の併走・手作業）に残す（RES-05）。上限の件数は、そのまま「順の最後の分野が取り直し済みになるまでの最短の時間」になる（300 件÷8 件/分＝37.5 分）。どこから「取り直せなかった（量の上限）」になるかがこの件数。repo の事実: 旧築は本文を津波で 1 巡 256 件・1 回 1,024 件（tsunami-initializer.ts の TSUNAMI_RESTORE_MAX_BODY_FETCHES_PER_ROUND・PER_ATTEMPT）、火山で 256 件（volcano-initializer.ts の VOLCANO_REPAIR_MAX_BODY_FETCHES）までとした。probe では VTSE41 は約 4 か月で 8 件、VFVO50 は約 5 か月で 16 件で、順の前の方（U-T・U-V）の本文は少なく、件数の大半は気象（U-W・U-R・U-M）。最新だけで足りる型は subject ごとに最新 1 件だけを取る（RES-03）。推奨の理由: 旧築が 1 分野で受け入れた 256 件を、全分野で 1 回 300 件にすると、7 日の停止でも 37.5 分で区切りが付き、津波・火山・地震・南海トラフ（順の前の 4 つ）は最初の数分で終わる見込み（推測）。気象の 7 日の件数は repo で未測で、発注 3 の成果物で 1 回数え、足りなければ作者へ戻す"
@@ -269,10 +269,10 @@
         "kind": "作者",
         "A": "起動時のダイジェストは 16,384 byte まで。入りきらないときは、分野の順（津波→火山→地震→南海トラフ→気象警報→土砂災害→洪水→気象警報の時系列→解説→地域の短い情報→台風。ORDER-AND-LIMIT=A と同じ順）で、各分野の中は新しい順に見出しを残し、入らない見出しは型ごとの件数だけにする",
         "B": "32,768 byte まで（順は A と同じ）",
-        "C": "16,384 byte で、分野を問わず新しい順に見出しを残す",
-        "recommended": "A",
+        "C": "16,384 byte で、分野を問わず新しい順に見出しを残す", "D": "16,384 byte で、分野の順（A と同じ）に、各分野の中は新しい順で見出しを 3 件まで残し、残りは型ごとの件数だけにする（11 分野×3 件＝33 件。枠に入らなければ A と同じく順の後ろから件数だけになる）",
+        "recommended": "D（2026-10-28 に実測を見て A から改めた）",
         "provisional": "A",
-        "status": "未決（作者へ）",
+        "status": "確定（作者の裁定、2026-10-28 朝。判断カード、推奨どおり）", "ruling": "D（作者の裁定、2026-10-28 朝。統合担当が 2026-10-27 夜の実 API の 7 日分で A を試すと、見出し 37 件がすべて火山〔7 日 401 件〕で枠が尽き、地震〔7 日 51 件〕以下の見出しが 0 件だったので、D を足して推奨を A から D に改めた。差し替えは発注 2 で入れる〔AC15・T08〕）",
         "blocks": "止めない。発注 1 は置き値 A で進め、裁定が違えば値と順の差し替えだけ（発注 1 の閉鎖も止めない）",
         "ifNotChosen": "B では、ダイジェストに見出しがおよそ倍まで出るが、画面の共通の枠（65,536 byte）の残りが 3,595 byte まで減り、EEW の札（発注 2）と取り直しの進み具合（発注 3）の枠を詰め直すことになる。C では、長い停止の後に件数の多い気象・洪水の新しい見出しが枠を占め、津波・火山の古い見出しが件数だけになりうる。A では、津波・火山・地震の見出しが先に残り、件数の多い気象・洪水の古い見出しが件数だけになる。どの案でも、入らなかった見出しは型ごとの件数として残り、件数は消えない",
         "reason": "ダイジェストの欄は snapshot の共通の部分（P2-A8-RES-04、65,536 byte）に入り、超えると snapshot 全体が snapshotCommonBudgetExceeded で断られ、live の更新まで画面に出なくなる（view-projector.ts の commonBytes の判定、レビュー R2）。件数の上限 RES-04（500 件）だけでは、見出し 256 byte×2 欄×500 件で 256 KB になりうる。そこで作るときに自前の枠に収める。枠の値の根拠は RES-06。推奨の理由: 1 件の頭はおよそ 150〜700 byte（表題と見出しの長さしだい）で、16,384 byte ならおよそ 25〜100 件の見出しが出る（推測）。順は作者裁定 ORDER-AND-LIMIT=A と揃い、危険の重い分野の見出しが先に残る。2026-10-27 の実測（Q-REC-IMPL-1 の実 API の辿り）では A の順だと火山の 7 日 401 件（VFVO50〜54 の束で約 400 件、定時の降灰予報が大半と推測）で枠が尽き、地震（U-Q、7 日 51 件）の見出しは出ない"
@@ -285,7 +285,7 @@
         "C": "窓を並べず、切断の回数だけを出す（H25 の「回線が不安定です」に寄せる。見え方は P4 へ送る）",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者へ）",
+        "status": "確定（作者の裁定、2026-10-28 朝。判断カード、推奨どおり）", "ruling": "A（作者の裁定、2026-10-28 朝）",
         "blocks": "止めない。発注 2 は推奨 A の置き値で進め、裁定が違えば差し替えだけ",
         "ifNotChosen": "A の場面: 21:00 に切れて 21:02 に繋がり直すと札「緊急地震速報 21:00–21:02 は未確認」。21:05 にまた切れて 21:06 に繋がると、札は「21:00–21:06」の 1 枚になり、21:16 に時計の横から外れる。21:02〜21:05 の繋がっていた 3 分も未確認と出る（多めに言う側）。B では、同じ場面で札が「21:00–21:02」「21:05–21:06」の 2 行になり、繋がっていた間を未確認と言わないが、回線が不安定な日は札が最大 8 行並ぶ。C では、時刻の幅が出ず「切断 2 回」のような出方になり、いつの EEW を見落としたかもしれないかが分からない",
         "reason": "AC14 は「窓が重なれば 1 つにつなぐ」と書くが、両端を「最後の frame」と「繋がり直しの最初の frame」にすると、次の窓の始まりは前の窓の終わりより後になり、文字どおりには重ならない（発注 2 の下調べ N5・N6）。繋ぎ直しの間隔は 5 秒（host.ts の RECONNECT_MS）で、error の frame で切られ続けると 10 分に 100 回を越えて窓が積もり、札の欄の予約（RES-06 の発注 2 の 2,048 byte）を越えうる。推奨の理由: A は欄が窓 1 つで上界が定数になり、札の役目（いま進行中の EEW を見落としたかもしれない）は最初の切断から最後の繋がり直しまでを 1 つに言えば足りる。A なら札の件数の上限（下調べ N6）は窓 1 つで閉じる"
@@ -297,7 +297,7 @@
         "B": "同じとき札を作らない（その run で受けたことの無い EEW を「未確認」と言わない）",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者へ）",
+        "status": "確定（作者の裁定、2026-10-28 朝。判断カード、推奨どおり）", "ruling": "A（作者の裁定、2026-10-28 朝）",
         "blocks": "止めない。発注 2 は推奨 A の置き値で進め、裁定が違えば差し替えだけ",
         "ifNotChosen": "A の場面: 7:00 に起動し、回線が無くて 7:04 に初めて繋がると、札「緊急地震速報 7:00–7:04 は未確認」が出て 7:14 に外れる。B では札が出ず、7:00〜7:04 の EEW の取りこぼしは画面にも履歴にも出ない。止まっていた間（前回の停止から起動まで）の EEW は、どちらの案でも札にしない（H28 は「切れていた間」で、止まっていた間は H32 のダイジェストが受け持つが、EEW は一覧に出ないのでダイジェストにも載らない。ここを札にするかは P4 か別の分岐）",
         "reason": "起動時に最初の接続が失敗した経路（host の dispatchLost）には「最後の frame」が無く、窓の始まりが決まらない（発注 2 の下調べ N5）。推奨の理由: 起動してから繋がるまでの間も、画面は動いていて EEW を受けられなかった間なので、切れていた間と同じに言う"
@@ -471,7 +471,7 @@
         "status": "closed",
         "source": "r1 の起草のレビュー 2 本（契約適合 Opus＝条件付き GO、品質 ヘルツ Astra high＝NO-GO）と r2 の再レビュー 2 本、統合担当の決め（2026-10-27）",
         "closed": "発注 1 に効くもの: (1) R1 一覧の 401/403 を host の dmdataAuthRejected へ渡すと live の WebSocket が止まる → P3-REC-AC03 の (3)・AC02 の (6)・D-LIST-QUERY・allowedPaths の host.ts の行 (2) R2 ダイジェストが共通の 65,536 byte を越えると snapshot 全体が断られる → RES-06・AC15・P3-REC-D-DIGEST-BUDGET（作者へ）・T08 (3) ヘルツ 2 射影のたびに digest を直列化する → AC16・allowedPaths の view-projector.ts の行 (4) ヘルツ 3 境界が古いと 7 日より前でページを使い切る → AC02 の (2)(3)・AC15・publicFunctions の walkStart・T07。restoration unavailable も 7 日、初めての起動・empty・根拠なしでも 7 日分と印 → AC02 の (2)・AC15 (5) R3 DisplayRecoveryView の旧い形を引く既存の試験 → allowedPaths の試験の行 (6) 運用区分の写しは ingress の判定 1 か所 → AC01・allowedPaths の ingress.ts の行・publicFunctions (7) 停止での打ち切り、429 が期限を越えたとき、ページ送りと pooling の間隔 → AC03 の (3)(6)・D-COALESCE・RES-05・Q-REC-LIST-QUERY の remaining。発注 2・3 に効くもの: (8) eewWindowUnverified の窓の両端 → AC14 (9) UNCONFIRMED_KEYS と P2-A8-SUMMARY の上界 → AC13 の (3) (10) 本文の論理の件数と HTTP の試行 → AC03 の (7)・RES-03 (11) 本文の枠 5 分 40 回 → RES-05・RES-03・D-BODY-BUDGET・deliveryDeadlines (12) 移管の記載と H39 の wire の申し送り → AC09 の (1)・outOfScope (13) H28 の照合の手段 → D-EEW-LIST の reason。未実装・未実測で発注 3 のレビューで確かめるもの: 保存 ack と候補の採用の合成（AC07）、owner の停止と回復の返信の接続（D-COALESCE・AC11 の ownerStopped）、実 API の一覧の順序と WS の id の照合（Q-REC-ID-MATCH）。r2 の再レビュー（2026-10-27）: 契約適合 Opus＝GO、品質 ヘルツ Astra high＝条件付き GO（r1 の指摘はすべて ADDRESSED）。r3 で当てた 5 件: (a) 一覧の歩き専用の AbortController（AC03 の (6)・publicFunctions の walkList・allowedPaths の host.ts の行） (b) RES-06 の検算の条件と 2 つの数（23,055・45,583、保守 49,443）と、予約が発注 2・3 への条件であること (c) config.dmdata が無い起動では辿らず digest は null（AC02 の (6)・AC15 の (3)） (d) allowedPaths の p2-snapshot-sse.json の行の【発注 2】に P2-A8-SUMMARY の bound の文 (e) 本項の未実装・未実測の 1 行",
-        "remaining": "P3-REC-D-DIGEST-BUDGET の作者の裁定（Q-REC-AUTHOR-2）",
+        "remaining": "なし（P3-REC-D-DIGEST-BUDGET は 2026-10-28 に作者が D と裁定。Q-REC-AUTHOR-2）",
         "reason": "ヘルツが OK とした観点（不変条件 6 本・発注 1 の本番の呼び手・本文と mailbox の枠と ingress の本文の側を発注 3 へ送った判断・T01・T07・T08 の対象）は崩していない"
       },
       {
@@ -489,6 +489,14 @@
         "closed": "(0) 範囲: 発注 2 は AC13 の (1)〜(3)・(5)〜(8)・AC14・共通の AC16〜AC18・T05・T09。AC13 の (4)（疑いの外し方のうち取り直しを起こす所）は丸ごと発注 3 へ移した。今の新築では確認の slot は全部 whole=startup で始まり、whole を null に戻す経路は verifyCoverage の unit の scope だけで、coverageVerified を作る側は発注 3 まで無い。疑いが載っても「外れないまま残る」状態は新しく生まれない（切断か再起動で外れる、D-FRESHNESS-TRIGGER の B と同じ振る舞い）。そこで D-FRESHNESS-TRIGGER は発注 2 を止めない（A でも B でも発注 2 のコードは同じ）。Q-REC-SPLIT の発注 2 の待つもの、Q-REC-AUTHOR-2 と D-FRESHNESS-TRIGGER の blocks を書き換えた (1) 下調べの必須 N1〜N9 の当て先: N1 live の id を集める口 → AC13 の (8)・RET-02・allowedPaths の host.ts の行（H41 の周期を起こして停止で打ち切る所も） N2 一覧の口の classification 版 → AC13 の (6)・publicFunctions の listTelegramPage と pollClassification・RES-05 N3 疑いを置く publisher の入力 → AC13 の (3)（RuntimeInput の freshnessSuspected、epoch の照合、dispatch の switch）・allowedPaths の型と composition-root の行 N4 whole の上書きの順位 → P3-REC-D-SUSPECT-RANK（統合担当の確定。K14 の unreadableReport との順位を含む） N5 札の両端 → AC14 の (1)〜(3)(5)・作者の P3-REC-D-EEW-WINDOW-NEVER N6 札の数の上限 → 作者の P3-REC-D-EEW-WINDOW-OVERLAP の A で窓が 1 枚に収まることで閉じる（B なら 8 件で上界を数え直す） N7 DisplaySnapshot の literal が型で落ちる試験 2 本 → allowedPaths の chrome-eew の行 N8 札を snapshot の変更として拾う・診断を畳ませない → AC14 の (5)(6) N9 周期の端（最初の素の query・切断の後の位置・前回の位置の時刻・2 分の保留の時計・失敗） → AC13 の (1)(3)(7)・T05 (2) 作者の未決: P3-REC-D-EEW-WINDOW-OVERLAP（推奨 A: 札は 1 枚）と P3-REC-D-EEW-WINDOW-NEVER（推奨 A: 起動の時刻から）を足して Q-REC-AUTHOR-2 は 8 本。どちらも止めず、発注 2 は推奨 A の置き値で進める。購読に EEW が無いときに札を作らない（AC14 の (3)）は受けていない種類を「未確認」と言わないための直しで、分岐にしなかった (3) artifactRequirements の WS と一覧の id の照合を発注 3 の配送の条件へ移した（理由と、旧築の msg.id で socket の枠なしに照合できる道は artifactRequirements の行と Q-REC-ID-MATCH の remaining） (4) 他の契約が引く行: 発注 2 で変える file を他の契約が anchor つきで引く数（下調べ、contracts/*.json を正規表現で数えた。本契約の分は除く）は composition-root.ts 91・view-projector.ts 58・host.ts 49・p2-shared-runtime.types.ts 42・p2-shared-runtime.json 35・p2-snapshot-sse.json 33・p2-snapshot-sse.types.ts 14・shared-runtime.ts 9・persistent-diagnostic-sink.ts 9 の 9 file で計 340（recovery.ts・p3-recovery.types.ts・chrome-eew の試験 2 本は 0）。方針は Q-REC-PRECHECK の (4) と同じ（新しい処理は src/recovery/ に置き、既存の file では行の中の置き換えか、引かれている最後の行より後への追加を先に選ぶ。真ん中への挿入は許し、成果物に file ごとの行の増減を書かせ、配送で統合担当が anchor を付け直す）。中身が必ず変わる行は p2-shared-runtime.types.ts:405（UnconfirmedReason。p3-currency-coverage.json・p3-unreadable-mark.json と本契約が引く）と view-projector.ts:85（UNCONFIRMED_KEYS。p3-unreadable-mark.json と本契約が引く）で、配送で付け直す。書き方で避けられる行: p2-shared-runtime.types.ts:324（DiagnosticReason の末尾、p3-weather-shape.json）は新しい行に足す、persistent-diagnostic-sink.ts:63（p3-weather-shape.json）は :64 に足す、host.ts:282（acceptStart の note、p3-lifetime-and-eew-gate.json）と :235（dispatchLost の直後、p3-version-material.json）は動かさない。K14 の発注 3（未配送）も :405 と :85 に unreadableReport を足すので、後に配送する側が先の側の anchor と P2-A8-SUMMARY の bound（本発注で 3,774、K14 で 3,882）を付け直す (5) 受信経路の計算量は保てる: 受信 1 回は unit ごとの Map（id → 受けた時刻、挿入順）に 1 件足すだけ。2 分より古い id は先頭から消すので償却 O(1)。突き合わせは 1 回 O(一覧の item＋保留＋id)。slot の更新は 3 operation の和で O(1)。札は tick ごとに 1 枚を見るだけ (6) 確かめていないこと 5 つ: 旧築が Pi で WS の id（msg.id）をどこに残しているか、pooling の応答が 100 件に達したとき nextToken を返すかと新着をどちらの端から返すか、classification の query の応答に unit 表の外の型がどれだけ混ざるか（濾すので正しさには効かず、ページ数に効く）、dmdata の WS の ping の間隔（札の始まりの粒度。liveness は 90 秒）、tsc・vitest（点検の範囲外） (7) r4 のレビュー: 契約適合 Opus は条件付き GO（P2 1 件: type-contract.ts の RuntimeInput の kind）、品質 ヘルツ（Astra high、thread 01a17dfa）は NO-GO（P2 5 件: 時計の混用・生の件数・繋がり直した直後の下限・待ちの引き継ぎ・札の始まり）で、r5 で 6 件と Opus の P3 1 件（NEVER の文）を当てた（AC13 の (1)〜(3)(6)(7)・AC14 の (1)(2)・RET-02・RES-05・RES-07・publicFunctions の ListRequestLane と pollClassification と FreshnessLedger・T05・T09・allowedPaths の type-contract.ts の行・D-EEW-WINDOW-NEVER） (8) r6（統合担当の決め）: 保留の 2 分の満了を「次の周期の照合」から既存の publisher の tick へ移した（次の周期で見ると、疑いが出るのは最短で初めて見てから約 10〜20 分後になり、FRESHNESS-PERIOD=A の reason より遅い）。AC13 の (3)(b)・FreshnessLedger の expire・T05 (9) r5・r6 の再レビュー: Opus は条件付き GO（P2 1 件: walkList の signature）、ヘルツは前回 5 件のうち 4 件 ADDRESSED・1 件 PARTIAL と残り P2 3 件で、r7 で当てた（受信済みの id の 30 分の掃除は区分の最後の成功の後に限る〔AC13 の (3)(c)・RET-02・T05〕、ListPage の latestRawReceivedAtMs で位置を作る、FreshnessLedger の compare に周期の epoch、walkList(lane, apiKey, plan, signal, now) と host.ts の lane の行、遅れの文の言い換え）",
         "remaining": "r8 の 1 件と、その後の発注 2 の baseOid の割当（統合担当）。r7（afc16ae7）のヘルツの確認（thread 01a17dfa）で ② ListPage の生の最新・③ compare の epoch は ADDRESSED、① 30 分の掃除は PARTIAL（P2）: 区分の最後の成功を照合が終わった時の now で記録すると、一覧の要求の最中に受けた報 X が「成功の前に受けた」扱いになり、その後その区分の一覧が失敗し続けると 30 分で X の id が捨てられ、復旧後の一覧で受理済みの X に疑いが立つ。直し方（決め）: 最後の成功として保存する境界を、その周期を始めた時の monotonic にし、その境界より後に受けた id は時間での掃除の対象から外す。T05 に「要求の最中に X を受理」を足す。Opus は r7 で GO。起草のレビューで NO-GO 系の判定が 3 巡続いたので、2026-10-28 未明の自律の枠では r8 を出さずに止めた（作者の朝の確認の後に r8 と 1 行の確認）",
         "reason": "発注 1 の実物の上で発注 2 の条文が前提にする口を確かめ、足りない口と端を条文に当ててから baseOid を割り当てる"
+      },
+      {
+        "id": "Q-REC-AUTHOR-2",
+        "status": "closed（作者裁定 2026-10-28 朝（判断カード、推奨どおり））",
+        "source": "作者裁定 2026-10-28 朝（判断カード 8 本、「判断についてはすべて推奨で進めて」）。各分岐の status と ruling に記録",
+        "closed": "P3-REC-D-FRESHNESS-TRIGGER・URGENT-BODY・VOLCANO-SCOPE・QN-RECOVERY・BODY-BUDGET・EEW-WINDOW-OVERLAP・EEW-WINDOW-NEVER は A、DIGEST-BUDGET は D（実測を見て統合担当が足した案）。発注 3 を止めていた 5 本が決まった。統合担当の決めで画面の出方に触れる 3 件（初めての起動でもダイジェストは 7 日分と『7 日より前は取り直していない』の印、EEW を購読していない人には札を作らない、gd/eew を使わず札は常に 10 分で外れる）も作者に見せて了承を得た",
+        "remaining": "DIGEST-BUDGET=D の差し替え（発注 2 の r8 で AC15・T08 に当てる）。URGENT-BODY=A の測り（発注 3）",
+        "reason": "作者の裁定で unresolvedQuestions から移した"
       }
     ],
     "operationContract": {
@@ -723,7 +731,7 @@
         "target": "1 回の取り直しの本文の件数",
         "limit": 300,
         "unit": "bodies",
-        "status": "provisional（作者の分岐 P3-REC-D-BODY-BUDGET の推奨 A。裁定までの置き値）",
+        "status": "frozen（作者の裁定 P3-REC-D-BODY-BUDGET=A、2026-10-28）",
         "scope": "【発注 3】論理の本文の件数（取りに行った id の数）で、HTTP の試行の数とは別に数える（試行は RES-05 の間隔と RES-01 の枠に数える）。最新だけで足りる型（unit の N2 が宣言する）は subject ごとに最新だけを取る。超えたらその unit から後ろを recoveryLimit にする。本文は 7.5 秒に 1 件（RES-05）なので 300 件は最短 37.5 分。本文は 1 件 8 MiB まで、候補の作成の間だけ持つ",
         "source": "spec:2211、docs のレートリミット、旧築の本文の上限（tsunami-initializer.ts の 256/巡・1,024/回、volcano-initializer.ts の 256）"
       },
@@ -750,7 +758,7 @@
         "target": "起動時のダイジェストの byte",
         "limit": 16384,
         "unit": "UTF-8 JSON bytes (escapes included)",
-        "status": "provisional（作者の分岐 P3-REC-D-DIGEST-BUDGET の推奨 A。裁定までの置き値）",
+        "status": "frozen（作者の裁定 P3-REC-D-DIGEST-BUDGET=D、2026-10-28。枠の値は A と同じ。順を D に差し替えるのは発注 2）",
         "scope": "【発注 1】digest の欄全体（見出し・型ごとの件数・unit の状態の欄）を JSON にした byte で数え、作るときにこの枠に収める。文字列は 1 本 256 byte（P2-A8-RES-05、印 [truncated:fieldLimit] 込み）に切る。枠に入らない見出しは P3-REC-D-DIGEST-BUDGET の順で型ごとの件数だけにする。収まることの検算（P2-A8-RES-04 の共通の 65,536 byte、projector の shellBytes − notices と同じ数え方）: 条件は、persistence の 12 unit がどれも failed で reason 256 byte が全部 \\u の escape〔6 倍〕、recovery の 12 unit がどれも unavailable、streamId は ASCII 256 byte、数値は全部 16 桁、日時は 27 文字。旧い recovery の形では 23,029 byte（2026-10-27 起草時）。新しい { restoration, digest } の包みでは digest 本体を除いて 23,055 byte で、23,055＋16,384＋2,048＋4,096＝45,583 byte（ヘルツが同じ数え方で再現）。escape と数値の幅を広く取った保守の再計算では 49,443 byte。どちらも 65,536 の内。発注 2 の札の 2,048 byte と発注 3 の進み具合の 4,096 byte は「将来の欄をその枠に収める」という発注 2・3 への条件で、今の型で証明したものではない（各発注で欄の上界を数えて確かめる）。ダイジェストは枠の内でしか作られないので、ダイジェストの大きさで共通の部分が上限を越えて live の snapshot が断られる経路は無い",
         "source": "P2-A8-RES-04・RES-05（p2-snapshot-sse.json）、view-projector.ts の COMMON_BUDGET、レビュー R2"
       },
@@ -1175,18 +1183,6 @@
           "発注 3 は P3-UNREADABLE-MARK-001 の発注 3（unreadableReport）の配送の後であること（P3-REC-AC09 の (2)）",
           "発注 3 の点検で、境界の id による絞りが walkList の結果（UnitWalkResult.heads）の段にあり、本文の取得の範囲にも効くことを見直す（発注 1 のレビュー Opus P3）",
           "429 で打ち切った後の『次はその時刻より前に起こさない』は発注 1 に次の辿りが無いので作っていない。発注 3 のきっかけで作る"
-        ]
-      },
-      {
-        "id": "Q-REC-AUTHOR-2",
-        "owner": "user",
-        "blocks": [
-          "発注 3 の P3-REC-AC13 の (4)（P3-REC-D-FRESHNESS-TRIGGER）",
-          "発注 3 の AC12・RES-03 と閉鎖（P3-REC-D-URGENT-BODY・VOLCANO-SCOPE・QN-RECOVERY・BODY-BUDGET）"
-        ],
-        "resolveBy": "作者の裁定（判断カード）。発注 1・2 は待たない",
-        "requiredEvidence": [
-          "P3-REC-D-FRESHNESS-TRIGGER・URGENT-BODY・VOLCANO-SCOPE・QN-RECOVERY・BODY-BUDGET・DIGEST-BUDGET・EEW-WINDOW-OVERLAP・EEW-WINDOW-NEVER の 8 本の裁定（DIGEST-BUDGET・EEW-WINDOW-OVERLAP・EEW-WINDOW-NEVER はどの発注も止めず、発注 1・2 は推奨 A の置き値で進める）"
         ]
       }
     ]
