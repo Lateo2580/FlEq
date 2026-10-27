@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "d966e074ea83a6ff20b055f28202e883f2ebc0810a5bb0a2d2f344971e0d3224",
+    "sha256": "8c8262bdae24229fc81ba804cacbc95dabcccad72c627d7bcc9c7170c4453b6c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -327,7 +327,7 @@
       "startP2Host(config: P2HostConfig)（C3a配送後のsignatureのまま。起動完了の前にownerが落ちたときのrejectとowner threadの後始末はC3aのまま［startRuntimeのuntilのreject、host.ts:156〜:161］。起動完了の後のownerの停止ではrejectもthrowもしない。C3aはstop()の開始でownersStoppingを立て［host.ts:414］、終了の段の途中のexitを無視しerrorを投げる［C3aの残存リスクL3］。本契約では予期されたexitをendOwners［closeWorkerの段、host.ts:106〜:109］以後に限り、それより前のerror・exitはstop()の途中でもownerFailedへ渡す［AC03の「どの段でも」］）",
       "RuntimeCompositionRoot#ownerFailed(place: ExecutionPlace, cause: unknown): void（名前と引数はC3aのまま。C3aの戻り値はnever［composition-root.ts:473、例外を投げる］で、hostのwrapper［host.ts:112〜:114］が起動完了の後に投げ直す。本契約は戻り値をvoidにし、例外を投げずにそのownerを停止済みにする。同じplaceの2回目は何もしない。C3aの単一のfailure［composition-root.ts:282］が止めていた送出［:361］・受信［:449］・pump［:513］・tick［:561］・driveCheckpoint［:928］・until［:373］・shutdownRuntimeの例外［:1078］は、停止済みのownerに関わる分だけに絞る。起動完了の前の停止は、C3aどおりstartRuntimeのuntil［:391］をrejectする）",
       "RuntimeCompositionRoot: tickごとにowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の記録とmailbox.isStalledからDisplayWorkerViewを返すメソッド1つ（名前は実装が決めて成果物に書く）。hostのtickはこれを既存のsetWorker(view)へ渡し、変わったときだけheartbeat()を即時に呼ぶ。stop()の後は呼ばない。置き換えるのはhostのtickの写像（host.ts:371〜:378。tickごとのmailbox.recordWorkerResponseとisStalledだけのview）で、RuntimeCompositionRoot#setWorker（composition-root.ts:615）はstateが変わったときtrueを返す",
-      "Mailbox: 実行場所1つのpendingとin-flightを1回の走査で外すメソッド1つ（名前は実装が決める。pendingはcancelledに数え、in-flightはcompletedにもcancelledにも数えない。外したpending・in-flightの件数を返す）。isStalled(nowMonotonicMs)とdrainDiagnosticsの述語は変えない。entryはenqueueでplaceを持ち（mailbox.ts:24・:109）、pendingは配列（:80）、in-flightは実行場所ごとのMap（:82）。completedを変えないので、inputDoneの採否（composition-root.ts:539〜:542、completedの増加で決める）はそのままで、外したin-flightに遅れて届く完了は解放せず採用されない",
+      "Mailbox: 実行場所1つのpendingとin-flightを1回の走査で外すメソッド1つ（名前は実装が決める。pendingはcancelledに数え、in-flightはcompletedにもcancelledにも数えない。外したpending・in-flightの件数を返す）。isStalled(nowMonotonicMs)とdrainDiagnosticsの述語は変えない。entryはenqueueでplaceを持ち（mailbox.ts:23・:95）、pendingは配列（:67）、in-flightは実行場所ごとのMap（:69）。completedを変えないので、inputDoneの採否（composition-root.ts:539〜:542、completedの増加で決める）はそのままで、外したin-flightに遅れて届く完了は解放せず採用されない",
       "InfrastructureDiagnosticReasonに\"ownerStopped\"を1つ足す（末尾はp2-shared-runtime.types.ts:242。C3aのownerReplyLateはDiagnosticReasonの末尾［:248］。persistent-diagnostic-sink.tsのreason一覧［:40〜:56］にも足す）",
       "persistent-diagnostic-sink.tsの終了要約のreasonの許可パターン（C3a配送後も:281）に failed:ownerStopped を足す（mailboxDrainとfinalCheckpointの段で使う）"
     ],
@@ -540,7 +540,7 @@
         "evidenceRefs": [
           "AGENTS.md:26 «2c223bbb66635b53»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «b7e8914d276157dd»",
-          "reconstruction/contracts/p2-mailbox.json:391 «36d8bc7abbfa21f7»",
+          "reconstruction/contracts/p2-mailbox.json:391 «44fcf5961a16f211»",
           "reconstruction/tools/corpus/sequences.json#expected:O07:16",
           "reconstruction/tools/corpus/sequences.json#expected:O10:35",
           "reconstruction/tools/corpus/sequences.json#expected:O10:39"

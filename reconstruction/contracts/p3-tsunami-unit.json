@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "c50eb5d3e050165fc36177e5a8b149cabc649cd46d003886924b1e4184ed2548",
+    "sha256": "88ca73a57b9a03f1fa2404e0afb3b669d92a77b4ac2851cb57413df093c121e8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -915,7 +915,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1092 «50f730793bf26903»",
           "docs/specs/reconstruction-p0-contracts.md:1098 «623c7cfd74054e54»",
           "reconstruction/src/host/host.ts:331 «5c0ae1a90804b159»",
-          "reconstruction/src/mailbox/mailbox.ts:48 «09594f159c8c0552»"
+          "reconstruction/src/mailbox/mailbox.ts:37 «09594f159c8c0552»"
         ]
       },
       {

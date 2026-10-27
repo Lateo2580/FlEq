@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "3f2aeb018ae526b2a8dc4e35957868e50bc81bf607c9754d7894415f1966185f",
+    "sha256": "f454104d72174e9142b9815bc96bdbdb6418ce229611c86b00cb43cbcd82d03c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -459,7 +459,7 @@
           "reconstruction/src/host/host.ts:176 «9befb93275c9ab3e»",
           "reconstruction/src/runtime/owner-host.ts:84 «29c77770d392345a»",
           "reconstruction/src/runtime/composition-root.ts:915 «8ae52d9d693e7af3»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:628 «63409c8d5e8c3c17»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:619 «63409c8d5e8c3c17»",
           "reconstruction/contracts/p3-clock-check.json:341 «7aacda7ef9dc60ee»",
           "reconstruction/contracts/p3-persist-premises.md:524 «d6034014bda2abef»",
           "reconstruction/contracts/p3-clock-check.json:103 «34f52cc3b1065b0c»"

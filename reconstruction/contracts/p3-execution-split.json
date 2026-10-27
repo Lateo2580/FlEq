@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "401493bed96ec98767919d3bcee8076f6f7d1708ab54b0855aaf1752c0fd500f",
+    "sha256": "e82b8029494f88d643e05c5266b0dce57af108ddc47177353d31e143ef5f3936",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -406,7 +406,7 @@
     "publicFunctions": [
       "Mailbox#enqueue(envelope: MailboxEnvelope): MailboxEnqueueResult（signature不変。parser itemの実行場所はheadTypeから決める）",
       "Mailbox#takeNext(nowMonotonicMs: number): MailboxEnvelope | null（signature不変。parserはin-flightの無い実行場所のitemだけを返す。呼出し側はnullまで繰り返し、返ったitemをその実行場所のownerへ送る）",
-      "Mailbox#complete(completion: ParserSettlement | Extract<MailboxCompletion, { kind: \"control\" }>): MailboxStats（parserは識別子だけで照合する。全量のMailboxCompletionもそのまま渡せる）",
+      "Mailbox#complete(completion: ParserSettlement): MailboxStats（parserは識別子だけで照合する。全量のMailboxCompletionもそのまま渡せる。前の型 Mailbox#complete(completion: ParserSettlement | Extract<MailboxCompletion, { kind: \"control\" }>) は P3-MAILBOX-CONTROL-001 で廃止）",
       "unit-coverage.tsのheadType→ExecutionPlaceの関数1つ（readyはunitの列、それ以外はdeferred。Map 1回の参照。名前は実装が決めて成果物に書く）",
       "ingestXmlData(input)（ws入力に解析結果（成功のobject、または失敗）を受ける形を1つ足す。受理・拒否の結果、診断、ParserMailboxItemのfieldは不変）",
       "startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort: number; stop(): Promise<ShutdownSummary> }>>（C2配送後のsignatureのまま。P2HostConfigは{ wsUrl }と{ dmdata }の排他にstateDirectory・diagnosticDirectory・displayPort・clock・observeを足した形で変えない。{ dmdata }の購読の検査は従来どおり最初に行う。owner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の生成と全ownerのrestoreの完了は、最初の接続試行（startAttempt。{ dmdata }ではRESTのlist・startを含む）より前に待つ。初回の失敗でのreject（{ wsUrl }は開けなかったとき、{ dmdata }は401/403のときだけ）とその前のstop()は変えず、そのstop()でもowner threadを残さない。どの経路のthrowでも生成済みのownerを全部終了させてからrejectする）",

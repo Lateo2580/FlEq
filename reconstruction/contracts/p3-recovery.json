@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "f452e41f0c7c7e04d33eb4c7e19357c32741f84df177312ad67c0f11268169ff",
+    "sha256": "39a2fe3a1e0b26871d112289ec1f07c803d132e7e5e1904fc53b0569ebfa7723",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -512,7 +512,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1052 «d365cf37e2043241»",
           "docs/specs/reconstruction-p0-contracts.md:3118 «520a862a57d60741»",
           "docs/specs/reconstruction-p0-contracts.md:2218 «54e71527c590fb34»",
-          "reconstruction/src/mailbox/mailbox.ts:11 «9ebe12b5426e415b»"
+          "reconstruction/src/mailbox/mailbox.ts:10 «9ebe12b5426e415b»"
         ]
       },
       {
@@ -564,7 +564,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2220 «a3a44a06404484c9»",
           "docs/specs/reconstruction-p0-contracts.md:3031 «375d564fe0344d12»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:350 «d22d7f39e8d1c98f»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:345 «d22d7f39e8d1c98f»",
           "reconstruction/src/runtime/shared-runtime.ts:98 «d4dcf0c5da493b28»"
         ]
       },

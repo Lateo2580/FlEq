@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "31c7017d170d830c1927fd6d0029c34de89c9a295d87b691d151e6a7910f7b12",
+    "sha256": "e7cce96727263ff779f79556a6815d0849ced3a9180b34269842ebd3ac843ac0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -409,7 +409,7 @@
       },
       {
         "id": "P3-NS-AC08",
-        "requirement": "版と保存→復元と corpus（作者裁定「P5 の前は初期化してよい」、P3-VM-AC05、統合担当の決定 D3）: (1) schemaVersion を p3-nankai-unit-v6 にし、discardableSchemaVersions に v5 を足す（v1〜v5）。旧い形を読む移行は作らない。版の文字列は types.ts・nankai-unit.ts・owner-runtime.ts の初期の state の表（:80）・試験（nankai-fixture.ts:16・nankai-unit.test.ts:556・shared-runtime.test.ts:77）を同じ行の中で替える (2) 新しい形の保存→復元の試験（P3-NS-T01）と、v5 の保存物が捨ててよい版になること（P3-NS-T04）を残す（P3-X-C4） (3) sequences.json の 9 step の期待を実装の patch で直す（step の数と位置は変えない。replay の試験が effective の欄を読むので、直さないとゲートが赤になる）: O01:69 の checks の level を normal（H12）に、O01:70 の「validUntil=16:28+7日」を warningUntil（＋7 日）と validUntil（＋14 日）に、O07:37・:42 の「情報系列は保存しない」、O07:38 の「情報系列は空から始まる」、O07:39 の「情報系列は復元で空なので」を全文の保存と復元に、O07:41 の validUntil を warningUntil と validUntil に、O07:43 の「validUntilの1 ms前」を warningUntil の 1 ms 前に、O07:44 の effective を active にし checks を「status は megaquakeAdvisory、通知なし（P3-NS-D-STEPDOWN-NOTICE=A）。巨大地震注意へ移る」に。sequences.json の meta.sha256 が変わり、全契約の sequencesSha256 と sha256 が check-contract で FAIL になるのは想定内で、配送の commit で統合担当が付け直す (4) 既存の試験の nankai-unit.test.ts:64・:65 の Serial「0」と 11 桁の行は、P3-NS-AC07 で受ける報になる（期待を accepted と WARN identityInvalid に替える。Q-NS-EXISTING-TESTS (k)）",
+        "requirement": "版と保存→復元と corpus（作者裁定「P5 の前は初期化してよい」、P3-VM-AC05、統合担当の決定 D3）: (1) schemaVersion を p3-nankai-unit-v6 にし、discardableSchemaVersions に v5 を足す（v1〜v5）。旧い形を読む移行は作らない。版の文字列は types.ts・nankai-unit.ts・owner-runtime.ts の初期の state の表（:80）・試験（nankai-fixture.ts:16・nankai-unit.test.ts:556・shared-runtime.test.ts:76）を同じ行の中で替える (2) 新しい形の保存→復元の試験（P3-NS-T01）と、v5 の保存物が捨ててよい版になること（P3-NS-T04）を残す（P3-X-C4） (3) sequences.json の 9 step の期待を実装の patch で直す（step の数と位置は変えない。replay の試験が effective の欄を読むので、直さないとゲートが赤になる）: O01:69 の checks の level を normal（H12）に、O01:70 の「validUntil=16:28+7日」を warningUntil（＋7 日）と validUntil（＋14 日）に、O07:37・:42 の「情報系列は保存しない」、O07:38 の「情報系列は空から始まる」、O07:39 の「情報系列は復元で空なので」を全文の保存と復元に、O07:41 の validUntil を warningUntil と validUntil に、O07:43 の「validUntilの1 ms前」を warningUntil の 1 ms 前に、O07:44 の effective を active にし checks を「status は megaquakeAdvisory、通知なし（P3-NS-D-STEPDOWN-NOTICE=A）。巨大地震注意へ移る」に。sequences.json の meta.sha256 が変わり、全契約の sequencesSha256 と sha256 が check-contract で FAIL になるのは想定内で、配送の commit で統合担当が付け直す (4) 既存の試験の nankai-unit.test.ts:64・:65 の Serial「0」と 11 桁の行は、P3-NS-AC07 で受ける報になる（期待を accepted と WARN identityInvalid に替える。Q-NS-EXISTING-TESTS (k)）",
         "evidenceRefs": [
           "reconstruction/src/units/nankai/nankai-unit.ts:867 «47878286067426e9»",
           "reconstruction/src/runtime/owner-runtime.ts:80 «abe5ed630099d05d»",
