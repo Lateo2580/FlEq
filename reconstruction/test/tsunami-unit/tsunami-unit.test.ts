@@ -812,12 +812,12 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     expect(light.map((item) => [item.payload.level, item.disposition])).toEqual([["warning", "pending"], ["warning", "pending"]]);
     // 世代: 昇格の失敗警報 2 件が入らなければ、昇格もせず軽い失敗警報がそのまま残り、何も退去しない。置き換える軽い失敗警報は
     // intents から外れる（P3-NL-AC05 (1)）ので、増えるのは題と level の数 byte。その増え分ちょうどの余りなら昇格が入り、1 byte 少なければ入らない。
-    const roomy = crowd(free(warned), 5_000);
-    const growth = generation(receive(roomy, big(4, "20990101000013", "52"), at(4)).state) - generation(roomy);
+    const roomy = crowd(free(warned), 5_000), promote = big(4, "20990101000013", "52"); // 同じ material を 3 回使う（作るたびに inputId の連番が進み、桁上がりで byte の境界がずれる）
+    const growth = generation(receive(roomy, promote, at(4)).state) - generation(roomy);
     const fits = crowd(free(warned), growth);
-    expect(notices(receive(fits, big(4, "20990101000013", "52"), at(4)).state).map((item) => item.payload.level)).toEqual(["critical", "critical"]);
+    expect(notices(receive(fits, promote, at(4)).state).map((item) => item.payload.level)).toEqual(["critical", "critical"]);
     const exact = crowd(free(warned), growth - 1);
-    const byGeneration = receive(exact, big(4, "20990101000013", "52"), at(4));
+    const byGeneration = receive(exact, promote, at(4));
     expect(changed(byGeneration).decision).toBe("capacityExceeded");
     expect(byGeneration.state).toBe(exact);
     // 件数: pending が 128 件なら最初の失敗警報も入らない（置き換える軽い失敗警報が無いので件数が増える）。
@@ -976,7 +976,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     } finally { rmSync(directory, { recursive: true, force: true }); }
   });
 
-  // P3-NL-T06（P3-NL-AC14 の数え方。describe の最後に置く: 前に置くと decodeXml の inputId の連番の桁が変わり、P3-CC-T17 の byte の境界値がずれる）:
+  // P3-NL-T06（P3-NL-AC14 の数え方。describe の最後に置く）:
   // 保存済みの U-T が容量で報を断っただけ（unit の state は不変）でも owner が世代を進めてその入力に帰属させ、unit の診断（count のある
   // tsunamiCapacityEvicted を含む）と採用した更新の lossReason を理由ごとに足す。件数は保存→復元で残り、capture が外した期限の後の行は
   // 加算元からも外れて、同じ理由をまた足すと 1 件から数え直す。publisher の失効の診断を owner で二重に数えないことは notification-wiring の T06。
