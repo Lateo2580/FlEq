@@ -1,0 +1,102 @@
+{
+  "id": "e02-N-run1",
+  "attempt": 1,
+  "manifestId": "p3-sp-e05np-20261027",
+  "manifestSha256": "25b47a36f5d6b5b8362a8f015bf60d8572132af93c5943b60bdfc61bf0393dc8",
+  "rawDir": "/Users/tallplain/dev/fleq-e05y-mm/tmp/l100r/home/dev/fleq-a10-runs/p3-sp-e05np-20261027/e02-N-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e05np.json --windows e02-N-run1 --notification real --node /Users/tallplain/dev/fleq-e05y-mm/tmp/e05y/nodebin/node",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e05np.json --windows e02-N-run1 --notification real --node /Users/tallplain/dev/fleq-e05y-mm/tmp/e05y/nodebin/node",
+    "caffeinate -dims -w 81703",
+    "/Users/tallplain/dev/fleq-e05y-mm/tmp/e05y/nodebin/node /Users/tallplain/dev/fleq-e05y-mm/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-e05y-mm/tmp/l100r/home/dev/fleq-a10-runs/p3-sp-e05np-20261027/e02-N-run1/host-config.json",
+    "/Users/tallplain/dev/fleq-e05y-mm/tmp/e05y/nodebin/node /Users/tallplain/dev/fleq-e05y-mm/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:54472/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load N --run 1 --out /Users/tallplain/dev/fleq-e05y-mm/tmp/l100r/home/dev/fleq-a10-runs/p3-sp-e05np-20261027/e02-N-run1/e02.jsonl"
+  ],
+  "startedAt": "2026-10-27T01:11:33.404Z",
+  "preflight": {
+    "checkedAt": "2026-10-27T01:11:33.383Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "155.0.8059.82",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "efd27382b2adf717960693aadbeedf78e01fb528",
+    "gitStatusPorcelain": "?? reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05yd.json\n?? reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e05np.json\n?? reconstruction/test/eew-e01/evidence/p3-harness/manifest-sp-e05y.json\n?? reconstruction/test/eew-e01/evidence/windows/p3-e05yd-20261027/\n?? reconstruction/test/eew-e01/evidence/windows/p3-sp-e05y-20261027/\n",
+    "distSha256": "6b4d8488b7495fe8563f9569af4a326e1e3f0164b6f1195b8281ee42087614ce",
+    "runnerSha256": "0a1a043e5aa5a6e77f90c73c3c44bd66777d6c5f1c4ffebbec477cdc24888fab",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "fill": null,
+  "expirySplit": null,
+  "statuses": {
+    "E02": "Pass",
+    "E05": "Pass"
+  },
+  "status": "Pass",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-sp-e05np-20261027/results/result-e02-N-run1.json",
+      "sha256": "56d41aac6fa8e3151b636920b0f2ca5c6c55301ca6d8efe4432efe2ebd1eadd0"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-sp-e05np-20261027/results/aux-e05-N-run1.json",
+      "sha256": "202a01e6b3e763239986149fd96b1436869d7ba71d5b5be65815c9eebbb39098"
+    }
+  ],
+  "liveness": {
+    "pings": 49,
+    "maxFrameGapMs": 20002.83483400941
+  },
+  "hostClock": {
+    "hostClockUnverified": 0,
+    "hostClockAhead": 0,
+    "hostClockBehind": 0
+  },
+  "finishedAt": "2026-10-27T01:28:13.334Z",
+  "raw": [
+    {
+      "file": "aux-e05-N-run1.json",
+      "bytes": 7606,
+      "sha256": "202a01e6b3e763239986149fd96b1436869d7ba71d5b5be65815c9eebbb39098"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 290,
+      "sha256": "1995a68682adb89d79018d76c5444d8160b35686cdc5ad6f5be3f94fa8301a3e"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 1796,
+      "sha256": "afc237e7a5ce8d0456c0077c60920c2f65881fc05ebe2bdb316c9704f6d8d48b"
+    },
+    {
+      "file": "e02.jsonl",
+      "bytes": 206069,
+      "sha256": "82c3c8c91c6ac45303463f931280c38d61bd16814761349d183b834b4016d06b"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 542,
+      "sha256": "7ce3ed8727c7df05ad3304b094502022ddee33494c549f677c93b7380dc28d0c"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 1365106,
+      "sha256": "9a33777165a90ec80be10105f56585eb4b062737e8e9f10120a087c8dd1c66eb"
+    },
+    {
+      "file": "result-e02-N-run1.json",
+      "bytes": 724,
+      "sha256": "56d41aac6fa8e3151b636920b0f2ca5c6c55301ca6d8efe4432efe2ebd1eadd0"
+    }
+  ],
+  "orphans": []
+}
