@@ -59,7 +59,7 @@ expectTypeOf<RuntimeUnitDeadline>().toEqualTypeOf<Readonly<{ wallTimeMs: number 
 expectTypeOf<NotificationIntentUpdate>().toEqualTypeOf<Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition" | "lastAttempt" | "replayed"
   | "expiresAt"> & Readonly<{ lossReason: "notificationExpired" | "notificationExpiredClockUnverified" | "notificationOutcomeUnknown" | null }>>();
 expectTypeOf<RuntimeInput["kind"]>().toEqualTypeOf<"startup" | "notificationProbeCompleted" | "connectionLost"
-  | "coverageVerified" | "mailboxCompleted" | "checkpointCaptured" | "notificationResult" | "shutdownStageResult">();
+  | "coverageVerified" | "freshnessSuspected" | "mailboxCompleted" | "checkpointCaptured" | "notificationResult" | "shutdownStageResult">();
 expectTypeOf<RuntimeStep["effects"][number]["kind"]>().toEqualTypeOf<
   "stopInputAndDrainMailbox" | "finalizeNotificationDelivery" | "startFinalCheckpoints" | "closeRuntimeWorkers"
 >();

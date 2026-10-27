@@ -1,7 +1,9 @@
 import type { Operation } from "./p1-parser-boundary.types";
 import type { RuntimeUnitId } from "./p2-shared-runtime.types";
+import type { DmdataClassification } from "./p3-dmdata-connect.types";
 
 // P3-RECOVERY-001【発注 1】: 一覧（GET /v2/telegram）の頭と、起動時の辿りとダイジェスト（H32）の型。
+// 【発注 2】: 鮮度の突き合わせ（H41）の区分の一覧と位置、切れていた間の EEW の札（H28）の型。
 
 // 一覧の item を境界で確かめて組んだ頭。operation は ingress の WS の枝と同じ写しで作る（P3-REC-AC01）。
 export type ListHead = Readonly<{
@@ -17,10 +19,15 @@ export type ListHead = Readonly<{
 }>;
 
 // types は 1 つの unit の型だけの束（1〜5、P3-REC-D-LIST-QUERY）。cursorToken は前の応答の nextToken をそのまま渡す。
-export type ListQuery = Readonly<{ types: readonly string[]; cursorToken: string | null }>;
+// classification は H41 の区分の一覧で、cursorToken は前回の nextPooling か遡りの nextToken（P3-REC-AC13 (6)）。
+export type ListQuery =
+  | Readonly<{ types: readonly string[]; cursorToken: string | null }>
+  | Readonly<{ classification: DmdataClassification; cursorToken: string | null }>;
 
 export type ListPage =
-  | Readonly<{ kind: "ok"; heads: readonly ListHead[]; nextToken: string | null; nextPooling: string | null }>
+  // rawCount・oldest/latestRawReceivedAtMs は濾す前の item で数える（dmdata の時刻）。満杯・遡りの止めどころ・位置はこの生の値で決める（P3-REC-AC13 (2)）。
+  | Readonly<{ kind: "ok"; heads: readonly ListHead[]; nextToken: string | null; nextPooling: string | null; nextPoolingInterval: number | null;
+      rawCount: number; oldestRawReceivedAtMs: number | null; latestRawReceivedAtMs: number | null }>
   | Readonly<{ kind: "failed" }>
   | Readonly<{ kind: "authRejected" }>
   | Readonly<{ kind: "throttled"; retryAfterMs: number | null }>;
@@ -51,3 +58,15 @@ export type RecoveryDigestUnit = Readonly<{ unit: RuntimeUnitId; beforeWindow: b
 
 // units は P3-REC-D-ORDER-AND-LIMIT=A の順で、辿った unit だけ。
 export type RecoveryDigestView = Readonly<{ units: readonly RecoveryDigestUnit[] }>;
+
+// H41 の区分の位置。token は前の応答の nextPooling、latestRawReceivedAtMs は前に見た生の item の最も新しい receivedTime（dmdata の時刻）。
+export type PoolPosition = Readonly<{ token: string | null; latestRawReceivedAtMs: number | null }>;
+
+// seeded は位置を作っただけで比べない回。unmatched は位置を進めず、その区分の unit をその周期「突き合わせできなかった」にする（P3-REC-AC13 (1)(2)(7)）。
+export type PollResult =
+  | Readonly<{ kind: "seeded"; position: PoolPosition }>
+  | Readonly<{ kind: "ok"; heads: readonly ListHead[]; position: PoolPosition }>
+  | Readonly<{ kind: "unmatched"; reason: "fetchFailed" | "authRejected" | "pageLimit" | "throttled" }>;
+
+// 切れていた間の EEW の札（H28）。両端は host の wall（P3-REC-AC14 (1)）。
+export type EewWindowCard = Readonly<{ fromWallMs: number; toWallMs: number }>;

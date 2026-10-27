@@ -16,13 +16,14 @@ import { startP2Host } from "../../src/host/host";
 // 一覧の要求だけが node:https へ来る（socket の 3 呼出しは下の mock が答える）。網へは出ない。
 type Reply = Readonly<{ status: number; body?: unknown }>;
 // hold: 応答を held に溜めて試験が後で返す（停止の後に揃う結果の試験）。
-const https = vi.hoisted(() => ({ handle: null as ((url: URL) => Reply) | null, paths: [] as string[], hold: false, held: [] as (() => void)[], destroyed: 0 }));
+const https = vi.hoisted(() => ({ handle: null as ((url: URL) => Reply) | null, paths: [] as string[], urls: [] as URL[], hold: false, held: [] as (() => void)[], destroyed: 0 }));
 vi.mock("node:https", async () => {
   const { EventEmitter: Emitter } = await import("node:events");
   return { request: (options: RequestOptions, onResponse: (response: EventEmitter) => void) => {
     const outgoing = Object.assign(new Emitter(), { destroy: () => { https.destroyed += 1; }, end: () => {
       const url = new URL(`https://${options.hostname}${options.path}`);
       https.paths.push(url.pathname);
+      https.urls.push(url);
       const reply = https.handle!(url);
       outgoing.emit("finish");
       const respond = () => {
@@ -82,6 +83,7 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
   https.handle = null;
   https.paths.length = 0;
+  https.urls.length = 0;
   Object.assign(https, { hold: false, held: [], destroyed: 0 });
   Object.assign(socket, { url: "", starts: 0, deleteAborted: null });
 });
@@ -162,9 +164,11 @@ describe("P3-REC-T08 acceptance: the startup digest reaches the snapshot (AC15, 
     expect(tsunami.heads.map((head) => head.receivedAt)).toEqual(tsunami.heads.map((_, index) => startedAt - index * MINUTE));
     expect(tsunami.heads[0].headline).toMatch(/\[truncated:fieldLimit\]$/);
     expect(tsunami.heads.length + Object.values(tsunami.omitted).reduce((sum, count) => sum + count, 0)).toBe(600);
-    // U-Q は理由だけで件数を持たない（件数不明）。U-M は 7 日より前の item で止まり、見出しは枠の外なので件数だけ。
+    // U-Q は理由だけで件数を持たない（件数不明）。U-M は 7 日より前の item で止まり、P3-REC-D-DIGEST-BUDGET=D で見出しが載る（T08【発注 2】）。
     expect(seismic).toEqual({ unit: "U-Q", beforeWindow: true, kind: "unsatisfied", reason: "fetchFailed" });
-    expect([nankai.heads, nankai.omitted, local.heads, local.omitted]).toEqual([[], {}, [], { VXSE56: 1 }]);
+    expect(tsunami.heads).toHaveLength(3);
+    expect([nankai.heads, nankai.omitted, local.heads.map((head) => [head.headType, head.headline]), local.omitted])
+      .toEqual([[], {}, [["VXSE56", "長周期"]], {}]);
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("recoveryFetchFailed"));
     const lines = (await diagnostics(dirs.diagnosticDirectory)).split("\n").filter((line) => line.includes('"component":"recovery"'));
     expect(lines.map((line) => JSON.parse(line)).map(({ level, reason, unit }) => ({ level, reason, unit })))
@@ -212,5 +216,33 @@ describe("P3-REC-T01 contractBoundary (host side): stop ends the walk (AC03 (6))
     for (const respond of https.held.splice(0)) respond();
     await new Promise((done) => setTimeout(done, 600));
     expect([https.paths.length, shown.mock.calls.length, socket.deleteAborted]).toEqual([1, 0, false]);
+  });
+});
+
+describe("P3-REC-T09 acceptance (host side): the card from the frames, only with EEW subscribed (AC14 (1)(3)), and H41 after the walk (AC13 (5))", () => {
+  it("a ping before the cut starts the card, the start of the new WS ends it; H41 seeded by classification once the walk ended", async () => {
+    https.handle = () => page([]);
+    const { host, sockets } = await start(["telegram.earthquake", "eew.forecast"]);
+    await until(() => https.urls.some((url) => url.searchParams.get("classification") === "telegram.earthquake"));
+    expect(https.urls.filter((url) => url.searchParams.has("classification")).map((url) => url.searchParams.get("cursorToken"))).toEqual([null]);
+    const beforePing = clock().wallTimeMs;
+    const ponged = new Promise((done) => sockets[0].once("message", done));
+    sockets[0].send(JSON.stringify({ type: "ping", pingId: "p" }));
+    await ponged;
+    const afterPing = clock().wallTimeMs;
+    sockets[0].terminate();
+    await until(async () => (await snapshot(host.displayPort)).recovery.eewUnverified != null);
+    const card = (await snapshot(host.displayPort)).recovery.eewUnverified!;
+    expect([card.fromWallMs >= beforePing && card.fromWallMs <= afterPing, card.toWallMs - afterPing >= 4_900, sockets.length]).toEqual([true, true, 2]);
+  });
+
+  it("without eew.* in the subscription no card is made", async () => {
+    https.handle = () => page([]);
+    const { host, sockets } = await start(["telegram.volcano"]);
+    sockets[0].terminate();
+    await until(() => sockets.length === 2);
+    await until(async () => (await snapshot(host.displayPort)).connection.state === "connected");
+    await new Promise((done) => setTimeout(done, 1_200));
+    expect((await snapshot(host.displayPort)).recovery.eewUnverified).toBeNull();
   });
 });

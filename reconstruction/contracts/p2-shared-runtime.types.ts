@@ -320,6 +320,7 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "notificationOutcomeUnknown" | "noticeMarkEvicted"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate"
+  | "eewWindowUnverified" // P3-REC-AC14 (5): 切れていた間の EEW の窓。札を外す時か停止の開始に 1 件
   // P3-CC-AC07: one per input a unit could not make current because of its capacity. P3-WS-AC02: U-F が受理した報の読み飛ばし（INFO）と外の階層の知らない子（WARN）を報ごとに 1 件。P3-UM-AC03 (4): 原文を外した記録の数。P3-REC-AC03・AC04: 取り直しの一覧の失敗と量の上限（unit ごと）、401/403（1 回の辿りに 1 件）。
   | "capacityRejected" | "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear" | "unreadableDropped" | "recoveryFetchFailed" | "recoveryLimit" | "recoveryAuthRejected";
 
@@ -343,6 +344,8 @@ export type RuntimeInput =
   | Readonly<{ kind: "notificationProbeCompleted"; channels: Readonly<Record<"desktop" | "sound", Extract<NotificationDeliveryState["channels"]["desktop"], { kind: "idle" | "unavailable" }>>>; clock: ClockReading }>
   | Readonly<{ kind: "connectionLost"; acceptedThroughSequence: number; clock: ClockReading }>
   | Readonly<{ kind: "coverageVerified"; runId: string; epoch: number; scopes: readonly ConfirmationScope[]; clock: ClockReading }>
+  // P3-REC-AC13 (3): 鮮度の疑い（H41）。epoch は突き合わせの周期を始めた時点の confirmation.epoch で、合わなければ捨てる。
+  | Readonly<{ kind: "freshnessSuspected"; runId: string; epoch: number; scopes: readonly Extract<ConfirmationScope, { kind: "unit" }>[]; clock: ClockReading }>
   | Readonly<{ kind: "mailboxCompleted"; completion: MailboxCompletion; clock: ClockReading }>
   | Readonly<{ kind: "checkpointCaptured"; capture: CheckpointCapture }>
   | Readonly<{ kind: "notificationResult"; result: NotificationResult }>
@@ -402,7 +405,8 @@ export type RuntimeRestoration = Readonly<Record<RuntimeUnitId,
 
 // P2-A1-CONFIRMATION: restoration success never establishes current completeness.
 // capacityExceeded: 容量の拒否で報を 1 つ取りこぼした unit/operation（P3-CC-AC02）。scopeCapacity（確認の記録を畳んだ印）とは別。
-export type UnconfirmedReason = "startup" | "disconnected" | "scopeCapacity" | "scopeRetired" | "capacityExceeded";
+// freshnessSuspect: 一覧にあって live で受けていない報があった unit/operation（H41、P3-REC-AC13 (3)、順位は P3-REC-D-SUSPECT-RANK=A）。
+export type UnconfirmedReason = "startup" | "disconnected" | "scopeCapacity" | "scopeRetired" | "capacityExceeded" | "freshnessSuspect";
 export type ConfirmationScope = Readonly<{ operation: Operation }> & (
   | Readonly<{ unit: RuntimeUnitId; kind: "unit" }>
   // I-U-T.confirmationScope: U-T reuses the event row (VTSE41 EventID), no new row.

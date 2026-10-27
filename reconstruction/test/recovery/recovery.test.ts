@@ -6,9 +6,10 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { InputBoundary } from "../../contracts/p2-shared-runtime.types";
-import type { ListHead, UnitWalk, UnitWalkResult } from "../../contracts/p3-recovery.types";
+import type { ListHead, PollResult, PoolPosition, UnitWalk, UnitWalkResult } from "../../contracts/p3-recovery.types";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
-import { buildDigest, walkDiagnostics, walkList, walkStart } from "../../src/recovery/recovery";
+import { ListRequestLane, buildDigest, pollClassification, walkDiagnostics, walkList, walkStart } from "../../src/recovery/recovery";
+import { FreshnessLedger } from "../../src/recovery/watch";
 import { envelope, harnessedRoot, startHarness } from "../execution-split/owner-harness";
 import { decode, projected, projectionInput, startup } from "../snapshot-sse/projection-fixture";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
@@ -65,7 +66,7 @@ const page = (items: readonly unknown[], nextToken?: string): Reply =>
 const now = () => performance.now() + https.skewMs;
 async function walk(plan: readonly UnitWalk[]): Promise<readonly UnitWalkResult[]> {
   vi.useFakeTimers({ now: NOW });
-  const walking = walkList(API_KEY, plan, new AbortController().signal, now);
+  const walking = walkList(new ListRequestLane(), API_KEY, plan, new AbortController().signal, now);
   await vi.runAllTimersAsync();
   return walking;
 }
@@ -145,7 +146,7 @@ describe("P3-REC-T01 contractBoundary: the list walk (AC01, AC02, AC03)", () => 
       vi.useFakeTimers({ now: NOW });
       const began = now();
       let endedAt = Infinity;
-      const walking = walkList(API_KEY, [{ unit: "U-V", bundles: [["VFVO50"]], fetchFromMs: NOW - DAY, stopAtId: null },
+      const walking = walkList(new ListRequestLane(), API_KEY, [{ unit: "U-V", bundles: [["VFVO50"]], fetchFromMs: NOW - DAY, stopAtId: null },
         { unit: "U-Q", bundles: [["VXSE53"]], fetchFromMs: NOW - DAY, stopAtId: null }], new AbortController().signal, now)
         .then((results) => { endedAt = now(); return results; });
       await vi.runAllTimersAsync();
@@ -268,21 +269,125 @@ describe("P3-REC-T08 acceptance (unit side): the digest from walk results (AC15,
     expect(first.heads.map((item) => item.receivedAt)).toEqual(tsunami.slice(0, first.heads.length).map((item) => item.receivedAtMs));
     expect(Buffer.byteLength(JSON.stringify(first.heads[0].headline)) - 2).toBeLessThanOrEqual(256);
     expect(first.heads[0].headline).toMatch(/\[truncated:fieldLimit\]$/);
-    // 入らなかった見出しは型ごとの件数で残る（後ろの unit の見出しも件数になる）。
-    expect(first.omitted).toEqual({ VTSE41: 300 - first.heads.length });
-    expect(second).toMatchObject({ heads: [], omitted: { VFVO50: 1 } });
+    // 入らなかった見出しは型ごとの件数で残る。P3-REC-D-DIGEST-BUDGET=D で分野ごとに 3 件までなので、後ろの unit の見出しも載る（T08【発注 2】）。
+    expect([first.heads.length, first.omitted]).toEqual([3, { VTSE41: 297 }]);
+    expect(second).toMatchObject({ heads: [{ headType: "VFVO50", headline: "火山" }], omitted: {} });
     expect(third).toEqual({ unit: "U-Q", beforeWindow: false, kind: "unsatisfied", reason: "recoveryLimit" });
     // AC16: projector は digest を直列化せず、数えた byte を足すだけで snapshot の byte が合う。
     const started = await startup({ wallTimeMs: NOW, monotonicMs: 1 });
-    const shown = projected(projectSnapshot(projectionInput(started, NOW, { recovery: { restoration: started.state.restoration, digest },
+    const shown = projected(projectSnapshot(projectionInput(started, NOW, { recovery: { restoration: started.state.restoration, digest, eewUnverified: null },
       recoveryDigestBytes: utf8Bytes }), null));
     expect(shown.utf8Bytes).toBe(Buffer.byteLength(JSON.stringify(shown.snapshot)));
     // AC16（レビュー r0 ヘルツ P3）: digest を持つ snapshot へ live の更新を入れても、projector は digest を直列化しない。
     let reads = 0;
     const counted = Object.defineProperty({ ...digest }, "units", { enumerable: true, get: () => { reads += 1; return digest.units; } });
-    const input = projectionInput(started, NOW, { recovery: { restoration: started.state.restoration, digest: counted }, recoveryDigestBytes: utf8Bytes });
+    const input = projectionInput(started, NOW, { recovery: { restoration: started.state.restoration, digest: counted, eewUnverified: null }, recoveryDigestBytes: utf8Bytes });
     const published = projected(projectSnapshot(input, null));
     const live = projectSnapshot({ ...input, connection: { state: "connected", disconnectedAt: null, lastInputAt: NOW } }, published.state);
     expect([live.kind, reads]).toEqual(["projected", 0]);
+  });
+});
+
+describe("P3-REC-T05 acceptance (list side): the H41 classification list (AC13 (1)(2)(6)(7))", () => {
+  const position: PoolPosition = { token: "pool0", latestRawReceivedAtMs: NOW - 10 * MINUTE };
+  async function poll(lane: ListRequestLane, from: PoolPosition | null): Promise<PollResult> {
+    vi.useFakeTimers({ now: NOW });
+    const polling = pollClassification(lane, API_KEY, "telegram.earthquake", from, new AbortController().signal, now);
+    await vi.runAllTimersAsync();
+    return polling;
+  }
+  const queries = () => https.requests.map(({ url }) => url.searchParams.get("cursorToken"));
+
+  it("without a position a plain query only seeds; the filters ride on every page; raw 100 filtered to 99 still pages back to the unreceived one", async () => {
+    https.handle = () => page([item("VXSE53", NOW - MINUTE)]);
+    expect(await poll(new ListRequestLane(), null)).toEqual({ kind: "seeded", position: { token: "pool", latestRawReceivedAtMs: NOW - MINUTE } });
+    expect(https.requests[0].url.search).toBe("?classification=telegram.earthquake&limit=100&formatMode=raw&xmlReport=true");
+    https.requests.length = 0;
+    vi.useRealTimers();
+    const unreceived = item("VTSE41", NOW - 8 * MINUTE);
+    const newest = Array.from({ length: 99 }, (_, index) => item("VXSE53", NOW - index * 1_000));
+    https.handle = (url) => url.searchParams.get("cursorToken") === "pool0"
+      ? page([...newest, item("VXSE53", NOW - 100_000, { test: true })], "older")
+      : page([unreceived, item("VXSE53", NOW - 10 * MINUTE), item("VXSE53", NOW - 11 * MINUTE)]);
+    const result = await poll(new ListRequestLane(), position);
+    expect(queries()).toEqual(["pool0", "older"]);
+    expect(https.requests.every(({ url }) => url.searchParams.get("classification") === "telegram.earthquake")).toBe(true);
+    if (result.kind !== "ok") throw new Error("ok expected");
+    // 位置の時刻以下の頭（遡りで見えたもの）は比べない。位置は最初の応答の nextPooling と生の最も新しい時刻。
+    expect([result.heads.length, result.heads.at(-1)!.id, result.position]).toEqual([100, unreceived.id, { token: "pool", latestRawReceivedAtMs: NOW }]);
+  });
+
+  // 実不具合（発注 2 のレビュー ヘルツ P2）: ページの間に重なった受信済みの X の 2 件目が未受信と数えられ、疑いが立った。
+  it("the same received id on two valid pages is compared once: no suspicion", async () => {
+    const received = item("VXSE53", NOW - 5 * MINUTE, { id: "f".repeat(96) });
+    const full = Array.from({ length: 99 }, (_, index) => item("VXSE53", NOW - index * 1_000));
+    https.handle = (url) => url.searchParams.get("cursorToken") === "pool0" ? page([...full, received], "older")
+      : page([received, item("VXSE53", NOW - 11 * MINUTE)]);
+    const result = await poll(new ListRequestLane(), position);
+    if (result.kind !== "ok") throw new Error("ok expected");
+    const ledger = new FreshnessLedger();
+    ledger.received("U-Q", "telegram.earthquake", received.id, 0);
+    for (const head of full) ledger.received("U-Q", "telegram.earthquake", head.id, 0);
+    ledger.compare("telegram.earthquake", result.heads, 0, 1_000, 1_000);
+    expect([result.heads.filter((head) => head.id === received.id).length, ledger.expire(1_000 + 2 * MINUTE)]).toEqual([1, []]);
+  });
+
+  it("RES-07 stops at 30 pages and a full page without nextToken cannot be walked: unmatched, position not moved", async () => {
+    let token = 0;
+    https.handle = () => page(Array.from({ length: 100 }, () => item("VXSE53", NOW - MINUTE)), `t${++token}`);
+    expect(await poll(new ListRequestLane(), position)).toEqual({ kind: "unmatched", reason: "pageLimit" });
+    expect(https.requests).toHaveLength(30);
+    vi.useRealTimers();
+    https.handle = () => page(Array.from({ length: 100 }, () => item("VXSE53", NOW - MINUTE)));
+    expect(await poll(new ListRequestLane(), position)).toEqual({ kind: "unmatched", reason: "fetchFailed" });
+  });
+
+  it("a 429 cycle does not move the position; Retry-After and nextPoolingInterval carry over to the next cycle on the same lane", async () => {
+    const lane = new ListRequestLane();
+    https.handle = () => ({ status: 429, headers: { "retry-after": "40" } });
+    vi.useFakeTimers({ now: NOW });
+    const cycles = (async () => {
+      const throttled = await pollClassification(lane, API_KEY, "telegram.earthquake", position, new AbortController().signal, now);
+      https.handle = () => ({ status: 200, body: { status: "ok", items: [], nextPooling: "pool0", nextPoolingInterval: 1_500 } });
+      await new Promise((done) => setTimeout(done, 15_000)); // 次の周期（間の時間は 40 秒より短い）
+      const answered = await pollClassification(lane, API_KEY, "telegram.earthquake", position, new AbortController().signal, now);
+      return [throttled, answered, await pollClassification(lane, API_KEY, "telegram.earthquake", position, new AbortController().signal, now)];
+    })();
+    await vi.runAllTimersAsync();
+    expect(await cycles).toEqual([{ kind: "unmatched", reason: "throttled" }, { kind: "ok", heads: [], position: { token: "pool0", latestRawReceivedAtMs: position.latestRawReceivedAtMs } },
+      { kind: "ok", heads: [], position: { token: "pool0", latestRawReceivedAtMs: position.latestRawReceivedAtMs } }]);
+    expect([https.requests.length, gaps()[0] >= 40_000, gaps()[1] >= 1_500]).toEqual([3, true, true]);
+  });
+});
+
+describe("P3-REC-T08 acceptance (unit side,【発注 2】): P3-REC-D-DIGEST-BUDGET=D", () => {
+  const start = walkStart(null, "empty", NOW);
+  const long = (unit: ListHead["unit"], headType: string, index: number): ListHead => ({ id: `${unit}-${index}`, unit, headType,
+    receivedAtMs: NOW - index * MINUTE, operation: "normal", title: "表".repeat(120), headline: "見".repeat(120), reportDateTime: null, infoType: null });
+  const listed = (unit: ListHead["unit"], headType: string, count: number): UnitWalkResult =>
+    ({ unit, kind: "listed", heads: Array.from({ length: count }, (_, index) => long(unit, headType, index)) });
+  const total = (unit: { kind: string; heads?: readonly unknown[]; omitted?: Readonly<Record<string, number>> }) =>
+    (unit.heads?.length ?? 0) + Object.values(unit.omitted ?? {}).reduce((sum, count) => sum + count, 0);
+
+  it("30 long volcano heads keep the newest 3 and count the rest; the later seismic unit still shows its 2 heads", () => {
+    const { digest } = buildDigest([listed("U-V", "VFVO50", 30), listed("U-Q", "VXSE53", 2)], { "U-V": start, "U-Q": start });
+    const [volcanoUnit, seismicUnit] = digest.units;
+    if (volcanoUnit.kind !== "listed" || seismicUnit.kind !== "listed") throw new Error("listed expected");
+    expect(Buffer.byteLength(JSON.stringify(volcanoUnit.heads[0]))).toBeGreaterThan(600);
+    expect([volcanoUnit.heads.map((head) => head.receivedAt), volcanoUnit.omitted]).toEqual([[NOW, NOW - MINUTE, NOW - 2 * MINUTE], { VFVO50: 27 }]);
+    expect([seismicUnit.heads.length, seismicUnit.omitted]).toEqual([2, {}]);
+  });
+
+  it("nine units of long heads over 16,384 bytes: the front units 3 each, the back units counts only, totals kept, within the bytes", () => {
+    const units = [["U-T", "VTSE41"], ["U-V", "VFVO50"], ["U-Q", "VXSE53"], ["U-N", "VYSE50"], ["U-W", "VPWS50"], ["U-L", "VPWW56"],
+      ["U-R", "VXKO50"], ["U-F", "VPWP50"], ["U-B", "VPOA50"]] as const;
+    const results = units.map(([unit, type]) => listed(unit, type, 4));
+    const { digest, utf8Bytes } = buildDigest(results, Object.fromEntries(units.map(([unit]) => [unit, start])));
+    expect(utf8Bytes).toBeLessThanOrEqual(16_384);
+    const shown = digest.units.map((unit) => unit.kind === "listed" ? unit.heads.length : -1);
+    expect(shown.slice(0, 3)).toEqual([3, 3, 3]);
+    expect(shown.at(-1)).toBe(0);
+    expect(shown.every((count, index) => index === 0 || count <= shown[index - 1])).toBe(true);
+    expect(digest.units.map(total)).toEqual(units.map(() => 4));
   });
 });

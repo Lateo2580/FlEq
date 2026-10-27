@@ -16,7 +16,7 @@ import { resolveRepoPath } from "../notification-delivery/adapter";
 import type { ExecutionPlace, OwnerReply, OwnerStartData } from "../../contracts/p3-execution-split.types";
 import { RuntimeCompositionRoot, linkedUnitCodecs, places } from "../runtime/composition-root";
 import { completeDiagnostic } from "../runtime/runtime-diagnostic";
-import { closeSocket, listSockets, startSocket } from "./dmdata-rest"; import { startupPlan, walkList } from "../recovery/recovery";
+import { closeSocket, listSockets, startSocket } from "./dmdata-rest"; import { ListRequestLane, pollClassification, startupPlan, walkList } from "../recovery/recovery";
 
 // P2-A10-AC12 (R63): provisional fixed interval for a normal disconnect or handshake failure. No backoff, no setting.
 const RECONNECT_MS = 5_000;
@@ -276,12 +276,12 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   }
 
   // P3-C2-AC05/AC06: a well-formed start is recorded and ends reconnecting; a malformed one is an unknown control frame.
-  function acceptStart(head: ControlHead, t0: number): boolean {
+  function acceptStart(head: ControlHead, t0: number, wallTimeMs: number): boolean {
     const { socketId, classifications } = head;
     if (typeof socketId !== "number" || !Number.isInteger(socketId) || !isStrings(classifications)) return false;
     note("INFO", "dmdataSocketStarted", socketId);
     if (config.dmdata?.classifications.some((item) => !classifications.includes(item))) note("WARN", "dmdataSubscriptionNarrowed");
-    root.recordConnected();
+    root.recordConnected(wallTimeMs); // P3-REC-AC14 (1): 札の終わりは新しい WS の最初の frame の wall
     emit({ kind: "controlFrame", frameType: "start", monotonicMs: t0, errorClose: null });
     return true;
   }
@@ -291,7 +291,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     if (overloaded || stopping != null) return;
     const bytes = toBuffer(raw);
     const entry = clock();
-    lastFrameAt = entry.monotonicMs;
+    lastFrameAt = entry.monotonicMs; root.recordFrame(entry.wallTimeMs); // P3-REC-AC14 (1): ping を含む最後の frame の wall（札の始まり）
     const parsed = bytes.byteLength <= CONTROL_PEEK_BYTES ? parseFrame(bytes) : undefined;
     if (parsed != null) {
       const head = parsed.kind === "parsed" ? controlHead(parsed.value) : null;
@@ -300,7 +300,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
         if (typeof head.pingId === "string") ws.send(JSON.stringify({ type: "pong", pingId: head.pingId }), () => {});
         return;
       }
-      if (head?.type === "start" && acceptStart(head, t0)) { checkClock(head.time, entry); return; }
+      if (head?.type === "start" && acceptStart(head, t0, entry.wallTimeMs)) { checkClock(head.time, entry); return; }
       if (head?.type === "pong") return;
       if (head?.type === "error") {
         note("WARN", "dmdataErrorFrame");
@@ -338,6 +338,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       return;
     }
     lastAccepted = { sequence: lastSequence, inputId }; root.checkpoint.boundaries.queued(item, wallBasis(entry)); // P3-CK-AC04: basis は frame を受けた読みの根拠
+    root.recordLiveId(item.headType, item.dmdataId, entry.monotonicMs); // P3-REC-AC13 (8): mailbox に受け取らせた時点の id（H41 の帳簿）
     if (config.observe != null) ingressJsonMs.set(inputId, ingressed.ingressJsonMs);
     emit({ kind: "marker", point: "T1", runId, inputId, monotonicMs: t1 });
     if (stopping == null) root.pump();
@@ -542,13 +543,29 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     if (stopping == null) root.dispatch({ kind: "notificationProbeCompleted", channels, clock: clock() });
   });
 
+  // P3-REC-AC14 (3): 購読に EEW が無いときは札を作らない（受けていない種類を「未確認」と言わない）。{ wsUrl } は購読が分からないので作る。
+  if (config.dmdata == null || config.dmdata.classifications.some((item) => item === "eew.forecast" || item === "eew.warning")) root.watchEewWindow();
+  // P3-REC-AC13 (8): 鮮度の帳簿は辿りの完了を待たずに作り、mailbox に受け取らせた live の id を最初から集める。周期は辿りの後に付ける。
+  if (config.dmdata != null) root.watchFreshness(config.dmdata.classifications.filter((item) => item.startsWith("telegram.")));
+
   // P3-REC-AC15・AC02 (6): 起動時の一覧の辿り（穴 d）。接続を待たずに始める。{ wsUrl } と telegram.* の無い購読では辿らず digest は null。
   // 一覧の 401/403 は辿りの側だけで止まり、接続（dmdataAuthRejected）へは渡さない（P3-REC-AC03 (3)）。
+  // P3-REC-AC13 (7): 取り直しの一覧の要求は run で 1 本の lane を通す（起動の辿りと H41 が待ちを共有し、引き継ぐ）。
+  const lane = new ListRequestLane();
+  const now = () => clock().monotonicMs;
   const walk = config.dmdata == null ? null : startupPlan(config.dmdata.classifications, root.restoredBoundaries, clock().wallTimeMs);
-  if (config.dmdata != null && walk != null) void walkList(config.dmdata.apiKey, walk.plan, walking.signal, () => clock().monotonicMs).then((results) => {
-    // 停止を始めた後に揃った結果は公開しない（P3-REC-AC03 (6)）。
-    if (stopping == null) root.showRecoveryDigest(results, walk.starts, clock());
-  }).catch(() => { if (stopping == null) note("WARN", "recoveryFetchFailed"); }); // 辿りの失敗は診断だけにし、live の受信を止めない
+  if (config.dmdata != null && walk != null) {
+    const { apiKey } = config.dmdata;
+    void walkList(lane, apiKey, walk.plan, walking.signal, now).then((results) => {
+      // 停止を始めた後に揃った結果は公開しない（P3-REC-AC03 (6)）。
+      if (stopping != null) return;
+      root.showRecoveryDigest(results, walk.starts, clock());
+      // P3-REC-AC13 (5): 辿りの完了で H41 を起こす（購読している telegram.* だけ）。辿りが 401/403 なら run の H41 も起こさない（AC13 (7)）。
+      // 停止は歩き専用の signal で打ち切り、halt に触らない。
+      if (results.some((result) => result.kind === "unsatisfied" && result.reason === "authRejected")) return;
+      root.startFreshness((classification, position) => pollClassification(lane, apiKey, classification, position, walking.signal, now));
+    }).catch(() => { if (stopping == null) note("WARN", "recoveryFetchFailed"); }); // 辿りの失敗は診断だけにし、live の受信を止めない
+  }
 
   const first = await startAttempt();
   // { wsUrl } rejects on any initial failure (P2-A10-AC12); { dmdata } only where retrying cannot help (P3-C2-RETRY).

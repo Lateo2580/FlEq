@@ -474,8 +474,30 @@ function shutdownSummary(state: PublisherState, clock: ClockReading): ShutdownSu
   };
 }
 
+// P3-REC-AC13 (3): 鮮度の疑いは verifyCoverage と同じく runId と epoch が合うときだけ置く（切断の前の材料で disconnected を疑いに戻さない）。
+function suspectFreshness(confirmation: RuntimeConfirmation, units: UnitTable, runId: string,
+  input: Extract<RuntimeInput, { kind: "freshnessSuspected" }>): RuntimeConfirmation {
+  if (input.runId !== runId || input.epoch !== confirmation.epoch) return confirmation;
+  let next = confirmation;
+  for (const scope of input.scopes) next = updateConfirmation(next, units, scope.unit, scope.operation, freshnessLost);
+  return next;
+}
+
+// P3-REC-D-SUSPECT-RANK=A: capacityLost と同じ形で whole を freshnessSuspect に付け替える（重ねても whole の 1 は増えない）。
+// capacityExceeded は上書きしない（chrome-eew が容量の印として読む）。切断は lostConfirmation が disconnected に上書きする。
+function freshnessLost(slot: ConfirmationSlot): ConfirmationSlot {
+  if (slot.whole === "capacityExceeded" || slot.whole === "freshnessSuspect") return slot;
+  const counts = { ...slot.counts };
+  if (slot.whole != null) {
+    counts[slot.whole] = (counts[slot.whole] ?? 1) - 1;
+    if (counts[slot.whole] === 0) delete counts[slot.whole];
+  }
+  counts.freshnessSuspect = (counts.freshnessSuspect ?? 0) + 1;
+  return { ...slot, whole: "freshnessSuspect", counts, confirmedAt: null };
+}
+
 export {
   addedScopes, applyDeltas, confirmOutput, initialConfirmation, isEmptyOutput, lostConfirmation, observeStage, requestShutdown,
-  shutdownSummary, unsavedUnits, validateProbe, verifyCoverage,
+  shutdownSummary, suspectFreshness, unsavedUnits, validateProbe, verifyCoverage,
 };
 export type { MirrorUnit, PublisherState, RuntimeMirror };

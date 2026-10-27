@@ -855,7 +855,9 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     server.sockets[1].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.forecast"], time: startTime() }));
     await until(async () => (await snapshot(host.displayPort)).connection.state === "connected", 2_000);
     const back = await snapshot(host.displayPort);
-    expect(back.recovery).toEqual(lost.recovery);
+    // 繋がり直すと切れていた間の EEW の札が載る（P3-REC-AC14）。札の他は変わらない
+    expect({ ...back.recovery, eewUnverified: null }).toEqual(lost.recovery);
+    expect(back.recovery.eewUnverified).toMatchObject({ fromWallMs: expect.any(Number), toWallMs: expect.any(Number) });
     expect(back.connection).toEqual({ ...lost.connection, state: "connected" });
   });
 });

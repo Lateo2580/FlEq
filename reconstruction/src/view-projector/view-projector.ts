@@ -82,7 +82,7 @@ const UNAVAILABLE_KEYS = ["capacityExceeded", "historyUnavailable", "coverageInc
 const UNKNOWN_KEYS = ["unknown", "missing", "empty"] as const;
 const FRESHNESS_KEYS = ["headMissing", "reportDateTimeMissing", "reportDateTimeInvalid", "identityMissing",
   "identityInvalid", "requiredStructureMissing", "requiredStructureInvalid", "stale"] as const;
-const UNCONFIRMED_KEYS: readonly UnconfirmedReason[] = ["startup", "disconnected", "scopeCapacity", "scopeRetired", "capacityExceeded"];
+const UNCONFIRMED_KEYS = ["startup", "disconnected", "scopeCapacity", "scopeRetired", "capacityExceeded", "freshnessSuspect"] as const satisfies readonly UnconfirmedReason[];
 const SEVERITY_RANK: readonly DisplaySeverity[] = ["specialWarning", "danger", "warning", "advisory", "forecast", "below", "none"];
 const NOTICE_FAMILIES: readonly DisplayNoticeSource["family"][] = ["VXSE43", "VXSE45", "VPWS50", "VPWW55", "VPWW57",
   "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50", "VPWP50"];
@@ -751,7 +751,7 @@ function comparable(snapshot: DisplaySnapshot): string {
   const domain = (value: DisplayDomainView<AnyView>) => value.delivery === "full"
     ? [value.contentRevision, "full", value.items] : value;
   return JSON.stringify([snapshot.streamId, snapshot.semanticRevision, snapshot.connection, snapshot.worker,
-    snapshot.persistence, snapshot.recovery.restoration, snapshot.channels, domain(snapshot.current.eew), // digest は参照で比べる（P3-REC-AC16）
+    snapshot.persistence, snapshot.recovery.restoration, snapshot.recovery.eewUnverified, snapshot.channels, domain(snapshot.current.eew), // digest は参照で比べる（P3-REC-AC16）。札は定数の上界なので直列化してよい（P3-REC-AC14 (6)）
     domain(snapshot.current.weatherCurrent), domain(snapshot.current.weatherTimeseries), domain(snapshot.current.tsunami),
     domain(snapshot.current.earthquake), domain(snapshot.current.nankai),
     domain(snapshot.current.volcano), domain(snapshot.current.landslide), domain(snapshot.current.flood),
@@ -930,3 +930,6 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
 }
 
 export { dateValue, projectSnapshot };
+
+// P3-REC-AC13 (3): UnconfirmedReason に語を足して UNCONFIRMED_KEYS に足し忘れると、ここで型が落ちる（落とすと集計と確認の状態から漏れる）。
+const unconfirmedKeysComplete: [Exclude<UnconfirmedReason, (typeof UNCONFIRMED_KEYS)[number]>] extends [never] ? true : never = true;

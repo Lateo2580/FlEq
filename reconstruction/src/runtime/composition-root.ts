@@ -65,10 +65,16 @@ import { placeUnits } from "./owner-runtime";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import {
   applyDeltas, confirmOutput, initialConfirmation, isEmptyOutput, lostConfirmation, observeStage, requestShutdown,
-  validateProbe, verifyCoverage,
+  suspectFreshness, validateProbe, verifyCoverage,
 } from "./shared-runtime";
 import type { MirrorUnit, PublisherState, RuntimeMirror } from "./shared-runtime";
-import { executionPlaces, placeOfHeadType, runtimeUnits } from "./unit-coverage"; import { buildDigest, walkDiagnostics } from "../recovery/recovery"; import type { Restored, WalkStart } from "../recovery/recovery"; import type { UnitWalkResult } from "../../contracts/p3-recovery.types";
+import { classifyHeadType, executionPlaces, placeOfHeadType, runtimeUnits } from "./unit-coverage";
+import { familyFor } from "../decode-material/decode-material";
+import { buildDigest, walkDiagnostics } from "../recovery/recovery";
+import type { Restored, WalkStart } from "../recovery/recovery";
+import { EewWindow, FreshnessLedger } from "../recovery/watch";
+import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.types";
+import type { EewWindowCard, PollResult, PoolPosition, UnitWalkResult } from "../../contracts/p3-recovery.types";
 
 // A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F, C5 U-T, C7 U-Q, C8 U-N, C9 U-V, C10 U-L, C11 U-R, C12 U-B, C13 U-M, C14 U-Y). Notification (A7) links here on delivery.
 // P3-UNIT-TABLE-001: the one table of unit functions. A unit lane adds its row here and nowhere else.
@@ -138,7 +144,7 @@ type CompositionOptions = Readonly<{
   }>;
 }>;
 
-type PublisherInput = Extract<RuntimeInput, { kind: "connectionLost" | "coverageVerified" | "notificationProbeCompleted" }>;
+type PublisherInput = Extract<RuntimeInput, { kind: "connectionLost" | "coverageVerified" | "freshnessSuspected" | "notificationProbeCompleted" }>;
 type ProjectedStep = Readonly<{ state: PublisherState; outcomes: readonly RuntimePublishedOutcome[];
   displayChanges: readonly RuntimeDisplayChange[] }>;
 
@@ -205,7 +211,8 @@ function viewOf(unit: MirrorUnit) { return unit.view; }
 
 // The one A1 state -> A8 input mapping; connection/worker come from the caller.
 function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
-  connection: DisplayConnectionView, worker: DisplayWorkerView, digest: ReturnType<typeof buildDigest> | null = null): SnapshotProjectionInput {
+  connection: DisplayConnectionView, worker: DisplayWorkerView,
+  recovery: Readonly<{ digest: ReturnType<typeof buildDigest> | null; eewUnverified: EewWindowCard | null }> = { digest: null, eewUnverified: null }): SnapshotProjectionInput {
   const { state } = step;
   const date = new Date(nowMs);
   const eew = viewOf(state.mirror["U-E"]), weatherCurrent = viewOf(state.mirror["U-W"]), weatherTimeseries = viewOf(state.mirror["U-F"]);
@@ -224,7 +231,8 @@ function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
       "U-N": state.mirror["U-N"].persistence, "U-V": state.mirror["U-V"].persistence,
       "U-L": state.mirror["U-L"].persistence, "U-R": state.mirror["U-R"].persistence, "U-B": state.mirror["U-B"].persistence, "U-M": state.mirror["U-M"].persistence,
       "U-Y": state.mirror["U-Y"].persistence },
-    recovery: { restoration: state.restoration, digest: digest?.digest ?? null }, recoveryDigestBytes: digest?.utf8Bytes ?? 0, confirmation: state.confirmation,
+    recovery: { restoration: state.restoration, digest: recovery.digest?.digest ?? null, eewUnverified: recovery.eewUnverified },
+    recoveryDigestBytes: recovery.digest?.utf8Bytes ?? 0, confirmation: state.confirmation,
     notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
     eew, weatherCurrent, weatherTimeseries, tsunami, earthquake, nankai, volcano, landslide, flood, briefing, localBulletins, typhoon, outcomes: step.outcomes, displayChanges: step.displayChanges,
   };
@@ -534,6 +542,7 @@ class RuntimeCompositionRoot {
       || channelNames.some((name) => notificationChannels[name]?.kind !== "idle"))
       throw new RangeError("invalid startup input");
     this.runId = runId;
+    this.startedWallMs = clock.wallTimeMs;
     for (const place of places) this.post(place, { kind: "restore", runId }, clock);
     await this.until(() => places.every((place) => this.restored.has(place)));
     const mirror: Partial<Record<RuntimeUnitId, MirrorUnit>> = {};
@@ -579,22 +588,34 @@ class RuntimeCompositionRoot {
   // The one way a publisher input (not from an owner) changes the publisher state.
   dispatch(input: PublisherInput): void {
     const state = this.state;
-    if (input.kind === "connectionLost") {
-      if (!Number.isSafeInteger(input.acceptedThroughSequence) || input.acceptedThroughSequence < -1)
-        throw new RangeError("invalid disconnect sequence");
-      this.current = { ...state, confirmation: lostConfirmation(state.confirmation, this.units, input.acceptedThroughSequence) };
-      this.disconnectedAt = input.clock.wallTimeMs;
-      this.lostThroughSequence = input.acceptedThroughSequence; this.checkpoint.boundaries.disconnected(input.acceptedThroughSequence);
-    } else if (input.kind === "coverageVerified") {
-      const confirmation = verifyCoverage(state.confirmation, this.units, state.runId, input);
-      if (confirmation !== state.confirmation) this.current = { ...state, confirmation };
-    } else if (!state.notificationProbeComplete) {
-      validateProbe(input.channels);
-      this.current = { ...state, notificationChannels: input.channels, notificationProbeComplete: true };
-      const missing = channelNames.filter((name) => input.channels[name].kind === "unavailable").length;
-      if (missing > 0) this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "notification-delivery",
-        reason: "notificationAttemptFailed", count: missing }, input.clock, state.runId));
-      this.evaluateDelivery(input.clock);
+    switch (input.kind) {
+      case "connectionLost": {
+        if (!Number.isSafeInteger(input.acceptedThroughSequence) || input.acceptedThroughSequence < -1)
+          throw new RangeError("invalid disconnect sequence");
+        this.current = { ...state, confirmation: lostConfirmation(state.confirmation, this.units, input.acceptedThroughSequence) };
+        this.disconnectedAt = input.clock.wallTimeMs;
+        this.lostThroughSequence = input.acceptedThroughSequence; this.checkpoint.boundaries.disconnected(input.acceptedThroughSequence);
+        this.recoveryLost();
+        break;
+      }
+      case "coverageVerified":
+      case "freshnessSuspected": {
+        const confirmation = input.kind === "coverageVerified" ? verifyCoverage(state.confirmation, this.units, state.runId, input)
+          : suspectFreshness(state.confirmation, this.units, state.runId, input);
+        if (confirmation !== state.confirmation) this.current = { ...state, confirmation };
+        break;
+      }
+      case "notificationProbeCompleted": {
+        if (state.notificationProbeComplete) break;
+        validateProbe(input.channels);
+        this.current = { ...state, notificationChannels: input.channels, notificationProbeComplete: true };
+        const missing = channelNames.filter((name) => input.channels[name].kind === "unavailable").length;
+        if (missing > 0) this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "notification-delivery",
+          reason: "notificationAttemptFailed", count: missing }, input.clock, state.runId));
+        this.evaluateDelivery(input.clock);
+        break;
+      }
+      default: input satisfies never;
     }
     this.project([], [], input.clock);
   }
@@ -915,6 +936,7 @@ class RuntimeCompositionRoot {
         this.post(place, { kind: "deadline" }, clock);
       }
     this.evaluateDelivery(clock);
+    this.watchRecovery(clock);
     this.project([], [], clock);
     if (clock.monotonicMs - this.lastDiagnosticTick >= 1_000) {
       this.lastDiagnosticTick = clock.monotonicMs;
@@ -930,7 +952,7 @@ class RuntimeCompositionRoot {
     const stopped = state.shutdown.stage === "completed";
     const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs,
-      this.connectionView(state), worker, this.recoveryDigest), this.projection);
+      this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null }), this.projection);
     this.projection = result.state;
     for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
     const display = this.display;
@@ -970,10 +992,16 @@ class RuntimeCompositionRoot {
   }
 
   // P2-A10-AC13: lastInputAt is the wall clock at the WS receive callback, rejected inputs included.
-  recordInput(wallTimeMs: number): void { this.lastInputAt = wallTimeMs; }
+  // P3-REC-AC14 (1): data の frame も札の終わりになる（start の無い WS。切れていない間は札を動かさない）。
+  recordInput(wallTimeMs: number): void { this.lastInputAt = wallTimeMs; this.eewWindow?.connected(wallTimeMs, this.clock().monotonicMs); }
 
   // P3-C2-AC06: a well-formed start on the current WS ends reconnecting without waiting for data; confirmation state stays.
-  recordConnected(): void { this.lostThroughSequence = null; }
+  // P3-REC-AC14 (1)・AC13 (1): start の frame の wall が札の終わりの正本（inputDone の reconnected は処理の完了の時刻で遅い）。H41 の周期を許す。
+  recordConnected(firstFrameWallMs: number): void {
+    this.lostThroughSequence = null;
+    this.socketStarted = true;
+    this.eewWindow?.connected(firstFrameWallMs, this.clock().monotonicMs);
+  }
 
   private connectionView(state: PublisherState): DisplayConnectionView {
     return { state: state.shutdown.stage !== "running" ? "stopped" : this.lostThroughSequence == null ? "connected" : "reconnecting",
@@ -1624,6 +1652,9 @@ class RuntimeCompositionRoot {
       this.abortAttempts(requested.abortRequests);
       for (const place of places) this.endRefusals(place, clock);
       for (const details of requested.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, this.state.runId));
+      // P3-REC-AC14 (5): 停止の開始で札が残っていれば 10 分を待たずに履歴へ出す（切れている間なら停止の開始までの窓）。
+      const window = this.eewWindow?.stop(clock.wallTimeMs);
+      if (window != null) this.noteEewWindow(window, clock);
       this.project([], [], clock);
       let effects: readonly RuntimeEffect[] = requested.effects;
       let batches = 0;
@@ -1855,7 +1886,124 @@ class RuntimeCompositionRoot {
     this.recoveryDigest = buildDigest(results, starts);
     this.project([], [], clock);
   }
+
+  // ---- 切れていた間の EEW の札（H28）と鮮度の突き合わせ（H41）（P3-RECOVERY-001【発注 2】）。どちらも run の中だけで持つ。 ----
+  private startedWallMs = 0;
+  // 実際に受けた最後の frame（ping・data・start）の wall。起動から 1 つも受けていなければ null（P3-REC-AC14 (1)）。
+  private lastFrameWallMs: number | null = null;
+  // 今の WS で start を受けた。切断で下ろす。H41 の位置は繋がった後に作る（P3-REC-AC13 (1)）。
+  private socketStarted = false;
+  private eewWindow: EewWindow | null = null;
+  private freshness: Freshness | null = null;
+
+  /** host が受けた frame ごとに 1 回（O(1)）。liveness 用の monotonic とは別の値（P3-REC-AC14 (1)）。 */
+  recordFrame(wallTimeMs: number): void { this.lastFrameWallMs = wallTimeMs; }
+
+  /** P3-REC-AC14 (3): 購読に EEW があるとき（{ wsUrl } の起動を含む）だけ、起動の後・最初の接続の前に host が 1 回呼ぶ。 */
+  watchEewWindow(): void { this.eewWindow ??= new EewWindow(this.startedWallMs); }
+
+  /**
+   * P3-REC-AC13 (5): 起動時の辿りの後に host が 1 回呼ぶ。poll は host の apiKey・lane・停止の signal を閉じた一覧の口。
+   * 周期は既存の 1 秒の tick で起こす（start を受けた WS で、位置が無いか 10 分たったとき。新しい timer は作らない）。
+   */
+  startFreshness(poll: (classification: DmdataClassification, position: PoolPosition | null) => Promise<PollResult>): void {
+    if (this.freshness != null) this.freshness.poll ??= poll;
+  }
+
+  /**
+   * P3-REC-AC13 (8)・RET-02: 帳簿は起動の後・最初の接続の前に作り、辿りの完了を待たずに live の id を集める（購読している telegram.* がある run だけ）。
+   * 辿りが 401/403 で周期を起こさない run でも帳簿は持つ（RET-02 の上限の内で積もらない）。
+   */
+  watchFreshness(classifications: readonly DmdataClassification[]): void {
+    if (this.freshness != null || classifications.length === 0) return;
+    this.freshness = { classifications, poll: null, ledger: new FreshnessLedger(), positions: new Map(), lastCycleAtMs: null, running: false,
+      stopped: false, warned: new Set() };
+  }
+
+  /** P3-REC-AC13 (8): host が mailbox に受け取らせた live の入力の id（boundaries.queued の隣）。受信 1 回に O(1)。 */
+  recordLiveId(headType: string, dmdataId: string | null, atMonotonicMs: number): void {
+    const freshness = this.freshness, row = classifyHeadType(headType);
+    if (freshness == null || dmdataId == null || row.status !== "ready" || row.unit === "U-E") return;
+    // 突き合わせない区分の id は足さない（最後の成功が進まず掃除されないまま RET-02 を埋める）。
+    const classification = freshness.classifications.find((item) => item === familyFor(headType));
+    if (classification != null) freshness.ledger.received(row.unit, classification, dmdataId, atMonotonicMs);
+  }
+
+  // 切断（P3-REC-AC13 (1)・AC14 (1)）: 札の窓を始め、H41 の位置・保留・帳簿の id を捨てる。進行中の周期は epoch が合わず捨てられる。
+  private recoveryLost(): void {
+    this.socketStarted = false;
+    this.eewWindow?.lost(this.lastFrameWallMs);
+    const freshness = this.freshness;
+    if (freshness == null) return;
+    freshness.ledger.reset();
+    freshness.positions.clear();
+    freshness.lastCycleAtMs = null;
+  }
+
+  // 1 秒の tick の中: 札の 10 分（AC14 (2)）、保留の 2 分の満了（AC13 (3)(b)）、周期の起こし（AC13 (5)）。
+  private watchRecovery(clock: ClockReading): void {
+    if (this.state.shutdown.stage !== "running") return;
+    const expired = this.eewWindow?.tick(clock.monotonicMs).expired;
+    if (expired != null) this.noteEewWindow(expired, clock);
+    const freshness = this.freshness;
+    if (freshness == null) return;
+    const due = freshness.ledger.expire(clock.monotonicMs);
+    for (const epoch of new Set(due.map((item) => item.epoch)))
+      this.dispatch({ kind: "freshnessSuspected", runId: this.state.runId, epoch, clock,
+        scopes: due.filter((item) => item.epoch === epoch).map((item) => item.scope) });
+    const poll = freshness.poll;
+    if (poll == null || !this.socketStarted || freshness.running || freshness.stopped
+      || freshness.lastCycleAtMs != null && clock.monotonicMs - freshness.lastCycleAtMs < FRESHNESS_PERIOD_MS) return;
+    freshness.running = true;
+    freshness.lastCycleAtMs = clock.monotonicMs;
+    void this.freshnessCycle(freshness, poll, this.state.confirmation.epoch).finally(() => { freshness.running = false; });
+  }
+
+  // 区分ごとに一覧を引き、全ページが揃って epoch が合えば突き合わせる（P3-REC-AC13 (1)〜(3)(7)）。区分は 1 本ずつ（lane が 1 本にする）。
+  private async freshnessCycle(freshness: Freshness, poll: NonNullable<Freshness["poll"]>, epoch: number): Promise<void> {
+    for (const classification of freshness.classifications) {
+      // (c1) 周期の境界は最初の一覧の要求を出す直前の monotonic（lane の待ちの分だけ早いのは掃除を遅らせる側）。
+      const cycleStartMs = this.clock().monotonicMs;
+      const result = await poll(classification, freshness.positions.get(classification) ?? null)
+        .catch((): PollResult => ({ kind: "unmatched", reason: "fetchFailed" }));
+      // 切断で epoch が進んだ周期と停止を始めた後の結果は全部捨てる（位置・保留・掃除より前に見る）。
+      if (this.state.shutdown.stage !== "running" || this.state.confirmation.epoch !== epoch || this.freshness !== freshness) return;
+      if (result.kind === "unmatched") {
+        // run で 1 回の WARN（10 分ごとに積もらない）。401/403 は run の残りの H41 を止め、接続には渡さない（AC13 (7)）。
+        const reason = result.reason === "authRejected" ? "recoveryAuthRejected" : result.reason === "pageLimit" ? null : "recoveryFetchFailed";
+        if (reason != null && !freshness.warned.has(reason)) {
+          freshness.warned.add(reason);
+          this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason }, this.clock(), this.state.runId));
+        }
+        if (result.reason !== "authRejected") continue;
+        freshness.stopped = true;
+        return;
+      }
+      if (result.kind === "ok") freshness.ledger.compare(classification, result.heads, epoch, cycleStartMs, this.clock().monotonicMs);
+      freshness.positions.set(classification, result.position);
+    }
+  }
+
+  // P3-REC-AC14 (5): 札の窓を WARN の履歴に 1 件。timestamp は窓の終わり、durationMs は窓の長さ、同じ行を畳ませないよう count 1 を明示する。
+  private noteEewWindow(window: EewWindowCard, clock: ClockReading): void {
+    this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: "eewWindowUnverified",
+      durationMs: window.toWallMs - window.fromWallMs, count: 1 }, { wallTimeMs: window.toWallMs, monotonicMs: clock.monotonicMs }, this.state.runId));
+  }
 }
+
+const FRESHNESS_PERIOD_MS = 10 * 60_000; // P3-REC-D-FRESHNESS-PERIOD=A
+// H41 の run の中の状態。warned は run で 1 回に限る WARN の語、stopped は 401/403 で止めた印。
+type Freshness = {
+  readonly classifications: readonly DmdataClassification[];
+  // 一覧の口。起動時の辿りの後に host が付ける（null の間は帳簿だけで周期を回さない）。
+  poll: ((classification: DmdataClassification, position: PoolPosition | null) => Promise<PollResult>) | null;
+  readonly ledger: FreshnessLedger;
+  readonly positions: Map<DmdataClassification, PoolPosition>;
+  lastCycleAtMs: number | null;
+  running: boolean;
+  stopped: boolean;
+  readonly warned: Set<"recoveryAuthRejected" | "recoveryFetchFailed">;
+};
 
 const DETAIL_LIMIT = 8;
 const DETAIL_MS = 2_000;

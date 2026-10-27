@@ -1,7 +1,7 @@
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, InputBoundary, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
 import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.types";
-import type { ListHead, ListPage, ListQuery, RecoveryDigestHead, RecoveryDigestUnit, RecoveryDigestView, UnitWalk,
+import type { ListHead, ListPage, ListQuery, PollResult, PoolPosition, RecoveryDigestHead, RecoveryDigestUnit, RecoveryDigestView, UnitWalk,
   UnitWalkResult } from "../../contracts/p3-recovery.types";
 import { familyFor } from "../decode-material/decode-material";
 import { exchange } from "../host/dmdata-rest";
@@ -9,16 +9,19 @@ import { operationOf } from "../ingress/ingress";
 import { classifyHeadType, rowsByHeadType } from "../runtime/unit-coverage";
 
 // P3-RECOVERY-001【発注 1】: 起動時の一覧の辿り（穴 d）と、その頭だけで作るダイジェスト（H32）。本文は取らず、mailbox にも入れない。
+// 【発注 2】: 一覧の要求の待ちを 1 本にする ListRequestLane と、鮮度の突き合わせ（H41）の区分の一覧（pollClassification）。
 
 // P3-REC-D-ORDER-AND-LIMIT=A: 量の上限に当たったら、この順でその unit から後ろを落とす。U-E は一覧に出ない（H28）。
 const WALK_ORDER = ["U-T", "U-V", "U-Q", "U-N", "U-W", "U-L", "U-R", "U-F", "U-B", "U-M", "U-Y"] as const satisfies readonly RuntimeUnitId[];
 const BUNDLE_TYPES = 5; // P3-REC-D-LIST-QUERY: type はカンマで 5 つまで
 const PAGE_LIMIT = 300; // P3-REC-RES-02（試行の回数で数える。再試行も dmdata の枠を使うので）
+const POLL_PAGE_LIMIT = 30, FULL_PAGE = 100; // P3-REC-RES-07（同じく試行の回数で数える）、limit=100 の満杯
 const GAP_MS = 500; // P3-REC-RES-05: 前の要求の終わりから
 const RETRY_LIMIT = 3, RETRY_BUDGET_MS = 30_000, BACKOFF_MS = 1_000; // P3-REC-AC03 (3)(4)、spec:2218
 const WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // P3-REC-D-DIGEST-WINDOW=A
 const DMDATA_MARGIN_MS = 60_000, RECEIVED_MARGIN_MS = 10 * 60_000; // P3-REC-AC02 (2) の余白（置き値）
 const DIGEST_HEADS = 500, DIGEST_BYTES = 16_384, STRING_BYTES = 256; // P3-REC-RES-04・RES-06、P2-A8-RES-05
+const DIGEST_UNIT_HEADS = 3; // P3-REC-D-DIGEST-BUDGET=D: 分野ごとに新しい順で見出しを 3 件まで
 const TRUNCATED_MARKER = "[truncated:fieldLimit]";
 
 type WalkStart = Readonly<{ fetchFromMs: number; digestAfterMs: number; stopAtId: string | null; beforeWindow: boolean }>;
@@ -33,27 +36,33 @@ function parse(text: string): unknown {
   try { return JSON.parse(text); } catch { return undefined; }
 }
 
-// item を項目ごとに確かめて頭を組む。束に無い型と test の item は null（捨てる）、形の壊れた item は invalid（そのページを failed）。
-function headOf(item: unknown, types: readonly string[]): ListHead | null | "invalid" {
+// item を項目ごとに確かめて頭を組む。束・区分に無い型と test の item は head が null（捨てる）、形の壊れた item は invalid（そのページを failed）。
+// receivedAtMs は濾す前の生の受信時刻（満杯・遡り・位置を生の値で決める、P3-REC-AC13 (2)）。
+function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | null; receivedAtMs: number }> | "invalid" {
   if (!isRecord(item) || !isRecord(item.head) || !isRecord(item.xmlReport)) return "invalid";
   const { id, receivedTime } = item;
   const { type, test } = item.head;
   const receivedAtMs = typeof receivedTime === "string" ? Date.parse(receivedTime) : NaN;
   if (typeof id !== "string" || id === "" || typeof type !== "string" || typeof test !== "boolean" || !Number.isFinite(receivedAtMs)) return "invalid";
-  // 1 型の束は前方一致で返る（P3-REC-D-LIST-QUERY）。test 区分は購読しない（operationContract）。
+  // 1 型の束は前方一致で返る（P3-REC-D-LIST-QUERY）。test 区分は購読しない（operationContract）。区分の一覧は U-E を除く（P3-REC-AC13 (6)）。
   const row = classifyHeadType(type);
-  if (!types.includes(type) || test || row.status !== "ready") return null;
+  if (test || row.status !== "ready" || ("types" in query ? !query.types.includes(type)
+    : row.unit === "U-E" || familyFor(type) !== query.classification)) return { head: null, receivedAtMs };
   const report = item.xmlReport.head, control = item.xmlReport.control;
   const operation: Operation | undefined = isRecord(control) ? operationOf(control.status) : undefined;
   if (!isRecord(report) || typeof report.title !== "string" || operation == null) return "invalid";
-  return { id, unit: row.unit, headType: type, receivedAtMs, operation, title: report.title, headline: textOrNull(report.headline),
-    reportDateTime: textOrNull(report.reportDateTime), infoType: textOrNull(report.infoType) };
+  return { receivedAtMs, head: { id, unit: row.unit, headType: type, receivedAtMs, operation, title: report.title, headline: textOrNull(report.headline),
+    reportDateTime: textOrNull(report.reportDateTime), infoType: textOrNull(report.infoType) } };
 }
 
-/** GET /v2/telegram の 1 ページ。401/403 は authRejected を返すだけで、host の接続には触れない（P3-REC-AC03 (3)）。 */
+/**
+ * GET /v2/telegram の 1 ページ。401/403 は authRejected を返すだけで、host の接続には触れない（P3-REC-AC03 (3)）。
+ * nextPooling を渡すときも絞り込みの query を毎回付ける（token に入らない、P3-REC-AC13 (6)）。
+ */
 async function listTelegramPage(apiKey: string, query: ListQuery, signal: AbortSignal): Promise<ListPage> {
   const cursor = query.cursorToken == null ? "" : `&cursorToken=${encodeURIComponent(query.cursorToken)}`;
-  const answer = await exchange("GET", `/telegram?type=${query.types.join(",")}&limit=100&formatMode=raw&xmlReport=true${cursor}`, apiKey, signal);
+  const filter = "types" in query ? `type=${query.types.join(",")}` : `classification=${query.classification}`;
+  const answer = await exchange("GET", `/telegram?${filter}&limit=100&formatMode=raw&xmlReport=true${cursor}`, apiKey, signal);
   if (answer.kind !== "answered") return { kind: "failed" };
   if (answer.status === 401 || answer.status === 403) return { kind: "authRejected" };
   if (answer.status === 429) return { kind: "throttled", retryAfterMs: answer.retryAfter };
@@ -61,13 +70,19 @@ async function listTelegramPage(apiKey: string, query: ListQuery, signal: AbortS
   const body = parse(answer.text);
   if (!isRecord(body) || body.status !== "ok" || !Array.isArray(body.items) || !optionalText(body.nextToken) || !optionalText(body.nextPooling))
     return { kind: "failed" };
+  const interval = body.nextPoolingInterval;
+  if (interval != null && (typeof interval !== "number" || !Number.isFinite(interval) || interval < 0)) return { kind: "failed" };
   const heads: ListHead[] = [];
+  let oldest: number | null = null, latest: number | null = null;
   for (const item of body.items) {
-    const head = headOf(item, query.types);
-    if (head === "invalid") return { kind: "failed" };
-    if (head != null) heads.push(head);
+    const read = headOf(item, query);
+    if (read === "invalid") return { kind: "failed" };
+    if (read.head != null) heads.push(read.head);
+    oldest = Math.min(oldest ?? Infinity, read.receivedAtMs);
+    latest = Math.max(latest ?? -Infinity, read.receivedAtMs);
   }
-  return { kind: "ok", heads, nextToken: body.nextToken ?? null, nextPooling: body.nextPooling ?? null };
+  return { kind: "ok", heads, nextToken: body.nextToken ?? null, nextPooling: body.nextPooling ?? null, nextPoolingInterval: interval ?? null,
+    rawCount: body.items.length, oldestRawReceivedAtMs: oldest, latestRawReceivedAtMs: latest };
 }
 
 /** P3-REC-AC02 (2)(3): restored の返信の境界から、取得の下限・ダイジェストの下限・止める id・7 日の印を決める。 */
@@ -115,45 +130,79 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /**
- * plan の順に束を新しい方から辿る。ページの上限・間隔・429・401/403・再試行をここで数える（P3-REC-AC02・AC03・AC04）。
- * signal は host の停止の開始で abort する一覧の歩き専用のもの（P3-REC-AC03 (6)）。now は host の時計の monotonic で、
- * 再試行の 30 秒の正本はこの経過時間（timer の abort は早く切るための手段、レビュー r1 ヘルツ P2）。
+ * 取り直しの一覧の要求の待ち（P3-REC-AC13 (7)・RES-05）。run ごとに 1 つを host が持ち、起動の辿り・H41・発注 3 の取り直しが共有する。
+ * 同時に走る要求は 1 本で、次の要求は notBefore まで待つ。notBefore には前の要求の終わり＋500 ms・429 の Retry-After（無ければ 1 秒から倍々）・
+ * nextPoolingInterval の遅い方を書き、区分・周期・切断・再接続をまたいで引き継ぐ（リセットしない）。再試行はしない（呼び手の send）。
+ * 無いと: 起動の辿りと H41 の要求が並んで走り、2 req/s と 429 の待ちを互いに知らずに破る。
  */
-async function walkList(apiKey: string, plan: readonly UnitWalk[], signal: AbortSignal, now: () => number): Promise<readonly UnitWalkResult[]> {
-  let requests = 0;
-  // 1 要求の試行。"limit" はページの上限、"ended" は 429 が尽きたか Retry-After が残りの期限を越えたか停止。
-  const request = async (query: ListQuery): Promise<Exclude<ListPage, { kind: "throttled" }> | "limit" | "ended"> => {
-    const started = now();
-    // 合計 30 秒は試行の中の要求にも効かせる（exchange の 15 秒の timeout だけだと 30 秒を越える、レビュー r0 ヘルツ P2）。
-    // 期限は停止と同じく exchange を壊し、期限の後に揃った応答は採らない。
-    const deadline = new AbortController();
-    const expired = () => deadline.signal.aborted || now() - started >= RETRY_BUDGET_MS;
-    const expire = () => deadline.abort();
-    const timer = setTimeout(expire, RETRY_BUDGET_MS);
-    signal.addEventListener("abort", expire);
-    let wait = 0, backoff = BACKOFF_MS, throttled = false;
-    try {
-      for (let retry = 0; ; retry += 1) {
-        if (requests > 0) await pause(Math.max(GAP_MS, wait), deadline.signal);
-        if (signal.aborted) return "ended";
-        if (requests >= PAGE_LIMIT) return "limit";
-        if (expired()) return throttled ? "ended" : { kind: "failed" };
-        requests += 1;
-        const page = await listTelegramPage(apiKey, query, deadline.signal);
-        if (signal.aborted) return "ended";
-        if (expired()) return throttled || page.kind === "throttled" ? "ended" : { kind: "failed" };
-        if (page.kind === "ok" || page.kind === "authRejected") return page;
-        throttled ||= page.kind === "throttled";
-        wait = page.kind === "throttled" ? page.retryAfterMs ?? backoff : 0;
-        if (page.kind === "throttled" && page.retryAfterMs == null) backoff *= 2;
-        if (retry === RETRY_LIMIT || now() - started + Math.max(GAP_MS, wait) > RETRY_BUDGET_MS)
-          return page.kind === "throttled" ? "ended" : page;
-      }
-    } finally {
-      clearTimeout(timer);
-      signal.removeEventListener("abort", expire);
+class ListRequestLane {
+  notBeforeMonotonicMs = -Infinity;
+  private running: Promise<unknown> = Promise.resolve();
+  // 倍々の基点。Retry-After の無い 429 が続く間だけ伸び、429 でない応答で 1 秒へ戻す（統合担当の決めが無いので、続いた 429 だけを倍々と読んだ）。
+  private backoffMs = BACKOFF_MS;
+
+  request(apiKey: string, query: ListQuery, signal: AbortSignal, now: () => number): Promise<ListPage> {
+    const sent = this.running.then(async (): Promise<ListPage> => {
+      const waitMs = this.notBeforeMonotonicMs - now();
+      if (waitMs > 0) await pause(waitMs, signal);
+      if (signal.aborted) return { kind: "failed" };
+      const page = await listTelegramPage(apiKey, query, signal);
+      const after = page.kind === "throttled" ? page.retryAfterMs ?? this.backoffMs : page.kind === "ok" ? page.nextPoolingInterval ?? 0 : 0;
+      this.backoffMs = page.kind === "throttled" && page.retryAfterMs == null ? this.backoffMs * 2 : BACKOFF_MS;
+      this.notBeforeMonotonicMs = Math.max(this.notBeforeMonotonicMs, now() + Math.max(GAP_MS, after));
+      return page;
+    });
+    this.running = sent.catch(() => {});
+    return sent;
+  }
+}
+
+/**
+ * 1 要求の試行（P3-REC-AC03 (3)(4)）。再試行は 3 回・合計 30 秒で、30 秒の正本は呼び手の時計 now の経過時間（要求の前と応答の後で比べる。
+ * timer の abort は早く切るための手段、レビュー r1 ヘルツ P2）。pages は試行の回数とその上限（再試行も dmdata の枠を使うので試行で数える）。
+ * "limit" はページの上限、"ended" は 429 が尽きたか Retry-After が残りの期限を越えたか停止。
+ */
+async function send(lane: ListRequestLane, apiKey: string, query: ListQuery, signal: AbortSignal, now: () => number,
+  pages: { sent: number; readonly limit: number }): Promise<Exclude<ListPage, { kind: "throttled" }> | "limit" | "ended"> {
+  const started = now();
+  // 合計 30 秒は試行の中の要求にも効かせる（exchange の 15 秒の timeout だけだと 30 秒を越える、レビュー r0 ヘルツ P2）。
+  // 期限は停止と同じく待ちと exchange を壊し、期限の後に揃った応答は採らない。
+  const deadline = new AbortController();
+  const expired = () => deadline.signal.aborted || now() - started >= RETRY_BUDGET_MS;
+  const expire = () => deadline.abort();
+  const timer = setTimeout(expire, RETRY_BUDGET_MS);
+  signal.addEventListener("abort", expire);
+  let throttled = false;
+  try {
+    // 引き継いだ待ち（429・nextPoolingInterval）が期限を越えるなら待たずに終える（P3-REC-AC03 (3)・AC13 (7)）。
+    if (lane.notBeforeMonotonicMs - started > RETRY_BUDGET_MS) return "ended";
+    for (let retry = 0; ; retry += 1) {
+      if (signal.aborted) return "ended";
+      if (pages.sent >= pages.limit) return "limit";
+      if (expired()) return throttled ? "ended" : { kind: "failed" };
+      pages.sent += 1;
+      const page = await lane.request(apiKey, query, deadline.signal, now);
+      if (signal.aborted) return "ended";
+      if (expired()) return throttled || page.kind === "throttled" ? "ended" : { kind: "failed" };
+      if (page.kind === "ok" || page.kind === "authRejected") return page;
+      throttled ||= page.kind === "throttled";
+      // 次の試行の待ち（lane の notBefore）が残りの期限を越えるなら待たずに終える（P3-REC-AC03 (3)）。
+      if (retry === RETRY_LIMIT || lane.notBeforeMonotonicMs - started > RETRY_BUDGET_MS) return page.kind === "throttled" ? "ended" : page;
     }
-  };
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", expire);
+  }
+}
+
+/**
+ * plan の順に束を新しい方から辿る。ページの上限・間隔・429・401/403・再試行をここで数える（P3-REC-AC02・AC03・AC04）。
+ * signal は host の停止の開始で abort する一覧の歩き専用のもの（P3-REC-AC03 (6)）。now は host の時計の monotonic。
+ */
+async function walkList(lane: ListRequestLane, apiKey: string, plan: readonly UnitWalk[], signal: AbortSignal, now: () => number):
+  Promise<readonly UnitWalkResult[]> {
+  const pages = { sent: 0, limit: PAGE_LIMIT };
+  const request = (query: ListQuery) => send(lane, apiKey, query, signal, now, pages);
   const results: UnitWalkResult[] = [];
   let ended: "recoveryLimit" | "fetchFailed" | "authRejected" | null = null;
   for (const walk of plan) {
@@ -195,6 +244,36 @@ async function walkList(apiKey: string, plan: readonly UnitWalk[], signal: Abort
   return results;
 }
 
+/**
+ * H41 の 1 区分 1 周期の一覧（P3-REC-AC13 (1)(2)(6)(7)）。位置が無いか token が無ければ素の query で位置を作るだけ（seeded）。
+ * 位置があれば nextPooling で前回より新しい頭を引き、生の 100 件の応答は nextToken で位置の時刻まで遡る（RES-07 で打ち切る）。
+ * 比べるのは dmdata の時刻どうしだけで、host の wall は使わない。unmatched では位置を進めない。
+ */
+async function pollClassification(lane: ListRequestLane, apiKey: string, classification: DmdataClassification, position: PoolPosition | null,
+  signal: AbortSignal, now: () => number): Promise<PollResult> {
+  const pages = { sent: 0, limit: POLL_PAGE_LIMIT };
+  // "ended" は 429 の尽きか停止（停止の後の結果は呼び手が捨てる）。
+  const unmatched = (page: Awaited<ReturnType<typeof send>>): PollResult => ({ kind: "unmatched",
+    reason: page === "limit" ? "pageLimit" : page === "ended" ? "throttled" : page.kind === "authRejected" ? "authRejected" : "fetchFailed" });
+  const first = await send(lane, apiKey, { classification, cursorToken: position?.token ?? null }, signal, now, pages);
+  if (first === "limit" || first === "ended" || first.kind !== "ok") return unmatched(first);
+  const reached = { token: first.nextPooling, latestRawReceivedAtMs: first.latestRawReceivedAtMs ?? position?.latestRawReceivedAtMs ?? null };
+  if (position?.token == null) return { kind: "seeded", position: reached };
+  const since = position.latestRawReceivedAtMs;
+  // ページの間に届いた分の重複を id で除く（walkList と同じ扱い、P3-REC-AC02 (3)）。
+  const seen = new Set(first.heads.map((head) => head.id));
+  const heads = [...first.heads];
+  // 一覧は新しい順。満杯は濾す前の生の件数で決め、生の最も古い受信時刻が位置の時刻以下になるまで遡る（P3-REC-AC13 (2)）。
+  for (let page = first; page.rawCount >= FULL_PAGE && !(since != null && page.oldestRawReceivedAtMs != null && page.oldestRawReceivedAtMs <= since);) {
+    if (page.nextToken == null) return { kind: "unmatched", reason: "fetchFailed" };
+    const next = await send(lane, apiKey, { classification, cursorToken: page.nextToken }, signal, now, pages);
+    if (next === "limit" || next === "ended" || next.kind !== "ok") return unmatched(next);
+    for (const head of next.heads) if (!seen.has(head.id)) { seen.add(head.id); heads.push(head); }
+    page = next;
+  }
+  return { kind: "ok", heads: since == null ? heads : heads.filter((head) => head.receivedAtMs > since), position: reached };
+}
+
 /** 辿れなかった unit ごとの WARN と、401/403 の 1 件（P3-REC-AC03 (3)(4)・AC04）。API キーと応答本文は載せない。 */
 function walkDiagnostics(results: readonly UnitWalkResult[]): readonly DiagnosticDetails[] {
   const details: DiagnosticDetails[] = [];
@@ -224,8 +303,8 @@ function bounded(text: string): string {
 }
 
 /**
- * 起動時のダイジェスト（P3-REC-AC15）。unit は plan の順、その中は新しい順に見出しを残し、件数（RES-04）か byte（RES-06）の枠に
- * 入らない所から後ろは型ごとの件数だけにする。utf8Bytes は作るときに 1 回だけ数えた digest の JSON の byte。
+ * 起動時のダイジェスト（P3-REC-AC15）。unit は plan の順、その中は新しい順に見出しを 3 件まで残し（P3-REC-D-DIGEST-BUDGET=D）、
+ * 件数（RES-04）か byte（RES-06）の枠に入らない所から後ろは型ごとの件数だけにする。utf8Bytes は作るときに 1 回だけ数えた digest の JSON の byte。
  */
 function buildDigest(results: readonly UnitWalkResult[], starts: Readonly<Partial<Record<RuntimeUnitId, ReturnType<typeof walkStart>>>>):
   Readonly<{ digest: RecoveryDigestView; utf8Bytes: number }> {
@@ -244,7 +323,7 @@ function buildDigest(results: readonly UnitWalkResult[], starts: Readonly<Partia
   // 全部を件数にした形から始め、見出しを 1 件ずつ足す。件数を減らす・型の鍵を消すことは byte を増やさないので、
   // bytes は最後の digest の byte の上界のまま枠の内に留まる（型は 122 で、件数だけの形は枠に十分収まる）。
   let bytes = jsonBytes({ units }), shown = 0;
-  fill: for (const entry of listed) for (const head of entry.candidates) {
+  fill: for (const entry of listed) for (const head of entry.candidates.slice(0, DIGEST_UNIT_HEADS)) {
     const view: RecoveryDigestHead = { headType: head.headType, operation: head.operation, title: bounded(head.title),
       headline: head.headline == null ? null : bounded(head.headline), reportDateTime: head.reportDateTime == null ? null : bounded(head.reportDateTime),
       receivedAt: head.receivedAtMs };
@@ -259,5 +338,5 @@ function buildDigest(results: readonly UnitWalkResult[], starts: Readonly<Partia
   return { digest, utf8Bytes: jsonBytes(digest) };
 }
 
-export { buildDigest, listTelegramPage, startupPlan, walkDiagnostics, walkList, walkStart };
+export { ListRequestLane, buildDigest, listTelegramPage, pollClassification, startupPlan, walkDiagnostics, walkList, walkStart };
 export type { Restored, WalkStart };
