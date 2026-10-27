@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "b0b11d434150c6e11f879764d8de1398cbf055afcdac70768af5b03c4f2977f9",
+    "sha256": "51d47752a5ae926f2fc0c36731436b00f56770f09d3fc48e7b49c26d603906f5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -10,13 +10,14 @@
       {
         "id": "P3-REC-D-SPLIT",
         "kind": "統合担当",
-        "A": "3 本に分ける。RF `P3-RECOVERY-FETCH-001`（REST の一覧と本文の取得・範囲・負担・量の上限。新設 directory の取得部だけ）→ RC `P3-RECOVERY-LIST-001`（一覧の頭だけで済む仕事: H41 の鮮度の疑い、H28 の EEW の未確認の窓、H32 のダイジェスト。unit の state を変えない）∥ RA `P3-RECOVERY-APPLY-001`（owner での候補の作成と採用、各 unit の N2 の入口、H27 の通知、H04・H22・H31 の状態の wire）。本書の条文は RF・RC・RA の印で振り分けてあり、分けるときは条文を移すだけにする",
-        "B": "1 本のまま（spec と計画の C16 の 1 行どおり）",
-        "C": "2 本（取得＋一覧の頭／投入と採用）",
+        "A": "1 契約の中で 3 回に分けて発注する（前例 K8 の Q-NL-SPLIT・K7 の Q-VM-SPLIT。同じ契約 ID、条文に【発注 n】の印）。発注 1（RF）＝一覧の歩き方（範囲・止めどころ・ページの上限 RES-02・P3-REC-D-ORDER-AND-LIMIT の順のうち一覧の分）・負担（間隔・429・401/403）・起動時のダイジェスト H32（一覧の頭だけ、RES-04、DIGEST-WINDOW=A の 7 日）を snapshot の DisplayRecoveryView まで運ぶ所。起こすきっかけは起動（穴 d）だけ。発注 2（RC）＝ H28（EEW の札、10 分）・H41（鮮度、完了時と 10 分ごと）と、その 2 つを確認の状態と H39 の材料へ入れる口。発注 3（RA）＝本文の取得と投入・候補・採用・各 unit の N2・H27・進み具合（H22・H31）・境界を進める入力（AC19）と、再接続（穴 c）・断った入力（穴 b）のきっかけ。順は 1 → 2 → 3 の直列。発注ごとの条文・試験・allowedPaths・待つものは Q-REC-SPLIT",
+        "B": "1 回で発注する（spec と計画の C16 の 1 行どおり）",
+        "C": "別の契約 3 本に分ける（RF P3-RECOVERY-FETCH-001・RC P3-RECOVERY-LIST-001・RA P3-RECOVERY-APPLY-001）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当が発注前点検で確定）",
-        "reason": "段 3 の K7（境界の欄・envelope・ingress の電文 id）・K8（通知の印と保存 ack を待つ配送）・K9（補正した時計）を待つ条文は RA に集まる。RF は境界を型付きの引数で受ければ K7 を待たずに着手でき、RC は H28・H32 が K7 を待たず、H41 だけが K7 の電文 id を待つ（Q-REC-STAGE3）。A なら RF と RC の大半を段 3 の配送前に実装でき、C16 の山を段 6 の前に削れる。RA は 12 unit の N2 の入口と owner・runtime・snapshot の共有 file に触れるので、並行性・状態機械の契約として品質レビューを Codex に替える対象（CLAUDE.md 2026-10-06）になる。B は 1 本の patch が新設 directory・mailbox・owner・runtime・snapshot・12 unit にまたがり、レビューの単位が大きすぎる。C は RC が RA の採用を待つ理由が無いのに直列になる。画面・音・通知の出方は分け方で変わらない"
+        "status": "確定（統合担当、2026-10-27 発注前点検）",
+        "ruling": "A の分け方を 1 契約の 3 発注で行う（統合担当、2026-10-27 発注前点検）",
+        "reason": "C は、他の契約が本契約の行を anchor で引く所（p3-notice-ledger.json・p3-version-material.json）と、本契約へ宛てた申し送り（P3-VM-AC06・P3-NL-AC14 の (8)・P3-C9-N2 ほか約 20 行）の宛先を 3 本に散らし、付け替えが増える。B は 1 本の patch が新設 directory・mailbox・owner・runtime・snapshot・12 unit にまたがり、レビューの単位が大きすぎる。A なら発注 1 は今の main で着手でき（K7 は配送済み）、起動時のダイジェストという本番の呼び手を持つ。発注 1 で本文の取得・mailbox の REST 本文の枠・ingress を作らないのは、使い手が発注 3 まで無い（最小実装）ことと、U-W・U-F が origin=recovery の入力を live と同じに採る（Q-REC-INVENTORY の訂正）ので、入口を直す前に本文を流せないため。発注 3 は 12 unit の N2 の入口と owner・runtime の共有 file に触れるので、並行性・状態機械の契約として中間レビューの品質の側を Codex に替える対象（CLAUDE.md 2026-10-06）。画面・音・通知の出方は分け方で変わらない"
       },
       {
         "id": "P3-REC-D-RAISE-SOUND",
@@ -67,7 +68,8 @@
         "C": "画面にカードが出ている unit だけを取り直し、ほかは「取り直していない」のままにする",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者裁定 2026-10-27（判断カード、推奨どおり））", "ruling": "A（作者裁定 2026-10-27（判断カード、推奨どおり））。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
+        "status": "確定（作者裁定 2026-10-27（判断カード、推奨どおり））",
+        "ruling": "A（作者裁定 2026-10-27（判断カード、推奨どおり））。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
         "ifNotChosen": "B では、長い停止の後に津波まで「取り直せなかった」になりうる（津波は H22 で毎回取り直すと決めている）。C では、切れていた間に新しく出た警報（画面にまだカードが無い分野）を拾えず、H26 の「一覧に出る全分野」を満たさない",
         "reason": "上限は dmdata の負担と時間のために要る（RES-02）。上限で何が落ちるかを順で決めておけば、落ちるのは軽い分野からになり、どの分野が落ちたかを H31 の文言で示せる。順は危険の重さと H22 の津波の先頭による。U-E は一覧に出ないので順に入らない（H28）"
       },
@@ -79,7 +81,8 @@
         "C": "次の EEW を受けるか、作者が消すまで残す",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者裁定 2026-10-27（判断カード、推奨どおり））", "ruling": "A（作者裁定 2026-10-27（判断カード、推奨どおり））。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
+        "status": "確定（作者裁定 2026-10-27（判断カード、推奨どおり））",
+        "ruling": "A（作者裁定 2026-10-27（判断カード、推奨どおり））。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
         "ifNotChosen": "B・C では、切断のたびに時計の横の札が長く残り、回線が不安定な日には札が常に出たままになって読まれなくなる（振る舞い表「決まりが生む次の問題」の e）",
         "reason": "H20 で EEW は最後の報から 10 分で閉じる。切れていた間に出た EEW は、繋がり直して 10 分たてば、受けていても画面から閉じていた。札の役目（いま進行中の EEW を見落としたかもしれない）もそこで終わる。EEW の一覧の API は repo で未確認（Q-REC-EEW-LIST）で、照合できない場合は常に 10 分で移る"
       },
@@ -91,7 +94,8 @@
         "C": "一覧で遡れる限り（作業ノートの記録では約 180 日、repo では 61 日以上を観測しただけ。Q-REC-LIST-RETENTION）",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者裁定 2026-10-27（判断カード、推奨どおり））", "ruling": "A（作者裁定 2026-10-27（判断カード、推奨どおり））。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
+        "status": "確定（作者裁定 2026-10-27（判断カード、推奨どおり））",
+        "ruling": "A（作者裁定 2026-10-27（判断カード、推奨どおり））。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
         "ifNotChosen": "B では、週末の旅行や長い停電の後に、止まっていた間の大半の情報がダイジェストに出ない。C では、一覧の取得が数百ページに達しうる（気象警報は件数が多い）うえ、遡れる期間が repo で確かめられていない",
         "reason": "旧築は津波の過去 7 日を取り直している（tsunami-initializer.ts の TSUNAMI_RESTORE_LOOKBACK_MS）。ダイジェストは一覧の頭（表題・見出し・発表時刻・運用区分）だけで作り、本文を取らないので、7 日でも負担は一覧のページ数だけになる"
       },
@@ -103,29 +107,32 @@
         "C": "1 分ごと",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者裁定 2026-10-27（判断カード、推奨どおり））", "ruling": "A（作者裁定 2026-10-27（判断カード、推奨どおり））。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
+        "status": "確定（作者裁定 2026-10-27（判断カード、推奨どおり））",
+        "ruling": "A（作者裁定 2026-10-27（判断カード、推奨どおり））。採らなかった案は分岐の記録として残すだけで、実装は A の形だけを読む",
         "ifNotChosen": "B では、繋がったまま来なくなったとき（2026-08-30 からの 8 日間、全国の気象警報が更新されなかった実例）に、次の切断まで「鮮度の疑い」が出ない。C では、型ごとに一覧を引く今の方式で 10 分に 1,200 回を超え、作業ノートに記録した上限（10 分に 2,000 回、repo では未確認）に近づく",
         "reason": "疑いが出るまでの遅れは最大でおよそ周期＋一覧の反映の遅れ。10 分なら、実例の 8 日の不達に対して十分早く、型ごと（ready 122 型、U-E を除く）に 1 ページずつ引いても 10 分に約 122 回で済む"
       },
       {
         "id": "P3-REC-D-CANDIDATE-PLACE",
         "kind": "統合担当",
-        "A": "候補の作成と採用の照合は、その unit の owner（C3a の実行場所）で行う。publisher は取得した本文を origin=recovery の入力として mailbox の REST 本文の credit で owner へ渡し、owner が 1 unit の候補を基点の state 参照から作り、最後の 1 要求で「基点の参照が今の参照と同じか」を見て一回で採用する。採用の結果は既存の owner の返信（世代・view・intents）で publisher へ戻る",
+        "A": "候補の作成と採用の照合は、その unit の owner（C3a の実行場所）で行う。publisher は取得した本文を origin=recovery の入力として mailbox の REST 本文の枠で owner へ渡し、owner が 1 unit の候補を基点の state から作り、最後の 1 要求で基点の persistence.currentGeneration と、persistence を除いた unit の state の参照が今と同じかを見て一回で採用する（P3-REC-AC07）。採用の結果は既存の owner の返信（世代・view・intents）で publisher へ戻る。取り直しの要求は OwnerRequest に 1 種類として足し、P3-C3A-AC15 の「種類ごとに未回答 1 件」の表に入れる（同じ owner に取り直しの要求は同時に 1 件。P3-EXECUTION-SPLIT-001 の json と型を発注 3 で改める）",
         "B": "publisher が候補を作る（unit の state を main へ写す）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当が発注前点検で確定）",
-        "reason": "C3a で unit の state・parse・reduce は owner の中にあり、parse 済みの tree を worker の外へ送らない（台帳 38: 転送 212ms）。spec:2216 の同一参照の照合は state を持つ場所でしかできない。B は state の写しと転送を新しく作る"
+        "status": "確定（統合担当、2026-10-27 発注前点検）",
+        "reason": "C3a で unit の state・parse・reduce は owner の中にあり、parse 済みの tree を worker の外へ送らない（台帳 38: 転送 212ms）。spec:2216 の同一参照の照合は state を持つ場所でしかできない。B は state の写しと転送を新しく作る",
+        "ruling": "A（統合担当の確定、2026-10-27 発注前点検。配送後の実物との食い違いは OwnerRequest の未回答の表〔p3-execution-split.types.ts の P3-C3A-AC15〕と、保存 ack が state の参照を新しくする点〔発注前点検 N12〕の 2 つで、どちらも A の文に足した）"
       },
       {
         "id": "P3-REC-D-UNIT-ENTRANCE",
         "kind": "統合担当",
-        "A": "各 unit の N2 の入口（いまは origin=recovery を noChange で捨てる）を、候補の作成のときだけ意味を適用し、新しい intent・outcome・通知を作らない形に改める（unit ごと）。既存の pending intent は unit の規則（既知の取消・置換・期限）でだけ外せる。採用の手前で、候補の intent の id が基点の pending の id の部分集合であることを共有の 1 か所で検査する（Set で O(n)）",
+        "A": "各 unit の N2 の入口を、候補の作成のときだけ意味を適用し、新しい intent・outcome・通知を作らない形に改める（unit ごと）。origin=recovery を noChange で捨てるいまの分岐を持つ 9 unit（U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-Y）はその分岐を置き換え、分岐を持たない U-W・U-F は入口を新しく作る（U-E の eew.ts の分岐は取り直しの対象外なのでそのまま）。既存の pending intent は unit の規則（既知の取消・置換・期限）でだけ外せる。採用の手前で、候補の intent の id が基点の pending の id の部分集合であることを共有の 1 か所で検査する（Set で O(n)）",
         "B": "unit は変えず、共有の builder が step の intents・outcomes を捨てる",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当が発注前点検で確定）",
-        "reason": "B では、unit の state の中にある intent の一覧（例: 津波・地震の pending）が候補の state に残り、捨てたはずの通知が採用で生き返る。取消・置換で既存の pending を外すのは unit の意味（spec:991）なので、unit の入口で扱う。共有の検査は、unit の直しの漏れを 1 か所で止める網"
+        "status": "確定（統合担当、2026-10-27 発注前点検）",
+        "reason": "B では、unit の state の中にある intent の一覧（例: 津波・地震の pending）が候補の state に残り、捨てたはずの通知が採用で生き返る。取消・置換で既存の pending を外すのは unit の意味（spec:991）なので、unit の入口で扱う。共有の検査は、unit の直しの漏れを 1 か所で止める網。U-W・U-F は weather-current・weather-timeseries の unit と domain に origin を見る分岐が無く（発注前点検の grep で 0 件）、owner-runtime の receiveOwner も origin を見ないので、今のまま取り直しの本文を入れると live と同じに採って通知まで作りうる",
+        "ruling": "A（統合担当の確定、2026-10-27 発注前点検。いまの分岐の数を 12 から 10 か所〔eew.ts と 9 unit〕に直し、U-W・U-F は入口を新しく作ると書いた。入口を直すまで取り直しの本文を mailbox へ入れない〔発注 1・2 では入れない〕）"
       },
       {
         "id": "P3-REC-D-RECEIVED-AT",
@@ -134,29 +141,117 @@
         "B": "receivedAt を不明（null）にできるよう ParserMailboxItem の型を変える",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当が発注前点検で確定）",
-        "reason": "一覧の item は receivedTime と Control/DateTime・Head/ReportDateTime を持つ（test/fixtures/rest/telegram-list-vtse41-real.json）。旧築は head.time を使った（strictRestReceivedTimeMs）。B は P1 の境界型を変え、全 unit に null の扱いが広がる"
+        "status": "確定（統合担当、2026-10-27 発注前点検）",
+        "reason": "一覧の item は receivedTime と Control/DateTime・Head/ReportDateTime を持つ（test/fixtures/rest/telegram-list-vtse41-real.json）。旧築は head.time を使った（strictRestReceivedTimeMs）。B は P1 の境界型を変え、全 unit に null の扱いが広がる",
+        "ruling": "A（統合担当の確定、2026-10-27 発注前点検。一覧の item に receivedTime が実在し〔test/fixtures/rest/telegram-list-vtse41-real.json の items[0]〕、ParserMailboxItem.receivedAt は number のまま。P4 への申し送り: K14 の UnreadableCard.receivedAt にもこの時刻が出るので、取り直しで拾った報のカードの時刻は dmdata が受けた時刻になる）"
       },
       {
         "id": "P3-REC-D-LIST-QUERY",
         "kind": "統合担当",
-        "A": "一覧は型ごと（type=<headType>）に引く。対象は unit 表の ready の型（U-E を除く 122 型）で、購読している区分の型だけ",
-        "B": "区分（classification）ごとに引く（5 区分で済む）",
-        "C": "一覧の nextPooling（追い掛けの印）で、前回の印から後だけを引く",
+        "A": "取り直しの一覧は、unit ごとに type をカンマで最大 5 つ束ねて引く（完全一致。unit 表の ready の型、U-E を除く 122 型を P3-REC-D-ORDER-AND-LIMIT=A の unit の順に 29 束: U-T 1・U-V 5・U-Q 1・U-N 1・U-W 2・U-L 1・U-R 10・U-F 1・U-B 1・U-M 3・U-Y 3。束は 1 つの unit の型だけで作る）。各束は新しい順に、応答の nextToken を cursorToken へ渡して辿る。H41 の 10 分ごとの突き合わせは、購読している区分ごと（telegram.earthquake・telegram.volcano・telegram.weather の 3 本）に、前回の応答の nextPooling を cursorToken へ渡して前回より新しいものだけを引く。datetime の絞り込みは使わない",
+        "B": "取り直しも区分ごとに引く（3 区分で済む）",
+        "C": "型ごとに 1 本ずつ引く（122 本。旧築の形）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（B・C は実 API で確かめてから。Q-REC-LIST-QUERY）",
-        "reason": "repo で確かめられるのは旧築の type 指定・limit 1〜100・cursorToken だけ（rest-client.ts）。B の絞り込みの有無と C の nextPooling の意味（fixture に nextPooling と nextPoolingInterval=1150 があるが使う実装は無い）は未確認。確かめられれば、B か C で要求の数が大きく減る"
+        "status": "確定（統合担当、2026-10-27 発注前点検）",
+        "ruling": "A（統合担当の確定、2026-10-27 発注前点検。実 API の probe と docs で確かめた）",
+        "reason": "probe（2026-10-27、要求 28 回・429 なし）: type はカンマで最大 5 つ・完全一致で、1 つだけのときは前方一致（r003）。classification でも絞れる（r002・r008）。nextPooling は cursorToken に渡すと前回より新しいものだけが返り、絞り込みの query は token に入らないので毎回付け直す。新着が無ければ 0 件で同じ token、初回が 0 件だと nextPooling が返らない（r009・r010）。一覧は新しい順（docs）。datetime は docs で実験扱いで、右辺だけが保持より古いと絞られずに最新が返った（r019）。B を退けるのは順のため: 区分で引くと telegram.earthquake に U-T・U-Q・U-N が混ざり、量の上限で落ちる所が ORDER-AND-LIMIT=A の unit の順と合わない（U-T の古い報より U-Q の新しい報を先に読む）。C は短い切断でも 1 回 122 要求。1 型だけの束（U-L の VPWW56・U-F の VPWP50）は前方一致になるが、データ種類コードは 6 字で、同じ 6 字で始まるほかの型は unit 表に無い。それでも item の head.type が束の型に無ければ捨てる（境界の検査、P3-REC-AC01）。H41 は順を問わないので区分で引いてよい（unit は item の head.type から決める）。要求の回数（数えたのは dmdata の api.dmdata.jp への要求。分母は docs の「ドメイン×IP で 10 分 2,000 回」で、Pi の旧築も同じ家の回線で同じ枠を使う）: 取り直し 1 回は 29 束×束ごとのページ数で、一覧の 1 ページ（100 件）に収まる短い切断なら 29 回（枠の 1.5%）。H41 は 10 分に 3 回（区分ごとに 1 回。新着が 100 件を超えた区分だけ追加のページ）で、FRESHNESS-PERIOD の reason の見積もり（型ごとに 10 分 122 回）の約 40 分の 1（枠の 0.15%）。本文（data.api.dmdata.jp/v1）は別の枠の 5 分 50 回で、RES-03・RES-05"
       },
       {
         "id": "P3-REC-D-COALESCE",
         "kind": "統合担当",
-        "A": "取り直しは常に 1 本。起こすきっかけは、起動（穴 d）、再接続（穴 c）、接続中に mailbox・host が入力を断ったこと（穴 b、P3-REC-AC02）の 3 つ。走っている間に新しいきっかけが来たら「やり直しが要る」の印だけを立て、終わった後に 1 回だけ、広がった範囲でやり直す。取り直しの間隔は接続の間隔（P3-C2-RETRY）と別に数える",
+        "A": "取り直しは常に 1 本。起こすきっかけは、起動（穴 d、発注 1）、再接続（穴 c、発注 3）、接続中に mailbox・host が入力を断ったこと（穴 b、P3-REC-AC02、発注 3）の 3 つ。走っている間に新しいきっかけが来たら「やり直しが要る」の印だけを立て、終わった後に 1 回だけ、広がった範囲でやり直す。取り直しの終わりから次の取り直しの始まりまで最短 60 秒（置き値）あける。取り直しの間隔は接続の間隔（P3-C2-RETRY）と別に数える。停止した owner の unit は範囲ときっかけから外し、進み具合を「取り直せなかった（ownerStopped）」にする",
         "B": "再接続のたびに走っている取り直しを止め、最初からやり直す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当が発注前点検で確定）",
-        "reason": "spec 16.2.3 の「取り直しは 1 本にまとめる」と、ヘルツの指摘（振る舞い表 S7: 繋ぎ直しと取り直しは別々に間隔を制御し、取り直しは 1 本だけ）による。B は回線が不安定な日に取り直しが終わらず、dmdata への要求だけが積み上がる"
+        "status": "確定（統合担当、2026-10-27 発注前点検）",
+        "reason": "spec 16.2.3 の「取り直しは 1 本にまとめる」と、ヘルツの指摘（振る舞い表 S7: 繋ぎ直しと取り直しは別々に間隔を制御し、取り直しは 1 本だけ）による。B は回線が不安定な日に取り直しが終わらず、dmdata への要求だけが積み上がる。停止した owner の place への入力は refuseInput で断られて穴 b になり（composition-root.ts の refuseInput、host.ts の断り）、P3-C3B-AUTO-RESTART=A では人が再起動するまで owner は戻らない。外さないと、候補を作れないので穴が解けず、断るたびに印が立ち、取り直しが終わるたびに次の取り直しが走り続ける。最短の間隔は、穴 b が続けて開く日（mailbox の満杯が続くとき）に取り直しが連続して要求を積まないための下限",
+        "ruling": "A（統合担当の確定、2026-10-27 発注前点検。停止した owner の扱いと最短の間隔を足した〔発注前点検 M3〕。H41 の差をきっかけにするかは作者の分岐 P3-REC-D-FRESHNESS-TRIGGER）"
+      },
+      {
+        "id": "P3-REC-D-EEW-LIST",
+        "kind": "統合担当",
+        "A": "EEW の一覧（GET /v2/gd/eew）は使わない。H28 の札は常に時間（P3-REC-D-EEW-WINDOW=A の 10 分）で時計の横から外れる",
+        "B": "gd/eew で照合できた EEW の札を 10 分より前に消す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-27 発注前点検）",
+        "ruling": "A（統合担当の確定、2026-10-27 発注前点検。Q-REC-EEW-LIST を probe で閉じた）",
+        "reason": "probe: /v2/telegram は EEW を出さない（docs に明記、VXSE43・VXSE45 は 0 件）。GET /v2/gd/eew はこの契約の権限（gd.eew）で通るが、返るのは各 EventID の最終報だけ（isLastInfo は常に true）で、電文 id を持たず、docs は「最終報の受信後に更新。事後参照用でリアルタイム処理には使わない」と書く。進行中の EEW は最終報まで載らないので「無かった」と区別できず、照合で札を消すと見落としを隠しうる。権限 gd.eew が、EEW だけを契約する利用者（利用者の大半）に有るとは限らない。画面の出方は EEW-WINDOW=A の「照合できない場合」と同じで、新しい選択を生まない"
+      },
+      {
+        "id": "P3-REC-D-HOLE-AFTER-START",
+        "kind": "統合担当",
+        "A": "checkpoint の InputBoundaries は、unit ごとに最古の穴（oldestHole）に加えて「取り直しを始めた後に開いた最古の穴」を 1 件持つ。採用の後、publisher は覆った区間（一覧を引き始めた時点の inputSequence まで）の穴を解き、取り直しを始めた後に開いた穴があればそれを最古の穴に繰り上げる。区間は dmdata 時刻でなく受信の順（inputSequence）で数える",
+        "B": "穴の列（K7 の最初の案の 64 区間）を持つ",
+        "C": "最古の穴 1 件のまま。取り直しの間に穴が開いたら、その回の採用では穴を解かない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-27 発注前点検）",
+        "ruling": "A（統合担当の確定、2026-10-27 発注前点検。K7 の Q-VM-SIMPLIFY の申し送り「穴を部分的に解くなら C16 で穴の列を設計する」への答え）",
+        "reason": "いまの InputBoundaries は最古の穴 1 件だけを持ち、後の穴は hole() の ??= で捨て、解くメソッドは無い（checkpoint.ts）。取り直しが解くのは覆った区間の前の穴だけで、その後に開いた穴は次の取り直しで埋める。持つ必要があるのは「覆った区間の後に開いた最古の穴」1 件だけで、列は要らない（B は使い道の無い 63 件分の器を足す）。C は回線が不安定な日（取り直しの間に断る入力が出る日）に穴が解けず、毎回同じ起点から取り直す。受信の順で数えるのは、穴を sequence で持っていて、時刻へ写すと対応表が要るため。受信 1 回の処理は O(1) のまま（穴を開くとき 2 つの欄のどちらかへ ??= で置くだけ）。画面・音・通知の出方は変わらない"
+      },
+      {
+        "id": "P3-REC-D-FRESHNESS-TRIGGER",
+        "kind": "作者",
+        "A": "10 分ごとの突き合わせで、受けていない報が一覧に見つかったら、取り直しを 1 本起こす（P3-REC-D-COALESCE の 1 本と最短 60 秒の間隔の内で）",
+        "B": "取り直しを起こさない。その分野に「鮮度の疑い」の印が付いたまま、次の切断か再起動の取り直しまで残る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未決（作者へ）",
+        "blocks": "発注 2 の AC13 の (4)（疑いの外し方）と、発注 3 のきっかけ。発注 1 は止めない",
+        "ifNotChosen": "B では、繋がったまま一部の報だけ届かなかったとき（2026-08-30 からの 8 日間、全国の気象警報が更新されなかった実例）、見落とした警報は画面に出ず、その分野の「鮮度の疑い」の印が次の切断か再起動まで（数日続きうる）残る。A では、見落とした警報を取り直しで画面に出し、いまも有効な引上げなら軽い音（info）が 1 回鳴りうる。疑いは取り直しが済めば消える",
+        "reason": "spec 16.2.3 は「確認が取れた分野を通常の表示に戻す（H04）のも、この突き合わせで行う」と書き、差が見つかったときの扱いを書いていない。差はいまのきっかけ（起動・再接続・断った入力）に当たらないので、B では疑いを消す手段が切断と再起動しかない。推奨の理由: 疑いの印は「何か足りない」を示すだけで中身を出さない。足りない報は一覧に id があり、取り直しの仕組みで取れる。要求は 1 回の取り直しの分（短ければ一覧 29 回と本文の数件）で、最短の間隔で 1 分に 1 回までに抑える"
+      },
+      {
+        "id": "P3-REC-D-URGENT-BODY",
+        "kind": "作者",
+        "A": "まず測る。津波・火山の取り直しの本文 1 件を urgent の実行場所で処理する時間を E01 の測り方で 1 回測り、50 ms（置き値）を越えなければ今の形（取り直しの本文も、live の後に urgent の 1 枠を順に使う）にする。越えたら作者へ戻す",
+        "B": "測らずに、EEW を受けている間（最後の EEW の報から 10 分）は urgent の取り直しの本文を取り出さない",
+        "C": "測らずに今の形",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未決（作者へ）",
+        "blocks": "発注 3 の閉鎖（測りの結果で形を決める）。発注 1・2 は止めない",
+        "ifNotChosen": "C では、津波・火山の取り直しの本文を処理している最中に EEW が届くと、その 1 件が終わるまで EEW の画面と音が遅れる（遅れの長さは未測）。B では遅れは無くなるが、EEW が続いている間（大地震の直後）は津波の取り直しが止まり、切れていた間の津波の報の確認がその分遅れる",
+        "reason": "mailbox の in-flight は実行場所ごとに 1 件（mailbox.ts の parserInFlight）で、U-E・U-T・U-N・U-V は urgent に同居する（unit-coverage.ts の executionPlaces）。取り直しの本文は live の後に取り出す（AC03 の (2)）が、取り出した 1 件の処理中は次の live を待たせる。処理が短ければ害は無く、長ければ B の止め方が要る。どちらかは測るまで分からない（発注前点検 M5）"
+      },
+      {
+        "id": "P3-REC-D-VOLCANO-SCOPE",
+        "kind": "作者",
+        "A": "決め直さない。火山の警報の「未確認」は、火山（U-V）の分野全体の取り直しが済んだときだけ外れる（取り直せなかったら全火山に残る）",
+        "B": "火山ごとに確かめる。取り直しで取れなかった火山だけに「未確認」が残る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未決（作者へ）",
+        "blocks": "発注 3 の AC12 の U-V の範囲。発注 1・2 は止めない",
+        "ifNotChosen": "B では、取り直しが途中で止まったとき、取れた火山のカードは通常の表示に戻り、取れなかった火山だけが「未確認」のまま残る。A では同じとき全部の火山のカードが「未確認」のまま残る。B は確認の記録を火山ごとに持つ形（確認の scope を VFVO50・VFVO54/55 の subject ごとに足す）を加える",
+        "reason": "P3-UNIT-V-001 の P3-C9-N2 の reason が「C16 の起草時に、VFVO50・VFVO54/55 の subject の確認 scope を足すかを決め直す」と送った。推奨の理由: ORDER-AND-LIMIT=A が「途中まで取れた unit を部分的に確認済みにしない」とした（spec:2222）ことと揃う。U-V は順の 2 番目で、量の上限で途中まで取れて止まる場面は少ない"
+      },
+      {
+        "id": "P3-REC-D-QN-RECOVERY",
+        "kind": "作者",
+        "A": "地震情報（U-Q）と南海トラフ（U-N）も取り直す（H26 の「一覧に出る全分野」どおり）。P3-C7-N2・P3-C8-N2 の「対象外」を発注 3 の AC12 で改める",
+        "B": "取り直さない（P3-C7-N2・P3-C8-N2 のとおり）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未決（作者へ）",
+        "blocks": "発注 3 の AC12（U-Q・U-N の範囲）。発注 1 のダイジェストは U-Q・U-N の見出しも含める（どちらでも一覧の頭は H32 に出る）ので止めない",
+        "ifNotChosen": "B では、切断の間に出た震度速報・震源・震度に関する情報や南海トラフ地震臨時情報は、繋がり直しても画面のカードに出ない（再起動ならダイジェストに見出しだけ出る）。地震と南海トラフのカードは「未確認」のまま次の報まで残る。A では、それらがカードに出て、いまも有効な南海トラフの情報の引上げなら軽い音（info）が 1 回鳴りうる",
+        "reason": "P3-C7-N2・P3-C8-N2 は spec:2205（現行で確かめられるのは津波と火山の履歴取得）による統合担当の起草で「REST 回復の対象外」とした。後の spec H26・16.2.3（「一覧に出る全分野」「§10.5 の範囲を広げる」）と作者裁定 ORDER-AND-LIMIT=A の順は U-Q・U-N を含むので、食い違いを作者に念押しする。推奨の理由: 新しい裁定と H26 に揃える。順は U-Q・U-N を 3・4 番目に置き、量の上限で落ちる前に取れる"
+      },
+      {
+        "id": "P3-REC-D-BODY-BUDGET",
+        "kind": "作者",
+        "A": "1 回の取り直しの本文は 300 件まで（dmdata の本文の上限 5 分 50 回で、最短 30 分）。超えたら順の後ろの分野を「取り直せなかった（量の上限）」にする",
+        "B": "1,000 件まで（最短 100 分。起草時の RES-03）",
+        "C": "100 件まで（最短 10 分）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未決（作者へ）",
+        "blocks": "発注 3 の RES-03。発注 1・2 は止めない",
+        "ifNotChosen": "B では、長い停止の後、順の後ろの分野（地域の短い情報・台風など）が「取り直し中」のまま最長 100 分続く。C では、長い停止の後に気象の分野が「取り直せなかった（量の上限）」になりやすく、その分野のカードは次の切断か再起動まで「未確認」のまま残る（P3-REC-D-FRESHNESS-TRIGGER=A なら、10 分ごとの突き合わせで差が見つかった分野だけ取り直す）。どの案でも、短い切断（数分）の取り直しは本文数件で終わり、出方は変わらない",
+        "reason": "docs のレートリミット: 本文（data.api.dmdata.jp/v1/:id）は 5 分に 50 回で、同じ id の短い再要求も避ける。上限の件数は、そのまま「順の最後の分野が取り直し済みになるまでの最短の時間」になる（300 件÷10 件/分＝30 分）。どこから「取り直せなかった（量の上限）」になるかがこの件数。repo の事実: 旧築は本文を津波で 1 巡 256 件・1 回 1,024 件（tsunami-initializer.ts の TSUNAMI_RESTORE_MAX_BODY_FETCHES_PER_ROUND・PER_ATTEMPT）、火山で 256 件（volcano-initializer.ts の VOLCANO_REPAIR_MAX_BODY_FETCHES）までとした。probe では VTSE41 は約 4 か月で 8 件、VFVO50 は約 5 か月で 16 件で、順の前の方（U-T・U-V）の本文は少なく、件数の大半は気象（U-W・U-R・U-M）。最新だけで足りる型は subject ごとに最新 1 件だけを取る（RES-03）。推奨の理由: 旧築が 1 分野で受け入れた 256 件を、全分野で 1 回 300 件にすると、7 日の停止でも 30 分で区切りが付き、津波・火山・地震・南海トラフ（順の前の 4 つ）は最初の数分で終わる見込み（推測）。気象の 7 日の件数は repo で未測で、発注 3 の成果物で 1 回数え、足りなければ作者へ戻す"
       }
     ],
     "questionResolutions": [
@@ -197,14 +292,14 @@
               "P3-REC-AC19",
               "P3-REC-RET-02"
             ],
-            "closed": "メモ §2.4・§6・K7: unit ごとの境界 inputBoundary を checkpoint の envelope に置く。項目は (1) 自分の受信時刻（補正した時計と根拠の状態。取り直しで進めた位置は null）、(2) dmdata 側の時刻（WS に載らなければ null、Q-REC-ID-MATCH）、(3) dmdata の電文 id（無ければ null）、(4) 最古の未解決の穴の種類（b 断った入力・c 切断・d 再起動、無ければ null）。origin=recovery の入力は未解決の列に入れない。本書に残るのは辿り方・余白・穴を埋めたと伝える入力の形"
+            "closed": "メモ §2.4・§6・K7: unit ごとの境界 inputBoundary を checkpoint の envelope に置く。項目は (1) 自分の受信時刻（K9 が確かめた手元の時計の値と、受信の時点の根拠の状態 WallBasis。取り直しで進めた位置は null）、(2) dmdata 側の時刻（WS に載らなければ null、Q-REC-ID-MATCH）、(3) dmdata の電文 id（無ければ null）、(4) 最古の未解決の穴の種類（b 断った入力・c 切断・d 再起動、無ければ null）。origin=recovery の入力は未解決の列に入れない。本書に残るのは辿り方・余白・穴を埋めたと伝える入力の形"
           },
           {
             "item": "期限（H23・H42）",
             "clauses": [
               "P3-REC-AC08"
             ],
-            "closed": "メモ §3・K9／K10: 期限の起点は Head/ReportDateTime のまま。時計は接続先の時刻と受信時の戻らない時計の組から作り、根拠の状態を期限処理に渡す。根拠が無い間は表示の期限切れだけで、回収は保留",
+            "closed": "メモ §3・K9／K10: 期限の起点は Head/ReportDateTime のまま。時計は差し替えず、K9 が手元の時計を接続先の Date で確かめた根拠の状態（WallBasis）を期限処理に渡す（K9 の objective、作者裁定 2026-10-20 の案 1。2026-10-27 発注前点検で K9 の実物に合わせた）。根拠が無い間は表示の期限切れだけで、回収は保留",
             "author": "§7 の 4（根拠が無い間）・§7 の 8（再補正で期限切れを戻すか） → 作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434）"
           },
           {
@@ -227,34 +322,100 @@
       },
       {
         "id": "Q-REC-INVENTORY",
-        "status": "closed（起草時の棚卸し、draftedFromOid の時点）",
-        "closed": "REST: 新築の dmdata-rest.ts は socket の 3 呼び出しだけで、一覧・本文の取得は無い（本文上限 1 MiB、api.dmdata.jp 固定）。旧築 rest-client.ts に一覧（GET /v2/telegram、limit 1〜100、cursorToken、xmlReport）と本文（data.api.dmdata.jp/v1/{id}、id の形と url の一致を検査、本文 4 MiB）と gd/earthquake がある。入力: ingress は kind rest（body と headType）を受けられるが、呼ぶ所は無い。host は origin=live だけを作る。mailbox: 件数・byte の上限と通常・予約の枠はあるが、REST 本文の credit（spec:1052 の同時 2 件）は無い。runtime: 候補の採用の口は無い。確認の口 RuntimeInput.coverageVerified と verifyCoverage はあるが、作る側が無い（P2-A1-CONFIRMATION が口だけを凍結）。snapshot の recovery は RuntimeRestoration（restored／empty／unavailable）で、取り直しの進み具合を運ばない。unit: 12 unit すべてが origin=recovery の入力を意味検証の後に noChange で捨てる（U-E は domains/eew/eew.ts、ほかは各 unit の receive）。restore の recoveryApplied は保存の復元の結果で、取り直しではない"
+        "status": "closed（起草時の棚卸し、draftedFromOid の時点。unit の行は 2026-10-27 発注前点検で訂正）",
+        "closed": "REST: 新築の dmdata-rest.ts は socket の 3 呼び出しだけで、一覧・本文の取得は無い（本文上限 1 MiB、api.dmdata.jp 固定）。旧築 rest-client.ts に一覧（GET /v2/telegram、limit 1〜100、cursorToken、xmlReport）と本文（data.api.dmdata.jp/v1/{id}、id の形と url の一致を検査、本文 4 MiB）と gd/earthquake がある。入力: ingress は kind rest（body と headType）を受けられるが、呼ぶ所は無い。host は origin=live だけを作る。mailbox: 件数・byte の上限と通常・予約の枠はあるが、REST 本文の credit（spec:1052 の同時 2 件）は無い。runtime: 候補の採用の口は無い。確認の口 RuntimeInput.coverageVerified と verifyCoverage はあるが、作る側が無い（P2-A1-CONFIRMATION が口だけを凍結）。snapshot の recovery は RuntimeRestoration（restored／empty／unavailable）で、取り直しの進み具合を運ばない。unit: 10 か所（U-E の domains/eew/eew.ts と、U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-Y の unit の receive）が origin=recovery の入力を意味検証の後に noChange で捨てる。U-W・U-F の unit と domain には origin を見る分岐が無く、owner-runtime の receiveOwner も origin を見ないので、取り直しの入力を live と同じに採る（2026-10-27 発注前点検で訂正。起草時は「12 unit すべて」と書いていた）。restore の recoveryApplied は保存の復元の結果で、取り直しではない"
       },
       {
         "id": "Q-REC-REST-FACTS",
-        "status": "partial（repo で確かめた事実と、確かめられない事実を分ける）",
+        "status": "closed（2026-10-27 発注前点検の probe で閉じた）",
         "confirmedInRepo": [
           "一覧の item は本文を持たない。本文は data.api.dmdata.jp/v1/{id} から id で取る（docs/specs/engine.md の VTSE41 復元、2026-09-03 の実採取）",
           "一覧の 1 回は 100 件まで（旧築 rest-client.ts の limit 検査）。次のページは nextToken を cursorToken へそのまま渡す",
           "一覧の item の欄: id・serial・classification・head（type・author・time・test）・receivedTime・url・xmlReport（head の title・serial・eventId・headline・infoKind・infoType・reportDateTime・targetDateTime、control の status・dateTime・editorialOffice・publishingOffice）",
-          "遡れる期間の下限: 2026-09-02 の応答（responseTime 2026-09-02T22:54:26Z）に 2026-07-03 受信の VTSE41 が載っていた（61 日以上）。上限は repo では分からない",
           "旧築の取り直しの範囲: 津波 7 日・最大 128 ページ、火山の警報 30 日（tombstone）・降灰 7 日・最大 128 ページ"
         ],
-        "unconfirmedInRepo": [
-          "遡れる期間の上限（作業ノートの記録: 約 180 日、2026-10-18 に dmdata の API v2 の文書で確かめたもの）",
-          "要求の上限（作業ノートの記録: 接続先と IP の組ごとに 10 分で 2,000 回、超えると 429 と指数的なやり直しの求め）。data.api.dmdata.jp の本文取得が同じ枠かも未確認",
-          "一覧の区分（classification）での絞り込み、日時での絞り込み、nextPooling の意味",
-          "EEW の一覧の API の名前と範囲（作業ノートの記録: 最終報の後に引ける EEW の一覧と、翌日以降の保管庫がある）",
-          "WebSocket の data の id と一覧の item の id が同じ値か（旧築は一覧の id で本文を取ったが、WS の id との一致を確かめた記録は repo に無い）",
-          "WebSocket の data に、一覧の receivedTime と同じ基準の dmdata 側の時刻が載るか（旧築の型には passing（name・time の列）があるが、一覧の receivedTime と同じ値かは確かめていない）。載らなければ境界の (2) は null で、余白の広い辿り方になる（P3-REC-AC02）"
+        "confirmedByProbe": [
+          "遡れる期間: telegram.earthquake の最古は receivedTime 2026-04-27T16:24:36Z（応答 2026-10-27T12:44:54Z、約 182 日）。docs も「2025-07-01 以降は直近約 180 日、気象観測は約 30 日」（Q-REC-LIST-RETENTION）",
+          "要求の上限（docs https://dmdata.jp/docs/reference/api/v2/ の「レートリミット」、AWS WAF）: ドメインと IP の組ごとに 10 分 2,000 回。本文（data.api.dmdata.jp/v1/:id）は 5 分 50 回で、同じ id の短い再要求も避ける。定常的に 2 req/s 以上は控える。電文は WebSocket を優先。429 は指数的に待つ。200 の応答 header に rate limit の値は無く、429 の実物は未観測",
+          "絞り込み・nextPooling・type の複数指定・datetime（Q-REC-LIST-QUERY、P3-REC-D-LIST-QUERY の reason）",
+          "EEW の一覧（Q-REC-EEW-LIST、P3-REC-D-EEW-LIST）",
+          "WS と一覧の id（Q-REC-ID-MATCH）"
         ],
-        "resolveBy": "発注前点検で実 API に当てる probe（読み取りだけ、作者の API キー、時刻は作者が決める。D-P3-3 と同じ扱い）。結果は本書の RES と Q-REC-LIST-QUERY へ写す"
+        "remaining": [
+          "気象（telegram.weather）の最古と、気象の分野の 7 日の件数は未測。7 日の窓は観測の約 30 日より短いので窓は成り立つ。件数は発注 1 の成果物で数える（RES-02）",
+          "WebSocket の data に一覧の receivedTime と同じ基準の dmdata 側の時刻が載るかは確かめていない。live の dmdataTime は作らず null のままにした（P3-REC-AC02 の (2)、発注前点検 M2）ので、確かめなくても辿り方は成り立つ"
+        ],
+        "source": "統合担当の点検メモ（.rec-precheck/probe.md、未追跡）と生データ（.probe-rec/、未追跡）。要求 28 回、読み取りだけ"
       },
       {
         "id": "Q-REC-AUTHOR-P2",
         "status": "closed",
         "source": "作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434）",
         "closed": "§7 の 1(a) 取り直しで拾った引上げは最も軽い音（info）を 1 回、大津波警報・津波警報はいつもの音（P3-REC-D-RAISE-SOUND=A）。1(b) 引上げは取り直しを始めた時点で画面に出ていた状態と比べる（RAISE-BASIS=A）。1(c) 通知の印はその情報を覚えている間持つ（RAISE-RECORD-PERIOD=A）。4 時計の根拠が無い間は起動から最長 30 秒（置き値）期限切れの表示を当てずに待ち、決まらなければ前回の未送信の通知を捨てて H39 に数え、オフラインでは表示の期限切れだけを当てて中身は消さない（P3-REC-AC08）。7 平時は EEW・津波・最も重い音も保存 ack を最長 1 秒（置き値）待つ（P3-REC-AC10）。8 再補正で出した期限切れは戻さない（P3-REC-AC08）。C16 だけの 4 件（ORDER-AND-LIMIT・EEW-WINDOW・DIGEST-WINDOW・FRESHNESS-PERIOD）はこの裁定に含まれない"
+      },
+      {
+        "id": "Q-REC-AUTHOR",
+        "status": "closed（作者裁定 2026-10-27（判断カード、推奨どおり））",
+        "source": "作者裁定 2026-10-27（判断カード、推奨どおり）。main 67bde59d で各分岐の status と ruling に記録",
+        "closed": "P3-REC-D-ORDER-AND-LIMIT・EEW-WINDOW・DIGEST-WINDOW・FRESHNESS-PERIOD の 4 本とも A。量の上限で落とす順（発注 1 の RES-02 と発注 3 の RES-03）、EEW の窓（発注 2）、ダイジェストの遡り（発注 1）、突き合わせの周期（発注 2）がこれで決まった",
+        "remaining": "なし（新しく作者へ渡す 5 本は Q-REC-AUTHOR-2）",
+        "reason": "発注前点検の改訂で unresolvedQuestions から移した"
+      },
+      {
+        "id": "Q-REC-STAGE3",
+        "status": "closed（2026-10-27 発注前点検。段 3 の K7・K8・K9 と K10 は配送済み）",
+        "source": "P3-VERSION-MATERIAL-001（K7）・P3-NOTICE-LEDGER-001（K8）・P3-CLOCK-CHECK-001（K9）・P3-EXPIRY-FORM-001（K10）の配送後の実物（main 67bde59d）",
+        "closed": "(1) K7 の inputBoundary の型は InputBoundary（p2-shared-runtime.types.ts、receivedAt〔wallTimeMs と basis〕・dmdataTime・dmdataId・oldestHole）で、穴の種類の名は refused（b）・disconnected（c）・restarted（d）。発注 1 はこの型をそのまま引数に取る（publicFunctions） (2) ParserMailboxItem の dmdataId は WS の枝だけが入れ、REST の枝は null のまま。取り直しの入力の id は C16 が入れる（P3-VM-AC06）→ P3-REC-AC05、発注 3 (3) K7 の申し送り（Q-VM-C16-HANDOFF・Q-VM-IMPL-2A・2B）→ P3-REC-AC05 の (a)〜(c) と AC12。Q-VM-IMPL-1（empty で始まった unit は穴の無いまま境界が進む）→ P3-REC-AC02 の起点。Q-VM-SIMPLIFY（穴は最古 1 件）→ P3-REC-D-HOLE-AFTER-START (4) K9 の根拠は WallBasis の 3 値＋null で、時計は差し替えない → P3-REC-AC02 の (2) と AC08 で「あり／なし」へ写した (5) K8 の印の鍵と保存 ack を待つ配送は P3-REC-AC10 の書き方（P3-NL-AC01 の (1)(2) に分けて読む）のまま合う。H28 の時間切れの H39 への行き先は P3-REC-AC14 (6) 配送された契約 ID と K14（P3-UNREADABLE-MARK-001、発注 3 は未配送）・P3-CURRENCY-COVERAGE-001 を dependsOnContractIds へ移した",
+        "remaining": "K14 の発注 3（unreadableReport）の配送を発注 3 が待つ（P3-REC-AC09 の (2)、Q-REC-BASE）",
+        "reason": "起草時の未決（段 3 の配送待ち）を、配送された実物で閉じた"
+      },
+      {
+        "id": "Q-REC-LIST-RETENTION",
+        "status": "closed（2026-10-27 発注前点検の probe）",
+        "source": ".rec-precheck/probe.md の Q-REC-LIST-RETENTION（w-eq-oldest-p1）と docs",
+        "closed": "一覧で遡れるのは約 180 日（実測 182 日、docs も直近約 180 日。気象観測だけ約 30 日）。DIGEST-WINDOW=A の 7 日は収まる。一覧が窓の手前で終わった（nextToken が無い）ら、その束は辿り終えたと読める（P3-REC-AC02 の (4)）",
+        "remaining": "気象の最古は未測（Q-REC-REST-FACTS の remaining）",
+        "reason": "unresolvedQuestions から移した"
+      },
+      {
+        "id": "Q-REC-LIST-QUERY",
+        "status": "closed（2026-10-27 発注前点検の probe）",
+        "source": ".rec-precheck/probe.md の Q-REC-LIST-QUERY と docs（Telegram List v2・レートリミット）",
+        "closed": "絞り込み・nextPooling・type の複数指定・要求の上限は P3-REC-D-LIST-QUERY の reason に写し、ruling を A に決めた。RES-02・RES-03・RES-05 と P3-REC-AC03 に docs の上限を当てた",
+        "remaining": "100 件を超える新着を nextPooling がどう返すか（古い側からか新しい側からか）は未確かめ。P3-REC-AC13 の (2) は、満杯の応答では nextToken で前回の位置まで遡る形にして、返し方によらず成り立つようにした",
+        "reason": "unresolvedQuestions から移した"
+      },
+      {
+        "id": "Q-REC-EEW-LIST",
+        "status": "closed（2026-10-27 発注前点検の probe）",
+        "source": ".rec-precheck/probe.md の Q-REC-EEW-LIST と docs（GD Eew v2）",
+        "closed": "gd/eew は使わない。H28 の札は常に 10 分の時間で移る（P3-REC-D-EEW-LIST=A）",
+        "remaining": "なし",
+        "reason": "unresolvedQuestions から移した"
+      },
+      {
+        "id": "Q-REC-ID-MATCH",
+        "status": "closed（2026-10-27 発注前点検。docs と本文 URL の実測で閉じ、WS の実 data との並べた照合は残存リスク）",
+        "source": ".rec-precheck/probe.md の Q-REC-ID-MATCH（b001）と docs（WebSocket v2・Telegram List v2・Telegram Data v1）",
+        "closed": "docs: WS の data の id と一覧の items[].id は、どちらも「配信データを区別するユニーク 384bit ハッシュ」。本文取得の docs は URL の id を「Telegram List v2 の items[].id」と書く。実測: 一覧の id は 96 桁の 16 進で、items[].url は https://data.api.dmdata.jp/v1/<id> と一致し、その id で本文が取れた。本書は WS と一覧の id を同じ値として扱う（P3-REC-AC02 の (3)・AC13）",
+        "remaining": "同じ電文の WS の実 data と一覧の id を並べた照合はしていない（Pi の本番が同じ契約で WS に繋いでいたので開かなかった）。偽なら: (a) H41 の突き合わせ（AC13）が live で受けた報まで「受けていない」と数え、10 分ごとに全分野に鮮度の疑いが立ち続ける（P3-REC-D-FRESHNESS-TRIGGER=A なら取り直しも 1 分ごとに走り続ける） (b) AC02 の (3) の id で止める・重複を除くが効かず、時刻と余白だけで止まる（本文を重ねて取るが、K8 の印で鳴り直さない）。気付ける所: 発注 2 の成果物（artifactRequirements）で、live で受けた電文 1 件の id が一覧の items[].id と同じ値であることを並べて 1 回確かめる。それを越えても、本番の最初の 10 分の突き合わせで全分野に疑いが出るので画面ですぐ分かる",
+        "reason": "unresolvedQuestions から移した。統合担当の決め（2026-10-27 発注前点検）"
+      },
+      {
+        "id": "Q-REC-SPLIT",
+        "status": "closed",
+        "source": "統合担当の決め（2026-10-27 発注前点検、P3-REC-D-SPLIT=A）。前例は K8 の Q-NL-SPLIT・K7 の Q-VM-SPLIT",
+        "closed": "発注 1（RF）: 条文は AC01・AC02・AC03・AC04 の【発注 1】の分と AC15、共通の AC16・AC17・AC18。試験は T01・T07・T08。allowedPaths は reconstruction/src/recovery/・reconstruction/test/recovery/・p3-recovery.types.ts・dmdata-rest.ts（exchange の export と retryAfter）・host.ts（起動の後の呼び出しと 401/403）・composition-root.ts（restored の境界を渡す口と、ダイジェストを snapshot へ載せる所）・p2-snapshot-sse.types.ts と json と view-projector.ts（digest の欄）・p2-shared-runtime.types.ts と json（DiagnosticReason の 2 語）・persistent-diagnostic-sink.ts（語）。待つものは無し（K7 は配送済み）。本文の取得・mailbox の REST 本文の枠・ingress・exchange の本文の側は作らず、取り直しの入力を mailbox へ入れない。発注 2（RC）: 条文は AC13・AC14 と共通。試験は T05・T09。allowedPaths は src/recovery/・test/recovery/・p3-recovery.types.ts・host.ts（切断と繋がり直しの時刻を渡す所）・composition-root.ts（窓・周期・疑い）・p2-shared-runtime.types.ts と json と shared-runtime.ts（freshnessSuspect・eewWindowUnverified）・p2-snapshot-sse.types.ts と json と view-projector.ts（札の欄）・persistent-diagnostic-sink.ts。待つものは発注 1 の配送と、作者の P3-REC-D-FRESHNESS-TRIGGER（AC13 の (4) だけ。ほかは待たずに書ける）。発注 3（RA）: 条文は AC01 と AC02 と AC03 と AC04 の【発注 3】の分、AC05〜AC12・AC19、共通。試験は T02・T03・T04・T06・T10・T11（T04 は AC04 と AC09、T06 は AC02 と AC19 を引くが、どちらも採用が要るので発注 3）。allowedPaths は本契約の allowedPaths の全部（checkpoint.ts・ingress.ts・mailbox.ts と p2-mailbox.json・owner の 3 file と p3-execution-split の型と json・unit の file と契約を含む）。待つものは発注 2 の配送、K14 の発注 3（AC09 の (2)）、作者の P3-REC-D-URGENT-BODY・VOLCANO-SCOPE・QN-RECOVERY・BODY-BUDGET。並行性・状態機械の契約なので、中間レビューの品質の側を Codex に替える（CLAUDE.md 2026-10-06）。どの発注も前の発注の配送の後に発注前点検をし直す（Q-VM-PRECHECK-2A の形）",
+        "remaining": "なし",
+        "reason": "発注 2 と 3 は composition-root.ts・p2-shared-runtime.types.ts・snapshot の型を共有するので直列にする。発注 3 は作者の分岐 4 本と K14 の発注 3 も待つ"
+      },
+      {
+        "id": "Q-REC-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-27、main 67bde59d。点検メモ .rec-precheck/gap.md と probe.md は未追跡）",
+        "closed": "(1) 当てたもの: 点検メモ gap.md の必須 N1〜N14 を全部当てた（N1 AC05・allowedPaths の ingress.ts、N2 AC19・P3-REC-D-HOLE-AFTER-START・checkpoint.ts、N3 AC03 の (2)、N4 AC01・dmdata-rest.ts、N5 AC12・AC15・D-UNIT-ENTRANCE・Q-REC-INVENTORY、N6 AC02・AC08・Q-REC-PENDING-P2、N7 AC09 の (1)、N8 AC05 の (a)〜(c)、N9 AC02 の起点、N10 AC14、N11 AC13 の (3)・AC12、N12 AC07・AC16・D-CANDIDATE-PLACE、N13 AC06、N14 dependsOnContractIds・Q-REC-AUTHOR と Q-REC-STAGE3 の移動・D-SPLIT・Q-REC-SPLIT・publicFunctions・統合担当の分岐の確定）。推奨 M1〜M8 も全部当てた（M1 AC09 の (2)、M2 AC02 の (2)、M3 D-COALESCE・AC11、M4 AC09 の (3)、M5 AC03 の (5)・D-URGENT-BODY、M6 AC12・allowedPaths の unit の行、M7 allowedPaths の型の行、M8 artifactRequirements）。任意の O1 は D-RECEIVED-AT の ruling に P4 への申し送りとして書き、O2（REST の Date で時計を確かめる）は当てない（使わなくても困らない）。実 API の probe（要求 28 回）で Q-REC-LIST-RETENTION・Q-REC-LIST-QUERY・Q-REC-EEW-LIST・Q-REC-ID-MATCH を閉じ、RES-02・RES-03 を見直し、RES-05 を足した (2) 分岐: 統合担当の分岐は D-SPLIT・CANDIDATE-PLACE・UNIT-ENTRANCE・RECEIVED-AT・LIST-QUERY・COALESCE を確定し、D-EEW-LIST・D-HOLE-AFTER-START を足して確定した。作者の未決は D-FRESHNESS-TRIGGER・URGENT-BODY・VOLCANO-SCOPE・QN-RECOVERY・BODY-BUDGET の 5 本で、どれも発注 1 を止めない (3) anchor: 他の契約が本契約の行を anchor で引く 6 か所を付け直した（p3-notice-ledger.json の AC10 を引く 3 か所を :791、Q-REC-PENDING-P2 の 2 行を :275・:310、p3-version-material.json の Q-REC-ID-MATCH を :397。AC10 は【RA】を【発注 3】に替えたので anchor も作り直した）。p3-version-material.json の P3-VM-AC の本文が anchor 無しで引く outOfScope の U-E の行は :684 に直し、その行を p3-notice-ledger.json が anchor で引くので、その 1 か所も付け直した。p3-version-material.json の Q-VM-PRECHECK・Q-VM-PRECHECK-2A の記録の :481 は過去の base の記録なので直さない。3 つの契約の sha256 を作り直した",
+        "remaining": "作者の分岐 5 本（Q-REC-AUTHOR-2）と、各発注の baseOid の割当（Q-REC-BASE）",
+        "reason": "段 3（K7・K8・K9）の配送後の実物と、実 API の probe の事実で本契約を改訂した"
       }
     ],
     "operationContract": {
@@ -265,7 +426,7 @@
   "contract": {
     "contractId": "P3-RECOVERY-001",
     "mode": "implementation",
-    "objective": "切れていた間と止まっていた間の電文を dmdata の REST（電文の一覧と本文）で取り直し、spec §10.5 の候補状態を一回の採用で unit へ入れる（C16、計画 §2.1）。spec §16 の H04・H22・H26・H27・H28・H31・H32・H41 を運ぶ。履歴の再構築と live の受理は公開と通知の条件を分け、途中公開 0・新規履歴通知 0・live 上書き 0・期限延長 0 を守る。本書は 2026-10-20 の起草の骨組みで、段 2（保存の前提）で決まった形は段 2 のメモ改訂 4 から引く（meta.questionResolutions の Q-REC-PENDING-P2）。着手条件に段 3 の K7（P3-VERSION-MATERIAL-001、境界の欄・envelope・ingress の電文 id）と K9（P3-CLOCK-CHECK-001、補正した時計）の配送を加え、RA の H27 の通知は K8（P3-NOTICE-LEDGER-001、通知の印と保存 ack を待つ配送）の配送も待つ。RF と、RC のうち H28・H32 は K7 を待たずに着手でき、RC の H41 は K7 を待つ（Q-REC-STAGE3。どれも仮の契約 ID で、配送されたら dependsOnContractIds へ移す）。条文の【RF】【RA】【RC】は分け方の案（P3-REC-D-SPLIT）の振り分け",
+    "objective": "切れていた間と止まっていた間の電文を dmdata の REST（電文の一覧と本文）で取り直し、spec §10.5 の候補状態を一回の採用で unit へ入れる（C16、計画 §2.1）。spec §16 の H04・H22・H26・H27・H28・H31・H32・H41 を運ぶ。履歴の再構築と live の受理は公開と通知の条件を分け、途中公開 0・新規履歴通知 0・live 上書き 0・期限延長 0 を守る。1 契約を 3 回に分けて発注する（P3-REC-D-SPLIT=A、Q-REC-SPLIT）: 発注 1 は一覧の歩き方・負担・起動時のダイジェスト（H32）、発注 2 は EEW の札（H28）と鮮度の疑い（H41）、発注 3 は本文の取得・候補・採用・各 unit の N2・H27・進み具合。段 2 で決まった形は段 2 のメモ改訂 4 から引き（Q-REC-PENDING-P2）、段 3 の K7（P3-VERSION-MATERIAL-001）・K8（P3-NOTICE-LEDGER-001）・K9（P3-CLOCK-CHECK-001）と K10（P3-EXPIRY-FORM-001）は配送済みで、その実物に合わせた（Q-REC-STAGE3）。発注 3 は K14（P3-UNREADABLE-MARK-001）の発注 3 の配送も待つ。条文の【発注 n】が振り分け",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -290,20 +451,32 @@
       "src/dmdata/rest-client.ts",
       "src/engine/startup/tsunami-initializer.ts",
       "src/engine/startup/volcano-initializer.ts",
-      "test/fixtures/rest/"
+      "test/fixtures/rest/",
+      "reconstruction/contracts/p3-version-material.json",
+      "reconstruction/contracts/p3-notice-ledger.json",
+      "reconstruction/contracts/p3-clock-check.json",
+      "reconstruction/contracts/p3-expiry-form.json",
+      "reconstruction/contracts/p3-currency-coverage.json",
+      "reconstruction/contracts/p3-unreadable-mark.json",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/src/domains/"
     ],
     "allowedPaths": [
-      "reconstruction/src/recovery/（新設。本契約が排他的に持つ。計画 §3.1 の脇レーンの所有）",
+      "reconstruction/src/recovery/（新設。本契約が排他的に持つ。計画 §3.1 の脇レーンの所有。発注 1〜3）",
       "reconstruction/test/recovery/（新設。同上）",
-      "reconstruction/contracts/p3-recovery.types.ts（新設）",
-      "reconstruction/src/host/dmdata-rest.ts（exchange に host 名と本文上限の引数を足すだけ。統合担当の直列合流）",
-      "reconstruction/src/host/host.ts（起動・再接続で取り直しを起こす呼び出しだけ。同上）",
-      "reconstruction/src/mailbox/mailbox.ts と reconstruction/contracts/p2-mailbox.json（REST 本文の枠だけ。同じ commit で契約を改訂。同上）",
-      "reconstruction/contracts/p3-execution-split.types.ts と reconstruction/src/runtime/owner-host.ts・owner-runtime.ts・owner-worker.ts（owner の取り直しの要求と返信だけ。同上）",
-      "reconstruction/contracts/p2-shared-runtime.types.ts と reconstruction/src/runtime/shared-runtime.ts・composition-root.ts（進み具合・coverageVerified を作る側・境界を進める入力・H28 の窓だけ。同上）",
-      "reconstruction/contracts/p2-snapshot-sse.types.ts と reconstruction/src/view-projector/view-projector.ts（DisplayRecoveryView の改訂だけ。同上）",
-      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts（reason の追加だけ。同上）",
-      "reconstruction/src/units/*/*-unit.ts と reconstruction/src/domains/eew/eew.ts と各 unit の契約 json（N2 の入口と範囲だけ。unit レーンと重ならない時期に統合担当が直列に合流）"
+      "reconstruction/contracts/p3-recovery.types.ts（新設。発注 1〜3）",
+      "reconstruction/src/host/dmdata-rest.ts（【発注 1】exchange を export し、answered に Retry-After〔retryAfter〕を足すだけ。【発注 3】host 名・path の接頭辞・Accept・本文上限を引数にし、answered に content-type を足すだけ〔発注前点検 N4〕。統合担当の直列合流）",
+      "reconstruction/src/host/host.ts（【発注 1】起動の後に一覧の辿りとダイジェストを起こす呼び出しと、取り直しの 401/403 を接続と同じ dmdataAuthRejected の扱いへ渡す所だけ。【発注 2】切断の始まりと繋がり直しの時刻を publisher へ渡す所だけ。【発注 3】再接続〔穴 c〕と断った入力〔穴 b〕で取り直しを起こす呼び出しだけ。同上）",
+      "reconstruction/src/ingress/ingress.ts（【発注 3】kind rest の入力に一覧の item の head.test・control.status・id を載せ、既存の根拠の検査へ通すだけ。IngressInput の rest の型に 3 つの欄〔発注前点検 N1〕。同上）",
+      "reconstruction/src/mailbox/mailbox.ts と reconstruction/contracts/p2-mailbox.json（【発注 3】REST 本文の枠だけ。同じ commit で契約を改訂〔発注前点検 N3〕。同上）",
+      "reconstruction/src/checkpoint/checkpoint.ts（【発注 3】InputBoundaries の穴の解決と、取り直しを始めた後に開いた最古の穴の 1 件だけ〔P3-REC-D-HOLE-AFTER-START、発注前点検 N2〕。同上）",
+      "reconstruction/contracts/p3-execution-split.types.ts・reconstruction/contracts/p3-execution-split.json と reconstruction/src/runtime/owner-host.ts・owner-runtime.ts・owner-worker.ts（【発注 3】owner の取り直しの要求と返信だけ。P3-C3A-AC15 の未回答の表に 1 種類。同上）",
+      "reconstruction/contracts/p2-shared-runtime.types.ts・reconstruction/contracts/p2-shared-runtime.json と reconstruction/src/runtime/shared-runtime.ts（【発注 1】DiagnosticReason に recoveryFetchFailed・recoveryLimit の 2 語。【発注 2】UnconfirmedReason に freshnessSuspect、DiagnosticReason に eewWindowUnverified の各 1 語〔発注前点検 N10・N11・M7〕。【発注 3】coverageVerified の包含の範囲の欄〔N7〕と境界を進める入力〔AC19〕。同上）",
+      "reconstruction/src/runtime/composition-root.ts（【発注 1】restored の inputBoundary を辿りの起点に渡す口と、ダイジェストを snapshot の recovery へ載せる所だけ。【発注 2】H28 の窓・H41 の周期と確認の状態への疑い。【発注 3】進み具合・coverageVerified を作る側・境界を進める PublisherInput。同上）",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts・reconstruction/contracts/p2-snapshot-sse.json と reconstruction/src/view-projector/view-projector.ts（DisplayRecoveryView の改訂だけ。【発注 1】ダイジェストの欄、【発注 2】H28 の札の欄、【発注 3】unit ごとの進み具合。同じ commit で契約を改訂。同上）",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts（reason の語の追加だけ。発注 1〜3。同上）",
+      "reconstruction/src/units/*/*-unit.ts と reconstruction/src/units/notice-mark.ts と各 unit の契約 json・型（p2-*-unit.types.ts・p3-*-unit.types.ts）（【発注 3】N2 の入口と範囲、U-W・U-F の入口の新設、H27 の intent の payload の 2 欄〔発表時刻と「取り直しで拾った」印、発注前点検 M6〕だけ。unit レーンと重ならない時期に統合担当が直列に合流）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -358,17 +531,35 @@
       "P3-UNIT-R-001",
       "P3-UNIT-B-001",
       "P3-UNIT-M-001",
-      "P3-UNIT-Y-001"
+      "P3-UNIT-Y-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-CLOCK-CHECK-001",
+      "P3-EXPIRY-FORM-001",
+      "P3-UNREADABLE-MARK-001",
+      "P3-CURRENCY-COVERAGE-001"
     ],
     "publicTypes": [
       "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeInput",
       "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeRestoration",
       "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplayRecoveryView",
       "reconstruction/contracts/p3-execution-split.types.ts#OwnerRequest",
-      "reconstruction/contracts/p1-parser-boundary.types.ts#AcquisitionOrigin"
+      "reconstruction/contracts/p1-parser-boundary.types.ts#AcquisitionOrigin",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#InputBoundary",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#WallBasis",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#UnconfirmedReason",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReason",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerReply"
     ],
     "publicFunctions": [
-      "未定（起草の骨組み）。候補: 新設 directory の一覧の歩き方と本文の取得の関数、owner の取り直しの要求（OwnerRequest に 1 種類）、unit ごとの『候補の作成のときだけ適用する』入口。名前と signature は分け方（P3-REC-D-SPLIT）が決まってから書く"
+      "exchange(method, path, apiKey, signal, body?)（reconstruction/src/host/dmdata-rest.ts。【発注 1】export するだけで引数は変えない。answered に retryAfter: number | null〔Retry-After の秒を ms にしたもの。無い・読めなければ null〕を足す。【発注 3】host 名・path の接頭辞・Accept・本文上限の引数と、answered の contentType を足す）",
+      "ListHead・ListQuery・ListPage・UnitWalk・UnitWalkResult・RecoveryDigestView（reconstruction/contracts/p3-recovery.types.ts、新設、【発注 1】）。ListHead = { id: string; unit: RuntimeUnitId; headType: string; receivedAtMs: number; operation: Operation; title: string; headline: string | null; reportDateTime: string | null; infoType: string | null }。UnitWalkResult = { unit; kind: \"listed\"; heads: readonly ListHead[] } ｜ { unit; kind: \"unsatisfied\"; reason: \"recoveryLimit\" | \"fetchFailed\" | \"authRejected\"; listedPages: number }",
+      "listTelegramPage(apiKey: string, query: ListQuery, signal: AbortSignal): Promise<ListPage>（reconstruction/src/recovery/、【発注 1】）。ListQuery = { types: readonly string[]〔1〜5〕; cursorToken: string | null }（【発注 2】で { classification: string; cursorToken } を足す）。ListPage = { kind: \"ok\"; heads: readonly ListHead[]; nextToken: string | null; nextPooling: string | null } ｜ { kind: \"failed\" } ｜ { kind: \"authRejected\" } ｜ { kind: \"throttled\"; retryAfterMs: number | null }。item は境界で項目ごとに確かめて組み立て、head.type が束に無い item と head.test が true の item は捨てる",
+      "walkStart(boundary: InputBoundary | null, restoration: \"restored\" | \"empty\" | \"unavailable\", nowWallMs: number): number（reconstruction/src/recovery/、【発注 1】）。P3-REC-AC02 の (2) の止める時刻（dmdataTime なら −60 秒、根拠 \"verified\" の受信時刻なら −10 分、ほかは nowWallMs − 7 日。発注 3 で 7 日を unit ごとの N2 の窓に替える）",
+      "walkList(apiKey: string, plan: readonly UnitWalk[], signal: AbortSignal): Promise<readonly UnitWalkResult[]>（reconstruction/src/recovery/、【発注 1】）。plan は P3-REC-D-ORDER-AND-LIMIT=A の unit の順で、UnitWalk = { unit; bundles: readonly (readonly string[])[]; stopBeforeMs: number; stopAtId: string | null }。ページの上限（RES-02）・間隔（RES-05）・429・401/403・再試行（P3-REC-AC03）をこの中で数える",
+      "buildDigest(results: readonly UnitWalkResult[], boundaries: Readonly<Record<RuntimeUnitId, InputBoundary | null>>, nowWallMs: number): RecoveryDigestView（reconstruction/src/recovery/、【発注 1】。H32、RES-04）",
+      "DisplayRecoveryView = Readonly<{ restoration: RuntimeRestoration; digest: RecoveryDigestView | null }>（p2-snapshot-sse.types.ts の改訂、【発注 1】。【発注 2】で H28 の札、【発注 3】で unit ごとの進み具合の欄を足す）",
+      "発注 2・3 の関数（突き合わせ・EEW の窓・本文の取得・owner の取り直しの要求・unit の入口・境界を進める入力）の名前と signature は、各発注の発注前点検で書く"
     ],
     "allowedDependencies": [
       "既存の依存だけ。package.json・package-lock.json を変えない"
@@ -398,8 +589,8 @@
         "target": "one recovery request through recoveryApplied or a reasoned unsatisfied result per unit",
         "limit": null,
         "unit": "seconds",
-        "status": "unresolved",
-        "scope": "1 要求の再試行は 3 回・合計 30 秒（spec:2218）。取り直し全体の期限は量の上限（RES-02・RES-03）と実 API の速さで決まるので、Q-REC-REST-FACTS の probe の後に置く",
+        "status": "open（全体の期限は置かない。量の上限で止まる）",
+        "scope": "1 要求の再試行は 3 回・合計 30 秒（spec:2218）。取り直し全体は一覧 RES-02×500 ms（最短 150 秒）と本文 RES-03×6 秒（最短 30 分、P3-REC-D-BODY-BUDGET）を下限とし、それより遅い分は量の上限（RES-02・RES-03）で止まる",
         "source": "spec §10.5"
       }
     ],
@@ -419,7 +610,7 @@
         "limit": 4096,
         "unit": "ids per unit",
         "status": "provisional（置き値。突き合わせの周期 10 分で、最も多い unit の 10 分の受信数に余裕を足した数として見直す）",
-        "scope": "run の中だけで持ち、保存しない（再起動の間は穴 d として取り直しが埋める）。K7 の未解決の列は解決した入力を持たないので、その列とは別に持つ。突き合わせのたびに突き合わせた位置まで捨てる。上限に当たったら、その unit は次の突き合わせを『突き合わせできなかった』にする（鮮度の疑いにも確認済みにもしない、数えずに捨てない）",
+        "scope": "【発注 2】run の中だけで持ち、保存しない（再起動の間は穴 d として取り直しが埋める）。mailbox が受け取った live の入力の dmdataId を入れる（断った入力は入れない。穴 b として取り直しが埋める）。K7 の未解決の列は解決した入力を持たないので、その列とは別に持つ。突き合わせのたびに、前回の位置より 2 分（置き値、P3-REC-AC13 の (3) の保留と同じ）以上前に受けた id を捨てる。上限に当たったら、その unit は次の突き合わせを『突き合わせできなかった』にする（鮮度の疑いにも確認済みにもしない、数えずに捨てない）",
         "source": "H41、spec 16.2.3、段 2 のメモ §2.4"
       }
     ],
@@ -430,26 +621,26 @@
         "limit": 2,
         "unit": "requests",
         "status": "frozen（spec:1052）",
-        "scope": "mailbox の REST 本文の枠で数える。一覧の取得は 1 本ずつ",
+        "scope": "【発注 3】mailbox の REST 本文の枠で数える。一覧の取得は 1 本ずつ。本文の件数の速さは RES-05 で決まる",
         "source": "spec §7 の開始上限"
       },
       {
         "id": "P3-REC-RES-02",
-        "target": "1 回の取り直しの一覧のページ",
-        "limit": 600,
+        "target": "1 回の取り直し（起動時の辿りを含む）の一覧の要求",
+        "limit": 300,
         "unit": "pages (100 items each)",
-        "status": "provisional",
-        "scope": "型ごとに引く方式（P3-REC-D-LIST-QUERY=A）で、対象 122 型×数ページ。作業ノートに記録した要求の上限（10 分 2,000 回、repo で未確認）の 3 割に収める。超えたら P3-REC-D-ORDER-AND-LIMIT の順で後ろを落とす",
-        "source": "旧築の 128 ページ/型（tsunami-initializer.ts・volcano-initializer.ts）、Q-REC-REST-FACTS"
+        "status": "provisional（発注 1 の成果物の実 API の辿りで見直す）",
+        "scope": "【発注 1】束ごとのページの合計。束は P3-REC-D-LIST-QUERY=A の 29 束。超えたら P3-REC-D-ORDER-AND-LIMIT の順でその unit から後ろを recoveryLimit にする。見積もり: 短い切断は 29 回、7 日の停止は 29 回＋気象の束（U-W 2・U-R 10・U-M 3）の追加のページ（気象の 7 日の件数は repo で未測）。分母は docs の 10 分 2,000 回（ドメイン×IP）で、300 回はその 15%（Pi の旧築が同じ家の回線で同じ枠を使う余地と、H41 の 10 分 3 回を残す）。一覧は 500 ms 以上あける（RES-05）ので、300 回で最短 150 秒",
+        "source": "docs https://dmdata.jp/docs/reference/api/v2/ のレートリミット（2026-10-27 発注前点検の probe で確かめた）、旧築の 128 ページ/型（tsunami-initializer.ts・volcano-initializer.ts）"
       },
       {
         "id": "P3-REC-RES-03",
         "target": "1 回の取り直しの本文の件数",
-        "limit": 1000,
+        "limit": 300,
         "unit": "bodies",
-        "status": "provisional",
-        "scope": "最新だけで足りる型（unit の N2 が宣言する）は subject ごとに最新だけを取る。超えたら後ろの unit を落とす。本文は 1 件 8 MiB まで、候補の作成の間だけ持つ",
-        "source": "spec:2211、Q-REC-REST-FACTS"
+        "status": "provisional（作者の分岐 P3-REC-D-BODY-BUDGET の推奨 A。裁定までの置き値）",
+        "scope": "【発注 3】最新だけで足りる型（unit の N2 が宣言する）は subject ごとに最新だけを取る。超えたらその unit から後ろを recoveryLimit にする。本文は 6 秒に 1 件（RES-05）なので 300 件は最短 30 分。本文は 1 件 8 MiB まで、候補の作成の間だけ持つ",
+        "source": "spec:2211、docs のレートリミット、旧築の本文の上限（tsunami-initializer.ts の 256/巡・1,024/回、volcano-initializer.ts の 256）"
       },
       {
         "id": "P3-REC-RES-04",
@@ -457,67 +648,89 @@
         "limit": 500,
         "unit": "list heads",
         "status": "provisional",
-        "scope": "一覧の頭だけを持つ。超えた分は型ごとの件数だけを残す",
+        "scope": "【発注 1】一覧の頭だけを持つ。超えた分は型ごとの件数だけを残す",
         "source": "H32"
+      },
+      {
+        "id": "P3-REC-RES-05",
+        "target": "dmdata への要求の間隔",
+        "limit": 500,
+        "unit": "ms between list requests",
+        "status": "frozen（docs のレートリミット: 定常的に 2 req/s 以上は控える。本文は 5 分 50 回）",
+        "scope": "【発注 1】一覧は前の要求の終わりから 500 ms 以上あける。H41 の pooling（発注 2）は応答の nextPoolingInterval（docs: 次の要求までの最小の待ち）も守る。【発注 3】本文は data.api.dmdata.jp の 5 分 50 回なので 6 秒に 1 件まで（同時 2 件は RES-01）で、同じ id を 1 回の取り直しで 2 度取らない。429 は P3-REC-AC03 の (3)",
+        "source": "docs https://dmdata.jp/docs/reference/api/v2/ のレートリミット（2026-10-27 発注前点検）"
       }
     ],
     "workDeadline": null,
     "persistenceUnits": [],
     "persistedFields": [
-      "なし。取り直しの境界は K7 が checkpoint の envelope の inputBoundary に置き、通知の印は K8 が unit の保存に置く。本書は両方を読み、境界は P3-REC-AC19 の入力で進めるだけで、保存の形を変えない。H39 のまとめは再起動の後も残す（段 2 のメモ §7 の 3、作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434）。残す欄は K8）"
+      "なし。取り直しの境界は K7 が checkpoint の envelope の inputBoundary に置き、通知の印は K8 が unit の保存に置く。本書は両方を読み、境界は P3-REC-AC19 の入力で進めるだけで、保存の形を変えない（発注 3 の取り直しを始めた後の穴は InputBoundaries の run の中の欄で、envelope の形は変えない）。H39 の材料のうち、H28 の時間切れ（eewWindowUnverified）と量の上限（recoveryLimit）は publisher の診断として persistent-diagnostic-sink に残り、unit の envelope の losses（K8）には数えない（P3-REC-AC04・AC14）"
     ],
     "nonPersistedFields": [
       "取り直しの候補と取得した本文（候補の作成の間だけ）",
       "一覧の頭（ダイジェストと突き合わせの間だけ）",
-      "取り直しの進み具合（run の中だけ。再起動のたびに作り直す）"
+      "取り直しの進み具合（run の中だけ。再起動のたびに作り直す）",
+      "起動時のダイジェスト（発注 1、run の中だけ。次の起動で作り直す）",
+      "区分ごとの nextPooling と保留の id（発注 2、run の中だけ）",
+      "H28 の札（発注 2、run の中だけ。時間切れの記録は診断に残る）"
     ],
     "outOfScope": [
       "接続の間隔を少しずつ延ばす直し（P3-C2-RETRY の変更の契約。計画の『接続の間隔、繋がらない理由、切断の時刻』の行）",
       "札・ダイジェスト・未確認の印の見せ方と、カードを薄くしないこと（P4）",
       "H39 のまとめの置き場と件数の wire（P2-SNAPSHOT-SSE-001 P2-A8-NOTICE の改訂、再開の並べ方の 4）",
-      "新旧の比べ方そのもの（H14、K7）、取り直しの境界の欄と envelope の形と ingress の電文 id（K7）、通知の印と保存 ack を待つ配送（K8）、補正した時計と期限の分け方（K9・K10）。本書はそれらを引くだけ",
+      "新旧の比べ方そのもの（H14、K7）、取り直しの境界の欄と envelope の形と ingress の電文 id（K7）、通知の印と保存 ack を待つ配送（K8）、時計の確かめと期限の分け方（K9・K10）。本書はそれらを引くだけ",
       "新築の旧い形の保存を読む移行（作者裁定 2026-10-20 により作らない）。旧築から移した記録の比べ方は C15",
       "時計の補正の仕組み（H42 の変更の契約）",
       "U-E の取り直し（一覧に出ない。H28 の印だけを本書が持つ）",
       "旧築 src/** の変更",
-      "購読区分の拡大（R54）"
+      "購読区分の拡大（R54）",
+      "EEW の一覧（GET /v2/gd/eew）での照合（P3-REC-D-EEW-LIST）",
+      "一覧の datetime の絞り込み（docs で実験扱い、P3-REC-D-LIST-QUERY）",
+      "live の入力の dmdata 側の時刻（dmdataTime）を作ること（null のまま、P3-REC-AC02 の (2)）",
+      "publisher の診断（eewWindowUnverified・recoveryLimit）を H39 のまとめの件数に数え入れる wire（段 4、P2-A8-NOTICE の改訂）"
     ],
     "acceptanceChecks": [
       {
         "id": "P3-REC-AC01",
-        "requirement": "【RF】取得の口: 一覧（GET /v2/telegram、type・limit≤100・formatMode=raw・xmlReport=true・cursorToken は不透明なまま）と本文（GET data.api.dmdata.jp/v1/{id}）だけを新設 directory に足す。HTTPS は dmdata-rest.ts の exchange を host 名と本文上限の引数で再利用し、2 つ目の HTTPS 実装を書かない（無いと: 認証・timeout・abort・秘密を出さない規則〔P3-C2-AC08〕が 2 か所に分かれる）。本文の上限は spec の REST 本文 8 MiB、一覧の 1 応答は 1 MiB のまま。本文の id は英数字だけ、一覧の url は id から組んだ URL と一致しなければ送らない（旧築 rest-client.ts と同じ）。応答は境界で項目ごとに確かめて組み立て、全体を as で言い換えない（AGENTS.md）。API キー・応答本文を診断に出さない",
+        "requirement": "【発注 1・3】取得の口: 【発注 1】一覧（GET /v2/telegram、type をカンマで 1〜5 つ・limit=100・formatMode=raw・xmlReport=true・cursorToken は不透明なまま。test は付けない〔既定の no〕。発注 2 で classification と nextPooling）を新設 directory に足す。HTTPS は dmdata-rest.ts の exchange を export して再利用し、2 つ目の HTTPS 実装を書かない（無いと: 認証・timeout・abort・秘密を出さない規則〔P3-C2-AC08〕が 2 か所に分かれる）。一覧の 1 応答は 1 MiB のまま。answered に Retry-After を足す（無いと: 429 で dmdata が求めた待ちを守れない）。【発注 3】本文（GET data.api.dmdata.jp/v1/{id}）: exchange に host 名・path の接頭辞・Accept・本文上限の引数を足し、answered に content-type を足す（いまは api.dmdata.jp・/v2・application/json・1 MiB に固定、発注前点検 N4）。本文は Accept application/xml と Accept-Encoding identity で取り、content-type を確かめる（旧築 rest-client.ts と同じ）。本文の上限は spec の REST 本文 8 MiB。本文の id は英数字だけ、一覧の url は id から組んだ URL と一致しなければ送らない。共通: 応答は境界で項目ごとに確かめて組み立て、全体を as で言い換えない（AGENTS.md）。item の head.type が要求した束の型に無ければ捨てる（1 型の束は前方一致になる、P3-REC-D-LIST-QUERY）。head.test が true の item は捨てる（test 区分は購読しない、operationContract）。control.status は運用区分として一覧の頭に載せ、発注 3 では ingress の根拠の検査に渡す。API キー・応答本文を診断に出さない",
         "evidenceRefs": [
           "reconstruction/src/host/dmdata-rest.ts:6 «5acd06006213cbac»",
           "reconstruction/src/host/dmdata-rest.ts:11 «33faa6e73130cc93»",
           "src/dmdata/rest-client.ts:273 «f1284a99b8ef177d»",
           "src/dmdata/rest-client.ts:322 «87d2543d285987ee»",
-          "docs/specs/reconstruction-p0-contracts.md:1050 «891d5fceb44ac333»"
+          "docs/specs/reconstruction-p0-contracts.md:1050 «891d5fceb44ac333»",
+          "reconstruction/src/host/dmdata-rest.ts:46 «abff15c95d111ec3»"
         ]
       },
       {
         "id": "P3-REC-AC02",
-        "requirement": "【RF】起こすきっかけと辿り方: 境界は unit ごとで、K7 が checkpoint の envelope に置く inputBoundary（意味と項目は段 2 のメモ §2.4・§6 で確定）を起点にする。(1) きっかけは、起動（穴 d）、再接続（穴 c）、接続中に mailbox が断った入力・停止した owner に host が断った入力（穴 b）の 3 つで、b は接続が続いていても取り直しを起こす（P3-REC-D-COALESCE で 1 本にまとめる）。(2) 一覧は unit の型ごとに新しい方から遡り、item の receivedTime が起点より古くなったところで止める。起点の時刻は、dmdata 側の時刻があればそれを使い（一覧の receivedTime と同じ基準）、余白 60 秒（置き値）だけ重ねる。dmdata 側の時刻が null で自分の受信時刻だけがあるときは、根拠の状態が「あり」なら余白 10 分（置き値。dmdata から受信までの遅れと補正の誤差を覆う）、「なし」ならその unit の N2 の窓（P3-REC-AC12）まで遡る。(3) 電文 id があれば、同じ型の一覧ではその id で正確に止め、どの型でも重ねた分の重複を id で除く（WS と一覧の id の一致は Q-REC-ID-MATCH）。(4) 境界が無い unit（初めての起動、保存が初期化された直後）は N2 の窓を起点にする。(5) nextToken の再来・空の nextToken・ページの上限は理由付きの未充足（historicalPageLimitExceeded と同じ型）。nextToken は 1 回の辿りの中だけで使い、保存しない。EEW（U-E）は一覧に出ないので範囲に入れない（H28）",
+        "requirement": "【発注 1・3】起こすきっかけと辿り方: 境界は unit ごとで、K7 が checkpoint の envelope に置いた inputBoundary を起点にする。起動時の起点は owner の restored の返信（OwnerReply の inputBoundary と restoration）から取り、InputBoundaries の今の位置を使わない（restoration が empty の unit は restarted() が穴を置かず、最初の live の入力で境界が受信末尾へ進むので、今の位置は止まっていた間を覆わない。K7 の Q-VM-IMPL-1、発注前点検 N9）。(1) きっかけは、起動（穴 d、発注 1）、再接続（穴 c、発注 3）、接続中に mailbox が断った入力・host が断った入力（穴 b、発注 3）の 3 つで、b は接続が続いていても取り直しを起こす（P3-REC-D-COALESCE で 1 本にまとめ、停止した owner の unit は外す）。(2) 一覧は束ごと（P3-REC-D-LIST-QUERY）に新しい方から辿り、item の receivedTime が unit の止める時刻より古くなったところで、その束を辿り終える。止める時刻は、境界に dmdata 側の時刻（dmdataTime）があればそれから余白 60 秒（置き値）を引いたもの。dmdataTime は取り直しで進めた境界（AC19 の (5)）にだけあり、live の dmdataTime は作らず null のまま（K7 の Q-VM-NEIGHBOURS、発注前点検 M2）。無ければ自分の受信時刻から、根拠が「あり」なら余白 10 分（置き値。dmdata から受信までの遅れと手元の時計の誤差を覆う）を引いたもの。根拠は K9 の WallBasis で、\"verified\" を「あり」、\"awaiting\"・\"unverified\"・null（K9 の前に保存した境界）を「なし」と読む（発注前点検 N6）。根拠が「なし」の unit と、境界が null か restoration が empty の unit（初めての起動、保存の初期化の直後、捨てた旧い版から empty で始まった unit）は、その unit の N2 の窓（P3-REC-AC12）まで遡る。発注 1 では全 unit の窓を DIGEST-WINDOW=A の 7 日とし、発注 3 で unit ごとの N2 の窓に替える。(3) 境界の電文 id（dmdataId）があれば、その unit の束ではその id で止め、どの束でも重ねた分の重複を id で除く（WS と一覧の id は同じ値と読んだ、Q-REC-ID-MATCH。違っていても時刻で止まる）。(4) 一覧が止める時刻の手前で終わった（nextToken が無い）ら、その束は辿り終えた（遡れる期間は約 180 日で窓より長い、Q-REC-LIST-RETENTION）。nextToken の再来は fetchFailed、ページの上限（RES-02）は recoveryLimit の理由付きの未充足。nextToken は 1 回の辿りの中だけで使い、保存しない。(5) EEW（U-E）は一覧に出ないので範囲に入れない（H28）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3114 «0037e21b67226cee»",
           "docs/specs/reconstruction-p0-contracts.md:3115 «483d9adfc3650fd5»",
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
-          "src/engine/startup/volcano-initializer.ts:61 «ee7e02d3c61c25ff»"
+          "src/engine/startup/volcano-initializer.ts:61 «ee7e02d3c61c25ff»",
+          "reconstruction/contracts/p3-execution-split.types.ts:104 «af3e82512c61ef88»",
+          "reconstruction/src/checkpoint/checkpoint.ts:743 «774a76496d710579»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:619 «63409c8d5e8c3c17»"
         ]
       },
       {
         "id": "P3-REC-AC03",
-        "requirement": "【RF】負担: (1) 取り直しは常に 1 本（P3-REC-D-COALESCE）。(2) 本文の同時取得は 2 件で、mailbox の REST 本文の credit を使う（mailbox.ts に REST 本文の枠を 1 つ足す。通常 data の枠・予約の枠と別に数え、EEW・津波の予約を食わない）。(3) 429 は Retry-After を守って指数的に待ち、401・403 は取り直しを止めて接続と同じ dmdataAuthRejected の扱いにする。(4) 1 要求の再試行は 1 回の取り直しの中で 3 回・合計 30 秒まで（spec:2218 の暫定）。(5) 取り直しの間隔は接続の間隔と別に数える。live の受信は取り直しの間も止めない",
+        "requirement": "【発注 1・3】負担: (1) 取り直しは常に 1 本（P3-REC-D-COALESCE）。(2)【発注 3】本文の同時取得は 2 件（RES-01）で、mailbox に REST 本文の枠を 1 つ足す。枠は全体の上限 ITEM_LIMIT・BYTE_LIMIT の外で数え、live の入力の受理と overload の判定に入れない（無いと: 本文 8 MiB×2 件で全体の 16 MiB が埋まり、host が overload で WebSocket を切って EEW の受信も止まる、発注前点検 N3）。通常 data の枠・予約の枠とも別に数え、EEW・津波の予約を食わない。取り出しは live より後にし、blockedByEarlier で live を止めない（REST の入力は live を止めない。N1 で運用区分を載せれば unknown の止まりは消えるが、条文として残す）。P2-MAILBOX-001 の json を同じ commit で改める。(3)【発注 1】要求の間隔は RES-05（一覧は 500 ms 以上あけ、本文は 6 秒に 1 件まで）。429 は Retry-After があれば従い、無ければ 1 秒から倍々に待つ（docs: 429 は指数的に待つ。probe で 429 は未観測、200 の応答に rate limit の値は無い）。401・403 は取り直しを止め、残りの unit を authRejected にし、host に接続と同じ dmdataAuthRejected の扱いを渡す。(4) 1 要求の再試行は 1 回の取り直しの中で 3 回・合計 30 秒まで（spec:2218 の暫定）。尽きたとき、429 ならその回の取り直しを止めて残りの unit を fetchFailed にし、ほかの失敗はその unit だけを fetchFailed にして次の unit へ進む。(5) 取り直しの間隔は接続の間隔と別に数える。live の受信は取り直しの間も止めない。【発注 3】urgent の取り直しの本文は、live の EEW の受け取りを本文 1 件の処理時間より長く遅らせない（mailbox の in-flight は実行場所ごとに 1 件。その時間を測って形を決めるのは P3-REC-D-URGENT-BODY、発注前点検 M5）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2211 «47c9ded4e8090bbf»",
           "docs/specs/reconstruction-p0-contracts.md:1052 «d365cf37e2043241»",
           "docs/specs/reconstruction-p0-contracts.md:3118 «520a862a57d60741»",
           "docs/specs/reconstruction-p0-contracts.md:2218 «54e71527c590fb34»",
-          "reconstruction/src/mailbox/mailbox.ts:10 «9ebe12b5426e415b»"
+          "reconstruction/src/mailbox/mailbox.ts:10 «9ebe12b5426e415b»",
+          "reconstruction/src/mailbox/mailbox.ts:57 «06bb4dc5a24c2025»",
+          "reconstruction/src/runtime/unit-coverage.ts:16 «d322b87ac6931d20»"
         ]
       },
       {
         "id": "P3-REC-AC04",
-        "requirement": "【RF】量の上限と仕様どおりの欠け: 1 回の取り直しは一覧のページ数（RES-02）と本文の件数（RES-03）の上限を持つ。上限に当たったら P3-REC-D-ORDER-AND-LIMIT の順で後ろの unit を「取り直せなかった（量の上限）」にし、その unit の確認（coverageVerified）を出さない。上限の内側で取り終えた unit の結果は採用してよい。落ちるのは「後ろの unit の取り直し」だけで、live の受信・通知・保存は落とさない。落とした unit と件数（分かる範囲。件数の分からない欠けを 0 と出さない）は診断と H39 のまとめの材料に出す",
+        "requirement": "【発注 1（一覧）・3（本文）】量の上限と仕様どおりの欠け: 1 回の取り直しは一覧のページ数（RES-02、発注 1）と本文の件数（RES-03、発注 3）の上限を持つ。上限に当たったら P3-REC-D-ORDER-AND-LIMIT の順でその unit から後ろを「取り直せなかった（recoveryLimit）」にし、その unit の確認（coverageVerified）を出さない。上限の内側で取り終えた unit の結果は採用してよい。落ちるのは後ろの unit の取り直しだけで、live の受信・通知・保存は落とさない。落とした unit は、unit ごとに publisher の WARN 診断 recoveryLimit（DiagnosticReason に足す語）として persistent-diagnostic-sink に残し（H39 の材料。K8 の P3-NL-AC14 の (4) の publisher の診断と同じく main の診断の行のままで、envelope の losses には数えない）、発注 1 ではダイジェスト（AC15）に、発注 3 では進み具合（AC11）に出す。辿らなかった unit の件数は分からないので「件数不明」とし、0 と出さない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2222 «7f3d84c579febe31»",
           "docs/specs/reconstruction-p0-contracts.md:3053 «3e4160c7f8b143e5»"
@@ -525,59 +738,64 @@
       },
       {
         "id": "P3-REC-AC05",
-        "requirement": "【RA】候補の作成: 1 回に候補は全体で 1 unit だけ（spec:2211）。owner は開始時の UnitState の参照と記録用の版を控え、その参照から候補を作る。本文は origin=recovery の入力として ingress（kind rest）→ mailbox → owner の既存の経路を通り、同じ parser・意味 reducer を使う。履歴は取得順ではなく、K7 の比べる時刻（種類の表を引く 1 か所の関数と Control/DateTime の版の鍵。段 2 のメモ §1）と fragment 順で適用し、同じ時刻・中身違いは K7 の「未確認」の印にする。Control/DateTime を持たない旧記録は、新築の開発用の保存が作者裁定（2026-10-20、P5 の前は初期化してよい）で初期化されるので新築の中には残らない。旧築から移した記録（C15）に残りうる分の扱いは C15 へ送る（メモ §9）。本文は適用の後に手放し、候補の作成の間だけ持つ",
+        "requirement": "【発注 3】候補の作成: 1 回に候補は全体で 1 unit だけ（spec:2211）。owner は開始時の UnitState の参照と記録用の版（persistence.currentGeneration）を控え、その参照から候補を作る。本文は origin=recovery の入力として ingress（kind rest）→ mailbox → owner の既存の経路を通り、同じ parser・意味 reducer を使う。ingress の rest の入力は一覧の item の head.test・control.status・id を持ち、既存の根拠の検査（headTest・envelopeStatus）を通り、id を dmdataId として ParserMailboxItem に載せる（いまの rest の枝は notProvided と null に固定。P3-VM-AC06 の申し送り、発注前点検 N1）。inputSequence は host と同じ列から取る（mailbox の順と inputId を 1 つの列に保つ。確認の証拠にしないことは AC06）。履歴は取得順ではなく、K7 の比べる時刻（種類の表を引く 1 か所の関数と Control/DateTime の版の鍵。段 2 のメモ §1）と fragment 順で適用し、同じ時刻・中身違いは K7 の「未確認」の印にする。K7 の申し送り（Q-VM-C16-HANDOFF・Q-VM-IMPL-2A・2B、発注前点検 N8）: (a) 時刻の無い報の未確認の印（P3-VM-AC04 の (b)）を外せる入口はここだけで、一覧で同じ系列の順を確かめたときにだけ外し、順が手元の版と逆なら印の報の側を採る。印の報と一覧の item は (subject, reportDateTimeRaw, serialRaw, infoTypeRaw, controlDateTimeRaw) の一致で結ぶ（ReportRef は dmdata の電文 id を持たない）。P3-VM-T02 の A の例（時刻の無い取消→保存復元→時刻の読める古い警報①→①より新しい警報②）を取り直しの後まで延ばして確かめる (b) 容量の端で印を置けず unit／operation の未確認へ寄せた所（U-W・U-F を含む）は、その unit／operation の全体を取り直しで確かめ直す。WARN の診断の inputId は永続の証拠に数えない (c) 容量の退去・U-W の系列の消滅・取消の採用・retainUntil の到来で印が消えた系列は、一覧から順を確かめ直す。Control/DateTime を持たない旧記録は、新築の開発用の保存が作者裁定（2026-10-20、P5 の前は初期化してよい）で初期化されるので新築の中には残らない。旧築から移した記録（C15）に残りうる分の扱いは C15 へ送る（メモ §9）。本文は適用の後に手放し、候補の作成の間だけ持つ",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2210 «069b758475f61d4a»",
           "docs/specs/reconstruction-p0-contracts.md:2212 «eaf85396e8b36645»",
           "reconstruction/src/ingress/ingress.ts:12 «73a6b066b5a8a308»",
-          "reconstruction/contracts/p1-parser-boundary.types.ts:3 «0df43bf3db657b76»"
+          "reconstruction/contracts/p1-parser-boundary.types.ts:3 «0df43bf3db657b76»",
+          "reconstruction/src/ingress/ingress.ts:71 «fc348f6c77de8ee0»"
         ]
       },
       {
         "id": "P3-REC-AC06",
-        "requirement": "【RA】途中公開 0・新規履歴通知 0: 候補の作成の間、owner は view・displayChanges・outcomes・intents・通知を publisher へ出さない。候補の intent の id は基点の pending の id の部分集合でなければならず、外れたら契約違反として候補を捨てて未充足（P3-REC-D-UNIT-ENTRANCE の共有の検査）。既存の pending は unit の規則（既知の取消・置換・期限）でだけ外れる。中間の歴史的な危険状態を新規発令として見せない",
+        "requirement": "【発注 3】途中公開 0・新規履歴通知 0: 候補の作成の間、owner は view・displayChanges・outcomes・intents・通知・confirmationEvidence・retiredEvents を publisher へ出さない。confirmationEvidence を止めるのは、confirmOutput が切断の境界より後の入力の evidence で確認を進めるので、取り直しの入力の evidence が「切断の後の証拠」に数えられるため（発注前点検 N13）。確認は AC09 の coverageVerified だけで進める。diagnostics は候補の採否が決まってから採用の返信で 1 回だけ出す（捨てた候補は捨てた理由の診断だけ）。候補の intent の id は基点の pending の id の部分集合でなければならず、外れたら契約違反として候補を捨てて未充足（P3-REC-D-UNIT-ENTRANCE の共有の検査）。既存の pending は unit の規則（既知の取消・置換・期限）でだけ外れる。中間の歴史的な危険状態を新規発令として見せない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2214 «e4335171bfcea2c7»",
           "docs/specs/reconstruction-p0-contracts.md:991 «c41440a0aa8422f8»",
-          "docs/specs/reconstruction-p0-contracts.md:674 «2c247880756b8300»"
+          "docs/specs/reconstruction-p0-contracts.md:674 «2c247880756b8300»",
+          "reconstruction/src/runtime/shared-runtime.ts:73 «0396d37a497fa3c9»"
         ]
       },
       {
         "id": "P3-REC-AC07",
-        "requirement": "【RA】採用と live 上書き 0: 最後の 1 要求で、owner は基点の参照が今の参照と同じかを見る。保存 ack だけの進捗は比べない。同じなら候補を一回の状態遷移として採用し、違えば（live の入力・期限・intent の更新で変わった）新しい基点から作り直すか、3 回・合計 30 秒で理由付きの未充足（generationConflict）にする。別の unit の更新は妨げない。live の入力の journal を足して無理に成立させない",
+        "requirement": "【発注 3】採用と live 上書き 0: 最後の 1 要求で、owner は基点の persistence.currentGeneration が今の currentGeneration と同じか、と persistence を除いた unit の state の参照が基点と同じかを見る（保存の ack は setPersistence で unit の state の参照を新しくするので、参照だけを比べると ack だけで食い違う、発注前点検 N12）。同じなら候補を一回の状態遷移として採用し、違えば（live の入力・期限・intent の更新で変わった）新しい基点から作り直すか、3 回・合計 30 秒で理由付きの未充足（generationConflict）にする。別の unit の更新は妨げない。live の入力の journal を足して無理に成立させない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2216 «061b5e78c301682d»",
-          "docs/specs/reconstruction-p0-contracts.md:2218 «54e71527c590fb34»"
+          "docs/specs/reconstruction-p0-contracts.md:2218 «54e71527c590fb34»",
+          "reconstruction/src/runtime/owner-runtime.ts:269 «f5ea39a34af8cf69»"
         ]
       },
       {
         "id": "P3-REC-AC08",
-        "requirement": "【RA】期限延長 0: 業務の期限の起点は元報の Head/ReportDateTime（ValidDateTime のある種類はそれ）のままで、取り直しの最後に K9 の補正した時計（接続先の時刻と受信時の戻らない時計の組）と根拠の状態で評価する（段 2 のメモ §3）。期限処理は K10 の分け方に従い、表示の期限切れと回収（事実・観測点・通知の印を捨てる）を分ける。根拠が「あり」なら両方を当て、「なし」なら表示の期限切れだけを当てて回収は根拠が取れるまで保留する（根拠が無い間は起動から最長 30 秒〔置き値〕待ち、再補正で出した期限切れは戻さない。メモ §7 の 4・8、作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434））。期限を当てられないことだけで候補を未充足にしない。根拠が足りず採否や取消の効きが変わる場合だけ未充足（clockEvidenceMissing、spec:2222）。復元履歴から新しい通知期限を起こさない",
+        "requirement": "【発注 3】期限延長 0: 業務の期限の起点は元報の Head/ReportDateTime（ValidDateTime のある種類はそれ）のままで、取り直しの最後に K9 が確かめた手元の時計と、その根拠の状態で評価する（時計は差し替えない、K9 の objective）。根拠は unit の期限用の contentBasis（P3-EF-AC01。通知用の wallBasis ではない）で、\"verified\" を「あり」、\"awaiting\"・\"unverified\" を「なし」と読む（発注前点検 N6）。期限処理は K10 の分け方に従い、表示の期限切れと回収（事実・観測点・通知の印を捨てる）を分ける。根拠が「あり」なら両方を当て、「なし」なら表示の期限切れだけを当てて回収は根拠が取れるまで保留する（根拠が無い間は起動から最長 30 秒〔置き値〕待ち、再補正で出した期限切れは戻さない。メモ §7 の 4・8、作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434））。期限を当てられないことだけで候補を未充足にしない。根拠が足りず採否や取消の効きが変わる場合だけ未充足（clockEvidenceMissing、spec:2222）。復元履歴から新しい通知期限を起こさない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2213 «9b0efc412a902593»",
-          "docs/specs/reconstruction-p0-contracts.md:2215 «024c0b07939410c3»"
+          "docs/specs/reconstruction-p0-contracts.md:2215 «024c0b07939410c3»",
+          "reconstruction/src/runtime/composition-root.ts:113 «996f450e5b4c0575»"
         ]
       },
       {
         "id": "P3-REC-AC09",
-        "requirement": "【RA】完了の公開と確認（H04）: 採用は recoveryApplied 1 件（確認した scope・coverage・採用世代）。範囲を全部取り終えて採用できた unit・運用区分だけに RuntimeInput.coverageVerified（既存の口、P2-A1-CONFIRMATION）を出し、whole の未確認を外して通常の表示へ戻す。一部の subject だけ取れた unit を確認済みにしない。recoveryApplied から文字列を拾って確認を外す実装をしない（P2-A1-CONFIRMATION）",
+        "requirement": "【発注 3】完了の公開と確認（H04）: 採用は recoveryApplied 1 件（確認した scope・coverage・採用世代）。範囲を全部取り終えて採用できた unit・運用区分だけに RuntimeInput.coverageVerified（既存の口、P2-A1-CONFIRMATION）を出し、whole の未確認を外して通常の表示へ戻す。一部の subject だけ取れた unit を確認済みにしない。recoveryApplied から文字列を拾って確認を外す実装をしない（P2-A1-CONFIRMATION）。(1) 包含の範囲: coverageVerified は照合が覆う入力の範囲（一覧を引き始めた時点の inputSequence。その時点までに owner が処理を終えた入力まで）を持ち、verifyCoverage は範囲の後に採った容量の拒否（capacityExceeded）を消さない。RuntimeInput の coverageVerified に欄を 1 つ足す（いまは runId と epoch の一致だけで whole も capacityExceeded も消す。P3-CURRENCY-COVERAGE-001 の Q-CC-LEDGER85 の申し送り、発注前点検 N7。本条の配送で p3-currency-coverage.json の「移管した」を書ける） (2) 取り直しの範囲に、読めずに断った報（K14 の unreadableReport）や容量で断った報が残った unit／operation には coverageVerified を出さない（P3-UM-D-UNCONFIRMED=A、2026-10-26 作者裁定: その未確認を消せるのは coverageVerified だけ。発注前点検 M1）。発注 3 は K14 の発注 3 の配送の後に直列で合流する (3) H41 の突き合わせ（AC13）で差が 0 で、その unit・運用区分に未解決の穴が無ければ、同じ範囲の規則で coverageVerified を出す（spec 16.2.3「確認が取れた分野を通常の表示に戻す（H04）のも、この突き合わせで行う」、発注前点検 M4）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2220 «a3a44a06404484c9»",
           "docs/specs/reconstruction-p0-contracts.md:3031 «375d564fe0344d12»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:345 «d22d7f39e8d1c98f»",
-          "reconstruction/src/runtime/shared-runtime.ts:98 «d4dcf0c5da493b28»"
+          "reconstruction/src/runtime/shared-runtime.ts:98 «d4dcf0c5da493b28»",
+          "docs/specs/reconstruction-p0-contracts.md:3122 «cdb1c0e831ae206f»"
         ]
       },
       {
         "id": "P3-REC-AC10",
-        "requirement": "【RA】取り直しで拾った引上げ（H27）: 採用のときに、取り直しの起点の状態（再起動なら復元した状態、切断なら切断の時点の状態）の区域ごとの区分と候補を比べ、いまも有効な引上げだけを unit が 1 件の intent にする（段 2 のメモ §2.4、比べ方は P3-REC-D-RAISE-BASIS）。intent の ID と照合は K8 の印（系列＋版の鍵＋遷移＋channel）で行い（P3-NOTICE-LEDGER-001で2つに分けて読む: intentのIDはP3-NL-AC01の(1)の形〔遷移・channelを含む〕、重複を抑える照合はP3-NL-AC01の(2)の印の種類〔報・取消・期限。channelを問わない〕による）、その系列の印にすでにある鍵なら作らない。取り直しで受け直した同じ報は鳴らない。印の保持は P3-REC-D-RAISE-RECORD-PERIOD。音は P3-REC-D-RAISE-SOUND、大津波警報への引上げは critical・津波警報は warning。payload に発表時刻と「取り直しで拾った」印を持つ。配送は K8 の H48 の規則に従う: 平時はこの intent も試行の開始を記録した世代の保存 ack を待ってから外へ出し、保存の障害の間と待ちが 1 秒（置き値）を越えたときだけ、津波警報以上と critical が待たずに出る（メモ §2.4・§7 の 7、作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434））。本書は配送の順を足さない。途中の報は鳴らさない",
+        "requirement": "【発注 3】取り直しで拾った引上げ（H27）: 採用のときに、取り直しの起点の状態（再起動なら復元した状態、切断なら切断の時点の状態）の区域ごとの区分と候補を比べ、いまも有効な引上げだけを unit が 1 件の intent にする（段 2 のメモ §2.4、比べ方は P3-REC-D-RAISE-BASIS）。intent の ID と照合は K8 の印（系列＋版の鍵＋遷移＋channel）で行い（P3-NOTICE-LEDGER-001で2つに分けて読む: intentのIDはP3-NL-AC01の(1)の形〔遷移・channelを含む〕、重複を抑える照合はP3-NL-AC01の(2)の印の種類〔報・取消・期限。channelを問わない〕による）、その系列の印にすでにある鍵なら作らない。取り直しで受け直した同じ報は鳴らない。印の保持は P3-REC-D-RAISE-RECORD-PERIOD。音は P3-REC-D-RAISE-SOUND、大津波警報への引上げは critical・津波警報は warning。payload に発表時刻と「取り直しで拾った」印を持つ。配送は K8 の H48 の規則に従う: 平時はこの intent も試行の開始を記録した世代の保存 ack を待ってから外へ出し、保存の障害の間と待ちが 1 秒（置き値）を越えたときだけ、津波警報以上と critical が待たずに出る（メモ §2.4・§7 の 7、作者裁定 2026-10-20（段 2 のメモ §7、推奨どおり。main e68cd434））。本書は配送の順を足さない。途中の報は鳴らさない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3054 «9844920e53171b3b»"
         ]
       },
       {
         "id": "P3-REC-AC11",
-        "requirement": "【RA】取り直しの進み具合（H22・H31）: unit ごとに「取り直し中／取り直し済み／取り直せなかった（理由）／取り直していない」を publisher が持ち、snapshot の recovery へ載せる（P2-SNAPSHOT-SSE-001 の DisplayRecoveryView を改訂。いまは RuntimeRestoration で進み具合を運ばない）。津波（U-T）は起動と再接続のたびに取り直し、終わるまで「取り直し中」。札の見せ方とカードを薄くしないことは P4。理由は fetchFailed・baseMissing・clockEvidenceMissing・generationConflict・recoveryLimit・authRejected の固定の語（spec:2222 の 5 つ＋量の上限＋認証）",
+        "requirement": "【発注 3】取り直しの進み具合（H22・H31）: unit ごとに「取り直し中／取り直し済み／取り直せなかった（理由）／取り直していない」を publisher が持ち、snapshot の recovery へ載せる（P2-SNAPSHOT-SSE-001 の DisplayRecoveryView を改訂。発注 1 のダイジェストの欄の横に足す）。津波（U-T）は起動と再接続のたびに取り直し、終わるまで「取り直し中」。札の見せ方とカードを薄くしないことは P4。理由は fetchFailed・baseMissing・clockEvidenceMissing・generationConflict・recoveryLimit・authRejected・ownerStopped の固定の語（spec:2222 の 5 つ＋量の上限＋認証＋停止した owner〔P3-REC-D-COALESCE、発注前点検 M3〕）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3049 «8768d257f2c06915»",
           "docs/specs/reconstruction-p0-contracts.md:3058 «d05d1d848452ec2e»",
@@ -586,7 +804,7 @@
       },
       {
         "id": "P3-REC-AC12",
-        "requirement": "【RA】unit ごとの N2 と E22 の subset: 各 unit の契約の N2（P3-C5-N2・P3-C7-N2〜P3-C14-N2、U-W・U-F は P2 の契約）を改め、取り直しの範囲（型・subject・最新だけで足りるか履歴が要るか・期間）と入口（候補の作成のときだけ適用）を unit ごとに固定する。U-E は対象外（H28）。各 unit の E22 の subset（下の P3-REC-AC17 の 7 つの場合のうち、その unit で起こりうるもの）を版付きで固定する。範囲の起草は unit の意味を持つ側が行い、本書は形だけを決める",
+        "requirement": "【発注 3】unit ごとの N2 と E22 の subset: 各 unit の契約の N2（P3-C5-N2・P3-C7-N2〜P3-C14-N2、U-W・U-F は P2 の契約）を改め、取り直しの範囲（型・subject・最新だけで足りるか履歴が要るか・期間＝AC02 の N2 の窓）と入口（候補の作成のときだけ適用、P3-REC-D-UNIT-ENTRANCE）を unit ごとに固定する。入口は、origin=recovery を noChange で捨てるいまの分岐を持つ 9 unit（U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-Y）ではその分岐を置き換え、U-W・U-F では新しく作る（いまは origin を見る分岐が無く、取り直しの本文を live と同じに採る、発注前点検 N5）。取り直しの本文を mailbox へ入れる呼び出しは、この入口と同じ発注で作る。U-W の既存の FreshnessRecord は、採用のときに unit の入力 coverageConfirmed で消す（いまは作る側が無い、発注前点検 N11）。H27 の intent の payload の 2 欄（発表時刻と「取り直しで拾った」印、AC10）は unit の codec が項目ごとに確かめる（発注前点検 M6）。K7 の申し送りの (b)(c)（AC05）の範囲を unit ごとに書く。U-Q・U-N の範囲は P3-REC-D-QN-RECOVERY、U-V の確認の単位は P3-REC-D-VOLCANO-SCOPE の裁定に従う。U-E は対象外（H28、P3-VM-AC02）。各 unit の E22 の subset（下の P3-REC-AC17 の 7 つの場合のうち、その unit で起こりうるもの）を版付きで固定する。範囲の起草は unit の意味を持つ側が行い、本書は形だけを決める",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2925 «77444df5657359a8»",
           "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",
@@ -595,36 +813,39 @@
           "reconstruction/contracts/p3-seismic-unit.json:166 «824fb5c0849bb244»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:890 «086efc15d89bde4b»",
           "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
-          "reconstruction/contracts/p3-order-plan.md:451 «15b50525f89de42e»"
+          "reconstruction/contracts/p3-order-plan.md:451 «15b50525f89de42e»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:538 «a0620acc2fe096fd»"
         ]
       },
       {
         "id": "P3-REC-AC13",
-        "requirement": "【RC】鮮度の疑い（H41）: unit ごとに、前に突き合わせた位置から一覧を全部たどり、一覧の id の集合と、その位置の後に live で受けた電文の id の集合（RET-02）を比べる。前に突き合わせた位置は run の中だけで持ち、保存しない。run の最初の位置は envelope の境界（P3-REC-AC02 の辿り方と余白）で、再起動の間は穴 d として取り直しが埋める。一覧にあって受けていない id があれば、その unit の、その item の運用区分に freshnessSuspect を立てる（P2-A5-SEM-01 の経路に「一覧との差」を足し、全 unit に広げる）。最後の 1 件の一致だけで確かめたことにしない。差が取り直しで埋まり確認できたら外す。周期は P3-REC-D-FRESHNESS-PERIOD。live の電文 id は K7 が ingress で ParserMailboxItem に載せるので、本条は K7 の配送を待つ（Q-REC-STAGE3）",
+        "requirement": "【発注 2】鮮度の疑い（H41）: 購読している区分ごと（telegram.earthquake・telegram.volcano・telegram.weather）に、前回の応答の nextPooling を cursorToken に渡して前回より新しい一覧の頭だけを引き（P3-REC-D-LIST-QUERY=A）、item を head.type で unit へ振り分け（unit 表の ready の型だけ。ほかは捨てる）、unit ごとに一覧の id の集合と、live で受けた電文の id の集合（RET-02）を比べる。(1) 位置: nextPooling は run の中だけで持ち、保存しない。run の最初の位置は、起動時の一覧の辿り（発注 1）の後に各区分を素の query で 1 回引いた応答の nextPooling。応答が 0 件で nextPooling が返らなかった区分は、次の周期も素の query で引き直す (2) 1 応答が 100 件に達した区分は、その応答の nextToken を辿り、receivedTime が前回の位置の時刻より古くなるまで遡る（一覧は新しい順。100 件を超えた新着を pooling がどう返すかは未確かめなので、返し方によらず抜けない形にした）。辿れなければ、その区分の unit はその周期を「突き合わせできなかった」にする（疑いにも確認にもしない） (3) 一覧にあって受けていない id があれば、その unit の、その item の運用区分に鮮度の疑いを立てる。ただし item の receivedTime が引いた時点から 2 分（置き値）以内のものは、次の周期まで保留して比べ直す（WS の到着の遅れで疑いを立てない。保留は unit ごとに RET-02 の上限に数える）。最後の 1 件の一致だけで確かめたことにしない。疑いは publisher の確認の状態（unit×operation の slot）に UnconfirmedReason の freshnessSuspect として置き、unit の state を変えない（いまの freshnessSuspect は U-W の unit の state の FreshnessRecord にあり、全 unit に広げると 12 unit の state と codec を変える、発注前点検 N11。U-W の既存の記録は AC12 で消す） (4) 疑いは、その unit・運用区分の coverageVerified（AC09、発注 3）で外れる。差を取り直しのきっかけにするかは P3-REC-D-FRESHNESS-TRIGGER (5) 周期は P3-REC-D-FRESHNESS-PERIOD=A（取り直しの完了時と、繋がっている間は 10 分ごと）。発注 2 の時点の「取り直しの完了時」は起動時の一覧の辿りの完了時。live の電文 id は K7 が ingress で ParserMailboxItem に載せる（配送済み）。WS と一覧の id は同じ値と読む（Q-REC-ID-MATCH、残存リスクはそこに書いた）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3068 «34a7ae5b6a43153e»",
           "docs/specs/reconstruction-p0-contracts.md:3120 «4327768cc2caa6fb»",
-          "reconstruction/contracts/p3-order-plan.md:456 «0d9468befbd1d465»"
+          "reconstruction/contracts/p3-order-plan.md:456 «0d9468befbd1d465»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:405 «5ab73ea985d624b7»"
         ]
       },
       {
         "id": "P3-REC-AC14",
-        "requirement": "【RC】切れていた間の EEW（H28）: 切断の始まり（最後に受信できた時刻）から繋がり直すまでの窓を「緊急地震速報 HH:MM–HH:MM は未確認」の印として publisher が持つ。EEW は出し直さず、緊急画面・警報音・通知を作らない。EEW の一覧で照合できたら消し（API は Q-REC-EEW-LIST）、照合できないまま P3-REC-D-EEW-WINDOW の時間がたったら時計の横から外し、H39 のまとめと履歴へ移す",
+        "requirement": "【発注 2】切れていた間の EEW（H28）: 切断の始まり（最後に受信できた時刻）から繋がり直すまでの窓を「緊急地震速報 HH:MM–HH:MM は未確認」の札として publisher が持ち、snapshot の recovery の札の欄に載せる（窓が重なれば 1 つにつなぐ。見せ方は P4）。EEW は出し直さず、緊急画面・警報音・通知を作らない。EEW の一覧では照合しない（P3-REC-D-EEW-LIST=A）。札は繋がり直してから P3-REC-D-EEW-WINDOW=A の 10 分で時計の横から外し、その窓を publisher の WARN 診断 eewWindowUnverified（DiagnosticReason に足す語。窓の両端を持つ）として persistent-diagnostic-sink に残す。これが H39 の履歴の材料で、まとめの件数に数え入れる wire は段 4（outOfScope）。publisher の診断は K8 の P3-NL-AC14 の (4) のとおり main の診断の行のままで、unit の envelope の losses には数えない（LossReason の語は足さない。足すと publisher から urgent の owner へ伝える要求の種類が 1 つ要る。発注前点検 N10 の決め）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3055 «a3bddc10b4159883»"
         ]
       },
       {
         "id": "P3-REC-AC15",
-        "requirement": "【RC】起動時のダイジェスト（H32）: 止まっていた間（前回の停止〜今回の起動）に出た情報を、一覧の頭（表題・見出し・発表時刻・運用区分・型）だけから作る。本文を取らず、unit の state を変えない。もう終わったもの（解除済みなど）も含める。遡る上限は P3-REC-D-DIGEST-WINDOW、件数の上限は RES-04 で、超えた分は件数だけを残す。見せ方は P4",
+        "requirement": "【発注 1】起動時のダイジェスト（H32）: 起動時の一覧の辿り（AC02）で得た一覧の頭から、unit ごとに境界の時刻（AC02 の止める時刻から余白を除いた時刻。境界の dmdataId の item は除く）より後に dmdata が受けた item を、表題・見出し・発表時刻・運用区分・型・dmdata の受信時刻だけで並べ、snapshot の DisplayRecoveryView の digest の欄へ載せる（P2-SNAPSHOT-SSE-001 の DisplayRecoveryView を改訂し、同じ commit で json を改める。無いと: 一覧を辿っても止まっていた間の情報が画面へ届かず、発注 1 の仕組みに本番の呼び手が無い）。本文を取らず、unit の state と mailbox に入れない（U-W・U-F が origin=recovery の入力を live と同じに採る、発注前点検 N5）。もう終わったもの（解除済みなど）も含める。遡る上限は P3-REC-D-DIGEST-WINDOW=A の 7 日で、起点が 7 日より前か不明（境界 null・empty・根拠なし）の unit には「7 日より前は取り直していない」の印を付ける。件数の上限は RES-04 で、超えた分は型ごとの件数だけを残す。辿れなかった unit（recoveryLimit・fetchFailed・authRejected）は理由とともに載せ、件数は「不明」として 0 と出さない。ダイジェストは run の中だけで持ち、次の起動で作り直す。見せ方は P4",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3059 «de603c487f88ebc8»",
-          "docs/specs/reconstruction-p0-contracts.md:3124 «006740d745ab7866»"
+          "docs/specs/reconstruction-p0-contracts.md:3124 «006740d745ab7866»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:49 «91fc4c6b8e623b3c»"
         ]
       },
       {
         "id": "P3-REC-AC16",
-        "requirement": "計算量（AGENTS.md の受信経路の計算量）: live の受信 1 回あたりの取り直しの帳簿は O(1)（id を unit ごとの有界な集合へ 1 つ足すだけ）。突き合わせは 1 回 O(一覧の item 数＋記録した id 数) で Set を使い、全件×全件の走査をしない。候補の採用の照合は参照の比較 1 回で、state の直列化（JSON.stringify）で変更を見ない。候補の intent の部分集合の検査は O(intent 数)。上限のある一括処理（候補の作成）は 1 回の取り直しに 1 unit ずつで、件数の上限は RES-03",
+        "requirement": "計算量（AGENTS.md の受信経路の計算量）: live の受信 1 回あたりの取り直しの帳簿は O(1)（id を unit ごとの有界な集合へ 1 つ足すだけ。取り直しを始めた後の穴〔P3-REC-D-HOLE-AFTER-START〕は ??= で置くだけ）。突き合わせは 1 回 O(一覧の item 数＋記録した id 数) で Set を使い、全件×全件の走査をしない。一覧の辿りは 1 ページ O(100)。候補の採用の照合は currentGeneration の一致と、persistence を除いた参照の比較で O(1)。state の直列化（JSON.stringify）で変更を見ない。候補の intent の部分集合の検査は O(intent 数)。上限のある一括処理（候補の作成）は 1 回の取り直しに 1 unit ずつで、件数の上限は RES-03",
         "evidenceRefs": [
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
@@ -639,7 +860,7 @@
       },
       {
         "id": "P3-REC-AC18",
-        "requirement": "最小実装・最小テスト（AGENTS.md）: 仕組みを 1 つ足すとき「無いと何が壊れるか」を 1 行で添える（新設 directory の取得部・一覧の歩き方・mailbox の REST 本文の枠・owner の取り直しの要求・候補の部分集合の検査・境界を進める publisher の入力・進み具合の wire・鮮度の突き合わせ・EEW の窓・ダイジェスト）。1 実装の interface・factory・汎用の再試行 library・journal・DB を作らない。テストは受入条件・契約の境界・実不具合・corpus 履歴に限り、各テストがどれに当たるかを 1 行で書く。旧築 src/** を変えない",
+        "requirement": "最小実装・最小テスト（AGENTS.md）: 仕組みを 1 つ足すとき「無いと何が壊れるか」を 1 行で添える（新設 directory の取得部・一覧の歩き方・ダイジェスト・mailbox の REST 本文の枠・owner の取り直しの要求・候補の部分集合の検査・境界を進める publisher の入力・取り直しを始めた後の穴・進み具合の wire・鮮度の突き合わせ・EEW の窓）。1 実装の interface・factory・汎用の再試行 library・journal・DB を作らない。発注 1 では本文の取得・mailbox の枠・ingress の欄を作らない（使い手が発注 3 まで無い）。テストは受入条件・契約の境界・実不具合・corpus 履歴に限り、各テストがどれに当たるかを 1 行で書く。旧築 src/** を変えない",
         "evidenceRefs": [
           "AGENTS.md:24 «c1288cfa5b0d16dc»",
           "AGENTS.md:26 «2c223bbb66635b53»"
@@ -647,11 +868,12 @@
       },
       {
         "id": "P3-REC-AC19",
-        "requirement": "【RA】境界を進める入力と未解決の列: (1) origin=recovery の入力は、publisher が境界を測る unit ごとの未解決の列（K7、段 2 のメモ §2.4）に入れない。取り直しは穴を埋める側で、穴そのものではない。(2) 採用（P3-REC-AC07）の後に、owner の採用の返信を受けた publisher が、その unit の穴 b〜d のうち、今回の辿りで覆った区間（起点から、一覧を引き始めた時点の dmdata 側の時刻まで）を解決にする。そのための publisher の入力を 1 種類足す（composition-root の PublisherInput に 1 つ。無いと、取り直しが済んでも境界が穴を越えず、毎回同じ起点から取り直す）。中身は unit・runId・覆った区間の終わり（dmdata 側の時刻と電文 id）。(3) 取り直しの間に live で受けた入力は、今までどおり未解決の列で処理を待つ。覆った区間より後に開いた穴は解決にしない。(4) 量の上限・未充足で取り終えなかった unit は、穴を解決にしない（次のきっかけで同じ起点から）。(5) 解決にした位置は、自分の受信時刻が null で dmdata 側の時刻か電文 id を持つ境界として、次の書込み権で envelope に入る（両方 null の境界は無い、メモ §2.4）",
+        "requirement": "【発注 3】境界を進める入力と未解決の列: (1) origin=recovery の入力は、publisher が境界を測る unit ごとの未解決の列（K7、段 2 のメモ §2.4）に入れない。取り直しは穴を埋める側で、穴そのものではない。(2) 採用（P3-REC-AC07）の後に、owner の採用の返信を受けた publisher が、その unit の穴 b〜d のうち、今回の辿りで覆った区間（起点から、一覧を引き始めた時点の inputSequence まで。dmdata 時刻でなく受信の順で数える）を解決にする。そのための publisher の入力を 1 種類足す（composition-root の PublisherInput に 1 つ。無いと、取り直しが済んでも境界が穴を越えず、毎回同じ起点から取り直す）。中身は unit・runId・覆った区間の終わり（inputSequence と、最後に一覧で見た item の dmdata 時刻と電文 id）。checkpoint の InputBoundaries に穴を解くメソッドを足す（いまは無い、発注前点検 N2）。(3) 取り直しの間に live で受けた入力は、今までどおり未解決の列で処理を待つ。覆った区間より後に開いた穴は解決にせず、P3-REC-D-HOLE-AFTER-START=A の「取り直しを始めた後に開いた最古の穴」として持ち、解決の後に最古の穴へ繰り上げる。(4) 量の上限・未充足で取り終えなかった unit は、穴を解決にしない（次のきっかけで同じ起点から）。(5) 解決にした位置は、自分の受信時刻が null で dmdata 側の時刻か電文 id を持つ境界として、次の書込み権で envelope に入る（両方 null の境界は無い、メモ §2.4）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
           "reconstruction/src/host/host.ts:333 «78ed7c65133feaf5»",
-          "reconstruction/src/runtime/composition-root.ts:141 «3a377e064ab358c4»"
+          "reconstruction/src/runtime/composition-root.ts:141 «3a377e064ab358c4»",
+          "reconstruction/src/checkpoint/checkpoint.ts:774 «b25220c330d56156»"
         ]
       }
     ],
@@ -661,9 +883,10 @@
         "purpose": "contractBoundary",
         "referenceIds": [
           "P3-REC-AC01",
-          "P3-REC-AC02"
+          "P3-REC-AC02",
+          "P3-REC-AC03"
         ],
-        "behavior": "mock の REST で、ページの連なり・同じ nextToken の再来・空の nextToken・ページの上限・本文の id の形の不正・url の不一致・401/403/429 を返し、範囲の止まり方と理由付きの未充足が決まった語になる。API キーと応答本文が診断に出ない"
+        "behavior": "【発注 1】mock の REST で、ページの連なり・同じ nextToken の再来・止める時刻の手前で終わる一覧・ページの上限・束に無い head.type・head.test が true の item・401/403・429（Retry-After あり／なし）を返し、範囲の止まり方と理由付きの未充足が決まった語になり、要求の間隔が 500 ms を下回らず、429 の後は Retry-After か倍々の待ちを守る。API キーと応答本文が診断に出ない"
       },
       {
         "testId": "P3-REC-T02",
@@ -673,7 +896,7 @@
           "P3-REC-AC07",
           "P3-REC-AC17"
         ],
-        "behavior": "津波の synthetic（発表→訂正→取消）を取り直しで流し、途中で live の取消を割り込ませる。途中の view・outcome・intent が 0、基点の参照が変わった候補は採用されず作り直されるか generationConflict、別 unit の live は進む"
+        "behavior": "【発注 3】津波の synthetic（発表→訂正→取消）を取り直しで流し、途中で live の取消を割り込ませる。途中の view・outcome・intent が 0、基点の参照が変わった候補は採用されず作り直されるか generationConflict、別 unit の live は進む。保存の ack だけで state の参照が新しくなっても generationConflict にならない。候補の作成の間、確認の evidence で未確認が外れない"
       },
       {
         "testId": "P3-REC-T03",
@@ -682,7 +905,7 @@
           "P3-REC-AC08",
           "P3-REC-AC17"
         ],
-        "behavior": "既に期限切れの報と元受信時刻不明の報を取り直しで流し、期限が元報の時刻から数えられて延びない"
+        "behavior": "【発注 3】既に期限切れの報と元受信時刻不明の報を取り直しで流し、期限が元報の時刻から数えられて延びない"
       },
       {
         "testId": "P3-REC-T04",
@@ -691,7 +914,7 @@
           "P3-REC-AC04",
           "P3-REC-AC09"
         ],
-        "behavior": "量の上限に当たる範囲で、上限の内側の unit だけが取り直し済みで coverageVerified を出し、後ろの unit が取り直せなかった（recoveryLimit）で確認を出さない"
+        "behavior": "【発注 3】量の上限に当たる範囲で、上限の内側の unit だけが取り直し済みで coverageVerified を出し、後ろの unit が取り直せなかった（recoveryLimit）で確認を出さない。coverageVerified の範囲の後に容量で断った報の未確認は残る"
       },
       {
         "testId": "P3-REC-T05",
@@ -699,7 +922,7 @@
         "referenceIds": [
           "P3-REC-AC13"
         ],
-        "behavior": "一覧の途中の 1 件を live で受けていない場合に、最後の 1 件が一致していても鮮度の疑いが立つ"
+        "behavior": "【発注 2】区分の pooling の応答で、一覧の途中の 1 件を live で受けていない場合に、最後の 1 件が一致していても鮮度の疑い（freshnessSuspect）がその unit・運用区分に立ち、unit の state は変わらない。引いた時点から 2 分以内の item は次の周期まで保留される。100 件の応答では nextToken で前回の位置まで遡る"
       },
       {
         "testId": "P3-REC-T06",
@@ -708,7 +931,7 @@
           "P3-REC-AC02",
           "P3-REC-AC19"
         ],
-        "behavior": "接続中に mailbox が入力を 1 件断ると取り直しが起き、採用の後に境界がその穴を越える。取り直しの入力は未解決の列に入らず、取り直しの間に live で受けた入力は処理されるまで境界を止める。取り終えなかった unit の穴は残る"
+        "behavior": "【発注 3】接続中に mailbox が入力を 1 件断ると取り直しが起き、採用の後に境界がその穴を越える。取り直しの入力は未解決の列に入らず、取り直しの間に live で受けた入力は処理されるまで境界を止める。取り終えなかった unit の穴は残る。取り直しの間に開いた穴は採用の後に最古の穴へ繰り上がる"
       },
       {
         "testId": "P3-REC-T07",
@@ -716,7 +939,41 @@
         "referenceIds": [
           "P3-REC-AC02"
         ],
-        "behavior": "境界の (2) dmdata 側の時刻がある・(1) 自分の受信時刻だけで根拠あり・根拠なし・境界なしの 4 つで、一覧を遡って止まる item が、それぞれ余白 60 秒・10 分・N2 の窓・N2 の窓に従う"
+        "behavior": "【発注 1】owner の restored の返信の境界で、(1) dmdataTime がある・自分の受信時刻だけで basis が verified・basis が awaiting／unverified／null・境界が null・restoration が empty の 5 つで、一覧を遡って止まる item が、それぞれ余白 60 秒・10 分・7 日・7 日・7 日に従う（発注 3 で 7 日を N2 の窓に替えたら期待値を改める）。InputBoundaries の今の位置ではなく restored の返信から取る"
+      },
+      {
+        "testId": "P3-REC-T08",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-REC-AC15",
+          "P3-REC-AC04"
+        ],
+        "behavior": "【発注 1】起動時に mock の一覧で、境界の前後の item・RES-04 を超える件数・途中でページの上限に当たる束を返し、snapshot の recovery の digest に境界より後の頭だけが載り、超えた分は型ごとの件数になり、上限より後ろの unit は recoveryLimit と「件数不明」で載る。7 日より前か起点不明の unit に印が付く。mailbox への入力は 0 件"
+      },
+      {
+        "testId": "P3-REC-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-REC-AC14"
+        ],
+        "behavior": "【発注 2】切断と繋がり直しで札の窓が snapshot に載り、EEW の通知・緊急画面は作られず、繋がり直してから 10 分で札が外れて eewWindowUnverified の診断が 1 件残る"
+      },
+      {
+        "testId": "P3-REC-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-REC-AC03"
+        ],
+        "behavior": "【発注 3】REST 本文の枠に 8 MiB の本文が 2 件ある間に live の EEW が来ても、mailbox は overload にならず、live の EEW が先に取り出され、REST の入力が同じ headType の live を止めない"
+      },
+      {
+        "testId": "P3-REC-T11",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-REC-AC12",
+          "P3-REC-AC06"
+        ],
+        "behavior": "【発注 3】U-W・U-F に origin=recovery の入力を流すと、候補の作成のときだけ適用され、live の入力として採られず、intent・通知が作られない"
       }
     ],
     "requiredCommands": [
@@ -788,97 +1045,36 @@
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由",
       "足した仕組みごとに『無いと何が壊れるか』を 1 行（P3-REC-AC18 の一覧）",
       "追加・変更した各テストが受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行",
-      "実 API に当てた probe の結果（遡れる期間・要求の上限・絞り込み・EEW の一覧・WS と一覧の id の一致）と、それで RES の値を変えたかどうか"
+      "【発注 1】実 API で起動時の一覧の辿りを 1 回（読み取りだけ、作者の API キー、時刻は作者が決める）: 束ごとのページ数・要求の回数・かかった時間と、気象（U-W・U-R・U-M）の 7 日の item の数。RES-02 を変えたかどうか",
+      "【発注 2】WS で live に受けた電文 1 件の id が、一覧の items[].id と同じ値であることを並べて 1 回確かめた記録（Q-REC-ID-MATCH の残存リスク。Pi の旧築と同じ契約の socket の枠を作者と決めて行う）",
+      "【発注 3】urgent の取り直しの本文 1 件の処理時間を E01 の測り方で 1 回（P3-REC-D-URGENT-BODY の材料）",
+      "【発注 3】最大の U-W・U-F の候補の作成の heap を 1 回測る（基点と候補を同時に持つ間。owner の若い世代は 12 MB に縛っている、発注前点検 M8）",
+      "【発注 3】7 日の停止を模した起動 1 回の取り直しの本文の件数とかかった時間（P3-REC-D-BODY-BUDGET の見直しの材料）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-REC-STAGE3",
-        "owner": "integrator",
-        "blocks": [
-          "RA の発注（K7・K8・K9）",
-          "RC の H41 の発注（K7）",
-          "RF の起点の型の凍結（K7。実装の着手は待たない）"
-        ],
-        "resolveBy": "段 3 の K7 P3-VERSION-MATERIAL-001・K9 P3-CLOCK-CHECK-001・K8 P3-NOTICE-LEDGER-001（どれも仮の ID）の配送の後",
-        "requiredEvidence": [
-          "K7 の inputBoundary の型と、ParserMailboxItem に載った dmdata の電文 id。本書の RF が引数で受けていた境界の型との差",
-          "K7 の申し送り（P3-VERSION-MATERIAL-001 の Q-VM-C16-HANDOFF・Q-VM-IMPL-2A）: 時刻の無い報の未確認の印は取り直しで正しい順を確かめたときにだけ外す（順が手元の版と逆なら印の報の側を採る）。容量の端で系列の印と ReportRef を保存できず unit／operation の未確認へ寄せた所（WARN の診断だけが残る）は、その unit／operation の全体を取り直しで確かめ直し、WARN の診断の inputId を永続の証拠に数えない。捨てた旧い版から empty で始まった unit と保存の前に落ちた unit は、穴の無いまま境界が進む（Q-VM-IMPL-1）。発注 2b（Q-VM-IMPL-2B）: U-W・U-F の容量の端で印を置けず unit／operation の未確認へ寄せた所も同じく全体を取り直しで確かめ直し、容量の退去・U-W の系列の消滅・取消の採用・retainUntil の到来で印が消えた系列は一覧から順を確かめ直す",
-          "K9 の ClockReading（か期限の入力）の根拠の状態の形",
-          "K8 の印の鍵と保存 ack を待つ配送の口",
-          "配送された契約 ID を dependsOnContractIds へ移した本書の改訂"
-        ]
-      },
-      {
-        "id": "Q-REC-AUTHOR",
-        "owner": "user",
-        "blocks": [
-          "RF の量の上限で落とす順",
-          "RC の EEW の窓・ダイジェストの遡り・突き合わせの周期"
-        ],
-        "resolveBy": "閉じた（4 本とも A、作者裁定 2026-10-27（判断カード、推奨どおり））。発注前点検の改訂で questionResolutions へ移す",
-        "requiredEvidence": [
-          "P3-REC-D-ORDER-AND-LIMIT・EEW-WINDOW・DIGEST-WINDOW・FRESHNESS-PERIOD の裁定"
-        ]
-      },
-      {
-        "id": "Q-REC-LIST-RETENTION",
-        "owner": "integrator",
-        "blocks": [
-          "P3-REC-D-DIGEST-WINDOW の C の可否",
-          "RES-02 の確定"
-        ],
-        "resolveBy": "発注前点検の probe",
-        "requiredEvidence": [
-          "一覧で最も古く取れた item の receivedTime と応答の時刻（repo の観測は 61 日以上）"
-        ]
-      },
-      {
-        "id": "Q-REC-LIST-QUERY",
-        "owner": "integrator",
-        "blocks": [
-          "P3-REC-D-LIST-QUERY の確定",
-          "RES-02 の確定"
-        ],
-        "resolveBy": "発注前点検の probe",
-        "requiredEvidence": [
-          "classification・日時での絞り込みの可否",
-          "nextPooling と nextPoolingInterval の意味",
-          "要求の上限と 429 の実際（本文取得の host を含む）"
-        ]
-      },
-      {
-        "id": "Q-REC-EEW-LIST",
-        "owner": "integrator",
-        "blocks": [
-          "P3-REC-AC14 の照合"
-        ],
-        "resolveBy": "発注前点検の probe",
-        "requiredEvidence": [
-          "EEW の一覧の API の名前・範囲・権限（無ければ H28 の印は常に時間で移る）"
-        ]
-      },
-      {
-        "id": "Q-REC-ID-MATCH",
-        "owner": "integrator",
-        "blocks": [
-          "P3-REC-AC02 の重複の除き方",
-          "P3-REC-AC13"
-        ],
-        "resolveBy": "発注前点検の probe（WS の data と一覧を同じ時間帯で取る）",
-        "requiredEvidence": [
-          "WS の data の id と一覧の item の id が同じ値であること。違えば突き合わせの鍵を別に決める"
-        ]
-      },
       {
         "id": "Q-REC-BASE",
         "owner": "integrator",
         "blocks": [
-          "実装の着手"
+          "各発注の実装の着手"
         ],
-        "resolveBy": "発注前点検の後",
+        "resolveBy": "各発注の発注前点検（統合担当）",
         "requiredEvidence": [
-          "baseOid の割当と、その時点で anchor のずれが 0 件であること",
-          "分け方（P3-REC-D-SPLIT）の確定と、分けたときの各契約の allowedPaths"
+          "発注ごとの baseOid の割当と、その時点で本契約の anchor のずれが 0 件であること",
+          "発注 2・3 は前の発注の配送の後に点検し直すこと（Q-VM-PRECHECK-2A の形）",
+          "発注 3 は P3-UNREADABLE-MARK-001 の発注 3（unreadableReport）の配送の後であること（P3-REC-AC09 の (2)）"
+        ]
+      },
+      {
+        "id": "Q-REC-AUTHOR-2",
+        "owner": "user",
+        "blocks": [
+          "発注 2 の P3-REC-AC13 の (4)（P3-REC-D-FRESHNESS-TRIGGER）",
+          "発注 3 の AC12・RES-03 と閉鎖（P3-REC-D-URGENT-BODY・VOLCANO-SCOPE・QN-RECOVERY・BODY-BUDGET）"
+        ],
+        "resolveBy": "作者の裁定（判断カード）。発注 1 は待たない",
+        "requiredEvidence": [
+          "P3-REC-D-FRESHNESS-TRIGGER・URGENT-BODY・VOLCANO-SCOPE・QN-RECOVERY・BODY-BUDGET の 5 本の裁定"
         ]
       }
     ]
