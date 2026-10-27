@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "02d2eed5def59bd2ace7e4025df91165bb301649",
-    "sha256": "b8c00a7299a4bda73a296b74536692602e6cf5ddb0468c319b9bba04d7b67af4",
+    "sha256": "cf048932cef5cc8c33de0ef5c62d22b3f2147b535dcd92d1b427ee135f2b6a27",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -39,7 +39,7 @@
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-27 夜、branch tsunami-harness の 3517fbc3。main 02d2eed5 の上に起草 e3a49d87 と r0 の直し 3517fbc3）",
         "closed": "(1) 分岐: P3-TH-D-INHERIT=A・P3-TH-D-LOOKUP=B はどちらも統合担当の確定の ruling を持ち、契約に『起草案』の語は 0 件。画面の出方を変える分岐は無いので作者裁定は要らない (2) 起草のレビュー r0（Opus、read-only、e3a49d87）は条件付き GO で P1 0 件。P2 2 件（frozen.ts:566 の oneOf の型、run.mjs の import の行）と P3 6 件を 3517fbc3 で当てた。統合担当の決めで、継承元の表の各行に manifestSha256 を持たせて継承元の bytes を固め、起草の残存リスク (1)（継承元を書き換えて自己 hash を付け直すと通る）を範囲内で消した。表の 2 つの値は実物の manifestSha256（evidence/p3/manifest.json 3edb1aae…、evidence/p3-harness/manifest-sp-e01.json 6d31c288…）と一致を確かめた。残る残存リスクは測定の条件の書き方・名前・凍結から窓の終わりまでの順序だけで、直す予定の無い製品の欠けは無いので作者の承認は要らない (3) 変える file の行を引く他の契約（3517fbc3 で contracts/*.json を数えた）: frozen.ts 13 行（:171〜:626 と :749）、tsunami.mjs 2 行（:82・:146）、run.mjs 38 行（:52〜:1813）、p3-tsunami-e01.types.ts・tsunami.test.ts・tsunami.d.mts は 0 行。AC01 (3)・AC02 (7) の縛り（frozen.ts は :626 より前の行の数を変えない、tsunami.mjs は :155 より後と import の行の中だけ、run.mjs は行の中の置き換えだけ）でどれも動かない。中身が変わるのは run.mjs:1680（P3-MEASURE-HARNESS-001）、行がずれるのは frozen.ts:749（P3-DISASTER-CAPACITY-001）で、配送で付け直す想定どおり (4) 依存: P3-TSUNAMI-E01-001・P3-MEASURE-HARNESS-001・P3-SEISMIC-PLACE-001 は main に配送済み (5) check-contract は rc 0・FAIL 0（WARN は baseOid 未割当の P3-RECOVERY-001 と本契約）",
-        "remaining": "baseOid の割り当て（統合担当、本点検の commit へ）",
+        "remaining": "なし（baseOid は fcdc5479 に割り当てた）",
         "reason": "発注前点検"
       }
     ],
@@ -52,7 +52,7 @@
     "contractId": "P3-TSUNAMI-HARNESS-001",
     "mode": "implementation",
     "objective": "津波の E01 の正式窓が今の main で起動できない穴（構造的欠陥台帳 103。継承元の C4 の凍結 manifest が A10 の組の古い規則の initial-state を指し、preflightCheck の rulesSource で止まる）を、津波の manifest の継承元を harness の 1 組で凍結した C4 形の manifest からも選べるようにして直す（P3-TH-D-INHERIT=A）。照合は C4 形の側（P3-MEASURE-HARNESS-001）に倣い、harness 継承なら P3-MEASURE-HARNESS-001 の hash を求める。予備も harness の継承元で組み、trigger の継承元の id を継承元から取る。C4 を継いだ既存の凍結物は書き換えず照合を通り続ける。配送の後に統合担当が Mac mini で harness 継承の津波の manifest を凍結し、津波の衝突の参考の母集団 maxVxse53ReceivedThenTsunami の正式窓を回して P3-SEISMIC-PLACE-001 の AC08 (2) の津波の値を本契約に記録する。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "fcdc54799a016a641b74022eba24eb9204728aec",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
