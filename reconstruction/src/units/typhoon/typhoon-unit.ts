@@ -464,7 +464,7 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
 function receive(state: State, input: Extract<TyphoonInput, { kind: "receive" }>): Result {
   const parsed = parseTyphoon(input.material);
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
-    operation: input.material.operation, decision: "rejected", reason: parsed.reason }], diagnostics: [parsed.diagnostic] } };
+    operation: input.material.operation, decision: "rejected", reason: parsed.reason, ...parsed.areas == null ? {} : { areas: parsed.areas } }], diagnostics: [parsed.diagnostic] } };
   const { candidate } = parsed;
   // Q-NOTICE.recovery・P3-C14-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
   if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),

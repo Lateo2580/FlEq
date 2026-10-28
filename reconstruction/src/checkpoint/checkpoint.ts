@@ -682,11 +682,11 @@ function readLosses(record: Readonly<Record<string, unknown>>, unit: UnitId): Re
 // ---- H43 のカード（P3-UM-AC11、AC16 (3)(b)(4)） ----
 
 // P3-UM-RES-04・05・07（置き値）と AC11 (12) の文字列の上限（引用符を除いた JSON の byte。boundedString の引数）。U-M は unit の決まらない入力の
-// カードも持つので枚数と原文の予算が 2 倍。areas（U-Y）は発注 4。
+// カードも持つので枚数と原文の予算が 2 倍。areas（U-Y）は 1 枚 384 件・24,576 byte まで（AC11 (9)）。
 const CARD_TEXT = { headType: 64, reportDateTimeRaw: 64, title: 1536, headline: 1536, raw: 16_382 } as const;
 const cardLimits = (unit: UnitId): Readonly<{ cards: number; rawBudget: number }> =>
   unit === "U-M" ? { cards: 16, rawBudget: 131_072 } : { cards: 8, rawBudget: 65_536 };
-const CARD_AREAS_BYTES = 24_576;
+const CARD_AREAS = 384, CARD_AREAS_BYTES = 24_576;
 // P3-UM-AC11 (10)(12): envelope の欄（,"unreadable":[…]）の上界。合法な形の最長のカード（raw は null）を枚数分 JSON にした長さに原文の予算を足す
 // （LOSS_TALLY_MAX_BYTES と同じ作り）。U-Y は areas（欄名 ,"areas": と 24,576 byte）を 1 枚ごとに足す。
 function cardsMaxBytes(unit: UnitId, areas = false): number {
@@ -724,7 +724,6 @@ function cardReason(kind: unknown, reason: unknown, count: number): UnreadableCa
 const cardText = (value: unknown, limit: number): string | null | undefined =>
   value === null ? null : typeof value === "string" && jsonBytes(value) <= limit + 2 ? value : undefined;
 // P3-UM-AC16 (3)(b)(4): 欄の無い envelope は空。カードを項目ごとに確かめて組み立てる（余分なキーと欄の欠けは再直列化の照合で拒否される）。
-// areas は発注 4 で確かめるので、発注 3 では areas のあるカードを拒む。
 function readCards(record: Readonly<Record<string, unknown>>, unit: UnitId): Readonly<{ unreadable?: readonly UnreadableCard[] }> | null {
   const value = record.unreadable;
   if (value === undefined) return {};
@@ -733,7 +732,8 @@ function readCards(record: Readonly<Record<string, unknown>>, unit: UnitId): Rea
   const cards: UnreadableCard[] = [];
   let raws = 0;
   for (const row of value) {
-    if (!plain(row) || row.areas !== undefined || typeof row.inputId !== "string" || !validInputId(row.inputId)
+    const areas = !plain(row) || row.areas === undefined ? undefined : unit === "U-Y" && row.kind === "unreadable" ? readAreas(row.areas) : null; // areas は U-Y の unreadable のカードだけ
+    if (!plain(row) || areas === null || typeof row.inputId !== "string" || !validInputId(row.inputId)
       || typeof row.receivedAt !== "number" || !Number.isFinite(row.receivedAt) || typeof row.rawCut !== "boolean"
       || row.rawDropped !== undefined && row.rawDropped !== true || !Number.isSafeInteger(row.count) || Number(row.count) < 1) return null;
     const kind = row.kind === "unknownType" || row.kind === "unreadable" || row.kind === "unidentified" ? row.kind : undefined;
@@ -746,7 +746,7 @@ function readCards(record: Readonly<Record<string, unknown>>, unit: UnitId): Rea
       || reportDateTimeRaw === undefined || raw === undefined || row.rawDropped === true && raw !== null) return null;
     raws += raw == null ? 0 : jsonBytes(raw);
     cards.push({ kind, inputId: row.inputId, headType, operation, receivedAt: row.receivedAt, reason, title, headline, reportDateTimeRaw, raw,
-      rawCut: row.rawCut, ...row.rawDropped === true ? { rawDropped: true } : {}, count: Number(row.count) });
+      rawCut: row.rawCut, ...row.rawDropped === true ? { rawDropped: true } : {}, count: Number(row.count), ...areas == null ? {} : { areas } });
   }
   return raws > rawBudget ? null : { unreadable: cards };
 }
@@ -879,6 +879,19 @@ class InputBoundaries {
   }
 }
 
-export { CARD_TEXT, CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, LOCAL_BULLETINS_CARDS_MAX_BYTES, LOSS_TALLY_MAX_BYTES,
+// P3-UM-AC16 (3)(b): U-Y のカードの地域。code・name は typhoon.ts の validCode6・BOUNDS.areaName（UTF-16 で 24）と同じ検査（import すると
+// checkpoint → domains → units → checkpoint の循環になる）。value は null か 0〜100 の整数。
+function readAreas(value: unknown): UnreadableCard["areas"] | null {
+  if (!Array.isArray(value) || value.length > CARD_AREAS || encoder.encode(JSON.stringify(value)).byteLength > CARD_AREAS_BYTES) return null;
+  const areas: NonNullable<UnreadableCard["areas"]>[number][] = [];
+  for (const row of value) {
+    if (!plain(row) || typeof row.code !== "string" || !/^\d{6}$/.test(row.code) || typeof row.name !== "string" || row.name.length > 24
+      || row.value !== null && (!Number.isInteger(row.value) || Number(row.value) < 0 || Number(row.value) > 100)) return null;
+    areas.push({ code: row.code, name: row.name, value: row.value === null ? null : Number(row.value) });
+  }
+  return areas;
+}
+
+export { CARD_AREAS, CARD_AREAS_BYTES, CARD_TEXT, CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, LOCAL_BULLETINS_CARDS_MAX_BYTES, LOSS_TALLY_MAX_BYTES,
   TYPHOON_CARDS_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, cardLimits, dmdataIdOf, hashEnvelope, keptCards, keptLosses, lossReasons, serializedEnvelope };
 export type { CheckpointFileSystem, CheckpointGrant, CodecMap, Correlation, WritableCheckpoint };

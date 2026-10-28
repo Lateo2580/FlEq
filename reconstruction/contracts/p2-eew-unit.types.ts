@@ -1,4 +1,4 @@
-import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
+import type { AcquisitionOrigin, DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
@@ -13,7 +13,7 @@ import type {
   RejectionReason,
   RuntimeUnitDeadline,
   UnitCodec,
-  UnitView as SharedUnitView,
+  UnitView as SharedUnitView, UnreadableNoticeMark,
 } from "./p2-shared-runtime.types";
 
 export type EewPredictionIntensity = Readonly<{
@@ -108,14 +108,14 @@ export type EewNotificationPayload = Readonly<{
 }>;
 
 export type EewUnitState = Readonly<{
-  schemaVersion: "p2-eew-unit-v4";
+  schemaVersion: "p2-eew-unit-v5";
   contentRevision: number;
   current: readonly EewCurrent[];
   gates: readonly EewGate[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the EventID's notice mark.
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
   // P3-NL-AC04: EventID ごとの通知の印（gate と別の寿命、2,048 件まで）。
-  notices: readonly EewNoticeMark[];
+  notices: readonly EewNoticeMark[]; unreadableNotices: readonly UnreadableNoticeMark[]; // P3-UM-AC12 (4): 読めない報の通知を重ねない印（operation ごとに 1 つ）
   // R35: absent means 0; receipt compares this non-persisted wall-clock boundary (restore sets it for 10 minutes).
   evidenceUnknownUntil?: number;
   // P3-EVICT-AC01(7): 非保存。容量の退去で消した normal の gate の報時刻（生値）の family ごとの最大。不在は退去なし。
@@ -124,9 +124,9 @@ export type EewUnitState = Readonly<{
 }>;
 
 export type PersistedEewUnit = Readonly<{
-  schemaVersion: "p2-eew-unit-v4";
+  schemaVersion: "p2-eew-unit-v5";
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
-  notices: readonly EewNoticeMark[];
+  notices: readonly EewNoticeMark[]; unreadableNotices: readonly UnreadableNoticeMark[];
 }>;
 
 export type EewUnitView = SharedUnitView & Readonly<{
@@ -141,7 +141,10 @@ export type EewInput =
   | Readonly<{ kind: "restore"; persisted: PersistedEewUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>
+  // P3-UM-AC12 (1): owner が作った読めない報のカード（unreadable・unidentified）の通知の入力。operation は決まらなければ null。
+  | Readonly<{ kind: "unreadable"; headType: string; operation: Operation | null; receivedAt: number; inputId: string; origin: AcquisitionOrigin;
+    clock: ClockReading }>;
 
 export type EewUnitStep = Readonly<{
   state: EewUnitState;
@@ -161,5 +164,5 @@ export type EewUnitStep = Readonly<{
 }>;
 
 export type EewUnitCodec = UnitCodec<EewUnitState, PersistedEewUnit> & Readonly<{
-  schemaVersion: "p2-eew-unit-v4";
+  schemaVersion: "p2-eew-unit-v5";
 }>;

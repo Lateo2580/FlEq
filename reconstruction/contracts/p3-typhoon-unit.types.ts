@@ -16,6 +16,7 @@ import type {
   UnitCodec,
   UnitView as SharedUnitView,
   MarkViewed,
+  UnreadableCard,
   UnreadableMark,
 } from "./p2-shared-runtime.types";
 
@@ -185,7 +186,8 @@ export type TyphoonUnitStep = Readonly<{
   // changed の currentEstablished は最終の状態にその subject の記録が残り source が今回の報のときだけ根拠を載せ、ほかは null（D-VANISHED=A）。
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>
-    | Readonly<{ decision: "rejected"; reason: RejectionReason }>
+    // P3-UM-AC14 (1): 確率の値の形の外か重なる地域だけで断った報は、地域ごとの 5 日積算（読めない地域は null）を添える。
+    | Readonly<{ decision: "rejected"; reason: RejectionReason; areas?: NonNullable<UnreadableCard["areas"]> }>
     | Readonly<{ decision: "changed"; reason: null; change: "semantic" | "revisionOnly" | "deliveryOnly"; currentEstablished: (AdmissionEvidence & Readonly<{ affectedScope: "subject" }>) | null }>
   ))[];
   intents: readonly TyphoonIntent[];

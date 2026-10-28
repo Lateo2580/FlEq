@@ -60,8 +60,11 @@ describe("P3-EXPIRY-FORM-001 reports with unreadable parts (H51)", () => {
     const one = V.send(V.emptyState(), "45_01_01_200522_VFVO50").state;
     const two = V.receive(one, V.decodeXml(V.fixtureXml("45_01_01_200522_VFVO50").replaceAll("<Code>306</Code>", "<Code>999</Code>"), "VFVO50"), vAt).state;
     const vCancel = V.send(two, "synthetic_VFVO50_cancel");
-    expect([shape(vCancel), vCancel.state, two.alerts.length]).toEqual([[["unchanged"], [MISSING]], two, 2]);
-    expect(vCancel.state).toBe(two);
+    // P3-UM-AC19 (1): 2 件とも手元は変えず、記録ごとの決定と取消の報の印（subject は記録の subject）。
+    expect([shape(vCancel), vCancel.intents.length, vCancel.state.alerts.map((item) => item.unconfirmed?.subject), two.alerts.length])
+      .toEqual([[["unchanged", "unchanged"], [MISSING]], 0, ["normal/volcano:alert/306", "normal/volcano:alert/999"], 2]);
+    expect(vCancel.state.alerts.map(({ unconfirmed: _mark, ...item }) => item)).toEqual(two.alerts);
+    expect((["eruptions", "ashfalls", "shortfalls", "scheduledAshfalls", "batch", "bulletins"] as const).map((key) => vCancel.state[key] === two[key])).toEqual(Array(6).fill(true));
     expect(shape(V.send(V.emptyState(), "66_01_03_210514_VFVO55", (xml) => xml.replace("<StartTime>2021-05-14T12:31:00+09:00</StartTime>",
       "<StartTime>昼</StartTime>")))).toEqual([[`rejected:${INVALID}`], [INVALID]]);
     // 解説の対象火山の上限（128）を超えた VFVO51 は上限の後を読まず truncated で受ける。

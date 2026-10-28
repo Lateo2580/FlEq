@@ -28,7 +28,7 @@ const BASE_TIME = 1_713_363_299_001;
 
 function emptyState(): EewUnitState {
   return {
-    schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [],
+    schemaVersion: "p2-eew-unit-v5", contentRevision: 0, current: [], gates: [], intents: [], notices: [], unreadableNotices: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null },
   };
@@ -250,7 +250,7 @@ describe("P2 EEW unit", () => {
     // (a) P3-NL-AC04 (6): 終端の intent を外しても印が証拠を持ち越す。印も無い空の checkpoint は配送しなかった証明にならない。
     const cleared = reduceEewUnit(delivered.state, { kind: "deadline", clock: clock(BASE_TIME + 15_001) });
     expect(eewUnitCodec.encode(cleared.state)).toMatchObject({ intents: [], notices: [{ deliveryEvidence: "possible" }] });
-    const savedEmpty = { schemaVersion: "p2-eew-unit-v4" as const, intents: [], notices: [] };
+    const savedEmpty = { schemaVersion: "p2-eew-unit-v5" as const, intents: [], notices: [], unreadableNotices: [] };
     const restarted = reduceEewUnit(emptyState(), { kind: "restore", persisted: savedEmpty, clock: clock(BASE_TIME + 16_000) });
     expect(restarted.state.evidenceUnknownUntil).toBe(BASE_TIME + 616_000);
     const afterRestart = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 16_001);
@@ -847,9 +847,9 @@ describe("P2 EEW unit", () => {
     const largest = pendingIntent();
     const fullIntents = [{ ...largest, payload: { ...largest.payload, body: largest.payload.body
       + "x".repeat(131_072 - Buffer.byteLength(JSON.stringify([largest])) - deliveryGrowth(largest)) } }];
-    const fullState = { ...emptyState(), intents: fullIntents, notices: Array.from({ length: 2_048 }, (_, index) => longest(index)) };
+    const fullState = { ...emptyState(), intents: fullIntents, notices: Array.from({ length: 2_048 }, (_, index) => longest(index)), unreadableNotices: (["normal", "training", "test"] as const).map((operation) => ({ operation, level: "critical" as const, until: -0.0000012345678901234567 })) }; // P3-UM-AC12 (4): 読めない報の印 3 つも器の内
     const fullPayload = eewUnitCodec.encode(fullState);
-    const fullEnvelope = { schemaVersion: "p2-eew-unit-v4", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+    const fullEnvelope = { schemaVersion: "p2-eew-unit-v5", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
       capturedAt: -0.0000012345678901234567, payload: fullPayload, sha256: "0".repeat(64) };
     const formula = 2_048 * markBytes + 131_072 + LOSS_TALLY_MAX_BYTES + INPUT_BOUNDARY_MAX_BYTES
       + Buffer.byteLength(JSON.stringify({ ...fullEnvelope, payload: { ...fullPayload, intents: [], notices: [] } }));
@@ -1027,7 +1027,7 @@ describe("P2 EEW unit", () => {
     expect(root.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
     const savedPayload = checkpoint.envelope.payload;
     if (savedPayload == null || typeof savedPayload !== "object") throw new Error("invalid checkpoint payload");
-    expect(Object.keys(savedPayload)).toEqual(["schemaVersion", "intents", "notices"]);
+    expect(Object.keys(savedPayload)).toEqual(["schemaVersion", "intents", "notices", "unreadableNotices"]);
     expect(restored.state.current).toEqual([]);
     expect(restored.state.gates).toEqual([]);
 

@@ -1,4 +1,4 @@
-import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
+import type { AcquisitionOrigin, DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
   CurrentConfirmationEvidence,
@@ -19,6 +19,7 @@ import type {
   UnitView as SharedUnitView,
   MarkViewed,
   UnreadableMark,
+  UnreadableNoticeMark,
 } from "./p2-shared-runtime.types";
 
 // P3-TSUNAMI-UNIT-001 (C5, I-U-T). Category/Kind/Code table (questionResolutions[Q-ENUM]):
@@ -132,22 +133,24 @@ export type TsunamiNotificationPayload = TsunamiPayloadBase | (TsunamiPayloadBas
 export type TsunamiIntent = NotificationIntent & Readonly<{ payload: TsunamiNotificationPayload }>;
 
 export type TsunamiUnitState = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v8";
+  schemaVersion: "p3-tsunami-unit-v9";
   contentRevision: number;
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
   intents: readonly TsunamiIntent[];
   failureMarks: readonly FailureMark[];
+  unreadableNotices: readonly UnreadableNoticeMark[]; // P3-UM-AC12 (4): 読めない報の通知を重ねない印（operation ごとに 1 つ）
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedTsunamiUnit = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v8";
+  schemaVersion: "p3-tsunami-unit-v9";
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
   intents: readonly TsunamiIntent[];
   failureMarks: readonly FailureMark[];
+  unreadableNotices: readonly UnreadableNoticeMark[];
 }>;
 
 // Active subjects only; inactive watermarks stay in the state.
@@ -163,7 +166,10 @@ export type TsunamiInput =
   | Readonly<{ kind: "restore"; persisted: PersistedTsunamiUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
-  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>;
+  | Readonly<{ kind: "shutdown"; clock: ClockReading; basis?: WallBasis }>
+  // P3-UM-AC12 (1): owner が作った読めない報のカード（unreadable・unidentified）の通知の入力。operation は決まらなければ null。
+  | Readonly<{ kind: "unreadable"; headType: string; operation: Operation | null; receivedAt: number; inputId: string; origin: AcquisitionOrigin;
+    clock: ClockReading }>;
 
 export type TsunamiUnitStep = Readonly<{
   state: TsunamiUnitState;
@@ -183,5 +189,5 @@ export type TsunamiUnitStep = Readonly<{
 }>;
 
 export type TsunamiUnitCodec = UnitCodec<TsunamiUnitState, PersistedTsunamiUnit> & Readonly<{
-  schemaVersion: "p3-tsunami-unit-v8";
+  schemaVersion: "p3-tsunami-unit-v9";
 }>;

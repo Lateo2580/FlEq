@@ -10,12 +10,12 @@ import type {
   EewUnitView,
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
-import { dirty, expiredOutcome, nextEewDeadline, noticeAt, reclaimEewLifetime, reduceEew as reduceEewCore } from "../../domains/eew/eew";
+import { dirty, expiredOutcome, nextEewDeadline, noticeAt, notificationArrayBytes, reclaimEewLifetime, reduceEew as reduceEewCore } from "../../domains/eew/eew";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { applyIntentUpdate, readIntentState, restoreStarted, strongerEvidence, updateEvidence } from "../notice-mark";
+import { applyIntentUpdate, extendUnreadableNotices, freshState, readIntentState, readUnreadableNotices, restoreStarted, strongerEvidence, unreadableBody, unreadableNoticeDue, unreadableSource, updateEvidence, withUnreadableNotice } from "../notice-mark";
 
-const SCHEMA = "p2-eew-unit-v4" as const;
+const SCHEMA = "p2-eew-unit-v5" as const;
 // P3-NL-AC04 (8)（置き値）: 2,048 件の印の上界と pending（予約込み 128 KiB）と H39 の欄と envelope・inputBoundary の上限を 64 KiB の倍数に切り上げる。
 // P3-UM-RES-09: 読めない報のカード 8 枚の分を足す（U-E の記録は印を持たない。カードを envelope に書くのは発注 3）。
 const GENERATION_BYTES = 2_097_152 + UNREADABLE_CARDS_MAX_BYTES;
@@ -106,9 +106,9 @@ function persisted(value: unknown): PersistedEewUnit | null {
   const record = object(value);
   if (record == null || record.schemaVersion !== SCHEMA || !Array.isArray(record.intents)
     || !Array.isArray(record.notices) || record.intents.length > 128 || record.notices.length > NOTICE_LIMIT) return null;
-  const intents = record.intents.map(readIntent), notices = record.notices.map(noticeMark);
-  if (!intents.every((item): item is EewIntent => item != null) || !notices.every((item): item is EewNoticeMark => item != null)) return null;
-  const result: PersistedEewUnit = { schemaVersion: SCHEMA, intents, notices };
+  const intents = record.intents.map(readIntent), notices = record.notices.map(noticeMark), unreadableNotices = readUnreadableNotices(record.unreadableNotices);
+  if (!intents.every((item): item is EewIntent => item != null) || !notices.every((item): item is EewNoticeMark => item != null) || unreadableNotices == null) return null;
+  const result: PersistedEewUnit = { schemaVersion: SCHEMA, intents, notices, unreadableNotices };
   if (new Set(result.intents.map((item) => item.id)).size !== result.intents.length
     || new Set(notices.map((item) => `${item.operation}/${item.eventId}`)).size !== notices.length) return null;
   // 予約は世代の計量に入れない（P3-IUR-GENERATION）。受理（domains/eew/eew.ts）と同じ式で pending の上限だけに足す。
@@ -216,7 +216,7 @@ function intentUpdate(state: EewUnitState,
       return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
     }),
     notices: raiseNotices(state.notices, raisedBy(adopted, updateEvidence)),
-    persistence,
+    persistence, unreadableNotices: extendUnreadableNotices(state.unreadableNotices, adopted),
   };
   return {
     state: next, nextDeadline: nextEewDeadline(next),
@@ -230,7 +230,7 @@ function intentUpdate(state: EewUnitState,
 
 function reduceCore(state: EewUnitState, input: EewInput,
   changed: (before: EewUnitState["current"][number] | null, after: EewUnitState["current"][number] | null) => void): InternalStep {
-  if (input.kind === "receive") return reduceEewCore(state, input, changed);
+  if (input.kind === "receive") return reduceEewCore(state, input, changed); if (input.kind === "unreadable") return unreadableNotice(state, input);
   if (input.kind === "restore") return restore(state, input.persisted, input.clock, (input.basis ?? "verified") === "verified");
   if (input.kind === "intentUpdate") return intentUpdate(state, input);
   const verified = (input.basis ?? "verified") === "verified";
@@ -287,18 +287,18 @@ function toEewView(state: EewUnitState): EewUnitView {
 }
 
 const eewUnitCodec: EewUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-eew-unit-v1", "p2-eew-unit-v2", "p2-eew-unit-v3"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-eew-unit-v1", "p2-eew-unit-v2", "p2-eew-unit-v3", "p2-eew-unit-v4"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
-    const value: PersistedEewUnit = { schemaVersion: SCHEMA, intents: state.intents, notices: state.notices };
+    const value: PersistedEewUnit = { schemaVersion: SCHEMA, intents: state.intents, notices: state.notices, unreadableNotices: state.unreadableNotices };
     if (persisted(value) == null) throw new Error("U-E checkpoint exceeds its persisted boundary");
     return value;
   },
   // P3-NL-AC04 (6): latch は印として保存したものを戻す（復元で作り直さない）。current・gate は保存しない。
   decode(payload) {
     const value = persisted(payload);
-    if (value == null) return { kind: "invalid", reason: "invalid p2-eew-unit-v4 payload" };
+    if (value == null) return { kind: "invalid", reason: `invalid ${SCHEMA} payload` };
     return { kind: "restored", state: { schemaVersion: SCHEMA, contentRevision: 0, current: [], gates: [], intents: value.intents,
-      notices: value.notices, persistence: cleanPersistence() } };
+      notices: value.notices, unreadableNotices: value.unreadableNotices, persistence: cleanPersistence() } };
   },
 };
 
@@ -341,5 +341,25 @@ const eewUnit = {
   confirmationScopeLimit: 1024,
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-E">;
+
+// P3-UM-AC12（P3-UM-D-CARD-SOUND=A）: 読めない EEW の通知。VXSE43 は critical、ほか（VXSE45）は warning。training・test は desktop だけ。
+// operation の印の窓（intent の expiresAt の最大）の内で段が上がらなければ鳴らさない。pending の上限を越えるなら鳴らさない（無いと encode が投げる）。
+function unreadableNotice(state: EewUnitState, input: Extract<EewInput, { kind: "unreadable" }>): InternalStep {
+  const idle: InternalStep = { state, nextDeadline: nextEewDeadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [] };
+  const operation = input.operation ?? "normal", level = input.headType === "VXSE43" ? "critical" as const : "warning" as const;
+  const now = input.clock.wallTimeMs;
+  if (!unreadableNoticeDue(state.unreadableNotices, operation, level, now)) return idle;
+  const source = unreadableSource(input, operation), prefix = operation === "normal" ? "" : operation === "training" ? "【訓練】" : "【試験】";
+  const payload: EewNotificationPayload = { domain: "earthquake-eew", level, title: `${prefix}緊急地震速報（読めない報）を受信`, body: unreadableBody(input.receivedAt) };
+  const fresh: EewIntent[] = (operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const).map((channel) => ({
+    id: `U-E:${source.subject}:${input.inputId}:${channel}`, unit: "U-E", subject: source.subject, operation, source, transition: "activated", channel,
+    payload, createdAt: now, expiresAt: now + 15_000, nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
+    ...freshState("U-E", operation) }));
+  const intents = [...state.intents, ...fresh];
+  if (intents.length > 128 || notificationArrayBytes(intents) + intents.reduce((sum, item) => sum + deliveryGrowth(item), 0) > INTENT_BYTES) return idle;
+  const next: EewUnitState = { ...state, intents, persistence: dirty(state.persistence, input.clock.monotonicMs),
+    unreadableNotices: withUnreadableNotice(state.unreadableNotices, { operation, level, until: now + 15_000 }) };
+  return { ...idle, state: next, nextDeadline: nextEewDeadline(next), intents: fresh };
+}
 
 export { currentSubject, eewUnit, eewUnitCodec, reduceEew, reduceEewUnit, toEewView };

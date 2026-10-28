@@ -14,7 +14,7 @@ const saved: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGen
   savedAckAt: null, dirtySince: null };
 
 function emptyState(): TsunamiUnitState {
-  return { schemaVersion: "p3-tsunami-unit-v8", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: saved };
+  return { schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [], persistence: saved };
 }
 
 function clock(wallTimeMs: number, monotonicMs = 0): ClockReading {

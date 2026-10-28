@@ -399,7 +399,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const first = receive(emptyState(), decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41"), clock(1_299_822_540_001));
     const both = receive(first.state, decodeFixture("32-39_11_10_250206_VTSE51", "VTSE51"), clock(1_299_823_260_000)).state;
     const payload = JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(both))) as JsonValue;
-    expect(Object.keys(payload as object).sort()).toEqual(["failureMarks", "forecasts", "intents", "observations", "schemaVersion"]);
+    expect(Object.keys(payload as object).sort()).toEqual(["failureMarks", "forecasts", "intents", "observations", "schemaVersion", "unreadableNotices"]);
     const decoded = tsunamiUnitCodec.decode(payload);
     expect(decoded).toEqual({ kind: "restored", state: { ...both, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
       savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } });
@@ -410,7 +410,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（P3-IUR-AC02）。終端記録は無くなった（P3-NL-AC05）ので予報の区域名で埋める。
     const withPad = (pad: number) => ({ ...value, intents: [value.intents[0]], forecasts: [{ ...value.forecasts[0],
       areas: [{ ...area0, name: `${String(area0.name)}${"x".repeat(pad)}` }, ...(value.forecasts[0].areas as unknown[]).slice(1)] }, ...value.forecasts.slice(1)] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v8", unit: "U-T", generation: 0, capturedAt: 0,
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v9", unit: "U-T", generation: 0, capturedAt: 0,
       payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
     const generationPad = tsunamiUnitCodec.maxEnvelopeBytes! - generation(0);
     expect(generation(generationPad)).toBe(tsunamiUnitCodec.maxEnvelopeBytes!);
@@ -684,7 +684,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     ({ code: String(100 + index), name: `区域${index}`, kind }));
   const report = (minute: number, list = areas(1), options: { infoType?: "発表" | "訂正" | "取消"; eventId?: string } = {}) =>
     decodeXml(vtse41({ at: raw(minute), areas: list, ...options }), "VTSE41");
-  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v8", unit: "U-T", generation: 0,
+  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v9", unit: "U-T", generation: 0,
     capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + state.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   // 世代を器 − slack にする別の EventID の normal の active な予報。normal の active は退去の候補にならないので、slack を越える増分は
@@ -1009,7 +1009,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
       { reason: "notificationExpiredClockUnverified", count: 2, lastAt: at(4).wallTimeMs }];
     expect([expired.adopted, expired.state.losses["U-T"]]).toEqual([true, losses]);
     const back = restoreOwner({ runId: "run-2", place: "urgent", clock: at(5), restored: { "U-E": { kind: "empty" }, "U-Q": { kind: "empty" },
-      "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-T": { kind: "restored", envelope: { schemaVersion: "p3-tsunami-unit-v8", unit: "U-T",
+      "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-T": { kind: "restored", envelope: { schemaVersion: "p3-tsunami-unit-v9", unit: "U-T",
         generation: 3, capturedAt: at(4).wallTimeMs, payload: tsunamiUnitCodec.encode(expired.state.units["U-T"]!) as JsonValue,
         losses: expired.state.losses["U-T"], sha256: "0".repeat(64) }, slot: "A" } } }, linkedUnitTable, linkedUnitCodecs);
     expect(back.state.losses["U-T"]).toEqual(losses);

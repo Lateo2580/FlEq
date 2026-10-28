@@ -1,4 +1,4 @@
-import type { DecodedMaterial, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
+import type { AcquisitionOrigin, DecodedMaterial, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
 import type { UnitJob, UnitTable } from "../../contracts/p3-unit-table.types";
 import type { ExecutionPlace, OwnerOutput, RecoveryInputResult } from "../../contracts/p3-execution-split.types";
 import type {
@@ -27,7 +27,7 @@ import type {
   SemanticEnvelopeResult, UnreadableCard, UnreadableCardView, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
 import type { CodecMap } from "../checkpoint/checkpoint";
-import { CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
+import { CARD_AREAS, CARD_AREAS_BYTES, CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
 import { headlineOf, rewriteBounded, titleOf } from "../units/unreadable";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
 import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import { recoveryNotices } from "../units/tsunami/tsunami-unit"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
@@ -67,20 +67,20 @@ type OwnerStep = Readonly<{
 }>;
 
 // P3-UM-AC11 (2)(3): headType と receivedAt は item の値（host は常に渡す）。parser が断った入力の振り分け先とカードの受信時刻に使う。
-// 渡さない呼び出し（unit の試験）は、decoded なら material の headType、受信時刻は要求の wall で読む。
-type ParserCompletion = Readonly<{ runId: string; inputId: string; result: ParserMailboxResult; headType?: string; receivedAt?: number }>;
-type UnitInput = Extract<RuntimeUnitInputs[RuntimeUnitId], { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>;
+// 渡さない呼び出し（unit の試験）は、decoded なら material の headType・origin、受信時刻は要求の wall で読む（origin は P3-UM-AC12 (10)）。
+type ParserCompletion = Readonly<{ runId: string; inputId: string; result: ParserMailboxResult; headType?: string; receivedAt?: number; origin?: AcquisitionOrigin }>;
+type UnitInput = Extract<RuntimeUnitInputs[RuntimeUnitId], { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>; type UnreadableInput = Extract<RuntimeUnitInputs["U-E" | "U-T"], { kind: "unreadable" }>;
 
 const encoder = new TextEncoder();
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const noHistory = { dayKey: null, count: 0, maxInt: null, counted: [], recent: [] } as const;
 const initialUnits: RuntimeUnitStates = {
-  "U-E": { schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [], persistence: cleanPersistence },
+  "U-E": { schemaVersion: "p2-eew-unit-v5", contentRevision: 0, current: [], gates: [], intents: [], notices: [], unreadableNotices: [], persistence: cleanPersistence },
   "U-W": { schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
   "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
-  "U-T": { schemaVersion: "p3-tsunami-unit-v8", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
+  "U-T": { schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [], persistence: cleanPersistence },
   "U-Q": { schemaVersion: "p3-seismic-unit-v7", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: cleanPersistence },
   "U-N": { schemaVersion: "p3-nankai-unit-v7", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
@@ -204,12 +204,12 @@ const text = (value: string, limit: number): string | null => value === "" ? nul
 // (3)(12): 文字列は作るときに boundedString で切る。原文は木の正規形（unit が断った報・知らない種類）か展開した本文の先頭（parser が断った報）。
 // rawCut は切った印（boundedString の印で終わるか。電文の原文は "</Report>" などで終わるので印と取り違えない）。
 function makeCard(kind: UnreadableCard["kind"], reason: UnreadableCard["reason"], inputId: string, headType: string, receivedAt: number,
-  material: DecodedMaterial | null, expandedText: string | null): UnreadableCard {
+  material: DecodedMaterial | null, expandedText: string | null, areas?: UnreadableCard["areas"]): UnreadableCard {
   const raw = material == null ? expandedText : rewriteBounded([material.xml], CARD_TEXT.raw);
   return { kind, inputId, headType: boundedString(headType, CARD_TEXT.headType), operation: material?.operation ?? null, receivedAt, reason,
     title: material == null ? null : titleOf(material.xml), headline: material == null ? null : headlineOf(material.xml),
     reportDateTimeRaw: material == null ? null : text(material.reportDateTimeRaw, CARD_TEXT.reportDateTimeRaw),
-    raw, rawCut: raw?.endsWith(TRUNCATED) === true, count: 1 };
+    raw, rawCut: raw?.endsWith(TRUNCATED) === true, count: 1, ...areas == null ? {} : { areas } };
 }
 const cardRawBytes = (card: UnreadableCard): number => card.raw == null ? 0 : encoder.encode(JSON.stringify(card.raw)).byteLength;
 const oldest = (cards: readonly UnreadableCard[], usable: (card: UnreadableCard) => boolean): number =>
@@ -226,9 +226,9 @@ function placeCard(cards: readonly UnreadableCard[], unit: RuntimeUnitId, card: 
   while (total > rawBudget) {
     const index = oldest(next, (item) => item.raw != null);
     total -= cardRawBytes(next[index]);
-    // 欄の順は読み戻しの再直列化の照合と同じ（rawDropped は count の前）。
-    const { count, ...rest } = next[index];
-    next[index] = { ...rest, raw: null, rawDropped: true, count };
+    // 欄の順は読み戻しの再直列化の照合と同じ（rawDropped は count の前、areas は最後）。原文を外しても areas は残す（AC11 (9)）。
+    const { count, areas, ...rest } = next[index];
+    next[index] = { ...rest, raw: null, rawDropped: true, count, ...areas == null ? {} : { areas } };
     dropped++;
   }
   while (next.length > limit) { next.splice(oldest(next, () => true), 1); dropped++; }
@@ -272,14 +272,14 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
     if (clock == null) throw new Error("diagnostic requires an explicit clock");
     diagnostics.push(completeDiagnostic(details, clock, start.runId));
   };
-  const reduceUnit = (unit: RuntimeUnitId, unitInput: UnitInput) => {
-    const step = runUnitJob(units, unitJob(next, unit, unitInput));
+  const reduceJob = (job: UnitJob, clock: ClockReading, receive: boolean) => { const unit = job.unit; // job は unitJob か notifyUnreadable が組む
+    const step = runUnitJob(units, job);
     const previous = ownUnit(next, unit);
     // P3-NL-AC14 (4)(5): unit の採用の結果の診断を数える。同じ入力で unit が世代を進めたなら、その世代に含める。
-    const losses = addLosses(next.losses[unit], unit, step.diagnostics, unitInput.clock.wallTimeMs);
+    const losses = addLosses(next.losses[unit], unit, step.diagnostics, clock.wallTimeMs);
     if (losses != null) next = { ...next, losses: { ...next.losses, [unit]: losses } };
     const bump = losses != null && step.state.persistence.currentGeneration <= previous.persistence.currentGeneration;
-    const persistence = bump ? raised(step.state.persistence, unitInput.clock.monotonicMs) : step.state.persistence;
+    const persistence = bump ? raised(step.state.persistence, clock.monotonicMs) : step.state.persistence;
     if (persistence.currentGeneration > previous.persistence.currentGeneration)
       generationInputIds[unit] ??= [];
     if (step.state !== previous || bump) {
@@ -289,7 +289,7 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
         && persistence.currentGeneration > previous.persistence.currentGeneration
         && persistence.currentGeneration > attempt.generation) {
         next = { ...next, checkpointAttempts: { ...next.checkpointAttempts,
-          [unit]: { ...attempt, postCaptureDirtySince: unitInput.clock.monotonicMs } } };
+          [unit]: { ...attempt, postCaptureDirtySince: clock.monotonicMs } } };
       }
       next = { ...next, units: { ...next.units, [unit]: bump ? { ...step.state, persistence } : step.state } };
       changed(unit);
@@ -310,10 +310,13 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
     }
     // 表示の変化の無い内容の変化（U-Q の当日履歴の日付の切り替え、P3-C7-SEM-04）も view を出し直す。
     if (step.state.contentRevision !== ownUnit(start, unit).contentRevision) viewUnits.add(unit);
-    if (unitInput.kind === "receive") confirmationEvidence.push(...step.confirmationEvidence);
+    if (receive) confirmationEvidence.push(...step.confirmationEvidence);
     step.diagnostics.forEach(diagnose);
     return step;
   };
+  const reduceUnit = (unit: RuntimeUnitId, unitInput: UnitInput) => reduceJob(unitJob(next, unit, unitInput), unitInput.clock, unitInput.kind === "receive");
+  const notifyUnreadable = (unit: "U-E" | "U-T", input: UnreadableInput) => // P3-UM-AC12 (1): 読めない報のカードの通知の入力を 1 件渡す
+    reduceJob(unit === "U-E" ? { unit, state: ownUnit(next, unit), input } : { unit, state: ownUnit(next, unit), input }, input.clock, false);
   // force: 根拠が verified に替わった要求で、到来の判定を通さず unit ごとに 1 回当てる（P3-EF-AC02 (7)。時計が後ろへ直っても保留の記録を回収する）。
   // 期限を何も持たない unit（nextDeadline が null）は当てるものが無いので送らない。
   const applyDeadlines = (targets: readonly RuntimeUnitId[], force = false) => {
@@ -328,9 +331,9 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
   // P3-UM-AC11 (5)(6)・AC13 (1): カードを足し、H39 に数え、件数と同じくその unit の世代を進めてこの入力に帰属させる（since はこの入力の処理の
   // 前の世代。unit がこの入力で既に進めていれば重ねない）。capture の後なら次の dirty の区間を始める（reduceUnit と同じ）。unit の断った報は
   // operation の whole を未確認にする負の証拠を載せる。
-  const addCard = (unit: RuntimeUnitId, card: UnreadableCard, since: number, inputId: string, at: ClockReading) => {
+  const addCard = (unit: RuntimeUnitId, card: UnreadableCard, since: number, inputId: string, at: ClockReading, areasDropped = false) => { // areasDropped: AC11 (9)
     const placed = placeCard(next.unreadable[unit] ?? EMPTY, unit, card);
-    const dropped = (card.rawCut ? 1 : 0) + placed.dropped;
+    const dropped = (card.rawCut ? 1 : 0) + (areasDropped ? 1 : 0) + placed.dropped;
     const losses = addLosses(next.losses[unit], unit, [{ reason: "unreadableReport" },
       ...dropped === 0 ? [] : [{ reason: "unreadableDropped", count: dropped }]], at.wallTimeMs) ?? next.losses[unit] ?? EMPTY;
     const current = ownUnit(next, unit).persistence;
@@ -376,7 +379,7 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
   return {
     get state() { return next; },
     set state(value: OwnerState) { next = value; },
-    reduceUnit, applyDeadlines, diagnose, setPersistence, finish, generationInputIds, displayChanges, outcomes, changed, addCard,
+    reduceUnit, notifyUnreadable, applyDeadlines, diagnose, setPersistence, finish, generationInputIds, displayChanges, outcomes, changed, addCard,
     viewed: (unit: RuntimeUnitId) => { viewUnits.add(unit); },
   };
 }
@@ -484,6 +487,10 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
   // P3-UM-AC11 (1)(2): カードの受信時刻は item の値。inputId が保存の読み戻しの上限（validInputId）を外れる入力はカードにしない（無いと
   // その unit の保存が丸ごと読めなくなる。host の input-N は外れない）。
   const receivedAt = completion.receivedAt ?? clock.wallTimeMs, cardable = state.accepting && validInputId(completion.inputId);
+  // P3-UM-AC12 (1)(9)(10): U-E・U-T のカードは足す前に（同じ世代に入れる）通知の入力を渡す。取り直しの候補は渡さない（音は採用の step の recoveryNotices。渡すと候補の U-T に基点に無い intent ができ、部分集合の検査で候補ごと捨てられる）。
+  const origin = completion.origin ?? (completion.result.kind === "decoded" ? completion.result.material.origin : "live"), place = (unit: RuntimeUnitId, card: UnreadableCard, since: number, areasDropped = false) => {
+    if (origin !== "recovery" && (unit === "U-E" || unit === "U-T")) work.notifyUnreadable(unit, { kind: "unreadable", headType: card.headType, operation: card.operation, receivedAt, inputId: completion.inputId, origin, clock });
+    work.addCard(unit, card, since, completion.inputId, clock, areasDropped); };
   if (unit != null && completion.result.kind === "decoded") {
     const generationBeforeReceive = ownUnit(work.state, unit).persistence.currentGeneration, lossesBefore = work.state.losses[unit];
     const { material } = completion.result;
@@ -491,11 +498,10 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
     if (seen != null) seen.held = received.decisions.some((decision) => decision.decision === "unchanged" && decision.reason === "noChange");
     // (1): unit が断った入力（共通の封筒の検査を含む）は unreadable のカード。ignored・stale・duplicate・capacityExceeded はカードにしない。
     // 1 つの入力に断った decision が複数あれば最初の理由で 1 枚。
-    let rejected: RejectionReason | null = null;
-    for (const decision of received.decisions) if (decision.decision === "rejected") { rejected = decision.reason; break; }
-    if (rejected != null && cardable)
-      work.addCard(unit, makeCard("unreadable", rejected, completion.inputId, material.headType, receivedAt, material, null), generationBeforeReceive,
-        completion.inputId, clock);
+    let rejected: RejectionReason | null = null, areas: CardAreas | undefined; // U-Y は地域ごとの不備だけで断った報に地域ごとの値を添える（AC14 (1)(2)）
+    for (const decision of received.decisions) if (decision.decision === "rejected") { rejected = decision.reason; areas = "areas" in decision ? decision.areas : undefined; break; }
+    if (rejected != null && cardable) { const chosen = areas == null ? null : cardAreas(areas);
+      place(unit, makeCard("unreadable", rejected, completion.inputId, material.headType, receivedAt, material, null, chosen?.areas), generationBeforeReceive, chosen?.dropped); }
     // 容量の拒否でも失敗警報と title の書き換えで世代が進めば、その世代に帰属させる（P3-CC-AC10(9)、正常採用の扱いにはしない）。
     // U-E の採らない取消が取消の intent と印を足した世代、件数だけが変わった世代も同じ（P3-NL-AC04 (5)・AC14 (5)）。
     if (ownUnit(work.state, unit).persistence.currentGeneration > generationBeforeReceive
@@ -510,10 +516,10 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
     // mailbox は同じ headType で owner を選ぶ（placeOfHeadType）ので、振り分け先はこの owner の unit になる。
     const reason = parserDiagnosticReasons.find((candidate) => candidate === diagnostic.reason);
     const target = completion.headType == null ? null : classifyHeadType(completion.headType);
-    const place = target?.status === "ready" ? target.unit : target == null || target.status === "ignored" ? null : "U-M";
-    if (place != null && reason != null && cardable && completion.headType != null && state.units[place] != null)
-      work.addCard(place, makeCard("unidentified", reason, completion.inputId, completion.headType, receivedAt, null, diagnostic.expandedText ?? null),
-        ownUnit(state, place).persistence.currentGeneration, completion.inputId, clock);
+    const owner = target?.status === "ready" ? target.unit : target == null || target.status === "ignored" ? null : "U-M";
+    if (owner != null && reason != null && cardable && completion.headType != null && state.units[owner] != null)
+      place(owner, makeCard("unidentified", reason, completion.inputId, completion.headType, receivedAt, null, diagnostic.expandedText ?? null),
+        ownUnit(state, owner).persistence.currentGeneration);
   } else if (route?.status === "ignored") {
     // P3-UNIT-TABLE-001: 入力ごとに診断は 1 件まで。無視する headType は封筒の検査をしない。
     work.diagnose(boundDiagnosticDetails({ level: "INFO", component: "shared-runtime", reason: "routeIgnored", inputId: completion.inputId }));
@@ -717,6 +723,23 @@ function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest)
   const unit = state.units["U-F"];
   if (unit == null) return { kind: "error", reason: "unavailable", revision: null };
   return weatherTimeseriesDetail(unit, request, { contentRevision: String(unit.contentRevision) });
+}
+
+// P3-UM-AC11 (9)・AC14 (2): U-Y の地域を「不明＞5 日積算の高い＞低い」の順で 384 件・24,576 byte（JSON の配列の UTF-8 の長さ）に収まるまで選び、
+// 5 日積算の高い順（不明は最後、同じなら code の順）に並べる。dropped は落とした地域があったか。
+type CardAreas = NonNullable<UnreadableCard["areas"]>;
+function cardAreas(areas: CardAreas): Readonly<{ areas: CardAreas; dropped: boolean }> {
+  const order = (left: CardAreas[number], right: CardAreas[number]) => (right.value ?? -1) - (left.value ?? -1) || (left.code < right.code ? -1 : left.code > right.code ? 1 : 0);
+  const ranked = [...areas].sort((left, right) => (left.value == null) === (right.value == null) ? order(left, right) : left.value == null ? -1 : 1);
+  const kept: CardAreas[number][] = [];
+  let size = 2;
+  for (const area of ranked) {
+    const add = encoder.encode(JSON.stringify(area)).byteLength + (kept.length === 0 ? 0 : 1);
+    if (kept.length >= CARD_AREAS || size + add > CARD_AREAS_BYTES) break;
+    kept.push(area);
+    size += add;
+  }
+  return { areas: kept.sort(order), dropped: kept.length < areas.length };
 }
 
 export {

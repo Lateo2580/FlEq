@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 
-import type { Operation } from "../../contracts/p1-parser-boundary.types";
+import type { AcquisitionOrigin, Operation } from "../../contracts/p1-parser-boundary.types";
 import type { NotificationPriorityGroup } from "../../contracts/p2-notification-delivery.types";
 import type {
-  FailureMark, NoticeEvidence, NoticeKind, NoticeMark, NotificationIntent, NotificationIntentUpdate, MarkViewed, UnitId, UnreadableMark,
+  FailureMark, NoticeEvidence, NoticeKind, NoticeMark, NotificationIntent, NotificationIntentUpdate, MarkViewed, ReportRef, UnitId, UnreadableMark, UnreadableNoticeMark,
 } from "../../contracts/p2-shared-runtime.types";
 import { versionKey } from "../contracts-revision/version";
 import type { VersionRef } from "../contracts-revision/version";
@@ -176,25 +176,58 @@ function noticeMarkBytes(key: string, fragments = false): number {
 }
 
 // P3-NL-AC02 (6): 失敗の印の読み戻し。operation ごとに 1 件まで（最大 3 件）。形の外は null。
-function readFailureMarks(value: unknown): readonly FailureMark[] | null {
+function readMarks<L extends string>(value: unknown, levels: readonly L[]): readonly Readonly<{ operation: Operation; level: L; until: number }>[] | null {
   if (!Array.isArray(value) || value.length > 3) return null;
-  const marks: FailureMark[] = [];
+  const marks: Readonly<{ operation: Operation; level: L; until: number }>[] = [];
   for (const item of value) {
     if (item == null || typeof item !== "object" || Array.isArray(item)) return null;
     const row: Fields = Object.fromEntries(Object.entries(item));
     const operation = row.operation === "normal" || row.operation === "training" || row.operation === "test" ? row.operation : null;
-    if (operation == null || row.level !== "warning" && row.level !== "critical" || typeof row.until !== "number" || !Number.isFinite(row.until)
+    const level = levels.find((candidate) => candidate === row.level);
+    if (operation == null || level == null || typeof row.until !== "number" || !Number.isFinite(row.until)
       || marks.some((mark) => mark.operation === operation)) return null;
-    marks.push({ operation, level: row.level, until: row.until });
+    marks.push({ operation, level, until: row.until });
   }
   return marks;
 }
+const readFailureMarks = (value: unknown): readonly FailureMark[] | null => readMarks(value, ["warning", "critical"] as const);
+
+// ---- 読めない報の通知（P3-UM-AC12、U-E・U-T） ----
+
+const UNREADABLE_LEVELS = ["info", "normal", "warning", "critical"] as const;
+const readUnreadableNotices = (value: unknown): readonly UnreadableNoticeMark[] | null => readMarks(value, UNREADABLE_LEVELS);
+// (4): 同じ operation の印の until の内で段が上がらなければ鳴らさない（重ねないのは時間の窓だけ）。
+function unreadableNoticeDue(marks: readonly UnreadableNoticeMark[], operation: Operation, level: UnreadableNoticeMark["level"], now: number): boolean {
+  const mark = marks.find((item) => item.operation === operation);
+  return mark == null || mark.until <= now || UNREADABLE_LEVELS.indexOf(level) > UNREADABLE_LEVELS.indexOf(mark.level);
+}
+const withUnreadableNotice = (marks: readonly UnreadableNoticeMark[], mark: UnreadableNoticeMark): readonly UnreadableNoticeMark[] =>
+  [...marks.filter((item) => item.operation !== mark.operation), mark];
+// (4): 配送の更新（再試行）で読めない報の通知の期限が延びたら、同じ operation の印の until も延ばす（無いと延びた音の鳴る間に同じ段の報がまた
+// 鳴る、ヘルツ r0 の P2）。取り直しの音（origin recovery）は印を読まず書かない（AC12 (10)）。
+function extendUnreadableNotices(marks: readonly UnreadableNoticeMark[], updated: readonly NotificationIntent[]): readonly UnreadableNoticeMark[] {
+  let next = marks;
+  for (const item of updated) {
+    if (item.disposition !== "pending" || item.source.origin === "recovery" || item.subject !== `${item.operation}/unreadable`) continue;
+    next = next.map((mark) => mark.operation === item.operation && mark.until < item.expiresAt ? { ...mark, until: item.expiresAt } : mark);
+  }
+  return next.every((mark, at) => mark === marks[at]) ? marks : next;
+}
+// (5)(7): 固定の subject と、読めない報の入力を指すだけの source（版の比べに使わない。codec の ReportRef の検査に合わせ、時刻は受信時刻、
+// InfoType は発表、Control/DateTime と Serial は空。tsunami-unit.ts の recoveryNotices と同じ形、Q-UM-PRECHECK-4 の M2）。
+function unreadableSource(input: Readonly<{ inputId: string; origin: AcquisitionOrigin; headType: string; receivedAt: number }>, operation: Operation): ReportRef {
+  const subject = `${operation}/unreadable`;
+  return { inputId: input.inputId, origin: input.origin, operation, family: input.headType, subject,
+    reportDateTimeRaw: new Date(input.receivedAt).toISOString(), controlDateTimeRaw: "", serialRaw: "", infoTypeRaw: "発表" };
+}
+// (7): 本文は受信時刻（JST の HH:MM）と「内容を読めませんでした」。
+const unreadableBody = (receivedAt: number): string => `受信 ${new Date(receivedAt + 32_400_000).toISOString().slice(11, 16)}。内容を読めませんでした`;
 // 失敗の印 3 件の上界（要素と区切り。キーと [] は空の envelope の式に含める）。until は有限な数の JSON の最長 25 文字。
 const FAILURE_MARKS_MAX_BYTES = new TextEncoder().encode(JSON.stringify((["training", "training", "training"] as const).map((operation) =>
   ({ operation, level: "critical", until: -0.0000012345678901234567 })))).byteLength - 2;
 
 export {
-  FAILURE_MARKS_MAX_BYTES, readFailureMarks,
+  FAILURE_MARKS_MAX_BYTES, readFailureMarks, readUnreadableNotices, extendUnreadableNotices, unreadableBody, unreadableNoticeDue, unreadableSource, withUnreadableNotice,
   applyIntentUpdate, cancelText, failureNoticeId, fragmentKey, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed,
   priorityGroupOf, raiseEvidence, readIntentState, readNoticeMark, restoreStarted, shown, strongerEvidence, updateEvidence, versionDigest,
 };

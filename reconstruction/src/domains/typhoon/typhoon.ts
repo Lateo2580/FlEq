@@ -1,5 +1,5 @@
 import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
-import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
+import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableCard, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
   TyphoonFrame, TyphoonFrameKind, TyphoonName, TyphoonPoint, TyphoonPrefecture, TyphoonProbabilityArea, TyphoonUnreadableSite, TyphoonWindArea,
   TyphoonWindAxis,
@@ -63,7 +63,7 @@ type ProbabilityCandidate = Base & Readonly<{
 }>;
 type TyphoonCandidate = AnalysisCandidate | ProbabilityCandidate;
 type ParseResult = Readonly<{ kind: "accepted"; candidate: TyphoonCandidate }>
-  | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
+  | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails; areas?: NonNullable<UnreadableCard["areas"]> }>;
 
 // 読み取りで見つけた不備の記録（Q-ENUM.priorityRule: 欠落が妥当性より先に報告される）。
 type Found = { missing: boolean; invalid: boolean; truncated: boolean };
@@ -244,8 +244,8 @@ function readPercent(node: XmlElement, found: Found): number {
 function parseTyphoon(material: DecodedMaterial): ParseResult {
   const common = validateSemanticEnvelope(material);
   if (common.kind === "rejected") return { kind: "rejected", subject: "", reason: common.reason, diagnostic: common.diagnostic };
-  const reject = (reason: RejectionReason, subject = ""): ParseResult => ({ kind: "rejected", subject, reason,
-    diagnostic: { level: "WARN", component: "typhoon", reason, inputId: material.inputId, unit: "U-Y" } });
+  const reject = (reason: RejectionReason, subject = "", areas?: NonNullable<UnreadableCard["areas"]>): ParseResult => ({ kind: "rejected", subject, reason,
+    diagnostic: { level: "WARN", component: "typhoon", reason, inputId: material.inputId, unit: "U-Y" }, ...areas == null ? {} : { areas } });
 
   const headType = material.headType;
   const analysisType = ANALYSIS_TYPES.find((item) => item === headType) ?? null;
@@ -360,6 +360,9 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
   const series = infos == null ? null : only(infos, "TimeSeriesInfo", found);
 
   // 日積算の地域: 節ごとに code → 値。5 つと時系列で地域の集合が同じ。
+  // P3-UM-AC14 (1)（P3-UM-D-TYPHOON-PARTIAL=A）: 地域の値の不備は報の旗（found）でなくその地域の不備（bad）に覚える。areaFound は拒否の理由の欠落・妥当性。
+  const bad = new Set<string>(), areaFound: Found = { missing: false, invalid: false, truncated: false };
+  const flag = (code: string, own: Found) => { if (own.missing || own.invalid) { bad.add(code); areaFound.missing ||= own.missing; areaFound.invalid ||= own.invalid; } };
   const daily: Map<string, number>[] = [];
   const areaTable = new Map<string, AreaRead>();
   const prefectureNames = new Map<string, string>();
@@ -379,12 +382,12 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     for (const item of children(sections.get(day) ?? null, "Item")) {
       itemsSeen++;
       const area = readArea(item, found);
-      const property = children(children(item, "Kind")[0] ?? null, "Property")[0] ?? null;
-      const probability = only(children(property, "FiftyKtWindProbabilityPart")[0] ?? null, "FiftyKtWindProbability", found);
-      if (area == null || probability == null) continue;
-      if (values.has(area.code)) found.invalid = true;
-      values.set(area.code, readPercent(probability, found));
-      remember(area, item);
+      const property = children(children(item, "Kind")[0] ?? null, "Property")[0] ?? null, own: Found = { missing: false, invalid: false, truncated: false };
+      const probability = only(children(property, "FiftyKtWindProbabilityPart")[0] ?? null, "FiftyKtWindProbability", own);
+      if (area == null) continue;
+      if (values.has(area.code)) own.invalid = true;
+      if (probability != null) values.set(area.code, readPercent(probability, own));
+      flag(area.code, own); remember(area, item);
     }
   }
 
@@ -413,22 +416,24 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     const property = children(children(item, "Kind")[0] ?? null, "Property")[0] ?? null;
     const nodes = children(children(property, "FiftyKtWindProbabilityPart")[0] ?? null, "FiftyKtWindProbability");
     if (area == null) continue;
-    if (peaks.has(area.code)) found.invalid = true;
-    if (nodes.length !== defines.length) found.invalid = true;
+    const own: Found = { missing: false, invalid: false, truncated: false }; if (peaks.has(area.code)) own.invalid = true;
+    if (nodes.length !== defines.length) own.invalid = true;
     let peak = 0, slot: number | null = null;
     nodes.slice(0, slotCount).forEach((node, index) => {
-      if (attribute(node, "refID") !== String(index + 1)) found.invalid = true;
-      const value = readPercent(node, found);
+      if (attribute(node, "refID") !== String(index + 1)) own.invalid = true;
+      const value = readPercent(node, own);
       if (value > peak) { peak = value; slot = index; }
     });
-    peaks.set(area.code, { peak, slot });
+    flag(area.code, own); peaks.set(area.code, { peak, slot });
     remember(area, item);
   }
-  const total = areaTable.size;
   if (itemsSeen === 0) found.missing = true;
-  // 地域の集合の一致: areaTable は全部の節の和集合なので、各節の件数が和集合と同じなら全部同じ集合。
-  else if (peaks.size !== total || daily.some((values) => values.size !== total)) found.invalid = true;
+  // 地域の集合の一致: ある節か時系列に無い地域は、欠けた値を読めない値と同じに扱う（P3-UM-D-TYPHOON-PARTIAL の読み）。
+  for (const code of areaTable.keys()) if (!peaks.has(code) || daily.some((values) => !values.has(code))) flag(code, { missing: false, invalid: true, truncated: false });
   if (found.missing || found.invalid || infoRank == null) return fail();
+  // 地域の不備だけの報は断り地域ごとの 5 日積算（不備は null）を添える（AC14 (1)）。全ゼロの拒否（下の 2 か所）は値の全部読めた報でだけ決まるので後に置く。
+  if (bad.size !== 0) return reject(areaFound.missing ? "requiredStructureMissing" : "requiredStructureInvalid", subject,
+    [...areaTable].map(([code, area]) => ({ code, name: area.name, value: bad.has(code) ? null : daily[4].get(code)! })));
 
   // 1 以上の地域だけを持つ。5 日積算の高い順（同じなら code の小さい順）に 384 まで採り、府県予報区等が 97 個目になる地域は飛ばす（truncated）。
   type Kept = TyphoonProbabilityArea;

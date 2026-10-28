@@ -79,7 +79,7 @@ export function paintOf(forecasts, subject) {
 
 // ── C5 の reducer（reconstruction/dist）へ通す（P3-C6-SERIES-SOURCE=A。runner と解析は推測しない）──
 const SAVED = { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null };
-export const emptyTsunamiState = () => ({ schemaVersion: "p3-tsunami-unit-v8", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: SAVED });
+export const emptyTsunamiState = () => ({ schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [], persistence: SAVED });
 let decodeSeq = 0;
 export function receiveTsunami(state, xml, atMs) {
   const entered = ingestXmlData({ inputId: `tsunami-draft-${++decodeSeq}`, inputSequence: 1, receivedAt: 0, origin: "replay", kind: "replay",

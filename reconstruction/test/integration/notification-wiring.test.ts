@@ -301,7 +301,7 @@ function ccEnvelope(clock: ClockReading, headType: string, xml: string) {
 }
 // 世代を 4 MiB − slack にする終端記録を足す（記録の見え方は変えないので A8 の差分と食い違わない）。
 function crowdTsunami(state: TsunamiUnitState, slack: number): TsunamiUnitState {
-  const size = (value: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v8", unit: "U-T", generation: 0, capturedAt: 0,
+  const size = (value: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v9", unit: "U-T", generation: 0, capturedAt: 0,
     payload: tsunamiUnitCodec.encode(value) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + UNREADABLE_CARDS_MAX_BYTES
     + value.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   // 詰め物は別の EventID の normal の active な予報（退去の候補にならない）。P3-NL-AC05 で終端記録は無くなり、器は印の分だけ 4 MiB より大きい。

@@ -156,6 +156,20 @@ describe("P3-REC-T15 acceptance: the adopt step (AC06 (a)(b), AC07, AC10)", () =
     expect(await t.warnings()).toContainEqual(["recoveryFetchFailed", "U-T"]);
   });
 
+  // P3-UNREADABLE-MARK-001 の P3-UM-T12（AC12 (10)）: 候補の step は読めない報の通知の入力を渡さない（渡すと候補の U-T に基点に無い intent ができ、
+  // 部分集合の検査で候補ごと捨てられる）。U-T が断る 1 通と parser が断る 1 通で、採用の step の info だけが 1 回。
+  it("P3-UM-T12 acceptance / AC12 (10): unreadable VTSE41 bodies in a candidate add no live-style notice; the candidate is adopted with one info", async () => {
+    const t = await setup();
+    t.bodies.set("u1", xml(report("20991231000004", T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "51" }, { code: "311", name: "b", kind: "51" }])));
+    t.bodies.set("u2", xml(report("20991231000005", T0 - MINUTE, [{ code: "311", name: "a", kind: "51" }]).replace("</Head>", "</Hed>")));
+    await t.startup([head("u1", "20991231000004", T0 - 2 * MINUTE), head("u2", "20991231000005", T0 - MINUTE)]);
+    const [adopted] = t.recoveryReplies().filter((reply) => reply.result.kind === "adopted");
+    if (adopted?.result.kind !== "adopted") throw new Error("adopted reply expected");
+    expect(adopted.result.inputs.map((item) => item.result)).toEqual(["unreadableReport", "unreadable"]);
+    expect(t.h.unit("U-T").intents.filter((intent) => intent.subject === "normal/unreadable").map((intent) => [intent.id, intent.payload.level]))
+      .toEqual(["desktop", "sound"].map((channel) => [`U-T:normal/unreadable:recovery:${adopted.recoveryId}:${channel}`, "info"]));
+  });
+
   it("an invalid-UTF-8 body is unreadable in the reply: no negative evidence, no coverage; a sequence missing from the reply blocks it too", async () => {
     const t = await setup();
     t.bodies.set("p1", { kind: "ok", bytes: Buffer.from([0x3c, 0xff, 0xfe, 0x3e]), contentType: "application/xml" });

@@ -105,8 +105,11 @@ function harnessedRoot(config: AppConfig, codecs: CodecMap<RuntimeUnitStates> = 
     fail: (error) => { failures.push(error); },
   })] as const));
   const { runtimeCalls, owners: _owners, checkpointFileSystem: _fileSystem, ...rest } = options;
+  // 既定は本物の通知（osascript・音の player）を呼ばない adapter。無いと渡し忘れた試験が作者の画面に通知を出し音を鳴らす（K14 発注 4 で実害）。
+  const quiet: NonNullable<CompositionOptions["notificationAdapter"]> = { run: async (attempt, now) => ({ kind: "delivered", attemptId: attempt.attemptId,
+    intentId: attempt.intentId, channel: attempt.channel, completedAt: now() }), abort: async () => ({ stopped: true }) };
   const root: RuntimeCompositionRoot = new RuntimeCompositionRoot(config, codecs, {
-    ...rest, clock, sharedNow, units: runtimeCalls?.units,
+    ...rest, notificationAdapter: rest.notificationAdapter ?? quiet, clock, sharedNow, units: runtimeCalls?.units,
     notificationCalls: runtimeCalls == null ? undefined : { selectNotificationAttempt: runtimeCalls.selectNotificationAttempt,
       applyNotificationResult: runtimeCalls.applyNotificationResult },
     send: (place, request) => {

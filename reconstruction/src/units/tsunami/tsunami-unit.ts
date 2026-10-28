@@ -17,7 +17,7 @@ import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { AREA_RANK, INFO_RANK, KIND_CLASS, parseTsunami, sameStation } from "../../domains/tsunami/tsunami";
 import type { ForecastCandidate, ObservationCandidate } from "../../domains/tsunami/tsunami";
 import {
-  FAILURE_MARKS_MAX_BYTES, readFailureMarks, applyIntentUpdate, cancelText, failureNoticeId, fragmentKey, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed, raiseEvidence,
+  FAILURE_MARKS_MAX_BYTES, readFailureMarks, readUnreadableNotices, extendUnreadableNotices, unreadableBody, unreadableNoticeDue, unreadableSource, withUnreadableNotice, applyIntentUpdate, cancelText, failureNoticeId, fragmentKey, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed, raiseEvidence,
   readIntentState, readNoticeMark, restoreStarted, shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { PENDING_MARK_BYTES, cachedMin } from "../expiry";
@@ -28,7 +28,7 @@ import {
 
 // P3-TSUNAMI-UNIT-001（C5、I-U-T）: U-T の意味・通知・容量・codec・射影。
 
-const SCHEMA = "p3-tsunami-unit-v8" as const;
+const SCHEMA = "p3-tsunami-unit-v9" as const;
 // P3-C5-CAPACITY=A と P3-C5-RES-01・RET-01〜03。
 const FORECAST_LIMIT = 512, OBSERVATION_LIMIT = 512, STATION_LIMIT = 1024;
 // P3-NL-D-CAPACITY=A: 4 MiB に印（予報 512・観測 512×2 family、観測は fragment の鍵 16 件）と失敗の印（operation 3 つ）の最悪の分を足す。
@@ -46,7 +46,7 @@ const FAMILIES = ["VTSE51", "VTSE52"] as const;
 type Subject = TsunamiForecastSubject | TsunamiObservationSubject;
 type Level = TsunamiNotificationPayload["level"];
 type InternalStep = Omit<TsunamiUnitStep, "displayChanges" | "confirmationEvidence">;
-type Change = readonly [before: Subject | null, after: Subject | null];
+type Change = readonly [before: Subject | null, after: Subject | null]; type Marks = Pick<TsunamiUnitState, "failureMarks" | "unreadableNotices">;
 // uncovered: この受信が印に結び付けられない取りこぼしを作った（unit/operation の未確認へ、P3-CC-AC02）。
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[]; uncovered?: boolean }>;
 
@@ -81,13 +81,13 @@ function sumBytes(values: readonly Subject[]): number {
   return values.reduce((sum, item) => sum + subjectBytes(item), Math.max(values.length - 1, 0));
 }
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-T", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, forecasts: [], observations: [], intents: [], failureMarks: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
+  payload: { schemaVersion: SCHEMA, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F と同じ予約）。
 function generationBytes(forecasts: readonly Subject[], observations: readonly Subject[], intents: readonly TsunamiIntent[],
-  failureMarks: readonly FailureMark[]): number {
+  marks: Marks): number { // P3-UM-AC12 (4): 読めない報の印も failureMarks と同じ加算
   return emptyEnvelopeBytes + 62 + sumBytes(forecasts) + sumBytes(observations)
     + intents.reduce((sum, item) => sum + bytes(item) + deliveryGrowth(item), Math.max(intents.length - 1, 0))
-    + failureMarks.reduce((sum, item) => sum + bytes(item), Math.max(failureMarks.length - 1, 0));
+    + [marks.failureMarks, marks.unreadableNotices].reduce((total, list) => total + list.reduce((sum: number, item: object) => sum + bytes(item), Math.max(list.length - 1, 0)), 0);
 }
 
 // nextDeadline の最小値は配列に結び付けて持つ（weather-timeseries-unit の先例）。
@@ -250,13 +250,13 @@ function oldest(left: Subject, right: Subject): number {
 // null（capacityExceeded）。
 // ponytail: 退去の順は超過の種類ごとに 1 回並べる。退去は稀で上限 512・1024 に限られる（AGENTS.md の稀な一括処理）。
 function fit(forecasts: readonly TsunamiForecastSubject[], observations: readonly TsunamiObservationSubject[],
-  intents: readonly TsunamiIntent[], failureMarks: readonly FailureMark[], target: string, now: number, incoming: Operation, verified: boolean):
+  intents: readonly TsunamiIntent[], marks: Marks, target: string, now: number, incoming: Operation, verified: boolean):
   Readonly<{ forecasts: readonly TsunamiForecastSubject[]; observations: readonly TsunamiObservationSubject[];
     evicted: readonly Subject[] }> | null {
   const obsCount = { VTSE51: 0, VTSE52: 0 }, stationCount = { VTSE51: 0, VTSE52: 0 };
   for (const item of observations) { obsCount[item.family]++; stationCount[item.family] += item.stations.length; }
   let forecastCount = forecasts.length;
-  let size = generationBytes(forecasts, observations, intents, failureMarks);
+  let size = generationBytes(forecasts, observations, intents, marks);
   if (forecastCount <= FORECAST_LIMIT && size <= GENERATION_LIMIT && FAMILIES.every((family) =>
     obsCount[family] <= OBSERVATION_LIMIT && stationCount[family] <= STATION_LIMIT)) return { forecasts, observations, evicted: [] };
   const evicted = new Set<Subject>();
@@ -333,7 +333,7 @@ function hold(state: TsunamiUnitState, candidate: ForecastCandidate | Observatio
   const marked = <T extends Subject>(values: readonly T[]): readonly T[] => values.map((item) => item === found ? { ...item, unconfirmed: mark } : item);
   const forecasts = candidate.kind === "forecast" ? marked(state.forecasts) : state.forecasts;
   const observations = candidate.kind === "observation" ? marked(state.observations) : state.observations;
-  const fitted = fit(forecasts, observations, state.intents, state.failureMarks, candidate.subject, clock.wallTimeMs, candidate.operation,
+  const fitted = fit(forecasts, observations, state.intents, state, candidate.subject, clock.wallTimeMs, candidate.operation,
     basis === "verified");
   if (fitted == null) return { changes: [], step, uncovered: true };
   const next: TsunamiUnitState = { ...state, forecasts: fitted.forecasts, observations: fitted.observations,
@@ -656,7 +656,7 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
     changes = [...changes.map(([before, after]): Change => [before, after == null ? after : touched.get(after) ?? after]),
       ...pairs.filter(([item]) => !changes.some(([, after]) => after === item))];
   }
-  const fitted = fit(forecasts, observations, notices.intents, state.failureMarks, candidate.subject, clock.wallTimeMs, candidate.operation,
+  const fitted = fit(forecasts, observations, notices.intents, state, candidate.subject, clock.wallTimeMs, candidate.operation,
     basis === "verified");
   if (fitted == null) return refuse(state, candidate, clock, basis, proposal.fresh, proposal.emergency);
   const evidence = { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
@@ -701,7 +701,7 @@ function refuse(state: TsunamiUnitState, candidate: ForecastCandidate | Observat
     else {
       const next = { ...found, unavailable: { reason: "capacityExceeded" as const, source: candidate.source } };
       const fitted = fit(state.forecasts.map((item) => item === found ? next : item), state.observations, state.intents,
-        state.failureMarks, candidate.subject, now, operation, verified);
+        state, candidate.subject, now, operation, verified);
       if (fitted != null) {
         ({ forecasts, observations, evicted } = fitted);
         marked = next;
@@ -711,7 +711,7 @@ function refuse(state: TsunamiUnitState, candidate: ForecastCandidate | Observat
   }
   const fits = (values: readonly TsunamiIntent[], marks: readonly FailureMark[]) =>
     values.length <= PENDING_ITEMS && listBytes(values) + reserve(values) <= PENDING_BYTES
-      && generationBytes(forecasts, observations, values, marks) <= GENERATION_LIMIT;
+      && generationBytes(forecasts, observations, values, { failureMarks: marks, unreadableNotices: state.unreadableNotices }) <= GENERATION_LIMIT;
   let intents = state.intents, failureMarks = state.failureMarks;
   // D-FAILNOTICE=A: unit×operation の固定の subject。段階は上げるだけで、失敗の印の until まで同じか軽ければ鳴らさない（P3-NL-AC02 (6)）。
   const level = fresh[0]?.payload.level, failSubject = `${operation}/capacityRejected`;
@@ -844,7 +844,7 @@ function intentUpdate(state: TsunamiUnitState, input: Extract<TsunamiInput, { ki
   const next = { ...raiseNotices(state, raised), intents: state.intents.flatMap((item) => {
     const updated = changed.get(item.id);
     return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
-  }), persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  }), persistence: dirty(state.persistence, input.clock.monotonicMs), unreadableNotices: extendUnreadableNotices(state.unreadableNotices, [...changed.values()]) };
   const adopted = [...changed.values()];
   return { changes: [], step: { ...idle(next),
     decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation, decision: "changed" as const, reason: null,
@@ -905,7 +905,7 @@ function receive(state: TsunamiUnitState, input: Extract<TsunamiInput, { kind: "
 
 function reduceCore(state: TsunamiUnitState, input: TsunamiInput): Result {
   switch (input.kind) {
-    case "restore": return restore(state, input.persisted, input.clock, input.basis ?? "verified");
+    case "unreadable": return unreadableNotice(state, input); case "restore": return restore(state, input.persisted, input.clock, input.basis ?? "verified");
     case "intentUpdate": return intentUpdate(state, input);
     case "deadline": return deadlineStep(state, input.clock, input.basis ?? "verified", false);
     case "shutdown": return deadlineStep(state, input.clock, input.basis ?? "verified", true);
@@ -1208,8 +1208,8 @@ function persisted(value: unknown): PersistedTsunamiUnit | null {
   const row = record(value);
   if (row == null || row.schemaVersion !== SCHEMA) return null;
   const forecasts = list(row.forecasts, forecastSubject), observations = list(row.observations, observationSubject);
-  const intents = list(row.intents, intent), failureMarks = readFailureMarks(row.failureMarks);
-  if (forecasts == null || observations == null || intents == null || failureMarks == null || forecasts.length > FORECAST_LIMIT
+  const intents = list(row.intents, intent), failureMarks = readFailureMarks(row.failureMarks), unreadableNotices = readUnreadableNotices(row.unreadableNotices);
+  if (forecasts == null || observations == null || intents == null || failureMarks == null || unreadableNotices == null || forecasts.length > FORECAST_LIMIT
     || !unique([...forecasts, ...observations].map((item) => item.subject)) || !unique(intents.map((item) => item.id))) return null;
   for (const family of FAMILIES) {
     const own = observations.filter((item) => item.family === family);
@@ -1217,23 +1217,46 @@ function persisted(value: unknown): PersistedTsunamiUnit | null {
   }
   // P3-UM-AC16 (3)(c)（AC03 (1) の数え方）。
   if (intents.length > PENDING_ITEMS || listBytes(intents) + reserve(intents) > PENDING_BYTES
-    || generationBytes(forecasts, observations, intents, failureMarks) > GENERATION_LIMIT || rawTotal(forecasts, observations) > RAW_BUDGET) return null;
-  return { schemaVersion: SCHEMA, forecasts, observations, intents, failureMarks };
+    || generationBytes(forecasts, observations, intents, { failureMarks, unreadableNotices }) > GENERATION_LIMIT || rawTotal(forecasts, observations) > RAW_BUDGET) return null;
+  return { schemaVersion: SCHEMA, forecasts, observations, intents, failureMarks, unreadableNotices };
 }
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const tsunamiUnitCodec: TsunamiUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-tsunami-unit-v1", "p3-tsunami-unit-v2", "p3-tsunami-unit-v3", "p3-tsunami-unit-v4", "p3-tsunami-unit-v5", "p3-tsunami-unit-v6", "p3-tsunami-unit-v7"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-tsunami-unit-v1", "p3-tsunami-unit-v2", "p3-tsunami-unit-v3", "p3-tsunami-unit-v4", "p3-tsunami-unit-v5", "p3-tsunami-unit-v6", "p3-tsunami-unit-v7", "p3-tsunami-unit-v8"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // state は reducer が上限の内側で作るので、encode は保存 field だけを並べる（contentRevision・persistence は保存しない）。
   encode: (state) => ({ schemaVersion: SCHEMA, forecasts: state.forecasts, observations: state.observations, intents: state.intents,
-    failureMarks: state.failureMarks }),
+    failureMarks: state.failureMarks, unreadableNotices: state.unreadableNotices }),
   decode(payload) {
     const value = persisted(payload);
     return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
       : { kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence } };
   },
 };
+
+// P3-UM-AC12（P3-UM-D-CARD-SOUND=A）: 読めない津波の報の通知。VTSE41 は warning で津波緊急の群（読めない区分は unknown と同じ）、観測は info。
+// training・test は desktop だけ。operation の印の窓（intent の expiresAt の最大）の内で段が上がらなければ鳴らさない。印は保存の世代に入るので、
+// 器に収まらなければ鳴らさない（無いと器の際で capture が落ちる）。取り直しの音は recoveryNotices で、ここは通らない（AC12 (10)）。
+function unreadableNotice(state: TsunamiUnitState, input: Extract<TsunamiInput, { kind: "unreadable" }>): Result {
+  const operation = input.operation ?? "normal", forecast = input.headType === "VTSE41", level = forecast ? "warning" as const : "info" as const;
+  const now = input.clock.wallTimeMs;
+  if (!unreadableNoticeDue(state.unreadableNotices, operation, level, now)) return { changes: [], step: idle(state) };
+  const source = unreadableSource(input, operation);
+  const payload = payloadOf(operation, level, "津波の情報（読めない報）を受信", unreadableBody(input.receivedAt), false);
+  const fresh = (operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const).map((channel): TsunamiIntent => ({
+    id: `U-T:${source.subject}:${input.inputId}:${channel}`, unit: "U-T", subject: source.subject, operation, source, transition: "activated", channel,
+    payload, createdAt: now, expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
+    ...freshState("U-T", operation, forecast) }));
+  const notices = admit(state.intents, fresh, null);
+  if (notices.admitted.length === 0) return { changes: [], step: idle(state) };
+  const unreadableNotices = withUnreadableNotice(state.unreadableNotices, { operation, level, until: Math.max(...notices.admitted.map((item) => item.expiresAt)) });
+  if (generationBytes(state.forecasts, state.observations, notices.intents, { failureMarks: state.failureMarks, unreadableNotices }) > GENERATION_LIMIT)
+    return { changes: [], step: idle(state) };
+  const next: TsunamiUnitState = { ...state, intents: notices.intents, unreadableNotices, persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  return { changes: [], step: { ...idle(next), intents: notices.admitted,
+    diagnostics: notices.dropped === 0 ? [] : [{ level: "INFO", component: "tsunami", reason: "notificationCapacityEvicted", unit: "U-T", count: notices.dropped }] } };
+}
 
 // P3-UNIT-TABLE-001: この unit の行（I-U-T.runtimeRows）。
 const tsunamiUnit = {

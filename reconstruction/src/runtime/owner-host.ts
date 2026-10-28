@@ -120,7 +120,7 @@ class OwnerHost {
         let generationRaisedMs: number | null = null;
         const forced = switched ? this.apply(deadlineOwner(state, clock, this.options.units, request.basis, true)) : null;
         const step = this.apply(receiveOwner(this.state!, { runId: envelope.runId, inputId: item.inputId, result, headType: item.headType,
-          receivedAt: item.receivedAt }, clock, this.options.units,
+          receivedAt: item.receivedAt, origin: item.origin }, clock, this.options.units,
           this.options.start.measured ? () => { generationRaisedMs = this.measured(); } : undefined, request.basis));
         const marks = result.kind === "decoded" ? result.material.marks : noMarks;
         this.options.reply({ kind: "inputDone", settlement: { kind: "parser", messageId: envelope.messageId,
@@ -194,7 +194,7 @@ class OwnerHost {
   }
 
   private applyCandidate(candidate: Candidate, item: ParserMailboxItem, result: ParserMailboxResult, clock: ClockReading, basis: WallBasis): void {
-    const completion = { runId: candidate.shadow.runId, inputId: item.inputId, result, headType: item.headType, receivedAt: item.receivedAt };
+    const completion = { runId: candidate.shadow.runId, inputId: item.inputId, result, headType: item.headType, receivedAt: item.receivedAt, origin: item.origin };
     const seen = { held: false };
     const step = receiveOwner(candidate.shadow, completion, clock, this.options.units, undefined, basis, seen);
     candidate.shadow = step.state;

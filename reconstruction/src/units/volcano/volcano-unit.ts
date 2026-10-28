@@ -487,7 +487,7 @@ function hold<T extends Shown>(applied: Applied, candidate: VolcanoCandidate, va
   applied.diagnostics.push(held.missing ? missingDiagnostic(candidate) : conflictDiagnostic(candidate));
   const index = indexOf(values, subject), found = values[index ?? -1];
   if (found == null || held.mark == null || (marine && isAlert(found) ? found.marineUnconfirmed : found.unconfirmed) === held.mark) return;
-  applied.state = store(replaceAt(values, index, marine ? { ...found, marineUnconfirmed: held.mark } : { ...found, unconfirmed: held.mark }));
+  const marked = marine ? { ...found, marineUnconfirmed: held.mark } : { ...found, unconfirmed: held.mark }; applied.state = store(replaceAt(values, index, marked)); applied.changes.push([found, marked]); // P3-UM-AC19 (1): 印も表示差分に積む（無いと再起動まで view に出ない）
 }
 
 // ---- 通知（questionResolutions[Q-NOTICE]） ----
@@ -708,17 +708,17 @@ function place<T extends Shown>(applied: Applied, values: readonly T[], store: (
 
 // ---- 受信（P3-C9-SUBJECTS=A。一入力の変更は一回の参照交換で確定する） ----
 
-// P3-EF-AC13 (6): 結び付く相手が 0 件か 2 件以上の取消は受け取り、手元の記録を変えずに WARN を出す（H51 の B）。
-function noTarget(applied: Applied, candidate: VolcanoCandidate): Applied {
-  applied.decisions.push({ subject: "", operation: candidate.operation, decision: "unchanged", reason: "noChange" });
-  applied.diagnostics.push(missingDiagnostic(candidate));
-  return applied;
+// P3-EF-AC13 (6): 結び付く相手が 0 件か 2 件以上の取消は受け取り、手元の記録を変えずに WARN を出す（H51 の B）。2 件以上は印（P3-UM-AC19、undecided）。
+function noTarget<T extends VolcanoAlert | VolcanoAshfall>(applied: Applied, candidate: VolcanoCandidate, target?: Readonly<{ values: readonly T[]; store: (values: readonly T[]) => VolcanoUnitState }>): Applied {
+  const found = target == null ? [] : eventMatches(target.values, candidate.operation, eventKey(candidate));
+  if (target == null || found.length < 2) applied.decisions.push({ subject: "", operation: candidate.operation, decision: "unchanged", reason: "noChange" }); else undecided(applied, candidate, target, found);
+  applied.diagnostics.push(missingDiagnostic(candidate)); return applied;
 }
 // 火山コードの無い取消は、その slice の記録のうち eventId が一致する記録が一つだけのとき結び付く（P3-C9-CANCEL-SCOPE=A の (2)）。
 // 警報は VFVO50 の取消を landEventId、VFSV の取消を marineEventId と照らす（P3-AUTH-AC03(3)）。
 function codeOf(values: readonly (VolcanoAlert | VolcanoAshfall | VolcanoScheduledAshfall)[], candidate: VolcanoCandidate): string | null {
   if (candidate.volcanoCode != null) return candidate.volcanoCode;
-  const key = candidate.slice !== "alert" ? candidate.eventId : `${isMarine(candidate.family) ? "marine" : "land"}\n${candidate.eventId}`;
+  const key = eventKey(candidate);
   const found = eventMatches(values, candidate.operation, key);
   return found.length === 1 ? values[found[0]].volcanoCode : null;
 }
@@ -727,7 +727,7 @@ const dueAt = (value: Shown, now: number) => shownDeadline(value) <= now;
 function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, now: number, verified: boolean): Applied {
   const applied = emptyApplied(state, verified);
   const code = codeOf(state.alerts, candidate);
-  if (code == null) return noTarget(applied, candidate);
+  if (code == null) return noTarget(applied, candidate, { values: state.alerts, store: (alerts) => ({ ...applied.state, alerts }) });
   const subject = `${candidate.operation}/volcano:alert/${code}`;
   const index = indexOf(state.alerts, subject);
   const existing = index == null ? null : state.alerts[index];
@@ -830,7 +830,7 @@ function receiveAshfall(state: VolcanoUnitState, candidate: Candidate<"ashfall">
   const applied = emptyApplied(state, verified);
   const now = clock.wallTimeMs;
   const code = codeOf(state.ashfalls, candidate);
-  if (code == null) return noTarget(applied, candidate);
+  if (code == null) return noTarget(applied, candidate, { values: state.ashfalls, store: (ashfalls) => ({ ...applied.state, ashfalls }) });
   const subject = `${candidate.operation}/volcano:ashfall/${code}`;
   const index = indexOf(state.ashfalls, subject);
   const existing = index == null ? null : state.ashfalls[index];
@@ -1690,5 +1690,26 @@ const volcanoUnit = {
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-V">;
+
+// ---- 取消の相手が決まらない（P3-UM-AC19、H51 の表の 4 行目） ----
+
+const eventKey = (candidate: VolcanoCandidate): string =>
+  candidate.slice !== "alert" ? candidate.eventId : `${isMarine(candidate.family) ? "marine" : "land"}\n${candidate.eventId}`;
+// (1): eventId の当たる 2 件以上の記録（警報・降灰予報）の全部に「決められなかった」の印（取消の報の ReportRef で subject を記録の subject に
+// 替える。海上の警報は marineUnconfirmed）を付け、記録ごとの subject の決定と [before, after] を積む（subject が空の決定は receive の早期 return で
+// state ごと捨てられ、changes が無いと印が保存・再起動の後の view で初めて見える）。通知は作らない。
+function undecided<T extends VolcanoAlert | VolcanoAshfall>(applied: Applied, candidate: VolcanoCandidate,
+  target: Readonly<{ values: readonly T[]; store: (values: readonly T[]) => VolcanoUnitState }>, found: readonly number[]): void {
+  const marine = candidate.slice === "alert" && isMarine(candidate.family), values = [...target.values];
+  for (const at of found) {
+    const before = values[at], mark = { ...candidate.source, subject: before.subject };
+    decide(applied, candidate, before.subject, { kind: "unchanged", reason: "noChange" });
+    if (isDeepStrictEqual(marine && isAlert(before) ? before.marineUnconfirmed : before.unconfirmed, mark)) continue;
+    const after = marine && isAlert(before) ? { ...before, marineUnconfirmed: mark } : { ...before, unconfirmed: mark };
+    values[at] = after;
+    applied.changes.push([before, after]);
+  }
+  applied.state = target.store(values);
+}
 
 export { reduceVolcanoUnit, toVolcanoView, volcanoUnit, volcanoUnitCodec };
