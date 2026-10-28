@@ -9,7 +9,7 @@ import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth"
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
-import { floodUnitCodec, reduceFloodUnit, toFloodView } from "../../src/units/flood/flood-unit";
+import { floodUnitCodec, recoveryNotices, reduceFloodUnit, toFloodView } from "../../src/units/flood/flood-unit";
 import { cancelText } from "../../src/units/notice-mark";
 import {
   SAMPLE_RIVERS, clock, decodeFixture, decodeXml, emptyState, eventId, fixtureXml, receive, replaceTag, retime, rivers, send, serial, stationsXml,
@@ -573,14 +573,37 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
       ["desktop", "warning", "【訓練】○○川上流氾濫警戒情報"]]);
   });
 
-  // contractBoundary: E22 の U-R は対象外（P3-C11-N2、AC13）。
-  it("P3-C11-T10 contractBoundary / AC13: origin=recovery is not applied", () => {
-    const state = send(emptyState(), F.sample).state;
-    const recovery = receive(state, decodeXml(retime("2019-05-27T09:30:00+09:00")(fixtureXml(F.sample)), "VXKO50", "recovered", "recovery"),
-      clock(T0 + 30 * 60_000));
-    expect(recovery.state).toBe(state);
-    expect(recovery.decisions).toEqual([{ subject: SUBJECT, operation: "normal", decision: "unchanged", reason: "noChange" }]);
-    expect([recovery.intents, recovery.outcomes, recovery.confirmationEvidence, recovery.displayChanges]).toEqual([[], [], [], []]);
+  // contractBoundary: origin=recovery の入口（C16 発注 4b-1、P3-REC-AC12・P3-C11-N2・UNIT-ENTRANCE=A）。live と同じ意味を当てて intent を作らず、live なら
+  // 新しい intent が置き換える古い pending は外す。版が決まらない本文は印も WARN も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  it("P3-C11-T10 contractBoundary / AC13: origin=recovery applies the meaning without intents and returns an undecided version untouched", () => {
+    const state = send(emptyState(), F.sample).state, raise = (xml: string) => rivers([group("40")])(retime("2019-05-27T09:30:00+09:00")(xml));
+    const live = receive(state, decodeXml(raise(fixtureXml(F.sample))), clock(T0 + 30 * 60_000));
+    const recovery = receive(state, decodeXml(raise(fixtureXml(F.sample)), "VXKO50", "recovered", "recovery"), clock(T0 + 30 * 60_000));
+    expect([shape(recovery), kindsOf(recordOf(recovery.state)), state.intents.length, live.intents.length, recovery.intents, recovery.state.intents])
+      .toEqual([shape(live), kindsOf(recordOf(live.state)), 2, 2, [], []]);
+    const unsure = receive(state, decodeXml(rivers([group("40")])(fixtureXml(F.sample)), "VXKO50", "unsure", "recovery"), clock(T0));
+    expect([unsure.state === state, shape(unsure), unsure.diagnostics, unsure.displayChanges]).toEqual([true, [[SUBJECT, "unchanged", "noChange"]], [], []]);
+  });
+
+  // acceptance: 取り直しで拾った引上げ（H27、P3-REC-AC10・P3-REC-D-N2-RAISE-4B=A）と payload の 2 欄の codec（P3-REC-AC12）。
+  it("P3-REC-T15 acceptance (U-R): a raised river is one info per channel with the pair; the same level or a noticed version gives nothing", () => {
+    const now = clock(T0), open = send(emptyState(), F.sample).state;
+    const raised = receive(open, decodeXml(rivers([group("40")])(retime("2019-05-27T09:30:00+09:00")(fixtureXml(F.sample))), "VXKO50", "rec", "recovery"),
+      clock(T0 + 30 * 60_000)).state;
+    const noticed = recoveryNotices(open, raised, now);
+    expect(noticed.intents.map((item) => [item.channel, item.payload.level, item.payload.title, "recovered" in item.payload && item.payload.reportDateTime]))
+      .toEqual(["desktop", "sound"].map((channel) => [channel, "info", "○○川上流氾濫警戒情報（09:30 発表）", "2019-05-27T09:30:00+09:00"]));
+    expect(roundTrip(noticed)).toMatchObject({ kind: "restored", state: { intents: noticed.intents } });
+    expect([recoveryNotices(raised, raised, now), recoveryNotices(open, noticed, now)]).toEqual([raised, noticed]);
+  });
+
+  // 実不具合の再発防止（C16 発注 4b-1 の品質レビュー r0〜r2 の P2）: 候補の受信の前の回収は、shadow の基点（recoveryBase）で見えていなかった
+  // 記録の期限切れの intent を作らない。採用の後の live の期限は、拾った記録（source が origin=recovery）でも live で受けた報と同じく desktop の期限切れを作る。
+  it("P3-REC-T19 regression (U-R): the reclaim before a recovered body makes no expiry intent; a live deadline on a recovered record does", () => {
+    const recovered = receive(emptyState(), decodeXml(fixtureXml(F.sample), "VXKO50", "rec", "recovery"), clock(T0)).state;
+    const inCandidate = reduceFloodUnit(recovered, { kind: "deadline", clock: clock(T0 + RETAIN), recoveryBase: emptyState() }), live = tick(recovered, T0 + RETAIN);
+    expect([recordOf(inCandidate.state)?.effective, inCandidate.intents, inCandidate.state.intents, recordOf(live.state)?.effective,
+      live.intents.map((item) => [item.channel, item.transition])]).toEqual(["expired", [], [], "expired", [["desktop", "expired"]]]);
   });
 
   // 実不具合の再発防止の型（C8 の Q-C8-IMPL-AMEND(1)(2) を U-R で）: owner を通した更新・保存・復元。

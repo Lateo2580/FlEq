@@ -16,7 +16,7 @@ const MINUTE = 60_000;
 const EQ: DmdataClassification = "telegram.earthquake", WX: DmdataClassification = "telegram.weather";
 const head = (id: string, unit: ListHead["unit"] = "U-Q", operation: ListHead["operation"] = "normal"): ListHead => ({ id, unit,
   headType: unit === "U-Q" ? "VXSE53" : "VPWS50", receivedAtMs: 0, operation, title: "t", headline: null, reportDateTime: null, infoType: null, serial: null, eventId: null, controlDateTime: null,
-  controlStatus: "通常", test: false });
+  controlStatus: "通常", test: false, editorialOffice: null });
 
 describe("P3-REC-T05 acceptance (ledger): the freshness ledger (AC13 (3), RET-02)", () => {
   it("a middle item not received is suspected at its 2 min expiry although the last one matched; received while pending or a reset clears it", () => {

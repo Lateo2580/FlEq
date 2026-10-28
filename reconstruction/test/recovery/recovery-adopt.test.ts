@@ -15,6 +15,7 @@ import { envelope, harnessedRoot, manualAdapter, park, seeded, startHarness, sub
 import type { Harness } from "../execution-split/owner-harness";
 import { calls } from "../notification-delivery/delivery-fixture";
 import { vtse41 } from "../tsunami-unit/tsunami-fixture"; import { fixtureXml as nankaiXml, retime as nankaiRetime } from "../nankai-unit/nankai-fixture";
+import { eventId as floodEventId, fixtureXml as floodXml, retime as floodRetime } from "../flood-unit/flood-fixture";
 import type { Area } from "../tsunami-unit/tsunami-fixture";
 
 // P3-RECOVERY-001【発注 3】: 製品の publisher と in-process の owner（TEST-PATH (2)）で、取り直しの候補・採用・確認・穴の解決を通す。
@@ -53,7 +54,7 @@ const iso = (ms: number) => new Date(ms).toISOString();
 // 一覧の頭（U-T の VTSE41）。id は英数字、eventId は subject の鍵。
 function head(id: string, eventId: string, receivedAtMs: number, operation: ListHead["operation"] = "normal"): ListHead {
   return { id, unit: "U-T", headType: "VTSE41", receivedAtMs, operation, title: "津波警報", headline: null, reportDateTime: null, infoType: "発表",
-    serial: null, eventId, controlDateTime: null, controlStatus: operation === "normal" ? "通常" : "訓練", test: operation !== "normal" };
+    serial: null, eventId, controlDateTime: null, controlStatus: operation === "normal" ? "通常" : "訓練", test: operation !== "normal", editorialOffice: null };
 }
 const xml = (text: string): BodyResult => ({ kind: "ok", bytes: Buffer.from(text), contentType: "application/xml" });
 const report = (eventId: string, atMs: number, areas: readonly Area[], operation: ListHead["operation"] = "normal") =>
@@ -779,5 +780,64 @@ describe("P3-REC-T18 acceptance: the urgent re-apply limit and the U-N raise at 
     ack();
     await t.drive();
     expect([t.h.unit("U-T").intents, t.notification.runs]).toEqual([[], []]);
+  });
+});
+
+// 実不具合の再発防止（C16 発注 4b-1 の品質レビュー r0 の P2、ヘルツが実走で再現）: 取り直しの本文の受信の前の回収で、拾った洪水の記録の 36 時間が
+// 来ても期限切れの intent を shadow に足さない（足すと候補が live の部分集合でなく U-R が丸ごと generationConflict）。採用の後の live の期限が鳴る列は flood-unit.test.ts の同じ ID。
+describe("P3-REC-T19 regression (U-R): the expiry of a recovered flood record", () => {
+  const flood = (eventId: string, at: number) => floodEventId(eventId)(floodRetime(iso(at))(floodXml("16_02_01_220728_VXKO50")));
+  const floodHead = (id: string, eventId: string, at: number): ListHead => ({ ...head(id, eventId, at), unit: "U-R", headType: "VXKO50" });
+  const expiries = (t: Awaited<ReturnType<typeof setup>>) => t.h.unit("U-R").intents.filter((item) => item.transition === "expired");
+  it("an expiry reached while the next body is awaited makes no intent and the candidate is adopted", async () => {
+    const t = await setup(), old = T0 - 36 * 3_600_000 + 4_000;
+    t.bodies.set("r1", xml(flood("123456789012", old)));
+    let release!: () => void;
+    t.bodies.set("r2", () => new Promise((done) => { release = () => done(xml(flood("123456789013", T0 - MINUTE))); }));
+    await t.startup([floodHead("r1", "123456789012", old), floodHead("r2", "123456789013", T0 - MINUTE)], "U-R");
+    t.advance(7_500);
+    release();
+    await t.drive();
+    expect([t.progress("U-R")?.state, t.h.unit("U-R").currents.map((item) => [item.eventId, item.effective]), expiries(t)])
+      .toEqual(["recovered", [["123456789012", "expired"], ["123456789013", "active"]], []]);
+  });
+  // r1 の P2（Opus）: live から引き継いだ記録の期限が候補の受信の前の回収で来たら、その intent を落とさない。候補は generationConflict になり、
+  // 期限切れの通知は live の回収で出る（落とすと、採用の後はもう expired で、通知がどこにも出ない）。
+  it("an expiry of a record inherited from live reached in the candidate is not dropped: generationConflict, and live notifies", async () => {
+    const t = await setup(), old = T0 - 36 * 3_600_000 + 4_000, at = t.next();
+    await submit(t.h, envelope(t.h.root.state.runId, "VXKO50", `input-${at}`, Buffer.from(flood("123456789012", old)), t.now, at));
+    await t.drive();
+    // 先に 1 本を採ってから（候補が入れた本文がある状態で）、次の本文の受信の前の回収で live の記録の期限が来る。
+    t.bodies.set("r1", xml(flood("123456789014", T0 - MINUTE)));
+    let release!: () => void;
+    t.bodies.set("r2", () => new Promise((done) => { release = () => done(xml(flood("123456789013", T0 - MINUTE))); }));
+    await t.startup([floodHead("r1", "123456789014", T0 - MINUTE), floodHead("r2", "123456789013", T0 - MINUTE)], "U-R");
+    t.advance(7_500);
+    release();
+    await t.drive();
+    expect([t.progress("U-R"), t.h.unit("U-R").currents.map((item) => [item.eventId, item.effective])])
+      .toEqual([{ unit: "U-R", state: "unsatisfied", reason: "generationConflict" }, [["123456789012", "active"]]]);
+    t.h.root.tick(t.now);
+    await t.drive();
+    expect(expiries(t).map((item) => [item.subject, item.channel])).toEqual([["normal/VXKO50/123456789012", "desktop"]]);
+  });
+  // r2 の P2（ヘルツ）: 候補が新しい版で置き換えた live の記録の期限が同じ候補の中で来ても、基点で見えていた subject の intent は落とさない。
+  it("an expiry of a live record the candidate replaced with a newer version is not dropped: generationConflict, and live notifies", async () => {
+    const t = await setup(), old = T0 - 36 * 3_600_000 + 7_100, newer = old + 300, at = t.next();
+    await submit(t.h, envelope(t.h.root.state.runId, "VXKO50", `input-${at}`, Buffer.from(flood("123456789012", old)), t.now, at));
+    await t.drive();
+    t.bodies.set("r1", xml(flood("123456789012", newer)));
+    let release!: () => void;
+    t.bodies.set("r2", () => new Promise((done) => { release = () => done(xml(flood("123456789013", T0 - MINUTE))); }));
+    await t.startup([floodHead("r1", "123456789012", newer), floodHead("r2", "123456789013", T0 - MINUTE)], "U-R");
+    // 1〜7 秒の live の tick は、live の記録の期限（7.1 秒）の前で基点を変えない。
+    for (let second = 0; second < 7; second++) { t.advance(1_000); t.h.root.tick(t.now); await t.drive(); }
+    t.advance(500);
+    release();
+    await t.drive();
+    expect(t.progress("U-R")).toEqual({ unit: "U-R", state: "unsatisfied", reason: "generationConflict" });
+    t.h.root.tick(t.now);
+    await t.drive();
+    expect(expiries(t).map((item) => [item.subject, item.channel])).toEqual([["normal/VXKO50/123456789012", "desktop"]]);
   });
 });

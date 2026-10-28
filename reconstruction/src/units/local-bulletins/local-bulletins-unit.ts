@@ -256,10 +256,10 @@ function a7Order(left: LocalBulletinsIntent, right: LocalBulletinsIntent): numbe
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
 }
 // Q-NOTICE.capacity と P3-C13-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、withdrawn の subject（取消・遅着の撤回）は全 pending を置き換える。
-function admit(current: readonly LocalBulletinsIntent[], fresh: readonly LocalBulletinsIntent[], withdrawn: ReadonlySet<string>):
-  Readonly<{ intents: readonly LocalBulletinsIntent[]; admitted: readonly LocalBulletinsIntent[]; dropped: number }> {
+function admit(current: readonly LocalBulletinsIntent[], fresh: readonly LocalBulletinsIntent[], withdrawn: ReadonlySet<string>,
+  replacing: readonly LocalBulletinsIntent[] = fresh): Readonly<{ intents: readonly LocalBulletinsIntent[]; admitted: readonly LocalBulletinsIntent[]; dropped: number }> {
   const superseded = new Set<LocalBulletinsIntent>();
-  const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
+  const replaced = new Set(replacing.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
     if (withdrawn.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
@@ -395,7 +395,7 @@ const transientLane: Lane<TransientCurrent, TransientCandidate> = {
 
 function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lane<T, C>, state: State, candidate: C, clock: ClockReading,
   basis: WallBasis): Result {
-  const now = clock.wallTimeMs;
+  const now = clock.wallTimeMs, recovering = candidate.source.origin === "recovery";
   const { subject, operation } = candidate;
   const values = lane.read(state);
   const index = indexOf(values);
@@ -405,7 +405,7 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   // P3-UM-AC04: 通知の判定の比べ。compare・compareKeys は候補の印に書いて記録へ移す。
   const compared = noticeChange(existing, first.record);
   const built = compared.mark == null || compared.mark === markOf(first.record) ? first : lane.build({ ...candidate, unreadable: compared.mark }, now, basis);
-  const unchanged = (reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = [], kept = state): Result => ({ changes: [],
+  const unchanged = (reason: "duplicate" | "stale" | "noChange", diagnostics: readonly DiagnosticDetails[] = [], kept = state): Result => ({ changes: [],
     step: { ...idle(kept), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
   const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "localBulletins", inputId: candidate.source.inputId, unit: "U-M",
     reason: missing ? "requiredStructureMissing" : "localBulletinsRevisionConflict" });
@@ -422,6 +422,8 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
     && (!visible(existing) || changed(existing, lane.build(candidate, -Infinity).record).length === 0), candidate.cancelled);
   if (version != null && version.kind !== "adopt") {
     if (version.kind !== "held") return unchanged(version.kind === "duplicate" ? "duplicate" : "stale");
+    // P3-REC-AC12（C16 発注 4b-1）: 取り直しの版の決まらない本文は印も WARN も置かずに noChange（owner が held と読む、P3-REC-AC05 の (a)）。
+    if (recovering) return unchanged("noChange");
     return unchanged("stale", [warn(version.missing)], existing == null || version.mark == null || existing.unconfirmed === version.mark ? state
       : { ...lane.write(state, values.map((item, position) => position === at ? { ...item, unconfirmed: version.mark } : item)),
         persistence: dirty(state.persistence, clock.monotonicMs) });
@@ -484,7 +486,8 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const digest = payload == null ? "" : versionDigest(candidate.source);
   const fresh = payload == null ? [] : intentsFor(candidate, transition, payload, now, existing?.notice, digest, fragment);
-  const notices = admit(state.intents, fresh, withdrawn);
+  // 取り直しは intent を作らず、live の新しい intent が置き換える古い pending だけを外す（P3-REC-D-UNIT-ENTRANCE=A）。
+  const notices = admit(state.intents, recovering ? [] : fresh, withdrawn, fresh);
   // P3-NL-AC02 (3): admit を通った版と種類を系列の印に足す（全 channel が断られた版は入れない）。
   if (notices.admitted.length !== 0) {
     const plain = next;
@@ -533,9 +536,8 @@ function receive(state: State, input: Extract<LocalBulletinsInput, { kind: "rece
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
     operation: input.material.operation, decision: "rejected", reason: parsed.reason }], diagnostics: [parsed.diagnostic] } };
   const { candidate } = parsed;
-  // Q-NOTICE.recovery・P3-C13-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
-  if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
+  // P3-REC-AC12（C16 発注 4b-1）・P3-C13-N2: origin=recovery は候補の作成のときだけ owner から届く。意味を当てて intent を作らない（H27 は無し、
+  // P3-REC-D-N2-RAISE-4B=A）。
   const basis = input.basis ?? "verified";
   switch (candidate.slice) {
     case "tornado": return warned(receiveWith(tornadoLane, state, candidate, input.clock, basis), parsed.diagnostics);

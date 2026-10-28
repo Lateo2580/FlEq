@@ -64,17 +64,17 @@ export type LandslideCurrent = Readonly<{
 );
 
 // 気象の音（sound-design-system.md の分野別根音表）。A7 の群は unit で決まり、U-L は other（P3-C10-NOTICE-GROUP）。
-export type LandslideNotificationPayload = Readonly<{
+type LandslidePayloadBase = Readonly<{
   domain: "weather";
   level: "info" | "normal" | "warning" | "critical" | "cancel";
   title: string;
   body: string;
-}>;
+}>; export type LandslideNotificationPayload = LandslidePayloadBase | (LandslidePayloadBase & Readonly<{ reportDateTime: string; recovered: true }>); // P3-REC-AC10・AC12（C16 発注 4b-1）: H27 は発表時刻と「取り直しで拾った」印を対で持つ
 
 export type LandslideIntent = NotificationIntent & Readonly<{ payload: LandslideNotificationPayload }>;
 
 export type LandslideUnitState = Readonly<{
-  schemaVersion: "p3-landslide-unit-v7";
+  schemaVersion: "p3-landslide-unit-v8";
   contentRevision: number;
   currents: readonly LandslideCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -83,7 +83,7 @@ export type LandslideUnitState = Readonly<{
 }>;
 
 export type PersistedLandslideUnit = Readonly<{
-  schemaVersion: "p3-landslide-unit-v7";
+  schemaVersion: "p3-landslide-unit-v8";
   currents: readonly LandslideCurrent[];
   intents: readonly LandslideIntent[];
 }>;
@@ -120,5 +120,5 @@ export type LandslideUnitStep = Readonly<{
 }>;
 
 export type LandslideUnitCodec = UnitCodec<LandslideUnitState, PersistedLandslideUnit> & Readonly<{
-  schemaVersion: "p3-landslide-unit-v7";
+  schemaVersion: "p3-landslide-unit-v8";
 }>;

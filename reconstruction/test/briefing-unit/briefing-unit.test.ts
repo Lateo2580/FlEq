@@ -593,13 +593,23 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     expect([send(restored, F.k1).intents, channels(send(restored, F.k2))]).toEqual([[], ["desktop:warning:updated", "sound:warning:updated"]]);
   });
 
-  // contractBoundary: E22 の U-B は対象外（P3-C12-N2、AC13）。
-  it("P3-C12-T11 contractBoundary / AC13: origin=recovery is not applied", () => {
-    const state = send(emptyState(), F.k1).state;
-    const recovery = receive(state, decodeXml(fixtureXml(F.k2), "VPBS50", "recovered", "recovery"), clock(T0 + 8 * 60_000));
-    expect(recovery.state).toBe(state);
-    expect(recovery.decisions).toEqual([{ subject: K, operation: "normal", decision: "unchanged", reason: "noChange" }]);
-    expect([recovery.intents, recovery.outcomes, recovery.confirmationEvidence, recovery.displayChanges]).toEqual([[], [], [], []]);
+  // contractBoundary: origin=recovery の入口（C16 発注 4b-1、P3-REC-AC12・P3-C12-N2・UNIT-ENTRANCE=A）。live と同じ意味を当てて intent を作らず、live なら
+  // 新しい intent が置き換える古い pending は外す。版が決まらない本文は印も WARN も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  it("P3-C12-T11 contractBoundary / AC13: origin=recovery applies the meaning without intents and returns an undecided version untouched", () => {
+    const state = send(emptyState(), F.k1).state, now = clock(T0 + 8 * 60_000);
+    const live = receive(state, decodeXml(fixtureXml(F.k2)), now), recovery = receive(state, decodeXml(fixtureXml(F.k2), "VPBS50", "recovered", "recovery"), now);
+    expect([shape(recovery), areasOf(recordOf(recovery.state)), state.intents.length, live.intents.length, recovery.intents, recovery.state.intents])
+      .toEqual([shape(live), areasOf(recordOf(live.state)), 2, 2, [], []]);
+    const unsure = receive(state, decodeXml(fixtureXml(F.k1).replace("猛烈な雨が降っており", "非常に激しい雨が降っており"), "VPBS50", "unsure", "recovery"), clock(T0));
+    expect([unsure.state === state, shape(unsure), unsure.diagnostics, unsure.displayChanges]).toEqual([true, [[K, "unchanged", "noChange"]], [], []]);
+  });
+
+  // 受入で確かめる境界（C16 発注 4b-1 の点検のレビューの注）: 取り直しで拾った VPOA50 の held は、対応報の無いまま 60 秒で released になっても鳴らさない
+  // （本文の間が 7.5 秒でも 60 秒の内に対応報が当たる保証は無く、候補の shadow で鳴ると採用の部分集合の検査に外れる）。live は 2 件。
+  it("P3-REC-AC12 contractBoundary (U-B hold): a recovered VPOA50 released from its hold makes no intent", () => {
+    const recovered = receive(emptyState(), decodeXml(fixtureXml(F.oa1), "VPOA50", "rec-oa1", "recovery"), clock(T0)).state;
+    const released = tick(recovered, T0 + 60_000), live = tick(send(emptyState(), F.oa1).state, T0 + 60_000);
+    expect([effective(recovered, P), effective(released.state, P), released.intents, released.state.intents, live.intents.length]).toEqual(["held", "released", [], [], 2]);
   });
 
   // contractBoundary: 退去の operation の適格性と自身の退去（AC14、監査 F04 の型を未配送の U-B で先に止める）。

@@ -23,6 +23,8 @@ export type ListHead = Readonly<{
   controlStatus: string;
   // 一覧の item の head.test（本文の入力の根拠 headTest へそのまま渡す、P3-REC-AC05・publicFunctions の (d)）。
   test: boolean;
+  // 【発注 4b-1】一覧の item の xmlReport.control.editorialOffice。官署で subject の鍵を作る unit の bodiesFor が使う（Q-REC-PRECHECK-5 の M3）。
+  editorialOffice: string | null;
 }>;
 
 // types は 1 つの unit の型だけの束（1〜5、P3-REC-D-LIST-QUERY）。cursorToken は前の応答の nextToken をそのまま渡す。

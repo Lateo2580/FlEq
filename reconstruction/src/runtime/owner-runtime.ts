@@ -30,7 +30,7 @@ import type { CodecMap } from "../checkpoint/checkpoint";
 import { CARD_AREAS, CARD_AREAS_BYTES, CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
 import { headlineOf, rewriteBounded, titleOf } from "../units/unreadable";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
-import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import { recoveryNotices } from "../units/tsunami/tsunami-unit"; import { recoveryNotices as nankaiRecoveryNotices } from "../units/nankai/nankai-unit"; import { recoveryNotices as volcanoRecoveryNotices } from "../units/volcano/volcano-unit"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
+import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import { recoveryNotices } from "../units/tsunami/tsunami-unit"; import { recoveryNotices as nankaiRecoveryNotices } from "../units/nankai/nankai-unit"; import { recoveryNotices as volcanoRecoveryNotices } from "../units/volcano/volcano-unit"; import { recoveryNotices as landslideRecoveryNotices } from "../units/landslide/landslide-unit"; import { recoveryNotices as floodRecoveryNotices } from "../units/flood/flood-unit"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
 // P3-EXECUTION-SPLIT-001 (C3a) owner core: everything one owner does to its own units, as pure functions of
 // the owner state. The owner thread and the test path (1) call these; nothing here touches another place's units.
@@ -86,8 +86,8 @@ const initialUnits: RuntimeUnitStates = {
   "U-N": { schemaVersion: "p3-nankai-unit-v8", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
   "U-V": { schemaVersion: "p3-volcano-unit-v7", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: cleanPersistence },
-  "U-L": { schemaVersion: "p3-landslide-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
-  "U-R": { schemaVersion: "p3-flood-unit-v8", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-L": { schemaVersion: "p3-landslide-unit-v8", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
+  "U-R": { schemaVersion: "p3-flood-unit-v9", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
   "U-B": { schemaVersion: "p3-briefing-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
   "U-M": { schemaVersion: "p3-local-bulletins-unit-v7", contentRevision: 0, tornado: [], heat: [], transient: [], intents: [], persistence: cleanPersistence },
   "U-Y": { schemaVersion: "p3-typhoon-unit-v7", contentRevision: 0, analysis: [], probability: [], intents: [], persistence: cleanPersistence },
@@ -319,13 +319,13 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
     reduceJob(unit === "U-E" ? { unit, state: ownUnit(next, unit), input } : { unit, state: ownUnit(next, unit), input }, input.clock, false);
   // force: 根拠が verified に替わった要求で、到来の判定を通さず unit ごとに 1 回当てる（P3-EF-AC02 (7)。時計が後ろへ直っても保留の記録を回収する）。
   // 期限を何も持たない unit（nextDeadline が null）は当てるものが無いので送らない。
-  const applyDeadlines = (targets: readonly RuntimeUnitId[], force = false) => {
+  const applyDeadlines = (targets: readonly RuntimeUnitId[], force = false, base?: OwnerState) => { // base は候補の受信の前の回収だけが渡す shadow の基点（U-R へ、P3-REC-AC12）
     if (clock == null || next.finalized) return;
     for (const unit of targets) {
       const deadline = next.deadlines[unit];
       if (deadline != null && (force || deadline.wallTimeMs != null && clock.wallTimeMs >= deadline.wallTimeMs
         || deadline.monotonicMs != null && clock.monotonicMs >= deadline.monotonicMs))
-        reduceUnit(unit, { kind: "deadline", clock, basis });
+        reduceUnit(unit, { kind: "deadline", clock, basis, ...base == null || unit !== "U-R" ? {} : { recoveryBase: ownUnit(base, unit) } });
     }
   };
   // P3-UM-AC11 (5)(6)・AC13 (1): カードを足し、H39 に数え、件数と同じくその unit の世代を進めてこの入力に帰属させる（since はこの入力の処理の
@@ -472,7 +472,7 @@ function routedUnit(state: OwnerState, completion: ParserCompletion): RuntimeUni
 // parser の入力 1 件: 振り分け、受信、またはちょうど 1 件の診断（P3-UNIT-TABLE-001、P3-C3A-NONREADY）。
 // seen は取り直しの候補だけが渡す: 版が決まらず unit が採らなかったか（noChange。結果を held にする、作者裁定 2026-10-28 午後）。
 function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: ClockReading, units: UnitTable,
-  beforeProjection?: () => void, basis: WallBasis = "verified", seen?: { held: boolean }): OwnerStep {
+  beforeProjection?: () => void, basis: WallBasis = "verified", seen?: { held: boolean; base?: OwnerState }): OwnerStep {
   checkClock(clock);
   const work = session(state, units, clock, basis);
   if (completion.runId !== state.runId || state.finalized) return work.finish(true, beforeProjection);
@@ -481,7 +481,7 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
   // 受信の前に、求める unit は自分の wall の期限（記録の期限）を回収する。回収は parser の入力に帰属させず、この入力の名を
   // 持つのは下の受信だけ。
   if (unit != null && units[unit].reclaimDeadlineBeforeReceive && state.deadlines[unit]?.wallTimeMs != null)
-    work.applyDeadlines([unit]);
+    work.applyDeadlines([unit], false, seen?.base);
   // unit は共通の Head・日時の検査を自分でもう一度行う（入力ごとに診断 1 件）。U-W は拒否した入力でも §7.8 の鮮度の監視を続ける
   // （A1 freshnessException）。
   // P3-UM-AC11 (1)(2): カードの受信時刻は item の値。inputId が保存の読み戻しの上限（validInputId）を外れる入力はカードにしない（無いと
@@ -716,7 +716,10 @@ const RECOVERY_NOTICES: Partial<Record<RuntimeUnitId, (at: RecoverySound) => Own
   "U-T": (at) => { const ids = new Set(at.inputIds), card = (at.adopted.unreadable["U-T"] ?? EMPTY).find((item) => ids.has(item.inputId) && item.kind !== "unknownType"), candidate = ownUnit(at.adopted, "U-T");
     return sounded(at, "U-T", candidate, recoveryNotices(ownUnit(at.open, "U-T"), candidate, at.recoveryId, card == null ? null : { operation: card.operation, receivedAt: card.receivedAt, inputId: card.inputId, headType: card.headType }, at.clock)); },
   // P3-REC-D-N2-RAISE=A: U-N の現況の段と U-V の警報レベルの引上げだけ info を 1 回（U-Q と降灰はカードだけ）。
-  "U-N": (at) => sounded(at, "U-N", ownUnit(at.adopted, "U-N"), nankaiRecoveryNotices(ownUnit(at.open, "U-N"), ownUnit(at.adopted, "U-N"), at.clock, at.basis)), "U-V": (at) => sounded(at, "U-V", ownUnit(at.adopted, "U-V"), volcanoRecoveryNotices(ownUnit(at.open, "U-V"), ownUnit(at.adopted, "U-V"), at.clock)) };
+  "U-N": (at) => sounded(at, "U-N", ownUnit(at.adopted, "U-N"), nankaiRecoveryNotices(ownUnit(at.open, "U-N"), ownUnit(at.adopted, "U-N"), at.clock, at.basis)), "U-V": (at) => sounded(at, "U-V", ownUnit(at.adopted, "U-V"), volcanoRecoveryNotices(ownUnit(at.open, "U-V"), ownUnit(at.adopted, "U-V"), at.clock)),
+  // P3-REC-D-N2-RAISE-4B=A: U-L の区域の段と U-R の音の段の引上げだけ info を 1 回（U-B・U-M・U-Y はカードだけ）。
+  "U-L": (at) => sounded(at, "U-L", ownUnit(at.adopted, "U-L"), landslideRecoveryNotices(ownUnit(at.open, "U-L"), ownUnit(at.adopted, "U-L"), at.clock)),
+  "U-R": (at) => sounded(at, "U-R", ownUnit(at.adopted, "U-R"), floodRecoveryNotices(ownUnit(at.open, "U-R"), ownUnit(at.adopted, "U-R"), at.clock)) };
 
 // P3-UFP-AC06: owner の state から U-F の詳細の 1 ページを作る。U-F の関数を直接呼ぶ（Q-UFP-DETAIL-PATH）。
 function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest): WeatherTimeseriesDetailResponse {

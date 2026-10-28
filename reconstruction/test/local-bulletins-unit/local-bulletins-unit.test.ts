@@ -671,18 +671,27 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(reasonOf(send(restored.state, N50))).toBe("duplicate");
   });
 
-  // contractBoundary: origin=recovery は適用しない（P3-C13-N2）。
-  it("P3-C13-T12 contractBoundary / AC14: recovery inputs leave every slice unchanged", () => {
-    const base = send(send(send(emptyState(), N50).state, HEAT).state, "85_01_01_250630_VPFJ51").state;
+  // contractBoundary: origin=recovery の入口（C16 発注 4b-1、P3-REC-AC12・P3-C13-N2・UNIT-ENTRANCE=A）。三つの slice とも live と同じ意味を当てて intent を作らず、
+  // 版が決まらない本文は印も WARN も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  it("P3-C13-T12 contractBoundary / AC14: recovery inputs apply the meaning of every slice without intents; an undecided version is untouched", () => {
+    const facts = (state: LocalBulletinsUnitState) => records(state).map((item) => [item.subject, item.effective]);
     for (const [name, headType] of [[N50, "VPHW50"], [HEAT, "VPFT50"], ["85_01_01_250630_VPFJ51", "VPFJ51"], ["32-35_09_01_191111_VXSE56", "VXSE56"]] as const) {
-      const material = decodeXml(fixtureXml(name), headType, `recovery-${name}`, "recovery");
-      const step = receive(base, material, clock(Date.parse(material.reportDateTimeRaw)));
-      expect([name, step.state, step.intents, step.outcomes, step.decisions.map((item) => [item.decision, "reason" in item ? item.reason : null])]).toEqual([
-        name, base, [], [], [["unchanged", "noChange"]]]);
+      const material = decodeXml(fixtureXml(name), headType, `recovery-${name}`, "recovery"), now = clock(Date.parse(material.reportDateTimeRaw));
+      const step = receive(emptyState(), material, now), live = receive(emptyState(), decodeXml(fixtureXml(name), headType), now);
+      expect([name, reasonOf(step), facts(step.state), step.intents, step.state.intents]).toEqual([name, reasonOf(live), facts(live.state), [], []]);
     }
-    // 意味検証の後に適用しない: 検証に外れた recovery の報は拒否の reason を返す。
+    // pending のある state から: live なら新しい intent が置き換える古い pending は外し、新しい intent は作らない（4a の品質レビュー r0 の P2 と同じ形）。
+    const tornado = send(emptyState(), N50).state, later = (xml: string) => infoType("訂正")(retime(iso(Date.parse(tornado.tornado[0].source.reportDateTimeRaw) + 60_000))(xml));
+    const liveFollow = receive(tornado, decodeXml(later(fixtureXml(N50)), "VPHW50"), clock(Date.parse(tornado.tornado[0].source.reportDateTimeRaw) + 60_000));
+    const recoveredFollow = receive(tornado, decodeXml(later(fixtureXml(N50)), "VPHW50", "rec-follow", "recovery"), clock(Date.parse(tornado.tornado[0].source.reportDateTimeRaw) + 60_000));
+    expect([tornado.intents.length, liveFollow.intents.length, recoveredFollow.intents, recoveredFollow.state.intents, facts(recoveredFollow.state)])
+      .toEqual([2, 2, [], [], facts(liveFollow.state)]);
+    const active = send(emptyState(), HEAT).state, unsure = receive(active, decodeXml(fixtureXml("synthetic_VPFT50_title_escalation"), "VPFT50", "unsure", "recovery"),
+      clock(Date.parse(active.heat[0].source.reportDateTimeRaw)));
+    expect([unsure.state === active, reasonOf(unsure), unsure.diagnostics]).toEqual([true, "noChange", []]);
+    // 意味検証が先: 検証に外れた recovery の報は拒否の reason を返す。
     const invalid = decodeXml(fixtureXml(HEAT).replace(/<EventID>[^<]*<\/EventID>/, "<EventID></EventID>"), "VPFT50", "recovery-bad", "recovery");
-    expect(reasonOf(receive(base, invalid, clock(1)))).toBe("identityMissing");
+    expect(reasonOf(receive(active, invalid, clock(1)))).toBe("identityMissing");
   });
 
   // contractBoundary: 最大の保存状態からの閉包（P3-X-C4、AC15）。decode が通る最大の形（I-U-M.capacityReserve の見積もり）。

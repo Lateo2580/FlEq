@@ -203,10 +203,10 @@ function a7Order(left: TyphoonIntent, right: TyphoonIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
 }
 // Q-NOTICE.capacity と P3-C14-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、withdrawn の subject（取消・遅着・終わりの撤回）は全 pending を置き換える。
-function admit(current: readonly TyphoonIntent[], fresh: readonly TyphoonIntent[], withdrawn: ReadonlySet<string>):
+function admit(current: readonly TyphoonIntent[], fresh: readonly TyphoonIntent[], withdrawn: ReadonlySet<string>, replacing: readonly TyphoonIntent[] = fresh):
   Readonly<{ intents: readonly TyphoonIntent[]; admitted: readonly TyphoonIntent[]; dropped: number }> {
   const superseded = new Set<TyphoonIntent>();
-  const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
+  const replaced = new Set(replacing.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
     if (withdrawn.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
@@ -338,11 +338,11 @@ const probabilityLane: Lane<Probability, ProbabilityCandidate> = {
   },
 };
 
-const unchangedStep = (state: State, subject: string, operation: Operation, reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = []): Result =>
+const unchangedStep = (state: State, subject: string, operation: Operation, reason: "duplicate" | "stale" | "noChange", diagnostics: readonly DiagnosticDetails[] = []): Result =>
   ({ changes: [], step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
 
 function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>, state: State, candidate: C, clock: ClockReading, basis: WallBasis): Result {
-  const now = clock.wallTimeMs;
+  const now = clock.wallTimeMs, recovering = candidate.source.origin === "recovery";
   const { subject, operation } = candidate;
   const values = lane.read(state);
   const at = indexOf(values).get(subject);
@@ -359,6 +359,8 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
       && (visible(existing) ? changed(existing, lane.build(candidate, -Infinity, null).record).length === 0 : !lane.conflicts(existing, candidate)), candidate.cancelled);
   if (version.kind !== "adopt") {
     if (version.kind !== "held") return unchangedStep(state, subject, operation, version.kind === "duplicate" ? "duplicate" : "stale");
+    // P3-REC-AC12（C16 発注 4b-1）: 取り直しの版の決まらない本文は印も WARN も置かずに noChange（owner が held と読む、P3-REC-AC05 の (a)）。
+    if (recovering) return unchangedStep(state, subject, operation, "noChange");
     const marked = existing == null || version.mark == null || existing.unconfirmed === version.mark ? state : { ...lane.write(state,
       values.map((item, position) => position === at ? { ...item, unconfirmed: version.mark } : item)), persistence: dirty(state.persistence, clock.monotonicMs) };
     return unchangedStep(marked, subject, operation, "stale", [warn(version.missing)]);
@@ -415,7 +417,8 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
   const digest = notice == null ? "" : versionDigest(candidate.source);
   const fresh = notice == null ? [] : intentsFor(candidate, notice.transition, payloadOf(operation, notice.level, candidate.title, notice.body, notice.mark,
     existing?.source.reportDateTimeRaw ?? null), now, existing?.notice, digest);
-  const notices = admit(state.intents, fresh, withdrawn);
+  // 取り直しは intent を作らず、live の新しい intent が置き換える古い pending だけを外す（P3-REC-D-UNIT-ENTRANCE=A）。
+  const notices = admit(state.intents, recovering ? [] : fresh, withdrawn, fresh);
   // P3-NL-AC02 (3): admit を通った版と種類を系列の印に足す（全 channel が断られた版は入れない）。
   if (notice != null && notices.admitted.length !== 0) {
     const plain = next;
@@ -466,9 +469,8 @@ function receive(state: State, input: Extract<TyphoonInput, { kind: "receive" }>
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
     operation: input.material.operation, decision: "rejected", reason: parsed.reason, ...parsed.areas == null ? {} : { areas: parsed.areas } }], diagnostics: [parsed.diagnostic] } };
   const { candidate } = parsed;
-  // Q-NOTICE.recovery・P3-C14-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
-  if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
+  // P3-REC-AC12（C16 発注 4b-1）・P3-C14-N2: origin=recovery は候補の作成のときだけ owner から届く。意味を当てて intent を作らない（H27 は無し、
+  // P3-REC-D-N2-RAISE-4B=A）。
   const basis = input.basis ?? "verified";
   return candidate.slice === "analysis" ? receiveWith(analysisLane, state, candidate, input.clock, basis)
     : receiveWith(probabilityLane, state, candidate, input.clock, basis);

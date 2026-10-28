@@ -97,17 +97,17 @@ export type FloodCurrent = Readonly<{
 );
 
 // 気象の音（sound-design-system.md の分野別根音表）。A7 の群は unit で決まり、U-R は other（P3-C11-NOTICE-GROUP）。
-export type FloodNotificationPayload = Readonly<{
+type FloodPayloadBase = Readonly<{
   domain: "weather";
   level: "info" | "normal" | "warning" | "critical" | "cancel";
   title: string;
   body: string;
-}>;
+}>; export type FloodNotificationPayload = FloodPayloadBase | (FloodPayloadBase & Readonly<{ reportDateTime: string; recovered: true }>); // P3-REC-AC10・AC12（C16 発注 4b-1）: H27 は発表時刻と「取り直しで拾った」印を対で持つ
 
 export type FloodIntent = NotificationIntent & Readonly<{ payload: FloodNotificationPayload }>;
 
 export type FloodUnitState = Readonly<{
-  schemaVersion: "p3-flood-unit-v8";
+  schemaVersion: "p3-flood-unit-v9";
   contentRevision: number;
   currents: readonly FloodCurrent[];
   // Pending only (P3-NL-AC05): a terminal intent leaves and its result stays in the series' notice mark.
@@ -116,7 +116,7 @@ export type FloodUnitState = Readonly<{
 }>;
 
 export type PersistedFloodUnit = Readonly<{
-  schemaVersion: "p3-flood-unit-v8";
+  schemaVersion: "p3-flood-unit-v9";
   currents: readonly FloodCurrent[];
   intents: readonly FloodIntent[];
 }>;
@@ -129,7 +129,9 @@ export type FloodUnitView = SharedUnitView & Readonly<{
 
 export type FloodInput =
   | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>
-  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis }>
+  // recoveryBase は取り直しの候補の本文の受信の前の回収だけが渡す shadow の基点。基点で見えていなかった記録は期限切れの intent を作らない
+  // （P3-REC-AC12、C16 発注 4b-1 の r3）。
+  | Readonly<{ kind: "deadline"; clock: ClockReading; basis?: WallBasis; recoveryBase?: FloodUnitState }>
   | Readonly<{ kind: "restore"; persisted: PersistedFloodUnit; clock: ClockReading; basis?: WallBasis }>
   // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
   | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
@@ -153,5 +155,5 @@ export type FloodUnitStep = Readonly<{
 }>;
 
 export type FloodUnitCodec = UnitCodec<FloodUnitState, PersistedFloodUnit> & Readonly<{
-  schemaVersion: "p3-flood-unit-v8";
+  schemaVersion: "p3-flood-unit-v9";
 }>;

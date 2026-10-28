@@ -180,7 +180,7 @@ class OwnerHost {
       this.diagnostics.push(completeDiagnostic({ level: "WARN", component: "recovery", reason: "recoveryBaseMissing", inputId: item.inputId },
         clock, this.state!.runId));
     } else {
-      this.applyCandidate(candidate, item, result, clock, request.basis);
+      this.applyCandidate(candidate, item, result, clock, request.basis, candidate.base);
       // RES-08 の内だけ当て直し用に持つ。越えたら基点が変わったときに作り直さない。
       if (!candidate.overflow && candidate.bytes + item.encodedByteLength <= CANDIDATE_BYTES && (this.options.start.place !== "urgent" || candidate.items.length < URGENT_REAPPLY_ITEMS)) {
         candidate.items.push(item);
@@ -193,9 +193,9 @@ class OwnerHost {
     inputGenerations: null, generationRaisedMs: null, output: this.output(forced == null ? [] : [forced]) });
   }
 
-  private applyCandidate(candidate: Candidate, item: ParserMailboxItem, result: ParserMailboxResult, clock: ClockReading, basis: WallBasis): void {
+  private applyCandidate(candidate: Candidate, item: ParserMailboxItem, result: ParserMailboxResult, clock: ClockReading, basis: WallBasis, start: OwnerState): void { // start は shadow の基点（開いた時の live、当て直しでは今の live。U-R の期限の intent の判定、P3-REC-AC12）
     const completion = { runId: candidate.shadow.runId, inputId: item.inputId, result, headType: item.headType, receivedAt: item.receivedAt, origin: item.origin };
-    const seen = { held: false };
+    const seen = { held: false, base: start };
     const step = receiveOwner(candidate.shadow, completion, clock, this.options.units, undefined, basis, seen);
     candidate.shadow = step.state;
     candidate.results.set(item.inputSequence, recoveryResult(completion, step, seen.held));
@@ -228,7 +228,7 @@ class OwnerHost {
       const items = [...candidate.items];
       Object.assign(candidate, { shadow: state, results: new Map(), diagnostics: [], evidence: [] });
       candidate.inputIds.length = 0;
-      for (const item of items) this.applyCandidate(candidate, item, decodeMaterial(item), clock, request.basis);
+      for (const item of items) this.applyCandidate(candidate, item, decodeMaterial(item), clock, request.basis, state);
     }
     const step = adoptRecoveryOwner(state, candidate.shadow, unit, recoveryId, candidate.open, candidate.inputIds, clock, this.options.units, request.basis);
     // 部分集合の検査に外れた候補は捨てる（P3-REC-D-UNIT-ENTRANCE の共有の検査）。

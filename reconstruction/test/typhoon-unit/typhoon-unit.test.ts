@@ -655,15 +655,24 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     expect([noop.state, noop.decisions]).toEqual([delivered.state, []]);
   });
 
-  // contractBoundary: origin=recovery は適用しない（P3-C14-N2）。
-  it("P3-C14-T12 contractBoundary / AC14: recovery inputs leave every slice unchanged", () => {
-    const loaded = send(send(emptyState(), A01).state, P41).state;
-    const recovered = (name: string, transform?: (xml: string) => string) => reduceTyphoonUnit(loaded, { kind: "receive",
-      material: decodeFixture(name, transform, undefined, undefined, "recovery"), clock: clock(ms("2026-06-01T00:00:00+09:00")) });
+  // contractBoundary: origin=recovery の入口（C16 発注 4b-1、P3-REC-AC12・P3-C14-N2・UNIT-ENTRANCE=A）。live と同じ意味を当てて intent を作らず、
+  // 版が決まらない本文は印も WARN も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  it("P3-C14-T12 contractBoundary / AC14: recovery inputs apply the meaning without intents; an undecided version is untouched", () => {
+    const loaded = send(send(emptyState(), A01).state, P41).state, facts = (state: TyphoonUnitState) => records(state).map((item) => [item.subject, item.effective]);
+    const recovered = (name: string, transform?: (xml: string) => string, origin: "replay" | "recovery" = "recovery") => reduceTyphoonUnit(loaded, { kind: "receive",
+      material: decodeFixture(name, transform, undefined, undefined, origin), clock: clock(ms("2026-06-01T00:00:00+09:00")) });
     for (const [name, transform] of [[A04, undefined], [CANCEL_A, undefined], [P87, undefined], [CANCEL_P, undefined], [LOWERING, undefined], [A01, eventId("TC9999")]] as const) {
-      const step = recovered(name, transform);
-      expect([name, step.state, step.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision), step.intents, step.outcomes]).toEqual([name, loaded, ["noChange"], [], []]);
+      const step = recovered(name, transform), live = recovered(name, transform, "replay");
+      expect([name, kindOf(step), facts(step.state), step.intents]).toEqual([name, kindOf(live), facts(live.state), []]);
     }
+    // pending のある state から: live なら新しい intent が置き換える古い pending は外し、新しい intent は作らない（4a の品質レビュー r0 の P2 と同じ形）。
+    const first = send(emptyState(), A01).state, at = clock(ms(decodeFixture(A02).reportDateTimeRaw));
+    const liveFollow = reduceTyphoonUnit(first, { kind: "receive", material: decodeFixture(A02), clock: at });
+    const recoveredFollow = reduceTyphoonUnit(first, { kind: "receive", material: decodeFixture(A02, undefined, undefined, undefined, "recovery"), clock: at });
+    expect([first.intents.length, liveFollow.intents.length, recoveredFollow.intents, recoveredFollow.state.intents, facts(recoveredFollow.state)])
+      .toEqual([2, 2, [], [], facts(liveFollow.state)]);
+    const unsure = recovered(A01, (xml) => xml.replace(">1002<", ">1001<"));
+    expect([unsure.state === loaded, kindOf(unsure), unsure.diagnostics]).toEqual([true, ["noChange"], []]);
     // 意味検証が先: 不備のある recovery の報は拒否される。
     expect(reasonOf(recovered(A01, eventId("")))).toBe("identityMissing");
   });

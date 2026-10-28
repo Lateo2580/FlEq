@@ -95,6 +95,8 @@ describe("P3-REC-T01 contractBoundary: the list walk (AC01, AC02, AC03)", () => 
     const [result] = await walk([{ unit: "U-V", bundles: [["VFVO50", "VFVO51"], ["VFVO54"]], fetchFromMs: NOW - 5 * DAY, stopAtId: null }]);
     expect(result).toMatchObject({ unit: "U-V", kind: "listed" });
     expect(result.kind === "listed" && ids(result.heads)).toEqual([newest.id, next.id, third.id, ended.id]);
+    // 【発注 4b-1】頭は一覧の item の control.editorialOffice を持つ（官署で鍵を作る unit の bodiesFor、Q-REC-PRECHECK-5 の M3）。
+    expect(result.kind === "listed" && result.heads[0].editorialOffice).toBe("福岡管区気象台");
     expect(https.requests.map(({ url }) => url.pathname + url.search)).toEqual([
       "/v2/telegram?type=VFVO50,VFVO51&limit=100&formatMode=raw&xmlReport=true",
       "/v2/telegram?type=VFVO50,VFVO51&limit=100&formatMode=raw&xmlReport=true&cursorToken=n1%2F%2B%3D",
@@ -261,7 +263,7 @@ describe("P3-REC-T08 acceptance (unit side): the digest from walk results (AC15,
     const start = walkStart({ receivedAt: { wallTimeMs: NOW - DAY, basis: "verified" }, dmdataTime: null, dmdataId: null, oldestHole: null }, "restored", NOW + DAY);
     const head = (id: string, headType: string, receivedAtMs: number, headline: string): ListHead => ({ id, unit: headType === "VTSE41" ? "U-T" : "U-V",
       headType, receivedAtMs, operation: "normal", title: "津波予報", headline, reportDateTime: null, infoType: "発表", serial: null, eventId: null,
-      controlDateTime: null, controlStatus: "通常", test: false });
+      controlDateTime: null, controlStatus: "通常", test: false, editorialOffice: null });
     // 境界（NOW − 1 日）の 10 分の余白の中の item は取得するがダイジェストに入れない。
     const margin = head("m", "VTSE41", NOW - DAY - MINUTE, "余白");
     const tsunami = Array.from({ length: 300 }, (_, index) => head(`t${index}`, "VTSE41", NOW - index * MINUTE, "津".repeat(200)));
@@ -372,7 +374,7 @@ describe("P3-REC-T08 acceptance (unit side,【発注 2】): P3-REC-D-DIGEST-BUDG
   const start = walkStart(null, "empty", NOW);
   const long = (unit: ListHead["unit"], headType: string, index: number): ListHead => ({ id: `${unit}-${index}`, unit, headType,
     receivedAtMs: NOW - index * MINUTE, operation: "normal", title: "表".repeat(120), headline: "見".repeat(120), reportDateTime: null, infoType: null,
-    serial: null, eventId: null, controlDateTime: null, controlStatus: "通常", test: false });
+    serial: null, eventId: null, controlDateTime: null, controlStatus: "通常", test: false, editorialOffice: null });
   const listed = (unit: ListHead["unit"], headType: string, count: number): UnitWalkResult =>
     ({ unit, kind: "listed", heads: Array.from({ length: count }, (_, index) => long(unit, headType, index)) });
   const total = (unit: { kind: string; heads?: readonly unknown[]; omitted?: Readonly<Record<string, number>> }) =>
@@ -403,7 +405,7 @@ describe("P3-REC-T08 acceptance (unit side,【発注 2】): P3-REC-D-DIGEST-BUDG
 
 describe("P3-REC-T12 contractBoundary: the body boundary (AC01, AC05)", () => {
   const listHead = (id: string): ListHead => ({ id, unit: "U-T", headType: "VTSE41", receivedAtMs: NOW, operation: "normal", title: "津波予報",
-    headline: null, reportDateTime: null, infoType: null, serial: null, eventId: "20260728162718", controlDateTime: null, controlStatus: "通常", test: false });
+    headline: null, reportDateTime: null, infoType: null, serial: null, eventId: "20260728162718", controlDateTime: null, controlStatus: "通常", test: false, editorialOffice: null });
   const now = () => performance.now();
 
   it("a VTSE41 item whose url is not built from its id makes U-T fetchFailed with one WARN; the page is not failed", async () => {
@@ -458,10 +460,10 @@ describe("P3-REC-T12 contractBoundary: the body boundary (AC01, AC05)", () => {
 
 // P3-RECOVERY-001 発注 4a: unit の N2（型・最新だけで足りるか・窓。P3-REC-AC12・RES-03、Q-REC-PRECHECK-4 の M1・M4・M5）。
 describe("P3-REC-T17 contractBoundary: the N2 bodies of U-V, U-N and U-Q (AC12, RES-03)", () => {
-  const head = (id: string, unit: ListHead["unit"], headType: string, eventId: string | null, receivedAtMs: number): ListHead => ({ id, unit, headType,
+  const head = (id: string, unit: ListHead["unit"], headType: string, eventId: string | null, receivedAtMs: number, extra: Partial<ListHead> = {}): ListHead => ({ id, unit, headType,
     receivedAtMs, operation: "normal", title: "t", headline: null, reportDateTime: null, infoType: "発表", serial: null, eventId, controlDateTime: null,
-    controlStatus: "通常", test: false });
-  const pick = (unit: ListHead["unit"], heads: readonly ListHead[]) => bodiesFor(unit, heads).map((item) => item.id);
+    controlStatus: "通常", test: false, editorialOffice: null, ...extra });
+  const pick = (unit: ListHead["unit"], heads: readonly ListHead[], nowWallMs?: number) => bodiesFor(unit, heads, nowWallMs).map((item) => item.id);
   it("U-N keeps every body in receive order; U-V and U-Q keep the latest per type and EventID (VXSE53 and VXSE61 both); 4b units stay out", () => {
     expect(pick("U-N", [head("n2", "U-N", "VYSE50", "E1", 2), head("n1", "U-N", "VYSE50", "E1", 1), head("n3", "U-N", "VYSE60", "E2", 3)])).toEqual(["n1", "n2", "n3"]);
     expect(pick("U-V", [head("v1", "U-V", "VFVO50", "306", 1), head("v2", "U-V", "VFVO50", "306", 2), head("v3", "U-V", "VFVO55", "306", 3),
@@ -469,5 +471,20 @@ describe("P3-REC-T17 contractBoundary: the N2 bodies of U-V, U-N and U-Q (AC12, 
     expect(pick("U-Q", [head("q1", "U-Q", "VXSE53", "E", 1), head("q2", "U-Q", "VXSE61", "E", 2), head("q3", "U-Q", "VXSE53", "E", 3)])).toEqual(["q2", "q3"]);
     expect(pick("U-W", [head("w", "U-W", "VPWW54", null, 1)])).toEqual([]);
     expect((["U-V", "U-N", "U-Q", "U-T", "U-W"] as const).map((unit) => windowOf(unit) / 3_600_000)).toEqual([720, 720, 42, 168, 168]);
+  });
+  // 発注 4b-1（Q-REC-PRECHECK-5 の M1〜M3）: 鍵は U-L が官署、U-M の竜巻が型ごとの官署と題、VPAW51 は絞らない、ほかは EventID。官署の無い頭は絞らない。
+  it("U-L keys by office, U-M tornado by type, office and title, VPAW51 unkeyed, stale short-lived bulletins dropped; the 4b-1 windows", () => {
+    const office = (name: string | null) => ({ editorialOffice: name });
+    expect(pick("U-L", [head("l1", "U-L", "VPWW56", null, 1, office("宇都宮")), head("l2", "U-L", "VPWW56", null, 2, office("宇都宮")),
+      head("l3", "U-L", "VPWW56", null, 3, office("前橋")), head("l4", "U-L", "VPWW56", null, 4, office(null)), head("l5", "U-L", "VPWW56", null, 5, office(null))]))
+      .toEqual(["l2", "l3", "l4", "l5"]);
+    const now = Date.parse("2026-10-29T12:00:00+09:00"), report = (hoursAgo: number) => ({ reportDateTime: new Date(now - hoursAgo * 3_600_000).toISOString() });
+    expect(pick("U-M", [head("m1", "U-M", "VPHW51", null, 1, { ...office("宇都宮"), title: "竜巻注意情報" }),
+      head("m2", "U-M", "VPHW50", null, 2, { ...office("宇都宮"), title: "竜巻注意情報" }), head("m3", "U-M", "VPHW51", null, 3, { ...office("宇都宮"), title: "竜巻注意情報" }),
+      head("m4", "U-M", "VPAW51", "E", 4), head("m5", "U-M", "VPAW51", "E", 5), head("m6", "U-M", "VXSE56", "E", 6, report(4)),
+      head("m7", "U-M", "VXSE56", "F", 7, report(2)), head("m8", "U-M", "VPFT50", "H", 8, report(30)), head("m9", "U-M", "VPFT50", "H", 9, report(6))], now))
+      .toEqual(["m2", "m3", "m4", "m5", "m7", "m9"]);
+    expect(pick("U-R", [head("r1", "U-R", "VXKO61", "R", 1), head("r2", "U-R", "VXKO61", "R", 2), head("r3", "U-R", "VXSU50", "R", 3)])).toEqual(["r2", "r3"]);
+    expect((["U-L", "U-R", "U-B", "U-M", "U-Y"] as const).map((unit) => windowOf(unit) / 3_600_000)).toEqual([54, 42, 9, 72, 168]);
   });
 });

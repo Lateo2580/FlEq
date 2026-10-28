@@ -330,10 +330,10 @@ function a7Order(left: BriefingIntent, right: BriefingIntent): number {
 }
 // Q-NOTICE.capacity と P3-C12-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、withdrawn の subject（取消・alias・
 // 置換で replaced・遅着の撤回）は全 pending を置き換える。
-function admit(current: readonly BriefingIntent[], fresh: readonly BriefingIntent[], withdrawn: ReadonlySet<string>):
+function admit(current: readonly BriefingIntent[], fresh: readonly BriefingIntent[], withdrawn: ReadonlySet<string>, replacing: readonly BriefingIntent[] = fresh):
   Readonly<{ intents: readonly BriefingIntent[]; admitted: readonly BriefingIntent[]; dropped: number }> {
   const superseded = new Set<BriefingIntent>();
-  const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
+  const replaced = new Set(replacing.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
     if (withdrawn.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
@@ -389,12 +389,12 @@ function displaySubject(value: BriefingCurrent): Extract<RuntimeDisplaySubject, 
 // ---- 受信（P3-C12-PARAMETERS.adoptionOutcome の順。一入力の変更は一回の参照交換で確定する、spec:616） ----
 
 function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate, clock: ClockReading, basis: WallBasis): Result {
-  const now = clock.wallTimeMs;
+  const now = clock.wallTimeMs, recovering = candidate.source.origin === "recovery";
   const { subject, operation } = candidate;
   const found = recordAt(state.currents, subject);
   const existing = found?.value ?? null;
   let next = nextOf(candidate, existing, state.currents, now);
-  const unchanged = (reason: "duplicate" | "stale", diagnostics: readonly DiagnosticDetails[] = []): Result => ({ changes: [],
+  const unchanged = (reason: "duplicate" | "stale" | "noChange", diagnostics: readonly DiagnosticDetails[] = []): Result => ({ changes: [],
     step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
   const version = judge(existing, next, candidate);
   const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "briefing", inputId: candidate.source.inputId, unit: "U-B",
@@ -402,6 +402,8 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   // 取消以前の版は stale で、取消した subject を戻さない。同じ版で中身が同じなら duplicate、違えば先着を保って印を付ける（P3-VM-AC04）。
   if (version.kind !== "adopt") {
     if (version.kind !== "held") return unchanged(version.kind === "duplicate" ? "duplicate" : "stale");
+    // P3-REC-AC12（C16 発注 4b-1）: 取り直しの版の決まらない本文は印も WARN も置かずに noChange（owner が held と読む、P3-REC-AC05 の (a)）。
+    if (recovering) return unchanged("noChange");
     const marked = found == null || version.mark == null || found.value.unconfirmed === version.mark ? state : { ...state,
       currents: state.currents.map((item, at) => at === found.at ? { ...item, unconfirmed: version.mark! } : item), persistence: dirty(state.persistence, clock.monotonicMs) };
     return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: "stale" }], diagnostics: [warn(version.missing)] } };
@@ -503,7 +505,8 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   const transition = candidate.cancelled ? "cancelled" as const : correction || visible(existing) ? "updated" as const : "activated" as const;
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const fresh = payload == null ? [] : intentsFor(candidate, transition, payload, now, existing?.notice, versionDigest(candidate.source));
-  const notices = admit(state.intents, fresh, withdrawn);
+  // 取り直しは intent を作らず、live の新しい intent が置き換える古い pending だけを外す（P3-REC-D-UNIT-ENTRANCE=A）。
+  const notices = admit(state.intents, recovering ? [] : fresh, withdrawn, fresh);
   const marked = markAdmitted(currents, notices.admitted);
   // P3-UM-AC03 (3): 原文の合計が予算を越えたら古い記録の原文から外す（印は残る）。外した記録の view も変わるので表示の変化に足す。
   const fit = fitRawBudget(rawTotal(marked), RAW_BUDGET, () => marked, rawKey);
@@ -546,9 +549,8 @@ function receive(state: BriefingUnitState, input: Extract<BriefingInput, { kind:
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
     operation: input.material.operation, decision: "rejected", reason: parsed.reason }], diagnostics: [parsed.diagnostic] } };
   const { candidate } = parsed;
-  // Q-NOTICE.recovery・P3-C12-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
-  if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
+  // P3-REC-AC12（C16 発注 4b-1）・P3-C12-N2: origin=recovery は候補の作成のときだけ owner から届く。意味を当てて intent を作らない（H27 は無し、
+  // P3-REC-D-N2-RAISE-4B=A）。
   return warned(receiveCandidate(state, retarget(candidate, state.currents), input.clock, input.basis ?? "verified"), parsed.diagnostics);
 }
 
@@ -598,7 +600,9 @@ function collect(state: BriefingUnitState, clock: ClockReading, basis: WallBasis
   });
   const remaining = !verified || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
   const expiredIntents = state.intents.length - remaining.length;
-  const notices = admit(remaining, released, new Set());
+  // 取り直しで拾った VPOA50（source が origin=recovery）の解放は鳴らさない。候補の shadow でも採用の後の live でも、本文の間や採用までの時間に
+  // よらず解放は起こりうる（P3-REC-D-UNIT-ENTRANCE=A）。置き換える古い pending は live と同じに外す。
+  const notices = admit(remaining, released.filter((item) => item.source.origin !== "recovery"), new Set(), released);
   const persisted = changes.length !== 0 || notices.intents !== state.intents;
   // 解放の通知の印は released の記録へ足し、表示の変化の after もその記録に揃える。
   const marked = markAdmitted(changes.length === 0 ? state.currents : currents, notices.admitted);

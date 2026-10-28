@@ -9,7 +9,7 @@ import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth"
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
-import { landslideUnitCodec, reduceLandslideUnit, toLandslideView } from "../../src/units/landslide/landslide-unit";
+import { landslideUnitCodec, recoveryNotices, reduceLandslideUnit, toLandslideView } from "../../src/units/landslide/landslide-unit";
 import {
   SOYA, areas, clock, decodeFixture, decodeXml, emptyState, fixtureXml, office, receive, replaceTag, retime, send, status,
 } from "./landslide-fixture";
@@ -478,14 +478,26 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       ["desktop", "warning", "【訓練】宗谷地方土砂災害警報・注意報"]]);
   });
 
-  // contractBoundary: E22 の U-L は対象外（P3-C10-N2、AC13）。
-  it("P3-C10-T10 contractBoundary / AC13: origin=recovery is not applied", () => {
-    const state = send(emptyState(), F.soya).state;
-    const recovery = receive(state, decodeXml(retime("2020-06-22T23:30:00+09:00")(fixtureXml(F.soya)), "recovered", "recovery"),
-      clock(T0 + 30 * 60_000));
-    expect(recovery.state).toBe(state);
-    expect(recovery.decisions).toEqual([{ subject: SUBJECT, operation: "normal", decision: "unchanged", reason: "noChange" }]);
-    expect([recovery.intents, recovery.outcomes, recovery.confirmationEvidence, recovery.displayChanges]).toEqual([[], [], [], []]);
+  // contractBoundary: origin=recovery の入口（C16 発注 4b-1、P3-REC-AC12・P3-C10-N2・UNIT-ENTRANCE=A）。live と同じ意味を当てて intent を作らず、live なら
+  // 新しい intent が置き換える古い pending は外す（4a の品質レビュー r0 の P2 と同じ形）。版が決まらない本文は印も WARN も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  it("P3-C10-T10 contractBoundary / AC13: origin=recovery applies the meaning without intents and returns an undecided version untouched", () => {
+    const state = send(emptyState(), F.soya).state, raise = (xml: string) => retime("2020-06-22T23:30:00+09:00")(areas(soya(["39", ...ORIGINAL.slice(1)]))(xml));
+    const live = receive(state, decodeXml(raise(fixtureXml(F.soya))), clock(T0 + 30 * 60_000));
+    const recovery = receive(state, decodeXml(raise(fixtureXml(F.soya)), "recovered", "recovery"), clock(T0 + 30 * 60_000));
+    expect([shape(recovery), groups(recordOf(recovery.state)), state.intents.length, live.intents.length, recovery.intents, recovery.state.intents])
+      .toEqual([shape(live), groups(recordOf(live.state)), 2, 2, [], []]);
+    const unsure = receive(state, decodeXml(areas(soya(["49", ...Array(9).fill("29")]))(fixtureXml(F.soya)), "unsure", "recovery"), clock(T0));
+    expect([unsure.state === state, shape(unsure), unsure.diagnostics, unsure.displayChanges]).toEqual([true, [[SUBJECT, "unchanged", "noChange"]], [], []]);
+  });
+
+  // acceptance: 取り直しで拾った引上げ（H27、P3-REC-AC10・P3-REC-D-N2-RAISE-4B=A）と payload の 2 欄の codec（P3-REC-AC12）。
+  it("P3-REC-T15 acceptance (U-L): a raised office is one info per channel with the pair; the same rank or a noticed version gives nothing", () => {
+    const now = clock(T0), raised = receive(emptyState(), decodeXml(fixtureXml(F.soya), "rec-soya", "recovery"), now).state;
+    const noticed = recoveryNotices(emptyState(), raised, now);
+    expect(noticed.intents.map((item) => [item.channel, item.payload.level, item.payload.title, "recovered" in item.payload && item.payload.reportDateTime]))
+      .toEqual(["desktop", "sound"].map((channel) => [channel, "info", "宗谷地方土砂災害警報・注意報（23:00 発表）", recordOf(raised)?.source.reportDateTimeRaw]));
+    expect(roundTrip(noticed)).toMatchObject({ kind: "restored", state: { intents: noticed.intents } });
+    expect([recoveryNotices(raised, raised, now), recoveryNotices(emptyState(), noticed, now)]).toEqual([raised, noticed]);
   });
 
   // 実不具合の再発防止の型（C8 の Q-C8-IMPL-AMEND(1)(2) を U-L で）: owner を通した更新・保存・復元。

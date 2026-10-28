@@ -4,6 +4,7 @@ import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.typ
 import type { BodyResult, ListHead, ListPage, ListQuery, PollResult, PoolPosition, RecoveryDigestHead, RecoveryDigestUnit, RecoveryDigestView, UnitWalk,
   UnitWalkResult } from "../../contracts/p3-recovery.types";
 import { familyFor } from "../decode-material/decode-material";
+import { TRANSIENT_TYPES, VISIBLE_TRANSIENT } from "../domains/local-bulletins/local-bulletins";
 import { exchange } from "../host/dmdata-rest";
 import { operationOf } from "../ingress/ingress";
 import { classifyHeadType, rowsByHeadType } from "../runtime/unit-coverage";
@@ -23,11 +24,16 @@ const DMDATA_MARGIN_MS = 60_000, RECEIVED_MARGIN_MS = 10 * 60_000; // P3-REC-AC0
 const DIGEST_HEADS = 500, DIGEST_BYTES = 16_384, STRING_BYTES = 256; // P3-REC-RES-04・RES-06、P2-A8-RES-05
 const DIGEST_UNIT_HEADS = 3; // P3-REC-D-DIGEST-BUDGET=D: 分野ごとに新しい順で見出しを 3 件まで
 const TRUNCATED_MARKER = "[truncated:fieldLimit]";
-// 【発注 3・4a】本文を流す unit の集合（P3-REC-AC12）。4a で U-V・U-N・U-Q に広げ、ほかの unit は 4b まで本文を mailbox へ入れない。
+// 【発注 3・4a・4b-1】本文を流す unit の集合（P3-REC-AC12）。4b-1 で U-L・U-R・U-B・U-M・U-Y に広げ、U-W・U-F は 4b-2 まで本文を mailbox へ入れない。
 // N2: 型・最新だけで足りるか（latest、subject ごとに 1 件）・窓（P3-REC-D-START-WINDOW=B、Q-REC-PRECHECK-4 の M1）。U-T は P3-C5-N2、U-V は P3-C9-N2、U-N は P3-C8-N2（訂正・取消は同じ報にだけ効くので窓の中を全部、受信の順に）、U-Q は P3-C7-N2（長周期の 36 時間と記憶の 6 時間）。
-const RECOVERABLE_UNITS = ["U-T", "U-V", "U-N", "U-Q"] as const satisfies readonly RuntimeUnitId[];
+// 4b-1（Q-REC-PRECHECK-5 の M1）: U-L 54 時間・U-R 42 時間・U-B 9 時間・U-M 3 日・U-Y 7 日。型は各 unit の ready の型の全部。
+const RECOVERABLE_UNITS = ["U-T", "U-V", "U-N", "U-Q", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const satisfies readonly RuntimeUnitId[];
+const readyTypes = (unit: RuntimeUnitId): readonly string[] => [...rowsByHeadType].filter(([, row]) => row.status === "ready" && row.unit === unit).map(([type]) => type);
 const N2: Readonly<Record<(typeof RECOVERABLE_UNITS)[number], Readonly<{ types: readonly string[]; windowMs: number; latest: boolean }>>> = { "U-T": { types: ["VTSE41"], windowMs: 7 * 86_400_000, latest: true },
-  "U-V": { types: ["VFVO50", "VFVO54", "VFVO55"], windowMs: 30 * 86_400_000, latest: true }, "U-N": { types: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"], windowMs: 30 * 86_400_000, latest: false }, "U-Q": { types: ["VXSE51", "VXSE52", "VXSE53", "VXSE61", "VXSE62"], windowMs: 42 * 3_600_000, latest: true } };
+  "U-V": { types: ["VFVO50", "VFVO54", "VFVO55"], windowMs: 30 * 86_400_000, latest: true }, "U-N": { types: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"], windowMs: 30 * 86_400_000, latest: false }, "U-Q": { types: ["VXSE51", "VXSE52", "VXSE53", "VXSE61", "VXSE62"], windowMs: 42 * 3_600_000, latest: true },
+  "U-L": { types: readyTypes("U-L"), windowMs: 54 * 3_600_000, latest: true }, "U-R": { types: readyTypes("U-R"), windowMs: 42 * 3_600_000, latest: true },
+  "U-B": { types: readyTypes("U-B"), windowMs: 9 * 3_600_000, latest: true }, "U-M": { types: readyTypes("U-M"), windowMs: 3 * 86_400_000, latest: true },
+  "U-Y": { types: readyTypes("U-Y"), windowMs: 7 * 86_400_000, latest: true } };
 const BODY_URL = "https://data.api.dmdata.jp/v1/", BODY_ID = /^[0-9A-Za-z]{1,128}$/;
 const BODY_GAP_MS = 7_500; // P3-REC-RES-05: 本文は 5 分 40 回
 const BODY_TARGET = { hostname: "data.api.dmdata.jp", prefix: "/v1", accept: "application/xml", limitBytes: 8 * 1024 * 1024, identity: true };
@@ -67,7 +73,8 @@ function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | nu
   if (bodyType(row.unit, type) && (!BODY_ID.test(id) || item.url !== BODY_URL + id)) return { head: null, receivedAtMs, refused: row.unit };
   return { receivedAtMs, head: { id, unit: row.unit, headType: type, receivedAtMs, operation, title: report.title, headline: textOrNull(report.headline),
     reportDateTime: textOrNull(report.reportDateTime), infoType: textOrNull(report.infoType), serial: textOrNull(report.serial),
-    eventId: textOrNull(report.eventId), controlDateTime: textOrNull(control.dateTime), controlStatus: control.status, test } };
+    eventId: textOrNull(report.eventId), controlDateTime: textOrNull(control.dateTime), controlStatus: control.status, test,
+    editorialOffice: textOrNull(control.editorialOffice) } };
 }
 
 /**
@@ -163,16 +170,31 @@ function recoveryPlan(classifications: readonly DmdataClassification[], starts: 
   return plan;
 }
 
+// subject の鍵を作る一覧の頭の欄（Q-REC-PRECHECK-5 の M3）。U-L は官署、U-M の竜巻は型ごとに官署と題、VPAW51 は対象の code が本文にしか無いので
+// 絞らない（null）。ほかは EventID。鍵の欄が null の頭は絞らない。
+function bodyKey(unit: RuntimeUnitId, head: ListHead): string | null {
+  const prefix = `${head.operation}/${head.headType}/`;
+  if (unit === "U-L") return head.editorialOffice == null ? null : prefix + head.editorialOffice;
+  if (unit === "U-M" && (head.headType === "VPHW50" || head.headType === "VPHW51"))
+    return head.editorialOffice == null ? null : `${prefix}${head.editorialOffice}/${head.title}`;
+  return unit === "U-M" && head.headType === "VPAW51" || head.eventId == null ? null : prefix + head.eventId;
+}
+// Q-REC-PRECHECK-5 の M2: U-M の短命の解説は報から 3 時間を過ぎると届いても証拠の記憶になるだけで画面に出ないので本文にしない。時刻の読めない頭は取る。
+const lapsedTransient = (unit: RuntimeUnitId, head: ListHead, nowWallMs: number): boolean => unit === "U-M" && head.reportDateTime != null
+  && TRANSIENT_TYPES.some((type) => type === head.headType) && Date.parse(head.reportDateTime) + VISIBLE_TRANSIENT <= nowWallMs;
+
 /**
- * N2 の型の頭を、最新だけで足りる型は subject（運用区分と EventID）ごとに最新の 1 件に絞り、古い順に並べる（P3-REC-AC12・RES-03）。
- * EventID の無い頭と、最新だけで足りない unit（U-N）の頭は絞らない。本文を流す unit の外は空。
+ * N2 の型の頭を、最新だけで足りる型は subject（運用区分と bodyKey の鍵）ごとに最新の 1 件に絞り、古い順に並べる（P3-REC-AC12・RES-03）。
+ * 鍵の無い頭と、最新だけで足りない unit（U-N）の頭は絞らない。本文を流す unit の外は空。
+ * shortcut: nowWallMs の既定は Date.now()（呼び手の composition-root は 4b-1 の allowedPaths の外）。root の時計を渡すのは次に root を触る発注で。
  */
-function bodiesFor(unit: RuntimeUnitId, heads: readonly ListHead[]): readonly ListHead[] {
+function bodiesFor(unit: RuntimeUnitId, heads: readonly ListHead[], nowWallMs = Date.now()): readonly ListHead[] {
   if (!recoverable(unit)) return [];
   const latest = new Map<string, ListHead>();
   for (const head of heads) {
-    if (!bodyType(unit, head.headType)) continue;
-    const key = head.eventId == null || !N2[unit].latest ? `#${head.id}` : `${head.operation}/${head.headType}/${head.eventId}`;
+    if (!bodyType(unit, head.headType) || lapsedTransient(unit, head, nowWallMs)) continue;
+    const subject = N2[unit].latest ? bodyKey(unit, head) : null;
+    const key = subject ?? `#${head.id}`;
     const found = latest.get(key);
     if (found == null || head.receivedAtMs > found.receivedAtMs) latest.set(key, head);
   }
