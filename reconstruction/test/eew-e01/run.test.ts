@@ -1,13 +1,17 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo, Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { WebSocketServer } from "ws";
 
 import { readSelfHashed } from "../../src/measurement/eew-e01/frozen";
 import { buildA10Result, deadlineTriggerOverlap, distRebuildProblem, hashRaw, machineProblems, parseArgs, resumeProblems, signalStopper, trialConditionDeviation, trialWatchAtEnd } from "./run.mjs";
 import type { WindowRecord } from "./run.mjs";
 import { H } from "./fixtures";
+import { FLAGS, openPage } from "./chrome.mjs";
 
 const record = (id: string, attempt: number, status: WindowRecord["status"], extra: Partial<WindowRecord> = {}): WindowRecord => ({
   id, attempt, status, manifestId: "m", manifestSha256: H, rawDir: `/runs/m/${id}`, command: "node run.mjs --manifest m.json",
@@ -39,6 +43,14 @@ describe("P2-A10-T01 runner side: a10-result aggregate (AC10)", () => {
 describe("P2-A10-T01 runner side: 正式窓の再実行制限（ヘルツ総合レビュー 指摘 6 の再現）", () => {
   it("--manifest に予備専用オプション（--period 等）を足すと、記録先が evidence-scratch に変わる前に拒否する", () => {
     expect(() => parseArgs(["--manifest", "m.json", "--period", "1370", "--windows", "e01-fixedBacklog-run1"])).toThrow("--period is allowed only with --preliminary");
+  });
+  it("P3-PH-T04: split-machine options are preliminary only and --runs-root is formal too", () => {
+    expect(parseArgs(["--manifest", "m.json", "--runs-root", "/r"]).args.get("runs-root")).toBe("/r");
+    for (const extra of [["--chrome-cdp", "100.64.0.1:9222"], ["--display-host", "100.78.235.111"]]) {
+      expect(() => parseArgs(["--manifest", "m.json", ...extra])).toThrow("is allowed only with --preliminary");
+      expect(() => parseArgs(["--preliminary", ...extra])).toThrow("--chrome-cdp and --display-host go together");
+    }
+    expect(parseArgs(["--preliminary", "--chrome-cdp", "100.64.0.1:9222", "--display-host", "100.78.235.111"]).preliminary).toBe(true);
   });
 });
 
@@ -127,4 +139,65 @@ describe("P3-C4 resume and foreground checks", () => {
     expect(deadlineTriggerOverlap(manifest)).toBeNull();
     expect(deadlineTriggerOverlap(manifest, "稚内地方気象台")).toMatch(/81_01_04_251222_VPWP50/);
   });
+});
+
+// 模擬の CDP（127.0.0.1）。hold に入れた method の返信は release を呼ぶまで返さない。upgrade を false にすると Upgrade に答えない。
+async function mockCdp({ hold = [] as string[], upgrade = true } = {}) {
+  const commands: string[] = [];
+  const held = new Map<string, () => void>();
+  const server = createServer((_request, response) => response.end(JSON.stringify({ Browser: "Chrome/100", webSocketDebuggerUrl: "ws://x/devtools/browser/mock" })));
+  const wss = new WebSocketServer({ noServer: true });
+  const sockets = new Set<Socket>();
+  server.on("connection", (socket) => { sockets.add(socket); socket.on("close", () => sockets.delete(socket)); });
+  server.on("upgrade", (request, socket, head) => { if (upgrade) wss.handleUpgrade(request, socket, head, (ws) => wss.emit("connection", ws)); });
+  wss.on("connection", (ws) => ws.on("message", (raw) => {
+    const { id, method } = JSON.parse(raw.toString()) as { id: number; method: string };
+    commands.push(method);
+    const result = method === "SystemInfo.getInfo" ? { commandLine: [...FLAGS, "--remote-debugging-port=0"].join(" ") }
+      : method === "Browser.getVersion" ? { product: "Chrome/100" } : method === "Target.createBrowserContext" ? { browserContextId: "ctx-1" }
+      : method === "Target.createTarget" ? { targetId: "page-1" } : {};
+    const reply = () => ws.send(JSON.stringify({ id, result }));
+    if (hold.includes(method)) held.set(method, reply); else reply();
+  }));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  onTestFinished(async () => {
+    for (const client of wss.clients) client.terminate();
+    for (const socket of sockets) socket.destroy();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  return { endpoint: `127.0.0.1:${(server.address() as AddressInfo).port}`, commands, release: (method: string) => held.get(method)?.() };
+}
+const until = async (condition: () => boolean) => { while (!condition()) await new Promise((resolve) => setTimeout(resolve, 5)); };
+
+describe("P3-PH-AC02 remote openPage (品質レビュー P2-1・P2-2 の再現)", () => {
+  it("P2-1: 開く途中に close が来たら、その後に届いた返信の context も破棄し、page を作らずに投げる", async () => {
+    const cdp = await mockCdp({ hold: ["Target.createBrowserContext"] });
+    const closers: (() => Promise<void>)[] = [];
+    const opened = openPage("http://127.0.0.1/", { add: (f: () => Promise<void>) => closers.push(f) }, { cdp: cdp.endpoint }).then(() => "opened", (e: Error) => e.message);
+    await until(() => cdp.commands.includes("Target.createBrowserContext"));
+    const closing = closers[0]();
+    cdp.release("Target.createBrowserContext");
+    await closing;
+    expect(await opened).toBe("openPage was closed while opening");
+    expect(cdp.commands).toContain("Target.disposeBrowserContext");
+    expect(cdp.commands).not.toContain("Target.createTarget");
+  });
+
+  it("r1 P2: page の初期化の返信待ちに close が来たら、残りの command（Page.enable 以降）を送らずに投げる", async () => {
+    const cdp = await mockCdp({ hold: ["Emulation.setDeviceMetricsOverride"] });
+    const closers: (() => Promise<void>)[] = [];
+    const opened = openPage("http://127.0.0.1/", { add: (f: () => Promise<void>) => closers.push(f) }, { cdp: cdp.endpoint }).then(() => "opened", (e: Error) => e.message);
+    await until(() => cdp.commands.includes("Emulation.setDeviceMetricsOverride"));
+    const before = cdp.commands.length;
+    const closing = closers[0]();
+    cdp.release("Emulation.setDeviceMetricsOverride");
+    await closing;
+    expect(await opened).toBe("openPage was closed while opening");
+    expect(cdp.commands.slice(before)).toEqual(["Target.closeTarget", "Target.disposeBrowserContext"]);
+  });
+
+  it("P2-2: Upgrade に答えない入口では、接続の確立待ちが期限（30 秒）で投げる", async () => {
+    const cdp = await mockCdp({ upgrade: false });
+    await expect(openPage("http://127.0.0.1/", null, { cdp: cdp.endpoint })).rejects.toThrow("Opening handshake has timed out");
+  }, 45_000);
 });

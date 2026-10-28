@@ -169,6 +169,18 @@ describe("P2-A8-T02 contractBoundary (AC03/AC14)", () => {
   });
 });
 
+describe("P3-PH-T01 contractBoundary (P3-PH-AC01)", () => {
+  it("P3-PH-T01: a measurement bind opens one explicit IPv4 and nothing else", async () => {
+    const server = await startDisplayServer({ host: { measurementAddress: "127.0.0.1" }, port: 0, worker: healthy });
+    servers.push(server);
+    expect(server.server.address()).toMatchObject({ address: "127.0.0.1" });
+    expect((await fetchText(server.port, "/healthz")).status).toBe(200);
+    for (const measurementAddress of ["0.0.0.0", "localhost", "::1"]) {
+      await expect(startDisplayServer({ host: { measurementAddress }, port: 0, worker: healthy })).rejects.toThrow(RangeError);
+    }
+  });
+});
+
 describe("P2-A8-T03 regression (AC04)", () => {
   it("P2-A8-T03: heartbeats carry a stopped worker without advancing sequence or sending snapshots; health stays honest", async () => {
     const server = await serve();

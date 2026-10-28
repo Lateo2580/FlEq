@@ -117,7 +117,7 @@ async function openHost(w, ctx, options = {}) {
     },
     wallMs: (at = hrMs()) => ctx.wallOriginMs + Math.trunc(at + oh),
     wallSec: () => ctx.wallOriginMs + Math.floor((hrMs() + oh) / 1000) * 1000,
-    snapshot: async () => (await fetch(`http://127.0.0.1:${h.displayPort}/snapshot`, { signal: AbortSignal.timeout(10_000) })).json(),
+    snapshot: async () => (await fetch(`http://${h.displayHost}:${h.displayPort}/snapshot`, { signal: AbortSignal.timeout(10_000) })).json(),
     records: () => readJsonl(h.obsPath) };
 }
 
@@ -331,7 +331,7 @@ function e02Window(ctx, load, run, classify = null) {
       const filled = load === "P" ? await fill(host, w, ctx, "leaveRoomForP", { blockAtExpiry: true }) : null;
       const out = join(w.dir, "e02.jsonl");
       await probe?.beforeMeasure();
-      const client = startChild(w, ctx, [E02_CLIENT, "--url", `http://127.0.0.1:${host.displayPort}/healthz`, "--count", String(count), "--every-ms", String(requestEveryMs),
+      const client = startChild(w, ctx, [E02_CLIENT, "--url", `http://${host.displayHost}:${host.displayPort}/healthz`, "--count", String(count), "--every-ms", String(requestEveryMs),
         "--timeout-ms", String(requestTimeoutMs), "--load", load, "--run", String(run), "--out", out], "e02-client");
       const pump = replayPump(ctx.manifest.loads[load], host.send, host.wallSec);
       const typhoon = classify === E05Y.mark || classify === E05S.y ? e05yPump(ctx, host) : classify === E05S.p ? e05yPump(ctx, host, null) : null; w.progress.phase = "measure";

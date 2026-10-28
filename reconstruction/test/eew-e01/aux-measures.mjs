@@ -3,7 +3,7 @@
 // 判定・分位点・保存 record の結合検証は WP2 の関数を使う（ここで書き直さない）。無いと、測定ごとに別の規則で Pass が揺れる。
 import { execFile } from "node:child_process";
 
-import judge from "../../dist/src/measurement/eew-e01/judge.js";
+import judge from "../../dist/src/measurement/eew-e01/judge.js"; import { executionPlaces } from "../../dist/src/runtime/unit-coverage.js";
 
 const { quantiles, checkpointJoinProblem } = judge;
 const MiB = 1024 * 1024;
@@ -244,7 +244,7 @@ export const E15_BLOCKED = [
   "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）",
 ];
 
-const OWNER_UNITS = { urgent: ["U-E"], weatherCurrent: ["U-W"], deferred: ["U-F"], seismic: ["U-Q"] };
+const OWNER_UNITS = Object.entries(executionPlaces).reduce((m, [unit, place]) => ({ ...m, [place]: [...(m[place] ?? []), unit] }), {}); // P3-PH-AC06: 手で書くと unit を足したときに欠ける。Node 20 に Object.groupBy は無い
 const ZERO = { count: 0, bytes: 0 };
 // E15 の write の帰属（P3-C4-AC05・P3-C4-WRITE-COUNT）: host が停止時に出す thread ごとの writeCount を、包みと独立した記録に照らす。
 // owner の tmp は自分の unit の write 段の CheckpointMeasurement の回数と byte、publisher の diagnosticLog は診断 dir の jsonl の

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
-import type { AddressInfo } from "node:net";
+import { isIPv4, type AddressInfo } from "node:net";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 
@@ -138,8 +138,8 @@ function frame(event: SseEvent, data: string = JSON.stringify(event.data)): stri
 type Client = { response: ServerResponse; state: SseClientState; timer: NodeJS.Timeout | null };
 
 type DisplayServerOptions = Readonly<{
-  // AC14: P4 authentication does not exist yet, so only loopback binds are expressible.
-  host: "127.0.0.1" | "::1";
+  // AC14: P4 の認証がまだ無いので、表せる bind は loopback だけ。測定の起動経路が明示で渡す 1 つの IPv4 だけは例外（P3-PI-HARNESS-001）。
+  host: "127.0.0.1" | "::1" | Readonly<{ measurementAddress: string }>;
   port: number;
   worker: DisplayWorkerView;
   onMarker?: (marker: TraceMarker, version: DisplayVersion) => void;
@@ -153,7 +153,7 @@ type DisplayServerOptions = Readonly<{
 
 // The Node http owner of the latest snapshot and the ServerResponse objects (B11).
 async function startDisplayServer(options: DisplayServerOptions) {
-  if (options.host !== "127.0.0.1" && options.host !== "::1") throw new RangeError("display server binds loopback only");
+  if (typeof options.host === "string" ? options.host !== "127.0.0.1" && options.host !== "::1" : !isIPv4(options.host.measurementAddress) || options.host.measurementAddress === "0.0.0.0") throw new RangeError("display server binds loopback or one explicit measurement IPv4 only");
   let latest: DisplaySnapshot | null = null;
   let latestJson = "";
   let worker = options.worker;
@@ -229,7 +229,7 @@ async function startDisplayServer(options: DisplayServerOptions) {
   };
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(options.port, options.host, () => {
+    server.listen(options.port, typeof options.host === "string" ? options.host : options.host.measurementAddress, () => {
       server.off("error", reject);
       resolve();
     });

@@ -37,7 +37,7 @@ import { arch, cpus, homedir, release, totalmem } from "node:os";
 import { basename, join, relative } from "node:path";
 import { WebSocketServer } from "ws";
 
-import { analyzeTrace, assembleP3Trials, assembleTsunamiTrials, buildHostIndex, correspondences, rejectionReasons, versionKey } from "./analysis.mjs";
+import { analyzeTrace, assembleP3Trials, assembleTsunamiTrials, buildHostIndex, correspondences, probeIntervalBlocked, probeIntervals, rejectionReasons, versionKey } from "./analysis.mjs";
 import { chromeVersion, hrMs, openPage, probeClock, sleep, startTracing, stopTracing } from "./chrome.mjs";
 import { A10_MANIFEST, DEFAULT_LEAD_MS, SEQUENCES_FILE, SMOKE_FILE, buildP3Manifest, contractTextsOf } from "./draft.mjs";
 import { REPO, dataFrame, eewVariant, eventIdOf, fixtureId, fixtureText, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
@@ -212,7 +212,7 @@ async function startHost(dir, ctx, { memEveryMs = 10_000, nodeArgs = [], env = n
   const obsPath = join(dir, "host-obs.jsonl");
   const configPath = join(dir, "host-config.json");
   writeFileSync(configPath, JSON.stringify({ wsUrl: injector.url, stateDirectory: join(dir, "state"), diagnosticDirectory: join(dir, "diagnostics"),
-    obsPath, wallOriginMs: ctx.wallOriginMs, startedWallMs: Date.now(), notification: ctx.notification, memEveryMs, measureInputHeap }));
+    obsPath, wallOriginMs: ctx.wallOriginMs, startedWallMs: Date.now(), notification: ctx.notification, memEveryMs, measureInputHeap, displayHost: ctx.displayHost ?? null }));
   const launcher = spawn(ctx.nodePath, [...nodeArgs, LAUNCHER, configPath], { stdio: ["ignore", "inherit", "inherit", "ipc"], env: env == null ? process.env : { ...process.env, ...env } });
   launcher.once("exit", (code, signal) => { status.hostExit = { code, signal }; });
   // 閉じた IPC への send（ERR_IPC_CHANNEL_CLOSED）などを uncaught にしない。
@@ -240,7 +240,7 @@ async function startHost(dir, ctx, { memEveryMs = 10_000, nodeArgs = [], env = n
     if (status.hostExit == null) { launcher.kill("SIGKILL"); await waitExit(2000); }
     await injector.close();
   };
-  return { injector, launcher, displayPort: ready.displayPort, obsPath, pid: launcher.pid, status, stop };
+  return { injector, launcher, displayPort: ready.displayPort, displayHost: ctx.displayHost ?? "127.0.0.1", obsPath, pid: launcher.pid, status, stop };
 }
 
 // ── host の JSONL を追いかける（reference の tick 位相予測と初期化の待ちに使う） ──
@@ -406,9 +406,9 @@ async function measureRun(spec, ctx, label, dir, status) {
   // Chrome は E01 の実 paint（T6）用。backend 単独（Pi 第 1 段、AC03(6)）は Chrome を起動せず、SSE の client 1 本で T4 を起こす。
   let page = null;
   let chromeActivation = null; // 起動時に Chrome を OS の前面にした結果（chrome.mjs の activate）
-  if (backend) await openSse(`http://127.0.0.1:${hostProcess.displayPort}/events`, ctx.scope);
+  if (backend) await openSse(`http://${hostProcess.displayHost}:${hostProcess.displayPort}/events`, ctx.scope);
   else {
-    page = await openPage(`http://127.0.0.1:${hostProcess.displayPort}/`, ctx.scope, { motion: ctx.manifest.chrome.motion });
+    page = await openPage(`http://${hostProcess.displayHost}:${hostProcess.displayPort}/`, ctx.scope, { motion: ctx.manifest.chrome.motion, cdp: ctx.chromeCdp ?? null });
     ctx.commands?.push(page.command);
     chromeActivation = page.activation;
     for (let i = 0; i < 200 && !(await page.evaluate("typeof window.fleqRespondClockProbe === 'function'")); i++) await sleep(50);
@@ -466,7 +466,7 @@ async function measureRun(spec, ctx, label, dir, status) {
   await sleep(1500);
   host.refresh();
   const ufSubjectsBefore = savedForecastSubjects(join(dir, "state"));
-  const firstSnapshot = await fetch(`http://127.0.0.1:${hostProcess.displayPort}/snapshot`).then((r) => r.json(), () => null);
+  const firstSnapshot = await fetch(`http://${hostProcess.displayHost}:${hostProcess.displayPort}/snapshot`).then((r) => r.json(), () => null);
   const channels = firstSnapshot?.channels ?? null;
 
   // 通常負荷 N（決めた offset で繰り返す）
@@ -706,9 +706,9 @@ async function measureRun(spec, ctx, label, dir, status) {
     tracing = null;
   };
   log("loop start");
-  await openBlock();
+  await probe("init"); await openBlock();
   log("tracing on");
-  let lastProbeHr = hrMs();
+  // P3-PH-AC05（DLV-03）: 往復は初期化の後（Tracing.start の前）と毎回の試行の頭で測る。隣の往復の間隔は analysis の probeIntervals で検査する。
   let anchor = loopStart; // 試行の予定の起点（due の付け替えで動く。N の再生は loopStart のまま）
   let established = 0;
   let stopped = null; // stopCondition に達した（窓は Blocked）
@@ -728,7 +728,7 @@ async function measureRun(spec, ctx, label, dir, status) {
     status.established = established;
     // 区切りの直前に 200ms 待ち、直前の試行の paint（PipelineReporter の終端）を前の trace に入れる。
     if (k > 0 && k % BLOCK === 0) { await sleep(200); await closeBlock(k / BLOCK - 1); await openBlock(); }
-    if (hrMs() - lastProbeHr >= 29_000) { await probe(`t${k}`); lastProbeHr = hrMs(); }
+    await probe(`t${k}`);
     const phase = warm ? "warmup" : "formal";
     const serial = (warm ? k : k - spec.warmup) + 1;
     // 予定の枠が、試行の準備ができた時点（前の完了・trace の区切り・時計 probe の後）で既に過ぎていたら、予定を「今 + 周期」へ付け替える。
@@ -884,7 +884,7 @@ async function measureRun(spec, ctx, label, dir, status) {
   await sleep(1500);
   await probe("end");
   if (trials.length > 0) await closeBlock(Math.floor((trials.length - 1) / BLOCK));
-  const finishedHr = hrMs();
+  const finishedHr = hrMs(); status.clockProbeIntervals = probeIntervals(probes);
 
   // 終了: host → 投入側 → Chrome の順で止める。後始末が失敗しても、記録して trace の解析と run-record の書き出しへ進む。
   const teardownErrors = [];
@@ -923,13 +923,13 @@ async function measureRun(spec, ctx, label, dir, status) {
   });
   const liveness = { pings: injector.meter.pings, frames: injector.meter.frames, maxFrameGapMs: injector.meter.maxFrameGapMs };
   const record = { label, population, run, spec, backendOnly: backend, notification: ctx.notification, notificationNote: ctx.notification === "silent" ? SILENT_NOTE : null, ufAllowance, channels,
-    chromeActivation, focusLostAtSend: trials.filter((t) => t.focusAtSend === false).length,
+    chromeActivation, focusLostAtSend: trials.filter((t) => t.focusAtSend === false).length, remote: page?.remote == null ? null : { cdp: ctx.chromeCdp, displayHost: hostProcess.displayHost, chrome: page.remote },
     nodeVersion: hostIndex.meta?.nodeVersion ?? null, hostExit: status.hostExit, hostError: status.hostError, teardownErrors, startedWallMs: started.wallMs,
     // durationMs は試行ループの終わりまで、totalMs は終了処理と trace 解析・組み立てを含む run 全体（予備から stopCondition を積むときはこちら）。
     durationMs: finishedHr - started.hrMs, totalMs: hrMs() - started.hrMs, stopped, attempts: trials.length, established, liveness, others, trials,
     // AC13(7): warm-up の後で予測値が無かった（parse 開始の分かった試行が 10 に満たなかった）母集団 2 の試行の数。送り方は実送信＋targetOffsetMs。
     parsePredictionMissing: population === "maxVpws50ParseStarted" ? trials.filter((t) => t.phase === "formal" && t.trigger?.predictedParseDelayMs == null).length : null,
-    blocks: blocks.map(({ startedHrMs, endedHrMs, ...b }) => ({ ...b, durationMs: endedHrMs - startedHrMs })), probes: probes.map((p) => ({ probeId: p.probeId, atHrMs: p.atHrMs, attempts: p.attempts })),
+    blocks: blocks.map(({ startedHrMs, endedHrMs, ...b }) => ({ ...b, durationMs: endedHrMs - startedHrMs })), probes: probes.map((p) => ({ probeId: p.probeId, atHrMs: p.atHrMs, attempts: p.attempts })), clockProbeIntervals: status.clockProbeIntervals,
     correspondences: assembled.correspondences, details: assembled.details,
     backendTrials: backend ? backendIntervals(trials, hostIndex) : null,
     ...(tsu == null ? {} : { ...tsunamiStateBreaks({ diagnostics: readDiagnosticsStrict(join(dir, "diagnostics")), trials, warmupRelease, host: hostIndex,
@@ -1317,7 +1317,7 @@ function e01Window(spec, ctx) {
       }
       const run = judgeE01(ctx.manifest, [assembled]).runs.find((r) => r.population === spec.population && r.run === spec.run);
       const file = join(w.dir, `result-${run.scope}-${run.population}-run${run.run}.json`);
-      writeSealed(file, run, "resultSha256");
+      writeSealed(file, { ...run, clockProbeIntervals: result.record.clockProbeIntervals }, "resultSha256");
       // AC15: publish の回数・配送 JSON byte・直列化時間を E01 の各窓でも PublishCostReport として報告する（E15 も同梱）。
       if (spec.tsunami != null) return { status: run.status, resultFiles: [file] };
       const reports = hostReportsOf(join(w.dir, "host-obs.jsonl"), id, result.placeOf);
@@ -1439,7 +1439,7 @@ async function runWindow(win, { manifest, outDir, resultsDir, recordsDir, comman
   // P3-C4-RES-06: frame 間隔の最大（ping を含む）が上限以上の窓は、結果にかかわらず Blocked（生存期限の再接続が起きうる）。
   const meters = w.progress.liveness ?? [];
   const liveness = { pings: meters.reduce((a, m) => a + m.pings, 0), maxFrameGapMs: meters.reduce((a, m) => Math.max(a, m.maxFrameGapMs), 0) };
-  const gapProblem = livenessBlocked(meters, manifest.liveness?.maxFrameGapMs ?? Infinity);
+  const gapProblem = livenessBlocked(meters, manifest.liveness?.maxFrameGapMs ?? Infinity) ?? probeIntervalBlocked(w.progress.clockProbeIntervals);
   if (gapProblem != null && outcome.status !== "Blocked") outcome = { ...outcome, status: "Blocked", reason: gapProblem, judgedStatus: outcome.status, resultFiles: [] };
   if (orphans.length > 0) progress("orphan", { children: orphans });
   try {
@@ -1575,9 +1575,9 @@ function frozenInputs(manifest, trialSetup, initialStateText) {
   return { wallOriginMs: trialSetup.clock.wallTimeOriginMs, initial };
 }
 
-// 予備測定だけのオプション。--manifest と併用すると記録先（evidence-scratch）や条件が変わり、正式窓の再実行制限を迂回できるので拒否する。
-// --node は正式でも許す（P3-MH-AC05(5)。preflight が渡した Node の版を manifest の nodeVersion と照らすので条件は変わらない）。
-const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|runs-root|collision-verdict|seismic-collision|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms|tsunami|prime-lead-ms|e14-tsunami)$/;
+// 予備測定だけのオプション。--manifest と併用すると記録先（evidence-scratch）や条件が変わり、正式窓の再実行制限を迂回できるので拒否する。--chrome-cdp・--display-host（別機械）も予備だけ（P3-PH-AC04）。
+// --node は正式でも許す（P3-MH-AC05(5)。preflight が渡した Node の版を manifest の nodeVersion と照らすので条件は変わらない）。--runs-root も正式で許す（P3-PH-AC07。trace などの outDir だけを変え、正式の記録先（evidence、recordsDir）と再実行の制限は変えない）。
+const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|chrome-cdp|display-host|collision-verdict|seismic-collision|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms|tsunami|prime-lead-ms|e14-tsunami)$/;
 
 // 引数を読み、組み合わせの誤りをここで拒否する（子を起動する前）。
 export function parseArgs(argv) {
@@ -1595,7 +1595,7 @@ export function parseArgs(argv) {
   const notification = args.get("notification") ?? (preliminary ? "silent" : "real");
   if (!preliminary && notification !== "real") throw new Error("--notification silent is allowed only with --preliminary (formal runs use the real backend)");
   if (notification !== "real" && notification !== "silent") throw new Error("--notification must be real or silent");
-  if (args.has("room-partials") !== args.has("room-forecast")) throw new Error("--room-partials and --room-forecast go together");
+  if (args.has("room-partials") !== args.has("room-forecast")) throw new Error("--room-partials and --room-forecast go together"); if (args.has("chrome-cdp") !== args.has("display-host")) throw new Error("--chrome-cdp and --display-host go together");
   return { args, preliminary, selected, notification };
 }
 
@@ -1641,13 +1641,13 @@ async function main(argv) {
   let trialSetup;
   let initialStateText;
   let draft = null;
-  const only = args.has("only") ? String(args.get("only")).split(",") : null;
+  const only = args.has("only") ? String(args.get("only")).split(",") : null; const chromeCdp = args.has("chrome-cdp") ? String(args.get("chrome-cdp")) : null;
   if (preliminary && args.has("tsunami")) {
     // 津波の予備（AC08）: harness の 1 組で凍結した C4 形の manifest（表の C4 でない 1 行、P3-TH-AC02 (5)）を継ぐ草案（tsunami.mjs）。primeLeadMs だけを引数で変えられる（予備で固定する値）。
     const lead = args.has("prime-lead-ms") ? Number(args.get("prime-lead-ms")) : null;
     const keys = [...["escalation", "deescalation"].flatMap((s) => ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted", "eewTogether"].map((c) => `${s}:${c}`)),
       "escalation:maxVxse53Received"];
-    draft = buildP3TsunamiManifest({ id: `p3-c6-prelim-${stamp}`, chromeVersion: await chromeVersion(), nodeVersion, osVersion: `${release()} ${arch()}`, device: deviceOf(),
+    draft = buildP3TsunamiManifest({ id: `p3-c6-prelim-${stamp}`, chromeVersion: await chromeVersion(chromeCdp), nodeVersion, osVersion: `${release()} ${arch()}`, device: deviceOf(),
       primeLeadMs: lead == null ? {} : Object.fromEntries(keys.map((k) => [k, lead])), seismicCollision: args.has("seismic-collision"), inheritsManifestId: Object.keys(TSUNAMI_INHERITED_MANIFESTS).find((k) => TSUNAMI_INHERITED_MANIFESTS[k].path !== C4_MANIFEST) });
     manifest = draft.manifest;
     const c4 = JSON.parse(draft.c4Text);
@@ -1658,7 +1658,7 @@ async function main(argv) {
   } else if (preliminary) {
     // 予備の案は A10 の凍結物（負荷・fixture）を継承し、trial-setup・initial-state は測定の harness の 1 組で組む（draft.mjs の buildP3Manifest、
     // P3-MH-AC05(6)。窓が読む ctx.initialState もその initial-state）。backend 単独は Chrome を測らない。
-    draft = buildP3Manifest({ id: `p3-prelim-${stamp}`, chromeVersion: backendOnly ? BACKEND_ONLY_CHROME : await chromeVersion(), nodeVersion, trialSetup: HARNESS_TRIAL_SETUP.ref,
+    draft = buildP3Manifest({ id: `p3-prelim-${stamp}`, chromeVersion: backendOnly ? BACKEND_ONLY_CHROME : await chromeVersion(chromeCdp), nodeVersion, trialSetup: HARNESS_TRIAL_SETUP.ref,
       osVersion: `${release()} ${arch()}`, device: deviceOf(),
       collisionVerdict: String(args.get("collision-verdict") ?? "A"), seismicCollision: args.has("seismic-collision"), establishmentRate: num("establishment-rate", 0.5),
       lead: { maxWeatherCheckpointEncodeStarted: num("save-lead-ms", DEFAULT_LEAD_MS.maxWeatherCheckpointEncodeStarted),
@@ -1735,7 +1735,7 @@ async function main(argv) {
   const fixtureByHash = new Map(Object.entries(manifest.fixtureSha256).map(([id, h]) => [h, id.replace("test__fixtures__", "")]));
   const templates = new Map((manifest.templates ?? []).map((t) => [t.transition, { ...t, primeFixture: fixtureByHash.get(t.bodySha256.prime),
     targetFixture: fixtureByHash.get(t.bodySha256.target) }]));
-  const ctxFor = (spec) => ({ outDir, nodePath, notification, manifest, backendOnly, wallOriginMs: frozen.wallOriginMs, initial: frozen.initial[spec.stateKey],
+  const ctxFor = (spec) => ({ outDir, nodePath, notification, manifest, backendOnly, chromeCdp, displayHost: args.has("display-host") ? String(args.get("display-host")) : null, wallOriginMs: frozen.wallOriginMs, initial: frozen.initial[spec.stateKey],
     load: manifest.loads[spec.load], templates });
   const planned = specs.filter((s) => only == null || only.includes(s.population));
   // 周辺の窓（windows.mjs）。予備の --aux は件数を絞り、各 1 run。
@@ -1822,7 +1822,7 @@ async function main(argv) {
     manifestId: manifest.manifestId, manifestSha256: manifest.manifestSha256, startedAt, finishedAt: new Date().toISOString(), commands, plan, notification, backendOnly,
     deadlineAlternative: args.has("deadline-alternative"),
     notificationProbeNote: probeNote, environment: { node: results[0]?.record.nodeVersion, chrome: manifest.chrome.version, os: manifest.osVersion, device: manifest.device },
-    rawEvidenceDir: dirRel, runs: results.map((r) => ({ ...preliminaryRun(r, manifest), host: hostReportsOf(join(r.dir, "host-obs.jsonl"), r.label, r.placeOf),
+    rawEvidenceDir: dirRel, runs: results.map((r) => ({ ...preliminaryRun(r, manifest), clockProbeIntervals: r.record.clockProbeIntervals, host: hostReportsOf(join(r.dir, "host-obs.jsonl"), r.label, r.placeOf),
       traceBytes: r.record.blocks.reduce((a, b) => a + b.bytes, 0), traceBlocks: r.record.blocks.length, dataLoss: r.record.blocks.some((b) => b.dataLoss), channels: r.record.channels })),
   };
   writeFileSync(join(evidence, "e01-preliminary-result.json"), `${JSON.stringify(summary, null, 2)}\n`);

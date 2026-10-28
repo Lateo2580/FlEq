@@ -44,7 +44,7 @@ type P2HostConfig = Readonly<({ wsUrl: string; dmdata?: never } | { dmdata: Dmda
   diagnosticDirectory: string;
   displayPort: number;
   clock: () => ClockReading;
-  observe: ((observation: P2HostObservation) => void) | null; measureInputHeap?: boolean;
+  observe: ((observation: P2HostObservation) => void) | null; measureInputHeap?: boolean; displayBind?: Readonly<{ measurementAddress: string }>;
 }>;
 
 // How one connection attempt ended; the retry interval follows from it (P3-C2-RETRY).
@@ -90,7 +90,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   };
 
   const server = await startDisplayServer({
-    host: "127.0.0.1", port: config.displayPort,
+    host: config.displayBind ?? "127.0.0.1", port: config.displayPort,
     worker: { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null },
     browserAssets: { htmlPath: resolveRepoPath("reconstruction/src/display/chrome-eew/index.html"),
       moduleDirectory: resolveRepoPath("reconstruction/dist/chrome-eew/src/display/chrome-eew") },

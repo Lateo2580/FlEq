@@ -70,6 +70,9 @@ export function analyzeTrace(events: readonly unknown[]): { byVersion: Map<strin
 export function candidateKey(version: DisplayVersion, subject: string, name: string): string;
 export function buildHostIndex(lines: readonly HostLine[]): HostIndex;
 export function correspondences(probes: readonly Probe[], host: HostIndex): (ClockCorrespondence & { attemptCount: number })[];
+export type ProbeIntervals = { maxMs: number; over30s: number; exceeded: { fromProbeId: string; toProbeId: string; ms: number }[] };
+export function probeIntervals(probes: readonly Pick<Probe, "probeId" | "chosen">[]): ProbeIntervals;
+export function probeIntervalBlocked(intervals: ProbeIntervals | null | undefined): string | null;
 export type P3Trial = Omit<Trial, "index"> & { index: number | null; attemptIndex: number };
 type AssembleInput<T> = {
   population: string;

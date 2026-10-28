@@ -433,3 +433,17 @@ export function assembleTsunamiTrials({ population, run, trials, host, chromeByV
   }
   return { samples, injections, details, correspondences: corr, eewReference };
 }
+
+// ── 時計の往復どうしの間隔（P3-PH-AC05、DLV-03 の「実行中 30 秒ごと」） ──
+// 基準は採用した往復の送信時刻（chosen.nodeSentHrMs）。PROBE_MAX_AGE_MS（標本から最近傍の往復までの距離）とは別の量。
+const PROBE_INTERVAL_MAX_MS = 30_000;
+export function probeIntervals(probes) {
+  const sorted = [...probes].sort((a, b) => a.chosen.nodeSentHrMs - b.chosen.nodeSentHrMs);
+  const gaps = sorted.slice(1).map((p, i) => ({ fromProbeId: sorted[i].probeId, toProbeId: p.probeId, ms: p.chosen.nodeSentHrMs - sorted[i].chosen.nodeSentHrMs }));
+  const over = gaps.filter((g) => g.ms > PROBE_INTERVAL_MAX_MS);
+  return { maxMs: gaps.reduce((m, g) => Math.max(m, g.ms), 0), over30s: over.length, exceeded: over };
+}
+// 正式の窓を Blocked にする理由（超過が無い・往復を測らない窓は null）。
+export function probeIntervalBlocked(intervals) {
+  return (intervals?.over30s ?? 0) > 0 ? `clock probe interval ${Math.round(intervals.maxMs)} ms > ${PROBE_INTERVAL_MAX_MS} ms (DLV-03)` : null;
+}

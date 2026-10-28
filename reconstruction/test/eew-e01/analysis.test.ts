@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { analyzeTrace, assembleTrials, buildHostIndex } from "./analysis.mjs";
+import { analyzeTrace, assembleTrials, buildHostIndex, probeIntervalBlocked, probeIntervals } from "./analysis.mjs";
 import type { HostLine, Probe, Trial } from "./analysis.mjs";
 
 // 実 Chrome・実 host の 1 run（3 試行）を縮めた fixture。実測の予備測定はこの test に入れない（CI で Chrome を起動しない）。
@@ -111,5 +111,20 @@ describe("P2-A10-T08 runner side: injection time", () => {
       expect(r.injectedInjectorMonotonicMs).toBe(fixture.trials[i]!.injectedHrMs);
       expect(r.scheduledInjectorMonotonicMs).toBe(fixture.trials[i]!.scheduledHrMs - 123);
     });
+  });
+});
+
+// 構造的欠陥台帳 77（DLV-03）: 往復の間隔は試行の長さで伸び、判定器は 30 秒を検査していなかった。
+describe("P3-PH-T02 probe intervals over 30 s block a formal window", () => {
+  const at = (probeId: string, nodeSentHrMs: number) => ({ probeId, chosen: { nodeSentHrMs, nodeReceivedHrMs: nodeSentHrMs + 1, chromeReceivedMonotonicMs: 0, chromeSentMonotonicMs: 0 } });
+  it("(a) 隣どうしが 30,000 ms 以下なら over30s 0 で Blocked にしない", () => {
+    const intervals = probeIntervals([at("r-t1", 33_000), at("r-start", 0), at("r-init", 3_000)]);
+    expect(intervals).toEqual({ maxMs: 30_000, over30s: 0, exceeded: [] });
+    expect(probeIntervalBlocked(intervals)).toBeNull();
+  });
+  it("(b)(c) k=99 の頭から trace の読み出し 31 秒を経た k=100 の頭まで（start→init の初期化の待ちも同じ分岐）の間隔を検出する", () => {
+    const intervals = probeIntervals([at("r-t98", 1_000), at("r-t99", 4_000), at("r-t100", 34_001)]);
+    expect(intervals).toMatchObject({ maxMs: 30_001, over30s: 1, exceeded: [{ fromProbeId: "r-t99", toProbeId: "r-t100", ms: 30_001 }] });
+    expect(probeIntervalBlocked(intervals)).toBe("clock probe interval 30001 ms > 30000 ms (DLV-03)");
   });
 });

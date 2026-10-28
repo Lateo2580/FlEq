@@ -487,3 +487,19 @@ describe("P3-E05C-T01 the classification table of the E05-P peaks (AC03)", () =>
     expect(late?.threads.deferred.dLate).toBeCloseTo(15 * MiB);
   });
 });
+
+describe("P3-PH-T03 regression (P3-PH-AC06)", () => {
+  // 構造的欠陥台帳 103 の穴 3: OWNER_UNITS が urgent に U-E、deferred に U-F だけで、他の unit の write が帰属できなかった。
+  it("P3-PH-T03: owner writes of every unit are attributed to their thread", () => {
+    const stage = (unit: string, name: string, at: number) => obs({ kind: "checkpoint", measurement: { runId: "r", inputIds: ["input-1"], unit, generation: 1,
+      attemptId: `${unit}-a`, stage: name, startedMonotonicMs: at, endedMonotonicMs: at + 1, bytes: 500, outcome: "succeeded", retryReason: "notRetry" } });
+    const save = (unit: string) => [stage(unit, "encode", 0), stage(unit, "write", 2)];
+    const zero = { count: 0, bytes: 0 };
+    const row = (thread: string, tmp = zero, diagnosticLog = zero) => obs({ kind: "writeCount", runId: "r", thread, confirmed: true,
+      counts: { checkpoint: zero, tmp, diagnosticLog, other: zero } });
+    const one = { count: 1, bytes: 500 };
+    const records = [marker("T0", "input-1", 0), ...save("U-T"), ...save("U-M"), row("urgent", one), row("deferred", one), row("weatherCurrent"), row("seismic"),
+      row("publisher", zero, { count: 2, bytes: 120 })];
+    expect(aux.summarizeE15(records, { diagnosticLog: { bytes: 120, lines: 2 } }).writes).toMatchObject({ status: null, unattributed: [], unverified: [] });
+  });
+});
