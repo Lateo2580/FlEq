@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "abbcaaeb8cde1b062051b97900a11172a8dc83f208a55b0c68440277e3bc7281",
+    "sha256": "66767d25440d07298c3934ac550940d689be3aefa03a06902c77cdbfea991497",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -702,11 +702,11 @@
         "id": "Q-UW-N2",
         "owner": "integrator",
         "blocks": [
-          "P3-RECOVERY-001 の発注 4b の U-W の入口"
+          "P3-RECOVERY-001 の発注 4b-2 の U-W の入口"
         ],
-        "resolveBy": "P3-RECOVERY-001 の発注 4b の配送（統合担当。作者の分岐 P3-REC-D-UW-PARTIALS の裁定の後）",
+        "resolveBy": "P3-RECOVERY-001 の発注 4b-2 の点検（統合担当。作者の分岐 P3-REC-D-UW-PARTIALS・P3-REC-D-UW-CANCEL-HISTORY の裁定の後）",
         "requiredEvidence": [
-          "N2（2026-10-28 C16 の発注 4b の点検、Q-REC-PRECHECK-5・P3-REC-AC12）: 取り直しの対象は VPWS50・VPWW55・57〜61・VPNO50。鍵は一覧の頭の editorialOffice、最新の単位は P3-REC-D-UW-PARTIALS、窓 24 時間、鍵の最新が取消ならその鍵の窓の中を全部。入口は domain の reduceWeatherCurrentMeaning に新設し、候補の作成のときだけ意味を当てる。版の比べが held の報は monitor の FreshnessRecord と印を置かずに noChange（older・duplicate は既存の判定）、domain が ignored にした VPNO50 は stale、older の報はその鍵の履歴に無ければ現況を変えずに履歴へ版の順に補う（深さ national 2・partial 8）。取り直しは coverageConfirmed を送らない（疑いは clearMonitoring だけで消す）。H27 は無し（通知は C20 P3-WEATHER-NOTICE-001）。E22 は P3-REC-AC17 から「既に期限切れの報」を除いたもの。配送で本項を閉じる"
+          "N2 の下書き（2026-10-28 C16 の発注 4b の点検、Q-REC-PRECHECK-5。r2 で 4b-2 に送り、4b-2 の点検で決める）: 取り直しの対象は VPWS50・VPWW55・57〜61・VPNO50。鍵は一覧の頭の editorialOffice、最新の単位は P3-REC-D-UW-PARTIALS、窓 24 時間、鍵の最新が取消ならその鍵の窓の中を全部。入口は domain の reduceWeatherCurrentMeaning に新設し、候補の作成のときだけ意味を当てる。版の比べが held の報は monitor の FreshnessRecord と印を置かずに noChange（older・duplicate は既存の判定）、domain が ignored にした VPNO50 は stale。取り直しの後の取消の履歴は作者の分岐 P3-REC-D-UW-CANCEL-HISTORY（r1 の older の補充は取り下げ）。取り直しは coverageConfirmed を送らない案（疑いは clearMonitoring だけで消す。取消の正常な採用は clearMonitoring を通らないので、窓の内の疑いが残りうる）。H27 は無し（通知は C20 P3-WEATHER-NOTICE-001）。E22 は P3-REC-AC17 から「既に期限切れの報」を除いたもの。4b-2 の配送で本項を閉じる"
         ]
       }
     ]
