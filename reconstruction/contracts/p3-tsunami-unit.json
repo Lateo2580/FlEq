@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "53f957579cec4d1ffc8074f34ccfebb290549d30189b5ce74eafac4b188a7a13",
+    "sha256": "9974ed522dd9134f2bfc0326f2234e6cc4682627d0847742a24b5bc4f27e4b73",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -969,7 +969,7 @@
       },
       {
         "id": "P3-C5-AC15",
-        "requirement": "E22のU-T範囲（P3-C5-N2）を固定し、C5ではorigin=recoveryを適用しない（unchanged/noChange、state同一参照）。受入はC16（P3-RECOVERY-001の発注3で入口を置き換えた: origin=recoveryはC16の候補の作成のときだけownerから届き、VTSE41は意味を当てるがintentを作らない〔取消の通知・状態の変化のintent・緊急の印も作らない。引上げ（H27）と読めない報のinfoのintentは採用のstepのrecoveryNoticesが作る〕。取り直しの報の時刻は元報のReportDateTime〔採用の時刻より新しくしない〕。版の比べが決まらない本文は採らず、印も置かない〔held、P3-REC-D-LIST-FORCE=A〕。観測のVTSE51・VTSE52は今どおりnoChange〔P3-C5-N2のrange〕。U-Tの版はintentのpayloadの2欄でv8に上げた。受入はP3-REC-T14・T15。P3-REC-AC12により統合担当が改訂）",
+        "requirement": "E22のU-T範囲（P3-C5-N2）を固定し、C5ではorigin=recoveryを適用しない（unchanged/noChange、state同一参照）。受入はC16（P3-RECOVERY-001の発注3で入口を置き換えた: origin=recoveryはC16の候補の作成のときだけownerから届き、VTSE41は意味を当てるがintentを作らない〔取消の通知・状態の変化のintent・緊急の印も作らない。引上げ（H27）と読めない報のinfoのintentは採用のstepのrecoveryNoticesが作る〕。取り直しの報の時刻は元報のReportDateTime〔採用の時刻より新しくしない〕。版の比べが決まらない本文は採らず、印も置かない〔held、P3-REC-D-LIST-FORCE=A〕。観測のVTSE51・VTSE52は今どおりnoChange〔P3-C5-N2のrange〕。U-Tの版はintentのpayloadの2欄でv8に上げた。受入はP3-REC-T14・T15。P3-REC-AC12により統合担当が改訂）（P3-RECOVERY-001 の発注 4a: 取り直しでも live と同じに intent を作り、admit は origin=recovery の intent を足さずに置換だけを当てる〔live なら置き換える古い pending を外す。保存待ちの古い通知が取り直しの後に鳴らないため、4a の品質レビュー r0 の P2 と同じ形、統合担当の決め〕。採用の step の音〔recoveryNotices〕だけは足す。live の置換は同じ群以上だけなので、津波警報以上の群の pending は引き下げの通知でも置き換わらない〔live の規則のまま、作者の裁定待ち、Q-REC-IMPL-4a〕。受入は P3-REC-T18）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
           "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",

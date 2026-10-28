@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "56f23582c58115e8ffdf8e349faeaec94db438508ef63fac60520f29ffdc9b85",
+    "sha256": "abed1f13fdd536982889c064c041b3ac000d008c1d8bc3bfda9ceb423a6a44a8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -906,7 +906,7 @@
       },
       {
         "id": "P3-C7-AC14",
-        "requirement": "E22のU-Q範囲を「対象外」として固定し（P3-C7-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照）",
+        "requirement": "E22のU-Q範囲を「対象外」として固定し（P3-C7-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照）（P3-RECOVERY-001 の発注 4a で入口を置き換えた: P3-C7-N2 は B。origin=recovery は C16 の候補の作成のときだけ owner から届き、live と同じ意味を当てるが intent を作らない（live と同じに作った intent は置換の判定にだけ使い、live なら置き換える古い pending を外す。4a の品質レビュー r0 の P2）。版の比べが決まらない本文は採らず、印も WARN も表示差分も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。U-Q は H27 を鳴らさない〔P3-REC-D-N2-RAISE=A〕。当日の件数は受信日に数えるまま〔取り直しで拾った前日の地震も今日の件数に入る。作者の裁定待ち、Q-REC-IMPL-4a〕。受入は P3-C7-T07・P3-REC-T19。P3-REC-AC12 により統合担当が改訂）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
           "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",
@@ -970,7 +970,7 @@
         "referenceIds": [
           "P3-C7-AC08"
         ],
-        "behavior": "Q-NOTICEの各機会とlevelの式（報自身の震度で決め、eventの震度では決めない: 20:30のVXSE61はnormal。P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消cancel、全体MaxIntが5弱以上〔5弱以上未入電を含む〕か全体MaxLgIntの階級が2以上ならcritical、全体unknownはinfo、震度4はwarning、3以下と震度の無いVXSE52/61はnormal、長周期は階級2以上critical・1 warning・unknownはnormal、P3-QC-AC06）、revisionOnlyで作らない、訂正は事実が同じでも作る、activeでなかった取消で作らない、置換（同じevent・系統・channel。VXSE53の取消がpendingのVXSE51の通知を消さない）、bodyが報自身の事実から組まれること、満杯での扱い、intentUpdate、training/testのdesktopだけ、recovery未適用、復元直後の続報"
+        "behavior": "Q-NOTICEの各機会とlevelの式（報自身の震度で決め、eventの震度では決めない: 20:30のVXSE61はnormal。P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消cancel、全体MaxIntが5弱以上〔5弱以上未入電を含む〕か全体MaxLgIntの階級が2以上ならcritical、全体unknownはinfo、震度4はwarning、3以下と震度の無いVXSE52/61はnormal、長周期は階級2以上critical・1 warning・unknownはnormal、P3-QC-AC06）、revisionOnlyで作らない、訂正は事実が同じでも作る、activeでなかった取消で作らない、置換（同じevent・系統・channel。VXSE53の取消がpendingのVXSE51の通知を消さない）、bodyが報自身の事実から組まれること、満杯での扱い、intentUpdate、training/testのdesktopだけ、recovery の入口（P3-RECOVERY-001 の発注 4a: 意味を当てて intent を作らず、置き換える古い pending は外す。版の決まらない本文は noChange）、復元直後の続報"
       },
       {
         "testId": "P3-C7-T08",
