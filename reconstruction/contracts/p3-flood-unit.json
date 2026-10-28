@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "9bb931ebdeac47674b2815a905d00dd8a1054296ac0295f4eae4bace8643c4a1",
+    "sha256": "220a29f20df485bd0831e624383049c988d7f6bf0f67e97ecaced90e02dcefe6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -16,7 +16,7 @@
         "lateRule": "裁定Dの確定の形: 受理の時点（ClockReading.wallTimeMs）でその報のReportDateTime+36時間を過ぎた報（遅着）は、記録があってもなくてもstateを変えない（decision unchanged/stale、view・通知・退去なし、参照と保存世代を変えない）。Dでは遅着の報より古いsourceの記録は受理の前の期限処理で回収済み。解除・取消の記憶が36時間で消えた後に遅れて届いた古い発表で洪水予報を作らない（C10の起草のchanged/revisionOnly＋同じreduceでの回収と違い、正味の変化0をdecisionでも表す）。遅着のstaleと古い版のstaleは診断で区別しない",
         "recommended": "D",
         "provisional": "D",
-        "ruling": "作者裁定D（2026-10-10朝、ご主人）、推奨どおり。採らなかったA〜C・D'は分岐の記録として残すだけで、実装はDの形（retainUntilはnumberでeffectiveによらず元報の時刻+36時間、activeの回収でdesktopだけの期限切れ1件）だけを読む。（2026-10-29 朝、C16 の発注 4b-1 の配送、P3-REC-AC12 により統合担当が改訂）U-R の例外: 取り直しの候補の受信前の回収で、基点（開いた時の live、当て直しでは今の live）でその subject が見えていなかった記録の期限切れは intent を作らない。基点で見えていた記録は落とさず generationConflict になり、live の tick が通知する（FloodInput の deadline の recoveryBase?: FloodUnitState、flood-unit.ts の collect）",
+        "ruling": "作者裁定D（2026-10-10朝、ご主人）、推奨どおり。採らなかったA〜C・D'は分岐の記録として残すだけで、実装はDの形（retainUntilはnumberでeffectiveによらず元報の時刻+36時間、activeの回収でdesktopだけの期限切れ1件）だけを読む",
         "reason": "材料（実配信、~/dev/fleq-corpus-p0の7日分の採取のうちVXKOのあった5日の138本、46 EventID。冬の2日は0本、VXSUは7日とも0本）: 採取は1日ずつで、日をまたぐ間隔は測れない（24時間を超える無報の有無は材料から言えない）。同じ日の中の続報の間隔のうち前の報がactiveだった86間隔の最長は21.3時間（レベル2）、レベル3は29間隔で最長10.25時間、レベル4は16で7.67時間、レベル5は2で2.67時間。日の終わりにactiveのまま次の報の無かったEventIDは6（最後の報はレベル2が4、レベル3が1、レベル4が1）。46 EventIDのうち40は解除（code 10）の報で終わった。EventIDは予報区域のコードで、同じEventIDが約320日・約294日離れた採取日の報に出た（使い回しがそれだけの期間に及ぶことの下限で、続けて使われた間隔ではない）。見え方の違い: Bは36時間続報の無いactiveの洪水予報が音もなく消える。Aは解除・取消の報まで残すが、切断中に解除を取り逃すと同じ予報区域の次の出水（数か月後もありうる）まで古い洪水予報が残る（VXKO・VXSUはREST回復の対象に無い、spec:2205、P3-C11-N2）。Cはその残りを3日で打ち切るが、36時間と72時間のどちらが実際の無報の長さに合うかの材料が無い。推奨はD: 期限はspecと旧築の36時間のまま、黙って消える代わりに「確認できなくなった」ことをdesktopで一度知らせる。Dの代償: 解除を取り逃したときだけでなく、本当に36時間続報が無いまま有効な洪水予報でも消える（知らせはする）。D'は知らせの代わりに画面に印を残す案で、P4の見せ方に依存する"
       },
       {
