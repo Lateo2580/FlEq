@@ -179,7 +179,8 @@ describe("P3-REC-T08 acceptance: the startup digest reaches the snapshot (AC15, 
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("recoveryFetchFailed"));
     // 起動の取り直しの採用で U-T の未確認が外れる。最初の接続が一覧の後なので、やり直しの印で進み具合は取り直し中に戻る（r1、統合担当の決め）。
     await until(() => roots.root!.state.confirmation.units["U-T"].normal.whole === null);
-    expect((await snapshot(host.displayPort)).recovery.progress?.find((unit) => unit.unit === "U-T")?.state).toBe("running");
+    // 採用から取り直しの終わり（後ろの unit の採用）までは recovered が見えるので、終わりで running に戻るのを待つ（CI の揺れ、2026-10-29）。
+    await until(async () => (await snapshot(host.displayPort)).recovery.progress?.find((unit) => unit.unit === "U-T")?.state === "running");
     const lines = (await diagnostics(dirs.diagnosticDirectory)).split("\n").filter((line) => line.includes('"component":"recovery"'));
     expect(lines.map((line) => JSON.parse(line)).map(({ level, reason, unit }) => ({ level, reason, unit })))
       .toEqual([{ level: "WARN", reason: "recoveryFetchFailed", unit: "U-Q" }]);
