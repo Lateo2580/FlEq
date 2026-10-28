@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
-    "sha256": "9131d76e00c6b93e98210d9c30465fde13e33b69f5bb8f7f042f17e11f5462b9",
+    "sha256": "026c32f037f1c6810532ea59dfa7ec83ff4b240dc877ee7bac273f2444533f2a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -327,7 +327,7 @@
         "id": "P3-E05C-AC05",
         "requirement": "凍結と窓の構成（統合担当）: (1) 新しいmanifestId（例 p3-e05c-<日付>）で凍結する。作り方はP3-MH-AC06の型で、E05-Pの凍結manifest（evidence/p3-harness/manifest-e05p.json、p3-mh-e05p-20261011）を写し、変えるのはmanifestId、contractSha256（本契約の鍵を足し、全部の鍵の値を凍結の時点の各契約のmeta.sha256で取り直す。manifest-e05p.jsonのP3-MEASURE-HARNESS-001は33bc272e…で、今の契約は42b26fe1…〔dd94baf6のE14の直しで変わった〕。写したままだとrunnerの照合〔verifyContractHashes〕で止まる。runnerは鍵の全部を契約から引いて照合する）、auxiliary.E05.condition（本契約の窓の条件: 閾値・rearm・上限・基準の周期・run数と、分類の窓のE02・E05は報告だけ、を文で足す。frozen.tsはconditionの非空だけを見る）、smokeConditionDifferences（p3-mh-e05p-20261011からの差の1行）、機械の値（osVersionはos.release()とos.arch()を空白でつないだ値＝preflightと同じ式、device・nodeVersion・chrome.versionは同じ機械の予備のdraftから写す）だけで、sealSelfHashで封じる。置き場はevidence/p3-harness/manifest-e05c.json。frozen.ts・型・trial-setup・initial-stateは変えず、auxiliaryの鍵を増やさない (2) 窓の構成: --manifest <path> --windows e05c-observe-run1〜2とe05c-gc-run1〜2（各2、作者裁定P3-E05C-RUN-SPLIT=A）、Mac mini（E05-Pと同じ機械・独立checkout）、通知はreal backendで出力をミュート。E01・E02-P・E05-P・ownerHeapの窓は入れない (3) 所要の見込み: 1窓＝充填と確かめ約52秒＋静まり約15秒＋E02の1,000標本（1,000秒）＋停止で約18分（GCのrunは、区切りの待ち〔2回×最大10秒〕とGCの停止〔1回は各thread数十ms、P3-E05C-GC-PROBE〕で1分未満増える）。裁定A（観測2＋GC 2）で約75分、build・予備（AC07、約10分）・起動を足して約1.5時間 (4) C4（p3-c4-formal-20261007・p3-c4-formal-deadline-20261008）・MH（manifest-e05p.json・manifest-uwr.json）の凍結manifestとp3-mh-e05p-20261011の結果は書き換えず、結果はp3-e05c-<日付>のwindowsの下に置く。凍結から窓の終わりまで測るcheckoutのcommitを変えない。再実行はBlockedの窓だけ (5) 分類の結果（AC03の窓の分類・(4)の判定・次の手の候補）は統合担当が作者へ報告し、次の契約は作者裁定で起こす。結果を見てから判定表の境界を変えない（変えるなら本契約の改訂と新しいmanifestId）。無いと: 条件を決めない分類を結果の後に読むことになり、Q-WL2-E05Pの『条件を決めた別の窓』にならない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-measure-harness.json:371 «890ce5420a5d9281»",
+          "reconstruction/contracts/p3-measure-harness.json:371 «999c76dbd5bf8ee4»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:3 «8187c5a02b8e2367»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:220 «b587352337dfe3a4»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:404 «80e65c348bc863f1»",
@@ -340,7 +340,7 @@
           "reconstruction/contracts/p3-weather-light-step2.json:488 «b084586081363297»",
           "reconstruction/contracts/p3-measure-harness.json:11 «e9ca342feffa0c5b»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-e05p.json:17 «4a382cabfdfbbf4d»",
-          "reconstruction/contracts/p3-measure-harness.json:4 «a0239aa09d327de8»",
+          "reconstruction/contracts/p3-measure-harness.json:4 «7e0296e6f8e806e7»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:171 «97a134ad9cb5b784»"
         ]
       },
@@ -359,7 +359,7 @@
         "requirement": "凍結の前の短い予備（統合担当、Mac mini。予備は未確認で、合否にも分類の結論にも使わない）: --preliminary --aux e05c-observe-run1,e05c-gc-run1 --e02-count 120（測定の開始から2分で、材料の約17秒・約74秒の2つの山を含む）で確かめる。(a) 4 thread（publisher・urgent・weatherCurrent・deferred）の行があり、GCのrunでgcAvailableが4 threadとも真（偽のthreadがあれば凍結しない） (b) threadごとの行の間隔（ふだん200ms、weatherCurrentはVPWS50の処理〔材料で約270ms〕の間だけ伸びる）と、ownerのwrittenが窓の終わりに届くこと (c) 観測だけのrunでVPWS50の山が閾値を越えて再現すること。観測の負荷の線は作者裁定P3-E05C-PRELIM-BOUNDS（A）: 測定の最初の120秒の最大RSSが[363.5, 475.7]MiB（E05-Pの同じ120秒の最大383.5〜445.7MiBの下に20・上に30）に入り、E02のp99が6.8ms（E05-Pの失効の前のp99の最大3.39ms×2）以下 (d) GCのrunで、閾値の山ごとに4 threadのforcedGcの行（受けた遅れと3点を含む）と2秒後・5秒後のRSS、区切りのGCが2回、基準のGC、cappedの数え方。Mac miniのNode 22.23.3で、last-resortのflavorが効くこと（4 threadともafterLastResortのheapTotalとpublisherのrssがafterRegularより下がる。P3-E05C-GC-PROBEの向き）。効かなければ（flavorで例外、または下がらない）分類の窓をblockedにして凍結せず、作者に戻す（rをどのGCの後で取るかを決め直す） (e) SIGUSR2で区切りが入りhostが落ちないこと、観測だけのrunにはSIGUSR2を送らないこと (f) preloadのfileの行数と大きさ（1窓で約2万行の見込み）と、分類の集計が窓の結果に出ること。前提が外れたら凍結せず作者へ報告する（計画§4.3のNO-GOの扱い）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:159 «d81307e8b66b9886»",
-          "reconstruction/test/eew-e01/run.mjs:1580 «1d9eed7b966533b7»",
+          "reconstruction/test/eew-e01/run.mjs:1580 «764d61677bbfed34»",
           "reconstruction/test/eew-e01/run.mjs:1593 «e5294516c682a2a9»",
           "reconstruction/test/eew-e01/run.mjs:1742 «adc008712a5092a6»",
           "reconstruction/test/eew-e01/evidence/windows/p3-mh-e05p-20261011/results/aux-e05-P-run1.json:366 «76bd1afa8131d3b9»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
-    "sha256": "eebf20188477158bbfcc2b332930c53436bfca91c19e8aee7b79cf1e7dbb0973",
+    "sha256": "e4c325a2c81889897590558b963c838ab664d1ade072895063db514946b99ada",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -139,7 +139,7 @@
       {
         "id": "P3-C4-PI-STAGE1-APPROVAL",
         "status": "closed",
-        "closed": "作者がPi予備確認（D-P3-7）の第1段を了承した（2026-10-06）。旧築稼働中のPiで新築backendを並走してよい。旧築の保護（別directory・state・port・記録先、新しいdmdata購読を使わない、MemAvailable監視、AC09）は変えない。第2段・P3-C4-PI-E03は未決のまま",
+        "closed": "作者がPi予備確認（D-P3-7）の第1段を了承した（2026-10-06）。旧築稼働中のPiで新築backendを並走してよい。旧築の保護（別directory・state・port・記録先、新しいdmdata購読を使わない、MemAvailable監視、AC09）は変えない。第2段・P3-C4-PI-E03は未決のまま（この並走はP3-PI-HARNESS-001 の窓では測らず、P5 の並走検収（spec:2148〜2150）へ送った（P3-PH-D-LEGACY=B、第 1 段も含む、2026-10-28 作者裁定））",
         "remaining": "なし（第1段のみ）",
         "reason": "作者の了承（2026-10-06）。AC09のPi予備確認の前提"
       },
@@ -658,7 +658,7 @@
         "requirement": "【工程1】runnerの準備: (1) 試行ごとの成立の判定: runnerは各試行の後（paintまたは10秒の後）にhostの観測（JSONL）から対象の開始（parse開始・encode開始・保存の開始・期限処理の開始、衝突ではVPWS50のT1）とT0を引き、成立をその場で判定する。母集団5の対象の保存は、引き金の期限回収を含む保存に限る: U-Fの1 stepは世代を1上げ、入力の採用のstepはその世代の観測generationRaisedを1行出し、期限回収のstepはgenerationInputIdsが空で行を出さない（owner-runtime.tsのreduceUnit）ので、引き金の採用の世代より後でどの入力の行も無い世代を含む保存（CheckpointMeasurementのgeneration）を期限回収を含む保存とする。採用の保存だけ・背景の入力の保存だけは選ばず、採用と回収がまとまった1回の保存は選ぶ。背景の受信の中で引き金を回収した世代（weather-timeseriesのcollectが受信の1回のdirtyにまとめる）は入力の行を持つので選ばない（安全側の取りこぼし）。採用の行が無い引き金は対象なし（targetNotObserved）。行の不在を回収と読めるのは返信がすべて反映されたときだけ: generationRaisedはmailboxが完了を受けたinputDoneにしか出ず、そのときprocessingの行も出る（host.tsのonInputDone）ので、試行の投入以後にT2の行があってprocessingの行が無い入力が1つでもあれば対象なし（安全側）。parserが拒否した入力もT2はあるがprocessingが無いので、同じく対象なしになる（安全側）。負荷Nにparserの拒否が常にあると母集団5はBlockedになるので、予備測定で負荷Nのparserの拒否が0件であることを確かめる。遅れ・停止で反映されないownerの保存はcheckpointの行自体が出ない（composition-root.tsのcheckpointDone）。前提: この窓で入力によらずU-Fの世代が上がるのは引き金のsubjectのvalidUntilだけ（初期状態は空でU-Fに通知予約は無く、背景のsubjectは報告時刻を今へ動かすのでvalidUntilは報告の49時間後・retainUntilは7日後で窓の中に来ない）。正式の起動時の確認で、引き金の官署が母集団5の負荷のVPWP50に無いことを照らし、あれば走らせない（Q-C4-DEADLINE-SUBJECT）。判定は純関数1つ（establishment・対象の開始と終了・T0・投入側の対応区間を受けて成立か理由を返す）。warm-upの0〜99は成立の判定をせず、順に振る（spec:1118の別IDの固定入力）。成立の判定は正式の試行にだけ行い、成立したものにだけ連番のsampleIndex 100〜1099を振り、不成立はattemptIndexだけを持つoverlapNotEstablishedとして記録する（index空間に入れない）。attemptIndexはwarm-upを含めた通し番号で、maxAttemptsもwarm-upを含めて数える。窓（母集団×run）ごとにmanifestのstopCondition（最大試行数・最大経過時間）に達したら、その窓をBlockedにする。runnerの既存の窓の期限（見込み×2）はこのmaxDurationMsで置き換える (2) 版の結び付けを実行場所ごとの行順の窓にする（P3-C4-T3-BINDING）。run.mjsのpublishedByとanalysis.mjsの版の結び付けから「1件ずつ同期に処理」の前提を外す。T0の後の拒否は理由の文字列のままの欠落、次のT2が来なければ窓の終わりで閉じる (3) 投入側のping（P3-C4-RUNNER-LIVENESS）と、各窓のframe間隔の最大値の記録 (4) AC15の再集計を生データだけで行えるように、AC15の窓でrunnerが接続を切ったhrtimeと、充填の完了時点のstate/（保存物）と/snapshotの本文を窓のrawとして保存する（A10のclosure.mdが挙げた不足） (5) 保存の占有の集計からverify段を外す（C1で定常経路から消えた。verifyが出た試行は別の段として数え、encode・writeへ足さない） (6) Pi第1段用に、Chromeを起動せずbackendだけを測る走らせ方: 試行の完了条件は対象の版のT4の観測（10秒で欠落）、記録はT0〜T4と保存・資源。予定時刻どおりの投入は既存のreplayPumpを使い、新しい仕組みにしない。Piの/proc/pressureとvcgencmdの記録は統合担当のshellのloopで取り、runnerにコードを足さない。新しいrunnerやbenchmark frameworkを作らず、reconstruction/test/eew-e01/**の既存runnerを改修する（RES-03）。A10の版付き結果（evidence/windows/a10-p2-20260930b）と凍結manifestは書き換えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:62 «77bdc4ba5db0bf63»",
-          "reconstruction/contracts/p3-order-plan.md:184 «b446595310582f83»",
+          "reconstruction/contracts/p3-order-plan.md:184 «074c1bede0cf6d17»",
           "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
           "reconstruction/contracts/p3-dmdata-connect.json:572 «06ca95d761bfc44d»",
           "reconstruction/contracts/p3-checkpoint-step1.json:66 «ed23f8a9cdaff9af»",
@@ -724,14 +724,14 @@
       },
       {
         "id": "P3-C4-AC09",
-        "requirement": "【工程1（C3a配置の回）・工程2（C3b配置の回）】Pi予備確認（D-P3-7、二段）: 第1段（Pi単独、backend）は投入側と新築hostをPi上の別プロセスで動かし、localhostのWSで流す（AC03の(6)）。条件は最大VPWS50の処理中・U-Wのencode中・U-Fの保存中のEEW、U-E・U-W・U-Fの同時dirty（E14の区間、計画:218。AC13(3)の窓をbackend単独で）、「U-Wの大型処理＋U-Fの処理と保存＋旧築稼働中にEEW」の重ね合わせ。単体の比較（処理完了を待って次を送る）と、N/P/Cから選んだ窓の予定時刻どおりの投入（replayPump）の両方。runnerの投入の前倒し（run.mjsのlead。保存600ms・期限回収2,400msはMacの所要に合わせた値で、C3a配置の回ではPiでmaxForecastCheckpointSaveの成立が0/198）は、Piで成立する値を予備で求めてrunnerの引数にし、使った値を記録に残す（負荷とperiodMsは変えない）。第2段（Pi backend＋Mac miniのChrome、工程2）は実paintまで確かめ、Pi・Macの時計はspec:1141〜1143の往復対応で結び、別機械の単調時計を直接引き算しない。通信経路（LAN・Tailscale・SSHトンネル）を記録し、本番と違う経路の値を本番のE01にしない。第2段はPiとMacの両方を測定機として扱い、測定の窓では両方でbuild・test・他レーンを走らせない（計画:112）。記録: 「実送信→T0」「T0→T2」「T2→採用・射影完了」「採用・射影完了→公開完了」「T0→T6（第2段）」「実送信→T6（第2段）」の区間、E14の分解（AC04(2)、C3a配置の回は既存のCheckpointMeasurementだけ）、ingressJsonMs、同じ窓のPiの/proc/pressure/{cpu,memory,io}・vcgencmdのclock・temp・throttled（統合担当のshellのloop）、threadごとのheapとプロセスのRSS、unitごとの保存回数・書込量。通知はsilent（spawn先を/usr/bin/true）で、実通知の検収ではないと結果に書く。標本は条件ごとにwarm-upを別に取り30件程度×3回から（RES-07）。100件未満のp99は「観測最大」と書く。見るのは次の5つ: EEWが大型処理に追従して止まる、publisherがownerの完了を待つ、書込み権が戻らず他の単位が保存できない、RSSが上限を明らかに超える、queueが一方向に増える。それに加えて、工程1（C3a配置）ではC3aの性質①〜⑤だけ、工程2（C3b配置）ではC3bの性質①〜④も（P3-C4-PI-PROPERTIES）。異常が無ければ「この予備条件では再現せず」と書き、E01・E14などのPassと呼ばない。異常が出たら原因を分類して作者へ報告し（D-P3-9。C5以降の着手禁止条件にしない）、PiのE14の3秒超過はD-P3-2の再裁定の契機として報告する（D-P3-8）。配置: Piの作業複製（公開fixtureだけ。公開mainにgitで追跡されているfileと読む、作者確認2026-10-06。台帳63の~/p3-benchの前例）でnpm ci --ignore-scriptsとtscをPi上で行い、distとnode_modulesを機械間で共有しない。旧築の保護: 別のdirectory・state・port・記録先、新しいdmdata購読を使わない。MemAvailableが2GiBを下回る、swap-in/outが正の10秒窓が3つ続く、新しいthrottleが30秒続く（spec E16・E17の暫定値）のどれかで新築側を止め、旧築を止めて測定を成立させない",
+        "requirement": "【工程1（C3a配置の回）・工程2（C3b配置の回）】Pi予備確認（D-P3-7、二段）: 第1段（Pi単独、backend）は投入側と新築hostをPi上の別プロセスで動かし、localhostのWSで流す（AC03の(6)）。条件は最大VPWS50の処理中・U-Wのencode中・U-Fの保存中のEEW、U-E・U-W・U-Fの同時dirty（E14の区間、計画:218。AC13(3)の窓をbackend単独で）、「U-Wの大型処理＋U-Fの処理と保存＋旧築稼働中にEEW」の重ね合わせ。単体の比較（処理完了を待って次を送る）と、N/P/Cから選んだ窓の予定時刻どおりの投入（replayPump）の両方。runnerの投入の前倒し（run.mjsのlead。保存600ms・期限回収2,400msはMacの所要に合わせた値で、C3a配置の回ではPiでmaxForecastCheckpointSaveの成立が0/198）は、Piで成立する値を予備で求めてrunnerの引数にし、使った値を記録に残す（負荷とperiodMsは変えない）。第2段（Pi backend＋Mac miniのChrome、工程2）は実paintまで確かめ、Pi・Macの時計はspec:1141〜1143の往復対応で結び、別機械の単調時計を直接引き算しない。通信経路（LAN・Tailscale・SSHトンネル）を記録し、本番と違う経路の値を本番のE01にしない。第2段はPiとMacの両方を測定機として扱い、測定の窓では両方でbuild・test・他レーンを走らせない（計画:112）。記録: 「実送信→T0」「T0→T2」「T2→採用・射影完了」「採用・射影完了→公開完了」「T0→T6（第2段）」「実送信→T6（第2段）」の区間、E14の分解（AC04(2)、C3a配置の回は既存のCheckpointMeasurementだけ）、ingressJsonMs、同じ窓のPiの/proc/pressure/{cpu,memory,io}・vcgencmdのclock・temp・throttled（統合担当のshellのloop）、threadごとのheapとプロセスのRSS、unitごとの保存回数・書込量。通知はsilent（spawn先を/usr/bin/true）で、実通知の検収ではないと結果に書く。標本は条件ごとにwarm-upを別に取り30件程度×3回から（RES-07）。100件未満のp99は「観測最大」と書く。見るのは次の5つ: EEWが大型処理に追従して止まる、publisherがownerの完了を待つ、書込み権が戻らず他の単位が保存できない、RSSが上限を明らかに超える、queueが一方向に増える。それに加えて、工程1（C3a配置）ではC3aの性質①〜⑤だけ、工程2（C3b配置）ではC3bの性質①〜④も（P3-C4-PI-PROPERTIES）。異常が無ければ「この予備条件では再現せず」と書き、E01・E14などのPassと呼ばない。異常が出たら原因を分類して作者へ報告し（D-P3-9。C5以降の着手禁止条件にしない）、PiのE14の3秒超過はD-P3-2の再裁定の契機として報告する（D-P3-8）。配置: Piの作業複製（公開fixtureだけ。公開mainにgitで追跡されているfileと読む、作者確認2026-10-06。台帳63の~/p3-benchの前例）でnpm ci --ignore-scriptsとtscをPi上で行い、distとnode_modulesを機械間で共有しない。旧築の保護: 別のdirectory・state・port・記録先、新しいdmdata購読を使わない。MemAvailableが2GiBを下回る、swap-in/outが正の10秒窓が3つ続く、新しいthrottleが30秒続く（spec E16・E17の暫定値）のどれかで新築側を止め、旧築を止めて測定を成立させない（P3-PI-HARNESS-001 の窓は P3-PH-D-LEGACY=B（2026-10-28 作者裁定、窓の間は旧築を止める。手順は P3-PH-AC08）。第1段の「旧築稼働中にEEW」の重ね合わせはP3-PI-HARNESS-001 の窓では測らず、P5 の並走検収（spec:2148〜2150）へ送った（P3-PH-D-LEGACY=B、第 1 段も含む、2026-10-28 作者裁定））",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
-          "reconstruction/contracts/p3-order-plan.md:184 «b446595310582f83»",
-          "reconstruction/contracts/p3-order-plan.md:185 «5e73c88a8bd6b37d»",
+          "reconstruction/contracts/p3-order-plan.md:184 «074c1bede0cf6d17»",
+          "reconstruction/contracts/p3-order-plan.md:185 «3ffd79bd1eb674c4»",
           "reconstruction/contracts/p3-order-plan.md:186 «232d5e21c1e59cfe»",
           "reconstruction/contracts/p3-order-plan.md:187 «30557e27fbc10ebf»",
-          "reconstruction/contracts/p3-order-plan.md:188 «5568557f566c49ac»",
+          "reconstruction/contracts/p3-order-plan.md:188 «1ba26093ab88cc11»",
           "reconstruction/contracts/p3-order-plan.md:189 «0579acb10a2f2c0a»",
           "reconstruction/contracts/p3-order-plan.md:204 «6dbae61d532de8c8»",
           "reconstruction/contracts/p3-order-plan.md:205 «ca5b4f54e5320f4e»",

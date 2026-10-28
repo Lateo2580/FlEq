@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "3d57b3090b68fac2a052753000f2ac79193393d7f1b19070a95491bce8871cf5",
+    "sha256": "3aef48eb2e2919fdc8fce786d4e4754d9799662d0e9684901406a8659a51ed0a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -538,7 +538,7 @@
           "新しいmanifestIdでの測り直し（C4のrunner）: Mac miniのE14の窓・E07のN/C・保存と重なるE01の母集団（3〜5）。E14は起点にownerMonotonicMsを使う",
           "Pi第1段の衝突run（最大VPWS50を約3秒ごと）3本: unitごとのdirty→ackの観測最大と区間の分解、同時I/Oの下のunitごとの保存時間（encode・write・sync・rename）、weatherCurrent・deferredの入力の待機年齢と留保の満了回数、U-Fの入力の負荷、保存と重なるEEWのE01の区間",
           "短い予備の判定（Pi第1段、正式Passとは呼ばない）: 各unitの各dirty更新からそれを含む世代のackまで≤3秒（spec:855・:2066）で、通常入力の最大待機年齢と入力停止後の排出がE07の値の内側なら台帳64を解消とし、外れれば原因を分類して作者へ報告する（D-P3-9）。正式の判定はspec:2058のE07の条件全部（N・Cを各60分、全遷移で宣言上限内、最大待機年齢5秒以下、停止から10秒以内に0、warm-up後の周期末backlogが増えない）とE14をPiで測ってから行う（計画§4.5、P5）。checkpointOverdueの件数はPi第1段と粒度が違いうるので参考",
-          "C4から移管（作者裁定 2026-10-08 16時、P3-E01-REACCEPT-001のQ-C4-AUTHOR-RULINGS・P3-C4-CLOSE-INGRESS-N7。C4のAC09の成果物）。完了の条件: Pi第1段（backend単独）と第2段（Piのbackend＋Mac miniのChrome、実paintまで）の記録。第2段の形は作者裁定P3-C6-PI-STAGE2=A（2026-10-09、P3-TSUNAMI-E01-001）: PiとMac miniを同じルーターに有線でつなぎ（直結ケーブルではない）、Pi上の新築hostの別portへMac miniのChromeがLAN越しに接続する（SSHトンネルは使わない）。Piの作業複製・時計の対応・有線LANの経路の準備はC6のPi予備確認（P3-C6-AC09）と共有し、窓は重ねない。順序はこの第2段の窓を先、C6の確認を後。旧築の保護はC4のAC09のまま",
+          "C4から移管（作者裁定 2026-10-08 16時、P3-E01-REACCEPT-001のQ-C4-AUTHOR-RULINGS・P3-C4-CLOSE-INGRESS-N7。C4のAC09の成果物）。完了の条件: Pi第1段（backend単独）と第2段（Piのbackend＋Mac miniのChrome、実paintまで）の記録。第2段の形は作者裁定P3-C6-PI-STAGE2=A（2026-10-09、P3-TSUNAMI-E01-001）: PiとMac miniを同じルーターに有線でつなぎ（直結ケーブルではない）、Pi上の新築hostの別portへMac miniのChromeがLAN越しに接続する（SSHトンネルは使わない）。Piの作業複製・時計の対応・有線LANの経路の準備はC6のPi予備確認（P3-C6-AC09）と共有し、窓は重ねない。順序はこの第2段の窓を先、C6の確認を後。旧築の保護はC4のAC09のまま（P3-PI-HARNESS-001 の窓は P3-PH-D-LEGACY=B（2026-10-28 作者裁定、窓の間は旧築を止める。手順は P3-PH-AC08））",
           "C4から移管（同上）。完了の条件: MacとPiのingressJsonMsを同じ条件（同じ母集団・入力・runner）で比べた比",
           "C4から移管（同上）。完了の条件: Piのprocessingの内訳（測定区間を書く）"
         ]

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "49577e0b7e721e800fd6f6126b6724c70e661618a5b7e6285bff9816664d56f9",
+    "sha256": "e83d464c03a6b01a27edeb4a73404ed855da069c6f6c85d3a3df819d101d4ee2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -360,7 +360,7 @@
           "reconstruction/test/eew-e01/run.mjs:52 «cab6c91895dbfeb0»",
           "reconstruction/test/eew-e01/run.mjs:1628 «5a191d36fab5dd3b»",
           "reconstruction/contracts/p3-weather-light-step2.json:487 «b4e1875e865b225c»",
-          "reconstruction/test/eew-e01/run.mjs:1580 «1d9eed7b966533b7»",
+          "reconstruction/test/eew-e01/run.mjs:1580 «764d61677bbfed34»",
           "reconstruction/test/eew-e01/draft.mjs:326 «c1c3f5ca48882b23»",
           "reconstruction/test/eew-e01/draft.mjs:328 «93464ea583f3067c»",
           "reconstruction/test/eew-e01/windows.mjs:181 «46f4804d298fec4d»"
@@ -368,20 +368,20 @@
       },
       {
         "id": "P3-MH-AC06",
-        "requirement": "測り直しのmanifestの作り方と凍結の手順（統合担当）。共通: 新しいmanifestIdで、inheritsManifestIdはa10-p2-20260930b、負荷N・P・CはA10のまま、trialSetupはAC05(1)の1組、o09Subset.sequencesSha256は今のsequences.jsonのmeta.sha256、contractSha256はAC05(3)、機械の値はAC05(4)。凍結の前に同じ機械で短い予備（--preliminary、件数を絞る。draftはAC05(6)の引数でAC05(1)の1組から作る）を走らせ、AC08の確かめを通してから凍結する。正式の窓は--manifestと--windows <id,...>で選ぶ。凍結の後に条件を変えるときは新しいmanifestId（P3-C4-AC10・AC11の規則）。凍結から正式の窓の終わりまで、測るcheckoutのcommitを変えない（載せた契約のfileのanchorの同期も含む。日を跨ぐ再開はresumeの照合gitHeadが止める）。C4（p3-c4-formal-20261007・p3-c4-formal-deadline-20261008）・C6（p3-c6-formal-20261009）・A10の凍結manifestと結果、e7440188のE05-Pのmanifest（p3-wl2-e05p-20261011b）は書き換えず、結果は新しいmanifestIdのwindowsの下に置く。(1) E05-P（Q-WL2-E05P）: 母集団の値はC4の凍結の値を写し、窓はe02-P-run1〜3とownerHeap-run1、上限400MiB。P3-MH-FULL-STATEがB・Dなら失効の前後の値を結果に並べる (2) Q-UWR-REMEASUREのMac miniの分: 窓はe14-run1（runCountはC4の凍結の値1のまま、束の数・間隔もC4のまま。C4のE14と同じ形で並べて書込み権の待ちの減り方を読むため。runを増やすと所要が束の数×20秒ずつ増え、C4と比べる値が増えない）、e07-N・e07-C、E01のmaxWeatherCheckpointEncodeStarted・maxForecastCheckpointSave・forecastDeadlineOverlap×3 run。3つの保存母集団のtriggerLeadMs・stopConditionはAC03(4)の予備の値で決め、C4の値との差（較正の引き金・tickの観測）を結果の報告に書く。ほかの3母集団の窓は--windowsに入れない。E14はAC04の別報告を出す (3) P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段は、本契約の後も走らせられないので測り直しに含めない: runnerはhostをいつも手元で起動して127.0.0.1につなぎ（run.mjsのWebSocketServerとopenPage）、津波の窓はChromeが要り--backend-onlyを拒み、chromeVersion()はmacOSのpathを起動する。別機械のharness（hostをPiで起動、ChromeはMac mini、別機械の時計の往復対応、spec:1141〜1143）が先に要り、P3-C6-AC09の順序はUWRのPiの窓が先。作者裁定（2026-10-11朝、残りは全部この後）は、Piの第2段とP3-C6-AC09については本契約で閉じない（残存リスク(9)、Q-MH-AUTHOR） (4) PiのE03（Q-WL2-PI-E03）: AC05(5)の形でchrome.versionは「none (backend-only)」、窓は--windows e03-run1,e03-run2,e03-run3、Nodeは--node、機械の値はPiの予備のdraftの値。通知は正式どおりreal backend（runnerは正式でsilentを拒む）で、notificationProbeはPiで--notification realの予備（E01 fixedBacklogの--backend-onlyの短いrun。runnerがrunの記録のchannelsからidleかunavailableを書く）の値を写し、Mac miniのidle/idleを写さない。音の出力はPiの機械の側でミュートし、方法を記録する。本番の判定はP5のまま（judgmentPlaces）。無いと: 測り直しが、照合の集合・機械の値・CLI・継承の照合のどれかで起動前に止まるか、凍結した条件の出所が記録に残らない",
+        "requirement": "測り直しのmanifestの作り方と凍結の手順（統合担当）。共通: 新しいmanifestIdで、inheritsManifestIdはa10-p2-20260930b、負荷N・P・CはA10のまま、trialSetupはAC05(1)の1組、o09Subset.sequencesSha256は今のsequences.jsonのmeta.sha256、contractSha256はAC05(3)、機械の値はAC05(4)。凍結の前に同じ機械で短い予備（--preliminary、件数を絞る。draftはAC05(6)の引数でAC05(1)の1組から作る）を走らせ、AC08の確かめを通してから凍結する。正式の窓は--manifestと--windows <id,...>で選ぶ。凍結の後に条件を変えるときは新しいmanifestId（P3-C4-AC10・AC11の規則）。凍結から正式の窓の終わりまで、測るcheckoutのcommitを変えない（載せた契約のfileのanchorの同期も含む。日を跨ぐ再開はresumeの照合gitHeadが止める）。C4（p3-c4-formal-20261007・p3-c4-formal-deadline-20261008）・C6（p3-c6-formal-20261009）・A10の凍結manifestと結果、e7440188のE05-Pのmanifest（p3-wl2-e05p-20261011b）は書き換えず、結果は新しいmanifestIdのwindowsの下に置く。(1) E05-P（Q-WL2-E05P）: 母集団の値はC4の凍結の値を写し、窓はe02-P-run1〜3とownerHeap-run1、上限400MiB。P3-MH-FULL-STATEがB・Dなら失効の前後の値を結果に並べる (2) Q-UWR-REMEASUREのMac miniの分: 窓はe14-run1（runCountはC4の凍結の値1のまま、束の数・間隔もC4のまま。C4のE14と同じ形で並べて書込み権の待ちの減り方を読むため。runを増やすと所要が束の数×20秒ずつ増え、C4と比べる値が増えない）、e07-N・e07-C、E01のmaxWeatherCheckpointEncodeStarted・maxForecastCheckpointSave・forecastDeadlineOverlap×3 run。3つの保存母集団のtriggerLeadMs・stopConditionはAC03(4)の予備の値で決め、C4の値との差（較正の引き金・tickの観測）を結果の報告に書く。ほかの3母集団の窓は--windowsに入れない。E14はAC04の別報告を出す (3) P3-C6-AC09のPi予備確認とQ-UWR-REMEASUREのPi第1・2段は、本契約の後も走らせられないので測り直しに含めない: runnerはhostをいつも手元で起動して127.0.0.1につなぎ（run.mjsのWebSocketServerとopenPage）、津波の窓はChromeが要り--backend-onlyを拒み、chromeVersion()はmacOSのpathを起動する。別機械のharness（hostをPiで起動、ChromeはMac mini、別機械の時計の往復対応、spec:1141〜1143）が先に要り、P3-C6-AC09の順序はUWRのPiの窓が先（P3-PI-HARNESS-001 で別機械の harness を作った〔2026-10-28〕: runner と host は Pi に置き、--chrome-cdp・--display-host〔予備だけ〕で表示を Pi の明示の IPv4 に開いて Mac mini の Chrome に CDP でつなぐ。投入側の WS は Pi の中の 127.0.0.1 のまま、run.mjs の表示の宛先は host の displayHost に替わった）。作者裁定（2026-10-11朝、残りは全部この後）は、Piの第2段とP3-C6-AC09については本契約で閉じない（残存リスク(9)、Q-MH-AUTHOR） (4) PiのE03（Q-WL2-PI-E03）: AC05(5)の形でchrome.versionは「none (backend-only)」、窓は--windows e03-run1,e03-run2,e03-run3、Nodeは--node、機械の値はPiの予備のdraftの値。通知は正式どおりreal backend（runnerは正式でsilentを拒む）で、notificationProbeはPiで--notification realの予備（E01 fixedBacklogの--backend-onlyの短いrun。runnerがrunの記録のchannelsからidleかunavailableを書く）の値を写し、Mac miniのidle/idleを写さない。音の出力はPiの機械の側でミュートし、方法を記録する。本番の判定はP5のまま（judgmentPlaces）。無いと: 測り直しが、照合の集合・機械の値・CLI・継承の照合のどれかで起動前に止まるか、凍結した条件の出所が記録に残らない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-weather-light-step2.json:484 «599ff705b3c93a0e»",
           "reconstruction/contracts/p3-weather-light-step2.json:500 «2147993e6823d492»",
-          "reconstruction/contracts/p3-unit-write-right.json:541 «6639f170960948c3»",
-          "reconstruction/contracts/p3-tsunami-e01.json:563 «8e9e495871ec85b9»",
+          "reconstruction/contracts/p3-unit-write-right.json:541 «7bc86a013043441a»",
+          "reconstruction/contracts/p3-tsunami-e01.json:563 «9a3f220a37e93834»",
           "reconstruction/contracts/p3-tsunami-e01.json:578 «da21a56fd09d98a5»",
           "reconstruction/contracts/p3-e01-reaccept.json:745 «9beb1ed747d10836»",
           "reconstruction/contracts/p3-e01-reaccept.json:757 «de3ea7ee502cd62f»",
           "reconstruction/src/measurement/eew-e01/frozen.ts:234 «ee57ddbb85e54f08»",
           "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
           "reconstruction/test/eew-e01/run.mjs:125 «54e15e304f5de7b0»",
-          "reconstruction/test/eew-e01/run.mjs:409 «5b4d02e1944afb18»",
-          "reconstruction/test/eew-e01/run.mjs:411 «c27ba2a8c00039fb»",
+          "reconstruction/test/eew-e01/run.mjs:409 «605946131f4281da»",
+          "reconstruction/test/eew-e01/run.mjs:411 «478f6c3ae1b6058e»",
           "reconstruction/test/eew-e01/run.mjs:482 «7376a84ca521275a»",
           "reconstruction/test/eew-e01/run.mjs:1813 «d0055db5a7e2d5a1»"
         ]

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "da5f160d2f98dacc2a36f02c22f0db395d685ea1715120d141ae310d834a316c",
+    "sha256": "3d39c7878e0a9cf066df199bd4d70a9deb2df4ba375d71dc33ccd825b344aba6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -560,17 +560,17 @@
       },
       {
         "id": "P3-C6-AC09",
-        "requirement": "Pi予備確認（D-P3-7のC6の短い確認、作者裁定P3-C6-PI-STAGE2=A〔2026-10-09〕）: Pi backend＋Mac miniのChrome（PiとMac miniを同じルーターに有線でつなぐ。直結ケーブルではない）で、発令系（通常backlog）・解除系（通常backlog）・EEW同時（EEWのT0→T6も記録）の3条件を、warm-upを別に30件程度×3回（P3-C4-RES-07）。100件未満のp99は「観測最大」と書く。記録はC4のAC09の区間（実送信→T0・T0→T2・T2→採用と射影・採用と射影→公開・T0→T6・実送信→T6）、時計区間の幅の分布（spec:1141〜1143の往復対応。別機械の単調時計を直接引き算しない）、通信経路、同じ窓のPiの/proc/pressure/{cpu,memory,io}とvcgencmd（統合担当のshellのloop）、threadごとのheapとプロセスのRSS。見るのは計画:187の5つと、urgentにU-Tを足した干渉（津波の処理中に届いたEEW、EEWの処理中に届いた津波の待ち）。継承する負荷と初期状態はC6のmanifestと同じ（C4の凍結manifestを継ぐ）で、記録はC6のmanifestIdに結ぶ。Q-UWR-REMEASURE（P3-UNIT-WRITE-RIGHT-001、C4から移管されたPiの第2段）とは、Piの作業複製・時計の対応・有線LANの経路の準備を共有し、窓は重ねない。順序はQ-UWR-REMEASUREのPiの窓を先、C6の確認を後にする（C6の確認は書込み権の測り直しの後の製品で見るため）。この確認の窓はPiとMac miniの両方を測定機として扱い、両方でbuild・test・他レーンを走らせず、Mac miniの正式測定の窓と重ねない（計画:112）。Piの作業複製は公開fixtureだけ、旧築の保護はC4のAC09のまま。異常が無ければ「この予備条件では再現せず」と書き、E01のPassと呼ばない。異常が出たら原因を分類して作者へ報告する（D-P3-9。後続の着手禁止条件にしない）",
+        "requirement": "Pi予備確認（D-P3-7のC6の短い確認、作者裁定P3-C6-PI-STAGE2=A〔2026-10-09〕）: Pi backend＋Mac miniのChrome（PiとMac miniを同じルーターに有線でつなぐ。直結ケーブルではない）で、発令系（通常backlog）・解除系（通常backlog）・EEW同時（EEWのT0→T6も記録）の3条件を、warm-upを別に30件程度×3回（P3-C4-RES-07）。100件未満のp99は「観測最大」と書く。記録はC4のAC09の区間（実送信→T0・T0→T2・T2→採用と射影・採用と射影→公開・T0→T6・実送信→T6）、時計区間の幅の分布（spec:1141〜1143の往復対応。別機械の単調時計を直接引き算しない）、通信経路、同じ窓のPiの/proc/pressure/{cpu,memory,io}とvcgencmd（統合担当のshellのloop）、threadごとのheapとプロセスのRSS。見るのは計画:187の5つと、urgentにU-Tを足した干渉（津波の処理中に届いたEEW、EEWの処理中に届いた津波の待ち）。継承する負荷と初期状態はC6のmanifestと同じ（C4の凍結manifestを継ぐ）で、記録はC6のmanifestIdに結ぶ（予備の --preliminary --tsunami は harness の 1 組を継ぐ草案〔P3-TSUNAMI-HARNESS-001 の P3-TH-AC02 (5)、manifestId は p3-c6-prelim-<時刻>〕で組み、初期状態は違う〔負荷は同じ値〕。記録は報告で p3-c6-formal-20261009 に結ぶ。P3-PI-HARNESS-001 の P3-PH-AC08 (6)）。Q-UWR-REMEASURE（P3-UNIT-WRITE-RIGHT-001、C4から移管されたPiの第2段）とは、Piの作業複製・時計の対応・有線LANの経路の準備を共有し、窓は重ねない。順序はQ-UWR-REMEASUREのPiの窓を先、C6の確認を後にする（C6の確認は書込み権の測り直しの後の製品で見るため）。この確認の窓はPiとMac miniの両方を測定機として扱い、両方でbuild・test・他レーンを走らせず、Mac miniの正式測定の窓と重ねない（計画:112）。Piの作業複製は公開fixtureだけ、旧築の保護はC4のAC09のまま（P3-PI-HARNESS-001 の窓は P3-PH-D-LEGACY=B（2026-10-28 作者裁定、窓の間は旧築を止める。手順は P3-PH-AC08））。異常が無ければ「この予備条件では再現せず」と書き、E01のPassと呼ばない。異常が出たら原因を分類して作者へ報告する（D-P3-9。後続の着手禁止条件にしない）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
-          "reconstruction/contracts/p3-order-plan.md:185 «5e73c88a8bd6b37d»",
+          "reconstruction/contracts/p3-order-plan.md:185 «3ffd79bd1eb674c4»",
           "reconstruction/contracts/p3-order-plan.md:186 «232d5e21c1e59cfe»",
           "reconstruction/contracts/p3-order-plan.md:187 «30557e27fbc10ebf»",
-          "reconstruction/contracts/p3-order-plan.md:188 «5568557f566c49ac»",
+          "reconstruction/contracts/p3-order-plan.md:188 «1ba26093ab88cc11»",
           "reconstruction/contracts/p3-order-plan.md:204 «6dbae61d532de8c8»",
           "docs/specs/reconstruction-p0-contracts.md:1141 «6d9d63f029934dfb»",
-          "reconstruction/contracts/p3-e01-reaccept.json:142 «a628b4634a4a8cd3»",
-          "reconstruction/contracts/p3-unit-write-right.json:541 «6639f170960948c3»"
+          "reconstruction/contracts/p3-e01-reaccept.json:142 «797865ff6f69daae»",
+          "reconstruction/contracts/p3-unit-write-right.json:541 «7bc86a013043441a»"
         ]
       },
       {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "1eee280385c51a2478edfd48ace7809b38c9e2e927982d95f2c91dabd2efec61",
+    "sha256": "4b6dbbab06c67dff30654ec798cb1eb9f3cb7131a544a76680684a0c908db295",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -493,7 +493,7 @@
       },
       {
         "id": "P2-A8-AC14",
-        "requirement": "P2実HTTP serverを起動する場合bindは127.0.0.1/::1だけ。文字列はJSON.stringify済みdataとしてSSE framingに入れ、生の入力文字列をevent/id/data行へ連結しない。HTMLとして解釈させない描画とR38全国通知の明示はA9表示契約の責務で、設定fieldは増やさない。理由: P4認証前の外部公開とSSE枠注入を防ぐため。",
+        "requirement": "P2実HTTP serverを起動する場合bindは127.0.0.1/::1だけ。文字列はJSON.stringify済みdataとしてSSE framingに入れ、生の入力文字列をevent/id/data行へ連結しない。HTMLとして解釈させない描画とR38全国通知の明示はA9表示契約の責務で、設定fieldは増やさない。理由: P4認証前の外部公開とSSE枠注入を防ぐため。（測定の起動経路〔host-launcher〕が明示で渡す 1 つの IPv4〔{ measurementAddress }〕だけは例外。設定・CLI 引数からは作らない。P3-PI-HARNESS-001 の P3-PH-AC01）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1298 «059f657d648c3ce8»"
         ]

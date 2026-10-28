@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "f758a2c3eecbfb2c910d2fd6dc69226924c594e134f0e6579ec3272d6696d844",
+    "sha256": "8cad7531e47d7777e7d36b6e3f9829e4d4107be3f2634b893809f12523d2a765",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -469,14 +469,14 @@
         "requirement": "R38: 画面に固定文言「全国通知」を常時1か所表示する。意味は購読した全国のEEWを地域で絞らず表示・通知していることで、自宅への危険判定ではない。設定field・地域選択・文言の差し替え口を作らない。snapshot未受信・VXSE43・VXSE45・card除去後の全状態で同じ文言が出る。理由: 地域で絞らない現状を利用者が自宅向けの判定と誤読しないため（2026-09-23 作者裁定R38=A、外部要件照合I-08（repo外）を意図して外した扱い）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-order-plan.md:128 «92abf522f1c7fc0d»",
-          "reconstruction/contracts/p2-snapshot-sse.json:496 «91aedc46acb5ebe4»"
+          "reconstruction/contracts/p2-snapshot-sse.json:496 «9d4aca68f624519b»"
         ]
       },
       {
         "id": "P2-A9-AC08",
         "requirement": "wire由来の文字列（EventID、operation、notice text/office、整形後の日時を含む）はDOMのtext node（textContent）だけで入れ、HTMLとして解釈させない。reconstruction/src/display/chrome-eew/**でinnerHTML/outerHTML/insertAdjacentHTML/document.write/DOMParser/createContextualFragment/on*属性の文字列組立て/wire値からのclass名・属性名・style文字列組立てを使わない（静的検査で0件）。severity tokenは固定表でclassへ写す。canvasを使う場合もwire由来の文字列をcanvasへ描かない（区域の塗りだけ）。同じ構造・同じ件数のsnapshotで表示文字列だけを<img src=x onerror=...>・<script>・&lt;・改行を含む値へ置換し、要素数不変・新規実行要素0・字面一致を確認する。A8の切詰め印[truncated:fieldLimit]は除去・再整形しない。理由: P4認証前でも受信内容を無条件に信頼しない（外部要件照合O-03、repo外）。A8のJSON化だけではHTML非解釈を証明しない",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-snapshot-sse.json:496 «91aedc46acb5ebe4»",
+          "reconstruction/contracts/p2-snapshot-sse.json:496 «9d4aca68f624519b»",
           "reconstruction/contracts/p2-order-plan.md:128 «92abf522f1c7fc0d»",
           "reconstruction/contracts/p2-snapshot-sse.json:343 «9495921d3220f9cb»"
         ]
