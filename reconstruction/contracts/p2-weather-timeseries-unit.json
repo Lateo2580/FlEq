@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "838b80e06353fb4de318eb90fda5a88102dca90ff2189867dd1facaebc248661",
+    "sha256": "6f630021db960efb5910c57c7bc8f49655c43cfe9cd5556ec2d3051a2f71c3fc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -659,6 +659,17 @@
         "requiredEvidence": [
           "同一officeで同ReportDateTimeの訂正・再発表を含む実電文と取得元・元XML hash。syntheticは作らない",
           "採用するならrevisionOnlyかsemanticかの裁定"
+        ]
+      },
+      {
+        "id": "Q-UF-N2",
+        "owner": "integrator",
+        "blocks": [
+          "P3-RECOVERY-001 の発注 4b の U-F の入口"
+        ],
+        "resolveBy": "P3-RECOVERY-001 の発注 4b の配送（統合担当。作者の分岐 P3-REC-D-UF-BASE の裁定と artifactRequirements の 7 番目の heap の測りの後）",
+        "requiredEvidence": [
+          "N2（2026-10-28 C16 の発注 4b の点検、Q-REC-PRECHECK-5・P3-REC-AC12）: 取り直しの対象は VPWP50 の官署ごとの最新（鍵は一覧の頭の editorialOffice）、窓 7 日（RETAIN）。入口は weather-timeseries-unit.ts に新設し、候補の作成のときだけ意味を当てる。版の決まらない報は門の印を置かずに noChange。H27 は無し（通知は C20 P3-WEATHER-NOTICE-001）。候補の本文の上限は P3-REC-D-UF-BASE。E22 は P3-REC-AC17 の全部。配送で本項を閉じる"
         ]
       }
     ]

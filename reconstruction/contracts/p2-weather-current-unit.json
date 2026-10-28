@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "1835f3319120699994c34202ac86193a26ae1c4c86fa2ff415c1044d972e4517",
+    "sha256": "ca121b4f93ec3e686cdf0153774ff44ae255e693c3da701a90fffbdfd1f41557",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -696,6 +696,17 @@
           "RES-01の予約込み計量Bの三境界と実checkpoint byteとの差と超過時に古いcurrentを正常扱いしない期待",
           "byte境界fixtureはtraining/test占有を含み、件数上限未満でも総量16MiB超過となる状態を用いる。履歴→partial subject→全国baseの最古順の退去と、training/test全国baseだけの退去でnormal受理が成功する例、normalだけで16MiB+1となる拒否例、training/test受理ではnormalを退去しない例を固定する。退去後16MiB-1/一致とweatherCurrentCapacityEvictedを確認する",
           "既存のbyte境界期待は実byteからRES-01のBへ変更する。capture時のgeneration/capturedAtの桁増加を上限内で予約するためで、旧stateが実byte<=16MiBでもB>16MiBなら縮退対象となる。新しい枠・上限を足さず、計量規則はAC13と参照先を正本とする"
+        ]
+      },
+      {
+        "id": "Q-UW-N2",
+        "owner": "integrator",
+        "blocks": [
+          "P3-RECOVERY-001 の発注 4b の U-W の入口"
+        ],
+        "resolveBy": "P3-RECOVERY-001 の発注 4b の配送（統合担当。作者の分岐 P3-REC-D-UW-PARTIALS の裁定の後）",
+        "requiredEvidence": [
+          "N2（2026-10-28 C16 の発注 4b の点検、Q-REC-PRECHECK-5・P3-REC-AC12）: 取り直しの対象は VPWS50・VPWW55・57〜61・VPNO50。鍵は一覧の頭の editorialOffice、最新の単位は P3-REC-D-UW-PARTIALS、窓 24 時間、鍵の最新が取消ならその鍵の窓の中を全部。入口は weather-current-unit.ts に新設し、候補の作成のときだけ意味を当てる。版の決まらない報は monitor の FreshnessRecord と印を置かずに noChange、domain が ignored にした VPNO50 は stale。採用の step で operation が normal の FreshnessRecord を coverageConfirmed で消す。H27 は無し（通知は C20 P3-WEATHER-NOTICE-001）。E22 は P3-REC-AC17 から「既に期限切れの報」を除いたもの。配送で本項を閉じる"
         ]
       }
     ]
