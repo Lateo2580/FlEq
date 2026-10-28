@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "4b9e3ed27bedfbeb98039b543c1c73746c6e86c626923292de5acdb3178a9d4d",
+    "sha256": "3829748bea092d793009338a9e49fbc0c830781dbbb111c147299513cb8457fe",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -895,7 +895,7 @@
         "referenceIds": [
           "P3-UM-AC12"
         ],
-        "behavior": "【発注 4】受入（作者裁定 ①）。XML の壊れた VXSE43 で critical・normalEew の intent が 1 件、3 秒後の 2 通目は intent 0 件（カードは 2 枚）。読めない VXSE45（77_01_01 の写し）は warning。読めない VTSE41 は warning・normalTsunamiEmergency。U-B の読めない報はカードだけで intent 0 件。training の VXSE43 は desktop だけ。窓（intent の expiresAt の最大）を過ぎてから同じ壊れた報を受けると intent が 1 件。origin が recovery の読めない VXSE43 は、カードが出て intent は info の 1 件（P3-UM-D-RECOVERY-SOUND。取り直し 1 回に 1 回までの列は AC12 の (10) の形が決まってから足す）"
+        "behavior": "【発注 4】受入（作者裁定 ①）。XML の壊れた VXSE43 で critical・normalEew の intent が 1 件、3 秒後の 2 通目は intent 0 件（カードは 2 枚）。読めない VXSE45（77_01_01 の写し）は warning。読めない VTSE41 は warning・normalTsunamiEmergency。U-B の読めない報はカードだけで intent 0 件。training の VXSE43 は desktop だけ。窓（intent の expiresAt の最大）を過ぎてから同じ壊れた報を受けると intent が 1 件。origin が recovery の読めない VXSE43 は、カードが出て intent は info の 1 件（P3-UM-D-RECOVERY-SOUND。取り直し 1 回に 1 回までの列は AC12 の (10) の形が決まってから足す） （2026-10-28、P3-RECOVERY-001 の発注 3 の点検 r2 の注: U-E は一覧に出ないので origin が recovery の読めない VXSE43 は来ない。取り直しの読めない報の音は C16 の発注 3 が採用の step で作る〔P3-REC-AC06 の (a)・T15〕。この列は K14 の発注 4 の点検で VTSE41 の取り直し 1 回に info 1 件の形に改める）"
       },
       {
         "testId": "P3-UM-T13",
