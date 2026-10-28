@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f34d1e0e1a12ed01f3524dc6daf4853e9894b8a",
-    "sha256": "2fcf6d56400efe7e6d38d0dd9b9c09c4c6a6f5a59d825a93373858fbe922bd96",
+    "sha256": "9bb10e7e62880b72a0fa17a7950cdd2a279666285d725fce04d68ea969d6c402",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -13,25 +13,23 @@
         "B": "窓の間は Pi の旧築を止めて測る。窓は時間を決めて切る。窓の開始前に旧築に有効な警報（津波など）が出ていないかを確かめ、出ていれば始めない。窓の後に旧築を起こし直し、/healthz の 200 を確かめるまでを手順に入れる。旧築の停止・起動は統合担当（または作者）が行う手順で、道具の code に入れない（P3-PH-AC08）",
         "recommended": "B",
         "provisional": "B",
-        "ruling": "作者裁定（2026-10-28 19:25）B",
-        "reason": "見え方の違い: B では窓の間、Pi の画面に旧築の表示が出ず、EEW・津波などの通知音も鳴らない（同居人が見る画面も同じ）。窓の間に実の地震や警報があっても旧築は受けない。A では旧築が CPU・メモリ・SD を新築と分け合い、測った値に旧築の負荷が混ざる（計画:184 の第 1 段の重ね合わせ『旧築稼働中に EEW』はこの形）。B の窓では『旧築稼働中』の重ね合わせは測らない（残存リスク (5)）"
+        "ruling": "作者裁定（2026-10-28 19:25）B。第 1 段（backend 単独）の窓も含むことを作者が確かめた（2026-10-28 20:0x）。第 1 段だけ旧築稼働のまま並走する案（2026-10-06 の前例、P3-C4-PI-STAGE1-APPROVAL）は選ばなかった",
+        "reason": "見え方の違い: B では窓の間、Pi の画面に旧築の表示が出ず、EEW・津波などの通知音も鳴らない（同居人が見る画面も同じ）。窓の間に実の地震や警報があっても旧築は受けない。A では旧築が CPU・メモリ・SD を新築と分け合い、測った値に旧築の負荷が混ざる（計画:184 の第 1 段の重ね合わせ『旧築稼働中に EEW』はこの形）。B の窓では『旧築稼働中』の重ね合わせは測らない（残存リスク (5)）。落とした条件（計画:184 と P3-C4-AC09 の第 1 段の『旧築稼働中に EEW』の重ね合わせ、P3-C4-PI-STAGE1-APPROVAL の並走）は、P5 の並走検収（spec:2148〜2150、旧築を動かしたまま新 backend の資源を測る）へ送る。B の窓で取った Pi の資源の値（/proc/pressure・RSS・MemAvailable）は旧築が止まった条件のもので、spec §10.6 の資源の判定の根拠にしない（spec:2234 の趣旨）"
       },
       {
         "id": "P3-PH-D-WINDOW",
         "A": "旧築を止める 1 回の窓を 2 時間以内にする。Q-UWR-REMEASURE の Pi 第 1 段、第 2 段、P3-C6-AC09 の確認は別々の停止にする（順は第 1 段 → 第 2 段 → C6。各回の終了の時刻を開始の前に作者へ伝える）。時刻に達したら途中でも runner を止めて旧築を起こし直し、残りは次の停止へ回す",
         "B": "3 つを 1 回の停止にまとめ、4 時間以内にする",
         "recommended": "A",
-        "provisional": "起草案",
-        "ruling": "起草案（作者の裁定を待つ）",
-        "reason": "見え方の違い: A は Pi の画面が消える時間が 1 回あたり最長 2 時間で、停止が 3 回ある。B は停止が 1 回だが最長 4 時間消える。所要の見積もり: 第 1 段は衝突 run 3 本で 1 本 約 22.5 分（C3a 配置の前例、P3-C4-AC09 の成果物）、第 2 段と C6 の確認は各 1〜2 時間（P3-TSUNAMI-E01-001 の P3-C6-PI-STAGE2 の reason）。A を推す理由: 1 回の停止が短く、途中で区切っても起こし直しの手順が同じで済む"
+        "ruling": "作者裁定（2026-10-28）: A",
+        "reason": "見え方の違い: A は Pi の画面が消える時間が 1 回あたり最長 2 時間で、停止が 3 回ある。B は停止が 1 回だが最長 4 時間消える。第 1 段の窓の一覧（P3-C4-AC09 の第 1 段と、P3-C4-CLOSE-INGRESS-N7・Q-C4-AUTHOR-RULINGS の remaining で Q-UWR-REMEASURE へ移管された分）: (a) 最大 VPWS50 の処理中・U-W の encode 中・U-F の保存中の EEW（parse と保存の 3 つの母集団）と、衝突 run（最大 VPWS50 を約 3 秒ごと）3 本 (b) U-E・U-W・U-F の同時 dirty の E14（P3-C4-AC13 (3) の窓を backend 単独で） (c) 単体の比較（処理完了を待って次を送る）と、N/P/C から選んだ窓の予定時刻どおりの投入（replayPump） (d) Mac/Pi の ingressJsonMs の比と Pi の processing の内訳の材料。所要: 衝突の run は 1 本 約 22.5 分（C3a 配置の前例）、ほかは条件ごとに warm-up を別に 30 件程度×3 回。第 1 段の合計は統合担当が 2026-10-06 の第 1 段と 2026-10-27 の Pi の 30 件×3 回の記録から見積もり、2 時間を超えるなら第 1 段を複数の停止に分ける。第 2 段と C6 の確認は各 1〜2 時間（P3-TSUNAMI-E01-001 の P3-C6-PI-STAGE2 の reason）。A を推す理由: 1 回の停止が短く、途中で区切っても起こし直しの手順が同じで済む"
       },
       {
         "id": "P3-PH-D-ALERTS",
         "A": "旧築の /events の最初の snapshot（Pi の loopback から取る）で、activeEews が空でない・tsunami が null でない・weatherL5Active が true・standbyItems に kind が nankaiTrough か volcano の項目がある、のどれかなら窓を始めない（EEW・津波・特別警報級・南海トラフの臨時情報・火山）",
         "B": "A に加えて、weatherAlerts が空でない（気象の警報・注意報が 1 つでも出ている）ときも始めない",
         "recommended": "A",
-        "provisional": "起草案",
-        "ruling": "起草案（作者の裁定を待つ）",
+        "ruling": "作者裁定（2026-10-28）: A",
         "reason": "見え方の違い: A では、栃木の大雨警報などの気象の警報が出ている間でも窓を始めてよく、その間 Pi の画面に気象の警報が出ない。B では気象の警報・注意報が出ている間は止めないので画面は消えないが、梅雨や台風の時期は窓を始められる日が少なくなる。A を推す理由: 窓は時間を決めて切る（P3-PH-D-WINDOW）ので、気象の警報の見落としは最長でも窓の長さで、命に関わる即時の情報（EEW・津波・特別警報級）は A で止める"
       },
       {
@@ -39,22 +37,27 @@
         "A": "Pi の画面の Chromium（旧築の表示を開いている kiosk）は窓の間も動かしたままにする。旧築が止まっている間は接続の切れた表示になり、旧築を起こし直すと自分でつなぎ直す（/healthz の clients が 1 以上になるのを確かめる。60 秒で戻らなければ統合担当が kiosk を開き直す）",
         "B": "窓の間は kiosk も止め、旧築を起こし直した後に起こす",
         "recommended": "A",
-        "provisional": "起草案",
-        "ruling": "起草案（作者の裁定を待つ）",
+        "ruling": "作者裁定（2026-10-28）: A",
         "reason": "見え方の違い: A では窓の間、Pi の画面に接続の切れた旧築の表示が出たままになる。B では画面に kiosk が出ない（デスクトップか黒い画面）。A を推す理由: 本番（P5）は Pi の上で表示の Chromium と backend が一緒に動くので、測る間の Pi の負荷が本番に近い。止めて起こす手順が 1 つ減る。kiosk が動いていたかは窓の記録に書く"
       }
     ],
     "questionResolutions": [
       {
+        "id": "Q-PH-AUTHOR",
+        "status": "closed",
+        "resolution": "作者裁定（2026-10-28 20:0x）: P3-PH-D-WINDOW・P3-PH-D-ALERTS・P3-PH-D-KIOSK はどれも A。P3-PH-D-LEGACY=B は第 1 段の窓も含む（第 1 段だけ旧築稼働で並走する案は選ばなかった）。baseOid は統合担当が割り当てる",
+        "source": "統合担当を通じた作者の裁定（2026-10-28）"
+      },
+      {
         "id": "Q-PH-SOURCE",
         "status": "closed",
-        "resolution": "起草時（8f34d1e0）に実物で確かめた事実: (1) runner は host を子プロセスで起動し（run.mjs:204 の startHost、ipc 付き）、投入側の WS は 127.0.0.1（:125）、host の観測は host-obs.jsonl を同じ機械の file で追う（:247 の tailer）。投入側の hrtime と host の performance.now は launcher の clock 行の差で結ぶ（:434、analysis.mjs:141 の後の buildHostIndex の offsets）。これは同じ機械の前提 (2) Node と Chrome の時計は probe の往復（chrome.mjs:147 の probeClock）で結び、区間は [cs−nr, cr−ns]（analysis.mjs の correspondences）。機械をまたいでも成り立つ形 (3) Chrome は chrome.mjs:72 で手元に spawn し、CDP は ws://127.0.0.1（:104・:106）、版は :58 の spawn、前面化は :131 の osascript（macOS だけ）。CHROME の path は :9 の macOS 固定 (4) host の表示の server は loopback だけを型（http-sse.ts:142）と実行時（:156 の RangeError）で守り、startP2Host は 127.0.0.1 を固定で渡す（host.ts:93）。根拠は P2-A8-AC14（P4 の認証の前の外部公開を防ぐ）。startP2Host を呼ぶのは host-launcher.mjs と試験（briefing-host・typhoon-host・t05-corpus-replay、どれも 127.0.0.1 につなぐ）だけで、製品の起動口はまだ無い (5) runner の 127.0.0.1 の宛先は投入側（:125・:166）と表示（:409・:411・:469、windows.mjs:120・:334） (6) 正式の窓の記録は --runs-root に関わらず repo の evidence（run.mjs:1724 の注、recordsDir）で、--runs-root が変えるのは trace などの outDir（:1721）だけ (7) OWNER_UNITS（aux-measures.mjs:247）は urgent に U-E、deferred に U-F だけを持つが、実行場所の表（unit-coverage.ts:16〜17 の executionPlaces）では urgent が U-E・U-T・U-N・U-V、deferred が U-F・U-L・U-R・U-B・U-M・U-Y。2026-10-27 夜の決めの『U-M・U-L・U-Y』に加えて U-T・U-N・U-V・U-R・U-B も欠けている (8) 時計の往復の時機は run.mjs:731 の『前の往復から 29 秒』を試行の頭で見るだけで、:885 の end の往復までの間隔も試行の長さで伸びる。判定器の PROBE_MAX_AGE_MS（analysis.mjs:13、35 秒）は各標本の最近傍の往復までの距離で、往復どうしの間隔ではない (9) 2026-10-28 19:10 の統合担当の観測（作業ノートのやりたいことリスト）: Mac mini の en0 は 1000baseT で既定経路、Pi（192.168.0.20）へ ping 平均 1.27 ms、tailscale は direct（via 192.168.0.20:41641）、Pi の tailscale の IP の /healthz は 2.6〜3.8 ms、Pi の LAN の IP の 7788 は ufw で timeout（tailscale の IP は通る）。Mac mini の Wi-Fi（en1、192.168.0.10）も同じ /24 で active (10) 旧築の /healthz は { ok, clients } を返し（src/engine/display/http-server.ts:88）、/events の最初の snapshot は activeEews・tsunami・weatherL5Active・standbyItems を持つ（src/engine/display/protocol.ts）。loopback からは token が要らない",
+        "resolution": "起草時（8f34d1e0）に実物で確かめた事実: (1) runner は host を子プロセスで起動し（run.mjs:204 の startHost、ipc 付き）、投入側の WS は 127.0.0.1（:125）、host の観測は host-obs.jsonl を同じ機械の file で追う（:247 の tailer）。投入側の hrtime と host の performance.now は launcher の clock 行の差で結ぶ（:434、analysis.mjs:141 の後の buildHostIndex の offsets）。これは同じ機械の前提 (2) Node と Chrome の時計は probe の往復（chrome.mjs:147 の probeClock）で結び、区間は [cs−nr, cr−ns]（analysis.mjs の correspondences）。機械をまたいでも成り立つ形 (3) Chrome は chrome.mjs:72 で手元に spawn し、CDP は ws://127.0.0.1（:104・:106）、版は :58 の spawn、前面化は :131 の osascript（macOS だけ）。CHROME の path は :9 の macOS 固定 (4) host の表示の server は loopback だけを型（http-sse.ts:142）と実行時（:156 の RangeError）で守り、startP2Host は 127.0.0.1 を固定で渡す（host.ts:93）。根拠は P2-A8-AC14（P4 の認証の前の外部公開を防ぐ）。startP2Host を呼ぶのは host-launcher.mjs と、試験（host.test・各 unit の host の試験〔briefing・typhoon・tsunami・seismic・volcano・flood・nankai・local-bulletins・landslide〕・recovery-host.test・execution-lifecycle の owners.test・t05-corpus-replay.test）と、手で回す reconstruction/test/host/dmdata-live-check.mjs だけで（どれも displayBind を渡さない）、製品の起動口はまだ無い (5) runner の 127.0.0.1 の宛先は投入側（:125・:166）と表示（:409・:411・:469、windows.mjs:120・:334） (6) 正式の窓の記録は --runs-root に関わらず repo の evidence（run.mjs:1725 の注、recordsDir）で、--runs-root が変えるのは trace などの outDir（:1721）だけ (7) OWNER_UNITS（aux-measures.mjs:247）は urgent に U-E、deferred に U-F だけを持つが、実行場所の表（unit-coverage.ts:16〜17 の executionPlaces）では urgent が U-E・U-T・U-N・U-V、deferred が U-F・U-L・U-R・U-B・U-M・U-Y。2026-10-27 夜の決めの『U-M・U-L・U-Y』に加えて U-T・U-N・U-V・U-R・U-B も欠けている (8) 時計の往復の時機は run.mjs:731 の『前の往復から 29 秒』を試行の頭で見るだけで、:885 の end の往復までの間隔も試行の長さで伸びる。判定器の PROBE_MAX_AGE_MS（analysis.mjs:13、35 秒）は各標本の最近傍の往復までの距離で、往復どうしの間隔ではない (9) 2026-10-28 19:10 の統合担当の観測（作業ノートのやりたいことリスト）: Mac mini の en0 は 1000baseT で既定経路、Pi（192.168.0.20）へ ping 平均 1.27 ms、tailscale は direct（via 192.168.0.20:41641）、Pi の tailscale の IP の /healthz は 2.6〜3.8 ms、Pi の LAN の IP の 7788 は ufw で timeout（tailscale の IP は通る）。Mac mini の Wi-Fi（en1、192.168.0.10）も同じ /24 で active (10) 旧築の /healthz は { ok, clients } を返し（src/engine/display/http-server.ts:88）、/events の最初の snapshot は activeEews・tsunami・weatherL5Active・standbyItems を持つ（src/engine/display/protocol.ts）。loopback からは token が要らない (11) 2026-10-28 19:5x に統合担当が Pi の nft list ruleset で確かめた: INPUT は ufw の chain より先に ts-input へ jump し、ts-input に iifname \"tailscale0\" accept がある（port を問わない）。乱数の port（displayPort 0）でも tailscale の IP なら Mac mini から届き、ufw を変えずに済む",
         "source": "worktree ~/dev/fleq-pi-harness-draft（8f34d1e0）の読みと、作業ノートの観測の記録。ssh で Pi・Mac mini に入っていない"
       },
       {
         "id": "Q-PH-PLACEMENT",
         "status": "closed",
-        "resolution": "起草の決め（技術の選択）: runner を Pi に置き、host・投入側・host の観測の file・host と runner の時計の対応を Pi の中に残す。機械をまたぐのは既に往復で結んでいる Node↔Chrome だけにし、Chrome は Mac mini の上で動かして Pi の runner が CDP でつなぐ。理由: 時計の新しい仕組み・obs の受け渡し・host の遠隔起動が要らない（無いと壊れるものが無い）。選ばなかった形: runner を Mac mini に置く（host の spawn と ipc・obs の直読み〔run.mjs:247、run の途中の host.refresh()〕・投入側の WS の向き・runner と host の時計を全部作り直す）。経路は Chrome→Pi の表示も Pi→Mac mini の CDP も tailscale の IP（統合担当の決め。Pi の ufw を変えない。CDP は tailscale の相手の認証の上に置く）。前景の Chrome の CDP は loopback に開くので、Mac mini の上に転送の道具を 1 つ置く（P3-PH-AC03、--remote-debugging-address に頼らない）。別機械の窓は予備（--preliminary）だけにし、正式（--manifest）では構造で拒否する（P3-PH-AC04）。これで凍結 manifest・preflight・再開の照合を 2 台分に広げずに済み、別機械の値を Pass と呼ばない形を守る",
+        "resolution": "起草の決め（技術の選択）: runner を Pi に置き、host・投入側・host の観測の file・host と runner の時計の対応を Pi の中に残す。機械をまたぐのは既に往復で結んでいる Node↔Chrome だけにし、Chrome は Mac mini の上で動かして Pi の runner が CDP でつなぐ。理由: 時計の新しい仕組み・obs の受け渡し・host の遠隔起動が要らない（無いと壊れるものが無い）。選ばなかった形: runner を Mac mini に置く（host の spawn と ipc・obs の直読み〔run.mjs:247、run の途中の host.refresh()〕・投入側の WS の向き・runner と host の時計を全部作り直す）。経路は Chrome→Pi の表示も Pi→Mac mini の CDP も tailscale の IP（統合担当の決め。Pi の ufw を変えない。CDP は tailscale の相手の認証の上に置く）。tailscale は WireGuard の暗号を通るので、P3-C6-PI-STAGE2=A の reason が B（SSH トンネル）を退けた理由のうち暗号の遅延は同じ向きで入る（TCP の二重化は無い）。時計区間の幅が 5 ms（judge.ts:46）を超え続けたときの次の手は、Pi の ufw を開けて LAN の IP で直接つなぐこと（作者が ! で行う。本契約では変えない、P3-PH-AC08 (6)）。前景の Chrome の CDP は loopback に開くので、Mac mini の上に転送の道具を 1 つ置く（P3-PH-AC03、--remote-debugging-address に頼らない）。別機械の窓は予備（--preliminary）だけにし、正式（--manifest）では構造で拒否する（P3-PH-AC04）。これで凍結 manifest・preflight・再開の照合を 2 台分に広げずに済み、別機械の値を Pass と呼ばない形を守る",
         "source": "起草（2026-10-28）"
       }
     ],
@@ -66,7 +69,7 @@
   "contract": {
     "contractId": "P3-PI-HARNESS-001",
     "mode": "implementation",
-    "objective": "新築の測定の道具（reconstruction/test/eew-e01 の runner）を、Pi（Raspberry Pi 500、Linux arm64）で host と runner を動かし、Mac mini（macOS）の Chrome で描く別機械の形に開く。P3-C6-AC09 の Pi 予備確認と Q-UWR-REMEASURE の Pi 第 1・2 段（P3-UNIT-WRITE-RIGHT-001）に要る口を作る。形は作者裁定 P3-C6-PI-STAGE2=A（2026-10-11、Pi と Mac mini を同じルーターに有線、Mac mini の Chrome が Pi の別 port へ直接つなぐ、SSH トンネルは使わない）と P3-PH-D-LEGACY=B（2026-10-28、窓の間は Pi の旧築を止める）。runner は Pi に置き、Chrome だけを Mac mini で動かす（Q-PH-PLACEMENT）。製品の host の表示の server は既定の loopback のまま、測定の起動経路（host-launcher）が明示で渡す 1 つの IPv4 でだけ開ける。同じ契約で道具の直しを 4 つ入れる: Chrome の前面化を navigate の後へ、OWNER_UNITS を実行場所の表から引く、正式の runner に --runs-root、構造的欠陥台帳 77 の時計の往復の間隔（試行をはさんでも 30 秒以内、判定器に 30 秒の検査）。別機械の窓は予備・報告だけで Pass と呼ばない。旧築の停止・起動と経路の確かめは統合担当の手順で、道具の code に入れない。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "objective": "新築の測定の道具（reconstruction/test/eew-e01 の runner）を、Pi（Raspberry Pi 500、Linux arm64）で host と runner を動かし、Mac mini（macOS）の Chrome で描く別機械の形に開く。P3-C6-AC09 の Pi 予備確認と Q-UWR-REMEASURE の Pi 第 1・2 段（P3-UNIT-WRITE-RIGHT-001）に要る口を作る。形は作者裁定 P3-C6-PI-STAGE2=A（2026-10-09、Pi と Mac mini を同じルーターに有線、Mac mini の Chrome が Pi の別 port へ直接つなぐ、SSH トンネルは使わない）と P3-PH-D-LEGACY=B（2026-10-28、窓の間は Pi の旧築を止める）。runner は Pi に置き、Chrome だけを Mac mini で動かす（Q-PH-PLACEMENT）。製品の host の表示の server は既定の loopback のまま、測定の起動経路（host-launcher）が明示で渡す 1 つの IPv4 でだけ開ける。同じ契約で道具の直しを 4 つ入れる: Chrome の前面化を navigate の後へ、OWNER_UNITS を実行場所の表から引く、正式の runner に --runs-root、構造的欠陥台帳 77 の時計の往復の間隔（試行をはさんでも 30 秒以内、判定器に 30 秒の検査）。別機械の窓は予備・報告だけで Pass と呼ばない。旧築の停止・起動と経路の確かめは統合担当の手順で、道具の code に入れない。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -218,7 +221,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-PH-AC01",
-        "requirement": "host の表示の server を測定の起動経路でだけ明示の IPv4 で開ける。製品の守りは弱めない: (1) http-sse.ts:142 の DisplayServerOptions.host を『\"127.0.0.1\" | \"::1\" | Readonly<{ measurementAddress: string }>』に広げる。:156 は、文字列なら今と同じく loopback 以外を RangeError、object なら measurementAddress が node:net の isIPv4 を通り \"0.0.0.0\" でないことを求め、外れれば RangeError（wildcard・名前・IPv6 を拒む。IPv6 を拒むのは runner が URL を『http://<address>:<port>/』で組むため）。:232 の listen は object のとき measurementAddress を渡す。:141 の注は『測定の起動経路が明示で渡す 1 つの IPv4 だけは例外（P3-PI-HARNESS-001）』と読める形に行の中で直す。isIPv4 の import は :4 の行の中で足す (2) host.ts:47 の P2HostConfig に省略可の displayBind?: Readonly<{ measurementAddress: string }> を行の中で足し、:93 の host を config.displayBind ?? \"127.0.0.1\" にする（行の中の置き換え） (3) host-launcher.mjs:46 は config.displayHost があるときだけ displayBind: { measurementAddress: config.displayHost } を渡す（行の中で足す） (4) 変えないもの: displayBind を渡さない呼び手（briefing-host.test・typhoon-host.test・t05-corpus-replay.test、どれも 127.0.0.1 につなぐ）の振る舞いと、P2-A8-T02（http-sse.test.ts:113 の『0.0.0.0』の文字列は広げた型にも入らないので @ts-expect-error と RangeError はそのまま効く。期待値を変えない） (5) 行の数: http-sse.ts は :165 より前、host.ts は全体、host-launcher.mjs は :75 より前の行の数を変えない（他の契約が引く行。P3-SEISMIC-PLACE-001 の http-sse.ts:165、P3-UF-PUBLIC-001 の :204、host.ts の :52〜:495 の 30 件余り、host-launcher.mjs の :50・:57）。足す理由: 無いと Mac mini の Chrome が Pi の host の表示へつなげない（loopback 専用）。object の形で分けるのは、文字列の bind を広げると P4 の認証の前に設定から外へ開ける口になる（P2-A8-AC14 の理由）ため。選ばなかった形: host-launcher に node:net の中継を置いて製品の src を触らない（測る経路に 1 hop 増え、T4→T6 に中継の遅れが入る）",
+        "requirement": "host の表示の server を測定の起動経路でだけ明示の IPv4 で開ける。製品の守りは弱めない: (1) http-sse.ts:142 の DisplayServerOptions.host を『\"127.0.0.1\" | \"::1\" | Readonly<{ measurementAddress: string }>』に広げる。:156 は、文字列なら今と同じく loopback 以外を RangeError、object なら measurementAddress が node:net の isIPv4 を通り \"0.0.0.0\" でないことを求め、外れれば RangeError（wildcard・名前・IPv6 を拒む。IPv6 を拒むのは runner が URL を『http://<address>:<port>/』で組むため）。:232 の listen は object のとき measurementAddress を渡す。:141 の注は『測定の起動経路が明示で渡す 1 つの IPv4 だけは例外（P3-PI-HARNESS-001）』と読める形に行の中で直す。isIPv4 の import は :4 の行の中で足す (2) host.ts:47 の P2HostConfig に省略可の displayBind?: Readonly<{ measurementAddress: string }> を行の中で足し、:93 の host を config.displayBind ?? \"127.0.0.1\" にする（行の中の置き換え） (3) host-launcher.mjs:46 は config.displayHost があるときだけ displayBind: { measurementAddress: config.displayHost } を渡す（行の中で足す） (4) 変えないもの: displayBind を渡さない呼び手（Q-PH-SOURCE (4) の試験と dmdata-live-check.mjs。t05-corpus-replay.test と dmdata-live-check.mjs は 127.0.0.1 の /snapshot を読む）の振る舞いと、P2-A8-T02（http-sse.test.ts:113 の『0.0.0.0』の文字列は広げた型にも入らないので @ts-expect-error と RangeError はそのまま効く。期待値を変えない） (5) 行の数: http-sse.ts は :165 より前、host.ts は全体、host-launcher.mjs は :75 より前の行の数を変えない（他の契約が引く行。P3-SEISMIC-PLACE-001 の http-sse.ts:165、P3-UF-PUBLIC-001 の :204、host.ts の :52〜:495 の 30 件余り、host-launcher.mjs の :50・:57）。足す理由: 無いと Mac mini の Chrome が Pi の host の表示へつなげない（loopback 専用）。object の形で分けるのは、文字列の bind を広げると P4 の認証の前に設定から外へ開ける口になる（P2-A8-AC14 の理由）ため。選ばなかった形: host-launcher に node:net の中継を置いて製品の src を触らない（測る経路に 1 hop 増え、T4→T6 に中継の遅れが入る）",
         "evidenceRefs": [
           "reconstruction/src/http-sse/http-sse.ts:4 «38f249ac1043e1bf»",
           "reconstruction/src/http-sse/http-sse.ts:141 «be86f2cb56c6512c»",
@@ -279,13 +282,23 @@
       },
       {
         "id": "P3-PH-AC05",
-        "requirement": "構造的欠陥台帳 77 を直す（作者裁定 A 2026-10-11、evidence/clock-refresh-dlv03.md:17 が本契約に送った）。spec:1141 の『開始時・終了時・実行中 30 秒ごとの往復測定』を、試行をはさんでも守る: (1) run.mjs:731 の『前の往復から 29 秒』を、『前の往復からの経過 ≥ 30 秒 − 次の頭までの上限』に替える。次の頭までの上限は periodMs ＋ その試行の実投入から成立の判定の待ちの終わりまでの 11 秒（描画の待ち 10 秒〔:818・:624〕と成立の判定の待ち〔:658・:860 の settleBy〕）＋ 津波は primeLeadMs ＋ 1 秒。次の頭が trace の区切り（(k + 1) % BLOCK === 0）なら、この頭でも測る（区切りの trace の読み出しが間隔に入るため）。上限が 30 秒以上になる母集団は毎回の頭で測る。:885 の end の往復までの間隔も同じ上限の内側に入る (2) analysis.mjs に probeIntervals(probes) を足す: 窓の往復（start・各試行の頭・end）を nodeSentHrMs の順に並べ、隣どうしの間隔の最大 maxMs と 30 秒を超えた間隔の数 over30s を返す。E01 と津波の結果の JSON に clockProbeIntervals として載せる。probeIntervalBlocked(intervals) は over30s > 0 なら理由の文字列（『clock probe interval <maxMs> ms > 30000 ms (DLV-03)』）、それ以外は null を返す (3) 正式の窓は、:1442 の frame 間隔の Blocked と同じ形で probeIntervalBlocked が文字列を返したら Blocked にする（行の中で livenessBlocked と並べる）。予備は結果に載せるだけ (4) 変えないもの: PROBE_MAX_AGE_MS（analysis.mjs:13、各標本の最近傍の往復までの距離で別の量）、nearestProbe（:153）、時計区間の幅の上限 5 ms（judge.ts:46）、probeClock の採り方。凍結済みの結果は書き換えない (5) 既存の試験（analysis.test.ts など）の期待値が変わるなら、変える前に理由を報告する。足す理由: 無いと間隔は試行の長さのぶん伸び（C6 の 24 窓で 3,152 区間のうち 1,563 が 30 秒超、最大 34.184 秒）、判定器は 30 秒を検査しない。別機械では往復の幅が広がるので、時機の守りが同じ機械より効く",
+        "requirement": "構造的欠陥台帳 77 を直す（作者裁定 A 2026-10-11、evidence/clock-refresh-dlv03.md:17 が本契約に送った）。spec:1141 の『開始時・終了時・実行中 30 秒ごとの往復測定』を、保証する所と超過を検出する所に分けて守る。間隔の基準は採用した往復の送信時刻（probeClock の atHrMs＝chosen.nodeSentHrMs、chrome.mjs:139・:154）で、lastProbeHr のような別の時刻で数えない: (1) 保証（往復を足す所）: run.mjs:731 の 29 秒の条件をやめ、毎回の試行の頭（:730 の trace の区切りの切り替えの後）で測る。:711 の lastProbeHr の再設定をやめ、初期化の待ち（:458 の 20 秒まで）の後、最初の試行の前に 1 回測る（:430 の start からの間隔に初期化が入るため）。:884 の 1,500 ms の後の end（:885）はそのまま。これで隣の往復の間に入るのは、1 回の試行（予定までの待ち・投入・描画の待ち 10 秒〔:818・:624〕・成立の判定の待ち〔:658・:860 の実投入から 11 秒〕）と区切りの切り替えだけになる (2) 保証できない待ち（超過として検出する所）: 区切りの切り替えの trace の読み出し（:702 の stopTracing。IO.read 1 回の期限が 60 秒、chrome.mjs:172）、静穏の待ち（:837〜:846。mark が来るたびに 1 秒延び、上限が無い）、CDP の要求の期限 30 秒（chrome.mjs:15）。これらが長いと試行の頭で測っても 30 秒を超えうる。runner の中で上限を作らず、(3) で検出する (3) 検出: analysis.mjs に probeIntervals(probes) を足す。窓の採用した往復を chosen.nodeSentHrMs の順に並べ、隣どうしの間隔の最大 maxMs、30 秒を超えた間隔の数 over30s、その前後の probeId を返す。E01 と津波の結果の JSON に clockProbeIntervals として載せる。probeIntervalBlocked(intervals) は over30s > 0 なら理由の文字列（『clock probe interval <maxMs> ms > 30000 ms (DLV-03)』）、それ以外は null を返す (4) 正式の窓は、:1442 の frame 間隔の Blocked と同じ形で、probeIntervalBlocked が文字列を返したら Blocked にする（行の中で livenessBlocked と並べる）。予備は結果に載せるだけ (5) 変えないもの: PROBE_MAX_AGE_MS（analysis.mjs:13。各標本の最近傍の往復までの距離で、別の量）、nearestProbe（:153）、時計区間の幅の上限 5 ms（judge.ts:46）、probeClock の採り方。凍結済みの結果は書き換えない (6) 行の数: analysis.mjs に足す行は :111 より後に置く（p3-owner-ledger-bound.json:47 が本文で analysis.mjs:111 を引く） (7) 既存の試験（analysis.test.ts など）の期待値が変わるなら、変える前に理由を報告する。足す理由: 無いと間隔は試行の長さのぶん伸び（C6 の 24 窓で 3,152 区間のうち 1,563 が 30 秒超、最大 34.184 秒）、判定器は 30 秒を検査しない。別機械では往復の幅が広がるので、時機の守りが同じ機械より効く",
         "evidenceRefs": [
+          "reconstruction/test/eew-e01/run.mjs:430 «303f4c72b9d81129»",
+          "reconstruction/test/eew-e01/run.mjs:458 «93cf3c513232d89b»",
           "reconstruction/test/eew-e01/run.mjs:624 «30ff778d3f98ba32»",
           "reconstruction/test/eew-e01/run.mjs:658 «35baa217fc307992»",
+          "reconstruction/test/eew-e01/run.mjs:702 «afdb53d7a203cb12»",
+          "reconstruction/test/eew-e01/run.mjs:711 «8a22dfe43bf1bea6»",
+          "reconstruction/test/eew-e01/run.mjs:730 «39a85e73029314ab»",
           "reconstruction/test/eew-e01/run.mjs:731 «407136c2da03fb41»",
           "reconstruction/test/eew-e01/run.mjs:818 «1cdd6e48d81a0e8b»",
+          "reconstruction/test/eew-e01/run.mjs:837 «860bf0dbc246d3cc»",
           "reconstruction/test/eew-e01/run.mjs:860 «29eaffbecc34550e»",
+          "reconstruction/test/eew-e01/chrome.mjs:15 «4b9ce8385a1b73db»",
+          "reconstruction/test/eew-e01/chrome.mjs:139 «e2b4041eed4b3575»",
+          "reconstruction/test/eew-e01/chrome.mjs:154 «2399f21ad67a29b5»",
+          "reconstruction/test/eew-e01/chrome.mjs:172 «4f3ca99a91d0791a»",
           "reconstruction/test/eew-e01/run.mjs:885 «3ff7ac011bad1e41»",
           "reconstruction/test/eew-e01/run.mjs:1442 «fda6539ef69826db»",
           "reconstruction/test/eew-e01/analysis.mjs:13 «505aa620aac61558»",
@@ -309,16 +322,17 @@
       },
       {
         "id": "P3-PH-AC07",
-        "requirement": "正式の runner でも --runs-root を受ける（構造的欠陥台帳 103 の穴 1）: run.mjs:1580 の PRELIMINARY_ONLY から runs-root を外す（行の中）。:1578〜:1579 の注に『--runs-root は trace などの outDir だけを変え、正式の記録先（evidence、recordsDir）と再実行の制限は変えない』を行の中で足す。足す理由: 無いと正式の窓の trace の置き場が Mac の固定の path（:53 の RUNS_ROOT）から動かせない。記録先が変わらないので、再実行の制限（前回 Blocked の窓だけ）は迂回できない（:1724 の注と同じ）",
+        "requirement": "正式の runner でも --runs-root を受ける（構造的欠陥台帳 103 の穴 1）: run.mjs:1580 の PRELIMINARY_ONLY から runs-root を外す（行の中）。:1578〜:1579 の注に『--runs-root は trace などの outDir だけを変え、正式の記録先（evidence、recordsDir）と再実行の制限は変えない』を行の中で足す。足す理由: 無いと正式の窓の trace の置き場が Mac の固定の path（:53 の RUNS_ROOT）から動かせない。記録先が変わらないので、再実行の制限（前回 Blocked の窓だけ）は迂回できない（:1725 の注と同じ）",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/run.mjs:53 «8884c4a234e27784»",
           "reconstruction/test/eew-e01/run.mjs:1580 «1d9eed7b966533b7»",
-          "reconstruction/test/eew-e01/run.mjs:1721 «078094b21f64e7b8»"
+          "reconstruction/test/eew-e01/run.mjs:1721 «078094b21f64e7b8»",
+          "reconstruction/test/eew-e01/run.mjs:1725 «091aca208209f4e4»"
         ]
       },
       {
         "id": "P3-PH-AC08",
-        "requirement": "窓の手順（統合担当。道具の code に入れない。P3-PH-D-LEGACY=B・P3-PH-D-WINDOW・P3-PH-D-ALERTS・P3-PH-D-KIOSK の裁定の値で行う）: (1) 置き場: Pi の新築の checkout は ~/p3-bench/fleq-rec（公開の main から git clone し、測る commit に detached で置く。公開 fixture だけ。旧築の ~/fleq とその dist の同期と別の directory。台帳 63 の ~/p3-bench の前例）、記録は ~/p3-bench/runs（--runs-root）。Pi の上で npm ci --ignore-scripts と AGENTS.md の reconstruction ゲートの tsc 3 本を行う（Linux の cp に -c は無い。dist と node_modules を機械の間で共有しない）。Mac mini の chrome-remote.mjs は Mac mini の測定用の checkout を同じ commit にして使う。両方の HEAD を記録する (2) 窓の前: 終わりの時刻を決めて記録し作者へ伝える（P3-PH-D-WINDOW）。Pi の loopback から旧築の /events の最初の snapshot を取り（例 curl -sN --max-time 3 http://127.0.0.1:7788/events の最初の data 行）、P3-PH-D-ALERTS の項目のどれかが出ていれば始めない (3) 経路: Mac mini で route -n get 192.168.0.20 の interface が en0、tailscale ping 100.78.235.111 が direct（via 192.168.0.20:<port>）。Pi で tailscale ping <Mac mini の tailscale の IP> が direct で、via が Mac mini の en0 の IP。どちらかが Wi-Fi（en1、192.168.0.10）か DERP なら、窓の間 Mac mini の Wi-Fi を切って確かめ直し、それでも外れれば始めない。結果を記録する (4) Mac mini で chrome-remote.mjs を起こし、Pi から curl http://<listen>/json/version が 200、Mac mini 自身から同じ curl が拒まれる（--allow-from の確かめ）ことを記録する (5) 旧築を止める（統合担当か作者が Pi の旧築の運用の手順で行う）。node /home/liebe/fleq/dist/index.js の process が無く 7788 が listen していないことを確かめ、時刻を記録する。kiosk は P3-PH-D-KIOSK のとおり (6) 窓: Pi で node reconstruction/test/eew-e01/run.mjs --preliminary --node \"$(command -v node)\" --runs-root ~/p3-bench/runs --chrome-cdp <listen> --display-host 100.78.235.111 ...（Q-UWR-REMEASURE の第 2 段と P3-C6-AC09 の条件。第 1 段は --backend-only で --chrome-cdp・--display-host なし）。Pi と Mac mini の両方を測定機とし、両方で build・test・他レーンを走らせない（計画:112）。Pi の /proc/pressure・vcgencmd・MemAvailable の loop と新築側の停止の条件は P3-C4-AC09 のまま。最初の窓の最初の数十試行で時計区間の幅の分布を見て、5 ms（judge.ts:46）を超える幅が出続けるなら止めて作者へ報告する（spec:1143 の『測定改善を先に』） (7) 窓の後（終わりの時刻に達したとき・止めたとき・異常のときも）: runner と chrome-remote.mjs を止め、旧築を起こし直し、Pi の loopback の /healthz が 200 で clients が 1 以上（kiosk がつなぎ直した）であることを確かめて時刻を記録する。Mac mini の Wi-Fi を切ったなら戻す (8) 順は Q-UWR-REMEASURE の第 1 段 → 第 2 段 → P3-C6-AC09（P3-C6-AC09 の順の決めのまま）。記録は各契約の申し送りの形（『この予備条件では再現せず』と書き、Pass と呼ばない）",
+        "requirement": "窓の手順（統合担当。道具の code に入れない。P3-PH-D-LEGACY=B・P3-PH-D-WINDOW・P3-PH-D-ALERTS・P3-PH-D-KIOSK の裁定の値で行う）: (1) 置き場: Pi の新築の checkout は ~/p3-bench/fleq-rec（公開の main から git clone し、測る commit に detached で置く。公開 fixture だけ。旧築の ~/fleq とその dist の同期と別の directory。台帳 63 の ~/p3-bench の前例）、記録は ~/p3-bench/runs（--runs-root）。Pi の上で npm ci --ignore-scripts と AGENTS.md の reconstruction ゲートの tsc 3 本を行う（Linux の cp に -c は無い。dist と node_modules を機械の間で共有しない）。Mac mini の chrome-remote.mjs は Mac mini の測定用の checkout を同じ commit にして使う。両方の HEAD を記録する (2) 窓の前: 終わりの時刻を決めて記録し作者へ伝える（P3-PH-D-WINDOW）。Pi の loopback から旧築の /events の最初の snapshot を取り（例 curl -sN --max-time 3 http://127.0.0.1:7788/events の最初の data 行）、P3-PH-D-ALERTS の項目のどれかが出ていれば始めない (3) 経路: Mac mini で route -n get 192.168.0.20 の interface が en0、tailscale ping 100.78.235.111 が direct（via 192.168.0.20:<port>）。Pi で tailscale ping <Mac mini の tailscale の IP> が direct で、via が Mac mini の en0 の IP。どちらかが Wi-Fi（en1、192.168.0.10）か DERP なら、窓の間 Mac mini の Wi-Fi を切って確かめ直し、それでも外れれば始めない。結果を記録する (4) Mac mini で chrome-remote.mjs を起こし、Pi から curl http://<listen>/json/version が 200、Mac mini 自身から同じ curl が拒まれる（--allow-from の確かめ）ことを記録する (5) 旧築を止める（統合担当か作者が Pi の旧築の運用の手順で行う）。node /home/liebe/fleq/dist/index.js の process が無く 7788 が listen していないことを確かめ、時刻を記録する。kiosk は P3-PH-D-KIOSK=A のとおり動かしたままにする (6) 窓: Pi で node reconstruction/test/eew-e01/run.mjs --preliminary --node \"$(command -v node)\" --runs-root ~/p3-bench/runs --chrome-cdp <listen> --display-host 100.78.235.111 ...。条件は各契約のまま: 第 2 段は Q-UWR-REMEASURE、C6 の確認は P3-C6-AC09（発令系・解除系の通常 backlog と EEW 同時の 3 条件、warm-up を別に 30 件程度×3 回）、第 1 段は --backend-only で --chrome-cdp・--display-host なし（P3-C4-AC09 の第 1 段の条件）。保存・期限回収の母集団の投入の前倒し（--save-lead-ms・--deadline-lead-ms、既定の 600・2,400 ms は Mac の所要）は、Pi で成立する値を予備で求めて渡し、使った値を記録する（P3-C4-AC09）。C6 の確認の --preliminary --tsunami は harness の 1 組を継ぐ草案（P3-TSUNAMI-HARNESS-001 の P3-TH-AC02 (5)、manifestId は p3-c6-prelim-<時刻>）で組まれ、P3-C6-AC09 の『C6 の manifest と同じ（C4 の凍結 manifest を継ぐ）』とは初期状態が違う（負荷は同じ値）。記録は報告に p3-c6-formal-20261009 を書いて結ぶ。測定機の扱い（計画:112）: 第 2 段と C6 の確認は Pi と Mac mini の両方を測定機とし、両方で build・test・他レーンを走らせない。第 1 段は Pi の中で完結するので Mac のレーンは止めない。Pi の /proc/pressure・vcgencmd・MemAvailable の loop と新築側の停止の条件は P3-C4-AC09 のまま。B の窓で取った Pi の資源の値は spec §10.6 の資源の判定の根拠にしない（旧築が止まった条件。spec:2234 の趣旨）。最初の窓の最初の数十試行で時計区間の幅の分布を見て、5 ms（judge.ts:46）を超える幅が出続けるなら止めて作者へ報告する（spec:1143 の『測定改善を先に』）。次の手の候補は Pi の ufw を開けて LAN の IP で直接つなぐこと（tailscale の暗号を外す。作者が ! で行う。本契約では変えない） (7) 窓の後（終わりの時刻に達したとき・止めたとき・異常のときも）: runner と chrome-remote.mjs を止め、旧築を起こし直し、Pi の loopback の /healthz が 200 であることを確かめる。kiosk は P3-PH-D-KIOSK=A のとおり動かしたままで、clients が 1 以上になる（kiosk がつなぎ直した）のを確かめ、60 秒で戻らなければ統合担当が kiosk を開き直す。時刻を記録する。Mac mini の Wi-Fi を切ったなら戻す (8) 順は Q-UWR-REMEASURE の第 1 段 → 第 2 段 → P3-C6-AC09（P3-C6-AC09 の順の決めのまま）。記録は各契約の申し送りの形（『この予備条件では再現せず』と書き、Pass と呼ばない）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
           "reconstruction/contracts/p3-order-plan.md:185 «5e73c88a8bd6b37d»",
@@ -350,7 +364,7 @@
         "referenceIds": [
           "P3-PH-AC05"
         ],
-        "behavior": "実不具合（台帳 77）。往復の列の隣どうしの間隔が 30,000 ms 以下なら over30s 0 で probeIntervalBlocked は null、30,001 ms の間隔が 1 つあれば over30s 1・maxMs 30,001 で理由の文字列を返す（analysis.test.ts）"
+        "behavior": "実不具合（台帳 77）と境界の列。(a) 往復の送信時刻の隣どうしの間隔が 30,000 ms 以下なら over30s 0 で probeIntervalBlocked は null (b) k=99 の頭の往復の後、試行と区切りの切り替え（trace の読み出しが 31 秒）を経て k=100 の頭の往復が来る列（送信時刻の差 30,001 ms 以上）で over30s 1・その前後の probeId・理由の文字列を返す (c) start の往復の後の初期化の待ちで、最初の試行の前の往復まで 30 秒を超える列も同じく検出する（analysis.test.ts）。AC05 (1) の保証は条件の無い呼び出しで分岐が無いので runner の試験を置かず、効いたかは窓の clockProbeIntervals で見る"
       },
       {
         "testId": "P3-PH-T03 owner writes of every unit are attributed to their thread",
@@ -390,7 +404,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約と anchor。本契約が引く行が直しで替わる FAIL と、他の契約の run.mjs:409・:411（P3-MEASURE-HARNESS-001）・:1580（P3-E05P-CLASSIFY-001・P3-MEASURE-HARNESS-001）・:1650（P3-TSUNAMI-HARNESS-001）の中身の変化は想定内で、統合担当が配送で anchor と自己 digest を同期する。http-sse.ts:165・:204、host.ts の全部、host-launcher.mjs:50・:57、chrome.mjs:9、aux-measures.mjs:86〜:551、run.mjs・windows.mjs のそれ以外の行の FAIL は想定外（AC01 (5)・AC04 (6)・AC06 で行を保つ）。ほかの FAIL も想定外として報告する"
+        "purpose": "全契約と anchor。本契約が引く行が直しで替わる FAIL と、他の契約の run.mjs:409・:411（P3-MEASURE-HARNESS-001）・:1580（P3-E05P-CLASSIFY-001・P3-MEASURE-HARNESS-001）・:1650（P3-TSUNAMI-HARNESS-001）の中身の変化は想定内で、統合担当が配送で anchor と自己 digest を同期する。http-sse.ts:165・:204、host.ts の全部、host-launcher.mjs:50・:57、chrome.mjs:9、aux-measures.mjs:86〜:551、run.mjs・windows.mjs のそれ以外の行の FAIL は想定外（AC01 (5)・AC04 (6)・AC06 で行を保つ）。run.mjs:1747（P3-E05P-CLASSIFY-001 が引く）は変えない想定で、変えるなら想定内に入れて配送で付け直す。p3-seismic-place.json:100 は本文で aux-measures.mjs:247 を引く（anchor なし、FAIL にならない）ので、改訂の一覧の (4') で注を足す。ほかの FAIL も想定外として報告する"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
@@ -459,23 +473,12 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch（chrome-remote.mjs は新しい file）、変更ファイル一覧、requiredCommands の実行結果（preparation の行を除く）、未実行の検証と理由。",
       "足した仕組みと無いと壊れるもの: 表示の server の測定の bind（無いと Mac mini の Chrome が Pi の host に届かない）、chrome.mjs の遠隔の形（無いと Pi の runner が Chrome を手元に spawn して ENOENT）、遠隔の commandLine の確かめ（無いと flag の違う Chrome で測っても気づかない）、chrome-remote.mjs（無いと Pi から Mac mini の CDP に届かない）とその --allow-from（無いと tailnet の他の端末が Chrome を操れる）、runner の 2 つの引数（無いと表示を 127.0.0.1 で開く）、往復の間隔の検査（無いと DLV-03 の 30 秒を検査しない）、OWNER_UNITS を表から引く 1 行（無いと 8 つの unit の write が帰属できない）。新しい manifest の欄・2 台分の照合・時計の仕組み・helper の共有 module は無い。追加した T01〜T04 の各試験が受入条件／契約境界／実不具合のどれに当たるかを 1 行で書く。遠隔の Chrome と chrome-remote.mjs の試験は置かない（実の Chrome と 2 台の機械が要る。P3-PH-AC08 の (4)・(6) で統合担当が確かめる）。",
-      "規模の見積もり: http-sse.ts 4 行・host.ts 2 行・host-launcher.mjs 1 行（どれも行の中）、chrome.mjs +30〜40 行、chrome-remote.mjs 40〜60 行、run.mjs は行の中の置き換え 10 か所前後、windows.mjs 2 行、analysis.mjs +15 行、aux-measures.mjs 2 行、試験 +50〜70 行。0.5 人日。実績と差があれば理由を書く。",
+      "規模の見積もり: http-sse.ts 4 行・host.ts 2 行・host-launcher.mjs 1 行（どれも行の中）、chrome.mjs +30〜40 行、chrome-remote.mjs 40〜60 行、run.mjs は行の中の置き換え 10 か所前後、windows.mjs 2 行、analysis.mjs +15 行（:111 より後。p3-owner-ledger-bound.json:47 が本文で analysis.mjs:111 を引く）、aux-measures.mjs 2 行、試験 +50〜70 行。0.5 人日。実績と差があれば理由を書く。",
       "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
-      "配送で統合担当が当てる原文の改訂: (1) p2-snapshot-sse.json の P2-A8-AC14 に『測定の起動経路（host-launcher）が明示で渡す 1 つの IPv4（{ measurementAddress }）だけは例外。設定・CLI 引数からは作らない（P3-PI-HARNESS-001 の P3-PH-AC01）』と注を足す (2) p3-e01-reaccept.json の P3-C4-AC09 の旧築の保護、p3-order-plan.md:188、p3-tsunami-e01.json の P3-C6-AC09 と p3-unit-write-right.json の Q-UWR-REMEASURE の『旧築の保護はC4のAC09のまま』に、本契約の窓は P3-PH-D-LEGACY=B（2026-10-28 作者裁定、窓の間は旧築を止める。手順は P3-PH-AC08）と注を足す (3) p3-order-plan.md:185 の『通信経路を manifest に書き』に、別機械の窓は予備だけで、経路は窓の記録（run-record の remote と統合担当の経路の記録）に書くと注を足す (4) p3-tsunami-harness.json の outOfScope の『別機械の harness』『--runs-root（穴 1）』『--backend-only の Pi（穴 2）』『OWNER_UNITS（穴 3）』に、本契約が引き受けた範囲（穴 1・3、穴 2 は Chrome ありの側だけ）を注で足す (5) evidence/clock-refresh-dlv03.md の『扱い』に、本契約の後の窓から直ると 1 行足す（既存の記録は書き換えない） (6) 構造的欠陥台帳 77・103 とやりたいことリスト（repo の外）に直した範囲と残り (7) p3-order-plan.md の末尾に本契約の行の表の節を足す（起草で足した。:585 より前の行を引く所をずらさないため） (8) 本契約と他の契約の anchor を付け直し、sha256 を作り直す。行の中の注で済ませ、行を足すときは引く所を grep してから足す。",
-      "残存リスク: (1) 別機械の時計区間の幅は Node↔Chrome の往復が LAN と tailscale を通るぶん広がる（Pi の tailscale の /healthz は 2.6〜3.8 ms）。5 ms（judge.ts:46）を超える標本は区間が使えず、超え続けるなら測定改善が先（spec:1143） (2) 表示の SSE と CDP が tailscale（Pi の上の WireGuard の暗号）を通り、本番（Pi の Chrome が手元）に無い CPU の負荷が Pi に乗る。値は本番の E01 にしない (3) Pi が runner・投入側・host を兼ねる（第 1 段と同じ配置）。runner の負荷は /proc/pressure の同じ窓で見る (4) 窓の間は旧築が止まり、Pi の画面（同居人が見る）に EEW・津波などが出ず音も鳴らない。窓の間の実の地震・警報は旧築が受けない（作者裁定 B で承知） (5) 計画:184 の第 1 段の重ね合わせ『旧築稼働中に EEW』は B の窓では測らない (6) CDP の転送は --allow-from の IP だけで守る（CDP に認証は無い）。tailnet の端末の信頼に頼る (7) 表示の server の測定の bind は、P4 の設定がそれを作ると P2-A8-AC14 の守りを外す。P4 の設定の parser は displayBind を作らない (8) 遠隔の Chrome は窓をまたいで 1 つの process で、窓ごとに browser context だけを新しくする（手元は窓ごとに新しい profile と process）。GPU の process と HTTP の cache の外の状態は窓をまたぐ (9) 窓の間 Mac mini の Wi-Fi を切ると、Mac mini の他の用途も有線だけになる (10) OWNER_UNITS を広げると、後の窓の E15 の帰属が変わる（既存の結果は書き換えない） (11) 往復の時機を変えると、津波などで試行の頭ごとに往復を測り、凍結済みの C4・C6 の正式の窓と Chrome の手前の仕事の量が違う (12) Page.bringToFront を navigate の後へ移すのは hasFocus false の原因の候補で、効くかは窓の記録で見る"
+      "配送で統合担当が当てる原文の改訂: (1) p2-snapshot-sse.json の P2-A8-AC14 に『測定の起動経路（host-launcher）が明示で渡す 1 つの IPv4（{ measurementAddress }）だけは例外。設定・CLI 引数からは作らない（P3-PI-HARNESS-001 の P3-PH-AC01）』と注を足す (2) p3-e01-reaccept.json の P3-C4-AC09 の旧築の保護、p3-order-plan.md:188、p3-tsunami-e01.json の P3-C6-AC09 と p3-unit-write-right.json の Q-UWR-REMEASURE の『旧築の保護はC4のAC09のまま』に、本契約の窓は P3-PH-D-LEGACY=B（2026-10-28 作者裁定、窓の間は旧築を止める。手順は P3-PH-AC08）と注を足す (2'') p3-order-plan.md:184 と P3-C4-AC09 の第 1 段の『旧築稼働中に EEW』の重ね合わせ、P3-C4-PI-STAGE1-APPROVAL の並走に、本契約の窓では測らず P5 の並走検収（spec:2148〜2150）へ送った（P3-PH-D-LEGACY=B、第 1 段も含む、2026-10-28 作者裁定）と注を足す (2') p3-tsunami-e01.json:563 の P3-C6-AC09 の『継承する負荷と初期状態はC6のmanifestと同じ（C4の凍結manifestを継ぐ）』に、予備は harness の 1 組を継ぐ草案で組み（P3-TSUNAMI-HARNESS-001 の P3-TH-AC02 (5)）、記録は報告で p3-c6-formal-20261009 に結ぶと注を足す (3) p3-order-plan.md:185 の『通信経路を manifest に書き』に、別機械の窓は予備だけで、経路は窓の記録（run-record の remote と統合担当の経路の記録）に書くと注を足す (4) p3-tsunami-harness.json の outOfScope の『別機械の harness』『--runs-root（穴 1）』『--backend-only の Pi（穴 2）』『OWNER_UNITS（穴 3）』に、本契約が引き受けた範囲（穴 1・3、穴 2 は Chrome ありの側だけ）を注で足す (4') p3-seismic-place.json:100 の本文の『aux-measures.mjs:247 の OWNER_UNITS』に、本契約で executionPlaces から引く形にしたと注を足す (5) evidence/clock-refresh-dlv03.md の『扱い』に、本契約の後の窓から直ると 1 行足す（既存の記録は書き換えない） (6) 構造的欠陥台帳 77・103 とやりたいことリスト（repo の外）に直した範囲と残り (7) p3-order-plan.md の末尾に本契約の行の表の節を足す（起草で足した。:585 より前の行を引く所をずらさないため） (8) 本契約と他の契約の anchor を付け直し、sha256 を作り直す。行の中の注で済ませ、行を足すときは引く所を grep してから足す (9) 他の契約の anchor を付け直すと、その契約の hash を contractSha256 に持つ凍結 manifest の正式の窓は、今の tree の契約で照らす run.mjs の起動で止まる。その manifest の窓は凍結した commit の checkout で回すか、本契約の配送を Q-TH-MEASURE（P3-TSUNAMI-HARNESS-001）の後にする。",
+      "残存リスク: (1) 別機械の時計区間の幅は Node↔Chrome の往復が LAN と tailscale を通るぶん広がる（Pi の tailscale の /healthz は 2.6〜3.8 ms）。5 ms（judge.ts:46）を超える標本は区間が使えず、超え続けるなら測定改善が先（spec:1143） (2) 表示の SSE と CDP が tailscale（Pi の上の WireGuard の暗号）を通り、本番（Pi の Chrome が手元）に無い CPU の負荷が Pi に乗る。値は本番の E01 にしない (3) Pi が runner・投入側・host を兼ねる（第 1 段と同じ配置）。runner の負荷は /proc/pressure の同じ窓で見る (4) 窓の間は旧築が止まり、Pi の画面（同居人が見る）に EEW・津波などが出ず音も鳴らない。窓の間の実の地震・警報は旧築が受けない（作者裁定 B で承知） (5) 計画:184 の第 1 段の重ね合わせ『旧築稼働中に EEW』と P3-C4-PI-STAGE1-APPROVAL の並走は本契約の窓では測らず、P5 の並走検収（spec:2148〜2150）まで残る (6) CDP の転送は --allow-from の IP だけで守る（CDP に認証は無い）。指定の IP（Pi の tailscale の IP）から接続できる全プロセスに、Mac mini の Chrome の操作と file:// の読み取りを渡す。IP の許可は利用者の確認ではない。窓の間だけ動かし、窓の後に止める (7) 表示の server の測定の bind は、P4 の設定がそれを作ると P2-A8-AC14 の守りを外す。P4 の設定の parser は displayBind を作らない (8) 遠隔の Chrome は窓をまたいで 1 つの process で、窓ごとに browser context だけを新しくする（手元は窓ごとに新しい profile と process）。GPU の process と HTTP の cache の外の状態は窓をまたぐ (9) 窓の間 Mac mini の Wi-Fi を切ると、Mac mini の他の用途も有線だけになる (10) OWNER_UNITS を広げると、後の窓の E15 の帰属が変わる（既存の結果は書き換えない） (11) 毎回の試行の頭で往復を測るので、凍結済みの C4・C6 の正式の窓より試行の手前の Chrome の仕事が増える (12) Page.bringToFront を navigate の後へ移すのは hasFocus false の原因の候補で、効くかは窓の記録で見る"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-PH-AUTHOR",
-        "owner": "user",
-        "blocks": [
-          "baseOid の割り当て"
-        ],
-        "resolveBy": "発注前点検の前",
-        "requiredEvidence": [
-          "P3-PH-D-WINDOW・P3-PH-D-ALERTS・P3-PH-D-KIOSK の作者の裁定（起草案はどれも A）"
-        ]
-      },
       {
         "id": "Q-PH-MEASURE",
         "owner": "integrator",
@@ -487,7 +490,8 @@
         "requiredEvidence": [
           "Mac mini の application firewall の状態（baseOid の割り当ての前）",
           "P3-PH-AC08 の (1)〜(7) の記録: 両機の HEAD、窓の前の旧築の snapshot の確かめ、経路（en0・tailscale direct の両向き）、chrome-remote.mjs の --allow-from の確かめ、旧築の停止と起こし直しの時刻と /healthz、kiosk の有無",
-          "各窓の run-record の remote（cdp・displayHost・Mac mini の Chrome の product・modelName）と clockProbeIntervals、時計区間の幅の分布、hasFocus の数"
+          "各窓の run-record の remote（cdp・displayHost・Mac mini の Chrome の product・modelName）と clockProbeIntervals、時計区間の幅の分布、hasFocus の数",
+          "Q-UWR-REMEASURE へ移管された Mac/Pi の ingressJsonMs の比（同じ母集団・入力・runner）と Pi の processing の内訳（測定区間を書く）"
         ]
       }
     ]
