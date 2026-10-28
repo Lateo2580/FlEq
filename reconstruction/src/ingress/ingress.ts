@@ -9,7 +9,9 @@ type ParsedFrame = Readonly<{ kind: "parsed"; value: unknown; jsonMs: number }> 
 type IngressInput = Readonly<{
   inputId: string; inputSequence: number; receivedAt: number; origin: AcquisitionOrigin;
 }> & (Readonly<{ kind: "ws"; frame: Uint8Array; parsed?: ParsedFrame }>
-  | Readonly<{ kind: "rest" | "replay"; body: Uint8Array; headType: string }>);
+  // P3-REC-AC05【発注 3】: 取り直しの本文は一覧の item の head.test・control.status（生の値）・id を持ち、WS と同じ根拠の検査を通す。
+  | Readonly<{ kind: "rest"; body: Uint8Array; headType: string; headTest: boolean; controlStatus: string; dmdataId: string }>
+  | Readonly<{ kind: "replay"; body: Uint8Array; headType: string }>);
 
 // The one fatal UTF-8 decode and JSON.parse of a WebSocket frame (at most once per frame, P3-C3A-RES-04). The host
 // does the same for frames up to 16 KiB and hands its result in `parsed` (P1 keeps this module's runtime exports).
@@ -65,6 +67,12 @@ export function ingestXmlData(input: IngressInput):
     compression = message.compression;
     encodedBody = Buffer.from(message.body, "utf8");
     headType = head.type; dmdataId = dmdataIdOf(message.id);
+  } else if (input.kind === "rest") {
+    sources.headTest = { kind: "provided", value: input.headTest };
+    const normalized = operationOf(input.controlStatus);
+    sources.envelopeStatus = normalized == null ? { kind: "invalid", observed: input.controlStatus.slice(0, 256) } : { kind: "provided", value: normalized };
+    encodedBody = bytes;
+    headType = input.headType; dmdataId = dmdataIdOf(input.dmdataId);
   } else {
     sources.headTest = { kind: "notProvided" };
     sources.envelopeStatus = { kind: "notProvided" };

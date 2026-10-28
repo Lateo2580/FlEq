@@ -8,7 +8,7 @@ import type { Operation } from "../../contracts/p1-parser-boundary.types";
 
 // T06: compiled by the CI type-check gate (tsc --project reconstruction/tsconfig.test.json), including negative checks.
 expectTypeOf<PublishedOutcome["kind"]>().toEqualTypeOf<
-  "accepted" | "batchCompleted" | "deadlineApplied" | "recoveryApplied"
+  "accepted" | "batchCompleted" | "deadlineApplied" | "recoveryApplied" | "recoveryAdopted"
 >();
 expectTypeOf<PublishedOutcome["subjects"]>().toEqualTypeOf<readonly SubjectOutcome[]>();
 expectTypeOf<UnitView["subjects"]>().toEqualTypeOf<readonly SubjectOutcome[]>();
@@ -22,6 +22,7 @@ const variants = [
   { kind: "batchCompleted", reason: "deadline", subjects: [subject] },
   { kind: "deadlineApplied", subjects: [subject] },
   { kind: "recoveryApplied", scope: ["scope"], coverage: ["scope"], subjects: [subject] },
+  { kind: "recoveryAdopted", generation: 1, coverage: ["scope"], subjects: [subject] },
 ] satisfies readonly PublishedOutcome[];
 // @ts-expect-error delivery snapshots are not outcome variants
 const invalidOutcome: PublishedOutcome = { kind: "snapshot", subjects: [] };

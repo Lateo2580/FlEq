@@ -14,7 +14,8 @@ import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.typ
 import { startP2Host } from "../../src/host/host";
 
 // 一覧の要求だけが node:https へ来る（socket の 3 呼出しは下の mock が答える）。網へは出ない。
-type Reply = Readonly<{ status: number; body?: unknown }>;
+// raw・headers は本文（data.api.dmdata.jp/v1）の応答（【発注 3】）。
+type Reply = Readonly<{ status: number; body?: unknown; raw?: Buffer; headers?: Readonly<Record<string, string>> }>;
 // hold: 応答を held に溜めて試験が後で返す（停止の後に揃う結果の試験）。
 const https = vi.hoisted(() => ({ handle: null as ((url: URL) => Reply) | null, paths: [] as string[], urls: [] as URL[], hold: false, held: [] as (() => void)[], destroyed: 0 }));
 vi.mock("node:https", async () => {
@@ -27,8 +28,9 @@ vi.mock("node:https", async () => {
       const reply = https.handle!(url);
       outgoing.emit("finish");
       const respond = () => {
-        const response = Object.assign(new Emitter(), { statusCode: reply.status, headers: {} });
+        const response = Object.assign(new Emitter(), { statusCode: reply.status, headers: reply.headers ?? {} });
         onResponse(response);
+        if (reply.raw !== undefined) response.emit("data", reply.raw);
         if (reply.body !== undefined) response.emit("data", Buffer.from(JSON.stringify(reply.body)));
         response.emit("end");
         response.emit("close");
@@ -70,9 +72,12 @@ const clock = () => { const monotonicMs = performance.now(); return { wallTimeMs
 const MINUTE = 60_000, DAY = 24 * 60 * MINUTE;
 const real = JSON.parse(readFileSync("test/fixtures/rest/telegram-list-vtse41-real.json", "utf8")).items[0];
 const vxse43 = readFileSync("test/fixtures/37_01_01_240613_VXSE43.xml", "utf8");
+const vtse41 = readFileSync("test/fixtures/rest/telegram-body-vtse41-real.xml");
+const xmlBody = (raw: Buffer = vtse41): Reply => ({ status: 200, raw, headers: { "content-type": "application/xml" } });
 let serial = 0;
 function item(type: string, receivedAtMs: number, headline: string) {
-  return { ...real, id: (++serial).toString(16).padStart(96, "0"), receivedTime: new Date(receivedAtMs).toISOString(),
+  const id = (++serial).toString(16).padStart(96, "0");
+  return { ...real, id, url: `https://data.api.dmdata.jp/v1/${id}`, receivedTime: new Date(receivedAtMs).toISOString(),
     head: { ...real.head, type }, xmlReport: { ...real.xmlReport, head: { ...real.xmlReport.head, headline } } };
 }
 const page = (items: readonly unknown[], nextToken?: string): Reply =>
@@ -140,6 +145,8 @@ describe("P3-REC-T08 acceptance: the startup digest reaches the snapshot (AC15, 
   it("heads after the start, overflow by type within 16,384 bytes, a failed unit without a count; no mailbox input; live goes on", async () => {
     const startedAt = clock().wallTimeMs;
     https.handle = (url) => {
+      // 【発注 3】起動の辿りの後に U-T の本文（EventID ごとの最新の 1 件）を取る。
+      if (url.hostname === "data.api.dmdata.jp") return xmlBody();
       const types = url.searchParams.get("type"), cursor = Number(url.searchParams.get("cursorToken") ?? "0");
       if (types === "VTSE41,VTSE51,VTSE52") {
         // 600 件（RES-04 を超える）。見出しは 256 byte を超える。最後のページは nextToken が無い。
@@ -170,19 +177,22 @@ describe("P3-REC-T08 acceptance: the startup digest reaches the snapshot (AC15, 
     expect([nankai.heads, nankai.omitted, local.heads.map((head) => [head.headType, head.headline]), local.omitted])
       .toEqual([[], {}, [["VXSE56", "長周期"]], {}]);
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("recoveryFetchFailed"));
+    // 起動の取り直しの採用で U-T の未確認が外れる。最初の接続が一覧の後なので、やり直しの印で進み具合は取り直し中に戻る（r1、統合担当の決め）。
+    await until(() => roots.root!.state.confirmation.units["U-T"].normal.whole === null);
+    expect((await snapshot(host.displayPort)).recovery.progress?.find((unit) => unit.unit === "U-T")?.state).toBe("running");
     const lines = (await diagnostics(dirs.diagnosticDirectory)).split("\n").filter((line) => line.includes('"component":"recovery"'));
     expect(lines.map((line) => JSON.parse(line)).map(({ level, reason, unit }) => ({ level, reason, unit })))
       .toEqual([{ level: "WARN", reason: "recoveryFetchFailed", unit: "U-Q" }]);
     expect(await diagnostics(dirs.diagnosticDirectory)).not.toContain("SECRET");
-    expect(https.paths.every((path) => path === "/v2/telegram")).toBe(true);
-    // 一覧の頭は mailbox へ入れない。live の返信の採用で snapshot は公開され続ける。
-    expect(roots.root!.mailbox.stats(clock().monotonicMs).accepted).toBe(0);
+    expect(https.paths.filter((path) => path !== "/v2/telegram")).toEqual([`/v1/${"0".repeat(95)}1`]);
+    // 一覧の頭は mailbox へ入れない（入るのは U-T の本文 1 件だけ、【発注 3】）。live の返信の採用で snapshot は公開され続ける。
+    expect(roots.root!.mailbox.stats(clock().monotonicMs).accepted).toBe(1);
     sockets[0].send(liveEew());
     await until(async () => (await snapshot(host.displayPort)).current.eew.items[0].activeCount > 0);
     const after = await snapshot(host.displayPort);
     expect(after.sequence).toBeGreaterThan(first.sequence);
     expect(after.recovery.digest).toEqual(digest);
-    expect(roots.root!.mailbox.stats(clock().monotonicMs).accepted).toBe(1);
+    expect(roots.root!.mailbox.stats(clock().monotonicMs).accepted).toBe(2);
   });
 });
 

@@ -8,7 +8,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InputBoundary } from "../../contracts/p2-shared-runtime.types";
 import type { ListHead, PollResult, PoolPosition, UnitWalk, UnitWalkResult } from "../../contracts/p3-recovery.types";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
-import { ListRequestLane, buildDigest, pollClassification, walkDiagnostics, walkList, walkStart } from "../../src/recovery/recovery";
+import { BodyRequestLane, ListRequestLane, buildDigest, fetchBody, pollClassification, walkDiagnostics, walkList, walkStart } from "../../src/recovery/recovery";
+import { ingestXmlData } from "../../src/ingress/ingress";
 import { FreshnessLedger } from "../../src/recovery/watch";
 import { envelope, harnessedRoot, startHarness } from "../execution-split/owner-harness";
 import { decode, projected, projectionInput, startup } from "../snapshot-sse/projection-fixture";
@@ -16,20 +17,24 @@ import { projectSnapshot } from "../../src/view-projector/view-projector";
 
 // node:https は網へ出ない。要求ごとに試験の handler が答え、その時刻（偽の時計）と path を残す（P3-REC-T01）。
 // delayMs: その時間の後に答える（null は答えない）。parseMs: 答える間に歩きの時計だけを進める（同期の処理で timer が走る前に時間が過ぎる形）。
-type Reply = Readonly<{ status: number; body?: unknown; headers?: Readonly<Record<string, string>>; delayMs?: number | null; parseMs?: number }>;
-const https = vi.hoisted(() => ({ handle: null as ((url: URL) => Reply) | null, requests: [] as { url: URL; at: number; auth: unknown }[], skewMs: 0 }));
+// raw は本文（data.api.dmdata.jp/v1）の応答の bytes（【発注 3】）。
+type Reply = Readonly<{ status: number; body?: unknown; raw?: Buffer; headers?: Readonly<Record<string, string>>; delayMs?: number | null; parseMs?: number }>;
+const https = vi.hoisted(() => ({ handle: null as ((url: URL) => Reply) | null, requests: [] as { url: URL; at: number; auth: unknown; headers: unknown }[],
+  skewMs: 0 }));
 vi.mock("node:https", async () => {
   const { EventEmitter: Emitter } = await import("node:events");
   return { request: (options: RequestOptions, onResponse: (response: EventEmitter) => void) => {
     const outgoing = Object.assign(new Emitter(), { destroy: () => {}, end: () => {
       const url = new URL(`https://${options.hostname}${options.path}`);
-      https.requests.push({ url, at: performance.now(), auth: Object.entries(options.headers ?? {}).find(([name]) => name === "Authorization")?.[1] });
+      https.requests.push({ url, at: performance.now(), auth: Object.entries(options.headers ?? {}).find(([name]) => name === "Authorization")?.[1],
+        headers: options.headers });
       const reply = https.handle!(url);
       outgoing.emit("finish");
       const respond = () => {
         https.skewMs += reply.parseMs ?? 0;
         const response = Object.assign(new Emitter(), { statusCode: reply.status, headers: reply.headers ?? {} });
         onResponse(response);
+        if (reply.raw !== undefined) response.emit("data", reply.raw);
         if (reply.body !== undefined) response.emit("data", Buffer.from(JSON.stringify(reply.body)));
         response.emit("end");
         response.emit("close");
@@ -56,7 +61,9 @@ let serial = 0;
 // 実応答の item の写しで、id・型・test・受信時刻だけを替える。
 function item(type: string, receivedAtMs: number, change: Readonly<{ id?: string; test?: boolean }> = {}) {
   const base = type.startsWith("VF") ? volcano : real;
-  return { ...base, id: change.id ?? `${(++serial).toString(16).padStart(96, "0")}`, receivedTime: new Date(receivedAtMs).toISOString(),
+  const id = change.id ?? `${(++serial).toString(16).padStart(96, "0")}`;
+  // 実応答と同じく url は id から組んだもの（【発注 3】の境界の検査、P3-REC-AC01）。
+  return { ...base, id, url: `https://data.api.dmdata.jp/v1/${id}`, receivedTime: new Date(receivedAtMs).toISOString(),
     head: { ...base.head, type, test: change.test ?? false } };
 }
 const page = (items: readonly unknown[], nextToken?: string): Reply =>
@@ -253,7 +260,8 @@ describe("P3-REC-T08 acceptance (unit side): the digest from walk results (AC15,
   it("only heads after the boundary, newest first by unit order; unwalked units keep their reason without a count; within 16,384 bytes", async () => {
     const start = walkStart({ receivedAt: { wallTimeMs: NOW - DAY, basis: "verified" }, dmdataTime: null, dmdataId: null, oldestHole: null }, "restored", NOW + DAY);
     const head = (id: string, headType: string, receivedAtMs: number, headline: string): ListHead => ({ id, unit: headType === "VTSE41" ? "U-T" : "U-V",
-      headType, receivedAtMs, operation: "normal", title: "津波予報", headline, reportDateTime: null, infoType: "発表" });
+      headType, receivedAtMs, operation: "normal", title: "津波予報", headline, reportDateTime: null, infoType: "発表", serial: null, eventId: null,
+      controlDateTime: null, controlStatus: "通常" });
     // 境界（NOW − 1 日）の 10 分の余白の中の item は取得するがダイジェストに入れない。
     const margin = head("m", "VTSE41", NOW - DAY - MINUTE, "余白");
     const tsunami = Array.from({ length: 300 }, (_, index) => head(`t${index}`, "VTSE41", NOW - index * MINUTE, "津".repeat(200)));
@@ -275,13 +283,13 @@ describe("P3-REC-T08 acceptance (unit side): the digest from walk results (AC15,
     expect(third).toEqual({ unit: "U-Q", beforeWindow: false, kind: "unsatisfied", reason: "recoveryLimit" });
     // AC16: projector は digest を直列化せず、数えた byte を足すだけで snapshot の byte が合う。
     const started = await startup({ wallTimeMs: NOW, monotonicMs: 1 });
-    const shown = projected(projectSnapshot(projectionInput(started, NOW, { recovery: { restoration: started.state.restoration, digest, eewUnverified: null },
+    const shown = projected(projectSnapshot(projectionInput(started, NOW, { recovery: { restoration: started.state.restoration, digest, eewUnverified: null, progress: null },
       recoveryDigestBytes: utf8Bytes }), null));
     expect(shown.utf8Bytes).toBe(Buffer.byteLength(JSON.stringify(shown.snapshot)));
     // AC16（レビュー r0 ヘルツ P3）: digest を持つ snapshot へ live の更新を入れても、projector は digest を直列化しない。
     let reads = 0;
     const counted = Object.defineProperty({ ...digest }, "units", { enumerable: true, get: () => { reads += 1; return digest.units; } });
-    const input = projectionInput(started, NOW, { recovery: { restoration: started.state.restoration, digest: counted, eewUnverified: null }, recoveryDigestBytes: utf8Bytes });
+    const input = projectionInput(started, NOW, { recovery: { restoration: started.state.restoration, digest: counted, eewUnverified: null, progress: null }, recoveryDigestBytes: utf8Bytes });
     const published = projected(projectSnapshot(input, null));
     const live = projectSnapshot({ ...input, connection: { state: "connected", disconnectedAt: null, lastInputAt: NOW } }, published.state);
     expect([live.kind, reads]).toEqual(["projected", 0]);
@@ -363,7 +371,8 @@ describe("P3-REC-T05 acceptance (list side): the H41 classification list (AC13 (
 describe("P3-REC-T08 acceptance (unit side,【発注 2】): P3-REC-D-DIGEST-BUDGET=D", () => {
   const start = walkStart(null, "empty", NOW);
   const long = (unit: ListHead["unit"], headType: string, index: number): ListHead => ({ id: `${unit}-${index}`, unit, headType,
-    receivedAtMs: NOW - index * MINUTE, operation: "normal", title: "表".repeat(120), headline: "見".repeat(120), reportDateTime: null, infoType: null });
+    receivedAtMs: NOW - index * MINUTE, operation: "normal", title: "表".repeat(120), headline: "見".repeat(120), reportDateTime: null, infoType: null,
+    serial: null, eventId: null, controlDateTime: null, controlStatus: "通常" });
   const listed = (unit: ListHead["unit"], headType: string, count: number): UnitWalkResult =>
     ({ unit, kind: "listed", heads: Array.from({ length: count }, (_, index) => long(unit, headType, index)) });
   const total = (unit: { kind: string; heads?: readonly unknown[]; omitted?: Readonly<Record<string, number>> }) =>
@@ -389,5 +398,60 @@ describe("P3-REC-T08 acceptance (unit side,【発注 2】): P3-REC-D-DIGEST-BUDG
     expect(shown.at(-1)).toBe(0);
     expect(shown.every((count, index) => index === 0 || count <= shown[index - 1])).toBe(true);
     expect(digest.units.map(total)).toEqual(units.map(() => 4));
+  });
+});
+
+describe("P3-REC-T12 contractBoundary: the body boundary (AC01, AC05)", () => {
+  const listHead = (id: string): ListHead => ({ id, unit: "U-T", headType: "VTSE41", receivedAtMs: NOW, operation: "normal", title: "津波予報",
+    headline: null, reportDateTime: null, infoType: null, serial: null, eventId: "20260728162718", controlDateTime: null, controlStatus: "通常" });
+  const now = () => performance.now();
+
+  it("a VTSE41 item whose url is not built from its id makes U-T fetchFailed with one WARN; the page is not failed", async () => {
+    const bad = { ...item("VTSE41", NOW - MINUTE), url: "https://data.api.dmdata.jp/v1/other" };
+    https.handle = () => page([bad, item("VTSE51", NOW - 2 * MINUTE)]);
+    const results = await walkList(new ListRequestLane(), API_KEY, [{ unit: "U-T", bundles: [["VTSE41", "VTSE51", "VTSE52"]], fetchFromMs: NOW - DAY,
+      stopAtId: null }], new AbortController().signal, now);
+    expect(results).toEqual([{ unit: "U-T", kind: "unsatisfied", reason: "fetchFailed", listedPages: 1 }]);
+    expect(walkDiagnostics(results)).toEqual([{ level: "WARN", component: "recovery", reason: "recoveryFetchFailed", unit: "U-T" }]);
+  });
+
+  it("the body is asked as XML with identity, kept as received bytes; a non-XML content-type or a non-alphanumeric id sends nothing on", async () => {
+    const raw = Buffer.concat([readFileSync("test/fixtures/rest/telegram-body-vtse41-real.xml"), Buffer.from([0xff])]);
+    https.handle = (url) => url.pathname.endsWith("html") ? { status: 200, raw, headers: { "content-type": "text/html" } }
+      : { status: 200, raw, headers: { "content-type": "application/xml; charset=utf-8" } };
+    const lane = new BodyRequestLane();
+    const got = await fetchBody(lane, API_KEY, listHead("abc123"), new AbortController().signal, now);
+    expect(got.kind === "ok" && Buffer.compare(Buffer.from(got.bytes), raw)).toBe(0);
+    const [request] = https.requests;
+    expect([request.url.host, request.url.pathname, request.headers]).toMatchObject(["data.api.dmdata.jp", "/v1/abc123",
+      { Accept: "application/xml", "Accept-Encoding": "identity" }]);
+    lane.notBeforeMonotonicMs = -Infinity;
+    expect(await fetchBody(lane, API_KEY, listHead("abchtml"), new AbortController().signal, now)).toEqual({ kind: "failed" });
+    expect(await fetchBody(lane, API_KEY, listHead("ab/../c"), new AbortController().signal, now)).toEqual({ kind: "failed" });
+    expect(https.requests).toHaveLength(2);
+    expect(JSON.stringify(https.requests.map((item) => item.url.href))).not.toContain(API_KEY);
+  });
+
+  it("the retry budget of 30 s holds across a 429: an answer after it is not taken (r1)", async () => {
+    vi.useFakeTimers({ now: NOW });
+    let count = 0;
+    https.handle = () => ++count === 1 ? { status: 429, delayMs: 14_000 }
+      : { status: 200, delayMs: 14_000, raw: Buffer.from("<Report/>"), headers: { "content-type": "application/xml" } };
+    const pending = fetchBody(new BodyRequestLane(), API_KEY, listHead("abc"), new AbortController().signal, () => performance.now());
+    await vi.advanceTimersByTimeAsync(35_500);
+    expect((await pending).kind).toBe("throttled");
+  });
+
+  it("a body over 8 MiB is refused without a retry (r1)", async () => {
+    https.handle = () => ({ status: 200, raw: Buffer.alloc(8 * 1024 * 1024 + 1, 0x20), headers: { "content-type": "application/xml" } });
+    expect(await fetchBody(new BodyRequestLane(), API_KEY, listHead("big"), new AbortController().signal, now)).toEqual({ kind: "failed" });
+    expect(https.requests).toHaveLength(1);
+  });
+
+  it("the REST input carries head.test, control.status and the id: provided evidence and the dmdataId on the mailbox item", () => {
+    const entered = ingestXmlData({ kind: "rest", inputId: "input-1", inputSequence: 1, receivedAt: NOW, origin: "recovery", body: Buffer.from("<Report/>"),
+      headType: "VTSE41", headTest: false, controlStatus: "訓練", dmdataId: "abc123" });
+    expect(entered.kind === "accepted" && [entered.item.headTest, entered.item.envelopeStatus, entered.item.dmdataId])
+      .toEqual([{ kind: "provided", value: false }, { kind: "provided", value: "training" }, "abc123"]);
   });
 });

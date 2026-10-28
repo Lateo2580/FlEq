@@ -1,6 +1,6 @@
 import type { DecodedMaterial, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
 import type { UnitJob, UnitTable } from "../../contracts/p3-unit-table.types";
-import type { ExecutionPlace, OwnerOutput } from "../../contracts/p3-execution-split.types";
+import type { ExecutionPlace, OwnerOutput, RecoveryInputResult } from "../../contracts/p3-execution-split.types";
 import type {
   CheckpointCapture,
   CheckpointResult,
@@ -30,7 +30,7 @@ import type { CodecMap } from "../checkpoint/checkpoint";
 import { CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
 import { headlineOf, rewriteBounded, titleOf } from "../units/unreadable";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
-import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
+import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import { recoveryNotices } from "../units/tsunami/tsunami-unit"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
 // P3-EXECUTION-SPLIT-001 (C3a) owner core: everything one owner does to its own units, as pure functions of
 // the owner state. The owner thread and the test path (1) call these; nothing here touches another place's units.
@@ -80,7 +80,7 @@ const initialUnits: RuntimeUnitStates = {
   "U-W": { schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
   "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
-  "U-T": { schemaVersion: "p3-tsunami-unit-v7", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
+  "U-T": { schemaVersion: "p3-tsunami-unit-v8", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
   "U-Q": { schemaVersion: "p3-seismic-unit-v7", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: cleanPersistence },
   "U-N": { schemaVersion: "p3-nankai-unit-v7", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
@@ -467,8 +467,9 @@ function routedUnit(state: OwnerState, completion: ParserCompletion): RuntimeUni
 }
 
 // parser の入力 1 件: 振り分け、受信、またはちょうど 1 件の診断（P3-UNIT-TABLE-001、P3-C3A-NONREADY）。
+// seen は取り直しの候補だけが渡す: 版が決まらず unit が採らなかったか（noChange。結果を held にする、作者裁定 2026-10-28 午後）。
 function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: ClockReading, units: UnitTable,
-  beforeProjection?: () => void, basis: WallBasis = "verified"): OwnerStep {
+  beforeProjection?: () => void, basis: WallBasis = "verified", seen?: { held: boolean }): OwnerStep {
   checkClock(clock);
   const work = session(state, units, clock, basis);
   if (completion.runId !== state.runId || state.finalized) return work.finish(true, beforeProjection);
@@ -487,6 +488,7 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
     const generationBeforeReceive = ownUnit(work.state, unit).persistence.currentGeneration, lossesBefore = work.state.losses[unit];
     const { material } = completion.result;
     const received = work.reduceUnit(unit, { kind: "receive", material, clock, basis });
+    if (seen != null) seen.held = received.decisions.some((decision) => decision.decision === "unchanged" && decision.reason === "noChange");
     // (1): unit が断った入力（共通の封筒の検査を含む）は unreadable のカード。ignored・stale・duplicate・capacityExceeded はカードにしない。
     // 1 つの入力に断った decision が複数あれば最初の理由で 1 枚。
     let rejected: RejectionReason | null = null;
@@ -646,6 +648,70 @@ function finalizeOwner(state: OwnerState, cutoff: ClockReading, units: UnitTable
   return work.finish();
 }
 
+// ---- 取り直しの候補（P3-RECOVERY-001 発注 3、P3-REC-D-CANDIDATE-PLACE=A） ----
+
+// P3-REC-AC07（発注前点検 N12）: 候補が基点にした unit が今の live と同じか。currentGeneration と、persistence を除いた unit の state の欄の参照・
+// カード・件数・期限を比べる（欄の数は定数で O(1)、state を直列化しない、P3-REC-AC16）。保存の ack と capture（persistence・checkpointAttempts）は
+// 比べない（無いと、ack だけで当て直しが走り、RES-08 を越えた候補は generationConflict になる）。違えば候補を今の live に当て直す。
+function sameBase(live: OwnerState, base: OwnerState, unit: RuntimeUnitId): boolean {
+  const now = live.units[unit], then = base.units[unit];
+  if (now == null || then == null || now.persistence.currentGeneration !== then.persistence.currentGeneration) return false;
+  const fields = new Map(Object.entries(then));
+  return Object.entries(now).every(([key, value]) => key === "persistence" || fields.get(key) === value)
+    && live.unreadable[unit] === base.unreadable[unit] && live.losses[unit] === base.losses[unit] && live.deadlines[unit] === base.deadlines[unit];
+}
+
+// P3-REC-AC06 (b): 候補の下で見た本文 1 件の結果。parser が断った報は unreadable、負の証拠のある報はその語、ほかは adopted（変化・重複・古い報を問わない）。
+function recoveryResult(completion: ParserCompletion, step: OwnerStep, held: boolean): RecoveryInputResult["result"] {
+  if (completion.result.kind === "rejected") return "unreadable";
+  if (held) return "held";
+  for (const evidence of step.confirmationEvidence)
+    if (evidence.source === "capacityExceeded" || evidence.source === "unreadableReport") return evidence.source;
+  return "adopted";
+}
+
+/**
+ * 候補の採用の step（P3-REC-AC06 (a)・AC07・AC08）。shadow は live と同じ基点から作った候補で、その unit の欄を live へ差し替える。
+ * 部分集合の検査（候補の pending の id は基点の pending の id の内）の後に、unit が引上げ（H27）と読めない報の info を作り、期限を今の時計と根拠で当てる。
+ * 検査に外れたら null（候補を捨てる）。inputIds は候補に入れた入力（世代の帰属、P2-A3-AC10）。
+ */
+function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeUnitId, recoveryId: string, open: OwnerState, inputIds: readonly string[],
+  clock: ClockReading, units: UnitTable, basis: WallBasis): OwnerStep | null {
+  checkClock(clock);
+  const before = new Set(ownUnit(live, unit).intents.map((intent) => intent.id));
+  if (ownUnit(shadow, unit).intents.some((intent) => !before.has(intent.id))) return null;
+  const work = session(live, units, clock, basis);
+  // 保存の進み具合は live の最新を保ち、候補が進めた世代だけを載せる。capture の後なら次の dirty の区間を始める（reduceUnit と同じ）。
+  const current = ownUnit(live, unit).persistence, generation = ownUnit(shadow, unit).persistence.currentGeneration;
+  const persistence = generation > current.currentGeneration ? { ...raised(current, clock.monotonicMs), currentGeneration: generation } : current;
+  const attempt = live.checkpointAttempts[unit];
+  const attempts = attempt != null && attempt.postCaptureDirtySince == null && generation > current.currentGeneration && generation > attempt.generation
+    ? { ...live.checkpointAttempts, [unit]: { ...attempt, postCaptureDirtySince: clock.monotonicMs } } : live.checkpointAttempts;
+  let adopted: OwnerState = { ...live, units: { ...live.units, [unit]: { ...ownUnit(shadow, unit), persistence } },
+    unreadable: { ...live.unreadable, [unit]: shadow.unreadable[unit] }, losses: { ...live.losses, [unit]: shadow.losses[unit] },
+    checkpointAttempts: attempts, deadlines: { ...live.deadlines, [unit]: shadow.deadlines[unit] } };
+  if (unit === "U-T") {
+    // P3-UM-AC12 (10): 候補が origin=recovery の読めないカードを持てば info を 1 件（operation は最初のカード）。
+    const ids = new Set(inputIds);
+    const card = (adopted.unreadable["U-T"] ?? EMPTY).find((item) => ids.has(item.inputId) && item.kind !== "unknownType");
+    const candidate = ownUnit(adopted, "U-T");
+    const noticed = recoveryNotices(ownUnit(open, "U-T"), candidate, recoveryId,
+      card == null ? null : { operation: card.operation, receivedAt: card.receivedAt, inputId: card.inputId, headType: card.headType }, clock);
+    if (noticed !== candidate) {
+      // 音の intent は候補の採用と同じ世代に入れる（候補が世代を進めていなければ 1 つ進める、P3-NL-AC14 (5) の形）。
+      const persistence = noticed.persistence.currentGeneration > ownUnit(live, "U-T").persistence.currentGeneration ? noticed.persistence
+        : raised(noticed.persistence, clock.monotonicMs);
+      adopted = { ...adopted, units: { ...adopted.units, "U-T": { ...noticed, persistence } } };
+    }
+  }
+  work.state = adopted;
+  if (ownUnit(adopted, unit).persistence.currentGeneration > ownUnit(live, unit).persistence.currentGeneration) work.generationInputIds[unit] = inputIds;
+  work.changed(unit);
+  work.viewed(unit);
+  work.applyDeadlines([unit]);
+  return work.finish();
+}
+
 // P3-UFP-AC06: owner の state から U-F の詳細の 1 ページを作る。U-F の関数を直接呼ぶ（Q-UFP-DETAIL-PATH）。
 function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest): WeatherTimeseriesDetailResponse {
   const unit = state.units["U-F"];
@@ -654,7 +720,7 @@ function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest)
 }
 
 export {
-  capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, ownerViews,
+  adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, ownerViews, recoveryResult, sameBase,
   placeUnits, receiveOwner, refreshedViews, restoreOwner, shutdownInputOwner, validateSemanticEnvelope,
 };
 export type { OwnerState, OwnerStep, ParserCompletion };

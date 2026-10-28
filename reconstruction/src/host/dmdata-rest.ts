@@ -20,11 +20,17 @@ type SocketStartResult = Readonly<{ kind: "ok"; id: number; url: string; protoco
   | RestRefusal | Readonly<{ kind: "uncertain" }>;
 
 // notSent: failed before the request was handed to the OS. lost: handed over, but no complete answer.
-type Exchange = Readonly<{ kind: "notSent" }> | Readonly<{ kind: "lost" }> | Readonly<{ kind: "answered"; status: number; text: string; date: string | null; retryAfter: number | null }>;
+// bytes は受けたままの本文（本文の呼び出しは text を往復させず parser の fatal な UTF-8 の検査へ渡す、P3-REC-AC01）。
+// tooLarge: 本文が上限を越えた（読まずに切る。本文の呼び出しは断り、再試行しない、P3-REC-AC01）。
+type Exchange = Readonly<{ kind: "notSent" }> | Readonly<{ kind: "lost" }> | Readonly<{ kind: "tooLarge" }> | Readonly<{ kind: "answered"; status: number; text: string; bytes: Uint8Array;
+  date: string | null; retryAfter: number | null; contentType: string | null }>;
+// P3-REC-AC01【発注 3】: 呼び先。省略は api.dmdata.jp・/v2・application/json・1 MiB（socket と一覧）。本文は data.api.dmdata.jp・/v1・XML・8 MiB・identity。
+type Target = Readonly<{ hostname: string; prefix: string; accept: string; limitBytes: number; identity: boolean }>;
+const API: Target = { hostname: "api.dmdata.jp", prefix: "/v2", accept: "application/json", limitBytes: BODY_LIMIT_BYTES, identity: false };
 
 // signal: the caller's hard stop (the host's stop limit, P3-C2-RES-07). Aborted, the request is destroyed or never sent.
 function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: string, signal: AbortSignal | undefined,
-  body?: object): Promise<Exchange> {
+  body?: object, target: Target = API): Promise<Exchange> {
   return new Promise((settle) => {
     if (signal?.aborted) { settle({ kind: "notSent" }); return; }
     let sent = false;
@@ -43,8 +49,9 @@ function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: strin
     signal?.addEventListener("abort", lost);
     const payload = body == null ? undefined : JSON.stringify(body);
     try {
-      outgoing = request({ hostname: "api.dmdata.jp", port: 443, path: `/v2${path}`, method, headers: {
-        Accept: "application/json", Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`,
+      outgoing = request({ hostname: target.hostname, port: 443, path: `${target.prefix}${path}`, method, headers: {
+        Accept: target.accept, Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`,
+        ...(target.identity ? { "Accept-Encoding": "identity" } : {}),
         ...(payload == null ? {} : { "Content-Type": "application/json" }) } }, (response) => {
         sent = true;
         const chunks: Buffer[] = [];
@@ -52,9 +59,13 @@ function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: strin
         response.on("data", (chunk: Buffer) => {
           bytes += chunk.byteLength;
           // A body over the limit is never read whole, so it is no answer.
-          if (bytes > BODY_LIMIT_BYTES) lost(); else chunks.push(chunk);
+          if (bytes > target.limitBytes) end({ kind: "tooLarge" }); else chunks.push(chunk);
         });
-        response.on("end", () => end({ kind: "answered", status: response.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8"), date: response.headers.date ?? null, retryAfter: retryAfterMs(response.headers["retry-after"]) }));
+        response.on("end", () => {
+          const received = Buffer.concat(chunks);
+          end({ kind: "answered", status: response.statusCode ?? 0, text: received.toString("utf8"), bytes: received, date: response.headers.date ?? null,
+            retryAfter: retryAfterMs(response.headers["retry-after"]), contentType: response.headers["content-type"] ?? null });
+        });
         response.on("error", lost);
         response.on("close", lost);
       });
@@ -111,7 +122,7 @@ async function startSocket(subscription: DmdataSubscription, signal?: AbortSigna
   const answer = await exchange("POST", "/socket", subscription.apiKey, signal, { classifications: subscription.classifications,
     test: "no", appName: subscription.appName, formatMode: "raw" });
   if (answer.kind === "notSent") return { kind: "failed" };
-  if (answer.kind === "lost") return { kind: "uncertain" };
+  if (answer.kind === "lost" || answer.kind === "tooLarge") return { kind: "uncertain" };
   if (!success(answer.status)) return refusal(answer.status);
   const body = parse(answer.text);
   const websocket = isRecord(body) && body.status === "ok" ? body.websocket : undefined;
@@ -127,4 +138,4 @@ function retryAfterMs(value: string | undefined): number | null {
 }
 
 export { closeSocket, exchange, listSockets, startSocket };
-export type { DmdataSocket, SocketCloseResult, SocketListResult, SocketStartResult };
+export type { DmdataSocket, SocketCloseResult, SocketListResult, SocketStartResult, Target };

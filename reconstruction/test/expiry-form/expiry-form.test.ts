@@ -283,7 +283,7 @@ describe("P3-EXPIRY-FORM-001 expired memory, the pending mark and the tornado so
     // 捨てる旧い版（P3-VM-AC05）。
     expect([landslideUnitCodec.discardableSchemaVersions, floodUnitCodec.discardableSchemaVersions, briefingUnitCodec.discardableSchemaVersions,
       tsunamiUnitCodec.discardableSchemaVersions, localBulletinsUnitCodec.discardableSchemaVersions, weatherTimeseriesUnitCodec.discardableSchemaVersions]
-      .map((list) => list?.at(-1))).toEqual(["p3-landslide-unit-v6", "p3-flood-unit-v7", "p3-briefing-unit-v6", "p3-tsunami-unit-v6",
+      .map((list) => list?.at(-1))).toEqual(["p3-landslide-unit-v6", "p3-flood-unit-v7", "p3-briefing-unit-v6", "p3-tsunami-unit-v7",
       "p3-local-bulletins-unit-v6", "p2-weather-timeseries-unit-v7"]);
   });
 

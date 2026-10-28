@@ -1,7 +1,7 @@
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, InputBoundary, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
 import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.types";
-import type { ListHead, ListPage, ListQuery, PollResult, PoolPosition, RecoveryDigestHead, RecoveryDigestUnit, RecoveryDigestView, UnitWalk,
+import type { BodyResult, ListHead, ListPage, ListQuery, PollResult, PoolPosition, RecoveryDigestHead, RecoveryDigestUnit, RecoveryDigestView, UnitWalk,
   UnitWalkResult } from "../../contracts/p3-recovery.types";
 import { familyFor } from "../decode-material/decode-material";
 import { exchange } from "../host/dmdata-rest";
@@ -23,6 +23,18 @@ const DMDATA_MARGIN_MS = 60_000, RECEIVED_MARGIN_MS = 10 * 60_000; // P3-REC-AC0
 const DIGEST_HEADS = 500, DIGEST_BYTES = 16_384, STRING_BYTES = 256; // P3-REC-RES-04・RES-06、P2-A8-RES-05
 const DIGEST_UNIT_HEADS = 3; // P3-REC-D-DIGEST-BUDGET=D: 分野ごとに新しい順で見出しを 3 件まで
 const TRUNCATED_MARKER = "[truncated:fieldLimit]";
+// 【発注 3】本文を流す unit の集合（P3-REC-AC12）。発注 3 は U-T だけで、ほかの unit の本文を mailbox へ入れない。発注 4 で広げる。
+// N2: 本文を取る型・最新だけで足りるか（subject ごとに 1 件）・窓（P3-REC-D-START-WINDOW=B）。U-T は P3-C5-N2 の range（VTSE41、EventID ごとの最新、7 日）。
+const RECOVERABLE_UNITS = ["U-T"] as const satisfies readonly RuntimeUnitId[];
+const N2: Readonly<Record<(typeof RECOVERABLE_UNITS)[number], Readonly<{ types: readonly string[]; windowMs: number }>>> = {
+  "U-T": { types: ["VTSE41"], windowMs: 7 * 24 * 60 * 60 * 1000 } };
+const BODY_URL = "https://data.api.dmdata.jp/v1/", BODY_ID = /^[0-9A-Za-z]{1,128}$/;
+const BODY_GAP_MS = 7_500; // P3-REC-RES-05: 本文は 5 分 40 回
+const BODY_TARGET = { hostname: "data.api.dmdata.jp", prefix: "/v1", accept: "application/xml", limitBytes: 8 * 1024 * 1024, identity: true };
+const recoverable = (unit: RuntimeUnitId): unit is (typeof RECOVERABLE_UNITS)[number] => RECOVERABLE_UNITS.some((item) => item === unit);
+// 本文を流す型（その item は url と id の文字を境界で確かめる、P3-REC-AC01）。
+const bodyType = (unit: RuntimeUnitId, type: string): boolean => recoverable(unit) && N2[unit].types.includes(type);
+const windowOf = (unit: RuntimeUnitId): number => recoverable(unit) ? N2[unit].windowMs : WINDOW_MS;
 
 type WalkStart = Readonly<{ fetchFromMs: number; digestAfterMs: number; stopAtId: string | null; beforeWindow: boolean }>;
 type Restored = Readonly<{ restoration: "restored" | "empty" | "unavailable"; boundary: InputBoundary | null }>;
@@ -37,8 +49,9 @@ function parse(text: string): unknown {
 }
 
 // item を項目ごとに確かめて頭を組む。束・区分に無い型と test の item は head が null（捨てる）、形の壊れた item は invalid（そのページを failed）。
-// receivedAtMs は濾す前の生の受信時刻（満杯・遡り・位置を生の値で決める、P3-REC-AC13 (2)）。
-function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | null; receivedAtMs: number }> | "invalid" {
+// receivedAtMs は濾す前の生の受信時刻（満杯・遡り・位置を生の値で決める、P3-REC-AC13 (2)）。refused は本文を流す型の item の url・id が合わない
+// unit（その item は捨て、ページは failed にしない、P3-REC-AC01）。
+function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | null; receivedAtMs: number; refused?: RuntimeUnitId }> | "invalid" {
   if (!isRecord(item) || !isRecord(item.head) || !isRecord(item.xmlReport)) return "invalid";
   const { id, receivedTime } = item;
   const { type, test } = item.head;
@@ -50,9 +63,11 @@ function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | nu
     : row.unit === "U-E" || familyFor(type) !== query.classification)) return { head: null, receivedAtMs };
   const report = item.xmlReport.head, control = item.xmlReport.control;
   const operation: Operation | undefined = isRecord(control) ? operationOf(control.status) : undefined;
-  if (!isRecord(report) || typeof report.title !== "string" || operation == null) return "invalid";
+  if (!isRecord(report) || !isRecord(control) || typeof report.title !== "string" || typeof control.status !== "string" || operation == null) return "invalid";
+  if (bodyType(row.unit, type) && (!BODY_ID.test(id) || item.url !== BODY_URL + id)) return { head: null, receivedAtMs, refused: row.unit };
   return { receivedAtMs, head: { id, unit: row.unit, headType: type, receivedAtMs, operation, title: report.title, headline: textOrNull(report.headline),
-    reportDateTime: textOrNull(report.reportDateTime), infoType: textOrNull(report.infoType) } };
+    reportDateTime: textOrNull(report.reportDateTime), infoType: textOrNull(report.infoType), serial: textOrNull(report.serial),
+    eventId: textOrNull(report.eventId), controlDateTime: textOrNull(control.dateTime), controlStatus: control.status } };
 }
 
 /**
@@ -73,26 +88,32 @@ async function listTelegramPage(apiKey: string, query: ListQuery, signal: AbortS
   const interval = body.nextPoolingInterval;
   if (interval != null && (typeof interval !== "number" || !Number.isFinite(interval) || interval < 0)) return { kind: "failed" };
   const heads: ListHead[] = [];
+  const refused = new Set<RuntimeUnitId>();
   let oldest: number | null = null, latest: number | null = null;
   for (const item of body.items) {
     const read = headOf(item, query);
     if (read === "invalid") return { kind: "failed" };
     if (read.head != null) heads.push(read.head);
+    if (read.refused != null) refused.add(read.refused);
     oldest = Math.min(oldest ?? Infinity, read.receivedAtMs);
     latest = Math.max(latest ?? -Infinity, read.receivedAtMs);
   }
   return { kind: "ok", heads, nextToken: body.nextToken ?? null, nextPooling: body.nextPooling ?? null, nextPoolingInterval: interval ?? null,
-    rawCount: body.items.length, oldestRawReceivedAtMs: oldest, latestRawReceivedAtMs: latest };
+    rawCount: body.items.length, oldestRawReceivedAtMs: oldest, latestRawReceivedAtMs: latest, refused: [...refused] };
 }
 
-/** P3-REC-AC02 (2)(3): restored の返信の境界から、取得の下限・ダイジェストの下限・止める id・7 日の印を決める。 */
-function walkStart(boundary: InputBoundary | null, restoration: "restored" | "empty" | "unavailable", startupWallMs: number): WalkStart {
+/**
+ * P3-REC-AC02 (2)(3): restored の返信の境界から、取得の下限・ダイジェストの下限・止める id・7 日の印を決める。
+ * windowMs は unit の N2 の窓で、取得の下限だけを替える（ダイジェストの下限と 7 日の印は 7 日のまま、P3-REC-AC02 (8)）。
+ */
+function walkStart(boundary: InputBoundary | null, restoration: "restored" | "empty" | "unavailable", startupWallMs: number,
+  windowMs = WINDOW_MS): WalkStart {
   const windowFromMs = startupWallMs - WINDOW_MS;
   const known = restoration !== "restored" || boundary == null ? null
     : boundary.dmdataTime != null ? { atMs: boundary.dmdataTime, marginMs: DMDATA_MARGIN_MS }
       : boundary.receivedAt?.basis === "verified" ? { atMs: boundary.receivedAt.wallTimeMs, marginMs: RECEIVED_MARGIN_MS } : null;
   return {
-    fetchFromMs: Math.max(known == null ? -Infinity : known.atMs - known.marginMs, windowFromMs),
+    fetchFromMs: Math.max(known == null ? -Infinity : known.atMs - known.marginMs, startupWallMs - windowMs),
     digestAfterMs: Math.max(known?.atMs ?? -Infinity, windowFromMs),
     stopAtId: restoration === "restored" ? boundary?.dmdataId ?? null : null,
     // 起点が分からないか、余白を引いた下限を 7 日で実際に切ったら「7 日より前は取り直していない」（P3-REC-AC15 (1)、統合担当の決め r1）。
@@ -103,21 +124,59 @@ function walkStart(boundary: InputBoundary | null, restoration: "restored" | "em
 /** 起動時の辿りの計画。購読している区分の型だけで束を作り、型を 1 つも持たない unit は入れない（P3-REC-AC02 (6)）。 */
 function startupPlan(classifications: readonly DmdataClassification[], restored: Readonly<Partial<Record<RuntimeUnitId, Restored>>>,
   startupWallMs: number): Readonly<{ plan: readonly UnitWalk[]; starts: Readonly<Partial<Record<RuntimeUnitId, WalkStart>>> }> | null {
-  const plan: UnitWalk[] = [];
   const starts: Partial<Record<RuntimeUnitId, WalkStart>> = {};
   for (const unit of WALK_ORDER) {
+    const from = restored[unit];
+    starts[unit] = walkStart(from?.boundary ?? null, from?.restoration ?? "unavailable", startupWallMs, windowOf(unit));
+  }
+  const plan = recoveryPlan(classifications, starts, WALK_ORDER);
+  return plan.length === 0 ? null : { plan, starts: Object.fromEntries(plan.map(({ unit }) => [unit, starts[unit]])) };
+}
+
+/** 【発注 3】run の中のきっかけの起点（P3-REC-AC02 (7)）。境界は InputBoundaries.boundary(unit)（穴があれば穴の直前）で、余白と id は (2)(3) と同じ。 */
+function recoveryStart(boundary: InputBoundary | null, nowWallMs: number, windowMs: number): WalkStart {
+  return walkStart(boundary, "restored", nowWallMs, windowMs);
+}
+
+/** 起点を広げる（AC02 (7)）。下限は古い方で、2 つの起点が違えば止める id は使わない（片方の id で止まると古い方の範囲を覆わない）。 */
+function widerStart(left: WalkStart | null, right: WalkStart): WalkStart {
+  if (left == null || left === right) return right;
+  return { ...left.fetchFromMs <= right.fetchFromMs ? left : right, fetchFromMs: Math.min(left.fetchFromMs, right.fetchFromMs),
+    stopAtId: left.fetchFromMs === right.fetchFromMs && left.stopAtId === right.stopAtId ? left.stopAtId : null };
+}
+
+/** unit の部分集合の辿りの計画（startupPlan と同じ束）。購読している区分の型を 1 つも持たない unit と、起点の無い unit は入れない（P3-REC-AC02 (6)）。 */
+function recoveryPlan(classifications: readonly DmdataClassification[], starts: Readonly<Partial<Record<RuntimeUnitId, WalkStart>>>,
+  units: readonly RuntimeUnitId[]): readonly UnitWalk[] {
+  const plan: UnitWalk[] = [];
+  for (const unit of WALK_ORDER) {
+    const start = starts[unit];
+    if (!units.includes(unit) || start == null) continue;
     // 束は unit 表の ready の型のうち購読している区分のものだけ（契約に無い区分の一覧は 401 になる、レビュー R1）。
     const types = [...rowsByHeadType].filter(([type, row]) => row.status === "ready" && row.unit === unit
       && classifications.some((item) => item === familyFor(type))).map(([type]) => type);
     if (types.length === 0) continue;
-    const from = restored[unit];
-    const start = walkStart(from?.boundary ?? null, from?.restoration ?? "unavailable", startupWallMs);
-    starts[unit] = start;
     const bundles: string[][] = [];
     for (let at = 0; at < types.length; at += BUNDLE_TYPES) bundles.push(types.slice(at, at + BUNDLE_TYPES));
     plan.push({ unit, bundles, fetchFromMs: start.fetchFromMs, stopAtId: start.stopAtId });
   }
-  return plan.length === 0 ? null : { plan, starts };
+  return plan;
+}
+
+/**
+ * N2 の型の頭を、最新だけで足りる型は subject（運用区分と EventID）ごとに最新の 1 件に絞り、古い順に並べる（P3-REC-AC12・RES-03）。
+ * EventID の無い頭は絞らない。本文を流す unit の外は空。
+ */
+function bodiesFor(unit: RuntimeUnitId, heads: readonly ListHead[]): readonly ListHead[] {
+  if (!recoverable(unit)) return [];
+  const latest = new Map<string, ListHead>();
+  for (const head of heads) {
+    if (!bodyType(unit, head.headType)) continue;
+    const key = head.eventId == null ? `#${head.id}` : `${head.operation}/${head.headType}/${head.eventId}`;
+    const found = latest.get(key);
+    if (found == null || head.receivedAtMs > found.receivedAtMs) latest.set(key, head);
+  }
+  return [...latest.values()].sort((left, right) => left.receivedAtMs - right.receivedAtMs);
 }
 
 function pause(ms: number, signal: AbortSignal): Promise<void> {
@@ -154,6 +213,71 @@ class ListRequestLane {
     });
     this.running = sent.catch(() => {});
     return sent;
+  }
+}
+
+/**
+ * 【発注 3】本文の要求の待ち（P3-REC-AC03 (9)・RES-05）。本文は一覧と別の枠（data.api.dmdata.jp）なので run に 1 つを別に持つ。
+ * 1 本ずつ、前の要求の終わりから 7.5 秒・429 の Retry-After（無ければ 1 秒から倍々）の遅い方まで待つ。ListRequestLane と同じ形。
+ * 無いと: 本文の要求が 5 分 40 回を越えて dmdata の枠を食い、同じ回線の他の取得を止める。
+ */
+class BodyRequestLane {
+  notBeforeMonotonicMs = -Infinity;
+  private running: Promise<unknown> = Promise.resolve();
+  private backoffMs = BACKOFF_MS;
+
+  request(apiKey: string, id: string, signal: AbortSignal, now: () => number): Promise<BodyResult> {
+    const sent = this.running.then(async (): Promise<BodyResult> => {
+      const waitMs = this.notBeforeMonotonicMs - now();
+      if (waitMs > 0) await pause(waitMs, signal);
+      if (signal.aborted) return { kind: "lost" };
+      const answer = await exchange("GET", `/${id}`, apiKey, signal, undefined, BODY_TARGET);
+      // 8 MiB を越える本文は断る（lost と分け、再試行しない、P3-REC-AC01）。
+      const result: BodyResult = answer.kind === "tooLarge" ? { kind: "failed" } : answer.kind !== "answered" ? { kind: "lost" }
+        : answer.status === 401 || answer.status === 403 ? { kind: "authRejected" }
+          : answer.status === 429 ? { kind: "throttled", retryAfterMs: answer.retryAfter }
+            // 旧築 rest-client.ts と同じく XML を名乗る応答だけを本文にする（P3-REC-AC01）。
+            : answer.status < 200 || answer.status >= 300 || !/^(application|text)\/xml\b/i.test(answer.contentType?.trim() ?? "") ? { kind: "failed" }
+              : { kind: "ok", bytes: answer.bytes, contentType: answer.contentType! };
+      const after = result.kind === "throttled" ? result.retryAfterMs ?? this.backoffMs : 0;
+      this.backoffMs = result.kind === "throttled" && result.retryAfterMs == null ? this.backoffMs * 2 : BACKOFF_MS;
+      this.notBeforeMonotonicMs = Math.max(this.notBeforeMonotonicMs, now() + Math.max(BODY_GAP_MS, after));
+      return result;
+    });
+    this.running = sent.catch(() => {});
+    return sent;
+  }
+}
+
+/**
+ * 本文 1 件の取得（P3-REC-AC01・AC03 (4)(7)）。id は英数字だけ（一覧の url は headOf で確かめた）。lost は 1 回だけ、429 は 3 回まで
+ * lane の待ちで再試行し、再試行の合計 30 秒は send と同じく呼び手の時計 now の経過時間で数える（要求の前と応答の後で比べ、timer の abort は
+ * 早く切るための手段）。期限の後に揃った応答は採らない。再試行も本文の間隔（lane）と枠（呼び手の RES-01）に数える。
+ */
+async function fetchBody(lane: BodyRequestLane, apiKey: string, head: ListHead, signal: AbortSignal, now: () => number): Promise<BodyResult> {
+  if (!BODY_ID.test(head.id)) return { kind: "failed" };
+  const started = now();
+  const deadline = new AbortController();
+  const expire = () => deadline.abort();
+  const timer = setTimeout(expire, RETRY_BUDGET_MS);
+  signal.addEventListener("abort", expire);
+  const expired = () => deadline.signal.aborted || now() - started >= RETRY_BUDGET_MS;
+  let retriedLost = false, throttled = false;
+  try {
+    for (let retry = 0; ; retry += 1) {
+      if (signal.aborted) return { kind: "lost" };
+      if (expired()) return throttled ? { kind: "throttled", retryAfterMs: null } : { kind: "failed" };
+      const result = await lane.request(apiKey, head.id, deadline.signal, now);
+      if (signal.aborted) return { kind: "lost" };
+      throttled ||= result.kind === "throttled";
+      if (expired()) return throttled ? { kind: "throttled", retryAfterMs: null } : { kind: "failed" };
+      if (result.kind === "lost" && !retriedLost) { retriedLost = true; continue; }
+      if (result.kind === "throttled" && retry < RETRY_LIMIT && lane.notBeforeMonotonicMs - started <= RETRY_BUDGET_MS) continue;
+      return result;
+    }
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", expire);
   }
 }
 
@@ -223,6 +347,7 @@ async function walkList(lane: ListRequestLane, apiKey: string, plan: readonly Un
         }
         if (page.kind === "failed") { failed = "fetchFailed"; break bundles; }
         listedPages += 1;
+        if (page.refused.includes(unit)) { failed = "fetchFailed"; break bundles; }
         let reached = false;
         for (const head of page.heads) {
           if (head.id === walk.stopAtId) stopAtMs = head.receivedAtMs;
@@ -260,6 +385,8 @@ async function pollClassification(lane: ListRequestLane, apiKey: string, classif
   const reached = { token: first.nextPooling, latestRawReceivedAtMs: first.latestRawReceivedAtMs ?? position?.latestRawReceivedAtMs ?? null };
   if (position?.token == null) return { kind: "seeded", position: reached };
   const since = position.latestRawReceivedAtMs;
+  // 境界の検査で item を捨てた unit は、その周期は突き合わせない（P3-REC-AC01）。
+  const refused = new Set(first.refused);
   // ページの間に届いた分の重複を id で除く（walkList と同じ扱い、P3-REC-AC02 (3)）。
   const seen = new Set(first.heads.map((head) => head.id));
   const heads = [...first.heads];
@@ -269,9 +396,10 @@ async function pollClassification(lane: ListRequestLane, apiKey: string, classif
     const next = await send(lane, apiKey, { classification, cursorToken: page.nextToken }, signal, now, pages);
     if (next === "limit" || next === "ended" || next.kind !== "ok") return unmatched(next);
     for (const head of next.heads) if (!seen.has(head.id)) { seen.add(head.id); heads.push(head); }
+    for (const unit of next.refused) refused.add(unit);
     page = next;
   }
-  return { kind: "ok", heads: since == null ? heads : heads.filter((head) => head.receivedAtMs > since), position: reached };
+  return { kind: "ok", heads: heads.filter((head) => (since == null || head.receivedAtMs > since) && !refused.has(head.unit)), position: reached };
 }
 
 /** 辿れなかった unit ごとの WARN と、401/403 の 1 件（P3-REC-AC03 (3)(4)・AC04）。API キーと応答本文は載せない。 */
@@ -338,5 +466,6 @@ function buildDigest(results: readonly UnitWalkResult[], starts: Readonly<Partia
   return { digest, utf8Bytes: jsonBytes(digest) };
 }
 
-export { ListRequestLane, buildDigest, listTelegramPage, pollClassification, startupPlan, walkDiagnostics, walkList, walkStart };
+export { BodyRequestLane, ListRequestLane, RECOVERABLE_UNITS, windowOf, bodiesFor, buildDigest, fetchBody, listTelegramPage, pollClassification, recoveryPlan,
+  recoveryStart, startupPlan, walkDiagnostics, walkList, walkStart, widerStart };
 export type { Restored, WalkStart };

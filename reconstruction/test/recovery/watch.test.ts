@@ -15,7 +15,8 @@ import { harnessedRoot, startHarness } from "../execution-split/owner-harness";
 const MINUTE = 60_000;
 const EQ: DmdataClassification = "telegram.earthquake", WX: DmdataClassification = "telegram.weather";
 const head = (id: string, unit: ListHead["unit"] = "U-Q", operation: ListHead["operation"] = "normal"): ListHead => ({ id, unit,
-  headType: unit === "U-Q" ? "VXSE53" : "VPWS50", receivedAtMs: 0, operation, title: "t", headline: null, reportDateTime: null, infoType: null });
+  headType: unit === "U-Q" ? "VXSE53" : "VPWS50", receivedAtMs: 0, operation, title: "t", headline: null, reportDateTime: null, infoType: null, serial: null, eventId: null, controlDateTime: null,
+  controlStatus: "通常" });
 
 describe("P3-REC-T05 acceptance (ledger): the freshness ledger (AC13 (3), RET-02)", () => {
   it("a middle item not received is suspected at its 2 min expiry although the last one matched; received while pending or a reset clears it", () => {
@@ -23,7 +24,7 @@ describe("P3-REC-T05 acceptance (ledger): the freshness ledger (AC13 (3), RET-02
     ledger.received("U-Q", EQ, "last", 100);
     expect(ledger.compare(EQ, [head("middle"), head("last")], 3, 900, 1_000)).toEqual({ unmatched: [] });
     expect(ledger.expire(1_000 + 2 * MINUTE - 1)).toEqual([]);
-    expect(ledger.expire(1_000 + 2 * MINUTE)).toEqual([{ epoch: 3, scope: { unit: "U-Q", kind: "unit", operation: "normal" } }]);
+    expect(ledger.expire(1_000 + 2 * MINUTE)).toEqual([{ epoch: 3, scope: { unit: "U-Q", kind: "unit", operation: "normal" }, oldestReceivedAtMs: 0 }]);
     // 保留の間に受けた報では疑いが立たない。保留の間の切断（reset）でも立たない。
     ledger.compare(EQ, [head("late")], 3, 2_000, 2_000);
     ledger.received("U-Q", EQ, "late", 2_500);

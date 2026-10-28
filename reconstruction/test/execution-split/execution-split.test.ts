@@ -99,12 +99,14 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       checkpointGrant: ["basis", "clock", "grantId", "inputBoundary", "kind", "mode", "retryReason", "sharedMs", "unit"],
       shutdownInput: ["basis", "clock", "kind", "sharedMs"], finalize: ["basis", "clock", "cutoff", "kind", "sharedMs"],
       detail: ["basis", "clock", "detail", "kind", "sharedMs"],
+      recovery: ["basis", "clock", "kind", "phase", "recoveryId", "sharedMs", "unit"],
     };
     const replyKeys: Readonly<Record<OwnerReply["kind"], readonly string[]>> = {
       restored: ["kind", "output", "units"], inputDone: ["decode", "generationRaisedMs", "heap", "inputGenerations", "kind", "marks", "output", "processingStartedMs", "settlement"],
       deadlineDone: ["heap", "kind", "output"], intentUpdateDone: ["adopted", "kind", "output", "requestId"],
       checkpointDone: ["grantId", "grantStartedMs", "kind", "measurements", "output", "result", "unit", "writeCounts"],
       shutdownInputDone: ["kind", "output"], finalizeDone: ["appliedThrough", "kind", "output"], detailDone: ["kind", "response"],
+      recoveryDone: ["kind", "output", "recoveryId", "result", "unit"],
     };
     const outputKeys = ["confirmationEvidence", "diagnostics", "displayChanges", "outcomes", "retiredEvents", "units"];
     const deltaKeys = ["pendingIntents", "persistence", "unit", "view"];

@@ -786,11 +786,13 @@ function readBoundary(record: Readonly<Record<string, unknown>>): Readonly<{ inp
 type MailboxItem = import("../../contracts/p1-parser-boundary.types").ParserMailboxItem;
 type BoundaryPosition = Omit<InputBoundary, "oldestHole">;
 type OldestHole = Readonly<{ from: number; kind: InputHole; before: BoundaryPosition | null }>;
+// recovering・afterStart（P3-REC-D-HOLE-AFTER-START=A）: 取り直しを始めた印と、始めた後に開いた最古の穴（run の中だけ、envelope の形は変えない）。
 type UnitInputs = { tail: Readonly<{ sequence: number; position: BoundaryPosition }> | null;
-  readonly pending: Map<number, BoundaryPosition | null>; oldestHole: OldestHole | null };
+  readonly pending: Map<number, BoundaryPosition | null>; oldestHole: OldestHole | null; recovering: boolean; afterStart: OldestHole | null };
 
 class InputBoundaries {
-  private readonly units = new Map<UnitId, UnitInputs>(runtimeUnits.map((unit) => [unit, { tail: null, pending: new Map(), oldestHole: null }]));
+  private readonly units = new Map<UnitId, UnitInputs>(runtimeUnits.map((unit) => [unit, { tail: null, pending: new Map(), oldestHole: null,
+    recovering: false, afterStart: null }]));
 
   // mailbox が受けた入力。basis は host が frame の entry を読んだ時点の根拠で、受信時刻と一緒に運ぶ（K9 の前は null、AC06）。
   queued(item: MailboxItem, basis: WallBasis | null): void {
@@ -835,6 +837,30 @@ class InputBoundaries {
     return before == null ? null : { ...before, oldestHole: hole?.kind ?? null };
   }
 
+  // P3-REC-AC19・D-HOLE-AFTER-START: 取り直しを始めた（一覧を引き始めた）。これより後に開いた穴は解決の対象にしない。atSequence は範囲の終わりで、
+  // 穴の区別は開いた時で行う（切断の穴の from は次の入力の番号なので、番号では始めた前後を分けられない）。
+  recoveryStarted(unit: UnitId, atSequence: number): void {
+    if (!Number.isSafeInteger(atSequence)) throw new RangeError("invalid recovery start");
+    const record = this.units.get(unit)!;
+    record.recovering = true;
+    record.afterStart = null;
+  }
+
+  // P3-REC-AC19 (2)(3)(5): 採用で覆った区間の穴を解き、始めた後に開いた穴を最古の穴へ繰り上げる。解決した位置は自分の受信時刻が null で
+  // dmdata 側の時刻か電文 id を持つ境界（両方 null の位置は置かない）。受信末尾がそれより前なら末尾にする。
+  resolve(unit: UnitId, throughSequence: number, position: BoundaryPosition): void {
+    const record = this.units.get(unit)!;
+    if (!record.recovering) return;
+    record.oldestHole = record.afterStart;
+    record.recovering = false;
+    record.afterStart = null;
+    if (position.dmdataTime == null && position.dmdataId == null) return;
+    if (record.tail == null || record.tail.sequence <= throughSequence) record.tail = { sequence: throughSequence, position };
+  }
+
+  // P3-REC-AC19・AC09（統合担当の決め）: 解決の後にも穴が残る unit には確認を出さない（境界の位置が null でも穴を見る）。
+  hasHole(unit: UnitId): boolean { return this.units.get(unit)!.oldestHole != null; }
+
   // 振り分け先の無い入力（ignored・notPorted・unlisted）と取り直しの入力（origin=recovery）は列に入れない。
   private routed(item: MailboxItem): UnitInputs | null {
     const route = classifyHeadType(item.headType);
@@ -847,7 +873,9 @@ class InputBoundaries {
   }
 
   private hole(record: UnitInputs, sequence: number, kind: InputHole): void {
-    record.oldestHole ??= { from: sequence, kind, before: record.tail?.position ?? null };
+    const opened = { from: sequence, kind, before: record.tail?.position ?? null };
+    record.oldestHole ??= opened;
+    if (record.recovering) record.afterStart ??= opened;
   }
 }
 

@@ -16,6 +16,11 @@ export type ListHead = Readonly<{
   headline: string | null;
   reportDateTime: string | null;
   infoType: string | null;
+  // 【発注 3】本文の照合と入力の根拠（P3-REC-AC01・AC05 の (a)）。controlStatus は control.status の生の値で、ingress の根拠の検査へ渡す。
+  serial: string | null;
+  eventId: string | null;
+  controlDateTime: string | null;
+  controlStatus: string;
 }>;
 
 // types は 1 つの unit の型だけの束（1〜5、P3-REC-D-LIST-QUERY）。cursorToken は前の応答の nextToken をそのまま渡す。
@@ -26,8 +31,9 @@ export type ListQuery =
 
 export type ListPage =
   // rawCount・oldest/latestRawReceivedAtMs は濾す前の item で数える（dmdata の時刻）。満杯・遡りの止めどころ・位置はこの生の値で決める（P3-REC-AC13 (2)）。
+  // refused は本文を流す型の item を境界の検査（url・id の文字）で捨てた unit（その回は fetchFailed、H41 ではその周期に突き合わせない、P3-REC-AC01）。
   | Readonly<{ kind: "ok"; heads: readonly ListHead[]; nextToken: string | null; nextPooling: string | null; nextPoolingInterval: number | null;
-      rawCount: number; oldestRawReceivedAtMs: number | null; latestRawReceivedAtMs: number | null }>
+      rawCount: number; oldestRawReceivedAtMs: number | null; latestRawReceivedAtMs: number | null; refused: readonly RuntimeUnitId[] }>
   | Readonly<{ kind: "failed" }>
   | Readonly<{ kind: "authRejected" }>
   | Readonly<{ kind: "throttled"; retryAfterMs: number | null }>;
@@ -70,3 +76,17 @@ export type PollResult =
 
 // 切れていた間の EEW の札（H28）。両端は host の wall（P3-REC-AC14 (1)）。
 export type EewWindowCard = Readonly<{ fromWallMs: number; toWallMs: number }>;
+
+// 【発注 3】本文の 1 回の取得（GET data.api.dmdata.jp/v1/{id}、P3-REC-AC01）。bytes は受けたままで text に復号しない。
+export type BodyResult =
+  | Readonly<{ kind: "ok"; bytes: Uint8Array; contentType: string }>
+  | Readonly<{ kind: "failed" }>
+  | Readonly<{ kind: "lost" }>
+  | Readonly<{ kind: "authRejected" }>
+  | Readonly<{ kind: "throttled"; retryAfterMs: number | null }>;
+
+// 【発注 3】unit ごとの取り直しの進み具合（P3-REC-AC11）。reason は unsatisfied のときだけ。
+export type RecoveryUnsatisfiedReason = "fetchFailed" | "baseMissing" | "clockEvidenceMissing" | "generationConflict" | "recoveryLimit" | "authRejected"
+  | "ownerStopped";
+export type RecoveryProgressUnit = Readonly<{ unit: RuntimeUnitId; state: "running" | "recovered" | "notRecovered" }>
+  | Readonly<{ unit: RuntimeUnitId; state: "unsatisfied"; reason: RecoveryUnsatisfiedReason }>;

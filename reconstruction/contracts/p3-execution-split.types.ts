@@ -75,7 +75,20 @@ export type OwnerRequest = SentClock & (
   // deadlines up to it are applied, later ones are not. Owners apply deadlines only while handling a request.
   // If the stage deadline passes before every earlier reply arrives, no cutoff is decided and finalizationAt stays null.
   | Readonly<{ kind: "finalize"; cutoff: ClockReading }>
+  // P3-RECOVERY-001【発注 3】: 1 unit の取り直しの候補（P3-REC-D-CANDIDATE-PLACE=A）。recoveryId は始めた時の epoch を結ぶ（P3-REC-AC07）。
+  // 同じ owner に同時に 1 件（P3-C3A-AC15 の未回答 1 件）。候補の本文は origin=recovery の input で別に届く。
+  | Readonly<{ kind: "recovery"; recoveryId: string; unit: RuntimeUnitId; phase: "open" | "adopt" | "discard" }>
 );
+
+// P3-REC-AC06 (b): 候補の下で owner が見た本文ごとの結果（operation は載せず、publisher が自分の本文の表で突き合わせる）。
+// held: unit が取り直しの本文の版を決められず採らなかった（作者裁定 2026-10-28 午後。採用の確認を止める）。
+export type RecoveryInputResult = Readonly<{ inputSequence: number; result: "adopted" | "capacityExceeded" | "unreadableReport" | "unreadable" | "held" }>;
+export type RecoveryOutcome =
+  | Readonly<{ kind: "opened" }>
+  | Readonly<{ kind: "discarded" }>
+  | Readonly<{ kind: "adopted"; generation: number; inputs: readonly RecoveryInputResult[] }>
+  | Readonly<{ kind: "generationConflict" }>
+  | Readonly<{ kind: "unsatisfied"; reason: "baseMissing" | "clockEvidenceMissing" }>;
 
 // The publisher's bounded mirror entry for one unit. Sent only for units this step changed.
 export type OwnerUnitDelta = Readonly<{
@@ -125,4 +138,5 @@ export type OwnerReply =
   | Readonly<{ kind: "shutdownInputDone"; output: OwnerOutput }>
   | Readonly<{ kind: "finalizeDone"; appliedThrough: ClockReading; output: OwnerOutput }>
   // P3-UFP-AC07: U-F の詳細の 1 ページ。owner は state も期限も動かさないので output を持たない。
+  | Readonly<{ kind: "recoveryDone"; recoveryId: string; unit: RuntimeUnitId; result: RecoveryOutcome; output: OwnerOutput }>
   | Readonly<{ kind: "detailDone"; response: import("./p2-weather-timeseries-unit.types").WeatherTimeseriesDetailResponse }>;

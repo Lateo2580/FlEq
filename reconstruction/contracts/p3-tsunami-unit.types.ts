@@ -120,17 +120,19 @@ export type TsunamiObservationSubject = Readonly<{
 }>;
 
 // Both channels carry the same owner-generated payload; A7 maps domain/level to the sound and the priority group.
-export type TsunamiNotificationPayload = Readonly<{
+// P3-REC-AC10・AC12（C16 発注 3）: 取り直しで拾った引上げ（H27）は発表時刻（元報の ReportDateTime の生の値）と「取り直しで拾った」印を持つ。
+type TsunamiPayloadBase = Readonly<{
   domain: "tsunami";
   level: "info" | "normal" | "warning" | "critical" | "cancel";
   title: string;
   body: string;
 }>;
+export type TsunamiNotificationPayload = TsunamiPayloadBase | (TsunamiPayloadBase & Readonly<{ reportDateTime: string; recovered: true }>);
 
 export type TsunamiIntent = NotificationIntent & Readonly<{ payload: TsunamiNotificationPayload }>;
 
 export type TsunamiUnitState = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v7";
+  schemaVersion: "p3-tsunami-unit-v8";
   contentRevision: number;
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
@@ -141,7 +143,7 @@ export type TsunamiUnitState = Readonly<{
 }>;
 
 export type PersistedTsunamiUnit = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v7";
+  schemaVersion: "p3-tsunami-unit-v8";
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
   intents: readonly TsunamiIntent[];
@@ -181,5 +183,5 @@ export type TsunamiUnitStep = Readonly<{
 }>;
 
 export type TsunamiUnitCodec = UnitCodec<TsunamiUnitState, PersistedTsunamiUnit> & Readonly<{
-  schemaVersion: "p3-tsunami-unit-v7";
+  schemaVersion: "p3-tsunami-unit-v8";
 }>;

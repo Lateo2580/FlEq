@@ -14,23 +14,31 @@ const NORMAL_BYTE_LIMIT = 14 * 1024 * 1024;
 const RESERVED_ITEM_LIMIT = 8;
 const RESERVED_BYTE_LIMIT = 2 * 1024 * 1024;
 const DIAGNOSTIC_ITEM_LIMIT = 64;
+// P3-REC-AC03 (2)・RES-01: 取り直しの本文（origin=recovery）の枠。全体の上限の外で数え、live の受理と overload の判定に入れない
+// （無いと 8 MiB×2 件で全体の 16 MiB が埋まり、host が WebSocket を切って EEW の受信も止まる）。
+const REST_ITEM_LIMIT = 2;
+const REST_BYTE_LIMIT = 2 * 8 * 1024 * 1024;
 
 type Entry = {
   readonly envelope: MailboxEnvelope;
   readonly bytes: number;
-  readonly allocation: "normal" | "reserved";
+  readonly allocation: "normal" | "reserved" | "rest";
   // P3-C3A-AC03: decided at enqueue from headType.
   readonly place: ExecutionPlace;
   dispatchedAt: number | null;
 };
 
 function allocation(envelope: MailboxEnvelope): Entry["allocation"] {
+  // P3-REC-AC03 (8): 枠は origin で決め、priorityReason を見ない（VTSE41 の tsunamiCandidate を予約の枠へ入れない）。
+  if (envelope.payload.item.origin === "recovery") return "rest";
   const classification = operation(envelope);
   return envelope.priorityReason !== "normal" && (classification === "normal" || classification === "unknown")
     ? "reserved" : "normal";
 }
 
 function priority(entry: Entry): number {
+  // REST の本文は live より後に取り出す（P3-REC-AC03 (2)）。
+  if (entry.allocation === "rest") return 4;
   const classification = operation(entry.envelope);
   if (classification !== "normal" && classification !== "unknown") return 3;
   if (entry.envelope.priorityReason === "eewCandidate") return 1;
@@ -90,12 +98,13 @@ class Mailbox {
 
     const bytes = envelope.payload.item.encodedByteLength;
     if (!Number.isSafeInteger(bytes) || bytes < 0) return this.reject("byteLimit", envelope.enqueuedMonotonicMs);
-    const all = this.entries();
     const entry: Entry = { envelope, bytes, allocation: allocation(envelope), dispatchedAt: null,
       place: placeOfHeadType(envelope.payload.item.headType) };
-    const lane = all.filter((candidate) => candidate.allocation === entry.allocation);
-    const laneItemLimit = entry.allocation === "normal" ? NORMAL_ITEM_LIMIT : RESERVED_ITEM_LIMIT;
-    const laneByteLimit = entry.allocation === "normal" ? NORMAL_BYTE_LIMIT : RESERVED_BYTE_LIMIT;
+    const lane = [...this.pending, ...this.parserInFlight.values()].filter((candidate) => candidate.allocation === entry.allocation);
+    // REST の枠は全体の上限の外（P3-REC-AC03 (2)）。
+    const all = entry.allocation === "rest" ? [] : this.entries();
+    const laneItemLimit = entry.allocation === "normal" ? NORMAL_ITEM_LIMIT : entry.allocation === "rest" ? REST_ITEM_LIMIT : RESERVED_ITEM_LIMIT;
+    const laneByteLimit = entry.allocation === "normal" ? NORMAL_BYTE_LIMIT : entry.allocation === "rest" ? REST_BYTE_LIMIT : RESERVED_BYTE_LIMIT;
     if (all.length + 1 > ITEM_LIMIT || lane.length + 1 > laneItemLimit) return this.reject("itemLimit", envelope.enqueuedMonotonicMs);
     if (this.bytes(all) + bytes > BYTE_LIMIT || this.bytes(lane) + bytes > laneByteLimit) return this.reject("byteLimit", envelope.enqueuedMonotonicMs);
 
@@ -112,6 +121,11 @@ class Mailbox {
     for (let index = 0; index < this.pending.length; index += 1) {
       const entry = this.pending[index];
       const { envelope } = entry;
+      // REST の本文は live の取り出しを止めない（同じ headType の順の判定に入れない、P3-REC-AC03 (2)）。
+      if (entry.allocation === "rest") {
+        if (!this.parserInFlight.has(entry.place) && priority(entry) < selectedPriority) { selected = index; selectedPriority = priority(entry); }
+        continue;
+      }
       const eligible = !this.parserInFlight.has(entry.place) && !blockedByEarlier(seen, envelope);
       const { headType } = envelope.payload.item;
       const operations = seen.get(headType) ?? new Set<string>();
@@ -189,14 +203,17 @@ class Mailbox {
   }
 
   stats(nowMonotonicMs: number): MailboxStats {
-    const pendingBytes = this.bytes(this.pending);
-    const inFlight = [...this.parserInFlight.values()];
-    const all = [...this.pending, ...inFlight];
-    const pendingOldest = this.oldest(this.pending, nowMonotonicMs);
+    // P3-REC-AC03 (8): REST の枠の本文は pendingItems に数えない（overload の後の再接続を本文が引き止めない）。
+    const live = this.pending.filter((entry) => entry.allocation !== "rest");
+    const pendingBytes = this.bytes(live);
+    // P3-REC-AC03 (8): 処理中の REST の本文も数えない（overload の後の再接続〔resumeIfDrained〕が本文の処理を待たない）。
+    const inFlight = [...this.parserInFlight.values()].filter((entry) => entry.allocation !== "rest");
+    const all = [...live, ...inFlight];
+    const pendingOldest = this.oldest(live, nowMonotonicMs);
     const incompleteOldest = this.oldest(all, nowMonotonicMs);
     return {
       accepting: this.accepting,
-      pendingItems: this.pending.length,
+      pendingItems: live.length,
       pendingBytes,
       inFlightItems: inFlight.length,
       inFlightBytes: this.bytes(inFlight),
@@ -269,9 +286,10 @@ class Mailbox {
       component, reason, count: 1, ...(durationMs == null ? {} : { durationMs }) });
   }
 
+  // live の上限で数える項目（REST の枠を除く）。
   private entries(): Entry[] {
     // ponytail: the declared 128-item ceiling makes a scan safer than mirrored counters.
-    return [...this.pending, ...this.parserInFlight.values()];
+    return [...this.pending, ...this.parserInFlight.values()].filter((entry) => entry.allocation !== "rest");
   }
 
   private bytes(entries: readonly Entry[]): number {
@@ -295,7 +313,8 @@ class Mailbox {
     this.highWaterBytes = Math.max(this.highWaterBytes, this.bytes(all));
     const normal = all.filter((entry) => entry.allocation === "normal");
     const reserved = all.filter((entry) => entry.allocation === "reserved");
-    if (all.length > ITEM_LIMIT || this.bytes(all) > BYTE_LIMIT
+    const rest = [...this.pending, ...this.parserInFlight.values()].filter((entry) => entry.allocation === "rest");
+    if (rest.length > REST_ITEM_LIMIT || this.bytes(rest) > REST_BYTE_LIMIT || all.length > ITEM_LIMIT || this.bytes(all) > BYTE_LIMIT
       || normal.length > NORMAL_ITEM_LIMIT || this.bytes(normal) > NORMAL_BYTE_LIMIT
       || reserved.length > RESERVED_ITEM_LIMIT || this.bytes(reserved) > RESERVED_BYTE_LIMIT) {
       this.limitViolations += 1;

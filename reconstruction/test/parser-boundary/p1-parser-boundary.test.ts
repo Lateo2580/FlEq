@@ -19,7 +19,10 @@ const api = { ingestXmlData, decodeMaterial, classifyMaterial };
 const context = { inputId: "test", inputSequence: 1, receivedAt: 0, origin: "replay" as const };
 const base = "<Report><Control><Status>通常</Status></Control><Head><EventID>001</EventID><Serial>02</Serial></Head><Body/></Report>";
 function ingress(body: string | Uint8Array, kind: "replay" | "rest" = "replay") {
-  return ingestXmlData({ ...context, kind, headType: "VPWS50", body: typeof body === "string" ? Buffer.from(body) : body });
+  const bytes = typeof body === "string" ? Buffer.from(body) : body;
+  // P3-REC-AC05: REST の入力は一覧の item の head.test・control.status・id を持つ（replay は今の形）。
+  return ingestXmlData(kind === "rest" ? { ...context, kind, headType: "VPWS50", body: bytes, headTest: false, controlStatus: "通常", dmdataId: "test" }
+    : { ...context, kind, headType: "VPWS50", body: bytes });
 }
 // P3-WL2-T03: 木を作ったかは parseTimes.endedMs で読む（受理で値、事前拒否で null。旧は XMLParser.parse の回数で数えた）。
 function parseTimes(): { startedMs: number | null; endedMs: number | null } { return { startedMs: null, endedMs: null }; }
@@ -172,9 +175,11 @@ it("P1-T06 contractBoundary / AC11-13,15: all values/presences, B03 origins, and
     expect(result).toMatchObject(reason == null ? { kind: "resolved", operation: real[0] } : { kind: "rejected", reason });
   }
   for (const origin of ["live", "recovery", "replay"] as const) {
-    const entered = origin === "live" ? ingestXmlData({ ...context, origin, kind: "ws", frame: envelope(Buffer.from(base)) }) : ingestXmlData({ ...context, origin, kind: origin === "recovery" ? "rest" : "replay", body: Buffer.from(base), headType: "VPWS50" });
+    const entered = origin === "live" ? ingestXmlData({ ...context, origin, kind: "ws", frame: envelope(Buffer.from(base)) }) : origin === "recovery"
+      ? ingestXmlData({ ...context, origin, kind: "rest", body: Buffer.from(base), headType: "VPWS50", headTest: false, controlStatus: "通常", dmdataId: "test" })
+      : ingestXmlData({ ...context, origin, kind: "replay", body: Buffer.from(base), headType: "VPWS50" });
     if (entered.kind !== "accepted") throw Error("ingress");
-    expect(entered.item.headTest.kind).toBe(origin === "live" ? "provided" : "notProvided");
+    expect(entered.item.headTest.kind).toBe(origin === "replay" ? "notProvided" : "provided");
     expect(decodeMaterial(entered.item)).toMatchObject({ kind: "decoded", material: { origin, operation: "normal" } });
   }
   for (const value of ["toString", "__proto__", "constructor"]) {

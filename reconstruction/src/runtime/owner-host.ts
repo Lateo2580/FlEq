@@ -1,14 +1,14 @@
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 
-import type { ParserMailboxResult, ProcessingMarks } from "../../contracts/p1-parser-boundary.types";
+import type { ParserMailboxItem, ParserMailboxResult, ProcessingMarks } from "../../contracts/p1-parser-boundary.types";
 import type { UnitTable } from "../../contracts/p3-unit-table.types";
 import type { CheckpointMeasurement } from "../../contracts/p2-eew-e01.types";
 import type {
-  OwnerHeap, OwnerOutput, OwnerReply, OwnerRequest, OwnerStartData, OwnerUnitDelta, SentClock,
+  OwnerHeap, OwnerOutput, OwnerReply, OwnerRequest, OwnerStartData, OwnerUnitDelta, RecoveryInputResult, SentClock,
 } from "../../contracts/p3-execution-split.types";
 import type {
-  CheckpointResult, ClockReading, DiagnosticEvent, NotificationIntent, RestoreUnitResult, RuntimeUnitId,
+  CheckpointResult, ClockReading, CurrentConfirmationEvidence, DiagnosticEvent, NotificationIntent, RestoreUnitResult, RuntimeUnitId,
   RuntimeUnitStates, RuntimeUnitView, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
 import { CheckpointCoordinator } from "../checkpoint/checkpoint";
@@ -17,10 +17,12 @@ import { decodeMaterial } from "../decode-material/decode-material";
 import { countedCheckpointFileSystem, writeCounters } from "./composition-root";
 import type { WriteCounters } from "./composition-root";
 import {
-  capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, intentUpdateOwner, ownerViews, placeUnits,
-  receiveOwner, refreshedViews, restoreOwner, shutdownInputOwner,
+  adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, intentUpdateOwner, ownerViews, placeUnits,
+  receiveOwner, recoveryResult, refreshedViews, restoreOwner, sameBase, shutdownInputOwner,
 } from "./owner-runtime";
 import type { OwnerState, OwnerStep } from "./owner-runtime";
+import { completeDiagnostic } from "./runtime-diagnostic";
+import { classifyHeadType } from "./unit-coverage";
 
 type OwnerHostOptions = Readonly<{
   start: OwnerStartData;
@@ -46,6 +48,17 @@ function threadHeap(): OwnerHeap {
 }
 
 const ledgerLimit = 4096;
+// P3-REC-RES-08: owner が持つ候補 1 つの本文（受けた bytes）。越えた候補は基点が変わったら作り直さずに generationConflict（置き値）。
+const CANDIDATE_BYTES = 16 * 1024 * 1024;
+
+// P3-REC-AC05・AC07: 開いている取り直しの候補。shadow は base（開いた時の live）から本文を当てた owner の state で、live には触れない。
+// items は基点が変わったときに当て直すために持つ本文（RES-08 の内だけ）。diagnostics と負の証拠は採否が決まるまで出さない（P3-REC-AC06）。
+type Candidate = {
+  readonly recoveryId: string; readonly unit: RuntimeUnitId; readonly base: OwnerState; readonly open: OwnerState;
+  shadow: OwnerState; readonly items: ParserMailboxItem[]; bytes: number; overflow: boolean;
+  results: Map<number, RecoveryInputResult["result"]>; diagnostics: DiagnosticEvent[]; evidence: CurrentConfirmationEvidence[];
+  readonly inputIds: string[];
+};
 
 class OwnerHost {
   private state: OwnerState | null = null;
@@ -66,6 +79,8 @@ class OwnerHost {
   // P3-C4-WRITE-COUNT: 測定の印があるときだけ、注入された filesystem を数える包みで使う（印が無ければ包みも counter も作らない）。
   private readonly writeCounts: WriteCounters | null;
   private readonly fileSystem: CheckpointFileSystem;
+  // P3-REC-AC05: 1 回に候補は 1 つ（spec:2211）。採否が決まる・捨てる・shutdownInput で外す。
+  private candidate: Candidate | null = null;
 
   constructor(private readonly options: OwnerHostOptions) {
     this.own = placeUnits(options.start.place);
@@ -95,6 +110,7 @@ class OwnerHost {
         const processingStartedMs = this.measured();
         const { envelope } = request;
         const { item } = envelope.payload;
+        if (item.origin === "recovery") { this.recoveryInput(request, switched); return; }
         const parseTimes: { startedMs: number | null; endedMs: number | null } | undefined =
           this.options.start.measured ? { startedMs: null, endedMs: null } : undefined;
         const decodeStarted = this.measured();
@@ -132,6 +148,8 @@ class OwnerHost {
       }
       case "checkpointGrant": this.grant(request); return;
       case "shutdownInput": {
+        // P3-REC-AC05: 停止では開いている候補を採用せずに捨てる。
+        this.candidate = null;
         const step = this.apply(shutdownInputOwner(state, this.business(), this.options.units, request.basis));
         this.options.reply({ kind: "shutdownInputDone", output: this.output([step]) });
         return;
@@ -141,8 +159,85 @@ class OwnerHost {
         this.options.reply({ kind: "finalizeDone", appliedThrough: request.cutoff, output: this.output([step]) });
         return;
       }
+      case "recovery": this.recovery(request); return;
       case "detail": this.options.reply({ kind: "detailDone", response: detailOwner(state, request.detail) }); return; default: { const unknown: never = request; throw new Error(`unknown owner request ${String(unknown)}`); }
     }
+  }
+
+  // P3-REC-AC05: origin=recovery の本文。候補が開いていれば shadow に当て（live・publisher には何も出さない、P3-REC-AC06）、開いていなければ
+  // 適用せずに WARN だけで捨てる（discard や owner の再起動の後に mailbox に残った本文）。どちらも inputDone で mailbox の枠を外す。
+  private recoveryInput(request: Extract<OwnerRequest, { kind: "input" }>, switched: boolean): void {
+    const started = this.business();
+    const processingStartedMs = this.measured();
+    const { envelope } = request;
+    const { item } = envelope.payload;
+    const forced = switched ? this.apply(deadlineOwner(this.state!, started, this.options.units, request.basis, true)) : null;
+    const result = decodeMaterial(item);
+    const clock = this.business();
+    const candidate = this.candidate;
+    const route = classifyHeadType(result.kind === "decoded" ? result.material.headType : item.headType);
+    if (candidate == null || route.status !== "ready" || route.unit !== candidate.unit) {
+      this.diagnostics.push(completeDiagnostic({ level: "WARN", component: "recovery", reason: "recoveryBaseMissing", inputId: item.inputId },
+        clock, this.state!.runId));
+    } else {
+      this.applyCandidate(candidate, item, result, clock, request.basis);
+      // RES-08 の内だけ当て直し用に持つ。越えたら基点が変わったときに作り直さない。
+      if (!candidate.overflow && candidate.bytes + item.encodedByteLength <= CANDIDATE_BYTES) {
+        candidate.items.push(item);
+        candidate.bytes += item.encodedByteLength;
+      } else { candidate.overflow = true; candidate.items.length = 0; }
+    }
+    this.options.reply({ kind: "inputDone", settlement: { kind: "parser", messageId: envelope.messageId, runId: envelope.runId,
+      encodedByteLength: item.encodedByteLength, startedMonotonicMs: started.monotonicMs, completedMonotonicMs: clock.monotonicMs,
+      inputId: item.inputId, inputSequence: item.inputSequence }, processingStartedMs, marks: noMarks, decode: null, heap: null,
+    inputGenerations: null, generationRaisedMs: null, output: this.output(forced == null ? [] : [forced]) });
+  }
+
+  private applyCandidate(candidate: Candidate, item: ParserMailboxItem, result: ParserMailboxResult, clock: ClockReading, basis: WallBasis): void {
+    const completion = { runId: candidate.shadow.runId, inputId: item.inputId, result, headType: item.headType, receivedAt: item.receivedAt };
+    const seen = { held: false };
+    const step = receiveOwner(candidate.shadow, completion, clock, this.options.units, undefined, basis, seen);
+    candidate.shadow = step.state;
+    candidate.results.set(item.inputSequence, recoveryResult(completion, step, seen.held));
+    candidate.diagnostics.push(...step.diagnostics);
+    candidate.evidence.push(...step.confirmationEvidence.filter((evidence) => evidence.source !== "acceptedReport"));
+    candidate.inputIds.push(item.inputId);
+  }
+
+  // P3-REC-AC05・AC07: 候補の要求（open・adopt・discard）。返信は 1 要求に 1 つ（recovery の未回答 1 件）。
+  private recovery(request: Extract<OwnerRequest, { kind: "recovery" }>): void {
+    const state = this.state!;
+    const { recoveryId, unit } = request;
+    const done = (result: Extract<OwnerReply, { kind: "recoveryDone" }>["result"], output: OwnerOutput = this.output([])) =>
+      this.options.reply({ kind: "recoveryDone", recoveryId, unit, result, output });
+    if (request.phase === "open") {
+      if (state.units[unit] == null) throw new Error(`unit ${unit} is not owned here`);
+      this.candidate = { recoveryId, unit, base: state, open: state, shadow: state, items: [], bytes: 0, overflow: false, results: new Map(),
+        diagnostics: [], evidence: [], inputIds: [] };
+      done({ kind: "opened" });
+      return;
+    }
+    const candidate = this.candidate;
+    this.candidate = null;
+    if (request.phase === "discard") { done({ kind: "discarded" }); return; }
+    if (candidate == null || candidate.recoveryId !== recoveryId || candidate.unit !== unit) { done({ kind: "unsatisfied", reason: "baseMissing" }); return; }
+    const clock = this.business();
+    if (!sameBase(state, candidate.base, unit)) {
+      // P3-REC-AC07: 基点が変わった（live の入力・期限・保存）。持っている本文を今の live に当て直す。live の入力は当て直さない。
+      if (candidate.overflow) { done({ kind: "generationConflict" }); return; }
+      const items = [...candidate.items];
+      Object.assign(candidate, { shadow: state, results: new Map(), diagnostics: [], evidence: [] });
+      candidate.inputIds.length = 0;
+      for (const item of items) this.applyCandidate(candidate, item, decodeMaterial(item), clock, request.basis);
+    }
+    const step = adoptRecoveryOwner(state, candidate.shadow, unit, recoveryId, candidate.open, candidate.inputIds, clock, this.options.units, request.basis);
+    // 部分集合の検査に外れた候補は捨てる（P3-REC-D-UNIT-ENTRANCE の共有の検査）。
+    if (step == null) { done({ kind: "generationConflict" }); return; }
+    this.apply(step);
+    const output = this.output([step]);
+    done({ kind: "adopted", generation: this.persistence(unit).currentGeneration,
+      inputs: [...candidate.results].map(([inputSequence, result]) => ({ inputSequence, result })) },
+    { ...output, confirmationEvidence: candidate.evidence, diagnostics: [...candidate.diagnostics, ...output.diagnostics] });
   }
 
   private switchedToVerified(basis: WallBasis): boolean {

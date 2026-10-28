@@ -23,7 +23,7 @@ import type { LandslideUnitView } from "./p3-landslide-unit.types";
 import type { FloodUnitView } from "./p3-flood-unit.types";
 import type { BriefingUnitView } from "./p3-briefing-unit.types";
 import type { LocalBulletinsUnitView } from "./p3-local-bulletins-unit.types";
-import type { TyphoonUnitView } from "./p3-typhoon-unit.types"; import type { EewWindowCard, RecoveryDigestView } from "./p3-recovery.types";
+import type { TyphoonUnitView } from "./p3-typhoon-unit.types"; import type { EewWindowCard, RecoveryDigestView, RecoveryProgressUnit } from "./p3-recovery.types";
 
 export type DisplayVersion = Readonly<{
   streamId: string;
@@ -46,7 +46,9 @@ export type DisplayWorkerView = Readonly<{
 }>;
 
 // P2-A8-AC11: durable restoration is independent of current confirmation. digest は起動時の一覧の頭（P3-REC-AC15、辿らない起動では null）。eewUnverified は切れていた間の EEW の札（P3-REC-AC14、窓は 1 枚）。
-export type DisplayRecoveryView = Readonly<{ restoration: RuntimeRestoration; digest: RecoveryDigestView | null; eewUnverified: EewWindowCard | null }>;
+// progress: unit ごとの取り直しの進み具合（P3-REC-AC11）。辿らない起動は null。
+export type DisplayRecoveryView = Readonly<{ restoration: RuntimeRestoration; digest: RecoveryDigestView | null; eewUnverified: EewWindowCard | null;
+  progress: readonly RecoveryProgressUnit[] | null }>;
 
 export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide" | "flood" | "briefing" | "local-bulletins" | "typhoon";
 export type DisplaySeverity = "none" | "below" | "forecast" | "advisory" | "warning" | "danger" | "specialWarning";

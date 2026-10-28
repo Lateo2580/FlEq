@@ -65,7 +65,7 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
         histories: [], ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: progress("U-W") },
       "U-F": { ...payload("U-F"), schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [],
         intents: [], persistence: progress("U-F") },
-      "U-T": { ...payload("U-T"), schemaVersion: "p3-tsunami-unit-v7", contentRevision: 0, forecasts: [], observations: [],
+      "U-T": { ...payload("U-T"), schemaVersion: "p3-tsunami-unit-v8", contentRevision: 0, forecasts: [], observations: [],
         intents: [], failureMarks: [], persistence: progress("U-T") },
       "U-Q": { ...payload("U-Q"), ...initialUnits["U-Q"], persistence: progress("U-Q") },
       "U-N": { ...payload("U-N"), ...initialUnits["U-N"], persistence: progress("U-N") },

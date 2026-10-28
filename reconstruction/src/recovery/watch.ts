@@ -11,7 +11,7 @@ const UNIT_LIMIT = 4_096; // P3-REC-RET-02: unit ごとの受信済みと保留�
 const EEW_WINDOW_MS = 10 * 60_000; // P3-REC-D-EEW-WINDOW=A: 繋がり直してから札を外すまで
 
 type UnitScope = Extract<ConfirmationScope, { kind: "unit" }>;
-type Pending = Readonly<{ scope: UnitScope; sinceMs: number; epoch: number }>;
+type Pending = Readonly<{ scope: UnitScope; sinceMs: number; epoch: number; receivedAtMs: number }>; // receivedAtMs は一覧の receivedTime（dmdata の時刻）
 
 /**
  * live で受けた電文の id と一覧の id の照合（P3-REC-AC13 (3)・RET-02）。無いと: 繋がったまま一部の報だけ届かない不達（8 日の実例）に気付けない。
@@ -70,7 +70,8 @@ class FreshnessLedger {
     for (const [unit, added] of adding)
       if (marks?.has(unit) || (this.counts.get(unit) ?? 0) + added > UNIT_LIMIT) unmatched.add(unit);
     for (const head of missing.values()) if (!unmatched.has(head.unit)) {
-      this.pending.set(head.id, { scope: { unit: head.unit, kind: "unit", operation: head.operation }, sinceMs: nowMonotonicMs, epoch });
+      this.pending.set(head.id, { scope: { unit: head.unit, kind: "unit", operation: head.operation }, sinceMs: nowMonotonicMs, epoch,
+        receivedAtMs: head.receivedAtMs });
       this.count(head.unit, 1);
     }
     const before = cycleStartMonotonicMs - SWEEP_MS;
@@ -83,14 +84,19 @@ class FreshnessLedger {
     return { unmatched: [...unmatched] };
   }
 
-  /** publisher の 1 秒の tick で呼ぶ。初めて見てから 2 分を越えた保留を、立てる疑いとして返して外す（unit と運用区分で 1 つ）。 */
-  expire(nowMonotonicMs: number): readonly Readonly<{ epoch: number; scope: UnitScope }>[] {
-    const due = new Map<string, Readonly<{ epoch: number; scope: UnitScope }>>();
+  /**
+   * publisher の 1 秒の tick で呼ぶ。初めて見てから 2 分を越えた保留を、立てる疑いとして返して外す（unit と運用区分で 1 つ）。
+   * oldestReceivedAtMs はその scope の保留のうち最も古い一覧の receivedTime（鮮度で起こす取り直しの起点、P3-REC-AC02 (7)）。
+   */
+  expire(nowMonotonicMs: number): readonly Readonly<{ epoch: number; scope: UnitScope; oldestReceivedAtMs: number }>[] {
+    const due = new Map<string, Readonly<{ epoch: number; scope: UnitScope; oldestReceivedAtMs: number }>>();
     for (const [id, entry] of this.pending) {
       if (nowMonotonicMs - entry.sinceMs < PENDING_MS) break;
       this.pending.delete(id);
       this.count(entry.scope.unit, -1);
-      due.set(`${entry.epoch}/${entry.scope.unit}/${entry.scope.operation}`, { epoch: entry.epoch, scope: entry.scope });
+      const key = `${entry.epoch}/${entry.scope.unit}/${entry.scope.operation}`;
+      due.set(key, { epoch: entry.epoch, scope: entry.scope,
+        oldestReceivedAtMs: Math.min(due.get(key)?.oldestReceivedAtMs ?? Infinity, entry.receivedAtMs) });
     }
     return [...due.values()];
   }

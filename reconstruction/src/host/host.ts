@@ -17,6 +17,7 @@ import type { ExecutionPlace, OwnerReply, OwnerStartData } from "../../contracts
 import { RuntimeCompositionRoot, linkedUnitCodecs, places } from "../runtime/composition-root";
 import { completeDiagnostic } from "../runtime/runtime-diagnostic";
 import { closeSocket, listSockets, startSocket } from "./dmdata-rest"; import { ListRequestLane, pollClassification, startupPlan, walkList } from "../recovery/recovery";
+import { BodyRequestLane, fetchBody } from "../recovery/recovery";
 
 // P2-A10-AC12 (R63): provisional fixed interval for a normal disconnect or handshake failure. No backoff, no setting.
 const RECONNECT_MS = 5_000;
@@ -334,7 +335,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     const t1 = performance.now();
     const result = mailbox.enqueue(envelope);
     if (result.kind === "rejected") {
-      if (result.reason !== "draining") { root.checkpoint.boundaries.refused(item, wallBasis(entry)); overload(result.reason, ws, entry.wallTimeMs); }
+      if (result.reason !== "draining") { root.checkpoint.boundaries.refused(item, wallBasis(entry)); root.recoveryRefused(item.headType); overload(result.reason, ws, entry.wallTimeMs); }
       return;
     }
     lastAccepted = { sequence: lastSequence, inputId }; root.checkpoint.boundaries.queued(item, wallBasis(entry)); // P3-CK-AC04: basis は frame を受けた読みの根拠
@@ -553,10 +554,18 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   // P3-REC-AC13 (7): 取り直しの一覧の要求は run で 1 本の lane を通す（起動の辿りと H41 が待ちを共有し、引き継ぐ）。
   const lane = new ListRequestLane();
   const now = () => clock().monotonicMs;
+  // P3-REC-AC05: 取り直しの本文と範囲の終わりは受信の順の列（lastSequence）で数える。
+  root.attachSequence(() => ++lastSequence, () => lastSequence);
   const walk = config.dmdata == null ? null : startupPlan(config.dmdata.classifications, root.restoredBoundaries, clock().wallTimeMs);
   if (config.dmdata != null && walk != null) {
-    const { apiKey } = config.dmdata;
-    void walkList(lane, apiKey, walk.plan, walking.signal, now).then((results) => {
+    const { apiKey, classifications } = config.dmdata;
+    // P3-REC-AC03 (9)・AC05【発注 3】: 本文の待ちは run に 1 つ。取り直しの口は apiKey と停止の signal を閉じて root へ渡し、起動の辿りがそのまま起動の取り直しになる。
+    const bodyLane = new BodyRequestLane();
+    const listed = walkList(lane, apiKey, walk.plan, walking.signal, now);
+    root.attachRecovery({ classifications, walk: (plan) => walkList(lane, apiKey, plan, walking.signal, now),
+      fetchBody: (head) => fetchBody(bodyLane, apiKey, head, walking.signal, now),
+      notBefore: () => Math.max(lane.notBeforeMonotonicMs, bodyLane.notBeforeMonotonicMs) }, walk.starts, listed);
+    void listed.then((results) => {
       // 停止を始めた後に揃った結果は公開しない（P3-REC-AC03 (6)）。
       if (stopping != null) return;
       root.showRecoveryDigest(results, walk.starts, clock());

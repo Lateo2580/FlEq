@@ -751,7 +751,7 @@ function comparable(snapshot: DisplaySnapshot): string {
   const domain = (value: DisplayDomainView<AnyView>) => value.delivery === "full"
     ? [value.contentRevision, "full", value.items] : value;
   return JSON.stringify([snapshot.streamId, snapshot.semanticRevision, snapshot.connection, snapshot.worker,
-    snapshot.persistence, snapshot.recovery.restoration, snapshot.recovery.eewUnverified, snapshot.channels, domain(snapshot.current.eew), // digest は参照で比べる（P3-REC-AC16）。札は定数の上界なので直列化してよい（P3-REC-AC14 (6)）
+    snapshot.persistence, snapshot.recovery.restoration, snapshot.recovery.eewUnverified, snapshot.recovery.progress, snapshot.channels, domain(snapshot.current.eew), // digest は参照で比べる（P3-REC-AC16）。札と進み具合は定数の上界なので直列化してよい（P3-REC-AC14 (6)・AC11）
     domain(snapshot.current.weatherCurrent), domain(snapshot.current.weatherTimeseries), domain(snapshot.current.tsunami),
     domain(snapshot.current.earthquake), domain(snapshot.current.nankai),
     domain(snapshot.current.volcano), domain(snapshot.current.landslide), domain(snapshot.current.flood),
