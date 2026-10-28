@@ -261,7 +261,7 @@ describe("P3-REC-T08 acceptance (unit side): the digest from walk results (AC15,
     const start = walkStart({ receivedAt: { wallTimeMs: NOW - DAY, basis: "verified" }, dmdataTime: null, dmdataId: null, oldestHole: null }, "restored", NOW + DAY);
     const head = (id: string, headType: string, receivedAtMs: number, headline: string): ListHead => ({ id, unit: headType === "VTSE41" ? "U-T" : "U-V",
       headType, receivedAtMs, operation: "normal", title: "津波予報", headline, reportDateTime: null, infoType: "発表", serial: null, eventId: null,
-      controlDateTime: null, controlStatus: "通常" });
+      controlDateTime: null, controlStatus: "通常", test: false });
     // 境界（NOW − 1 日）の 10 分の余白の中の item は取得するがダイジェストに入れない。
     const margin = head("m", "VTSE41", NOW - DAY - MINUTE, "余白");
     const tsunami = Array.from({ length: 300 }, (_, index) => head(`t${index}`, "VTSE41", NOW - index * MINUTE, "津".repeat(200)));
@@ -372,7 +372,7 @@ describe("P3-REC-T08 acceptance (unit side,【発注 2】): P3-REC-D-DIGEST-BUDG
   const start = walkStart(null, "empty", NOW);
   const long = (unit: ListHead["unit"], headType: string, index: number): ListHead => ({ id: `${unit}-${index}`, unit, headType,
     receivedAtMs: NOW - index * MINUTE, operation: "normal", title: "表".repeat(120), headline: "見".repeat(120), reportDateTime: null, infoType: null,
-    serial: null, eventId: null, controlDateTime: null, controlStatus: "通常" });
+    serial: null, eventId: null, controlDateTime: null, controlStatus: "通常", test: false });
   const listed = (unit: ListHead["unit"], headType: string, count: number): UnitWalkResult =>
     ({ unit, kind: "listed", heads: Array.from({ length: count }, (_, index) => long(unit, headType, index)) });
   const total = (unit: { kind: string; heads?: readonly unknown[]; omitted?: Readonly<Record<string, number>> }) =>
@@ -403,7 +403,7 @@ describe("P3-REC-T08 acceptance (unit side,【発注 2】): P3-REC-D-DIGEST-BUDG
 
 describe("P3-REC-T12 contractBoundary: the body boundary (AC01, AC05)", () => {
   const listHead = (id: string): ListHead => ({ id, unit: "U-T", headType: "VTSE41", receivedAtMs: NOW, operation: "normal", title: "津波予報",
-    headline: null, reportDateTime: null, infoType: null, serial: null, eventId: "20260728162718", controlDateTime: null, controlStatus: "通常" });
+    headline: null, reportDateTime: null, infoType: null, serial: null, eventId: "20260728162718", controlDateTime: null, controlStatus: "通常", test: false });
   const now = () => performance.now();
 
   it("a VTSE41 item whose url is not built from its id makes U-T fetchFailed with one WARN; the page is not failed", async () => {

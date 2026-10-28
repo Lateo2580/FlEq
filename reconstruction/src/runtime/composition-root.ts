@@ -2217,7 +2217,7 @@ class RuntimeCompositionRoot {
     const sequence = this.sequenceOf?.next() ?? ++this.settledSequence;
     const inputId = `input-${sequence}`;
     const ingressed = ingestXmlData({ kind: "rest", inputId, inputSequence: sequence, receivedAt: head.receivedAtMs, origin: "recovery", body: bytes,
-      headType: head.headType, headTest: false, controlStatus: head.controlStatus, dmdataId: head.id });
+      headType: head.headType, headTest: head.test, controlStatus: head.controlStatus, dmdataId: head.id });
     if (ingressed.kind === "rejected") return null;
     const now = this.clock().monotonicMs;
     const enqueued = this.mailbox.enqueue({ messageId: inputId, runId: this.state.runId, t0MonotonicMs: now, enqueuedMonotonicMs: now,
@@ -2294,7 +2294,7 @@ class RuntimeCompositionRoot {
     } else if (same) this.recoveryUnsatisfied(unit, "fetchFailed");
     // 解決の後にも穴（取り直しの間に断った入力ほか）が残る unit には確認を出さない（統合担当の決め、r0 Opus (C)）。
     const scopes = complete && same && !this.checkpoint.boundaries.hasHole(unit)
-      ? confirmedOperations.filter((operation) => (this.negatives.get(`${unit}/${operation}`) ?? -Infinity) <= run.listSequence)
+      ? recoveredOperations.filter((operation) => (this.negatives.get(`${unit}/${operation}`) ?? -Infinity) <= run.listSequence)
         .map((operation) => ({ unit, kind: "unit" as const, operation })) : [];
     if (scopes.length !== 0) this.dispatch({ kind: "coverageVerified", runId: this.state.runId, epoch: run.epoch, scopes, clock });
     // 間に切断があった候補は確認も穴の解決もしない。繋がり直しのきっかけのやり直しが新しい epoch で覆う（AC07）。
@@ -2346,6 +2346,9 @@ const BODY_SLOTS = 2; // P3-REC-RES-01
 const EEW_CONFIRM_MS = 10 * 60_000; // P3-REC-D-EEW-CONFIRM=B
 // coverageVerified を出す運用区分（test の slot は startup のまま、AC09 (1)）。
 const confirmedOperations = ["normal", "training"] as const;
+// 取り直しの採用で確認するのは normal だけ（統合担当の決め 2026-10-28: 一覧は head.test が true の item を捨てるので訓練の報は流れず、
+// training の slot は見ていない。AC01）。U-E の 10 分の確認は confirmedOperations のまま。
+const recoveredOperations = ["normal"] as const;
 const unsatisfiedWords: Readonly<Record<RecoveryUnsatisfiedReason, DiagnosticReason>> = { fetchFailed: "recoveryFetchFailed", recoveryLimit: "recoveryLimit",
   authRejected: "recoveryAuthRejected", generationConflict: "recoveryGenerationConflict", baseMissing: "recoveryBaseMissing",
   clockEvidenceMissing: "recoveryClockEvidenceMissing", ownerStopped: "recoveryOwnerStopped" };

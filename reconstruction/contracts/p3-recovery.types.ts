@@ -21,6 +21,8 @@ export type ListHead = Readonly<{
   eventId: string | null;
   controlDateTime: string | null;
   controlStatus: string;
+  // 一覧の item の head.test（本文の入力の根拠 headTest へそのまま渡す、P3-REC-AC05・publicFunctions の (d)）。
+  test: boolean;
 }>;
 
 // types は 1 つの unit の型だけの束（1〜5、P3-REC-D-LIST-QUERY）。cursorToken は前の応答の nextToken をそのまま渡す。

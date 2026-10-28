@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import type { ClockReading, MailboxEnvelope, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
@@ -52,7 +53,7 @@ const iso = (ms: number) => new Date(ms).toISOString();
 // 一覧の頭（U-T の VTSE41）。id は英数字、eventId は subject の鍵。
 function head(id: string, eventId: string, receivedAtMs: number, operation: ListHead["operation"] = "normal"): ListHead {
   return { id, unit: "U-T", headType: "VTSE41", receivedAtMs, operation, title: "津波警報", headline: null, reportDateTime: null, infoType: "発表",
-    serial: null, eventId, controlDateTime: null, controlStatus: operation === "normal" ? "通常" : "訓練" };
+    serial: null, eventId, controlDateTime: null, controlStatus: operation === "normal" ? "通常" : "訓練", test: operation !== "normal" };
 }
 const xml = (text: string): BodyResult => ({ kind: "ok", bytes: Buffer.from(text), contentType: "application/xml" });
 const report = (eventId: string, atMs: number, areas: readonly Area[], operation: ListHead["operation"] = "normal") =>
@@ -205,6 +206,19 @@ describe("P3-REC-T15 acceptance: the adopt step (AC06 (a)(b), AC07, AC10)", () =
   });
 });
 
+describe("P3-REC-T12・T16 (r4): a recovered training report carries head.test from the list (AC05)", () => {
+  it("a training VTSE41 (32-39_12_02) is adopted as training, not an unreadable report; training gets no recovery confirmation", async () => {
+    const t = await setup();
+    t.bodies.set("tr1", { kind: "ok", bytes: readFileSync("test/fixtures/32-39_12_02_250206_VTSE41.xml"), contentType: "application/xml" });
+    await t.startup([head("tr1", "20160901071000", T0 - MINUTE, "training")]);
+    const [adopted] = t.recoveryReplies().filter((reply) => reply.result.kind === "adopted");
+    expect(adopted?.result.kind === "adopted" && adopted.result.inputs.map((item) => item.result)).toEqual(["adopted"]);
+    expect(t.h.unit("U-T").forecasts.map((item) => item.operation)).toEqual(["training"]);
+    // 取り直しの確認は normal だけ（統合担当の決め 2026-10-28）。training の slot は確認されずに残る。
+    expect([t.progress()?.state, t.whole("U-T", "training"), t.h.root.state.mirror["U-T"].view.unreadableCards ?? []]).toEqual(["recovered", "startup", []]);
+  });
+});
+
 describe("P3-REC-T02 acceptance: no interim publication, live cancel and save ack during the candidate (AC06, AC07, AC17)", () => {
   it("while the candidate is built no view, outcome or coverage moves; a live cancel and a save ack only re-base it", async () => {
     const t = await setup();
@@ -246,7 +260,7 @@ describe("P3-REC-T03 acceptance: no deadline extension (AC08, AC17)", () => {
 });
 
 describe("P3-REC-T04 / T16 acceptance: limits, progress and coverage (AC04, AC09, AC11)", () => {
-  it("over 300 bodies U-T is recoveryLimit without fetching; within, coverage for normal and training only, other units notRecovered", async () => {
+  it("over 300 bodies U-T is recoveryLimit without fetching; within, coverage for normal only, other units notRecovered", async () => {
     const over = await setup();
     await over.startup(Array.from({ length: 301 }, (_, index) => head(`h${index}`, String(20991231100000 + index), T0 - index)));
     expect([over.fetched.length, over.progress(), over.whole("U-T")]).toEqual([0, { unit: "U-T", state: "unsatisfied", reason: "recoveryLimit" },
@@ -255,7 +269,7 @@ describe("P3-REC-T04 / T16 acceptance: limits, progress and coverage (AC04, AC09
     const t = await setup();
     t.bodies.set("k1", xml(report("20991231000041", T0 - MINUTE, [{ code: "311", name: "a", kind: "62" }])));
     await t.startup([head("k1", "20991231000041", T0 - MINUTE)]);
-    expect([t.whole("U-T"), t.whole("U-T", "training"), t.whole("U-T", "test")]).toEqual([null, null, "startup"]);
+    expect([t.whole("U-T"), t.whole("U-T", "training"), t.whole("U-T", "test")]).toEqual([null, "startup", "startup"]);
     expect(t.snapshots.at(-1)?.recovery.progress).toEqual([{ unit: "U-T", state: "recovered" }]);
   });
 
@@ -283,7 +297,7 @@ describe("P3-REC-T04 / T16 acceptance: limits, progress and coverage (AC04, AC09
     expect(t.whole("U-T")).toBe("capacityExceeded");
     release();
     await t.drive();
-    expect([t.progress()?.state, t.whole("U-T"), t.whole("U-T", "training")]).toEqual(["recovered", "capacityExceeded", null]);
+    expect([t.progress()?.state, t.whole("U-T"), t.whole("U-T", "training")]).toEqual(["recovered", "capacityExceeded", "startup"]);
     // 取り直しの本文が 513 件目なら、採用の返信に capacityExceeded が載り、確認は出ない。
     const over = await full();
     over.bodies.set("n2", xml(report("20991231009998", T0 - MINUTE, [{ code: "312", name: "b", kind: "62" }])));

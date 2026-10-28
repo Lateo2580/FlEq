@@ -67,7 +67,7 @@ function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | nu
   if (bodyType(row.unit, type) && (!BODY_ID.test(id) || item.url !== BODY_URL + id)) return { head: null, receivedAtMs, refused: row.unit };
   return { receivedAtMs, head: { id, unit: row.unit, headType: type, receivedAtMs, operation, title: report.title, headline: textOrNull(report.headline),
     reportDateTime: textOrNull(report.reportDateTime), infoType: textOrNull(report.infoType), serial: textOrNull(report.serial),
-    eventId: textOrNull(report.eventId), controlDateTime: textOrNull(control.dateTime), controlStatus: control.status } };
+    eventId: textOrNull(report.eventId), controlDateTime: textOrNull(control.dateTime), controlStatus: control.status, test } };
 }
 
 /**
