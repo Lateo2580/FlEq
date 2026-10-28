@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "ade748118c76ba216d0414f29cf49c2c0f8a628cc8cd21f1fdc6b5cc54d39194",
+    "sha256": "a6a78a28bca5642186bc8131944800718d6e4702cf65b247f41df1f446747956",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -899,7 +899,7 @@
       },
       {
         "id": "P3-REC-AC09",
-        "requirement": "【発注 3】完了の公開と確認（H04）: 採用は recoveryApplied 1 件（確認した scope・coverage・採用世代）。範囲を全部取り終えて採用できた unit・運用区分だけに RuntimeInput.coverageVerified（既存の口、P2-A1-CONFIRMATION）を出し、whole の未確認を外して通常の表示へ戻す。一部の subject だけ取れた unit を確認済みにしない。recoveryApplied から文字列を拾って確認を外す実装をしない（P2-A1-CONFIRMATION）。(1) 包含の範囲: coverageVerified は照合が覆う入力の範囲（一覧を引き始めた時点の inputSequence。その時点までに owner が処理を終えた入力まで）を持ち、verifyCoverage は範囲の後に採った容量の拒否（capacityExceeded）を消さない。RuntimeInput の coverageVerified に欄を 1 つ足す（いまは runId と epoch の一致だけで whole も capacityExceeded も消す。P3-CURRENCY-COVERAGE-001 の Q-CC-LEDGER85 の申し送り、発注前点検 N7。配送のときに統合担当が P3-CURRENCY-COVERAGE-001 の原文〔Q-CC-LEDGER85〕を「移管した」と改訂する。allowedPaths には足さない） (2) 取り直しの範囲に、読めずに断った報（K14 の unreadableReport）や容量で断った報が残った unit／operation には coverageVerified を出さない（P3-UM-D-UNCONFIRMED=A、2026-10-26 作者裁定: その未確認を消せるのは coverageVerified だけ。発注前点検 M1）。発注 3 は K14 の発注 3 の配送の後に直列で合流する (3) H41 の突き合わせ（AC13）で差が 0 で、その unit・運用区分に未解決の穴が無ければ、同じ範囲の規則で coverageVerified を出す（spec 16.2.3「確認が取れた分野を通常の表示に戻す（H04）のも、この突き合わせで行う」、発注前点検 M4）",
+        "requirement": "【発注 3】完了の公開と確認（H04）: 採用は recoveryApplied 1 件（確認した scope・coverage・採用世代）。範囲を全部取り終えて採用できた unit・運用区分だけに RuntimeInput.coverageVerified（既存の口、P2-A1-CONFIRMATION）を出し、whole の未確認を外して通常の表示へ戻す。一部の subject だけ取れた unit を確認済みにしない。recoveryApplied から文字列を拾って確認を外す実装をしない（P2-A1-CONFIRMATION）。(1) 包含の範囲: coverageVerified は照合が覆う入力の範囲（一覧を引き始めた時点の inputSequence。その時点までに owner が処理を終えた入力まで）を持ち、verifyCoverage は範囲の後に採った容量の拒否（capacityExceeded）を消さない。RuntimeInput の coverageVerified に欄を 1 つ足す（いまは runId と epoch の一致だけで whole も capacityExceeded も消す。P3-CURRENCY-COVERAGE-001 の Q-CC-LEDGER85 の申し送り、発注前点検 N7。配送のときに統合担当が P3-CURRENCY-COVERAGE-001 の原文〔Q-CC-LEDGER85〕を「移管した」と改訂する。allowedPaths には足さない） (2) 取り直しの範囲に、読めずに断った報（K14 の unreadableReport）や容量で断った報が残った unit／operation には coverageVerified を出さない（P3-UM-D-UNCONFIRMED=A、2026-10-26 作者裁定: その未確認を消せるのは coverageVerified だけ。発注前点検 M1）。発注 3 は K14 の発注 3 の配送の後に直列で合流する。待つのは unreadableReport の負の証拠のある K14 の発注 3 で、2026-10-28 に分けた K14 の発注 4（読めない EEW・津波の音。取り直しで拾った読めない報は info 1 回まで＝P3-UM-D-RECOVERY-SOUND）は待たない（その前に取り直しの読めない報が流れても鳴らないだけで、その裁定の内。P3-UNREADABLE-MARK-001 の Q-UM-PRECHECK-3）。slot の語は後から来た語で上書きされる（P3-REC-D-SUSPECT-RANK）ので、発注 3 はこの判定に slot の語を使わず、範囲の内に読めずに断った報があったかを負の証拠 unreadableReport（OwnerOutput.confirmationEvidence。publisher は confirmOutput の evidenceSequence でその入力の inputSequence を知る）の入力番号から自分で数え、その番号を持つ所も発注 3 が決める（P3-UNREADABLE-MARK-001 の AC13 の (5)） (3) H41 の突き合わせ（AC13）で差が 0 で、その unit・運用区分に未解決の穴が無ければ、同じ範囲の規則で coverageVerified を出す（spec 16.2.3「確認が取れた分野を通常の表示に戻す（H04）のも、この突き合わせで行う」、発注前点検 M4）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2220 «a3a44a06404484c9»",
           "docs/specs/reconstruction-p0-contracts.md:3031 «375d564fe0344d12»",
@@ -1189,7 +1189,7 @@
         "requiredEvidence": [
           "発注ごとの baseOid の割当と、その時点で本契約の anchor のずれが 0 件であること",
           "発注 2・3 は前の発注の配送の後に点検し直すこと（Q-VM-PRECHECK-2A の形）",
-          "発注 3 は P3-UNREADABLE-MARK-001 の発注 3（unreadableReport）の配送の後であること（P3-REC-AC09 の (2)）",
+          "発注 3 は P3-UNREADABLE-MARK-001 の発注 3（unreadableReport）の配送の後であること（P3-REC-AC09 の (2)）。K14 は 2026-10-28 に発注 3・4 に分けた（Q-UM-PRECHECK-3）が、待つのは unreadableReport のある K14 の発注 3 のままで、K14 の発注 4（音・台風の地域・取消の印）は待たない",
           "発注 3 の点検で、境界の id による絞りが walkList の結果（UnitWalkResult.heads）の段にあり、本文の取得の範囲にも効くことを見直す（発注 1 のレビュー Opus P3）",
           "429 で打ち切った後の『次はその時刻より前に起こさない』は発注 1 に次の辿りが無いので作っていない。発注 3 のきっかけで作る"
         ]
