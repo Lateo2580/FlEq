@@ -577,3 +577,8 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
   - 原文の合計（:570 の「unit ごとの予算の内で持つ」）: 合計は state の欄に置かず、配列ごとの WeakMap に覚えて、復元では同じ関数で数え直す（P3-UM-AC03 の (2)）。H39 の unreadableDropped は、回収・容量の退去・記憶への移し・拒否による巻き戻しを全部終えた、返す state に残った記録だけを数える（P3-UM-AC03 の (4)）。unreadableDropped は印を持つ 10 unit の行だけに出て、losses の unit の行は U-Q で 8 語になった（P3-NL-AC14 の (7)）。
   - 版: U-L・U-R・U-B・U-M・U-N・U-Y・U-F は v7、U-T・U-Q・U-V は v6 に上げ、前の版の保存は初期化する（P3-UM-AC16 の (1)）。U-E・U-W の版は変えない。
   - view: 印は記録の鍵を unreadableView・marineUnreadableView に替えて渡し、原文の本文は渡さない。U-F の付加事項だけの印は parts が空で addition が立つので、鍵があることを「読めない所あり」と読まない（P3-UM-AC10 の (5)）。
+- 発注 3 の配送で変わる読み（2026-10-28 統合担当、`P3-UNREADABLE-MARK-001` の AC18 の (9)、Q-UM-IMPL-3）:
+  - カード: owner が振り分け先の unit の envelope の `unreadable` に書く（12 unit。unit の無い入力は U-M）。受信時刻＋24 時間で外れ、view には原文の本文を除いた `unreadableCards` で渡る。カードの上界は最長のカードを JSON にして数える形にし（1 枚の固定部 3,528 byte）、8 枚で 93,783 byte、U-M の 16 枚で 187,551、U-Y は areas を足して 290,463。器は上の発注 1 の値からその差（ほか＋743、U-M ＋1,471、U-Y ＋815）だけ広がった（P3-UM-RES-09）。
+  - 予約: 器からは引かず、空の envelope の計量にカードの予約を足す（P3-UM-AC11 の (10)）。読み戻しの境界が狭まる U-T・U-Q・U-W・U-F は版を上げ（U-T・U-Q は v7、U-W は v6、U-F は v8）、前の版の保存は初期化する。
+  - H39: losses の unit の行は 12 unit とも unreadableDropped と unreadableReport を持ち、U-E と U-Q で 9 語になった（上の発注 1 の「印を持つ 10 unit の行だけ・U-Q で 8 語」を置き換える。P3-UM-AC11 の (11)）。
+  - 未確認: unit が断った報のカードは、その unit・運用区分の whole を unreadableReport にする負の証拠を運ぶ。未確認を外すのは coverageVerified だけで、capacityExceeded の外の語とは後から来た語で上書きし合う（P3-UM-AC13、P3-REC-D-SUSPECT-RANK=A）。

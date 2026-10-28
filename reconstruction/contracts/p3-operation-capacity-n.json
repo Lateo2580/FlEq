@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1d307989560e298199af040831df538ec9d75e24",
-    "sha256": "0789fe8a12a64155110259bdc31c54346d6ae367a6398a70fd5bedd71a8c5ed8",
+    "sha256": "be0aa3268e4e729e4db445edaa2fcd7043172b7c8c40baa8bc6feaecf5f449e9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -166,14 +166,14 @@
           "reconstruction/src/units/nankai/nankai-unit.ts:212 «3ff2c5d3eb82850b»",
           "reconstruction/src/units/nankai/nankai-unit.ts:213 «a8bc17e7f3c9d6f1»",
           "reconstruction/src/units/nankai/nankai-unit.ts:414 «04ccd69e96e4cee6»",
-          "reconstruction/contracts/p3-nankai-unit.json:93 «c6746dc092f5caae»",
+          "reconstruction/contracts/p3-nankai-unit.json:93 «384c9aa7a276b940»",
           "reconstruction/contracts/p3-nankai-unit.json:303 «82084a1038a1d028»",
           "reconstruction/contracts/p3-operation-capacity.json:11 «9529fe855a1ac0b3»",
           "reconstruction/contracts/p3-operation-capacity.json:20 «66a9063c86071706»",
-          "reconstruction/contracts/p3-operation-capacity.json:253 «6c1867578d02950c»",
+          "reconstruction/contracts/p3-operation-capacity.json:253 «6e8cfcd80ce6fdc1»",
           "reconstruction/contracts/p3-authority-evidence.json:255 «474389820213efeb»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
-          "reconstruction/src/runtime/owner-runtime.ts:389 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:479 «63380813ee47301c»",
           "reconstruction/src/units/nankai/nankai-unit.ts:884 «973323028dc564f5»"
         ]
       },
@@ -195,7 +195,7 @@
         "id": "P3-OPCAP-N-AC03",
         "requirement": "既存条文の読み替え（旧契約の本文は変えない）と保つもの。(1) P3-C8-CAPACITY=A（p3-nankai-unit.json:93）の65件目の退去の候補 (1)(2)(3) は、受ける報がtraining/testならtraining/testの記録だけと読み、候補が無ければ受けた情報subjectを残さない（AC02）。operationContractの「training/test受理でnormalを…」（:303）はAC01で満たす。testMappingのP3-C8-T04（:866）の退去の順はnormalの受理の順として読む。(2) K4のoutOfScopeと残存リスク(6)（p3-operation-capacity.json:242・:510）の「U-N未検査」は本契約で解消し、U-Q・U-E・U-FはQ-OPCAP-N-OTHERSで閉じる。(3) K3のP3-FINAL-AC01（p3-final-adoption.json:241、到着の時点で期限を過ぎた記録の無い情報subjectを足さない）とK2の64件・7日の保持・退去の順（p3-authority-evidence.json:255のAC01(5)）は変えない。(4) 既存試験の期待値の変更は0件（起草時の試作で確かめた）。期待値・入力の変更が要ると分かったら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。(5) U-B（C12）はQ-OPCAP-N-OTHERSどおりC12の再開条件（p3-order-plan.md:389）へ送る。",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-nankai-unit.json:93 «c6746dc092f5caae»",
+          "reconstruction/contracts/p3-nankai-unit.json:93 «384c9aa7a276b940»",
           "reconstruction/contracts/p3-nankai-unit.json:303 «82084a1038a1d028»",
           "reconstruction/contracts/p3-nankai-unit.json:866 «76ca027b46a20ea3»",
           "reconstruction/contracts/p3-operation-capacity.json:242 «07909997f5c665d3»",

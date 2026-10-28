@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "a34997f489dc03f914879df79edbe66104800d8e6b4989946e5444d03c1d7bd7",
+    "sha256": "fb1b32cede1273a4d4b8879c2191c664566dbcad558033b356c3ea9bcbc8714d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -65,14 +65,14 @@
         "source": "起草時のコード読解（e68cd434）",
         "closed": "今の入口: checkpoint は slot の schemaVersion が codec と違えば unknownSchema（checkpoint.ts:450）、両方が読めなければ unavailable を返す（:173）。片方だけ読めればその slot を復元し（:182）、次の保存はその反対側へ書く（:293）。owner の復元は empty・unavailable の unit を初期状態のまま始め（owner-runtime.ts:288）、envelope の schemaVersion が codec と違えば例外（:291）。owner-host は unavailable の unit をその run では保存しない集合に入れる（owner-host.ts:57・:181）ので、版を上げた unit は旧い slot が残り続け、起動のたびに unavailable で二度と保存されない。P2-A3-AC09 は「未知 schema の slot を空 state で自動上書きしない」と定める",
         "evidenceRefs": [
-          "reconstruction/src/checkpoint/checkpoint.ts:460 «b6fdb65e4e225b7d»",
-          "reconstruction/src/checkpoint/checkpoint.ts:186 «0d7a23c67d3bc8ee»",
-          "reconstruction/src/checkpoint/checkpoint.ts:195 «8cb7a21761e99aaa»",
-          "reconstruction/src/checkpoint/checkpoint.ts:307 «d8c8c47fe3547576»",
-          "reconstruction/src/runtime/owner-runtime.ts:323 «6d697a491431e3be»",
-          "reconstruction/src/runtime/owner-runtime.ts:326 «890b0a8cddc63328»",
+          "reconstruction/src/checkpoint/checkpoint.ts:462 «b6fdb65e4e225b7d»",
+          "reconstruction/src/checkpoint/checkpoint.ts:188 «0d7a23c67d3bc8ee»",
+          "reconstruction/src/checkpoint/checkpoint.ts:197 «8cb7a21761e99aaa»",
+          "reconstruction/src/checkpoint/checkpoint.ts:309 «d8c8c47fe3547576»",
+          "reconstruction/src/runtime/owner-runtime.ts:404 «6d697a491431e3be»",
+          "reconstruction/src/runtime/owner-runtime.ts:407 «890b0a8cddc63328»",
           "reconstruction/src/runtime/owner-host.ts:57 «c8c61640df663994»",
-          "reconstruction/src/runtime/owner-host.ts:194 «50d2ca18fd95e5e1»",
+          "reconstruction/src/runtime/owner-host.ts:195 «50d2ca18fd95e5e1»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»"
         ]
       },
@@ -415,8 +415,8 @@
         "evidenceRefs": [
           "reconstruction/contracts/p1-parser-boundary.types.ts:96 «9aaede3558b2aacd»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:68 «edf494a4209b84d6»",
-          "reconstruction/src/decode-material/decode-material.ts:476 «76071c296440ae12»",
-          "reconstruction/src/units/eew/eew-unit.ts:46 «d724b0576b748700»",
+          "reconstruction/src/decode-material/decode-material.ts:483 «76071c296440ae12»",
+          "reconstruction/src/units/eew/eew-unit.ts:44 «d724b0576b748700»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:962 «c54e90427dfcf389»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1358 «c54e90427dfcf389»",
           "reconstruction/src/units/nankai/nankai-unit.ts:748 «c54e90427dfcf389»",
@@ -426,7 +426,7 @@
           "reconstruction/src/units/briefing/briefing-unit.ts:756 «5e595b3cb9e6ca03»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:773 «2399ef065255702a»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:686 «2399ef065255702a»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:161 «72311d7f29152c1b»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:160 «72311d7f29152c1b»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:345 «f7f0c40f726ce42b»",
           "docs/specs/reconstruction-p0-contracts.md:3041 «c7475242b1f1451a»"
         ]
@@ -483,39 +483,39 @@
         "id": "P3-VM-AC05",
         "requirement": "【発注 1】版の入口（作者裁定 2026-10-20、main f511b8b5）: UnitCodec に discardableSchemaVersions（その unit の捨ててよい旧い schemaVersion の列）を省略できる項目として足す（省略は空の一覧。無いと発注 1 で 12 codec を触ることになる）。checkpoint の復元は A・B の 2 slot を組で判定する: (1) 両方読めない（missing・壊れ）→ 今どおり (2) 片方が現行版、もう片方が捨ててよい旧い版 → 現行版の slot を復元し、旧い版の slot は次の保存で上書きしてよい (3) 片方が捨ててよい旧い版で、もう片方が missing・壊れ（読めない・hash の不一致）・捨ててよい旧い版のどれか→ empty（保存なし）を返し、owner は初期状態から始めて保存を続け、最初の保存で旧い slot を上書きする (4) どちらかが一覧に無い版（未来の版・知らない値）→ もう一方が読めても、その unit の保存をその run では禁止し（今の unavailable と同じ「保存しない」集合）、復元は読めた現行版の slot から行ってよい。一覧に無い版の slot を上書きしない。捨てたことは INFO 診断 checkpointSchemaDiscarded（unit と捨てた schemaVersion）を unit ごとに 1 件出す。owner の入口（owner-runtime.ts:291 の一致の検査）は empty と現行版だけを受けるので変えない。一覧の寿命: 一覧は P5 の前だけのもので、C15（P3-MIGRATION-001）の配送までに全 unit で空にして入口を閉じる（C15 の着手条件に「一覧が空」を足す、本契約の改める条文）。発注 1 では全 unit の一覧は空で、仕組みは試験用の codec で確かめる。発注 2a・2b が版を上げるときに旧い版を一覧に入れる。無いと: 版を上げた unit が二度と保存されず（Q-VM-RESTORE-NOW）、旧い版のプログラムが新しい版の slot を上書きする（A/B の混在）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:544 «433c0e87dd508191»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:284 «82644f1fe52bdd0c»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:550 «433c0e87dd508191»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:286 «82644f1fe52bdd0c»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:46 «29080c296cf7796d»",
-          "reconstruction/src/checkpoint/checkpoint.ts:460 «b6fdb65e4e225b7d»",
-          "reconstruction/src/checkpoint/checkpoint.ts:185 «54580fbdf7227547»",
-          "reconstruction/src/checkpoint/checkpoint.ts:195 «8cb7a21761e99aaa»",
-          "reconstruction/src/checkpoint/checkpoint.ts:307 «d8c8c47fe3547576»",
-          "reconstruction/src/runtime/owner-host.ts:194 «50d2ca18fd95e5e1»",
-          "reconstruction/src/runtime/owner-runtime.ts:326 «890b0a8cddc63328»",
+          "reconstruction/src/checkpoint/checkpoint.ts:462 «b6fdb65e4e225b7d»",
+          "reconstruction/src/checkpoint/checkpoint.ts:187 «54580fbdf7227547»",
+          "reconstruction/src/checkpoint/checkpoint.ts:197 «8cb7a21761e99aaa»",
+          "reconstruction/src/checkpoint/checkpoint.ts:309 «d8c8c47fe3547576»",
+          "reconstruction/src/runtime/owner-host.ts:195 «50d2ca18fd95e5e1»",
+          "reconstruction/src/runtime/owner-runtime.ts:407 «890b0a8cddc63328»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»",
           "reconstruction/contracts/p3-persist-premises.md:68 «b9ae66e7aeebf460»",
           "reconstruction/contracts/p3-persist-premises.md:73 «32ecbbdb103e9932»",
-          "reconstruction/src/checkpoint/checkpoint.ts:171 «564a91036c15104a»"
+          "reconstruction/src/checkpoint/checkpoint.ts:173 «564a91036c15104a»"
         ]
       },
       {
         "id": "P3-VM-AC06",
         "requirement": "【発注 1】取り直しの境界の項目: CheckpointEnvelope に inputBoundary を足す。中身は (1) receivedAt: 境界の位置の入力の受信時刻 { wallTimeMs, basis: WallBasis | null }。basis は host がその frame の entry を読んだのと同じ時点の wallBasis() の値で、受信時刻と一緒に入力の材料として運ぶ（境界を書く時点の値にしない。後で根拠の状態が変わっても、その入力の受信時刻の根拠は変わらない）。K9 の前は wallBasis() が無いので basis は null（根拠を持たない）。K9 の後は host の判定の値（P3-CLOCK-CHECK-001 の P3-CK-AC04）で、「wallBasis() の値」は host の根拠の状態（同 P3-CK-AC01 の (3)）と読む。省略時の \"verified\" に揃えないのは、それが試験・測定の注入した時計の意味で、本番の確かめていない手元の時計を「確かめた」と保存してしまうため。型 WallBasis（\"awaiting\"｜\"verified\"｜\"unverified\"、p2-shared-runtime.types.ts に export）は、K7 が K9 より先に合流するなら K7 がこの形で置き、K9 は重ねて足さない。K9 が先なら K7 は K9 の WallBasis をそのまま使い、自分では足さない。取り直しで境界を進めた位置は null、(2) dmdataTime: dmdata 側の時刻（本契約は常に null。値の作り方は C16、Q-REC-ID-MATCH）、(3) dmdataId: dmdata の電文 id（無ければ null）、(4) oldestHole: 最古の未解決の穴の種類（\"refused\"・\"disconnected\"・\"restarted\"、無ければ null）。境界の無い unit（初めての起動・初期化の直後で、まだ入力を処理していない）は inputBoundary を null にする。ParserMailboxItem に dmdataId を足し、ingress は WS の data の frame の id（文字列で 128 byte 以下、ほかは null）を写す。REST・replay は null（取り直しの入力の id は C16 が入れる）。envelope の版は上げない（CheckpointEnvelope に envelope の版の欄は無く、12 unit の版を上げると発注 1 の「一覧は空」と両立しない）。inputBoundary の無い旧い envelope は捨てずに読み、境界を null とする。readSlot の再直列化の照合（checkpoint.ts:462）と hashEnvelope は、欄の無い envelope を欄の無い形で照合する。null は「境界を確かめられない」で、初めての起動・初期化の直後と、欄の無い旧い envelope の両方を含む。CheckpointRequest・CheckpointResult・CheckpointMeasurement の型は変えない（実行境界メモ §7 の C1 の 2）: 境界は書込み権に載せて owner へ渡す: publisher の中の CheckpointGrant（checkpoint.ts:479）と、owner へ送る OwnerRequest の checkpointGrant（p3-execution-split.types.ts:68。composition-root.ts の送信は欄を列挙しているので、そこにも足す）に境界を足し、capture が envelope に書く。復元した envelope の境界は、OwnerReply の restored（p3-execution-split.types.ts:101）の unit ごとの restoration（RuntimeRestoration・RestoreUnitResult の restored）に載せて publisher へ返す。無いと: C16 が起点を持てず、境界を unit の codec に足すと C16 で 12 codec をもう一度開ける（メモ §5）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:526 «f12e9fac05b61c06»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:531 «f12e9fac05b61c06»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:79 «99b3625fa58c7268»",
           "reconstruction/src/ingress/ingress.ts:74 «d7375b3115968dbf»",
-          "reconstruction/src/checkpoint/checkpoint.ts:93 «d392fb1e4066cd2b»",
-          "reconstruction/src/checkpoint/checkpoint.ts:492 «04f79d8eb1684e76»",
-          "reconstruction/src/runtime/owner-host.ts:235 «f1e29b8991e7caad»",
+          "reconstruction/src/checkpoint/checkpoint.ts:95 «d392fb1e4066cd2b»",
+          "reconstruction/src/checkpoint/checkpoint.ts:495 «04f79d8eb1684e76»",
+          "reconstruction/src/runtime/owner-host.ts:236 «f1e29b8991e7caad»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:340 «6efa363eddf72f79»",
           "reconstruction/contracts/p3-persist-premises.md:144 «2ceab1141412b0f6»",
           "reconstruction/contracts/p3-execution-split.types.ts:70 «40f7c160c2f5af7e»",
           "reconstruction/contracts/p3-execution-split.types.ts:103 «a896029bd79113b7»",
           "reconstruction/src/runtime/composition-root.ts:1477 «6f4ddb1bb79ac527»",
-          "reconstruction/src/checkpoint/checkpoint.ts:475 «f2df4d892cf6c2da»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:404 «442242ac46bb58a3»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:578 «91775f59fc97dbc2»"
+          "reconstruction/src/checkpoint/checkpoint.ts:478 «f2df4d892cf6c2da»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:406 «442242ac46bb58a3»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:584 «91775f59fc97dbc2»"
         ]
       },
       {
@@ -555,13 +555,13 @@
           "reconstruction/contracts/p3-eew-gate-evict.json:219 «e50c23af5cc04e51»",
           "reconstruction/contracts/p3-tsunami-unit.json:67 «355aee4c18970504»",
           "reconstruction/contracts/p3-local-bulletins-unit.json:128 «07cdd9586dbaddfd»",
-          "reconstruction/contracts/p3-authority-evidence.json:330 «4d20f395b83121ff»",
+          "reconstruction/contracts/p3-authority-evidence.json:330 «b4315d3b04c4a2de»",
           "reconstruction/contracts/p3-authority-evidence.json:448 «153fac1d89de1f21»",
           "reconstruction/contracts/p3-currency-coverage.json:114 «2494236b0bc1412e»",
-          "reconstruction/contracts/p3-currency-coverage.json:497 «a13083079ef0b797»",
+          "reconstruction/contracts/p3-currency-coverage.json:497 «95c865d3bcd7eb32»",
           "reconstruction/contracts/p3-currency-coverage.json:713 «fc5c5e44dd936554»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»",
-          "reconstruction/contracts/p2-checkpoint-shutdown.json:432 «0650fe7bf3fb6f59»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:432 «bd243d5ec3e58476»",
           "docs/specs/reconstruction-p0-contracts.md:3146 «433a9eb0d74a284a»",
           "reconstruction/contracts/p3-revision-order.json:21 «c83e9ae96bd83ffc»",
           "reconstruction/contracts/p3-revision-order.json:29 «aa2a891e5765809f»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d9990053b44496fd54fa6995148e2a04a5a9c9a3",
-    "sha256": "7912ca4351138760d92168af6466a7b73864f198e15f7e718ac476a5b2a758ea",
+    "sha256": "2cb297ee3486bf51274b291b495286e1698254eae2ffab3ed44066072b3bc39b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -553,7 +553,7 @@
       {"id":"P1-AC12","requirement":"notProvidedをnormalへ補完せず、必須欠落・不正・矛盾・一意化不能を四reasonで拒否する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:660 «8a4580da67c6a2a3»","docs/specs/reconstruction-p0-contracts.md:666 «ba1fdcd7a94571b1»"]},
       {"id":"P1-AC13","requirement":"取得起源live/recovery/replayをOperationから独立させ、replayをtestへ補完しない","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:642 «0bfabb5bb9dfcac8»","docs/specs/reconstruction-p0-contracts.md:651 «f1b501492ddebed2»"]},
       {"id":"P1-AC14","requirement":"§9.4のingress JSON・base64 decode・gunzip/unzip・full XML parse・metadata/SpecialValue抽出・分野抽出/集約・worker転送の七区間をinputId/fixtureIdに結び、各実行区間の有限かつ非負のdurationMsを単調時計で記録する。最大VPWS50（expected:O09:2）のJSON/base64/gzip envelopeを一時生成して七区間すべてを実測し、VPWP50 194period（expected:O02:14）と特殊値（expected:O02:27）も通す。元fixtureは変更しない。転送はB05本体に先行してMessageChannel送受信を完了まで計測する。未実行はnullと理由を報告し0msへ補完しない。encoded/展開後byte・node数・深さ・属性/text量を併記する。§7.5 T0〜T6の実paint検収はP2以降。","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:1820 «2192561fcd4e3f94»","docs/specs/reconstruction-p0-contracts.md:1830 «964d8b6f65321973»","reconstruction/tools/corpus/sequences.json#expected:O09:2","reconstruction/tools/corpus/sequences.json#expected:O02:14","reconstruction/tools/corpus/sequences.json#expected:O02:27"]},
-      {"id":"P1-AC15","requirement":"展開上限超過・壊れたXMLで本文運用区分を読めない場合、ParserDiagnostic.operationをundeterminedとし、未観測sourceを省略する。観測済みsourceだけを四状態で保持し、Control.StatusのnotProvided/missingやOperationResolutionを捏造しない。","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:653 «76458a722597a98d»","docs/specs/reconstruction-p0-contracts.md:666 «ba1fdcd7a94571b1»","docs/specs/reconstruction-p0-contracts.md:1051 «99c97fa5e43a3a4f»"]}
+      {"id":"P1-AC15","requirement":"展開上限超過・壊れたXMLで本文運用区分を読めない場合、ParserDiagnostic.operationをundeterminedとし、未観測sourceを省略する。観測済みsourceだけを四状態で保持し、Control.StatusのnotProvided/missingやOperationResolutionを捏造しない。（P3-UNREADABLE-MARK-001の発注3でParserDiagnosticにexpandedText?: stringを足した。XMLの検査〔xmlInvalid・xmlLimitExceeded〕で断った報だけ、展開した本文がUTF-8で読めたときの先頭を、JSONにした長さ16,384 byte〔boundedStringの引数16,382〕まで持ち、H43のカードの原文にする。P3-UM-AC11の(7)、P3-UM-AC18の(5)により統合担当が改訂）","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:653 «76458a722597a98d»","docs/specs/reconstruction-p0-contracts.md:666 «ba1fdcd7a94571b1»","docs/specs/reconstruction-p0-contracts.md:1051 «99c97fa5e43a3a4f»"]}
     ],
     "testMapping": [
       { "testId": "P1-T01", "purpose": "corpusHistory", "referenceIds": ["P1-AC01"], "behavior": "全292 XMLを一度ずつ処理し、fixtureIdごとの分類差分を報告する" },

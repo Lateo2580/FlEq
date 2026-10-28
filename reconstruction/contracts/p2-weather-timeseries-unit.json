@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "4b73689b901241a441bcb1daa1863d7f9dd98d3237ea73724cfa8620464550bd",
+    "sha256": "838b80e06353fb4de318eb90fda5a88102dca90ff2189867dd1facaebc248661",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -222,7 +222,7 @@
   "contract": {
     "contractId": "P2-WEATHER-TIMESERIES-UNIT-001",
     "mode": "implementation",
-    "objective": "M08をI-U-Fとして閉じ、subject/period、件数で切らないperiod系列、正常empty、gate-only、取消、7日、512 subject、32MiB、unavailable reasonを復元・保存障害・構造oracleまで固定する。（今の器は U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+    "objective": "M08をI-U-Fとして閉じ、subject/period、件数で切らないperiod系列、正常empty、gate-only、取消、7日、512 subject、32MiB、unavailable reasonを復元・保存障害・構造oracleまで固定する。（今の器は U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
     "baseOid": "7eac646ac48393ce4f84558d468484c44e7eec9c",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -365,7 +365,7 @@
       {
         "id": "P2-A6-RES-01",
         "target": "U-F encoded generation",
-        "limit": 36850544,
+        "limit": 36851287,
         "unit": "UTF-8 bytes; 33,565,184 から、P3-UNREADABLE-MARK-001 の RES-09 で広げた（記録の上限×読めない所の印 1 件＋原文の予算＋カード、P3-UM-AC03 の (6)）",
         "scope": "Q-ENUM.capacityRule.byteAccountingの保守的envelope込み計量Bで直前/一致/+1を検収し、全段階で件数とbyteを守る。受理と復元の境界で active の subject ごとに 21 byte を予約する（P3-EF-AC10 の (5)、P3-EXPIRY-FORM-001）",
         "source": "§4.2"
@@ -425,7 +425,7 @@
       },
       {
         "id": "P2-A6-AC04",
-        "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v6（P3-EXPIRY-FORM-001で上げた版。subjectに期限切れの保留の印expiryPending?とlapsed?を足した、P3-EF-AC10の(1)。v5はP3-NOTICE-LEDGER-001でintentの型にlastAttempt・replayed・priorityGroupを足した版）の唯一のcodecを用い、7日retention・512 subject合計・32MiB境界を守る。storageRuleの配列行と共有表をstate・保存・lastKnownに共用し、区域CodeとSignificancy Codeは文字列のまま自己完結してdecodeする。全indexをsnapshot内で解決し、範囲外・未解決ならcodecが拒否する。lastKnownにも独立した辞書・時間表を持たせる。O02:14の全periodと値集合を欠落なく保持する（familyTableのlegalMissingOrEmptyの(a)(b)とinvalidの外の階層の規則〔P3-WEATHER-SHAPE-001〕で読み飛ばす要素はperiodにしない）。Q-PERIODはclosed。容量計量はQ-ENUM.capacityRule.byteAccountingに従い、受信時に変化したsubjectだけ再計量し、envelope込みの実checkpoint byteを過少判定しない P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する（P3-NOTICE-LEDGER-001の後は終端のintentを残さず、保存するのはpendingだけ、P3-NL-AC05）。（今の器は U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v6（P3-EXPIRY-FORM-001で上げた版。subjectに期限切れの保留の印expiryPending?とlapsed?を足した、P3-EF-AC10の(1)。v5はP3-NOTICE-LEDGER-001でintentの型にlastAttempt・replayed・priorityGroupを足した版）の唯一のcodecを用い、7日retention・512 subject合計・32MiB境界を守る。storageRuleの配列行と共有表をstate・保存・lastKnownに共用し、区域CodeとSignificancy Codeは文字列のまま自己完結してdecodeする。全indexをsnapshot内で解決し、範囲外・未解決ならcodecが拒否する。lastKnownにも独立した辞書・時間表を持たせる。O02:14の全periodと値集合を欠落なく保持する（familyTableのlegalMissingOrEmptyの(a)(b)とinvalidの外の階層の規則〔P3-WEATHER-SHAPE-001〕で読み飛ばす要素はperiodにしない）。Q-PERIODはclosed。容量計量はQ-ENUM.capacityRule.byteAccountingに従い、受信時に変化したsubjectだけ再計量し、envelope込みの実checkpoint byteを過少判定しない P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する（P3-NOTICE-LEDGER-001の後は終端のintentを残さず、保存するのはpendingだけ、P3-NL-AC05）。（今の器は U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:480 «e273af3ebdc97e5c»",
           "docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
@@ -520,7 +520,7 @@
           "P2-A6-AC04",
           "P2-A6-AC05"
         ],
-        "behavior": "storageRuleの固定長配列行・共有表をcodec roundtripし、辞書・時間表とlastKnownを自己完結に復元する。Localの属性L003・要素L004を独立してroundtripする。行長違い・範囲外indexを拒否し、O02:14の件数と論理ID別の元XML値集合を照合する。Q-ENUM.capacityRuleの計量Bについて33554431/33554432/33554433 byteと511/512/513 subjectを試験内の合法stateで作り、空/取消/unavailableを含む件数と同subject置換を検収する。UTF-8多byte・escape文字、配列0/1/複数件、generation/時刻の桁変化、lastKnownを含め、加算Bと実A3 checkpoint byteの差が予約未使用分だけで実byte<=Bであることを確認する。receiveは変更recordだけ再計量し、unit全体をencodeしないことを計測回数で確認する。退去/復元/同subject置換後の差分計量も全量計量と照合する（今の器は U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "storageRuleの固定長配列行・共有表をcodec roundtripし、辞書・時間表とlastKnownを自己完結に復元する。Localの属性L003・要素L004を独立してroundtripする。行長違い・範囲外indexを拒否し、O02:14の件数と論理ID別の元XML値集合を照合する。Q-ENUM.capacityRuleの計量Bについて33554431/33554432/33554433 byteと511/512/513 subjectを試験内の合法stateで作り、空/取消/unavailableを含む件数と同subject置換を検収する。UTF-8多byte・escape文字、配列0/1/複数件、generation/時刻の桁変化、lastKnownを含め、加算Bと実A3 checkpoint byteの差が予約未使用分だけで実byte<=Bであることを確認する。receiveは変更recordだけ再計量し、unit全体をencodeしないことを計測回数で確認する。退去/復元/同subject置換後の差分計量も全量計量と照合する（今の器は U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "testId": "P2-A6-T04",

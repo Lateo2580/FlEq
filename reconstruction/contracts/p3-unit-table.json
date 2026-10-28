@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "fefaad4db3bc3ceef577ae26be3b65be12fd5bda5fd7be5ee3eee92e4afc5472",
+    "sha256": "2288a24727da0073c4c67f5bf48dd6e2523d62c8ca56b97854eda833ae2c7f3d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -31,7 +31,7 @@
         "B": "RuntimeStateまたはRuntimeStepに区分別の件数を持たせ、snapshotへ出す",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者推奨。計画§2.1 C0行「件数か診断で区別」のうち診断を選ぶ",
+        "ruling": "起草者推奨。計画§2.1 C0行「件数か診断で区別」のうち診断を選ぶ（P3-UNREADABLE-MARK-001の発注3で、routeUnlisted・routeNotPortedの入力〔共通の封筒の検査に落ちた入力も〕は診断に加えてU-MのenvelopeのheadTypeごとのunknownTypeのカードに、parserが断った入力は振り分け先のunitのenvelopeのunidentifiedのカードになる。routeIgnoredとheadTypeがignoredの入力のparserの拒否はカードにしない。P3-UM-AC11の(1)(2)、P3-UM-AC18の(2)により統合担当が改訂）",
         "reason": "既存の有界な診断経路（§7.9のqueue 256件・1MiB、満杯ではINFOから落とす）を再利用し、状態・保存・snapshot fieldを増やさない。診断のfieldは§7.9の固定fieldだけでheadTypeは持たない（inputIdで入力を指す）。DEBUGは§7.9で通常無効とされているのでignoredにも使わない"
       },
       {

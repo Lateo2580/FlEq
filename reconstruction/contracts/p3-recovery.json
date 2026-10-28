@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "c4e34ac053ff95f529f66ae0d9ae88a39962043feefae8a4a2b13ae5f9447a9d",
+    "sha256": "2ad465605e423d8c143e15fb360fe88d92832d0b8441041f1f90e4010f57d40f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -503,7 +503,7 @@
         "status": "closed",
         "source": "統合担当の配送（2026-10-28、branch rec-r1。実装は baseOid a3963a0c の木で行った〔実装の commit の親 7910bd1b は baseOid の割当だけ〕。前例は Q-REC-IMPL-1）",
         "closed": "commit: 90b95217（実装、base a3963a0c）と本 commit（配送の原文の改訂と記録）。レビュー: 契約適合 Opus は GO（P3 1 件: 鮮度の帳簿が起動時の辿りの完了の前に受けた live の id を集めない → r1 で帳簿を起動の時〔最初の接続の前〕に作る形に直した、AC13 の (5)(8)）。品質 ヘルツ（Astra high、新しい thread 01a17f93、read-only）は r0 NO-GO（P2 2 件: 帳簿の容量超過の印が最初の時刻のままで、後で捨てた id の保護が早く外れる／ページの間に重なった id を、一致で外した後の 2 件目として未受信と数える。どちらも反例を走らせて成立）→ r1 GO。ゲート（Mac mini、実装の木）10 本が rc 0: 新築の vitest 945 件通過・25 skip と shuffle も 945 件、旧築の root の npm test 6,837 件通過。既存の試験の期待を改めた 3 本: (1) recovery.test.ts の T08（見出しが 0 件で件数だけの期待 → P3-REC-D-DIGEST-BUDGET=D で見出しが載る、T08 の【発注 2】） (2) recovery-host.test.ts:167（U-M の見出しが枠の外で件数だけ → D で見出し 1 件が載る。同じ理由） (3) host.test.ts の P3-C2-T04（再接続の前後で recovery が同じ → 札を除いた recovery が同じことと札が載ることを確かめる。P3-REC-AC14。allowedPaths の外だったので統合担当が許可し〔2026-10-28〕、本 commit で allowedPaths と P3-DMDATA-CONNECT-001 の T04 に記録した）。残存（実装の報告から）: (a) H41 の遡りを RES-07 の 30 ページで打ち切った回（pageLimit）は WARN を出さない（AC13 の (7) の語は recoveryFetchFailed・recoveryAuthRejected の 2 つだけ） (b) 引き継いだ待ち（429・nextPoolingInterval）が 1 要求の 30 秒の期限を越える新しい要求は、待たずに ended にする (c) 新着がちょうど 100 件で最後の nextToken が無い応答は、その周期を unmatched にする（位置を進めない） (d) 429 でない応答で倍々の待ちを 1 秒へ戻すのは条文に無い実装の読み（publicFunctions の ListRequestLane に書いた） (e) 停止で終わった要求の ended は throttled の unmatched として返り、呼び手（composition-root の周期）が停止を見て捨てる。原文の改訂: (1) p2-snapshot-sse.json の P2-A8-SUMMARY の bound を 3,558 から 3,774 へ（capacityExceeded と freshnessSuspect の鍵の 108 byte×2、AC13 の (3)。同じ数を引く AC 2 つと試験の行 1 つも直した）と、P2-A8-AC11 に札の欄 eewUnverified とその上界 61 byte（両端 17 文字。16 桁なら 59 byte、AC14 の (6)） (2) p2-shared-runtime.json の DiagnosticReason の数を 99 から 100 へ（eewWindowUnverified。型の実物を数えた）と、P2-A1-CONFIRMATION の supply に RuntimeInput の freshnessSuspected、adoption に freshnessSuspect の置き方（P3-REC-D-SUSPECT-RANK=A） (3) 本契約: publicFunctions を実装に合わせた（FreshnessLedger の compare は { unmatched } だけで疑いは expire が返す、EewWindow の lost は引数 1 つと constructor・card、pollClassification の末尾の now、ListRequestLane の backoffMs、freshnessSuspected の scopes を unit の scope の型に、root の口 recordFrame・recordConnected・recordLiveId・watchEewWindow・watchFreshness・startFreshness）。RES-07 に試行の回数で数えること、AC13 の (5) に帳簿を作る時と 401/403 で終わった run、AC13 の (3)(b) の anchor 無しの本文の行（host.ts:482・:475、composition-root.ts:920）、allowedPaths に host.test.ts (4) p3-dmdata-connect.json の P3-C2-T04 に期待を改めた理由 (5) Q-REC-PRECHECK-2 と Q-REC-AUTHOR-2 の remaining。anchor: 実装でずれた他の契約と本契約の 137 か所を付け直した（引く file は composition-root.ts 94・p2-shared-runtime.types.ts 23・host.ts 15・view-projector.ts 2・p2-snapshot-sse.types.ts 2・shared-runtime.ts 1。composition-root.ts は発注 1 で詰めた import を普通の行に戻した分を含む）。行が動いただけのものは番号だけを替えた。中身が変わった行は同じ意味の今の行へ付け直した: host.ts:279・:303（acceptStart に wallTimeMs の引数が増えた定義と呼び出し）、composition-root.ts:227 → :235（snapshotInput の recovery・recoveryDigestBytes・confirmation の 1 行が 2 行に分かれたので、admissionCounts の隣だった confirmation の行へ）・:141 → :147（PublisherInput に freshnessSuspected）、p2-shared-runtime.types.ts:405 → :409（UnconfirmedReason に freshnessSuspect）、view-projector.ts:85（UNCONFIRMED_KEYS に freshnessSuspect と網羅の型）、p2-snapshot-sse.types.ts:49（DisplayRecoveryView に eewUnverified）。shared-runtime.ts:100（verifyCoverage の runId・epoch の照合）は同じ文の行が suspectFreshness にもでき、anchor が 1 行に決まらないので、P3-CURRENCY-COVERAGE-001 の P3-CC-AC02 の参照を verifyCoverage の宣言の行 :98 へ移した。原文の改訂で中身が変わった行を引く 5 か所（P2-CHROME-EEW-001・P2-EEW-E01-001 が引く p2-snapshot-sse.json:475〔P2-A8-AC11〕、P3-CURRENCY-COVERAGE-001 が引く p2-shared-runtime.json:212・:522、P3-NOTICE-LEDGER-001 が引く p3-version-material.json:436）と、本項などの行の追加で :904 が :913 へ動いた P3-NOTICE-LEDGER-001 の 3 か所も付け直した。改訂で sha256 を作り直した p3-measure-harness.json の sha256 の行〔:4〕を P3-E05P-CLASSIFY-001 が引くので、その 1 か所も付け直した（計 146 件・32 契約）。p3-version-material.json:436 の本文が anchor 無しで引く p3-recovery.json:787（r8・r9 の改訂の後は U-E の outOfScope の行を指していなかった）を :804 に直した。base の時点で既にずれていた本文の参照 10 か所（p3-briefing-unit・p3-typhoon-unit・p3-weather-light-step2・p3-mailbox-control。check-contract が見ない欄）は変えない。改訂した 35 契約の sha256 を作り直した",
-        "remaining": "発注 3 の点検（Q-REC-BASE）。P2-A8-SUMMARY の domainBounds（U-E 1632・U-W 3525・U-F 2301、reason 最大 19 key）と byteVerification（2026-09-24 の検算の記録）は 3,558 の時の数のまま（bound の文だけを改めた）。K14（P3-UNREADABLE-MARK-001）の発注 3 は後に配送する側として UnconfirmedReason・UNCONFIRMED_KEYS の行の anchor と bound（3,882）を付け直す（P3-REC-D-SUSPECT-RANK）。AC09 の Q-CC-LEDGER85 の「移管した」の改訂は発注 3 の配送で行う",
+        "remaining": "発注 3 の点検（Q-REC-BASE）。P2-A8-SUMMARY の domainBounds（U-E 1632・U-W 3525・U-F 2301、reason 最大 19 key）と byteVerification（2026-09-24 の検算の記録）は 3,558 の時の数のまま（bound の文だけを改めた）。K14（P3-UNREADABLE-MARK-001）の発注 3 は後に配送する側として UnconfirmedReason・UNCONFIRMED_KEYS の行の anchor と bound（3,882）を付け直す（P3-REC-D-SUSPECT-RANK）（K14 の発注 3 の配送〔Q-UM-IMPL-3〕で、bound を 3,882 に、domainBounds と byteVerification を 7 鍵で測り直し、UnconfirmedReason・UNCONFIRMED_KEYS の行の anchor を付け直した）。AC09 の Q-CC-LEDGER85 の「移管した」の改訂は発注 3 の配送で行う",
         "reason": "配送の記録"
       }
     ],
@@ -831,8 +831,8 @@
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
           "src/engine/startup/volcano-initializer.ts:61 «ee7e02d3c61c25ff»",
           "reconstruction/contracts/p3-execution-split.types.ts:104 «af3e82512c61ef88»",
-          "reconstruction/src/checkpoint/checkpoint.ts:743 «774a76496d710579»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:623 «63409c8d5e8c3c17»"
+          "reconstruction/src/checkpoint/checkpoint.ts:819 «774a76496d710579»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:629 «63409c8d5e8c3c17»"
         ]
       },
       {
@@ -885,7 +885,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2216 «061b5e78c301682d»",
           "docs/specs/reconstruction-p0-contracts.md:2218 «54e71527c590fb34»",
-          "reconstruction/src/runtime/owner-runtime.ts:269 «f5ea39a34af8cf69»"
+          "reconstruction/src/runtime/owner-runtime.ts:349 «f5ea39a34af8cf69»"
         ]
       },
       {
@@ -899,12 +899,12 @@
       },
       {
         "id": "P3-REC-AC09",
-        "requirement": "【発注 3】完了の公開と確認（H04）: 採用は recoveryApplied 1 件（確認した scope・coverage・採用世代）。範囲を全部取り終えて採用できた unit・運用区分だけに RuntimeInput.coverageVerified（既存の口、P2-A1-CONFIRMATION）を出し、whole の未確認を外して通常の表示へ戻す。一部の subject だけ取れた unit を確認済みにしない。recoveryApplied から文字列を拾って確認を外す実装をしない（P2-A1-CONFIRMATION）。(1) 包含の範囲: coverageVerified は照合が覆う入力の範囲（一覧を引き始めた時点の inputSequence。その時点までに owner が処理を終えた入力まで）を持ち、verifyCoverage は範囲の後に採った容量の拒否（capacityExceeded）を消さない。RuntimeInput の coverageVerified に欄を 1 つ足す（いまは runId と epoch の一致だけで whole も capacityExceeded も消す。P3-CURRENCY-COVERAGE-001 の Q-CC-LEDGER85 の申し送り、発注前点検 N7。配送のときに統合担当が P3-CURRENCY-COVERAGE-001 の原文〔Q-CC-LEDGER85〕を「移管した」と改訂する。allowedPaths には足さない） (2) 取り直しの範囲に、読めずに断った報（K14 の unreadableReport）や容量で断った報が残った unit／operation には coverageVerified を出さない（P3-UM-D-UNCONFIRMED=A、2026-10-26 作者裁定: その未確認を消せるのは coverageVerified だけ。発注前点検 M1）。発注 3 は K14 の発注 3 の配送の後に直列で合流する。待つのは unreadableReport の負の証拠のある K14 の発注 3 で、2026-10-28 に分けた K14 の発注 4（読めない EEW・津波の音。取り直しで拾った読めない報は info 1 回まで＝P3-UM-D-RECOVERY-SOUND）は待たない（その前に取り直しの読めない報が流れても鳴らないだけで、その裁定の内。P3-UNREADABLE-MARK-001 の Q-UM-PRECHECK-3）。slot の語は後から来た語で上書きされる（P3-REC-D-SUSPECT-RANK）ので、発注 3 はこの判定に slot の語を使わず、範囲の内に読めずに断った報があったかを負の証拠 unreadableReport（OwnerOutput.confirmationEvidence。publisher は confirmOutput の evidenceSequence でその入力の inputSequence を知る）の入力番号から自分で数え、その番号は publisher の側で unit×operation ごとに持つ（保存されたカードは入力番号を持たず、枚数の上限で外れるので台帳にならない。持ち方は発注 3 が決める、P3-UNREADABLE-MARK-001 の AC13 の (5)） (3) H41 の突き合わせ（AC13）で差が 0 で、その unit・運用区分に未解決の穴が無ければ、同じ範囲の規則で coverageVerified を出す（spec 16.2.3「確認が取れた分野を通常の表示に戻す（H04）のも、この突き合わせで行う」、発注前点検 M4）",
+        "requirement": "【発注 3】完了の公開と確認（H04）: 採用は recoveryApplied 1 件（確認した scope・coverage・採用世代）。範囲を全部取り終えて採用できた unit・運用区分だけに RuntimeInput.coverageVerified（既存の口、P2-A1-CONFIRMATION）を出し、whole の未確認を外して通常の表示へ戻す。一部の subject だけ取れた unit を確認済みにしない。recoveryApplied から文字列を拾って確認を外す実装をしない（P2-A1-CONFIRMATION）。(1) 包含の範囲: coverageVerified は照合が覆う入力の範囲（一覧を引き始めた時点の inputSequence。その時点までに owner が処理を終えた入力まで）を持ち、verifyCoverage は範囲の後に採った容量の拒否（capacityExceeded）を消さない。RuntimeInput の coverageVerified に欄を 1 つ足す（いまは runId と epoch の一致だけで whole も capacityExceeded も消す。P3-CURRENCY-COVERAGE-001 の Q-CC-LEDGER85 の申し送り、発注前点検 N7。配送のときに統合担当が P3-CURRENCY-COVERAGE-001 の原文〔Q-CC-LEDGER85〕を「移管した」と改訂する。allowedPaths には足さない） (2) 取り直しの範囲に、読めずに断った報（K14 の unreadableReport）や容量で断った報が残った unit／operation には coverageVerified を出さない（P3-UM-D-UNCONFIRMED=A、2026-10-26 作者裁定: その未確認を消せるのは coverageVerified だけ。発注前点検 M1）。発注 3 は K14 の発注 3 の配送の後に直列で合流する（K14 の発注 3 は配送済み: 248a5d34、P3-UNREADABLE-MARK-001 の Q-UM-IMPL-3、2026-10-28）。待つのは unreadableReport の負の証拠のある K14 の発注 3 で、2026-10-28 に分けた K14 の発注 4（読めない EEW・津波の音。取り直しで拾った読めない報は info 1 回まで＝P3-UM-D-RECOVERY-SOUND）は待たない（その前に取り直しの読めない報が流れても鳴らないだけで、その裁定の内。P3-UNREADABLE-MARK-001 の Q-UM-PRECHECK-3）。slot の語は後から来た語で上書きされる（P3-REC-D-SUSPECT-RANK）ので、発注 3 はこの判定に slot の語を使わず、範囲の内に読めずに断った報があったかを負の証拠 unreadableReport（OwnerOutput.confirmationEvidence。publisher は confirmOutput の evidenceSequence でその入力の inputSequence を知る）の入力番号から自分で数え、その番号は publisher の側で unit×operation ごとに持つ（保存されたカードは入力番号を持たず、枚数の上限で外れるので台帳にならない。持ち方は発注 3 が決める、P3-UNREADABLE-MARK-001 の AC13 の (5)） (3) H41 の突き合わせ（AC13）で差が 0 で、その unit・運用区分に未解決の穴が無ければ、同じ範囲の規則で coverageVerified を出す（spec 16.2.3「確認が取れた分野を通常の表示に戻す（H04）のも、この突き合わせで行う」、発注前点検 M4）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2220 «a3a44a06404484c9»",
           "docs/specs/reconstruction-p0-contracts.md:3031 «375d564fe0344d12»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:346 «d22d7f39e8d1c98f»",
-          "reconstruction/src/runtime/shared-runtime.ts:98 «d4dcf0c5da493b28»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:348 «d22d7f39e8d1c98f»",
+          "reconstruction/src/runtime/shared-runtime.ts:102 «d4dcf0c5da493b28»",
           "docs/specs/reconstruction-p0-contracts.md:3122 «cdb1c0e831ae206f»"
         ]
       },
@@ -936,7 +936,7 @@
           "reconstruction/src/units/tsunami/tsunami-unit.ts:890 «086efc15d89bde4b»",
           "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
           "reconstruction/contracts/p3-order-plan.md:451 «15b50525f89de42e»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:538 «a0620acc2fe096fd»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:537 «a0620acc2fe096fd»"
         ]
       },
       {
@@ -946,8 +946,8 @@
           "docs/specs/reconstruction-p0-contracts.md:3068 «34a7ae5b6a43153e»",
           "docs/specs/reconstruction-p0-contracts.md:3120 «4327768cc2caa6fb»",
           "reconstruction/contracts/p3-order-plan.md:456 «0d9468befbd1d465»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:409 «9aa97dbbb5949d52»",
-          "reconstruction/src/view-projector/view-projector.ts:85 «44350cf250878dad»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:412 «8fd24859e6537196»",
+          "reconstruction/src/view-projector/view-projector.ts:85 «2120b8ccd16649e3»",
           "reconstruction/src/runtime/composition-root.ts:920 «71f3e73d73b564c2»"
         ]
       },
@@ -1000,7 +1000,7 @@
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
           "reconstruction/src/host/host.ts:333 «78ed7c65133feaf5»",
           "reconstruction/src/runtime/composition-root.ts:147 «d515e86c34a64341»",
-          "reconstruction/src/checkpoint/checkpoint.ts:774 «b25220c330d56156»"
+          "reconstruction/src/checkpoint/checkpoint.ts:850 «b25220c330d56156»"
         ]
       }
     ],
@@ -1189,7 +1189,7 @@
         "requiredEvidence": [
           "発注ごとの baseOid の割当と、その時点で本契約の anchor のずれが 0 件であること",
           "発注 2・3 は前の発注の配送の後に点検し直すこと（Q-VM-PRECHECK-2A の形）",
-          "発注 3 は P3-UNREADABLE-MARK-001 の発注 3（unreadableReport）の配送の後であること（P3-REC-AC09 の (2)）。K14 は 2026-10-28 に発注 3・4 に分けた（Q-UM-PRECHECK-3）が、待つのは unreadableReport のある K14 の発注 3 のままで、K14 の発注 4（音・台風の地域・取消の印）は待たない。K14 の発注 4 が先に配送済みなら、発注 3 の点検で、取り直し 1 回の見分け方（P3-UM-AC12 の (10)）を K14 の口に合わせて決め、条文に書く",
+          "発注 3 は P3-UNREADABLE-MARK-001 の発注 3（unreadableReport）の配送の後であること（P3-REC-AC09 の (2)）。K14 の発注 3 は配送済み（248a5d34、Q-UM-IMPL-3、2026-10-28）。K14 は 2026-10-28 に発注 3・4 に分けた（Q-UM-PRECHECK-3）が、待つのは unreadableReport のある K14 の発注 3 のままで、K14 の発注 4（音・台風の地域・取消の印）は待たない。K14 の発注 4 が先に配送済みなら、発注 3 の点検で、取り直し 1 回の見分け方（P3-UM-AC12 の (10)）を K14 の口に合わせて決め、条文に書く",
           "発注 3 の点検で、境界の id による絞りが walkList の結果（UnitWalkResult.heads）の段にあり、本文の取得の範囲にも効くことを見直す（発注 1 のレビュー Opus P3）",
           "429 で打ち切った後の『次はその時刻より前に起こさない』は発注 1 に次の辿りが無いので作っていない。発注 3 のきっかけで作る"
         ]

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "20929c2a342e66811cb8f7e60069c3823f0402ee6ef1d646358c9f4361933ad3",
+    "sha256": "3ca0688538d11cb826a52d131ffd6bfd002b6fc54fe3441ddcea5e6c49b01871",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -66,7 +66,7 @@
         "status": "closed",
         "source": "統合担当の起草（H51の後、weather-timeseries.tsとtyphoon.tsの拒否の所の全件の読み合わせ、起草のHEAD 4f7485e8）",
         "closed": "受け取りに変えるもの: U-F: :110〜:111・:117〜:118・:159・:164〜:165・:172・:188（:93）・:102〜:103・:197・:208〜:209・:228・:238の知らない子と地の文（Q-WS-LEVELS）、:245・:254のBase・Localの地の文と、:216〜:217・:221・:224・:229〜:230に当たる値の名前でない要素、Addition（P3-WS-D-ADDITION）。U-Y: :297の時刻25個以上、:139〜:140の実況でない時刻の読めなさ、:85・:91・:99・:109・:152・:170・:175の時刻の中と台風呼称の節の欄の読めなさ、:118の軸3本以上、:324の知らない節、:363・:368の外れた時間帯から後（P3-WS-D-TYPHOON (1)〜(7)）。拒否のまま残し、K14で読めなかった電文のカード（H43、知っているが読めない）にするもの: U-F: :86の共通の封筒、:87・:96〜:104のControl・EditorialOffice・ItemのArea・AreaのCodeの欠け・2個以上・数字でない（識別。Itemを落とすとその危険度を数える所が無く、警報を黙って落としうる）、:106〜:109のInfoType・headType・Bodyの2個以上、:112の容器の無い報、:116〜:117の容器のtypeの欠け・空・2個以上・別の値（別の種類の情報を推測で読まない）、:163〜:168のTimeDefinesの欠け・2個以上とTimeDefine・Itemの無い系列、:176〜:180のtimeIdの欠け・重複とDateTime・Durationの欠け・形の外（時刻と値の対応が崩れる）、:153の既知の任意の欄（Name・Status・Local/Code・AreaNameほか）の2個以上・子を持つ、:195・:206・:213のKind・Property・Partの無い所（知らないものも無いとき。知らないものだけの範囲はQ-WS-LEVELSで受理）、:201のKindのDateTimeの2個以上・type属性の2個以上、:212のPropertyのTypeの欠け・形の外（値の意味の名前が分からない）、:242〜:243のBaseの欠け（知らないものも無いとき）・2個以上、:254のAreaNameのcode属性の2個以上、値の名前の要素の:216〜:217のrefIDの欠け・2個以上・解決できない・:221のtype属性の2個以上・:224の同じ鍵の値・:227〜:228のSignificancyのName・Codeの2個以上か子を持つName・Code・:229〜:230の子を持つ値、:270の読めた値の無い報。U-Y: :230の封筒、:237のheadType、:244〜:245のEventID、:249〜:250のSerial・ReportDateTime・InfoTypeの長さ・inputId、:256〜:257のTitle（空のtitleは保存の形に無い、typhoon-unit.tsのboundedName）、:261〜:262のInfoType（発表か取消かが決まらない）、:283〜:284のTargetDateTime（時刻・時間帯・期限の起点）、:287〜:291のBody・MeteorologicalInfos、:296の時刻の無い解析、:194の同じtypeの風の域が2個以上（域をnullにすると暴風域なしと見分けられない）、:311〜:312と:139〜:140の実況の時刻の欠け・2個以上・読めなさ（解析の芯）、:216〜:217の地域の識別（節の間の地域の照合と府県のまとめが組めない）、:223の確率の値の形の外と:354・:379の同じ節か時系列に重なる地域（地域を外すと0%と見分けられない。K14で地域ごとに「不明」と出す〔2026-10-20 作者裁定〕）、:324の同じNの節の2個以上、:352の日積算のFiftyKtWindProbabilityが0個か2個以上、:327の1〜5日積算の節の欠け（dailyは5つの数でnullを持てない）、:332のTimeSeriesInfoの欠け・2個以上、:362のTimeDefineが0個、:341の府県の名前の食い違い、最初の時間帯で止まる報（slotCountの0は保存の形に無い）、:380の値の数と時間帯の数の違い、:383の読んだ範囲のrefIDの不一致、:391・:393の地域の無い報・地域の集合の不一致、:419の5日積算が全部0の地域だけの報（maxFiveDayを決められない）",
-        "remaining": "K14の契約に、拒否のまま残すこの一覧を読めなかった電文のカード（H43）の入力として渡す（統合担当、段3）。U-Fの:153・:201の2個以上も、U-Fに印の欄が無いので拒否のままK14へ送る",
+        "remaining": "K14の契約に、拒否のまま残すこの一覧を読めなかった電文のカード（H43）の入力として渡す（統合担当、段3）。U-Fの:153・:201の2個以上も、U-Fに印の欄が無いので拒否のままK14へ送る（2026-10-28、P3-UNREADABLE-MARK-001 の発注 3 で閉じた: unit が断った報は全部 unreadable のカードになる〔一覧を unit ごとに数え直さない、P3-UM-AC11 の (1)〕。U-Y の確率の報の地域ごとの「不明」は発注 4）",
         "reason": "拒否のまま残すのは、H51の『報の全体が読めない』に当たるもの（封筒・識別・種類・発表か取消か・基準時刻）と、既知の欄が欠けるか2つあって、残りを読むにはどれかを推測するか、値を時刻・地域に結べず、落とせば警報級の値や確率を黙って落としうるもの。今の型は時刻の無いperiod、地域の無いItem、空のtitle、slotCountの0、nullのdaily・nullの確率の値を持てず、持たせるなら保存の形を変える（K14で印の形と一緒に決める）。実配信のW1の3日と台風の採取130通でこれらに当たった報は無い（Q-WS-CAUSE、P3-WS-D-TYPHOON）。K14が入るまでは診断の1行だけで、H51に反する状態が残る（残存リスク(11)。新築はまだ画面に出ていない）"
       },
       {
@@ -106,7 +106,7 @@
         "status": "closed",
         "source": "統合担当の配送（2026-10-21、実装は Opus の子、base b7585577）",
         "closed": "実装の patch（8 file、+297 −118）を 2 段のレビューにかけた。契約適合 Opus は GO（P1・P2 なし。他の契約の anchor は全部同じ行のまま、AC09(4) の行の数の制約 4 つも守られている）。品質 Opus は条件付き GO で、P2 1 件（台風の確率の報で、知らない節・1〜5 日の外の節・止めた時間帯を落とした結果、読めた地域が 0 件になると zero の候補になり、typhoon-unit の zeroRecord が『暴風域に入る確率1%以上の地域なし』の released を出す）と P3 2 件（readable の道筋と capacityExceeded の早い戻りの診断を確かめる試験が無い）を修正波 1 で直した。P2 は、落としたものがあって読めた地域が 0 件の報を requiredStructureInvalid で拒否する形にした（P3-WS-T04 に 1 行）。直さなかった P3: typhoon.ts の labelOf の二度読みと PARTS の展開の定数化（効きが無く行がずれるだけ）、Area の無い Item の拒否の理由が requiredStructureInvalid から identityMissing に変わること（AC10 で識別の検査の絞り込みを外した結果で、意図どおり）、受理と truncated に変わった行の追加の試験（testMapping が求めていない）。ゲート（Mac mini、Node 26.10.0）: tsc 3 本・vitest 755 passed／23 skipped（base 750）・shuffle 同じ・check-manifest・check-sequences は exit 0。check-contract の FAIL は本契約の anchor だけで、配送の commit で付け直した（AC09(4)。行が動いただけの 18 件は同じ行へ、書き換わった行を引く 37 件は差分の hunk で当たる書き換え後の行へ、そのうち同じ配列で重なった 2 件は 1 件にまとめた）",
-        "remaining": "読めた地域が 0 件で落としたものがある台風の確率の報の拒否を、Q-WS-REJECTIONS の拒否のまま残す一覧に加えて K14 の入力（H43 の読めなかった電文のカード）に渡す（統合担当、段 3）。AC06 の W1 の測り直しは配送の後に Mac mini で行う",
+        "remaining": "読めた地域が 0 件で落としたものがある台風の確率の報の拒否を、Q-WS-REJECTIONS の拒否のまま残す一覧に加えて K14 の入力（H43 の読めなかった電文のカード）に渡す（統合担当、段 3）（2026-10-28、P3-UNREADABLE-MARK-001 の発注 3 で閉じた: この拒否も U-Y の unreadable のカードになる。P3-UM-AC11 の (1)）。AC06 の W1 の測り直しは配送の後に Mac mini で行う",
         "reason": "拒否に戻したのは、読んでいない節や時間帯に 1% 以上の地域があっても解除の通知を出すと、H51 の『黙って断らない』より重い、誤った安心を伝える形になるため。拒否は診断が付くので黙らない"
       },
       {
@@ -257,7 +257,7 @@
         "id": "P3-WS-AC02",
         "requirement": "知らないものの読み飛ばしを黙らない（P3-WS-D-ADDITION=A、Q-WS-LEVELS）: inspectが報を受理したとき、(i) AC01の(b)で読み飛ばした要素と地の文の数が1以上ならINFO診断を1件（reason weatherTimeseriesElementSkipped、countはその数。Additionは数えない）、(ii) AC10で読み飛ばした外の階層の知らない子と地の文が1つ以上ならWARN診断を1件（reason weatherTimeseriesScopeUnclear、countは範囲の中のperiodの数）を、そのreceiveのstepで返す（どちらもcomponent weather-timeseries、unit U-F、inputId）。門の決定（stale・duplicate・容量の拒否capacityExceeded・changed）によらず同じで、unitのreceiveの早い戻り（weather-timeseries-unit.tsのunchangedと容量の拒否）でも同じものを足す。inspectが拒否した報では出さない。DiagnosticReasonの閉集合とpersistent-diagnostic-sinkの理由の表に2語を足す。無いと: 気象庁が新しい要素を足したとき、それを読まなかったことと、意味を変えうる外側か値の階層かの別が、どこにも残らない（H44の間はU-Fに印の欄が無い）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:325 «fd09f4580e5f9074»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:327 «70968937060170fb»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:63 «0b3f82f2a4656d65»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:317 «e3dc48b3d46347a4»"
         ]
@@ -302,8 +302,8 @@
           "reconstruction/src/units/typhoon/typhoon-unit.ts:715 «386765b0ed3fadfa»",
           "reconstruction/contracts/p3-typhoon-unit.json:352 «28b728c920e887df»",
           "reconstruction/contracts/p3-typhoon-unit.json:358 «af03e786dee34b37»",
-          "reconstruction/contracts/p3-typhoon-unit.json:440 «98d18837120bfe9e»",
-          "reconstruction/contracts/p3-typhoon-unit.json:441 «b990551673cb7618»",
+          "reconstruction/contracts/p3-typhoon-unit.json:440 «3c9b59cd1e3cca75»",
+          "reconstruction/contracts/p3-typhoon-unit.json:441 «8cb143a4d2b5f3bb»",
           "reconstruction/contracts/p3-typhoon-unit.json:915 «82a1b22dcedf2e70»",
           "reconstruction/src/domains/typhoon/typhoon.ts:166 «5cf58eab3ec62706»",
           "reconstruction/src/domains/typhoon/typhoon.ts:208 «ab68efdc30d82239»",
@@ -319,13 +319,13 @@
         "id": "P3-WS-AC05",
         "requirement": "今の形の報の結果を変えない（Q-WS-SCHEMA）: Additionも知らない要素も持たないU-Fのfixtureと、表の内側のU-Yのfixtureでは、decisions・outcomes・intents・state・codecのencodeのbyteが今と同じ。U-F・U-Yの永続の型・schemaVersion・codecを変えない（Q-WS-SCHEMA、D-ADDITION=A）。今ある試験がこれを確かめる: U-FはP3-UFP-T01（encodeのsha256・decisions・outcomes・intents・nextDeadline）とP3-UFP-T02（要約の行のdigest。AC03で行が変わる場合はQ-WS-EXISTING-TESTS）、U-YはP3-C14-T10（typhoon-corpus.test.tsの22の期待のstep）。基準値は変えずに緑のまま。期待値を変える既存の試験はQ-WS-EXISTING-TESTSで変える前に報告する",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:17 «1bf3da5c083273e8»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:17 «948750e4d1b209b2»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:225 «bd87c88c0369446a»",
           "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:45 «e84656f2b8801676»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:745 «ba50fb82ef51ba67»",
-          "reconstruction/src/checkpoint/checkpoint.ts:460 «b6fdb65e4e225b7d»",
-          "reconstruction/test/uf-public/uf-history.test.ts:190 «85825881864e0803»",
-          "reconstruction/test/uf-public/uf-history.test.ts:200 «9a26cef9f7727011»",
+          "reconstruction/src/checkpoint/checkpoint.ts:462 «b6fdb65e4e225b7d»",
+          "reconstruction/test/uf-public/uf-history.test.ts:192 «85825881864e0803»",
+          "reconstruction/test/uf-public/uf-history.test.ts:202 «9a26cef9f7727011»",
           "reconstruction/test/typhoon-unit/typhoon-corpus.test.ts:30 «281e877c662ed2cd»"
         ]
       },
@@ -364,10 +364,10 @@
           "reconstruction/contracts/p3-typhoon-unit.json:118 «22104363ed6bfed6»",
           "reconstruction/contracts/p3-typhoon-unit.json:352 «28b728c920e887df»",
           "reconstruction/contracts/p3-typhoon-unit.json:358 «af03e786dee34b37»",
-          "reconstruction/contracts/p3-typhoon-unit.json:440 «98d18837120bfe9e»",
-          "reconstruction/contracts/p3-typhoon-unit.json:441 «b990551673cb7618»",
+          "reconstruction/contracts/p3-typhoon-unit.json:440 «3c9b59cd1e3cca75»",
+          "reconstruction/contracts/p3-typhoon-unit.json:441 «8cb143a4d2b5f3bb»",
           "reconstruction/contracts/p3-typhoon-unit.json:915 «82a1b22dcedf2e70»",
-          "reconstruction/contracts/p3-typhoon-unit.json:1056 «ba2700bec8d16c08»",
+          "reconstruction/contracts/p3-typhoon-unit.json:1056 «8cd4c37cbd67d7cb»",
           "reconstruction/contracts/p3-typhoon-unit.json:1192 «e5e003ffd938a922»",
           "reconstruction/contracts/p3-typhoon-unit.json:1232 «519a4dff25d47ccb»",
           "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
@@ -376,7 +376,7 @@
           "reconstruction/contracts/p3-disaster-capacity.json:709 «fd294178e1cb86d1»",
           "docs/specs/reconstruction-p0-contracts.md:3209 «f0f82f05f422b938»",
           "reconstruction/contracts/p3-order-plan.md:514 «e204d84283a8f0ea»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «8f650c50a2fa8f55»"
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «edfc0612c1bd0f79»"
         ]
       },
       {
@@ -524,7 +524,7 @@
       "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由",
       "足した仕組み（診断の理由2語、読み飛ばしの判定、外の階層の範囲のperiodの数え、要約の規則、U-Yの切り詰め(1)〜(7)）ごとに『無いと何が壊れるか』を1行",
       "追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行。期待値を変えた既存の試験の名前と理由（Q-WS-EXISTING-TESTS、変える前に報告）",
-      "残存リスク（2026-10-20 作者承認済み、Q-WS-AUTHOR）: (1) 知らない要素の中身は読まない。H44の間はU-Fの記録にも画面にも印が残らず、診断（INFOとWARNの件数）だけになる。範囲の既知のCodeは既知のまま出るので、知らない要素が範囲の値（危険度・雨量・風速など）の意味を変えていても、K14で範囲の区分不明の印を保存しP4が出すまで分からない。K14の後は、外の階層に要素が1つ足されると範囲の全部に区分不明の印が付く。知らないものだけの範囲（新しいPartだけのPropertyなど）は値0件のまま受理するので、気象庁が警報級の値を新しい要素だけで出したとき、その値は要約に入らず、H44の間は診断にしか残らない（報全体が知らないものだけならperiod 0件で拒否）。原文はK14が入るまで残らない（2026-10-26、P3-UNREADABLE-MARK-001 の発注 1 で閉じた: 範囲の区分不明は記録の印の part〔site は階層の名、scope は範囲〕と原文の欠片で保存する。範囲の既知の Code は既知のまま。画面に出すのは P4。AC15 の (1)） (2) 00（値なし）は要約でnone（なし）に数える。運用区分のactiveなU-Fが00だけなら「なし」と出る (3) 〔2026-10-20 照合済みで解消〕既知のCodeの11個は、気象庁の公式の表（気象警報・注意報時系列情報（Ｒ０６）の解説資料の別表類の「別表4_危険度と対応するコード」、https://xml.kishou.go.jp/jmaxml_20261009_Manual(pdf).zip の xlsx、sha256 b263e918…、と コード管理表 jmaxml_20261019_code.xlsx の code.Significancy）と、Codeも区分も一致した。公式にだけある10（注意報級）はR06の時系列では「とらない」と明記されている。P2-WEATHER-TIMESERIES-UNIT-001のQ-VALUES.evidenceStageの「別表5」はVPWW用の別表類の番号で、中身は時系列の別表4と同じ。00は公式では「予測の確度が十分でないか予測対象外」の意味なので、P4の画面の文言で「なし＝安全」と読ませない (4) U-Yの確率で、時刻の意味が外れた時間帯（PT3Hでない・隙間・timeIdの順の外れ）から後と65個目からの時間帯は読まず、その確率はpeakに入らない。peakが実際より低く出うる（U-Yの既存のtruncatedで分かる）。最初の時間帯から外れた報は今どおり拒否 (5) U-Yで確率の値の読めない地域・同じ節か時系列に重なる地域を持つ報と、同じtypeの風の域が2つある解析は、今どおり報ごと拒否する（K14で読めなかった電文のカード。K14で地域ごとに「不明」と出す〔2026-10-20 作者裁定〕） (6) D-ADDITION=Aでは付加事項の語（うねり・竜巻・突風・ひょう・塩害）を中身として持たず、P4では原文を開いて読む形になる（原文の欠片はK14から）。付加事項に印を立てると約6割の報で印が出る（K14への申し送り）（2026-10-26、P3-UNREADABLE-MARK-001 の発注 1 で閉じた: 付加事項の原文は part〔site addition、scope は Property の Type〕の欠片で残し、「読めない所あり」の印としては view に出さない。AC15 の (2)、P3-UM-D-ADDITION-MARK の A） (7) 受理する報が増えるので（W1の3日で547通）、U-Fのstate・保存・受信の処理は平常の大きさに戻る（P2-A6のQ-PERIODの58官署で15.6〜15.8 MB、上限32 MiB）。Mac miniのW1で器を測り直す（AC06）が、Piの実時間とRSSは測らない（P3-DISASTER-CAPACITY-001の残存リスク(1)と同じ） (8) U-Wの要約の最高区分も表の外のCodeを外す（本契約の外、Q-WS-NONE-READS (6)） (9) NameがmissingかemptyでCodeが既知の危険度は既知の最大に入らない。ほかの既知の最大がadvisory以上なら、その危険度が警報級でも最高区分はadvisoryのまま（Q-WS-NONE-READS (7)） (10) D-TYPHOON=Aで軸が3本以上の域は軸の向きと半径を持たず閾値の風速だけになり、時刻の中の読めない欄（気圧・中心など）は空欄になる (11) 拒否のまま残す所（Q-WS-REJECTIONS）は、K14が読めなかった電文のカード（H43）を作るまで診断の1行だけになり、H51に反する状態が段3まで続く（新築はまだ画面に出ていない） (12) D-ADDITIONの(b)で値の名前でない要素の同じ鍵のperiodが2つあるとき、1つ目を値として持ち2つ目を読み飛ばす。D-TYPHOONの(4)（2個以上は組の全部をnull）と揃えるかはK14で決める（2026-10-26、P3-UNREADABLE-MARK-001 の発注 1 で閉じた: 読みは今のまま〔1 つ目を値に持つ〕で、2 つ目を part〔site duplicateValue〕の小さな印にする。AC15 の (3)） (13) Bodyの直下のMeteorologicalInfos以外の子要素は、今も読まずに黙って捨てている（:89。W1で出現数を測りK14で印を決める）（2026-10-26、P3-UNREADABLE-MARK-001 の発注 1 で閉じた: 捨てる子要素は part〔site bodyOther〕の小さな印にし、区分不明にはしない。AC15 の (4)）"
+      "残存リスク（2026-10-20 作者承認済み、Q-WS-AUTHOR）: (1) 知らない要素の中身は読まない。H44の間はU-Fの記録にも画面にも印が残らず、診断（INFOとWARNの件数）だけになる。範囲の既知のCodeは既知のまま出るので、知らない要素が範囲の値（危険度・雨量・風速など）の意味を変えていても、K14で範囲の区分不明の印を保存しP4が出すまで分からない。K14の後は、外の階層に要素が1つ足されると範囲の全部に区分不明の印が付く。知らないものだけの範囲（新しいPartだけのPropertyなど）は値0件のまま受理するので、気象庁が警報級の値を新しい要素だけで出したとき、その値は要約に入らず、H44の間は診断にしか残らない（報全体が知らないものだけならperiod 0件で拒否）。原文はK14が入るまで残らない（2026-10-26、P3-UNREADABLE-MARK-001 の発注 1 で閉じた: 範囲の区分不明は記録の印の part〔site は階層の名、scope は範囲〕と原文の欠片で保存する。範囲の既知の Code は既知のまま。画面に出すのは P4。AC15 の (1)） (2) 00（値なし）は要約でnone（なし）に数える。運用区分のactiveなU-Fが00だけなら「なし」と出る (3) 〔2026-10-20 照合済みで解消〕既知のCodeの11個は、気象庁の公式の表（気象警報・注意報時系列情報（Ｒ０６）の解説資料の別表類の「別表4_危険度と対応するコード」、https://xml.kishou.go.jp/jmaxml_20261009_Manual(pdf).zip の xlsx、sha256 b263e918…、と コード管理表 jmaxml_20261019_code.xlsx の code.Significancy）と、Codeも区分も一致した。公式にだけある10（注意報級）はR06の時系列では「とらない」と明記されている。P2-WEATHER-TIMESERIES-UNIT-001のQ-VALUES.evidenceStageの「別表5」はVPWW用の別表類の番号で、中身は時系列の別表4と同じ。00は公式では「予測の確度が十分でないか予測対象外」の意味なので、P4の画面の文言で「なし＝安全」と読ませない (4) U-Yの確率で、時刻の意味が外れた時間帯（PT3Hでない・隙間・timeIdの順の外れ）から後と65個目からの時間帯は読まず、その確率はpeakに入らない。peakが実際より低く出うる（U-Yの既存のtruncatedで分かる）。最初の時間帯から外れた報は今どおり拒否 (5) U-Yで確率の値の読めない地域・同じ節か時系列に重なる地域を持つ報と、同じtypeの風の域が2つある解析は、今どおり報ごと拒否する（K14で読めなかった電文のカード。K14で地域ごとに「不明」と出す〔2026-10-20 作者裁定〕）（2026-10-28、P3-UNREADABLE-MARK-001 の発注 3 で一部閉じた: 拒否した報は U-Y の envelope に unreadable のカードになる。地域ごとの「不明」〔カードの areas〕は発注 4。AC11） (6) D-ADDITION=Aでは付加事項の語（うねり・竜巻・突風・ひょう・塩害）を中身として持たず、P4では原文を開いて読む形になる（原文の欠片はK14から）。付加事項に印を立てると約6割の報で印が出る（K14への申し送り）（2026-10-26、P3-UNREADABLE-MARK-001 の発注 1 で閉じた: 付加事項の原文は part〔site addition、scope は Property の Type〕の欠片で残し、「読めない所あり」の印としては view に出さない。AC15 の (2)、P3-UM-D-ADDITION-MARK の A） (7) 受理する報が増えるので（W1の3日で547通）、U-Fのstate・保存・受信の処理は平常の大きさに戻る（P2-A6のQ-PERIODの58官署で15.6〜15.8 MB、上限32 MiB）。Mac miniのW1で器を測り直す（AC06）が、Piの実時間とRSSは測らない（P3-DISASTER-CAPACITY-001の残存リスク(1)と同じ） (8) U-Wの要約の最高区分も表の外のCodeを外す（本契約の外、Q-WS-NONE-READS (6)） (9) NameがmissingかemptyでCodeが既知の危険度は既知の最大に入らない。ほかの既知の最大がadvisory以上なら、その危険度が警報級でも最高区分はadvisoryのまま（Q-WS-NONE-READS (7)） (10) D-TYPHOON=Aで軸が3本以上の域は軸の向きと半径を持たず閾値の風速だけになり、時刻の中の読めない欄（気圧・中心など）は空欄になる (11) 拒否のまま残す所（Q-WS-REJECTIONS）は、K14が読めなかった電文のカード（H43）を作るまで診断の1行だけになり、H51に反する状態が段3まで続く（新築はまだ画面に出ていない）（2026-10-28、P3-UNREADABLE-MARK-001 の発注 3 で閉じた: 拒否のまま残す報は振り分け先の unit の envelope に unreadable のカードになり、view の unreadableCards に渡る。画面に描くのは P4。台風の確率の報の地域ごとの「不明」は発注 4。AC11） (12) D-ADDITIONの(b)で値の名前でない要素の同じ鍵のperiodが2つあるとき、1つ目を値として持ち2つ目を読み飛ばす。D-TYPHOONの(4)（2個以上は組の全部をnull）と揃えるかはK14で決める（2026-10-26、P3-UNREADABLE-MARK-001 の発注 1 で閉じた: 読みは今のまま〔1 つ目を値に持つ〕で、2 つ目を part〔site duplicateValue〕の小さな印にする。AC15 の (3)） (13) Bodyの直下のMeteorologicalInfos以外の子要素は、今も読まずに黙って捨てている（:89。W1で出現数を測りK14で印を決める）（2026-10-26、P3-UNREADABLE-MARK-001 の発注 1 で閉じた: 捨てる子要素は part〔site bodyOther〕の小さな印にし、区分不明にはしない。AC15 の (4)）"
     ],
     "unresolvedQuestions": [
       {

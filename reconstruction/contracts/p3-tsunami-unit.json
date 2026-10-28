@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "c85097544ae72025e892fe849421553890f482531a36b68ed58f00d76f31f9dc",
+    "sha256": "adea9bc87cb063644d1581f0bf94d74eb61063c1d942a972b996e620336b3c51",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -91,7 +91,7 @@
       },
       {
         "id": "P3-C5-CAPACITY",
-        "A": "上限は4つ: VTSE41 subject 512（三区分合算、旧築maxSubjects 512）、観測subject familyごと512（三区分合算）、station familyごと1024（三区分合算、spec:575）、4 MiB/世代。どれかを超える受理には同じ退去手順を使う: 退去候補は超過量を実際に減らすsubjectだけに限り、(1)retainUntilを過ぎた非active（入力の根拠が verified のときだけ） (2)最古の非active（stationsを持つforecastEndedを含む） (3)training/testのactiveを、R14と同じ最古順で必要数だけ。station超過の候補は同じfamilyのstationsを持つ観測subjectだけ、件数超過の候補は同じ種類（VTSE41／同じfamilyの観測）だけ、byte超過は全subject。normalのactiveだけで超えるならcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で原子的に確定し、確定した退去だけを診断tsunamiCapacityEvicted（count）で返す。受理と復元の境界で見える観測の記録ごとに 21 byte を予約し、器は 4,698,345（P3-EF-AC06 の (3)）（今の器は U-T 11,353,689 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "A": "上限は4つ: VTSE41 subject 512（三区分合算、旧築maxSubjects 512）、観測subject familyごと512（三区分合算）、station familyごと1024（三区分合算、spec:575）、4 MiB/世代。どれかを超える受理には同じ退去手順を使う: 退去候補は超過量を実際に減らすsubjectだけに限り、(1)retainUntilを過ぎた非active（入力の根拠が verified のときだけ） (2)最古の非active（stationsを持つforecastEndedを含む） (3)training/testのactiveを、R14と同じ最古順で必要数だけ。station超過の候補は同じfamilyのstationsを持つ観測subjectだけ、件数超過の候補は同じ種類（VTSE41／同じfamilyの観測）だけ、byte超過は全subject。normalのactiveだけで超えるならcapacityExceeded（state不変。P3-CURRENCY-COVERAGE-001で改訂: 印・titleの時刻・失敗警報を足し、収まらなければstate不変で負の証拠を返す、P3-CC-AC02〜AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）。退去と採用は一回の参照交換で原子的に確定し、確定した退去だけを診断tsunamiCapacityEvicted（count）で返す。受理と復元の境界で見える観測の記録ごとに 21 byte を予約し、器は 4,698,345（P3-EF-AC06 の (3)）（今の器は U-T 11,354,432 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "B": "旧築どおり上限で最終更新の古いstationを黙って落とす",
         "recommended": "A",
         "provisional": "A",
@@ -262,7 +262,7 @@
         "observationSemantics": "P3-C5-OBS-MERGE=A・P3-C5-OBS-LIFETIME=A。VTSE51とVTSE52はwatermark・station・取消を互いに共有しない。観測の取消はそのsubjectだけをcancelled（stationsを捨ててwatermarkだけ）にする。VTSE41の取消は観測を取り消さないが、P3-C5-OBS-LIFETIMEによりforecastEndedにする",
         "deadlines": "nextDeadlineは、activeの観測のvalidUntil、非activeのsubjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す",
         "persisted": "PersistedTsunamiUnitはschemaVersion p3-tsunami-unit-v5（P3-EXPIRY-FORM-001で上げた版、P3-EF-AC10の(1)。v1〜v4は捨ててよい版）、forecasts、observations、intents（pendingだけ、P3-NL-AC05）、failureMarks（失敗の印、P3-NL-AC02の(6)）。予報・観測の記録は印notice?を持つ（観測はfragmentの鍵16件まで、P3-NL-AC02・AC03）。contentRevision・persistenceは保存しない",
-        "decode": "codecは一つ（tsunamiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、VTSE41 subject≤512、観測subject familyごと≤512、station familyごと≤1024（三区分合算）、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、subjectの重複なし、区域code・station codeの重複なし、areaClassとkindCodeの一致（Q-ENUMの表）、effectiveとareas/stationsの形（cancelled・expiredは空）、intentのunitがU-TでsubjectがU-Tのsubject形式（I-U-T.subjects）であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）（今の器は U-T 11,353,689 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "decode": "codecは一つ（tsunamiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、VTSE41 subject≤512、観測subject familyごと≤512、station familyごと≤1024（三区分合算）、pending≤128件かつ≤131072 byte、encode後の世代≤4 MiB、subjectの重複なし、区域code・station codeの重複なし、areaClassとkindCodeの一致（Q-ENUMの表）、effectiveとareas/stationsの形（cancelled・expiredは空）、intentのunitがU-TでsubjectがU-Tのsubject形式（I-U-T.subjects）であること（stateに残っているsubjectとの一致は求めない。容量退去の直後に再起動してもunavailableにしないため）（今の器は U-T 11,354,432 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "view": "TsunamiUnitViewはactiveのforecasts/observationsだけを載せ（forecastEnded・expiredの観測、releasedのVTSE41は載せない）、SubjectOutcome.factsにareaTransitions（TsunamiTransitionRecordの配列）とseries（TsunamiReportSeries）を載せる。RuntimeDisplaySubjectにunit U-Tの行（current: TsunamiForecastSubject | TsunamiObservationSubject | null）を足す",
         "confirmationScope": "ConfirmationScopeは新しい行を作らず、U-Eの行をunit: \"U-E\" | \"U-T\"、kind \"event\"、eventIdに広げて使う（shared-runtime.ts:89の検証も同じく広げる）。U-Tのscopeは常態を確立したVTSE41の採用からだけ出す（観測はREST回復の対象外でscopeにしない、P3-C5-N2）。confirmationScopeLimitは512（VTSE41の上限と一致）",
         "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-T、executionPlacesにU-T=urgent（P3-C5-PLACE）、coverage表のVTSE41/51/52をready＋U-T。UnitModule<\"U-T\">はpersistence durable、terminalIntents kind intents（P3-NOTICE-LEDGER-001でUnitModuleから消した、P3-NL-AC05の(3)）、reclaimDeadlineBeforeReceive true",
@@ -787,7 +787,7 @@
       {
         "id": "P3-C5-RES-01",
         "target": "U-T encoded generation",
-        "limit": 11353689,
+        "limit": 11354432,
         "unit": "UTF-8 bytes; after P3-NOTICE-LEDGER-001 the limit adds the worst-case notice marks (forecasts 512×102, observations 1,024×420 with 16 fragment keys) and the failure marks (233 bytes), P3-NL-D-CAPACITY=A; P3-EXPIRY-FORM-001 adds 21 bytes per visible observation reserved for the expiry-pending mark (1,024×21, P3-EF-AC10 (5)); 4,698,345 から、P3-UNREADABLE-MARK-001 の RES-09 で広げた（記録の上限×読めない所の印 1 件＋原文の予算＋カード、P3-UM-AC03 の (6)）",
         "scope": "forecasts, observations and intents; counted as a sum of per-subject and per-intent encodings",
         "source": "spec:476"
@@ -860,7 +860,7 @@
       },
       {
         "id": "P3-C5-AC04",
-        "requirement": "容量: P3-C5-CAPACITY=A。4つの上限（VTSE41 subject 512、観測subject familyごと512、station familyごと1024、4 MiB/世代）に同じ退去手順を使い、候補は超過量を実際に減らすsubjectに限る。normalのactiveだけで超えるときのcapacityExceeded（state・nextDeadline不変、intents/outcomes空、退去診断なし）。容量はI-U-T.computationどおりsubject・station単位のencode byteの加算で数え、受信1回でstate全体を直列化・全件×全件の走査をしない（AGENTS.md「受信経路の計算量」）。最大正常と+1の境界入力（Q-LIMIT）で確かめる（今の器は U-T 11,353,689 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "容量: P3-C5-CAPACITY=A。4つの上限（VTSE41 subject 512、観測subject familyごと512、station familyごと1024、4 MiB/世代）に同じ退去手順を使い、候補は超過量を実際に減らすsubjectに限る。normalのactiveだけで超えるときのcapacityExceeded（state・nextDeadline不変、intents/outcomes空、退去診断なし）。容量はI-U-T.computationどおりsubject・station単位のencode byteの加算で数え、受信1回でstate全体を直列化・全件×全件の走査をしない（AGENTS.md「受信経路の計算量」）。最大正常と+1の境界入力（Q-LIMIT）で確かめる（今の器は U-T 11,354,432 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:476 «01a369f8dd1834b4»",
           "docs/specs/reconstruction-p0-contracts.md:575 «fd672d3dc14c0599»",
@@ -1011,7 +1011,7 @@
         "referenceIds": [
           "P3-C5-AC04"
         ],
-        "behavior": "VTSE41 subjectの511/512/513、観測subjectの511/512/513、stationの1023/1024/1025、4 MiBの境界で、退去の候補（超過量を減らすものだけ）・順・normal保護・capacityExceededの不変条件を確かめる。保持上限付近で受信1回のencodeがsubject・station単位の加算だけであること（全体の直列化0）。境界入力は試験内で作る（Q-C5-CORPUS、P2-A6の先例）: VTSE41 subjectは32-39_11_02のEventIDを替え、stationは32-39_11_10のStationを複製し、4 MiBはstateを膨らませる（今の器は U-T 11,353,689 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "VTSE41 subjectの511/512/513、観測subjectの511/512/513、stationの1023/1024/1025、4 MiBの境界で、退去の候補（超過量を減らすものだけ）・順・normal保護・capacityExceededの不変条件を確かめる。保持上限付近で受信1回のencodeがsubject・station単位の加算だけであること（全体の直列化0）。境界入力は試験内で作る（Q-C5-CORPUS、P2-A6の先例）: VTSE41 subjectは32-39_11_02のEventIDを替え、stationは32-39_11_10のStationを複製し、4 MiBはstateを膨らませる（今の器は U-T 11,354,432 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "testId": "P3-C5-T05",

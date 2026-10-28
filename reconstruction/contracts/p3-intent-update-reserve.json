@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "2730d9c9c724d8a8ac411e1c74e4c030dc308c45401eb3b7314776e58e7edba8",
+    "sha256": "9fe1c83d3f1ddec10828ab2b5b0469489c1884744f9a7f5c942d77ea070d3515",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -192,7 +192,7 @@
       {
         "id": "P3-IUR-RES-02",
         "target": "intentを含む世代の計量（U-T・U-Q generationBytes、U-W reservedGenerationBytes・encodedValue・persistedValue、U-F measure）",
-        "limit": "4,194,304（U-T・U-Q）・16,777,216（U-W）・33,554,432（U-F）（今の器は U-T 11,353,689・U-Q 15,498,754・U-W 16,870,256・U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "limit": "4,194,304（U-T・U-Q）・16,777,216（U-W）・33,554,432（U-F）（今の器は U-T 11,354,432・U-Q 15,499,497・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "unit": "bytes（今の計量＋pendingごとの予約の和）",
         "scope": "受理の退去とdecode・encodeが同じ式で数える。U-E・U-Nの世代の計量は変えない（P3-IUR-GENERATION=A）",
         "source": "P3-IUR-GENERATION=A"
@@ -239,15 +239,15 @@
           "reconstruction/contracts/p3-nankai-unit.json:296 «11d1b802043a2d33»",
           "reconstruction/contracts/p3-nankai-unit.json:297 «af3fe4ee1a81eeaa»",
           "reconstruction/contracts/p3-tsunami-unit.json:207 «d31b9ee92b979154»",
-          "reconstruction/contracts/p2-eew-unit.json:188 «6c86477cddf2200d»"
+          "reconstruction/contracts/p2-eew-unit.json:188 «96f780f26ae0d2f6»"
         ]
       },
       {
         "id": "P3-IUR-AC02",
-        "requirement": "intentを含む世代の計量も予約込み（P3-IUR-GENERATION=A、P3-IUR-RES-02）: U-T・U-QのgenerationBytes（受理のfitとdecodeが共有）、U-WのreservedGenerationBytes（受理のfitNormalByByte）・encodedValue・persistedValue、U-Fのmeasure（受理のfits・evict、encode・decodeが共有）に、pendingの予約の和を足す。退去の手順・順・capacityExceededの条件は変えず、数える値だけが変わる。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte。K7の発注2aの後の器は5,270,185 byte）はdecodeが受けたまま（予約はpendingの131,072の内側）。U-E・U-Nの世代は変えない。無いと: 世代の上限の手前（最大5,376 byte以内）のstateが配送の更新で上限を越え、U-T・U-Qはdecodeが、U-W・U-Fはencodeが拒否する（今の器は U-T 11,353,689・U-Q 15,498,754・U-W 16,870,256・U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "intentを含む世代の計量も予約込み（P3-IUR-GENERATION=A、P3-IUR-RES-02）: U-T・U-QのgenerationBytes（受理のfitとdecodeが共有）、U-WのreservedGenerationBytes（受理のfitNormalByByte）・encodedValue・persistedValue、U-Fのmeasure（受理のfits・evict、encode・decodeが共有）に、pendingの予約の和を足す。退去の手順・順・capacityExceededの条件は変えず、数える値だけが変わる。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte。K7の発注2aの後の器は5,270,185 byte）はdecodeが受けたまま（予約はpendingの131,072の内側）。U-E・U-Nの世代は変えない。無いと: 世代の上限の手前（最大5,376 byte以内）のstateが配送の更新で上限を越え、U-T・U-Qはdecodeが、U-W・U-Fはencodeが拒否する（今の器は U-T 11,354,432・U-Q 15,499,497・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-tsunami-unit.json:265 «f6fc327cee400456»",
-          "reconstruction/contracts/p3-seismic-unit.json:305 «49ddedcf2f4eccac»",
+          "reconstruction/contracts/p3-tsunami-unit.json:265 «84ef9e9e865185da»",
+          "reconstruction/contracts/p3-seismic-unit.json:305 «74bda80810e85121»",
           "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»"
         ]
       },
@@ -255,7 +255,7 @@
         "id": "P3-IUR-AC03",
         "requirement": "更新は予約込みの量を増やさない（intentUpdateに検査を足さない理由）: decodeが受けるattempts（0以上の安全な整数、JSONで16文字以下）とnextAttemptAt（有限の数、JSONで25文字以下）の範囲では、pendingのまま伸びる分は予約の減りと同じ長さで、終端になる分は元のpendingの実byte＋予約の内側（ownerは更新がpendingでないintentを指せば採用しない）。U-T・U-Q・U-E・U-Wのdecodeの値域（attempts・nextAttemptAtの確かめ）は今のまま変えず、U-Fは同じ値域を確かめるようにする（AC06）（作者裁定 2026-10-09、値域で縛らない）。既知の限界はC8と同じ: attemptsが安全な整数を超えた保存物はdecodeが拒否する（約9京回の更新が要る）。無いと: 受理とdecodeの式がそろっていても、式が値域の最長に届かなければ更新の後のdecodeが拒否する",
         "evidenceRefs": [
-          "reconstruction/src/runtime/owner-runtime.ts:428 «6af0a32f7c614e1c»",
+          "reconstruction/src/runtime/owner-runtime.ts:543 «6af0a32f7c614e1c»",
           "reconstruction/contracts/p3-nankai-unit.json:296 «11d1b802043a2d33»"
         ]
       },
@@ -271,19 +271,19 @@
       },
       {
         "id": "P3-IUR-AC05",
-        "requirement": "既存の約束の読み替え（本契約に記録し、他の契約の条文は編集しない。統合担当が計画§9と台帳73に記録する、Q-IUR-BASE）: (1) P2-EEW-UNIT-001のQ-NOTICE.capacityの「pendingを128件/131072 byte以内」、P2-NOTIFICATION-DELIVERY-001の「U-E/U-W/U-Fそれぞれ128件/128KiB」のU-E、P3-TSUNAMI-UNIT-001のQ-NOTICE.capacityとI-U-T.decode、P3-UNIT-Q-001のI-U-Q.decode、P2-WEATHER-CURRENT-UNIT-001・P2-WEATHER-TIMESERIES-UNIT-001のpendingの128件/131,072 byte（U-W・U-F）は、予約込みと読む (2) U-T・U-Qのdecodeの「encode後の世代≤4 MiB」、U-Wの16 MiB、U-Fの32 MiBの世代の上限は予約込みと読む (3) P3-UNIT-Q-001のI-U-Q.capacityReserveの「intentの上限は262,144 byte＝pending 131,072＋終端記録131,072」は変えない（pendingは予約込みで131,072、更新の後は終端が131,072を一時超えても和は262,144以下）。既存試験の期待値の変更（変更前の理由の報告を兼ねる）: eew-unit.test.tsのP2-A4-T11（受理のpendingを実byteでちょうど131,072にして+0は採用・+1は不採用）とP2-A4-T03（encodeのpendingを実byteでちょうど131,072）、weather-current-unit.test.tsのP3-WL1-T06（encodeのpendingを実byteでちょうど131,072にしてdecodeがrestored・+1はthrow）の3本は、境界を「実byte＋予約＝131,072」に置き直す（paddingから予約の和を引く）。+0は採用・+1は不採用という期待の形は変えない。無いと: 他の契約の条文と本契約が同じ境界について違うことを言い、既存試験が実byteの境界で落ちる（今の器は U-T 11,353,689・U-Q 15,498,754・U-W 16,870,256・U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "既存の約束の読み替え（本契約に記録し、他の契約の条文は編集しない。統合担当が計画§9と台帳73に記録する、Q-IUR-BASE）: (1) P2-EEW-UNIT-001のQ-NOTICE.capacityの「pendingを128件/131072 byte以内」、P2-NOTIFICATION-DELIVERY-001の「U-E/U-W/U-Fそれぞれ128件/128KiB」のU-E、P3-TSUNAMI-UNIT-001のQ-NOTICE.capacityとI-U-T.decode、P3-UNIT-Q-001のI-U-Q.decode、P2-WEATHER-CURRENT-UNIT-001・P2-WEATHER-TIMESERIES-UNIT-001のpendingの128件/131,072 byte（U-W・U-F）は、予約込みと読む (2) U-T・U-Qのdecodeの「encode後の世代≤4 MiB」、U-Wの16 MiB、U-Fの32 MiBの世代の上限は予約込みと読む (3) P3-UNIT-Q-001のI-U-Q.capacityReserveの「intentの上限は262,144 byte＝pending 131,072＋終端記録131,072」は変えない（pendingは予約込みで131,072、更新の後は終端が131,072を一時超えても和は262,144以下）。既存試験の期待値の変更（変更前の理由の報告を兼ねる）: eew-unit.test.tsのP2-A4-T11（受理のpendingを実byteでちょうど131,072にして+0は採用・+1は不採用）とP2-A4-T03（encodeのpendingを実byteでちょうど131,072）、weather-current-unit.test.tsのP3-WL1-T06（encodeのpendingを実byteでちょうど131,072にしてdecodeがrestored・+1はthrow）の3本は、境界を「実byte＋予約＝131,072」に置き直す（paddingから予約の和を引く）。+0は採用・+1は不採用という期待の形は変えない。無いと: 他の契約の条文と本契約が同じ境界について違うことを言い、既存試験が実byteの境界で落ちる（今の器は U-T 11,354,432・U-Q 15,499,497・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-eew-unit.json:188 «6c86477cddf2200d»",
+          "reconstruction/contracts/p2-eew-unit.json:188 «96f780f26ae0d2f6»",
           "reconstruction/contracts/p2-notification-delivery.json:464 «4fba6740a3879e38»",
           "reconstruction/contracts/p3-tsunami-unit.json:207 «d31b9ee92b979154»",
-          "reconstruction/contracts/p3-tsunami-unit.json:265 «f6fc327cee400456»",
-          "reconstruction/contracts/p3-seismic-unit.json:305 «49ddedcf2f4eccac»",
+          "reconstruction/contracts/p3-tsunami-unit.json:265 «84ef9e9e865185da»",
+          "reconstruction/contracts/p3-seismic-unit.json:305 «74bda80810e85121»",
           "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»"
         ]
       },
       {
         "id": "P3-IUR-AC06",
-        "requirement": "本契約が触る関数のasの言い換えをやめる（P3-IUR-WEATHER=A、AGENTS.mdの外部データと保存データの読み戻し、Q-IUR-AS-SCOPE）。要素の同一性は保つ: U-Fのmeasureは要素のbyteをobjectの同一性でcacheし、persistedはencodeも通るので、要素を作り直すとcheckpointのencodeのたびに全要素（最大32 MiB）をstringifyし直す後退になる（今の試験では検出されない）。(1) weather-timeseries-unit.tsのpersisted: 組み立てるのは外側のobject（schemaVersion・subjects・gates・intentsの配列）だけ。subjects・gatesは今の確かめ（順序・内容とも変えない）を型の述語（value is …）の形にして通し、要素はそのまま使う（subjects・gatesの配列のas Record<string, unknown>[]とrow全体のasをやめる）。intentsもU-Wのintent()と同じ確かめの型の述語で通し、要素はそのまま使う（作り直すとsubjectsと同じ後退になる）: idが文字列、unitがU-F、subjectは文字列であることだけ（subjectsの`<operation>/VPWP50/…`の形で縛らない。shared-runtime.test.tsのP2-A1-T12がU-Fのintentを別の形のsubjectでencode→decodeする）、operation、sourceがReportRefでsubject・operationが一致、transition、channel、payloadがJSONの値のobject、createdAt・expiresAt・nextAttemptAtが有限の数でexpiresAt≥createdAt、attemptsが0以上の安全な整数、configRevisionが文字列、dispositionが4値。payloadの確かめのためにU-W（weather-current-unit.ts）のjson()の写しを1つweather-timeseries-unit.tsに置いてよい（artifactRequirementsの「helperを足さない」の例外） (2) weather-current-unit.tsのpersistedValue: national・ownershipの外側のrecordを、operationの鍵ごとにsnapshotの述語を通った値・値が文字列の鍵から組み立て、asをやめる。nationalのsnapshotの値はそのまま使う。persistedValueはdecodeだけが通り（encodeはencodedValue、P3-WL1-AC05。今asは無く、確かめの順はpersistedValueとそろえたまま）、外側のrecordを作り直してもencodeの計量のcacheは崩れない。受ける保存物の範囲は(1)のintentsのattempts・nextAttemptAtなどの確かめが増える分だけ狭まり、ほかは変えない。既存試験は期待値を変えずに緑の見込み（P2-A6-T03・A8-COSTのintentと、allowedPathsの外のshared-runtime.test.tsのP2-A1-T12のU-W・U-Fのintent［pending 128＋delivered 4,000をencode→decode］は(1)の確かめを満たす。U-W・U-Fのdecodeの表とroundtripの値は今の確かめを通る。起草時に読んだ。変える必要が出たら変更の前に理由を報告する）。触らない関数のasは扱わない。無いと: attemptsやnextAttemptAtが数でない保存物で予約の式（JSON.stringifyの長さ）が例外かでたらめな値になり、型に欄を足したときに確かめの足し忘れをコンパイラが止められない（今の器は U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "本契約が触る関数のasの言い換えをやめる（P3-IUR-WEATHER=A、AGENTS.mdの外部データと保存データの読み戻し、Q-IUR-AS-SCOPE）。要素の同一性は保つ: U-Fのmeasureは要素のbyteをobjectの同一性でcacheし、persistedはencodeも通るので、要素を作り直すとcheckpointのencodeのたびに全要素（最大32 MiB）をstringifyし直す後退になる（今の試験では検出されない）。(1) weather-timeseries-unit.tsのpersisted: 組み立てるのは外側のobject（schemaVersion・subjects・gates・intentsの配列）だけ。subjects・gatesは今の確かめ（順序・内容とも変えない）を型の述語（value is …）の形にして通し、要素はそのまま使う（subjects・gatesの配列のas Record<string, unknown>[]とrow全体のasをやめる）。intentsもU-Wのintent()と同じ確かめの型の述語で通し、要素はそのまま使う（作り直すとsubjectsと同じ後退になる）: idが文字列、unitがU-F、subjectは文字列であることだけ（subjectsの`<operation>/VPWP50/…`の形で縛らない。shared-runtime.test.tsのP2-A1-T12がU-Fのintentを別の形のsubjectでencode→decodeする）、operation、sourceがReportRefでsubject・operationが一致、transition、channel、payloadがJSONの値のobject、createdAt・expiresAt・nextAttemptAtが有限の数でexpiresAt≥createdAt、attemptsが0以上の安全な整数、configRevisionが文字列、dispositionが4値。payloadの確かめのためにU-W（weather-current-unit.ts）のjson()の写しを1つweather-timeseries-unit.tsに置いてよい（artifactRequirementsの「helperを足さない」の例外） (2) weather-current-unit.tsのpersistedValue: national・ownershipの外側のrecordを、operationの鍵ごとにsnapshotの述語を通った値・値が文字列の鍵から組み立て、asをやめる。nationalのsnapshotの値はそのまま使う。persistedValueはdecodeだけが通り（encodeはencodedValue、P3-WL1-AC05。今asは無く、確かめの順はpersistedValueとそろえたまま）、外側のrecordを作り直してもencodeの計量のcacheは崩れない。受ける保存物の範囲は(1)のintentsのattempts・nextAttemptAtなどの確かめが増える分だけ狭まり、ほかは変えない。既存試験は期待値を変えずに緑の見込み（P2-A6-T03・A8-COSTのintentと、allowedPathsの外のshared-runtime.test.tsのP2-A1-T12のU-W・U-Fのintent［pending 128＋delivered 4,000をencode→decode］は(1)の確かめを満たす。U-W・U-Fのdecodeの表とroundtripの値は今の確かめを通る。起草時に読んだ。変える必要が出たら変更の前に理由を報告する）。触らない関数のasは扱わない。無いと: attemptsやnextAttemptAtが数でない保存物で予約の式（JSON.stringifyの長さ）が例外かでたらめな値になり、型に欄を足したときに確かめの足し忘れをコンパイラが止められない（今の器は U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-notification-delivery.json:464 «4fba6740a3879e38»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
@@ -347,7 +347,7 @@
           "P3-IUR-AC02",
           "P3-IUR-AC06"
         ],
-        "behavior": "decodeの境界の行を既存のdecodeの表に足す（新しいitは作らない）: U-T（P3-C5-T05）とU-Q（P3-C7-T06）に「実byteは131,072以下で予約を足すと超えるpending」と「実byteは4,194,304以下で予約を足すと超える世代」の2行ずつ、U-E（P2-A4-T03）に前者の1行、U-W（P3-WL1-T06）とU-F（P2-A6-T03）に前者と「予約を足すと超える世代」の2行ずつ、U-Fにはさらに「attemptsが安全な整数でない」「nextAttemptAtが有限でない」の2行（AC06）。どれもinvalid（U-Wのencodeはthrow）。あわせてAC05の既存3本の境界を予約込みに置き直す（今の器は U-T 11,353,689・U-Q 15,498,754 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "decodeの境界の行を既存のdecodeの表に足す（新しいitは作らない）: U-T（P3-C5-T05）とU-Q（P3-C7-T06）に「実byteは131,072以下で予約を足すと超えるpending」と「実byteは4,194,304以下で予約を足すと超える世代」の2行ずつ、U-E（P2-A4-T03）に前者の1行、U-W（P3-WL1-T06）とU-F（P2-A6-T03）に前者と「予約を足すと超える世代」の2行ずつ、U-Fにはさらに「attemptsが安全な整数でない」「nextAttemptAtが有限でない」の2行（AC06）。どれもinvalid（U-Wのencodeはthrow）。あわせてAC05の既存3本の境界を予約込みに置き直す（今の器は U-T 11,354,432・U-Q 15,499,497 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       }
     ],
     "requiredCommands": [
@@ -391,7 +391,7 @@
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "全reconstruction試験（T01〜T06と既存試験。U-Nの試験、P3-C7-CAPACITY-BUDGETの同時最大状態、U-Fの33,554,432の境界、P2-A6-T03・A8-COSTは期待値を変えずに緑）（今の器は U-F 36,850,544 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "purpose": "全reconstruction試験（T01〜T06と既存試験。U-Nの試験、P3-C7-CAPACITY-BUDGETの同時最大状態、U-Fの33,554,432の境界、P2-A6-T03・A8-COSTは期待値を変えずに緑）（今の器は U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",

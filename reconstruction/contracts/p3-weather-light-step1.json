@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e02a413fc240931f1830e966ac94dde1e27aa5f5",
-    "sha256": "0395efed45ebe712a46be03e7e1dff9ec95e36561d30d3effc92a90b42b3df8d",
+    "sha256": "fc1267a6cd2807f9f4573c21e9c33ab3b19d0d72dbf4667f65e4f79f2a144900",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -249,7 +249,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p1-parser-boundary.json:46 «75d66f66d664fec3»",
           "reconstruction/contracts/p1-parser-boundary.json:547 «0ad9ce09d06f5848»",
-          "reconstruction/contracts/p1-parser-boundary.json:556 «229a70c4a87b4736»"
+          "reconstruction/contracts/p1-parser-boundary.json:556 «fda26eaf6b7681ae»"
         ]
       },
       {
@@ -269,21 +269,21 @@
       },
       {
         "id": "P3-WL1-AC05",
-        "requirement": "S1（encode）: weatherCurrentUnitCodec.encodeから、payload全体のJSON.stringifyによるbyteの計量だけを除く（D-WL1-ENCODE-CHECKS=A、D-WL1-ENCODE-BOUND=A）。persistedValue（decodeと共用）は変えず、encode用の関数を別に置く。その関数は、persistedValueと同じ確かめを同じ順で残す: (1) 項目ごとの型の判定（既存のsnapshot・history・tombstone・freshness・unavailable・intent・nationalのkeyとoperationの一致。判定の関数は写さずに呼ぶ） (2) scopeの正規化（tombstone・freshness・unavailableのaffectedScopeとconfirmedScope）。出るpayloadのJSONは旧と同じにし、既に正規形のrecordは作り直さない（cacheのkeyを保つ） (3) P2-A5-AC04の件数・一意性の上限と、P2-A7-AC04のpending 128件・131072 byte (4) payloadのJSONのUTF-8 byteが16MiB以下であること。値は受理時と同じ要素ごとのcacheの和で正確に求め、旧のencoder.encode(JSON.stringify(result)).byteLengthと全ての状態で一致させる。(1)〜(4)のどれかに反すれば今と同じ文言（U-W checkpoint exceeds or violates its persisted boundary）で投げ、投げる条件の集合は旧と同じ（AC06(3)で比べる）。無いと: 保存のたびに（P3-UNIT-WRITE-RIGHT-001の後は受理のたびに）、payload全体（最大VPWS50を3回受けた状態で約3MB、16MiB付近で約16MB）をJSON化してUTF-8にする仕事が、sealEnvelopeの直列化とは別にもう1回走る（Macでencode 1回の約7割、Q-WL1-ENCODE-COST）（今の器は U-W 16,870,256 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "S1（encode）: weatherCurrentUnitCodec.encodeから、payload全体のJSON.stringifyによるbyteの計量だけを除く（D-WL1-ENCODE-CHECKS=A、D-WL1-ENCODE-BOUND=A）。persistedValue（decodeと共用）は変えず、encode用の関数を別に置く。その関数は、persistedValueと同じ確かめを同じ順で残す: (1) 項目ごとの型の判定（既存のsnapshot・history・tombstone・freshness・unavailable・intent・nationalのkeyとoperationの一致。判定の関数は写さずに呼ぶ） (2) scopeの正規化（tombstone・freshness・unavailableのaffectedScopeとconfirmedScope）。出るpayloadのJSONは旧と同じにし、既に正規形のrecordは作り直さない（cacheのkeyを保つ） (3) P2-A5-AC04の件数・一意性の上限と、P2-A7-AC04のpending 128件・131072 byte (4) payloadのJSONのUTF-8 byteが16MiB以下であること。値は受理時と同じ要素ごとのcacheの和で正確に求め、旧のencoder.encode(JSON.stringify(result)).byteLengthと全ての状態で一致させる。(1)〜(4)のどれかに反すれば今と同じ文言（U-W checkpoint exceeds or violates its persisted boundary）で投げ、投げる条件の集合は旧と同じ（AC06(3)で比べる）。無いと: 保存のたびに（P3-UNIT-WRITE-RIGHT-001の後は受理のたびに）、payload全体（最大VPWS50を3回受けた状態で約3MB、16MiB付近で約16MB）をJSON化してUTF-8にする仕事が、sealEnvelopeの直列化とは別にもう1回走る（Macでencode 1回の約7割、Q-WL1-ENCODE-COST）（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2007 «4b2a085530cf8cb8»",
           "docs/specs/reconstruction-p0-contracts.md:2012 «96edc4cec5855d14»",
-          "reconstruction/contracts/p2-weather-current-unit.json:381 «145c910dd1d8c49c»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «ed091f818ea1930e»",
           "docs/specs/reconstruction-p0-contracts.md:874 «f68a559d178d6dae»"
         ]
       },
       {
         "id": "P3-WL1-AC06",
-        "requirement": "同値性（D-WL1-EQUIVALENCE=A）: 使い捨ての比較の道具を、baseOidで作ったreconstruction/distと、変更後のreconstruction/distに同じ入力で当て、次がすべて一致することを示す（差0件）。(1) decodeMaterial: manifestのXML全件と境界の入力の組（先頭ゼロ、未知の正しいコード、CDATA（中に&と]]の手前の文字）、実体参照と文字参照、非BMP文字（そのものと参照）、CRLFとCR、空のtextと空要素、重複要素、子要素を含むscalar、属性の重複と大文字小文字、namespaceの接頭辞、途中で切れた文書、rootの外のtext、構造上限の直前・一致・+1）と、拒否の理由の順番を確かめる入力（16,385文字を超えるtextの末尾に裸の&または不正な文字参照があるもの、257文字以上で不正な参照を含む属性値）で、結果のkind・拒否の理由・ParserDiagnostic・materialのxml（XmlNodeの木）とmarks以外の項目 (2) U-W: P2-A5-T01とP2-A5-T03の全行の入力と状態、VPNO50のKind・Areasの欠落と不正、拒否のときのfreshnessの対象（target）、manifestの気象の電文（VPWS50・VPWW55〜61・VPNO50）の全件を空の状態と同じ官署のcurrentを持つ状態の両方に当てたもの、O04・O06の系列、最大VPWS50の続報（本文同じで時刻だけ新しい・一部の地域が変わる・全地域が変わる）・取消・VPNO50の終了・training／testを含む交差・容量の境界の付近（16MiBの手前）で、各受理のdecisions・diagnostics・intents・outcomes・displayChanges・confirmationEvidenceとstate（persistenceを含む） (3) 各状態のencodeの出力のJSON（文字列として一致）と投げる・投げないの別。今encodeが投げる件数・一意性の行（partial 129件・全国履歴3件・partial履歴9件・subject・history・inputId・intent idの重複・pendingの129件と131073 byte・型に合わないrecord）を含める。decode(encode)の状態と、その状態からさらに続報・取消を入れた結果。比較はmarksの所要時間だけを除き、snapshotのrestoredAtのsymbolは2つのdistで別のsymbolなので、descriptionで揃えて比べる。無いと: 速くするための直しが、受理・拒否の条件や保存の形を黙って変えても、既存の試験の当たっていない所では止まらない（今の器は U-W 16,870,256 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "同値性（D-WL1-EQUIVALENCE=A）: 使い捨ての比較の道具を、baseOidで作ったreconstruction/distと、変更後のreconstruction/distに同じ入力で当て、次がすべて一致することを示す（差0件）。(1) decodeMaterial: manifestのXML全件と境界の入力の組（先頭ゼロ、未知の正しいコード、CDATA（中に&と]]の手前の文字）、実体参照と文字参照、非BMP文字（そのものと参照）、CRLFとCR、空のtextと空要素、重複要素、子要素を含むscalar、属性の重複と大文字小文字、namespaceの接頭辞、途中で切れた文書、rootの外のtext、構造上限の直前・一致・+1）と、拒否の理由の順番を確かめる入力（16,385文字を超えるtextの末尾に裸の&または不正な文字参照があるもの、257文字以上で不正な参照を含む属性値）で、結果のkind・拒否の理由・ParserDiagnostic・materialのxml（XmlNodeの木）とmarks以外の項目 (2) U-W: P2-A5-T01とP2-A5-T03の全行の入力と状態、VPNO50のKind・Areasの欠落と不正、拒否のときのfreshnessの対象（target）、manifestの気象の電文（VPWS50・VPWW55〜61・VPNO50）の全件を空の状態と同じ官署のcurrentを持つ状態の両方に当てたもの、O04・O06の系列、最大VPWS50の続報（本文同じで時刻だけ新しい・一部の地域が変わる・全地域が変わる）・取消・VPNO50の終了・training／testを含む交差・容量の境界の付近（16MiBの手前）で、各受理のdecisions・diagnostics・intents・outcomes・displayChanges・confirmationEvidenceとstate（persistenceを含む） (3) 各状態のencodeの出力のJSON（文字列として一致）と投げる・投げないの別。今encodeが投げる件数・一意性の行（partial 129件・全国履歴3件・partial履歴9件・subject・history・inputId・intent idの重複・pendingの129件と131073 byte・型に合わないrecord）を含める。decode(encode)の状態と、その状態からさらに続報・取消を入れた結果。比較はmarksの所要時間だけを除き、snapshotのrestoredAtのsymbolは2つのdistで別のsymbolなので、descriptionで揃えて比べる。無いと: 速くするための直しが、受理・拒否の条件や保存の形を黙って変えても、既存の試験の当たっていない所では止まらない（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p1-parser-boundary.json:545 «4cae89a4f5209c86»",
           "reconstruction/contracts/p2-weather-current-unit.json:356 «86eb55276d25bba1»",
-          "reconstruction/contracts/p2-weather-current-unit.json:381 «145c910dd1d8c49c»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «ed091f818ea1930e»",
           "reconstruction/contracts/p2-weather-current-unit.json:461 «d222ffecf873259b»",
           "docs/specs/reconstruction-p0-contracts.md:1830 «964d8b6f65321973»"
         ]
@@ -338,7 +338,7 @@
         "referenceIds": [
           "P3-WL1-AC04"
         ],
-        "behavior": "既存のP2-A5-T11（AC13）の境界を、historyを含む状態で確かめる: 全国のnormalのcurrentを持つ状態に最大VPWS50を受理させてhistoryが1件できるとき、partialのpadding（escape文字を含む）で実checkpoint byte＋数値の予約の未使用分を16MiBちょうどにすると受理され、+1では採用されない（今の器は U-W 16,870,256 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "既存のP2-A5-T11（AC13）の境界を、historyを含む状態で確かめる: 全国のnormalのcurrentを持つ状態に最大VPWS50を受理させてhistoryが1件できるとき、partialのpadding（escape文字を含む）で実checkpoint byte＋数値の予約の未使用分を16MiBちょうどにすると受理され、+1では採用されない（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "testId": "P3-WL1-T06",
@@ -346,7 +346,7 @@
         "referenceIds": [
           "P3-WL1-AC05"
         ],
-        "behavior": "weatherCurrentUnitCodec.encodeの守り: payloadのJSONのUTF-8 byteが16MiBちょうど（partialのphenomenaにescape文字と多バイト文字を含むpadding）ならencodeは投げず、decode(encode)はrestored、+1では今の文言で投げる。pendingのintentが128件なら投げず129件で投げる。pendingのJSONが131072 byteなら投げず131073 byteで投げる（今の器は U-W 16,870,256 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "weatherCurrentUnitCodec.encodeの守り: payloadのJSONのUTF-8 byteが16MiBちょうど（partialのphenomenaにescape文字と多バイト文字を含むpadding）ならencodeは投げず、decode(encode)はrestored、+1では今の文言で投げる。pendingのintentが128件なら投げず129件で投げる。pendingのJSONが131072 byteなら投げず131073 byteで投げる（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "testId": "P3-WL1-T07",
