@@ -118,6 +118,8 @@ export type ParserDiagnostic = Readonly<{
   }>;
   encodedByteLength: number;
   expandedByteLength: number | null;
+  // P3-UM-AC11 (7): XML の検査で断った報だけ、展開した本文が UTF-8 で読めたときの先頭（JSON にした長さで 16,384 byte まで）。H43 のカードの原文。
+  expandedText?: string;
 }>;
 
 export type ParserMailboxResult =

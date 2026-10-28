@@ -175,7 +175,7 @@ export type SeismicNotificationPayload = Readonly<{
 export type SeismicIntent = NotificationIntent & Readonly<{ payload: SeismicNotificationPayload }>;
 
 export type SeismicUnitState = Readonly<{
-  schemaVersion: "p3-seismic-unit-v6";
+  schemaVersion: "p3-seismic-unit-v7";
   contentRevision: number;
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
@@ -187,7 +187,7 @@ export type SeismicUnitState = Readonly<{
 }>;
 
 export type PersistedSeismicUnit = Readonly<{
-  schemaVersion: "p3-seismic-unit-v6";
+  schemaVersion: "p3-seismic-unit-v7";
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
@@ -251,5 +251,5 @@ export type SeismicUnitStep = Readonly<{
 }>;
 
 export type SeismicUnitCodec = UnitCodec<SeismicUnitState, PersistedSeismicUnit> & Readonly<{
-  schemaVersion: "p3-seismic-unit-v6";
+  schemaVersion: "p3-seismic-unit-v7";
 }>;

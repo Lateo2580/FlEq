@@ -92,7 +92,8 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     }
   });
 
-  it("P2-A8-T07: the derived summary maxima (3558; U-E 1632, U-W 3525, U-F 2301) hold on the wire shape", async () => {
+  // P3-UM-AC18 (10): unconfirmed を 7 語にして測り直した（U-E 1,799・U-W 3,695・U-F 2,471、5 語の時は 1,632・3,525・2,301）。全体の上界は 3,882。
+  it("P2-A8-T07: the derived summary maxima (3882; U-E 1799, U-W 3695, U-F 2471) hold on the wire shape", async () => {
     const row = (unit: RuntimeUnitId, operation: Operation): DisplaySummaryItem => ({
       operation, informationType: unit === "U-E" ? "eew" : unit === "U-W" ? "weather-warning" : "weather-warning-timeseries",
       // U-E publishes only A4 warningClass, so its highest class is "warning".
@@ -101,7 +102,9 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
         : { prefecture: MAX, primary: MAX, municipalityGroup: MAX, municipality: MAX, stormSurge: MAX },
       updatedAt: -LIMIT,
       unavailable: unit === "U-E" ? {} : { capacityExceeded: MAX, historyUnavailable: MAX, coverageIncomplete: MAX },
-      unconfirmed: { startup: MAX, disconnected: MAX, scopeCapacity: MAX, scopeRetired: MAX, capacityExceeded: MAX },
+      // UNCONFIRMED_KEYS の 7 語（P3-REC-AC13 の freshnessSuspect、P3-UM-AC13 の unreadableReport を含む）。
+      unconfirmed: { startup: MAX, disconnected: MAX, scopeCapacity: MAX, scopeRetired: MAX, capacityExceeded: MAX, freshnessSuspect: MAX,
+        unreadableReport: MAX },
       unknownCode: unit === "U-E" ? {} : { unknown: MAX, missing: MAX, empty: MAX },
       freshness: unit !== "U-W" ? {} : { headMissing: MAX, reportDateTimeMissing: MAX, reportDateTimeInvalid: MAX,
         identityMissing: MAX, identityInvalid: MAX, requiredStructureMissing: MAX, requiredStructureInvalid: MAX, stale: MAX },
@@ -111,10 +114,10 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
       items: [row(unit, "normal"), row(unit, "training"), row(unit, "test")],
       delivery: "summary", reason: "snapshotBudget", originalBytes: MAX, budgetBytes: 65_536 });
     const sizes = (["U-E", "U-W", "U-F"] as const).map((unit) => Buffer.byteLength(JSON.stringify(wrapper(unit))));
-    expect(sizes[0]).toBeLessThanOrEqual(1632);
-    expect(sizes[1]).toBeLessThanOrEqual(3525);
-    expect(sizes[2]).toBeLessThanOrEqual(2301);
-    expect(Math.max(...sizes)).toBeLessThanOrEqual(3558);
+    expect(sizes[0]).toBeLessThanOrEqual(1799);
+    expect(sizes[1]).toBeLessThanOrEqual(3695);
+    expect(sizes[2]).toBeLessThanOrEqual(2471);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(3882);
   });
 
   it("P2-A8-T07: the maximal notice is 2000 bytes, 64 of them 128065 <= 131072; long control-character offices are cut", async () => {

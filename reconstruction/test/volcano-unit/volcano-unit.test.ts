@@ -12,7 +12,7 @@ import type { JsonValue, ReportRef } from "../../contracts/p2-shared-runtime.typ
 import type {
   VolcanoAlert, VolcanoAreaGroup, VolcanoBulletin, VolcanoEruption, VolcanoInput, VolcanoIntent, VolcanoShortfall, VolcanoUnitState, VolcanoUnitStep,
 } from "../../contracts/p3-volcano-unit.types";
-import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
@@ -46,7 +46,7 @@ const tick = (state: VolcanoUnitState, wallTimeMs: number, monotonicMs = 0) =>
   reduceVolcanoUnit(state, { kind: "deadline", clock: clock(wallTimeMs, monotonicMs) });
 // 保存 1 世代の byte（checkpoint envelope の JSON＋generation/capturedAt の 62 byte の予約）と、pending の配送予約を足した値（P3-CODEC-RES-01）。
 const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v6", unit: "U-V",
-  generation: 0, capturedAt: 0, payload: volcanoUnitCodec.encode(state), sha256: "0".repeat(64) })) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
+  generation: 0, capturedAt: 0, payload: volcanoUnitCodec.encode(state), sha256: "0".repeat(64) })) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
 const reserved = (state: VolcanoUnitState) => generation(state) + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
 const emptyOwner = (now: ReturnType<typeof clock>) => restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" },
   "U-T": { kind: "empty" }, "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
@@ -775,10 +775,11 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect(restored.outcomes).toMatchObject([{ kind: "recoveryApplied", scope: ["U-V"] }]);
     const step = receive(restored.state, f08Report(), now);
     expect(shape(step)).toEqual([[start.alerts[0].subject, "changed", "semantic"]]);
-    const sizes = [generation(restored.state), generation(step.state)];
+    // 旧 4 MiB・5 MiB の計り方はカードの予約（P3-UM-AC11 (10)）の前なので、予約を除いて比べる。
+    const sizes = [generation(restored.state), generation(step.state)].map((size) => size - UNREADABLE_CARDS_MAX_BYTES);
     console.info("P3-CODEC F08 generation bytes", JSON.stringify({ start: sizes[0], afterVfvo50: sizes[1], reserved: reserved(step.state) }));
     // 開始は旧 4 MiB の decode が受ける大きさ、1 報の後は旧 4 MiB を超える（旧実装の自己 decode が invalid になった形）。
-    expect(sizes[0] <= 4_194_304 && sizes[1] > 4_194_304 && reserved(step.state) <= 5_242_880, String(sizes)).toBe(true);
+    expect(sizes[0] <= 4_194_304 && sizes[1] > 4_194_304 && reserved(step.state) - UNREADABLE_CARDS_MAX_BYTES <= 5_242_880, String(sizes)).toBe(true);
     const decoded = roundTrip(step.state);
     expect(decoded.kind === "restored" ? volcanoUnitCodec.encode(decoded.state) : decoded).toEqual(volcanoUnitCodec.encode(step.state));
   });

@@ -4,6 +4,7 @@ import { withLongestMarks } from "../unreadable-mark/longest-mark";
 import { expectRestoreStarted } from "../notice-ledger/notice-fixture";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
 import type { TyphoonAnalysisRecord, TyphoonProbabilityRecord, TyphoonUnitState, TyphoonUnitStep } from "../../contracts/p3-typhoon-unit.types";
+import { TYPHOON_CARDS_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 import { generationBytes, reduceTyphoonUnit, toTyphoonView, typhoonUnitCodec } from "../../src/units/typhoon/typhoon-unit";
 import { deliveryGrowth as reserve } from "../../src/notification-delivery/delivery-growth";
 import { versionKey } from "../../src/contracts-revision/version";
@@ -716,7 +717,8 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
   it("P3-C14-T13 contractBoundary / AC15: from the largest decodable state every operation re-encodes and re-decodes within the generation budget", () => {
     // P3-VM-AC08: 2a の Control/DateTime と 2b の未確認の印の分を足した静的上界（Q-VM-PRECHECK-2B の (5)）に、見える記録 128 件の期限切れの保留の印
     // （21 byte、P3-EF-AC10 (2)）を足す。
-    const BOUND = 7_294_879 + 128 * 21;
+    // P3-UM-AC11 (10)(11): unit の計量に足したカードの予約と、losses の 9 語の分（+96）も足す。
+    const BOUND = 7_294_879 + 128 * 21 + 96 + TYPHOON_CARDS_MAX_BYTES;
     const { payload: unmarked, reportMs, EDGE, pendingTotal, pendingList, eventIdOf } = maximumPayload();
     const payload = { ...unmarked, analysis: unmarked.analysis.map((item) => ({ ...item, expiryPending: true })),
       probability: unmarked.probability.map((item) => ({ ...item, expiryPending: true })) };

@@ -17,7 +17,7 @@ import type { Step } from "../snapshot-sse/projection-fixture";
 // 期待の digest は base（9b0248ac に baseOid の commit ff51da45 を足したもの。src と契約は同じ）でこの file を走らせて記録した値。
 // UFP_RECORD=1 では比べずに今の値を出す。
 const RECORD = process.env.UFP_RECORD != null;
-const sha = (value: unknown) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex").slice(0, 16); const baseVersion = (payload: unknown) => withoutControl(JSON.stringify(payload).replaceAll('"p2-weather-timeseries-unit-v7"', '"p2-weather-timeseries-unit-v1"')); // P3-VM-AC05: 版の文字列だけを base に戻して比べる
+const sha = (value: unknown) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex").slice(0, 16); const baseVersion = (payload: unknown) => withoutControl(JSON.stringify(payload).replaceAll('"p2-weather-timeseries-unit-v8"', '"p2-weather-timeseries-unit-v1"')); // P3-VM-AC05: 版の文字列だけを base に戻して比べる
 // P3-VM-AC01: ReportRef の controlDateTimeRaw は base に無いので外して比べる（発注 2b で U-F は Control/DateTime で比べるが、この file の報の採否は変わらない）。
 // P3-EF-AC05 (6): validUntil で移った noActiveItems の lapsed も base に無いので外して比べる。
 const withoutControl = (json: string) => json.replace(/"controlDateTimeRaw":"[^"]*",/g, "").replaceAll(',"lapsed":true', "");
@@ -42,7 +42,7 @@ function material(file: string, name: string, hours: number): Readonly<{ materia
   if (decoded.kind !== "decoded") throw new Error(decoded.diagnostic.reason);
   return { material: decoded.material, at: reportAt(xml) + 60_000 };
 }
-const empty = (): WeatherTimeseriesUnitState => ({ schemaVersion: "p2-weather-timeseries-unit-v7", contentRevision: 0, subjects: [],
+const empty = (): WeatherTimeseriesUnitState => ({ schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [],
   gates: [], intents: [], persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null,
     dirtySince: null } });
 
@@ -164,6 +164,8 @@ const BASE_TRACE: readonly string[] = [
   "48b90f68aa665204",
   "50ec10948b95d76a",
 ];
+// P3-UM-AC11・AC13（K14 の発注 3）: head_missing の報は U-F が断るので、その報から先は H43 のカードと unconfirmed の unreadableReport が
+// 付き（要約の items が変わる）、カードで世代が進んだ保存の時刻の違いで duplicate の snapshot も persistence が変わる。この 9 行は発注 3 の木で記録し直した。
 const BASE_ROWS: readonly string[] = [
   "jan:81_01_01_260129_VPWP50=7f8d00ae20a2cdad",
   "jan:81_01_02_260129_VPWP50=fddac77fed583d4b",
@@ -172,16 +174,16 @@ const BASE_ROWS: readonly string[] = [
   "jun:81_02_01_260605_VPWP50_high_severity=78b1412b424e2df6",
   "jun:81_03_01_260605_VPWP50_unknown_code=f7043ce2a0c6139c",
   "jun:81_04_01_260605_VPWP50_cancel=f7043ce2a0c6139c",
-  "jun:81_05_01_260605_VPWP50_head_missing=f7043ce2a0c6139c",
-  "jun:81_06_01_260605_VPWP50_criteria_period=474b722c6fefecc2",
-  "jun:81_07_01_260605_VPWP50_local_area=868c52f151b02c8a",
-  "jun:81_08_01_260605_VPWP50_criteria_property_sibling=4f9abf49f1393cdc",
-  "jun:81_09_01_260605_VPWP50=04b152ffc06dfae9",
-  "jun:81_09_01_260605_VPWP50_local_identity=04b152ffc06dfae9",
-  "jun:duplicate=unchanged",
+  "jun:81_05_01_260605_VPWP50_head_missing=16edea99d4d55330",
+  "jun:81_06_01_260605_VPWP50_criteria_period=2d68352861f062c7",
+  "jun:81_07_01_260605_VPWP50_local_area=4e760f92a1d91f3b",
+  "jun:81_08_01_260605_VPWP50_criteria_property_sibling=c37e4e7dba8ffc5e",
+  "jun:81_09_01_260605_VPWP50=0a4180f38fb96bc8",
+  "jun:81_09_01_260605_VPWP50_local_identity=0a4180f38fb96bc8",
+  "jun:duplicate=0a4180f38fb96bc8",
   "jun:stale=unchanged",
-  "jun:newer=e7979b13a783784f",
-  "jun:deadline=df1e4992694f91c0",
+  "jun:newer=7fdaefcfeec291d1",
+  "jun:deadline=e12853fe12f92880",
   "jun:restore=fd7d04685be0d7a1",
   "jun:afterRestore=61972a124b106f9d",
 ];

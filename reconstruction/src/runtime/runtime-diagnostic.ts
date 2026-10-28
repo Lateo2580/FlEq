@@ -10,13 +10,14 @@ const parserDiagnosticReasons = [
 
 // Four free-text fields at 1536 JSON bytes each leave room within 8192 bytes
 // for fixed keys, enums, finite numbers, punctuation and the sink newline.
-function boundedString(value: string): string {
+// limit は引用符を除いた JSON の byte（P3-UM-AC11 (3)(12): H43 のカードの欄は同じ切り方で上限だけ違う）。
+function boundedString(value: string, limit = 1536): string {
   const marker = "[truncated:fieldLimit]";
   let prefix = "";
   let bytes = 0;
   for (const character of value) {
     const size = encoder.encode(JSON.stringify(character)).byteLength - 2;
-    if (bytes + size > 1536 - marker.length) return prefix + marker;
+    if (bytes + size > limit - marker.length) return prefix + marker;
     prefix += character;
     bytes += size;
   }

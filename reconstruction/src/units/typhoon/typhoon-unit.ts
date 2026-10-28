@@ -11,7 +11,7 @@ import type {
   TyphoonUnreadableSite, TyphoonWindArea, TyphoonWindAxis,
 } from "../../../contracts/p3-typhoon-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, TYPHOON_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { ANALYSIS_TYPES, BOUNDS, LIMITS, PROBABILITY_TYPES, RETAIN, VISIBLE, parseTyphoon, validCode6, validEventId } from "../../domains/typhoon/typhoon";
 import type { AnalysisCandidate, ProbabilityCandidate, TyphoonCandidate } from "../../domains/typhoon/typhoon";
@@ -20,7 +20,7 @@ import {
   applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
-import { RAW_BUDGET, TYPHOON_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
+import { RAW_BUDGET, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
 
 // P3-UNIT-Y-001（C14、I-U-Y）: 二つの slice（analysis・probability）の current・版・遅着・退去・通知・容量・codec・射影。
 // 二つの slice は件数の上限と退去を別々に持つ（無いと訓練の確率の多発が解析の記録を退去する、I-U-Y.slices）。
@@ -62,7 +62,7 @@ function bytes(value: object): number {
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-Y", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, analysis: [], probability: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  payload: { schemaVersion: SCHEMA, analysis: [], probability: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + TYPHOON_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-R ほかと同じ予約）。6: 空の配列 3 つ。
 function generationBytes(value: PersistedTyphoonUnit): number {
   return emptyEnvelopeBytes + 62 - 6 + listBytes(value.analysis) + listBytes(value.probability) + listBytes(value.intents);

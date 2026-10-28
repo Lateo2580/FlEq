@@ -13,7 +13,7 @@ import type {
   SeismicUnitStep, SeismicUnitView, SeismicUnreadableSite, StrongShakingHold,
 } from "../../../contracts/p3-seismic-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   EARTHQUAKE_FAMILIES, EVENT_ID_LIMIT, INFO_RANK, REPORT_TIME_LIMIT, SERIAL_DIGITS, STAGE_LABEL, knownStage, lgRank, parseSeismic, safetyRank,
@@ -26,13 +26,13 @@ import {
   versionDigest,
 } from "../notice-mark";
 import {
-  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, markView, rawTotal, rawTotalBy, readUnreadableMark, recordRawBytes, stripRaw, unreadableMarkBytes,
+  RAW_BUDGET, droppedIn, fitRawBudget, markView, rawTotal, rawTotalBy, readUnreadableMark, recordRawBytes, stripRaw, unreadableMarkBytes,
 } from "../unreadable";
 import type { RawPlan } from "../unreadable";
 
 // P3-UNIT-Q-001（C7、I-U-Q）: U-Q の意味・当日履歴・通知・容量・codec・射影。
 
-const SCHEMA = "p3-seismic-unit-v6" as const;
+const SCHEMA = "p3-seismic-unit-v7" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 // P3-C7-CAPACITY=A・P3-C7-RES-01・RET-01〜05。
 const EVENT_LIMIT = 512, LONG_PERIOD_LIMIT = 256;
@@ -151,7 +151,7 @@ function reserve(values: readonly SeismicIntent[]): number {
   return values.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
 }
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-Q", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, earthquakes: [], longPeriods: [], daily: {}, intents: [], failureMarks: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  payload: { schemaVersion: SCHEMA, earthquakes: [], longPeriods: [], daily: {}, intents: [], failureMarks: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T と同じ予約）。
 function generationBytes(earthquakes: readonly EarthquakeEvent[], longPeriods: readonly LongPeriodSubject[], daily: Daily,
   intents: readonly SeismicIntent[], failureMarks: readonly FailureMark[]): number {
@@ -1612,7 +1612,7 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const emptyDaily: Daily = { normal: EMPTY_HISTORY, training: EMPTY_HISTORY, test: EMPTY_HISTORY };
 const seismicUnitCodec: SeismicUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-seismic-unit-v1", "p3-seismic-unit-v2", "p3-seismic-unit-v3", "p3-seismic-unit-v4", "p3-seismic-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-seismic-unit-v1", "p3-seismic-unit-v2", "p3-seismic-unit-v3", "p3-seismic-unit-v4", "p3-seismic-unit-v5", "p3-seismic-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // state は reducer が上限の内側で作るので、encode は保存 field だけを並べる（contentRevision・persistence は保存しない）。
   encode: (state) => ({ schemaVersion: SCHEMA, earthquakes: state.earthquakes, longPeriods: state.longPeriods, daily: state.daily,
     intents: state.intents, failureMarks: state.failureMarks }),

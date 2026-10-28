@@ -28,25 +28,31 @@ const escape = (value: string): string => value.replace(/[&<>"']/g, (character) 
 const REWRITE_STOP = 4096;
 // 文字列の欠片は読み飛ばした地の文（Q-WS-LEVELS の「地の文」、実体参照だけ戻す）。U-F の付加事項は 1 Type の要素を順につなげる（P3-UM-D-ADDITION-MARK）。
 function rewriteXml(...nodes: readonly (XmlElement | string)[]): string {
+  return rewriteBounded(nodes, 1536);
+}
+// limit は boundedString の上限。1 code point は 1 byte 以上・UTF-16 で 2 単位以下なので、2×limit 単位を集めれば切り方は全体を書いたときと同じ
+// （P3-UM-AC11 (3) のカードの原文は 16,382）。
+function rewriteBounded(nodes: readonly (XmlElement | string)[], limit: number): string {
+  const stop = Math.max(REWRITE_STOP, 2 * limit);
   let out = "";
   const walk = (element: XmlElement): boolean => {
     out += `<${element.name}${element.attributes.map((item) => ` ${item.name}="${escape(item.value)}"`).join("")}>`;
     // 子要素のある要素の空白だけの文字（字下げ）は書かない（正規形。残存リスク (16) の「空白が電文の byte と違う」）。
     const mixed = element.children.some((node) => node.kind === "element");
     for (const child of element.children) {
-      if (out.length >= REWRITE_STOP) return false;
+      if (out.length >= stop) return false;
       if (child.kind === "text") { if (!mixed || child.value.trim() !== "") out += escape(child.value); }
       else if (!walk(child)) return false;
     }
     out += `</${element.name}>`;
-    return out.length < REWRITE_STOP;
+    return out.length < stop;
   };
   for (const node of nodes) {
     if (typeof node === "string") out += escape(node);
     else if (!walk(node)) break;
-    if (out.length >= REWRITE_STOP) break;
+    if (out.length >= stop) break;
   }
-  return boundedString(out);
+  return boundedString(out, limit);
 }
 
 // AC01 (4): scope は JSON にした長さ（引用符を含む）で 128 byte まで。越える分は code point の境で切る。
@@ -63,12 +69,14 @@ function fitScope(value: string): string {
 const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
 const child = (parent: XmlElement | undefined, name: string): XmlElement | undefined =>
   parent?.children.find((node): node is XmlElement => node.kind === "element" && localName(node) === name);
-// AC02 (3): 見出し文は Head/Headline/Text の文字（Q-UM-JMA の (1)）。無いか空なら null。
-function headlineOf(root: XmlElement): string | null {
-  const text = child(child(child(root, "Head"), "Headline"), "Text");
-  const value = text?.children.flatMap((node) => node.kind === "text" ? [node.value] : []).join("").trim() ?? "";
+const textOf = (element: XmlElement | undefined): string | null => {
+  const value = element?.children.flatMap((node) => node.kind === "text" ? [node.value] : []).join("").trim() ?? "";
   return value === "" ? null : boundedString(value);
-}
+};
+// AC02 (3): 見出し文は Head/Headline/Text の文字（Q-UM-JMA の (1)）。無いか空なら null。
+const headlineOf = (root: XmlElement): string | null => textOf(child(child(child(root, "Head"), "Headline"), "Text"));
+// P3-UM-AC11 (3): カードの題は Head/Title の文字。
+const titleOf = (root: XmlElement): string | null => textOf(child(child(root, "Head"), "Title"));
 
 // ---- 印の作成（domain の warn から。AC01 (2)(3)・AC02 (1)） ----
 
@@ -335,16 +343,9 @@ function unreadableMarkBytes(key: string, listColumns = 0): number {
     rawDropped: true, partsCut: true };
   return encoder.encode(`,${JSON.stringify(key)}:${JSON.stringify(longest)}`).byteLength;
 }
-// P3-UM-AC11 (4)・Q-UM-BYTES の (3)（置き値）: envelope のカードの上界。カード 1 枚の固定の欄 3,438 byte×枚数＋原文の予算。
-// U-Y だけ areas（1 枚 24,576 byte）を 8 枚分足す。カードの形と読み戻しは発注 3（Q-UM-PRECHECK の (7)(a)）。
-const UNREADABLE_CARD_BYTES = 3_438;
-const UNREADABLE_CARDS_MAX_BYTES = 8 * UNREADABLE_CARD_BYTES + 65_536;
-const LOCAL_BULLETINS_CARDS_MAX_BYTES = 16 * UNREADABLE_CARD_BYTES + 131_072;
-const TYPHOON_CARDS_MAX_BYTES = UNREADABLE_CARDS_MAX_BYTES + 8 * 24_576;
-
 export {
-  ADDITION_SITE, LOCAL_BULLETINS_CARDS_MAX_BYTES, RAW_BUDGET, TYPHOON_CARDS_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, UNREAD_TEXT, WEATHER_TIMESERIES_RAW_BUDGET,
-  compareColumns, droppedIn, fitRawBudget, fitScope, inheritMark, markRawBytes, markView, hasPart, rawTotal, rawTotalBy, readUnreadableMark, recordRawBytes,
-  rewriteXml, stripAll, stripRaw, unreadableMarkBytes, unreadableNotes,
+  ADDITION_SITE, RAW_BUDGET, UNREAD_TEXT, WEATHER_TIMESERIES_RAW_BUDGET,
+  compareColumns, droppedIn, fitRawBudget, fitScope, headlineOf, inheritMark, markRawBytes, markView, hasPart, rawTotal, rawTotalBy, readUnreadableMark, recordRawBytes,
+  rewriteBounded, rewriteXml, stripAll, stripRaw, titleOf, unreadableMarkBytes, unreadableNotes,
 };
 export type { CompareColumn, RawPlan, Unreadable };

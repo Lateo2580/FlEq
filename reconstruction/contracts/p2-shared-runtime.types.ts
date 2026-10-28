@@ -198,7 +198,7 @@ export type UnitView = Readonly<{
   subjects: readonly SubjectOutcome[];
 }>;
 
-export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView | TsunamiUnitView | SeismicUnitView | NankaiUnitView | VolcanoUnitView | LandslideUnitView | FloodUnitView | BriefingUnitView | LocalBulletinsUnitView | TyphoonUnitView;
+export type RuntimeUnitView = RuntimeViews[RuntimeUnitId];
 
 // P2-A1-DISPLAY-CHANGES: direct subject references avoid searching a whole view for a delta.
 export type RuntimeDisplaySubject = Readonly<{
@@ -238,19 +238,21 @@ export type RuntimeDisplayChange = Readonly<{
   after: RuntimeDisplaySubject | null;
 }>;
 
+// P3-UM-AC11 (8): owner が envelope のカードを写して置く（unit の view の関数は変えない。カードの無い unit は欄を書かない）。
+type CardsViewed<View> = View & Readonly<{ unreadableCards?: readonly UnreadableCardView[] }>;
 export type RuntimeViews = Readonly<{
-  "U-E": EewUnitView;
-  "U-W": WeatherCurrentUnitView;
-  "U-F": WeatherTimeseriesUnitView;
-  "U-T": TsunamiUnitView;
-  "U-Q": SeismicUnitView;
-  "U-N": NankaiUnitView;
-  "U-V": VolcanoUnitView;
-  "U-L": LandslideUnitView;
-  "U-R": FloodUnitView;
-  "U-B": BriefingUnitView;
-  "U-M": LocalBulletinsUnitView;
-  "U-Y": TyphoonUnitView;
+  "U-E": CardsViewed<EewUnitView>;
+  "U-W": CardsViewed<WeatherCurrentUnitView>;
+  "U-F": CardsViewed<WeatherTimeseriesUnitView>;
+  "U-T": CardsViewed<TsunamiUnitView>;
+  "U-Q": CardsViewed<SeismicUnitView>;
+  "U-N": CardsViewed<NankaiUnitView>;
+  "U-V": CardsViewed<VolcanoUnitView>;
+  "U-L": CardsViewed<LandslideUnitView>;
+  "U-R": CardsViewed<FloodUnitView>;
+  "U-B": CardsViewed<BriefingUnitView>;
+  "U-M": CardsViewed<LocalBulletinsUnitView>;
+  "U-Y": CardsViewed<TyphoonUnitView>;
 }>;
 
 export type FreshnessRecord = Readonly<{
@@ -322,7 +324,7 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate"
   | "eewWindowUnverified" // P3-REC-AC14 (5): 切れていた間の EEW の窓。札を外す時か停止の開始に 1 件
   // P3-CC-AC07: one per input a unit could not make current because of its capacity. P3-WS-AC02: U-F が受理した報の読み飛ばし（INFO）と外の階層の知らない子（WARN）を報ごとに 1 件。P3-UM-AC03 (4): 原文を外した記録の数。P3-REC-AC03・AC04: 取り直しの一覧の失敗と量の上限（unit ごと）、401/403（1 回の辿りに 1 件）。
-  | "capacityRejected" | "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear" | "unreadableDropped" | "recoveryFetchFailed" | "recoveryLimit" | "recoveryAuthRejected";
+  | "capacityRejected" | "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear" | "unreadableDropped" | "unreadableReport" | "recoveryFetchFailed" | "recoveryLimit" | "recoveryAuthRejected";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;
@@ -406,7 +408,8 @@ export type RuntimeRestoration = Readonly<Record<RuntimeUnitId,
 // P2-A1-CONFIRMATION: restoration success never establishes current completeness.
 // capacityExceeded: 容量の拒否で報を 1 つ取りこぼした unit/operation（P3-CC-AC02）。scopeCapacity（確認の記録を畳んだ印）とは別。
 // freshnessSuspect: 一覧にあって live で受けていない報があった unit/operation（H41、P3-REC-AC13 (3)、順位は P3-REC-D-SUSPECT-RANK=A）。
-export type UnconfirmedReason = "startup" | "disconnected" | "scopeCapacity" | "scopeRetired" | "capacityExceeded" | "freshnessSuspect";
+// unreadableReport: unit が断った読めない報があった unit/operation（P3-UM-AC13、語の順位は P3-REC-D-SUSPECT-RANK=A、capacityExceeded だけ上書きしない）。
+export type UnconfirmedReason = "startup" | "disconnected" | "scopeCapacity" | "scopeRetired" | "capacityExceeded" | "freshnessSuspect" | "unreadableReport";
 export type ConfirmationScope = Readonly<{ operation: Operation }> & (
   | Readonly<{ unit: RuntimeUnitId; kind: "unit" }>
   // I-U-T.confirmationScope: U-T reuses the event row (VTSE41 EventID), no new row.
@@ -419,7 +422,9 @@ export type ConfirmationScope = Readonly<{ operation: Operation }> & (
 // capacityExceeded は負の証拠: 印を付けられない容量の拒否で、その unit/operation の whole を未確認にする（P3-CC-AC02）。
 export type CurrentConfirmationEvidence =
   | Readonly<{ source: "acceptedReport"; scopes: readonly Exclude<ConfirmationScope, { kind: "unit" }>[] }>
-  | Readonly<{ source: "capacityExceeded"; scopes: readonly Extract<ConfirmationScope, { kind: "unit" }>[] }>;
+  | Readonly<{ source: "capacityExceeded"; scopes: readonly Extract<ConfirmationScope, { kind: "unit" }>[] }>
+  // P3-UM-AC13 (1): owner が unit の断った報のカード（kind unreadable）を作るときの負の証拠。
+  | Readonly<{ source: "unreadableReport"; scopes: readonly Extract<ConfirmationScope, { kind: "unit" }>[] }>;
 
 // 容量の拒否で更新できなかった記録の印（P3-CC-AC03）。値は最終確認として残し、source は拒否した報。
 export type SubjectUnavailable = Readonly<{ reason: "capacityExceeded"; source: ReportRef }>;
@@ -530,6 +535,7 @@ export type CheckpointEnvelope = Readonly<{
   capturedAt: number;
   payload: JsonValue; inputBoundary?: InputBoundary | null; // P3-VM-AC06: 書き手は常に書き、欄の無い保存は読み戻しで拒否する。省略は各 unit の上界を測る式だけ（JSON に出ない）
   losses?: readonly LossTally[]; // P3-NL-AC14: owner が capture で書き、復元で読む H39 の件数。行の無いときは欄を書かず、欄の無い envelope は空として読む
+  unreadable?: readonly UnreadableCard[]; // P3-UM-AC11 (2)(6): owner が capture で書き、復元で読む H43 のカード。losses と同じく、無いときは欄を書かず、欄の無い envelope は空
   sha256: string;
 }>;
 
@@ -537,7 +543,7 @@ export type CheckpointEnvelope = Readonly<{
 export type LossReason = NotificationLossReason | "notificationCapacityEvicted" | "noticeMarkEvicted" | "capacityRejected"
   | "eewCapacityEvicted" | "weatherCurrentCapacityEvicted" | "tsunamiCapacityEvicted" | "seismicCapacityEvicted" | "seismicStationsFolded" | "nankaiCapacityEvicted"
   | "volcanoCapacityEvicted" | "landslideCapacityEvicted" | "floodCapacityEvicted" | "briefingCapacityEvicted" | "localBulletinsCapacityEvicted"
-  | "typhoonCapacityEvicted" | "unreadableDropped";
+  | "typhoonCapacityEvicted" | "unreadableDropped" | "unreadableReport";
 export type LossTally = Readonly<{ reason: LossReason; count: number; lastAt: number }>;
 
 // Unit reducers own codecs; A3 calls them at capture/restore, not on idle ticks.
@@ -666,6 +672,9 @@ export type UnreadableCard = Readonly<{
   count: number;
   areas?: readonly Readonly<{ code: string; name: string; value: number | null }>[];
 }>;
+
+// P3-UM-AC11 (8)（P3-UM-D-VIEW）: view に渡すカード。原文の本文は渡さず有無（hasRaw）だけ。
+export type UnreadableCardView = Omit<UnreadableCard, "raw"> & Readonly<{ hasRaw: boolean }>;
 
 // P3-UM-AC12: 読めない EEW・津波の通知を重ねない印（U-E・U-T、unit×operation ごとに 1 つ）。FailureMark と違い info を持てる。
 export type UnreadableNoticeMark = Readonly<{ operation: Operation; level: "info" | "normal" | "warning" | "critical"; until: number }>;

@@ -40,7 +40,7 @@ import { envelope, harnessedRoot, idleChannels, manualAdapter, seeded, startHarn
 import type { CodecMap } from "../../src/checkpoint/checkpoint";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import type { NotificationCalls, PublisherInput } from "../../src/runtime/composition-root";
-import { confirmOutput, initialConfirmation, lostConfirmation, observeStage, requestShutdown, verifyCoverage } from "../../src/runtime/shared-runtime";
+import { confirmOutput, initialConfirmation, lostConfirmation, observeStage, requestShutdown, suspectFreshness, verifyCoverage } from "../../src/runtime/shared-runtime";
 import type { PublisherState } from "../../src/runtime/shared-runtime";
 import { callsWith } from "../unit-table/linked-calls";
 import type { StubCalls } from "../unit-table/linked-calls";
@@ -65,13 +65,13 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
     notificationProbeComplete: true,
     units: {
       "U-E": { schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [], persistence: progress },
-      "U-W": { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+      "U-W": { schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
         tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: progress },
-      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v7", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
+      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
       // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
       // add their rows only).
-      "U-T": { schemaVersion: "p3-tsunami-unit-v6", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: savedProgress },
-      "U-Q": { schemaVersion: "p3-seismic-unit-v6", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
+      "U-T": { schemaVersion: "p3-tsunami-unit-v7", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: savedProgress },
+      "U-Q": { schemaVersion: "p3-seismic-unit-v7", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
         normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: savedProgress },
       "U-N": { schemaVersion: "p3-nankai-unit-v7", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
       "U-V": { schemaVersion: "p3-volcano-unit-v6", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
@@ -333,6 +333,38 @@ describe("P2 shared runtime", () => {
     expect(slot(verified)).toMatchObject({ whole: null, counts: {}, confirmedAt: clock.wallTimeMs });
   });
 
+  // P3-UM-T13（AC13、P3-REC-D-SUSPECT-RANK=A の語の順位、Q-UM-PRECHECK-3 の M3）。
+  it("P3-UM-T13 contractBoundary / AC13: unreadableReport takes the whole like a later word, never over capacityExceeded, and only coverage clears it", () => {
+    const table = { ...linkedUnitTable, "U-E": { ...linkedUnitTable["U-E"], confirmationScopeLimit: 2 } };
+    const output = (evidence: readonly CurrentConfirmationEvidence[]) => ({ units: [], outcomes: [], diagnostics: [], confirmationEvidence: evidence,
+      retiredEvents: [], displayChanges: [] });
+    const scope = [{ unit: "U-E" as const, operation: "normal" as const, kind: "unit" as const }];
+    const unreadable = (value: RuntimeConfirmation, sequence: number | null = null) =>
+      confirmOutput(value, table, output([{ source: "unreadableReport", scopes: scope }]), clock, sequence);
+    const accepted = (value: RuntimeConfirmation, ...eventIds: string[]) => confirmOutput(value, table, output([{ source: "acceptedReport",
+      scopes: eventIds.map((eventId) => ({ unit: "U-E" as const, operation: "normal" as const, kind: "event" as const, eventId })) }]), clock, 5);
+    const suspect = (value: RuntimeConfirmation) => suspectFreshness(value, table, "run", { kind: "freshnessSuspected", runId: "run",
+      epoch: value.epoch, scopes: scope, clock });
+    const whole = (value: RuntimeConfirmation) => [value.units["U-E"].normal.whole, value.units["U-E"].normal.counts];
+    // 境界より前の入力でも採り、重ねても whole の 1 は増えない。coverageVerified だけが消す。
+    const first = unreadable(unreadable(initialConfirmation()));
+    expect(whole(first)).toEqual(["unreadableReport", { unreadableReport: 1 }]);
+    expect(whole(verifyCoverage(first, table, "run", { kind: "coverageVerified", runId: "run", epoch: first.epoch, scopes: scope, clock })))
+      .toEqual([null, {}]);
+    // 後から来た語が whole を取る: 鮮度の疑い・切断・scope の畳みと互いに。
+    expect(whole(unreadable(suspect(initialConfirmation())))).toEqual(["unreadableReport", { unreadableReport: 1 }]);
+    expect(whole(suspect(first))).toEqual(["freshnessSuspect", { freshnessSuspect: 1 }]);
+    const disconnected = lostConfirmation(first, table, 10);
+    expect([whole(disconnected), whole(unreadable(disconnected))]).toEqual([["disconnected", { disconnected: 1 }],
+      ["unreadableReport", { unreadableReport: 1 }]]);
+    const folded = accepted(accepted(first, "20240417000001"), "20240417000002", "20240417000003");
+    expect([whole(folded), whole(unreadable(folded))]).toEqual([["scopeCapacity", { scopeCapacity: 1 }], ["unreadableReport", { unreadableReport: 1 }]]);
+    // capacityExceeded はどれが来ても上書きされない。
+    const capacity = confirmOutput(initialConfirmation(), table, output([{ source: "capacityExceeded", scopes: scope }]), clock, null);
+    for (const next of [unreadable(capacity), suspect(unreadable(capacity)), lostConfirmation(unreadable(capacity), table, 10)])
+      expect(next.units["U-E"].normal.whole).toBe("capacityExceeded");
+  });
+
   it("P2-A1-CONFIRMATION / A8-AC11 contractBoundary: disconnect sequence excludes queued evidence", async () => {
     const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: noAttempts }, at(0));
     await r.input("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43", "first", at(0), 1);
@@ -518,11 +550,18 @@ describe("P2 shared runtime", () => {
     const parse = vi.spyOn(JSON, "parse");
     const clone = vi.spyOn(globalThis, "structuredClone");
     // The routed VPWS50 reaches a no-op unit: this measures the owner's own branches, not unit admission cost.
-    const ownerSteps = owners.map(([place, request]) => {
+    // P3-UM-AC11 (1)(2): the notPorted VPBS51 inputs (0, 1, 3) add a U-M card; every other unit keeps its state reference.
+    const carded = [0, 1, 3];
+    const ownerSteps = owners.map(([place, request], index) => {
       const state = owner(place);
+      const before = inspect.mock.calls.length;
       const step = request(state);
-      expect(step.state).toBe(state);
-      expect(step.views).toEqual([]);
+      // A card changes U-M, so the owner copies the units map once (the same root copy as any changed unit); nothing else walks it.
+      expect(inspect.mock.calls.length - before).toBe(carded.includes(index) ? 1 : 0);
+      if (!carded.includes(index)) expect(step.state).toBe(state);
+      else for (const unit of Object.keys(state.units) as (keyof typeof state.units)[])
+        if (unit !== "U-M") expect(step.state.units[unit]).toBe(state.units[unit]);
+      expect(step.views.map((view) => view.unit)).toEqual(carded.includes(index) ? ["U-M"] : []);
       return step;
     });
     expect(ownerSteps.map((step) => step.diagnostics.map((entry) => entry.reason))).toEqual([
@@ -530,7 +569,6 @@ describe("P2 shared runtime", () => {
     ]);
     // Diagnostic string byte accounting is allowed; state serialization is not.
     expect(stringify.mock.calls.every(([value]) => typeof value === "string")).toBe(true);
-    expect(inspect).not.toHaveBeenCalled(); // Business-state traversal is forbidden; root copies are unrestricted.
     expect(parse).not.toHaveBeenCalled();
     expect(clone).not.toHaveBeenCalled();
   });
@@ -547,13 +585,17 @@ describe("P2 shared runtime", () => {
     expect(validateSemanticEnvelope({ ...valid, reportDateTimeRaw: "" })).toMatchObject({ kind: "rejected", reason: "reportDateTimeMissing" });
     // O02:8 (VPWP50) is routed to U-F, whose receive owns its runtime rejection (A6 AC01). O02:10 (VXSE51) is routed to
     // U-Q on the seismic owner since P3-SEISMIC-PLACE-001, which rejects it with the same common check.
+    // P3-UM-AC11・AC13: U-Q が断った報は中身を変えず、H43 のカードと負の証拠（unreadableReport）だけを足す。
     for (const material of [invalidDate]) {
       const step = receiveOwner(seismic, completion({ kind: "decoded", material }), clock, units());
-      expect(step.state).toBe(seismic);
-      expect(step.changedUnits).toEqual([]);
+      const { persistence: _after, ...domain } = step.state.units["U-Q"]!, { persistence: _before, ...unchanged } = seismic.units["U-Q"]!;
+      expect([domain, step.state.unreadable["U-Q"]?.map((card) => [card.kind, card.reason])]).toEqual([unchanged, [["unreadable", "reportDateTimeInvalid"]]]);
+      expect(step.confirmationEvidence).toEqual([{ source: "unreadableReport", scopes: [{ unit: "U-Q", operation: material.operation, kind: "unit" }] }]);
+      expect(step.changedUnits).toEqual(["U-Q"]);
       expect(step.diagnostics).toHaveLength(1);
     }
-    expect(inspect).not.toHaveBeenCalled();
+    // The card's generation copies the units map once (as any changed unit does); nothing else walks it.
+    expect(inspect).toHaveBeenCalledTimes(1);
   });
 
   it("P2-A1-T04 contractBoundary: preserves independent state references for three operations", async () => {
@@ -569,7 +611,8 @@ describe("P2 shared runtime", () => {
       const mirror = r.root.state.mirror;
       r.at(at(1));
       await submit(r.h, envelope("run", "VPBS51", `operation-${operation}`, body, at(1), 10 + index));
-      expect(r.root.state.mirror).toBe(mirror);
+      // P3-UM-AC11 (1)(2): VPBS51 is notPorted, so only U-M (its card) may change in the mirror.
+      for (const unit of Object.keys(mirror) as (keyof typeof mirror)[]) if (unit !== "U-M") expect(r.root.state.mirror[unit]).toBe(mirror[unit]);
       expect(r.h.unit("U-E")).toBe(eew);
     }
   });

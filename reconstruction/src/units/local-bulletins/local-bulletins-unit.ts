@@ -12,7 +12,7 @@ import type {
   LocalBulletinsUnreadableSite, TransientArea, TransientCurrent, TransientFamily,
 } from "../../../contracts/p3-local-bulletins-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, LOCAL_BULLETINS_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, FAMILY_OF, HEAT_LIMIT, JST, HEAT_RETAIN, HEAT_TARGET_WINDOW, LAYER_SET, LIMITS, TORNADO_DEFAULT_VALID, TORNADO_LIMIT, TORNADO_RETAIN,
@@ -27,7 +27,7 @@ import {
   restoreStarted, shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import {
-  LOCAL_BULLETINS_CARDS_MAX_BYTES, RAW_BUDGET, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll,
+  RAW_BUDGET, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll,
   unreadableMarkBytes,
 } from "../unreadable";
 
@@ -90,7 +90,7 @@ function bytes(value: object): number {
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-M", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, tornado: [], heat: [], transient: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  payload: { schemaVersion: SCHEMA, tornado: [], heat: [], transient: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + LOCAL_BULLETINS_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-R ほかと同じ予約）。8: 空の配列 4 つ。
 function generationBytes(value: PersistedLocalBulletinsUnit): number {
   return emptyEnvelopeBytes + 62 - 8 + listBytes(value.tornado) + listBytes(value.heat) + listBytes(value.transient) + listBytes(value.intents);

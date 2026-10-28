@@ -130,7 +130,7 @@ export type TsunamiNotificationPayload = Readonly<{
 export type TsunamiIntent = NotificationIntent & Readonly<{ payload: TsunamiNotificationPayload }>;
 
 export type TsunamiUnitState = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v6";
+  schemaVersion: "p3-tsunami-unit-v7";
   contentRevision: number;
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
@@ -141,7 +141,7 @@ export type TsunamiUnitState = Readonly<{
 }>;
 
 export type PersistedTsunamiUnit = Readonly<{
-  schemaVersion: "p3-tsunami-unit-v6";
+  schemaVersion: "p3-tsunami-unit-v7";
   forecasts: readonly TsunamiForecastSubject[];
   observations: readonly TsunamiObservationSubject[];
   intents: readonly TsunamiIntent[];
@@ -181,5 +181,5 @@ export type TsunamiUnitStep = Readonly<{
 }>;
 
 export type TsunamiUnitCodec = UnitCodec<TsunamiUnitState, PersistedTsunamiUnit> & Readonly<{
-  schemaVersion: "p3-tsunami-unit-v6";
+  schemaVersion: "p3-tsunami-unit-v7";
 }>;

@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { DecodedMaterial, Operation } from "../../contracts/p1-parser-boundary.types";
 import type { JsonValue, WallBasis } from "../../contracts/p2-shared-runtime.types";
 import type { EarthquakeEvent, LongPeriodSubject, SeismicUnitState, SeismicUnitStep } from "../../contracts/p3-seismic-unit.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, lossReasons, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, lossReasons, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { FAILURE_MARKS_MAX_BYTES, noticeMarkBytes } from "../../src/units/notice-mark";
-import { UNREADABLE_CARDS_MAX_BYTES, unreadableMarkBytes } from "../../src/units/unreadable";
+import { unreadableMarkBytes } from "../../src/units/unreadable";
 import { longestMarks } from "../unreadable-mark/longest-mark";
 import { reduceSeismicUnit, seismicUnitCodec, toSeismicView } from "../../src/units/seismic/seismic-unit";
 import { shiftTimestamps } from "../eew-e01/frames.mjs";
@@ -35,9 +35,9 @@ const step = (state: SeismicUnitState, material: DecodedMaterial, basis: WallBas
 
 // seismic-unit.ts の世代の数え方（envelope・inputBoundary と losses の最大・世代の桁の 62・pending の配送の予約）。
 function generation(state: SeismicUnitState): number {
-  return serializedEnvelope({ schemaVersion: "p3-seismic-unit-v6", unit: "U-Q", generation: 0, capturedAt: 0,
+  return serializedEnvelope({ schemaVersion: "p3-seismic-unit-v7", unit: "U-Q", generation: 0, capturedAt: 0,
     payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
-    + LOSS_TALLY_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
 }
 // fixture の報の全時刻を atMs へ平行移動し、EventID を替え、運用を通常にする（送信の時刻 Control/DateTime も同じだけ動く）。
 function report(file: string, atMs: number, eventId: string, transform: (xml: string) => string = (xml) => xml): DecodedMaterial {
@@ -339,7 +339,7 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const MARK = noticeMarkBytes("notice"), NOTICE_GROWTH = 512 * 4 * MARK + 256 * MARK;
     const RESERVE = 1_470_281 + NOTICE_GROWTH + 512 * 372 + 3 * 2048 * 4 + 768 * 50;
     // P3-UM-RES-09: 前の器＋記録の上限（寄与 512×4＋長周期 256）×印 1 件＋原文の予算＋カード。
-    expect([L, RESERVE]).toEqual([5_627_794 + 2304 * unreadableMarkBytes("unreadable") + 131_072 + 93_040, 1_958_729]);
+    expect([L, RESERVE]).toEqual([5_627_794 + 2304 * unreadableMarkBytes("unreadable") + 131_072 + UNREADABLE_CARDS_MAX_BYTES, 1_958_729]);
     // N_guard の式（P3-QC-AC04 (1)）。S は最大の実例の守る地震（VXSE51＋53＋61 の event と VXSE62）の観測点つき、S_f は畳んだ後、
     // T_f は最大の実例を守らない報として受けて畳んだ後（event 1 件）。
     const EVENT = "20260728162718";
@@ -419,7 +419,7 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     expect([reserve(over) > RESERVE, roundTrip(over).kind]).toEqual([true, "invalid"]);
 
     // P3-UM-AC03 (6)・RES-09: 記録の上限（寄与 512×4・長周期 256）の全部に読み戻しの上限いっぱいの印と予算いっぱいの原文を足すと、
-    // 前の器（印・原文・カードの項の前）ちょうどの state も、器からカードの項を除いた内で decode が受ける。
+    // 前の器（印・原文・カードの項の前）ちょうどの state も、カードの予約（計量に入る、P3-UM-AC11 (10)）を足して器の内で decode が受ける。
     // 小さい実例の 4 family の寄与と長周期（詰め物は最初の地震の VXSE52 の見出し）。
     const small = feed(emptyState(), ...["32-35_01_01_260824_VXSE51", "32-35_04_03_240613_VXSE52", "32-35_01_03_100514_VXSE53",
       "32-35_03_02_240613_VXSE61", "synthetic_phase4a_VXSE62_special"].map((file, index) => report(file, now + index * MINUTE, "S")));
@@ -438,9 +438,9 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const atLimit = L - generation(bounded(0, false));
     expect([generation(bounded(atLimit, false)), roundTrip(bounded(atLimit, false)).kind, roundTrip(bounded(atLimit + 1, false)).kind])
       .toEqual([L, "restored", "invalid"]);
-    const marked = bounded(atLimit - 2304 * unreadableMarkBytes("unreadable") - 131_072 - UNREADABLE_CARDS_MAX_BYTES, true);
+    const marked = bounded(atLimit - 2304 * unreadableMarkBytes("unreadable") - 131_072, true);
     console.info("P3-UM-AC03 (6) U-Q", JSON.stringify({ marked: generation(marked), limit: L, cards: UNREADABLE_CARDS_MAX_BYTES }));
-    expect([generation(marked) <= L - UNREADABLE_CARDS_MAX_BYTES, roundTrip(marked).kind]).toEqual([true, "restored"]);
+    expect([generation(marked) <= L, roundTrip(marked).kind]).toEqual([true, "restored"]);
   });
 
   it("P3-QC-T04 acceptance / P3-QC-AC07・AC10: the whole cancel leaves a marked card, leaves today's count and recomputes the maximum", () => {
@@ -561,8 +561,8 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
       return [result.state.earthquakes.map((item) => [item.eventId, isFolded(item)]), result.state.longPeriods.map((item) => [item.eventId, isFolded(item)])]; };
     expect(order(restored.state)).toEqual(order(state));
     expect(seismicUnitCodec.discardableSchemaVersions).toContain("p3-seismic-unit-v4");
-    // H39: U-Q の行は 8 語（畳みの 1 語と P3-UM-AC03 (4) の原文の外しを含む）で、losses の上界は 8 語の最長の組（817 byte）。
-    expect([lossReasons("U-Q").length, lossReasons("U-Q").includes("seismicStationsFolded"), LOSS_TALLY_MAX_BYTES]).toEqual([8, true, 817]);
+    // H39: U-Q の行は 9 語（畳みの 1 語と原文の外し・読めない報、P3-UM-AC11 (11)）で、losses の上界は 9 語の最長の組（913 byte）。
+    expect([lossReasons("U-Q").length, lossReasons("U-Q").includes("seismicStationsFolded"), LOSS_TALLY_MAX_BYTES]).toEqual([9, true, 913]);
 
     type Row = Record<string, unknown>;
     const value = JSON.parse(JSON.stringify(seismicUnitCodec.encode(state))) as { earthquakes: Row[]; longPeriods: Row[]; daily: Record<Operation, Row> };

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { JsonValue } from "../../contracts/p2-shared-runtime.types";
 import type { TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import type { WeatherTimeseriesUnitState } from "../../contracts/p2-weather-timeseries-unit.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope, UNREADABLE_CARDS_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { initialUnits } from "../../src/runtime/owner-runtime";
 import { PENDING_MARK_BYTES } from "../../src/units/expiry";
@@ -21,7 +21,7 @@ const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as JsonValue;
 // 器の計量（codec の generationBytes・measure と同じ式を外から数える）: envelope＋generation と capturedAt の 62 byte＋inputBoundary と losses の最大
 // ＋pending の配送の予約＋印の無い見える記録ごとの 21 byte。
 const envelopeOf = (unit: "U-T" | "U-F", schemaVersion: string, payload: JsonValue) => serializedEnvelope({ schemaVersion, unit, generation: 0,
-  capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
+  capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
 const tsunamiSize = (state: TsunamiUnitState) => envelopeOf("U-T", state.schemaVersion, json(tsunamiUnitCodec.encode(state)))
   + state.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0)
   + PENDING_MARK_BYTES * state.observations.filter((item) => item.effective === "active" && item.expiryPending !== true).length;
@@ -54,7 +54,7 @@ describe("P3-EF-T09 contractBoundary / AC04,AC06,AC10: the 21-byte reserve at th
   it("U-T: at 4,698,345 bytes the observation goes pending and expired without a receive, saves and restores; one eviction frees its reserve", () => {
     const LIMIT = tsunamiUnitCodec.maxEnvelopeBytes!;
     // P3-UM-RES-09: 前の器＋記録の上限（予報 512・観測 512×2）×印 1 件＋原文の予算＋カード。
-    expect(LIMIT).toBe(4_698_345 + 1536 * unreadableMarkBytes("unreadable") + 131_072 + 93_040);
+    expect(LIMIT).toBe(4_698_345 + 1536 * unreadableMarkBytes("unreadable") + 131_072 + UNREADABLE_CARDS_MAX_BYTES);
     const forecastAt = Date.parse("2011-03-11T14:49:00+09:00"), observedAt = Date.parse("2011-03-11T15:01:00+09:00");
     const forecast = reduceTsunamiUnit(initialUnits["U-T"], { kind: "receive", clock: clock(forecastAt + 1),
       material: T.decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41") }).state;
@@ -94,7 +94,7 @@ describe("P3-EF-T09 contractBoundary / AC04,AC06,AC10: the 21-byte reserve at th
   it("U-F: at 33,565,184 bytes the subjects go pending and lapse without a receive, save and restore; one eviction is enough", () => {
     const LIMIT = weatherTimeseriesUnitCodec.maxEnvelopeBytes!;
     // P3-UM-RES-09: 前の器＋subject 512×印 1 件＋原文の予算（U-F は 1 MiB）＋カード。
-    expect(LIMIT).toBe(33_565_184 + 512 * unreadableMarkBytes("unreadable") + 1_048_576 + 93_040);
+    expect(LIMIT).toBe(33_565_184 + 512 * unreadableMarkBytes("unreadable") + 1_048_576 + UNREADABLE_CARDS_MAX_BYTES);
     const xml = T.fixtureXml("81_02_01_260605_VPWP50_high_severity");
     const report = Date.parse("2026-06-05T17:00:00+09:00");
     const receive = (state: WeatherTimeseriesUnitState, body: string, at: number, inputId: string) => reduceWeatherTimeseriesUnit(state,

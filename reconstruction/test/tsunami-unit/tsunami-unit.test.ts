@@ -8,10 +8,10 @@ import type {
 } from "../../contracts/p3-tsunami-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
-import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { PENDING_MARK_BYTES } from "../../src/units/expiry";
-import { UNREADABLE_CARDS_MAX_BYTES, unreadableMarkBytes } from "../../src/units/unreadable";
+import { unreadableMarkBytes } from "../../src/units/unreadable";
 import { withLongestMarks } from "../unreadable-mark/longest-mark";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { capturedOwner, checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
@@ -356,7 +356,9 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     // 器/世代（4 MiB＋印の分、P3-NL-AC15）: byte の超過は全 subject が候補。normal だけで超えるなら capacityExceeded。
     const wide = (index: number, operation: "normal" | "training") => clone(index, { operation,
       areas: Array.from({ length: 1000 }, (_, code) => ({ ...seed.areas[0], code: String(code).padStart(3, "0"), name: "区".repeat(40) })) });
-    const count = Math.ceil(tsunamiUnitCodec.maxEnvelopeBytes! / Buffer.byteLength(JSON.stringify(wide(0, "normal"))));
+    // P3-UM-AC11 (10): 記録が使えるのは器からカードの予約を除いた分。新しい報を足すと越え、training を 1 件外せば収まる件数にする
+    // （8,192 は envelope の残りの計量と新しい報の分の見積もり。予約を引いた器が wide の倍数に近く、ceil だと 1 件外しても越えた）。
+    const count = Math.floor((tsunamiUnitCodec.maxEnvelopeBytes! - UNREADABLE_CARDS_MAX_BYTES - 8_192) / Buffer.byteLength(JSON.stringify(wide(0, "normal")))) + 1;
     const pressed = receive(withForecasts(Array.from({ length: count }, (_, index) => wide(index, index === 0 ? "training" : "normal"))),
       report("20990101000010"), at);
     expect(pressed.diagnostics).toMatchObject([{ reason: "tsunamiCapacityEvicted", count: 1 }]);
@@ -375,10 +377,10 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     } finally { stringify.mockRestore(); }
 
     // P3-UM-AC03 (6)・RES-09: 記録の上限（予報 512・観測 512×2 family）の全部に読み戻しの上限いっぱいの印と予算いっぱいの原文を足すと、
-    // 前の器（印・原文・カードの項の前）ちょうどの state も、器からカードの項を除いた内で decode が受ける。
+    // 前の器（印・原文・カードの項の前）ちょうどの state も、カードの予約（計量に入る、P3-UM-AC11 (10)）を足して器の内で decode が受ける。
     const gen = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: tsunamiUnitCodec.schemaVersion, unit: "U-T", generation: 0,
       capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
-      + LOSS_TALLY_MAX_BYTES + PENDING_MARK_BYTES * state.observations.filter((item) => item.effective === "active").length;
+      + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + PENDING_MARK_BYTES * state.observations.filter((item) => item.effective === "active").length;
     const records = Array.from({ length: 512 }, (_, index) => clone(index));
     const allObservations = (["VTSE51", "VTSE52"] as const).flatMap((family) => Array.from({ length: 512 }, (_, index) => obsClone(index, family)));
     const padded = (length: number, forecasts = records, observations = allObservations): TsunamiUnitState => ({ ...emptyState(), observations,
@@ -386,10 +388,10 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     const limit = tsunamiUnitCodec.maxEnvelopeBytes!, atLimit = limit - gen(padded(0));
     const decodeOf = (state: TsunamiUnitState) => tsunamiUnitCodec.decode(JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(state))) as JsonValue).kind;
     expect([gen(padded(atLimit)), decodeOf(padded(atLimit)), decodeOf(padded(atLimit + 1))]).toEqual([limit, "restored", "invalid"]);
-    const before = atLimit - (512 + 512 * 2) * unreadableMarkBytes("unreadable") - 131_072 - UNREADABLE_CARDS_MAX_BYTES;
+    const before = atLimit - (512 + 512 * 2) * unreadableMarkBytes("unreadable") - 131_072;
     const marked = padded(before, withLongestMarks(records, "forecastHeight", [], 131_072), withLongestMarks(allObservations, "forecastHeight", [], 0));
     console.info("P3-UM-AC03 (6) U-T", JSON.stringify({ marked: gen(marked), limit, cards: UNREADABLE_CARDS_MAX_BYTES }));
-    expect([gen(marked) <= limit - UNREADABLE_CARDS_MAX_BYTES, decodeOf(marked)]).toEqual([true, "restored"]);
+    expect([gen(marked) <= limit, decodeOf(marked)]).toEqual([true, "restored"]);
   });
 
   // contractBoundary: I-U-T.persisted・I-U-T.decode、復元で intent を作らない（AC05）。
@@ -408,8 +410,8 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
     // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（P3-IUR-AC02）。終端記録は無くなった（P3-NL-AC05）ので予報の区域名で埋める。
     const withPad = (pad: number) => ({ ...value, intents: [value.intents[0]], forecasts: [{ ...value.forecasts[0],
       areas: [{ ...area0, name: `${String(area0.name)}${"x".repeat(pad)}` }, ...(value.forecasts[0].areas as unknown[]).slice(1)] }, ...value.forecasts.slice(1)] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v6", unit: "U-T", generation: 0, capturedAt: 0,
-      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v7", unit: "U-T", generation: 0, capturedAt: 0,
+      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
     const generationPad = tsunamiUnitCodec.maxEnvelopeBytes! - generation(0);
     expect(generation(generationPad)).toBe(tsunamiUnitCodec.maxEnvelopeBytes!);
     // 印の無い active の観測ごとの期限切れの保留の印の予約（P3-EF-AC10 (5)）も上限に数える。
@@ -682,9 +684,9 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     ({ code: String(100 + index), name: `区域${index}`, kind }));
   const report = (minute: number, list = areas(1), options: { infoType?: "発表" | "訂正" | "取消"; eventId?: string } = {}) =>
     decodeXml(vtse41({ at: raw(minute), areas: list, ...options }), "VTSE41");
-  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v6", unit: "U-T", generation: 0,
+  const generation = (state: TsunamiUnitState) => serializedEnvelope({ schemaVersion: "p3-tsunami-unit-v7", unit: "U-T", generation: 0,
     capturedAt: 0, payload: tsunamiUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
-    + LOSS_TALLY_MAX_BYTES + state.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + state.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   // 世代を器 − slack にする別の EventID の normal の active な予報。normal の active は退去の候補にならないので、slack を越える増分は
   // 拒否になる（P3-NL-AC05 で終端記録は無くなったので、詰め物は予報に置く。器は印の分だけ 4 MiB より大きい、P3-NL-AC15）。
   const PAD = "normal/VTSE41/20990101009999";
@@ -1007,7 +1009,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
       { reason: "notificationExpiredClockUnverified", count: 2, lastAt: at(4).wallTimeMs }];
     expect([expired.adopted, expired.state.losses["U-T"]]).toEqual([true, losses]);
     const back = restoreOwner({ runId: "run-2", place: "urgent", clock: at(5), restored: { "U-E": { kind: "empty" }, "U-Q": { kind: "empty" },
-      "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-T": { kind: "restored", envelope: { schemaVersion: "p3-tsunami-unit-v6", unit: "U-T",
+      "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-T": { kind: "restored", envelope: { schemaVersion: "p3-tsunami-unit-v7", unit: "U-T",
         generation: 3, capturedAt: at(4).wallTimeMs, payload: tsunamiUnitCodec.encode(expired.state.units["U-T"]!) as JsonValue,
         losses: expired.state.losses["U-T"], sha256: "0".repeat(64) }, slot: "A" } } }, linkedUnitTable, linkedUnitCodecs);
     expect(back.state.losses["U-T"]).toEqual(losses);
@@ -1189,7 +1191,7 @@ it("P3-VM-AC05 regression: old-version slots start empty and the next save stays
       ...value.forecasts[0].areas.slice(1)] }, ...value.forecasts.slice(1)] }) as unknown as JsonValue;
   const growth = deliveryGrowth(value.intents[0] as unknown as TsunamiIntent);
   const size = (pad: number, reserve: number) => serializedEnvelope({ schemaVersion: tsunamiUnitCodec.schemaVersion, unit: "U-T", generation: 0,
-    capturedAt: 0, payload: withPad(pad), sha256: "0".repeat(64) }).byteLength + 62 + reserve + LOSS_TALLY_MAX_BYTES + growth;
+    capturedAt: 0, payload: withPad(pad), sha256: "0".repeat(64) }).byteLength + 62 + reserve + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + growth;
   const directory = mkdtempSync(join(tmpdir(), "fleq-vm-old-"));
   try {
     // 旧い版は容量の検査の前に版で捨てるので、slot の大きさは問わない。

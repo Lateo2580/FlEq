@@ -78,22 +78,26 @@ function confirmOutput(confirmation: RuntimeConfirmation, units: UnitTable, outp
   if (evidenceSequence != null && evidenceSequence > next.afterInputSequence)
     next = applyConfirmationEvidence(next, units, output.confirmationEvidence, clock.wallTimeMs);
   // 容量の取りこぼしは切断の境界によらず採る（切断の前の入力でも取りこぼし、P3-CC-AC02(2)）。
-  for (const evidence of output.confirmationEvidence) if (evidence.source === "capacityExceeded")
-    for (const scope of evidence.scopes) next = updateConfirmation(next, units, scope.unit, scope.operation, capacityLost);
+  // P3-UM-AC13 (2): 読めずに断った報も capacityExceeded と同じく境界によらず採る（Q-CC-SLOT の (2)(3)(5) の形）。
+  for (const evidence of output.confirmationEvidence) if (evidence.source === "capacityExceeded" || evidence.source === "unreadableReport")
+    for (const scope of evidence.scopes)
+      next = updateConfirmation(next, units, scope.unit, scope.operation, wholeLost(evidence.source));
   return next;
 }
 
-// whole の 1 を capacityExceeded に付け替える。scopes は走査しない（P3-CC-AC02(5)）。重ねても whole の 1 は増えない。
-function capacityLost(slot: ConfirmationSlot): ConfirmationSlot {
-  if (slot.whole === "capacityExceeded") return slot;
+// whole の 1 を reason に付け替える。scopes は走査しない（P3-CC-AC02(5)）。重ねても whole の 1 は増えない。capacityExceeded は上書きしない
+// （chrome-eew が容量の印として読む）。鮮度の疑い・読めずに断った報は、切断・scope の畳みとも互いに後から来た語が whole を取る
+// （P3-REC-D-SUSPECT-RANK=A、P3-UM-AC13 (2)）。
+const wholeLost = (reason: "capacityExceeded" | "freshnessSuspect" | "unreadableReport") => (slot: ConfirmationSlot): ConfirmationSlot => {
+  if (slot.whole === "capacityExceeded" || slot.whole === reason) return slot;
   const counts = { ...slot.counts };
   if (slot.whole != null) {
     counts[slot.whole] = (counts[slot.whole] ?? 1) - 1;
     if (counts[slot.whole] === 0) delete counts[slot.whole];
   }
-  counts.capacityExceeded = (counts.capacityExceeded ?? 0) + 1;
-  return { ...slot, whole: "capacityExceeded", counts, confirmedAt: null };
-}
+  counts[reason] = (counts[reason] ?? 0) + 1;
+  return { ...slot, whole: reason, counts, confirmedAt: null };
+};
 
 function verifyCoverage(confirmation: RuntimeConfirmation, units: UnitTable, runId: string,
   input: Extract<RuntimeInput, { kind: "coverageVerified" }>): RuntimeConfirmation {
@@ -479,22 +483,10 @@ function suspectFreshness(confirmation: RuntimeConfirmation, units: UnitTable, r
   input: Extract<RuntimeInput, { kind: "freshnessSuspected" }>): RuntimeConfirmation {
   if (input.runId !== runId || input.epoch !== confirmation.epoch) return confirmation;
   let next = confirmation;
-  for (const scope of input.scopes) next = updateConfirmation(next, units, scope.unit, scope.operation, freshnessLost);
+  for (const scope of input.scopes) next = updateConfirmation(next, units, scope.unit, scope.operation, wholeLost("freshnessSuspect"));
   return next;
 }
 
-// P3-REC-D-SUSPECT-RANK=A: capacityLost と同じ形で whole を freshnessSuspect に付け替える（重ねても whole の 1 は増えない）。
-// capacityExceeded は上書きしない（chrome-eew が容量の印として読む）。切断は lostConfirmation が disconnected に上書きする。
-function freshnessLost(slot: ConfirmationSlot): ConfirmationSlot {
-  if (slot.whole === "capacityExceeded" || slot.whole === "freshnessSuspect") return slot;
-  const counts = { ...slot.counts };
-  if (slot.whole != null) {
-    counts[slot.whole] = (counts[slot.whole] ?? 1) - 1;
-    if (counts[slot.whole] === 0) delete counts[slot.whole];
-  }
-  counts.freshnessSuspect = (counts.freshnessSuspect ?? 0) + 1;
-  return { ...slot, whole: "freshnessSuspect", counts, confirmedAt: null };
-}
 
 export {
   addedScopes, applyDeltas, confirmOutput, initialConfirmation, isEmptyOutput, lostConfirmation, observeStage, requestShutdown,

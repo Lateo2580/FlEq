@@ -8,13 +8,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DecodedMaterial, Operation, XmlElement } from "../../contracts/p1-parser-boundary.types";
 import type { WeatherTimeseriesCompoundField, WeatherTimeseriesValue, WeatherTimeseriesSnapshot, WeatherTimeseriesSubject, WeatherTimeseriesUnitState } from "../../contracts/p2-weather-timeseries-unit.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { classifyMaterial, decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { callsWith } from "../unit-table/linked-calls";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { PENDING_MARK_BYTES } from "../../src/units/expiry";
-import { UNREADABLE_CARDS_MAX_BYTES, unreadableMarkBytes } from "../../src/units/unreadable";
+import { unreadableMarkBytes } from "../../src/units/unreadable";
 import { withLongestMarks } from "../unreadable-mark/longest-mark";
 import { checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
@@ -28,7 +28,7 @@ import type { Harness } from "../execution-split/owner-harness";
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
 function empty(): WeatherTimeseriesUnitState {
-  return { schemaVersion: "p2-weather-timeseries-unit-v7", contentRevision: 0, subjects: [], gates: [], intents: [],
+  return { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -60,7 +60,7 @@ function inflated(state: WeatherTimeseriesUnitState, targetBytes: number): Weath
   const item = first(state), at = item.areas[0].name!;
   const payload = weatherTimeseriesUnitCodec.encode(state);
   const base = serializedEnvelope({ schemaVersion: state.schemaVersion, unit: "U-F", generation: 0,
-    capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + marksOf(state);
+    capturedAt: 0, payload, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + marksOf(state);
   const added = targetBytes - base;
   if (added < 0) throw new Error("target is below base size");
   return { ...state, subjects: state.subjects.map((subject, position) => position === 0
@@ -232,9 +232,9 @@ describe("P2-A6 weather timeseries", () => {
     const activeValue = weatherTimeseriesUnitCodec.encode(receive(empty(), fixture(unknown)).state), [subject] = activeValue.subjects;
     const wire = (length: number) => ({ ...activeValue, intents: [notice("a", "")],
       subjects: [{ ...subject, strings: [...subject.strings.slice(0, -1), `${subject.strings.at(-1)!}${"x".repeat(length)}`] }] });
-    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v7", unit: "U-F", generation: 0,
-      capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
-    expect(LIMIT).toBe(33_565_184 + 512 * unreadableMarkBytes("unreadable") + 1_048_576 + 93_040); // P3-UM-RES-09
+    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v8", unit: "U-F", generation: 0,
+      capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
+    expect(LIMIT).toBe(33_565_184 + 512 * unreadableMarkBytes("unreadable") + 1_048_576 + UNREADABLE_CARDS_MAX_BYTES); // P3-UM-RES-09
     const length = LIMIT - generation(0), marks = marksOf(activeValue);
     expect(generation(length)).toBe(LIMIT);
     expect(weatherTimeseriesUnitCodec.decode(wire(length - growth - marks + 1)).kind).toBe("invalid");
@@ -543,25 +543,25 @@ describe("P2-A6 weather timeseries", () => {
         const actual = serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-F", generation: 1,
           capturedAt: Date.parse(material.reportDateTimeRaw), payload, sha256: "0".repeat(64) }).byteLength;
         expect(actual).toBeLessThanOrEqual(target);
-        expect(target - actual).toBe(62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + marksOf(value) - (String(1).length - 1)
+        expect(target - actual).toBe(62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + marksOf(value) - (String(1).length - 1)
           - (String(Date.parse(material.reportDateTimeRaw)).length - 1));
       } else expect(() => weatherTimeseriesUnitCodec.encode(value)).toThrow();
     }
     // P3-UM-AC03 (6)・RES-09: 記録の上限（subject 512）の全部に読み戻しの上限いっぱいの印と予算いっぱいの原文を足すと、
-    // 前の器（印・原文・カードの項の前）ちょうどの state も、器からカードの項を除いた内で decode が受ける。
+    // 前の器（印・原文・カードの項の前）ちょうどの state も、カードの予約（計量に入る、P3-UM-AC11 (10)）を足して器の内で decode が受ける。
     const small = receive(empty(), fixture(unknown)).state, seed = first(small);
     const subjects = Array.from({ length: 512 }, (_, index) => {
       const subject = `normal/VPWP50/office${index}`;
       return { ...seed, subject, source: { ...seed.source!, subject } };
     });
     const before = inflated({ ...small, subjects, gates: subjects.map((item) => ({ subject: item.subject, operation: item.operation, source: item.source! })) },
-      LIMIT - 512 * unreadableMarkBytes("unreadable") - 1_048_576 - UNREADABLE_CARDS_MAX_BYTES);
+      LIMIT - 512 * unreadableMarkBytes("unreadable") - 1_048_576);
     const marked = { ...before, subjects: withLongestMarks(before.subjects, "MeteorologicalInfos", [], 1_048_576) };
     const payload = weatherTimeseriesUnitCodec.encode(marked);
     const bytes = serializedEnvelope({ schemaVersion: marked.schemaVersion, unit: "U-F", generation: 0, capturedAt: 0, payload, sha256: "0".repeat(64) })
-      .byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + marksOf(marked);
+      .byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + marksOf(marked);
     console.info("P3-UM-AC03 (6) U-F", JSON.stringify({ marked: bytes, limit: LIMIT, cards: UNREADABLE_CARDS_MAX_BYTES }));
-    expect([bytes <= LIMIT - UNREADABLE_CARDS_MAX_BYTES, weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify(payload))).kind])
+    expect([bytes <= LIMIT, weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify(payload))).kind])
       .toEqual([true, "restored"]);
   });
 
@@ -880,7 +880,10 @@ describe("P2-A6 weather timeseries", () => {
     expect(routed.generationInputIds["U-F"]).toEqual([]);
     const headless = receiveOwner({ ...owner, deadlines: { "U-F": null } }, { runId: "a6", inputId: "headless",
       result: { kind: "decoded", material: fixture("81_05_01_260605_VPWP50_head_missing") } }, clock(DATE), linked);
-    expect(headless.state.units["U-F"]).toBe(other.state);
+    // P3-UM-AC11 (1)(6): 断った報は中身を変えず、H43 のカードを足して世代を 1 つ進める。
+    const { persistence, ...domain } = headless.state.units["U-F"]!, { persistence: before, ...unchanged } = other.state;
+    expect([domain, persistence.currentGeneration, headless.state.unreadable["U-F"]?.map((card) => [card.kind, card.reason])])
+      .toEqual([unchanged, before.currentGeneration + 1, [["unreadable", "headMissing"]]]);
     expect(headless.diagnostics).toMatchObject([{ reason: "headMissing", unit: "U-F" }]);
   });
 });

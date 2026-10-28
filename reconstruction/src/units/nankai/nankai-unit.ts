@@ -11,7 +11,7 @@ import type {
   NankaiUnreadableSite, PersistedNankaiUnit,
 } from "../../../contracts/p3-nankai-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { nextMark, readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { nextMark, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
@@ -20,7 +20,7 @@ import {
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
-import { RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
+import { RAW_BUDGET, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes } from "../unreadable";
 
 // P3-UNIT-N-001（C8、I-U-N）: U-N の現況・情報系列・通知・容量・codec・射影。
 
@@ -71,7 +71,7 @@ function listBytes(values: readonly object[]): number {
   return total;
 }
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-N", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [], information: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [], information: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q と同じ予約）。6: 空の配列 3 つ。
 function generationBytes(currents: readonly NankaiCurrent[], intents: readonly NankaiIntent[], information: readonly NankaiInformation[]): number {
   return emptyEnvelopeBytes + 62 - 6 + listBytes(currents) + listBytes(intents) + listBytes(information);

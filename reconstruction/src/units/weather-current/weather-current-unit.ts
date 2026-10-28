@@ -35,12 +35,11 @@ import {
 } from "../../domains/weather-current/weather-current";
 import type { CurrentChange } from "../../domains/weather-current/weather-current";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
-import { UNREADABLE_CARDS_MAX_BYTES } from "../unreadable";
 
-const SCHEMA = "p2-weather-current-unit-v5" as const;
+const SCHEMA = "p2-weather-current-unit-v6" as const;
 type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
 // P3-UM-RES-09: 読めない報のカード 8 枚の分を足す（U-W の記録の印は ③。カードを envelope に書くのは発注 3）。
 const GENERATION_BYTES = 16 * 1024 * 1024 + UNREADABLE_CARDS_MAX_BYTES;
@@ -53,7 +52,7 @@ const recordByteCache = new WeakMap<object, number>();
 const mapByteCache = new WeakMap<object, number>();
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-W", generation: 0,
   capturedAt: 0, payload: { schemaVersion: SCHEMA, national: {}, partials: [], histories: [], ownership: {},
-    tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+    tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 
 function recordBytes(value: object): number {
   let bytes = recordByteCache.get(value);
@@ -626,7 +625,7 @@ function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUni
 }
 
 const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-current-unit-v1", "p2-weather-current-unit-v2", "p2-weather-current-unit-v3", "p2-weather-current-unit-v4"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-current-unit-v1", "p2-weather-current-unit-v2", "p2-weather-current-unit-v3", "p2-weather-current-unit-v4", "p2-weather-current-unit-v5"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = encodedValue(state);
     if (value == null) throw new Error("U-W checkpoint exceeds or violates its persisted boundary");
@@ -634,7 +633,7 @@ const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
   },
   decode(payload) {
     const value = persistedValue(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-weather-current-unit-v5 payload" } : {
+    return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` } : {
       kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence() },
     };
   },

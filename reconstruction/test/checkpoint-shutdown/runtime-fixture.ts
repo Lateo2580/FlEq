@@ -61,11 +61,11 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
     units: {
       "U-E": { ...payload("U-E"), schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [],
         notices: [], persistence: progress("U-E") },
-      "U-W": { ...payload("U-W"), schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [],
+      "U-W": { ...payload("U-W"), schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [],
         histories: [], ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: progress("U-W") },
-      "U-F": { ...payload("U-F"), schemaVersion: "p2-weather-timeseries-unit-v7", contentRevision: 0, subjects: [], gates: [],
+      "U-F": { ...payload("U-F"), schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [],
         intents: [], persistence: progress("U-F") },
-      "U-T": { ...payload("U-T"), schemaVersion: "p3-tsunami-unit-v6", contentRevision: 0, forecasts: [], observations: [],
+      "U-T": { ...payload("U-T"), schemaVersion: "p3-tsunami-unit-v7", contentRevision: 0, forecasts: [], observations: [],
         intents: [], failureMarks: [], persistence: progress("U-T") },
       "U-Q": { ...payload("U-Q"), ...initialUnits["U-Q"], persistence: progress("U-Q") },
       "U-N": { ...payload("U-N"), ...initialUnits["U-N"], persistence: progress("U-N") },
@@ -199,7 +199,7 @@ function ownerFixture(place: ExecutionPlace, whole: RuntimeState = fixtureState(
   }));
   return { runId: whole.runId, place, units,
     deadlines: Object.fromEntries(own.map((item) => [item, whole.deadlines[item]])),
-    checkpointAttempts: pick((item) => whole.checkpointAttempts[item]), losses: {}, accepting: true, finalized: false };
+    checkpointAttempts: pick((item) => whole.checkpointAttempts[item]), losses: {}, unreadable: {}, accepting: true, finalized: false };
 }
 
 export { ownerFixture, fixtureState, fixtureValue, fixtureDriver, stringCodec, testNotificationChannels, recordingNotificationAdapter };

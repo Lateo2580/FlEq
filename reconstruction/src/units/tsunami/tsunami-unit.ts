@@ -12,7 +12,7 @@ import type {
   TsunamiUnitView, TsunamiUnkeyedArea, TsunamiUnreadableSite,
 } from "../../../contracts/p3-tsunami-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareVersion, controlDateTimeOf, nextMark, readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareVersion, controlDateTimeOf, nextMark, readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { AREA_RANK, INFO_RANK, KIND_CLASS, parseTsunami, sameStation } from "../../domains/tsunami/tsunami";
 import type { ForecastCandidate, ObservationCandidate } from "../../domains/tsunami/tsunami";
@@ -22,13 +22,13 @@ import {
 } from "../notice-mark";
 import { PENDING_MARK_BYTES, cachedMin } from "../expiry";
 import {
-  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, droppedIn, fitRawBudget, fitScope, inheritMark, hasPart, rawTotal, readUnreadableMark, stripAll,
+  RAW_BUDGET, droppedIn, fitRawBudget, fitScope, inheritMark, hasPart, rawTotal, readUnreadableMark, stripAll,
   unreadableMarkBytes,
 } from "../unreadable";
 
 // P3-TSUNAMI-UNIT-001（C5、I-U-T）: U-T の意味・通知・容量・codec・射影。
 
-const SCHEMA = "p3-tsunami-unit-v6" as const;
+const SCHEMA = "p3-tsunami-unit-v7" as const;
 // P3-C5-CAPACITY=A と P3-C5-RES-01・RET-01〜03。
 const FORECAST_LIMIT = 512, OBSERVATION_LIMIT = 512, STATION_LIMIT = 1024;
 // P3-NL-D-CAPACITY=A: 4 MiB に印（予報 512・観測 512×2 family、観測は fragment の鍵 16 件）と失敗の印（operation 3 つ）の最悪の分を足す。
@@ -81,7 +81,7 @@ function sumBytes(values: readonly Subject[]): number {
   return values.reduce((sum, item) => sum + subjectBytes(item), Math.max(values.length - 1, 0));
 }
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-T", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, forecasts: [], observations: [], intents: [], failureMarks: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  payload: { schemaVersion: SCHEMA, forecasts: [], observations: [], intents: [], failureMarks: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F と同じ予約）。
 function generationBytes(forecasts: readonly Subject[], observations: readonly Subject[], intents: readonly TsunamiIntent[],
   failureMarks: readonly FailureMark[]): number {
@@ -1147,7 +1147,7 @@ function persisted(value: unknown): PersistedTsunamiUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const tsunamiUnitCodec: TsunamiUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-tsunami-unit-v1", "p3-tsunami-unit-v2", "p3-tsunami-unit-v3", "p3-tsunami-unit-v4", "p3-tsunami-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-tsunami-unit-v1", "p3-tsunami-unit-v2", "p3-tsunami-unit-v3", "p3-tsunami-unit-v4", "p3-tsunami-unit-v5", "p3-tsunami-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // state は reducer が上限の内側で作るので、encode は保存 field だけを並べる（contentRevision・persistence は保存しない）。
   encode: (state) => ({ schemaVersion: SCHEMA, forecasts: state.forecasts, observations: state.observations, intents: state.intents,
     failureMarks: state.failureMarks }),

@@ -82,7 +82,7 @@ const UNAVAILABLE_KEYS = ["capacityExceeded", "historyUnavailable", "coverageInc
 const UNKNOWN_KEYS = ["unknown", "missing", "empty"] as const;
 const FRESHNESS_KEYS = ["headMissing", "reportDateTimeMissing", "reportDateTimeInvalid", "identityMissing",
   "identityInvalid", "requiredStructureMissing", "requiredStructureInvalid", "stale"] as const;
-const UNCONFIRMED_KEYS = ["startup", "disconnected", "scopeCapacity", "scopeRetired", "capacityExceeded", "freshnessSuspect"] as const satisfies readonly UnconfirmedReason[];
+const UNCONFIRMED_KEYS = ["startup", "disconnected", "scopeCapacity", "scopeRetired", "capacityExceeded", "freshnessSuspect", "unreadableReport"] as const satisfies readonly UnconfirmedReason[];
 const SEVERITY_RANK: readonly DisplaySeverity[] = ["specialWarning", "danger", "warning", "advisory", "forecast", "below", "none"];
 const NOTICE_FAMILIES: readonly DisplayNoticeSource["family"][] = ["VXSE43", "VXSE45", "VPWS50", "VPWW55", "VPWW57",
   "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50", "VPWP50"];

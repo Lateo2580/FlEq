@@ -18,7 +18,7 @@ import { countedCheckpointFileSystem, writeCounters } from "./composition-root";
 import type { WriteCounters } from "./composition-root";
 import {
   capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, intentUpdateOwner, ownerViews, placeUnits,
-  receiveOwner, restoreOwner, shutdownInputOwner,
+  receiveOwner, refreshedViews, restoreOwner, shutdownInputOwner,
 } from "./owner-runtime";
 import type { OwnerState, OwnerStep } from "./owner-runtime";
 
@@ -103,7 +103,8 @@ class OwnerHost {
         const clock = this.business();
         let generationRaisedMs: number | null = null;
         const forced = switched ? this.apply(deadlineOwner(state, clock, this.options.units, request.basis, true)) : null;
-        const step = this.apply(receiveOwner(this.state!, { runId: envelope.runId, inputId: item.inputId, result }, clock, this.options.units,
+        const step = this.apply(receiveOwner(this.state!, { runId: envelope.runId, inputId: item.inputId, result, headType: item.headType,
+          receivedAt: item.receivedAt }, clock, this.options.units,
           this.options.start.measured ? () => { generationRaisedMs = this.measured(); } : undefined, request.basis));
         const marks = result.kind === "decoded" ? result.material.marks : noMarks;
         this.options.reply({ kind: "inputDone", settlement: { kind: "parser", messageId: envelope.messageId,
@@ -233,7 +234,7 @@ class OwnerHost {
     if (state.checkpointAttempts[unit] != null) throw new Error(`a save of ${unit} is already in progress`);
     const correlation = { inputIds, retryReason: request.retryReason };
     const scheduled = this.checkpoint.capture(unit, state.units[unit], persistence.currentGeneration, state.runId, correlation, request.inputBoundary,
-      state.losses[unit]);
+      state.losses[unit], state.unreadable[unit]);
     const captured = this.apply(capturedOwner(state, scheduled.capture, this.options.units));
     if (scheduled.request == null) {
       const step = this.apply(checkpointResultOwner(this.state!, scheduled.result, this.options.units));
@@ -245,7 +246,7 @@ class OwnerHost {
       // The result is one more input of this owner, applied to the state current at that time (P3-C3A-CHECKPOINT-ACK).
       const step = this.apply(checkpointResultOwner(this.state!, executed.result, this.options.units));
       this.checkpoint.ended(executed.result, false);
-      done(executed.result, [...scheduled.measurements, ...executed.measurements], [captured, step]);
+      done(executed.result, [...scheduled.measurements, ...executed.measurements], [refreshedViews(captured, this.state!, this.options.units), step]);
     }).catch(this.options.fail);
   }
 

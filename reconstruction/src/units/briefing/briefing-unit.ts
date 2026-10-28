@@ -10,7 +10,7 @@ import type {
   BriefingUnitCodec, BriefingUnitState, BriefingUnitStep, BriefingUnitView, BriefingUnreadableSite, PersistedBriefingUnit,
 } from "../../../contracts/p3-briefing-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, LIMITS, kindOf, parseBriefing, validCode, validHeadline, validSeries, validUnit } from "../../domains/briefing/briefing";
 import type { BriefingCandidate } from "../../domains/briefing/briefing";
@@ -21,7 +21,7 @@ import {
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
 import {
-  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll, unreadableMarkBytes,
+  RAW_BUDGET, compareColumns, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll, unreadableMarkBytes,
 } from "../unreadable";
 
 // P3-UNIT-B-001（C12、I-U-B）: U-B の系列の current・予測の置換・alias・通知・容量・codec・射影。
@@ -108,7 +108,7 @@ function bytes(value: object): number {
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-B", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-R ほかと同じ予約）。4: 空の配列 2 つ。
 function generationBytes(value: PersistedBriefingUnit): number {
   return emptyEnvelopeBytes + 62 - 4 + listBytes(value.currents) + listBytes(value.intents);

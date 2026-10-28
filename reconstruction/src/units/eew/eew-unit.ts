@@ -11,10 +11,9 @@ import type {
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
 import { dirty, expiredOutcome, nextEewDeadline, noticeAt, reclaimEewLifetime, reduceEew as reduceEewCore } from "../../domains/eew/eew";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, readReportRef } from "../../contracts-revision/version";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted, strongerEvidence, updateEvidence } from "../notice-mark";
-import { UNREADABLE_CARDS_MAX_BYTES } from "../unreadable";
 
 const SCHEMA = "p2-eew-unit-v4" as const;
 // P3-NL-AC04 (8)（置き値）: 2,048 件の印の上界と pending（予約込み 128 KiB）と H39 の欄と envelope・inputBoundary の上限を 64 KiB の倍数に切り上げる。
@@ -38,7 +37,6 @@ function operation(value: unknown): value is NotificationIntent["operation"] {
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
-
 
 // P3-NL-AC06 (2): 期限の長さは desktop と鳴らし直していない sound が 15 秒、1 回の鳴らし直しを使った sound が 30 秒まで。
 // 確かめた欄だけで組み立てる（欄の外のキーは通さない）。transition は閉集合の文字列だけを受ける。
@@ -101,7 +99,7 @@ function generationByteLength(payload: PersistedEewUnit): number {
   return encoder.encode(JSON.stringify({
     schemaVersion: SCHEMA, unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
     capturedAt: -0.0000012345678901234567, payload, sha256: "0".repeat(64), // P3-VM-AC06: capture が受ける有限な数の JSON の最長（25 文字）
-  })).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  })).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 }
 
 function persisted(value: unknown): PersistedEewUnit | null {

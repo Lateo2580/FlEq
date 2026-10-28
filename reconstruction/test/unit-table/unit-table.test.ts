@@ -38,28 +38,38 @@ function idleOwner() {
 
 describe("P3-UNIT-TABLE-001 route classes", () => {
   // P3-C0-T01 regression (ledger 52 1): headTypes outside the route are seen, one diagnostic per input, no state change.
-  it("P3-C0-T01 regression: unlisted, notPorted and ignored inputs each leave one diagnostic and change nothing", () => {
+  it("P3-C0-T01 regression: unlisted, notPorted and ignored inputs each leave one diagnostic; only unlisted and notPorted add a U-M card", () => {
     const state = idleOwner();
     const blank = (xml: string) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime></ReportDateTime>");
+    // P3-UM-AC11 (1)(2): unit の無い入力（unlisted・notPorted）は封筒の検査の結果によらず U-M に unknownType のカードを足す（card はその理由）。
+    // ignored と、inputId が読み戻しの上限を外れる入力はカードにしない。
     const cases = [
-      { material: decode("37_01_01_240613_VXSE43", "VZZZ99"), expected: { reason: "routeUnlisted", level: "WARN" } },
+      { material: decode("37_01_01_240613_VXSE43", "VZZZ99"), expected: { reason: "routeUnlisted", level: "WARN" }, card: "routeUnlisted" },
       // P3-C5: VTSE41 is ready (U-T); VTSE41 bytes under VPBS51 keep a notPorted route on the deferred owner (VFVO50 is ready, P3-C9;
       // VPWW56 is ready, P3-C10; VXKO50 is ready, P3-C11; VPBS50 is ready, P3-C12; VPFT50 is ready, P3-C13; VPTW60 is ready, P3-C14).
-      { material: decode("32-39_11_02_250206_VTSE41", "VPBS51"), expected: { reason: "routeNotPorted", level: "INFO", unit: "U-B" } },
+      { material: decode("32-39_11_02_250206_VTSE41", "VPBS51"), expected: { reason: "routeNotPorted", level: "INFO", unit: "U-B" }, card: "routeNotPorted" },
       { material: decode("36_01_10_240613_VXSE44", "VXSE44"), expected: { reason: "routeIgnored", level: "INFO" } },
       // The envelope check comes first: a rejected notPorted input gets its existing rejection only.
-      { material: decode("32-39_11_02_250206_VTSE41", "VPBS51", blank), expected: { reason: "reportDateTimeMissing", level: "WARN" } },
+      { material: decode("32-39_11_02_250206_VTSE41", "VPBS51", blank), expected: { reason: "reportDateTimeMissing", level: "WARN" }, card: "routeNotPorted" },
       // P3-VM-AC08: the envelope check holds inputIds to the ReportRef read-back bound (65 characters is one over).
       { material: { ...decode("32-39_11_02_250206_VTSE41", "VPBS51"), inputId: "i".repeat(65) }, expected: { reason: "identityInvalid", level: "WARN" } },
     ];
-    for (const { material, expected } of cases) {
+    for (const { material, expected, card } of cases) {
       const step = receiveOwner(state, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },
         clock, linkedRuntimeCalls.units);
       expect(step.diagnostics, material.inputId).toMatchObject([{ ...expected, component: "shared-runtime", inputId: material.inputId }]);
-      expect(step.state.units).toBe(state.units);
-      expect(step.views).toEqual([]);
-      expect(step.changedUnits).toEqual([]);
-      expect(step.generationInputIds).toEqual({});
+      if (card == null) {
+        expect(step.state.units).toBe(state.units);
+        expect(step.views).toEqual([]);
+        expect(step.changedUnits).toEqual([]);
+        expect(step.generationInputIds).toEqual({});
+        continue;
+      }
+      for (const unit of Object.keys(state.units) as (keyof typeof state.units)[])
+        if (unit !== "U-M") expect(step.state.units[unit], unit).toBe(state.units[unit]);
+      expect([step.state.unreadable["U-M"]?.map((item) => [item.kind, item.reason, item.headType]), step.views.map((view) => view.unit),
+        step.changedUnits, step.generationInputIds, step.confirmationEvidence])
+        .toEqual([[["unknownType", card, material.headType]], ["U-M"], ["U-M"], { "U-M": [material.inputId] }, []]);
     }
   });
 

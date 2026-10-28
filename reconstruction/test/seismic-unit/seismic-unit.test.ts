@@ -9,7 +9,7 @@ import type {
 import contract from "../../contracts/p3-seismic-unit.json";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope, UNREADABLE_CARDS_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 import { knownStage, safetyRank } from "../../src/domains/seismic/seismic";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
@@ -536,7 +536,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const withPad = (pad: number) => ({ ...value, intents: [live], earthquakes: [{ ...quake, contributions: contributions.map((item) => item === active
       ? { ...item, title: `${String(item.title)}${"x".repeat(pad)}` } : item) }, ...value.earthquakes.slice(1)] });
     const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v4", unit: "U-Q", generation: 0, capturedAt: 0,
-      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
+      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
     const limit = seismicUnitCodec.maxEnvelopeBytes!;
     const generationPad = limit - generation(0);
     expect(generation(generationPad)).toBe(limit);
@@ -898,7 +898,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
   const notices = (state: SeismicUnitState) => state.intents.filter((item) => item.subject === FAIL);
   const generation = (state: SeismicUnitState) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v4", unit: "U-Q", generation: 0,
     capturedAt: 0, payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
-    + LOSS_TALLY_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
   // 世代を器の上限 − slack にする。normal の受理は普通は退去で収まるので、退去の候補にならない記録だけで埋める: 観測点を持たない守る地震
   // （guard の on 1、P3-QC-D-SMALL-PUSH=B で守らない報のためには退去しない）、取消記憶だけの記録（長周期は通知の印つき）と当日履歴（予約の内、crowd）、
   // 他の系統の pending（終端記録は P3-NL-AC05 で無くなった）。

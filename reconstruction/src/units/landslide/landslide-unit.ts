@@ -10,7 +10,7 @@ import type {
   LandslideUnitState, LandslideUnitStep, LandslideUnitView, LandslideUnreadableSite, PersistedLandslideUnit,
 } from "../../../contracts/p3-landslide-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version"; import { validReportDateTime } from "../../domains/flood/flood";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version"; import { validReportDateTime } from "../../domains/flood/flood";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   BOUNDS, FAMILY, INFO_RANK, LIMITS, cut, groupOrder, levelOf, parseLandslide, validAreaCode, validKindCode, validOffice, validSerial,
@@ -22,7 +22,7 @@ import {
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
 import {
-  RAW_BUDGET, UNREADABLE_CARDS_MAX_BYTES, UNREAD_TEXT, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll, unreadableMarkBytes,
+  RAW_BUDGET, UNREAD_TEXT, droppedIn, fitRawBudget, hasPart, rawTotal, readUnreadableMark, stripAll, unreadableMarkBytes,
 } from "../unreadable";
 
 // P3-UNIT-L-001（C10、I-U-L）: U-L の官署の current・通知・容量・codec・射影。
@@ -63,7 +63,7 @@ function bytes(value: object): number {
 const commas = (length: number) => Math.max(length - 1, 0);
 const listBytes = (values: readonly object[]): number => 2 + commas(values.length) + values.reduce((sum, item) => sum + bytes(item), 0);
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-L", generation: 0, capturedAt: 0,
-  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  payload: { schemaVersion: SCHEMA, currents: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T・U-Q・U-N・U-V と同じ予約）。4: 空の配列 2 つ。
 function generationBytes(value: PersistedLandslideUnit): number {
   return emptyEnvelopeBytes + 62 - 4 + listBytes(value.currents) + listBytes(value.intents);

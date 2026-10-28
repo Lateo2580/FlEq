@@ -19,6 +19,7 @@ import type {
 } from "../../contracts/p1-parser-boundary.types";
 import { resolveOperation } from "../contracts-revision/operation";
 import { recordParserDiagnostic } from "../diagnostics/parser-diagnostic";
+import { boundedString } from "../runtime/runtime-diagnostic";
 
 const MAX_INPUT_BYTES = 8 * 1024 * 1024;
 const MAX_EXPANDED_BYTES = 10 * 1024 * 1024;
@@ -43,8 +44,10 @@ function undetermined(item: ParserMailboxItem): ParserDiagnostic["operation"] {
   return { kind: "undetermined", sources: { headTest: item.headTest, envelopeStatus: item.envelopeStatus } };
 }
 
-function rejected(item: ParserMailboxItem, reason: string, expandedByteLength: number | null, operation = undetermined(item)): ParserMailboxResult {
-  const diagnostic = { inputId: item.inputId, reason, operation, encodedByteLength: item.encodedByteLength, expandedByteLength };
+function rejected(item: ParserMailboxItem, reason: string, expandedByteLength: number | null, operation = undetermined(item),
+  expandedText?: string): ParserMailboxResult {
+  const diagnostic = { inputId: item.inputId, reason, operation, encodedByteLength: item.encodedByteLength, expandedByteLength,
+    ...expandedText == null ? {} : { expandedText } };
   recordParserDiagnostic(diagnostic);
   return { kind: "rejected", diagnostic };
 }
@@ -452,16 +455,20 @@ export function decodeMaterial(item: ParserMailboxItem,
   try {
     // TextDecoder strips a leading UTF-8 BOM (ignoreBOM:false); byte accounting still includes it.
     xmlText = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(raw);
+  } catch { return rejected(item, "xmlInvalid", raw.byteLength); }
+  // P3-UM-AC11 (3)(7): XML の検査で断った報だけ、H43 のカードの原文に本文の先頭を渡す（JSON にした長さ 16,384 byte、引用符を除いて 16,382）。
+  const invalid = (reason: "xmlInvalid" | "xmlLimitExceeded") => rejected(item, reason, raw.byteLength, undefined, boundedString(xmlText, 16_382));
+  try {
     if (parseTimes != null) parseTimes.startedMs = now();
     withinXmlLimits(xmlText);
-    if (XMLValidator.validate(xmlText) !== true) return rejected(item, "xmlInvalid", raw.byteLength);
-  } catch (error) { return rejected(item, error instanceof Error && error.message === "xmlLimitExceeded" ? "xmlLimitExceeded" : "xmlInvalid", raw.byteLength); }
+    if (XMLValidator.validate(xmlText) !== true) return invalid("xmlInvalid");
+  } catch (error) { return invalid(error instanceof Error && error.message === "xmlLimitExceeded" ? "xmlLimitExceeded" : "xmlInvalid"); }
   const parsedAt = now();
   let xml: XmlElement | null;
-  try { xml = buildTree(xmlText); } catch { return rejected(item, "xmlInvalid", raw.byteLength); }
+  try { xml = buildTree(xmlText); } catch { return invalid("xmlInvalid"); }
   current.fullXmlParseMs = finiteDuration(parsedAt);
   if (parseTimes != null) parseTimes.endedMs = now();
-  if (xml == null || xml.name !== "Report") return rejected(item, "xmlInvalid", raw.byteLength);
+  if (xml == null || xml.name !== "Report") return invalid("xmlInvalid");
   const metadataAt = now();
   const controlStatus = normalizeStatus(childText(child(xml, "Control"), "Status"));
   const evidence: OperationEvidence = { headTest: item.headTest, envelopeStatus: item.envelopeStatus, controlStatus };

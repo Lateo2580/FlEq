@@ -11,7 +11,7 @@ import type { WeatherCurrentSnapshot, WeatherCurrentUnitState } from "../../cont
 import manifest from "../../tools/corpus/manifest.json";
 import corpus from "../../tools/corpus/sequences.json";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, hashEnvelope, serializedEnvelope, UNREADABLE_CARDS_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { reduceWeatherCurrentMeaning } from "../../src/domains/weather-current/weather-current";
@@ -30,7 +30,7 @@ const NOW = 1_800_000_000_000;
 const LIMIT = weatherCurrentUnitCodec.maxEnvelopeBytes!;
 
 function emptyState(): WeatherCurrentUnitState {
-  return { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [],
+  return { schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [], histories: [],
     ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
@@ -479,7 +479,7 @@ describe("P2 weather-current unit", () => {
     const marked = receive({ ...emptyState(), national: { training: a } }, decodeFixture(vpws50, "VPWS50",
       training("官署A", (xml) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, "$1$2")), "timeless")).state;
     const size = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
-      capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
+      capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
     const padded = (length: number): WeatherCurrentUnitState => ({ ...marked, national: { ...marked.national, normal: { ...filler, phenomena: { padding: "x".repeat(length) } } } });
     const full = padded(LIMIT - 1_800 - size(padded(0)));
     const step = receive(full, decodeFixture(vpws50, "VPWS50", training("官署B", (xml) => atTime(xml, "2026-09-06T10:05:00+09:00", "2")), "other-office"));
@@ -823,7 +823,7 @@ describe("P2 weather-current unit", () => {
     const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
-    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
+    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
     const padding = LIMIT - envelopeSize(near) - 100;
     const nearLimit = { ...near, national: { ...near.national,
       training: { ...near.national.training, phenomena: { padding: "x".repeat(padding) } } } };
@@ -907,7 +907,7 @@ describe("P2 weather-current unit", () => {
     const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
-    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
+    }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06: codec が見る予約込みの上界で測る
     const first = receive(emptyState(), decodeFixture("18_00_01_260830_VPWW55_fukui_L5", "VPWW55")).state;
     const partial = first.partials[0];
     const level5 = Object.entries(partial.phenomena).find(([, value]) => JSON.stringify(value).includes('"code":"33"'));
@@ -988,7 +988,7 @@ describe("P2 weather-current unit", () => {
       schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
     }).byteLength;
-    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
+    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
     const padding = LIMIT - actualBytes(accepted.state) - unused;
     const withPadding = (length: number) => ({ ...base,
@@ -1115,7 +1115,7 @@ describe("P2 weather-current unit", () => {
     }).byteLength;
     const accepted = receive(withPadding(0), candidate);
     expect(accepted.state.histories.flatMap((item) => item.reports)).toHaveLength(1);
-    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
+    const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
     const padding = LIMIT - actualBytes(accepted.state) - unused;
     const exact = receive(withPadding(padding), candidate);
@@ -1132,7 +1132,7 @@ describe("P2 weather-current unit", () => {
       partials: [{ ...partial, phenomena: { '区域"\\\n': '日本語"\\\n' + "x".repeat(length) } }] });
     const payloadBytes = (value: WeatherCurrentUnitState) => Buffer.byteLength(JSON.stringify(weatherCurrentUnitCodec.encode(value)));
     const empty = weatherCurrentUnitCodec.encode(emptyState()); // P3-VM-AC06: 上界は payload の外の envelope と境界の予約込み
-    const outside = serializedEnvelope({ schemaVersion: empty.schemaVersion, unit: "U-W", generation: 0, capturedAt: 0, payload: empty, sha256: "0".repeat(64) }).byteLength - Buffer.byteLength(JSON.stringify(empty)) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES;
+    const outside = serializedEnvelope({ schemaVersion: empty.schemaVersion, unit: "U-W", generation: 0, capturedAt: 0, payload: empty, sha256: "0".repeat(64) }).byteLength - Buffer.byteLength(JSON.stringify(empty)) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
     const length = LIMIT - outside - payloadBytes(padded(0));
     expect(payloadBytes(padded(length))).toBe(LIMIT - outside);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(padded(length))).kind).toBe("restored");

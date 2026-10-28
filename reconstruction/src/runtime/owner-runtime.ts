@@ -24,10 +24,11 @@ import type {
   RuntimeUnitSteps,
   RuntimeUnitView,
   RuntimeViews,
-  SemanticEnvelopeResult, WallBasis,
+  SemanticEnvelopeResult, UnreadableCard, UnreadableCardView, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
 import type { CodecMap } from "../checkpoint/checkpoint";
-import { keptLosses, lossReasons } from "../checkpoint/checkpoint";
+import { CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
+import { headlineOf, rewriteBounded, titleOf } from "../units/unreadable";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
 import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
@@ -44,6 +45,8 @@ type OwnerState = Readonly<{
   checkpointAttempts: RuntimeState["checkpointAttempts"];
   // P3-NL-AC14 (1): unit ごとの H39 の件数（envelope の losses。capture で書き、復元で読む。数え方は発注 2）。
   losses: Readonly<Partial<Record<RuntimeUnitId, readonly LossTally[]>>>;
+  // P3-UM-AC11 (2)(6): unit ごとの H43 のカード（envelope の unreadable。capture で書き、復元で読む）。
+  unreadable: Readonly<Partial<Record<RuntimeUnitId, readonly UnreadableCard[]>>>;
   // false once the shutdown input was applied: a later parser input is not applied (P2-WIRE-T04).
   accepting: boolean;
   // true once finalized: no deadline and no input is applied (spec §5.9 step 4).
@@ -63,19 +66,22 @@ type OwnerStep = Readonly<{
   diagnostics: readonly DiagnosticEvent[];
 }>;
 
-type ParserCompletion = Readonly<{ runId: string; inputId: string; result: ParserMailboxResult }>;
+// P3-UM-AC11 (2)(3): headType と receivedAt は item の値（host は常に渡す）。parser が断った入力の振り分け先とカードの受信時刻に使う。
+// 渡さない呼び出し（unit の試験）は、decoded なら material の headType、受信時刻は要求の wall で読む。
+type ParserCompletion = Readonly<{ runId: string; inputId: string; result: ParserMailboxResult; headType?: string; receivedAt?: number }>;
 type UnitInput = Extract<RuntimeUnitInputs[RuntimeUnitId], { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>;
 
+const encoder = new TextEncoder();
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const noHistory = { dayKey: null, count: 0, maxInt: null, counted: [], recent: [] } as const;
 const initialUnits: RuntimeUnitStates = {
   "U-E": { schemaVersion: "p2-eew-unit-v4", contentRevision: 0, current: [], gates: [], intents: [], notices: [], persistence: cleanPersistence },
-  "U-W": { schemaVersion: "p2-weather-current-unit-v5", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+  "U-W": { schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
-  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v7", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
-  "U-T": { schemaVersion: "p3-tsunami-unit-v6", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
-  "U-Q": { schemaVersion: "p3-seismic-unit-v6", contentRevision: 0, earthquakes: [], longPeriods: [],
+  "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
+  "U-T": { schemaVersion: "p3-tsunami-unit-v7", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], persistence: cleanPersistence },
+  "U-Q": { schemaVersion: "p3-seismic-unit-v7", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: cleanPersistence },
   "U-N": { schemaVersion: "p3-nankai-unit-v7", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
   "U-V": { schemaVersion: "p3-volcano-unit-v6", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
@@ -172,8 +178,61 @@ function runUnitJob(units: UnitTable, job: UnitJob): RuntimeUnitSteps[RuntimeUni
 }
 
 // The public view of one unit (never the unit state). 容量の拒否で normal を隠さない（P3-CC-AC01）。
-function projectView<K extends RuntimeUnitId>(state: OwnerState, units: UnitTable, unit: K): RuntimeViews[K] {
-  return units[unit].toView(ownUnit(state, unit));
+// P3-UM-AC11 (8)（P3-UM-D-VIEW）: envelope のカードを全部、原文の本文を除いて写す（カードの無い unit は欄を書かない）。
+// 同じ view と同じカードの配列には同じ object を返す（無いと、カードのある unit は view を出し直すたびに別の object になり、A8 が中身の
+// 変わらない射影をやり直す）。
+const cardedViews = new WeakMap<RuntimeUnitView, Readonly<{ cards: readonly UnreadableCard[]; view: RuntimeUnitView }>>();
+const unitView = <K extends RuntimeUnitId>(state: OwnerState, units: UnitTable, unit: K): RuntimeViews[K] => units[unit].toView(ownUnit(state, unit));
+function projectView(state: OwnerState, units: UnitTable, unit: RuntimeUnitId): RuntimeUnitView {
+  const view: RuntimeUnitView = unitView(state, units, unit);
+  const cards = state.unreadable[unit];
+  if (cards == null || cards.length === 0) return view;
+  const cached = cardedViews.get(view);
+  if (cached?.cards === cards) return cached.view;
+  const carded: RuntimeUnitView = { ...view, unreadableCards: cards.map(cardView) };
+  cardedViews.set(view, { cards, view: carded });
+  return carded;
+}
+function cardView({ raw, ...card }: UnreadableCard): UnreadableCardView {
+  return { ...card, hasRaw: raw != null };
+}
+
+// ---- H43 のカード（P3-UM-AC11） ----
+
+const TRUNCATED = "[truncated:fieldLimit]";
+const text = (value: string, limit: number): string | null => value === "" ? null : boundedString(value, limit);
+// (3)(12): 文字列は作るときに boundedString で切る。原文は木の正規形（unit が断った報・知らない種類）か展開した本文の先頭（parser が断った報）。
+// rawCut は切った印（boundedString の印で終わるか。電文の原文は "</Report>" などで終わるので印と取り違えない）。
+function makeCard(kind: UnreadableCard["kind"], reason: UnreadableCard["reason"], inputId: string, headType: string, receivedAt: number,
+  material: DecodedMaterial | null, expandedText: string | null): UnreadableCard {
+  const raw = material == null ? expandedText : rewriteBounded([material.xml], CARD_TEXT.raw);
+  return { kind, inputId, headType: boundedString(headType, CARD_TEXT.headType), operation: material?.operation ?? null, receivedAt, reason,
+    title: material == null ? null : titleOf(material.xml), headline: material == null ? null : headlineOf(material.xml),
+    reportDateTimeRaw: material == null ? null : text(material.reportDateTimeRaw, CARD_TEXT.reportDateTimeRaw),
+    raw, rawCut: raw?.endsWith(TRUNCATED) === true, count: 1 };
+}
+const cardRawBytes = (card: UnreadableCard): number => card.raw == null ? 0 : encoder.encode(JSON.stringify(card.raw)).byteLength;
+const oldest = (cards: readonly UnreadableCard[], usable: (card: UnreadableCard) => boolean): number =>
+  cards.reduce((found, card, index) => usable(card) && (found < 0 || card.receivedAt < cards[found].receivedAt) ? index : found, -1);
+// (3)(4): 知らない種類は headType ごとに 1 枚（count を足し、中身は最後の報に替える）。原文の予算を越えたら受信時刻の古いカードから原文を外し、
+// それでも枚数を越えたら最も古いカードを外す。dropped は外した原文とカードの数（H39 の unreadableDropped）。
+// ponytail: カードは 8 か 16 枚なので、足すたびの線形の走査と原文の byte の数え直しでよい（P3-UM-AC17、Q-UM-COST）。
+function placeCard(cards: readonly UnreadableCard[], unit: RuntimeUnitId, card: UnreadableCard): Readonly<{ cards: readonly UnreadableCard[]; dropped: number }> {
+  const { cards: limit, rawBudget } = cardLimits(unit);
+  const same = card.kind === "unknownType" ? cards.findIndex((item) => item.kind === "unknownType" && item.headType === card.headType) : -1;
+  const next = same < 0 ? [...cards, card] : cards.map((item, index) => index !== same ? item
+    : { ...card, count: Math.min(item.count + 1, Number.MAX_SAFE_INTEGER) });
+  let dropped = 0, total = next.reduce((sum, item) => sum + cardRawBytes(item), 0);
+  while (total > rawBudget) {
+    const index = oldest(next, (item) => item.raw != null);
+    total -= cardRawBytes(next[index]);
+    // 欄の順は読み戻しの再直列化の照合と同じ（rawDropped は count の前）。
+    const { count, ...rest } = next[index];
+    next[index] = { ...rest, raw: null, rawDropped: true, count };
+    dropped++;
+  }
+  while (next.length > limit) { next.splice(oldest(next, () => true), 1); dropped++; }
+  return { cards: next, dropped };
 }
 
 // P3-NL-AC14 (2)(3)(4): 理由ごとの行に件数を足す（閉集合の外・別の unit の行は数えない）。count は安全な整数で飽和させ、lastAt は足した時の
@@ -266,6 +325,27 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
         reduceUnit(unit, { kind: "deadline", clock, basis });
     }
   };
+  // P3-UM-AC11 (5)(6)・AC13 (1): カードを足し、H39 に数え、件数と同じくその unit の世代を進めてこの入力に帰属させる（since はこの入力の処理の
+  // 前の世代。unit がこの入力で既に進めていれば重ねない）。capture の後なら次の dirty の区間を始める（reduceUnit と同じ）。unit の断った報は
+  // operation の whole を未確認にする負の証拠を載せる。
+  const addCard = (unit: RuntimeUnitId, card: UnreadableCard, since: number, inputId: string, at: ClockReading) => {
+    const placed = placeCard(next.unreadable[unit] ?? EMPTY, unit, card);
+    const dropped = (card.rawCut ? 1 : 0) + placed.dropped;
+    const losses = addLosses(next.losses[unit], unit, [{ reason: "unreadableReport" },
+      ...dropped === 0 ? [] : [{ reason: "unreadableDropped", count: dropped }]], at.wallTimeMs) ?? next.losses[unit] ?? EMPTY;
+    const current = ownUnit(next, unit).persistence;
+    const persistence = current.currentGeneration > since ? current : raised(current, at.monotonicMs);
+    const attempt = next.checkpointAttempts[unit];
+    if (persistence !== current && attempt != null && attempt.postCaptureDirtySince == null && persistence.currentGeneration > attempt.generation)
+      next = { ...next, checkpointAttempts: { ...next.checkpointAttempts, [unit]: { ...attempt, postCaptureDirtySince: at.monotonicMs } } };
+    next = { ...next, units: { ...next.units, [unit]: { ...ownUnit(next, unit), persistence } }, losses: { ...next.losses, [unit]: losses },
+      unreadable: { ...next.unreadable, [unit]: placed.cards } };
+    generationInputIds[unit] = [inputId];
+    changed(unit);
+    viewUnits.add(unit);
+    if (card.kind === "unreadable" && card.operation != null)
+      confirmationEvidence.push({ source: "unreadableReport", scopes: [{ unit, operation: card.operation, kind: "unit" }] });
+  };
   const setPersistence = (unit: RuntimeUnitId, persistence: PersistenceStatus) => {
     next = { ...next, units: { ...next.units, [unit]: { ...ownUnit(next, unit), persistence } } };
     changed(unit);
@@ -296,7 +376,8 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
   return {
     get state() { return next; },
     set state(value: OwnerState) { next = value; },
-    reduceUnit, applyDeadlines, diagnose, setPersistence, finish, generationInputIds, displayChanges, outcomes, changed,
+    reduceUnit, applyDeadlines, diagnose, setPersistence, finish, generationInputIds, displayChanges, outcomes, changed, addCard,
+    viewed: (unit: RuntimeUnitId) => { viewUnits.add(unit); },
   };
 }
 
@@ -315,7 +396,7 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
   checkClock(input.clock);
   const pick = <T>(value: (unit: RuntimeUnitId) => T) => Object.fromEntries(own.map((unit) => [unit, value(unit)]));
   const start: OwnerState = { runId: input.runId, place: input.place, units: pick((unit) => initialUnits[unit]),
-    deadlines: pick(() => null), checkpointAttempts: {}, losses: {}, accepting: true, finalized: false };
+    deadlines: pick(() => null), checkpointAttempts: {}, losses: {}, unreadable: {}, accepting: true, finalized: false };
   const work = session(start, units, input.clock, input.basis);
   const restoration: Partial<Record<RuntimeUnitId, RuntimeRestoration[RuntimeUnitId]>> = {};
   const restoreUnit = <K extends RuntimeUnitId>(unit: K) => {
@@ -334,6 +415,8 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
     const seeded = { ...decoded.state, persistence };
     // P3-NL-AC14 (6): lastAt＋24 時間を過ぎた行は復元のときに外す。
     const kept = keptLosses(envelope.losses ?? [], input.clock.wallTimeMs).losses;
+    // P3-UM-AC11 (4)(6): 受信時刻＋24 時間を過ぎたカードは復元のときに外す（H39 には数えない）。
+    const cards = keptCards(envelope.unreadable ?? [], input.clock.wallTimeMs).unreadable;
     // 唯一の `as`: CodecMap は JsonValue で型付けされ、state と保存の payload はこの unit 自身の codec が作った。K が generic なので
     // ここでは job 全体が相関した union から外れ、unit・state・入力の対応は目で確かめる。
     const step = runUnitJob(units, { unit, state: seeded,
@@ -343,7 +426,8 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
     const unitState = losses !== kept && step.state.persistence.currentGeneration <= envelope.generation
       ? { ...step.state, persistence: raised(step.state.persistence, input.clock.monotonicMs) } : step.state;
     work.state = { ...work.state, units: { ...work.state.units, [unit]: unitState },
-      deadlines: { ...work.state.deadlines, [unit]: step.nextDeadline }, ...losses == null ? {} : { losses: { ...work.state.losses, [unit]: losses } } };
+      deadlines: { ...work.state.deadlines, [unit]: step.nextDeadline }, ...losses == null ? {} : { losses: { ...work.state.losses, [unit]: losses } },
+      ...cards == null ? {} : { unreadable: { ...work.state.unreadable, [unit]: cards } } };
     restoration[unit] = { kind: "restored" };
     work.changed(unit);
     if (unitState.persistence.currentGeneration > envelope.generation) work.generationInputIds[unit] = [];
@@ -354,6 +438,12 @@ units: UnitTable, codecs: CodecMap<RuntimeUnitStates>): OwnerStep & Readonly<{ r
   };
   for (const unit of own) restoreUnit(unit);
   return { ...work.finish(false), restoration };
+}
+
+// P3-UM-AC11 (4)(8): 遅れて返す step の view を、返すときの state から射影し直す（capture の時の view を送ると、その後の入力で変わった
+// その unit の view を publisher の写しで巻き戻す。ヘルツ r0 の P2）。
+function refreshedViews(step: OwnerStep, state: OwnerState, units: UnitTable): OwnerStep {
+  return step.views.length === 0 ? step : { ...step, views: step.views.map((view) => projectView(state, units, view.unit)) };
 }
 
 // Every own unit's current view (startup and the publisher's first mirror).
@@ -390,9 +480,20 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
     work.applyDeadlines([unit]);
   // unit は共通の Head・日時の検査を自分でもう一度行う（入力ごとに診断 1 件）。U-W は拒否した入力でも §7.8 の鮮度の監視を続ける
   // （A1 freshnessException）。
+  // P3-UM-AC11 (1)(2): カードの受信時刻は item の値。inputId が保存の読み戻しの上限（validInputId）を外れる入力はカードにしない（無いと
+  // その unit の保存が丸ごと読めなくなる。host の input-N は外れない）。
+  const receivedAt = completion.receivedAt ?? clock.wallTimeMs, cardable = state.accepting && validInputId(completion.inputId);
   if (unit != null && completion.result.kind === "decoded") {
     const generationBeforeReceive = ownUnit(work.state, unit).persistence.currentGeneration, lossesBefore = work.state.losses[unit];
-    const received = work.reduceUnit(unit, { kind: "receive", material: completion.result.material, clock, basis });
+    const { material } = completion.result;
+    const received = work.reduceUnit(unit, { kind: "receive", material, clock, basis });
+    // (1): unit が断った入力（共通の封筒の検査を含む）は unreadable のカード。ignored・stale・duplicate・capacityExceeded はカードにしない。
+    // 1 つの入力に断った decision が複数あれば最初の理由で 1 枚。
+    let rejected: RejectionReason | null = null;
+    for (const decision of received.decisions) if (decision.decision === "rejected") { rejected = decision.reason; break; }
+    if (rejected != null && cardable)
+      work.addCard(unit, makeCard("unreadable", rejected, completion.inputId, material.headType, receivedAt, material, null), generationBeforeReceive,
+        completion.inputId, clock);
     // 容量の拒否でも失敗警報と title の書き換えで世代が進めば、その世代に帰属させる（P3-CC-AC10(9)、正常採用の扱いにはしない）。
     // U-E の採らない取消が取消の intent と印を足した世代、件数だけが変わった世代も同じ（P3-NL-AC04 (5)・AC14 (5)）。
     if (ownUnit(work.state, unit).persistence.currentGeneration > generationBeforeReceive
@@ -400,19 +501,33 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
         || received.decisions.some((decision) => decision.decision === "changed" || decision.decision === "capacityExceeded")))
       work.generationInputIds[unit] = [completion.inputId];
   } else if (completion.result.kind === "rejected") {
-    const details = parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId);
+    const { diagnostic } = completion.result;
+    const details = parserDiagnostic(diagnostic.reason, diagnostic.inputId);
     if (details != null) work.diagnose(details);
+    // (1)(2): parser が断った入力は unidentified のカード。振り分け先は item の headType（ignored はカードにしない、unit の無い入力は U-M）。
+    // mailbox は同じ headType で owner を選ぶ（placeOfHeadType）ので、振り分け先はこの owner の unit になる。
+    const reason = parserDiagnosticReasons.find((candidate) => candidate === diagnostic.reason);
+    const target = completion.headType == null ? null : classifyHeadType(completion.headType);
+    const place = target?.status === "ready" ? target.unit : target == null || target.status === "ignored" ? null : "U-M";
+    if (place != null && reason != null && cardable && completion.headType != null && state.units[place] != null)
+      work.addCard(place, makeCard("unidentified", reason, completion.inputId, completion.headType, receivedAt, null, diagnostic.expandedText ?? null),
+        ownUnit(state, place).persistence.currentGeneration, completion.inputId, clock);
   } else if (route?.status === "ignored") {
     // P3-UNIT-TABLE-001: 入力ごとに診断は 1 件まで。無視する headType は封筒の検査をしない。
     work.diagnose(boundDiagnosticDetails({ level: "INFO", component: "shared-runtime", reason: "routeIgnored", inputId: completion.inputId }));
   } else {
-    const result = validateSemanticEnvelope(completion.result.material);
+    const { material } = completion.result;
+    const result = validateSemanticEnvelope(material);
     if (result.kind === "rejected") work.diagnose(result.diagnostic);
     else if (route?.status === "notPorted")
       work.diagnose(boundDiagnosticDetails({ level: "INFO", component: "shared-runtime", reason: "routeNotPorted",
         unit: route.candidate, inputId: completion.inputId }));
     else if (route?.status === "unlisted")
       work.diagnose(boundDiagnosticDetails({ level: "WARN", component: "shared-runtime", reason: "routeUnlisted", inputId: completion.inputId }));
+    // (1)(2): unit の無い入力は封筒の検査の結果によらず、deferred の owner の U-M に headType ごとの unknownType のカード（Q-UM-PRECHECK-3 の M6）。
+    if ((route?.status === "notPorted" || route?.status === "unlisted") && cardable && state.units["U-M"] != null)
+      work.addCard("U-M", makeCard("unknownType", route.status === "notPorted" ? "routeNotPorted" : "routeUnlisted", completion.inputId,
+        material.headType, receivedAt, material, null), ownUnit(state, "U-M").persistence.currentGeneration, completion.inputId, clock);
   }
   return work.finish(true, beforeProjection);
 }
@@ -468,6 +583,12 @@ function capturedOwner(state: OwnerState, capture: CheckpointCapture, units: Uni
   if (losses != null) {
     const kept = keptLosses(losses, capture.capturedAt).losses;
     if (kept?.length !== losses.length) work.state = { ...work.state, losses: { ...work.state.losses, [unit]: kept } };
+  }
+  // P3-UM-AC11 (4): capture が外したカードも同じく加算元から外し、view を出し直す。
+  const cards = work.state.unreadable[unit];
+  if (cards != null) {
+    const kept = keptCards(cards, capture.capturedAt).unreadable;
+    if (kept !== cards) { work.state = { ...work.state, unreadable: { ...work.state.unreadable, [unit]: kept } }; work.viewed(unit); }
   }
   return work.finish();
 }
@@ -534,6 +655,6 @@ function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest)
 
 export {
   capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, ownerViews,
-  placeUnits, receiveOwner, restoreOwner, shutdownInputOwner, validateSemanticEnvelope,
+  placeUnits, receiveOwner, refreshedViews, restoreOwner, shutdownInputOwner, validateSemanticEnvelope,
 };
 export type { OwnerState, OwnerStep, ParserCompletion };

@@ -4,17 +4,17 @@ import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatu
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot, WeatherTimeseriesUnreadableSite,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
 import { PENDING_MARK_BYTES, cachedMin } from "../expiry";
 import {
-  UNREADABLE_CARDS_MAX_BYTES, WEATHER_TIMESERIES_RAW_BUDGET, droppedIn, fitRawBudget, markView, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes,
+  WEATHER_TIMESERIES_RAW_BUDGET, droppedIn, fitRawBudget, markView, rawTotal, readUnreadableMark, stripRaw, unreadableMarkBytes,
 } from "../unreadable";
 
-const SCHEMA = "p2-weather-timeseries-unit-v7" as const;
+const SCHEMA = "p2-weather-timeseries-unit-v8" as const;
 type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
 // P3-EF-AC10 (5): 器は入力なしで付く期限切れの保留の印の最悪の分（512×21）だけ広げる（33,565,184）。P3-UM-RES-09: 読めない所の印・
 // 原文の予算（付加事項の原文が多いので 1 MiB）・カードの分も足す。
@@ -27,7 +27,7 @@ const subjectDeadlineCache = new WeakMap<WeatherTimeseriesUnitState["subjects"],
 const outcomeCache = new WeakMap<WeatherTimeseriesSubject, SubjectOutcome>();
 type CurrentChange = (before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null) => void;
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-F", generation: 0,
-  capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7): envelope の inputBoundary と losses の最大
+  capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 
 function bytes(value: object): number {
   let size = cache.get(value);
@@ -457,7 +457,7 @@ function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   return measure(subjects, gates, intents, 0, 0) <= LIMIT && rawTotal(subjects) <= WEATHER_TIMESERIES_RAW_BUDGET ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3", "p2-weather-timeseries-unit-v4", "p2-weather-timeseries-unit-v5", "p2-weather-timeseries-unit-v6"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-weather-timeseries-unit-v1", "p2-weather-timeseries-unit-v2", "p2-weather-timeseries-unit-v3", "p2-weather-timeseries-unit-v4", "p2-weather-timeseries-unit-v5", "p2-weather-timeseries-unit-v6", "p2-weather-timeseries-unit-v7"], maxEnvelopeBytes: LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   encode(state) {
     const value = persisted({ schemaVersion: SCHEMA, subjects: state.subjects, gates: state.gates, intents: state.intents });
     if (value == null) throw new Error("invalid U-F checkpoint payload");

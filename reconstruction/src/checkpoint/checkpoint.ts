@@ -10,14 +10,16 @@ import type {
   ClockReading,
   DiagnosticEvent, InputBoundary, InputHole,
   JsonValue, LossReason, LossTally,
-  PersistenceStatus,
+  ParserDiagnosticReason,
+  PersistenceStatus, RejectionReason,
   RestoreUnitResult,
   RuntimeUnitStates,
   RuntimeUnitId,
   UnitCodec,
-  UnitId, WallBasis,
+  UnitId, UnreadableCard, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
-import { completeDiagnostic } from "../runtime/runtime-diagnostic";
+import { validInputId } from "../contracts-revision/version";
+import { completeDiagnostic, parserDiagnosticReasons } from "../runtime/runtime-diagnostic";
 import { classifyHeadType, runtimeUnits } from "../runtime/unit-coverage";
 
 type WritableCheckpoint = Readonly<{
@@ -72,7 +74,7 @@ function envelopeBytes(
     unit: envelope.unit,
     generation: envelope.generation,
     capturedAt: envelope.capturedAt,
-    payload: envelope.payload, inputBoundary: envelope.inputBoundary, losses: envelope.losses,
+    payload: envelope.payload, inputBoundary: envelope.inputBoundary, losses: envelope.losses, unreadable: envelope.unreadable,
     sha256,
   }));
 }
@@ -199,7 +201,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
 
   // The capture of one granted save: the generation current when the grant is applied, encoded once (C1 RES-03).
   capture(unit: RuntimeUnitId, value: unknown, generation: number, runId: string, correlation: Correlation, inputBoundary: InputBoundary | null = null,
-    losses: readonly LossTally[] = [])
+    losses: readonly LossTally[] = [], cards: readonly UnreadableCard[] = [])
     : Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
     | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }> {
     const codec = this.codec(unit);
@@ -217,7 +219,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       const { envelope, bytes } = retained != null
         ? { envelope: retained.request.envelope, bytes: retained.bytes }
         : sealEnvelope({ schemaVersion: codec.schemaVersion, unit, generation, capturedAt, payload: codec.encode(value), inputBoundary,
-          ...keptLosses(losses, capturedAt) });
+          ...keptLosses(losses, capturedAt), ...keptCards(cards, capturedAt) });
       const encodedByteLength = bytes.byteLength; if (encodedByteLength > (codec.maxEnvelopeBytes ?? Number.POSITIVE_INFINITY)) throw new RangeError("checkpoint envelope exceeds its unit limit"); // P3-VM-AC06: 最後の守り（書かずに encode の失敗にする）
       // A newer generation supersedes the held bytes (up to the whole payload); only a same-generation retry reuses them.
       if (prior != null && retained == null) this.held.delete(unit);
@@ -464,12 +466,13 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       || record.sha256 !== match[1]) return "invalid";
     const boundary = readBoundary(record); if (boundary == null) return "invalid";
     const losses = readLosses(record, unit); if (losses == null) return "invalid";
+    const cards = readCards(record, unit); if (cards == null) return "invalid";
     const envelope: CheckpointEnvelope = {
       schemaVersion: record.schemaVersion,
       unit,
       generation: Number(record.generation),
       capturedAt: record.capturedAt,
-      payload: record.payload as JsonValue, ...boundary, ...losses,
+      payload: record.payload as JsonValue, ...boundary, ...losses, ...cards,
       sha256: match[1],
     };
     if (decoder.decode(serializedEnvelope(envelope)) !== text) return "invalid";
@@ -636,7 +639,8 @@ const INPUT_BOUNDARY_MAX_BYTES = encoder.encode(`,"inputBoundary":${JSON.stringi
   dmdataId: "\"".repeat(128), oldestHole: "disconnected" })}`).byteLength;
 
 // P3-NL-AC14 (3): 数える理由の閉集合。unit の行に出るのは通知の 4 語・容量の拒否・その unit の容量の退去と、U-E だけ印の退去、U-Q だけ
-// 観測点の畳み（P3-QC-AC03 (6)）、記録に読めない所の印を持つ 10 unit（U-E・U-W の外）は原文の外し（P3-UM-AC03 (4)）。
+// 観測点の畳み（P3-QC-AC03 (6)）。H43 のカードは 12 unit の envelope に載るので、原文の外し（P3-UM-AC03 (4)）と読めない報（P3-UM-AC11 (5)）は
+// 12 unit の行（P3-UM-AC11 (11)）。
 const NOTICE_LOSSES: readonly LossReason[] = ["notificationExpired", "notificationExpiredClockUnverified", "notificationCapacityEvicted",
   "notificationOutcomeUnknown", "capacityRejected"];
 const UNIT_EVICTION: Readonly<Partial<Record<UnitId, LossReason>>> = { "U-E": "eewCapacityEvicted", "U-W": "weatherCurrentCapacityEvicted",
@@ -646,12 +650,12 @@ const UNIT_EVICTION: Readonly<Partial<Record<UnitId, LossReason>>> = { "U-E": "e
 function lossReasons(unit: UnitId): readonly LossReason[] {
   const eviction = UNIT_EVICTION[unit];
   return [...NOTICE_LOSSES, ...unit === "U-E" ? ["noticeMarkEvicted" as const] : [], ...eviction == null ? [] : [eviction],
-    ...unit === "U-Q" ? ["seismicStationsFolded" as const] : [], ...unit === "U-E" || unit === "U-W" || eviction == null ? [] : ["unreadableDropped" as const]];
+    ...unit === "U-Q" ? ["seismicStationsFolded" as const] : [], "unreadableDropped", "unreadableReport"];
 }
-// P3-NL-AC14 (7): envelope に losses が足す byte の最大（INPUT_BOUNDARY_MAX_BYTES と同じ作り方）。最長の形は、閉集合の長い順の 8 語（unit の
-// 行の最大、U-Q。P3-UM-AC03 (4) で 1 語増えた）に、count が安全な整数の最長 16 桁、lastAt が有限な数の JSON の最長 25 文字。
+// P3-NL-AC14 (7): envelope に losses が足す byte の最大（INPUT_BOUNDARY_MAX_BYTES と同じ作り方）。最長の形は、閉集合の長い順の 9 語（unit の
+// 行の最大、U-E と U-Q。P3-UM-AC11 (11)）に、count が安全な整数の最長 16 桁、lastAt が有限な数の JSON の最長 25 文字。
 const LOSS_TALLY_MAX_BYTES = encoder.encode(`,"losses":${JSON.stringify([...new Set([...NOTICE_LOSSES, "noticeMarkEvicted", "seismicStationsFolded",
-  "unreadableDropped", ...Object.values(UNIT_EVICTION)])].sort((left, right) => right.length - left.length).slice(0, 8)
+  "unreadableDropped", "unreadableReport", ...Object.values(UNIT_EVICTION)])].sort((left, right) => right.length - left.length).slice(0, 9)
   .map((reason) => ({ reason, count: Number.MAX_SAFE_INTEGER, lastAt: -0.0000012345678901234567 })))}`).byteLength;
 // P3-NL-RET-03（置き値）: 行は lastAt＋24 時間を過ぎたら capture と復元のときに外す。
 const LOSS_RETAIN_MS = 86_400_000;
@@ -673,6 +677,78 @@ function readLosses(record: Readonly<Record<string, unknown>>, unit: UnitId): Re
     rows.push({ reason, count: Number(row.count), lastAt: row.lastAt });
   }
   return { losses: rows };
+}
+
+// ---- H43 のカード（P3-UM-AC11、AC16 (3)(b)(4)） ----
+
+// P3-UM-RES-04・05・07（置き値）と AC11 (12) の文字列の上限（引用符を除いた JSON の byte。boundedString の引数）。U-M は unit の決まらない入力の
+// カードも持つので枚数と原文の予算が 2 倍。areas（U-Y）は発注 4。
+const CARD_TEXT = { headType: 64, reportDateTimeRaw: 64, title: 1536, headline: 1536, raw: 16_382 } as const;
+const cardLimits = (unit: UnitId): Readonly<{ cards: number; rawBudget: number }> =>
+  unit === "U-M" ? { cards: 16, rawBudget: 131_072 } : { cards: 8, rawBudget: 65_536 };
+const CARD_AREAS_BYTES = 24_576;
+// P3-UM-AC11 (10)(12): envelope の欄（,"unreadable":[…]）の上界。合法な形の最長のカード（raw は null）を枚数分 JSON にした長さに原文の予算を足す
+// （LOSS_TALLY_MAX_BYTES と同じ作り）。U-Y は areas（欄名 ,"areas": と 24,576 byte）を 1 枚ごとに足す。
+function cardsMaxBytes(unit: UnitId, areas = false): number {
+  const { cards, rawBudget } = cardLimits(unit);
+  const longest: UnreadableCard = { kind: "unidentified", inputId: "i".repeat(64), headType: "h".repeat(CARD_TEXT.headType), operation: "training",
+    receivedAt: -0.0000012345678901234567, reason: "requiredStructureInvalid", title: "t".repeat(CARD_TEXT.title),
+    headline: "t".repeat(CARD_TEXT.headline), reportDateTimeRaw: "d".repeat(CARD_TEXT.reportDateTimeRaw), raw: null, rawCut: true, rawDropped: true,
+    count: Number.MAX_SAFE_INTEGER };
+  return encoder.encode(`,"unreadable":${JSON.stringify(Array.from({ length: cards }, () => longest))}`).byteLength
+    + (areas ? cards * (encoder.encode(',"areas":').byteLength + CARD_AREAS_BYTES) : 0) + rawBudget;
+}
+const UNREADABLE_CARDS_MAX_BYTES = cardsMaxBytes("U-E");
+const LOCAL_BULLETINS_CARDS_MAX_BYTES = cardsMaxBytes("U-M");
+const TYPHOON_CARDS_MAX_BYTES = cardsMaxBytes("U-Y", true);
+
+// P3-UM-RET-02（置き値）: カードは受信時刻＋24 時間を過ぎたら capture と復元のときに外す（H39 には数えない）。
+const CARD_RETAIN_MS = 86_400_000;
+function keptCards(cards: readonly UnreadableCard[], wallTimeMs: number): Readonly<{ unreadable?: readonly UnreadableCard[] }> {
+  const kept = cards.filter((card) => card.receivedAt + CARD_RETAIN_MS > wallTimeMs);
+  return kept.length === 0 ? {} : { unreadable: kept.length === cards.length ? cards : kept };
+}
+
+const jsonBytes = (value: string): number => encoder.encode(JSON.stringify(value)).byteLength;
+const rejectionReasons: readonly RejectionReason[] = ["headMissing", "reportDateTimeMissing", "reportDateTimeInvalid", "identityMissing",
+  "identityInvalid", "requiredStructureMissing", "requiredStructureInvalid"];
+const cardOperations = ["normal", "training", "test"] as const;
+// 種類と理由・件数の組（P3-UM-AC16 (3)(b)）。
+function cardReason(kind: unknown, reason: unknown, count: number): UnreadableCard["reason"] | undefined {
+  if (kind === "unknownType") return reason === "routeUnlisted" || reason === "routeNotPorted" ? reason : undefined;
+  if (count !== 1) return undefined;
+  if (kind === "unreadable") return rejectionReasons.find((item) => item === reason);
+  return kind === "unidentified" ? parserDiagnosticReasons.find((item): item is ParserDiagnosticReason => item === reason) : undefined;
+}
+// 引用符を除いた上限 limit の文字列か null（AC11 (12)）。
+const cardText = (value: unknown, limit: number): string | null | undefined =>
+  value === null ? null : typeof value === "string" && jsonBytes(value) <= limit + 2 ? value : undefined;
+// P3-UM-AC16 (3)(b)(4): 欄の無い envelope は空。カードを項目ごとに確かめて組み立てる（余分なキーと欄の欠けは再直列化の照合で拒否される）。
+// areas は発注 4 で確かめるので、発注 3 では areas のあるカードを拒む。
+function readCards(record: Readonly<Record<string, unknown>>, unit: UnitId): Readonly<{ unreadable?: readonly UnreadableCard[] }> | null {
+  const value = record.unreadable;
+  if (value === undefined) return {};
+  const { cards: limit, rawBudget } = cardLimits(unit);
+  if (!Array.isArray(value) || value.length > limit) return null;
+  const cards: UnreadableCard[] = [];
+  let raws = 0;
+  for (const row of value) {
+    if (!plain(row) || row.areas !== undefined || typeof row.inputId !== "string" || !validInputId(row.inputId)
+      || typeof row.receivedAt !== "number" || !Number.isFinite(row.receivedAt) || typeof row.rawCut !== "boolean"
+      || row.rawDropped !== undefined && row.rawDropped !== true || !Number.isSafeInteger(row.count) || Number(row.count) < 1) return null;
+    const kind = row.kind === "unknownType" || row.kind === "unreadable" || row.kind === "unidentified" ? row.kind : undefined;
+    const reason = cardReason(row.kind, row.reason, Number(row.count));
+    const operation = row.operation === null ? null : cardOperations.find((item) => item === row.operation);
+    const headType = cardText(row.headType, CARD_TEXT.headType), title = cardText(row.title, CARD_TEXT.title);
+    const headline = cardText(row.headline, CARD_TEXT.headline), reportDateTimeRaw = cardText(row.reportDateTimeRaw, CARD_TEXT.reportDateTimeRaw);
+    const raw = cardText(row.raw, CARD_TEXT.raw);
+    if (kind === undefined || reason === undefined || operation === undefined || headType == null || title === undefined || headline === undefined
+      || reportDateTimeRaw === undefined || raw === undefined || row.rawDropped === true && raw !== null) return null;
+    raws += raw == null ? 0 : jsonBytes(raw);
+    cards.push({ kind, inputId: row.inputId, headType, operation, receivedAt: row.receivedAt, reason, title, headline, reportDateTimeRaw, raw,
+      rawCut: row.rawCut, ...row.rawDropped === true ? { rawDropped: true } : {}, count: Number(row.count) });
+  }
+  return raws > rawBudget ? null : { unreadable: cards };
 }
 
 // P3-VM-AC06: 保存の envelope の inputBoundary を項目ごとに確かめて組み立てる。形の崩れは null（その slot は invalid）。余分な
@@ -775,6 +851,6 @@ class InputBoundaries {
   }
 }
 
-export { CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, LOSS_TALLY_MAX_BYTES, dmdataIdOf, hashEnvelope, keptLosses, lossReasons,
-  serializedEnvelope };
+export { CARD_TEXT, CheckpointCoordinator, CheckpointWriter, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, LOCAL_BULLETINS_CARDS_MAX_BYTES, LOSS_TALLY_MAX_BYTES,
+  TYPHOON_CARDS_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, cardLimits, dmdataIdOf, hashEnvelope, keptCards, keptLosses, lossReasons, serializedEnvelope };
 export type { CheckpointFileSystem, CheckpointGrant, CodecMap, Correlation, WritableCheckpoint };
