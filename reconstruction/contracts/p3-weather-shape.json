@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "3ca0688538d11cb826a52d131ffd6bfd002b6fc54fe3441ddcea5e6c49b01871",
+    "sha256": "6f9cbb0f77edf7085cd102f7cde041b50f80a9ea008fc196ea1fe0fd8af5bed1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -257,7 +257,7 @@
         "id": "P3-WS-AC02",
         "requirement": "知らないものの読み飛ばしを黙らない（P3-WS-D-ADDITION=A、Q-WS-LEVELS）: inspectが報を受理したとき、(i) AC01の(b)で読み飛ばした要素と地の文の数が1以上ならINFO診断を1件（reason weatherTimeseriesElementSkipped、countはその数。Additionは数えない）、(ii) AC10で読み飛ばした外の階層の知らない子と地の文が1つ以上ならWARN診断を1件（reason weatherTimeseriesScopeUnclear、countは範囲の中のperiodの数）を、そのreceiveのstepで返す（どちらもcomponent weather-timeseries、unit U-F、inputId）。門の決定（stale・duplicate・容量の拒否capacityExceeded・changed）によらず同じで、unitのreceiveの早い戻り（weather-timeseries-unit.tsのunchangedと容量の拒否）でも同じものを足す。inspectが拒否した報では出さない。DiagnosticReasonの閉集合とpersistent-diagnostic-sinkの理由の表に2語を足す。無いと: 気象庁が新しい要素を足したとき、それを読まなかったことと、意味を変えうる外側か値の階層かの別が、どこにも残らない（H44の間はU-Fに印の欄が無い）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:327 «70968937060170fb»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:331 «70968937060170fb»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:63 «0b3f82f2a4656d65»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:317 «e3dc48b3d46347a4»"
         ]

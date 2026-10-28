@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "c13de643f63f7781b98fd96d8991a75f38277f033c62a75bf7f4fae53debc79e",
+    "sha256": "42bed5ace0a6b84713c8afa94e0d88f247864aef79e62f3b478d961e9e13f7ef",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -432,10 +432,10 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:939 «32900f157e487ce5»",
           "reconstruction/contracts/p3-persist-premises.md:128 «f1d4b5d6501fb72c»",
-          "reconstruction/contracts/p3-version-material.json:436 «b0094929d3fe95d5»",
+          "reconstruction/contracts/p3-version-material.json:436 «dac76ad6a2aab58f»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:186 «877a7762aebc71de»",
           "reconstruction/src/domains/eew/eew.ts:502 «f331e6a98870edd9»",
-          "reconstruction/contracts/p3-recovery.json:960 «28654fa7489eb29d»"
+          "reconstruction/contracts/p3-recovery.json:1004 «28654fa7489eb29d»"
         ]
       },
       {
@@ -458,8 +458,8 @@
           "reconstruction/contracts/p3-persist-premises.md:334 «0c6a877b41bfeaf2»",
           "reconstruction/contracts/p3-persist-premises.md:342 «c0e8cca6c03cf72d»",
           "reconstruction/contracts/p3-persist-premises.md:462 «43d8621e7a99e0e0»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:536 «bdb7633bb66e721b»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:555 «98d63d2c0e791dbd»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:542 «bdb7633bb66e721b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:561 «98d63d2c0e791dbd»",
           "reconstruction/contracts/p3-version-material.json:746 «809ea2fcefa35918»"
         ]
       },
@@ -498,7 +498,7 @@
           "reconstruction/contracts/p3-persist-premises.md:127 «7bab8a9355ae9e90»",
           "reconstruction/contracts/p3-unit-table.types.ts:23 «e9aa1ab592d4d861»",
           "reconstruction/contracts/p3-unit-table.types.ts:30 «247e5eb77fe63e12»",
-          "reconstruction/src/runtime/owner-runtime.ts:550 «1bb3f6cd2b8f47c5»",
+          "reconstruction/src/runtime/owner-runtime.ts:552 «1bb3f6cd2b8f47c5»",
           "reconstruction/src/units/eew/eew-unit.ts:342 «973323028dc564f5»",
           "reconstruction/src/units/seismic/seismic-unit.ts:64 «e03057af8e6a011b»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:56 «e03057af8e6a011b»",
@@ -517,10 +517,10 @@
           "reconstruction/contracts/p3-persist-premises.md:136 «5596a64d784f6647»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:83 «746e67a56ded9808»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:139 «5a0db5bf5ba8c087»",
-          "reconstruction/src/runtime/composition-root.ts:1110 «d8901fa45e61695f»",
-          "reconstruction/src/runtime/composition-root.ts:1125 «8cfadc0caf9e8ed1»",
-          "reconstruction/src/runtime/composition-root.ts:1244 «064f38fc06be1d45»",
-          "reconstruction/src/runtime/composition-root.ts:484 «709181cb515a96f9»",
+          "reconstruction/src/runtime/composition-root.ts:1147 «d8901fa45e61695f»",
+          "reconstruction/src/runtime/composition-root.ts:1162 «8cfadc0caf9e8ed1»",
+          "reconstruction/src/runtime/composition-root.ts:1281 «064f38fc06be1d45»",
+          "reconstruction/src/runtime/composition-root.ts:488 «709181cb515a96f9»",
           "reconstruction/src/notification-delivery/adapter.ts:99 «329d40ed6a824198»",
           "reconstruction/src/notification-delivery/adapter.ts:108 «df73017f36be6be6»",
           "reconstruction/src/notification-delivery/adapter.ts:112 «9121c5228fd34b3f»",
@@ -558,18 +558,18 @@
           "reconstruction/contracts/p3-persist-premises.md:135 «743429c85af83c7f»",
           "reconstruction/contracts/p3-persist-premises.md:419 «a52a75413176caf2»",
           "reconstruction/contracts/p3-persist-premises.md:421 «ab58cf85ed99e44f»",
-          "reconstruction/src/runtime/composition-root.ts:920 «71f3e73d73b564c2»",
-          "reconstruction/src/runtime/composition-root.ts:979 «c98bab069678e362»",
-          "reconstruction/src/runtime/composition-root.ts:1351 «6fbcc4636e6a7ae5»",
-          "reconstruction/src/runtime/composition-root.ts:1315 «1b64bc661b7d9952»",
-          "reconstruction/src/runtime/composition-root.ts:1579 «d0c6b666cf0da5ef»",
-          "reconstruction/src/runtime/composition-root.ts:1588 «5f3fb69d10113811»",
+          "reconstruction/src/runtime/composition-root.ts:950 «71f3e73d73b564c2»",
+          "reconstruction/src/runtime/composition-root.ts:1009 «c98bab069678e362»",
+          "reconstruction/src/runtime/composition-root.ts:1388 «6fbcc4636e6a7ae5»",
+          "reconstruction/src/runtime/composition-root.ts:1352 «1b64bc661b7d9952»",
+          "reconstruction/src/runtime/composition-root.ts:1616 «d0c6b666cf0da5ef»",
+          "reconstruction/src/runtime/composition-root.ts:1625 «5f3fb69d10113811»",
           "reconstruction/contracts/p3-execution-split.json:685 «1ab394f0d4c773d9»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:457 «d78d3e35ad31be60»",
           "reconstruction/src/checkpoint/checkpoint.ts:533 «cc329d3ed1170794»",
           "reconstruction/src/checkpoint/checkpoint.ts:548 «68cf5e887e2364da»",
-          "reconstruction/src/runtime/owner-host.ts:195 «50d2ca18fd95e5e1»",
-          "reconstruction/src/runtime/owner-runtime.ts:609 «a3772a4757bc6933»",
+          "reconstruction/src/runtime/owner-host.ts:290 «50d2ca18fd95e5e1»",
+          "reconstruction/src/runtime/owner-runtime.ts:611 «a3772a4757bc6933»",
           "reconstruction/contracts/p3-unit-write-right.json:318 «9e629e374a548141»",
           "reconstruction/contracts/p3-execution-split.json:101 «190e19f50d0dfb4c»",
           "reconstruction/contracts/p3-execution-split.json:661 «2a18ac2c08cf011c»",
@@ -587,7 +587,7 @@
           "reconstruction/contracts/p3-clock-check.json:342 «d7b2e0b0082c7aeb»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:359 «118f0bc1fa574d7b»",
           "reconstruction/contracts/p2-notification-delivery.json:91 «53cff9917d12bece»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:863 «238f48b50821379d»"
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:869 «238f48b50821379d»"
         ]
       },
       {
@@ -596,8 +596,8 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3046 «d827c421cada4e9c»",
           "reconstruction/contracts/p3-persist-premises.md:131 «2c43d0b85d261f1c»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:440 «c035559a7276e8ea»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:582 «6e539e4282e6f9cb»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:446 «c035559a7276e8ea»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:588 «6e539e4282e6f9cb»",
           "reconstruction/src/domains/eew/eew.ts:613 «295c160aab9d48a2»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "src/engine/notification/notifier.ts:389 «8a01b0958c1cd6b3»"
@@ -630,7 +630,7 @@
           "reconstruction/contracts/p3-tsunami-unit.json:11 «10c1cc61e2fcb5e8»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:163 «76f9ccfdb32529b0»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:167 «256db0e2f8cba821»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:714 «255c31f8e0275a9d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:720 «255c31f8e0275a9d»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "reconstruction/src/units/notice-mark.ts:100 «085550b0cc032fbb»",
           "reconstruction/contracts/p2-notification-delivery.types.ts:10 «8e994c0d4bf50f4b»",
@@ -660,7 +660,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3054 «9844920e53171b3b»",
           "reconstruction/contracts/p3-persist-premises.md:138 «bbb031b0b7edf986»",
-          "reconstruction/contracts/p3-recovery.json:960 «28654fa7489eb29d»",
+          "reconstruction/contracts/p3-recovery.json:1004 «28654fa7489eb29d»",
           "reconstruction/contracts/p3-persist-premises.md:128 «f1d4b5d6501fb72c»"
         ]
       },
@@ -676,12 +676,12 @@
           "reconstruction/contracts/p3-persist-premises.md:331 «58829c166f291be6»",
           "reconstruction/contracts/p3-persist-premises.md:394 «ec86bd2474abe309»",
           "reconstruction/contracts/p3-persist-premises.md:214 «fa51e4fd14c08277»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:320 «350627aa0c8c0b86»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:322 «350627aa0c8c0b86»",
           "reconstruction/src/checkpoint/checkpoint.ts:637 «7cd2ed82d8fa4c92»",
           "reconstruction/src/checkpoint/checkpoint.ts:761 «271e5d5c4145cb60»",
-          "reconstruction/src/runtime/composition-root.ts:1110 «d8901fa45e61695f»",
+          "reconstruction/src/runtime/composition-root.ts:1147 «d8901fa45e61695f»",
           "reconstruction/contracts/p3-persist-premises.md:525 «7bf1ba3fc9c8ec7d»",
-          "reconstruction/src/runtime/owner-runtime.ts:499 «63adcad8d045ce86»",
+          "reconstruction/src/runtime/owner-runtime.ts:501 «63adcad8d045ce86»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «7c601648697d31b3»",
           "reconstruction/contracts/p2-shared-runtime.json:563 «b594796dccab77ba»"
         ]
@@ -713,7 +713,7 @@
         "evidenceRefs": [
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "reconstruction/contracts/p3-unit-table.types.ts:23 «e9aa1ab592d4d861»",
-          "reconstruction/src/runtime/composition-root.ts:979 «c98bab069678e362»"
+          "reconstruction/src/runtime/composition-root.ts:1009 «c98bab069678e362»"
         ]
       },
       {
@@ -737,7 +737,7 @@
           "reconstruction/contracts/p3-unit-table.json:262 «44c584515eccf09a»",
           "reconstruction/contracts/p3-intent-update-reserve.json:235 «18eef364f9da3127»",
           "reconstruction/contracts/p3-clock-check.json:342 «d7b2e0b0082c7aeb»",
-          "reconstruction/contracts/p3-recovery.json:960 «28654fa7489eb29d»",
+          "reconstruction/contracts/p3-recovery.json:1004 «28654fa7489eb29d»",
           "reconstruction/contracts/p3-seismic-unit.json:177 «bf62709d233420e1»",
           "reconstruction/contracts/p3-nankai-unit.json:148 «bf62709d233420e1»",
           "reconstruction/contracts/p3-volcano-unit.json:187 «bf62709d233420e1»",
@@ -806,8 +806,8 @@
           "reconstruction/contracts/p2-notification-delivery.json:472 «d4a752dce205773d»",
           "reconstruction/contracts/p2-eew-unit.json:325 «c09500337d812055»",
           "reconstruction/contracts/p2-eew-unit.json:479 «be91a5dcbb153d33»",
-          "reconstruction/contracts/p3-recovery.json:350 «c7b71eb68122432b»",
-          "reconstruction/contracts/p3-recovery.json:385 «eb9aaf01523256dc»",
+          "reconstruction/contracts/p3-recovery.json:376 «c7b71eb68122432b»",
+          "reconstruction/contracts/p3-recovery.json:411 «eb9aaf01523256dc»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:235 «814bf54d7efd4483»",
           "reconstruction/contracts/p3-lifetime-and-eew-gate.json:319 «5456d046d1b3f837»",
           "reconstruction/contracts/p3-tsunami-unit.json:727 «edbacc7ab890ee27»",

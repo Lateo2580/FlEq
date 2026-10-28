@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "13acbad79533fb1e90878f829f73fb2f1e9cef088bd1e04f5c549a0131fa4bd3",
+    "sha256": "05eb3bb1970d74616682a86b412b3b566e1538caa41c3f6fda4e0c1ec34da371",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -320,7 +320,7 @@
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:475 «d55b2c8e4e9e70d2»",
           "reconstruction/src/runtime/owner-runtime.ts:118 «4b4c6774cb5a4b56»",
-          "reconstruction/src/runtime/owner-runtime.ts:479 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:480 «63380813ee47301c»",
           "reconstruction/src/units/eew/eew-unit.ts:342 «973323028dc564f5»",
           "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»"
         ]
@@ -364,7 +364,7 @@
         "id": "P3-LIFE-AC07",
         "requirement": "F14の保証範囲（D-HORIZON=A、条文だけ）: (1) U-E: 再受理horizonは10分（SEM-02）。gate（24時間）のある間は旧版の復活を防ぐ。gateの期限回収・容量退去・再起動（A1でgate非保存）の後は、horizon内（報の起点から10分未満）の旧報が新規subjectとして再び採用されうる（同じ版の再通知を含む）。(2) U-F: 新規受理で作るactiveはvalidUntilがwallより後のperiodを持つ報に限られる（既存のinspectと採用の規則）。保持期限がvalidUntil以上なので、有効中の旧報の復活は同じsubjectのgateが防ぐ。U-FはDurableでtrainingの容量退去の後だけ保証外。(3) U-T（津波予報のactive）・U-V（噴火警報のactive）など期限で消えないactiveを持つunitの再受理horizonは無制限とする。取消・版の記憶が保持される期間・容量・保存の範囲でのみ旧報の復活を防ぎ、期限GC・normal同士の容量退去・非永続stateの再起動の後に届いた古報は新規として受け入れうる。これは作者承認の残存リスクであり、この契約ではT/Vのコードを変えない。C12以降の新規unitは計画§9のパラメータ表のLifetime行でhorizonを明示する。",
         "evidenceRefs": [
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:407 «6849f19804edf168»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:413 «6849f19804edf168»",
           "reconstruction/src/units/volcano/volcano-unit.ts:104 «ee67c3c47e745e7e»",
           "reconstruction/contracts/p3-order-plan.md:379 «d7ffea3ecccbb72d»",
           "docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»"
@@ -429,10 +429,10 @@
         "id": "P3-LIFE-AC13",
         "requirement": "起動時の時計チェック（残存リスク(3)の条件、作者裁定2026-10-10）: (1) 比べる相手はdmdata WebSocket v2のstart frameのtime（サーバーがstartを送った時刻のISO 8601文字列。旧築の型src/types.ts WsStartMessage.timeが同じ仕様を写している）。host.tsは接続ごとに最初に届くstartをすでに小frameの経路で解析しており、AC13の診断は新しい通信を足さない。時計の確かめのためのREST（GET /socket?status=open）とDateヘッダの読みはP3-CLOCK-CHECK-001が足す。(2) 形の正しいstart（P3-C2-START-RECORDの判定、timeの有無で変えない）を受けるたびに1回、skew＝startを受けたときのclock().wallTimeMs − Date.parse(time) を測る。timeは「YYYY-MM-DDThh:mm:ss(.小数)?(Z|±hh:mm)」でDate.parseが有限のときだけ使う。|skew|≧300,000 msならERROR、60,000≦|skew|＜300,000ならWARN、＜60,000なら診断なし。reasonはskew＞0でhostClockAhead、skew＜0でhostClockBehind、component=\"host\"、count・durationMsは付けない（host.tsの既存の診断の流儀。同じ診断の繰り返しはsinkのcountが数える）。timeが無い・形が違う・Date.parseが有限でないときはWARN hostClockUnverifiedを1件。(3) 数値の根拠: 60秒はP3-LIFE-D-SKEWの起点の詰め（未来の報を受信時刻へ寄せる）が効き始め、版の時刻の比較がずれ始める目安。300秒はhorizon（600秒）の半分で、進みがEEWを捨てうる手前。往復と片道の遅れ（通常1秒未満）とtimeの秒の丸めはこの幅に含める。(4) ずれを見つけても受信・EEWの判定・接続を止めず、時刻を補正しない。startのtimeはP3-CLOCK-CHECK-001の確かめの物差しにもなる（時計は補正しない）。出口は既存の診断のsink（保存する診断の記録）だけで、ディスプレイに新しい要素を作らない。測るのはstartの制御frameの処理の中で、受信経路（dataの投入）に入れない。(5) 再接続ごとに同じ判定を行う（費用はstart 1件ごとの定数）。",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:279 «fc3a857a6d74fa2d»",
-          "reconstruction/src/host/host.ts:282 «1b1c46f5a7c98e4f»",
-          "reconstruction/src/host/host.ts:227 «2b486aba370f5fa1»",
-          "reconstruction/src/host/host.ts:51 «d550290865b3dfa7»",
+          "reconstruction/src/host/host.ts:280 «fc3a857a6d74fa2d»",
+          "reconstruction/src/host/host.ts:283 «1b1c46f5a7c98e4f»",
+          "reconstruction/src/host/host.ts:228 «2b486aba370f5fa1»",
+          "reconstruction/src/host/host.ts:52 «d550290865b3dfa7»",
           "src/types.ts:576 «0ce12d8cfc86ded5»",
           "reconstruction/contracts/p3-dmdata-connect.json:368 «86f8fbca391f7688»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:50 «a9f7c76b22c3a12f»"

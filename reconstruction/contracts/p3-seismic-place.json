@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "9c1476abe43641d0ec221cb952e7cf3d328514d35df73181a05bd0f56db935a5",
+    "sha256": "9aaee9d12f4b6a04f32efb3f42ac8c0ffe36f9c74ffc95554ff5bb4fb4b78e15",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -341,8 +341,8 @@
           "docs/specs/reconstruction-p0-contracts.md:1164 «35c2ce4b7efb58fe»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:242 «21d433798f921e94»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:373 «f8307b96c979e627»",
-          "reconstruction/contracts/p3-execution-split.types.ts:110 «ce8ee391abccd16c»",
-          "reconstruction/contracts/p3-execution-split.types.ts:116 «d6087e79a6adc62c»",
+          "reconstruction/contracts/p3-execution-split.types.ts:123 «ce8ee391abccd16c»",
+          "reconstruction/contracts/p3-execution-split.types.ts:129 «d6087e79a6adc62c»",
           "reconstruction/contracts/p3-unit-q-capacity.json:140 «bbba3cbe37ebf810»"
         ]
       },
@@ -352,12 +352,12 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-split.types.ts:28 «b2f072cd477ca134»",
           "reconstruction/src/runtime/unit-coverage.ts:16 «d322b87ac6931d20»",
-          "reconstruction/src/host/host.ts:157 «f377e03d3ca8f763»",
-          "reconstruction/src/runtime/composition-root.ts:96 «2d5b35efab2a1aaa»",
-          "reconstruction/src/runtime/composition-root.ts:395 «fd39e5f0abd0f910»",
-          "reconstruction/src/runtime/composition-root.ts:411 «a1550893a334fe22»",
+          "reconstruction/src/host/host.ts:158 «f377e03d3ca8f763»",
+          "reconstruction/src/runtime/composition-root.ts:99 «2d5b35efab2a1aaa»",
+          "reconstruction/src/runtime/composition-root.ts:399 «fd39e5f0abd0f910»",
+          "reconstruction/src/runtime/composition-root.ts:415 «a1550893a334fe22»",
           "reconstruction/src/runtime/owner-worker.ts:8 «5378ac27647dfecd»",
-          "reconstruction/src/host/host.ts:159 «ad74a6b1612d26c0»"
+          "reconstruction/src/host/host.ts:160 «ad74a6b1612d26c0»"
         ]
       },
       {
@@ -365,22 +365,22 @@
         "requirement": "受理した入力の処理の独立（Q-SP-MAILBOX）: (1) seismic の通常 data の in-flight は 1 件で、urgent の in-flight と別。VXSE53 が seismic で処理中でも、受理して pending の EEW・津波の入力は urgent へ直ちに送る (2) mailbox の件数・byte の上限（全体 128 件・16 MiB、通常 120 件・14 MiB、予約 8 件・2 MiB）は全体で 1 つのまま。固定優先順と順序領域（headType）は変えない (3) 同じ headType の入力は同じ場所なので、同じ operation／family／subject の順は今どおり保たれ、parse の終わった順で採用しない (4) 受信の継続は本契約で約束しない: 通常枠が満ちて enqueue が拒否されると、host は接続を切り、mailbox の pending と in-flight が空になるまで繋ぎ直さない（今の背圧、変えない。残存リスク (6)）",
         "evidenceRefs": [
           "reconstruction/src/mailbox/mailbox.ts:10 «9ebe12b5426e415b»",
-          "reconstruction/src/mailbox/mailbox.ts:69 «85ebd56c783ce1a5»",
-          "reconstruction/src/mailbox/mailbox.ts:54 «0f49933a6e91e07b»",
+          "reconstruction/src/mailbox/mailbox.ts:77 «85ebd56c783ce1a5»",
+          "reconstruction/src/mailbox/mailbox.ts:62 «0f49933a6e91e07b»",
           "reconstruction/contracts/p3-execution-boundary.md:40 «7c8fc4b78954915b»",
           "reconstruction/contracts/p3-execution-boundary.md:41 «0a382771625566cf»",
           "docs/specs/reconstruction-p0-contracts.md:1159 «da4be88413248f62»",
-          "reconstruction/src/mailbox/mailbox.ts:100 «ba64d73d3b4385e1»",
-          "reconstruction/src/host/host.ts:257 «62853b0fea215cc1»",
-          "reconstruction/src/host/host.ts:335 «ebafe9ce4f4258a4»"
+          "reconstruction/src/mailbox/mailbox.ts:109 «ba64d73d3b4385e1»",
+          "reconstruction/src/host/host.ts:258 «62853b0fea215cc1»",
+          "reconstruction/src/host/host.ts:336 «ebafe9ce4f4258a4»"
         ]
       },
       {
         "id": "P3-SP-AC04",
         "requirement": "書込み権と留保（P3-SP-D-SAVE-HOLD=A）: (1) 権は今どおり unit ごとで、その unit の場所が入力を処理中なら出さない。U-Q の権は seismic の処理中だけ止まり、U-E・U-T・U-N・U-V の権は seismic の処理で止まらない。urgent の処理は U-Q の権を止めない (2) seismic は自分の unit の権が出ている間も入力を留保しない（urgent と同じ） (3) U-Q の checkpoint encode は seismic の thread で行い、urgent の入力を待たせない（設計メモ :466 の『EEW の保存の encode が U-Q の encode の後ろに並ぶか』は U-Q について消える）。権の公平性（spec §5.8）と in-flight の数は変えない",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:1463 «ea8c5532f5fbc061»",
-          "reconstruction/src/runtime/composition-root.ts:866 «a8db71c82d2f04a3»",
+          "reconstruction/src/runtime/composition-root.ts:1500 «ea8c5532f5fbc061»",
+          "reconstruction/src/runtime/composition-root.ts:884 «a8db71c82d2f04a3»",
           "reconstruction/contracts/p3-persist-premises.md:466 «2ff04427a876740c»"
         ]
       },
@@ -390,11 +390,11 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-boundary.md:46 «851fe48544a19964»",
           "reconstruction/contracts/p3-execution-boundary.md:48 «03fb41f056642dd7»",
-          "reconstruction/src/runtime/composition-root.ts:662 «a1412aced808ae03»",
-          "reconstruction/src/runtime/composition-root.ts:1533 «24539ca107c89289»",
-          "reconstruction/src/runtime/composition-root.ts:1460 «4b3e06f0acf52345»",
+          "reconstruction/src/runtime/composition-root.ts:674 «a1412aced808ae03»",
+          "reconstruction/src/runtime/composition-root.ts:1570 «24539ca107c89289»",
+          "reconstruction/src/runtime/composition-root.ts:1497 «4b3e06f0acf52345»",
           "reconstruction/contracts/p3-execution-lifecycle.json:491 «7945c7ee5efb5b9e»",
-          "reconstruction/src/runtime/composition-root.ts:912 «2a911763950b33e7»"
+          "reconstruction/src/runtime/composition-root.ts:942 «2a911763950b33e7»"
         ]
       },
       {
@@ -486,7 +486,7 @@
         "requirement": "配送の前の E05（統合担当、作者の決め 2026-10-26 昼、Q-SP-RULING・Q-SP-E05）: 実装のレビューの後・配送の前に、Mac mini で 4 本の構成（D-YOUNG＝A、seismic は縛らない）の build で次を測る。(1) E05-N（N 最大≤300 MiB） (2) E05-P と e05y-P（P 最大≤400 MiB。既存の窓の形のまま、新しい窓 ID）【P3-E05Y-CONTROLDT-001 で改訂: e05y-P の上乗せの確かめは P3-E05Y-CONTROLDT-001 の直し〔上乗せの 3 通の Control/DateTime を送った秒へ置く〕が前提。同契約の AC03 は 3 本の構成で測った〔p3-e05yd-20261027b〕。4 本の構成の e05y-P は本契約で、その直しの後の木で測り直す】 (3) 重なりの条件（今まで測ったことのない負荷条件なので、報告だけで配送の関門にしない）: P 負荷の窓の中で、weatherCurrent の最大 VPWS50 の処理（または deferred の e05y-P の山）・seismic の観測点 30,000 の VXSE53 の処理・urgent の EEW の 3 つが重なる試行を作る。重なりの始まりは 3 つの処理の開始の最も遅い時刻、終わりは 3 つの終わりの最も早い時刻で、始まり＜終わりの試行を成立と数える。RSS は P3-E05C-AC01 の probe（各 thread 200 ms ごとの memoryUsage）で取り、成立した試行ごとに『始まり〜終わり＋1 秒』の行の process RSS の最大を出す。試行は 30 回まで、成立 10 回で止める。報告: 試行数・成立数・成立した試行ごとの始まり・終わり・区間の行数・RSS の最大と、その最大の上限 400 MiB との比べ。区間の行が 0 の試行と、成立が 10 回に届かないときは『未確認』と書く。できれば同じ窓の形を 3 本の構成（配送の前の base）でも測って差を出す (4) (1) か (2) が上限を越えたら配送しない。thread ごとの heap の分けと、次の手の候補（seismic の若い世代に 12 MB の縛り〔D-YOUNG の B〕など）を持って作者へ戻す。報告したことで本契約を閉じない。(3) の結果は作者へ添えるが、配送の可否に使わない。測る窓では同じ機械で他のゲートを走らせない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
-          "reconstruction/src/host/host.ts:159 «ad74a6b1612d26c0»",
+          "reconstruction/src/host/host.ts:160 «ad74a6b1612d26c0»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
           "reconstruction/contracts/p3-e05p-classify.json:262 «d1248ae6d817d9c2»"
         ]

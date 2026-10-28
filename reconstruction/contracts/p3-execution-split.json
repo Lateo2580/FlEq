@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "e82b8029494f88d643e05c5266b0dce57af108ddc47177353d31e143ef5f3936",
+    "sha256": "8d66936509fb38dd56a0ebd2f36d3248495ca88b2eba0484df4b09f043bf5cee",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -746,7 +746,7 @@
       },
       {
         "id": "P3-C3A-AC15",
-        "requirement": "owner宛て要求の有界性（RES-09）: owner宛てのcontrol要求はmailboxに数えず、種別ごとの固定上限で有界にする。deadlineは未完了1件までで、未完了の間のtickは送らず、次のtickで最新の時計を送る。intentUpdateはchannelごとに予約1件と結果の更新1件まで。checkpointGrantはそのownerのunitごとに1件（P3-UNIT-WRITE-RIGHT-001で全体1件から改訂）。detailはdeferredのownerに未完了1件まで（P3-UF-PUBLIC-001で改訂）。ownerが返信しなくなっても要求は増えない。ownerはcheckpointのI/Oの完了を待つ間も後続の要求（入力・期限・intent更新）を処理する（checkpointDoneは操作が終わった時点の適用順で送る）。ただし非緊急のownerへは、publisherがそのownerのunitの保存中の留保（P3-UWR-AC04、1,000msまで）の間だけ次のparser入力を送らない（urgentは留保しない。P3-UNIT-WRITE-RIGHT-001のAC10(3)で改訂）",
+        "requirement": "owner宛て要求の有界性（RES-09）: owner宛てのcontrol要求はmailboxに数えず、種別ごとの固定上限で有界にする。deadlineは未完了1件までで、未完了の間のtickは送らず、次のtickで最新の時計を送る。intentUpdateはchannelごとに予約1件と結果の更新1件まで。checkpointGrantはそのownerのunitごとに1件（P3-UNIT-WRITE-RIGHT-001で全体1件から改訂）。detailはdeferredのownerに未完了1件まで（P3-UF-PUBLIC-001で改訂）。ownerが返信しなくなっても要求は増えない。ownerはcheckpointのI/Oの完了を待つ間も後続の要求（入力・期限・intent更新）を処理する（checkpointDoneは操作が終わった時点の適用順で送る）。ただし非緊急のownerへは、publisherがそのownerのunitの保存中の留保（P3-UWR-AC04、1,000msまで）の間だけ次のparser入力を送らない（urgentは留保しない。P3-UNIT-WRITE-RIGHT-001のAC10(3)で改訂）。recovery〔open・adopt・discard〕はownerごとに未完了1件で、1要求に返信recoveryDoneが1つ〔opened・discarded・adopted・generationConflict・unsatisfied〕。publisherは返信を受けてから同じownerに次のrecoveryを送る（P3-RECOVERY-001の発注3、P3-REC-AC05により統合担当が改訂）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1056 «5a36cc2957d9d9a9»",
           "docs/specs/reconstruction-p0-contracts.md:676 «2a94f20f4e770c22»",

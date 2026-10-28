@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6e152f854c4e2545d3a7fddd1a4a0bec964e60be",
-    "sha256": "05b0ded36a984311300ee1ef56d8c1625e60bba120de85fbadbdd486baec678b",
+    "sha256": "70442afc9d8b7bb12ac49e7fab848b1f321fa1c9e350c4b4bccd692172040b90",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -159,10 +159,10 @@
         "id": "P3-MC-AC01",
         "requirement": "使っていないことの確認（Q-MC-UNUSED）: 実装の前に、base で src の Mailbox の呼び出し（enqueue・takeNext・complete）と、kind が \"control\" の MailboxEnvelope・MailboxCompletion を作る所を grep で数え直し、起草の時点と同じ（投入は host.ts の parser の 1 か所、取り出しと完了は composition-root.ts の各 1 か所、control を作るのは試験の 3 file だけ）であることを成果物に書く。src に control の envelope を作る所が 1 か所でもあれば、何も消さずに blocked で返す",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:328 «5b89989a2cbeec6d»",
-          "reconstruction/src/host/host.ts:335 «ebafe9ce4f4258a4»",
-          "reconstruction/src/runtime/composition-root.ts:830 «74a333b1aa9739cc»",
-          "reconstruction/contracts/p3-execution-split.json:749 «2ecd09e717542803»",
+          "reconstruction/src/host/host.ts:329 «5b89989a2cbeec6d»",
+          "reconstruction/src/host/host.ts:336 «ebafe9ce4f4258a4»",
+          "reconstruction/src/runtime/composition-root.ts:848 «74a333b1aa9739cc»",
+          "reconstruction/contracts/p3-execution-split.json:749 «91a623f27468cc26»",
           "reconstruction/contracts/p3-execution-split.json:544 «e7a0bbad7a76496a»",
           "reconstruction/contracts/p3-execution-boundary.md:24 «778675a95e83f912»"
         ]
@@ -173,7 +173,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p2-mailbox.json:516 «08fdf4f75caaaecb»",
           "reconstruction/contracts/p2-mailbox.json:517 «9e355de2625b6ab8»",
-          "reconstruction/contracts/p2-mailbox.json:391 «44fcf5961a16f211»"
+          "reconstruction/contracts/p2-mailbox.json:391 «356baf60631ee8a5»"
         ]
       },
       {
@@ -181,7 +181,7 @@
         "requirement": "共有型から消すもの（P3-MC-D-TYPES=A）: p2-shared-runtime.types.ts の MailboxControl、MailboxEnvelope と MailboxCompletion の control の variant、MailboxPriorityReason の \"control\"（parser の variant の priorityReason は Exclude をやめて MailboxPriorityReason そのものにする）、MailboxStats の inFlightControlMessageIds と nextDeadlineMonotonicMs。ほかの型・ほかの行は触らない（行のずれは統合担当が他の契約の anchor を引き直す。artifactRequirements の改訂の項）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-mailbox.json:382 «c0e422b70ffefdfc»",
-          "reconstruction/contracts/p3-execution-split.json:749 «2ecd09e717542803»"
+          "reconstruction/contracts/p3-execution-split.json:749 «91a623f27468cc26»"
         ]
       },
       {
@@ -190,15 +190,15 @@
         "evidenceRefs": [
           "reconstruction/src/mailbox/mailbox.ts:14 «5821cfbc66285ebb»",
           "reconstruction/src/mailbox/mailbox.ts:15 «aa7620792632ab4e»",
-          "reconstruction/contracts/p2-mailbox.json:371 «0605af08b33087af»",
-          "reconstruction/contracts/p2-mailbox.json:391 «44fcf5961a16f211»"
+          "reconstruction/contracts/p2-mailbox.json:371 «518d4bd2759ec87e»",
+          "reconstruction/contracts/p2-mailbox.json:391 «356baf60631ee8a5»"
         ]
       },
       {
         "id": "P3-MC-AC05",
         "requirement": "試験の直し（足さない、消すか parser に置き換える）: test/mailbox/mailbox.test.ts は (1) controlEnvelope・MailboxControl の import・completion の control の枝を消す (2) P2-A2-T01 の control の取消の段（cancel が control に効かない確認）と「保存 ack の UTF-8 の byte が予約枠を共有する」段を消し、completed の期待は parser の分だけに数え直す (3) P2-A2-T02 の draining 中の control の受理の段を消す (4) P2-A2-T03 の合成列から deadline と shutdown の control を抜き、固定優先順の取り出しの期待は残す（題の「control and」も消す） (5) P2-A2-T05 の送出前の完了の回帰は parser の 1 ケースにする (6) P2-A2-T05 の read-only の試験の期限だけの mailbox（deadlines）を消す。そこで確かめていた「stats を未来の時刻で読んでも状態が変わらない」と「recordWorkerResponse は応答時刻だけを変える」は parser の item だけの mailbox で残す (7) P2-A2-T05 の drain の試験の control の段（controls）は parser の item に置き換えて残す（処理の進捗が応答起点と unresponsive の発報済みを動かさない回帰。t=4,000 に takeNext と complete、drainDiagnostics(5,000) は mailbox.worker の 1 件だけ。2 件目の takeNext・complete の後に再発報しないことは同じ it の前半〔7,000 の takeNext・13,000 の complete の後の段〕が確かめているので、2 件目の段は置き換えずに消す）。期限だけの mailbox（deadline）の段は消す。test/shared-runtime/shared-runtime.test.ts は呼ばれていない controlInput と MailboxControl の import を消す。test/checkpoint-shutdown/review-regressions.test.ts の B03 は 200 件の control の envelope を parser の item に替え、diagnosticQueueOverflow が 1 件・mailboxStalled が component mailbox と mailbox.worker の各 1 件（timestamp・durationMs は今の期待のまま）を変えずに通す。item は test/execution-split/owner-harness.ts の export 済みの envelope と unitBodies[\"U-W\"]（VPWW57、20,762 byte、priorityReason は normal）で作る。例: envelope(runId, \"VPWW57\", String(i), unitBodies[\"U-W\"].body, h.clock(), i + 1)。B03 の file の owner-harness の import（今は harnessedRoot・park・startHarness）に envelope と unitBodies を足してよい（helper は足さない）。VPWS50 の fixture（4,567,490 byte）は使わない（通常枠 14 MiB に 3 件しか入らず、200 回の ingest が重い）。件数は通常枠の件数の上限で 120 件受理・80 件拒否になる（今の control は予約枠で 8 件受理・192 件拒否）。拒否が 64 件を超えるので overflow と停止の期待は同じ。期待値を変えないと通らないときは、変える前に理由を書いて blocked で返す",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-mailbox.json:391 «44fcf5961a16f211»",
+          "reconstruction/contracts/p2-mailbox.json:391 «356baf60631ee8a5»",
           "reconstruction/contracts/p2-mailbox.json:382 «c0e422b70ffefdfc»"
         ]
       },
@@ -206,8 +206,8 @@
         "id": "P3-MC-AC06",
         "requirement": "画面と音は変わらない: 製品の mailbox には control が入らないので（P3-MC-AC01）、消すのは一度も通らない分岐と、常に空配列・null だった 2 つの欄だけ。parser の入力の受理・拒否・取り出しの順・in-flight・停止の診断は同じ入力で同じになる。測定の出力（host.ts の observeMailbox）は消す 2 欄を出していない",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:328 «5b89989a2cbeec6d»",
-          "reconstruction/src/runtime/composition-root.ts:830 «74a333b1aa9739cc»"
+          "reconstruction/src/host/host.ts:329 «5b89989a2cbeec6d»",
+          "reconstruction/src/runtime/composition-root.ts:848 «74a333b1aa9739cc»"
         ]
       }
     ],

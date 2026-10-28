@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "8c8262bdae24229fc81ba804cacbc95dabcccad72c627d7bcc9c7170c4453b6c",
+    "sha256": "7b688da62522506dab18288bfaed2b7b27272984f5ddd56a01b160f887d62373",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -540,7 +540,7 @@
         "evidenceRefs": [
           "AGENTS.md:26 «2c223bbb66635b53»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «b7e8914d276157dd»",
-          "reconstruction/contracts/p2-mailbox.json:391 «44fcf5961a16f211»",
+          "reconstruction/contracts/p2-mailbox.json:391 «356baf60631ee8a5»",
           "reconstruction/tools/corpus/sequences.json#expected:O07:16",
           "reconstruction/tools/corpus/sequences.json#expected:O10:35",
           "reconstruction/tools/corpus/sequences.json#expected:O10:39"

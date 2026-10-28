@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "461501a85899d8ce5c6117049b6bb5d6f10e77c9f1c2fd19ce012997a8e4ee33",
+    "sha256": "96443affbc050a7331b9b1c2f1ce0cbe396b82b3348a643090642364294ead2a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -71,8 +71,8 @@
           "reconstruction/src/checkpoint/checkpoint.ts:309 «d8c8c47fe3547576»",
           "reconstruction/src/runtime/owner-runtime.ts:404 «6d697a491431e3be»",
           "reconstruction/src/runtime/owner-runtime.ts:407 «890b0a8cddc63328»",
-          "reconstruction/src/runtime/owner-host.ts:57 «c8c61640df663994»",
-          "reconstruction/src/runtime/owner-host.ts:195 «50d2ca18fd95e5e1»",
+          "reconstruction/src/runtime/owner-host.ts:70 «c8c61640df663994»",
+          "reconstruction/src/runtime/owner-host.ts:290 «50d2ca18fd95e5e1»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»"
         ]
       },
@@ -102,7 +102,7 @@
         "closed": "K9 P3-CLOCK-CHECK-001（時計、並行で起草中）との境目: 本契約は inputBoundary の受信時刻に basis（型 WallBasis）の欄を作る。basis は host が frame の entry を読んだ時点の wallBasis() の値を受信時刻と一緒に運んだもので、K9 の前は null（根拠を持たない、AC06）。basis の値（\"awaiting\"｜\"verified\"｜\"unverified\"。host の根拠の状態の判定、P3-CLOCK-CHECK-001 の P3-CK-AC01 の (3)・P3-CK-AC04）を書くのは K9。WallBasis の型は先に合流した側が置き、後の側は重ねて足さない（AC06）。K9 は版を上げない。両者が触る共通のもの（K9 の改訂の申告）: P2-SHARED-RUNTIME-001 の json と p2-shared-runtime.types.ts（本契約は ReportRef・CheckpointEnvelope・UnitCodec・DiagnosticReason・WallBasis、K9 は WallBasis と DiagnosticReason の notificationExpiredClockUnverified）、P3-LIFETIME-AND-EEW-GATE-001 の json と types（本契約は P3-LIFE-D-LATE と AC03 の Serial の stale、K9 は AC13 の (4) と残存リスク (3)）、P3-EXECUTION-SPLIT-001 の json と p3-execution-split.types.ts（本契約の checkpointGrant と restored の境界だけ。K9 は P3-EXECUTION-SPLIT・ClockReading・期限の入力を変えない）、composition-root.ts（本契約の発注 1 は未解決の列と書込み権、K9 は options.wallBasis と前回の通知の保留）、persistent-diagnostic-sink.ts（本契約は checkpointSchemaDiscarded、K9 は notificationExpiredClockUnverified）、host.ts（本契約は受信の材料と basis の写し、K9 は根拠の状態の判定）。これらの合流は統合担当が直列にする。順: 本契約の発注 1 → 発注 2a ∥ K9 → 発注 2b（K9 と並べてよい）→ K8。K8 P3-NOTICE-LEDGER-001 との境目: 本契約は通知の ID・印・保存 ack を待つ配送に触らない（intent の ID は今の世代番号のまま）。K8 は本契約の versionKey（比べる時刻と Control/DateTime の組）を印の鍵に使う。C16 P3-RECOVERY-001 との境目: 本契約は境界の意味と項目と publisher の未解決の列までで、穴を埋めたと publisher に伝える入力・一覧の辿り方・余白・dmdata 側の時刻の作り方は C16（Q-REC-ID-MATCH）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:347 «3362aa8218ae44a7»",
-          "reconstruction/contracts/p3-recovery.json:472 «25c8282bebc83d92»"
+          "reconstruction/contracts/p3-recovery.json:498 «25c8282bebc83d92»"
         ]
       },
       {
@@ -417,7 +417,7 @@
           "reconstruction/contracts/p2-shared-runtime.types.ts:68 «edf494a4209b84d6»",
           "reconstruction/src/decode-material/decode-material.ts:483 «76071c296440ae12»",
           "reconstruction/src/units/eew/eew-unit.ts:44 «d724b0576b748700»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:962 «c54e90427dfcf389»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1032 «c54e90427dfcf389»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1358 «c54e90427dfcf389»",
           "reconstruction/src/units/nankai/nankai-unit.ts:748 «c54e90427dfcf389»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1423 «a9edac1936c9c251»",
@@ -433,7 +433,7 @@
       },
       {
         "id": "P3-VM-AC02",
-        "requirement": "【発注 2a】種類の表と版の鍵: reconstruction/src/contracts-revision/version.ts を 1 つ足し、(1) Head→Control の種類の定数の Set（P3-VM-D-TABLE=A の VPWS50・VPWW55・VPWW56・VPWW57・VPWW58・VPWW59・VPWW60・VPWW61・VPNO50（InfoKind 気象警報・注意報と気象特別警報報知）、VPWP50（気象警報・注意報時系列）、VPZJ51・VPCJ51・VPFJ51・VMCJ53・VMCJ54・VMCJ55・VPBS50・VPBS51（気象解説情報））、(2) 比べる関数 compareVersion(a, b)（a は手元の版の ReportRef か null、b は受けた報）: Set にある種類は Head/ReportDateTime、次に Control/DateTime を数値の時刻で比べ、ほかの種類は Control/DateTime だけで比べる。返り値は older・newer・same（同じ時刻）・undecidable（比べる時刻が空か時刻として読めず順が決まらない）の 4 つで、same の中身の比べは呼び手。a が null なら b の時刻が読めれば newer、読めなければ undecidable (3) versionKey(ref): 比べる時刻と Control/DateTime の組の文字列（K8 が通知の印の鍵に使う）。報番号・InfoType は使わない（P3-VM-D-SAMETIME=A）。ただし EEW（VXSE43〜45）は Serial を足す（P3-VM-D-SAMETIME=A の EEW の例外。無いと同じ秒の続報が同じ鍵になり、K8 の通知の印で #4・#5 が鳴らない）。K8 への申し送り: Serial を含む EEW の鍵の保存・復元・照合を K8 で確かめる（今の U-E は gate を復元せず eew-unit.ts:317、C16 も U-E の取り直しを対象外 p3-recovery.json:851）。時刻の欠け（P3-VM-D-MISSING=A、2026-10-20 作者裁定、H51）: b の比べる時刻が空か時刻として読めない（Control だけの種類の Control/DateTime、Head→Control の種類の Head/ReportDateTime、または Head が同じときの Control/DateTime）ときは undecidable。a の比べる時刻だけが読めない（A で採った時刻を確かめられなかった版、Head→Control の種類で Head で採った Control/DateTime の欠けた版）ときは newer（D-MISSING の A の (3)）。Head→Control の種類で Head が違えば、Control/DateTime が欠けても Head で順を決める。a と b が表の別の側の種類（Head→Control と Control だけ）なら、両方が持つ Control/DateTime だけで比べる。undecidable を same に混ぜないのは、same で中身が同じ報は duplicate になり、a が null の初めての報では same が使えないため。無いと: 12 の比較関数が種類の表を別々に持ち、表の直しが 12 か所に散る",
+        "requirement": "【発注 2a】種類の表と版の鍵: reconstruction/src/contracts-revision/version.ts を 1 つ足し、(1) Head→Control の種類の定数の Set（P3-VM-D-TABLE=A の VPWS50・VPWW55・VPWW56・VPWW57・VPWW58・VPWW59・VPWW60・VPWW61・VPNO50（InfoKind 気象警報・注意報と気象特別警報報知）、VPWP50（気象警報・注意報時系列）、VPZJ51・VPCJ51・VPFJ51・VMCJ53・VMCJ54・VMCJ55・VPBS50・VPBS51（気象解説情報））、(2) 比べる関数 compareVersion(a, b)（a は手元の版の ReportRef か null、b は受けた報）: Set にある種類は Head/ReportDateTime、次に Control/DateTime を数値の時刻で比べ、ほかの種類は Control/DateTime だけで比べる。返り値は older・newer・same（同じ時刻）・undecidable（比べる時刻が空か時刻として読めず順が決まらない）の 4 つで、same の中身の比べは呼び手。a が null なら b の時刻が読めれば newer、読めなければ undecidable (3) versionKey(ref): 比べる時刻と Control/DateTime の組の文字列（K8 が通知の印の鍵に使う）。報番号・InfoType は使わない（P3-VM-D-SAMETIME=A）。ただし EEW（VXSE43〜45）は Serial を足す（P3-VM-D-SAMETIME=A の EEW の例外。無いと同じ秒の続報が同じ鍵になり、K8 の通知の印で #4・#5 が鳴らない）。K8 への申し送り: Serial を含む EEW の鍵の保存・復元・照合を K8 で確かめる（今の U-E は gate を復元せず eew-unit.ts:317、C16 も U-E の取り直しを対象外 p3-recovery.json:895）。時刻の欠け（P3-VM-D-MISSING=A、2026-10-20 作者裁定、H51）: b の比べる時刻が空か時刻として読めない（Control だけの種類の Control/DateTime、Head→Control の種類の Head/ReportDateTime、または Head が同じときの Control/DateTime）ときは undecidable。a の比べる時刻だけが読めない（A で採った時刻を確かめられなかった版、Head→Control の種類で Head で採った Control/DateTime の欠けた版）ときは newer（D-MISSING の A の (3)）。Head→Control の種類で Head が違えば、Control/DateTime が欠けても Head で順を決める。a と b が表の別の側の種類（Head→Control と Control だけ）なら、両方が持つ Control/DateTime だけで比べる。undecidable を same に混ぜないのは、same で中身が同じ報は duplicate になり、a が null の初めての報では same が使えないため。無いと: 12 の比較関数が種類の表を別々に持ち、表の直しが 12 か所に散る",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3134 «5e826dd4265997f1»",
           "docs/specs/reconstruction-p0-contracts.md:3147 «a19260d1cf0d4046»",
@@ -451,9 +451,9 @@
           "reconstruction/src/units/nankai/nankai-unit.ts:321 «991c56106aab071d»",
           "reconstruction/src/units/volcano/volcano-unit.ts:473 «991c56106aab071d»",
           "reconstruction/src/units/landslide/landslide-unit.ts:129 «843ba9a46877eeee»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:372 «3ca4da5b4c8b2813»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:499 «98704ee12eae464b»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:539 «9814d95b4bd8620e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:374 «3ca4da5b4c8b2813»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:505 «98704ee12eae464b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:545 «9814d95b4bd8620e»",
           "reconstruction/src/units/flood/flood-unit.ts:136 «169f3b6c42c0b0b2»",
           "reconstruction/src/units/briefing/briefing-unit.ts:222 «dc6542c31e7d8684»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:419 «bb46061917cd0844»",
@@ -463,11 +463,11 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:229 «0c4bf4cc6f7ce2d9»",
           "reconstruction/src/units/seismic/seismic-unit.ts:772 «888e9532923608c2»",
           "reconstruction/contracts/p3-persist-premises.md:63 «80b3b4d07acc2533»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:536 «bdb7633bb66e721b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:542 «bdb7633bb66e721b»",
           "docs/specs/reconstruction-p0-contracts.md:3201 «61d7594e40aecdac»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:473 «794a7a625a173a1c»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:570 «98ac205ab2eff600»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:564 «7e792155840555cf»"
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:479 «794a7a625a173a1c»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:576 «98ac205ab2eff600»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:570 «7e792155840555cf»"
         ]
       },
       {
@@ -483,14 +483,14 @@
         "id": "P3-VM-AC05",
         "requirement": "【発注 1】版の入口（作者裁定 2026-10-20、main f511b8b5）: UnitCodec に discardableSchemaVersions（その unit の捨ててよい旧い schemaVersion の列）を省略できる項目として足す（省略は空の一覧。無いと発注 1 で 12 codec を触ることになる）。checkpoint の復元は A・B の 2 slot を組で判定する: (1) 両方読めない（missing・壊れ）→ 今どおり (2) 片方が現行版、もう片方が捨ててよい旧い版 → 現行版の slot を復元し、旧い版の slot は次の保存で上書きしてよい (3) 片方が捨ててよい旧い版で、もう片方が missing・壊れ（読めない・hash の不一致）・捨ててよい旧い版のどれか→ empty（保存なし）を返し、owner は初期状態から始めて保存を続け、最初の保存で旧い slot を上書きする (4) どちらかが一覧に無い版（未来の版・知らない値）→ もう一方が読めても、その unit の保存をその run では禁止し（今の unavailable と同じ「保存しない」集合）、復元は読めた現行版の slot から行ってよい。一覧に無い版の slot を上書きしない。捨てたことは INFO 診断 checkpointSchemaDiscarded（unit と捨てた schemaVersion）を unit ごとに 1 件出す。owner の入口（owner-runtime.ts:291 の一致の検査）は empty と現行版だけを受けるので変えない。一覧の寿命: 一覧は P5 の前だけのもので、C15（P3-MIGRATION-001）の配送までに全 unit で空にして入口を閉じる（C15 の着手条件に「一覧が空」を足す、本契約の改める条文）。発注 1 では全 unit の一覧は空で、仕組みは試験用の codec で確かめる。発注 2a・2b が版を上げるときに旧い版を一覧に入れる。無いと: 版を上げた unit が二度と保存されず（Q-VM-RESTORE-NOW）、旧い版のプログラムが新しい版の slot を上書きする（A/B の混在）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:550 «433c0e87dd508191»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:286 «82644f1fe52bdd0c»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:554 «433c0e87dd508191»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:288 «82644f1fe52bdd0c»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:46 «29080c296cf7796d»",
           "reconstruction/src/checkpoint/checkpoint.ts:462 «b6fdb65e4e225b7d»",
           "reconstruction/src/checkpoint/checkpoint.ts:187 «54580fbdf7227547»",
           "reconstruction/src/checkpoint/checkpoint.ts:197 «8cb7a21761e99aaa»",
           "reconstruction/src/checkpoint/checkpoint.ts:309 «d8c8c47fe3547576»",
-          "reconstruction/src/runtime/owner-host.ts:195 «50d2ca18fd95e5e1»",
+          "reconstruction/src/runtime/owner-host.ts:290 «50d2ca18fd95e5e1»",
           "reconstruction/src/runtime/owner-runtime.ts:407 «890b0a8cddc63328»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «db7a37c5600b8c58»",
           "reconstruction/contracts/p3-persist-premises.md:68 «b9ae66e7aeebf460»",
@@ -502,31 +502,31 @@
         "id": "P3-VM-AC06",
         "requirement": "【発注 1】取り直しの境界の項目: CheckpointEnvelope に inputBoundary を足す。中身は (1) receivedAt: 境界の位置の入力の受信時刻 { wallTimeMs, basis: WallBasis | null }。basis は host がその frame の entry を読んだのと同じ時点の wallBasis() の値で、受信時刻と一緒に入力の材料として運ぶ（境界を書く時点の値にしない。後で根拠の状態が変わっても、その入力の受信時刻の根拠は変わらない）。K9 の前は wallBasis() が無いので basis は null（根拠を持たない）。K9 の後は host の判定の値（P3-CLOCK-CHECK-001 の P3-CK-AC04）で、「wallBasis() の値」は host の根拠の状態（同 P3-CK-AC01 の (3)）と読む。省略時の \"verified\" に揃えないのは、それが試験・測定の注入した時計の意味で、本番の確かめていない手元の時計を「確かめた」と保存してしまうため。型 WallBasis（\"awaiting\"｜\"verified\"｜\"unverified\"、p2-shared-runtime.types.ts に export）は、K7 が K9 より先に合流するなら K7 がこの形で置き、K9 は重ねて足さない。K9 が先なら K7 は K9 の WallBasis をそのまま使い、自分では足さない。取り直しで境界を進めた位置は null、(2) dmdataTime: dmdata 側の時刻（本契約は常に null。値の作り方は C16、Q-REC-ID-MATCH）、(3) dmdataId: dmdata の電文 id（無ければ null）、(4) oldestHole: 最古の未解決の穴の種類（\"refused\"・\"disconnected\"・\"restarted\"、無ければ null）。境界の無い unit（初めての起動・初期化の直後で、まだ入力を処理していない）は inputBoundary を null にする。ParserMailboxItem に dmdataId を足し、ingress は WS の data の frame の id（文字列で 128 byte 以下、ほかは null）を写す。REST・replay は null（取り直しの入力の id は C16 が入れる）。envelope の版は上げない（CheckpointEnvelope に envelope の版の欄は無く、12 unit の版を上げると発注 1 の「一覧は空」と両立しない）。inputBoundary の無い旧い envelope は捨てずに読み、境界を null とする。readSlot の再直列化の照合（checkpoint.ts:462）と hashEnvelope は、欄の無い envelope を欄の無い形で照合する。null は「境界を確かめられない」で、初めての起動・初期化の直後と、欄の無い旧い envelope の両方を含む。CheckpointRequest・CheckpointResult・CheckpointMeasurement の型は変えない（実行境界メモ §7 の C1 の 2）: 境界は書込み権に載せて owner へ渡す: publisher の中の CheckpointGrant（checkpoint.ts:479）と、owner へ送る OwnerRequest の checkpointGrant（p3-execution-split.types.ts:68。composition-root.ts の送信は欄を列挙しているので、そこにも足す）に境界を足し、capture が envelope に書く。復元した envelope の境界は、OwnerReply の restored（p3-execution-split.types.ts:101）の unit ごとの restoration（RuntimeRestoration・RestoreUnitResult の restored）に載せて publisher へ返す。無いと: C16 が起点を持てず、境界を unit の codec に足すと C16 で 12 codec をもう一度開ける（メモ §5）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-shared-runtime.types.ts:531 «f12e9fac05b61c06»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:535 «f12e9fac05b61c06»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:79 «99b3625fa58c7268»",
-          "reconstruction/src/ingress/ingress.ts:74 «d7375b3115968dbf»",
+          "reconstruction/src/ingress/ingress.ts:82 «d7375b3115968dbf»",
           "reconstruction/src/checkpoint/checkpoint.ts:95 «d392fb1e4066cd2b»",
           "reconstruction/src/checkpoint/checkpoint.ts:495 «04f79d8eb1684e76»",
-          "reconstruction/src/runtime/owner-host.ts:236 «f1e29b8991e7caad»",
+          "reconstruction/src/runtime/owner-host.ts:331 «f1e29b8991e7caad»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:340 «6efa363eddf72f79»",
           "reconstruction/contracts/p3-persist-premises.md:144 «2ceab1141412b0f6»",
           "reconstruction/contracts/p3-execution-split.types.ts:70 «40f7c160c2f5af7e»",
-          "reconstruction/contracts/p3-execution-split.types.ts:103 «a896029bd79113b7»",
-          "reconstruction/src/runtime/composition-root.ts:1477 «6f4ddb1bb79ac527»",
+          "reconstruction/contracts/p3-execution-split.types.ts:116 «a896029bd79113b7»",
+          "reconstruction/src/runtime/composition-root.ts:1514 «6f4ddb1bb79ac527»",
           "reconstruction/src/checkpoint/checkpoint.ts:478 «f2df4d892cf6c2da»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:406 «442242ac46bb58a3»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:584 «91775f59fc97dbc2»"
+          "reconstruction/contracts/p2-shared-runtime.types.ts:410 «442242ac46bb58a3»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:588 «91775f59fc97dbc2»"
         ]
       },
       {
         "id": "P3-VM-AC07",
         "requirement": "【発注 1】境界の意味と publisher の未解決の列: unit ごとの境界 B は「受信の順（inputSequence）で B 以前の、その unit に振り分けた入力が、すべて処理され、その効果がこの世代に入っていると確かめられる位置」。publisher は unit ごとに未解決のものだけを持つ: (a) 処理待ち（その unit に振り分けて mailbox に入れ、まだ完了していない入力。mailbox の件数の上限 128 で有界）、(b) 断った入力（mailbox が overload で断った入力、host が停止した owner に断った入力 composition-root.ts:718）、(c) 切断の間（接続が切れた位置 lostThroughSequence の後ろ、全 unit）、(d) 再起動の間（復元した境界からこの run の最初の入力まで、全 unit）。decode で拒否した入力と、振り分け先の無い入力（ignored・unlisted）は解決済み。origin=recovery の入力は列に入れない。(b)〜(d) は区間（始まりと終わりの位置）で持ち、隣り合う区間はまとめ、区間の数は unit ごと 64（置き値）まで、超えたら新しい側の区間どうしをまとめる（最古の位置は失わない）。(b)〜(d) は本契約の中では解決しない（解決の入力は C16）。書込み権を出すとき、その unit の最古の未解決の位置の直前の入力を境界として渡す。未解決が無ければ、その unit に振り分けた入力のうち受信の順で最後のもの（受信末尾。未解決が無いので処理済みと保証できる）まで境界を進める。境界の材料（inputSequence・receivedAt〔受信時の basis を含む、AC06〕・dmdataId）は有界に持つ: unit ごとに受信末尾の材料を 1 つ、処理待ちの各入力と穴の各区間に「その直前にその unit に振り分けた入力の材料」を 1 つずつ（振り分けは受信の順なので、列に入れる時点で決まる）。持つ数は処理待ち 128＋区間 64＋1 で、完了した入力の材料は捨ててよい。区間をまとめるときは古い側の材料を残す。書込み権は parser 入力の処理中には出ない（実行境界メモ §3）ので、渡した位置までの入力は capture した state に入っている。優先度で後着が先に処理されても、先着の処理待ちが残る間は境界はその前で止まる。owner の入力 ID の記録（owner-host の ledger）は使わない。無いと: 優先度で先に処理した後着を境界にして保存し、待っていた先着を取り直しの範囲から落とす（メモ §2.4 の受信順 10 と 11 の例）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:752 «a6507ee81b4fb217»",
-          "reconstruction/src/runtime/composition-root.ts:905 «d9ca8a096374d838»",
-          "reconstruction/src/runtime/composition-root.ts:1464 «90ced524d38d1efe»",
-          "reconstruction/src/host/host.ts:327 «0c05272de607230d»",
-          "reconstruction/src/host/host.ts:333 «78ed7c65133feaf5»",
+          "reconstruction/src/runtime/composition-root.ts:765 «a6507ee81b4fb217»",
+          "reconstruction/src/runtime/composition-root.ts:935 «d9ca8a096374d838»",
+          "reconstruction/src/runtime/composition-root.ts:1501 «90ced524d38d1efe»",
+          "reconstruction/src/host/host.ts:328 «0c05272de607230d»",
+          "reconstruction/src/host/host.ts:334 «78ed7c65133feaf5»",
           "reconstruction/contracts/p3-persist-premises.md:140 «2f26078ea8843032»",
           "reconstruction/contracts/p3-persist-premises.md:141 «642fa0fee91f1ede»",
           "reconstruction/contracts/p3-persist-premises.md:142 «b0bb1f9f3b718590»",
@@ -772,7 +772,7 @@
         ],
         "resolveBy": "C16 の起草と検収",
         "requiredEvidence": [
-          "C16 の検収への申し送り: 時刻の無い報の印（AC04 の (b)。D-MISSING=A の (3) の置き換えと undecidable の報）は newer の採用では外れず、外す入口は C16 の取り直しだけ（ほかは期限か取消で系列が消えたとき）。C16 は dmdata の一覧で印の報と手元の版の正しい順を確かめたときに印を外し、順が手元の版と逆なら印の報の側を採ること。T02 の A の例（時刻の無い取消→保存復元→時刻の読める古い警報①→①より新しい警報②）を C16 の取り直しの後まで延ばして確かめる。加えて（Q-VM-IMPL-2A の残存リスク (a)）: 容量の端で系列の未確認の印と印の ReportRef を保存できず unit／operation の未確認へ寄せた所は、WARN の診断だけが残る。C16 はその unit／operation の全体を取り直しで確かめ直し、WARN の診断の inputId を永続の証拠に数えない。加えて（Q-VM-IMPL-2B の残存リスク (a)(d)）: U-W・U-F は容量の端で印を置くと収まらないとき、印を置かず capacityExceeded と WARN で unit／operation の未確認へ寄せるので、C16 は同じくその unit／operation の全体を取り直しで確かめ直す。印は容量の退去で記録ごと消えるとき、U-W で系列（current・履歴・墓標・unavailable）が消えるとき、取消の採用と retainUntil の到来で消える（見える期限を過ぎた記憶・証拠の記録は印を持ったまま保存・復元する）ので、C16 はそれらの系列の順を一覧から確かめ直す"
+          "C16 の検収への申し送り: 時刻の無い報の印（AC04 の (b)。D-MISSING=A の (3) の置き換えと undecidable の報）は newer の採用では外れず、外す入口は C16 の取り直しだけ（ほかは期限か取消で系列が消えたとき）。C16 は dmdata の一覧で印の報と手元の版の正しい順を確かめたときに印を外し、順が手元の版と逆なら印の報の側を採ること。T02 の A の例（時刻の無い取消→保存復元→時刻の読める古い警報①→①より新しい警報②）を C16 の取り直しの後まで延ばして確かめる（2026-10-28 P3-RECOVERY-001 の発注 3 の配送で、作者の裁定 P3-REC-D-LIST-FORCE=A により改めた: C16 は一覧の順による強制の採用をせず、取り直しでは印を外さない。取り直しの本文も通常の版の比べだけにかけ、版が決まらない本文は採らない〔held〕。時刻の無い取消が手元の警報に勝てず、警報と印が残る欠けを作者が受け入れた。P3-REC-AC05 の (a)・P3-REC-T14）。加えて（Q-VM-IMPL-2A の残存リスク (a)）: 容量の端で系列の未確認の印と印の ReportRef を保存できず unit／operation の未確認へ寄せた所は、WARN の診断だけが残る。C16 はその unit／operation の全体を取り直しで確かめ直し、WARN の診断の inputId を永続の証拠に数えない。加えて（Q-VM-IMPL-2B の残存リスク (a)(d)）: U-W・U-F は容量の端で印を置くと収まらないとき、印を置かず capacityExceeded と WARN で unit／operation の未確認へ寄せるので、C16 は同じくその unit／operation の全体を取り直しで確かめ直す。印は容量の退去で記録ごと消えるとき、U-W で系列（current・履歴・墓標・unavailable）が消えるとき、取消の採用と retainUntil の到来で消える（見える期限を過ぎた記憶・証拠の記録は印を持ったまま保存・復元する）ので、C16 はそれらの系列の順を一覧から確かめ直す"
         ]
       }
     ]

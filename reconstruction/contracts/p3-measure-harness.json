@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "8852c75211d445ecc15beb19ce3aea45eb9edcf01cbb9ef851900dcf7cb5e3e7",
+    "sha256": "49577e0b7e721e800fd6f6126b6724c70e661618a5b7e6285bff9816664d56f9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -319,10 +319,10 @@
           "reconstruction/test/eew-e01/run.mjs:591 «2bfeca300c6bc1e0»",
           "reconstruction/test/eew-e01/run.mjs:1035 «85806ed5c1d24587»",
           "reconstruction/test/eew-e01/tsunami.mjs:146 «628c89efb787f40c»",
-          "reconstruction/src/runtime/composition-root.ts:642 «11c6541c5cd2944f»",
-          "reconstruction/src/runtime/composition-root.ts:936 «8ae52d9d693e7af3»",
-          "reconstruction/src/host/host.ts:435 «8edb03cbaac4d5d9»",
-          "reconstruction/src/host/host.ts:480 «ad819a23ad1211bf»",
+          "reconstruction/src/runtime/composition-root.ts:646 «11c6541c5cd2944f»",
+          "reconstruction/src/runtime/composition-root.ts:966 «8ae52d9d693e7af3»",
+          "reconstruction/src/host/host.ts:436 «8edb03cbaac4d5d9»",
+          "reconstruction/src/host/host.ts:481 «ad819a23ad1211bf»",
           "reconstruction/contracts/p3-tsunami-e01.json:140 «5ba34e07c2110ba7»",
           "reconstruction/contracts/p3-unit-write-right.json:310 «1435b3b874c0acbe»",
           "reconstruction/test/eew-e01/run.mjs:57 «b37eec46bddb82f9»"
