@@ -18,7 +18,7 @@ import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth"
 import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
-import { reduceVolcanoUnit, toVolcanoView, volcanoUnitCodec } from "../../src/units/volcano/volcano-unit";
+import { recoveryNotices, reduceVolcanoUnit, toVolcanoView, volcanoUnitCodec } from "../../src/units/volcano/volcano-unit";
 import { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, followHead, receive, replaceTag, retime, send, sentLater, status } from "./volcano-fixture";
 
 const DAY = 86_400_000;
@@ -45,7 +45,7 @@ const roundTrip = (state: VolcanoUnitState) => volcanoUnitCodec.decode(JSON.pars
 const tick = (state: VolcanoUnitState, wallTimeMs: number, monotonicMs = 0) =>
   reduceVolcanoUnit(state, { kind: "deadline", clock: clock(wallTimeMs, monotonicMs) });
 // 保存 1 世代の byte（checkpoint envelope の JSON＋generation/capturedAt の 62 byte の予約）と、pending の配送予約を足した値（P3-CODEC-RES-01）。
-const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v6", unit: "U-V",
+const generation = (state: VolcanoUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-volcano-unit-v7", unit: "U-V",
   generation: 0, capturedAt: 0, payload: volcanoUnitCodec.encode(state), sha256: "0".repeat(64) })) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
 const reserved = (state: VolcanoUnitState) => generation(state) + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
 const emptyOwner = (now: ReturnType<typeof clock>) => restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" },
@@ -608,13 +608,13 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect(send(bulletin, F.notice, retime("2007-11-30T06:00:30+09:00")).state.persistence).toBe(bulletin.persistence);
   });
 
-  // contractBoundary: E22 の U-V は対象外（P3-C9-N2、AC15）。
-  it("P3-C9-T11 contractBoundary / AC15: origin=recovery is not applied", () => {
-    const state = send(emptyState(), F.a306).state;
-    const recovery = receive(state, decodeXml(fixtureXml(F.continuation), "VFVO50", "recovered", "recovery"), clock(at("2020-05-22T14:54:00+09:00")));
-    expect(recovery.state).toBe(state);
-    expect(recovery.decisions).toMatchObject([{ decision: "unchanged", reason: "noChange" }]);
-    expect([recovery.intents, recovery.outcomes, recovery.confirmationEvidence, recovery.displayChanges]).toEqual([[], [], [], []]);
+  // contractBoundary: origin=recovery の入口（C16 発注 4a、P3-REC-AC12・P3-C9-N2・UNIT-ENTRANCE=A）。VFVO50 は live と同じ意味を当てて intent を作らず、版が決まらない本文（K14 で印を表示差分に積む hold）は印を置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  it("P3-C9-T11 contractBoundary / AC15: origin=recovery applies the meaning without intents and returns an undecided version untouched", () => {
+    const state = send(emptyState(), F.a306).state, now = clock(at("2020-05-22T14:54:00+09:00")), conflict = (xml: string) => xml.replace(/<Headline>\s*<Text>[^<]*/, "<Headline><Text>別の見出し");
+    const recovery = receive(state, decodeXml(fixtureXml(F.continuation), "VFVO50", "recovered", "recovery"), now), live = receive(state, decodeXml(fixtureXml(F.continuation), "VFVO50"), now);
+    expect([recovery.decisions.map((item) => item.decision), alertOf(recovery.state, "306")?.effective, recovery.intents, recovery.displayChanges.length]).toEqual([live.decisions.map((item) => item.decision), alertOf(live.state, "306")?.effective, [], live.displayChanges.length]);
+    const unsure = receive(state, decodeXml(conflict(fixtureXml(F.a306)), "VFVO50", "unsure", "recovery"), now), marked = send(state, F.a306, conflict);
+    expect([marked.displayChanges.length !== 0, unsure.state.alerts === state.alerts, unsure.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision), unsure.displayChanges, unsure.diagnostics]).toEqual([true, true, ["noChange"], [], []]);
   });
 
   // 実不具合の再発防止（K7 発注 2a の品質レビュー P1）: Control/DateTime の欠けた海上警報 → 陸上の取消（C=20）→ 海上の続報（C=10）で
@@ -1240,4 +1240,43 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-V restores failed and null p
   expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
     restore: (state, at) => reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => state.alerts.find((item) => item.subject === subject)?.notice });
+});
+
+// P3-RECOVERY-001 発注 4a: 取り直しで拾った引上げ（H27、P3-REC-AC10・P3-REC-D-N2-RAISE=A）と、payload の 2 欄の codec（P3-REC-AC12）。
+describe("P3-REC-T15 acceptance (U-V): the recovered raise of the alert level", () => {
+  it("a level raised over the open state is one info per channel with the pair; the same level or an ashfall gives nothing", () => {
+    const now = clock(at("2020-05-22T13:05:00+09:00")), empty = emptyState();
+    const raised = receive(empty, decodeXml(fixtureXml(F.a306), "VFVO50", "rec-a306", "recovery"), now).state;
+    const noticed = recoveryNotices(empty, raised, now);
+    expect(noticed.intents.map((item) => [item.channel, item.payload.level, item.payload.recovered, item.payload.reportDateTime, item.payload.body]))
+      .toEqual(["desktop", "sound"].map((channel) => [channel, "info", true, "2020-05-22T13:03:00+09:00", "浅間山 / Lv3 / レベル３（入山規制）"]));
+    expect(roundTrip(noticed)).toMatchObject({ kind: "restored", state: { intents: noticed.intents } });
+    expect([recoveryNotices(raised, raised, now), recoveryNotices(empty, noticed, now)]).toEqual([raised, noticed]);
+    // 降灰（VFVO54・55）はカードだけ（音を作らない）。
+    const ashfall = receive(empty, decodeXml(fixtureXml(F.rapid), "VFVO54", "rec-rapid", "recovery"), clock(at("2021-05-14T10:00:00+09:00"))).state;
+    expect([ashfall.ashfalls.length, recoveryNotices(empty, ashfall, clock(at("2021-05-14T10:00:00+09:00")))]).toEqual([1, ashfall]);
+  });
+  // K14（P3-UM-AC19）の交差: 相手が 2 件以上の取消は live なら両方に印を置くが、取り直しでは印を置かずに noChange（owner が held にする、P3-REC-AC12）。
+  // 相手が 0 件の取消は手元に効く記録が無いだけなので stale（noChange にすると owner が held と読み、30 日の窓を出るまで U-V が確認されない。4a の契約適合レビュー r0 の P2）。
+  it("a recovered cancel matching two ashfall forecasts leaves both untouched and returns noChange; with no match it is stale; neither warns", () => {
+    const ashAt = clock(at("2021-05-14T12:51:00+09:00")), cancelAt = clock(at("2021-05-14T12:52:00+09:00"));
+    const one = receive(emptyState(), decodeXml(fixtureXml(F.detail), "VFVO55"), ashAt).state;
+    const two = receive(one, decodeXml(fixtureXml(F.detail).replaceAll("<Code>506</Code>", "<Code>999</Code>"), "VFVO55"), ashAt).state;
+    const cancel = fixtureXml("synthetic_VFVO55_cancel");
+    expect(receive(two, decodeXml(cancel, "VFVO55"), cancelAt).state.ashfalls.every((item) => item.unconfirmed != null)).toBe(true);
+    const recovered = receive(two, decodeXml(cancel, "VFVO55", "rec-cancel", "recovery"), cancelAt);
+    expect([recovered.state.ashfalls === two.ashfalls, recovered.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision), recovered.displayChanges, recovered.diagnostics]).toEqual([true, ["noChange"], [], []]);
+    const none = receive(emptyState(), decodeXml(cancel, "VFVO55", "rec-none", "recovery"), cancelAt);
+    expect([none.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision), none.diagnostics]).toEqual([["stale"], []]);
+    expect(receive(emptyState(), decodeXml(cancel, "VFVO55"), cancelAt).diagnostics.length).not.toBe(0);
+  });
+});
+
+// 実不具合の再発防止（C16 発注 4a の品質レビュー r0 の P2 と同じ形）: 取り直しは intent を作らないが、live なら新しい intent が置き換える古い pending は外す。
+describe("P3-REC-T19 regression (U-V): a recovered alert withdraws the pending it would replace", () => {
+  it("the pending of the same subject and channel goes away and nothing new is made", () => {
+    const state = send(emptyState(), F.a306).state, xml = sentLater(replaceTag("InfoType", "訂正")(fixtureXml(F.a306))), now = clock(at("2020-05-22T13:03:30+09:00"));
+    const live = receive(state, decodeXml(xml, "VFVO50"), now), recovery = receive(state, decodeXml(xml, "VFVO50", "recovered", "recovery"), now);
+    expect([state.intents.length, live.intents.length, recovery.state.intents, recovery.intents]).toEqual([2, 2, [], []]);
+  });
 });

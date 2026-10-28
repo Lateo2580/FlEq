@@ -18,7 +18,7 @@ import {
 } from "../../domains/volcano/volcano";
 import type { AlertFacts, VolcanoCandidate, VolcanoEntry } from "../../domains/volcano/volcano";
 import {
-  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, recoveredPayload, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
@@ -30,7 +30,7 @@ import type { CompareColumn } from "../unreadable";
 
 // P3-UNIT-V-001（C9、I-U-V）: U-V の三 slice・定時・batch・解説・復旧不足・通知・容量・codec・射影。
 
-const SCHEMA = "p3-volcano-unit-v6" as const;
+const SCHEMA = "p3-volcano-unit-v7" as const;
 // P3-C9-CAPACITY=A・P3-C9-RES-01・RET-01〜06。世代の上限は P3-CODEC-D-LIMIT=A（K5、当初 4 MiB）。
 const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20;
 // P3-UM-RES-09: 器は保存する記録の印（警報は陸と海の 2 つで一覧の欄 municipalities・marineAreas、噴火は municipalities、降灰は欄なし）と
@@ -563,10 +563,10 @@ function a7Order(left: VolcanoIntent, right: VolcanoIntent): number {
 const MARINE_PART = "VFSV";
 // Q-NOTICE.capacity と P3-C9-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、取消は対象 subject の全 pending を置き換える。
 // 海上の部分だけの取消（marinePart）の通知は、同じ subject の VFSV の pending だけを置き換える（統合担当の決定、Q-C9-IMPL-AMEND(9)）。
-function admit(current: readonly VolcanoIntent[], fresh: readonly VolcanoIntent[], cancelled: ReadonlySet<string>, marinePart = false):
+function admit(current: readonly VolcanoIntent[], fresh: readonly VolcanoIntent[], cancelled: ReadonlySet<string>, marinePart = false, replacing: readonly VolcanoIntent[] = fresh):
   Readonly<{ intents: readonly VolcanoIntent[]; admitted: readonly VolcanoIntent[]; dropped: number }> {
   const superseded = new Set<VolcanoIntent>();
-  const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
+  const replaced = new Set(replacing.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
     if (cancelled.has(item.subject) || (!marinePart || isMarine(item.source.family))
       && replaced.has(`${item.subject}\n${item.channel}`) || isMarine(item.source.family) && cancelled.has(`${item.subject}\n${MARINE_PART}`))
@@ -708,11 +708,11 @@ function place<T extends Shown>(applied: Applied, values: readonly T[], store: (
 
 // ---- 受信（P3-C9-SUBJECTS=A。一入力の変更は一回の参照交換で確定する） ----
 
-// P3-EF-AC13 (6): 結び付く相手が 0 件か 2 件以上の取消は受け取り、手元の記録を変えずに WARN を出す（H51 の B）。2 件以上は印（P3-UM-AC19、undecided）。
+// P3-EF-AC13 (6): 結び付く相手が 0 件か 2 件以上の取消は受け取り、手元の記録を変えずに WARN を出す（H51 の B）。2 件以上は印（P3-UM-AC19、undecided）。取り直し（P3-REC-AC05 の (a)）では WARN も印も置かず、2 件以上は版が決まらない本文として noChange（owner が held）、0 件は手元に効く記録が無いので stale（確認を止めない）。
 function noTarget<T extends VolcanoAlert | VolcanoAshfall>(applied: Applied, candidate: VolcanoCandidate, target?: Readonly<{ values: readonly T[]; store: (values: readonly T[]) => VolcanoUnitState }>): Applied {
-  const found = target == null ? [] : eventMatches(target.values, candidate.operation, eventKey(candidate));
-  if (target == null || found.length < 2) applied.decisions.push({ subject: "", operation: candidate.operation, decision: "unchanged", reason: "noChange" }); else undecided(applied, candidate, target, found);
-  applied.diagnostics.push(missingDiagnostic(candidate)); return applied;
+  const found = target == null ? [] : eventMatches(target.values, candidate.operation, eventKey(candidate)), recovering = candidate.source.origin === "recovery";
+  if (recovering || target == null || found.length < 2) applied.decisions.push({ subject: "", operation: candidate.operation, decision: "unchanged", reason: recovering && found.length < 2 ? "stale" : "noChange" }); else undecided(applied, candidate, target, found);
+  if (!recovering) applied.diagnostics.push(missingDiagnostic(candidate)); return applied;
 }
 // 火山コードの無い取消は、その slice の記録のうち eventId が一致する記録が一つだけのとき結び付く（P3-C9-CANCEL-SCOPE=A の (2)）。
 // 警報は VFVO50 の取消を landEventId、VFSV の取消を marineEventId と照らす（P3-AUTH-AC03(3)）。
@@ -733,8 +733,8 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
   const existing = index == null ? null : state.alerts[index];
   const verdict = judgeAlert(candidate, existing, subject, code, candidate.facts, null);
   if (verdict.kind === "unchanged") {
-    decide(applied, candidate, subject, verdict);
-    if (verdict.held != null) hold(applied, candidate, state.alerts, (alerts) => ({ ...applied.state, alerts }), subject, verdict.held,
+    decide(applied, candidate, subject, verdict.held != null && candidate.source.origin === "recovery" ? { kind: "unchanged", reason: "noChange" } : verdict);
+    if (verdict.held != null && candidate.source.origin !== "recovery") hold(applied, candidate, state.alerts, (alerts) => ({ ...applied.state, alerts }), subject, verdict.held,
       isMarine(candidate.family));
     return applied;
   }
@@ -836,8 +836,8 @@ function receiveAshfall(state: VolcanoUnitState, candidate: Candidate<"ashfall">
   const existing = index == null ? null : state.ashfalls[index];
   const verdict = judge(candidate, existing, ashfallOf(candidate, subject, code));
   if (verdict.kind === "unchanged") {
-    decide(applied, candidate, subject, verdict);
-    if (verdict.held != null) hold(applied, candidate, state.ashfalls, (ashfalls) => ({ ...applied.state, ashfalls }), subject, verdict.held);
+    decide(applied, candidate, subject, verdict.held != null && candidate.source.origin === "recovery" ? { kind: "unchanged", reason: "noChange" } : verdict);
+    if (verdict.held != null && candidate.source.origin !== "recovery") hold(applied, candidate, state.ashfalls, (ashfalls) => ({ ...applied.state, ashfalls }), subject, verdict.held);
     return applied;
   }
   const compared = noticeChange(existing, verdict.next);
@@ -1065,12 +1065,12 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
 
 // 一入力の Applied を確定する: intent の採用と置換、保存世代、到着の時点で期限を過ぎた記録の同じ reduce での回収。
 function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading, basis: WallBasis): Result {
-  const now = clock.wallTimeMs, notice = applied.notice;
+  const now = clock.wallTimeMs, notice = applied.notice, recovering = notice?.source.origin === "recovery"; // 取り直しは intent を作らず、live の新しい intent が置き換える古い pending だけを外す（P3-REC-D-UNIT-ENTRANCE=A）
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const version = notice == null ? "" : versionDigest(notice.source), marine = notice?.series === "marine";
   const fresh = notice == null ? [] : intentsFor(notice, now, seriesMark(applied.state, notice.subject, marine), version);
-  const notices = admit(applied.state.intents, fresh, applied.cancelled,
-    [...applied.cancelled].some((key) => key.endsWith(`\n${MARINE_PART}`)));
+  const notices = admit(applied.state.intents, recovering ? [] : fresh, applied.cancelled,
+    [...applied.cancelled].some((key) => key.endsWith(`\n${MARINE_PART}`)), fresh);
   // P3-NL-AC02 (3): admit を通った版と種類を系列の記録の印に足す（全 channel が断られた版は入れない）。
   const marked = notice == null || notices.admitted.length === 0 ? applied.state
     : remark(applied.state, notice.subject, marine, (mark) => markNotice(mark, version, noticeKind(notice.transition)));
@@ -1146,8 +1146,8 @@ function receive(state: VolcanoUnitState, input: Extract<VolcanoInput, { kind: "
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
     operation: input.material.operation, decision: "rejected", reason: parsed.reason }], diagnostics: [parsed.diagnostic] } };
   const { candidate } = parsed;
-  // Q-NOTICE.recovery・P3-C9-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
-  if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
+  // P3-REC-AC12（C16 発注 4a）・P3-C9-N2: origin=recovery は候補の作成のときだけ owner から届き、警報 VFVO50 と降灰 VFVO54・55 だけ意味を当てて intent を作らない。版が決まらない本文と相手の決まらない取消は印を置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  if (candidate.source.origin === "recovery" && candidate.family !== "VFVO50" && candidate.family !== "VFVO54" && candidate.family !== "VFVO55") return { changes: [], step: { ...idle(state),
     decisions: [{ subject: "", operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
   const now = input.clock.wallTimeMs, basis = input.basis ?? "verified", verified = basis === "verified";
   const applied = candidate.slice === "alert" ? receiveAlert(state, candidate, now, verified)
@@ -1635,15 +1635,15 @@ function intentRecord(value: unknown): VolcanoIntent | null {
   const level = LEVEL_SET.find((entry) => entry === payload?.level);
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
-  const fields = row == null || operation == null ? null : readIntentState(row, "U-V", operation, level);
-  // state に残る subject との一致は求めない（解説・定時は復元で空になる、I-U-V.decode）。
+  const fields = row == null || operation == null ? null : readIntentState(row, "U-V", operation, level), recovered = payload == null ? null : recoveredPayload(payload);
+  // state に残る subject との一致は求めない（解説・定時は復元で空になる、I-U-V.decode）。H27 の 2 欄は対で読む（P3-REC-AC12）。
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
-    || fields == null || !isText(row.id) || row.unit !== "U-V" || !isText(row.subject) || subjectOperation(row.subject) !== operation
+    || fields == null || recovered == null || !isText(row.id) || row.unit !== "U-V" || !isText(row.subject) || subjectOperation(row.subject) !== operation
     || source.operation !== operation || payload.domain !== "volcano" || !isText(payload.title) || payload.title === ""
     || !isText(payload.body) || payload.body === "" || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt)
     || !count(row.attempts) || !isText(row.configRevision) || row.expiresAt < row.createdAt) return null;
   return { id: row.id, unit: "U-V", subject: row.subject, operation, source, transition, channel,
-    payload: { domain: "volcano", level, title: payload.title, body: payload.body }, createdAt: row.createdAt,
+    payload: { domain: "volcano", level, title: payload.title, body: payload.body, ...recovered }, createdAt: row.createdAt,
     expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
     disposition: "pending", ...fields };
 }
@@ -1669,7 +1669,7 @@ function persisted(value: unknown): PersistedVolcanoUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const volcanoUnitCodec: VolcanoUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1", "p3-volcano-unit-v2", "p3-volcano-unit-v3", "p3-volcano-unit-v4", "p3-volcano-unit-v5"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1", "p3-volcano-unit-v2", "p3-volcano-unit-v3", "p3-volcano-unit-v4", "p3-volcano-unit-v5", "p3-volcano-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
   // 定時・batch・解説・contentRevision・persistence は保存しない（I-U-V.persisted、spec:484・:504 の N）。
   encode: (state) => ({ schemaVersion: SCHEMA, alerts: state.alerts, eruptions: state.eruptions, ashfalls: state.ashfalls,
     shortfalls: state.shortfalls, intents: state.intents }),
@@ -1712,4 +1712,36 @@ function undecided<T extends VolcanoAlert | VolcanoAshfall>(applied: Applied, ca
   applied.state = target.store(values);
 }
 
-export { reduceVolcanoUnit, toVolcanoView, volcanoUnit, volcanoUnitCodec };
+// ---- 取り直しの採用の step（P3-RECOVERY-001 発注 4a、P3-REC-AC10・P3-REC-D-N2-RAISE=A） ----
+
+// H27 の段は警報のレベル（P3-C9-NOTICE-LEVELS=C の対応の後）。active でない火山と記録の無い火山はレベル 1 と読む。
+const raiseLevel = (value: VolcanoAlert | undefined): number => value?.effective === "active" ? noticeLevel(value.kind.code) : 1;
+
+/**
+ * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
+ * candidate は採用する state。陸上の警報のレベルが open より上がり、いまも active な火山のうちレベルの最も高い 1 件に info を 1 回（取り直し 1 回で
+ * unit に 1 件）。降灰は鳴らさない。通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
+ */
+function recoveryNotices(open: VolcanoUnitState, candidate: VolcanoUnitState, clock: ClockReading): VolcanoUnitState {
+  const now = clock.wallTimeMs, before = new Map(open.alerts.map((item) => [item.subject, item]));
+  let best: Readonly<{ alert: ActiveAlert; source: ReportRef; level: number }> | null = null;
+  for (const alert of candidate.alerts) {
+    const level = raiseLevel(alert);
+    if (alert.effective !== "active" || alert.source == null || level <= raiseLevel(before.get(alert.subject))) continue;
+    if (noticed(alert.notice, versionDigest(alert.source), noticeKind("updated"))) continue;
+    if (best == null || level > best.level) best = { alert, source: alert.source, level };
+  }
+  if (best == null) return candidate;
+  const { alert, source } = best, version = versionDigest(source);
+  const at = new Date(reportMs(source) + 32_400_000).toISOString().slice(11, 16);
+  const lv = /^1[1-5]$/.test(alert.kind.code) ? `Lv${Number(alert.kind.code) - 10}` : null;
+  const notice: Notice = { subject: alert.subject, series: "", operation: alert.operation, source, transition: "updated",
+    payload: { domain: "volcano", level: "info", title: `${PREFIX[alert.operation]}噴火警報・予報（${at} 発表）`,
+      body: join([alert.volcanoName, lv, alert.kind.name]), reportDateTime: source.reportDateTimeRaw, recovered: true } };
+  const notices = admit(candidate.intents, intentsFor(notice, now, alert.notice, version), new Set());
+  if (notices.admitted.length === 0) return candidate;
+  // P3-NL-AC02 (3): 引上げの版と種類を陸上の系列の印に足す。
+  return { ...remark(candidate, alert.subject, false, (mark) => markNotice(mark, version, noticeKind("updated"))), intents: notices.intents };
+}
+
+export { recoveryNotices, reduceVolcanoUnit, toVolcanoView, volcanoUnit, volcanoUnitCodec };

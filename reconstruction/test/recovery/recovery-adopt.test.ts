@@ -14,7 +14,7 @@ import { tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
 import { envelope, harnessedRoot, manualAdapter, park, seeded, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import { calls } from "../notification-delivery/delivery-fixture";
-import { vtse41 } from "../tsunami-unit/tsunami-fixture";
+import { vtse41 } from "../tsunami-unit/tsunami-fixture"; import { fixtureXml as nankaiXml, retime as nankaiRetime } from "../nankai-unit/nankai-fixture";
 import type { Area } from "../tsunami-unit/tsunami-fixture";
 
 // P3-RECOVERY-001【発注 3】: 製品の publisher と in-process の owner（TEST-PATH (2)）で、取り直しの候補・採用・確認・穴の解決を通す。
@@ -64,8 +64,8 @@ const report = (eventId: string, atMs: number, areas: readonly Area[], operation
 async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: ReturnType<typeof seeded>) {
   let now: ClockReading = { wallTimeMs: T0, monotonicMs: 1_000 };
   const snapshots: DisplaySnapshot[] = [];
-  const diagnostics = new MemoryDiagnostics();
-  const h = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: manualAdapter().adapter,
+  const diagnostics = new MemoryDiagnostics(), notification = manualAdapter();
+  const h = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: notification.adapter,
     checkpointFileSystem: files, diagnosticFileSystem: diagnostics, display: { publish: (snapshot) => { snapshots.push(snapshot); } },
     ...seeds == null ? {} : { runtimeCalls: { ...calls, units: seeds.units } } });
   await startHarness(h, "rec3", now);
@@ -86,15 +86,15 @@ async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: Re
     notBefore: () => -Infinity,
   };
   const t = {
-    h, io, bodies, fetched, walks, snapshots, diagnostics,
+    h, io, bodies, fetched, walks, snapshots, diagnostics, notification,
     get now() { return now; },
     advance(ms: number) { now = { wallTimeMs: now.wallTimeMs + ms, monotonicMs: now.monotonicMs + ms }; },
     set listed(value: (plan: readonly UnitWalk[]) => readonly UnitWalkResult[]) { listed = value; },
     get sequence() { return sequence; },
     next() { return ++sequence; },
     // 起動の辿りがそのまま起動の取り直しになる（AC02 (7)）。
-    async startup(heads: readonly ListHead[]) {
-      h.root.attachRecovery(io, { "U-T": walkStart(null, "empty", now.wallTimeMs) }, Promise.resolve([{ unit: "U-T", kind: "listed", heads }]));
+    async startup(heads: readonly ListHead[], unit: RuntimeUnitId = "U-T") {
+      h.root.attachRecovery(io, { [unit]: walkStart(null, "empty", now.wallTimeMs) }, Promise.resolve([{ unit, kind: "listed", heads }]));
       await t.drive();
     },
     // 取り直しの非同期の段（本文の取得・owner の返信）が止まるまで回す。
@@ -712,5 +712,72 @@ describe("P3-REC-T10 contractBoundary: the REST body lane and its slots (AC03 (2
     await s.drive();
     expect(s.h.root["slotsHeld"]).toBe(0);
     void stopping.catch(() => {});
+  });
+});
+
+// P3-RECOVERY-001 発注 4a: urgent の候補の当て直しの上限（P3-REC-D-REAPPLY-SHAPE=A）と、U-N の H27 が採用の step の表から作られること（P3-REC-AC12）。
+describe("P3-REC-T18 acceptance: the urgent re-apply limit and the U-N raise at adoption (REAPPLY-SHAPE=A, N2-RAISE=A)", () => {
+  // n 件の VTSE41（最後の 1 件は live の報の後に届く）。changeBase なら候補の途中で live の報が基点を変える。
+  async function run(n: number, changeBase: boolean) {
+    const t = await setup();
+    let release!: () => void;
+    const heads = Array.from({ length: n }, (_, at) => head(`m${at}`, String(20991231000400 + at), T0 - 2 * MINUTE));
+    heads.forEach((item, at) => {
+      const body = xml(report(item.eventId!, T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "62" }]));
+      t.bodies.set(item.id, at < n - 1 ? body : () => new Promise((done) => { release = () => done(body); }));
+    });
+    void t.startup(heads);
+    for (let turn = 0; turn < 4; turn += 1) await t.drive();
+    if (changeBase) await t.live(report("20991231000499", T0 - MINUTE, [{ code: "313", name: "c", kind: "51" }]));
+    release();
+    for (let turn = 0; turn < 4; turn += 1) await t.drive();
+    return t.progress();
+  }
+  it("28 bodies are re-applied on a changed base; 29 are generationConflict only when the base changed", async () => {
+    expect(await run(28, true)).toEqual({ unit: "U-T", state: "recovered" });
+    expect(await run(29, true)).toEqual({ unit: "U-T", state: "unsatisfied", reason: "generationConflict" });
+    expect(await run(29, false)).toEqual({ unit: "U-T", state: "recovered" });
+  });
+  it("a recovered VYSE50 megaquake advisory is adopted into U-N with one info per channel carrying the pair", async () => {
+    const t = await setup();
+    const at = new Date(T0 - 60 * MINUTE + 32_400_000).toISOString().replace(".000Z", "+09:00");
+    t.bodies.set("n1", xml(nankaiRetime(at)(nankaiXml("74_01_05_200512_VYSE50"))));
+    await t.startup([{ ...head("n1", "20200512163200", T0 - 60 * MINUTE), unit: "U-N", headType: "VYSE50" }], "U-N");
+    expect(t.progress("U-N")).toEqual({ unit: "U-N", state: "recovered" });
+    expect(t.h.root.state.mirror["U-N"].pendingIntents.map((intent) => [intent.channel, intent.payload.level, intent.payload.recovered, intent.payload.reportDateTime]))
+      .toEqual(["desktop", "sound"].map((channel) => [channel, "info", true, at]));
+  });
+  // 実不具合の再発防止（4a の品質レビュー r0 の P2）: 取り直しの引き下げは intent を作らないが、live なら新しい intent が置き換える古い pending
+  // （保存待ちの巨大地震警戒の通知）は live と同じ規則で外す。外さないと保存の ack の後に古い警戒が鳴る。
+  it("a recovered downgrade withdraws the pending megaquake-warning notices before the save ack releases them", async () => {
+    let ack!: () => void;
+    const gate = new Promise<void>((done) => { ack = done; });
+    const files = new MemoryFiles();
+    files.syncDirectory = async () => { await park(gate); };
+    const t = await setup(files);
+    await submit(t.h, envelope(t.h.root.state.runId, "VYSE50", "live-warning", Buffer.from(nankaiRetime(iso(T0 - 2 * MINUTE))(nankaiXml("74_01_04_200512_VYSE50"))), t.now, t.next()));
+    expect(t.h.unit("U-N").intents.map((intent) => intent.payload.level)).toEqual(["critical", "critical"]);
+    t.bodies.set("n2", xml(nankaiRetime(iso(T0 - MINUTE))(nankaiXml("74_01_05_200512_VYSE50"))));
+    await t.startup([{ ...head("n2", "20200512163200", T0 - MINUTE), unit: "U-N", headType: "VYSE50" }], "U-N");
+    expect([t.progress("U-N")?.state, t.h.unit("U-N").currents]).toMatchObject(["recovered", [{ effective: "active", status: "megaquakeAdvisory" }]]);
+    ack();
+    await t.drive();
+    expect([t.h.unit("U-N").intents, t.notification.runs]).toEqual([[], []]);
+  });
+  // U-T も同じ形（津波注意報→津波予報。live の置換は同じ群以上だけで、津波警報以上の群の pending は引き下げの通知でも live で置き換わらない）。
+  it("a recovered tsunami downgrade withdraws the pending advisory notices before the save ack releases them (U-T, same shape)", async () => {
+    let ack!: () => void;
+    const gate = new Promise<void>((done) => { ack = done; });
+    const files = new MemoryFiles();
+    files.syncDirectory = async () => { await park(gate); };
+    const t = await setup(files);
+    await t.live(report("20991231000500", T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "62" }]));
+    expect([t.h.unit("U-T").intents.map((intent) => intent.priorityGroup), t.notification.runs.length]).toEqual([["other", "other"], 0]);
+    t.bodies.set("d1", xml(report("20991231000500", T0 - MINUTE, [{ code: "311", name: "a", kind: "71" }])));
+    await t.startup([head("d1", "20991231000500", T0 - MINUTE)]);
+    expect([t.progress()?.state, t.h.unit("U-T").forecasts.map((item) => item.areas.map((area) => area.areaClass))]).toEqual(["recovered", [["forecast"]]]);
+    ack();
+    await t.drive();
+    expect([t.h.unit("U-T").intents, t.notification.runs]).toEqual([[], []]);
   });
 });

@@ -203,17 +203,17 @@ export type VolcanoShortfall = Readonly<{
 }>;
 
 // 火山の音（sound-design-system.md の分野別根音表、G4）。
-export type VolcanoNotificationPayload = Readonly<{
+type VolcanoPayloadBase = Readonly<{
   domain: "volcano";
   level: "info" | "normal" | "warning" | "critical" | "cancel";
   title: string;
   body: string;
-}>;
+}>; export type VolcanoNotificationPayload = VolcanoPayloadBase | (VolcanoPayloadBase & Readonly<{ reportDateTime: string; recovered: true }>); // P3-REC-AC10・AC12（C16 発注 4a）: H27 は発表時刻と「取り直しで拾った」印を対で持つ
 
 export type VolcanoIntent = NotificationIntent & Readonly<{ payload: VolcanoNotificationPayload }>;
 
 export type VolcanoUnitState = Readonly<{
-  schemaVersion: "p3-volcano-unit-v6";
+  schemaVersion: "p3-volcano-unit-v7";
   contentRevision: number;
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
@@ -229,7 +229,7 @@ export type VolcanoUnitState = Readonly<{
 }>;
 
 export type PersistedVolcanoUnit = Readonly<{
-  schemaVersion: "p3-volcano-unit-v6";
+  schemaVersion: "p3-volcano-unit-v7";
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
   ashfalls: readonly VolcanoAshfall[];
@@ -275,5 +275,5 @@ export type VolcanoUnitStep = Readonly<{
 }>;
 
 export type VolcanoUnitCodec = UnitCodec<VolcanoUnitState, PersistedVolcanoUnit> & Readonly<{
-  schemaVersion: "p3-volcano-unit-v6";
+  schemaVersion: "p3-volcano-unit-v7";
 }>;

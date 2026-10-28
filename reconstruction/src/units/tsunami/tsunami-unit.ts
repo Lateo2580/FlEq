@@ -189,14 +189,14 @@ function intentsFor(source: ReportRef, transition: TsunamiIntent["transition"], 
 }
 
 // P3-C5-REPLACEMENT=A と Q-NOTICE.capacity。置換は同じ subject・channel で同群以上の pending だけ、取消は subject の全 pending。
-function admit(current: readonly TsunamiIntent[], fresh: readonly TsunamiIntent[], cancelSubject: string | null):
+function admit(current: readonly TsunamiIntent[], fresh: readonly TsunamiIntent[], cancelSubject: string | null, sounding = false):
   Readonly<{ intents: readonly TsunamiIntent[]; admitted: readonly TsunamiIntent[]; dropped: number }> {
   const pending = current;
   const superseded = new Set(cancelSubject == null ? [] : pending.filter((item) => item.subject === cancelSubject));
   const evicted = new Set<TsunamiIntent>();
   const admitted: TsunamiIntent[] = [];
-  let refused = 0;
-  for (const intent of fresh) {
+  let refused = 0; // 取り直しの候補の intent（origin=recovery）は足さずに置換だけを当てる（P3-REC-D-UNIT-ENTRANCE=A、live なら置き換える古い pending を外す）。採用の step の音（sounding）は足す
+  for (const intent of fresh) { if (!sounding && intent.source.origin === "recovery") { for (const item of pending) if (item.subject === intent.subject && item.channel === intent.channel && groupRank(item) >= groupRank(intent)) superseded.add(item); continue; }
     const rank = groupRank(intent);
     const live = pending.filter((item) => !superseded.has(item) && !evicted.has(item));
     const replaced = live.filter((item) => item.subject === intent.subject && item.channel === intent.channel && groupRank(item) >= rank);
@@ -460,7 +460,7 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
     const parts = [[...new Set(ordered.map((item) => item.kind))].join("・"), ordered.slice(0, 3).map((item) => item.name).join(", "),
       candidate.headline ?? ""].filter((part) => part !== "");
     const transition = !wasActive && next.effective === "active" ? "activated" : wasActive && next.effective !== "active" ? "released" : "updated";
-    if (!recovering) fresh = intentsFor(candidate.source, transition, payloadOf(candidate.operation, maxLevel(change, remaining), title,
+    fresh = intentsFor(candidate.source, transition, payloadOf(candidate.operation, maxLevel(change, remaining), title,
       parts.length === 0 ? title : parts.join(" / "), candidate.infoRank === 2), now, notice, raisedToWarning);
   }
   changes.push([existing, next]);
@@ -689,7 +689,7 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
 // emergency は拒否した報が警報以上への発令・引上げ・区域拡大を含むか（P3-NL-AC11 (4)。operation によらない）。
 // ponytail: 拒否のときだけ intents（pending 128 件と終端記録）を数回なめる。平常の受信には足さない（Q-CC-COST）。
 function refuse(state: TsunamiUnitState, candidate: ForecastCandidate | ObservationCandidate, clock: ClockReading, basis: WallBasis,
-  fresh: readonly TsunamiIntent[], emergency: boolean): Result {
+  made: readonly TsunamiIntent[], emergency: boolean, fresh = made.filter((item) => item.source.origin !== "recovery")): Result {
   const now = clock.wallTimeMs, operation = candidate.operation, verified = basis === "verified";
   let forecasts = state.forecasts, observations = state.observations, evicted: readonly Subject[] = [];
   let record: TsunamiForecastSubject | null = null, marked: TsunamiForecastSubject | null = null, covered = false;
@@ -1007,7 +1007,7 @@ function recoveryNotices(open: TsunamiUnitState, candidate: TsunamiUnitState, re
         ...freshState("U-T", operation) });
   }
   if (fresh.length === 0) return candidate;
-  const notices = admit(candidate.intents, fresh, null);
+  const notices = admit(candidate.intents, fresh, null, true);
   if (notices.admitted.length === 0) return candidate;
   // P3-NL-AC02 (3): 引上げの版と種類を系列の印に足す（読めない報は系列の印を持たない）。
   const raised = notices.admitted.find((item) => item.subject === best?.subject.subject);

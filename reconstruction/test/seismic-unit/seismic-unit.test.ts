@@ -725,11 +725,11 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     // training/test は desktop だけ。
     const training = send(emptyState(), "32-35_01_03_240613_VXSE53");
     expect(training.intents.map((item) => [item.channel, item.payload.title])).toEqual([["desktop", "【訓練】震源・震度情報"]]);
-    // origin=recovery は適用しない（同じ state 参照、unchanged/noChange）。
-    const recovery = receive(first53, decodeXml(fixtureXml(F.s53b), "VXSE53", "recovered", "recovery"), clock(reported));
-    expect(recovery.state).toBe(first53);
-    expect(recovery.decisions).toMatchObject([{ decision: "unchanged", reason: "noChange" }]);
-    expect([recovery.intents, recovery.outcomes, recovery.confirmationEvidence]).toEqual([[], [], []]);
+    // origin=recovery（C16 発注 4a）は live と同じ意味を当てて intent を作らず（P3-REC-AC12・UNIT-ENTRANCE=A、live では critical）、
+    // 版が決まらない本文は印も WARN も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+    const recovery = receive(first53, decodeXml(fixtureXml(F.s53b), "VXSE53", "recovered", "recovery"), clock(reported)), unsure = receive(first53, decodeXml(fixtureXml(F.s53a).replace("<Name>熊本県熊本地方</Name>", "<Name>別の震央</Name>"), "VXSE53", "unsure", "recovery"), clock(reported));
+    expect([decision(recovery).decision, facts(recovery.state), recovery.intents]).toEqual(["changed", facts(receive(first53, decodeXml(fixtureXml(F.s53b), "VXSE53"), clock(reported)).state), []]);
+    expect([unsure.state === first53, unsure.decisions, unsure.diagnostics]).toEqual([true, [expect.objectContaining({ decision: "unchanged", reason: "noChange" })], []]);
     // 復元直後の続報は復元した state との差で決める（同じ報は duplicate で鳴らさない）。
     const restored = reduceSeismicUnit(emptyState(), { kind: "restore", persisted: seismicUnitCodec.encode(first53), clock: clock(reported + 1) }).state;
     expect(send(restored, F.s53a).intents).toEqual([]);
@@ -1242,4 +1242,13 @@ it("P3-NL-T07 contractBoundary / AC10: the VXSE53 cancel names the cancelled rep
   const cancel = send(send(emptyState(), F.s53a).state, "synthetic_VXSE53_cancel");
   const row = ["cancel", "[取消] 震源・震度情報（熊本県熊本地方 16:31 発表）", "熊本県熊本地方 16:31 発表の震源・震度情報を取り消しました"];
   expect(cancel.intents.map((item) => [item.payload.level, item.payload.title, item.payload.body])).toEqual([row, row]);
+});
+
+// 実不具合の再発防止（C16 発注 4a の品質レビュー r0 の P2 と同じ形）: 取り直しは intent を作らないが、live なら新しい intent が置き換える古い pending は外す。
+describe("P3-REC-T19 regression (U-Q): a recovered report withdraws the pending it would replace", () => {
+  it("the pending of the same line and channel goes away and nothing new is made", () => {
+    const first53 = send(emptyState(), F.s53a).state, at = clock(Date.parse(decodeFixture(F.s53b).reportDateTimeRaw));
+    const live = receive(first53, decodeXml(fixtureXml(F.s53b), "VXSE53"), at), recovery = receive(first53, decodeXml(fixtureXml(F.s53b), "VXSE53", "recovered", "recovery"), at);
+    expect([first53.intents.length, live.intents.length, recovery.state.intents, recovery.intents]).toEqual([2, 2, [], []]);
+  });
 });

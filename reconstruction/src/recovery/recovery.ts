@@ -23,11 +23,11 @@ const DMDATA_MARGIN_MS = 60_000, RECEIVED_MARGIN_MS = 10 * 60_000; // P3-REC-AC0
 const DIGEST_HEADS = 500, DIGEST_BYTES = 16_384, STRING_BYTES = 256; // P3-REC-RES-04・RES-06、P2-A8-RES-05
 const DIGEST_UNIT_HEADS = 3; // P3-REC-D-DIGEST-BUDGET=D: 分野ごとに新しい順で見出しを 3 件まで
 const TRUNCATED_MARKER = "[truncated:fieldLimit]";
-// 【発注 3】本文を流す unit の集合（P3-REC-AC12）。発注 3 は U-T だけで、ほかの unit の本文を mailbox へ入れない。発注 4 で広げる。
-// N2: 本文を取る型・最新だけで足りるか（subject ごとに 1 件）・窓（P3-REC-D-START-WINDOW=B）。U-T は P3-C5-N2 の range（VTSE41、EventID ごとの最新、7 日）。
-const RECOVERABLE_UNITS = ["U-T"] as const satisfies readonly RuntimeUnitId[];
-const N2: Readonly<Record<(typeof RECOVERABLE_UNITS)[number], Readonly<{ types: readonly string[]; windowMs: number }>>> = {
-  "U-T": { types: ["VTSE41"], windowMs: 7 * 24 * 60 * 60 * 1000 } };
+// 【発注 3・4a】本文を流す unit の集合（P3-REC-AC12）。4a で U-V・U-N・U-Q に広げ、ほかの unit は 4b まで本文を mailbox へ入れない。
+// N2: 型・最新だけで足りるか（latest、subject ごとに 1 件）・窓（P3-REC-D-START-WINDOW=B、Q-REC-PRECHECK-4 の M1）。U-T は P3-C5-N2、U-V は P3-C9-N2、U-N は P3-C8-N2（訂正・取消は同じ報にだけ効くので窓の中を全部、受信の順に）、U-Q は P3-C7-N2（長周期の 36 時間と記憶の 6 時間）。
+const RECOVERABLE_UNITS = ["U-T", "U-V", "U-N", "U-Q"] as const satisfies readonly RuntimeUnitId[];
+const N2: Readonly<Record<(typeof RECOVERABLE_UNITS)[number], Readonly<{ types: readonly string[]; windowMs: number; latest: boolean }>>> = { "U-T": { types: ["VTSE41"], windowMs: 7 * 86_400_000, latest: true },
+  "U-V": { types: ["VFVO50", "VFVO54", "VFVO55"], windowMs: 30 * 86_400_000, latest: true }, "U-N": { types: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"], windowMs: 30 * 86_400_000, latest: false }, "U-Q": { types: ["VXSE51", "VXSE52", "VXSE53", "VXSE61", "VXSE62"], windowMs: 42 * 3_600_000, latest: true } };
 const BODY_URL = "https://data.api.dmdata.jp/v1/", BODY_ID = /^[0-9A-Za-z]{1,128}$/;
 const BODY_GAP_MS = 7_500; // P3-REC-RES-05: 本文は 5 分 40 回
 const BODY_TARGET = { hostname: "data.api.dmdata.jp", prefix: "/v1", accept: "application/xml", limitBytes: 8 * 1024 * 1024, identity: true };
@@ -165,14 +165,14 @@ function recoveryPlan(classifications: readonly DmdataClassification[], starts: 
 
 /**
  * N2 の型の頭を、最新だけで足りる型は subject（運用区分と EventID）ごとに最新の 1 件に絞り、古い順に並べる（P3-REC-AC12・RES-03）。
- * EventID の無い頭は絞らない。本文を流す unit の外は空。
+ * EventID の無い頭と、最新だけで足りない unit（U-N）の頭は絞らない。本文を流す unit の外は空。
  */
 function bodiesFor(unit: RuntimeUnitId, heads: readonly ListHead[]): readonly ListHead[] {
   if (!recoverable(unit)) return [];
   const latest = new Map<string, ListHead>();
   for (const head of heads) {
     if (!bodyType(unit, head.headType)) continue;
-    const key = head.eventId == null ? `#${head.id}` : `${head.operation}/${head.headType}/${head.eventId}`;
+    const key = head.eventId == null || !N2[unit].latest ? `#${head.id}` : `${head.operation}/${head.headType}/${head.eventId}`;
     const found = latest.get(key);
     if (found == null || head.receivedAtMs > found.receivedAtMs) latest.set(key, head);
   }

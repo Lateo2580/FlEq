@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InputBoundary } from "../../contracts/p2-shared-runtime.types";
 import type { ListHead, PollResult, PoolPosition, UnitWalk, UnitWalkResult } from "../../contracts/p3-recovery.types";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
-import { BodyRequestLane, ListRequestLane, buildDigest, fetchBody, pollClassification, walkDiagnostics, walkList, walkStart } from "../../src/recovery/recovery";
+import { BodyRequestLane, ListRequestLane, bodiesFor, buildDigest, fetchBody, pollClassification, walkDiagnostics, walkList, walkStart, windowOf } from "../../src/recovery/recovery";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { FreshnessLedger } from "../../src/recovery/watch";
 import { envelope, harnessedRoot, startHarness } from "../execution-split/owner-harness";
@@ -453,5 +453,21 @@ describe("P3-REC-T12 contractBoundary: the body boundary (AC01, AC05)", () => {
       headType: "VTSE41", headTest: false, controlStatus: "訓練", dmdataId: "abc123" });
     expect(entered.kind === "accepted" && [entered.item.headTest, entered.item.envelopeStatus, entered.item.dmdataId])
       .toEqual([{ kind: "provided", value: false }, { kind: "provided", value: "training" }, "abc123"]);
+  });
+});
+
+// P3-RECOVERY-001 発注 4a: unit の N2（型・最新だけで足りるか・窓。P3-REC-AC12・RES-03、Q-REC-PRECHECK-4 の M1・M4・M5）。
+describe("P3-REC-T17 contractBoundary: the N2 bodies of U-V, U-N and U-Q (AC12, RES-03)", () => {
+  const head = (id: string, unit: ListHead["unit"], headType: string, eventId: string | null, receivedAtMs: number): ListHead => ({ id, unit, headType,
+    receivedAtMs, operation: "normal", title: "t", headline: null, reportDateTime: null, infoType: "発表", serial: null, eventId, controlDateTime: null,
+    controlStatus: "通常", test: false });
+  const pick = (unit: ListHead["unit"], heads: readonly ListHead[]) => bodiesFor(unit, heads).map((item) => item.id);
+  it("U-N keeps every body in receive order; U-V and U-Q keep the latest per type and EventID (VXSE53 and VXSE61 both); 4b units stay out", () => {
+    expect(pick("U-N", [head("n2", "U-N", "VYSE50", "E1", 2), head("n1", "U-N", "VYSE50", "E1", 1), head("n3", "U-N", "VYSE60", "E2", 3)])).toEqual(["n1", "n2", "n3"]);
+    expect(pick("U-V", [head("v1", "U-V", "VFVO50", "306", 1), head("v2", "U-V", "VFVO50", "306", 2), head("v3", "U-V", "VFVO55", "306", 3),
+      head("v4", "U-V", "VFVO52", "306", 4)])).toEqual(["v2", "v3"]);
+    expect(pick("U-Q", [head("q1", "U-Q", "VXSE53", "E", 1), head("q2", "U-Q", "VXSE61", "E", 2), head("q3", "U-Q", "VXSE53", "E", 3)])).toEqual(["q2", "q3"]);
+    expect(pick("U-W", [head("w", "U-W", "VPWW54", null, 1)])).toEqual([]);
+    expect((["U-V", "U-N", "U-Q", "U-T", "U-W"] as const).map((unit) => windowOf(unit) / 3_600_000)).toEqual([720, 720, 42, 168, 168]);
   });
 });

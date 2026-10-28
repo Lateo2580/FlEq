@@ -101,17 +101,17 @@ export type NankaiInformation = NankaiInformationBase & (
 export type NankaiInformationView = MarkViewed<NankaiInformationBase & NankaiInformationHeading>;
 
 // 地震・EEW の音（sound-design-system.md の分野別根音表）。A7 の群は unit で決まり、U-N は other（P3-C7-NOTICE-GROUP）。
-export type NankaiNotificationPayload = Readonly<{
+type NankaiPayloadBase = Readonly<{
   domain: "earthquake-eew";
   level: "info" | "normal" | "warning" | "critical" | "cancel";
   title: string;
   body: string;
-}>;
+}>; export type NankaiNotificationPayload = NankaiPayloadBase | (NankaiPayloadBase & Readonly<{ reportDateTime: string; recovered: true }>); // P3-REC-AC10・AC12（C16 発注 4a）: H27 は発表時刻と「取り直しで拾った」印を対で持つ
 
 export type NankaiIntent = NotificationIntent & Readonly<{ payload: NankaiNotificationPayload }>;
 
 export type NankaiUnitState = Readonly<{
-  schemaVersion: "p3-nankai-unit-v7";
+  schemaVersion: "p3-nankai-unit-v8";
   contentRevision: number;
   currents: readonly NankaiCurrent[];
   information: readonly NankaiInformation[];
@@ -121,7 +121,7 @@ export type NankaiUnitState = Readonly<{
 }>;
 
 export type PersistedNankaiUnit = Readonly<{
-  schemaVersion: "p3-nankai-unit-v7";
+  schemaVersion: "p3-nankai-unit-v8";
   currents: readonly NankaiCurrent[];
   intents: readonly NankaiIntent[];
   // 64 件以下・subject の重複なし（P3-NS-AC01）。鍵の無い保存物は invalid（旧保存は版で捨てる、P3-NS-AC08）。
@@ -163,5 +163,5 @@ export type NankaiUnitStep = Readonly<{
 }>;
 
 export type NankaiUnitCodec = UnitCodec<NankaiUnitState, PersistedNankaiUnit> & Readonly<{
-  schemaVersion: "p3-nankai-unit-v7";
+  schemaVersion: "p3-nankai-unit-v8";
 }>;

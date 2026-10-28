@@ -11,7 +11,7 @@ import manifest from "../../tools/corpus/manifest.json";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
-import { nankaiUnitCodec, reduceNankaiUnit, toNankaiView } from "../../src/units/nankai/nankai-unit";
+import { nankaiUnitCodec, recoveryNotices, reduceNankaiUnit, toNankaiView } from "../../src/units/nankai/nankai-unit";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { chain, clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, retime, send, sentLater } from "./nankai-fixture"; import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES } from "../../src/checkpoint/checkpoint";
 
@@ -557,7 +557,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       return { ...emptyState(), currents, information };
     };
     // 空の intents 配列（2 byte）を通知の予算 131,072 で置き換え、generation と capturedAt の 62 byte と inputBoundary・losses の最大を予約する。
-    const generation = (state: NankaiUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v7", unit: "U-N", generation: 0,
+    const generation = (state: NankaiUnitState) => Buffer.byteLength(JSON.stringify({ schemaVersion: "p3-nankai-unit-v8", unit: "U-N", generation: 0,
       capturedAt: 0, payload: nankaiUnitCodec.encode(state), sha256: "0".repeat(64) })) + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + 62 - 2 + 131_072;
     const legal = build("震", "replay", "発表"), bound = build("\u0001", "recovery", "取消");
     expect(bound.currents.filter((item) => "warningUntil" in item)).toHaveLength(3);
@@ -576,7 +576,7 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       information: withLongestMarks(bound.information, "infoName", [], 0) };
     expect(roundTrip(marked).kind).toBe("restored");
     expect(nankaiUnitCodec.discardableSchemaVersions).toEqual(["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4",
-      "p3-nankai-unit-v5", "p3-nankai-unit-v6"]);
+      "p3-nankai-unit-v5", "p3-nankai-unit-v6", "p3-nankai-unit-v7"]);
 
     // decode の拒否の表（invalid）と、受ける形。
     type Row = Record<string, unknown>;
@@ -617,13 +617,13 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
       expect(nankaiUnitCodec.decode(candidate as JsonValue).kind, name).toBe("restored");
   });
 
-  // contractBoundary: E22 の U-N は対象外（P3-C8-N2、AC13）。
-  it("P3-C8-T10 contractBoundary / AC13: origin=recovery is not applied", () => {
-    const state = send(emptyState(), F.advisory).state;
-    const recovery = receive(state, decodeXml(fixtureXml(F.advisory2), "VYSE50", "recovered", "recovery"), clock(at("2020-05-12T16:35:00+09:00")));
-    expect(recovery.state).toBe(state);
-    expect(recovery.decisions).toMatchObject([{ decision: "unchanged", reason: "noChange" }]);
-    expect([recovery.intents, recovery.outcomes, recovery.confirmationEvidence, recovery.displayChanges]).toEqual([[], [], [], []]);
+  // contractBoundary: origin=recovery の入口（C16 発注 4a、P3-REC-AC12・P3-C8-N2・UNIT-ENTRANCE=A）。live と同じ意味を当てて intent を作らず、
+  // 版が決まらない本文は印も WARN も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  it("P3-C8-T10 contractBoundary / AC13: origin=recovery applies the meaning without intents and returns an undecided version untouched", () => {
+    const state = send(emptyState(), F.advisory).state, now = clock(at("2020-05-12T16:35:00+09:00")), live = receive(state, decodeXml(fixtureXml(F.advisory2), "VYSE50"), now);
+    const recovery = receive(state, decodeXml(fixtureXml(F.advisory2), "VYSE50", "recovered", "recovery"), now), unsure = receive(state, decodeXml(fixtureXml(F.advisory).replace(/<Headline>\s*<Text>[^<]*/, "<Headline><Text>別の見出し"), "VYSE50", "unsure", "recovery"), now);
+    expect([recovery.decisions.map((item) => item.decision), recovery.state.currents.map(({ notice: _notice, ...rest }) => rest), recovery.intents, recovery.displayChanges.length]).toEqual([live.decisions.map((item) => item.decision), live.state.currents.map(({ notice: _notice, ...rest }) => ({ ...rest, source: { ...rest.source, inputId: "recovered", origin: "recovery" } })), [], live.displayChanges.length]);
+    expect([unsure.state === state, unsure.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision), unsure.diagnostics]).toEqual([true, ["noChange", "noChange"], []]);
   });
 
   // corpusHistory: expectedDecisions の 17 step、O07:35〜44 の保存・復元・時計、E13（AC09）。
@@ -1249,4 +1249,32 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-N restores failed and null p
   expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
     restore: (state, at) => reduceNankaiUnit(emptyState(), { kind: "restore", persisted: nankaiUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => [...state.currents, ...state.information].find((item) => item.subject === subject)?.notice });
+});
+
+// P3-RECOVERY-001 発注 4a: 取り直しで拾った引上げ（H27、P3-REC-AC10・P3-REC-D-N2-RAISE=A）と、payload の 2 欄の codec（P3-REC-AC12）。
+describe("P3-REC-T15 acceptance (U-N): the recovered raise of the current status", () => {
+  const recovered = (state: NankaiUnitState, name: string, now: number) =>
+    receive(state, decodeXml(fixtureXml(name), name.endsWith("VYSE60") ? "VYSE60" : "VYSE50", `rec-${name}`, "recovery"), clock(now)).state;
+  it("a raise over the open state is one info per channel with the pair; no raise, a noticed version or a one-sided pair gives nothing", () => {
+    const now = at("2020-05-12T16:35:00+09:00"), empty = emptyState();
+    const advisory = recovered(empty, F.advisory, now);
+    const noticed = recoveryNotices(empty, advisory, clock(now), "verified");
+    expect(noticed.intents.map((item) => [item.channel, item.payload.level, item.payload.recovered, item.payload.reportDateTime, item.transition]))
+      .toEqual(["desktop", "sound"].map((channel) => [channel, "info", true, currentOf(advisory)!.source.reportDateTimeRaw, "updated"]));
+    expect(roundTrip(noticed)).toMatchObject({ kind: "restored", state: { intents: noticed.intents } });
+    // 同じ段（起点が巨大地震注意）と通知済みの版は鳴らさない。調査中→巨大地震警戒は引上げ。
+    expect(recoveryNotices(advisory, advisory, clock(now), "verified")).toBe(advisory);
+    expect(recoveryNotices(empty, noticed, clock(now), "verified")).toBe(noticed);
+    const investigating = recovered(empty, F.inv1, now), warning = recovered(investigating, F.warning, now);
+    // 記録の無い線から調査中へも引上げ（段 0 → 1、統合担当の決め 2026-10-28）。
+    expect([status(investigating), status(warning), recoveryNotices(investigating, warning, clock(now), "verified").intents.length,
+      recoveryNotices(empty, investigating, clock(now), "verified").intents.length]).toEqual(["investigating", "megaquakeWarning", 2, 2]);
+    // 北海道三陸沖後発の線は InfoSerial を持たない VYSE60 でも後発地震注意の現況を作る（code でなく status で比べる）。
+    const vyse60 = recovered(empty, F.vyse60, at("2024-07-18T16:35:00+09:00"));
+    expect(recoveryNotices(empty, vyse60, clock(at("2024-07-18T16:35:00+09:00")), "verified").intents.map((item) => item.subject))
+      .toEqual(["normal/VYSE60/current", "normal/VYSE60/current"]);
+    const { recovered: _recovered, ...oneSided } = noticed.intents[0].payload;
+    expect(nankaiUnitCodec.decode(JSON.parse(JSON.stringify({ ...nankaiUnitCodec.encode(noticed), intents: [{ ...noticed.intents[0], payload: oneSided }] })) as JsonValue).kind)
+      .toBe("invalid");
+  });
 });

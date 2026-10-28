@@ -225,9 +225,15 @@ const unreadableBody = (receivedAt: number): string => `受信 ${new Date(receiv
 // 失敗の印 3 件の上界（要素と区切り。キーと [] は空の envelope の式に含める）。until は有限な数の JSON の最長 25 文字。
 const FAILURE_MARKS_MAX_BYTES = new TextEncoder().encode(JSON.stringify((["training", "training", "training"] as const).map((operation) =>
   ({ operation, level: "critical", until: -0.0000012345678901234567 })))).byteLength - 2;
+// P3-REC-AC12（C16 発注 4a）: H27 の payload の 2 欄（発表時刻と「取り直しで拾った」印）は両方あるか両方無いか。片方だけは null（invalid）。
+// 無いと U-N・U-V の codec が同じ対の確かめを別々に書く。
+function recoveredPayload(payload: Fields): Readonly<Record<never, never>> | Readonly<{ reportDateTime: string; recovered: true }> | null {
+  if (payload.recovered === undefined && payload.reportDateTime === undefined) return {};
+  return payload.recovered === true && typeof payload.reportDateTime === "string" ? { reportDateTime: payload.reportDateTime, recovered: true } : null;
+}
 
 export {
-  FAILURE_MARKS_MAX_BYTES, readFailureMarks, readUnreadableNotices, extendUnreadableNotices, unreadableBody, unreadableNoticeDue, unreadableSource, withUnreadableNotice,
+  FAILURE_MARKS_MAX_BYTES, readFailureMarks, recoveredPayload, readUnreadableNotices, extendUnreadableNotices, unreadableBody, unreadableNoticeDue, unreadableSource, withUnreadableNotice,
   applyIntentUpdate, cancelText, failureNoticeId, fragmentKey, freshState, heard, markNotice, noticeId, noticeKind, noticeMarkBytes, noticed,
   priorityGroupOf, raiseEvidence, readIntentState, readNoticeMark, restoreStarted, shown, strongerEvidence, updateEvidence, versionDigest,
 };

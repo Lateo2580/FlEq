@@ -558,11 +558,11 @@ function a7Order(left: SeismicIntent, right: SeismicIntent): number {
 }
 
 // Q-NOTICE.capacity と P3-C7-REPLACEMENT=A。新しい intent は同じ系統・channel の pending を、取消は同じ family subject の全 pending を置き換える。
-function admit(current: readonly SeismicIntent[], fresh: readonly SeismicIntent[], cancelSubject: string | null):
+function admit(current: readonly SeismicIntent[], replacing: readonly SeismicIntent[], cancelSubject: string | null, fresh = replacing.filter((item) => item.source.origin !== "recovery")):
   Readonly<{ intents: readonly SeismicIntent[]; admitted: readonly SeismicIntent[]; dropped: number }> {
   const superseded = new Set<SeismicIntent>();
   for (const item of current) {
-    if (item.subject === cancelSubject || fresh.some((intent) => intent.subject !== cancelSubject
+    if (item.subject === cancelSubject || replacing.some((intent) => intent.subject !== cancelSubject
       && lineOf(intent.subject) === lineOf(item.subject) && intent.channel === item.channel)) superseded.add(item);
   }
   // 置換も新しい intent も無ければ元の配列を返す（保存世代を進めない、P3-FINAL-AC01(5)）。
@@ -762,7 +762,7 @@ function planDiagnostics(plan: Plan): DiagnosticDetails[] {
     reason: "seismicStationsFolded" as const, unit: "U-Q" as const, count: plan.folded.length }]];
 }
 
-function unchanged(state: SeismicUnitState, candidate: SeismicCandidate, reason: "duplicate" | "stale",
+function unchanged(state: SeismicUnitState, candidate: SeismicCandidate, reason: "duplicate" | "stale" | "noChange",
   diagnostics: readonly DiagnosticDetails[] = []): Result {
   return { changes: [], step: { ...idle(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
     decision: "unchanged", reason }], diagnostics } };
@@ -834,7 +834,7 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
         : refolds(prior.folded, candidate.contribution.intensity) && isDeepStrictEqual(withoutSource(prior),
           withoutSource({ ...candidate.contribution, intensity: withoutStations(candidate.contribution.intensity) })))), candidate.cancelled);
   if (version.kind === "older" || version.kind === "duplicate") return unchanged(state, candidate, version.kind === "older" ? "stale" : "duplicate");
-  if (version.kind === "held") return holdVersion(state, candidate, clock, basis, version.mark, version.missing);
+  if (version.kind === "held") return candidate.source.origin === "recovery" ? unchanged(state, candidate, "noChange") : holdVersion(state, candidate, clock, basis, version.mark, version.missing);
   const now = clock.wallTimeMs;
   // P3-NL-AC02 (2)(4): family の系列の通知の印は寄与へ引き継ぐ。版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const notice = { mark: prior?.notice, version: versionDigest(candidate.source) };
@@ -902,7 +902,7 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
           withoutSource(existing.folded == null ? next : { ...next, intensity: withoutStations(next.intensity) }))),
     candidate.cancelled);
   if (version.kind === "older" || version.kind === "duplicate") return unchanged(state, candidate, version.kind === "older" ? "stale" : "duplicate");
-  if (version.kind === "held") return holdVersion(state, candidate, clock, basis, version.mark, version.missing);
+  if (version.kind === "held") return candidate.source.origin === "recovery" ? unchanged(state, candidate, "noChange") : holdVersion(state, candidate, clock, basis, version.mark, version.missing);
   // P3-CC-AC03(3)(4): 印は印の版以上の採用で消え、古い報の採用では active の記録へ引き継ぐ。取消（取消記憶だけ）なら外して unit の未確認へ。
   const mark = existing?.unavailable;
   const keep = mark != null && compareVersion(mark.source, candidate.source) === "older";
@@ -1031,7 +1031,7 @@ function stripEvent(item: EarthquakeEvent, plan: Pick<RawPlan, "modes">): Earthq
 // 容量の拒否（P3-CC-AC03・AC04・AC10）。印 → 失敗警報 → 系統の desktop の title の書き換えの順に、前の段を確定した state へ当てる。
 // 印は採用と同じ fit を通し（退去の適格性も同じ）、失敗警報と書き換えは追加の退去なしで収まるときだけ当てる。fresh は拒否した報の通知。
 // ponytail: 拒否のときだけ intents（pending 128 件と終端記録）を数回なめる。平常の受信には足さない（Q-CC-COST）。
-function refuse(state: SeismicUnitState, candidate: SeismicCandidate, clock: ClockReading, basis: WallBasis, fresh: readonly SeismicIntent[]): Result {
+function refuse(state: SeismicUnitState, candidate: SeismicCandidate, clock: ClockReading, basis: WallBasis, made: readonly SeismicIntent[], fresh = made.filter((item) => item.source.origin !== "recovery")): Result {
   const now = clock.wallTimeMs, operation = candidate.operation, verified = basis === "verified";
   let earthquakes = state.earthquakes, longPeriods = state.longPeriods, plan: Plan | null = null;
   let record: Shown | null = null, marked: Shown | null = null, covered = false;
@@ -1272,9 +1272,9 @@ function receive(state: SeismicUnitState, input: Extract<SeismicInput, { kind: "
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
     operation: input.material.operation, decision: "rejected", reason: parsed.reason }], diagnostics: [parsed.diagnostic] } };
   const { candidate } = parsed;
-  // Q-NOTICE.recovery・P3-C7-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
-  if (candidate.source.origin === "recovery") return { changes: [], step: { ...idle(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } };
+  // P3-REC-AC12（C16 発注 4a）・P3-C7-N2: origin=recovery は候補の作成のときだけ owner から届く。意味を当てて intent を作らず（P3-REC-D-UNIT-ENTRANCE=A、
+  // U-Q は H27 でも鳴らさない＝P3-REC-D-N2-RAISE=A。live と同じに作った intent は admit・refuse が外し、live なら置き換える古い pending だけを外す）、版が決まらなければ印を置かずに noChange で返す（owner がその結果を held にする、P3-REC-AC05 の (a)）。
+  // ponytail: 当日の件数は受信日に数えるので、取り直しで拾った前日の地震も今日に入る（条文に無く live の規則のまま。作者の裁定が出たら daily を触らない形に）。
   const basis = input.basis ?? "verified";
   const result = candidate.kind === "earthquake" ? receiveEarthquake(state, candidate, input.clock, basis) : receiveLongPeriod(state, candidate, input.clock, basis);
   // P3-QC-AC09: §13 の 4 か所の WARN を受けた報の結果に添える。

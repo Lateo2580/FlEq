@@ -16,7 +16,7 @@ import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
 import {
-  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, restoreStarted,
+  applyIntentUpdate, cancelText, freshState, heard, markNotice, noticeId, noticeKind, noticed, raiseEvidence, readIntentState, readNoticeMark, recoveredPayload, restoreStarted,
   shown, updateEvidence, versionDigest,
 } from "../notice-mark";
 import { cachedMin } from "../expiry";
@@ -24,7 +24,7 @@ import { RAW_BUDGET, droppedIn, fitRawBudget, rawTotal, readUnreadableMark, stri
 
 // P3-UNIT-N-001（C8、I-U-N）: U-N の現況・情報系列・通知・容量・codec・射影。
 
-const SCHEMA = "p3-nankai-unit-v7" as const;
+const SCHEMA = "p3-nankai-unit-v8" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const LINES = ["nankai", "VYSE60"] as const;
 // P3-C8-CAPACITY=A・P3-C8-RET-01〜04。世代の上限は P3-NS-RES-01（情報系列の全文を含む 2.5 MiB、設計メモ §4.6）。
@@ -264,10 +264,10 @@ function a7Order(left: NankaiIntent, right: NankaiIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
 }
 // Q-NOTICE.capacity と P3-C8-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、取消は対象 subject の全 pending を置き換える。
-function admit(current: readonly NankaiIntent[], fresh: readonly NankaiIntent[], cancelled: ReadonlySet<string>):
+function admit(current: readonly NankaiIntent[], fresh: readonly NankaiIntent[], cancelled: ReadonlySet<string>, replacing: readonly NankaiIntent[] = fresh):
   Readonly<{ intents: readonly NankaiIntent[]; admitted: readonly NankaiIntent[]; dropped: number }> {
   const superseded = new Set<NankaiIntent>();
-  const replaced = new Set(fresh.map((intent) => `${intent.subject}\n${intent.channel}`));
+  const replaced = new Set(replacing.map((intent) => `${intent.subject}\n${intent.channel}`));
   for (const item of current)
     if (cancelled.has(item.subject) || replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
@@ -344,13 +344,13 @@ function holdState(state: NankaiUnitState, clock: ClockReading, marks: readonly 
 }
 
 function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, clock: ClockReading, basis: WallBasis): Result {
-  const now = clock.wallTimeMs;
+  const now = clock.wallTimeMs, recovering = candidate.source.origin === "recovery";
   const currentIndex = indexOf(state.currents, candidate.currentSubject);
   const current = currentIndex == null ? null : state.currents[currentIndex];
   const infoIndex = indexOf(state.information, candidate.subject);
   const info = infoIndex == null ? null : state.information[infoIndex];
   const decision = (subject: string, value: Verdict<Shown>, change: "semantic" | "revisionOnly"): Decision => value.kind === "unchanged"
-    ? { subject, operation: candidate.operation, decision: "unchanged", reason: value.reason }
+    ? { subject, operation: candidate.operation, decision: "unchanged", reason: recovering && value.held != null ? "noChange" : value.reason }
     : { subject, operation: candidate.operation, decision: "changed", reason: null, change,
       currentEstablished: { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" } };
 
@@ -365,16 +365,16 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
     const held = currentVerdict.held, onInfo = currentVerdict === infoVerdict;
     const currentMark = !onInfo ? held?.mark ?? null : held?.mark == null || current == null ? null
       : nextMark(current.unconfirmed ?? null, { ...candidate.source, subject: candidate.currentSubject });
-    const marked = held == null ? state : holdState(state, clock, [...onInfo ? [[candidate.subject, held.mark] as const] : [],
+    const marked = held == null || recovering ? state : holdState(state, clock, [...onInfo ? [[candidate.subject, held.mark] as const] : [],
       [candidate.currentSubject, currentMark] as const]);
     return { changes: [], step: { ...idle(marked),
       decisions: [decision(candidate.currentSubject, currentVerdict, "revisionOnly"), decision(candidate.subject, currentVerdict, "revisionOnly")],
-      diagnostics: held == null ? [] : [heldDiagnostic(candidate, held.missing)] } };
+      diagnostics: held == null || recovering ? [] : [heldDiagnostic(candidate, held.missing)] } };
   }
   if (currentVerdict == null && infoVerdict.kind === "unchanged") {
-    const held = infoVerdict.held, marked = held == null ? state : holdState(state, clock, [[candidate.subject, held.mark]]);
+    const held = infoVerdict.held, marked = held == null || recovering ? state : holdState(state, clock, [[candidate.subject, held.mark]]);
     return { changes: [], step: { ...idle(marked), decisions: [decision(candidate.subject, infoVerdict, "revisionOnly")],
-      diagnostics: held == null ? [] : [heldDiagnostic(candidate, held.missing)] } };
+      diagnostics: held == null || recovering ? [] : [heldDiagnostic(candidate, held.missing)] } };
   }
 
   // P3-NL-AC02 (2)(4): 通知の印は系列の記録へ引き継ぐ（情報 subject は expired の記憶からも）。
@@ -432,7 +432,7 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   const fresh = notify ? intentsFor(candidate, subject, transition, now, { mark: before?.notice, version }, at, advisory) : [];
   const cancelledSubjects = new Set(candidate.cancelled ? [...nextCurrent == null ? [] : [candidate.currentSubject],
     ...nextInfo == null ? [] : [candidate.subject]] : []);
-  const notices = admit(state.intents, fresh, cancelledSubjects);
+  const notices = admit(state.intents, recovering ? [] : fresh, cancelledSubjects, fresh); // 取り直しは intent を作らず、live の新しい intent が置き換える古い pending だけを外す（P3-REC-D-UNIT-ENTRANCE=A）
   // P3-NL-AC02 (3): admit を通った版と種類を、通知した系列（現況か情報 subject）の印に足す。
   if (notices.admitted.length !== 0) {
     const kind = noticeKind(transition);
@@ -665,10 +665,10 @@ function receive(state: NankaiUnitState, input: Extract<NankaiInput, { kind: "re
   if (parsed.kind === "rejected") return { changes: [], step: { ...idle(state), decisions: [{ subject: parsed.subject,
     operation: input.material.operation, decision: "rejected", reason: parsed.reason }], diagnostics: [parsed.diagnostic] } };
   const { candidate } = parsed;
-  // Q-NOTICE.recovery・P3-C8-N2: origin=recovery は適用しない（意味検証の後に同じ state 参照）。
-  const result: Result = candidate.source.origin === "recovery" ? { changes: [], step: { ...idle(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }] } }
-    : receiveCandidate(state, candidate, input.clock, input.basis ?? "verified");
+  // P3-REC-AC12（C16 発注 4a）・P3-C8-N2: origin=recovery は候補の作成のときだけ owner から届く。意味を当てて intent を作らず
+  // （P3-REC-D-UNIT-ENTRANCE=A。引上げの音は採用の step の recoveryNotices）、版が決まらなければ印を置かずに noChange で返す
+  // （owner がその結果を held にする、P3-REC-AC05 の (a)）。
+  const result: Result = receiveCandidate(state, candidate, input.clock, input.basis ?? "verified");
   // P3-NS-AC07: 受けた報の読めなかった所の WARN を添える。
   return parsed.diagnostics.length === 0 ? result
     : { ...result, step: { ...result.step, diagnostics: [...parsed.diagnostics, ...result.step.diagnostics] } };
@@ -803,15 +803,15 @@ function intentRecord(value: unknown): NankaiIntent | null {
   const level = LEVEL_SET.find((entry) => entry === payload?.level);
   const channel = row?.channel === "desktop" || row?.channel === "sound" ? row.channel : null;
   const transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((entry) => entry === row?.transition);
-  const fields = row == null || operation == null ? null : readIntentState(row, "U-N", operation, level);
-  // state に残る subject との一致は求めない（退去・回収で記録の消えた系列の pending も残る、I-U-N.decode）。
+  const fields = row == null || operation == null ? null : readIntentState(row, "U-N", operation, level), recovered = payload == null ? null : recoveredPayload(payload);
+  // state に残る subject との一致は求めない（退去・回収で記録の消えた系列の pending も残る、I-U-N.decode）。H27 の 2 欄は対で読む（P3-REC-AC12）。
   if (row == null || payload == null || operation == null || source == null || level == null || channel == null || transition == null
-    || fields == null || !isText(row.id) || row.unit !== "U-N" || !isText(row.subject) || source.subject !== row.subject
+    || fields == null || recovered == null || !isText(row.id) || row.unit !== "U-N" || !isText(row.subject) || source.subject !== row.subject
     || source.operation !== operation || payload.domain !== "earthquake-eew" || !isText(payload.title) || payload.title === ""
     || !isText(payload.body) || payload.body === "" || !finite(row.createdAt) || !finite(row.expiresAt) || !finite(row.nextAttemptAt)
     || !Number.isSafeInteger(row.attempts) || Number(row.attempts) < 0 || !isText(row.configRevision) || row.expiresAt < row.createdAt) return null;
   return { id: row.id, unit: "U-N", subject: row.subject, operation, source, transition, channel,
-    payload: { domain: "earthquake-eew", level, title: payload.title, body: payload.body }, createdAt: row.createdAt,
+    payload: { domain: "earthquake-eew", level, title: payload.title, body: payload.body, ...recovered }, createdAt: row.createdAt,
     expiresAt: row.expiresAt, nextAttemptAt: row.nextAttemptAt, attempts: Number(row.attempts), configRevision: row.configRevision,
     disposition: "pending", ...fields };
 }
@@ -864,7 +864,7 @@ function persisted(value: unknown): Decoded | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const nankaiUnitCodec: NankaiUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4", "p3-nankai-unit-v5", "p3-nankai-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）・P3-NS-AC08: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4", "p3-nankai-unit-v5", "p3-nankai-unit-v6", "p3-nankai-unit-v7"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）・P3-NS-AC08: 前の版の保存は初期化する
   // contentRevision・persistence は保存しない（I-U-N.persisted）。情報系列は全文を保存する（P3-NS-AC01、H30）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents, information: state.information }),
   decode(payload) {
@@ -884,4 +884,41 @@ const nankaiUnit = {
   reclaimDeadlineBeforeReceive: true,
 } satisfies UnitModule<"U-N">;
 
-export { nankaiUnit, nankaiUnitCodec, reduceNankaiUnit, toNankaiView };
+// ---- 取り直しの採用の step（P3-RECOVERY-001 発注 4a、P3-REC-AC10・P3-REC-D-N2-RAISE=A） ----
+
+// H27 の段: 南海トラフの線は調査中→巨大地震注意→巨大地震警戒、北海道三陸沖後発の線は後発地震注意か否か。code でなく、期限を当てた後に
+// 見える現況の status で比べる（VYSE60 は InfoSerial を持たない報でも後発地震注意の現況を作る）。見えない現況と記録の無い線は 0。
+const RAISE_RANK: Readonly<Record<NankaiCurrentStatus | "subsequentAdvisory", number>> = { investigating: 1, megaquakeAdvisory: 2, megaquakeWarning: 3, subsequentAdvisory: 1 };
+const raiseRank = (value: Shown | null): number => value != null && "status" in value ? RAISE_RANK[value.status] : 0;
+
+/**
+ * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
+ * candidate は採用する state。現況の段が open より上がり、いまも見える現況のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で unit に 1 件）。
+ * 通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
+ */
+function recoveryNotices(open: NankaiUnitState, candidate: NankaiUnitState, clock: ClockReading, basis: WallBasis): NankaiUnitState {
+  const now = clock.wallTimeMs, before = new Map(open.currents.map((item) => [item.subject, item]));
+  let best: Readonly<{ current: ActiveCurrent; rank: number }> | null = null;
+  for (const current of candidate.currents) {
+    const rank = raiseRank(shownAt(current, now, basis));
+    if (!visible(current) || rank <= raiseRank(shownAt(before.get(current.subject) ?? null, now, basis))) continue;
+    if (noticed(current.notice, versionDigest(current.source), noticeKind("updated"))) continue;
+    if (best == null || rank > best.rank) best = { current, rank };
+  }
+  if (best == null) return candidate;
+  const { current } = best, { operation, source } = current, version = versionDigest(source);
+  const at = new Date(reportMs(source) + 32_400_000).toISOString().slice(11, 16);
+  const payload: NankaiNotificationPayload = { domain: "earthquake-eew", level: "info", title: `${PREFIX[operation]}${current.title}（${at} 発表）`,
+    body: current.headline ?? current.title, reportDateTime: source.reportDateTimeRaw, recovered: true };
+  const channels = operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
+  const fresh: NankaiIntent[] = channels.map((channel) => ({ id: noticeId("U-N", current.subject, "", source, "updated", channel), unit: "U-N",
+    subject: current.subject, operation, source, transition: "updated", channel, payload, createdAt: now, expiresAt: now + TTL[channel],
+    nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-N", operation) }));
+  const notices = admit(candidate.intents, fresh, new Set());
+  if (notices.admitted.length === 0) return candidate;
+  // P3-NL-AC02 (3): 引上げの版と種類を現況の系列の印に足す。
+  const currents = candidate.currents.map((item) => item !== current ? item : { ...item, notice: markNotice(item.notice, version, noticeKind("updated")) });
+  return { ...candidate, currents, intents: notices.intents };
+}
+
+export { nankaiUnit, nankaiUnitCodec, recoveryNotices, reduceNankaiUnit, toNankaiView };

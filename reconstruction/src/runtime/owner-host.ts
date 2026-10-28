@@ -48,8 +48,8 @@ function threadHeap(): OwnerHeap {
 }
 
 const ledgerLimit = 4096;
-// P3-REC-RES-08: owner が持つ候補 1 つの本文（受けた bytes）。越えた候補は基点が変わったら作り直さずに generationConflict（置き値）。
-const CANDIDATE_BYTES = 16 * 1024 * 1024;
+// P3-REC-RES-08: owner が持つ候補 1 つの本文（受けた bytes）。越えた候補は基点が変わったら作り直さずに generationConflict（置き値）。urgent の候補は本文 28 件まで（当て直しの間 EEW が待つので 50 ms の内に収める置き値、P3-REC-D-REAPPLY-SHAPE=A）。
+const CANDIDATE_BYTES = 16 * 1024 * 1024, URGENT_REAPPLY_ITEMS = 28;
 
 // P3-REC-AC05・AC07: 開いている取り直しの候補。shadow は base（開いた時の live）から本文を当てた owner の state で、live には触れない。
 // items は基点が変わったときに当て直すために持つ本文（RES-08 の内だけ）。diagnostics と負の証拠は採否が決まるまで出さない（P3-REC-AC06）。
@@ -182,7 +182,7 @@ class OwnerHost {
     } else {
       this.applyCandidate(candidate, item, result, clock, request.basis);
       // RES-08 の内だけ当て直し用に持つ。越えたら基点が変わったときに作り直さない。
-      if (!candidate.overflow && candidate.bytes + item.encodedByteLength <= CANDIDATE_BYTES) {
+      if (!candidate.overflow && candidate.bytes + item.encodedByteLength <= CANDIDATE_BYTES && (this.options.start.place !== "urgent" || candidate.items.length < URGENT_REAPPLY_ITEMS)) {
         candidate.items.push(item);
         candidate.bytes += item.encodedByteLength;
       } else { candidate.overflow = true; candidate.items.length = 0; }

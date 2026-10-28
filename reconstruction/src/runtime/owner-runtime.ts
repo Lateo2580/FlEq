@@ -30,7 +30,7 @@ import type { CodecMap } from "../checkpoint/checkpoint";
 import { CARD_AREAS, CARD_AREAS_BYTES, CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
 import { headlineOf, rewriteBounded, titleOf } from "../units/unreadable";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
-import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import { recoveryNotices } from "../units/tsunami/tsunami-unit"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
+import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import { recoveryNotices } from "../units/tsunami/tsunami-unit"; import { recoveryNotices as nankaiRecoveryNotices } from "../units/nankai/nankai-unit"; import { recoveryNotices as volcanoRecoveryNotices } from "../units/volcano/volcano-unit"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
 // P3-EXECUTION-SPLIT-001 (C3a) owner core: everything one owner does to its own units, as pure functions of
 // the owner state. The owner thread and the test path (1) call these; nothing here touches another place's units.
@@ -83,8 +83,8 @@ const initialUnits: RuntimeUnitStates = {
   "U-T": { schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [], persistence: cleanPersistence },
   "U-Q": { schemaVersion: "p3-seismic-unit-v7", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: cleanPersistence },
-  "U-N": { schemaVersion: "p3-nankai-unit-v7", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
-  "U-V": { schemaVersion: "p3-volcano-unit-v6", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+  "U-N": { schemaVersion: "p3-nankai-unit-v8", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
+  "U-V": { schemaVersion: "p3-volcano-unit-v7", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
     scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: cleanPersistence },
   "U-L": { schemaVersion: "p3-landslide-unit-v7", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
   "U-R": { schemaVersion: "p3-flood-unit-v8", contentRevision: 0, currents: [], intents: [], persistence: cleanPersistence },
@@ -696,27 +696,27 @@ function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeU
   let adopted: OwnerState = { ...live, units: { ...live.units, [unit]: { ...ownUnit(shadow, unit), persistence } },
     unreadable: { ...live.unreadable, [unit]: shadow.unreadable[unit] }, losses: { ...live.losses, [unit]: shadow.losses[unit] },
     checkpointAttempts: attempts, deadlines: { ...live.deadlines, [unit]: shadow.deadlines[unit] } };
-  if (unit === "U-T") {
-    // P3-UM-AC12 (10): 候補が origin=recovery の読めないカードを持てば info を 1 件（operation は最初のカード）。
-    const ids = new Set(inputIds);
-    const card = (adopted.unreadable["U-T"] ?? EMPTY).find((item) => ids.has(item.inputId) && item.kind !== "unknownType");
-    const candidate = ownUnit(adopted, "U-T");
-    const noticed = recoveryNotices(ownUnit(open, "U-T"), candidate, recoveryId,
-      card == null ? null : { operation: card.operation, receivedAt: card.receivedAt, inputId: card.inputId, headType: card.headType }, clock);
-    if (noticed !== candidate) {
-      // 音の intent は候補の採用と同じ世代に入れる（候補が世代を進めていなければ 1 つ進める、P3-NL-AC14 (5) の形）。
-      const persistence = noticed.persistence.currentGeneration > ownUnit(live, "U-T").persistence.currentGeneration ? noticed.persistence
-        : raised(noticed.persistence, clock.monotonicMs);
-      adopted = { ...adopted, units: { ...adopted.units, "U-T": { ...noticed, persistence } } };
-    }
-  }
-  work.state = adopted;
+  // P3-REC-AC12（発注 4a）: 採用の step の音（H27 と U-T の読めない報の info）は unit ごとの関数の表から作る（UnitTable の型に欄を足さない）。
+  work.state = adopted = RECOVERY_NOTICES[unit]?.({ live, open, adopted, recoveryId, inputIds, clock, basis }) ?? adopted;
   if (ownUnit(adopted, unit).persistence.currentGeneration > ownUnit(live, unit).persistence.currentGeneration) work.generationInputIds[unit] = inputIds;
   work.changed(unit);
   work.viewed(unit);
   work.applyDeadlines([unit]);
   return work.finish();
 }
+
+// 採用の step の音の表（P3-REC-AC12）。音の intent は候補の採用と同じ世代に入れる（候補が世代を進めていなければ 1 つ進める、P3-NL-AC14 (5) の形）。
+type RecoverySound = Readonly<{ live: OwnerState; open: OwnerState; adopted: OwnerState; recoveryId: string; inputIds: readonly string[]; clock: ClockReading; basis: WallBasis }>;
+function sounded<K extends RuntimeUnitId>(at: RecoverySound, unit: K, candidate: RuntimeUnitStates[K], noticed: RuntimeUnitStates[K]): OwnerState {
+  if (noticed === candidate) return at.adopted;
+  const persistence = noticed.persistence.currentGeneration > ownUnit(at.live, unit).persistence.currentGeneration ? noticed.persistence : raised(noticed.persistence, at.clock.monotonicMs);
+  return { ...at.adopted, units: { ...at.adopted.units, [unit]: { ...noticed, persistence } } };
+}
+const RECOVERY_NOTICES: Partial<Record<RuntimeUnitId, (at: RecoverySound) => OwnerState>> = { // U-T は P3-UM-AC12 (10): 候補が origin=recovery の読めないカードを持てば info を 1 件（operation は最初のカード）
+  "U-T": (at) => { const ids = new Set(at.inputIds), card = (at.adopted.unreadable["U-T"] ?? EMPTY).find((item) => ids.has(item.inputId) && item.kind !== "unknownType"), candidate = ownUnit(at.adopted, "U-T");
+    return sounded(at, "U-T", candidate, recoveryNotices(ownUnit(at.open, "U-T"), candidate, at.recoveryId, card == null ? null : { operation: card.operation, receivedAt: card.receivedAt, inputId: card.inputId, headType: card.headType }, at.clock)); },
+  // P3-REC-D-N2-RAISE=A: U-N の現況の段と U-V の警報レベルの引上げだけ info を 1 回（U-Q と降灰はカードだけ）。
+  "U-N": (at) => sounded(at, "U-N", ownUnit(at.adopted, "U-N"), nankaiRecoveryNotices(ownUnit(at.open, "U-N"), ownUnit(at.adopted, "U-N"), at.clock, at.basis)), "U-V": (at) => sounded(at, "U-V", ownUnit(at.adopted, "U-V"), volcanoRecoveryNotices(ownUnit(at.open, "U-V"), ownUnit(at.adopted, "U-V"), at.clock)) };
 
 // P3-UFP-AC06: owner の state から U-F の詳細の 1 ページを作る。U-F の関数を直接呼ぶ（Q-UFP-DETAIL-PATH）。
 function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest): WeatherTimeseriesDetailResponse {
