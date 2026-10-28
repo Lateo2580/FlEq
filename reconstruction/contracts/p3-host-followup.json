@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3bf28220324183175ffc82e04420a6ccef24ef6e",
-    "sha256": "64d05da35999b79a58d6fca4373e647b7ec850a63f937235683e9cd38901acb0",
+    "sha256": "60f8198e7da7fb4c670b702d24960b6ce36ef9e955f3b644e97899a50f50f7d5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -226,7 +226,7 @@
           "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:45 «fc2f798f9c4e992a»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:73 «9f318c005eefa4a9»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-fixture.ts:78 «716416f93ea7d102»",
-          "reconstruction/test/local-bulletins-unit/local-bulletins-unit.test.ts:811 «18be5e9b75a5319a»",
+          "reconstruction/test/local-bulletins-unit/local-bulletins-unit.test.ts:820 «18be5e9b75a5319a»",
           "reconstruction/src/contracts-revision/version.ts:7 «b4114cd2e4a71493»",
           "reconstruction/src/contracts-revision/version.ts:95 «112023bdd228c955»",
           "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»"

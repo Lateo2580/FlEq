@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "20ec76c7884029661dbf8052bc90cf8dc607fad95db91d23e1c1a314bf74d1b5",
+    "sha256": "9d53a70ab97590656b267d6db29750abe6c52f320b4d570ddc6badb80355f2cf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -477,11 +477,11 @@
           "reconstruction/contracts/p3-persist-premises.md:527 «70a3ffe6b373dcd8»",
           "reconstruction/src/runtime/owner-runtime.ts:483 «63380813ee47301c»",
           "reconstruction/src/runtime/owner-host.ts:286 «5107377988c560af»",
-          "reconstruction/src/runtime/owner-runtime.ts:328 «8c7fa7bd91e521b7»",
-          "reconstruction/src/runtime/owner-runtime.ts:322 «111a3fe1026e5e73»",
+          "reconstruction/src/runtime/owner-runtime.ts:328 «60efe28edd3505f0»",
+          "reconstruction/src/runtime/owner-runtime.ts:322 «5dea0b14358b6e3d»",
           "reconstruction/contracts/p3-execution-split.types.ts:142 «e39000aa100184bc»",
           "reconstruction/src/runtime/owner-host.ts:163 «95b43a894c5d3f14»",
-          "reconstruction/src/units/flood/flood-unit.ts:318 «b6870a370007c3eb»",
+          "reconstruction/src/units/flood/flood-unit.ts:328 «b6870a370007c3eb»",
           "reconstruction/contracts/p3-clock-check.json:278 «a44ef459ba494e84»"
         ]
       },
@@ -491,7 +491,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
           "reconstruction/src/units/landslide/landslide-unit.ts:114 «b6918399aea57595»",
-          "reconstruction/src/units/flood/flood-unit.ts:121 «4f6b9b5c694528bf»",
+          "reconstruction/src/units/flood/flood-unit.ts:127 «4f6b9b5c694528bf»",
           "reconstruction/src/units/briefing/briefing-unit.ts:207 «294e8289c94fba9a»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:237 «b4d3cc3b7cf8722f»",
           "reconstruction/src/units/volcano/volcano-unit.ts:179 «dce1f66a9d48f994»",
@@ -521,7 +521,7 @@
       },
       {
         "id": "P3-EF-AC05",
-        "requirement": "【発注 1】期限切れの保留と記憶（H23、設計メモ :219・:223・:226・:227、統合担当 D1・D5・D6・D8・D9、Q-EF-RECALL・Q-EF-FORM、分岐 P3-EF-D-EXPIRED-MEMORY）: (1) 保留の印: L・R・B・T・V・Y・M・N・F の見える記録（表示の期限を持つもの: U-L の active〔元報＋48 時間、landslide-unit.ts:32〕、U-R の active〔＋36 時間、flood-unit.ts:39〕、U-B の VPBS50 の active と VPOA50 の released〔＋2〜3 時間、briefing-unit.ts:30〕、U-T の観測、U-V の噴火・降灰の active、U-Y の解析・確率の active、U-M の竜巻・熱中症の active〔短命の active は保存しないので印は run の中だけ〕、U-N の現況の active、U-F の active の subject）に expiryPending?: true を足す。decode は、印のある記録の表示の期限が source から作る式の値と合うことを確かめる（数を持たないので式で確かめる） (2) 記憶への移行（回収の (a)）: 印のある記録と、verified の入力で表示の期限の来た記録は、unit の期限切れの記憶に移る（事実を捨てる）。U-L・U-R・U-B は新しい effective \"expired\"（欄は今の ended・cancelled の記憶と同じ識別・source・unconfirmed?・notice?・retainUntil）。ほかは Q-EF-FORM の今の形 (3) 記憶の retainUntil（回収できる時刻＝表示の期限＋6 時間、作者裁定 P3-EF-D-EXPIRED-MEMORY=A）: U-L は元報＋54 時間（48＋6）、U-R は元報＋42 時間（36＋6）、U-B は元報＋9 時間（3＋6。D9: 元報からの固定にする。表示の期限は 2 時間と 3 時間があるが、記憶は事実を持たず、どちらだったかを知るには欄が 1 つ要る。固定なら欄が要らず decode も今の記憶と同じ等式で済む。代償は 2 時間の記録の記憶が 1 時間長い）。decode は等式で確かめる (4) 移るときは今どおり無音。U-R だけは desktop の「[期限切れ]」を今どおり 1 件作る（P3-C11-ACTIVE-EXPIRY=D、flood-unit.ts:392。unverified なら印を付けるときに作り、保留の印のある記録を記憶へ移すときは作らない。1 つの記録で 1 回だけ） (5) 表示の期限を過ぎてから採る報（D8: U-L の遅着〔landslide-unit.ts:141、記録の無い官署に元報＋6 時間を過ぎた active 相当の報〕は今どおり ended として採って同じ reduce で回収し記録を残さない〔:283、記憶にも保留にもしない〕、元報＋48 時間を過ぎた active の版、U-B の P3-C12-LATE-INVERSION〔briefing-unit.ts:362〕、U-B の対応報の取消で aliased から released に付け替えた VPOA50 で retainUntil を過ぎたもの〔briefing-unit.ts:422、今は記録ごと除く〕、U-M の竜巻の遅着〔local-bulletins-unit.ts:303〕）は、採った報の記録を (2) の期限切れの記憶にする（verified）か、保留の印を付けた見える記録にする（unverified）。鳴らさない、前の見える記録の pending を撤回する、は今どおり (6) U-F（D6）: validUntil の到来で記憶に移る subject は今の noActiveItems に lapsed: true を足し、報が「なし」の noActiveItems と保存の上で見分ける。decode は lapsed が true か無いことを確かめる (7) 通知の印（P3-NL-AC02）は保留と記憶の間も残るので、その間に届いた取消は H19 の条件（P3-NL-AC09）で通知する (8) 遅着の規則と版の比べ方は今のまま。記憶のある subject への同じ版・古い版は今の規則で duplicate・stale 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】表示の期限（U-L 48 時間、U-R 36 時間、U-B 2〜3 時間）と記憶の長さは資料に記述なし（VPWW56・VXKO・VPOA50・VPBS50 は ValidDateTime を持たない、jma-2026-head-control-list.txt:44・:50・:53〜:54・:158〜:159）。(5) の対応報: VPBS50 の情報タグ「記録雨」が従前の記録的短時間大雨情報に当たる（manual/気象解説情報形式_解説資料_別表類.txt:37、manual/気象解説情報形式_解説資料.txt:1844〜:1845）。VPBS50 と VPOA50 を EventID で結ぶ対応は資料に記述なし（corpus の dmdata の採取の対）。(7) の取消: VXKO・VPOA50・VPBS50 は InfoType に取消を持つ（manual/指定河川洪水予報（氾濫警報・注意報）_解説資料.txt:65、manual/記録的短時間大雨情報_解説資料.txt:94〜:97、manual/気象解説情報形式_解説資料.txt:147〜:151）。VPWW56 の InfoType は発表・訂正だけ（manual/気象警報・注意報（Ｒ０６）_解説資料.txt:150〜:152）",
+        "requirement": "【発注 1】期限切れの保留と記憶（H23、設計メモ :219・:223・:226・:227、統合担当 D1・D5・D6・D8・D9、Q-EF-RECALL・Q-EF-FORM、分岐 P3-EF-D-EXPIRED-MEMORY）: (1) 保留の印: L・R・B・T・V・Y・M・N・F の見える記録（表示の期限を持つもの: U-L の active〔元報＋48 時間、landslide-unit.ts:32〕、U-R の active〔＋36 時間、flood-unit.ts:39〕、U-B の VPBS50 の active と VPOA50 の released〔＋2〜3 時間、briefing-unit.ts:30〕、U-T の観測、U-V の噴火・降灰の active、U-Y の解析・確率の active、U-M の竜巻・熱中症の active〔短命の active は保存しないので印は run の中だけ〕、U-N の現況の active、U-F の active の subject）に expiryPending?: true を足す。decode は、印のある記録の表示の期限が source から作る式の値と合うことを確かめる（数を持たないので式で確かめる） (2) 記憶への移行（回収の (a)）: 印のある記録と、verified の入力で表示の期限の来た記録は、unit の期限切れの記憶に移る（事実を捨てる）。U-L・U-R・U-B は新しい effective \"expired\"（欄は今の ended・cancelled の記憶と同じ識別・source・unconfirmed?・notice?・retainUntil）。ほかは Q-EF-FORM の今の形 (3) 記憶の retainUntil（回収できる時刻＝表示の期限＋6 時間、作者裁定 P3-EF-D-EXPIRED-MEMORY=A）: U-L は元報＋54 時間（48＋6）、U-R は元報＋42 時間（36＋6）、U-B は元報＋9 時間（3＋6。D9: 元報からの固定にする。表示の期限は 2 時間と 3 時間があるが、記憶は事実を持たず、どちらだったかを知るには欄が 1 つ要る。固定なら欄が要らず decode も今の記憶と同じ等式で済む。代償は 2 時間の記録の記憶が 1 時間長い）。decode は等式で確かめる (4) 移るときは今どおり無音。U-R だけは desktop の「[期限切れ]」を今どおり 1 件作る（P3-C11-ACTIVE-EXPIRY=D、flood-unit.ts:392。unverified なら印を付けるときに作り、保留の印のある記録を記憶へ移すときは作らない。1 つの記録で 1 回だけ。【2026-10-29、C16 の発注 4b-1 の配送、P3-REC-AC12 により統合担当が改訂】例外: 取り直しの候補の受信前の回収で、基点〔開いた時の live、当て直しでは今の live〕でその subject が見えていなかった記録の期限切れは intent を作らない。基点で見えていた記録は落とさず generationConflict になり、live の tick が通知する〔FloodInput の deadline の recoveryBase〕） (5) 表示の期限を過ぎてから採る報（D8: U-L の遅着〔landslide-unit.ts:141、記録の無い官署に元報＋6 時間を過ぎた active 相当の報〕は今どおり ended として採って同じ reduce で回収し記録を残さない〔:283、記憶にも保留にもしない〕、元報＋48 時間を過ぎた active の版、U-B の P3-C12-LATE-INVERSION〔briefing-unit.ts:362〕、U-B の対応報の取消で aliased から released に付け替えた VPOA50 で retainUntil を過ぎたもの〔briefing-unit.ts:422、今は記録ごと除く〕、U-M の竜巻の遅着〔local-bulletins-unit.ts:303〕）は、採った報の記録を (2) の期限切れの記憶にする（verified）か、保留の印を付けた見える記録にする（unverified）。鳴らさない、前の見える記録の pending を撤回する、は今どおり (6) U-F（D6）: validUntil の到来で記憶に移る subject は今の noActiveItems に lapsed: true を足し、報が「なし」の noActiveItems と保存の上で見分ける。decode は lapsed が true か無いことを確かめる (7) 通知の印（P3-NL-AC02）は保留と記憶の間も残るので、その間に届いた取消は H19 の条件（P3-NL-AC09）で通知する (8) 遅着の規則と版の比べ方は今のまま。記憶のある subject への同じ版・古い版は今の規則で duplicate・stale 【気象庁の資料との照合（2026-10-25、Q-EF-JMA）】表示の期限（U-L 48 時間、U-R 36 時間、U-B 2〜3 時間）と記憶の長さは資料に記述なし（VPWW56・VXKO・VPOA50・VPBS50 は ValidDateTime を持たない、jma-2026-head-control-list.txt:44・:50・:53〜:54・:158〜:159）。(5) の対応報: VPBS50 の情報タグ「記録雨」が従前の記録的短時間大雨情報に当たる（manual/気象解説情報形式_解説資料_別表類.txt:37、manual/気象解説情報形式_解説資料.txt:1844〜:1845）。VPBS50 と VPOA50 を EventID で結ぶ対応は資料に記述なし（corpus の dmdata の採取の対）。(7) の取消: VXKO・VPOA50・VPBS50 は InfoType に取消を持つ（manual/指定河川洪水予報（氾濫警報・注意報）_解説資料.txt:65、manual/記録的短時間大雨情報_解説資料.txt:94〜:97、manual/気象解説情報形式_解説資料.txt:147〜:151）。VPWW56 の InfoType は発表・訂正だけ（manual/気象警報・注意報（Ｒ０６）_解説資料.txt:150〜:152）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:219 «097c4e992b73935b»",
           "reconstruction/contracts/p3-persist-premises.md:223 «973ddc0f21f6d14e»",
@@ -530,13 +530,13 @@
           "docs/specs/reconstruction-p0-contracts.md:3050 «91b2a9c9fb01efa9»",
           "reconstruction/src/units/landslide/landslide-unit.ts:37 «b8e0977854b76ac8»",
           "reconstruction/src/units/landslide/landslide-unit.ts:159 «add4e8f0b318c21b»",
-          "reconstruction/src/units/flood/flood-unit.ts:45 «8cae21c0e018054d»",
-          "reconstruction/src/units/flood/flood-unit.ts:449 «21d95b1ca05587a8»",
+          "reconstruction/src/units/flood/flood-unit.ts:51 «8cae21c0e018054d»",
+          "reconstruction/src/units/flood/flood-unit.ts:465 «21d95b1ca05587a8»",
           "reconstruction/src/units/briefing/briefing-unit.ts:35 «bd685834780fe4ac»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:419 «a9466abd0ddd7d16»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:487 «1320300bdc07ca6c»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:421 «a9466abd0ddd7d16»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:489 «1320300bdc07ca6c»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:344 «07ceffa065f4e360»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:303 «e8afc5291a8206af»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:305 «e8afc5291a8206af»",
           "reconstruction/contracts/p3-flood-unit.json:11 «dd92899faea4af42»",
           "reconstruction/contracts/p3-landslide-unit.json:11 «b1327e3deb596f4a»",
           "reconstruction/contracts/p3-notice-ledger.json:594 «459c8c988dc7d6ff»"
@@ -596,7 +596,7 @@
           "reconstruction/contracts/p3-briefing-unit.json:11 «dfc687985b849797»",
           "reconstruction/contracts/p3-briefing-unit.json:102 «cf489d6eda8b3b35»",
           "reconstruction/contracts/p3-briefing-unit.json:111 «eabd07a8d5b8d52b»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:487 «1320300bdc07ca6c»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:489 «1320300bdc07ca6c»",
           "reconstruction/contracts/p3-briefing-unit.json:21 «d4609b3591eee540»",
           "reconstruction/contracts/p3-briefing-unit.json:500 «f9d05920a03398b0»"
         ]
@@ -629,8 +629,8 @@
         "requirement": "受信経路の計算量（AGENTS.md、Q-EF-COST）: (1) 根拠の判定は入力 1 件に定数 (2) unit は表示の期限・回収の期限・保留の記録・intent の期限の最小を配列ごとの cache で別々に持ち、根拠で当てない種類の期限は比べない。\"awaiting\"・\"unverified\" の間の毎秒の期限要求は、当てる期限が来ていなければ O(1) で同じ参照を返す（配列を作り直さない、世代を進めない）。nextDeadline は根拠によらず全部の期限の最小のままにする（無いと: 回収の期限を外した nextDeadline のまま \"verified\" に替わると、owner が期限の入力を作らず〔owner-runtime.ts:263〕、回収が次の別の期限か受信まで止まる）。保留の記録は元の表示の期限の値で数え、時計が後ろへ直ったときの回収は到来の判定を通さない AC02 の (7) で当てる (3) 止めた回収は各 unit の件数の上限の内（保持と decode の両方で効く）で、\"verified\" に替わった最初の要求（AC02 の (7)）でその件数の線形 1 回だけ回収する（上限のある稀な一括処理） (4) U-T・U-F の予約は今の加算（fit・measure）に「印の無い active の記録の数×21」を足すだけ。U-T の fit の退去は記録ごとに実 byte と（予約の対象なら）21 byte を一緒に差し引き、U-F は今どおり measure の数え直しで外れる（AC10 の (5)） (5) U-B の報ごとの subject で受信 1 回の索引の作り直しは今どおり 256 件の線形 (6) state 全体の JSON 化を足さない",
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts:966 «8ae52d9d693e7af3»",
-          "reconstruction/src/runtime/owner-runtime.ts:328 «8c7fa7bd91e521b7»",
-          "reconstruction/src/runtime/owner-runtime.ts:322 «111a3fe1026e5e73»",
+          "reconstruction/src/runtime/owner-runtime.ts:328 «60efe28edd3505f0»",
+          "reconstruction/src/runtime/owner-runtime.ts:322 «5dea0b14358b6e3d»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1151 «e85cf715bf3ed3e2»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»"
         ]

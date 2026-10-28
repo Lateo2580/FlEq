@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "fd0d150b7049a37b925698c5cb6ad0c70d9d914eb2c760e27404aa2de79e7d4f",
+    "sha256": "0eb7f840b7cad68872cfa77495dd43da46bfbd338faf42ee387e695ed71ef9fd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -254,7 +254,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:688 «1c7bd61623f0d3f0»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1031 «717009dac27148eb»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1095 «5ff3e954504ea98f»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:303 «e8afc5291a8206af»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:305 «e8afc5291a8206af»",
           "reconstruction/contracts/p3-landslide-unit.json:88 «c629cbaaa6776c3c»",
           "reconstruction/contracts/p3-seismic-unit.json:76 «928a66e22f46a6ec»",
           "reconstruction/contracts/p3-nankai-unit.json:93 «384c9aa7a276b940»",
@@ -284,7 +284,7 @@
           "reconstruction/contracts/p2-shared-runtime.json:191 «198ceb18bc69f2b0»",
           "reconstruction/contracts/p3-order-plan.md:370 «231992515371a332»",
           "reconstruction/contracts/p3-order-plan.md:381 «63af1164399c448a»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:291 «21b161b3941610ee»"
+          "reconstruction/src/units/landslide/landslide-unit.ts:293 «21b161b3941610ee»"
         ]
       },
       {
@@ -321,9 +321,9 @@
         "id": "P3-FINAL-AC05",
         "requirement": "F12（U-L）は本体を変えず試験と契約の読み替えで閉じる（D-OUTCOME=A）。記録のある官署に、到着の時点で期限を過ぎた新しい解除が届くと、今どおり採用して同じreduceで回収し、まだ有効だった前のactiveを消す（通知しない）。保存の対象（currents）が変わるので保存の世代を進める（+1に限らない。F12の観測は1→3）。acceptedのsubjectのtransitionはended（activeと返さない）。P3-C10-RETENTIONとpersistedの「到着の時点で期限を過ぎた報（遅着の発表・解除だけの遅着とも…正味のstateが変わらない）では、currentsの参照を変えず保存世代を進めない」（p3-landslide-unit.json:273）は、最終の状態が変わらない受理（記録の無い官署への遅着、P3-C10-ACTIVE-EXPIRY）だけに当たると読み替える。既存のP3-C10-T03の遅着の解除（landslide-unit.test.ts:192〜:196、T0のactiveにReportDateTime 2020-06-23T00:00の解除をT0＋7時間1分で受ける。F12と同じ形）に、保存の世代が進むこととacceptedのtransitionがendedであることを足す。",
         "evidenceRefs": [
-          "reconstruction/src/units/landslide/landslide-unit.ts:294 «12767c397d3a7354»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:326 «4b22fcc111b17e64»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:354 «9ee851f159aa71c4»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:296 «12767c397d3a7354»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:328 «4b22fcc111b17e64»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:357 «9ee851f159aa71c4»",
           "reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f»",
           "reconstruction/contracts/p3-landslide-unit.json:273 «d16910d13705f145»",
           "reconstruction/contracts/p3-landslide-unit.json:12 «c73b1961f3ef092e»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "130700a9ca016abfaec8b2f8010c83605818e8267ce181c0d35db7bea44a4a80",
+    "sha256": "b9cbbc1d743bc9f28bff60445a1302652094df9483a16c7dd06bd32bc04ab553",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -666,8 +666,8 @@
         "requirement": "【発注 2】K10 の残存リスク (b) を消す（U-R の観測の最大、作者裁定 2026-10-25）。場面 1: 09:00 の報 A は観測所 s が現況のレベル 3、10:00 の報 B は現況の時刻（か値）が読めない、11:00 の報 C は s が 3。場面 2: A（唯一の観測所 s がレベル 3）→ B（s の区域の Code が読めず flood.ts で s を丸ごと除き stations が空）→ C（s が 3）。今はどちらも C を「−1 から 3 への上昇」と読み warning で鳴る。直した後は C は鳴らない。C が 4 なら鳴る。B の後に保存→復元しても同じ。(1) FloodCurrent に observedCompare?: number（比べの観測の最大）を足す。現況の観測レベルの最大を確定できない版、つまり観測所が丸ごと外れた版（印に site station の part がある）と、現況のレベルか現況の時刻に読めない印（WARN が出た所、site series の part で scope がその観測所の code と時刻の位置 0、または TimeDefine の位置 0）がある観測所を持つ版では、observedCompare＝max（その版の observedMax, 前の記録の observedCompare ?? 前の記録の observedMax）。どれにも当たらない版は欄を書かない。levels[0] が null かどうかでは決めない: 正規の欠測（空のレベル・レベル 9。flood.ts は WARN を出さずに null にする）は今の比べ方（読めた値だけの最大）のまま。場面 5: 09:00 s=3・t 空 → 10:00 s=2・t 空 → 11:00 s=3 は C で warning（今どおり）。予測の時刻だけ・基準値だけ・水位や流量の数字だけが読めない版は含めない（flood-unit.ts の observedMax と noticeOf の上昇はレベル levels[0] だけを使い水位・流量の値を使わない。flood.ts は後ろの時刻が読めないと break しても現況を残し、水位・流量の値が読めなくてもレベルは別に読む）。場面 3: A 現況 3 → B 現況 2（3 番目の予測の時刻だけ不正）→ C 現況 3 は今どおり C で warning。場面 4: 09:00 現況 3 → 10:00 現況 2・水位の数字だけ不正 → 11:00 現況 3 は C で warning (2) 上昇の判定（flood-unit.ts の noticeOf）は、前の記録の observedCompare ?? observedMax と比べる (3) observedCompare は保存し、codec が確かめる（-1〜5 の整数） (4) 変えないもの: riverLevels の鍵（河川の code、K10 r3）、段（SOUND の表）、表示の値",
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
-          "reconstruction/src/units/flood/flood-unit.ts:198 «c12df257153e5be7»",
-          "reconstruction/src/units/flood/flood-unit.ts:214 «d0ad64d52d99a014»",
+          "reconstruction/src/units/flood/flood-unit.ts:204 «c12df257153e5be7»",
+          "reconstruction/src/units/flood/flood-unit.ts:221 «d0ad64d52d99a014»",
           "reconstruction/src/domains/flood/flood.ts:210 «50cc74007748fbea»",
           "reconstruction/src/domains/flood/flood.ts:293 «71688b19a0252b64»"
         ]

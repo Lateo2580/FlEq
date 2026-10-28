@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "4066c5d7abce7e864aa3366cc5dea6ba5dc662242f55431e4998c2f95781b6b1",
+    "sha256": "9bb931ebdeac47674b2815a905d00dd8a1054296ac0295f4eae4bace8643c4a1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -16,7 +16,7 @@
         "lateRule": "裁定Dの確定の形: 受理の時点（ClockReading.wallTimeMs）でその報のReportDateTime+36時間を過ぎた報（遅着）は、記録があってもなくてもstateを変えない（decision unchanged/stale、view・通知・退去なし、参照と保存世代を変えない）。Dでは遅着の報より古いsourceの記録は受理の前の期限処理で回収済み。解除・取消の記憶が36時間で消えた後に遅れて届いた古い発表で洪水予報を作らない（C10の起草のchanged/revisionOnly＋同じreduceでの回収と違い、正味の変化0をdecisionでも表す）。遅着のstaleと古い版のstaleは診断で区別しない",
         "recommended": "D",
         "provisional": "D",
-        "ruling": "作者裁定D（2026-10-10朝、ご主人）、推奨どおり。採らなかったA〜C・D'は分岐の記録として残すだけで、実装はDの形（retainUntilはnumberでeffectiveによらず元報の時刻+36時間、activeの回収でdesktopだけの期限切れ1件）だけを読む",
+        "ruling": "作者裁定D（2026-10-10朝、ご主人）、推奨どおり。採らなかったA〜C・D'は分岐の記録として残すだけで、実装はDの形（retainUntilはnumberでeffectiveによらず元報の時刻+36時間、activeの回収でdesktopだけの期限切れ1件）だけを読む。（2026-10-29 朝、C16 の発注 4b-1 の配送、P3-REC-AC12 により統合担当が改訂）U-R の例外: 取り直しの候補の受信前の回収で、基点（開いた時の live、当て直しでは今の live）でその subject が見えていなかった記録の期限切れは intent を作らない。基点で見えていた記録は落とさず generationConflict になり、live の tick が通知する（FloodInput の deadline の recoveryBase?: FloodUnitState、flood-unit.ts の collect）",
         "reason": "材料（実配信、~/dev/fleq-corpus-p0の7日分の採取のうちVXKOのあった5日の138本、46 EventID。冬の2日は0本、VXSUは7日とも0本）: 採取は1日ずつで、日をまたぐ間隔は測れない（24時間を超える無報の有無は材料から言えない）。同じ日の中の続報の間隔のうち前の報がactiveだった86間隔の最長は21.3時間（レベル2）、レベル3は29間隔で最長10.25時間、レベル4は16で7.67時間、レベル5は2で2.67時間。日の終わりにactiveのまま次の報の無かったEventIDは6（最後の報はレベル2が4、レベル3が1、レベル4が1）。46 EventIDのうち40は解除（code 10）の報で終わった。EventIDは予報区域のコードで、同じEventIDが約320日・約294日離れた採取日の報に出た（使い回しがそれだけの期間に及ぶことの下限で、続けて使われた間隔ではない）。見え方の違い: Bは36時間続報の無いactiveの洪水予報が音もなく消える。Aは解除・取消の報まで残すが、切断中に解除を取り逃すと同じ予報区域の次の出水（数か月後もありうる）まで古い洪水予報が残る（VXKO・VXSUはREST回復の対象に無い、spec:2205、P3-C11-N2）。Cはその残りを3日で打ち切るが、36時間と72時間のどちらが実際の無報の長さに合うかの材料が無い。推奨はD: 期限はspecと旧築の36時間のまま、黙って消える代わりに「確認できなくなった」ことをdesktopで一度知らせる。Dの代償: 解除を取り逃したときだけでなく、本当に36時間続報が無いまま有効な洪水予報でも消える（知らせはする）。D'は知らせの代わりに画面に印を残す案で、P4の見せ方に依存する"
       },
       {
@@ -537,7 +537,7 @@
       "reconstruction/contracts/p3-flood-unit.types.ts#FloodUnitCodec"
     ],
     "publicFunctions": [
-      "reduceFloodUnit(state: FloodUnitState, input: FloodInput): FloodUnitStep",
+      "reduceFloodUnit(state: FloodUnitState, input: FloodInput): FloodUnitStep（C16 発注 4b-1、P3-REC-AC12: FloodInput の deadline に recoveryBase?: FloodUnitState〔取り直しの候補の受信の前の回収だけが owner から渡す shadow の基点。基点で見えていなかった記録は期限切れの intent を作らない〕。publicTypes の行は型の参照だけなので形はここに書く）",
       "toFloodView(state: FloodUnitState): FloodUnitView",
       "floodUnitCodec: FloodUnitCodec",
       "floodUnit: UnitModule<\"U-R\">（reconstruction/src/units/flood/。unit表の1行）"
@@ -953,7 +953,7 @@
       },
       {
         "id": "P3-C11-AC13",
-        "requirement": "E22のU-R範囲を「REST回復の対象外」として固定し（P3-C11-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照、intents/outcomes空）",
+        "requirement": "E22のU-R範囲をP3-C11-N2で固定し（VXKO・VXSU の型×EventID ごとの最新、窓 42 時間）、origin=recoveryの入力（C16 の候補の作成のときだけ owner から届く）は live と同じ意味を当てるが intent を作らない（live と同じに作った intent は置換の判定にだけ使い、live なら新しい intent が置き換える保存待ちの古い pending を外す）。版の比べが決まらない本文（held）は採らず、印も WARN も表示差分も置かずに unchanged/noChange（owner が held にする、P3-REC-AC05 の (a)）。older・duplicate は既存の判定のまま。H27 は採用の step の recoveryNotices: live の音の段が取り直しの起点より上がり、採用の時点で active な記録のうち、通知済みの版を除いた最も高い 1 件に info を 1 回（P3-REC-D-N2-RAISE-4B=A）。payload の 2 欄〔reportDateTime・recovered〕は codec が対で読み〔片方だけは invalid〕、版は p3-flood-unit-v9〔v8 は捨ててよい版〕。U-R の例外: 取り直しの候補の受信前の回収で、基点（開いた時の live、当て直しでは今の live）でその subject が見えていなかった記録の期限切れは intent を作らない。基点で見えていた記録は落とさず generationConflict になり、live の tick が通知する（FloodInput の deadline の recoveryBase?: FloodUnitState、flood-unit.ts の collect）。受入は P3-C11-T10・P3-REC-T15・P3-REC-T19。P3-RECOVERY-001 の発注 4b-1 で「origin=recoveryを適用しない（unchanged/noChange、state同一参照、intents/outcomes空）」から改めた。P3-REC-AC12 により統合担当が改訂",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
           "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",
@@ -1042,7 +1042,7 @@
         "referenceIds": [
           "P3-C11-AC13"
         ],
-        "behavior": "origin=recoveryの洪水の入力でunchanged/noChange、state同一参照、intents/outcomes空"
+        "behavior": "origin=recoveryの洪水の入力はliveと同じ意味を当てる（水位の段を上げる続報で記録はliveと同じ、intentは0、置き換える保存待ちの古いpendingは外れる）。版の決まらない本文はunchanged/noChange・state同一参照・印もWARNも表示差分も無し（P3-RECOVERY-001の発注4b-1で期待を改めた。理由: 入口の置き換え、P3-REC-AC12）"
       }
     ],
     "requiredCommands": [
