@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "6f9cbb0f77edf7085cd102f7cde041b50f80a9ea008fc196ea1fe0fd8af5bed1",
+    "sha256": "1232791581f1074923090176828a11b1a39fac10c8f82a56b8b6855155f88075",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -281,7 +281,7 @@
       },
       {
         "id": "P3-WS-AC04",
-        "requirement": "台風の報を形の少しの違いで丸ごと失わない（P3-WS-D-TYPHOON=A、H51）: 分岐のAの(1)〜(7)を、その部分だけを落とすか欄をnullにしてcandidateのtruncatedをtrueにして受理する。(1)〜(3)の順: (i) 全部の時刻でDateTimeのtypeだけを読み、実況の数〔:301〕を今どおり数え（実況が無ければMissing、2個以上ならInvalid）、typeが表の外の時刻を落とす（typeの欠けか空の時刻は落とさず(ii)へ回す） (ii) 残りが25個以上なら、実況の時刻を文書のどこにあっても残し、ほかは文書の順で先から、合わせて24個を文書の順で残す (iii) 残す時刻にだけparseFrameを当て、:138〜:140の1つのifを、時刻として読めない条件（DateTimeの欠け・2個以上・形の外、typeの欠けか空、hoursが種類と合わない、Itemの欠け・2個以上）にまとめ、実況でない時刻ならその時刻を落とし、実況の時刻なら今どおりMissing・Invalid。落とした時刻・残さない時刻の名前・中心などを読まない。(4)は:144より後の欄の不備（optional・whole・pointの形の外、:109のNumber、:152の同じType、:170・:175の2個以上）をその時刻の中だけの記録で受け、欄をnullにしてtruncatedを立てる（:152は同じTypeのPropertyを全部無いものとする）。:194の同じtypeの域の2個以上は今どおりInvalid。台風呼称の節の名前（:330）も同じ。(5)は軸が3本以上の域のaxesを[]（codecは0本を受ける）にする。(6)は落とした節の地域を地域の集合の照合〔:393〕に入れない。同じNの節の重複〔:324〕は今どおりInvalid。(7)は:364〜:370の時間帯の検査を、外れた最初の時間帯で止めてslotCountをそこまでの数にする形に替え、時系列の各地域の値の数を元のTimeDefineの数と照合〔:380〕してから、読んだ時間帯の数の値だけでrefIDの照合〔:383〕とpeakを行う。slotCountが0なら拒否。確率の値の形の外〔:223〕と同じ節か時系列に重なる地域〔:354・:379〕は今どおりInvalid。1〜5日積算の節が各1個、Itemの数、地域の識別、地域の集合の一致の検査は今どおり。保存の上限（frames 24・axes 2・slotCount 64）と通知の規則は変えない",
+        "requirement": "台風の報を形の少しの違いで丸ごと失わない（P3-WS-D-TYPHOON=A、H51）: 分岐のAの(1)〜(7)を、その部分だけを落とすか欄をnullにしてcandidateのtruncatedをtrueにして受理する。(1)〜(3)の順: (i) 全部の時刻でDateTimeのtypeだけを読み、実況の数〔:301〕を今どおり数え（実況が無ければMissing、2個以上ならInvalid）、typeが表の外の時刻を落とす（typeの欠けか空の時刻は落とさず(ii)へ回す） (ii) 残りが25個以上なら、実況の時刻を文書のどこにあっても残し、ほかは文書の順で先から、合わせて24個を文書の順で残す (iii) 残す時刻にだけparseFrameを当て、:138〜:140の1つのifを、時刻として読めない条件（DateTimeの欠け・2個以上・形の外、typeの欠けか空、hoursが種類と合わない、Itemの欠け・2個以上）にまとめ、実況でない時刻ならその時刻を落とし、実況の時刻なら今どおりMissing・Invalid。落とした時刻・残さない時刻の名前・中心などを読まない。(4)は:144より後の欄の不備（optional・whole・pointの形の外、:109のNumber、:152の同じType、:170・:175の2個以上）をその時刻の中だけの記録で受け、欄をnullにしてtruncatedを立てる（:152は同じTypeのPropertyを全部無いものとする）。:194の同じtypeの域の2個以上は今どおりInvalid。台風呼称の節の名前（:330）も同じ。(5)は軸が3本以上の域のaxesを[]（codecは0本を受ける）にする。(6)は落とした節の地域を地域の集合の照合〔:393〕に入れない。同じNの節の重複〔:324〕は今どおりInvalid。(7)は:364〜:370の時間帯の検査を、外れた最初の時間帯で止めてslotCountをそこまでの数にする形に替え、時系列の各地域の値の数を元のTimeDefineの数と照合〔:380〕してから、読んだ時間帯の数の値だけでrefIDの照合〔:383〕とpeakを行う。slotCountが0なら拒否。確率の値の形の外〔:223〕と同じ節か時系列に重なる地域〔:354・:379〕は今どおりInvalid（K14〔P3-UNREADABLE-MARK-001〕の発注 4 から、これらと地域の集合の不一致・時系列の値の数・refID の外れは報の旗でなくその地域の不備として覚え、拒否の理由は今どおりのまま、拒否の結果に地域ごとの 5 日積算〔不備の地域は null〕を添える、P3-UM-AC14 の (1)）。1〜5日積算の節が各1個、Itemの数、地域の識別、地域の集合の一致の検査は今どおり。保存の上限（frames 24・axes 2・slotCount 64）と通知の規則は変えない",
         "evidenceRefs": [
           "reconstruction/src/domains/typhoon/typhoon.ts:122 «ebdf1ae7d0a7a1d1»",
           "reconstruction/src/domains/typhoon/typhoon.ts:123 «72f711396d867788»",
@@ -292,12 +292,12 @@
           "reconstruction/src/domains/typhoon/typhoon.ts:332 «86c7192d2a3e0f95»",
           "reconstruction/src/domains/typhoon/typhoon.ts:345 «d8ff94d1054ce346»",
           "reconstruction/src/domains/typhoon/typhoon.ts:347 «6509d53c8a95a333»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:395 «e3f3980d7e67bc16»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:401 «594100b2896cacbd»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:417 «3a6b276d44292054»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:420 «61910075c8e09edb»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:430 «c2b4222494be9c0c»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:448 «16c1b2ce589575ac»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:398 «e3f3980d7e67bc16»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:404 «594100b2896cacbd»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:420 «c2e5896c5e76b08b»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:423 «3a7300a27d919863»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:432 «7c79e6ad1a671b3a»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:453 «16c1b2ce589575ac»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:667 «2d176df9bd29492e»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:715 «386765b0ed3fadfa»",
           "reconstruction/contracts/p3-typhoon-unit.json:352 «28b728c920e887df»",
@@ -308,10 +308,10 @@
           "reconstruction/src/domains/typhoon/typhoon.ts:166 «5cf58eab3ec62706»",
           "reconstruction/src/domains/typhoon/typhoon.ts:208 «ab68efdc30d82239»",
           "reconstruction/src/domains/typhoon/typhoon.ts:239 «844490aedc0ee871»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:385 «d4062ebdcb0992d0»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:398 «ae4f8d3adcd67621»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:400 «5e0aab8267f4f2ea»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:444 «44f162cde8b85498»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:388 «b377aa8e7c54a3c2»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:401 «ae4f8d3adcd67621»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:403 «5e0aab8267f4f2ea»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:449 «44f162cde8b85498»",
           "docs/specs/reconstruction-p0-contracts.md:3209 «f0f82f05f422b938»"
         ]
       },
@@ -346,7 +346,7 @@
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:270 «2ca242e71af35dbc»",
           "reconstruction/src/view-projector/view-projector.ts:642 «9b605ed058616c2a»",
           "reconstruction/src/domains/typhoon/typhoon.ts:313 «9a4724e251648b1d»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:395 «e3f3980d7e67bc16»"
+          "reconstruction/src/domains/typhoon/typhoon.ts:398 «e3f3980d7e67bc16»"
         ]
       },
       {
@@ -384,7 +384,7 @@
         "requirement": "最小実装・最小テスト: (1) 足す仕組みは診断の理由2語と、読み飛ばしの判定・外の階層の範囲のperiodの数え・要約の規則・U-Yの切り詰めだけ。ほかの型・層・helper・設定・保存の欄を足さない。足した仕組みごとに無いと何が壊れるかを1行 (2) 試験はtestMappingのP3-WS-T01〜T05に限る。U-Fの試験はpublicのfixtureに付加や未知の要素を試験の中で差し込んで作り、新しいfixture fileを足さない（manifestの件数を変えない） (3) reconstructionのゲート一式（tsc 3本・vitest・shuffle・checker 3本）を通す (4) 他の契約が引く行（Q-WS-PRECHECKの(3)）: 行の数を変えない書き方を優先する（p2-shared-runtime.types.tsは:303の同じ行の中で直す、persistent-diagnostic-sink.tsは:62より後に足す、weather-timeseries.tsは:235より上の行の数を変えない、typhoon-unit.test.tsは:214より上の行の数を変えない）。weather-timeseries-unit.tsとview-projector.tsは変える所より後を引くanchorが多いので、足す行は変える関数の中にとどめる。それでも動いた行を引くanchorは、統合担当が配送のcommitで行番号と各契約のmeta.sha256を付け直す（本文は書き換えない）",
         "evidenceRefs": [
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:91 «77930c433792cec1»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:464 «f35fcf322d69470e»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:469 «f35fcf322d69470e»",
           "reconstruction/src/view-projector/view-projector.ts:932 «76d9e0e79209d6c9»"
         ]
       },

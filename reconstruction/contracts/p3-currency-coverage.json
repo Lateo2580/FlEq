@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "bf3f1c4781c2ad3d5a5f402bb2101b46f070f4e57595a99007faf595d2bcae97",
+    "sha256": "a28b911294dc78c65a02114d0437f9281c6ea2d774a54092463228435832792c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -388,7 +388,7 @@
         "id": "P3-CC-AC01",
         "requirement": "容量の拒否で normal を隠す仕組みを外す（Pro §8.2②、§4.4 の消せるもの）。(1) owner: OwnerState.admission、updateAdmission（記録 512 件・262,144 byte・overflow）と admissionRecordByteCache、unitAdmissionCounts、viewBits、projectView の withoutNormal と keepsWhileNormalHidden による除外と contentRevision の admission の 3 bit、finish() の normal 公開の切り替えの displayChanges、normalSubjects を除く。projectView は unit の toView の結果をそのまま返す（contentRevision は unit の基底版の文字列） (2) 型: UnitModule の withoutNormal・keepsWhileNormalHidden・normalDisplaySubjects と 12 unit の実装、各 toView の admission: {}、UnitView.admission、AdmissionRejection・AdmissionSlot・RuntimeAdmission・RuntimeAdmissionCounts、RuntimeState.admission、RuntimeStep.admissionCounts を除く (3) publisher: OwnerUnitDelta.admissionCounts、MirrorUnit.admissionCounts、snapshotInput の admissionCounts を除き、deliveryState は在送中の鍵だけで絞る（normal の pending を unit 単位で外さない） (4) A8: masked() と各 tally の hidden の引数と枝、Meta.admission、DisplaySummaryItem.admission、SnapshotProjectionInput.admissionCounts を除く。U-E の notice の生成は公開 mask を見ない (5) P3-UF-PUBLIC-001（963351a7 で配送、Q-CC-ORDER）が足したもののうち、weatherTimeseriesDetail の view 引数の normalHidden の欄と、normal の公開の制限の間に索引へ normal を載せず時系列でも normal を返さない分岐（配送版は両方を 1 つの絞り込みで行う）を除く（normal の subject も載せて返す）。その view 引数を組む owner-runtime.ts の detailOwner は normalHidden を渡さず、contentRevision を unit の内容版（viewBits の 3 bit なし）で渡す。索引の revision（U-F の view の内容版）は admission の 3 bit が消えて unit の内容版の 10 進の文字列になり、U-F の HTTP の revision の検査（http-sse.ts の parseDetail の索引の形『内容版:3 bit』）も 10 進の整数（current・lastKnown の revision と同じ 16 桁以下）にそろえる。公開形式にした normalDisplaySubjects は UnitModule ごと除く (6) 5 unit の capacityExceeded の decision から rejection を除く（読む側が無くなる。AdmissionEvidence は currentEstablished が使うので残す）。decision の kind capacityExceeded は残し、AC02 の信号に使う。受入: 容量の拒否の後も、同じ unit の別 subject の正常採用は owner の view、A8 の件数・重大度・区域、chrome-eew の EEW と津波の描画、A7 の配送の候補に出る。無いと何が壊れるか: 拒否 1 件で unit の normal の表示と通知が全部止まる（監査 C1、Pro §2.2）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/owner-runtime.ts:399 «77e5ed44f552950a»",
+          "reconstruction/src/runtime/owner-runtime.ts:402 «77e5ed44f552950a»",
           "reconstruction/src/runtime/owner-host.ts:404 «fcf4513dab347f8f»",
           "reconstruction/src/runtime/shared-runtime.ts:61 «d8f5f2aa6b1ef5e2»",
           "reconstruction/src/runtime/composition-root.ts:239 «fc44fe0acd87dde2»",
@@ -404,7 +404,7 @@
         "id": "P3-CC-AC02",
         "requirement": "印を付けない拒否を unit/operation の網羅性へ寄せる（Q-CC-SLOT、D-CLEAR=A の形）。(1) 負の証拠は unit が返す（正の証拠と同じ口）: capacityExceeded を返す 5 か所（U-E・U-T・U-Q・U-W・U-F）と、AC03(4) の印を unit の未確認へ移す場面で、UnitStep.confirmationEvidence に { source: \"capacityExceeded\", scopes: [{ unit, operation, kind: \"unit\" }] } を載せる（CurrentConfirmationEvidence に変種を足す。同じ step の同じ (unit, operation) は 1 件）。どちらも受信の step なので owner は今どおり OwnerOutput へ渡す。ただし、その記録の印の版が拒否した報の版以上なら、その拒否は印が覆うので負の証拠を返さず、decision は capacityExceeded のまま（unit を未確認にしない。配送の commit で統合担当が追記、実装の判断を採った、Q-CC-IMPL） (2) publisher は負の証拠を切断の境界（afterInputSequence）によらず採り、その slot の whole を UnconfirmedReason に足す capacityExceeded にし、counts の whole の分を付け替え、slot の confirmedAt を null にする。scopes は変えない。同じ slot に負の証拠を重ねても whole の 1 は増やさない（counts の capacityExceeded は whole の 1 と、その理由を持つ scope の数の和で、拒否した報の数ではない）。scope の確認・退役では whole の 1 を減らさない。同じ出力の正の証拠とは独立（正の証拠は whole を消さない） (3) whole=capacityExceeded は unit を覆う coverageVerified（verifyCoverage の unit scope、既存）だけで消える。切断（lostConfirmation）と scope 容量の畳み（scopeCapacity）は whole を上書きしない（scope の理由は今どおり変える）。counts は『whole の 1 と scope の理由別』のまま: 切断と重なれば { capacityExceeded: 1, disconnected: scope の数 }、畳みと重なれば { capacityExceeded: 1 }。retireConfirmation は今どおり whole を保つ。時間・heartbeat・接続の回復・別 subject の正の証拠（acceptedReport）では消さない。再起動では確認状態が startup から始まる（P2-A1-CONFIRMATION.startup、未確認のまま）。verifyCoverage は変えない（照合が包含する入力の範囲の条件は回復の契約へ送る、Q-CC-LEDGER85） (4) A8 は UNCONFIRMED_KEYS に capacityExceeded を足し、DisplaySummaryItem.unconfirmed.capacityExceeded で出す。confirmation.state は既存の式 (5) 計算量: 負の証拠 1 件は slot 1 つの whole と counts の付け替えだけで、scopes を走査しない。無いと何が壊れるか: 印を付けない拒否（新しい subject・byte の超過・U-T の観測）が、隠しを外した後に画面と確認状態のどこにも出ない",
         "evidenceRefs": [
-          "reconstruction/src/runtime/owner-runtime.ts:313 «ed2372f6ec793bc3»",
+          "reconstruction/src/runtime/owner-runtime.ts:313 «42ec5badcffd8ca5»",
           "reconstruction/src/runtime/shared-runtime.ts:78 «8ccfd5159bea157b»",
           "reconstruction/src/runtime/shared-runtime.ts:102 «d4dcf0c5da493b28»",
           "reconstruction/src/runtime/shared-runtime.ts:117 «294d6d1d0865550f»",
@@ -430,7 +430,7 @@
         "id": "P3-CC-AC03",
         "requirement": "U-T・U-Q の記録の印（Q-CC-MARK、D-CLEAR=A・D-SHOW=A の形）。(1) 形: SubjectUnavailable = { reason: \"capacityExceeded\"; source: ReportRef（拒否した報）}。TsunamiForecastSubject と LongPeriodSubject に optional の unavailable を 1 つ、EarthquakeEvent と EarthquakeEventView に optional の unavailable（family ごとに 1 つ、1〜4 件の配列）を足す。印の無い記録は鍵を持たない。TsunamiObservationSubject には足さない (2) 付ける場面: U-T・U-Q の adopt で fit が null を返したとき、拒否した報の記録（U-T は同じ VTSE41 の subject、U-Q の地震 4 family は同じ operation・EventID の event、VXSE62 は同じ subject）が view に出ていれば（U-T は effective active、U-Q は visible）、その記録に印を付け（同じ記録・同じ family の印があれば版の新しい方へ進め、巻き戻さない）、印だけを既存の fit に通す（退去の適格性は採用と同じ、P3-X-C5。U-Q の印だけの fit は第 6 段に入らない、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC02 の (1) の (8)）。AC10 の通知と AC04 の書き換えは、印を確定した後の state に追加の退去なしで収まるときだけ当てる。収まれば decision は changed（change semantic、currentEstablished null、正の確認の証拠なし）、outcome は accepted・semantic で subject の transition は unavailable（U-W の addUnavailable と同じ形）、displayChanges と contentRevision は既存の差分の規則で出る。収まらない、記録が無い・view に出ていない、または U-T の観測の拒否のときは印を付けず、AC10 の通知と AC04 の書き換えだけを当てて capacityExceeded を返す（AC02 へ）。印の版が拒否した報の版以上なら、その拒否は印が覆うので負の証拠を返さず、decision は capacityExceeded のまま（unit を未確認にしない。配送の commit で統合担当が追記、実装の判断を採った、Q-CC-IMPL） (3) 消える条件と引き継ぎ: 同じ subject（U-Q の event は印と同じ family）の報を採用したとき、その報の版が印の source の版以上なら印を消し、未満（遅れて届いた古い報）なら新しい記録へ印を引き継ぐ。版の比較は unit の既存の規則（U-T の VTSE41 は ReportDateTime と InfoType の優先、U-Q は family ごとの ReportDateTime・InfoType・Serial）。ほかの subject・family の採用、期限、再起動、heartbeat では消さない (4) 引き継いだ先の記録が view に出ないとき（U-T の解除・取消、U-Q の event と長周期の取消記憶だけの記録＝memoryOnly）は、印を外して AC02 の負の証拠を返す（unit/operation の未確認へ移す）。取消記憶だけの記録は印を持たないので、予約 RESERVE_BYTES の式は変わらない。記録が期限・退去で回収されれば印も一緒に消える（影響が終わる） (5) A8: tsunamiTally・seismicTally は印のある記録を今どおり active・重大度・区域に数え、unavailable.capacityExceeded に記録 1 つにつき 1 を足す（U-Q の event は印の family の数によらず 1）。updatedAt に印の時刻を足さない (6) U-E には印を足さない（Q-CC-UE）。U-W・U-F の既存の印は変えない (7) 計算量: 印を付ける経路は拒否のときだけで、記録の引き当ては既存の索引か配列の線形 1 回（≦512・1,024）に既存の fit が加わる。引き継ぎの判定は採用 1 回につき記録 1 つの比較 1 回。無いと何が壊れるか: 隠しを外した後、拒否で更新できなかった記録の古い値を今の値として出す（Pro §4.1、P3b）",
         "evidenceRefs": [
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:659 «e956c4e220c862de»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:659 «85aa8babc9974580»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:661 «cc1e1a8b4d6def00»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:374 «3ca4da5b4c8b2813»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:498 «3f2690b71e67d7d4»",
@@ -476,8 +476,8 @@
           "reconstruction/src/notification-delivery/notification-delivery.ts:35 «8744f6b8f265e436»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:63 «f04614abff120d81»",
           "reconstruction/src/notification-delivery/delivery-growth.ts:9 «d276cf9d3287046b»",
-          "reconstruction/src/runtime/owner-runtime.ts:545 «6af0a32f7c614e1c»",
-          "reconstruction/src/runtime/owner-runtime.ts:556 «bd8fa4c0f764774f»",
+          "reconstruction/src/runtime/owner-runtime.ts:551 «6af0a32f7c614e1c»",
+          "reconstruction/src/runtime/owner-runtime.ts:562 «bd8fa4c0f764774f»",
           "reconstruction/src/runtime/composition-root.ts:1209 «29e626fa0540fe7d»",
           "reconstruction/src/runtime/composition-root.ts:1217 «37f6fb43f73421bb»",
           "reconstruction/src/runtime/composition-root.ts:1223 «c1316ed7219f7ac9»",
@@ -548,7 +548,7 @@
           "reconstruction/src/runtime/composition-root.ts:1223 «c1316ed7219f7ac9»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:501 «390aea3ad8550a22»",
           "reconstruction/src/units/seismic/seismic-unit.ts:828 «561a94aa843f3519»",
-          "reconstruction/src/runtime/owner-runtime.ts:504 «c0d82ea339f67c93»"
+          "reconstruction/src/runtime/owner-runtime.ts:510 «c0d82ea339f67c93»"
         ]
       },
       {
@@ -594,7 +594,7 @@
         "evidenceRefs": [
           "reconstruction/src/units/tsunami/tsunami-unit.ts:443 «d5c6ed05dd9cc02d»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:631 «c65904dc9be789ab»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:659 «e956c4e220c862de»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:659 «85aa8babc9974580»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:661 «cc1e1a8b4d6def00»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:152 «71c1d7d434117f2d»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:171 «50b8d73592bcc0c4»",
@@ -616,13 +616,13 @@
           "reconstruction/contracts/p3-tsunami-unit.json:209 «f57c130108d70252»",
           "reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1»",
           "reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b»",
-          "reconstruction/src/runtime/owner-runtime.ts:501 «63adcad8d045ce86»",
-          "reconstruction/src/runtime/owner-runtime.ts:503 «7820be847bd9d157»",
-          "reconstruction/src/runtime/owner-runtime.ts:504 «c0d82ea339f67c93»",
+          "reconstruction/src/runtime/owner-runtime.ts:507 «63adcad8d045ce86»",
+          "reconstruction/src/runtime/owner-runtime.ts:509 «7820be847bd9d157»",
+          "reconstruction/src/runtime/owner-runtime.ts:510 «c0d82ea339f67c93»",
           "reconstruction/src/units/seismic/seismic-unit.ts:64 «e03057af8e6a011b»",
           "reconstruction/src/units/seismic/seismic-unit.ts:584 «f3084e832bb015aa»",
           "reconstruction/src/runtime/composition-root.ts:1264 «1a1621ed24aadde6»",
-          "reconstruction/src/runtime/owner-runtime.ts:545 «6af0a32f7c614e1c»",
+          "reconstruction/src/runtime/owner-runtime.ts:551 «6af0a32f7c614e1c»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:63 «f04614abff120d81»",
           "reconstruction/src/runtime/owner-runtime.ts:284 «29b451e1757a3dc4»",
           "reconstruction/src/units/seismic/seismic-unit.ts:982 «6737443737a45304»",

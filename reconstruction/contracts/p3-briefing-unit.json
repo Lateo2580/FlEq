@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "9c6cdc5057ecbfd770cf9b6e0b8f627a3e9206af03e6d5c3066fd0c71130ec55",
+    "sha256": "1172bd5080ab833041745a76a295c99889ae2d4d214cdbaed7819244b7b72420",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -393,7 +393,7 @@
         "id": "P3-C12-EVICT-OPERATION",
         "status": "frozen（D-OPERATION=A・D-PAST-RETENTION=A・D-SELF-OUTCOMEの帰結。K4のQ-OPCAP-C12とK4NのQ-OPCAP-N-OTHERSがC12の再開条件へ送った分）",
         "source": "reconstruction/contracts/p3-operation-capacity.json:252 «cf785260c7cec6af»（P3-OPCAP-AC01）・reconstruction/contracts/p3-operation-capacity.json:280 «d7c72753c45da2f2»（AC02）・reconstruction/contracts/p3-operation-capacity.json:63 «14d7db45ca6d6887»（Q-OPCAP-C12）、reconstruction/contracts/p3-operation-capacity-n.json:162 «163af11f4c23d44e»（K4NのAC01）・reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»（AC02）",
-        "rule": "(1) 退去の適格性は順位より前にoperationで決める。受ける報がtraining/testなら、normalの記録はactive・held・released・記憶（replaced・aliased・cancelled）のどれも、retainUntilを過ぎた記録も退去の候補にしない（D-PAST-RETENTION=A。製品の経路はownerが受信の前に期限を回収する、reconstruction/src/runtime/owner-runtime.ts:480 «63380813ee47301c»）。候補はtraining/testの記録だけで、その中の順は(1)retainUntilを過ぎた記録 (2)記憶 (3)生きた記録、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がnormalのときの順とnormalどうしの退去はP3-C12-CAPACITYのまま (2) 候補が無ければ受けた記録自身を退去する（自身の退去）: decisionはchanged/revisionOnly・currentEstablished null、outcomeは[{accepted, revisionOnly, subjects: []}]、診断briefingCapacityEvicted（count 1）、currentsの参照と保存世代を変えず、通知を作らない (3) 自身の退去はtraining/testの記録が0件のときだけ起き（候補はtraining/testの全記録）、置換・alias・対応報の取消は同じoperationの記録にしか効かないので、他のsubjectへの作用は起きえない (4) 自身を退去した取消は、そのsubjectのpendingを全部supersededにし（P3-C12-REPLACEMENT）、intentsが変わったときだけ保存世代を進める（U-L・U-Rと同じ、reconstruction/src/units/flood/flood-unit.ts:318 «1b80cb1e17fb6e55»） (5) 退去は記録の無いsubjectの報だけで起き、入力の前の配列から1件を決め、作用（置換・alias・対応報の取消）は残った記録に当てる。遅着の報（P3-C12-TTL.lateRule）は退去を起こさない（K3のP3-FINAL-AC01の時間の軸）",
+        "rule": "(1) 退去の適格性は順位より前にoperationで決める。受ける報がtraining/testなら、normalの記録はactive・held・released・記憶（replaced・aliased・cancelled）のどれも、retainUntilを過ぎた記録も退去の候補にしない（D-PAST-RETENTION=A。製品の経路はownerが受信の前に期限を回収する、reconstruction/src/runtime/owner-runtime.ts:483 «63380813ee47301c»）。候補はtraining/testの記録だけで、その中の順は(1)retainUntilを過ぎた記録 (2)記憶 (3)生きた記録、それぞれsourceのReportDateTimeの古い順（同じならsubjectの辞書順）。受ける報がnormalのときの順とnormalどうしの退去はP3-C12-CAPACITYのまま (2) 候補が無ければ受けた記録自身を退去する（自身の退去）: decisionはchanged/revisionOnly・currentEstablished null、outcomeは[{accepted, revisionOnly, subjects: []}]、診断briefingCapacityEvicted（count 1）、currentsの参照と保存世代を変えず、通知を作らない (3) 自身の退去はtraining/testの記録が0件のときだけ起き（候補はtraining/testの全記録）、置換・alias・対応報の取消は同じoperationの記録にしか効かないので、他のsubjectへの作用は起きえない (4) 自身を退去した取消は、そのsubjectのpendingを全部supersededにし（P3-C12-REPLACEMENT）、intentsが変わったときだけ保存世代を進める（U-L・U-Rと同じ、reconstruction/src/units/flood/flood-unit.ts:318 «1b80cb1e17fb6e55»） (5) 退去は記録の無いsubjectの報だけで起き、入力の前の配列から1件を決め、作用（置換・alias・対応報の取消）は残った記録に当てる。遅着の報（P3-C12-TTL.lateRule）は退去を起こさない（K3のP3-FINAL-AC01の時間の軸）",
         "reason": "training/testの流量で実災害の受理の判断を変えない（D-OPERATION=A）。起草の(1)(2)は受ける報によらずnormalの期限切れ・記憶を退去し、K4前のV/L/Rと同じ形だった（監査F04の型: 訓練の報がnormalの取消の記憶を追い出し、取消より古い報が戻る）。U-Rの形（reconstruction/src/units/flood/flood-unit.ts:113 «574dec335c81ab45»・reconstruction/src/units/flood/flood-unit.ts:117 «cafff1643f57f709»）を写す"
       },
       {
@@ -1189,7 +1189,7 @@
           "reconstruction/contracts/p3-operation-capacity-n.json:181 «be761ef1cfeb2333»",
           "reconstruction/contracts/p3-operation-capacity-n.json:34 «4c3aaf00a47d87b1»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
-          "reconstruction/src/runtime/owner-runtime.ts:480 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:483 «63380813ee47301c»",
           "reconstruction/src/units/flood/flood-unit.ts:120 «574dec335c81ab45»",
           "reconstruction/src/units/flood/flood-unit.ts:124 «cafff1643f57f709»",
           "reconstruction/src/units/flood/flood-unit.ts:347 «1b80cb1e17fb6e55»"
@@ -1217,7 +1217,7 @@
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
           "reconstruction/src/units/landslide/landslide-unit.ts:469 «9345fb2ba59740d2»",
           "reconstruction/src/units/landslide/landslide-unit.ts:479 «238f48b50821379d»",
-          "reconstruction/src/runtime/owner-runtime.ts:433 «c7c7fe340564feca»",
+          "reconstruction/src/runtime/owner-runtime.ts:436 «c7c7fe340564feca»",
           "docs/specs/reconstruction-p0-contracts.md:481 «6fa5484190c6fd73»",
           "docs/specs/reconstruction-p0-contracts.md:496 «f52fc5b960899f90»",
           "docs/specs/reconstruction-p0-contracts.md:884 «f4349ebe9917f61a»"

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3bf28220324183175ffc82e04420a6ccef24ef6e",
-    "sha256": "bbb3c6f0cd92557d07bd39069008184584ef5cad2a115dfa27451e2e06e48ee9",
+    "sha256": "64d05da35999b79a58d6fca4373e647b7ec850a63f937235683e9cd38901acb0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -239,8 +239,8 @@
           "reconstruction/test/volcano-unit/volcano-host.test.ts:201 «858dc2e34b48b7fa»",
           "reconstruction/test/volcano-unit/volcano-host.test.ts:387 «b20d14c648dddbb9»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:337 «4c30ccd004880ff3»",
-          "reconstruction/src/runtime/owner-runtime.ts:501 «63adcad8d045ce86»",
-          "reconstruction/src/runtime/owner-runtime.ts:503 «7820be847bd9d157»",
+          "reconstruction/src/runtime/owner-runtime.ts:507 «63adcad8d045ce86»",
+          "reconstruction/src/runtime/owner-runtime.ts:509 «7820be847bd9d157»",
           "reconstruction/src/runtime/composition-root.ts:2401 «a8e36100fe204f8f»"
         ]
       },
@@ -252,7 +252,7 @@
           "reconstruction/test/tsunami-unit/tsunami-host.test.ts:211 «7e1015464cedeb74»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:337 «4c30ccd004880ff3»",
           "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:339 «1479198c609faf03»",
-          "reconstruction/src/runtime/owner-runtime.ts:501 «63adcad8d045ce86»"
+          "reconstruction/src/runtime/owner-runtime.ts:507 «63adcad8d045ce86»"
         ]
       },
       {

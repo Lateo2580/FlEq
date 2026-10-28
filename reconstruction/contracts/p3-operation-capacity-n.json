@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1d307989560e298199af040831df538ec9d75e24",
-    "sha256": "efe27d8fbc57d5508d31a6d073ed63655260f60ac7d8e40a6aa7b1c8325bd290",
+    "sha256": "949dd9b57c9ee8256f2450dcc72c0b5845c56e7fb29946a970d8d706c4c68196",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -173,7 +173,7 @@
           "reconstruction/contracts/p3-operation-capacity.json:253 «6e8cfcd80ce6fdc1»",
           "reconstruction/contracts/p3-authority-evidence.json:255 «474389820213efeb»",
           "reconstruction/contracts/p3-order-plan.md:367 «9713a94f11c5be56»",
-          "reconstruction/src/runtime/owner-runtime.ts:480 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:483 «63380813ee47301c»",
           "reconstruction/src/units/nankai/nankai-unit.ts:884 «973323028dc564f5»"
         ]
       },

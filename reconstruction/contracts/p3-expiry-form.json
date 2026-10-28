@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "499b4d79e47994bd0387e5b89dfbfcfbadbbf50dd201095e7d12082f85d21406",
+    "sha256": "20ec76c7884029661dbf8052bc90cf8dc607fad95db91d23e1c1a314bf74d1b5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -475,10 +475,10 @@
           "reconstruction/contracts/p3-persist-premises.md:400 «84a5747c84adc8cb»",
           "reconstruction/contracts/p3-persist-premises.md:426 «2da899c097a9e079»",
           "reconstruction/contracts/p3-persist-premises.md:527 «70a3ffe6b373dcd8»",
-          "reconstruction/src/runtime/owner-runtime.ts:480 «63380813ee47301c»",
+          "reconstruction/src/runtime/owner-runtime.ts:483 «63380813ee47301c»",
           "reconstruction/src/runtime/owner-host.ts:286 «5107377988c560af»",
-          "reconstruction/src/runtime/owner-runtime.ts:325 «8c7fa7bd91e521b7»",
-          "reconstruction/src/runtime/owner-runtime.ts:319 «111a3fe1026e5e73»",
+          "reconstruction/src/runtime/owner-runtime.ts:328 «8c7fa7bd91e521b7»",
+          "reconstruction/src/runtime/owner-runtime.ts:322 «111a3fe1026e5e73»",
           "reconstruction/contracts/p3-execution-split.types.ts:142 «e39000aa100184bc»",
           "reconstruction/src/runtime/owner-host.ts:163 «95b43a894c5d3f14»",
           "reconstruction/src/units/flood/flood-unit.ts:318 «b6870a370007c3eb»",
@@ -629,8 +629,8 @@
         "requirement": "受信経路の計算量（AGENTS.md、Q-EF-COST）: (1) 根拠の判定は入力 1 件に定数 (2) unit は表示の期限・回収の期限・保留の記録・intent の期限の最小を配列ごとの cache で別々に持ち、根拠で当てない種類の期限は比べない。\"awaiting\"・\"unverified\" の間の毎秒の期限要求は、当てる期限が来ていなければ O(1) で同じ参照を返す（配列を作り直さない、世代を進めない）。nextDeadline は根拠によらず全部の期限の最小のままにする（無いと: 回収の期限を外した nextDeadline のまま \"verified\" に替わると、owner が期限の入力を作らず〔owner-runtime.ts:263〕、回収が次の別の期限か受信まで止まる）。保留の記録は元の表示の期限の値で数え、時計が後ろへ直ったときの回収は到来の判定を通さない AC02 の (7) で当てる (3) 止めた回収は各 unit の件数の上限の内（保持と decode の両方で効く）で、\"verified\" に替わった最初の要求（AC02 の (7)）でその件数の線形 1 回だけ回収する（上限のある稀な一括処理） (4) U-T・U-F の予約は今の加算（fit・measure）に「印の無い active の記録の数×21」を足すだけ。U-T の fit の退去は記録ごとに実 byte と（予約の対象なら）21 byte を一緒に差し引き、U-F は今どおり measure の数え直しで外れる（AC10 の (5)） (5) U-B の報ごとの subject で受信 1 回の索引の作り直しは今どおり 256 件の線形 (6) state 全体の JSON 化を足さない",
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts:966 «8ae52d9d693e7af3»",
-          "reconstruction/src/runtime/owner-runtime.ts:325 «8c7fa7bd91e521b7»",
-          "reconstruction/src/runtime/owner-runtime.ts:319 «111a3fe1026e5e73»",
+          "reconstruction/src/runtime/owner-runtime.ts:328 «8c7fa7bd91e521b7»",
+          "reconstruction/src/runtime/owner-runtime.ts:322 «111a3fe1026e5e73»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1151 «e85cf715bf3ed3e2»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»"
         ]

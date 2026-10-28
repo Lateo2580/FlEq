@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "02d2eed5def59bd2ace7e4025df91165bb301649",
-    "sha256": "3fb48b3d6ab55e9b56d5a759a40bb2511ca8f28a7487b3af0cad5bf6d7088b37",
+    "sha256": "0aa00ad3c8d8bd747233033b7d2d657e7bf5d5ff905e05e516626eaea8e4fa56",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -219,7 +219,7 @@
         "requirement": "草案と runner を継承元に合わせる: (1) buildP3TsunamiManifest（tsunami.mjs:155）に継承元を選ぶ引数を 1 つ足し（inheritsManifestId、既定 \"p3-c4-formal-20261007\"）、:160 は TSUNAMI_INHERITED_MANIFESTS でその id を引いた行の path の file を読む。既定を C4 のままにして、既存の T06 の試験（tsunami.test.ts:208）を期待値を変えずに通す（draft.mjs の buildP3Manifest が既定を A10 の 1 組に残した P3-MH-AC05(6) と同じ） (2) :167 の分解に collisionPopulations を足して外す（manifest-sp-e01.json:385 の EEW の衝突の母集団が津波の manifest に漏れないように。津波の衝突は :223 で自分の collisionPopulations を後から置く） (3) :163 の contractSha256 の組み立てに、継承元の trialSetupRef が HARNESS_TRIAL_SETUP.ref なら contractTextsFor(\"P3-MEASURE-HARNESS-001\") を足す（draft.mjs:332 と同じ形） (4) :198・:200 の trigger の『（p3-c4-formal-20261007）』を継承元の manifestId から作る (5) CLI の --draft（tsunami.mjs:258）と予備（run.mjs:1645〜1658、:1650 の buildP3TsunamiManifest の呼び出し）は harness の継承元 p3-sp-e01-20261027 で組む。harness の継承元の id は新しい export の定数を作らず表から引く（表の C4 でない 1 行。2 つの入口とも同じ引き方）。:1646 の注の『C4 の凍結 manifest を継ぐ』を行の中で直す。run.mjs:1653 の draft.c4Text は継承元の text として読み、名前は変えない (6) 正式（run.mjs:1673〜1685）は :1680 の C4_MANIFEST を、manifest の継承元で引いた path に替える（表を m0.inheritsManifestId で引いた行の path。表に無い id は readP3TsunamiManifest の oneOf で止まるので、引けないときは C4_MANIFEST を渡してよい） (7) 行の数: tsunami.mjs は :146 より前の行の数を変えず、:82（P3-EXPIRY-FORM-001・P3-UNREADABLE-MARK-001・P3-VERSION-MATERIAL-001 が引く）と :146（P3-MEASURE-HARNESS-001 が引く）の中身を変えない。run.mjs は行の数を変えず、:49 の import の行の中に表を足すのと、:1650・:1680 と注の行の中の置き換えだけにする（:1680 は P3-MEASURE-HARNESS-001 が引くので配送で付け直す。:1628・:1688・:1742・:1747・:1768・:1813 は他の契約が引く）。tsunami.mjs の import（:20）は行の中で足す (8) tsunami.d.mts の buildP3TsunamiManifest の入力の型に (1) の引数を足す。足す理由: 無いと予備は古い規則の initial-state で黙って走り（台帳 103 と同じ根）、正式は継承元を C4 で読んで照合で止まり、trigger は実際の継承元と違う id を hash に固める",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/tsunami.mjs:23 «05651e3c9537adff»",
-          "reconstruction/test/eew-e01/tsunami.mjs:82 «37867d62848fce49»",
+          "reconstruction/test/eew-e01/tsunami.mjs:82 «efbbead8bc868d17»",
           "reconstruction/test/eew-e01/tsunami.mjs:116 «a92ee487316bc98a»",
           "reconstruction/test/eew-e01/tsunami.mjs:155 «20341d79d07392f9»",
           "reconstruction/test/eew-e01/tsunami.mjs:160 «8e191743cd4ea450»",

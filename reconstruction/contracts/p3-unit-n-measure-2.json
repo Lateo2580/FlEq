@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f549505b92bc7371bbe242ced013bd203ffe0d17",
-    "sha256": "7666644719f2aa2ded94d2a5835f99116e76928be0379a847d3f79dfa4448784",
+    "sha256": "2388eeac5b95707701bfe25a2bb8f292b1d67249f4d59ccf3e7a6545fc5d03c3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -159,8 +159,8 @@
           "reconstruction/src/contracts-revision/version.ts:6 «dc9a3530fe5d43c2»",
           "reconstruction/src/contracts-revision/version.ts:7 «b4114cd2e4a71493»",
           "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
-          "reconstruction/src/runtime/owner-runtime.ts:501 «63adcad8d045ce86»",
-          "reconstruction/src/runtime/owner-runtime.ts:503 «7820be847bd9d157»"
+          "reconstruction/src/runtime/owner-runtime.ts:507 «63adcad8d045ce86»",
+          "reconstruction/src/runtime/owner-runtime.ts:509 «7820be847bd9d157»"
         ]
       },
       {
