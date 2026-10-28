@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f34d1e0e1a12ed01f3524dc6daf4853e9894b8a",
-    "sha256": "f908455934241c8fd50039ed4260740fecbc4dc0c5043709f117aab32b7f4f8c",
+    "sha256": "dadb0de9f27d3d696ac46af22a6542c6b73ac39616c0ed5631c248cb087516a0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -45,7 +45,7 @@
       {
         "id": "Q-PH-AUTHOR",
         "status": "closed",
-        "resolution": "作者裁定（2026-10-28 20:0x）: P3-PH-D-WINDOW・P3-PH-D-ALERTS・P3-PH-D-KIOSK はどれも A。P3-PH-D-LEGACY=B は第 1 段の窓も含む（第 1 段だけ旧築稼働で並走する案は選ばなかった）。baseOid は統合担当が割り当てる",
+        "resolution": "作者裁定（2026-10-28 20:0x）: P3-PH-D-WINDOW・P3-PH-D-ALERTS・P3-PH-D-KIOSK はどれも A。P3-PH-D-LEGACY=B は第 1 段の窓も含む（第 1 段だけ旧築稼働で並走する案は選ばなかった）。baseOid は 7c2d85de に割り当てた（2026-10-28。起草のレビュー: 品質 ヘルツ〔thread 01a1821e〕r0 条件付き GO〔P2 1 件: AC05 の 30 秒の保証〕→ r1 GO、契約適合 Opus r0 条件付き GO〔P2 5 件〕→ r1 GO）",
         "source": "統合担当を通じた作者の裁定（2026-10-28）"
       },
       {
@@ -70,7 +70,7 @@
     "contractId": "P3-PI-HARNESS-001",
     "mode": "implementation",
     "objective": "新築の測定の道具（reconstruction/test/eew-e01 の runner）を、Pi（Raspberry Pi 500、Linux arm64）で host と runner を動かし、Mac mini（macOS）の Chrome で描く別機械の形に開く。P3-C6-AC09 の Pi 予備確認と Q-UWR-REMEASURE の Pi 第 1・2 段（P3-UNIT-WRITE-RIGHT-001）に要る口を作る。形は作者裁定 P3-C6-PI-STAGE2=A（2026-10-09、Pi と Mac mini を同じルーターに有線、Mac mini の Chrome が Pi の別 port へ直接つなぐ、SSH トンネルは使わない）と P3-PH-D-LEGACY=B（2026-10-28、窓の間は Pi の旧築を止める）。runner は Pi に置き、Chrome だけを Mac mini で動かす（Q-PH-PLACEMENT）。製品の host の表示の server は既定の loopback のまま、測定の起動経路（host-launcher）が明示で渡す 1 つの IPv4 でだけ開ける。同じ契約で道具の直しを 4 つ入れる: Chrome の前面化を navigate の後へ、OWNER_UNITS を実行場所の表から引く、正式の runner に --runs-root、構造的欠陥台帳 77 の時計の往復の間隔（試行をはさんでも 30 秒以内、判定器に 30 秒の検査）。別機械の窓は予備・報告だけで Pass と呼ばない。旧築の停止・起動と経路の確かめは統合担当の手順で、道具の code に入れない。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "7c2d85de449130603eb148563efaf82d234855b7",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
