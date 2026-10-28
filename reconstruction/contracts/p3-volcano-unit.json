@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "4c2733f672890e09b3a7aba1d0c1840711dbcfd4ceb3ad583f0c05ccde418a24",
+    "sha256": "b119985eff351a6494704c547954e6ef79276ab639377e410671dd63a0e3a05b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -178,7 +178,7 @@
         "B": "C9で確認scopeを作る（復元した警報を、C16の配送前から「未確認」と表示する）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が起草で確定（C5のP3-C5-N2・C7のP3-C7-N2と同じ分担。計画:22のE22はC16がunitごとのsubsetで集める）",
+        "ruling": "統合担当が起草で確定（C5のP3-C5-N2・C7のP3-C7-N2と同じ分担。計画:22のE22はC16がunitごとのsubsetで集める）。（2026-10-28 C16 の発注 4 の点検、Q-REC-PRECHECK-4）範囲は A のまま（VFVO50・VFVO54・VFVO55 の火山ごとの最新。鍵は一覧の頭の eventId〔火山 Code と同じ値〕、窓は 30 日〔ALERT_RETAIN_MS。降灰の 7 日は retainUntil が切る〕）。「C9はorigin=recoveryの入力を適用せず」は C16 の発注 4a で、候補の作成のときだけ意味を当てて intent を作らない入口に置き換える（P3-REC-AC12・P3-REC-D-UNIT-ENTRANCE=A）。確認の scope を火山ごとに足すかは作者の裁定 P3-REC-D-VOLCANO-SCOPE=A（足さず、U-V 全体）",
         "reason": "Bでは、C16がREST coverageを確かめる経路を持つまで、再起動のたびに長く続く警報（数か月続くレベル2・3）が「未確認」のまま残る。起動直後のunit全体の未確認（initialConfirmationのstartup）はAでもshared-runtimeが表す。C16の起草時に、VFVO50・VFVO54/55のsubjectの確認scopeを足すかを決め直す"
       }
     ],
