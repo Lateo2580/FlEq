@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "1490228ae6a8c0ebdb9512b3372fc2a28c5129f803b3e03d3e12b0bde91b1f32",
+    "sha256": "56f23582c58115e8ffdf8e349faeaec94db438508ef63fac60520f29ffdc9b85",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -165,11 +165,11 @@
       {
         "id": "P3-C7-N2",
         "A": "U-QはREST回復の対象外とし、event・長周期subjectの確認scopeを作らない（addedScopesはU-Qで空）。origin=recoveryの入力は適用しない",
-        "B": "U-Q も REST 回復の対象にする（C16 の発注 4a、P3-REC-AC12）: 型は VXSE51・VXSE52・VXSE53・VXSE61・VXSE62、型×EventID ごとの最新だけ（VXSE53 と VXSE61 は両方）、窓は 36 時間（長周期の保持 LONG_PERIOD_RETAIN_MS。事象は 24 時間）。origin=recovery の入力は候補の作成のときだけ意味を当て、intent を作らない（P3-REC-D-UNIT-ENTRANCE=A）。確認は U-Q 全体",
+        "B": "U-Q も REST 回復の対象にする（C16 の発注 4a、P3-REC-AC12）: 型は VXSE51・VXSE52・VXSE53・VXSE61・VXSE62、型×EventID ごとの最新だけ（VXSE53 と VXSE61 は両方）、窓は 42 時間（長周期の期限 LONG_PERIOD_RETAIN_MS の 36 時間と、期限の後の記憶 MEMORY_MS の 6 時間。2026-10-28 点検 r1）。origin=recovery の入力は候補の作成のときだけ意味を当て、intent を作らない（P3-REC-D-UNIT-ENTRANCE=A）。確認は U-Q 全体",
         "recommended": "B",
         "provisional": "B",
         "ruling": "B（作者の裁定 P3-REC-D-QN-RECOVERY=A〔2026-10-28 朝〕で A から改めた。範囲は C16 の発注 4a（2026-10-28 C16 の発注 4 の点検、Q-REC-PRECHECK-4））。当初は統合担当が起草で A に確定した（spec:2205: 現行で履歴取得・coverage判定を確かめられるのはVTSE41とVFVO50/54/55だけ）",
-        "reason": "当初の A の理由: Bには回復の根拠（coverageの証拠・期限の基準）が無い。改めた理由: 後の spec H26・16.2.3 が「一覧に出る全分野」を取り直すとし、作者が QN-RECOVERY=A で U-Q を含めた。期限の基準は unit の保持（24 時間・36 時間）、coverage は C16 の一覧の辿りが持つ。H27 の音は P3-REC-D-N2-RAISE（推奨は U-Q で鳴らさない）"
+        "reason": "当初の A の理由: Bには回復の根拠（coverageの証拠・期限の基準）が無い。改めた理由: 後の spec H26・16.2.3 が「一覧に出る全分野」を取り直すとし、作者が QN-RECOVERY=A で U-Q を含めた。期限の基準は unit の保持（24 時間・36 時間と、その後の記憶 6 時間）、coverage は C16 の一覧の辿りが持つ。H27 の音は P3-REC-D-N2-RAISE（推奨は U-Q で鳴らさない）"
       }
     ],
     "questionResolutions": [
