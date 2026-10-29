@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6b5714cdbce5c08845e905ff4fd66c90b53cb058",
-    "sha256": "d237891e2abc605244742a5cfc0c8ccc1b085fc0f4a0806fdb05db179b69fbf1",
+    "sha256": "8efe79fee762937f6b6a2f189463fd08bc04ad5787ba8a26d54157da90b55ef2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -171,7 +171,7 @@
     "contractId": "P3-XML-READERS-001",
     "mode": "implementation",
     "objective": "計画§9の「写した読み取り関数の集約」（台帳72）。C7〜C14でdomainごとに写したXMLの読み取り関数（localName・children・first・scalar・text・blank・attribute・leafValues）を新しいdecode-material/xml-read.tsへ、unitのcodecの状態を持たない基本形（record・isText・bounded・count・finite・operationOf・list）を新しいunits/codec-base.tsへ寄せる。写しの間で振る舞いが違う所（eew・weather-currentの名前の比べ方とtrimと大文字小文字、attributeのtrim、tsunamiのtextの厳しさ）は、どちらに揃えるかを作者が決める（D-EXACT・D-ATTR・D-TEXT・D-CODEC）。推奨の裁定では、corpusの全件で出力が前後で同じ。byteを数えるhelper（cacheをunitが直に書く）とreportRef、共有の行（P3-C7-SHARED-ROWS）は寄せない。写しを消してずれた行を引く他の契約のanchorは、配送のcommitで統合担当が付け直す（推奨の裁定で本契約を含め160件・19契約、Q-XR-ANCHOR-COUNT(1)）",
-    "baseOid": "unassigned",
+    "baseOid": "ac9f9eb4f8c49f107bdedbbd5a83c0d410559ec9",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
