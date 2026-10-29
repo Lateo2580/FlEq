@@ -30,7 +30,7 @@ import type { CodecMap } from "../checkpoint/checkpoint";
 import { CARD_AREAS, CARD_AREAS_BYTES, CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
 import { headlineOf, rewriteBounded, titleOf } from "../units/unreadable";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
-import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import { recoveryNotices } from "../units/tsunami/tsunami-unit"; import { recoveryNotices as nankaiRecoveryNotices } from "../units/nankai/nankai-unit"; import { recoveryNotices as volcanoRecoveryNotices } from "../units/volcano/volcano-unit"; import { recoveryNotices as landslideRecoveryNotices } from "../units/landslide/landslide-unit"; import { recoveryNotices as floodRecoveryNotices } from "../units/flood/flood-unit"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
+import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
 
 // P3-EXECUTION-SPLIT-001 (C3a) owner core: everything one owner does to its own units, as pure functions of
 // the owner state. The owner thread and the test path (1) call these; nothing here touches another place's units.
@@ -696,30 +696,41 @@ function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeU
   let adopted: OwnerState = { ...live, units: { ...live.units, [unit]: { ...ownUnit(shadow, unit), persistence } },
     unreadable: { ...live.unreadable, [unit]: shadow.unreadable[unit] }, losses: { ...live.losses, [unit]: shadow.losses[unit] },
     checkpointAttempts: attempts, deadlines: { ...live.deadlines, [unit]: shadow.deadlines[unit] } };
-  // P3-REC-AC12（発注 4a）: 採用の step の音（H27 と U-T の読めない報の info）は unit ごとの関数の表から作る（UnitTable の型に欄を足さない）。
-  work.state = adopted = RECOVERY_NOTICES[unit]?.({ live, open, adopted, recoveryId, inputIds, clock, basis }) ?? adopted;
+  // P3-REC-AC12（発注 4a）: 採用の step の音（H27 と U-T の読めない報の info）は unit の行の recoveryNotices が作る（owner-runtime は unit を import しない、台帳 104 の循環）。
+  work.state = adopted = noticed(units, unit, { live, open, adopted, recoveryId, inputIds, clock, basis });
   if (ownUnit(adopted, unit).persistence.currentGeneration > ownUnit(live, unit).persistence.currentGeneration) work.generationInputIds[unit] = inputIds;
   work.changed(unit);
   work.viewed(unit);
-  work.applyDeadlines([unit]);
+  // U-R の期限は基点（採用の直前の live）でその subject が見えていなかった記録の intent を作らない（候補を作る間の回収と同じ規則、P3-REC-AC12・Q-REC-IMPL-4b-1 (b)）。
+  work.applyDeadlines([unit], false, live);
+  // P3-REC-AC07（投影の直し）: 期限の step が積んだ差分を、採用の直前の live から最終の state への正味の差分に置き換える（追記すると期限を二重に数える）。
+  work.displayChanges.length = 0;
+  for (const change of netChanges(units, unit, live, work.state)) work.displayChanges.push(change);
   return work.finish();
 }
 
-// 採用の step の音の表（P3-REC-AC12）。音の intent は候補の採用と同じ世代に入れる（候補が世代を進めていなければ 1 つ進める、P3-NL-AC14 (5) の形）。
-type RecoverySound = Readonly<{ live: OwnerState; open: OwnerState; adopted: OwnerState; recoveryId: string; inputIds: readonly string[]; clock: ClockReading; basis: WallBasis }>;
-function sounded<K extends RuntimeUnitId>(at: RecoverySound, unit: K, candidate: RuntimeUnitStates[K], noticed: RuntimeUnitStates[K]): OwnerState {
-  if (noticed === candidate) return at.adopted;
-  const persistence = noticed.persistence.currentGeneration > ownUnit(at.live, unit).persistence.currentGeneration ? noticed.persistence : raised(noticed.persistence, at.clock.monotonicMs);
-  return { ...at.adopted, units: { ...at.adopted.units, [unit]: { ...noticed, persistence } } };
+// P3-REC-AC07（Q-REC-PRECHECK-7 の N2）: unit の行の recoveryChanges で正味の表示の変化を作る。行の無い unit は止める（無いと、採用した記録を
+// publisher の投影が知らず、その記録が live で変わると view-projector が RangeError）。
+function netChanges<K extends RuntimeUnitId>(units: UnitTable, unit: K, live: OwnerState, adopted: OwnerState): readonly RuntimeDisplayChange[] {
+  const changes = units[unit].recoveryChanges;
+  if (changes == null) throw new RangeError(`unit ${unit} has no recovery display changes`);
+  return changes(ownUnit(live, unit), ownUnit(adopted, unit));
 }
-const RECOVERY_NOTICES: Partial<Record<RuntimeUnitId, (at: RecoverySound) => OwnerState>> = { // U-T は P3-UM-AC12 (10): 候補が origin=recovery の読めないカードを持てば info を 1 件（operation は最初のカード）
-  "U-T": (at) => { const ids = new Set(at.inputIds), card = (at.adopted.unreadable["U-T"] ?? EMPTY).find((item) => ids.has(item.inputId) && item.kind !== "unknownType"), candidate = ownUnit(at.adopted, "U-T");
-    return sounded(at, "U-T", candidate, recoveryNotices(ownUnit(at.open, "U-T"), candidate, at.recoveryId, card == null ? null : { operation: card.operation, receivedAt: card.receivedAt, inputId: card.inputId, headType: card.headType }, at.clock)); },
-  // P3-REC-D-N2-RAISE=A: U-N の現況の段と U-V の警報レベルの引上げだけ info を 1 回（U-Q と降灰はカードだけ）。
-  "U-N": (at) => sounded(at, "U-N", ownUnit(at.adopted, "U-N"), nankaiRecoveryNotices(ownUnit(at.open, "U-N"), ownUnit(at.adopted, "U-N"), at.clock, at.basis)), "U-V": (at) => sounded(at, "U-V", ownUnit(at.adopted, "U-V"), volcanoRecoveryNotices(ownUnit(at.open, "U-V"), ownUnit(at.adopted, "U-V"), at.clock)),
-  // P3-REC-D-N2-RAISE-4B=A: U-L の区域の段と U-R の音の段の引上げだけ info を 1 回（U-B・U-M・U-Y はカードだけ）。
-  "U-L": (at) => sounded(at, "U-L", ownUnit(at.adopted, "U-L"), landslideRecoveryNotices(ownUnit(at.open, "U-L"), ownUnit(at.adopted, "U-L"), at.clock)),
-  "U-R": (at) => sounded(at, "U-R", ownUnit(at.adopted, "U-R"), floodRecoveryNotices(ownUnit(at.open, "U-R"), ownUnit(at.adopted, "U-R"), at.clock)) };
+
+// 採用の step の音（P3-REC-AC12）。音の intent は候補の採用と同じ世代に入れる（候補が世代を進めていなければ 1 つ進める、P3-NL-AC14 (5) の形）。
+// 行の無い unit（U-Q・U-B・U-M・U-Y はカードだけ、P3-REC-D-N2-RAISE=A・-4B=A）は鳴らさない。U-T の card は P3-UM-AC12 (10): 候補の origin=recovery の
+// 読めないカードの最初の 1 枚（ほかの unit の行は使わない）。
+type RecoverySound = Readonly<{ live: OwnerState; open: OwnerState; adopted: OwnerState; recoveryId: string; inputIds: readonly string[]; clock: ClockReading; basis: WallBasis }>;
+function noticed<K extends RuntimeUnitId>(units: UnitTable, unit: K, at: RecoverySound): OwnerState {
+  const notices = units[unit].recoveryNotices;
+  if (notices == null) return at.adopted;
+  const ids = new Set(at.inputIds), card = (at.adopted.unreadable[unit] ?? EMPTY).find((item) => ids.has(item.inputId) && item.kind !== "unknownType");
+  const candidate = ownUnit(at.adopted, unit), result = notices(ownUnit(at.open, unit), candidate, { recoveryId: at.recoveryId, clock: at.clock, basis: at.basis,
+    card: card == null ? null : { operation: card.operation, receivedAt: card.receivedAt, inputId: card.inputId, headType: card.headType } });
+  if (result === candidate) return at.adopted;
+  const persistence = result.persistence.currentGeneration > ownUnit(at.live, unit).persistence.currentGeneration ? result.persistence : raised(result.persistence, at.clock.monotonicMs);
+  return { ...at.adopted, units: { ...at.adopted.units, [unit]: { ...result, persistence } } };
+}
 
 // P3-UFP-AC06: owner の state から U-F の詳細の 1 ページを作る。U-F の関数を直接呼ぶ（Q-UFP-DETAIL-PATH）。
 function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest): WeatherTimeseriesDetailResponse {

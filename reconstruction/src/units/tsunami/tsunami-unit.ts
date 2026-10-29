@@ -1266,6 +1266,26 @@ const tsunamiUnit = {
   persistence: { kind: "durable", codec: tsunamiUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
+  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.recoveryId, at.card, at.clock),
+  recoveryChanges,
 } satisfies UnitModule<"U-T">;
 
-export { recoveryNotices, reduceTsunamiUnit, toTsunamiView, tsunamiUnit, tsunamiUnitCodec };
+// P3-REC-AC07（投影の直し、Q-REC-PRECHECK-7 の N2）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。
+// 両状態の記録を鍵の Map で突き合わせ、reduce の merged の loop と同じ述語・displaySubject・鍵で作る。同じ参照の記録は省く（O(N前＋N後)）。
+function recoveryChanges(before: TsunamiUnitState, after: TsunamiUnitState): TsunamiUnitStep["displayChanges"] {
+  const old = new Map<string, Subject>();
+  for (const item of before.forecasts) old.set(item.subject, item); for (const item of before.observations) old.set(item.subject, item);
+  const changes: TsunamiUnitStep["displayChanges"][number][] = [];
+  const add = (was: Subject | null, now: Subject | null) => {
+    const shownBefore = visible(was) ? was : null, shownAfter = visible(now) ? now : null;
+    if (shownBefore === shownAfter) return;
+    const value = (now ?? was)!;
+    changes.push({ unit: "U-T", operation: value.operation, subject: value.subject,
+      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+  };
+  for (const item of [...after.forecasts, ...after.observations]) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
+  for (const item of old.values()) add(item, null);
+  return changes;
+}
+
+export { recoveryChanges, recoveryNotices, reduceTsunamiUnit, toTsunamiView, tsunamiUnit, tsunamiUnitCodec };

@@ -778,6 +778,8 @@ const floodUnit = {
   persistence: { kind: "durable", codec: floodUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
+  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.clock),
+  recoveryChanges,
 } satisfies UnitModule<"U-R">;
 
 // ---- 取り直しの採用の step（P3-RECOVERY-001 発注 4b-1、P3-REC-AC10・P3-REC-D-N2-RAISE-4B=A） ----
@@ -809,4 +811,22 @@ function recoveryNotices(open: FloodUnitState, candidate: FloodUnitState, clock:
   return { ...candidate, currents, intents: notices.intents };
 }
 
-export { floodUnit, floodUnitCodec, recoveryNotices, reduceFloodUnit, toFloodView };
+// P3-REC-AC07（投影の直し、Q-REC-PRECHECK-7 の N2）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。
+// 両状態の記録を鍵の Map で突き合わせ、reduce の merged の loop と同じ述語・displaySubject・鍵で作る。同じ参照の記録は省く（O(N前＋N後)）。
+function recoveryChanges(before: FloodUnitState, after: FloodUnitState): FloodUnitStep["displayChanges"] {
+  const old = new Map<string, FloodCurrent>();
+  for (const item of before.currents) old.set(item.subject, item);
+  const changes: FloodUnitStep["displayChanges"][number][] = [];
+  const add = (was: FloodCurrent | null, now: FloodCurrent | null) => {
+    const shownBefore = visible(was) ? was : null, shownAfter = visible(now) ? now : null;
+    if (shownBefore === shownAfter) return;
+    const value = (now ?? was)!;
+    changes.push({ unit: "U-R", operation: value.operation, subject: value.subject,
+      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+  };
+  for (const item of after.currents) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
+  for (const item of old.values()) add(item, null);
+  return changes;
+}
+
+export { floodUnit, floodUnitCodec, recoveryChanges, recoveryNotices, reduceFloodUnit, toFloodView };

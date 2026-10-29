@@ -882,6 +882,8 @@ const nankaiUnit = {
   persistence: { kind: "durable", codec: nankaiUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
+  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.clock, at.basis),
+  recoveryChanges,
 } satisfies UnitModule<"U-N">;
 
 // ---- 取り直しの採用の step（P3-RECOVERY-001 発注 4a、P3-REC-AC10・P3-REC-D-N2-RAISE=A） ----
@@ -921,4 +923,22 @@ function recoveryNotices(open: NankaiUnitState, candidate: NankaiUnitState, cloc
   return { ...candidate, currents, intents: notices.intents };
 }
 
-export { nankaiUnit, nankaiUnitCodec, recoveryNotices, reduceNankaiUnit, toNankaiView };
+// P3-REC-AC07（投影の直し、Q-REC-PRECHECK-7 の N2）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。
+// 両状態の記録を鍵の Map で突き合わせ、reduce の merged の loop と同じ述語・displaySubject・鍵で作る。同じ参照の記録は省く（O(N前＋N後)）。
+function recoveryChanges(before: NankaiUnitState, after: NankaiUnitState): NankaiUnitStep["displayChanges"] {
+  const old = new Map<string, Shown>();
+  for (const item of before.currents) old.set(item.subject, item); for (const item of before.information) old.set(item.subject, item);
+  const changes: NankaiUnitStep["displayChanges"][number][] = [];
+  const add = (was: Shown | null, now: Shown | null) => {
+    const shownBefore = visible(was) ? was : null, shownAfter = visible(now) ? now : null;
+    if (shownBefore === shownAfter) return;
+    const value = (now ?? was)!;
+    changes.push({ unit: "U-N", operation: value.operation, subject: value.subject,
+      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+  };
+  for (const item of [...after.currents, ...after.information]) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
+  for (const item of old.values()) add(item, null);
+  return changes;
+}
+
+export { nankaiUnit, nankaiUnitCodec, recoveryChanges, recoveryNotices, reduceNankaiUnit, toNankaiView };

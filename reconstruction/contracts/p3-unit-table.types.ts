@@ -1,12 +1,12 @@
 import type {
-  JsonValue,
+  ClockReading, JsonValue, RuntimeDisplayChange,
   RuntimeUnitId,
   RuntimeUnitInputs,
   RuntimeUnitSteps,
   RuntimeUnitStates,
   RuntimeViews,
   UnitCodec,
-  UnitId,
+  UnitId, UnreadableCard, WallBasis,
 } from "./p2-shared-runtime.types";
 
 // P3-UNIT-TABLE-001 (C0). One row per runtime unit; a unit lane adds its own row and nothing else here.
@@ -28,6 +28,10 @@ export type UnitModule<K extends RuntimeUnitId> = Readonly<{
   // Former unit-variable branches in shared-runtime.ts (P3 order plan §4.1), one field per branch group.
   confirmationScopeLimit: number;
   reclaimDeadlineBeforeReceive: boolean;
+  // P3-REC-AC07・AC12: 取り直しの採用の step の音と正味の表示の変化（owner-runtime が unit を import せずに呼ぶ。import の循環を作らない、台帳 104）。
+  recoveryNotices?: (open: RuntimeUnitStates[K], adopted: RuntimeUnitStates[K], at: Readonly<{ recoveryId: string; clock: ClockReading; basis: WallBasis;
+    card: Pick<UnreadableCard, "operation" | "receivedAt" | "inputId" | "headType"> | null }>) => RuntimeUnitStates[K];
+  recoveryChanges?: (before: RuntimeUnitStates[K], after: RuntimeUnitStates[K]) => readonly RuntimeDisplayChange[];
 }>;
 
 export type UnitTable = Readonly<{ [K in RuntimeUnitId]: UnitModule<K> }>;

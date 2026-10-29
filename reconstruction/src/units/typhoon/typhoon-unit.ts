@@ -882,6 +882,25 @@ const typhoonUnit = {
   persistence: { kind: "durable", codec: typhoonUnitCodec },
   confirmationScopeLimit: LIMITS.subjects * 2,
   reclaimDeadlineBeforeReceive: true,
+  recoveryChanges,
 } satisfies UnitModule<"U-Y">;
 
-export { generationBytes, reduceTyphoonUnit, toTyphoonView, typhoonUnit, typhoonUnitCodec };
+// P3-REC-AC07（投影の直し、Q-REC-PRECHECK-7 の N2）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。
+// 両状態の記録を鍵の Map で突き合わせ、reduce の merged の loop と同じ述語・displaySubject・鍵で作る。同じ参照の記録は省く（O(N前＋N後)）。
+function recoveryChanges(before: State, after: State): TyphoonUnitStep["displayChanges"] {
+  const old = new Map<string, Rec>();
+  for (const item of before.analysis) old.set(item.subject, item); for (const item of before.probability) old.set(item.subject, item);
+  const changes: TyphoonUnitStep["displayChanges"][number][] = [];
+  const add = (was: Rec | null, now: Rec | null) => {
+    const shownBefore = visible(was) ? was : null, shownAfter = visible(now) ? now : null;
+    if (shownBefore === shownAfter) return;
+    const value = (now ?? was)!;
+    changes.push({ unit: "U-Y", operation: value.operation, subject: value.subject,
+      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+  };
+  for (const item of [...after.analysis, ...after.probability]) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
+  for (const item of old.values()) add(item, null);
+  return changes;
+}
+
+export { generationBytes, recoveryChanges, reduceTyphoonUnit, toTyphoonView, typhoonUnit, typhoonUnitCodec };

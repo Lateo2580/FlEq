@@ -919,6 +919,25 @@ const briefingUnit = {
   persistence: { kind: "durable", codec: briefingUnitCodec },
   confirmationScopeLimit: CURRENT_LIMIT,
   reclaimDeadlineBeforeReceive: true,
+  recoveryChanges,
 } satisfies UnitModule<"U-B">;
 
-export { briefingUnit, briefingUnitCodec, reduceBriefingUnit, toBriefingView };
+// P3-REC-AC07（投影の直し、Q-REC-PRECHECK-7 の N2）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。
+// 両状態の記録を鍵の Map で突き合わせ、reduce の merged の loop と同じ述語・displaySubject・鍵で作る。同じ参照の記録は省く（O(N前＋N後)）。
+function recoveryChanges(before: BriefingUnitState, after: BriefingUnitState): BriefingUnitStep["displayChanges"] {
+  const old = new Map<string, BriefingCurrent>();
+  for (const item of before.currents) old.set(item.subject, item);
+  const changes: BriefingUnitStep["displayChanges"][number][] = [];
+  const add = (was: BriefingCurrent | null, now: BriefingCurrent | null) => {
+    const shownBefore = visible(was) ? was : null, shownAfter = visible(now) ? now : null;
+    if (shownBefore === shownAfter) return;
+    const value = (now ?? was)!;
+    changes.push({ unit: "U-B", operation: value.operation, subject: value.subject,
+      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+  };
+  for (const item of after.currents) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
+  for (const item of old.values()) add(item, null);
+  return changes;
+}
+
+export { briefingUnit, briefingUnitCodec, recoveryChanges, reduceBriefingUnit, toBriefingView };

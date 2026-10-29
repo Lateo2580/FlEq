@@ -1689,6 +1689,8 @@ const volcanoUnit = {
   persistence: { kind: "durable", codec: volcanoUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
+  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.clock),
+  recoveryChanges,
 } satisfies UnitModule<"U-V">;
 
 // ---- 取消の相手が決まらない（P3-UM-AC19、H51 の表の 4 行目） ----
@@ -1744,4 +1746,22 @@ function recoveryNotices(open: VolcanoUnitState, candidate: VolcanoUnitState, cl
   return { ...remark(candidate, alert.subject, false, (mark) => markNotice(mark, version, noticeKind("updated"))), intents: notices.intents };
 }
 
-export { recoveryNotices, reduceVolcanoUnit, toVolcanoView, volcanoUnit, volcanoUnitCodec };
+// P3-REC-AC07（投影の直し、Q-REC-PRECHECK-7 の N2）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。
+// 両状態の記録を鍵の Map で突き合わせ、reduce の merged の loop と同じ述語・displaySubject・鍵で作る。同じ参照の記録は省く（O(N前＋N後)）。
+function recoveryChanges(before: VolcanoUnitState, after: VolcanoUnitState): VolcanoUnitStep["displayChanges"] {
+  const old = new Map<string, Shown>();
+  for (const item of before.alerts) old.set(item.subject, item); for (const item of before.eruptions) old.set(item.subject, item); for (const item of before.ashfalls) old.set(item.subject, item); for (const item of before.bulletins) old.set(item.subject, item);
+  const changes: VolcanoUnitStep["displayChanges"][number][] = [];
+  const add = (was: Shown | null, now: Shown | null) => {
+    const shownBefore = visible(was) ? was : null, shownAfter = visible(now) ? now : null;
+    if (shownBefore === shownAfter) return;
+    const value = (now ?? was)!;
+    changes.push({ unit: "U-V", operation: value.operation, subject: value.subject,
+      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+  };
+  for (const item of [...after.alerts, ...after.eruptions, ...after.ashfalls, ...after.bulletins]) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
+  for (const item of old.values()) add(item, null);
+  return changes;
+}
+
+export { recoveryChanges, recoveryNotices, reduceVolcanoUnit, toVolcanoView, volcanoUnit, volcanoUnitCodec };

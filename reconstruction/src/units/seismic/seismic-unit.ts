@@ -1631,6 +1631,25 @@ const seismicUnit = {
   persistence: { kind: "durable", codec: seismicUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
+  recoveryChanges,
 } satisfies UnitModule<"U-Q">;
 
-export { emptyDaily, reduceSeismicUnit, seismicUnit, seismicUnitCodec, toSeismicView };
+// P3-REC-AC07（投影の直し、Q-REC-PRECHECK-7 の N2）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。
+// 両状態の記録を鍵の Map で突き合わせ、reduce の merged の loop と同じ述語・displaySubject・鍵で作る。同じ参照の記録は省く（O(N前＋N後)）。
+function recoveryChanges(before: SeismicUnitState, after: SeismicUnitState): SeismicUnitStep["displayChanges"] {
+  const old = new Map<string, Shown>();
+  for (const item of before.earthquakes) old.set(keyOf(item), item); for (const item of before.longPeriods) old.set(keyOf(item), item);
+  const changes: SeismicUnitStep["displayChanges"][number][] = [];
+  const add = (was: Shown | null, now: Shown | null) => {
+    const shownBefore = listed(was) ? was : null, shownAfter = listed(now) ? now : null;
+    if (shownBefore === shownAfter) return;
+    const value = (now ?? was)!;
+    changes.push({ unit: "U-Q", operation: value.operation, subject: keyOf(value),
+      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+  };
+  for (const item of [...after.earthquakes, ...after.longPeriods]) { add(old.get(keyOf(item)) ?? null, item); old.delete(keyOf(item)); }
+  for (const item of old.values()) add(item, null);
+  return changes;
+}
+
+export { emptyDaily, recoveryChanges, reduceSeismicUnit, seismicUnit, seismicUnitCodec, toSeismicView };
