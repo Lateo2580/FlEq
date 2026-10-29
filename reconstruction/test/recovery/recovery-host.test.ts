@@ -86,7 +86,7 @@ const page = (items: readonly unknown[], nextToken?: string): Reply =>
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-  https.handle = null;
+  https.handle = null; serial = 0; // 本文の path の期待は試験ごとに id 1 から数える（shuffle で順が変わっても同じ id）
   https.paths.length = 0;
   https.urls.length = 0;
   Object.assign(https, { hold: false, held: [], destroyed: 0 });
