@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "f9b09e8213c91b275c500b18dd8b32c54adf007f2d7808c4a38c6b1057832458",
+    "sha256": "6745f6ff8a440e438ae9c195c9acac4bb316d174c3310fbe0dcdf47453727485",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -135,13 +135,13 @@
       {
         "id": "P3-MIG-D-REPORTREF",
         "kind": "技術",
-        "A": "移した記録の ReportRef: origin \"replay\"、inputId \"migrated-\"＋入力の source hash の先頭 16 桁＋\"-\"＋通し番号（validInputId を通る 64 字以内）、controlDateTimeRaw は空文字、reportDateTimeRaw は旧 revision の reportTimeMs を JST の \"YYYY-MM-DDTHH:mm:ss+09:00\" にしたもの、serialRaw・infoTypeRaw は旧記録にあればその字、無ければ空文字、operation は P3-MIG-D-OPERATION の結果。印の欄は null（P3-VM-D-MISSING の (2) と同じく、比べる時刻が空な ReportRef で「時刻を確かめられなかった」と読める）",
+        "A": "移した記録の ReportRef: origin \"replay\"、inputId \"migrated-\"＋入力の source hash の先頭 16 桁＋\"-\"＋通し番号（validInputId を通る 64 字以内）、controlDateTimeRaw は空文字、reportDateTimeRaw は旧 revision の reportTimeMs を JST の \"YYYY-MM-DDTHH:mm:ss+09:00\" にしたもの、serialRaw・infoTypeRaw は旧記録にあればその字、無ければ空文字、operation は P3-MIG-D-OPERATION の結果。印の欄は null（P3-VM-D-MISSING の (2) と同じく、比べる時刻が空な ReportRef で「時刻を確かめられなかった」と読める）。family と subject（契約適合レビュー P2-1）: family は版の比べの種類の鍵（version.ts の HEAD_THEN_CONTROL・EEW の表を引く鍵）で、新築の domain は受けた報の headType を入れる。旧 v2 の記録の StandbyRevision は reportTimeMs と serial しか持たないので、family は次の順で決める: (i) 同じ記録の旧 gate の記録（PersistedTelegramRevisionGateEntryV2 の comparison.revision.type）があればその type (ii) 無ければ、旧の slice が 1 つの type だけを受ける場合のその type（vpws50→VPWS50、vpww56→VPWW56、weatherWarningForecasts→VPWP50、tsunami.keyedActive→VTSE41、tsunami.observations は VTSE51・VTSE52 の組の名、longPeriod→VXSE62） (iii) どちらでも決まらない記録（複数の type を受ける slice で gate の記録の無いもの。例: quakeHost の VXSE51〜53・61、nankaiTrough の VYSE50〜52・60、火山の噴火・降灰、台風、洪水、briefing の VPBS50・VPOA50、U-M の各 slice）と、決まった type がその unit の ready の type（unit-coverage.ts の coverageTable）に無い記録は uninterpretable で移さない。subject は、新築の domain がその family の報から作る鍵の規則（各 domain の subject の組み立て）を旧記録の識別の欄（EventID・区域コード・官署・火山コードなど）に当てて作り、要る欄が旧記録に無ければ uninterpretable。unit ごとの作り方は Q-MIG-FIELD-TABLE の表の列に書く",
         "B": "origin \"live\"",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（技術の分岐）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "AcquisitionOrigin は live・recovery・replay だけで、型を足すと P1 の契約から開け直す。unit が origin で分けるのは受けた報の \"recovery\" だけ（通知と当日の数え）で、保存した記録の origin では分けない。旧築は WS と起動時の REST のどちらで受けたかを保存しておらず live と書く根拠が無いので、記録から作った入力の \"replay\" にする。\"recovery\" は通知と数えの分岐に入るので使わない"
+        "reason": "AcquisitionOrigin は live・recovery・replay だけで、型を足すと P1 の契約から開け直す。unit が origin で分けるのは受けた報の \"recovery\" だけ（通知と当日の数え）で、保存した記録の origin では分けない。旧築は WS と起動時の REST のどちらで受けたかを保存しておらず live と書く根拠が無いので、記録から作った入力の \"replay\" にする。\"recovery\" は通知と数えの分岐に入るので使わない。spec:650 の replay は「固定時計と manifest を持つ検証入力」の意味で、本契約は同じ値を移行で作った記録にも使う（記録の origin で分ける unit は無い）。移行の記録は inputId の接頭辞 \"migrated-\" で見分ける。C17（P3-REPLAY-CLI-001）への申し送り: origin \"replay\" の意味を作り直さず、移行の記録と replay の入力を origin で分ける必要が出たら inputId の接頭辞で分ける"
       },
       {
         "id": "P3-MIG-D-CLOCK",
@@ -197,6 +197,17 @@
         "status": "確定（技術の分岐）",
         "ruling": "起草時に推奨で確定（統合担当）",
         "reason": "spec:2716 で EEW current は non-durable。旧築の EEW はログの追記だけで状態の保存が無い（src/engine/eew/eew-logger.ts）"
+      },
+      {
+        "id": "P3-MIG-D-TOOL-FORM",
+        "kind": "技術",
+        "A": "移行器は reconstruction/tools/migration/ の .mjs（ESM）で書き、reconstruction/dist（tsc --project reconstruction/tsconfig.json の出力）の checkpoint・codec・期限の関数と root の dist の旧 reader を import する。型は同じ directory の .d.mts で宣言し、reconstruction/test/migration/*.test.ts から import して tsconfig.test.json の型検査にかける。reconstruction/tsconfig.json と tsconfig.test.json は変えない",
+        "B": "移行器を TypeScript で書き、reconstruction/tsconfig の include に tools/migration を足す（tsconfig を allowedPaths に足す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "既存の道具（tools/corpus の check-*.mjs、test/parser-boundary/evidence.mjs と evidence.d.mts、test/eew-e01/*.mjs と *.d.mts）が同じ形で、reconstruction/dist を require・import する。B は tsconfig の include を広げ、tools の .ts が reconstruction/dist に入る（製品の dist に移行器が混ざる）。契約適合レビューの P3-5 で足した"
       }
     ],
     "questionResolutions": [
@@ -219,8 +230,8 @@
       {
         "id": "Q-MIG-UNIT-MAP",
         "status": "closed",
-        "source": "起草での読み（2026-10-30）: standby-persistence.ts の PersistedStandbyStateV1・PersistedTelegramFoundationV2、daily-quake-counter.ts の DailyQuakePersistedV1、各 unit の persisted 型",
-        "closed": "旧の欄と移す先の unit（欄の名前の水準）: U-W ← telegramFoundation.vpws50（state・gateEntries）。U-F ← weatherWarningForecasts・weatherWarningForecastGateMetadata。U-T ← telegramFoundation.tsunami（keyedActive・legacyActive・observations・gateEntries）。U-Q ← quakeHost・longPeriod と補助の daily-quake-v1.json・quake-display-v1.json・quake-extreme-v1.json。U-N ← nankaiTrough。U-V ← telegramFoundation.volcano（state・active・gateEntries・repairState）と volcanoAlertGateMetadata・volcanoAshfallGateMetadata・volcanoRepairState。U-L ← telegramFoundation.vpww56。U-R ← telegramFoundation.floodForecast・floods。U-B ← briefingCritical。U-M ← tornado・heat。U-Y ← typhoons・typhoonProbabilities・typhoonProbabilityGateMetadata。seen（PersistedSeenEntry）と standbyDomains.gateEntries は各 unit の版の材料として該当する unit で読む。weatherAlerts（v1 形）は vpws50 の表示の写しで、vpws50 が authoritative のときは読まない。新築の当日地震履歴の日の基準（P3-C7-DAILY-BASIS=B、受信時刻の JST 暦日）は旧築の dayKey と同じ",
+        "source": "起草での読み（2026-10-30）: standby-persistence.ts の PersistedStandbyStateV1・PersistedTelegramFoundationV2、daily-quake-counter.ts の DailyQuakePersistedV1、各 unit の persisted 型、version.ts の HEAD_THEN_CONTROL、unit-coverage.ts の coverageTable（契約適合レビューの P2-1 で足した）",
+        "closed": "旧の欄と移す先の unit（欄の名前の水準）: U-W ← telegramFoundation.vpws50（state・gateEntries）。U-F ← weatherWarningForecasts・weatherWarningForecastGateMetadata。U-T ← telegramFoundation.tsunami（keyedActive・legacyActive・observations・gateEntries）。U-Q ← quakeHost・longPeriod と補助の daily-quake-v1.json・quake-display-v1.json・quake-extreme-v1.json。U-N ← nankaiTrough。U-V ← telegramFoundation.volcano（state・active・gateEntries・repairState）と volcanoAlertGateMetadata・volcanoAshfallGateMetadata・volcanoRepairState。U-L ← telegramFoundation.vpww56。U-R ← telegramFoundation.floodForecast・floods。U-B ← briefingCritical。U-M ← tornado・heat。U-Y ← typhoons・typhoonProbabilities・typhoonProbabilityGateMetadata。seen（PersistedSeenEntry）と standbyDomains.gateEntries は各 unit の版の材料として該当する unit で読む。weatherAlerts（v1 形）は vpws50 の表示の写しで、vpws50 が authoritative のときは読まない。新築の当日地震履歴の日の基準（P3-C7-DAILY-BASIS=B、受信時刻の JST 暦日）は旧築の dayKey と同じ。unit ごとの 16.2.5 の側（正本は version.ts の HEAD_THEN_CONTROL、P3-VM-D-TABLE=A。ready の type は unit-coverage.ts の coverageTable）: Head→Control は U-W（VPWS50・VPWW55・57〜61・VPNO50）・U-F（VPWP50）・U-L（VPWW56）。Control だけは U-T・U-V・U-N・U-Q・U-R・U-Y。両方が混ざるのは U-B（VPBS50 は Head→Control、VPOA50 は Control だけ）と U-M（VPZJ51・VPCJ51・VPFJ51・VMCJ53〜55 は Head→Control、ほかは Control だけ）で、側は記録の family で決まる。移した記録の reportDateTimeRaw が比べに効くのは Head→Control の側だけで、Control だけの側では時刻の空な controlDateTimeRaw のため、時刻の読める報が常に newer になる（Q-MIG-H27 の (1)）。family か subject を決められない記録は uninterpretable（P3-MIG-D-REPORTREF）",
         "remaining": "1 欄ずつの対応は発注 2〜4 の成果物（Q-MIG-FIELD-TABLE）。U-Q の当日履歴の counted の段階は Q-MIG-UQ-DAILY-STAGE",
         "reason": "発注の割り方と AC09〜AC11 の範囲"
       },
@@ -283,7 +294,8 @@
       "src/engine/display/quake-extreme-persistence.ts",
       "src/engine/monitor/monitor.ts",
       "test/fixtures/standby-persistence/",
-      "test/fixtures/vpws50-stale-lock/"
+      "test/fixtures/vpws50-stale-lock/",
+      "reconstruction/test/parser-boundary/evidence.mjs・evidence.d.mts（P3-MIG-D-TOOL-FORM の倣う形）"
     ],
     "allowedPaths": [
       "reconstruction/src/units/briefing/briefing-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
@@ -564,7 +576,7 @@
       },
       {
         "id": "P3-MIG-AC09",
-        "requirement": "【発注 2】U-W（spec:2179〜2185 の gate/watermark・cancellation tombstone・current の出典・全国 2／partial 8 の必要履歴・partial の現象所有情報・VPNO50 終了記憶）: telegramFoundation.vpws50 から U-W の state を作る。vpws50.authoritative が false（v1 の表示の写しだけ）なら版の根拠が無いので U-W を未充足（uninterpretable）にする。旧の全国履歴 8 段は新しい 2 段を残し、捨てた段を AC05 の (4) で報告する。sequences.json の期待を直す: expected:O04:2（pi-stale-lock-state、testMode \"no\" の取得の記録を添えた入力で U-W に移り、8 日前の区域 9100001 の L4 の凍結が移った state にそのまま残る。取得の記録が無ければ operationUnconfirmed）、expected:O06:29（operational-v2 だけでは 8 段境界の充足としない）と unmet:O06:30（試験のコードで作る旧 v2 の全国履歴 8 段の入力から新しい 2 段へ移り、捨てた範囲を報告。fixture は足さない）。旧 step と P2 の置換 step（expected:O04:9・expected:O06:31）の対応表を成果物に出す（Q-MIGRATION の requiredEvidence）。移行直後の続報: O04:2 の移した state で起動し、新しい正常な全国報（O04:3 の入力を試験のコードで作る）で stale lock を抜けることを確かめる。無いと: Q-MIGRATION が閉じず、8 日前の凍結の再発を移行で持ち込む",
+        "requirement": "【発注 2】U-W（spec:2179〜2185 の gate/watermark・cancellation tombstone・current の出典・全国 2／partial 8 の必要履歴・partial の現象所有情報・VPNO50 終了記憶）: telegramFoundation.vpws50 から U-W の state を作る。vpws50.authoritative が false（v1 の表示の写しだけ）なら版の根拠が無いので U-W を未充足（uninterpretable）にする。旧の全国履歴 8 段は新しい 2 段を残し、捨てた段を AC05 の (4) で報告する。sequences.json の期待を直す: expected:O04:2（pi-stale-lock-state、testMode \"no\" の取得の記録を添えた入力で U-W に移り、8 日前の区域 9100001 の L4 の凍結が移った state にそのまま残る。取得の記録が無ければ operationUnconfirmed）、expected:O06:29（operational-v2 だけでは 8 段境界の充足としない）と unmet:O06:30（試験のコードで作る旧 v2 の全国履歴 8 段の入力から新しい 2 段へ移り、捨てた範囲を報告。fixture は足さない）。旧 step と P2 の置換 step（expected:O04:9・expected:O06:31）の対応表を成果物に出す（Q-MIGRATION の requiredEvidence）。移行直後の続報: O04:2 の移した state で起動し、新しい正常な全国報（O04:3 の入力を試験のコードで作る）で stale lock を抜けることを確かめる。移行の後の検査: partial の現象所有（T13）と VPNO50 の終了記憶（T14）が restore した U-W の state に残る。試験で添える取得の記録の時刻（P3-MIG-D-CLOCK の取得時刻）は、その fixture の savedAt（sequences.json の評価時計と同じ。savedAt を持たない pi-stale-lock-state は step の evaluatedAt）にする。ずらすと期限の作り直しで記録が expired になり、期待が何も確かめなくなる（T05・T06）。無いと: Q-MIGRATION が閉じず、8 日前の凍結の再発を移行で持ち込む",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
           "docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
@@ -579,7 +591,7 @@
       },
       {
         "id": "P3-MIG-AC10",
-        "requirement": "【発注 3】U-T・U-V・U-N・U-Q: (1) U-T: keyedActive・observations・gateEntries を移す。legacyActive（名称だけの旧 snapshot）は gate と取消の照合に使えないので移さない（uninterpretable） (2) U-V: 三 slice・identity・provenance 不足（spec:2186）。旧の repairState と provenance を失った記録（旧築の operationalV2ProvenanceLost）から VolcanoShortfall を作る（作るのは移行だけ、P3-C9-SHORTFALL=A） (3) U-N: nankaiTrough (4) U-Q: quakeHost・longPeriod と補助 3 file（当日地震履歴・地図の lifecycle・震度 7 の保持〔spec:2188 の特殊値と危険保持の根拠〕）。補助 3 file と主 file に同じ EventID があり、版（reportTimeMs・serial）が食い違うなら U-Q を未充足にする（spec:2199、Q-MIG-AUX-CONSISTENCY）。当日地震履歴の counted の段階は Q-MIG-UQ-DAILY-STAGE の決めに従う。無いと: 30 日より古い噴火警戒レベル・震度 7 の保持・津波の観測など取り直しで戻らない記録が切替で消える",
+        "requirement": "【発注 3】U-T・U-V・U-N・U-Q: (1) U-T: keyedActive・observations・gateEntries を移す。legacyActive（名称だけの旧 snapshot）は gate と取消の照合に使えないので移さない（uninterpretable） (2) U-V: 三 slice・identity・provenance 不足（spec:2186）。旧の repairState と provenance を失った記録（旧築の operationalV2ProvenanceLost）から VolcanoShortfall を作る（作るのは移行だけ、P3-C9-SHORTFALL=A） (3) U-N: nankaiTrough (4) U-Q: quakeHost・longPeriod と補助 3 file（当日地震履歴・地図の lifecycle・震度 7 の保持〔spec:2188 の特殊値と危険保持の根拠〕）。補助 3 file と主 file に同じ EventID があり、版（reportTimeMs・serial）が食い違うなら U-Q を未充足にする（spec:2199、Q-MIG-AUX-CONSISTENCY）。当日地震履歴の counted の段階は Q-MIG-UQ-DAILY-STAGE の決めに従う。移行の後の検査: U-V の三 slice と火山の identity（T15）、U-Q の特殊値と危険保持の根拠（T16）が restore した state に残る。無いと: 30 日より古い噴火警戒レベル・震度 7 の保持・津波の観測など取り直しで戻らない記録が切替で消える",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2186 «6cf95839ea15c6af»",
           "docs/specs/reconstruction-p0-contracts.md:2188 «10164d7d353e227e»",
@@ -592,7 +604,7 @@
       },
       {
         "id": "P3-MIG-AC11",
-        "requirement": "【発注 4】U-F・U-L・U-R・U-B・U-M・U-Y: U-F（取り直しの対象外、P3-REC-D-UF-BASE=C。移行が唯一の戻り道）、U-L（vpww56。generation の無い旧 foundation と authoritative が false は未充足）、U-R（floodForecast。legacyEventIds は gate を持たないので移さない）、U-B（速報の alias・予測置換・取消記憶、spec:2187）、U-M（tornado・heat）、U-Y（typhoons・typhoonProbabilities）。無いと: U-F の時系列が切替で全部消える（取り直しで戻らない）",
+        "requirement": "【発注 4】U-F・U-L・U-R・U-B・U-M・U-Y: U-F（取り直しの対象外、P3-REC-D-UF-BASE=C。移行が唯一の戻り道）、U-L（vpww56。generation の無い旧 foundation と authoritative が false は未充足）、U-R（floodForecast。legacyEventIds は gate を持たないので移さない）、U-B（速報の alias・予測置換・取消記憶、spec:2187）、U-M（tornado・heat）、U-Y（typhoons・typhoonProbabilities）。移行の後の検査: U-B の速報の alias と予測置換（T17）が restore した state に残る。無いと: U-F の時系列が切替で全部消える（取り直しで戻らない）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2187 «3f547b2b3e583635»",
           "reconstruction/contracts/p3-recovery.json:409 «08cc273136e877dd»",
@@ -601,7 +613,7 @@
       },
       {
         "id": "P3-MIG-AC12",
-        "requirement": "【発注 5】復元後の検収（spec:2176・spec:2145・spec:2614）: 移行器の出力で新築の owner を起こし、unit ごとに (1) 移した記録の対象へ取消の報を投入して消える (2) 訂正の報を投入して置き換わる (3) 移行直後の続報（新しい報）を投入して通常の版の比べで採られる、を確かめる（U-T・U-V は synthetic_VTSE41_cancel・_correction・synthetic_VFVO50_cancel・_correction、ほかの unit は各 unit の試験の既存の fixture か試験のコードで作る入力）。結果を報告の (5) に出す。sequences.json の expected:O07:19〜26（旧形式の fixture 8 本）の期待を直す: 取得の記録が無ければ全部 operationUnconfirmed（新築の checkpoint として直接は復元しない）、testMode \"no\" の取得の記録を添えた入力では unit ごとの結果を固定する。無いと: 移した記録が取消・訂正で消えない・置き換わらないことに切替の後で気づく",
+        "requirement": "【発注 5】復元後の検収（spec:2176・spec:2145・spec:2614）: 移行器の出力で新築の owner を起こし、unit ごとに (1) 移した記録の対象へ取消の報を投入して消える (2) 訂正の報を投入して置き換わる (3) 移行直後の続報（新しい報）を投入して通常の版の比べで採られる、を確かめる（U-T・U-V は synthetic_VTSE41_cancel・_correction・synthetic_VFVO50_cancel・_correction、ほかの unit は各 unit の試験の既存の fixture か試験のコードで作る入力）。結果を報告の (5) に出す。sequences.json の expected:O07:19〜26（旧形式の fixture 8 本）の期待を直す: 取得の記録が無ければ全部 operationUnconfirmed（新築の checkpoint として直接は復元しない）、testMode \"no\" の取得の記録を添えた入力では unit ごとの結果を固定する。試験で添える取得の記録の時刻（P3-MIG-D-CLOCK の取得時刻）は、その fixture の savedAt（sequences.json の評価時計と同じ。savedAt を持たない pi-stale-lock-state は step の evaluatedAt）にする。ずらすと期限の作り直しで記録が expired になり、期待が何も確かめなくなる（T12）。無いと: 移した記録が取消・訂正で消えない・置き換わらないことに切替の後で気づく",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2176 «ddd8d3f657213fc1»",
           "docs/specs/reconstruction-p0-contracts.md:2145 «1b5c60db3eeb4c23»",
@@ -639,13 +651,16 @@
       },
       {
         "id": "P3-MIG-AC16",
-        "requirement": "配送の commit で統合担当が改める原文（本契約は既存の契約・計画・spec の本文を変えない）: (1) P3-VERSION-MATERIAL-001 の P3-VM-AC05 の「一覧の寿命」の文（C15 の配送までに空・C15 の着手条件に足す）を、計画の C15 の行の今の形（最初の発注で空、完了の条件）と P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (2) p3-persist-premises.md の一覧の寿命（:73）と C15 の着手条件（:455）の文を同じく【発注 1】 (3) premises の C15 に送った問い（:345・:470、Control/DateTime の無い旧記録と期限）に本契約の分岐 ID を添える【発注 2】 (4) D-MARK-CLEAR=A なら P3-VM-D-MISSING の (3) と P3-VM-AC04 の (b) に「移した記録は除く（P3-MIG-D-MARK-CLEAR）」を添える【発注 2】 (5) P2-CHECKPOINT-SHUTDOWN-001 と P2-WEATHER-CURRENT-UNIT-001 の Q-MIGRATION、sequences.json の p2Subsets の O04・O06・O07 の deferred の文、P3-RECOVERY-001 の C15 へ送った項目に、閉じた発注を添える【発注 2・5】 (6) sequencesSha256 と、変えた file を引く anchor の付け直し【各発注】。無いと: 一覧の寿命と着手条件の文が計画と食い違ったまま残る",
+        "requirement": "配送の commit で統合担当が改める原文（本契約は既存の契約・計画・spec の本文を変えない）: (1) P3-VERSION-MATERIAL-001 の P3-VM-AC05 の「一覧の寿命」の文（C15 の配送までに空・C15 の着手条件に足す）を、計画の C15 の行の今の形（最初の発注で空、完了の条件）と P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (2) p3-persist-premises.md の一覧の寿命（:73）と C15 の着手条件（:455）の文を同じく【発注 1】 (3) premises の C15 に送った問い（:345・:470、Control/DateTime の無い旧記録と期限）に本契約の分岐 ID を添える【発注 2】 (4) D-MARK-CLEAR=A なら P3-VM-D-MISSING の (3) と P3-VM-AC04 の (b) に「移した記録は除く（P3-MIG-D-MARK-CLEAR）」を添える【発注 2】 (5) P2-CHECKPOINT-SHUTDOWN-001 と P2-WEATHER-CURRENT-UNIT-001 の Q-MIGRATION、sequences.json の p2Subsets の O04・O06・O07 の deferred の文、P3-RECOVERY-001 の C15 へ送った項目に、閉じた発注を添える【発注 2・5】 (6) sequencesSha256 と、変えた file を引く anchor の付け直し【各発注】 (7) P3-RECOVERY-001 の P3-REC-AC05 の (a)「時刻の無い報の印は取り直しでは外さない」に「移した記録は P3-MIG-D-MARK-CLEAR=A で live の newer の採用で外す」を添え、同じ AC05 の C15 への言及 2 か所（旧築から移した記録の扱いは C15 へ送る）と questionResolutions の C15 へ送った項目（Control/DateTime を持たない旧記録）に本契約の分岐 ID（P3-MIG-D-UNTIMED・P3-MIG-D-MARK-CLEAR）を添える【発注 2】 (8) p3-persist-premises.md の保存の版の段落（:67、版を上げる契約は一覧に足す）を P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (9) p2-shared-runtime.types.ts の UnitCodec の discardableSchemaVersions のコメント（C15 の配送までに空にする）を「C15 の発注 1 で空にし、以後足さない」に改める【発注 1】。無いと: 一覧の寿命と着手条件の文が計画と食い違ったまま残る",
         "evidenceRefs": [
           "reconstruction/contracts/p3-version-material.json:483 «48a20c148c9cad7d»",
           "reconstruction/contracts/p3-persist-premises.md:73 «32ecbbdb103e9932»",
           "reconstruction/contracts/p3-persist-premises.md:455 «1902f9a54e352878»",
           "reconstruction/contracts/p3-persist-premises.md:345 «6b5a3c9f2ed1befe»",
-          "reconstruction/contracts/p3-recovery.json:491 «2bf0414c6f6f9519»"
+          "reconstruction/contracts/p3-recovery.json:491 «2bf0414c6f6f9519»",
+          "reconstruction/contracts/p3-recovery.json:1053 «e5f25eedff7c0108»",
+          "reconstruction/contracts/p3-persist-premises.md:67 «d7183bf0daf817dc»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:554 «433c0e87dd508191»"
         ]
       }
     ],
@@ -748,6 +763,46 @@
           "P3-MIG-AC12"
         ],
         "behavior": "【発注 5】expected:O07:19〜26: 旧形式の fixture 8 本の移行の結果が、取得の記録の有無で固定した期待どおりになる"
+      },
+      {
+        "testId": "P3-MIG-T13",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC09"
+        ],
+        "behavior": "【発注 2】U-W: 旧 v2 の partial の現象所有（官署と現象の組）が、移行して restore した state に同じ組で残る"
+      },
+      {
+        "testId": "P3-MIG-T14",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC09"
+        ],
+        "behavior": "【発注 2】U-W: 旧 v2 の VPNO50 の終了記憶が、移行して restore した state に残る"
+      },
+      {
+        "testId": "P3-MIG-T15",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC10"
+        ],
+        "behavior": "【発注 3】U-V: 旧の警報・噴火・降灰の三 slice と火山の identity（火山コード）が、移行して restore した state に slice を混ぜずに残る"
+      },
+      {
+        "testId": "P3-MIG-T16",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC10"
+        ],
+        "behavior": "【発注 3】U-Q: 旧の特殊値（震度の不明・範囲など）と危険保持の根拠（震度 7 の保持）が、移行して restore した state に値を丸めずに残る"
+      },
+      {
+        "testId": "P3-MIG-T17",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC11"
+        ],
+        "behavior": "【発注 4】U-B: 旧の briefingCritical の速報の alias と予測置換の watermark が、移行して restore した state に残る"
       }
     ],
     "requiredCommands": [
@@ -843,7 +898,8 @@
           "発注ごとの baseOid の割当。発注 1 は P3-XML-READERS-001 の配送の後",
           "その時点の HEAD で一覧の件数（起草は 76）と一覧に依る試験の file（起草は 7）を数え直す",
           "decisionBranches に起草案・作者の裁定待ちが 0 件であること（P3-MIG-D-MARK-CLEAR）",
-          "本契約の anchor のずれが 0 件であること"
+          "本契約の anchor のずれが 0 件であること",
+          "【発注 1 の点検】まだ配送されていない契約（起草中・発注待ちを含む）の条文に「discardableSchemaVersions に旧い版を足す」と書いたものが残っていないかを reconstruction/contracts/*.json で数え、残っていれば P3-MIG-D-LIST-AFTER=A（一覧に足さず開発機の保存を消す）に書き換える改訂を AC16 に足す"
         ]
       },
       {
