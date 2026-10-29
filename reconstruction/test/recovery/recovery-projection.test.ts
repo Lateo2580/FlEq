@@ -56,9 +56,9 @@ const retime = (text: string, ms: number) => text.replace(/(<Control>[\s\S]*?<Da
   .replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>${jst(ms)}`).replace(/<TargetDateTime>[^<]*/, `<TargetDateTime>${jst(ms)}`);
 const tag = (name: string, value: string) => (text: string) => text.replace(new RegExp(`<${name}>[^<]*</${name}>`), `<${name}>${value}</${name}>`);
 
-type Domain = "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide" | "flood" | "briefing" | "localBulletins" | "typhoon";
+type Domain = "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide" | "flood" | "briefing" | "localBulletins" | "typhoon" | "weatherCurrent";
 const DOMAINS: Readonly<Record<Domain, RuntimeUnitId>> = { tsunami: "U-T", earthquake: "U-Q", nankai: "U-N", volcano: "U-V", landslide: "U-L",
-  flood: "U-R", briefing: "U-B", localBulletins: "U-M", typhoon: "U-Y" };
+  flood: "U-R", briefing: "U-B", localBulletins: "U-M", typhoon: "U-Y", weatherCurrent: "U-W" };
 
 async function setup() {
   let now: ClockReading = { wallTimeMs: T0, monotonicMs: 1_000 };
@@ -159,8 +159,8 @@ type Row = Readonly<{
   bodies: (at: number) => readonly Report[];
   update: (at: number) => Report;
   cancel: (at: number) => Report;
-  // 表示の期限が来るまでの時間（採用の時刻から）。
-  expiry: number;
+  // 表示の期限が来るまでの時間（採用の時刻から）。null は記録に時間の期限が無く、期限の列を持たない行。
+  expiry: number | null;
   // 期待: 採用で足される鍵、H27 の引上げの有無、続報・期限・取消の段のその unit の表示の変化（鍵 → [before, after] の有無）と通知の試行の数。
   adopted: readonly string[];
   raise: boolean;
@@ -169,6 +169,13 @@ type Row = Readonly<{
   cancelled: Readonly<Record<string, readonly [boolean, boolean]>>; cancelSent: number;
 }>;
 const B = [true, true] as const, GONE = [true, false] as const, NEW = [false, true] as const;
+// U-W の報時刻（fixture の 2020-06-22 の時刻）と、全国の VPWS50 を市町村等の警報に書き換えた報（weather-current-unit.test.ts の bodyWarning と同じ）。
+const reportAt = (text: string, time: string) => text.replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>2020-06-22T${time}:00+09:00`);
+const national = (text: string) => {
+  const information = /<Information type="気象警報・注意報（市町村等）">([\s\S]*?)<\/Information>/.exec(text)![1];
+  const items = information.replace(/<\/Kind>/g, "<Status>発表</Status></Kind>").replace(/<Areas[^>]*>([\s\S]*?)<\/Areas>/g, "$1");
+  return text.replace(/<Body[^>]*\/>/, `<Body><Warning type="気象警報・注意報（市町村等）">${items}</Warning></Body>`);
+};
 const ttRep = (eventId: string, at: number, kind: string) => vtse41({ eventId, at: iso(at), areas: [{ code: "311", name: "区域311", kind }] });
 const ROWS: readonly Row[] = [
   { unit: "U-T", adopted: ["normal/VTSE41/20991231000911"], raise: true,
@@ -263,6 +270,21 @@ const ROWS: readonly Row[] = [
     bodies: (at) => [{ type: "VPTW60", xml: retime(fixture("10_05_01_200826_VPTW60"), at) }],
     update: (at) => ({ type: "VPTW60", xml: retime(fixture("10_05_02_200826_VPTW60"), at) }),
     cancel: (at) => ({ type: "VPTW60", xml: retime(fixture("synthetic_VPTW60_cancel"), at) }) },
+  // 発注 4b-2（Q-REC-PRECHECK-8 の N5）: U-W の記録に時間の期限は無い（intent の期限だけ）ので期限の列を持たない。live に稚内の partial と、その読めない
+  // 新しい版の freshnessSuspect の行を置き、候補は全国の VPWS50 と京都の partial（差分の関数が見せる行を落とすと参照の照合で落ちる）。履歴の無い取消は
+  // historyUnavailable の unavailable で行が残る。
+  { unit: "U-W", adopted: ["normal/VPWS50/気象庁", "normal/VPWW57/京都地方気象台"], raise: false,
+    updated: { "normal/VPWW57/京都地方気象台": B }, updateSent: 0,
+    expired: {}, expirySent: 0,
+    cancelled: { "normal/VPWW57/京都地方気象台": B }, cancelSent: 0,
+    expiry: null,
+    seed: () => [{ type: "VPWW58", xml: fixture("15_16_04_251222_VPWW58") },
+      { type: "VPWW58", xml: reportAt(fixture("15_16_04_251222_VPWW58"), "23:01").replace(/(<Body[\s\S]*?<Status>)[^<]*(<\/Status>)/, "$1未知$2") }],
+    bodies: () => [{ type: "VPWS50", xml: national(fixture("weather-alert-kind-area/synthetic-vpws50-change-density-before")) },
+      { type: "VPWW57", xml: fixture("15_16_02_251222_VPWW57") }],
+    update: () => ({ type: "VPWW57", xml: reportAt(fixture("15_16_02_251222_VPWW57"), "23:10") }),
+    cancel: () => ({ type: "VPWW57", xml: reportAt(fixture("15_16_02_251222_VPWW57"), "23:20").replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>")
+      .replace(/<Body[\s\S]*<\/Body>/, "<Body/>") }) },
 ];
 
 const eventOf = (text: string) => /<EventID>([^<]*)<\/EventID>/.exec(text)?.[1] ?? null;
@@ -302,7 +324,7 @@ async function column(row: Row, step: "update" | "expiry" | "cancel", adopted: (
   await adopt(row, t);
   adopted(t);
   const mark = t.h.delivered.length, sentMark = t.sent.length;
-  if (step === "expiry") { t.advance(row.expiry); await t.tick(); }
+  if (step === "expiry") { t.advance(row.expiry ?? 0); await t.tick(); }
   else { const report = row[step](T0); await t.live(report.type, report.xml); }
   const [changes, sent] = step === "update" ? [row.updated, row.updateSent] : step === "expiry" ? [row.expired, row.expirySent] : [row.cancelled, row.cancelSent];
   expect([t.changedSince(mark, row.unit), t.sentSince(sentMark, row.unit).length]).toEqual([changes, sent]);
@@ -314,10 +336,12 @@ describe("P3-REC-T21 acceptance: the adopt step's net displayChanges (AC07, Q-RE
   // 受入 (a): 採用 → 同じ subject の live の続報。発注 3 からの欠陥の再発防止（採用の後の続報で view-projector が RangeError）。
   for (const row of ROWS) it(`T21-1 (a) ${row.unit}: adoption then a live update of the recovered subject`, async () => {
     // N4: U-T は採用の差分で VTSE41 の event scope が入り、成功した取り直しの coverageVerified が scope を外して whole を確認済みにする。
-    await column(row, "update", (t) => { if (row.unit === "U-T") expect([t.h.root.state.confirmation.units["U-T"].normal.whole, events(t)]).toEqual([null, []]); });
+    await column(row, "update", (t) => { if (row.unit === "U-T") expect([t.h.root.state.confirmation.units["U-T"].normal.whole, events(t)]).toEqual([null, []]);
+      // U-W の行は freshnessSuspect の行を持つ（参照の照合がその行を覆う）。
+      if (row.unit === "U-W") expect(t.h.unit("U-W").freshness.map((item) => [item.target.subject, item.freshnessSuspect])).toEqual([["normal/VPWW58/稚内地方気象台", true]]); });
   });
   // 受入 (b): 採用 → live の表示の期限。
-  for (const row of ROWS) it(`T21-2 (b) ${row.unit}: adoption then a live display deadline`, async () => { await column(row, "expiry"); });
+  for (const row of ROWS.filter((item) => item.expiry != null)) it(`T21-2 (b) ${row.unit}: adoption then a live display deadline`, async () => { await column(row, "expiry"); });
   // 受入 (c): 採用 → live の取消。U-T の行は採用の前に切断を入れ、coverageVerified の出ない列で event scope の退役を見る（(5) 2）。
   for (const row of ROWS) it(`T21-3 (c) ${row.unit}: adoption then a live cancel`, async () => {
     if (row.unit !== "U-T") { await column(row, "cancel"); return; }

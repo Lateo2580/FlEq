@@ -24,14 +24,15 @@ const DMDATA_MARGIN_MS = 60_000, RECEIVED_MARGIN_MS = 10 * 60_000; // P3-REC-AC0
 const DIGEST_HEADS = 500, DIGEST_BYTES = 16_384, STRING_BYTES = 256; // P3-REC-RES-04・RES-06、P2-A8-RES-05
 const DIGEST_UNIT_HEADS = 3; // P3-REC-D-DIGEST-BUDGET=D: 分野ごとに新しい順で見出しを 3 件まで
 const TRUNCATED_MARKER = "[truncated:fieldLimit]";
-// 【発注 3・4a・4b-1】本文を流す unit の集合（P3-REC-AC12）。4b-1 で U-L・U-R・U-B・U-M・U-Y に広げ、U-W・U-F は 4b-2 まで本文を mailbox へ入れない。
+// 【発注 3・4a・4b-1・4b-2】本文を流す unit の集合（P3-REC-AC12）。4b-2 で U-W を足す。U-F は取り直さない（P3-REC-D-UF-BASE=C）。
 // N2: 型・最新だけで足りるか（latest、subject ごとに 1 件）・窓（P3-REC-D-START-WINDOW=B、Q-REC-PRECHECK-4 の M1）。U-T は P3-C5-N2、U-V は P3-C9-N2、U-N は P3-C8-N2（訂正・取消は同じ報にだけ効くので窓の中を全部、受信の順に）、U-Q は P3-C7-N2（長周期の 36 時間と記憶の 6 時間）。
 // 4b-1（Q-REC-PRECHECK-5 の M1）: U-L 54 時間・U-R 42 時間・U-B 9 時間・U-M 3 日・U-Y 7 日。型は各 unit の ready の型の全部。
-const RECOVERABLE_UNITS = ["U-T", "U-V", "U-N", "U-Q", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const satisfies readonly RuntimeUnitId[];
+// 4b-2（Q-REC-PRECHECK-8 の N1）: U-W 24 時間。
+const RECOVERABLE_UNITS = ["U-T", "U-V", "U-N", "U-Q", "U-W", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const satisfies readonly RuntimeUnitId[];
 const readyTypes = (unit: RuntimeUnitId): readonly string[] => [...rowsByHeadType].filter(([, row]) => row.status === "ready" && row.unit === unit).map(([type]) => type);
 const N2: Readonly<Record<(typeof RECOVERABLE_UNITS)[number], Readonly<{ types: readonly string[]; windowMs: number; latest: boolean }>>> = { "U-T": { types: ["VTSE41"], windowMs: 7 * 86_400_000, latest: true },
   "U-V": { types: ["VFVO50", "VFVO54", "VFVO55"], windowMs: 30 * 86_400_000, latest: true }, "U-N": { types: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"], windowMs: 30 * 86_400_000, latest: false }, "U-Q": { types: ["VXSE51", "VXSE52", "VXSE53", "VXSE61", "VXSE62"], windowMs: 42 * 3_600_000, latest: true },
-  "U-L": { types: readyTypes("U-L"), windowMs: 54 * 3_600_000, latest: true }, "U-R": { types: readyTypes("U-R"), windowMs: 42 * 3_600_000, latest: true },
+  "U-W": { types: readyTypes("U-W"), windowMs: 24 * 3_600_000, latest: true }, "U-L": { types: readyTypes("U-L"), windowMs: 54 * 3_600_000, latest: true }, "U-R": { types: readyTypes("U-R"), windowMs: 42 * 3_600_000, latest: true },
   "U-B": { types: readyTypes("U-B"), windowMs: 9 * 3_600_000, latest: true }, "U-M": { types: readyTypes("U-M"), windowMs: 3 * 86_400_000, latest: true },
   "U-Y": { types: readyTypes("U-Y"), windowMs: 7 * 86_400_000, latest: true } };
 const BODY_URL = "https://data.api.dmdata.jp/v1/", BODY_ID = /^[0-9A-Za-z]{1,128}$/;
@@ -171,10 +172,12 @@ function recoveryPlan(classifications: readonly DmdataClassification[], starts: 
 }
 
 // subject の鍵を作る一覧の頭の欄（Q-REC-PRECHECK-5 の M3）。U-L は官署、U-M の竜巻は型ごとに官署と題、VPAW51 は対象の code が本文にしか無いので
-// 絞らない（null）。ほかは EventID。鍵の欄が null の頭は絞らない。
+// 絞らない（null）。ほかは EventID。鍵の欄が null の頭は絞らない。U-W の VPWS50 は官署を見ない（全国の現況は運用区分に 1 つで、別の官署の報も
+// 置き換える）、partial は U-L と同じ官署（Q-REC-PRECHECK-8 の N1）。
 function bodyKey(unit: RuntimeUnitId, head: ListHead): string | null {
   const prefix = `${head.operation}/${head.headType}/`;
-  if (unit === "U-L") return head.editorialOffice == null ? null : prefix + head.editorialOffice;
+  if (unit === "U-W" && head.headType === "VPWS50") return prefix;
+  if (unit === "U-L" || unit === "U-W") return head.editorialOffice == null ? null : prefix + head.editorialOffice;
   if (unit === "U-M" && (head.headType === "VPHW50" || head.headType === "VPHW51"))
     return head.editorialOffice == null ? null : `${prefix}${head.editorialOffice}/${head.title}`;
   return unit === "U-M" && head.headType === "VPAW51" || head.eventId == null ? null : prefix + head.eventId;
@@ -190,9 +193,15 @@ const lapsedTransient = (unit: RuntimeUnitId, head: ListHead, nowWallMs: number)
  */
 function bodiesFor(unit: RuntimeUnitId, heads: readonly ListHead[], nowWallMs = Date.now()): readonly ListHead[] {
   if (!recoverable(unit)) return [];
+  // P3-REC-D-UW-PARTIALS=A: U-W の partial は同じ運用区分の窓の中の最新の取消でない VPWS50 より後に受けたものだけ（その区分に無ければ切らない）。
+  // 取消で切ると、1 つ前の VPWS50 から取消までの partial を取らないまま確認済みになる（4b-2 r1、統合担当の決め）。
+  const national = new Map<string, number>();
+  if (unit === "U-W") for (const head of heads) if (head.headType === "VPWS50" && head.infoType !== "取消")
+    national.set(head.operation, Math.max(national.get(head.operation) ?? -Infinity, head.receivedAtMs));
   const latest = new Map<string, ListHead>();
   for (const head of heads) {
     if (!bodyType(unit, head.headType) || lapsedTransient(unit, head, nowWallMs)) continue;
+    if (head.headType !== "VPWS50" && head.receivedAtMs <= (national.get(head.operation) ?? -Infinity)) continue;
     const subject = N2[unit].latest ? bodyKey(unit, head) : null;
     const key = subject ?? `#${head.id}`;
     const found = latest.get(key);
@@ -488,6 +497,6 @@ function buildDigest(results: readonly UnitWalkResult[], starts: Readonly<Partia
   return { digest, utf8Bytes: jsonBytes(digest) };
 }
 
-export { BodyRequestLane, ListRequestLane, RECOVERABLE_UNITS, windowOf, bodiesFor, buildDigest, fetchBody, listTelegramPage, pollClassification, recoveryPlan,
+export { BodyRequestLane, ListRequestLane, RECOVERABLE_UNITS, WALK_ORDER, windowOf, bodiesFor, buildDigest, fetchBody, listTelegramPage, pollClassification, recoveryPlan,
   recoveryStart, startupPlan, walkDiagnostics, walkList, walkStart, widerStart };
 export type { Restored, WalkStart };

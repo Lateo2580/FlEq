@@ -17,6 +17,8 @@ import { calls } from "../notification-delivery/delivery-fixture";
 import { vtse41 } from "../tsunami-unit/tsunami-fixture"; import { fixtureXml as nankaiXml, retime as nankaiRetime } from "../nankai-unit/nankai-fixture";
 import { eventId as floodEventId, fixtureXml as floodXml, retime as floodRetime } from "../flood-unit/flood-fixture";
 import type { Area } from "../tsunami-unit/tsunami-fixture";
+import { vxse53 } from "../seismic-unit/seismic-fixture";
+import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.types";
 
 // P3-RECOVERY-001【発注 3】: 製品の publisher と in-process の owner（TEST-PATH (2)）で、取り直しの候補・採用・確認・穴の解決を通す。
 // host の口（一覧の辿り・本文の取得・受信の順の列）だけを試験が答える。網へは出ない。
@@ -62,7 +64,8 @@ const report = (eventId: string, atMs: number, areas: readonly Area[], operation
 
 // 試験の root と host の口。bodies は一覧の id → 本文、listed は run の中のきっかけの一覧の答え。
 // files は owner の保存の file system（保存の ack を止める試験が門を置く）、seeds は U-T の state を置く行（seeded()）。
-async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: ReturnType<typeof seeded>, probe = true) {
+async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: ReturnType<typeof seeded>, probe = true,
+  classifications: readonly DmdataClassification[] = ["telegram.earthquake"]) {
   let now: ClockReading = { wallTimeMs: T0, monotonicMs: 1_000 };
   const snapshots: DisplaySnapshot[] = [];
   const diagnostics = new MemoryDiagnostics(), notification = manualAdapter();
@@ -77,7 +80,7 @@ async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: Re
   const walks: (readonly UnitWalk[])[] = [];
   let listed: (plan: readonly UnitWalk[]) => readonly UnitWalkResult[] = (plan) => plan.map(({ unit }) => ({ unit, kind: "listed", heads: [] }));
   const io = {
-    classifications: ["telegram.earthquake"] as const,
+    classifications,
     walk: async (plan: readonly UnitWalk[]) => { walks.push(plan); return listed(plan); },
     fetchBody: async (item: ListHead) => {
       fetched.push(item.id);
@@ -917,5 +920,168 @@ describe("P3-REC-T23 regression (U-T): the lowering at the pending capacity", ()
     ack();
     await t.drive();
     expect(t.notification.runs.filter(({ attempt }) => attempt.subject.endsWith(id) && attempt.payload.level === "critical")).toEqual([]);
+  });
+});
+
+// P3-RECOVERY-001 発注 4b-2（Q-REC-PRECHECK-8）: U-W の取り直し。本文は fixture の京都の VPWW57 と、全国は synthetic の VPWS50 を市町村等の警報に書き換えた報。
+const uwText = (name: string) => readFileSync(`test/fixtures/${name}.xml`, "utf8");
+const KYOTO = uwText("15_16_02_251222_VPWW57");
+const uwAt = (text: string, time: string) => text.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${time}</ReportDateTime>`);
+const uwCancel = (text: string, time: string) => uwAt(text, time).replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>").replace(/<Body[\s\S]*<\/Body>/, "<Body/>");
+const kyoto = (minute: number) => uwAt(KYOTO, `2020-06-22T23:${String(minute).padStart(2, "0")}:00+09:00`);
+const NATIONAL = ((xml: string) => {
+  const information = /<Information type="気象警報・注意報（市町村等）">([\s\S]*?)<\/Information>/.exec(xml)![1];
+  const items = information.replace(/<\/Kind>/g, "<Status>発表</Status></Kind>").replace(/<Areas[^>]*>([\s\S]*?)<\/Areas>/g, "$1");
+  return xml.replace(/<Body[^>]*\/>/, `<Body><Warning type="気象警報・注意報（市町村等）">${items}</Warning></Body>`);
+})(uwText("weather-alert-kind-area/synthetic-vpws50-change-density-before"));
+const uwHead = (id: string, headType: string, receivedAtMs: number, editorialOffice: string | null = "京都地方気象台"): ListHead =>
+  ({ ...head(id, "", receivedAtMs), unit: "U-W", headType, eventId: null, editorialOffice });
+async function uwLive(t: Awaited<ReturnType<typeof setup>>, type: string, text: string) {
+  const at = t.next();
+  await submit(t.h, envelope(t.h.root.state.runId, type, `input-${at}`, Buffer.from(text), t.now, at));
+  await t.drive();
+}
+const uwResults = (t: Awaited<ReturnType<typeof setup>>) => t.recoveryReplies()
+  .flatMap((reply) => reply.unit === "U-W" && reply.result.kind === "adopted" ? [reply.result.inputs.map((item) => item.result)] : []);
+// 京都の partial の報時刻と、U-W の unavailable。
+const kyotoRow = (t: Awaited<ReturnType<typeof setup>>) => [t.h.unit("U-W").partials.flatMap((item) => item.office === "京都地方気象台" ? [item.source.reportDateTimeRaw] : []),
+  t.h.unit("U-W").unavailable.map((item) => [item.subject, item.reason])];
+
+describe("P3-REC-T11 contractBoundary: the U-W entrance through the candidate (AC12, AC06; T19 の U-W の行)", () => {
+  it("(a) a same-time conflict recovered is held: no FreshnessRecord or mark in the shadow, and U-W is not confirmed", async () => {
+    const t = await setup();
+    await uwLive(t, "VPWW57", kyoto(0));
+    t.bodies.set("w1", xml(kyoto(0).replace(/(<Body[\s\S]*?<Status>)[^<]*(<\/Status>)/, "$1解除$2")));
+    await t.startup([uwHead("w1", "VPWW57", T0 - MINUTE)], "U-W");
+    expect([uwResults(t), t.whole("U-W") != null, t.h.unit("U-W").freshness, t.h.unit("U-W").unconfirmed]).toEqual([[["held"]], true, [], []]);
+  });
+  it("(b) a cancelling VPNO50 and a VPNO50 with no ending item are stale, not held, and U-W normal gets coverageVerified", async () => {
+    const t = await setup();
+    t.bodies.set("w1", xml(uwText("18_00_01_260830_VPNO50_issue")));
+    t.bodies.set("w2", xml(uwCancel(uwText("18_00_01_260830_VPNO50_switch"), "2026-08-30T10:00:00+09:00")));
+    await t.startup([uwHead("w1", "VPNO50", T0 - 2 * MINUTE, null), uwHead("w2", "VPNO50", T0 - MINUTE, null)], "U-W");
+    expect([uwResults(t), t.progress("U-W")?.state, t.whole("U-W"), t.h.unit("U-W").intents]).toEqual([[["adopted", "adopted"]], "recovered", null, []]);
+  });
+  // 実不具合の再発防止（4b-2 の品質レビュー r0 の P2、ヘルツが再現）: 本文を待つ間に live で別の官署の新しい全国の報を採ると、当て直しで取り直しの
+  // 古い VPWS50 が官署の違いで比べられずに全国の現況を巻き戻していた。
+  it("(e) a recovered older VPWS50 does not roll back a newer national report of another office taken live during the candidate", async () => {
+    const t = await setup();
+    let release!: () => void;
+    t.bodies.set("s1", () => new Promise((done) => { release = () => done(xml(NATIONAL)); }));
+    void t.startup([uwHead("s1", "VPWS50", T0 - MINUTE, "気象庁")], "U-W");
+    await t.drive();
+    await uwLive(t, "VPWS50", uwAt(NATIONAL, "2026-09-06T10:10:00+09:00").replace("<EditorialOffice>気象庁</EditorialOffice>", "<EditorialOffice>大阪管区気象台</EditorialOffice>"));
+    release();
+    await t.drive();
+    const national = t.h.unit("U-W").national.normal;
+    expect([uwResults(t).length, national?.office, national?.source.reportDateTimeRaw]).toEqual([1, "大阪管区気象台", "2026-09-06T10:10:00+09:00"]);
+  });
+  it("(c) recovering a report live already has is a duplicate and does not stop the confirmation", async () => {
+    const t = await setup();
+    await uwLive(t, "VPWW57", kyoto(0));
+    t.bodies.set("w1", xml(kyoto(0)));
+    await t.startup([uwHead("w1", "VPWW57", T0 - MINUTE)], "U-W");
+    expect([uwResults(t), t.progress("U-W")?.state, t.whole("U-W")]).toEqual([[["adopted"]], "recovered", null]);
+  });
+  it("(d) an unreadable newer version recovered keeps its freshnessSuspect after the adoption (no coverageConfirmed, M2)", async () => {
+    const t = await setup();
+    await uwLive(t, "VPWW57", kyoto(0));
+    t.bodies.set("w1", xml(kyoto(1).replace(/(<Body[\s\S]*?<Status>)[^<]*(<\/Status>)/, "$1未知$2")));
+    await t.startup([uwHead("w1", "VPWW57", T0 - MINUTE)], "U-W");
+    expect(uwResults(t)).toHaveLength(1);
+    expect(t.h.unit("U-W").freshness.map((item) => [item.target.subject, item.freshnessSuspect])).toEqual([["normal/VPWW57/京都地方気象台", true]]);
+  });
+});
+
+describe("P3-REC-T25 acceptance: a cancel after the U-W recovery (AC12, AC17, P3-REC-D-UW-CANCEL-HISTORY=B)", () => {
+  it("(a)(b) a live cancel of a recovered partial or national report has no history: historyUnavailable", async () => {
+    const t = await setup();
+    t.bodies.set("s1", xml(NATIONAL));
+    t.bodies.set("w1", xml(kyoto(10)));
+    await t.startup([uwHead("s1", "VPWS50", T0 - 2 * MINUTE, "気象庁"), uwHead("w1", "VPWW57", T0 - MINUTE)], "U-W");
+    expect([t.progress("U-W")?.state, Object.keys(t.h.unit("U-W").national), kyotoRow(t)]).toEqual(["recovered", ["normal"], [["2020-06-22T23:10:00+09:00"], []]]);
+    await uwLive(t, "VPWW57", uwCancel(KYOTO, "2020-06-22T23:20:00+09:00"));
+    expect(kyotoRow(t)).toEqual([[], [["normal/VPWW57/京都地方気象台", "historyUnavailable"]]]);
+    await uwLive(t, "VPWS50", uwCancel(NATIONAL, "2026-09-06T11:00:00+09:00"));
+    expect([t.h.unit("U-W").national, t.h.unit("U-W").unavailable.map((item) => [item.subject, item.reason])]).toEqual([{},
+      [["normal/VPWW57/京都地方気象台", "historyUnavailable"], ["normal/VPWS50/気象庁", "historyUnavailable"]]]);
+  });
+  // 保存に X2（23:10）と履歴の X1（23:00）を置いて閉じ、同じ file から起動する。
+  async function restoredBase() {
+    const files = new MemoryFiles();
+    const saved = await setup(files);
+    await uwLive(saved, "VPWW57", kyoto(0));
+    await uwLive(saved, "VPWW57", kyoto(10));
+    return setup(files);
+  }
+  // 公開の view の partials（官署と報時刻）と normal の active の件数。
+  const shown = (t: Awaited<ReturnType<typeof setup>>) => { const domain = t.snapshots.at(-1)!.current.weatherCurrent;
+    return [domain.delivery === "full" ? domain.view.partials.map((item) => [item.office, item.source.reportDateTimeRaw]) : null, domain.items[0].activeCount]; };
+  for (const rebased of [false, true]) it(`(c) the latest of the key is a cancel: a restored base goes back to X1 and keeps it restored${rebased ? " (re-applied)" : ""}`, async () => {
+    const t = await restoredBase();
+    expect(kyotoRow(t)).toEqual([["2020-06-22T23:10:00+09:00"], []]);
+    let release!: () => void;
+    t.bodies.set("c1", () => new Promise((done) => { release = () => done(xml(uwCancel(KYOTO, "2020-06-22T23:20:00+09:00"))); }));
+    void t.startup([uwHead("w1", "VPWW57", T0 - 2 * MINUTE), uwHead("c1", "VPWW57", T0 - MINUTE)], "U-W");
+    await t.drive();
+    if (rebased) await uwLive(t, "VPWW58", uwText("15_16_04_251222_VPWW58"));
+    release();
+    await t.drive();
+    expect([uwResults(t), t.progress("U-W")?.state, t.whole("U-W"), kyotoRow(t)])
+      .toEqual([[["adopted"]], "recovered", null, [["2020-06-22T23:00:00+09:00"], []]]);
+    // 戻った X1 は復元の印のまま公開に出ない（当て直しで基点に入った稚内の live の報だけが出る）。
+    const wakkanai = [["稚内地方気象台", "2020-06-22T23:00:00+09:00"]];
+    expect(shown(t)).toEqual([rebased ? wakkanai : [], rebased ? 1 : 0]);
+    await uwLive(t, "VPWW57", kyoto(30));
+    expect(shown(t)).toEqual([[...rebased ? wakkanai : [], ["京都地方気象台", "2020-06-22T23:30:00+09:00"]], rebased ? 2 : 1]);
+  });
+  it("(c) on an empty base the cancel is historyUnavailable, U-W is not held and is confirmed", async () => {
+    const t = await setup();
+    t.bodies.set("c1", xml(uwCancel(KYOTO, "2020-06-22T23:20:00+09:00")));
+    await t.startup([uwHead("c1", "VPWW57", T0 - MINUTE)], "U-W");
+    expect([t.progress("U-W")?.state, t.whole("U-W"), kyotoRow(t)]).toEqual(["recovered", null, [[], [["normal/VPWW57/京都地方気象台", "historyUnavailable"]]]]);
+  });
+  it("(d) a live X2 during the recovery re-applies the cancel without history: historyUnavailable (the accepted loss)", async () => {
+    const t = await setup();
+    let release!: () => void;
+    t.bodies.set("c1", () => new Promise((done) => { release = () => done(xml(uwCancel(KYOTO, "2020-06-22T23:20:00+09:00"))); }));
+    void t.startup([uwHead("c1", "VPWW57", T0 - MINUTE)], "U-W");
+    await t.drive();
+    await uwLive(t, "VPWW57", kyoto(10));
+    release();
+    await t.drive();
+    expect([t.progress("U-W")?.state, kyotoRow(t)]).toEqual(["recovered", [[], [["normal/VPWW57/京都地方気象台", "historyUnavailable"]]]]);
+  });
+});
+
+describe("P3-REC-T26 regression: bodies are taken in the fixed order (AC04, RES-03, P3-REC-D-ORDER-AND-LIMIT=A)", () => {
+  const listedHeads = (unit: RuntimeUnitId, count: number): ListHead[] => Array.from({ length: count }, (_, index) => unit === "U-Q"
+    ? { ...head(`q${index}`, String(20991231200000 + index), T0 - MINUTE + index), unit, headType: "VXSE53" }
+    : unit === "U-L" ? { ...uwHead(`l${index}`, "VPWW56", T0 - MINUTE + index, `office-${index}`), unit } : uwHead(`w${index}`, "VPWW57", T0 - MINUTE + index));
+  it("triggers U-Q → U-L → W with 279・22・1 bodies: U-Q and U-W are recovered, U-L is recoveryLimit", async () => {
+    const t = await setup(new MemoryFiles(), undefined, true, ["telegram.earthquake", "telegram.weather"]);
+    const units = ["U-Q", "U-L", "U-W"] as const;
+    t.h.root.attachRecovery(t.io, Object.fromEntries(units.map((unit) => [unit, walkStart(null, "empty", t.now.wallTimeMs)])),
+      Promise.resolve(units.map((unit) => ({ unit, kind: "listed" as const, heads: [] }))));
+    await t.drive();
+    const counts = { "U-Q": 279, "U-L": 22, "U-W": 1 } as const;
+    t.listed = (plan) => plan.map(({ unit }) => ({ unit, kind: "listed", heads: listedHeads(unit, unit in counts ? counts[unit as keyof typeof counts] : 0) }));
+    for (let index = 0; index < 279; index++) t.bodies.set(`q${index}`, xml(vxse53({ eventId: String(20991231200000 + index), at: iso(T0 - MINUTE) })));
+    t.bodies.set("w0", xml(kyoto(0)));
+    for (const type of ["VXSE53", "VPWW56", "VPWS50"]) t.h.root.recoveryRefused(type);
+    t.advance(60_000);
+    t.h.root.tick(t.now);
+    for (let turn = 0; turn < 100 && units.some((unit) => t.progress(unit)?.state === "running"); turn++) await t.drive();
+    expect(units.map((unit) => t.progress(unit))).toEqual([{ unit: "U-Q", state: "recovered" }, { unit: "U-L", state: "unsatisfied", reason: "recoveryLimit" },
+      { unit: "U-W", state: "recovered" }]);
+    expect([t.fetched.filter((id) => id.startsWith("l")), t.fetched.indexOf("w0") > t.fetched.indexOf("q278")]).toEqual([[], true]);
+  });
+  it("the startup recovery counts U-Q before U-N", async () => {
+    const t = await setup();
+    t.h.root.attachRecovery(t.io, { "U-N": walkStart(null, "empty", t.now.wallTimeMs), "U-Q": walkStart(null, "empty", t.now.wallTimeMs) },
+      Promise.resolve([{ unit: "U-N", kind: "listed", heads: [{ ...head("n1", "E1", T0 - MINUTE), unit: "U-N", headType: "VYSE50" }] },
+        { unit: "U-Q", kind: "listed", heads: [{ ...head("q1", "E2", T0 - MINUTE), unit: "U-Q", headType: "VXSE53" }] }]));
+    await t.drive();
+    expect(t.fetched).toEqual(["q1", "n1"]);
   });
 });

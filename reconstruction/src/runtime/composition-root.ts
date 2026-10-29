@@ -70,7 +70,7 @@ import {
 import type { MirrorUnit, PublisherState, RuntimeMirror } from "./shared-runtime";
 import { classifyHeadType, executionPlaces, placeOfHeadType, runtimeUnits } from "./unit-coverage";
 import { familyFor } from "../decode-material/decode-material";
-import { RECOVERABLE_UNITS, bodiesFor, buildDigest, recoveryPlan, recoveryStart, walkDiagnostics, widerStart, windowOf } from "../recovery/recovery";
+import { RECOVERABLE_UNITS, WALK_ORDER, bodiesFor, buildDigest, recoveryPlan, recoveryStart, walkDiagnostics, widerStart, windowOf } from "../recovery/recovery";
 import type { Restored, WalkStart } from "../recovery/recovery";
 import { EewWindow, FreshnessLedger } from "../recovery/watch";
 import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.types";
@@ -2122,7 +2122,7 @@ class RuntimeCompositionRoot {
     // recoveryId に結ぶ epoch と範囲の終わり（一覧を引き始めた時点の番号、AC07・AC09 (1)・AC19 (2)）。
     const run = { epoch: this.state.confirmation.epoch, listSequence: this.currentSequence() };
     const units: RuntimeUnitId[] = [];
-    for (const unit of requested) {
+    for (const unit of WALK_ORDER.filter((item) => requested.includes(item))) { // Q-REC-PRECHECK-8 N7: 本文と RES-03 を P3-REC-D-ORDER-AND-LIMIT=A の固定順で数える
       if (this.stoppedUnit(unit)) { this.recoveryUnsatisfied(unit, "ownerStopped"); continue; }
       units.push(unit);
       this.checkpoint.boundaries.recoveryStarted(unit, run.listSequence);

@@ -698,23 +698,7 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
       : displaySubjects(state, targets, [...currents.values()].flatMap((item) => item.before == null ? [] : [item.before]));
     const after = input.kind === "restore" ? displaySubjects(step.state)
       : displaySubjects(step.state, targets, [...currents.values()].flatMap((item) => item.after == null ? [] : [item.after]));
-    // A1 DISPLAY-CHANGES.revision: only freshnessSuspect records are shown (A8 SUMMARY); a non-suspect
-    // monitor record is internal and must not advance the content revision on its own.
-    // A missing side compares as an empty row, so a monitor-only subject with no shown record is no change either.
-    const shown = (value: (RuntimeDisplaySubject & { unit: "U-W" }) | null) =>
-      value == null ? [] : value.freshness.filter((item) => item.freshnessSuspect);
-    for (const key of new Set([...before.keys(), ...after.keys()])) {
-      const old = before.get(key) ?? null, current = after.get(key) ?? null;
-      const oldShown = shown(old), currentShown = shown(current);
-      const oldUnavailable = old?.unavailable ?? [], currentUnavailable = current?.unavailable ?? [];
-      const same = (old?.current ?? null) === (current?.current ?? null)
-        && oldUnavailable.length === currentUnavailable.length
-        && oldUnavailable.every((item, index) => item === currentUnavailable[index])
-        && oldShown.length === currentShown.length
-        && oldShown.every((item, index) => item === currentShown[index]);
-      if (!same && (old != null || current != null)) displayChanges.push({ unit: "U-W",
-        operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, after: current });
-    }
+    displayChanges.push(...rowChanges(before, after));
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
     throw new RangeError("U-W content revision exhausted");
@@ -730,6 +714,28 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
     displayChanges, confirmationEvidence };
 }
 
+type DisplayRow = RuntimeDisplaySubject & { unit: "U-W" };
+function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<string, DisplayRow>): WeatherCurrentUnitStep["displayChanges"][number][] {
+  // A1 DISPLAY-CHANGES.revision: only freshnessSuspect records are shown (A8 SUMMARY); a non-suspect
+  // monitor record is internal and must not advance the content revision on its own.
+  // A missing side compares as an empty row, so a monitor-only subject with no shown record is no change either.
+  const shown = (value: DisplayRow | null) => value == null ? [] : value.freshness.filter((item) => item.freshnessSuspect);
+  const changes: WeatherCurrentUnitStep["displayChanges"][number][] = [];
+  for (const key of new Set([...before.keys(), ...after.keys()])) {
+    const old = before.get(key) ?? null, current = after.get(key) ?? null;
+    const oldShown = shown(old), currentShown = shown(current);
+    const oldUnavailable = old?.unavailable ?? [], currentUnavailable = current?.unavailable ?? [];
+    const same = (old?.current ?? null) === (current?.current ?? null)
+      && oldUnavailable.length === currentUnavailable.length
+      && oldUnavailable.every((item, index) => item === currentUnavailable[index])
+      && oldShown.length === currentShown.length
+      && oldShown.every((item, index) => item === currentShown[index]);
+    if (!same && (old != null || current != null)) changes.push({ unit: "U-W",
+      operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, after: current });
+  }
+  return changes;
+}
+
 function reduceWeatherCurrent(state: WeatherCurrentUnitState,
   input: Extract<WeatherCurrentInput, { kind: "receive" }>): WeatherCurrentUnitStep {
   return reduceWeatherCurrentUnit(state, input);
@@ -743,6 +749,13 @@ const weatherCurrentUnit = {
   persistence: { kind: "durable", codec: weatherCurrentUnitCodec },
   confirmationScopeLimit: 1024,
   reclaimDeadlineBeforeReceive: false,
+  recoveryChanges,
 } satisfies UnitModule<"U-W">;
 
-export { displaySubjects, reduceWeatherCurrent, reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnit, weatherCurrentUnitCodec };
+// P3-REC-AC07（Q-REC-PRECHECK-8 の N5）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。全部の行を作り、reduce と
+// 同じ述語で比べる（O(N前＋N後)）。無いと U-W の採用で owner の netChanges が RangeError。contentRevision は候補を作る step で進んだので進めない。
+function recoveryChanges(before: WeatherCurrentUnitState, after: WeatherCurrentUnitState): WeatherCurrentUnitStep["displayChanges"] {
+  return rowChanges(displaySubjects(before), displaySubjects(after));
+}
+
+export { displaySubjects, recoveryChanges, reduceWeatherCurrent, reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnit, weatherCurrentUnitCodec };

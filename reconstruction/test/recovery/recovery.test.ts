@@ -470,7 +470,8 @@ describe("P3-REC-T17 contractBoundary: the N2 bodies of U-V, U-N and U-Q (AC12, 
       head("v4", "U-V", "VFVO52", "306", 4)])).toEqual(["v2", "v3"]);
     expect(pick("U-Q", [head("q1", "U-Q", "VXSE53", "E", 1), head("q2", "U-Q", "VXSE61", "E", 2), head("q3", "U-Q", "VXSE53", "E", 3)])).toEqual(["q2", "q3"]);
     expect(pick("U-W", [head("w", "U-W", "VPWW54", null, 1)])).toEqual([]);
-    expect((["U-V", "U-N", "U-Q", "U-T", "U-W"] as const).map((unit) => windowOf(unit) / 3_600_000)).toEqual([720, 720, 42, 168, 168]);
+    // 4b-2（Q-REC-PRECHECK-8 の M5）: U-W が集合に入り窓は 24 時間。集合の外の例は U-F（P3-REC-D-UF-BASE=C）。
+    expect((["U-V", "U-N", "U-Q", "U-T", "U-W", "U-F"] as const).map((unit) => windowOf(unit) / 3_600_000)).toEqual([720, 720, 42, 168, 24, 168]);
   });
   // 発注 4b-1（Q-REC-PRECHECK-5 の M1〜M3）: 鍵は U-L が官署、U-M の竜巻が型ごとの官署と題、VPAW51 は絞らない、ほかは EventID。官署の無い頭は絞らない。
   it("U-L keys by office, U-M tornado by type, office and title, VPAW51 unkeyed, stale short-lived bulletins dropped; the 4b-1 windows", () => {
@@ -486,5 +487,29 @@ describe("P3-REC-T17 contractBoundary: the N2 bodies of U-V, U-N and U-Q (AC12, 
       .toEqual(["m2", "m3", "m4", "m5", "m7", "m9"]);
     expect(pick("U-R", [head("r1", "U-R", "VXKO61", "R", 1), head("r2", "U-R", "VXKO61", "R", 2), head("r3", "U-R", "VXSU50", "R", 3)])).toEqual(["r2", "r3"]);
     expect((["U-L", "U-R", "U-B", "U-M", "U-Y"] as const).map((unit) => windowOf(unit) / 3_600_000)).toEqual([54, 42, 9, 72, 168]);
+  });
+});
+
+// P3-RECOVERY-001 発注 4b-2（Q-REC-PRECHECK-8 の N1・N2、P3-REC-D-UW-PARTIALS=A）: U-W の本文の選び方。
+describe("P3-REC-T24 contractBoundary: the U-W bodies (AC12, AC02)", () => {
+  const head = (id: string, headType: string, receivedAtMs: number, editorialOffice: string | null, operation: ListHead["operation"] = "normal"): ListHead => ({ id,
+    unit: "U-W", headType, receivedAtMs, operation, title: "t", headline: null, reportDateTime: null, infoType: "発表", serial: null, eventId: null,
+    controlDateTime: null, controlStatus: operation === "normal" ? "通常" : "訓練", test: false, editorialOffice });
+  const pick = (unit: ListHead["unit"], heads: readonly ListHead[]) => bodiesFor(unit, heads).map((item) => item.id);
+  it("(a) the latest national VPWS50 of any office, then the latest partial per office and type received after it, null offices unkeyed", () => {
+    expect(pick("U-W", [head("s1", "VPWS50", 1, "気象庁"), head("p0", "VPWW58", 2, "宇都宮地方気象台"), head("s2", "VPWS50", 3, "大阪管区気象台"),
+      head("s3", "VPWS50", 4, "気象庁"), head("p1", "VPWW58", 5, "宇都宮地方気象台"), head("p2", "VPWW58", 6, "宇都宮地方気象台"), head("p3", "VPWW61", 7, "前橋地方気象台"),
+      head("n1", "VPNO50", 8, null), head("n2", "VPNO50", 9, null)])).toEqual(["s3", "p2", "p3", "n1", "n2"]);
+  });
+  it("(b) a training partial with no training VPWS50 in the window is not cut by the normal VPWS50", () => {
+    expect(pick("U-W", [head("t1", "VPWW58", 1, "宇都宮地方気象台", "training"), head("t2", "VPWW58", 2, "宇都宮地方気象台", "training"),
+      head("t3", "VPWW61", 3, "前橋地方気象台", "training"), head("s1", "VPWS50", 4, "気象庁")])).toEqual(["t2", "t3", "s1"]);
+    // r1（統合担当の決め）: 基点は取消でない最新の VPWS50。最新の VPWS50 が取消なら、1 つ前の VPWS50 から後の partial を取る。
+    expect(pick("U-W", [head("s1", "VPWS50", 1, "気象庁"), head("p1", "VPWW58", 2, "宇都宮地方気象台"), { ...head("c1", "VPWS50", 3, "気象庁"), infoType: "取消" }]))
+      .toEqual(["p1", "c1"]);
+  });
+  it("(c) U-W lists 24 hours; U-F is outside the set and gets no bodies", () => {
+    expect([windowOf("U-W"), windowOf("U-F")]).toEqual([24 * 3_600_000, 7 * 24 * 3_600_000]);
+    expect(pick("U-F", [{ ...head("f1", "VPWP50", 1, "宇都宮地方気象台"), unit: "U-F" }])).toEqual([]);
   });
 });

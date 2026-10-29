@@ -1217,3 +1217,24 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-W restores failed and null p
   expectRestoreStarted({ intents: [intent, { ...intent, id: `${intent.id}-2` }], make: (intents) => ({ ...emptyState(), intents }),
     restore: (state, at) => reduceWeatherCurrentUnit(emptyState(), { kind: "restore", persisted: weatherCurrentUnitCodec.encode(state), clock: at }) });
 });
+
+// P3-RECOVERY-001 発注 4b-2（Q-REC-PRECHECK-8 の N3・N4）: U-W の取り直しの入口。
+describe("P3-REC-T11 contractBoundary (unit side): the U-W entrance for origin=recovery (AC12)", () => {
+  it("(a) an undecided version leaves no monitor, mark or WARN when recovered, and live keeps them; (b) an ignored VPNO50 is stale only when recovered", () => {
+    const state = receive(emptyState(), decodeFixture("15_16_02_251222_VPWW57", "VPWW57")).state;
+    const conflict = decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => replaceBodyStatus(xml, "解除"), "same-time");
+    const missing = { ...decodeFixture("15_16_02_251222_VPWW57", "VPWW57"), inputId: "missing", controlDateTimeRaw: "" };
+    for (const material of [conflict, missing]) {
+      const recovered = receive(state, { ...material, origin: "recovery" });
+      expect([recovered.state, recovered.decisions, recovered.diagnostics, recovered.displayChanges])
+        .toEqual([state, [expect.objectContaining({ decision: "unchanged", reason: "noChange" })], [], []]);
+      const live = receive(state, material);
+      expect([live.decisions, live.state.freshness.length, live.state.unconfirmed.map((item) => item.inputId)])
+        .toEqual([[expect.objectContaining({ decision: "unchanged", reason: "stale" })], 1, [material.inputId]]);
+    }
+    expect(receive(state, missing).diagnostics.map((item) => item.reason)).toEqual(["requiredStructureMissing"]);
+    const issue = decodeFixture("18_00_01_260830_VPNO50_issue", "VPNO50");
+    expect([receive(emptyState(), issue), receive(emptyState(), { ...issue, origin: "recovery" })].map((step) => step.decisions))
+      .toEqual([[expect.objectContaining({ reason: "noChange" })], [expect.objectContaining({ reason: "stale" })]]);
+  });
+});

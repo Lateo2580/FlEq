@@ -584,7 +584,7 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   }
   const candidate = validated.candidate;
   if (candidate.ignored) return { state, nextDeadline: nextWeatherCurrentDeadline(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }],
+    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: input.material.origin === "recovery" ? "stale" : "noChange" }], // Q-REC-PRECHECK-8 N4: 取り直しでは確認を止めない（owner は noChange を held と読む）
     intents: [], outcomes: [], diagnostics: [] };
   const previous = currentFor(state, candidate);
   const latest = latestSource(state, candidate);
@@ -597,13 +597,13 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   if (version.kind === "duplicate") return { state, nextDeadline: nextWeatherCurrentDeadline(state),
     decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "duplicate" }],
     intents: [], outcomes: [], diagnostics: [] };
-  if (version.kind !== "adopt") {
-    const monitored = monitor(state, candidate, "unchanged", "stale", version.kind === "older" ? "older" : "unknown", input.clock.monotonicMs);
-    const next = version.kind === "held" ? withMark(monitored, candidate, version.mark) : monitored;
+  if (version.kind !== "adopt" || olderNational(state, candidate, input.material.origin)) { // Q-REC-PRECHECK-8 N3: 取り直しの held は monitor・系列の印・WARN を置かずに noChange（owner の seen.held、4b-1 の unit と同じ）
+    const quiet = version.kind === "held" && input.material.origin === "recovery", monitored = quiet ? state : monitor(state, candidate, "unchanged", "stale", version.kind === "held" ? "unknown" : "older", input.clock.monotonicMs);
+    const next = version.kind === "held" && !quiet ? withMark(monitored, candidate, version.mark) : monitored;
     return { state: next === state ? state : { ...next, persistence: dirty(state.persistence, input.clock.monotonicMs) },
       nextDeadline: nextWeatherCurrentDeadline(next),
-      decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "stale" }],
-      intents: [], outcomes: [], diagnostics: missing };
+      decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: quiet ? "noChange" : "stale" }],
+      intents: [], outcomes: [], diagnostics: quiet ? [] : missing };
   }
   const adopted = adoptCandidate(withMark(state, candidate, version.mark), candidate, previous, input, touched);
   return missing.length === 0 ? adopted : { ...adopted, diagnostics: [...adopted.diagnostics, ...missing] };
@@ -723,6 +723,13 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
       currentEstablished: { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs!, affectedScope: candidate.affectedScope } }],
     intents: [], outcomes: [{ kind: "accepted", change,
       subjects: [outcome({ ...candidate, phenomena: projected.phenomena }, previous == null ? "activated" : "updated")] }], diagnostics };
+}
+
+// 4b-2 r1（ヘルツ P2）: 取り直しの全国の報は、官署の違う今の全国の現況（版の比べの相手にならない）とも版を比べ、古い本文で置き換えない。無いと、
+// 候補の当て直しで基点に入った live の新しい全国の現況（別の官署）を、取り直しの古い VPWS50 が巻き戻す。live は今どおり別の官署の報で置き換える。
+function olderNational(state: WeatherCurrentUnitState, candidate: Candidate, origin: Candidate["source"]["origin"]): boolean {
+  const current = candidate.scope === "national" ? state.national[candidate.operation] : undefined;
+  return origin === "recovery" && current != null && currentFor(state, candidate) == null && compareVersion(current.source, candidate.source) === "older";
 }
 
 function expireIntents(state: WeatherCurrentUnitState, wallTimeMs: number, monotonicMs: number): Readonly<{
