@@ -1916,10 +1916,10 @@ class RuntimeCompositionRoot {
     return result;
   }
 
-  // P3-REC-AC15: 辿りの結果をダイジェストにして snapshot へ載せ、辿れなかった unit を診断に残す（AC03 (4)・AC04）。
+  // P3-REC-AC15: 辿りの結果をダイジェストにして snapshot へ載せ、辿れなかった unit を診断に残す（AC03 (4)・AC04）。owner の止まった unit の WARN は出さない（Q-REC-PRECHECK-9 N2。回の後にも来るので stoppedUnit で見る）。
   showRecoveryDigest(results: readonly UnitWalkResult[], starts: Readonly<Partial<Record<RuntimeUnitId, WalkStart>>>, clock: ClockReading): void {
     const { runId } = this.state;
-    for (const details of walkDiagnostics(results)) this.enqueueDiagnostic(completeDiagnostic(details, clock, runId));
+    for (const details of walkDiagnostics(results)) if (details.unit == null || !this.stoppedUnit(details.unit)) this.enqueueDiagnostic(completeDiagnostic(details, clock, runId));
     this.recoveryDigest = buildDigest(results, starts);
     this.project([], [], clock);
   }
@@ -2037,7 +2037,7 @@ class RuntimeCompositionRoot {
   // 進み具合（AC11）。辿らない run は null。view は変わったときだけ作り直す（comparable が直列化する、上界は定数）。
   private progress: Map<RuntimeUnitId, RecoveryProgressUnit> | null = null;
   private progressView: readonly RecoveryProgressUnit[] | null = null;
-  private conducting = false;
+  private runStopped: Set<RuntimeUnitId> | null = null; // 走っている回の停止の帳簿（Q-REC-PRECHECK-9 N2）。null なら回は走っていない。寿命はその回だけ
   // 走っている間に来たきっかけ（やり直しの印）。boundary は穴の起点から、start は鮮度の起点（AC02 (7)）。
   private readonly wanted = new Map<RuntimeUnitId, Readonly<{ boundary: boolean; start: WalkStart | null }>>();
   private recoveryNotBefore = -Infinity;
@@ -2098,7 +2098,7 @@ class RuntimeCompositionRoot {
   // tick の中: 走っていなければ、前の終わりから 60 秒と一覧・本文の待ち（429 の Retry-After を含む、AC03 (9)）の後に、印の unit をまとめて 1 本起こす。
   private startWantedRecovery(clock: ClockReading): void {
     const io = this.recoveryIo;
-    if (io == null || this.conducting || this.wanted.size === 0 || clock.monotonicMs < Math.max(this.recoveryNotBefore, io.notBefore())) return;
+    if (io == null || this.runStopped != null || this.wanted.size === 0 || clock.monotonicMs < Math.max(this.recoveryNotBefore, io.notBefore())) return;
     const wanted = new Map(this.wanted);
     this.wanted.clear();
     void this.conduct([...wanted.keys()], null, wanted);
@@ -2118,10 +2118,10 @@ class RuntimeCompositionRoot {
   private async conduct(requested: readonly RuntimeUnitId[], listed: Promise<readonly UnitWalkResult[]> | null,
     wanted: ReadonlyMap<RuntimeUnitId, Readonly<{ boundary: boolean; start: WalkStart | null }>>): Promise<void> {
     const io = this.recoveryIo!;
-    this.conducting = true;
+    this.runStopped = new Set();
     // recoveryId に結ぶ epoch と範囲の終わり（一覧を引き始めた時点の番号、AC07・AC09 (1)・AC19 (2)）。
     const run = { epoch: this.state.confirmation.epoch, listSequence: this.currentSequence() };
-    const units: RuntimeUnitId[] = [];
+    const units: RuntimeUnitId[] = []; let passed = 0; // passed は catch の帳簿（N3）: loop の 1 回分を正常に抜けた unit の数
     for (const unit of WALK_ORDER.filter((item) => requested.includes(item))) { // Q-REC-PRECHECK-8 N7: 本文と RES-03 を P3-REC-D-ORDER-AND-LIMIT=A の固定順で数える
       if (this.stoppedUnit(unit)) { this.recoveryUnsatisfied(unit, "ownerStopped"); continue; }
       units.push(unit);
@@ -2132,13 +2132,13 @@ class RuntimeCompositionRoot {
     try {
       const starts = Object.fromEntries(units.map((unit) => [unit, this.recoveryStartOf(unit, wanted.get(unit))]));
       const results = listed != null ? await listed : units.length === 0 ? [] : await io.walk(recoveryPlan(io.classifications, starts, units));
-      // 起動の辿りの WARN はダイジェストの側が出した（showRecoveryDigest）。
+      // 起動の辿りの WARN はダイジェストの側が出した（showRecoveryDigest）。owner の止まった unit の WARN は出さない（N2、作者裁定 A）。
       if (listed == null && this.recovering())
-        for (const details of walkDiagnostics(results)) this.enqueueDiagnostic(completeDiagnostic(details, this.clock(), this.state.runId));
+        for (const details of walkDiagnostics(results)) if (details.unit == null || !this.stoppedUnit(details.unit)) this.enqueueDiagnostic(completeDiagnostic(details, this.clock(), this.state.runId));
       let budget = BODY_BUDGET;
       let ended: RecoveryUnsatisfiedReason | null = null;
-      for (const unit of units) {
-        if (!this.recovering()) return;
+      for (; passed < units.length; passed += 1) { // passed は continue を含む正常な抜けでだけ進む
+        const unit = units[passed]; if (!this.recovering()) return;
         const result = results.find((item) => item.unit === unit);
         if (result == null) { this.setProgress(unit, { unit, state: "notRecovered" }); continue; }
         // 401/403 の WARN は 1 回の取り直しに 1 件（AC03 (3)）。量の上限は unit ごと（AC04）。
@@ -2156,10 +2156,10 @@ class RuntimeCompositionRoot {
         if (stopped != null) ended = stopped;
       }
     } catch {
-      // 一覧の口の例外は取り直しの失敗だけにし、live の受信を止めない。
-      for (const unit of units) if (this.progress?.get(unit)?.state === "running") this.recoveryUnsatisfied(unit, "fetchFailed");
+      // 一覧の口の例外は取り直しの失敗だけにし、live の受信を止めない。印のある unit は抜けても running を見せるので、表示でなく帳簿で選ぶ（N3）。
+      for (const unit of units.slice(passed)) this.recoveryUnsatisfied(unit, "fetchFailed");
     } finally {
-      this.conducting = false;
+      this.runStopped = null;
       this.recoveryNotBefore = this.clock().monotonicMs + RECOVERY_GAP_MS;
       // やり直しの印がある unit は、終わった結果ではなく取り直し中（AC11）。
       for (const unit of this.wanted.keys()) this.setProgress(unit, { unit, state: "running" });
@@ -2257,10 +2257,10 @@ class RuntimeCompositionRoot {
       waiting.done(null);
     }
     for (const [sequence, body] of this.bodies) if (units.includes(body.unit)) this.endBody(sequence, body);
-    // P3-REC-D-COALESCE=A: 停止した owner の unit は範囲ときっかけから外し、取り直せなかった（ownerStopped）にする。
+    // P3-REC-D-COALESCE=A・Q-REC-PRECHECK-9 N2: 停止した owner の unit は範囲ときっかけから外し、走っている回でも即時に ownerStopped にしてから停止の帳簿に入れる（逆の順だと帳簿の門がこの書き込みも止める）。
     for (const unit of RECOVERABLE_UNITS) if (units.includes(unit) && this.progress?.has(unit) === true) {
       this.wanted.delete(unit);
-      if (!this.conducting) this.recoveryUnsatisfied(unit, "ownerStopped");
+      this.recoveryUnsatisfied(unit, "ownerStopped"); this.runStopped?.add(unit);
     }
   }
 
@@ -2302,16 +2302,16 @@ class RuntimeCompositionRoot {
       coverage: scopes.map((scope) => `${unit}/${scope.operation}`), subjects: this.state.mirror[unit].view.subjects } }], [], clock);
   }
 
-  // 未充足（AC11）: 進み具合と、unit ごとに WARN を 1 件（DiagnosticDetails に理由の欄が無いので語で分ける）。
+  // 未充足（AC11）: 進み具合と、unit ごとに WARN を 1 件（DiagnosticDetails に理由の欄が無いので語で分ける）。停止の帳簿の unit は WARN も止める（N2）。
   private recoveryUnsatisfied(unit: RuntimeUnitId, reason: RecoveryUnsatisfiedReason): void {
     this.setProgress(unit, { unit, state: "unsatisfied", reason });
-    if (this.current == null) return;
+    if (this.current == null || this.runStopped?.has(unit) === true) return;
     this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: unsatisfiedWords[reason], unit }, this.clock(), this.state.runId));
   }
 
   private setProgress(unit: RuntimeUnitId, item: RecoveryProgressUnit): void {
-    if (this.progress == null) return;
-    this.progress.set(unit, item);
+    if (this.progress == null || this.runStopped?.has(unit) === true) return; // N2: 停止の後のその回の書き込みは捨てる（owner は戻らない）
+    this.progress.set(unit, this.wanted.has(unit) ? { unit, state: "running" } : item); // N1: 印は取り直しのやり直しの宣言で、結果は次の回が上書きする（WARN は結果どおり）
     this.progressView = [...this.progress.values()];
   }
 

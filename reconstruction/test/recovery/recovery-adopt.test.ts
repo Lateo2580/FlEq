@@ -326,6 +326,88 @@ describe("P3-REC-T04 / T16 acceptance: limits, progress and coverage (AC04, AC09
   });
 });
 
+// 印の直し（Q-REC-PRECHECK-9 N4）: U-T（urgent）の後ろに U-Q（seismic）を置き、U-Q の本文を止めて回を走らせたままにする。
+describe("P3-REC-T16 (印の直し): the redo mark and the owner stop during a run (AC11, P3-REC-D-COALESCE)", () => {
+  function held(body: BodyResult) {
+    const gate = { release: () => {} };
+    return { gate, body: () => new Promise<BodyResult>((done) => { gate.release = () => done(body); }) };
+  }
+  async function twoUnits(tsunami: () => Promise<BodyResult>) {
+    const t = await setup();
+    const quake = held(xml(vxse53({ eventId: "20991231000502", at: iso(T0 - MINUTE) })));
+    t.bodies.set("t1", tsunami);
+    t.bodies.set("q1", quake.body);
+    const starts = { "U-T": walkStart(null, "empty", t.now.wallTimeMs), "U-Q": walkStart(null, "empty", t.now.wallTimeMs) };
+    t.h.root.attachRecovery(t.io, starts, Promise.resolve([{ unit: "U-T", kind: "listed", heads: [head("t1", "20991231000501", T0 - MINUTE)] },
+      { unit: "U-Q", kind: "listed", heads: [{ ...head("q1", "20991231000502", T0 - MINUTE), unit: "U-Q", headType: "VXSE53" }] }]));
+    await t.drive();
+    return { t, quake: quake.gate };
+  }
+  const tsunamiBody = () => xml(report("20991231000501", T0 - MINUTE, [{ code: "311", name: "a", kind: "62" }]));
+  const stateOf = (snapshot: DisplaySnapshot) => snapshot.recovery.progress?.find((item) => item.unit === "U-T")?.state;
+
+  it("(a) a U-T marked during the run and adopted is published as running while the U-Q body is held", async () => {
+    const tsunami = held(tsunamiBody());
+    const { t, quake } = await twoUnits(tsunami.body);
+    t.h.root.recoveryRefused("VTSE41");
+    const from = t.snapshots.length;
+    tsunami.gate.release();
+    await t.drive();
+    t.h.root.tick(t.now);
+    expect([t.whole("U-T"), t.fetched]).toEqual([null, ["t1", "q1"]]);
+    expect([...new Set(t.snapshots.slice(from).map(stateOf))]).toEqual(["running"]);
+    quake.release();
+    await t.drive();
+  });
+
+  it("(b) a reconnect while the U-T body waits, an adopt on the old epoch, then the owner stop: ownerStopped with one WARN, nothing running after the run", async () => {
+    const tsunami = held(tsunamiBody());
+    const { t, quake } = await twoUnits(tsunami.body);
+    t.h.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: t.sequence, clock: t.now });
+    t.h.root.recordConnected(t.now.wallTimeMs);
+    tsunami.gate.release();
+    await t.drive();
+    expect([t.whole("U-T"), t.fetched]).toEqual(["disconnected", ["t1", "q1"]]);
+    t.h.root.ownerFailed("urgent", new Error("stopped"));
+    quake.release();
+    await t.drive();
+    t.advance(60_000);
+    t.h.root.tick(t.now);
+    await t.drive();
+    expect([t.walks.length, t.progress()]).toEqual([1, { unit: "U-T", state: "unsatisfied", reason: "ownerStopped" }]);
+    expect((await t.warnings()).filter(([, unit]) => unit === "U-T")).toEqual([["recoveryOwnerStopped", "U-T"]]);
+  });
+
+  it("(c) a marked U-T whose body failed is running at the tick while the U-Q body is held; one fetchFailed WARN", async () => {
+    const tsunami = held({ kind: "failed" });
+    const { t, quake } = await twoUnits(tsunami.body);
+    t.h.root.recoveryRefused("VTSE41");
+    tsunami.gate.release();
+    await t.drive();
+    t.h.root.tick(t.now);
+    expect([t.fetched, t.progress()?.state]).toEqual([["t1", "q1"], "running"]);
+    expect(await t.warnings()).toEqual([["recoveryFetchFailed", "U-T"]]);
+    quake.release();
+    await t.drive();
+  });
+
+  it("(d) an owner stop before the startup list, which then says U-T fetchFailed through the digest: one ownerStopped, no fetchFailed", async () => {
+    const t = await setup();
+    const starts = { "U-T": walkStart(null, "empty", t.now.wallTimeMs) };
+    let list!: (results: readonly UnitWalkResult[]) => void;
+    const listed = new Promise<readonly UnitWalkResult[]>((done) => { list = done; });
+    t.h.root.attachRecovery(t.io, starts, listed);
+    // host と同じ順（attachRecovery の後に listed.then でダイジェスト）。ダイジェストは回の終わりより後に来る。
+    const shown = listed.then((results) => t.h.root.showRecoveryDigest(results, starts, t.now));
+    await t.drive();
+    t.h.root.ownerFailed("urgent", new Error("stopped"));
+    list([{ unit: "U-T", kind: "unsatisfied", reason: "fetchFailed", listedPages: 1 }]);
+    await shown;
+    await t.drive();
+    expect([t.progress(), await t.warnings()]).toEqual([{ unit: "U-T", state: "unsatisfied", reason: "ownerStopped" }, [["recoveryOwnerStopped", "U-T"]]]);
+  });
+});
+
 describe("P3-REC-T14 acceptance: the K7 handoff (a) on U-T (AC05 (a), 作者裁定 2026-10-28 午後)", () => {
   // 取り直しの本文は時刻の有無にかかわらず通常の版の比べだけにかける。決まらなければ採らず（held）、印も外さず、その unit は確認されない。
   const unconfirmedHeld = (t: Awaited<ReturnType<typeof setup>>) => {

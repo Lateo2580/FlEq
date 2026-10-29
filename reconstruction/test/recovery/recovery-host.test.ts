@@ -145,8 +145,8 @@ describe("P3-REC-T08 acceptance: the startup digest reaches the snapshot (AC15, 
   it("heads after the start, overflow by type within 16,384 bytes, a failed unit without a count; no mailbox input; live goes on", async () => {
     const startedAt = clock().wallTimeMs;
     https.handle = (url) => {
-      // 【発注 3】起動の辿りの後に U-T の本文（EventID ごとの最新の 1 件）を取る。
-      if (url.hostname === "data.api.dmdata.jp") return xmlBody();
+      // 【発注 3】起動の辿りの後に U-T の本文（EventID ごとの最新の 1 件）を取る。応答は試験が start の処理の後に返す（印の直し）。
+      if (url.hostname === "data.api.dmdata.jp") { https.hold = true; return xmlBody(); }
       const types = url.searchParams.get("type"), cursor = Number(url.searchParams.get("cursorToken") ?? "0");
       if (types === "VTSE41,VTSE51,VTSE52") {
         // 600 件（RES-04 を超える）。見出しは 256 byte を超える。最後のページは nextToken が無い。
@@ -177,10 +177,13 @@ describe("P3-REC-T08 acceptance: the startup digest reaches the snapshot (AC15, 
     expect([nankai.heads, nankai.omitted, local.heads.map((head) => [head.headType, head.headline]), local.omitted])
       .toEqual([[], {}, [["VXSE56", "長周期"]], {}]);
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("recoveryFetchFailed"));
-    // 起動の取り直しの採用で U-T の未確認が外れる。最初の接続が一覧の後なので、やり直しの印で進み具合は取り直し中に戻る（r1、統合担当の決め）。
+    // 起動の取り直しの採用で U-T の未確認が外れる。最初の start の印（recordConnected）を採用より前に付けるため、本文の応答は印の後に返す
+    // （socket の数や接続の成立では start の処理の後と言えない）。印のある U-T は採用の直後から取り直し中（Q-REC-PRECHECK-9 N1・N4）。
+    await until(() => https.paths.some((path) => path !== "/v2/telegram") && roots.root!["wanted"].has("U-T"));
+    https.hold = false;
+    for (const respond of https.held.splice(0)) respond();
     await until(() => roots.root!.state.confirmation.units["U-T"].normal.whole === null);
-    // 採用から取り直しの終わり（後ろの unit の採用）までは recovered が見えるので、終わりで running に戻るのを待つ（CI の揺れ、2026-10-29）。
-    await until(async () => (await snapshot(host.displayPort)).recovery.progress?.find((unit) => unit.unit === "U-T")?.state === "running");
+    expect((await snapshot(host.displayPort)).recovery.progress?.find((unit) => unit.unit === "U-T")?.state).toBe("running");
     const lines = (await diagnostics(dirs.diagnosticDirectory)).split("\n").filter((line) => line.includes('"component":"recovery"'));
     expect(lines.map((line) => JSON.parse(line)).map(({ level, reason, unit }) => ({ level, reason, unit })))
       .toEqual([{ level: "WARN", reason: "recoveryFetchFailed", unit: "U-Q" }]);
