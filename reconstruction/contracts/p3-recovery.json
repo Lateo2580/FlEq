@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "162a3d555ff2d42f4fe1d5fba268c6091106910f20ff33e96deaa0975ac605e4",
+    "sha256": "a79fb9088b551fb8961c338fea032331433cc3c739a0766c22c9476fe463b088",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -684,7 +684,7 @@
     "contractId": "P3-RECOVERY-001",
     "mode": "implementation",
     "objective": "切れていた間と止まっていた間の電文を dmdata の REST（電文の一覧と本文）で取り直し、spec §10.5 の候補状態を一回の採用で unit へ入れる（C16、計画 §2.1）。spec §16 の H04・H22・H26・H27・H28・H31・H32・H41 を運ぶ。履歴の再構築と live の受理は公開と通知の条件を分け、途中公開 0・新規履歴通知 0・live 上書き 0・期限延長 0 を守る。1 契約を 4 回に分けて発注する（P3-REC-D-SPLIT=A、Q-REC-SPLIT）: 発注 1 は一覧の歩き方・負担・起動時のダイジェスト（H32）、発注 2 は EEW の札（H28）と鮮度の疑い（H41）、発注 3 は本文の取得・候補・採用・進み具合と U-T の N2・H27、発注 4 は残り 10 unit の N2・H27（2026-10-28 発注 3 の点検で分けた）。段 2 で決まった形は段 2 のメモ改訂 4 から引き（Q-REC-PENDING-P2）、段 3 の K7（P3-VERSION-MATERIAL-001）・K8（P3-NOTICE-LEDGER-001）・K9（P3-CLOCK-CHECK-001）と K10（P3-EXPIRY-FORM-001）は配送済みで、その実物に合わせた（Q-REC-STAGE3）。発注 3 は K14（P3-UNREADABLE-MARK-001）の発注 3 の配送も待つ。条文の【発注 n】が振り分け",
-    "baseOid": "592807d05541d9856bb5514f19962dcd96a84a4d",
+    "baseOid": "c17909d96b9efad34dd0af534f7e8c1a0874830d",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
