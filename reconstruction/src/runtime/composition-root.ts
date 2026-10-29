@@ -2149,7 +2149,7 @@ class RuntimeCompositionRoot {
           continue;
         }
         // RES-03: 論理の本文の件数。上限に当たった unit から後ろを recoveryLimit にする（AC04）。
-        const heads = bodiesFor(unit, result.heads);
+        const heads = bodiesFor(unit, result.heads.filter((head) => head.receivedAtMs >= starts[unit].fetchFromMs)); // Q-REC-PRECHECK-10 N3: 本文は N2 の窓の内だけ（起動の一覧は 7 日まで辿る）
         if (heads.length > budget) { ended = "recoveryLimit"; this.recoveryUnsatisfied(unit, ended); continue; }
         budget -= heads.length;
         const stopped = await this.recoverUnit(io, run, unit, heads, result.heads);

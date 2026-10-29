@@ -1058,6 +1058,39 @@ describe("P3-REC-T11 contractBoundary: the U-W entrance through the candidate (A
     const national = t.h.unit("U-W").national.normal;
     expect([uwResults(t).length, national?.office, national?.source.reportDateTimeRaw]).toEqual([1, "大阪管区気象台", "2026-09-06T10:10:00+09:00"]);
   });
+  // 実不具合の再発防止（C16 の節目の総合レビューの P2-1、Q-REC-PRECHECK-10 N1）: 本文を待つ間に別の官署の live の全国報とその取消を採ると、
+  // 全国の現況が空になり、取り直しの古い VPWS50 が初報として戻っていた（live の順なら空のまま、AC07・AC17）。
+  it("(f) after a live cancel of the newer national report of another office, the recovered older VPWS50 does not come back", async () => {
+    const t = await setup();
+    let release!: () => void;
+    t.bodies.set("s1", () => new Promise((done) => { release = () => done(xml(NATIONAL)); }));
+    void t.startup([uwHead("s1", "VPWS50", T0 - MINUTE, "気象庁")], "U-W");
+    await t.drive();
+    const osaka = (text: string) => text.replace("<EditorialOffice>気象庁</EditorialOffice>", "<EditorialOffice>大阪管区気象台</EditorialOffice>");
+    await uwLive(t, "VPWS50", osaka(uwAt(NATIONAL, "2026-09-06T10:10:00+09:00")));
+    await uwLive(t, "VPWS50", osaka(uwCancel(NATIONAL, "2026-09-06T10:20:00+09:00")));
+    release();
+    await t.drive();
+    expect([uwResults(t), t.h.unit("U-W").national, t.h.unit("U-W").unavailable.map((item) => [item.subject, item.reason])])
+      .toEqual([[["adopted"]], {}, [["normal/VPWS50/大阪管区気象台", "historyUnavailable"]]]);
+  });
+  // 契約の境界（Q-REC-PRECHECK-10 の N1 r1、AC07・AC17）: 候補と同じ官署の全国の現況があるときは同じ系列の版で比べ、別の官署の新しい取消の墓標で
+  // 止めない（live の順でも A 10:10 は採られる）。
+  it("(g) a recovered newer VPWS50 of the current office is adopted past a newer live cancel of another office with no current", async () => {
+    const t = await setup();
+    await uwLive(t, "VPWS50", uwAt(NATIONAL, "2026-09-06T10:00:00+09:00"));
+    let release!: () => void;
+    t.bodies.set("s1", () => new Promise((done) => { release = () => done(xml(uwAt(NATIONAL, "2026-09-06T10:10:00+09:00"))); }));
+    void t.startup([uwHead("s1", "VPWS50", T0 - MINUTE, "気象庁")], "U-W");
+    await t.drive();
+    await uwLive(t, "VPWS50", uwCancel(NATIONAL, "2026-09-06T10:20:00+09:00").replace("<EditorialOffice>気象庁</EditorialOffice>", "<EditorialOffice>大阪管区気象台</EditorialOffice>"));
+    release();
+    await t.drive();
+    const state = t.h.unit("U-W"), osaka = "normal/VPWS50/大阪管区気象台";
+    expect([uwResults(t), state.national.normal?.office, state.national.normal?.source.reportDateTimeRaw,
+      state.tombstones.some((item) => item.subject === osaka), state.unavailable.map((item) => [item.subject, item.reason])])
+      .toEqual([[["adopted"]], "気象庁", "2026-09-06T10:10:00+09:00", true, [[osaka, "historyUnavailable"]]]);
+  });
   it("(c) recovering a report live already has is a duplicate and does not stop the confirmation", async () => {
     const t = await setup();
     await uwLive(t, "VPWW57", kyoto(0));

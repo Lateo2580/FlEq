@@ -132,12 +132,15 @@ function walkStart(boundary: InputBoundary | null, restoration: "restored" | "em
 /** 起動時の辿りの計画。購読している区分の型だけで束を作り、型を 1 つも持たない unit は入れない（P3-REC-AC02 (6)）。 */
 function startupPlan(classifications: readonly DmdataClassification[], restored: Readonly<Partial<Record<RuntimeUnitId, Restored>>>,
   startupWallMs: number): Readonly<{ plan: readonly UnitWalk[]; starts: Readonly<Partial<Record<RuntimeUnitId, WalkStart>>> }> | null {
-  const starts: Partial<Record<RuntimeUnitId, WalkStart>> = {};
+  const starts: Partial<Record<RuntimeUnitId, WalkStart>> = {}, listed: Partial<Record<RuntimeUnitId, WalkStart>> = {};
   for (const unit of WALK_ORDER) {
     const from = restored[unit];
-    starts[unit] = walkStart(from?.boundary ?? null, from?.restoration ?? "unavailable", startupWallMs, windowOf(unit));
+    const start = walkStart(from?.boundary ?? null, from?.restoration ?? "unavailable", startupWallMs, windowOf(unit));
+    starts[unit] = start;
+    // Q-REC-PRECHECK-10 N2（AC02 (8)・AC15 (1)）: 一覧だけはダイジェストの 7 日も覆うまで辿る。返す starts（uncovered と本文の起点）は N2 の窓のまま。
+    listed[unit] = { ...start, fetchFromMs: Math.min(start.fetchFromMs, start.digestAfterMs) };
   }
-  const plan = recoveryPlan(classifications, starts, WALK_ORDER);
+  const plan = recoveryPlan(classifications, listed, WALK_ORDER);
   return plan.length === 0 ? null : { plan, starts: Object.fromEntries(plan.map(({ unit }) => [unit, starts[unit]])) };
 }
 

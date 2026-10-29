@@ -727,9 +727,16 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
 
 // 4b-2 r1（ヘルツ P2）: 取り直しの全国の報は、官署の違う今の全国の現況（版の比べの相手にならない）とも版を比べ、古い本文で置き換えない。無いと、
 // 候補の当て直しで基点に入った live の新しい全国の現況（別の官署）を、取り直しの古い VPWS50 が巻き戻す。live は今どおり別の官署の報で置き換える。
+// Q-REC-PRECHECK-10 N1（AC07・AC17）: 比べる相手は同じ運用区分の全国の記録（現況・墓標・source のある unavailable、官署を問わない）の最も新しい版。
+// 無いと、別の官署の live の全国報が取り消されて現況が空になった後、取り直しの古い全国報が初報として戻る。走査は latestSource と同じ 1 回の O(n)。
 function olderNational(state: WeatherCurrentUnitState, candidate: Candidate, origin: Candidate["source"]["origin"]): boolean {
-  const current = candidate.scope === "national" ? state.national[candidate.operation] : undefined;
-  return origin === "recovery" && current != null && currentFor(state, candidate) == null && compareVersion(current.source, candidate.source) === "older";
+  if (origin !== "recovery" || candidate.scope !== "national" || currentFor(state, candidate) != null) return false;
+  const national = (source: ReportRef | null | undefined): source is ReportRef => source?.family === candidate.family;
+  const sources = [state.national[candidate.operation]?.source,
+    ...state.tombstones.filter((item) => item.operation === candidate.operation).map((item) => item.source),
+    ...state.unavailable.filter((item) => item.operation === candidate.operation).map((item) => item.source)].filter(national);
+  const latest = sources.reduce<ReportRef | null>((found, item) => found == null || compareVersion(found, item) === "newer" ? item : found, null);
+  return latest != null && compareVersion(latest, candidate.source) === "older";
 }
 
 function expireIntents(state: WeatherCurrentUnitState, wallTimeMs: number, monotonicMs: number): Readonly<{

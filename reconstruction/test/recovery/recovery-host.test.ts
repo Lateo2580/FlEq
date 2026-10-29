@@ -260,3 +260,25 @@ describe("P3-REC-T09 acceptance (host side): the card from the frames, only with
     expect((await snapshot(host.displayPort)).recovery.eewUnverified).toBeNull();
   });
 });
+
+describe("P3-REC-T08 acceptance (Q-REC-PRECHECK-10 N2・N3): the startup digest keeps 7 days past the N2 window (AC02 (8), AC15 (1))", () => {
+  it("with no saved state, U-B heads 8 hours and 1 day old both reach the digest, and only the 8-hour one is fetched as a body", async () => {
+    const startedAt = clock().wallTimeMs;
+    // subject（operation/型/EventID）の違う 2 件。U-B の N2 の窓は 9 時間。
+    const bulletin = (receivedAtMs: number, headline: string, eventId: string) => {
+      const value = item("VPBS50", receivedAtMs, headline);
+      return { ...value, xmlReport: { ...value.xmlReport, head: { ...value.xmlReport.head, eventId } } };
+    };
+    const recent = bulletin(startedAt - 8 * 60 * MINUTE, "8h", "B-RECENT"), older = bulletin(startedAt - DAY, "1d", "B-OLDER");
+    https.handle = (url) => {
+      if (url.hostname === "data.api.dmdata.jp") return xmlBody(readFileSync("test/fixtures/82_01_01_260324_VPBS50.xml"));
+      return url.searchParams.get("type")?.split(",").includes("VPBS50") ? page([recent, older]) : page([]);
+    };
+    const { host } = await start(["telegram.weather"]);
+    await until(async () => (await snapshot(host.displayPort)).recovery.digest != null);
+    const unit = (await snapshot(host.displayPort)).recovery.digest!.units.find((item) => item.unit === "U-B");
+    expect(unit?.kind === "listed" ? [unit.heads.map((head) => head.headline), unit.omitted] : unit).toEqual([["8h", "1d"], {}]);
+    await until(() => roots.root!["recoveryNotBefore"] > -Infinity);
+    expect(https.paths.filter((path) => path !== "/v2/telegram")).toEqual([`/v1/${recent.id}`]);
+  });
+});
