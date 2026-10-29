@@ -188,14 +188,14 @@ function intentsFor(source: ReportRef, transition: TsunamiIntent["transition"], 
     nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-T", source.operation, emergency) }));
 }
 
-// P3-C5-REPLACEMENT=A と Q-NOTICE.capacity。置換は同じ subject・channel で同群以上の pending だけ、取消は subject の全 pending。
-function admit(current: readonly TsunamiIntent[], fresh: readonly TsunamiIntent[], cancelSubject: string | null, sounding = false):
+// P3-C5-REPLACEMENT=A と Q-NOTICE.capacity。置換は同じ subject・channel で同群以上の pending だけ、取消は subject の全 pending。lowered（区分の最大が直前の記録より下がった報の subject）は、新しい intent が容量で入るかによらず、その subject の緊急群の pending を外す（P3-C5-REPLACEMENT の ruling、作者の裁定 2026-10-29「保存待ちの古い音を残さない」。r1 の統合担当の決め）。
+function admit(current: readonly TsunamiIntent[], fresh: readonly TsunamiIntent[], cancelSubject: string | null, sounding = false, lowered: string | null = null):
   Readonly<{ intents: readonly TsunamiIntent[]; admitted: readonly TsunamiIntent[]; dropped: number }> {
   const pending = current;
   const superseded = new Set(cancelSubject == null ? [] : pending.filter((item) => item.subject === cancelSubject));
   const evicted = new Set<TsunamiIntent>();
   const admitted: TsunamiIntent[] = [];
-  let refused = 0; // 取り直しの候補の intent（origin=recovery）は足さずに置換だけを当てる（P3-REC-D-UNIT-ENTRANCE=A、live なら置き換える古い pending を外す）。採用の step の音（sounding）は足す
+  let refused = 0; if (lowered != null) for (const item of pending) if (item.subject === lowered && groupRank(item) === 1) superseded.add(item); // 取り直しの候補の intent（origin=recovery）は足さずに置換だけを当てる（P3-REC-D-UNIT-ENTRANCE=A、live なら置き換える古い pending を外す）。採用の step の音（sounding）は足す
   for (const intent of fresh) { if (!sounding && intent.source.origin === "recovery") { for (const item of pending) if (item.subject === intent.subject && item.channel === intent.channel && groupRank(item) >= groupRank(intent)) superseded.add(item); continue; }
     const rank = groupRank(intent);
     const live = pending.filter((item) => !superseded.has(item) && !evicted.has(item));
@@ -469,7 +469,7 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
     || !isDeepStrictEqual(existing.areas, next.areas) || !isDeepStrictEqual(existing.unkeyedAreas, next.unkeyedAreas);
   const result = adopt(state, candidate, clock, basis, { forecasts, observations, fresh, cancelSubject: candidate.cancelled ? candidate.subject : null,
     semantic, changes, target: next, facts: { areaTransitions: transitions, series }, missing: version.missing, notice,
-    emergency: raisedToWarning && !recovering });
+    emergency: raisedToWarning && !recovering, lowered: !candidate.cancelled && existing != null && existing.effective !== "cancelled" && topRank(next) < topRank(existing) ? candidate.subject : null });
   // uncovered があるのは拒否の結果だけ（refuse）。採用できたときだけ、外した印を unit の未確認へ移す。
   return lost && result.uncovered == null ? { ...result, uncovered: true } : result;
 }
@@ -626,9 +626,9 @@ function keptScopes<T>(before: readonly T[], after: readonly T[], code: (item: T
 function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | ObservationCandidate, clock: ClockReading, basis: WallBasis, proposal: Readonly<{
   forecasts: readonly TsunamiForecastSubject[]; observations: readonly TsunamiObservationSubject[]; fresh: readonly TsunamiIntent[];
   cancelSubject: string | null; semantic: boolean; changes: readonly Change[]; target: Subject; facts: Readonly<Record<string, JsonValue>>;
-  missing: boolean; notice: Readonly<{ version: string; fragment?: string }>; emergency: boolean;
+  missing: boolean; notice: Readonly<{ version: string; fragment?: string }>; emergency: boolean; lowered?: string | null;
 }>): Result {
-  const notices = admit(state.intents, proposal.fresh, proposal.cancelSubject);
+  const notices = admit(state.intents, proposal.fresh, proposal.cancelSubject, false, proposal.lowered ?? null);
   // P3-NL-AC02 (3): admit を通った版と種類を系列の印に足す（全 channel が断られた版は入れない）。
   let { forecasts, observations, changes } = proposal;
   if (notices.admitted.length !== 0) {
@@ -961,10 +961,10 @@ const raiseSound = (to: TsunamiAreaClass): Exclude<Level, "cancel"> => to === "m
 /**
  * 候補の部分集合の検査の後に、採用の step で作る intent（P3-REC-AC06 (a)）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
  * candidate は採用する state。(1) H27: いまも有効な引上げ（live の規則で段が上がる区域）を unit で 1 件（段の最も高い subject）、ID と重ねない照合は
- * K8 の印。(2) 取り直しで拾った読めない報のカードがあれば info を 1 件（P3-UM-AC12 の (3)(7)(10)）。無ければ candidate をそのまま返す。
+ * K8 の印。(2) 取り直しで拾った読めない報のカードがあれば info を 1 件（P3-UM-AC12 の (3)(7)(10)）。(3) 採用の直前の live で保存待ちだった pending を候補の作成が引き下げで外したら、今の段の音を 1 件（loweredNotice、Q-REC-PRECHECK-6 の N4）。無ければ candidate をそのまま返す。
  */
 function recoveryNotices(open: TsunamiUnitState, candidate: TsunamiUnitState, recoveryId: string,
-  unreadable: Readonly<{ operation: Operation | null; receivedAt: number; inputId: string; headType: string }> | null, clock: ClockReading): TsunamiUnitState {
+  unreadable: Readonly<{ operation: Operation | null; receivedAt: number; inputId: string; headType: string }> | null, clock: ClockReading, live: TsunamiUnitState): TsunamiUnitState {
   const now = clock.wallTimeMs;
   const before = new Map(open.forecasts.map((item) => [item.subject, item]));
   let best: Readonly<{ subject: TsunamiForecastSubject; level: Exclude<Level, "cancel">; names: string[]; kinds: string[] }> | null = null;
@@ -985,7 +985,7 @@ function recoveryNotices(open: TsunamiUnitState, candidate: TsunamiUnitState, re
     if (level == null || noticed(subject.notice, versionDigest(subject.source), noticeKind("updated"))) continue;
     if (best == null || LEVELS.indexOf(level) > LEVELS.indexOf(best.level)) best = { subject, level, names, kinds };
   }
-  const fresh: TsunamiIntent[] = [];
+  const raisedRecord: TsunamiForecastSubject | undefined = best?.subject, lowered = loweredNotice(live, candidate, raisedRecord?.subject, now), fresh: TsunamiIntent[] = [];
   if (best != null) {
     const { subject, level } = best;
     const at = jstClock(subject.source.reportDateTimeRaw);
@@ -1006,13 +1006,13 @@ function recoveryNotices(open: TsunamiUnitState, candidate: TsunamiUnitState, re
         payload, createdAt: now, expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
         ...freshState("U-T", operation) });
   }
-  if (fresh.length === 0) return candidate;
+  if (lowered != null) fresh.push(...lowered.intents); if (fresh.length === 0) return candidate; // N4 は H27 と読めない報の後に収容する（枠の境で、先に足した N4 が H27 を拒ませない。r1）
   const notices = admit(candidate.intents, fresh, null, true);
   if (notices.admitted.length === 0) return candidate;
-  // P3-NL-AC02 (3): 引上げの版と種類を系列の印に足す（読めない報は系列の印を持たない）。
-  const raised = notices.admitted.find((item) => item.subject === best?.subject.subject);
-  const forecasts = best == null || raised == null ? candidate.forecasts : candidate.forecasts.map((item) => item !== best!.subject ? item
-    : { ...item, notice: markNotice(item.notice, versionDigest(item.source), noticeKind(raised.transition)) });
+  // P3-NL-AC02 (3): 引上げと今の段の音の版と種類を系列の印に足す（読めない報は系列の印を持たない）。
+  const marks = new Map(notices.admitted.map((item) => [item.subject, item.transition] as const)); // 引上げ（H27）と今の段の音（N4）の版と種類
+  const forecasts = candidate.forecasts.map((item) => { const transition = item === raisedRecord || item === lowered?.subject ? marks.get(item.subject) : undefined;
+    return transition == null ? item : { ...item, notice: markNotice(item.notice, versionDigest(item.source), noticeKind(transition)) }; });
   return { ...candidate, forecasts, intents: notices.intents };
 }
 
@@ -1266,7 +1266,7 @@ const tsunamiUnit = {
   persistence: { kind: "durable", codec: tsunamiUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
-  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.recoveryId, at.card, at.clock),
+  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.recoveryId, at.card, at.clock, at.live),
   recoveryChanges,
 } satisfies UnitModule<"U-T">;
 
@@ -1286,6 +1286,38 @@ function recoveryChanges(before: TsunamiUnitState, after: TsunamiUnitState): Tsu
   for (const item of [...after.forecasts, ...after.observations]) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
   for (const item of old.values()) add(item, null);
   return changes;
+}
+
+// Q-REC-PRECHECK-6 の N2・N4: 記録の区分の最大（highest と同じ AREA_RANK、unkeyedAreas を含む。区分が無ければ 0）。
+function topRank(value: TsunamiForecastSubject): number {
+  return AREA_RANK[highest(value) ?? "none"];
+}
+
+// P3-REC-AC12【発注 4c】・Q-REC-PRECHECK-6 の N4: 採用の直前の live にあって候補に無い期限の内の pending（候補の作成の置換が外した保存待ちの音）のうち、
+// その subject の候補の記録が取消でなく区分の最大が live の記録より下がったものから、外した level の最も高い subject を 1 つ選び、今の段の音を作る。
+// H27 を鳴らす subject と K8 で通知済みの版は選ぶ前に除く。段は live の式の残った区分の段（候補が active なら normal、ほかは info）で、緊急群に入れない。
+// ponytail: 採用の step に 1 回だけ、live の pending（128 件まで）を 1 回なめる。受信経路ではない。
+function loweredNotice(live: TsunamiUnitState, candidate: TsunamiUnitState, raisedSubject: string | undefined, now: number):
+  Readonly<{ subject: TsunamiForecastSubject; intents: readonly TsunamiIntent[] }> | null {
+  const kept = new Set(candidate.intents.map((item) => item.id));
+  const before = new Map(live.forecasts.map((item) => [item.subject, item])), after = new Map(candidate.forecasts.map((item) => [item.subject, item]));
+  let best: Readonly<{ was: TsunamiForecastSubject; next: TsunamiForecastSubject; transition: "released" | "updated"; level: number }> | null = null;
+  for (const intent of live.intents) {
+    if (kept.has(intent.id) || intent.expiresAt <= now || intent.subject === raisedSubject) continue;
+    const was = before.get(intent.subject), next = after.get(intent.subject);
+    if (was == null || next == null || next.effective === "cancelled" || topRank(next) >= topRank(was)) continue;
+    const transition = was.effective === "active" && next.effective !== "active" ? "released" : "updated";
+    if (noticed(next.notice, versionDigest(next.source), noticeKind(transition))) continue;
+    const level = intent.payload.level === "cancel" ? -1 : LEVELS.indexOf(intent.payload.level);
+    if (best == null || level > best.level) best = { was, next, transition, level };
+  }
+  if (best == null) return null;
+  const { next, transition } = best, areas = [...next.areas, ...next.unkeyedAreas];
+  const title = `${forecastTitle(next, best.was.effective === "active")}（${jstClock(next.source.reportDateTimeRaw)} 発表）`;
+  const parts = [[...new Set(areas.map((area) => area.kindName))].join("・"), areas.slice(0, 3).map((area) => area.name).join(", ")].filter((part) => part !== "");
+  const payload = payloadOf(next.operation, next.effective === "active" ? "normal" : "info", title, parts.length === 0 ? title : parts.join(" / "), false);
+  return { subject: next, intents: intentsFor(next.source, transition, { ...payload, reportDateTime: next.source.reportDateTimeRaw, recovered: true }, now,
+    { mark: next.notice, version: versionDigest(next.source) }) };
 }
 
 export { recoveryChanges, recoveryNotices, reduceTsunamiUnit, toTsunamiView, tsunamiUnit, tsunamiUnitCodec };

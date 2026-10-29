@@ -11,7 +11,7 @@ import { Mailbox } from "../../src/mailbox/mailbox";
 import { walkStart } from "../../src/recovery/recovery";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
 import { tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
-import { envelope, harnessedRoot, manualAdapter, park, seeded, startHarness, submit } from "../execution-split/owner-harness";
+import { envelope, harnessedRoot, idleChannels, manualAdapter, park, seeded, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import { calls } from "../notification-delivery/delivery-fixture";
 import { vtse41 } from "../tsunami-unit/tsunami-fixture"; import { fixtureXml as nankaiXml, retime as nankaiRetime } from "../nankai-unit/nankai-fixture";
@@ -62,14 +62,14 @@ const report = (eventId: string, atMs: number, areas: readonly Area[], operation
 
 // 試験の root と host の口。bodies は一覧の id → 本文、listed は run の中のきっかけの一覧の答え。
 // files は owner の保存の file system（保存の ack を止める試験が門を置く）、seeds は U-T の state を置く行（seeded()）。
-async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: ReturnType<typeof seeded>) {
+async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: ReturnType<typeof seeded>, probe = true) {
   let now: ClockReading = { wallTimeMs: T0, monotonicMs: 1_000 };
   const snapshots: DisplaySnapshot[] = [];
   const diagnostics = new MemoryDiagnostics(), notification = manualAdapter();
   const h = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: notification.adapter,
     checkpointFileSystem: files, diagnosticFileSystem: diagnostics, display: { publish: (snapshot) => { snapshots.push(snapshot); } },
     ...seeds == null ? {} : { runtimeCalls: { ...calls, units: seeds.units } } });
-  await startHarness(h, "rec3", now);
+  await startHarness(h, "rec3", now, probe);
   let sequence = 0;
   h.root.attachSequence(() => ++sequence, () => sequence);
   const bodies = new Map<string, BodyResult | (() => Promise<BodyResult>)>();
@@ -765,8 +765,8 @@ describe("P3-REC-T18 acceptance: the urgent re-apply limit and the U-N raise at 
     await t.drive();
     expect([t.h.unit("U-N").intents, t.notification.runs]).toEqual([[], []]);
   });
-  // U-T も同じ形（津波注意報→津波予報。live の置換は同じ群以上だけで、津波警報以上の群の pending は引き下げの通知でも live で置き換わらない）。
-  it("a recovered tsunami downgrade withdraws the pending advisory notices before the save ack releases them (U-T, same shape)", async () => {
+  // U-T も同じ形（津波注意報→津波予報）。Q-REC-PRECHECK-6 の M1（発注 4c）: 外した保存待ちの注意報の代わりに、live で受け続けていれば鳴る解除の info を採用の step で 1 回足す（N4）。
+  it("a recovered tsunami downgrade withdraws the pending advisory notices; the save ack releases one recovered release info per channel instead (U-T, N4)", async () => {
     let ack!: () => void;
     const gate = new Promise<void>((done) => { ack = done; });
     const files = new MemoryFiles();
@@ -779,7 +779,8 @@ describe("P3-REC-T18 acceptance: the urgent re-apply limit and the U-N raise at 
     expect([t.progress()?.state, t.h.unit("U-T").forecasts.map((item) => item.areas.map((area) => area.areaClass))]).toEqual(["recovered", [["forecast"]]]);
     ack();
     await t.drive();
-    expect([t.h.unit("U-T").intents, t.notification.runs]).toEqual([[], []]);
+    expect(t.notification.runs.map(({ attempt }) => [attempt.channel, attempt.payload.level, attempt.payload.title, attempt.payload.recovered]).sort())
+      .toEqual(["desktop", "sound"].map((channel) => [channel, "info", "津波警報・注意報の解除（11:59 発表）", true]));
   });
 });
 
@@ -839,5 +840,82 @@ describe("P3-REC-T19 regression (U-R): the expiry of a recovered flood record", 
     t.h.root.tick(t.now);
     await t.drive();
     expect(expiries(t).map((item) => [item.subject, item.channel])).toEqual([["normal/VXKO50/123456789012", "desktop"]]);
+  });
+});
+
+// P3-REC-T23 acceptance（C16 発注 4c、Q-REC-PRECHECK-6 の N2〜N4、作者の裁定 2026-10-29 朝）: 取り直しの引き下げは、保存待ちの緊急群の pending を
+// 候補の作成で外し、採用の step で今の段の音（normal）を 1 回足す。外した critical では adapter が呼ばれない。試験の時計は進めない（待ち始めから 1,000 ms 未満）。
+describe("P3-REC-T23 acceptance (U-T): a recovered lowering replaces the waiting critical with one current-level notice", () => {
+  const notices = (t: Awaited<ReturnType<typeof setup>>) => t.h.unit("U-T").intents.map((intent) => [intent.channel, intent.payload.level,
+    intent.payload.title, intent.payload.recovered, intent.payload.reportDateTime]);
+  const normal = ["desktop", "sound"].map((channel) => [channel, "normal", "津波警報（11:59 発表）", true, iso(T0 - MINUTE)]);
+  const sent = (t: Awaited<ReturnType<typeof setup>>) => t.notification.runs.map(({ attempt }) => [attempt.channel, attempt.payload.level]).sort();
+  it("(a) a reserved critical waiting for its save is withdrawn; the adopt reply changes that subject once; only the normal reaches the adapter", async () => {
+    let ack!: () => void;
+    const gate = new Promise<void>((done) => { ack = done; });
+    const files = new MemoryFiles();
+    files.syncDirectory = async () => { await park(gate); };
+    const t = await setup(files);
+    await t.live(report("20991231000600", T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "52" }]));
+    expect(t.h.unit("U-T").intents.map((intent) => [intent.payload.level, intent.lastAttempt])).toEqual([["critical", "started"], ["critical", "started"]]);
+    t.bodies.set("w1", xml(report("20991231000600", T0 - MINUTE, [{ code: "311", name: "a", kind: "51" }])));
+    await t.startup([head("w1", "20991231000600", T0 - MINUTE)]);
+    expect([t.progress()?.state, notices(t)]).toEqual(["recovered", normal]);
+    const adopted = t.recoveryReplies().filter((reply) => reply.unit === "U-T" && reply.result.kind === "adopted");
+    expect(adopted.flatMap((reply) => reply.output.displayChanges).map((change) => [change.subject, change.before?.subjects[0].severity, change.after?.subjects[0].severity]))
+      .toEqual([["normal/VTSE41/20991231000600", "majorWarning", "warning"]]);
+    expect(t.notification.runs).toEqual([]);
+    ack();
+    await t.drive();
+    expect(sent(t)).toEqual([["desktop", "normal"], ["sound", "normal"]]);
+  });
+  it("(b) a failed critical kept over a stop is withdrawn before the probe completes; the probe then releases only the normal", async () => {
+    const seeds = seeded();
+    const t = await setup(new MemoryFiles(), seeds, false);
+    await t.live(report("20991231000601", T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "52" }]));
+    const live = t.h.unit("U-T");
+    await seeds.tsunami(t.h, { ...live, intents: live.intents.map((intent) => ({ ...intent, attempts: 1, lastAttempt: "failed" as const })) });
+    expect(t.h.unit("U-T").intents.map((intent) => [intent.payload.level, intent.lastAttempt])).toEqual([["critical", "failed"], ["critical", "failed"]]);
+    t.bodies.set("w2", xml(report("20991231000601", T0 - MINUTE, [{ code: "311", name: "a", kind: "51" }])));
+    await t.startup([head("w2", "20991231000601", T0 - MINUTE)]);
+    expect([t.progress()?.state, notices(t)]).toEqual(["recovered", normal]);
+    t.h.root.dispatch({ kind: "notificationProbeCompleted", channels: idleChannels, clock: t.now });
+    await t.drive();
+    expect(sent(t)).toEqual([["desktop", "normal"], ["sound", "normal"]]);
+  });
+});
+
+// 実不具合の再発防止（C16 発注 4c の品質レビュー r0 の P2 2 件、ヘルツが実の入力の経路で再現）: 通知の容量（pending 128）の境。
+describe("P3-REC-T23 regression (U-T): the lowering at the pending capacity", () => {
+  // P2-1: 採用の step は H27 を N4 より先に収容する（先に足した下位群の N4 は退去の対象にならず、別系列の大津波警報を拒ませる）。
+  it("a recovered major warning of another series is admitted on both channels when the lowering's N4 would fill the last two places", async () => {
+    const t = await setup(new MemoryFiles(), undefined, false);
+    for (let at = 0; at < 63; at++) await t.live(report(String(20991231001000 + at), T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "52" }]));
+    const lowered = "20991231004000", raised = "20991231002000";
+    await t.live(report(lowered, T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "62" }]));
+    expect(t.h.unit("U-T").intents).toHaveLength(128);
+    t.bodies.set("lower", xml(report(lowered, T0 - MINUTE, [{ code: "311", name: "a", kind: "71" }])));
+    t.bodies.set("raise", xml(report(raised, T0 - MINUTE, [{ code: "311", name: "a", kind: "52" }])));
+    await t.startup([head("lower", lowered, T0 - MINUTE), head("raise", raised, T0 - MINUTE)]);
+    expect(t.progress()?.state).toBe("recovered");
+    expect(t.h.unit("U-T").intents.filter((intent) => intent.subject.endsWith(raised)).map((intent) => [intent.channel, intent.payload.level]))
+      .toEqual([["desktop", "critical"], ["sound", "critical"]]);
+  });
+  // P2-2: 引き下げは、新しい intent が容量で入るかによらず、その subject の緊急群の pending を外す（入らなかった channel の古い critical が保存の後に鳴らない）。
+  it("a live lowering whose sound does not fit still withdraws the waiting critical sound; the save ack starts no critical", async () => {
+    let ack!: () => void;
+    const gate = new Promise<void>((done) => { ack = done; });
+    const files = new MemoryFiles();
+    files.syncDirectory = async () => { await park(gate); };
+    const t = await setup(files);
+    const id = "20991231003000";
+    await t.live(report(id, T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "52" }]));
+    for (let at = 0; at < 63; at++) await t.live(report(String(20991231005000 + at), T0 - 2 * MINUTE, [{ code: "311", name: "a", kind: "52" }]));
+    await t.live(report(id, T0 - MINUTE, [{ code: "311", name: "a".repeat(10_000), kind: "51" }]));
+    expect(t.h.unit("U-T").forecasts.find((item) => item.eventId === id)?.areas.map((area) => area.areaClass)).toEqual(["warning"]);
+    expect(t.h.unit("U-T").intents.filter((intent) => intent.subject.endsWith(id) && intent.payload.level === "critical")).toEqual([]);
+    ack();
+    await t.drive();
+    expect(t.notification.runs.filter(({ attempt }) => attempt.subject.endsWith(id) && attempt.payload.level === "critical")).toEqual([]);
   });
 });

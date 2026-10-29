@@ -447,7 +447,7 @@ function nextHistory(history: SeismicDailyHistory, candidate: EarthquakeCandidat
     const found = countedIndex(base.counted).get(candidate.eventId);
     const higher = base.maxInt == null || stage > (knownStage(base.maxInt) ?? -1);
     const raised = found != null && stage > base.counted[found][1];
-    if (found == null || higher || raised) {
+    if (found == null ? candidate.source.origin !== "recovery" || ((at) => Number.isFinite(at) && dayKeyOf(at) === today)(Date.parse(factsOf(after).originTimeRaw ?? "")) : higher || raised) { // Q-REC-PRECHECK-6 N1: 取り直しで新しく数えるのは発生時刻（recent と同じ、ReportDateTime へ代えない）が今日の地震だけ
       let pairs = base.counted;
       if (found == null && pairs.length < COUNTED_LIMIT) pairs = withPairs([...pairs, [candidate.eventId, stage]], pairs, [candidate.eventId, stage], null);
       else if (raised) pairs = withPairs(pairs.map((pair, index) => index === found ? [candidate.eventId, stage] as const : pair), pairs, null, null);
@@ -1274,7 +1274,7 @@ function receive(state: SeismicUnitState, input: Extract<SeismicInput, { kind: "
   const { candidate } = parsed;
   // P3-REC-AC12（C16 発注 4a）・P3-C7-N2: origin=recovery は候補の作成のときだけ owner から届く。意味を当てて intent を作らず（P3-REC-D-UNIT-ENTRANCE=A、
   // U-Q は H27 でも鳴らさない＝P3-REC-D-N2-RAISE=A。live と同じに作った intent は admit・refuse が外し、live なら置き換える古い pending だけを外す）、版が決まらなければ印を置かずに noChange で返す（owner がその結果を held にする、P3-REC-AC05 の (a)）。
-  // ponytail: 当日の件数は受信日に数えるので、取り直しで拾った前日の地震も今日に入る（条文に無く live の規則のまま。作者の裁定が出たら daily を触らない形に）。
+  // 当日の件数（Q-REC-PRECHECK-6 の N1、作者の裁定 2026-10-29 朝「数えない」）: 取り直しの報は counted に無い地震を発生時刻が今日のときだけ数え、一度数えたものは引かない（nextHistory。live は受信日のまま）。
   const basis = input.basis ?? "verified";
   const result = candidate.kind === "earthquake" ? receiveEarthquake(state, candidate, input.clock, basis) : receiveLongPeriod(state, candidate, input.clock, basis);
   // P3-QC-AC09: §13 の 4 か所の WARN を受けた報の結果に添える。

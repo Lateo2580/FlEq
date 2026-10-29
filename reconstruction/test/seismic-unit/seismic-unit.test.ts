@@ -1252,3 +1252,37 @@ describe("P3-REC-T19 regression (U-Q): a recovered report withdraws the pending 
     expect([first53.intents.length, live.intents.length, recovery.state.intents, recovery.intents]).toEqual([2, 2, [], []]);
   });
 });
+
+// P3-REC-T22 acceptance（C16 発注 4c、Q-REC-PRECHECK-6 の N1、作者の裁定 2026-10-29 朝「数えない」）: 取り直しの報は counted に無い地震を、発生時刻
+// （recent と同じ originTime。ReportDateTime へ代えない）が受理の日のときだけ当日の件数・最大震度に数え、一度数えたものは引かない。live は受信日のまま。
+describe("P3-REC-T22 acceptance (U-Q): the daily count of recovered reports", () => {
+  const ID = "20990101235900", OTHER = "20990102060000";
+  const now = clock(Date.parse("2099-01-02T07:00:00+09:00")), yesterday = "2099-01-01T23:59:00+09:00";
+  const day = (step: SeismicUnitStep) => step.state.daily.normal;
+  const s53 = (options: Parameters<typeof vxse53>[0], origin: "replay" | "recovery" = "recovery") => decodeXml(vxse53(options), "VXSE53", undefined, origin);
+  // TargetDateTime の無い VXSE51（originTime が読めない）。震度 4。
+  const s51 = decodeXml(replaceTag("EventID", ID)(replaceTag("ReportDateTime", "2099-01-02T00:00:30+09:00")(replaceTag("DateTime", "2099-01-01T15:00:30Z")(
+    fixtureXml(F.s51a).replace(/<TargetDateTime>[^<]*<\/TargetDateTime>/, "").replaceAll("<MaxInt>7</MaxInt>", "<MaxInt>4</MaxInt>")))), "VXSE51", undefined, "recovery");
+  it("(a)(b) a recovered VXSE51 without an origin time counts nothing; the VXSE53 counts only an origin of today", () => {
+    const first = receive(emptyState(), s51, now);
+    expect(day(first)).toMatchObject({ count: 0, maxInt: null, counted: [] });
+    expect(day(receive(first.state, s53({ eventId: ID, at: "2099-01-02T00:01:00+09:00", origin: yesterday }), now))).toMatchObject({ count: 0, maxInt: null, counted: [] });
+    expect(day(receive(first.state, s53({ eventId: ID, at: "2099-01-02T06:32:00+09:00", origin: "2099-01-02T06:30:00+09:00" }), now)))
+      .toMatchObject({ count: 1, maxInt: { value: 4 }, counted: [[ID, 4]] });
+  });
+  it("(c) a live count of yesterday's quake is raised by a recovered correction and never taken back", () => {
+    const live = receive(emptyState(), s53({ eventId: ID, at: "2099-01-02T00:01:00+09:00", origin: yesterday, maxInt: "3" }, "replay"), now);
+    expect(day(live)).toMatchObject({ count: 1, maxInt: { value: 3 }, counted: [[ID, 3]] });
+    const corrected = receive(live.state, s53({ eventId: ID, at: "2099-01-02T00:01:00+09:00", origin: yesterday, infoType: "訂正" }), now);
+    expect(day(corrected)).toMatchObject({ count: 1, maxInt: { value: 4 }, counted: [[ID, 4]] });
+    const s61 = decodeXml(replaceTag("EventID", ID)(replaceTag("OriginTime", yesterday)(replaceTag("TargetDateTime", "2099-01-02T04:00:00+09:00")(replaceTag(
+      "ReportDateTime", "2099-01-02T04:00:00+09:00")(replaceTag("DateTime", "2099-01-01T19:00:00Z")(fixtureXml(F.s61)))))), "VXSE61", undefined, "recovery");
+    expect(day(receive(corrected.state, s61, now))).toMatchObject({ count: 1, maxInt: { value: 4 }, counted: [[ID, 4]] });
+  });
+  it("(d) a recovered quake of yesterday above today's maximum does not enter through the higher maximum", () => {
+    const live = receive(emptyState(), s53({ eventId: OTHER, at: "2099-01-02T06:02:00+09:00", origin: "2099-01-02T06:00:00+09:00", maxInt: "3" }, "replay"), now);
+    expect(day(live)).toMatchObject({ count: 1, maxInt: { value: 3 }, counted: [[OTHER, 3]] });
+    expect(day(receive(live.state, s53({ eventId: ID, at: "2099-01-02T00:01:00+09:00", origin: yesterday, maxInt: "5-" }), now)))
+      .toMatchObject({ count: 1, maxInt: { value: 3 }, counted: [[OTHER, 3]] });
+  });
+});

@@ -1229,3 +1229,23 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-T restores failed and null p
     restore: (state, at) => run(emptyState(), { kind: "restore", persisted: tsunamiUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => state.forecasts.find((item) => item.subject === subject)?.notice });
 });
+
+// P3-C5-T06 acceptance / AC07（2026-10-29 作者の裁定「保存待ちの古い音を残さない」、P3-C5-REPLACEMENT の ruling）: 区分の最大が直前の記録より下がる報は、
+// 緊急群の終端でない pending（lastAttempt が null・owner が予約に採った started・停止で failed にして復元したもの）も置き換える。区分の最大が変わらない報は両方残す。
+it("P3-C5-T06 acceptance / AC07 (lowering replacement): a lower maximum class replaces the emergency pending; the same maximum keeps it", () => {
+  const at = (second: number) => clock(4_070_908_800_000 + second * 1_000, second);
+  const raw = (second: number) => new Date(4_070_908_800_000 + second * 1_000).toISOString().replace(".000Z", "Z");
+  const send = (state: TsunamiUnitState, second: number, kinds: readonly (readonly [string, string])[]) =>
+    receive(state, decodeXml(vtse41({ at: raw(second), areas: kinds.map(([code, kind]) => ({ code, kind, name: `区域${code}` })) }), "VTSE41"), at(second));
+  const pending = (state: TsunamiUnitState) => state.intents.map((item) => `${item.channel}:${item.payload.level}`);
+  const lower = [["311", "51"], ["312", "51"]] as const;
+  const major = send(emptyState(), 0, [["311", "52"], ["312", "52"]]).state;
+  expect(pending(major)).toEqual(["desktop:critical", "sound:critical"]);
+  expect(pending(send(major, 30, [["311", "52"], ["312", "51"]]).state)).toEqual(["desktop:critical", "sound:critical", "desktop:normal", "sound:normal"]);
+  expect(pending(send(major, 30, lower).state)).toEqual(["desktop:normal", "sound:normal"]);
+  const tried = (lastAttempt: "started" | "failed") => ({ ...major, intents: major.intents.map((item) => ({ ...item, attempts: 1, lastAttempt })) });
+  expect(pending(send(tried("started"), 30, lower).state)).toEqual(["desktop:normal", "sound:normal"]);
+  const restored = run(emptyState(), { kind: "restore", persisted: tsunamiUnitCodec.encode(tried("failed")), clock: at(20) }).state;
+  expect(restored.intents.map((item) => [item.payload.level, item.lastAttempt])).toEqual([["critical", "failed"], ["critical", "failed"]]);
+  expect(pending(send(restored, 30, lower).state)).toEqual(["desktop:normal", "sound:normal"]);
+});

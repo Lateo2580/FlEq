@@ -725,7 +725,7 @@ function noticed<K extends RuntimeUnitId>(units: UnitTable, unit: K, at: Recover
   const notices = units[unit].recoveryNotices;
   if (notices == null) return at.adopted;
   const ids = new Set(at.inputIds), card = (at.adopted.unreadable[unit] ?? EMPTY).find((item) => ids.has(item.inputId) && item.kind !== "unknownType");
-  const candidate = ownUnit(at.adopted, unit), result = notices(ownUnit(at.open, unit), candidate, { recoveryId: at.recoveryId, clock: at.clock, basis: at.basis,
+  const candidate = ownUnit(at.adopted, unit), result = notices(ownUnit(at.open, unit), candidate, { recoveryId: at.recoveryId, clock: at.clock, basis: at.basis, live: ownUnit(at.live, unit),
     card: card == null ? null : { operation: card.operation, receivedAt: card.receivedAt, inputId: card.inputId, headType: card.headType } });
   if (result === candidate) return at.adopted;
   const persistence = result.persistence.currentGeneration > ownUnit(at.live, unit).persistence.currentGeneration ? result.persistence : raised(result.persistence, at.clock.monotonicMs);
