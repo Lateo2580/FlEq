@@ -1,6 +1,6 @@
 # P3「意味と出力と移行」発注計画
 
-- 起草日: 2026-10-01（修正 5 まで反映。作者裁定 S5・D-P3-1〜6 は 2026-10-01 に全部 A。修正 5 は同日夜、Pi 500 の実測（台帳 63）と進行の外部相談を受けた D-P3-7〜9 と工程の前倒し。C4 の閉鎖は 2026-10-08 に §5 末尾・§6 と `p3-e01-reaccept.json` の P3-C4-CLOSE-* に記録）
+- 起草日: 2026-10-01（修正 5 まで反映。作者裁定 S5・D-P3-1〜6 は 2026-10-01 に全部 A。修正 5 は同日夜、Pi 500 の実測（台帳 63）と進行の外部相談を受けた D-P3-7〜9 と工程の前倒し。C4 の閉鎖は 2026-10-08 に §5 末尾・§6 と `p3-e01-reaccept.json` の P3-C4-CLOSE-* に記録。C6 の閉鎖は 2026-10-29 に `p3-tsunami-e01.json` の P3-C6-CLOSE-* に記録）
 - 対象 checkout / base: `/Users/sayue/dev/FlEq` / `584a0b6cfcdc2ab0f726f48e59d28fbb246b7a43`
 - 目的: P3 を契約に分け、順序・依存・凍結物・検収 ID・作者裁定を決める。各契約本体（JSON）は本書の対象外とする。
 - 前提（覆さない）: S2=A（P3-0 → P3-1 → P3-2 → 残り unit）、S3=A、S4=A、R43〜R58、R10、R61・R63、P2-A10-PERF-P3・P2-A10-E15-P3。本文は進捗ノート §3（作業ノート、repo 外）と `reconstruction/contracts/p2-eew-e01.json:56`〜`:108`。
@@ -250,7 +250,7 @@ S6（Q6 の残り、最終表示端末）と Q5（Q5-a・Q5-b）は P4 着手前
 | O02:18-48（P2 外 step） | `p2-weather-timeseries-unit.json:12` | fixture の headType で振り分け: VXSE52/53→C7、VFVO52→C9、VXKO50→C11、VPBS50→C12、VPFT50→C13、VPTA50→C14。unmet 19 step は各契約が入力を充足してから | 版付き subset で各 unit が閉じる |
 | `origin=recovery` の適用 | `p2-eew-unit.json:189` | C16 | §10.5 の受入（spec:2224） |
 | IR03 の津波緊急 | p2plan:309、`p2-notification-delivery.json:70`・`:430`・`:438` | C5 | E21 の津波緊急（spec:2073） |
-| IR05・IR02（津波） | 独立レビュー :204 | C5（運用区分）、C6（E01） | §1.2 の津波行 |
+| IR05・IR02（津波） | 独立レビュー :204 | C5（運用区分）、C6（E01） | §1.2 の津波行。**C6 で検収済み**（凍結版 61f05dde の 8 母集団×3 run、P3 tsunami E01 Pass、2026-10-29 に閉鎖。`p3-tsunami-e01.json` の P3-C6-CLOSE-VERDICTS） |
 | R10 の 2 点 | 進捗ノート §3（2026-09-19）、spec:650・:2308 | C17（replay）、C19（CLI 表示設計） | §2.1 の各行 |
 | 台帳 49（上流 view の semanticRevision が O(N)） | `e01:553`（「P3 の受信経路契約前」に再検討） | C3a | view の版を固定長にするかを C3a の凍結時に決める。受信 1 回の直列化回数を報告 |
 | 台帳 48（終端 intent の件数上限） | 台帳 48 | C20 の前 | 気象通知を生成する前に持ち方を決める |
