@@ -1,0 +1,904 @@
+{
+  "meta": {
+    "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
+    "sha256": "039c3189e881a00a419bf3aa20f9a60cea78aa824294755e80c1abf289d1b7e2",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-MIG-D-SPLIT",
+        "kind": "技術",
+        "A": "1 契約を 5 回に分けて発注する。【発注 1】捨ててよい旧い版の一覧を全 unit で空にする（P3-XML-READERS-001 の配送の後）【発注 2】移行器の骨組み（入力の検査・報告・checkpoint の書き出し）と U-W【発注 3】急ぐ側の U-T・U-V・U-N・U-Q【発注 4】U-F・U-L・U-R・U-B・U-M・U-Y【発注 5】検収（復元後の取消・訂正の投入、移行直後の続報、O07 の旧形式の期待、N8 の整合検査）と、統合担当が Pi の実物のコピーで 1 回通すこと",
+        "B": "1 回で全部を発注する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "一覧を空にする作業は計画の C15 の行で最初の発注（作者の裁定 X2=A）で、移行器と触る file が重ならない。Q-MIGRATION の oracle（O04:2・O06:29-30）は U-W なので骨組みと一緒に U-W を先に通し、報告の形を 1 unit で固めてから残りを足す。計画:221 の「移行器は 1 本」は道具が 1 つという意味で、Pi で実際に移すのは発注 5 の 1 回だけなので、途中の unit だけ先に移すことはしない。無いと: 1 回のレビューに 11 unit の対応表が載り、報告の形の直しが 11 unit に波及する"
+      },
+      {
+        "id": "P3-MIG-D-OPERATION",
+        "kind": "作者",
+        "A": "旧築の設定の testMode を根拠に、記録を通常（normal）として移す。移行器は入力に Pi の旧築の設定の testMode の値を取り、\"no\" でなければその入力の記録を全部「移行未確認」にする",
+        "B": "根拠にしない。区分を持つ旧記録は津波の active の isTest だけになり、ほかは全部「移行未確認」（出力がほぼ空）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-10-30 朝）",
+        "reason": "Pi の旧築の設定 ~/.config/fleq/config.json の testMode は \"no\"（file の更新 2026-07-19）。dmdata の資料（Socket Start v2・Telegram List v2・WebSocket v2、2026-10-30 に統合担当が原文を確かめた）は test を「訓練、試験等のテスト等電文」を受け取るかの指定とし、no では XML の訓練・試験の報が届かない。XML でないテスト配信は no でも届くが、旧築は見出しを出すだけで保存しない（message-router.ts の xml でない分岐）。spec:670 の「根拠付きで変換できるものだけ移行」の根拠に当たる"
+      },
+      {
+        "id": "P3-MIG-D-RECOVERABLE",
+        "kind": "作者",
+        "A": "取り直し（C16）で戻る分も §10.4 どおり全部移す",
+        "B": "取り直しで戻らない分（窓より古い記録・U-F・観測など）だけを移す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-10-30 朝）",
+        "reason": "C16 の窓は unit ごとに 9 時間〜30 日で latest（subject ごとに 1 件）が多く、全国履歴 2・partial 8 の深さ、取消 tombstone、観測は取り直しで戻らない。窓の中の記録は起動時の取り直しの報と通常の版の比べにかかる（P3-REC-D-LIST-FORCE=A）"
+      },
+      {
+        "id": "P3-MIG-D-UNTIMED",
+        "kind": "作者",
+        "A": "Control/DateTime の無い移した記録は「未確認」の印を付けて移す（P3-VM-D-MISSING と同じ扱い）",
+        "C": "ReportDateTime を代わりに使い、印を付けない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-10-30 朝）",
+        "reason": "旧築の src/ に Control/DateTime は 0 件（版の材料は TelegramRevision と StandbyRevision の reportTimeMs・serial だけ）。作者に示した案の B の文は裁定のメモ（起草の下調べ rulings.md）に残っていない。印の外れ方は作者の裁定の文（「live の版の比べで置き換わるか、取消か期限で消えるまで」）と P3-VM-D-MISSING の (3) の実物（置き換わっても印は残る）が食い違うので、P3-MIG-D-MARK-CLEAR で作者に確かめる"
+      },
+      {
+        "id": "P3-MIG-D-EXPIRY",
+        "kind": "作者",
+        "A": "移した記録の期限は元の報の時刻から新築の各 unit の規則で作り直す（旧築の expiresAtMs は運ばない）。切替の時点で期限を過ぎた記録は移した直後に消える",
+        "B": "旧築の expiresAtMs をそのまま運ぶ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-10-30 朝）",
+        "reason": "旧築の expiresAtMs は種類で基点が違う（briefing は受信時刻＋TTL、ほかは報の時刻＋1 日など、standby-state-store.ts）。新築は K10（P3-EXPIRY-FORM-001）で期限の形を unit ごとに決めたので、その規則に揃える"
+      },
+      {
+        "id": "P3-MIG-D-MARK-CLEAR",
+        "kind": "作者",
+        "A": "移した記録（印を付けた時刻の無い版）は、live の比べる時刻の読める報を newer として採ったときに印を外す。version.ts の stepVersion で、手元の版の source が移行で作った ReportRef（inputId が \"migrated-\" で始まる）のときだけ、newer の採用の後の印を null にする（1 か所）。時刻の無い live の報の印（P3-VM-D-MISSING の (3)）は今どおり外さない",
+        "B": "P3-VM-D-MISSING の (3) の実物のまま: 移した記録を live の報で置き換えても印は残り、その系列が取消か期限で消えるまで外れない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（作者の裁定待ち）",
+        "ruling": "未裁定（作者の裁定待ち）",
+        "blocks": [
+          "発注 2 の着手（U-W が最初に印を持つ unit）"
+        ],
+        "ifNotChosen": "B を選んだら AC07 の (3) を消し、allowedPaths から version.ts を外す",
+        "reason": "起草で version.ts の compareVersion・stepVersion を読んで見つけた（Q-MIG-H27）。作者の裁定 3 の文は「live の版の比べで置き換わるか、取消か期限で消えるまで印が出る」だが、実物は手元の版が時刻を持たないと newer の採用の後も印をその版の ReportRef に残す（AC04 の (b)）。移した記録は全部 Control/DateTime を持たないので、B では切替の後に live の報が何通来ても印が残る。見え方の違い（印を画面に出すのは段 4）: A では切替の後の最初の live の報（例: 翌朝の気象警報の更新、火山の解説）で「未確認」が消える。B では消えるのは取消か期限だけで、噴火警戒レベルのように何か月も変わらない火山（U-V の警報の active は期限なし）や、期限の長い系列では切替の後ずっと「未確認」が出続ける。A の代償: Control/DateTime で比べる種類（地震火山・土砂・洪水・竜巻・台風など）では、時刻の無い移した記録より古い報が切替の後に遅れて届いても newer として採られ、印も消える（旧築は報の時刻で比べて古い報を捨てていた）。遅れて届く古い報は、起動時の取り直しが一覧の最新を取るので起こりにくい。推奨の根拠: 作者が裁定で選んだ見え方が A の文だから"
+      },
+      {
+        "id": "P3-MIG-D-LIST-EMPTY",
+        "kind": "技術",
+        "A": "12 codec の discardableSchemaVersions の配列だけを消す。UnitCodec の項目と checkpoint.ts の判定（P3-VM-AC05 の (1)〜(4)）は P5 まで残す",
+        "B": "UnitCodec の項目と checkpoint.ts の判定も消す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "一覧が空なら (2)(3) に入らず、旧い版の slot は (4) の「一覧に無い版」になって上書きされない。B は P3-VM-AC05 の試験（checkpoint.test.ts の試験用の codec test-v0 の分）と P2-SHARED-RUNTIME-001 の型の改訂まで広がる。無いと: 一覧が P5 を越えて残り、利用者の保存を黙って捨てられる（premises の一覧の寿命）"
+      },
+      {
+        "id": "P3-MIG-D-LIST-AFTER",
+        "kind": "技術",
+        "A": "発注 1 の後に版を上げる契約は一覧に足さない。開発機の新築の保存（host config の stateDirectory の該当 unit の A・B の slot）を消す手順を、その契約の配送の手順に書く（作者裁定 2026-10-20「P5 の前は初期化してよい」の範囲）",
+        "B": "C15 の完了までは一覧に足してよく、完了の条件（一覧が全 unit で空）で最後に消す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "作者の裁定 X2=A（一覧を空にするのを最初の発注にする）は入口を早く閉じるため。B は入口を開け直す。新築はまだ使われておらず（Pi は旧築）、消すのは開発機の保存だけで画面の出方は変わらない"
+      },
+      {
+        "id": "P3-MIG-D-OLD-READER",
+        "kind": "技術",
+        "A": "旧 v2 と v1 の reader は旧築の StandbyPersistence の loadWithResult を root の dist（npm run build）から tools の移行器が呼ぶ。読むのは移行器の作業 directory に写したコピーで、読み終えたら dispose し、元のコピーの bytes の sha256 が実行の前後で同じことを確かめる。補助の 3 file も旧築の DailyQuakePersistence・QuakeDisplayPersistence・QuakeExtremePersistence の load を同じ形で呼ぶ",
+        "B": "旧形式の reader を tools に書き直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "standby-persistence.ts は 11,137 行で、v1/v2 の選び方・salvage・domain ごとの厳しい照合を持つ。書き直すと旧築と違う読み方の移行器ができる。spec:2719 は旧 reader を tools・test の側に置いてよいとし、新築の runtime（reconstruction/src）からは import しない（spec:2718）。旧 reader は salvage の退避や rename を持つので、作業 directory の写しにだけ当てる"
+      },
+      {
+        "id": "P3-MIG-D-SOURCE-SELECT",
+        "kind": "技術",
+        "A": "v1 と v2 の file のどちらを使うかは旧 reader の選び方（v2 を正とし、v1 が先・同じ世代で中身が違うときは rollbackMirrorAheadOfCanonicalV2・sameGenerationConflict を数える）に従い、選んだ file と食い違いの件数を報告に出す。v1 の file は旧 reader が選んだときだけ使い、移行先へは mirror を作らない",
+        "B": "v1 と v2 が食い違ったら全 unit を未充足にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "v1 と v2 は 1 つの U-* へ混ぜずにどちらかを選ぶので、spec:2199 の「同じ U-* へ安全に統合できない」に当たらない。旧築が実際に起動で使った state と同じものを移せる"
+      },
+      {
+        "id": "P3-MIG-D-BOUNDARY",
+        "kind": "技術",
+        "A": "移した checkpoint の envelope に \"inputBoundary\": null を明示して書く",
+        "B": "旧保存の savedAt から境界を作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "旧築に受信の境界は無い。欄の無い envelope は読み戻しで拒否される（CheckpointEnvelope、P3-VM-AC06）。null は C16 の P3-REC-AC02 の (2) で「根拠なし」になり unit の N2 の窓まで遡る。境界をでっち上げると、その時刻より前を取り直さなくなる"
+      },
+      {
+        "id": "P3-MIG-D-REPORTREF",
+        "kind": "技術",
+        "A": "移した記録の ReportRef: origin \"replay\"、inputId \"migrated-\"＋入力の source hash の先頭 16 桁＋\"-\"＋通し番号（validInputId を通る 64 字以内）、controlDateTimeRaw は空文字、reportDateTimeRaw は旧 revision の reportTimeMs を JST の \"YYYY-MM-DDTHH:mm:ss+09:00\" にしたもの、serialRaw・infoTypeRaw は旧記録にあればその字、無ければ空文字、operation は P3-MIG-D-OPERATION の結果。印の欄は null（P3-VM-D-MISSING の (2) と同じく、比べる時刻が空な ReportRef で「時刻を確かめられなかった」と読める）",
+        "B": "origin \"live\"",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "AcquisitionOrigin は live・recovery・replay だけで、型を足すと P1 の契約から開け直す。unit が origin で分けるのは受けた報の \"recovery\" だけ（通知と当日の数え）で、保存した記録の origin では分けない。旧築は WS と起動時の REST のどちらで受けたかを保存しておらず live と書く根拠が無いので、記録から作った入力の \"replay\" にする。\"recovery\" は通知と数えの分岐に入るので使わない"
+      },
+      {
+        "id": "P3-MIG-D-CLOCK",
+        "kind": "技術",
+        "A": "時計は 2 つ: 旧 reader に渡す nowMs は各 file の savedAt（旧 reader が旧い規則の期限で記録を先に落とさないため。旧 reader が落とした件数は生の件数との差で報告する）。移行の評価の時計は入力の取得時刻（コピーを取った時刻）で、P3-MIG-D-EXPIRY の作り直しでこの時刻に期限を過ぎている記録は移さず、理由 expired で報告する。envelope の capturedAt もこの時刻",
+        "B": "移行器を走らせた時刻を使う",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "同じ入力から同じ出力（同じ hash）を作るため。取得から新築の起動までに期限を過ぎた記録は、新築の期限の処理が起動の直後に消す（O07・O08 と同じ復元の扱い）"
+      },
+      {
+        "id": "P3-MIG-D-OUTPUT",
+        "kind": "技術",
+        "A": "出力は新しい空の directory に unit ごとの A の slot（${unit}-A.json、generation 1）だけを書く。payload は各 unit の codec の encode で作り、同じ codec の decode に通して元の state と同じでなければその unit を拒否にする。envelope は checkpoint.ts の hashEnvelope・serializedEnvelope で作り、losses・unreadable の欄は書かない。書いた directory を CheckpointCoordinator で restoreUnit して restored になることを移行器の最後に確かめる",
+        "B": "移行器が envelope を自前で直列化する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "新築の runtime が読む形と 1 byte も違わないため（readSlot の再直列化の照合、checkpoint.ts）。移行先が空でなければ書かずに止める（既存の新築の保存を上書きしない）"
+      },
+      {
+        "id": "P3-MIG-D-REST",
+        "kind": "技術",
+        "A": "§10.4 の入力の 4 つ目（REST の取得結果と coverage の証拠）は使わない。窓の中の取り直しは移した checkpoint で起動した新築の C16 が行う",
+        "B": "移行器が REST で取り直してから書く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec:2168 は「必要に応じた」。取り直しを 2 か所に作らない（C16 が窓・N2・負担の上限を持つ）"
+      },
+      {
+        "id": "P3-MIG-D-PROMOTION",
+        "kind": "技術",
+        "A": "weather-promotion-v1.json（気象警報の昇格の表示の時計）は移さない",
+        "B": "U-W の表示の時刻として移す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "表示の lifecycle で、§10.4 の保存する意味のどれにも当たらず、移さないもの（display layout・描画 snapshot）に当たる（monitor.ts の weather-promotion の保存）"
+      },
+      {
+        "id": "P3-MIG-D-UE",
+        "kind": "技術",
+        "A": "U-E は移行の対象外。移行器は U-E の checkpoint を書かず、報告に「入力なし（旧築は EEW の状態を保存しない）」と出す",
+        "B": "EEW のログから U-E を作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec:2716 で EEW current は non-durable。旧築の EEW はログの追記だけで状態の保存が無い（src/engine/eew/eew-logger.ts）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-MIG-SURVEY",
+        "status": "closed",
+        "source": "起草前の下調べ（2026-10-30、152ba7fb、作業ノートの外の .c15-survey/survey.md。repo には入れない）と、起草での読み直し",
+        "closed": "(1) 旧築の保存は data/runtime/ の display-active-state-v2.json（version 2、telegramFoundation と v1 形の欄）・display-active-state-v1.json（v1 の mirror）・daily-quake-v1.json・quake-display-v1.json・quake-extreme-v1.json・weather-promotion-v1.json の 6 file（monitor.ts）。どれも Control/DateTime を持たない (2) 区分は津波の active の isTest（boolean）だけで、訓練と試験を分けない（deriveIsTest） (3) 捨ててよい旧い版の一覧は 12 unit で 76 件、どれも v1 から今の版の 1 つ前まで切れ目なし (4) 一覧を空にすると直す試験は 7 file: 下調べの 6（expiry-form・nankai-unit・seismic-capacity・unreadable-mark・tsunami-unit・checkpoint の各 test）に、起草で見つけた unreadable-card.test.ts の P3-UM-T22（U-Q・U-W の前の版の slot が empty になる）を足す。checkpoint.test.ts の試験用の codec（test-v0）の試験は一覧に依らず残る (5) 旧形式の fixture は manifest に 9 本（vpws50-stale-lock の 1 本と standby-persistence の 8 本）で、期待は O04:2・O06:29・unmet:O06:30・O07:19〜26 がどれも decision null（下調べは O07 の 8 step を挙げていなかった）",
+        "remaining": "なし（発注ごとの発注前点検で数え直す、Q-MIG-BASE）",
+        "reason": "範囲と発注の割り方の根拠"
+      },
+      {
+        "id": "Q-MIG-H27",
+        "status": "closed",
+        "source": "起草での読み（2026-10-30、152ba7fb）: reconstruction/src/contracts-revision/version.ts の compareVersion・stepVersion、P3-REC-D-RAISE-BASIS=A、P3-VM-D-MISSING=A",
+        "closed": "(1) 手元の版の Control/DateTime が空なら、受けた報の Control/DateTime が読める限り newer（compareVersion。ReportDateTime で比べる種類は、ReportDateTime が新しいか同じときに newer、古ければ older）。移した記録は全部この形になる (2) newer の採用の後の印は、手元の版が時刻を持たなければその版の ReportRef（stepVersion）。作者の裁定 3 の文と食い違うので P3-MIG-D-MARK-CLEAR を作者に挙げた (3) H27 の引上げは取り直しを始めた時点の状態（再起動なら復元した前回情報）と比べる（P3-REC-D-RAISE-BASIS=A）。移行の後の最初の起動では、移した記録がその前回情報になる。取り直しの報は (1) で移した記録を置き換え、区域ごとの区分が上がっていれば H27 の音が鳴る（大津波警報なら最も重い音）。これは C16 の裁定どおりで、移行で新しい出方は増えない。上がっていなければ鳴らない（取り直しは H27 以外の intent を作らない） (4) 移行器は過去の通知を移さない（spec:2196）ので、移した記録そのものからは音が出ない",
+        "remaining": "なし（P3-MIG-D-MARK-CLEAR の裁定待ちは unresolvedQuestions の Q-MIG-MARK-CLEAR）",
+        "reason": "下調べの未確認「H27 の引上げが移した記録との比べで起きるか」"
+      },
+      {
+        "id": "Q-MIG-UNIT-MAP",
+        "status": "closed",
+        "source": "起草での読み（2026-10-30）: standby-persistence.ts の PersistedStandbyStateV1・PersistedTelegramFoundationV2、daily-quake-counter.ts の DailyQuakePersistedV1、各 unit の persisted 型",
+        "closed": "旧の欄と移す先の unit（欄の名前の水準）: U-W ← telegramFoundation.vpws50（state・gateEntries）。U-F ← weatherWarningForecasts・weatherWarningForecastGateMetadata。U-T ← telegramFoundation.tsunami（keyedActive・legacyActive・observations・gateEntries）。U-Q ← quakeHost・longPeriod と補助の daily-quake-v1.json・quake-display-v1.json・quake-extreme-v1.json。U-N ← nankaiTrough。U-V ← telegramFoundation.volcano（state・active・gateEntries・repairState）と volcanoAlertGateMetadata・volcanoAshfallGateMetadata・volcanoRepairState。U-L ← telegramFoundation.vpww56。U-R ← telegramFoundation.floodForecast・floods。U-B ← briefingCritical。U-M ← tornado・heat。U-Y ← typhoons・typhoonProbabilities・typhoonProbabilityGateMetadata。seen（PersistedSeenEntry）と standbyDomains.gateEntries は各 unit の版の材料として該当する unit で読む。weatherAlerts（v1 形）は vpws50 の表示の写しで、vpws50 が authoritative のときは読まない。新築の当日地震履歴の日の基準（P3-C7-DAILY-BASIS=B、受信時刻の JST 暦日）は旧築の dayKey と同じ",
+        "remaining": "1 欄ずつの対応は発注 2〜4 の成果物（Q-MIG-FIELD-TABLE）。U-Q の当日履歴の counted の段階は Q-MIG-UQ-DAILY-STAGE",
+        "reason": "発注の割り方と AC09〜AC11 の範囲"
+      },
+      {
+        "id": "Q-MIG-RULINGS",
+        "status": "closed（作者の裁定、2026-10-30 朝。4 つとも推奨の A）",
+        "source": "起草前の作者の裁定のメモ（.c15-survey/rulings.md）",
+        "closed": "P3-MIG-D-OPERATION・P3-MIG-D-RECOVERABLE・P3-MIG-D-UNTIMED・P3-MIG-D-EXPIRY",
+        "remaining": "P3-MIG-D-MARK-CLEAR（起草で見つけた、作者の裁定待ち）",
+        "reason": "下調べ §7 の作者の分岐 4 つ"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "移行器は旧記録の運用区分を補完しない。根拠は取得の記録の testMode（\"no\" なら normal、P3-MIG-D-OPERATION=A）だけで、ほかは operationUnconfirmed として移さない。津波の isTest=true は訓練と試験を分けられないので testMode によらず移さない。移した記録の区分は復元でも変えない（spec:670）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-MIGRATION-001",
+    "mode": "implementation",
+    "objective": "旧築（旧 v2）の待機画面の保存と補助の保存の読み取り専用のコピーから、新築の U-* の checkpoint を一方向に作る移行器（spec §10.4、計画 §2.1 の C15）を reconstruction/tools/migration/ に作り、Q-MIGRATION・O04:2・O06:29-30・O07:19〜26・N8 を閉じる。あわせて捨ててよい旧い版の一覧（P3-VM-AC05）を全 unit で空にする（作者の裁定 X2=A、最初の発注）。移行器は製品の runtime の外に置き、旧 reader は旧築の StandbyPersistence を tools から呼ぶ。運用区分は旧築の設定の testMode を根拠に normal、取り直しで戻る分も全部移し、Control/DateTime の無い記録は時刻の空な ReportRef（未確認）で移し、期限は元の報の時刻から新築の規則で作り直す（作者の裁定、2026-10-30 朝）。1 契約を 5 回に分けて発注する（P3-MIG-D-SPLIT=A）。条文の【発注 n】が振り分け",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-persist-premises.md",
+      "reconstruction/contracts/p3-version-material.json",
+      "reconstruction/contracts/p3-recovery.json",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p3-*-unit.json・p3-*-unit.types.ts（移す 11 unit の契約と persisted 型）",
+      "reconstruction/contracts/p3-expiry-form.json",
+      "reconstruction/contracts/p3-xml-readers.json",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/src/units/**",
+      "reconstruction/src/recovery/recovery.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "src/engine/display/standby-persistence.ts",
+      "src/engine/display/standby-state-store.ts",
+      "src/engine/display/standby-registry.ts",
+      "src/engine/messages/telegram-revision-gate.ts",
+      "src/engine/messages/daily-quake-persistence.ts",
+      "src/engine/messages/daily-quake-counter.ts",
+      "src/engine/display/quake-display-persistence.ts",
+      "src/engine/display/quake-extreme-persistence.ts",
+      "src/engine/monitor/monitor.ts",
+      "test/fixtures/standby-persistence/",
+      "test/fixtures/vpws50-stale-lock/"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/briefing/briefing-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/eew/eew-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/flood/flood-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/landslide/landslide-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/nankai/nankai-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/seismic/seismic-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/typhoon/typhoon-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/volcano/volcano-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts（【発注 1】discardableSchemaVersions の配列を消すだけ。AC08 で export が要れば発注前点検で統合担当が範囲を足す）",
+      "reconstruction/test/expiry-form/expiry-form.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
+      "reconstruction/test/nankai-unit/nankai-unit.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
+      "reconstruction/test/seismic-unit/seismic-capacity.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
+      "reconstruction/test/unreadable-mark/unreadable-mark.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
+      "reconstruction/test/unreadable-mark/unreadable-card.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
+      "reconstruction/test/tsunami-unit/tsunami-unit.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
+      "reconstruction/test/checkpoint-shutdown/checkpoint.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
+      "reconstruction/tools/migration/（新設。本契約が排他的に持つ。発注 2〜5）",
+      "reconstruction/test/migration/（新設。同上）",
+      "reconstruction/src/contracts-revision/version.ts（【発注 2】P3-MIG-D-MARK-CLEAR=A のときだけ、stepVersion の 1 か所。B なら触らない）",
+      "reconstruction/tools/corpus/sequences.json（【発注 2】expected:O04:2・expected:O06:29・unmet:O06:30、【発注 5】expected:O07:19〜26 の期待だけ。sequencesSha256 の付け直しは統合担当）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-migration.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B01",
+      "B07",
+      "M02",
+      "M03",
+      "M04",
+      "M05",
+      "M06",
+      "M07",
+      "M08",
+      "M09",
+      "M10",
+      "M11",
+      "M12",
+      "M13",
+      "M14",
+      "M15",
+      "M16",
+      "M17",
+      "M18"
+    ],
+    "integrationContractIds": [
+      "I-U-W",
+      "I-U-F",
+      "I-U-T",
+      "I-U-Q",
+      "I-U-N",
+      "I-U-V",
+      "I-U-L",
+      "I-U-R",
+      "I-U-B",
+      "I-U-M",
+      "I-U-Y"
+    ],
+    "dependsOnContractIds": [
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-WEATHER-TIMESERIES-UNIT-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-Q-001",
+      "P3-UNIT-N-001",
+      "P3-UNIT-V-001",
+      "P3-UNIT-L-001",
+      "P3-UNIT-R-001",
+      "P3-UNIT-B-001",
+      "P3-UNIT-M-001",
+      "P3-UNIT-Y-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-EXPIRY-FORM-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-UNREADABLE-MARK-001",
+      "P3-RECOVERY-001",
+      "P3-XML-READERS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointEnvelope",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#UnitCodec",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#ReportRef",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#InputBoundary",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#AcquisitionOrigin",
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoShortfall"
+    ],
+    "publicFunctions": [
+      "新: reconstruction/tools/migration/ の移行器の入口 1 つ（CLI。引数は入力のコピーの directory・取得の記録の JSON・移行先の空の directory・報告の出力先）。製品の runtime の公開口ではない",
+      "既存の公開の関数・型・export は変えない。例外は D-MARK-CLEAR=A の stepVersion の振る舞い（signature は同じ）と、AC08 で発注前点検が認めた最小の export"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__vpws50-stale-lock__pi-stale-lock-state",
+      "test__fixtures__standby-persistence__operational-v2",
+      "test__fixtures__standby-persistence__operational-v1",
+      "test__fixtures__standby-persistence__operational-v1-anonymized",
+      "test__fixtures__standby-persistence__operational-v2-active-alert",
+      "test__fixtures__standby-persistence__operational-v2-anonymized",
+      "test__fixtures__standby-persistence__v1-volcano-serial",
+      "test__fixtures__standby-persistence__v3.4.0-writer-input",
+      "test__fixtures__standby-persistence__v3.4.0-writer-output",
+      "test__fixtures__synthetic_VTSE41_cancel",
+      "test__fixtures__synthetic_VTSE41_correction",
+      "test__fixtures__synthetic_VFVO50_cancel",
+      "test__fixtures__synthetic_VFVO50_correction"
+    ],
+    "sequenceIds": [
+      "O04",
+      "O06",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-MIG-RES-01",
+        "target": "移行器の 1 回の実行",
+        "limit": "各 unit の maxEnvelopeBytes と件数の上限（各 unit の契約）を越える state は作らない。越える分は落として AC05 の理由（historyBeyondDepth か各 unit の容量の reason）で報告する",
+        "unit": "byte・件数",
+        "scope": "製品の runtime の外。受信経路（hot path）ではないので全件の走査を許す",
+        "source": "spec:2172、各 I-U-* の容量"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-W",
+      "U-F",
+      "U-T",
+      "U-Q",
+      "U-N",
+      "U-V",
+      "U-L",
+      "U-R",
+      "U-B",
+      "U-M",
+      "U-Y"
+    ],
+    "persistedFields": [
+      "なし（各 unit の persisted 型と envelope の形は変えない。移行器は今の形で書く）"
+    ],
+    "nonPersistedFields": [
+      "移行の報告（移行先 directory の外の JSON。新築は読まない）",
+      "旧 reader の作業 directory の写し（実行の間だけ）"
+    ],
+    "outOfScope": [
+      "U-E の移行（P3-MIG-D-UE=A）",
+      "旧 schema へ戻す tool（spec:2201）",
+      "新築の旧い形の保存を読む移行（作者裁定 2026-10-20 により作らない）",
+      "REST での取り直し（C16。P3-MIG-D-REST=A）",
+      "未確認の印の画面での見せ方（段 4・P4）",
+      "volcanorepair の入口の結線（C18）",
+      "旧築 src/** の変更",
+      "Pi での切替の手順そのもの（P5 の並走検収）",
+      "spec・計画・他の契約の本文の変更（AC16 の原文の改訂は配送の commit で統合担当）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-MIG-AC01",
+        "requirement": "【発注 1】一覧を空にする（作者の裁定 X2=A、P3-MIG-D-LIST-EMPTY=A）: 12 unit の codec（briefing・eew・flood・landslide・local-bulletins・nankai・seismic・tsunami・typhoon・volcano・weather-current・weather-timeseries の各 *-unit.ts）から discardableSchemaVersions の配列を消す（項目ごと書かない。UnitCodec では省略が空の一覧）。ほかの行は変えない。UnitCodec の型と checkpoint.ts の判定は変えない。一覧を前提にした試験 7 file（Q-MIG-SURVEY の (4)）を、一覧が空のときの振る舞いに直す: 前の版の slot は「一覧に無い版」として unknownSchema で読まれ、その unit はその run で保存しない（P3-VM-AC05 の (4)）。試験用の codec（test-v0）の試験は残す。発注 1 は P3-XML-READERS-001 の配送の後に置く（同じ *-unit.ts を変える）。無いと: 一覧が P5 を越えて残り、利用者の保存を版の引上げで黙って捨てる",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:80 «375d09c19da049b2»",
+          "reconstruction/contracts/p3-version-material.json:483 «48a20c148c9cad7d»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:554 «433c0e87dd508191»",
+          "reconstruction/src/checkpoint/checkpoint.ts:463 «6dc91675bd17df4e»",
+          "reconstruction/contracts/p3-persist-premises.md:73 «32ecbbdb103e9932»",
+          "reconstruction/src/units/briefing/briefing-unit.ts",
+          "reconstruction/src/units/eew/eew-unit.ts",
+          "reconstruction/src/units/flood/flood-unit.ts",
+          "reconstruction/src/units/landslide/landslide-unit.ts",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts",
+          "reconstruction/src/units/nankai/nankai-unit.ts",
+          "reconstruction/src/units/seismic/seismic-unit.ts",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts",
+          "reconstruction/src/units/volcano/volcano-unit.ts",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC02",
+        "requirement": "【発注 1】開発機の新築の保存を 1 回消す手順と、その後の版の引上げ（P3-MIG-D-LIST-AFTER=A）: (1) 発注 1 の配送の手順に、開発機の新築の stateDirectory（host config）の U-*-A.json・U-*-B.json のうち、slot の schemaVersion がその unit の今の版と違う unit の分だけを消す手順を書く（今の版の slot は AC05 の (4) に当たらないので消さない）。消すのは統合担当が作者の了承を得て行う（作者裁定 2026-10-20 の範囲。Pi は旧築なので消さない） (2) 発注 1 の後に schemaVersion を上げる契約は一覧に足さず、同じ手順をその契約の配送に書く（配送の commit で統合担当が改める原文、AC16）。無いと: 開発機で版を上げた unit の保存がその run で止まり、測定や replay が保存の無い状態で走る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:502 «570ac635af96f38b»",
+          "reconstruction/contracts/p3-version-material.json:483 «48a20c148c9cad7d»",
+          "reconstruction/src/app-config/app-config.ts:16 «fa95fb9321d973c8»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC03",
+        "requirement": "【発注 2】入力と検査（spec §10.4 の入力、N8）: 移行器は reconstruction/tools/migration/（新設）に置く。入力は (1) 読み取り専用のコピーの display-active-state-v2.json・display-active-state-v1.json (2) 補助の daily-quake-v1.json・quake-display-v1.json・quake-extreme-v1.json のコピー (3) 取得の記録: コピーを取った時刻・出どころ（host 名と path）・旧築の writer の版（package.json の version）・Pi の旧築の設定の testMode の値 (4) REST は使わない（P3-MIG-D-REST=A）。検査: 各 file の bytes の sha256、savedAt（取得時刻より未来は拒否）、logicalGeneration、v1/v2 の選び（P3-MIG-D-SOURCE-SELECT=A）。旧 reader は P3-MIG-D-OLD-READER=A の形で呼び、入力のコピーの sha256 が実行の前後で同じでなければ全体を拒否する。補助の 3 file と主 file の整合は AC10 の U-Q の分で検査する（spec:2199、一括コピーだけを理由に相互整合を仮定しない）。無いと: 壊れた・未来の・食い違うコピーを黙って移し、旧 reader の salvage が元のコピーを書き換える",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2161 «2719ad81eda76b00»",
+          "docs/specs/reconstruction-p0-contracts.md:2165 «bfca8f6a1748c782»",
+          "docs/specs/reconstruction-p0-contracts.md:2166 «7d198327f094fd48»",
+          "docs/specs/reconstruction-p0-contracts.md:2167 «ee25e3976d2a0988»",
+          "docs/specs/reconstruction-p0-contracts.md:2168 «9273471e6013a341»",
+          "docs/specs/reconstruction-p0-contracts.md:2199 «46091a29b4655d72»",
+          "docs/specs/reconstruction-p0-contracts.md:2931 «db543de238ae7ee3»",
+          "docs/specs/reconstruction-p0-contracts.md:2718 «dd97e1a70fe3dce9»",
+          "docs/specs/reconstruction-p0-contracts.md:2719 «6e136b4a76f6eb49»",
+          "src/engine/display/standby-persistence.ts:1206 «3acafa182b46ac0a»",
+          "src/engine/display/standby-persistence.ts:1223 «bb8920243e34c987»",
+          "src/engine/monitor/monitor.ts:308 «1e14e1860a0f2289»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC04",
+        "requirement": "【発注 2】出力の checkpoint（spec:2172、P3-MIG-D-OUTPUT=A・P3-MIG-D-BOUNDARY=A・P3-MIG-D-CLOCK=A）: 新しい空の directory（空でなければ何も書かずに止める）に、移せた unit ごとに ${unit}-A.json を 1 つ書く。envelope は schemaVersion（その unit の codec の今の版）・unit・generation 1・capturedAt（入力の取得時刻）・payload（codec の encode）・\"inputBoundary\": null・sha256 で、hashEnvelope・serializedEnvelope で作る。encode→decode で元の state と同じにならない unit は書かずに拒否にする。最後に CheckpointCoordinator で各 unit を restoreUnit し、restored と generation 1 を確かめる。旧 schema へ戻す tool は作らない（spec:2201）。無いと: 新築が読めない・読み戻しで拒否される checkpoint を作り、起動で unit が unavailable になる",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2172 «642a6151291713a9»",
+          "docs/specs/reconstruction-p0-contracts.md:2201 «633ebff43b1bf757»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:540 «975f3e152889de7b»",
+          "reconstruction/src/checkpoint/checkpoint.ts:896 «2da9ab5664d271fd»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC05",
+        "requirement": "【発注 2、unit は発注 2〜4 で足す】報告（spec:2173〜2175）: 移行器は JSON の報告を 1 つ出す。(1) unit ごとの結果: 成功（全部移した）・未充足（一部を移さなかった、理由つき）・拒否（unit を書かなかった、理由つき）。U-E は P3-MIG-D-UE=A の「入力なし」 (2) 入力の file ごとの sha256・選んだ file（v1/v2）と食い違いの件数・移行器の版（tools/migration の版の文字列）・unit ごとの schemaVersion・入力と出力の件数（旧の記録の数、旧 reader が落とした数、移した数） (3) 落とした・解釈できない欄と理由（理由は少なくとも expired・operationUnconfirmed・historyBeyondDepth・notMigrated〔移さないもの〕・uninterpretable の 5 つ。件数と、記録を特定できる鍵を上限つきで） (4) 旧 v2 で捨てた履歴の範囲（全国履歴 8 段のうち新しい 2 段を残したなら、捨てた 6 段の版の範囲、O06:30 の「捨てた復元範囲を報告」） (5) 復元後に投入した取消・訂正の結果（AC12、発注 5）。報告は移行先 directory の外に書く（新築の stateDirectory に混ぜない）。無いと: 何を落としたかが分からず、切替の後の欠けを旧築の不具合と見分けられない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2173 «95014634143b857f»",
+          "docs/specs/reconstruction-p0-contracts.md:2174 «12db69cbceb37a6e»",
+          "docs/specs/reconstruction-p0-contracts.md:2175 «a452d175e32b1452»",
+          "docs/specs/reconstruction-p0-contracts.md:2176 «ddd8d3f657213fc1»",
+          "docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC06",
+        "requirement": "【発注 2〜4】運用区分（spec:670、P3-MIG-D-OPERATION=A）: (1) 取得の記録の testMode が \"no\" なら、移す記録の operation は normal (2) testMode が無い・\"no\" でない・読めないなら、その入力の全 unit の記録を移さず、理由 operationUnconfirmed で報告する（unit は未充足。全部なら拒否） (3) testMode が \"no\" でも、津波の active で isTest が true の記録は訓練か試験かを決められないので移さず operationUnconfirmed（spec:670 の三区分に写せない）。復元でも operation と期限は移したままにする。無いと: 訓練・試験の記録が通常の警報として画面に出る、または根拠のある通常の記録まで捨てる",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:670 «ee40afa10067ef54»",
+          "src/dmdata/telegram-meta.ts:61 «f0708cf2315d9a35»",
+          "src/dmdata/rest-client.ts:530 «c66e19b29d19178a»",
+          "src/engine/messages/message-router.ts:1692 «f26b6c8f49001403»",
+          "src/engine/display/standby-persistence.ts:5747 «e55bf424fd6baf4c»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC07",
+        "requirement": "【発注 2〜4】版の材料と未確認（P3-MIG-D-UNTIMED=A、P3-MIG-D-REPORTREF=A、P3-MIG-D-MARK-CLEAR）: (1) 移す記録の ReportRef は P3-MIG-D-REPORTREF=A の形で作り、controlDateTimeRaw は空文字。各 unit の codec の読み戻し（readReportRef）を通る (2) 印の欄は null で移す（P3-VM-D-MISSING の (2) と同じく、時刻の空な ReportRef が「時刻を確かめられなかった」を表す） (3) P3-MIG-D-MARK-CLEAR=A のときだけ: version.ts の stepVersion で、手元の版の source の inputId が \"migrated-\" で始まるとき、newer の採用の後の印を null にする。それ以外の印の付け外し（P3-VM-AC04 の (a)(b)）は変えない。試験は、移した記録を live の時刻の読める報で置き換えたとき印が null になること、時刻の無い live の報の版を置き換えたときは今どおり印が残ることの 2 つ (4) 旧築の revisionOf が ReportDateTime の代わりに受信時刻を使った記録は見分けられないので、そのまま reportTimeMs を使う（残存リスク） (5) 残存リスク（P3-MIG-D-UNTIMED=A そのものから来る。新しい分岐ではない）: Control/DateTime で比べる種類では、時刻の無い移した取消の記憶（tombstone）にも、時刻の読める報は古くても newer になる（compareVersion）。切替の後に、取消より古い取消でない報が遅れて届くと、取り消した警報が戻る（旧築は報の時刻で比べて捨てていた）。起動時の取り直しは一覧の最新（取消そのもの）を取るので起こりにくい。戻った版の印は D-MARK-CLEAR=A では消え、B では残る。無いと: 移した記録を確定した版として出す（H14 の「未確認」が消える）、または印が外れない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-shared-runtime.types.ts:74 «b54d847410e0aa60»",
+          "reconstruction/contracts/p1-parser-boundary.types.ts:3 «0df43bf3db657b76»",
+          "reconstruction/contracts/p3-version-material.json:38 «cc9f853825527fdd»",
+          "reconstruction/contracts/p3-version-material.json:474 «bdf40f7f27221b05»",
+          "reconstruction/src/contracts-revision/version.ts:35 «289c343060fc8ed6»",
+          "reconstruction/src/contracts-revision/version.ts:101 «5a832b2fc461e978»",
+          "docs/specs/reconstruction-p0-contracts.md:3146 «433a9eb0d74a284a»",
+          "reconstruction/contracts/p3-persist-premises.md:470 «e1c92276130b3a47»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC08",
+        "requirement": "【発注 2〜4】期限（P3-MIG-D-EXPIRY=A、P3-MIG-D-CLOCK=A）: 移す記録の期限・保持の時刻は、元の報の時刻（AC07 の reportDateTimeRaw）から新築のその unit の規則（K10 の P3-EXPIRY-FORM-001 と各 unit の契約）で作る。規則は reconstruction/src/units/expiry.ts と各 unit の export する関数を tools から呼んで使い、移行器に写さない（unit の export を足す必要があれば、その unit の公開の関数として最小に足し、allowedPaths の追記を発注前点検で統合担当が決める）。評価の時計（取得時刻）で期限を過ぎた記録は移さず expired で報告する。旧築の expiresAtMs は読まない。無いと: 旧築の受信時刻基点の期限（briefing など）で新築の期限が延び、期限の切れた警報が切替の後に残る",
+        "evidenceRefs": [
+          "reconstruction/src/units/expiry.ts",
+          "reconstruction/contracts/p3-persist-premises.md:470 «e1c92276130b3a47»",
+          "docs/specs/reconstruction-p0-contracts.md:2189 «0bf45244759fdd88»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC09",
+        "requirement": "【発注 2】U-W（spec:2179〜2185 の gate/watermark・cancellation tombstone・current の出典・全国 2／partial 8 の必要履歴・partial の現象所有情報・VPNO50 終了記憶）: telegramFoundation.vpws50 から U-W の state を作る。vpws50.authoritative が false（v1 の表示の写しだけ）なら版の根拠が無いので U-W を未充足（uninterpretable）にする。旧の全国履歴 8 段は新しい 2 段を残し、捨てた段を AC05 の (4) で報告する。sequences.json の期待を直す: expected:O04:2（pi-stale-lock-state、testMode \"no\" の取得の記録を添えた入力で U-W に移り、8 日前の区域 9100001 の L4 の凍結が移った state にそのまま残る。取得の記録が無ければ operationUnconfirmed）、expected:O06:29（operational-v2 だけでは 8 段境界の充足としない）と unmet:O06:30（試験のコードで作る旧 v2 の全国履歴 8 段の入力から新しい 2 段へ移り、捨てた範囲を報告。fixture は足さない）。旧 step と P2 の置換 step（expected:O04:9・expected:O06:31）の対応表を成果物に出す（Q-MIGRATION の requiredEvidence）。移行直後の続報: O04:2 の移した state で起動し、新しい正常な全国報（O04:3 の入力を試験のコードで作る）で stale lock を抜けることを確かめる。無いと: Q-MIGRATION が閉じず、8 日前の凍結の再発を移行で持ち込む",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
+          "docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:709 «ab7a0a43e4cf8f01»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:720 «f1322c4f148aa247»",
+          "reconstruction/contracts/p2-weather-current-unit.json:670 «ab7a0a43e4cf8f01»",
+          "reconstruction/tools/corpus/sequences.json:65 «25f1ee05acd82220»",
+          "reconstruction/tools/corpus/sequences.json:103 «b3c5967b3f4138b9»",
+          "reconstruction/tools/corpus/sequences.json#expected:O04:2",
+          "reconstruction/tools/corpus/sequences.json#expected:O06:29"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC10",
+        "requirement": "【発注 3】U-T・U-V・U-N・U-Q: (1) U-T: keyedActive・observations・gateEntries を移す。legacyActive（名称だけの旧 snapshot）は gate と取消の照合に使えないので移さない（uninterpretable） (2) U-V: 三 slice・identity・provenance 不足（spec:2186）。旧の repairState と provenance を失った記録（旧築の operationalV2ProvenanceLost）から VolcanoShortfall を作る（作るのは移行だけ、P3-C9-SHORTFALL=A） (3) U-N: nankaiTrough (4) U-Q: quakeHost・longPeriod と補助 3 file（当日地震履歴・地図の lifecycle・震度 7 の保持〔spec:2188 の特殊値と危険保持の根拠〕）。補助 3 file と主 file に同じ EventID があり、版（reportTimeMs・serial）が食い違うなら U-Q を未充足にする（spec:2199、Q-MIG-AUX-CONSISTENCY）。当日地震履歴の counted の段階は Q-MIG-UQ-DAILY-STAGE の決めに従う。無いと: 30 日より古い噴火警戒レベル・震度 7 の保持・津波の観測など取り直しで戻らない記録が切替で消える",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2186 «6cf95839ea15c6af»",
+          "docs/specs/reconstruction-p0-contracts.md:2188 «10164d7d353e227e»",
+          "reconstruction/contracts/p3-volcano-unit.types.ts:193 «a2cbfe068aa0f1ae»",
+          "reconstruction/contracts/p3-volcano-unit.json:50 «3d8273d87f00f4fd»",
+          "reconstruction/contracts/p3-seismic-unit.types.ts:159 «79798bbdfd67032b»",
+          "src/engine/messages/daily-quake-counter.ts:20 «703355c248f94155»",
+          "reconstruction/src/recovery/recovery.ts:31 «3305cb6ac92408f9»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC11",
+        "requirement": "【発注 4】U-F・U-L・U-R・U-B・U-M・U-Y: U-F（取り直しの対象外、P3-REC-D-UF-BASE=C。移行が唯一の戻り道）、U-L（vpww56。generation の無い旧 foundation と authoritative が false は未充足）、U-R（floodForecast。legacyEventIds は gate を持たないので移さない）、U-B（速報の alias・予測置換・取消記憶、spec:2187）、U-M（tornado・heat）、U-Y（typhoons・typhoonProbabilities）。無いと: U-F の時系列が切替で全部消える（取り直しで戻らない）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2187 «3f547b2b3e583635»",
+          "reconstruction/contracts/p3-recovery.json:409 «08cc273136e877dd»",
+          "src/engine/display/standby-persistence.ts:492 «3fd4806b2bb282ca»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC12",
+        "requirement": "【発注 5】復元後の検収（spec:2176・spec:2145・spec:2614）: 移行器の出力で新築の owner を起こし、unit ごとに (1) 移した記録の対象へ取消の報を投入して消える (2) 訂正の報を投入して置き換わる (3) 移行直後の続報（新しい報）を投入して通常の版の比べで採られる、を確かめる（U-T・U-V は synthetic_VTSE41_cancel・_correction・synthetic_VFVO50_cancel・_correction、ほかの unit は各 unit の試験の既存の fixture か試験のコードで作る入力）。結果を報告の (5) に出す。sequences.json の expected:O07:19〜26（旧形式の fixture 8 本）の期待を直す: 取得の記録が無ければ全部 operationUnconfirmed（新築の checkpoint として直接は復元しない）、testMode \"no\" の取得の記録を添えた入力では unit ごとの結果を固定する。無いと: 移した記録が取消・訂正で消えない・置き換わらないことに切替の後で気づく",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2176 «ddd8d3f657213fc1»",
+          "docs/specs/reconstruction-p0-contracts.md:2145 «1b5c60db3eeb4c23»",
+          "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
+          "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
+          "reconstruction/tools/corpus/sequences.json:114 «2070bafc5f0483f4»",
+          "reconstruction/tools/corpus/sequences.json#expected:O07:19"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC13",
+        "requirement": "【発注 5】N8 の整合検査: 主 file と補助 file の savedAt・世代が食い違うコピー（試験のコードで作る）で、(1) 未来の savedAt は拒否 (2) v1 が v2 より先は v2 を選んで食い違いを報告 (3) 補助 file と主 file の同じ EventID の版の食い違いは U-Q を未充足、を確かめる。統合担当は Pi の旧築の保存の読み取り専用のコピーで移行器を 1 回通し、報告を残す（Q-MIG-PI-COPY）。無いと: 実物のコピーでだけ起きる食い違いを切替の日に初めて見る",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2931 «db543de238ae7ee3»",
+          "docs/specs/reconstruction-p0-contracts.md:2199 «46091a29b4655d72»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC14",
+        "requirement": "【発注 1〜5】移さないもの・置き場（spec:2191〜2197、spec:2718〜2719）: timer・listener・queue、旧 v1 への mirror、display layout・描画 snapshot（display-layout.json・theme.json）、runtime 専用の restored、実際の未配送を証明できない過去通知（各 unit の intents は空で書く）、weather-promotion-v1.json（P3-MIG-D-PROMOTION=A）、U-E（P3-MIG-D-UE=A）は移さない。移行器と旧 reader は reconstruction/tools/migration/ と reconstruction/test/migration/ だけに置き、reconstruction/src からは import しない（src の変更は AC01 の配列の削除と、D-MARK-CLEAR=A のときの version.ts の 1 か所と、AC08 の最小の export だけ）。無いと: 新築の runtime が旧築の engine を引き込み、移行で過去の通知を鳴らし直す",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2193 «a0cbec13a8100441»",
+          "docs/specs/reconstruction-p0-contracts.md:2195 «c6ff1bce9399a1b4»",
+          "docs/specs/reconstruction-p0-contracts.md:2196 «5346da5b60e1952c»",
+          "docs/specs/reconstruction-p0-contracts.md:2716 «1e23e5a6c2425d1a»",
+          "src/engine/monitor/monitor.ts:681 «5fc971037451c3c2»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC15",
+        "requirement": "【完了】C15 を閉じる条件（計画の C15 の行）: 対象の 11 unit の移行を配送・結線し AC12 を通したこと、かつ一覧が全 unit で空（12 の *-unit.ts に discardableSchemaVersions の配列が 0 個。完了の点検で統合担当が数える）。無いと: 一覧か移行の欠けを残したまま P5 の並走に入る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:80 «375d09c19da049b2»"
+        ]
+      },
+      {
+        "id": "P3-MIG-AC16",
+        "requirement": "配送の commit で統合担当が改める原文（本契約は既存の契約・計画・spec の本文を変えない）: (1) P3-VERSION-MATERIAL-001 の P3-VM-AC05 の「一覧の寿命」の文（C15 の配送までに空・C15 の着手条件に足す）を、計画の C15 の行の今の形（最初の発注で空、完了の条件）と P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (2) p3-persist-premises.md の一覧の寿命（:73）と C15 の着手条件（:455）の文を同じく【発注 1】 (3) premises の C15 に送った問い（:345・:470、Control/DateTime の無い旧記録と期限）に本契約の分岐 ID を添える【発注 2】 (4) D-MARK-CLEAR=A なら P3-VM-D-MISSING の (3) と P3-VM-AC04 の (b) に「移した記録は除く（P3-MIG-D-MARK-CLEAR）」を添える【発注 2】 (5) P2-CHECKPOINT-SHUTDOWN-001 と P2-WEATHER-CURRENT-UNIT-001 の Q-MIGRATION、sequences.json の p2Subsets の O04・O06・O07 の deferred の文、P3-RECOVERY-001 の C15 へ送った項目に、閉じた発注を添える【発注 2・5】 (6) sequencesSha256 と、変えた file を引く anchor の付け直し【各発注】。無いと: 一覧の寿命と着手条件の文が計画と食い違ったまま残る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-version-material.json:483 «48a20c148c9cad7d»",
+          "reconstruction/contracts/p3-persist-premises.md:73 «32ecbbdb103e9932»",
+          "reconstruction/contracts/p3-persist-premises.md:455 «1902f9a54e352878»",
+          "reconstruction/contracts/p3-persist-premises.md:345 «6b5a3c9f2ed1befe»",
+          "reconstruction/contracts/p3-recovery.json:491 «2bf0414c6f6f9519»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-MIG-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-MIG-AC01"
+        ],
+        "behavior": "【発注 1】新しい試験は足さない。一覧を前提にした 7 file の試験を、前の版の slot が unknownSchema で読まれその unit が保存されない形に直す（期待値を変える理由: P3-VM-AC05 の一覧の寿命、作者の裁定 X2=A）"
+      },
+      {
+        "testId": "P3-MIG-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-MIG-AC03"
+        ],
+        "behavior": "【発注 2】入力のコピーの sha256 が移行の前後で同じで、未来の savedAt の file は拒否される"
+      },
+      {
+        "testId": "P3-MIG-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC04",
+          "P3-MIG-AC05"
+        ],
+        "behavior": "【発注 2】移した U-W の A の slot を CheckpointCoordinator が restored（generation 1・inputBoundary null）で読み、報告に unit の結果・hash・件数が出る"
+      },
+      {
+        "testId": "P3-MIG-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-MIG-AC06"
+        ],
+        "behavior": "【発注 2】testMode が \"no\" でない取得の記録では記録を移さず operationUnconfirmed で報告する（\"no\" で normal になるのは T05 が見る）"
+      },
+      {
+        "testId": "P3-MIG-T05",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-MIG-AC09"
+        ],
+        "behavior": "【発注 2】expected:O04:2: pi-stale-lock-state を testMode \"no\" で移し、移した state の起動の後の新しい全国報で stale lock を抜ける"
+      },
+      {
+        "testId": "P3-MIG-T06",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-MIG-AC09",
+          "P3-MIG-AC05"
+        ],
+        "behavior": "【発注 2】unmet:O06:30: 全国履歴 8 段の旧 v2 の入力から新しい 2 段が残り、捨てた 6 段の範囲が報告に出る"
+      },
+      {
+        "testId": "P3-MIG-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-MIG-AC07"
+        ],
+        "behavior": "【発注 2、D-MARK-CLEAR=A のとき】移した記録を時刻の読める live の報で置き換えると印が null になり、時刻の無い live の版を置き換えたときは印が残る"
+      },
+      {
+        "testId": "P3-MIG-T08",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC08"
+        ],
+        "behavior": "【発注 3】期限を持つ unit（U-T など。U-W は時間の期限を持たない、P3-EXPIRY-FORM-001）で、取得時刻で期限を過ぎた記録は移らず expired で報告され、残る記録の期限は旧 expiresAtMs でなく元の報の時刻から新築の規則で作られる"
+      },
+      {
+        "testId": "P3-MIG-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC10"
+        ],
+        "behavior": "【発注 3】U-V: provenance を失った旧記録から VolcanoShortfall が作られ、復元した view に載る"
+      },
+      {
+        "testId": "P3-MIG-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-MIG-AC10",
+          "P3-MIG-AC13"
+        ],
+        "behavior": "【発注 3】U-Q: 補助 file と主 file の同じ EventID の版が食い違うと U-Q が未充足になる"
+      },
+      {
+        "testId": "P3-MIG-T11",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-MIG-AC12"
+        ],
+        "behavior": "【発注 5】unit ごとに、移した記録への取消で消え、訂正で置き換わり、続報が採られる（1 unit に 1 試験、11 unit）"
+      },
+      {
+        "testId": "P3-MIG-T12",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-MIG-AC12"
+        ],
+        "behavior": "【発注 5】expected:O07:19〜26: 旧形式の fixture 8 本の移行の結果が、取得の記録の有無で固定した期待どおりになる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "npm run build",
+        "cwd": ".",
+        "target": "dist/（旧築）",
+        "stage": "preparation",
+        "purpose": "【発注 2〜5】移行器が呼ぶ旧 reader（P3-MIG-D-OLD-READER=A）の dist を作る"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash 検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O04・O06・O07 の期待の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。src・試験・sequences.json の変更の後に出る anchor のずれと sequencesSha256 の FAIL は一覧を成果物に出し、統合担当が配送の commit で付け直す。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src・contracts",
+        "stage": "implementation",
+        "purpose": "型検査と reconstruction/dist の生成（移行器と試験が使う）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "試験を含めた型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/dist/chrome-eew",
+        "stage": "implementation",
+        "purpose": "C6 の runner が import する dist の生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "順序を変えても緑（一時 directory と module の変数を使う）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowed_paths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行（移行器・報告・試験の builder）",
+      "追加・変更した各試験が受入条件／契約境界／実不具合／corpus 履歴のどれに当たるかを 1 行",
+      "【発注 1】直した試験ごとに、変えた期待とその理由（P3-VM-AC05 の (4)）",
+      "【発注 2〜4】unit ごとの旧→新の 1 欄ずつの対応表（Q-MIG-FIELD-TABLE）",
+      "【発注 2】旧 step と P2 の置換 step の対応表（expected:O04:2→expected:O04:9、expected:O06:29＋unmet:O06:30→expected:O06:31）",
+      "【発注 5】統合担当: Pi の実物のコピーでの 1 回の報告（Q-MIG-PI-COPY）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-MIG-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "各発注の実装の着手"
+        ],
+        "resolveBy": "各発注の発注前点検（統合担当）",
+        "requiredEvidence": [
+          "発注ごとの baseOid の割当。発注 1 は P3-XML-READERS-001 の配送の後",
+          "その時点の HEAD で一覧の件数（起草は 76）と一覧に依る試験の file（起草は 7）を数え直す",
+          "decisionBranches に起草案・作者の裁定待ちが 0 件であること（P3-MIG-D-MARK-CLEAR）",
+          "本契約の anchor のずれが 0 件であること"
+        ]
+      },
+      {
+        "id": "Q-MIG-MARK-CLEAR",
+        "owner": "user",
+        "blocks": [
+          "発注 2 の着手",
+          "AC07 の (3) と T07",
+          "allowedPaths の version.ts"
+        ],
+        "resolveBy": "発注 2 の発注前点検",
+        "requiredEvidence": [
+          "作者の裁定 P3-MIG-D-MARK-CLEAR（A／B）"
+        ]
+      },
+      {
+        "id": "Q-MIG-FIELD-TABLE",
+        "owner": "implementer",
+        "blocks": [
+          "発注 2〜4 の各 unit の配送"
+        ],
+        "resolveBy": "各発注の patch（成果物）",
+        "requiredEvidence": [
+          "unit ごとに旧の欄（standby-persistence.ts と補助 file の persisted 型）→新の persisted 型の欄の 1 欄ずつの表。移さない欄は AC05 の理由つき",
+          "表のうち画面・音・通知の出方が旧築と変わる行（例: 旧築で見えていた欄が移らない）。あれば統合担当が作者の判断カードにする"
+        ]
+      },
+      {
+        "id": "Q-MIG-UQ-DAILY-STAGE",
+        "owner": "integrator",
+        "blocks": [
+          "発注 3 の U-Q の当日地震履歴"
+        ],
+        "resolveBy": "発注 3 の発注前点検",
+        "requiredEvidence": [
+          "旧の countedEventIds は EventID だけで段階を持たない（daily-quake-counter.ts の DailyQuakePersistedV1）。新の counted は [EventID, 段階] で、取消のときの最大震度の数え直しと引上げで段階を読む（seismic-unit.ts の当日履歴の更新）。移すときの段階の決め方（recentQuakes の maxInt から作れる分と、作れない分）と、それで取消の後の当日の最大震度の出方が変わるか",
+          "出方が変わるなら作者の判断カードにする"
+        ]
+      },
+      {
+        "id": "Q-MIG-AUX-CONSISTENCY",
+        "owner": "integrator",
+        "blocks": [
+          "発注 3 の U-Q の整合の規則の確定"
+        ],
+        "resolveBy": "発注 3 の発注前点検",
+        "requiredEvidence": [
+          "Pi の旧築の保存のコピー（Q-MIG-PI-COPY と同じもの）で、主 file と補助 3 file の savedAt の差と、同じ EventID の件数・版の食い違いの件数",
+          "AC10 の (4) の規則（同じ EventID の版の食い違いで未充足）で実物が未充足にならないか。なるなら規則を直す"
+        ]
+      },
+      {
+        "id": "Q-MIG-PI-COPY",
+        "owner": "integrator",
+        "blocks": [
+          "発注 5 の配送"
+        ],
+        "resolveBy": "発注 5 の配送の前",
+        "requiredEvidence": [
+          "Pi の旧築を止めずに data/runtime/ の 5 file と設定の testMode を読み取り専用でコピーした記録（時刻・sha256・大きさ・version・各欄の件数）",
+          "そのコピーで移行器を 1 回通した報告（unit ごとの結果、落とした件数と理由）。作者に見せる"
+        ]
+      }
+    ]
+  }
+}
