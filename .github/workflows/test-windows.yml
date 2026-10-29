@@ -1,0 +1,51 @@
+name: Test (Windows trial)
+
+# 新築も Windows を支える作者裁定（2026-10-29）の手前の試し。手で起動したときだけ回り（gh workflow run）、push では回らないので main の CI を赤くしない
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [engine, display, reconstruction]
+        node: [22]
+    name: test-windows (${{ matrix.suite }}, node ${{ matrix.node }})
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # 既定の autocrlf=true だと fixture の hash の検査が改行だけで落ちる
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: ${{ matrix.suite == 'reconstruction' && '0' || '1' }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+      - run: npm ci --ignore-scripts --prefix display
+      - run: npm run build
+      - run: npm run typecheck:test
+      - run: npm run typecheck --prefix display
+
+      - name: Test (${{ matrix.suite }})
+        run: |
+          case "${{ matrix.suite }}" in
+            engine) npm test ;;
+            display) npm test --prefix display ;;
+            reconstruction)
+              node reconstruction/tools/corpus/check-manifest.mjs
+              node reconstruction/tools/corpus/check-sequences.mjs
+              node reconstruction/contracts/check-contract.mjs
+              ./node_modules/.bin/tsc --project reconstruction/tsconfig.json
+              ./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json
+              ./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json
+              ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts ;;
+          esac
