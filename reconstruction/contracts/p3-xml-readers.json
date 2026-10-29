@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6b5714cdbce5c08845e905ff4fd66c90b53cb058",
-    "sha256": "74578502a0d13ac00517a68d314c252931a4b761030b88a6f9d7ceb3ce1283c0",
+    "sha256": "9057ce2479b817f40c7f3f316f01ffb3e7cb9df52730ac5e7c27323143c43d46",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -23,8 +23,8 @@
         "B": "基本形に揃える（localNameで比べるchildren、trimするscalar、大文字小文字を区別して最初の1個を返すattribute）。leafValuesも共有にする",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": "",
+        "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-10-30 朝）",
         "reason": "揃えたときにcorpus（telegramXml 292本、Q-XR-CORPUS）で出力が変わる件数は0。(1) 名前: EEWの15本のprefix付きの要素はjmx_eb:Coordinate 11・jmx_eb:Magnitude 11だけで、eewがelements・firstで引く23の名前に当たらない。weather-currentの14本のprefix付き5,054個（jmx_eb:WindDirection・WindSpeedなど8種）も、引く15の名前に当たらない (2) trim: eewの葉で前後に空白があるのはsynthetic_phase4a_VXSE45_specialのConditionとArrivalTimeの2個 (3) 大文字小文字: synthetic_phase4a_VXSE45_regionless・specialの2本で、ForecastInt・ForecastLgIntの小文字のcondition属性6個をeewはattribute(forecast, \"Condition\")で読む。(2)(3)の2本はどちらもEventIDの検査でidentityInvalidになり、Areaを読む前に断る（P2-A4-T09）。それでもBは実電文で、空白の付いた値の受理と、小文字の属性の予測の条件の表示を変える。Aは写しが2組残るが、最も重い経路の振る舞いを変えず、eew.tsのanchor 72件とweather-current.tsの18件を動かさない。Bでは呼ぶ側の行（elements(…)の名前）が変わり、anchorの付け直しが中身の変わった行に及ぶ"
       },
       {
@@ -33,8 +33,8 @@
         "B": "2つに分ける: attribute（trimする、4 domain）とrawAttribute（trimしない、null可、seismic・tsunami・volcano）。今の振る舞いを全部保つ",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": "",
+        "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-10-30 朝）",
         "reason": "corpusの292本で、前後に空白のある属性の値は0個（xmlnsを除く全属性、Q-XR-CORPUS）なので、Aで変わる出力は0。Aは実電文で、seismic・tsunami・volcanoが空白付きの属性の値（type=\" 震度 \"など）を、今の「別の値として扱う（一致しない）」から「trimして読む」へ変える。Aの欠点: 属性の値を出力へそのまま保存する所（seismic.ts:211〜213のmagnitudeのtype・condition・description、tsunami.ts:113のcondition・description、tsunami.ts:134のcondition）では、空白付きの値の報で表示の中身と保存のbyteが変わり、値で選ぶ所（volcano.ts:147・:150のcodeType === \"火山名\"）では、codeType=\" 火山名 \"の報で選ばれる火山が変わる（今は外れ、Aでは選ばれる。AC05の例外）。推奨をAのまま保つ理由: corpusの292本で、これらの属性（type 49,429・condition 3,825・description 16,313・codeType 3,449個）に前後の空白のあるものは0個（Q-XR-REVIEW2(2)）で、空白の付いた実電文は観測されていない。Bは振る舞いを変えないが、同じ役目の関数が2つ残る。weather-timeseriesのattr（全一致をtrimせず配列で返し、重複の検査に使う）とeew・weather-currentのもの（D-EXACT）は別の意味なので寄せない"
       },
       {
@@ -43,8 +43,8 @@
         "B": "4つともtsunamiの形（2個以上は拒否）に揃える",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": "",
+        "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-10-30 朝）",
         "reason": "nankai・seismic・volcanoのfixture（17・39・28本）で、これらがtextで引く17の名前（Code・Title・Text・Nameなど）の要素が同じ親の下に2個以上ある所は0（親を問わず数えた上限、Q-XR-CORPUS）。Bで変わるcorpusの出力は0だが、実電文で2個目がある報を、今の「受理して先頭を使う」から「拒否」へ変える（取りこぼしの側へ倒れる）。tsunamiの厳しさはH51のB（P3-EF-AC13）でwarnと組で決めたもので、他へ広げる根拠が無い"
       },
       {
@@ -53,8 +53,8 @@
         "B": "codecは後へ送る。本契約はXMLの読み取り関数だけ",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": "",
+        "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-10-30 朝）",
         "reason": "Aも出力を変えない（寄せる7つは写しの間で振る舞いが同じ）。operationOfの9つの写しはOperation（p1-parser-boundary.types.ts:1）に値を足したとき揃って直す必要があり、1つ直し忘れるとそのunitの復元だけが新しい値の記録を黙って断る（型は止めない）。byteの4つを残す理由: seismic-unit.tsとtsunami-unit.tsは、増分で数えた大きさをbytesと同じmoduleのbyteCache・sumCacheへ直に書き込む（seismic-unit.ts:373・:384・:416、tsunami-unit.ts:76）。bytesを別のmoduleへ移すとその書き込みがbytesから見えず、受信のたびにJSON.stringifyで数え直す（AGENTS.mdの受信経路の計算量）。行のずれ（Q-XR-ANCHOR-COUNT）: Aで付け直すanchorは73件（XMLの86件に足して計159件。うち1件は消える行を引くp3-weather-shape.json:301のtyphoon-unit.ts:669で、移設する）。byteの4つも寄せると約350件と、消える行を引く2件（p3-codec-closure.json:273・p3-uf-public.json:405のbytesの行）が足される。Bは0件。reportRef（10の別の形）は写しではない（どれもversion.tsのreadReportRefをunitの規則で包む）ので、どちらでも寄せない"
       },
       {
@@ -136,6 +136,14 @@
         "closed": "(1) AC03: codecのencodeはobjectを返す（seismic-unit.ts:1617、tsunami-unit.ts:1229）。「保存の文字列のまま」を外し、JSON.stringifyした文字列で比べ、decodeにはJSON.parseした値を渡し、両側でkind \"restored\"を求めると書いた (2) D-ATTR=Aの影響を属性のtrim全体に広げた: seismic.ts:211〜213・tsunami.ts:113・:134は保存の中身、volcano.ts:147・:150のcodeTypeは選ぶ結果が変わる（volcano.ts:71のtypeはincludesで部分一致なので、前後の空白で結果は変わらない。seismic.ts:198のdescriptionは空白を許す正規表現で読み、値を保存しない）。corpusのtelegramXml 292本で、type 49,429・condition 3,825・description 16,313・codeType 3,449個のうち前後に空白のあるものは0個（xmlnsを除く全属性248,999個でも0個、生の字の正規表現で数えた）。推奨はAのまま、D-ATTRのreason・AC05の例外・persistedFields・残存リスク(1)を合わせた (3) unreadable.tsのrecordは:224（:223はtype Fieldsの行）。AC02とQ-XR-REVIEW1(8)を直した",
         "remaining": "なし（分岐のrulingは作者の裁定待ちのまま）",
         "reason": "r1の再確認の指摘の当て方の記録"
+      },
+      {
+        "id": "Q-XR-AUTHOR",
+        "status": "closed（作者の裁定、2026-10-30 朝）",
+        "source": "作者の裁定（2026-10-30 朝、「どちらも推奨で進めてください」。朝のハンドオフ 2026-10-30-fleq-morning-c16closed-xmlreaders-handoff の「判断してほしいこと」1、要判断リストの X1）",
+        "closed": "P3-XR-D-EXACT・D-ATTR・D-TEXT・D-CODECを推奨のAで確定した。残存リスク(1)〜(5)は分岐の裁定と同時に承認とした（(1)のD-ATTR=Aでseismic・tsunami・volcanoの空白付きの属性の扱いが変わることは、ハンドオフで例を示した）",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsから移した"
       }
     ],
     "operationContract": {
@@ -455,21 +463,9 @@
       "AC03の記録: (1)(2)の入力の件数・比べた項目・差の件数、正の対照と負の対照の結果とexit code、scriptの中身",
       "AC04の材料: srcの変更の後のcheck-contractのFAILの一覧（契約・参照・今のanchor）と、変えたfileごとの消した行の範囲",
       "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める（出力が変わったかもしれないため）",
-      "残存リスク（起草案、作者の承認待ち）: (1) 推奨の裁定でもD-ATTR=Aはseismic・tsunami・volcanoの空白付きの属性の扱いを変える。seismic・tsunamiのtype・condition・descriptionは表示の中身と保存のbyteが変わり、volcanoのcodeTypeは選ばれる火山が変わる（corpusでは0件、AC03では見えない） (2) 前後の同値はcorpusの292本と、それを続けて流した1列で示すもので、corpusに無い形（prefix付きの名前・空白付きの値・重複の要素）の差はAC03では見えない。Q-XR-CORPUSの数えでその形が0件であることだけを示す (3) eew・weather-currentの写し（D-EXACT=A）、tsunamiのtext、地の文の6つ、byteの4つ、reportRefは残り、§9の写しは無くならない (4) 付け直す160件の参照（移設の1件を除き）は行番号だけが変わり、条文の主張の読み直しはしない（中身の同じ行を指すため） (5) 配送までに他の契約が変えるfileの行を新しく引くと、付け直しの件数が増える（Q-XR-BASEで数え直す）"
+      "残存リスク（作者の承認、2026-10-30 朝。分岐の裁定と同時）: (1) 推奨の裁定でもD-ATTR=Aはseismic・tsunami・volcanoの空白付きの属性の扱いを変える。seismic・tsunamiのtype・condition・descriptionは表示の中身と保存のbyteが変わり、volcanoのcodeTypeは選ばれる火山が変わる（corpusでは0件、AC03では見えない） (2) 前後の同値はcorpusの292本と、それを続けて流した1列で示すもので、corpusに無い形（prefix付きの名前・空白付きの値・重複の要素）の差はAC03では見えない。Q-XR-CORPUSの数えでその形が0件であることだけを示す (3) eew・weather-currentの写し（D-EXACT=A）、tsunamiのtext、地の文の6つ、byteの4つ、reportRefは残り、§9の写しは無くならない (4) 付け直す160件の参照（移設の1件を除き）は行番号だけが変わり、条文の主張の読み直しはしない（中身の同じ行を指すため） (5) 配送までに他の契約が変えるfileの行を新しく引くと、付け直しの件数が増える（Q-XR-BASEで数え直す）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-XR-AUTHOR",
-        "owner": "user",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "作者の裁定（起草の報告の後）",
-        "requiredEvidence": [
-          "P3-XR-D-EXACT・D-ATTR・D-TEXT・D-CODECのruling",
-          "残存リスク(1)〜(5)の承認"
-        ]
-      },
       {
         "id": "Q-XR-LEDGER72",
         "owner": "integrator",
