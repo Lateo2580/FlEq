@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6b5714cdbce5c08845e905ff4fd66c90b53cb058",
-    "sha256": "fa0cb97b0564d6105b5c878ef05ccd4f2dac93be9dd6ec74a5d391b368cbac5d",
+    "sha256": "74578502a0d13ac00517a68d314c252931a4b761030b88a6f9d7ceb3ce1283c0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -35,7 +35,7 @@
         "provisional": "A",
         "status": "起草案（作者の裁定待ち）",
         "ruling": "",
-        "reason": "corpusの292本で、前後に空白のある属性の値は0個（xmlnsを除く全属性、Q-XR-CORPUS）なので、Aで変わる出力は0。Aは実電文で、seismic・tsunami・volcanoが空白付きの属性の値（type=\" 震度 \"など）を、今の「別の値として扱う（一致しない）」から「trimして読む」へ変える。Aの欠点: seismic.ts:213（magnitudeDescription）とtsunami.ts:113（description）はdescription属性の値を出力へそのまま保存するので、description=\" 説明 \"の報では表示の中身と保存のbyteが変わる（AC05の例外）。推奨をAのまま保つ理由: description属性はcorpusの136本に16,313個あり、前後に空白のあるものは0個（Q-XR-REVIEW1(4)）で、空白の付いた実電文は観測されていない。Bは振る舞いを変えないが、同じ役目の関数が2つ残る。weather-timeseriesのattr（全一致をtrimせず配列で返し、重複の検査に使う）とeew・weather-currentのもの（D-EXACT）は別の意味なので寄せない"
+        "reason": "corpusの292本で、前後に空白のある属性の値は0個（xmlnsを除く全属性、Q-XR-CORPUS）なので、Aで変わる出力は0。Aは実電文で、seismic・tsunami・volcanoが空白付きの属性の値（type=\" 震度 \"など）を、今の「別の値として扱う（一致しない）」から「trimして読む」へ変える。Aの欠点: 属性の値を出力へそのまま保存する所（seismic.ts:211〜213のmagnitudeのtype・condition・description、tsunami.ts:113のcondition・description、tsunami.ts:134のcondition）では、空白付きの値の報で表示の中身と保存のbyteが変わり、値で選ぶ所（volcano.ts:147・:150のcodeType === \"火山名\"）では、codeType=\" 火山名 \"の報で選ばれる火山が変わる（今は外れ、Aでは選ばれる。AC05の例外）。推奨をAのまま保つ理由: corpusの292本で、これらの属性（type 49,429・condition 3,825・description 16,313・codeType 3,449個）に前後の空白のあるものは0個（Q-XR-REVIEW2(2)）で、空白の付いた実電文は観測されていない。Bは振る舞いを変えないが、同じ役目の関数が2つ残る。weather-timeseriesのattr（全一致をtrimせず配列で返し、重複の検査に使う）とeew・weather-currentのもの（D-EXACT）は別の意味なので寄せない"
       },
       {
         "id": "P3-XR-D-TEXT",
@@ -125,9 +125,17 @@
         "id": "Q-XR-REVIEW1",
         "status": "closed",
         "source": "起草のレビューr0（契約適合〔Opus〕・品質〔Codex、thread 01a187ba〕、どちらも条件付きGO）を起草の版（6b5714cd）のコードで確かめて当てたr1（2026-10-29）",
-        "closed": "(1) P1-T04（reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:112〜114）はsrcの全文の「export function／export const」を固定の7名と照らす。AC01・AC02にexportの形（末尾のexport { … }）を足し、Q-XR-CODE-READ(5)を直した (2) anchorの無い本文の参照は付け直しの範囲から外し、配送の記録に書くことをAC04に入れ、件数をQ-XR-ANCHOR-COUNT(7)に足した (3) OwnerStepにdecisions・直接のintentsは無い（owner-runtime.ts:56）。AC03にunitのstepの採取、Map・保存JSONの順の比べ方、例外の即失敗、不正な保存データの境界を範囲外とすることを足した (4) D-ATTR: seismic.ts:213・tsunami.ts:113はdescription属性を保存する。corpusのtelegramXml 292本でdescription属性は136本に16,313個、前後に空白のあるものは0個（minidomで読んだ値と、生の字の正規表現の両方）。推奨はAのまま、欠点をreasonとAC05の例外・persistedFields・残存リスク(1)に書いた (5) contractSha256の3契約・過去の版の値をQ-XR-ANCHOR-COUNT(3)に書いた (6) 件数を160件・19契約（行の移動159＋移設1）に揃えた（objective・D-CODEC・AC04・Q-XR-ANCHOR-COUNT(1)・残存リスク(4)） (7) 使われなくなるclassifyMaterialのimport（seismic:7・tsunami:9・volcano:6・weather-timeseries:6）: レビューの案は前例p3-mailbox-controlと同じく消すことだったが、消すとimportの行から最初の写しの行までを引くanchor 7件（p3-currency-coverage seismic.ts:63、p3-expiry-form tsunami.ts:18、p3-revision-order seismic.ts:63・:64・volcano.ts:45×2、p3-weather-shape weather-timeseries.ts:11）がずれ、160件・19契約が167件・20契約になる。その行をxml-read.tsのimportに書き換えれば行はずれないので、そちらをD-ANCHORのreasonとAC01に書いた (8) publicFunctionsにD-ATTR=Aのattributeの例外、Q-XR-BASEに並べる順とC16との同時の禁止、AC02にunits/unreadable.ts:223のrecordを残すことを足した",
+        "closed": "(1) P1-T04（reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:112〜114）はsrcの全文の「export function／export const」を固定の7名と照らす。AC01・AC02にexportの形（末尾のexport { … }）を足し、Q-XR-CODE-READ(5)を直した (2) anchorの無い本文の参照は付け直しの範囲から外し、配送の記録に書くことをAC04に入れ、件数をQ-XR-ANCHOR-COUNT(7)に足した (3) OwnerStepにdecisions・直接のintentsは無い（owner-runtime.ts:56）。AC03にunitのstepの採取、Map・保存JSONの順の比べ方、例外の即失敗、不正な保存データの境界を範囲外とすることを足した (4) D-ATTR: seismic.ts:213・tsunami.ts:113はdescription属性を保存する。corpusのtelegramXml 292本でdescription属性は136本に16,313個、前後に空白のあるものは0個（minidomで読んだ値と、生の字の正規表現の両方）。推奨はAのまま、欠点をreasonとAC05の例外・persistedFields・残存リスク(1)に書いた (5) contractSha256の3契約・過去の版の値をQ-XR-ANCHOR-COUNT(3)に書いた (6) 件数を160件・19契約（行の移動159＋移設1）に揃えた（objective・D-CODEC・AC04・Q-XR-ANCHOR-COUNT(1)・残存リスク(4)） (7) 使われなくなるclassifyMaterialのimport（seismic:7・tsunami:9・volcano:6・weather-timeseries:6）: レビューの案は前例p3-mailbox-controlと同じく消すことだったが、消すとimportの行から最初の写しの行までを引くanchor 7件（p3-currency-coverage seismic.ts:63、p3-expiry-form tsunami.ts:18、p3-revision-order seismic.ts:63・:64・volcano.ts:45×2、p3-weather-shape weather-timeseries.ts:11）がずれ、160件・19契約が167件・20契約になる。その行をxml-read.tsのimportに書き換えれば行はずれないので、そちらをD-ANCHORのreasonとAC01に書いた (8) publicFunctionsにD-ATTR=Aのattributeの例外、Q-XR-BASEに並べる順とC16との同時の禁止、AC02にunits/unreadable.ts:224のrecordを残すことを足した",
         "remaining": "なし（分岐のrulingは作者の裁定待ちのまま）",
         "reason": "r0の指摘の当て方と、案から変えた所（(7)）の記録"
+      },
+      {
+        "id": "Q-XR-REVIEW2",
+        "status": "closed",
+        "source": "r1（ca88a662）の再確認で残った3件を、その版のコードで確かめて当てたr2（2026-10-29）",
+        "closed": "(1) AC03: codecのencodeはobjectを返す（seismic-unit.ts:1617、tsunami-unit.ts:1229）。「保存の文字列のまま」を外し、JSON.stringifyした文字列で比べ、decodeにはJSON.parseした値を渡し、両側でkind \"restored\"を求めると書いた (2) D-ATTR=Aの影響を属性のtrim全体に広げた: seismic.ts:211〜213・tsunami.ts:113・:134は保存の中身、volcano.ts:147・:150のcodeTypeは選ぶ結果が変わる（volcano.ts:71のtypeはincludesで部分一致なので、前後の空白で結果は変わらない。seismic.ts:198のdescriptionは空白を許す正規表現で読み、値を保存しない）。corpusのtelegramXml 292本で、type 49,429・condition 3,825・description 16,313・codeType 3,449個のうち前後に空白のあるものは0個（xmlnsを除く全属性248,999個でも0個、生の字の正規表現で数えた）。推奨はAのまま、D-ATTRのreason・AC05の例外・persistedFields・残存リスク(1)を合わせた (3) unreadable.tsのrecordは:224（:223はtype Fieldsの行）。AC02とQ-XR-REVIEW1(8)を直した",
+        "remaining": "なし（分岐のrulingは作者の裁定待ちのまま）",
+        "reason": "r1の再確認の指摘の当て方の記録"
       }
     ],
     "operationContract": {
@@ -263,7 +271,7 @@
     "workDeadline": null,
     "persistenceUnits": [],
     "persistedFields": [
-      "なし（保存の形とbyteは変えない。例外はAC05のD-ATTR=Aのdescription）"
+      "なし（保存の形とbyteは変えない。例外はAC05のD-ATTR=Aによる属性の値のtrim）"
     ],
     "nonPersistedFields": [
       "なし（xml-read.tsとcodec-base.tsはmoduleの変数を持たない）"
@@ -296,7 +304,7 @@
       },
       {
         "id": "P3-XR-AC02",
-        "requirement": "codecの基本形を寄せる（D-CODEC=Aのとき。Bの裁定ならQ-XR-BASEで統合担当がこの項を削る）: reconstruction/src/units/codec-base.tsを作り、record・isText・bounded・count・finite・operationOf・list（limit = Infinityの既定付き）をexportする。units/*/*-unit.tsの12 fileから同じ振る舞いの写しを消してimportする。tsunami-unitはisText as textでimportし、呼ぶ側の行を変えない。encoder・bytes・commas・listBytes・byteCache・sumCacheとreportRefはunitごとに残す（D-CODECのreason）。共有の行（Record<RuntimeUnitId,…>・網羅switch）は直書きのまま（P3-C7-SHARED-ROWS）。units/unreadable.ts:223のrecord（同じ振る舞いのarrow）は寄せずに残す（unitのcodecではなく、写しの直し忘れの危険はoperationOfのような値の足し込みに無い）。codec-base.tsのexportはAC01と同じく末尾の「export { … }」の形にする。codec-base.tsは状態を持たず、importは契約の型だけ。無いと: Operationに値を足したとき9つのoperationOfのどれかを直し忘れると、そのunitの復元だけが黙って記録を断る",
+        "requirement": "codecの基本形を寄せる（D-CODEC=Aのとき。Bの裁定ならQ-XR-BASEで統合担当がこの項を削る）: reconstruction/src/units/codec-base.tsを作り、record・isText・bounded・count・finite・operationOf・list（limit = Infinityの既定付き）をexportする。units/*/*-unit.tsの12 fileから同じ振る舞いの写しを消してimportする。tsunami-unitはisText as textでimportし、呼ぶ側の行を変えない。encoder・bytes・commas・listBytes・byteCache・sumCacheとreportRefはunitごとに残す（D-CODECのreason）。共有の行（Record<RuntimeUnitId,…>・網羅switch）は直書きのまま（P3-C7-SHARED-ROWS）。units/unreadable.ts:224のrecord（同じ振る舞いのarrow）は寄せずに残す（unitのcodecではなく、写しの直し忘れの危険はoperationOfのような値の足し込みに無い）。codec-base.tsのexportはAC01と同じく末尾の「export { … }」の形にする。codec-base.tsは状態を持たず、importは契約の型だけ。無いと: Operationに値を足したとき9つのoperationOfのどれかを直し忘れると、そのunitの復元だけが黙って記録を断る",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:343 «fcdbac0d6b05a375»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:1 «76e55a1488faa68f»",
@@ -309,7 +317,7 @@
       },
       {
         "id": "P3-XR-AC03",
-        "requirement": "前後の同値（D-EQUIVALENCE=A）: 変更の前にbaseOidでreconstruction/distを作ってrepoの外へ写し、変更後のdistと並べる使い捨てのscriptで、(1) manifestのtelegramXml全件（起草時292本）を1本ずつ、headTypeのplace（unit-coverage.tsのplaceOfHeadType）の初期のowner state（restoreOwnerの初期化、placeUnitsの分け方）から、同じ時計・同じrunIdでdecodeMaterial→receiveOwner（linkedUnitTable）へ通す (2) 全件をmanifestの順に、placeごとの1つのowner stateへ続けて通す（そのplaceのunitが受けるfixtureだけ）。各入力の後に、OwnerStep（state・changedUnits・generationInputIds・views・outcomes・displayChanges・confirmationEvidence・retiredEvents・diagnostics。decisionsと直接のintentsは持たない、owner-runtime.ts:56）と、unitの返したstep（decisions・intentsを含む。scriptの中でreceiveOwnerへ渡すunitの表の各unitの呼び出しを包み、返った値を採る）と、durableな各unitのcodecのencodeの結果（保存の文字列のまま）と、そのdecodeの結果を比べ、差0を示す。比べ方: isDeepStrictEqualに加え、Mapは挿入順を保つためentriesの配列にして比べ、保存のJSONはキーの順も比べるため文字列で比べる。予期しない例外は前後のどちらで出ても即失敗（exit 1）とする。正の対照: baseとbaseで差0（同じdistで結果が決まることの確かめ）。負の対照: 変更後のdistの写しのxml-read.jsでscalarのtrimを外すと、差が1件以上出てexit 1になる。不正な保存データを拒む境界はAC03では確かめず、既存の試験に任せる（codecの検査の写しを寄せても、拒む入力はcorpusに無い）。あわせてreconstruction/test/の全試験が期待値を変えずに通常順と--sequence.shuffleの両方で緑。decode-material.tsは変えないのでtree-diffは回さない。無いと: 寄せた関数の字句の違い（trim・名前の比べ方・null）が出力を変えても、試験の件数の確かめだけでは素通りする",
+        "requirement": "前後の同値（D-EQUIVALENCE=A）: 変更の前にbaseOidでreconstruction/distを作ってrepoの外へ写し、変更後のdistと並べる使い捨てのscriptで、(1) manifestのtelegramXml全件（起草時292本）を1本ずつ、headTypeのplace（unit-coverage.tsのplaceOfHeadType）の初期のowner state（restoreOwnerの初期化、placeUnitsの分け方）から、同じ時計・同じrunIdでdecodeMaterial→receiveOwner（linkedUnitTable）へ通す (2) 全件をmanifestの順に、placeごとの1つのowner stateへ続けて通す（そのplaceのunitが受けるfixtureだけ）。各入力の後に、OwnerStep（state・changedUnits・generationInputIds・views・outcomes・displayChanges・confirmationEvidence・retiredEvents・diagnostics。decisionsと直接のintentsは持たない、owner-runtime.ts:56）と、unitの返したstep（decisions・intentsを含む。scriptの中でreceiveOwnerへ渡すunitの表の各unitの呼び出しを包み、返った値を採る）と、durableな各unitのcodecのencodeの結果と、そのdecodeの結果を比べ、差0を示す。encodeは文字列でなくobjectを返す（seismic-unit.ts:1617、tsunami-unit.ts:1229）ので、encodeの結果はJSON.stringifyした文字列で比べ（キーの順も比べる）、decodeにはその文字列をJSON.parseした値を渡し、前後の両側でdecodeの結果がkind \"restored\"であることも求める（両側がinvalidでも一致してしまうのを防ぐ）。比べ方: isDeepStrictEqualに加え、Mapは挿入順を保つためentriesの配列にして比べる。予期しない例外は前後のどちらで出ても即失敗（exit 1）とする。正の対照: baseとbaseで差0（同じdistで結果が決まることの確かめ）。負の対照: 変更後のdistの写しのxml-read.jsでscalarのtrimを外すと、差が1件以上出てexit 1になる。不正な保存データを拒む境界はAC03では確かめず、既存の試験に任せる（codecの検査の写しを寄せても、拒む入力はcorpusに無い）。あわせてreconstruction/test/の全試験が期待値を変えずに通常順と--sequence.shuffleの両方で緑。decode-material.tsは変えないのでtree-diffは回さない。無いと: 寄せた関数の字句の違い（trim・名前の比べ方・null）が出力を変えても、試験の件数の確かめだけでは素通りする",
         "evidenceRefs": [
           "reconstruction/tools/parse-diff/tree-diff.mjs:1 «a4d8face01a67701»",
           "reconstruction/src/runtime/owner-runtime.ts:56 «57b0af95d179dd93»",
@@ -331,7 +339,7 @@
       },
       {
         "id": "P3-XR-AC05",
-        "requirement": "変えないもの: 各domainと各unitの公開の関数・型・export、decodeMaterial・classifyMaterialとdecode-material.ts、受理・拒否・理由・診断・intent・view・保存の形とbyte（例外はD-ATTR=Aの裁定のとき、前後に空白のあるdescription属性の報で、seismic.ts:213のmagnitudeDescriptionとtsunami.ts:113のdescriptionがtrimされ、表示の中身と保存のbyteが変わること。corpusでは0件）、P1・P2・P3の契約の型（reconstruction/contracts/*.types.ts）、共有の行（Record<RuntimeUnitId,…>・網羅switch）、flood.tsの非XMLのhelperとそのimport。新しいmoduleは状態を持たず、moduleの変数に入力の値を溜めない。受信1回の仕事は今と同じ（関数の置き場が変わるだけで、走査の回数と直列化の回数を増やさない。leafValuesは今と同じく1入力に1回）。新しいnpm依存を足さない。無いと: 置き場を変えるだけの変更が、拒否・保存のbyte・受信の計算量を変えても気づけない",
+        "requirement": "変えないもの: 各domainと各unitの公開の関数・型・export、decodeMaterial・classifyMaterialとdecode-material.ts、受理・拒否・理由・診断・intent・view・保存の形とbyte（例外はD-ATTR=Aの裁定のとき、seismic・tsunami・volcanoで前後に空白のある属性の値がtrimされること。seismic.ts:211〜213のtype・condition・description、tsunami.ts:113のcondition・description、tsunami.ts:134のconditionは表示の中身と保存のbyteが変わり、volcano.ts:147・:150のcodeTypeは選ばれる火山が変わる。corpusでは0件、Q-XR-REVIEW2(2)）、P1・P2・P3の契約の型（reconstruction/contracts/*.types.ts）、共有の行（Record<RuntimeUnitId,…>・網羅switch）、flood.tsの非XMLのhelperとそのimport。新しいmoduleは状態を持たず、moduleの変数に入力の値を溜めない。受信1回の仕事は今と同じ（関数の置き場が変わるだけで、走査の回数と直列化の回数を増やさない。leafValuesは今と同じく1入力に1回）。新しいnpm依存を足さない。無いと: 置き場を変えるだけの変更が、拒否・保存のbyte・受信の計算量を変えても気づけない",
         "evidenceRefs": [
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
           "AGENTS.md:24 «c1288cfa5b0d16dc»",
@@ -447,7 +455,7 @@
       "AC03の記録: (1)(2)の入力の件数・比べた項目・差の件数、正の対照と負の対照の結果とexit code、scriptの中身",
       "AC04の材料: srcの変更の後のcheck-contractのFAILの一覧（契約・参照・今のanchor）と、変えたfileごとの消した行の範囲",
       "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める（出力が変わったかもしれないため）",
-      "残存リスク（起草案、作者の承認待ち）: (1) 推奨の裁定でもD-ATTR=Aはseismic・tsunami・volcanoの空白付きの属性の扱いを変える。descriptionは表示の中身と保存のbyteも変わる（corpusでは0件、AC03では見えない） (2) 前後の同値はcorpusの292本と、それを続けて流した1列で示すもので、corpusに無い形（prefix付きの名前・空白付きの値・重複の要素）の差はAC03では見えない。Q-XR-CORPUSの数えでその形が0件であることだけを示す (3) eew・weather-currentの写し（D-EXACT=A）、tsunamiのtext、地の文の6つ、byteの4つ、reportRefは残り、§9の写しは無くならない (4) 付け直す160件の参照（移設の1件を除き）は行番号だけが変わり、条文の主張の読み直しはしない（中身の同じ行を指すため） (5) 配送までに他の契約が変えるfileの行を新しく引くと、付け直しの件数が増える（Q-XR-BASEで数え直す）"
+      "残存リスク（起草案、作者の承認待ち）: (1) 推奨の裁定でもD-ATTR=Aはseismic・tsunami・volcanoの空白付きの属性の扱いを変える。seismic・tsunamiのtype・condition・descriptionは表示の中身と保存のbyteが変わり、volcanoのcodeTypeは選ばれる火山が変わる（corpusでは0件、AC03では見えない） (2) 前後の同値はcorpusの292本と、それを続けて流した1列で示すもので、corpusに無い形（prefix付きの名前・空白付きの値・重複の要素）の差はAC03では見えない。Q-XR-CORPUSの数えでその形が0件であることだけを示す (3) eew・weather-currentの写し（D-EXACT=A）、tsunamiのtext、地の文の6つ、byteの4つ、reportRefは残り、§9の写しは無くならない (4) 付け直す160件の参照（移設の1件を除き）は行番号だけが変わり、条文の主張の読み直しはしない（中身の同じ行を指すため） (5) 配送までに他の契約が変えるfileの行を新しく引くと、付け直しの件数が増える（Q-XR-BASEで数え直す）"
     ],
     "unresolvedQuestions": [
       {
