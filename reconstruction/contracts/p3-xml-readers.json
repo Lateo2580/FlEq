@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6b5714cdbce5c08845e905ff4fd66c90b53cb058",
-    "sha256": "9057ce2479b817f40c7f3f316f01ffb3e7cb9df52730ac5e7c27323143c43d46",
+    "sha256": "d237891e2abc605244742a5cfc0c8ccc1b085fc0f4a0806fdb05db179b69fbf1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -143,6 +143,22 @@
         "source": "作者の裁定（2026-10-30 朝、「どちらも推奨で進めてください」。朝のハンドオフ 2026-10-30-fleq-morning-c16closed-xmlreaders-handoff の「判断してほしいこと」1、要判断リストの X1）",
         "closed": "P3-XR-D-EXACT・D-ATTR・D-TEXT・D-CODECを推奨のAで確定した。残存リスク(1)〜(5)は分岐の裁定と同時に承認とした（(1)のD-ATTR=Aでseismic・tsunami・volcanoの空白付きの属性の扱いが変わることは、ハンドオフで例を示した）",
         "remaining": "なし",
+        "reason": "unresolvedQuestionsから移した"
+      },
+      {
+        "id": "Q-XR-LEDGER72",
+        "status": "closed（2026-10-30 朝の発注前点検）",
+        "source": "構造的欠陥台帳の72（作業ノート、repoの外。統合担当が読んだ）",
+        "closed": "台帳72は「localName・children・first・scalar・text・attribute・blank・leafValues・Rejectedなどの写し」と「codecの基本形・byte cache・admitの写し」を挙げ、共有の行は直書きのまま（P3-C7-SHARED-ROWS）、集約はC14の後・C22の前に1本の小さな契約で、と書く。本契約の範囲（AC01・AC02）と食い違わない。台帳の挙げるbyte cacheとadmitは本契約では寄せない（D-CODECのreason、outOfScope）。Rejectedは写しでなく共有の型で、寄せる対象に無い",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsから移した"
+      },
+      {
+        "id": "Q-XR-BASE",
+        "status": "closed（2026-10-30 朝の発注前点検）",
+        "source": "起草の版（6b5714cd）から点検の版（main 152ba7fb）までの差分の読み合わせ（統合担当）",
+        "closed": "(1) decisionBranchesに起草案・作者の承認待ちは0件（4つは2026-10-30朝の作者の裁定でA、Q-XR-AUTHOR）。裁定は推奨どおりなのでallowedPaths・AC01・AC02・publicFunctionsは直さない (2) 6b5714cd..152ba7fbで変わったreconstruction/srcのfileはdomains/weather-current/weather-current.ts（D-EXACT=Aで本契約は触らない）・recovery/recovery.ts・runtime/composition-root.tsの3つだけで、寄せる写しのあるfileは変わっていない。Q-XR-CODE-READの写しの一覧は起草の版のまま (3) 変わった契約はp3-order-plan.md・p3-recovery.json・本契約。p3-recovery.jsonの差分は寄せる写しのあるfileの行をanchor付きで新しく引かない。Q-XR-ANCHOR-COUNT(1)の160件・19契約は変わらない。anchorの無い本文の参照（(7)）はp3-recovery.jsonのunits/nankai/nankai-unit.ts:919（写しの最初の行:723より後）とunits/weather-current/weather-current-unit.ts:447（:148より後）の2件が増えた（付け直さない、AC04） (4) 並べる順: 計画p3-order-plan.md:486の「3の後」は段3（K7〜K10）が配送済み（p3-recovery.jsonのQ-REC-STAGE3）、§9の「C14の後・C22の前」はC14が配送済み（2026-10-13）でC22は未起草 (5) C16（P3-RECOVERY-001）は閉じた（main ba54dc87、P3-C16-CLOSE-*）ので、同じunitのfileを変える発注との同時走行は無い",
+        "remaining": "なし（baseOidは本点検のcommitに割り当てる）",
         "reason": "unresolvedQuestionsから移した"
       }
     ],
@@ -465,32 +481,6 @@
       "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める（出力が変わったかもしれないため）",
       "残存リスク（作者の承認、2026-10-30 朝。分岐の裁定と同時）: (1) 推奨の裁定でもD-ATTR=Aはseismic・tsunami・volcanoの空白付きの属性の扱いを変える。seismic・tsunamiのtype・condition・descriptionは表示の中身と保存のbyteが変わり、volcanoのcodeTypeは選ばれる火山が変わる（corpusでは0件、AC03では見えない） (2) 前後の同値はcorpusの292本と、それを続けて流した1列で示すもので、corpusに無い形（prefix付きの名前・空白付きの値・重複の要素）の差はAC03では見えない。Q-XR-CORPUSの数えでその形が0件であることだけを示す (3) eew・weather-currentの写し（D-EXACT=A）、tsunamiのtext、地の文の6つ、byteの4つ、reportRefは残り、§9の写しは無くならない (4) 付け直す160件の参照（移設の1件を除き）は行番号だけが変わり、条文の主張の読み直しはしない（中身の同じ行を指すため） (5) 配送までに他の契約が変えるfileの行を新しく引くと、付け直しの件数が増える（Q-XR-BASEで数え直す）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-XR-LEDGER72",
-        "owner": "integrator",
-        "blocks": [
-          "発注前点検"
-        ],
-        "resolveBy": "本契約の発注前点検",
-        "requiredEvidence": [
-          "構造的欠陥台帳72（作業ノート、repoの外。起草者は許可rootの外なので読んでいない）の文と、本契約の範囲・outOfScopeの照合"
-        ]
-      },
-      {
-        "id": "Q-XR-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "本契約の発注前点検",
-        "requiredEvidence": [
-          "baseOidの割当（起草は6b5714cd）。decisionBranchesに起草案・作者の承認待ちが0件であること。裁定が推奨と違うときはallowedPaths・AC01・AC02・publicFunctionsを直す",
-          "割当の時点のHEADでQ-XR-CODE-READの写しの一覧とQ-XR-ANCHOR-COUNTの件数を数え直す",
-          "並べる順の条件を確かめる: 計画p3-order-plan.md:486の「写した読み取り関数の集約（§9）は3の後」と、§9の表の行（:343）の「C14の後・C22の前」",
-          "同じunitのfileを変える進行中のC16（P3-RECOVERY-001。allowedPathsにreconstruction/src/units/*/*-unit.tsを含む）の発注と同時に走らせない（同じ行を両方が変えると、どちらかの配送でanchorの付け直しとpatchが衝突する）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
