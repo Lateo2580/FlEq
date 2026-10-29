@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "3d39c7878e0a9cf066df199bd4d70a9deb2df4ba375d71dc33ccd825b344aba6",
+    "sha256": "2c445482fd77792e0261d52c3fddac9d61981ae12534bcac8b59b838747b61ff",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -33,7 +33,7 @@
         "C": "C6ではPiで確かめず、P5へ送る（D-P3-7の改訂が要る。Q-UWR-REMEASUREの第2段の扱いも別に決める）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定A（2026-10-09、推奨どおり）。第2段の形（Pi backend＋Mac miniのChrome、同じルーターに有線）を作者が了承した（C4で了承したのは第1段だけ、P3-C4-PI-STAGE1-APPROVAL）。Q-UWR-REMEASUREの第2段にも同じ形で記録した（p3-unit-write-right.jsonのQ-UWR-REMEASURE）",
+        "ruling": "作者裁定A（2026-10-09、推奨どおり）。第2段の形（Pi backend＋Mac miniのChrome、同じルーターに有線）を作者が了承した（C4で了承したのは第1段だけ、P3-C4-PI-STAGE1-APPROVAL）。Q-UWR-REMEASUREの第2段にも同じ形で記録した（p3-unit-write-right.jsonのQ-UWR-REMEASURE）。（2026-10-29 夜、P3-C6-AC09 の Pi 予備確認の窓）この形で行った。tailscale の IP の間は TCP が届かないので LAN の IP でつないだ（作者が Pi の ufw に eth0 の 1 行を足した）。発令系・解除系の通常 backlog と EEW 同時を各 3 本、どれも 40 試行・成立 30・paint 40・stateBreaks 0、T0→T6 の観測最大の上限 62.6〜70.9 ms、EEW 同時の EEW の T0→T6 の観測最大 54.2〜67.7 ms、時計区間の幅の最大 1.95 ms で、この予備条件では再現せず。記録は P3-PI-HARNESS-001 の Q-PH-C6-20261029",
         "reason": "見え方の違い: AはMac miniのChromeから旧築とは別のportへ一時的に有線LANの接続が開く（C6とQ-UWR-REMEASUREで各1〜2時間）。通信経路が本番の表示端末（PiのChrome）と違うので、値はE01の本番判定に使わない（計画:185）。Bは所要がAとほぼ同じ（トンネルの準備に数分を足す）で、LANにportを開かないが、暗号化とTCPの二重化による遅延と揺れが区間に入る（目安は1件あたり1ms前後の上乗せ、実測していない推定）。CはU-Tを急ぐworkerに足した干渉（計画:73）をP5まで確かめない"
       },
       {
