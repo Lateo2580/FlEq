@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "f5ca884fea307ee531b6862c4c089fa9cf0e51fe323751af909e7a668b559f4d",
+    "sha256": "3b5a6e7bce9487f1447bf3c299332207c10b6b9de84b441851c95d6876f36e1f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -462,7 +462,7 @@
           "reconstruction/src/units/tsunami/tsunami-unit.ts:195 «f65442d3bbd1fa57»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:202 «433e4cdfa4e77e5d»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:462 «52991c3ce492095e»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:631 «c65904dc9be789ab»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:631 «83c1dbef2ccd87fa»",
           "reconstruction/src/units/seismic/seismic-unit.ts:480 «71c1d7d434117f2d»",
           "reconstruction/src/units/seismic/seismic-unit.ts:566 «98d9dd9eda28aa06»",
           "reconstruction/src/units/seismic/seismic-unit.ts:585 «51b65ec22ad53857»",
@@ -578,7 +578,7 @@
           "reconstruction/contracts/p2-weather-timeseries-unit.json:185 «9556f7b761affe0e»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:491 «3ab393c46d3a0a23»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:558 «212ee45f2a9ed9e4»",
-          "reconstruction/contracts/p3-tsunami-unit.json:204 «da6bdb0ca2c2b903»",
+          "reconstruction/contracts/p3-tsunami-unit.json:204 «441da2ec4c1bd9bb»",
           "reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1»",
           "reconstruction/contracts/p3-unit-table.json:262 «266f4c49ce4f4492»",
           "reconstruction/contracts/p3-execution-split.json:558 «8c0a4c57d843c64d»",
@@ -593,7 +593,7 @@
         "requirement": "拒否した報の失敗警報（D-FAILNOTICE=A、作者裁定 2026-10-15 の形）。(1) 置き場: unit の既存の intents に、unit×operation ごとの固定の subject『${operation}/capacityRejected』を持つ intent として置く。新しい欄は足さない（intent は既に保存され、段階・時刻・配送の状態を持つ）。publisher の確認状態（whole=capacityExceeded）には結び付けない（確認状態は publisher にあり、owner は拒否した報の段階と題名を知る側で、通知を作るのは owner、P3-X-C6） (2) 作る条件: U-T・U-Q の adopt で fit が null を返したとき、拒否した報の fresh の level の最大が warning か critical で、同じ unit×operation の失敗警報の intent（pending か失敗の印〔P3-NOTICE-LEDGER-001 の P3-NL-AC02 の (6)〕、channel によらない）の level の最大がそれより軽いか、そういう intent が無いとき。段階の順は info < normal < warning < critical (3) 形: fresh のうち level が最大の intent ごと（channel は fresh と同じ。normal は desktop と sound、training・test は desktop だけ）に 1 つ。id は JSON.stringify([unit, 失敗警報の subject, 拒否した報の版の鍵, channel])（P3-NOTICE-LEDGER-001 の P3-NL-AC01 の (4)。前は『<unit>:capacityRejected:<operation>:<世代>:<channel>』）、subject は (1) の固定の subject、source は拒否した報の ReportRef、level・channel・transition は fresh のまま、createdAt と nextAttemptAt は拒否の時計、expiresAt はその unit の TTL（sound 60 秒・desktop 180 秒、U-T・U-Q とも）、attempts 0、disposition pending。title は訓練・試験の接頭辞の後に『【処理できていません】』と元の題名（fresh の title から接頭辞を除いたもの）と『（HH:MM 発表）』（HH:MM は拒否した報の ReportDateTime を JST にしたもの）、body は固定の 1 文 (4) 置換: 同じ unit×operation の pending の失敗警報で、新しいものより軽いものだけを superseded にする（失敗警報どうしだけ。走行中なら A7 が止める）。subject の pending には触れない（置き換えも superseded もしない）。既存の admit は通さない (5) 収める: 新しい失敗警報（と置き換える軽い失敗警報）を足した state が、通知の上限（件数・byte、予約込み）と世代の上限（fit）に、ほかの pending や記録を退去させずに収まるときだけ当てる。U-Q では、昇格で終端記録へ移る軽い失敗警報を含めた終端記録の byte が TERMINAL_BYTES（131,072）を越えるときも当てない（昇格ごと不採用。終端記録を上限まで回収するのは admit の中だけなので、admit を通さないこの経路では回収せず、越えない形で守る。P3-NOTICE-LEDGER-001 で終端記録と TERMINAL_BYTES は無くなり、この条件も無くなった）。収まらなければ当てない（置き換えもしない。置き換えるはずだった軽い失敗警報の pending と、その予約はそのまま） (6) 続いたとき: 同じ拒否報の再送・古い報の遅着・別の subject の拒否が、同じか軽い段階なら鳴らさず、既存の失敗警報の id・期限・配送の状態はそのまま。重い段階なら重い方で置き換えて鳴らす（段階は上げるだけで下げない）。失敗警報の intent が state から回収された後（最長でその期限、desktop 180 秒。U-Q は終端記録の上限の回収で早まりうる。P3-NOTICE-LEDGER-001 の後は終端の intent は残らず、失敗の印の until〔最後に作った失敗警報の expiresAt〕まで同じか軽い段階を作らない、P3-NL-AC02 の (6)）は、次の拒否で再び鳴りうる。publisher の未確認が消えるまで待たないのは、owner がその状態を持たず、台帳 85 が開いている間はその run で二度と鳴らなくなるから (7) 再起動: 失敗警報の intent は保存されるので、pending は元の期限まで配送の候補に戻り（Q-NOTICE.restart と同じ扱い）、(6) の判定も続く (8) D-PENDING の書き換えは失敗した系列（subject・lineOf）の pending だけに当たるので、失敗警報は書き換わらない（title の時刻の印は付かない） (9) 採用の通知・置換・取消の全置換には何も足さない（平常の振る舞いは base のまま）。decision は今どおり（印を付けたなら changed、付けなければ capacityExceeded）。正の確認の証拠は返さない。保存の台帳: 失敗警報と D-PENDING の書き換えだけで世代が進む受信（decision は capacityExceeded）も dirty にし、その受信の inputId をその世代に帰属させる（owner-runtime の受信の帰属の条件を『世代が進み decision が changed』から『世代が進み decision が changed か capacityExceeded』に広げる。帰属は保存した世代に含まれる入力の台帳で、正常採用の扱いにはしない、P2-A3-AC10。今の capacityExceeded の経路は 5 unit とも世代を進めず、U-W の印の経路は changed を返すので、広げて帰属が変わるのは本契約の U-T・U-Q の経路だけで、既存の試験の期待は変わらない） (10) U-E・U-W・U-F には当てない（Q-CC-UE。U-W・U-F は通知を作らない） (11) 計算量: 拒否のときだけ intents を 1 回なめる（失敗警報の段階を求める）。平常の受信には何も足さない。無いと何が壊れるか: 既存の subject の津波警報→大津波警報の引上げや新しい地震の震度 5 強が容量で入らないと、その段階の音がどこからも鳴らない",
         "evidenceRefs": [
           "reconstruction/src/units/tsunami/tsunami-unit.ts:443 «d5c6ed05dd9cc02d»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:631 «c65904dc9be789ab»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:631 «83c1dbef2ccd87fa»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:659 «85aa8babc9974580»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:661 «cc1e1a8b4d6def00»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:152 «71c1d7d434117f2d»",
