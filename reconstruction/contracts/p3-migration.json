@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "039c3189e881a00a419bf3aa20f9a60cea78aa824294755e80c1abf289d1b7e2",
+    "sha256": "f9b09e8213c91b275c500b18dd8b32c54adf007f2d7808c4a38c6b1057832458",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -69,8 +69,8 @@
         "B": "P3-VM-D-MISSING の (3) の実物のまま: 移した記録を live の報で置き換えても印は残り、その系列が取消か期限で消えるまで外れない",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": "未裁定（作者の裁定待ち）",
+        "status": "確定（作者の裁定 3〔P3-MIG-D-UNTIMED〕の文面から統合担当が決めた、2026-10-30 朝）",
+        "ruling": "A（作者に示したカード 3 の A の文「次の報が来て置き換わるまで「未確認」付きで出る」を実装する形。B はこの文と食い違う）",
         "blocks": [
           "発注 2 の着手（U-W が最初に印を持つ unit）"
         ],
@@ -231,6 +231,14 @@
         "closed": "P3-MIG-D-OPERATION・P3-MIG-D-RECOVERABLE・P3-MIG-D-UNTIMED・P3-MIG-D-EXPIRY",
         "remaining": "P3-MIG-D-MARK-CLEAR（起草で見つけた、作者の裁定待ち）",
         "reason": "下調べ §7 の作者の分岐 4 つ"
+      },
+      {
+        "id": "Q-MIG-MARK-CLEAR",
+        "status": "closed（2026-10-30 朝、統合担当）",
+        "source": "作者の裁定 3 のカードの文面（2026-10-30 朝）と P3-VM-D-MISSING の (2)・(3)（p3-version-material.json）",
+        "closed": "P3-MIG-D-MARK-CLEAR を A で確定した。作者が承認した見え方は「移した記録は次の報で置き換わるまで未確認」で、時刻の無い版を置き換えても印を残す今の (3) のままでは満たせない。移した記録の表し方は (2) と同じ（時刻の空な ReportRef が未確認を表し、印の欄は足さない）",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsから移した"
       }
     ],
     "operationContract": {
@@ -836,19 +844,6 @@
           "その時点の HEAD で一覧の件数（起草は 76）と一覧に依る試験の file（起草は 7）を数え直す",
           "decisionBranches に起草案・作者の裁定待ちが 0 件であること（P3-MIG-D-MARK-CLEAR）",
           "本契約の anchor のずれが 0 件であること"
-        ]
-      },
-      {
-        "id": "Q-MIG-MARK-CLEAR",
-        "owner": "user",
-        "blocks": [
-          "発注 2 の着手",
-          "AC07 の (3) と T07",
-          "allowedPaths の version.ts"
-        ],
-        "resolveBy": "発注 2 の発注前点検",
-        "requiredEvidence": [
-          "作者の裁定 P3-MIG-D-MARK-CLEAR（A／B）"
         ]
       },
       {
