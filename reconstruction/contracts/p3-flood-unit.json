@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "220a29f20df485bd0831e624383049c988d7f6bf0f67e97ecaced90e02dcefe6",
+    "sha256": "a2f98c3169f2515ba2ca174ea0e7861641e55f30cc3ba16156b76d7740b7d4e2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -537,7 +537,7 @@
       "reconstruction/contracts/p3-flood-unit.types.ts#FloodUnitCodec"
     ],
     "publicFunctions": [
-      "reduceFloodUnit(state: FloodUnitState, input: FloodInput): FloodUnitStep（C16 発注 4b-1、P3-REC-AC12: FloodInput の deadline に recoveryBase?: FloodUnitState〔取り直しの候補の受信の前の回収だけが owner から渡す shadow の基点。基点で見えていなかった記録は期限切れの intent を作らない〕。publicTypes の行は型の参照だけなので形はここに書く）",
+      "reduceFloodUnit(state: FloodUnitState, input: FloodInput): FloodUnitStep（C16 発注 4b-1、P3-REC-AC12: FloodInput の deadline に recoveryBase?: FloodUnitState〔取り直しの候補の受信の前の回収（shadow の基点）と採用の step の期限（採用の直前の live、投影の直しの配送）が owner から渡す基点。基点で見えていなかった記録は期限切れの intent を作らない〕。publicTypes の行は型の参照だけなので形はここに書く）",
       "toFloodView(state: FloodUnitState): FloodUnitView",
       "floodUnitCodec: FloodUnitCodec",
       "floodUnit: UnitModule<\"U-R\">（reconstruction/src/units/flood/。unit表の1行）"
@@ -953,7 +953,7 @@
       },
       {
         "id": "P3-C11-AC13",
-        "requirement": "E22のU-R範囲をP3-C11-N2で固定し（VXKO・VXSU の型×EventID ごとの最新、窓 42 時間）、origin=recoveryの入力（C16 の候補の作成のときだけ owner から届く）は live と同じ意味を当てるが intent を作らない（live と同じに作った intent は置換の判定にだけ使い、live なら新しい intent が置き換える保存待ちの古い pending を外す）。版の比べが決まらない本文（held）は採らず、印も WARN も表示差分も置かずに unchanged/noChange（owner が held にする、P3-REC-AC05 の (a)）。older・duplicate は既存の判定のまま。H27 は採用の step の recoveryNotices: live の音の段が取り直しの起点より上がり、採用の時点で active な記録のうち、通知済みの版を除いた最も高い 1 件に info を 1 回（P3-REC-D-N2-RAISE-4B=A）。payload の 2 欄〔reportDateTime・recovered〕は codec が対で読み〔片方だけは invalid〕、版は p3-flood-unit-v9〔v8 は捨ててよい版〕。U-R の例外: 取り直しの候補の受信前の回収で、基点（開いた時の live、当て直しでは今の live）でその subject が見えていなかった記録の期限切れは intent を作らない。基点で見えていた記録は落とさず generationConflict になり、live の tick が通知する（FloodInput の deadline の recoveryBase?: FloodUnitState、flood-unit.ts の collect）。受入は P3-C11-T10・P3-REC-T15・P3-REC-T19。P3-RECOVERY-001 の発注 4b-1 で「origin=recoveryを適用しない（unchanged/noChange、state同一参照、intents/outcomes空）」から改めた。P3-REC-AC12 により統合担当が改訂",
+        "requirement": "E22のU-R範囲をP3-C11-N2で固定し（VXKO・VXSU の型×EventID ごとの最新、窓 42 時間）、origin=recoveryの入力（C16 の候補の作成のときだけ owner から届く）は live と同じ意味を当てるが intent を作らない（live と同じに作った intent は置換の判定にだけ使い、live なら新しい intent が置き換える保存待ちの古い pending を外す）。版の比べが決まらない本文（held）は採らず、印も WARN も表示差分も置かずに unchanged/noChange（owner が held にする、P3-REC-AC05 の (a)）。older・duplicate は既存の判定のまま。H27 は採用の step の recoveryNotices: live の音の段が取り直しの起点より上がり、採用の時点で active な記録のうち、通知済みの版を除いた最も高い 1 件に info を 1 回（P3-REC-D-N2-RAISE-4B=A）。payload の 2 欄〔reportDateTime・recovered〕は codec が対で読み〔片方だけは invalid〕、版は p3-flood-unit-v9〔v8 は捨ててよい版〕。U-R の例外: 取り直しの候補の受信前の回収で、基点（開いた時の live、当て直しでは今の live）でその subject が見えていなかった記録の期限切れは intent を作らない（採用の step の期限も同じ。基点は採用の直前の live、P3-RECOVERY-001 の投影の直しの配送で統合担当が改訂）。基点で見えていた記録は落とさず generationConflict になり、live の tick が通知する（FloodInput の deadline の recoveryBase?: FloodUnitState、flood-unit.ts の collect）。受入は P3-C11-T10・P3-REC-T15・P3-REC-T19。P3-RECOVERY-001 の発注 4b-1 で「origin=recoveryを適用しない（unchanged/noChange、state同一参照、intents/outcomes空）」から改めた。P3-REC-AC12 により統合担当が改訂",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
           "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",

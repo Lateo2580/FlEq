@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "a28b911294dc78c65a02114d0437f9281c6ea2d774a54092463228435832792c",
+    "sha256": "f5534e951112bd32fafc5bac80ba2f722582be2bae5d6be51496f3e22be9d230",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -580,7 +580,7 @@
           "reconstruction/contracts/p2-weather-timeseries-unit.json:558 «212ee45f2a9ed9e4»",
           "reconstruction/contracts/p3-tsunami-unit.json:204 «dd47df81ae4561fd»",
           "reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1»",
-          "reconstruction/contracts/p3-unit-table.json:262 «44c584515eccf09a»",
+          "reconstruction/contracts/p3-unit-table.json:262 «266f4c49ce4f4492»",
           "reconstruction/contracts/p3-execution-split.json:558 «8c0a4c57d843c64d»",
           "reconstruction/contracts/p3-execution-split.json:674 «9e81bd7fad2794cd»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:465 «d92004b8be323619»",

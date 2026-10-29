@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "2288a24727da0073c4c67f5bf48dd6e2523d62c8ca56b97854eda833ae2c7f3d",
+    "sha256": "19a8c7df36a751fbd424961bf3f2cfe05a28d1290697fd5e04d436ac0823d5c9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -259,7 +259,7 @@
       },
       {
         "id": "P3-C0-AC02",
-        "requirement": "unit表をp3-unit-table.types.tsのUnitModule<K>・UnitTableで固定する。eew-unit.ts・weather-current-unit.ts・weather-timeseries-unit.tsがそれぞれ自分のmodule値を `satisfies UnitModule<K>` でexportし、composition-root.tsの `linkedUnitTable = { \"U-E\": …, \"U-W\": …, \"U-F\": … } satisfies UnitTable` が3行だけを持つ。各fieldの値: reduce・toView・persistence（durable、既存codec）は既存関数をそのまま指す。confirmationScopeLimitはU-E 1024・U-W 1024・U-F 512（P2-A1-CONFIRMATION.bounds、現shared-runtime.ts:145）。withoutNormal・keepsWhileNormalHiddenは現:399-420の各unit枝（U-Wだけtransition=unavailableのsubjectをnormal遮蔽中も残す）、normalDisplaySubjectsは現:434-447の各unit枝（この3つはP3-CURRENCY-COVERAGE-001でnormalの公開の制限ごとUnitModuleから除いた、P3-CC-AC01(2)、配送のcommitでP3-CC-AC09により統合担当が改訂）、terminalIntents（U-Eだけ{kind:deliveryRecords}。P3-NOTICE-LEDGER-001のP3-NL-AC05の(3)で全unitが同じ扱いになりUnitModuleから消した）、reclaimDeadlineBeforeReceiveはU-Eだけtrue（現:926）を、式を変えずに移す。linkedRuntimeCallsは {units: linkedUnitTable, selectNotificationAttempt, applyNotificationResult}、linkedUnitCodecsは表のdurable行のcodecから作り別のリテラルcodec表を持たない（書き方はquestionResolutions P3-C0-NO-AS-FORMの許可形。Object.fromEntriesやloopで空objectを埋めない）。各fieldは現行の分岐1群に対応し、それ以外のfield（将来用・表示用）を足さない",
+        "requirement": "unit表をp3-unit-table.types.tsのUnitModule<K>・UnitTableで固定する。eew-unit.ts・weather-current-unit.ts・weather-timeseries-unit.tsがそれぞれ自分のmodule値を `satisfies UnitModule<K>` でexportし、composition-root.tsの `linkedUnitTable = { \"U-E\": …, \"U-W\": …, \"U-F\": … } satisfies UnitTable` が3行だけを持つ。各fieldの値: reduce・toView・persistence（durable、既存codec）は既存関数をそのまま指す。confirmationScopeLimitはU-E 1024・U-W 1024・U-F 512（P2-A1-CONFIRMATION.bounds、現shared-runtime.ts:145）。withoutNormal・keepsWhileNormalHiddenは現:399-420の各unit枝（U-Wだけtransition=unavailableのsubjectをnormal遮蔽中も残す）、normalDisplaySubjectsは現:434-447の各unit枝（この3つはP3-CURRENCY-COVERAGE-001でnormalの公開の制限ごとUnitModuleから除いた、P3-CC-AC01(2)、配送のcommitでP3-CC-AC09により統合担当が改訂）、terminalIntents（U-Eだけ{kind:deliveryRecords}。P3-NOTICE-LEDGER-001のP3-NL-AC05の(3)で全unitが同じ扱いになりUnitModuleから消した）、reclaimDeadlineBeforeReceiveはU-Eだけtrue（現:926）を、式を変えずに移す。recoveryNotices?・recoveryChanges?は取り直しの採用の step の音と正味の表示の変化で、取り直しを持つ unit の行だけが持つ省略できる欄（P3-RECOVERY-001 の投影の直しの配送で統合担当が足した。owner-runtime が unit を import すると domain → shared-runtime → owner-runtime → unit の import の循環で読み込みが落ちる、台帳 104）。linkedRuntimeCallsは {units: linkedUnitTable, selectNotificationAttempt, applyNotificationResult}、linkedUnitCodecsは表のdurable行のcodecから作り別のリテラルcodec表を持たない（書き方はquestionResolutions P3-C0-NO-AS-FORMの許可形。Object.fromEntriesやloopで空objectを埋めない）。各fieldは現行の分岐1群に対応し、それ以外のfield（将来用・表示用）を足さない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:18 «97876f3f16d8a449»",
           "docs/specs/reconstruction-p0-contracts.md:334 «07df9b4ceb5650d7»",

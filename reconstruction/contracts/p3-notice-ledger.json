@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "d253dbfad347f47735701e8df3179c442cfd5e5d544d05bdea417281bcfad46e",
+    "sha256": "737170d8c4ac10e6d5c0a55d2985694494465962f4f66a3d81a13cd2c5b9b070",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -502,7 +502,7 @@
           "reconstruction/src/units/eew/eew-unit.ts:342 «973323028dc564f5»",
           "reconstruction/src/units/seismic/seismic-unit.ts:64 «e03057af8e6a011b»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:56 «e03057af8e6a011b»",
-          "reconstruction/contracts/p3-unit-table.json:262 «44c584515eccf09a»"
+          "reconstruction/contracts/p3-unit-table.json:262 «266f4c49ce4f4492»"
         ]
       },
       {
@@ -734,7 +734,7 @@
           "reconstruction/contracts/p3-tsunami-unit.json:140 «bf62709d233420e1»",
           "reconstruction/contracts/p3-tsunami-unit.json:213 «712a2262da868b85»",
           "reconstruction/contracts/p3-currency-coverage.json:33 «564a65852b1e1e52»",
-          "reconstruction/contracts/p3-unit-table.json:262 «44c584515eccf09a»",
+          "reconstruction/contracts/p3-unit-table.json:262 «266f4c49ce4f4492»",
           "reconstruction/contracts/p3-intent-update-reserve.json:235 «18eef364f9da3127»",
           "reconstruction/contracts/p3-clock-check.json:342 «d7b2e0b0082c7aeb»",
           "reconstruction/contracts/p3-recovery.json:1104 «28654fa7489eb29d»",
