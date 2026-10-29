@@ -1,10 +1,10 @@
-import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
   NankaiCurrentLine, NankaiCurrentStatus, NankaiInfoSerial, NankaiReportFamily, NankaiUnreadableSite,
 } from "../../../contracts/p3-nankai-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
-import { unreadableNotes } from "../../units/unreadable";
+import { unreadableNotes } from "../../units/unreadable"; import { blank, children, first, localName, scalar, text } from "../../decode-material/xml-read";
 
 // P3-UNIT-N-001 の adapter: VYSE50/51/52/60 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -34,25 +34,7 @@ function validSerial(value: string): boolean {
   return value === "" || /^[1-9]\d{0,9}$/.test(value);
 }
 
-// ---- XML の読み取り（domains/seismic・domains/tsunami と同じ写し。共有化は統合担当が決める、AC12） ----
-
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function first(parent: XmlElement | null, name: string): XmlElement | null {
-  return children(parent, name)[0] ?? null;
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
-function text(parent: XmlElement | null, name: string): string | null {
-  const node = first(parent, name);
-  return node == null ? null : scalar(node);
-}
-const blank = (value: string | null): string | null => value == null || value === "" ? null : value;
+// ---- XML の読み取り（decode-material/xml-read.ts に集約、P3-XML-READERS-001） ----
 
 // 切り詰めでサロゲートの対を割らない（割ると JSON で \uXXXX の 6 byte になり、I-U-N.bounds の最悪の byte を超える）。
 function cut(value: string, limit: number): string {

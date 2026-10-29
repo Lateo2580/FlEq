@@ -11,7 +11,7 @@ import type {
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
 import { dirty, expiredOutcome, nextEewDeadline, noticeAt, notificationArrayBytes, reclaimEewLifetime, reduceEew as reduceEewCore } from "../../domains/eew/eew";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, readReportRef } from "../../contracts-revision/version";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES } from "../../checkpoint/checkpoint"; import { controlDateTimeOf, readReportRef } from "../../contracts-revision/version"; import { finite } from "../codec-base";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, extendUnreadableNotices, freshState, readIntentState, readUnreadableNotices, restoreStarted, strongerEvidence, unreadableBody, unreadableNoticeDue, unreadableSource, updateEvidence, withUnreadableNotice } from "../notice-mark";
 
@@ -32,10 +32,6 @@ function object(value: unknown): Record<string, unknown> | null {
 
 function operation(value: unknown): value is NotificationIntent["operation"] {
   return value === "normal" || value === "training" || value === "test";
-}
-
-function finite(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
 }
 
 // P3-NL-AC06 (2): 期限の長さは desktop と鳴らし直していない sound が 15 秒、1 回の鳴らし直しを使った sound が 30 秒まで。

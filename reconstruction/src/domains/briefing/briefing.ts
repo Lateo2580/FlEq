@@ -1,10 +1,10 @@
-import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type { BriefingArea, BriefingItem, BriefingKind, BriefingObservation, BriefingUnreadableSite } from "../../../contracts/p3-briefing-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
 import { cut, infoRankOf, loneSurrogate, validEventId, validName, validReportDateTime, validSerial, validTime, validValue }
   from "../flood/flood"; import { controlDateTimeOf } from "../../contracts-revision/version";
-import { unreadableNotes } from "../../units/unreadable";
+import { unreadableNotes } from "../../units/unreadable"; import { attribute, children, localName, scalar } from "../../decode-material/xml-read";
 
 // P3-UNIT-B-001 の adapter: VPBS50・VPOA50 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 // 値の形の検査は U-R と同じ規則なので domains/flood の export を使う（写さない。共有化は統合担当が決める、AC12）。
@@ -27,18 +27,7 @@ const validUnit = (value: string): boolean => value.length <= BOUNDS.unit && !/[
 // 系列は EventID の最初の「_」より前か、記録的短時間大雨では EventID の全体（P3-C12-SUBJECTS=A・P3-EF-AC09 (1)）。先頭は「_」でない。
 const validSeries = (value: string): boolean => /^[\x21-\x5e\x60-\x7e][\x21-\x7e]{0,39}$/.test(value);
 
-// ---- XML の読み取り（domains/flood・landslide と同じ写し。共有化は統合担当が決める、AC12） ----
-
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
-const attribute = (node: XmlElement, name: string): string | null => node.attributes.find((item) => item.name === name)?.value.trim() ?? null;
+// ---- XML の読み取り（decode-material/xml-read.ts に集約、P3-XML-READERS-001） ----
 
 // ---- 候補 ----
 

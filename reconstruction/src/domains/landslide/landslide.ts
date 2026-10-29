@@ -1,8 +1,8 @@
-import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type { LandslideKindGroup, LandslideUnreadableSite } from "../../../contracts/p3-landslide-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
-import { unreadableNotes } from "../../units/unreadable";
+import { unreadableNotes } from "../../units/unreadable"; import { children, localName, scalar } from "../../decode-material/xml-read";
 
 // P3-UNIT-L-001 の adapter: VPWW56 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -33,17 +33,8 @@ const groupRank = (level: 2 | 3 | 4 | 5 | null): number => level ?? 2.5;
 const groupOrder = (left: LandslideKindGroup, right: LandslideKindGroup): number =>
   groupRank(right.level) - groupRank(left.level) || (left.code < right.code ? -1 : left.code > right.code ? 1 : 0);
 
-// ---- XML の読み取り（domains/nankai・domains/volcano と同じ写し。共有化は統合担当が決める、AC12） ----
+// ---- XML の読み取り（decode-material/xml-read.ts に集約、P3-XML-READERS-001） ----
 
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
 // 切り詰めでサロゲートの対を割らない（割ると JSON で \uXXXX の 6 byte になり、I-U-L.capacityReserve の最悪の byte を超える）。
 // P3-UM-AC02 (1): Serial の欠片は Head/Serial（無ければ Head）。
 function serialNode(root: XmlElement): XmlElement | null {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "737170d8c4ac10e6d5c0a55d2985694494465962f4f66a3d81a13cd2c5b9b070",
+    "sha256": "4b0211e082858d18174fc848cbf650e48a8201b8257c530b559565a9e243201e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -473,9 +473,9 @@
           "reconstruction/contracts/p3-persist-premises.md:467 «2dd982004a6f8bcd»",
           "reconstruction/contracts/p2-eew-unit.json:203 «1d80539752f6e4e5»",
           "reconstruction/src/units/eew/eew-unit.ts:21 «00295ab2ac3e2d56»",
-          "reconstruction/src/units/eew/eew-unit.ts:179 «0962ef0ee55f6578»",
-          "reconstruction/src/units/eew/eew-unit.ts:212 «75cab3decb7e526b»",
-          "reconstruction/src/units/eew/eew-unit.ts:301 «e0b6b6af76ab9828»",
+          "reconstruction/src/units/eew/eew-unit.ts:175 «0962ef0ee55f6578»",
+          "reconstruction/src/units/eew/eew-unit.ts:208 «75cab3decb7e526b»",
+          "reconstruction/src/units/eew/eew-unit.ts:297 «e0b6b6af76ab9828»",
           "reconstruction/src/domains/eew/eew.ts:607 «8cf8503515b3efc1»",
           "reconstruction/src/domains/eew/eew.ts:535 «0f6fbc43d164413e»",
           "reconstruction/src/domains/eew/eew.ts:540 «533bdccc801402bd»",
@@ -499,7 +499,7 @@
           "reconstruction/contracts/p3-unit-table.types.ts:23 «e9aa1ab592d4d861»",
           "reconstruction/contracts/p3-unit-table.types.ts:30 «247e5eb77fe63e12»",
           "reconstruction/src/runtime/owner-runtime.ts:558 «1bb3f6cd2b8f47c5»",
-          "reconstruction/src/units/eew/eew-unit.ts:342 «973323028dc564f5»",
+          "reconstruction/src/units/eew/eew-unit.ts:338 «973323028dc564f5»",
           "reconstruction/src/units/seismic/seismic-unit.ts:64 «e03057af8e6a011b»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:56 «e03057af8e6a011b»",
           "reconstruction/contracts/p3-unit-table.json:262 «266f4c49ce4f4492»"
@@ -542,7 +542,7 @@
           "docs/specs/reconstruction-p0-contracts.md:980 «41c804768114d783»",
           "src/engine/notification/sound-player.ts:263 «c0b960fab010eb1e»",
           "src/engine/notification/sound-player.ts:427 «f04f1d2d9fdf5f45»",
-          "reconstruction/src/units/eew/eew-unit.ts:59 «4d8ac35f1f81c48e»",
+          "reconstruction/src/units/eew/eew-unit.ts:55 «4d8ac35f1f81c48e»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:106 «8923bbfaa3fca12b»"
         ]
       },

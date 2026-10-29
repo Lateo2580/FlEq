@@ -5,7 +5,7 @@ import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTim
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { finite } from "../codec-base";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
@@ -313,7 +313,6 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
 function object(value: unknown): Record<string, unknown> | null {
   return value != null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
-function finite(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
 function index(value: unknown, length: number): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) < length;
 }

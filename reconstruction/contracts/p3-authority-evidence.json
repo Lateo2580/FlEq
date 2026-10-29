@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4e8e3ab8b58b7cbf8fe7c653767d6633cb51fe2",
-    "sha256": "f375cfa5418bf9d076dd0326595a8b45ed8ffd5ed2d9832fd0e8cb31b9307c63",
+    "sha256": "9bacfa77cadd422bdbf95dd97b6cf019fbf406b3432f970fb80579e4f03bb2c8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -254,8 +254,8 @@
         "id": "P3-AUTH-AC01",
         "requirement": "U-Nの受理の証拠（作者裁定D-EVIDENCE=A）: (1) encodeは情報系列の各記録から証拠 {subject, reportDateTimeMs, serialRaw, infoTypeRaw}（版の比較に要るものだけ。subjectからoperation・family・EventIDが決まる）を作ってpayload.evidenceに書く。記録ごとのcacheを使い、受信のたびに作らない。(2) decodeは証拠を確かめて（64件以下・subjectの重複なし・subjectが`${operation}/${family}/${eventId}`の形でfamilyとEventIDがQ-ENUM.identity・reportDateTimeMsが安全な整数・validSerial・InfoTypeの語彙）、事実を持たない「証拠だけ」の情報subject（view・outcome・表示の変化に出ない。retainUntil＝reportDateTimeMs＋7日）としてinformationへ戻す。型はNankaiInformationに変種を足し、事実を持つ記録と型で区別する（sourceを持たないので、ReportRefを作り話で埋めない）。(3) 版の比較（P3-ORDER-AC01の順）は証拠の版でも同じ規則で、証拠より古い報はstale。同じ版はexpiredと同じく事実を比べずduplicate（WARNなし）。Q-C8-IMPL-AMEND(3)の「同じ報の情報subjectに新しい取消・訂正があれば現況へ当てない」は証拠でも効く（F03の閉鎖）。(4) Q-NOTICE.restartの「情報subjectが無いとき」は「無いか証拠だけのとき」と読む（復元した現況のsourceと同じ報の続報は、証拠があっても復元した現況との差で通知を決める）。(5) 情報系列の変化（採用・期限の回収・退去）は証拠が変わるので保存世代を進める（Q-C8-IMPL-AMEND(5)とI-U-N.persistedの「保存しない情報系列だけの変化では進めない」を上書き。P3-X-C3: 証拠の射影が同じなら進めない）。退去・期限の順と件数（64、P3-C8-CAPACITY=A）は変えず、証拠だけの記録も同じ順で退去・回収する（表示の変化・診断は事実を持つ記録と同じに数え、証拠だけの記録の退去は表示を変えない）。(6) 死んだfieldの除去: judgeのVerdict.order（:306の型・:309・:315）は書くだけで読まれない（K1の品質レビュー）ので消す。（P3-UNIT-N-SERIES-001 で改訂: 証拠は P3-NS-AC01 の全文の記録に置き換えた。(1)(2) は読まない。(3) の同じ版の duplicate は記憶の記録で続き、(4) は P3-NS-AC01 の (3) の形〔現況と情報の見える形の差〕で読む）",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:869 «2f8337cdc2b62e0e»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:873 «2af127c6233ef534»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:854 «2f8337cdc2b62e0e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:858 «2af127c6233ef534»",
           "reconstruction/src/units/nankai/nankai-unit.ts:647 «3bc7116a55c7febb»",
           "reconstruction/src/units/nankai/nankai-unit.ts:361 «df2f67d5a94d5fc7»",
           "reconstruction/src/units/nankai/nankai-unit.ts:362 «3341be4f50c52f0e»",
@@ -276,7 +276,7 @@
         "requirement": "F03の閉鎖（監査の入力をそのまま回帰試験にする）: 74_01_04_200512_VYSE50のInfoTypeを取消・ReportDateTimeを2020-05-12T16:38:00+09:00にした報を空のU-Nに時計tで受け、同じfixtureのReportDateTimeをt−60秒にした元報を時計t＋1秒で受ける。復元なしでも、取消の後のstateをencode→JSON→decode→restore（owner-runtimeと同じく保存世代を引き継ぐ）で戻した後でも、元報はunchanged/stale×2（現況と情報subject）で、currentsは空、pendingは0、stateは同じ参照。取消の受理で保存世代が1つ進む（修正前は0で保存されなかった）。版の証拠も同じ形で確かめる: 現況に効かない報で組む: selected_xmlの75_01_04_200512_VYSE52（定例の解説、Code 200、現況に効かない）のSerialを2にした報を2020-05-12T16:44:00+09:00の時計で受け、encode→JSON→decode→restoreで戻した後に、Serialを1にした同じ時刻の報がunchanged/stale・intent 0、Serial 2の再送がunchanged/duplicate・intent 0。直す前のコードでは復元で情報subjectが消え現況のwatermarkも無いので、どちらもchanged/semantic・intent 2になって落ちる（起草時に両方のdistで確かめた。74_01_04はCode 120で現況に効き、直す前から復元した現況のwatermarkでstale・duplicateになるので、この確かめには使えない）。修正前の観測（information 1→0、after changed/semantic×2・current active・pending 2）の反転を正式試験で示し、未追跡の監査scriptに依存しない。owner経路（nankai-runtime.test.ts）でも、取消の後のcheckpointから復元したownerに元報を入れてU-Nが変わらないことを1つ確かめる。",
         "evidenceRefs": [
           "reconstruction/src/units/nankai/nankai-unit.ts:647 «3bc7116a55c7febb»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:873 «2af127c6233ef534»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:858 «2af127c6233ef534»",
           "reconstruction/src/units/nankai/nankai-unit.ts:454 «0c87c2fb6852a37e»",
           "reconstruction/contracts/p3-revision-order.json:289 «b66f864b1e4ea519»"
         ]
@@ -322,19 +322,19 @@
           "reconstruction/contracts/p2-weather-current-unit.json:107 «691ff9a99b9e39bb»",
           "reconstruction/contracts/p2-weather-current-unit.json:399 «ff60a1af78555949»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:271 «d097cf9646910f05»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:221 «6e338ce1d4016944»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:217 «6e338ce1d4016944»"
         ]
       },
       {
         "id": "P3-AUTH-AC06",
         "requirement": "保存の形・上界・移行（永続schemaの変更は旧データの移行と復元試験の1セット、P3-X-C4）: (1) 新しい鍵を足し、encodeは常に新しい鍵を書く。版と旧保存はP3-VERSION-MATERIAL-001のAC05・AC08で置き換えた（P3-VM-AC09(6)により統合担当が改訂）: schemaVersionはp3-nankai-unit-v3・p3-volcano-unit-v3で、旧い版は捨ててよい版として初期化し、鍵の無いpayload（U-Nのevidence、U-Vの警報のlandEventId・marineEventIdの鍵が無い形）はinvalid。(2) 移行A1は消した（旧保存を読まない）。(3) 上界: U-NはRES-01（証拠64件の上界12,045 byteを足して273,259、上限294,912）（P3-UNIT-N-SERIES-001 で情報系列を全文で保存し、上限は 2,621,440 byte、P3-NS-RES-01）、U-VはRES-02（4,774,476、上限5 MiBのまま）。K7の発注2aの後はU-N 280,060・U-V 5,180,592（Q-VM-IMPL-2A）。K5の方式（decoderの許す範囲をJSONエスケープ後のUTF-8 byteで数え、envelope・配送の予約を足す）で、試験は新しいfieldをdecoderの許す最長（EventID 64字）で埋めた状態でencode→decodeがrestoredかつ上界以内であることを確かめる。U-Wは形を変えないので上界と移行は無い。(4) codec・stateの外へ新しいcache・帳簿を足さない（記録ごとのbyte cacheと証拠の射影のcacheだけ）。（今の器は U-N 3,139,385・U-V 9,178,967 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:848 «00a726d0e7e3b6c3»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:833 «00a726d0e7e3b6c3»",
           "reconstruction/src/units/nankai/nankai-unit.ts:77 «b4c21dc55c5ac2eb»",
           "reconstruction/src/units/nankai/nankai-unit.ts:33 «5799687c870a8850»",
           "reconstruction/src/units/nankai/nankai-unit.ts:27 «849d86138314169a»",
           "reconstruction/contracts/p3-nankai-unit.types.ts:123 «6354aa850ef74bba»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1510 «5f59bc69aea62f5e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1494 «5f59bc69aea62f5e»",
           "reconstruction/src/units/volcano/volcano-unit.ts:33 «925e45d3b9f4d9e1»",
           "reconstruction/src/checkpoint/checkpoint.ts:462 «b6fdb65e4e225b7d»",
           "reconstruction/src/runtime/owner-runtime.ts:410 «890b0a8cddc63328»",

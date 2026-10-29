@@ -12,7 +12,7 @@ import type {
 } from "../../../contracts/p3-nankai-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { nextMark, readReportRef, stepVersion } from "../../contracts-revision/version";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { bounded, finite, isText, list, operationOf, record } from "../codec-base";
 import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, cut, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
 import {
@@ -720,22 +720,7 @@ function toNankaiView(state: NankaiUnitState): NankaiUnitView {
 // ---- codec（I-U-N.persisted・I-U-N.decode、唯一の NankaiUnitCodec） ----
 
 type Fields = Readonly<Record<string, unknown>>;
-function record(value: unknown): Fields | null {
-  return value != null && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
-}
-const isText = (value: unknown): value is string => typeof value === "string";
-const bounded = (value: unknown, limit: number): value is string => isText(value) && value.length <= limit;
 const boundedOrNull = (value: unknown, limit: number): value is string | null => value === null || bounded(value, limit);
-const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-function operationOf(value: unknown): Operation | null {
-  return value === "normal" || value === "training" || value === "test" ? value : null;
-}
-function list<T>(value: unknown, item: (entry: unknown) => T | null): T[] | null {
-  if (!Array.isArray(value)) return null;
-  const result: T[] = [];
-  for (const entry of value) { const parsed = item(entry); if (parsed == null) return null; result.push(parsed); }
-  return result;
-}
 const familyOf = (value: unknown): NankaiReportFamily | null => FAMILIES.find((item) => item === value) ?? null;
 const lineOf = (value: unknown): NankaiCurrentLine | null => LINES.find((item) => item === value) ?? null;
 // subject は現況（`${operation}/${line}/current`）か情報（`${operation}/${family}/${eventId}`、Q-ENUM.identity の EventID）。

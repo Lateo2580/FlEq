@@ -13,7 +13,7 @@ import type {
 } from "../../../contracts/p3-tsunami-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareVersion, controlDateTimeOf, nextMark, readReportRef, stepVersion } from "../../contracts-revision/version";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { finite, isText as text, list, operationOf, record } from "../codec-base";
 import { AREA_RANK, INFO_RANK, KIND_CLASS, parseTsunami, sameStation } from "../../domains/tsunami/tsunami";
 import type { ForecastCandidate, ObservationCandidate } from "../../domains/tsunami/tsunami";
 import {
@@ -1019,16 +1019,8 @@ function recoveryNotices(open: TsunamiUnitState, candidate: TsunamiUnitState, re
 // ---- codec（I-U-T.persisted・I-U-T.decode、唯一の TsunamiUnitCodec） ----
 
 type Fields = Readonly<Record<string, unknown>>;
-function record(value: unknown): Fields | null {
-  return value != null && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
-}
-const text = (value: unknown): value is string => typeof value === "string";
 const textOrNull = (value: unknown): value is string | null => value === null || typeof value === "string";
-const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 const finiteOrNull = (value: unknown): value is number | null => value === null || finite(value);
-function operationOf(value: unknown): Operation | null {
-  return value === "normal" || value === "training" || value === "test" ? value : null;
-}
 function reportRef(value: unknown): ReportRef | null {
   const ref = readReportRef(value);
   return ref == null || !Number.isFinite(Date.parse(ref.reportDateTimeRaw)) || !INFO_RANK.has(ref.infoTypeRaw.trim()) ? null : ref;
@@ -1068,12 +1060,6 @@ function unkeyedArea(value: unknown): TsunamiUnkeyedArea | null {
   const row = record(value);
   return row != null && text(row.name) && text(row.kindCode) && text(row.kindName)
     ? { name: row.name, kindCode: row.kindCode, kindName: row.kindName } : null;
-}
-function list<T>(value: unknown, item: (entry: unknown) => T | null): T[] | null {
-  if (!Array.isArray(value)) return null;
-  const result: T[] = [];
-  for (const entry of value) { const parsed = item(entry); if (parsed == null) return null; result.push(parsed); }
-  return result;
 }
 function unique(values: readonly string[]): boolean {
   return new Set(values).size === values.length;

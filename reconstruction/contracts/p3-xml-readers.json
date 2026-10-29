@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6b5714cdbce5c08845e905ff4fd66c90b53cb058",
-    "sha256": "8efe79fee762937f6b6a2f189463fd08bc04ad5787ba8a26d54157da90b55ef2",
+    "sha256": "d82f1e36334bb8d6e02af9a7100bb1d3d1fe530024349c0af155a531227d5638",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -160,6 +160,14 @@
         "closed": "(1) decisionBranchesに起草案・作者の承認待ちは0件（4つは2026-10-30朝の作者の裁定でA、Q-XR-AUTHOR）。裁定は推奨どおりなのでallowedPaths・AC01・AC02・publicFunctionsは直さない (2) 6b5714cd..152ba7fbで変わったreconstruction/srcのfileはdomains/weather-current/weather-current.ts（D-EXACT=Aで本契約は触らない）・recovery/recovery.ts・runtime/composition-root.tsの3つだけで、寄せる写しのあるfileは変わっていない。Q-XR-CODE-READの写しの一覧は起草の版のまま (3) 変わった契約はp3-order-plan.md・p3-recovery.json・本契約。p3-recovery.jsonの差分は寄せる写しのあるfileの行をanchor付きで新しく引かない。Q-XR-ANCHOR-COUNT(1)の160件・19契約は変わらない。anchorの無い本文の参照（(7)）はp3-recovery.jsonのunits/nankai/nankai-unit.ts:919（写しの最初の行:723より後）とunits/weather-current/weather-current-unit.ts:447（:148より後）の2件が増えた（付け直さない、AC04） (4) 並べる順: 計画p3-order-plan.md:486の「3の後」は段3（K7〜K10）が配送済み（p3-recovery.jsonのQ-REC-STAGE3）、§9の「C14の後・C22の前」はC14が配送済み（2026-10-13）でC22は未起草 (5) C16（P3-RECOVERY-001）は閉じた（main ba54dc87、P3-C16-CLOSE-*）ので、同じunitのfileを変える発注との同時走行は無い",
         "remaining": "なし（baseOidは本点検のcommitに割り当てる）",
         "reason": "unresolvedQuestionsから移した"
+      },
+      {
+        "id": "Q-XR-IMPL",
+        "status": "closed（2026-10-30 朝の配送）",
+        "source": "実装（子、Sonnet、baseOid ac9f9eb4）・契約適合レビュー（Opus、GO）・品質レビュー（Opus、GO）・Mac miniのゲート（xr-r0）・統合担当の直しと付け直し",
+        "closed": "(1) 実装: xml-read.ts（XMLの読み取り関数8つ）とcodec-base.ts（codecの基本形7つ）を作り、domainsの10 fileとunits/unreadable.ts、unitsの12 fileから写しを消した（xml-read側47件・codec-base側53件）。eew.tsとweather-current.tsは変えていない (2) AC03: telegramXmlの292本を1本ずつと1列で流し、baseのdistとOwnerStep・unitのstep・encodeのJSON文字列・decodeの1168欄を比べて差0、正の対照0、負の対照（scalarのtrimを外した写し）4件でexit 1 (3) レビュー: 契約適合・品質ともGO（P1・P2なし）。品質のP3のうち、domainsの9 fileの使わないXmlNodeのimport、flood-unit・landslide-unitの使わないtype Fields、typhoon・local-bulletinsの古いコメント（AC13）を統合担当が直し、xml-read.tsのleafValuesのコメントに出典P3-C7-VALUE-UNKNOWN=Aを戻した。tsunami.tsの attribute(node!, …) の非null断言は呼ぶ側の行を変えない方針（D-ANCHOR）で残した (4) ゲート: Mac miniで直しの前のpatchにchecker・tsc 3本・vitestの通常順とshuffle・旧築のbuild・test・typecheck:testを当て、check-contract（AC04のずれ19契約）以外はrc=0。直しの後のpatchは配送の前に同じゲートを当て直した (5) AC04: anchor付きの参照のうち行がずれた159件を同じanchorの行へ、消えた1件（p3-weather-shape.jsonのtyphoon-unit.ts:669、listの行）をcodec-base.tsの同じ中身の行へ付け替えた。合わせて160件・19契約でQ-XR-ANCHOR-COUNT(1)と一致。付け直しは行番号とその1件のpathだけで、契約のpathとanchorの組の集合は変わらない。anchorの無い本文の参照は付け直していない",
+        "remaining": "残存リスク(1)の追記: 変更の前の版で前後に空白のある属性（地震のMagnitudeのtypeなど）を保存したまま更新し、同じ版の報が再送されると、trimした値と比べてduplicateにならず版の食い違い（held）として扱われる（契約適合レビューのP3。corpusでは0件、新築は未稼働）",
+        "reason": "配送の記録"
       }
     ],
     "operationContract": {
@@ -319,7 +327,7 @@
           "reconstruction/contracts/p3-order-plan.md:343 «fcdbac0d6b05a375»",
           "reconstruction/contracts/p3-seismic-unit.json:158 «49948ce2b568bdaa»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:45 «d93be56d8b2d46c5»",
-          "reconstruction/src/domains/tsunami/tsunami.ts:68 «c4266f3b73660b5b»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:56 «c4266f3b73660b5b»",
           "reconstruction/src/domains/eew/eew.ts:74 «b7e2a3b5fe9d2ba8»",
           "reconstruction/src/domains/weather-current/weather-current.ts:64 «b7e2a3b5fe9d2ba8»",
           "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:114 «a0627af19ee7fd16»",

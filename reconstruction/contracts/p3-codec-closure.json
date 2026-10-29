@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1be76f18ff4d20dcc9dc2e19f8c8499b0f2b11bc",
-    "sha256": "afcfdec727984211567f4859c1ca198bec34a6d801062d22ddb6d1e66e5f417c",
+    "sha256": "6efe7c5602f0dba732f055376ebdf6e3672b8a60cbacfe40a13e14433a6e75db",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -249,7 +249,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-nankai-unit.json:199 «03304c3de6d7ff60»",
           "reconstruction/src/units/nankai/nankai-unit.ts:245 «3b04b00a449c0acf»",
-          "reconstruction/src/domains/nankai/nankai.ts:60 «d8c08b2391f4edd9»"
+          "reconstruction/src/domains/nankai/nankai.ts:42 «d8c08b2391f4edd9»"
         ]
       },
       {

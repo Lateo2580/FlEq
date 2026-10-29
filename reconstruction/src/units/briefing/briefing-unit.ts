@@ -11,7 +11,7 @@ import type {
 } from "../../../contracts/p3-briefing-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { bounded, count, finite, isText, list, operationOf, record } from "../codec-base";
 import { BOUNDS, LIMITS, kindOf, parseBriefing, validCode, validHeadline, validSeries, validUnit } from "../../domains/briefing/briefing";
 import type { BriefingCandidate } from "../../domains/briefing/briefing";
 import { cut, infoRankOf, validEventId, validName, validReportDateTime, validSerial, validTime, validValue } from "../../domains/flood/flood";
@@ -733,23 +733,7 @@ function toBriefingView(state: BriefingUnitState): BriefingUnitView {
 // ---- codec（I-U-B.persisted・I-U-B.decode、唯一の BriefingUnitCodec。受理と同じ上限を確かめる） ----
 
 type Fields = Readonly<Record<string, unknown>>;
-function record(value: unknown): Fields | null {
-  return value != null && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
-}
-const isText = (value: unknown): value is string => typeof value === "string";
-const bounded = (value: unknown, limit: number): value is string => isText(value) && value.length <= limit;
 const boundedName = (value: unknown, limit: number): value is string => bounded(value, limit) && validName(value);
-const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-const count = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
-function operationOf(value: unknown): Operation | null {
-  return value === "normal" || value === "training" || value === "test" ? value : null;
-}
-function list<T>(value: unknown, item: (entry: unknown) => T | null, limit = Infinity): T[] | null {
-  if (!Array.isArray(value) || value.length > limit) return null;
-  const result: T[] = [];
-  for (const entry of value) { const parsed = item(entry); if (parsed == null) return null; result.push(parsed); }
-  return result;
-}
 // I-U-B.subjects の形（`${operation}/${headType}/${series}`、Q-ENUM.identity の文字と長さ）。
 function subjectParts(subject: string): Readonly<{ operation: Operation; headType: "VPBS50" | "VPOA50"; series: string }> | null {
   const match = /^(normal|training|test)\/(VPBS50|VPOA50)\/([\s\S]*)$/.exec(subject);

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "539ddcf57ca5aa75574de13e159770903fb6d019b914ffb79e8c344e0f148af0",
+    "sha256": "7c967bd476df582ec629e488d6569eac828ae9e4e0e51c90209c956e6ee79e61",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -1127,7 +1127,7 @@
           "reconstruction/src/units/tsunami/tsunami-unit.ts:897 «5abc25c7338068a1»",
           "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
           "reconstruction/contracts/p3-order-plan.md:451 «15b50525f89de42e»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:537 «a0620acc2fe096fd»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:533 «a0620acc2fe096fd»"
         ]
       },
       {

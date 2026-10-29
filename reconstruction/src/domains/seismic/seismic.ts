@@ -1,10 +1,10 @@
-import type { DecodedMaterial, MaterialValue, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, MaterialValue, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
   EarthquakeContribution, EarthquakeFamily, SeismicHypocenter, SeismicIntensityItem, SeismicIntensityObservation,
   SeismicIntensityValue, SeismicTsunamiComment, SeismicUnreadableSite,
 } from "../../../contracts/p3-seismic-unit.types";
-import { classifyMaterial } from "../../decode-material/decode-material";
+import { attribute, blank, children, first, leafValues, localName, scalar, text } from "../../decode-material/xml-read";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, jsonText } from "../../contracts-revision/version";
 import { unreadableNotes } from "../../units/unreadable";
 
@@ -65,42 +65,9 @@ function validSerial(value: string): boolean {
 }
 const validReportTime = (value: string): boolean => jsonText(value, REPORT_TIME_LIMIT);
 
-// ---- XML の読み取り（domains/tsunami と同じ写し。共有化は統合担当が決める、AC13） ----
+// ---- XML の読み取り（decode-material/xml-read.ts に集約、P3-XML-READERS-001） ----
 
 type Values = ReadonlyMap<XmlElement, MaterialValue>;
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function first(parent: XmlElement | null, name: string): XmlElement | null {
-  return children(parent, name)[0] ?? null;
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
-function text(parent: XmlElement | null, name: string): string | null {
-  const node = first(parent, name);
-  return node == null ? null : scalar(node);
-}
-function attribute(node: XmlElement, name: string): string | null {
-  return node.attributes.find((item) => item.name === name)?.value ?? null;
-}
-const blank = (value: string | null): string | null => value == null || value === "" ? null : value;
-
-// classifyMaterial と同じ順の葉に MaterialValue を対応させる（値は P1 のまま書き換えない、P3-C7-VALUE-UNKNOWN=A）。
-function leafValues(material: DecodedMaterial): Values {
-  const leaves: XmlElement[] = [];
-  const visit = (node: XmlElement): void => {
-    const nested = children(node);
-    if (nested.length === 0) leaves.push(node);
-    else nested.forEach(visit);
-  };
-  visit(material.xml);
-  const values = classifyMaterial(material).materialValues;
-  return new Map(leaves.map((leaf, index) => [leaf, values[index]]));
-}
 
 class Rejected extends Error {
   constructor(readonly reason: RejectionReason) { super(reason); }

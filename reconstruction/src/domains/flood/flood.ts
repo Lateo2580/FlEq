@@ -1,8 +1,8 @@
-import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type { FloodCriteria, FloodKindGroup, FloodRiver, FloodStation, FloodUnreadableSite } from "../../../contracts/p3-flood-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
-import { unreadableNotes } from "../../units/unreadable";
+import { unreadableNotes } from "../../units/unreadable"; import { attribute, children, localName, scalar } from "../../decode-material/xml-read";
 
 // P3-UNIT-R-001 の adapter: VXKO50〜89・VXSU50〜59 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
 
@@ -43,18 +43,8 @@ const levelOf = (code: string): FloodKindGroup["level"] => LEVELS.get(code) ?? n
 const POINT_LEVELS = [0, 1, 2, 3, 4, 5] as const;
 const pointLevel = (raw: string): FloodStation["levels"][number] => POINT_LEVELS.find((level) => String(level) === raw) ?? null;
 
-// ---- XML の読み取り（domains/landslide と同じ写し。共有化は統合担当が決める、AC12） ----
+// ---- XML の読み取り（decode-material/xml-read.ts に集約、P3-XML-READERS-001） ----
 
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
-const attribute = (node: XmlElement, name: string): string | null => node.attributes.find((item) => item.name === name)?.value.trim() ?? null;
 // 切り詰めでサロゲートの対を割らない（割ると孤立したサロゲートを decode が拒み、U-R 全体の復元が落ちる）。
 function cut(value: string, limit: number): string {
   if (value.length <= limit) return value;

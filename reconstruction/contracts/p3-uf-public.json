@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "f190f3679724f358aa77e479b4c8bb5c1320e9faaa83cd988a9c89c4ada2d3d0",
+    "sha256": "5727ffd85a2207478d8793c37e75866be64bd05da609ae654f9c516d348b97c7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -366,9 +366,9 @@
         "id": "P3-UFP-AC01",
         "requirement": "公開形式（Q-UFP-SHAPE・Q-UFP-PATHS）: U-Fのownerからpublisherへ出る値のうちviewとdisplayChangesを公開形式に限る。(1) toWeatherTimeseriesViewのseriesの要素をWeatherTimeseriesPublicSubjectにする（WeatherTimeseriesUnitView.seriesの型を変える。semanticRevision・contentRevision・admission・subjectsは今のまま）(2) reduceWeatherTimeseriesUnitのdisplayChanges、normalDisplaySubjects（P3-CURRENCY-COVERAGE-001で除いた）、restoreのdisplayChangesのRuntimeDisplaySubjectのcurrentを同じ公開形式にする（RuntimeDisplaySubjectのU-Fのcurrentの型を変える）。同じsubjectのobjectからは同じ公開形式のobjectを返す（WeakMap。無いと: viewを作り直すたびに全subjectのperiodを走査し直す）(3) 公開形式の欄はQ-UFP-SHAPEのものだけ。effective=activeのsubjectでは、areaCodesは全periodの区域Code（空文字を除く）の集合、knownCodesはSignificancyのperiodのうちName・Codeがmissing・emptyでなくCodeがtextでQ-VALUES.knownCodesに入るもののCodeの集合、unknownCodeはSignificancyのperiodをP2-A8-SUMMARY.unknownの規則（missing→empty→unknown、既知の表に無いCodeはunknown）で数えた件数。activeでないsubjectはareaCodes・knownCodesを空、unknownCodeを全部0にする（P2-A8-SUMMARYはactiveだけを数える）。periodCountはperiodsの長さ、lastKnownPeriodCountはlastKnownのperiodsの長さ（lastKnownが無ければnull）、idとrevisionはQ-UFP-REVISION、officeはsubjectのoperation/VPWP50/の後の文字列全体（今のRuntimeDisplaySubject.officeと同じ）(4) outcomes・confirmationEvidence・pendingIntents・diagnosticsは変えない",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:563 «f15f687b3b579095»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:558 «c0bebdd928e5447c»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:485 «7c6629abf6687429»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:562 «f15f687b3b579095»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:557 «c0bebdd928e5447c»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:484 «7c6629abf6687429»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:93 «c16260c56aed133b»",
           "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:146 «f79e08d469fb2238»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:215 «22fdd95c5ad1b6ab»",
@@ -401,9 +401,9 @@
           "reconstruction/contracts/p2-weather-timeseries-unit.json:206 «f9c69abb104ab19a»",
           "reconstruction/src/decode-material/decode-material.ts:26 «ac5797a85aaedf39»",
           "reconstruction/src/runtime/owner-runtime.ts:108 «2b9e3cf835889edf»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:346 «67874315c95a7f0f»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:345 «67874315c95a7f0f»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:32 «c1abbbb4993dfe08»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:561 «6f5c686600311853»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:560 «6f5c686600311853»",
           "reconstruction/contracts/p2-snapshot-sse.json:99 «6f7a0d72bfa4c6d2»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
@@ -440,7 +440,7 @@
         "evidenceRefs": [
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:157 «847ff8144f4d8bac»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:262 «f058e3a180f89e0c»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:592 «a486380631b6e9d0»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:591 «a486380631b6e9d0»",
           "reconstruction/src/view-projector/view-projector.ts:761 «25d8f1daebd55d26»",
           "reconstruction/src/runtime/composition-root.ts:587 «445a2eeb56638c45»",
           "reconstruction/contracts/p2-snapshot-sse.json:87 «5272dd4ae4de33c9»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "b9cbbc1d743bc9f28bff60445a1302652094df9483a16c7dd06bd32bc04ab553",
+    "sha256": "351c5bc1159ba9951573f6ab7fff1d2fabcc4d7c40c1e343435383ec09acbcd2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -615,9 +615,9 @@
           "reconstruction/contracts/p3-persist-premises.md:477 «8e3f74c072aa9abf»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:648 «373d08a5ead2dba4»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:657 «5e2f707521600608»",
-          "reconstruction/src/domains/tsunami/tsunami.ts:241 «5cfd2282665cdb60»",
-          "reconstruction/src/domains/seismic/seismic.ts:259 «eff97ba994e8fd97»",
-          "reconstruction/src/domains/nankai/nankai.ts:152 «1361e44ec328c280»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:215 «5cfd2282665cdb60»",
+          "reconstruction/src/domains/seismic/seismic.ts:226 «eff97ba994e8fd97»",
+          "reconstruction/src/domains/nankai/nankai.ts:134 «1361e44ec328c280»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:498 «3f2690b71e67d7d4»"
         ]
       },
@@ -627,9 +627,9 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3206 «ffbdbd33020c1047»",
           "reconstruction/src/runtime/runtime-diagnostic.ts:14 «14ec8ab79c8ea262»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:314 «36103f586c529735»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:297 «36103f586c529735»",
           "reconstruction/contracts/p3-weather-shape.json:57 «739d09d61c9ff3b0»",
-          "reconstruction/src/domains/tsunami/tsunami.ts:241 «5cfd2282665cdb60»"
+          "reconstruction/src/domains/tsunami/tsunami.ts:215 «5cfd2282665cdb60»"
         ]
       },
       {
@@ -655,9 +655,9 @@
           "reconstruction/src/units/landslide/landslide-unit.ts:138 «bbb08c4757751e03»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:479 «794a7a625a173a1c»",
           "reconstruction/src/units/notice-mark.ts:29 «1db3690dcdbad86b»",
-          "reconstruction/src/domains/tsunami/tsunami.ts:294 «0916385f8744bf2b»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:268 «0916385f8744bf2b»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:523 «aefd1b4fa7b5aaf3»",
-          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:295 «08d42274fd8e8bd6»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:284 «08d42274fd8e8bd6»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:172 «00bb6c08dd35ca4a»"
         ]
       },
@@ -668,8 +668,8 @@
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
           "reconstruction/src/units/flood/flood-unit.ts:204 «c12df257153e5be7»",
           "reconstruction/src/units/flood/flood-unit.ts:221 «d0ad64d52d99a014»",
-          "reconstruction/src/domains/flood/flood.ts:210 «50cc74007748fbea»",
-          "reconstruction/src/domains/flood/flood.ts:293 «71688b19a0252b64»"
+          "reconstruction/src/domains/flood/flood.ts:200 «50cc74007748fbea»",
+          "reconstruction/src/domains/flood/flood.ts:283 «71688b19a0252b64»"
         ]
       },
       {
@@ -677,7 +677,7 @@
         "requirement": "【発注 2】K10 の残存リスク (c) を消す（竜巻で区域が全部読めない報、作者裁定 ②、本文の文面は 2026-10-26 夕の作者裁定 B）。場面: 15:00 に竜巻注意情報が届き、Body の区域が全部読めない（local-bulletins.ts の area の warn）。今は区域が空・truncated の発表中で出て、通知の本文は地域の数（「発表中 53地域」）だけで、読めなかったことが分からない。直した後は、本文に名前を読めなかった区域の数が添えられ（「発表中 53地域（うち 53 地域は名前を読めず）」）、記録の印（site area）が view に渡る（画面の併記は P4）。(1) 竜巻の通知の本文は地域の数で出て空欄が無いので、数の後ろに名前を読めなかった区域の数を添える（作者裁定 2026-10-26 夕の B）: 「発表中 N地域（うち M 地域は名前を読めず）」。N は読めない区域も数えた地域の数、M はそのうち名前を読めなかった数（数える層は今どおり最も細かい層）。全部読めない報も一部だけ読めない報も同じ形（例「発表中 24地域（うち 24 地域は名前を読めず）」）。数える層が無く区域の印だけがある報は「発表中 （区域を読めず）」。読めない区域の無い報の本文は今と同じ。印は view に渡る (2) 気象庁の「不明」（電文の文言）と区別するため、文字は「（読めず）」に固定する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
-          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:213 «506ae7a3110895f8»"
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:202 «506ae7a3110895f8»"
         ]
       },
       {
@@ -685,9 +685,9 @@
         "requirement": "【発注 2】K10 の残存リスク (d) を消す（U-R・U-L の種別の名前と U-R の河川名、作者裁定 ②）。場面: 08:00 に指定河川洪水予報が届き、河川の名前と種別の名前が読めない（flood.ts の名前の warn）。今は空の名前のまま通知の本文に出る（例「 氾濫警戒情報」）。直した後は「（読めず） 氾濫警戒情報」のように空欄に「（読めず）」が入る。U-L の種別の名前（landslide.ts の kindName）も同じ。(1) 通知の題と本文を作る所で、印に part のある名前の欄が空なら「（読めず）」を入れる。対象は U-R の areaName・kind の名前・河川の名前、U-L の kinds の要素の name、U-V の volcanoName・kind の name、U-B の editorialOffice、U-M の editorialOffice（本文に出る所だけ）。U-R の areaName（36 時間続報の無いときの本文は、空なら今どおり「この洪水予報」）と U-B・U-M の editorialOffice は今の通知の本文に出ないので入れる所が無い（印は view に渡る）。U-V の VFVO53 の batch の通知（1 件の単発の形と 2 件以上の「{件数}火山: …」）でも、読めなかった火山名は「（読めず）」 (2) 記録の値は空のまま（「（読めず）」を保存しない。view と P4 は印で見分ける）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
-          "reconstruction/src/domains/flood/flood.ts:120 «8231727d6a0c49e4»",
-          "reconstruction/src/domains/landslide/landslide.ts:161 «a3edebd0230ebb70»",
-          "reconstruction/src/domains/volcano/volcano.ts:451 «b847227ef921d224»"
+          "reconstruction/src/domains/flood/flood.ts:110 «8231727d6a0c49e4»",
+          "reconstruction/src/domains/landslide/landslide.ts:152 «a3edebd0230ebb70»",
+          "reconstruction/src/domains/volcano/volcano.ts:419 «b847227ef921d224»"
         ]
       },
       {
@@ -695,7 +695,7 @@
         "requirement": "【発注 2】K10 の残存リスク (e) を消す（U-R の TimeDefine が途中で読めない、作者裁定 ③）。場面: 12:00 の指定河川洪水予報で 3 つ目の時刻の TimeDefine が読めない。今はそこから後の予測が出ないまま、読めなかったことが記録に残らない。直した後は、記録の印（site series、scope は読めなかった最初の時刻の位置）と欠片が付き、view に渡る。空欄の無い所なので通知の本文は変えない（作者裁定 ② は空欄の所だけ。見せ方は P4）。予測値を現況の位置へ動かさない今の読み（K10 r2）は変えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-expiry-form.json:214 «0049290f84cd2013»",
-          "reconstruction/src/domains/flood/flood.ts:210 «50cc74007748fbea»"
+          "reconstruction/src/domains/flood/flood.ts:200 «50cc74007748fbea»"
         ]
       },
       {
@@ -767,8 +767,8 @@
           "reconstruction/contracts/p3-order-plan.md:523 «e4148df1461afe08»",
           "reconstruction/contracts/p3-weather-shape.json:65 «f5ebedddc9238b3a»",
           "reconstruction/contracts/p3-weather-shape.json:105 «12afd951c8c16324»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:208 «ab68efdc30d82239»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:438 «cb128c982c98f1b1»"
+          "reconstruction/src/domains/typhoon/typhoon.ts:197 «ab68efdc30d82239»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:427 «cb128c982c98f1b1»"
         ]
       },
       {
@@ -778,7 +778,7 @@
           "reconstruction/contracts/p3-order-plan.md:514 «e204d84283a8f0ea»",
           "reconstruction/contracts/p3-weather-shape.json:57 «739d09d61c9ff3b0»",
           "reconstruction/contracts/p3-weather-shape.json:11 «24a3f9f6a1ed2d9e»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:314 «36103f586c529735»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:297 «36103f586c529735»",
           "docs/specs/reconstruction-p0-contracts.md:3198 «ffd9f937e6ba47d1»"
         ]
       },

@@ -14,7 +14,7 @@ import type {
 } from "../../../contracts/p3-seismic-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, compareVersion, readReportRef, stepVersion } from "../../contracts-revision/version";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { finite, isText, list, operationOf, record } from "../codec-base";
 import {
   EARTHQUAKE_FAMILIES, EVENT_ID_LIMIT, INFO_RANK, REPORT_TIME_LIMIT, SERIAL_DIGITS, STAGE_LABEL, knownStage, lgRank, parseSeismic, safetyRank,
   validEventId, validReportTime, validSerial,
@@ -1331,21 +1331,7 @@ function toSeismicView(state: SeismicUnitState): SeismicUnitView {
 // ---- codec（I-U-Q.persisted・I-U-Q.decode、唯一の SeismicUnitCodec） ----
 
 type Fields = Readonly<Record<string, unknown>>;
-function record(value: unknown): Fields | null {
-  return value != null && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
-}
-const isText = (value: unknown): value is string => typeof value === "string";
 const textOrNull = (value: unknown): value is string | null => value === null || typeof value === "string";
-const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-function operationOf(value: unknown): Operation | null {
-  return value === "normal" || value === "training" || value === "test" ? value : null;
-}
-function list<T>(value: unknown, item: (entry: unknown) => T | null): T[] | null {
-  if (!Array.isArray(value)) return null;
-  const result: T[] = [];
-  for (const entry of value) { const parsed = item(entry); if (parsed == null) return null; result.push(parsed); }
-  return result;
-}
 const unique = (values: readonly string[]): boolean => new Set(values).size === values.length;
 const familyOf = (value: unknown): EarthquakeFamily | null => EARTHQUAKE_FAMILIES.find((item) => item === value) ?? null;
 // subject は `${operation}/${family}/${eventId}`（Q-ENUM.identity の EventID）。

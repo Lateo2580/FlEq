@@ -34,7 +34,7 @@ import {
   validateWeatherCandidate,
 } from "../../domains/weather-current/weather-current";
 import type { CurrentChange } from "../../domains/weather-current/weather-current";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { finite } from "../codec-base";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
@@ -143,10 +143,6 @@ function object(value: unknown): Record<string, unknown> | null {
 
 function operation(value: unknown): value is Operation {
   return value === "normal" || value === "training" || value === "test";
-}
-
-function finite(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
 }
 
 function json(value: unknown): value is JsonValue {

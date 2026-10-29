@@ -13,7 +13,7 @@ import type {
 } from "../../../contracts/p3-local-bulletins-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, LOCAL_BULLETINS_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { INPUT_ID_LIMIT, readReportRef, stepVersion } from "../../contracts-revision/version";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { bounded, count, finite, isText, list, operationOf, record } from "../codec-base";
 import {
   BOUNDS, FAMILY_OF, HEAT_LIMIT, JST, HEAT_RETAIN, HEAT_TARGET_WINDOW, LAYER_SET, LIMITS, TORNADO_DEFAULT_VALID, TORNADO_LIMIT, TORNADO_RETAIN,
   TRANSIENT_LIMIT, TRANSIENT_RETAIN, TRANSIENT_TYPES, VISIBLE_TRANSIENT, dateEnd, parseLocalBulletins, validEventId, validKeyTitle,
@@ -729,23 +729,7 @@ function toLocalBulletinsView(state: State): LocalBulletinsUnitView {
 // ---- codec（I-U-M.persisted・I-U-M.decode、唯一の LocalBulletinsUnitCodec。受理と同じ上限を確かめる） ----
 
 type Fields = Readonly<Record<string, unknown>>;
-function record(value: unknown): Fields | null {
-  return value != null && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
-}
-const isText = (value: unknown): value is string => typeof value === "string";
-const bounded = (value: unknown, limit: number): value is string => isText(value) && value.length <= limit;
 const boundedName = (value: unknown, limit: number): value is string => bounded(value, limit) && validName(value);
-const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-const count = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
-function operationOf(value: unknown): Operation | null {
-  return value === "normal" || value === "training" || value === "test" ? value : null;
-}
-function list<T>(value: unknown, item: (entry: unknown) => T | null, limit = Infinity): T[] | null {
-  if (!Array.isArray(value) || value.length > limit) return null;
-  const result: T[] = [];
-  for (const entry of value) { const parsed = item(entry); if (parsed == null) return null; result.push(parsed); }
-  return result;
-}
 // I-U-M.subjects の形（Q-ENUM.identity の文字と長さ）。
 type SubjectParts = Readonly<{ operation: Operation }> & (
   | Readonly<{ slice: "tornado"; office: string; title: string }>

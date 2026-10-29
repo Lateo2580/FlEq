@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "cd9227f43da84e69d114332623db4d621c10ca6ed8f5d803013c7d0608678dc8",
+    "sha256": "608fc015693d374ca504323f454e5ea3e174adc3a8ccb55ffadc7ea7f214d39b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -300,7 +300,7 @@
           "reconstruction/src/domains/eew/eew.ts:552 «66224699b9d11746»",
           "reconstruction/src/domains/eew/eew.ts:583 «3ec78c2aad9e3950»",
           "reconstruction/src/domains/eew/eew.ts:607 «8cf8503515b3efc1»",
-          "reconstruction/src/units/eew/eew-unit.ts:237 «49e8a8bf60caf9d6»",
+          "reconstruction/src/units/eew/eew-unit.ts:233 «49e8a8bf60caf9d6»",
           "reconstruction/contracts/p2-eew-unit.json:210 «2e7bdfdff97cc1af»",
           "reconstruction/contracts/p2-eew-unit.json:216 «a6ef516b8c0c2b17»"
         ]
@@ -321,7 +321,7 @@
           "reconstruction/src/domains/eew/eew.ts:475 «d55b2c8e4e9e70d2»",
           "reconstruction/src/runtime/owner-runtime.ts:118 «4b4c6774cb5a4b56»",
           "reconstruction/src/runtime/owner-runtime.ts:483 «63380813ee47301c»",
-          "reconstruction/src/units/eew/eew-unit.ts:342 «973323028dc564f5»",
+          "reconstruction/src/units/eew/eew-unit.ts:338 «973323028dc564f5»",
           "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»"
         ]
       },
@@ -344,7 +344,7 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:220 «452f18db560cfff3»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:137 «e87e8dd009d4cb60»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:128 «e0a4a54ab3ca5140»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:259 «fe37dd1ffd636ef5»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:242 «fe37dd1ffd636ef5»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:343 «c65d86bdce25607b»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:634 «fadca38e32211ea4»"
         ]
@@ -353,9 +353,9 @@
         "id": "P3-LIFE-AC06",
         "requirement": "U-Fの式の統一と既存の範囲: (1) receive・deadline（collect）・decodeで同じ式を使う。decodeのsubjectRowはretainUntilがReportDateTime＋7日と一致する、またはvalidUntil≠nullかつmax(ReportDateTime＋7日, validUntil)と一致する場合だけ受ける。前者は旧式で保存したsubject（validUntil＞ReportDateTime＋7日の旧値を含む）をそのまま読み、新式へ引き上げない。schemaの移行は無い。(2) 日時の上限は既存の範囲に合わせる: ReportDateTimeは既存のreportDateTimeの検証、validUntilは既存のinspect（TimeDefineの開始＋Durationが有限のDate）の範囲のままで狭めない。retainUntilはその範囲の有限numberで、JSONの往復で変わらない。(3) 未来skew: U-Fは既存どおりReportDateTimeを拒否せず生値で式に使う（decodeが式を再計算するため受信時刻で切り詰めない）。(4) 容量: 既存の512 subject・32 MiB・unavailable・capacityExceededの規則と退去順位を変えない。長いvalidUntilはsubjectの占有を延ばすが、同じ官署の次の報が採用されれば置き換わる。（今の器は U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:410 «99bf89b958a06d85»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:409 «99bf89b958a06d85»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:22 «1cf52d92e0ca7cdd»",
-          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:199 «ef82cd515267e875»",
+          "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:182 «ef82cd515267e875»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:358 «79cdbbfa9ad21414»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:428 «edfc0612c1bd0f79»"
         ]
@@ -374,7 +374,7 @@
         "id": "P3-LIFE-AC08",
         "requirement": "延長しない・再起動A1: (1) U-Eのduplicate・stale・rejected・capacityExceeded・recoveryの未適用はstateを同一参照で返し（horizonの外と容量で採らない取消は、current・gateを変えずに取消のintentと印だけを足す、P3-NOTICE-LEDGER-001のP3-NL-AC04の(5)）、current/gateの期限を変えない。(2) restoreは従来どおりcurrent・gateを空で始め（P2-A4-AC08）、保存からcurrent/gateを作らない。再起動後の保証は報の起点からの10分のhorizonだけ（印のあるEventIDは、印の版より古い報をstaleにし、遅い取消を採る、P3-NL-AC04）（AC07(1)）。(3) U-Fの復元はdecodeした期限をそのまま使い、collectで到来済みの期限を適用する（P2-A6-SEM-01）。再送（同じReportRef）はduplicateでretainUntilを変えない。",
         "evidenceRefs": [
-          "reconstruction/src/units/eew/eew-unit.ts:300 «bc9a6b0d231d49e7»",
+          "reconstruction/src/units/eew/eew-unit.ts:296 «bc9a6b0d231d49e7»",
           "reconstruction/contracts/p2-eew-unit.json:373 «7b6f64a3974ca83e»",
           "reconstruction/contracts/p2-eew-unit.json:374 «3c39bc5d436ef7a6»",
           "docs/specs/reconstruction-p0-contracts.md:474 «33206d8dd5ed3dee»"

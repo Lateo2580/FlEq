@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b117d77a234640203a68f72e9d090249ce6d14bb",
-    "sha256": "164fd7aa1f8717e56e883390e2fd1d433eba380720b482e60bd74dae1a36d485",
+    "sha256": "9e4e710e812eedddc3113351c459b404b7984abc12d8f8574605b04c879c401d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -314,9 +314,9 @@
         "id": "P3-OPCAP-AC04",
         "requirement": "U-Wのnormalの終了・取消にもnormal保護の退去を当てる（監査F10、Q-OPCAP-W-SCOPE）。U-Wの受信の容量の段で、normalの候補のうちmeaningのstepがchangedを返し、その入力に件数の拒否（reasonがcapacityExceededのunavailable）を作らなかった受理（採用・VPNO50の終了・取消。履歴の無い取消のhistoryUnavailableを含む）は、16 MiBの予約込み計量を超えるときP2-A5-AC11の順（training/testの履歴→partial→全国base）でtraining/testを退去して再判定する。収まればその受理を採用し、診断weatherCurrentCapacityEvicted（count）を返す。収まらなければ今どおり、meaningがその入力のunavailableを作っていればそのstep、作っていなければcapacityUnavailable→lastKnownの切り捨て→capacityExceeded（state不変）。件数の拒否は今どおり退去しない（Third review R1）。容量のために終了・取消を拒否してactiveを残す挙動を標準にしない。受入: 18_00_01_260830_VPWW55_fukui_L5を受けたstateのpartialをCode 33の現象1つにし、ownershipを空にして、training全国base（padding）で予約込みのenvelopeを16 MiB−32 byteにする（codecのdecodeはrestored）。(a) 18_00_01_260830_VPNO50_switchを受けると、decisionはnormalのchanged/semantic、training全国baseは無く、tombstone 1、unavailableは空、診断にweatherCurrentCapacityEvicted count 1、受理後のstateはencode→decodeでrestored。(b) 同じstateに同じVPWW55のReportDateTimeを2026-08-30T07:00:00+09:00にした取消（Bodyなし）を受けると、training全国baseは無く、partialsは空、unavailableは[historyUnavailable、lastKnownあり]。修正前の観測（(a)(b)ともcapacityExceeded・stateの参照が同じ・警報5のactiveが残る）の反転を正式試験で示す。（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:475 «01309d4f1a2b6156»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:479 «59ed3d62d2eb225e»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:489 «8e65a668ea16efc3»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:471 «01309d4f1a2b6156»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:475 «59ed3d62d2eb225e»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:485 «8e65a668ea16efc3»",
           "reconstruction/src/domains/weather-current/weather-current.ts:615 «81ed2949a526f740»",
           "reconstruction/src/domains/weather-current/weather-current.ts:636 «ab25e7bdf167d89b»",
           "reconstruction/src/domains/weather-current/weather-current.ts:637 «1cfa7af3edd33400»",

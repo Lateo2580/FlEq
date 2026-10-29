@@ -1,4 +1,4 @@
-import type { DecodedMaterial, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableCard, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
   TyphoonFrame, TyphoonFrameKind, TyphoonName, TyphoonPoint, TyphoonPrefecture, TyphoonProbabilityArea, TyphoonUnreadableSite, TyphoonWindArea,
@@ -6,10 +6,10 @@ import type {
 } from "../../../contracts/p3-typhoon-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
 import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "../flood/flood"; import { controlDateTimeOf } from "../../contracts-revision/version";
-import { unreadableNotes } from "../../units/unreadable";
+import { unreadableNotes } from "../../units/unreadable"; import { attribute, children, localName, scalar } from "../../decode-material/xml-read";
 
 // P3-UNIT-Y-001 の adapter: VPTW60〜65・VPTA50〜55 の本文を Q-ENUM の順で確かめ、候補を項目ごとに組み立てる。
-// 値の形の検査（cut・validName・validSerial ほか）は U-R と同じ規則なので domains/flood の export を使い、XML の読み取りだけを写す（AC13）。
+// 値の形の検査（cut・validName・validSerial ほか）は U-R と同じ規則なので domains/flood の export を使い、XML の読み取りは decode-material/xml-read を使う（P3-XML-READERS-001）。
 
 const HOUR = 3_600_000, DAY = 24 * HOUR;
 // P3-C14-BOUNDS=A（UTF-16 の長さ）。
@@ -31,18 +31,7 @@ const TERMINAL_REMARKS: ReadonlySet<string> = new Set(["台風消滅（温帯低
 const validEventId = (value: string): boolean => /^[\x21\x23-\x2e\x30-\x5b\x5d-\x7e]{1,32}$/.test(value);
 const validCode6 = (value: string): boolean => /^\d{6}$/.test(value);
 
-// ---- XML の読み取り（domains/briefing・flood・local-bulletins と同じ写し。共有化は統合担当が決める、AC13） ----
-
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
-const attribute = (node: XmlElement, name: string): string | null => node.attributes.find((item) => item.name === name)?.value.trim() ?? null;
+// ---- XML の読み取り（decode-material/xml-read.ts に集約、P3-XML-READERS-001） ----
 
 // ---- 候補 ----
 

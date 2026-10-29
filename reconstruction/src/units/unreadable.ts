@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { XmlElement } from "../../contracts/p1-parser-boundary.types";
 import type { UnreadableMark, UnreadableMarkView, UnreadablePart } from "../../contracts/p2-shared-runtime.types";
-import { boundedString } from "../runtime/runtime-diagnostic";
+import { boundedString } from "../runtime/runtime-diagnostic"; import { localName } from "../decode-material/xml-read";
 
 // P3-UNREADABLE-MARK-001（K14、H51）: 記録の読めなかった所の印・原文の欠片・原文の予算の正本。無いと 10 unit が欠片の書き直しと
 // 予算の外し方と codec の検査を別々に持ち、上限の直しが 10 か所に散る（notice-mark.ts と同じ理由）。
@@ -66,7 +66,6 @@ function fitScope(value: string): string {
   return kept;
 }
 
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
 const child = (parent: XmlElement | undefined, name: string): XmlElement | undefined =>
   parent?.children.find((node): node is XmlElement => node.kind === "element" && localName(node) === name);
 const textOf = (element: XmlElement | undefined): string | null => {

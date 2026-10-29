@@ -1,12 +1,12 @@
 import { isDeepStrictEqual } from "node:util";
 
-import type { DecodedMaterial, MaterialValue, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, MaterialValue, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
   TsunamiAreaClass, TsunamiEstimation, TsunamiForecastArea, TsunamiHeight, TsunamiObservationFamily, TsunamiStation,
   TsunamiUnkeyedArea, TsunamiUnreadableSite,
 } from "../../../contracts/p3-tsunami-unit.types";
-import { classifyMaterial } from "../../decode-material/decode-material";
+import { attribute, blank, children, leafValues, localName, scalar } from "../../decode-material/xml-read";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 import { unreadableNotes } from "../../units/unreadable";
 
@@ -38,24 +38,12 @@ type ParseResult = Readonly<{ kind: "accepted"; candidate: TsunamiCandidate; dia
   | Readonly<{ kind: "noObservation"; subject: string; operation: Operation; diagnostics: readonly DiagnosticDetails[] }>
   | Readonly<{ kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
 
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
 // 0 個は null、1 個の葉はその文字列。2 個以上か葉でなければ invalid（呼出し側で拒否）。
 function optionalText(parent: XmlElement | null, name: string): string | null | "invalid" {
   const found = children(parent, name);
   if (found.length === 0) return null;
   const text = found.length === 1 ? scalar(found[0]) : null;
   return text ?? "invalid";
-}
-function attribute(node: XmlElement, name: string): string | null {
-  return node.attributes.find((item) => item.name === name)?.value ?? null;
 }
 
 class Rejected extends Error {
@@ -71,7 +59,6 @@ function single(parent: XmlElement | null, name: string): XmlElement {
   const found = children(parent, name);
   return found.length === 0 ? missing() : found.length !== 1 ? invalid() : found[0];
 }
-const blank = (value: string | null): string | null => value == null || value === "" ? null : value;
 // H51 の B（P3-EF-AC13）: 読めない所は報を断らず null にし、所ごとに WARN を 1 件残す。node は読めなかった要素か親、scope は予報区・観測点・
 // 推定区域の code（P3-UM-AC01 (2)(4)）。
 type Warn = (site: TsunamiUnreadableSite, reason: "requiredStructureMissing" | "requiredStructureInvalid", node: XmlElement | null, scope?: string) => void;
@@ -86,19 +73,6 @@ function one(parent: XmlElement | null, name: string, warn: Warn, site: TsunamiU
   const found = children(parent, name);
   if (found.length > 1) warn(site, "requiredStructureInvalid", parent, scope);
   return found.length === 1 ? found[0] : null;
-}
-
-// classifyMaterial と同じ順の葉に MaterialValue を対応させる（TsunamiHeight の値の射影、Q-ENUM.invalid）。
-function leafValues(material: DecodedMaterial): ReadonlyMap<XmlElement, MaterialValue> {
-  const leaves: XmlElement[] = [];
-  const visit = (node: XmlElement): void => {
-    const nested = children(node);
-    if (nested.length === 0) leaves.push(node);
-    else nested.forEach(visit);
-  };
-  visit(material.xml);
-  const values = classifyMaterial(material).materialValues;
-  return new Map(leaves.map((leaf, index) => [leaf, values[index]]));
 }
 
 function height(node: XmlElement | null, values: ReadonlyMap<XmlElement, MaterialValue>, warn: Warn, site: TsunamiUnreadableSite,

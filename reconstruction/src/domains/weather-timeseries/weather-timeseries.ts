@@ -3,7 +3,7 @@ import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } fr
 import type {
   WeatherTimeseriesCompoundField, WeatherTimeseriesSnapshot, WeatherTimeseriesUnreadableSite, WeatherTimeseriesValue,
 } from "../../../contracts/p2-weather-timeseries-unit.types";
-import { classifyMaterial } from "../../decode-material/decode-material";
+import { children, leafValues, localName, scalar } from "../../decode-material/xml-read";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 import { unreadableNotes } from "../../units/unreadable";
 
@@ -20,15 +20,6 @@ type Candidate = Readonly<{ source: ReportRef; reportDateTimeMs: number; cancell
 type Result = Readonly<{ kind: "accepted"; candidate: Candidate; diagnostics: readonly DiagnosticDetails[] }> | Readonly<{
   kind: "rejected"; subject: string; reason: RejectionReason; diagnostic: DiagnosticDetails }>;
 
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
 function field(parent: XmlElement | null, name: string): { value: string | null; reason: RejectionReason | null } {
   const found = children(parent, name);
   if (found.length === 0 || found.length === 1 && scalar(found[0]) === "")
@@ -148,15 +139,7 @@ function inspect(material: DecodedMaterial): Result {
     return result.value;
   };
   // AC02/Q-VALUES: P1 owns scalar classification; associate its leaf results with their XML nodes.
-  const classified = classifyMaterial(material).materialValues;
-  const leaves = new Map<XmlElement, MaterialValue>();
-  let leafIndex = 0;
-  const bindLeaves = (node: XmlElement): void => {
-    const nested = children(node);
-    if (nested.length === 0) leaves.set(node, classified[leafIndex++]);
-    else nested.forEach(bindLeaves);
-  };
-  bindLeaves(material.xml);
+  const leaves = leafValues(material);
   const strings: string[] = [], attributes: (readonly (readonly [number, number])[])[] = [], values: WeatherTimeseriesValue[] = [];
   const series: WeatherTimeseriesSnapshot["series"][number][] = [], areaTable: WeatherTimeseriesSnapshot["areas"][number][] = [];
   const locals: WeatherTimeseriesSnapshot["locals"][number][] = [], kinds: WeatherTimeseriesSnapshot["kinds"][number][] = [];

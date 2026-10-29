@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "2d348fd95a0718b9fa21a85451b8d634a5517b51109dd77c20851adaa9db9af6",
+    "sha256": "9f563fc7ee5563f6fe8af0b94e3b6edd09c62858c770bb0409e63c08ae3cd3bc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -412,7 +412,7 @@
           "reconstruction/contracts/p3-order-plan.md:556 «88c712cf529c65ed»",
           "reconstruction/contracts/p3-order-plan.md:558 «73c4395164a3713f»",
           "reconstruction/src/units/seismic/seismic-unit.ts:62 «112e2504d3fb418f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1606 «8f65a5c445bc7355»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1592 «8f65a5c445bc7355»"
         ]
       },
       {
@@ -457,10 +457,10 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:511 «10526fc76eff78d1»",
           "reconstruction/contracts/p3-persist-premises.md:516 «eeb3c59348dfc086»",
-          "reconstruction/src/domains/seismic/seismic.ts:257 «4287166c96973b73»",
-          "reconstruction/src/domains/seismic/seismic.ts:303 «10dcd73685dd5c97»",
-          "reconstruction/src/domains/seismic/seismic.ts:180 «9bda2a00d921db4e»",
-          "reconstruction/src/domains/seismic/seismic.ts:147 «e22d78e23c1b98a6»",
+          "reconstruction/src/domains/seismic/seismic.ts:224 «4287166c96973b73»",
+          "reconstruction/src/domains/seismic/seismic.ts:270 «10dcd73685dd5c97»",
+          "reconstruction/src/domains/seismic/seismic.ts:147 «9bda2a00d921db4e»",
+          "reconstruction/src/domains/seismic/seismic.ts:114 «e22d78e23c1b98a6»",
           "docs/specs/reconstruction-p0-contracts.md:3204 «f55bbe1dc71546b1»"
         ]
       },
@@ -470,7 +470,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:309 «072a7927898ff921»",
           "reconstruction/contracts/p3-persist-premises.md:438 «0b572eb74bd511a1»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1615 «eff97ec3b7e2a91e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1601 «eff97ec3b7e2a91e»",
           "reconstruction/contracts/p3-seismic-unit.json:304 «22e37753670cc27f»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «74bda80810e85121»",
           "reconstruction/src/runtime/owner-runtime.ts:84 «690467f202287bdb»"

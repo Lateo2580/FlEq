@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "f04866601563cba2671246137a29ffa02dd47b07b83fa9a9f1d730ac97cf110c",
+    "sha256": "4359912db692acb2911d61b7397e5df5f8523831f6a960ee55a31b7d03719436",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -324,8 +324,8 @@
           "docs/specs/reconstruction-p0-contracts.md:512 «956efb4bb14e96b6»",
           "reconstruction/contracts/p3-persist-premises.md:20 «26bffafeb63439f5»",
           "reconstruction/contracts/p3-persist-premises.md:286 «9c966db4adfba699»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:851 «205d312f200f0668»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:869 «2f8337cdc2b62e0e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:836 «205d312f200f0668»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:854 «2f8337cdc2b62e0e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:659 «1392939e8bd74b6b»",
           "reconstruction/src/units/nankai/nankai-unit.ts:578 «ac7f4de8f69144ce»",
           "reconstruction/contracts/p3-nankai-unit.types.ts:127 «4b38f3253575a628»"
@@ -390,7 +390,7 @@
           "reconstruction/contracts/p3-persist-premises.md:286 «9c966db4adfba699»",
           "reconstruction/src/units/nankai/nankai-unit.ts:33 «5799687c870a8850»",
           "reconstruction/src/units/nankai/nankai-unit.ts:213 «a8bc17e7f3c9d6f1»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:860 «0d07236ac5c3c06f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:845 «0d07236ac5c3c06f»",
           "AGENTS.md"
         ]
       },
@@ -400,9 +400,9 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:512 «2a281d50f6687a95»",
           "reconstruction/contracts/p3-persist-premises.md:516 «eeb3c59348dfc086»",
-          "reconstruction/src/domains/nankai/nankai.ts:106 «4287166c96973b73»",
-          "reconstruction/src/domains/nankai/nankai.ts:147 «e01c6f0aaa394b07»",
-          "reconstruction/src/domains/nankai/nankai.ts:92 «467930b3b93c4608»",
+          "reconstruction/src/domains/nankai/nankai.ts:88 «4287166c96973b73»",
+          "reconstruction/src/domains/nankai/nankai.ts:129 «e01c6f0aaa394b07»",
+          "reconstruction/src/domains/nankai/nankai.ts:74 «467930b3b93c4608»",
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
           "src/dmdata/telegram-parser.ts:1193 «22f5ba43f575b794»"
         ]
@@ -411,7 +411,7 @@
         "id": "P3-NS-AC08",
         "requirement": "版と保存→復元と corpus（作者裁定「P5 の前は初期化してよい」、P3-VM-AC05、統合担当の決定 D3）: (1) schemaVersion を p3-nankai-unit-v6 にし、discardableSchemaVersions に v5 を足す（v1〜v5）。旧い形を読む移行は作らない。版の文字列は types.ts・nankai-unit.ts・owner-runtime.ts の初期の state の表（:80）・試験（nankai-fixture.ts:16・nankai-unit.test.ts:556・shared-runtime.test.ts:76）を同じ行の中で替える (2) 新しい形の保存→復元の試験（P3-NS-T01）と、v5 の保存物が捨ててよい版になること（P3-NS-T04）を残す（P3-X-C4） (3) sequences.json の 9 step の期待を実装の patch で直す（step の数と位置は変えない。replay の試験が effective の欄を読むので、直さないとゲートが赤になる）: O01:69 の checks の level を normal（H12）に、O01:70 の「validUntil=16:28+7日」を warningUntil（＋7 日）と validUntil（＋14 日）に、O07:37・:42 の「情報系列は保存しない」、O07:38 の「情報系列は空から始まる」、O07:39 の「情報系列は復元で空なので」を全文の保存と復元に、O07:41 の validUntil を warningUntil と validUntil に、O07:43 の「validUntilの1 ms前」を warningUntil の 1 ms 前に、O07:44 の effective を active にし checks を「status は megaquakeAdvisory、通知なし（P3-NS-D-STEPDOWN-NOTICE=A）。巨大地震注意へ移る」に。sequences.json の meta.sha256 が変わり、全契約の sequencesSha256 と sha256 が check-contract で FAIL になるのは想定内で、配送の commit で統合担当が付け直す (4) 既存の試験の nankai-unit.test.ts:64・:65 の Serial「0」と 11 桁の行は、P3-NS-AC07 で受ける報になる（期待を accepted と WARN identityInvalid に替える。Q-NS-EXISTING-TESTS (k)）",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:867 «7f3c0c622eaf48fd»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:852 «7f3c0c622eaf48fd»",
           "reconstruction/src/runtime/owner-runtime.ts:86 «d4297adad6a36760»",
           "reconstruction/contracts/p3-order-plan.md:503 «4226852a4ae2323b»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:60 «5a3c26137e8681e0»",
@@ -443,7 +443,7 @@
         "id": "P3-NS-AC11",
         "requirement": "最小実装・最小テスト: (1) 足す仕組みは、現況の warningUntil 1 欄、情報の validUntil 1 欄と expired の変種 1 つ、退去の段 1 つ（normal の expired の記憶）だけ。K10 が先に合流していれば、表示だけの期限切れの形は K10 のものを使う（AC10 の (1)）。消すものは、証拠だけの変種（NankaiEvidence・evidenceRecord・evidenceOf と cache・unknownInfo・judge と versionOf の証拠の分岐）、collect の base の比べ（sameItems）、holdState の「情報の印は保存しない」分岐。ほかの型・層・helper・設定を足さない。足した仕組みごとに無いと何が壊れるかを 1 行 (2) 試験は testMapping の P3-NS-T01〜T07 に限る（既存の試験の期待値の変更は Q-NS-EXISTING-TESTS で変える前に報告）。新しい fixture file を足さない（境界の報は試験の中で作る） (3) reconstruction のゲート一式（tsc 3 本・vitest・shuffle・checker 3 本）を通す",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:821 «49b10c23ed75769c»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:806 «49b10c23ed75769c»",
           "reconstruction/contracts/p3-nankai-unit.types.ts:95 «a008293bc331429a»",
           "reconstruction/contracts/p3-nankai-unit.types.ts:97 «4da2046189ede3f4»",
           "AGENTS.md"

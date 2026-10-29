@@ -1,9 +1,9 @@
-import type { DecodedMaterial, MaterialValue, Operation, XmlElement, XmlNode } from "../../../contracts/p1-parser-boundary.types";
+import type { DecodedMaterial, MaterialValue, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
 import type {
   VolcanoAreaGroup, VolcanoAshfallGroup, VolcanoKind, VolcanoReportFamily, VolcanoUnreadableSite,
 } from "../../../contracts/p3-volcano-unit.types";
-import { classifyMaterial } from "../../decode-material/decode-material";
+import { attribute, blank, children, first, leafValues, localName, scalar, text } from "../../decode-material/xml-read";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 import { unreadableNotes } from "../../units/unreadable";
 
@@ -45,28 +45,8 @@ const validVolcanoCode = (value: string): boolean => identityText(value, LIMITS.
 const validSerial = (value: string): boolean => value === "" || /^\d{1,10}$/.test(value);
 const asciiCode = (value: string, limit: number): boolean => value.length <= limit && /^[\x21-\x7e]+$/.test(value);
 
-// ---- XML の読み取り（domains/nankai・domains/seismic と同じ写し。共有化は統合担当が決める、AC14） ----
+// ---- XML の読み取り（decode-material/xml-read.ts に集約、P3-XML-READERS-001） ----
 
-const localName = (node: XmlElement): string => node.name.split(":").at(-1)!;
-function children(parent: XmlElement | null, name?: string): XmlElement[] {
-  return parent == null ? [] : parent.children.filter((node): node is XmlElement =>
-    node.kind === "element" && (name == null || localName(node) === name));
-}
-function first(parent: XmlElement | null, name: string): XmlElement | null {
-  return children(parent, name)[0] ?? null;
-}
-function scalar(node: XmlElement): string | null {
-  return children(node).length === 0 ? node.children.filter((part): part is Extract<XmlNode, { kind: "text" }> =>
-    part.kind === "text").map((part) => part.value).join("").trim() : null;
-}
-function text(parent: XmlElement | null, name: string): string | null {
-  const node = first(parent, name);
-  return node == null ? null : scalar(node);
-}
-function attribute(node: XmlElement | null, name: string): string | null {
-  return node?.attributes.find((item) => item.name === name)?.value ?? null;
-}
-const blank = (value: string | null): string | null => value == null || value === "" ? null : value;
 const typed = (parent: XmlElement | null, name: string, part: string): XmlElement[] =>
   children(parent, name).filter((node) => (attribute(node, "type") ?? "").includes(part));
 
@@ -206,18 +186,6 @@ function boundValue(value: MaterialValue, bound: (value: string | null, limit: n
   if (value.kind === "missing") return value;
   const raw = bound(value.raw, BOUNDS.value)!;
   return value.kind === "text" ? { ...value, value: bound(value.value, BOUNDS.value)!, raw } : { ...value, raw };
-}
-// classifyMaterial と同じ順の葉に MaterialValue を対応させる（domains/seismic の leafValues の写し、AC14）。
-function leafValues(material: DecodedMaterial): ReadonlyMap<XmlElement, MaterialValue> {
-  const leaves: XmlElement[] = [];
-  const visit = (node: XmlElement): void => {
-    const nested = children(node);
-    if (nested.length === 0) leaves.push(node);
-    else nested.forEach(visit);
-  };
-  visit(material.xml);
-  const values = classifyMaterial(material).materialValues;
-  return new Map(leaves.map((node, index) => [node, values[index]]));
 }
 
 const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;

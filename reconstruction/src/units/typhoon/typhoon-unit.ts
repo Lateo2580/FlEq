@@ -12,7 +12,7 @@ import type {
 } from "../../../contracts/p3-typhoon-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, TYPHOON_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef, stepVersion } from "../../contracts-revision/version";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { bounded, count, finite, isText, list, operationOf, record } from "../codec-base";
 import { ANALYSIS_TYPES, BOUNDS, LIMITS, PROBABILITY_TYPES, RETAIN, VISIBLE, parseTyphoon, validCode6, validEventId } from "../../domains/typhoon/typhoon";
 import type { AnalysisCandidate, ProbabilityCandidate, TyphoonCandidate } from "../../domains/typhoon/typhoon";
 import { cut, infoRankOf, validName, validReportDateTime, validSerial } from "../../domains/flood/flood";
@@ -649,28 +649,12 @@ function toTyphoonView(state: State): TyphoonUnitView {
 // ---- codec（I-U-Y.persisted・I-U-Y.decode、唯一の TyphoonUnitCodec。受理と同じ上限を確かめる） ----
 
 type Fields = Readonly<Record<string, unknown>>;
-function record(value: unknown): Fields | null {
-  return value != null && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
-}
-const isText = (value: unknown): value is string => typeof value === "string";
-const bounded = (value: unknown, limit: number): value is string => isText(value) && value.length <= limit;
 const boundedName = (value: unknown, limit: number): value is string => bounded(value, limit) && validName(value);
-const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 // 記録の時刻（validTime・baseTime）は Date.parse が作る整数（|t| ≤ 8.64e15）だけ。任意の double を通すと世代が静的上界を超える（I-U-Y.capacityReserve）。
 // intent の時刻は owner の小数の時計が入るので finite（byte は pending の予約と終端記録の上限で数える、I-U-Y.decode）。
 const instant = (value: unknown): value is number => Number.isSafeInteger(value) && Math.abs(Number(value)) <= 8.64e15;
-const count = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
 // 0〜max の整数。
 const whole = (value: unknown, max: number): value is number => count(value) && Number(value) <= max;
-function operationOf(value: unknown): Operation | null {
-  return value === "normal" || value === "training" || value === "test" ? value : null;
-}
-function list<T>(value: unknown, item: (entry: unknown) => T | null, limit = Infinity): T[] | null {
-  if (!Array.isArray(value) || value.length > limit) return null;
-  const result: T[] = [];
-  for (const entry of value) { const parsed = item(entry); if (parsed == null) return null; result.push(parsed); }
-  return result;
-}
 // null か検査を通した値。外れは undefined。
 function maybe<T>(value: unknown, parse: (entry: unknown) => T | undefined): T | null | undefined {
   return value === null ? null : parse(value);
