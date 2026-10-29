@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "9974ed522dd9134f2bfc0326f2234e6cc4682627d0847742a24b5bc4f27e4b73",
+    "sha256": "8b4aaef51739e4bc9b1d310cffdf2e68a2d37e95740b68d48f0d89c86591c70b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -104,7 +104,7 @@
         "B": "EEW（P2-A4 Q-NOTICE）と同じく最新一件で置き換える",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜）",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜）。作者の裁定（2026-10-29朝「保存待ちの古い音を残さない」、P3-RECOVERY-001のQ-REC-PRECHECK-6）でAに引き下げの置換を足した（Bは採らない。AとBの文は起草のまま残す）: VTSE41の発表・訂正の採用で、報の区分の最大（AREA_RANK、unkeyedAreasを含む。区分が無ければ0）が同じsubjectの直前の記録（取消済みなら比べない）の区分の最大より下がったときは、新しいintentが下位群でも、同じsubject・channelの緊急群の終端でないpending（lastAttemptがnull・started・failedのどれも）をsupersededにする（other群は同群以上ですでに置き換わるので、足すのはこの場合だけ）。区分の最大が変わらない報（A区域が大津波警報のままB区域だけ下がる）は今どおり両方残す。startedには保存待ちの予約と鳴っている試行の両方があり、unitからは分けられないので絞らない（保存待ちの予約はrootがadapterを呼ばずに捨て、鳴っている試行はA7がsupersededで止める。取消・同群以上の置換と同じ経路。Q-REC-PRECHECK-6のr1）。新しいintentが容量で入らなければ置き換えない（同群以上の置換と同じくadmittedのときだけ）。取消は今どおり全pending。liveと取り直し（候補の作成の置換）の両方に当て、取り直しでは採用のstepで今の段の音を1回足す（P3-REC-AC12の【発注4c】）。比べる相手を古いpendingの区分にしないのは、intentが区分を持たない（payload.levelは変化の段）ため（統合担当の決め、intentに欄を足さない）",
         "reason": "Bでは発令のintentの配送前に続報や降格が採用されると、緊急群の通知が下位群に置き換わって消える。Aは発令→降格の順で両方出す"
       },
       {
@@ -201,7 +201,7 @@
         "overlap": "一つの採用報は各channel最大1 intent。機会はescalation、deescalation、continuationの順で一つを選ぶ。訂正は別の機会を作らず、選んだ機会に訂正の接頭辞を付ける",
         "emergencyGroup": "A7のgroup()（notification-delivery.ts:18〜:21）はintentのpriorityGroupを返すだけで、ownerが緊急群（normalTsunamiEmergency）を付けるのはoperation=normalで、警報以上（津波警報・大津波警報、未知の区分を含む）への発令・引上げ・区域拡大を含むU-Tの報（訂正を含む、ほかの区域の降格・部分解除を含んでも除かない）だけ（notice-mark.tsのpriorityGroupOf、P3-NOTICE-LEDGER-001のP3-NL-AC11の(2)(3)。前はlevelがwarning/criticalのnormalのintentで、注意報がwarningになったので音の段から切り離した）。区域拡大は新しい区域への警報の発令なので、spec:951の「発令」に含める（spec:1131の発令系も区域拡大を含む）。観測のintentはinfo/cancelなので緊急群に入らない（otherのまま鳴る）",
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec §6.4。津波緊急もTTLと初回待ちを別に判定、spec:973）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
-        "replacement": "P3-C5-REPLACEMENT=A。置換の単位はoperation＋subject＋channel（VTSE41と観測は別subjectなので互いを置き換えない）。容量の拒否（P3-CURRENCY-COVERAGE-001、P3-CC-AC03・AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）: VTSE41の採用でfitがnullを返し、拒否した報のsubjectの記録がactiveなら印〔SubjectUnavailable〕を付けてchanged。失敗した系列〔拒否した報のsubject〕のまだ鳴っていないdesktopのpendingはtitleだけを『【HH:MM 発表】』付きに替え〔同じid・元の期限、soundは変えない〕、拒否した報のfreshのlevelの最大がwarning以上なら固定のsubject『operation/capacityRejected』の失敗警報をその段階で足す〔subjectのpendingは置き換えない、失敗警報どうしは重い方だけを残す〕。どれも追加の退去なしで収まるときだけ。印を付けない拒否〔観測を含む〕はunitの負の証拠と診断capacityRejected",
+        "replacement": "P3-C5-REPLACEMENT=A（2026-10-29の作者の裁定で引き下げの置換を足した: 区分の最大が直前の記録より下がった報は、同じsubject・channelの緊急群の終端でないpendingも置き換える。ruling）。置換の単位はoperation＋subject＋channel（VTSE41と観測は別subjectなので互いを置き換えない）。容量の拒否（P3-CURRENCY-COVERAGE-001、P3-CC-AC03・AC04・AC10、配送のcommitでP3-CC-AC09により統合担当が改訂）: VTSE41の採用でfitがnullを返し、拒否した報のsubjectの記録がactiveなら印〔SubjectUnavailable〕を付けてchanged。失敗した系列〔拒否した報のsubject〕のまだ鳴っていないdesktopのpendingはtitleだけを『【HH:MM 発表】』付きに替え〔同じid・元の期限、soundは変えない〕、拒否した報のfreshのlevelの最大がwarning以上なら固定のsubject『operation/capacityRejected』の失敗警報をその段階で足す〔subjectのpendingは置き換えない、失敗警報どうしは重い方だけを残す〕。どれも追加の退去なしで収まるときだけ。印を付けない拒否〔観測を含む〕はunitの負の証拠と診断capacityRejected",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4の先例）",
         "payload": "typeRef reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋本体。本体は到達後の最高区分の名（大津波警報・津波警報・津波注意報・津波予報。区分が無ければ「津波警報・注意報の解除」。effective=releasedの報で、直前の採用状態がactiveだったもの（intentのtransition=released）は、予報区域が残っていても「津波警報・注意報の解除」とする。直前がactiveでないreleasedの報（予報だけの初報、解除の後の予報だけの続報）は、予報区域があれば「津波予報」、無ければ「津波警報・注意報の解除」とする。最高区分がunknownならその区域のKind/Name）、取消は「[取消] 津波警報・注意報・予報」、訂正は「[訂正] 」＋本体、観測は「津波観測に関する情報」（VTSE52は「沖合の津波観測に関する情報」）。bodyは旧築notifier.ts:459〜471と同じく区分の和集合を「・」連結 / 先頭3区域名を「, 」連結 / Headline本文で組み、escalationでは上がった区域を先に並べる。取消は「この情報は取り消されました」。訂正はbody冒頭に「訂正: 」。training/testはbody冒頭に区分の注記行（P2-A4と同じ文）。title/bodyは空にしない",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければ下位群をA7の選択順の逆で必要数だけ退去する。同群以上は退去しない。収容できない機会はchannelごとに全採用か未採用で、未採用なら既存pendingを保ち、診断notificationCapacityEvicted（count）を返す。終端記録は件数の上限を別に置かず、expiresAtで回収し、保存世代のbyte予算（RES-01）に含める（P2の各unitと同じ）（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
@@ -887,7 +887,7 @@
       },
       {
         "id": "P3-C5-AC07",
-        "requirement": "Q-NOTICE津波分: generationTable・level・overlap・payload・timing・replacement（P3-C5-REPLACEMENT=A）・intentUpdate・capacity・recovery・restartを実装する。normalのcritical/warningは警報以上の区域が上がった報だけ。training/testはdesktopだけ（P3-C5-TRAINING=A）。観測（VTSE51/52）はnormalでdesktop＋sound、level=infoで緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）",
+        "requirement": "Q-NOTICE津波分: generationTable・level・overlap・payload・timing・replacement（P3-C5-REPLACEMENT=A。2026-10-29の作者の裁定の引き下げの置換を含む）・intentUpdate・capacity・recovery・restartを実装する。normalのcritical/warningは警報以上の区域が上がった報だけ。training/testはdesktopだけ（P3-C5-TRAINING=A）。観測（VTSE51/52）はnormalでdesktop＋sound、level=infoで緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:948 «2329df574f1ba7a9»",
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
@@ -969,7 +969,7 @@
       },
       {
         "id": "P3-C5-AC15",
-        "requirement": "E22のU-T範囲（P3-C5-N2）を固定し、C5ではorigin=recoveryを適用しない（unchanged/noChange、state同一参照）。受入はC16（P3-RECOVERY-001の発注3で入口を置き換えた: origin=recoveryはC16の候補の作成のときだけownerから届き、VTSE41は意味を当てるがintentを作らない〔取消の通知・状態の変化のintent・緊急の印も作らない。引上げ（H27）と読めない報のinfoのintentは採用のstepのrecoveryNoticesが作る〕。取り直しの報の時刻は元報のReportDateTime〔採用の時刻より新しくしない〕。版の比べが決まらない本文は採らず、印も置かない〔held、P3-REC-D-LIST-FORCE=A〕。観測のVTSE51・VTSE52は今どおりnoChange〔P3-C5-N2のrange〕。U-Tの版はintentのpayloadの2欄でv8に上げた。受入はP3-REC-T14・T15。P3-REC-AC12により統合担当が改訂）（P3-RECOVERY-001 の発注 4a: 取り直しでも live と同じに intent を作り、admit は origin=recovery の intent を足さずに置換だけを当てる〔live なら置き換える古い pending を外す。保存待ちの古い通知が取り直しの後に鳴らないため、4a の品質レビュー r0 の P2 と同じ形、統合担当の決め〕。採用の step の音〔recoveryNotices〕だけは足す。live の置換は同じ群以上だけなので、津波警報以上の群の pending は引き下げの通知でも置き換わらない〔live の規則のまま、作者の裁定待ち、Q-REC-IMPL-4a〕。受入は P3-REC-T18）",
+        "requirement": "E22のU-T範囲（P3-C5-N2）を固定し、C5ではorigin=recoveryを適用しない（unchanged/noChange、state同一参照）。受入はC16（P3-RECOVERY-001の発注3で入口を置き換えた: origin=recoveryはC16の候補の作成のときだけownerから届き、VTSE41は意味を当てるがintentを作らない〔取消の通知・状態の変化のintent・緊急の印も作らない。引上げ（H27）と読めない報のinfoのintentは採用のstepのrecoveryNoticesが作る〕。取り直しの報の時刻は元報のReportDateTime〔採用の時刻より新しくしない〕。版の比べが決まらない本文は採らず、印も置かない〔held、P3-REC-D-LIST-FORCE=A〕。観測のVTSE51・VTSE52は今どおりnoChange〔P3-C5-N2のrange〕。U-Tの版はintentのpayloadの2欄でv8に上げた。受入はP3-REC-T14・T15。P3-REC-AC12により統合担当が改訂）（P3-RECOVERY-001 の発注 4a: 取り直しでも live と同じに intent を作り、admit は origin=recovery の intent を足さずに置換だけを当てる〔live なら置き換える古い pending を外す。保存待ちの古い通知が取り直しの後に鳴らないため、4a の品質レビュー r0 の P2 と同じ形、統合担当の決め〕。採用の step の音〔recoveryNotices〕だけは足す。（2026-10-29 発注 4c の点検、作者の裁定）区分の最大が下がった報は、live でも取り直しでも、緊急群の終端でない pending も置き換える〔P3-C5-REPLACEMENT の ruling〕。取り直しでこの置換か同群以上の置換が保存待ちの pending を外し、その subject の区分の最大が live の記録より下がったときは、採用の step〔recoveryNotices〕で今の段の音を 1 回足す〔P3-REC-AC12 の【発注 4c】〕。受入は P3-REC-T18・T23）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
           "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",
@@ -1027,7 +1027,7 @@
         "referenceIds": [
           "P3-C5-AC07"
         ],
-        "behavior": "Q-NOTICEの各機会とlevelの式（max(変化, 残った区分)。警報中に予報区域だけが増える報、警報Aの解除とBの継続が混ざる報を含む）、overlap（訂正は接頭辞だけ）、置換（同群以上だけ）、満杯で下位を退去して緊急を収容、intentUpdate、観測の採用でdesktop＋soundがinfo（警報中のVTSE51でもinfo）で緊急群に入らないこと、training/testのdesktopだけ、recovery未適用、復元直後の続報で再び鳴らないこと（P3-RECOVERY-001の発注3で「recovery未適用」の期待を改めた: origin=recoveryのVTSE41はstateを変え、intentを作らない〔入口の置き換え、P3-C5-AC15。統合担当の許可2026-10-28、P3-REC-AC12により統合担当が改訂〕）"
+        "behavior": "Q-NOTICEの各機会とlevelの式（max(変化, 残った区分)。警報中に予報区域だけが増える報、警報Aの解除とBの継続が混ざる報を含む）、overlap（訂正は接頭辞だけ）、置換（同群以上と、2026-10-29の作者の裁定の引き下げの置換: liveで52の発令のpendingが保存待ちの間に同じ区域が51へ下がる報を受けるとcriticalのpendingがnormalに置き換わる、A区域が52のままB区域だけ51に下がる報ではcriticalが残る、ownerが予約に採った〔lastAttemptがstarted〕criticalと、停止でfailedにして復元したcriticalも置き換わる）、満杯で下位を退去して緊急を収容、intentUpdate、観測の採用でdesktop＋soundがinfo（警報中のVTSE51でもinfo）で緊急群に入らないこと、training/testのdesktopだけ、recovery未適用、復元直後の続報で再び鳴らないこと（P3-RECOVERY-001の発注3で「recovery未適用」の期待を改めた: origin=recoveryのVTSE41はstateを変え、intentを作らない〔入口の置き換え、P3-C5-AC15。統合担当の許可2026-10-28、P3-REC-AC12により統合担当が改訂〕）"
       },
       {
         "testId": "P3-C5-T07",

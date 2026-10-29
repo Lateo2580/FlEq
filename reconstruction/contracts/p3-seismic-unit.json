@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "abed1f13fdd536982889c064c041b3ac000d008c1d8bc3bfda9ceb423a6a44a8",
+    "sha256": "24ebe7dcc42a8c2d57b697aa823cba579f95cfec95ec0e6b375a75e94a815438",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -906,7 +906,7 @@
       },
       {
         "id": "P3-C7-AC14",
-        "requirement": "E22のU-Q範囲を「対象外」として固定し（P3-C7-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照）（P3-RECOVERY-001 の発注 4a で入口を置き換えた: P3-C7-N2 は B。origin=recovery は C16 の候補の作成のときだけ owner から届き、live と同じ意味を当てるが intent を作らない（live と同じに作った intent は置換の判定にだけ使い、live なら置き換える古い pending を外す。4a の品質レビュー r0 の P2）。版の比べが決まらない本文は採らず、印も WARN も表示差分も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。U-Q は H27 を鳴らさない〔P3-REC-D-N2-RAISE=A〕。当日の件数は受信日に数えるまま〔取り直しで拾った前日の地震も今日の件数に入る。作者の裁定待ち、Q-REC-IMPL-4a〕。受入は P3-C7-T07・P3-REC-T19。P3-REC-AC12 により統合担当が改訂）",
+        "requirement": "E22のU-Q範囲を「対象外」として固定し（P3-C7-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照）（P3-RECOVERY-001 の発注 4a で入口を置き換えた: P3-C7-N2 は B。origin=recovery は C16 の候補の作成のときだけ owner から届き、live と同じ意味を当てるが intent を作らない（live と同じに作った intent は置換の判定にだけ使い、live なら置き換える古い pending を外す。4a の品質レビュー r0 の P2）。版の比べが決まらない本文は採らず、印も WARN も表示差分も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。U-Q は H27 を鳴らさない〔P3-REC-D-N2-RAISE=A〕。当日の件数・最大震度は、取り直しの報では、counted に無い地震を、発生時刻〔recent と同じ originTime。ReportDateTime へ代えない〕が読めて受理の日のときだけ数え、一度数えたものは引かない〔live で数えた地震の取り直しの訂正は今どおり段を上げる。作者の裁定 2026-10-29 朝「数えない」、P3-RECOVERY-001 の発注 4c、Q-REC-PRECHECK-6。live は P3-C7-DAILY-BASIS=B の受信日のまま〕。受入は P3-C7-T07・P3-REC-T19・T22。P3-REC-AC12 により統合担当が改訂）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
           "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",
