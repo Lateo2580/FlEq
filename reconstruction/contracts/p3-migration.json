@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "6745f6ff8a440e438ae9c195c9acac4bb316d174c3310fbe0dcdf47453727485",
+    "sha256": "a9bc4787bc71944e0f32529eafbb1e51c7566cb5ec93f0182f369bedc81bda1c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -49,7 +49,7 @@
         "provisional": "A",
         "status": "確定（作者の裁定、2026-10-30 朝。推奨どおり）",
         "ruling": "A（作者の裁定、2026-10-30 朝）",
-        "reason": "旧築の src/ に Control/DateTime は 0 件（版の材料は TelegramRevision と StandbyRevision の reportTimeMs・serial だけ）。作者に示した案の B の文は裁定のメモ（起草の下調べ rulings.md）に残っていない。印の外れ方は作者の裁定の文（「live の版の比べで置き換わるか、取消か期限で消えるまで」）と P3-VM-D-MISSING の (3) の実物（置き換わっても印は残る）が食い違うので、P3-MIG-D-MARK-CLEAR で作者に確かめる"
+        "reason": "旧築の src/ に Control/DateTime は 0 件（版の材料は TelegramRevision と StandbyRevision の reportTimeMs・serial だけ）。作者に示した案の B の文は裁定のメモ（起草の下調べ rulings.md）に残っていない。印の外れ方は作者の裁定の文（「live の版の比べで置き換わるか、取消か期限で消えるまで」）と P3-VM-D-MISSING の (3) の実物（置き換わっても印は残る）が食い違うので、P3-MIG-D-MARK-CLEAR で作者に確かめ、A' に決めた（2026-10-30 朝）"
       },
       {
         "id": "P3-MIG-D-EXPIRY",
@@ -65,17 +65,17 @@
       {
         "id": "P3-MIG-D-MARK-CLEAR",
         "kind": "作者",
-        "A": "移した記録（印を付けた時刻の無い版）は、live の比べる時刻の読める報を newer として採ったときに印を外す。version.ts の stepVersion で、手元の版の source が移行で作った ReportRef（inputId が \"migrated-\" で始まる）のときだけ、newer の採用の後の印を null にする（1 か所）。時刻の無い live の報の印（P3-VM-D-MISSING の (3)）は今どおり外さない",
+        "A": "（作者が選んだ A'。訂正したカードの推奨）移した記録の印（移行で作った ReportRef、inputId が \"migrated-\" で始まるもの。以下 M）は、newer の採用で、受けた報の ReportDateTime が読めて M の reportDateTimeRaw より新しいときに外す。同じ時刻で外すのは、置き換える手元の版が移した記録そのもの（current.source が M）で取消でないときだけ（起動時の取り直しが移した記録と同じ報を取り直した場面）。それ以外（古い報、手元の版が移した取消で同じ時刻の報、ReportDateTime の読めない報）では今の (b) どおり M を残し、後の newer の採用でも同じ比べで外れる。M が採用の後の印になる道は 2 つ（時刻の無い手元の版の current.source と、残っていた印 mark）で、どちらにも同じ条件を当てる。version.ts の stepVersion の newer の枝の 1 か所。時刻の無い live の報の印（P3-VM-D-MISSING の (3)）は今どおり外さない",
         "B": "P3-VM-D-MISSING の (3) の実物のまま: 移した記録を live の報で置き換えても印は残り、その系列が取消か期限で消えるまで外れない",
+        "C": "移した記録の時刻の欄を本文側の時刻（ReportDateTime）で代わりに埋め、印を出さない",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者の裁定 3〔P3-MIG-D-UNTIMED〕の文面から統合担当が決めた、2026-10-30 朝）",
-        "ruling": "A（作者に示したカード 3 の A の文「次の報が来て置き換わるまで「未確認」付きで出る」を実装する形。B はこの文と食い違う）",
+        "status": "確定（作者の裁定、2026-10-30 朝。訂正したカードの推奨どおり）",
+        "ruling": "A'（作者の裁定、2026-10-30 朝。この branch の A の文が A'）",
         "blocks": [
           "発注 2 の着手（U-W が最初に印を持つ unit）"
         ],
-        "ifNotChosen": "B を選んだら AC07 の (3) を消し、allowedPaths から version.ts を外す",
-        "reason": "起草で version.ts の compareVersion・stepVersion を読んで見つけた（Q-MIG-H27）。作者の裁定 3 の文は「live の版の比べで置き換わるか、取消か期限で消えるまで印が出る」だが、実物は手元の版が時刻を持たないと newer の採用の後も印をその版の ReportRef に残す（AC04 の (b)）。移した記録は全部 Control/DateTime を持たないので、B では切替の後に live の報が何通来ても印が残る。見え方の違い（印を画面に出すのは段 4）: A では切替の後の最初の live の報（例: 翌朝の気象警報の更新、火山の解説）で「未確認」が消える。B では消えるのは取消か期限だけで、噴火警戒レベルのように何か月も変わらない火山（U-V の警報の active は期限なし）や、期限の長い系列では切替の後ずっと「未確認」が出続ける。A の代償: Control/DateTime で比べる種類（地震火山・土砂・洪水・竜巻・台風など）では、時刻の無い移した記録より古い報が切替の後に遅れて届いても newer として採られ、印も消える（旧築は報の時刻で比べて古い報を捨てていた）。遅れて届く古い報は、起動時の取り直しが一覧の最新を取るので起こりにくい。推奨の根拠: 作者が裁定で選んだ見え方が A の文だから"
+        "reason": "起草で version.ts の compareVersion・stepVersion を読んで見つけた（Q-MIG-H27）。作者の裁定 3 の文は「live の版の比べで置き換わるか、取消か期限で消えるまで印が出る」だが、実物は手元の版が時刻を持たないと newer の採用の後も印をその版の ReportRef に残す（AC04 の (b)）。移した記録は全部 Control/DateTime を持たないので、B では切替の後に live の報が何通来ても印が残る。見え方の違い（印を画面に出すのは段 4）: A では切替の後の最初の live の報（例: 翌朝の気象警報の更新、火山の解説）で「未確認」が消える。B では消えるのは取消か期限だけで、噴火警戒レベルのように何か月も変わらない火山（U-V の警報の active は期限なし）や、期限の長い系列では切替の後ずっと「未確認」が出続ける。A の代償: Control/DateTime で比べる種類（地震火山・土砂・洪水・竜巻・台風など）では、時刻の無い移した記録より古い報が切替の後に遅れて届いても newer として採られ、印も消える（旧築は報の時刻で比べて古い報を捨てていた）。遅れて届く古い報は、起動時の取り直しが一覧の最新を取るので起こりにくい。推奨の根拠: 作者が裁定で選んだ見え方が A の文だから。起草の最初の A（M を最初の newer の採用で条件なしに外す）には、契約適合レビュー（P2-2）が穴を見つけた: 移した取消（tombstone）より古い取消でない報が遅れて届くと newer で採られ（compareVersion）、取り消した警報が印なしで戻る。訂正したカード（A／A'／C）で作者は A' を選んだ（2026-10-30 朝）。同じ時刻の扱いは、カードの 2 行（印は最初の live の報で外れる、戻った警報は未確認付きで戻る）を両方満たす形に統合担当が決めた: 起動時の取り直しは移した記録と同じ報を取り直すことが多く（Q-MIG-H27 の (3)）、取り直しは印を無理に外さず通常の版の比べだけを通る（P3-REC-AC05 の (a)）。厳密に「より新しい」だけにすると、報の少ない系列（火山など）で印が次の報まで何か月も残る。条件を印の側（M）に付けるのは、時刻の無い印は後の newer の採用でも残る（AC04 の (b)）ので、最初の置き換えで残った M が外れなくなるのを防ぐため。C を選ばない理由: 移した記録と同じ分に出た古い報が遅れて届くと順を取り違える"
       },
       {
         "id": "P3-MIG-D-LIST-EMPTY",
@@ -223,8 +223,8 @@
         "id": "Q-MIG-H27",
         "status": "closed",
         "source": "起草での読み（2026-10-30、152ba7fb）: reconstruction/src/contracts-revision/version.ts の compareVersion・stepVersion、P3-REC-D-RAISE-BASIS=A、P3-VM-D-MISSING=A",
-        "closed": "(1) 手元の版の Control/DateTime が空なら、受けた報の Control/DateTime が読める限り newer（compareVersion。ReportDateTime で比べる種類は、ReportDateTime が新しいか同じときに newer、古ければ older）。移した記録は全部この形になる (2) newer の採用の後の印は、手元の版が時刻を持たなければその版の ReportRef（stepVersion）。作者の裁定 3 の文と食い違うので P3-MIG-D-MARK-CLEAR を作者に挙げた (3) H27 の引上げは取り直しを始めた時点の状態（再起動なら復元した前回情報）と比べる（P3-REC-D-RAISE-BASIS=A）。移行の後の最初の起動では、移した記録がその前回情報になる。取り直しの報は (1) で移した記録を置き換え、区域ごとの区分が上がっていれば H27 の音が鳴る（大津波警報なら最も重い音）。これは C16 の裁定どおりで、移行で新しい出方は増えない。上がっていなければ鳴らない（取り直しは H27 以外の intent を作らない） (4) 移行器は過去の通知を移さない（spec:2196）ので、移した記録そのものからは音が出ない",
-        "remaining": "なし（P3-MIG-D-MARK-CLEAR の裁定待ちは unresolvedQuestions の Q-MIG-MARK-CLEAR）",
+        "closed": "(1) 手元の版の Control/DateTime が空なら、受けた報の Control/DateTime が読める限り newer（compareVersion。ReportDateTime で比べる種類は、ReportDateTime が新しいか同じときに newer、古ければ older）。移した記録は全部この形になる (2) newer の採用の後の印は、手元の版が時刻を持たなければその版の ReportRef（stepVersion）。作者の裁定 3 の文と食い違うので P3-MIG-D-MARK-CLEAR を作者に挙げ、A' に決めた（移した記録の印 M だけ、ReportDateTime の比べで newer の採用の後に外す） (3) H27 の引上げは取り直しを始めた時点の状態（再起動なら復元した前回情報）と比べる（P3-REC-D-RAISE-BASIS=A）。移行の後の最初の起動では、移した記録がその前回情報になる。取り直しの報は (1) で移した記録を置き換え、区域ごとの区分が上がっていれば H27 の音が鳴る（大津波警報なら最も重い音）。これは C16 の裁定どおりで、移行で新しい出方は増えない。上がっていなければ鳴らない（取り直しは H27 以外の intent を作らない） (4) 移行器は過去の通知を移さない（spec:2196）ので、移した記録そのものからは音が出ない",
+        "remaining": "なし",
         "reason": "下調べの未確認「H27 の引上げが移した記録との比べで起きるか」"
       },
       {
@@ -240,14 +240,14 @@
         "status": "closed（作者の裁定、2026-10-30 朝。4 つとも推奨の A）",
         "source": "起草前の作者の裁定のメモ（.c15-survey/rulings.md）",
         "closed": "P3-MIG-D-OPERATION・P3-MIG-D-RECOVERABLE・P3-MIG-D-UNTIMED・P3-MIG-D-EXPIRY",
-        "remaining": "P3-MIG-D-MARK-CLEAR（起草で見つけた、作者の裁定待ち）",
+        "remaining": "なし（起草で見つけた P3-MIG-D-MARK-CLEAR は Q-MIG-MARK-CLEAR で A' に決めた）",
         "reason": "下調べ §7 の作者の分岐 4 つ"
       },
       {
         "id": "Q-MIG-MARK-CLEAR",
-        "status": "closed（2026-10-30 朝、統合担当）",
-        "source": "作者の裁定 3 のカードの文面（2026-10-30 朝）と P3-VM-D-MISSING の (2)・(3)（p3-version-material.json）",
-        "closed": "P3-MIG-D-MARK-CLEAR を A で確定した。作者が承認した見え方は「移した記録は次の報で置き換わるまで未確認」で、時刻の無い版を置き換えても印を残す今の (3) のままでは満たせない。移した記録の表し方は (2) と同じ（時刻の空な ReportRef が未確認を表し、印の欄は足さない）",
+        "status": "closed（作者の裁定、2026-10-30 朝。訂正したカードの推奨 A'）",
+        "source": "作者の裁定 3 のカードの文面（2026-10-30 朝）と P3-VM-D-MISSING の (2)・(3)（p3-version-material.json）、訂正したカード（A／A'／C、契約適合レビューの P2-2）",
+        "closed": "P3-MIG-D-MARK-CLEAR を A' で確定した。作者が承認した見え方は「移した記録は次の報で置き換わるまで未確認」と「取り消した警報が古い報の遅着で戻るときは未確認付きで戻る」。移した記録の表し方は P3-VM-D-MISSING の (2) と同じ（時刻の空な ReportRef が未確認を表し、印の欄は足さない）。同じ時刻の扱いは D-MARK-CLEAR の A の文",
         "remaining": "なし",
         "reason": "unresolvedQuestionsから移した"
       }
@@ -319,7 +319,7 @@
       "reconstruction/test/checkpoint-shutdown/checkpoint.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
       "reconstruction/tools/migration/（新設。本契約が排他的に持つ。発注 2〜5）",
       "reconstruction/test/migration/（新設。同上）",
-      "reconstruction/src/contracts-revision/version.ts（【発注 2】P3-MIG-D-MARK-CLEAR=A のときだけ、stepVersion の 1 か所。B なら触らない）",
+      "reconstruction/src/contracts-revision/version.ts（【発注 2】P3-MIG-D-MARK-CLEAR=A'、stepVersion の newer の枝の 1 か所とその上のコメント）",
       "reconstruction/tools/corpus/sequences.json（【発注 2】expected:O04:2・expected:O06:29・unmet:O06:30、【発注 5】expected:O07:19〜26 の期待だけ。sequencesSha256 の付け直しは統合担当）"
     ],
     "allowedGitCommands": [
@@ -396,7 +396,7 @@
     ],
     "publicFunctions": [
       "新: reconstruction/tools/migration/ の移行器の入口 1 つ（CLI。引数は入力のコピーの directory・取得の記録の JSON・移行先の空の directory・報告の出力先）。製品の runtime の公開口ではない",
-      "既存の公開の関数・型・export は変えない。例外は D-MARK-CLEAR=A の stepVersion の振る舞い（signature は同じ）と、AC08 で発注前点検が認めた最小の export"
+      "既存の公開の関数・型・export は変えない。例外は D-MARK-CLEAR=A' の stepVersion の振る舞い（signature は同じ）と、AC08 で発注前点検が認めた最小の export"
     ],
     "allowedDependencies": [
       "既存の依存だけ。package.json・package-lock.json を変えない"
@@ -553,7 +553,7 @@
       },
       {
         "id": "P3-MIG-AC07",
-        "requirement": "【発注 2〜4】版の材料と未確認（P3-MIG-D-UNTIMED=A、P3-MIG-D-REPORTREF=A、P3-MIG-D-MARK-CLEAR）: (1) 移す記録の ReportRef は P3-MIG-D-REPORTREF=A の形で作り、controlDateTimeRaw は空文字。各 unit の codec の読み戻し（readReportRef）を通る (2) 印の欄は null で移す（P3-VM-D-MISSING の (2) と同じく、時刻の空な ReportRef が「時刻を確かめられなかった」を表す） (3) P3-MIG-D-MARK-CLEAR=A のときだけ: version.ts の stepVersion で、手元の版の source の inputId が \"migrated-\" で始まるとき、newer の採用の後の印を null にする。それ以外の印の付け外し（P3-VM-AC04 の (a)(b)）は変えない。試験は、移した記録を live の時刻の読める報で置き換えたとき印が null になること、時刻の無い live の報の版を置き換えたときは今どおり印が残ることの 2 つ (4) 旧築の revisionOf が ReportDateTime の代わりに受信時刻を使った記録は見分けられないので、そのまま reportTimeMs を使う（残存リスク） (5) 残存リスク（P3-MIG-D-UNTIMED=A そのものから来る。新しい分岐ではない）: Control/DateTime で比べる種類では、時刻の無い移した取消の記憶（tombstone）にも、時刻の読める報は古くても newer になる（compareVersion）。切替の後に、取消より古い取消でない報が遅れて届くと、取り消した警報が戻る（旧築は報の時刻で比べて捨てていた）。起動時の取り直しは一覧の最新（取消そのもの）を取るので起こりにくい。戻った版の印は D-MARK-CLEAR=A では消え、B では残る。無いと: 移した記録を確定した版として出す（H14 の「未確認」が消える）、または印が外れない",
+        "requirement": "【発注 2〜4】版の材料と未確認（P3-MIG-D-UNTIMED=A、P3-MIG-D-REPORTREF=A、P3-MIG-D-MARK-CLEAR）: (1) 移す記録の ReportRef は P3-MIG-D-REPORTREF=A の形で作り、controlDateTimeRaw は空文字。各 unit の codec の読み戻し（readReportRef）を通る (2) 印の欄は null で移す（P3-VM-D-MISSING の (2) と同じく、時刻の空な ReportRef が「時刻を確かめられなかった」を表す） (3) P3-MIG-D-MARK-CLEAR=A'（branch の A の文）: version.ts の stepVersion の newer の採用の枝で、採用の後の印になる ReportRef（残っていた印 mark か、時刻の無い手元の版の current.source）の inputId が \"migrated-\" で始まるとき、受けた報の ReportDateTime が読めてその印の reportDateTimeRaw より新しければ印を null にする。同じ時刻で null にするのは、印が current.source から来て current.cancelled が false のときだけ。取消の採用（ends）で印が外れるのは今どおり。それ以外の印の付け外し（P3-VM-AC04 の (a)(b)、nextMark）は変えない。同じ所のコメント（時刻の無い印は「取り直し C16 か」で外れる）を P3-REC-AC05 の (a)（取り直しは通常の版の比べだけで、印を無理に外さない）に揃える。試験は T07 (4) 旧築の revisionOf が ReportDateTime の代わりに受信時刻を使った記録は見分けられないので、そのまま reportTimeMs を使う（残存リスク） (5) 残存リスク（P3-MIG-D-UNTIMED=A そのものから来る。新しい分岐ではない）: Control/DateTime で比べる種類では、時刻の無い移した取消の記憶（tombstone）にも、時刻の読める報は古くても newer になる（compareVersion）。切替の後に、取消より古い取消でない報が遅れて届くと、取り消した警報が戻る（旧築は報の時刻で比べて捨てていた）。起動時の取り直しは一覧の最新（取消そのもの）を取るので起こりにくい。戻った版には移した記録の印が残る（D-MARK-CLEAR=A'。戻った報の ReportDateTime は取消より古いので外れない）。A' の代償: 旧築の reportTimeMs が受信時刻だった記録（(4)）は、同じ報を取り直しても ReportDateTime が M より古く見えるので、印は次の新しい報まで残る。無いと: 移した記録を確定した版として出す（H14 の「未確認」が消える）、または印が外れない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-shared-runtime.types.ts:74 «b54d847410e0aa60»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:3 «0df43bf3db657b76»",
@@ -651,7 +651,7 @@
       },
       {
         "id": "P3-MIG-AC16",
-        "requirement": "配送の commit で統合担当が改める原文（本契約は既存の契約・計画・spec の本文を変えない）: (1) P3-VERSION-MATERIAL-001 の P3-VM-AC05 の「一覧の寿命」の文（C15 の配送までに空・C15 の着手条件に足す）を、計画の C15 の行の今の形（最初の発注で空、完了の条件）と P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (2) p3-persist-premises.md の一覧の寿命（:73）と C15 の着手条件（:455）の文を同じく【発注 1】 (3) premises の C15 に送った問い（:345・:470、Control/DateTime の無い旧記録と期限）に本契約の分岐 ID を添える【発注 2】 (4) D-MARK-CLEAR=A なら P3-VM-D-MISSING の (3) と P3-VM-AC04 の (b) に「移した記録は除く（P3-MIG-D-MARK-CLEAR）」を添える【発注 2】 (5) P2-CHECKPOINT-SHUTDOWN-001 と P2-WEATHER-CURRENT-UNIT-001 の Q-MIGRATION、sequences.json の p2Subsets の O04・O06・O07 の deferred の文、P3-RECOVERY-001 の C15 へ送った項目に、閉じた発注を添える【発注 2・5】 (6) sequencesSha256 と、変えた file を引く anchor の付け直し【各発注】 (7) P3-RECOVERY-001 の P3-REC-AC05 の (a)「時刻の無い報の印は取り直しでは外さない」に「移した記録は P3-MIG-D-MARK-CLEAR=A で live の newer の採用で外す」を添え、同じ AC05 の C15 への言及 2 か所（旧築から移した記録の扱いは C15 へ送る）と questionResolutions の C15 へ送った項目（Control/DateTime を持たない旧記録）に本契約の分岐 ID（P3-MIG-D-UNTIMED・P3-MIG-D-MARK-CLEAR）を添える【発注 2】 (8) p3-persist-premises.md の保存の版の段落（:67、版を上げる契約は一覧に足す）を P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (9) p2-shared-runtime.types.ts の UnitCodec の discardableSchemaVersions のコメント（C15 の配送までに空にする）を「C15 の発注 1 で空にし、以後足さない」に改める【発注 1】。無いと: 一覧の寿命と着手条件の文が計画と食い違ったまま残る",
+        "requirement": "配送の commit で統合担当が改める原文（本契約は既存の契約・計画・spec の本文を変えない）: (1) P3-VERSION-MATERIAL-001 の P3-VM-AC05 の「一覧の寿命」の文（C15 の配送までに空・C15 の着手条件に足す）を、計画の C15 の行の今の形（最初の発注で空、完了の条件）と P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (2) p3-persist-premises.md の一覧の寿命（:73）と C15 の着手条件（:455）の文を同じく【発注 1】 (3) premises の C15 に送った問い（:345・:470、Control/DateTime の無い旧記録と期限）に本契約の分岐 ID を添える【発注 2】 (4) P3-VM-D-MISSING の (3) と P3-VM-AC04 の (b) に「移した記録の印は P3-MIG-D-MARK-CLEAR=A' の条件で newer の採用の後に外す」を添える【発注 2】 (5) P2-CHECKPOINT-SHUTDOWN-001 と P2-WEATHER-CURRENT-UNIT-001 の Q-MIGRATION、sequences.json の p2Subsets の O04・O06・O07 の deferred の文、P3-RECOVERY-001 の C15 へ送った項目に、閉じた発注を添える【発注 2・5】 (6) sequencesSha256 と、変えた file を引く anchor の付け直し【各発注】 (7) P3-RECOVERY-001 の P3-REC-AC05 の (a)「時刻の無い報の印は取り直しでは外さない」に「移した記録の印は P3-MIG-D-MARK-CLEAR=A' の条件で、通常の版の比べ（取り直しを含む）の newer の採用の後に外す」を添え、同じ AC05 の C15 への言及 2 か所（旧築から移した記録の扱いは C15 へ送る）と questionResolutions の C15 へ送った項目（Control/DateTime を持たない旧記録）に本契約の分岐 ID（P3-MIG-D-UNTIMED・P3-MIG-D-MARK-CLEAR）を添える【発注 2】 (8) p3-persist-premises.md の保存の版の段落（:67、版を上げる契約は一覧に足す）を P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (9) p2-shared-runtime.types.ts の UnitCodec の discardableSchemaVersions のコメント（C15 の配送までに空にする）を「C15 の発注 1 で空にし、以後足さない」に改める【発注 1】。無いと: 一覧の寿命と着手条件の文が計画と食い違ったまま残る",
         "evidenceRefs": [
           "reconstruction/contracts/p3-version-material.json:483 «48a20c148c9cad7d»",
           "reconstruction/contracts/p3-persist-premises.md:73 «32ecbbdb103e9932»",
@@ -721,7 +721,7 @@
         "referenceIds": [
           "P3-MIG-AC07"
         ],
-        "behavior": "【発注 2、D-MARK-CLEAR=A のとき】移した記録を時刻の読める live の報で置き換えると印が null になり、時刻の無い live の版を置き換えたときは印が残る"
+        "behavior": "【発注 2、D-MARK-CLEAR=A'】(i) 移した記録を ReportDateTime の新しい live の報で置き換えると印が null (ii) 移した取消でない記録を同じ ReportDateTime の報（取り直しの同じ報）で置き換えると印が null (iii) 移した取消を、それより古い取消でない報（Control だけの側の種類）で置き換えると移した記録の印が残り、続く ReportDateTime の新しい報で null になる (iv) 時刻の無い live の報の版を置き換えたときは今どおり印が残る"
       },
       {
         "testId": "P3-MIG-T08",
@@ -897,7 +897,7 @@
         "requiredEvidence": [
           "発注ごとの baseOid の割当。発注 1 は P3-XML-READERS-001 の配送の後",
           "その時点の HEAD で一覧の件数（起草は 76）と一覧に依る試験の file（起草は 7）を数え直す",
-          "decisionBranches に起草案・作者の裁定待ちが 0 件であること（P3-MIG-D-MARK-CLEAR）",
+          "decisionBranches に起草案・作者の裁定待ちが 0 件であること",
           "本契約の anchor のずれが 0 件であること",
           "【発注 1 の点検】まだ配送されていない契約（起草中・発注待ちを含む）の条文に「discardableSchemaVersions に旧い版を足す」と書いたものが残っていないかを reconstruction/contracts/*.json で数え、残っていれば P3-MIG-D-LIST-AFTER=A（一覧に足さず開発機の保存を消す）に書き換える改訂を AC16 に足す"
         ]
