@@ -904,7 +904,7 @@ function evidenceOf(item: TransientCurrent): PersistedTransientCurrent {
   return found;
 }
 const localBulletinsUnitCodec: LocalBulletinsUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-local-bulletins-unit-v1", "p3-local-bulletins-unit-v2", "p3-local-bulletins-unit-v3", "p3-local-bulletins-unit-v4", "p3-local-bulletins-unit-v5", "p3-local-bulletins-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 保存 1 世代の上限。旧い版の一覧は持たない（P3-MIG-AC01・AC02: 版を上げても一覧に足さず、開発機の保存を消す）
   // contentRevision・persistence は保存しない（I-U-M.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, tornado: state.tornado, heat: state.heat, transient: state.transient.map(evidenceOf), intents: state.intents }),
   decode(payload) {

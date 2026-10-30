@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "235457ea9b1dcc379c7a2fcc71a33bdb4778d38e",
-    "sha256": "351c5bc1159ba9951573f6ab7fff1d2fabcc4d7c40c1e343435383ec09acbcd2",
+    "sha256": "1e728db3206ce045703e9491223b431ad5141c7ba9e685f4c97b040d634be052",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -264,7 +264,7 @@
         "id": "Q-UM-EXISTING-TESTS-2",
         "status": "closed",
         "source": "発注 2 の実装担当の報告（変える前に報告、.impl/expectation-changes.md）と r1 の直し。Q-UM-EXISTING-TESTS（unresolvedQuestions）の発注 2 の分。前例は P3-CURRENCY-COVERAGE-001 の Q-CC-EXISTING-TESTS",
-        "closed": "発注 2 で期待値を変えた既存の試験: (1) flood-fixture.ts・shared-runtime.test.ts の U-R の state の schemaVersion の字（AC16 (1) で U-R を v8 に上げた。振る舞いは変えない） (2) expiry-form.test.ts「捨てる旧い版（P3-VM-AC05）」の U-R の末尾（v7 を捨ててよい旧い版に足したので p3-flood-unit-v6 → v7） (3) unreadable-mark.test.ts の U-R の T01 の discardsPrevious の前の版（今の版の 1 つ前を捨てる形に保つため v6 → v7） (4) longest-mark.ts の longestMarks・withLongestMarks の引数（一覧の欄の数 → 一覧の欄の site の列）と 12 か所の呼び出し: codec が compareKeys を一覧の欄の site ごとに 1 件だけ受ける（Q-UM-PRECHECK-2 の (8)(a)）ので、上界の印の先頭の part をその site にする。期待値は変えない (5) unreadable-mark.test.ts の U-V の T01 の印の part: 名前の warn に scope（volcano）を足し（(8)(b)）、1 つの値の欄に compare を書く（AC04 の (1)）ので part に scope と compare が入る (6) unreadable-mark.test.ts の T03 の「U-L の part に 128 件の compareKeys」: U-L は一覧の欄を持たないので restored → invalid（(8)(a)）。128・129 件の境界は一覧の欄を持つ U-B で確かめ直す（unreadable-compare.test.ts） (7) unreadable-mark.test.ts の T03 regression の「先頭が同じ code b が残り a だけ更新された版でも part は残る」: (8)(f) で同じ fitScope の観測点が更新されたら引き継がないので、印が無くなる側に替えた (8) unreadable-compare.test.ts の T08 の竜巻の本文（r1）: 作者裁定 B で「発表中 53地域（うち K 地域は名前を読めず）」にしたので、全部読めない報と一部（2 区域）だけ読めない報の本文を K を添える形に替えた (9) expiry-form-h51.test.ts の P3-EF-T08 の竜巻（最も細かい層の区域が全部読めない報）の本文（r1）: 地域数 24 は変えず「（うち 24 地域は名前を読めず）」を足した本文と比べる",
+        "closed": "発注 2 で期待値を変えた既存の試験: (1) flood-fixture.ts・shared-runtime.test.ts の U-R の state の schemaVersion の字（AC16 (1) で U-R を v8 に上げた。振る舞いは変えない） (2) expiry-form.test.ts「捨てる旧い版（P3-VM-AC05）」の U-R の末尾（v7 を捨ててよい旧い版に足したので p3-flood-unit-v6 → v7） (3) unreadable-mark.test.ts の U-R の T01 の discardsPrevious の前の版（今の版の 1 つ前を捨てる形に保つため v6 → v7。helper は C15 の発注 1〔P3-MIG-AC01〕で rejectsPrevious に改めた） (4) longest-mark.ts の longestMarks・withLongestMarks の引数（一覧の欄の数 → 一覧の欄の site の列）と 12 か所の呼び出し: codec が compareKeys を一覧の欄の site ごとに 1 件だけ受ける（Q-UM-PRECHECK-2 の (8)(a)）ので、上界の印の先頭の part をその site にする。期待値は変えない (5) unreadable-mark.test.ts の U-V の T01 の印の part: 名前の warn に scope（volcano）を足し（(8)(b)）、1 つの値の欄に compare を書く（AC04 の (1)）ので part に scope と compare が入る (6) unreadable-mark.test.ts の T03 の「U-L の part に 128 件の compareKeys」: U-L は一覧の欄を持たないので restored → invalid（(8)(a)）。128・129 件の境界は一覧の欄を持つ U-B で確かめ直す（unreadable-compare.test.ts） (7) unreadable-mark.test.ts の T03 regression の「先頭が同じ code b が残り a だけ更新された版でも part は残る」: (8)(f) で同じ fitScope の観測点が更新されたら引き継がないので、印が無くなる側に替えた (8) unreadable-compare.test.ts の T08 の竜巻の本文（r1）: 作者裁定 B で「発表中 53地域（うち K 地域は名前を読めず）」にしたので、全部読めない報と一部（2 区域）だけ読めない報の本文を K を添える形に替えた (9) expiry-form-h51.test.ts の P3-EF-T08 の竜巻（最も細かい層の区域が全部読めない報）の本文（r1）: 地域数 24 は変えず「（うち 24 地域は名前を読めず）」を足した本文と比べる",
         "remaining": "発注 3 の分は Q-UM-EXISTING-TESTS（unresolvedQuestions）のまま",
         "reason": "期待値を変えた既存の試験の記録（発注 2）"
       },
@@ -827,7 +827,7 @@
           "P3-UM-AC01",
           "P3-UM-AC16"
         ],
-        "behavior": "受入（発注 1）。10 unit ごとに 1 本: 読めない所のある報（既存の fixture の写しで 1 か所を壊す）を受けた state を encode→restore し、記録の unreadable（site・reason・scope・raw・見出し文）が戻ること、印の無い記録に欄が無いこと。捨ててよい旧い版の slot から初期状態で始まること（K7 の入口の 1 本を unit ごとに版の字だけ替える）"
+        "behavior": "受入（発注 1）。10 unit ごとに 1 本: 読めない所のある報（既存の fixture の写しで 1 か所を壊す）を受けた state を encode→restore し、記録の unreadable（site・reason・scope・raw・見出し文）が戻ること、印の無い記録に欄が無いこと。捨ててよい旧い版の slot から初期状態で始まること（K7 の入口の 1 本を unit ごとに版の字だけ替える）。C15 の発注 1（P3-MIG-AC01）で一覧を空にしたので、今は前の版の slot を unknownSchema で読み、その unit がその run で保存しないこと（P3-VM-AC05 の (4)、helper は rejectsPrevious）"
       },
       {
         "testId": "P3-UM-T02",
@@ -1003,7 +1003,7 @@
         "referenceIds": [
           "P3-UM-AC11"
         ],
-        "behavior": "【発注 3】契約境界（AC11 の (10) のカードの分の予約、Q-UM-IMPL-1 の申し送り (1)）。記録を器の際まで詰めた U-T と U-W の envelope に、原文の予算いっぱいのカードを 8 枚書いても capture が通り、decode が受ける。版を上げた U-Q と U-W で、発注 2 の版のまま旧い境界の際まで詰めた保存を両 slot に置いて新しい版で起動すると、その unit は初期化して起動し（noValidSlot で保存が止まらない）、次の保存が書けて復元できる。U-T の envelope に ReportDateTime が 16,384 文字の読めない VTSE41 のカードを 8 枚書いても capture が通る（AC11 の (10)(12)、ヘルツ r0 の P2-1・P2-2）"
+        "behavior": "【発注 3】契約境界（AC11 の (10) のカードの分の予約、Q-UM-IMPL-1 の申し送り (1)）。記録を器の際まで詰めた U-T と U-W の envelope に、原文の予算いっぱいのカードを 8 枚書いても capture が通り、decode が受ける。版を上げた U-Q と U-W で、発注 2 の版のまま旧い境界の際まで詰めた保存を両 slot に置いて新しい版で起動すると、その unit は初期化して起動し（noValidSlot で保存が止まらない）、次の保存が書けて復元できる。C15 の発注 1（P3-MIG-AC01）で一覧を空にしたので、今はこの両 slot を unknownSchema で読み、その unit はその run で保存しない（P3-VM-AC05 の (4)）。U-T の envelope に ReportDateTime が 16,384 文字の読めない VTSE41 のカードを 8 枚書いても capture が通る（AC11 の (10)(12)、ヘルツ r0 の P2-1・P2-2）"
       }
     ],
     "requiredCommands": [

@@ -1179,9 +1179,10 @@ function replay(sequenceId: string, from: number, to: number): TsunamiUnitStep[]
   return steps;
 }
 
-// P3-VM-AC05・AC06（修正波 3）: 予約込みの上界は受理と読み戻しで同じにし、前の上限の計り方で作られた前の版の保存は版で初期化する。
+// P3-VM-AC05・AC06（修正波 3）: 予約込みの上界は受理と読み戻しで同じにし、前の上限の計り方で作られた前の版の保存は版で unknownSchema として
+// 読んでその run は保存しない（一覧は P3-MIG-AC01 で空、P3-VM-AC05 (4)。開発機の保存は配送の手順で消す、P3-MIG-AC02）。
 // 無いと、前の上限まで 430 byte 未満の余裕しか無い正常な保存が invalid になり、A/B の両方がそうなら unavailable でその run の保存も止まる。
-it("P3-VM-AC05 regression: old-version slots start empty and the next save stays within 4 MiB", async () => {
+it("P3-VM-AC05 regression: old-version slots read as unknownSchema and save nothing; once removed, the next save stays within 4 MiB", async () => {
   const first = receive(emptyState(), decodeFixture("32-39_11_02_250206_VTSE41", "VTSE41"), clock(1_299_822_540_001));
   const value = JSON.parse(JSON.stringify(tsunamiUnitCodec.encode(first.state))) as { intents: Record<string, unknown>[];
     forecasts: (Record<string, unknown> & { areas: Record<string, unknown>[] })[] };
@@ -1194,16 +1195,19 @@ it("P3-VM-AC05 regression: old-version slots start empty and the next save stays
     capturedAt: 0, payload: withPad(pad), sha256: "0".repeat(64) }).byteLength + 62 + reserve + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + growth;
   const directory = mkdtempSync(join(tmpdir(), "fleq-vm-old-"));
   try {
-    // 旧い版は容量の検査の前に版で捨てるので、slot の大きさは問わない。
+    // 旧い版は容量の検査の前に版で unknownSchema になるので、slot の大きさは問わない。
     for (const [side, generation] of [["A", 1], ["B", 2]] as const) writeFileSync(join(directory, `U-T-${side}.json`),
       serializedEnvelope(hashEnvelope({ schemaVersion: "p3-tsunami-unit-v1", unit: "U-T", generation, capturedAt: 1, payload: withPad(0, "p3-tsunami-unit-v1") })));
     const events: { reason: string; unit?: string; component: string }[] = [];
     const files = nodeCheckpointFileSystem();
-    const coordinator = new CheckpointCoordinator(directory, { "U-T": tsunamiUnitCodec }, files, () => ({ wallTimeMs: 5_000, monotonicMs: 5 }),
+    const frozen = new CheckpointCoordinator(directory, { "U-T": tsunamiUnitCodec }, files, () => ({ wallTimeMs: 5_000, monotonicMs: 5 }),
       (event) => { events.push(event); });
+    expect([frozen.restoreUnit("U-T"), frozen.saves("U-T"), events.map((event) => event.reason)]).toEqual([
+      { kind: "unavailable", reason: "unknownSchema" }, false, ["checkpointRestoreRejected"]]);
+    // 旧い版の slot を消した後（P3-MIG-AC02 の手順）の run は空から始める。
+    for (const side of ["A", "B"]) rmSync(join(directory, `U-T-${side}.json`));
+    const coordinator = new CheckpointCoordinator(directory, { "U-T": tsunamiUnitCodec }, files, () => ({ wallTimeMs: 5_000, monotonicMs: 5 }), () => {});
     expect(coordinator.restoreUnit("U-T")).toEqual({ kind: "empty" });
-    expect(events.filter((event) => event.reason === "checkpointSchemaDiscarded"))
-      .toMatchObject([{ unit: "U-T", component: "checkpoint.p3-tsunami-unit-v1" }]);
     // The next save: the largest state the unit admits now, with the longest input boundary.
     const limit = tsunamiUnitCodec.maxEnvelopeBytes!;
     const decoded = tsunamiUnitCodec.decode(withPad(limit - size(0, INPUT_BOUNDARY_MAX_BYTES)));

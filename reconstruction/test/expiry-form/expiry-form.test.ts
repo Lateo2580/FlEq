@@ -280,11 +280,6 @@ describe("P3-EXPIRY-FORM-001 expired memory, the pending mark and the tornado so
     const tsunami = reduceTsunamiUnit(reduceTsunamiUnit(T.emptyState(), { kind: "receive", material: T.decodeFixture("synthetic_VTSE51_fragmentA", "VTSE51"),
       clock: clock(at("2011-03-11T15:02:00+09:00")) }).state, { kind: "deadline", clock: clock(at("2011-03-12T15:02:00+09:00")), basis: "unverified" }).state;
     expect(tsunamiUnitCodec.decode(json(tsunamiUnitCodec.encode(tsunami))).kind).toBe("restored");
-    // 捨てる旧い版（P3-VM-AC05）。
-    expect([landslideUnitCodec.discardableSchemaVersions, floodUnitCodec.discardableSchemaVersions, briefingUnitCodec.discardableSchemaVersions,
-      tsunamiUnitCodec.discardableSchemaVersions, localBulletinsUnitCodec.discardableSchemaVersions, weatherTimeseriesUnitCodec.discardableSchemaVersions]
-      .map((list) => list?.at(-1))).toEqual(["p3-landslide-unit-v7", "p3-flood-unit-v8", "p3-briefing-unit-v6", "p3-tsunami-unit-v8",
-      "p3-local-bulletins-unit-v6", "p2-weather-timeseries-unit-v7"]);
   });
 
   // acceptance: P3-EF-T10（AC07 (3)〜(5)、D3・D4）。

@@ -575,8 +575,8 @@ describe("P3-UNIT-N-001 U-N reducer", () => {
     const marked = { ...bound, intents: budget.intents, currents: withLongestMarks(bound.currents, "infoName", [], 131_072),
       information: withLongestMarks(bound.information, "infoName", [], 0) };
     expect(roundTrip(marked).kind).toBe("restored");
-    expect(nankaiUnitCodec.discardableSchemaVersions).toEqual(["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4",
-      "p3-nankai-unit-v5", "p3-nankai-unit-v6", "p3-nankai-unit-v7"]);
+    // P3-VM-AC05 の一覧の寿命（P3-MIG-AC01）: 捨ててよい旧い版の一覧は空で、前の版の slot は unknownSchema で読む。
+    expect(nankaiUnitCodec.discardableSchemaVersions).toBeUndefined();
 
     // decode の拒否の表（invalid）と、受ける形。
     type Row = Record<string, unknown>;

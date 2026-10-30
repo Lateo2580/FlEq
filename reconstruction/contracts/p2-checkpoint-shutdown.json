@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "17e398b94a4b4c619e0e5bad02884ed5bd6296f2c645391f1b79470769cdd837",
+    "sha256": "980677eaf61c294ed8975a54adbbc3c082ea442c2f8754ca3e2d96fd5d4e92b7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -438,7 +438,7 @@
       },
       {
         "id": "P2-A3-AC09",
-        "requirement": "R21: 製品起動入口startRuntimeは各unitのrestoreUnitを一度読み、全結果を一つのstartup入力としてreduceRuntime(null, input)へ渡し、戻りstateだけを採用する。通常入力は起動完了後に受ける。restored世代gとcapturedAt、empty世代0、unavailable理由をA1へそのまま渡し、復元後のpersistenceをA3で合成しない。未知schema/世代矛盾などの既存slotを空stateで自動上書きせず（例外: P3-VERSION-MATERIAL-001のAC05の捨ててよい旧い版の一覧に載った版のslotは、P5の前だけ空stateから始めて上書きしてよい。一覧はC15の配送までに全unitで空にする。P3-VM-AC09(8)により統合担当が改訂）、受信継続とslot書込み可否を分離する。writerは古い世代と同世代異hashを無書込みで失敗させ、同世代同hashの再試行は区別する。世代の黙った補正はしない",
+        "requirement": "R21: 製品起動入口startRuntimeは各unitのrestoreUnitを一度読み、全結果を一つのstartup入力としてreduceRuntime(null, input)へ渡し、戻りstateだけを採用する。通常入力は起動完了後に受ける。restored世代gとcapturedAt、empty世代0、unavailable理由をA1へそのまま渡し、復元後のpersistenceをA3で合成しない。未知schema/世代矛盾などの既存slotを空stateで自動上書きせず（例外: P3-VERSION-MATERIAL-001のAC05の捨ててよい旧い版の一覧に載った版のslotは、P5の前だけ空stateから始めて上書きしてよい。一覧はC15の配送までに全unitで空にする（C15の発注1〔P3-MIG-AC01〕で空にし、以後足さない。P3-MIG-D-LIST-AFTER=A）。P3-VM-AC09(8)により統合担当が改訂）、受信継続とslot書込み可否を分離する。writerは古い世代と同世代異hashを無書込みで失敗させ、同世代同hashの再試行は区別する。世代の黙った補正はしない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:768 «c6fcdefce2d90c9f»",
           "docs/specs/reconstruction-p0-contracts.md:770 «3fe91886fca8d1d6»",

@@ -885,7 +885,7 @@ function persisted(value: unknown): PersistedBriefingUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const briefingUnitCodec: BriefingUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-briefing-unit-v1", "p3-briefing-unit-v2", "p3-briefing-unit-v3", "p3-briefing-unit-v4", "p3-briefing-unit-v5", "p3-briefing-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 保存 1 世代の上限。旧い版の一覧は持たない（P3-MIG-AC01・AC02: 版を上げても一覧に足さず、開発機の保存を消す）
   // contentRevision・persistence は保存しない（I-U-B.persisted）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
   decode(payload) {

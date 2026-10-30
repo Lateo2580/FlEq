@@ -1653,7 +1653,7 @@ function persisted(value: unknown): PersistedVolcanoUnit | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const volcanoUnitCodec: VolcanoUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-volcano-unit-v1", "p3-volcano-unit-v2", "p3-volcano-unit-v3", "p3-volcano-unit-v4", "p3-volcano-unit-v5", "p3-volcano-unit-v6"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）: 保存 1 世代の上限。旧い版の一覧は持たない（P3-MIG-AC01・AC02: 版を上げても一覧に足さず、開発機の保存を消す）
   // 定時・batch・解説・contentRevision・persistence は保存しない（I-U-V.persisted、spec:484・:504 の N）。
   encode: (state) => ({ schemaVersion: SCHEMA, alerts: state.alerts, eruptions: state.eruptions, ashfalls: state.ashfalls,
     shortfalls: state.shortfalls, intents: state.intents }),

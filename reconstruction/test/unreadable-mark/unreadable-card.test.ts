@@ -311,21 +311,17 @@ describe("P3-UNREADABLE-MARK-001 order 3 (H43 cards)", () => {
       .toEqual([null, cards]);
   }, 120_000);
 
-  it("P3-UM-T22 contractBoundary / AC16 (1): the raised U-Q and U-W start empty from order-2 slots on both sides and save the next generation", async () => {
-    // 版を上げた U-Q・U-W: 前の版（発注 2）の保存を両 slot に置いても初期化して起動し（noValidSlot で止まらない）、次の保存が書けて復元できる。
+  it("P3-UM-T22 contractBoundary / AC16 (1): order-2 slots of the raised U-Q and U-W on both sides read as unknownSchema and the run saves nothing", async () => {
+    // 版を上げた U-Q・U-W: 捨ててよい旧い版の一覧は空（P3-VM-AC05 の一覧の寿命、P3-MIG-AC01）なので、前の版（発注 2）の保存を両 slot に置くと
+    // unknownSchema で読み、この run は保存しない（P3-VM-AC05 (4)。開発機の保存は配送の手順で消す、P3-MIG-AC02）。
     for (const [unit, previous] of [["U-Q", "p3-seismic-unit-v6"], ["U-W", "p2-weather-current-unit-v5"]] as const) {
       const path = await directory();
       for (const [side, generation] of [["A", 1], ["B", 2]] as const)
         await fileSystem.writeFile(join(path, `${unit}-${side}.json`), serializedEnvelope(hashEnvelope({ schemaVersion: previous, unit, generation,
           capturedAt: T0, inputBoundary: null, payload: { pad: "x".repeat(linkedUnitCodecs[unit]!.maxEnvelopeBytes! - 2_000) } })));
       const { checkpoint, events } = coordinator(path, T0 + 1_000);
-      expect([linkedUnitCodecs[unit]!.discardableSchemaVersions?.includes(previous), checkpoint.restoreUnit(unit).kind,
-        events.map((event) => event.reason)]).toEqual([true, "empty", ["checkpointSchemaDiscarded"]]);
-      const correlation = { inputIds: ["input-0"], retryReason: "notRetry" as const };
-      const captured = checkpoint.capture(unit, initialUnits[unit], 3, "run", correlation);
-      if (captured.request == null) throw new Error(`${unit} did not capture`);
-      expect((await checkpoint.executeCheckpoint(captured.request, "run", correlation.inputIds, "notRetry")).result.kind).toBe("acknowledged");
-      expect(coordinator(path, T0 + 2_000).checkpoint.restoreUnit(unit)).toMatchObject({ kind: "restored", envelope: { generation: 3 } });
+      expect([linkedUnitCodecs[unit]!.discardableSchemaVersions, checkpoint.restoreUnit(unit), checkpoint.saves(unit),
+        events.map((event) => event.reason)]).toEqual([undefined, { kind: "unavailable", reason: "unknownSchema" }, false, ["checkpointRestoreRejected"]]);
     }
   }, 120_000);
 });

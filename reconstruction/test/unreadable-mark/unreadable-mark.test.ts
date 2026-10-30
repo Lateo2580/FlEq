@@ -60,17 +60,19 @@ function expectView(view: unknown, mark: UnreadableMark): void {
 
 const temporary: string[] = [];
 afterAll(async () => { for (const path of temporary) await fileSystem.rm(path, { recursive: true, force: true }); });
-// T01 の後半（K7 の入口、P3-NL-T07 と同じ作り）: 前の版の slot は捨てて初期状態から始める。
-async function discardsPrevious(unit: RuntimeUnitId, previous: string): Promise<void> {
+// T01 の後半（K7 の入口、P3-NL-T07 と同じ作り）: 捨ててよい旧い版の一覧は空（P3-VM-AC05 の一覧の寿命、P3-MIG-AC01）なので、前の版の slot は
+// unknownSchema で読み、その unit はこの run で保存しない（P3-VM-AC05 (4)）。
+async function rejectsPrevious(unit: RuntimeUnitId, previous: string): Promise<void> {
   const path = await fileSystem.mkdtemp(join(tmpdir(), "unreadable-mark-"));
   temporary.push(path);
-  expect(linkedUnitCodecs[unit]?.discardableSchemaVersions).toContain(previous);
+  expect(linkedUnitCodecs[unit]?.discardableSchemaVersions).toBeUndefined();
   await fileSystem.writeFile(join(path, `${unit}-A.json`), serializedEnvelope(hashEnvelope({ schemaVersion: previous, unit, generation: 1, capturedAt: 1,
     payload: {} })));
   const events: DiagnosticEvent[] = [];
-  const restored = new CheckpointCoordinator(path, linkedUnitCodecs, nodeCheckpointFileSystem(), () => ({ wallTimeMs: 1, monotonicMs: 1 }),
-    (event) => { events.push(event); }).restoreUnit(unit);
-  expect([restored.kind, events.some((event) => event.reason === "checkpointSchemaDiscarded")]).toEqual(["empty", true]);
+  const coordinator = new CheckpointCoordinator(path, linkedUnitCodecs, nodeCheckpointFileSystem(), () => ({ wallTimeMs: 1, monotonicMs: 1 }),
+    (event) => { events.push(event); });
+  expect([coordinator.restoreUnit(unit), coordinator.saves(unit), events.map((event) => event.reason)]).toEqual([
+    { kind: "unavailable", reason: "unknownSchema" }, false, ["checkpointRestoreRejected"]]);
 }
 
 // U-F の受信（weather-timeseries-unit.test.ts の fixture と同じ作り）。
@@ -119,7 +121,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     expect([Object.keys(clean.currents[0]).includes("unreadable"), JSON.stringify(landslideUnitCodec.encode(clean)).includes("unreadable")])
       .toEqual([false, false]);
     expect(toLandslideView(clean).currents[0]).not.toHaveProperty("unreadableView");
-    await discardsPrevious("U-L", "p3-landslide-unit-v6");
+    await rejectsPrevious("U-L", "p3-landslide-unit-v6");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-B keeps the condition mark", async () => {
@@ -131,7 +133,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const restored = briefingUnitCodec.decode(json(briefingUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.currents : null).toEqual(broken.state.currents);
     expectView(toBriefingView(broken.state).currents[0], mark!);
-    await discardsPrevious("U-B", "p3-briefing-unit-v6");
+    await rejectsPrevious("U-B", "p3-briefing-unit-v6");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-R keeps the series mark scoped to the station", async () => {
@@ -144,7 +146,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const restored = floodUnitCodec.decode(json(floodUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.currents : null).toEqual(broken.state.currents);
     expectView(toFloodView(broken.state).currents[0], mark!);
-    await discardsPrevious("U-R", "p3-flood-unit-v7");
+    await rejectsPrevious("U-R", "p3-flood-unit-v7");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-M keeps the headline mark of a tornado report", async () => {
@@ -157,7 +159,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const restored = localBulletinsUnitCodec.decode(json(localBulletinsUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.tornado : null).toEqual(broken.state.tornado);
     expectView(toLocalBulletinsView(broken.state).tornado[0], mark!);
-    await discardsPrevious("U-M", "p3-local-bulletins-unit-v6");
+    await rejectsPrevious("U-M", "p3-local-bulletins-unit-v6");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-V keeps the volcano name mark on the land side", async () => {
@@ -172,7 +174,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const restored = volcanoUnitCodec.decode(json(volcanoUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.alerts : null).toEqual(broken.state.alerts);
     expectView(toVolcanoView(broken.state).alerts[0], mark!);
-    await discardsPrevious("U-V", "p3-volcano-unit-v5");
+    await rejectsPrevious("U-V", "p3-volcano-unit-v5");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-Q keeps the name mark scoped to the station on the contribution", async () => {
@@ -188,7 +190,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const view = toSeismicView(broken.state).earthquakes[0];
     expect(view.unreadableView).toEqual([{ family: "VXSE53", ...viewOf(mark!) }]);
     expect(JSON.stringify(view)).not.toContain(`<IntensityStation><Code>${code}`);
-    await discardsPrevious("U-Q", "p3-seismic-unit-v5");
+    await rejectsPrevious("U-Q", "p3-seismic-unit-v5");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-N keeps the infoName mark on the current and the information", async () => {
@@ -204,7 +206,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const view = toNankaiView(broken.state);
     expectView(view.currents[0], mark!);
     expectView(view.information[0], mark!);
-    await discardsPrevious("U-N", "p3-nankai-unit-v6");
+    await rejectsPrevious("U-N", "p3-nankai-unit-v6");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-Y keeps the dropped section of a probability report", async () => {
@@ -218,7 +220,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const restored = typhoonUnitCodec.decode(json(typhoonUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.probability : null).toEqual(broken.state.probability);
     expectView(toTyphoonView(broken.state).probability[0], mark!);
-    await discardsPrevious("U-Y", "p3-typhoon-unit-v6");
+    await rejectsPrevious("U-Y", "p3-typhoon-unit-v6");
   });
 
   it("P3-UM-T01・P3-UM-T09 acceptance / AC01,AC16,AC10: U-T keeps the station mark scoped to the station code", async () => {
@@ -230,7 +232,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     const restored = tsunamiUnitCodec.decode(json(tsunamiUnitCodec.encode(broken.state)));
     expect(restored.kind === "restored" ? restored.state.observations : null).toEqual(broken.state.observations);
     expectView(toTsunamiView(broken.state).observations[0], mark!);
-    await discardsPrevious("U-T", "p3-tsunami-unit-v5");
+    await rejectsPrevious("U-T", "p3-tsunami-unit-v5");
   });
 
   // acceptance: P3-UM-T15（AC15・AC02）も同じ入力で。Kind の範囲の区分不明は scope にその Kind の範囲を書き、WARN は今どおり 1 件。
@@ -247,7 +249,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     expect(restored.kind === "restored" ? restored.state.subjects : null).toEqual(broken.state.subjects);
     expectView(toWeatherTimeseriesView(broken.state).series[0], mark!);
     expect(ufReceive(ufMaterial(UF)).state.subjects[0]).not.toHaveProperty("unreadable");
-    await discardsPrevious("U-F", "p2-weather-timeseries-unit-v6");
+    await rejectsPrevious("U-F", "p2-weather-timeseries-unit-v6");
   });
 
   // contractBoundary: P3-UM-T02（AC03）。U-R の原文の予算の境界、外す順、H39 の数え方、保存→復元の合計。P3-UM-T21（AC17）: 予算を越える

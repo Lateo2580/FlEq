@@ -849,7 +849,7 @@ function persisted(value: unknown): Decoded | null {
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
 const nankaiUnitCodec: NankaiUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p3-nankai-unit-v1", "p3-nankai-unit-v2", "p3-nankai-unit-v3", "p3-nankai-unit-v4", "p3-nankai-unit-v5", "p3-nankai-unit-v6", "p3-nankai-unit-v7"], maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）・P3-NS-AC08: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, maxEnvelopeBytes: GENERATION_LIMIT, // P3-VM-AC05・AC06（修正波 3）・P3-NS-AC08: 保存 1 世代の上限。旧い版の一覧は持たない（P3-MIG-AC01・AC02: 版を上げても一覧に足さず、開発機の保存を消す）
   // contentRevision・persistence は保存しない（I-U-N.persisted）。情報系列は全文を保存する（P3-NS-AC01、H30）。
   encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents, information: state.information }),
   decode(payload) {

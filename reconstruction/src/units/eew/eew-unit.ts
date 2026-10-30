@@ -283,7 +283,7 @@ function toEewView(state: EewUnitState): EewUnitView {
 }
 
 const eewUnitCodec: EewUnitCodec = {
-  schemaVersion: SCHEMA, discardableSchemaVersions: ["p2-eew-unit-v1", "p2-eew-unit-v2", "p2-eew-unit-v3", "p2-eew-unit-v4"], maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 前の版の保存は初期化する
+  schemaVersion: SCHEMA, maxEnvelopeBytes: GENERATION_BYTES, // P3-VM-AC05・AC06（修正波 3）: 保存 1 世代の上限。旧い版の一覧は持たない（P3-MIG-AC01・AC02: 版を上げても一覧に足さず、開発機の保存を消す）
   encode(state) {
     const value: PersistedEewUnit = { schemaVersion: SCHEMA, intents: state.intents, notices: state.notices, unreadableNotices: state.unreadableNotices };
     if (persisted(value) == null) throw new Error("U-E checkpoint exceeds its persisted boundary");

@@ -64,13 +64,13 @@ H14（spec:3041）と 16.2.5（spec:3134〜3147）: 種類ごとの時刻で比�
 - K1 の D-ORDER=A（InfoType の順位と Serial）、P3-ORDER-AC04、P3-LIFE-D-LATE の Serial の stale は、この契約が置き換える。同時刻・同 Control/DateTime の取消と発表は H14 の文言どおり「未確認」になり、取消が勝つ規則は無くなる（K7 の起草で旧裁定との差を条文に書く）。
 - 旧記録の扱い（作者裁定「新築の開発用の保存は P5 の前は初期化してよい」、main f511b8b5 の p3-order-plan.md 末尾）: 新築の旧い形の保存は読まず、初期状態から始める。Control/DateTime を持たない記録は新築の中には残らない。旧築から移した記録（C15）に残りうる所は §9 と C15 に送る。
 - 時刻を欠く電文（VPTW60・VPWP50 の fixture）を拒否するか代わりの時刻で受けるかは K7 で決める。系列の決め方と同じ版の別形式（VPHW50/51、VFVO54/55）から 1 つを採る規則（spec:3147 の未定）も K7 で決め、subject の鍵を変えるなら K7 の移行に入れる。
-- 保存の版: 形を変える契約は、その unit の `schemaVersion` を上げる。旧い形を読む移行は作らない（作者裁定）。上の起動の振舞いのままでは、上げた unit が二度と保存されなくなるので、K7 で入口を 1 つ直す: codec が「捨ててよい旧い版」の一覧（その unit の過去の `schemaVersion`）を持ち、checkpoint がその版の slot を読んだら `unavailable` ではなく `empty`（保存なし）として返す。owner は初期状態から始め、保存を続け、最初の保存で旧い slot を上書きする。一覧に無い版（未来の版・壊れた値）は今どおり `unknownSchema` で読まない。捨てたことは診断（reason `checkpointSchemaDiscarded`）に出す。変える契約は `P2-CHECKPOINT-SHUTDOWN-001`（復元の入口）と `P2-SHARED-RUNTIME-001`（UnitCodec に一覧、DiagnosticDetails の reason の型に `checkpointSchemaDiscarded`）。owner の入口（`owner-runtime.ts:291〜295`）は `empty` を通すので変えない。
+- 保存の版: 形を変える契約は、その unit の `schemaVersion` を上げる。旧い形を読む移行は作らない（作者裁定）。上の起動の振舞いのままでは、上げた unit が二度と保存されなくなるので、K7 で入口を 1 つ直す: codec が「捨ててよい旧い版」の一覧（その unit の過去の `schemaVersion`）を持ち、checkpoint がその版の slot を読んだら `unavailable` ではなく `empty`（保存なし）として返す。owner は初期状態から始め、保存を続け、最初の保存で旧い slot を上書きする。一覧に無い版（未来の版・壊れた値）は今どおり `unknownSchema` で読まない。捨てたことは診断（reason `checkpointSchemaDiscarded`）に出す。変える契約は `P2-CHECKPOINT-SHUTDOWN-001`（復元の入口）と `P2-SHARED-RUNTIME-001`（UnitCodec に一覧、DiagnosticDetails の reason の型に `checkpointSchemaDiscarded`）。owner の入口（`owner-runtime.ts:291〜295`）は `empty` を通すので変えない。C15 の発注 1（P3-MIG-AC01）で一覧は全 unit で空にした（UnitCodec の型と checkpoint の判定は残す）。以後、版を上げる契約は一覧に足さない。前の版の slot は一覧に無い版として `unknownSchema` で読まれるので、開発機の新築の保存を消す手順をその契約の配送に書く（P3-MIG-D-LIST-AFTER=A、P3-MIG-AC02）。
 - A/B の slot の版が混ざるとき: 今の復元は A・B のうち読めた slot だけで決め（`checkpoint.ts:169〜183`）、次の保存は読めた slot の反対側に書く（`:293`、P2-A3-AC09）。版を上げて初期化した後の最初の保存で、A が新しい版・B が旧い版になる。この状態を旧い版のプログラムで起動すると、A を `unknownSchema` として B を復元し、次の保存で新しい版の A を上書きする。「一覧に無い版は保存しない」は、片方の slot が読めると成り立たない。K7 で A/B を合わせた規則にする:
   - 現行版と捨ててよい旧い版: 現行版の slot を復元し、旧い版の slot は次の保存で上書きしてよい。
   - 捨ててよい旧い版だけ: `empty` として初期状態から始める（上の規則）。
   - どちらかが未対応の版（一覧に無い・未来の版）: もう一方が読めても、その unit の保存を禁止する（今の「その run では保存しない」と同じ扱い）。復元は読めた slot から行ってよい。未来の版の slot を上書きしない。
   - 検収: 旧い版だけからの初期化、初期化の後の最初の保存で新旧が混ざった状態からの復元、未来の版が片方の slot にある状態（保存しないこと）の 3 本を K7 の試験に入れる。
-- 一覧の寿命: この入口は、P5 を越えて残ると利用者の保存を黙って消せる。一覧は P5 の並走検収（C15 の配送）までに空にして入口を閉じる。K7 の条文に「一覧は P5 の前だけのもので、C15 の配送で空にする」と書き、C15 の着手条件に「一覧が空であること（閉じる改訂を含めて配送する）」を足す。
+- 一覧の寿命: この入口は、P5 を越えて残ると利用者の保存を黙って消せる。一覧は P5 の並走検収（C15 の配送）までに空にして入口を閉じる。K7 の条文に「一覧は P5 の前だけのもので、C15 の配送で空にする」と書き、C15 の着手条件に「一覧が空であること（閉じる改訂を含めて配送する）」を足す。改め（P3-MIG-AC16 (2)）: 計画の C15 の行では、一覧を空にする作業は C15 の最初の発注で、一覧が全 unit で空なことは C15 の完了の条件になった。一覧は C15 の発注 1（P3-MIG-AC01）で空にし、以後足さない（P3-MIG-D-LIST-AFTER=A）。
 - 取り下げたもの: codec が旧い形を見分けて読む案（改訂 1）、形の番号（`shape`）を足す案（改訂 2）、K2 の移行A1 の旧い形を K7 で外す話（改訂 2）。K2 の旧い形は版を上げれば読まれなくなる。既存の移行A1 と版を据え置く前提にした契約と試験（`p3-authority-evidence.json:331` の P3-AUTH-AC06、P3-AUTH-T05 の `nankai-unit.test.ts:705`・`volcano-unit.test.ts:953`、`p3-currency-coverage.json` の Q-CC-SCHEMA と AC05、P3-CC-T09 の `tsunami-unit.test.ts:743`・`seismic-unit.test.ts:994`）と spec:3146 の「全 unit の永続 schema の移行が要る」は、この裁定で置き換える改訂として K7 で直す（§8）。新しい形の保存→復元の試験は残す。
 - checkpoint の envelope に取り直しの境界の欄を 1 つ足す（§2.4・§6）。envelope の形が変わるので checkpoint の読み書き（`checkpoint.ts` の `serializedEnvelope` と readSlot の再直列化の照合）と `P2-CHECKPOINT-SHUTDOWN-001` を K7 で変える。envelope の版も上げ、旧い envelope は上の一覧と同じく捨てて初期状態から始める。
 - `ReportRef` の読み戻し 12 か所は K7 で 1 つの関数に寄せる（どのみち 12 か所すべてを直すので、写しを増やさない）。XML の読み取り関数の集約（plan §9）は段 3 の後のまま。
@@ -83,7 +83,7 @@ H14（spec:3041）と 16.2.5（spec:3134〜3147）: 種類ごとの時刻で比�
 
 ### 1.6 段 3 の切り方
 
-K7 `P3-VERSION-MATERIAL-001`（仮）の 1 本。変える契約: `P1-PARSER-BOUNDARY`（DecodedMaterial、ParserMailboxItem に dmdata の電文 id）、`P2-SHARED-RUNTIME-001`（ReportRef）、`P2-CHECKPOINT-SHUTDOWN-001`（envelope の境界の欄）、`P3-REVISION-ORDER-001`、`P2-EEW-UNIT-001`、`P3-LIFETIME-AND-EEW-GATE-001`（P3-LIFE-D-LATE）、`P2-WEATHER-CURRENT-UNIT-001`（同時刻の後着）、`P2-WEATHER-TIMESERIES-UNIT-001`、`P3-TSUNAMI-UNIT-001`（OBS-MERGE の版）、`P3-UNIT-M-001`（TORNADO-PAIR）と全 unit 契約の codec。永続の形: 全 12 unit の payload と envelope を変え、`schemaVersion` を上げる。新築の旧い形を読む移行は作らない（作者裁定）。試験: unit ごとに新しい形の保存→復元の 1 本と、捨ててよい旧い版の slot から初期状態で始まり最初の保存で上書きする 1 本（入口の直しの分）。
+K7 `P3-VERSION-MATERIAL-001`（仮）の 1 本。変える契約: `P1-PARSER-BOUNDARY`（DecodedMaterial、ParserMailboxItem に dmdata の電文 id）、`P2-SHARED-RUNTIME-001`（ReportRef）、`P2-CHECKPOINT-SHUTDOWN-001`（envelope の境界の欄）、`P3-REVISION-ORDER-001`、`P2-EEW-UNIT-001`、`P3-LIFETIME-AND-EEW-GATE-001`（P3-LIFE-D-LATE）、`P2-WEATHER-CURRENT-UNIT-001`（同時刻の後着）、`P2-WEATHER-TIMESERIES-UNIT-001`、`P3-TSUNAMI-UNIT-001`（OBS-MERGE の版）、`P3-UNIT-M-001`（TORNADO-PAIR）と全 unit 契約の codec。永続の形: 全 12 unit の payload と envelope を変え、`schemaVersion` を上げる。新築の旧い形を読む移行は作らない（作者裁定）。試験: unit ごとに新しい形の保存→復元の 1 本と、捨ててよい旧い版の slot から初期状態で始まり最初の保存で上書きする 1 本（入口の直しの分）。C15 の発注 1（P3-MIG-AC01）で一覧を空にしたので、後者は試験用の codec（test-v0）の 1 本だけが残り、unit ごとの試験は前の版の slot を `unknownSchema` で読んでその run は保存しない形に替えた。
 
 ## 2. 通知を照合する材料（H27・H48・H19・C16 の境界）
 
@@ -452,7 +452,7 @@ K10 が U-T・U-W の期限処理を触るので、K12 と ③ は K10 の後に
 
 どの契約も新築の旧い形を読む移行を作らない（作者裁定 2026-10-20）。新しい形の保存→復元の試験は残す（P3-X-C4）。
 
-段 4（上限の値と画面へ送る形、H35〜H37）は K11〜K13・③ の配送の後に、最終の大きさを測ってから決める。C15（旧築からの移行）は unit ごとに最後の形が配送された後に着手する（plan:80）。C15 の着手条件に、捨ててよい旧い版の一覧が空であること（§1.4）を足す。旧築の記録に Control/DateTime が無い場合の扱いは C15 に送る（§9）。
+段 4（上限の値と画面へ送る形、H35〜H37）は K11〜K13・③ の配送の後に、最終の大きさを測ってから決める。C15（旧築からの移行）は unit ごとに最後の形が配送された後に着手する（plan:80）。C15 の着手条件に、捨ててよい旧い版の一覧が空であること（§1.4）を足す（改め、P3-MIG-AC16 (2): 一覧を空にする作業は C15 の最初の発注になり、C15 の発注 1〔P3-MIG-AC01〕で空にした。一覧が全 unit で空なことは C15 の完了の条件で、以後足さない〔P3-MIG-D-LIST-AFTER=A〕）。旧築の記録に Control/DateTime が無い場合の扱いは C15 に送る（§9）。
 
 ## 9. 未確認のこと
 

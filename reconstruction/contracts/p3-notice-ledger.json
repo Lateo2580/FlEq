@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "4b0211e082858d18174fc848cbf650e48a8201b8257c530b559565a9e243201e",
+    "sha256": "60a848dc87730c3a1afe128cd8e58c9606675b8624c5beca41919de7fdbc530e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -897,7 +897,7 @@
           "P3-NL-AC15",
           "P3-NL-AC10"
         ],
-        "behavior": "12 unit ごとの新しい形の保存→復元（印・失敗の印・lastAttempt・priorityGroup を含む）と、捨てた旧い版の slot から初期状態で始まること。静的上界の試験（各 unit の既存の上界の試験）の値を印と終端の外しで数え直す。telegram-foundation__phase7_5_VXSE53_20260728162718_99e82c812e72 の後の synthetic_VXSE53_cancel の取消の通知の文面（種類・発表時刻・震源名）。Head/Title の末尾が「の取消」の取消（synthetic_VXKO50_cancel）は種類から「の取消」を除く（flood-unit.test.ts、AC10 の (3)）"
+        "behavior": "12 unit ごとの新しい形の保存→復元（印・失敗の印・lastAttempt・priorityGroup を含む）と、捨てた旧い版の slot から初期状態で始まること（C15 の発注 1〔P3-MIG-AC01〕で一覧を空にしたので、今は前の版の slot を unknownSchema で読み、その unit がその run で保存しないこと。P3-VM-AC05 の (4)）。静的上界の試験（各 unit の既存の上界の試験）の値を印と終端の外しで数え直す。telegram-foundation__phase7_5_VXSE53_20260728162718_99e82c812e72 の後の synthetic_VXSE53_cancel の取消の通知の文面（種類・発表時刻・震源名）。Head/Title の末尾が「の取消」の取消（synthetic_VXKO50_cancel）は種類から「の取消」を除く（flood-unit.test.ts、AC10 の (3)）"
       }
     ],
     "requiredCommands": [

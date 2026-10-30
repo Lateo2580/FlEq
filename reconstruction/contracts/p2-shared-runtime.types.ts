@@ -552,7 +552,7 @@ export type LossTally = Readonly<{ reason: LossReason; count: number; lastAt: nu
 
 // Unit reducers own codecs; A3 calls them at capture/restore, not on idle ticks.
 export type UnitCodec<State, Persisted extends JsonValue> = Readonly<{
-  schemaVersion: string; discardableSchemaVersions?: readonly string[]; maxEnvelopeBytes?: number; // P3-VM-AC05: 捨ててよい旧い版（P5 の前だけ、C15 の配送までに空にする。省略は空）。P3-VM-AC06: 保存 1 世代の envelope の上限（capture の最後の守り）
+  schemaVersion: string; discardableSchemaVersions?: readonly string[]; maxEnvelopeBytes?: number; // P3-VM-AC05: 捨ててよい旧い版（P5 の前だけ、C15 の発注 1 で空にし、以後足さない〔P3-MIG-AC01・P3-MIG-D-LIST-AFTER=A〕。省略は空）。P3-VM-AC06: 保存 1 世代の envelope の上限（capture の最後の守り）
   encode: (state: State) => Persisted;
   decode: (payload: JsonValue) => UnitDecodeResult<State>;
 }>;

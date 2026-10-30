@@ -560,7 +560,6 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const order = (from: SeismicUnitState) => { const result = pressed(from, next, 60_000, PAD_AT).step;
       return [result.state.earthquakes.map((item) => [item.eventId, isFolded(item)]), result.state.longPeriods.map((item) => [item.eventId, isFolded(item)])]; };
     expect(order(restored.state)).toEqual(order(state));
-    expect(seismicUnitCodec.discardableSchemaVersions).toContain("p3-seismic-unit-v4");
     // H39: U-Q の行は 9 語（畳みの 1 語と原文の外し・読めない報、P3-UM-AC11 (11)）で、losses の上界は 9 語の最長の組（913 byte）。
     expect([lossReasons("U-Q").length, lossReasons("U-Q").includes("seismicStationsFolded"), LOSS_TALLY_MAX_BYTES]).toEqual([9, true, 913]);
 

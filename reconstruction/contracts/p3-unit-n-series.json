@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "4359912db692acb2911d61b7397e5df5f8523831f6a960ee55a31b7d03719436",
+    "sha256": "1f95aab120eb14d062f580e0ba40229e8a81144f820cda48ab217b17e3412ee3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -411,7 +411,7 @@
         "id": "P3-NS-AC08",
         "requirement": "版と保存→復元と corpus（作者裁定「P5 の前は初期化してよい」、P3-VM-AC05、統合担当の決定 D3）: (1) schemaVersion を p3-nankai-unit-v6 にし、discardableSchemaVersions に v5 を足す（v1〜v5）。旧い形を読む移行は作らない。版の文字列は types.ts・nankai-unit.ts・owner-runtime.ts の初期の state の表（:80）・試験（nankai-fixture.ts:16・nankai-unit.test.ts:556・shared-runtime.test.ts:76）を同じ行の中で替える (2) 新しい形の保存→復元の試験（P3-NS-T01）と、v5 の保存物が捨ててよい版になること（P3-NS-T04）を残す（P3-X-C4） (3) sequences.json の 9 step の期待を実装の patch で直す（step の数と位置は変えない。replay の試験が effective の欄を読むので、直さないとゲートが赤になる）: O01:69 の checks の level を normal（H12）に、O01:70 の「validUntil=16:28+7日」を warningUntil（＋7 日）と validUntil（＋14 日）に、O07:37・:42 の「情報系列は保存しない」、O07:38 の「情報系列は空から始まる」、O07:39 の「情報系列は復元で空なので」を全文の保存と復元に、O07:41 の validUntil を warningUntil と validUntil に、O07:43 の「validUntilの1 ms前」を warningUntil の 1 ms 前に、O07:44 の effective を active にし checks を「status は megaquakeAdvisory、通知なし（P3-NS-D-STEPDOWN-NOTICE=A）。巨大地震注意へ移る」に。sequences.json の meta.sha256 が変わり、全契約の sequencesSha256 と sha256 が check-contract で FAIL になるのは想定内で、配送の commit で統合担当が付け直す (4) 既存の試験の nankai-unit.test.ts:64・:65 の Serial「0」と 11 桁の行は、P3-NS-AC07 で受ける報になる（期待を accepted と WARN identityInvalid に替える。Q-NS-EXISTING-TESTS (k)）",
         "evidenceRefs": [
-          "reconstruction/src/units/nankai/nankai-unit.ts:852 «7f3c0c622eaf48fd»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:852 «155c2bd277dffff5»",
           "reconstruction/src/runtime/owner-runtime.ts:86 «d4297adad6a36760»",
           "reconstruction/contracts/p3-order-plan.md:503 «4226852a4ae2323b»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:60 «5a3c26137e8681e0»",
@@ -511,7 +511,7 @@
           "P3-NS-AC06",
           "P3-NS-AC08"
         ],
-        "behavior": "decode の拒否の表（invalid）: megaquakeWarning の現況に warningUntil が無い・値が式と違う、VYSE60 か megaquakeAdvisory 以外に warningUntil、warningUntil のある現況の validUntil が＋14 日でない、expired・cancelled の情報に本文の欄、active の情報の validUntil・retainUntil が式と違う、unconfirmed の subject が記録と違う、情報 65 件、payload に evidence の鍵。合法な大きな状態: 現況 6 件（line nankai の 3 件だけ warningUntil、印つき）・情報 64 件（重ならない subject、合法な ReportDateTime〔40 文字の ASCII の時刻〕と式どおりの期限、文字列は 3 byte の文字で上限の長さ、印つき）・pending 131,072 の世代を保存→復元し、restored で 2,621,440 以下（実測の値と解析の上界 2,334,223〔Q-NS-BYTES、6 byte の文字と ReportDateTime の予約を含む〕を並べて console に出す。既存の P3-CODEC-T02 を置き換える。この状態を AC09 の時間の測定にも使う）。codec の discardableSchemaVersions が v1〜v5。今の P3-AUTH-T05（nankai-unit.test.ts:707）が evidence に当てている拒否の行のうち上の表に無いもの（subject の重複・subject の形・EventID の無い subject、Serial「0」・InfoType の語彙、時刻が整数でない、配列でない・鍵が無い、Control/DateTime の型）は、この表か P3-AUTH-T05 の書き換えで payload.information に当てて残す（拒否の試験を欠かさない）（今の器は U-N 3,139,385 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "decode の拒否の表（invalid）: megaquakeWarning の現況に warningUntil が無い・値が式と違う、VYSE60 か megaquakeAdvisory 以外に warningUntil、warningUntil のある現況の validUntil が＋14 日でない、expired・cancelled の情報に本文の欄、active の情報の validUntil・retainUntil が式と違う、unconfirmed の subject が記録と違う、情報 65 件、payload に evidence の鍵。合法な大きな状態: 現況 6 件（line nankai の 3 件だけ warningUntil、印つき）・情報 64 件（重ならない subject、合法な ReportDateTime〔40 文字の ASCII の時刻〕と式どおりの期限、文字列は 3 byte の文字で上限の長さ、印つき）・pending 131,072 の世代を保存→復元し、restored で 2,621,440 以下（実測の値と解析の上界 2,334,223〔Q-NS-BYTES、6 byte の文字と ReportDateTime の予約を含む〕を並べて console に出す。既存の P3-CODEC-T02 を置き換える。この状態を AC09 の時間の測定にも使う）。codec の discardableSchemaVersions が v1〜v5（C15 の発注 1〔P3-MIG-AC01〕で一覧を空にしたので、今は省略〔undefined〕）。今の P3-AUTH-T05（nankai-unit.test.ts:707）が evidence に当てている拒否の行のうち上の表に無いもの（subject の重複・subject の形・EventID の無い subject、Serial「0」・InfoType の語彙、時刻が整数でない、配列でない・鍵が無い、Control/DateTime の型）は、この表か P3-AUTH-T05 の書き換えで payload.information に当てて残す（拒否の試験を欠かさない）（今の器は U-N 3,139,385 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "testId": "P3-NS-T05",
