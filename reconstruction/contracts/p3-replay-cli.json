@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b8ca889b4e0dfe8e816ae0fc99dc2778a9788c97",
-    "sha256": "21fb6815c10097278bf8837e925b39e17179da0e78b55a5117d1337e3a5488d9",
+    "sha256": "e15b9e8c38cf071cb68315ba37f53270a0306044e99c3e834832610087162b68",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -151,7 +151,7 @@
     "contractId": "P3-REPLAY-CLI-001",
     "mode": "implementation",
     "objective": "R10②の検収用replayの公開口 fleq replay <fixture...> を、C4のrunnerと同じ製品経路（ローカルWS→startP2Host→/snapshot）で作る（計画:82、spec:650）。新設のreconstruction/cli/replay.mjsに関数runReplayと最小の入口だけを置き、manifestのfixtureIdを境界で検査し、試験専用の保存先・通知の無効化（silent）・manifestの報の時刻を原点にした時計で、入力をorigin=\"replay\"として1件ずつ流し、最後のsnapshotと通常終了の要約をJSON 1行で返す。originのためにhost.tsの2行（型とWSの入力のorigin）を行数を変えずに改める。runnerのfile・frozen.ts・旧築src/は変えず、fleqの振り分けはC18が吸う。spec§5.9とC3bの停止監視には触れない（stop()を呼んで要約を読むだけ）。replayの出力は通知配送・性能・保存の製品条件の合格に使わない（spec:650の最後の文。通知を止め、測定の印付きで動くため）。実adapterでの検収はC21・C22",
-    "baseOid": "unassigned",
+    "baseOid": "ab3f92baf4495008d40466098232d9d96404bea9",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
