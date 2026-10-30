@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "fdbc4b262c04e6bed615e549e7f8e63816972cf81762b6996ec723f330571d16",
+    "sha256": "2279e1dac4ecae0d63c9d1671641f5aef0f64d97b81ec0ec93884c2d10ae65ce",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -250,6 +250,14 @@
         "closed": "P3-MIG-D-MARK-CLEAR を A' で確定した。作者が承認した見え方は「移した記録は次の報で置き換わるまで未確認」と「取り消した警報が古い報の遅着で戻るときは未確認付きで戻る」。移した記録の表し方は P3-VM-D-MISSING の (2) と同じ（時刻の空な ReportRef が未確認を表し、印の欄は足さない）。同じ時刻の扱いは D-MARK-CLEAR の A の文。2 行目は品質レビュー r2・r3 の後に「戻らない」（手元の版が M の間は compareVersion が ReportDateTime だけで比べる下限）へ改め、作者が承認した（2026-10-30 昼）。同じ報の取り直しでは未確認は外れない（作者の裁定 X、2026-10-30 昼）",
         "remaining": "なし",
         "reason": "unresolvedQuestionsから移した"
+      },
+      {
+        "id": "Q-MIG-PRECHECK-1",
+        "status": "closed（2026-10-30 昼の発注 1 の発注前点検、版は e06ce002）",
+        "source": "Q-MIG-BASE の requiredEvidence を点検の版で数え直した（統合担当が委ねた読み取りだけの数え）",
+        "closed": "(1) 一覧は 76 件で起草と同じ（briefing 6・eew 4・flood 8・landslide 7・local-bulletins 6・nankai 7・seismic 6・tsunami 8・typhoon 6・volcano 6・weather-current 5・weather-timeseries 7）。12 file とも配列は 1 行の中にある。12 file の外で一覧を読むのは checkpoint.ts の判定と p2-shared-runtime.types.ts の型だけで、どちらも残す側 (2) 一覧に依る試験の file は allowedPaths の 7 本で漏れも余りも無い（tsunami-unit.test.ts は一覧の語を持たないが v1 の slot で checkpointSchemaDiscarded を期待する）。旧い版の文字列を持つ他の 5 本（local-bulletins・typhoon・seismic の unit の試験、uf-history）は configRevision・envelope・digest に使うだけで範囲に足さない (3) decisionBranches の 18 本はすべて確定で、起草案・裁定待ちは 0 件 (4) checker 3 本は rc 0（P3-MIGRATION-001 は PASS、WARN は baseOid=unassigned だけ）。本契約の anchor 83 件は点検の版と一致 (5) 「一覧に旧い版を足す」と書いた契約は 7 本（p3-expiry-form・p3-notice-ledger・p3-unit-n-series・p3-unit-q-capacity・p3-unreadable-mark・p3-version-material・p2-shared-runtime）あるが、どれも baseOid が割当済みで名指す発注は閉じている。未配送の契約には 0 件なので AC16 に足す改訂は無い (6) 発注 1 は配列を行の中から消し、行は消さない（委譲文に書く）。そうすれば他の契約が引く 12 file の行はずれず、付け直すのは配列の行そのものを引く anchor 2 件（p3-unit-n-series.json の nankai-unit.ts の配列の行、p3-unit-q-capacity.json の seismic-unit.ts の配列の行）だけで、配送の commit で統合担当が付け直す（AC16 の付け直しの手順）。発注 2 で VersionRef に欄を足すと version.ts の行が増え、他の 4 契約の anchor 6 件と素の行番号 1 件がずれうる（発注 2 の発注前点検で数え直す）",
+        "remaining": "baseOid は本点検の commit に割り当てる（main への配送の後）",
+        "reason": "Q-MIG-BASE の発注 1 の分を記録した（Q-MIG-BASE は発注 2〜5 の点検のために残す）"
       }
     ],
     "operationContract": {
