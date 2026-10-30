@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "9adb4f61242a5a368e02988d4bdeb865b5679193ebf62471ee858931ea5fe37d",
+    "sha256": "fdbc4b262c04e6bed615e549e7f8e63816972cf81762b6996ec723f330571d16",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -721,7 +721,7 @@
         "referenceIds": [
           "P3-MIG-AC07"
         ],
-        "behavior": "【発注 2、D-MARK-CLEAR=A'】(i) 移した記録を ReportDateTime の新しい live の報で置き換えると、手元の版が live になり印は null (ii) 移した取消でない記録に同じ ReportDateTime の同じ中身の報（取り直しの同じ報）が届くと duplicate で手元の版は M のまま（U-W では履歴が増えず、続く取消で警報が戻らない）、続く ReportDateTime の新しい報の採用で手元の版が live になり印は null (iii) Control だけの側の種類（U-T の VTSE41 と U-V）で、移した取消 M（ReportDateTime 12 時）に M より古い取消（10 時）、続いて取消でない報（11 時）が届くと、どちらも older で捨てられ取消のまま（ヘルツ r2 の列） (iv) U-T で移した取消 M（12 時）に同じ 12 時の取消でない報（Control/DateTime 12 時）が届くと older で取消のまま、続く取消（ReportDateTime 11 時、Control/DateTime 13 時）と取消でない報（11 時 30 分、Control/DateTime 14 時）も older（ヘルツ r3 の P1 の列） (v) U-V で海上の移した取消 M（12 時）だけを持つ火山に陸上の警報（11 時）が届くと、陸と海の比べが older で kind を取らず active にならない（ヘルツ r3 の cross の列） (vi) 移した取消でない M に同じ ReportDateTime の取消が届くと、取消が勝って採られ印は null (vii) 時刻の無い live の報の版を置き換えたときは今どおり印が残る (viii) compareVersion 単体の境界: a が M で b の ReportDateTime が読めるとき、Control/DateTime の有無と順によらず ReportDateTime だけで older・same・newer、a が M でなければ今どおり（ReportDateTime の読めない報は受信の入口で断られるので unit の試験にはしない） (ix) U-W で同じ ReportDateTime の移した現況（Serial 1）と移した取消の墓標（Serial 2）を持つ系列に、同じ時刻の取消でない報が届くと、系列の版は墓標で、取消でない報は older（ヘルツ r4 の列）。(i)〜(ix) は別々の試験にする"
+        "behavior": "【発注 2、D-MARK-CLEAR=A'】(i) 移した記録を ReportDateTime の新しい live の報で置き換えると、手元の版が live になり印は null (ii) 移した取消でない記録に同じ ReportDateTime の同じ中身の報（取り直しの同じ報）が届くと duplicate で手元の版は M のまま（U-W では履歴が増えず、続く取消で警報が戻らない）、続く ReportDateTime の新しい報の採用で手元の版が live になり印は null (iii) Control だけの側の種類（U-T の VTSE41 と U-V）で、移した取消 M（ReportDateTime 12 時）に M より古い取消（10 時）、続いて取消でない報（11 時）が届くと、どちらも older で捨てられ取消のまま（ヘルツ r2 の列） (iv) U-T で移した取消 M（12 時）に同じ 12 時の取消でない報（Control/DateTime 12 時）が届くと older で取消のまま、続く取消（ReportDateTime 11 時、Control/DateTime 13 時）と取消でない報（11 時 30 分、Control/DateTime 14 時）も older（ヘルツ r3 の P1 の列） (v) U-V で海上の移した取消 M（12 時）だけを持つ火山に陸上の警報（11 時）が届くと、陸と海の比べが older で kind を取らず active にならない（ヘルツ r3 の cross の列） (vi) 移した取消でない M に同じ ReportDateTime の取消が届くと、取消が勝って採られ印は null (vii) 時刻の無い live の報の版を置き換えたときは今どおり印が残る (viii) compareVersion 単体の境界: a が M で b の ReportDateTime が読めるとき、Control/DateTime の有無と順によらず ReportDateTime だけで older・same・newer、a が M でなければ今どおり（ReportDateTime の読めない報は受信の入口で断られるので unit の試験にはしない） (ix) U-W で同じ ReportDateTime の移した現況（Serial 1）と移した取消の墓標（Serial 2）を持つ系列に、同じ時刻の取消でない報が届くと、系列の版は墓標で、取消でない報は older（ヘルツ r4 の列） (x) U-T で移した取消でない M に同じ ReportDateTime・取消でない・中身の違う live の報が届くと held で手元の版は M、印はその報、続く ReportDateTime の新しい報の採用で手元の版が live になり印は null (xi) compareVersion 単体: a と b がともに M で ReportDateTime が同じで、serialRaw のどちらかが数として読めなければ same（ヘルツ r5 の P3）。(i)〜(xi) は別々の試験にする"
       },
       {
         "testId": "P3-MIG-T08",
