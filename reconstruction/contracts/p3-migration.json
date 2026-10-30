@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "2279e1dac4ecae0d63c9d1671641f5aef0f64d97b81ec0ec93884c2d10ae65ce",
+    "sha256": "460b24c963ff61d8656ecb78bd39ff31e63234abec2c13b0896f2c83587093da",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -269,7 +269,7 @@
     "contractId": "P3-MIGRATION-001",
     "mode": "implementation",
     "objective": "旧築（旧 v2）の待機画面の保存と補助の保存の読み取り専用のコピーから、新築の U-* の checkpoint を一方向に作る移行器（spec §10.4、計画 §2.1 の C15）を reconstruction/tools/migration/ に作り、Q-MIGRATION・O04:2・O06:29-30・O07:19〜26・N8 を閉じる。あわせて捨ててよい旧い版の一覧（P3-VM-AC05）を全 unit で空にする（作者の裁定 X2=A、最初の発注）。移行器は製品の runtime の外に置き、旧 reader は旧築の StandbyPersistence を tools から呼ぶ。運用区分は旧築の設定の testMode を根拠に normal、取り直しで戻る分も全部移し、Control/DateTime の無い記録は時刻の空な ReportRef（未確認）で移し、期限は元の報の時刻から新築の規則で作り直す（作者の裁定、2026-10-30 朝）。1 契約を 5 回に分けて発注する（P3-MIG-D-SPLIT=A）。条文の【発注 n】が振り分け",
-    "baseOid": "unassigned",
+    "baseOid": "5863e4edbab865de20d43a3785d33a4fe6990037",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
