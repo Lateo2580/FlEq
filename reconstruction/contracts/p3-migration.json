@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "89f2f7f87b21db320a9965b4b4fd4abb9377a56e26c795145315fd122fee0d17",
+    "sha256": "891dd37224f8caa7ce1db08e6ccc826fa7b5a779c81597ef6268e7ed2ef1fd55",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -65,17 +65,17 @@
       {
         "id": "P3-MIG-D-MARK-CLEAR",
         "kind": "作者",
-        "A": "（作者が選んだ A'。訂正したカードの推奨）移した記録の印（移行で作った ReportRef、inputId が \"migrated-\" で始まるもの。以下 M）は、newer の採用で、受けた報の ReportDateTime が読めて M の reportDateTimeRaw より新しいときに外す。同じ時刻で外すのは、置き換える手元の版が移した記録そのもの（current.source が M）で取消でないときだけ（起動時の取り直しが移した記録と同じ報を取り直した場面）。それ以外（古い報、手元の版が移した取消で同じ時刻の報、ReportDateTime の読めない報）では今の (b) どおり M を残し、後の newer の採用でも同じ比べで外れる。取消の採用（ends）にも同じ条件を当てる（M より古い取消を採っても M は残る。採った取消が比べの基準を M より前へ戻すので、残さないと続く古い警報が印なしで戻る。ヘルツの品質レビュー r1 の P1）。M が採用の後の印になる道は 2 つ（時刻の無い手元の版の current.source と、残っていた印 mark）で、どちらにも同じ条件を当てる。version.ts の stepVersion の newer の枝の 1 か所。時刻の無い live の報の印（P3-VM-D-MISSING の (3)）は今どおり外さない",
+        "A": "（作者が選んだ A'（2026-10-30 10:40、ヘルツの品質レビュー r2 の後に 2 行目の見え方を下限の形へ改め、作者に確認中。返事が無ければこの形））移した記録の版（移行で作った ReportRef、inputId が \"migrated-\" で始まるもの。以下 M）が手元の版の間は、受けた報の ReportDateTime が読めて M の reportDateTimeRaw より古ければ older（捨てる）にする（下限）。Head→Control の種類は compareVersion が既に ReportDateTime で比べて older にしているので、Control だけの側を同じ比べに揃える形。ReportDateTime の読めない報は今の道のまま。印: M を newer で置き換えた採用の後の印は、取消の採用なら今どおり null、受けた報の ReportDateTime が M より新しければ null、同じ時刻なら M が取消でないとき null・M が取消のとき M を残す。残った M（手元の版は live の報）は、後の newer の採用で受けた報の ReportDateTime が M より新しいときに null にする。version.ts の stepVersion の 1 か所。時刻の無い live の報の印（P3-VM-D-MISSING の (3)）は今どおり外さない",
         "B": "P3-VM-D-MISSING の (3) の実物のまま: 移した記録を live の報で置き換えても印は残り、その系列が取消か期限で消えるまで外れない",
         "C": "移した記録の時刻の欄を本文側の時刻（ReportDateTime）で代わりに埋め、印を出さない",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者の裁定、2026-10-30 朝。訂正したカードの推奨どおり）",
+        "status": "確定（作者の裁定、2026-10-30 朝。訂正したカードの推奨どおり）（2026-10-30 10:40、ヘルツの品質レビュー r2 の後に 2 行目の見え方を下限の形へ改め、作者に確認中。返事が無ければこの形）",
         "ruling": "A'（作者の裁定、2026-10-30 朝。この branch の A の文が A'）",
         "blocks": [
           "発注 2 の着手（U-W が最初に印を持つ unit）"
         ],
-        "reason": "起草で version.ts の compareVersion・stepVersion を読んで見つけた（Q-MIG-H27）。作者の裁定 3 の文は「live の版の比べで置き換わるか、取消か期限で消えるまで印が出る」だが、実物は手元の版が時刻を持たないと newer の採用の後も印をその版の ReportRef に残す（AC04 の (b)）。移した記録は全部 Control/DateTime を持たないので、B では切替の後に live の報が何通来ても印が残る。見え方の違い（印を画面に出すのは段 4）: A では切替の後の最初の live の報（例: 翌朝の気象警報の更新、火山の解説）で「未確認」が消える。B では消えるのは取消か期限だけで、噴火警戒レベルのように何か月も変わらない火山（U-V の警報の active は期限なし）や、期限の長い系列では切替の後ずっと「未確認」が出続ける。A の代償: Control/DateTime で比べる種類（地震火山・土砂・洪水・竜巻・台風など）では、時刻の無い移した記録より古い報が切替の後に遅れて届いても newer として採られ、印も消える（旧築は報の時刻で比べて古い報を捨てていた）。遅れて届く古い報は、起動時の取り直しが一覧の最新を取るので起こりにくい。推奨の根拠: 作者が裁定で選んだ見え方が A の文だから。起草の最初の A（M を最初の newer の採用で条件なしに外す）には、契約適合レビュー（P2-2）が穴を見つけた: 移した取消（tombstone）より古い取消でない報が遅れて届くと newer で採られ（compareVersion）、取り消した警報が印なしで戻る。訂正したカード（A／A'／C）で作者は A' を選んだ（2026-10-30 朝）。同じ時刻の扱いは、カードの 2 行（印は最初の live の報で外れる、戻った警報は未確認付きで戻る）を両方満たす形に統合担当が決めた: 起動時の取り直しは移した記録と同じ報を取り直すことが多く（Q-MIG-H27 の (3)）、取り直しは印を無理に外さず通常の版の比べだけを通る（P3-REC-AC05 の (a)）。厳密に「より新しい」だけにすると、報の少ない系列（火山など）で印が次の報まで何か月も残る。条件を印の側（M）に付けるのは、時刻の無い印は後の newer の採用でも残る（AC04 の (b)）ので、最初の置き換えで残った M が外れなくなるのを防ぐため。C を選ばない理由: 移した記録と同じ分に出た古い報が遅れて届くと順を取り違える"
+        "reason": "起草で version.ts の compareVersion・stepVersion を読んで見つけた（Q-MIG-H27）。作者の裁定 3 の文は「live の版の比べで置き換わるか、取消か期限で消えるまで印が出る」だが、実物は手元の版が時刻を持たないと newer の採用の後も印をその版の ReportRef に残す（AC04 の (b)）。移した記録は全部 Control/DateTime を持たないので、B では切替の後に live の報が何通来ても印が残る。見え方の違い（印を画面に出すのは段 4）: A では切替の後の最初の live の報（例: 翌朝の気象警報の更新、火山の解説）で「未確認」が消える。B では消えるのは取消か期限だけで、噴火警戒レベルのように何か月も変わらない火山（U-V の警報の active は期限なし）や、期限の長い系列では切替の後ずっと「未確認」が出続ける。A の代償: Control/DateTime で比べる種類（地震火山・土砂・洪水・竜巻・台風など）では、時刻の無い移した記録より古い報が切替の後に遅れて届いても newer として採られ、印も消える（旧築は報の時刻で比べて古い報を捨てていた）。遅れて届く古い報は、起動時の取り直しが一覧の最新を取るので起こりにくい。推奨の根拠: 作者が裁定で選んだ見え方が A の文だから。起草の最初の A（M を最初の newer の採用で条件なしに外す）には、契約適合レビュー（P2-2）が穴を見つけた: 移した取消（tombstone）より古い取消でない報が遅れて届くと newer で採られ（compareVersion）、取り消した警報が印なしで戻る。訂正したカード（A／A'／C）で作者は A' を選んだ（2026-10-30 朝）。同じ時刻の扱いは、カードの 2 行（印は最初の live の報で外れる、戻った警報は未確認付きで戻る）を両方満たす形に統合担当が決めた: 起動時の取り直しは移した記録と同じ報を取り直すことが多く（Q-MIG-H27 の (3)）、取り直しは印を無理に外さず通常の版の比べだけを通る（P3-REC-AC05 の (a)）。厳密に「より新しい」だけにすると、報の少ない系列（火山など）で印が次の報まで何か月も残る。条件を印の側（M）に付けるのは、時刻の無い印は後の newer の採用でも残る（AC04 の (b)）ので、最初の置き換えで残った M が外れなくなるのを防ぐため。C を選ばない理由: 移した記録と同じ分に出た古い報が遅れて届くと順を取り違える。r1 で足した「取消の採用にも A' の条件を当てる」形は、ヘルツの品質レビュー r2 で unit の側の道が残ると分かった（U-V の取消の採用で印を捨てる whole、U-T の観測の取消の組立、U-Y で古い取消を採ると retainUntil が縮み M ごと先に消える）。unit ごとに塞ぐのをやめ、根（Control だけの側では、時刻の無い M に時刻の読める報が古くても newer になる、compareVersion）を下限で閉じた。見え方の変化: カード A' の 2 行目「取り消した警報が古い報の遅着で戻る → 未確認付きで戻る」が「戻らない」になる（Head→Control の側の気象警報などは元からこの形）。取り直しの older は stale で返り確認を止めない（P3-RECOVERY-001 の older の扱い）。下限の代償は AC07 の (5)"
       },
       {
         "id": "P3-MIG-D-LIST-EMPTY",
@@ -157,7 +157,7 @@
       {
         "id": "P3-MIG-D-OUTPUT",
         "kind": "技術",
-        "A": "出力は新しい空の directory に unit ごとの A の slot（${unit}-A.json、generation 1）だけを書く。payload は各 unit の codec の encode で作り、同じ codec の decode に通して元の state と同じでなければその unit を拒否にする。envelope は checkpoint.ts の hashEnvelope・serializedEnvelope で作り、losses・unreadable の欄は書かない。書いた directory を CheckpointCoordinator で restoreUnit して restored になることを移行器の最後に確かめる。書く先は移行先の隣の作業用 directory（移行先の名前＋\".partial\"）で、全 unit を書き、encode→decode と restoreUnit の確かめを作業用 directory で済ませ、file と directory を fsync してから、作業用 directory を移行先の名前へ 1 回の rename で公開する。移行先が既にあれば何もせずに止める（公開は完走した結果だけ）。前の実行が途中で止まって作業用 directory が残っていれば、それを消してから最初からやり直す（作業用 directory は移行器だけが作り、新築の runtime は読まない）",
+        "A": "出力は新しい空の directory に unit ごとの A の slot（${unit}-A.json、generation 1）だけを書く。payload は各 unit の codec の encode で作り、同じ codec の decode に通して元の state と同じでなければその unit を拒否にする。envelope は checkpoint.ts の hashEnvelope・serializedEnvelope で作り、losses・unreadable の欄は書かない。書いた directory を CheckpointCoordinator で restoreUnit して restored になることを移行器の最後に確かめる。書く先は移行先の隣の作業用 directory（移行先の名前＋\".partial\"）で、全 unit を書き、encode→decode と restoreUnit の確かめを作業用 directory で済ませ、file と directory を fsync してから、作業用 directory を移行先の名前へ 1 回の rename で公開し、親 directory を fsync する。移行先が既にあれば何もせずに止める（公開は完走した結果だけ）。前の実行が途中で止まって作業用 directory が残っていれば、それを消してから最初からやり直す（作業用 directory は移行器だけが作り、新築の runtime は読まない）",
         "B": "移行器が envelope を自前で直列化する",
         "recommended": "A",
         "provisional": "A",
@@ -223,7 +223,7 @@
         "id": "Q-MIG-H27",
         "status": "closed",
         "source": "起草での読み（2026-10-30、152ba7fb）: reconstruction/src/contracts-revision/version.ts の compareVersion・stepVersion、P3-REC-D-RAISE-BASIS=A、P3-VM-D-MISSING=A",
-        "closed": "(1) 手元の版の Control/DateTime が空なら、受けた報の Control/DateTime が読める限り newer（compareVersion。ReportDateTime で比べる種類は、ReportDateTime が新しいか同じときに newer、古ければ older）。移した記録は全部この形になる (2) newer の採用の後の印は、手元の版が時刻を持たなければその版の ReportRef（stepVersion）。作者の裁定 3 の文と食い違うので P3-MIG-D-MARK-CLEAR を作者に挙げ、A' に決めた（移した記録の印 M だけ、ReportDateTime の比べで newer の採用の後に外す） (3) H27 の引上げは取り直しを始めた時点の状態（再起動なら復元した前回情報）と比べる（P3-REC-D-RAISE-BASIS=A）。移行の後の最初の起動では、移した記録がその前回情報になる。取り直しの報は (1) で移した記録を置き換え、区域ごとの区分が上がっていれば H27 の音が鳴る（大津波警報なら最も重い音）。これは C16 の裁定どおりで、移行で新しい出方は増えない。上がっていなければ鳴らない（取り直しは H27 以外の intent を作らない） (4) 移行器は過去の通知を移さない（spec:2196）ので、移した記録そのものからは音が出ない",
+        "closed": "(1) 手元の版の Control/DateTime が空なら、受けた報の Control/DateTime が読める限り newer（compareVersion。ReportDateTime で比べる種類は、ReportDateTime が新しいか同じときに newer、古ければ older）。移した記録は全部この形になる (2) newer の採用の後の印は、手元の版が時刻を持たなければその版の ReportRef（stepVersion）。作者の裁定 3 の文と食い違うので P3-MIG-D-MARK-CLEAR を作者に挙げ、A' に決めた（M の間は ReportDateTime の下限で古い報を捨て、印は M より新しい報の採用で外す。P3-MIG-D-MARK-CLEAR） (3) H27 の引上げは取り直しを始めた時点の状態（再起動なら復元した前回情報）と比べる（P3-REC-D-RAISE-BASIS=A）。移行の後の最初の起動では、移した記録がその前回情報になる。取り直しの報は (1) で移した記録を置き換え、区域ごとの区分が上がっていれば H27 の音が鳴る（大津波警報なら最も重い音）。これは C16 の裁定どおりで、移行で新しい出方は増えない。上がっていなければ鳴らない（取り直しは H27 以外の intent を作らない） (4) 移行器は過去の通知を移さない（spec:2196）ので、移した記録そのものからは音が出ない",
         "remaining": "なし",
         "reason": "下調べの未確認「H27 の引上げが移した記録との比べで起きるか」"
       },
@@ -231,7 +231,7 @@
         "id": "Q-MIG-UNIT-MAP",
         "status": "closed",
         "source": "起草での読み（2026-10-30）: standby-persistence.ts の PersistedStandbyStateV1・PersistedTelegramFoundationV2、daily-quake-counter.ts の DailyQuakePersistedV1、各 unit の persisted 型、version.ts の HEAD_THEN_CONTROL、unit-coverage.ts の coverageTable（契約適合レビューの P2-1 で足した）",
-        "closed": "旧の欄と移す先の unit（欄の名前の水準）: U-W ← telegramFoundation.vpws50（state・gateEntries）。U-F ← weatherWarningForecasts・weatherWarningForecastGateMetadata。U-T ← telegramFoundation.tsunami（keyedActive・legacyActive・observations・gateEntries）。U-Q ← quakeHost・longPeriod と補助の daily-quake-v1.json・quake-display-v1.json・quake-extreme-v1.json。U-N ← nankaiTrough。U-V ← telegramFoundation.volcano（state・active・gateEntries・repairState）と volcanoAlertGateMetadata・volcanoAshfallGateMetadata・volcanoRepairState。U-L ← telegramFoundation.vpww56。U-R ← telegramFoundation.floodForecast・floods。U-B ← briefingCritical。U-M ← tornado・heat。U-Y ← typhoons・typhoonProbabilities・typhoonProbabilityGateMetadata。seen（PersistedSeenEntry）と standbyDomains.gateEntries は各 unit の版の材料として該当する unit で読む。weatherAlerts（v1 形）は vpws50 の表示の写しで、vpws50 が authoritative のときは読まない。新築の当日地震履歴の日の基準（P3-C7-DAILY-BASIS=B、受信時刻の JST 暦日）は旧築の dayKey と同じ。unit ごとの 16.2.5 の側（正本は version.ts の HEAD_THEN_CONTROL、P3-VM-D-TABLE=A。ready の type は unit-coverage.ts の coverageTable）: Head→Control は U-W（VPWS50・VPWW55・57〜61・VPNO50）・U-F（VPWP50）・U-L（VPWW56）。Control だけは U-T・U-V・U-N・U-Q・U-R・U-Y。両方が混ざるのは U-B（VPBS50 は Head→Control、VPOA50 は Control だけ）と U-M（VPZJ51・VPCJ51・VPFJ51・VMCJ53〜55 は Head→Control、ほかは Control だけ）で、側は記録の family で決まる。移した記録の reportDateTimeRaw が比べに効くのは Head→Control の側だけで、Control だけの側では時刻の空な controlDateTimeRaw のため、時刻の読める報が常に newer になる（Q-MIG-H27 の (1)）。family か subject を決められない記録は uninterpretable（P3-MIG-D-REPORTREF）",
+        "closed": "旧の欄と移す先の unit（欄の名前の水準）: U-W ← telegramFoundation.vpws50（state・gateEntries）。U-F ← weatherWarningForecasts・weatherWarningForecastGateMetadata。U-T ← telegramFoundation.tsunami（keyedActive・legacyActive・observations・gateEntries）。U-Q ← quakeHost・longPeriod と補助の daily-quake-v1.json・quake-display-v1.json・quake-extreme-v1.json。U-N ← nankaiTrough。U-V ← telegramFoundation.volcano（state・active・gateEntries・repairState）と volcanoAlertGateMetadata・volcanoAshfallGateMetadata・volcanoRepairState。U-L ← telegramFoundation.vpww56。U-R ← telegramFoundation.floodForecast・floods。U-B ← briefingCritical。U-M ← tornado・heat。U-Y ← typhoons・typhoonProbabilities・typhoonProbabilityGateMetadata。seen（PersistedSeenEntry）と standbyDomains.gateEntries は各 unit の版の材料として該当する unit で読む。weatherAlerts（v1 形）は vpws50 の表示の写しで、vpws50 が authoritative のときは読まない。新築の当日地震履歴の日の基準（P3-C7-DAILY-BASIS=B、受信時刻の JST 暦日）は旧築の dayKey と同じ。unit ごとの 16.2.5 の側（正本は version.ts の HEAD_THEN_CONTROL、P3-VM-D-TABLE=A。ready の type は unit-coverage.ts の coverageTable）: Head→Control は U-W（VPWS50・VPWW55・57〜61・VPNO50）・U-F（VPWP50）・U-L（VPWW56）。Control だけは U-T・U-V・U-N・U-Q・U-R・U-Y。両方が混ざるのは U-B（VPBS50 は Head→Control、VPOA50 は Control だけ）と U-M（VPZJ51・VPCJ51・VPFJ51・VMCJ53〜55 は Head→Control、ほかは Control だけ）で、側は記録の family で決まる。移した記録の reportDateTimeRaw が比べに効くのは Head→Control の側だけで、Control だけの側では時刻の空な controlDateTimeRaw のため、時刻の読める報が常に newer になる（Q-MIG-H27 の (1)）が、M の間は ReportDateTime の下限で M より古い報を捨てる（P3-MIG-D-MARK-CLEAR）。family か subject を決められない記録は uninterpretable（P3-MIG-D-REPORTREF）",
         "remaining": "1 欄ずつの対応は発注 2〜4 の成果物（Q-MIG-FIELD-TABLE）。U-Q の当日履歴の counted の段階は Q-MIG-UQ-DAILY-STAGE",
         "reason": "発注の割り方と AC09〜AC11 の範囲"
       },
@@ -247,7 +247,7 @@
         "id": "Q-MIG-MARK-CLEAR",
         "status": "closed（作者の裁定、2026-10-30 朝。訂正したカードの推奨 A'）",
         "source": "作者の裁定 3 のカードの文面（2026-10-30 朝）と P3-VM-D-MISSING の (2)・(3)（p3-version-material.json）、訂正したカード（A／A'／C、契約適合レビューの P2-2）",
-        "closed": "P3-MIG-D-MARK-CLEAR を A' で確定した。作者が承認した見え方は「移した記録は次の報で置き換わるまで未確認」と「取り消した警報が古い報の遅着で戻るときは未確認付きで戻る」。移した記録の表し方は P3-VM-D-MISSING の (2) と同じ（時刻の空な ReportRef が未確認を表し、印の欄は足さない）。同じ時刻の扱いは D-MARK-CLEAR の A の文",
+        "closed": "P3-MIG-D-MARK-CLEAR を A' で確定した。作者が承認した見え方は「移した記録は次の報で置き換わるまで未確認」と「取り消した警報が古い報の遅着で戻るときは未確認付きで戻る」。移した記録の表し方は P3-VM-D-MISSING の (2) と同じ（時刻の空な ReportRef が未確認を表し、印の欄は足さない）。同じ時刻の扱いは D-MARK-CLEAR の A の文。2 行目は品質レビュー r2 の後に「戻らない」（M の間の ReportDateTime の下限）へ改め、作者に確認中（2026-10-30 10:40、ヘルツの品質レビュー r2 の後に 2 行目の見え方を下限の形へ改め、作者に確認中。返事が無ければこの形）",
         "remaining": "なし",
         "reason": "unresolvedQuestionsから移した"
       }
@@ -319,7 +319,7 @@
       "reconstruction/test/checkpoint-shutdown/checkpoint.test.ts（【発注 1】一覧を前提にした試験を直すだけ）",
       "reconstruction/tools/migration/（新設。本契約が排他的に持つ。発注 2〜5）",
       "reconstruction/test/migration/（新設。同上）",
-      "reconstruction/src/contracts-revision/version.ts（【発注 2】P3-MIG-D-MARK-CLEAR=A'、stepVersion の newer の枝の 1 か所とその上のコメント）",
+      "reconstruction/src/contracts-revision/version.ts（【発注 2】P3-MIG-D-MARK-CLEAR=A'、stepVersion の 1 か所〔M の下限と印〕とその上のコメント）",
       "reconstruction/tools/corpus/sequences.json（【発注 2】expected:O04:2・expected:O06:29・unmet:O06:30、【発注 5】expected:O07:19〜26 の期待だけ。sequencesSha256 の付け直しは統合担当）"
     ],
     "allowedGitCommands": [
@@ -521,7 +521,7 @@
       },
       {
         "id": "P3-MIG-AC04",
-        "requirement": "【発注 2】出力の checkpoint（spec:2172、P3-MIG-D-OUTPUT=A・P3-MIG-D-BOUNDARY=A・P3-MIG-D-CLOCK=A）: 移行先の隣の作業用 directory（P3-MIG-D-OUTPUT=A の \".partial\"）に、移せた unit ごとに ${unit}-A.json を 1 つ書く。移行先が既にあれば何も書かずに止め、残っていた作業用 directory は消してからやり直す。envelope は schemaVersion（その unit の codec の今の版）・unit・generation 1・capturedAt（入力の取得時刻）・payload（codec の encode）・\"inputBoundary\": null・sha256 で、hashEnvelope・serializedEnvelope で作る。encode→decode で元の state と同じにならない unit は書かずに拒否にする。最後に作業用 directory で CheckpointCoordinator の restoreUnit を各 unit に当てて restored と generation 1 を確かめ、fsync の後に 1 回の rename で移行先へ公開する。試験: 1 つ目の unit を書いた後で止めた実行（試験から差し込む失敗）の後に移行先が無いこと、同じ入力で再実行した移行先が止めずに走らせた結果と bytes で同じこと（T18）。旧 schema へ戻す tool は作らない（spec:2201）。無いと: 新築が読めない・読み戻しで拒否される checkpoint を作り、起動で unit が unavailable になる。途中で止まると一部の unit だけが公開され、欠けた unit を新築が empty と読む（checkpoint.ts の restoreUnit）",
+        "requirement": "【発注 2】出力の checkpoint（spec:2172、P3-MIG-D-OUTPUT=A・P3-MIG-D-BOUNDARY=A・P3-MIG-D-CLOCK=A）: 移行先の隣の作業用 directory（P3-MIG-D-OUTPUT=A の \".partial\"）に、移せた unit ごとに ${unit}-A.json を 1 つ書く。移行先が既にあれば何も書かずに止め、残っていた作業用 directory は消してからやり直す。envelope は schemaVersion（その unit の codec の今の版）・unit・generation 1・capturedAt（入力の取得時刻）・payload（codec の encode）・\"inputBoundary\": null・sha256 で、hashEnvelope・serializedEnvelope で作る。encode→decode で元の state と同じにならない unit は書かずに拒否にする。最後に作業用 directory で CheckpointCoordinator の restoreUnit を各 unit に当てて restored と generation 1 を確かめ、fsync の後に 1 回の rename で移行先へ公開し、rename の後に親 directory を fsync する（checkpoint.ts の書き込みと同じ順）。試験: 1 つ目の unit を書いた後で止めた実行（試験から差し込む失敗）の後に移行先が無いこと、同じ入力で再実行した移行先が止めずに走らせた結果と bytes で同じこと（T18）。旧 schema へ戻す tool は作らない（spec:2201）。無いと: 新築が読めない・読み戻しで拒否される checkpoint を作り、起動で unit が unavailable になる。途中で止まると一部の unit だけが公開され、欠けた unit を新築が empty と読む（checkpoint.ts の restoreUnit）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2172 «642a6151291713a9»",
           "docs/specs/reconstruction-p0-contracts.md:2201 «633ebff43b1bf757»",
@@ -553,7 +553,7 @@
       },
       {
         "id": "P3-MIG-AC07",
-        "requirement": "【発注 2〜4】版の材料と未確認（P3-MIG-D-UNTIMED=A、P3-MIG-D-REPORTREF=A、P3-MIG-D-MARK-CLEAR）: (1) 移す記録の ReportRef は P3-MIG-D-REPORTREF=A の形で作り、controlDateTimeRaw は空文字。各 unit の codec の読み戻し（readReportRef）を通る (2) 移した記録に印は持たせず、印なしは各 unit の persisted 型の形で書く（U-T などの単数の印は欄を書かない。明示の null はその codec が invalid にする、tsunami-unit.ts の unconfirmedOf。U-W の印の配列は unconfirmed を空の配列で書く）。P3-VM-D-MISSING の (2) と同じく、時刻の空な ReportRef が「時刻を確かめられなかった」を表す (3) P3-MIG-D-MARK-CLEAR=A'（branch の A の文）: version.ts の stepVersion の newer の採用の枝で、採用の後の印になる ReportRef（残っていた印 mark か、時刻の無い手元の版の current.source）の inputId が \"migrated-\" で始まるとき、受けた報の ReportDateTime が読めてその印の reportDateTimeRaw より新しければ印を null にする。同じ時刻で null にするのは、印が current.source から来て current.cancelled が false のときだけ。取消の採用（ends）でも、採用の後の印になる ReportRef が M なら同じ条件で決める（M でない印が取消の採用で外れるのは今どおり）。それ以外の印の付け外し（P3-VM-AC04 の (a)(b)、nextMark）は変えない。同じ所のコメント（時刻の無い印は「取り直し C16 か」で外れる）を P3-REC-AC05 の (a)（取り直しは通常の版の比べだけで、印を無理に外さない）に揃える。試験は T07 (4) 旧築の revisionOf が ReportDateTime の代わりに受信時刻を使った記録は見分けられないので、そのまま reportTimeMs を使う（残存リスク） (5) 残存リスク（P3-MIG-D-UNTIMED=A そのものから来る。新しい分岐ではない）: Control/DateTime で比べる種類では、時刻の無い移した取消の記憶（tombstone）にも、時刻の読める報は古くても newer になる（compareVersion）。切替の後に、取消より古い取消でない報が遅れて届くと、取り消した警報が戻る（旧築は報の時刻で比べて捨てていた）。起動時の取り直しは一覧の最新（取消そのもの）を取るので起こりにくい。戻った版には移した記録の印が残る（D-MARK-CLEAR=A'。戻った報の ReportDateTime は取消より古いので外れない）。A' の代償: 旧築の reportTimeMs が受信時刻だった記録（(4)）は、同じ報を取り直しても ReportDateTime が M より古く見えるので、印は次の新しい報まで残る。無いと: 移した記録を確定した版として出す（H14 の「未確認」が消える）、または印が外れない",
+        "requirement": "【発注 2〜4】版の材料と未確認（P3-MIG-D-UNTIMED=A、P3-MIG-D-REPORTREF=A、P3-MIG-D-MARK-CLEAR）: (1) 移す記録の ReportRef は P3-MIG-D-REPORTREF=A の形で作り、controlDateTimeRaw は空文字。各 unit の codec の読み戻し（readReportRef）を通る (2) 移した記録に印は持たせず、印なしは各 unit の persisted 型の形で書く（U-T などの単数の印は欄を書かない。明示の null はその codec が invalid にする、tsunami-unit.ts の unconfirmedOf。U-W の印の配列は unconfirmed を空の配列で書く）。P3-VM-D-MISSING の (2) と同じく、時刻の空な ReportRef が「時刻を確かめられなかった」を表す (3) P3-MIG-D-MARK-CLEAR=A'（branch の A の文）: version.ts の stepVersion で、手元の版の current.source の inputId が \"migrated-\" で始まる（M）とき、受けた報の ReportDateTime が読めて M の reportDateTimeRaw より古ければ older を返す（下限。取消の報も同じ）。M を newer で置き換えた採用の後の印は、取消の採用なら null、受けた報の ReportDateTime が M より新しければ null、同じ時刻なら current.cancelled が false のとき null・true のとき M。残っていた印 mark が M のときは、newer の採用で受けた報の ReportDateTime が M より新しければ null。それ以外の印の付け外し（P3-VM-AC04 の (a)(b)、nextMark）は変えない。触るのは version.ts だけ（unit の側は stepVersion の結果を使う。U-V の whole は警報全体が取消になる採用だけで、下限の後は M より古い取消が届かない）。同じ所のコメント（時刻の無い印は「取り直し C16 か」で外れる）を P3-REC-AC05 の (a)（取り直しは通常の版の比べだけで、印を無理に外さない）に揃える。試験は T07 (4) 旧築の revisionOf が ReportDateTime の代わりに受信時刻を使った記録は見分けられないので、そのまま reportTimeMs を使う（残存リスク） (5) 残存リスク（P3-MIG-D-UNTIMED=A そのものから来る。新しい分岐ではない）: 下限（(3)）が効かないのは、ReportDateTime の読めない報と、M が期限・容量の退去で消えた後（容量の退去の後までは守らない。U-Y の同じ slice の active が上限を超えると取消の M が先に退去し、その後に M より古い報が届くと current が無いので採られる、typhoon-unit.ts の退去の順）。下限の代償: 旧築の reportTimeMs が受信時刻だった記録（(4)。revisionOf で報の時刻が読めなかった報と、火山の一覧から外した警報の版〔standby-state-store.ts の一覧の処理、nowMs〕）は下限が数秒遅く、その間に出た報（取り直しの同じ報を含む）を older で捨てる。取り直しでは stale で確認は止めず、印は次の新しい報まで残る。無いと: 移した記録を確定した版として出す（H14 の「未確認」が消える）、または印が外れない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-shared-runtime.types.ts:74 «b54d847410e0aa60»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:3 «0df43bf3db657b76»",
@@ -651,7 +651,7 @@
       },
       {
         "id": "P3-MIG-AC16",
-        "requirement": "配送の commit で統合担当が改める原文（本契約は既存の契約・計画・spec の本文を変えない）: (1) P3-VERSION-MATERIAL-001 の P3-VM-AC05 の「一覧の寿命」の文（C15 の配送までに空・C15 の着手条件に足す）を、計画の C15 の行の今の形（最初の発注で空、完了の条件）と P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (2) p3-persist-premises.md の一覧の寿命（:73）と C15 の着手条件（:455）の文を同じく【発注 1】 (3) premises の C15 に送った問い（:345・:470、Control/DateTime の無い旧記録と期限）に本契約の分岐 ID を添える【発注 2】 (4) P3-VM-D-MISSING の (3) と P3-VM-AC04 の (b) に「移した記録の印は P3-MIG-D-MARK-CLEAR=A' の条件で newer の採用の後に外す」を添える【発注 2】 (5) P2-CHECKPOINT-SHUTDOWN-001 と P2-WEATHER-CURRENT-UNIT-001 の Q-MIGRATION、sequences.json の p2Subsets の O04・O06・O07 の deferred の文、P3-RECOVERY-001 の C15 へ送った項目に、閉じた発注を添える【発注 2・5】 (6) sequencesSha256 と、変えた file を引く anchor の付け直し【各発注】 (7) P3-RECOVERY-001 の P3-REC-AC05 の (a)「時刻の無い報の印は取り直しでは外さない」に「移した記録の印は P3-MIG-D-MARK-CLEAR=A' の条件で、通常の版の比べ（取り直しを含む）の newer の採用の後に外す」を添え、同じ AC05 の C15 への言及 2 か所（旧築から移した記録の扱いは C15 へ送る）と questionResolutions の C15 へ送った項目（Control/DateTime を持たない旧記録）に本契約の分岐 ID（P3-MIG-D-UNTIMED・P3-MIG-D-MARK-CLEAR）を添える【発注 2】 (8) p3-persist-premises.md の保存の版の段落（:67、版を上げる契約は一覧に足す）を P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (9) p2-shared-runtime.types.ts の UnitCodec の discardableSchemaVersions のコメント（C15 の配送までに空にする）を「C15 の発注 1 で空にし、以後足さない」に改める【発注 1】。無いと: 一覧の寿命と着手条件の文が計画と食い違ったまま残る",
+        "requirement": "配送の commit で統合担当が改める原文（本契約は既存の契約・計画・spec の本文を変えない）: (1) P3-VERSION-MATERIAL-001 の P3-VM-AC05 の「一覧の寿命」の文（C15 の配送までに空・C15 の着手条件に足す）を、計画の C15 の行の今の形（最初の発注で空、完了の条件）と P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (2) p3-persist-premises.md の一覧の寿命（:73）と C15 の着手条件（:455）の文を同じく【発注 1】 (3) premises の C15 に送った問い（:345・:470、Control/DateTime の無い旧記録と期限）に本契約の分岐 ID を添える【発注 2】 (4) P3-VM-D-MISSING の (3) と P3-VM-AC04 の (b) に「移した記録（P3-MIG-D-MARK-CLEAR=A'）は除く: M の間は ReportDateTime の下限で古い報を捨て、印は M より新しい報の採用で外す」を添える【発注 2】 (5) P2-CHECKPOINT-SHUTDOWN-001 と P2-WEATHER-CURRENT-UNIT-001 の Q-MIGRATION、sequences.json の p2Subsets の O04・O06・O07 の deferred の文、P3-RECOVERY-001 の C15 へ送った項目に、閉じた発注を添える【発注 2・5】 (6) sequencesSha256 と、変えた file を引く anchor の付け直し【各発注】 (7) P3-RECOVERY-001 の P3-REC-AC05 の (a)「時刻の無い報の印は取り直しでは外さない」に「移した記録は P3-MIG-D-MARK-CLEAR=A' で、通常の版の比べ（取り直しを含む）が M の間の ReportDateTime の下限で古い報を捨て、印を M より新しい報の採用で外す」を添え、同じ AC05 の C15 への言及 2 か所（旧築から移した記録の扱いは C15 へ送る）と questionResolutions の C15 へ送った項目（Control/DateTime を持たない旧記録）に本契約の分岐 ID（P3-MIG-D-UNTIMED・P3-MIG-D-MARK-CLEAR）を添える【発注 2】 (8) p3-persist-premises.md の保存の版の段落（:67、版を上げる契約は一覧に足す）を P3-MIG-D-LIST-AFTER=A に合わせる【発注 1】 (9) p2-shared-runtime.types.ts の UnitCodec の discardableSchemaVersions のコメント（C15 の配送までに空にする）を「C15 の発注 1 で空にし、以後足さない」に改める【発注 1】。無いと: 一覧の寿命と着手条件の文が計画と食い違ったまま残る",
         "evidenceRefs": [
           "reconstruction/contracts/p3-version-material.json:483 «48a20c148c9cad7d»",
           "reconstruction/contracts/p3-persist-premises.md:73 «32ecbbdb103e9932»",
@@ -704,7 +704,7 @@
         "referenceIds": [
           "P3-MIG-AC09"
         ],
-        "behavior": "【発注 2】expected:O04:2: pi-stale-lock-state.json は旧 v2 の telegramFoundation.vpws50.state だけの部分（README）なので、試験のコードで旧 v2 の主 file を組む: savedAt と取得時刻は step の evaluatedAt、telegramFoundation.vpws50 は state にその fixture・authoritative true・gateEntries に fixture の current.identity（reportDateTime 13:00）から作る VPWS50 の 1 件（旧築の PersistedTelegramRevisionGateEntryV2 の形）、ほかの欄は旧築の空の既定。testMode \"no\" の取得の記録を添えて移し、(a) 続報の前に、旧 reader を通って移した U-W の state で区域 9100001 の L4 の凍結が残っていること (b) 移した state の起動の後の新しい全国報で stale lock を抜けることを確かめる"
+        "behavior": "【発注 2】expected:O04:2: pi-stale-lock-state.json は旧 v2 の telegramFoundation.vpws50.state だけの部分（README）なので、試験のコードで旧 v2 の主 file を組む: savedAt と取得時刻は step の evaluatedAt、telegramFoundation.vpws50 は state にその fixture・authoritative true・gateEntries に fixture の current.identity（reportDateTime 13:00）から作る全国の VPWS50 の 1 件と、fixture の partialStreams の 4 本それぞれの identity から作る 1 件ずつ（旧築の PersistedTelegramRevisionGateEntryV2 の形。旧 reader は partial の gate が欠けると foundation を空に置き換える、standby-persistence.ts の vpws50 の照合）。acceptedAtMs は全件 step の evaluatedAt に固定する（未来の受理時刻として断られない値）、ほかの欄は旧築の空の既定。testMode \"no\" の取得の記録を添えて移し、(a) 続報の前に、旧 reader を通って移した U-W の state で区域 9100001 の L4 の凍結が残っていること (b) 移した state の起動の後の新しい全国報で stale lock を抜けることを確かめる"
       },
       {
         "testId": "P3-MIG-T06",
@@ -721,7 +721,7 @@
         "referenceIds": [
           "P3-MIG-AC07"
         ],
-        "behavior": "【発注 2、D-MARK-CLEAR=A'】(i) 移した記録を ReportDateTime の新しい live の報で置き換えると印が null (ii) 移した取消でない記録を同じ ReportDateTime の報（取り直しの同じ報）で置き換えると印が null (iii) 移した取消を、それより古い取消でない報（Control だけの側の種類）で置き換えると移した記録の印が残り、続く ReportDateTime の新しい報で null になる (iv) 時刻の無い live の報の版を置き換えたときは今どおり印が残る (v) 移した取消 M（ReportDateTime 12 時）に、M より古い取消（10 時）、続いて取消でない報（11 時、取消より新しく M より古い）が届くと、どちらの採用の後も印は M のまま残り、警報は未確認付きで戻る (vi) 移した取消 M に同じ ReportDateTime の取消でない報が届くと印は M のまま (vii) 残っていた M（手元の版は live の報）に M と同じ ReportDateTime の報が届くと印は M のまま (viii) (v) の印が残った state を保存と復元に通しても M が残り、続く M より新しい報で null になる。(i)〜(viii) は別々の試験にする"
+        "behavior": "【発注 2、D-MARK-CLEAR=A'】(i) 移した記録を ReportDateTime の新しい live の報で置き換えると印が null (ii) 移した取消でない記録を同じ ReportDateTime の報（取り直しの同じ報）で置き換えると印が null (iii) Control だけの側の種類（U-T の VTSE41 と U-V）で、移した取消 M（ReportDateTime 12 時）に M より古い取消（10 時）、続いて取消でない報（11 時）が届くと、どちらも older で捨てられ取消のまま（ヘルツ r2 の列） (iv) 時刻の無い live の報の版を置き換えたときは今どおり印が残る (v) 移した取消 M に同じ ReportDateTime の取消でない報が届くと採られて印は M、続く M より新しい報で null (vi) (v) の印が残った state を保存と復元に通しても M が残る (vii) ReportDateTime の読めない報は M の下限にかからず今の道（held か undecidable の扱い）。(i)〜(vii) は別々の試験にする"
       },
       {
         "testId": "P3-MIG-T08",
@@ -810,7 +810,7 @@
         "referenceIds": [
           "P3-MIG-AC04"
         ],
-        "behavior": "【発注 2】1 つ目の unit を書いた後で止めた実行の後に移行先が無く、同じ入力で再実行した移行先が止めずに走らせた結果と bytes で同じ。移行先が既にあれば何も書かずに止まる"
+        "behavior": "【発注 2】1 つ目の unit を書いた後で止めた実行の後に移行先が無く、同じ入力で再実行した移行先が止めずに走らせた結果と bytes で同じ。移行先が既にあれば何も書かずに止まる。rename と親 directory の fsync の前に止めた実行の後も移行先は無い"
       },
       {
         "testId": "P3-MIG-T19",
@@ -818,7 +818,7 @@
         "referenceIds": [
           "P3-MIG-AC03"
         ],
-        "behavior": "【発注 2】savedAt の異なる v2・v1 の主 file の組で、旧 reader の nowMs が遅いほうの savedAt になり（P3-MIG-D-CLOCK=A）、早いほうの savedAt の受理時刻の記録が未来として断られず、旧 reader が落とした件数が生の件数との差で報告に出る"
+        "behavior": "【発注 2】savedAt の異なる v2・v1 の主 file の組で、旧 reader の nowMs が遅いほうの savedAt になり（P3-MIG-D-CLOCK=A）、早いほうの savedAt の受理時刻の記録が未来として断られず、旧 reader が落とした件数が生の件数との差で報告に出る。遅い側の file の記録も未来として断られない（早い側の savedAt を渡す誤実装で落ちる）。savedAt が取得時刻より未来の file は旧 reader に渡す前に拒否する（AC03）"
       }
     ],
     "requiredCommands": [
