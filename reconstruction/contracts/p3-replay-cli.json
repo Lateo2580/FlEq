@@ -1,0 +1,442 @@
+{
+  "meta": {
+    "draftedFromOid": "b8ca889b4e0dfe8e816ae0fc99dc2778a9788c97",
+    "sha256": "f4a4f971e2c01a3e631abdd461746a4cf4a6d9c1fa037a094b721656a13cd648",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-RP-D-ORIGIN",
+        "category": "spec決定",
+        "A": "replayの入力はorigin=\"replay\"にする。startP2Hostの{ wsUrl }形に省略可能なorigin?: \"replay\"を足し（host.ts:42の型の行を同じ1行のまま改める。{ dmdata }形はorigin?: never）、WSのdata frameをingressへ渡す行（host.ts:324）をorigin: config.origin ?? \"live\"にする",
+        "B": "runnerと同じく{ wsUrl }のままorigin=\"live\"で流し、spec:650からの逸脱として記録する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（spec決定）",
+        "ruling": "spec:642・:650・:651による（起草時に統合担当が転記）",
+        "reason": "spec:642は取得起源を運用区分と別の必須契約とし、:650はreplayを固定時計とmanifestを持つ検証入力、:651はoperation:testと同一視しないと定める。今のWSの入口はoriginを\"live\"に固定している（host.ts:324）。ingressのkind:\"replay\"（ingress.ts:14）はenvelopeを持たずhead.test・StatusがnotProvidedになるので、WSの形（frames.mjsのdataFrame）を保ったままoriginだけを替える。srcのoriginの分岐は全部\"recovery\"との比較で（例 owner-runtime.ts:492）、\"replay\"は\"live\"と同じ道を通る。保存ではReportRef.originが\"replay\"になり、codecは既に受ける（version.ts:66）。既定を\"live\"のままのopt-inにするのは、{ wsUrl }を使うC4・C6の測定と既存試験の保存のbyteを変えないため（originの字数が変わる）。無いと: replayで作った保存と未読の札のoriginがliveの受信と見分けられない。host.tsはC17の新設directoryの外の共有fileで、改める2行はどちらも他の契約のanchorに引かれていない（0件、Q-RP-ANCHORS）ので、行数を変えず統合担当の直列合流で入れる（計画:128へC17を足した）"
+      },
+      {
+        "id": "P3-RP-D-ENTRY",
+        "category": "統合担当決定",
+        "A": "新築にCLIの入口は無い（reconstruction/にbinもmainも無く、C2のP3-C2-ENTRY=Aが製品srcに別のmainを作らないと決めた）。C17は新設directory reconstruction/cli/ のreplay.mjs 1本（関数runReplayと、直接起動したときだけ動く最小の入口）だけを持つ。C18（P3-CLI-REPL-001、未起草）がfleqの振り分けを作るとき、replayはrunReplayを呼ぶ1行で吸い、置き場を移すかもC18が決める。旧築src/のcliには手を入れない",
+        "B": "C17でfleqの振り分け（新築のbin）を作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "計画:124はCLIの入口（振り分け）をC18の所有としC17の追加は直列合流、:109はC17・C18の脇レーンがCLIの新設directoryを持つとする。BはC18と二重になる（P3-C2-ENTRYのreasonと同じ）。.mjsにするのはrunner（.mjs、distを読む）をimportするため。src（tsconfigはsrcと契約型だけ、commonjs）からtest/の.mjsをimportすると逆向きの依存になり、型検査も通らない"
+      },
+      {
+        "id": "P3-RP-D-RUNNER",
+        "category": "統合担当決定",
+        "A": "同じプロセスでhostを起動し、runnerからは投入のframeの形（frames.mjsのdataFrame・REPO）だけをimportして呼ぶ（aux-measures.mjsはimportしない。judge.js・unit-coverage.jsを製品のCLIに引き込まないため、D-OUTPUTの完了の待ちはmarker T2で数行で持つ）。host-launcher.mjsは子として起こさない。runnerのfileとfrozen.tsは1行も変えない",
+        "B": "e12-run.mjsと同じくhost-launcher.mjsを子プロセスで起こし、config.jsonを渡す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "Bはhost-launcherがstartP2Hostへ渡す項目を固定で書く（host-launcher.mjs:45）のでoriginを渡せず（D-ORIGINを満たすにはrunnerを変えることになる）、終わりで常にexit 0を返す（:70）ので§5.9のcodeをdiskのshutdown-summary.json（persistent-diagnostic-sink.ts:299）から読み直す回り道になり、壁時計の原点も1つに固定される（:41。D-CLOCKの入力ごとの付け直しができない）。Aの代償は通知の止め方の3行の写し（D-SILENT）で、仕組みの正本はhost-launcherに残す。同じ形（ローカルWS→startP2Host→/snapshot）はC4（A10 AC10）のt05-corpus-replay.test.tsが同じプロセスで既に使っている。無いと（runnerを使わず書き直すと）: 投入のframeの形がC4の正式測定と別の規則になり、検収用replayと測定が同じ製品経路を通る保証（計画:82）が消える"
+      },
+      {
+        "id": "P3-RP-D-SILENT",
+        "category": "統合担当決定",
+        "A": "replayではOSの通知と音を出さない。hostを読み込む前にchild_process.spawnの相手を/usr/bin/trueへ替える（host-launcher.mjs:14〜:17のsilentと同じ。子プロセスの生成とcloseの流れは製品のまま）。出力にnotification:\"silent\"と書く。実backendを選ぶ口は作らない",
+        "B": "P2HostConfigに通知の口（silentの印）を足し、adapterまで通す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec:650は外部配送の無効化を試験ごとに明示するよう求める。Bはhost・composition root・adapterの3か所を変え、C17の範囲（runnerの公開口だけ、計画:276）を越える。AはC4の正式測定で使った仕組みと同じ。新築のadapterのbackendはdarwin・linuxだけで（adapter.ts:35〜:42・:177〜:180）、win32ではdesktopがunavailableでspawn自体が起きないので、Windowsでも音・通知は出ない。Windowsの通知の口は別の宿題（バックログにある）で、C17では扱わない（replay.mjsのshortcut:コメントにその旨を書く）。作者・同居人に聞こえる音は増えも減りもしない（旧築のreplayは廃止可、spec:2303）"
+      },
+      {
+        "id": "P3-RP-D-CLOCK",
+        "category": "統合担当決定",
+        "A": "固定の原点＋実の経過。壁時計の原点はmanifestのdocumentTimes.reportDateTimeRaw（Date.parseが有限な値を持つ最初の入力の値。どの入力にも無ければDate.now()）、monotonicはperformance.now()。原点は出力のclockOriginに載せる（spec:1934の時計入力の差の明示）。接続の直後、最初の付け直しより前にstart frame（timeに今の壁時計）を1回送る。各入力を送る直前に、壁時計をmax(今の壁時計, その入力のreportDateTimeRaw)へ付け直す（前へだけ進め、戻さない。値の無い入力では付け直さない）",
+        "B": "host-launcherと同じく原点を1つに固定し、付け直さない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "原点を1つに固定すると、年の違うfixture（corpusは2007〜2026年）で後の入力が古すぎて期限切れ・staleになる（t05が入力ごとに壁時計を付け直すのと同じ理由、t05-corpus-replay.test.ts:65）。戻さないのは、古い報を後から入れた試験を遅れて届いた報として扱わせるため。start frameのtimeはP3-CLOCK-CHECK-001の確かめ（host.ts:130のwallBasis、:304）に使われ、runnerも同じ形で送る（run.mjs:177）。送らないと起動から30秒で壁時計の根拠がunverifiedになる。付け直しより前に送るのは、確かめの間に壁時計が飛ぶと確かめにならないため。使うのはmanifestの値だけで、XMLは読まない（意味は製品のparserの仕事）。spec:650の「固定時計」は、ここでは原点をmanifestから決めて再現できる時計と読む（壁時計は実の経過で進む）。E08（spec:2059）の固定時計＝止めた時計で無変化のtickを数える読みとは別で、replayの出力をE08の証拠にしない。値の無い・日時でない入力（manifestに4件）だけの実行で原点をDate.now()に代えるのは、拒否の分岐を1つ減らすためで、clockOriginで見える"
+      },
+      {
+        "id": "P3-RP-D-STATE",
+        "category": "統合担当決定",
+        "A": "保存先は--out <dir>（無いか空のdirectory。それ以外は何も書かずに拒否）、省略時はos.tmpdir()の下にmkdtempで作る。<dir>/stateと<dir>/diagをstartP2Hostに渡す。終わっても消さず、出力にpathを書く",
+        "B": "常に空のdirectoryの指定を求める（旧築replay --state-dirと同じ、spec:2304）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec:650の試験専用保存先。空でないdirectoryを拒否するのは、本番のstateを誤って指したときに復元・上書きしないため。mkdtempはt05の形（t05-corpus-replay.test.ts:55）。旧築の--state-dirは廃止可（spec:2304）なので新しい形を選べる"
+      },
+      {
+        "id": "P3-RP-D-INPUT",
+        "category": "spec決定（R10）",
+        "A": "位置引数はcheckoutのreconstruction/tools/corpus/manifest.jsonのfixtureId（manifestを選ぶ口は作らない）。境界で、fixtureの存在・roleがtelegramXml・transport.headTypeが文字列・pathがcheckoutの内側の相対path・fileのbytesのsha256がmanifestと一致、を確かめる。headTypeはmanifestから取る（XMLから推測しない）。同じfixtureIdを2回並べてよい（重複の受信の試験）。これは開発者CLIで、checkoutの中で使う検収用。配布の形（packageのfiles・bin）はC18が決め、C18で配布に載せるときはtest側（runner）のimportを切る。出力の形（fleq-replay-v1）と終了code（D-OUTPUT）も開発者CLIの形で、利用者向けの互換の約束ではない（spec:2308の互換必須は検収用replayの公開口があること）",
+        "B": "XMLのpathを受ける",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（spec決定、R10）",
+        "ruling": "R10=A（2026-09-19の作者裁定、進捗ノート§3）の②による（起草時に統合担当が転記）",
+        "reason": "R10②の原文: 「A10の製品経路replay runnerを開発者CLI（fleq replay <fixture...>、固定時計・隔離保存先・通知無効化はspec :650）として公開口を持たせ、Q7表へ『検収用replayの公開口＝互換必須（新設）』の行を足す」（計画:82・:254）。runnerの入力はmanifestのfixtureId（frames.mjsのfixtureIdとt05の形）なので、同じものを受ける。spec:650はreplayをmanifestを持つ検証入力と定める。pathだとheadType（envelopeのhead.type）の出どころが無い。manifestのsha256で、読んだbytesが台帳のfixtureであることを示せる。manifestを選ぶ口（--manifest）は作らない: personal branch（cc4f0899）の同じpathのmanifestは308件でEEWは12件、どれも気象庁サンプルか自作の合成で、dmdataから受けたEEWの原本は入っていない（原本はE21の証拠のfileで、manifestの形のcorpusではない）。personalのcheckoutは同じ入口で自分のmanifestを読む。原本をmanifestに載せる契約ができたら、その契約が口を足す"
+      },
+      {
+        "id": "P3-RP-D-OUTPUT",
+        "category": "統合担当決定",
+        "A": "入力を1件ずつ送り、その入力のmarker T2（host.ts:166。parserの拒否を含めinputDoneごとに1つ出る）を待ってから次を送る（1件60秒）。全部を終えたら（または待ちを超えたら）/snapshotを1回取り、host.stop()を呼び、標準出力にJSON 1行を書いて終わる。表示serverは保持しない。終了codeはshutdown.codeが0でなければその値、0で未処理の入力があれば1、どちらも無ければ0。引数・manifest・保存先の拒否とhostの起動失敗は1",
+        "B": "観測のJSON Linesを流す、または表示に届いてもSSEを保持する（旧--hold）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "検収はsnapshot.currentを比べる（t05と同じ）。観測のJSON Linesは測定の道具（host-launcher）の役目で、replayの受入には要らない。保持は旧--hold（spec:2306）で、作者の裁定で廃止可。processingの観測（waitInputsDone）で待たないのは、parserが拒んだ入力（例 test__fixtures__telegram-foundation__weathercw-10_03_01_171016_VPTW60-wind-range はxmlInvalid）ではownerがnoMarksを返し（owner-host.ts:125）processingが出ず（host.ts:187）、60秒待って未処理になるため。code 1は§5.9のcode（0・2・3・4、spec:895〜:898）と重ならない。stop()の順序・期限・codeはC3bのまま読むだけ（Q-RP-STOP）。1件ずつ待つのは、D-CLOCKの付け直しを前の入力の処理の後に行うため"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-RP-RUNNER-FROZEN",
+        "status": "closed",
+        "source": "起草の版（b8ca889b）でのgit grep -n \"<path>:[0-9]\" -- reconstruction/contracts（2026-10-30）",
+        "closed": "(1) runnerのscript・試験（reconstruction/test/eew-e01/*.mjs・*.ts）を行番号で引く参照は契約jsonの11本に250件（ほかに計画に1件、evidenceのfileを行で引く参照が50件）。fileごとにrun.mjs 84・windows.mjs 78・chrome.mjs 19・frames.mjs 16・tsunami.mjs 12・aux-measures.mjs 11・probe-preload.mjs 10・draft.mjs 7・host-launcher.mjs 4・p3.test.ts 3・e12-run.mjs 2・analysis.mjs 2・aux-measures.test.ts 1・tsunami.test.ts 1・tsunami.d.mts 1 (2) frozen.tsを行番号で引く参照は7契約に25件。frozen.tsの表はHARNESS_TRIAL_SETUP（frozen.ts:394のsha256）とTSUNAMI_INHERITED_MANIFESTS（:706・:708のmanifestSha256）で、C4・C6・harnessの凍結manifestの照合が指す (3) C17はrunnerのfileとfrozen.tsを1行も変えない（AC01、allowedPathsに入れない）。importするのはframes.mjsのdataFrame・REPOだけで、変えずに使える（dataFrameは2026-09-30から本文が同じ）ので、触る理由は無い。dataFrameは全報にclassification:\"eew.forecast\"・id:\"a10\"を付けるが、製品はdata frameのclassificationを読まず、{ wsUrl }ではrecordLiveIdの帳簿も効かない（host.ts:342）ので壊れない。外側の値は合成したもので実配信のmetadataではない（spec:1932・:1934）"
+      },
+      {
+        "id": "Q-RP-LATER-RULINGS",
+        "status": "closed",
+        "source": "相手契約のquestionResolutionsと、起草の版までのgit log（2026-10-30）",
+        "closed": "(1) C3b（起草ad0f4b25、10-05）: 後のP3-C3B-CLOSE（作者裁定A、10-07）でstop()は2回目の要約の保存の期限切れでも例外を投げずcode 4を返す。C17はstop()の戻り値のcodeを読むだけで影響しない (2) C4（起草fd6e8f33、10-06。10-08にP3-C4-CLOSE-*で閉鎖）: runnerは後にP3-MEASURE-HARNESS-001（10-11）・P3-E05P-CLASSIFY-001（10-11）・P3-SEISMIC-PLACE-001（10-26）・P3-TSUNAMI-HARNESS-001（10-27）・P3-PI-HARNESS-001（10-28、host-launcherのdisplayHostとhost.tsのdisplayBind）で変わった。C17が使うdataFrame（frames.mjs:23〜:27）はそれらで変わっていない (3) C2（起草87fc5ed3、10-01）: 後にP3-CLOCK-CHECK-001が{ wsUrl }でもstart frameのtimeで壁時計を確かめるようにした（host.ts:130・:304）ので、D-CLOCKでstart frameを送る。P3-RECOVERY-001（10-29閉鎖）が{ wsUrl }でEEWの札を立て（host.ts:548）、start frameのrecordConnectedで閉じる（:285）。recordLiveId（:342）は{ dmdata }の鮮度の帳簿だけに効き、{ wsUrl }では何もしない (4) 今日の集約ea8ea359（P3-XML-READERS-001、10-30 07:15）が変えたのはdecode-material/xml-read.ts（新）・domainsの10 file・unitsの13 file（codec-base.tsを含む）だけで、host.ts・ingress.ts・decode-material.tsは変えていない（最終変更はb8b4690d・f0eab7c6・248a5d34、どれも10-28）。同契約のAC03でcorpusの292本の出力が前後で同じと示したので、replayの読み口は動いていない"
+      },
+      {
+        "id": "Q-RP-ANCHORS",
+        "status": "closed",
+        "source": "起草の版での各行のanchorの照合（2026-10-30）",
+        "closed": "(1) host.tsを行番号で引く参照は16契約・54行。引かれている行は:38・:47・:52・:77・…・:323・:328・…で、C17が改める:42（P2HostConfigの型）と:324（WSの入力のorigin）を引く参照は0件。行数を変えない置換なので、他の行のanchorもずれない (2) spec:2308を引く参照は契約jsonとsequences.jsonで0件（計画§4.4の被引用0のとおり）。行数を変えない置換で改めた (3) 計画:128（host.tsの編集順の行）を引く参照は0件。行数を変えずC17を足した (4) 改めた後のcheck-contractは全契約PASS (5) C3aはP2HostConfigを{ wsUrl }と{ dmdata }の排他に5項目を足した形で変えないと書いた（p3-execution-split.json:412）。その後にC4が省略可能なmeasureInputHeap（p3-e01-reaccept.json:428）、P3-PI-HARNESS-001が省略可能なdisplayBind（p3-pi-harness.json:255）を、関数のsignatureを変えずに足した前例がある。C17のorigin?も同じ形（省略可能・既定は従来どおり） (6) 計画:464（未起草の契約に足すものの表のC18の行）を引く参照は0件で、行数を変えずにreplayの振り分けを書き足した"
+      },
+      {
+        "id": "Q-RP-CLI-OWNER",
+        "status": "closed",
+        "source": "git ls-files reconstruction（2026-10-30）、p3-dmdata-connect.jsonのP3-C2-ENTRY",
+        "closed": "新築にCLIの入口は無い: reconstruction/にpackage.json・bin・mainは無く、startP2Hostを呼ぶのは試験とrunner（host-launcher.mjs:45・t05ほか）だけ。repoのbin fleqは旧築のdist/index.js。C2はlive起動入口をstartP2Hostの{ dmdata }形にし、製品srcに別のmainを作らないと決めた（P3-C2-ENTRY=A）。よってC17は関数runReplayと最小の入口だけを持ち、C18が振り分けに吸う（D-ENTRY）"
+      },
+      {
+        "id": "Q-RP-TERMS",
+        "status": "closed",
+        "source": "manifest.jsonのdistribution・acquisition（2026-10-30）、dmdata利用規約14項・15項の作者方針（2026-09-23、manifestの来歴に転記済み）",
+        "closed": "replayは手元のmanifestとfixtureを読むだけで、corpus（manifest・sequences・fixture）を足さない・書き換えない。publicのmanifestのEEW 15本（eew.forecast 12・eew.warning 3）は気象庁サンプル（jmaPublished、publicApproved）か自作の合成（generated、unconfirmed）で、dmdataから受けたEEWの原本は無い。personal branch（cc4f0899）の同じpathのmanifestも308件でEEW 12件、どれもjmaPublishedかgeneratedで、dmdataから受けたEEWの原本は入っていない。mainの受入は控えめに非EEWのpublicApprovedのfixtureだけで行い（T01）、EEWのreplayはpersonalのcheckoutで同じ入口を回す（公開のActions・artifactへ出さない）。dmdataから受けたEEWの原本をreplayの入力にするには、まずmanifestに載せる契約が要る（C17の範囲外）"
+      },
+      {
+        "id": "Q-RP-STOP",
+        "status": "closed",
+        "source": "spec§5.9、C3bの停止監視（spec:1190〜:1191）、host.ts:513・:539",
+        "closed": "C17はspec§5.9（通常終了の順序）とC3bの停止監視に触れない。終わりはhost.stop()（host.ts:513、SIGINT・SIGTERMもhostが同じstopへ集める、:539）を1回呼び、返るShutdownSummaryのcodeを終了codeに写すだけで、段の順序・期限・codeの決め方・stalled／unresponsiveの判定は変えない。host.tsで改めるのは型の1行とWSの入力のoriginの1行だけ（D-ORIGIN）。よってレビューはD-P3-10どおりClaudeのゲート（契約適合∥品質）で、並行性・状態機械の品質レビューをCodexへ替える対象（CLAUDE.mdのレビュー方針）ではない"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。replayの入力の運用区分は製品のparserが本文のControl/Statusとenvelope（dataFrameが本文のStatusに揃える、frames.mjs:24）から決め、origin=\"replay\"をoperation:\"test\"と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-REPLAY-CLI-001",
+    "mode": "implementation",
+    "objective": "R10②の検収用replayの公開口 fleq replay <fixture...> を、C4のrunnerと同じ製品経路（ローカルWS→startP2Host→/snapshot）で作る（計画:82、spec:650）。新設のreconstruction/cli/replay.mjsに関数runReplayと最小の入口だけを置き、manifestのfixtureIdを境界で検査し、試験専用の保存先・通知の無効化（silent）・manifestの報の時刻を原点にした時計で、入力をorigin=\"replay\"として1件ずつ流し、最後のsnapshotと通常終了の要約をJSON 1行で返す。originのためにhost.tsの2行（型とWSの入力のorigin）を行数を変えずに改める。runnerのfile・frozen.ts・旧築src/は変えず、fleqの振り分けはC18が吸う。spec§5.9とC3bの停止監視には触れない（stop()を呼んで要約を読むだけ）。replayの出力は通知配送・性能・保存の製品条件の合格に使わない（spec:650の最後の文。通知を止め、測定の印付きで動くため）。実adapterでの検収はC21・C22",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-replay-cli.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/*.json",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/check-manifest.mjs",
+      "reconstruction/contracts/check-contract.mjs",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "test/fixtures/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/cli/replay.mjs",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/test/replay-cli/replay-cli.test.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-replay-cli.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B03",
+      "B12"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P3-E01-REACCEPT-001",
+      "P3-DMDATA-CONNECT-001",
+      "P3-CLOCK-CHECK-001",
+      "P3-MEASURE-HARNESS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p1-parser-boundary.types.ts#AcquisitionOrigin",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#ShutdownSummary",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot"
+    ],
+    "publicFunctions": [
+      "新: reconstruction/cli/replay.mjsのrunReplay(argv: string[]): Promise<number>（終了code。AC01〜AC06）。C18はfleq replayの振り分けからこれを呼ぶ",
+      "改: startP2Host(config: P2HostConfig)の{ wsUrl }形に省略可能なorigin?: \"replay\"（既定は今までどおり\"live\"。{ dmdata }形はorigin?: never）。関数のsignatureと戻り値は変えない（AC03）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（ws、node:child_process・node:crypto・node:fs・node:os・node:path・node:http・node:perf_hooks）。runnerのframes.mjs（dataFrame・REPO）のimportだけ（aux-measures.mjsはimportしない）。新しいnpm依存は足さず、package.json・package-lock.jsonを変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-35_01_02_240613_VXSE52",
+      "test__fixtures__32-35_01_03_240613_VXSE53"
+    ],
+    "sequenceIds": [
+      "O09",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-RP-RES-01",
+        "target": "replay.mjsが持つ記録と待ち",
+        "limit": "T2のinputIdのSetは入力の件数まで。1入力の待ちは60秒（200msごとに見る、AC06）。manifestは1回読んでMapにし、入力ごとに全件を走査しない",
+        "unit": "件・秒",
+        "scope": "replayの1回の実行。製品の受信経路（host以降）の仕事は変えない",
+        "source": "AGENTS.mdの受信経路の計算量、D-OUTPUT"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形は変えない。replayで作るcheckpointのReportRef.originが\"replay\"になるだけで、codecは既に受ける、version.ts:66）"
+    ],
+    "nonPersistedFields": [
+      "replay.mjsのT2のinputIdのSet・壁時計の原点（1回の実行の間だけ）"
+    ],
+    "outOfScope": [
+      "fleqの振り分け（新築のbin）、REPLの入口、設定ファイル・環境変数の読込み（C18）",
+      "reconstruction/test/eew-e01/**（runner）・reconstruction/src/measurement/**（frozen.ts）の変更。変える必要が出たら止めて報告する",
+      "host.tsの:42・:324以外の行、composition root・adapter・ingress・parser・unitの変更（通知の口をhostに足すこと、D-SILENTのB）",
+      "spec§5.9の通常終了の順序・期限・code、C3bの停止監視の変更",
+      "corpus（manifest・sequences・fixture）の追加・変更、replay用の期待値の焼き込み",
+      "観測のJSON Linesの出力、表示serverの保持（旧--hold）、送る間隔の指定（旧--interval）、実の通知backendの選択",
+      "replayの出力を通知配送・性能・保存の製品条件の合格に使うこと（spec:650）。実adapterでの検収（C21・C22）、Windowsの通知の口（バックログの別の宿題）",
+      "配布の形（packageのfiles・bin）とfleqの振り分け（C18。配布に載せるときはrunnerのimportを切る）",
+      "旧築src/**のcli・replayの変更や削除（Q7の廃止可は旧築の物理削除と別の配送）",
+      "personalのmanifestの中身、dmdataから受けたEEW原本をmanifestに載せること、manifestを選ぶ口（--manifest）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しいnpm依存"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-RP-AC01",
+        "requirement": "入口と持ち主（D-ENTRY・D-RUNNER）: 新しいfile reconstruction/cli/replay.mjsを作り、export async function runReplay(argv: string[]): Promise<number>（戻り値は終了code）と、realpathSync(process.argv[1]) === import.meta.filenameのときだけprocess.argv.slice(2)でrunReplayを呼び、標準出力を書き終えてからprocess.exit(code)する最小の入口を置く（argv[1]をそのまま比べると、symlinkから起動したとき何も走らずexit 0になる。node 26で実測）。起動はnode reconstruction/cli/replay.mjs [--out <dir>] <fixtureId...>（flagが先、fixtureIdが後）。runnerからはframes.mjsのdataFrame・REPOだけをimportし（aux-measures.mjsはimportしない）、host-launcher.mjsは起こさない。reconstruction/test/eew-e01/**・reconstruction/src/measurement/**・旧築src/**は1行も変えない（変える必要が出たら、理由と変える行を引く契約の件数を報告して止める）。fleqの振り分け（bin）と配布の形は作らず、C18が吸う（計画:464のC18の行に書いた）。なぜのコメントを先頭に2行（検収用replayの公開口でrunnerを共有する理由、計画:82・spec:650）。無いと: spec:2308で互換必須とした検収用replayの公開口が無い",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:82 «f49d34cd2cb8ad4a»",
+          "reconstruction/contracts/p3-order-plan.md:124 «650a2128e6396b55»",
+          "docs/specs/reconstruction-p0-contracts.md:2308 «4a818a6dc262bcbd»",
+          "reconstruction/contracts/p3-dmdata-connect.json:21 «7a4f4463b46add97»",
+          "reconstruction/test/eew-e01/frames.mjs:23 «e2cb43dfef2cc22b»",
+          "reconstruction/contracts/p3-order-plan.md:464 «fe0f3106ae6af703»"
+        ]
+      },
+      {
+        "id": "P3-RP-AC02",
+        "requirement": "境界の検査（D-INPUT・D-STATE、spec:381の無効入力で副作用0）: hostの起動とdirectoryの作成より前に、(1) flagは--outだけで1回、値があること (2) fixtureIdが1個以上 (3) REPOのreconstruction/tools/corpus/manifest.jsonがJSONでfixtures配列を持つ (4) 各fixtureIdがmanifestにあり、roleがtelegramXml、transport.headTypeが空でない文字列 (5) REPOからのpathのfileのbytesのsha256がmanifestのsha256と一致（fixtureIdとpathの対応はcheck-manifest.mjs:78、sha256の照合は:81が台帳の側で確かめる。pathの形は、manifestがrepoの中の信頼できるデータであることで守り、別に検査しない） (6) --outがあれば、その親directoryがあり、それ自体は無いか空のdirectory、を確かめる（mkdirはrecursiveにしない）。reportDateTimeRawの無い・不正な入力は拒まない（D-CLOCKで原点をDate.now()に代える）。1つでも外れたら何も作らずhostも起こさず、標準エラーにJSON 1行（{\"error\": <reason>, ...}）、標準出力は空、終了code 1。検査はこの境界の1か所だけに置き、内側（host・ingress・parser）の検査を写さない（headTypeの中身・XMLの形・運用区分の判定は製品の仕事）。manifestは1回読んでfixtureIdのMapを作る（入力ごとに全件を走査しない）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:381 «d3c49bbd2a708894»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:2304 «a3d47e26ae41197f»",
+          "reconstruction/tools/corpus/check-manifest.mjs:78 «8612fdaedfc06dad»",
+          "reconstruction/tools/corpus/check-manifest.mjs:81 «4f14cb8f6bf854bc»",
+          "reconstruction/tools/corpus/manifest.json"
+        ]
+      },
+      {
+        "id": "P3-RP-AC03",
+        "requirement": "製品経路とorigin（D-ORIGIN・D-RUNNER）: host.tsの:42（P2HostConfigの型）を同じ1行のまま、{ wsUrl: string; origin?: \"replay\"; dmdata?: never } | { dmdata: DmdataSubscription; wsUrl?: never; origin?: never }へ改め、:324を同じ1行のまま origin: config.origin ?? \"live\", kind: \"ws\", frame: bytes, parsed }); へ改める（host.tsのほかの行は変えない。行数を変えない）。replay.mjsは127.0.0.1のport 0でwsのWebSocketServerを開き、hostを読み込んだ後（AC05の差し替えの後）にstartP2Host({ wsUrl, origin: \"replay\", stateDirectory: <out>/state, diagnosticDirectory: <out>/diag, displayPort: 0, clock, observe })で同じプロセスに起動する。observeはkindがmarkerでpointがT2の観測のinputIdだけをSetに積む（入力の件数で上限、ほかの観測は捨てる）。接続を受けたら、start frame（{ type: \"start\", socketId: 1, classifications: [], time: <今の壁時計のISO文字列> }。run.mjs:177の形で、classificationsはhost.ts:282〜:284が文字列の配列かだけを見るので空）を1回送り、各入力をdataFrame(headType, bytes)で1件ずつ送る（AC04・AC06の順）。inputIdはhostの通し番号input-<n>（nは1から、start frameは数えない）。使う接続は最初の1本だけで、それが閉じたら（Ctrl-Cでhostが止まったときなど）待ちを打ち切って出力へ進み、繋ぎ直しで送り直さない",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:41 «c13e2af097d7670f»",
+          "reconstruction/src/host/host.ts:323 «1769f2d76c5f0cf3»",
+          "reconstruction/src/host/host.ts:166 «b747b81e2514721e»",
+          "reconstruction/src/host/host.ts:282 «f1732e7c162f8244»",
+          "reconstruction/src/host/host.ts:304 «d3f9f559ebe2eb0a»",
+          "reconstruction/test/eew-e01/run.mjs:177 «63ae549d2228ccd9»",
+          "reconstruction/test/eew-e01/frames.mjs:25 «3d191c64d1fa5fe2»",
+          "reconstruction/src/contracts-revision/version.ts:66 «6a2dfc99329867d9»",
+          "reconstruction/contracts/p1-parser-boundary.types.ts:3 «0df43bf3db657b76»",
+          "docs/specs/reconstruction-p0-contracts.md:642 «0bfabb5bb9dfcac8»",
+          "docs/specs/reconstruction-p0-contracts.md:651 «f1b501492ddebed2»"
+        ]
+      },
+      {
+        "id": "P3-RP-AC04",
+        "requirement": "時計（D-CLOCK）: clockは() => ({ wallTimeMs: anchorWall + Math.trunc(performance.now() - anchorMono), monotonicMs: performance.now() })の形（1回のperformance.now()を両方に使う）。起動時のanchorWallは、入力の並びで最初にDate.parseが有限なdocumentTimes.reportDateTimeRawを持つものの値で、どの入力にも無ければDate.now()（manifestにはnullが3件、日時でない値が1件ある）。start frameを送った後、各入力を送る直前に、その入力のreportDateTimeRawのDate.parseが有限で今の壁時計より後なら、壁時計がその値になるようanchorWall・anchorMonoを付け直す（前へだけ）。値はmanifestから取り、XMLを読まない。shortcut:のコメントは要らない（入力ごとの付け直しはt05と同じ形）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/t05-corpus-replay.test.ts:59 «631ed11f53f97bde»",
+          "reconstruction/test/eew-e01/t05-corpus-replay.test.ts:65 «19ed4922cdb2a2ef»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:41 «4113ec73f724a47d»",
+          "reconstruction/src/host/host.ts:130 «f45693862d044177»",
+          "reconstruction/src/host/host.ts:395 «4302f01a45d8e2c9»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:1934 «e9bf4c61cea76a2a»",
+          "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»"
+        ]
+      },
+      {
+        "id": "P3-RP-AC05",
+        "requirement": "通知を止めることと保存先（D-SILENT・D-STATE）: hostのmoduleを読み込む前に（静的importにせず、差し替えの後のdynamic importで）node:child_processのspawnを、spawn(\"/usr/bin/true\", [], options)を呼ぶ関数へ替える（host-launcher.mjs:14〜:17と同じ）。そこにshortcut:のコメントを1行: darwin・linuxのbackendのspawnだけを止める（win32ではadapterがspawnしない）、Windowsの通知の口ができたらそこで見直す。保存先は--outがあればそれ（無ければmkdirSyncで作る。recursiveにしない）、無ければmkdtempSync(join(tmpdir(), \"fleq-replay-\"))。その下にstate/とdiag/を使い、終わっても消さない",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/host-launcher.mjs:14 «720f7a3b15c43a9d»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:16 «e02f05c4847f1a67»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:19 «9aaf79e548eb638c»",
+          "reconstruction/test/eew-e01/t05-corpus-replay.test.ts:55 «46cb0cf3ffa223ee»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "reconstruction/src/notification-delivery/adapter.ts:35 «cbdc7e3ea56c2064»",
+          "reconstruction/src/notification-delivery/adapter.ts:179 «5ecf50df3ab82a44»"
+        ]
+      },
+      {
+        "id": "P3-RP-AC06",
+        "requirement": "出力と終了（D-OUTPUT、§5.9とC3bの停止監視には触れない）: 入力をi番目（1から）送るたびにinput-<i>のT2がSetに入るまで待ち（200msごとに見る、60秒で打ち切り）、打ち切ったら残りを送らない。最後に（または打ち切ったら）http://127.0.0.1:<displayPort>/snapshotを1回GETしてJSONとして読み、host.stop()を1回呼び、WebSocketServerを閉じ、標準出力にJSON 1行 { schemaVersion: \"fleq-replay-v1\", notification: \"silent\", measured: true, clockOrigin: <壁時計の原点のms>, outDirectory, inputs: [{ fixtureId, sha256, inputId, processed }], snapshot, shutdown }（snapshotは取れなければnull、shutdownはstop()が返したShutdownSummary。notification・measuredはspec:650の「試験ごとに明示」で、observeを渡すのでownerはC4の測定の印付きで動く。起源の定数は載せず、T01がstateの側で確かめる）を書く。終了codeはshutdown.codeが0でなければその値、0で処理されない入力があれば1、どちらも無ければ0。startP2Hostがrejectしたら標準エラーにJSON 1行と終了code 1（作った保存先は残す）。stop()の段の順序・期限・codeの決め方、停止監視（spec:1190〜:1191）、hostのSIGINT・SIGTERMの扱い（host.ts:539）は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:513 «a2ad0b3b132c008c»",
+          "reconstruction/src/host/host.ts:539 «a9963aed8491915c»",
+          "reconstruction/src/host/host.ts:589 «26777858dfe7e1eb»",
+          "docs/specs/reconstruction-p0-contracts.md:880 «f7b928f646165ca5»",
+          "docs/specs/reconstruction-p0-contracts.md:900 «0ee1ac317cc5543a»",
+          "reconstruction/src/host/host.ts:166 «b747b81e2514721e»",
+          "reconstruction/src/runtime/owner-host.ts:125 «b9175302b7397122»",
+          "docs/specs/reconstruction-p0-contracts.md:2306 «6d4ef4e6da57ae17»"
+        ]
+      },
+      {
+        "id": "P3-RP-AC07",
+        "requirement": "spec・計画と規約（統合担当、起草で当てた）: spec:2308を行数を変えずに置換し「検収用replayの公開口 fleq replay <fixture...>（開発者CLI、checkoutの中で使う）は互換必須（新設、R10。P3-REPLAY-CLI-001）」を入れた（計画§4.4の行は時期を「C17の凍結時」とするが、起草のcommitで当てる。被引用0件）。計画:128のhost.tsの編集順にC17（型の1行とoriginの1行）を足した（被引用0件）。replayは手元のmanifestとfixtureを読むだけでcorpusを足さない。mainの受入は非EEWのpublicApprovedのfixtureで行い、EEWの分はpersonalのcheckoutで同じ入口を回す（Q-RP-TERMS）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2308 «4a818a6dc262bcbd»",
+          "reconstruction/contracts/p3-order-plan.md:128 «bf13ae05c7c8db2a»",
+          "reconstruction/contracts/p3-order-plan.md:174 «1be4788e9612d3bc»",
+          "reconstruction/contracts/p3-order-plan.md:254 «a0e0a431901f8fc3»",
+          "reconstruction/tools/corpus/manifest.json"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-RP-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RP-AC03",
+          "P3-RP-AC04",
+          "P3-RP-AC05",
+          "P3-RP-AC06",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:83 «199035509f8fedc1»",
+          "reconstruction/src/view-projector/view-projector.ts:44 «cb7d2a867e9fccad»",
+          "reconstruction/src/view-projector/view-projector.ts:639 «4c0932acf1788d13»"
+        ],
+        "behavior": "reconstruction/test/replay-cli/replay-cli.test.tsで、node reconstruction/cli/replay.mjs --out <空の一時directory> test__fixtures__32-35_01_02_240613_VXSE52 test__fixtures__32-35_01_03_240613_VXSE53 を子プロセスで実行する（timeout 60秒）。終了code 0、標準出力のJSONのclockOrigin=Date.parse(\"2009-10-01T13:48:00+09:00\")・inputsの2件ともprocessed=trueでinputIdがinput-1・input-2、shutdown.code=0。2本とも本文が訓練（<Status>訓練</Status>）で、itemsは[normal, training, test]の固定順（p2-snapshot-sse.types.ts:83、view-projector.ts:44）なので、snapshot.current.earthquake.items[1]のupdatedAtがDate.parse(\"2009-10-01T13:50:00+09:00\")（VXSE53の報の時刻。updatedAtはReportRefの報の時刻から作る、view-projector.ts:639）。付け直しが前へ進んだことはDate.parse(snapshot.generatedAt) >= Date.parse(\"2009-10-01T13:50:00+09:00\")で見る。<out>/state/の下のfileのどれかに\"origin\":\"replay\"があり、\"origin\":\"live\"がどれにも無い（D-ORIGINの保存）。期待の形（earthquakeのitemsの値）が違ったら、期待を変える前に観測値と理由を報告する"
+      },
+      {
+        "testId": "P3-RP-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RP-AC02"
+        ],
+        "behavior": "同じfileで、(a) manifestに無いfixtureIdと、まだ無い--out <path> で実行すると終了code 1・標準出力が空・標準エラーがerrorを持つJSON 1行で、<path>が作られない (b) 中にfileが1つある--out でtest__fixtures__32-35_01_02_240613_VXSE52を実行すると終了code 1で、そのdirectoryの中身が変わらない。2つの実行を1つのitに置く（境界の検査の2つの入口。総当たりはしない）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査（replayはmanifestを変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09・O10の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。host.tsの2行は行数を変えない置換で、どの契約（本契約を含む。AC03は隣の:41・:323を引く）にも引かれていないので、FAILは出ない想定。出たら想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "host.tsの型の検査とreconstruction/dist/の生成（replay.mjsはdistのhostを読む。vitestより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査（replay-cli.test.tsはreplay.mjsをimportせず子プロセスで起こすので、.d.mtsは要らない）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "表示serverが配るchrome-eewのdist"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（T01・T02と既存の試験）。--sequence.shuffleを付けた回も1回通す"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤りが無いこと"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築のbuildとtest（AGENTS.mdの完了条件。旧築は変えないので通ることだけを確かめる）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク",
+      "host.tsの変更が:42と:324の2行だけで行数が変わらないことを示すgit diff --stat",
+      "足した仕組みごとに「無いと何が壊れるか」を1行: replay.mjs（AC01）、P2HostConfig.origin（AC03）",
+      "追加した試験ごとに対応（T01 受入条件、T02 契約境界）を1行",
+      "T01の標準出力のJSON（snapshotはcurrent.earthquakeのitemsだけに縮めてよい）と終了code",
+      "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+      "残存リスク: (1) 通知を止める仕組みはdarwin・linuxのbackendのspawnの差し替えで、hostの設定の口ではない（D-SILENT） (2) 処理完了の判定はmarker T2で、ownerが入力を受けて返したことまでを示し、表示に届いたかはsnapshotで見る。processed=trueは「ownerが返した」の意味で、parserに拒まれた入力もtrueになる（拒否を見分けるならdiagかsnapshotの側で見る）。ingressで拒まれた入力（host.ts:325のrejected）はownerに届かずT2が出ないので、60秒待ってprocessed=falseになる。manifestのtelegramXmlでは起きない想定 (3) observeを渡すのでownerはC4の測定の印（OwnerStartData.measured）付きで動く。製品経路は同じで、費用だけが増える (4) {wsUrl}形はEEWの札（host.ts:548）を立て、start frameで閉じる。snapshotのrecoveryにはその跡が残りうる"
+    ],
+    "unresolvedQuestions": []
+  }
+}

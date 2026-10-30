@@ -125,7 +125,7 @@ C5 → unit レーン: C7〜C14 を D-P3-5 の順に（C6 と重なってよい�
 | `reconstruction/src/checkpoint/checkpoint.ts` | C0（`:171`・`:186` の unit 列の直書きだけ、Wave 1）→ C1 → C3a → UWR（`P3-UNIT-WRITE-RIGHT-001`。CheckpointWriter の権を unit ごとに、D-P3-2=B） | Wave 2 では C1 だけが編集する |
 | `reconstruction/src/checkpoint/persistent-diagnostic-sink.ts` の reason 一覧（`:40`〜`:52`） | C0 → C2 → C3a → C3b（直列） | reason の追加だけ |
 | `reconstruction/src/units/*/` | C0（unit ごとの module の export を足す）→ 各 unit レーン（自分の directory） | 他 unit の directory は触らない |
-| `reconstruction/src/host/host.ts` | C2 → C3a → C3b → C4（config の注入口だけ）→ C5（:199〜:201 の候補分類だけ） | Wave 2 では C2 だけが編集する |
+| `reconstruction/src/host/host.ts` | C2 → C3a → C3b → C4（config の注入口だけ）→ C5（:199〜:201 の候補分類だけ）→ C17（config の型の 1 行と WS 入力の origin の 1 行だけ。行数を変えない） | Wave 2 では C2 だけが編集する |
 | `reconstruction/src/mailbox/mailbox.ts` と `p2-mailbox.json` | C3a → C3b（実行場所の pending を 1 回の走査で外す 1 メソッドだけ） | dispatch の改訂は契約改訂と同じ commit |
 | `composition-root.ts` | C0 → C2（接続表示と start の記録だけ）→ C3a → C3b → C4 → UWR → C5 → unit レーンの結線 | C1 は編集しない。C5 は UWR の合流の後で rebase し、ずれた anchor は UWR の合流と同じ commit で直す。unit レーンの結線は統合担当の直列合流 |
 | `shared-runtime.ts`・`view-projector.ts`・`owner-runtime.ts` | C0 → C3a → C3b → unit レーン（`owner-runtime.ts` は C3a → C3b → UWR［finish の射影の前の時刻の読み口だけ］→ C5 → unit レーン） | unit レーンの変更は統合担当の直列合流。台帳 49 で view の版を固定長にするなら C3a |
@@ -461,7 +461,7 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 | 契約 | §16 |
 |---|---|
 | C16 `P3-RECOVERY-001` | H04、H22、H26、H27、H28、H31、H32、H41 |
-| C18 `P3-CLI-REPL-001` | H11（`notify` の既定）、H46、H50（設定） |
+| C18 `P3-CLI-REPL-001` | H11（`notify` の既定）、H46、H50（設定）。ほかに `fleq replay` の振り分けは runReplay を呼ぶ 1 行（C17 の P3-RP-D-ENTRY） |
 | C19 `P3-TERMINAL-OUTPUT-001` | H08（端末の枠）、H18（今日の件数）、H24、H25、H29 |
 | C20 `P3-WEATHER-NOTICE-001` | H11、H19 |
 | ③ U-W の正本の持ち方 | H38 |

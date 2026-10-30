@@ -2305,7 +2305,7 @@ rollback条件:
 | replay `--interval` | 既定1000ms | `cli-replay.ts:45` | 廃止可（2026-09-14 作者） |
 | replay `--hold` | SSE client待ち・終了後保持 | `cli-replay.ts:46` | 廃止可（2026-09-14 作者） |
 
-一般的なcorpus replay検収器と、公開CLIの固定二通replayを同一機能にしない。後者が廃止可でも、検収用replayは必要だ。
+一般的なcorpus replay検収器と、公開CLIの固定二通replayを同一機能にしない。後者は廃止可だが、検収用replayの公開口 `fleq replay <fixture...>`（開発者CLI、checkoutの中で使う）は互換必須（新設、R10。P3-REPLAY-CLI-001）。
 
 ### 11.3 REPL全36入口
 
