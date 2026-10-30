@@ -39,7 +39,7 @@ const knownClassifications: Readonly<Record<DmdataClassification, true>> = {
 };
 
 // P3-C2-ENTRY: one start function; only how the connection is obtained differs, frames take the same path.
-type P2HostConfig = Readonly<({ wsUrl: string; dmdata?: never } | { dmdata: DmdataSubscription; wsUrl?: never }) & {
+type P2HostConfig = Readonly<({ wsUrl: string; origin?: "replay"; dmdata?: never } | { dmdata: DmdataSubscription; wsUrl?: never; origin?: never }) & {
   stateDirectory: string;
   diagnosticDirectory: string;
   displayPort: number;
@@ -321,7 +321,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     const inputId = `input-${lastSequence}`;
     emit({ kind: "marker", point: "T0", runId, inputId, monotonicMs: t0 });
     const ingressed = ingestXmlData({ inputId, inputSequence: lastSequence, receivedAt: entry.wallTimeMs,
-      origin: "live", kind: "ws", frame: bytes, parsed });
+      origin: config.origin ?? "live", kind: "ws", frame: bytes, parsed });
     if (ingressed.kind === "rejected") { recordRejected(ingressed.diagnostic, entry.wallTimeMs); return; }
     const { item } = ingressed;
     // The priority reason is the validated outer shape only; meaning stays with parser and units.
