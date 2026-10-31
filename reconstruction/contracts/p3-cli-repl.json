@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "d1f1f5f10255eedcf3d70db1538190860072cf19cfbf4dd9b5bc5b3ea7ef117c",
+    "sha256": "7bb286d4f79f45ffeb6e17e2e7ea6dc00e53cb7044b431654851127e7ffbd6a2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -258,7 +258,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "作者裁定 Q-CLI-O2-AUTHOR-3（問い 1=A: 条件は分野と音の段のまま）。段は intent の payload.level にあり、門は震度を読み直さない。B は 12 unit の intent の型と codec の版を上げ、C18 の外の契約が要る。意味差: 「震度 3 以上は鳴らす」の形は段では書けない（U-Q は震度 1〜3 が同じ normal）。EEW の警報の最終報で危険が増していない報は normal（H06、P3-NL-AC12）で、critical の条件に当たらない。mute の間の取消は条件に当たらず黙る（問い 2=A）。段の境目は各 unit の契約が持ち、C18 は持たない。mute の長さの上限 24 時間は、統合担当がレビュー r0 の Infinity の直しで足したもので、作者の裁定の文には無い（mute 48h は断られる）。作者に確かめ中で、今は 24 時間のまま"
+        "reason": "作者裁定 Q-CLI-O2-AUTHOR-3（問い 1=A: 条件は分野と音の段のまま）。段は intent の payload.level にあり、門は震度を読み直さない。B は 12 unit の intent の型と codec の版を上げ、C18 の外の契約が要る。意味差: 「震度 3 以上は鳴らす」の形は段では書けない（U-Q は震度 1〜3 が同じ normal）。EEW の警報の最終報で危険が増していない報は normal（H06、P3-NL-AC12）で、critical の条件に当たらない。mute の間の取消は条件に当たらず黙る（問い 2=A）。段の境目は各 unit の契約が持ち、C18 は持たない。mute の長さの上限 24 時間は、統合担当がレビュー r0 の Infinity の直しで足したもので、作者の裁定の文には無い（mute 48h は断られる）。作者裁定（2026-10-31 夕、「時間指定の上限は24時間でいいですよ」）で 24 時間に確定した"
       },
       {
         "id": "P3-CLI-D-O2-COMMAND",
@@ -491,7 +491,7 @@
         "status": "closed",
         "source": "作者裁定（2026-10-31 夕、統合担当が聞いた。作者の言葉「muteという単語の持つ意味を全うさせた方が良いかと思います。音が出せない環境にいるユーザーはまず、muteを真っ先に有効化します。その状態で音が鳴ったとき、『なぜmuteでも音が鳴るんだ？』と感じるでしょう。単に`mute`の場合は時間無制限、時間の引数をつけたときはその時間muteするという感じです。」と、その前の「`mute`では完全mute、muteの後に引数をつけた場合にはその条件にあった設定を行う」）",
         "closed": "【発注 2】(1) mute（引数なし）は時間の制限なしの完全 mute（mute off まで）、mute <時間> はその時間の完全 mute。完全 mute は通知も音も出さない（旧築 notifier.ts:1150 と同じく全部止める） (2) 条件は mute の引数で、その回だけ（例 mute earthquake:warning、mute 1h earthquake:warning,eew:critical）。条件があれば、その mute の間は条件に当たる試行だけを通す。初期値は無い（16.2.2 の初期値の 3 つはやめる。spec:3106〜:3108 をこの裁定で書き換えた） (3) 問い 1=A: 条件は MuteRule（分野と音の段）のまま。問い 2=A: mute の間の取消は条件に当たらず黙る (4) P3-CLI-D-O2-MUTE-ENTRY（mute rules と muteRules の保存）はこの裁定で置き換え、FleqSettings に muteRules を足さない (5) P3-CLI-D-O2-MUTE-PERSIST=B（作者「Bでお願いします。いずれにせよリリースするのは再構築が完了した後なので、問題ありません。」）: mute の終わり（時間なしは「終わりなし」、時間つきは終わりの wall の時刻）とその回の条件を設定ファイルに持ち越し、起動し直した後も mute のまま続ける。起動のときに終わりを過ぎていれば解けた扱いで欄を消す（spec:3107 をこの裁定で書き足した）。作者承認の欠け: 引数なしと時間だけの mute の間は、EEW の警報・最大震度 5 弱以上・長周期地震動階級 2 以上の報も鳴らない（16.2.2 の初期値の守りをやめた）",
-        "remaining": "mute の長さの上限 24 時間（統合担当が足したもの、P3-CLI-D-O2-MUTE の reason）を作者に確かめ中",
+        "remaining": "なし（mute の長さの上限 24 時間は作者裁定で確定、2026-10-31 夕、P3-CLI-D-O2-MUTE の reason）",
         "reason": "mute の意味（16.2.2）の作者の裁定。画面の外の通知と音の出る・出ないが変わる"
       }
     ],
@@ -990,7 +990,7 @@
       },
       {
         "id": "P3-CLI-AC18",
-        "requirement": "【発注 2】終了（P3-CLI-D-O2-QUIT・P3-CLI-D-SIGNAL）: (1) quit・exit は readline を close する。close（Ctrl+C・Ctrl+D・標準入力の終わりを含む）の handler が、発注 1 の終了の要求（印と stop() の 1 本、AC05 の (7)）を出す。readline に SIGINT の listener を付けない (2) close の後の行は実行しない。SIGINT・SIGTERM・SIGHUP は発注 1 の listener のまま同じ stop() を待つ。2 回目以後の要求は待つだけで、新しく何もしない (3) 終了の要求の後は、REPL の保存の列（P3-CLI-D-O2-WRITE。走っている 1 本と「もう 1 回要る」の印の分）を、stop() と並べて待つ。stop() が終わった後も保存の列が終わっていなければ、さらに 5 秒（置き値、P3-CLI-RES-03）まで待つ。それでも終わらなければ標準エラーに『設定ファイル <path> に最後の変更を保存できたか確かめられません』の 1 行を出す（rename が済んで directory の sync だけが残っているときは、次の起動で新しい値になりうるので、次の起動の状態を言い切らない、settings.ts の書き込みの手順）。runCli は戻る前に readline を閉じ、自分の listener を外す。終了の code は ShutdownSummary.code で、保存の列が期限までに終わらなかったときは、その code が 0 なら 1 にする（0 以外はそのまま）。fleq.mjs の process.exit はこの後なので、rename の前の保存を残したまま終えない (4) startP2Host が戻る前に来た要求は発注 1 のまま（REPL を起こさずに stop を待つ）",
+        "requirement": "【発注 2】終了（P3-CLI-D-O2-QUIT・P3-CLI-D-SIGNAL）: (1) quit・exit は readline を close する。close（Ctrl+C・Ctrl+D・標準入力の終わりを含む）の handler が、発注 1 の終了の要求（印と stop() の 1 本、AC05 の (7)）を出す。readline に SIGINT の listener を付けない (2) close の後の行は実行しない。SIGINT・SIGTERM・SIGHUP は発注 1 の listener のまま同じ stop() を待つ。2 回目以後の要求は待つだけで、新しく何もしない (3) 終了の要求の後は、REPL の保存の列（P3-CLI-D-O2-WRITE。走っている 1 本と「もう 1 回要る」の印の分）を、stop() と並べて待つ。stop() が終わった後も保存の列が終わっていなければ、さらに 5 秒（置き値、P3-CLI-RES-03）まで待つ。それでも終わらなければ標準エラーに『設定ファイル <path> に最後の変更を保存できたか確かめられません』の 1 行を出す（rename が済んで directory の sync だけが残っているときは、次の起動で新しい値になりうるので、次の起動の状態を言い切らない、settings.ts の書き込みの手順）。runCli は戻る前に readline を閉じ、自分の listener を外す。終了の code は ShutdownSummary.code で、保存の列が期限までに終わらなかったときは、その code が 0 なら 1 にする（0 以外はそのまま）。fleq.mjs の process.exit はこの後なので、期限の内は rename の前の保存を残したまま終えない (4) startP2Host が戻る前に来た要求は発注 1 のまま（REPL を起こさずに stop を待つ）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-lifecycle.json:445 «64f41c13a3d515bb»",
           "src/ui/repl.ts:193 «d49c2e377965161b»",
