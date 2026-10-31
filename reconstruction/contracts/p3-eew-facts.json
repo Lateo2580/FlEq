@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "3c3d151247b696771270b8e925a348677d70d683176bb158582253d707148970",
+    "sha256": "2ee2751a676a31c72ff763ea85bd98fadf6221c9ef8dd79450defd1cac8a69cd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -78,7 +78,7 @@
     "contractId": "P3-EEW-FACTS-001",
     "mode": "implementation",
     "objective": "構造的欠陥台帳 106 を閉じる。互換必須の EEW ログファイル（spec §11.4）と C19（P3-TERMINAL-OUTPUT-001）の端末が要る EEW の値のうち、今の U-E の facts から作れないものを、U-E が採った報の受信の outcome の facts.report（EewReportFacts）に載せる。置き場は受信の時だけで、保存の形（codec・版）・view・EewCurrent・表示の wire・通知は変えない。ログ・端末・購読の口は範囲外（C19、C18 の発注 3）。",
-    "baseOid": "unassigned",
+    "baseOid": "ef66abee98843e193cdcd291719062549cbdf247",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
