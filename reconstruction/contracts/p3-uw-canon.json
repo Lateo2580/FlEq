@@ -1,0 +1,763 @@
+{
+  "meta": {
+    "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
+    "sha256": "18b3ba1f5f096c026a19ad90e111a7ce143f27fb13e182c6e6113279fe365d1d",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-UWC-D-ROOM",
+        "A": "normalのpartialの件数の上限を鍵の空間の全部（6 family×58官署＝348）以上にする",
+        "B": "今の128（三区分の合算）のまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定、2026-10-31）",
+        "ruling": "作者裁定A（2026-10-31夜、統合担当の判断カード）",
+        "reason": "場面: 2026-06-03の12:44:23（JST）に盛岡のVPWW58（強風注意報）が129個目のnormalのsubjectになり、今の規則（weather-current.ts:664〜666）で容量の拒否になった。15:16の宇都宮のVPWW61（栃木の濃霧注意報）も同じく断られ、partialは時間でも解除でも消えないので、その官署×familyは未確認の印のまま戻らない。実配信3日の和は186鍵（Q-UWC-KEYCOUNT）。Aでは鍵の空間の内のnormalは件数で断られない",
+        "kind": "作者"
+      },
+      {
+        "id": "P3-UWC-D-PUBLIC",
+        "A": "U-Fと同じ形（常に配る小さい形と、範囲・版つきの詳細を取りに行く口、前例P3-UF-PUBLIC-001）にし、全国報（base）と地域ごとの報（partial）を区域ごとに新しいほうで合わせて出す（H38の括弧書き）",
+        "B": "今のview（nationalとpartialsのsnapshotをそのまま載せ、subjectsのfactsにも同じ現象を載せる）のまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定、2026-10-31）",
+        "ruling": "作者裁定A（2026-10-31夜、統合担当の判断カード）",
+        "reason": "今のviewはW1の3日の終わりで約4.1 MB（推測、Q-UWC-SIZE）で、snapshotの1 MiBを越えていつも要約になり、区域の行がP4に届かない。合わせる規則はP3-UWC-D-MERGE、配る単位はP3-UWC-D-GROUP、口はP3-UWC-D-DETAIL-PATH",
+        "kind": "作者"
+      },
+      {
+        "id": "P3-UWC-D-DEPTH",
+        "A": "取消で戻せる深さは2つ前の版まで（partialは官署×familyごと、全国は今の2のまま）",
+        "B": "1つ前まで",
+        "C": "今の8つ前まで",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定、2026-10-20）",
+        "ruling": "作者裁定A（2026-10-20、p3-persist-premises.md §7の6、:363の『1〜8はすべて推奨どおり』）。聞き直さない",
+        "reason": "p3-persist-premises.md:411〜:415。8つ前までは器（16 MiB）を越える見込みで、越えた分は新しい警報が『処理できていません』になる",
+        "kind": "作者"
+      },
+      {
+        "id": "P3-UWC-D-KEYSPACE",
+        "A": "鍵の空間は348（VPNO50はpartialを作らないので数えない）。normalのpartialの上限は384（6 family×64官署。見えている58官署に、官署の改称・新設の6官署分の余白）",
+        "B": "上限を348ちょうどにする",
+        "C": "406（VPNO50をfamilyとして数えた計画:421の数）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31、作者に聞かない。画面・音・通知の出方を変えない）",
+        "reason": "406はVPNO50をfamilyとして数えた誤り。VPNO50は発表と取消をignored（weather-current.ts:246・:260）にし、Code 00の終了でtombstoneを置くだけで（:615〜:631）partialを作らない。余白が無いと何が壊れるか: partialは消えない（期限なし、P3-UWC-D-EXPIRY）ので、官署名が1つ変わると旧い名の6鍵が残り、新しい名の鍵の一部が349個目以降で永久に容量の拒否になる。384でも余白を越えれば同じ最後の網（容量のunavailableとWARN capacityRejected、P3-CC-AC07）に落ちる",
+        "kind": "統合担当"
+      },
+      {
+        "id": "P3-UWC-D-NONNORMAL",
+        "A": "training・testのpartialは合算64件の別の上限。満ちたらtraining・testの中で最も古いものを1件退去して受ける。normalは退去させず、normalの上限にも数えない",
+        "B": "今の合算128件のまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31）",
+        "reason": "p3-persist-premises.md §4.7の推奨（置き値64）と、K4のD-OPERATION=A（normalを退去させない）のまま。W1の3日に訓練・試験の報は0通（lane2の下調べ）で、64は根拠のある実例の数ではなく置き値。無いと何が壊れるか: 別の上限が無いと、訓練の報がnormalの384の枠を食い、normalの鍵の空間の保証が崩れる",
+        "kind": "統合担当"
+      },
+      {
+        "id": "P3-UWC-D-EXPIRY",
+        "A": "解除・『なし』だけのpartialを期限で回収する仕組みは足さない",
+        "B": "期限（置き値）で回収する（台帳79の(b)）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31、最小実装）",
+        "reason": "上限を鍵の空間＋余白にしたので、解除だけのpartialが枠を埋めても新しいnormalの鍵は断られない。古いpartialが画面に残る心配は合わせの規則（P3-UWC-D-MERGE: 全国報が載せる区域では全国報より新しいpartialだけが効く）で消える。projectorも解除・なしの行を数えない（view-projector.ts:102）。無いと壊れるものを書けないので足さない",
+        "kind": "統合担当"
+      },
+      {
+        "id": "P3-UWC-D-TOMBSTONE",
+        "A": "tombstoneに件数の上限を足さない。上界と、器を越えたときの最後の網（byteの縮退）を条文に書くだけにする",
+        "B": "件数の上限を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31）",
+        "reason": "VPNO50のtombstoneは同じsubjectで範囲が含まれるものだけを置き換え（weather-current.ts:620）、VPWWの採用は同じsubjectのtombstoneだけを消す（:715）ので、VPNO50のsubject（operation/VPNO50/官署）ごとに、その官署の府県予報区等のCodeの組合せの反鎖の数まで積もりうる。府県予報区等は1官署に1〜2個なので、1 subjectで最大2件、58官署×3 operationで最大348件（推測、官署の区域の数は数えていない）。partialと全国のsubjectのtombstone（取消・容量）は1 subjectに1件。官署名が任意の文字列の不正な入力では件数は効かず、byteの縮退（weather-current-unit.ts:469〜:500）が最後の網。受信ごとにmaskSnapshotWithTombstones（weather-current.ts:552）が全tombstoneを回るのは今どおり（上界の件数に比例、全件×全件ではない）",
+        "kind": "統合担当"
+      },
+      {
+        "id": "P3-UWC-D-SCHEMA",
+        "A": "schemaVersionをp2-weather-current-unit-v7へ上げ、新築の保存は初期化する。旧い版の読み方は作らない",
+        "B": "v6のまま上限だけ変える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31）。P5の前は新築の保存を初期化してよい（作者裁定2026-10-20、p3-order-plan.md『新築の開発用の保存はP5の前は初期化してよい』）",
+        "reason": "欄は同じだが、v6の保存は深さ8までの履歴を持ちうるので新しいdecodeの守り（深さ2）で読めない。版を変えずに読めない保存を作ると、版が同じなのに読めない理由が見えない",
+        "kind": "統合担当"
+      },
+      {
+        "id": "P3-UWC-D-MERGE",
+        "A": "合わせはoperationごと、区域（Warningのtypeと区域のCode）×Kind/Codeごと。全国報が載せる区域は全国報の行を基にし、compareVersionで全国報より新しい（newer）partialの行だけがCodeごとに上書きする（解除の行も上書きして解除として出す）。全国報が載せない区域（高潮予報区間など）はpartialの行だけで、Codeごとに新しいほうが勝つ。Codeの無い行（発表警報・注意報はなし）は上書きしない",
+        "B": "旧築と同じ: 全国報より古いpartialは丸ごと効かない（高潮予報区間の層も落ちる）。『なし』の行は、同じsubjectの前の版が持っていた区域×現象を消す（vpws50-state.ts:964〜:976・:1189〜:1225）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31）。P3の画面（chrome-eew）はU-Wを描かず、snapshotのU-Wはいつも要約なので、今の画面・音・通知の出方は変わらない。P4がこの形を描く",
+        "reason": "Aは新しい版だけを出す（H38）。Bの『前の版が持っていた現象を消す』は、前の版を履歴から引く（深さ2では続けて2回の『なし』で辿れなくなる）か、保存の形に消した現象の欄を足すことになる。Aで落ちるもの: partialが解除を出さずにいきなり『なし』を出した区域では、全国報の古い行が次の全国報（約10分ごと、1日144通）まで残る。実配信のpartialの『なし』の行はいつも単独（W1の3日、Kindが『なし』1つのItemだけ）で、解除の報は解除の行（Codeつき）で来る（Q-UWC-MERGE-PROBE）",
+        "kind": "統合担当"
+      },
+      {
+        "id": "P3-UWC-D-GROUP",
+        "A": "常に配る単位は府県（区域のCodeの先頭2桁）×operation。表示の行（RuntimeDisplaySubject）は府県の行（currentに公開形WeatherCurrentPublicArea）と、報のsubjectの監視の行（unavailable・freshnessだけ、currentはnull）に分ける。U-Wの要約の『件数』はactiveな府県の数になる",
+        "B": "報のsubjectごとの公開形（勝った行だけを数える）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31）。P3でU-Wを描く画面は無い（chrome-eewはU-Wを描かない、p3-disaster-capacity.json:20）が、snapshotのwireに出ているU-Wの要約の件数の値の意味は『activeな報のsubjectの数』から『activeな府県の数』に変わる。P4の起草で読み替えを書く。作者に上げるかは統合担当の検収で決める",
+        "reason": "W1の3日でpartialは1通ごとにちょうど1府県、全国報は47府県（Q-UWC-MERGE-PROBE）。partialの受信は1府県を作り直すだけで済む（P3-UWC-AC09）。大きさ（推測、Q-UWC-SIZE）: Aは常に配る形がW1の終わりで約91 KB、Bは約147 KB（348鍵で約243 KB）。Bは全国報が来るたびに全partialの行が変わる",
+        "kind": "統合担当"
+      },
+      {
+        "id": "P3-UWC-D-DETAIL-PATH",
+        "A": "U-Fの詳細の口と同じ待ち（受け付けは全体で8件、ownerへは全体で1件、受付から2秒）を共用し、要求のunitの持ち主のplace（executionPlaces、U-Wはplace weatherCurrent）へ送る。送るのはそのplaceに入力の返信待ちも期限の返信待ちも無いとき。HTTPの経路はGET /api/display/domains/U-W/detail",
+        "B": "U-W用の待ちと枠を別に持つ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31）",
+        "reason": "spec §7.10の要求総数8件・worker内の射影in-flight 1件（reconstruction-p0-contracts.md:1272・:1274）は分野を分けていない。Bは主の応答の保持が最大16応答・1 MiBに増え、§7.10の512 KiBを越える",
+        "kind": "統合担当"
+      },
+      {
+        "id": "P3-UWC-D-BYTE-ORDER",
+        "A": "byteの器（約16.87 MB）が足りないnormalの受理で、training・testの履歴→training・testのpartial→training・testの全国のあと、新しい報を断る前に、normalの履歴の最も古い版を1つずつ外す（取消で戻せる深さが減る）",
+        "B": "今のまま: training・testを外しても足りなければ、新しいnormalの報を容量のunavailable（処理できていません）にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者の裁定待ち",
+        "ruling": "未裁定（Q-UWC-BYTE-ORDER）",
+        "blocks": [
+          "P3-UWC-AC03",
+          "P3-UWC-T08"
+        ],
+        "ifNotChosen": "Aを採らないと、器の近くの日に新しい報（警報を含む）が『処理できていません』になり、取消のための古い版が残る。Bを採らないと、器の近くの日に取消で戻せる深さが黙って減る（INFOの診断だけ）",
+        "reason": "場面（推測の大きさ）: 全58官署が6 familyとも大きな報（1通約16 KB）を10分ごとに出し続ける日の18:20に、U-Wの保存が器の16.87 MBに届き、宇都宮のVPWW55（大雨警報）の新しい版が来る。Aでは大雨警報は画面に出て、代わりに例えば函館のVPWW58の2つ前の版が外れる。その後に函館のVPWW58の取消が続けて2回来ると、2回目は戻せず『戻せない』の印になる。Bでは大雨警報が『処理できていません』になり、警報なのでunit単位の失敗の通知が1つ鳴る（P3-CC-D-FAILNOTICE=A）。落ちる順位はAが『取消で戻すための古い版→（最後に）新しい報』、Bが『新しい報』。W1の3日の終わりの見積もりは約11 MB（推測、深さ2・348鍵）で、どちらの規則でもふだんの日は器に届かない見込み。測りはP3-UWC-AC11",
+        "kind": "作者"
+      },
+      {
+        "id": "P3-UWC-D-W2",
+        "A": "W2の筋書きの鍵の埋めからVPNO50を外し、6 family×58官署＝348鍵にする。区切りは鍵が128・256・348に達した時刻。災害の道具のU-Wの件数の器は384（normal）と64（training・test）、byteの器はcodecの器（weatherCurrentUnitCodec.maxEnvelopeBytes）にする",
+        "B": "VPNO50のCode 00の報でtombstoneの負荷も埋める",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 起草）",
+        "ruling": "統合担当の決め（2026-10-31、台帳90）",
+        "reason": "VPNO50の発表の報で鍵を埋めると製品はignoredでnoChangeを返し、道具は明示していないunchangedを測定不成立にする（p3-disaster-capacity.json:57、synth.ts:718〜:748）。tombstoneの負荷はP3-UWC-D-TOMBSTONEの上界で読むだけにする（Bは筋書きを足すので最小実装で採らない）",
+        "kind": "統合担当"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-UWC-NOTES",
+        "status": "closed",
+        "source": "下調べ（lane2、HEAD 447bea9c、2026-10-31。数えたscriptと出力は起草の作業場所にあり、repoに入れない）",
+        "closed": "製品の鍵の式（weather-current.ts:190・:234）・現象の行の作り方（:288〜:295）・件数と深さの規則（:664〜:697）をPythonに写して、W1の3日（~/dev/fleq-corpus-p0の20260923-capacity）を数えた。写しの確かめ: 06-03・06-26・09-21の入力の拒否20・3・0とpartial 128の使用率100%・100%・86%が、統合担当の測り（p3-persist-premises.md:245、gitHead c01fe598）と一致",
+        "remaining": "なし",
+        "reason": "本契約の数の出どころ"
+      },
+      {
+        "id": "Q-UWC-KEYCOUNT",
+        "status": "closed",
+        "source": "下調べと起草の数え（W1の3日の実電文）",
+        "closed": "normalのpartialのsubject: 06-03が145（129個目は12:44:23 JST）、06-26が129（22:38:26）、09-21が110、3日の和が186。partialを出した官署は和で58（47都道府県の府県予報区を出す官署、南大東島・名瀬・帯広・宮古島・石垣島を含む）。VPWW57・60は3日とも0通、訓練・試験の報も0通。上界は6 family×58官署＝348",
+        "remaining": "なし",
+        "reason": "P3-UWC-D-KEYSPACE"
+      },
+      {
+        "id": "Q-UWC-W1-FAIL",
+        "status": "closed",
+        "source": "下調べ（rejected.py）",
+        "closed": "W1の06-03・06-26のFail（p3-order-plan.md:543・:559）はpartial 128の件数で、byteではない（byteの山は06-03で約4.8 MB）。断られた入力は06-03が17 subject・20入力、06-26が1 subject・3入力で、全部が注意報か注意報の解除（警報は0）。断られた報はcapacityExceededのunavailable（lastKnown=null）になり、その後の同じsubjectの報も断られ続けた",
+        "remaining": "なし",
+        "reason": "P3-UWC-D-ROOMの場面"
+      },
+      {
+        "id": "Q-UWC-MERGE-PROBE",
+        "status": "closed",
+        "source": "起草の観測（W1の3日、merge_probe.py・prefix_probe.py、repoに入れない）",
+        "closed": "(1) partialのKind/Codeはfamilyごとに別の集合（VPWW55: 03・10・43、VPWW58: 05・15、VPWW59: 07・16、VPWW61: 14・20・21）。全国報は03〜49の14種 (2) 『発表警報・注意報はなし』の行は、どのItemでもKindが1つだけ（他のKindと混ざらない） (3) 区域のCodeは府県予報区等・一次細分区域等・市町村等をまとめた地域等が6桁、市町村等が7桁、先頭2桁は01〜47。partialは1,037通の全部がちょうど1府県、全国報は433通の全部が47府県 (4) 高潮予報区間のCode（fixtureの15_16_02_251222_VPWW57で2635999）も先頭2桁が府県",
+        "remaining": "なし",
+        "reason": "P3-UWC-D-MERGE・D-GROUP"
+      },
+      {
+        "id": "Q-UWC-SIZE",
+        "status": "closed",
+        "source": "下調べのview_size.pyと起草のpublic_size.py（どちらも推測、製品のcodeは呼んでいない）",
+        "closed": "W1の3日を1 runに流した終わり（normalのcurrentだけ）: 今のviewは約4,089,940 byte。合わせた後の勝った行は2,673（active 2,539、partialが勝つのは55）。府県の公開形は41府県で約58,930 byte、府県のSubjectOutcomeが約19,680 byte、semanticRevisionが約11,950 byteで、常に配る形は約90,560 byte。詳細の行は全部で約346,577 byte、最大の府県で281行・約37,008 byte。報のsubjectごとの公開形（P3-UWC-D-GROUPのB）は約147,078 byte、348鍵へ延ばすと約242,962 byte。保存は348鍵・深さ2で約11 MB（式からの推測、下調べ）",
+        "remaining": "実装の後の実測（P3-UWC-AC11）",
+        "reason": "上限と受入の閾値の根拠"
+      },
+      {
+        "id": "Q-UWC-CANCEL-REAL",
+        "status": "closed",
+        "source": "下調べ（telegrams.jsonのhead.infoType）",
+        "closed": "W1の3日と2025-08-10・09-05・2026-01-11・02-08の7日のVPWW53〜61・VPWS50・VPNO50（xml 10,073通）は全部が発表で、取消・訂正は0通。repoの取消の材料は試験が本文のInfoTypeを書き換えて作るもの（weather-current-unit.test.tsのcancellation）",
+        "remaining": "なし",
+        "reason": "深さ2の試験は書き換えた報で作る（fixtureを足さない）"
+      },
+      {
+        "id": "Q-UWC-ANCHORS",
+        "status": "closed",
+        "source": "起草の数え（全契約のjsonが引くfile:行«anchor»をfileごとに集めた）",
+        "closed": "引かれている行の数: weather-current.ts 21行（9契約）、weather-current-unit.ts 12行（6契約、最後は:533）、p2-weather-current-unit.types.ts 0行、view-projector.ts 35行（16契約）、p2-shared-runtime.types.ts 37行、p3-execution-split.types.ts 11行、composition-root.ts 74行、owner-runtime.ts 29行（最後は:617）、owner-host.ts 14行、http-sse.ts 9行、runner.ts 3行、synth.ts 0行、weather-current-unit.test.ts 1行（:843）。付け直しの数はP3-UWC-AC12",
+        "remaining": "なし",
+        "reason": "行を足さない条文の根拠"
+      },
+      {
+        "id": "Q-UWC-ORDER",
+        "status": "closed",
+        "source": "統合担当の起草（p3-order-plan.md:109・:486、p3-cli-repl.jsonのallowedPaths）",
+        "closed": "本契約は実装の間だけU-Wのunit・domainのdirectory（reconstruction/src/units/weather-current/・reconstruction/src/domains/weather-current/）を持つ。C20（P3-WEATHER-NOTICE-001、未起草）とP3-XML-READERS-001の後続（weather-current.tsの読み取り関数）は同時に持てない。C18の発注2はU-Wのfileを触らないが、p2-shared-runtime.types.ts（C18は:324の行の末尾、本契約は:11〜:12と:213〜:214）を両方が変える。C18はweather-current.ts:26とp2-weather-current-unit.json:390をanchorで引くので、本契約はその2行を変えない",
+        "remaining": "baseOidの割当のときに順を決める（Q-UWC-BASE）",
+        "reason": "所有と衝突"
+      },
+      {
+        "id": "Q-UWC-OUTCOMES",
+        "status": "closed",
+        "source": "統合担当の起草（weather-current.ts:385〜:392のoutcome）",
+        "closed": "stepのoutcomes（PublishedOutcome）のfacts.phenomenaは変えない。outcomesはsnapshotのviewではなく、本契約の受入（viewの大きさ）に入らない",
+        "remaining": "outcomesの大きさが問題になったら別の契約",
+        "reason": "範囲を絞る"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "合わせ・府県の公開形・詳細はoperationごと（subjectとidはoperationを含む）。件数の上限はnormalとtraining・test（合算）で分け、片方の満杯でもう片方を退去させない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UW-CANON-001",
+    "mode": "implementation",
+    "objective": "U-W（全国の気象警報、weather current）の正本の持ち方を直す（③、H38、作者裁定D0）。(1) 置き場: normalのpartialの上限を鍵の空間（348）＋余白の384にし、training・testは別の合算64にする。normalは件数で退去させない (2) 取消で戻せる深さはpartialも2（官署×familyごと、全国は今の2） (3) 画面へ送る形: 全国報とpartialを府県×区域×Kind/Codeで新しいほうに合わせ、府県ごとの小さい公開形を常に配り、勝った行と、unavailableのlastKnownの行は範囲・版つきの詳細の口（U-Fの口と同じ待ち、GET /api/display/domains/U-W/detail）で取る (4) 保存の版をp2-weather-current-unit-v7へ上げて初期化する (5) W2の道具の直し（台帳90）は配送のcommitで統合担当が当てる原文に入れる。音・desktopの通知は作らない（C20）。P3の画面（chrome-eew）の出方は変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-persist-premises.md",
+      "reconstruction/contracts/p3-uw-canon.json",
+      "reconstruction/contracts/p3-uw-canon.types.ts",
+      "reconstruction/contracts/p3-uf-public.json",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p3-disaster-capacity.json",
+      "reconstruction/contracts/p3-currency-coverage.json",
+      "reconstruction/contracts/*.json",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "test/fixtures/**",
+      "src/engine/messages/vpws50-state.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/weather-current/weather-current-public.ts（新設。合わせ・府県の公開形と版・詳細の1ページ。exportは末尾のexport { … }）",
+      "reconstruction/src/domains/weather-current/weather-current.ts（:664・:665・:679の中身の書き換えだけ。P3-UWC-AC01・AC02）",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts（:42の版、:272・:298・:324・:363の件数と深さの守り、:420〜:447〔行の数を変えない、AC03の裁定の後〕、:533より後のview・表示の行・displayChanges。:533以前に行を足さない。importは既存のimportの行に足す）",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts（schemaVersionの3か所、WeatherCurrentUnitViewの欄。p3-uw-canon.types.tsの型を使う）",
+      "reconstruction/contracts/p2-shared-runtime.types.ts（:11〜:12のimportと:213〜:214のU-Wの行の中身だけ。行を足さない）",
+      "reconstruction/contracts/p3-execution-split.types.ts（:73と:142のdetailの2行の中身だけ。行を足さない）",
+      "reconstruction/contracts/p3-uw-canon.types.ts（起草で足した型は変えない。足すなら末尾へ）",
+      "reconstruction/src/view-projector/view-projector.ts（weatherTally〔:201〜:252〕を行の数を保って書き換え、fixedBytesのU-Wの:456〜:458の中身だけ）",
+      "reconstruction/src/runtime/composition-root.ts（詳細の待ち〔requestDetail・detailDone・failDetails・sendDetail〕の中身だけ。行の数を変えない）",
+      "reconstruction/src/runtime/owner-runtime.ts（:80のU-Wの初期stateの版、:736〜:740のdetailOwnerの振り分け。:617以前に行を足さない）",
+      "reconstruction/src/http-sse/http-sse.ts（:30〜:62の詳細の型と読み取りの中身、:208の経路の1行、U-Wの経路の読み取りは末尾に足す。:141より前に行を足さない）",
+      "reconstruction/test/uw-canon/（新設。P3-UWC-T01〜T09）",
+      "reconstruction/test/weather-current-unit/weather-current-unit.test.ts（版の1語と、件数128・深さ8・viewの形を前提にした期待の変更だけ。Q-UWC-EXISTING-TESTSで先に報告。:843より前に行を足さない）",
+      "reconstruction/test/shared-runtime/shared-runtime.test.ts・reconstruction/test/checkpoint-shutdown/runtime-fixture.ts（版の1語だけ）",
+      "reconstruction/test/snapshot-sse/（U-Wのviewの形・表示の行・要約の件数を前提にした期待の変更だけ。Q-UWC-EXISTING-TESTSで先に報告）",
+      "reconstruction/test/shared-runtime/type-contract.ts・reconstruction/test/execution-split/・reconstruction/test/checkpoint-shutdown/・reconstruction/test/eew-e01/ac15.test.ts（U-Wのview・表示の行の型が変わって型検査が落ちる所の直しだけ。Q-UWC-EXISTING-TESTSで先に報告）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-uw-canon.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M06",
+      "B02",
+      "B06",
+      "B08",
+      "B11"
+    ],
+    "integrationContractIds": [
+      "I-U-W"
+    ],
+    "dependsOnContractIds": [
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-UF-PUBLIC-001",
+      "P3-CURRENCY-COVERAGE-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-OPERATION-CAPACITY-001",
+      "P3-DISASTER-CAPACITY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-uw-canon.types.ts#WeatherCurrentPublicArea",
+      "reconstruction/contracts/p3-uw-canon.types.ts#WeatherCurrentPublicUnavailable",
+      "reconstruction/contracts/p3-uw-canon.types.ts#WeatherCurrentDetailRequest",
+      "reconstruction/contracts/p3-uw-canon.types.ts#WeatherCurrentDetailRow",
+      "reconstruction/contracts/p3-uw-canon.types.ts#WeatherCurrentDetailIndexEntry",
+      "reconstruction/contracts/p3-uw-canon.types.ts#WeatherCurrentDetailResponse"
+    ],
+    "publicFunctions": [
+      "toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUnitView（signatureは変えない。nationalとpartialsの代わりにareasを持つ、P3-UWC-AC05）",
+      "displaySubjects・recoveryChanges（weather-current-unit.ts、signatureは変えない。行が府県の行と監視の行になる）",
+      "新: weather-current-public.tsのweatherCurrentAreas(state: WeatherCurrentUnitState): readonly WeatherCurrentPublicArea[]（全府県、試験も直に呼ぶ）と、詳細の1ページweatherCurrentDetail(state: WeatherCurrentUnitState, request: WeatherCurrentDetailRequest, view: { contentRevision: string }): WeatherCurrentDetailResponse",
+      "RuntimeCompositionRoot.requestDetail（引数のdetailと戻り値のresponseがU-FとU-Wの和になる。doneの約束は今どおり）。owner-runtime.tsのdetailOwnerも同じ和",
+      "startDisplayServerのoptions.detailの型が同じ和になる。ほかの公開の関数のsignatureは変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（node:crypto〔idのsha256〕・node:util〔isDeepStrictEqual〕を含む）。package.json・package-lock.jsonを変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__15_17_01_251222_VPWW55",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_release",
+      "test__fixtures__18_00_01_260830_VPNO50_switch"
+    ],
+    "sequenceIds": [
+      "O03"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-UWC-RES-01",
+        "target": "normalのpartialのsubject",
+        "limit": 384,
+        "unit": "subjects",
+        "scope": "鍵の空間348（6 family×58官署）に余白（6 family×6官署）。新しいsubjectだけに効き、満杯なら新しいsubjectを容量のunavailableにする（退去しない）",
+        "source": "P3-UWC-D-ROOM・D-KEYSPACE"
+      },
+      {
+        "id": "P3-UWC-RES-02",
+        "target": "training・testのpartialのsubject（合算）",
+        "limit": 64,
+        "unit": "subjects",
+        "scope": "満杯ならtraining・testの最も古いpartialを1件退去して受ける。normalに数えない",
+        "source": "P3-UWC-D-NONNORMAL"
+      },
+      {
+        "id": "P3-UWC-RES-03",
+        "target": "partialの履歴（同じ官署×family、operationの合算）",
+        "limit": 2,
+        "unit": "reports",
+        "scope": "全国の履歴2（合算）は今どおり。押し出しの順は今どおり",
+        "source": "P3-UWC-D-DEPTH"
+      },
+      {
+        "id": "P3-UWC-RES-04",
+        "target": "詳細の1ページの行（areas・lastKnown）",
+        "limit": 256,
+        "unit": "rows per page",
+        "scope": "page pは[256p, 256p+256)。実配信の行は約130 byte（推測、Q-UWC-SIZE）で256行は約33 KB",
+        "source": "P3-UWC-AC06"
+      },
+      {
+        "id": "P3-UWC-RES-05",
+        "target": "詳細の1応答（HTTPの本文、wrapper込み）",
+        "limit": 65536,
+        "unit": "UTF-8 JSON bytes",
+        "scope": "P3-UFP-RES-03と同じ（予約4,096 byte、入らない行はpageBudget）。索引は1ページ32件（P3-UFP-RES-08と同じ形）",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（応答byte）"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "PersistedWeatherCurrentUnit（schemaVersion p2-weather-current-unit-v7）。欄はv6と同じで、件数と深さの上限だけが変わる（P3-UWC-AC08）"
+    ],
+    "nonPersistedFields": [
+      "府県の公開形（WeatherCurrentPublicArea）・合わせの結果と、objectごとのcacheと版（WeakMap、runの中だけ）",
+      "詳細のページと索引ページ、publisherの詳細の待ち（runの中だけ、U-Fと共用）"
+    ],
+    "outOfScope": [
+      "U-Wの音・desktopの通知のintentを作ること（C20、P3-WEATHER-NOTICE-001）",
+      "stepのoutcomesのfacts.phenomena（Q-UWC-OUTCOMES）",
+      "解除・なしのpartialの期限の回収（P3-UWC-D-EXPIRY=A）とtombstoneの件数の上限（P3-UWC-D-TOMBSTONE=A）",
+      "U-Wの詳細を開く画面と、府県・区域の描き方（P4）",
+      "snapshotの縮退の規則（P2-A8-RES-06）とbyteの器（GENERATION_BYTES）の値",
+      "E01のharness（reconstruction/test/eew-e01の.mjs、RES07のpartials 128）と凍結manifest（Q-UWC-E01）",
+      "weather-current.tsの読み取り関数の集約（P3-XML-READERS-001）",
+      "実装担当によるspec本文・計画本文・他の契約の本文と災害の道具（runner.ts・synth.ts）の変更（P3-UWC-AC10は配送のcommitで統合担当）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しいnpm依存、旧築src/**、host.ts"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-UWC-AC01",
+        "requirement": "件数の上限（P3-UWC-D-ROOM=A・D-KEYSPACE=A・D-NONNORMAL=A）。(1) 新しいpartialのsubjectを受けるとき、normalは今あるnormalのpartialの数が384以上なら容量のunavailable（今のaddUnavailable、lastKnown=null、WARN capacityRejected 1行）にし、何も退去させない。training・testは今あるtraining・testのpartialの合算が64以上なら、training・testのうち最も古い（compareEntryの順）partialを1件退去して受ける（INFO weatherCurrentCapacityEvicted count 1）。normalの数はtraining・testの上限に数えず、training・testの数はnormalの上限に数えない (2) 既にcurrentのあるsubjectの更新は件数を見ない（今どおり） (3) codecのdecodeとencodeは、normalのpartialが385件以上かtraining・testのpartialが65件以上の保存をinvalidにする（今の128件の守りを置き換える） (4) 場面の照合: 2026-06-03 12:44:23のような129個目のnormalのsubject、15:16の宇都宮のVPWW61のような145個目のnormalのsubjectが採用される。385個目のnormalのsubject（58官署の外の官署名）だけが容量のunavailableになる（仕様どおりの欠け: 落ちるのは新しく来た鍵の外の官署のsubjectで、今あるnormalのpartialは残す） (5) 行の制約: weather-current.tsは:664と:665の中身だけを書き換え、:666（他の契約が引く）とそれより前に行を足さない。件数の数え方は受信1回でpartialの配列を1回走る（O(partial件数)）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/weather-current/weather-current.ts:664 «7dfd56fda32b885c»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:665 «7e36f7df4bcd9070»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:666 «107712d22a266c72»",
+          "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
+          "docs/specs/reconstruction-p0-contracts.md:395 «abdd56dcc1171152»",
+          "reconstruction/contracts/p3-persist-premises.md:292 «b4f7c72099a49592»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC02",
+        "requirement": "取消で戻せる深さ（P3-UWC-D-DEPTH=A）。(1) partialの履歴の深さを官署×familyごとに2（operationの合算、今の8を置き換える）にする。全国は今の2のまま。押し出しの順（normal以外の最古、normalの候補ならnormalの最古、normalだけの履歴へのtraining・testは前の版を残さず受ける）は今どおり (2) 1回の取消で1段戻る（今どおり）。同じsubjectに続けて2回の取消で2つ前の版に戻り、3回目は履歴が無いのでhistoryUnavailableのunavailable（今の印） (3) codecのdecodeとencodeは、同じ官署×familyのpartialの履歴が3件以上の保存をinvalidにする（今の8件の守りを置き換える） (4) 行の制約: weather-current.tsの:679の中身だけを書き換える",
+        "evidenceRefs": [
+          "reconstruction/src/domains/weather-current/weather-current.ts:679 «f51bb3fe0e9e5c27»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:636 «ab25e7bdf167d89b»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:638 «de12de6dba76255e»",
+          "reconstruction/contracts/p3-persist-premises.md:413 «49d6892d8fe4fb2c»",
+          "reconstruction/contracts/p3-persist-premises.md:411 «390eb712902a3b9f»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC03",
+        "requirement": "byteの縮退の順（P3-UWC-D-BYTE-ORDER、作者の裁定待ち）。器（GENERATION_BYTES、約16.87 MB）は変えない。normalの受理が器に入らないとき、今の順（training・testの履歴→training・testのpartial→training・testの全国、weather-current-unit.ts:420〜:447）で外し、それでも入らなければ、D-BYTE-ORDER=Aなら新しい報を断る前にnormalの履歴（取消のための前の版）を最も古いものから1つずつ外し（INFO weatherCurrentCapacityEvicted）、=Bなら今どおり容量のunavailable→lastKnownを落とす→最後の拒否（:469〜:500）にする。どちらでもnormalのcurrent（全国とpartial）は器のために外さない。件数で断った入力はbyteのために退去しない（今どおり、:475） 行の制約: :420〜:447の範囲で行の数を変えずに書き換える（:471以降は他の契約が引く）。裁定までは本ACの実装に着手しない",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:420 «21fd5b83a374c887»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:443 «b309ad0ea9855890»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:444 «42af036c74044345»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:475 «59ed3d62d2eb225e»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:45 «646c8b5ca91f8c03»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC04",
+        "requirement": "全国報とpartialの合わせ（P3-UWC-D-MERGE=A・D-GROUP=A）。新しいfile reconstruction/src/units/weather-current/weather-current-public.tsに置く。(1) operationごと、府県（区域のCodeの先頭2桁）ごとに、区域（WARNING_TYPESのtypeと区域のCode）×Kind/Codeの行を1つに決める。全国報（national[operation]）が載せる区域は、全国報の行を基にし、compareVersion（P3-VM-AC03）で全国報よりnewerなpartialの行だけがCodeごとに上書きする（解除の行も上書きする）。全国報が載せない区域はpartialの行だけで、Codeごとにcompareでnewerなほうが勝つ（same・undecidableは先に勝っていたほうを残す）。Codeの無い行は上書きしない。全国報が無ければ全区域を後者の規則で決める (2) 復元して未確認の報（restoredAtの付いたcurrent）も合わせに入れ、勝った行に復元の印を付ける。公開形のareas・codesは復元の印の行を数えない（今の要約が復元のcurrentを数えないのと同じ、view-projector.ts:206〜:211） (3) 合わせはstateに保存しない（派生の値）。VPNO50のtombstoneは今どおり採用のときにcurrentへ当ててあるので、合わせでは当て直さない (4) 落ちるもの（仕様どおり）: partialが解除を出さずに『なし』を出した区域では、全国報の古い行が次の全国報まで残る。全国報より古いpartialの行は、全国報が載せる区域では出ない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3065 «beabb7de82da83e7»",
+          "docs/specs/reconstruction-p0-contracts.md:513 «531a21c33012c7db»",
+          "docs/specs/reconstruction-p0-contracts.md:514 «03bad3d077bbc252»",
+          "src/engine/messages/vpws50-state.ts:610 «631aff46cd258df0»",
+          "src/engine/messages/vpws50-state.ts:1189 «5a7a87c70700684c»",
+          "src/engine/messages/vpws50-state.ts:964 «b1234bdcfffcf2ae»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC05",
+        "requirement": "常に配る形（P3-UWC-D-PUBLIC=A・D-GROUP=A）。(1) WeatherCurrentUnitViewはnationalとpartialsの代わりにareas: readonly WeatherCurrentPublicArea[]（p3-uw-canon.types.ts）を持ち、snapshotの現象の本文を載せない。subjectsは府県のSubjectOutcome（transitionはcellCount＝restoredCellCountならrestoredUnconfirmed、ほかはactive、factsは{ prefecture }）とunavailableのSubjectOutcome（今のunavailableSubject）だけで、報のsubjectの現象をfactsに載せない。semanticRevisionとfreshnessSuspectCountは今どおり (2) U-WのRuntimeDisplaySubjectは、府県の行（subjectは`${operation}/area/${prefecture}`、currentは公開形、unavailable・freshnessは空）と、報のsubjectの監視の行（currentはnull、unavailableはWeatherCurrentPublicUnavailable〔lastKnownの本文の代わりにlastKnownRows〕、freshnessは今どおり）に分ける。displayChangesはこの2種の行で出す (3) 公開形の欄はp3-uw-canon.types.tsの型のとおり。idはJSON.stringify([\"U-W\", operation, subject])のsha256の小文字hex64、revisionはその公開形のobjectを作ったstepのU-Wの内容版（P3-UFP前例のQ-UFP-REVISIONと同じ持ち方）。中身の変わらない府県は前のobjectを使い回し、displayChangesに出さず版も進めない (4) projectorのweatherTallyは府県の行からactive（areasが空でなければ1）・severities（codesのCodeをWEATHER_SEVERITYで引く）・unknownCode.unknown（表に無いCodeの区域の数）・areas（[層, Code]）・更新時刻（activeのときsourceで）を、監視の行からunavailableとfreshnessを今どおり数える。U-Wの要約の件数はactiveな府県の数になる（D-GROUPの裁定）。viewの大きさの計量（fixedBytesと行のbyteの和）がviewのUTF-8 JSONの長さと一致する（P2-A8の今の不変条件） (5) 行の制約: view-projector.tsはweatherTally（:201〜:252）を行の数を保って書き換え、fixedBytesのU-Wの3行（:456〜:458）の中身を書き換えるだけ。p2-shared-runtime.types.tsは:11〜:12のimportと:213〜:214のU-Wの行の中身だけ（:215は他の契約が引く）",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:609 «e586e1fa60d6ac42»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:618 «7103a295395f5fd0»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:619 «c339c4441fe73aeb»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:597 «63950f605c760311»",
+          "reconstruction/src/view-projector/view-projector.ts:201 «d331ee288fd93da6»",
+          "reconstruction/src/view-projector/view-projector.ts:210 «fbbdca2e57fc2676»",
+          "reconstruction/src/view-projector/view-projector.ts:456 «7611ce7db3f83f28»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:213 «58526fe521a7d0a4»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC06",
+        "requirement": "詳細の口のownerの側（P3-UWC-D-PUBLIC=A）。weather-current-public.tsに、stateと要求から1ページを作る関数を置く。(1) part index: 府県の公開形（part areas、keyは府県の2桁）と、lastKnownを持つunavailable（part lastKnown、keyは報のsubjectのUTF-8で256 byte以下の先頭、keyTruncated）を(operation, part, key)の順で1ページ32件。revisionはU-Wのunitの内容版で、違えばversionChangedと今の版 (2) part areas: idの府県の勝った行を(Warningのtypeの順〔WARNING_TYPES〕, 区域Code, Kind/Code)で並べ、1ページ256行（page pは[256p, 256p+256)）。part lastKnown: idのunavailableのlastKnownの行を同じ順で並べる。revisionはその府県の公開形かunavailableの版で、違えばversionChangedと今の版、idが無ければversionChangedとnull (3) 1応答は65,536 byte以下（P3-UFP-RES-03と同じ: wrapperとomittedの予約4,096 byteを引いた61,440 byteに行を入れ、入らない行は{ index, reason: pageBudget }）。pageCount＝max(1, ceil(行の数/256))で、pageがpageCount以上・負・整数でないものはinvalidRequest。途中で切ったJSONを返さない (4) ownerはstateも期限も動かさない（U-Fの詳細と同じ）。1ページを作る費用はその府県かunavailableの行の数に比例し、state全体を直列化しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1272 «41f5a81e741937a4»",
+          "docs/specs/reconstruction-p0-contracts.md:1274 «68581c201d0982b4»",
+          "docs/specs/reconstruction-p0-contracts.md:1276 «d10bb784033b3676»",
+          "reconstruction/src/runtime/owner-runtime.ts:736 «faf541764e4b5dfa»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.types.ts:150 «03712bea0e1b6839»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC07",
+        "requirement": "詳細の口のpublisherとHTTPの側（P3-UWC-D-DETAIL-PATH=A）。(1) RuntimeCompositionRoot.requestDetailはU-FとU-Wの要求を受ける（WeatherCurrentDetailRequestはunit: \"U-W\"で判別）。受け付けの8件・期限2秒・ownerへの1件はU-FとU-Wの合計（P3-UFP-RES-04・RES-06・RES-07を両方に当てる）。送り先は要求のunitの持ち主のplace（executionPlaces）で、送るのはpumpの後、そのplaceに入力の返信待ちも期限の返信待ちも無いとき。そのplaceが止まっていればunavailable (2) OwnerRequestのdetailとOwnerReplyのdetailDoneはU-WのrequestとresponseもU-Fと同じ欄で運ぶ（p3-execution-split.types.tsの:73と:142の中身。owner-host.ts:163は変えず、owner-runtime.tsのdetailOwnerがunitで振り分ける） (3) HTTP: GET /api/display/domains/U-W/detail?streamId=…&part=index&revision=…&page=… と &part=areas|lastKnown&id=…&revision=…&page=…。状態codeと本文・cache-control・1,024 byteの要求の上限・誤りの本文256 byteはU-Fと同じ（P3-UFP-AC08・RES-05・RES-09） (4) U-Fの詳細の振る舞い（reconstruction/test/uf-public/の試験）は変えない (5) 行の制約: host.tsは変えない（C18の発注2がallowedPathsに持つ）。http-sse.tsは:141より前に行を足さない（U-Wの経路の読み取りは末尾に足し、:208の1行で振り分ける）。composition-root.tsは行の数を変えない",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:1840 «bf608ee961bb571e»",
+          "reconstruction/src/runtime/composition-root.ts:1905 «0654929c6364d8d6»",
+          "reconstruction/src/http-sse/http-sse.ts:30 «d180596e60ff917d»",
+          "reconstruction/src/http-sse/http-sse.ts:208 «131bef8b0ca016cd»",
+          "reconstruction/src/runtime/owner-host.ts:163 «95b43a894c5d3f14»",
+          "reconstruction/contracts/p3-execution-split.types.ts:73 «2c8fa00178e48f6e»",
+          "reconstruction/contracts/p3-execution-split.types.ts:142 «e39000aa100184bc»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC08",
+        "requirement": "保存の形（P3-UWC-D-SCHEMA=A）。(1) schemaVersionをp2-weather-current-unit-v7にする（weather-current-unit.ts:42、p2-weather-current-unit.types.tsの3か所、owner-runtime.ts:80の初期state）。保存の欄は今と同じ（national・partials・histories・ownership・tombstones・freshness・unavailable・intents・unconfirmed） (2) v6の保存はinvalidとして読まず、新築の保存は初期化する（旧い版の読み方は作らない。codecの旧い版の一覧は持たない、P3-MIG-AC01・AC02のまま） (3) 新しい形の保存→復元の往復: normal 384件・training・test 64件のpartialと深さ2の履歴を持つstateがencode→decodeで同じstateに戻り、復元の後の合わせ（AC04）と公開形が復元前と同じ（復元の印を除く） (4) 府県の公開形・版・合わせの結果・詳細のページは保存しない",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:42 «7a3f273c2053f4d8»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:624 «367ff6a6f849cb03»",
+          "reconstruction/contracts/p3-order-plan.md:421 «bb47eba03c4658c5»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC09",
+        "requirement": "受信経路の計算量（AGENTS.md）。(1) partialの受信1回で作り直す府県は、その報と前のcurrentの区域が属する府県だけ（実配信では1つ）。費用はその府県の全国報の行とpartialの行の数＋partialの件数（府県の判定は報のobjectごとのcache）に比例する (2) 全国報の受信（約10分に1通）とVPNO50の終了は、そのoperationの全府県を作り直す（全国報の行の数＋partialの行の数に比例。府県ごとにpartial全部を走り直さず、1回の走査で府県に振り分ける） (3) 受信1回でstateやview全体をJSON.stringifyしない。公開形のbyteはprojectorが行ごとに数える（今どおり） (4) 試験はpartialの受信1回のdisplayChangesが府県の行1つと監視の行だけであること、全国報の受信で中身の変わらない府県が出ないことで確かめる",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:697 «4fc17fd25a722488»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:552 «26b4a41f6b97be3c»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC10",
+        "requirement": "配送のcommitで統合担当が改める原文（実装担当は変えない）。(1) p3-disaster-capacity.json:57（W2の『×7 family（VPWW55・57〜61・VPNO50）』→6 family、『上界406』→348、区切りの『128・256・406』→『128・256・348』）・:87（行き先の『406鍵と取消の履歴』→本契約） (2) reconstruction/test/disaster/synth.ts:718〜:723（W2_FAMILIESからVPNO50を外し、コメントの7 family・406を直す。行の数は変えない）、runner.ts:105（U-Wの件数の器を384と64の2つに）・:195（U-Wのbyteの器をweatherCurrentUnitCodec.maxEnvelopeBytesに。importは既存のimportの行に足して行を足さない）・:206（OPTIONSの文言） (3) p3-persist-premises.md:292（348〜406→348、上限384）・:295（見積もりの406の場合を外す） (4) p3-order-plan.md:421の『406鍵』→348鍵 (5) docs/specs/reconstruction-p0-contracts.md:572（partial128・partial履歴8→normal 384・training/test 64・partial履歴2）・:395（M06の『partial8』→2）と、H38の行の行き先（:3065）を本契約に (6) p2-weather-current-unit.json:44・:84・:194・:306・:499・:551・:695（partial128・履歴8の文言と上限の値）と、schemaVersionの記述（:381） (7) p3-uf-public.json:135（Q-UFP-UW-VIEWのremainingに本契約で閉じたことを書く） どれも行の中身の書き換えで、行を足さない。付け直しはP3-UWC-AC12",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «44782daabce1f4b5»",
+          "reconstruction/contracts/p3-disaster-capacity.json:87 «1a62d99d7c466e13»",
+          "reconstruction/test/disaster/synth.ts:718 «41c3ebfec2e6e440»",
+          "reconstruction/test/disaster/synth.ts:720 «101455386f246e47»",
+          "reconstruction/test/disaster/runner.ts:105 «75bca01898c69317»",
+          "reconstruction/test/disaster/runner.ts:195 «53a04d455536e620»",
+          "reconstruction/test/disaster/runner.ts:206 «69fe20b51b78758c»",
+          "reconstruction/contracts/p3-persist-premises.md:295 «802c035777599c8a»",
+          "reconstruction/contracts/p2-weather-current-unit.json:306 «f5ec72a9893bca2d»",
+          "reconstruction/contracts/p2-weather-current-unit.json:44 «12b504cc0529328f»",
+          "reconstruction/contracts/p3-uf-public.json:135 «1009b9a5768c6332»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC11",
+        "requirement": "実装の後の実測（統合担当、配送の前、Mac mini）。順は 実装のpatch→AC10の(2)の道具の直し（runner.ts:105の件数の器を先に384と64へ。128のままだと06-03の145件が113%でFailと出る）→測り→配送。その木で、W1の3日（1日ずつ3 run）とW2（W1の3日の後に348鍵を埋める1 run）を流す。合格: (1) U-Wの入力の拒否（容量）が0件 (2) U-Wの保存（codecのencodeの実のbyte）の最大が器（GENERATION_BYTES）以下で、最大の値と比を記録する (3) 各区切りでU-Wのviewのbyte（projectorの数え）が262,144以下で、snapshotでU-Wが自分の大きさのために要約にならない (4) W1・W2の期待例（p3-disaster-capacity.jsonのP3-DC-SCENARIOS）は今どおり。どれかが満たせなければ配送せず、数と区切りの時刻を作者に報告する（器を広げるか、P3-UWC-D-BYTE-ORDERの順で足りるかを作者が決める）。推測の約11 MB（Q-UWC-SIZE）はここで実測に置き換える",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «44782daabce1f4b5»",
+          "reconstruction/contracts/p3-order-plan.md:543 «24054c0441552dee»",
+          "reconstruction/contracts/p3-order-plan.md:559 «036a201be6bf98eb»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:45 «646c8b5ca91f8c03»"
+        ]
+      },
+      {
+        "id": "P3-UWC-AC12",
+        "requirement": "anchorの付け直しの数（統合担当が配送のcommitで当てる）。実装で中身が変わる、他の契約が引く行: weather-current.ts:664（p3-disaster-capacity）、weather-current-unit.ts:42（p3-authority-evidence）、p3-execution-split.types.ts:142（p3-expiry-form）の3行3件。AC10の原文の改訂で変わる、他の契約が引く行: p3-disaster-capacity.json:57（p3-weather-shape）・:87（p3-unit-q-capacity）、spec:572・:395（どちらもp2-weather-current-unit）の4行4件。合わせて7行7件（全契約のjsonが引く行〔Q-UWC-ANCHORS〕と、allowedPathsで中身を書き換える範囲を突き合わせた。weather-current-unit.ts:45・:471〜:533、view-projector.ts:201〜:252・:456〜:458、p2-shared-runtime.types.ts:11〜:12・:213〜:214、composition-root.tsの詳細の範囲:1835〜:1906、owner-runtime.ts:736〜:740の中に、他の契約が引く行で変わるものは無い）。本契約自身のevidenceで中身が変わる行（weather-current.ts:664・:665・:679、weather-current-unit.ts:42・:444・:597・:609・:618・:619、view-projector.ts:201・:210・:456、p2-shared-runtime.types.ts:213、composition-root.ts:1840・:1905、http-sse.ts:30・:208、p3-execution-split.types.ts:73・:142、owner-runtime.ts:736、AC10の原文の行）は配送のcommitで付け直す。weatherTally（view-projector.ts:201〜:252）の行の数を保てなかったときは、その後ろの23行30件（:256〜:932）が加わるので、実装担当は行の数を報告する。C18が引くweather-current.ts:26とp2-weather-current-unit.json:390は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/weather-current/weather-current.ts:26 «79ff30c8b437a322»",
+          "reconstruction/contracts/p2-weather-current-unit.json:390 «bc3ff54d95b3835c»",
+          "reconstruction/src/view-projector/view-projector.ts:102 «850f0318c98a7301»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-UWC-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-UWC-AC01"
+        ],
+        "behavior": "fixture 15_17_01_251222_VPWW55の官署名を替えた報で、normalのpartialを384件まで受け（129件目・145件目も採用）、385件目が容量のunavailableとWARN capacityRejectedになり、今あるnormalが1件も消えない。training・testは合算64件で、65件目が最も古いtraining・testを1件退去し、normalは消えない。normal 384件の満杯でもtrainingの新しいsubjectは受けられる"
+      },
+      {
+        "testId": "P3-UWC-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-UWC-AC02"
+        ],
+        "behavior": "同じ官署×familyに報時刻を進めた4版を受けると履歴は2件。続けて取消を2回受けると2つ前の版に戻り、3回目の取消がhistoryUnavailableのunavailableになる（取消は本文のInfoTypeを書き換えて作る、Q-UWC-CANCEL-REAL）"
+      },
+      {
+        "testId": "P3-UWC-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UWC-AC08",
+          "P3-UWC-AC01",
+          "P3-UWC-AC02"
+        ],
+        "behavior": "v7の保存の往復（normal 384・training/test 64・深さ2）でstateと公開形が同じに戻る。decodeはnormal 385件・training/test 65件・同じ官署×familyの履歴3件・schemaVersion v6をinvalidにする"
+      },
+      {
+        "testId": "P3-UWC-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-UWC-AC04"
+        ],
+        "behavior": "O03の材料（全国報15_18_01_250630_VPWS50〔2019年〕と福井のVPWW55 18_00_01_260830_VPWW55_fukui_L5・release〔2026年〕）で、府県18の区域ではpartialの行（解除の行も）が全国報の同じ区域×Codeを上書きする。partialの報時刻を全国報より前に替えると全国報の行が勝つ。全国報が載せない高潮予報区間の行（15_16_02_251222_VPWW57の2635999）は全国報より古くても出る。Codeの無い行は上書きしない"
+      },
+      {
+        "testId": "P3-UWC-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UWC-AC05"
+        ],
+        "behavior": "viewとdisplayChangesに現象の本文（phenomena）が無いこと、府県の公開形の欄がp3-uw-canon.types.tsの型の欄だけであること、areas・codesが合わせの結果のactiveの行と一致し復元の行を数えないこと、projectorのU-Wの要約の件数がactiveな府県の数であること、viewのbyteの計量がviewのUTF-8 JSONの長さと一致すること"
+      },
+      {
+        "testId": "P3-UWC-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UWC-AC06"
+        ],
+        "behavior": "詳細のownerの境界: index・areas・lastKnownの最後のページ、pageCountちょうど（invalidRequest）、revisionの不一致（versionChangedと今の版）、idの消滅（versionChangedとnull）、1行が上限を越える合法なstate（長い区域名）でその行がpageBudgetになり応答が65,536 byte以下の完全なJSONになること"
+      },
+      {
+        "testId": "P3-UWC-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UWC-AC07"
+        ],
+        "behavior": "publisherの共用の待ち: U-FとU-Wの要求の合計の9件目がbusy、U-Wの要求はplace weatherCurrentへ、U-Fはdeferredへ送られ、weatherCurrentの入力の返信待ちの間はU-Wの詳細を送らない。HTTPのU-Wの経路で200・400・409・429・503・504が返る"
+      },
+      {
+        "testId": "P3-UWC-T08",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-UWC-AC03"
+        ],
+        "behavior": "P3-UWC-D-BYTE-ORDERの裁定の後に書く。器を小さく見立てずに、大きい報で器の近くまで埋めたstateで、normalの新しい報の受理がAなら最古のnormalの履歴を外して採用、Bなら容量のunavailableになり、どちらでもnormalのcurrentが外れない"
+      },
+      {
+        "testId": "P3-UWC-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UWC-AC09"
+        ],
+        "behavior": "partialの受信1回のdisplayChangesが府県の行1つと監視の行だけ、全国報の受信で中身の変わらない府県の行が出ないこと"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O03の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。P3-UWC-AC12に挙げた行のFAILは想定内で、統合担当が配送のcommitで付け直す。ほかのFAILは想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eewのdist（snapshotの型を変えるので壊れないことを確かめる）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全試験（parser-boundaryを含む）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えても緑（moduleの範囲のWeakMap〔公開形と版のcache〕を足すので）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowed_paths",
+        "stage": "implementation",
+        "purpose": "空白の検査"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由",
+      "新しいfileのexportは末尾のexport { … }にする（P1-T04が数える形、memory: 新築の委譲文にexport末尾形）",
+      "reconstructionのvitestは全件（parser-boundaryを含む）をrequiredCommandsのとおり回し、shuffleも回す",
+      "受信経路の計算量（AGENTS.md）: 受信1回で全件×全件の走査やstate・view全体の直列化をしない。VPWS50のような大きい報でも府県の振り分けは1回の走査（P3-UWC-AC09）",
+      "最小実装・最小テスト: 仕組み（合わせ・府県の公開形と版・詳細のページ・publisherの振り分け・HTTPの経路）を1つ足すごとに『無いと何が壊れるか』を1行。追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行。期待値を変えた既存の試験の名前と理由（Q-UWC-EXISTING-TESTS、変える前に報告）",
+      "永続schemaの変更は版を上げて初期化（P3-UWC-AC08）。旧い版の移行は作らない",
+      "行の制約（allowedPathsの括弧書き）を守れなかったfileと、ずれた行の数を報告する（P3-UWC-AC12）",
+      "数: T01〜T09の実行結果、W1の09-21の材料が無いので、府県の公開形の最大のbyteとviewのbyteを試験の材料で測った値（推測の約91 KBの照合はP3-UWC-AC11で統合担当）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-UWC-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "発注前点検の後（統合担当、点検のcommitへの割当）",
+        "requiredEvidence": [
+          "baseOidの割当。割当の時点で本契約のanchorのずれが0件であることをcheck-contractで確かめる",
+          "C18の発注2（p2-shared-runtime.types.tsを両方が変える）・P3-XML-READERS-001（weather-current.ts）・C20（U-Wのdirectory）との順（Q-UWC-ORDER）"
+        ]
+      },
+      {
+        "id": "Q-UWC-BYTE-ORDER",
+        "owner": "user",
+        "blocks": [
+          "P3-UWC-AC03とP3-UWC-T08の実装"
+        ],
+        "resolveBy": "発注前点検まで（作者の裁定）",
+        "requiredEvidence": [
+          "P3-UWC-D-BYTE-ORDERのAかB"
+        ]
+      },
+      {
+        "id": "Q-UWC-EXISTING-TESTS",
+        "owner": "implementer",
+        "blocks": [
+          "期待値を変える既存の試験の変更"
+        ],
+        "resolveBy": "実装の途中、変える前に報告",
+        "requiredEvidence": [
+          "期待値が変わる既存の試験の名前と理由。起草時の見込み: weather-current-unit.test.ts（128件を埋める:255・:313・:713・:774の前後、深さ8、viewのnational・partials、版の1語:33）、snapshot-sse/のboundaries・corpus・cost・projection-fixture・startup（U-Wのviewと表示の行の形、要約の件数）、shared-runtime.test.ts:68・checkpoint-shutdown/runtime-fixture.ts:64（版）"
+        ]
+      },
+      {
+        "id": "Q-UWC-E01",
+        "owner": "integrator",
+        "blocks": [
+          "次のE01の実走（C22）"
+        ],
+        "resolveBy": "C22の測定の契約の起草",
+        "requiredEvidence": [
+          "E01の充填（frames.mjsのRES07、partials 128）はnormalの上限384の33%になり『上限の近く』ではなくなる。draft.mjsの期待（snapshotActiveのweatherCurrentの件数、checkpointのU-W.partials）はD-GROUPで府県の数になる。凍結し直すかを決める"
+        ]
+      },
+      {
+        "id": "Q-UWC-MEASURE",
+        "owner": "integrator",
+        "blocks": [
+          "配送"
+        ],
+        "resolveBy": "実装のレビューの後、配送の前（Mac mini）",
+        "requiredEvidence": [
+          "P3-UWC-AC11の4条件の結果（W1の3日・W2のU-Wの拒否の数、U-Wの保存の最大のbyteと器との比、各区切りのU-Wのviewのbyte）"
+        ]
+      }
+    ]
+  }
+}
