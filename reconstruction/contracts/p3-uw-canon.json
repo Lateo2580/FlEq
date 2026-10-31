@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "06acfec2743a6bb16a658f2017f677b7ca50209d0c8d2ba1ea1b11f0f5d94e2b",
+    "sha256": "8d0f9ce1a88b8c4f19d1c85f403799ba350a32c1183f833823205aa8fd759312",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -104,7 +104,7 @@
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
-        "ruling": "統合担当の決め（2026-10-31）。P3の画面（chrome-eew）はU-Wを描かず、snapshotのU-Wはいつも要約なので、今の画面・音・通知の出方は変わらない。P4がこの形を描く。r2の注: U-Wのviewが縮むことによるほかの分野の要約の減り（chrome-eewの津波・EEWの出方が変わる）はP3-UWC-D-RES06-SHIFTで作者に聞く",
+        "ruling": "統合担当の決め（2026-10-31）。P3の画面（chrome-eew）はU-Wを描かず、snapshotのU-Wはいつも要約なので、今の画面・音・通知の出方は変わらない。P4がこの形を描く。r2の注: U-Wのviewが縮むことによるほかの分野の要約の減り（chrome-eewの津波・EEWの出方が変わる）はP3-UWC-D-RES06-SHIFTで作者裁定A（受け入れる、Q-UWC-AUTHOR-3）",
         "reason": "Aは新しい版だけを出す（H38）。Bの『前の版が持っていた現象を消す』は、前の版を履歴から引く（深さ2では続けて2回の『なし』で辿れなくなる）か、保存の形に消した現象の欄を足すことになる。Aで落ちるもの: partialが解除を出さずにいきなり『なし』を出した区域では、全国報の古い行が次の全国報（約10分ごと、1日144通）まで残る。実配信のpartialの『なし』の行はいつも単独（W1の3日、Kindが『なし』1つのItemだけ）で、解除の報は解除の行（Codeつき）で来る（Q-UWC-MERGE-PROBE）",
         "kind": "統合担当"
       },
@@ -115,7 +115,7 @@
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
-        "ruling": "統合担当の決め（2026-10-31）。P3でU-Wを描く画面は無い（chrome-eewはU-Wを描かない、p3-disaster-capacity.json:20）が、snapshotのwireに出ているU-Wの要約の件数の値の意味は『activeな報のsubjectの数』から『activeな府県の数』に変わる。P4の起草で読み替えを書く。作者に上げるかは統合担当の検収で決める。r2の注: U-Wのviewが縮むことによるほかの分野の要約の減り（chrome-eewの津波・EEWの出方が変わる）はP3-UWC-D-RES06-SHIFTで作者に聞く",
+        "ruling": "統合担当の決め（2026-10-31）。P3でU-Wを描く画面は無い（chrome-eewはU-Wを描かない、p3-disaster-capacity.json:20）が、snapshotのwireに出ているU-Wの要約の件数の値の意味は『activeな報のsubjectの数』から『activeな府県の数』に変わる。P4の起草で読み替えを書く。作者に上げるかは統合担当の検収で決める。r2の注: U-Wのviewが縮むことによるほかの分野の要約の減り（chrome-eewの津波・EEWの出方が変わる）はP3-UWC-D-RES06-SHIFTで作者裁定A（受け入れる、Q-UWC-AUTHOR-3）",
         "reason": "W1の3日でpartialは1通ごとにちょうど1府県、全国報は47府県（Q-UWC-MERGE-PROBE）。partialの受信は1府県を作り直すだけで済む（P3-UWC-AC09）。大きさ（推測、Q-UWC-SIZE）: Aは常に配る形がW1の終わりで約91 KB、Bは約147 KB（348鍵で約243 KB）。Bは全国報が来るたびに全partialの行が変わる",
         "kind": "統合担当"
       },
@@ -160,8 +160,8 @@
         "B": "今の要約の出方を保つ: RES-06の合計にU-Wの旧いview相当のbyte（全国報とpartialのsnapshotの大きさ）を足す計量か、閾値を下げる仕組みをprojectorに足す（P2-A8-RES-06の改訂で、本契約の範囲の外）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": "未裁定（Q-UWC-RES06-SHIFT）",
+        "status": "確定（作者裁定、2026-11-01 朝）",
+        "ruling": "作者裁定 A（2026-11-01 朝、Q-UWC-AUTHOR-3）",
         "ifNotChosen": "Aを採らないと、U-Wの合わせで小さくなった分を数え直す仕組みを足して、他の分野の要約を今の多さに保つことになる。Bを採らないと、U-Wの大きさのせいで要約になっていた区切りで、EEW・津波の分野がfullのカードで出るように変わる",
         "reason": "RES-06（view-projector.ts:904〜:906）は分野をまたぐ閾値で、合計が1 MiBを越えたときだけ65,536 byteを越える分野を要約にする。契約適合r1が見つけた帰結。場面（推測の大きさ）: 06-03のような大雨の日の22:10（U-Wのviewは今は、その日の分で全国のsnapshot 約0.67 MB＋partial 約0.4〜0.9 MBの約1.1〜1.6 MB〔p3-uf-public.json:134の監査の見積り〕。W1の3日を通すと約4 MB。本契約の後は3日を通しても約91 KB、Q-UWC-SIZE）に、広い範囲に津波注意報が出てU-Tのviewが65,536 byteを越え、ほかの分野は小さいとする。今: U-Wのせいで合計が1 MiBを越えるので、U-Tは要約になり、chrome-eewは津波の塗りとカードの代わりに運用区分ごとの1行（件数・最大の区分・更新時刻・詳細省略中、pure.ts:203〜:205）を出す（client.ts:131）。A: 合計が1 MiB以下になり、U-Tはfullで配られ、chrome-eewは津波の塗りとカードを出す。EEWの分野も同じ（client.ts:99）。大きな災害の筋書き（N1〜N3）ではU-T・U-Qのviewだけで1 MiBを越える見込み（p3-disaster-capacity.json:20）なので、そのときの要約はAでもBでも同じ。変わるのは、気象が大きく災害の分野が中くらいの区切りだけ"
       }
@@ -276,8 +276,16 @@
         "status": "closed",
         "source": "統合担当の起草のレビュー（2026-10-31 夜。前例はP3-CLI-REPL-001のQ-CLI-O1-DELIVERYのレビューの経過の書き方）",
         "closed": "起草のレビュー: 品質 ヘルツ（gpt-6-astra、新しいthread、read-only）はr0 NO-GO（P1 1: 詳細の口の停止がplaceごとでない。P2 3: 退去先の府県の和集合・省略一覧の予約・tombstoneのN×R）→ r1 条件付き GO（P2 1: applyEndingのR×C）→ r2 条件付き GO（P2 2: AC03の減りが孤児の印を数えない、T08の計量の回数がAC03と両立しない）。契約適合 Opus はr0 条件付き GO（P2 6: noticeが出なくなる・既存の試験・AC10の取り残し・詳細の口の例外・停止・閾値の出どころ）→ r1 条件付き GO（P2 3: addedScopes・範囲の外の既存試験・AC10の取り残し。帰結としてD-RES06-SHIFTを作者の分岐にした）→ r2 GO（P3 2: 場面の数と要約の行の書き方）。r2の条件はr3（この直し）で当てた: AC03の減りに孤児の印（系列の最後の参照が消えるときに1回）と区切りの差分の定義を足し、計量の回数をnormalの段の中で定義した（範囲は広げない）。T08に孤児の印の場面と、外す版の数に依らない計量の回数を足した。D-RES06-SHIFTの場面の数（その日の分で約1.1〜1.6 MB）と要約の行（pure.ts:203〜:205）を直した。統合担当の決め: Q-UWC-NOTICE・Q-UWC-DETAIL-STOP・Q-UWC-MERGE-TIE",
-        "remaining": "作者の分岐P3-UWC-D-RES06-SHIFTは未決（Q-UWC-RES06-SHIFT）で、裁定までは発注（baseOidの割当）を止める",
+        "remaining": "なし（作者の分岐P3-UWC-D-RES06-SHIFTは2026-11-01朝に作者裁定A、Q-UWC-AUTHOR-3）",
         "reason": "起草を閉じる（レビューの経過と残り）"
+      },
+      {
+        "id": "Q-UWC-AUTHOR-3",
+        "status": "closed",
+        "source": "作者裁定（2026-11-01 朝、「判断についてはAでお願いします」。統合担当が判断カードと fleq-board の帯〔uw-res06b〕で聞いた。旧Q-UWC-RES06-SHIFT）",
+        "closed": "P3-UWC-D-RES06-SHIFT=A: U-W の view が縮む分、snapshot の合計が 1 MiB を越える区切りが減り、65,536 byte を越える分野（EEW・津波など）が要約にならず full で出る区切りが増えることを受け入れる。RES-06 の計量と閾値（view-projector.ts:904〜:906）は変えない。U-W の unavailable の notice の出方は変えない（Q-UWC-NOTICE）。場面: 大雨の日の 22:10 に広い範囲の津波注意報が出ると、今は U-W の分で合計が 1 MiB を越えて津波は運用区分ごとの 1 行の要約（詳細省略中）になるが、本契約の後は津波の塗りとカードが出る",
+        "remaining": "なし",
+        "reason": "ほかの分野の要約の出方の作者の裁定（画面の出方が変わる）"
       }
     ],
     "operationContract": {
@@ -288,7 +296,7 @@
   "contract": {
     "contractId": "P3-UW-CANON-001",
     "mode": "implementation",
-    "objective": "U-W（全国の気象警報、weather current）の正本の持ち方を直す（③、H38、作者裁定D0）。(1) 置き場: normalのpartialの上限を鍵の空間（348）＋余白の384にし、training・testは別の合算64にする。normalは件数で退去させない (2) 取消で戻せる深さはpartialも2（官署×familyごと、全国は今の2） (3) 画面へ送る形: 全国報とpartialを府県×区域×Kind/Codeで新しいほうに合わせ、府県ごとの小さい公開形を常に配り、勝った行と、unavailableのlastKnownの行は範囲・版つきの詳細の口（U-Fの口と同じ待ち、GET /api/display/domains/U-W/detail）で取る (4) 保存の版をp2-weather-current-unit-v7へ上げて初期化する (5) W2の道具の直し（台帳90）は配送のcommitで統合担当が当てる原文に入れる。音・desktopの通知は作らない（C20）。U-Wのunavailableのnoticeの出方は変えない（Q-UWC-NOTICE）。U-Wのviewが縮む分、snapshotの合計が1 MiBを越えず、EEW・津波などの分野が要約にならず全部出る区切りが増える（P3-UWC-D-RES06-SHIFT、作者の裁定待ち、起草案A）。詳細の口のownerの停止はplaceごとに扱う（Q-UWC-DETAIL-STOP）",
+    "objective": "U-W（全国の気象警報、weather current）の正本の持ち方を直す（③、H38、作者裁定D0）。(1) 置き場: normalのpartialの上限を鍵の空間（348）＋余白の384にし、training・testは別の合算64にする。normalは件数で退去させない (2) 取消で戻せる深さはpartialも2（官署×familyごと、全国は今の2） (3) 画面へ送る形: 全国報とpartialを府県×区域×Kind/Codeで新しいほうに合わせ、府県ごとの小さい公開形を常に配り、勝った行と、unavailableのlastKnownの行は範囲・版つきの詳細の口（U-Fの口と同じ待ち、GET /api/display/domains/U-W/detail）で取る (4) 保存の版をp2-weather-current-unit-v7へ上げて初期化する (5) W2の道具の直し（台帳90）は配送のcommitで統合担当が当てる原文に入れる。音・desktopの通知は作らない（C20）。U-Wのunavailableのnoticeの出方は変えない（Q-UWC-NOTICE）。U-Wのviewが縮む分、snapshotの合計が1 MiBを越えず、EEW・津波などの分野が要約にならず全部出る区切りが増える（P3-UWC-D-RES06-SHIFT、作者裁定A）。詳細の口のownerの停止はplaceごとに扱う（Q-UWC-DETAIL-STOP）",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -884,17 +892,6 @@
         "resolveBy": "実装のレビューの後、配送の前（Mac mini）",
         "requiredEvidence": [
           "P3-UWC-AC11の4条件の結果（W1の3日・W2のU-Wの拒否の数、U-Wの保存の最大のbyteと器との比、各区切りのU-Wのviewのbyte）"
-        ]
-      },
-      {
-        "id": "Q-UWC-RES06-SHIFT",
-        "owner": "user",
-        "blocks": [
-          "発注（baseOidの割当）"
-        ],
-        "resolveBy": "発注前点検まで（作者の裁定）",
-        "requiredEvidence": [
-          "P3-UWC-D-RES06-SHIFTのAかB"
         ]
       }
     ]
