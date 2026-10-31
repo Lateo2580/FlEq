@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "072e0553368ae8fbd122e589baa7249acfff114283577b7743b70f5b323bed60",
+    "sha256": "37fed4df8eb48624a2f0525c41b74c6c1d8348c369656cf038bb3ce48e3a2ea1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -132,7 +132,7 @@
     "contractId": "P3-DMDATA-CONNECT-002",
     "mode": "implementation",
     "objective": "新築の dmdata の接続（P3-DMDATA-CONNECT-001、C2）を spec §16 の H24・H26・H29 に合わせて改める（計画『接続の間隔、繋がらない理由、切断の時刻』の行）。(1) 繋ぎ直す間隔を 5 秒から倍々・60 秒まで延ばし、60 秒の待ちが 10 回続いた後は 120 秒ごとにし、Retry-After を読む（H26、16.2.3。P3-C2-RETRY の固定の間隔を改める） (2) 繋がらない理由（ネット・dmdata・API キー・socket の上限・start の結果不明）を host の状態 HostStatus.lastFailure に載せる（H29） (3) ping を含む最後の frame の時刻を HostStatus.lastFrameWallMs に載せる（H24・16.2.4）。端末の文・手引き・デスクトップ通知は C19 が出し、本契約は状態に材料を載せるまで。永続 schema の変更は無し。C18 発注 2（P3-CLI-REPL-001）の配送の後に着手する",
-    "baseOid": "unassigned",
+    "baseOid": "e0c341cd8abe6a21b70f41e318dc2ec5ae268f5a",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
