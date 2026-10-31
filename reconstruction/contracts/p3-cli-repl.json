@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "4d422ff192ccec01e7df917b1597ba68f00336871f6e58f8dd1dc4d1ea413c30",
+    "sha256": "b3ceb9559395cf6bb4919b1f715ba4dce2a65c7fc6a2c1c674a01e03653329c7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -276,6 +276,14 @@
         "closed": "【発注 1】実装: Sonnet 5.5（1dda454e 起点）。レビュー: 契約適合 Opus（effort high）は r0 GO（P3 6）→ r1 GO（P3 1）。品質 ヘルツ（gpt-6-astra high、新しい thread 01a19085、read-only）は r0 NO-GO（P2 2: writeSync の短い書き込みで不完全な JSON を rename しうる、init の対話中の別の書き込みを init が上書きする）→ r1 NO-GO（P2 1: 空白だけの -k が下位の出どころに回る）→ r2 GO（P3 1: T02 の確かめが弱い。直した）。ゲートの FAIL 1 件: P1-T04 が src の export function・export const を数えるので、新しい file の export を末尾の export { … } にまとめた。統合担当の決め（レビューの指摘の当て方）: (1) appName の読み戻しは形だけを見て、今までの fleq の appName との照合は config set・init の [2/5]・通常起動の 3 か所に限る（P3-CLI-D-APPNAME） (2) 接続名の文は appName が無いときと今までの fleq と同じときに出し、空・24 バイト超・fleq は設定ファイルの文で断る（AC05 の (2)） (3) init の [3/5] は契約済みの区分を全部出し、0 件の文は旧築と同じ、[2/5] は聞き直しの後も空の Enter で既存を保ち、保存の前に設定ファイルを照らす（AC07） (4) 引数の検査は argParser で checkSettings を共有し、誤りの文は commander の形、明示された -k は解決の前に検査する（AC09） (5) init だけ保存の前に照らし、set・unset は後に書いたほうが残る、書き込みは writeFileSync（P3-CLI-D-WRITE）。原文の改訂（本配送）: AC03 の (3)・AC05 の (2)・AC07・AC09・P3-CLI-D-APPNAME・P3-CLI-D-WRITE・outOfScope の錠の行、T02 の (i)・T07 の (d)、p3-dmdata-connect.types.ts の :18〜:19 のコメントを足した後の事実に（2 行のまま。この file の行を引く参照は本契約の :9・:14 だけで、ずれない）。ゲートの結果（2026-10-31 15:20〜、Mac mini の ~/dev/fleq-c16fix-gate、ffdb68d0 に本 commit と同じ差分を当てた木）: check-manifest・check-sequences・check-contract・tsc 3 本は rc 0、reconstruction の vitest（--maxWorkers=2）は rc 0（102 file のうち 94 passed・8 skipped、1090 passed・25 skipped、185 秒）、--sequence.shuffle も rc 0（同じ件数、186 秒）、npm run build・npm test（289 file、6837 passed・3 skipped、55 秒）・npm run typecheck:test は rc 0。r0 の patch のゲートで P1-T04 が FAIL（上記）、r1・r2 は新築の vitest の全件まで rc 0 を確かめて最終の木に進んだ",
         "remaining": "発注 2・3 の起草（Q-CLI-SPLIT、作者の問い 2 件 Q-CLI-O2-WEATHER-DEFAULT・Q-CLI-O2-ALWAYS-RING）と、保留の発注 4（volcanorepair）は残る",
         "reason": "配送の記録"
+      },
+      {
+        "id": "Q-CLI-O2-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-31 夕、「どちらも推奨でお願いします」。統合担当が判断カードで聞いた。前例は P3-XML-READERS-001 の Q-XR-AUTHOR）",
+        "closed": "【発注 2】Q-CLI-O2-WEATHER-DEFAULT は推奨どおり入れる: 新築の既定で、気象の 11 分野のうち気象警報（旧築の weather）だけを入れる。H11（spec:3038）のとおり危険警報（L4）で通知、特別警報（L5）で通知と音。残りの 10 分野（tornado・briefing・earlyWeather・weatherWarningTimeseries・climateInfo・weatherExplanation・heatAlert・typhoonAnalysis・typhoonProbability・floodForecast）は旧築どおり既定で切る。移行で運ぶ旧築の notify に weather の欄が無い設定は新築の既定に従い、欄がある設定はその値を保つ（旧築は切替のたびに 18 分野を全部書く、src/engine/notification/notifier.ts:1187）。作者の Pi の旧築の設定は notify が地震系の 7 分野だけで weather の欄が無く（2026-10-31 夕に ssh で読んだ）、移行の後は特別警報で鳴る。効くのは C20（P3-WEATHER-NOTICE-001）の intent ができてから。Q-CLI-O2-ALWAYS-RING は推奨どおり持たない: 分野を切ったらその分野は鳴らさない（旧築と同じ）。16.2.2 の条件（初期値は EEW の警報・最大震度 5 弱以上・長周期地震動階級 2 以上、spec:3107）が鳴らすのは mute の間だけで、分野の off と notify all:off と sound off は条件があっても黙る（spec:2408 の切替の手順と同じ意味）。うるさい分野を減らすのは、分野を切らずに 16.2.2 の条件の設定で絞る形にする",
+        "remaining": "なし（発注 2 の条文はこの 2 つを前提に起草する）",
+        "reason": "発注 2 の起草を止めていた作者の問い 2 つ（画面の外の通知と音の出る・出ないが変わる選択）"
       }
     ],
     "operationContract": {
@@ -694,32 +702,6 @@
       "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
       "残存リスク: (1) display が off でも host は 127.0.0.1 の OS が選ぶ port で表示の server を開く（P3-CLI-D-DISPLAY、発注 2 で置き換える） (2) 旧築より厳しい入力の検査（P3-CLI-D-INVALID）で、旧築では動いた起動の引数・設定の値が新築で拒否されうる (3) region は書いた文字のままで、存在を確かめない（区域の対応表の契約まで） (4) 発注 1 の起動は OS の通知と音を出さない。新築だけで動かすと、発注 2 の配送まで通知と音が無い（起動の 1 行で知らせる） (5) 認証の失敗の見分けは host の Error の message との照合で、host の文が変わると『起動に失敗しました』に落ちる (6) ほかの端末で動く今までの fleq と接続名が重なる（例: Pi の fleq-pi を Mac の新築に設定する）のは手元で確かめる手段が無い。重なると、その端末の今までの fleq の再起動で新築の接続が閉じられる（src/dmdata/rest-client.ts:629、spec:2117）。切れた間の電文は C16 の取り直しで戻る"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-CLI-O2-WEATHER-DEFAULT",
-        "owner": "user",
-        "blocks": [
-          "P3-CLI-REPL-001 発注 2 の起草"
-        ],
-        "resolveBy": "発注 2 の起草の前（判断カード）",
-        "requiredEvidence": [
-          "問い: 新築の既定で気象の通知を入れるか。入れると、設定を変えていない利用者にも危険警報（L4）の通知と特別警報（L5）の通知と音が出る",
-          "旧築は気象の 11 分野の通知を既定で切っている（src/types.ts:422〜:432）",
-          "H11（spec:3038）: 気象は危険警報で通知、特別警報で通知と音"
-        ]
-      },
-      {
-        "id": "Q-CLI-O2-ALWAYS-RING",
-        "owner": "user",
-        "blocks": [
-          "P3-CLI-REPL-001 発注 2 の起草"
-        ],
-        "resolveBy": "発注 2 の起草の前（判断カード）",
-        "requiredEvidence": [
-          "問い: 分野の通知を切っていても鳴らすもの（例: 最大震度 5 弱以上の報、気象の特別警報）を持つか",
-          "16.2.2 の条件付き mute の条件（初期値は EEW の警報・最大震度 5 弱以上・長周期地震動階級 2 以上、spec:3107）を分野の off にも当てるかの選択になる"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
