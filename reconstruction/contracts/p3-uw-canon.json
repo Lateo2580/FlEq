@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "d846c81543a94c32662fcbd85469ec2e6d66d1aff31eff8b632a4b5a32759906",
+    "sha256": "06acfec2743a6bb16a658f2017f677b7ca50209d0c8d2ba1ea1b11f0f5d94e2b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -156,14 +156,14 @@
       {
         "id": "P3-UWC-D-RES06-SHIFT",
         "kind": "作者",
-        "A": "受け入れる: U-Wのviewが約4 MBから約91 KBに縮むので、snapshotの合計が1 MiBを越える区切りが減り、65,536 byteを越える分野（EEW・津波など）が要約にならずfullで出る区切りが増える。U-Wのunavailableのnoticeの出方は変えない",
+        "A": "受け入れる: U-Wのviewが約1.1〜1.6 MB（06-03の1日。W1の3日を通すと約4 MB）から約91 KBに縮むので、snapshotの合計が1 MiBを越える区切りが減り、65,536 byteを越える分野（EEW・津波など）が要約にならずfullで出る区切りが増える。U-Wのunavailableのnoticeの出方は変えない",
         "B": "今の要約の出方を保つ: RES-06の合計にU-Wの旧いview相当のbyte（全国報とpartialのsnapshotの大きさ）を足す計量か、閾値を下げる仕組みをprojectorに足す（P2-A8-RES-06の改訂で、本契約の範囲の外）",
         "recommended": "A",
         "provisional": "A",
         "status": "起草案（作者の裁定待ち）",
         "ruling": "未裁定（Q-UWC-RES06-SHIFT）",
         "ifNotChosen": "Aを採らないと、U-Wの合わせで小さくなった分を数え直す仕組みを足して、他の分野の要約を今の多さに保つことになる。Bを採らないと、U-Wの大きさのせいで要約になっていた区切りで、EEW・津波の分野がfullのカードで出るように変わる",
-        "reason": "RES-06（view-projector.ts:904〜:906）は分野をまたぐ閾値で、合計が1 MiBを越えたときだけ65,536 byteを越える分野を要約にする。契約適合r1が見つけた帰結。場面（推測の大きさ）: 06-03のような大雨の日の22:10（U-Wのviewは今は約4 MB、本契約の後は約91 KB、Q-UWC-SIZE）に、広い範囲に津波注意報が出てU-Tのviewが65,536 byteを越え、ほかの分野は小さいとする。今: U-Wのせいで合計が1 MiBを越えるので、U-Tは要約になり、chrome-eewは津波の塗りとカードの代わりに区分ごとの件数の要約の行を出す（client.ts:131）。A: 合計が1 MiB以下になり、U-Tはfullで配られ、chrome-eewは津波の塗りとカードを出す。EEWの分野も同じ（client.ts:99）。大きな災害の筋書き（N1〜N3）ではU-T・U-Qのviewだけで1 MiBを越える見込み（p3-disaster-capacity.json:20）なので、そのときの要約はAでもBでも同じ。変わるのは、気象が大きく災害の分野が中くらいの区切りだけ"
+        "reason": "RES-06（view-projector.ts:904〜:906）は分野をまたぐ閾値で、合計が1 MiBを越えたときだけ65,536 byteを越える分野を要約にする。契約適合r1が見つけた帰結。場面（推測の大きさ）: 06-03のような大雨の日の22:10（U-Wのviewは今は、その日の分で全国のsnapshot 約0.67 MB＋partial 約0.4〜0.9 MBの約1.1〜1.6 MB〔p3-uf-public.json:134の監査の見積り〕。W1の3日を通すと約4 MB。本契約の後は3日を通しても約91 KB、Q-UWC-SIZE）に、広い範囲に津波注意報が出てU-Tのviewが65,536 byteを越え、ほかの分野は小さいとする。今: U-Wのせいで合計が1 MiBを越えるので、U-Tは要約になり、chrome-eewは津波の塗りとカードの代わりに運用区分ごとの1行（件数・最大の区分・更新時刻・詳細省略中、pure.ts:203〜:205）を出す（client.ts:131）。A: 合計が1 MiB以下になり、U-Tはfullで配られ、chrome-eewは津波の塗りとカードを出す。EEWの分野も同じ（client.ts:99）。大きな災害の筋書き（N1〜N3）ではU-T・U-Qのviewだけで1 MiBを越える見込み（p3-disaster-capacity.json:20）なので、そのときの要約はAでもBでも同じ。変わるのは、気象が大きく災害の分野が中くらいの区切りだけ"
       }
     ],
     "questionResolutions": [
@@ -270,6 +270,14 @@
         "closed": "(1) 同値・undecidableの勝者: r0の『先に勝っていたほうを残す』は計算の順に依り、合わせは保存しない派生の値（AC04(3)）なので復元の後に割れうる。全国報とpartialの比べでsame・undecidableなら全国報の行が残る（newerなpartialだけが上書きする、D-MERGE=Aの字義）。partialどうしは、その府県のpartialをcompareSnapshotの順（報時刻→operation→subject→inputId、weather-current-unit.ts:399〜:406、stateだけで決まる全順序）に見て、勝っている行の報よりcompareVersionでnewerな報の行だけが置き換える。順がstateだけで決まるので、復元の後も同じ勝者になる (2) 勝つ行が0の府県（全国報が無く、その府県のpartialが全部退去・取消で消えたとき）は府県の行を作らない（公開形も詳細の索引の項も無い。前にあった府県の行はafter=nullのdisplayChangesで消える）。勝つ行が1つ以上なら、activeの区域が0（解除・なしだけ）でも府県の行を作る（要約のactiveには数えない） (3) 詳細の本文だけが変わるとき（公開形の欄は同じで、勝った行の値だけが変わる。例: 同じCodeのまま発表→継続、Kind/Nameだけの変化）も、府県のobjectとrevisionを新しくしてdisplayChangesに出す。前のobjectを使い回すのは、勝った行の列と公開形の欄の両方が同じときだけ。U-Fの前例（Q-UFP-REVISION: subjectのobjectが変わればそのstepの内容版）と同じで、同じrevisionのページに違う行が混ざらない（spec:1337『一応答へ異なる対象内容版を混ぜない』）",
         "remaining": "P4への申し送り（契約適合r1の証拠不足）: D-MERGE=Aの下で、取り直しの後、VPWS50より古いVPWW57の高潮予報区間の行が次のpartialまで出ない場合がある。W1の3日でVPWW57は0通で、P3の画面はU-Wの区域を描かないので、見えるのはP4から。P4の起草で場面を確かめる",
         "reason": "P3-UWC-AC04(1)(5)・AC05(3)の不定を除く"
+      },
+      {
+        "id": "Q-UWC-DRAFT-REVIEW",
+        "status": "closed",
+        "source": "統合担当の起草のレビュー（2026-10-31 夜。前例はP3-CLI-REPL-001のQ-CLI-O1-DELIVERYのレビューの経過の書き方）",
+        "closed": "起草のレビュー: 品質 ヘルツ（gpt-6-astra、新しいthread、read-only）はr0 NO-GO（P1 1: 詳細の口の停止がplaceごとでない。P2 3: 退去先の府県の和集合・省略一覧の予約・tombstoneのN×R）→ r1 条件付き GO（P2 1: applyEndingのR×C）→ r2 条件付き GO（P2 2: AC03の減りが孤児の印を数えない、T08の計量の回数がAC03と両立しない）。契約適合 Opus はr0 条件付き GO（P2 6: noticeが出なくなる・既存の試験・AC10の取り残し・詳細の口の例外・停止・閾値の出どころ）→ r1 条件付き GO（P2 3: addedScopes・範囲の外の既存試験・AC10の取り残し。帰結としてD-RES06-SHIFTを作者の分岐にした）→ r2 GO（P3 2: 場面の数と要約の行の書き方）。r2の条件はr3（この直し）で当てた: AC03の減りに孤児の印（系列の最後の参照が消えるときに1回）と区切りの差分の定義を足し、計量の回数をnormalの段の中で定義した（範囲は広げない）。T08に孤児の印の場面と、外す版の数に依らない計量の回数を足した。D-RES06-SHIFTの場面の数（その日の分で約1.1〜1.6 MB）と要約の行（pure.ts:203〜:205）を直した。統合担当の決め: Q-UWC-NOTICE・Q-UWC-DETAIL-STOP・Q-UWC-MERGE-TIE",
+        "remaining": "作者の分岐P3-UWC-D-RES06-SHIFTは未決（Q-UWC-RES06-SHIFT）で、裁定までは発注（baseOidの割当）を止める",
+        "reason": "起草を閉じる（レビューの経過と残り）"
       }
     ],
     "operationContract": {
@@ -482,14 +490,15 @@
       },
       {
         "id": "P3-UWC-AC03",
-        "requirement": "byteの縮退の順（P3-UWC-D-BYTE-ORDER=A、作者裁定、Q-UWC-AUTHOR-2）。器（GENERATION_BYTES、約16.87 MB）は変えない。normalの受理が器に入らないとき、今の順（training・testの履歴→training・testのpartial→training・testの全国、weather-current-unit.ts:420〜:447）で外し、それでも入らなければ、新しい報を断る前にnormalの履歴（取消のための前の版）を最も古いもの（compareSnapshotの順）から1つずつ外す（外した数はINFO weatherCurrentCapacityEvictedのcountに足す）。費用（品質r1の証拠不足、AGENTS.mdの受信経路の計算量）: 今のfitNormalByByte（:425）は1件外すごとに全体を計り直し、全履歴を走って整列する。normalの段はこれを繰り返さない: 器を越えた分を1回計り、normalの履歴の版の候補を1回だけcompareSnapshotで整列し、古い順に外したときのbyteの減り（その版のbyteと区切りの1。entryが空になればentryのbyteと区切り）を足して、越えた分に届いたところで止める。外した版の集合で履歴の配列を1回作り直し、印の孤児（dropOrphanMark）も1回で除き、最後に1回だけ計り直す（数え違いで入らなければ、残りの候補で同じ手順を続ける）。費用は候補の整列1回＋外した数＋計量2回で、受信1回で全件×全件にならない。この段の手順は:533より後の補助の関数に置き、:420〜:447からはその関数を呼ぶだけにして行の数を保つ。training・testの3段（件数の上限で有界）は今の手順のまま。normalの履歴を全部外しても入らないときだけ、今どおり容量のunavailable→lastKnownを落とす→最後の拒否（:469〜:500）にする。normalのcurrent（全国とpartial）は器のために外さない。件数で断った入力はbyteのために退去しない（今どおり、:475）。版を外されたsubjectへの取消は残った版まで戻り、戻す版が無ければhistoryUnavailableのunavailable（P3-UWC-AC02(2)の印）になる。行の制約: :420〜:447の範囲で行の数を変えずに書き換える（:471以降は他の契約が引く）",
+        "requirement": "byteの縮退の順（P3-UWC-D-BYTE-ORDER=A、作者裁定、Q-UWC-AUTHOR-2）。器（GENERATION_BYTES、約16.87 MB）は変えない。normalの受理が器に入らないとき、今の順（training・testの履歴→training・testのpartial→training・testの全国、weather-current-unit.ts:420〜:447）で外し、それでも入らなければ、新しい報を断る前にnormalの履歴（取消のための前の版）を最も古いもの（compareSnapshotの順）から1つずつ外す（外した数はINFO weatherCurrentCapacityEvictedのcountに足す）。費用（品質r1の証拠不足、AGENTS.mdの受信経路の計算量）: 今のfitNormalByByte（:425）は1件外すごとに全体を計り直し、全履歴を走って整列する。normalの段はこれを繰り返さない: 器を越えた分を1回計り、normalの履歴の版の候補を1回だけcompareSnapshotで整列し、古い順に外したときのbyteの減りを足して、越えた分に届いたところで止める。減りは保存の計量（weather-current-unit.ts:66〜:76のarrayBytes・historyBytes）と同じ式で、外す途中の数で数える: (a) 版を外してentryに版が残るとき、その版のbyte＋reportsの区切りの差分（版の数nからn−1へでmax(n−1,0)−max(n−2,0)） (b) 版を外してentryが空になるとき、(a)の代わりにentryのbyte（historyBytes、空の外枠を含む）＋historiesの区切りの差分（entryの数HからH−1へでmax(H−1,0)−max(H−2,0)） (c) その版でその系列（subject・operation）の最後の参照が消えるとき（current・ほかの履歴の版・墓標・unavailableのどれにも残らない。domainのseriesExistsと同じ集合）、その系列の印（unconfirmed）が孤児として消えるので、印のbyte＋unconfirmedの区切りの差分も、その系列で1回だけ足す。系列の参照の有無は、current・墓標・unavailableの系列のSetと系列ごとの履歴の版の数を段の初めに1回作って数える。(c)を数えないと、印の分で足りていたのに次の版まで外し、その版のsubjectの取消を戻せなくする（品質r2のP2-1）。外した版の集合で履歴の配列を1回作り直し、印の孤児（dropOrphanMark）も1回で除き、最後に1回だけ計り直す。計量の回数（reservedGenerationBytesの呼び出し）: normalの段の中は、越えた分を計る1回（training・testの段の最後の計量の値を使ってよく、そのときは0回）と外した後の1回の2回以下。外した後の計量で越えた分が残ったとき（数え違い）だけ、整列し直さずに残りの候補で同じ足し方を続け、続けるたびに計量を1回足す。(a)〜(c)が保存の計量と同じ式なら続けは起きない。呼び元の計量（:458〜:460の初回、:477の採用前の確かめ）はこの数に入れない（範囲の外で、今どおり）。費用は候補の整列1回＋外した数＋計量2回で、受信1回で全件×全件にならない。この段の手順は:533より後の補助の関数に置き、:420〜:447からはその関数を呼ぶだけにして行の数を保つ。training・testの3段（件数の上限で有界）は今の手順のまま。normalの履歴を全部外しても入らないときだけ、今どおり容量のunavailable→lastKnownを落とす→最後の拒否（:469〜:500）にする。normalのcurrent（全国とpartial）は器のために外さない。件数で断った入力はbyteのために退去しない（今どおり、:475）。版を外されたsubjectへの取消は残った版まで戻り、戻す版が無ければhistoryUnavailableのunavailable（P3-UWC-AC02(2)の印）になる。行の制約: :420〜:447の範囲で行の数を変えずに書き換える（:471以降は他の契約が引く）",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-unit.ts:420 «21fd5b83a374c887»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:443 «b309ad0ea9855890»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:444 «42af036c74044345»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:475 «59ed3d62d2eb225e»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:45 «646c8b5ca91f8c03»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:425 «53522db8ffe01514»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:425 «53522db8ffe01514»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:66 «f868173bcdcd062f»"
         ]
       },
       {
@@ -697,7 +706,7 @@
           "P3-UWC-AC03",
           "P3-UWC-AC02"
         ],
-        "behavior": "器ちょうどの境界（既存のP2-A5-T11 contractBoundary、weather-current-unit.test.ts:979の予約込みの計量で境界を作る形）で、normalの新しい報の受理が、training・testが無いとき最古のnormalの履歴の版を外して採用され（INFO weatherCurrentCapacityEvicted）、normalのcurrentが1件も外れない。続けて、版を外されたsubjectへ取消を受けると残った版に戻り、戻す版が無い取消はhistoryUnavailableのunavailableになる。normalの履歴を多く外す受理（例: 外す版が100）で、全体の計量の回数（spyで数える）が外す版の数に依らず2回以下"
+        "behavior": "器ちょうどの境界（既存のP2-A5-T11 contractBoundary、weather-current-unit.test.ts:979の予約込みの計量で境界を作る形）で、normalの新しい報の受理が、training・testが無いとき最古のnormalの履歴の版を外して採用され（INFO weatherCurrentCapacityEvicted）、normalのcurrentが1件も外れない。続けて、版を外されたsubjectへ取消を受けると残った版に戻り、戻す版が無い取消はhistoryUnavailableのunavailableになる。孤児の印の場面（品質r2のP2-1）: currentの無いAに履歴1版と印、別のBにcurrentと履歴1版があり、Aの版が最古で、越えた分が『Aの履歴の分より大きく、Aの履歴＋印の分以下』のとき、Aの版だけが外れて印も消え、Bの版は残り、続くBの取消はBの前の版に戻る。計量の回数: normalの履歴を外す版が1の受理と100の受理で、受理全体のreservedGenerationBytesの呼び出しの回数（spyで数える）が同じ（normalの段の中は2回以下、続けは0回。呼び元の計量は両方に同じ数だけ入る）"
       },
       {
         "testId": "P3-UWC-T09",
