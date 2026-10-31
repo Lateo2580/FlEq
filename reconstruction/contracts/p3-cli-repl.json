@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "c84a363e131148dcc59428f99e572a24cd798242cd7805c08315ee7a8f5ecf36",
+    "sha256": "1b5dc79834bb85f7977290e401a338ee452fd9093bec721cf38cf4cf183d3f91",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -279,7 +279,7 @@
     "contractId": "P3-CLI-REPL-001",
     "mode": "implementation",
     "objective": "spec §11.2 の互換必須 17 行（起動の引数・config の 5 つの下位コマンド・init）、§11.3 の互換必須の REPL 18 行、§11.5 の旧築の設定の移行を、新築の CLI として作る（C18、計画 §2.1、B12・B02）。1 契約を分けて発注する（P3-CLI-D-SPLIT）: 発注 1 は起動の引数・設定ファイルの読み書き・旧築の設定の移行・H50 の地域設定の key・fleq replay の振り分け・--test・-c、発注 2 は実行中の REPL（notify・sound・mute〔H11・H46・16.2.2〕ほか）と B12 の typed command、発注 3 は C19（端末の表示）に頼る 6 つの入口、発注 4 は保留の volcanorepair（C15 と一緒に保留、P3-CLI-D-VOLCANOREPAIR）。中身まで決めたのは発注 1 で、発注 2〜4 は範囲・依存・起草時に作者へ聞く問いだけ（Q-CLI-SPLIT）。発注 1 の fleq は host を起こして終了の要求を待つだけで、REPL・端末の電文の表示・OS の通知と音を持たない（P3-CLI-D-SILENT）。設定ファイルは起動の前に 1 回だけ読み、実行中に読み直さない。旧築の設定・保存・socket・port・token・接続名と分ける（spec §10.2）。条文の【発注 n】が振り分け",
-    "baseOid": "unassigned",
+    "baseOid": "1dda454ec4dc0145ba5fbb169bf877cead0576ec",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
