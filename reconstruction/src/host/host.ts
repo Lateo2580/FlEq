@@ -8,11 +8,11 @@ import type { RawData } from "ws";
 import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
 import type { ClockReading, DiagnosticLevel, DiagnosticReason, MailboxEnvelope, ShutdownSummary, WallBasis } from "../../contracts/p2-shared-runtime.types";
-import type { DmdataClassification, DmdataSubscription } from "../../contracts/p3-dmdata-connect.types";
-import { startDisplayServer } from "../http-sse/http-sse";
+import type { DmdataClassification, DmdataSubscription } from "../../contracts/p3-dmdata-connect.types"; import type { HostCommandPort, HostStatus, NotificationGate, NotificationGateVerdict } from "../../contracts/p3-cli-repl.types";
+import { startDisplayServer } from "../http-sse/http-sse"; import type { DisplaySnapshot, DisplayWorkerView } from "../../contracts/p2-snapshot-sse.types";
 import { ingestXmlData } from "../ingress/ingress";
 import type { ParsedFrame } from "../ingress/ingress";
-import { resolveRepoPath } from "../notification-delivery/adapter";
+import { abortNotificationAttempt, resolveRepoPath, runNotificationAttempt } from "../notification-delivery/adapter";
 import type { ExecutionPlace, OwnerReply, OwnerStartData } from "../../contracts/p3-execution-split.types";
 import { RuntimeCompositionRoot, linkedUnitCodecs, places } from "../runtime/composition-root";
 import { completeDiagnostic } from "../runtime/runtime-diagnostic";
@@ -42,7 +42,7 @@ const knownClassifications: Readonly<Record<DmdataClassification, true>> = {
 type P2HostConfig = Readonly<({ wsUrl: string; origin?: "replay"; dmdata?: never } | { dmdata: DmdataSubscription; wsUrl?: never; origin?: never }) & {
   stateDirectory: string;
   diagnosticDirectory: string;
-  displayPort: number;
+  displayPort: number | null; notificationGate?: NotificationGate; // P3-CLI-AC16 (1): null は起動で表示の server を開かない。門が無ければ adapter の既定のまま
   clock: () => ClockReading;
   observe: ((observation: P2HostObservation) => void) | null; measureInputHeap?: boolean; displayBind?: Readonly<{ measurementAddress: string }>;
 }>;
@@ -72,8 +72,8 @@ function controlHead(value: unknown): ControlHead | null {
 
 const isStrings = (value: unknown): value is readonly string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
 
-/** The one P2 product host: WS frames in, mailbox, decode, runtime, display out. */
-async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort: number; stop(): Promise<ShutdownSummary> }>> {
+/** The one P2 product host: WS frames in, mailbox, decode, runtime, display out. displayPort が number の起動は戻りの displayPort も number（{ wsUrl } の呼び手を変えない、P3-CLI-AC16 (1)）。 */ function startP2Host(config: P2HostConfig & Readonly<{ displayPort: number }>): Promise<HostCommandPort & Readonly<{ displayPort: number }>>; function startP2Host(config: P2HostConfig): Promise<HostCommandPort>;
+async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   const { clock } = config;
   // P3-C2-AC01: checked before anything starts; the appName is validateAppConfig's (empty and "fleq" are refused there).
   if (config.dmdata != null) {
@@ -89,14 +89,14 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     try { config.observe(observation); } catch { /* observer failure is the runner's to detect */ }
   };
 
-  const server = await startDisplayServer({
-    host: config.displayBind ?? "127.0.0.1", port: config.displayPort,
-    worker: { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null },
+  let server: Awaited<ReturnType<typeof startDisplayServer>> | null = null, latestSnapshot: DisplaySnapshot | null = null, latestWorker: DisplayWorkerView = { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null }; const displayOptions = (port: number): Parameters<typeof startDisplayServer>[0] => ({
+    host: config.displayBind ?? "127.0.0.1", port,
+    worker: latestWorker,
     browserAssets: { htmlPath: resolveRepoPath("reconstruction/src/display/chrome-eew/index.html"),
       moduleDirectory: resolveRepoPath("reconstruction/dist/chrome-eew/src/display/chrome-eew") },
     onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T4", runId, displayVersion, monotonicMs: marker.monotonicMs }),
     onSerialize: ({ version, bytes, durationMs }) => emit({ kind: "publishSerialization", displayVersion: version, bytes, durationMs }), detail: (request) => root.requestDetail(request),
-  });
+  }); let displayQueue: Promise<unknown> = Promise.resolve(); if (config.displayPort != null) server = await startDisplayServer(displayOptions(config.displayPort)); // P3-CLI-D-O2-HOST-LINES: 表示と門の包みは startRuntime の間から呼ばれるので、読む変数はここで宣言する
 
   // P3-C3A-AC01: one resident owner thread per execution place (dist worker entry), created once here, never per input or request.
   const workers = new Map<ExecutionPlace, Worker>();
@@ -176,7 +176,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     linkedUnitCodecs, {
       send: (place, request) => workers.get(place)!.postMessage(request), clock, wallBasis: (at) => { const basis = wallBasis(at); return deadlineMissed ? "unverified" : basis; }, measure: config.observe == null ? undefined : emit,
       contentBasis: wallBasis, // P3-EF-AC01: 締切の印を反映しない生の状態
-      display: { publish: server.publish, setWorker: server.setWorker,
+      notificationAdapter: config.notificationGate == null ? undefined : gatedAdapter(config.notificationGate), display: { publish: publishDisplay, setWorker: setDisplayWorker,
         onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }) },
       onMeasurements: (measurements) => { for (const measurement of measurements) emit({ kind: "checkpoint", measurement }); },
       onInputDone: (reply) => {
@@ -198,7 +198,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   } catch (error) {
     // Every owner created so far ends before the rejection (P3-C3A-AC01).
     await endOwners();
-    await server.close();
+    if (server != null) await closeServer(server);
     throw error;
   }
   const mailbox = root.mailbox;
@@ -207,7 +207,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   let socket: WebSocket | null = null;
   let reconnectTimer: NodeJS.Timeout | null = null;
   // The attempt in flight (or the last one); stop() lets it settle before releasing the own dmdata socket.
-  let attempt: Promise<Attempt> | null = null;
+  let attempt: Promise<Attempt> | null = null, attempting = false, failedAttempts = 0; // P3-CLI-AC16 (6)(7): 試みの最中か、最後に開いた後の開かなかった試みの数
   // The id a successful POST returned to this process, until a DELETE succeeds or a list no longer has it (RES-02).
   let ownSocketId: number | null = null;
   // Aborted at the stop request + 30 s: every dmdata REST still in flight is destroyed and none starts (RES-07).
@@ -236,12 +236,12 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
 
   // The one place an attempt starts: an unexpected rejection counts as a WS failure, so stop() and the retry still run.
   function startAttempt(): Promise<Attempt> {
-    attempt = connect().catch((): Attempt => "retrySoon");
+    attempting = true; attempt = connect().catch((): Attempt => "retrySoon").then((result) => { attempting = false; failedAttempts = result === "opened" ? 0 : failedAttempts + 1; return result; });
     return attempt;
   }
 
   function startConnect(): void {
-    void startAttempt().then(retryAfter);
+    if (attempting || socket != null || stopping != null) return; void startAttempt().then(retryAfter); // P3-CLI-AC16 (6): 試行は同時に最大 1 本（閉じかけの WS の close が後から timer を張っても重ねない）
   }
 
   function retryAfter(result: Attempt): void {
@@ -475,7 +475,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     }
     root.tick(now);
     // P3-C3B-AC01: the owners' own answers decide the worker state, not the tick.
-    if (root.setWorker(root.monitorOwners(now))) server.heartbeat();
+    if (root.setWorker(root.monitorOwners(now))) server?.heartbeat();
     // Every tick, a write right out included: its 3 s / 10 s monitor must run while an owner holds it (P3-C3B-AC02).
     // A broken invariant takes the process down (I/O failures come back as failed/uncertain results); ignored while stopping.
     void root.driveCheckpoint().catch((error) => { if (stopping == null) throw error; });
@@ -533,7 +533,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       let timer: NodeJS.Timeout | undefined;
       await Promise.race([endOwners(), new Promise<void>((done) => { timer = setTimeout(done, Math.max(0, until - performance.now())); })]);
       clearTimeout(timer);
-      await server.close();
+      await closeDisplay();
     }
   })();
   process.once("SIGINT", stop);
@@ -586,7 +586,75 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     dispatchLost();
     retryAfter(first);
   }
-  return { displayPort: server.port, stop };
+  // P3-CLI-D-O2-HOST-LINES: ここに置けるのは hoist される function の宣言だけ。:589 の前から呼ばれる表示と門の包みは、startRuntime より前で宣言した変数だけを読む。
+  // P3-CLI-D-O2-DISPLAY: 閉じている間は最新の 1 枚と worker の値を持つだけにし、開いた直後に渡す（次の電文まで /snapshot と /events が空にならない）。
+  function publishDisplay(snapshot: DisplaySnapshot): void { latestSnapshot = snapshot; server?.publish(snapshot); }
+  function setDisplayWorker(worker: DisplayWorkerView): void { latestWorker = worker; server?.setWorker(worker); }
+  // P3-CLI-D-O2-GATE: 門が false なら子を作らずに delivered で終え（印の evidence は possible）、止めた段と設定の版を INFO の 1 行に書く。門が投げたら鳴らす側に倒す。
+  function gatedAdapter(gate: NotificationGate): Readonly<{ run: typeof runNotificationAttempt; abort: typeof abortNotificationAttempt }> {
+    const stages = { sound: 1, category: 2, mute: 3 } as const;
+    return { abort: abortNotificationAttempt, run: async (attempt, adapterClock, soundBackend) => {
+      let verdict: NotificationGateVerdict;
+      try { verdict = gate(attempt); } catch { verdict = { allow: true }; }
+      if (verdict.allow) return runNotificationAttempt(attempt, adapterClock, soundBackend);
+      root.enqueueDiagnostic(completeDiagnostic({ level: "INFO", component: "host", reason: "notificationSuppressed", unit: attempt.unit, attemptId: attempt.attemptId,
+        generation: verdict.settingsVersion, count: stages[verdict.stage] }, clock(), runId));
+      return { kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: clock() };
+    } };
+  }
+  // P3-CLI-AC16 (5): http-sse の close() は SSE の client だけを切る。keep-alive や読みかけの普通の接続も切らないと close が終わらない。
+  function closeServer(open: Awaited<ReturnType<typeof startDisplayServer>>): Promise<void> {
+    const closing = open.close();
+    open.server.closeAllConnections();
+    return closing;
+  }
+  // 開け閉めは 1 本に並べる（閉じている途中の openDisplay はその close の終わりを待つ）。
+  function queueDisplay<T>(task: () => Promise<T>): Promise<T> {
+    const run = displayQueue.then(task);
+    displayQueue = run.catch(() => {});
+    return run;
+  }
+  function openDisplay(port: number): ReturnType<HostCommandPort["openDisplay"]> {
+    return queueDisplay<Awaited<ReturnType<HostCommandPort["openDisplay"]>>>(async () => {
+      // 順番が来たときに停止を読み直す。開いている途中に停止が始まったら、開けた server を閉じてから stopping。
+      if (stopping != null) return { kind: "stopping" };
+      if (server != null) return { kind: "alreadyOpen", port: server.port };
+      let opened: Awaited<ReturnType<typeof startDisplayServer>>;
+      try { opened = await startDisplayServer(displayOptions(port)); }
+      catch (error) { return { kind: error != null && typeof error === "object" && "code" in error && error.code === "EADDRINUSE" ? "portInUse" : "failed" }; }
+      if (stopping != null) { await closeServer(opened); return { kind: "stopping" }; }
+      server = opened;
+      // listen を待つ間に来た worker の値も渡す（AC16 (4)）。
+      opened.setWorker(latestWorker);
+      if (latestSnapshot != null) opened.publish(latestSnapshot);
+      return { kind: "opened", port: opened.port };
+    });
+  }
+  function closeDisplay(): Promise<"closed" | "notOpen"> {
+    return queueDisplay(async (): Promise<"closed" | "notOpen"> => {
+      const open = server;
+      if (open == null) return "notOpen";
+      server = null;
+      await closeServer(open);
+      return "closed";
+    });
+  }
+  // P3-CLI-D-O2-RETRY: 切れている間だけ、待ちの timer を止めて今すぐ試みる。試みの最中・overload の片付け中・停止中は始めない（接続を 1 本に保つ）。
+  function reconnect(): ReturnType<HostCommandPort["reconnect"]> {
+    if (stopping != null) return "stopping";
+    if (socket?.readyState === WebSocket.OPEN) return "connected";
+    // 閉じかけ（CLOSING）の WS の間は始めない。閉じ終われば、その close が張る timer が繋ぎ直す。
+    if (attempting || socket != null) return "connecting";
+    if (overloaded) return "draining";
+    if (reconnectTimer != null) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    startConnect();
+    return "started";
+  }
+  function status(): HostStatus {
+    return { connection: socket?.readyState === WebSocket.OPEN ? "connected" : attempting ? "connecting" : "disconnected", socketId: ownSocketId, failedAttempts,
+      display: server == null ? null : { port: server.port, clients: server.clientCount() } };
+  }
+  return { displayPort: server?.port ?? null, stop, reconnect, openDisplay, closeDisplay, status };
 }
 
 export { startP2Host };

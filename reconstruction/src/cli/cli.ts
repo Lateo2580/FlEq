@@ -9,17 +9,21 @@ import type { FleqSettings } from "../../contracts/p3-cli-repl.types";
 import type { DmdataClassification, DmdataTestMode } from "../../contracts/p3-dmdata-connect.types";
 import { exchange } from "../host/dmdata-rest";
 import { startP2Host } from "../host/host";
+import { createNotificationGate } from "./notification-gate";
+import { muteStartLine, notificationSettingsFrom, runRepl } from "./repl";
 import {
-  ALL_KEYS, appNameProblem, CLASSIFICATIONS, checkSettings, commitSettings, createContext, fieldOf, loadSettings, parseClassifications,
-  Refusal, SETTABLE_KEYS, settingsPaths, settingsUnchanged, TEST_MODES, valueFromText,
+  appNameProblem, CLASSIFICATIONS, checkSettings, commitSettings, createContext, fieldOf, loadSettings, mask, parseClassifications,
+  Refusal, SETTABLE_KEYS, settingsPaths, settingsUnchanged, showLines, TEST_MODES, valueFromText,
 } from "./settings";
 import type { Context, Loaded } from "./settings";
 
-// P3-CLI-AC01〜AC09【発注 1】: 新築の起動・設定の下位コマンド・init。REPL・端末の電文の表示・通知と音は発注 2 以降。
+// P3-CLI-AC01〜AC09【発注 1】: 新築の起動・設定の下位コマンド・init。【発注 2】通常起動の REPL・通知の門（AC12〜AC19）。端末の電文の表示は発注 3。
 // 検査は commander の argParser（引数）と settings.ts の checkSettings（設定）の 2 か所に置き、どれも副作用の前に済ませる（AC09）。
 
 const DEFAULT_DISPLAY_PORT = 7789;
 const DEFAULT_SUMMARY_MINUTES = 10;
+// P3-CLI-RES-03: stop() の後に保存の列を待つ期限（置き値、AC18 (3)）。
+const SAVE_WAIT_MS = 5_000;
 
 type RunOptions = {
   apiKey?: string; classifications?: DmdataClassification[]; test?: DmdataTestMode; summaryInterval?: number | true;
@@ -117,8 +121,6 @@ async function runCli(argv: readonly string[]): Promise<number> {
 
 // ── config ──
 
-const mask = (value: string) => value.length <= 8 ? "****" : `${value.slice(0, 4)}****${value.slice(-4)}`;
-
 function checkKey(key: string): void {
   if (!SETTABLE_KEYS.includes(key)) throw new Refusal(`不明な設定キー: ${key}\n有効なキー: ${SETTABLE_KEYS.join(", ")}`);
 }
@@ -135,38 +137,28 @@ function checkWhole(raw: unknown): FleqSettings {
   return checked.settings;
 }
 
-function showConfig(context: Context): number {
+// 出し方は REPL の config と同じ（settings.ts の showLines、P3-CLI-AC14 (4)）。
+async function showConfig(context: Context): Promise<number> {
   const loaded = loadSettings(context);
-  if (loaded.migration != null) commitSettings(loaded, loaded.settings);
-  out(`Config: ${settingsPaths().file}`);
-  const entries = Object.entries(loaded.settings);
-  if (entries.length === 0) out("(設定なし)");
-  for (const key of ALL_KEYS) {
-    const found = entries.find(([name]) => name === key);
-    if (found == null) continue;
-    const [, value] = found;
-    const shown = (key === "apiKey" || key === "displayToken") && typeof value === "string" ? mask(value)
-      : Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value);
-    out(`${key} = ${shown}`);
-    out(`# ${fieldOf(key)?.description ?? ""}`);
-  }
+  if (loaded.migration != null) await commitSettings(loaded, loaded.settings);
+  showLines(loaded.settings).forEach(out);
   return 0;
 }
 
-function setConfig(context: Context, key: string, text: string): number {
+async function setConfig(context: Context, key: string, text: string): Promise<number> {
   checkKey(key);
   const value = valueFromText(key, text);
   checkEntry(context, key, value);
   const loaded = loadSettings(context);
-  commitSettings(loaded, checkWhole({ ...loaded.settings, [key]: value }));
+  await commitSettings(loaded, checkWhole({ ...loaded.settings, [key]: value }));
   out(`設定しました: ${key}`);
   return 0;
 }
 
-function unsetConfig(context: Context, key: string): number {
+async function unsetConfig(context: Context, key: string): Promise<number> {
   checkKey(key);
   const loaded = loadSettings(context);
-  commitSettings(loaded, checkWhole(Object.fromEntries(Object.entries(loaded.settings).filter(([name]) => name !== key))));
+  await commitSettings(loaded, checkWhole(Object.fromEntries(Object.entries(loaded.settings).filter(([name]) => name !== key))));
   out(`削除しました: ${key}`);
   return 0;
 }
@@ -277,7 +269,7 @@ async function runInit(context: Context): Promise<number> {
     if (!save) { out("設定を保存せずに終了します。"); return 0; }
     // 対話の間に別の端末が保存していたら、古い内容で上書きしない（成功と返した変更が消えるため）。
     if (!settingsUnchanged(loaded)) throw new Refusal("設定ファイルが init の途中で変わりました。もう一度 fleq init を実行してください");
-    commitSettings(loaded, checkWhole({ ...existing, apiKey, appName, classifications, testMode }));
+    await commitSettings(loaded, checkWhole({ ...existing, apiKey, appName, classifications, testMode }));
     out(`設定を保存しました。\nファイル: ${settingsPaths().file}\nfleq を実行して受信を始められます。`);
     return 0;
   } finally { readline.close(); }
@@ -322,12 +314,16 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
       secret("displayToken", (options.displayToken ?? settings.displayToken) != null, options.displayToken != null ? "引数" : settings.displayToken != null ? "設定ファイル" : "既定"),
     ]) fail(`debug: ${line}`);
   }
-  if (loaded.migration != null) commitSettings(loaded, settings);
+  if (loaded.migration != null) await commitSettings(loaded, settings);
+  // AC19 (4): 通知の設定は起動の前に 1 回読んだ設定から作り、REPL が変える。門はそれをその場で読む。
+  const clock = () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() });
+  const notification = notificationSettingsFrom(settings, clock);
 
   // 終了の listener は startP2Host の前に登録する。host の SIGINT の once は起動の途中で登録され、最初の接続の試みの最中の Ctrl+C では
   // host が自分で止まったまま正常に戻る（P3-CLI-D-SIGNAL）。無いと: 終了 code が要約の code にならず、待ちが終わらない。
   type Host = Awaited<ReturnType<typeof startP2Host>>;
   let host: Host | null = null;
+  let repl: ReturnType<typeof runRepl> | null = null;
   let stopping: ReturnType<Host["stop"]> | null = null;
   let wake: () => void = () => {};
   const asked = new Promise<void>((resolve) => { wake = resolve; });
@@ -335,6 +331,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
   const onSignal = () => {
     requested = true;
     if (host != null) stopping ??= host.stop();
+    repl?.close();
     wake();
   };
   const signals: readonly NodeJS.Signals[] = process.platform === "win32" ? ["SIGINT", "SIGTERM"] : ["SIGINT", "SIGTERM", "SIGHUP"];
@@ -344,9 +341,8 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
       host = await startP2Host({
         dmdata: { apiKey: apiKey.value, appName, classifications: resolved.classifications, testMode: resolved.testMode },
         stateDirectory: paths.state, diagnosticDirectory: paths.diag,
-        // shortcut: 今の host は表示の server を常に開く。off は案内しない 127.0.0.1 の port（0）で代え、発注 2 の display on/off で host に開け閉めを足すときに置き換える。
-        displayPort: resolved.display ? resolved.port : 0,
-        clock: () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() }), observe: null,
+        displayPort: resolved.display ? resolved.port : null, notificationGate: createNotificationGate(notification, clock),
+        clock, observe: null,
       });
     } catch (error) {
       const code: unknown = error != null && typeof error === "object" && "code" in error ? error.code : undefined;
@@ -358,12 +354,26 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     if (requested) stopping ??= host.stop();
     else {
       if (resolved.display) out(`情報ディスプレイ: http://127.0.0.1:${host.displayPort}/`);
-      out(`受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。通知と音はまだ出しません。終了は Ctrl+C`);
+      out(`受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。help でコマンドの一覧、終了は quit か Ctrl+C`);
+      const muted = muteStartLine(notification, clock);
+      if (muted != null) out(muted);
+      repl = runRepl({ host, settings: notification, savedMute: settings.mute, displayPort: resolved.port, clock, onClose: onSignal });
     }
     await asked;
     stopping ??= host.stop();
-    return (await stopping).code;
-  } finally { for (const signal of signals) process.off(signal, onSignal); }
+    const { code } = await stopping;
+    // AC18 (3): stop() の後も保存の列が終わっていなければ 5 秒まで待つ。期限の内は rename の前の保存を残して終えない。
+    let timer: NodeJS.Timeout | undefined;
+    const saved = repl == null || await Promise.race([repl.idle().then(() => true), new Promise<false>((done) => { timer = setTimeout(() => done(false), SAVE_WAIT_MS); })]);
+    clearTimeout(timer);
+    if (saved) return code;
+    // rename の後の directory の sync だけが残っていることもあるので、次の起動の状態を言い切らない。
+    fail(`設定ファイル ${paths.file} に最後の変更を保存できたか確かめられません`);
+    return code === 0 ? 1 : code;
+  } finally {
+    repl?.close();
+    for (const signal of signals) process.off(signal, onSignal);
+  }
 }
 
 export { runCli };

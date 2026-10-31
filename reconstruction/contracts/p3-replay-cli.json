@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b8ca889b4e0dfe8e816ae0fc99dc2778a9788c97",
-    "sha256": "e15b9e8c38cf071cb68315ba37f53270a0306044e99c3e834832610087162b68",
+    "sha256": "8de0383061e01f97fe445a938b442fb7e7592876c8fc74dfcf9b7db929659fb1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -327,7 +327,7 @@
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:513 «a2ad0b3b132c008c»",
           "reconstruction/src/host/host.ts:539 «a9963aed8491915c»",
-          "reconstruction/src/host/host.ts:589 «26777858dfe7e1eb»",
+          "reconstruction/src/host/host.ts:589 «7f172fccc2943a05»",
           "docs/specs/reconstruction-p0-contracts.md:880 «f7b928f646165ca5»",
           "docs/specs/reconstruction-p0-contracts.md:900 «0ee1ac317cc5543a»",
           "reconstruction/src/host/host.ts:166 «b747b81e2514721e»",

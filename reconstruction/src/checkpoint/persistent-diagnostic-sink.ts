@@ -55,7 +55,7 @@ const diagnosticReasons = [
   "localBulletinsRevisionConflict", "localBulletinsCapacityEvicted",
   "typhoonRevisionConflict", "typhoonCapacityEvicted",
   "notificationAttemptFailed", "notificationExpired", "notificationExpiredClockUnverified", "notificationCapacityEvicted", "notificationAdapterIsolated",
-  "notificationOutcomeUnknown", "noticeMarkEvicted",
+  "notificationOutcomeUnknown", "noticeMarkEvicted", "notificationSuppressed",
   "routeIgnored", "routeNotPorted", "routeUnlisted", "ownerReplyLate",
   "dmdataSocketStarted", "dmdataSubscriptionNarrowed", "dmdataSocketListFailed", "dmdataConnectionCapacityExceeded",
   "dmdataSocketStartFailed", "dmdataSocketStartUncertain", "dmdataSocketCloseFailed", "dmdataAuthRejected",

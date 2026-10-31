@@ -1,12 +1,13 @@
 import { randomBytes } from "node:crypto";
-import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { mkdir, open, readFile, rename, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { EewLogField, FleqSettings, LegacyNotifyCategory } from "../../contracts/p3-cli-repl.types";
+import type { EewLogField, FleqSettings, LegacyNotifyCategory, MuteRule, PersistedMute } from "../../contracts/p3-cli-repl.types";
 import type { DmdataClassification, DmdataTestMode } from "../../contracts/p3-dmdata-connect.types";
 
-// P3-CLI-AC03・AC04: 新築の設定ファイルの場所・読み戻し・書き込み・今までの fleq の設定の移行。
+// P3-CLI-AC03・AC04・AC17: 新築の設定ファイルの場所・読み戻し・書き込み・今までの fleq の設定の移行・REPL の保存の列。
 // 読み戻しは欄ごとに確かめて組み立てる。無いと: 壊れた値が黙って既定に戻り、受信区分が 5 区分へ広がる（P3-CLI-D-INVALID）。
 
 class Refusal extends Error {}
@@ -24,6 +25,9 @@ const EEW_LOG_FIELDS: readonly EewLogField[] = [
   "hypocenter", "originTime", "coordinates", "magnitude", "forecastIntensity", "maxLgInt", "forecastAreas",
   "lgIntensity", "isPlum", "hasArrived", "diff", "maxIntChangeReason",
 ];
+const MUTE_LEVELS: readonly MuteRule["level"][] = ["normal", "warning", "critical"];
+// 18 分野×3 段（同じ組の重複なし、P3-CLI-RES-04）。
+const MUTE_RULE_LIMIT = 54;
 const APP_NAME_MAX_BYTES = 24;
 const LEGACY_APP_NAME = "fleq";
 
@@ -111,11 +115,27 @@ function appNameProblem(value: string, context: Context): string | null {
   return appNameShape(value) ?? (value === legacyAppName(context) ? "今までの fleq と同じ接続名は使えません" : null);
 }
 
+/** 設定ファイルの mute の欄を確かめて組み立てる（P3-CLI-AC17 (1)）。外れたら null。 */
+function persistedMute(value: unknown): PersistedMute | null {
+  if (!isRecord(value) || Object.keys(value).length !== 2 || !Object.hasOwn(value, "until") || !Object.hasOwn(value, "rules")) return null;
+  const { until, rules } = value;
+  if (until !== null && !(typeof until === "number" && Number.isSafeInteger(until) && until >= 0)) return null;
+  if (!Array.isArray(rules) || rules.length > MUTE_RULE_LIMIT) return null;
+  const checked: MuteRule[] = [];
+  for (const rule of rules) {
+    if (!isRecord(rule) || Object.keys(rule).length !== 2) return null;
+    const category = oneOf(NOTIFY_CATEGORIES, rule.category), level = oneOf(MUTE_LEVELS, rule.level);
+    if (category == null || level == null || checked.some((item) => item.category === category && item.level === level)) return null;
+    checked.push({ category, level });
+  }
+  return { until, rules: checked };
+}
+
 type Field = Readonly<{ kind: "number" | "bool" | "list" | "string" | "map"; description: string; reason: string;
   check(value: unknown, out: Out): boolean }>;
 const NOT_YET = "（今は保存だけで、まだ効きません）";
 const BOOL = "true か false";
-// 並びが config keys・show の並び。notify・eewLogFields は REPL の側の key（set・unset の対象外、AC03 (5)）。
+// 並びが config keys・show の並び。kind が map の notify・eewLogFields・mute は REPL の側の key（set・unset の対象外、AC03 (5)・AC17 (2)）。
 const FIELDS: Readonly<Record<keyof FleqSettings, Field>> = {
   apiKey: { kind: "string", description: "dmdata.jp APIキー", reason: "空白だけでない文字列",
     check: (v, o) => typeof v === "string" && v.trim() !== "" && put(o, "apiKey", v) },
@@ -142,7 +162,7 @@ const FIELDS: Readonly<Record<keyof FleqSettings, Field>> = {
     check: (v, o) => { const clock = oneOf(["elapsed", "clock", "uptime"] as const, v); return clock != null && put(o, "promptClock", clock); } },
   waitTipIntervalMin: { kind: "number", description: `待機中ヒント表示間隔 (分, 0で無効)${NOT_YET}`, reason: "0〜1440 の 10 進の整数",
     check: (v, o) => isInt(v, 0, 1440) && put(o, "waitTipIntervalMin", v) },
-  sound: { kind: "bool", description: `通知音の有効/無効 (true/false)${NOT_YET}`, reason: BOOL,
+  sound: { kind: "bool", description: "通知音の有効/無効 (true/false)", reason: BOOL,
     check: (v, o) => typeof v === "boolean" && put(o, "sound", v) },
   eewLog: { kind: "bool", description: `EEWログ記録の有効/無効 (true/false)${NOT_YET}`, reason: BOOL,
     check: (v, o) => typeof v === "boolean" && put(o, "eewLog", v) },
@@ -153,10 +173,13 @@ const FIELDS: Readonly<Record<keyof FleqSettings, Field>> = {
     description: "設定した地域の外の情報の出し方: all＝全部出して「設定した地域は対象外」を添える、regionOnly＝設定した地域の情報だけを出す（今は保存だけで、まだ効きません）",
     reason: "all か regionOnly",
     check: (v, o) => { const scope = oneOf(["all", "regionOnly"] as const, v); return scope != null && put(o, "regionScope", scope); } },
-  notify: { kind: "map", description: `通知する分野ごとの on/off${NOT_YET}`, reason: "分野の名前と true か false の組",
+  notify: { kind: "map", description: "通知する分野ごとの on/off", reason: "分野の名前と true か false の組",
     check: (v, o) => { const map = boolMap(NOTIFY_CATEGORIES, v); return map != null && put(o, "notify", map); } },
   eewLogFields: { kind: "map", description: `EEW ログに記録する項目ごとの on/off${NOT_YET}`, reason: "項目の名前と true か false の組",
     check: (v, o) => { const map = boolMap(EEW_LOG_FIELDS, v); return map != null && put(o, "eewLogFields", map); } },
+  mute: { kind: "map", description: "ミュートの終わりと条件（REPL の mute で変える）",
+    reason: `until（null か 0 以上の整数）と rules（分野と ${MUTE_LEVELS.join("・")} の組の配列、重複なし、${MUTE_RULE_LIMIT} 件まで）の object`,
+    check: (v, o) => { const mute = persistedMute(v); return mute != null && put(o, "mute", mute); } },
 };
 const fieldOf = (key: string): Field | undefined => Object.hasOwn(FIELDS, key) ? FIELDS[key as keyof FleqSettings] : undefined;
 const SETTABLE_KEYS: readonly string[] = Object.entries(FIELDS).filter(([, field]) => field.kind !== "map").map(([key]) => key);
@@ -188,6 +211,9 @@ function valueFromText(key: string, text: string): unknown {
 type Migration = Readonly<{ from: string; copied: number; skipped: readonly string[] }>;
 // bytes: 読んだときの設定 file の中身（無ければ null）。init が保存の直前に、途中で変わっていないかを bytes のまま照らす（不正な UTF-8 の違いを文字列化で見落とさないため）。
 type Loaded = Readonly<{ settings: FleqSettings; migration: Migration | null; bytes: Buffer | null }>;
+
+const unreadable = (file: string, checked: Extract<Checked, { ok: false }>) =>
+  `設定ファイル ${file} の ${checked.key} が読めません: ${checked.reason}。直すか消してください`;
 
 function readSettingsBytes(path: string): Buffer | null {
   try { return readFileSync(path); }
@@ -243,34 +269,51 @@ function loadSettings(context: Context): Loaded {
   if (bytes == null) return migrateLegacy(context);
   const parsed = parseJson(bytes.toString("utf8"));
   const checked = checkSettings(parsed);
-  if (!checked.ok) throw new Refusal(`設定ファイル ${file} の ${checked.key} が読めません: ${checked.reason}。直すか消してください`);
+  if (!checked.ok) throw new Refusal(unreadable(file, checked));
   return { settings: checked.settings, migration: null, bytes };
 }
 
+type Reread = Readonly<{ kind: "read"; settings: FleqSettings | null }> | Readonly<{ kind: "unreadable"; message: string }>;
+/** 実行中の非同期の読み（REPL の config と保存の読み直し、P3-CLI-AC17 (6)(7)）。移行は起こさない。file が無ければ settings は null。 */
+async function rereadSettings(): Promise<Reread> {
+  const { file } = settingsPaths();
+  let text: string;
+  try { text = await readFile(file, "utf8"); }
+  catch (error) {
+    return errorCode(error) === "ENOENT" ? { kind: "read", settings: null } : { kind: "unreadable", message: `設定ファイル ${file} を読めません（${errorCode(error)}）` };
+  }
+  const checked = checkSettings(parseJson(text));
+  return checked.ok ? { kind: "read", settings: checked.settings } : { kind: "unreadable", message: unreadable(file, checked) };
+}
+
 // P3-CLI-D-WRITE: 固定名の一時 file は、落ちた後の残りが以後の書き込みを断つ。fsync→rename→directory の sync は電源断で apiKey の file が空になるのを防ぐ。
-function writeSettings(settings: FleqSettings): void {
+// P3-CLI-D-O2-WRITE: 非同期の 1 つの手順（同期の fs は host の WS の callback を待たせる）。FileHandle.writeFile は全部を書くまで書くので、不完全な JSON を rename しない。
+// 書けたら null、書けなければ error の code を返す。
+async function writeSettings(settings: FleqSettings): Promise<string | null> {
   const { directory, file } = settingsPaths();
   const temporary = join(directory, `config.json.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   let renamed = false;
   try {
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const handle = openSync(temporary, "wx", 0o600);
-    try { writeFileSync(handle, `${JSON.stringify(settings, null, 2)}\n`); fsyncSync(handle); } finally { closeSync(handle); }
-    renameSync(temporary, file);
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    const handle = await open(temporary, "wx", 0o600);
+    try { await handle.writeFile(`${JSON.stringify(settings, null, 2)}\n`); await handle.sync(); } finally { await handle.close(); }
+    await rename(temporary, file);
     renamed = true;
   } catch (error) {
-    if (!renamed) { try { unlinkSync(temporary); } catch { /* 作る前の失敗なら無い */ } }
-    throw new Refusal(`設定ファイル ${file} を書けません（${errorCode(error)}）`);
+    if (!renamed) await unlink(temporary).catch(() => { /* 作る前の失敗なら無い */ });
+    return errorCode(error);
   }
   // rename の後の失敗は、file が新しい中身なので書けた扱いにする（code 1 は利用者に書けなかったと読み違えさせる）。
   if (process.platform !== "win32") {
-    try { const handle = openSync(directory, "r"); try { fsyncSync(handle); } finally { closeSync(handle); } } catch { /* 書けた扱い */ }
+    try { const handle = await open(directory, "r"); try { await handle.sync(); } finally { await handle.close(); } } catch { /* 書けた扱い */ }
   }
+  return null;
 }
 
 /** 設定を書き、移行の結果が付いていれば同じ 1 回で書いて 1 行知らせる（P3-CLI-D-MIGRATE）。 */
-function commitSettings(loaded: Loaded, next: FleqSettings): void {
-  writeSettings(next);
+async function commitSettings(loaded: Loaded, next: FleqSettings): Promise<void> {
+  const failed = await writeSettings(next);
+  if (failed != null) throw new Refusal(`設定ファイル ${settingsPaths().file} を書けません（${failed}）`);
   const { migration } = loaded;
   if (migration == null) return;
   const skipped = migration.skipped.length > 0 ? `（写さなかった key: ${migration.skipped.join(", ")}）` : "";
@@ -283,6 +326,70 @@ const settingsUnchanged = (loaded: Loaded): boolean => {
   return now == null || loaded.bytes == null ? now === loaded.bytes : now.equals(loaded.bytes);
 };
 
-export { ALL_KEYS, appNameProblem, CLASSIFICATIONS, checkSettings, commitSettings, createContext, fieldOf, loadSettings,
-  parseClassifications, Refusal, SETTABLE_KEYS, settingsPaths, settingsUnchanged, TEST_MODES, valueFromText };
-export type { Context, Loaded };
+// ── show の出し方（config show と REPL の config が同じ文を出す、P3-CLI-AC14 (4)） ──
+
+const mask = (value: string) => value.length <= 8 ? "****" : `${value.slice(0, 4)}****${value.slice(-4)}`;
+const pad2 = (value: number) => String(value).padStart(2, "0");
+const localMinute = (ms: number): string => {
+  const at = new Date(ms);
+  return `${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())} ${pad2(at.getHours())}:${pad2(at.getMinutes())}`;
+};
+const muteText = (mute: PersistedMute): string => `${mute.until == null ? "mute off" : localMinute(mute.until)} まで`
+  + (mute.rules.length === 0 ? "" : `（条件: ${mute.rules.map((rule) => `${rule.category}:${rule.level}`).join(",")}）`);
+
+/** config show の行（P3-CLI-AC03 (7)・AC17 (2)）。 */
+function showLines(settings: FleqSettings): string[] {
+  const lines = [`Config: ${settingsPaths().file}`];
+  const entries = Object.entries(settings);
+  if (entries.length === 0) lines.push("(設定なし)");
+  for (const key of ALL_KEYS) {
+    const found = entries.find(([name]) => name === key);
+    if (found == null) continue;
+    const [, value] = found;
+    const shown = (key === "apiKey" || key === "displayToken") && typeof value === "string" ? mask(value)
+      : key === "mute" && settings.mute != null ? muteText(settings.mute)
+      : Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value);
+    lines.push(`${key} = ${shown}`, `# ${fieldOf(key)?.description ?? ""}`);
+  }
+  return lines;
+}
+
+// ── REPL の保存の列（P3-CLI-D-O2-WRITE、P3-CLI-RES-02） ──
+
+// REPL がこの起動で変えた欄だけ（AC17 (5) が唯一の列挙）。sound・mute は undefined が「変えていない」、mute の null は欄を消す。
+type ReplOverlay = Readonly<{ notify: Readonly<Partial<Record<LegacyNotifyCategory, boolean>>>; sound?: boolean; mute?: PersistedMute | null }>;
+
+function overlaid(base: FleqSettings, overlay: ReplOverlay): FleqSettings {
+  const next: Out = { ...base };
+  if (Object.keys(overlay.notify).length > 0) next.notify = { ...base.notify, ...overlay.notify };
+  if (overlay.sound !== undefined) next.sound = overlay.sound;
+  if (overlay.mute === null) delete next.mute;
+  else if (overlay.mute !== undefined) next.mute = overlay.mute;
+  return next;
+}
+
+/** 保存は 1 本の列で直列にし、走っている間の要求は「もう 1 回要る」の印に寄せる。終わった後に最新のメモリの値で 1 回だけ書く。 */
+function createSettingsSaver(overlay: () => ReplOverlay): Readonly<{ request(): void; idle(): Promise<void> }> {
+  const reply = (line: string) => { process.stdout.write(`${line}\n`); };
+  let running: Promise<void> | null = null;
+  let again = false;
+  // 読み直して重ねるのは、別の端末の config set の欄を REPL の古い中身で消さないため。読めない・書けないときもメモリの値は戻さない。
+  const once = async () => {
+    const { file } = settingsPaths();
+    const read = await rereadSettings();
+    if (read.kind === "unreadable") { reply(`  設定ファイル ${file} を読めないので、この変更は保存しません（今の実行には効いています）`); return; }
+    const failed = await writeSettings(overlaid(read.settings ?? {}, overlay()));
+    if (failed != null) reply(`  設定ファイル ${file} を書けません（${failed}）。この変更は今の実行にだけ効いています`);
+  };
+  const request = () => {
+    if (running != null) { again = true; return; }
+    running = (async () => {
+      try { do { again = false; await once(); } while (again); } finally { running = null; }
+    })();
+  };
+  return { request, idle: async () => { while (running != null) await running; } };
+}
+
+export { appNameProblem, CLASSIFICATIONS, checkSettings, commitSettings, createContext, createSettingsSaver, fieldOf, loadSettings, mask,
+  NOTIFY_CATEGORIES, parseClassifications, Refusal, rereadSettings, SETTABLE_KEYS, settingsPaths, settingsUnchanged, showLines, TEST_MODES, valueFromText };
+export type { Context, Loaded, ReplOverlay };

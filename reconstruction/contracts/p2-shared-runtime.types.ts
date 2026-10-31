@@ -321,7 +321,7 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "typhoonRevisionConflict" | "typhoonCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationExpiredClockUnverified" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
   // P3-NL-AC14 (3): 通知したか不明で終えた intent と、U-E の印を容量で捨てた件数。
-  | "notificationOutcomeUnknown" | "noticeMarkEvicted"
+  | "notificationOutcomeUnknown" | "noticeMarkEvicted" | "notificationSuppressed"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate"
   | "eewWindowUnverified" // P3-REC-AC14 (5): 切れていた間の EEW の窓。札を外す時か停止の開始に 1 件

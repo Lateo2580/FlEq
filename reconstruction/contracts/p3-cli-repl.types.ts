@@ -51,6 +51,8 @@ export type FleqSettings = Readonly<{
   // 自宅の市区町村（spec 16.2.1）。書いた文字をそのまま持ち、区域の対応表の契約がコードの体系と存在の検査を足す。
   region?: string;
   regionScope?: RegionScope;
+  // mute の終わりと条件。P3-CLI-D-O2-MUTE-PERSIST=B
+  mute?: PersistedMute;
 }>;
 
 // 【発注 2】B12（spec:381）の typed command。REPL の 1 行はこの型に 1 か所（parseReplLine）で変え、変えられない行は副作用の無い invalid にする。

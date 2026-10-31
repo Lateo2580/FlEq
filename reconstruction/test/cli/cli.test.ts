@@ -4,14 +4,48 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { HostCommandPort } from "../../contracts/p3-cli-repl.types";
 import { runCli } from "../../src/cli/cli";
 
-const mocks = vi.hoisted(() => ({ startP2Host: vi.fn(), exchange: vi.fn(), answers: [] as (string | (() => string))[] }));
+type FakeReadline = { line(text: string): void; close(): void };
+const mocks = vi.hoisted(() => ({ startP2Host: vi.fn(), exchange: vi.fn(), answers: [] as (string | (() => string))[], readline: null as FakeReadline | null }));
 vi.mock("../../src/host/host", () => ({ startP2Host: mocks.startP2Host }));
 vi.mock("../../src/host/dmdata-rest", () => ({ exchange: mocks.exchange }));
+// T07 の question の答え方はそのまま。REPL（T12）が使う on・setPrompt・prompt と、行と close を試験から起こす口を足した。
 vi.mock("node:readline", () => ({
-  createInterface: () => ({ question: (_prompt: string, answer: (text: string) => void) => { const next = mocks.answers.shift() ?? ""; answer(typeof next === "function" ? next() : next); }, close: () => {} }),
+  createInterface: () => {
+    const handlers: Record<string, ((text: string) => void)[]> = {};
+    let closed = false;
+    const fake = {
+      question: (_prompt: string, answer: (text: string) => void) => { const next = mocks.answers.shift() ?? ""; answer(typeof next === "function" ? next() : next); },
+      on: (event: string, handler: (text: string) => void) => { (handlers[event] ??= []).push(handler); return fake; },
+      setPrompt: () => {}, prompt: () => {},
+      close: () => { if (closed) return; closed = true; for (const handler of handlers.close ?? []) handler(""); },
+      line: (text: string) => { for (const handler of handlers.line ?? []) handler(text); },
+    };
+    mocks.readline = fake;
+    return fake;
+  },
 }));
+// T12 (d)(e): 設定の書き込みを rename の前（一時 file の書き込み）か、rename の後の directory の sync で止める。gate を開けるまで待つ。
+const writes = vi.hoisted(() => ({ stall: null as "write" | "directorySync" | null, reached: false, release: () => {}, gate: Promise.resolve() }));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  const open: typeof actual.open = async (...args) => {
+    const handle = await actual.open(...args);
+    const [, flags] = args;
+    if (writes.stall === "write" && flags === "wx") {
+      const writeFile = handle.writeFile.bind(handle);
+      return Object.assign(handle, { writeFile: async (...rest: Parameters<typeof writeFile>) => { writes.reached = true; await writes.gate; return writeFile(...rest); } });
+    }
+    if (writes.stall === "directorySync" && flags === "r") {
+      const sync = handle.sync.bind(handle);
+      return Object.assign(handle, { sync: async () => { writes.reached = true; await writes.gate; return sync(); } });
+    }
+    return handle;
+  };
+  return { ...actual, open };
+});
 
 const REPO = join(__dirname, "../../..");
 const FLEQ = join(REPO, "reconstruction/cli/fleq.mjs");
@@ -38,8 +72,10 @@ beforeEach(() => {
   mocks.startP2Host.mockReset();
   mocks.exchange.mockReset();
   mocks.answers.length = 0;
+  writes.stall = null;
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   rmSync(tmp, { recursive: true, force: true });
@@ -73,7 +109,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     const keys = stdout.split("\n").filter((line) => /^\S/.test(line) && !line.endsWith(":"));
     expect(keys).toHaveLength(15);
     expect(stdout).not.toMatch(/backup|tableWidth/);
-    expect(stdout).toMatch(/sound\n {2}.*まだ効きません/);
+    expect(stdout).toContain("sound\n  通知音の有効/無効 (true/false)\n");
     expect([sigintListeners().length, process.listenerCount("SIGTERM")]).toEqual(listeners);
   });
 
@@ -137,7 +173,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     };
     expect(await start("-c", "eew.forecast,eew.forecast", "--test", "including")).toBe(3);
     expect(mocks.startP2Host.mock.calls[0][0]).toMatchObject({ dmdata: { apiKey: "k1", appName: "fleq-new-test", classifications: ["eew.forecast"], testMode: "including" },
-      displayPort: 0, stateDirectory: join(tmp, "fleq-next", "state"), diagnosticDirectory: join(tmp, "fleq-next", "diag") });
+      displayPort: null, stateDirectory: join(tmp, "fleq-next", "state"), diagnosticDirectory: join(tmp, "fleq-next", "diag") });
     expect(await start("-k", "k2")).toBe(3);
     expect(mocks.startP2Host.mock.calls[1][0]).toMatchObject({ dmdata: { apiKey: "k2", testMode: "only" } });
     // (a) startP2Host が戻る前の要求は、戻った直後に stop を 1 回呼ぶ
@@ -170,6 +206,75 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     expect(await runCli([])).toBe(1);
     expect(mocks.startP2Host).not.toHaveBeenCalled();
     expect([sigintListeners().length, process.listenerCount("SIGTERM")]).toEqual(listeners);
+  });
+
+  // P3-CLI-T12 acceptance (AC18・AC19・AC05)
+  // stop は要約の code だけを返す（T04 と同じ）。
+  const fakeHost = (stop: () => Promise<{ code: number }>): Omit<HostCommandPort, "stop"> & { stop: () => Promise<{ code: number }> } => ({
+    displayPort: null, stop, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
+    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, display: null }) });
+  const startRepl = async (code: number) => {
+    clear();
+    const stop = vi.fn(async () => ({ code }));
+    mocks.startP2Host.mockResolvedValue(fakeHost(stop));
+    const before = sigintListeners();
+    const result = runCli([]);
+    await vi.waitFor(() => expect(stdout).toContain("受信を始めました"));
+    return { stop, result, before };
+  };
+
+  it("通常起動は門と displayPort null を渡して REPL を起こし、quit・close は 1 つの終了の要求で、保存を待って戻る", async () => {
+    writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+    const listeners = [sigintListeners().length, process.listenerCount("SIGTERM")];
+    let { stop, result, before } = await startRepl(3);
+    expect(mocks.startP2Host.mock.calls[0][0]).toMatchObject({ displayPort: null });
+    expect(typeof mocks.startP2Host.mock.calls[0][0].notificationGate).toBe("function");
+    expect(stdout).toContain("help でコマンドの一覧");
+    // (a) quit は stop を 1 回呼び、要約の code で戻る
+    mocks.readline!.line("quit");
+    expect(await result).toBe(3);
+    expect(stop).toHaveBeenCalledTimes(1);
+    // (b) readline の close の後に SIGINT が来ても stop は 1 回
+    ({ stop, result, before } = await startRepl(3));
+    mocks.readline!.close();
+    fire(before);
+    expect(await result).toBe(3);
+    expect(stop).toHaveBeenCalledTimes(1);
+    // (c) 保存が終わる前の quit でも、rename の後に戻る
+    ({ result } = await startRepl(3));
+    mocks.readline!.line("notify eew off");
+    mocks.readline!.line("quit");
+    expect(await result).toBe(3);
+    expect(readConfig()).toEqual({ apiKey: "k0", appName: "fleq-new-test", notify: { eew: false } });
+    expect([sigintListeners().length, process.listenerCount("SIGTERM")]).toEqual(listeners);
+  });
+
+  it("保存が期限までに終わらなければ、stop の後 5 秒で確かめられない旨を出し、code 0 を 1 にする", async () => {
+    for (const stall of ["write", "directorySync"] as const) {
+      writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+      writes.stall = stall;
+      writes.reached = false;
+      writes.gate = new Promise<void>((done) => { writes.release = done; });
+      const { result } = await startRepl(0);
+      // vi.waitFor（startRepl）が終わってから入れる。以後の fake の timer は stop の後の 5 秒だけ（REPL も保存も timer を使わない）。
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      mocks.readline!.line("notify eew off");
+      mocks.readline!.line("quit");
+      while (!writes.reached || vi.getTimerCount() === 0) await new Promise((done) => setImmediate(done));
+      vi.advanceTimersByTime(4_999);
+      await new Promise((done) => setImmediate(done));
+      expect(stderr, stall).toBe("");
+      vi.advanceTimersByTime(1);
+      expect(await result, stall).toBe(1);
+      expect(stderr, stall).toBe(`設定ファイル ${configFile()} に最後の変更を保存できたか確かめられません\n`);
+      // rename の後で止めたときは、file はもう新しい中身（文は次の起動の値を言い切らない）。
+      if (stall === "directorySync") expect(readConfig()).toMatchObject({ notify: { eew: false } });
+      writes.release();
+      writes.stall = null;
+      vi.useRealTimers();
+      await vi.waitFor(() => expect(readConfig()).toMatchObject({ notify: { eew: false } }));
+      await vi.waitFor(() => expect(readdirSync(join(tmp, "fleq-next")).filter((name) => name.endsWith(".tmp"))).toEqual([]));
+    }
   });
 
   // P3-CLI-T06 acceptance (AC01・AC02)

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f34d1e0e1a12ed01f3524dc6daf4853e9894b8a",
-    "sha256": "453f8c7f63e329f747599d83d1b798c46b909bdea1ff401973b4c98770006f84",
+    "sha256": "1cd8028b89c04c33ec9aa92902cbf9fde24e4bc4921dde0e98ee95159484e660",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -260,7 +260,7 @@
           "reconstruction/src/http-sse/http-sse.ts:156 «4c335eb5a63bbcbf»",
           "reconstruction/src/http-sse/http-sse.ts:232 «8fbc11e774558249»",
           "reconstruction/src/host/host.ts:47 «c2af6b73061c7434»",
-          "reconstruction/src/host/host.ts:93 «5ea738152ce19a49»",
+          "reconstruction/src/host/host.ts:93 «dcad702d2191a3e9»",
           "reconstruction/test/eew-e01/host-launcher.mjs:46 «b1a566dd17f01cea»",
           "reconstruction/test/snapshot-sse/http-sse.test.ts:113 «aa26eb16336f26e6»",
           "reconstruction/contracts/p2-snapshot-sse.json:496 «9d4aca68f624519b»"

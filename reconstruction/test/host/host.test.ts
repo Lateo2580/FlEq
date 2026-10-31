@@ -1364,3 +1364,151 @@ describe("P3-CLOCK-CHECK-001 the host checks its clock against dmdata's times (P
     expect([deliveries.delivered, basisNow(), rest.calls.slice(callsAtAnswer)]).toEqual([0, "awaiting", ["delete:62"]]);
   });
 });
+
+describe("P3-CLI-REPL-001 発注 2 の host の command port（P3-CLI-T13 contractBoundary / AC16・AC13）", () => {
+  const begin = async (url: string, dirs: Awaited<ReturnType<typeof directories>>, extra: Partial<Pick<P2HostConfig, "notificationGate">> = {}) => {
+    const host = await startP2Host({ wsUrl: url, ...dirs, displayPort: null, clock, observe: null, ...extra });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    return host;
+  };
+  const statusOf = (port: number, path: string) => new Promise<number | undefined>((done, fail) => {
+    get({ host: "127.0.0.1", port, path, agent: false }, (response) => { response.resume(); done(response.statusCode); }).on("error", fail);
+  });
+  // 要求の header を途中まで書いて残す読みかけの接続（SSE の client の集合に入らない普通の接続）。node 19 以降の server.close() は idle の
+  // keep-alive の接続を自分で切るので、読み終えた接続では closeAllConnections を確かめられない。
+  const keepAlive = async (port: number) => {
+    const socket = await new Promise<Socket>((done, fail) => {
+      const opened = connect(port, "127.0.0.1", () => opened.write("GET /healthz HTTP/1.1\r\nHost: 127.0.0.1\r\n", () => done(opened)));
+      opened.on("error", () => {});
+      opened.once("error", fail);
+      cleanups.push(() => { opened.destroy(); });
+    });
+    // server が header の途中まで読むのを待つ（読む前は idle の接続として server.close() 自身が切ってしまう）。
+    await pause(200);
+    return socket;
+  };
+  const opened = async (host: Awaited<ReturnType<typeof begin>>) => {
+    const result = await host.openDisplay(0);
+    if (result.kind !== "opened") throw new Error(`display not opened: ${result.kind}`);
+    return result.port;
+  };
+
+  it("(a)(d)(e)(f) 表示は起動で開かず、開け閉めは 1 本に並び、keep-alive の接続も切って閉じる", async () => {
+    const server = await localServer();
+    const host = await begin(server.url, await directories());
+    expect(host.displayPort).toBeNull();
+    expect(host.status().display).toBeNull();
+    // (a)
+    const port = await opened(host);
+    expect(await statusOf(port, "/snapshot")).toBe(200);
+    expect(await host.openDisplay(0)).toEqual({ kind: "alreadyOpen", port });
+    expect(await host.closeDisplay()).toBe("closed");
+    await refused(port);
+    expect(host.status().display).toBeNull();
+    // (d) keep-alive の接続を残したまま閉じる
+    const second = await opened(host);
+    await keepAlive(second);
+    const closing = performance.now();
+    expect(await host.closeDisplay()).toBe("closed");
+    expect(performance.now() - closing).toBeLessThan(1_000);
+    // (e) 閉じている途中の openDisplay は close の終わりを待つ
+    const third = await opened(host);
+    const order: string[] = [];
+    const closed = host.closeDisplay().then((result) => { order.push(result); });
+    const reopened = host.openDisplay(0).then((result) => { order.push(result.kind); return result; });
+    await Promise.all([closed, reopened]);
+    expect(order).toEqual(["closed", "opened"]);
+    await refused(third);
+    // (f) close・open・stop の順に呼ぶと、open は stopping で、どの port も開いていない
+    const last = await reopened;
+    if (last.kind !== "opened") throw new Error("display not reopened");
+    await keepAlive(last.port);
+    void host.closeDisplay();
+    const late = host.openDisplay(0);
+    const stopped = host.stop();
+    expect(await late).toEqual({ kind: "stopping" });
+    await stopped;
+    await refused(last.port);
+    expect(host.status().display).toBeNull();
+  });
+
+  it("(d) keep-alive の接続を残したままでも stop() は終わる", async () => {
+    const server = await localServer();
+    const host = await begin(server.url, await directories());
+    const port = await opened(host);
+    await keepAlive(port);
+    await host.stop();
+    await refused(port);
+  });
+
+  it("(b) 切れた後の reconnect は 5 秒を待たずに繋ぎ直し、繋がっている間は何もしない", async () => {
+    const server = await localServer();
+    const host = await begin(server.url, await directories());
+    await until(() => server.sockets.length === 1 && host.status().connection === "connected");
+    expect(host.reconnect()).toBe("connected");
+    server.sockets[0].terminate();
+    await until(() => host.status().connection === "disconnected");
+    // close の処理（socket を外して 5 秒の timer を張る）まで待つ。閉じかけの間の retry は始めない（F1 の試験）。
+    await pause(200);
+    const asked = performance.now();
+    expect(host.reconnect()).toBe("started");
+    await until(() => server.sockets.length === 2 && host.status().connection === "connected");
+    expect(performance.now() - asked).toBeLessThan(4_000);
+    expect(host.reconnect()).toBe("connected");
+    await pause(300);
+    expect(server.sockets).toHaveLength(2);
+  });
+
+  it("(c) 門が止めた試行は adapter を呼ばず、notificationSuppressed に版と段を書く", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    await begin(server.url, dirs, { notificationGate: () => ({ allow: false, stage: "mute", settingsVersion: 2 }) });
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(dataFrame("VXSE43", vxse43));
+    await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("notificationSuppressed"));
+    expect(deliveries.delivered).toBe(0);
+    const line = (await diagnostics(dirs.diagnosticDirectory)).split("\n").find((text) => text.includes("notificationSuppressed"))!;
+    expect(JSON.parse(line)).toMatchObject({ level: "INFO", component: "host", reason: "notificationSuppressed", unit: "U-E", generation: 2, count: 3 });
+  });
+
+  // 実不具合の再発防止（レビュー r0 の F1）: 相手の close frame の後、TCP の close が遅れて届く間の retry と、その close が張る timer で
+  // 試行が 2 本走り、stop が片方の接続しか片付けなかった。
+  it("閉じかけの WS の間の retry は始めず、遅れた close の後の試行は 1 本で、stop の後に接続が残らない", async () => {
+    const wss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    await new Promise((done) => wss.once("listening", done));
+    const raws: Socket[] = [];
+    wss.on("connection", (ws, request) => { ws.on("error", () => {}); raws.push(request.socket); });
+    cleanups.push(() => new Promise<void>((done) => { for (const raw of raws) raw.destroy(); wss.close(() => done()); }));
+    let hold: Promise<void> = Promise.resolve();
+    let release = () => {};
+    let id = 0;
+    rest.list = async () => { await hold; return { kind: "ok", sockets: [], date: null }; };
+    rest.start = async () => ({ kind: "ok", id: ++id, url: `ws://127.0.0.1:${(wss.address() as AddressInfo).port}/`, protocol: [] });
+    rest.close = async () => ({ kind: "ok" });
+    const host = await startP2Host({ dmdata: subscription, ...await directories(), displayPort: null, clock, observe: null });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    // 途中で落ちても止めた一覧の答えを開ける（cleanups は後ろから走るので stop より先）。
+    cleanups.push(() => { release(); });
+    await until(() => raws.length === 1 && host.status().connection === "connected");
+    // 以後の一覧の答えを止め、試行が始まったら REST の段で待たせる（直す前はここで 2 本目が重なった）。
+    hold = new Promise<void>((done) => { release = done; });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    // server は client の close frame を読まずに close frame だけ送る（client は CLOSING のまま TCP の close を待つ）。
+    raws[0].pause();
+    raws[0].write(Buffer.from([0x88, 0x00]));
+    await until(() => host.status().connection === "disconnected");
+    expect(host.reconnect()).toBe("connecting");
+    raws[0].destroy();
+    // ws の閉じる待ちの timer も fake なので、timer の数では待てない。close の処理を実時間で待つ。
+    await pause(300);
+    vi.advanceTimersByTime(5_000);
+    expect(host.reconnect()).toBe("connecting");
+    release();
+    await until(() => raws.length === 2 && host.status().connection === "connected");
+    await pause(300);
+    expect([rest.calls.filter((call) => call === "start").length, raws.length]).toEqual([2, 2]);
+    await host.stop();
+    await pause(300);
+    expect(raws.filter((raw) => !raw.destroyed && !raw.readableEnded)).toEqual([]);
+  });
+});
