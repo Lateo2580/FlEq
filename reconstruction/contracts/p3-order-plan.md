@@ -447,7 +447,7 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 | 消えた理由と欠けの件数のお知らせ | `P2-SNAPSHOT-SSE-001`（P2-A8-NOTICE、Q-NOTICE-UX） | H17、H39、H11（画面のお知らせも作るとき） | A8 の表示 wire に永続 schema の移行は無い。再起動後もまとめを残すかは未定 |
 | 地震の取消の印と保持件数 | `P3-UNIT-Q-001`（P3-C7-CANCEL-SCOPE、P3-C7-CAPACITY） | H18、H36 | 取消表示の recent.cancelled は既存。取消による件数の補正は別で、旧 count は取消を引かず recent は 5 件なので、旧集計を完全には直せない |
 | 南海トラフの情報系列の保存 | `P3-UNIT-N-001`（P3-C8-SUBJECTS、288 KiB の予算） | H30 | 有り |
-| 接続の間隔、繋がらない理由、切断の時刻 | `P3-DMDATA-CONNECT-001`（P3-C2-RETRY、P3-C2-RECOVERY） | H24、H26、H29 | 無し |
+| 接続の間隔、繋がらない理由、切断の時刻 | `P3-DMDATA-CONNECT-001`（P3-C2-RETRY、P3-C2-RECOVERY）。新しい契約 `P3-DMDATA-CONNECT-002`（p3-dmdata-connect-002.json）で改める。baseOid は C18 発注 2 の配送の後に取る（P3-DC2-D-ORDER） | H24、H26、H29 | 無し |
 | 取り直しの全分野化 | 各 unit の N2（P3-C7-N2、P3-C8-N2、P3-C9-N2、P3-C10-N2〜P3-C14-N2）、各 unit の recovery の通知（`P3-TSUNAMI-UNIT-001` ほか）。C16 と一緒に | H26、H27 | 未定（保存境界が決まってから） |
 | snapshot で EEW・地震・津波を要約に落とさない | `P2-SNAPSHOT-SSE-001`（`P2-A8-RES-06` の分野の優先）、`P3-DISASTER-CAPACITY-001`（この線で測り直す） | H37 | 無し |
 | 容量を先に取る | 新しい契約。`P3-CURRENCY-COVERAGE-001`（最後の網として残す）、`P3-EEW-GATE-EVICT-001`、`P3-TSUNAMI-UNIT-001`・`P3-UNIT-Q-001` の容量の分岐 | H35 | 未定（採用容量が決まってから） |

@@ -18,3 +18,7 @@ export type DmdataSubscription = Readonly<{
 // P3-CLI-REPL-001（C18）の --test と設定の testMode。socket start の test にそのまま渡す（P3-CLI-D-TEST）。
 // C18（P3-CLI-REPL-001）の発注 1 が DmdataSubscription の classifications の後に testMode?: DmdataTestMode を足した（省略は no）。
 export type DmdataTestMode = "no" | "including" | "only";
+
+// P3-DMDATA-CONNECT-002（P3-DC2-D-REASON）: 最後に終わった接続の失敗の理由。HostStatus.lastFailure に載せ、文と手引きは C19 が出す。
+// dmdata は dmdata が答えたが受け付けなかった（401・403 以外の非 2xx、形の不正）、network は答えが来なかった（WS の段の失敗を含む）。
+export type DmdataConnectFailure = "network" | "dmdata" | "authRejected" | "capacity" | "startUncertain";
