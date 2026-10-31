@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "02c67b468b5c4cd4009525b0ee7e5a91730bf7c89521a0722545632674d48daa",
+    "sha256": "7948fdc9eeaad34ce964aeab99acf33a3b48c6fe7b0ce7c0e4730db9d27a7a06",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -83,7 +83,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 r0 の指摘）",
         "ruling": "レビュー r0 の指摘（品質 P2-2・契約適合 P3-1）を統合担当が採用（2026-10-31）",
-        "reason": "B は、reconnect() で timer を取り消して試す経路・Retry-After の下限 5 秒・過負荷からの戻り（resumeIfDrained、host.ts:263。timer も failedAttempts も通らない）で、読む間に切れて繋がり直した 1 回を見落とす。数える所が host の 1 か所なら、読む周期に依らず切断を数えられる"
+        "reason": "B は、reconnect() で timer を取り消して試す経路・Retry-After の下限 5 秒・過負荷からの戻り（resumeIfDrained、host.ts:258〜:263。timer も failedAttempts も通らない）で、読む間に切れて繋がり直した 1 回を見落とす。数える所が host の 1 か所なら、読む周期に依らず切断を数えられる"
       },
       {
         "id": "P3-DC2-D-RESET",
@@ -105,6 +105,14 @@
         "closed": "P3-DC2-D-BACKOFF は A に段を 1 つ足して採る: 5 秒から倍々で 60 秒まで、60 秒の待ちが 10 回続いた後（n ≥ 15）は 120 秒ごと。数え方は P3-DC2-D-COUNT（timer を張る時に増やす。0 に戻す時は後に P3-DC2-D-RESET で、60 秒以上続いた接続を失った時に改めた）。Retry-After があればその値、{ wsUrl } は固定 5 秒のまま。裁定の前に、起草で見つけた前提の訂正（REST が通って WS の段だけ落ち続ける場面では、今の 5 秒の待ちが 5 回目から 60 秒になる）を場面つきで作者に見せた。AC01・RES-01・T05・残存リスク (1) をこの段に合わせた",
         "remaining": "なし",
         "reason": "D-BACKOFF の前提の訂正を作者に見せて裁定を受けた記録"
+      },
+      {
+        "id": "Q-DC2-ANCHORS",
+        "status": "closed",
+        "source": "C18 発注 2 の配送 33a6f9cc の後に統合担当が branch c2-draft を載せ直した版（HEAD 2355b12e）での照らし直し（2026-10-31）",
+        "closed": "(1) 本契約の «» の参照 68 件（異なり、host.ts 25 件）を今の行で照らし、5 件を付け直した: p3-cli-repl.json の P3-CLI-AC16 の requirement が :971 から :979 へ（中身も変わった）、p3-cli-repl.types.ts の failedAttempts が :82 から :84 へ、host.ts:239（startAttempt）と :244（startConnect）は C18 が中身を書き換えたので新しい «»、host.ts:263（resumeIfDrained の startConnect();）は C18 の reconnect の :650 と同じ中身になり一意でなくなったので、同じ関数の一意な行 :258（function resumeIfDrained）を引き、地の文は :258〜:263 とした。本文の地の文の番号も合わせた（:263→:258〜:263、types.ts:81→:83、p3-cli-repl.json の (:971)→(:979)、let の欄は :210）。ほかの 63 件は今の行に一意に一致した (2) AC06 を C18 の後の版で数え直した: 他の契約が «» で引く範囲の行は :228・:280・:282・:283・:364・:368・:385・:395・:406・:581・:583・:589 の 12 行で、どれも一致する（:589 は p3-replay-cli.json:330 が引く C18 の区画の先頭のコメント）。return は :657 で、その直前に行を足しても他の契約の «» はずれない（付け直し 0 件、起草の時の見込みの 1 件は C18 の配送で :589 が区画の先頭に移ったので無くなった） (3) AC05 の (j) を今の host.ts で照らした: reconnect() は停止中なら stopping、socket が OPEN なら connected、試行の最中か socket が null でない（CLOSING を含む）なら connecting を返して始めない（:643〜:647）。overload の片付け中は draining（:648）。ほかは timer を clearTimeout して null にしてから（:649）、試行の共通の入口 startConnect を呼ぶ（:650）。startConnect は試行の最中・socket が null でない・停止中なら何もしない（:244）。scheduleReconnect は停止中か timer がある時は張らない（:253）。timer は 1 本、止めた timer は発火しない、CLOSING の間に試行が重ならない、の 3 つが (a)〜(j) の列と合う。食い違いは 0。C18 は failedAttempts を :239 の試行の終わりで数えている（opened で 0）ので、本契約の実装がそれを AC02 の数え方に移す（AC02 の (1)）",
+        "remaining": "なし",
+        "reason": "baseOid の割当を止めていた未決（C18 発注 2 の配送の後の照らし直し）を閉じる"
       }
     ],
     "operationContract": {
@@ -226,7 +234,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-DC2-AC01",
-        "requirement": "繋ぎ直しの待ち（P3-DC2-D-BACKOFF、H26）: { dmdata } の待ちは、n＝繋ぎ直しの数（P3-DC2-D-COUNT、timer を張る時に増やした後の値。表示の failedAttempts とは AC02 の (2') だけが違う）として、n ≤ 14 なら min(5_000 × 2^(n−1), 60_000) ms、n ≥ 15 なら 120_000 ms（n＝1 で 5 秒、2 で 10 秒、3 で 20 秒、4 で 40 秒、5〜14 で 60 秒（60 秒の待ちが 10 回）、15 以上で 120 秒。切断（か起動の最初の試行の失敗）から、繋ぎ直しの n 回目の試行（起動の最初の試行は数えない。起動から通しで数えると n＋1 回目）までの時間は、n＝1 で 5 秒後、2 で 15 秒後、3 で 35 秒後、4 で 75 秒後、5 で 135 秒後、14 で 675 秒後（11 分 15 秒）、15 で 795 秒後、16 で 915 秒後。境目は n＝14 の 60 秒と n＝15 の 120 秒。n が 0 に戻ると〔P3-DC2-D-RESET〕5 秒から数え直す）。その試行の REST の失敗の答えに retryAfterMs があれば、その値を下限 5 秒・上限 2,147,483,647 ms（Node の setTimeout が受ける最大、約 24.8 日）に収めて使う（一覧 2 本の両方にあれば大きい方。recovery.ts:243 と同じく上書きで、式との大きい方は取らない）。下限は、Retry-After: 0〜4 で一覧を連打しないため（前例は recovery.ts:245 の GAP_MS の下限）。上限は、Node の setTimeout が 2^31−1 ms を越える値を 1 ms にして即時に発火するため（dmdata-rest.ts:137 は 9 桁の秒まで読む）。前例の recovery の lane は大きい値を丸めず、その間は待つ（recovery.ts:243・:245）ので、ここも約 24.8 日までは丸めず従う。timer は 1 本のまま分けず、n はふつうに 1 つ増える。負の値と秒でない形は dmdata-rest.ts:137 が null にするので、式の値になる。WS の段の失敗と、Retry-After の無い REST の失敗は式の値。今の 2 つの定数（RECONNECT_MS 5 秒・REST_RETRY_MS 60 秒、:23・:25）は、式の始まり 5 秒・倍々の上限 60 秒・60 秒を使う回数 10・その後の 120 秒に置き換える（定数の行の中身を変える。行は足さず、1 行に並べてよい）。open の後の close（:418 の scheduleReconnect(RECONNECT_MS)）も同じ式を通す。{ wsUrl } は固定 5 秒のまま（P2-A10-HOST、P3-C2-AC10 の eew-e01 の試験の期待を変えない）。401・403 では timer を張らない（今のまま）。過負荷の後の繋ぎ直し（:263 の resumeIfDrained の startConnect）は今のまま timer を通らない。初回の { dmdata } の失敗（:585〜:587）は今と同じく reject せずに dispatchLost と同じ式の待ちに入る（n＝1 で 5 秒。今は REST の段なら 60 秒）",
+        "requirement": "繋ぎ直しの待ち（P3-DC2-D-BACKOFF、H26）: { dmdata } の待ちは、n＝繋ぎ直しの数（P3-DC2-D-COUNT、timer を張る時に増やした後の値。表示の failedAttempts とは AC02 の (2') だけが違う）として、n ≤ 14 なら min(5_000 × 2^(n−1), 60_000) ms、n ≥ 15 なら 120_000 ms（n＝1 で 5 秒、2 で 10 秒、3 で 20 秒、4 で 40 秒、5〜14 で 60 秒（60 秒の待ちが 10 回）、15 以上で 120 秒。切断（か起動の最初の試行の失敗）から、繋ぎ直しの n 回目の試行（起動の最初の試行は数えない。起動から通しで数えると n＋1 回目）までの時間は、n＝1 で 5 秒後、2 で 15 秒後、3 で 35 秒後、4 で 75 秒後、5 で 135 秒後、14 で 675 秒後（11 分 15 秒）、15 で 795 秒後、16 で 915 秒後。境目は n＝14 の 60 秒と n＝15 の 120 秒。n が 0 に戻ると〔P3-DC2-D-RESET〕5 秒から数え直す）。その試行の REST の失敗の答えに retryAfterMs があれば、その値を下限 5 秒・上限 2,147,483,647 ms（Node の setTimeout が受ける最大、約 24.8 日）に収めて使う（一覧 2 本の両方にあれば大きい方。recovery.ts:243 と同じく上書きで、式との大きい方は取らない）。下限は、Retry-After: 0〜4 で一覧を連打しないため（前例は recovery.ts:245 の GAP_MS の下限）。上限は、Node の setTimeout が 2^31−1 ms を越える値を 1 ms にして即時に発火するため（dmdata-rest.ts:137 は 9 桁の秒まで読む）。前例の recovery の lane は大きい値を丸めず、その間は待つ（recovery.ts:243・:245）ので、ここも約 24.8 日までは丸めず従う。timer は 1 本のまま分けず、n はふつうに 1 つ増える。負の値と秒でない形は dmdata-rest.ts:137 が null にするので、式の値になる。WS の段の失敗と、Retry-After の無い REST の失敗は式の値。今の 2 つの定数（RECONNECT_MS 5 秒・REST_RETRY_MS 60 秒、:23・:25）は、式の始まり 5 秒・倍々の上限 60 秒・60 秒を使う回数 10・その後の 120 秒に置き換える（定数の行の中身を変える。行は足さず、1 行に並べてよい）。open の後の close（:418 の scheduleReconnect(RECONNECT_MS)）も同じ式を通す。{ wsUrl } は固定 5 秒のまま（P2-A10-HOST、P3-C2-AC10 の eew-e01 の試験の期待を変えない）。401・403 では timer を張らない（今のまま）。過負荷の後の繋ぎ直し（:258〜:263 の resumeIfDrained の startConnect）は今のまま timer を通らない。初回の { dmdata } の失敗（:585〜:587）は今と同じく reject せずに dispatchLost と同じ式の待ちに入る（n＝1 で 5 秒。今は REST の段なら 60 秒）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3053 «3e4160c7f8b143e5»",
           "docs/specs/reconstruction-p0-contracts.md:3117 «3bab2af5f48175fb»",
@@ -235,7 +243,7 @@
           "reconstruction/src/host/host.ts:248 «27cf612a89a223f7»",
           "reconstruction/src/host/host.ts:249 «e021b9fba4d0f6e9»",
           "reconstruction/src/host/host.ts:418 «70bb43a209698e00»",
-          "reconstruction/src/host/host.ts:263 «594c0a21864d786c»",
+          "reconstruction/src/host/host.ts:258 «62853b0fea215cc1»",
           "reconstruction/src/host/host.ts:587 «98104048db3c9a8c»",
           "reconstruction/src/recovery/recovery.ts:243 «8be62ae98228bf60»",
           "reconstruction/src/recovery/recovery.ts:244 «58a29e65382e3a74»",
@@ -247,19 +255,21 @@
       },
       {
         "id": "P3-DC2-AC02",
-        "requirement": "繋ぎ直しの数（P3-DC2-D-COUNT）: 繋ぎ直しの数 n は host の run の中だけの数（保存しない）。(1) 増やすのは scheduleReconnect が新しい timer を張る時の 1 か所だけ。停止中（stopping != null）と、既に timer がある時（:253）は張らず、数えない。試行が走っている間は timer を張る経路が無い（AC05 の (j)、P3-CLI-AC16 の (6)、C18 発注 2 の配送 7460583f で改訂） (2) n を 0 に戻すのは、確立した接続を失った時（dispatchLost の中、AC09 の確立した時刻があるとき）に、『失った時の monotonic − 確立した時刻』が 60_000 ms 以上だった時だけ（P3-DC2-D-RESET）。時刻は host の config.clock() の monotonicMs（onFrame の entry と生存監視の lastFrameAt と同じ時計） で、失った時の値は dispatchLost が connectionLost に渡す clock() の読みを使う。60 秒より短ければ数え続ける。比べは dispatchLost の 1 回で、timer を足さない。比べの後に timer を張るので、長く続いた接続を失った後の待ちは n＝1 の 5 秒。{ wsUrl } は open（:409）で 0 に戻す（固定 5 秒、P2-A10-HOST） (2') HostStatus.failedAttempts は、確立している間（確立した時刻がある間）は 0、ほかは n。繋がっている間の REPL の status に『再接続試行: #n』を出さないため（P3-CLI-AC14 の (3)。旧築は open で 0、ws-client.ts:381） (3) 数えないもの: 401・403（timer を張らない）、過負荷の切断（timer を通らない）、停止の後の試行の終わり (4) C18 の reconnect()（P3-CLI-D-O2-RETRY）は timer を止めて試みを始めるだけで数を変えない。その試みが失敗すれば (1) で 1 つ増える (5) HostStatus.failedAttempts のコメント（p3-cli-repl.types.ts:81）と C18 の P3-CLI-AC16 の (7) の定義を、この定義に改める（コメントは実装、条文は AC08 の (2)）。REPL の status の『再接続試行: #n』（P3-CLI-AC14 の (3)、1 以上で出す）の文は変えない",
+        "requirement": "繋ぎ直しの数（P3-DC2-D-COUNT）: 繋ぎ直しの数 n は host の run の中だけの数（保存しない）。(1) 増やすのは scheduleReconnect が新しい timer を張る時の 1 か所だけ（C18 発注 2 が :239 の試行の終わりで数えている所〔opened で 0、ほかで 1 増やす〕は除き、この 1 か所に移す）。停止中（stopping != null）と、既に timer がある時（:253）は張らず、数えない。試行が走っている間は timer を張る経路が無い（AC05 の (j)、P3-CLI-AC16 の (6)、C18 発注 2 の配送 7460583f で改訂） (2) n を 0 に戻すのは、確立した接続を失った時（dispatchLost の中、AC09 の確立した時刻があるとき）に、『失った時の monotonic − 確立した時刻』が 60_000 ms 以上だった時だけ（P3-DC2-D-RESET）。時刻は host の config.clock() の monotonicMs（onFrame の entry と生存監視の lastFrameAt と同じ時計） で、失った時の値は dispatchLost が connectionLost に渡す clock() の読みを使う。60 秒より短ければ数え続ける。比べは dispatchLost の 1 回で、timer を足さない。比べの後に timer を張るので、長く続いた接続を失った後の待ちは n＝1 の 5 秒。{ wsUrl } は open（:409）で 0 に戻す（固定 5 秒、P2-A10-HOST） (2') HostStatus.failedAttempts は、確立している間（確立した時刻がある間）は 0、ほかは n。繋がっている間の REPL の status に『再接続試行: #n』を出さないため（P3-CLI-AC14 の (3)。旧築は open で 0、ws-client.ts:381） (3) 数えないもの: 401・403（timer を張らない）、過負荷の切断（timer を通らない）、停止の後の試行の終わり (4) C18 の reconnect()（P3-CLI-D-O2-RETRY）は timer を止めて試みを始めるだけで数を変えない。その試みが失敗すれば (1) で 1 つ増える (5) HostStatus.failedAttempts のコメント（p3-cli-repl.types.ts:83）と C18 の P3-CLI-AC16 の (7) の定義を、この定義に改める（コメントは実装、条文は AC08 の (2)）。REPL の status の『再接続試行: #n』（P3-CLI-AC14 の (3)、1 以上で出す）の文は変えない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:253 «b5c88d613d98209e»",
           "reconstruction/src/host/host.ts:254 «6c236944c4b124dd»",
           "reconstruction/src/host/host.ts:285 «46bd0b7da169ddfa»",
           "reconstruction/src/host/host.ts:409 «1dc26a76a3bc0ab8»",
-          "reconstruction/contracts/p3-cli-repl.types.ts:82 «49ab626c97332de4»",
-          "reconstruction/contracts/p3-cli-repl.json:971 «6da857517933f419»",
+          "reconstruction/contracts/p3-cli-repl.types.ts:84 «49ab626c97332de4»",
+          "reconstruction/contracts/p3-cli-repl.json:979 «8d37ba1b8f7aac12»",
           "src/dmdata/ws-client.ts:381 «5f931d6f39f49cb0»",
           "src/dmdata/ws-client.ts:604 «6d9e94c28b45fc6b»",
           "src/ui/repl-handlers/info-handlers.ts:495 «375523484fb02438»",
           "reconstruction/src/host/host.ts:233 «35363c2f74266d26»",
-          "reconstruction/src/host/host.ts:470 «def569e75c9e71d6»"
+          "reconstruction/src/host/host.ts:470 «def569e75c9e71d6»",
+          "reconstruction/src/host/host.ts:210 «96928332e066bd91»",
+          "reconstruction/src/host/host.ts:654 «e6c10ce211eab4aa»"
         ]
       },
       {
@@ -271,7 +281,7 @@
           "reconstruction/src/host/dmdata-rest.ts:67 «c0e0358fc4f7611b»",
           "reconstruction/src/host/dmdata-rest.ts:81 «72703f5ebb1947b8»",
           "reconstruction/src/host/dmdata-rest.ts:124 «01de8c9fb7584965»",
-          "reconstruction/src/host/host.ts:239 «c62013249c4a9a1d»",
+          "reconstruction/src/host/host.ts:239 «ac77e2559468fad8»",
           "reconstruction/src/host/host.ts:363 «d89fc5d83bb1c23a»",
           "reconstruction/src/host/host.ts:365 «5c396e09f02ca876»",
           "reconstruction/src/host/host.ts:366 «fe34efa13ed549e1»",
@@ -300,27 +310,31 @@
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:208 «d4e90dd82533f3b2»",
           "reconstruction/src/host/host.ts:233 «35363c2f74266d26»",
-          "reconstruction/src/host/host.ts:244 «f2815e4b9fe4ce37»",
+          "reconstruction/src/host/host.ts:244 «e8cc0ff19d87c7d8»",
           "reconstruction/src/host/host.ts:253 «b5c88d613d98209e»",
           "reconstruction/src/host/host.ts:254 «6c236944c4b124dd»",
-          "reconstruction/src/host/host.ts:263 «594c0a21864d786c»",
+          "reconstruction/src/host/host.ts:258 «62853b0fea215cc1»",
           "reconstruction/src/host/host.ts:285 «46bd0b7da169ddfa»",
           "reconstruction/src/host/host.ts:414 «4f5ab210377cc07e»",
           "reconstruction/src/host/host.ts:418 «70bb43a209698e00»",
           "reconstruction/src/host/host.ts:470 «def569e75c9e71d6»",
-          "reconstruction/contracts/p3-cli-repl.json:971 «6da857517933f419»"
+          "reconstruction/contracts/p3-cli-repl.json:979 «8d37ba1b8f7aac12»",
+          "reconstruction/src/host/host.ts:647 «6daea54468514f42»",
+          "reconstruction/src/host/host.ts:649 «0233faeeb2eae147»"
         ]
       },
       {
         "id": "P3-DC2-AC06",
-        "requirement": "行の決まり（P3-DC2-D-ORDER）: host.ts は C18 発注 2 の配送の後の版を元にし、行を足すのは startP2Host の return の行の直前（C18 の P3-CLI-D-O2-HOST-LINES と同じ所。hoist される function の宣言だけ）だけにする。ほかの行は中身を書き換えてよいが、行を足さず消さない。中身を変えない行: host.ts の :228・:280・:282・:283・:364・:368・:385・:395・:406・:581・:583（今の番号。他の契約が «» で引く行で、この契約の変更の範囲の近くにあるもの）。このため Attempt の \"retrySoon\"（:406・:413）と \"authRejected\"（:364・:581）の字は残し、\"retryLater\" の所（:51・:249・:366）を、失敗の理由と retryAfterMs を運ぶ形に書き換える。状態の欄（failedAttempts は C18 が置く。lastFailure は本契約）は既存の let の行（例 :208）の末尾に並べる。dmdata-rest.ts・composition-root.ts も行の数を変えない（dmdata-rest.ts を «» で引くのは :6・:11・:52・:66・:91・:121・:140 で、変える行に当たらない）。p3-cli-repl.types.ts は HostStatus に 3 欄（とコメント）の行を足してよい（この file を行で引く参照は 0）。今の番号での見込み: 他の契約の «» で中身かずれで FAIL になるのは、return の前に行を足したときの return の行を引く 1 件（p3-replay-cli.json:330、C18 の配送で付け直した後のもの）だけ。行の番号と件数は C18 発注 2 の配送の後の発注前点検で数え直す（Q-DC2-ANCHORS）",
+        "requirement": "行の決まり（P3-DC2-D-ORDER）: host.ts は C18 発注 2 の配送（33a6f9cc）の後の版を元にし、行を足すのは startP2Host の return の行（:657）の直前（C18 の P3-CLI-D-O2-HOST-LINES の区画の中。hoist される function の宣言だけ）だけにする。ほかの行は中身を書き換えてよいが、行を足さず消さない。中身を変えない行: host.ts の :228・:280・:282・:283・:364・:368・:385・:395・:406・:581・:583・:589（C18 発注 2 の配送の後の番号で照らした。他の契約が «» で引く行で、この契約の変更の範囲の近くにあるもの。:589 は C18 が足した区画の先頭のコメントの行で、p3-replay-cli.json:330 が引く）。このため Attempt の \"retrySoon\"（:406・:413）と \"authRejected\"（:364・:581）の字は残し、\"retryLater\" の所（:51・:249・:366）を、失敗の理由と retryAfterMs を運ぶ形に書き換える。状態の欄（failedAttempts は C18 が :210 に置いた。lastFailure・lostConnections・確立した時刻は本契約）は既存の let の行（:210 か :208）の末尾に並べる。dmdata-rest.ts・composition-root.ts も行の数を変えない（dmdata-rest.ts を «» で引くのは :6・:11・:52・:66・:91・:121・:140 で、変える行に当たらない）。p3-cli-repl.types.ts は HostStatus に 3 欄（とコメント）の行を足してよい（この file を行で引く参照は 0）。C18 発注 2 の配送の後の版で数え直した見込み（Q-DC2-ANCHORS）: 他の契約が «» で引く host.ts の行のうちこの範囲にあるのは上の 12 行で、どれも今の行に一意に一致する。return（:657）の直前に行を足しても、ずれるのは :657〜:661 で、そこを «» で引く他の契約は 0 なので、他の契約の付け直しは 0 件。FAIL になりうるのは、本契約が引く行のうち実装が中身を変えた行だけ（配送で統合担当が付け直す）",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:51 «588d7b6d75fea64e»",
           "reconstruction/src/host/host.ts:406 «99d0301e5b61f93b»",
           "reconstruction/src/host/host.ts:413 «6b3cd7da512a7baa»",
           "reconstruction/src/host/host.ts:581 «55fd8425a0e9b014»",
           "reconstruction/src/host/host.ts:208 «d4e90dd82533f3b2»",
-          "reconstruction/contracts/p3-cli-repl.json:971 «6da857517933f419»"
+          "reconstruction/contracts/p3-cli-repl.json:979 «8d37ba1b8f7aac12»",
+          "reconstruction/src/host/host.ts:210 «96928332e066bd91»",
+          "reconstruction/src/host/host.ts:657 «0d3cc53c9450c53c»"
         ]
       },
       {
@@ -338,13 +352,13 @@
       },
       {
         "id": "P3-DC2-AC08",
-        "requirement": "改める他の条文と統合担当の記録。原文は重ねて読み替えず、配送の commit で統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）: (1) P3-DMDATA-CONNECT-001: P3-C2-RETRY の A の間隔の部分（固定 5 秒・固定 60 秒・backoff の状態を持たない）と reason の『定数 2 つで抑える』に、P3-DMDATA-CONNECT-002 の P3-DC2-D-BACKOFF で改めた旨と新しい式を書く。P3-C2-RES-06（:281）の scope を同じ式に。P3-C2-UNCERTAIN-RECEIVE（:66）と P3-C2-START-UNCERTAIN の『60 秒後』を『P3-DC2-D-BACKOFF の待ちの後』に。outOfScope の『再接続の指数backoff・jitter・REST再試行（P3-C2-RETRY）』（:308）を『jitter・REST 再試行（P3-C2-RETRY）。間隔を延ばすのは P3-DMDATA-CONNECT-002』に。P3-C2-AC02（:332）の『固定60秒後』『固定5秒後』と、初回の失敗の『通常の周期（REST段と容量は60秒、WSは5秒）』を『P3-DC2-D-BACKOFF の待ち』に。P3-C2-RES-04（:264）の『5秒後に次の試行』を『P3-DC2-D-BACKOFF の待ちの後に次の試行』に。P3-C2-T02（:443）と P3-C2-T07（:484）の behavior の『60秒後』を、P3-DMDATA-CONNECT-002 の AC07 の (3) で改めた後の境目に。questionResolutions の Q-C2-DMDATA-BEHAVIOR の remaining の『RES-06（Retry-After 未確認の 60 秒）』に、Retry-After は P3-DC2-D-BACKOFF で読むと足す (2) P3-CLI-REPL-001: P3-CLI-AC16 の (7) の failedAttempts の定義を AC02 の定義（(2') の投影を含む）に替え、lastFailure・lastFrameWallMs・lostConnections の 3 欄を足す（:971）。P3-CLI-AC16 の (6)（reconnect() は CLOSING の間は試行を始めず connecting を返し、試行の共通の入口で試行・socket・停止を確かめ直す）は C18 発注 2 の配送 7460583f の改訂で入るので、本契約では改めない (3) P3-RECOVERY-001: outOfScope の『接続の間隔を少しずつ延ばす直し（P3-C2-RETRY の変更の契約…）』（:989）に、引受先 P3-DMDATA-CONNECT-002 を足す。P3-REC-D-WINDOW の reason（:291）の『繋ぎ直しの間隔は 5 秒（host.ts の RECONNECT_MS）で…10 分に 100 回を越えて』に、P3-DMDATA-CONNECT-002 の後は、切られ続けると、start の前でも、start の受理から 60 秒より前でも待ちが延びて 10 分に 12 回ほどになり（P3-DC2-D-RESET）、60 秒以上続いた接続が落ちた時だけ 5 秒から数え直すので、A（窓 1 つ）の結論は変わらない旨を足す (4) spec: 16.2.3 の :3117 と §16 の H24・H26・H29 の行（:3051・:3053・:3056）の契約の欄に P3-DMDATA-CONNECT-002 を足す。H25 の行（:3052）の『回数を view に載せるなら P3-DMDATA-CONNECT-001』を『回数の材料は P3-DMDATA-CONNECT-002 の HostStatus.lostConnections（view には載せない）』に (5) 計画 p3-order-plan.md の『接続の間隔、繋がらない理由、切断の時刻』の行は本契約の起草の commit で改めた (6) P2-EEW-E01-001 の P2-A10-HOST（固定 5 秒、backoff を作らない）は { wsUrl } の決まりとして残り、改めない (7) C19（P3-TERMINAL-OUTPUT-001）の起草に渡すこと: H24 の文と 1 回の切断に 1 回のデスクトップ通知、H25、H29 の文と手引きは HostStatus の connection・failedAttempts・lastFailure・lastFrameWallMs・lostConnections を材料にする（変化を知らせる口は無いので、status() を周期で聞く。1 回の切断に 1 回の通知は lostConnections の前に読んだ値との差で数え、読む周期に依らない。AC09）",
+        "requirement": "改める他の条文と統合担当の記録。原文は重ねて読み替えず、配送の commit で統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）: (1) P3-DMDATA-CONNECT-001: P3-C2-RETRY の A の間隔の部分（固定 5 秒・固定 60 秒・backoff の状態を持たない）と reason の『定数 2 つで抑える』に、P3-DMDATA-CONNECT-002 の P3-DC2-D-BACKOFF で改めた旨と新しい式を書く。P3-C2-RES-06（:281）の scope を同じ式に。P3-C2-UNCERTAIN-RECEIVE（:66）と P3-C2-START-UNCERTAIN の『60 秒後』を『P3-DC2-D-BACKOFF の待ちの後』に。outOfScope の『再接続の指数backoff・jitter・REST再試行（P3-C2-RETRY）』（:308）を『jitter・REST 再試行（P3-C2-RETRY）。間隔を延ばすのは P3-DMDATA-CONNECT-002』に。P3-C2-AC02（:332）の『固定60秒後』『固定5秒後』と、初回の失敗の『通常の周期（REST段と容量は60秒、WSは5秒）』を『P3-DC2-D-BACKOFF の待ち』に。P3-C2-RES-04（:264）の『5秒後に次の試行』を『P3-DC2-D-BACKOFF の待ちの後に次の試行』に。P3-C2-T02（:443）と P3-C2-T07（:484）の behavior の『60秒後』を、P3-DMDATA-CONNECT-002 の AC07 の (3) で改めた後の境目に。questionResolutions の Q-C2-DMDATA-BEHAVIOR の remaining の『RES-06（Retry-After 未確認の 60 秒）』に、Retry-After は P3-DC2-D-BACKOFF で読むと足す (2) P3-CLI-REPL-001: P3-CLI-AC16 の (7) の failedAttempts の定義を AC02 の定義（(2') の投影を含む）に替え、lastFailure・lastFrameWallMs・lostConnections の 3 欄を足す（:979）。P3-CLI-AC16 の (6)（reconnect() は CLOSING の間は試行を始めず connecting を返し、試行の共通の入口で試行・socket・停止を確かめ直す）は C18 発注 2 の配送 7460583f の改訂で入るので、本契約では改めない (3) P3-RECOVERY-001: outOfScope の『接続の間隔を少しずつ延ばす直し（P3-C2-RETRY の変更の契約…）』（:989）に、引受先 P3-DMDATA-CONNECT-002 を足す。P3-REC-D-WINDOW の reason（:291）の『繋ぎ直しの間隔は 5 秒（host.ts の RECONNECT_MS）で…10 分に 100 回を越えて』に、P3-DMDATA-CONNECT-002 の後は、切られ続けると、start の前でも、start の受理から 60 秒より前でも待ちが延びて 10 分に 12 回ほどになり（P3-DC2-D-RESET）、60 秒以上続いた接続が落ちた時だけ 5 秒から数え直すので、A（窓 1 つ）の結論は変わらない旨を足す (4) spec: 16.2.3 の :3117 と §16 の H24・H26・H29 の行（:3051・:3053・:3056）の契約の欄に P3-DMDATA-CONNECT-002 を足す。H25 の行（:3052）の『回数を view に載せるなら P3-DMDATA-CONNECT-001』を『回数の材料は P3-DMDATA-CONNECT-002 の HostStatus.lostConnections（view には載せない）』に (5) 計画 p3-order-plan.md の『接続の間隔、繋がらない理由、切断の時刻』の行は本契約の起草の commit で改めた (6) P2-EEW-E01-001 の P2-A10-HOST（固定 5 秒、backoff を作らない）は { wsUrl } の決まりとして残り、改めない (7) C19（P3-TERMINAL-OUTPUT-001）の起草に渡すこと: H24 の文と 1 回の切断に 1 回のデスクトップ通知、H25、H29 の文と手引きは HostStatus の connection・failedAttempts・lastFailure・lastFrameWallMs・lostConnections を材料にする（変化を知らせる口は無いので、status() を周期で聞く。1 回の切断に 1 回の通知は lostConnections の前に読んだ値との差で数え、読む周期に依らない。AC09）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-dmdata-connect.json:66 «ac254372de16eb97»",
           "reconstruction/contracts/p3-dmdata-connect.json:84 «1afd206910ab5e2d»",
           "reconstruction/contracts/p3-dmdata-connect.json:281 «7d0a333f7361b510»",
           "reconstruction/contracts/p3-dmdata-connect.json:308 «907540bf3b4745a0»",
-          "reconstruction/contracts/p3-cli-repl.json:971 «6da857517933f419»",
+          "reconstruction/contracts/p3-cli-repl.json:979 «8d37ba1b8f7aac12»",
           "reconstruction/contracts/p3-recovery.json:989 «fb81cd9f89342c8c»",
           "docs/specs/reconstruction-p0-contracts.md:3051 «e1156c93fbe5cba8»",
           "docs/specs/reconstruction-p0-contracts.md:3053 «3e4160c7f8b143e5»",
@@ -365,7 +379,7 @@
           "reconstruction/src/host/host.ts:233 «35363c2f74266d26»",
           "reconstruction/src/host/host.ts:285 «46bd0b7da169ddfa»",
           "reconstruction/src/host/host.ts:409 «1dc26a76a3bc0ab8»",
-          "reconstruction/src/host/host.ts:263 «594c0a21864d786c»",
+          "reconstruction/src/host/host.ts:258 «62853b0fea215cc1»",
           "docs/specs/reconstruction-p0-contracts.md:3051 «e1156c93fbe5cba8»",
           "docs/specs/reconstruction-p0-contracts.md:3052 «023e8d5d784b21fe»"
         ]
@@ -514,22 +528,6 @@
       "AGENTS.md の最小実装・最小テスト・受信経路の計算量を守る。onFrame に何も足さない（AC07 の (1)）",
       "残存リスク: (1) dmdata が直ってから（回線が戻ってから）繋がるまでの待ちは最大 120 秒（15 回目の試行から、切断の 795 秒後以降）。REST が通って WS の段だけが落ち続ける場面では今の 5 秒から、回線が切れている場面では今の 60 秒から延びる（作者裁定 Q-DC2-AUTHOR、P3-DC2-D-BACKOFF の reason）。retry（C18 の reconnect()）で手で繋ぎ直せる (2) Retry-After には 5 秒から約 24.8 日の範囲で従うので、dmdata が長い値を返すとその間は繋がない（例: dmdata が保守で Retry-After: 3600 を返すと 1 時間繋がない。recovery の lane と同じ）。retry（C18 の reconnect()）で手で繋ぎ直せる (3) WS の段の失敗は全部 network で、dmdata の WS 側の不調と回線を分けない"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-DC2-ANCHORS",
-        "owner": "integrator",
-        "blocks": [
-          "baseOid の割当"
-        ],
-        "resolveBy": "C18 発注 2（P3-CLI-REPL-001【発注 2】）の配送の後の発注前点検",
-        "requiredEvidence": [
-          "C18 発注 2 の配送の commit が main の祖先にあること",
-          "本契約の «» の参照（host.ts・p3-cli-repl.json・p3-cli-repl.types.ts ほか）を配送の後の版で照らし直し、ずれた行を付け直した数",
-          "AC06 の『中身を変えない行』と return の行の番号を配送の後の版で書き直したこと",
-          "C18 発注 2 の配送（7460583f）の後の host.ts の reconnect と startConnect の実物で、AC05 の (j) の列を照らす: reconnect() が socket が null でない間（CLOSING を含む）は試行を始めず connecting を返し、試行の共通の入口で試行の最中・socket・停止を確かめ直すこと（P3-CLI-AC16 の (6)）。timer は 1 本、reconnect() は timer を止めて試行を始めること",
-          "checker 3 本と tsc（reconstruction/tsconfig.json）が rc 0"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
