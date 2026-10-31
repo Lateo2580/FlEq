@@ -1,0 +1,351 @@
+{
+  "meta": {
+    "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
+    "sha256": "c897300816738500f4054908082d1f597a8c056ffda7c25325ca8ee602ca5d53",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-EF-D-PLACE",
+        "kind": "統合担当",
+        "A": "材料は受信の outcome（採った報の step の outcomes）にだけ載せる。EewCurrent・EewGate・codec・schemaVersion は変えず、保存しない。",
+        "B": "current か gate に材料を持ち、codec の版を上げて保存する（再起動の後も同じログファイルに続け、再起動の直後の報にも差分を付ける）。",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草時に推奨で確定（統合担当、2026-10-31）",
+        "reason": "旧築のログも復元しない（activeFiles は memory の Map、eew-logger.ts:122。再起動の後の続報は新しいファイルを作り差分なし、:236）。Bで得るものは旧築に無い能力で互換必須の外。新築の codec は current・gate を保存しない（eew-unit.ts:292）設計を変え、保存の上限の当たり直しも要る。画面・音・通知の出方は A・B で変わらない。"
+      },
+      {
+        "id": "P3-EF-D-SHAPE",
+        "kind": "統合担当",
+        "A": "facts に key report を 1 つ足し、値の形を EewReportFacts（p3-eew-facts.types.ts）で固定する。全項目が常にあり、無い値は null。",
+        "B": "facts の上の段に項目を平らに足す。",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草時に推奨で確定（統合担当、2026-10-31）",
+        "reason": "既存の key（family・serial・terminal・eventId・warningClass・prediction。view-projector は eventId を読む、view-projector.ts:784）と名前がぶつからず、読み手の C19 は 1 つの型を確かめれば足りる。実装は EewReportFacts を返す helper を書くので、項目の足し忘れをコンパイラが止める。SubjectOutcome.facts の共有の型は変えない（JsonValue の Record）。"
+      },
+      {
+        "id": "P3-EF-D-RAW",
+        "kind": "統合担当",
+        "A": "値は XML の生の文字と属性（description・condition）のまま渡す。整形・特殊値の読み・緯度経度と深さの読み分けは C19 が持つ。",
+        "B": "U-E で整形済みのラベル（noticeSource.magnitude の『M5.8』『M不明』の流儀）や数値に読み替えて渡す。",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草時に推奨で確定（統合担当、2026-10-31）",
+        "reason": "互換必須のログは特殊値を扱う（spec:2375「続報・差分・取消・特殊値」）。旧築は M・深さの特殊値を description・condition の属性から読む（telegram-parser.ts の extractSpecialValue）。U-E で読み替えると情報が落ち、C19 と U-E の 2 か所に整形が分かれる。noticeSource.magnitude は通知の文のラベルで、仮定震源では null にしてある（eew.ts:438）。"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-EF-LEDGER",
+        "status": "closed",
+        "source": "起草（2026-10-31、HEAD 447bea9c で台帳 106 の file:行 を照合）",
+        "closed": "台帳 106 の記述のうち 2 つがずれている: (1) 新築の facts の path は reconstruction/src/units/eew/eew-unit.ts:265〜267（台帳は /eew/ が抜けている）。(2) 旧築のログの 12 項目を書くのは eew-logger.ts の buildReportBlock :292〜405 と formatAreaName :269〜282（台帳の :119〜250 は class の宣言と開閉）。spec:2375・src/types.ts:247〜259・p2-eew-unit.types.ts:59 は合う。台帳の直しは統合担当",
+        "reason": "契約の条文は照合した行だけを引く"
+      },
+      {
+        "id": "Q-EF-PROTO",
+        "status": "closed",
+        "source": "起草（2026-10-31）",
+        "closed": "AC01 の読み方を試作の helper（.draft-work の使い捨て、成果物にしない）で 4 つの fixture に当て、T01 の期待値をその出力から書いた。各 fixture は報時刻の時計で採用され（37_01_01 activated・37_01_03 cancelled・FINAL released・PLUM activated）、areas の code の列は facts.prediction.areas と一致した。既存の reduceEew は変えずに試した",
+        "reason": "T01 の値を記憶でなく実物から起こすため"
+      },
+      {
+        "id": "Q-EF-TYPE",
+        "status": "closed",
+        "source": "起草（2026-10-31）",
+        "closed": "EewReportFacts を Readonly<Record<string, JsonValue>> の facts の値に置くと、strict の tsc で通る（.draft-work の使い捨ての 1 file で確かめた。成果物にしない）。type の別名（interface でない）なので JsonValue の index の形に当てはまる",
+        "reason": "実装の段で facts に入らない型を渡さないため"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal・training・test で同じ項目を同じ規則で載せる。operation で載せる項目を変えない（訓練・試験の区別は outcome の operation・source が持つ）。"
+    }
+  },
+  "contract": {
+    "contractId": "P3-EEW-FACTS-001",
+    "mode": "implementation",
+    "objective": "構造的欠陥台帳 106 を閉じる。互換必須の EEW ログファイル（spec §11.4）と C19（P3-TERMINAL-OUTPUT-001）の端末が要る EEW の値のうち、今の U-E の facts から作れないものを、U-E が採った報の受信の outcome の facts.report（EewReportFacts）に載せる。置き場は受信の時だけで、保存の形（codec・版）・view・EewCurrent・表示の wire・通知は変えない。ログ・端末・購読の口は範囲外（C19、C18 の発注 3）。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-eew-facts.types.ts",
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/src/units/eew/eew-unit.ts",
+      "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "src/engine/eew/eew-logger.ts",
+      "src/ui/eew-formatter.ts",
+      "src/dmdata/telegram-parser.ts",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "test/fixtures/37_01_03_240613_VXSE43.xml",
+      "test/fixtures/77_01_30_260101_VXSE45_FINAL.xml",
+      "test/fixtures/77_02_01_260101_VXSE45_PLUM.xml",
+      "reconstruction/contracts/p3-eew-facts.json"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "reconstruction/contracts/p3-eew-facts.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check",
+      "git show <必要最小限の対象>",
+      "git ls-files <必要最小限の対象>"
+    ],
+    "moduleIds": [
+      "M01"
+    ],
+    "integrationContractIds": [
+      "I-U-E"
+    ],
+    "dependsOnContractIds": [
+      "P2-EEW-UNIT-001",
+      "P2-SHARED-RUNTIME-001",
+      "P3-LIFETIME-AND-EEW-GATE-001",
+      "P3-EEW-GATE-EVICT-001",
+      "P3-NOTICE-LEDGER-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-eew-facts.types.ts#EewReportFacts"
+    ],
+    "publicFunctions": [
+      "reduceEew・reduceEewUnit・toEewView・eewUnitCodec・expiredOutcome の公開形と、p2-eew-unit.types.ts・p2-shared-runtime.types.ts の型は変えない。変わるのは reduceEew が採った報の outcome の facts に report（EewReportFacts）が 1 つ増えることだけ"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけを使う。新しい npm 依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_01_30_260101_VXSE45_FINAL",
+      "test__fixtures__77_02_01_260101_VXSE45_PLUM"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-EF-RES-01",
+        "target": "材料の読み取り（受信 hot path）",
+        "limit": "Head/Headline、Body/Earthquake の子、Body/Intensity/Forecast の子の読みと、Forecast/Pref/Area の線形 1 回。JSON.stringify・classifyMaterial（leafValues）の呼び直し・material.xml 全体の再帰の走査を足さない",
+        "unit": "1 受信（採った報だけ。拒否・unchanged・capacityExceeded の報では読まない）",
+        "scope": "AGENTS.md の受信経路の計算量。全件×全件 0・state の直列化 0",
+        "source": "AGENTS.md 受信経路の計算量"
+      },
+      {
+        "id": "P3-EF-RES-02",
+        "target": "facts.report の大きさ",
+        "limit": "上限を足さない。report は採った報の XML（展開後 10 MiB 以下）の文字の部分集合",
+        "unit": "1 step の outcome",
+        "scope": "state に残らないので保存の上限・世代の計量は変わらない。owner の worker から 1 回 postMessage で運ばれる",
+        "source": "decode-material.ts の MAX_EXPANDED_BYTES・P3-EF-D-PLACE=A"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-E"
+    ],
+    "persistedFields": [
+      "PersistedEewUnit と schemaVersion は変えない（report は保存しない、P3-EF-D-PLACE=A）"
+    ],
+    "nonPersistedFields": [
+      "facts.report（採った報の step の outcome にだけある。state・EewCurrent・EewGate に持たない）"
+    ],
+    "outOfScope": [
+      "EEW ログファイルを書くこと（置き場・opt-in・書式・前の報との差分・12 field の切替の効き）と端末の EEW の表示。受け手は C19（P3-TERMINAL-OUTPUT-001）。差分（旧築の diff）は C19 がイベントごとに直前の facts.report を覚えて作る",
+      "REPL の eewlog の入口（on/off と 12 field の切替）。C18（P3-CLI-REPL-001）の発注 3",
+      "C19 が outcome を受け取る購読の口が host に無い（spec:255「型付きの非同期・有界な outcome 購読口」）。どの契約が host に足すかは受け手の C19 の起草で決める",
+      "採らなかった報に材料を出すこと: 取り直し（origin=recovery）の報、duplicate・stale・capacityExceeded の報、採らずに取消の intent だけを作る取消（cancelOnly）、期限の outcome（expiredOutcome）。どれも今 outcome を出さないか facts を変えない。旧築のログの行との差は C19 の起草で比べる",
+      "view（currentSubject）・EewCurrent・EewGate（noticeSource）・codec・表示の wire・通知の文と intent の変更",
+      "旧築（src/）の変更、spec・計画の本文・他契約の改訂（anchor の機械同期は統合担当）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-EF-AC01",
+        "requirement": "載せる項目と読み方: (1) reduceEew が採った報の return（eew.ts:726）の outcome の subjects の 1 件の facts に key report を 1 つ足し、値は EewReportFacts とする。既存の key（family・serial・terminal・eventId・warningClass、取消以外は prediction）は値も有無も変えない。(2) 項目、読む要素、無いと壊れるもの（旧築の 12 項目の番号は src/types.ts:247 の順）: headline＝Head/Headline/Text（端末の見出し、eew-formatter.ts:582）。hypocenter＝Body/Earthquake/Hypocenter/Area/Name（eew.ts:428 と同じ要素。ログの震源 #1）。landOrSea＝同じ Area の LandOrSea（端末の震源地の後ろの（海域）、:603）。originTimeRaw＝Earthquake/OriginTime（ログの発生 #2）。arrivalTimeRaw＝Earthquake/ArrivalTime（端末の検知、:609）。coordinate＝isAssumedHypocenter と同じ選び方（eew.ts:252〜253、type が「震源位置（度分）」でない Coordinate、無ければ最初）の要素の文字と description 属性（ログの座標 #3 と深さ #4。緯度・経度・深さの読み分けは C19）。magnitude＝eew.ts:429 と同じ要素の文字と description・condition 属性（ログの M #4。通知の文のラベル noticeSource.magnitude は使わない）。accuracy＝Hypocenter/Accuracy の Epicenter@rank・Depth@rank・MagnitudeCalculation@rank・NumberOfMagnitudeCalculation の文字、Accuracy が無ければ null（端末の精度、:668。rank2 は旧築の端末も使わないので入れない）。isAssumedHypocenter＝eew.ts:437 の assumed（ログの仮定震源の行、eew-logger.ts:327。最終報・取消は current が無いので今の facts に出どころが無い）。maxIntChangeReasonRaw＝Forecast/Appendix/MaxIntChangeReason（ログの震度変化理由 #12、端末の PLUM の前置き）。maxLgInt＝Forecast/ForecastLgInt の From・To（ログの最大予測長周期階級 #6、端末の長周期階級、:536）。areas＝Forecast/Pref/Area ごとに code（Code の文字の trim）・name（Area/Name）・lgInt（Area/ForecastLgInt の From・To）・arrivalTimeRaw（Area/ArrivalTime）（ログの区域名 #7 と L #8、端末の到達予測、:259）。nextAdvisory＝Body/NextAdvisory（eew.ts:179 と同じ要素。ログの最終報の行、eew-logger.ts:395、端末 :735）。cancelText＝取消の報の Body/Text、取消でなければ null（端末の取消の文、:687）。(3) 形の規則: 文字は scalar の文字そのまま（trim・NFKC をしない。code だけは prediction と同じ trim、eew.ts:206）。要素が無ければ null、空の要素は \"\"、子を持つ要素（scalar が null）は null。lgInt・maxLgInt は ForecastLgInt が無ければ null、From・To の片方が無ければその側だけ null。areas の順と件数は facts.prediction.areas と同じ（同じ Area の並び、eew.ts:190・:218）で、index i の code は prediction.areas[i].code と等しい。取消の報は areas＝[]。(4) 入れないもの（今の facts から作れるか、C19 が作る）: 最大予測震度 #5（prediction.maximum）、PLUM #9・主要動到達 #10（Area/Condition は prediction.areas[].intensity.condition にある、eew.ts:630。照合の語は C19）、前の報との差分 #11（C19）、報番号・取消・警報/予報・ReportDateTime（serial・source・warningClass）。",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:726 «c377d16760aae390»",
+          "reconstruction/src/domains/eew/eew.ts:428 «036b6732c9b7643a»",
+          "reconstruction/src/domains/eew/eew.ts:429 «b88db83a9487f890»",
+          "reconstruction/src/domains/eew/eew.ts:252 «5d0147341fcf32cf»",
+          "reconstruction/src/domains/eew/eew.ts:253 «cfdfc800a23717b3»",
+          "reconstruction/src/domains/eew/eew.ts:437 «3895425227c3746c»",
+          "reconstruction/src/domains/eew/eew.ts:179 «0d0cddfe0e2374f9»",
+          "reconstruction/src/domains/eew/eew.ts:190 «7629ef2a594e008a»",
+          "reconstruction/src/domains/eew/eew.ts:206 «85ad3e0634ea3b79»",
+          "reconstruction/src/domains/eew/eew.ts:218 «3f8013d9346f8068»",
+          "reconstruction/src/domains/eew/eew.ts:630 «64f8c717adc24584»",
+          "src/types.ts:247 «0605cf90a61e5348»",
+          "src/engine/eew/eew-logger.ts:292 «5a56c4ce64c22e4b»",
+          "src/engine/eew/eew-logger.ts:327 «3f01cf95fb1b5522»",
+          "src/engine/eew/eew-logger.ts:395 «1f5d3ee13eb5c78c»",
+          "src/ui/eew-formatter.ts:259 «3f36aa5209fa4a1f»",
+          "src/ui/eew-formatter.ts:536 «077c34dba0e5d7b2»",
+          "src/ui/eew-formatter.ts:582 «8245d60c6c2a734e»",
+          "src/ui/eew-formatter.ts:603 «363587129596453a»",
+          "src/ui/eew-formatter.ts:609 «4e9e6f84d13e593f»",
+          "src/ui/eew-formatter.ts:668 «9b4a203df25f6f9c»",
+          "src/ui/eew-formatter.ts:687 «795881ec1270340a»",
+          "src/ui/eew-formatter.ts:735 «d9810158eff640d7»",
+          "docs/specs/reconstruction-p0-contracts.md:2375 «1f2661ac116d42b6»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:25 «d873647f121c5876»",
+          "reconstruction/contracts/p3-eew-facts.types.ts"
+        ]
+      },
+      {
+        "id": "P3-EF-AC02",
+        "requirement": "出る所と出ない所: (1) report が出るのは採った報（transition が activated・updated・released・cancelled）の outcome だけで、作るのは eew.ts:726 の 1 か所。(2) 出ない所: 取り直し（origin=recovery）の報（eew.ts:420 で outcome が無い）、unchanged（duplicate・stale）・capacityExceeded・取消だけの intent（cancelOnly、eew.ts:518）の return（outcome は []）、expiredOutcome（facts は今の 4 key のまま、eew.ts:390）。(3) report を EewCurrent・EewGate（noticeSource を含む）・currentSubject の view（eew-unit.ts:265〜266）・codec（eew-unit.ts:292）・decision・診断・通知の intent と payload・displayChanges に入れない。表示の wire の byte は変わらない（view-projector は outcome の facts から eventId だけを読む、view-projector.ts:784）。",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:726 «c377d16760aae390»",
+          "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
+          "reconstruction/src/domains/eew/eew.ts:518 «c3a78a6d99fdff78»",
+          "reconstruction/src/domains/eew/eew.ts:390 «f41f2484a4b84cae»",
+          "reconstruction/src/units/eew/eew-unit.ts:265 «4dbd25b0326d331b»",
+          "reconstruction/src/units/eew/eew-unit.ts:266 «b686c37dcc26ca0d»",
+          "reconstruction/src/units/eew/eew-unit.ts:292 «643fa9ad24425a2b»",
+          "reconstruction/src/view-projector/view-projector.ts:784 «f7e1ce0c0002a23f»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC03",
+        "requirement": "触る行と anchor・既存の試験: (1) eew.ts の変更は 3 つだけ。(a) :34 の行の末尾に import type { EewReportFacts } from \"../../../contracts/p3-eew-facts.types\"; を足す（:33 と同じ 1 行に 2 つの import の形）。(b) :726 の行の中身を書き換え、subjects の 1 件の facts に report を足す。(c) 材料を読む helper（EewReportFacts を返す function 宣言、export しない）を :780 と :781 の間に足す。ほかの行は中身も変えず、行を足すのは (c) だけ（:781 の export の行が下へずれる）。(2) 他の契約・spec が eew.ts を行で引く参照は full path で 75 件・短い名前（eew.ts:N、chrome-eew.ts などを除く）で 59 件、最大の行は :745、«anchor» の照合でも :34・:726・:781 の行を引く参照は 0 なので、付け直しが要る anchor は 0。(3) 試験は eew-unit.test.ts の最後の行の後にだけ足す（その file を行で引く参照は full path で 6 件・短い名前で 11 件、最大は :1604。付け直しは 0）。(4) 既存の試験の期待は変わらない: outcome の facts を比べる所は toMatchObject（:173・:652・:1197）か facts.prediction だけ（:588）で、:651 の toEqual は state.current[0]（EewCurrent は変えない）。測定の証拠 aux-ac15.json が固定するのは EewCurrent の key の集合で、outcome の形は ambiguous の行（facts の中は見ない）。(5) 契約の commit 単体では新しい型の file を足すだけで、既存の src・test の型検査を変えない。",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:33 «7ff03520309bc759»",
+          "reconstruction/src/domains/eew/eew.ts:34 «0113bc7f7cd76d79»",
+          "reconstruction/src/domains/eew/eew.ts:726 «c377d16760aae390»",
+          "reconstruction/src/domains/eew/eew.ts:781 «3351a41cc8d96d26»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:173 «f77b478ad2b5628c»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:588 «5d211631269d38fe»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:651 «e8fdd6913a2e4136»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:652 «8f7f1a71f2be56b4»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1197 «3bfbffe2edaf0b4a»",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-ac15.json"
+        ]
+      },
+      {
+        "id": "P3-EF-AC04",
+        "requirement": "計算量と大きさ（P3-EF-RES-01・RES-02）: helper は Head/Headline、Body/Earthquake の子、Body/Intensity/Forecast の子を first・elements で読み、Forecast/Pref/Area を線形 1 回だけ回す。JSON.stringify・classifyMaterial（leafValues）の呼び直し・material.xml 全体の再帰の走査をしない。呼ぶのは採った報の return（:726）だけ。report の大きさに上限を足さない（採った報の XML の文字の部分集合で、展開後 10 MiB 以下、decode-material.ts:25）。state に残らないので保存の上限と世代の計量は変わらず、owner の worker から 1 回の postMessage で運ばれる（owner-worker.ts:15）。",
+        "evidenceRefs": [
+          "reconstruction/src/decode-material/decode-material.ts:25 «70f619fc62775eb6»",
+          "reconstruction/src/runtime/owner-worker.ts:15 «d3185b4345e2c2fa»",
+          "reconstruction/src/domains/eew/eew.ts:726 «c377d16760aae390»"
+        ]
+      },
+      {
+        "id": "P3-EF-AC05",
+        "requirement": "dmdata の規約: report は EEW の内容で、dmdata の利用規約 15 項により personal 限定（14 項の非 EEW の二次利用とは別）。本契約は受信の記憶（1 step の outcome）に持つだけで、file・標準出力・SSE・診断・通知・保存のどれにも出さない（AC02 (3)）。外へ書くのは C19 のログの書き手で、既定 off の opt-in（dmdata.md:33）と置き場は C19 が条文にする。試験は気象庁の公開サンプル（37_01_01・37_01_03）と自作（77_01_30・77_02_01）の fixture だけを使い、dmdata から受けた原文を repo に足さない。",
+        "evidenceRefs": [
+          "docs/specs/dmdata.md:33 «c7256d6be0d63cc4»",
+          "reconstruction/contracts/p3-replay-cli.json:127 «d18640b02d1f211d»",
+          "docs/specs/reconstruction-p0-contracts.md:255 «750e39d1a1865a88»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-EF-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-EF-AC01",
+          "P3-EF-AC02"
+        ],
+        "behavior": "空の state に 37_01_01（VXSE43 の警報）を受け、続けて 37_01_03（取消）を受ける。別の空の state に 77_01_30 FINAL と 77_02_01 PLUM を受ける。各 step の outcomes[0].subjects[0].facts.report を toEqual で表に比べる（outcome 全体は比べない）。37_01_01: headline「豊後水道で地震　四国　九州　中国で強い揺れ」、hypocenter「豊後水道」、landOrSea「海域」、originTimeRaw「2024-04-17T23:14:48+09:00」、arrivalTimeRaw「2024-04-17T23:14:54+09:00」、coordinate { raw「+33.2+132.4-30000/」, description「北緯３３．２度　東経１３２．４度　深さ　３０ｋｍ」 }、magnitude { raw「5.8」, description「Ｍ５．８」, condition null }、accuracy { 4, 4, 4, 5 の文字 }、isAssumedHypocenter false、maxIntChangeReasonRaw「0」、maxLgInt { 1, 1 }、areas 9 件（1 件目 622・愛媛県南予・{0,0}・null、2 件目 632・高知県西部・{0,0}・「2024-04-17T23:15:02+09:00」）、nextAdvisory null、cancelText null。areas の code の列は facts.prediction.areas の code の列と等しい。37_01_03: transition cancelled、headline「緊急地震速報（警報）を取り消します。」、cancelText「先ほどの、緊急地震速報（警報）を取り消します。」、areas []、Earthquake・Forecast 由来の項目は null、isAssumedHypocenter false。FINAL: transition released、nextAdvisory「この情報をもって、緊急地震速報：最終報とします。」、accuracy・maxLgInt・maxIntChangeReasonRaw・landOrSea は null。PLUM: transition activated、isAssumedHypocenter true、maxIntChangeReasonRaw「9」、landOrSea「内陸」、accuracy { 1, 1, 8, 0 の文字 }、maxLgInt { 0, 0 }、areas の lgInt は null（区域に ForecastLgInt が無い）、headline \"\"。どの報も既存の facts の key（family・serial・terminal・eventId・warningClass、取消以外は prediction）が残る。"
+      },
+      {
+        "testId": "P3-EF-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-EF-AC02",
+          "P3-EF-AC05"
+        ],
+        "behavior": "37_01_01 を受けた step で、report にだけある文字（「高知県西部」「2024-04-17T23:15:02+09:00」「+33.2+132.4-30000/」）が、step.state.current・step.state.gates・toEewView(step.state)・eewUnitCodec.encode(step.state)・step.intents・step.diagnostics・step.displayChanges の JSON に無い。その current を期限で回収した step の outcome の facts に report が無い。"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約とanchor（AC03 の付け直し 0 件の確かめを含む）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "srcと契約の型検査、dist生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "testの型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "C6のrunnerが使うdistの生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "正式回帰と既存試験の全件（parser-boundary の P1-T04 を含む）"
+      },
+      {
+        "command": "git diff --check",
+        "cwd": ".",
+        "target": "<allowed_paths>",
+        "stage": "implementation",
+        "purpose": "差分の形式"
+      }
+    ],
+    "artifactRequirements": [
+      "allowedPaths だけの git diff --binary --no-ext-diff patch、変更ファイル、正式ゲートと未実行の検証、残存リスクを返す。足した各試験が受入条件・契約境界のどれに当たるかを 1 行で書く。",
+      "新しい file を作るときの export は file の末尾の 1 行の export { … } にする（P1-T04 が export function・export const を数える、p1-parser-boundary.test.ts:114）。本契約の helper は eew.ts の中に置き export しない（AC03 (1)(c)）。",
+      "reconstruction の vitest は全件を回す（--config reconstruction/vitest.config.ts。parser-boundary を含む）。file を絞った実行で完了と報告しない。",
+      "受信経路の計算量（AGENTS.md）: AC04 と P3-EF-RES-01 のとおり、採った報ごとに線形 1 回だけ読み、JSON.stringify・leafValues の呼び直し・XML 全体の再走査を足さない。",
+      "最小実装・最小テスト（AGENTS.md）: 仕組み（型・層・helper）を足すときは無いと何が壊れるかを 1 行で示す。足してよい helper は AC03 (1)(c) の材料を読む function だけ（中の小さな読み取りの関数を足すなら同じ場所に置く）。試験は T01・T02 だけ。既存の試験の期待値を変える必要が出たら、変える前に理由を報告する（AC03 (4) では 0 件の見込み）。",
+      "AC03 (2)(3) の付け直し 0 件を、check-contract の rc と、:34・:726・:781 の変更前後の行で報告する。",
+      "本契約ファイルの実装時の編集権は evidenceRef の anchor と自己 digest の同期だけに限り、受入条件・裁定値を実装後に変えない。",
+      "申し送り（C19 の起草へ）: facts.report の読み手は C19。購読の口（spec:255）、前の報との差分の作り方、採らない報（AC02 (2)）の扱い、ログの置き場と opt-in を C19 で決める。"
+    ],
+    "unresolvedQuestions": []
+  }
+}
