@@ -150,3 +150,13 @@ describe("P3-C2-T08 dmdata REST boundary (AC01, AC08)", () => {
     clean([...results, settled]);
   });
 });
+
+describe("P3-CLI-T05 socket start の test (AC06)", () => {
+  it("testMode を body の test に渡し、無ければ no", async () => {
+    answer(200, json(started));
+    await startSocket({ ...subscription, testMode: "only" });
+    await startSocket(subscription);
+    const tests = exchanges().map((exchange) => (JSON.parse(exchange.payload ?? "{}") as { test?: string }).test);
+    expect(tests).toEqual(["only", "no"]);
+  });
+});

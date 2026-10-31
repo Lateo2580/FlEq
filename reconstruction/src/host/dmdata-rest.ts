@@ -120,7 +120,7 @@ async function closeSocket(apiKey: string, id: number, signal?: AbortSignal): Pr
 /** POST /socket. Failed only before sending or on a fully read non-2xx; any other unclear end is uncertain. */
 async function startSocket(subscription: DmdataSubscription, signal?: AbortSignal): Promise<SocketStartResult> {
   const answer = await exchange("POST", "/socket", subscription.apiKey, signal, { classifications: subscription.classifications,
-    test: "no", appName: subscription.appName, formatMode: "raw" });
+    test: subscription.testMode ?? "no", appName: subscription.appName, formatMode: "raw" });
   if (answer.kind === "notSent") return { kind: "failed" };
   if (answer.kind === "lost" || answer.kind === "tooLarge") return { kind: "uncertain" };
   if (!success(answer.status)) return refusal(answer.status);
