@@ -1729,3 +1729,91 @@ describe("P3-LIFETIME-AND-EEW-GATE-001 U-E lifetime, horizon and same-version co
       .toEqual([stale("20260101000001"), [], ["eewHorizonStale"]]);
   });
 });
+
+// P3-EEW-FACTS-001: 採った報の受信の outcome だけが facts.report（EewReportFacts）を持つ。
+describe("P3 EEW report facts", () => {
+  const stepAt = (state: EewUnitState, file: string, headType: "VXSE43" | "VXSE45") => {
+    const material = decodeFixture(file, headType);
+    return receive(state, material, Date.parse(material.reportDateTimeRaw));
+  };
+  const subjectOf = (step: EewUnitStep) => {
+    const outcome = step.outcomes[0];
+    if (outcome == null || outcome.kind !== "accepted") throw new Error("no accepted outcome");
+    return outcome.subjects[0];
+  };
+  type JsonValue = import("../../contracts/p2-shared-runtime.types").JsonValue;
+  // facts は JsonValue なので、as で言い換えず型を絞って中身を読む。
+  const isList = (value: JsonValue | undefined): value is readonly JsonValue[] => Array.isArray(value);
+  const objectOf = (value: JsonValue | undefined) => {
+    if (value == null || typeof value !== "object" || isList(value)) throw new Error("not an object");
+    return value;
+  };
+  const areasOf = (value: JsonValue | undefined) => {
+    const areas = objectOf(value).areas;
+    if (!isList(areas)) throw new Error("no areas");
+    return areas;
+  };
+  const empty = { headline: null, hypocenter: null, landOrSea: null, originTimeRaw: null, arrivalTimeRaw: null,
+    coordinate: null, magnitude: null, accuracy: null, isAssumedHypocenter: false, maxIntChangeReasonRaw: null,
+    maxLgInt: null, areas: [], nextAdvisory: null, cancelText: null };
+
+  // 受入条件 P3-EWF-AC01・AC02 / corpus 履歴（fixture→期待状態）。
+  it("P3-EWF-T01 acceptance / AC01,AC02: reads the report facts of the adopted report from four fixtures", () => {
+    const warned = stepAt(emptyState(), "37_01_01_240613_VXSE43", "VXSE43");
+    const warnedSubject = subjectOf(warned);
+    expect(warnedSubject.transition).toBe("activated");
+    // 既存の facts の key（family・serial・terminal・eventId・warningClass、取消以外は prediction）が残る。
+    expect(warnedSubject.facts).toMatchObject({ family: "VXSE43", serial: 1, terminal: false, eventId: "20240417231454",
+      warningClass: "warning", prediction: expect.anything() });
+    const areas = areasOf(warnedSubject.facts.report);
+    expect(areas).toHaveLength(9);
+    expect(areas.map((item) => objectOf(item).code))
+      .toEqual(areasOf(warnedSubject.facts.prediction).map((item) => objectOf(item).code));
+    expect({ ...objectOf(warnedSubject.facts.report), areas: areas.slice(0, 2) }).toEqual({
+      headline: "豊後水道で地震　四国　九州　中国で強い揺れ", hypocenter: "豊後水道", landOrSea: "海域",
+      originTimeRaw: "2024-04-17T23:14:48+09:00", arrivalTimeRaw: "2024-04-17T23:14:54+09:00",
+      coordinate: { raw: "+33.2+132.4-30000/", description: "北緯３３．２度　東経１３２．４度　深さ　３０ｋｍ", condition: null },
+      magnitude: { raw: "5.8", description: "Ｍ５．８", condition: null },
+      accuracy: { epicenterRank: "4", depthRank: "4", magnitudeRank: "4", magnitudeCalculationCount: "5" },
+      isAssumedHypocenter: false, maxIntChangeReasonRaw: "0", maxLgInt: { from: "1", to: "1" },
+      areas: [
+        { code: "622", name: "愛媛県南予", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: null },
+        { code: "632", name: "高知県西部", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: "2024-04-17T23:15:02+09:00" },
+      ],
+      nextAdvisory: null, cancelText: null,
+    });
+
+    const cancelled = subjectOf(stepAt(warned.state, "37_01_03_240613_VXSE43", "VXSE43"));
+    expect(cancelled.transition).toBe("cancelled");
+    expect(cancelled.facts).toMatchObject({ family: "VXSE43", serial: 2, terminal: true, eventId: "20240417231454", warningClass: "warning" });
+    expect(cancelled.facts).not.toHaveProperty("prediction");
+    expect(cancelled.facts.report).toEqual({ ...empty, headline: "緊急地震速報（警報）を取り消します。",
+      cancelText: "先ほどの、緊急地震速報（警報）を取り消します。" });
+
+    const final = subjectOf(stepAt(emptyState(), "77_01_30_260101_VXSE45_FINAL", "VXSE45"));
+    expect(final.transition).toBe("released");
+    expect(final.facts).toMatchObject({ family: "VXSE45", serial: 30, terminal: true, eventId: "20260101120000",
+      warningClass: "forecast", prediction: expect.anything() });
+    expect(final.facts.report).toMatchObject({ coordinate: { condition: null },
+      nextAdvisory: "この情報をもって、緊急地震速報：最終報とします。",
+      accuracy: null, maxLgInt: null, maxIntChangeReasonRaw: null, landOrSea: null });
+
+    const plum = subjectOf(stepAt(emptyState(), "77_02_01_260101_VXSE45_PLUM", "VXSE45"));
+    expect(plum.transition).toBe("activated");
+    expect(plum.facts).toMatchObject({ family: "VXSE45", serial: 3, terminal: false, eventId: "20260101090005",
+      warningClass: "forecast", prediction: expect.anything() });
+    expect(plum.facts.report).toMatchObject({ headline: "", coordinate: { condition: null }, isAssumedHypocenter: true,
+      maxIntChangeReasonRaw: "9", landOrSea: "内陸", maxLgInt: { from: "0", to: "0" },
+      accuracy: { epicenterRank: "1", depthRank: "1", magnitudeRank: "8", magnitudeCalculationCount: "0" } });
+    expect(areasOf(plum.facts.report).every((item) => objectOf(item).lgInt == null)).toBe(true);
+  });
+
+  // 契約境界 P3-EWF-AC02 (3)・AC05: report は受信の outcome だけで、state・view・codec・intent・診断・表示に漏れない。
+  it("P3-EWF-T02 contractBoundary / AC02 (3): report-only text stays out of every other surface of the step", () => {
+    const step = stepAt(emptyState(), "37_01_01_240613_VXSE43", "VXSE43");
+    expect(JSON.stringify(subjectOf(step).facts)).toContain("高知県西部");
+    const others = JSON.stringify([step.state.current, step.state.gates, toEewView(step.state), eewUnitCodec.encode(step.state),
+      step.intents, step.diagnostics, step.displayChanges]);
+    for (const text of ["高知県西部", "2024-04-17T23:15:02+09:00", "+33.2+132.4-30000/"]) expect(others).not.toContain(text);
+  });
+});

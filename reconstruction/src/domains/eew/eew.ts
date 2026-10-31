@@ -31,7 +31,7 @@ import type {
 } from "../../../contracts/p2-eew-unit.types";
 import { classifyMaterial } from "../../decode-material/decode-material";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf, stepVersion, versionKey } from "../../contracts-revision/version";
-import { cancelText, freshState, noticeId } from "../../units/notice-mark";
+import { cancelText, freshState, noticeId } from "../../units/notice-mark"; import type { EewReportFacts } from "../../../contracts/p3-eew-facts.types";
 
 const EEW_FAMILIES = ["VXSE43", "VXSE45"] as const;
 type EewFamily = typeof EEW_FAMILIES[number];
@@ -723,7 +723,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       decision: "changed", reason: null, change,
       currentEstablished: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
     intents: placed.fresh,
-    outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction, warning)] }],
+    outcomes: [{ kind: "accepted", change, subjects: [withReport(outcome(candidate, transition, candidate.prediction, warning), eewReportFacts(body, headline, earthquake, forecast, candidate.cancelled, assumed))] }],
     diagnostics: [...missing, ...placed.diagnostics,
       ...(evicted.size === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "eewCapacityEvicted" as const,
         unit: "U-E" as const, count: evicted.size }]),
@@ -776,6 +776,61 @@ function admitIntents(state: EewUnitState, candidate: Candidate, eventId: string
   if (evictedIntents.length !== 0) diagnostics.push({ level: "INFO", component: "eew", reason: "notificationCapacityEvicted", unit: "U-E",
     count: evictedIntents.length });
   return { intents: proposed, fresh: admitted ? fresh : [], admitted, diagnostics };
+}
+
+// P3-EWF-AC01〜AC04: 端末と EEW ログが要る 1 報分の材料を、採った報の受信の outcome にだけ載せる。無いと C19 が
+// 今の facts から作れない値（震源・座標・精度・区域名など）を持てない。XML の生の文字のまま、採った報ごとに線形 1 回で読む。
+function eewReportFacts(body: XmlElement, headline: XmlElement | null, earthquake: XmlElement | null,
+  forecast: XmlElement | null, cancelled: boolean, assumed: boolean): EewReportFacts {
+  const text = (parent: XmlElement | null, name: string): string | null => {
+    const node = parent == null ? null : first(parent, name);
+    return node == null ? null : scalar(node);
+  };
+  const lgInt = (parent: XmlElement | null): EewReportFacts["maxLgInt"] => {
+    const node = parent == null ? null : first(parent, "ForecastLgInt");
+    return node == null ? null : { from: text(node, "From"), to: text(node, "To") };
+  };
+  const rawOf = (node: XmlElement | null): EewReportFacts["magnitude"] => {
+    const raw = node == null ? null : scalar(node);
+    return node == null || raw == null ? null : { raw, description: attribute(node, "description"), condition: attribute(node, "condition") };
+  };
+  const hypocenter = earthquake == null ? null : first(earthquake, "Hypocenter");
+  const area = hypocenter == null ? null : first(hypocenter, "Area");
+  // 座標の選び方は isAssumedHypocenter と同じ規則（type が「震源位置（度分）」でないものを先に採る）。
+  const coordinates = (area == null ? [] : elements(area)).filter((node) => node.name.endsWith("Coordinate"));
+  const accuracy = hypocenter == null ? null : first(hypocenter, "Accuracy");
+  const rank = (name: string): string | null => {
+    const node = accuracy == null ? null : first(accuracy, name);
+    return attribute(node, "rank");
+  };
+  const fc = cancelled || forecast == null ? null : forecast;
+  const appendix = fc == null ? null : first(fc, "Appendix");
+  return {
+    headline: text(headline, "Text"),
+    hypocenter: text(area, "Name"),
+    landOrSea: text(area, "LandOrSea"),
+    originTimeRaw: text(earthquake, "OriginTime"),
+    arrivalTimeRaw: text(earthquake, "ArrivalTime"),
+    coordinate: rawOf(coordinates.find((node) => attribute(node, "type") !== "震源位置（度分）") ?? coordinates[0] ?? null),
+    magnitude: rawOf(earthquake == null ? null : elements(earthquake).find((node) =>
+      node.name === "Magnitude" || node.name.endsWith(":Magnitude")) ?? null),
+    accuracy: accuracy == null ? null : {
+      epicenterRank: rank("Epicenter"), depthRank: rank("Depth"), magnitudeRank: rank("MagnitudeCalculation"),
+      magnitudeCalculationCount: text(accuracy, "NumberOfMagnitudeCalculation"),
+    },
+    isAssumedHypocenter: assumed,
+    maxIntChangeReasonRaw: text(appendix, "MaxIntChangeReason"),
+    maxLgInt: lgInt(fc),
+    areas: fc == null ? [] : elements(fc, "Pref").flatMap((pref) => elements(pref, "Area")).map((item) => ({
+      code: text(item, "Code")?.trim() ?? "", name: text(item, "Name"), lgInt: lgInt(item), arrivalTimeRaw: text(item, "ArrivalTime"),
+    })),
+    nextAdvisory: text(body, "NextAdvisory"),
+    cancelText: cancelled ? text(body, "Text") : null,
+  };
+}
+
+function withReport(subject: SubjectOutcome, report: EewReportFacts): SubjectOutcome {
+  return { ...subject, facts: { ...subject.facts, report } };
 }
 
 export { reduceEew, nextEewDeadline, reclaimEewLifetime, expiredOutcome, dirty, notificationArrayBytes, noticeAt };
