@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "786f9db4b8faaa7d15262b9fe6e0cef312e5c20600264ac659fe7919a3b6e2ac",
+    "sha256": "8fe240b04a5ba53b722340462e3ee8f26980add500b3b2c74086d9d4005b6577",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -21,14 +21,14 @@
       {
         "id": "P3-DC2-D-BACKOFF",
         "kind": "統合担当",
-        "A": "{ dmdata } の繋ぎ直しの待ちを、REST の段（一覧・DELETE・start・容量・結果不明）と WS の段（handshake の失敗・open の前の close・open の後の close・生存監視の切断）で同じ 1 つの式にする: n＝繋ぎ直しの数（P3-DC2-D-COUNT、増やした後の値）として、待ち＝min(5 秒 × 2^(n−1), 60 秒)（n＝1 で 5 秒、2 で 10 秒、3 で 20 秒、4 で 40 秒、5 以上で 60 秒）。その試行の REST の答えに Retry-After（秒の形、dmdata-rest.ts の retryAfterMs が読んだ値）があれば、式の値の代わりにその値を使う（recovery の lane と同じく上書き。一覧 2 本の両方にあれば大きい方）。jitter は入れない。401・403 で止めるのは今のまま（P3-C2-RETRY）。{ wsUrl } は今の固定 5 秒のまま（P2-A10-HOST）。過負荷の後の繋ぎ直し（resumeIfDrained）は今のまま timer を通らない。P3-C2-RETRY=A の『backoff の状態を持たない』『固定 5 秒・固定 60 秒』を覆す",
+        "A": "{ dmdata } の繋ぎ直しの待ちを、REST の段（一覧・DELETE・start・容量・結果不明）と WS の段（handshake の失敗・open の前の close・open の後の close・生存監視の切断）で同じ 1 つの式にする: n＝繋ぎ直しの数（P3-DC2-D-COUNT、増やした後の値）として、待ち＝n が 14 以下なら min(5 秒 × 2^(n−1), 60 秒)、15 以上なら 120 秒（n＝1 で 5 秒、2 で 10 秒、3 で 20 秒、4 で 40 秒、5〜14 で 60 秒（60 秒の待ちが 10 回）、15 以上で 120 秒。切断（か初回の失敗）から n 回目の試行までの時間は、n＝1 で 5 秒後、2 で 15 秒後、3 で 35 秒後、4 で 75 秒後、5 で 135 秒後、14 で 675 秒後（11 分 15 秒）、15 で 795 秒後、16 で 915 秒後）。その試行の REST の答えに Retry-After（秒の形、dmdata-rest.ts の retryAfterMs が読んだ値）があれば、式の値の代わりにその値を使う（recovery の lane と同じく上書き。一覧 2 本の両方にあれば大きい方）。jitter は入れない。401・403 で止めるのは今のまま（P3-C2-RETRY）。{ wsUrl } は今の固定 5 秒のまま（P2-A10-HOST）。過負荷の後の繋ぎ直し（resumeIfDrained）は今のまま timer を通らない。P3-C2-RETRY=A の『backoff の状態を持たない』『固定 5 秒・固定 60 秒』を覆す",
         "B": "P3-C2-RETRY=A のまま（WS の段は固定 5 秒、REST の段は固定 60 秒）",
         "C": "旧築と同じ 1 秒から倍々・上限 60 秒・jitter 0〜1 秒（src/dmdata/ws-client.ts:604〜:611）と、REST の中の 3 回の再試行",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（統合担当、2026-10-31 起草）",
-        "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "spec 16.2.3（:3117）が H26 で『今の P3-C2-RETRY の固定の間隔を改める』と決めた。上限 60 秒は今の REST の段の待ちと同じで、{ dmdata } の各試行は REST の一覧から始まるので、回線が切れている間（一覧が通らない）は、戻ってから繋がるまでの待ちは今より長くならない（今は 60 秒ごと、A では 5・10・20・40・60 秒の後は 60 秒ごと）。今より長くなるのは REST が通って WS の段だけが続けて落ちる場面（dmdata の WS 側の不調・handshake の失敗・open の直後に閉じられる繰り返し）で、今の 5 秒が 5 回目から 60 秒になる。この場面は今、5 秒ごとに REST を 3 本（一覧 2・start 1）呼び続け（1 日 51,840 本）、16.2.3 が抑えると決めた負担そのもの。A の上限で 1 日 4,320 本。回線が切れている間の REST は今も A も 60 秒ごとに一覧 2 本（1 日 2,880 本）で変わらない。jitter は 1 プロセスが 1 本だけ繋ぐので要らない（旧築の jitter は多数の端末が同時に繋ぎ直す時のため）。Retry-After の上書きは recovery.ts の ListRequestLane（:243）と同じ形。REST の中の再試行（C）は 1 回の試行の中で dmdata を何度も呼ぶので取らない（P3-C2-RETRY の B を退けた理由と同じ）"
+        "status": "確定（作者裁定、2026-10-31 夜）",
+        "ruling": "2026-10-31 夜 作者裁定: A に条件を足して採る。「Aでいいですが、60秒の試行を10回繰り返したら120秒間隔での試行をするようにしてください」（統合担当が判断カードで、前提の訂正を場面つきで見せて聞いた。Q-DC2-AUTHOR）",
+        "reason": "spec 16.2.3（:3117）が H26 で『今の P3-C2-RETRY の固定の間隔を改める』と決めた。{ dmdata } の各試行は REST の一覧から始まる。回線が切れている間（一覧が通らない）は、今は 60 秒ごとで、A では 14 回目の試行（11 分 15 秒）までは今と同じか短く、15 回目からは 120 秒ごとになる（作者裁定で足した段）。REST が通って WS の段だけが続けて落ちる場面（dmdata の WS 側の不調・handshake の失敗・open の直後に閉じられる繰り返し）では、今の 5 秒が 5 回目から 60 秒、15 回目から 120 秒になる。この場面は今、5 秒ごとに REST を 3 本（一覧 2・start 1）呼び続け（1 日 51,840 本）、16.2.3 が抑えると決めた負担そのもの。A の 120 秒の段で 1 日 2,160 本。回線が切れている間の一覧は、今は 60 秒ごとに 2 本（1 日 2,880 本）、A の 120 秒の段で 1 日 1,440 本。前提の訂正（WS の段だけ落ち続ける場面では待ちが今より長くなる）は作者に場面つきで見せた（Q-DC2-AUTHOR）。jitter は 1 プロセスが 1 本だけ繋ぐので要らない（旧築の jitter は多数の端末が同時に繋ぎ直す時のため）。Retry-After の上書きは recovery.ts の ListRequestLane（:243）と同じ形。REST の中の再試行（C）は 1 回の試行の中で dmdata を何度も呼ぶので取らない（P3-C2-RETRY の B を退けた理由と同じ）"
       },
       {
         "id": "P3-DC2-D-COUNT",
@@ -75,7 +75,16 @@
         "reason": "C18 発注 2 の実装が今まさに host.ts の同じ関数・同じ型・同じ戻り値の組み立てを書き換えている（P3-CLI-AC16 の (6)(7)）。並べると、どちらの配送でも相手の書き換えを潰す"
       }
     ],
-    "questionResolutions": [],
+    "questionResolutions": [
+      {
+        "id": "Q-DC2-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-10-31 夜、統合担当が判断カードで聞いた）: 「Aでいいですが、60秒の試行を10回繰り返したら120秒間隔での試行をするようにしてください」",
+        "closed": "P3-DC2-D-BACKOFF は A に段を 1 つ足して採る: 5 秒から倍々で 60 秒まで、60 秒の待ちが 10 回続いた後（n ≥ 15）は 120 秒ごと。数え方は P3-DC2-D-COUNT（timer を張る時に増やし、start の受理で 0）。Retry-After があればその値、{ wsUrl } は固定 5 秒のまま。裁定の前に、起草で見つけた前提の訂正（REST が通って WS の段だけ落ち続ける場面では、今の 5 秒の待ちが 5 回目から 60 秒になる）を場面つきで作者に見せた。AC01・RES-01・T05・残存リスク (1) をこの段に合わせた",
+        "remaining": "なし",
+        "reason": "D-BACKOFF の前提の訂正を作者に見せて裁定を受けた記録"
+      }
+    ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
       "rule": "運用区分の扱いを変えない。接続の間隔・理由・時刻は運用区分に依らず、socket start の test の値（C18 の --test）も変えない"
@@ -84,7 +93,7 @@
   "contract": {
     "contractId": "P3-DMDATA-CONNECT-002",
     "mode": "implementation",
-    "objective": "新築の dmdata の接続（P3-DMDATA-CONNECT-001、C2）を spec §16 の H24・H26・H29 に合わせて改める（計画『接続の間隔、繋がらない理由、切断の時刻』の行）。(1) 繋ぎ直す間隔を 5 秒から倍々・上限 60 秒に延ばし、Retry-After を読む（H26、16.2.3。P3-C2-RETRY の固定の間隔を改める） (2) 繋がらない理由（ネット・dmdata・API キー・socket の上限・start の結果不明）を host の状態 HostStatus.lastFailure に載せる（H29） (3) ping を含む最後の frame の時刻を HostStatus.lastFrameWallMs に載せる（H24・16.2.4）。端末の文・手引き・デスクトップ通知は C19 が出し、本契約は状態に材料を載せるまで。永続 schema の変更は無し。C18 発注 2（P3-CLI-REPL-001）の配送の後に着手する",
+    "objective": "新築の dmdata の接続（P3-DMDATA-CONNECT-001、C2）を spec §16 の H24・H26・H29 に合わせて改める（計画『接続の間隔、繋がらない理由、切断の時刻』の行）。(1) 繋ぎ直す間隔を 5 秒から倍々・60 秒まで延ばし、60 秒の待ちが 10 回続いた後は 120 秒ごとにし、Retry-After を読む（H26、16.2.3。P3-C2-RETRY の固定の間隔を改める） (2) 繋がらない理由（ネット・dmdata・API キー・socket の上限・start の結果不明）を host の状態 HostStatus.lastFailure に載せる（H29） (3) ping を含む最後の frame の時刻を HostStatus.lastFrameWallMs に載せる（H24・16.2.4）。端末の文・手引き・デスクトップ通知は C19 が出し、本契約は状態に材料を載せるまで。永続 schema の変更は無し。C18 発注 2（P3-CLI-REPL-001）の配送の後に着手する",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -161,7 +170,7 @@
       {
         "id": "P3-DC2-RES-01",
         "target": "{ dmdata } の繋ぎ直しの待ち",
-        "limit": "n＝1:5 秒、2:10 秒、3:20 秒、4:40 秒、5 以上:60 秒（式 min(5 秒×2^(n−1), 60 秒)）。Retry-After があればその値（上書き）。{ wsUrl } は固定 5 秒。dmdata の REST の数: 回線が切れている間は 60 秒ごとに一覧 2 本（1 日 2,880 本、今と同じ）、REST が通って WS の段だけ落ち続けると 60 秒ごとに 3 本（1 日 4,320 本、今は 51,840 本）",
+        "limit": "n＝1 で 5 秒、2 で 10 秒、3 で 20 秒、4 で 40 秒、5〜14 で 60 秒（60 秒の待ちが 10 回）、15 以上で 120 秒（式: n ≤ 14 で min(5 秒×2^(n−1), 60 秒)、n ≥ 15 で 120 秒）。切断（か初回の失敗）から n 回目の試行までの時間は、n＝1 で 5 秒後、2 で 15 秒後、3 で 35 秒後、4 で 75 秒後、5 で 135 秒後、14 で 675 秒後（11 分 15 秒）、15 で 795 秒後、16 で 915 秒後。Retry-After があればその値（上書き）。{ wsUrl } は固定 5 秒。dmdata の REST の数（120 秒の段に入った後）: 回線が切れている間は 120 秒ごとに一覧 2 本（1 日 1,440 本、今は 60 秒ごとで 2,880 本）、REST が通って WS の段だけ落ち続けると 120 秒ごとに 3 本（1 日 2,160 本、今は 5 秒ごとで 51,840 本）",
         "unit": "ms",
         "scope": "host の 1 回の起動",
         "source": "P3-DC2-D-BACKOFF、spec 16.2.3（:3117）"
@@ -195,7 +204,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-DC2-AC01",
-        "requirement": "繋ぎ直しの待ち（P3-DC2-D-BACKOFF、H26）: { dmdata } の待ちは、n＝failedAttempts（P3-DC2-D-COUNT、timer を張る時に増やした後の値）として min(5_000 × 2^(n−1), 60_000) ms。その試行の REST の失敗の答えに retryAfterMs があればその値を使う（一覧 2 本の両方にあれば大きい方。recovery.ts:243 と同じく上書きで、式との大きい方は取らない）。WS の段の失敗と、Retry-After の無い REST の失敗は式の値。今の 2 つの定数（RECONNECT_MS 5 秒・REST_RETRY_MS 60 秒、:23・:25）は、式の始まり 5 秒と上限 60 秒の 2 つに置き換える（定数の行の中身を変える。行は足さない）。open の後の close（:418 の scheduleReconnect(RECONNECT_MS)）も同じ式を通す。{ wsUrl } は固定 5 秒のまま（P2-A10-HOST、P3-C2-AC10 の eew-e01 の試験の期待を変えない）。401・403 では timer を張らない（今のまま）。過負荷の後の繋ぎ直し（:263 の resumeIfDrained の startConnect）は今のまま timer を通らない。初回の { dmdata } の失敗（:585〜:587）は今と同じく reject せずに dispatchLost と同じ式の待ちに入る（n＝1 で 5 秒。今は REST の段なら 60 秒）",
+        "requirement": "繋ぎ直しの待ち（P3-DC2-D-BACKOFF、H26）: { dmdata } の待ちは、n＝failedAttempts（P3-DC2-D-COUNT、timer を張る時に増やした後の値）として、n ≤ 14 なら min(5_000 × 2^(n−1), 60_000) ms、n ≥ 15 なら 120_000 ms（n＝1 で 5 秒、2 で 10 秒、3 で 20 秒、4 で 40 秒、5〜14 で 60 秒（60 秒の待ちが 10 回）、15 以上で 120 秒。切断（か初回の失敗）から n 回目の試行までの時間は、n＝1 で 5 秒後、2 で 15 秒後、3 で 35 秒後、4 で 75 秒後、5 で 135 秒後、14 で 675 秒後（11 分 15 秒）、15 で 795 秒後、16 で 915 秒後。境目は n＝14 の 60 秒と n＝15 の 120 秒。start の受理で n が 0 に戻ると 5 秒から数え直す）。その試行の REST の失敗の答えに retryAfterMs があればその値を使う（一覧 2 本の両方にあれば大きい方。recovery.ts:243 と同じく上書きで、式との大きい方は取らない）。WS の段の失敗と、Retry-After の無い REST の失敗は式の値。今の 2 つの定数（RECONNECT_MS 5 秒・REST_RETRY_MS 60 秒、:23・:25）は、式の始まり 5 秒・倍々の上限 60 秒・60 秒を使う回数 10・その後の 120 秒に置き換える（定数の行の中身を変える。行は足さず、1 行に並べてよい）。open の後の close（:418 の scheduleReconnect(RECONNECT_MS)）も同じ式を通す。{ wsUrl } は固定 5 秒のまま（P2-A10-HOST、P3-C2-AC10 の eew-e01 の試験の期待を変えない）。401・403 では timer を張らない（今のまま）。過負荷の後の繋ぎ直し（:263 の resumeIfDrained の startConnect）は今のまま timer を通らない。初回の { dmdata } の失敗（:585〜:587）は今と同じく reject せずに dispatchLost と同じ式の待ちに入る（n＝1 で 5 秒。今は REST の段なら 60 秒）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3053 «3e4160c7f8b143e5»",
           "docs/specs/reconstruction-p0-contracts.md:3117 «3bab2af5f48175fb»",
@@ -261,7 +270,7 @@
       },
       {
         "id": "P3-DC2-AC05",
-        "requirement": "timer・試行・停止・reconnect() が重なったときの順（並行性と状態）。不変条件: (i) 繋ぎ直しの timer は host に高々 1 本（reconnectTimer、:208）で、timer・走っている試行・開いている自分の WS は同時に 2 つ以上は無い（過負荷の片付けの待ちはどれも持たない別の状態） (ii) stop() の後は timer を張らず、試行を始めず、failedAttempts と lastFailure を変えない。次のイベント列でこの順になる: (a) timer の待ち → stop(): stop() が timer を止める（P3-C2-AC03）。その後の scheduleReconnect は stopping で何もしない (b) timer の発火 → 試行の REST の await の最中に stop(): await の後の stop の確かめ（P3-C2-AC03）で試行は stopped で終わり、数えず・書かず・timer を張らない (c) timer の待ち → reconnect(): reconnect() が timer を止めて試行を始める（C18）。その試行が失敗すると failedAttempts が 1 増え、新しい式の待ちで timer を 1 本張る。止めた古い timer は発火しない（clearTimeout と reconnectTimer=null を同じ同期の処理で行う） (d) 試行の最中 → reconnect(): connecting を返して何もしない（C18）。数も timer も変えない (e) open → start の前に close: dispatchLost の後に timer を張って 1 増える（0 に戻らない）。dmdata が open の直後に閉じ続けても 5・10・20・40・60 秒と延びる (f) open → start の受理（0 と null に戻す）→ 後で close: 1 になり 5 秒 (g) 過負荷の切断 → mailbox が空になる: resumeIfDrained が timer を通らずに試行を始め、数も理由も変えない (h) 401・403: lastFailure を authRejected にし、timer を張らない。その後の reconnect() は started で試行を始める（C18） (i) timer の発火と WS の close が同じ順番待ちに並ぶことは無い（timer は WS が無い間だけ張る）。(j) 生存監視の terminate（:473）や dmdata の error frame の close の後、close の event が来る前（socket はまだ古い WS で readyState は CLOSING）に reconnect() が試行を始めた場合: 遅れて来た古い WS の close は dispatchLost までとし、試行が走っている間（startAttempt から決着まで）は scheduleReconnect が timer を張らず数えない（その試行が失敗すれば試行の終わりで張る）。これで (i) の『timer と走っている試行が同時に無い』を保ち、新しい試行が open した後に古い timer が 2 本目の試行を起こして自分の生きた socket を DELETE することが無い。数と理由は timer を張る所・試行の終わり・start の受理・open の同期の処理の中でだけ変え、await を挟まない",
+        "requirement": "timer・試行・停止・reconnect() が重なったときの順（並行性と状態）。不変条件: (i) 繋ぎ直しの timer は host に高々 1 本（reconnectTimer、:208）で、timer・走っている試行・開いている自分の WS は同時に 2 つ以上は無い（過負荷の片付けの待ちはどれも持たない別の状態） (ii) stop() の後は timer を張らず、試行を始めず、failedAttempts と lastFailure を変えない。次のイベント列でこの順になる: (a) timer の待ち → stop(): stop() が timer を止める（P3-C2-AC03）。その後の scheduleReconnect は stopping で何もしない (b) timer の発火 → 試行の REST の await の最中に stop(): await の後の stop の確かめ（P3-C2-AC03）で試行は stopped で終わり、数えず・書かず・timer を張らない (c) timer の待ち → reconnect(): reconnect() が timer を止めて試行を始める（C18）。その試行が失敗すると failedAttempts が 1 増え、新しい式の待ちで timer を 1 本張る。止めた古い timer は発火しない（clearTimeout と reconnectTimer=null を同じ同期の処理で行う） (d) 試行の最中 → reconnect(): connecting を返して何もしない（C18）。数も timer も変えない (e) open → start の前に close: dispatchLost の後に timer を張って 1 増える（0 に戻らない）。dmdata が open の直後に閉じ続けても 5・10・20・40 秒、60 秒を 10 回、その後は 120 秒と延びる (f) open → start の受理（0 と null に戻す）→ 後で close: 1 になり 5 秒 (g) 過負荷の切断 → mailbox が空になる: resumeIfDrained が timer を通らずに試行を始め、数も理由も変えない (h) 401・403: lastFailure を authRejected にし、timer を張らない。その後の reconnect() は started で試行を始める（C18） (i) timer の発火と WS の close が同じ順番待ちに並ぶことは無い（timer は WS が無い間だけ張る）。(j) 生存監視の terminate（:473）や dmdata の error frame の close の後、close の event が来る前（socket はまだ古い WS で readyState は CLOSING）に reconnect() が試行を始めた場合: 遅れて来た古い WS の close は dispatchLost までとし、試行が走っている間（startAttempt から決着まで）は scheduleReconnect が timer を張らず数えない（その試行が失敗すれば試行の終わりで張る）。これで (i) の『timer と走っている試行が同時に無い』を保ち、新しい試行が open した後に古い timer が 2 本目の試行を起こして自分の生きた socket を DELETE することが無い。数と理由は timer を張る所・試行の終わり・start の受理・open の同期の処理の中でだけ変え、await を挟まない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:208 «d4e90dd82533f3b2»",
           "reconstruction/src/host/host.ts:233 «35363c2f74266d26»",
@@ -290,7 +299,7 @@
       },
       {
         "id": "P3-DC2-AC07",
-        "requirement": "受信経路と既存の保証: (1) onFrame（受信 1 回の処理）には何も足さない。acceptStart（start の frame ごと）に足すのは 0 と null の代入 2 つだけ。status() は O(1) の読み。全件の走査・直列化を足さない（AGENTS.md の受信経路の計算量） (2) { wsUrl } の振る舞い（固定 5 秒・初回の reject）と eew-e01 の試験は変えない（P3-C2-AC10） (3) 既存の試験の期待を変えてよいのは次だけ: host.test.ts の『P3-C2-T02: when $name …』（:559、2・3 回目の試行の 59_999／1 の境目を 5 秒と 10 秒の境目に、試験名の 60 s を改める）、『P3-C2-T02: a failed DELETE …』（:578、DELETE の失敗の後の境目を 10 秒に）、『P3-C2-T07: an uncertain start …』（:652、初回の結果不明の後の境目を 5 秒に）、host.test.ts の rest の mock が返す failed の値（:58・:414・:552・:554）を新しい RestRefusal の形に、dmdata-rest.test.ts の failed を比べる期待（:128 ほか）に answered と retryAfterMs を足すこと。advanceTimersByTime(60_000) で試行を待つ所（:642・:674・:709・:736・:794）と T03（:803、4_999／1）、5_000 で繋ぎ直しを待つ所（:846・:1217・:1324）は、上限の内か、n＝1 か { wsUrl } の 5 秒なので変えない。ほかの既存試験の期待を変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+        "requirement": "受信経路と既存の保証: (1) onFrame（受信 1 回の処理）には何も足さない。acceptStart（start の frame ごと）に足すのは 0 と null の代入 2 つだけ。status() は O(1) の読み。全件の走査・直列化を足さない（AGENTS.md の受信経路の計算量） (2) { wsUrl } の振る舞い（固定 5 秒・初回の reject）と eew-e01 の試験は変えない（P3-C2-AC10） (3) 既存の試験の期待を変えてよいのは次だけ: host.test.ts の『P3-C2-T02: when $name …』（:559、2・3 回目の試行の 59_999／1 の境目を 5 秒と 10 秒の境目に、試験名の 60 s を改める）、『P3-C2-T02: a failed DELETE …』（:578、DELETE の失敗の後の境目を 10 秒に）、『P3-C2-T07: an uncertain start …』（:652、初回の結果不明の後の境目を 5 秒に）、host.test.ts の rest の mock が返す failed の値（:58・:414・:552・:554）を新しい RestRefusal の形に、dmdata-rest.test.ts の failed を比べる期待（:128 ほか）に answered と retryAfterMs を足すこと。advanceTimersByTime(60_000) で試行を待つ所（:642・:674・:709・:736・:794）と T03（:803、4_999／1）、5_000 で繋ぎ直しを待つ所（:846・:1217・:1324）は、60 秒の内か、n＝1 か { wsUrl } の 5 秒なので変えない。ほかの既存試験の期待を変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
         "evidenceRefs": [
           "reconstruction/test/host/host.test.ts:559 «408c6af0f7b2aca5»",
           "reconstruction/test/host/host.test.ts:578 «02fbb35e6964566b»",
@@ -325,7 +334,7 @@
           "P3-DC2-AC01",
           "P3-DC2-AC02"
         ],
-        "behavior": "host.test.ts の末尾に 1 つの it（fake timer、rest は既存の mock）: { dmdata } で一覧が answered:false の failed を返し続けると、2 回目から 6 回目の試行の間が 5・10・20・40・60 秒、7 回目も 60 秒（各境目は 1 ms 前に試行が無く、境目で 1 回）。status().failedAttempts は timer を張るたびに 1 つ増える。次に一覧と start が通り、WS が open しても start の frame を送らずに閉じると、待ちは延び続ける（0 に戻らない）。形の正しい start を送ると failedAttempts が 0 になり、その後の close の待ちは 5 秒。一覧が retryAfterMs 120_000 の failed を返すと、その次の待ちは 120 秒"
+        "behavior": "host.test.ts の末尾に 1 つの it（fake timer、rest は既存の mock）: { dmdata } で一覧が answered:false の failed を返し続けると、2 回目から 6 回目の試行の間が 5・10・20・40・60 秒、7 回目も 60 秒（各境目は 1 ms 前に試行が無く、境目で 1 回）。status().failedAttempts は timer を張るたびに 1 つ増える。次に一覧と start が通り、WS が open しても start の frame を送らずに閉じると、待ちは延び続ける（0 に戻らない）。形の正しい start を送ると failedAttempts が 0 になり、その後の close の待ちは 5 秒。一覧が retryAfterMs 90_000 の failed を返すと、その次の待ちは 90 秒"
       },
       {
         "testId": "P3-DC2-T02",
@@ -341,7 +350,7 @@
         "referenceIds": [
           "P3-DC2-AC05"
         ],
-        "behavior": "host.test.ts の 1 つの it で AC05 の (a)(c)(e): timer を待つ間の reconnect() で試行が 1 回だけ始まり、止めた timer の時刻を過ぎても 2 回目が始まらない。その試行の失敗の後に timer が 1 本だけ張られる。timer を待つ間に stop() すると、上限の 60 秒と Retry-After の 120 秒を過ぎても REST の呼び出しが増えず、failedAttempts と lastFailure が stop() の前のまま"
+        "behavior": "host.test.ts の 1 つの it で AC05 の (a)(c)(e): timer を待つ間の reconnect() で試行が 1 回だけ始まり、止めた timer の時刻を過ぎても 2 回目が始まらない。その試行の失敗の後に timer が 1 本だけ張られる。timer を待つ間に stop() すると、式の最大の 120 秒を過ぎても REST の呼び出しが増えず、failedAttempts と lastFailure が stop() の前のまま"
       },
       {
         "testId": "P3-DC2-T04",
@@ -350,6 +359,15 @@
           "P3-DC2-AC04"
         ],
         "behavior": "host.test.ts の 1 つの it: frame を 1 つも受けていない間は status().lastFrameWallMs が null。ping の frame を受けた時の clock の wall がそのまま入り、WS が切れても消えない。同じ時に snapshot の connection.disconnectedAt は切断を処理した時の wall（今のまま）で、lastInputAt は ping で変わらない"
+      },
+      {
+        "testId": "P3-DC2-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DC2-AC01",
+          "P3-DC2-AC02"
+        ],
+        "behavior": "host.test.ts の 1 つの it（fake timer）: { dmdata } で一覧が answered:false の failed を返し続けると、14 回目の試行は 13 回目の 60 秒後（675 秒の時点）、15 回目は 14 回目の 120 秒後（795 秒）、16 回目も 120 秒後（915 秒）。各境目は 1 ms 前に試行が無く、境目で 1 回。その後に一覧と start が通って形の正しい start を受理し、WS が閉じると、次の待ちは 5 秒（n が 0 から数え直す）。作者裁定の 120 秒の段の境目（Q-DC2-AUTHOR）"
       }
     ],
     "requiredCommands": [
@@ -420,11 +438,11 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに『無いと何が壊れるか』を 1 行: 待ちの式（AC01、H26 の負担が抑えられない）、failedAttempts の 0 に戻す所の移動（AC02、dmdata が open の直後に閉じる場面で倍々が効かない）、RestRefusal の answered・retryAfterMs（AC03、ネットと dmdata の不調を分けられず Retry-After を読めない）、lastFailure（AC03、H29 の理由が無い）、root の getter と lastFrameWallMs（AC04、生存確認を含む最後の受信の時刻を C19 が読めない）。backoff の class・設定の欄・理由ごとの別の状態は作らない",
-      "追加・変更した試験ごとに対応を 1 行（T01・T04 受入条件、T02・T03 契約境界、AC07 の (3) の期待の変更は受入条件 AC01 の写し）。既存試験の期待を変えるのは AC07 の (3) の所だけ。ほかに変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+      "追加・変更した試験ごとに対応を 1 行（T01・T04 受入条件、T02・T03・T05 契約境界、AC07 の (3) の期待の変更は受入条件 AC01 の写し）。既存試験の期待を変えるのは AC07 の (3) の所だけ。ほかに変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
       "新しい file は作らない想定。作るなら export は末尾の export { … } にまとめる（P1-T04 が src の export function・export const を数える）。reconstruction の vitest は全件（reconstruction/test/parser-boundary を含む）を回し、--sequence.shuffle を付けた回も 1 回通す",
       "git diff --stat と git diff で、host.ts の行の数が変わるのは return の行の直前だけで、AC06 の中身を変えない行が変わっていないこと、dmdata-rest.ts と composition-root.ts の行の数が変わらないことを示す",
       "AGENTS.md の最小実装・最小テスト・受信経路の計算量を守る。onFrame に何も足さない（AC07 の (1)）",
-      "残存リスク: (1) REST が通って WS の段だけが落ち続ける場面では、戻ってから繋がるまでの待ちが今の 5 秒から最大 60 秒になる（P3-DC2-D-BACKOFF の reason） (2) Retry-After は上書きで上限を置かないので、dmdata が長い値を返すとその間は繋がない（recovery の lane と同じ）。retry（C18 の reconnect()）で手で繋ぎ直せる (3) WS の段の失敗は全部 network で、dmdata の WS 側の不調と回線を分けない"
+      "残存リスク: (1) dmdata が直ってから（回線が戻ってから）繋がるまでの待ちは最大 120 秒（15 回目の試行から、切断の 795 秒後以降）。REST が通って WS の段だけが落ち続ける場面では今の 5 秒から、回線が切れている場面では今の 60 秒から延びる（作者裁定 Q-DC2-AUTHOR、P3-DC2-D-BACKOFF の reason）。retry（C18 の reconnect()）で手で繋ぎ直せる (2) Retry-After は上書きで上限を置かないので、dmdata が長い値を返すとその間は繋がない（recovery の lane と同じ）。retry（C18 の reconnect()）で手で繋ぎ直せる (3) WS の段の失敗は全部 network で、dmdata の WS 側の不調と回線を分けない"
     ],
     "unresolvedQuestions": [
       {
