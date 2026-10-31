@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "489cfaa038a24ea88360772edc4e9cd95a62b7d619234c0cc6f326b2ae085343",
+    "sha256": "1820851d66d0be220ae4f77db54c7c24bb2fba3d9f2d9589e96a031ec1b149c2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -63,7 +63,7 @@
       },
       {
         "id": "P3-C2-UNCERTAIN-RECEIVE",
-        "A": "POSTの結果が不明でも受信を続ける。不明はWARNを1行入れて、RESTの失敗と同じ60秒後に通常の試行（一覧→容量確認→POST）を続ける",
+        "A": "POSTの結果が不明でも受信を続ける。不明はWARNを1行入れて、RESTの失敗と同じP3-DC2-D-BACKOFF の待ちの後に通常の試行（一覧→容量確認→POST）を続ける",
         "B": "不明になったら自動再接続を止め、再起動まで接続しない",
         "recommended": "A",
         "provisional": "A",
@@ -72,7 +72,7 @@
       },
       {
         "id": "P3-C2-START-UNCERTAIN",
-        "A": "POST /socketの結果を3つに分ける。成功（2xxで形の正しい応答）、失敗（要求を送る前の失敗、または全文を読めた非2xx）、不明（要求の送信後に作成の有無を判定できない終わり方、RES-05）。不明ならWARN dmdataSocketStartUncertain（count・durationMsなし）を1行入れて試行を失敗にし、60秒後の通常の試行へ進む（P3-C2-UNCERTAIN-RECEIVE）。idを受け取っていないsocketは、appName・区分・作成時刻が一致しても自分のものとして採用せず、DELETEもしない。次のPOSTは通常の容量確認（openとwaitingの合計+1が4以内、AC02(3)）だけで判断する。不明について新しい状態を持たない",
+        "A": "POST /socketの結果を3つに分ける。成功（2xxで形の正しい応答）、失敗（要求を送る前の失敗、または全文を読めた非2xx）、不明（要求の送信後に作成の有無を判定できない終わり方、RES-05）。不明ならWARN dmdataSocketStartUncertain（count・durationMsなし）を1行入れて試行を失敗にし、P3-DC2-D-BACKOFF の待ちの後の通常の試行へ進む（P3-C2-UNCERTAIN-RECEIVE）。idを受け取っていないsocketは、appName・区分・作成時刻が一致しても自分のものとして採用せず、DELETEもしない。次のPOSTは通常の容量確認（openとwaitingの合計+1が4以内、AC02(3)）だけで判断する。不明について新しい状態を持たない",
         "B": "一覧から同じappName・同じ区分・直近のsocketを候補として自分のidに採用してDELETEし、候補0件が60秒続いたら不明を解く",
         "recommended": "A",
         "provisional": "A",
@@ -81,12 +81,12 @@
       },
       {
         "id": "P3-C2-RETRY",
-        "A": "失敗はすべて1回の接続試行の失敗とし、backoffの状態を持たずに次の試行の間隔を原因で2つに分ける。WSの切断・handshake失敗は既存の固定5秒（R63）。RESTを伴う段（一覧・DELETE・start）の失敗と容量超過は固定60秒（定数1つ）。RESTが401・403を返したら再試行を止め、ERROR dmdataAuthRejectedを1行入れる（以後は再起動まで接続しない）。REST内の再試行・指数backoff・jitterは移植しない。{ dmdata }の初回の試行でstartP2Hostをrejectするのは、続けても直らない2つだけ（DmdataSubscription・appNameの不正はRESTの前に検出、RESTの401・403）。それ以外の初回の失敗（一覧の失敗・容量超過・startの失敗・結果不明・handshake失敗・WSのclose）はrejectせずにstartP2Hostを返し、connectionLost（acceptedThroughSequence=-1）を流してreconnectingを表示し、通常の周期（REST段と容量は60秒、WSは5秒）で試行を続ける。{ wsUrl }は既存どおり初回接続の失敗でreject（P2-A10-AC12、AC10）",
+        "A": "失敗はすべて1回の接続試行の失敗とし、backoffの状態を持たずに次の試行の間隔を原因で2つに分ける。WSの切断・handshake失敗は既存の固定5秒（R63）。RESTを伴う段（一覧・DELETE・start）の失敗と容量超過は固定60秒（定数1つ）（固定5秒・固定60秒・backoffの状態を持たないことは、P3-DMDATA-CONNECT-002 の P3-DC2-D-BACKOFF で改めた: { dmdata } の待ちは、n＝繋ぎ直しの数（P3-DC2-D-COUNT）として、n ≤ 14 なら min(5_000 × 2^(n−1), 60_000) ms、n ≥ 15 なら 120_000 ms（5・10・20・40 秒、60 秒を 10 回、その後 120 秒）。その試行の REST の失敗の答えに retryAfterMs があれば、その値を下限 5 秒・上限 2,147,483,647 ms に収めて使う（一覧 2 本の両方にあれば大きい方）。n は 60 秒以上続いた確立した接続を失った時だけ 0 に戻す（P3-DC2-D-RESET）。{ wsUrl } は固定 5 秒のまま〔P2-A10-HOST〕）。RESTが401・403を返したら再試行を止め、ERROR dmdataAuthRejectedを1行入れる（以後は再起動まで接続しない）。REST内の再試行・指数backoff・jitterは移植しない。{ dmdata }の初回の試行でstartP2Hostをrejectするのは、続けても直らない2つだけ（DmdataSubscription・appNameの不正はRESTの前に検出、RESTの401・403）。それ以外の初回の失敗（一覧の失敗・容量超過・startの失敗・結果不明・handshake失敗・WSのclose）はrejectせずにstartP2Hostを返し、connectionLost（acceptedThroughSequence=-1）を流してreconnectingを表示し、P3-DC2-D-BACKOFF の待ちで試行を続ける。{ wsUrl }は既存どおり初回接続の失敗でreject（P2-A10-AC12、AC10）",
         "B": "旧築のREST再試行（429/5xxを3回）と再接続の指数backoff（1→60秒）を移植する、または全失敗を固定5秒で回す",
         "recommended": "A",
         "provisional": "A",
         "ruling": "起草案のレビュー指摘P2-2を統合担当が採用（2026-10-01）",
-        "reason": "固定5秒のままではキーの失効やdmdata障害の間、5秒ごとにRESTを2〜3回呼び続ける（1日約3.5〜5万回）。5秒はローカルWSの通常切断の値で、REST障害の間隔ではない。backoffの状態を足さずに定数2つで抑える。dmdataのrate limitとRetry-Afterは実接続検証で観測する（Q-C2-DMDATA-BEHAVIOR）"
+        "reason": "固定5秒のままではキーの失効やdmdata障害の間、5秒ごとにRESTを2〜3回呼び続ける（1日約3.5〜5万回）。5秒はローカルWSの通常切断の値で、REST障害の間隔ではない。backoffの状態を足さずに定数2つで抑える（P3-DMDATA-CONNECT-002 の P3-DC2-D-BACKOFF で改めた: n ≤ 14 なら min(5_000 × 2^(n−1), 60_000) ms、n ≥ 15 なら 120_000 ms、Retry-After があればその値を 5 秒〜2,147,483,647 ms に収めて使う）。dmdataのrate limitとRetry-Afterは実接続検証で観測する（Q-C2-DMDATA-BEHAVIOR）"
       }
     ],
     "questionResolutions": [
@@ -110,7 +110,7 @@
         "status": "closed",
         "source": "AC09 の実接続検証の観測（dmdata-live-20261005.json）",
         "closed": "waiting は 3 時点とも 0（WS を閉じた後と停止後の自分の socket は afterStop に無い。失効か DELETE かは区別できない）。ping 間隔は 20 秒（最大 20.3 秒）で、DLV-02 の 90 秒は観測で妥当、値は変えない（回線断で 90.9 秒後に期限切れ）。REST 429・5xx は無し（ListFailed 2 行は回線断中の通信失敗）。error frame は 0 件で errorClose は未確認。結果不明の POST（dmdataSocketStartUncertain）は 0 件で waiting の失効は未確認",
-        "remaining": "暫定のまま残す: RES-03（waiting が出なかった）、RES-04・RES-05（15 秒。timeout は起きなかった）、RES-06（Retry-After 未確認の 60 秒）。errorClose・waiting の失効は未確認",
+        "remaining": "暫定のまま残す: RES-03（waiting が出なかった）、RES-04・RES-05（15 秒。timeout は起きなかった）、RES-06（Retry-After 未確認の 60 秒。Retry-After は P3-DMDATA-CONNECT-002 の P3-DC2-D-BACKOFF で読む）。errorClose・waiting の失効は未確認",
         "reason": "unresolvedQuestions の Q-C2-DMDATA-BEHAVIOR（AC09 の観測で閉じる）を閉じる"
       }
     ],
@@ -261,7 +261,7 @@
         "limit": 15,
         "unit": "seconds",
         "status": "provisional",
-        "scope": "wsのhandshakeTimeoutで与える。{ wsUrl }の初回は超過でstartP2Hostをreject（既存）。{ dmdata }の初回と再接続では試行の失敗として5秒後に次の試行（P3-C2-RETRY）",
+        "scope": "wsのhandshakeTimeoutで与える。{ wsUrl }の初回は超過でstartP2Hostをreject（既存）。{ dmdata }の初回と再接続では試行の失敗としてP3-DC2-D-BACKOFF の待ちの後に次の試行（P3-C2-RETRY）",
         "source": "台帳58"
       },
       {
@@ -276,9 +276,9 @@
         "id": "P3-C2-RES-06",
         "target": "reconnect interval",
         "limit": 5,
-        "unit": "seconds fixed after a WebSocket close or handshake failure; 60 seconds fixed after a REST-stage or capacity failure",
+        "unit": "seconds minimum for every reconnect timer: { dmdata } waits min(5 × 2^(n−1), 60) s for n ≤ 14 and 120 s for n ≥ 15 (n = reconnect count, P3-DC2-D-COUNT); a REST Retry-After replaces the formula, clamped to 5 s … 2,147,483,647 ms; { wsUrl } stays fixed at 5 s (P3-DMDATA-CONNECT-002 P3-DC2-D-BACKOFF)",
         "status": "provisional",
-        "scope": "5秒はP2-A10-AC12の既存定数（ローカルWSの通常切断の値）。RESTを伴う段（一覧・DELETE・start）の失敗と容量超過は60秒の定数1つ。backoffの状態は持たない。RESTの401・403で再試行を止め、ERROR dmdataAuthRejectedを1行入れる（P3-C2-RETRY）。過負荷の再接続は既存どおりmailbox排出後",
+        "scope": "{ dmdata } の待ちは P3-DMDATA-CONNECT-002 の P3-DC2-D-BACKOFF の式で、WS の段の失敗・RESTを伴う段（一覧・DELETE・start）の失敗・容量超過で同じ: n＝繋ぎ直しの数（P3-DC2-D-COUNT）として、n ≤ 14 なら min(5_000 × 2^(n−1), 60_000) ms、n ≥ 15 なら 120_000 ms（5・10・20・40 秒、60 秒を 10 回、その後 120 秒）。その試行の REST の失敗の答えに retryAfterMs があれば、その値を下限 5 秒・上限 2,147,483,647 ms に収めて使う（一覧 2 本の両方にあれば大きい方）。n は 60 秒以上続いた確立した接続を失った時だけ 0 に戻す（P3-DC2-D-RESET）。{ wsUrl } の5秒はP2-A10-AC12の既存定数（ローカルWSの通常切断の値）。RESTの401・403で再試行を止め、ERROR dmdataAuthRejectedを1行入れる（P3-C2-RETRY）。過負荷の再接続は既存どおりmailbox排出後",
         "source": "R63（e01:523）、レビュー指摘P2-2"
       },
       {
@@ -305,7 +305,7 @@
       "REST回復・電文一覧・本文取得（C16）",
       "契約一覧（GET /v2/contract）と配送capabilityの追跡（旧築delivery-capabilities）",
       "endpointの選択・地域切替（旧築EndpointSelector）。socket startが返したURLをそのまま使う",
-      "再接続の指数backoff・jitter・REST再試行（P3-C2-RETRY）",
+      "jitter・REST 再試行（P3-C2-RETRY）。間隔を延ばすのは P3-DMDATA-CONNECT-002",
       "mailbox・worker・publisherの境界とJSON parseの位置（C3a）",
       "通常終了の段の順序と期限（C3b）",
       "測定runnerと投入側のローカルWS（C4。reconstruction/test/eew-e01/**は編集しない）",
@@ -329,7 +329,7 @@
       },
       {
         "id": "P3-C2-AC02",
-        "requirement": "起動前の接続条件（spec§10.1）: 接続の各試行は次の順で行い、どこかで失敗したらWSを開かない。(1) socket一覧をstatus=openとstatus=waitingで別々に取る。どちらかが失敗なら試行を失敗にする（WARN dmdataSocketListFailed。所有・容量を判断できないので開始しない）。(2) 自分の前のsocket idがあり、(1)の一覧に残っていればDELETEする。成功（RES-02）で自分のidを忘れ、失敗なら試行を失敗にする（WARN dmdataSocketCloseFailed）。一覧に無ければDELETEせずにidを忘れる。(3) appNameを問わず(1)のopenとwaitingの合計から(2)で消した自分のidを除いて数え、+1が4を超えるなら試行を失敗にする（WARN dmdataConnectionCapacityExceeded）。(4) socket startし、返ったwebsocket.idを自分のsocketとして覚える。失敗なら試行を失敗にする（WARN dmdataSocketStartFailed）。結果不明ならWARN dmdataSocketStartUncertainを1行入れて試行を失敗にする（60秒後の通常の試行へ。idを受け取っていないsocketは採用もDELETEもしない、P3-C2-START-UNCERTAIN）。同じappNameの残留socketも含め、自分のid以外は数えるだけでDELETEしない（P3-C2-OWNERSHIP）。どの段でもRESTが401・403を返したらERROR dmdataAuthRejectedを1行入れて再試行を止める。{ dmdata }の初回の試行でstartP2Hostをrejectするのは、続けても直らない2つだけ（DmdataSubscription・appNameの不正はRESTの前に検出、RESTの401・403）。それ以外の初回の失敗（一覧の失敗・容量超過・startの失敗・結果不明・handshake失敗・WSのclose）はrejectせずにstartP2Hostを返し、connectionLost（acceptedThroughSequence=-1）を流してreconnectingを表示し、通常の周期（REST段と容量は60秒、WSは5秒）で試行を続ける。{ wsUrl }は既存どおり初回接続の失敗でreject（P2-A10-AC12、AC10）。rejectするときは開いた資源と自分のsocketを閉じてから返す（既存のstop経路）。再接続の試行の失敗は、(1)〜(4)の失敗なら固定60秒後、WSの切断・handshake失敗なら固定5秒後に次の試行（RES-06）",
+        "requirement": "起動前の接続条件（spec§10.1）: 接続の各試行は次の順で行い、どこかで失敗したらWSを開かない。(1) socket一覧をstatus=openとstatus=waitingで別々に取る。どちらかが失敗なら試行を失敗にする（WARN dmdataSocketListFailed。所有・容量を判断できないので開始しない）。(2) 自分の前のsocket idがあり、(1)の一覧に残っていればDELETEする。成功（RES-02）で自分のidを忘れ、失敗なら試行を失敗にする（WARN dmdataSocketCloseFailed）。一覧に無ければDELETEせずにidを忘れる。(3) appNameを問わず(1)のopenとwaitingの合計から(2)で消した自分のidを除いて数え、+1が4を超えるなら試行を失敗にする（WARN dmdataConnectionCapacityExceeded）。(4) socket startし、返ったwebsocket.idを自分のsocketとして覚える。失敗なら試行を失敗にする（WARN dmdataSocketStartFailed）。結果不明ならWARN dmdataSocketStartUncertainを1行入れて試行を失敗にする（P3-DC2-D-BACKOFF の待ちの後の試行へ。idを受け取っていないsocketは採用もDELETEもしない、P3-C2-START-UNCERTAIN）。同じappNameの残留socketも含め、自分のid以外は数えるだけでDELETEしない（P3-C2-OWNERSHIP）。どの段でもRESTが401・403を返したらERROR dmdataAuthRejectedを1行入れて再試行を止める。{ dmdata }の初回の試行でstartP2Hostをrejectするのは、続けても直らない2つだけ（DmdataSubscription・appNameの不正はRESTの前に検出、RESTの401・403）。それ以外の初回の失敗（一覧の失敗・容量超過・startの失敗・結果不明・handshake失敗・WSのclose）はrejectせずにstartP2Hostを返し、connectionLost（acceptedThroughSequence=-1）を流してreconnectingを表示し、P3-DC2-D-BACKOFF の待ちで試行を続ける。{ wsUrl }は既存どおり初回接続の失敗でreject（P2-A10-AC12、AC10）。rejectするときは開いた資源と自分のsocketを閉じてから返す（既存のstop経路）。再接続の試行の失敗は、(1)〜(4)の失敗でも、WSの切断・handshake失敗でも、P3-DC2-D-BACKOFF の待ちの後に次の試行（RES-06）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2111 «c1a7611e07d5279a»",
           "docs/specs/reconstruction-p0-contracts.md:2113 «01b773cf48eb52f8»",
@@ -440,7 +440,7 @@
           "P3-C2-AC02",
           "P3-C2-AC03"
         ],
-        "behavior": "mockの一覧はstatusの問合せごとに別の答えを返す（open用とwaiting用）。一覧に同じappNameの他人のsocketと別appNameのsocketがあっても、DELETEは自分のidにしか行かない。openの一覧の失敗、waitingの一覧の失敗、openとwaitingの合計が4件（waiting側だけに件数がある場合を含む）、startの失敗、一覧に残る前の自分のsocketのDELETE失敗では、それぞれ該当WARNを入れてWSを開かない。初回でもrejectせずstartP2Hostが返り、snapshotがreconnectingで、60秒後に次の試行が起きる（再接続も同じ）。初回の401・403と不正なDmdataSubscriptionだけがrejectする。401・403ではERROR dmdataAuthRejectedが1行で、以後の試行が起きない（初回の試行ならstartP2Hostがrejectする）。WSのcloseからの再接続で、一覧に前の自分のidが残っていればそのDELETEが新しいstartより先に来て、消したidは容量に数えない。一覧に無ければDELETEせずにstartへ進む。startの応答待ちの間にstop()すると、WSを開かず返ったidをDELETEする。stop()で自分のsocketがDELETEされ、開いているWSは常に1本以下"
+        "behavior": "mockの一覧はstatusの問合せごとに別の答えを返す（open用とwaiting用）。一覧に同じappNameの他人のsocketと別appNameのsocketがあっても、DELETEは自分のidにしか行かない。openの一覧の失敗、waitingの一覧の失敗、openとwaitingの合計が4件（waiting側だけに件数がある場合を含む）、startの失敗、一覧に残る前の自分のsocketのDELETE失敗では、それぞれ該当WARNを入れてWSを開かない。初回でもrejectせずstartP2Hostが返り、snapshotがreconnectingで、5秒後に次の試行が起き、続けて失敗すればその10秒後に次の試行が起きる（P3-DC2-D-BACKOFF の待ち。再接続も同じ式で、WSのcloseからの再接続で一覧に残る前の自分のsocketのDELETEが失敗した後は10秒後）。初回の401・403と不正なDmdataSubscriptionだけがrejectする。401・403ではERROR dmdataAuthRejectedが1行で、以後の試行が起きない（初回の試行ならstartP2Hostがrejectする）。WSのcloseからの再接続で、一覧に前の自分のidが残っていればそのDELETEが新しいstartより先に来て、消したidは容量に数えない。一覧に無ければDELETEせずにstartへ進む。startの応答待ちの間にstop()すると、WSを開かず返ったidをDELETEする。stop()で自分のsocketがDELETEされ、開いているWSは常に1本以下"
       },
       {
         "testId": "P3-C2-T03",
@@ -481,7 +481,7 @@
           "P3-C2-AC02",
           "P3-C2-AC03"
         ],
-        "behavior": "mockのstartが結果不明を返すと、WARN dmdataSocketStartUncertainが1行（count・durationMsなし）入り、WSを開かない。初回の試行で結果不明でもstartP2Hostはrejectせずに返り、snapshotがreconnectingになり、60秒後に次の試行が起きる。次の試行は60秒後で、一覧（openとwaiting）の合計+1が4以内ならPOSTし、4を超えるならdmdataConnectionCapacityExceededでPOSTしない（結果不明の後でも容量確認だけで判断する）。一覧に同じappName・同じ区分・直近の作成時刻のwaiting socket（idを受け取っていないもの）があっても、試行・stop()のどちらでもDELETEせず自分のidとして扱わない。別に、同じappNameの他プロセスのopen socketが一覧にあり続ける条件で、再接続・stop()を通じて一度もDELETEされない"
+        "behavior": "mockのstartが結果不明を返すと、WARN dmdataSocketStartUncertainが1行（count・durationMsなし）入り、WSを開かない。初回の試行で結果不明でもstartP2Hostはrejectせずに返り、snapshotがreconnectingになり、5秒後に次の試行が起きる（P3-DC2-D-BACKOFF の待ち）。次の試行は5秒後で、一覧（openとwaiting）の合計+1が4以内ならPOSTし、4を超えるならdmdataConnectionCapacityExceededでPOSTしない（結果不明の後でも容量確認だけで判断する）。一覧に同じappName・同じ区分・直近の作成時刻のwaiting socket（idを受け取っていないもの）があっても、試行・stop()のどちらでもDELETEせず自分のidとして扱わない。別に、同じappNameの他プロセスのopen socketが一覧にあり続ける条件で、再接続・stop()を通じて一度もDELETEされない"
       },
       {
         "testId": "P3-C2-T08",

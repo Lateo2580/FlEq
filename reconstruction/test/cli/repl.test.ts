@@ -64,7 +64,7 @@ const fakeHost = (status: Partial<HostStatus> = {}) => {
     displayPort: null, stop: vi.fn(), reconnect: vi.fn((): ReturnType<HostCommandPort["reconnect"]> => "connected"),
     openDisplay: vi.fn(async (): Promise<Awaited<ReturnType<HostCommandPort["openDisplay"]>>> => ({ kind: "portInUse" })),
     closeDisplay: vi.fn(async (): Promise<"closed" | "notOpen"> => "notOpen"),
-    status: vi.fn((): HostStatus => ({ connection: "connected", socketId: 77, failedAttempts: 0, display: null, ...status })),
+    status: vi.fn((): HostStatus => ({ connection: "connected", socketId: 77, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, ...status })),
   };
   return port;
 };

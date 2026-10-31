@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "37fed4df8eb48624a2f0525c41b74c6c1d8348c369656cf038bb3ce48e3a2ea1",
+    "sha256": "45647b6471e17af0eced849a873f7d2eeaef75c60b2c3f928d63fd2371b0e1b6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -121,6 +121,14 @@
         "closed": "(1) 分岐と未決: decisionBranches は 8 本（kind はどれも統合担当）。status はどれも「確定」で、P3-DC2-D-BACKOFF だけが「確定（作者裁定、2026-10-31 夜）」、ほかの 7 本は統合担当の確定。recommended・provisional・ruling は 8 本とも A で揃う。作者裁定 Q-DC2-AUTHOR の D-BACKOFF は推奨 A のまま、A に段（60 秒の待ちが 10 回の後は 120 秒）を足して採ったもので、推奨と違わない（provisional も A）。D-BACKOFF は作者に聞いて裁定を受けたが kind は統合担当のまま（手本の Q-CLI-O2-PRECHECK は作者裁定の分岐を kind 作者で数える。直すかは統合担当）。作者の裁定を待つ分岐は 0。本項を除く契約の全文で『起草案』『承認待ち』『承認を待』『未裁定』『確認待ち』『仮の形』『要判断』『確かめ中』『裁定待ち』は 0 件。『未決』は 1 件（Q-DC2-ANCHORS の reason の「baseOid の割当を止めていた未決…を閉じる」）、『未確認』は 1 件（AC08 の (1) が引く P3-C2 の Q-C2-DMDATA-BEHAVIOR の remaining の字「Retry-After 未確認の 60 秒」）。『推奨』5 件は ruling の「起草時に推奨で確定」の字。unresolvedQuestions は空。questionResolutions は本項を足して 3 件で、どれも closed (2) 他の契約が引く行（reconstruction/contracts/・docs/specs/・sequences.json、本契約を除く。C18 発注 2 の配送 33a6f9cc の後の版）: host.ts は «» 71 件（18 file、:38〜:589）・full path の地の文 0（短い名前の地の文は 117 件・18 file・最大 :583）。dmdata-rest.ts は «» 9 件（3 file、:6・:11・:52・:66・:91・:121・:140 の 7 行で AC06 の一覧と一致）・地の文 0。composition-root.ts は «» 101 件（26 file）・地の文 1（p2-checkpoint-shutdown.json の :223）で、:472 を引く «» は 0、:473 を地の文で引くのは p3-execution-lifecycle.json:328 だけ（AC04 と一致）。p3-cli-repl.types.ts は 0（AC06 と一致）。host.test.ts は «» 0・地の文 1（計画:248 が :260 を引く）、dmdata-rest.test.ts は 0。p3-dmdata-connect.types.ts は allowedPaths に無く（他の «» 2 件、:9・:14）、実装は変えない。条文が名指す実装が中身を変える行（host.ts の :23・:25・:51・:208 か :210・:233〜:234・:239・:248〜:249・:253〜:254・acceptStart の :284〜:286・:363〜:366（:364 を除く）・:372・:381・:384・:388・:409・:413・:418・:587・:654〜:655、dmdata-rest.ts の :15・:81・:93・:97・:100・:103・:112・:117・:124・:126、composition-root.ts の :472、p3-cli-repl.types.ts の :83）を引く他の契約の «» は 0。AC06 の中身を変えない 12 行（:228・:280・:282・:283・:364・:368・:385・:395・:406・:581・:583・:589）はどれも他の契約の «» が引く行で、今の中身に一致。範囲の中で 12 行に入っていない他の «» は :258（p3-seismic-place.json、resumeIfDrained の宣言）だけで、AC01 が今のままとするので FAIL にならない。return（:657）の直前に行を足しても、他の契約の «» は :589 までなのでずれない。実装の後に FAIL になる他の契約の «» は 0 件で、AC06・Q-DC2-ANCHORS (2) の付け直し 0 件と一致。食い違い (a): requiredCommands の check-contract の purpose が「実装の後に FAIL になるのは AC06 の見込みの件（return の前に行を足したときの 1 件）と…」のままで、AC06・Q-DC2-ANCHORS (2) の 0 件と食い違う（起草の時の見込みの残り）。(b): AC06 の末尾と同じ purpose の「FAIL になりうるのは本契約が引く行のうち実装が中身を変えた行だけ」は、本契約の «» host.ts:657（return の行。中身は変えないが直前に行を足すとずれる）を含まない。host.test.ts の本契約の «»（:559・:578・:652・:803）も、AC07 の (3) の改めで途中に行を足せばずれる (3) anchor: 本契約の «» 付きの参照は 101 件（異なり 73、13 file。meta.contractTypeRef の 1 件を含む。host.ts 30・p3-dmdata-connect.json 8・spec 8・host.test.ts 7・dmdata-rest.ts 5・composition-root.ts 4・recovery.ts 3・p3-recovery.json 2・ws-client.ts 2・p3-cli-repl.json・p3-cli-repl.types.ts・dmdata-rest.test.ts・info-handlers.ts 各 1）。Q-DC2-ANCHORS (1) の 68 件（host.ts 25 件）は、同じ commit で AC02・AC05・AC06 に足した 5 件（host.ts:210・:647・:649・:654・:657）の前の数。check-contract は本契約を PASS とし（PASS 以外の行は本契約の baseOid unassigned の WARN 1 行だけ。出力は PASS 75 行・WARN 1 行）、自前の照合（行の trim の sha256 の先頭 16 桁）でも 73 件がどれも HEAD の今の行に一意に一致した（付け直し 0）。本文の地の文の参照は、file の名の付いた 19 件（異なり 16）を全部と、名の無い番号のうち host.ts の :588 より後ろを優先して照らし、どれも合う: host.ts の :589・:643〜:647・:648・:649・:650・:654・:657・:657〜:661（今の最後の行は :661）、:581・:583・:585〜:587・:586、:409・:412〜:419・:413・:418・:406・:384・:372・:366・:364・:285・:258〜:263・:253・:249・:244・:239・:210・:208・:51・:23・:25、dmdata-rest.ts の :15・:67・:81・:93・:112・:124・:126・:137、composition-root.ts の :472・:1032・:1930・:1937、recovery.ts の :243・:245、ws-client.ts の :381・:604〜:611、info-handlers.ts の :495、計画:450、p3-replay-cli.json:330（host.ts:589 を引く）、p3-execution-lifecycle.json:328、p3-cli-repl.types.ts:83、P3-C2 の :443・:484（behavior に「60秒後」がある）。食い違い (c): AC05 の (j) の「生存監視の terminate（:473）」は、terminate が :474 で、:473 は note(\"WARN\", \"connectionLivenessExpired\")（33a6f9cc の前から同じ）。(d): AC02 の (1)・AC05 の (j)・AC08 の (2) の「C18 発注 2 の配送 7460583f」は rebase の前の commit で、HEAD の祖先でない（同じ題、parent 52a3f8a0）。main の配送は 33a6f9cc で、p3-cli-repl.json と host.ts の中身は 7460583f と同じ。P3-DC2-D-ORDER の A の「host.ts の :588〜:589 の間に足す行」は C18 の配送の前の番号（今の区画は :589〜:656）で、起草の時の記録として残る (4) Mac mini のゲート（2026-10-31 夜、main 6320c845〔EEW-FACTS の配送の後〕に本契約の点検の当てまでを載せた木、node@22）: check-manifest・check-sequences・check-contract・tsc 3 本・新築の vitest（95 file 通過・8 skip、1,103 件通過・25 skip）・その shuffle（同じ数）・build・npm test（289 file、6,837 件通過・3 skip）・typecheck:test の 11 本がどれも rc 0 (5) 試験の前提: host.test.ts の試験の時計は :102〜:105（monotonicMs＝performance.now()＋skew.ms、:103）で、startDmdata（:421）も start（:170）もこの clock を host に渡すので、T01 の「経過は skew.ms で作る」と合う。lose()（:443）は skew を 1 秒進めてから（:445）terminate し、T01 の 58_000／59_000 の 2 点の数え方と合う。:511 の試験の helper reconnect(index)（:527〜:536）は ping だけを送り start を送らないので、確立した時刻は無く、1 回目の切断は n＝1 の 5 秒、2 回目は n＝2 の 10 秒になり、:533 の advanceTimersByTime(5_000) を index で分ける AC07 の (3) と合う。:559 の 59_999／1（:570・:573）、:578 の 59_999／1（:595・:599、その前の :590 の 5_000 は n＝1）、:652 の 59_999／1（:666・:669）が改める所で、境目は 5 秒・10 秒、10 秒、5 秒になる。rest の mock の failed は :58・:414・:552・:554 の 4 か所。60_000 で待つ :642・:674・:709・:736・:794 は n ≤ 3（待ちは 20 秒まで）で、advanceTimersByTime は同期で回り試行の REST の await を待たないので 1 回だけ試行が始まり、変えずに済む。T03 の :803（{ wsUrl }、:820・:823 の 4_999／1）と 5_000 の :846・:1217・:1324（{ wsUrl }）も変わらない。AC07 の (3) の一覧に無いが n＝1 の 5 秒で変えずに済む所: :623（401 の試験）・:703（P3-C2-T05）・:1504（C18 の閉じかけの試験）。{ wsUrl } の :296〜:308 の 4_999／1 は固定 5 秒のまま。C18 の (b)（:1444）は reconnect() が timer を取り消して試すので式に依らない。dmdata-rest.test.ts で failed を toEqual で比べるのは :128 の 1 か所だけで、:110・:123 の run()（:108）は kind だけを比べる。間隔に頼る既存の試験を 5_000・60_000・RECONNECT で数えた（reconstruction/test の ts、host 系 18 file）: recovery-host.test.ts は { dmdata } で起動し 1 回だけ切る（:247・:256）ので、n＝1 の 5 秒のまま :250 の 4_900 以上と :257 の until（20 秒）が成り立ち、60_000 は MINUTE の定数（:72）。ほかの *-host.test.ts 9 本は dmdata-rest を { kind: \"failed\" } で mock するが { dmdata } で起動せず（dmdata: の起動 0 件）、vi.mock の factory は型検査されない。cli.test.ts の 4_999／1（:264・:267）は stop の後の 5 秒で host は mock。display-wiring・notification-wiring の 5_000 は host の繋ぎ直しに依らない。RECONNECT を引く試験は 0。食い違い (e)【止める】: HostStatus の値を組み立てる既存の試験が 2 つあり、allowedPaths にも AC07 の (3) にも無い。reconstruction/test/cli/repl.test.ts:67（fakeHost の status が HostStatus を返す。既定は connection・socketId・failedAttempts・display の 4 欄と Partial<HostStatus> の spread）と reconstruction/test/cli/cli.test.ts:215（fakeHost の戻り値が Omit<HostCommandPort, \"stop\"> で、status の literal が 4 欄）。HostStatus に必須の 3 欄（lastFailure・lastFrameWallMs・lostConnections）を足すと、tsconfig.test.json（include に test/**/*.ts）の tsc が落ちる（同じ形を 4 欄＋3 欄の型で使い捨ての tsc に掛けて TS2322・TS2739 を確かめた）。実装担当は requiredCommands の 2 本目を rc 0 にできない。直し方の案: allowedPaths に「reconstruction/test/cli/repl.test.ts（:67 の fakeHost の既定に 3 欄を足すだけ）」と「reconstruction/test/cli/cli.test.ts（:215 の status の値に 3 欄を足すだけ）」を足し、AC07 の (3) の変えてよい一覧にも足す（期待の値は変えない）。この 2 file を「path:行」で引く参照は 0 で、anchor は動かない。欄を省略可能にするのは、type-system-discipline と AC03・AC04・AC09 の型（必須）に反するので取らない (6) 相手契約の後の裁定: 依存の json の最終変更は p3-dmdata-connect.json 51b21455（10-28 17:21）、p3-recovery.json ea8ea359（10-30 07:15）、p3-cli-repl.json 33a6f9cc（10-31 21:42、C18 発注 2 の配送）。型は p3-dmdata-connect.types.ts が本契約の起草 db9a96bd、p3-cli-repl.types.ts が 33a6f9cc。host.ts・host.test.ts・repl.test.ts・cli.test.ts は 33a6f9cc、dmdata-rest.ts・dmdata-rest.test.ts は ddc4a09e（10-31 15:29、C18 発注 1）、composition-root.ts・recovery.ts は 047f87ec（10-29）、spec は 047d7c4a（10-31 17:48）、計画は db9a96bd、manifest は f47975f1・sequences は 3e3c63df（meta の manifestSha256・sequencesSha256 と一致）。起草の起点 447bea9c（10-31 18:06）の後に変わったのは、33a6f9cc の分と、4fc85cc0（計画だけ）・P3-EEW-FACTS-001 の 5 commit（p3-eew-facts.json・p3-eew-facts.types.ts・計画だけ）・本契約の 6 commit。33a6f9cc の分は Q-DC2-ANCHORS で照らした形のまま合う: P3-CLI-AC16 の (6)（reconnect() は CLOSING の間は connecting、試行の共通の入口で試行・socket・停止を確かめ直す）は AC05 の (j) と、host.ts の :643〜:650・:244 と合う。(7) の failedAttempts の定義（最後に opened になった後の opened でない試みの終わりの数、opened で 0。host.ts:239）は、AC02 の (1)・AC08 の (2) が改める前提と合う。HostStatus（p3-cli-repl.types.ts:79〜:86）は connection・socketId・failedAttempts（:84、コメント :83）・display の 4 欄で、本契約が足す 3 欄はまだ無い。DmdataConnectFailure（p3-dmdata-connect.types.ts:24）の 5 値は P3-DC2-D-REASON と一致。並走との重なり: P3-EEW-FACTS-001（baseOid ef66abee）の allowedPaths（eew.ts・eew-unit.test.ts・p3-eew-facts.json）は、本契約の allowedPaths と «» の 13 file のどれとも重ならない。③ U-W の起草（branch uw-draft 80f9ce60、起点 4fc85cc0）の allowedPaths は composition-root.ts を共有する（詳細の待ちの requestDetail〜sendDetail、:1840〜:1906 の中身だけで行の数を変えない）。本契約は :472 の中身だけで行の数を変えず、本契約の «» の :472・:1032・:1930・:1937 はその範囲の外、U-W の «» の :1840・:1905 は本契約の変更の外なので、どちらが先に入っても互いの行はずれない（後に入る側は同じ file の載せ直しだけ）。U-W の p2-shared-runtime.types.ts（:11〜:12・:213〜:214）・p3-uw-canon.json・p3-uw-canon.types.ts は本契約の allowedPaths と anchor の file に無い。計画は U-W が :421・:467 を 1 行ずつ置き換えるだけで、本契約の地の文の計画:450 はずれない。保留中の C15 発注 2（ローカル branch p3-migration-o2-hold、97414f91、未 push）は本契約の allowedPaths と anchor の 13 file を変えないが、sequences.json を変え、本契約の sequencesSha256（8fb1ecd7…）がずれる。C15 が本契約の配送より先に合流したら、本契約の配送で付け直す。保留の間は止める理由にならない (7) checker の rc: 本項を足した後に meta.sha256 を .draft-work/seal.py で取り直し、checker 3 本を && でつないで回し直して rc 0 統合担当の当て（2026-10-31 夜、点検の後）: 食い違い (e) は、allowedPaths に reconstruction/test/cli/repl.test.ts（:67 の fakeHost の既定の status の値）と reconstruction/test/cli/cli.test.ts（:215 の fakeHost の status の値）を「HostStatus の 3 欄〔lastFailure・lastFrameWallMs・lostConnections〕を足すだけ」で足し、AC07 の (3) の変えてよい一覧にも足した（期待の値は変えない。2 file を「path:行」で引く他の参照は 0）。(a) は requiredCommands の check-contract の purpose の「AC06 の見込みの件（return の前に行を足したときの 1 件）」を、他の契約の «» では 0 件（AC06・Q-DC2-ANCHORS の (2)）に改めた。(b) は AC06 の末尾と同じ purpose の「中身を変えた行だけ」に、行の追加でずれる本契約の «»（host.ts の :657、途中に行を足したときに足した所より後ろにある host.test.ts の :443・:445・:511・:559・:578・:652・:803、HostStatus の行を :84 より前に足したときの p3-cli-repl.types.ts の :84）を足し、purpose の file の一覧に p3-cli-repl.types.ts を足した（dmdata-rest.test.ts の :128 は中身を変える行に入る）。(c) は AC05 の (j) の terminate を :474 に、(d) は AC02 の (1)・AC05 の (j)・AC08 の (2) の「配送 7460583f」を 33a6f9cc に直した（2 つは同じ題・同じ日時で、差は rebase の土台の p3-eew-facts.json だけ）。P3-DC2-D-BACKOFF の kind を作者に直した（作者裁定 Q-DC2-AUTHOR）。本項の (1)・(5) の字は点検の時点の記録として残す。どれも条文の意味を変えない数・一覧・番号・記号の直しで、画面・音・通知の出方を変えない",
         "remaining": "なし（baseOid の割当は統合担当）",
         "reason": "発注前点検"
+      },
+      {
+        "id": "Q-DC2-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-10-31 深夜。実装は baseOid e0c341cd の木 ~/dev/fleq-c2-impl で行い、main 446adeb0 の上の配送の木 ~/dev/fleq-c2-deliver に当てた。前例は Q-CLI-O2-DELIVERY）",
+        "closed": "実装: Opus（host.ts の状態の機械なので）。レビュー r0: 契約適合 Opus（effort xhigh）GO（P3 2: AC08 の原文の改訂と meta.sha256 の取り直しは配送で当てる）。品質 ヘルツ（gpt-6-astra xhigh、新しい thread 01a1923c、read-only）条件付き GO（指摘 0、条件は Node 20/22/24 での試験。Mac mini のゲートを node@22 で回し 11 本 rc 0、新築の vitest 1,112 件）。不変条件 AC05 (ii)（stop() の後は failedAttempts・lastFailure を変えず timer を張らない）は両レビューとも阻止（host.ts :370・:239・:248〜:249、:253 が :254 より前）。統合担当の決め: (1) 実装が条文の名指さない行の中身を変えた所（host.ts :22・:24・:50 のコメント、:252 の scheduleReconnect の引数、:372・:381・:388 の refused に答えを渡す形、:398 の `!(\"url\" in target)`、:287 の establishedAt、dmdata-rest.ts :94・:114、p3-cli-repl.types.ts:3 の import）は、AC01・AC03・AC06・AC09 の仕事で、他の契約の «» に当たらず行の数を変えないので許される範囲の内とした（契約適合が全部照らした） (2) 本契約の «» 22 件（host.ts 17・dmdata-rest.ts 3・composition-root.ts 1・試験 4、うち host.ts:657→:664 は行のずれ）を実装の後の行で付け直した。原文の改訂（AC08）: (1) P3-DMDATA-CONNECT-001 の RETRY の A と reason、UNCERTAIN-RECEIVE・START-UNCERTAIN、Q-C2-DMDATA-BEHAVIOR の remaining、RES-04、RES-06 の scope、outOfScope、AC02、T02・T07 の behavior (2) P3-CLI-REPL-001 の P3-CLI-AC16 の (7)（failedAttempts の定義と 3 欄） (3) P3-RECOVERY-001 の outOfScope（:989）と P3-REC-D-WINDOW の reason（:291） (4) spec の H24・H25・H26・H29（:3051〜:3053・:3056）と :3117。AC08 の一覧の外だが、前の契約の中で古い間隔と新しい間隔が食い違うのを消すため、P3-DMDATA-CONNECT-001 の RETRY の A の『通常の周期』、AC02 の (4) と重複した句、RES-06 の unit も直した（RES-06 の limit は下限の 5 のまま、status は Retry-After を実接続で見ていないので provisional のまま）。付け直した «»: 本契約 30 件・p3-recovery.json 1 件。p3-recovery.json は indent 2 に揃っていないので書き直さず、字だけ替えて meta.sha256 を取り直した。(5)〜(7) は当てない（(5) は起草で済み、(6) は改めない、(7) は C19 の起草へ）",
+        "remaining": "AC08 の (7)（C19 の起草に渡す: H24・H25・H29 の文と 1 回の切断に 1 回の通知は HostStatus の 5 欄を status() の周期の読みで材料にする、lostConnections の差で数える）",
+        "reason": "P3-DMDATA-CONNECT-002 の配送の記録"
       }
     ],
     "operationContract": {
@@ -246,19 +254,19 @@
         "id": "P3-DC2-AC01",
         "requirement": "繋ぎ直しの待ち（P3-DC2-D-BACKOFF、H26）: { dmdata } の待ちは、n＝繋ぎ直しの数（P3-DC2-D-COUNT、timer を張る時に増やした後の値。表示の failedAttempts とは AC02 の (2') だけが違う）として、n ≤ 14 なら min(5_000 × 2^(n−1), 60_000) ms、n ≥ 15 なら 120_000 ms（n＝1 で 5 秒、2 で 10 秒、3 で 20 秒、4 で 40 秒、5〜14 で 60 秒（60 秒の待ちが 10 回）、15 以上で 120 秒。切断（か起動の最初の試行の失敗）から、繋ぎ直しの n 回目の試行（起動の最初の試行は数えない。起動から通しで数えると n＋1 回目）までの時間は、n＝1 で 5 秒後、2 で 15 秒後、3 で 35 秒後、4 で 75 秒後、5 で 135 秒後、14 で 675 秒後（11 分 15 秒）、15 で 795 秒後、16 で 915 秒後。境目は n＝14 の 60 秒と n＝15 の 120 秒。n が 0 に戻ると〔P3-DC2-D-RESET〕5 秒から数え直す）。その試行の REST の失敗の答えに retryAfterMs があれば、その値を下限 5 秒・上限 2,147,483,647 ms（Node の setTimeout が受ける最大、約 24.8 日）に収めて使う（一覧 2 本の両方にあれば大きい方。recovery.ts:243 と同じく上書きで、式との大きい方は取らない）。下限は、Retry-After: 0〜4 で一覧を連打しないため（前例は recovery.ts:245 の GAP_MS の下限）。上限は、Node の setTimeout が 2^31−1 ms を越える値を 1 ms にして即時に発火するため（dmdata-rest.ts:137 は 9 桁の秒まで読む）。前例の recovery の lane は大きい値を丸めず、その間は待つ（recovery.ts:243・:245）ので、ここも約 24.8 日までは丸めず従う。timer は 1 本のまま分けず、n はふつうに 1 つ増える。負の値と秒でない形は dmdata-rest.ts:137 が null にするので、式の値になる。WS の段の失敗と、Retry-After の無い REST の失敗は式の値。今の 2 つの定数（RECONNECT_MS 5 秒・REST_RETRY_MS 60 秒、:23・:25）は、式の始まり 5 秒・倍々の上限 60 秒・60 秒を使う回数 10・その後の 120 秒に置き換える（定数の行の中身を変える。行は足さず、1 行に並べてよい）。open の後の close（:418 の scheduleReconnect(RECONNECT_MS)）も同じ式を通す。{ wsUrl } は固定 5 秒のまま（P2-A10-HOST、P3-C2-AC10 の eew-e01 の試験の期待を変えない）。401・403 では timer を張らない（今のまま）。過負荷の後の繋ぎ直し（:258〜:263 の resumeIfDrained の startConnect）は今のまま timer を通らない。初回の { dmdata } の失敗（:585〜:587）は今と同じく reject せずに dispatchLost と同じ式の待ちに入る（n＝1 で 5 秒。今は REST の段なら 60 秒）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3053 «3e4160c7f8b143e5»",
-          "docs/specs/reconstruction-p0-contracts.md:3117 «3bab2af5f48175fb»",
-          "reconstruction/src/host/host.ts:23 «8b7fadc60934ecb1»",
-          "reconstruction/src/host/host.ts:25 «c08054e005f57ee7»",
-          "reconstruction/src/host/host.ts:248 «27cf612a89a223f7»",
-          "reconstruction/src/host/host.ts:249 «e021b9fba4d0f6e9»",
-          "reconstruction/src/host/host.ts:418 «70bb43a209698e00»",
+          "docs/specs/reconstruction-p0-contracts.md:3053 «c092eae213bff1be»",
+          "docs/specs/reconstruction-p0-contracts.md:3117 «66dab0c7a31c8381»",
+          "reconstruction/src/host/host.ts:23 «5fe5d92fe4d30ef4»",
+          "reconstruction/src/host/host.ts:25 «2cb634c137824094»",
+          "reconstruction/src/host/host.ts:248 «5b792c2a9519e50b»",
+          "reconstruction/src/host/host.ts:249 «fab504201225d15f»",
+          "reconstruction/src/host/host.ts:418 «1bdbd2fc0594394f»",
           "reconstruction/src/host/host.ts:258 «62853b0fea215cc1»",
           "reconstruction/src/host/host.ts:587 «98104048db3c9a8c»",
           "reconstruction/src/recovery/recovery.ts:243 «8be62ae98228bf60»",
           "reconstruction/src/recovery/recovery.ts:244 «58a29e65382e3a74»",
-          "reconstruction/contracts/p3-dmdata-connect.json:84 «1afd206910ab5e2d»",
-          "reconstruction/contracts/p3-dmdata-connect.json:281 «7d0a333f7361b510»",
+          "reconstruction/contracts/p3-dmdata-connect.json:84 «987c2ce45800ac2b»",
+          "reconstruction/contracts/p3-dmdata-connect.json:281 «a64402667c1ede04»",
           "reconstruction/src/recovery/recovery.ts:245 «70f7e05e1aa40fc5»",
           "reconstruction/src/host/dmdata-rest.ts:137 «7117071684a359da»"
         ]
@@ -268,33 +276,33 @@
         "requirement": "繋ぎ直しの数（P3-DC2-D-COUNT）: 繋ぎ直しの数 n は host の run の中だけの数（保存しない）。(1) 増やすのは scheduleReconnect が新しい timer を張る時の 1 か所だけ（C18 発注 2 が :239 の試行の終わりで数えている所〔opened で 0、ほかで 1 増やす〕は除き、この 1 か所に移す）。停止中（stopping != null）と、既に timer がある時（:253）は張らず、数えない。試行が走っている間は timer を張る経路が無い（AC05 の (j)、P3-CLI-AC16 の (6)、C18 発注 2 の配送 33a6f9cc で改訂） (2) n を 0 に戻すのは、確立した接続を失った時（dispatchLost の中、AC09 の確立した時刻があるとき）に、『失った時の monotonic − 確立した時刻』が 60_000 ms 以上だった時だけ（P3-DC2-D-RESET）。時刻は host の config.clock() の monotonicMs（onFrame の entry と生存監視の lastFrameAt と同じ時計） で、失った時の値は dispatchLost が connectionLost に渡す clock() の読みを使う。60 秒より短ければ数え続ける。比べは dispatchLost の 1 回で、timer を足さない。比べの後に timer を張るので、長く続いた接続を失った後の待ちは n＝1 の 5 秒。{ wsUrl } は open（:409）で 0 に戻す（固定 5 秒、P2-A10-HOST） (2') HostStatus.failedAttempts は、確立している間（確立した時刻がある間）は 0、ほかは n。繋がっている間の REPL の status に『再接続試行: #n』を出さないため（P3-CLI-AC14 の (3)。旧築は open で 0、ws-client.ts:381） (3) 数えないもの: 401・403（timer を張らない）、過負荷の切断（timer を通らない）、停止の後の試行の終わり (4) C18 の reconnect()（P3-CLI-D-O2-RETRY）は timer を止めて試みを始めるだけで数を変えない。その試みが失敗すれば (1) で 1 つ増える (5) HostStatus.failedAttempts のコメント（p3-cli-repl.types.ts:83）と C18 の P3-CLI-AC16 の (7) の定義を、この定義に改める（コメントは実装、条文は AC08 の (2)）。REPL の status の『再接続試行: #n』（P3-CLI-AC14 の (3)、1 以上で出す）の文は変えない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:253 «b5c88d613d98209e»",
-          "reconstruction/src/host/host.ts:254 «6c236944c4b124dd»",
+          "reconstruction/src/host/host.ts:254 «09a0bda74b46a585»",
           "reconstruction/src/host/host.ts:285 «46bd0b7da169ddfa»",
-          "reconstruction/src/host/host.ts:409 «1dc26a76a3bc0ab8»",
+          "reconstruction/src/host/host.ts:409 «acbfdd5626223d7d»",
           "reconstruction/contracts/p3-cli-repl.types.ts:84 «49ab626c97332de4»",
-          "reconstruction/contracts/p3-cli-repl.json:979 «8d37ba1b8f7aac12»",
+          "reconstruction/contracts/p3-cli-repl.json:979 «35261cfebcfaabcf»",
           "src/dmdata/ws-client.ts:381 «5f931d6f39f49cb0»",
           "src/dmdata/ws-client.ts:604 «6d9e94c28b45fc6b»",
           "src/ui/repl-handlers/info-handlers.ts:495 «375523484fb02438»",
           "reconstruction/src/host/host.ts:233 «35363c2f74266d26»",
           "reconstruction/src/host/host.ts:470 «def569e75c9e71d6»",
-          "reconstruction/src/host/host.ts:210 «96928332e066bd91»",
-          "reconstruction/src/host/host.ts:654 «e6c10ce211eab4aa»"
+          "reconstruction/src/host/host.ts:210 «0ad54f173fa3d818»",
+          "reconstruction/src/host/host.ts:654 «2e82717c7bdadcab»"
         ]
       },
       {
         "id": "P3-DC2-AC03",
         "requirement": "繋がらない理由（P3-DC2-D-REASON、H29）: (1) 型: p3-dmdata-connect.types.ts の DmdataConnectFailure（本契約の起草で足した）を HostStatus.lastFailure: DmdataConnectFailure | null の型にする（欄を足すのは実装） (2) dmdata-rest.ts: RestRefusal（:15）の failed を Readonly<{ kind: \"failed\"; answered: boolean; retryAfterMs: number | null }> にする。answered は exchange の終わりが answered か tooLarge なら true、notSent か lost なら false。retryAfterMs は answered のときの exchange の retryAfter（:67）、ほかは null。一覧（:93 と応答の形の不正）・DELETE（:112 と形の不正）・start（:124 の notSent は answered false、:126 の非 2xx は true）の failed を全部この形にする。authRejected と uncertain は変えない。exchange・recovery の呼び出しは変えない (3) host: 試行が失敗で終わるたびに lastFailure を書く。authRejected（REST の 401・403）、capacity（:384）、startUncertain（結果不明）、REST の failed で answered が true なら dmdata・false なら network、WS の段（new WebSocket の失敗・handshake の失敗・open の前の close・open の後の close・生存監視の切断・connect() の予期しない reject〔:239〕）は network。一覧 2 本の片方が authRejected なら authRejected（今の :372 の順）、どちらも failed なら片方でも answered false があれば network。停止の後は書かない (4) null に戻すのは形の正しい start の受理（acceptStart、:285 と同じ時。{ wsUrl } は open） (5) 診断の WARN・ERROR の語と行の数（P3-C2-AC02）は変えない。H29 の文・手引き・『一度も繋がらない』の判定（例: lastFrameWallMs が null）は C19 が決める",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3056 «55999c0db7dc73bc»",
-          "reconstruction/src/host/dmdata-rest.ts:15 «4f4c10430cade3bb»",
+          "docs/specs/reconstruction-p0-contracts.md:3056 «ac7133d4f617fb1e»",
+          "reconstruction/src/host/dmdata-rest.ts:15 «1d9bfd2e3360bbb4»",
           "reconstruction/src/host/dmdata-rest.ts:67 «c0e0358fc4f7611b»",
-          "reconstruction/src/host/dmdata-rest.ts:81 «72703f5ebb1947b8»",
-          "reconstruction/src/host/dmdata-rest.ts:124 «01de8c9fb7584965»",
-          "reconstruction/src/host/host.ts:239 «ac77e2559468fad8»",
-          "reconstruction/src/host/host.ts:363 «d89fc5d83bb1c23a»",
+          "reconstruction/src/host/dmdata-rest.ts:81 «adcc06618ba41006»",
+          "reconstruction/src/host/dmdata-rest.ts:124 «8b52bcc714cc2e94»",
+          "reconstruction/src/host/host.ts:239 «741773806b2db564»",
+          "reconstruction/src/host/host.ts:363 «63cd9a9470615edb»",
           "reconstruction/src/host/host.ts:365 «5c396e09f02ca876»",
-          "reconstruction/src/host/host.ts:366 «fe34efa13ed549e1»",
+          "reconstruction/src/host/host.ts:366 «c06312b0f0c69766»",
           "reconstruction/src/host/host.ts:384 «4496984067609dbc»",
           "reconstruction/src/host/host.ts:406 «99d0301e5b61f93b»",
           "reconstruction/src/host/host.ts:413 «6b3cd7da512a7baa»",
@@ -305,10 +313,10 @@
         "id": "P3-DC2-AC04",
         "requirement": "最後に受信した時刻（P3-DC2-D-LASTFRAME、H24）: composition root に lastFrameWallMs（:1930 の private、:1937 の recordFrame が書く）を読む getter を 1 つ足し（名は実装が決める。private の欄と同じ名にはできない）、HostStatus.lastFrameWallMs: number | null として host の status() が返す。getter は :472 の get lastDisconnectedAt() の行の末尾に並べて書き、composition-root.ts の行の数を変えない（:472 を «» で引く参照は 0、:473 を地の文で引く p3-execution-lifecycle.json:328 をずらさない）。値は切断で消さず、起動から 1 つも frame を受けていなければ null。disconnectedAt・lastInputAt・DisplayConnectionView（A8 の wire）・C16 の穴 c の判定（:1032）は変えない。H24 の『最終受信 HH:MM』の文と、電文か生存確認かの選択（16.2.4 :3131）は C19",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3051 «e1156c93fbe5cba8»",
+          "docs/specs/reconstruction-p0-contracts.md:3051 «59cd1745f08d91fb»",
           "docs/specs/reconstruction-p0-contracts.md:3130 «a598dc652043ee12»",
           "docs/specs/reconstruction-p0-contracts.md:3131 «802c45797ba3d07c»",
-          "reconstruction/src/runtime/composition-root.ts:472 «d32ecf0dc8adf08a»",
+          "reconstruction/src/runtime/composition-root.ts:472 «19f0f70695a4ef74»",
           "reconstruction/src/runtime/composition-root.ts:1930 «b8f739e43fcc8ae0»",
           "reconstruction/src/runtime/composition-root.ts:1937 «d93b150575938848»",
           "reconstruction/src/runtime/composition-root.ts:1032 «33032b2edef7b21f»"
@@ -322,13 +330,13 @@
           "reconstruction/src/host/host.ts:233 «35363c2f74266d26»",
           "reconstruction/src/host/host.ts:244 «e8cc0ff19d87c7d8»",
           "reconstruction/src/host/host.ts:253 «b5c88d613d98209e»",
-          "reconstruction/src/host/host.ts:254 «6c236944c4b124dd»",
+          "reconstruction/src/host/host.ts:254 «09a0bda74b46a585»",
           "reconstruction/src/host/host.ts:258 «62853b0fea215cc1»",
           "reconstruction/src/host/host.ts:285 «46bd0b7da169ddfa»",
           "reconstruction/src/host/host.ts:414 «4f5ab210377cc07e»",
-          "reconstruction/src/host/host.ts:418 «70bb43a209698e00»",
+          "reconstruction/src/host/host.ts:418 «1bdbd2fc0594394f»",
           "reconstruction/src/host/host.ts:470 «def569e75c9e71d6»",
-          "reconstruction/contracts/p3-cli-repl.json:979 «8d37ba1b8f7aac12»",
+          "reconstruction/contracts/p3-cli-repl.json:979 «35261cfebcfaabcf»",
           "reconstruction/src/host/host.ts:647 «6daea54468514f42»",
           "reconstruction/src/host/host.ts:649 «0233faeeb2eae147»"
         ]
@@ -337,25 +345,25 @@
         "id": "P3-DC2-AC06",
         "requirement": "行の決まり（P3-DC2-D-ORDER）: host.ts は C18 発注 2 の配送（33a6f9cc）の後の版を元にし、行を足すのは startP2Host の return の行（:657）の直前（C18 の P3-CLI-D-O2-HOST-LINES の区画の中。hoist される function の宣言だけ）だけにする。ほかの行は中身を書き換えてよいが、行を足さず消さない。中身を変えない行: host.ts の :228・:280・:282・:283・:364・:368・:385・:395・:406・:581・:583・:589（C18 発注 2 の配送の後の番号で照らした。他の契約が «» で引く行で、この契約の変更の範囲の近くにあるもの。:589 は C18 が足した区画の先頭のコメントの行で、p3-replay-cli.json:330 が引く）。このため Attempt の \"retrySoon\"（:406・:413）と \"authRejected\"（:364・:581）の字は残し、\"retryLater\" の所（:51・:249・:366）を、失敗の理由と retryAfterMs を運ぶ形に書き換える。状態の欄（failedAttempts は C18 が :210 に置いた。lastFailure・lostConnections・確立した時刻は本契約）は既存の let の行（:210 か :208）の末尾に並べる。dmdata-rest.ts・composition-root.ts も行の数を変えない（dmdata-rest.ts を «» で引くのは :6・:11・:52・:66・:91・:121・:140 で、変える行に当たらない）。p3-cli-repl.types.ts は HostStatus に 3 欄（とコメント）の行を足してよい（この file を行で引く参照は 0）。C18 発注 2 の配送の後の版で数え直した見込み（Q-DC2-ANCHORS）: 他の契約が «» で引く host.ts の行のうちこの範囲にあるのは上の 12 行で、どれも今の行に一意に一致する。return（:657）の直前に行を足しても、ずれるのは :657〜:661 で、そこを «» で引く他の契約は 0 なので、他の契約の付け直しは 0 件。FAIL になりうるのは、本契約が引く行のうち実装が中身を変えた行、行の追加でずれる行（本契約の «» のうち、return の直前に行を足すとずれる host.ts の :657、AC07 の (3) の改め〔:58・:414 の mock の値、:533 の helper ほか〕で途中に行を足したときに足した所より後ろにある host.test.ts の :443・:445・:511・:559・:578・:652・:803、HostStatus の欄やコメントの行を :84 より前に足したときの p3-cli-repl.types.ts の :84）だけ（配送で統合担当が付け直す）",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:51 «588d7b6d75fea64e»",
+          "reconstruction/src/host/host.ts:51 «1ddd8e8df09c679c»",
           "reconstruction/src/host/host.ts:406 «99d0301e5b61f93b»",
           "reconstruction/src/host/host.ts:413 «6b3cd7da512a7baa»",
           "reconstruction/src/host/host.ts:581 «55fd8425a0e9b014»",
           "reconstruction/src/host/host.ts:208 «d4e90dd82533f3b2»",
-          "reconstruction/contracts/p3-cli-repl.json:979 «8d37ba1b8f7aac12»",
-          "reconstruction/src/host/host.ts:210 «96928332e066bd91»",
-          "reconstruction/src/host/host.ts:657 «0d3cc53c9450c53c»"
+          "reconstruction/contracts/p3-cli-repl.json:979 «35261cfebcfaabcf»",
+          "reconstruction/src/host/host.ts:210 «0ad54f173fa3d818»",
+          "reconstruction/src/host/host.ts:664 «0d3cc53c9450c53c»"
         ]
       },
       {
         "id": "P3-DC2-AC07",
         "requirement": "受信経路と既存の保証: (1) onFrame（受信 1 回の処理）には何も足さない。acceptStart（start の frame ごと）に足すのは代入 2 つ（lastFailure の null・確立した時刻）だけ、dispatchLost（切断ごと）に足すのは確立した時刻の有無と 60 秒の比べと、加算・代入の定数個だけ。status() は O(1) の読み。全件の走査・直列化を足さない（AGENTS.md の受信経路の計算量） (2) { wsUrl } の振る舞い（固定 5 秒・初回の reject）と eew-e01 の試験は変えない（P3-C2-AC10） (3) 既存の試験の期待を変えてよいのは次だけ: host.test.ts の『P3-C2-T02: when $name …』（:559、2・3 回目の試行の 59_999／1 の境目を 5 秒と 10 秒の境目に、試験名の 60 s を改める）、『P3-C2-T02: only the own socket is closed …』（:511。helper の reconnect(index) は start を送らないので、2 回目の切断は n＝2 で 10 秒になる。helper の :533 の advanceTimersByTime(5_000) を、index 0 で 5_000、index 1 で 10_000 にする。start を送る形には変えない〔start の受理は C16 の取り直しを起こし、試験の範囲が広がる〕）、『P3-C2-T02: a failed DELETE …』（:578、DELETE の失敗の後の境目を 10 秒に）、『P3-C2-T07: an uncertain start …』（:652、初回の結果不明の後の境目を 5 秒に）、host.test.ts の rest の mock が返す failed の値（:58・:414・:552・:554）を新しい RestRefusal の形に、dmdata-rest.test.ts の failed を比べる期待（:128 ほか）に answered と retryAfterMs を足すこと、reconstruction/test/cli/repl.test.ts の fakeHost の既定の status（:67）と reconstruction/test/cli/cli.test.ts の fakeHost の status の値（:215）に HostStatus の 3 欄（lastFailure・lastFrameWallMs・lostConnections）を足すこと（どちらも 4 欄の literal で、3 欄が必須になると tsconfig.test.json の tsc が落ちる。期待の値は変えない）。advanceTimersByTime(60_000) で試行を待つ所（:642・:674・:709・:736・:794）と T03（:803、4_999／1）、5_000 で繋ぎ直しを待つ所（:846・:1217・:1324）は、60 秒の内か、n＝1 か { wsUrl } の 5 秒なので変えない。ほかの既存試験の期待を変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
         "evidenceRefs": [
-          "reconstruction/test/host/host.test.ts:559 «408c6af0f7b2aca5»",
-          "reconstruction/test/host/host.test.ts:578 «02fbb35e6964566b»",
-          "reconstruction/test/host/host.test.ts:652 «bf557009b27922d0»",
+          "reconstruction/test/host/host.test.ts:559 «79cd150d424b540a»",
+          "reconstruction/test/host/host.test.ts:578 «9dce668c8603e5d7»",
+          "reconstruction/test/host/host.test.ts:652 «3a229000f9a6a0c9»",
           "reconstruction/test/host/host.test.ts:803 «0f8bc27cc2619ab1»",
-          "reconstruction/test/host/dmdata-rest.test.ts:128 «3dc45db03175504c»",
+          "reconstruction/test/host/dmdata-rest.test.ts:128 «0b1ee14ce372f2b9»",
           "reconstruction/src/host/host.ts:470 «def569e75c9e71d6»",
           "reconstruction/test/host/host.test.ts:511 «9b9e609519e3ccfa»"
         ]
@@ -364,22 +372,22 @@
         "id": "P3-DC2-AC08",
         "requirement": "改める他の条文と統合担当の記録。原文は重ねて読み替えず、配送の commit で統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）: (1) P3-DMDATA-CONNECT-001: P3-C2-RETRY の A の間隔の部分（固定 5 秒・固定 60 秒・backoff の状態を持たない）と reason の『定数 2 つで抑える』に、P3-DMDATA-CONNECT-002 の P3-DC2-D-BACKOFF で改めた旨と新しい式を書く。P3-C2-RES-06（:281）の scope を同じ式に。P3-C2-UNCERTAIN-RECEIVE（:66）と P3-C2-START-UNCERTAIN の『60 秒後』を『P3-DC2-D-BACKOFF の待ちの後』に。outOfScope の『再接続の指数backoff・jitter・REST再試行（P3-C2-RETRY）』（:308）を『jitter・REST 再試行（P3-C2-RETRY）。間隔を延ばすのは P3-DMDATA-CONNECT-002』に。P3-C2-AC02（:332）の『固定60秒後』『固定5秒後』と、初回の失敗の『通常の周期（REST段と容量は60秒、WSは5秒）』を『P3-DC2-D-BACKOFF の待ち』に。P3-C2-RES-04（:264）の『5秒後に次の試行』を『P3-DC2-D-BACKOFF の待ちの後に次の試行』に。P3-C2-T02（:443）と P3-C2-T07（:484）の behavior の『60秒後』を、P3-DMDATA-CONNECT-002 の AC07 の (3) で改めた後の境目に。questionResolutions の Q-C2-DMDATA-BEHAVIOR の remaining の『RES-06（Retry-After 未確認の 60 秒）』に、Retry-After は P3-DC2-D-BACKOFF で読むと足す (2) P3-CLI-REPL-001: P3-CLI-AC16 の (7) の failedAttempts の定義を AC02 の定義（(2') の投影を含む）に替え、lastFailure・lastFrameWallMs・lostConnections の 3 欄を足す（:979）。P3-CLI-AC16 の (6)（reconnect() は CLOSING の間は試行を始めず connecting を返し、試行の共通の入口で試行・socket・停止を確かめ直す）は C18 発注 2 の配送 33a6f9cc の改訂で入るので、本契約では改めない (3) P3-RECOVERY-001: outOfScope の『接続の間隔を少しずつ延ばす直し（P3-C2-RETRY の変更の契約…）』（:989）に、引受先 P3-DMDATA-CONNECT-002 を足す。P3-REC-D-WINDOW の reason（:291）の『繋ぎ直しの間隔は 5 秒（host.ts の RECONNECT_MS）で…10 分に 100 回を越えて』に、P3-DMDATA-CONNECT-002 の後は、切られ続けると、start の前でも、start の受理から 60 秒より前でも待ちが延びて 10 分に 12 回ほどになり（P3-DC2-D-RESET）、60 秒以上続いた接続が落ちた時だけ 5 秒から数え直すので、A（窓 1 つ）の結論は変わらない旨を足す (4) spec: 16.2.3 の :3117 と §16 の H24・H26・H29 の行（:3051・:3053・:3056）の契約の欄に P3-DMDATA-CONNECT-002 を足す。H25 の行（:3052）の『回数を view に載せるなら P3-DMDATA-CONNECT-001』を『回数の材料は P3-DMDATA-CONNECT-002 の HostStatus.lostConnections（view には載せない）』に (5) 計画 p3-order-plan.md の『接続の間隔、繋がらない理由、切断の時刻』の行は本契約の起草の commit で改めた (6) P2-EEW-E01-001 の P2-A10-HOST（固定 5 秒、backoff を作らない）は { wsUrl } の決まりとして残り、改めない (7) C19（P3-TERMINAL-OUTPUT-001）の起草に渡すこと: H24 の文と 1 回の切断に 1 回のデスクトップ通知、H25、H29 の文と手引きは HostStatus の connection・failedAttempts・lastFailure・lastFrameWallMs・lostConnections を材料にする（変化を知らせる口は無いので、status() を周期で聞く。1 回の切断に 1 回の通知は lostConnections の前に読んだ値との差で数え、読む周期に依らない。AC09）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-dmdata-connect.json:66 «ac254372de16eb97»",
-          "reconstruction/contracts/p3-dmdata-connect.json:84 «1afd206910ab5e2d»",
-          "reconstruction/contracts/p3-dmdata-connect.json:281 «7d0a333f7361b510»",
-          "reconstruction/contracts/p3-dmdata-connect.json:308 «907540bf3b4745a0»",
-          "reconstruction/contracts/p3-cli-repl.json:979 «8d37ba1b8f7aac12»",
-          "reconstruction/contracts/p3-recovery.json:989 «fb81cd9f89342c8c»",
-          "docs/specs/reconstruction-p0-contracts.md:3051 «e1156c93fbe5cba8»",
-          "docs/specs/reconstruction-p0-contracts.md:3053 «3e4160c7f8b143e5»",
-          "docs/specs/reconstruction-p0-contracts.md:3056 «55999c0db7dc73bc»",
-          "docs/specs/reconstruction-p0-contracts.md:3117 «3bab2af5f48175fb»",
-          "reconstruction/contracts/p3-dmdata-connect.json:332 «a3230134399b3eb7»",
-          "reconstruction/contracts/p3-dmdata-connect.json:264 «c30471e75272bcf9»",
-          "reconstruction/contracts/p3-dmdata-connect.json:443 «0a1d47715607d030»",
-          "reconstruction/contracts/p3-dmdata-connect.json:484 «dcba98b66367bd4c»",
-          "reconstruction/contracts/p3-recovery.json:291 «0b4a6da07a606ee6»",
-          "docs/specs/reconstruction-p0-contracts.md:3052 «023e8d5d784b21fe»"
+          "reconstruction/contracts/p3-dmdata-connect.json:66 «67a16886b6fc8d3f»",
+          "reconstruction/contracts/p3-dmdata-connect.json:84 «987c2ce45800ac2b»",
+          "reconstruction/contracts/p3-dmdata-connect.json:281 «a64402667c1ede04»",
+          "reconstruction/contracts/p3-dmdata-connect.json:308 «b5818773ccd6caf3»",
+          "reconstruction/contracts/p3-cli-repl.json:979 «35261cfebcfaabcf»",
+          "reconstruction/contracts/p3-recovery.json:989 «fc1603eaaea98eaa»",
+          "docs/specs/reconstruction-p0-contracts.md:3051 «59cd1745f08d91fb»",
+          "docs/specs/reconstruction-p0-contracts.md:3053 «c092eae213bff1be»",
+          "docs/specs/reconstruction-p0-contracts.md:3056 «ac7133d4f617fb1e»",
+          "docs/specs/reconstruction-p0-contracts.md:3117 «66dab0c7a31c8381»",
+          "reconstruction/contracts/p3-dmdata-connect.json:332 «d3c9e21309039426»",
+          "reconstruction/contracts/p3-dmdata-connect.json:264 «1730d8ce251009e1»",
+          "reconstruction/contracts/p3-dmdata-connect.json:443 «e8e5920393aa2787»",
+          "reconstruction/contracts/p3-dmdata-connect.json:484 «19a09f592de66944»",
+          "reconstruction/contracts/p3-recovery.json:291 «e6c178906b96134c»",
+          "docs/specs/reconstruction-p0-contracts.md:3052 «d186ebc6e48c2d73»"
         ]
       },
       {
@@ -388,10 +396,10 @@
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:233 «35363c2f74266d26»",
           "reconstruction/src/host/host.ts:285 «46bd0b7da169ddfa»",
-          "reconstruction/src/host/host.ts:409 «1dc26a76a3bc0ab8»",
+          "reconstruction/src/host/host.ts:409 «acbfdd5626223d7d»",
           "reconstruction/src/host/host.ts:258 «62853b0fea215cc1»",
-          "docs/specs/reconstruction-p0-contracts.md:3051 «e1156c93fbe5cba8»",
-          "docs/specs/reconstruction-p0-contracts.md:3052 «023e8d5d784b21fe»"
+          "docs/specs/reconstruction-p0-contracts.md:3051 «59cd1745f08d91fb»",
+          "docs/specs/reconstruction-p0-contracts.md:3052 «d186ebc6e48c2d73»"
         ]
       }
     ],

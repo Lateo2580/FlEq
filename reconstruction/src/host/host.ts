@@ -19,10 +19,10 @@ import { completeDiagnostic } from "../runtime/runtime-diagnostic";
 import { closeSocket, listSockets, startSocket } from "./dmdata-rest"; import { ListRequestLane, pollClassification, startupPlan, walkList } from "../recovery/recovery";
 import { BodyRequestLane, fetchBody } from "../recovery/recovery";
 
-// P2-A10-AC12 (R63): provisional fixed interval for a normal disconnect or handshake failure. No backoff, no setting.
-const RECONNECT_MS = 5_000;
-// P3-C2-RES-06 (provisional): a REST-stage or capacity failure waits longer so a dead key or a dmdata outage is not polled every 5 s.
-const REST_RETRY_MS = 60_000;
+// P3-DC2-D-BACKOFF（H26）: { dmdata } の繋ぎ直しの待ちは 5 秒から倍々で 60 秒まで。{ wsUrl } は固定 5 秒のまま（P2-A10-AC12・P2-A10-HOST）。
+const RECONNECT_MS = 5_000, BACKOFF_CAP_MS = 60_000;
+// 60 秒の待ちを 10 回使った後は 120 秒（作者裁定 Q-DC2-AUTHOR）。Retry-After は setTimeout が受ける最大まで（越えると 1 ms で発火する）。60 秒以上続いた接続を失ったら数え直す（P3-DC2-D-RESET）。
+const CAPPED_RETRIES = 10, LONG_RETRY_MS = 120_000, TIMEOUT_MAX_MS = 2_147_483_647, STABLE_MS = 60_000;
 // P3-C2-RES-04 / DLV-02 (provisional; legacy ws-client.ts:54): handshake limit, and the current WS is cut 90 s after its last frame.
 const HANDSHAKE_MS = 15_000;
 const LIVENESS_MS = 90_000;
@@ -47,8 +47,8 @@ type P2HostConfig = Readonly<({ wsUrl: string; origin?: "replay"; dmdata?: never
   observe: ((observation: P2HostObservation) => void) | null; measureInputHeap?: boolean; displayBind?: Readonly<{ measurementAddress: string }>;
 }>;
 
-// How one connection attempt ended; the retry interval follows from it (P3-C2-RETRY).
-type Attempt = "opened" | "retrySoon" | "retryLater" | "authRejected" | "stopped";
+// How one connection attempt ended; the retry interval follows from it (P3-C2-RETRY). retryLater は REST の段の失敗で、理由と Retry-After を運ぶ（P3-DC2-AC03）。
+type Attempt = "opened" | "retrySoon" | Readonly<{ kind: "retryLater"; failure: NonNullable<HostStatus["lastFailure"]>; retryAfterMs: number | null }> | "authRejected" | "stopped";
 type ControlHead = { type?: unknown; pingId?: unknown; socketId?: unknown; classifications?: unknown; close?: unknown; time?: unknown };
 
 function toBuffer(raw: RawData): Buffer {
@@ -207,7 +207,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   let socket: WebSocket | null = null;
   let reconnectTimer: NodeJS.Timeout | null = null;
   // The attempt in flight (or the last one); stop() lets it settle before releasing the own dmdata socket.
-  let attempt: Promise<Attempt> | null = null, attempting = false, failedAttempts = 0; // P3-CLI-AC16 (6)(7): 試みの最中か、最後に開いた後の開かなかった試みの数
+  let attempt: Promise<Attempt> | null = null, attempting = false, retries = 0, lastFailure: HostStatus["lastFailure"] = null, lostConnections = 0, establishedAt: number | null = null; // P3-CLI-AC16 (6)・P3-DC2-AC02・AC03・AC09: 試みの最中か、繋ぎ直しの数 n（timer を張った数）、最後の失敗の理由、確立した接続を失った数、確立した時刻（monotonic）
   // The id a successful POST returned to this process, until a DELETE succeeds or a list no longer has it (RES-02).
   let ownSocketId: number | null = null;
   // Aborted at the stop request + 30 s: every dmdata REST still in flight is destroyed and none starts (RES-07).
@@ -231,12 +231,12 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
 
   const dispatchLost = () => {
     if (root.state.shutdown.stage !== "running") return;
-    root.dispatch({ kind: "connectionLost", acceptedThroughSequence: lastAccepted?.sequence ?? -1, clock: clock() });
+    const at = clock(); if (establishedAt != null) { lostConnections += 1; if (at.monotonicMs - establishedAt >= STABLE_MS) retries = 0; establishedAt = null; } root.dispatch({ kind: "connectionLost", acceptedThroughSequence: lastAccepted?.sequence ?? -1, clock: at }); // P3-DC2-AC09 (3)・D-RESET: 確立した接続だけ数え、60 秒以上続いていたら n を数え直す
   };
 
   // The one place an attempt starts: an unexpected rejection counts as a WS failure, so stop() and the retry still run.
   function startAttempt(): Promise<Attempt> {
-    attempting = true; attempt = connect().catch((): Attempt => "retrySoon").then((result) => { attempting = false; failedAttempts = result === "opened" ? 0 : failedAttempts + 1; return result; });
+    attempting = true; attempt = connect().catch((): Attempt => "retrySoon").then((result) => { attempting = false; if (stopping == null && result !== "opened" && result !== "stopped") lastFailure = result === "retrySoon" ? "network" : result === "authRejected" ? result : result.failure; return result; }); // P3-DC2-AC03 (3): 停止の後は書かない
     return attempt;
   }
 
@@ -245,13 +245,13 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   }
 
   function retryAfter(result: Attempt): void {
-    if (result === "retrySoon") scheduleReconnect(RECONNECT_MS);
-    else if (result === "retryLater") scheduleReconnect(REST_RETRY_MS);
+    if (result === "retrySoon") scheduleReconnect(null);
+    else if (typeof result === "object") scheduleReconnect(result.retryAfterMs);
   }
 
-  function scheduleReconnect(delayMs: number): void {
+  function scheduleReconnect(retryAfterMs: number | null): void {
     if (stopping != null || reconnectTimer != null) return;
-    reconnectTimer = setTimeout(() => { reconnectTimer = null; startConnect(); }, delayMs);
+    retries += 1; reconnectTimer = setTimeout(() => { reconnectTimer = null; startConnect(); }, reconnectDelay(retries, retryAfterMs)); // P3-DC2-AC02 (1): n を増やすのは timer を張るここだけ
   }
 
   // Overload reconnects only after the parser input waiting in the mailbox is gone; a normal disconnect uses the timer.
@@ -284,7 +284,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     if (config.dmdata?.classifications.some((item) => !classifications.includes(item))) note("WARN", "dmdataSubscriptionNarrowed");
     root.recordConnected(wallTimeMs); // P3-REC-AC14 (1): 札の終わりは新しい WS の最初の frame の wall
     emit({ kind: "controlFrame", frameType: "start", monotonicMs: t0, errorClose: null });
-    return true;
+    lastFailure = null; establishedAt = lastFrameAt; return true; // P3-DC2-AC03 (4)・AC09 (2): onFrame がこの frame の entry の monotonic を lastFrameAt に書いた直後なので同じ時計の同じ読み
   }
 
   function onFrame(ws: WebSocket, raw: RawData): void {
@@ -360,16 +360,16 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   // spec §10.1 / P3-C2-AC02: list, release the own previous socket, check capacity, start. A failure leaves the WS closed.
   // Every await is followed by the stop check so a stopping host never opens a WS.
   async function startDmdataSocket(dmdata: DmdataSubscription): Promise<Readonly<{ url: string; protocol: readonly string[] }> | Attempt> {
-    const refused = (kind: "failed" | "authRejected" | "uncertain", reason: DiagnosticReason): Attempt => {
+    const refused = (kind: "failed" | "authRejected" | "uncertain", reason: DiagnosticReason, answers: readonly Awaited<ReturnType<typeof listSockets | typeof closeSocket | typeof startSocket>>[] = []): Attempt => {
       if (kind === "authRejected") { note("ERROR", "dmdataAuthRejected"); return "authRejected"; }
       note("WARN", kind === "uncertain" ? "dmdataSocketStartUncertain" : reason);
-      return "retryLater";
+      const failed = answers.flatMap((answer) => answer.kind === "failed" ? [answer] : []), hinted = Math.max(-1, ...failed.map((answer) => answer.retryAfterMs ?? -1)); return { kind: "retryLater", failure: kind === "uncertain" ? "startUncertain" : reason === "dmdataConnectionCapacityExceeded" ? "capacity" : failed.some((answer) => !answer.answered) ? "network" : "dmdata", retryAfterMs: hinted < 0 ? null : hinted }; // P3-DC2-AC03 (3): 答えの無い failed が 1 つでもあれば network。AC01: 一覧 2 本の Retry-After は大きい方
     };
     const [open, waiting] = await Promise.all([listSockets(dmdata.apiKey, "open", halt.signal),
       listSockets(dmdata.apiKey, "waiting", halt.signal)]);
     if (stopping != null) return "stopped";
     if (open.kind !== "ok" || waiting.kind !== "ok")
-      return refused(open.kind === "authRejected" || waiting.kind === "authRejected" ? "authRejected" : "failed", "dmdataSocketListFailed");
+      return refused(open.kind === "authRejected" || waiting.kind === "authRejected" ? "authRejected" : "failed", "dmdataSocketListFailed", [open, waiting]);
     const listed = [...open.sockets, ...waiting.sockets];
     let released: number | null = null;
     // Only the id this process got back is ever closed; every other socket is counted, never closed (P3-C2-OWNERSHIP).
@@ -378,14 +378,14 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
       // Forgotten before the stop check, so stop() does not DELETE the same id again.
       if (closed.kind === "ok") { released = ownSocketId; ownSocketId = null; }
       if (stopping != null) return "stopped";
-      if (closed.kind !== "ok") return refused(closed.kind, "dmdataSocketCloseFailed");
+      if (closed.kind !== "ok") return refused(closed.kind, "dmdataSocketCloseFailed", [closed]);
     }
     ownSocketId = null;
     if (listed.filter((item) => item.id !== released).length + 1 > SOCKET_LIMIT) return refused("failed", "dmdataConnectionCapacityExceeded");
     startAsked = clock(); const started = await startSocket(dmdata, halt.signal);
     if (started.kind === "ok") ownSocketId = started.id;
     if (stopping != null) return "stopped";
-    if (started.kind !== "ok") return refused(started.kind, "dmdataSocketStartFailed");
+    if (started.kind !== "ok") return refused(started.kind, "dmdataSocketStartFailed", [started]);
     return { url: started.url, protocol: started.protocol };
   }
 
@@ -395,7 +395,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     if (config.dmdata == null) { url = config.wsUrl; startAsked = clock(); }
     else {
       const target = await startDmdataSocket(config.dmdata);
-      if (typeof target === "string") return target;
+      if (typeof target === "string" || !("url" in target)) return target;
       // stop() may have begun in the turn between that check and this one.
       if (stopping != null) return "stopped";
       ({ url, protocol: protocols } = target);
@@ -406,7 +406,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
       try { ws = new WebSocket(url, [...protocols], { handshakeTimeout: HANDSHAKE_MS }); } catch { settle("retrySoon"); return; }
       let opened = false;
       socket = ws;
-      ws.on("open", () => { opened = true; lastFrameAt = clock().monotonicMs; settle("opened"); });
+      ws.on("open", () => { opened = true; lastFrameAt = clock().monotonicMs; if (config.dmdata == null) { retries = 0; lastFailure = null; establishedAt = lastFrameAt; } settle("opened"); }); // P3-DC2-AC02 (2)・AC03 (4)・AC09 (2): { wsUrl } は start が来ない接続先もあるので open で確立
       ws.on("message", (raw) => { if (socket === ws) onFrame(ws, raw); });
       ws.on("error", () => { /* close follows */ });
       ws.on("close", () => {
@@ -415,7 +415,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
         socket = null;
         if (stopping != null) return;
         dispatchLost();
-        scheduleReconnect(RECONNECT_MS);
+        lastFailure = "network"; scheduleReconnect(null);
       });
     });
   }
@@ -651,8 +651,15 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     return "started";
   }
   function status(): HostStatus {
-    return { connection: socket?.readyState === WebSocket.OPEN ? "connected" : attempting ? "connecting" : "disconnected", socketId: ownSocketId, failedAttempts,
+    return { connection: socket?.readyState === WebSocket.OPEN ? "connected" : attempting ? "connecting" : "disconnected", socketId: ownSocketId, failedAttempts: establishedAt == null ? retries : 0, lastFailure, lastFrameWallMs: root.lastReceivedWallMs, lostConnections, // P3-DC2-AC02 (2'): 確立している間は 0
       display: server == null ? null : { port: server.port, clients: server.clientCount() } };
+  }
+  // P3-DC2-AC01: { dmdata } は n ≤ 14 で min(5 秒×2^(n−1), 60 秒)、n ≥ 15 で 120 秒。Retry-After があれば式の代わりに 5 秒〜setTimeout の最大に収めて使う（recovery の lane と同じ上書き）。
+  function reconnectDelay(n: number, retryAfterMs: number | null): number {
+    if (config.dmdata == null) return RECONNECT_MS;
+    if (retryAfterMs != null) return Math.min(Math.max(retryAfterMs, RECONNECT_MS), TIMEOUT_MAX_MS);
+    // 4 は 5 秒の倍々が 60 秒に届く前の回数（5・10・20・40 秒）。その後に 60 秒を CAPPED_RETRIES 回使う。
+    return n > 4 + CAPPED_RETRIES ? LONG_RETRY_MS : Math.min(RECONNECT_MS * 2 ** (n - 1), BACKOFF_CAP_MS);
   }
   return { displayPort: server?.port ?? null, stop, reconnect, openDisplay, closeDisplay, status };
 }

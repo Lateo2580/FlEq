@@ -55,7 +55,7 @@ const rest = vi.hoisted(() => ({
   unmocked: [] as string[],
 }));
 vi.mock("../../src/host/dmdata-rest", () => {
-  const unmocked = (name: string) => { rest.unmocked.push(name); return Promise.resolve({ kind: "failed" as const }); };
+  const unmocked = (name: string) => { rest.unmocked.push(name); return Promise.resolve({ kind: "failed" as const, answered: false, retryAfterMs: null }); };
   return {
     listSockets: (_apiKey: string, status: "open" | "waiting") => { rest.calls.push(`list:${status}`); return rest.list?.(status) ?? unmocked("list"); },
     closeSocket: (_apiKey: string, id: number) => { rest.calls.push(`delete:${id}`); return rest.close?.(id) ?? unmocked("delete"); },
@@ -411,7 +411,7 @@ const subscription: DmdataSubscription = { apiKey: "KEY-SECRET-2", appName: "fle
 const socketOf = (id: number, appName: string | null, status = "open"): DmdataSocket => ({ id, appName, status, classifications: ["eew.forecast"] });
 const listing = (open: readonly DmdataSocket[], waiting: readonly DmdataSocket[] = []) =>
   async (status: "open" | "waiting"): Promise<SocketListResult> => ({ kind: "ok", sockets: status === "open" ? open : waiting, date: null });
-const failed = async () => ({ kind: "failed" as const });
+const failed = async () => ({ kind: "failed" as const, answered: false, retryAfterMs: null });
 const opened = (url: string, id: number) => async (): Promise<SocketStartResult> => ({ kind: "ok", id, url, protocol: ["dmdata.v2"] });
 const deletes = () => rest.calls.filter((call) => call.startsWith("delete:"));
 const turn = () => new Promise((done) => setImmediate(done));
@@ -530,7 +530,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
       server.sockets[index].send(JSON.stringify({ type: "ping", pingId: `p${index}` }));
       await until(() => server.received.length === index + 1);
       await lose(host.displayPort, server.sockets[index]);
-      vi.advanceTimersByTime(5_000);
+      vi.advanceTimersByTime(index === 0 ? 5_000 : 10_000); // start を送らない接続なので数え直さず、2 回目の切断は n＝2（P3-DC2-AC02）
       await until(() => server.sockets.length === index + 2 && server.sockets[index + 1].readyState === 1);
       expect(server.sockets.filter((ws) => ws.readyState === 1)).toHaveLength(1);
     };
@@ -549,14 +549,14 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
   const failures: { name: string; reason: string; list: (status: "open" | "waiting") => Promise<SocketListResult>;
     start?: () => Promise<SocketStartResult> }[] = [
     { name: "the open list fails", reason: "dmdataSocketListFailed",
-      list: async (status) => status === "open" ? { kind: "failed" } : { kind: "ok", sockets: [], date: null } },
+      list: async (status) => status === "open" ? { kind: "failed", answered: false, retryAfterMs: null } : { kind: "ok", sockets: [], date: null } },
     { name: "the waiting list fails", reason: "dmdataSocketListFailed",
-      list: async (status) => status === "waiting" ? { kind: "failed" } : { kind: "ok", sockets: [], date: null } },
+      list: async (status) => status === "waiting" ? { kind: "failed", answered: false, retryAfterMs: null } : { kind: "ok", sockets: [], date: null } },
     { name: "four waiting sockets fill the capacity", reason: "dmdataConnectionCapacityExceeded",
       list: listing([], [1, 2, 3, 4].map((id) => socketOf(id, "other-app", "waiting"))) },
     { name: "the start fails", reason: "dmdataSocketStartFailed", list: listing([]), start: failed },
   ];
-  it.each(failures)("P3-C2-T02: when $name: one WARN, no reject, reconnecting, then the next attempts 60 s apart", async ({ reason, list, start }) => {
+  it.each(failures)("P3-C2-T02: when $name: one WARN, no reject, reconnecting, then the next attempts 5 s and 10 s apart (P3-DC2-AC01)", async ({ reason, list, start }) => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const dirs = await directories();
     rest.list = list;
@@ -565,9 +565,9 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     const perAttempt = rest.calls.length;
     await until(async () => (await snapshot(host.displayPort)).connection.state === "reconnecting");
     expectBare(await firstLine(dirs.diagnosticDirectory, reason), "WARN");
-    for (const attempt of [2, 3]) {
+    for (const [attempt, wait] of [[2, 5_000], [3, 10_000]]) {
       await turn();
-      vi.advanceTimersByTime(59_999);
+      vi.advanceTimersByTime(wait - 1);
       await turn();
       expect(rest.calls).toHaveLength(perAttempt * (attempt - 1));
       vi.advanceTimersByTime(1);
@@ -575,7 +575,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     }
   });
 
-  it("P3-C2-T02: a failed DELETE of the listed own socket writes one WARN and starts nothing until the retry 60 s later", async () => {
+  it("P3-C2-T02: a failed DELETE of the listed own socket writes one WARN and starts nothing until the retry 10 s later (P3-DC2-AC01)", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const server = await localServer();
     const dirs = await directories();
@@ -592,7 +592,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     expect(rest.calls.slice(3)).toEqual(["list:open", "list:waiting", "delete:31"]);
     rest.close = async () => { own = []; return { kind: "ok" }; };
     await turn();
-    vi.advanceTimersByTime(59_999);
+    vi.advanceTimersByTime(9_999);
     await turn();
     expect(rest.calls).toHaveLength(6);
     expect(server.sockets).toHaveLength(1);
@@ -649,7 +649,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     expect(deletes()).toEqual(["delete:51"]);
   });
 
-  it("P3-C2-T07: an uncertain start writes one WARN and opens no WS without rejecting; the retry 60 s later decides by capacity alone and never adopts or closes an unreturned socket", async () => {
+  it("P3-C2-T07: an uncertain start writes one WARN and opens no WS without rejecting; the retry 5 s later (P3-DC2-AC01) decides by capacity alone and never adopts or closes an unreturned socket", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const dirs = await directories();
     rest.list = listing([]);
@@ -663,7 +663,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     rest.list = listing([socketOf(7, "a"), socketOf(8, "b")], [leftover]);
     rest.start = failed;
     await turn();
-    vi.advanceTimersByTime(59_999);
+    vi.advanceTimersByTime(4_999);
     await turn();
     expect(rest.calls).toHaveLength(3);
     vi.advanceTimersByTime(1);
@@ -1510,5 +1510,228 @@ describe("P3-CLI-REPL-001 発注 2 の host の command port（P3-CLI-T13 contra
     await host.stop();
     await pause(300);
     expect(raws.filter((raw) => !raw.destroyed && !raw.readableEnded)).toEqual([]);
+  });
+});
+
+describe("P3-DMDATA-CONNECT-002 繋ぎ直しの待ち・繋がらない理由・最後の frame の時刻・切断の数", () => {
+  // 時計の確かめの問い合わせ（P3-CK-AC01 (2)）は一覧の open だけを呼ぶので、試行は waiting の一覧で数える。
+  const attempts = () => rest.calls.filter((call) => call === "list:waiting").length;
+  const unanswered = async (): Promise<SocketListResult> => ({ kind: "failed", answered: false, retryAfterMs: null });
+  // 待ちの境目: 1 ms 前に試行が無く、境目で 1 回。timer は REST の await の後に張られるので、進める前に 1 turn 回す。
+  const nextAttemptAfter = async (waitMs: number) => {
+    const before = attempts();
+    await turn();
+    vi.advanceTimersByTime(waitMs - 1);
+    await turn();
+    expect(attempts()).toBe(before);
+    vi.advanceTimersByTime(1);
+    await until(() => attempts() === before + 1);
+    await turn();
+  };
+  // host の側も open した（pong が返った）のを待つ。その前の close は handshake の失敗で、切断ではない。
+  const openedAt = async (server: Awaited<ReturnType<typeof localServer>>, index: number) => {
+    await until(() => server.sockets.length === index + 1 && server.sockets[index].readyState === 1);
+    const pongs = server.received.length;
+    server.sockets[index].send(JSON.stringify({ type: "ping", pingId: `p${index}` }));
+    await until(() => server.received.length === pongs + 1);
+  };
+  const sendStart = (ws: WebSocket) => ws.send(JSON.stringify({ type: "start", socketId: 95, classifications: subscription.classifications, time: startTime() }));
+
+  it("P3-DC2-T01 acceptance / AC01・AC02: 待ちは 5・10・20・40・60 秒と延び、start の無い接続では戻らず、60 秒以上続いた接続を失うと 5 秒から数え直す", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await localServer();
+    rest.list = unanswered;
+    const host = await startDmdata(await directories());
+    expect(host.status().failedAttempts).toBe(1);
+    for (const [index, wait] of [5_000, 10_000, 20_000, 40_000, 60_000].entries()) {
+      await nextAttemptAfter(wait);
+      expect(host.status().failedAttempts).toBe(index + 2);
+    }
+    // open の後に start が来ないまま閉じても n は 0 に戻らない。
+    rest.list = listing([]);
+    rest.start = opened(server.url, 95);
+    rest.close = async () => ({ kind: "ok" });
+    await nextAttemptAfter(60_000);
+    await openedAt(server, 0);
+    await lose(host.displayPort, server.sockets[0]);
+    expect(host.status().failedAttempts).toBe(7);
+    await nextAttemptAfter(60_000);
+    await openedAt(server, 1);
+    sendStart(server.sockets[1]);
+    await until(() => host.status().failedAttempts === 0);
+    // 確立から失うまで約 59 秒（lose が 1 秒進める）: 前の続きから 1 増え、待ちも 60 秒のまま。
+    skew.ms += 58_000;
+    await lose(host.displayPort, server.sockets[1]);
+    expect(host.status().failedAttempts).toBe(8);
+    await nextAttemptAfter(60_000);
+    await openedAt(server, 2);
+    sendStart(server.sockets[2]);
+    await until(() => host.status().failedAttempts === 0);
+    // 60 秒以上続いた接続を失うと数え直し、待ちは 5 秒（P3-DC2-D-RESET）。
+    skew.ms += 59_000;
+    await lose(host.displayPort, server.sockets[2]);
+    expect(host.status().failedAttempts).toBe(1);
+    await nextAttemptAfter(5_000);
+  });
+
+  it("P3-DC2-T02 (b) contractBoundary / AC03: lastFailure は入口ごとの理由になり、start の受理で null", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await localServer();
+    const nobody = await freePort();
+    rest.list = unanswered;
+    const host = await startDmdata(await directories());
+    const reason = () => host.status().lastFailure;
+    expect(reason()).toBe("network");
+    rest.list = async () => ({ kind: "failed", answered: true, retryAfterMs: null });
+    await nextAttemptAfter(5_000);
+    expect(reason()).toBe("dmdata");
+    rest.list = listing([], [1, 2, 3, 4].map((id) => socketOf(id, "other-app", "waiting")));
+    await nextAttemptAfter(10_000);
+    expect(reason()).toBe("capacity");
+    rest.list = listing([]);
+    rest.start = async () => ({ kind: "uncertain" });
+    await nextAttemptAfter(20_000);
+    expect(reason()).toBe("startUncertain");
+    // WS の段の失敗: 誰も listen していない port への handshake。
+    rest.start = opened(`ws://127.0.0.1:${nobody}/`, 91);
+    await nextAttemptAfter(40_000);
+    await until(() => reason() === "network");
+    rest.start = opened(server.url, 95);
+    rest.close = async () => ({ kind: "ok" });
+    await nextAttemptAfter(60_000);
+    await openedAt(server, 0);
+    sendStart(server.sockets[0]);
+    await until(() => reason() === null);
+    rest.list = async () => ({ kind: "authRejected" });
+    await lose(host.displayPort, server.sockets[0]);
+    await nextAttemptAfter(60_000);
+    expect(reason()).toBe("authRejected");
+  });
+
+  it("P3-DC2-T03 contractBoundary / AC05 (c): timer を待つ間の reconnect() は試行を 1 回だけ始め、止めた timer は発火せず、失敗の後の timer は 1 本", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    rest.list = unanswered;
+    const host = await startDmdata(await directories());
+    expect(host.reconnect()).toBe("started");
+    expect(attempts()).toBe(2);
+    await turn();
+    expect(host.status().failedAttempts).toBe(2);
+    // 止めた 5 秒の timer の時刻を過ぎても始まらず、新しい 10 秒の timer で 1 回だけ。
+    vi.advanceTimersByTime(5_000);
+    await turn();
+    expect(attempts()).toBe(2);
+    await nextAttemptAfter(5_000);
+    expect([attempts(), host.status().failedAttempts]).toEqual([3, 3]);
+  });
+
+  it("P3-DC2-T04 acceptance / AC04: lastFrameWallMs は frame を受けるまで null、ping の wall が入り、切断で消えない", async () => {
+    const server = await localServer();
+    const host = await start(server.url, await directories());
+    await until(() => server.sockets.length === 1 && host.status().connection === "connected");
+    expect(host.status().lastFrameWallMs).toBeNull();
+    const before = clock().wallTimeMs;
+    server.sockets[0].send(JSON.stringify({ type: "ping", pingId: "p0" }));
+    await until(() => server.received.length === 1);
+    const after = clock().wallTimeMs;
+    const received = host.status().lastFrameWallMs!;
+    expect(received).toBeGreaterThanOrEqual(before);
+    expect(received).toBeLessThanOrEqual(after);
+    await lose(host.displayPort, server.sockets[0]);
+    const { connection } = await snapshot(host.displayPort);
+    expect(host.status().lastFrameWallMs).toBe(received);
+    // disconnectedAt は切断を処理した時の wall（lose が時計を 1 秒進めてから切る）、lastInputAt は ping で変わらない。
+    expect(connection.disconnectedAt).toBeGreaterThanOrEqual(received + 1_000);
+    expect(connection.lastInputAt).toBeNull();
+  });
+
+  it("P3-DC2-T05 contractBoundary / AC01: 60 秒の待ちが 10 回続いた後は 120 秒（14 回目は 675 秒、15 回目は 795 秒、16 回目は 915 秒）", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    rest.list = unanswered;
+    const host = await startDmdata(await directories());
+    const reached: number[] = [];
+    let elapsed = 0;
+    for (const wait of [5_000, 10_000, 20_000, 40_000, ...Array<number>(10).fill(60_000), 120_000, 120_000]) {
+      await nextAttemptAfter(wait);
+      reached.push(elapsed += wait);
+    }
+    expect(reached.slice(13)).toEqual([675_000, 795_000, 915_000]);
+    expect(host.status().failedAttempts).toBe(17);
+  });
+
+  it("P3-DC2-T06 contractBoundary / AC05 (a): timer を待つ間に stop() すると、120 秒を過ぎても REST を呼ばず、3 欄も変えない", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    rest.list = unanswered;
+    const host = await startDmdata(await directories());
+    const { failedAttempts, lastFailure, lostConnections } = host.status();
+    expect([failedAttempts, lastFailure, lostConnections]).toEqual([1, "network", 0]);
+    const calls = rest.calls.length;
+    await host.stop();
+    vi.advanceTimersByTime(120_001);
+    await turn();
+    expect(rest.calls).toHaveLength(calls);
+    expect(host.status()).toMatchObject({ failedAttempts, lastFailure, lostConnections });
+  });
+
+  it("P3-DC2-T07 contractBoundary / AC01: Retry-After は下限 5 秒・上限 2,147,483,647 ms に収めて式の代わりに使い、無ければ式の値", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const hint: { ms: number | null } = { ms: 0 };
+    rest.list = async () => ({ kind: "failed", answered: true, retryAfterMs: hint.ms });
+    await startDmdata(await directories());
+    // 前の試行が返した Retry-After の待ちで次の試行が来る。その試行が返す値を先に入れる。
+    for (const [next, wait] of [[6_000, 5_000], [2_147_483_000, 6_000], [2_147_484_000, 2_147_483_000], [null, 2_147_483_647]] as const) {
+      hint.ms = next;
+      await nextAttemptAfter(wait);
+    }
+    // n＝5 の式の値。
+    await nextAttemptAfter(60_000);
+  });
+
+  it("P3-DC2-T08 acceptance / AC09: lostConnections は確立した接続を失うたびに 1 増え、起動の失敗と start の前の close では増えない", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await localServer();
+    const observations: P2HostObservation[] = [];
+    rest.list = unanswered;
+    const host = await startDmdata(await directories(), observations);
+    const lost = () => host.status().lostConnections;
+    const accepted = async (index: number) => {
+      const starts = () => observations.filter((o) => o.kind === "controlFrame" && o.frameType === "start").length;
+      const before = starts();
+      await until(() => server.sockets.length === index + 1 && server.sockets[index].readyState === 1);
+      sendStart(server.sockets[index]);
+      await until(() => starts() === before + 1);
+    };
+    // (1)
+    expect(lost()).toBe(0);
+    // (2) start の前に閉じた接続は数えず、start を受理した接続を失うと 1。
+    rest.list = listing([]);
+    rest.start = opened(server.url, 95);
+    rest.close = async () => ({ kind: "ok" });
+    await nextAttemptAfter(5_000);
+    await openedAt(server, 0);
+    await lose(host.displayPort, server.sockets[0]);
+    expect(lost()).toBe(0);
+    await nextAttemptAfter(10_000);
+    await accepted(1);
+    await lose(host.displayPort, server.sockets[1]);
+    expect(lost()).toBe(1);
+    // (3) 過負荷の切断も数える。
+    await nextAttemptAfter(20_000);
+    await accepted(2);
+    owners.hold = true;
+    for (let index = 0; index < 130; index++) server.sockets[2].send(junk());
+    await until(() => server.sockets[2].readyState === 3);
+    expect(lost()).toBe(2);
+    // (4) 片付けの後の試行（resumeIfDrained）を REST で 1 度失敗させ、timer を待つ間の reconnect() で繋ぐ。この間は status() を読まない。
+    rest.list = unanswered;
+    const before = attempts();
+    owners.hold = false;
+    for (const deliver of owners.held.splice(0)) deliver();
+    await until(() => attempts() === before + 1);
+    await turn();
+    rest.list = listing([]);
+    expect(host.reconnect()).toBe("started");
+    await accepted(3);
+    await lose(host.displayPort, server.sockets[3]);
+    expect(lost()).toBe(3);
   });
 });

@@ -1,6 +1,6 @@
 // P3-CLI-REPL-001（C18）【発注 1】: 新築の設定ファイル（spec:487、§11.5）の中身。置き場は旧築と別の directory（spec §10.2、P3-CLI-D-SETTINGS-PLACE）。
 // 旧築の key のうち互換必須の入口が使うものを、旧築と同じ名前・同じ値の形で持つ。効き先は【発注 2】【発注 3】（P3-CLI-D-KEYS）。
-import type { DmdataClassification, DmdataTestMode } from "./p3-dmdata-connect.types";
+import type { DmdataClassification, DmdataConnectFailure, DmdataTestMode } from "./p3-dmdata-connect.types";
 import type { NotificationAttempt } from "./p2-notification-delivery.types";
 import type { ShutdownSummary } from "./p2-shared-runtime.types";
 
@@ -80,8 +80,14 @@ export type HostStatus = Readonly<{
   connection: "connected" | "connecting" | "disconnected";
   // host が今持つ自分の socket の id（P3-C2-OWNERSHIP の ownSocketId）。無ければ null。
   socketId: number | null;
-  // 最後に開いた後で続けて失敗した接続の試みの数（旧築の「再接続試行」）。
+  // 繋ぎ直しの数 n（繋ぎ直しの timer を張った数。60 秒以上続いた確立した接続を失うと 0 から数え直す）。確立している間は 0（旧築の「再接続試行」、P3-DC2-AC02）。
   failedAttempts: number;
+  // 最後に終わった接続の失敗の理由。形の正しい start の受理（{ wsUrl } は open）で null（P3-DC2-AC03）。
+  lastFailure: DmdataConnectFailure | null;
+  // ping を含む最後の frame の wall。起動から 1 つも受けていなければ null で、切断で消さない（P3-DC2-AC04）。
+  lastFrameWallMs: number | null;
+  // 確立した接続（start を受理した。{ wsUrl } は open した）を失った数。run の中で 0 から増えるだけ（P3-DC2-AC09）。
+  lostConnections: number;
   display: Readonly<{ port: number; clients: number }> | null;
 }>;
 

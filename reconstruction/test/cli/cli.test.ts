@@ -212,7 +212,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
   // stop は要約の code だけを返す（T04 と同じ）。
   const fakeHost = (stop: () => Promise<{ code: number }>): Omit<HostCommandPort, "stop"> & { stop: () => Promise<{ code: number }> } => ({
     displayPort: null, stop, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
-    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, display: null }) });
+    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null }) });
   const startRepl = async (code: number) => {
     clear();
     const stop = vi.fn(async () => ({ code }));

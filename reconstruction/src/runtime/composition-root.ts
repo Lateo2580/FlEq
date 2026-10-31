@@ -469,7 +469,7 @@ class RuntimeCompositionRoot {
     return this.current;
   }
 
-  get lastDisconnectedAt(): number | null { return this.disconnectedAt; }
+  get lastDisconnectedAt(): number | null { return this.disconnectedAt; } get lastReceivedWallMs(): number | null { return this.lastFrameWallMs; } // P3-DC2-AC04: host の status() だけが読む
 
   // Replies an unfixed owner sent after the finalization deadline; counted, never adopted (P3-C3A-AC09).
   get lateReplyCount(): number { return this.lateReplies; }

@@ -125,7 +125,7 @@ describe("P3-C2-T08 dmdata REST boundary (AC01, AC08)", () => {
     const sentBefore = exchanges().length;
     const stopped = new AbortController();
     stopped.abort();
-    expect(await closeSocket(API_KEY, 12, stopped.signal)).toEqual({ kind: "failed" });
+    expect(await closeSocket(API_KEY, 12, stopped.signal)).toEqual({ kind: "failed", answered: false, retryAfterMs: null });
     expect(exchanges()).toHaveLength(sentBefore);
     https.handle = (exchange: Exchange) => { exchange.outgoing.emit("finish"); };
     const halt = new AbortController();
@@ -158,5 +158,23 @@ describe("P3-CLI-T05 socket start の test (AC06)", () => {
     await startSocket(subscription);
     const tests = exchanges().map((exchange) => (JSON.parse(exchange.payload ?? "{}") as { test?: string }).test);
     expect(tests).toEqual(["only", "no"]);
+  });
+});
+
+describe("P3-DC2-T02 (a) contractBoundary / AC03 (2): failed は dmdata が答えたかと Retry-After を運ぶ", () => {
+  it("要求の error・503 と Retry-After・200 の形の不正・start の notSent、Retry-After の 0・負・日付", async () => {
+    https.handle = (exchange: Exchange) => { exchange.outgoing.emit("error", new Error("getaddrinfo ENOTFOUND")); };
+    expect(await listSockets(API_KEY, "open")).toEqual({ kind: "failed", answered: false, retryAfterMs: null });
+    expect(await startSocket(subscription)).toEqual({ kind: "failed", answered: false, retryAfterMs: null });
+    answer(503, "", "end", { "retry-after": "7" });
+    expect(await listSockets(API_KEY, "open")).toEqual({ kind: "failed", answered: true, retryAfterMs: 7_000 });
+    answer(200, json({ status: "ok", items: [{ ...listed, id: 1.5 }] }));
+    expect(await listSockets(API_KEY, "open")).toEqual({ kind: "failed", answered: true, retryAfterMs: null });
+    answer(503, "", "end", { "retry-after": "0" });
+    expect(await listSockets(API_KEY, "open")).toEqual({ kind: "failed", answered: true, retryAfterMs: 0 });
+    for (const value of ["-1", "Wed, 21 Oct 2026 07:28:00 GMT"]) {
+      answer(503, "", "end", { "retry-after": value });
+      expect(await listSockets(API_KEY, "open")).toEqual({ kind: "failed", answered: true, retryAfterMs: null });
+    }
   });
 });
