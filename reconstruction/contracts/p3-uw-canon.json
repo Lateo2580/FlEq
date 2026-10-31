@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "b65cf0ef184967a90968255fd2a095ccfba791573a0c789c346b08d22296cbc6",
+    "sha256": "153c136e62897919023588777bbba9f9f60ddb2f2230301d49933764c8c7a746",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -305,7 +305,7 @@
     "contractId": "P3-UW-CANON-001",
     "mode": "implementation",
     "objective": "U-W（全国の気象警報、weather current）の正本の持ち方を直す（③、H38、作者裁定D0）。(1) 置き場: normalのpartialの上限を鍵の空間（348）＋余白の384にし、training・testは別の合算64にする。normalは件数で退去させない (2) 取消で戻せる深さはpartialも2（官署×familyごと、全国は今の2） (3) 画面へ送る形: 全国報とpartialを府県×区域×Kind/Codeで新しいほうに合わせ、府県ごとの小さい公開形を常に配り、勝った行と、unavailableのlastKnownの行は範囲・版つきの詳細の口（U-Fの口と同じ待ち、GET /api/display/domains/U-W/detail）で取る (4) 保存の版をp2-weather-current-unit-v7へ上げて初期化する (5) W2の道具の直し（台帳90）は配送のcommitで統合担当が当てる原文に入れる。音・desktopの通知は作らない（C20）。U-Wのunavailableのnoticeの出方は変えない（Q-UWC-NOTICE）。U-Wのviewが縮む分、snapshotの合計が1 MiBを越えず、EEW・津波などの分野が要約にならず全部出る区切りが増える（P3-UWC-D-RES06-SHIFT、作者裁定A）。詳細の口のownerの停止はplaceごとに扱う（Q-UWC-DETAIL-STOP）",
-    "baseOid": "unassigned",
+    "baseOid": "74221f846a1ec34752a3a56739f8b8acae4e266f",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
