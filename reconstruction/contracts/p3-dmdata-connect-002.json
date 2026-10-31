@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "e27bdfe7e67a45747aaa3fdc8fefb74e22862db56d34fe3f76b1cf85de7b3fff",
+    "sha256": "02c67b468b5c4cd4009525b0ee7e5a91730bf7c89521a0722545632674d48daa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -381,7 +381,7 @@
           "reconstruction/test/host/host.test.ts:443 «d136781c5f26c5a4»",
           "reconstruction/test/host/host.test.ts:445 «e4a575f7363bd7d3»"
         ],
-        "behavior": "host.test.ts の末尾に 1 つの it（fake timer、rest は既存の mock）: { dmdata } で一覧が answered:false の failed を返し続けると、繋ぎ直しの 1〜5 回目（起動から通しで #2〜#6）の前の待ちが 5・10・20・40・60 秒（各境目は 1 ms 前に試行が無く、境目で 1 回）。status().failedAttempts は timer を張るたびに 1 つ増える。次に一覧と start が通り、WS が open しても start の frame を送らずに閉じると、待ちは延び続ける（0 に戻らない）。形の正しい start を送ると表示の failedAttempts が 0 になる。確立から失うまでの経過は試験の時計（skew.ms、host の clock の monotonicMs に足される）で作る。既存の lose() は skew を 1 秒進める（:445）ので、その副作用を差し引き、start の受理の後に skew を 58_999 ms 進めてから lose() を呼ぶと（失った時の経過 59_999 ms）n は前の続きから 1 増え（待ちも前の続き）、次に start を受理した後に 59_000 ms 進めてから lose() を呼ぶと（経過 60_000 ms）n が 0 から数え直して待ちは 5 秒（P3-DC2-D-RESET の境目）"
+        "behavior": "host.test.ts の末尾に 1 つの it（fake timer、rest は既存の mock）: { dmdata } で一覧が answered:false の failed を返し続けると、繋ぎ直しの 1〜5 回目（起動から通しで #2〜#6）の前の待ちが 5・10・20・40・60 秒（各境目は 1 ms 前に試行が無く、境目で 1 回）。status().failedAttempts は timer を張るたびに 1 つ増える。次に一覧と start が通り、WS が open しても start の frame を送らずに閉じると、待ちは延び続ける（0 に戻らない）。形の正しい start を送ると表示の failedAttempts が 0 になる。確立から失うまでの経過は試験の時計（skew.ms、host の clock の monotonicMs＝performance.now()＋skew.ms に足される）で作る。経過には start の送受・terminate・close の event・until の待ちの実時間も足されるので、ms の境目は突かず 2 点で確かめる。既存の lose() は skew を 1 秒進める（:445）ので、それを含めて数える: 60 秒より前の点は、start の受理の後に skew を 58_000 ms 進めてから lose() を呼ぶ（経過は約 59_000 ms＋実時間、実時間の余裕は約 1 秒）と、n は前の続きから 1 増える（待ちも前の続き）。60 秒以上の点は、次に start を受理した後に 59_000 ms 進めてから lose() を呼ぶ（経過は 60_000 ms＋実時間）と、n が 0 から数え直して待ちは 5 秒（P3-DC2-D-RESET）"
       },
       {
         "testId": "P3-DC2-T02",
