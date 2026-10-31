@@ -510,19 +510,8 @@ type CurrentChange = (before: WeatherCurrentSnapshot | null, after: WeatherCurre
 
 function applyEnding(state: WeatherCurrentUnitState, candidate: Candidate,
   touched: CurrentChange = () => {}): WeatherCurrentUnitState {
-  const codes = new Set(candidate.affectedScope.map(parseScopeToken).filter((value): value is ScopeTuple => value != null).map((value) => value[4]));
-  const ended = (snapshotValue: WeatherCurrentSnapshot): WeatherCurrentSnapshot => {
-    if (snapshotValue.operation !== candidate.operation || Date.parse(snapshotValue.source.reportDateTimeRaw) > candidate.reportDateTimeMs!)
-      return snapshotValue;
-    const phenomena = Object.fromEntries(Object.entries(snapshotValue.phenomena).map(([token, value]) => {
-      const tuple = parseScopeToken(token);
-      const matches = tuple != null && [...codes].some((code) => tuple[4] === code || code.endsWith("0000") && tuple[4].startsWith(code.slice(0, 2)));
-      if (!matches || !Array.isArray(value)) return [token, value];
-      return [token, value.filter((row) => !(row != null && typeof row === "object" && !Array.isArray(row)
-        && typeof row.code === "string" && /^3\d$/.test(row.code)))];
-    }));
-    return isDeepStrictEqual(phenomena, snapshotValue.phenomena) ? snapshotValue : { ...snapshotValue, phenomena };
-  };
+  const codes = endingCodes([candidate.affectedScope]);
+  const ended = (snapshotValue: WeatherCurrentSnapshot) => endSnapshot(snapshotValue, candidate.operation, candidate.reportDateTimeMs!, codes);
   const currentEnded = (value: WeatherCurrentSnapshot) => {
     const next = ended(value);
     if (next !== value) touched(value, next, value.operation, value.subject);
@@ -544,25 +533,36 @@ function applyEnding(state: WeatherCurrentUnitState, candidate: Candidate,
   };
 }
 
+// P3-UWC-AC09 (5): 終了の範囲の Code は完全一致の Set と末尾 0000 の Code の先頭 2 桁の Set に 1 回だけ集め、区域ごとに Set で引く（1 件ずつ当てても一度でも外す行は同じ）。
+type EndingCodes = Readonly<{ exact: ReadonlySet<string>; prefixes: ReadonlySet<string> }>;
+function endingCodes(scopes: readonly (readonly string[])[]): EndingCodes {
+  const exact = new Set<string>(), prefixes = new Set<string>();
+  for (const tokens of scopes) for (const token of tokens) {
+    const code = parseScopeToken(token)?.[4]; if (code == null) continue;
+    exact.add(code); if (code.endsWith("0000")) prefixes.add(code.slice(0, 2));
+  }
+  return { exact, prefixes };
+}
+// 報時刻が終了以前の、同じ operation の報の、範囲に当たる区域の 3x の行を外す。外す行が無ければ同じ object を返す。
+function endSnapshot(snapshotValue: WeatherCurrentSnapshot, operation: Operation, endedAtMs: number, codes: EndingCodes): WeatherCurrentSnapshot {
+  if (snapshotValue.operation !== operation || Date.parse(snapshotValue.source.reportDateTimeRaw) > endedAtMs) return snapshotValue;
+  let phenomena: Record<string, JsonValue> | null = null;
+  for (const [token, value] of Object.entries(snapshotValue.phenomena)) {
+    const code = parseScopeToken(token)?.[4];
+    if (code == null || !Array.isArray(value) || !codes.exact.has(code) && !codes.prefixes.has(code.slice(0, 2))) continue;
+    const kept = value.filter((row) => !(row != null && typeof row === "object" && !Array.isArray(row) && typeof row.code === "string" && /^3\d$/.test(row.code)));
+    if (kept.length !== value.length) (phenomena ??= { ...snapshotValue.phenomena })[token] = kept;
+  }
+  return phenomena == null ? snapshotValue : { ...snapshotValue, phenomena };
+}
+
+// 当てる墓標（同じ operation の VPNO50 で、報時刻がその報以後）の範囲を 1 回の走査で集め、その報の行だけを 1 回で外す（履歴・intents・ownership を読まない）。
 function maskSnapshotWithTombstones(state: WeatherCurrentUnitState,
   snapshotValue: WeatherCurrentSnapshot): WeatherCurrentSnapshot {
-  let wrapper: WeatherCurrentUnitState = snapshotValue.scope === "national"
-    ? { ...state, national: { [snapshotValue.operation]: snapshotValue } }
-    : { ...state, national: {}, partials: [snapshotValue] };
-  for (const tombstone of state.tombstones) {
-    if (tombstone.operation !== snapshotValue.operation || tombstone.source.family !== "VPNO50"
-      || Date.parse(tombstone.source.reportDateTimeRaw) < Date.parse(snapshotValue.source.reportDateTimeRaw)) continue;
-    const target: Candidate = {
-      operation: tombstone.operation, family: "VPNO50", subject: tombstone.subject, scope: "partial",
-      office: parseScopeToken(tombstone.affectedScope[0])?.[2] ?? "", reportDateTimeMs: Date.parse(tombstone.source.reportDateTimeRaw),
-      source: tombstone.source, cancelled: false, ignored: false,
-      affectedScope: tombstone.affectedScope, phenomena: {},
-    };
-    wrapper = applyEnding(wrapper, target);
-  }
-  return snapshotValue.scope === "national"
-    ? wrapper.national[snapshotValue.operation] ?? snapshotValue
-    : wrapper.partials[0] ?? snapshotValue;
+  const at = Date.parse(snapshotValue.source.reportDateTimeRaw);
+  const scopes = state.tombstones.filter((tombstone) => tombstone.operation === snapshotValue.operation && tombstone.source.family === "VPNO50"
+    && !(Date.parse(tombstone.source.reportDateTimeRaw) < at)).map((tombstone) => tombstone.affectedScope);
+  return scopes.length === 0 ? snapshotValue : endSnapshot(snapshotValue, snapshotValue.operation, Infinity, endingCodes(scopes));
 }
 
 function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
@@ -661,8 +661,8 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
 
   let working = state;
   let diagnostics: DiagnosticDetails[] = [];
-  if (candidate.scope === "partial" && previous == null && state.partials.length >= 128) {
-    const eligible = [...state.partials].filter((item) => item.operation !== "normal").sort(compareEntry);
+  if (candidate.scope === "partial" && previous == null && state.partials.reduce((sum, item) => sum + ((item.operation === "normal") === (candidate.operation === "normal") ? 1 : 0), 0) >= (candidate.operation === "normal" ? 384 : 64)) {
+    const eligible = candidate.operation === "normal" ? [] : [...state.partials].filter((item) => item.operation !== "normal").sort(compareEntry); // P3-UWC-AC01: normal は退去させず容量の unavailable、training・test は合算 64 件の中で最古を退去
     if (eligible.length === 0) return addUnavailable(state, candidate, "capacityExceeded", null, input.clock.monotonicMs);
     touched(eligible[0], null, eligible[0].operation, eligible[0].subject);
     working = removeSubjects(state, new Set([eligible[0].subject]), eligible[0].operation);
@@ -676,7 +676,7 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
       .filter((item) => item.scope === candidate.scope
         && (candidate.scope === "national" || item.office === candidate.office && item.source.family === candidate.family))
       .sort(compareEntry);
-    if (scoped.length >= (candidate.scope === "national" ? 2 : 8)) {
+    if (scoped.length >= 2) { // P3-UWC-AC02: 取消で戻せる深さは全国も partial（官署×family）も 2
       const evicted = scoped.find((item) => item.operation !== "normal")
         ?? (candidate.operation === "normal" ? scoped[0] : undefined);
       // Normal protection: training/test over a normal-only history is adopted without keeping its previous version.

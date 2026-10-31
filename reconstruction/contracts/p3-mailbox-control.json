@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "6e152f854c4e2545d3a7fddd1a4a0bec964e60be",
-    "sha256": "70442afc9d8b7bb12ac49e7fab848b1f321fa1c9e350c4b4bccd692172040b90",
+    "sha256": "120e1a78f05265e0cca014c82268ade1b825cfd69c6307488dbbc4440a5b782f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -162,8 +162,8 @@
           "reconstruction/src/host/host.ts:329 «5b89989a2cbeec6d»",
           "reconstruction/src/host/host.ts:336 «ebafe9ce4f4258a4»",
           "reconstruction/src/runtime/composition-root.ts:848 «74a333b1aa9739cc»",
-          "reconstruction/contracts/p3-execution-split.json:749 «91a623f27468cc26»",
-          "reconstruction/contracts/p3-execution-split.json:544 «e7a0bbad7a76496a»",
+          "reconstruction/contracts/p3-execution-split.json:749 «6c024fec33426979»",
+          "reconstruction/contracts/p3-execution-split.json:544 «f72484d727734623»",
           "reconstruction/contracts/p3-execution-boundary.md:24 «778675a95e83f912»"
         ]
       },
@@ -181,7 +181,7 @@
         "requirement": "共有型から消すもの（P3-MC-D-TYPES=A）: p2-shared-runtime.types.ts の MailboxControl、MailboxEnvelope と MailboxCompletion の control の variant、MailboxPriorityReason の \"control\"（parser の variant の priorityReason は Exclude をやめて MailboxPriorityReason そのものにする）、MailboxStats の inFlightControlMessageIds と nextDeadlineMonotonicMs。ほかの型・ほかの行は触らない（行のずれは統合担当が他の契約の anchor を引き直す。artifactRequirements の改訂の項）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-mailbox.json:382 «c0e422b70ffefdfc»",
-          "reconstruction/contracts/p3-execution-split.json:749 «91a623f27468cc26»"
+          "reconstruction/contracts/p3-execution-split.json:749 «6c024fec33426979»"
         ]
       },
       {

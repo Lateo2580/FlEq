@@ -12,7 +12,7 @@ import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagn
 import { sealSelfHash } from "../../src/measurement/eew-e01/frozen";
 import { linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { executionPlaces, runtimeUnits } from "../../src/runtime/unit-coverage";
-import { seismicUnitCodec } from "../../src/units/seismic/seismic-unit";
+import { seismicUnitCodec } from "../../src/units/seismic/seismic-unit"; import { weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { envelope, harnessedRoot, places, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import type { Scenario } from "./scenario";
@@ -102,7 +102,7 @@ class ObservationTable {
         const families = perFamily([...state.current, ...state.gates]);
         return [...new Set(["VXSE43", "VXSE45", ...families.keys()])].map((family) => [`U-E.family:${family}`, families.get(family)?.size ?? 0, 512] as const);
       }, null),
-      "U-W": this.wrap(base["U-W"], (step) => step.state, (state) => [["U-W.partials", state.partials.length, 128]],
+      "U-W": this.wrap(base["U-W"], (step) => step.state, (state) => { const normal = state.partials.filter((item) => item.operation === "normal").length; return [["U-W.partials.normal", normal, 384], ["U-W.partials.trainingTest", state.partials.length - normal, 64]]; },
         (state) => state.unavailable.flatMap((item) => item.reason === "capacityExceeded" ? [[item.source?.inputId ?? null]] : [])),
       "U-F": this.wrap(base["U-F"], (step) => step.state, (state) => [["U-F.subjects", state.subjects.length, 512]],
         (state) => state.subjects.flatMap((item) => item.effective === "unavailable" && item.unavailableReason === "capacityExceeded" ? [[item.source?.inputId ?? null]] : [])),
@@ -190,9 +190,9 @@ class ObservationTable {
 
 // ---- 1 段目の流し手（P3-DC-CLOCK、AC03・AC04・AC06） ----
 
-// P3-QC-AC12 (1): U-Q は codec の器（P3-QC-AC05）。
+// P3-QC-AC12 (1): U-Q は codec の器（P3-QC-AC05）。U-W も codec の器（P3-UWC-AC10 (2)）。
 const BYTE_LIMITS: Readonly<Partial<Record<RuntimeUnitId, number>>> = { "U-E": 262_144, "U-T": 4_194_304, "U-Q": seismicUnitCodec.maxEnvelopeBytes, "U-N": 294_912,
-  "U-W": 16_777_216, "U-F": 33_554_432 };
+  "U-W": weatherCurrentUnitCodec.maxEnvelopeBytes, "U-F": 33_554_432 };
 const DOMAIN_KEYS = ["eew", "weatherCurrent", "weatherTimeseries", "tsunami", "earthquake", "nankai", "volcano", "landslide", "flood",
   "briefing", "localBulletins", "typhoon"] as const satisfies readonly (keyof DisplaySnapshot["current"])[];
 const DOMAINS: Readonly<Record<(typeof DOMAIN_KEYS)[number], RuntimeUnitId>> = { eew: "U-E", weatherCurrent: "U-W", weatherTimeseries: "U-F",
@@ -203,7 +203,7 @@ const SUMMARY_FAILS: readonly RuntimeUnitId[] = ["U-E", "U-T", "U-Q"];
 const OPTIONS: readonly (readonly [string, string, string | null])[] = [
   ["U-Q.bytes", "P3-C7-CAPACITY-BUDGET の B（震度観測点を state に持たない）・C（16 MiB、urgent の encode が最大 4 倍）か新しい案", "U-Q の容量の新しい契約"],
   ["U-Q.events", "P3-C7-CAPACITY-BUDGET の RET-01（event 512）", "U-Q の容量の新しい契約"],
-  ["U-W.", "U-W の正本の持ち方（406 鍵と取消の履歴）", "3 つ目の単位"],
+  ["U-W.", "P3-UW-CANON-001 の上限（normal の partial 384・training/test 合算 64・取消の履歴 2・保存の器）", "P3-UW-CANON-001"],
   ["U-F.bytes", "U-F の state の持ち方（P3-UF-PUBLIC-001 は view だけで state を変えない）", "U-F の容量の新しい契約"],
   ["U-T.stations", "P3-C5-CAPACITY（p3-tsunami-unit.json）の観測点の上限", "P3-C5-CAPACITY の行き先の契約"],
   ["U-N.information", "P3-C8-CAPACITY（p3-nankai-unit.json）の情報の深さ", "P3-C8-CAPACITY の行き先の契約"],
@@ -214,8 +214,8 @@ const optionOf = (id: string) => {
   const row = OPTIONS.find(([prefix]) => id.startsWith(prefix));
   return { limit: id, choices: row?.[1] ?? "P3-DC-OPTIONS に行の無い上限（統合担当が行き先を決める）", destination: row?.[2] ?? null };
 };
-// 測った commit の契約（Q-DC-REMEASURE）。U-W の単位（3 つ目の単位）の契約は起草の時点で無い。
-const REMEASURE = ["P3-UF-PUBLIC-001", "P3-CURRENCY-COVERAGE-001"];
+// 測った commit の契約（Q-DC-REMEASURE）。U-W の単位は P3-UW-CANON-001。
+const REMEASURE = ["P3-UF-PUBLIC-001", "P3-CURRENCY-COVERAGE-001", "P3-UW-CANON-001"];
 
 type BlockedReason = "dataMissing" | "digestMismatch" | "timeBudget" | "settleTimeout" | "inputNotAdopted" | "checkpointFailed";
 class Blocked extends Error {
@@ -275,7 +275,7 @@ function contractRefs(): { contractId: string; metaSha256: string | null }[] {
     const id = contract?.["contractId"];
     if (typeof id === "string" && REMEASURE.includes(id)) found.set(id, typeof meta?.["sha256"] === "string" ? meta["sha256"] : null);
   }
-  return [...REMEASURE.map((contractId) => ({ contractId, metaSha256: found.get(contractId) ?? null })), { contractId: "U-W の単位（3 つ目の単位）", metaSha256: null }];
+  return [...REMEASURE.map((contractId) => ({ contractId, metaSha256: found.get(contractId) ?? null }))];
 }
 
 function seal(result: Readonly<Record<string, JsonValue>>, out: string | null | undefined): string {
@@ -440,7 +440,7 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
       const snapshot: DisplaySnapshot | null = lastSnapshot;
       const measured = snapshot == null ? null : measureSnapshot(snapshot);
       checkpoints.push({ atMs: point.atMs, label: point.label, usage: Object.fromEntries([...table.usage].map(([id, usage]) => [id, usage.current])),
-        snapshot: measured == null ? null : { total: measured.total, withoutWeather: measured.withoutWeather, withoutWeatherOver1MiB: measured.withoutWeatherOver1MiB } });
+        snapshot: measured == null ? null : { total: measured.total, withoutWeather: measured.withoutWeather, withoutWeatherOver1MiB: measured.withoutWeatherOver1MiB, weatherCurrent: measured.bytes["U-W"] ?? null } });
       return;
     }
     expectations.push({ atMs: point.atMs, label: point.label, ok: point.check(h, table.losses) });

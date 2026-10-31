@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "dc0fb0164ffb9e8deb58da4f38f54d0ec3845de0933d0584336c16a7e0257edb",
+    "sha256": "d11bc0b730de11a4ecd843762a6d27623a09bc5b636c22c1989417115f8b5741",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:3071 «7dd263cfeb1a5165»",
     "decisionBranches": [
       {
@@ -333,7 +333,7 @@
         "id": "P3-WS-AC06",
         "requirement": "W1で効きを確かめる（Q-WS-REMEASURE、P3-DISASTER-CAPACITY-001のQ-DC-REMEASURE）: 配送のcommitを含むgitHeadで、W1の3日（x-2026-06-03・06-26・09-21、digestはce6906ce82231fd5…・5def07d4bfd39dc7…・7dfcba859ba93383…で、前の結果と同じ入力）を同じ道具（reconstruction/test/disaster/のFLEQ_DISASTERの正式のrun）で測り直し、(1) 3日ともrealInvalidに『VPWP50 rejected:』で始まる鍵が無い（前は133・265・149） (2) 3日とも期待例『VPWP50の官署のU-F subjectが全部ある』がok (3) U-F.bytesとU-F.subjectsの最大と時刻、U-Fの要約の有無を前の結果と並べる（前の最大は6,832,624・2,890,096・5,975,577 byte、38・16・33件）。09-21は前のFailがこの期待例だけだったので全体のPassを見込む（推測）。Passでなければ原因を書いて作者に出す。06-03・06-26のU-Wの容量の拒否は本契約の外（③）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-disaster-capacity.json:57 «44782daabce1f4b5»",
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «41a697c6cf92332c»",
           "reconstruction/contracts/p3-disaster-capacity.json:704 «d2a50e29fe30ea49»",
           "reconstruction/test/disaster/runner.ts:490 «f7e985c22367465f»",
           "reconstruction/test/disaster/scenario.ts:112 «c9c643316263b5a4»"

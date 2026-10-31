@@ -1131,7 +1131,7 @@ describe("P3-REC-T25 acceptance: a cancel after the U-W recovery (AC12, AC17, P3
   }
   // 公開の view の partials（官署と報時刻）と normal の active の件数。
   const shown = (t: Awaited<ReturnType<typeof setup>>) => { const domain = t.snapshots.at(-1)!.current.weatherCurrent;
-    return [domain.delivery === "full" ? domain.view.partials.map((item) => [item.office, item.source.reportDateTimeRaw]) : null, domain.items[0].activeCount]; };
+    return [domain.delivery === "full" ? domain.view.areas.filter((item) => item.cellCount > item.restoredCellCount).map((item) => [item.source.subject.split("/")[2], item.source.reportDateTimeRaw]) : null, domain.items[0].activeCount]; };
   for (const rebased of [false, true]) it(`(c) the latest of the key is a cancel: a restored base goes back to X1 and keeps it restored${rebased ? " (re-applied)" : ""}`, async () => {
     const t = await restoredBase();
     expect(kyotoRow(t)).toEqual([["2020-06-22T23:10:00+09:00"], []]);

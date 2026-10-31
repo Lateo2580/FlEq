@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "f7b825a0f08a10eae8ada7aa4e5af93e01c8aba8427de7a0ea7700d8670c7d80",
+    "sha256": "e1b0d086643528fd0d4d1dabde8688391544d43843322dfb8c4fb57a945c85f3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -545,7 +545,7 @@
           "docs/specs/reconstruction-p0-contracts.md:2174 «12db69cbceb37a6e»",
           "docs/specs/reconstruction-p0-contracts.md:2175 «a452d175e32b1452»",
           "docs/specs/reconstruction-p0-contracts.md:2176 «ddd8d3f657213fc1»",
-          "docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+          "docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
         ]
       },
       {
@@ -587,7 +587,7 @@
         "requirement": "【発注 2】U-W（spec:2179〜2185 の gate/watermark・cancellation tombstone・current の出典・全国 2／partial 8 の必要履歴・partial の現象所有情報・VPNO50 終了記憶）: telegramFoundation.vpws50 から U-W の state を作る。vpws50.authoritative が false（v1 の表示の写しだけ）なら版の根拠が無いので U-W を未充足（uninterpretable）にする。旧の全国履歴 8 段は新しい 2 段を残し、捨てた段を AC05 の (4) で報告する。sequences.json の期待を直す: expected:O04:2（pi-stale-lock-state を T05 の形で旧 v2 の主 file に組み、testMode \"no\" の取得の記録を添えた入力で U-W に移り、8 日前の区域 9100001 の L4 の凍結が移った state にそのまま残る。取得の記録が無ければ operationUnconfirmed）、expected:O06:29（operational-v2 だけでは 8 段境界の充足としない）と unmet:O06:30（試験のコードで作る旧 v2 の全国履歴 8 段の入力から新しい 2 段へ移り、捨てた範囲を報告。fixture は足さない）。旧 step と P2 の置換 step（expected:O04:9・expected:O06:31）の対応表を成果物に出す（Q-MIGRATION の requiredEvidence）。移行直後の続報: O04:2 の移した state で起動し、新しい正常な全国報（O04:3 の入力を試験のコードで作る）で stale lock を抜けることを確かめる。移行の後の検査: partial の現象所有（T13）と VPNO50 の終了記憶（T14）が restore した U-W の state に残る。試験で添える取得の記録の時刻（P3-MIG-D-CLOCK の取得時刻）は、その fixture の savedAt（sequences.json の評価時計と同じ。savedAt を持たない pi-stale-lock-state は step の evaluatedAt）にする。ずらすと期限の作り直しで記録が expired になり、期待が何も確かめなくなる（T05・T06）。無いと: Q-MIGRATION が閉じず、8 日前の凍結の再発を移行で持ち込む",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
-          "docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
+          "docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:709 «ab7a0a43e4cf8f01»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:720 «f1322c4f148aa247»",
           "reconstruction/contracts/p2-weather-current-unit.json:670 «ab7a0a43e4cf8f01»",

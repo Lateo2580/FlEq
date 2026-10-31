@@ -203,42 +203,42 @@ function weatherTally(value: RuntimeDisplaySubject | null): Tally | null {
   const operation = value.operation;
   const tally = emptyTally(operation);
   const current = value.current;
-  // A5 keeps restored references in subjects but out of national/partials until re-adopted.
-  const restored = current != null && value.subjects[0]?.transition === "restoredUnconfirmed";
+  // P3-UWC-AC05 (4): 府県の行は owner の公開形（WeatherCurrentPublicArea）の件数を読み、区域の行を走査し直さない。
+  // 報の subject の監視の行は current を持たず、unavailable と freshness だけを数える。
   for (const item of value.subjects) tally.bytes += utf8(item);
-  if (current != null && !restored)
-    tally.bytes += utf8(current) + (current.scope === "national" ? utf8(operation) + 1 : 0);
-  if (current != null && !restored) {
-    let active = false;
-    for (const [token, rows] of Object.entries(current.phenomena)) {
-      if (!Array.isArray(rows)) continue;
-      let areaActive = false;
-      for (const row of rows) {
-        if (row == null || typeof row !== "object" || Array.isArray(row)) continue;
-        const code = row.code;
-        if (typeof code !== "string" || typeof row.status === "string" && NOT_CURRENT.has(row.status)) continue;
-        const severity = WEATHER_SEVERITY.get(code);
-        if (code !== "00") {
-          areaActive = true;
-          if (severity == null) count(tally.unknownCode, "unknown", 1);
-        }
-        if (severity != null) bump(tally.severities, `${operation}|${severity}`);
+  if (current != null) tally.bytes += utf8(current);
+
+  if (current != null) {
+    // codes は active な行の Code ごとの区域の数（復元して未確認・解除・なし・Code 00 を除く、owner が数える）。
+    // severities の参照は行でなく区域の数で足す（highest() は有無だけを見るので、公開の値は変わらない）。
+    for (const [code, areas] of Object.entries(current.codes)) {
+      const severity = WEATHER_SEVERITY.get(code);
+      if (severity == null) {
+        // 表に無い Code の区域は unknown（P2-A8-SUMMARY.unknown）。
+        count(tally.unknownCode, "unknown", areas);
+        continue;
       }
-      if (!areaActive) continue;
-      active = true;
-      const tuple = parseScopeToken(token);
-      const system = tuple == null ? null : WEATHER_AREA_SYSTEM.get(tuple[3]) ?? null;
-      if (tuple != null && system != null && tuple[4] !== "") bump(tally.areas, `${operation}|${system}|${tuple[4]}`);
+      const key = `${operation}|${severity}`;
+      tally.severities.set(key,
+        (tally.severities.get(key) ?? 0) + areas);
     }
-    if (active) {
+    for (const [system, code] of current.areas) {
+      bump(tally.areas, `${operation}|${system}|${code}`);
+    }
+    // 件数は active な府県の数（P3-UWC-D-GROUP=A）。解除・なしだけの府県と、復元して未確認の行だけの府県は
+    // areas が空なので数えない。
+    if (current.areas.length !== 0) {
       tally.active = 1;
       addTime(tally, current.source);
     }
   }
+
+  // 監視の行: unavailable は理由ごとの件数と時刻（今どおり）。
   for (const record of value.unavailable) {
     count(tally.unavailable, record.reason, 1);
     addTime(tally, record.source);
   }
+  // 表示する（疑義のある）freshness だけを数える（A8 SUMMARY）。
   for (const record of value.freshness) {
     if (!record.freshnessSuspect) continue;
     const reason = FRESHNESS_KEYS.find((key) => key === record.reason);
@@ -454,8 +454,8 @@ function fixedBytes(view: AnyView): number {
   if (view.unit === "U-E")
     return utf8({ ...view, subjects: [], current: [] }) + commas(view.subjects.length) + commas(view.current.length);
   if (view.unit === "U-W")
-    return utf8({ ...view, subjects: [], national: {}, partials: [] }) + commas(view.subjects.length)
-      + commas(view.partials.length) + commas(Object.keys(view.national).length);
+    return utf8({ ...view, subjects: [], areas: [] }) + commas(view.subjects.length)
+      + commas(view.areas.length);
   if (view.unit === "U-T")
     return utf8({ ...view, subjects: [], forecasts: [], observations: [] }) + commas(view.subjects.length)
       + commas(view.forecasts.length) + commas(view.observations.length);
@@ -712,7 +712,7 @@ type WeatherRecordState = Readonly<{ active: boolean; unavailable: string | null
 function weatherState(value: RuntimeDisplaySubject | null, tally: Tally | null): WeatherRecordState {
   if (value == null) return { active: false, unavailable: null };
   if (value.unit === "U-W")
-    return { active: (tally?.active ?? 0) > 0,
+    return { active: value.current == null ? value.currentActive : (tally?.active ?? 0) > 0, // Q-UWC-NOTICE: 監視の行は報の subject の active
       unavailable: value.unavailable.length === 0 ? null : JSON.stringify(value.unavailable.map((item) => item.reason).sort()) };
   if (value.unit === "U-F" && value.current != null)
     return { active: (tally?.active ?? 0) > 0,

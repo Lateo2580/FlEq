@@ -37,9 +37,9 @@ import type { CurrentChange } from "../../domains/weather-current/weather-curren
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { finite } from "../codec-base";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark";
+import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark"; import { advanceAreas, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas } from "./weather-current-public";
 
-const SCHEMA = "p2-weather-current-unit-v6" as const;
+const SCHEMA = "p2-weather-current-unit-v7" as const;
 type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
 // P3-UM-RES-09: 読めない報のカード 8 枚の分を足す（U-W の記録の印は ③。カードを envelope に書くのは発注 3）。
 const GENERATION_BYTES = 16 * 1024 * 1024 + UNREADABLE_CARDS_MAX_BYTES;
@@ -269,7 +269,7 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
     || Object.entries(national).some(([key, item]) => !snapshot(item) || item.scope !== "national" || item.operation !== key)
     || ownership == null || Object.values(ownership).some((item) => typeof item !== "string")
     || !Array.isArray(record.partials) || !record.partials.every(snapshot)
-    || record.partials.some((item) => item.scope !== "partial") || record.partials.length > 128
+    || record.partials.some((item) => item.scope !== "partial") || partialsOverLimit(record.partials)
     || !Array.isArray(record.histories) || !record.histories.every(history)
     || !Array.isArray(record.tombstones) || !record.tombstones.every(tombstone)
     || !Array.isArray(record.freshness) || !record.freshness.every(freshness)
@@ -295,7 +295,7 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
     || result.histories.some((item) => new Set(item.reports.map((report) => report.source.inputId)).size !== item.reports.length)
     || result.histories.some((item) => item.reports.some((report) => report.scope === "partial")
       && result.histories.flatMap((other) => other.reports).filter((report) => report.scope === "partial"
-        && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 8)
+        && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 2)
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length
     // P3-VM-AC04: 印は今ある系列（current・履歴・墓標・unavailable）のもの。
     || orphanMarks(result)) return null;
@@ -321,7 +321,7 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
     || Object.entries(national).some(([key, item]) => !snapshot(item) || item.scope !== "national" || item.operation !== key)
     || ownership == null || Object.values(ownership).some((item) => typeof item !== "string")
     || !Array.isArray(record.partials) || !record.partials.every(snapshot)
-    || record.partials.some((item) => item.scope !== "partial") || record.partials.length > 128
+    || record.partials.some((item) => item.scope !== "partial") || partialsOverLimit(record.partials)
     || !Array.isArray(record.histories) || !record.histories.every(history)
     || !Array.isArray(record.tombstones) || !record.tombstones.every(tombstone)
     || !Array.isArray(record.freshness) || !record.freshness.every(freshness)
@@ -360,7 +360,7 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
     || result.histories.some((item) => new Set(item.reports.map((report) => report.source.inputId)).size !== item.reports.length)
     || result.histories.some((item) => item.reports.some((report) => report.scope === "partial")
       && result.histories.flatMap((other) => other.reports).filter((report) => report.scope === "partial"
-        && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 8)
+        && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 2)
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length
     // P3-VM-AC04: 印は今ある系列（current・履歴・墓標・unavailable）のもの。
     || orphanMarks(result)) return null;
@@ -420,9 +420,9 @@ function removeSubject(state: WeatherCurrentUnitState, subjectValue: string, ope
 function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number, touched: CurrentChange): Readonly<{ state: WeatherCurrentUnitState; count: number }> {
   let next = state;
   let count = 0;
-  let measured = state.ownership;
+  let measured = state.ownership, bytes = 0;
   // Each eviction is measured as a diff from the previous (already measured) candidate.
-  while (reservedGenerationBytes(next, capturedAt, measured) > GENERATION_BYTES) {
+  while ((bytes = reservedGenerationBytes(next, capturedAt, measured)) > GENERATION_BYTES) {
     measured = next.ownership;
     const historyCandidates = next.histories.flatMap((entry) => entry.reports.map((report) => ({ entry, report })))
       .filter(({ report }) => report.operation !== "normal").sort((a, b) => compareSnapshot(a.report, b.report));
@@ -441,7 +441,7 @@ function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number, tou
     const national = Object.values(next.national).filter((item): item is WeatherCurrentSnapshot => item != null && item.operation !== "normal")
       .sort(compareSnapshot)[0];
     if (national != null) { touched(national, null, national.operation, national.subject); next = removeSubject(next, national.subject, national.operation); count++; continue; }
-    break;
+    const fitted = fitNormalHistories(next, capturedAt, bytes - GENERATION_BYTES); return { state: fitted.state, count: count + fitted.count }; // P3-UWC-AC03: training・test が尽きたら normal の履歴の古い版
   }
   return { state: next, count };
 }
@@ -590,14 +590,29 @@ function reduceCore(state: WeatherCurrentUnitState, input: WeatherCurrentInput, 
       : [{ kind: "batchCompleted", reason: "shutdown", subjects }], diagnostics: [] };
 }
 
-function currentSubject(item: WeatherCurrentSnapshot & { readonly [restoredAt]?: number | null }): SubjectOutcome {
-  return {
-    subject: item.subject, operation: item.operation, informationType: item.source.infoTypeRaw,
-    transition: restoredAt in item ? "restoredUnconfirmed" : "active", severity: null, source: item.source,
-    facts: { family: item.source.family, scope: item.scope, office: item.office, phenomena: item.phenomena,
-      ...(restoredAt in item ? { currentConfirmed: false, savedCapturedAt: item[restoredAt] ?? null } : {}) },
-    changedFields: [],
-  };
+// P3-UWC-AC05 (2): 報の subject の current に active な行があるか（view-projector の weatherTally の述語と同じ。復元して未確認は数えない）。
+// 監視の行がこれを持たないと、府県の行に分けた後の U-W の notice（P2-A8-NOTICE）が出なくなる（Q-UWC-NOTICE）。
+const activeCache = new WeakMap<WeatherCurrentSnapshot, boolean>();
+function currentActive(item: WeatherCurrentSnapshot): boolean {
+  if (restoredAt in item) return false;
+  let active = activeCache.get(item);
+  if (active == null) {
+    active = Object.values(item.phenomena).some((rows) => Array.isArray(rows) && rows.some((row) => row != null && typeof row === "object"
+      && !Array.isArray(row) && typeof row.code === "string" && row.code !== "00"
+      && !(typeof row.status === "string" && (row.status === "解除" || row.status === "発表警報・注意報はなし"))));
+    activeCache.set(item, active);
+  }
+  return active;
+}
+// 確認の scope の元（shared-runtime の addedScopes）。報の object ごとに 1 つの配列（rowChanges の比べを軽くする）。
+const scopeCache = new WeakMap<WeatherCurrentSnapshot, readonly string[]>();
+function currentScope(item: WeatherCurrentSnapshot): readonly string[] {
+  let scope = scopeCache.get(item);
+  if (scope == null) { scope = Object.keys(item.phenomena); scopeCache.set(item, scope); }
+  return scope;
+}
+function restoredSnapshot(item: WeatherCurrentSnapshot): boolean {
+  return restoredAt in item;
 }
 function unavailableSubject(item: WeatherCurrentUnitState["unavailable"][number]): SubjectOutcome {
   return {
@@ -606,17 +621,17 @@ function unavailableSubject(item: WeatherCurrentUnitState["unavailable"][number]
     facts: { reason: item.reason, affectedScope: item.affectedScope }, changedFields: [],
   };
 }
+// P3-UWC-AC05 (1): 現象の本文は載せない。subjects は府県の SubjectOutcome と unavailable の SubjectOutcome だけ。
 function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUnitView {
   const currents = [...Object.values(state.national), ...state.partials]
     .filter((item): item is WeatherCurrentSnapshot => item != null);
-  const subjects: SubjectOutcome[] = [...currents.map(currentSubject), ...state.unavailable.map(unavailableSubject)];
+  const areas = weatherCurrentAreas(state);
+  const subjects: SubjectOutcome[] = [...areas.map(areaOutcome), ...state.unavailable.map(unavailableSubject)];
   return { unit: "U-W", semanticRevision: [
     ...currents.map((item) => `${item.subject}:${item.source.reportDateTimeRaw}:${item.source.serialRaw}`),
     ...state.tombstones.map((item) => `${item.subject}:t:${item.source.reportDateTimeRaw}`),
     ...state.unavailable.map((item) => `${item.subject}:u:${item.reason}:${item.source?.reportDateTimeRaw ?? ""}`),
-  ].sort().join("|"), contentRevision: String(state.contentRevision), subjects,
-  national: Object.fromEntries(Object.entries(state.national).filter(([, item]) => item != null && !(restoredAt in item))),
-  partials: state.partials.filter((item) => !(restoredAt in item)),
+  ].sort().join("|"), contentRevision: String(state.contentRevision), subjects, areas,
   freshnessSuspectCount: state.freshness.filter((item) => item.freshnessSuspect).length };
 }
 
@@ -635,7 +650,55 @@ const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
   },
 };
 
-function displaySubjects(state: WeatherCurrentUnitState, targets?: ReadonlySet<string>, currents?: readonly WeatherCurrentSnapshot[]): Map<string, RuntimeDisplaySubject & { unit: "U-W" }> {
+// P3-UWC-AC01 (3): normal の partial は 384 件、training・test は合算 64 件まで（D-ROOM=A・D-NONNORMAL=A）。
+function partialsOverLimit(partials: readonly WeatherCurrentSnapshot[]): boolean {
+  const normal = partials.reduce((sum, item) => sum + (item.operation === "normal" ? 1 : 0), 0);
+  return normal > 384 || partials.length - normal > 64;
+}
+
+// P3-UWC-AC03（D-BYTE-ORDER=A）: training・test を外しても器を over byte 越えるとき、normal の履歴の版を古い順（compareSnapshot）に外す。
+// 減りは保存の計量（arrayBytes・historyBytes）と同じ式で外す途中の数から足し、越えた分に届いたら止める。整列は 1 回、計量は外した後の 1 回
+// （数え違いで越えたままのときだけ、残りの候補で続け、続けるたびに 1 回）。normal の current は外さない。
+function fitNormalHistories(state: WeatherCurrentUnitState, capturedAt: number, over: number): Readonly<{ state: WeatherCurrentUnitState; count: number }> {
+  const key = (item: Readonly<{ subject: string; operation: Operation }>) => `${item.operation}\u0000${item.subject}`;
+  // (c) の「系列の最後の参照」: current・墓標・unavailable の系列と、系列ごとの履歴の版の数（seriesExists と同じ集合）。
+  const held = new Set([...Object.values(state.national), ...state.partials, ...state.tombstones, ...state.unavailable]
+    .flatMap((item) => item == null ? [] : [key(item)]));
+  const marks = new Map(state.unconfirmed.map((item) => [key(item), item]));
+  const left = new Map(state.histories.map((entry) => [entry, entry.reports.length]));
+  const candidates = state.histories.flatMap((entry) => entry.operation !== "normal" ? []
+    : entry.reports.map((report) => ({ entry, report }))).sort((a, b) => compareSnapshot(a.report, b.report));
+  const removed = new Set<WeatherCurrentSnapshot>(), orphaned = new Set<ReportRef>();
+  const separator = (count: number) => count >= 2 ? 1 : 0; // 要素の数 count から count−1 への区切りの減り
+  let entries = state.histories.length, markCount = state.unconfirmed.length, next = state, at = 0;
+  while (over > 0 && at < candidates.length) {
+    for (let freed = 0; freed < over && at < candidates.length; at++) {
+      const { entry, report } = candidates[at];
+      const versions = left.get(entry)!;
+      left.set(entry, versions - 1);
+      removed.add(report);
+      if (versions > 1) { freed += recordBytes(report) + separator(versions); continue; }
+      // (b) entry が空になる: 外枠＋最後の版と histories の区切り。(c) 系列の参照が無くなれば印も孤児として消える（系列で 1 回）。
+      freed += historyBytes(entry) - arrayBytes(entry.reports) + recordBytes(report) + separator(entries--);
+      const mark = held.has(key(entry)) ? undefined : marks.get(key(entry));
+      if (mark != null) { freed += recordBytes(mark) + separator(markCount--); orphaned.add(mark); }
+    }
+    next = { ...state, histories: state.histories.flatMap((entry) => {
+      const reports = entry.reports.filter((report) => !removed.has(report));
+      return reports.length === entry.reports.length ? [entry] : reports.length === 0 ? [] : [{ ...entry, reports }];
+    }), unconfirmed: orphaned.size === 0 ? state.unconfirmed : state.unconfirmed.filter((item) => !orphaned.has(item)) };
+    over = reservedGenerationBytes(next, capturedAt, state.ownership) - GENERATION_BYTES;
+  }
+  return { state: next, count: removed.size };
+}
+
+type DisplayRow = RuntimeDisplaySubject & { unit: "U-W" };
+const EMPTY: readonly never[] = Object.freeze([]);
+const areaSubject = (operation: Operation, prefecture: string) => `${operation}/area/${prefecture}`;
+
+// P3-UWC-AC05 (2): 表示の行は府県の行（subject は operation/area/府県、current は公開形）と、報の subject の監視の行
+// （current は null、unavailable・freshness と currentActive・currentScope）。targets は JSON.stringify([operation, subject]) で両方の鍵を持つ。
+function displaySubjects(state: WeatherCurrentUnitState, targets?: ReadonlySet<string>, currents?: readonly WeatherCurrentSnapshot[]): Map<string, DisplayRow> {
   type Row = { current: WeatherCurrentSnapshot | null; unavailable: WeatherCurrentUnitState["unavailable"][number][];
     freshness: FreshnessRecord[]; operation: Operation; subject: string; office: string | null };
   const rows = new Map<string, Row>();
@@ -661,10 +724,22 @@ function displaySubjects(state: WeatherCurrentUnitState, targets?: ReadonlySet<s
     target.freshness.push(item);
     target.office ??= parseScopeToken(item.target.affectedScope[0])?.[2] ?? null;
   }
-  return new Map([...rows].map(([key, item]) => [key, { unit: "U-W" as const,
-    operation: item.operation, subject: item.subject, office: item.office,
-    current: item.current, unavailable: item.unavailable, freshness: item.freshness,
-    subjects: [...(item.current == null ? [] : [currentSubject(item.current)]), ...item.unavailable.map(unavailableSubject)] }]));
+  const result = new Map<string, DisplayRow>([...rows].map(([key, item]) => [key, { unit: "U-W" as const,
+    operation: item.operation, subject: item.subject, office: item.office, current: null,
+    currentActive: item.current != null && currentActive(item.current), currentScope: item.current == null ? EMPTY : currentScope(item.current),
+    unavailable: item.unavailable.map(publicUnavailable), freshness: item.freshness, subjects: item.unavailable.map(unavailableSubject) }]));
+  const area = (operation: Operation, prefecture: string) => {
+    const entry = areaEntry(state, `${operation}\u0000${prefecture}`);
+    if (entry != null) result.set(JSON.stringify([operation, entry.area.subject]), { unit: "U-W", operation, subject: entry.area.subject,
+      office: null, current: entry.area, currentActive: false, currentScope: EMPTY, unavailable: EMPTY, freshness: EMPTY, subjects: [areaOutcome(entry.area)] });
+  };
+  if (targets == null) for (const value of weatherCurrentAreas(state)) area(value.operation, value.prefecture);
+  else for (const key of targets) {
+    const parsed: unknown = JSON.parse(key);
+    const [value, subject]: unknown[] = Array.isArray(parsed) ? parsed : [];
+    if (operation(value) && typeof subject === "string" && subject.startsWith(`${value}/area/`)) area(value, subject.slice(`${value}/area/`.length));
+  }
+  return result;
 }
 
 function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: WeatherCurrentInput): WeatherCurrentUnitStep {
@@ -690,8 +765,16 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
       currents.set(key, { before, after: currentChanged ? find(step.state) : before });
     }
     const targets = new Set(currents.keys());
-    const before = input.kind === "restore" ? new Map<string, RuntimeDisplaySubject & { unit: "U-W" }>()
+    // P3-UWC-AC09 (1)(2): 作り直す府県は、current が変わった報の before と after が載せる府県の和集合だけ（退去された報の府県も入る）。
+    const areas = new Set<string>();
+    for (const { before, after } of currents.values()) for (const item of [before, after]) if (item != null)
+      for (const { key, operation: value, prefecture } of areaKeys(item)) { areas.add(key); targets.add(JSON.stringify([value, areaSubject(value, prefecture)])); }
+    const before = input.kind === "restore" ? new Map<string, DisplayRow>()
       : displaySubjects(state, targets, [...currents.values()].flatMap((item) => item.before == null ? [] : [item.before]));
+    // 新しい公開形と unavailable の記録の版は、この step の内容版（Q-UFP-REVISION と同じ持ち方）。
+    const revision = String(state.contentRevision + 1);
+    advanceAreas(input.kind === "restore" ? null : state, step.state, input.kind === "restore" ? null : areas, revision);
+    if (monitorChanged) { const old = new Set(state.unavailable); for (const record of step.state.unavailable) if (!old.has(record)) markUnavailable(record, revision); }
     const after = input.kind === "restore" ? displaySubjects(step.state)
       : displaySubjects(step.state, targets, [...currents.values()].flatMap((item) => item.after == null ? [] : [item.after]));
     displayChanges.push(...rowChanges(before, after));
@@ -710,7 +793,6 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
     displayChanges, confirmationEvidence };
 }
 
-type DisplayRow = RuntimeDisplaySubject & { unit: "U-W" };
 function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<string, DisplayRow>): WeatherCurrentUnitStep["displayChanges"][number][] {
   // A1 DISPLAY-CHANGES.revision: only freshnessSuspect records are shown (A8 SUMMARY); a non-suspect
   // monitor record is internal and must not advance the content revision on its own.
@@ -721,7 +803,11 @@ function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<
     const old = before.get(key) ?? null, current = after.get(key) ?? null;
     const oldShown = shown(old), currentShown = shown(current);
     const oldUnavailable = old?.unavailable ?? [], currentUnavailable = current?.unavailable ?? [];
+    const oldScope = old?.currentScope ?? EMPTY, currentScopeValue = current?.currentScope ?? EMPTY;
+    // P3-UWC-AC05 (2): 監視の行は currentActive と currentScope の変化も変化に数える（notice と確認の scope の元）。
     const same = (old?.current ?? null) === (current?.current ?? null)
+      && (old?.currentActive ?? false) === (current?.currentActive ?? false)
+      && (oldScope === currentScopeValue || oldScope.length === currentScopeValue.length && oldScope.every((item, index) => item === currentScopeValue[index]))
       && oldUnavailable.length === currentUnavailable.length
       && oldUnavailable.every((item, index) => item === currentUnavailable[index])
       && oldShown.length === currentShown.length
@@ -754,4 +840,4 @@ function recoveryChanges(before: WeatherCurrentUnitState, after: WeatherCurrentU
   return rowChanges(displaySubjects(before), displaySubjects(after));
 }
 
-export { displaySubjects, recoveryChanges, reduceWeatherCurrent, reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnit, weatherCurrentUnitCodec };
+export { displaySubjects, recoveryChanges, reduceWeatherCurrent, reduceWeatherCurrentUnit, restoredSnapshot, toWeatherCurrentView, weatherCurrentUnit, weatherCurrentUnitCodec };

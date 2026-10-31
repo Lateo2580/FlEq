@@ -83,7 +83,7 @@ async function replayUpTo(sequenceId: string, position: number): Promise<Display
 describe("P2-A10-T05 O09/O10 P2 references through the product replay (AC10)", () => {
   // O10:82 is replayed after O10:77/79 only. Steps 78 (injectFailure) and 80/81 (advanceClock) are not expressible on the host and are skipped,
   // so expected:O10:82's "U-F retry wait is not inherited" (which depends on 78) is not checked here.
-  it.each([["O09", 2, "weatherCurrent", "summary"], ["O09", 12, "eew", "full"], ["O10", 82, "weatherCurrent", "summary"]] as const)(
+  it.each([["O09", 2, "weatherCurrent", "full"], ["O09", 12, "eew", "full"], ["O10", 82, "weatherCurrent", "full"]] as const)(
     "%s:%i reaches the snapshot through local WS -> host, after only the preceding receive steps of its sequence", async (sequenceId, position, key, delivery) => {
       const item = step(sequenceId, position);
       expect(item).toMatchObject({ action: "receive", expectedRef: `expected:${sequenceId}:${position}` });
@@ -91,8 +91,8 @@ describe("P2-A10-T05 O09/O10 P2 references through the product replay (AC10)", (
       // O10:82 does not require display-active (sequences.json), so the adopted revision's report time is the common fixed row.
       const expected = expectations.find((e) => e.expectedId === item.expectedRef)!.subjects[0]!;
       expect(domain.items[0]).toMatchObject({ operation: "normal", updatedAt: Date.parse(expected.revision.reportDateTimeRaw) });
-      // VPWS50 (1.3 MB) exceeds the snapshot budget, so the weather domain carries the summary row only and its subject is not visible.
+      // U-W の view は府県の公開形だけになり小さいので要約にならず full で届く（P3-UWC-D-RES06-SHIFT）。U-W は府県の行の source（期待の subject の family と報時刻。期待の官署名は製品の官署名と違う）で確かめる。
       expect(domain.delivery).toBe(delivery);
-      if (domain.delivery === "full") expect(JSON.stringify(domain.view)).toContain(`"subject":"${expected.subject}"`);
+      if (domain.delivery === "full") expect(domain.view.unit === "U-W" ? domain.view.areas.some((area) => area.source.family === expected.subject.split("/")[1] && area.source.reportDateTimeRaw === expected.revision.reportDateTimeRaw) : JSON.stringify(domain.view).includes(`"subject":"${expected.subject}"`)).toBe(true);
     }, 40_000);
 });

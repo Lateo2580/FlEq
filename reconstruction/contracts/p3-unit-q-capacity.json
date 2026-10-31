@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "e0fadebfbe1118468b312e2e2d2e01d939f4389918575cdd30d2a96c639924a8",
+    "sha256": "ca00d3d530035b6488bf2359c90d79733f9d7c0296c9e5de33116f32c46f1811",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -492,7 +492,7 @@
           "reconstruction/contracts/p3-order-plan.md:559 «036a201be6bf98eb»",
           "reconstruction/test/disaster/runner.ts:194 «b67f7948980756a4»",
           "reconstruction/test/disaster/runner.ts:32 «0549d7e3c3222352»",
-          "reconstruction/contracts/p3-disaster-capacity.json:406 «f6719c96a5b2b30f»"
+          "reconstruction/contracts/p3-disaster-capacity.json:406 «7df77bebc485efb2»"
         ]
       },
       {
@@ -519,7 +519,7 @@
           "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»",
           "reconstruction/contracts/p3-seismic-unit.json:722 «7e4579ce3343feb7»",
           "reconstruction/contracts/p3-notice-ledger.json:669 «58e4094ff585a1a5»",
-          "reconstruction/contracts/p3-disaster-capacity.json:87 «1a62d99d7c466e13»",
+          "reconstruction/contracts/p3-disaster-capacity.json:87 «f33f3b8008824a74»",
           "reconstruction/contracts/p3-persist-premises.md:347 «3362aa8218ae44a7»"
         ]
       }

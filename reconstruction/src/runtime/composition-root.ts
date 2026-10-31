@@ -27,7 +27,7 @@ import type {
   ShutdownSummary, WallBasis, DiagnosticReason,
 } from "../../contracts/p2-shared-runtime.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
-import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types";
+import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import type { WeatherCurrentDetailRequest, WeatherCurrentDetailResponse } from "../../contracts/p3-uw-canon.types";
 import type {
   ExecutionPlace, OwnerOutput, OwnerReply, OwnerRequest, OwnerUnitDelta, ParserEnvelope, WriteCounts,
 } from "../../contracts/p3-execution-split.types";
@@ -684,7 +684,7 @@ class RuntimeCompositionRoot {
     if (monitor.stopped) return;
     const clock = this.clock();
     this.endRefusals(place, clock);
-    monitor.stopped = true; if (place === "deferred") this.failDetails();
+    monitor.stopped = true; this.failDetails(place);
     monitor.removed = this.mailbox.removePlace(place);
     this.inFlightInputs.delete(place);
     this.delayedInputs.delete(place);
@@ -1836,19 +1836,19 @@ class RuntimeCompositionRoot {
   private detailInFlight: DetailEntry | null = null;
   private detailAccepted = 0;
 
-  // done は HTTP の応答の完了か切断で 1 回呼ぶ。受け付けの枠はそのときに初めて戻る。
-  requestDetail(input: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest }>):
-  { response: Promise<WeatherTimeseriesDetailResponse>; done: () => void } {
+  // done は HTTP の応答の完了か切断で 1 回呼ぶ。受け付けの枠はそのときに初めて戻る。U-W の要求も同じ待ちと枠を使う（P3-UWC-D-DETAIL-PATH=A）。
+  requestDetail(input: Readonly<{ streamId: string; detail: DetailRequest }>):
+  { response: Promise<DetailResponse>; done: () => void } {
     const refuse = (reason: "busy" | "unavailable" | "versionChanged") =>
-      ({ response: Promise.resolve<WeatherTimeseriesDetailResponse>({ kind: "error", reason, revision: null }), done: () => {} });
-    if (this.current == null || this.state.shutdown.stage !== "running" || this.monitors.deferred.stopped) return refuse("unavailable");
+      ({ response: Promise.resolve<DetailResponse>({ kind: "error", reason, revision: null }), done: () => {} });
+    const place = executionPlaces["unit" in input.detail ? input.detail.unit : "U-F"]; if (this.current == null || this.state.shutdown.stage !== "running" || this.monitors[place].stopped) return refuse("unavailable");
     if (input.streamId !== this.streamId) return refuse("versionChanged");
     if (this.detailAccepted >= DETAIL_LIMIT) return refuse("busy");
     this.detailAccepted += 1;
-    let resolve: (response: WeatherTimeseriesDetailResponse) => void = () => {};
-    const response = new Promise<WeatherTimeseriesDetailResponse>((settle) => { resolve = settle; });
+    let resolve: (response: DetailResponse) => void = () => {};
+    const response = new Promise<DetailResponse>((settle) => { resolve = settle; });
     // 期限は受付時の絶対時刻（注入時計の monotonic）で持つ。タイマーの実行順に頼らず、送出と返信の採用で時刻を照合する。
-    const entry: DetailEntry = { request: input.detail, resolve, settled: false, released: false, due: this.clock().monotonicMs + DETAIL_MS,
+    const entry: DetailEntry = { place, request: input.detail, resolve, settled: false, released: false, due: this.clock().monotonicMs + DETAIL_MS,
       timer: setTimeout(() => {
         const at = this.detailWaiting.indexOf(entry);
         if (at >= 0) this.detailWaiting.splice(at, 1);
@@ -1868,7 +1868,7 @@ class RuntimeCompositionRoot {
     } };
   }
 
-  private settleDetail(entry: DetailEntry, response: WeatherTimeseriesDetailResponse): void {
+  private settleDetail(entry: DetailEntry, response: DetailResponse): void {
     if (entry.settled) return;
     // 期限後の答えは、タイマーがまだ走っていなくても timeout にする（P3-UFP-RES-07）。
     if (!(response.kind === "error" && (response.reason === "timeout" || response.reason === "unavailable")) && this.clock().monotonicMs >= entry.due) response = { kind: "error", reason: "timeout", revision: null };
@@ -1884,25 +1884,25 @@ class RuntimeCompositionRoot {
     this.detailInFlight = null;
     if (entry != null) this.settleDetail(entry, reply.response);
   }
-
-  private failDetails(): void {
-    const response: WeatherTimeseriesDetailResponse = { kind: "error", reason: "unavailable", revision: null };
-    for (const entry of this.detailWaiting.splice(0)) this.settleDetail(entry, response);
-    if (this.detailInFlight != null) this.settleDetail(this.detailInFlight, response);
-    this.detailInFlight = null;
+  // Q-UWC-DETAIL-STOP: place 行きの送り済みと待ちだけを終わらせ、ほかは owner の停止の処理の後に送る（place が無い shutdown は全部）。
+  private failDetails(place?: ExecutionPlace): void {
+    const response: DetailResponse = { kind: "error", reason: "unavailable", revision: null }, ended = (entry: DetailEntry) => place == null || entry.place === place;
+    for (const entry of this.detailWaiting.filter(ended)) { this.detailWaiting.splice(this.detailWaiting.indexOf(entry), 1); this.settleDetail(entry, response); }
+    if (this.detailInFlight != null && ended(this.detailInFlight)) { this.settleDetail(this.detailInFlight, response); this.detailInFlight = null; }
+    if (place != null) queueMicrotask(() => this.sendDetail()); // 停止の途中で mailbox を動かさない
   }
-
-  // pump の後で、deferred の入力も期限の返信待ちも無いときだけ詳細を送る（通常の入力より下位、spec §7.10）。
-  // in-flight が無ければ、mailbox は置き場の最も古い入力を必ず選ぶので、deferred 行きの入力は mailbox に残っていない。
+  // pump の後で、先頭の要求の行き先の place の入力も期限の返信待ちも無いときだけ詳細を送る（通常の入力より下位、spec §7.10）。
+  // in-flight が無ければ、mailbox は置き場の最も古い入力を必ず選ぶので、その place 行きの入力は mailbox に残っていない。
   private sendDetail(): void {
     if (this.detailInFlight != null || this.detailWaiting.length === 0 || this.current == null) return;
-    if (this.state.shutdown.stage !== "running" || this.monitors.deferred.stopped) { this.failDetails(); return; }
-    this.pump();
-    if (this.inFlightInputs.has("deferred") || this.outstanding.deferred.deadline) return;
+    if (this.state.shutdown.stage !== "running") { this.failDetails(); return; }
+    const head = this.detailWaiting[0]; // 行き先の place が止まっていれば、その要求だけを終わらせて次へ（P3-UWC-AC07 (2)）
+    if (this.monitors[head.place].stopped) { this.detailWaiting.shift(); this.settleDetail(head, { kind: "error", reason: "unavailable", revision: null }); this.sendDetail(); return; }
+    this.pump(); if (this.inFlightInputs.has(head.place) || this.outstanding[head.place].deadline) return;
     const entry = this.detailWaiting.shift()!;
     if (this.clock().monotonicMs >= entry.due) { this.settleDetail(entry, { kind: "error", reason: "timeout", revision: null }); this.sendDetail(); return; }
     this.detailInFlight = entry;
-    this.post("deferred", { kind: "detail", detail: entry.request });
+    this.post(entry.place, { kind: "detail", detail: entry.request });
   }
 
   // ---- 起動時の辿りとダイジェスト（P3-RECOVERY-001【発注 1】）。digest は run の中だけで持ち、次の起動で作り直す（P3-REC-AC15 (4)）。 ----
@@ -2377,8 +2377,8 @@ type Freshness = {
 };
 
 const DETAIL_LIMIT = 8;
-const DETAIL_MS = 2_000;
-type DetailEntry = { request: WeatherTimeseriesDetailRequest; resolve: (response: WeatherTimeseriesDetailResponse) => void;
+const DETAIL_MS = 2_000; type DetailRequest = WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest; type DetailResponse = WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse;
+type DetailEntry = { place: ExecutionPlace; request: DetailRequest; resolve: (response: DetailResponse) => void;
   due: number; timer: NodeJS.Timeout; settled: boolean; released: boolean };
 
 // P3-C4-AC13(5): 送った予約（返信を受けたら消す。返信の来ない予約は停止した owner の分だけで、件数は予約の枠で限られる）。

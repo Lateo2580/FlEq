@@ -16,7 +16,7 @@ import type {
   SseEvent,
   SseTransition,
 } from "../../contracts/p2-snapshot-sse.types";
-import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types";
+import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import type { WeatherCurrentDetailRequest, WeatherCurrentDetailResponse } from "../../contracts/p3-uw-canon.types";
 
 // P2-SNAPSHOT-SSE-001 RES-02, DLV-01, DLV-02.
 const CLIENT_LIMIT = 8;
@@ -32,8 +32,8 @@ const DETAIL_URL_BYTES = 1_024;
 const DETAIL_MS = 2_000;
 const DETAIL_STATUS = { ok: 200, invalidRequest: 400, versionChanged: 409, busy: 429, unavailable: 503, timeout: 504 } as const;
 
-type DetailPort = (request: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest }>) =>
-  Readonly<{ response: Promise<WeatherTimeseriesDetailResponse>; done: () => void }>;
+type DetailPort = (request: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest }>) =>
+  Readonly<{ response: Promise<WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse>; done: () => void }>;
 
 // 欄は項目ごとに確かめて組み立てる。重複・欠け・形の違いは invalid。
 function parseDetail(url: string): Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest }> | null {
@@ -57,7 +57,7 @@ function sendJson(response: ServerResponse, status: number, body: string): void 
 
 function serveDetail(detail: DetailPort, request: Pick<IncomingMessage, "url">, response: ServerResponse): void {
   const admitted = performance.now();
-  const parsed = parseDetail(request.url ?? "");
+  const parsed = ((request.url ?? "").split("?")[0] === WEATHER_DETAIL_PATH ? parseWeatherDetail : parseDetail)(request.url ?? ""); // P3-UWC-AC07 (4)
   if (parsed == null) return sendJson(response, 400, JSON.stringify({ kind: "error", reason: "invalidRequest", revision: null }));
   const { response: pending, done } = detail(parsed);
   let ended = false, answered = false;
@@ -79,7 +79,7 @@ function serveDetail(detail: DetailPort, request: Pick<IncomingMessage, "url">, 
     if (ended || answered || response.destroyed) return;
     answered = true;
     // 書き出しの時点で期限を過ぎていれば、答えの中身にかかわらず timeout を書く。
-    const answer: WeatherTimeseriesDetailResponse = performance.now() - admitted >= DETAIL_MS
+    const answer: WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse = performance.now() - admitted >= DETAIL_MS
       ? { kind: "error", reason: "timeout", revision: null } : result;
     sendJson(response, DETAIL_STATUS[answer.kind === "ok" ? "ok" : answer.reason], JSON.stringify({ streamId: parsed.streamId, ...answer }));
   });
@@ -205,7 +205,7 @@ async function startDisplayServer(options: DisplayServerOptions) {
       const result = handleSnapshot(latest);
       return json(response, result.status, result.status === 200 ? latestJson : JSON.stringify(result.body));
     }
-    if (path === DETAIL_PATH && options.detail != null) return serveDetail(options.detail, request, response);
+    if ((path === DETAIL_PATH || path === WEATHER_DETAIL_PATH) && options.detail != null) return serveDetail(options.detail, request, response);
     if (path !== "/events") return json(response, 404, JSON.stringify({ reason: "notFound" }));
     if (clients.size >= CLIENT_LIMIT) return json(response, 503, JSON.stringify({ reason: "clientLimit" }));
     response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store",
@@ -261,6 +261,23 @@ async function startDisplayServer(options: DisplayServerOptions) {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
+}
+
+// P3-UWC-AC07 (4): U-W の詳細の経路。要求の上限・stream の照合・誤りの本文は U-F の口と同じで、part と id の形だけが違う
+// （part=index か、part=areas|lastKnown と id）。欄は項目ごとに確かめて組み立て、重複・欠け・形の違いは invalid。
+const WEATHER_DETAIL_PATH = "/api/display/domains/U-W/detail";
+function parseWeatherDetail(url: string): Readonly<{ streamId: string; detail: WeatherCurrentDetailRequest }> | null {
+  if (Buffer.byteLength(url) > DETAIL_URL_BYTES) return null;
+  let params: URLSearchParams;
+  try { params = new URL(url, "http://localhost").searchParams; } catch { return null; }
+  const one = (name: string): string | null => { const all = params.getAll(name); return all.length === 1 ? all[0] : null; };
+  const streamId = one("streamId"), part = one("part"), revision = one("revision"), page = one("page"), id = one("id");
+  if (streamId == null || !/^[\w-]{1,64}$/.test(streamId) || page == null || !/^\d{1,9}$/.test(page) || revision == null || !/^\d{1,16}$/.test(revision)) return null;
+  if (part === "index")
+    return params.has("id") ? null : { streamId, detail: { unit: "U-W", part, revision, page: Number(page) } };
+  if ((part === "areas" || part === "lastKnown") && id != null && /^[0-9a-f]{64}$/.test(id))
+    return { streamId, detail: { unit: "U-W", part, id, revision, page: Number(page) } };
+  return null;
 }
 
 export { handleHealth, handleSnapshot, handleSse, serveDetail, startDisplayServer };

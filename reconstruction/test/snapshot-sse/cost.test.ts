@@ -41,7 +41,7 @@ function measure(input: SnapshotProjectionInput, previous: SnapshotProjectionSta
   const whole = new Set<object>([before.views["U-E"], before.views["U-W"], before.views["U-F"], after.views["U-E"],
     after.views["U-W"], after.views["U-F"], before.units["U-E"], before.units["U-W"], before.units["U-F"],
     after.units["U-E"], after.units["U-W"], after.units["U-F"], ...[before, after].flatMap((state) => [state.views["U-E"].current,
-      state.views["U-E"].subjects, state.views["U-W"].partials, state.views["U-W"].subjects, state.views["U-F"].series,
+      state.views["U-E"].subjects, state.views["U-W"].areas, state.views["U-W"].subjects, state.views["U-F"].series,
       state.views["U-F"].subjects])]);
   const measured = { eew: 0, weather: 0, timeseries: 0, unchanged: 0, whole: 0, snapshots: 0, stringifiedBytes: 0 };
   const original = JSON.stringify;

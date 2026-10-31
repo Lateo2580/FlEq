@@ -371,13 +371,13 @@ nextDeadline(state): Deadline | null
 | B02 `app-config` | 設定検証、composition root、起動・停止 | 各公開 adapter | 新旧ディレクトリ・appName 衝突を拒否 | 起動・停止期限。設定だけを保存し、電文状態は持たない |
 | B03 `ingress` | WS/REST/replay を共通入力へ変換、購読根拠を保持 | B01、通信 adapter | O09/O10。接続所有、受信時刻の自前確定 | 再接続・REST deadline。入力の無制限蓄積をしない |
 | B04 `decode-material` | decode、展開、XML tree、metadata、分野抽出 | B01、純粋パーサ資材 | 全 XML、O02/O09。一回 decode・展開・full parse | 入力上限。tree・raw は処理後解放、保存しない |
-| B05 `mailbox` | credit、入力順、件数・byte、worker 完了、§7.10 の詳細 request/response と取消（U-F の詳細は B05 を通さず、B02 の composition root が数え・照合し・捨てる。`P3-UF-PUBLIC-001`） | B01、MessagePort adapter | O09/O10。満杯・停止・異常終了時も計数一致。詳細要求で通常・緊急入力を待たせない | §7 の入力上限と §7.10 の独立した詳細上限。queue は non-durable |
+| B05 `mailbox` | credit、入力順、件数・byte、worker 完了、§7.10 の詳細 request/response と取消（U-F・U-W の詳細は B05 を通さず、B02 の composition root が数え・照合し・捨てる。`P3-UF-PUBLIC-001`・`P3-UW-CANON-001`） | B01、MessagePort adapter | O09/O10。満杯・停止・異常終了時も計数一致。詳細要求で通常・緊急入力を待たせない | §7 の入力上限と §7.10 の独立した詳細上限。queue は non-durable |
 | B06 `runtime-clock` | 保存単位ごとに唯一の state 更新、期限入力、保存完了入力 | B01、意味モジュール、port | 全系列。同じ入力順・時計で同じ decision | 単調時間と絶対時刻を分離。保存対象は §4 |
 | B07 `checkpoint` | encode 要求、2スロット保存、検証・世代選択 | B01、filesystem adapter | O07/O10。途中書込み・成否不明を区別 | 正常系では初回 dirty から包含世代の保存確認まで3秒以内（§5.8）。状態の意味を補修しない |
 | B08 `view-projector` | unit の worker 内で domain view を射影し、main で各 unit の view から完全 snapshot を射影する。要求された詳細 1 ページは worker 内で射影する | B01、各 `toView` | O02/O11、E13a、D-AC21。危険区域の配送、対象内容版の照合、失敗単位の局所化 | 別 current・旧版保存庫を持たず、main へ full view を別配送しない。詳細は §7.10 |
 | B09 `notification-delivery` | intent の試行、ack・失敗を runtime に戻す | B01、通知・音 adapter | O01/O07/O10。期限内再試行、二重に鳴らさない（§16 で改定） | intent は発生元単位へ保存。独立 outbox DB は作らない |
 | B10 `extension-port` | 型付き outcome の非同期・有界配送 | B01、登録 consumer | O10/O11。遅い／失敗する consumer の隔離 | §12。公開 main は exporter を持たない |
-| B11 `http-sse` | snapshot、health、詳細要求の検証・中継、静的配信、認証 | B01、immutable snapshot、B05 の型付き詳細 port（U-F は B02 の composition root の requestDetail を呼ぶ。`P3-UF-PUBLIC-001`） | O11、D-AC21。再接続直後から一枚で復元。詳細の上限・timeout・worker 停止応答 | 最新 snapshot 一枚＋client ごとの待機一枚。詳細応答は §7.10 の有界な一時保持だけとし、配信履歴・full view 複製を持たない |
+| B11 `http-sse` | snapshot、health、詳細要求の検証・中継、静的配信、認証 | B01、immutable snapshot、B05 の型付き詳細 port（U-F・U-W は B02 の composition root の requestDetail を呼ぶ。`P3-UF-PUBLIC-001`・`P3-UW-CANON-001`） | O11、D-AC21。再接続直後から一枚で復元。詳細の上限・timeout・worker 停止応答 | 最新 snapshot 一枚＋client ごとの待機一枚。詳細応答は §7.10 の有界な一時保持だけとし、配信履歴・full view 複製を持たない |
 | B12 `cli-commands` | CLI/REPL を typed command に変換 | B01、command port | §11、O10。無効入力で副作用なし | command deadline。domain state を直接変更しない |
 | B13 `terminal-output` | 採用した意味事実の整形、stdout への有界配送 | B01、表示用値処理 | §11、O02。特殊値と取消を保持 | 出力滞留上限。受理完了条件にしない |
 | B14 `filter-template` | 採用した DSL の構文・型・評価 | B01、出力 DTO | §11。既存文法、表示専用制限、未知 field 拒否 | 式サイズ・深さ上限。通知・受理状態へ作用しない |
@@ -392,7 +392,7 @@ nextDeadline(state): Deadline | null
 | M03 `long-period` | VXSE62、長周期値・観測根拠 | O01/O02/O07 | U-Q。36時間の gate retention を基準 | 震度 rank との混同 |
 | M04 `tsunami` | VTSE41 警報、VTSE51/52 観測系列、区域・観測点取消 | O01/O05/O07 | U-T。family ごとの期限 | 全分野への fragment merge 一般化 |
 | M05 `nankai` | 現況を変える情報と説明だけの情報を分離 | O01/O02/O07 | U-N。現況 D、情報系列 N | 全 VYSE を同じ current へ上書き |
-| M06 `weather-current` | 全国 base、官署 partial、code00、VPNO50 終了 | O03/O04/O06 | U-W。全国履歴2・partial8 | VPWW56、表示容量による受理拒否 |
+| M06 `weather-current` | 全国 base、官署 partial、code00、VPNO50 終了 | O03/O04/O06 | U-W。全国履歴2・partial2 | VPWW56、表示容量による受理拒否 |
 | M07 `landslide` | VPWW56 の官署別 current、解除、取消 | O01/O03/O07 | U-L。官署×type、6時間 retention | 他官署の一括消去 |
 | M08 `weather-timeseries` | VPWP50 の subject、period、正常 empty、容量不足 | O02/O09。194 period と gate-only | U-F。7日 retention | カードに合わせた state 削減探索 |
 | M09 `tornado` | 官署別区域、目撃、通常解除、有効期限 | O01/O02/O08 | U-M の tornado slice、36時間 retention | 名前からの地図区域推定 |
@@ -511,7 +511,7 @@ RC には21 route がある。以下は全21 route を網羅し、意味の異�
 | `nankaiTrough` / 現況を更新するVYSE50/51/52/60 | M05 | U-N | D | `nankai:current`、出典EventID、取消・終了、intent | RC:177、RF:451–460、PM:506–514 |
 | `nankaiTrough` / 説明だけの同型電文 | M05 | U-N | 情報系列D（`P3-UNIT-N-SERIES-001`）、intent D | 情報subjectだけ。現況を更新しない | RF:462–478、PM:516–520 |
 | `weather` / VPWS50 | M06 | U-W | D | 全国base、履歴2、gate、partialとの合成、取消復元、intent | RC:183、RF:769–790 |
-| `weather` / VPWW55/57/58/59/60/61 | M06 | U-W | D | type×官署partial、履歴8、所有現象、code00、取消復元 | `weather-stream-key.ts:5–28`、`vpws50-state.ts:997–1012` |
+| `weather` / VPWW55/57/58/59/60/61 | M06 | U-W | D | type×官署partial、履歴2、所有現象、code00、取消復元 | `weather-stream-key.ts:5–28`、`vpws50-state.ts:997–1012` |
 | `weather` / VPWW56 | M07 | U-L | D | type×官署だけを clear、gate、期限。ほかの官署を維持 | RF:793–820 |
 | `tornado` / VPHW50/51 | M09 | U-M | D | 官署別区域、目撃、有効期限、取消、intent | RC:189、RF:398–408 |
 | `briefing` / VPBS50 | M17 | U-B | 復元対象lifecycle D、一般短命表示N | 予測→発生、意味subject、VPOA alias、取消、期限、intent | RC:199、PM:539–548、`standby-state-store.ts:3337` |
@@ -569,7 +569,7 @@ P3 の追加実装で新しい横断不変条件を発見した場合は、Q13 �
 | EEW | familyごと最大512 subject。再起動復元なし |
 | 地震 | 最大512 EventIDを基準。日次履歴・強震保持は別の有限期限を明示 |
 | 長周期 | 最大256 subject、gate retention36時間 |
-| VPWS50 | 全国base1、partial128、全国履歴2、partial履歴8 |
+| VPWS50 | 全国base1、partial（normal 384・training/test 64）、全国履歴2、partial履歴2 |
 | VPWW56 | 最大128 subject、6時間 retention |
 | VPWP50 | 最大512 subject、7日 retention。194 periodの正常系列を必ず扱う |
 | 津波観測 | VTSE51/52それぞれstation最大1024とfamily watermark |
@@ -1235,7 +1235,7 @@ summary で省いた詳細の取得は、既存の B05 MessagePort を使って 
 B05 は要求の計数・取消・応答照合、B08 は現在状態からの射影、B11 は認証・HTTP 入出力を所有する。
 
 ```ts
-type DetailRequest = Readonly<{ // U-F（P3-UF-PUBLIC-001）は { streamId, part, id?, revision, page } で、下の requestId・domainId・operation・requestedVersion・contentRevision を持たない
+type DetailRequest = Readonly<{ // U-F・U-W（P3-UF-PUBLIC-001・P3-UW-CANON-001）は { streamId, part, id?, revision, page }（U-W は unit: "U-W" も持つ）で、下の requestId・domainId・operation・requestedVersion・contentRevision を持たない
   requestId: string;
   domainId: UnitId;
   operation: Operation;
@@ -1244,7 +1244,7 @@ type DetailRequest = Readonly<{ // U-F（P3-UF-PUBLIC-001）は { streamId, part
   page: number;
 }>;
 
-type DetailResponse = // U-F（P3-UF-PUBLIC-001）は WeatherTimeseriesDetailResponse に streamId を足した形で、requestId・domainId・operation・requestedVersion・observedVersion・contentRevision を持たない
+type DetailResponse = // U-F・U-W（P3-UF-PUBLIC-001・P3-UW-CANON-001）は WeatherTimeseriesDetailResponse・WeatherCurrentDetailResponse に streamId を足した形で、requestId・domainId・operation・requestedVersion・observedVersion・contentRevision を持たない
   | Readonly<{
       kind: "ok";
       requestId: string;
@@ -1261,7 +1261,7 @@ type DetailResponse = // U-F（P3-UF-PUBLIC-001）は WeatherTimeseriesDetailRes
       kind: "error";
       requestId: string;
       reason: "invalidRequest" | "versionChanged" | "busy"
-        | "unavailable" | "timeout" | "cancelled"; // U-F は cancelled を持たない（切断した要求は応答を返さず捨てる）
+        | "unavailable" | "timeout" | "cancelled"; // U-F・U-W は cancelled を持たない（切断した要求は応答を返さず捨てる）
     }>;
 ```
 
@@ -1333,8 +1333,8 @@ U-E／U-T の容量縮退中も緊急表示モード、EEW 宣言高、津波の
 
 個別取得は次を契約とする。HTTP の経路名と開始値は仕様案だ。
 
-1. `GET /api/display/domains/{domainId}/detail` に `streamId`、`semanticRevision`、`sequence`、ページ番号を渡す。任意 URL を snapshot に埋め込まず、既知の API と分野 ID から参照する。U-F（`P3-UF-PUBLIC-001`）は `semanticRevision`・`sequence` の代わりに `part`（`index`・`current`・`lastKnown`）・`id`・`revision` を渡す。
-2. 要求には対象分野の `contentRevision` と運用区分も付ける。応答は要求版 `requestedVersion` と実際に参照した公開版 `observedVersion`、対象内容版、分野・区分・ページ番号・ページ数を返す。一応答へ異なる対象内容版を混ぜない。型と worker 経路は §7.10 に従う。U-F は運用区分・`requestedVersion`・`observedVersion`・対象内容版を持たず、`id` と `revision` で対象の subject とその版を指す。
+1. `GET /api/display/domains/{domainId}/detail` に `streamId`、`semanticRevision`、`sequence`、ページ番号を渡す。任意 URL を snapshot に埋め込まず、既知の API と分野 ID から参照する。U-F・U-W（`P3-UF-PUBLIC-001`・`P3-UW-CANON-001`）は `semanticRevision`・`sequence` の代わりに `part`（U-F は `index`・`current`・`lastKnown`、U-W は `index`・`areas`・`lastKnown`）・`id`・`revision` を渡す。
+2. 要求には対象分野の `contentRevision` と運用区分も付ける。応答は要求版 `requestedVersion` と実際に参照した公開版 `observedVersion`、対象内容版、分野・区分・ページ番号・ページ数を返す。一応答へ異なる対象内容版を混ぜない。型と worker 経路は §7.10 に従う。U-F・U-W は運用区分・`requestedVersion`・`observedVersion`・対象内容版を持たず、`id` と `revision` で対象の subject とその版を指す。
 3. 要求・応答には streamId、semanticRevision、sequence を保持する。詳細の有効性は、対象分野の公開内容の版でも照合する。他分野・接続・保存 metadata だけの更新では対象詳細を無効化しない。対象分野の内容版が変わった場合だけ `409 versionChanged` とし、旧版保存庫は作らない。U-F の 409 の照合の単位は分野の内容版ではなく対象の subject の版で、索引ページだけが分野の内容版で照合する。
 4. client は応答の request ID、対象分野、運用区分、streamId、対象内容版が現在の要求・表示と一致する場合だけ採用する。対象の取消・失効・内容変更・streamId 変更で無効化する。他分野だけの更新による sequence 差では捨てない。worker は要求時の旧版を保存・再現せず、その時点の現在状態だけから射影する。
 5. 版不一致・通信失敗時は最小事実を残し、「更新済み・詳細再取得」または取得失敗を表示する。無制限の自動再試行はせず、再取得操作は最新の版を使う。
@@ -1779,7 +1779,7 @@ fixtureを現在時刻で流して全部失効させ、「空で一致」と判�
 | O03 | 全国base＋複数官署partial＋code00＋VPNO50、VPOA50→VPBS50 | 所有現象を保持し、区域終了後に古いbaseを再露出しない。対応報置換で取消記憶を失わず、未確認相関を確定扱いしない |
 | O04 | 8日前の VPWS50 current＋新しい正常全国報、全国報不採用→別官署 partial 受理→全国確認 | stale lock から脱出し有効 partial を維持。故障注入で全国報が不採用の間、別官署・別 subject・別運用区分の正常受理では全国の `freshnessSuspect` を解除しない。同じ対象・影響範囲の正常採用または coverage 確認でだけ解除 |
 | O05 | VTSE51/52の同一revision fragment、順序交換、同station訂正 | allowlist内だけの可換性。family独立、station codeによる結合、観測欠落防止 |
-| O06 | 全国履歴2、partial履歴8の境界、連続取消 | 範囲内の復元、履歴不足の明示、旧8段からの移行。取消記憶をcurrent revisionと混同しない |
+| O06 | 全国履歴2、partial履歴2の境界、連続取消 | 範囲内の復元、履歴不足の明示、旧8段からの移行。取消記憶をcurrent revisionと混同しない |
 | O07 | 保存→停止→復元→直後の訂正／取消／unknown | 復元単位の整合、期限非延長、地震の既知危険保持、火山identity、pending intentの再試行 |
 | O08 | 時計逆行、大幅補正、期限横断、入力停止 | 期限切れと解除を区別。失効・取消を復活させない。熱中症対象日、VFVO53 batch、相関holdbackを含む |
 | O09 | 最大 XML／encode 開始→EEW・津波、通常 backlog、burst、EEW 同時、容量縮退、personal 有効 | §7.5・E01 の各母集団で実 paint p99 250ms。津波の発令・引上げ・区域拡大と解除・降格を分離。main health、queue 待ち、固定優先順、原因別 A/B 判定 |
@@ -2180,7 +2180,7 @@ dmdataの最大4本という入力上の前提を採る。開始時には、そ�
 - gate/watermark。
 - cancellation tombstone。
 - currentの出典。
-- 全国2／partial8の必要履歴。
+- 全国2／partial2の必要履歴。
 - partialの現象所有情報。
 - VPNO50終了記憶。
 - 火山の三slice・identity・provenance不足。
@@ -3062,7 +3062,7 @@ Q6として、最終的なviewport、DPR、zoom、画面サイズ、視聴距離
 | H35 | EEW、津波、大きな地震は、上限で落ちない作り（容量を先に取っておく）にする。「処理できていません」の表示は最後の網に下げる。保証は測れる条件で書く。 | — | 容量を先に取る新しい契約、`P3-CURRENCY-COVERAGE-001`（最後の網）、`P3-EEW-GATE-EVICT-001`、`P3-TSUNAMI-UNIT-001`・`P3-UNIT-Q-001` の容量の分岐、`P3-UNIT-Q-CAPACITY-001`（U-Q の守る線・観測点の畳み・N_guard） |
 | H36 | 地震の保持件数を増やす。数は、過去の大地震の後に震度 3 以上が何件続いたかを実例から数えて決める。 | :475※、:570※ | `P3-UNIT-Q-001` P3-C7-CAPACITY、`P3-UNIT-Q-CAPACITY-001`（未充足: 件数 512 は据え置き、大地震の後の実例を数えるまで閉じない、Q-QC-H36） |
 | H37 | EEW、地震、津波は、画面に送るときに要約へ落とさない。災害の日の測定をこの線で測り直す。旧予算の収容保証は成り立ち直しが要る。公開形式・予算・最大合法入力を変更の契約で固定する。 | :1396、:1865、:1332※、:1372※、:1397※ | `P2-SNAPSHOT-SSE-001`（P2-A8-RES-06 に分野の優先を足す新しい契約）、`P3-DISASTER-CAPACITY-001`（測り直し） |
-| H38 | 気象警報の置き場は、普段の日の数に十分な余裕を持てる大きさにする（:513・:514 の base と partial の合成で満たす。同じ警報は最新の版だけを出す）。 | :572※ | `P2-WEATHER-CURRENT-UNIT-001`、③ U-W の正本の持ち方 |
+| H38 | 気象警報の置き場は、普段の日の数に十分な余裕を持てる大きさにする（:513・:514 の base と partial の合成で満たす。同じ警報は最新の版だけを出す）。 | :572※ | `P2-WEATHER-CURRENT-UNIT-001`、`P3-UW-CANON-001`（③ U-W の正本の持ち方） |
 | H39 | 落としたもの、押し出したもの、取りこぼしたもの、通知したか不明なものを 1 か所にまとめ、分野と件数だけを出す（16.2.6）。 | :1411※、:989※ | `P2-SNAPSHOT-SSE-001` P2-A8-NOTICE（件数を wire に載せる）、`P2-EEW-UNIT-001` Q-NOTICE.capacity、各 unit の退去、P4、`P3-NOTICE-LEDGER-001`（P3-NL-AC14） |
 | H40 | 全部のカードに更新時刻を出す。 | —（§8.5.3 の表に P4 で足す） | P4 |
 | H41 | 繋がっているのに来ないことに気付けるようにする。分野ごとに、前に確かめた境界から dmdata の一覧をたどって突き合わせ、差があればその分野に「鮮度の疑い」を出す（16.2.3）。 | :1192※ | C16、`P2-WEATHER-CURRENT-UNIT-001` P2-A5-SEM-01 |

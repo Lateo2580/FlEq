@@ -91,7 +91,7 @@ describe("P3-UFP-T10 acceptance: the detail path over HTTP", () => {
     const index = await fetchText(started.port, `${PATH}?streamId=${STREAM}&part=index&revision=12&page=2`);
     expect(index.status).toBe(200);
     expect(fake.seen).toEqual([{ streamId: STREAM, detail: { part: "index", revision: "12", page: 2 } }]);
-    expect((await fetchText(started.port, "/api/display/domains/U-W/detail?x=1")).status).toBe(404);
+    expect((await fetchText(started.port, "/api/display/domains/U-W/detail?x=1")).status).toBe(400); // P3-UWC-AC07: U-W の経路も読む前に断る
     expect((await fetchText((await server()).port, current)).status).toBe(404);
   });
 

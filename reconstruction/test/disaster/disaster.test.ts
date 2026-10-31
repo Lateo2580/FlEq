@@ -161,15 +161,15 @@ describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
     expect([urgent["eewRejections"], listOf(urgent, "rejections"), recordOf(urgent["pass"])["inputRejections"]]).toEqual([1, [], 1]);
     // 未解消の状態は C1 の信号: U-E の normal の確認状態の whole が capacityExceeded（印の付く記録は無い）。
     expect([urgent["unresolvedFinal"], urgent["unresolvedMax"]]).toEqual([{ "U-E": { marks: 0, unconfirmed: 1 } }, { "U-E": { marks: 0, unconfirmed: 1 } }]);
-    // (a)(c): U-W の partial 128 の後の新しい官署を 2 通（入力単位の拒否は 2、印の付いた記録は 1 のまま、印が付くので whole は未確認にしない）。
-    const weather = Array.from({ length: 130 }, (_, index) => {
+    // (a)(c): U-W の normal の partial 384 の後の新しい官署を 2 通（P3-UWC-AC01。入力単位の拒否は 2、印の付いた記録は 1 のまま、印が付くので whole は未確認にしない）。
+    const weather = Array.from({ length: 386 }, (_, index) => {
       const at = base + index * 60_000;
-      return frame(at, "VPWW57", variant("15_16_02_251222_VPWW57", at, { office: `試験気象台${index < 128 ? index : 128}` }));
+      return frame(at, "VPWW57", variant("15_16_02_251222_VPWW57", at, { office: `試験気象台${index < 384 ? index : 384}` }));
     });
-    const { result: partial } = await runStage1(ready("T04a", weather, base + 131 * 60_000));
+    const { result: partial } = await runStage1(ready("T04a", weather, base + 387 * 60_000));
     expect(partial["status"]).toBe("Fail");
     expect(listOf(partial, "rejections").map(recordOf).map((item) => [item["inputId"], item["unit"], item["kind"]]))
-      .toEqual([["input-129", "U-W", "unavailable"], ["input-130", "U-W", "unavailable"]]);
+      .toEqual([["input-385", "U-W", "unavailable"], ["input-386", "U-W", "unavailable"]]);
     expect(listOf(partial, "unresolved").map(recordOf).map((item) => item["counts"])).toEqual([{ "U-W": { marks: 1, unconfirmed: 0 } }]);
   }, 180_000);
 
@@ -290,7 +290,7 @@ describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
     // 印は U-W・U-F（空でも分野ごとに約 1.2 KB）を除いた合計なので、製品の境界ではまだ false。
     expect(start["withoutWeatherOver1MiB"]).toBe(Number(start["withoutWeather"]) > 1_048_576);
     console.info(`[P3-DC-T09] boundary n=${high} total(n)=${start["total"]} withoutWeather(n)=${start["withoutWeather"]}`);
-    // U-W（partial 1 件の view 約 13 KB）と U-F（官署 1 件約 1.3 KB）だけが要約になる run は、要約の時刻を報告して Pass。
+    // P3-UWC-D-RES06-SHIFT=A: U-W の view は府県の公開形だけになった（VPWW57 の 100 官署は府県 26 の 1 行）。前は U-W（partial 1 件の view 約 13 KB）と
     const weather = [...Array.from({ length: 100 }, (_, index) => {
       const at = t0 + index * MINUTE;
       return frame(at, "VPWW57", variant("15_16_02_251222_VPWW57", at, { office: `試験気象台${index}` }));
@@ -298,10 +298,10 @@ describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
       const at = t0 + index * MINUTE + 30_000;
       return frame(at, "VPWP50", variant("81_01_04_251222_VPWP50", at, { office: `試験気象台${index}` }));
     })].sort((a, b) => a.atMs - b.atMs);
+    // U-F（官署 1 件約 1.3 KB）が要約になっていたこの run は、合計が 1 MiB を越えず、どの分野も要約にならずに Pass になる。
     const { result: calm } = await runStage1(ready("T09b", weather, t0 + 2 * HOUR));
-    expect(calm["status"]).toBe("Pass");
-    expect(Object.keys(recordOf(calm["summaries"])).sort()).toEqual(["U-F", "U-W"]);
-    expect(recordOf(listOf(calm, "summaryTransitions").at(-1))["withoutWeatherOver1MiB"]).toBe(false);
+    expect([calm["status"], recordOf(calm["summaries"])]).toEqual(["Pass", {}]);
+    expect(listOf(calm, "summaryTransitions")).toEqual([]);
   }, 180_000);
 
   it("P3-DC-T10 contractBoundary / AC03: skipped ticks match 1 s ticks around each deadline; a failed save blocks", async () => {

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "4b6dbbab06c67dff30654ec798cb1eb9f3cb7131a544a76680684a0c908db295",
+    "sha256": "ba458403e7458104eec0571fa757f6f32893ed9932d5dc1ffc3132f9d4731ced",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -60,7 +60,7 @@
         "status": "closed",
         "reason": "P2-A8-AC02/Q-LIMIT: operation別の固定集計行と理由別件数が無いと、activeと併存する利用不能・未確認・未知値・鮮度疑いがsummaryで消える。",
         "rows": "各分野はnormal/training/testの順に必ず3行、各行は当該operationだけを集計する。informationTypeはU-E=eew、U-W=weather-warning、U-F=weather-warning-timeseriesの固定1種/分野。発表/訂正/取消を表すSubjectOutcome.informationTypeを使用しない。family/官署/未知Codeで行を増やさない。fullとsummaryの共通itemsを同じ値・参照で渡す。restorationはsnapshot.recovery.restoration（P3-RECOVERY-001の発注1で起動時のダイジェストsnapshot.recovery.digestと並べた、P3-REC-AC15）の三unit mapだけが正本でsummary時にも省略しない。",
-        "counts": "activeCountはU-Eの非終端currentを(operation,EventID)でfamily横断dedup、U-WはCode!=00の現行現象(未知Codeを含む)を一つ以上持つ(operation,subject)、U-Fはeffective=activeの(operation,subject)の数。unavailableはU-Wの保持unavailable record/U-Fのeffective=unavailable subjectをreason別(capacityExceeded/historyUnavailable/coverageIncomplete)に1ずつ数え、U-T・U-Qは印（SubjectUnavailable）のある記録1つにつきcapacityExceededへ1を足す（印のある記録も今どおりactive・重大度・区域に数える。U-Qのeventは印のfamilyの数によらず1。P3-CC-AC03(5)、配送のcommitでP3-CC-AC09により統合担当が改訂）。activeとunavailableの重複帰属を排除しない。（admission.capacityExceededはP3-CURRENCY-COVERAGE-001で廃止。）unconfirmedはA1-CONFIRMATIONのwhole marker各1と未確認scope各1を理由別に数える（理由に容量の拒否capacityExceededを含む、P3-CC-AC02(4)。読めずに断った報unreadableReportも含む、P3-UNREADABLE-MARK-001の発注3でP3-UM-AC13・AC18(10)により統合担当が改訂）。freshnessはU-WのfreshnessSuspect=true recordをreason別に各1(7 RejectionReasonとstale)、他unitは{}。零件のreason keyは省略、正数のkeyの存在が理由の種類を示す。件数は全て0..MAX_SAFE_INTEGERの整数、合計は当該mapの和で求める。 （A1 Q-R20-CLEARのnormal公開maskによる除外はP3-CURRENCY-COVERAGE-001で廃止。配送のcommitでP3-CC-AC09により統合担当が改訂）",
+        "counts": "activeCountはU-Eの非終端currentを(operation,EventID)でfamily横断dedup、U-Wはactiveな(operation,府県)の数（府県の行の公開形のareasが空でないもの。P3-UW-CANON-001のD-GROUP・P3-UWC-AC05(4)で改訂）、U-Fはeffective=activeの(operation,subject)の数。unavailableはU-Wの保持unavailable record/U-Fのeffective=unavailable subjectをreason別(capacityExceeded/historyUnavailable/coverageIncomplete)に1ずつ数え、U-T・U-Qは印（SubjectUnavailable）のある記録1つにつきcapacityExceededへ1を足す（印のある記録も今どおりactive・重大度・区域に数える。U-Qのeventは印のfamilyの数によらず1。P3-CC-AC03(5)、配送のcommitでP3-CC-AC09により統合担当が改訂）。activeとunavailableの重複帰属を排除しない。（admission.capacityExceededはP3-CURRENCY-COVERAGE-001で廃止。）unconfirmedはA1-CONFIRMATIONのwhole marker各1と未確認scope各1を理由別に数える（理由に容量の拒否capacityExceededを含む、P3-CC-AC02(4)。読めずに断った報unreadableReportも含む、P3-UNREADABLE-MARK-001の発注3でP3-UM-AC13・AC18(10)により統合担当が改訂）。freshnessはU-WのfreshnessSuspect=true recordをreason別に各1(7 RejectionReasonとstale)、他unitは{}。零件のreason keyは省略、正数のkeyの存在が理由の種類を示す。件数は全て0..MAX_SAFE_INTEGERの整数、合計は当該mapの和で求める。 （A1 Q-R20-CLEARのnormal公開maskによる除外はP3-CURRENCY-COVERAGE-001で廃止。配送のcommitでP3-CC-AC09により統合担当が改訂）",
         "unknown": "unknownCodeは現在activeなU-Wの現象Code要素/U-FのSignificancy複合値periodを1個ずつ、missing→empty→unknownの優先で一理由に数える。U-FはNameかCodeがmissing/emptyなら対応理由、そうでなければQ-VALUES.knownCodes外のCodeがunknown。U-Wは既知表外Codeがunknown(合法入力のmissing/emptyは0)。U-Eは{}。重複periodもそれぞれ一値、辞書の一値を参照するperiodは参照回数分数える。lastKnown・履歴・無効periodは集計しない。",
         "severity": {
           "U-E": "A4公開warningClassだけを使いforecast < warning。同一eventの非終端currentにwarningが一つでもあればwarning。",
@@ -354,9 +354,9 @@
       {
         "id": "P2-A8-RES-07",
         "target": "upstream legal state boundary used for capacity acceptance",
-        "limit": "U-E 512 (operation,subject) per family; U-W 1 national current per operation + 2 national history, 128 partial subjects + 8 history per stream, encoded B<=16777216; U-F 512 operation/subjects and encoded B<=33554432（今の器は U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "limit": "U-E 512 (operation,subject) per family; U-W 1 national current per operation + 2 national history, 384 normal partial subjects + 64 training/test partial subjects (combined) + 2 history per office×family stream (P3-UW-CANON-001), encoded B<=16777216; U-F 512 operation/subjects and encoded B<=33554432（今の器は U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "unit": "upper input retention, not full-view JSON bytes",
-        "scope": "U-Eは2family×512=1024 current/gateまで、U-Wの現行はnational3+partial128=131件(別のunavailable/freshnessも16MiB保持予算に従う)、U-Fは512 subject。U-Eのdurable262144はintent/deliveryだけでfull viewの上限ではない。保存Bをfull JSONと同一視しない。これらの合法最大からP2-A8-SUMMARYの固定3行へ集約するためsummaryはU-E1799/U-W3695/U-F2471 byte以下（P3-UNREADABLE-MARK-001の発注3で測り直した、P2-A8-SUMMARY.domainBounds）。fullはsubject/要素byteの加算で計量しRES-01/06の超過条件でだけ縮退する。",
+        "scope": "U-Eは2family×512=1024 current/gateまで、U-Wの現行はnational3+partial(normal 384+training/test 64)=451件(別のunavailable/freshnessも16MiB保持予算に従う)、U-Fは512 subject。U-Eのdurable262144はintent/deliveryだけでfull viewの上限ではない。保存Bをfull JSONと同一視しない。これらの合法最大からP2-A8-SUMMARYの固定3行へ集約するためsummaryはU-E1799/U-W3695/U-F2471 byte以下（P3-UNREADABLE-MARK-001の発注3で測り直した、P2-A8-SUMMARY.domainBounds）。fullはsubject/要素byteの加算で計量しRES-01/06の超過条件でだけ縮退する。",
         "source": "reconstruction/contracts/p2-eew-unit.json:332,355; reconstruction/contracts/p2-weather-current-unit.json:290,297,304,311,320; reconstruction/contracts/p2-weather-timeseries-unit.json:348,364"
       }
     ],
@@ -502,7 +502,7 @@
         "id": "P2-A8-AC15",
         "requirement": "A9資材の最小静的配信（2026-09-28 A9点検 論点a）: startDisplayServerのoptionsに1 field browserAssets?: { htmlPath: string; moduleDirectory: string }を足し（無指定なら従来どおり）、渡されたA9のHTML入口とES module出力directoryだけを、/eventsと同じloopback originで配信する。GET /はHTML入口をtext/html、GET /chrome-eew/<name>.js（nameは[a-z0-9-]+）は出力directory直下の既存ファイルだけをtext/javascriptで返し、それ以外・path区切り・..・不存在は404。出力はdirectory直下の[a-z0-9-]+.jsのフラット配置とし、ブラウザmoduleのimportも同階層の./<name>.jsに限る。directory一覧・CORS・キャッシュ層・汎用静的framework・このfield以外の設定を作らない。資材が渡されないserverは従来どおり3 endpointだけ。理由: reconstructionのCommonJS出力はブラウザで読めず、別originからの配信はCORSと試験専用の別経路を要する。node:fs・node:pathはこの資材の読取りとpath検査だけに使う。publish観測（A10 P2-A10-AC15、R62）: optionsのonSerializeへ、publishごとの実際の1回のJSON.stringifyの区間（直列化だけ、client writeを含まない）と得た文字列のUTF-8 byteを渡す。計測のために再直列化せず、無指定なら何もしない",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:380 «7c7c3fff5c4a6e89»"
+          "docs/specs/reconstruction-p0-contracts.md:380 «3310d34e8ebde856»"
         ]
       }
     ],

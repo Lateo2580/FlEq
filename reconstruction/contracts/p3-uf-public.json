@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "2737550ce29f2271e8b171457357b5d27f4f28c0ce5ec4d444b521c62d18e991",
+    "sha256": "92eb72a67666406f2939e1fcbb40b472f26f0f70aa2595ea02c0789eab34222e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -132,7 +132,7 @@
         "status": "closed",
         "source": "統合担当の決定（OpusのレビューO-S5）。weather-current-unit.tsのtoWeatherCurrentView、監査の見積り（.draft/no-overflow-study.md §1のU-Wの行）",
         "closed": "A3はU-Fだけでは閉じない: U-Wのviewはnationalとpartialsのsnapshotをそのまま載せる。監査の見積り（全国のsnapshot 666,548 byte、partial 128件で約0.4〜0.9 MB）では、U-Wだけで全体が1 MiBを越えうる。本契約の受入（P3-UFP-AC05）はU-Fが原因の巻き添えに限る。残りは3つ目の単位（U-Wの正本・公開の持ち方）で扱う",
-        "remaining": "3つ目の単位の起草で、U-Wのviewの大きさを範囲に入れる",
+        "remaining": "なし。3つ目の単位P3-UW-CANON-001がU-Wのviewを府県ごとの公開形と詳細の口に替えて閉じた（P3-UWC-D-PUBLIC=A・P3-UWC-AC05）",
         "reason": "本契約の範囲はU-Fの公開境界（作者の裁定の1つ目）で、U-Wのviewを変えるとU-Wの単位と同じファイルを触る"
       },
       {
@@ -313,7 +313,7 @@
         "target": "deferredのownerの未完了の詳細",
         "limit": 1,
         "unit": "outstanding detail request per owner",
-        "scope": "P3-C3A-RES-09の種類ごと1件にdetailを足す（deferredのownerだけ）。pumpを完了した後で、deferredの入力・期限の返信待ちが無いときだけ送る（Q-UFP-DETAIL-PATH）。期限を過ぎても返信が来るまで次を送らない",
+        "scope": "P3-C3A-RES-09の種類ごと1件にdetailを足す（deferredとweatherCurrentのownerが使い、送り済みは合わせて1件。停止はplaceごと、P3-UW-CANON-001のQ-UWC-DETAIL-STOP）。pumpを完了した後で、要求のunitの持ち主のplaceに入力・期限の返信待ちが無いときだけ送る（Q-UFP-DETAIL-PATH・P3-UWC-D-DETAIL-PATH）。期限を過ぎても返信が来るまで次を送らない",
         "source": "docs/specs/reconstruction-p0-contracts.md §7.10（worker内の射影）・P3-C3A-RES-09"
       },
       {
@@ -447,14 +447,14 @@
           "docs/specs/reconstruction-p0-contracts.md:1233 «22620e62c3946a2e»",
           "docs/specs/reconstruction-p0-contracts.md:1268 «76445404beb6f64a»",
           "docs/specs/reconstruction-p0-contracts.md:1324 «575c43acf6c6eb1d»",
-          "docs/specs/reconstruction-p0-contracts.md:1336 «c2b571049b07b469»",
+          "docs/specs/reconstruction-p0-contracts.md:1336 «73ebfb2a13b5541a»",
           "docs/specs/reconstruction-p0-contracts.md:1341 «2a86d7b2b42bba77»",
           "reconstruction/contracts/p2-shared-runtime.json:195 «e3e43c29f297ecf6»"
         ]
       },
       {
         "id": "P3-UFP-AC07",
-        "requirement": "詳細の口のpublisherの側（P3-UFP-D-DETAIL-SCREEN=A）:composition rootにrequestDetail(request)を足し、応答のPromiseと完了の通知doneを返す。(1) 要求はmailboxを通さない（Q-UFP-DETAIL-PATH）(2) 受け付けた要求は全clientで8件まで。数はdoneが呼ばれる（HTTPの応答の完了か切断）まで減らさない。9件目はbusy (3) deferredのownerへ送るdetailは1件まで（OwnerRequestにdetail、OwnerReplyにdetailDoneを足す）。送るのはpumpを完了した後で、deferredの実行場所に入力（inFlightInputs）・期限（outstandingのdeadline）の返信待ちが無いときだけ（通常受理より下位、spec §7.10。pumpの後にdeferredのin-flightが無ければdeferred行きの入力はmailboxに残っていない、Q-UFP-DETAIL-PATH）。待つ間も期限は進む（通常の入力が続けばtimeout）。返信が来るまで次を送らない。期限を過ぎた要求の遅い返信は捨て、そのとき初めて次を送る（実処理の終わりの前にin-flightを解放しない）(4) 期限は受付から2,000 ms。ownerの返信の前に過ぎたらtimeout (5) 要求のstreamIdが今のstreamと違えばownerへ送らずversionChanged (6) 停止監視（P3-C3B）: MonitorSlotにdetailを足し（P3-C3B-RES-01の固定の枠8→9）、slotOfの網羅switchにdetailのcaseを足す。detailの未完了はstalled・unresponsiveの判定（P3-C3B-AC01）に入る。deferredのownerが止まった（stoppedUnit、P3-C3B-AC02）か、終了の段階（shutdown.stageがrunningでない）に入った後は、送り済みのin-flightの1件と未送出の待ちの全部にunavailableを返し、以後ownerへ送らない。止まった後に届いたdetailDoneは捨てる (7) clientが切断したら、未送出の待ちから外し、送り済みの返信は捨てる (8) 試験は時計を進めて期限を確かめ、実時間を待たない",
+        "requirement": "詳細の口のpublisherの側（P3-UFP-D-DETAIL-SCREEN=A）:composition rootにrequestDetail(request)を足し、応答のPromiseと完了の通知doneを返す。(1) 要求はmailboxを通さない（Q-UFP-DETAIL-PATH）(2) 受け付けた要求は全clientで8件まで。数はdoneが呼ばれる（HTTPの応答の完了か切断）まで減らさない。9件目はbusy (3) 要求のunitの持ち主のplace（U-Fはdeferred、U-WはweatherCurrent。P3-UW-CANON-001で改訂）へ送るdetailは合わせて1件まで（OwnerRequestにdetail、OwnerReplyにdetailDoneを足す）。送るのはpumpを完了した後で、そのplaceに入力（inFlightInputs）・期限（outstandingのdeadline）の返信待ちが無いときだけ（通常受理より下位、spec §7.10。pumpの後にそのplaceのin-flightが無ければそのplace行きの入力はmailboxに残っていない、Q-UFP-DETAIL-PATH）。待つ間も期限は進む（通常の入力が続けばtimeout）。返信が来るまで次を送らない。期限を過ぎた要求の遅い返信は捨て、そのとき初めて次を送る（実処理の終わりの前にin-flightを解放しない）(4) 期限は受付から2,000 ms。ownerの返信の前に過ぎたらtimeout (5) 要求のstreamIdが今のstreamと違えばownerへ送らずversionChanged (6) 停止監視（P3-C3B）: MonitorSlotにdetailを足し（P3-C3B-RES-01の固定の枠8→9）、slotOfの網羅switchにdetailのcaseを足す。detailの未完了はstalled・unresponsiveの判定（P3-C3B-AC01）に入る。要求の行き先のplaceのownerが止まった（stoppedUnit、P3-C3B-AC02）ら、そのplace行きの送り済みのin-flightと未送出の待ちだけにunavailableを返し、以後そのplaceへ送らない（ほかのplace行きは待ちに残す、P3-UW-CANON-001のQ-UWC-DETAIL-STOP）。終了の段階（shutdown.stageがrunningでない）に入った後は、送り済みのin-flightの1件と未送出の待ちの全部にunavailableを返し、以後ownerへ送らない。止まった後に届いたdetailDoneは捨てる (7) clientが切断したら、未送出の待ちから外し、送り済みの返信は捨てる (8) 試験は時計を進めて期限を確かめ、実時間を待たない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1272 «41f5a81e741937a4»",
           "docs/specs/reconstruction-p0-contracts.md:1274 «68581c201d0982b4»",
@@ -464,8 +464,8 @@
           "docs/specs/reconstruction-p0-contracts.md:1286 «56110e613036ac27»",
           "docs/specs/reconstruction-p0-contracts.md:1288 «e5ce19b30d03f206»",
           "reconstruction/contracts/p3-execution-split.types.ts:58 «0264a87b13c087be»",
-          "reconstruction/contracts/p3-execution-split.json:543 «66a186e5a1a6f39f»",
-          "reconstruction/contracts/p3-execution-lifecycle.json:397 «d22f954d6f3ba6cb»",
+          "reconstruction/contracts/p3-execution-split.json:543 «89c6ccb43cd4f4b3»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:397 «aa27ca675be8b6e9»",
           "reconstruction/src/runtime/composition-root.ts:169 «03945f9ae218aaba»",
           "reconstruction/src/runtime/composition-root.ts:504 «8d0c9de1079fadb3»",
           "reconstruction/src/runtime/composition-root.ts:514 «1995a375a3bd0291»",
@@ -497,25 +497,25 @@
         "requirement": "本契約が上書きする他の条文と統合担当の記録。原文は重ねて読み替えず、配送のcommitで統合担当が改訂する（実装担当は他の契約・spec・計画の本文を編集しない）。凍結manifestはそれを作ったcommitで再実行する（前例。frozen.tsのverifyContractHashesは走らせたcheckoutの契約の本文と照合する）。起草時（3fe5dd69）に契約のpinを持つ凍結manifest 17本は、どれもHEADの契約のhashと全部は一致しない。改訂する契約のうちP3-EXECUTION-SPLIT-001・P3-EXECUTION-LIFECYCLE-001・P2-SNAPSHOT-SSE-001のpinがHEADと一致しているのはp3-harnessのdyl-e05y・e05s・e05yの3本だけで、配送の後はその3つのpinも一致しなくなる（3本とも、改訂しない別の契約のpinが既に1〜2本違う）。(1) P2-SHARED-RUNTIME-001: Q-R20-CLEAR.atomicityの『U-Fのseries（旧activeとその全periodを含む）』→公開形式のseries、P2-A1-DISPLAY-CHANGES.portのU-Fのbefore・afterのcurrent→公開形式 (2) P2-WEATHER-TIMESERIES-UNIT-001: outOfScope『P4詳細API』のうちU-Fの1ページの射影と索引は本契約 (3) P2-SNAPSHOT-SSE-001: 作者裁定P2-A8-D03=A（reason『P4詳細APIを作らない』）をU-Fについて一部覆す（P3-UFP-D-DETAIL-SCREEN=Aの作者の裁定による。ruling・reasonの原文は消さず注記を足す）。outOfScope『§7.10詳細ページ』とartifactRequirementsの『P4詳細portを追加しない』のU-Fの分、P2-A8-OWNERSHIP.remaining『詳細page wireはP4前に別途凍結する』のうちU-Fのwireは本契約で凍結 (4) spec §7.10の型（DetailRequest・DetailResponse）: U-Fの要求はstreamId・part・id・revision・pageで、requestedVersion・observedVersion・contentRevision・domainId・operation・requestIdを本文に持たず、誤りの理由にcancelledを持たない（切断した要求は応答を返さず捨てる）(5) spec §8.1の個別取得の1〜3: 経路の引数（semanticRevision・sequenceの代わりにpart・id・revision）と、409の照合の単位（分野の内容版ではなく対象のsubjectの版。索引だけは分野の内容版）(6) spec §3の部品の表: B05の『§7.10の詳細request/responseと取消』とB11の『B05の型付き詳細port』は、U-Fについてはcomposition root（B02）が数え・照合し・捨て、B11がrootのrequestDetailを呼ぶ。moduleIdsはB02・B06・B08・B11・M08（mailboxのB05は触らない） (7) p3-execution-boundary.md §2の表: publisher→workerにdetailの要求、worker→publisherに有界な1ページ（P3-UFP-RES-03）を足す (8) P3-EXECUTION-SPLIT-001: P3-C3A-RES-09・AC15の要求の種類にdetail（deferredのownerに1件）を足す。Q-C3A-SPEC-REVISIONの(4)のP4送り（mirrorが各unitの最新viewを持つこととspecの『mainのfull view複製0』の字面の食い違い）は、U-Fについてはmirrorが公開形式だけを持つ形で本契約が閉じる (9) P3-EXECUTION-LIFECYCLE-001: RES-01の固定の枠8→9（detail）、AC01のstalled・unresponsiveの判定にdetailの枠が入る、AC02の停止でdetailのin-flightと待ちにunavailable (10) 計画: §5.2の『IR07の詳細要求はP4の契約でC3aの境界型を改訂する』のうちU-Fの分を本契約へ前倒しする。P3-C6-O09-REST=A（計画の『津波のburst・詳細射影中のE01』〔O09:30・31・39・40・48・49・57・58・66・67〕をP4へ）は変えない。U-Fの詳細の射影中のE01は残存リスク(9)。配送の前に§9の表へ本契約の行を足す（行番号を引く他の契約のanchorは付け直す） (11) DisplaySnapshotのwireの版（schemaVersion: 1、weatherTimeseriesの分野の型）は上げない: U-Fのfull viewの形は変わるが、それを読むclientは無い（chrome-eewはeewとtsunamiだけを読み、schemaVersionが1でないsnapshotを捨てる）。wireの版はP4のdisplay契約でwireを固定するときに上げる (12) 他の契約が引く行（Q-UFP-PRECHECKの(5)）: 行の数を変えない書き方を優先する（p2-shared-runtime.types.tsは同じ行の中で直す、host.tsは表示のserverのoptionsの既存の行に足す、weather-timeseries-unit.tsは346行より上の行の数を変えない、owner-host.tsのdetailのcaseはswitchの最後に置く）。それでも動いた行を引くanchorは、統合担当が配送のcommitで行番号と各契約のmeta.sha256を付け直す（本文は書き換えない）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-shared-runtime.json:195 «e3e43c29f297ecf6»",
-          "reconstruction/contracts/p2-shared-runtime.json:222 «059b3960dca55a22»",
+          "reconstruction/contracts/p2-shared-runtime.json:222 «3b9886393e7a492d»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:393 «51620763be598741»",
           "reconstruction/contracts/p2-snapshot-sse.json:17 «264714a6817707f1»",
           "reconstruction/contracts/p2-snapshot-sse.json:34 «e2b9bc46a995d9ac»",
           "reconstruction/contracts/p2-snapshot-sse.json:374 «8e95021580d94083»",
           "reconstruction/contracts/p2-snapshot-sse.json:637 «eb7f7fbc161f8150»",
-          "docs/specs/reconstruction-p0-contracts.md:1238 «271c768177fac1b2»",
-          "docs/specs/reconstruction-p0-contracts.md:1247 «5b337cecf1e94e0b»",
+          "docs/specs/reconstruction-p0-contracts.md:1238 «21e207d8e2e031d0»",
+          "docs/specs/reconstruction-p0-contracts.md:1247 «c232a372784583dd»",
           "docs/specs/reconstruction-p0-contracts.md:1254 «1c428a37ed10e975»",
-          "docs/specs/reconstruction-p0-contracts.md:1264 «65b5aeee87381bda»",
-          "docs/specs/reconstruction-p0-contracts.md:1337 «152a4904363a6454»",
+          "docs/specs/reconstruction-p0-contracts.md:1264 «2571a7542301bc51»",
+          "docs/specs/reconstruction-p0-contracts.md:1337 «5dbeeaee5901ed49»",
           "docs/specs/reconstruction-p0-contracts.md:1338 «f322402351ad4c15»",
-          "docs/specs/reconstruction-p0-contracts.md:374 «3d97fc566f9a85bb»",
-          "docs/specs/reconstruction-p0-contracts.md:380 «7c7c3fff5c4a6e89»",
+          "docs/specs/reconstruction-p0-contracts.md:374 «0001ae85cb1f8266»",
+          "docs/specs/reconstruction-p0-contracts.md:380 «3310d34e8ebde856»",
           "reconstruction/contracts/p3-execution-boundary.md:24 «778675a95e83f912»",
-          "reconstruction/contracts/p3-execution-split.json:749 «91a623f27468cc26»",
+          "reconstruction/contracts/p3-execution-split.json:749 «6c024fec33426979»",
           "reconstruction/contracts/p3-execution-split.json:175 «7482f5e2279ce9ab»",
-          "reconstruction/contracts/p3-execution-lifecycle.json:457 «7ece19e7da1b66b3»",
-          "reconstruction/contracts/p3-execution-lifecycle.json:476 «577e9c05091a9b44»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:457 «28d6223d4a578752»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:476 «a8f5dc99e3fe9828»",
           "reconstruction/contracts/p3-order-plan.md:230 «9343844d7ce400ed»",
           "reconstruction/contracts/p3-order-plan.md:231 «d50b01ca53cff3d6»",
           "reconstruction/contracts/p3-order-plan.md:7 «57615a362084791f»",
@@ -597,7 +597,7 @@
         "referenceIds": [
           "P3-UFP-AC07"
         ],
-        "behavior": "publisherの上限と順: 9件目がbusy。受付から2,000 msでtimeout。遅い返信の後にだけ次を送る。pumpの後にdeferredの入力・期限が返信待ちの間は詳細を送らず、mailboxにdeferred行きの入力があればpumpがそれを先に送る（開始の順）。detailの枠がstalledの判定に入る。ownerの停止でin-flightの1件と待ちの全部がunavailable、止まった後のdetailDoneは捨てる。終了の段階に入るとunavailable。streamIdの不一致はownerへ送らずversionChanged。切断で待ちから外れる"
+        "behavior": "publisherの上限と順: 9件目がbusy。受付から2,000 msでtimeout。遅い返信の後にだけ次を送る。pumpの後にdeferredの入力・期限が返信待ちの間は詳細を送らず、mailboxにdeferred行きの入力があればpumpがそれを先に送る（開始の順）。detailの枠がstalledの判定に入る。ownerの停止で止まったplace行きのin-flightと待ちだけがunavailable（ほかのplace行きは残る、P3-UW-CANON-001で改訂）、止まった後のdetailDoneは捨てる。終了の段階に入るとunavailable。streamIdの不一致はownerへ送らずversionChanged。切断で待ちから外れる"
       },
       {
         "testId": "P3-UFP-T10",

@@ -65,7 +65,7 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
     notificationProbeComplete: true,
     units: {
       "U-E": { schemaVersion: "p2-eew-unit-v5", contentRevision: 0, current: [], gates: [], intents: [], notices: [], unreadableNotices: [], persistence: progress },
-      "U-W": { schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+      "U-W": { schemaVersion: "p2-weather-current-unit-v7", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
         tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: progress },
       "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
       // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
@@ -395,7 +395,7 @@ describe("P2 shared runtime", () => {
     const token = JSON.stringify(["VPWW57", "partial", "office", "all", ""]);
     const source = { inputId: "late", origin: "replay" as const, operation: "normal" as const, family: "VPWW57",
       subject: "normal/VPWW57/office", reportDateTimeRaw: "", controlDateTimeRaw: "", serialRaw: "", infoTypeRaw: "発表" };
-    const after = { unit: "U-W" as const, operation: "normal" as const, subject: source.subject, office: "office",
+    const after = { unit: "U-W" as const, operation: "normal" as const, subject: source.subject, office: "office", currentActive: false, currentScope: [],
       current: null, unavailable: [], subjects: [], freshness: [{ target: { operation: "normal" as const, family: "VPWW57",
         subject: source.subject, affectedScope: [token] }, candidateSource: source, currentSource: null,
         currentSemanticRevision: null, decision: "rejected", reason: "reportDateTimeMissing", revisionOrder: "unknown" as const,
@@ -725,7 +725,7 @@ describe("P2 shared runtime", () => {
     }));
     const series = vi.fn((unit: WeatherTimeseriesUnitState, input: WeatherTimeseriesInput) => unitReply(unit, input));
     const view = { unit: "U-W" as const, semanticRevision: "revision", contentRevision: "0",
-      subjects: [], national: {}, partials: [], freshnessSuspectCount: 0 };
+      subjects: [], areas: [], freshnessSuspectCount: 0 };
     const toView = vi.fn(() => view);
     const calls = { reduceEewUnit: eew, reduceWeatherCurrentUnit: weather, reduceWeatherTimeseriesUnit: series,
       toWeatherCurrentView: toView };

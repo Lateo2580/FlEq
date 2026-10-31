@@ -271,13 +271,13 @@ function eewReport(eventId: string, operation: Operation = "normal", file = "37_
 function unavailableChange(state: RuntimeState, office: string | null,
   reason: "capacityExceeded" | "historyUnavailable" | "coverageIncomplete" = "historyUnavailable"):
   Readonly<{ change: RuntimeDisplayChange; outcome: RuntimePublishedOutcome }> {
-  const row = [...displaySubjects(state.units["U-W"]).values()][0];
-  const current = row.current!;
-  const record = { subject: row.subject, operation: row.operation, reason, source: current.source, lastKnown: null,
+  const row = [...displaySubjects(state.units["U-W"]).values()].find((item) => item.current == null)!; // 報の subject の監視の行（P3-UWC-AC05 (2)）
+  const current = state.units["U-W"].partials.find((item) => item.subject === row.subject)!, subject = { subject: row.subject, operation: row.operation, informationType: current.source.infoTypeRaw, transition: "unavailable", severity: null, source: current.source, facts: { reason }, changedFields: [] };
+  const record = { subject: row.subject, operation: row.operation, reason, source: current.source, lastKnownRows: null,
     affectedScope: [JSON.stringify(["VPWW57", "partial", current.office, "all", ""])] };
   return { change: { unit: "U-W", operation: row.operation, subject: row.subject, before: row,
-    after: { ...row, office, unavailable: [record] } },
-  outcome: { unit: "U-W", outcome: { kind: "accepted", change: "semantic", subjects: [{ ...row.subjects[0], transition: "unavailable" }] } } };
+    after: { ...row, office, currentActive: false, currentScope: [], unavailable: [record], subjects: [subject] } },
+  outcome: { unit: "U-W", outcome: { kind: "accepted", change: "semantic", subjects: [subject] } } };
 }
 
 function timeseriesChange(before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null):

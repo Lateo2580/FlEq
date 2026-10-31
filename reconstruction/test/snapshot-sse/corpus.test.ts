@@ -20,7 +20,7 @@ const cases = [
     key: "weatherTimeseries", subject: "normal/VPWP50/長野地方気象台", time: "2026-06-06T05:00:00+09:00",
     severity: "advisory", areas: { forecastArea: 81 } },
   { ref: "expected:O06:10", file: "15_16_02_251222_VPWW57", type: "VPWW57", at: 1592834400001,
-    key: "weatherCurrent", subject: "normal/VPWW57/京都地方気象台", time: "2020-06-22T23:00:00+09:00",
+    key: "weatherCurrent", subject: "normal/area/26", time: "2020-06-22T23:00:00+09:00",
     severity: "danger", areas: { prefecture: 1, primary: 1, municipalityGroup: 2, municipality: 5, stormSurge: 1 } },
   { ref: "expected:O07:16", file: "37_01_01_240613_VXSE43", type: "VXSE43", at: 1713363299001,
     key: "eew", subject: "normal/VXSE43/20240417231454", time: "2024-04-17T23:14:59+09:00",
@@ -48,7 +48,7 @@ describe("P2-A8-T05 corpusHistory (AC07/AC09)", () => {
   it.each(cases)("P2-A8-T05 $ref: the owner unit's adoption reaches its fixed row", async (item) => {
     const { clock, started, state } = await begin(item.at);
     const adopted = await step(started.state, received("run", decode(item.file, item.type), clock));
-    expect(adopted.displayChanges.map((change) => [change.subject, change.after?.subjects[0]?.source?.reportDateTimeRaw]))
+    expect(adopted.displayChanges.flatMap((change) => change.after?.unit === "U-W" && change.after.current == null ? [] : [[change.subject, change.after?.subjects[0]?.source?.reportDateTimeRaw]]))
       .toEqual([[item.subject, item.time]]);
     const result = projected(advance(state, adopted, item.at));
     const [normal, training, test] = result.snapshot.current[item.key].items;

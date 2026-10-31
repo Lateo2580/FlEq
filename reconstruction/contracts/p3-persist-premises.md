@@ -287,12 +287,12 @@ H35（spec:3062）: EEW・津波・大きな地震は上限で落ちない作り
 
 ### 4.7 U-W（気象警報、③）
 
-- 現状: partial 128（`weather-current.ts:630`、運用区分を合わせた件数）、取消の戻し先の履歴の深さ partial 8・全国 2（`:645`）、保持期限なし。subject の鍵は `operation/family/office`（`:189`）。満杯のときは normal 以外の partial を 1 件退去して受け、normal だけなら unavailable（`:630〜633`）。
+- 現状: partial 128（`weather-current.ts:630`、運用区分を合わせた件数）、取消の戻し先の履歴の深さ partial 8・全国 2（`:645`）、保持期限なし。subject の鍵は `operation/family/office`（`:189`）。満杯のときは normal 以外の partial を 1 件退去して受け、normal だけなら unavailable（`:630〜633`）。P3-UW-CANON-001 の後: normal の partial 384（退去させず容量の unavailable）・training/test の partial 合算 64（最古を退去）、partial の履歴の深さ 2（官署×family ごと、運用区分の合算）・全国 2、schemaVersion v7（P3-UWC-RES-01〜03・AC08）。
 - 推奨（前提だけ。中身は ③）:
-  - 通常運用（normal）の鍵の空間を保証する: normal の partial の件数の上限は鍵の空間以上。鍵の空間は 348〜406 で、③ で数え直す（VPNO50 は鍵を作らない〔台帳 90〕なら 6 family×58 官署＝348、数え方が台帳 84 のままなら 7×58＝406。官署数は未測）。
+  - 通常運用（normal）の鍵の空間を保証する: normal の partial の件数の上限は鍵の空間以上。鍵の空間は 348（VPNO50 は鍵を作らない〔台帳 90〕ので 6 family×58 官署）で、上限は 384（P3-UW-CANON-001 の D-ROOM=A・D-KEYSPACE=A）。
   - 訓練・試験の partial は別の上限（置き値 64）を持ち、満ちたら訓練・試験の中で古いものから退去する。normal を退去させない（K4 の D-OPERATION=A のまま）。
   - 履歴の深さは 2（§7 の 6）。解除・「なし」の partial を回収する期限を足す（台帳 79 の案 (b)、長さは置き値で ③ が決める）。
-  - 保存の見積もり（台帳 84 の式「全国 約 3 MB＋鍵×(1＋深さ)×3〜7 KB」を current と履歴に分けて）: normal の current は 406 鍵で 1.2〜2.8 MB、348 鍵で 1.0〜2.4 MB。履歴（深さ 2）は 406 鍵で 2.4〜5.7 MB、348 鍵で 2.1〜4.9 MB。全国（current と深さ 2）約 3 MB。合わせて 406 鍵で 7〜12 MB、348 鍵で約 6〜10 MB。訓練・試験の 64 件（深さ 2 を含む）は 0.6〜1.3 MB を足す。どれも 16 MiB に入る（見積もり）。
+  - 保存の見積もり（台帳 84 の式「全国 約 3 MB＋鍵×(1＋深さ)×3〜7 KB」を current と履歴に分けて）: normal の current は 348 鍵で 1.0〜2.4 MB。履歴（深さ 2）は 348 鍵で 2.1〜4.9 MB。全国（current と深さ 2）約 3 MB。合わせて 348 鍵で約 6〜10 MB。訓練・試験の 64 件（深さ 2 を含む）は 0.6〜1.3 MB を足す。どれも 16 MiB に入る（見積もり）。
 
 ### 4.8 H37・H39
 

@@ -16,7 +16,7 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
-} from "./p2-shared-runtime.types";
+} from "./p2-shared-runtime.types"; import type { WeatherCurrentPublicArea } from "./p3-uw-canon.types";
 
 export type WeatherCurrentUnavailableReason =
   | "capacityExceeded"
@@ -51,7 +51,7 @@ export type WeatherCurrentTombstone = Readonly<{
 }>;
 
 export type WeatherCurrentUnitState = Readonly<{
-  schemaVersion: "p2-weather-current-unit-v6";
+  schemaVersion: "p2-weather-current-unit-v7";
   contentRevision: number;
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
@@ -66,7 +66,7 @@ export type WeatherCurrentUnitState = Readonly<{
 }>;
 
 export type PersistedWeatherCurrentUnit = Readonly<{
-  schemaVersion: "p2-weather-current-unit-v6";
+  schemaVersion: "p2-weather-current-unit-v7";
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
   histories: readonly WeatherCurrentHistory[];
@@ -79,8 +79,8 @@ export type PersistedWeatherCurrentUnit = Readonly<{
 
 export type WeatherCurrentUnitView = SharedUnitView & Readonly<{
   unit: "U-W";
-  national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
-  partials: readonly WeatherCurrentSnapshot[];
+  // P3-UWC-AC05 (1): 府県×operation の公開形（全国報と partial を合わせた結果。現象の本文は詳細の口が読む）。
+  areas: readonly WeatherCurrentPublicArea[];
   freshnessSuspectCount: number;
 }>;
 
@@ -111,5 +111,5 @@ export type WeatherCurrentUnitStep = Readonly<{
 }>;
 
 export type WeatherCurrentUnitCodec = UnitCodec<WeatherCurrentUnitState, PersistedWeatherCurrentUnit> & Readonly<{
-  schemaVersion: "p2-weather-current-unit-v6";
+  schemaVersion: "p2-weather-current-unit-v7";
 }>;

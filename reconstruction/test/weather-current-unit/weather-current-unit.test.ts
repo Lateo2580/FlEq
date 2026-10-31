@@ -30,7 +30,7 @@ const NOW = 1_800_000_000_000;
 const LIMIT = weatherCurrentUnitCodec.maxEnvelopeBytes!;
 
 function emptyState(): WeatherCurrentUnitState {
-  return { schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [], histories: [],
+  return { schemaVersion: "p2-weather-current-unit-v7", contentRevision: 0, national: {}, partials: [], histories: [],
     ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
@@ -310,22 +310,22 @@ describe("P2 weather-current unit", () => {
       [operation, snapshot(operation, "VPWS50", "気象庁", `2026-09-06T10:0${index}:00+09:00`, `n${index}`)]));
     const nationalHistory = [0, 1].map((index) => snapshot(index === 0 ? "training" : "test", "VPWS50", "気象庁",
       `2026-09-05T10:0${index}:00+09:00`, `h${index}`));
-    const partials = Array.from({ length: 128 }, (_, index) => snapshot("normal", "VPWW55", `office-${index}`,
-      "2026-09-06T10:00:00+09:00", `p${index}`));
-    const partialHistory = Array.from({ length: 8 }, (_, index) => snapshot(index % 2 ? "test" : "training", "VPWW57", "京都地方気象台",
+    // P3-UWC-T03（AC01・AC02・AC08）: v7 の境界は normal の partial 384・training/test の合算 64・同じ官署×family の partial の履歴 2。
+    const partials = [...Array.from({ length: 384 }, (_, index) => snapshot("normal", "VPWW55", `office-${index}`, "2026-09-06T10:00:00+09:00", `p${index}`)),
+      ...Array.from({ length: 64 }, (_, index) => snapshot(index % 2 ? "test" : "training", "VPWW58", `office-${index}`, "2026-09-06T10:00:00+09:00", `t${index}`))];
+    const partialHistory = Array.from({ length: 3 }, (_, index) => snapshot(index % 2 ? "test" : "training", "VPWW57", "京都地方気象台",
       `2020-06-22T23:0${index}:00+09:00`, `ph${index}`));
-    const state: WeatherCurrentUnitState = { ...emptyState(), national: nationals, partials,
-      histories: [
+    const kyoto = (reports: readonly WeatherCurrentSnapshot[]) => (["training", "test"] as const).map((operation) => ({
+      subject: `${operation}/VPWW57/京都地方気象台`, operation, reports: reports.filter((item) => item.operation === operation) }));
+    const state: WeatherCurrentUnitState = { ...emptyState(), national: nationals, partials, histories: [
         { subject: nationalHistory[0].subject, operation: nationalHistory[0].operation, reports: [nationalHistory[0]] },
         { subject: nationalHistory[1].subject, operation: nationalHistory[1].operation, reports: [nationalHistory[1]] },
-        ...(["training", "test"] as const).map((operation) => ({
-          subject: `${operation}/VPWW57/京都地方気象台`, operation,
-          reports: partialHistory.filter((item) => item.operation === operation),
-        })),
-      ] };
-    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(state)).kind).toBe("restored");
-    expect(weatherCurrentUnitCodec.decode({ ...weatherCurrentUnitCodec.encode(state), partials: [...partials,
-      snapshot("normal", "VPWW55", "overflow", "2026-09-06T10:00:00+09:00", "overflow")] }).kind).toBe("invalid");
+        ...kyoto(partialHistory.slice(0, 2))] };
+    const encoded = weatherCurrentUnitCodec.encode(state);
+    expect(weatherCurrentUnitCodec.decode(encoded)).toMatchObject({ kind: "restored", state: { partials, histories: state.histories } });
+    const overflow = (operation: Operation) => snapshot(operation, "VPWW59", "overflow", "2026-09-06T10:00:00+09:00", `overflow-${operation}`);
+    expect([{ ...encoded, partials: [...partials, overflow("normal")] }, { ...encoded, partials: [...partials, overflow("training")] }, { ...encoded, histories: [...encoded.histories.slice(0, 2), ...kyoto(partialHistory)] },
+      JSON.parse(JSON.stringify(encoded).replace('"p2-weather-current-unit-v7"', '"p2-weather-current-unit-v6"'))].map((value) => weatherCurrentUnitCodec.decode(value).kind)).toEqual(["invalid", "invalid", "invalid", "invalid"]);
 
     const intent = pendingIntent();
     const intentState = { ...emptyState(), intents: [intent] };
@@ -426,7 +426,7 @@ describe("P2 weather-current unit", () => {
     expect(noHistory.state.unavailable[0].reason).toBe("historyUnavailable");
     // The unavailable replacement bypasses `touched`; its display change must still be emitted.
     expect(noHistory.displayChanges).toMatchObject([{ unit: "U-W", after: { current: null,
-      unavailable: [{ reason: "historyUnavailable" }] } }]);
+      unavailable: [{ reason: "historyUnavailable" }] } }, { subject: "normal/area/26", after: null }]); // P3-UWC-AC04 (5): 勝つ行の無い府県の行は消える
     expect(noHistory.state.freshness).toBe(unknown.state.freshness);
     const badArea = decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-before", "VPWS50",
       (xml) => bodyWarning(xml).replace(/(<Body[\s\S]*?<Area>[\s\S]*?<Code>)[^<]*(<\/Code>)/, "$1bad$2")
@@ -675,7 +675,7 @@ describe("P2 weather-current unit", () => {
       expect(Object.keys(state.national).sort()).toEqual(["normal", "test", "training"]);
       for (const operation of ["normal", "training", "test"] as const)
         expect(state.national[operation]?.operation).toBe(operation);
-      expect(toWeatherCurrentView(state).national).toEqual(state.national);
+      expect(new Set(toWeatherCurrentView(state).areas.map((item) => item.operation))).toEqual(new Set(["normal", "training", "test"])); // P3-UWC-AC05
     }
   });
 
@@ -710,25 +710,25 @@ describe("P2 weather-current unit", () => {
   // P3-CURRENCY-COVERAGE-001 AC07 の U-W 分（最終段の拒否は下の P2-A5-T09 が capacityRejected の 1 行を確かめる）。
   it("P3-CC-T11 acceptance / AC07: U-W writes one capacityRejected for the count mark and for the byte mark", () => {
     const partialMaterial = decodeFixture("15_16_02_251222_VPWW57", "VPWW57");
-    const protectedPartials = Array.from({ length: 128 }, (_, index) => snapshot("normal", "VPWW55", `office-${index}`,
+    const protectedPartials = Array.from({ length: 384 }, (_, index) => snapshot("normal", "VPWW55", `office-${index}`,
       `2020-06-21T${String(index % 24).padStart(2, "0")}:00:00+09:00`, `partial-${index}`));
     const rejected = (inputId: string) => [{ level: "WARN", component: "weather-current", reason: "capacityRejected", unit: "U-W", inputId }];
     const counted = receive({ ...emptyState(), partials: protectedPartials }, partialMaterial);
     expect(counted.state.unavailable[0]?.reason).toBe("capacityExceeded");
     expect(counted.diagnostics).toEqual(rejected(partialMaterial.inputId));
-    const current = snapshot("normal", "VPWS50", "気象庁", "2026-09-06T10:00:00+09:00", "current");
-    const history = { subject: current.subject, operation: current.operation,
-      reports: [snapshot("normal", "VPWS50", "気象庁", "2026-09-05T10:00:00+09:00", "history-1"),
-        snapshot("normal", "VPWS50", "気象庁", "2026-09-05T11:00:00+09:00", "history-2")] };
-    const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W",
-      generation: value.persistence.currentGeneration, capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
-    }).byteLength;
-    const base: WeatherCurrentUnitState = { ...emptyState(), national: { normal: { ...current, phenomena: { padding: "" } } }, histories: [history] };
-    const full = { ...base, national: { normal: { ...current, phenomena: { padding: "x".repeat(LIMIT - envelopeSize(base) - 100) } } } };
-    const candidate = decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after", "VPWS50", (xml) => bodyWarning(xml), "byte-new");
-    const byBytes = receive(full, candidate);
-    expect(byBytes.state.unavailable).toEqual([expect.objectContaining({ reason: "capacityExceeded" })]);
-    expect(byBytes.diagnostics).toEqual(rejected("byte-new"));
+    // P3-UWC-AC03: normal の履歴は器のために外れるので、byte の印は外せる物の無い場面で見る（normal の partial が器を占める）。
+    const current = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T10:00:00+09:00", "current");
+    const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration, capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength;
+    const filled = (value: WeatherCurrentUnitState, margin: number): WeatherCurrentUnitState => ({ ...value, partials: [{ ...current, phenomena: { padding: "x".repeat(LIMIT - envelopeSize(value) - margin) } }] });
+    const base: WeatherCurrentUnitState = { ...emptyState(), partials: [{ ...current, phenomena: { padding: "" } }] };
+    const full = filled(base, 100);
+    expect([full.histories, full.national]).toEqual([[], {}]); // 全国報は初報で、外せる normal の履歴も前の版も無い → 印も入らない最終段の拒否
+    const byBytes = receive(full, decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after", "VPWS50", (xml) => bodyWarning(xml), "byte-new"));
+    expect([byBytes.state, byBytes.decisions, byBytes.diagnostics]).toEqual([full, [expect.objectContaining({ decision: "capacityExceeded" })], rejected("byte-new")]);
+    // 容量の unavailable が器に入る場面: 前の版（約 2 KB）を lastKnown に持ったまま入り、capacityRejected は 1 行（unit の容量の unavailable の段）。
+    const previous = { ...snapshot("normal", "VPWS50", "気象庁本庁", "2019-01-01T00:00:00+09:00", "previous"), phenomena: { padding: "x".repeat(2_000) } };
+    const byUnavailable = receive(filled({ ...base, national: { normal: previous } }, 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + 100_000), decodeFixture("15_18_01_250630_VPWS50", "VPWS50"));
+    expect([byUnavailable.state.unavailable.map((item) => [item.reason, item.lastKnown?.source.inputId]), byUnavailable.diagnostics]).toEqual([[["capacityExceeded", "previous"]], rejected("15_18_01_250630_VPWS50")]);
   });
 
   it("P2-A5-T09 contractBoundary / AC11: normal evicts oldest non-normal count entries atomically", () => {
@@ -743,10 +743,10 @@ describe("P2 weather-current unit", () => {
       (xml) => bodyWarning(xml), "normal-new");
     const accepted = receive(state, candidate);
     expect(accepted.decisions[0].decision).toBe("changed");
-    expect(accepted.displayChanges).toHaveLength(1);
-    expect(accepted.displayChanges[0].before?.unit === "U-W" && accepted.displayChanges[0].before.current).toBe(current);
-    expect(accepted.displayChanges[0].after?.unit === "U-W" && accepted.displayChanges[0].after.current)
-      .toBe(accepted.state.national.normal);
+    // P3-UWC-AC05 (2): 表示の行は報の subject の監視の行と府県の行（府県の行は新しい全国報の公開形）。
+    expect(accepted.displayChanges.filter((change) => change.subject === current.subject)).toHaveLength(1);
+    expect(accepted.displayChanges.filter((change) => change.subject !== current.subject).every((change) => change.after?.unit === "U-W"
+      && change.after.current?.source === accepted.state.national.normal?.source)).toBe(true);
     expect(accepted.state.histories.flatMap((item) => item.reports).map((item) => item.source.inputId))
       .toEqual(["old-test", "current"]);
     expect(accepted.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",
@@ -771,31 +771,31 @@ describe("P2 weather-current unit", () => {
       "training-cancel")).state.unavailable).toMatchObject([{ operation: "training", reason: "historyUnavailable" }]);
 
     const partialMaterial = decodeFixture("15_16_02_251222_VPWW57", "VPWW57");
-    const fullPartials = Array.from({ length: 128 }, (_, index) => snapshot(index === 0 ? "training" : "normal",
+    const fullPartials = Array.from({ length: 448 }, (_, index) => snapshot(index < 64 ? "training" : "normal",
       "VPWW55", `office-${index}`, `2020-06-21T${String(index % 24).padStart(2, "0")}:00:00+09:00`, `partial-${index}`));
-    const partialAdmission = receive({ ...emptyState(), partials: fullPartials }, partialMaterial);
-    expect(partialAdmission.state.partials).toHaveLength(128);
+    const partialAdmission = receive({ ...emptyState(), partials: fullPartials }, decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => withOperation(xml, "training"), "training-partial"));
+    expect(partialAdmission.state.partials).toHaveLength(448); // P3-UWC-AC01: training・test の 64 件目の後は最古の training を退去
     expect(partialAdmission.state.partials.some((item) => item.source.inputId === "partial-0")).toBe(false);
     expect(partialAdmission.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",
       reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
-    const protectedPartials = fullPartials.map((item) => ({ ...item, operation: "normal" as const,
-      subject: item.subject.replace(/^training\//, "normal/"), source: { ...item.source, operation: "normal" as const,
-        subject: item.source.subject.replace(/^training\//, "normal/") } }));
+    // normal の 384 件の満杯では、新しい normal の subject は退去させずに容量の unavailable（P3-UWC-AC01）。
+    const protectedPartials = fullPartials.slice(64);
+    expect(protectedPartials.every((item) => item.operation === "normal")).toBe(true);
     expect(receive({ ...emptyState(), partials: protectedPartials }, partialMaterial).state.unavailable[0]?.reason)
       .toBe("capacityExceeded");
 
     const partialCurrent = snapshot("normal", "VPWW57", "京都地方気象台", "2020-06-22T22:59:00+09:00", "partial-current");
-    const partialReports = Array.from({ length: 8 }, (_, index) => snapshot(index % 2 ? "test" : "training",
+    const partialReports = Array.from({ length: 2 }, (_, index) => snapshot(index % 2 ? "test" : "training",
       "VPWW57", "京都地方気象台", `2020-06-22T22:${String(40 + index).padStart(2, "0")}:00+09:00`, `partial-history-${index}`));
     const partialHistoryState: WeatherCurrentUnitState = { ...emptyState(), partials: [partialCurrent], histories:
       (["training", "test"] as const).map((operation) => ({ subject: `${operation}/VPWW57/京都地方気象台`, operation,
         reports: partialReports.filter((item) => item.operation === operation) })) };
     const partialHistoryAdmission = receive(partialHistoryState, partialMaterial);
-    expect(partialHistoryAdmission.state.histories.flatMap((item) => item.reports)).toHaveLength(8);
+    expect(partialHistoryAdmission.state.histories.flatMap((item) => item.reports)).toHaveLength(2); // P3-UWC-AC02: 深さ 2
     expect(partialHistoryAdmission.state.histories.flatMap((item) => item.reports)
       .some((item) => item.source.inputId === "partial-history-0")).toBe(false);
     expect(partialHistoryAdmission.state.unavailable).toEqual([]);
-    // Partial history depth 8 all normal: the oldest normal report rotates out silently.
+    // Partial history depth 2 all normal: the oldest normal report rotates out silently.
     const normalPartialReports = partialReports.map((item) => ({ ...item, operation: "normal" as const,
       subject: partialCurrent.subject, source: { ...item.source, operation: "normal" as const, subject: partialCurrent.subject } }));
     const normalPartialRotation = receive({ ...emptyState(), partials: [partialCurrent],
@@ -837,11 +837,11 @@ describe("P2 weather-current unit", () => {
       expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(refusedMonitor.state)).kind).toBe("restored");
     }
 
-    const fullNormalHistory = { subject: current.subject, operation: current.operation,
-      reports: [snapshot("normal", "VPWS50", "気象庁", "2026-09-05T10:00:00+09:00", "history-1"),
-        snapshot("normal", "VPWS50", "気象庁", "2026-09-05T11:00:00+09:00", "history-2")] };
+    // P3-UWC-AC03: normal の履歴は器のために外れるので、lastKnown を落とす場面は外せない normal の partial が器を占めるときに作る。
+    const padded = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T09:00:00+09:00", "padded");
+
     // Third review R1: a count-refused input cannot evict a training base for byte space.
-    // History depth never refuses, so the count refusal left is the all-normal partial128 subject limit.
+    // History depth never refuses, so the count refusal left is the all-normal partial 384 subject limit.
     const refusedBase: WeatherCurrentUnitState = { ...emptyState(), national: {
       training: { ...trainingBase, phenomena: { padding: "" } } }, partials: protectedPartials };
     const refusedFull = { ...refusedBase, national: {
@@ -860,11 +860,11 @@ describe("P2 weather-current unit", () => {
 
     // Third review R2: an unsavable lastKnown is dropped so the unavailable record still persists.
     const normalBase: WeatherCurrentUnitState = { ...emptyState(),
-      national: { normal: { ...current, phenomena: { padding: "" } } }, histories: [fullNormalHistory] };
-    const normalFull = { ...normalBase, national: { normal: { ...current,
-      phenomena: { padding: "x".repeat(LIMIT - envelopeSize(normalBase) - 100) } } } };
+      national: { normal: { ...snapshot("normal", "VPWS50", "気象庁本庁", "2019-01-01T00:00:00+09:00", "previous"), phenomena: { padding: "x".repeat(2_000) } } }, partials: [{ ...padded, phenomena: { padding: "" } }] };
+    const normalFull = { ...normalBase, partials: [{ ...padded,
+      phenomena: { padding: "x".repeat(LIMIT - envelopeSize(normalBase) - 100) } }] };
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(normalFull)).kind).toBe("restored");
-    const droppedStep = receive(normalFull, candidate);
+    const droppedStep = receive(normalFull, decodeFixture("15_18_01_250630_VPWS50", "VPWS50")); // 前の版（小さい）を外しても新しい版（約 1.3 MB）が入らない
     expect(droppedStep.state.unavailable).toEqual([expect.objectContaining({
       reason: "capacityExceeded", lastKnown: null })]);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(droppedStep.state)).kind).toBe("restored");
@@ -1121,8 +1121,8 @@ describe("P2 weather-current unit", () => {
     const exact = receive(withPadding(padding), candidate);
     expect(exact.state.national.normal?.source.inputId).toBe(candidate.inputId);
     expect(actualBytes(exact.state) + unused).toBe(LIMIT);
-    const over = receive(withPadding(padding + 1), candidate);
-    expect(over.state.national.normal?.source.inputId).not.toBe(candidate.inputId);
+    const over = receive(withPadding(padding + 1), candidate); // P3-UWC-AC03: 1 byte 越えは normal の履歴の版を外して受ける
+    expect([over.state.national.normal?.source.inputId, over.state.histories, over.diagnostics]).toEqual([candidate.inputId, [], [{ level: "INFO", component: "weather-current", reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 }]]);
   });
 
   it("P3-WL1-T06 contractBoundary / P3-WL1-AC05: encode keeps the 16MiB payload and pending count and byte guards", () => {

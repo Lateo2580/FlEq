@@ -373,7 +373,7 @@ function addedScopes(changes: readonly RuntimeDisplayChange[]): ConfirmationScop
     if (value.unit === "U-M") return [];
     // I-U-Y.confirmationScope（P3-C14-N2）: U-Y も確認 scope を作らない。
     if (value.unit === "U-Y") return [];
-    return normalizeScopes([...(value.current == null ? [] : Object.keys(value.current.phenomena)),
+    return normalizeScopes([...value.currentScope, // P3-UWC-AC05 (2): 監視の行の報の current の鍵（府県の行は空）
       ...value.unavailable.flatMap((item) => item.affectedScope),
       // Only shown (suspect) freshness enters confirmation; older/same/unknown non-adoption raises no doubt (A5).
       ...value.freshness.filter((item) => item.freshnessSuspect).flatMap((item) => item.target.affectedScope)]).map((token) => ({

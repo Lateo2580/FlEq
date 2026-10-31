@@ -715,11 +715,11 @@ function r1(out: Out, real: readonly Frame[]): void {
   }
 }
 
-// W2 の鍵の埋め: 58 官署 × 7 family（VPWW55・57〜61・VPNO50）のうち W1 に出ていない鍵を、family ごとの公開 fixture の
-// EditorialOffice を替えた報で、W1 の最後の受信の後から 10 分ごとに 1 つずつ埋める（鍵の空間の上界 406）。
+// W2 の鍵の埋め: 58 官署 × 6 family（VPWW55・57〜61。VPNO50 は鍵を作らない、台帳 90）のうち W1 に出ていない鍵を、family ごとの公開 fixture の
+// EditorialOffice を替えた報で、W1 の最後の受信の後から 10 分ごとに 1 つずつ埋める（鍵の空間の上界 348）。
 const W2_FAMILIES: Readonly<Record<string, string>> = { VPWW55: "15_17_01_251222_VPWW55", VPWW57: "15_16_02_251222_VPWW57",
   VPWW58: "15_16_04_251222_VPWW58", VPWW59: "15_16_05_241226_VPWW59", VPWW60: "15_16_06_241226_VPWW60",
-  VPWW61: "15_16_07_250825_VPWW61", VPNO50: "18_00_01_260830_VPNO50_issue" };
+  VPWW61: "15_16_07_250825_VPWW61" };
 const OFFICE_FAMILIES = ["VPWW55", "VPWW56", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"];
 // W1 の実電文から、官署（VPWW55〜61・VPNO50 の EditorialOffice、出た順）と、出た鍵（family\u0000官署）を読む。
 function weatherKeys(real: readonly Frame[]): Readonly<{ offices: readonly string[]; keys: ReadonlySet<string> }> {

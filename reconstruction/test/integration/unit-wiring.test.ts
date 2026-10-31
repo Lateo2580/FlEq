@@ -285,15 +285,15 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const restarted = wired(settings, options);
     await startHarness(restarted, "run-2", clock(), false);
     expect(restarted.unit("U-W").partials[0].source.inputId).toBe("second");
-    expect(restarted.root.state.mirror["U-W"].view).toMatchObject({ national: {}, partials: [],
-      subjects: [expect.objectContaining({ transition: "restoredUnconfirmed", facts: expect.objectContaining({
-        currentConfirmed: false, savedCapturedAt: restarted.root.state.mirror["U-W"].persistence.savedCapturedAt,
-      }) }), expect.objectContaining({ transition: "restoredUnconfirmed" })] });
+    const uwView = () => { const view = restarted.root.state.mirror["U-W"].view; if (view.unit !== "U-W") throw new Error("U-W view expected"); return view; };
+    // P3-UWC-AC05: 復元した報は府県の行に入るが、復元して未確認の行だけの府県は active の区域を持たない。
+    expect(uwView().areas.map((item) => [item.prefecture, item.cellCount === item.restoredCellCount, item.areas.length])).toContainEqual(["26", true, 0]);
+    expect([uwView().areas.every((item) => item.cellCount === item.restoredCellCount && item.areas.length === 0), uwView().subjects.every((item) => item.transition === "restoredUnconfirmed")]).toEqual([true, true]);
     await send(restarted, "run-2", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
     expect(restarted.unit("U-W").partials[0].source.inputId).toBe("third");
     expect(restarted.root.state.mirror["U-W"].persistence.currentGeneration).toBeGreaterThan(generation);
-    expect(restarted.root.state.mirror["U-W"].view).toMatchObject({ national: {}, partials: [{ source: { inputId: "third" } }],
-      subjects: [expect.objectContaining({ transition: "restoredUnconfirmed" }), expect.objectContaining({ transition: "active" })] });
+    expect(uwView().areas.filter((item) => item.cellCount > item.restoredCellCount)).toMatchObject([{ prefecture: "26", source: { inputId: "third" } }]);
+    expect(uwView().subjects.filter((item) => item.transition === "active")).toMatchObject([{ subject: "normal/area/26" }]);
     // No caller correlation: the owner attributes the routed input, so normal shutdown saves it.
     expect((await restarted.root.shutdownRuntime(1, clock())).code).toBe(0);
     expect(slot(settings, "U-W")).toMatchObject({ kind: "restored", envelope: { generation: generation + 1 } });

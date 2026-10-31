@@ -30,7 +30,7 @@ import type { CodecMap } from "../checkpoint/checkpoint";
 import { CARD_AREAS, CARD_AREAS_BYTES, CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
 import { headlineOf, rewriteBounded, titleOf } from "../units/unreadable";
 import { boundDiagnosticDetails, boundedString, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic"; import { validInputId } from "../contracts-revision/version";
-import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit";
+import { classifyHeadType, executionPlaces, runtimeUnits } from "./unit-coverage"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import { weatherTimeseriesDetail } from "../units/weather-timeseries/weather-timeseries-unit"; import type { WeatherCurrentDetailRequest, WeatherCurrentDetailResponse } from "../../contracts/p3-uw-canon.types"; import { weatherCurrentDetail } from "../units/weather-current/weather-current-public";
 
 // P3-EXECUTION-SPLIT-001 (C3a) owner core: everything one owner does to its own units, as pure functions of
 // the owner state. The owner thread and the test path (1) call these; nothing here touches another place's units.
@@ -77,7 +77,7 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
 const noHistory = { dayKey: null, count: 0, maxInt: null, counted: [], recent: [] } as const;
 const initialUnits: RuntimeUnitStates = {
   "U-E": { schemaVersion: "p2-eew-unit-v5", contentRevision: 0, current: [], gates: [], intents: [], notices: [], unreadableNotices: [], persistence: cleanPersistence },
-  "U-W": { schemaVersion: "p2-weather-current-unit-v6", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+  "U-W": { schemaVersion: "p2-weather-current-unit-v7", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
   "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
   "U-T": { schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [], persistence: cleanPersistence },
@@ -733,10 +733,10 @@ function noticed<K extends RuntimeUnitId>(units: UnitTable, unit: K, at: Recover
 }
 
 // P3-UFP-AC06: owner の state から U-F の詳細の 1 ページを作る。U-F の関数を直接呼ぶ（Q-UFP-DETAIL-PATH）。
-function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest): WeatherTimeseriesDetailResponse {
-  const unit = state.units["U-F"];
-  if (unit == null) return { kind: "error", reason: "unavailable", revision: null };
-  return weatherTimeseriesDetail(unit, request, { contentRevision: String(unit.contentRevision) });
+function detailOwner(state: OwnerState, request: WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest): WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse {
+  // P3-UWC-AC07 (3): U-W の要求（unit で判別）は U-W の関数へ。どちらも state も期限も動かさない。
+  if ("unit" in request) { const unit = state.units["U-W"]; return unit == null ? { kind: "error", reason: "unavailable", revision: null } : weatherCurrentDetail(unit, request, { contentRevision: String(unit.contentRevision) }); }
+  const unit = state.units["U-F"]; return unit == null ? { kind: "error", reason: "unavailable", revision: null } : weatherTimeseriesDetail(unit, request, { contentRevision: String(unit.contentRevision) });
 }
 
 // P3-UM-AC11 (9)・AC14 (2): U-Y の地域を「不明＞5 日積算の高い＞低い」の順で 384 件・24,576 byte（JSON の配列の UTF-8 の長さ）に収まるまで選び、

@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "sha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -4338,7 +4338,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:2",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2» O06",
             "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-before.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -4353,7 +4353,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:3",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2» O06",
             "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-after.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -4368,7 +4368,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:4",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4382,7 +4382,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:5",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4396,8 +4396,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:6",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
           ]
         },
         {
@@ -4411,8 +4411,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:7",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
           ]
         },
         {
@@ -4426,8 +4426,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:8",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
           ]
         },
         {
@@ -4456,7 +4456,7 @@
           "operationExpected": "normal",
           "expectedRef": "expected:O06:10",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2» O06",
             "L2: test/fixtures/15_16_02_251222_VPWW57.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -4471,7 +4471,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:11",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4485,7 +4485,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:12",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4499,7 +4499,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:13",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4513,7 +4513,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:14",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4527,7 +4527,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:15",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4541,7 +4541,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:16",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4555,7 +4555,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:17",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4569,7 +4569,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:18",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4583,7 +4583,7 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:19",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4597,8 +4597,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:20",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4612,8 +4612,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:21",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4627,8 +4627,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:22",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4642,8 +4642,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:23",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4657,8 +4657,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:24",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4672,8 +4672,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:25",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4687,8 +4687,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:26",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4702,8 +4702,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:27",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4717,8 +4717,8 @@
           "operationExpected": "normal",
           "expectedRef": "unmet:O06:28",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
           ]
         },
         {
@@ -4732,7 +4732,7 @@
           "operationExpected": null,
           "expectedRef": "expected:O06:29",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
             "L1: docs/specs/reconstruction-p0-contracts.md:670 «ee40afa10067ef54»",
             "L2: test/fixtures/standby-persistence/operational-v2.json:2 «ab1fe1a5e05bf3c7» 旧形式入力の実体。移行後の新築出力を根拠にしない"
           ]
@@ -4748,7 +4748,7 @@
           "operationExpected": null,
           "expectedRef": "unmet:O06:30",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
             "L1: docs/specs/reconstruction-p0-contracts.md:670 «ee40afa10067ef54»"
           ]
         },
@@ -4763,8 +4763,8 @@
           "operationExpected": null,
           "expectedRef": "expected:O06:31",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
           ]
         }
       ]
@@ -16980,7 +16980,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2» O06",
         "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-before.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": {
@@ -17017,7 +17017,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2» O06",
         "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-after.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": {
@@ -17054,7 +17054,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWS50 気象庁、EventID空、Serial=3、ReportDateTime=2026-09-06T10:02。前版と異なる合法区域状態。",
@@ -17089,7 +17089,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWS50 気象庁、EventID空、Serial=4、ReportDateTime=2026-09-06T10:03。前版と異なる合法区域状態。",
@@ -17122,8 +17122,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
       ],
       "input": {
         "required": "VPWS50 気象庁、取り消す版Serial=4のInfoType取消、ReportDateTimeは対応版より後で単調増加。対象版の指定規則はQ-REV。 発表時刻=2026-09-06T10:04:00+09:00。",
@@ -17156,8 +17156,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
       ],
       "input": {
         "required": "VPWS50 気象庁、取り消す版Serial=3のInfoType取消、ReportDateTimeは対応版より後で単調増加。対象版の指定規則はQ-REV。 発表時刻=2026-09-06T10:05:00+09:00。",
@@ -17190,8 +17190,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
       ],
       "input": {
         "required": "VPWS50 気象庁、取り消す版Serial=2のInfoType取消、ReportDateTimeは対応版より後で単調増加。対象版の指定規則はQ-REV。 発表時刻=2026-09-06T10:06:00+09:00。",
@@ -17216,7 +17216,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
       ],
       "input": {
-        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: partial履歴8",
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: partial履歴2",
         "acquisition": "synthetic"
       },
       "checks": [
@@ -17248,7 +17248,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2» O06",
         "L2: test/fixtures/15_16_02_251222_VPWW57.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -17282,14 +17282,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:01:00+09:00。版2、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17317,14 +17317,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:02:00+09:00。版3、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17352,14 +17352,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:03:00+09:00。版4、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17387,14 +17387,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:04:00+09:00。版5、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17422,14 +17422,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:05:00+09:00。版6、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17457,14 +17457,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:06:00+09:00。版7、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17492,14 +17492,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:07:00+09:00。版8、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17527,14 +17527,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:08:00+09:00。版9、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17562,14 +17562,14 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "VPWW57、初報と同じ京都官署、EventID/Serial空、ReportDateTime=2020-06-22T23:09:00+09:00。版10、所有現象に小さい合法差分。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "current1+partial履歴8。9版目で上限一致、10版目で最古履歴を回収。他官署に影響0。"
+        "current1+partial履歴2。3版目で上限一致、4版目で最古履歴を回収。他官署に影響0。"
       ]
     },
     {
@@ -17595,8 +17595,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版10を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:20:00+09:00、EventID/Serial空。",
@@ -17629,8 +17629,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版9を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:21:00+09:00、EventID/Serial空。",
@@ -17663,8 +17663,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版8を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:22:00+09:00、EventID/Serial空。",
@@ -17697,8 +17697,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版7を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:23:00+09:00、EventID/Serial空。",
@@ -17731,8 +17731,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版6を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:24:00+09:00、EventID/Serial空。",
@@ -17765,8 +17765,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版5を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:25:00+09:00、EventID/Serial空。",
@@ -17799,8 +17799,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版4を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:26:00+09:00、EventID/Serial空。",
@@ -17833,8 +17833,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版3を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:27:00+09:00、EventID/Serial空。",
@@ -17867,8 +17867,8 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»"
       ],
       "input": {
         "required": "同VPWW57/京都官署の版2を取消。発表時刻23:20以降を単調に進め、取消対象を明示。 ReportDateTime=2020-06-22T23:28:00+09:00、EventID/Serial空。",
@@ -17889,7 +17889,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
         "L1: docs/specs/reconstruction-p0-contracts.md:670 «ee40afa10067ef54»",
         "L2: test/fixtures/standby-persistence/operational-v2.json:2 «ab1fe1a5e05bf3c7» 旧形式入力の実体。移行後の新築出力を根拠にしない"
       ],
@@ -17912,7 +17912,7 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
         "L1: docs/specs/reconstruction-p0-contracts.md:670 «ee40afa10067ef54»"
       ],
       "input": {
@@ -17934,11 +17934,11 @@
       "intents": false,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»"
       ],
       "input": {
-        "required": "P2新築U-W stateを試験コードで生成する。全国base1/履歴2、partial128以下/各履歴8、所有現象、watermark、取消tombstone、operation、出典、固定時計を明示する。",
+        "required": "P2新築U-W stateを試験コードで生成する。全国base1/履歴2、partialはnormal 384以下・training/test合算64以下/各履歴2、所有現象、watermark、取消tombstone、operation、出典、固定時計を明示する。",
         "acquisition": "test harness state builder; fixture追加なし"
       },
       "checks": [

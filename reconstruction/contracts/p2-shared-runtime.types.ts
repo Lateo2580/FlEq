@@ -8,8 +8,8 @@ import type {
 import type { EewCurrent, EewInput, EewUnitState, EewUnitStep } from "./p2-eew-unit.types";
 import type { EewUnitView } from "./p2-eew-unit.types";
 import type { NotificationDeliveryState, NotificationPriorityGroup, NotificationSelection } from "./p2-notification-delivery.types";
-import type { WeatherCurrentInput, WeatherCurrentSnapshot, WeatherCurrentUnitState, WeatherCurrentUnitStep } from "./p2-weather-current-unit.types";
-import type { WeatherCurrentUnitView } from "./p2-weather-current-unit.types";
+import type { WeatherCurrentInput, WeatherCurrentUnitState, WeatherCurrentUnitStep } from "./p2-weather-current-unit.types";
+import type { WeatherCurrentUnitView } from "./p2-weather-current-unit.types"; import type { WeatherCurrentPublicArea, WeatherCurrentPublicUnavailable } from "./p3-uw-canon.types";
 import type { WeatherTimeseriesInput, WeatherTimeseriesPublicSubject, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep } from "./p2-weather-timeseries-unit.types";
 import type { WeatherTimeseriesUnitView } from "./p2-weather-timeseries-unit.types";
 import type { TsunamiForecastSubject, TsunamiInput, TsunamiObservationSubject, TsunamiUnitState, TsunamiUnitStep, TsunamiUnitView } from "./p3-tsunami-unit.types";
@@ -210,8 +210,8 @@ export type RuntimeDisplaySubject = Readonly<{
   subjects: readonly SubjectOutcome[];
 }> & (
   | Readonly<{ unit: "U-E"; current: (EewCurrent & Readonly<{ eventId: string; warningClass: "forecast" | "warning" }>) | null }>
-  | Readonly<{ unit: "U-W"; current: WeatherCurrentSnapshot | null;
-      unavailable: WeatherCurrentUnitState["unavailable"]; freshness: readonly FreshnessRecord[] }>
+  | Readonly<{ unit: "U-W"; current: WeatherCurrentPublicArea | null; currentActive: boolean; currentScope: readonly string[]; // P3-UWC-AC05 (2): 府県の行か報の subject の監視の行
+      unavailable: readonly WeatherCurrentPublicUnavailable[]; freshness: readonly FreshnessRecord[] }>
   | Readonly<{ unit: "U-F"; current: WeatherTimeseriesPublicSubject | null }>
   | Readonly<{ unit: "U-T"; current: MarkViewed<TsunamiForecastSubject | TsunamiObservationSubject> | null }>
   // I-U-Q.view: subject は event の鍵か長周期の subject。

@@ -273,10 +273,10 @@ const ROWS: readonly Row[] = [
   // 発注 4b-2（Q-REC-PRECHECK-8 の N5）: U-W の記録に時間の期限は無い（intent の期限だけ）ので期限の列を持たない。live に稚内の partial と、その読めない
   // 新しい版の freshnessSuspect の行を置き、候補は全国の VPWS50 と京都の partial（差分の関数が見せる行を落とすと参照の照合で落ちる）。履歴の無い取消は
   // historyUnavailable の unavailable で行が残る。
-  { unit: "U-W", adopted: ["normal/VPWS50/気象庁", "normal/VPWW57/京都地方気象台"], raise: false,
-    updated: { "normal/VPWW57/京都地方気象台": B }, updateSent: 0,
+  { unit: "U-W", adopted: ["normal/VPWS50/気象庁", "normal/VPWW57/京都地方気象台", ...["01", "05", "06", "07", "15", "16", "17", "18", "20", "26", "46", "99"].map((code) => `normal/area/${code}`)], raise: false,
+    updated: { "normal/area/26": B }, updateSent: 0,
     expired: {}, expirySent: 0,
-    cancelled: { "normal/VPWW57/京都地方気象台": B }, cancelSent: 0,
+    cancelled: { "normal/VPWW57/京都地方気象台": B, "normal/area/26": GONE }, cancelSent: 0,
     expiry: null,
     seed: () => [{ type: "VPWW58", xml: fixture("15_16_04_251222_VPWW58") },
       { type: "VPWW58", xml: reportAt(fixture("15_16_04_251222_VPWW58"), "23:01").replace(/(<Body[\s\S]*?<Status>)[^<]*(<\/Status>)/, "$1未知$2") }],
@@ -314,7 +314,7 @@ async function adopt(row: Row, t: Run, cut = false) {
   // H27: 引上げのある unit だけ、採用の step で取り直しの印つきの通知が desktop と sound に 1 件ずつ。
   expect(t.sentSince(sentMark, row.unit)).toEqual(row.raise ? [["desktop", true], ["sound", true]] : []);
   // (5) 1: 採用の返信の生の差分は、取り直しで足した鍵だけが before=null で入る（空でない live の記録は動かない）。
-  expect(rawChanges(reply.output.displayChanges)).toEqual(Object.fromEntries(row.adopted.map((key) => [key, NEW])));
+  expect(rawChanges(reply.output.displayChanges)).toEqual(Object.fromEntries(row.adopted.map((key) => [key, key === "normal/area/01" ? B : NEW]))); // U-W の府県 01 は live の稚内と重なる（Q-UWC-EXISTING-TESTS）
   expectProjection(t);
   return reply;
 }

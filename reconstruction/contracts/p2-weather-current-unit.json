@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "1510f75cd8b3bd3aa05b77fc6e08274d01f13436bff2181bb6e3cb8d04aa46d5",
+    "sha256": "9137338f658227a373e3f14250ff567ffd74476c5d190c43a0b8299ee0f24336",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
+    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -41,7 +41,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "作者裁定R11=A（Issue #21）。再レビュー指摘3: 統合担当判断でbyte境界にも適用。履歴上限を深さとして押し出す規則と、training/testがnormalだけの満杯履歴に当たったら前版を積まずに受理する規則は2026-09-30 作者裁定A（統合担当案、A10実走で発見したE13違反の修正）",
-        "reason": "全国baseのoperation間置換を防ぎ、履歴2・partial128・partial履歴8の合算上限とnormal優先を両立する。全国base不変の例外はnormal受理に必要な16MiB容量退去に限定する"
+        "reason": "全国baseのoperation間置換を防ぎ、全国履歴2（三区分合算）・partialのnormal 384とtraining/test合算64の別の上限・partial履歴2（官署×familyごとの三区分合算）とnormal優先を両立する（partialの上限と履歴はP3-UW-CANON-001で改訂）。全国base不変の例外はnormal受理に必要な16MiB容量退去に限定する"
       },
       {
         "id": "P2-A5-QENUM",
@@ -81,7 +81,7 @@
         "reasonTable": [
           {
             "reason": "capacityExceeded",
-            "trigger": "AC11のnormal保護admission後も、正当なnewer報の同一scopeを16MiBまたはpartial subject上限128内に保存できない。履歴深さ（全国2/partial8）の上限は押し出しで受理し、capacityExceededにしない",
+            "trigger": "AC11のnormal保護admission後も、正当なnewer報の同一scopeを16MiBまたはnormalのpartial subject上限384内に保存できない（training/testは合算64の中の最古を退去して受ける、P3-UW-CANON-001）。履歴深さ（全国2/partial2）の上限は押し出しで受理し、capacityExceededにしない",
             "scope": "operation/family/subjectとnationalまたはpartial、partialではofficeも含む",
             "source": "容量超過を起こしたnewer ReportRef（null禁止）",
             "lastKnown": "同じscopeの直前WeatherCurrentSnapshot。無ければnull。AC11の16MiB縮退でnullへ落とす場合を除く。currentや通知根拠として再利用しない",
@@ -89,7 +89,7 @@
           },
           {
             "reason": "historyUnavailable",
-            "trigger": "正当なnewer取消・復元要求の対象版が全国2/partial8の保持履歴外で復元不能",
+            "trigger": "正当なnewer取消・復元要求の対象版が全国2/partial2の保持履歴外で復元不能",
             "scope": "取消・復元対象のoperation/family/subjectとnationalまたはpartial/office",
             "source": "対象外履歴を要求したnewer ReportRef（null禁止）",
             "lastKnown": "要求前に同scopeで最後に確認できたWeatherCurrentSnapshot。無ければnull",
@@ -191,7 +191,7 @@
   "contract": {
     "contractId": "P2-WEATHER-CURRENT-UNIT-001",
     "mode": "implementation",
-    "objective": "M06をI-U-Wとして閉じ、全国baseはoperation別1（合算3）/履歴は合算2、partial128/履歴8、所有現象、freshness target、取消復元、16MiBを復元・保存障害・構造oracleまで固定する。（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+    "objective": "M06をI-U-Wとして閉じ、全国baseはoperation別1（合算3）/履歴は合算2、partialはnormal 384・training/test合算64/履歴2（P3-UW-CANON-001で改訂）、所有現象、freshness target、取消復元、16MiBを復元・保存障害・構造oracleまで固定する。（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
     "baseOid": "5b964cafb38c1f78493e1d693d3003c6637d6da5",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -303,15 +303,15 @@
       {
         "id": "P2-A5-RET-03",
         "target": "partial subjects",
-        "limit": 128,
-        "unit": "subjects, normal/training/test combined",
+        "limit": 384,
+        "unit": "normal subjects; training/test subjects have a separate combined limit of 64, and neither counts toward the other (P3-UW-CANON-001 P3-UWC-RES-01・RES-02)",
         "source": "§4.5"
       },
       {
         "id": "P2-A5-RET-04",
         "target": "partial history",
-        "limit": 8,
-        "unit": "reports per subject stream, normal/training/test combined",
+        "limit": 2,
+        "unit": "reports per office×family stream, normal/training/test combined (P3-UW-CANON-001 P3-UWC-RES-03)",
         "source": "§4.5"
       }
     ],
@@ -355,7 +355,7 @@
         "id": "P2-A5-AC01",
         "requirement": "familyTable/xmlBoundary/identityRule/infoTypeRuleの具体node・合法欠落・空集合・Missing/Invalidを固定順で検証する。VPWS50とVPWW55/57-61のなしStatusでCode欠落を合法、取消のBody空を合法とする。R39（2026-09-24 作者裁定、外部要件照合 I-02）の危険警報から注意報・危険警報から警報も合法な降格Statusとする。最初の一RejectionReasonで入力全体を原子的に拒否し業務state（current/gate/watermark/intent）を不変にする。FreshnessRecordだけは§7.8監視例外としてfreshnessRuleに従う",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:395 «abdd56dcc1171152»",
+          "docs/specs/reconstruction-p0-contracts.md:395 «751ec1969e0fa655»",
           "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»"
         ]
@@ -378,9 +378,9 @@
       },
       {
         "id": "P2-A5-AC04",
-        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v5（P3-NOTICE-LEDGER-001で上げた版。intentの型にlastAttempt・replayed・priorityGroupを足した、P3-NL-AC15の(1)）の唯一のcodecを用い、全国baseはoperation別1（合算3）、全国履歴2・partial128・partial履歴8は既存の三区分合算上限、16MiBを維持する。decodeはnationalのkeyがnormal/training/testのいずれかで、各WeatherCurrentSnapshot.operationがkeyと一致することを検証し、不一致・未知key・旧単一slot/nullはinvalidとして正常stateへ昇格しない。容量超過はAC11のadmission判定後に理由付きunavailableにする P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する（P3-NOTICE-LEDGER-001の後は終端のintentを残さず、保存するのはpendingだけ、P3-NL-AC05）。（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v7（P3-UW-CANON-001で上げた版。欄はv6と同じで件数と深さの上限だけを変え、新築の保存は初期化する、P3-UWC-AC08）の唯一のcodecを用い、全国baseはoperation別1（合算3）、全国履歴2は三区分合算、partialはnormal 384とtraining/test合算64の別の上限、partial履歴2は官署×familyごとの三区分合算（P3-UW-CANON-001）、16MiBを維持する。decodeはnationalのkeyがnormal/training/testのいずれかで、各WeatherCurrentSnapshot.operationがkeyと一致することを検証し、不一致・未知key・旧単一slot/nullはinvalidとして正常stateへ昇格しない。容量超過はAC11のadmission判定後に理由付きunavailableにする P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する（P3-NOTICE-LEDGER-001の後は終端のintentを残さず、保存するのはpendingだけ、P3-NL-AC05）。（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
+          "docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
           "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
           "reconstruction/contracts/p2-order-plan.md:80 «a90d0d5931992b65»"
         ]
@@ -408,7 +408,7 @@
         "requirement": "O06 P2 subsetで履歴内復元、履歴不足unavailable、連続取消、取消watermark非巻戻しを確認し、保存障害・通常終了をA3結線後に再検収する。E10で他単位更新時U-W encode 0",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:793 «ed3168a4b0a98222»",
-          "docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
+          "docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
           "docs/specs/reconstruction-p0-contracts.md:2061 «aeb1275bbe737682»",
           "reconstruction/tools/corpus/sequences.json#expected:O06:31"
         ]
@@ -443,7 +443,7 @@
         "requirement": "normalの受理はtraining/testの占有で失敗しない。RET-02/04の履歴上限は深さの上限とし、上限に達した同一scope（全国は全国、partialは同一官署×family）の履歴へ前版を積むときは、最古reportをまず非normalから、無ければnormal候補に限りnormalから押し出して受理し、capacityExceededにしない。training/testの候補がnormalだけで満杯の履歴に当たった場合はnormalを押し出さず、その候補の前版を履歴に積まずに受理する（後でその版への取消が来ればQ-ENUM.reasonTableのhistoryUnavailable）。RET-03のpartial subject上限に達しているとき、normalの新規受理はtraining/testの最古partial subjectを先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのpartial subjectを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、unavailable record用の事前予約枠は設けない（世代・時刻のbyte予約はAC13に従う）。unavailable record自体が16MiBに収まらない場合はlastKnownをnullにして保存し、それでも収まらなければ既存stateを変更せずdecision=capacityExceededの決定とDiagnosticDetails.reason=capacityRejectedのWARN（P3-CURRENCY-COVERAGE-001でcheckpointEncodeFailedから替えた。件数とbyteの印の受信にも同じ1行を出す、P3-CC-AC07、配送のcommitでP3-CC-AC09により統合担当が改訂）で拒否し、例外を投げない（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-weather-current-unit.json",
-          "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
+          "docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
           "docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
         ]
       },
@@ -496,7 +496,7 @@
         "referenceIds": [
           "P2-A5-AC04"
         ],
-        "behavior": "codecと全国base区分別1（合算3）/全国履歴合算2/partial合算128/partial履歴合算8/RES-01が定める予約込み計量Bの16MiB境界（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "codecと全国base区分別1（合算3）/全国履歴合算2/partialのnormal 384・training/test合算64/partial履歴合算2/RES-01が定める予約込み計量Bの16MiB境界（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "testId": "P2-A5-T04",
@@ -548,7 +548,7 @@
         "referenceIds": [
           "P2-A5-AC11"
         ],
-        "behavior": "全byte境界はRES-01の予約込み計量Bを使う。全国履歴2・partial履歴8の各深さ上限でnormal受理が同一scopeの最古非normal report、無ければ最古normal reportを押し出して成功する。training/test受理はnormalだけで満杯の履歴からnormalを押し出さず、前版を積まずに受理し、その版への取消はhistoryUnavailableとなる。partial128ではnormal新規受理がtraining/testの最古subjectを容量退去させて成功し、normalだけで満杯ならcapacityExceeded、training/test受理はnormalを退去させない。退去診断reason=weatherCurrentCapacityEvictedを確認し、unavailable/取消を生成しない。件数に余裕があってもtraining/test占有で16MiBを超える場合、履歴→partial subject→全国baseの最古順に退去してnormalを受理する。training/test全国baseだけが超過原因の例でAC10の唯一の例外を確認する。退去後16MiB-1/一致は成功、normalだけで16MiB+1はcapacityExceededとし、training/test入力はbyte境界でもnormalを退去させない。unavailable自体が収まらなければlastKnownを落として保存し、なお収まらなければstate不変のdecision=capacityExceededで拒否する（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "全byte境界はRES-01の予約込み計量Bを使う。全国履歴2・partial履歴2の各深さ上限でnormal受理が同一scopeの最古非normal report、無ければ最古normal reportを押し出して成功する。training/test受理はnormalだけで満杯の履歴からnormalを押し出さず、前版を積まずに受理し、その版への取消はhistoryUnavailableとなる。partialはnormal 384・training/test合算64の別の上限で（P3-UW-CANON-001）、normalの新規受理はnormalが384件なら何も退去させずcapacityExceeded（容量のunavailable）、training/testの新規受理は合算64件ならtraining/testの最古subjectを容量退去させて成功し、どちらも相手の件数に数えず、normalを退去させない。退去診断reason=weatherCurrentCapacityEvictedを確認し、unavailable/取消を生成しない。件数に余裕があってもtraining/test占有で16MiBを超える場合、履歴→partial subject→全国baseの最古順に退去してnormalを受理する。training/test全国baseだけが超過原因の例でAC10の唯一の例外を確認する。退去後16MiB-1/一致は成功、normalだけで16MiB+1はcapacityExceededとし、training/test入力はbyte境界でもnormalを退去させない。unavailable自体が収まらなければlastKnownを落として保存し、なお収まらなければstate不変のdecision=capacityExceededで拒否する（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
       },
       {
         "testId": "P2-A5-T10",
@@ -663,7 +663,7 @@
         "requiredEvidence": [
           "新fixture仕様: route=telegram.weather、headType=VPWS50とVPWW55/57-61、EventIDは各原報の合法値、同一subjectで同ReportDateTime/Serialだが内容差分を持つ実訂正、receivedAtは原報以後に固定、期待はrevisionOnlyまたはsemanticの裁定値と連続取消対象版",
           "取得元・取得日時・元XML hash。syntheticは作らない",
-          "全国2/partial8の各版tupleと復元current/watermarkの期待"
+          "全国2/partial2の各版tupleと復元current/watermarkの期待"
         ]
       },
       {
@@ -692,7 +692,7 @@
         "resolveBy": "U-W容量fixture作成前",
         "requiredEvidence": [
           "新fixture仕様: route=telegram.weather、headType=VPWS50/VPWW55,57-61、EventID/Serialは原報の合法値、ReportDateTime/receivedAtと官署を固定、期待はadmission後16MiB-1と一致で受理・normalだけで+1はcapacityExceededのunavailable（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
-          "最大VPWS50とpartial128/履歴8の生成条件。syntheticは作らない",
+          "最大VPWS50とpartialのnormal 384・training/test 64/履歴2の生成条件。syntheticは作らない",
           "RES-01の予約込み計量Bの三境界と実checkpoint byteとの差と超過時に古いcurrentを正常扱いしない期待",
           "byte境界fixtureはtraining/test占有を含み、件数上限未満でも総量16MiB超過となる状態を用いる。履歴→partial subject→全国baseの最古順の退去と、training/test全国baseだけの退去でnormal受理が成功する例、normalだけで16MiB+1となる拒否例、training/test受理ではnormalを退去しない例を固定する。退去後16MiB-1/一致とweatherCurrentCapacityEvictedを確認する",
           "既存のbyte境界期待は実byteからRES-01のBへ変更する。capture時のgeneration/capturedAtの桁増加を上限内で予約するためで、旧stateが実byte<=16MiBでもB>16MiBなら縮退対象となる。新しい枠・上限を足さず、計量規則はAC13と参照先を正本とする"
