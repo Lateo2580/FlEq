@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "18b3ba1f5f096c026a19ad90e111a7ce143f27fb13e182c6e6113279fe365d1d",
+    "sha256": "5ac832f6e1acdf674ab2d1bc8d5186e6fe7acfa272a75aa440c0e89c8e17f4b7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -136,12 +136,8 @@
         "B": "今のまま: training・testを外しても足りなければ、新しいnormalの報を容量のunavailable（処理できていません）にする",
         "recommended": "A",
         "provisional": "A",
-        "status": "作者の裁定待ち",
-        "ruling": "未裁定（Q-UWC-BYTE-ORDER）",
-        "blocks": [
-          "P3-UWC-AC03",
-          "P3-UWC-T08"
-        ],
+        "status": "確定（作者裁定、2026-10-31 夜）",
+        "ruling": "作者裁定 A（2026-10-31 夜、Q-UWC-AUTHOR-2）",
         "ifNotChosen": "Aを採らないと、器の近くの日に新しい報（警報を含む）が『処理できていません』になり、取消のための古い版が残る。Bを採らないと、器の近くの日に取消で戻せる深さが黙って減る（INFOの診断だけ）",
         "reason": "場面（推測の大きさ）: 全58官署が6 familyとも大きな報（1通約16 KB）を10分ごとに出し続ける日の18:20に、U-Wの保存が器の16.87 MBに届き、宇都宮のVPWW55（大雨警報）の新しい版が来る。Aでは大雨警報は画面に出て、代わりに例えば函館のVPWW58の2つ前の版が外れる。その後に函館のVPWW58の取消が続けて2回来ると、2回目は戻せず『戻せない』の印になる。Bでは大雨警報が『処理できていません』になり、警報なのでunit単位の失敗の通知が1つ鳴る（P3-CC-D-FAILNOTICE=A）。落ちる順位はAが『取消で戻すための古い版→（最後に）新しい報』、Bが『新しい報』。W1の3日の終わりの見積もりは約11 MB（推測、深さ2・348鍵）で、どちらの規則でもふだんの日は器に届かない見込み。測りはP3-UWC-AC11",
         "kind": "作者"
@@ -230,6 +226,14 @@
         "closed": "stepのoutcomes（PublishedOutcome）のfacts.phenomenaは変えない。outcomesはsnapshotのviewではなく、本契約の受入（viewの大きさ）に入らない",
         "remaining": "outcomesの大きさが問題になったら別の契約",
         "reason": "範囲を絞る"
+      },
+      {
+        "id": "Q-UWC-AUTHOR-2",
+        "status": "closed",
+        "source": "作者裁定（2026-10-31 夜、「U-Wの器が満杯の時はAでお願いします」。統合担当が判断カードと fleq-board の帯〔uw-byte〕で聞いた）",
+        "closed": "P3-UWC-D-BYTE-ORDER=A: byte の器（約 16.87 MB）が足りない normal の受理で、training・test の履歴→training・test の partial→training・test の全国のあと、新しい報を断る前に normal の履歴の最も古い版を 1 つずつ外す（取消で戻せる深さが減る）。場面（推測の大きさ）: 18:20 に保存が器に届き、宇都宮の VPWW55（大雨警報）の新しい版が来ると、大雨警報は画面に出て、代わりに例えば函館の VPWW58 の 2 つ前の版が外れ、その後に取消が続けて 2 回来ると 2 回目は『戻せない』の印になる。落ちる順位は『取消で戻すための古い版→（最後に）新しい報』",
+        "remaining": "なし",
+        "reason": "器の近くの落とす順位の作者の裁定（画面と通知の出方が変わる）"
       }
     ],
     "operationContract": {
@@ -436,7 +440,7 @@
       },
       {
         "id": "P3-UWC-AC03",
-        "requirement": "byteの縮退の順（P3-UWC-D-BYTE-ORDER、作者の裁定待ち）。器（GENERATION_BYTES、約16.87 MB）は変えない。normalの受理が器に入らないとき、今の順（training・testの履歴→training・testのpartial→training・testの全国、weather-current-unit.ts:420〜:447）で外し、それでも入らなければ、D-BYTE-ORDER=Aなら新しい報を断る前にnormalの履歴（取消のための前の版）を最も古いものから1つずつ外し（INFO weatherCurrentCapacityEvicted）、=Bなら今どおり容量のunavailable→lastKnownを落とす→最後の拒否（:469〜:500）にする。どちらでもnormalのcurrent（全国とpartial）は器のために外さない。件数で断った入力はbyteのために退去しない（今どおり、:475） 行の制約: :420〜:447の範囲で行の数を変えずに書き換える（:471以降は他の契約が引く）。裁定までは本ACの実装に着手しない",
+        "requirement": "byteの縮退の順（P3-UWC-D-BYTE-ORDER、作者裁定 A、Q-UWC-AUTHOR-2）。器（GENERATION_BYTES、約16.87 MB）は変えない。normalの受理が器に入らないとき、今の順（training・testの履歴→training・testのpartial→training・testの全国、weather-current-unit.ts:420〜:447）で外し、それでも入らなければ、D-BYTE-ORDER=Aなら新しい報を断る前にnormalの履歴（取消のための前の版）を最も古いものから1つずつ外し（INFO weatherCurrentCapacityEvicted）、=Bなら今どおり容量のunavailable→lastKnownを落とす→最後の拒否（:469〜:500）にする。どちらでもnormalのcurrent（全国とpartial）は器のために外さない。件数で断った入力はbyteのために退去しない（今どおり、:475） 行の制約: :420〜:447の範囲で行の数を変えずに書き換える（:471以降は他の契約が引く）。裁定までは本ACの実装に着手しない",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-unit.ts:420 «21fd5b83a374c887»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:443 «b309ad0ea9855890»",
