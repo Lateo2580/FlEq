@@ -1,6 +1,8 @@
 // P3-CLI-REPL-001（C18）【発注 1】: 新築の設定ファイル（spec:487、§11.5）の中身。置き場は旧築と別の directory（spec §10.2、P3-CLI-D-SETTINGS-PLACE）。
 // 旧築の key のうち互換必須の入口が使うものを、旧築と同じ名前・同じ値の形で持つ。効き先は【発注 2】【発注 3】（P3-CLI-D-KEYS）。
 import type { DmdataClassification, DmdataTestMode } from "./p3-dmdata-connect.types";
+import type { NotificationAttempt } from "./p2-notification-delivery.types";
+import type { ShutdownSummary } from "./p2-shared-runtime.types";
 
 // 旧築 src/types.ts の NotifyCategory の 18 個。値の形は旧築のまま運び、unit への読み替えと H11 の既定は【発注 2】が決める。
 export type LegacyNotifyCategory =
@@ -16,6 +18,10 @@ export type EewLogField =
 // H50・spec 16.2.1（2026-10-31 作者）: all＝全部出して「設定した地域は対象外」を添える（暫定の既定）、regionOnly＝設定した地域の情報だけを出す。
 // 何を出さなくなるかと見た目は P4 が決める。C18 は値と検査と移行だけを持つ。
 export type RegionScope = "all" | "regionOnly";
+
+// 【発注 2】16.2.2 の条件 1 つ（P3-CLI-D-O2-MUTE）。FleqSettings の muteRules?: readonly MuteRule[] は実装が足す（AC17 の (1)）: その分野の通知のうち、音の段が level 以上のもの（normal < warning < critical）。
+// 段は各 unit の intent の payload.level で、震度や階級を読み直さない。info と cancel の通知はどの条件にも当たらない。
+export type MuteRule = Readonly<{ category: LegacyNotifyCategory; level: "normal" | "warning" | "critical" }>;
 
 // 設定ファイル（JSON の object 1 つ）の型。欄が無いことは「未設定」で、既定は読む側が当てる（旧築と同じ）。
 export type FleqSettings = Readonly<{
@@ -42,4 +48,45 @@ export type FleqSettings = Readonly<{
   // 自宅の市区町村（spec 16.2.1）。書いた文字をそのまま持ち、区域の対応表の契約がコードの体系と存在の検査を足す。
   region?: string;
   regionScope?: RegionScope;
+}>;
+
+// 【発注 2】B12（spec:381）の typed command。REPL の 1 行はこの型に 1 か所（parseReplLine）で変え、変えられない行は副作用の無い invalid にする。
+export type ReplCommand =
+  | Readonly<{ kind: "help"; topic: string | null; sub: string | null }>
+  | Readonly<{ kind: "commands"; query: string | null }>
+  | Readonly<{ kind: "status" }>
+  | Readonly<{ kind: "config" }>
+  | Readonly<{ kind: "notify"; action: Readonly<{ kind: "show" }> | Readonly<{ kind: "all"; enabled: boolean }>
+      | Readonly<{ kind: "category"; category: LegacyNotifyCategory; enabled: boolean | "toggle" }> }>
+  | Readonly<{ kind: "sound"; enabled: boolean | null }>
+  | Readonly<{ kind: "mute"; action: Readonly<{ kind: "show" }> | Readonly<{ kind: "off" }> | Readonly<{ kind: "for"; durationMs: number }>
+      | Readonly<{ kind: "rules"; rules: readonly MuteRule[] | "default" | null }> }>
+  | Readonly<{ kind: "retry" }>
+  | Readonly<{ kind: "display"; action: "status" | "on" | "off" }>
+  | Readonly<{ kind: "quit" }>;
+export type ReplParse = Readonly<{ kind: "empty" }> | Readonly<{ kind: "command"; command: ReplCommand }> | Readonly<{ kind: "invalid"; message: string }>;
+
+// 【発注 2】通知の門（P3-CLI-D-O2-GATE）。host は試行を adapter へ渡す直前に 1 回だけ聞き、false なら子を作らずに delivered で終える。
+export type NotificationGate = (attempt: NotificationAttempt) => boolean;
+
+export type HostStatus = Readonly<{
+  connection: "connected" | "connecting" | "disconnected";
+  // host が今持つ自分の socket の id（P3-C2-OWNERSHIP の ownSocketId）。無ければ null。
+  socketId: number | null;
+  // 最後に開いた後で続けて失敗した接続の試みの数（旧築の「再接続試行」）。
+  failedAttempts: number;
+  display: Readonly<{ port: number; clients: number }> | null;
+}>;
+
+// 【発注 2】command port（P3-CLI-D-O2-COMMAND）。startP2Host の戻り値。domain の state を変える口は持たない。
+export type HostCommandPort = Readonly<{
+  displayPort: number | null;
+  stop(): Promise<ShutdownSummary>;
+  // 切れている間だけ、待ちの timer を止めて今すぐ繋ぎ直す。繋がっている・試している・受信の待ちの片付け中・停止中は何もしない。
+  reconnect(): "started" | "connected" | "connecting" | "draining" | "stopping";
+  openDisplay(port: number): Promise<Readonly<{ kind: "opened" | "alreadyOpen"; port: number }> | Readonly<{ kind: "portInUse" | "failed" | "stopping" }>>;
+  closeDisplay(): Promise<"closed" | "notOpen">;
+  status(): HostStatus;
+  // spec:487 の 2 文目の受け手（P3-CLI-D-O2-SETTINGS-VERSION）。起動からの設定の変更の回数を INFO の診断 settingsApplied の count にする。
+  recordSettings(changes: number): void;
 }>;

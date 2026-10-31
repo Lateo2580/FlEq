@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "b3ceb9559395cf6bb4919b1f715ba4dce2a65c7fc6a2c1c674a01e03653329c7",
+    "sha256": "b53dadabc42e614e89fcc44411d0033c0b1127bc883270b5810425e093be48f9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "8fb1ecd7421843476a6ef90d72e7b3fe2f8d63a39c2e84247adb4522e4c038c7",
@@ -60,7 +60,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "C16 では繋ぎ直し（再接続）が取り直しの起点（穴 c、P3-REC-D-COALESCE）なので、retry の 1 つで火山を含む全分野の取り直しが起きる。同じ働きの入口を 2 つ持たない"
+        "reason": "C16 では繋ぎ直し（再接続）が取り直しの起点（穴 c、P3-REC-D-COALESCE）なので、retry の 1 つで火山を含む全分野の取り直しが起きる。同じ働きの入口を 2 つ持たない。【発注 2】の読み（P3-CLI-D-O2-RETRY）: retry は旧築どおり切れている間だけ繋ぎ直すので、rest の手動の取り直しは切れている間の 1 回になる。繋がっている間の取りこぼしは H41 の 10 分ごとの突き合わせ（P3-REC-AC13）が見つける"
       },
       {
         "id": "P3-CLI-D-PLACE",
@@ -126,7 +126,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "spec §10.2 は port と display token を新旧で分けよとする（:2132・:2133）。旧築の既定は 7788（src/types.ts:453）で、並走で旧築が表示を開いていると新築は必ず開けない。7789 は repo の中で使われていない番号で、旧築の隣で覚えやすい。今の host は表示の server を常に開き（host.ts:93）、渡せる bind は 127.0.0.1 か測定の 1 つの IPv4 だけ（http-sse.ts:156 は ::1 を許すが host から渡す口が無い）で、token の確かめも無い（P4）。開かない形は host.ts の 5 か所に触り、うち :589 は C17 の AC06 が anchor で引く。REPL の display on/off（発注 2）が実行中の開け閉めを host に足すので、そこで off もまとめて置き換える"
+        "reason": "spec §10.2 は port と display token を新旧で分けよとする（:2132・:2133）。旧築の既定は 7788（src/types.ts:453）で、並走で旧築が表示を開いていると新築は必ず開けない。7789 は repo の中で使われていない番号で、旧築の隣で覚えやすい。今の host は表示の server を常に開き（host.ts:93）、渡せる bind は 127.0.0.1 か測定の 1 つの IPv4 だけ（http-sse.ts:156 は ::1 を許すが host から渡す口が無い）で、token の確かめも無い（P4）。開かない形は host.ts の 5 か所に触り、うち :589 は C17 の AC06 が anchor で引く。REPL の display on/off（発注 2）が実行中の開け閉めを host に足すので、そこで off もまとめて置き換える。【発注 2】で、display が off のときの port 0 の代え（shortcut）を、host の displayPort null と実行中の開け閉め（P3-CLI-D-O2-DISPLAY、AC16）に置き換える。127.0.0.1 だけ・7789・port と token を写さないことは変えない"
       },
       {
         "id": "P3-CLI-D-SILENT",
@@ -137,7 +137,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "spec §10.2（:2135）は通知の有効化状態を新旧で分けよとし、:2408 は旧築の notify all:off・sound off を切替の手順に残す。今の host には通知を切る口が無く（host.ts:42、composition-root.ts:452 は既定で本物の adapter）、発注 1 には notify・sound を効かせる仕組みも無いので、出すと旧築との並走で通知と音が二重に出て、sound=false も守れない。B は host.ts:42 の型の行（C17 の P3-RP-AC03 が隣の :41 を引き、計画:128 の host.ts の編集順に足すことになる）と composition root に触る。spawn を使うのは adapter.ts:108 だけ。win32 の adapter は spawn しない（C17 の D-SILENT と同じ）"
+        "reason": "spec §10.2（:2135）は通知の有効化状態を新旧で分けよとし、:2408 は旧築の notify all:off・sound off を切替の手順に残す。今の host には通知を切る口が無く（host.ts:42、composition-root.ts:452 は既定で本物の adapter）、発注 1 には notify・sound を効かせる仕組みも無いので、出すと旧築との並走で通知と音が二重に出て、sound=false も守れない。B は host.ts:42 の型の行（C17 の P3-RP-AC03 が隣の :41 を引き、計画:128 の host.ts の編集順に足すことになる）と composition root に触る。spawn を使うのは adapter.ts:108 だけ。win32 の adapter は spawn しない（C17 の D-SILENT と同じ）。【発注 2】で置き換える: fleq.mjs の spawn の差し替えを外し、notify・sound・mute を通知の門（P3-CLI-D-O2-GATE、AC13）で効かせる（AC19 の (1)）"
       },
       {
         "id": "P3-CLI-D-TEST",
@@ -181,7 +181,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "host の process.once は起動の途中で登録され、:581 の最初の接続の試みの最中に来た Ctrl+C では host が自分で止まったまま正常に戻る（{ dmdata } は試みの失敗で reject しない）。CLI がそれを知らずに『受信を始めました』を出して待つと、終了 code が要約の code にならず、終わらない。startP2Host の前に登録すれば、Node の既定の即時終了も起きない。旧築も 1 回目だけが終了を始め、後の要求を無視した（src/engine/monitor/shutdown.ts:189）。stop() は同じ Promise を返し（host.ts:513）、終了の期限 30 秒は host が持つので待ちは有限。C3b が C18 に送った『二度目の終了要求』（p3-execution-lifecycle.json:445）は発注 1 ではこの形で閉じ、REPL の quit・exit は発注 2"
+        "reason": "host の process.once は起動の途中で登録され、:581 の最初の接続の試みの最中に来た Ctrl+C では host が自分で止まったまま正常に戻る（{ dmdata } は試みの失敗で reject しない）。CLI がそれを知らずに『受信を始めました』を出して待つと、終了 code が要約の code にならず、終わらない。startP2Host の前に登録すれば、Node の既定の即時終了も起きない。旧築も 1 回目だけが終了を始め、後の要求を無視した（src/engine/monitor/shutdown.ts:189）。stop() は同じ Promise を返し（host.ts:513）、終了の期限 30 秒は host が持つので待ちは有限。C3b が C18 に送った『二度目の終了要求』（p3-execution-lifecycle.json:445）は発注 1 ではこの形で閉じ、REPL の quit・exit は発注 2。【発注 2】で、REPL の quit・exit・readline の close（Ctrl+C・Ctrl+D・標準入力の終わり）も同じ 1 つの終了の要求にする（P3-CLI-D-O2-QUIT、AC18）。readline が立っている間の Ctrl+C は process の SIGINT にならない（readline が close する）ので、process.on の listener は close の後の要求と SIGTERM・SIGHUP を受ける"
       },
       {
         "id": "P3-CLI-D-WRITE",
@@ -192,7 +192,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "固定の名前だと、落ちた後に残った一時 file のせいで wx が以後の書き込みを全部断る。fsync→rename→directory の sync は計画:197 の S5 と checkpoint.ts の書き込みの手順に倣う（設定は電文の保存単位ではないが、apiKey を持つ 1 つの file が電源断で空になると起動できない）。同時の書き込みを錠で止めないのは、旧築も最後の書き込みが残る形で（src/config.ts:268）、設定を書くのは利用者が打った下位コマンドだけだから。writeFileSync にするのは、writeSync の 1 回は短い書き込みで終わりうり、不完全な JSON を rename しないため。init だけ照らすのは、対話が数十秒続き、その間の別の書き込みを init の古い中身で黙って消すため（発注 1 の配送のレビューで統合担当が決めた）"
+        "reason": "固定の名前だと、落ちた後に残った一時 file のせいで wx が以後の書き込みを全部断る。fsync→rename→directory の sync は計画:197 の S5 と checkpoint.ts の書き込みの手順に倣う（設定は電文の保存単位ではないが、apiKey を持つ 1 つの file が電源断で空になると起動できない）。同時の書き込みを錠で止めないのは、旧築も最後の書き込みが残る形で（src/config.ts:268）、設定を書くのは利用者が打った下位コマンドだけだから。writeFileSync にするのは、writeSync の 1 回は短い書き込みで終わりうり、不完全な JSON を rename しないため。init だけ照らすのは、対話が数十秒続き、その間の別の書き込みを init の古い中身で黙って消すため（発注 1 の配送のレビューで統合担当が決めた）。【発注 2】で、書き込みの手順（名前・mode・fsync・rename・directory の sync・失敗の扱い）はそのままに、writeFileSync を node:fs/promises の FileHandle.writeFile に置き換え、発注 1 の set・unset・init もそれを await する。REPL の保存の順と読み直しは P3-CLI-D-O2-WRITE"
       },
       {
         "id": "P3-CLI-D-KEYS",
@@ -203,7 +203,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "移行は 1 回だけなので、発注 2・3 の key を後から足すと旧築の値（notify の分野の on/off など）をもう一度旧築の file から読み直すことになる。notify は 18 分野の bool の map のまま運び、unit の通知への読み替えと H11 の既定は発注 2 が決める（形を変えるなら、P5 の前は新築の設定を作り直してよい）"
+        "reason": "移行は 1 回だけなので、発注 2・3 の key を後から足すと旧築の値（notify の分野の on/off など）をもう一度旧築の file から読み直すことになる。notify は 18 分野の bool の map のまま運び、unit の通知への読み替えと H11 の既定は発注 2 が決める（形を変えるなら、P5 の前は新築の設定を作り直してよい）。【発注 2】で 16.2.2 の条件の欄 muteRules を足して 18 欄にする（P3-CLI-D-O2-MUTE、AC17 の (1)）。旧築に無い key なので移行で写すものは無く、P5 の前は新築の設定を作り直してよい（計画:498 の作者裁定）ので、発注 1 の設定 file は欄が増えただけでそのまま読める。config の key は 15 個のまま（muteRules は notify と同じ REPL の側。P3-CLI-D-O2-MUTE-ENTRY が B なら 16 個）"
       },
       {
         "id": "P3-CLI-D-APIKEY",
@@ -226,6 +226,163 @@
         "status": "確定（統合担当、2026-10-31 起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
         "reason": "host が投げるのは Error の message だけ（host.ts:583）で、型付きの失敗を足すと host.ts に触る（P3-CLI-D-SILENT と同じ理由で避ける）。message が変わると認証の文が『起動に失敗しました』に落ちるだけで、鍵は出ない。host の失敗を型にする契約ができたら置き換える"
+      },
+      {
+        "id": "P3-CLI-D-O2-GATE",
+        "kind": "統合担当",
+        "A": "【発注 2】notify・sound・mute の効きは通知の門 1 つで決める。host は P2HostConfig の省略可能な notificationGate（NotificationGate）を受け、RuntimeCompositionRoot の options の notificationAdapter（composition-root.ts:127、既定は :452）に、run を包んだ adapter を渡す。門が true なら今の runNotificationAttempt を呼び、false なら子を作らずに kind delivered の結果（completedAt は host の clock）を返し、INFO の診断 notificationSuppressed（unit・attemptId）を 1 件足す。abort は今の abortNotificationAttempt。門を渡さない起動（replay・測定・試験）は今と同じ。composition root・notification-delivery.ts・adapter.ts は変えない",
+        "B": "選択（selectNotificationAttempt）の前で、門が false の intent を候補から外す（composition root の notificationCalls を包む、composition-root.ts:131）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "旧築は黙らせた通知をその場で捨てた（notifier.ts:1149・:1150 の return）。A はそれと同じく、黙らせた intent をそこで終える。B は intent が pending のまま残るので、分野を on に戻した直後や mute が明けたときに TTL の内の古い通知が遅れて鳴り、sound off の間は sound の intent が全部 notificationExpired の診断になる。A の delivered は「外へ出た」の記録にはならず、印の evidence が possible になる（notice-mark.ts:77）。その結果、同じ版は後で鳴らし直さず、黙らせた報の取消は取消の通知を作る（P3-NL-AC09 の (1)、notice-mark.ts:108）。取消の通知も同じ門を通る。adapter.ts:131 の delivered と同じ道で、新しい結果の種類も型の変更も要らない。発注 1 の spawn の差し替え（P3-CLI-D-SILENT）も全部の通知をこの形の delivered にしていた。probe は adapter の probe 関数を直に呼ぶ（composition-root.ts:48）ので門を通らない"
+      },
+      {
+        "id": "P3-CLI-D-O2-CATEGORY",
+        "kind": "統合担当",
+        "A": "【発注 2】旧築の 18 分野（LegacyNotifyCategory）は、試行の unit と、subject を「/」で区切った 2 つ目（subject は <operation>/<family など>/… の形）で決める。表は AC13 の (1)。表に無い unit・区切りの試行は分野なし（分野の on/off では止めず、mute の間はどの条件にも当たらない）",
+        "B": "各 unit の intent に分野の欄を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "NotificationAttempt に分野の欄は無く（p2-notification-delivery.types.ts:14）、unit だけでは U-Q（地震情報と長周期地震動）・U-M（6 分野）・U-Y（2 分野）・U-B（気象防災速報と記録的短時間大雨）を分けられない。subject の 2 つ目は各 domain が組む（seismic.ts:234 ほか、AC13 の evidenceRefs）。B は 12 unit の intent の型と codec の版を上げる。区切りの書式が変わると門が黙って分野を取り違えるので、各 domain の subject を組む行を anchor で引き、T10 が表の各行を 1 つずつ通す"
+      },
+      {
+        "id": "P3-CLI-D-O2-MUTE",
+        "kind": "統合担当",
+        "A": "【発注 2】mute は旧築の書式（mute・mute <数><s|m|h>・mute off、settings-handlers.ts:65）で、終わりの時刻を CLI の記憶に持つ（保存しない。旧築 notifier.ts:292 と同じ）。16.2.2 の条件は MuteRule（分野と音の段）の列で、設定ファイルの muteRules に持つ。初期値は eew・earthquake・lgObservation の critical の 3 つ。mute の間は、条件のどれかに当たる試行だけを通す",
+        "B": "条件を震度・階級などの事実で書く（各 unit の intent に事実の欄を足す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "初期値の 3 つは音の段で閉じる: EEW の警報は U-E の critical（P2-EEW-UNIT-001 の Q-NOTICE の level。取消は cancel、予報は warning）、最大震度 5 弱以上と長周期地震動階級 2 以上は U-Q の critical（P3-QC-AC06 の (1)(2)。全体 MaxInt が unknown で MaxLgInt 2 の VXSE53 も critical）。段は intent の payload.level にあり、門は震度を読み直さない。B は 12 unit の intent の型と codec の版を上げ、C18 の外の契約が要る。意味差（作者に見せる）: 16.2.2 の例「震度 3 以上は鳴らす」（spec:3105）は段では書けない（U-Q は震度 1〜3 が同じ normal）。EEW の警報の最終報で危険が増していない報は normal（H06、P3-NL-AC12）で、critical の条件に当たらない（mute の間は鳴らない）。段の境目は各 unit の契約が持ち、C18 は持たない"
+      },
+      {
+        "id": "P3-CLI-D-O2-COMMAND",
+        "kind": "統合担当",
+        "A": "【発注 2】REPL の 1 行は repl.ts の parseReplLine の 1 か所で ReplCommand に変え、変えられない行は ReplParse の invalid（理由の 1 行。設定・門・host・画面の状態を変えない）にする。command の行き先は 2 つだけ: CLI が持つ通知の設定（notify・sound・muteRules と mute の終わり。門が読む）と、startP2Host の戻り値の HostCommandPort（retry・display・status・quit と設定の版）。root と unit へは渡さない（domain の state を変える command は無い）。command の期限は P3-CLI-RES-03。期限を過ぎた command は『  時間内に終わりませんでした: <入力の行>』を出して次の行を受け、後から来た結果は出さない",
+        "B": "REPL の処理が host の内部の変数を直に触る（旧築の ReplContext の形、src/ui/repl-handlers/types.ts:38）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec:381 の B12 は typed command・command port・command deadline・domain の state を直に変えないことを求める。旧築の handler は notifier・wsManager・config を直に持った。表示の server の開け閉めは listen と close の待ちで、client が切れないと close が延びうるので期限を置く（5 秒は通知の desktop の試行の期限と同じ置き値、notification-delivery.ts:25）"
+      },
+      {
+        "id": "P3-CLI-D-O2-DISPLAY",
+        "kind": "統合担当",
+        "A": "【発注 2】P2HostConfig の displayPort を number | null にし、null なら起動で表示の server を開かない。HostCommandPort の openDisplay(port) が開いて最新の snapshot と worker の値を渡し、closeDisplay が閉じる（AC16）。REPL の display on は起動で解いた port（引数＞設定＞7789）で開く。display on/off は設定ファイルに書かない（旧築の controller も書かない）。発注 1 の off（port 0、P3-CLI-D-DISPLAY の shortcut）を置き換える",
+        "B": "CLI の側で表示の server を別に起こし、host の外で開け閉めする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "今の host は startDisplayServer を起動で 1 回呼び（host.ts:92）、server の publish と setWorker を root の display へそのまま渡す（:179）。開け閉めを足すには、root へ渡す口を host が持ち、閉じている間は最新の 1 枚と値を持つだけにする要る。B は root の display の口（P2-A3-A8-LINK）を host の外へ出すことになる。開いた直後に最新の snapshot を渡すのは、次の電文の publish まで /snapshot と /events が空になるのを避けるため（http-sse の server は publish された 1 枚だけを持つ、http-sse.ts:245〜:258 の返り値）"
+      },
+      {
+        "id": "P3-CLI-D-O2-RETRY",
+        "kind": "統合担当",
+        "A": "【発注 2】retry は旧築どおり、切れている間だけ繋ぎ直す: 繋がっていれば『  既に接続中です。』で何もしない。次の試みの timer を待っている（または authRejected の後で待ちが無い）なら、timer を止めて今すぐ試みを始め『  再接続を試行中...』。試みの最中・受信の待ちの片付け中（overload）・停止中は新しい試みを始めない。繋がり直すと C16 の穴 c（composition-root.ts:1032・:1039 の recordConnected）で取り直しが起きる",
+        "B": "繋がっていても今の WS を切って繋ぎ直す（いつでも取り直しを起こす）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "旧築は接続中なら何もしない（operation-handlers.ts:225）。B は端末の返事と、画面の「取り直し中」の札と切れていた間の EEW の札（P3-REC-AC14）の出方が旧築と変わる。P3-CLI-D-VOLCANOREPAIR-REST の「rest は retry へ」は、A では切れている間の手動の取り直しになる。繋がっている間の取りこぼしは H41 の 10 分ごとの突き合わせ（P3-REC-AC13）が見つけ、C16 の取り直しは終わりから次まで最短 60 秒あける（P3-REC-D-COALESCE、p3-recovery.json:163）。試みの最中に始めないのは接続を 1 本に保つため（R57、P3-C2-OWNERSHIP）、overload の間に始めないのは mailbox の片付けを待つ決まり（host.ts の resumeIfDrained）を崩さないため"
+      },
+      {
+        "id": "P3-CLI-D-O2-QUIT",
+        "kind": "統合担当",
+        "A": "【発注 2】quit・exit・readline の close（Ctrl+C・Ctrl+D・標準入力の終わり）と SIGINT・SIGTERM・SIGHUP を、全部同じ 1 つの終了の要求（発注 1 の P3-CLI-D-SIGNAL の印と stop() の 1 本）にする。readline に SIGINT の listener を付けない。2 回目以後の要求は同じ stop() を待つだけ",
+        "B": "2 回目の Ctrl+C で待たずに終える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "C3b が C18 へ送った「CLI の終了 command・二度目の終了要求の扱い（stop() の既存の挙動は変えない）」（p3-execution-lifecycle.json:445）。旧築も readline の close を quit にし（src/ui/repl.ts:193）、2 回目以後の要求を無視した（shutdown.ts:189）。待たずに終えると最後の保存（finalCheckpoint）を飛ばす。host の終了の期限は 30 秒で待ちは有限。readline は SIGINT の listener が無いと Ctrl+C で close し、process の SIGINT は来ない（Q-CLI-O2-FACTS の (8)）"
+      },
+      {
+        "id": "P3-CLI-D-O2-WRITE",
+        "kind": "統合担当",
+        "A": "【発注 2】設定の書き込みは非同期の 1 つの手順にする（node:fs/promises の open〔flag wx・mode 0600〕→ FileHandle.writeFile → sync → close → rename → win32 以外は directory の sync。名前・失敗の扱いは P3-CLI-D-WRITE のまま）。発注 1 の set・unset・init・通常起動の移行の書き込みもそれを await する。REPL の変更は、まずメモリの通知の設定（門が読む値）に同期で当て、その後に保存を始める。保存は 1 本の列で直列にし、走っている間に来た変更は「もう 1 回要る」の印だけにして、終わった後に 1 回だけ最新のメモリの値で保存する。1 回の保存は設定ファイルを非同期に読み直し、checkSettings を通った中身に REPL の持つ欄（notify は REPL で変えた分野だけ、all:on・all:off の後は 18 分野、sound、muteRules）を重ねて書く",
+        "B": "REPL の保存も writeFileSync で書く（発注 1 の手順のまま）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "REPL は host と同じ main の thread で動き、同期の fs は host の WS の callback を待たせる（受信を待たせない、作者の指示）。2 つの保存が同時に走ると rename の遅いほうが残るので、列で直列にし、最後に rename するのが最新のメモリの値になるようにする（同じ fleq の中では最後の変更が残る）。読み直して重ねるのは、別の端末の fleq config set の欄を REPL の古い中身で消さないため。読み直しから rename までの間に入った別の書き込みは残らない（P3-CLI-D-WRITE と同じく錠ではない）。FileHandle.writeFile は全部を書き終えるまで書くので、P3-CLI-D-WRITE の「不完全な JSON を rename しない」は保てる。同じ手順の実装を 2 つ持たない。notify を変えた分野だけ書くのは、旧築の persist は 18 分野を全部書いた（notifier.ts:1187）が、そうすると既定を後で変えたとき（P3-CLI-D-O2-WEATHER-NOW の B）に、何か 1 つ切り替えた利用者へ届かなくなるため"
+      },
+      {
+        "id": "P3-CLI-D-O2-SETTINGS-VERSION",
+        "kind": "統合担当",
+        "A": "【発注 2】spec:487 の 2 文目の受け手は通知の門にする。unit は設定を読まず、decision と intent は設定で変わらない（設定が効くのは起動の 1 回の購読〔classifications・testMode〕と通知の門だけ）ので、decision と intent に設定の版を足さない。門の判断を後から説明できるように、CLI は起動の直後と REPL で通知の設定を変えるたびに HostCommandPort.recordSettings(起動からの変更の回数) を呼び、host は INFO の診断 settingsApplied（count にその回数、起動は 0）を 1 件足す。門が黙らせた試行は INFO の notificationSuppressed（P3-CLI-D-O2-GATE）。どちらも診断の file に時刻の順で並び、黙らせた試行の直前の settingsApplied がその時の設定になる",
+        "B": "NotificationIntent と各 decision に設定の版の欄を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "B は 12 unit の intent の型と codec の版を上げ（P3-NL-AC15 の (1) と同じ規模）、設定を owner の thread へ渡す口も新しく要る。診断の語は DiagnosticReason（p2-shared-runtime.types.ts の最後の行）と診断の sink の一覧（persistent-diagnostic-sink.ts の一覧の最後の行）に行を足さずに足せる。設定の中身（apiKey を含む）は診断に書かない（P3-CLI-AC05 の (8)）。今の値は REPL の config・notify・mute で見える"
+      },
+      {
+        "id": "P3-CLI-D-O2-TEXT",
+        "kind": "統合担当",
+        "A": "【発注 2】REPL の返事の文は旧築の文を色なしで写す（写す元は AC14）。旧築から変えるのは次の 4 つだけ: 色（chalk）を付けない、旧築の廃止した機能（副回線）の行を出さない、旧築に無い 16.2.2 の条件と注意文（AC15）、P3-CLI-D-O2-CRITICAL の裁定に合わない注記を出さない。CLI 表示設計 spec（C19 の前、未起草）を待たない",
+        "B": "CLI 表示設計 spec を待って文を決める",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec §11.5 は互換必須の入口の入出力例を契約にすることを求め（spec:2403）、旧築の文がその例になる。色は端末の表示（C19）の領分で、発注 1 の init も色を付けない（P3-CLI-AC07）。REPL の返事は利用者の入力への短い返事で、電文の表示の滞留の上限（B13、spec:382）の外（Q-CLI-FACTS の (7)）。CLI 表示設計 spec は電文の表示（C19）の spec で、B だと発注 2 が未起草の spec を待ち、通知と音を効かせる配送も遅れる"
+      },
+      {
+        "id": "P3-CLI-D-O2-HOST-LINES",
+        "kind": "統合担当",
+        "A": "【発注 2】host.ts は、行を足す所を :588 と :589 の間だけにする（そこへ置けるのは hoist される function の宣言だけ。notificationAdapter の包みと display の publish・setWorker の包みは、:196 の startRuntime や :579 の最初の試みの await の間、つまり :589 に着く前から呼ばれるので、読んでよいのは config・clock・root・runId と :588 より前の行で宣言した変数だけ。:588 より後で宣言した let・const を読むと ReferenceError になる）。ほかの行は中身を書き換えてよいが、行を足さず消さない。他の契約が anchor で引く host.ts の行のうち、中身を変えてよいのは :92・:93・:179・:589 の 4 行だけ（表示の server の開け閉めで変わる）。配送で統合担当がその参照 5 件（p3-uf-public.json の :92・:179、p3-pi-harness.json の :93、本契約の AC02 の :93、p3-replay-cli.json の :589）を付け直す（前例 fcaa7162）。p2-shared-runtime.types.ts と persistent-diagnostic-sink.ts は、語を足す行の末尾に足すだけで行の数を変えない",
+        "B": "host.ts を自由に書き換え、配送でずれた参照を全部付け直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-10-31 発注 2 の起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "host.ts の行を anchor で引く参照は 18 契約で 71 件ある（本契約を含む、:41〜:589）。:589 より前に行を足すと、その後ろの参照が全部ずれる。:588 と :589 の間なら、ずれるのは :589 の 1 件だけで、それは中身も変わる。1 行に複数の import や欄を並べた前例が host.ts に既にある（:19・:47）。p2-shared-runtime.types.ts の :331 より後ろの行を引く参照は 25 件あり、行を足すとずれる"
+      },
+      {
+        "id": "P3-CLI-D-O2-MUTE-ENTRY",
+        "kind": "作者",
+        "A": "【発注 2】REPL の mute に条件の下位操作を足す: mute rules（今の条件を出す）、mute rules <分野>:<段>[,<分野>:<段>…]（置き換える）、mute rules default（初期値の 3 つに戻す）、mute rules none（条件を空にする）。変えたら今の実行にすぐ効き、設定ファイルの muteRules に保存する（P3-CLI-D-O2-WRITE）。fleq config set には足さない（notify と同じく REPL の側。config の key は 15 個のまま）",
+        "B": "設定ファイルだけにする: fleq config set muteRules <分野>:<段>,…（config の key が 16 個）。実行中の fleq は設定ファイルを読み直さないので、変えた条件は次の起動から効く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定 A（2026-10-31 夕、Q-CLI-O2-AUTHOR-2）",
+        "ifNotChosen": "B を選んだら AC15 の (4) を消し、AC17 の (2) の config の key を 16 個にして muteRules の値の文字列を mute rules と同じ書き方で読み、T11 の mute rules の打鍵を config set に替える",
+        "reason": "場面: 22:00 に REPL で mute 1h を打つと、注意文に今の条件（初期値の 3 つ）が出る。A なら続けて mute rules earthquake:warning を打てば、22:05 の最大震度 4 の地震情報（U-Q の warning）がその場から鳴る。B ならその fleq を止め、別の端末で fleq config set muteRules earthquake:warning を打って起動し直すまで条件は変わらず、22:05 の報は鳴らない。16.2.2 は「注意文を見たうえで、条件を緩くも厳しくも変えられる」とし（spec:3108）、発注 1 の fleq は実行中に設定ファイルを読み直さない（P3-CLI-RES-01）。A は §11.3 の mute の行に下位操作を 1 つ足す（入口の数は増えない）。条件の書き方はどちらも P3-CLI-D-O2-MUTE（分野と音の段）"
+      },
+      {
+        "id": "P3-CLI-D-O2-CRITICAL",
+        "kind": "作者",
+        "A": "【発注 2】作者裁定 Q-CLI-O2-AUTHOR の文のとおり: 分野を off にした通知は critical でも出さない（notify all:off の後も同じ）",
+        "B": "今までの fleq と同じ: 分野を off にしても critical の通知は出す（notify all:off の後も出す）。sound off の音と、条件に当たらない mute の間の通知は止める",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定",
+        "ruling": "作者裁定 A（2026-10-31 夕、Q-CLI-O2-AUTHOR-2）",
+        "ifNotChosen": "B を選んだら AC13 の (3) の (b) に「payload.level が critical の試行は通す」を足し、AC14 の notify の一覧に旧築の注記の行を出し、T10 の分野 off の critical の期待を true にする",
+        "reason": "裁定の「分野を切ったらその分野は鳴らさない（旧築と同じ）」の括弧の前提が現物と合わない（2026-10-31 の起草で見つけた）: 今までの fleq は分野を off にしても critical の通知を出し（src/engine/notification/notifier.ts:1149）、notify の一覧にも『※ critical (特別警報級) はカテゴリ OFF でも通知』と出す（settings-handlers.ts:128）。mute は critical も止める（notifier.ts:1150）。場面: 今までの fleq で地震情報（earthquake）を off にしていた人の設定を移すと、23:10 の最大震度 5 弱の地震情報（U-Q の critical）が、A では通知も音も出ず、B では通知が出て音も鳴る（sound が on なら）。notify all:off は切替の手順で旧築の側に打つ操作で（spec:2408）、今までの fleq では all:off の後も critical の通知は出る。推奨は A: 裁定の文が分野の off と notify all:off を条件があっても黙らせると明示し、うるさい分野は分野を切らずに 16.2.2 の条件で絞る形（裁定の最後の文）とも合う"
+      },
+      {
+        "id": "P3-CLI-D-O2-WEATHER-NOW",
+        "kind": "作者",
+        "A": "【発注 2】裁定どおり weather の既定を on にして、発注 2 の配送から効かせる。今 intent を作り weather の分野に入るのは U-L（土砂災害警戒情報 VPWW56、landslide.ts:9）と U-B の VPOA50（記録的短時間大雨情報）で、どちらも今までの fleq では weather の分野で通知した（notifier.ts:573・:1117）。U-W・U-F の通知は C20 から",
+        "B": "weather の既定は C20（P3-WEATHER-NOTICE-001）の配送まで off にし、C20 の配送で on に替える（切替は C20 の起草で受ける）",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "確定",
+        "ruling": "作者裁定 B（2026-10-31 夕、Q-CLI-O2-AUTHOR-2）",
+        "ifNotChosen": "A を選んだら AC13 の (2) の weather の既定を on にし、AC20 の (3) を消す",
+        "reason": "裁定は「効くのは C20 の intent ができてから」としたが、weather の分野に入る U-L と VPOA50 は今でも intent を作る（P3-C10-NOTICE-LEVELS・P3-C12-NOTICE-LEVELS）。U-W・U-F は今 intent を作らない（Q-CLI-O2-FACTS の (6)）。場面: 移行で weather の欄が無い作者の Pi の設定では、A だと配送の日から、15:20 の土砂災害警戒情報（レベル 4）が警報の音で鳴り、レベル 2 の報も普通の音で鳴る（U-L の段は旧築の段を写したもので、H11 の「危険警報で通知、特別警報で通知と音」より前のもの）。B なら配送の日から C20 まで weather の分野は鳴らず（今までの fleq の既定と同じ）、C20 で H11 の段と一緒に on になる。weather の欄がある設定（移行で運んだ値）はどちらでもその値。推奨は B: 裁定の「C20 から効く」に時期が合い、H11 と違う段で鳴る期間を作らない"
       }
     ],
     "questionResolutions": [
@@ -281,9 +438,41 @@
         "id": "Q-CLI-O2-AUTHOR",
         "status": "closed",
         "source": "作者裁定（2026-10-31 夕、「どちらも推奨でお願いします」。統合担当が判断カードで聞いた。前例は P3-XML-READERS-001 の Q-XR-AUTHOR）",
-        "closed": "【発注 2】Q-CLI-O2-WEATHER-DEFAULT は推奨どおり入れる: 新築の既定で、気象の 11 分野のうち気象警報（旧築の weather）だけを入れる。H11（spec:3038）のとおり危険警報（L4）で通知、特別警報（L5）で通知と音。残りの 10 分野（tornado・briefing・earlyWeather・weatherWarningTimeseries・climateInfo・weatherExplanation・heatAlert・typhoonAnalysis・typhoonProbability・floodForecast）は旧築どおり既定で切る。移行で運ぶ旧築の notify に weather の欄が無い設定は新築の既定に従い、欄がある設定はその値を保つ（旧築は切替のたびに 18 分野を全部書く、src/engine/notification/notifier.ts:1187）。作者の Pi の旧築の設定は notify が地震系の 7 分野だけで weather の欄が無く（2026-10-31 夕に ssh で読んだ）、移行の後は特別警報で鳴る。効くのは C20（P3-WEATHER-NOTICE-001）の intent ができてから。Q-CLI-O2-ALWAYS-RING は推奨どおり持たない: 分野を切ったらその分野は鳴らさない（旧築と同じ）。16.2.2 の条件（初期値は EEW の警報・最大震度 5 弱以上・長周期地震動階級 2 以上、spec:3107）が鳴らすのは mute の間だけで、分野の off と notify all:off と sound off は条件があっても黙る（spec:2408 の切替の手順と同じ意味）。うるさい分野を減らすのは、分野を切らずに 16.2.2 の条件の設定で絞る形にする",
+        "closed": "【発注 2】Q-CLI-O2-WEATHER-DEFAULT は推奨どおり入れる: 新築の既定で、気象の 11 分野のうち気象警報（旧築の weather）だけを入れる。H11（spec:3038）のとおり危険警報（L4）で通知、特別警報（L5）で通知と音。残りの 10 分野（tornado・briefing・earlyWeather・weatherWarningTimeseries・climateInfo・weatherExplanation・heatAlert・typhoonAnalysis・typhoonProbability・floodForecast）は旧築どおり既定で切る。移行で運ぶ旧築の notify に weather の欄が無い設定は新築の既定に従い、欄がある設定はその値を保つ（旧築は切替のたびに 18 分野を全部書く、src/engine/notification/notifier.ts:1187）。作者の Pi の旧築の設定は notify が地震系の 7 分野だけで weather の欄が無く（2026-10-31 夕に ssh で読んだ）、移行の後は特別警報で鳴る。効くのは C20（P3-WEATHER-NOTICE-001）の intent ができてから。Q-CLI-O2-ALWAYS-RING は推奨どおり持たない: 分野を切ったらその分野は鳴らさない（旧築と同じ）。16.2.2 の条件（初期値は EEW の警報・最大震度 5 弱以上・長周期地震動階級 2 以上、spec:3107）が鳴らすのは mute の間だけで、分野の off と notify all:off と sound off は条件があっても黙る（spec:2408 の切替の手順と同じ意味）。うるさい分野を減らすのは、分野を切らずに 16.2.2 の条件の設定で絞る形にする。訂正（2026-10-31 夕、発注 2 の起草で見つけた）: 上の『分野を切ったらその分野は鳴らさない（旧築と同じ）』の括弧は誤り。旧築は分野を off にしても critical の通知を出す（src/engine/notification/notifier.ts:1149、notify の一覧の注記 src/ui/repl-handlers/settings-handlers.ts:128）。統合担当が判断カードで「旧築と同じ」と書いて聞いた。正しい前提で聞き直した裁定は Q-CLI-O2-AUTHOR-2（P3-CLI-D-O2-CRITICAL）。気象の既定がいつ効くかも Q-CLI-O2-AUTHOR-2（P3-CLI-D-O2-WEATHER-NOW）",
         "remaining": "なし（発注 2 の条文はこの 2 つを前提に起草する）",
         "reason": "発注 2 の起草を止めていた作者の問い 2 つ（画面の外の通知と音の出る・出ないが変わる選択）"
+      },
+      {
+        "id": "Q-CLI-O2-FACTS",
+        "status": "closed",
+        "source": "【発注 2】起草の版（62754359）の現物の照合（2026-10-31、作業の木 ~/dev/fleq-c18-o2-draft）",
+        "closed": "(1) 発注 1 の配送は ddc4a09e（reconstruction/cli/fleq.mjs・src/cli/cli.ts・src/cli/settings.ts・test/cli/cli.test.ts）。AC11 の spawn の差し替えは fleq.mjs の :16〜:18、off の port 0 は cli.ts:348、起動の 1 行は cli.ts:361 (2) C16 の再接続のきっかけ（穴 c）は配送済み: f0eab7c6（2026-10-28、取り直しの発注 3）。composition-root.ts:1030〜:1039 の recordConnected が、切れた後の繋がり直し（:1032 の disconnectedAt あり・socketStarted なし）で requestRecovery を呼ぶ。切断は host の close（host.ts:412〜:418）→ dispatchLost → recoveryLost（socketStarted を下ろす）。C16 の最後の json の変更は ea8ea359、閉鎖記録は ba54dc87 (3) 通知の配送の口: composition root の options の notificationAdapter（composition-root.ts:127、既定は :452）で、adapter を呼ぶのは runAttempt の 1 か所。probe は adapter の関数を直に呼ぶ（:48）。A7 の配送は bd08bb33、最後の notification-delivery/ の変更は 4dad6cb5（P3-NOTICE-LEDGER-001 発注 2）。adapter.ts:131 は exit 0 を delivered にする (4) host に表示の開け閉め・retry・status・通知の門の口は無い。server は host.ts:92 の const で、:179 で root の display へ渡り、stop の :536 で閉じる。戻り値は :589 の { displayPort, stop }。http-sse の server は clientCount と close を持つ（http-sse.ts:245・:258）。bind は 127.0.0.1・::1・測定の IPv4 だけ（:142・:156） (5) 今までの fleq は分野を off にしても critical の通知を出し（notifier.ts:1149）、mute は全部を止める（:1150）。VPOA50 などの対応電文は weather と mute だけを見る（:1117） (6) U-W・U-F は今 intent を作らない（weather-current と weather-timeseries の domain と unit に pending の intent を作る所が 0 件。P2-A6-AC03 は U-F の intent を P2 では作らないとする）。作るのは C20（計画:85）。weather の分野に入る U-L（VPWW56）と U-B の VPOA50 は作る (7) 今までの fleq の REPL: readline の close を quit にし（src/ui/repl.ts:193）、SIGINT の listener を持たない。mute の終わりは記憶だけ（notifier.ts:292・:303）。display on/off と mute は設定に書かない（controller.ts・settings-handlers.ts）。notify・sound は切替ごとに 18 分野を全部書く（notifier.ts:1187）。retry は接続中なら何もしない（operation-handlers.ts:225） (8) node の readline は SIGINT の listener が無いとき、TTY の Ctrl+C で close し、process の SIGINT は来ない（node v26.12.1 で pty 越しに Ctrl+C を送って確かめた: close が 1 回、process の SIGINT は 0 回） (9) 各 domain の subject の 2 つ目: U-Q は family（VXSE51/52/53/61、VXSE62、seismic.ts:219・:234）、U-M は tornado・VPAW51・headType（local-bulletins.ts:127・:128・:134、headType は :25 の表の 12 種と VPFT50）、U-Y は typhoonAnalysis・typhoonProbability（typhoon.ts:252）、U-B は VPBS50・VPOA50（briefing.ts:67・:73）。intent の subject は各 unit が domain の subject をそのまま使う（U-Q は seismic-unit.ts:545 の subject: candidate.subject。U-Q 自身も subject を「/」で区切って family を取る、:552。U-M・U-Y・U-B は intentsFor が候補の subject を受ける） (10) DiagnosticReason の最後の行（p2-shared-runtime.types.ts:331）と診断の sink の一覧の最後の行（persistent-diagnostic-sink.ts:65）はどちらも anchor で引かれていない。sink は一覧に無い語の行を捨てる（:107）。Record<DiagnosticReason, …> の形の使い手は 0 件",
+        "remaining": "なし",
+        "reason": "下調べの照合と依存の配送"
+      },
+      {
+        "id": "Q-CLI-O2-ANCHORS",
+        "status": "closed",
+        "source": "【発注 2】起草の版での行の参照の照合（2026-10-31、grep -rnoE と .c18o2-work/anchor.py）",
+        "closed": "(1) 起草で書き換えたのは本契約と p3-cli-repl.types.ts（独立の型の追加だけで FleqSettings は変えない。この file を行で引く参照は 0 件）だけ。起草の木に node_modules を写して tsc --noEmit -p reconstruction/tsconfig.json と tsc -p reconstruction/tsconfig.test.json を回し、どちらも rc 0（契約の commit だけで既存の src・test の型検査を壊さない） (2) 実装が変える既存の行: host.ts（P3-CLI-D-O2-HOST-LINES。:92・:93・:179・:589 の参照 5 件を配送で付け直す）、p2-shared-runtime.types.ts:331 と persistent-diagnostic-sink.ts:65（行の末尾への追加。どちらも被引用 0 件で行の数は変わらない）、cli.ts・settings.ts・fleq.mjs（本契約の発注 1 の条文は本文で行を書くが anchor で引かない。発注 2 の条文はこの 3 つと host.ts を path だけで引く）、cli.test.ts と host.test.ts（行で引く参照 0 件） (3) 本契約に足した «» 付きの参照はどれも HEAD（62754359）の今の行に一意に一致する（anchor.py で出した値をそのまま書いた）。本文の行の参照（地の文の spec:3108・notifier.ts:1149 など）も anchor.py で HEAD の行と照らした",
+        "remaining": "なし（配送の付け直しは AC20 の (2)）",
+        "reason": "anchor の保全"
+      },
+      {
+        "id": "Q-CLI-O2-LATER-RULINGS",
+        "status": "closed",
+        "source": "相手の契約の json の最後の変更と、62754359 までの git log（2026-10-31）",
+        "closed": "(1) 相手の契約の json の最後の変更は、p2-notification-delivery 3e3c63df（10-25）、p3-notice-ledger・p3-unit-q-capacity 951e3655（10-30 15:26）、p3-recovery・p3-uf-public ea8ea359（10-30 07:15）、p3-execution-lifecycle 51b21455（10-28）、p3-replay-cli 8e1d1073（10-30）、p3-pi-harness 6b5714cd（10-29）、p2-eew-unit 52da291c（10-28）、p3-seismic-unit f4076241（10-29）、U-M・U-L・U-B・U-Y の各 unit df613a93（10-29）、p2-snapshot-sse 098a9b1b（10-28）で、どれも発注 1 の起草の基点 e4f5e9d3（10-31 06:25）より前。発注 1 の配送 ddc4a09e の後の commit は 62754359（作者の問いの裁定の記録）だけ (2) 本発注の前提に効く後の裁定と読み: P3-NL-AC12（H06、EEW の最終報は normal）→ P3-CLI-D-O2-MUTE の意味差に書いた。P3-QC-AC06（H08、5 弱以上と長周期 2 以上が critical）→ 初期値の条件の根拠。P3-NL-AC09 の (1) と notice-mark.ts の evidence（delivered で possible）→ P3-CLI-D-O2-GATE の理由に書いた。P3-REC-D-COALESCE（最短 60 秒）→ P3-CLI-D-O2-RETRY (3) Q-CLI-O2-AUTHOR（62754359）の 2 つの裁定のうち、ALWAYS-RING の括弧の前提（旧築と同じ）が現物と合わない → P3-CLI-D-O2-CRITICAL（作者）。WEATHER-DEFAULT の「効くのは C20 から」は、weather の分野に入る U-L と VPOA50 が今 intent を作るので時期が合わない → P3-CLI-D-O2-WEATHER-NOW（作者） (4) 計画:83 の C18 の行の「完了: C9・C15・C16・C19」のうち、発注 2 が待つのは C16 だけ（配送済み、Q-CLI-O2-FACTS の (2)）",
+        "remaining": "P3-CLI-D-O2-CRITICAL と P3-CLI-D-O2-WEATHER-NOW の作者の裁定",
+        "reason": "後の裁定で前提が変わっていないかの確かめ"
+      },
+      {
+        "id": "Q-CLI-O2-AUTHOR-2",
+        "status": "closed",
+        "source": "作者裁定（2026-10-31 夕、「判断1から、A,A,Bでお願いします」。統合担当が判断カードで聞いた。統合担当の推奨は MUTE-ENTRY=A・CRITICAL=B・WEATHER-NOW=B、起草の推奨は A・A・B）",
+        "closed": "【発注 2】P3-CLI-D-O2-MUTE-ENTRY=A: REPL の mute に条件の下位操作（mute rules）を足し、変えた条件はその場で効かせ設定ファイルの muteRules に保存する。P3-CLI-D-O2-CRITICAL=A: 分野を off にした通知は critical でも出さない（notify all:off の後も同じ）。旧築と違う（旧築は分野が off でも critical を出す、notifier.ts:1149）ことを、判断カードで場面（旧築で地震情報を off にしていた人の設定を移すと、23:10 の最大震度 5 弱の報が通知も音も出ない）と一緒に示したうえでの裁定。この欠けは作者承認の残存リスクとする。P3-CLI-D-O2-WEATHER-NOW=B: weather の既定は C20（P3-WEATHER-NOTICE-001）の配送まで off にし、C20 の配送で on に替える（Q-CLI-O2-AUTHOR の『既定で入れる』は C20 から効く）。発注 2 から C20 までの間、weather の欄の無い設定では土砂災害警戒情報（U-L）と VPOA50（U-B）の通知は出ない（旧築の既定と同じ）",
+        "remaining": "なし（作者の分岐の残りは 0）",
+        "reason": "発注 2 の起草で出た作者の分岐 3 つ（画面の外の通知と音の出る・出ないが変わる選択）"
       }
     ],
     "operationContract": {
@@ -294,7 +483,7 @@
   "contract": {
     "contractId": "P3-CLI-REPL-001",
     "mode": "implementation",
-    "objective": "spec §11.2 の互換必須 17 行（起動の引数・config の 5 つの下位コマンド・init）、§11.3 の互換必須の REPL 18 行、§11.5 の旧築の設定の移行を、新築の CLI として作る（C18、計画 §2.1、B12・B02）。1 契約を分けて発注する（P3-CLI-D-SPLIT）: 発注 1 は起動の引数・設定ファイルの読み書き・旧築の設定の移行・H50 の地域設定の key・fleq replay の振り分け・--test・-c、発注 2 は実行中の REPL（notify・sound・mute〔H11・H46・16.2.2〕ほか）と B12 の typed command、発注 3 は C19（端末の表示）に頼る 6 つの入口、発注 4 は保留の volcanorepair（C15 と一緒に保留、P3-CLI-D-VOLCANOREPAIR）。中身まで決めたのは発注 1 で、発注 2〜4 は範囲・依存・起草時に作者へ聞く問いだけ（Q-CLI-SPLIT）。発注 1 の fleq は host を起こして終了の要求を待つだけで、REPL・端末の電文の表示・OS の通知と音を持たない（P3-CLI-D-SILENT）。設定ファイルは起動の前に 1 回だけ読み、実行中に読み直さない。旧築の設定・保存・socket・port・token・接続名と分ける（spec §10.2）。条文の【発注 n】が振り分け",
+    "objective": "spec §11.2 の互換必須 17 行（起動の引数・config の 5 つの下位コマンド・init）、§11.3 の互換必須の REPL 18 行、§11.5 の旧築の設定の移行を、新築の CLI として作る（C18、計画 §2.1、B12・B02）。1 契約を分けて発注する（P3-CLI-D-SPLIT）: 発注 1 は起動の引数・設定ファイルの読み書き・旧築の設定の移行・H50 の地域設定の key・fleq replay の振り分け・--test・-c、発注 2 は実行中の REPL（notify・sound・mute〔H11・H46・16.2.2〕ほか）と B12 の typed command、発注 3 は C19（端末の表示）に頼る 6 つの入口、発注 4 は保留の volcanorepair（C15 と一緒に保留、P3-CLI-D-VOLCANOREPAIR）。中身まで決めたのは発注 1 で、発注 2〜4 は範囲・依存・起草時に作者へ聞く問いだけ（Q-CLI-SPLIT）。発注 1 の fleq は host を起こして終了の要求を待つだけで、REPL・端末の電文の表示・OS の通知と音を持たない（P3-CLI-D-SILENT）。設定ファイルは起動の前に 1 回だけ読み、実行中に読み直さない。旧築の設定・保存・socket・port・token・接続名と分ける（spec §10.2）。条文の【発注 n】が振り分け。【発注 2】（AC12〜AC20）: 発注 1 の通知と音の止め（P3-CLI-D-SILENT）と表示の off の代え（P3-CLI-D-DISPLAY）を置き換え、標準入力の REPL の 12 入口（§11.3 の互換必須の help・commands・?・status・config・notify・sound・mute・retry・display・quit・exit）、B12 の typed command と host の command port、notify・sound・16.2.2 の条件付き mute を効かせる通知の門、REPL の変更の非同期の保存を足す",
     "baseOid": "1dda454ec4dc0145ba5fbb169bf877cead0576ec",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -319,7 +508,12 @@
       "src/engine/startup/config-resolver.ts",
       "src/engine/monitor/shutdown.ts",
       "src/dmdata/rest-client.ts",
-      "package.json"
+      "package.json",
+      "src/ui/repl.ts",
+      "src/ui/repl-handlers/**",
+      "src/engine/notification/notifier.ts",
+      "src/engine/display/controller.ts",
+      "reconstruction/contracts/p2-notification-delivery.types.ts"
     ],
     "allowedPaths": [
       "reconstruction/cli/fleq.mjs",
@@ -328,7 +522,19 @@
       "reconstruction/test/cli/cli.test.ts",
       "reconstruction/contracts/p3-dmdata-connect.types.ts",
       "reconstruction/src/host/dmdata-rest.ts",
-      "reconstruction/test/host/dmdata-rest.test.ts"
+      "reconstruction/test/host/dmdata-rest.test.ts",
+      "reconstruction/cli/fleq.mjs（【発注 2】spawn の差し替えの 3 行と import childProcess の行を消し、先頭のコメントを直すだけ。AC19 の (1)）",
+      "reconstruction/src/cli/cli.ts（【発注 2】通常起動で門と displayPort null を渡し、起動の 1 行を改め、recordSettings(0) と REPL の起動を足す所、settings.ts の非同期の書き込みを await する所だけ。AC19）",
+      "reconstruction/contracts/p3-cli-repl.types.ts（【発注 2】FleqSettings に muteRules? の 1 行とコメント 1 行を足すだけ。起草で足した型は変えない。AC17 の (1)）",
+      "reconstruction/src/cli/settings.ts（【発注 2】muteRules の欄の検査と説明、sound の説明、書き込みの非同期化、REPL の保存の列と読み直しだけ。AC17）",
+      "reconstruction/src/cli/repl.ts（新設、【発注 2】。REPL・parseReplLine・返事の文。AC12・AC14・AC15・AC18）",
+      "reconstruction/src/cli/notification-gate.ts（新設、【発注 2】。分野の表と門。AC13）",
+      "reconstruction/src/host/host.ts（【発注 2】P2HostConfig の displayPort と notificationGate、表示の server の開け閉め、reconnect・status・recordSettings、notificationAdapter の包み、戻り値の HostCommandPort の所だけ。行の決まりは P3-CLI-D-O2-HOST-LINES。AC16・AC13 の (5)）",
+      "reconstruction/contracts/p2-shared-runtime.types.ts（【発注 2】DiagnosticReason の最後の行の「;」の前に 2 語を足すだけ。行を足さない。AC16 の (8)）",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts（【発注 2】診断の語の一覧の最後の行の末尾に 2 語を足すだけ。行を足さない。AC16 の (8)）",
+      "reconstruction/test/cli/repl.test.ts（新設、【発注 2】。T08〜T11）",
+      "reconstruction/test/cli/cli.test.ts（【発注 2】T04 の期待の変更と T01 の sound の説明の期待の変更、T12 の追加だけ）",
+      "reconstruction/test/host/host.test.ts（【発注 2】末尾への T13 の追加だけ）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -347,20 +553,33 @@
     "dependsOnContractIds": [
       "P3-DMDATA-CONNECT-001",
       "P3-REPLAY-CLI-001",
-      "P3-EXECUTION-LIFECYCLE-001"
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P3-RECOVERY-001",
+      "P2-NOTIFICATION-DELIVERY-001"
     ],
     "publicTypes": [
       "reconstruction/contracts/p3-cli-repl.types.ts#FleqSettings",
       "reconstruction/contracts/p3-dmdata-connect.types.ts#DmdataTestMode",
-      "reconstruction/contracts/p3-dmdata-connect.types.ts#DmdataSubscription"
+      "reconstruction/contracts/p3-dmdata-connect.types.ts#DmdataSubscription",
+      "reconstruction/contracts/p3-cli-repl.types.ts#MuteRule",
+      "reconstruction/contracts/p3-cli-repl.types.ts#ReplCommand",
+      "reconstruction/contracts/p3-cli-repl.types.ts#ReplParse",
+      "reconstruction/contracts/p3-cli-repl.types.ts#NotificationGate",
+      "reconstruction/contracts/p3-cli-repl.types.ts#HostStatus",
+      "reconstruction/contracts/p3-cli-repl.types.ts#HostCommandPort"
     ],
     "publicFunctions": [
       "新【発注 1】: reconstruction/src/cli/cli.ts の runCli(argv: readonly string[]): Promise<number>（終了 code。AC02〜AC07）。fleq.mjs だけが呼ぶ",
       "新【発注 1】: reconstruction/src/cli/settings.ts の設定の場所・読み・書き（発注 2 の REPL もこれを使う）。読みは FleqSettings か読めない理由を返し、書きは P3-CLI-D-WRITE の手順",
-      "改【発注 1】: DmdataSubscription に省略可能な testMode?: DmdataTestMode（省略は no）。startSocket の signature は変えない（AC06）"
+      "改【発注 1】: DmdataSubscription に省略可能な testMode?: DmdataTestMode（省略は no）。startSocket の signature は変えない（AC06）",
+      "新【発注 2】: reconstruction/src/cli/repl.ts の parseReplLine(line: string): ReplParse（AC12。T08・T09 が直に呼ぶ）と、REPL を起こす関数（通常起動だけが呼ぶ。HostCommandPort と通知の設定を受け、終了の要求を返す口を持つ）",
+      "新【発注 2】: reconstruction/src/cli/notification-gate.ts の、通知の設定（notify・sound・muteRules・mute の終わり）から NotificationGate を作る関数と、試行から分野を引く関数（AC13。T10 が直に呼ぶ）",
+      "改【発注 2】: startP2Host(config) の戻り値を HostCommandPort に、P2HostConfig の displayPort を number | null に、notificationGate?: NotificationGate を足す（AC16）",
+      "改【発注 2】: settings.ts の設定の書き込みを Promise を返す非同期の 1 つの手順にし、REPL の保存の口を足す（AC17）",
+      "改【発注 2】: FleqSettings（p3-cli-repl.types.ts）に省略可能な muteRules?: readonly MuteRule[] を足す（実装が足す。AC17 の (1)）"
     ],
     "allowedDependencies": [
-      "既存の依存だけ: commander・dotenv（root の package.json の dependencies）、node:fs・node:os・node:path・node:crypto（一時 file の乱数）・node:readline・node:perf_hooks・node:child_process（fleq.mjs の spawn の差し替えと試験）。dmdata-rest.ts の exchange（init の契約確認）。新しい npm 依存は足さず、package.json・package-lock.json を変えない"
+      "既存の依存だけ: commander・dotenv（root の package.json の dependencies）、node:fs・node:os・node:path・node:crypto（一時 file の乱数）・node:readline・node:perf_hooks・node:child_process（fleq.mjs の spawn の差し替えと試験）。dmdata-rest.ts の exchange（init の契約確認）。新しい npm 依存は足さず、package.json・package-lock.json を変えない。【発注 2】node:fs/promises（非同期の保存と読み）を足す。新しい npm 依存は足さない"
     ],
     "fixtureIds": [
       "test__fixtures__32-35_01_02_240613_VXSE52"
@@ -377,10 +596,34 @@
       {
         "id": "P3-CLI-RES-01",
         "target": "設定ファイルの読み",
-        "limit": "起動の前に同期で 1 回（移行のときは旧築の file を加えて 2 回。appName の確かめで旧築の file を読むときも 1 回）。実行中は読み直さず、書かない",
+        "limit": "起動の前に同期で 1 回（移行のときは旧築の file を加えて 2 回。appName の確かめで旧築の file を読むときも 1 回）。実行中は読み直さず、書かない。【発注 2】で実行中の読みと書きを足す: 読みは REPL の config と保存の読み直し（どちらも非同期）、書きは REPL の保存（RES-02）。どれも受信経路（host の WS の callback）の外",
         "unit": "回",
         "scope": "発注 1 の 1 回の起動。受信経路（host 以降）の仕事を増やさない",
         "source": "AGENTS.md の受信経路の計算量、作者の指示（設定の再読込が受信を止めないこと）"
+      },
+      {
+        "id": "P3-CLI-RES-02",
+        "target": "【発注 2】REPL の設定の保存",
+        "limit": "同時に走る保存は 1 本。走っている間の変更は「もう 1 回要る」の印 1 つに寄せ、待ちは最大 1 件。1 回の保存は設定 1 つ（数 KB）の読み直し 1 回・JSON.stringify 1 回・書き込みの手順 1 回",
+        "unit": "本",
+        "scope": "REPL の 1 回の起動",
+        "source": "AGENTS.md の受信経路の計算量、P3-CLI-D-O2-WRITE"
+      },
+      {
+        "id": "P3-CLI-RES-03",
+        "target": "【発注 2】command の期限（command deadline、spec:381）",
+        "limit": "openDisplay・closeDisplay の待ちは 5 秒（置き値）。stop は host の終了の期限（30 秒）。reconnect・status・recordSettings は同期で待ちが無い",
+        "unit": "ms",
+        "scope": "REPL の 1 つの command",
+        "source": "P3-CLI-D-O2-COMMAND"
+      },
+      {
+        "id": "P3-CLI-RES-04",
+        "target": "【発注 2】通知の門と muteRules",
+        "limit": "門は試行 1 つに表の引き 1 回と条件の走査 1 回。muteRules は最大 54 件（18 分野×3 段、同じ組の重複なし）。intent の全件の走査と JSON.stringify をしない",
+        "unit": "件",
+        "scope": "通知の試行 1 つ",
+        "source": "AGENTS.md の受信経路の計算量、P3-CLI-D-O2-GATE"
       }
     ],
     "workDeadline": null,
@@ -389,20 +632,27 @@
       "なし（電文の保存単位は変えない。設定ファイルは保存単位の外、spec:487）"
     ],
     "nonPersistedFields": [
-      "CLI が起動の間に持つ解決済みの設定（引数・環境変数・設定ファイル・既定から 1 回組み立てる）と、startP2Host が戻る前に来た終了の要求の印"
+      "CLI が起動の間に持つ解決済みの設定（引数・環境変数・設定ファイル・既定から 1 回組み立てる）と、startP2Host が戻る前に来た終了の要求の印",
+      "【発注 2】mute の終わりの時刻（monotonic。再起動で解ける、旧築 notifier.ts の muteUntil と同じ）、REPL の保存の「もう 1 回要る」の印、表示の server の開け閉めの状態（起動の display の値から始まる）、設定の変更の回数（settingsApplied の count）"
     ],
     "outOfScope": [
-      "【発注 2】の全部: REPL、notify・sound・mute の効き、status・config・retry・display・help・commands・?・quit・exit、REPL の変更の保存、B12 の typed command・command port・command deadline、spec:487 の 2 文目（設定版を各 decision と intent に記録）の受け手（Q-CLI-SPLIT）",
+      "【発注 2】の全部: REPL、notify・sound・mute の効き、status・config・retry・display・help・commands・?・quit・exit、REPL の変更の保存、B12 の typed command・command port・command deadline、spec:487 の 2 文目（設定版を各 decision と intent に記録）の受け手（Q-CLI-SPLIT）。【発注 2】の起草（2026-10-31）で AC12〜AC20 にした。発注 2 の外は下の【発注 2】の行",
       "【発注 3】の全部: REPL の summary・eewlog・tipinterval・clock・clear と、--summary-interval・--debug の電文の側の効き（C19）",
       "【発注 4】volcanorepair（C15 と一緒に保留、P3-CLI-D-VOLCANOREPAIR）",
-      "host.ts・composition root・http-sse・adapter の変更（通知の口と表示の server の開け閉めは発注 2、127.0.0.1 以外の bind とアクセストークンの確かめは P4、host の失敗の型）",
+      "host.ts・composition root・http-sse・adapter の変更（通知の口と表示の server の開け閉めは発注 2、127.0.0.1 以外の bind とアクセストークンの確かめは P4、host の失敗の型）。【発注 2】で host.ts は AC16 の所だけ変え、診断の語を 2 つ足すため p2-shared-runtime.types.ts と persistent-diagnostic-sink.ts の各 1 行の末尾に足す。composition root・http-sse・adapter・notification-delivery.ts は発注 2 でも変えない",
       "replay.mjs と runner（reconstruction/test/eew-e01/**）の変更、replay の配布",
       "package.json（bin・files・version）・package-lock.json・tsconfig・vitest config、新しい npm 依存。配布の切替は P5",
       "旧築 src/** の変更と、旧築の設定ファイル・保存・socket への書き込み",
       "旧築の旧パス（dmdata-monitor、macOS・Windows の ~/.config/fleq）からの移行",
       "区域の対応表、地域設定の表示と音への効き（16.2.1。P4 と区域の対応表の契約）",
       "端末への電文の表示・色（C19）",
-      "設定ファイルの実行中の読み直し、同時の書き込みの錠（init の保存の前の照合は錠ではない、P3-CLI-D-WRITE）"
+      "設定ファイルの実行中の読み直し、同時の書き込みの錠（init の保存の前の照合は錠ではない、P3-CLI-D-WRITE）",
+      "【発注 2】の外: mute の間の画面の印とバッジ（16.2.2、P4）。snapshot に mute を載せない",
+      "【発注 2】の外: 16.2.2 の条件を震度・階級などの事実で書く形（P3-CLI-D-O2-MUTE の B。各 unit の intent に欄を足す契約が要る）",
+      "【発注 2】の外: U-W・U-F の通知の intent と気象の段（C20、P3-WEATHER-NOTICE-001）",
+      "【発注 2】の外: REPL の summary・eewlog・tipinterval・clock・clear と時計付きの prompt（発注 3）、volcanorepair（発注 4）、typo の候補の表示以外の旧築の REPL の補助（待機中のヒント・状態の行）",
+      "【発注 2】の外: display on/off と mute の終わりの保存（旧築も保存しない）、127.0.0.1 以外の bind と token の確かめ（P4）",
+      "【発注 2】の外: 通知の試行の優先順・期限・中断・鳴らし直し・印の規則（P2-NOTIFICATION-DELIVERY-001・P3-NOTICE-LEDGER-001 のまま）"
     ],
     "acceptanceChecks": [
       {
@@ -442,7 +692,7 @@
       },
       {
         "id": "P3-CLI-AC03",
-        "requirement": "【発注 1】設定ファイル（P3-CLI-D-SETTINGS-PLACE・P3-CLI-D-KEYS・P3-CLI-D-INVALID・P3-CLI-D-WRITE）: (1) 場所: 旧築の resolveConfigDir と同じ規則で directory の名前だけ fleq-next にする（XDG_CONFIG_HOME があれば $XDG_CONFIG_HOME/fleq-next、無ければ macOS は ~/Library/Application Support/fleq-next、Windows は %APPDATA%/fleq-next、ほかは ~/.config/fleq-next）。設定は <dir>/config.json、電文の保存は <dir>/state、診断は <dir>/diag。新築の directory も今までの fleq の file の場所も、使うたびに process.env と os.homedir() から解く（module の読み込み時に定数にしない。旧築は CONFIG_DIR を定数にした。it ごとの vi.stubEnv を効かせるため） (2) 形: JSON の object 1 つで FleqSettings（p3-cli-repl.types.ts）の 17 欄だけ。読み戻しは欄ごとに型と範囲を確かめて組み立てる（全体を as で言い換えない、AGENTS.md）。JSON でない・object でない・知らない欄がある・値が範囲の外なら、file を変えずに『設定ファイル <path> の <key> が読めません: <理由>。直すか消してください』の 1 行で拒否 (3) 値の範囲: classifications は 5 区分の 1 件以上で重複なし、testMode は no/including/only、displayPort は 1〜65535、summaryInterval は 1〜1440、waitTipIntervalMin は 0〜1440、promptClock は elapsed/clock/uptime、bool の欄は true/false、notify・eewLogFields は型の名前の bool だけ、apiKey は空白だけでない文字列、displayToken は空でない、appName は UTF-8 で 1〜24 バイトで fleq でない（読み戻しの検査は形だけ。今までの fleq の設定の appName との照合は config set・init の [2/5]・通常起動の 3 か所だけで行う、P3-CLI-D-APPNAME。24 バイトは dmdata の socket start の資料（https://dmdata.jp/docs/reference/api/v2/socket.start/）の引数の表『appName いいえ String アプリケーション名を指定。最大24バイトまで』とエラーの表『400 The `appName` is up to 24 bytes.』。字の種類の制限は書いていない）、displayHost は 127.0.0.1、region は前後の空白を除いて空でない、regionScope は all/regionOnly (4) 書き込みは P3-CLI-D-WRITE の手順（pid と乱数の名前の一時 file、fsync、rename、directory の fsync、失敗で一時 file を消す）。rename の後の directory の fsync の失敗は書けた扱い（code 0）。directory は無ければ mode 0700 で作る。読み書きの失敗は『設定ファイル <path> を読めません（<code>）』『設定ファイル <path> を書けません（<code>）』の 1 行で code 1 (5) config set <key> <value>: key は apiKey・appName・classifications・testMode・display・displayPort・displayHost・displayToken・summaryInterval・promptClock・waitTipIntervalMin・sound・eewLog・region・regionScope の 15 個（notify・eewLogFields は REPL の側で、旧築の CONFIG_KEYS も持たない）。値の文字列の読み方: 数の欄は /^[0-9]+$/ の 10 進だけ、bool の欄は true か false だけ、classifications は AC02 の (10) と同じ区切り、文字列の欄はそのまま（region だけ前後の空白を除く）。key と値の検査は、設定ファイルの読みと移行より先に行い、外れたら何も書かずに理由と有効な値を出して code 1。この検査で読むのは、appName の値の検査に限った今までの fleq の設定 file だけ（読むだけで書かない。無い・読めない・appName の欄が無いときは fleq と照合する、P3-CLI-D-APPNAME）。知らない key（旧築の廃止可の key を含む）は『不明な設定キー: <key>』と有効な key の一覧で code 1。成功は『設定しました: <key>』 (6) config unset <key>: 同じ 15 個で、key の検査を先に行う。欄を消して書き、『削除しました: <key>』 (7) config show: 『Config: <path>』と、欄のある key ごとに『key = 値』と『# 説明』（旧築 printConfig の形）。apiKey と displayToken は先頭 4 字＋****＋末尾 4 字（8 字以下は ****、旧築 src/utils/secrets.ts:5。旧築は displayToken をそのまま出した）。欄が無ければ『(設定なし)』 (8) config path: path を 1 行。file を読まない (9) config keys: 15 個の key と説明。file を読まない。説明は旧築の CONFIG_KEYS の文を使い、appName は『dmdata の接続名。今までの fleq やほかの端末と違う名前にします』、displayPort は『情報ディスプレイのポート (1〜65535、既定 7789)』、displayHost は『情報ディスプレイのバインド先 (今は 127.0.0.1 だけ)』、sound・eewLog・summaryInterval・promptClock・waitTipIntervalMin は末尾に『（今は保存だけで、まだ効きません）』、region と regionScope は AC08 の文。説明の文に『旧築』『新築』『発注』『P4』と抽象的な言い換え（窓・枠など）を使わない (10) show・set・unset は読めない file を変えずに拒否し、path・keys は file が壊れていても動く（直すための path を出せる）",
+        "requirement": "【発注 1】設定ファイル（P3-CLI-D-SETTINGS-PLACE・P3-CLI-D-KEYS・P3-CLI-D-INVALID・P3-CLI-D-WRITE）: (1) 場所: 旧築の resolveConfigDir と同じ規則で directory の名前だけ fleq-next にする（XDG_CONFIG_HOME があれば $XDG_CONFIG_HOME/fleq-next、無ければ macOS は ~/Library/Application Support/fleq-next、Windows は %APPDATA%/fleq-next、ほかは ~/.config/fleq-next）。設定は <dir>/config.json、電文の保存は <dir>/state、診断は <dir>/diag。新築の directory も今までの fleq の file の場所も、使うたびに process.env と os.homedir() から解く（module の読み込み時に定数にしない。旧築は CONFIG_DIR を定数にした。it ごとの vi.stubEnv を効かせるため） (2) 形: JSON の object 1 つで FleqSettings（p3-cli-repl.types.ts）の 17 欄だけ。読み戻しは欄ごとに型と範囲を確かめて組み立てる（全体を as で言い換えない、AGENTS.md）。JSON でない・object でない・知らない欄がある・値が範囲の外なら、file を変えずに『設定ファイル <path> の <key> が読めません: <理由>。直すか消してください』の 1 行で拒否 (3) 値の範囲: classifications は 5 区分の 1 件以上で重複なし、testMode は no/including/only、displayPort は 1〜65535、summaryInterval は 1〜1440、waitTipIntervalMin は 0〜1440、promptClock は elapsed/clock/uptime、bool の欄は true/false、notify・eewLogFields は型の名前の bool だけ、apiKey は空白だけでない文字列、displayToken は空でない、appName は UTF-8 で 1〜24 バイトで fleq でない（読み戻しの検査は形だけ。今までの fleq の設定の appName との照合は config set・init の [2/5]・通常起動の 3 か所だけで行う、P3-CLI-D-APPNAME。24 バイトは dmdata の socket start の資料（https://dmdata.jp/docs/reference/api/v2/socket.start/）の引数の表『appName いいえ String アプリケーション名を指定。最大24バイトまで』とエラーの表『400 The `appName` is up to 24 bytes.』。字の種類の制限は書いていない）、displayHost は 127.0.0.1、region は前後の空白を除いて空でない、regionScope は all/regionOnly (4) 書き込みは P3-CLI-D-WRITE の手順（pid と乱数の名前の一時 file、fsync、rename、directory の fsync、失敗で一時 file を消す）。rename の後の directory の fsync の失敗は書けた扱い（code 0）。directory は無ければ mode 0700 で作る。読み書きの失敗は『設定ファイル <path> を読めません（<code>）』『設定ファイル <path> を書けません（<code>）』の 1 行で code 1 (5) config set <key> <value>: key は apiKey・appName・classifications・testMode・display・displayPort・displayHost・displayToken・summaryInterval・promptClock・waitTipIntervalMin・sound・eewLog・region・regionScope の 15 個（notify・eewLogFields は REPL の側で、旧築の CONFIG_KEYS も持たない）。値の文字列の読み方: 数の欄は /^[0-9]+$/ の 10 進だけ、bool の欄は true か false だけ、classifications は AC02 の (10) と同じ区切り、文字列の欄はそのまま（region だけ前後の空白を除く）。key と値の検査は、設定ファイルの読みと移行より先に行い、外れたら何も書かずに理由と有効な値を出して code 1。この検査で読むのは、appName の値の検査に限った今までの fleq の設定 file だけ（読むだけで書かない。無い・読めない・appName の欄が無いときは fleq と照合する、P3-CLI-D-APPNAME）。知らない key（旧築の廃止可の key を含む）は『不明な設定キー: <key>』と有効な key の一覧で code 1。成功は『設定しました: <key>』 (6) config unset <key>: 同じ 15 個で、key の検査を先に行う。欄を消して書き、『削除しました: <key>』 (7) config show: 『Config: <path>』と、欄のある key ごとに『key = 値』と『# 説明』（旧築 printConfig の形）。apiKey と displayToken は先頭 4 字＋****＋末尾 4 字（8 字以下は ****、旧築 src/utils/secrets.ts:5。旧築は displayToken をそのまま出した）。欄が無ければ『(設定なし)』 (8) config path: path を 1 行。file を読まない (9) config keys: 15 個の key と説明。file を読まない。説明は旧築の CONFIG_KEYS の文を使い、appName は『dmdata の接続名。今までの fleq やほかの端末と違う名前にします』、displayPort は『情報ディスプレイのポート (1〜65535、既定 7789)』、displayHost は『情報ディスプレイのバインド先 (今は 127.0.0.1 だけ)』、sound・eewLog・summaryInterval・promptClock・waitTipIntervalMin は末尾に『（今は保存だけで、まだ効きません）』、region と regionScope は AC08 の文。説明の文に『旧築』『新築』『発注』『P4』と抽象的な言い換え（窓・枠など）を使わない (10) show・set・unset は読めない file を変えずに拒否し、path・keys は file が壊れていても動く（直すための path を出せる）。【発注 2】で (9) の sound の説明から『（今は保存だけで、まだ効きません）』を外し、(4) の書き込みを非同期の 1 つの手順にし、(2) の欄に muteRules を足して 18 欄にする（AC17）",
         "evidenceRefs": [
           "src/config.ts:33 «3ca25365b7113dfc»",
           "src/config.ts:207 «2dc7d69e8cd12f38»",
@@ -483,7 +733,7 @@
       },
       {
         "id": "P3-CLI-AC05",
-        "requirement": "【発注 1】通常起動（P3-CLI-D-APPNAME・P3-CLI-D-DISPLAY・P3-CLI-D-SIGNAL・P3-CLI-D-AUTH-MESSAGE）: (1) 順: 引数の検査 → 設定ファイルの読みと移行の組み立て（AC03・AC04）→ 鍵と appName の確かめ → 移行の書き込み → 終了の listener の登録 → startP2Host。設定ファイルは startP2Host の前に同期で 1 回だけ読み、実行中は読み直さない（受信を止める読みを作らない） (2) 鍵が無ければ旧築と同じ 4 つの方法（fleq init、fleq config set apiKey <key>、fleq --api-key <key>、DMDATA_API_KEY=<key>）を出して code 1。appName が無いとき、または今までの fleq の設定の appName と同じときは（空・24 バイト超・fleq は AC03 の (2) の設定ファイルの文で先に断られる）『dmdata の接続名（appName）を、今までの fleq やほかの端末と違う名前で設定してください: fleq config set appName <名前>』で code 1 (3) startP2Host({ dmdata: { apiKey, appName, classifications, testMode }, stateDirectory: <dir>/state, diagnosticDirectory: <dir>/diag, displayPort, clock: () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() }), observe: null }) を同じプロセスで呼ぶ。cli.ts は ../host/host を静的に import する（dist の中では dist の host が読まれる。path を組んだ dynamic import にしない: T04 の vi.mock が効かなくなる。通知の止めは fleq.mjs が cli.js を読む前に済ませる、AC11）。clock は dmdata-live-check.mjs と同じ形。displayBind は渡さない (4) 情報ディスプレイ: display が on（--display か設定の display=true）なら displayPort（既定 7789）で開き、標準出力に『情報ディスプレイ: http://127.0.0.1:<port>/』の 1 行。off（既定）なら displayPort に 0 を渡し案内を出さない。そこに shortcut: のコメントを 1 行（今の host は表示の server を常に開く。off は案内しない 127.0.0.1 の port で代え、発注 2 の display on/off で host に開け閉めを足すときに置き換える） (5) startP2Host の reject: error.code が EADDRINUSE なら別の port を黙って選ばず『情報ディスプレイのポート <n> は使われています。--display-port で別の番号を指定してください』、message が \"dmdata authentication rejected\"（host.ts:583）なら『dmdata の認証に失敗しました。APIキーを確かめてください』、ほかは『起動に失敗しました』で、どれも code 1。例外文はそのまま出さない。message との照合に shortcut: のコメントを 1 行（host の失敗が型になったら置き換える） (6) 起動できたら標準出力に『受信を始めました（区分: …、テスト電文: …）。通知と音はまだ出しません。終了は Ctrl+C』の 1 行。標準入力は読まない（REPL は発注 2） (7) 終了: SIGINT・SIGTERM（win32 以外は SIGHUP も）の listener を startP2Host の前に process.on で登録する。startP2Host が戻る前の要求は印だけ付け、戻った直後に印があれば stop() を待つ。戻った後は stop() を呼ぶ。2 回目以後は同じ stop() を待つだけ。ShutdownSummary.code を終了 code にし、runCli は戻る前（startP2Host の reject の後も）に自分の listener を外す。host の process.once はそのまま残る (8) apiKey・displayToken・ticket を標準出力・標準エラー・例外文に出さない（--debug も）",
+        "requirement": "【発注 1】通常起動（P3-CLI-D-APPNAME・P3-CLI-D-DISPLAY・P3-CLI-D-SIGNAL・P3-CLI-D-AUTH-MESSAGE）: (1) 順: 引数の検査 → 設定ファイルの読みと移行の組み立て（AC03・AC04）→ 鍵と appName の確かめ → 移行の書き込み → 終了の listener の登録 → startP2Host。設定ファイルは startP2Host の前に同期で 1 回だけ読み、実行中は読み直さない（受信を止める読みを作らない） (2) 鍵が無ければ旧築と同じ 4 つの方法（fleq init、fleq config set apiKey <key>、fleq --api-key <key>、DMDATA_API_KEY=<key>）を出して code 1。appName が無いとき、または今までの fleq の設定の appName と同じときは（空・24 バイト超・fleq は AC03 の (2) の設定ファイルの文で先に断られる）『dmdata の接続名（appName）を、今までの fleq やほかの端末と違う名前で設定してください: fleq config set appName <名前>』で code 1 (3) startP2Host({ dmdata: { apiKey, appName, classifications, testMode }, stateDirectory: <dir>/state, diagnosticDirectory: <dir>/diag, displayPort, clock: () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() }), observe: null }) を同じプロセスで呼ぶ。cli.ts は ../host/host を静的に import する（dist の中では dist の host が読まれる。path を組んだ dynamic import にしない: T04 の vi.mock が効かなくなる。通知の止めは fleq.mjs が cli.js を読む前に済ませる、AC11）。clock は dmdata-live-check.mjs と同じ形。displayBind は渡さない (4) 情報ディスプレイ: display が on（--display か設定の display=true）なら displayPort（既定 7789）で開き、標準出力に『情報ディスプレイ: http://127.0.0.1:<port>/』の 1 行。off（既定）なら displayPort に 0 を渡し案内を出さない。そこに shortcut: のコメントを 1 行（今の host は表示の server を常に開く。off は案内しない 127.0.0.1 の port で代え、発注 2 の display on/off で host に開け閉めを足すときに置き換える） (5) startP2Host の reject: error.code が EADDRINUSE なら別の port を黙って選ばず『情報ディスプレイのポート <n> は使われています。--display-port で別の番号を指定してください』、message が \"dmdata authentication rejected\"（host.ts:583）なら『dmdata の認証に失敗しました。APIキーを確かめてください』、ほかは『起動に失敗しました』で、どれも code 1。例外文はそのまま出さない。message との照合に shortcut: のコメントを 1 行（host の失敗が型になったら置き換える） (6) 起動できたら標準出力に『受信を始めました（区分: …、テスト電文: …）。通知と音はまだ出しません。終了は Ctrl+C』の 1 行。標準入力は読まない（REPL は発注 2） (7) 終了: SIGINT・SIGTERM（win32 以外は SIGHUP も）の listener を startP2Host の前に process.on で登録する。startP2Host が戻る前の要求は印だけ付け、戻った直後に印があれば stop() を待つ。戻った後は stop() を呼ぶ。2 回目以後は同じ stop() を待つだけ。ShutdownSummary.code を終了 code にし、runCli は戻る前（startP2Host の reject の後も）に自分の listener を外す。host の process.once はそのまま残る (8) apiKey・displayToken・ticket を標準出力・標準エラー・例外文に出さない（--debug も）。【発注 2】で、(4) の off の port 0 を displayPort null（AC16）に、(6) の 1 行を AC19 の (3) に置き換え、標準入力を REPL で読む（AC12）。(7) の終了は REPL の quit・exit・close も同じ要求にする（AC18）",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:513 «a2ad0b3b132c008c»",
           "reconstruction/src/host/host.ts:539 «a9963aed8491915c»",
@@ -540,7 +790,7 @@
       },
       {
         "id": "P3-CLI-AC10",
-        "requirement": "【発注 1】spec・計画・型（統合担当、起草で当てた）: 計画:617（C15 の保留の節の C18 の行、被引用 0 件）に、volcanorepair の読み（C15 と一緒に保留、rest は retry へ、保留を解いたら C18 の発注 4）と C18 の分け方を、行数を変えずに書き足した。p3-dmdata-connect.types.ts の末尾に DmdataTestMode の型を 4 行（空行・コメント 2 行・型）で足した（行で引く参照 0 件）。新しい型の file reconstruction/contracts/p3-cli-repl.types.ts を置いた（実装では変えない。変える必要が出たら止めて報告する）。spec §11.3 の :2347・:2351 は p3-volcano-unit.json が、計画:464 は C17 の AC01 が anchor で引くので書き換えない",
+        "requirement": "【発注 1】spec・計画・型（統合担当、起草で当てた）: 計画:617（C15 の保留の節の C18 の行、被引用 0 件）に、volcanorepair の読み（C15 と一緒に保留、rest は retry へ、保留を解いたら C18 の発注 4）と C18 の分け方を、行数を変えずに書き足した。p3-dmdata-connect.types.ts の末尾に DmdataTestMode の型を 4 行（空行・コメント 2 行・型）で足した（行で引く参照 0 件）。新しい型の file reconstruction/contracts/p3-cli-repl.types.ts を置いた（実装では変えない。変える必要が出たら止めて報告する）。spec §11.3 の :2347・:2351 は p3-volcano-unit.json が、計画:464 は C17 の AC01 が anchor で引くので書き換えない。【発注 2】の起草では p3-cli-repl.types.ts の末尾側に独立の型（MuteRule・ReplCommand・ReplParse・NotificationGate・HostStatus・HostCommandPort）だけを足した。FleqSettings の muteRules の 1 行は【発注 2】の実装が足す（AC17 の (1)）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:617 «ed5ceb754aae3164»",
           "reconstruction/contracts/p3-order-plan.md:464 «fe0f3106ae6af703»",
@@ -552,7 +802,7 @@
       },
       {
         "id": "P3-CLI-AC11",
-        "requirement": "【発注 1】通知と音を出さない（P3-CLI-D-SILENT、spec §10.2 の通知の有効化状態）: fleq.mjs は replay でない起動で dist を読む前に、node:child_process の default export の spawn を (_executable, _argv, options) => spawn(\"/usr/bin/true\", [], options) へ替える（replay.mjs:90 と同じ形）。そこに shortcut: のコメントを 1 行: 発注 1 は notify・sound を効かせる仕組みが無いので OS の通知と音を出さない、発注 2 の notify・sound・mute で置き換える、win32 の adapter は spawn しない。host・composition root・adapter は変えない。設定の notify・sound は保存だけ受ける（AC03 の (9) の説明）。通常起動の 1 行（AC05 の (6)）で『通知と音はまだ出しません』と知らせる。無いと: 旧築と並走したとき通知と音が二重に出て、設定の sound=false も守れない。試験は置かない: 止めたことを確かめるには host を起こして通知を作らせる必要があり、host の { dmdata } の起動は dmdata へ繋ぐ（試験では繋がない、C2 の AC09）。同じ差し替えは C17 の replay.mjs:90 にあり、C17 の T01 がその経路を通している",
+        "requirement": "【発注 1】通知と音を出さない（P3-CLI-D-SILENT、spec §10.2 の通知の有効化状態）: fleq.mjs は replay でない起動で dist を読む前に、node:child_process の default export の spawn を (_executable, _argv, options) => spawn(\"/usr/bin/true\", [], options) へ替える（replay.mjs:90 と同じ形）。そこに shortcut: のコメントを 1 行: 発注 1 は notify・sound を効かせる仕組みが無いので OS の通知と音を出さない、発注 2 の notify・sound・mute で置き換える、win32 の adapter は spawn しない。host・composition root・adapter は変えない。設定の notify・sound は保存だけ受ける（AC03 の (9) の説明）。通常起動の 1 行（AC05 の (6)）で『通知と音はまだ出しません』と知らせる。無いと: 旧築と並走したとき通知と音が二重に出て、設定の sound=false も守れない。試験は置かない: 止めたことを確かめるには host を起こして通知を作らせる必要があり、host の { dmdata } の起動は dmdata へ繋ぐ（試験では繋がない、C2 の AC09）。同じ差し替えは C17 の replay.mjs:90 にあり、C17 の T01 がその経路を通している。【発注 2】で置き換える: spawn の差し替えを外し（AC19 の (1)）、notify・sound・mute を通知の門で効かせる（AC13）。黙るのをやめる配送では <dir>/state を作り直す（AC20 の (1)）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2135 «74b178e85e37ee86»",
           "docs/specs/reconstruction-p0-contracts.md:2408 «9c48ecb7e519afd2»",
@@ -562,6 +812,184 @@
           "reconstruction/cli/replay.mjs:90 «e02f05c4847f1a67»",
           "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
           "reconstruction/contracts/p3-order-plan.md:498 «1aac26053468e4aa»"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC12",
+        "requirement": "【発注 2】REPL と typed command（P3-CLI-D-O2-COMMAND・P3-CLI-D-O2-TEXT、spec:381、§11.3 の 12 行）: (1) 置き場は新しい file reconstruction/src/cli/repl.ts。通常起動（AC19）が startP2Host の戻りの後に 1 回だけ起こす。node:readline の createInterface（input は process.stdin、output は process.stdout）で、prompt は今までの fleq の TTY でないときの形の色なし『FlEq> 』（src/ui/repl.ts:303。時計付きの prompt は発注 3 の clock） (2) 1 行の読み: 前後の空白を除き、空なら何もしない（empty）。先頭の語を大文字小文字を区別せずに入口の名前か別名で引く: help・?、commands・cmds、status・stat、config・conf、notify・noti、sound・snd、mute、retry、display、quit・exit（旧築の COMMAND_ALIASES のうち 12 入口の分、info-handlers.ts:138）。残りは空白で区切る (3) typed command（ReplCommand）: help [<command> [<sub>]] と ? は help、commands [<語>] は commands、status・config・retry・quit・exit は引数を見ない（旧築と同じ）、notify は引数なしが show・all:on と aon が all true・all:off と aoff が all false・<分野> [on|off] が category（on・off が無ければ toggle。分野は 18 の名前を大文字小文字を区別せずに、または旧築の CATEGORY_ALIASES〔info-handlers.ts:159〕で引く）、sound は引数なしが null・on・off、mute は引数なしが show・off・/^(\\d+)(s|m|h)$/ で 0 より大きい長さが for（旧築 settings-handlers.ts:65）・rules …（AC15 の (4)）、display は引数なしが status・on・off (4) 変えられない行は ReplParse の invalid にし、旧築の文の 1 行を出して何も変えない（spec:381）: 知らない入口は『  不明なコマンド: <語> (help で一覧を表示)』（src/ui/repl.ts:158）、12 入口の名前との編集距離が 2 以内の候補があれば『  不明なコマンド: <語> — もしかして: <候補>』（:156、? と exit は候補にしない）、知らない分野は『  不明なカテゴリ: <語> (有効: <18 分野をカンマと空白で>)』、notify <分野> の後の on・off でない語は『  使い方: notify <category> [on|off] / notify all:on / notify all:off』（旧築はこの形を toggle にしたが、無効な入力で状態を変えない）、sound の不正は『  on または off を指定してください。』、mute の不正は『  無効な時間指定です。例: 30m, 1h, 90s』、display の不正は『  使い方: display / display on / display off』 (5) 行は届いた順に 1 つずつ実行し、次の行は前の command の終わりか期限（P3-CLI-RES-03）を待つ。終了の要求（AC18）の後の行は実行しない (6) REPL の処理は同期の fs・child_process を使わない（受信を待たせない）。返事は標準出力へ、色を付けない。新しい file の export は末尾の export { … } にまとめる",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:381 «d3c49bbd2a708894»",
+          "docs/specs/reconstruction-p0-contracts.md:2314 «e7a53689ec3b74e1»",
+          "docs/specs/reconstruction-p0-contracts.md:2315 «da6639a98bb0f1d2»",
+          "docs/specs/reconstruction-p0-contracts.md:2316 «4dbb7066b76072a5»",
+          "docs/specs/reconstruction-p0-contracts.md:2321 «6f1de454da578a64»",
+          "docs/specs/reconstruction-p0-contracts.md:2322 «39c76f2eebef7036»",
+          "docs/specs/reconstruction-p0-contracts.md:2325 «05f480ab951bf8d2»",
+          "docs/specs/reconstruction-p0-contracts.md:2336 «61da6407603d15f8»",
+          "docs/specs/reconstruction-p0-contracts.md:2339 «b551ba4f191d01e5»",
+          "docs/specs/reconstruction-p0-contracts.md:2345 «b3bff27009385608»",
+          "docs/specs/reconstruction-p0-contracts.md:2346 «65ee5cb4a7a7ee96»",
+          "docs/specs/reconstruction-p0-contracts.md:2348 «b3ac7cdfdfc5dae6»",
+          "docs/specs/reconstruction-p0-contracts.md:2349 «0d21e3c762cc32e1»",
+          "src/ui/repl.ts:303 «a82dda331490ffb6»",
+          "src/ui/repl.ts:156 «7359dd98632bc599»",
+          "src/ui/repl.ts:158 «3954e35effcc0928»",
+          "src/ui/repl-handlers/info-handlers.ts:138 «1477013c3eb1270f»",
+          "src/ui/repl-handlers/info-handlers.ts:159 «51f0779e9ab0c254»",
+          "src/ui/repl-handlers/settings-handlers.ts:65 «319c160677c690cd»",
+          "src/ui/repl-handlers/command-definitions.ts",
+          "reconstruction/contracts/p3-cli-repl.types.ts"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC13",
+        "requirement": "【発注 2】通知の門（P3-CLI-D-O2-GATE・P3-CLI-D-O2-CATEGORY・P3-CLI-D-O2-CRITICAL・P3-CLI-D-O2-WEATHER-NOW、spec:2135・:2325・:3038）: (1) 分野の表（新しい file reconstruction/src/cli/notification-gate.ts）。受け手の契約と、その通知の段の ID: unit で決まるもの: U-E→eew（P2-EEW-UNIT-001 の P2-A4-NOTICE-SOUND と Q-NOTICE の level）、U-T→tsunami（P3-TSUNAMI-UNIT-001 の P3-C5-NOTICE-LEVELS）、U-N→nankaiTrough（P3-UNIT-N-001 の P3-C8-NOTICE-LEVELS）、U-V→volcano（P3-UNIT-V-001 の P3-C9-NOTICE-LEVELS）、U-L→weather（P3-UNIT-L-001 の P3-C10-NOTICE-LEVELS。土砂災害警戒情報 VPWW56。今までの fleq は VPWW56 を気象警報の通知として weather の分野で出した、message-router.ts:552・notifier.ts:573）、U-R→floodForecast（P3-UNIT-R-001 の P3-C11-NOTICE-LEVELS）、U-W→weather（P2-WEATHER-CURRENT-UNIT-001。intent を作るのは C20 の P3-WEATHER-NOTICE-001、未起草）、U-F→weatherWarningTimeseries（P2-WEATHER-TIMESERIES-UNIT-001。P2-A6-AC03 で intent を作らず、作るのは C20）。subject の 2 つ目で決まるもの: U-Q は VXSE62→lgObservation、VXSE51・VXSE52・VXSE53・VXSE61→earthquake（P3-UNIT-Q-001 の P3-C7-NOTICE-LEVELS、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC06 で改訂）。U-M は tornado→tornado、VPAW51→earlyWeather、VPFT50→heatAlert、VXSE56・VXSE60・VZSE40→seismicText、VPZI50・VPCI50→climateInfo、VPZJ51・VPCJ51・VPFJ51・VMCJ53・VMCJ54・VMCJ55→weatherExplanation（P3-UNIT-M-001 の P3-C13-NOTICE-LEVELS）。U-Y は typhoonAnalysis→typhoonAnalysis、typhoonProbability→typhoonProbability（P3-UNIT-Y-001 の P3-C14-NOTICE-LEVELS）。U-B は VPBS50→briefing、VPOA50→weather（P3-UNIT-B-001 の P3-C12-NOTICE-LEVELS。今までの fleq は VPOA50 を weather の分野で通知した）。受け手の無い分野は無い（U-W と U-F は C20 まで intent を作らない）。表に無い unit・2 つ目の試行は分野なし (2) 欄の無い分野の既定: eew・earthquake・tsunami・seismicText・nankaiTrough・lgObservation・volcano は on、weather は P3-CLI-D-O2-WEATHER-NOW の作者裁定 B（C20 の配送まで off）、残りの 10 分野は off（旧築 src/types.ts:415〜:432、Q-CLI-O2-AUTHOR）。sound の既定は on。欄のある設定はその値 (3) 門の順（試行 1 つに 1 回）: (a) channel が sound で sound が off なら false (b) 分野があり、その分野が off なら false（P3-CLI-D-O2-CRITICAL が B なら payload.level が critical の試行はここで止めない） (c) mute の間（今の monotonic が終わりより前）で、どの条件（AC15 の (2)）にも当たらなければ false。分野の無い試行と、payload.level が info・cancel・5 つの外の試行は当たらない (d) ほかは true。条件が分野の off と sound off を越えて鳴らすことは無い（Q-CLI-O2-AUTHOR） (4) 計算量は P3-CLI-RES-04。門は CLI のメモリの通知の設定をその場で読み、REPL の変更は次の試行から効く (5) host の結線: P2HostConfig に省略可能な notificationGate?: NotificationGate を足し、RuntimeCompositionRoot の options に notificationAdapter を渡す（P3-CLI-D-O2-GATE）。false の試行は子を作らず、{ kind: \"delivered\", attemptId, intentId, channel, completedAt: clock() } を返し、INFO の診断 notificationSuppressed（component \"host\"、unit と attemptId）を 1 件。門が投げたら true として扱う（鳴らす側に倒す）。門を渡さない起動は adapter の既定のまま (6) 試行の優先順・期限・中断・鳴らし直し・印の規則は変えない。新しい file の export は末尾の export { … }",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2135 «74b178e85e37ee86»",
+          "docs/specs/reconstruction-p0-contracts.md:2325 «05f480ab951bf8d2»",
+          "docs/specs/reconstruction-p0-contracts.md:3038 «080a1a8f980c6847»",
+          "docs/specs/reconstruction-p0-contracts.md:3035 «cffe9b9877228250»",
+          "reconstruction/contracts/p2-eew-unit.json:30 «a76a1ad7d8b251e4»",
+          "reconstruction/contracts/p3-seismic-unit.json:12 «6414c1e18a42d0ba»",
+          "reconstruction/contracts/p3-unit-q-capacity.json:420 «ccb58ea1e217a9b4»",
+          "reconstruction/contracts/p3-tsunami-unit.json:12 «cb175a12cc36b88d»",
+          "reconstruction/contracts/p3-nankai-unit.json:30 «7ca60acebd72557a»",
+          "reconstruction/contracts/p3-volcano-unit.json:41 «58f20362a6524a09»",
+          "reconstruction/contracts/p3-landslide-unit.json:22 «23d2315506f124bc»",
+          "reconstruction/contracts/p3-flood-unit.json:24 «09d70963189a06b5»",
+          "reconstruction/contracts/p3-briefing-unit.json:45 «e30008f4d8a17b6a»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:72 «3c7a0543cd214b42»",
+          "reconstruction/contracts/p3-typhoon-unit.json:43 «24a357544ead9a8c»",
+          "reconstruction/contracts/p2-weather-current-unit.json:390 «bc3ff54d95b3835c»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:420 «9221ed7e8620cbc0»",
+          "reconstruction/contracts/p3-order-plan.md:85 «03ee5b232a0c9a48»",
+          "reconstruction/src/domains/seismic/seismic.ts:219 «c0c6f6c7489d9b53»",
+          "reconstruction/src/domains/seismic/seismic.ts:234 «34777d82d4574d59»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:545 «9b34d3e53816eb8f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:552 «a02b22933ee3d597»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:25 «aea36a2bad7fb179»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:127 «3db61e7c93ccd4ce»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:128 «59a8f74c639a5a62»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:134 «8b3d116ffe127cb9»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:252 «af01e66f0ecc0db4»",
+          "reconstruction/src/domains/briefing/briefing.ts:67 «0465845b81e92312»",
+          "reconstruction/src/domains/briefing/briefing.ts:73 «6e550e7f0c08b046»",
+          "reconstruction/src/domains/landslide/landslide.ts:9 «43030d734d997342»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:26 «79ff30c8b437a322»",
+          "src/types.ts:415 «0c507c99d6959e35»",
+          "src/types.ts:422 «455c90d1e15c1a6d»",
+          "src/types.ts:432 «3bca4aa576e1a8e5»",
+          "src/engine/messages/message-router.ts:552 «2b9942107bfd124a»",
+          "src/engine/notification/notifier.ts:573 «36c29d500c61717e»",
+          "src/engine/notification/notifier.ts:1117 «cd109a52523523e7»",
+          "src/engine/notification/notifier.ts:1149 «0e506d6a3591bed4»",
+          "src/engine/notification/notifier.ts:1150 «43ec74da6ebebd85»",
+          "reconstruction/src/runtime/composition-root.ts:127 «5e3b7949f688d630»",
+          "reconstruction/src/runtime/composition-root.ts:452 «cd16aa4dc0715d5e»",
+          "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
+          "reconstruction/src/units/notice-mark.ts:77 «2a6c914488ce9228»",
+          "reconstruction/contracts/p2-notification-delivery.types.ts:14 «e5078eba5e68adce»"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC14",
+        "requirement": "【発注 2】返事の文（P3-CLI-D-O2-TEXT）: 今までの fleq の文を色なしで写す。写す元と変える所: (1) help・?: 旧築 handleHelp（info-handlers.ts:352）の 3 つの形（引数なしの案内、help <command>、help <command> <sub>）と『  不明なコマンド: <語>』『  不明なサブコマンド: <語> <語>』。説明・詳細・下位操作の文は旧築の command-definitions.ts の 12 入口の分（notify の詳細の分野の一覧は 18 分野のまま）で、mute の詳細と下位操作に AC15 の (4) の rules の行を足す。引数なしの案内の例の行は『  例: help notify, commands settings』 (2) commands: 旧築 handleCommands（:267）の一覧の形（『  利用可能なコマンド:』、分類 info・status・settings・operation の見出し、下位操作のある入口の『+ 』、別名の添え、末尾の 2 行）と検索の形。並べるのは 12 入口から ? と exit を除いた 10 個。[値] の添えは旧築 getCurrentSettingValues（:176）の notify（『<on の数>/18 ON』、mute の間は『, ミュート中』を足す）・sound（ON・OFF）・mute の 3 つ (3) status: 旧築 handleStatus（:480）の『  WebSocket 接続状態:』『  状態: 接続中』か『  状態: 切断』、id があれば『  SocketID: <id>』、failedAttempts が 1 以上なら『  再接続試行: #<n>』。副回線の行は出さない。値は HostCommandPort.status()（connected が接続中、ほかは切断） (4) config: fleq config show と同じ出力（AC03 の (7)。AC17 の (6) で非同期に読む）。読むだけで、移行（AC04）の組み立てと書き込みを起こさない（通常起動の移行は起動の前に済んでいる）。読めないときは AC03 の (2)・(4) の文の 1 行 (5) notify: 旧築 handleNotify（settings-handlers.ts:100）の一覧（『  通知設定:』、mute の間は『  (ミュート中: 残り <時間>)』、18 分野ごとに名前を 14 字に詰めた後にラベルと ON・OFF と別名、使い方の行 settings-handlers.ts:130）と切替の返事（『  <ラベル> (<名前>): ON』か OFF、『  <ラベル> (<名前>): 既に ON です』か OFF、『  全通知を有効にしました』『  全通知を無効にしました』）。ラベルは旧築 NOTIFY_CATEGORY_LABELS（notifier.ts:203）。注記『  ※ critical (特別警報級) はカテゴリ OFF でも通知』（settings-handlers.ts:128）は P3-CLI-D-O2-CRITICAL が B のときだけ出す (6) sound: 旧築 handleSound（:415）の『  通知音: ON』か OFF と使い方の行、『  通知音を ON にしました。』『  通知音を OFF にしました。』 (7) mute: 旧築 handleMute（:568）の『  ミュート中: 残り <時間>』か『  ミュートなし』と使い方の行、『  ミュートを解除しました。』、『  通知を <時間> ミュートしました。』の後に AC15 の (3) の注意文。時間の書き方は旧築 formatDuration（settings-handlers.ts:78） (8) retry: 旧築 handleRetry（operation-handlers.ts:223）の『  既に接続中です。』（connected）と『  再接続を試行中...』（started）。旧築に無い結果は、connecting が『  接続を試しています。』、draining が『  受信の待ちを片付けてから繋ぎ直します。』 (9) display: 旧築 handleDisplay（:238）と表示の controller の文。引数なしは閉じていれば『  情報ディスプレイは停止中です』、開いていれば『  情報ディスプレイ: 稼働中』『  ポート: <n>』『  接続クライアント: <n>』。on は opened が『  情報ディスプレイを起動しました (ポート <n>)』（controller.ts:77）、alreadyOpen が『  情報ディスプレイは既に稼働中です』（:45）、portInUse が『  情報ディスプレイのポート <n> は使われています』、failed が『  情報ディスプレイの起動に失敗しました』（:63 から「詳細はログ」の括弧を除く。新築の CLI はログを持たない）。off は closed が『  情報ディスプレイを停止しました』（:105）、notOpen が『  情報ディスプレイは起動していません』 (10) quit・exit は文を出さない（旧築 handleQuit も出さない）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2403 «62d8feda0404521e»",
+          "src/ui/repl-handlers/info-handlers.ts:352 «b0d5274c5f6c3b4c»",
+          "src/ui/repl-handlers/info-handlers.ts:267 «dd9aafcaafd37f86»",
+          "src/ui/repl-handlers/info-handlers.ts:176 «8952e13dc222a14c»",
+          "src/ui/repl-handlers/info-handlers.ts:480 «63c8d09aedba2d8f»",
+          "src/ui/repl-handlers/info-handlers.ts:522 «d1e389a36580c7af»",
+          "src/ui/repl-handlers/settings-handlers.ts:100 «690b12f320ce2096»",
+          "src/ui/repl-handlers/settings-handlers.ts:128 «6ddcc17f7cc286c5»",
+          "src/ui/repl-handlers/settings-handlers.ts:130 «9bbda26bcec0575c»",
+          "src/ui/repl-handlers/settings-handlers.ts:415 «f3cd254015465974»",
+          "src/ui/repl-handlers/settings-handlers.ts:568 «d2cba18133a73762»",
+          "src/ui/repl-handlers/settings-handlers.ts:78 «107d558cf2ae4d7d»",
+          "src/ui/repl-handlers/operation-handlers.ts:223 «51fca1234eba89df»",
+          "src/ui/repl-handlers/operation-handlers.ts:238 «58d01f89300080aa»",
+          "src/ui/repl-handlers/operation-handlers.ts:433 «624bd38e131465c7»",
+          "src/engine/display/controller.ts:45 «803fa8c5e360c6a7»",
+          "src/engine/display/controller.ts:63 «5c5f518a5140d9db»",
+          "src/engine/display/controller.ts:77 «d665de25e48412b5»",
+          "src/engine/display/controller.ts:105 «f52ca6b52fa788cb»",
+          "src/engine/notification/notifier.ts:203 «9ad4b4a9dad7bf21»",
+          "src/ui/repl-handlers/command-definitions.ts"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC15",
+        "requirement": "【発注 2】mute と 16.2.2 の条件（P3-CLI-D-O2-MUTE・P3-CLI-D-O2-MUTE-ENTRY、spec:3105〜:3110）: (1) mute <長さ> は終わりの monotonic（今＋長さ）を CLI の記憶に持ち、mute off で解く。終わりを過ぎたら解けた扱い。設定ファイルに書かず、再起動で解ける (2) 条件は設定の muteRules（欄が無ければ初期値 [{ category: \"eew\", level: \"critical\" }, { category: \"earthquake\", level: \"critical\" }, { category: \"lgObservation\", level: \"critical\" }]）。試行が条件に当たる＝門の表の分野が category と同じで、payload.level の順位（normal 1・warning 2・critical 3）が level の順位以上 (3) 注意文（mute <長さ> の返事の後に出す、spec:3108）: 条件があれば『  ミュートの間も、次に当たる通知は鳴ります: <条件をラベル（段の言い方）で「、」でつなぐ>。』、条件が初期値と同じならその後に『  （初期値: 緊急地震速報の警報、最大震度 5 弱以上の地震、長周期地震動階級 2 以上）』、続けて『  分野を off にした通知と、sound off の音は鳴りません。条件は mute rules で変えられます』。条件が空なら『  ミュートの間は、通知も音も出ません。条件は mute rules で変えられます』。段の言い方は critical が『最も重い音』、warning が『警報の音以上』、normal が『普通の音以上』（H 表の音の名前）。初期値の 1 行目は『  ミュートの間も、次に当たる通知は鳴ります: 緊急地震速報（最も重い音）、地震情報（最も重い音）、長周期地震動（最も重い音）。』 (4) 条件の入口（P3-CLI-D-O2-MUTE-ENTRY は作者裁定 A）: mute rules は今の条件を 1 行ずつ『  <名前> <段>  <ラベル>（<段の言い方>）』（空なら『  条件なし（ミュートの間は全部黙る）』）。mute rules <分野>:<段>[,<分野>:<段>…] は置き換え（分野は notify と同じ引き方、段は normal・warning・critical。同じ組の重複は最初の 1 つに寄せる）。mute rules default は初期値に戻す（muteRules の欄を消す）、mute rules none は空の配列にする。不正なら invalid で『  使い方: mute rules / mute rules <category>:<normal|warning|critical>[,...] / mute rules default / mute rules none』を出し、何も変えない。変えたら『  ミュートの条件を変えました: <新しい条件を (3) の書き方で>』を出し、今の実行にすぐ効かせ、AC17 の (5) で保存する (5) mute の間の画面の印とバッジは P4。snapshot に mute を載せない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3105 «5eca970f0d1a0a39»",
+          "docs/specs/reconstruction-p0-contracts.md:3106 «ab9c985c1792924b»",
+          "docs/specs/reconstruction-p0-contracts.md:3107 «c04e5687d38b0491»",
+          "docs/specs/reconstruction-p0-contracts.md:3108 «77f0349b5c5eb8f1»",
+          "docs/specs/reconstruction-p0-contracts.md:3109 «e6d26cd98b46bf3d»",
+          "docs/specs/reconstruction-p0-contracts.md:3110 «6cd7863eb91f484a»",
+          "src/engine/notification/notifier.ts:292 «4531eeeea5caec09»",
+          "src/engine/notification/notifier.ts:303 «50f0136479cf2343»",
+          "reconstruction/contracts/p3-unit-q-capacity.json:420 «ccb58ea1e217a9b4»"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC16",
+        "requirement": "【発注 2】host の command port（P3-CLI-D-O2-DISPLAY・P3-CLI-D-O2-RETRY・P3-CLI-D-O2-SETTINGS-VERSION・P3-CLI-D-O2-HOST-LINES、spec:381）: (1) P2HostConfig の displayPort を number | null にし、notificationGate?: NotificationGate を足す。{ wsUrl } の呼び手（replay・測定・試験）は変えずに今の値で動く (2) startP2Host の戻り値を HostCommandPort（p3-cli-repl.types.ts）にする。displayPort は起動で開いた port か null (3) 起動: displayPort が null なら startDisplayServer を呼ばない。number なら今と同じく起動で開き、EADDRINUSE は今と同じく startP2Host の reject（P3-CLI-AC05 の (5)） (4) openDisplay(port): stop の後は stopping。開いていれば alreadyOpen と今の port。閉じていれば startDisplayServer を起動と同じ options（host は config.displayBind ?? \"127.0.0.1\"、worker・browserAssets・onMarker・onSerialize・detail）と渡された port で起こし、root が最後に publish した snapshot（あれば）と最新の worker の値を渡してから opened と開いた port。EADDRINUSE は portInUse、ほかの失敗は failed（例外を外へ投げない）。開いている途中に stop が始まったら、開けた server を閉じてから stopping。開いている途中の 2 つ目の openDisplay は 1 つ目の結果を待つ (5) closeDisplay(): 開いていなければ notOpen、開いていれば server.close() を待って closed。閉じている間の root の display.publish と setWorker は最新の 1 枚と値を持つだけにし、tick の heartbeat は呼ばない。stop() は開いている server だけを閉じる (6) reconnect(): stop の後は stopping、socket が OPEN なら connected、試みが走っていれば connecting、overload の片付けを待っていれば draining。ほか（次の試みの timer を待っているか、authRejected の後で待ちが無い）は timer を止めて試みを始め started。繋がった後の取り直しは C16 の recordConnected（穴 c）のまま (7) status(): connection は socket が OPEN なら connected、試みが走っていれば connecting、ほかは disconnected。socketId は自分の socket の id（ownSocketId）。failedAttempts は最後に opened になった後の、opened でない試みの終わりの数（opened で 0）。display は開いていれば port と clientCount()、閉じていれば null (8) recordSettings(changes): INFO の診断 settingsApplied（component \"host\"、count に changes）を 1 件。DiagnosticReason の最後の行（p2-shared-runtime.types.ts:331）の「;」の前に | \"notificationSuppressed\" | \"settingsApplied\" を、診断の sink の一覧の最後の行（persistent-diagnostic-sink.ts:65）の末尾に \"notificationSuppressed\", \"settingsApplied\", を足す（どちらも行を足さない） (9) 行の決まりは P3-CLI-D-O2-HOST-LINES。host.ts の SIGINT・SIGTERM の once（:539・:540）と stop() の同じ Promise（:513）は変えない (10) 受信経路（onFrame）には何も足さない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:381 «d3c49bbd2a708894»",
+          "docs/specs/reconstruction-p0-contracts.md:487 «26bc9d04f32b86e9»",
+          "reconstruction/src/host/host.ts",
+          "reconstruction/src/http-sse/http-sse.ts:142 «44e49f75401f6bbc»",
+          "reconstruction/src/http-sse/http-sse.ts:245 «df60732cd85b63d3»",
+          "reconstruction/src/http-sse/http-sse.ts:258 «932fff4980f6c230»",
+          "reconstruction/src/runtime/composition-root.ts:1030 «f8bedbb32fd5887c»",
+          "reconstruction/src/runtime/composition-root.ts:1032 «33032b2edef7b21f»",
+          "reconstruction/src/runtime/composition-root.ts:1039 «838835ae670bbb95»",
+          "reconstruction/contracts/p3-recovery.json:163 «8048ce85c0954547»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
+          "reconstruction/contracts/p3-cli-repl.types.ts"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC17",
+        "requirement": "【発注 2】設定と保存（P3-CLI-D-O2-WRITE・P3-CLI-D-KEYS・P3-CLI-D-O2-MUTE、spec:487）: (1) 実装が p3-cli-repl.types.ts の FleqSettings の regionScope の行の後に muteRules?: readonly MuteRule[] の 1 行（「欄が無いときは初期値の 3 つ、空の配列はミュートの間は全部黙る」のコメント 1 行を添える）を足し、settings.ts の欄の表（FIELDS）にも足して 18 欄にする（起草では FleqSettings を変えない。変えると設定の欄の表が全 key を要るので、契約の commit だけで tsc が落ちる。発注 1 の testMode? と同じ形）。読み戻しの検査（checkSettings）: 配列で、各要素が category（18 分野の名前）と level（normal・warning・critical）の 2 欄だけの object、同じ組の重複なし、最大 54 件。外れたら AC03 の (2) の文 (2) config の key は 15 個のまま（muteRules は REPL の側。P3-CLI-D-O2-MUTE-ENTRY が B なら 16 個）。config keys と show の sound の説明から『（今は保存だけで、まだ効きません）』を外して旧築の説明だけにする。show は muteRules を『muteRules = eew:critical,earthquake:critical』の形で出し、説明は『ミュートの間も鳴らす条件（REPL の mute rules で変える）』 (3) 移行: 旧築に無い key で写すものは無い（AC04 の (4) は変えない） (4) 書き込みは P3-CLI-D-O2-WRITE の非同期の 1 つの手順。発注 1 の set・unset・init・通常起動の移行もそれを await し、文と code は AC03 の (4) のまま (5) REPL の保存（P3-CLI-D-O2-WRITE の列、P3-CLI-RES-02）: notify は REPL で変えた分野の欄だけ（all:on・all:off は 18 分野全部）、sound、muteRules（default は欄を消す）。mute の終わりと display は書かない。読み直した file が無ければ（REPL の間に消された）新しく作る。読めない・検査に通らないときは書かず『  設定ファイル <path> を読めないので、この変更は保存しません（今の実行には効いています）』、書けないときは『  設定ファイル <path> を書けません（<code>）。この変更は今の実行にだけ効いています』の 1 行で、メモリの値は戻さない（旧築も警告だけで戻さない）。保存の結果は成功のときは出さない (6) REPL の config は設定ファイルを非同期に読む (7) 保存と読みは host の WS の callback の中で行わず、同期の fs を使わない。1 回の保存の JSON.stringify は設定 1 つで、受信の回数に比例しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:487 «26bc9d04f32b86e9»",
+          "reconstruction/contracts/p3-order-plan.md:498 «1aac26053468e4aa»",
+          "src/engine/notification/notifier.ts:1187 «707de79a13635576»",
+          "reconstruction/src/cli/settings.ts",
+          "reconstruction/contracts/p3-cli-repl.types.ts"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC18",
+        "requirement": "【発注 2】終了（P3-CLI-D-O2-QUIT・P3-CLI-D-SIGNAL）: (1) quit・exit は readline を close する。close（Ctrl+C・Ctrl+D・標準入力の終わりを含む）の handler が、発注 1 の終了の要求（印と stop() の 1 本、AC05 の (7)）を出す。readline に SIGINT の listener を付けない (2) close の後の行は実行しない。SIGINT・SIGTERM・SIGHUP は発注 1 の listener のまま同じ stop() を待つ。2 回目以後の要求は待つだけで、新しく何もしない (3) runCli は戻る前に readline を閉じ、自分の listener を外す。終了の code は ShutdownSummary.code (4) startP2Host が戻る前に来た要求は発注 1 のまま（REPL を起こさずに stop を待つ）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-execution-lifecycle.json:445 «64f41c13a3d515bb»",
+          "src/ui/repl.ts:193 «d49c2e377965161b»",
+          "src/engine/monitor/shutdown.ts:189 «80561a42560103c0»",
+          "src/ui/repl.ts:119 «db194d2a43d8cb5f»"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC19",
+        "requirement": "【発注 2】通常起動の変更（AC05 の (4)(6) と AC11 を置き換える）: (1) fleq.mjs から、spawn の差し替えの 3 行（shortcut のコメントを含む）と import childProcess の行を消し、先頭のコメントの 2 行目の「通知と音を止めるのは…」の文を消す（replay の振り分けと dotenv は変えない。「静的 import にしない」のコメントは理由が無くなるので消してよい） (2) cli.ts は startP2Host に notificationGate（AC13 の門）と、display が off なら displayPort null・on なら解いた port を渡す。port 0 の shortcut のコメントを消す (3) 起動できたら、display が on なら『情報ディスプレイ: http://127.0.0.1:<port>/』（今のまま）、続けて『受信を始めました（区分: …、テスト電文: …）。help でコマンドの一覧、終了は quit か Ctrl+C』の 1 行（『通知と音はまだ出しません』を外す）。その後に recordSettings(0) を呼び、REPL を起こす (4) 通知の設定（notify・sound・muteRules）は起動の前に 1 回読んだ設定から作り、REPL が変える。設定ファイルを実行中に読み直して通知の設定を作り直さない",
+        "evidenceRefs": [
+          "reconstruction/cli/fleq.mjs",
+          "reconstruction/src/cli/cli.ts",
+          "docs/specs/reconstruction-p0-contracts.md:2408 «9c48ecb7e519afd2»"
+        ]
+      },
+      {
+        "id": "P3-CLI-AC20",
+        "requirement": "【発注 2】配送の手順（統合担当）: (1) 黙るのをやめる配送（本発注の配送）では、発注 1 の fleq を動かした端末の新築の <dir>/state を作り直す（統合担当が中身を見てから作者に消すことを頼む。設定 config.json と diag、旧築の保存〔cwd の data/runtime〕と旧築の設定は触らない）。理由: 発注 1 の間に adapter が delivered と記録した通知（adapter.ts:131、spawn の差し替えで /usr/bin/true が exit 0）は印の evidence が possible で、黙るのをやめた後も同じ版は出し直されない。新築の保存は P5 の前は初期化してよい（計画:498 の作者裁定） (2) anchor の付け直し: P3-CLI-D-O2-HOST-LINES の 5 件。実装が変える cli.ts・settings.ts・fleq.mjs・p2-shared-runtime.types.ts・persistent-diagnostic-sink.ts を行で引く参照は、発注 2 の条文には無い（path だけで引く） (3) P3-CLI-D-O2-WEATHER-NOW が B なら、weather の既定を on に替える仕事を C20 の起草に渡す（C20 の契約に書いてから、本契約の記録に移管を書く） (4) 配送の後の確かめ（作者の手元）: 新しい fleq で notify all:off・sound off を打って、旧築の切替の手順（spec:2408）と同じく新築の側の通知と音が止まること",
+        "evidenceRefs": [
+          "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
+          "reconstruction/contracts/p3-order-plan.md:498 «1aac26053468e4aa»",
+          "docs/specs/reconstruction-p0-contracts.md:2408 «9c48ecb7e519afd2»",
+          "reconstruction/src/units/notice-mark.ts:77 «2a6c914488ce9228»"
         ]
       }
     ],
@@ -627,6 +1055,60 @@
           "P3-CLI-AC04"
         ],
         "behavior": "reconstruction/test/cli/cli.test.ts で init を同じプロセスで呼ぶ（隔離は T01 と同じ）。node:readline を vi.mock して createInterface の question に答えを順に返し、dmdata-rest の exchange を vi.mock で items [{ classification: telegram.earthquake, isValid: true }, { classification: eew.forecast, isValid: false }] の 200 にする。(a) 答え k1234567890・fleq（聞き直し）・fleq-new-test・9（聞き直し）・空・空・Y で、file が apiKey k1234567890・appName fleq-new-test・classifications [telegram.earthquake]・testMode no (b) 今までの fleq の設定 file（apiKey k0legacy1234、appName fleq-mac、sound false）を置き、答え 空（[1/5] で移行してきた鍵を保つ）・fleq-mac（[2/5] で今までの fleq と同じ接続名として聞き直し）・fleq-new-test・空（区分は既定）・空（テスト電文は既定）・n の 6 つで、<tmp>/fleq-next が作られない (c) (b) と同じ file と同じ 6 つの答えで最後だけ Y にすると、file に apiKey k0legacy1234・sound false（移行の分）と appName fleq-new-test が 1 回の書き込みで入り、2 つ目の答え fleq-mac への聞き直しの文が標準出力に 1 回出る (d) 対話の途中（最後の答えの前）で別の書き込みを設定ファイルに挟むと、Y で code 1、file は挟んだ内容のまま、移行の行が出ない"
+      },
+      {
+        "testId": "P3-CLI-T08",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CLI-AC12"
+        ],
+        "behavior": "【発注 2】新しい file reconstruction/test/cli/repl.test.ts で parseReplLine を表で呼ぶ: 12 入口の各形（help・help notify・help mute rules・?・commands・commands settings・cmds・status・stat・config・notify・notify all:on・aoff・notify eq off・notify EEW・sound・snd on・mute・mute 30m・mute off・mute rules・mute rules earthquake:warning,eew:critical,earthquake:warning・mute rules default・mute rules none・retry・display・display on・quit・exit）が期待の ReplCommand になり、空白だけの行が empty。1 つの it"
+      },
+      {
+        "testId": "P3-CLI-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CLI-AC12",
+          "P3-CLI-AC15"
+        ],
+        "behavior": "【発注 2】同じ file で、runRepl に fake の入力と fake の HostCommandPort と通知の設定を渡し、invalid の行（hlep〔もしかして help〕・foo・notify bogus・notify eew maybe・sound loud・mute 0m・mute 5x・mute rules eew:loud・display foo）を順に流すと、各行に AC12 の (4)・AC15 の (4) の文が 1 行ずつ出て、port のどの関数も呼ばれず、通知の設定も設定ファイルも変わらない。1 つの it"
+      },
+      {
+        "testId": "P3-CLI-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CLI-AC13"
+        ],
+        "behavior": "【発注 2】同じ file で門を呼ぶ: (a) 分野の表: AC13 の (1) の各行（unit で決まる 8 つと、U-Q の VXSE53・VXSE62、U-M の tornado・VPAW51・VPFT50・VXSE56・VPZI50・VPCJ51、U-Y の 2 つ、U-B の VPBS50・VPOA50）に、各 domain の subject の書式どおりの subject の試行を 1 つずつ作り、その分野が off なら false・on なら true になる。表に無い 2 つ目の U-M（例 normal/VXXX99/1）は分野を全部 off にしても true (b) 順: sound off で sound の試行が false・desktop の試行が true。earthquake を off にした critical の試行が false（P3-CLI-D-O2-CRITICAL の作者裁定 A）。mute の間（初期値の条件）で、earthquake の critical が true、earthquake の warning が false、tsunami の critical が false、cancel が false。mute の間でも earthquake を off にした critical は false。mute の終わりを過ぎたら earthquake の warning が true (c) weather の欄の無い設定で U-L の試行が false（P3-CLI-D-O2-WEATHER-NOW の作者裁定 B）"
+      },
+      {
+        "testId": "P3-CLI-T11",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CLI-AC15",
+          "P3-CLI-AC17",
+          "P3-CLI-AC14"
+        ],
+        "behavior": "【発注 2】同じ file で runRepl（隔離は T01 と同じ。設定 file は <tmp>/fleq-next/config.json）: (a) mute 30m の返事が『  通知を 30分 ミュートしました。』と初期値の注意文の 3 行 (b) mute rules earthquake:warning の後、門が earthquake の warning を true にし、保存の終わりを待って読んだ設定 file の muteRules が [{ category: earthquake, level: warning }] (c) 設定 file に region を書いた後に notify eew off と sound off を続けて打ち（1 つ目の保存が終わる前に 2 つ目）、保存の終わりを待つと、file に notify { eew: false }（ほかの 17 分野の欄は無い）・sound false・region が全部ある (d) status が fake の port の status() の値で AC14 の (3) の文、display on が portInUse のとき AC14 の (9) の文、retry が connected のとき『  既に接続中です。』"
+      },
+      {
+        "testId": "P3-CLI-T12",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-CLI-AC18",
+          "P3-CLI-AC19",
+          "P3-CLI-AC05"
+        ],
+        "behavior": "【発注 2】reconstruction/test/cli/cli.test.ts の T04 の期待を改め（理由: AC19 の (2)(3)。displayPort が 0 から null、起動の 1 行の文）、cli.test.ts の node:readline の mock（今は createInterface が question と close だけを持つ fake を返す、cli.test.ts:13）を、on・prompt・setPrompt も持つ fake を返す形に広げ（T07 の question の答え方はそのまま）、足す: その mock のまま通常起動すると、startP2Host に displayPort null と関数の notificationGate が渡り、起動の 1 行に『help でコマンドの一覧』があり、recordSettings(0) が 1 回。(a) 行 quit を流すと stop が 1 回呼ばれ runCli の戻り値が要約の code (b) readline の close を起こした後に CLI が足した SIGINT の listener を呼んでも stop は 1 回のまま"
+      },
+      {
+        "testId": "P3-CLI-T13",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-CLI-AC16",
+          "P3-CLI-AC13"
+        ],
+        "behavior": "【発注 2】reconstruction/test/host/host.test.ts の末尾に足す（{ wsUrl } の起動、既存の試験の fake の WS server と spawn の扱いに倣う）: (a) displayPort null で起動すると status().display が null。openDisplay(0) が opened と port、その port の /snapshot が 200、2 回目が alreadyOpen、closeDisplay が closed で、その port に繋がらず、status().display が null (b) WS を閉じた後、5 秒の timer より前に reconnect() が started で、5 秒を待たずに 2 つ目の接続が来る。繋がっている間の reconnect() は connected で接続が増えない (c) notificationGate が常に false の起動で、通知を作る fixture の data（既存の試験が使う EEW の data）を流すと、adapter の子が作られず、診断に notificationSuppressed が 1 件以上。recordSettings(2) で settingsApplied の count 2 の行"
       }
     ],
     "requiredCommands": [
@@ -649,7 +1131,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約の検査。実装が変える dmdata-rest.ts:123 はどの契約（本契約を含む。AC06 は隣の :121 を引く）にも引かれず、p3-dmdata-connect.types.ts の :14 の後の 1 行の追加は、本契約が引く :9・:14 をずらさない（Q-CLI-ANCHORS）ので FAIL は出ない想定。出たら想定外として報告する"
+        "purpose": "全契約の検査。実装が変える dmdata-rest.ts:123 はどの契約（本契約を含む。AC06 は隣の :121 を引く）にも引かれず、p3-dmdata-connect.types.ts の :14 の後の 1 行の追加は、本契約が引く :9・:14 をずらさない（Q-CLI-ANCHORS）ので FAIL は出ない想定。出たら想定外として報告する。【発注 2】の実装の後は、host.ts の :92・:93・:179・:589 を引く 5 件（P3-CLI-D-O2-HOST-LINES）だけが FAIL になる想定で、配送で統合担当が付け直す。ほかの FAIL は想定外として報告する"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
@@ -677,7 +1159,7 @@
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "全 reconstruction 試験（T01〜T07 と既存）。環境変数・process の listener を触るので --sequence.shuffle を付けた回も 1 回通す"
+        "purpose": "全 reconstruction 試験（T01〜T07 と既存）。環境変数・process の listener を触るので --sequence.shuffle を付けた回も 1 回通す。【発注 2】では T08〜T13 も（host の試験を含むので全件）"
       },
       {
         "command": "git diff --check -- <allowed_paths>",
@@ -700,7 +1182,13 @@
       "足した仕組みごとに『無いと何が壊れるか』を 1 行: fleq.mjs（AC01）、spawn の差し替え（AC11）、settings.ts（AC03）、一時 file・fsync・rename（P3-CLI-D-WRITE）、移行（AC04）、testMode?（AC06）、起動前の終了の listener（AC05 の (7)）",
       "追加した試験ごとに対応（T01・T03・T04・T06・T07 受入条件、T02・T05 契約境界）を 1 行。AC11 の通知の止めは試験を足さない（host を起こす試験は dmdata へ繋ぐことになる。仕組みは C17 の T01 が通している replay.mjs と同じ）",
       "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
-      "残存リスク: (1) display が off でも host は 127.0.0.1 の OS が選ぶ port で表示の server を開く（P3-CLI-D-DISPLAY、発注 2 で置き換える） (2) 旧築より厳しい入力の検査（P3-CLI-D-INVALID）で、旧築では動いた起動の引数・設定の値が新築で拒否されうる (3) region は書いた文字のままで、存在を確かめない（区域の対応表の契約まで） (4) 発注 1 の起動は OS の通知と音を出さない。新築だけで動かすと、発注 2 の配送まで通知と音が無い（起動の 1 行で知らせる） (5) 認証の失敗の見分けは host の Error の message との照合で、host の文が変わると『起動に失敗しました』に落ちる (6) ほかの端末で動く今までの fleq と接続名が重なる（例: Pi の fleq-pi を Mac の新築に設定する）のは手元で確かめる手段が無い。重なると、その端末の今までの fleq の再起動で新築の接続が閉じられる（src/dmdata/rest-client.ts:629、spec:2117）。切れた間の電文は C16 の取り直しで戻る"
+      "残存リスク: (1) display が off でも host は 127.0.0.1 の OS が選ぶ port で表示の server を開く（P3-CLI-D-DISPLAY、発注 2 で置き換える） (2) 旧築より厳しい入力の検査（P3-CLI-D-INVALID）で、旧築では動いた起動の引数・設定の値が新築で拒否されうる (3) region は書いた文字のままで、存在を確かめない（区域の対応表の契約まで） (4) 発注 1 の起動は OS の通知と音を出さない。新築だけで動かすと、発注 2 の配送まで通知と音が無い（起動の 1 行で知らせる） (5) 認証の失敗の見分けは host の Error の message との照合で、host の文が変わると『起動に失敗しました』に落ちる (6) ほかの端末で動く今までの fleq と接続名が重なる（例: Pi の fleq-pi を Mac の新築に設定する）のは手元で確かめる手段が無い。重なると、その端末の今までの fleq の再起動で新築の接続が閉じられる（src/dmdata/rest-client.ts:629、spec:2117）。切れた間の電文は C16 の取り直しで戻る",
+      "【発注 2】足した仕組みごとに「無いと何が壊れるか」を 1 行: repl.ts（AC12、§11.3 の互換必須の 12 入口が無い）、notification-gate.ts（AC13、notify・sound・mute で通知と音が止まらない）、host の notificationAdapter の包み（AC13、門の判断が adapter に届かない）、HostCommandPort の openDisplay・closeDisplay・reconnect・status（AC16、display on/off・retry・status ができない）、非同期の保存と保存の列（AC17、REPL の保存が受信を待たせる・2 つの保存の順が崩れて古い値が残る）、settingsApplied・notificationSuppressed（AC16、spec:487 の説明ができない）、muteRules の欄（AC15、16.2.2 の条件を持てない）",
+      "【発注 2】追加・変更した試験ごとに対応を 1 行（T08・T11・T12 受入条件、T09・T10・T13 契約境界）。既存の期待を変えるのは T01 の「sound の説明に『まだ効きません』が入る」（AC17 の (2) で外す）と T04 の displayPort 0 と起動の 1 行（AC19）、cli.test.ts の node:readline の mock を REPL の on・prompt・setPrompt も持つ形に広げること（T12）だけ。ほかの既存試験の期待を変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+      "【発注 2】新しい file（repl.ts・notification-gate.ts）の export は末尾の export { … } にまとめる（P1-T04 が src の export function・export const を数える）。reconstruction の vitest は全件（reconstruction/test/parser-boundary を含む）を回し、--sequence.shuffle を付けた回も 1 回通す",
+      "【発注 2】git diff --stat と git diff で、host.ts の行の数が変わるのは :588 と :589 の間だけで、他の契約が引く host.ts の行のうち中身が変わるのは :92・:93・:179・:589 だけ、p2-shared-runtime.types.ts と persistent-diagnostic-sink.ts の行の数が変わらないことを示す（P3-CLI-D-O2-HOST-LINES）",
+      "【発注 2】作者の 3 分岐（P3-CLI-D-O2-MUTE-ENTRY・P3-CLI-D-O2-CRITICAL・P3-CLI-D-O2-WEATHER-NOW）は作者裁定 A・A・B（2026-10-31 夕、Q-CLI-O2-AUTHOR-2）で確定した。どれも起草の推奨どおりなので、ifNotChosen の直しは要らない",
+      "【発注 2】残存リスク: (1) 門が黙らせた通知は delivered と記録され、印の evidence は possible。同じ版は鳴らし直さず、黙らせた報の取消は取消の通知を作る（P3-CLI-D-O2-GATE） (2) mute の条件は音の段で書くので「震度 3 以上」は書けず、EEW の警報の最終報で危険が増していない報（normal）は初期値の条件に当たらない（P3-CLI-D-O2-MUTE） (3) REPL の保存は、読み直しから rename までの間に入った別の端末の書き込みを消しうる（P3-CLI-D-O2-WRITE） (4) subject の書式が変わると門が分野を取り違える（anchor と T10 で縛る） (5) 黙るのをやめる配送で <dir>/state を作り直さないと、発注 1 の間の通知の同じ版が出ない（AC20 の (1)） (6) mute は再起動で解ける（旧築と同じ） (7) 標準入力の終わりも終了の要求なので、標準入力の無い起動（fleq < /dev/null、標準入力を渡さない systemd の起動など）は起動の直後に終わる（旧築と同じ、src/ui/repl.ts:193）。作者が Pi の起動の形を変えるときに効く。後で解消する見込みの項（承認の対象にしない）: U-W・U-F の通知は C20 まで無い。作者承認の欠け（P3-CLI-D-O2-CRITICAL=A、Q-CLI-O2-AUTHOR-2）: 旧築で分野を off にしていた人の設定を移すと、その分野の critical の通知と音も出なくなる（旧築は分野が off でも critical を出していた、notifier.ts:1149）"
     ],
     "unresolvedQuestions": []
   }
