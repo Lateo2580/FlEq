@@ -19,9 +19,12 @@ export type EewLogField =
 // 何を出さなくなるかと見た目は P4 が決める。C18 は値と検査と移行だけを持つ。
 export type RegionScope = "all" | "regionOnly";
 
-// 【発注 2】16.2.2 の条件 1 つ（P3-CLI-D-O2-MUTE）。FleqSettings の muteRules?: readonly MuteRule[] は実装が足す（AC17 の (1)）: その分野の通知のうち、音の段が level 以上のもの（normal < warning < critical）。
+// 【発注 2】mute の条件 1 つ（P3-CLI-D-O2-MUTE、Q-CLI-O2-AUTHOR-3）。mute の引数でその回だけ付け、その mute と一緒に持ち越す: その分野の通知のうち、音の段が level 以上のもの（normal < warning < critical）。
 // 段は各 unit の intent の payload.level で、震度や階級を読み直さない。info と cancel の通知はどの条件にも当たらない。
 export type MuteRule = Readonly<{ category: LegacyNotifyCategory; level: "normal" | "warning" | "critical" }>;
+// 【発注 2】設定ファイルに持ち越す mute（P3-CLI-D-O2-MUTE-PERSIST=B）。until は終わりの wall の時刻（ms）で、null は mute off まで。
+// FleqSettings の mute?: PersistedMute は実装が足す（AC17 の (1)）。実行中の終わりは monotonic で決める（monotonic は再起動を越えない）。
+export type PersistedMute = Readonly<{ until: number | null; rules: readonly MuteRule[] }>;
 
 // 設定ファイル（JSON の object 1 つ）の型。欄が無いことは「未設定」で、既定は読む側が当てる（旧築と同じ）。
 export type FleqSettings = Readonly<{
@@ -59,15 +62,17 @@ export type ReplCommand =
   | Readonly<{ kind: "notify"; action: Readonly<{ kind: "show" }> | Readonly<{ kind: "all"; enabled: boolean }>
       | Readonly<{ kind: "category"; category: LegacyNotifyCategory; enabled: boolean | "toggle" }> }>
   | Readonly<{ kind: "sound"; enabled: boolean | null }>
-  | Readonly<{ kind: "mute"; action: Readonly<{ kind: "show" }> | Readonly<{ kind: "off" }> | Readonly<{ kind: "for"; durationMs: number }>
-      | Readonly<{ kind: "rules"; rules: readonly MuteRule[] | "default" | null }> }>
+  // mute の on: durationMs が null なら mute off まで、rules が空なら完全 mute（Q-CLI-O2-AUTHOR-3）。
+  | Readonly<{ kind: "mute"; action: Readonly<{ kind: "off" }> | Readonly<{ kind: "on"; durationMs: number | null; rules: readonly MuteRule[] }> }>
   | Readonly<{ kind: "retry" }>
   | Readonly<{ kind: "display"; action: "status" | "on" | "off" }>
   | Readonly<{ kind: "quit" }>;
 export type ReplParse = Readonly<{ kind: "empty" }> | Readonly<{ kind: "command"; command: ReplCommand }> | Readonly<{ kind: "invalid"; message: string }>;
 
-// 【発注 2】通知の門（P3-CLI-D-O2-GATE）。host は試行を adapter へ渡す直前に 1 回だけ聞き、false なら子を作らずに delivered で終える。
-export type NotificationGate = (attempt: NotificationAttempt) => boolean;
+// 【発注 2】通知の門（P3-CLI-D-O2-GATE）。host は試行を adapter へ渡す直前に 1 回だけ聞き、allow が false なら子を作らずに delivered で終える。
+// stage は止めた段、settingsVersion は判定した時の通知の設定の版（起動から REPL で通知の設定を変えた回数、起動は 0）。spec:487 の説明に使う（P3-CLI-D-O2-SETTINGS-VERSION）。
+export type NotificationGateVerdict = Readonly<{ allow: true }> | Readonly<{ allow: false; stage: "sound" | "category" | "mute"; settingsVersion: number }>;
+export type NotificationGate = (attempt: NotificationAttempt) => NotificationGateVerdict;
 
 export type HostStatus = Readonly<{
   connection: "connected" | "connecting" | "disconnected";
@@ -83,10 +88,9 @@ export type HostCommandPort = Readonly<{
   displayPort: number | null;
   stop(): Promise<ShutdownSummary>;
   // 切れている間だけ、待ちの timer を止めて今すぐ繋ぎ直す。繋がっている・試している・受信の待ちの片付け中・停止中は何もしない。
+  // openDisplay・closeDisplay は host の中で 1 本に並べ、閉じている途中の openDisplay はその close の終わりを待ってから開く。
   reconnect(): "started" | "connected" | "connecting" | "draining" | "stopping";
   openDisplay(port: number): Promise<Readonly<{ kind: "opened" | "alreadyOpen"; port: number }> | Readonly<{ kind: "portInUse" | "failed" | "stopping" }>>;
   closeDisplay(): Promise<"closed" | "notOpen">;
   status(): HostStatus;
-  // spec:487 の 2 文目の受け手（P3-CLI-D-O2-SETTINGS-VERSION）。起動からの設定の変更の回数を INFO の診断 settingsApplied の count にする。
-  recordSettings(changes: number): void;
 }>;
