@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "2e8f4ce4150559018cddcc50bd9f6596fee2b2afd48112ec583704c984bf32f0",
+    "sha256": "2e1bf938385daffc42f699480505851f34de4f67eee397b8bbfddfade4a04e86",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
@@ -157,7 +157,7 @@
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-01 起草）",
-        "ruling": "統合担当の決め（2026-11-01 起草。画面・音・通知の出方を作者の裁定と統合担当の決めの外へ変えない）。r2 の追記（Q-WN-PENDING-TARGETS）: pending を外す規則は P3-WN-AC06 の (2) の 1 本（引上げの pending は、知らせる cell〔targets〕のどれも後の合わせでその段以上で成り立たないときだけ外す）に置き換えた。A の置換（同じ subject・channel、取消は全 pending）と reason の「取消・容量の unavailable・VPNO50 の終了・training/test の退去の filter は今のまま」は P3-WN-AC06 の (2) に読み替える。reason の「最長 10 秒」は L4 の desktop の値で、critical の音は最長 1 秒（P3-NL-AC07 の (3)）",
+        "ruling": "統合担当の決め（2026-11-01 起草。画面・音・通知の出方を作者の裁定と統合担当の決めの外へ変えない）。r2 の追記（Q-WN-PENDING-TARGETS）: pending を外す規則は P3-WN-AC06 の (2) の 1 本（引上げの pending は、知らせる cell〔targets〕のどれも後の合わせでその段以上で成り立たないときだけ外す）に置き換えた。A の置換（同じ subject・channel、取消は全 pending）と reason の「取消・容量の unavailable・VPNO50 の終了・training/test の退去の filter は今のまま」は P3-WN-AC06 の (2) に読み替える。reason の「最長 10 秒」は L4 の desktop の値で、critical の音は最長 1 秒（P3-NL-AC07 の (3)）。r3 の追記: U-W の admit も置換をせず、同じ id の pending があれば新しい intent を足さない（P3-WN-AC06 の (2)・AC14 の (1)、契約適合 r3 の P2）",
         "reason": "B の場面: 06:51 の嶺北の大雨特別警報の音が保存の ack を待つ間（最長 10 秒、P3-NL-AC07）に、06:51:05 に同じ官署の続報（変化なし）を採用すると、鳴る前の音が消える。取消・容量の unavailable・VPNO50 の終了・training/test の退去の filter は今のまま（取り消した・消えた情報の未配送の通知は出さない）",
         "kind": "統合担当"
       },
@@ -307,7 +307,7 @@
         "timing": "createdAt=nextAttemptAt=採用した ClockReading.wallTimeMs。expiresAt は sound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。期限は再起動・再試行で延ばさない（sound の 1 回の鳴らし直しを除く、P3-NL-AC06 の (2)）",
         "replacement": "P3-WN-AC06 の (2)（r2、Q-WN-PENDING-TARGETS）: 引上げの pending は targets のどれも後の合わせでその段以上で成り立たないときだけ外す。取消の通知と取消は pending を置き換えない",
         "intentUpdate": "今の weather-current-unit.ts の intentUpdate（P3-NL-AC05）に、印の evidence を上げる（試行の開始と delivered で possible、P3-NL-AC02 の (3)）ことを足す",
-        "capacity": "採用前に新しい intent と置換を合わせた候補を作り、三区分・両 channel の pending を 128 件、かつ「pending ごとの JSON UTF-8 byte＋予約（delivery-growth.ts の deliveryGrowth）」の和を 131,072 byte 以内にする（spec:981、U-L の Q-NOTICE.capacity と同じ）。満杯なら同じ群の中で A7 の選択順（期限→生成時刻→ID）の後ろのものを外し、診断 notificationCapacityEvicted（count）を返す。新しい intent が容量で外れただけのときは元の配列を返す",
+        "capacity": "採用前に今の pending に新しい intent を足した候補を作り（置換はしない。同じ id の pending があれば足さない、P3-WN-AC06 の (2)）、三区分・両 channel の pending を 128 件、かつ「pending ごとの JSON UTF-8 byte＋予約（delivery-growth.ts の deliveryGrowth）」の和を 131,072 byte 以内にする（spec:981、U-L の Q-NOTICE.capacity と同じ）。満杯なら同じ群の中で A7 の選択順（期限→生成時刻→ID）の後ろのものを外し、診断 notificationCapacityEvicted（count）を返す。新しい intent が容量で外れただけのときは元の配列を返す",
         "recovery": "origin=recovery の候補の作成では intent を作らない（P3-REC-D-UNIT-ENTRANCE=A）。取り直しの採用の step の H27 は unit の行の recoveryNotices（P3-WN-D-UW-H27=A、P3-WN-AC12）",
         "restart": "復元で intent を新しく作らない。lastAttempt が started の pending は外して通知したか不明にし、その系列の印を unknown にして notificationOutcomeUnknown を出す（P3-NL-AC08、今の restore の restoreStarted に印を足す）。復元の直後の報の上がった区域は、復元した報の行（復元して未確認の行を含む）との差で決める",
         "payload": "typeRef reconstruction/contracts/p3-weather-notice.types.ts#WeatherCurrentNotificationPayload。domain=weather（分野別根音表の気象 C4）。P3-WN-AC04"
@@ -364,7 +364,7 @@
         "id": "Q-WN-DRAFT-REVIEW",
         "status": "closed",
         "source": "統合担当の起草のレビュー（2026-11-01。前例 P3-UW-CANON-001 の Q-UWC-DRAFT-REVIEW）",
-        "closed": "品質 ヘルツ（gpt-6-astra、thread 01a19499、read-only）: r0 NO-GO（P2 2: 一部の府県の終了が他の府県の pending を消す・取り直しの間の live の通知と重なる。P3 1: T05 の材料）→ r1 NO-GO（P2 2: r1 の直しから出た同じ根。pending が知らせる cell を持たず、周りの状態から外す・除くを推し量った）→ r2 NO-GO（P2 2: 取り直しの途中の降格で未配送が消える・T05 の旧い置換の期待）→ r3（本改訂）。契約適合 Opus（effort xhigh）: r0 NO-GO（P1 1: U-B の level の型と codec）→ r1 条件付き GO（P2 1: AC06(2) と D-REPLACE・allowedPaths の食い違い）→ r2 条件付き GO（P2 1: AC15(21) の字）。r1 の後に相談役に諮り、方針 B（targets を持たせ、外す規則を 1 本にする、Q-WN-PENDING-TARGETS）をヘルツと同じ thread で詰めた。作者裁定（2026-11-01、「Aで進めて」）: もう 1 巡、それでも同じ族の NO-GO なら残存として記録。注記: ヘルツは規則 3 と r3 の直しを同じ thread で一緒に考えたので、その GO は一部が自分の案の確かめになる。独立の側は Opus。D-P3-10 により C20 は後で Codex の節目にまとめて渡す",
+        "closed": "品質 ヘルツ（gpt-6-astra、thread 01a19499、read-only）: r0 NO-GO（P2 2: 一部の府県の終了が他の府県の pending を消す・取り直しの間の live の通知と重なる。P3 1: T05 の材料）→ r1 NO-GO（P2 2: r1 の直しから出た同じ根。pending が知らせる cell を持たず、周りの状態から外す・除くを推し量った）→ r2 NO-GO（P2 2: 取り直しの途中の降格で未配送が消える・T05 の旧い置換の期待）→ r3 NO-GO（P2 1: AC12 (3) に足した「生きている pending の target で覆えば除く」が、古い desktop の L4 の target で H27 の info を抑える。ヘルツの示した直し〔句を削り at.live の比較に戻す。途中で外さない・最終の candidate に 1 回だけは残す〕を当てた）。作者の選んだ「もう 1 巡」の範囲として 4 巡目は回さず、dot のモデル検査で確かめる。契約適合 Opus（effort xhigh）: r0 NO-GO（P1 1: U-B の level の型と codec）→ r1 条件付き GO（P2 1: AC06(2) と D-REPLACE・allowedPaths の食い違い）→ r2 条件付き GO（P2 1: AC15(21) の字）。r1 の後に相談役に諮り、方針 B（targets を持たせ、外す規則を 1 本にする、Q-WN-PENDING-TARGETS）をヘルツと同じ thread で詰めた。作者裁定（2026-11-01、「Aで進めて」）: もう 1 巡、それでも同じ族の NO-GO なら残存として記録。注記: ヘルツは規則 3 と r3 の直しを同じ thread で一緒に考えたので、その GO は一部が自分の案の確かめになる。独立の側は Opus。D-P3-10 により C20 は後で Codex の節目にまとめて渡す",
         "remaining": "r3 のレビュー",
         "reason": "起草の経過の記録"
       },
@@ -634,7 +634,7 @@
       },
       {
         "id": "P3-WN-AC06",
-        "requirement": "pending の上限と器（Q-NOTICE.capacity・replacement）。(1) pending は三区分・両 channel の合算で 128 件、かつ JSON UTF-8 byte＋予約の和が 131,072 byte 以内。満杯なら A7 の選択順の後ろから外し notificationCapacityEvicted (2) pending を外す規則は 1 本（Q-WN-PENDING-TARGETS）: 受信・取消・終了・退去のどの step の後でも、通知の module が、引上げの pending（payload に targets を持つ intent。H27 の info を含む）のうち、targets のどの cell（operation・府県・層・区域の Code・現象）も後の合わせ（advanceAreas の後の areaEntry）でその段以上で成り立っていないものだけを外す。系列の取消・置換・退去・終了は外す理由にしない。一部の targets だけが成り立たなくなった pending は文面も ID も変えずに残す。取消の通知（targets を持たない）はこの規則の外で、期限と配送でだけ外れる。origin=recovery の入力の step（取り直しの候補を作る途中）では外さず、取り直しの採用で P3-WN-AC12 の (2) として 1 回だけ当てる（品質 r2 の P2-1）。今の系列ごとの filter（weather-current.ts の :461 removeSubjects・:484 addUnavailable・:528 applyEnding・:653 取消・:714 採用と、weather-current-unit.ts の :416 removeSubject の intents の filter）は外す（行の中身だけを変え、行の数は保つ）。外した後に規則を当てるのでなく、規則がこれらに代わる。費用は、作り直した府県に cell を持つ pending の targets の和（pending の上限 131,072 byte の内）で、作り直さない府県の pending を読まない (3) 器（GENERATION_BYTES）は変えない。reservedGenerationBytes は intents を 131,072 byte（pending の上限、予約込み）として数え（実の値以上）、notices を実の byte で数える。受理の器の判定（P3-UWC-AC03 の縮退）はそれに受けた報の系列の印 1 件の上界の byte を足して行う。無いと: 器の際で受けた報に intent と印を足した世代を encode が断って投げる (4) admit の後に nextDeadline を取り直す（nextWeatherCurrentDeadline を admit の後の state で。U-L の受理と同じ）。無いと: domain の step は intent の無い state で期限を計算するので、音の 60 秒の期限が owner に届かず pending が期限で消えない",
+        "requirement": "pending の上限と器（Q-NOTICE.capacity・replacement）。(1) pending は三区分・両 channel の合算で 128 件、かつ JSON UTF-8 byte＋予約の和が 131,072 byte 以内。満杯なら A7 の選択順の後ろから外し notificationCapacityEvicted (2) pending を外す規則は 1 本（Q-WN-PENDING-TARGETS）: 受信・取消・終了・退去のどの step の後でも、通知の module が、引上げの pending（payload に targets を持つ intent。H27 の info を含む）のうち、targets のどの cell（operation・府県・層・区域の Code・現象）も後の合わせ（advanceAreas の後の areaEntry）でその段以上で成り立っていないものだけを外す。系列の取消・置換・退去・終了は外す理由にしない。admit も置換をせず、同じ id（noticeId）の pending があれば新しい intent を足さない（無いと: training の P の退去で印が消え、N に支えられて pending が残った後に同じ P を受け直すと、同じ id の intent が 2 つになり、encode の id の一意の確かめ〔weather-current-unit.ts:299・:364〕で throw し続ける。契約適合 r3 の P2）。一部の targets だけが成り立たなくなった pending は文面も ID も変えずに残す。取消の通知（targets を持たない）はこの規則の外で、期限と配送でだけ外れる。origin=recovery の入力の step（取り直しの候補を作る途中）では外さず、取り直しの採用で P3-WN-AC12 の (2) として 1 回だけ当てる（品質 r2 の P2-1）。今の系列ごとの filter（weather-current.ts の :461 removeSubjects・:484 addUnavailable・:528 applyEnding・:653 取消・:714 採用と、weather-current-unit.ts の :416 removeSubject の intents の filter）は外す（行の中身だけを変え、行の数は保つ）。外した後に規則を当てるのでなく、規則がこれらに代わる。費用は、作り直した府県に cell を持つ pending の targets の和（pending の上限 131,072 byte の内）で、作り直さない府県の pending を読まない (3) 器（GENERATION_BYTES）は変えない。reservedGenerationBytes は intents を 131,072 byte（pending の上限、予約込み）として数え（実の値以上）、notices を実の byte で数える。受理の器の判定（P3-UWC-AC03 の縮退）はそれに受けた報の系列の印 1 件の上界の byte を足して行う。無いと: 器の際で受けた報に intent と印を足した世代を encode が断って投げる (4) admit の後に nextDeadline を取り直す（nextWeatherCurrentDeadline を admit の後の state で。U-L の受理と同じ）。無いと: domain の step は intent の無い state で期限を計算するので、音の 60 秒の期限が owner に届かず pending が期限で消えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:128 «df5df2a7404852a7»",
@@ -704,7 +704,7 @@
       },
       {
         "id": "P3-WN-AC12",
-        "requirement": "U-W の取り直しの H27（P3-WN-D-UW-H27=A、作者裁定 2026-11-01）。順序（品質 r2 の P2-1）: (1) 最終の candidate を作る（基点が変わっていれば、取り直しの本文を最新の live に当て直す。owner-host.ts:225 の分岐。候補を作る途中の step では P3-WN-AC06 の (2) の外す規則を当てない） (2) live 由来の pending（candidate の intents。部分集合の検査〔owner-runtime.ts:688〕を通ったもの）に、P3-WN-AC06 の (2) の外す規則を最終の candidate の合わせに対して 1 回だけ当てる (3) そのあと H27 の除外: candidate の cell を同じ段以上で覆う、(2) の後に生きている pending の target があれば除き、無ければ下の at.live の規則。(2) と (3) は U-W の unit の行の recoveryNotices の中で行う（owner-runtime.ts の noticed が :725 で呼ぶ。owner-runtime.ts と owner-host.ts は変えない）。以下は (3) の H27 の作り方。U-W の unit の行に recoveryNotices を足す（owner-runtime.ts は units[unit].recoveryNotices を読むので変えない）。取り直しを始めた時の state（open）と採用する state（candidate）の合わせを全部の府県で比べ（取り直し 1 回に 1 回、O(前後の勝った行の和)）、AC02 の規則で上がった区域×現象のうち、採用の時点で active なものの最も重い段を 1 件選ぶ（同じ段は府県の Code の昇順）。その行の報の系列の印に同じ版の報があれば除いてから選ぶ。payload は level info、title「<Kind の名前>（HH:MM 発表）」、body「<Kind の名前> <区域の数>地域」、reportDateTime と recovered: true（U-L と同じ形。区域の名前は保存していないので数で書く）。channel は L4 も L5 も desktop＋sound（P3-WN-D-H27-L4=A、training・test は desktop）。取り直しの間の live の通知と重ねない: candidate の cell の段が、採用の直前の live（at.live）の合わせの同じ cell の段以下なら除く。P3-WN-AC06 の (2) により live の pending は系列の取消では消えないので、at.live でその段なら、配った・配る途中・容量で落とした（H39）のどれか（Q-WN-PENDING-TARGETS の 5）。H27 の intent も targets（選んだ cell）を持ち、P3-WN-AC06 の (2) の規則で外れる",
+        "requirement": "U-W の取り直しの H27（P3-WN-D-UW-H27=A、作者裁定 2026-11-01）。順序（品質 r2 の P2-1）: (1) 最終の candidate を作る（基点が変わっていれば、取り直しの本文を最新の live に当て直す。owner-host.ts:225 の分岐。候補を作る途中の step では P3-WN-AC06 の (2) の外す規則を当てない） (2) live 由来の pending（candidate の intents。部分集合の検査〔owner-runtime.ts:688〕を通ったもの）に、P3-WN-AC06 の (2) の外す規則を最終の candidate の合わせに対して 1 回だけ当てる (3) そのあと H27 の除外は下の at.live の規則だけ（生きている pending の target では除かない。古い desktop の L4 の target が H27 を抑えるため、品質 r3 の P2）。(2) と (3) は U-W の unit の行の recoveryNotices の中で行う（owner-runtime.ts の noticed が :725 で呼ぶ。owner-runtime.ts と owner-host.ts は変えない）。以下は (3) の H27 の作り方。U-W の unit の行に recoveryNotices を足す（owner-runtime.ts は units[unit].recoveryNotices を読むので変えない）。取り直しを始めた時の state（open）と採用する state（candidate）の合わせを全部の府県で比べ（取り直し 1 回に 1 回、O(前後の勝った行の和)）、AC02 の規則で上がった区域×現象のうち、採用の時点で active なものの最も重い段を 1 件選ぶ（同じ段は府県の Code の昇順）。その行の報の系列の印に同じ版の報があれば除いてから選ぶ。payload は level info、title「<Kind の名前>（HH:MM 発表）」、body「<Kind の名前> <区域の数>地域」、reportDateTime と recovered: true（U-L と同じ形。区域の名前は保存していないので数で書く）。channel は L4 も L5 も desktop＋sound（P3-WN-D-H27-L4=A、training・test は desktop）。取り直しの間の live の通知と重ねない: candidate の cell の段が、採用の直前の live（at.live）の合わせの同じ cell の段以下なら除く。P3-WN-AC06 の (2) により live の pending は系列の取消では消えないので、at.live でその段なら、配った・配る途中・容量で落とした（H39）のどれか（Q-WN-PENDING-TARGETS の 5）。H27 の intent も targets（選んだ cell）を持ち、P3-WN-AC06 の (2) の規則で外れる",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-runtime.ts:725 «a087f7117133613b»",
           "reconstruction/src/units/landslide/landslide-unit.ts:667 «7edc4188cf34004e»",
@@ -724,7 +724,7 @@
       },
       {
         "id": "P3-WN-AC14",
-        "requirement": "最小実装・最小テスト（AGENTS.md）: (1) 足す仕組みは、weather-current-notice.ts（段の表・上がった区域・文面・印・admit。無いと: U-W が通知を作れない）、state の notices の欄（無いと: H19 の取消と再起動の後の照合が効かない）、U-W の recoveryNotices と門の K の規則だけ。U-L・U-B・門は既存の関数の中身を変えるだけで、型・層・helper・設定を足さない（例外: U-B の payload の level の型に normal の 1 語）。admit・a7Order は landslide-unit.ts の形を写すか notice-mark.ts の既存の関数を使い、1 実装の interface を作らない (2) 試験は testMapping の P3-WN-T01〜T13 に限る。新しい fixture file を足さない (3) reconstruction のゲート一式（tsc 3 本・vitest・shuffle・checker 3 本）を通す",
+        "requirement": "最小実装・最小テスト（AGENTS.md）: (1) 足す仕組みは、weather-current-notice.ts（段の表・上がった区域・文面・印・admit。無いと: U-W が通知を作れない）、state の notices の欄（無いと: H19 の取消と再起動の後の照合が効かない）、U-W の recoveryNotices と門の K の規則だけ。U-L・U-B・門は既存の関数の中身を変えるだけで、型・層・helper・設定を足さない（例外: U-B の payload の level の型に normal の 1 語）。admit・a7Order は landslide-unit.ts の形を写すか notice-mark.ts の既存の関数を使い（ただし U-W の admit は置換をしない: landslide-unit.ts:219〜:221 の replaced・cancelled による superseded は写さない。同じ id の pending があれば新しい intent を足さない）、1 実装の interface を作らない (2) 試験は testMapping の P3-WN-T01〜T13 に限る。新しい fixture file を足さない (3) reconstruction のゲート一式（tsc 3 本・vitest・shuffle・checker 3 本）を通す",
         "evidenceRefs": [
           "AGENTS.md:24 «c1288cfa5b0d16dc»",
           "AGENTS.md:26 «2c223bbb66635b53»"
@@ -829,7 +829,7 @@
         "referenceIds": [
           "P3-WN-AC06"
         ],
-        "behavior": "境界の state は直に組む（試験の helper で pending 128 件の intent を置いた U-W の state。報を流すと同じ区域は段が上がらないので 128 件にならない）。128 件ちょうど・131,072 byte ちょうどは受け、それぞれ 1 件・1 byte 越える。越えた機会は A7 の選択順の後ろから外れて notificationCapacityEvicted（件数と byte を別の it で）。容量の境界だけを確かめる（pending の保持と外しは T02・T11 の targets の期待で確かめる、品質 r2 の P2-2）"
+        "behavior": "境界の state は直に組む（試験の helper で pending 128 件の intent を置いた U-W の state。報を流すと同じ区域は段が上がらないので 128 件にならない）。128 件ちょうど・131,072 byte ちょうどは受け、それぞれ 1 件・1 byte 越える。越えた機会は A7 の選択順の後ろから外れて notificationCapacityEvicted（件数と byte を別の it で）。容量の境界だけを確かめる（pending の保持と外しは T02・T11 の targets の期待で確かめる、品質 r2 の P2-2）。同じ id の pending がある state に同じ報を受け直しても intent を足さない（training の P が退去で印を失い、全国報 N の支えで P の pending が残った後に P を受け直す列。置換を写した admit では同じ id が 2 つになり encode が throw する、契約適合 r3 の P2）"
       },
       {
         "testId": "P3-WN-T06",
@@ -878,7 +878,7 @@
         "referenceIds": [
           "P3-WN-AC12"
         ],
-        "behavior": "open が空の U-W、candidate が fukui_L5 を採った state で recoveryNotices が info の desktop＋sound の 1 組（title「大雨特別警報（06:51 発表）」、recovered: true）。fukui_downgrade だけ（L4）でも info の desktop＋sound の 1 組。open が fukui_L5 を持てば 0。同じ版の報の印があれば 0。取り直しの間に live で fukui_L5 を受けて通知した後、福井の区域に同じ 33 を載せた新しい全国報を取り直しで採っても 0（at.live が同じ段を持つ）。品質 r1 の列: live で P が A を L5（pending、未配送）→ 取り直しで P より新しい全国報 N（A=L5）と P の取消を当てる → candidate に P の pending[A] が残り（N が A を L5 で支える）、H27 は at.live の段で除かれ、A は P の pending で 1 回だけ知らせる（r1 の規則〔:484 の filter が P の pending を外し、at.live で H27 を除く〕では一度も知らせずに落ちる）。品質 r2 の列: live の P1 で A が L5（pending、未配送）→ 取り直しで N が A を L3 へ下げ、そのあと P2 が A を L5 に戻す → 結果は P1 の critical が配られ、info は無い（P1 の pending は候補を作る途中では外れず、最終の candidate の A=L5 で (2) を通り、(3) で H27 を覆う。r2 の規則〔受信の step ごとに外す〕では N の step で P1 の pending が外れ、at.live で H27 も除かれて一度も知らせない）"
+        "behavior": "open が空の U-W、candidate が fukui_L5 を採った state で recoveryNotices が info の desktop＋sound の 1 組（title「大雨特別警報（06:51 発表）」、recovered: true）。fukui_downgrade だけ（L4）でも info の desktop＋sound の 1 組。open が fukui_L5 を持てば 0。同じ版の報の印があれば 0。取り直しの間に live で fukui_L5 を受けて通知した後、福井の区域に同じ 33 を載せた新しい全国報を取り直しで採っても 0（at.live が同じ段を持つ）。品質 r1 の列: live で P が A を L5（pending、未配送）→ 取り直しで P より新しい全国報 N（A=L5）と P の取消を当てる → candidate に P の pending[A] が残り（N が A を L5 で支える）、H27 は at.live の段で除かれ、A は P の pending で 1 回だけ知らせる（r1 の規則〔:484 の filter が P の pending を外し、at.live で H27 を除く〕では一度も知らせずに落ちる）。品質 r2 の列: live の P1 で A が L5（pending、未配送）→ 取り直しで N が A を L3 へ下げ、そのあと P2 が A を L5 に戻す → 結果は P1 の critical が配られ、info は無い（P1 の pending は候補を作る途中では外れず、最終の candidate の A=L5 で (2) を通り、H27 は at.live の A=L5 で除かれる。r2 の規則〔受信の step ごとに外す〕では N の step で P1 の pending が外れ、at.live で H27 も除かれて一度も知らせない）。品質 r3 の列: N1 で A・B が L4（desktop の pending、targets は A・B）→ N2 で A を解除、B は継続（pending は B で残る）→ 取り直しで府県の報 P が A を L4 → at.live の A は段なしなので H27 の info を 1 組作る（r3 の規則〔生きている pending の target が同じ段以上で覆えば除く〕では、古い pending の A の L4 の target で除かれて info が 0 になり落ちる）"
       },
       {
         "testId": "P3-WN-T12",
